@@ -109,7 +109,8 @@ typedef struct VGAState {
     uint32_t line_compare;
     uint32_t start_addr;
     uint8_t last_cw, last_ch;
-    uint32_t last_width, last_height;
+    uint32_t last_width, last_height; /* in chars or pixels */
+    uint32_t last_scr_width, last_scr_height; /* in pixels */
     uint8_t cursor_start, cursor_end;
     uint32_t cursor_offset;
     unsigned int (*rgb_to_pixel)(unsigned int r, unsigned int g, unsigned b);
@@ -1155,7 +1156,9 @@ static void vga_draw_text(VGAState *s, int full_update)
     }
     if (width != s->last_width || height != s->last_height ||
         cw != s->last_cw || cheight != s->last_ch) {
-        dpy_resize(s->ds, width * cw, height * cheight);
+        s->last_scr_width = width * cw;
+        s->last_scr_height = height * cheight;
+        dpy_resize(s->ds, s->last_scr_width, s->last_scr_height);
         s->last_width = width;
         s->last_height = height;
         s->last_ch = cheight;
@@ -1412,6 +1415,8 @@ static void vga_draw_graphic(VGAState *s, int full_update)
     if (disp_width != s->last_width ||
         height != s->last_height) {
         dpy_resize(s->ds, disp_width, height);
+        s->last_scr_width = disp_width;
+        s->last_scr_height = height;
         s->last_width = disp_width;
         s->last_height = height;
         full_update = 1;
@@ -1494,6 +1499,33 @@ static void vga_draw_graphic(VGAState *s, int full_update)
     }
 }
 
+static void vga_draw_blank(VGAState *s, int full_update)
+{
+    int i, w, val;
+    uint8_t *d;
+
+    if (!full_update)
+        return;
+    if (s->last_scr_width <= 0 || s->last_scr_height <= 0)
+        return;
+    if (s->ds->depth == 8) 
+        val = s->rgb_to_pixel(0, 0, 0);
+    else
+        val = 0;
+    w = s->last_scr_width * ((s->ds->depth + 7) >> 3);
+    d = s->ds->data;
+    for(i = 0; i < s->last_scr_height; i++) {
+        memset(d, val, w);
+        d += s->ds->linesize;
+    }
+    dpy_update(s->ds, 0, 0, 
+               s->last_scr_width, s->last_scr_height);
+}
+
+#define GMODE_TEXT     0
+#define GMODE_GRAPH    1
+#define GMODE_BLANK 2 
+
 void vga_update_display(void)
 {
     VGAState *s = &vga_state;
@@ -1519,15 +1551,27 @@ void vga_update_display(void)
         }
         
         full_update = 0;
-        graphic_mode = s->gr[6] & 1;
+        if (!(s->ar_index & 0x20)) {
+            graphic_mode = GMODE_BLANK;
+        } else {
+            graphic_mode = s->gr[6] & 1;
+        }
         if (graphic_mode != s->graphic_mode) {
             s->graphic_mode = graphic_mode;
             full_update = 1;
         }
-        if (graphic_mode)
-            vga_draw_graphic(s, full_update);
-        else
+        switch(graphic_mode) {
+        case GMODE_TEXT:
             vga_draw_text(s, full_update);
+            break;
+        case GMODE_GRAPH:
+            vga_draw_graphic(s, full_update);
+            break;
+        case GMODE_BLANK:
+        default:
+            vga_draw_blank(s, full_update);
+            break;
+        }
     }
 }
 
