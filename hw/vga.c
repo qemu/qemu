@@ -116,11 +116,13 @@ typedef struct VGAState {
     uint8_t dac_write_index;
     uint8_t dac_cache[3]; /* used when writing */
     uint8_t palette[768];
+    uint32_t bank_offset;
 #ifdef CONFIG_BOCHS_VBE
     uint16_t vbe_index;
     uint16_t vbe_regs[VBE_DISPI_INDEX_NB];
     uint32_t vbe_start_addr;
     uint32_t vbe_line_offset;
+    uint32_t vbe_bank_mask;
 #endif
     /* display refresh support */
     DisplayState *ds;
@@ -537,28 +539,34 @@ static void vbe_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
 #endif
         switch(s->vbe_index) {
         case VBE_DISPI_INDEX_ID:
-            if (val != VBE_DISPI_ID0 &&
-                val != VBE_DISPI_ID1 &&
-                val != VBE_DISPI_ID2)
-                return;
+            if (val == VBE_DISPI_ID0 ||
+                val == VBE_DISPI_ID1 ||
+                val == VBE_DISPI_ID2) {
+                s->vbe_regs[s->vbe_index] = val;
+            }
             break;
         case VBE_DISPI_INDEX_XRES:
-            if ((val > VBE_DISPI_MAX_XRES) || ((val & 7) != 0))
-                return;
+            if ((val <= VBE_DISPI_MAX_XRES) && ((val & 7) == 0)) {
+                s->vbe_regs[s->vbe_index] = val;
+            }
             break;
         case VBE_DISPI_INDEX_YRES:
-            if (val > VBE_DISPI_MAX_YRES)
-                return;
+            if (val <= VBE_DISPI_MAX_YRES) {
+                s->vbe_regs[s->vbe_index] = val;
+            }
             break;
         case VBE_DISPI_INDEX_BPP:
             if (val == 0)
                 val = 8;
-            if (val != 4 && val != 8 && val != 15 && 
-                val != 16 && val != 24 && val != 32)
-                return;
+            if (val == 4 || val == 8 || val == 15 || 
+                val == 16 || val == 24 || val == 32) {
+                s->vbe_regs[s->vbe_index] = val;
+            }
             break;
         case VBE_DISPI_INDEX_BANK:
-            val &= 0xff;
+            val &= s->vbe_bank_mask;
+            s->vbe_regs[s->vbe_index] = val;
+            s->bank_offset = (val << 16) - 0xa0000;
             break;
         case VBE_DISPI_INDEX_ENABLE:
             if (val & VBE_DISPI_ENABLED) {
@@ -584,9 +592,9 @@ static void vbe_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
                            s->vbe_regs[VBE_DISPI_INDEX_YRES] * s->vbe_line_offset);
                 }
                 
-                /* we initialize graphic mode force graphic mode
-                   (should be done in BIOS) */
-                s->gr[6] |= 1;
+                /* we initialize the VGA graphic mode (should be done
+                   in BIOS) */
+                s->gr[0x06] = (s->gr[0x06] & ~0x0c) | 0x05; /* graphic mode + memory map 1 */
                 s->cr[0x17] |= 3; /* no CGA modes */
                 s->cr[0x13] = s->vbe_line_offset >> 3;
                 /* width */
@@ -609,12 +617,49 @@ static void vbe_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
                 }
                 s->gr[0x05] = (s->gr[0x05] & ~0x60) | (shift_control << 5);
                 s->cr[0x09] &= ~0x9f; /* no double scan */
+                s->vbe_regs[s->vbe_index] = val;
+            } else {
+                /* XXX: the bios should do that */
+                s->bank_offset = -0xa0000;
+            }
+            break;
+        case VBE_DISPI_INDEX_VIRT_WIDTH:
+            {
+                int w, h, line_offset;
+
+                if (val < s->vbe_regs[VBE_DISPI_INDEX_XRES])
+                    return;
+                w = val;
+                if (s->vbe_regs[VBE_DISPI_INDEX_BPP] == 4)
+                    line_offset = w >> 1;
+                else
+                    line_offset = w * ((s->vbe_regs[VBE_DISPI_INDEX_BPP] + 7) >> 3);
+                h = s->vram_size / line_offset;
+                /* XXX: support weird bochs semantics ? */
+                if (h < s->vbe_regs[VBE_DISPI_INDEX_YRES])
+                    return;
+                s->vbe_regs[VBE_DISPI_INDEX_VIRT_WIDTH] = w;
+                s->vbe_regs[VBE_DISPI_INDEX_VIRT_HEIGHT] = h;
+                s->vbe_line_offset = line_offset;
+            }
+            break;
+        case VBE_DISPI_INDEX_X_OFFSET:
+        case VBE_DISPI_INDEX_Y_OFFSET:
+            {
+                int x;
+                s->vbe_regs[s->vbe_index] = val;
+                s->vbe_start_addr = s->vbe_line_offset * s->vbe_regs[VBE_DISPI_INDEX_Y_OFFSET];
+                x = s->vbe_regs[VBE_DISPI_INDEX_X_OFFSET];
+                if (s->vbe_regs[VBE_DISPI_INDEX_BPP] == 4)
+                    s->vbe_start_addr += x >> 1;
+                else
+                    s->vbe_start_addr += x * ((s->vbe_regs[VBE_DISPI_INDEX_BPP] + 7) >> 3);
+                s->vbe_start_addr >>= 2;
             }
             break;
         default:
             break;
         }
-        s->vbe_regs[s->vbe_index] = val;
     }
 }
 #endif
@@ -633,9 +678,9 @@ static uint32_t vga_mem_readb(uint32_t addr)
         addr -= 0xa0000;
         break;
     case 1:
-        addr -= 0xa0000;
-        if (addr >= 0x10000)
+        if (addr >= 0xb0000)
             return 0xff;
+        addr += s->bank_offset;
         break;
     case 2:
         addr -= 0xb0000;
@@ -711,9 +756,9 @@ void vga_mem_writeb(uint32_t addr, uint32_t val, uint32_t vaddr)
         addr -= 0xa0000;
         break;
     case 1:
-        addr -= 0xa0000;
-        if (addr >= 0x10000)
+        if (addr >= 0xb0000)
             return;
+        addr += s->bank_offset;
         break;
     case 2:
         addr -= 0xb0000;
@@ -1611,9 +1656,11 @@ int vga_initialize(DisplayState *ds, uint8_t *vga_ram_base,
     register_ioport_read(0x3d4, 2, vga_ioport_read, 1);
     register_ioport_read(0x3ba, 1, vga_ioport_read, 1);
     register_ioport_read(0x3da, 1, vga_ioport_read, 1);
+    s->bank_offset = -0xa0000;
 
 #ifdef CONFIG_BOCHS_VBE
     s->vbe_regs[VBE_DISPI_INDEX_ID] = VBE_DISPI_ID0;
+    s->vbe_bank_mask = ((s->vram_size >> 16) - 1);
     register_ioport_read(0x1ce, 1, vbe_ioport_read, 2);
     register_ioport_read(0x1cf, 1, vbe_ioport_read, 2);
 
