@@ -276,9 +276,15 @@ static inline uint32_t MASK (uint32_t start, uint32_t end)
     return ret;
 }
 
+#if defined(__linux__)
+#define OPCODES_SECTION \
+    __attribute__ ((section(".opcodes"), unused, aligned (8) ))
+#else
+#define OPCODES_SECTION
+#endif
+
 #define GEN_OPCODE(name, op1, op2, op3, invl, _typ)                           \
-__attribute__ ((section(".opcodes"), unused, aligned (8) ))                   \
-static opcode_t opc_##name = {                                                \
+OPCODES_SECTION static opcode_t opc_##name = {                                \
     .opc1 = op1,                                                              \
     .opc2 = op2,                                                              \
     .opc3 = op3,                                                              \
@@ -290,8 +296,7 @@ static opcode_t opc_##name = {                                                \
 }
 
 #define GEN_OPCODE_MARK(name)                                                 \
-__attribute__ ((section(".opcodes"), unused, aligned (8) ))                   \
-static opcode_t opc_##name = {                                                \
+OPCODES_SECTION static opcode_t opc_##name = {                                \
     .opc1 = 0xFF,                                                             \
     .opc2 = 0xFF,                                                             \
     .opc3 = 0xFF,                                                             \
