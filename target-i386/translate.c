@@ -2958,6 +2958,8 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
                 gen_op_fmov_ST0_STN((opreg + 1) & 7);
                 break;
             case 0x09: /* fxchg sti */
+            case 0x29: /* fxchg4 sti, undocumented op */
+            case 0x39: /* fxchg7 sti, undocumented op */
                 gen_op_fxchg_ST0_STN(opreg);
                 break;
             case 0x0a: /* grp d9/2 */
@@ -3104,10 +3106,13 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
                 }
                 break;
             case 0x02: /* fcom */
+            case 0x22: /* fcom2, undocumented op */
                 gen_op_fmov_FT0_STN(opreg);
                 gen_op_fcom_ST0_FT0();
                 break;
             case 0x03: /* fcomp */
+            case 0x23: /* fcomp3, undocumented op */
+            case 0x32: /* fcomp5, undocumented op */
                 gen_op_fmov_FT0_STN(opreg);
                 gen_op_fcom_ST0_FT0();
                 gen_op_fpop();
@@ -3163,6 +3168,9 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
                 gen_op_fmov_STN_ST0(opreg);
                 break;
             case 0x2b: /* fstp sti */
+            case 0x0b: /* fstp1 sti, undocumented op */
+            case 0x3a: /* fstp8 sti, undocumented op */
+            case 0x3b: /* fstp9 sti, undocumented op */
                 gen_op_fmov_STN_ST0(opreg);
                 gen_op_fpop();
                 break;
@@ -3186,6 +3194,10 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
                 default:
                     goto illegal_op;
                 }
+                break;
+            case 0x38: /* ffreep sti, undocumented op */
+                gen_op_ffree_STN(opreg);
+                gen_op_fpop();
                 break;
             case 0x3c: /* df/4 */
                 switch(rm) {
