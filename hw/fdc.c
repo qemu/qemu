@@ -1499,7 +1499,7 @@ enqueue:
             /* SPECIFY */
             FLOPPY_DPRINTF("treat SPECIFY command\n");
             fdctrl->timer0 = (fdctrl->fifo[1] >> 4) & 0xF;
-            fdctrl->timer1 = fdctrl->fifo[1] >> 1;
+            fdctrl->timer1 = fdctrl->fifo[2] >> 1;
 	    fdctrl->dma_en = 1 - (fdctrl->fifo[2] & 1) ;
             /* No result back */
             fdctrl_reset_fifo(fdctrl);
