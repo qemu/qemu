@@ -195,6 +195,7 @@ if test "$mingw32" = "yes" ; then
     EXESUF=".exe"
     gdbstub="no"
     oss="no"
+    kqemu="no"
 fi
 
 if test -z "$target_list" ; then
@@ -609,6 +610,9 @@ if test "$target_cpu" = "i386" ; then
   echo "TARGET_ARCH=i386" >> $config_mak
   echo "#define TARGET_ARCH \"i386\"" >> $config_h
   echo "#define TARGET_I386 1" >> $config_h
+  if test $kqemu = "yes" -a "$target_softmmu" = "yes" ; then
+    echo "#define USE_KQEMU 1" >> $config_h
+  fi
 elif test "$target_cpu" = "arm" -o "$target_cpu" = "armeb" ; then
   echo "TARGET_ARCH=arm" >> $config_mak
   echo "#define TARGET_ARCH \"arm\"" >> $config_h

@@ -39,9 +39,6 @@
 #if defined(__i386__) && !defined(CONFIG_SOFTMMU)
 #define USE_CODE_COPY
 #endif
-#if defined(CONFIG_KQEMU) && defined(__linux__) && defined(CONFIG_SOFTMMU) && defined(__i386__) && !defined(TARGET_X86_64)
-#define USE_KQEMU
-#endif
 
 #define R_EAX 0
 #define R_ECX 1
