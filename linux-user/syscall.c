@@ -1414,16 +1414,42 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         ret = do_ioctl(arg1, arg2, arg3);
         break;
     case TARGET_NR_fcntl:
+    {
+	struct flock fl;
+	struct target_flock *target_fl = (void *)arg3;
+
         switch(arg2) {
         case F_GETLK:
+            ret = get_errno(fcntl(arg1, arg2, &fl));
+	    if (ret == 0) {
+		target_fl->l_type = tswap16(fl.l_type);
+		target_fl->l_whence = tswap16(fl.l_whence);
+		target_fl->l_start = tswapl(fl.l_start);
+		target_fl->l_len = tswapl(fl.l_len);
+		target_fl->l_pid = tswapl(fl.l_pid);
+	    }
+	    break;
+
         case F_SETLK:
         case F_SETLKW:
+	    fl.l_type = tswap16(target_fl->l_type);
+	    fl.l_whence = tswap16(target_fl->l_whence);
+	    fl.l_start = tswapl(target_fl->l_start);
+	    fl.l_len = tswapl(target_fl->l_len);
+	    fl.l_pid = tswapl(target_fl->l_pid);
+            ret = get_errno(fcntl(arg1, arg2, &fl));
+	    break;
+
+	case F_GETLK64:
+	case F_SETLK64:
+	case F_SETLKW64:
             goto unimplemented;
         default:
             ret = get_errno(fcntl(arg1, arg2, arg3));
             break;
         }
         break;
+    }
     case TARGET_NR_mpx:
         goto unimplemented;
     case TARGET_NR_setpgid:
@@ -2356,16 +2382,37 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         goto unimplemented;
 #if TARGET_LONG_BITS == 32
     case TARGET_NR_fcntl64:
+    {
+	struct flock64 fl;
+	struct target_flock64 *target_fl = (void *)arg3;
+
         switch(arg2) {
         case F_GETLK64:
+            ret = get_errno(fcntl(arg1, arg2, &fl));
+	    if (ret == 0) {
+		target_fl->l_type = tswap16(fl.l_type);
+		target_fl->l_whence = tswap16(fl.l_whence);
+		target_fl->l_start = tswap64(fl.l_start);
+		target_fl->l_len = tswap64(fl.l_len);
+		target_fl->l_pid = tswapl(fl.l_pid);
+	    }
+	    break;
+
         case F_SETLK64:
         case F_SETLKW64:
-            goto unimplemented;
+	    fl.l_type = tswap16(target_fl->l_type);
+	    fl.l_whence = tswap16(target_fl->l_whence);
+	    fl.l_start = tswap64(target_fl->l_start);
+	    fl.l_len = tswap64(target_fl->l_len);
+	    fl.l_pid = tswapl(target_fl->l_pid);
+            ret = get_errno(fcntl(arg1, arg2, &fl));
+	    break;
         default:
             ret = get_errno(fcntl(arg1, arg2, arg3));
             break;
         }
-        break;
+	break;
+    }
 #endif
     case TARGET_NR_security:
         goto unimplemented;
