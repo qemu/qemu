@@ -674,6 +674,7 @@ int main(int argc, char **argv)
     cpu_x86_set_cpl(env, 3);
 
     env->cr[0] = CR0_PG_MASK | CR0_WP_MASK | CR0_PE_MASK;
+    env->hflags |= HF_PE_MASK;
 
     /* linux register setup */
     env->regs[R_EAX] = regs->eax;
