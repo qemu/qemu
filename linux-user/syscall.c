@@ -2392,6 +2392,17 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         break;
     case TARGET_NR_uname:
         /* no need to transcode because we use the linux syscall */
+        {
+            struct new_utsname * buf;
+    
+            buf = (struct new_utsname *)arg1;
+            ret = get_errno(sys_uname(buf));
+            if (!is_error(ret)) {
+                /* Overrite the native machine name with whatever is being
+                   emulated. */
+                strcpy (buf->machine, UNAME_MACHINE);
+            }
+        }
         ret = get_errno(sys_uname((struct new_utsname *)arg1));
         break;
 #ifdef TARGET_I386
@@ -2600,7 +2611,9 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         ret = get_errno(fdatasync(arg1));
         break;
     case TARGET_NR__sysctl:
-        goto unimplemented;
+        /* We don't implement this, but ENODIR is always a safe
+           return value. */
+        return -ENOTDIR;
     case TARGET_NR_sched_setparam:
         {
             struct sched_param *target_schp = (void *)arg2;
