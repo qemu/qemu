@@ -44,6 +44,9 @@ void OPPROTO glue(glue(op_rol, MEM_SUFFIX), _T0_T1_cc)(void)
         T0 = (T0 << count) | (T0 >> (DATA_BITS - count));
 #ifdef MEM_WRITE
         glue(st, SUFFIX)((uint8_t *)A0, T0);
+#else
+        /* gcc 3.2 workaround. This is really a bug in gcc. */
+        asm volatile("" : : "r" (T0));
 #endif
         CC_SRC = (cc_table[CC_OP].compute_all() & ~(CC_O | CC_C)) | 
             (lshift(src ^ T0, 11 - (DATA_BITS - 1)) & CC_O) | 
@@ -63,6 +66,9 @@ void OPPROTO glue(glue(op_ror, MEM_SUFFIX), _T0_T1_cc)(void)
         T0 = (T0 >> count) | (T0 << (DATA_BITS - count));
 #ifdef MEM_WRITE
         glue(st, SUFFIX)((uint8_t *)A0, T0);
+#else
+        /* gcc 3.2 workaround. This is really a bug in gcc. */
+        asm volatile("" : : "r" (T0));
 #endif
         CC_SRC = (cc_table[CC_OP].compute_all() & ~(CC_O | CC_C)) |
             (lshift(src ^ T0, 11 - (DATA_BITS - 1)) & CC_O) | 
