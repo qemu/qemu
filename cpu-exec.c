@@ -204,8 +204,7 @@ int cpu_exec(CPUState *env1)
 #elif defined(TARGET_PPC)
                     do_interrupt(env);
 #elif defined(TARGET_SPARC)
-                    do_interrupt(env->exception_index, 
-                                 env->error_code);
+                    do_interrupt(env->exception_index);
 #endif
                 }
                 env->exception_index = -1;
@@ -287,7 +286,7 @@ int cpu_exec(CPUState *env1)
                     }
 #elif defined(TARGET_SPARC)
                     if (interrupt_request & CPU_INTERRUPT_HARD) {
-			do_interrupt(env->interrupt_index, 0);
+			do_interrupt(env->interrupt_index);
                         env->interrupt_request &= ~CPU_INTERRUPT_HARD;
 		    } else if (interrupt_request & CPU_INTERRUPT_TIMER) {
 			//do_interrupt(0, 0, 0, 0, 0);
