@@ -1639,6 +1639,11 @@ void OPPROTO op_fincstp(void)
     env->fpus &= (~0x4700);
 }
 
+void OPPROTO op_ffree_STN(void)
+{
+    env->fptags[(env->fpstt + PARAM1) & 7] = 1;
+}
+
 void OPPROTO op_fmov_ST0_FT0(void)
 {
     ST0 = FT0;
