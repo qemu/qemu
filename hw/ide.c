@@ -1284,7 +1284,7 @@ static void ide_cmd_write(CPUState *env, uint32_t addr, uint32_t val)
             if (s->is_cdrom)
                 s->status = 0x00; /* NOTE: READY is _not_ set */
             else
-                s->status = READY_STAT;
+                s->status = READY_STAT | SEEK_STAT;
             ide_set_signature(s);
         }
     }
