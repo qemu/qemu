@@ -38,7 +38,8 @@
  * 'F'          filename
  * 'B'          block device name
  * 's'          string (accept optional quote)
- * 'i'          integer
+ * 'i'          32 bit integer
+ * 'l'          target long (32 or 64 bit)
  * '/'          optional gdb-like print format (like "/10x")
  *
  * '?'          optional type (for 'F', 's' and 'i')
@@ -463,7 +464,7 @@ static void memory_dump(int count, int format, int wsize,
                 v = lduw_raw(buf + i);
                 break;
             case 4:
-                v = ldl_raw(buf + i);
+                v = (uint32_t)ldl_raw(buf + i);
                 break;
             case 8:
                 v = ldq_raw(buf + i);
@@ -495,18 +496,31 @@ static void memory_dump(int count, int format, int wsize,
     }
 }
 
-static void do_memory_dump(int count, int format, int size, int addr)
+#if TARGET_LONG_BITS == 64
+#define GET_TLONG(h, l) (((uint64_t)(h) << 32) | (l))
+#else
+#define GET_TLONG(h, l) (l)
+#endif
+
+static void do_memory_dump(int count, int format, int size, 
+                           uint32_t addrh, uint32_t addrl)
 {
+    target_long addr = GET_TLONG(addrh, addrl);
     memory_dump(count, format, size, addr, 0);
 }
 
-static void do_physical_memory_dump(int count, int format, int size, int addr)
+static void do_physical_memory_dump(int count, int format, int size,
+                                    uint32_t addrh, uint32_t addrl)
+
 {
+    target_long addr = GET_TLONG(addrh, addrl);
     memory_dump(count, format, size, addr, 1);
 }
 
-static void do_print(int count, int format, int size, int val)
+static void do_print(int count, int format, int size, unsigned int valh, unsigned int vall)
 {
+    target_long val = GET_TLONG(valh, vall);
+#if TARGET_LONG_BITS == 32
     switch(format) {
     case 'o':
         term_printf("%#o", val);
@@ -525,6 +539,26 @@ static void do_print(int count, int format, int size, int val)
         term_printc(val);
         break;
     }
+#else
+    switch(format) {
+    case 'o':
+        term_printf("%#llo", val);
+        break;
+    case 'x':
+        term_printf("%#llx", val);
+        break;
+    case 'u':
+        term_printf("%llu", val);
+        break;
+    default:
+    case 'd':
+        term_printf("%lld", val);
+        break;
+    case 'c':
+        term_printc(val);
+        break;
+    }
+#endif
     term_printf("\n");
 }
 
@@ -859,11 +893,11 @@ static term_cmd_t term_cmds[] = {
     { "gdbserver", "i?", do_gdbserver, 
       "[port]", "start gdbserver session (default port=1234)", },
 #endif
-    { "x", "/i", do_memory_dump, 
+    { "x", "/l", do_memory_dump, 
       "/fmt addr", "virtual memory dump starting at 'addr'", },
-    { "xp", "/i", do_physical_memory_dump, 
+    { "xp", "/l", do_physical_memory_dump, 
       "/fmt addr", "physical memory dump starting at 'addr'", },
-    { "p|print", "/i", do_print, 
+    { "p|print", "/l", do_print, 
       "/fmt expr", "print expression value (use $reg for CPU register access)", },
     { "i", "/ii.", do_ioport_read, 
       "/fmt addr", "I/O port read" },
@@ -908,21 +942,25 @@ static term_cmd_t info_cmds[] = {
 static const char *pch;
 static jmp_buf expr_env;
 
+#define MD_TLONG 0
+#define MD_I32   1
+
 typedef struct MonitorDef {
     const char *name;
     int offset;
-    int (*get_value)(struct MonitorDef *md, int val);
+    target_long (*get_value)(struct MonitorDef *md, int val);
+    int type;
 } MonitorDef;
 
 #if defined(TARGET_I386)
-static int monitor_get_pc (struct MonitorDef *md, int val)
+static target_long monitor_get_pc (struct MonitorDef *md, int val)
 {
-    return cpu_single_env->eip + (long)cpu_single_env->segs[R_CS].base;
+    return cpu_single_env->eip + cpu_single_env->segs[R_CS].base;
 }
 #endif
 
 #if defined(TARGET_PPC)
-static int monitor_get_ccr (struct MonitorDef *md, int val)
+static target_long monitor_get_ccr (struct MonitorDef *md, int val)
 {
     unsigned int u;
     int i;
@@ -934,7 +972,7 @@ static int monitor_get_ccr (struct MonitorDef *md, int val)
     return u;
 }
 
-static int monitor_get_msr (struct MonitorDef *md, int val)
+static target_long monitor_get_msr (struct MonitorDef *md, int val)
 {
     return (cpu_single_env->msr[MSR_POW] << MSR_POW) |
         (cpu_single_env->msr[MSR_ILE] << MSR_ILE) |
@@ -953,7 +991,7 @@ static int monitor_get_msr (struct MonitorDef *md, int val)
         (cpu_single_env->msr[MSR_LE] << MSR_LE);
 }
 
-static int monitor_get_xer (struct MonitorDef *md, int val)
+static target_long monitor_get_xer (struct MonitorDef *md, int val)
 {
     return (cpu_single_env->xer[XER_SO] << XER_SO) |
         (cpu_single_env->xer[XER_OV] << XER_OV) |
@@ -961,29 +999,29 @@ static int monitor_get_xer (struct MonitorDef *md, int val)
         (cpu_single_env->xer[XER_BC] << XER_BC);
 }
 
-static int monitor_get_decr (struct MonitorDef *md, int val)
+static target_long monitor_get_decr (struct MonitorDef *md, int val)
 {
     return cpu_ppc_load_decr(cpu_single_env);
 }
 
-static int monitor_get_tbu (struct MonitorDef *md, int val)
+static target_long monitor_get_tbu (struct MonitorDef *md, int val)
 {
     return cpu_ppc_load_tbu(cpu_single_env);
 }
 
-static int monitor_get_tbl (struct MonitorDef *md, int val)
+static target_long monitor_get_tbl (struct MonitorDef *md, int val)
 {
     return cpu_ppc_load_tbl(cpu_single_env);
 }
 #endif
 
 #if defined(TARGET_SPARC)
-static int monitor_get_psr (struct MonitorDef *md, int val)
+static target_long monitor_get_psr (struct MonitorDef *md, int val)
 {
     return GET_PSR(cpu_single_env);
 }
 
-static int monitor_get_reg(struct MonitorDef *md, int val)
+static target_long monitor_get_reg(struct MonitorDef *md, int val)
 {
     return cpu_single_env->regwptr[val];
 }
@@ -993,9 +1031,9 @@ static MonitorDef monitor_defs[] = {
 #ifdef TARGET_I386
 
 #define SEG(name, seg) \
-    { name, offsetof(CPUState, segs[seg].selector) },\
+    { name, offsetof(CPUState, segs[seg].selector), NULL, MD_I32 },\
     { name ".base", offsetof(CPUState, segs[seg].base) },\
-    { name ".limit", offsetof(CPUState, segs[seg].limit) },
+    { name ".limit", offsetof(CPUState, segs[seg].limit), NULL, MD_I32 },
 
     { "eax", offsetof(CPUState, regs[0]) },
     { "ecx", offsetof(CPUState, regs[1]) },
@@ -1005,6 +1043,16 @@ static MonitorDef monitor_defs[] = {
     { "ebp|fp", offsetof(CPUState, regs[5]) },
     { "esi", offsetof(CPUState, regs[6]) },
     { "edi", offsetof(CPUState, regs[7]) },
+#ifdef TARGET_X86_64
+    { "r8", offsetof(CPUState, regs[8]) },
+    { "r9", offsetof(CPUState, regs[9]) },
+    { "r10", offsetof(CPUState, regs[10]) },
+    { "r11", offsetof(CPUState, regs[11]) },
+    { "r12", offsetof(CPUState, regs[12]) },
+    { "r13", offsetof(CPUState, regs[13]) },
+    { "r14", offsetof(CPUState, regs[14]) },
+    { "r15", offsetof(CPUState, regs[15]) },
+#endif
     { "eflags", offsetof(CPUState, eflags) },
     { "eip", offsetof(CPUState, eip) },
     SEG("cs", R_CS)
@@ -1157,15 +1205,28 @@ static void expr_error(const char *fmt)
     longjmp(expr_env, 1);
 }
 
-static int get_monitor_def(int *pval, const char *name)
+static int get_monitor_def(target_long *pval, const char *name)
 {
     MonitorDef *md;
+    void *ptr;
+
     for(md = monitor_defs; md->name != NULL; md++) {
         if (compare_cmd(name, md->name)) {
             if (md->get_value) {
                 *pval = md->get_value(md, md->offset);
             } else {
-                *pval = *(uint32_t *)((uint8_t *)cpu_single_env + md->offset);
+                ptr = (uint8_t *)cpu_single_env + md->offset;
+                switch(md->type) {
+                case MD_I32:
+                    *pval = *(int32_t *)ptr;
+                    break;
+                case MD_TLONG:
+                    *pval = *(target_long *)ptr;
+                    break;
+                default:
+                    *pval = 0;
+                    break;
+                }
             }
             return 0;
         }
@@ -1182,11 +1243,11 @@ static void next(void)
     }
 }
 
-static int expr_sum(void);
+static target_long expr_sum(void);
 
-static int expr_unary(void)
+static target_long expr_unary(void)
 {
-    int n;
+    target_long n;
     char *p;
 
     switch(*pch) {
@@ -1259,10 +1320,11 @@ static int expr_unary(void)
 }
 
 
-static int expr_prod(void)
+static target_long expr_prod(void)
 {
-    int val, val2, op;
-
+    target_long val, val2;
+    int op;
+    
     val = expr_unary();
     for(;;) {
         op = *pch;
@@ -1289,9 +1351,10 @@ static int expr_prod(void)
     return val;
 }
 
-static int expr_logic(void)
+static target_long expr_logic(void)
 {
-    int val, val2, op;
+    target_long val, val2;
+    int op;
 
     val = expr_prod();
     for(;;) {
@@ -1316,9 +1379,10 @@ static int expr_logic(void)
     return val;
 }
 
-static int expr_sum(void)
+static target_long expr_sum(void)
 {
-    int val, val2, op;
+    target_long val, val2;
+    int op;
 
     val = expr_logic();
     for(;;) {
@@ -1335,7 +1399,7 @@ static int expr_sum(void)
     return val;
 }
 
-static int get_expr(int *pval, const char **pp)
+static int get_expr(target_long *pval, const char **pp)
 {
     pch = *pp;
     if (setjmp(expr_env)) {
@@ -1596,8 +1660,9 @@ static void monitor_handle_command(const char *cmdline)
             }
             break;
         case 'i':
+        case 'l':
             {
-                int val;
+                target_long val;
                 while (isspace(*p)) 
                     p++;
                 if (*typestr == '?' || *typestr == '.') {
@@ -1630,9 +1695,20 @@ static void monitor_handle_command(const char *cmdline)
                 if (get_expr(&val, &p))
                     goto fail;
             add_num:
-                if (nb_args >= MAX_ARGS)
-                    goto error_args;
-                args[nb_args++] = (void *)val;
+                if (c == 'i') {
+                    if (nb_args >= MAX_ARGS)
+                        goto error_args;
+                    args[nb_args++] = (void *)(int)val;
+                } else {
+                    if ((nb_args + 1) >= MAX_ARGS)
+                        goto error_args;
+#if TARGET_LONG_BITS == 64
+                    args[nb_args++] = (void *)(int)((val >> 32) & 0xffffffff);
+#else
+                    args[nb_args++] = (void *)0;
+#endif
+                    args[nb_args++] = (void *)(int)(val & 0xffffffff);
+                }
             }
             break;
         case '-':
