@@ -86,24 +86,38 @@ LDFLAGS+=-p
 main.o: CFLAGS+=-p
 endif
 
-OBJS= elfload.o main.o syscall.o mmap.o signal.o vm86.o path.o
+OBJS= elfload.o main.o syscall.o mmap.o signal.o path.o
+ifeq ($(TARGET_ARCH), i386)
+OBJS+= vm86.o
+endif
 SRCS:= $(OBJS:.o=.c)
 OBJS+= libqemu.a
 
-LIBOBJS+=thunk.o translate-i386.o op-i386.o helper-i386.o exec-i386.o exec.o
+# cpu emulator library
+LIBOBJS=thunk.o exec.o translate.o cpu-exec.o 
+
+ifeq ($(TARGET_ARCH), i386)
+LIBOBJS+=translate-i386.o op-i386.o helper-i386.o
+endif
+ifeq ($(TARGET_ARCH), arm)
+LIBOBJS+=translate-arm.o op-arm.o
+endif
 
 # NOTE: the disassembler code is only needed for debugging
-LIBOBJS+=disas.o i386-dis.o
-ifeq ($(ARCH),alpha)
+LIBOBJS+=disas.o 
+ifeq ($(findstring i386, $(TARGET_ARCH) $(ARCH)),i386)
+LIBOBJS+=i386-dis.o
+endif
+ifeq ($(findstring alpha, $(TARGET_ARCH) $(ARCH)),alpha)
 LIBOBJS+=alpha-dis.o
 endif
-ifeq ($(ARCH),ppc)
+ifeq ($(findstring ppc, $(TARGET_ARCH) $(ARCH)),ppc)
 LIBOBJS+=ppc-dis.o
 endif
-ifeq ($(ARCH),sparc)
+ifeq ($(findstring sparc, $(TARGET_ARCH) $(ARCH)),sparc)
 LIBOBJS+=sparc-dis.o
 endif
-ifeq ($(ARCH),arm)
+ifeq ($(findstring arm, $(TARGET_ARCH) $(ARCH)),arm)
 LIBOBJS+=arm-dis.o
 endif
 
@@ -133,19 +147,28 @@ libqemu.a: $(LIBOBJS)
 dyngen: dyngen.c
 	$(HOST_CC) -O2 -Wall -g $< -o $@
 
-translate-i386.o: translate-i386.c op-i386.h opc-i386.h cpu-i386.h
+translate-$(TARGET_ARCH).o: translate-$(TARGET_ARCH).c gen-op-$(TARGET_ARCH).h opc-$(TARGET_ARCH).h cpu-$(TARGET_ARCH).h
 
-op-i386.h: op-i386.o dyngen
+translate.o: translate.c op-$(TARGET_ARCH).h opc-$(TARGET_ARCH).h cpu-$(TARGET_ARCH).h
+
+op-$(TARGET_ARCH).h: op-$(TARGET_ARCH).o dyngen
 	./dyngen -o $@ $<
 
-opc-i386.h: op-i386.o dyngen
+opc-$(TARGET_ARCH).h: op-$(TARGET_ARCH).o dyngen
 	./dyngen -c -o $@ $<
 
-op-i386.o: op-i386.c opreg_template.h ops_template.h
+gen-op-$(TARGET_ARCH).h: op-$(TARGET_ARCH).o dyngen
+	./dyngen -g -o $@ $<
+
+op-$(TARGET_ARCH).o: op-$(TARGET_ARCH).c
 	$(CC) $(OP_CFLAGS) $(DEFINES) -c -o $@ $<
 
-helper-i386.o: helper-i386.c
+helper-$(TARGET_ARCH).o: helper-$(TARGET_ARCH).c
 	$(CC) $(HELPER_CFLAGS) $(DEFINES) -c -o $@ $<
+
+op-i386.o: op-i386.c opreg_template.h ops_template.h
+
+op-arm.o: op-arm.c op-arm-template.h
 
 %.o: %.c
 	$(CC) $(CFLAGS) $(DEFINES) -c -o $@ $<
@@ -173,17 +196,24 @@ qemu-doc.html: qemu-doc.texi
 
 FILES= \
 README README.distrib COPYING COPYING.LIB TODO Changelog VERSION \
-dyngen.c dyngen.h ioctls.h ops_template.h op_string.h  syscall_types.h\
-Makefile     elf.h       thunk.c\
-elfload.c   main.c            signal.c        thunk.h exec.h\
-cpu-i386.h qemu.h op-i386.c helper-i386.c syscall-i386.h  translate-i386.c\
-syscall.c opreg_template.h  syscall_defs.h vm86.c\
-dis-asm.h disas.c disas.h alpha-dis.c ppc-dis.c i386-dis.c sparc-dis.c arm-dis.c\
-ppc.ld alpha.ld s390.ld sparc.ld arm.ld exec-i386.h exec-i386.c path.c exec.c mmap.c configure \
-tests/Makefile\
-tests/test-i386.c tests/test-i386-shift.h tests/test-i386.h\
-tests/test-i386-muldiv.h tests/test-i386-code16.S\
-tests/hello.c tests/hello tests/sha1.c \
+configure \
+dyngen.c dyngen.h dyngen-exec.h ioctls.h syscall_types.h \
+Makefile elf.h elfload.c main.c signal.c qemu.h \
+syscall.c syscall_defs.h vm86.c path.c mmap.c \
+ppc.ld alpha.ld s390.ld sparc.ld arm.ld\
+thunk.c cpu-exec.c translate.c cpu-all.h thunk.h exec.h\
+exec.c cpu-exec.c\
+cpu-i386.h op-i386.c helper-i386.c syscall-i386.h translate-i386.c \
+exec-i386.h ops_template.h op_string.h opreg_template.h \
+cpu-arm.h syscall-arm.h exec-arm.h op-arm.c translate-arm.c op-arm-template.h \
+dis-asm.h disas.c disas.h alpha-dis.c ppc-dis.c i386-dis.c sparc-dis.c \
+arm-dis.c \
+tests/Makefile \
+tests/test-i386.c tests/test-i386-shift.h tests/test-i386.h \
+tests/test-i386-muldiv.h tests/test-i386-code16.S tests/test-i386-vm86.S \
+tests/hello.c tests/hello \
+tests/hello-arm.c tests/hello-arm \
+tests/sha1.c \
 tests/testsig.c tests/testclone.c tests/testthread.c \
 tests/runcom.c tests/pi_10.com \
 tests/test_path.c \

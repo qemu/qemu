@@ -123,7 +123,7 @@ int cpu_gen_code(TranslationBlock *tb,
 
 static const unsigned short opc_copy_size[] = {
 #define DEF(s, n, copy_size) copy_size,
-#include "opc-i386.h"
+#include "opc-" TARGET_ARCH ".h"
 #undef DEF
 };
 

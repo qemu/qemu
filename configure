@@ -28,6 +28,7 @@ ar="ar"
 make="make"
 strip="strip"
 target_cpu="x86"
+target_bigendian="default"
 cpu=`uname -m`
 case "$cpu" in
   i386|i486|i586|i686|i86pc|BePC)
@@ -103,6 +104,12 @@ for opt do
   ;;
   --cpu=*) cpu=`echo $opt | cut -d '=' -f 2`
   ;;
+  --target-cpu=*) target_cpu=`echo $opt | cut -d '=' -f 2`
+  ;;
+  --target-big-endian) target_bigendian="yes"
+  ;;
+  --target-little-endian) target_bigendian="no"
+  ;;
   --enable-gprof) gprof="yes"
   ;;
   --static) static="yes"
@@ -162,6 +169,16 @@ if $cc -o $TMPO $TMPC 2> /dev/null ; then
    gcc_major="3"
 fi
 
+if test "$target_bigendian" = "default" ; then
+    if test "$target_cpu" = "x86" ; then
+         target_bigendian="no"
+    elif test "$target_cpu" = "arm" ; then
+         target_bigendian="no"
+    else
+         target_bigendian="no"
+    fi
+fi
+
 if test x"$1" = x"-h" -o x"$1" = x"--help" ; then
 cat << EOF
 
@@ -173,6 +190,7 @@ echo "Standard options:"
 echo "  --help                   print this message"
 echo "  --prefix=PREFIX          install in PREFIX [$prefix]"
 echo "  --interp-prefix=PREFIX   where to find shared libraries, etc. [$interp_prefix]"
+echo "  --target_cpu=CPU         set target cpu (x86 or arm) [$target_cpu]"
 echo ""
 echo "Advanced options (experts only):"
 echo "  --source-path=PATH       path of source code [$source_path]"
@@ -191,8 +209,9 @@ echo "ELF interp prefix $interp_prefix"
 echo "C compiler        $cc"
 echo "make              $make"
 echo "host CPU          $cpu"
-echo "Big Endian        $bigendian"
+echo "host big endian   $bigendian"
 echo "target CPU        $target_cpu"
+echo "target big endian $target_bigendian"
 echo "gprof enabled     $gprof"
 echo "static build      $static"
 
@@ -246,6 +265,24 @@ if test "$bigendian" = "yes" ; then
   echo "WORDS_BIGENDIAN=yes" >> config.mak
   echo "#define WORDS_BIGENDIAN 1" >> $TMPH
 fi
+
+if test "$target_cpu" = "x86" ; then
+  echo "TARGET_ARCH=i386" >> config.mak
+  echo "#define TARGET_ARCH \"i386\"" >> $TMPH
+  echo "#define TARGET_I386 1" >> $TMPH
+elif test "$target_cpu" = "arm" ; then
+  echo "TARGET_ARCH=arm" >> config.mak
+  echo "#define TARGET_ARCH \"arm\"" >> $TMPH
+  echo "#define TARGET_ARM 1" >> $TMPH
+else
+  echo "Unsupported target CPU"
+  exit 1
+fi
+if test "$target_bigendian" = "yes" ; then
+  echo "TARGET_WORDS_BIGENDIAN=yes" >> config.mak
+  echo "#define TARGET_WORDS_BIGENDIAN 1" >> $TMPH
+fi
+
 if test "$gprof" = "yes" ; then
   echo "TARGET_GPROF=yes" >> config.mak
   echo "#define HAVE_GPROF 1" >> $TMPH

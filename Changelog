@@ -1,7 +1,12 @@
 version 0.3:
+
+ - initial support for ARM emulation
  - added fnsave, frstor, fnstenv, fldenv FPU instructions
  - added FPU register save in signal emulation
  - ARM port
+ - Sparc and Alpha ports work on the regression test
+ - generic ioctl number conversion
+ - fixed ioctl type conversion
 
 version 0.2:
 
