@@ -841,3 +841,8 @@ void cpu_sparc_dump_state(CPUSPARCState * env, FILE * f, int flags)
 	    GET_FLAG(PSR_NEG, 'N'), GET_FLAG(PSR_CARRY, 'C'),
             env->wim);
 }
+
+target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+{
+    return addr;
+}
