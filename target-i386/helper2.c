@@ -400,6 +400,9 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr,
         if (prot & PROT_WRITE) {
             env->tlb_write[is_user][index].address = address;
             env->tlb_write[is_user][index].addend = addend;
+        } else {
+            env->tlb_write[is_user][index].address = -1;
+            env->tlb_write[is_user][index].addend = -1;
         }
         page_set_flags(vaddr, vaddr + TARGET_PAGE_SIZE, 
                        PAGE_VALID | PAGE_EXEC | prot);
