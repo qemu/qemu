@@ -50,7 +50,13 @@
 struct BlockDriverState {
     int fd; /* if -1, only COW mappings */
     int64_t total_sectors;
-    int read_only;
+    int read_only; /* if true, the media is read only */
+    int inserted; /* if true, the media is present */
+    int removable; /* if true, the media can be removed */
+    int locked;    /* if true, the media cannot temporarily be ejected */
+    /* event callback when inserting/removing */
+    void (*change_cb)(void *opaque);
+    void *change_opaque;
 
     uint8_t *cow_bitmap; /* if non NULL, COW mappings are used first */
     uint8_t *cow_bitmap_addr; /* mmap address of cow_bitmap */
@@ -61,20 +67,42 @@ struct BlockDriverState {
     uint8_t boot_sector_data[512];
 
     char filename[1024];
+    
+    /* NOTE: the following infos are only hints for real hardware
+       drivers. They are not used by the block driver */
+    int cyls, heads, secs;
+    int type;
+    char device_name[32];
+    BlockDriverState *next;
 };
 
-BlockDriverState *bdrv_open(const char *filename, int snapshot)
+static BlockDriverState *bdrv_first;
+
+/* create a new block device (by default it is empty) */
+BlockDriverState *bdrv_new(const char *device_name)
 {
-    BlockDriverState *bs;
+    BlockDriverState **pbs, *bs;
+
+    bs = qemu_mallocz(sizeof(BlockDriverState));
+    if(!bs)
+        return NULL;
+    pstrcpy(bs->device_name, sizeof(bs->device_name), device_name);
+    /* insert at the end */
+    pbs = &bdrv_first;
+    while (*pbs != NULL)
+        pbs = &(*pbs)->next;
+    *pbs = bs;
+    return bs;
+}
+
+int bdrv_open(BlockDriverState *bs, const char *filename, int snapshot)
+{
     int fd, cow_fd;
     int64_t size;
     char template[] = "/tmp/vl.XXXXXX";
     struct cow_header_v2 cow_header;
     struct stat st;
 
-    bs = malloc(sizeof(BlockDriverState));
-    if(!bs)
-        return NULL;
     bs->read_only = 0;
     bs->fd = -1;
     bs->cow_fd = -1;
@@ -163,22 +191,40 @@ BlockDriverState *bdrv_open(const char *filename, int snapshot)
         bs->cow_sectors_offset = 0;
     }
     
-    return bs;
+    bs->inserted = 1;
+
+    /* call the change callback */
+    if (bs->change_cb)
+        bs->change_cb(bs->change_opaque);
+
+    return 0;
  fail:
     bdrv_close(bs);
-    return NULL;
+    return -1;
 }
 
 void bdrv_close(BlockDriverState *bs)
 {
-    /* we unmap the mapping so that it is written to the COW file */
-    if (bs->cow_bitmap_addr)
-        munmap(bs->cow_bitmap_addr, bs->cow_bitmap_size);
-    if (bs->cow_fd >= 0)
-        close(bs->cow_fd);
-    if (bs->fd >= 0)
-        close(bs->fd);
-    free(bs);
+    if (bs->inserted) {
+        /* we unmap the mapping so that it is written to the COW file */
+        if (bs->cow_bitmap_addr)
+            munmap(bs->cow_bitmap_addr, bs->cow_bitmap_size);
+        if (bs->cow_fd >= 0)
+            close(bs->cow_fd);
+        if (bs->fd >= 0)
+            close(bs->fd);
+        bs->inserted = 0;
+
+        /* call the change callback */
+        if (bs->change_cb)
+            bs->change_cb(bs->change_opaque);
+    }
+}
+
+void bdrv_delete(BlockDriverState *bs)
+{
+    bdrv_close(bs);
+    qemu_free(bs);
 }
 
 static inline void set_bit(uint8_t *bitmap, int64_t bitnum)
@@ -220,6 +266,9 @@ int bdrv_commit(BlockDriverState *bs)
 {
     int64_t i;
     uint8_t *cow_bitmap;
+
+    if (!bs->inserted)
+        return -1;
 
     if (!bs->cow_bitmap) {
 	fprintf(stderr, "Already committed to %s\n", bs->filename);
@@ -263,6 +312,9 @@ int bdrv_read(BlockDriverState *bs, int64_t sector_num,
     int ret, n, fd;
     int64_t offset;
     
+    if (!bs->inserted)
+        return -1;
+
     while (nb_sectors > 0) {
         if (is_changed(bs->cow_bitmap, sector_num, nb_sectors, &n)) {
             fd = bs->cow_fd;
@@ -302,6 +354,8 @@ int bdrv_write(BlockDriverState *bs, int64_t sector_num,
     int ret, fd, i;
     int64_t offset, retl;
     
+    if (!bs->inserted)
+        return -1;
     if (bs->read_only)
         return -1;
 
@@ -343,4 +397,107 @@ void bdrv_set_boot_sector(BlockDriverState *bs, const uint8_t *data, int size)
         size = 512;
     memcpy(bs->boot_sector_data, data, size);
     memset(bs->boot_sector_data + size, 0, 512 - size);
+}
+
+void bdrv_set_geometry_hint(BlockDriverState *bs, 
+                            int cyls, int heads, int secs)
+{
+    bs->cyls = cyls;
+    bs->heads = heads;
+    bs->secs = secs;
+}
+
+void bdrv_set_type_hint(BlockDriverState *bs, int type)
+{
+    bs->type = type;
+    bs->removable = ((type == BDRV_TYPE_CDROM ||
+                      type == BDRV_TYPE_FLOPPY));
+}
+
+void bdrv_get_geometry_hint(BlockDriverState *bs, 
+                            int *pcyls, int *pheads, int *psecs)
+{
+    *pcyls = bs->cyls;
+    *pheads = bs->heads;
+    *psecs = bs->secs;
+}
+
+int bdrv_get_type_hint(BlockDriverState *bs)
+{
+    return bs->type;
+}
+
+int bdrv_is_removable(BlockDriverState *bs)
+{
+    return bs->removable;
+}
+
+int bdrv_is_read_only(BlockDriverState *bs)
+{
+    return bs->read_only;
+}
+
+int bdrv_is_inserted(BlockDriverState *bs)
+{
+    return bs->inserted;
+}
+
+int bdrv_is_locked(BlockDriverState *bs)
+{
+    return bs->locked;
+}
+
+void bdrv_set_locked(BlockDriverState *bs, int locked)
+{
+    bs->locked = locked;
+}
+
+void bdrv_set_change_cb(BlockDriverState *bs, 
+                        void (*change_cb)(void *opaque), void *opaque)
+{
+    bs->change_cb = change_cb;
+    bs->change_opaque = opaque;
+}
+
+BlockDriverState *bdrv_find(const char *name)
+{
+    BlockDriverState *bs;
+
+    for (bs = bdrv_first; bs != NULL; bs = bs->next) {
+        if (!strcmp(name, bs->device_name))
+            return bs;
+    }
+    return NULL;
+}
+
+void bdrv_info(void)
+{
+    BlockDriverState *bs;
+
+    for (bs = bdrv_first; bs != NULL; bs = bs->next) {
+        term_printf("%s:", bs->device_name);
+        term_printf(" type=");
+        switch(bs->type) {
+        case BDRV_TYPE_HD:
+            term_printf("hd");
+            break;
+        case BDRV_TYPE_CDROM:
+            term_printf("cdrom");
+            break;
+        case BDRV_TYPE_FLOPPY:
+            term_printf("floppy");
+            break;
+        }
+        term_printf(" removable=%d", bs->removable);
+        if (bs->removable) {
+            term_printf(" locked=%d", bs->locked);
+        }
+        if (bs->inserted) {
+            term_printf(" file=%s", bs->filename);
+            term_printf(" ro=%d", bs->read_only);
+        } else {
+            term_printf(" [not inserted]");
+        }
+        term_printf("\n");
+    }
 }
