@@ -334,7 +334,7 @@ void cpu_ppc_store_decr (CPUPPCState *env, uint32_t value);
 #define THRM2  SPR_ENCODE(1021)
 #define THRM3  SPR_ENCODE(1022)
 #define SP     SPR_ENCODE(1021)
-#define LP     SPR_ENCODE(1022)
+#define SPR_LP SPR_ENCODE(1022)
 #define DABR_MASK 0xFFFFFFF8
 #define FPECR  SPR_ENCODE(1022)
 #define PIR    SPR_ENCODE(1023)
