@@ -539,6 +539,7 @@ static void kbd_write_mouse(KBDState *s, int val)
             s->mouse_sample_rate = 100;
             s->mouse_resolution = 2;
             s->mouse_status = 0;
+            s->mouse_type = 0;
             kbd_queue(s, AUX_ACK, 1);
             kbd_queue(s, 0xaa, 1);
             kbd_queue(s, s->mouse_type, 1);
