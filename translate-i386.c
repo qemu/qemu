@@ -1832,19 +1832,18 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             s->is_jmp = 1;
             break;
         case 3: /* lcall Ev */
-            /* push return segment + offset */
-            gen_op_movl_T0_seg(R_CS);
-            gen_push_T0(s);
-            next_eip = s->pc - s->cs_base;
-            gen_op_movl_T0_im(next_eip);
-            gen_push_T0(s);
-
             gen_op_ld_T1_A0[ot]();
             gen_op_addl_A0_im(1 << (ot - OT_WORD + 1));
             gen_op_lduw_T0_A0();
-            gen_movl_seg_T0(s, R_CS, pc_start - s->cs_base);
-            gen_op_movl_T0_T1();
-            gen_op_jmp_T0();
+        do_lcall:
+            if (s->pe && !s->vm86) {
+                if (s->cc_op != CC_OP_DYNAMIC)
+                    gen_op_set_cc_op(s->cc_op);
+                gen_op_jmp_im(pc_start - s->cs_base);
+                gen_op_lcall_protected_T0_T1(dflag, s->pc - s->cs_base);
+            } else {
+                gen_op_lcall_real_T0_T1(dflag, s->pc - s->cs_base);
+            }
             s->is_jmp = 1;
             break;
         case 4: /* jmp Ev */
@@ -1857,10 +1856,12 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             gen_op_ld_T1_A0[ot]();
             gen_op_addl_A0_im(1 << (ot - OT_WORD + 1));
             gen_op_lduw_T0_A0();
+        do_ljmp:
             if (s->pe && !s->vm86) {
-                /* we compute EIP to handle the exception case */
+                if (s->cc_op != CC_OP_DYNAMIC)
+                    gen_op_set_cc_op(s->cc_op);
                 gen_op_jmp_im(pc_start - s->cs_base);
-                gen_op_ljmp_T0_T1();
+                gen_op_ljmp_protected_T0_T1();
             } else {
                 gen_op_movl_seg_T0_vm(offsetof(CPUX86State,segs[R_CS]));
                 gen_op_movl_T0_T1();
@@ -2867,7 +2868,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         else
             ot = dflag ? OT_LONG : OT_WORD;
 
-        if (prefixes & PREFIX_REPZ) {
+        if (prefixes & (PREFIX_REPZ | PREFIX_REPNZ)) {
             gen_string_ds(s, ot, gen_op_movs + 9);
         } else {
             gen_string_ds(s, ot, gen_op_movs);
@@ -2881,7 +2882,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         else
             ot = dflag ? OT_LONG : OT_WORD;
 
-        if (prefixes & PREFIX_REPZ) {
+        if (prefixes & (PREFIX_REPZ | PREFIX_REPNZ)) {
             gen_string_es(s, ot, gen_op_stos + 9);
         } else {
             gen_string_es(s, ot, gen_op_stos);
@@ -2893,7 +2894,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             ot = OT_BYTE;
         else
             ot = dflag ? OT_LONG : OT_WORD;
-        if (prefixes & PREFIX_REPZ) {
+        if (prefixes & (PREFIX_REPZ | PREFIX_REPNZ)) {
             gen_string_ds(s, ot, gen_op_lods + 9);
         } else {
             gen_string_ds(s, ot, gen_op_lods);
@@ -2952,7 +2953,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
                 ot = OT_BYTE;
             else
                 ot = dflag ? OT_LONG : OT_WORD;
-            if (prefixes & PREFIX_REPZ) {
+            if (prefixes & (PREFIX_REPZ | PREFIX_REPNZ)) {
                 gen_string_es(s, ot, gen_op_ins + 9);
             } else {
                 gen_string_es(s, ot, gen_op_ins);
@@ -2969,7 +2970,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
                 ot = OT_BYTE;
             else
                 ot = dflag ? OT_LONG : OT_WORD;
-            if (prefixes & PREFIX_REPZ) {
+            if (prefixes & (PREFIX_REPZ | PREFIX_REPNZ)) {
                 gen_string_ds(s, ot, gen_op_outs + 9);
             } else {
                 gen_string_ds(s, ot, gen_op_outs);
@@ -3062,20 +3063,27 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         val = ldsw(s->pc);
         s->pc += 2;
     do_lret:
-        gen_stack_A0(s);
-        /* pop offset */
-        gen_op_ld_T0_A0[1 + s->dflag]();
-        if (s->dflag == 0)
-            gen_op_andl_T0_ffff();
-        /* NOTE: keeping EIP updated is not a problem in case of
-           exception */
-        gen_op_jmp_T0();
-        /* pop selector */
-        gen_op_addl_A0_im(2 << s->dflag);
-        gen_op_ld_T0_A0[1 + s->dflag]();
-        gen_movl_seg_T0(s, R_CS, pc_start - s->cs_base);
-        /* add stack offset */
-        gen_stack_update(s, val + (4 << s->dflag));
+        if (s->pe && !s->vm86) {
+            if (s->cc_op != CC_OP_DYNAMIC)
+                gen_op_set_cc_op(s->cc_op);
+            gen_op_jmp_im(pc_start - s->cs_base);
+            gen_op_lret_protected(s->dflag, val);
+        } else {
+            gen_stack_A0(s);
+            /* pop offset */
+            gen_op_ld_T0_A0[1 + s->dflag]();
+            if (s->dflag == 0)
+                gen_op_andl_T0_ffff();
+            /* NOTE: keeping EIP updated is not a problem in case of
+               exception */
+            gen_op_jmp_T0();
+            /* pop selector */
+            gen_op_addl_A0_im(2 << s->dflag);
+            gen_op_ld_T0_A0[1 + s->dflag]();
+            gen_op_movl_seg_T0_vm(offsetof(CPUX86State,segs[R_CS]));
+            /* add stack offset */
+            gen_stack_update(s, val + (4 << s->dflag));
+        }
         s->is_jmp = 1;
         break;
     case 0xcb: /* lret */
@@ -3114,26 +3122,15 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
     case 0x9a: /* lcall im */
         {
             unsigned int selector, offset;
-            /* XXX: not restartable */
 
             ot = dflag ? OT_LONG : OT_WORD;
             offset = insn_get(s, ot);
             selector = insn_get(s, OT_WORD);
             
-            /* push return segment + offset */
-            gen_op_movl_T0_seg(R_CS);
-            gen_push_T0(s);
-            next_eip = s->pc - s->cs_base;
-            gen_op_movl_T0_im(next_eip);
-            gen_push_T0(s);
-
-            /* change cs and pc */
             gen_op_movl_T0_im(selector);
-            gen_movl_seg_T0(s, R_CS, pc_start - s->cs_base);
-            gen_op_jmp_im((unsigned long)offset);
-            s->is_jmp = 1;
+            gen_op_movl_T1_im(offset);
         }
-        break;
+        goto do_lcall;
     case 0xe9: /* jmp */
         ot = dflag ? OT_LONG : OT_WORD;
         val = insn_get(s, ot);
@@ -3150,20 +3147,10 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             offset = insn_get(s, ot);
             selector = insn_get(s, OT_WORD);
             
-            /* change cs and pc */
             gen_op_movl_T0_im(selector);
-            if (s->pe && !s->vm86) {
-                /* we compute EIP to handle the exception case */
-                gen_op_jmp_im(pc_start - s->cs_base);
-                gen_op_movl_T1_im(offset);
-                gen_op_ljmp_T0_T1();
-            } else {
-                gen_op_movl_seg_T0_vm(offsetof(CPUX86State,segs[R_CS]));
-                gen_op_jmp_im((unsigned long)offset);
-            }
-            s->is_jmp = 1;
+            gen_op_movl_T1_im(offset);
         }
-        break;
+        goto do_ljmp;
     case 0xeb: /* jmp Jb */
         val = (int8_t)insn_get(s, OT_BYTE);
         val += s->pc - s->cs_base;

@@ -948,9 +948,19 @@ void OPPROTO op_lar(void)
 }
 
 /* T0: segment, T1:eip */
-void OPPROTO op_ljmp_T0_T1(void)
+void OPPROTO op_ljmp_protected_T0_T1(void)
 {
-    jmp_seg(T0 & 0xffff, T1);
+    helper_ljmp_protected_T0_T1();
+}
+
+void OPPROTO op_lcall_real_T0_T1(void)
+{
+    helper_lcall_real_T0_T1(PARAM1, PARAM2);
+}
+
+void OPPROTO op_lcall_protected_T0_T1(void)
+{
+    helper_lcall_protected_T0_T1(PARAM1, PARAM2);
 }
 
 void OPPROTO op_iret_real(void)
@@ -961,6 +971,11 @@ void OPPROTO op_iret_real(void)
 void OPPROTO op_iret_protected(void)
 {
     helper_iret_protected(PARAM1);
+}
+
+void OPPROTO op_lret_protected(void)
+{
+    helper_lret_protected(PARAM1, PARAM2);
 }
 
 void OPPROTO op_lldt_T0(void)

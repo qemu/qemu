@@ -185,7 +185,7 @@ static inline int load_segment(uint32_t *e1_ptr, uint32_t *e2_ptr,
 
 /* protected mode interrupt */
 static void do_interrupt_protected(int intno, int is_int, int error_code,
-                                      unsigned int next_eip)
+                                   unsigned int next_eip)
 {
     SegmentCache *dt;
     uint8_t *ptr, *ssp;
@@ -378,20 +378,19 @@ static void do_interrupt_real(int intno, int is_int, int error_code,
     ptr = dt->base + intno * 4;
     offset = lduw(ptr);
     selector = lduw(ptr + 2);
-    esp = env->regs[R_ESP] & 0xffff;
-    ssp = env->segs[R_SS].base + esp;
+    esp = env->regs[R_ESP];
+    ssp = env->segs[R_SS].base;
     if (is_int)
         old_eip = next_eip;
     else
         old_eip = env->eip;
     old_cs = env->segs[R_CS].selector;
-    ssp -= 2;
-    stw(ssp, compute_eflags());
-    ssp -= 2;
-    stw(ssp, old_cs);
-    ssp -= 2;
-    stw(ssp, old_eip);
-    esp -= 6;
+    esp -= 2;
+    stw(ssp + (esp & 0xffff), compute_eflags());
+    esp -= 2;
+    stw(ssp + (esp & 0xffff), old_cs);
+    esp -= 2;
+    stw(ssp + (esp & 0xffff), old_eip);
     
     /* update processor state */
     env->regs[R_ESP] = (env->regs[R_ESP] & ~0xffff) | (esp & 0xffff);
@@ -733,47 +732,275 @@ void load_seg(int seg_reg, int selector, unsigned int cur_eip)
 }
 
 /* protected mode jump */
-void jmp_seg(int selector, unsigned int new_eip)
+void helper_ljmp_protected_T0_T1(void)
 {
+    int new_cs, new_eip;
     SegmentCache sc1;
     uint32_t e1, e2, cpl, dpl, rpl;
 
-    if ((selector & 0xfffc) == 0) {
+    new_cs = T0;
+    new_eip = T1;
+    if ((new_cs & 0xfffc) == 0)
         raise_exception_err(EXCP0D_GPF, 0);
-    }
-
-    if (load_segment(&e1, &e2, selector) != 0)
-        raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+    if (load_segment(&e1, &e2, new_cs) != 0)
+        raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
     cpl = env->segs[R_CS].selector & 3;
     if (e2 & DESC_S_MASK) {
         if (!(e2 & DESC_CS_MASK))
-            raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+            raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
         dpl = (e2 >> DESC_DPL_SHIFT) & 3;
         if (e2 & DESC_CS_MASK) {
             /* conforming code segment */
             if (dpl > cpl)
-                raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+                raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
         } else {
             /* non conforming code segment */
-            rpl = selector & 3;
+            rpl = new_cs & 3;
             if (rpl > cpl)
-                raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+                raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
             if (dpl != cpl)
-                raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+                raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
         }
         if (!(e2 & DESC_P_MASK))
-            raise_exception_err(EXCP0B_NOSEG, selector & 0xfffc);
+            raise_exception_err(EXCP0B_NOSEG, new_cs & 0xfffc);
         load_seg_cache(&sc1, e1, e2);
         if (new_eip > sc1.limit)
-            raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+            raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
         env->segs[R_CS].base = sc1.base;
         env->segs[R_CS].limit = sc1.limit;
         env->segs[R_CS].flags = sc1.flags;
-        env->segs[R_CS].selector = (selector & 0xfffc) | cpl;
+        env->segs[R_CS].selector = (new_cs & 0xfffc) | cpl;
         EIP = new_eip;
     } else {
         cpu_abort(env, "jmp to call/task gate not supported 0x%04x:0x%08x", 
-                  selector, new_eip);
+                  new_cs, new_eip);
+    }
+}
+
+/* real mode call */
+void helper_lcall_real_T0_T1(int shift, int next_eip)
+{
+    int new_cs, new_eip;
+    uint32_t esp, esp_mask;
+    uint8_t *ssp;
+    
+    new_cs = T0;
+    new_eip = T1;
+    esp = env->regs[R_ESP];
+    esp_mask = 0xffffffff;
+    if (!(env->segs[R_SS].flags & DESC_B_MASK))
+        esp_mask = 0xffff;
+    ssp = env->segs[R_SS].base;
+    if (shift) {
+        esp -= 4;
+        stl(ssp + (esp & esp_mask), env->segs[R_CS].selector);
+        esp -= 4;
+        stl(ssp + (esp & esp_mask), next_eip);
+    } else {
+        esp -= 2;
+        stw(ssp + (esp & esp_mask), env->segs[R_CS].selector);
+        esp -= 2;
+        stw(ssp + (esp & esp_mask), next_eip);
+    }
+
+    if (!(env->segs[R_SS].flags & DESC_B_MASK))
+        env->regs[R_ESP] = (env->regs[R_ESP] & ~0xffff) | (esp & 0xffff);
+    else
+        env->regs[R_ESP] = esp;
+    env->eip = new_eip;
+    env->segs[R_CS].selector = new_cs;
+    env->segs[R_CS].base = (uint8_t *)(new_cs << 4);
+}
+
+/* protected mode call */
+void helper_lcall_protected_T0_T1(int shift, int next_eip)
+{
+    int new_cs, new_eip;
+    SegmentCache sc1;
+    uint32_t e1, e2, cpl, dpl, rpl, selector, offset, param_count;
+    uint32_t ss, ss_e1, ss_e2, push_size, sp, type, ss_dpl;
+    uint32_t old_ss, old_esp, val, i;
+    uint8_t *ssp, *old_ssp;
+    
+    new_cs = T0;
+    new_eip = T1;
+    if ((new_cs & 0xfffc) == 0)
+        raise_exception_err(EXCP0D_GPF, 0);
+    if (load_segment(&e1, &e2, new_cs) != 0)
+        raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
+    cpl = env->segs[R_CS].selector & 3;
+    if (e2 & DESC_S_MASK) {
+        if (!(e2 & DESC_CS_MASK))
+            raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
+        dpl = (e2 >> DESC_DPL_SHIFT) & 3;
+        if (e2 & DESC_CS_MASK) {
+            /* conforming code segment */
+            if (dpl > cpl)
+                raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
+        } else {
+            /* non conforming code segment */
+            rpl = new_cs & 3;
+            if (rpl > cpl)
+                raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
+            if (dpl != cpl)
+                raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
+        }
+        if (!(e2 & DESC_P_MASK))
+            raise_exception_err(EXCP0B_NOSEG, new_cs & 0xfffc);
+
+        sp = env->regs[R_ESP];
+        if (!(env->segs[R_SS].flags & DESC_B_MASK))
+            sp &= 0xffff;
+        ssp = env->segs[R_SS].base + sp;
+        if (shift) {
+            ssp -= 4;
+            stl(ssp, env->segs[R_CS].selector);
+            ssp -= 4;
+            stl(ssp, next_eip);
+        } else {
+            ssp -= 2;
+            stw(ssp, env->segs[R_CS].selector);
+            ssp -= 2;
+            stw(ssp, next_eip);
+        }
+        sp -= (4 << shift);
+        
+        load_seg_cache(&sc1, e1, e2);
+        if (new_eip > sc1.limit)
+            raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
+        /* from this point, not restartable */
+        if (!(env->segs[R_SS].flags & DESC_B_MASK))
+            env->regs[R_ESP] = (env->regs[R_ESP] & 0xffff0000) | (sp & 0xffff);
+        else
+            env->regs[R_ESP] = sp;
+        env->segs[R_CS].base = sc1.base;
+        env->segs[R_CS].limit = sc1.limit;
+        env->segs[R_CS].flags = sc1.flags;
+        env->segs[R_CS].selector = (new_cs & 0xfffc) | cpl;
+        EIP = new_eip;
+    } else {
+        /* check gate type */
+        type = (e2 >> DESC_TYPE_SHIFT) & 0x1f;
+        switch(type) {
+        case 1: /* available 286 TSS */
+        case 9: /* available 386 TSS */
+        case 5: /* task gate */
+            cpu_abort(env, "task gate not supported");
+            break;
+        case 4: /* 286 call gate */
+        case 12: /* 386 call gate */
+            break;
+        default:
+            raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
+            break;
+        }
+        shift = type >> 3;
+
+        dpl = (e2 >> DESC_DPL_SHIFT) & 3;
+        rpl = new_cs & 3;
+        if (dpl < cpl || dpl < rpl)
+            raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
+        /* check valid bit */
+        if (!(e2 & DESC_P_MASK))
+            raise_exception_err(EXCP0B_NOSEG,  new_cs & 0xfffc);
+        selector = e1 >> 16;
+        offset = (e2 & 0xffff0000) | (e1 & 0x0000ffff);
+        if ((selector & 0xfffc) == 0)
+            raise_exception_err(EXCP0D_GPF, 0);
+
+        if (load_segment(&e1, &e2, selector) != 0)
+            raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+        if (!(e2 & DESC_S_MASK) || !(e2 & (DESC_CS_MASK)))
+            raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+        dpl = (e2 >> DESC_DPL_SHIFT) & 3;
+        if (dpl > cpl)
+            raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+        if (!(e2 & DESC_P_MASK))
+            raise_exception_err(EXCP0B_NOSEG, selector & 0xfffc);
+
+        if (!(e2 & DESC_C_MASK) && dpl < cpl) {
+            /* to inner priviledge */
+            get_ss_esp_from_tss(&ss, &sp, dpl);
+            if ((ss & 0xfffc) == 0)
+                raise_exception_err(EXCP0A_TSS, ss & 0xfffc);
+            if ((ss & 3) != dpl)
+                raise_exception_err(EXCP0A_TSS, ss & 0xfffc);
+            if (load_segment(&ss_e1, &ss_e2, ss) != 0)
+                raise_exception_err(EXCP0A_TSS, ss & 0xfffc);
+            ss_dpl = (ss_e2 >> DESC_DPL_SHIFT) & 3;
+            if (ss_dpl != dpl)
+                raise_exception_err(EXCP0A_TSS, ss & 0xfffc);
+            if (!(ss_e2 & DESC_S_MASK) ||
+                (ss_e2 & DESC_CS_MASK) ||
+                !(ss_e2 & DESC_W_MASK))
+                raise_exception_err(EXCP0A_TSS, ss & 0xfffc);
+            if (!(ss_e2 & DESC_P_MASK))
+                raise_exception_err(EXCP0A_TSS, ss & 0xfffc);
+            
+            param_count = e2 & 0x1f;
+            push_size = ((param_count * 2) + 8) << shift;
+
+            old_esp = env->regs[R_ESP];
+            old_ss = env->segs[R_SS].selector;
+            if (!(env->segs[R_SS].flags & DESC_B_MASK))
+                old_esp &= 0xffff;
+            old_ssp = env->segs[R_SS].base + old_esp;
+            
+            /* XXX: from this point not restartable */
+            load_seg(R_SS, ss, env->eip);
+
+            if (!(env->segs[R_SS].flags & DESC_B_MASK))
+                sp &= 0xffff;
+            ssp = env->segs[R_SS].base + sp;
+            if (shift) {
+                ssp -= 4;
+                stl(ssp, old_ss);
+                ssp -= 4;
+                stl(ssp, old_esp);
+                ssp -= 4 * param_count;
+                for(i = 0; i < param_count; i++) {
+                    val = ldl(old_ssp + i * 4);
+                    stl(ssp + i * 4, val);
+                }
+            } else {
+                ssp -= 2;
+                stw(ssp, old_ss);
+                ssp -= 2;
+                stw(ssp, old_esp);
+                ssp -= 2 * param_count;
+                for(i = 0; i < param_count; i++) {
+                    val = lduw(old_ssp + i * 2);
+                    stw(ssp + i * 2, val);
+                }
+            }
+        } else {
+            /* to same priviledge */
+            if (!(env->segs[R_SS].flags & DESC_B_MASK))
+                sp &= 0xffff;
+            ssp = env->segs[R_SS].base + sp;
+            push_size = (4 << shift);
+        }
+
+        if (shift) {
+            ssp -= 4;
+            stl(ssp, env->segs[R_CS].selector);
+            ssp -= 4;
+            stl(ssp, next_eip);
+        } else {
+            ssp -= 2;
+            stw(ssp, env->segs[R_CS].selector);
+            ssp -= 2;
+            stw(ssp, next_eip);
+        }
+
+        sp -= push_size;
+        load_seg(R_CS, selector, env->eip);
+        /* from this point, not restartable if same priviledge */
+        if (!(env->segs[R_SS].flags & DESC_B_MASK))
+            env->regs[R_ESP] = (env->regs[R_ESP] & 0xffff0000) | (sp & 0xffff);
+        else
+            env->regs[R_ESP] = sp;
+        EIP = offset;
     }
 }
 
@@ -820,7 +1047,7 @@ void helper_iret_real(int shift)
 }
 
 /* protected mode iret */
-void helper_iret_protected(int shift)
+static inline void helper_ret_protected(int shift, int is_iret, int addend)
 {
     uint32_t sp, new_cs, new_eip, new_eflags, new_esp, new_ss;
     uint32_t new_es, new_ds, new_fs, new_gs;
@@ -834,14 +1061,16 @@ void helper_iret_protected(int shift)
     ssp = env->segs[R_SS].base + sp;
     if (shift == 1) {
         /* 32 bits */
-        new_eflags = ldl(ssp + 8);
+        if (is_iret)
+            new_eflags = ldl(ssp + 8);
         new_cs = ldl(ssp + 4) & 0xffff;
         new_eip = ldl(ssp);
-        if (new_eflags & VM_MASK)
+        if (is_iret && (new_eflags & VM_MASK))
             goto return_to_vm86;
     } else {
         /* 16 bits */
-        new_eflags = lduw(ssp + 4);
+        if (is_iret)
+            new_eflags = lduw(ssp + 4);
         new_cs = lduw(ssp + 2);
         new_eip = lduw(ssp);
     }
@@ -870,17 +1099,18 @@ void helper_iret_protected(int shift)
     if (rpl == cpl) {
         /* return to same priledge level */
         load_seg(R_CS, new_cs, env->eip);
-        new_esp = sp + (6 << shift);
+        new_esp = sp + (4 << shift) + ((2 * is_iret) << shift) + addend;
     } else {
-        /* return to differentr priviledge level */
+        /* return to different priviledge level */
+        ssp += (4 << shift) + ((2 * is_iret) << shift) + addend;
         if (shift == 1) {
             /* 32 bits */
-            new_esp = ldl(ssp + 12);
-            new_ss = ldl(ssp + 16) & 0xffff;
+            new_esp = ldl(ssp);
+            new_ss = ldl(ssp + 4) & 0xffff;
         } else {
             /* 16 bits */
-            new_esp = lduw(ssp + 6);
-            new_ss = lduw(ssp + 8);
+            new_esp = lduw(ssp);
+            new_ss = lduw(ssp + 2);
         }
         
         if ((new_ss & 3) != rpl)
@@ -906,13 +1136,15 @@ void helper_iret_protected(int shift)
         env->regs[R_ESP] = (env->regs[R_ESP] & 0xffff0000) | 
             (new_esp & 0xffff);
     env->eip = new_eip;
-    if (cpl == 0)
-        eflags_mask = FL_UPDATE_CPL0_MASK;
-    else
-        eflags_mask = FL_UPDATE_MASK32;
-    if (shift == 0)
-        eflags_mask &= 0xffff;
-    load_eflags(new_eflags, eflags_mask);
+    if (is_iret) {
+        if (cpl == 0)
+            eflags_mask = FL_UPDATE_CPL0_MASK;
+        else
+            eflags_mask = FL_UPDATE_MASK32;
+        if (shift == 0)
+            eflags_mask &= 0xffff;
+        load_eflags(new_eflags, eflags_mask);
+    }
     return;
 
  return_to_vm86:
@@ -934,6 +1166,16 @@ void helper_iret_protected(int shift)
     
     env->eip = new_eip;
     env->regs[R_ESP] = new_esp;
+}
+
+void helper_iret_protected(int shift)
+{
+    helper_ret_protected(shift, 1, 0);
+}
+
+void helper_lret_protected(int shift, int addend)
+{
+    helper_ret_protected(shift, 0, addend);
 }
 
 void helper_movl_crN_T0(int reg)
