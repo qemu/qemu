@@ -30,7 +30,7 @@ LD_LIBRARY_PATH is not set:
 
 Then you can launch the precompiled 'ls' x86 executable:
 
-    ./qemu /usr/local/qemu-i386/bin/ls
+    ./qemu /usr/local/qemu-i386/bin/ls-i386
 
 You can look at /usr/local/qemu-i386/bin/qemu-conf.sh so that QEMU is
 automatically launched by the Linux kernel when you try to launch x86
