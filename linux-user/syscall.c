@@ -43,6 +43,7 @@
 #include <sys/times.h>
 #include <sys/shm.h>
 #include <utime.h>
+#include <sys/sysinfo.h>
 //#include <sys/user.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
@@ -2348,7 +2349,29 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         ret = get_errno(swapoff((const char *)arg1));
         break;
     case TARGET_NR_sysinfo:
-        goto unimplemented;
+        {
+            struct target_sysinfo *target_value = (void *)arg1;
+            struct sysinfo value;
+            ret = get_errno(sysinfo(&value));
+            if (!is_error(ret) && target_value)
+            {
+                __put_user(value.uptime, &target_value->uptime);
+                __put_user(value.loads[0], &target_value->loads[0]);
+                __put_user(value.loads[1], &target_value->loads[1]);
+                __put_user(value.loads[2], &target_value->loads[2]);
+                __put_user(value.totalram, &target_value->totalram);
+                __put_user(value.freeram, &target_value->freeram);
+                __put_user(value.sharedram, &target_value->sharedram);
+                __put_user(value.bufferram, &target_value->bufferram);
+                __put_user(value.totalswap, &target_value->totalswap);
+                __put_user(value.freeswap, &target_value->freeswap);
+                __put_user(value.procs, &target_value->procs);
+                __put_user(value.totalhigh, &target_value->totalhigh);
+                __put_user(value.freehigh, &target_value->freehigh);
+                __put_user(value.mem_unit, &target_value->mem_unit);
+            }
+        }
+        break;
     case TARGET_NR_ipc:
 	ret = do_ipc(arg1, arg2, arg3, arg4, arg5, arg6);
 	break;

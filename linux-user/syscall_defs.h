@@ -1133,3 +1133,20 @@ struct target_flock64 {
 /* vfat ioctls */
 #define TARGET_VFAT_IOCTL_READDIR_BOTH    TARGET_IORU('r', 1)
 #define TARGET_VFAT_IOCTL_READDIR_SHORT   TARGET_IORU('r', 2)
+
+struct target_sysinfo {
+    target_long uptime;             /* Seconds since boot */
+    target_ulong loads[3];          /* 1, 5, and 15 minute load averages */
+    target_ulong totalram;          /* Total usable main memory size */
+    target_ulong freeram;           /* Available memory size */
+    target_ulong sharedram;         /* Amount of shared memory */
+    target_ulong bufferram;         /* Memory used by buffers */
+    target_ulong totalswap;         /* Total swap space size */
+    target_ulong freeswap;          /* swap space still available */
+    unsigned short procs;           /* Number of current processes */
+    unsigned short pad;             /* explicit padding for m68k */
+    target_ulong totalhigh;         /* Total high memory size */
+    target_ulong freehigh;          /* Available high memory size */
+    unsigned int mem_unit;          /* Memory unit size in bytes */
+    char _f[20-2*sizeof(target_long)-sizeof(int)]; /* Padding: libc5 uses this.. */
+};
