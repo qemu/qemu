@@ -270,6 +270,7 @@ static name2keysym_t name2keysym[]={
 {"Multi_Key", SDLK_COMPOSE},
 {"Num_Lock", SDLK_NUMLOCK},
 {"Pause", SDLK_PAUSE},
+{"Escape", SDLK_ESCAPE},
 
 {0,0},
 };
