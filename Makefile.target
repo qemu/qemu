@@ -39,7 +39,14 @@ OP_CFLAGS+= -falign-functions=0
 else
 OP_CFLAGS+= -malign-functions=0
 endif
+
 ifdef TARGET_GPROF
+USE_I386_LD=y
+endif
+ifdef CONFIG_STATIC
+USE_I386_LD=y
+endif
+ifdef USE_I386_LD
 LDFLAGS+=-Wl,-T,$(SRC_PATH)/i386.ld
 else
 # WARNING: this LDFLAGS is _very_ tricky : qemu is an ELF shared object

@@ -30,7 +30,7 @@
 
 static const char *interp_prefix = CONFIG_QEMU_PREFIX;
 
-#ifdef __i386__
+#if defined(__i386__) && !defined(CONFIG_STATIC)
 /* Force usage of an ELF interpreter even if it is an ELF shared
    object ! */
 const char interp[] __attribute__((section(".interp"))) = "/lib/ld-linux.so.2";
