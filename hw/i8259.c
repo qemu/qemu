@@ -197,6 +197,15 @@ int cpu_get_pic_interrupt(CPUState *env)
 {
     int irq, irq2, intno;
 
+#ifdef TARGET_X86_64
+    intno = apic_get_interrupt(env);
+    if (intno >= 0) {
+        /* set irq request if a PIC irq is still pending */
+        /* XXX: improve that */
+        pic_update_irq(); 
+        return intno;
+    }
+#endif
     /* read the irq from the PIC */
 
     irq = pic_get_irq(&pics[0]);
