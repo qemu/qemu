@@ -704,7 +704,7 @@ SSE_OP_S(sqrt, FPU_SQRT)
 /* float to float conversions */
 void OPPROTO op_cvtps2pd(void)
 {
-    float s0, s1;
+    float32 s0, s1;
     Reg *d, *s;
     d = (Reg *)((char *)env + PARAM1);
     s = (Reg *)((char *)env + PARAM2);
@@ -1031,10 +1031,10 @@ void OPPROTO op_ ## name ## ps (void)\
     Reg *d, *s;\
     d = (Reg *)((char *)env + PARAM1);\
     s = (Reg *)((char *)env + PARAM2);\
-    d->XMM_L(0) = F(d->XMM_S(0), s->XMM_S(0));\
-    d->XMM_L(1) = F(d->XMM_S(1), s->XMM_S(1));\
-    d->XMM_L(2) = F(d->XMM_S(2), s->XMM_S(2));\
-    d->XMM_L(3) = F(d->XMM_S(3), s->XMM_S(3));\
+    d->XMM_L(0) = F(32, d->XMM_S(0), s->XMM_S(0));\
+    d->XMM_L(1) = F(32, d->XMM_S(1), s->XMM_S(1));\
+    d->XMM_L(2) = F(32, d->XMM_S(2), s->XMM_S(2));\
+    d->XMM_L(3) = F(32, d->XMM_S(3), s->XMM_S(3));\
 }\
 \
 void OPPROTO op_ ## name ## ss (void)\
@@ -1042,15 +1042,15 @@ void OPPROTO op_ ## name ## ss (void)\
     Reg *d, *s;\
     d = (Reg *)((char *)env + PARAM1);\
     s = (Reg *)((char *)env + PARAM2);\
-    d->XMM_L(0) = F(d->XMM_S(0), s->XMM_S(0));\
+    d->XMM_L(0) = F(32, d->XMM_S(0), s->XMM_S(0));\
 }\
 void OPPROTO op_ ## name ## pd (void)\
 {\
     Reg *d, *s;\
     d = (Reg *)((char *)env + PARAM1);\
     s = (Reg *)((char *)env + PARAM2);\
-    d->XMM_Q(0) = F(d->XMM_D(0), s->XMM_D(0));\
-    d->XMM_Q(1) = F(d->XMM_D(1), s->XMM_D(1));\
+    d->XMM_Q(0) = F(64, d->XMM_D(0), s->XMM_D(0));\
+    d->XMM_Q(1) = F(64, d->XMM_D(1), s->XMM_D(1));\
 }\
 \
 void OPPROTO op_ ## name ## sd (void)\
@@ -1058,17 +1058,17 @@ void OPPROTO op_ ## name ## sd (void)\
     Reg *d, *s;\
     d = (Reg *)((char *)env + PARAM1);\
     s = (Reg *)((char *)env + PARAM2);\
-    d->XMM_Q(0) = F(d->XMM_D(0), s->XMM_D(0));\
+    d->XMM_Q(0) = F(64, d->XMM_D(0), s->XMM_D(0));\
 }
 
-#define FPU_CMPEQ(a, b) (a) == (b) ? -1 : 0
-#define FPU_CMPLT(a, b) (a) < (b) ? -1 : 0
-#define FPU_CMPLE(a, b) (a) <= (b) ? -1 : 0
-#define FPU_CMPUNORD(a, b) (fpu_isnan(a) || fpu_isnan(b)) ? - 1 : 0
-#define FPU_CMPNEQ(a, b) (a) == (b) ? 0 : -1
-#define FPU_CMPNLT(a, b) (a) < (b) ? 0 : -1
-#define FPU_CMPNLE(a, b) (a) <= (b) ? 0 : -1
-#define FPU_CMPORD(a, b) (!fpu_isnan(a) && !fpu_isnan(b)) ? - 1 : 0
+#define FPU_CMPEQ(size, a, b) float ## size ## _eq(a, b, &env->sse_status) ? -1 : 0
+#define FPU_CMPLT(size, a, b) float ## size ## _lt(a, b, &env->sse_status) ? -1 : 0
+#define FPU_CMPLE(size, a, b) float ## size ## _le(a, b, &env->sse_status) ? -1 : 0
+#define FPU_CMPUNORD(size, a, b) float ## size ## _unordered(a, b, &env->sse_status) ? - 1 : 0
+#define FPU_CMPNEQ(size, a, b) float ## size ## _eq(a, b, &env->sse_status) ? 0 : -1
+#define FPU_CMPNLT(size, a, b) float ## size ## _lt(a, b, &env->sse_status) ? 0 : -1
+#define FPU_CMPNLE(size, a, b) float ## size ## _le(a, b, &env->sse_status) ? 0 : -1
+#define FPU_CMPORD(size, a, b) float ## size ## _unordered(a, b, &env->sse_status) ? 0 : -1
 
 SSE_OP_CMP(cmpeq, FPU_CMPEQ)
 SSE_OP_CMP(cmplt, FPU_CMPLT)
@@ -1082,19 +1082,28 @@ SSE_OP_CMP(cmpord, FPU_CMPORD)
 void OPPROTO op_ucomiss(void)
 {
     int eflags;
-    float s0, s1;
+    float32 s0, s1;
     Reg *d, *s;
     d = (Reg *)((char *)env + PARAM1);
     s = (Reg *)((char *)env + PARAM2);
 
     s0 = d->XMM_S(0);
     s1 = s->XMM_S(0);
-    if (s0 < s1)
+    switch(float32_compare_quiet(s0, s1, &env->sse_status)) {
+    case -1:
         eflags = CC_C;
-    else if (s0 == s1)
+        break;
+    case 0:
         eflags = CC_Z;
-    else
+        break;
+    case 1:
         eflags = 0;
+        break;
+    case 2:
+    default:
+        eflags = CC_Z | CC_P | CC_C;
+        break;
+    }
     CC_SRC = eflags;
     FORCE_RET();
 }
@@ -1102,19 +1111,28 @@ void OPPROTO op_ucomiss(void)
 void OPPROTO op_comiss(void)
 {
     int eflags;
-    float s0, s1;
+    float32 s0, s1;
     Reg *d, *s;
     d = (Reg *)((char *)env + PARAM1);
     s = (Reg *)((char *)env + PARAM2);
 
     s0 = d->XMM_S(0);
     s1 = s->XMM_S(0);
-    if (s0 < s1)
+    switch(float32_compare(s0, s1, &env->sse_status)) {
+    case -1:
         eflags = CC_C;
-    else if (s0 == s1)
+        break;
+    case 0:
         eflags = CC_Z;
-    else
+        break;
+    case 1:
         eflags = 0;
+        break;
+    case 2:
+    default:
+        eflags = CC_Z | CC_P | CC_C;
+        break;
+    }
     CC_SRC = eflags;
     FORCE_RET();
 }
@@ -1122,19 +1140,28 @@ void OPPROTO op_comiss(void)
 void OPPROTO op_ucomisd(void)
 {
     int eflags;
-    double d0, d1;
+    float64 d0, d1;
     Reg *d, *s;
     d = (Reg *)((char *)env + PARAM1);
     s = (Reg *)((char *)env + PARAM2);
 
     d0 = d->XMM_D(0);
     d1 = s->XMM_D(0);
-    if (d0 < d1)
+    switch(float64_compare_quiet(d0, d1, &env->sse_status)) {
+    case -1:
         eflags = CC_C;
-    else if (d0 == d1)
+        break;
+    case 0:
         eflags = CC_Z;
-    else
+        break;
+    case 1:
         eflags = 0;
+        break;
+    case 2:
+    default:
+        eflags = CC_Z | CC_P | CC_C;
+        break;
+    }
     CC_SRC = eflags;
     FORCE_RET();
 }
@@ -1142,19 +1169,28 @@ void OPPROTO op_ucomisd(void)
 void OPPROTO op_comisd(void)
 {
     int eflags;
-    double d0, d1;
+    float64 d0, d1;
     Reg *d, *s;
     d = (Reg *)((char *)env + PARAM1);
     s = (Reg *)((char *)env + PARAM2);
 
     d0 = d->XMM_D(0);
     d1 = s->XMM_D(0);
-    if (d0 < d1)
+    switch(float64_compare(d0, d1, &env->sse_status)) {
+    case -1:
         eflags = CC_C;
-    else if (d0 == d1)
+        break;
+    case 0:
         eflags = CC_Z;
-    else
+        break;
+    case 1:
         eflags = 0;
+        break;
+    case 2:
+    default:
+        eflags = CC_Z | CC_P | CC_C;
+        break;
+    }
     CC_SRC = eflags;
     FORCE_RET();
 }

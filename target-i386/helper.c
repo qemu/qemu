@@ -3223,12 +3223,6 @@ void helper_idivq_EAX_T0(void)
 
 #endif
 
-/* XXX: do it */
-int fpu_isnan(double a)
-{
-    return 0;
-}
-
 float approx_rsqrt(float a)
 {
     return 1.0 / sqrt(a);

@@ -325,6 +325,8 @@ static inline void stfl(target_ulong ptr, float v)
 #define floatx_abs floatx80_abs
 #define floatx_chs floatx80_chs
 #define floatx_round_to_int floatx80_round_to_int
+#define floatx_compare floatx80_compare
+#define floatx_compare_quiet floatx80_compare_quiet
 #define sin sinl
 #define cos cosl
 #define sqrt sqrtl
@@ -340,6 +342,8 @@ static inline void stfl(target_ulong ptr, float v)
 #define floatx_abs float64_abs
 #define floatx_chs float64_chs
 #define floatx_round_to_int float64_round_to_int
+#define floatx_compare float64_compare
+#define floatx_compare_quiet float64_compare_quiet
 #endif
 
 extern CPU86_LDouble sin(CPU86_LDouble x);
@@ -547,8 +551,6 @@ void restore_native_fp_state(CPUState *env);
 void save_native_fp_state(CPUState *env);
 float approx_rsqrt(float a);
 float approx_rcp(float a);
-double helper_sqrt(double a);
-int fpu_isnan(double a);
 void update_fp_status(void);
 
 extern const uint8_t parity_table[256];

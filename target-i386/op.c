@@ -1952,52 +1952,94 @@ void OPPROTO op_fxchg_ST0_STN(void)
 
 /* FPU operations */
 
-/* XXX: handle nans */
 void OPPROTO op_fcom_ST0_FT0(void)
 {
-    env->fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
-    if (ST0 < FT0)
-        env->fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
-    else if (ST0 == FT0)
-        env->fpus |= 0x4000; /* (C3,C2,C0) <-- 100 */
+    int cc;
+    switch(floatx_compare(ST0, FT0, &env->fp_status)) {
+    case -1:
+        cc = 0x0100;
+        break;
+    case 0:
+        cc = 0x4000;
+        break;
+    case 1:
+        cc = 0x0000;
+        break;
+    case 2:
+    default:
+        cc = 0x4500;
+        break;
+    }
+    env->fpus = (env->fpus & ~0x4500) | cc;
     FORCE_RET();
 }
 
-/* XXX: handle nans */
 void OPPROTO op_fucom_ST0_FT0(void)
 {
-    env->fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
-    if (ST0 < FT0)
-        env->fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
-    else if (ST0 == FT0)
-        env->fpus |= 0x4000; /* (C3,C2,C0) <-- 100 */
+    int cc;
+    switch(floatx_compare_quiet(ST0, FT0, &env->fp_status)) {
+    case -1:
+        cc = 0x0100;
+        break;
+    case 0:
+        cc = 0x4000;
+        break;
+    case 1:
+        cc = 0x0000;
+        break;
+    case 2:
+    default:
+        cc = 0x4500;
+        break;
+    }
+    env->fpus = (env->fpus & ~0x4500) | cc;
     FORCE_RET();
 }
 
-/* XXX: handle nans */
 void OPPROTO op_fcomi_ST0_FT0(void)
 {
-    int eflags;
+    int eflags, cc;
+    switch(floatx_compare(ST0, FT0, &env->fp_status)) {
+    case -1:
+        cc = CC_C;
+        break;
+    case 0:
+        cc = CC_Z;
+        break;
+    case 1:
+        cc = 0;
+        break;
+    case 2:
+    default:
+        cc = CC_Z | CC_P | CC_C;
+        break;
+    }
     eflags = cc_table[CC_OP].compute_all();
-    eflags &= ~(CC_Z | CC_P | CC_C);
-    if (ST0 < FT0)
-        eflags |= CC_C;
-    else if (ST0 == FT0)
-        eflags |= CC_Z;
+    eflags = (eflags & ~(CC_Z | CC_P | CC_C)) | cc;
     CC_SRC = eflags;
     FORCE_RET();
 }
 
-/* XXX: handle nans */
 void OPPROTO op_fucomi_ST0_FT0(void)
 {
-    int eflags;
+    int eflags, cc;
+    switch(floatx_compare_quiet(ST0, FT0, &env->fp_status)) {
+    case -1:
+        cc = CC_C;
+        break;
+    case 0:
+        cc = CC_Z;
+        break;
+    case 1:
+        cc = 0;
+        break;
+    case 2:
+    default:
+        cc = CC_Z | CC_P | CC_C;
+        break;
+    }
     eflags = cc_table[CC_OP].compute_all();
-    eflags &= ~(CC_Z | CC_P | CC_C);
-    if (ST0 < FT0)
-        eflags |= CC_C;
-    else if (ST0 == FT0)
-        eflags |= CC_Z;
+    eflags = (eflags & ~(CC_Z | CC_P | CC_C)) | cc;
     CC_SRC = eflags;
     FORCE_RET();
 }
