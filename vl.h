@@ -429,6 +429,11 @@ void piix3_init(void);
 void pci_bios_init(void);
 void pci_info(void);
 
+/* temporary: will be moved in platform specific file */
+void pci_prep_init(void);
+void pci_pmac_init(void);
+void pci_ppc_bios_init(void);
+
 /* vga.c */
 
 #define VGA_RAM_SIZE (4096 * 1024)
@@ -580,6 +585,23 @@ void ppc_init (int ram_size, int vga_ram_size, int boot_device,
 	       DisplayState *ds, const char **fd_filename, int snapshot,
 	       const char *kernel_filename, const char *kernel_cmdline,
 	       const char *initrd_filename);
+void ppc_prep_init (int ram_size, int vga_ram_size, int boot_device,
+		    DisplayState *ds, const char **fd_filename, int snapshot,
+		    const char *kernel_filename, const char *kernel_cmdline,
+		    const char *initrd_filename);
+void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
+		   DisplayState *ds, const char **fd_filename, int snapshot,
+		   const char *kernel_filename, const char *kernel_cmdline,
+		   const char *initrd_filename);
+ppc_tb_t *cpu_ppc_tb_init (CPUPPCState *env, uint32_t freq);
+struct sysctrl_t;
+int prep_NVRAM_init (struct sysctrl_t *sysctrl, uint32_t RAM_size,
+                     uint32_t BIOS_size, int boot_device,
+                     uint32_t kernel_image);
+
+extern CPUWriteMemoryFunc *PPC_io_write[];
+extern CPUReadMemoryFunc *PPC_io_read[];
+extern int prep_enabled;
 
 /* monitor.c */
 void monitor_init(void);

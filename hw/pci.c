@@ -470,6 +470,259 @@ void piix3_init(void)
     piix3_reset(d);
 }
 
+/* PREP pci init */
+
+static inline void set_config(PCIBridge *s, target_phys_addr_t addr)
+{
+    int devfn, i;
+
+    for(i = 0; i < 11; i++) {
+        if ((addr & (1 << (11 + i))) != 0)
+            break;
+    }
+    devfn = ((addr >> 8) & 7) | (i << 3);
+    s->config_reg = 0x80000000 | (addr & 0xfc) | (devfn << 8);
+}
+
+static void PPC_PCIIO_writeb (target_phys_addr_t addr, uint32_t val)
+{
+    PCIBridge *s = &pci_bridge;
+    set_config(s, addr);
+    pci_data_write(s, addr, val, 1);
+}
+
+static void PPC_PCIIO_writew (target_phys_addr_t addr, uint32_t val)
+{
+    PCIBridge *s = &pci_bridge;
+    set_config(s, addr);
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap16(val);
+#endif
+    pci_data_write(s, addr, val, 2);
+}
+
+static void PPC_PCIIO_writel (target_phys_addr_t addr, uint32_t val)
+{
+    PCIBridge *s = &pci_bridge;
+    set_config(s, addr);
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap32(val);
+#endif
+    pci_data_write(s, addr, val, 4);
+}
+
+static uint32_t PPC_PCIIO_readb (target_phys_addr_t addr)
+{
+    PCIBridge *s = &pci_bridge;
+    uint32_t val;
+    set_config(s, addr);
+    val = pci_data_read(s, addr, 1);
+    return val;
+}
+
+static uint32_t PPC_PCIIO_readw (target_phys_addr_t addr)
+{
+    PCIBridge *s = &pci_bridge;
+    uint32_t val;
+    set_config(s, addr);
+    val = pci_data_read(s, addr, 2);
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap16(val);
+#endif
+    return val;
+}
+
+static uint32_t PPC_PCIIO_readl (target_phys_addr_t addr)
+{
+    PCIBridge *s = &pci_bridge;
+    uint32_t val;
+    set_config(s, addr);
+    val = pci_data_read(s, addr, 4);
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap32(val);
+#endif
+    return val;
+}
+
+static CPUWriteMemoryFunc *PPC_PCIIO_write[] = {
+    &PPC_PCIIO_writeb,
+    &PPC_PCIIO_writew,
+    &PPC_PCIIO_writel,
+};
+
+static CPUReadMemoryFunc *PPC_PCIIO_read[] = {
+    &PPC_PCIIO_readb,
+    &PPC_PCIIO_readw,
+    &PPC_PCIIO_readl,
+};
+
+void pci_prep_init(void)
+{
+    PCIDevice *d;
+    int PPC_io_memory;
+
+    PPC_io_memory = cpu_register_io_memory(0, PPC_PCIIO_read, PPC_PCIIO_write);
+    cpu_register_physical_memory(0x80800000, 0x00400000, PPC_io_memory);
+
+    d = pci_register_device("PREP PCI Bridge", sizeof(PCIDevice), 0, 0, 
+                            NULL, NULL);
+
+    /* XXX: put correct IDs */
+    d->config[0x00] = 0x11; // vendor_id
+    d->config[0x01] = 0x10;
+    d->config[0x02] = 0x26; // device_id
+    d->config[0x03] = 0x00;
+    d->config[0x08] = 0x02; // revision
+    d->config[0x0a] = 0x04; // class_sub = pci2pci
+    d->config[0x0b] = 0x06; // class_base = PCI_bridge
+    d->config[0x0e] = 0x01; // header_type
+}
+
+
+/* pmac pci init */
+
+static void pci_pmac_config_writel (target_phys_addr_t addr, uint32_t val)
+{
+    PCIBridge *s = &pci_bridge;
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap32(val);
+#endif
+    s->config_reg = val;
+}
+
+static uint32_t pci_pmac_config_readl (target_phys_addr_t addr)
+{
+    PCIBridge *s = &pci_bridge;
+    uint32_t val;
+
+    val = s->config_reg;
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap32(val);
+#endif
+    return val;
+}
+
+static CPUWriteMemoryFunc *pci_pmac_config_write[] = {
+    &pci_pmac_config_writel,
+    &pci_pmac_config_writel,
+    &pci_pmac_config_writel,
+};
+
+static CPUReadMemoryFunc *pci_pmac_config_read[] = {
+    &pci_pmac_config_readl,
+    &pci_pmac_config_readl,
+    &pci_pmac_config_readl,
+};
+
+static void pci_pmac_writeb (target_phys_addr_t addr, uint32_t val)
+{
+    PCIBridge *s = &pci_bridge;
+    pci_data_write(s, addr, val, 1);
+}
+
+static void pci_pmac_writew (target_phys_addr_t addr, uint32_t val)
+{
+    PCIBridge *s = &pci_bridge;
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap16(val);
+#endif
+    pci_data_write(s, addr, val, 2);
+}
+
+static void pci_pmac_writel (target_phys_addr_t addr, uint32_t val)
+{
+    PCIBridge *s = &pci_bridge;
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap32(val);
+#endif
+    pci_data_write(s, addr, val, 4);
+}
+
+static uint32_t pci_pmac_readb (target_phys_addr_t addr)
+{
+    PCIBridge *s = &pci_bridge;
+    uint32_t val;
+    val = pci_data_read(s, addr, 1);
+    return val;
+}
+
+static uint32_t pci_pmac_readw (target_phys_addr_t addr)
+{
+    PCIBridge *s = &pci_bridge;
+    uint32_t val;
+    val = pci_data_read(s, addr, 2);
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap16(val);
+#endif
+    return val;
+}
+
+static uint32_t pci_pmac_readl (target_phys_addr_t addr)
+{
+    PCIBridge *s = &pci_bridge;
+    uint32_t val;
+
+    val = pci_data_read(s, addr, 4);
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap32(val);
+#endif
+    return val;
+}
+
+static CPUWriteMemoryFunc *pci_pmac_write[] = {
+    &pci_pmac_writeb,
+    &pci_pmac_writew,
+    &pci_pmac_writel,
+};
+
+static CPUReadMemoryFunc *pci_pmac_read[] = {
+    &pci_pmac_readb,
+    &pci_pmac_readw,
+    &pci_pmac_readl,
+};
+
+void pci_pmac_init(void)
+{
+    PCIDevice *d;
+    int pci_mem_config, pci_mem_data;
+
+    pci_mem_config = cpu_register_io_memory(0, pci_pmac_config_read, 
+                                            pci_pmac_config_write);
+    pci_mem_data = cpu_register_io_memory(0, pci_pmac_read, pci_pmac_write);
+
+    cpu_register_physical_memory(0xfec00000, 0x1000, pci_mem_config);
+    cpu_register_physical_memory(0xfee00000, 0x1000, pci_mem_data);
+
+    d = pci_register_device("MPC106", sizeof(PCIDevice), 0, 0, 
+                            NULL, NULL);
+
+    /* same values as PearPC - check this */
+    d->config[0x00] = 0x11; // vendor_id
+    d->config[0x01] = 0x10;
+    d->config[0x02] = 0x26; // device_id
+    d->config[0x03] = 0x00;
+    d->config[0x08] = 0x02; // revision
+    d->config[0x0a] = 0x04; // class_sub = pci2pci
+    d->config[0x0b] = 0x06; // class_base = PCI_bridge
+    d->config[0x0e] = 0x01; // header_type
+
+    d->config[0x18] = 0x0;  // primary_bus
+    d->config[0x19] = 0x1;  // secondary_bus
+    d->config[0x1a] = 0x1;  // subordinate_bus
+    d->config[0x1c] = 0x10; // io_base
+    d->config[0x1d] = 0x20; // io_limit
+    
+    d->config[0x20] = 0x80; // memory_base
+    d->config[0x21] = 0x80;
+    d->config[0x22] = 0x90; // memory_limit
+    d->config[0x23] = 0x80;
+    
+    d->config[0x24] = 0x00; // prefetchable_memory_base
+    d->config[0x25] = 0x84;
+    d->config[0x26] = 0x00; // prefetchable_memory_limit
+    d->config[0x27] = 0x85;
+}
+
 /***********************************************************/
 /* generic PCI irq support */
 
@@ -484,6 +737,11 @@ static inline int pci_slot_get_pirq(PCIDevice *pci_dev, int irq_num)
 }
 
 /* 0 <= irq_num <= 3. level must be 0 or 1 */
+#ifdef TARGET_PPC
+void pci_set_irq(PCIDevice *pci_dev, int irq_num, int level)
+{
+}
+#else
 void pci_set_irq(PCIDevice *pci_dev, int irq_num, int level)
 {
     int irq_index, shift, pic_irq, pic_level;
@@ -519,6 +777,7 @@ void pci_set_irq(PCIDevice *pci_dev, int irq_num, int level)
         pic_set_irq(pic_irq, pic_level);
     }
 }
+#endif
 
 /***********************************************************/
 /* monitor info on PCI */
@@ -769,6 +1028,47 @@ void pci_bios_init(void)
     }
     isa_outb(elcr[0], 0x4d0);
     isa_outb(elcr[1], 0x4d1);
+
+    for(bus_num = 0; bus_num < 256; bus_num++) {
+        bus = s->pci_bus[bus_num];
+        if (bus) {
+            for(devfn = 0; devfn < 256; devfn++) {
+                if (bus[devfn])
+                    pci_bios_init_device(bus[devfn]);
+            }
+        }
+    }
+}
+
+/*
+ * This function initializes the PCI devices as a normal PCI BIOS
+ * would do. It is provided just in case the BIOS has no support for
+ * PCI.
+ */
+void pci_ppc_bios_init(void)
+{
+    PCIBridge *s = &pci_bridge;
+    PCIDevice **bus;
+    int bus_num, devfn, i, irq;
+    uint8_t elcr[2];
+
+    pci_bios_io_addr = 0xc000;
+    pci_bios_mem_addr = 0xc0000000;
+
+#if 0
+    /* activate IRQ mappings */
+    elcr[0] = 0x00;
+    elcr[1] = 0x00;
+    for(i = 0; i < 4; i++) {
+        irq = pci_irqs[i];
+        /* set to trigger level */
+        elcr[irq >> 3] |= (1 << (irq & 7));
+        /* activate irq remapping in PIIX */
+        pci_config_writeb((PCIDevice *)piix3_state, 0x60 + i, irq);
+    }
+    isa_outb(elcr[0], 0x4d0);
+    isa_outb(elcr[1], 0x4d1);
+#endif
 
     for(bus_num = 0; bus_num < 256; bus_num++) {
         bus = s->pci_bus[bus_num];

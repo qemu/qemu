@@ -93,8 +93,11 @@ extern void __sigaction();
 #define PHYS_RAM_MAX_SIZE (2047 * 1024 * 1024)
 #endif
 
+#ifdef TARGET_PPC
+#define DEFAULT_RAM_SIZE 144
+#else
 #define DEFAULT_RAM_SIZE 32
-
+#endif
 /* in ms */
 #define GUI_REFRESH_INTERVAL 30
 
@@ -125,6 +128,7 @@ QEMUTimer *gui_timer;
 int vm_running;
 int audio_enabled = 0;
 int pci_enabled = 0;
+int prep_enabled = 0;
 
 /***********************************************************/
 /* x86 ISA bus support */
@@ -876,12 +880,17 @@ int serial_open_device(void)
         /* use console for serial port */
         return 0;
     } else {
+#if 0
+        /* Not satisfying */
         if (openpty(&master_fd, &slave_fd, slave_name, NULL, NULL) < 0) {
             fprintf(stderr, "warning: could not create pseudo terminal for serial port\n");
             return -1;
         }
         fprintf(stderr, "Serial port redirected to %s\n", slave_name);
         return master_fd;
+#else
+        return -1;
+#endif
     }
 }
 
@@ -2005,6 +2014,7 @@ enum {
     QEMU_OPTION_L,
     QEMU_OPTION_no_code_copy,
     QEMU_OPTION_pci,
+    QEMU_OPTION_prep,
 };
 
 typedef struct QEMUOption {
@@ -2049,7 +2059,12 @@ const QEMUOption qemu_options[] = {
     { "hdachs", HAS_ARG, QEMU_OPTION_hdachs },
     { "L", HAS_ARG, QEMU_OPTION_L },
     { "no-code-copy", 0, QEMU_OPTION_no_code_copy },
+
+    /* temporary options */
     { "pci", 0, QEMU_OPTION_pci },
+#ifdef TARGET_PPC
+    { "prep", 0, QEMU_OPTION_prep },
+#endif
     { NULL },
 };
 
@@ -2322,6 +2337,9 @@ int main(int argc, char **argv)
                 break;
             case QEMU_OPTION_pci:
                 pci_enabled = 1;
+                break;
+            case QEMU_OPTION_prep:
+                prep_enabled = 1;
                 break;
             }
         }
