@@ -1735,7 +1735,6 @@ static uint64_t __attribute__((aligned(16))) test_values[4][2] = {
 
 #define SHUF_OP(op, ib)\
 {\
-    int i;\
     a.q[0] = test_values[0][0];\
     a.q[1] = test_values[0][1];\
     b.q[0] = test_values[1][0];\
