@@ -33,6 +33,7 @@
 #define TEST_CMOV  0
 #define TEST_FCOMI 0
 //#define LINUX_VM86_IOPL_FIX
+//#define TEST_P4_FLAGS
 
 #define xglue(x, y) x ## y
 #define glue(x, y) xglue(x, y)
@@ -352,21 +353,16 @@ void test_jcc(void)
 }
 
 #undef CC_MASK
+#ifdef TEST_P4_FLAGS
+#define CC_MASK (CC_C | CC_P | CC_Z | CC_S | CC_O | CC_A)
+#else
 #define CC_MASK (CC_O | CC_C)
+#endif
 
 #define OP mul
 #include "test-i386-muldiv.h"
 
 #define OP imul
-#include "test-i386-muldiv.h"
-
-#undef CC_MASK
-#define CC_MASK (0)
-
-#define OP div
-#include "test-i386-muldiv.h"
-
-#define OP idiv
 #include "test-i386-muldiv.h"
 
 void test_imulw2(int op0, int op1) 
@@ -404,6 +400,15 @@ void test_imull2(int op0, int op1)
     printf("%-10s A=%08x B=%08x R=%08x CC=%04x\n",
            "imull", s0, s1, res, flags & CC_MASK);
 }
+
+#undef CC_MASK
+#define CC_MASK (0)
+
+#define OP div
+#include "test-i386-muldiv.h"
+
+#define OP idiv
+#include "test-i386-muldiv.h"
 
 void test_mul(void)
 {
