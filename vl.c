@@ -99,7 +99,7 @@ extern void __sigaction();
 #ifdef TARGET_PPC
 #define DEFAULT_RAM_SIZE 144
 #else
-#define DEFAULT_RAM_SIZE 32
+#define DEFAULT_RAM_SIZE 128
 #endif
 /* in ms */
 #define GUI_REFRESH_INTERVAL 30
@@ -133,9 +133,9 @@ int audio_enabled = 0;
 int pci_enabled = 1;
 int prep_enabled = 0;
 int rtc_utc = 1;
-int cirrus_vga_enabled = 0;
-int graphic_width = 640;
-int graphic_height = 480;
+int cirrus_vga_enabled = 1;
+int graphic_width = 800;
+int graphic_height = 600;
 int graphic_depth = 15;
 
 /***********************************************************/
@@ -960,14 +960,14 @@ int serial_open_device(void)
 
 int serial_open_device(void)
 {
-    char slave_name[1024];
-    int master_fd, slave_fd;
-
     if (serial_console == NULL && nographic) {
         /* use console for serial port */
         return 0;
     } else {
 #if 0
+        char slave_name[1024];
+        int master_fd, slave_fd;
+        
         /* Not satisfying */
         if (openpty(&master_fd, &slave_fd, slave_name, NULL, NULL) < 0) {
             fprintf(stderr, "warning: could not create pseudo terminal for serial port\n");
@@ -2115,6 +2115,8 @@ void help(void)
 #endif
 #ifdef TARGET_I386
            "-isa            simulate an ISA-only system (default is PCI system)\n"
+           "-std-vga        simulate a standard VGA card with VESA Bochs Extensions\n"
+           "                (default is CL-GD5446 PCI VGA)\n"
 #endif
            "\n"
            "During emulation, use C-a h to get terminal commands:\n",
@@ -2179,6 +2181,7 @@ enum {
     QEMU_OPTION_localtime,
     QEMU_OPTION_cirrusvga,
     QEMU_OPTION_g,
+    QEMU_OPTION_std_vga,
 };
 
 typedef struct QEMUOption {
@@ -2229,6 +2232,7 @@ const QEMUOption qemu_options[] = {
 #endif
     { "localtime", 0, QEMU_OPTION_localtime },
     { "isa", 0, QEMU_OPTION_isa },
+    { "std-vga", 0, QEMU_OPTION_std_vga },
 
     /* temporary options */
     { "pci", 0, QEMU_OPTION_pci },
@@ -2517,6 +2521,9 @@ int main(int argc, char **argv)
                 break;
             case QEMU_OPTION_cirrusvga:
                 cirrus_vga_enabled = 1;
+                break;
+            case QEMU_OPTION_std_vga:
+                cirrus_vga_enabled = 0;
                 break;
             case QEMU_OPTION_g:
                 {
