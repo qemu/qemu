@@ -43,15 +43,6 @@ static inline int32_t s_ext16 (uint16_t value)
     return *tmp;
 }
 
-/* 24 to 32 bits */
-static inline int32_t s_ext24 (uint32_t value)
-{
-    uint16_t utmp = (value >> 8) & 0xFFFF;
-    int16_t *tmp = &utmp;
-
-    return (*tmp << 8) | (value & 0xFF);
-}
-
 #include "config.h"
 #include <setjmp.h>
 
