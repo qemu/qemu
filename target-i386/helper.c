@@ -686,6 +686,7 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
         sp_mask = get_sp_mask(env->segs[R_SS].flags);
         ssp = env->segs[R_SS].base;
         esp = ESP;
+        dpl = cpl;
     } else {
         raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
         new_stack = 0; /* avoid warning */
