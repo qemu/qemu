@@ -742,4 +742,7 @@ static inline void cpu_physical_memory_set_dirty(target_ulong addr)
 
 void cpu_physical_memory_reset_dirty(target_ulong start, target_ulong end);
 
+void dump_exec_info(FILE *f,
+                    int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
+
 #endif /* CPU_ALL_H */

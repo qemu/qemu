@@ -220,12 +220,17 @@ static void do_info_block(void)
 static void do_info_registers(void)
 {
 #ifdef TARGET_I386
-    cpu_dump_state(cpu_single_env, stdout, monitor_fprintf,
+    cpu_dump_state(cpu_single_env, NULL, monitor_fprintf,
                    X86_DUMP_FPU | X86_DUMP_CCOP);
 #else
-    cpu_dump_state(cpu_single_env, stdout, monitor_fprintf, 
+    cpu_dump_state(cpu_single_env, NULL, monitor_fprintf, 
                    0);
 #endif
+}
+
+static void do_info_jit(void)
+{
+    dump_exec_info(NULL, monitor_fprintf);
 }
 
 static void do_info_history (void)
@@ -893,6 +898,8 @@ static term_cmd_t info_cmds[] = {
     { "mem", "", mem_info,
       "", "show the active virtual memory mappings", },
 #endif
+    { "jit", "", do_info_jit,
+      "", "show dynamic compiler info", },
     { NULL, NULL, },
 };
 
