@@ -5,7 +5,6 @@ short term:
 - do not resize vga if invalid size.
 - avoid looping if only exceptions
 - handle fast timers + add explicit clocks
-- OS/2 install bug
 - cycle counter for all archs
 - TLB code protection support for PPC
 - add sysenter/sysexit and fxsr for L4 pistachio 686
