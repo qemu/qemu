@@ -181,9 +181,6 @@ the write back by pressing @key{C-a s} (@xref{disk_images}).
 @item -m megs
 Set virtual RAM size to @var{megs} megabytes. Default is 128 MB.
 
-@item -initrd file
-Use @var{file} as initial ram disk.
-
 @item -nographic
 
 Normally, QEMU uses SDL to display the VGA output. With this option,
