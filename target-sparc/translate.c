@@ -1553,6 +1553,7 @@ extern int ram_size;
 void cpu_reset(CPUSPARCState *env)
 {
     memset(env, 0, sizeof(*env));
+    tlb_flush(env, 1);
     env->cwp = 0;
     env->wim = 1;
     env->regwptr = env->regbase + (env->cwp * 16);
