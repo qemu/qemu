@@ -611,11 +611,10 @@ void OPPROTO op_debug(void)
 
 void OPPROTO op_raise_interrupt(void)
 {
-    int intno;
-    unsigned int next_eip;
+    int intno, next_eip_addend;
     intno = PARAM1;
-    next_eip = PARAM2;
-    raise_interrupt(intno, 1, 0, next_eip);
+    next_eip_addend = PARAM2;
+    raise_interrupt(intno, 1, 0, next_eip_addend);
 }
 
 void OPPROTO op_raise_exception(void)

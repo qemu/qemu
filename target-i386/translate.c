@@ -2119,7 +2119,7 @@ static void gen_interrupt(DisasContext *s, int intno,
     if (s->cc_op != CC_OP_DYNAMIC)
         gen_op_set_cc_op(s->cc_op);
     gen_jmp_im(cur_eip);
-    gen_op_raise_interrupt(intno, next_eip);
+    gen_op_raise_interrupt(intno, (int)(next_eip - cur_eip));
     s->is_jmp = 3;
 }
 
@@ -4452,7 +4452,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             goto illegal_op;
         if (s->cc_op != CC_OP_DYNAMIC)
             gen_op_set_cc_op(s->cc_op);
-        gen_op_into(s->pc - s->cs_base);
+        gen_jmp_im(pc_start - s->cs_base);
+        gen_op_into(s->pc - pc_start);
         break;
     case 0xf1: /* icebp (undocumented, exits to external debugger) */
 #if 0
@@ -4826,7 +4827,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             /* nothing to do */
         }
         break;
-    case 0x1ae: /* sfence */
+    case 0x1ae:
         modrm = ldub_code(s->pc++);
         mod = (modrm >> 6) & 3;
         op = (modrm >> 3) & 7;

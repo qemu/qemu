@@ -1157,12 +1157,12 @@ void do_interrupt(int intno, int is_int, int error_code,
  * is_int is TRUE.  
  */
 void raise_interrupt(int intno, int is_int, int error_code, 
-                     unsigned int next_eip)
+                     int next_eip_addend)
 {
     env->exception_index = intno;
     env->error_code = error_code;
     env->exception_is_int = is_int;
-    env->exception_next_eip = next_eip;
+    env->exception_next_eip = env->eip + next_eip_addend;
     cpu_loop_exit();
 }
 
@@ -2929,14 +2929,14 @@ void helper_fxsave(target_ulong ptr, int data64)
     }
     
     if (env->cr[4] & CR4_OSFXSR_MASK) {
-        /* XXX: finish it, endianness */
+        /* XXX: finish it */
         stl(ptr + 0x18, 0); /* mxcsr */
         stl(ptr + 0x1c, 0); /* mxcsr_mask */
         nb_xmm_regs = 8 << data64;
         addr = ptr + 0xa0;
         for(i = 0; i < nb_xmm_regs; i++) {
-            stq(addr, env->xmm_regs[i].u.q[0]);
-            stq(addr, env->xmm_regs[i].u.q[1]);
+            stq(addr, env->xmm_regs[i].XMM_Q(0));
+            stq(addr + 8, env->xmm_regs[i].XMM_Q(1));
             addr += 16;
         }
     }
@@ -2972,8 +2972,8 @@ void helper_fxrstor(target_ulong ptr, int data64)
         nb_xmm_regs = 8 << data64;
         addr = ptr + 0xa0;
         for(i = 0; i < nb_xmm_regs; i++) {
-            env->xmm_regs[i].u.q[0] = ldq(addr);
-            env->xmm_regs[i].u.q[1] = ldq(addr);
+            env->xmm_regs[i].XMM_Q(0) = ldq(addr);
+            env->xmm_regs[i].XMM_Q(1) = ldq(addr + 8);
             addr += 16;
         }
     }
@@ -3099,6 +3099,7 @@ static void imul64(uint64_t *plow, uint64_t *phigh, int64_t a, int64_t b)
     }
 }
 
+/* XXX: overflow support */
 static void div64(uint64_t *plow, uint64_t *phigh, uint64_t b)
 {
     uint64_t q, r, a1, a0;
@@ -3114,16 +3115,16 @@ static void div64(uint64_t *plow, uint64_t *phigh, uint64_t b)
     } else {
         /* XXX: use a better algorithm */
         for(i = 0; i < 64; i++) {
+            a1 = (a1 << 1) | (a0 >> 63);
             if (a1 >= b) {
                 a1 -= b;
                 qb = 1;
             } else {
                 qb = 0;
             }
-            a1 = (a1 << 1) | (a0 >> 63);
             a0 = (a0 << 1) | qb;
         }
-#if defined(DEBUG_MULDIV) || 1
+#if defined(DEBUG_MULDIV)
         printf("div: 0x%016llx%016llx / 0x%016llx: q=0x%016llx r=0x%016llx\n",
                *phigh, *plow, b, a0, a1);
 #endif
@@ -3167,7 +3168,7 @@ void helper_imulq_EAX_T0(void)
     EAX = r0;
     EDX = r1;
     CC_DST = r0;
-    CC_SRC = (r1 != (r0 >> 63));
+    CC_SRC = ((int64_t)r1 != ((int64_t)r0 >> 63));
 }
 
 void helper_imulq_T0_T1(void)

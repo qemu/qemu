@@ -85,18 +85,16 @@ void OPPROTO glue(glue(op_ldo, MEMSUFFIX), _env_A0)(void)
 {
     XMMReg *p;
     p = (XMMReg *)((char *)env + PARAM1);
-    /* XXX: host endianness ? */
-    p->u.q[0] = glue(ldq, MEMSUFFIX)(A0);
-    p->u.q[1] = glue(ldq, MEMSUFFIX)(A0 + 8);
+    p->XMM_Q(0) = glue(ldq, MEMSUFFIX)(A0);
+    p->XMM_Q(1) = glue(ldq, MEMSUFFIX)(A0 + 8);
 }
 
 void OPPROTO glue(glue(op_sto, MEMSUFFIX), _env_A0)(void)
 {
     XMMReg *p;
     p = (XMMReg *)((char *)env + PARAM1);
-    /* XXX: host endianness ? */
-    glue(stq, MEMSUFFIX)(A0, p->u.q[0]);
-    glue(stq, MEMSUFFIX)(A0 + 8, p->u.q[1]);
+    glue(stq, MEMSUFFIX)(A0, p->XMM_Q(0));
+    glue(stq, MEMSUFFIX)(A0 + 8, p->XMM_Q(1));
 }
 
 #ifdef TARGET_X86_64

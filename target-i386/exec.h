@@ -176,17 +176,13 @@ void do_interrupt(int intno, int is_int, int error_code,
 void do_interrupt_user(int intno, int is_int, int error_code, 
                        target_ulong next_eip);
 void raise_interrupt(int intno, int is_int, int error_code, 
-                     unsigned int next_eip);
+                     int next_eip_addend);
 void raise_exception_err(int exception_index, int error_code);
 void raise_exception(int exception_index);
 void __hidden cpu_loop_exit(void);
 
 void OPPROTO op_movl_eflags_T0(void);
 void OPPROTO op_movl_T0_eflags(void);
-void raise_interrupt(int intno, int is_int, int error_code, 
-                     unsigned int next_eip);
-void raise_exception_err(int exception_index, int error_code);
-void raise_exception(int exception_index);
 void helper_divl_EAX_T0(void);
 void helper_idivl_EAX_T0(void);
 void helper_mulq_EAX_T0(void);
