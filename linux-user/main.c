@@ -28,8 +28,6 @@
 
 #define DEBUG_LOGFILE "/tmp/qemu.log"
 
-FILE *logfile = NULL;
-int loglevel;
 static const char *interp_prefix = CONFIG_QEMU_PREFIX;
 
 #ifdef __i386__
@@ -367,7 +365,9 @@ int main(int argc, char **argv)
     if (argc <= 1)
         usage();
 
-    loglevel = 0;
+    /* init debug */
+    cpu_set_log_filename(DEBUG_LOGFILE);
+
     optind = 1;
     for(;;) {
         if (optind >= argc)
@@ -380,7 +380,7 @@ int main(int argc, char **argv)
         if (!strcmp(r, "-")) {
             break;
         } else if (!strcmp(r, "d")) {
-            loglevel = 1;
+            cpu_set_log(CPU_LOG_ALL);
         } else if (!strcmp(r, "s")) {
             r = argv[optind++];
             x86_stack_size = strtol(r, (char **)&r, 0);
@@ -406,16 +406,6 @@ int main(int argc, char **argv)
     if (optind >= argc)
         usage();
     filename = argv[optind];
-
-    /* init debug */
-    if (loglevel) {
-        logfile = fopen(DEBUG_LOGFILE, "w");
-        if (!logfile) {
-            perror(DEBUG_LOGFILE);
-            _exit(1);
-        }
-        setvbuf(logfile, NULL, _IOLBF, 0);
-    }
 
     /* Zero out regs */
     memset(regs, 0, sizeof(struct target_pt_regs));
