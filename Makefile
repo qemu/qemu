@@ -135,6 +135,10 @@ ifeq ($(ARCH),alpha)
 	echo -ne '\001\000\000\000' | dd of=qemu bs=1 seek=48 count=4 conv=notrunc
 endif
 
+# must use static linking to avoid leaving stuff in virtual address space
+vl: vl.o libqemu.a
+	$(CC) -static -Wl,-T,i386-vl.ld -o $@ $^  $(LIBS)
+
 depend: $(SRCS)
 	$(CC) -MM $(CFLAGS) $^ 1>.depend
 
