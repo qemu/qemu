@@ -611,8 +611,6 @@ void page_unprotect_range(uint8_t *data, unsigned long data_size);
 
 #endif /* SINGLE_CPU_DEFINES */
 
-#define DEFAULT_GDBSTUB_PORT 1234
-
 void cpu_abort(CPUState *env, const char *fmt, ...);
 extern CPUState *cpu_single_env;
 extern int code_copy_enabled;
@@ -721,10 +719,5 @@ static inline void cpu_physical_memory_set_dirty(target_ulong addr)
 }
 
 void cpu_physical_memory_reset_dirty(target_ulong start, target_ulong end);
-
-/* gdb stub API */
-extern int gdbstub_fd;
-CPUState *cpu_gdbstub_get_env(void *opaque);
-int cpu_gdbstub(void *opaque, int (*main_loop)(void *opaque), int port);
 
 #endif /* CPU_ALL_H */

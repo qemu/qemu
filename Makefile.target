@@ -166,7 +166,7 @@ SRCS:= $(OBJS:.o=.c)
 OBJS+= libqemu.a
 
 # cpu emulator library
-LIBOBJS=exec.o translate-all.o cpu-exec.o gdbstub.o \
+LIBOBJS=exec.o translate-all.o cpu-exec.o\
         translate.o op.o
 
 ifeq ($(TARGET_ARCH), i386)
@@ -219,7 +219,7 @@ ifeq ($(ARCH),alpha)
 endif
 
 # must use static linking to avoid leaving stuff in virtual address space
-VL_OBJS=vl.o osdep.o block.o monitor.o \
+VL_OBJS=vl.o osdep.o block.o monitor.o gdbstub.o \
         ide.o ne2000.o pckbd.o vga.o sb16.o dma.o oss.o \
         fdc.o mc146818rtc.o serial.o i8259.o i8254.o pc.o
 ifeq ($(TARGET_ARCH), ppc)
