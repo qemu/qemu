@@ -248,8 +248,8 @@ static int put_packet(char *buf)
     return 0;
 }
 
-    /* better than nothing for SOFTMMU : we use physical addresses */
-#ifdef CONFIG_SOFTMMU
+/* better than nothing for SOFTMMU : we use physical addresses */
+#if !defined(CONFIG_USER_ONLY)
 static int memory_rw(uint8_t *buf, uint32_t addr, int len, int is_write)
 {
     uint8_t *ptr;
