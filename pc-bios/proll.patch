@@ -1,6 +1,6 @@
-diff -ruN proll_18.orig/Makefile proll-patch7/Makefile
+diff -ruN proll_18.orig/Makefile proll-patch8/Makefile
 --- proll_18.orig/Makefile	2002-09-13 14:16:59.000000000 +0000
-+++ proll-patch7/Makefile	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch8/Makefile	2004-11-13 15:50:49.000000000 +0000
 @@ -4,6 +4,7 @@
  	make -C krups-ser    all
  	make -C espresso     all
@@ -14,14 +14,14 @@ diff -ruN proll_18.orig/Makefile proll-patch7/Makefile
  	make -C espresso     clean
  	make -C espresso-ser clean
 +	make -C qemu clean
-diff -ruN proll_18.orig/qemu/Makefile proll-patch7/qemu/Makefile
+diff -ruN proll_18.orig/qemu/Makefile proll-patch8/qemu/Makefile
 --- proll_18.orig/qemu/Makefile	1970-01-01 00:00:00.000000000 +0000
-+++ proll-patch7/qemu/Makefile	2005-03-02 16:41:50.000000000 +0000
++++ proll-patch8/qemu/Makefile	2005-03-02 16:41:50.000000000 +0000
 @@ -0,0 +1,122 @@
 +#
 +# proll:
 +# qemu/Makefile - make PROLL for QEMU
-+# $Id: proll.patch,v 1.3 2005-03-13 09:43:36 bellard Exp $
++# $Id: proll.patch,v 1.4 2005-04-06 20:45:26 bellard Exp $
 +#
 +# Copyright 1999 Pete Zaitcev
 +# This is Free Software is licensed under terms of GNU General Public License.
@@ -140,9 +140,9 @@ diff -ruN proll_18.orig/qemu/Makefile proll-patch7/qemu/Makefile
 +
 +proll.aout:	$(PROLLEXE)
 +	$(ELFTOAOUT) -o proll.aout $(PROLLEXE)
-diff -ruN proll_18.orig/qemu/head.S proll-patch7/qemu/head.S
+diff -ruN proll_18.orig/qemu/head.S proll-patch8/qemu/head.S
 --- proll_18.orig/qemu/head.S	1970-01-01 00:00:00.000000000 +0000
-+++ proll-patch7/qemu/head.S	2005-03-02 15:30:47.000000000 +0000
++++ proll-patch8/qemu/head.S	2005-03-02 15:30:47.000000000 +0000
 @@ -0,0 +1,539 @@
 +/**
 + ** Standalone startup code for Linux PROM emulator.
@@ -150,7 +150,7 @@ diff -ruN proll_18.orig/qemu/head.S proll-patch7/qemu/head.S
 + ** This code is licensed under GNU General Public License.
 + **/
 +/*
-+ * $Id: proll.patch,v 1.3 2005-03-13 09:43:36 bellard Exp $
++ * $Id: proll.patch,v 1.4 2005-04-06 20:45:26 bellard Exp $
 + */
 +
 +#include <psr.h>
@@ -683,9 +683,9 @@ diff -ruN proll_18.orig/qemu/head.S proll-patch7/qemu/head.S
 +C_LABEL(ldb_bypass):
 +	retl
 +	 lduba [%o0] ASI_M_BYPASS, %o0
-diff -ruN proll_18.orig/qemu/main.c proll-patch7/qemu/main.c
+diff -ruN proll_18.orig/qemu/main.c proll-patch8/qemu/main.c
 --- proll_18.orig/qemu/main.c	1970-01-01 00:00:00.000000000 +0000
-+++ proll-patch7/qemu/main.c	2005-03-02 20:08:23.000000000 +0000
++++ proll-patch8/qemu/main.c	2005-04-03 11:58:46.000000000 +0000
 @@ -0,0 +1,173 @@
 +/**
 + ** Proll (PROM replacement)
@@ -755,7 +755,7 @@ diff -ruN proll_18.orig/qemu/main.c proll-patch7/qemu/main.c
 +	    printk_fn = vcon_write;
 +	}
 +	else {
-+	    vcon_zs_init(&dp0, 0x71100000);
++	    vcon_zs_init(&dp0, 0x71100004);
 +	    printk_fn = vcon_zs_write;
 +	}
 +
@@ -860,10 +860,10 @@ diff -ruN proll_18.orig/qemu/main.c proll-patch7/qemu/main.c
 +	hw_idprom = va_prom; 
 +}
 +
-diff -ruN proll_18.orig/qemu/openprom.c proll-patch7/qemu/openprom.c
+diff -ruN proll_18.orig/qemu/openprom.c proll-patch8/qemu/openprom.c
 --- proll_18.orig/qemu/openprom.c	1970-01-01 00:00:00.000000000 +0000
-+++ proll-patch7/qemu/openprom.c	2005-03-02 20:09:57.000000000 +0000
-@@ -0,0 +1,646 @@
++++ proll-patch8/qemu/openprom.c	2005-04-06 16:53:31.000000000 +0000
+@@ -0,0 +1,665 @@
 +/*
 + * PROM interface support
 + * Copyright 1996 The Australian National University.
@@ -1082,27 +1082,27 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch7/qemu/openprom.c
 +	{NULL, NULL, -1}
 +};
 +
-+static const int prop_zs_intr[] = { 12, 0x0 };
++static const int prop_zs_intr[] = { 0x2c, 0x0 };
 +static const int prop_zs_reg[] = {
 +	0x0, 0x00000000, 0x00000008,
 +};
-+static const int prop_zs_addr = { 0x70000000 };
 +static const int prop_zs_slave[] = { 1 };
++static void *prop_zs_addr;
 +static const struct property propv_obio_zs[] = {
 +	{"name",	"zs", sizeof("zs")},
 +	{"reg",		(char*)&prop_zs_reg[0], sizeof(prop_zs_reg) },
 +	{"slave",	(char*)&prop_zs_slave[0], sizeof(prop_zs_slave) },
 +	{"device_type", "serial", sizeof("serial") },
 +	{"intr",	(char*)&prop_zs_intr[0], sizeof(prop_zs_intr) },
-+	//	{"address",	(char*)&prop_zs_addr, sizeof(prop_zs_addr) },
++	{"address",	(char*)&prop_zs_addr, sizeof(prop_zs_addr) },
 +	{NULL, NULL, -1}
 +};
 +
-+static const int prop_zs1_intr[] = { 12, 0x0 };
++static const int prop_zs1_intr[] = { 0x2c, 0x0 };
 +static const int prop_zs1_reg[] = {
 +	0x0, 0x00100000, 0x00000008,
 +};
-+static const int prop_zs1_addr = { 0x70100000 };
++static void *prop_zs1_addr;
 +static const int prop_zs1_slave[] = { 0 };
 +static const struct property propv_obio_zs1[] = {
 +	{"name",	"zs", sizeof("zs")},
@@ -1110,7 +1110,7 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch7/qemu/openprom.c
 +	{"slave",	(char*)&prop_zs1_slave[0], sizeof(prop_zs1_slave) },
 +	{"device_type", "serial", sizeof("serial") },
 +	{"intr",	(char*)&prop_zs1_intr[0], sizeof(prop_zs1_intr) },
-+	//	{"address",	(char*)&prop_zs1_addr, sizeof(prop_zs1_addr) },
++	{"address",	(char*)&prop_zs1_addr, sizeof(prop_zs1_addr) },
 +	{NULL, NULL, -1}
 +};
 +
@@ -1141,9 +1141,9 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch7/qemu/openprom.c
 +static const int prop_espdma_reg[] = {
 +	0x4, 0x08400000, 0x00000010,
 +};
-+// Disabled, not implemented yet
++
 +static const struct property propv_sbus_espdma[] = {
-+	{"name",	"xxxespdma", sizeof("xxxespdma")}, 
++	{"name",	"espdma", sizeof("espdma")}, 
 +	{"reg",		(char*)&prop_espdma_reg[0], sizeof(prop_espdma_reg) },
 +	{NULL, NULL, -1}
 +};
@@ -1202,6 +1202,20 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch7/qemu/openprom.c
 +	{NULL, NULL, -1}
 +};
 +
++static const struct property propv_options[] = {
++	{"name",	"options", sizeof("options")},
++	{"screen-#columns",	"80", sizeof("80")},
++	{"screen-#rows",	"25", sizeof("25")},
++	{"tpe-link-test?",	"true", sizeof("true")},
++	{"ttya-mode",		"9600,8,n,1,-", sizeof("9600,8,n,1,-")},
++	{"ttya-ignore-cd",	"true", sizeof("true")},
++	{"ttya-rts-dtr-off",	"false", sizeof("false")},
++	{"ttyb-mode",		"9600,8,n,1,-", sizeof("9600,8,n,1,-")},
++	{"ttyb-ignore-cd",	"true", sizeof("true")},
++	{"ttyb-rts-dtr-off",	"false", sizeof("false")},
++	{NULL, NULL, -1}
++};
++
 +static const struct node nodes[] = {
 +	{ &null_properties,	 1,  0 }, /* 0 = big brother of root */
 +	{ propv_root,		 0,  2 }, /*  1 "/" */
@@ -1215,33 +1229,18 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch7/qemu/openprom.c
 +	{ propv_sbus_espdma,	 0, 10 }, /*  9 "/iommu/sbus/espdma" */
 +	{ propv_sbus_espdma_esp, 0,  0 }, /* 10 "/iommu/sbus/espdma/esp" */
 +	{ propv_cpu,		12,  0 }, /* 11 "/STP1012PGA" */
-+	{ propv_obio,		 0, 13 }, /* 12 "/obio" */
++	{ propv_obio,		22, 13 }, /* 12 "/obio" */
 +	{ propv_obio_int,	14,  0 }, /* 13 "/obio/interrupt" */
 +	{ propv_obio_cnt,	15,  0 }, /* 14 "/obio/counter" */
 +	{ propv_obio_eep,	16,  0 }, /* 15 "/obio/eeprom" */
 +	{ propv_obio_auxio,	17,  0 }, /* 16 "/obio/auxio" */
-+	{ propv_obio_zs,	18,  0 }, /* 17 "/obio/zs@0,0" */
-+	{ propv_obio_zs1,	19,  0 }, /* 18 "/obio/zs@0,100000" */
++	{ propv_obio_zs1,	18,  0 }, /* 17 "/obio/zs@0,100000"
++					     Must be before zs@0,0! */
++	{ propv_obio_zs,	19,  0 }, /* 18 "/obio/zs@0,0" */
 +	{ propv_obio_fd,	20,  0 }, /* 19 "/obio/SUNW,fdtwo" */
 +	{ propv_obio_pw,	21,  0 }, /* 20 "/obio/power" */
 +	{ propv_obio_cf,	 0,  0 }, /* 21 "/obio/slavioconfig@0,800000" */
-+#if 0
-+	{ propv_obio_su,	14,  0 }, /* 13 "/obio/su" */
-+	{ propv_cpu,		18,  0 }, /* 17 "/STP1012PGA" */
-+	{ propv_cpu,		19,  0 }, /* 18 "/STP1012PGA" */
-+
-+	{ propv_cpu,		20,  0 }, /* 19 "/STP1012PGA" */
-+	{ propv_cpu,		21,  0 }, /* 20 "/STP1012PGA" */
-+	{ propv_cpu,		22,  0 }, /* 21 "/STP1012PGA" */
-+	{ propv_cpu,		23,  0 }, /* 22 "/STP1012PGA" */
-+	{ propv_cpu,		24,  0 }, /* 23 "/STP1012PGA" */
-+	{ propv_cpu,		25,  0 }, /* 24 "/STP1012PGA" */
-+	{ propv_cpu,		26,  0 }, /* 25 "/STP1012PGA" */
-+	{ propv_cpu,		27,  0 }, /* 26 "/STP1012PGA" */
-+	{ propv_cpu,		28,  0 }, /* 27 "/STP1012PGA" */
-+	{ propv_cpu,		29,  0 }, /* 28 "/STP1012PGA" */
-+	{ propv_cpu,		30,  0 }, /* 29 "/STP1012PGA" */
-+#endif
++	{ propv_options,	 0,  0 }, /* 22 "/options" */
 +};
 +
 +static struct linux_mlist_v0 totphys[MAX_BANKS];
@@ -1379,6 +1378,8 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch7/qemu/openprom.c
 +	    obp_stdin = PROMDEV_KBD;
 +	    obp_stdout = PROMDEV_SCREEN;
 +	}
++	prop_zs_addr = map_io(0x71000000, 8);
++	prop_zs1_addr = map_io(0x71100000, 8);
 +	return &romvec0;
 +}
 +
@@ -1427,6 +1428,14 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch7/qemu/openprom.c
 +{
 +	const struct property *prop;
 +
++	if (!name) {
++	    // NULL name means get first property
++#ifdef DEBUG_OBP
++	    printk("obp_getprop(%d, %x (NULL)) = %s\n", node, name,
++		   nodes[node].properties[0].name);
++#endif
++	    return (int)nodes[node].properties[0].name;
++	}
 +	prop = find_property(node,name);
 +	if (prop) {
 +		memcpy(value,prop->value,prop->length);
@@ -1451,8 +1460,18 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch7/qemu/openprom.c
 +
 +static const char *obp_nextprop(int node,char *name)
 +{
-+	const struct property *prop = find_property(node,name);
-+	if (prop) {
++	const struct property *prop;
++	
++	if (!name || *name == '\0') {
++	    // NULL name means get first property
++#ifdef DEBUG_OBP
++	    printk("obp_nextprop(%d, NULL) = %s\n", node,
++		   nodes[node].properties[0].name);
++#endif
++	    return nodes[node].properties[0].name;
++	}
++	prop = find_property(node,name);
++	if (prop && prop[1].name) {
 +#ifdef DEBUG_OBP
 +	    printk("obp_nextprop(%d, %s) = %s\n", node, name, prop[1].name);
 +#endif
@@ -1461,7 +1480,7 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch7/qemu/openprom.c
 +#ifdef DEBUG_OBP
 +        printk("obp_nextprop(%d, %s): not found\n", node, name);
 +#endif
-+	return NULL;
++	return (const char *)-1;
 +}
 +
 +static int obp_nbgetchar(void) {
@@ -1510,9 +1529,9 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch7/qemu/openprom.c
 +    //buf[8] = 'L';
 +    return num_blks;
 +}
-diff -ruN proll_18.orig/qemu/system_qemu.c proll-patch7/qemu/system_qemu.c
+diff -ruN proll_18.orig/qemu/system_qemu.c proll-patch8/qemu/system_qemu.c
 --- proll_18.orig/qemu/system_qemu.c	1970-01-01 00:00:00.000000000 +0000
-+++ proll-patch7/qemu/system_qemu.c	2005-03-02 16:10:20.000000000 +0000
++++ proll-patch8/qemu/system_qemu.c	2005-03-02 16:10:20.000000000 +0000
 @@ -0,0 +1,416 @@
 +/**
 + ** Proll (PROM replacement)
@@ -1930,9 +1949,9 @@ diff -ruN proll_18.orig/qemu/system_qemu.c proll-patch7/qemu/system_qemu.c
 +	n = (n>>24 & 0xFF) | (n>>8 & 0xFF00) | ((n&0xFF00) << 8) | (n<<24);
 +	st_bypass(ptr, n);
 +};
-diff -ruN proll_18.orig/src/arp.c proll-patch7/src/arp.c
+diff -ruN proll_18.orig/src/arp.c proll-patch8/src/arp.c
 --- proll_18.orig/src/arp.c	2001-12-24 05:12:31.000000000 +0000
-+++ proll-patch7/src/arp.c	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch8/src/arp.c	2004-11-13 15:50:49.000000000 +0000
 @@ -45,7 +45,7 @@
  #endif
  static struct arp_cache arp_list[ARPNUM];	/* ARP address cache	*/
@@ -1967,9 +1986,9 @@ diff -ruN proll_18.orig/src/arp.c proll-patch7/src/arp.c
 +  def_gw = IP_ANY;
    return(TRUE);
  }
-diff -ruN proll_18.orig/src/arp.h proll-patch7/src/arp.h
+diff -ruN proll_18.orig/src/arp.h proll-patch8/src/arp.h
 --- proll_18.orig/src/arp.h	1999-03-18 03:39:43.000000000 +0000
-+++ proll-patch7/src/arp.h	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch8/src/arp.h	2004-11-13 15:50:49.000000000 +0000
 @@ -104,7 +104,7 @@
  extern int init_arp __P((void));
  
@@ -1979,9 +1998,9 @@ diff -ruN proll_18.orig/src/arp.h proll-patch7/src/arp.h
  
  /* Add a new antry to the ARP cache */
  extern void addcache __P((unsigned char *ha, t_ipaddr ip));
-diff -ruN proll_18.orig/src/hconsole.c proll-patch7/src/hconsole.c
+diff -ruN proll_18.orig/src/hconsole.c proll-patch8/src/hconsole.c
 --- proll_18.orig/src/hconsole.c	2002-07-23 05:52:48.000000000 +0000
-+++ proll-patch7/src/hconsole.c	2005-03-02 17:03:09.000000000 +0000
++++ proll-patch8/src/hconsole.c	2005-03-02 17:03:09.000000000 +0000
 @@ -29,6 +29,10 @@
         struct raster r_master;	/* For a case of resize, whole fb */
         struct raster r_0;	/* malloc() erzatz */
@@ -2005,9 +2024,9 @@ diff -ruN proll_18.orig/src/hconsole.c proll-patch7/src/hconsole.c
  	t->r_ = r;
  	t->r0_ = q;
  	t->f_ = &f_master;
-diff -ruN proll_18.orig/src/lat7_2.bm proll-patch7/src/lat7_2.bm
+diff -ruN proll_18.orig/src/lat7_2.bm proll-patch8/src/lat7_2.bm
 --- proll_18.orig/src/lat7_2.bm	1999-02-27 05:48:54.000000000 +0000
-+++ proll-patch7/src/lat7_2.bm	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch8/src/lat7_2.bm	2004-11-13 15:50:49.000000000 +0000
 @@ -1,6 +1,6 @@
  #define lat7_2_width 128
  #define lat7_2_height 88
@@ -2016,9 +2035,9 @@ diff -ruN proll_18.orig/src/lat7_2.bm proll-patch7/src/lat7_2.bm
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0xaa, 0x12, 0x1e, 0x0c, 0x02, 0x70, 0x18,
     0x22, 0x22, 0x18, 0x00, 0x00, 0x18, 0x18, 0xff, 0x18, 0x00, 0x12, 0x02,
-diff -ruN proll_18.orig/src/lat7_2_swapped.bm proll-patch7/src/lat7_2_swapped.bm
+diff -ruN proll_18.orig/src/lat7_2_swapped.bm proll-patch8/src/lat7_2_swapped.bm
 --- proll_18.orig/src/lat7_2_swapped.bm	1970-01-01 00:00:00.000000000 +0000
-+++ proll-patch7/src/lat7_2_swapped.bm	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch8/src/lat7_2_swapped.bm	2004-11-13 15:50:49.000000000 +0000
 @@ -0,0 +1,121 @@
 +#define lat7_2_width 128
 +#define lat7_2_height 88
@@ -2141,9 +2160,9 @@ diff -ruN proll_18.orig/src/lat7_2_swapped.bm proll-patch7/src/lat7_2_swapped.bm
 +   0x18, 0x18, 0x30, 0x00, 0x00, 0x00, 0x00, 0x36, 0x6c, 0x00, 0x00, 0x00, 
 +   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7e, 0x42, 0x00, 0x00, 0x00, 0x00, 
 +   0x00, 0x00, 0x00, 0x00};
-diff -ruN proll_18.orig/src/le.c proll-patch7/src/le.c
+diff -ruN proll_18.orig/src/le.c proll-patch8/src/le.c
 --- proll_18.orig/src/le.c	2002-07-23 05:52:49.000000000 +0000
-+++ proll-patch7/src/le.c	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch8/src/le.c	2004-11-13 15:50:49.000000000 +0000
 @@ -185,8 +185,6 @@
  	unsigned short rap;			/* register address port */
  };
@@ -2153,9 +2172,9 @@ diff -ruN proll_18.orig/src/le.c proll-patch7/src/le.c
  /* The Lance uses 24 bit addresses */
  /* On the Sun4c the DVMA will provide the remaining bytes for us */
  /* On the Sun4m we have to instruct the ledma to provide them    */
-diff -ruN proll_18.orig/src/netinit.c proll-patch7/src/netinit.c
+diff -ruN proll_18.orig/src/netinit.c proll-patch8/src/netinit.c
 --- proll_18.orig/src/netinit.c	2002-09-13 21:53:33.000000000 +0000
-+++ proll-patch7/src/netinit.c	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch8/src/netinit.c	2004-11-13 15:50:49.000000000 +0000
 @@ -49,13 +49,20 @@
  unsigned char     myhwaddr[ETH_ALEN];		/* my own hardware addr	*/
           t_ipaddr myipaddr;			/* my own IP address	*/
@@ -2199,9 +2218,9 @@ diff -ruN proll_18.orig/src/netinit.c proll-patch7/src/netinit.c
  	fatal();
    }
  }
-diff -ruN proll_18.orig/src/netpriv.h proll-patch7/src/netpriv.h
+diff -ruN proll_18.orig/src/netpriv.h proll-patch8/src/netpriv.h
 --- proll_18.orig/src/netpriv.h	1999-04-27 05:39:37.000000000 +0000
-+++ proll-patch7/src/netpriv.h	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch8/src/netpriv.h	2004-11-13 15:50:49.000000000 +0000
 @@ -130,10 +130,9 @@
   *
   */
@@ -2223,9 +2242,9 @@ diff -ruN proll_18.orig/src/netpriv.h proll-patch7/src/netpriv.h
  
  /* Empty read buffer */
  extern void empty_buf __P((void));
-diff -ruN proll_18.orig/src/openprom.h proll-patch7/src/openprom.h
+diff -ruN proll_18.orig/src/openprom.h proll-patch8/src/openprom.h
 --- proll_18.orig/src/openprom.h	2002-07-14 02:26:30.000000000 +0000
-+++ proll-patch7/src/openprom.h	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch8/src/openprom.h	2004-11-13 15:50:49.000000000 +0000
 @@ -54,20 +54,20 @@
  };
  
@@ -2287,9 +2306,9 @@ diff -ruN proll_18.orig/src/openprom.h proll-patch7/src/openprom.h
  };
  
  /* More fun PROM structures for device probing. */
-diff -ruN proll_18.orig/src/packet.c proll-patch7/src/packet.c
+diff -ruN proll_18.orig/src/packet.c proll-patch8/src/packet.c
 --- proll_18.orig/src/packet.c	2000-02-11 04:56:45.000000000 +0000
-+++ proll-patch7/src/packet.c	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch8/src/packet.c	2004-11-13 15:50:49.000000000 +0000
 @@ -41,7 +41,7 @@
  	int aligner;
  } wbuf;
@@ -2317,9 +2336,9 @@ diff -ruN proll_18.orig/src/packet.c proll-patch7/src/packet.c
  {
  	struct sk_buff *skb;
  	unsigned char *s;
-diff -ruN proll_18.orig/src/printf.c proll-patch7/src/printf.c
+diff -ruN proll_18.orig/src/printf.c proll-patch8/src/printf.c
 --- proll_18.orig/src/printf.c	1999-03-19 07:03:59.000000000 +0000
-+++ proll-patch7/src/printf.c	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch8/src/printf.c	2004-11-13 15:50:49.000000000 +0000
 @@ -19,7 +19,7 @@
  static void printn(struct prf_fp *, unsigned long, unsigned int);
  static void putchar(char, struct prf_fp *);
@@ -2347,9 +2366,9 @@ diff -ruN proll_18.orig/src/printf.c proll-patch7/src/printf.c
                          	putchar(c,filog);
         		} else if (c == 'l' || c == 'O') {
          	        printn(filog, (long)va_arg(adx,long), c=='l'?10:8);
-diff -ruN proll_18.orig/src/rconsole.c proll-patch7/src/rconsole.c
+diff -ruN proll_18.orig/src/rconsole.c proll-patch8/src/rconsole.c
 --- proll_18.orig/src/rconsole.c	1999-01-16 07:16:55.000000000 +0000
-+++ proll-patch7/src/rconsole.c	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch8/src/rconsole.c	2004-11-13 15:50:49.000000000 +0000
 @@ -28,12 +28,18 @@
   * move to California. Only plain lat7 survived. 
   * I recreated lat7-1 changes in lat7-2.  --zaitcev
@@ -2404,9 +2423,9 @@ diff -ruN proll_18.orig/src/rconsole.c proll-patch7/src/rconsole.c
    p->nchars_ = LAT7_NCHARS;
    p->width_ = LAT7_WIDTH;
    p->height_ = LAT7_HEIGHT;
-diff -ruN proll_18.orig/src/rconsole.h proll-patch7/src/rconsole.h
+diff -ruN proll_18.orig/src/rconsole.h proll-patch8/src/rconsole.h
 --- proll_18.orig/src/rconsole.h	1999-01-16 05:00:59.000000000 +0000
-+++ proll-patch7/src/rconsole.h	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch8/src/rconsole.h	2004-11-13 15:50:49.000000000 +0000
 @@ -13,10 +13,10 @@
   */
  
@@ -2420,9 +2439,9 @@ diff -ruN proll_18.orig/src/rconsole.h proll-patch7/src/rconsole.h
    int nchars_;                 /* 128 for ASCII ...  65536 for Unicode   */
    int width_;                  /* [Pixels]. Maximum size is 16.          */
    int height_;                 /* [Pixels == scan lines].                */
-diff -ruN proll_18.orig/src/romlib.h proll-patch7/src/romlib.h
+diff -ruN proll_18.orig/src/romlib.h proll-patch8/src/romlib.h
 --- proll_18.orig/src/romlib.h	1999-04-20 04:26:45.000000000 +0000
-+++ proll-patch7/src/romlib.h	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch8/src/romlib.h	2004-11-13 15:50:49.000000000 +0000
 @@ -73,12 +73,12 @@
  #define memcpy(dst, src, len)	bcopy(src, dst, len)
  #define memcmp(x1, x2, len)	bcmp(x1, x2, len)
@@ -2439,9 +2458,9 @@ diff -ruN proll_18.orig/src/romlib.h proll-patch7/src/romlib.h
  
  
  /*
-diff -ruN proll_18.orig/src/sched_4m.c proll-patch7/src/sched_4m.c
+diff -ruN proll_18.orig/src/sched_4m.c proll-patch8/src/sched_4m.c
 --- proll_18.orig/src/sched_4m.c	1999-04-27 05:48:51.000000000 +0000
-+++ proll-patch7/src/sched_4m.c	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch8/src/sched_4m.c	2004-11-13 15:50:49.000000000 +0000
 @@ -108,7 +108,7 @@
  static int set_bolt;			/* Tick counter limit */
  static struct handsc hndv[16];
@@ -2451,9 +2470,9 @@ diff -ruN proll_18.orig/src/sched_4m.c proll-patch7/src/sched_4m.c
  	0,	0,	0,	0,	0,	0, SUN4M_INT_ETHERNET,	0,
  	0,	0,	0,	0,	0,	0,	0,	0,
  };
-diff -ruN proll_18.orig/src/swap.c proll-patch7/src/swap.c
+diff -ruN proll_18.orig/src/swap.c proll-patch8/src/swap.c
 --- proll_18.orig/src/swap.c	1970-01-01 00:00:00.000000000 +0000
-+++ proll-patch7/src/swap.c	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch8/src/swap.c	2004-11-13 15:50:49.000000000 +0000
 @@ -0,0 +1,21 @@
 +// Convert the lat7 font so that no conversion is needed at runtime.
 +#define ORIG
@@ -2476,9 +2495,9 @@ diff -ruN proll_18.orig/src/swap.c proll-patch7/src/swap.c
 +    }
 +    printf("\n");
 +}
-diff -ruN proll_18.orig/src/system.c proll-patch7/src/system.c
+diff -ruN proll_18.orig/src/system.c proll-patch8/src/system.c
 --- proll_18.orig/src/system.c	2002-07-23 05:52:49.000000000 +0000
-+++ proll-patch7/src/system.c	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch8/src/system.c	2004-11-13 15:50:49.000000000 +0000
 @@ -298,8 +298,8 @@
  	}
  
@@ -2531,9 +2550,9 @@ diff -ruN proll_18.orig/src/system.c proll-patch7/src/system.c
  void fatal()
  {
  	printk("fatal.");
-diff -ruN proll_18.orig/src/system.h proll-patch7/src/system.h
+diff -ruN proll_18.orig/src/system.h proll-patch8/src/system.h
 --- proll_18.orig/src/system.h	2002-09-13 21:53:32.000000000 +0000
-+++ proll-patch7/src/system.h	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch8/src/system.h	2004-11-13 15:50:49.000000000 +0000
 @@ -16,7 +16,7 @@
  #define IOMAPSIZE (1*1024*1024) /* 1 Meg maximum: we do not map framebuffer. */
  #define NCTX_SWIFT  0x100
@@ -2543,9 +2562,9 @@ diff -ruN proll_18.orig/src/system.h proll-patch7/src/system.h
  
  #ifndef __ASSEMBLY__
  struct bank {
-diff -ruN proll_18.orig/src/udp.c proll-patch7/src/udp.c
+diff -ruN proll_18.orig/src/udp.c proll-patch8/src/udp.c
 --- proll_18.orig/src/udp.c	2001-12-24 05:12:53.000000000 +0000
-+++ proll-patch7/src/udp.c	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch8/src/udp.c	2004-11-13 15:50:49.000000000 +0000
 @@ -81,7 +81,7 @@
  int      source;
  int      dest;
@@ -2565,9 +2584,9 @@ diff -ruN proll_18.orig/src/udp.c proll-patch7/src/udp.c
    /* Register IP packet type and set write buffer pointer */
    if ((writebuf = reg_type(htons(ETH_P_IP), ip_recv)) == NULL)
  	return(FALSE);
-diff -ruN proll_18.orig/src/vcons_zs.c proll-patch7/src/vcons_zs.c
+diff -ruN proll_18.orig/src/vcons_zs.c proll-patch8/src/vcons_zs.c
 --- proll_18.orig/src/vcons_zs.c	1970-01-01 00:00:00.000000000 +0000
-+++ proll-patch7/src/vcons_zs.c	2005-03-02 12:07:41.000000000 +0000
++++ proll-patch8/src/vcons_zs.c	2005-03-20 10:25:39.000000000 +0000
 @@ -0,0 +1,68 @@
 +/**
 + ** Console over 'zs' (Zilog serial port)
@@ -2637,9 +2656,9 @@ diff -ruN proll_18.orig/src/vcons_zs.c proll-patch7/src/vcons_zs.c
 +	/* violent crash in the end */
 +	;
 +}
-diff -ruN proll_18.orig/src/vconsole.c proll-patch7/src/vconsole.c
+diff -ruN proll_18.orig/src/vconsole.c proll-patch8/src/vconsole.c
 --- proll_18.orig/src/vconsole.c	1999-11-08 03:10:28.000000000 +0000
-+++ proll-patch7/src/vconsole.c	2005-03-02 14:29:05.000000000 +0000
++++ proll-patch8/src/vconsole.c	2005-03-02 14:29:05.000000000 +0000
 @@ -13,6 +13,10 @@
  
  struct hconsole hcons0;
@@ -2804,9 +2823,9 @@ diff -ruN proll_18.orig/src/vconsole.c proll-patch7/src/vconsole.c
  			}
  		}
  	}
-diff -ruN proll_18.orig/src/vconsole.h proll-patch7/src/vconsole.h
+diff -ruN proll_18.orig/src/vconsole.h proll-patch8/src/vconsole.h
 --- proll_18.orig/src/vconsole.h	1999-11-08 00:58:13.000000000 +0000
-+++ proll-patch7/src/vconsole.h	2005-03-02 12:40:12.000000000 +0000
++++ proll-patch8/src/vconsole.h	2005-03-02 12:40:12.000000000 +0000
 @@ -6,6 +6,8 @@
  #ifndef VCONSOLE_H
  #define VCONSOLE_H
