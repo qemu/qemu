@@ -117,9 +117,108 @@
 #define REGNAME o7
 #define REG (env->regwptr[7])
 #include "op_template.h"
+
+#define REGNAME f0
+#define REG (env->fpr[0])
+#include "fop_template.h"
+#define REGNAME f1
+#define REG (env->fpr[1])
+#include "fop_template.h"
+#define REGNAME f2
+#define REG (env->fpr[2])
+#include "fop_template.h"
+#define REGNAME f3
+#define REG (env->fpr[3])
+#include "fop_template.h"
+#define REGNAME f4
+#define REG (env->fpr[4])
+#include "fop_template.h"
+#define REGNAME f5
+#define REG (env->fpr[5])
+#include "fop_template.h"
+#define REGNAME f6
+#define REG (env->fpr[6])
+#include "fop_template.h"
+#define REGNAME f7
+#define REG (env->fpr[7])
+#include "fop_template.h"
+#define REGNAME f8
+#define REG (env->fpr[8])
+#include "fop_template.h"
+#define REGNAME f9
+#define REG (env->fpr[9])
+#include "fop_template.h"
+#define REGNAME f10
+#define REG (env->fpr[10])
+#include "fop_template.h"
+#define REGNAME f11
+#define REG (env->fpr[11])
+#include "fop_template.h"
+#define REGNAME f12
+#define REG (env->fpr[12])
+#include "fop_template.h"
+#define REGNAME f13
+#define REG (env->fpr[13])
+#include "fop_template.h"
+#define REGNAME f14
+#define REG (env->fpr[14])
+#include "fop_template.h"
+#define REGNAME f15
+#define REG (env->fpr[15])
+#include "fop_template.h"
+#define REGNAME f16
+#define REG (env->fpr[16])
+#include "fop_template.h"
+#define REGNAME f17
+#define REG (env->fpr[17])
+#include "fop_template.h"
+#define REGNAME f18
+#define REG (env->fpr[18])
+#include "fop_template.h"
+#define REGNAME f19
+#define REG (env->fpr[19])
+#include "fop_template.h"
+#define REGNAME f20
+#define REG (env->fpr[20])
+#include "fop_template.h"
+#define REGNAME f21
+#define REG (env->fpr[21])
+#include "fop_template.h"
+#define REGNAME f22
+#define REG (env->fpr[22])
+#include "fop_template.h"
+#define REGNAME f23
+#define REG (env->fpr[23])
+#include "fop_template.h"
+#define REGNAME f24
+#define REG (env->fpr[24])
+#include "fop_template.h"
+#define REGNAME f25
+#define REG (env->fpr[25])
+#include "fop_template.h"
+#define REGNAME f26
+#define REG (env->fpr[26])
+#include "fop_template.h"
+#define REGNAME f27
+#define REG (env->fpr[27])
+#include "fop_template.h"
+#define REGNAME f28
+#define REG (env->fpr[28])
+#include "fop_template.h"
+#define REGNAME f29
+#define REG (env->fpr[29])
+#include "fop_template.h"
+#define REGNAME f30
+#define REG (env->fpr[30])
+#include "fop_template.h"
+#define REGNAME f31
+#define REG (env->fpr[31])
+#include "fop_template.h"
+
 #define EIP (env->pc)
 
 #define FLAG_SET(x) (env->psr&x)?1:0
+#define FFLAG_SET(x) ((env->fsr&x)?1:0)
 
 void OPPROTO op_movl_T0_0(void)
 {
@@ -375,6 +474,7 @@ void OPPROTO op_sra(void)
     T0 = ((int32_t) T0) >> T1;
 }
 
+#if 0
 void OPPROTO op_st(void)
 {
     stl((void *) T0, T1);
@@ -440,6 +540,51 @@ void OPPROTO op_ldd(void)
     T0 = ldl((void *) (T0 + 4));
 }
 
+void OPPROTO op_stf(void)
+{
+    stfl((void *) T0, FT0);
+}
+
+void OPPROTO op_stdf(void)
+{
+    stfq((void *) T0, DT0);
+}
+
+void OPPROTO op_ldf(void)
+{
+    FT0 = ldfl((void *) T0);
+}
+
+void OPPROTO op_lddf(void)
+{
+    DT0 = ldfq((void *) T0);
+}
+#else
+/* Load and store */
+#define MEMSUFFIX _raw
+#include "op_mem.h"
+#if !defined(CONFIG_USER_ONLY)
+#define MEMSUFFIX _user
+#include "op_mem.h"
+
+#define MEMSUFFIX _kernel
+#include "op_mem.h"
+#endif
+#endif
+
+void OPPROTO op_ldfsr(void)
+{
+    env->fsr = *((uint32_t *) &FT0);
+    FORCE_RET();
+}
+
+void OPPROTO op_stfsr(void)
+{
+    *((uint32_t *) &FT0) = env->fsr;
+    helper_stfsr();
+    FORCE_RET();
+}
+
 void OPPROTO op_wry(void)
 {
     env->y = T0;
@@ -450,35 +595,55 @@ void OPPROTO op_rdy(void)
     T0 = env->y;
 }
 
+void OPPROTO op_rdwim(void)
+{
+    T0 = env->wim;
+}
+
+void OPPROTO op_wrwim(void)
+{
+    env->wim = T0;
+    FORCE_RET();
+}
+
+void OPPROTO op_rdpsr(void)
+{
+    T0 = GET_PSR(env);
+    FORCE_RET();
+}
+
+void OPPROTO op_wrpsr(void)
+{
+    env->psr = T0 & ~PSR_ICC;
+    env->psrs = (T0 & PSR_S)? 1 : 0;
+    env->psrps = (T0 & PSR_PS)? 1 : 0;
+    env->psret = (T0 & PSR_ET)? 1 : 0;
+    env->cwp = (T0 & PSR_CWP);
+    FORCE_RET();
+}
+
+void OPPROTO op_rdtbr(void)
+{
+    T0 = env->tbr;
+}
+
+void OPPROTO op_wrtbr(void)
+{
+    env->tbr = T0;
+    FORCE_RET();
+}
+
+void OPPROTO op_rett(void)
+{
+    helper_rett();
+    FORCE_RET();
+}
+
 void raise_exception(int tt)
 {
     env->exception_index = tt;
     cpu_loop_exit();
 }   
-
-void memcpy32(uint32_t *dst, const uint32_t *src)
-{
-    dst[0] = src[0];
-    dst[1] = src[1];
-    dst[2] = src[2];
-    dst[3] = src[3];
-    dst[4] = src[4];
-    dst[5] = src[5];
-    dst[6] = src[6];
-    dst[7] = src[7];
-}
-
-static inline void set_cwp(int new_cwp)
-{
-    /* put the modified wrap registers at their proper location */
-    if (env->cwp == (NWINDOWS - 1))
-        memcpy32(env->regbase, env->regbase + NWINDOWS * 16);
-    env->cwp = new_cwp;
-    /* put the wrap registers at their temporary location */
-    if (new_cwp == (NWINDOWS - 1))
-        memcpy32(env->regbase + NWINDOWS * 16, env->regbase);
-    env->regwptr = env->regbase + (new_cwp * 16);
-}
 
 /* XXX: use another pointer for %iN registers to avoid slow wrapping
    handling ? */
@@ -523,6 +688,12 @@ void OPPROTO op_trapcc_T0(void)
         cpu_loop_exit();
     }
     FORCE_RET();
+}
+
+void OPPROTO op_debug(void)
+{
+    env->exception_index = EXCP_DEBUG;
+    cpu_loop_exit();
 }
 
 void OPPROTO op_exit_tb(void)
@@ -612,6 +783,92 @@ void OPPROTO op_eval_bvc(void)
     T2 = !(env->psr & PSR_OVF);
 }
 
+/* FCC1:FCC0: 0 =, 1 <, 2 >, 3 u */
+
+void OPPROTO op_eval_fbne(void)
+{
+// !0
+    T2 = (env->fsr & (FSR_FCC1 | FSR_FCC0)); /* L or G or U */
+}
+
+void OPPROTO op_eval_fblg(void)
+{
+// 1 or 2
+    T2 = FFLAG_SET(FSR_FCC0) ^ FFLAG_SET(FSR_FCC1);
+}
+
+void OPPROTO op_eval_fbul(void)
+{
+// 1 or 3
+    T2 = FFLAG_SET(FSR_FCC0);
+}
+
+void OPPROTO op_eval_fbl(void)
+{
+// 1
+    T2 = FFLAG_SET(FSR_FCC0) & !FFLAG_SET(FSR_FCC1);
+}
+
+void OPPROTO op_eval_fbug(void)
+{
+// 2 or 3
+    T2 = FFLAG_SET(FSR_FCC1);
+}
+
+void OPPROTO op_eval_fbg(void)
+{
+// 2
+    T2 = !FFLAG_SET(FSR_FCC0) & FFLAG_SET(FSR_FCC1);
+}
+
+void OPPROTO op_eval_fbu(void)
+{
+// 3
+    T2 = FFLAG_SET(FSR_FCC0) & FFLAG_SET(FSR_FCC1);
+}
+
+void OPPROTO op_eval_fbe(void)
+{
+// 0
+    T2 = !FFLAG_SET(FSR_FCC0) & !FFLAG_SET(FSR_FCC1);
+}
+
+void OPPROTO op_eval_fbue(void)
+{
+// 0 or 3
+    T2 = !(FFLAG_SET(FSR_FCC1) ^ FFLAG_SET(FSR_FCC0));
+}
+
+void OPPROTO op_eval_fbge(void)
+{
+// 0 or 2
+    T2 = !FFLAG_SET(FSR_FCC0);
+}
+
+void OPPROTO op_eval_fbuge(void)
+{
+// !1
+    T2 = !(FFLAG_SET(FSR_FCC0) & !FFLAG_SET(FSR_FCC1));
+}
+
+void OPPROTO op_eval_fble(void)
+{
+// 0 or 1
+    T2 = !FFLAG_SET(FSR_FCC1);
+}
+
+void OPPROTO op_eval_fbule(void)
+{
+// !2
+    T2 = !(!FFLAG_SET(FSR_FCC0) & FFLAG_SET(FSR_FCC1));
+}
+
+void OPPROTO op_eval_fbo(void)
+{
+// !3
+    T2 = !(FFLAG_SET(FSR_FCC0) & FFLAG_SET(FSR_FCC1));
+}
+
 void OPPROTO op_movl_T2_0(void)
 {
     T2 = 0;
@@ -687,3 +944,119 @@ void OPPROTO op_flush_T0(void)
 {
     helper_flush(T0);
 }
+
+void OPPROTO op_fnegs(void)
+{
+    FT0 = -FT1;
+}
+
+void OPPROTO op_fabss(void)
+{
+    do_fabss();
+}
+
+void OPPROTO op_fsqrts(void)
+{
+    do_fsqrts();
+}
+
+void OPPROTO op_fsqrtd(void)
+{
+    do_fsqrtd();
+}
+
+void OPPROTO op_fmuls(void)
+{
+    FT0 *= FT1;
+}
+
+void OPPROTO op_fmuld(void)
+{
+    DT0 *= DT1;
+}
+
+void OPPROTO op_fsmuld(void)
+{
+    DT0 = FT0 * FT1;
+}
+
+void OPPROTO op_fadds(void)
+{
+    FT0 += FT1;
+}
+
+void OPPROTO op_faddd(void)
+{
+    DT0 += DT1;
+}
+
+void OPPROTO op_fsubs(void)
+{
+    FT0 -= FT1;
+}
+
+void OPPROTO op_fsubd(void)
+{
+    DT0 -= DT1;
+}
+
+void OPPROTO op_fdivs(void)
+{
+    FT0 /= FT1;
+}
+
+void OPPROTO op_fdivd(void)
+{
+    DT0 /= DT1;
+}
+
+void OPPROTO op_fcmps(void)
+{
+    do_fcmps();
+}
+
+void OPPROTO op_fcmpd(void)
+{
+    do_fcmpd();
+}
+
+void OPPROTO op_fitos(void)
+{
+    FT0 = (float) *((int32_t *)&FT1);
+}
+
+void OPPROTO op_fdtos(void)
+{
+    FT0 = (float) DT1;
+}
+
+void OPPROTO op_fitod(void)
+{
+    DT0 = (double) *((int32_t *)&FT1);
+}
+
+void OPPROTO op_fstod(void)
+{
+    DT0 = (double) FT1;
+}
+
+void OPPROTO op_fstoi(void)
+{
+    *((int32_t *)&FT0) = (int32_t) FT1;
+}
+
+void OPPROTO op_fdtoi(void)
+{
+    *((int32_t *)&FT0) = (int32_t) DT1;
+}
+
+void OPPROTO op_ld_asi()
+{
+    helper_ld_asi(PARAM1, PARAM2, PARAM3);
+}
+
+void OPPROTO op_st_asi()
+{
+    helper_st_asi(PARAM1, PARAM2, PARAM3);
+}
+
