@@ -607,11 +607,49 @@ void OPPROTO op_into(void)
     int eflags;
     eflags = cc_table[CC_OP].compute_all();
     if (eflags & CC_O) {
-        EIP = PARAM1;
         raise_exception(EXCP04_INTO);
-    } else {
-        EIP = PARAM2;
     }
+}
+
+void OPPROTO op_boundw(void)
+{
+    int low, high, v;
+    low = ldsw((uint8_t *)A0);
+    high = ldsw((uint8_t *)A0 + 2);
+    v = (int16_t)T0;
+    if (v < low || v > high)
+        raise_exception(EXCP05_BOUND);
+    FORCE_RET();
+}
+
+void OPPROTO op_boundl(void)
+{
+    int low, high, v;
+    low = ldl((uint8_t *)A0);
+    high = ldl((uint8_t *)A0 + 4);
+    v = T0;
+    if (v < low || v > high)
+        raise_exception(EXCP05_BOUND);
+    FORCE_RET();
+}
+
+void OPPROTO op_cmpxchg8b(void)
+{
+    uint64_t d;
+    int eflags;
+
+    eflags = cc_table[CC_OP].compute_all();
+    d = ldq((uint8_t *)A0);
+    if (d == (((uint64_t)EDX << 32) | EAX)) {
+        stq((uint8_t *)A0, ((uint64_t)ECX << 32) | EBX);
+        eflags |= CC_Z;
+    } else {
+        EDX = d >> 32;
+        EAX = d;
+        eflags &= ~CC_Z;
+    }
+    CC_SRC = eflags;
+    FORCE_RET();
 }
 
 /* string ops */
@@ -793,7 +831,8 @@ void op_addw_ESP_im(void)
 #ifndef __i386__
 uint64_t emu_time;
 #endif
-void op_rdtsc(void)
+
+void OPPROTO op_rdtsc(void)
 {
     uint64_t val;
 #ifdef __i386__
@@ -804,6 +843,51 @@ void op_rdtsc(void)
 #endif
     EAX = val;
     EDX = val >> 32;
+}
+
+/* We simulate a pre-MMX pentium as in valgrind */
+#define CPUID_FP87 (1 << 0)
+#define CPUID_VME  (1 << 1)
+#define CPUID_DE   (1 << 2)
+#define CPUID_PSE  (1 << 3)
+#define CPUID_TSC  (1 << 4)
+#define CPUID_MSR  (1 << 5)
+#define CPUID_PAE  (1 << 6)
+#define CPUID_MCE  (1 << 7)
+#define CPUID_CX8  (1 << 8)
+#define CPUID_APIC (1 << 9)
+#define CPUID_SEP  (1 << 11) /* sysenter/sysexit */
+#define CPUID_MTRR (1 << 12)
+#define CPUID_PGE  (1 << 13)
+#define CPUID_MCA  (1 << 14)
+#define CPUID_CMOV (1 << 15)
+/* ... */
+#define CPUID_MMX  (1 << 23)
+#define CPUID_FXSR (1 << 24)
+#define CPUID_SSE  (1 << 25)
+#define CPUID_SSE2 (1 << 26)
+
+void helper_cpuid(void)
+{
+    if (EAX == 0) {
+        EAX = 1; /* max EAX index supported */
+        EBX = 0x756e6547;
+        ECX = 0x6c65746e;
+        EDX = 0x49656e69;
+    } else {
+        /* EAX = 1 info */
+        EAX = 0x52b;
+        EBX = 0;
+        ECX = 0;
+        EDX = CPUID_FP87 | CPUID_VME | CPUID_DE | CPUID_PSE |
+            CPUID_TSC | CPUID_MSR | CPUID_MCE |
+            CPUID_CX8;
+    }
+}
+
+void OPPROTO op_cpuid(void)
+{
+    helper_cpuid();
 }
 
 /* bcd */
@@ -938,6 +1022,7 @@ void OPPROTO op_das(void)
 
 /* segment handling */
 
+/* XXX: use static VM86 information */
 void load_seg(int seg_reg, int selector)
 {
     SegmentCache *sc;
@@ -948,7 +1033,7 @@ void load_seg(int seg_reg, int selector)
 
     env->segs[seg_reg] = selector;
     sc = &env->seg_cache[seg_reg];
-    if (env->vm86) {
+    if (env->eflags & VM_MASK) {
         sc->base = (void *)(selector << 4);
         sc->limit = 0xffff;
         sc->seg_32bit = 0;
@@ -983,6 +1068,11 @@ void OPPROTO op_movl_seg_T0(void)
 void OPPROTO op_movl_T0_seg(void)
 {
     T0 = env->segs[PARAM1];
+}
+
+void OPPROTO op_movl_A0_seg(void)
+{
+    A0 = *(unsigned long *)((char *)env + PARAM1);
 }
 
 void OPPROTO op_addl_A0_seg(void)
@@ -1144,10 +1234,16 @@ void OPPROTO op_set_cc_op(void)
     CC_OP = PARAM1;
 }
 
+#define FL_UPDATE_MASK (TF_MASK | AC_MASK | ID_MASK)
+
 void OPPROTO op_movl_eflags_T0(void)
 {
-    CC_SRC = T0;
-    DF = 1 - (2 * ((T0 >> 10) & 1));
+    int eflags;
+    eflags = T0;
+    CC_SRC = eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
+    DF = 1 - (2 * ((eflags >> 10) & 1));
+    /* we also update some system flags as in user mode */
+    env->eflags = (env->eflags & ~FL_UPDATE_MASK) | (eflags & FL_UPDATE_MASK);
 }
 
 /* XXX: compute only O flag */
@@ -1155,13 +1251,16 @@ void OPPROTO op_movb_eflags_T0(void)
 {
     int of;
     of = cc_table[CC_OP].compute_all() & CC_O;
-    CC_SRC = T0 | of;
+    CC_SRC = (T0 & (CC_S | CC_Z | CC_A | CC_P | CC_C)) | of;
 }
 
 void OPPROTO op_movl_T0_eflags(void)
 {
-    T0 = cc_table[CC_OP].compute_all();
-    T0 |= (DF & DIRECTION_FLAG);
+    int eflags;
+    eflags = cc_table[CC_OP].compute_all();
+    eflags |= (DF & DF_MASK);
+    eflags |= env->eflags & ~(VM_MASK | RF_MASK);
+    T0 = eflags;
 }
 
 void OPPROTO op_cld(void)
