@@ -20,7 +20,13 @@
 #ifndef CPU_I386_H
 #define CPU_I386_H
 
+#include "config.h"
+
+#ifdef TARGET_X86_64
+#define TARGET_LONG_BITS 64
+#else
 #define TARGET_LONG_BITS 32
+#endif
 
 /* target supports implicit self modifying code */
 #define TARGET_HAS_SMC
@@ -63,6 +69,8 @@
 #define DESC_G_MASK     (1 << 23)
 #define DESC_B_SHIFT    22
 #define DESC_B_MASK     (1 << DESC_B_SHIFT)
+#define DESC_L_SHIFT    21 /* x86_64 only : 64 bit code segment */
+#define DESC_L_MASK     (1 << DESC_L_SHIFT)
 #define DESC_AVL_MASK   (1 << 20)
 #define DESC_P_MASK     (1 << 15)
 #define DESC_DPL_SHIFT  13
@@ -125,6 +133,8 @@
 #define HF_EM_SHIFT         10
 #define HF_TS_SHIFT         11
 #define HF_IOPL_SHIFT       12 /* must be same as eflags */
+#define HF_LMA_SHIFT        14 /* only used on x86_64: long mode active */
+#define HF_CS64_SHIFT       15 /* only used on x86_64: 64 bit code segment  */
 #define HF_VM_SHIFT         17 /* must be same as eflags */
 
 #define HF_CPL_MASK          (3 << HF_CPL_SHIFT)
@@ -138,6 +148,8 @@
 #define HF_MP_MASK           (1 << HF_MP_SHIFT)
 #define HF_EM_MASK           (1 << HF_EM_SHIFT)
 #define HF_TS_MASK           (1 << HF_TS_SHIFT)
+#define HF_LMA_MASK          (1 << HF_LMA_SHIFT)
+#define HF_CS64_MASK         (1 << HF_CS64_SHIFT)
 
 #define CR0_PE_MASK  (1 << 0)
 #define CR0_MP_MASK  (1 << 1)
@@ -156,6 +168,9 @@
 #define CR4_PSE_MASK  (1 << 4)
 #define CR4_PAE_MASK  (1 << 5)
 #define CR4_PGE_MASK  (1 << 7)
+#define CR4_PCE_MASK  (1 << 8)
+#define CR4_OSFXSR_MASK (1 << 9)
+#define CR4_OSXMMEXCPT_MASK  (1 << 10)
 
 #define PG_PRESENT_BIT	0
 #define PG_RW_BIT	1
@@ -193,6 +208,44 @@
 #define MSR_IA32_SYSENTER_ESP           0x175
 #define MSR_IA32_SYSENTER_EIP           0x176
 
+#define MSR_EFER                        0xc0000080
+
+#define MSR_EFER_SCE   (1 << 0)
+#define MSR_EFER_LME   (1 << 8)
+#define MSR_EFER_LMA   (1 << 10)
+#define MSR_EFER_NXE   (1 << 11)
+#define MSR_EFER_FFXSR (1 << 14)
+
+#define MSR_STAR                        0xc0000081
+#define MSR_LSTAR                       0xc0000082
+#define MSR_CSTAR                       0xc0000083
+#define MSR_FMASK                       0xc0000084
+#define MSR_FSBASE                      0xc0000100
+#define MSR_GSBASE                      0xc0000101
+#define MSR_KERNELGSBASE                0xc0000102
+
+/* cpuid_features bits */
+#define CPUID_FP87 (1 << 0)
+#define CPUID_VME  (1 << 1)
+#define CPUID_DE   (1 << 2)
+#define CPUID_PSE  (1 << 3)
+#define CPUID_TSC  (1 << 4)
+#define CPUID_MSR  (1 << 5)
+#define CPUID_PAE  (1 << 6)
+#define CPUID_MCE  (1 << 7)
+#define CPUID_CX8  (1 << 8)
+#define CPUID_APIC (1 << 9)
+#define CPUID_SEP  (1 << 11) /* sysenter/sysexit */
+#define CPUID_MTRR (1 << 12)
+#define CPUID_PGE  (1 << 13)
+#define CPUID_MCA  (1 << 14)
+#define CPUID_CMOV (1 << 15)
+/* ... */
+#define CPUID_MMX  (1 << 23)
+#define CPUID_FXSR (1 << 24)
+#define CPUID_SSE  (1 << 25)
+#define CPUID_SSE2 (1 << 26)
+
 #define EXCP00_DIVZ	0
 #define EXCP01_SSTP	1
 #define EXCP02_NMI	2
@@ -219,42 +272,52 @@ enum {
     CC_OP_MULB, /* modify all flags, C, O = (CC_SRC != 0) */
     CC_OP_MULW,
     CC_OP_MULL,
+    CC_OP_MULQ,
 
     CC_OP_ADDB, /* modify all flags, CC_DST = res, CC_SRC = src1 */
     CC_OP_ADDW,
     CC_OP_ADDL,
+    CC_OP_ADDQ,
 
     CC_OP_ADCB, /* modify all flags, CC_DST = res, CC_SRC = src1 */
     CC_OP_ADCW,
     CC_OP_ADCL,
+    CC_OP_ADCQ,
 
     CC_OP_SUBB, /* modify all flags, CC_DST = res, CC_SRC = src1 */
     CC_OP_SUBW,
     CC_OP_SUBL,
+    CC_OP_SUBQ,
 
     CC_OP_SBBB, /* modify all flags, CC_DST = res, CC_SRC = src1 */
     CC_OP_SBBW,
     CC_OP_SBBL,
+    CC_OP_SBBQ,
 
     CC_OP_LOGICB, /* modify all flags, CC_DST = res */
     CC_OP_LOGICW,
     CC_OP_LOGICL,
+    CC_OP_LOGICQ,
 
     CC_OP_INCB, /* modify all flags except, CC_DST = res, CC_SRC = C */
     CC_OP_INCW,
     CC_OP_INCL,
+    CC_OP_INCQ,
 
     CC_OP_DECB, /* modify all flags except, CC_DST = res, CC_SRC = C  */
     CC_OP_DECW,
     CC_OP_DECL,
+    CC_OP_DECQ,
 
     CC_OP_SHLB, /* modify all flags, CC_DST = res, CC_SRC.msb = C */
     CC_OP_SHLW,
     CC_OP_SHLL,
+    CC_OP_SHLQ,
 
     CC_OP_SARB, /* modify all flags, CC_DST = res, CC_SRC.lsb = C */
     CC_OP_SARW,
     CC_OP_SARL,
+    CC_OP_SARQ,
 
     CC_OP_NB,
 };
@@ -271,22 +334,42 @@ typedef double CPU86_LDouble;
 
 typedef struct SegmentCache {
     uint32_t selector;
-    uint8_t *base;
+    target_ulong base;
     uint32_t limit;
     uint32_t flags;
 } SegmentCache;
 
+typedef struct {
+    union {
+        uint8_t b[16];
+        uint16_t w[8];
+        uint32_t l[4];
+        uint64_t q[2];
+    } u;
+} XMMReg;
+
+#ifdef TARGET_X86_64
+#define CPU_NB_REGS 16
+#else
+#define CPU_NB_REGS 8
+#endif
+
 typedef struct CPUX86State {
+#if TARGET_LONG_BITS > HOST_LONG_BITS
+    /* temporaries if we cannot store them in host registers */
+    target_ulong t0, t1, t2;
+#endif
+
     /* standard registers */
-    uint32_t regs[8];
-    uint32_t eip;
-    uint32_t eflags; /* eflags register. During CPU emulation, CC
+    target_ulong regs[CPU_NB_REGS];
+    target_ulong eip;
+    target_ulong eflags; /* eflags register. During CPU emulation, CC
                         flags and DF are set to zero because they are
                         stored elsewhere */
 
     /* emulator internal eflags handling */
-    uint32_t cc_src;
-    uint32_t cc_dst;
+    target_ulong cc_src;
+    target_ulong cc_dst;
     uint32_t cc_op;
     int32_t df; /* D flag : 1 if D = 0, -1 if D = 1 */
     uint32_t hflags; /* hidden flags, see HF_xxx constants */
@@ -314,10 +397,21 @@ typedef struct CPUX86State {
     SegmentCache gdt; /* only base and limit are used */
     SegmentCache idt; /* only base and limit are used */
     
+    XMMReg xmm_regs[CPU_NB_REGS];
+    XMMReg xmm_t0;
+
     /* sysenter registers */
     uint32_t sysenter_cs;
     uint32_t sysenter_esp;
     uint32_t sysenter_eip;
+#ifdef TARGET_X86_64
+    target_ulong efer;
+    target_ulong star;
+    target_ulong lstar;
+    target_ulong cstar;
+    target_ulong fmask;
+    target_ulong kernelgsbase;
+#endif
 
     /* temporary data for USE_CODE_COPY mode */
 #ifdef USE_CODE_COPY
@@ -333,8 +427,8 @@ typedef struct CPUX86State {
     int exception_is_int;
     int exception_next_eip;
     struct TranslationBlock *current_tb; /* currently executing TB */
-    uint32_t cr[5]; /* NOTE: cr1 is unused */
-    uint32_t dr[8]; /* debug registers */
+    target_ulong cr[5]; /* NOTE: cr1 is unused */
+    target_ulong dr[8]; /* debug registers */
     int interrupt_request; 
     int user_mode_only; /* user mode only simulation */
 
@@ -346,18 +440,28 @@ typedef struct CPUX86State {
        context) */
     unsigned long mem_write_pc; /* host pc at which the memory was
                                    written */
-    unsigned long mem_write_vaddr; /* target virtual addr at which the
-                                      memory was written */
+    target_ulong mem_write_vaddr; /* target virtual addr at which the
+                                     memory was written */
     /* 0 = kernel, 1 = user */
     CPUTLBEntry tlb_read[2][CPU_TLB_SIZE];
     CPUTLBEntry tlb_write[2][CPU_TLB_SIZE];
     
     /* from this point: preserved by CPU reset */
     /* ice debug support */
-    uint32_t breakpoints[MAX_BREAKPOINTS];
+    target_ulong breakpoints[MAX_BREAKPOINTS];
     int nb_breakpoints;
     int singlestep_enabled;
 
+    /* processor features (e.g. for CPUID insn) */
+    uint32_t cpuid_vendor1;
+    uint32_t cpuid_vendor2;
+    uint32_t cpuid_vendor3;
+    uint32_t cpuid_version;
+    uint32_t cpuid_features;
+
+    /* in order to simplify APIC support, we leave this pointer to the
+       user */
+    struct APICState *apic_state;
     /* user data */
     void *opaque;
 } CPUX86State;
@@ -382,7 +486,7 @@ void cpu_set_ferr(CPUX86State *s);
    cache: it synchronizes the hflags with the segment cache values */
 static inline void cpu_x86_load_seg_cache(CPUX86State *env, 
                                           int seg_reg, unsigned int selector,
-                                          uint8_t *base, unsigned int limit, 
+                                          uint32_t base, unsigned int limit, 
                                           unsigned int flags)
 {
     SegmentCache *sc;
@@ -395,27 +499,45 @@ static inline void cpu_x86_load_seg_cache(CPUX86State *env,
     sc->flags = flags;
 
     /* update the hidden flags */
-    new_hflags = (env->segs[R_CS].flags & DESC_B_MASK)
-        >> (DESC_B_SHIFT - HF_CS32_SHIFT);
-    new_hflags |= (env->segs[R_SS].flags & DESC_B_MASK)
-        >> (DESC_B_SHIFT - HF_SS32_SHIFT);
-    if (!(env->cr[0] & CR0_PE_MASK) || 
-        (env->eflags & VM_MASK) ||
-        !(new_hflags & HF_CS32_MASK)) {
-        /* XXX: try to avoid this test. The problem comes from the
-           fact that is real mode or vm86 mode we only modify the
-           'base' and 'selector' fields of the segment cache to go
-           faster. A solution may be to force addseg to one in
-           translate-i386.c. */
-        new_hflags |= HF_ADDSEG_MASK;
-    } else {
-        new_hflags |= (((unsigned long)env->segs[R_DS].base | 
-                        (unsigned long)env->segs[R_ES].base |
-                        (unsigned long)env->segs[R_SS].base) != 0) << 
-            HF_ADDSEG_SHIFT;
+    {
+        if (seg_reg == R_CS) {
+#ifdef TARGET_X86_64
+            if ((env->hflags & HF_LMA_MASK) && (flags & DESC_L_MASK)) {
+                /* long mode */
+                env->hflags |= HF_CS32_MASK | HF_SS32_MASK | HF_CS64_MASK;
+                env->hflags &= ~(HF_ADDSEG_MASK);
+            } else 
+#endif
+            {
+                /* legacy / compatibility case */
+                new_hflags = (env->segs[R_CS].flags & DESC_B_MASK)
+                    >> (DESC_B_SHIFT - HF_CS32_SHIFT);
+                env->hflags = (env->hflags & ~(HF_CS32_MASK | HF_CS64_MASK)) |
+                    new_hflags;
+            }
+        }
+        new_hflags = (env->segs[R_SS].flags & DESC_B_MASK)
+            >> (DESC_B_SHIFT - HF_SS32_SHIFT);
+        if (env->hflags & HF_CS64_MASK) {
+            /* zero base assumed for DS, ES and SS in long mode */
+        } else if (!(env->cr[0] & CR0_PE_MASK) || 
+            (env->eflags & VM_MASK) ||
+            !(new_hflags & HF_CS32_MASK)) {
+            /* XXX: try to avoid this test. The problem comes from the
+               fact that is real mode or vm86 mode we only modify the
+               'base' and 'selector' fields of the segment cache to go
+               faster. A solution may be to force addseg to one in
+               translate-i386.c. */
+            new_hflags |= HF_ADDSEG_MASK;
+        } else {
+            new_hflags |= (((unsigned long)env->segs[R_DS].base | 
+                            (unsigned long)env->segs[R_ES].base |
+                            (unsigned long)env->segs[R_SS].base) != 0) << 
+                HF_ADDSEG_SHIFT;
+        }
+        env->hflags = (env->hflags & 
+                       ~(HF_SS32_MASK | HF_ADDSEG_MASK)) | new_hflags;
     }
-    env->hflags = (env->hflags & 
-                   ~(HF_CS32_MASK | HF_SS32_MASK | HF_ADDSEG_MASK)) | new_hflags;
 }
 
 /* wrapper, just in case memory mappings must be changed */
@@ -447,6 +569,9 @@ int cpu_x86_signal_handler(int host_signum, struct siginfo *info,
 void cpu_x86_set_a20(CPUX86State *env, int a20_state);
 
 uint64_t cpu_get_tsc(CPUX86State *env);
+
+void cpu_set_apic_base(CPUX86State *env, uint64_t val);
+uint64_t cpu_get_apic_base(CPUX86State *env);
 
 /* will be suppressed */
 void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0);

@@ -22,7 +22,7 @@
 #include "exec.h"
 
 /* n must be a constant to be efficient */
-static inline int lshift(int x, int n)
+static inline target_long lshift(target_long x, int n)
 {
     if (n >= 0)
         return x << n;
@@ -79,6 +79,58 @@ static inline int lshift(int x, int n)
 #include "opreg_template.h"
 #undef REG
 #undef REGNAME
+
+#ifdef TARGET_X86_64
+
+#define REG (env->regs[8])
+#define REGNAME _R8
+#include "opreg_template.h"
+#undef REG
+#undef REGNAME
+
+#define REG (env->regs[9])
+#define REGNAME _R9
+#include "opreg_template.h"
+#undef REG
+#undef REGNAME
+
+#define REG (env->regs[10])
+#define REGNAME _R10
+#include "opreg_template.h"
+#undef REG
+#undef REGNAME
+
+#define REG (env->regs[11])
+#define REGNAME _R11
+#include "opreg_template.h"
+#undef REG
+#undef REGNAME
+
+#define REG (env->regs[12])
+#define REGNAME _R12
+#include "opreg_template.h"
+#undef REG
+#undef REGNAME
+
+#define REG (env->regs[13])
+#define REGNAME _R13
+#include "opreg_template.h"
+#undef REG
+#undef REGNAME
+
+#define REG (env->regs[14])
+#define REGNAME _R14
+#include "opreg_template.h"
+#undef REG
+#undef REGNAME
+
+#define REG (env->regs[15])
+#define REGNAME _R15
+#include "opreg_template.h"
+#undef REG
+#undef REGNAME
+
+#endif
 
 /* operations with flags */
 
@@ -170,6 +222,13 @@ void OPPROTO op_bswapl_T0(void)
     T0 = bswap32(T0);
 }
 
+#ifdef TARGET_X86_64
+void OPPROTO op_bswapq_T0(void)
+{
+    T0 = bswap64(T0);
+}
+#endif
+
 /* multiply/divide */
 
 /* XXX: add eflags optimizations */
@@ -179,7 +238,7 @@ void OPPROTO op_mulb_AL_T0(void)
 {
     unsigned int res;
     res = (uint8_t)EAX * (uint8_t)T0;
-    EAX = (EAX & 0xffff0000) | res;
+    EAX = (EAX & ~0xffff) | res;
     CC_DST = res;
     CC_SRC = (res & 0xff00);
 }
@@ -188,7 +247,7 @@ void OPPROTO op_imulb_AL_T0(void)
 {
     int res;
     res = (int8_t)EAX * (int8_t)T0;
-    EAX = (EAX & 0xffff0000) | (res & 0xffff);
+    EAX = (EAX & ~0xffff) | (res & 0xffff);
     CC_DST = res;
     CC_SRC = (res != (int8_t)res);
 }
@@ -197,8 +256,8 @@ void OPPROTO op_mulw_AX_T0(void)
 {
     unsigned int res;
     res = (uint16_t)EAX * (uint16_t)T0;
-    EAX = (EAX & 0xffff0000) | (res & 0xffff);
-    EDX = (EDX & 0xffff0000) | ((res >> 16) & 0xffff);
+    EAX = (EAX & ~0xffff) | (res & 0xffff);
+    EDX = (EDX & ~0xffff) | ((res >> 16) & 0xffff);
     CC_DST = res;
     CC_SRC = res >> 16;
 }
@@ -207,8 +266,8 @@ void OPPROTO op_imulw_AX_T0(void)
 {
     int res;
     res = (int16_t)EAX * (int16_t)T0;
-    EAX = (EAX & 0xffff0000) | (res & 0xffff);
-    EDX = (EDX & 0xffff0000) | ((res >> 16) & 0xffff);
+    EAX = (EAX & ~0xffff) | (res & 0xffff);
+    EDX = (EDX & ~0xffff) | ((res >> 16) & 0xffff);
     CC_DST = res;
     CC_SRC = (res != (int16_t)res);
 }
@@ -217,10 +276,10 @@ void OPPROTO op_mull_EAX_T0(void)
 {
     uint64_t res;
     res = (uint64_t)((uint32_t)EAX) * (uint64_t)((uint32_t)T0);
-    EAX = res;
-    EDX = res >> 32;
-    CC_DST = res;
-    CC_SRC = res >> 32;
+    EAX = (uint32_t)res;
+    EDX = (uint32_t)(res >> 32);
+    CC_DST = (uint32_t)res;
+    CC_SRC = (uint32_t)(res >> 32);
 }
 
 void OPPROTO op_imull_EAX_T0(void)
@@ -251,6 +310,23 @@ void OPPROTO op_imull_T0_T1(void)
     CC_SRC = (res != (int32_t)res);
 }
 
+#ifdef TARGET_X86_64
+void OPPROTO op_mulq_EAX_T0(void)
+{
+    helper_mulq_EAX_T0();
+}
+
+void OPPROTO op_imulq_EAX_T0(void)
+{
+    helper_imulq_EAX_T0();
+}
+
+void OPPROTO op_imulq_T0_T1(void)
+{
+    helper_imulq_T0_T1();
+}
+#endif
+
 /* division, flags are undefined */
 /* XXX: add exceptions for overflow */
 
@@ -261,12 +337,11 @@ void OPPROTO op_divb_AL_T0(void)
     num = (EAX & 0xffff);
     den = (T0 & 0xff);
     if (den == 0) {
-        EIP = PARAM1;
         raise_exception(EXCP00_DIVZ);
     }
     q = (num / den) & 0xff;
     r = (num % den) & 0xff;
-    EAX = (EAX & 0xffff0000) | (r << 8) | q;
+    EAX = (EAX & ~0xffff) | (r << 8) | q;
 }
 
 void OPPROTO op_idivb_AL_T0(void)
@@ -276,12 +351,11 @@ void OPPROTO op_idivb_AL_T0(void)
     num = (int16_t)EAX;
     den = (int8_t)T0;
     if (den == 0) {
-        EIP = PARAM1;
         raise_exception(EXCP00_DIVZ);
     }
     q = (num / den) & 0xff;
     r = (num % den) & 0xff;
-    EAX = (EAX & 0xffff0000) | (r << 8) | q;
+    EAX = (EAX & ~0xffff) | (r << 8) | q;
 }
 
 void OPPROTO op_divw_AX_T0(void)
@@ -291,13 +365,12 @@ void OPPROTO op_divw_AX_T0(void)
     num = (EAX & 0xffff) | ((EDX & 0xffff) << 16);
     den = (T0 & 0xffff);
     if (den == 0) {
-        EIP = PARAM1;
         raise_exception(EXCP00_DIVZ);
     }
     q = (num / den) & 0xffff;
     r = (num % den) & 0xffff;
-    EAX = (EAX & 0xffff0000) | q;
-    EDX = (EDX & 0xffff0000) | r;
+    EAX = (EAX & ~0xffff) | q;
+    EDX = (EDX & ~0xffff) | r;
 }
 
 void OPPROTO op_idivw_AX_T0(void)
@@ -307,30 +380,47 @@ void OPPROTO op_idivw_AX_T0(void)
     num = (EAX & 0xffff) | ((EDX & 0xffff) << 16);
     den = (int16_t)T0;
     if (den == 0) {
-        EIP = PARAM1;
         raise_exception(EXCP00_DIVZ);
     }
     q = (num / den) & 0xffff;
     r = (num % den) & 0xffff;
-    EAX = (EAX & 0xffff0000) | q;
-    EDX = (EDX & 0xffff0000) | r;
+    EAX = (EAX & ~0xffff) | q;
+    EDX = (EDX & ~0xffff) | r;
 }
 
 void OPPROTO op_divl_EAX_T0(void)
 {
-    helper_divl_EAX_T0(PARAM1);
+    helper_divl_EAX_T0();
 }
 
 void OPPROTO op_idivl_EAX_T0(void)
 {
-    helper_idivl_EAX_T0(PARAM1);
+    helper_idivl_EAX_T0();
 }
+
+#ifdef TARGET_X86_64
+void OPPROTO op_divq_EAX_T0(void)
+{
+    helper_divq_EAX_T0();
+}
+
+void OPPROTO op_idivq_EAX_T0(void)
+{
+    helper_idivq_EAX_T0();
+}
+#endif
 
 /* constant load & misc op */
 
+/* XXX: consistent names */
+void OPPROTO op_movl_T0_imu(void)
+{
+    T0 = (uint32_t)PARAM1;
+}
+
 void OPPROTO op_movl_T0_im(void)
 {
-    T0 = PARAM1;
+    T0 = (int32_t)PARAM1;
 }
 
 void OPPROTO op_addl_T0_im(void)
@@ -353,9 +443,14 @@ void OPPROTO op_movl_T0_T1(void)
     T0 = T1;
 }
 
+void OPPROTO op_movl_T1_imu(void)
+{
+    T1 = (uint32_t)PARAM1;
+}
+
 void OPPROTO op_movl_T1_im(void)
 {
-    T1 = PARAM1;
+    T1 = (int32_t)PARAM1;
 }
 
 void OPPROTO op_addl_T1_im(void)
@@ -370,18 +465,94 @@ void OPPROTO op_movl_T1_A0(void)
 
 void OPPROTO op_movl_A0_im(void)
 {
-    A0 = PARAM1;
+    A0 = (uint32_t)PARAM1;
 }
 
 void OPPROTO op_addl_A0_im(void)
 {
-    A0 += PARAM1;
+    A0 = (uint32_t)(A0 + PARAM1);
+}
+
+void OPPROTO op_movl_A0_seg(void)
+{
+    A0 = (uint32_t)*(target_ulong *)((char *)env + PARAM1);
+}
+
+void OPPROTO op_addl_A0_seg(void)
+{
+    A0 = (uint32_t)(A0 + *(target_ulong *)((char *)env + PARAM1));
 }
 
 void OPPROTO op_addl_A0_AL(void)
 {
-    A0 += (EAX & 0xff);
+    A0 = (uint32_t)(A0 + (EAX & 0xff));
 }
+
+#ifdef WORDS_BIGENDIAN
+typedef union UREG64 {
+    struct { uint16_t v3, v2, v1, v0; } w;
+    struct { uint32_t v1, v0; } l;
+    uint64_t q;
+} UREG64;
+#else
+typedef union UREG64 {
+    struct { uint16_t v0, v1, v2, v3; } w;
+    struct { uint32_t v0, v1; } l;
+    uint64_t q;
+} UREG64;
+#endif
+
+#ifdef TARGET_X86_64
+
+#define PARAMQ1 \
+({\
+    UREG64 __p;\
+    __p.l.v1 = PARAM1;\
+    __p.l.v0 = PARAM2;\
+    __p.q;\
+}) 
+
+void OPPROTO op_movq_T0_im64(void)
+{
+    T0 = PARAMQ1;
+}
+
+void OPPROTO op_movq_A0_im(void)
+{
+    A0 = (int32_t)PARAM1;
+}
+
+void OPPROTO op_movq_A0_im64(void)
+{
+    A0 = PARAMQ1;
+}
+
+void OPPROTO op_addq_A0_im(void)
+{
+    A0 = (A0 + (int32_t)PARAM1);
+}
+
+void OPPROTO op_addq_A0_im64(void)
+{
+    A0 = (A0 + PARAMQ1);
+}
+
+void OPPROTO op_movq_A0_seg(void)
+{
+    A0 = *(target_ulong *)((char *)env + PARAM1);
+}
+
+void OPPROTO op_addq_A0_seg(void)
+{
+    A0 += *(target_ulong *)((char *)env + PARAM1);
+}
+
+void OPPROTO op_addq_A0_AL(void)
+{
+    A0 = (A0 + (EAX & 0xff));
+}
+
+#endif
 
 void OPPROTO op_andl_A0_ffff(void)
 {
@@ -401,18 +572,6 @@ void OPPROTO op_andl_A0_ffff(void)
 #include "ops_mem.h"
 #endif
 
-/* used for bit operations */
-
-void OPPROTO op_add_bitw_A0_T1(void)
-{
-    A0 += ((int16_t)T1 >> 4) << 1;
-}
-
-void OPPROTO op_add_bitl_A0_T1(void)
-{
-    A0 += ((int32_t)T1 >> 5) << 2;
-}
-
 /* indirect jump */
 
 void OPPROTO op_jmp_T0(void)
@@ -420,10 +579,22 @@ void OPPROTO op_jmp_T0(void)
     EIP = T0;
 }
 
-void OPPROTO op_jmp_im(void)
+void OPPROTO op_movl_eip_im(void)
 {
-    EIP = PARAM1;
+    EIP = (uint32_t)PARAM1;
 }
+
+#ifdef TARGET_X86_64
+void OPPROTO op_movq_eip_im(void)
+{
+    EIP = (int32_t)PARAM1;
+}
+
+void OPPROTO op_movq_eip_im64(void)
+{
+    EIP = PARAMQ1;
+}
+#endif
 
 void OPPROTO op_hlt(void)
 {
@@ -505,11 +676,10 @@ void OPPROTO op_sti_vm(void)
 void OPPROTO op_boundw(void)
 {
     int low, high, v;
-    low = ldsw((uint8_t *)A0);
-    high = ldsw((uint8_t *)A0 + 2);
+    low = ldsw(A0);
+    high = ldsw(A0 + 2);
     v = (int16_t)T0;
     if (v < low || v > high) {
-        EIP = PARAM1;
         raise_exception(EXCP05_BOUND);
     }
     FORCE_RET();
@@ -518,11 +688,10 @@ void OPPROTO op_boundw(void)
 void OPPROTO op_boundl(void)
 {
     int low, high, v;
-    low = ldl((uint8_t *)A0);
-    high = ldl((uint8_t *)A0 + 4);
+    low = ldl(A0);
+    high = ldl(A0 + 4);
     v = T0;
     if (v < low || v > high) {
-        EIP = PARAM1;
         raise_exception(EXCP05_BOUND);
     }
     FORCE_RET();
@@ -531,11 +700,6 @@ void OPPROTO op_boundl(void)
 void OPPROTO op_cmpxchg8b(void)
 {
     helper_cmpxchg8b();
-}
-
-void OPPROTO op_jmp(void)
-{
-    JUMP_TB(op_jmp, PARAM1, 0, PARAM2);
 }
 
 void OPPROTO op_movl_T0_0(void)
@@ -564,6 +728,14 @@ void OPPROTO op_exit_tb(void)
 #include "ops_template.h"
 #undef SHIFT
 
+#ifdef TARGET_X86_64
+
+#define SHIFT 3
+#include "ops_template.h"
+#undef SHIFT
+
+#endif
+
 /* sign extend */
 
 void OPPROTO op_movsbl_T0_T0(void)
@@ -581,6 +753,11 @@ void OPPROTO op_movswl_T0_T0(void)
     T0 = (int16_t)T0;
 }
 
+void OPPROTO op_movslq_T0_T0(void)
+{
+    T0 = (int32_t)T0;
+}
+
 void OPPROTO op_movzwl_T0_T0(void)
 {
     T0 = (uint16_t)T0;
@@ -591,9 +768,16 @@ void OPPROTO op_movswl_EAX_AX(void)
     EAX = (int16_t)EAX;
 }
 
+#ifdef TARGET_X86_64
+void OPPROTO op_movslq_RAX_EAX(void)
+{
+    EAX = (int32_t)EAX;
+}
+#endif
+
 void OPPROTO op_movsbw_AX_AL(void)
 {
-    EAX = (EAX & 0xffff0000) | ((int8_t)EAX & 0xffff);
+    EAX = (EAX & ~0xffff) | ((int8_t)EAX & 0xffff);
 }
 
 void OPPROTO op_movslq_EDX_EAX(void)
@@ -603,14 +787,21 @@ void OPPROTO op_movslq_EDX_EAX(void)
 
 void OPPROTO op_movswl_DX_AX(void)
 {
-    EDX = (EDX & 0xffff0000) | (((int16_t)EAX >> 15) & 0xffff);
+    EDX = (EDX & ~0xffff) | (((int16_t)EAX >> 15) & 0xffff);
 }
+
+#ifdef TARGET_X86_64
+void OPPROTO op_movsqo_RDX_RAX(void)
+{
+    EDX = (int64_t)EAX >> 63;
+}
+#endif
 
 /* string ops helpers */
 
 void OPPROTO op_addl_ESI_T0(void)
 {
-    ESI += T0;
+    ESI = (uint32_t)(ESI + T0);
 }
 
 void OPPROTO op_addw_ESI_T0(void)
@@ -620,7 +811,7 @@ void OPPROTO op_addw_ESI_T0(void)
 
 void OPPROTO op_addl_EDI_T0(void)
 {
-    EDI += T0;
+    EDI = (uint32_t)(EDI + T0);
 }
 
 void OPPROTO op_addw_EDI_T0(void)
@@ -630,13 +821,30 @@ void OPPROTO op_addw_EDI_T0(void)
 
 void OPPROTO op_decl_ECX(void)
 {
-    ECX--;
+    ECX = (uint32_t)(ECX - 1);
 }
 
 void OPPROTO op_decw_ECX(void)
 {
     ECX = (ECX & ~0xffff) | ((ECX - 1) & 0xffff);
 }
+
+#ifdef TARGET_X86_64
+void OPPROTO op_addq_ESI_T0(void)
+{
+    ESI = (ESI + T0);
+}
+
+void OPPROTO op_addq_EDI_T0(void)
+{
+    EDI = (EDI + T0);
+}
+
+void OPPROTO op_decq_ECX(void)
+{
+    ECX--;
+}
+#endif
 
 /* push/pop utils */
 
@@ -647,22 +855,22 @@ void op_addl_A0_SS(void)
 
 void op_subl_A0_2(void)
 {
-    A0 -= 2;
+    A0 = (uint32_t)(A0 - 2);
 }
 
 void op_subl_A0_4(void)
 {
-    A0 -= 4;
+    A0 = (uint32_t)(A0 - 4);
 }
 
 void op_addl_ESP_4(void)
 {
-    ESP += 4;
+    ESP = (uint32_t)(ESP + 4);
 }
 
 void op_addl_ESP_2(void)
 {
-    ESP += 2;
+    ESP = (uint32_t)(ESP + 2);
 }
 
 void op_addw_ESP_4(void)
@@ -677,13 +885,30 @@ void op_addw_ESP_2(void)
 
 void op_addl_ESP_im(void)
 {
-    ESP += PARAM1;
+    ESP = (uint32_t)(ESP + PARAM1);
 }
 
 void op_addw_ESP_im(void)
 {
     ESP = (ESP & ~0xffff) | ((ESP + PARAM1) & 0xffff);
 }
+
+#ifdef TARGET_X86_64
+void op_subq_A0_8(void)
+{
+    A0 -= 8;
+}
+
+void op_addq_ESP_8(void)
+{
+    ESP += 8;
+}
+
+void op_addq_ESP_im(void)
+{
+    ESP += PARAM1;
+}
+#endif
 
 void OPPROTO op_rdtsc(void)
 {
@@ -709,6 +934,18 @@ void OPPROTO op_sysexit(void)
 {
     helper_sysexit();
 }
+
+#ifdef TARGET_X86_64
+void OPPROTO op_syscall(void)
+{
+    helper_syscall();
+}
+
+void OPPROTO op_sysret(void)
+{
+    helper_sysret(PARAM1);
+}
+#endif
 
 void OPPROTO op_rdmsr(void)
 {
@@ -868,22 +1105,12 @@ void OPPROTO op_movl_seg_T0_vm(void)
     /* env->segs[] access */
     sc = (SegmentCache *)((char *)env + PARAM1);
     sc->selector = selector;
-    sc->base = (void *)(selector << 4);
+    sc->base = (selector << 4);
 }
 
 void OPPROTO op_movl_T0_seg(void)
 {
     T0 = env->segs[PARAM1].selector;
-}
-
-void OPPROTO op_movl_A0_seg(void)
-{
-    A0 = *(unsigned long *)((char *)env + PARAM1);
-}
-
-void OPPROTO op_addl_A0_seg(void)
-{
-    A0 += *(unsigned long *)((char *)env + PARAM1);
 }
 
 void OPPROTO op_lsl(void)
@@ -1006,6 +1233,26 @@ void OPPROTO op_movl_env_T1(void)
     *(uint32_t *)((char *)env + PARAM1) = T1;
 }
 
+void OPPROTO op_movtl_T0_env(void)
+{
+    T0 = *(target_ulong *)((char *)env + PARAM1);
+}
+
+void OPPROTO op_movtl_env_T0(void)
+{
+    *(target_ulong *)((char *)env + PARAM1) = T0;
+}
+
+void OPPROTO op_movtl_T1_env(void)
+{
+    T1 = *(target_ulong *)((char *)env + PARAM1);
+}
+
+void OPPROTO op_movtl_env_T1(void)
+{
+    *(target_ulong *)((char *)env + PARAM1) = T1;
+}
+
 void OPPROTO op_clts(void)
 {
     env->cr[0] &= ~CR0_TS_MASK;
@@ -1014,25 +1261,31 @@ void OPPROTO op_clts(void)
 
 /* flags handling */
 
-/* slow jumps cases : in order to avoid calling a function with a
-   pointer (which can generate a stack frame on PowerPC), we use
-   op_setcc to set T0 and then call op_jcc. */
-void OPPROTO op_jcc(void)
+void OPPROTO op_goto_tb0(void)
 {
-    if (T0)
-        JUMP_TB(op_jcc, PARAM1, 0, PARAM2);
-    else
-        JUMP_TB(op_jcc, PARAM1, 1, PARAM3);
-    FORCE_RET();
+    GOTO_TB(op_goto_tb0, 0);
 }
 
-void OPPROTO op_jcc_im(void)
+void OPPROTO op_goto_tb1(void)
+{
+    GOTO_TB(op_goto_tb1, 1);
+}
+
+void OPPROTO op_jmp_label(void)
+{
+    GOTO_LABEL_PARAM(1);
+}
+
+void OPPROTO op_jnz_T0_label(void)
 {
     if (T0)
-        EIP = PARAM1;
-    else
-        EIP = PARAM2;
-    FORCE_RET();
+        GOTO_LABEL_PARAM(1);
+}
+
+void OPPROTO op_jz_T0_label(void)
+{
+    if (!T0)
+        GOTO_LABEL_PARAM(1);
 }
 
 /* slow set cases (compute x86 flags) */
@@ -1299,6 +1552,28 @@ CCTable cc_table[CC_OP_NB] = {
     [CC_OP_SARB] = { compute_all_sarb, compute_c_sarl },
     [CC_OP_SARW] = { compute_all_sarw, compute_c_sarl },
     [CC_OP_SARL] = { compute_all_sarl, compute_c_sarl },
+
+#ifdef TARGET_X86_64
+    [CC_OP_MULQ] = { compute_all_mulq, compute_c_mull },
+
+    [CC_OP_ADDQ] = { compute_all_addq, compute_c_addq  },
+
+    [CC_OP_ADCQ] = { compute_all_adcq, compute_c_adcq  },
+
+    [CC_OP_SUBQ] = { compute_all_subq, compute_c_subq  },
+    
+    [CC_OP_SBBQ] = { compute_all_sbbq, compute_c_sbbq  },
+    
+    [CC_OP_LOGICQ] = { compute_all_logicq, compute_c_logicq },
+    
+    [CC_OP_INCQ] = { compute_all_incq, compute_c_incl },
+
+    [CC_OP_DECQ] = { compute_all_decq, compute_c_incl },
+
+    [CC_OP_SHLQ] = { compute_all_shlq, compute_c_shlq },
+
+    [CC_OP_SARQ] = { compute_all_sarq, compute_c_sarl },
+#endif
 };
 
 /* floating point support. Some of the code for complicated x87
@@ -1330,20 +1605,20 @@ double qemu_rint(double x)
 void OPPROTO op_flds_FT0_A0(void)
 {
 #ifdef USE_FP_CONVERT
-    FP_CONVERT.i32 = ldl((void *)A0);
+    FP_CONVERT.i32 = ldl(A0);
     FT0 = FP_CONVERT.f;
 #else
-    FT0 = ldfl((void *)A0);
+    FT0 = ldfl(A0);
 #endif
 }
 
 void OPPROTO op_fldl_FT0_A0(void)
 {
 #ifdef USE_FP_CONVERT
-    FP_CONVERT.i64 = ldq((void *)A0);
+    FP_CONVERT.i64 = ldq(A0);
     FT0 = FP_CONVERT.d;
 #else
-    FT0 = ldfq((void *)A0);
+    FT0 = ldfq(A0);
 #endif
 }
 
@@ -1352,17 +1627,17 @@ void OPPROTO op_fldl_FT0_A0(void)
 
 void helper_fild_FT0_A0(void)
 {
-    FT0 = (CPU86_LDouble)ldsw((void *)A0);
+    FT0 = (CPU86_LDouble)ldsw(A0);
 }
 
 void helper_fildl_FT0_A0(void)
 {
-    FT0 = (CPU86_LDouble)((int32_t)ldl((void *)A0));
+    FT0 = (CPU86_LDouble)((int32_t)ldl(A0));
 }
 
 void helper_fildll_FT0_A0(void)
 {
-    FT0 = (CPU86_LDouble)((int64_t)ldq((void *)A0));
+    FT0 = (CPU86_LDouble)((int64_t)ldq(A0));
 }
 
 void OPPROTO op_fild_FT0_A0(void)
@@ -1385,30 +1660,30 @@ void OPPROTO op_fildll_FT0_A0(void)
 void OPPROTO op_fild_FT0_A0(void)
 {
 #ifdef USE_FP_CONVERT
-    FP_CONVERT.i32 = ldsw((void *)A0);
+    FP_CONVERT.i32 = ldsw(A0);
     FT0 = (CPU86_LDouble)FP_CONVERT.i32;
 #else
-    FT0 = (CPU86_LDouble)ldsw((void *)A0);
+    FT0 = (CPU86_LDouble)ldsw(A0);
 #endif
 }
 
 void OPPROTO op_fildl_FT0_A0(void)
 {
 #ifdef USE_FP_CONVERT
-    FP_CONVERT.i32 = (int32_t) ldl((void *)A0);
+    FP_CONVERT.i32 = (int32_t) ldl(A0);
     FT0 = (CPU86_LDouble)FP_CONVERT.i32;
 #else
-    FT0 = (CPU86_LDouble)((int32_t)ldl((void *)A0));
+    FT0 = (CPU86_LDouble)((int32_t)ldl(A0));
 #endif
 }
 
 void OPPROTO op_fildll_FT0_A0(void)
 {
 #ifdef USE_FP_CONVERT
-    FP_CONVERT.i64 = (int64_t) ldq((void *)A0);
+    FP_CONVERT.i64 = (int64_t) ldq(A0);
     FT0 = (CPU86_LDouble)FP_CONVERT.i64;
 #else
-    FT0 = (CPU86_LDouble)((int64_t)ldq((void *)A0));
+    FT0 = (CPU86_LDouble)((int64_t)ldq(A0));
 #endif
 }
 #endif
@@ -1420,10 +1695,10 @@ void OPPROTO op_flds_ST0_A0(void)
     int new_fpstt;
     new_fpstt = (env->fpstt - 1) & 7;
 #ifdef USE_FP_CONVERT
-    FP_CONVERT.i32 = ldl((void *)A0);
+    FP_CONVERT.i32 = ldl(A0);
     env->fpregs[new_fpstt] = FP_CONVERT.f;
 #else
-    env->fpregs[new_fpstt] = ldfl((void *)A0);
+    env->fpregs[new_fpstt] = ldfl(A0);
 #endif
     env->fpstt = new_fpstt;
     env->fptags[new_fpstt] = 0; /* validate stack entry */
@@ -1434,10 +1709,10 @@ void OPPROTO op_fldl_ST0_A0(void)
     int new_fpstt;
     new_fpstt = (env->fpstt - 1) & 7;
 #ifdef USE_FP_CONVERT
-    FP_CONVERT.i64 = ldq((void *)A0);
+    FP_CONVERT.i64 = ldq(A0);
     env->fpregs[new_fpstt] = FP_CONVERT.d;
 #else
-    env->fpregs[new_fpstt] = ldfq((void *)A0);
+    env->fpregs[new_fpstt] = ldfq(A0);
 #endif
     env->fpstt = new_fpstt;
     env->fptags[new_fpstt] = 0; /* validate stack entry */
@@ -1455,7 +1730,7 @@ void helper_fild_ST0_A0(void)
 {
     int new_fpstt;
     new_fpstt = (env->fpstt - 1) & 7;
-    env->fpregs[new_fpstt] = (CPU86_LDouble)ldsw((void *)A0);
+    env->fpregs[new_fpstt] = (CPU86_LDouble)ldsw(A0);
     env->fpstt = new_fpstt;
     env->fptags[new_fpstt] = 0; /* validate stack entry */
 }
@@ -1464,7 +1739,7 @@ void helper_fildl_ST0_A0(void)
 {
     int new_fpstt;
     new_fpstt = (env->fpstt - 1) & 7;
-    env->fpregs[new_fpstt] = (CPU86_LDouble)((int32_t)ldl((void *)A0));
+    env->fpregs[new_fpstt] = (CPU86_LDouble)((int32_t)ldl(A0));
     env->fpstt = new_fpstt;
     env->fptags[new_fpstt] = 0; /* validate stack entry */
 }
@@ -1473,7 +1748,7 @@ void helper_fildll_ST0_A0(void)
 {
     int new_fpstt;
     new_fpstt = (env->fpstt - 1) & 7;
-    env->fpregs[new_fpstt] = (CPU86_LDouble)((int64_t)ldq((void *)A0));
+    env->fpregs[new_fpstt] = (CPU86_LDouble)((int64_t)ldq(A0));
     env->fpstt = new_fpstt;
     env->fptags[new_fpstt] = 0; /* validate stack entry */
 }
@@ -1500,10 +1775,10 @@ void OPPROTO op_fild_ST0_A0(void)
     int new_fpstt;
     new_fpstt = (env->fpstt - 1) & 7;
 #ifdef USE_FP_CONVERT
-    FP_CONVERT.i32 = ldsw((void *)A0);
+    FP_CONVERT.i32 = ldsw(A0);
     env->fpregs[new_fpstt] = (CPU86_LDouble)FP_CONVERT.i32;
 #else
-    env->fpregs[new_fpstt] = (CPU86_LDouble)ldsw((void *)A0);
+    env->fpregs[new_fpstt] = (CPU86_LDouble)ldsw(A0);
 #endif
     env->fpstt = new_fpstt;
     env->fptags[new_fpstt] = 0; /* validate stack entry */
@@ -1514,10 +1789,10 @@ void OPPROTO op_fildl_ST0_A0(void)
     int new_fpstt;
     new_fpstt = (env->fpstt - 1) & 7;
 #ifdef USE_FP_CONVERT
-    FP_CONVERT.i32 = (int32_t) ldl((void *)A0);
+    FP_CONVERT.i32 = (int32_t) ldl(A0);
     env->fpregs[new_fpstt] = (CPU86_LDouble)FP_CONVERT.i32;
 #else
-    env->fpregs[new_fpstt] = (CPU86_LDouble)((int32_t)ldl((void *)A0));
+    env->fpregs[new_fpstt] = (CPU86_LDouble)((int32_t)ldl(A0));
 #endif
     env->fpstt = new_fpstt;
     env->fptags[new_fpstt] = 0; /* validate stack entry */
@@ -1528,10 +1803,10 @@ void OPPROTO op_fildll_ST0_A0(void)
     int new_fpstt;
     new_fpstt = (env->fpstt - 1) & 7;
 #ifdef USE_FP_CONVERT
-    FP_CONVERT.i64 = (int64_t) ldq((void *)A0);
+    FP_CONVERT.i64 = (int64_t) ldq(A0);
     env->fpregs[new_fpstt] = (CPU86_LDouble)FP_CONVERT.i64;
 #else
-    env->fpregs[new_fpstt] = (CPU86_LDouble)((int64_t)ldq((void *)A0));
+    env->fpregs[new_fpstt] = (CPU86_LDouble)((int64_t)ldq(A0));
 #endif
     env->fpstt = new_fpstt;
     env->fptags[new_fpstt] = 0; /* validate stack entry */
@@ -1545,15 +1820,15 @@ void OPPROTO op_fsts_ST0_A0(void)
 {
 #ifdef USE_FP_CONVERT
     FP_CONVERT.f = (float)ST0;
-    stfl((void *)A0, FP_CONVERT.f);
+    stfl(A0, FP_CONVERT.f);
 #else
-    stfl((void *)A0, (float)ST0);
+    stfl(A0, (float)ST0);
 #endif
 }
 
 void OPPROTO op_fstl_ST0_A0(void)
 {
-    stfq((void *)A0, (double)ST0);
+    stfq(A0, (double)ST0);
 }
 
 void OPPROTO op_fstt_ST0_A0(void)
@@ -1574,7 +1849,7 @@ void OPPROTO op_fist_ST0_A0(void)
     val = lrint(d);
     if (val != (int16_t)val)
         val = -32768;
-    stw((void *)A0, val);
+    stw(A0, val);
 }
 
 void OPPROTO op_fistl_ST0_A0(void)
@@ -1588,7 +1863,7 @@ void OPPROTO op_fistl_ST0_A0(void)
 
     d = ST0;
     val = lrint(d);
-    stl((void *)A0, val);
+    stl(A0, val);
 }
 
 void OPPROTO op_fistll_ST0_A0(void)
@@ -1602,7 +1877,7 @@ void OPPROTO op_fistll_ST0_A0(void)
 
     d = ST0;
     val = llrint(d);
-    stq((void *)A0, val);
+    stq(A0, val);
 }
 
 void OPPROTO op_fbld_ST0_A0(void)
@@ -1934,25 +2209,25 @@ void OPPROTO op_fnstsw_A0(void)
 {
     int fpus;
     fpus = (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
-    stw((void *)A0, fpus);
+    stw(A0, fpus);
 }
 
 void OPPROTO op_fnstsw_EAX(void)
 {
     int fpus;
     fpus = (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
-    EAX = (EAX & 0xffff0000) | fpus;
+    EAX = (EAX & ~0xffff) | fpus;
 }
 
 void OPPROTO op_fnstcw_A0(void)
 {
-    stw((void *)A0, env->fpuc);
+    stw(A0, env->fpuc);
 }
 
 void OPPROTO op_fldcw_A0(void)
 {
     int rnd_type;
-    env->fpuc = lduw((void *)A0);
+    env->fpuc = lduw(A0);
     /* set rounding mode */
     switch(env->fpuc & RC_MASK) {
     default:
@@ -2001,22 +2276,22 @@ void OPPROTO op_fninit(void)
 
 void OPPROTO op_fnstenv_A0(void)
 {
-    helper_fstenv((uint8_t *)A0, PARAM1);
+    helper_fstenv(A0, PARAM1);
 }
 
 void OPPROTO op_fldenv_A0(void)
 {
-    helper_fldenv((uint8_t *)A0, PARAM1);
+    helper_fldenv(A0, PARAM1);
 }
 
 void OPPROTO op_fnsave_A0(void)
 {
-    helper_fsave((uint8_t *)A0, PARAM1);
+    helper_fsave(A0, PARAM1);
 }
 
 void OPPROTO op_frstor_A0(void)
 {
-    helper_frstor((uint8_t *)A0, PARAM1);
+    helper_frstor(A0, PARAM1);
 }
 
 /* threading support */
@@ -2030,3 +2305,30 @@ void OPPROTO op_unlock(void)
     cpu_unlock();
 }
 
+/* SSE support */
+static inline void memcpy16(void *d, void *s)
+{
+    ((uint32_t *)d)[0] = ((uint32_t *)s)[0];
+    ((uint32_t *)d)[1] = ((uint32_t *)s)[1];
+    ((uint32_t *)d)[2] = ((uint32_t *)s)[2];
+    ((uint32_t *)d)[3] = ((uint32_t *)s)[3];
+}
+
+void OPPROTO op_movo(void)
+{
+    /* XXX: badly generated code */
+    XMMReg *d, *s;
+    d = (XMMReg *)((char *)env + PARAM1);
+    s = (XMMReg *)((char *)env + PARAM2);
+    memcpy16(d, s);
+}
+
+void OPPROTO op_fxsave_A0(void)
+{
+    helper_fxsave(A0, PARAM1);
+}
+
+void OPPROTO op_fxrstor_A0(void)
+{
+    helper_fxrstor(A0, PARAM1);
+}

@@ -119,7 +119,7 @@ static inline int load_segment(uint32_t *e1_ptr, uint32_t *e2_ptr,
 {
     SegmentCache *dt;
     int index;
-    uint8_t *ptr;
+    target_ulong ptr;
 
     if (selector & 0x4)
         dt = &env->ldt;
@@ -143,9 +143,9 @@ static inline unsigned int get_seg_limit(uint32_t e1, uint32_t e2)
     return limit;
 }
 
-static inline uint8_t *get_seg_base(uint32_t e1, uint32_t e2)
+static inline uint32_t get_seg_base(uint32_t e1, uint32_t e2)
 {
-    return (uint8_t *)((e1 >> 16) | ((e2 & 0xff) << 16) | (e2 & 0xff000000));
+    return ((e1 >> 16) | ((e2 & 0xff) << 16) | (e2 & 0xff000000));
 }
 
 static inline void load_seg_cache_raw_dt(SegmentCache *sc, uint32_t e1, uint32_t e2)
@@ -160,7 +160,7 @@ static inline void load_seg_vm(int seg, int selector)
 {
     selector &= 0xffff;
     cpu_x86_load_seg_cache(env, seg, selector, 
-                           (uint8_t *)(selector << 4), 0xffff, 0);
+                           (selector << 4), 0xffff, 0);
 }
 
 static inline void get_ss_esp_from_tss(uint32_t *ss_ptr, 
@@ -258,13 +258,13 @@ static void switch_tss(int tss_selector,
                        uint32_t next_eip)
 {
     int tss_limit, tss_limit_max, type, old_tss_limit_max, old_type, v1, v2, i;
-    uint8_t *tss_base;
+    target_ulong tss_base;
     uint32_t new_regs[8], new_segs[6];
     uint32_t new_eflags, new_eip, new_cr3, new_ldt, new_trap;
     uint32_t old_eflags, eflags_mask;
     SegmentCache *dt;
     int index;
-    uint8_t *ptr;
+    target_ulong ptr;
 
     type = (e2 >> DESC_TYPE_SHIFT) & 0xf;
 #ifdef DEBUG_PCALL
@@ -345,7 +345,7 @@ static void switch_tss(int tss_selector,
     
     /* clear busy bit (it is restartable) */
     if (source == SWITCH_TSS_JMP || source == SWITCH_TSS_IRET) {
-        uint8_t *ptr;
+        target_ulong ptr;
         uint32_t e2;
         ptr = env->gdt.base + (env->tr.selector & ~7);
         e2 = ldl_kernel(ptr + 4);
@@ -397,7 +397,7 @@ static void switch_tss(int tss_selector,
 
     /* set busy bit */
     if (source == SWITCH_TSS_JMP || source == SWITCH_TSS_CALL) {
-        uint8_t *ptr;
+        target_ulong ptr;
         uint32_t e2;
         ptr = env->gdt.base + (tss_selector & ~7);
         e2 = ldl_kernel(ptr + 4);
@@ -445,11 +445,11 @@ static void switch_tss(int tss_selector,
         cpu_x86_set_cpl(env, new_segs[R_CS] & 3);
         /* first just selectors as the rest may trigger exceptions */
         for(i = 0; i < 6; i++)
-            cpu_x86_load_seg_cache(env, i, new_segs[i], NULL, 0, 0);
+            cpu_x86_load_seg_cache(env, i, new_segs[i], 0, 0, 0);
     }
     
     env->ldt.selector = new_ldt & ~4;
-    env->ldt.base = NULL;
+    env->ldt.base = 0;
     env->ldt.limit = 0;
     env->ldt.flags = 0;
 
@@ -573,7 +573,7 @@ static inline unsigned int get_sp_mask(unsigned int e2)
 
 #define POPL(ssp, sp, sp_mask, val)\
 {\
-    val = ldl_kernel((ssp) + (sp & (sp_mask)));\
+    val = (uint32_t)ldl_kernel((ssp) + (sp & (sp_mask)));\
     sp += 4;\
 }
 
@@ -582,7 +582,7 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
                                    unsigned int next_eip, int is_hw)
 {
     SegmentCache *dt;
-    uint8_t *ptr, *ssp;
+    target_ulong ptr, ssp;
     int type, dpl, selector, ss_dpl, cpl, sp_mask;
     int has_error_code, new_stack, shift;
     uint32_t e1, e2, offset, ss, esp, ss_e1, ss_e2;
@@ -703,7 +703,7 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
         raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
         new_stack = 0; /* avoid warning */
         sp_mask = 0; /* avoid warning */
-        ssp = NULL; /* avoid warning */
+        ssp = 0; /* avoid warning */
         esp = 0; /* avoid warning */
     }
 
@@ -754,10 +754,10 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
     
     if (new_stack) {
         if (env->eflags & VM_MASK) {
-            cpu_x86_load_seg_cache(env, R_ES, 0, NULL, 0, 0);
-            cpu_x86_load_seg_cache(env, R_DS, 0, NULL, 0, 0);
-            cpu_x86_load_seg_cache(env, R_FS, 0, NULL, 0, 0);
-            cpu_x86_load_seg_cache(env, R_GS, 0, NULL, 0, 0);
+            cpu_x86_load_seg_cache(env, R_ES, 0, 0, 0, 0);
+            cpu_x86_load_seg_cache(env, R_DS, 0, 0, 0, 0);
+            cpu_x86_load_seg_cache(env, R_FS, 0, 0, 0, 0);
+            cpu_x86_load_seg_cache(env, R_GS, 0, 0, 0, 0);
         }
         ss = (ss & ~3) | dpl;
         cpu_x86_load_seg_cache(env, R_SS, ss, 
@@ -780,12 +780,264 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
     env->eflags &= ~(TF_MASK | VM_MASK | RF_MASK | NT_MASK);
 }
 
+#ifdef TARGET_X86_64
+
+#define PUSHQ(sp, val)\
+{\
+    sp -= 8;\
+    stq_kernel(sp, (val));\
+}
+
+#define POPQ(sp, val)\
+{\
+    val = ldq_kernel(sp);\
+    sp += 8;\
+}
+
+static inline target_ulong get_rsp_from_tss(int level)
+{
+    int index;
+    
+#if 0
+    printf("TR: base=" TARGET_FMT_lx " limit=%x\n", 
+           env->tr.base, env->tr.limit);
+#endif
+
+    if (!(env->tr.flags & DESC_P_MASK))
+        cpu_abort(env, "invalid tss");
+    index = 8 * level + 4;
+    if ((index + 7) > env->tr.limit)
+        raise_exception_err(EXCP0A_TSS, env->tr.selector & 0xfffc);
+    return ldq_kernel(env->tr.base + index);
+}
+
+/* 64 bit interrupt */
+static void do_interrupt64(int intno, int is_int, int error_code,
+                           target_ulong next_eip, int is_hw)
+{
+    SegmentCache *dt;
+    target_ulong ptr;
+    int type, dpl, selector, cpl, ist;
+    int has_error_code, new_stack;
+    uint32_t e1, e2, e3, ss;
+    target_ulong old_eip, esp, offset;
+
+    has_error_code = 0;
+    if (!is_int && !is_hw) {
+        switch(intno) {
+        case 8:
+        case 10:
+        case 11:
+        case 12:
+        case 13:
+        case 14:
+        case 17:
+            has_error_code = 1;
+            break;
+        }
+    }
+    if (is_int)
+        old_eip = next_eip;
+    else
+        old_eip = env->eip;
+
+    dt = &env->idt;
+    if (intno * 16 + 15 > dt->limit)
+        raise_exception_err(EXCP0D_GPF, intno * 16 + 2);
+    ptr = dt->base + intno * 16;
+    e1 = ldl_kernel(ptr);
+    e2 = ldl_kernel(ptr + 4);
+    e3 = ldl_kernel(ptr + 8);
+    /* check gate type */
+    type = (e2 >> DESC_TYPE_SHIFT) & 0x1f;
+    switch(type) {
+    case 14: /* 386 interrupt gate */
+    case 15: /* 386 trap gate */
+        break;
+    default:
+        raise_exception_err(EXCP0D_GPF, intno * 16 + 2);
+        break;
+    }
+    dpl = (e2 >> DESC_DPL_SHIFT) & 3;
+    cpl = env->hflags & HF_CPL_MASK;
+    /* check privledge if software int */
+    if (is_int && dpl < cpl)
+        raise_exception_err(EXCP0D_GPF, intno * 16 + 2);
+    /* check valid bit */
+    if (!(e2 & DESC_P_MASK))
+        raise_exception_err(EXCP0B_NOSEG, intno * 16 + 2);
+    selector = e1 >> 16;
+    offset = ((target_ulong)e3 << 32) | (e2 & 0xffff0000) | (e1 & 0x0000ffff);
+    ist = e2 & 7;
+    if ((selector & 0xfffc) == 0)
+        raise_exception_err(EXCP0D_GPF, 0);
+
+    if (load_segment(&e1, &e2, selector) != 0)
+        raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+    if (!(e2 & DESC_S_MASK) || !(e2 & (DESC_CS_MASK)))
+        raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+    dpl = (e2 >> DESC_DPL_SHIFT) & 3;
+    if (dpl > cpl)
+        raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+    if (!(e2 & DESC_P_MASK))
+        raise_exception_err(EXCP0B_NOSEG, selector & 0xfffc);
+    if (!(e2 & DESC_L_MASK) || (e2 & DESC_B_MASK))
+        raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+    if ((!(e2 & DESC_C_MASK) && dpl < cpl) || ist != 0) {
+        /* to inner priviledge */
+        if (ist != 0)
+            esp = get_rsp_from_tss(ist + 3);
+        else
+            esp = get_rsp_from_tss(dpl);
+        ss = 0;
+        new_stack = 1;
+    } else if ((e2 & DESC_C_MASK) || dpl == cpl) {
+        /* to same priviledge */
+        if (env->eflags & VM_MASK)
+            raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+        new_stack = 0;
+        esp = ESP & ~0xf; /* align stack */
+        dpl = cpl;
+    } else {
+        raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+        new_stack = 0; /* avoid warning */
+        esp = 0; /* avoid warning */
+    }
+
+    PUSHQ(esp, env->segs[R_SS].selector);
+    PUSHQ(esp, ESP);
+    PUSHQ(esp, compute_eflags());
+    PUSHQ(esp, env->segs[R_CS].selector);
+    PUSHQ(esp, old_eip);
+    if (has_error_code) {
+        PUSHQ(esp, error_code);
+    }
+    
+    if (new_stack) {
+        ss = 0 | dpl;
+        cpu_x86_load_seg_cache(env, R_SS, ss, 0, 0, 0);
+    }
+    ESP = esp;
+
+    selector = (selector & ~3) | dpl;
+    cpu_x86_load_seg_cache(env, R_CS, selector, 
+                   get_seg_base(e1, e2),
+                   get_seg_limit(e1, e2),
+                   e2);
+    cpu_x86_set_cpl(env, dpl);
+    env->eip = offset;
+
+    /* interrupt gate clear IF mask */
+    if ((type & 1) == 0) {
+        env->eflags &= ~IF_MASK;
+    }
+    env->eflags &= ~(TF_MASK | VM_MASK | RF_MASK | NT_MASK);
+}
+
+void helper_syscall(void)
+{
+    int selector;
+
+    if (!(env->efer & MSR_EFER_SCE)) {
+        raise_exception_err(EXCP06_ILLOP, 0);
+    }
+    selector = (env->star >> 32) & 0xffff;
+    if (env->hflags & HF_LMA_MASK) {
+        ECX = env->eip;
+        env->regs[11] = compute_eflags();
+
+        cpu_x86_set_cpl(env, 0);
+        cpu_x86_load_seg_cache(env, R_CS, selector & 0xfffc, 
+                           0, 0xffffffff, 
+                               DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
+                               DESC_S_MASK |
+                               DESC_CS_MASK | DESC_R_MASK | DESC_A_MASK | DESC_L_MASK);
+        cpu_x86_load_seg_cache(env, R_SS, (selector + 8) & 0xfffc, 
+                               0, 0xffffffff,
+                               DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
+                               DESC_S_MASK |
+                               DESC_W_MASK | DESC_A_MASK);
+        env->eflags &= ~env->fmask;
+        if (env->hflags & HF_CS64_MASK)
+            env->eip = env->lstar;
+        else
+            env->eip = env->cstar;
+    } else {
+        ECX = (uint32_t)env->eip;
+        
+        cpu_x86_set_cpl(env, 0);
+        cpu_x86_load_seg_cache(env, R_CS, selector & 0xfffc, 
+                           0, 0xffffffff, 
+                               DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
+                               DESC_S_MASK |
+                               DESC_CS_MASK | DESC_R_MASK | DESC_A_MASK);
+        cpu_x86_load_seg_cache(env, R_SS, (selector + 8) & 0xfffc, 
+                               0, 0xffffffff,
+                               DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
+                               DESC_S_MASK |
+                               DESC_W_MASK | DESC_A_MASK);
+        env->eflags &= ~(IF_MASK | RF_MASK | VM_MASK);
+        env->eip = (uint32_t)env->star;
+    }
+}
+
+void helper_sysret(int dflag)
+{
+    int cpl, selector;
+
+    cpl = env->hflags & HF_CPL_MASK;
+    if (!(env->cr[0] & CR0_PE_MASK) || cpl != 0) {
+        raise_exception_err(EXCP0D_GPF, 0);
+    }
+    selector = (env->star >> 48) & 0xffff;
+    if (env->hflags & HF_LMA_MASK) {
+        if (dflag == 2) {
+            cpu_x86_load_seg_cache(env, R_CS, (selector + 16) | 3, 
+                                   0, 0xffffffff, 
+                                   DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
+                                   DESC_S_MASK | (3 << DESC_DPL_SHIFT) |
+                                   DESC_CS_MASK | DESC_R_MASK | DESC_A_MASK | 
+                                   DESC_L_MASK);
+            env->eip = ECX;
+        } else {
+            cpu_x86_load_seg_cache(env, R_CS, selector | 3, 
+                                   0, 0xffffffff, 
+                                   DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
+                                   DESC_S_MASK | (3 << DESC_DPL_SHIFT) |
+                                   DESC_CS_MASK | DESC_R_MASK | DESC_A_MASK);
+            env->eip = (uint32_t)ECX;
+        }
+        cpu_x86_load_seg_cache(env, R_SS, selector + 8, 
+                               0, 0xffffffff,
+                               DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
+                               DESC_S_MASK | (3 << DESC_DPL_SHIFT) |
+                               DESC_W_MASK | DESC_A_MASK);
+        load_eflags((uint32_t)(env->regs[11]), 0xffffffff);
+        cpu_x86_set_cpl(env, 3);
+    } else {
+        cpu_x86_load_seg_cache(env, R_CS, selector | 3, 
+                               0, 0xffffffff, 
+                               DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
+                               DESC_S_MASK | (3 << DESC_DPL_SHIFT) |
+                               DESC_CS_MASK | DESC_R_MASK | DESC_A_MASK);
+        env->eip = (uint32_t)ECX;
+        cpu_x86_load_seg_cache(env, R_SS, selector + 8, 
+                               0, 0xffffffff,
+                               DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
+                               DESC_S_MASK | (3 << DESC_DPL_SHIFT) |
+                               DESC_W_MASK | DESC_A_MASK);
+        env->eflags |= IF_MASK;
+        cpu_x86_set_cpl(env, 3);
+    }
+}
+#endif
+
 /* real mode interrupt */
 static void do_interrupt_real(int intno, int is_int, int error_code,
                               unsigned int next_eip)
 {
     SegmentCache *dt;
-    uint8_t *ptr, *ssp;
+    target_ulong ptr, ssp;
     int selector;
     uint32_t offset, esp;
     uint32_t old_cs, old_eip;
@@ -813,16 +1065,16 @@ static void do_interrupt_real(int intno, int is_int, int error_code,
     ESP = (ESP & ~0xffff) | (esp & 0xffff);
     env->eip = offset;
     env->segs[R_CS].selector = selector;
-    env->segs[R_CS].base = (uint8_t *)(selector << 4);
+    env->segs[R_CS].base = (selector << 4);
     env->eflags &= ~(IF_MASK | TF_MASK | AC_MASK | RF_MASK);
 }
 
 /* fake user mode interrupt */
 void do_interrupt_user(int intno, int is_int, int error_code, 
-                       unsigned int next_eip)
+                       target_ulong next_eip)
 {
     SegmentCache *dt;
-    uint8_t *ptr;
+    target_ulong ptr;
     int dpl, cpl;
     uint32_t e2;
 
@@ -849,26 +1101,26 @@ void do_interrupt_user(int intno, int is_int, int error_code,
  * instruction. It is only relevant if is_int is TRUE.  
  */
 void do_interrupt(int intno, int is_int, int error_code, 
-                  unsigned int next_eip, int is_hw)
+                  target_ulong next_eip, int is_hw)
 {
 #ifdef DEBUG_PCALL
     if (loglevel & (CPU_LOG_PCALL | CPU_LOG_INT)) {
         if ((env->cr[0] & CR0_PE_MASK)) {
             static int count;
-            fprintf(logfile, "%6d: v=%02x e=%04x i=%d cpl=%d IP=%04x:%08x pc=%08x SP=%04x:%08x",
+            fprintf(logfile, "%6d: v=%02x e=%04x i=%d cpl=%d IP=%04x:" TARGET_FMT_lx " pc=" TARGET_FMT_lx " SP=%04x:" TARGET_FMT_lx,
                     count, intno, error_code, is_int,
                     env->hflags & HF_CPL_MASK,
                     env->segs[R_CS].selector, EIP,
                     (int)env->segs[R_CS].base + EIP,
                     env->segs[R_SS].selector, ESP);
             if (intno == 0x0e) {
-                fprintf(logfile, " CR2=%08x", env->cr[2]);
+                fprintf(logfile, " CR2=" TARGET_FMT_lx, env->cr[2]);
             } else {
-                fprintf(logfile, " EAX=%08x", EAX);
+                fprintf(logfile, " EAX=" TARGET_FMT_lx, EAX);
             }
             fprintf(logfile, "\n");
-#if 0
             cpu_dump_state(env, logfile, fprintf, X86_DUMP_CCOP);
+#if 0
             {
                 int i;
                 uint8_t *ptr;
@@ -885,7 +1137,14 @@ void do_interrupt(int intno, int is_int, int error_code,
     }
 #endif
     if (env->cr[0] & CR0_PE_MASK) {
-        do_interrupt_protected(intno, is_int, error_code, next_eip, is_hw);
+#if TARGET_X86_64
+        if (env->hflags & HF_LMA_MASK) {
+            do_interrupt64(intno, is_int, error_code, next_eip, is_hw);
+        } else
+#endif
+        {
+            do_interrupt_protected(intno, is_int, error_code, next_eip, is_hw);
+        }
     } else {
         do_interrupt_real(intno, is_int, error_code, next_eip);
     }
@@ -932,20 +1191,20 @@ void raise_exception(int exception_index)
 #ifdef BUGGY_GCC_DIV64
 /* gcc 2.95.4 on PowerPC does not seem to like using __udivdi3, so we
    call it from another function */
-uint32_t div64(uint32_t *q_ptr, uint64_t num, uint32_t den)
+uint32_t div32(uint32_t *q_ptr, uint64_t num, uint32_t den)
 {
     *q_ptr = num / den;
     return num % den;
 }
 
-int32_t idiv64(int32_t *q_ptr, int64_t num, int32_t den)
+int32_t idiv32(int32_t *q_ptr, int64_t num, int32_t den)
 {
     *q_ptr = num / den;
     return num % den;
 }
 #endif
 
-void helper_divl_EAX_T0(uint32_t eip)
+void helper_divl_EAX_T0(void)
 {
     unsigned int den, q, r;
     uint64_t num;
@@ -953,20 +1212,19 @@ void helper_divl_EAX_T0(uint32_t eip)
     num = EAX | ((uint64_t)EDX << 32);
     den = T0;
     if (den == 0) {
-        EIP = eip;
         raise_exception(EXCP00_DIVZ);
     }
 #ifdef BUGGY_GCC_DIV64
-    r = div64(&q, num, den);
+    r = div32(&q, num, den);
 #else
     q = (num / den);
     r = (num % den);
 #endif
-    EAX = q;
-    EDX = r;
+    EAX = (uint32_t)q;
+    EDX = (uint32_t)r;
 }
 
-void helper_idivl_EAX_T0(uint32_t eip)
+void helper_idivl_EAX_T0(void)
 {
     int den, q, r;
     int64_t num;
@@ -974,17 +1232,16 @@ void helper_idivl_EAX_T0(uint32_t eip)
     num = EAX | ((uint64_t)EDX << 32);
     den = T0;
     if (den == 0) {
-        EIP = eip;
         raise_exception(EXCP00_DIVZ);
     }
 #ifdef BUGGY_GCC_DIV64
-    r = idiv64(&q, num, den);
+    r = idiv32(&q, num, den);
 #else
     q = (num / den);
     r = (num % den);
 #endif
-    EAX = q;
-    EDX = r;
+    EAX = (uint32_t)q;
+    EDX = (uint32_t)r;
 }
 
 void helper_cmpxchg8b(void)
@@ -993,9 +1250,9 @@ void helper_cmpxchg8b(void)
     int eflags;
 
     eflags = cc_table[CC_OP].compute_all();
-    d = ldq((uint8_t *)A0);
+    d = ldq(A0);
     if (d == (((uint64_t)EDX << 32) | EAX)) {
-        stq((uint8_t *)A0, ((uint64_t)ECX << 32) | EBX);
+        stq(A0, ((uint64_t)ECX << 32) | EBX);
         eflags |= CC_Z;
     } else {
         EDX = d >> 32;
@@ -1005,58 +1262,20 @@ void helper_cmpxchg8b(void)
     CC_SRC = eflags;
 }
 
-#define CPUID_FP87 (1 << 0)
-#define CPUID_VME  (1 << 1)
-#define CPUID_DE   (1 << 2)
-#define CPUID_PSE  (1 << 3)
-#define CPUID_TSC  (1 << 4)
-#define CPUID_MSR  (1 << 5)
-#define CPUID_PAE  (1 << 6)
-#define CPUID_MCE  (1 << 7)
-#define CPUID_CX8  (1 << 8)
-#define CPUID_APIC (1 << 9)
-#define CPUID_SEP  (1 << 11) /* sysenter/sysexit */
-#define CPUID_MTRR (1 << 12)
-#define CPUID_PGE  (1 << 13)
-#define CPUID_MCA  (1 << 14)
-#define CPUID_CMOV (1 << 15)
-/* ... */
-#define CPUID_MMX  (1 << 23)
-#define CPUID_FXSR (1 << 24)
-#define CPUID_SSE  (1 << 25)
-#define CPUID_SSE2 (1 << 26)
-
 void helper_cpuid(void)
 {
-    switch(EAX) {
+    switch((uint32_t)EAX) {
     case 0:
         EAX = 2; /* max EAX index supported */
-        EBX = 0x756e6547;
-        ECX = 0x6c65746e;
-        EDX = 0x49656e69;
+        EBX = env->cpuid_vendor1;
+        EDX = env->cpuid_vendor2;
+        ECX = env->cpuid_vendor3;
         break;
     case 1:
-        {
-            int family, model, stepping;
-            /* EAX = 1 info */
-#if 0
-            /* pentium 75-200 */
-            family = 5;
-            model = 2;
-            stepping = 11;
-#else
-            /* pentium pro */
-            family = 6;
-            model = 1;
-            stepping = 3;
-#endif
-            EAX = (family << 8) | (model << 4) | stepping;
-            EBX = 0;
-            ECX = 0;
-            EDX = CPUID_FP87 | CPUID_DE | CPUID_PSE |
-                CPUID_TSC | CPUID_MSR | CPUID_MCE |
-                CPUID_CX8 | CPUID_PGE | CPUID_CMOV;
-        }
+        EAX = env->cpuid_version;
+        EBX = 0;
+        ECX = 0;
+        EDX = env->cpuid_features;
         break;
     default:
         /* cache info: needed for Pentium Pro compatibility */
@@ -1065,12 +1284,34 @@ void helper_cpuid(void)
         ECX = 0;
         EDX = 0;
         break;
+#ifdef TARGET_X86_64
+    case 0x80000000:
+        EAX = 0x80000008;
+        EBX = env->cpuid_vendor1;
+        EDX = env->cpuid_vendor2;
+        ECX = env->cpuid_vendor3;
+        break;
+    case 0x80000001:
+        EAX = env->cpuid_features;
+        EBX = 0;
+        ECX = 0;
+        /* long mode + syscall/sysret features */
+        EDX = (env->cpuid_features & 0x0183F3FF) | (1 << 29) | (1 << 11);
+        break;
+    case 0x80000008:
+        /* virtual & phys address size in low 2 bytes. */
+        EAX = 0x00003028;
+        EBX = 0;
+        ECX = 0;
+        EDX = 0;
+        break;
+#endif
     }
 }
 
 void helper_enter_level(int level, int data32)
 {
-    uint8_t *ssp;
+    target_ulong ssp;
     uint32_t esp_mask, esp, ebp;
 
     esp_mask = get_sp_mask(env->segs[R_SS].flags);
@@ -1105,20 +1346,26 @@ void helper_lldt_T0(void)
     int selector;
     SegmentCache *dt;
     uint32_t e1, e2;
-    int index;
-    uint8_t *ptr;
+    int index, entry_limit;
+    target_ulong ptr;
     
     selector = T0 & 0xffff;
     if ((selector & 0xfffc) == 0) {
         /* XXX: NULL selector case: invalid LDT */
-        env->ldt.base = NULL;
+        env->ldt.base = 0;
         env->ldt.limit = 0;
     } else {
         if (selector & 0x4)
             raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
         dt = &env->gdt;
         index = selector & ~7;
-        if ((index + 7) > dt->limit)
+#ifdef TARGET_X86_64
+        if (env->hflags & HF_LMA_MASK)
+            entry_limit = 15;
+        else
+#endif            
+            entry_limit = 7;
+        if ((index + entry_limit) > dt->limit)
             raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
         ptr = dt->base + index;
         e1 = ldl_kernel(ptr);
@@ -1127,7 +1374,17 @@ void helper_lldt_T0(void)
             raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
         if (!(e2 & DESC_P_MASK))
             raise_exception_err(EXCP0B_NOSEG, selector & 0xfffc);
-        load_seg_cache_raw_dt(&env->ldt, e1, e2);
+#ifdef TARGET_X86_64
+        if (env->hflags & HF_LMA_MASK) {
+            uint32_t e3;
+            e3 = ldl_kernel(ptr + 8);
+            load_seg_cache_raw_dt(&env->ldt, e1, e2);
+            env->ldt.base |= (target_ulong)e3 << 32;
+        } else
+#endif
+        {
+            load_seg_cache_raw_dt(&env->ldt, e1, e2);
+        }
     }
     env->ldt.selector = selector;
 }
@@ -1137,13 +1394,13 @@ void helper_ltr_T0(void)
     int selector;
     SegmentCache *dt;
     uint32_t e1, e2;
-    int index, type;
-    uint8_t *ptr;
+    int index, type, entry_limit;
+    target_ulong ptr;
     
     selector = T0 & 0xffff;
     if ((selector & 0xfffc) == 0) {
-        /* NULL selector case: invalid LDT */
-        env->tr.base = NULL;
+        /* NULL selector case: invalid TR */
+        env->tr.base = 0;
         env->tr.limit = 0;
         env->tr.flags = 0;
     } else {
@@ -1151,7 +1408,13 @@ void helper_ltr_T0(void)
             raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
         dt = &env->gdt;
         index = selector & ~7;
-        if ((index + 7) > dt->limit)
+#ifdef TARGET_X86_64
+        if (env->hflags & HF_LMA_MASK)
+            entry_limit = 15;
+        else
+#endif            
+            entry_limit = 7;
+        if ((index + entry_limit) > dt->limit)
             raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
         ptr = dt->base + index;
         e1 = ldl_kernel(ptr);
@@ -1162,7 +1425,17 @@ void helper_ltr_T0(void)
             raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
         if (!(e2 & DESC_P_MASK))
             raise_exception_err(EXCP0B_NOSEG, selector & 0xfffc);
-        load_seg_cache_raw_dt(&env->tr, e1, e2);
+#ifdef TARGET_X86_64
+        if (env->hflags & HF_LMA_MASK) {
+            uint32_t e3;
+            e3 = ldl_kernel(ptr + 8);
+            load_seg_cache_raw_dt(&env->tr, e1, e2);
+            env->tr.base |= (target_ulong)e3 << 32;
+        } else 
+#endif
+        {
+            load_seg_cache_raw_dt(&env->tr, e1, e2);
+        }
         e2 |= DESC_TSS_BUSY_MASK;
         stl_kernel(ptr + 4, e2);
     }
@@ -1176,14 +1449,14 @@ void load_seg(int seg_reg, int selector)
     int cpl, dpl, rpl;
     SegmentCache *dt;
     int index;
-    uint8_t *ptr;
+    target_ulong ptr;
 
     selector &= 0xffff;
     if ((selector & 0xfffc) == 0) {
         /* null selector case */
         if (seg_reg == R_SS)
             raise_exception_err(EXCP0D_GPF, 0);
-        cpu_x86_load_seg_cache(env, seg_reg, selector, NULL, 0, 0);
+        cpu_x86_load_seg_cache(env, seg_reg, selector, 0, 0, 0);
     } else {
         
         if (selector & 0x4)
@@ -1196,7 +1469,7 @@ void load_seg(int seg_reg, int selector)
         ptr = dt->base + index;
         e1 = ldl_kernel(ptr);
         e2 = ldl_kernel(ptr + 4);
-
+        
         if (!(e2 & DESC_S_MASK))
             raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
         rpl = selector & 3;
@@ -1247,9 +1520,10 @@ void load_seg(int seg_reg, int selector)
 /* protected mode jump */
 void helper_ljmp_protected_T0_T1(int next_eip)
 {
-    int new_cs, new_eip, gate_cs, type;
+    int new_cs, gate_cs, type;
     uint32_t e1, e2, cpl, dpl, rpl, limit;
-
+    target_ulong new_eip;
+    
     new_cs = T0;
     new_eip = T1;
     if ((new_cs & 0xfffc) == 0)
@@ -1312,7 +1586,7 @@ void helper_ljmp_protected_T0_T1(int next_eip)
             if (((e2 & (DESC_S_MASK | DESC_CS_MASK)) != 
                  (DESC_S_MASK | DESC_CS_MASK)))
                 raise_exception_err(EXCP0D_GPF, gate_cs & 0xfffc);
-            if (((e2 & DESC_C_MASK) && (dpl > cpl)) ||
+            if (((e2 & DESC_C_MASK) && (dpl > cpl)) || 
                 (!(e2 & DESC_C_MASK) && (dpl != cpl)))
                 raise_exception_err(EXCP0D_GPF, gate_cs & 0xfffc);
             if (!(e2 & DESC_P_MASK))
@@ -1336,7 +1610,7 @@ void helper_lcall_real_T0_T1(int shift, int next_eip)
 {
     int new_cs, new_eip;
     uint32_t esp, esp_mask;
-    uint8_t *ssp;
+    target_ulong ssp;
 
     new_cs = T0;
     new_eip = T1;
@@ -1354,7 +1628,7 @@ void helper_lcall_real_T0_T1(int shift, int next_eip)
     ESP = (ESP & ~esp_mask) | (esp & esp_mask);
     env->eip = new_eip;
     env->segs[R_CS].selector = new_cs;
-    env->segs[R_CS].base = (uint8_t *)(new_cs << 4);
+    env->segs[R_CS].base = (new_cs << 4);
 }
 
 /* protected mode call */
@@ -1364,7 +1638,7 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip)
     uint32_t e1, e2, cpl, dpl, rpl, selector, offset, param_count;
     uint32_t ss, ss_e1, ss_e2, sp, type, ss_dpl, sp_mask;
     uint32_t val, limit, old_sp_mask;
-    uint8_t *ssp, *old_ssp;
+    target_ulong ssp, old_ssp;
     
     new_cs = T0;
     new_eip = T1;
@@ -1471,7 +1745,7 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip)
             get_ss_esp_from_tss(&ss, &sp, dpl);
 #ifdef DEBUG_PCALL
             if (loglevel & CPU_LOG_PCALL)
-                fprintf(logfile, "new ss:esp=%04x:%08x param_count=%d ESP=%x\n", 
+                fprintf(logfile, "new ss:esp=%04x:%08x param_count=%d ESP=" TARGET_FMT_lx "\n", 
                         ss, sp, param_count, ESP);
 #endif
             if ((ss & 0xfffc) == 0)
@@ -1555,7 +1829,7 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip)
 void helper_iret_real(int shift)
 {
     uint32_t sp, new_cs, new_eip, new_eflags, sp_mask;
-    uint8_t *ssp;
+    target_ulong ssp;
     int eflags_mask;
 
     sp_mask = 0xffff; /* XXXX: use SS segment size ? */
@@ -1595,7 +1869,7 @@ static inline void validate_seg(int seg_reg, int cpl)
     if (!(e2 & DESC_CS_MASK) || !(e2 & DESC_C_MASK)) {
         /* data or non conforming code segment */
         if (dpl < cpl) {
-            cpu_x86_load_seg_cache(env, seg_reg, 0, NULL, 0, 0);
+            cpu_x86_load_seg_cache(env, seg_reg, 0, 0, 0, 0);
         }
     }
 }
@@ -1603,16 +1877,31 @@ static inline void validate_seg(int seg_reg, int cpl)
 /* protected mode iret */
 static inline void helper_ret_protected(int shift, int is_iret, int addend)
 {
-    uint32_t sp, new_cs, new_eip, new_eflags, new_esp, new_ss, sp_mask;
+    uint32_t new_cs, new_eflags, new_ss;
     uint32_t new_es, new_ds, new_fs, new_gs;
     uint32_t e1, e2, ss_e1, ss_e2;
     int cpl, dpl, rpl, eflags_mask, iopl;
-    uint8_t *ssp;
+    target_ulong ssp, sp, new_eip, new_esp, sp_mask;
     
-    sp_mask = get_sp_mask(env->segs[R_SS].flags);
+#ifdef TARGET_X86_64
+    if (shift == 2)
+        sp_mask = -1;
+    else
+#endif
+        sp_mask = get_sp_mask(env->segs[R_SS].flags);
     sp = ESP;
     ssp = env->segs[R_SS].base;
     new_eflags = 0; /* avoid warning */
+#ifdef TARGET_X86_64
+    if (shift == 2) {
+        POPQ(sp, new_eip);
+        POPQ(sp, new_cs);
+        new_cs &= 0xffff;
+        if (is_iret) {
+            POPQ(sp, new_eflags);
+        }
+    } else
+#endif
     if (shift == 1) {
         /* 32 bits */
         POPL(ssp, sp, sp_mask, new_eip);
@@ -1632,7 +1921,7 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
     }
 #ifdef DEBUG_PCALL
     if (loglevel & CPU_LOG_PCALL) {
-        fprintf(logfile, "lret new %04x:%08x s=%d addend=0x%x\n",
+        fprintf(logfile, "lret new %04x:" TARGET_FMT_lx " s=%d addend=0x%x\n",
                 new_cs, new_eip, shift, addend);
         cpu_dump_state(env, logfile, fprintf, X86_DUMP_CCOP);
     }
@@ -1660,7 +1949,7 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
         raise_exception_err(EXCP0B_NOSEG, new_cs & 0xfffc);
     
     sp += addend;
-    if (rpl == cpl) {
+    if (rpl == cpl && !(env->hflags & HF_CS64_MASK)) {
         /* return to same priledge level */
         cpu_x86_load_seg_cache(env, R_CS, new_cs, 
                        get_seg_base(e1, e2),
@@ -1668,6 +1957,13 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
                        e2);
     } else {
         /* return to different priviledge level */
+#ifdef TARGET_X86_64
+        if (shift == 2) {
+            POPQ(sp, new_esp);
+            POPQ(sp, new_ss);
+            new_ss &= 0xffff;
+        } else
+#endif
         if (shift == 1) {
             /* 32 bits */
             POPL(ssp, sp, sp_mask, new_esp);
@@ -1680,36 +1976,49 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
         }
 #ifdef DEBUG_PCALL
         if (loglevel & CPU_LOG_PCALL) {
-            fprintf(logfile, "new ss:esp=%04x:%08x\n",
+            fprintf(logfile, "new ss:esp=%04x:" TARGET_FMT_lx "\n",
                     new_ss, new_esp);
         }
 #endif
-        
-        if ((new_ss & 3) != rpl)
-            raise_exception_err(EXCP0D_GPF, new_ss & 0xfffc);
-        if (load_segment(&ss_e1, &ss_e2, new_ss) != 0)
-            raise_exception_err(EXCP0D_GPF, new_ss & 0xfffc);
-        if (!(ss_e2 & DESC_S_MASK) ||
-            (ss_e2 & DESC_CS_MASK) ||
-            !(ss_e2 & DESC_W_MASK))
-            raise_exception_err(EXCP0D_GPF, new_ss & 0xfffc);
-        dpl = (ss_e2 >> DESC_DPL_SHIFT) & 3;
-        if (dpl != rpl)
-            raise_exception_err(EXCP0D_GPF, new_ss & 0xfffc);
-        if (!(ss_e2 & DESC_P_MASK))
-            raise_exception_err(EXCP0B_NOSEG, new_ss & 0xfffc);
+        if ((env->hflags & HF_LMA_MASK) && (new_ss & 0xfffc) == 0) {
+            /* NULL ss is allowed in long mode */
+            cpu_x86_load_seg_cache(env, R_SS, new_ss, 
+                                   0, 0xffffffff,
+                                   DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
+                                   DESC_S_MASK | (rpl << DESC_DPL_SHIFT) |
+                                   DESC_W_MASK | DESC_A_MASK);
+        } else {
+            if ((new_ss & 3) != rpl)
+                raise_exception_err(EXCP0D_GPF, new_ss & 0xfffc);
+            if (load_segment(&ss_e1, &ss_e2, new_ss) != 0)
+                raise_exception_err(EXCP0D_GPF, new_ss & 0xfffc);
+            if (!(ss_e2 & DESC_S_MASK) ||
+                (ss_e2 & DESC_CS_MASK) ||
+                !(ss_e2 & DESC_W_MASK))
+                raise_exception_err(EXCP0D_GPF, new_ss & 0xfffc);
+            dpl = (ss_e2 >> DESC_DPL_SHIFT) & 3;
+            if (dpl != rpl)
+                raise_exception_err(EXCP0D_GPF, new_ss & 0xfffc);
+            if (!(ss_e2 & DESC_P_MASK))
+                raise_exception_err(EXCP0B_NOSEG, new_ss & 0xfffc);
+            cpu_x86_load_seg_cache(env, R_SS, new_ss, 
+                                   get_seg_base(ss_e1, ss_e2),
+                                   get_seg_limit(ss_e1, ss_e2),
+                                   ss_e2);
+        }
 
         cpu_x86_load_seg_cache(env, R_CS, new_cs, 
                        get_seg_base(e1, e2),
                        get_seg_limit(e1, e2),
                        e2);
-        cpu_x86_load_seg_cache(env, R_SS, new_ss, 
-                       get_seg_base(ss_e1, ss_e2),
-                       get_seg_limit(ss_e1, ss_e2),
-                       ss_e2);
         cpu_x86_set_cpl(env, rpl);
         sp = new_esp;
-        sp_mask = get_sp_mask(ss_e2);
+#ifdef TARGET_X86_64
+        if (shift == 2)
+            sp_mask = -1;
+        else
+#endif
+            sp_mask = get_sp_mask(ss_e2);
 
         /* validate data segments */
         validate_seg(R_ES, cpl);
@@ -1765,6 +2074,10 @@ void helper_iret_protected(int shift, int next_eip)
     
     /* specific case for TSS */
     if (env->eflags & NT_MASK) {
+#ifdef TARGET_X86_64
+        if (env->hflags & HF_LMA_MASK)
+            raise_exception_err(EXCP0D_GPF, 0);
+#endif
         tss_selector = lduw_kernel(env->tr.base + 0);
         if (tss_selector & 4)
             raise_exception_err(EXCP0A_TSS, tss_selector & 0xfffc);
@@ -1793,12 +2106,12 @@ void helper_sysenter(void)
     env->eflags &= ~(VM_MASK | IF_MASK | RF_MASK);
     cpu_x86_set_cpl(env, 0);
     cpu_x86_load_seg_cache(env, R_CS, env->sysenter_cs & 0xfffc, 
-                           NULL, 0xffffffff, 
+                           0, 0xffffffff, 
                            DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
                            DESC_S_MASK |
                            DESC_CS_MASK | DESC_R_MASK | DESC_A_MASK);
     cpu_x86_load_seg_cache(env, R_SS, (env->sysenter_cs + 8) & 0xfffc, 
-                           NULL, 0xffffffff,
+                           0, 0xffffffff,
                            DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
                            DESC_S_MASK |
                            DESC_W_MASK | DESC_A_MASK);
@@ -1816,12 +2129,12 @@ void helper_sysexit(void)
     }
     cpu_x86_set_cpl(env, 3);
     cpu_x86_load_seg_cache(env, R_CS, ((env->sysenter_cs + 16) & 0xfffc) | 3, 
-                           NULL, 0xffffffff, 
+                           0, 0xffffffff, 
                            DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
                            DESC_S_MASK | (3 << DESC_DPL_SHIFT) |
                            DESC_CS_MASK | DESC_R_MASK | DESC_A_MASK);
     cpu_x86_load_seg_cache(env, R_SS, ((env->sysenter_cs + 24) & 0xfffc) | 3, 
-                           NULL, 0xffffffff,
+                           0, 0xffffffff,
                            DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
                            DESC_S_MASK | (3 << DESC_DPL_SHIFT) |
                            DESC_W_MASK | DESC_A_MASK);
@@ -1863,22 +2176,67 @@ void helper_rdtsc(void)
     uint64_t val;
     
     val = cpu_get_tsc(env);
-    EAX = val;
-    EDX = val >> 32;
+    EAX = (uint32_t)(val);
+    EDX = (uint32_t)(val >> 32);
 }
 
+#if defined(CONFIG_USER_ONLY) 
 void helper_wrmsr(void)
 {
-    switch(ECX) {
+}
+
+void helper_rdmsr(void)
+{
+}
+#else
+void helper_wrmsr(void)
+{
+    uint64_t val;
+
+    val = ((uint32_t)EAX) | ((uint64_t)((uint32_t)EDX) << 32);
+
+    switch((uint32_t)ECX) {
     case MSR_IA32_SYSENTER_CS:
-        env->sysenter_cs = EAX & 0xffff;
+        env->sysenter_cs = val & 0xffff;
         break;
     case MSR_IA32_SYSENTER_ESP:
-        env->sysenter_esp = EAX;
+        env->sysenter_esp = val;
         break;
     case MSR_IA32_SYSENTER_EIP:
-        env->sysenter_eip = EAX;
+        env->sysenter_eip = val;
         break;
+    case MSR_IA32_APICBASE:
+        cpu_set_apic_base(env, val);
+        break;
+#ifdef TARGET_X86_64
+    case MSR_EFER:
+#define MSR_EFER_UPDATE_MASK (MSR_EFER_SCE | MSR_EFER_LME | \
+                              MSR_EFER_NXE | MSR_EFER_FFXSR)
+        env->efer = (env->efer & ~MSR_EFER_UPDATE_MASK) | 
+            (val & MSR_EFER_UPDATE_MASK);
+        break;
+    case MSR_STAR:
+        env->star = val;
+        break;
+    case MSR_LSTAR:
+        env->lstar = val;
+        break;
+    case MSR_CSTAR:
+        env->cstar = val;
+        break;
+    case MSR_FMASK:
+        env->fmask = val;
+        break;
+    case MSR_FSBASE:
+        env->segs[R_FS].base = val;
+        break;
+    case MSR_GSBASE:
+        env->segs[R_GS].base = val;
+        break;
+    case MSR_KERNELGSBASE:
+        env->kernelgsbase = val;
+        break;
+#endif
     default:
         /* XXX: exception ? */
         break; 
@@ -1887,24 +2245,55 @@ void helper_wrmsr(void)
 
 void helper_rdmsr(void)
 {
-    switch(ECX) {
+    uint64_t val;
+    switch((uint32_t)ECX) {
     case MSR_IA32_SYSENTER_CS:
-        EAX = env->sysenter_cs;
-        EDX = 0;
+        val = env->sysenter_cs;
         break;
     case MSR_IA32_SYSENTER_ESP:
-        EAX = env->sysenter_esp;
-        EDX = 0;
+        val = env->sysenter_esp;
         break;
     case MSR_IA32_SYSENTER_EIP:
-        EAX = env->sysenter_eip;
-        EDX = 0;
+        val = env->sysenter_eip;
         break;
+    case MSR_IA32_APICBASE:
+        val = cpu_get_apic_base(env);
+        break;
+#ifdef TARGET_X86_64
+    case MSR_EFER:
+        val = env->efer;
+        break;
+    case MSR_STAR:
+        val = env->star;
+        break;
+    case MSR_LSTAR:
+        val = env->lstar;
+        break;
+    case MSR_CSTAR:
+        val = env->cstar;
+        break;
+    case MSR_FMASK:
+        val = env->fmask;
+        break;
+    case MSR_FSBASE:
+        val = env->segs[R_FS].base;
+        break;
+    case MSR_GSBASE:
+        val = env->segs[R_GS].base;
+        break;
+    case MSR_KERNELGSBASE:
+        val = env->kernelgsbase;
+        break;
+#endif
     default:
         /* XXX: exception ? */
+        val = 0;
         break; 
     }
+    EAX = (uint32_t)(val);
+    EDX = (uint32_t)(val >> 32);
 }
+#endif
 
 void helper_lsl(void)
 {
@@ -2055,14 +2444,14 @@ void helper_fldt_ST0_A0(void)
 {
     int new_fpstt;
     new_fpstt = (env->fpstt - 1) & 7;
-    env->fpregs[new_fpstt] = helper_fldt((uint8_t *)A0);
+    env->fpregs[new_fpstt] = helper_fldt(A0);
     env->fpstt = new_fpstt;
     env->fptags[new_fpstt] = 0; /* validate stack entry */
 }
 
 void helper_fstt_ST0_A0(void)
 {
-    helper_fstt(ST0, (uint8_t *)A0);
+    helper_fstt(ST0, A0);
 }
 
 void fpu_set_exception(int mask)
@@ -2102,11 +2491,11 @@ void helper_fbld_ST0_A0(void)
 
     val = 0;
     for(i = 8; i >= 0; i--) {
-        v = ldub((uint8_t *)A0 + i);
+        v = ldub(A0 + i);
         val = (val * 100) + ((v >> 4) * 10) + (v & 0xf);
     }
     tmp = val;
-    if (ldub((uint8_t *)A0 + 9) & 0x80)
+    if (ldub(A0 + 9) & 0x80)
         tmp = -tmp;
     fpush();
     ST0 = tmp;
@@ -2116,12 +2505,12 @@ void helper_fbst_ST0_A0(void)
 {
     CPU86_LDouble tmp;
     int v;
-    uint8_t *mem_ref, *mem_end;
+    target_ulong mem_ref, mem_end;
     int64_t val;
 
     tmp = rint(ST0);
     val = (int64_t)tmp;
-    mem_ref = (uint8_t *)A0;
+    mem_ref = A0;
     mem_end = mem_ref + 9;
     if (val < 0) {
         stb(mem_end, 0x80);
@@ -2402,7 +2791,7 @@ void helper_fxam_ST0(void)
     }
 }
 
-void helper_fstenv(uint8_t *ptr, int data32)
+void helper_fstenv(target_ulong ptr, int data32)
 {
     int fpus, fptag, exp, i;
     uint64_t mant;
@@ -2452,7 +2841,7 @@ void helper_fstenv(uint8_t *ptr, int data32)
     }
 }
 
-void helper_fldenv(uint8_t *ptr, int data32)
+void helper_fldenv(target_ulong ptr, int data32)
 {
     int i, fpus, fptag;
 
@@ -2474,7 +2863,7 @@ void helper_fldenv(uint8_t *ptr, int data32)
     }
 }
 
-void helper_fsave(uint8_t *ptr, int data32)
+void helper_fsave(target_ulong ptr, int data32)
 {
     CPU86_LDouble tmp;
     int i;
@@ -2502,7 +2891,7 @@ void helper_fsave(uint8_t *ptr, int data32)
     env->fptags[7] = 1;
 }
 
-void helper_frstor(uint8_t *ptr, int data32)
+void helper_frstor(target_ulong ptr, int data32)
 {
     CPU86_LDouble tmp;
     int i;
@@ -2517,7 +2906,78 @@ void helper_frstor(uint8_t *ptr, int data32)
     }
 }
 
-/* XXX: merge with helper_fstt ? */
+void helper_fxsave(target_ulong ptr, int data64)
+{
+    int fpus, fptag, i, nb_xmm_regs;
+    CPU86_LDouble tmp;
+    target_ulong addr;
+
+    fpus = (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
+    fptag = 0;
+    for(i = 0; i < 8; i++) {
+        fptag |= ((!env->fptags[(env->fpstt + i) & 7]) << i);
+    }
+    stw(ptr, env->fpuc);
+    stw(ptr + 2, fpus);
+    stw(ptr + 4, fptag);
+
+    addr = ptr + 0x20;
+    for(i = 0;i < 8; i++) {
+        tmp = ST(i);
+        helper_fstt(tmp, addr);
+        addr += 16;
+    }
+    
+    if (env->cr[4] & CR4_OSFXSR_MASK) {
+        /* XXX: finish it, endianness */
+        stl(ptr + 0x18, 0); /* mxcsr */
+        stl(ptr + 0x1c, 0); /* mxcsr_mask */
+        nb_xmm_regs = 8 << data64;
+        addr = ptr + 0xa0;
+        for(i = 0; i < nb_xmm_regs; i++) {
+            stq(addr, env->xmm_regs[i].u.q[0]);
+            stq(addr, env->xmm_regs[i].u.q[1]);
+            addr += 16;
+        }
+    }
+}
+
+void helper_fxrstor(target_ulong ptr, int data64)
+{
+    int i, fpus, fptag, nb_xmm_regs;
+    CPU86_LDouble tmp;
+    target_ulong addr;
+
+    env->fpuc = lduw(ptr);
+    fpus = lduw(ptr + 2);
+    fptag = ldub(ptr + 4);
+    env->fpstt = (fpus >> 11) & 7;
+    env->fpus = fpus & ~0x3800;
+    fptag ^= 0xff;
+    for(i = 0;i < 8; i++) {
+        env->fptags[(env->fpstt + i) & 7] = ((fptag >> i) & 1);
+    }
+
+    addr = ptr + 0x20;
+    for(i = 0;i < 8; i++) {
+        tmp = helper_fldt(addr);
+        ST(i) = tmp;
+        addr += 16;
+    }
+
+    if (env->cr[4] & CR4_OSFXSR_MASK) {
+        /* XXX: finish it, endianness */
+        //ldl(ptr + 0x18);
+        //ldl(ptr + 0x1c);
+        nb_xmm_regs = 8 << data64;
+        addr = ptr + 0xa0;
+        for(i = 0; i < nb_xmm_regs; i++) {
+            env->xmm_regs[i].u.q[0] = ldq(addr);
+            env->xmm_regs[i].u.q[1] = ldq(addr);
+            addr += 16;
+        }
+    }
+}
 
 #ifndef USE_X86LDOUBLE
 
@@ -2575,6 +3035,179 @@ CPU86_LDouble cpu_set_fp80(uint64_t mant, uint16_t upper)
 }
 #endif
 
+#ifdef TARGET_X86_64
+
+//#define DEBUG_MULDIV
+
+static void add128(uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b)
+{
+    *plow += a;
+    /* carry test */
+    if (*plow < a)
+        (*phigh)++;
+    *phigh += b;
+}
+
+static void neg128(uint64_t *plow, uint64_t *phigh)
+{
+    *plow = ~ *plow;
+    *phigh = ~ *phigh;
+    add128(plow, phigh, 1, 0);
+}
+
+static void mul64(uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b)
+{
+    uint32_t a0, a1, b0, b1;
+    uint64_t v;
+
+    a0 = a;
+    a1 = a >> 32;
+
+    b0 = b;
+    b1 = b >> 32;
+    
+    v = (uint64_t)a0 * (uint64_t)b0;
+    *plow = v;
+    *phigh = 0;
+
+    v = (uint64_t)a0 * (uint64_t)b1;
+    add128(plow, phigh, v << 32, v >> 32);
+    
+    v = (uint64_t)a1 * (uint64_t)b0;
+    add128(plow, phigh, v << 32, v >> 32);
+    
+    v = (uint64_t)a1 * (uint64_t)b1;
+    *phigh += v;
+#ifdef DEBUG_MULDIV
+    printf("mul: 0x%016llx * 0x%016llx = 0x%016llx%016llx\n",
+           a, b, *phigh, *plow);
+#endif
+}
+
+static void imul64(uint64_t *plow, uint64_t *phigh, int64_t a, int64_t b)
+{
+    int sa, sb;
+    sa = (a < 0);
+    if (sa)
+        a = -a;
+    sb = (b < 0);
+    if (sb)
+        b = -b;
+    mul64(plow, phigh, a, b);
+    if (sa ^ sb) {
+        neg128(plow, phigh);
+    }
+}
+
+static void div64(uint64_t *plow, uint64_t *phigh, uint64_t b)
+{
+    uint64_t q, r, a1, a0;
+    int i, qb;
+
+    a0 = *plow;
+    a1 = *phigh;
+    if (a1 == 0) {
+        q = a0 / b;
+        r = a0 % b;
+        *plow = q;
+        *phigh = r;
+    } else {
+        /* XXX: use a better algorithm */
+        for(i = 0; i < 64; i++) {
+            if (a1 >= b) {
+                a1 -= b;
+                qb = 1;
+            } else {
+                qb = 0;
+            }
+            a1 = (a1 << 1) | (a0 >> 63);
+            a0 = (a0 << 1) | qb;
+        }
+#if defined(DEBUG_MULDIV) || 1
+        printf("div: 0x%016llx%016llx / 0x%016llx: q=0x%016llx r=0x%016llx\n",
+               *phigh, *plow, b, a0, a1);
+#endif
+        *plow = a0;
+        *phigh = a1;
+    }
+}
+
+static void idiv64(uint64_t *plow, uint64_t *phigh, uint64_t b)
+{
+    int sa, sb;
+    sa = ((int64_t)*phigh < 0);
+    if (sa)
+        neg128(plow, phigh);
+    sb = (b < 0);
+    if (sb)
+        b = -b;
+    div64(plow, phigh, b);
+    if (sa ^ sb)
+        *plow = - *plow;
+    if (sb)
+        *phigh = - *phigh;
+}
+
+void helper_mulq_EAX_T0(void)
+{
+    uint64_t r0, r1;
+
+    mul64(&r0, &r1, EAX, T0);
+    EAX = r0;
+    EDX = r1;
+    CC_DST = r0;
+    CC_SRC = r1;
+}
+
+void helper_imulq_EAX_T0(void)
+{
+    uint64_t r0, r1;
+
+    imul64(&r0, &r1, EAX, T0);
+    EAX = r0;
+    EDX = r1;
+    CC_DST = r0;
+    CC_SRC = (r1 != (r0 >> 63));
+}
+
+void helper_imulq_T0_T1(void)
+{
+    uint64_t r0, r1;
+
+    imul64(&r0, &r1, T0, T1);
+    T0 = r0;
+    CC_DST = r0;
+    CC_SRC = ((int64_t)r1 != ((int64_t)r0 >> 63));
+}
+
+void helper_divq_EAX_T0(void)
+{
+    uint64_t r0, r1;
+    if (T0 == 0) {
+        raise_exception(EXCP00_DIVZ);
+    }
+    r0 = EAX;
+    r1 = EDX;
+    div64(&r0, &r1, T0);
+    EAX = r0;
+    EDX = r1;
+}
+
+void helper_idivq_EAX_T0(void)
+{
+    uint64_t r0, r1;
+    if (T0 == 0) {
+        raise_exception(EXCP00_DIVZ);
+    }
+    r0 = EAX;
+    r1 = EDX;
+    idiv64(&r0, &r1, T0);
+    EAX = r0;
+    EDX = r1;
+}
+
+#endif
+
 #if !defined(CONFIG_USER_ONLY) 
 
 #define MMUSUFFIX _mmu
@@ -2598,7 +3231,7 @@ CPU86_LDouble cpu_set_fp80(uint64_t mant, uint16_t upper)
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
 /* XXX: fix it to restore all registers */
-void tlb_fill(unsigned long addr, int is_write, int is_user, void *retaddr)
+void tlb_fill(target_ulong addr, int is_write, int is_user, void *retaddr)
 {
     TranslationBlock *tb;
     int ret;

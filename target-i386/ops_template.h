@@ -20,7 +20,12 @@
  */
 #define DATA_BITS (1 << (3 + SHIFT))
 #define SHIFT_MASK (DATA_BITS - 1)
-#define SIGN_MASK (1 << (DATA_BITS - 1))
+#define SIGN_MASK (((target_ulong)1) << (DATA_BITS - 1))
+#if DATA_BITS <= 32
+#define SHIFT1_MASK 0x1f
+#else
+#define SHIFT1_MASK 0x3f
+#endif
 
 #if DATA_BITS == 8
 #define SUFFIX b
@@ -37,6 +42,11 @@
 #define DATA_TYPE uint32_t
 #define DATA_STYPE int32_t
 #define DATA_MASK 0xffffffff
+#elif DATA_BITS == 64
+#define SUFFIX q
+#define DATA_TYPE uint64_t
+#define DATA_STYPE int64_t
+#define DATA_MASK 0xffffffffffffffff
 #else
 #error unhandled operand size
 #endif
@@ -46,7 +56,7 @@
 static int glue(compute_all_add, SUFFIX)(void)
 {
     int cf, pf, af, zf, sf, of;
-    int src1, src2;
+    target_long src1, src2;
     src1 = CC_SRC;
     src2 = CC_DST - CC_SRC;
     cf = (DATA_TYPE)CC_DST < (DATA_TYPE)src1;
@@ -60,7 +70,8 @@ static int glue(compute_all_add, SUFFIX)(void)
 
 static int glue(compute_c_add, SUFFIX)(void)
 {
-    int src1, cf;
+    int cf;
+    target_long src1;
     src1 = CC_SRC;
     cf = (DATA_TYPE)CC_DST < (DATA_TYPE)src1;
     return cf;
@@ -69,7 +80,7 @@ static int glue(compute_c_add, SUFFIX)(void)
 static int glue(compute_all_adc, SUFFIX)(void)
 {
     int cf, pf, af, zf, sf, of;
-    int src1, src2;
+    target_long src1, src2;
     src1 = CC_SRC;
     src2 = CC_DST - CC_SRC - 1;
     cf = (DATA_TYPE)CC_DST <= (DATA_TYPE)src1;
@@ -83,7 +94,8 @@ static int glue(compute_all_adc, SUFFIX)(void)
 
 static int glue(compute_c_adc, SUFFIX)(void)
 {
-    int src1, cf;
+    int cf;
+    target_long src1;
     src1 = CC_SRC;
     cf = (DATA_TYPE)CC_DST <= (DATA_TYPE)src1;
     return cf;
@@ -92,7 +104,7 @@ static int glue(compute_c_adc, SUFFIX)(void)
 static int glue(compute_all_sub, SUFFIX)(void)
 {
     int cf, pf, af, zf, sf, of;
-    int src1, src2;
+    target_long src1, src2;
     src1 = CC_DST + CC_SRC;
     src2 = CC_SRC;
     cf = (DATA_TYPE)src1 < (DATA_TYPE)src2;
@@ -106,7 +118,8 @@ static int glue(compute_all_sub, SUFFIX)(void)
 
 static int glue(compute_c_sub, SUFFIX)(void)
 {
-    int src1, src2, cf;
+    int cf;
+    target_long src1, src2;
     src1 = CC_DST + CC_SRC;
     src2 = CC_SRC;
     cf = (DATA_TYPE)src1 < (DATA_TYPE)src2;
@@ -116,7 +129,7 @@ static int glue(compute_c_sub, SUFFIX)(void)
 static int glue(compute_all_sbb, SUFFIX)(void)
 {
     int cf, pf, af, zf, sf, of;
-    int src1, src2;
+    target_long src1, src2;
     src1 = CC_DST + CC_SRC + 1;
     src2 = CC_SRC;
     cf = (DATA_TYPE)src1 <= (DATA_TYPE)src2;
@@ -130,7 +143,8 @@ static int glue(compute_all_sbb, SUFFIX)(void)
 
 static int glue(compute_c_sbb, SUFFIX)(void)
 {
-    int src1, src2, cf;
+    int cf;
+    target_long src1, src2;
     src1 = CC_DST + CC_SRC + 1;
     src2 = CC_SRC;
     cf = (DATA_TYPE)src1 <= (DATA_TYPE)src2;
@@ -157,7 +171,7 @@ static int glue(compute_c_logic, SUFFIX)(void)
 static int glue(compute_all_inc, SUFFIX)(void)
 {
     int cf, pf, af, zf, sf, of;
-    int src1, src2;
+    target_long src1, src2;
     src1 = CC_DST - 1;
     src2 = 1;
     cf = CC_SRC;
@@ -179,7 +193,7 @@ static int glue(compute_c_inc, SUFFIX)(void)
 static int glue(compute_all_dec, SUFFIX)(void)
 {
     int cf, pf, af, zf, sf, of;
-    int src1, src2;
+    target_long src1, src2;
     src1 = CC_DST + 1;
     src2 = 1;
     cf = CC_SRC;
@@ -187,7 +201,7 @@ static int glue(compute_all_dec, SUFFIX)(void)
     af = (CC_DST ^ src1 ^ src2) & 0x10;
     zf = ((DATA_TYPE)CC_DST == 0) << 6;
     sf = lshift(CC_DST, 8 - DATA_BITS) & 0x80;
-    of = ((CC_DST & DATA_MASK) == ((uint32_t)SIGN_MASK - 1)) << 11;
+    of = ((CC_DST & DATA_MASK) == ((target_ulong)SIGN_MASK - 1)) << 11;
     return cf | pf | af | zf | sf | of;
 }
 
@@ -256,71 +270,66 @@ static int glue(compute_all_mul, SUFFIX)(void)
 
 void OPPROTO glue(op_jb_sub, SUFFIX)(void)
 {
-    int src1, src2;
+    target_long src1, src2;
     src1 = CC_DST + CC_SRC;
     src2 = CC_SRC;
 
     if ((DATA_TYPE)src1 < (DATA_TYPE)src2)
-        JUMP_TB(glue(op_jb_sub, SUFFIX), PARAM1, 0, PARAM2);
-    else
-        JUMP_TB(glue(op_jb_sub, SUFFIX), PARAM1, 1, PARAM3);
+        GOTO_LABEL_PARAM(1);
     FORCE_RET();
 }
 
 void OPPROTO glue(op_jz_sub, SUFFIX)(void)
 {
     if ((DATA_TYPE)CC_DST == 0)
-        JUMP_TB(glue(op_jz_sub, SUFFIX), PARAM1, 0, PARAM2);
-    else
-        JUMP_TB(glue(op_jz_sub, SUFFIX), PARAM1, 1, PARAM3);
+        GOTO_LABEL_PARAM(1);
+    FORCE_RET();
+}
+
+void OPPROTO glue(op_jnz_sub, SUFFIX)(void)
+{
+    if ((DATA_TYPE)CC_DST != 0)
+        GOTO_LABEL_PARAM(1);
     FORCE_RET();
 }
 
 void OPPROTO glue(op_jbe_sub, SUFFIX)(void)
 {
-    int src1, src2;
+    target_long src1, src2;
     src1 = CC_DST + CC_SRC;
     src2 = CC_SRC;
 
     if ((DATA_TYPE)src1 <= (DATA_TYPE)src2)
-        JUMP_TB(glue(op_jbe_sub, SUFFIX), PARAM1, 0, PARAM2);
-    else
-        JUMP_TB(glue(op_jbe_sub, SUFFIX), PARAM1, 1, PARAM3);
+        GOTO_LABEL_PARAM(1);
     FORCE_RET();
 }
 
 void OPPROTO glue(op_js_sub, SUFFIX)(void)
 {
     if (CC_DST & SIGN_MASK)
-        JUMP_TB(glue(op_js_sub, SUFFIX), PARAM1, 0, PARAM2);
-    else
-        JUMP_TB(glue(op_js_sub, SUFFIX), PARAM1, 1, PARAM3);
+        GOTO_LABEL_PARAM(1);
     FORCE_RET();
 }
 
 void OPPROTO glue(op_jl_sub, SUFFIX)(void)
 {
-    int src1, src2;
+    target_long src1, src2;
     src1 = CC_DST + CC_SRC;
     src2 = CC_SRC;
 
     if ((DATA_STYPE)src1 < (DATA_STYPE)src2)
-        JUMP_TB(glue(op_jl_sub, SUFFIX), PARAM1, 0, PARAM2);
-    else
-        JUMP_TB(glue(op_jl_sub, SUFFIX), PARAM1, 1, PARAM3);
+        GOTO_LABEL_PARAM(1);
     FORCE_RET();
 }
 
 void OPPROTO glue(op_jle_sub, SUFFIX)(void)
 {
-    int src1, src2;
+    target_long src1, src2;
     src1 = CC_DST + CC_SRC;
     src2 = CC_SRC;
 
     if ((DATA_STYPE)src1 <= (DATA_STYPE)src2)
-        JUMP_TB(glue(op_jle_sub, SUFFIX), PARAM1, 0, PARAM2);
-    else
-        JUMP_TB(glue(op_jle_sub, SUFFIX), PARAM1, 1, PARAM3);
+        GOTO_LABEL_PARAM(1);
     FORCE_RET();
 }
 
@@ -330,50 +339,33 @@ void OPPROTO glue(op_jle_sub, SUFFIX)(void)
 
 void OPPROTO glue(op_loopnz, SUFFIX)(void)
 {
-    unsigned int tmp;
     int eflags;
     eflags = cc_table[CC_OP].compute_all();
-    tmp = (ECX - 1) & DATA_MASK;
-    ECX = (ECX & ~DATA_MASK) | tmp;
-    if (tmp != 0 && !(eflags & CC_Z))
-        EIP = PARAM1;
-    else
-        EIP = PARAM2;
+    if ((DATA_TYPE)ECX != 0 && !(eflags & CC_Z))
+        GOTO_LABEL_PARAM(1);
     FORCE_RET();
 }
 
 void OPPROTO glue(op_loopz, SUFFIX)(void)
 {
-    unsigned int tmp;
     int eflags;
     eflags = cc_table[CC_OP].compute_all();
-    tmp = (ECX - 1) & DATA_MASK;
-    ECX = (ECX & ~DATA_MASK) | tmp;
-    if (tmp != 0 && (eflags & CC_Z))
-        EIP = PARAM1;
-    else
-        EIP = PARAM2;
+    if ((DATA_TYPE)ECX != 0 && (eflags & CC_Z))
+        GOTO_LABEL_PARAM(1);
     FORCE_RET();
 }
 
-void OPPROTO glue(op_loop, SUFFIX)(void)
-{
-    unsigned int tmp;
-    tmp = (ECX - 1) & DATA_MASK;
-    ECX = (ECX & ~DATA_MASK) | tmp;
-    if (tmp != 0)
-        EIP = PARAM1;
-    else
-        EIP = PARAM2;
-    FORCE_RET();
-}
-
-void OPPROTO glue(op_jecxz, SUFFIX)(void)
+void OPPROTO glue(op_jz_ecx, SUFFIX)(void)
 {
     if ((DATA_TYPE)ECX == 0)
-        EIP = PARAM1;
-    else
-        EIP = PARAM2;
+        GOTO_LABEL_PARAM(1);
+    FORCE_RET();
+}
+
+void OPPROTO glue(op_jnz_ecx, SUFFIX)(void)
+{
+    if ((DATA_TYPE)ECX != 0)
+        GOTO_LABEL_PARAM(1);
     FORCE_RET();
 }
 
@@ -383,7 +375,7 @@ void OPPROTO glue(op_jecxz, SUFFIX)(void)
 
 void OPPROTO glue(op_setb_T0_sub, SUFFIX)(void)
 {
-    int src1, src2;
+    target_long src1, src2;
     src1 = CC_DST + CC_SRC;
     src2 = CC_SRC;
 
@@ -397,7 +389,7 @@ void OPPROTO glue(op_setz_T0_sub, SUFFIX)(void)
 
 void OPPROTO glue(op_setbe_T0_sub, SUFFIX)(void)
 {
-    int src1, src2;
+    target_long src1, src2;
     src1 = CC_DST + CC_SRC;
     src2 = CC_SRC;
 
@@ -411,7 +403,7 @@ void OPPROTO glue(op_sets_T0_sub, SUFFIX)(void)
 
 void OPPROTO glue(op_setl_T0_sub, SUFFIX)(void)
 {
-    int src1, src2;
+    target_long src1, src2;
     src1 = CC_DST + CC_SRC;
     src2 = CC_SRC;
 
@@ -420,7 +412,7 @@ void OPPROTO glue(op_setl_T0_sub, SUFFIX)(void)
 
 void OPPROTO glue(op_setle_T0_sub, SUFFIX)(void)
 {
-    int src1, src2;
+    target_long src1, src2;
     src1 = CC_DST + CC_SRC;
     src2 = CC_SRC;
 
@@ -432,7 +424,7 @@ void OPPROTO glue(op_setle_T0_sub, SUFFIX)(void)
 void OPPROTO glue(glue(op_shl, SUFFIX), _T0_T1)(void)
 {
     int count;
-    count = T1 & 0x1f;
+    count = T1 & SHIFT1_MASK;
     T0 = T0 << count;
     FORCE_RET();
 }
@@ -440,7 +432,7 @@ void OPPROTO glue(glue(op_shl, SUFFIX), _T0_T1)(void)
 void OPPROTO glue(glue(op_shr, SUFFIX), _T0_T1)(void)
 {
     int count;
-    count = T1 & 0x1f;
+    count = T1 & SHIFT1_MASK;
     T0 &= DATA_MASK;
     T0 = T0 >> count;
     FORCE_RET();
@@ -448,8 +440,10 @@ void OPPROTO glue(glue(op_shr, SUFFIX), _T0_T1)(void)
 
 void OPPROTO glue(glue(op_sar, SUFFIX), _T0_T1)(void)
 {
-    int count, src;
-    count = T1 & 0x1f;
+    int count;
+    target_long src;
+
+    count = T1 & SHIFT1_MASK;
     src = (DATA_STYPE)T0;
     T0 = src >> count;
     FORCE_RET();
@@ -484,7 +478,7 @@ void OPPROTO glue(glue(op_bts, SUFFIX), _T0_T1_cc)(void)
     int count;
     count = T1 & SHIFT_MASK;
     T1 = T0 >> count;
-    T0 |= (1 << count);
+    T0 |= (((target_long)1) << count);
 }
 
 void OPPROTO glue(glue(op_btr, SUFFIX), _T0_T1_cc)(void)
@@ -492,7 +486,7 @@ void OPPROTO glue(glue(op_btr, SUFFIX), _T0_T1_cc)(void)
     int count;
     count = T1 & SHIFT_MASK;
     T1 = T0 >> count;
-    T0 &= ~(1 << count);
+    T0 &= ~(((target_long)1) << count);
 }
 
 void OPPROTO glue(glue(op_btc, SUFFIX), _T0_T1_cc)(void)
@@ -500,12 +494,19 @@ void OPPROTO glue(glue(op_btc, SUFFIX), _T0_T1_cc)(void)
     int count;
     count = T1 & SHIFT_MASK;
     T1 = T0 >> count;
-    T0 ^= (1 << count);
+    T0 ^= (((target_long)1) << count);
+}
+
+void OPPROTO glue(glue(op_add_bit, SUFFIX), _A0_T1)(void)
+{
+    A0 += ((DATA_STYPE)T1 >> (3 + SHIFT)) << SHIFT;
 }
 
 void OPPROTO glue(glue(op_bsf, SUFFIX), _T0_cc)(void)
 {
-    int res, count;
+    int count;
+    target_long res;
+    
     res = T0 & DATA_MASK;
     if (res != 0) {
         count = 0;
@@ -523,7 +524,9 @@ void OPPROTO glue(glue(op_bsf, SUFFIX), _T0_cc)(void)
 
 void OPPROTO glue(glue(op_bsr, SUFFIX), _T0_cc)(void)
 {
-    int res, count;
+    int count;
+    target_long res;
+
     res = T0 & DATA_MASK;
     if (res != 0) {
         count = DATA_BITS - 1;
@@ -555,70 +558,8 @@ void OPPROTO glue(op_movl_T0_Dshift, SUFFIX)(void)
     T0 = DF << SHIFT;
 }
 
-void OPPROTO glue(op_string_jz_sub, SUFFIX)(void)
-{
-    if ((DATA_TYPE)CC_DST == 0)
-        JUMP_TB2(glue(op_string_jz_sub, SUFFIX), PARAM1, 3);
-    FORCE_RET();
-}
-
-void OPPROTO glue(op_string_jnz_sub, SUFFIX)(void)
-{
-    if ((DATA_TYPE)CC_DST != 0)
-        JUMP_TB2(glue(op_string_jnz_sub, SUFFIX), PARAM1, 3);
-    FORCE_RET();
-}
-
-void OPPROTO glue(glue(op_string_jz_sub, SUFFIX), _im)(void)
-{
-    if ((DATA_TYPE)CC_DST == 0) {
-        EIP = PARAM1;
-        if (env->eflags & TF_MASK) {
-            raise_exception(EXCP01_SSTP);
-        }
-        T0 = 0;
-        EXIT_TB();
-    }
-    FORCE_RET();
-}
-
-void OPPROTO glue(glue(op_string_jnz_sub, SUFFIX), _im)(void)
-{
-    if ((DATA_TYPE)CC_DST != 0) {
-        EIP = PARAM1;
-        if (env->eflags & TF_MASK) {
-            raise_exception(EXCP01_SSTP);
-        }
-        T0 = 0;
-        EXIT_TB();
-    }
-    FORCE_RET();
-}
-
-#if DATA_BITS >= 16
-void OPPROTO glue(op_jz_ecx, SUFFIX)(void)
-{
-    if ((DATA_TYPE)ECX == 0)
-        JUMP_TB(glue(op_jz_ecx, SUFFIX), PARAM1, 1, PARAM2);
-    FORCE_RET();
-}
-
-void OPPROTO glue(glue(op_jz_ecx, SUFFIX), _im)(void)
-{
-    if ((DATA_TYPE)ECX == 0) {
-        EIP = PARAM1;
-        if (env->eflags & TF_MASK) {
-            raise_exception(EXCP01_SSTP);
-        }
-        T0 = 0;
-        EXIT_TB();
-    }
-    FORCE_RET();
-}
-#endif
-
 /* port I/O */
-
+#if DATA_BITS <= 32
 void OPPROTO glue(glue(op_out, SUFFIX), _T0_T1)(void)
 {
     glue(cpu_out, SUFFIX)(env, T0, T1 & DATA_MASK);
@@ -648,9 +589,11 @@ void OPPROTO glue(glue(op_check_io, SUFFIX), _DX)(void)
 {
     glue(glue(check_io, SUFFIX), _DX)();
 }
+#endif
 
 #undef DATA_BITS
 #undef SHIFT_MASK
+#undef SHIFT1_MASK
 #undef SIGN_MASK
 #undef DATA_TYPE
 #undef DATA_STYPE

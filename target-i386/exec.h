@@ -20,13 +20,28 @@
 #include "config.h"
 #include "dyngen-exec.h"
 
+/* XXX: factorize this mess */
+#if defined(__alpha__) || defined (__ia64__) || defined(__x86_64__)
+#define HOST_LONG_BITS 64
+#else
+#define HOST_LONG_BITS 32
+#endif
+
+#ifdef TARGET_X86_64
+#define TARGET_LONG_BITS 64
+#else
+#define TARGET_LONG_BITS 32
+#endif
+
 /* at least 4 register variables are defined */
 register struct CPUX86State *env asm(AREG0);
+
+/* XXX: use 64 bit regs if HOST_LONG_BITS == 64 */
+#if TARGET_LONG_BITS == 32
+
 register uint32_t T0 asm(AREG1);
 register uint32_t T1 asm(AREG2);
 register uint32_t T2 asm(AREG3);
-
-#define A0 T2
 
 /* if more registers are available, we define some registers too */
 #ifdef AREG4
@@ -68,6 +83,17 @@ register uint32_t ESI asm(AREG10);
 register uint32_t EDI asm(AREG11);
 #define reg_EDI
 #endif
+
+#else
+
+/* no registers can be used */
+#define T0 (env->t0)
+#define T1 (env->t1)
+#define T2 (env->t2)
+
+#endif
+
+#define A0 T2
 
 extern FILE *logfile;
 extern int loglevel;
@@ -136,26 +162,24 @@ void helper_movl_crN_T0(int reg);
 void helper_movl_drN_T0(int reg);
 void helper_invlpg(unsigned int addr);
 void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0);
-void cpu_x86_update_cr3(CPUX86State *env, uint32_t new_cr3);
+void cpu_x86_update_cr3(CPUX86State *env, target_ulong new_cr3);
 void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4);
 void cpu_x86_flush_tlb(CPUX86State *env, uint32_t addr);
-int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr, 
+int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr, 
                              int is_write, int is_user, int is_softmmu);
-void tlb_fill(unsigned long addr, int is_write, int is_user, 
+void tlb_fill(target_ulong addr, int is_write, int is_user, 
               void *retaddr);
 void __hidden cpu_lock(void);
 void __hidden cpu_unlock(void);
 void do_interrupt(int intno, int is_int, int error_code, 
-                  unsigned int next_eip, int is_hw);
+                  target_ulong next_eip, int is_hw);
 void do_interrupt_user(int intno, int is_int, int error_code, 
-                       unsigned int next_eip);
+                       target_ulong next_eip);
 void raise_interrupt(int intno, int is_int, int error_code, 
                      unsigned int next_eip);
 void raise_exception_err(int exception_index, int error_code);
 void raise_exception(int exception_index);
 void __hidden cpu_loop_exit(void);
-void helper_fsave(uint8_t *ptr, int data32);
-void helper_frstor(uint8_t *ptr, int data32);
 
 void OPPROTO op_movl_eflags_T0(void);
 void OPPROTO op_movl_T0_eflags(void);
@@ -163,13 +187,20 @@ void raise_interrupt(int intno, int is_int, int error_code,
                      unsigned int next_eip);
 void raise_exception_err(int exception_index, int error_code);
 void raise_exception(int exception_index);
-void helper_divl_EAX_T0(uint32_t eip);
-void helper_idivl_EAX_T0(uint32_t eip);
+void helper_divl_EAX_T0(void);
+void helper_idivl_EAX_T0(void);
+void helper_mulq_EAX_T0(void);
+void helper_imulq_EAX_T0(void);
+void helper_imulq_T0_T1(void);
+void helper_divq_EAX_T0(void);
+void helper_idivq_EAX_T0(void);
 void helper_cmpxchg8b(void);
 void helper_cpuid(void);
 void helper_enter_level(int level, int data32);
 void helper_sysenter(void);
 void helper_sysexit(void);
+void helper_syscall(void);
+void helper_sysret(int dflag);
 void helper_rdtsc(void);
 void helper_rdmsr(void);
 void helper_wrmsr(void);
@@ -252,7 +283,7 @@ void check_iol_DX(void);
 #define stl(p, v) stl_data(p, v)
 #define stq(p, v) stq_data(p, v)
 
-static inline double ldfq(void *ptr)
+static inline double ldfq(target_ulong ptr)
 {
     union {
         double d;
@@ -262,7 +293,7 @@ static inline double ldfq(void *ptr)
     return u.d;
 }
 
-static inline void stfq(void *ptr, double v)
+static inline void stfq(target_ulong ptr, double v)
 {
     union {
         double d;
@@ -272,7 +303,7 @@ static inline void stfq(void *ptr, double v)
     stq(ptr, u.i);
 }
 
-static inline float ldfl(void *ptr)
+static inline float ldfl(target_ulong ptr)
 {
     union {
         float f;
@@ -282,7 +313,7 @@ static inline float ldfl(void *ptr)
     return u.f;
 }
 
-static inline void stfl(void *ptr, float v)
+static inline void stfl(target_ulong ptr, float v)
 {
     union {
         float f;
@@ -411,7 +442,7 @@ static inline void fpop(void)
 }
 
 #ifndef USE_X86LDOUBLE
-static inline CPU86_LDouble helper_fldt(uint8_t *ptr)
+static inline CPU86_LDouble helper_fldt(target_ulong ptr)
 {
     CPU86_LDoubleU temp;
     int upper, e;
@@ -451,12 +482,12 @@ static inline void helper_fstt(CPU86_LDouble f, uint8_t *ptr)
 
 #ifdef CONFIG_USER_ONLY
 
-static inline CPU86_LDouble helper_fldt(uint8_t *ptr)
+static inline CPU86_LDouble helper_fldt(target_ulong ptr)
 {
     return *(CPU86_LDouble *)ptr;
 }
 
-static inline void helper_fstt(CPU86_LDouble f, uint8_t *ptr)
+static inline void helper_fstt(CPU86_LDouble f, target_ulong ptr)
 {
     *(CPU86_LDouble *)ptr = f;
 }
@@ -465,7 +496,7 @@ static inline void helper_fstt(CPU86_LDouble f, uint8_t *ptr)
 
 /* we use memory access macros */
 
-static inline CPU86_LDouble helper_fldt(uint8_t *ptr)
+static inline CPU86_LDouble helper_fldt(target_ulong ptr)
 {
     CPU86_LDoubleU temp;
 
@@ -474,7 +505,7 @@ static inline CPU86_LDouble helper_fldt(uint8_t *ptr)
     return temp.d;
 }
 
-static inline void helper_fstt(CPU86_LDouble f, uint8_t *ptr)
+static inline void helper_fstt(CPU86_LDouble f, target_ulong ptr)
 {
     CPU86_LDoubleU temp;
     
@@ -522,10 +553,12 @@ void helper_fscale(void);
 void helper_fsin(void);
 void helper_fcos(void);
 void helper_fxam_ST0(void);
-void helper_fstenv(uint8_t *ptr, int data32);
-void helper_fldenv(uint8_t *ptr, int data32);
-void helper_fsave(uint8_t *ptr, int data32);
-void helper_frstor(uint8_t *ptr, int data32);
+void helper_fstenv(target_ulong ptr, int data32);
+void helper_fldenv(target_ulong ptr, int data32);
+void helper_fsave(target_ulong ptr, int data32);
+void helper_frstor(target_ulong ptr, int data32);
+void helper_fxsave(target_ulong ptr, int data64);
+void helper_fxrstor(target_ulong ptr, int data64);
 void restore_native_fp_state(CPUState *env);
 void save_native_fp_state(CPUState *env);
 

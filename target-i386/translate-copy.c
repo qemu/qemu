@@ -57,7 +57,7 @@ typedef struct DisasContext {
     int override; /* -1 if no override */
     int prefix;
     int aflag, dflag;
-    uint8_t *pc; /* pc = eip + cs_base */
+    target_ulong pc; /* pc = eip + cs_base */
     int is_jmp; /* 1 = means jump (stop translation), 2 means CPU
                    static state change (stop translation) */
     /* code output */
@@ -65,7 +65,7 @@ typedef struct DisasContext {
     uint8_t *gen_code_start;
     
     /* current block context */
-    uint8_t *cs_base; /* base of CS segment */
+    target_ulong cs_base; /* base of CS segment */
     int pe;     /* protected mode */
     int code32; /* 32 bit code segment */
     int f_st;   /* currently unused */
@@ -277,7 +277,7 @@ static inline uint32_t insn_get(DisasContext *s, int ot)
    be stopped.  */
 static int disas_insn(DisasContext *s)
 {
-    uint8_t *pc_start, *pc_tmp, *pc_start_insn;
+    target_ulong pc_start, pc_tmp, pc_start_insn;
     int b, prefixes, aflag, dflag, next_eip, val;
     int ot;
     int modrm, mod, op, rm;
@@ -789,6 +789,8 @@ static int disas_insn(DisasContext *s)
                 break;
             case 0x1e: /* fcomi */
                 break;
+            case 0x28: /* ffree sti */
+                break;
             case 0x2a: /* fst sti */
                 break;
             case 0x2b: /* fstp sti */
@@ -1176,9 +1178,9 @@ static inline int gen_intermediate_code_internal(CPUState *env,
                                                  uint8_t *tc_ptr)
 {
     DisasContext dc1, *dc = &dc1;
-    uint8_t *pc_insn, *pc_start, *gen_code_end;
+    target_ulong pc_insn, pc_start, cs_base;
+    uint8_t *gen_code_end;
     int flags, ret;
-    uint8_t *cs_base;
 
     if (env->nb_breakpoints > 0 ||
         env->singlestep_enabled)
@@ -1197,8 +1199,8 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     dc->gen_code_start = gen_code_ptr;
 
     /* generate intermediate code */
-    pc_start = (uint8_t *)tb->pc;
-    cs_base = (uint8_t *)tb->cs_base;
+    pc_start = tb->pc;
+    cs_base = tb->cs_base;
     dc->pc = pc_start;
     dc->cs_base = cs_base;
     dc->pe = (flags >> HF_PE_SHIFT) & 1;
@@ -1249,7 +1251,7 @@ static inline int gen_intermediate_code_internal(CPUState *env,
         fprintf(logfile, "IN: COPY: %s fpu=%d\n", 
                 lookup_symbol(pc_start),
                 tb->cflags & CF_TB_FP_USED ? 1 : 0);
-	disas(logfile, pc_start, dc->pc - pc_start, 0, !dc->code32);
+	target_disas(logfile, pc_start, dc->pc - pc_start, !dc->code32);
         fprintf(logfile, "\n");
     }
 #endif
