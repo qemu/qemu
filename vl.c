@@ -38,6 +38,7 @@
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
 #include <dirent.h>
 #ifdef _BSD
 #include <sys/stat.h>
@@ -1455,6 +1456,8 @@ static void net_slirp_redir(const char *redir_str)
     exit(1);
 }
     
+#ifndef _WIN32
+
 char smb_dir[1024];
 
 static void smb_exit(void)
@@ -1530,6 +1533,8 @@ void net_slirp_smb(const char *exported_dir)
     
     slirp_add_exec(0, smb_cmdline, 4, 139);
 }
+
+#endif /* !defined(_WIN32) */
 
 #endif /* CONFIG_SLIRP */
 
@@ -2484,7 +2489,9 @@ void help(void)
 #ifdef CONFIG_SLIRP
            "-user-net       use user mode network stack [default if no tap/tun script]\n"
            "-tftp prefix    allow tftp access to files starting with prefix [-user-net]\n"
+#ifndef _WIN32
            "-smb dir        allow SMB access to files in 'dir' [-user-net]\n"
+#endif
            "-redir [tcp|udp]:host-port:[guest-host]:guest-port\n"
            "                redirect TCP or UDP connections from host to guest [-user-net]\n"
 #endif
@@ -2617,7 +2624,9 @@ const QEMUOption qemu_options[] = {
 #ifdef CONFIG_SLIRP
     { "user-net", 0, QEMU_OPTION_user_net },
     { "tftp", HAS_ARG, QEMU_OPTION_tftp },
+#ifndef _WIN32
     { "smb", HAS_ARG, QEMU_OPTION_smb },
+#endif
     { "redir", HAS_ARG, QEMU_OPTION_redir },
 #endif
     { "dummy-net", 0, QEMU_OPTION_dummy_net },
@@ -2914,9 +2923,11 @@ int main(int argc, char **argv)
             case QEMU_OPTION_tftp:
 		tftp_prefix = optarg;
                 break;
+#ifndef _WIN32
             case QEMU_OPTION_smb:
 		net_slirp_smb(optarg);
                 break;
+#endif
             case QEMU_OPTION_user_net:
                 net_if_type = NET_IF_USER;
                 break;
