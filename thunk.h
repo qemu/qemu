@@ -94,17 +94,17 @@ static inline uint64_t bswap64(uint64_t x)
     return bswap_64(x);
 }
 
-static void inline bswap16s(uint16_t *s)
+static inline void bswap16s(uint16_t *s)
 {
     *s = bswap16(*s);
 }
 
-static void inline bswap32s(uint32_t *s)
+static inline void bswap32s(uint32_t *s)
 {
     *s = bswap32(*s);
 }
 
-static void inline bswap64s(uint64_t *s)
+static inline void bswap64s(uint64_t *s)
 {
     *s = bswap64(*s);
 }
@@ -126,17 +126,17 @@ static inline uint64_t tswap64(uint64_t s)
     return bswap64(s);
 }
 
-static void inline tswap16s(uint16_t *s)
+static inline void tswap16s(uint16_t *s)
 {
     *s = bswap16(*s);
 }
 
-static void inline tswap32s(uint32_t *s)
+static inline void tswap32s(uint32_t *s)
 {
     *s = bswap32(*s);
 }
 
-static void inline tswap64s(uint64_t *s)
+static inline void tswap64s(uint64_t *s)
 {
     *s = bswap64(*s);
 }
@@ -158,15 +158,15 @@ static inline uint64_t tswap64(uint64_t s)
     return s;
 }
 
-static void inline tswap16s(uint16_t *s)
+static inline void tswap16s(uint16_t *s)
 {
 }
 
-static void inline tswap32s(uint32_t *s)
+static inline void tswap32s(uint32_t *s)
 {
 }
 
-static void inline tswap64s(uint64_t *s)
+static inline void tswap64s(uint64_t *s)
 {
 }
 
