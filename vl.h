@@ -34,6 +34,7 @@ typedef uint32_t (IOPortReadFunc)(struct CPUX86State *env, uint32_t address);
 void *get_mmap_addr(unsigned long size);
 int register_ioport_read(int start, int length, IOPortReadFunc *func, int size);
 int register_ioport_write(int start, int length, IOPortWriteFunc *func, int size);
+void pic_set_irq(int irq, int level);
 
 void kbd_put_keycode(int keycode);
 
@@ -96,5 +97,14 @@ void vga_update_display(void);
 
 /* sdl.c */
 void sdl_display_init(DisplayState *ds);
+
+/* ide.c */
+#define MAX_DISKS 4
+
+extern BlockDriverState *bs_table[MAX_DISKS];
+
+void ide_init(void);
+void ide_set_geometry(int n, int cyls, int heads, int secs);
+void ide_set_cdrom(int n, int is_cdrom);
 
 #endif /* VL_H */

@@ -176,7 +176,7 @@ ifeq ($(ARCH),alpha)
 endif
 
 # must use static linking to avoid leaving stuff in virtual address space
-VL_OBJS=vl.o block.o vga.o
+VL_OBJS=vl.o block.o ide.o vga.o
 ifdef CONFIG_SDL
 VL_OBJS+=sdl.o
 SDL_LIBS+=-L/usr/X11R6/lib -lX11 -lXext -lXv -ldl -lm
