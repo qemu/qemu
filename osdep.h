@@ -12,6 +12,9 @@ void *qemu_mallocz(size_t size);
 void qemu_free(void *ptr);
 char *qemu_strdup(const char *str);
 
+void *qemu_vmalloc(size_t size);
+void qemu_vfree(void *ptr);
+
 void *get_mmap_addr(unsigned long size);
 
 /* specific kludges for OS compatibility (should be moved elsewhere) */

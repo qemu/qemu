@@ -273,6 +273,8 @@ void *get_mmap_addr(unsigned long size)
 
 #else
 
+#include <malloc.h>
+
 int qemu_write(int fd, const void *buf, size_t n)
 {
     int ret;
@@ -297,6 +299,85 @@ void *qemu_malloc(size_t size)
 {
     return malloc(size);
 }
+
+#if defined(USE_KQEMU)
+
+#include <sys/mman.h>
+#include <fcntl.h>
+
+void *qemu_vmalloc(size_t size)
+{
+    static int phys_ram_fd = -1;
+    static int phys_ram_size = 0;
+    const char *tmpdir;
+    char phys_ram_file[1024];
+    void *ptr;
+
+    if (phys_ram_fd < 0) {
+        tmpdir = getenv("QEMU_TMPDIR");
+        if (!tmpdir)
+            tmpdir = "/dev/shm";
+        snprintf(phys_ram_file, sizeof(phys_ram_file), "%s/qemuXXXXXX", 
+                 tmpdir);
+        if (mkstemp(phys_ram_file) < 0) {
+            fprintf(stderr, 
+                    "warning: could not create temporary file in '%s'.\n"
+                    "Use QEMU_TMPDIR to select a directory in a tmpfs filesystem.\n"
+                    "Using '/tmp' as fallback.\n",
+                    tmpdir);
+            snprintf(phys_ram_file, sizeof(phys_ram_file), "%s/qemuXXXXXX", 
+                     "/tmp");
+            if (mkstemp(phys_ram_file) < 0) {
+                fprintf(stderr, "Could not create temporary memory file '%s'\n", 
+                        phys_ram_file);
+                exit(1);
+            }
+        }
+        phys_ram_fd = open(phys_ram_file, O_CREAT | O_TRUNC | O_RDWR, 0600);
+        if (phys_ram_fd < 0) {
+            fprintf(stderr, "Could not open temporary memory file '%s'\n", 
+                    phys_ram_file);
+            exit(1);
+        }
+        unlink(phys_ram_file);
+    }
+    size = (size + 4095) & ~4095;
+    ftruncate(phys_ram_fd, phys_ram_size + size);
+    ptr = mmap(NULL, 
+               size, 
+               PROT_WRITE | PROT_READ, MAP_SHARED, 
+               phys_ram_fd, phys_ram_size);
+    if (ptr == MAP_FAILED) {
+        fprintf(stderr, "Could not map physical memory\n");
+        exit(1);
+    }
+    phys_ram_size += size;
+    return ptr;
+}
+
+void qemu_vfree(void *ptr)
+{
+    /* may be useful some day, but currently we do not need to free */
+}
+
+#else
+
+/* alloc shared memory pages */
+void *qemu_vmalloc(size_t size)
+{
+#ifdef _BSD
+    return valloc(size);
+#else
+    return memalign(4096, size);
+#endif
+}
+
+void qemu_vfree(void *ptr)
+{
+    free(ptr);
+}
+
+#endif
 
 #endif
 
