@@ -239,6 +239,27 @@ extern int setresgid(gid_t, gid_t, gid_t);
 extern int getresgid(gid_t *, gid_t *, gid_t *);
 extern int setgroups(int, gid_t *);
 
+#define put_user(x,ptr)\
+({\
+    int size = sizeof(*ptr);\
+    switch(size) {\
+    case 1:\
+        stb(ptr, (typeof(*ptr))(x));\
+        break;\
+    case 2:\
+        stw(ptr, (typeof(*ptr))(x));\
+        break;\
+    case 4:\
+        stl(ptr, (typeof(*ptr))(x));\
+        break;\
+    case 8:\
+        stq(ptr, (typeof(*ptr))(x));\
+        break;\
+    default:\
+        abort();\
+    }\
+    0;\
+})
 static inline long get_errno(long ret)
 {
     if (ret == -1)
@@ -1415,7 +1436,7 @@ void syscall_init(void)
         ie++;
     }
 }
-                                 
+
 long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3, 
                 long arg4, long arg5, long arg6)
 {
@@ -1424,7 +1445,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     struct kernel_statfs *stfs;
     
 #ifdef DEBUG
-    gemu_log("syscall %d\n", num);
+    gemu_log("syscall %d", num);
 #endif
     switch(num) {
     case TARGET_NR_exit:
@@ -1978,10 +1999,15 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #endif
         break;
     case TARGET_NR_mmap2:
+#if defined(TARGET_SPARC)
+#define MMAP_SHIFT 12
+#else
+#define MMAP_SHIFT TARGET_PAGE_BITS
+#endif
         ret = get_errno(target_mmap(arg1, arg2, arg3, 
                                     target_to_host_bitmask(arg4, mmap_flags_tbl), 
                                     arg5,
-                                    arg6 << TARGET_PAGE_BITS));
+                                    arg6 << MMAP_SHIFT));
         break;
     case TARGET_NR_munmap:
         ret = get_errno(target_munmap(arg1, arg2));
@@ -2519,23 +2545,23 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             if (!is_error(ret)) {
                 struct target_stat64 *target_st = (void *)arg2;
                 memset(target_st, 0, sizeof(struct target_stat64));
-                target_st->st_dev = tswap16(st.st_dev);
-                target_st->st_ino = tswap64(st.st_ino);
+                put_user(st.st_dev, &target_st->st_dev);
+                put_user(st.st_ino, &target_st->st_ino);
 #ifdef TARGET_STAT64_HAS_BROKEN_ST_INO
-                target_st->__st_ino = tswapl(st.st_ino);
+                put_user(st.st_ino, &target_st->__st_ino);
 #endif
-                target_st->st_mode = tswap32(st.st_mode);
-                target_st->st_nlink = tswap32(st.st_nlink);
-                target_st->st_uid = tswapl(st.st_uid);
-                target_st->st_gid = tswapl(st.st_gid);
-                target_st->st_rdev = tswap16(st.st_rdev);
+                put_user(st.st_mode, &target_st->st_mode);
+                put_user(st.st_nlink, &target_st->st_nlink);
+                put_user(st.st_uid, &target_st->st_uid);
+                put_user(st.st_gid, &target_st->st_gid);
+                put_user(st.st_rdev, &target_st->st_rdev);
                 /* XXX: better use of kernel struct */
-                target_st->st_size = tswap64(st.st_size);
-                target_st->st_blksize = tswapl(st.st_blksize);
-                target_st->st_blocks = tswapl(st.st_blocks);
-                target_st->target_st_atime = tswapl(st.st_atime);
-                target_st->target_st_mtime = tswapl(st.st_mtime);
-                target_st->target_st_ctime = tswapl(st.st_ctime);
+                put_user(st.st_size, &target_st->st_size);
+                put_user(st.st_blksize, &target_st->st_blksize);
+                put_user(st.st_blocks, &target_st->st_blocks);
+                put_user(st.st_atime, &target_st->target_st_atime);
+                put_user(st.st_mtime, &target_st->target_st_mtime);
+                put_user(st.st_ctime, &target_st->target_st_ctime);
             }
         }
         break;
@@ -2766,6 +2792,11 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_security:
         goto unimplemented;
 #endif
+#ifdef TARGET_NR_getpagesize
+    case TARGET_NR_getpagesize:
+        ret = TARGET_PAGE_SIZE;
+        break;
+#endif
     case TARGET_NR_gettid:
         ret = get_errno(gettid());
         break;
@@ -2799,6 +2830,9 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         break;
     }
  fail:
+#ifdef DEBUG
+    gemu_log(" = %ld\n", ret);
+#endif
     return ret;
 }
 
