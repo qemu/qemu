@@ -4,7 +4,7 @@ CFLAGS=-Wall -O2 -g
 LDFLAGS=
 
 ifeq ($(ARCH),i386)
-TESTS=testclone testsig testthread sha1-i386 test-i386
+TESTS=testclone testsig testthread sha1-i386 test-i386 runcom
 endif
 TESTS+=sha1
 
@@ -47,6 +47,10 @@ sha1: sha1.c
 speed: sha1 sha1-i386
 	time ./sha1
 	time $(QEMU) ./sha1-i386
+
+# vm86 test
+runcom: runcom.c
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 
 clean:
 	rm -f *~ *.o $(TESTS)
