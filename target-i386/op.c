@@ -1842,11 +1842,13 @@ void OPPROTO op_fsts_ST0_A0(void)
 #else
     stfl(A0, (float)ST0);
 #endif
+    FORCE_RET();
 }
 
 void OPPROTO op_fstl_ST0_A0(void)
 {
     stfq(A0, (double)ST0);
+    FORCE_RET();
 }
 
 void OPPROTO op_fstt_ST0_A0(void)
@@ -1868,6 +1870,7 @@ void OPPROTO op_fist_ST0_A0(void)
     if (val != (int16_t)val)
         val = -32768;
     stw(A0, val);
+    FORCE_RET();
 }
 
 void OPPROTO op_fistl_ST0_A0(void)
@@ -1882,6 +1885,7 @@ void OPPROTO op_fistl_ST0_A0(void)
     d = ST0;
     val = lrint(d);
     stl(A0, val);
+    FORCE_RET();
 }
 
 void OPPROTO op_fistll_ST0_A0(void)
@@ -1896,6 +1900,7 @@ void OPPROTO op_fistll_ST0_A0(void)
     d = ST0;
     val = llrint(d);
     stq(A0, val);
+    FORCE_RET();
 }
 
 void OPPROTO op_fbld_ST0_A0(void)
@@ -2228,6 +2233,7 @@ void OPPROTO op_fnstsw_A0(void)
     int fpus;
     fpus = (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
     stw(A0, fpus);
+    FORCE_RET();
 }
 
 void OPPROTO op_fnstsw_EAX(void)
@@ -2240,6 +2246,7 @@ void OPPROTO op_fnstsw_EAX(void)
 void OPPROTO op_fnstcw_A0(void)
 {
     stw(A0, env->fpuc);
+    FORCE_RET();
 }
 
 void OPPROTO op_fldcw_A0(void)

@@ -765,6 +765,7 @@ void OPPROTO op_eval_fbue(void)
 {
 // 0 or 3
     T2 = !(FFLAG_SET(FSR_FCC1) ^ FFLAG_SET(FSR_FCC0));
+    FORCE_RET();
 }
 
 void OPPROTO op_eval_fbge(void)
