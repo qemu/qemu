@@ -297,6 +297,7 @@ typedef struct IDEState {
     int64_t nb_sectors;
     int mult_sectors;
     int irq;
+    openpic_t *openpic;
     PCIDevice *pci_dev;
     int drive_serial;
     /* ide regs */
@@ -464,6 +465,11 @@ static inline void ide_abort_command(IDEState *s)
 static inline void ide_set_irq(IDEState *s)
 {
     if (!(s->cmd & IDE_CMD_DISABLE_IRQ)) {
+#ifdef TARGET_PPC
+        if (s->openpic) 
+            openpic_set_irq(s->openpic, s->irq, 1);
+        else 
+#endif
         if (s->irq == 16)
             pci_set_irq(s->pci_dev, 0, 1);
         else
@@ -1281,6 +1287,11 @@ static uint32_t ide_ioport_read(void *opaque, uint32_t addr1)
             ret = 0;
         else
             ret = s->status;
+#ifdef TARGET_PPC
+        if (s->openpic) 
+            openpic_set_irq(s->openpic, s->irq, 0);
+        else 
+#endif
         if (s->irq == 16)
             pci_set_irq(s->pci_dev, 0, 0);
         else
@@ -1634,4 +1645,132 @@ void pci_piix3_ide_init(BlockDriverState **hd_table)
     ide_init2(&d->ide_if[2], 15, hd_table[2], hd_table[3]);
     ide_init_ioport(&d->ide_if[0], 0x1f0, 0x3f6);
     ide_init_ioport(&d->ide_if[2], 0x170, 0x376);
+}
+
+/***********************************************************/
+/* MacIO based PowerPC IDE */
+
+/* PowerMac IDE memory IO */
+static void pmac_ide_writeb (void *opaque,
+                             target_phys_addr_t addr, uint32_t val)
+{
+    addr = (addr & 0xFFF) >> 4; 
+    switch (addr) {
+    case 1 ... 7:
+        ide_ioport_write(opaque, addr, val);
+        break;
+    case 8:
+    case 22:
+        ide_cmd_write(opaque, 0, val);
+        break;
+    default:
+        break;
+    }
+}
+
+static uint32_t pmac_ide_readb (void *opaque,target_phys_addr_t addr)
+{
+    uint8_t retval;
+
+    addr = (addr & 0xFFF) >> 4;
+    switch (addr) {
+    case 1 ... 7:
+        retval = ide_ioport_read(opaque, addr);
+        break;
+    case 8:
+    case 22:
+        retval = ide_status_read(opaque, 0);
+        break;
+    default:
+        retval = 0xFF;
+        break;
+    }
+    return retval;
+}
+
+static void pmac_ide_writew (void *opaque,
+                             target_phys_addr_t addr, uint32_t val)
+{
+    addr = (addr & 0xFFF) >> 4; 
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap16(val);
+#endif
+    if (addr == 0) {
+        ide_data_writew(opaque, 0, val);
+    }
+}
+
+static uint32_t pmac_ide_readw (void *opaque,target_phys_addr_t addr)
+{
+    uint16_t retval;
+
+    addr = (addr & 0xFFF) >> 4; 
+    if (addr == 0) {
+        retval = ide_data_readw(opaque, 0);
+    } else {
+        retval = 0xFFFF;
+    }
+#ifdef TARGET_WORDS_BIGENDIAN
+    retval = bswap16(retval);
+#endif
+    return retval;
+}
+
+static void pmac_ide_writel (void *opaque,
+                             target_phys_addr_t addr, uint32_t val)
+{
+    addr = (addr & 0xFFF) >> 4; 
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap32(val);
+#endif
+    if (addr == 0) {
+        ide_data_writel(opaque, 0, val);
+    }
+}
+
+static uint32_t pmac_ide_readl (void *opaque,target_phys_addr_t addr)
+{
+    uint32_t retval;
+
+    addr = (addr & 0xFFF) >> 4; 
+    if (addr == 0) {
+        retval = ide_data_readl(opaque, 0);
+    } else {
+        retval = 0xFFFFFFFF;
+    }
+#ifdef TARGET_WORDS_BIGENDIAN
+    retval = bswap32(retval);
+#endif
+    return retval;
+}
+
+static CPUWriteMemoryFunc *pmac_ide_write[] = {
+    pmac_ide_writeb,
+    pmac_ide_writew,
+    pmac_ide_writel,
+};
+
+static CPUReadMemoryFunc *pmac_ide_read[] = {
+    pmac_ide_readb,
+    pmac_ide_readw,
+    pmac_ide_readl,
+};
+
+/* hd_table must contain 4 block drivers */
+/* PowerMac uses memory mapped registers, not I/O. Return the memory
+   I/O index to access the ide. */
+int pmac_ide_init (BlockDriverState **hd_table,
+                   openpic_t *openpic, int irq)
+{
+    IDEState *ide_if;
+    int pmac_ide_memory;
+
+    ide_if = qemu_mallocz(sizeof(IDEState) * 2);
+    ide_init2(&ide_if[0], irq, hd_table[0], hd_table[1]);
+    ide_if[0].openpic = openpic;
+    ide_if[1].openpic = openpic;
+    
+    pmac_ide_memory = cpu_register_io_memory(0, pmac_ide_read,
+                                             pmac_ide_write, &ide_if[0]);
+    return pmac_ide_memory;
 }
