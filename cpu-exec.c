@@ -262,7 +262,42 @@ int cpu_exec(CPUState *env1)
                 tb = tb_find(&ptb, (unsigned long)pc, (unsigned long)cs_base, 
                              flags);
                 if (!tb) {
+                    TranslationBlock **ptb1;
+                    unsigned int h;
+                    target_ulong phys_pc, phys_page1, phys_page2, virt_page2;
+                    
+                    
                     spin_lock(&tb_lock);
+
+                    tb_invalidated_flag = 0;
+
+                    /* find translated block using physical mappings */
+                    phys_pc = get_phys_addr_code(env, (unsigned long)pc);
+                    phys_page1 = phys_pc & TARGET_PAGE_MASK;
+                    phys_page2 = -1;
+                    h = tb_phys_hash_func(phys_pc);
+                    ptb1 = &tb_phys_hash[h];
+                    for(;;) {
+                        tb = *ptb1;
+                        if (!tb)
+                            goto not_found;
+                        if (tb->pc == (unsigned long)pc && 
+                            tb->page_addr[0] == phys_page1 &&
+                            tb->cs_base == (unsigned long)cs_base && 
+                            tb->flags == flags) {
+                            /* check next page if needed */
+                            virt_page2 = ((unsigned long)pc + tb->size - 1) & TARGET_PAGE_MASK;
+                            if (((unsigned long)pc & TARGET_PAGE_MASK) != virt_page2) {
+                                phys_page2 = get_phys_addr_code(env, virt_page2);
+                                if (tb->page_addr[1] == phys_page2)
+                                    goto found;
+                            } else {
+                                goto found;
+                            }
+                        }
+                        ptb1 = &tb->phys_hash_next;
+                    }
+                not_found:
                     /* if no translated code available, then translate it now */
                     tb = tb_alloc((unsigned long)pc);
                     if (!tb) {
@@ -278,8 +313,18 @@ int cpu_exec(CPUState *env1)
                     tb->tc_ptr = tc_ptr;
                     tb->cs_base = (unsigned long)cs_base;
                     tb->flags = flags;
-                    tb_invalidated_flag = 0;
                     cpu_gen_code(env, tb, CODE_GEN_MAX_SIZE, &code_gen_size);
+                    code_gen_ptr = (void *)(((unsigned long)code_gen_ptr + code_gen_size + CODE_GEN_ALIGN - 1) & ~(CODE_GEN_ALIGN - 1));
+                    
+                    /* check next page if needed */
+                    virt_page2 = ((unsigned long)pc + tb->size - 1) & TARGET_PAGE_MASK;
+                    phys_page2 = -1;
+                    if (((unsigned long)pc & TARGET_PAGE_MASK) != virt_page2) {
+                        phys_page2 = get_phys_addr_code(env, virt_page2);
+                    }
+                    tb_link_phys(tb, phys_pc, phys_page2);
+
+                found:
                     if (tb_invalidated_flag) {
                         /* as some TB could have been invalidated because
                            of memory exceptions while generating the code, we
@@ -289,10 +334,10 @@ int cpu_exec(CPUState *env1)
                             ptb = &(*ptb)->hash_next;
                         T0 = 0;
                     }
+                    /* we add the TB in the virtual pc hash table */
                     *ptb = tb;
                     tb->hash_next = NULL;
                     tb_link(tb);
-                    code_gen_ptr = (void *)(((unsigned long)code_gen_ptr + code_gen_size + CODE_GEN_ALIGN - 1) & ~(CODE_GEN_ALIGN - 1));
                     spin_unlock(&tb_lock);
                 }
 #ifdef DEBUG_EXEC
