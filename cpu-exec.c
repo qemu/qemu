@@ -194,6 +194,13 @@ int cpu_exec(CPUState *env1)
                         }
                         do_interrupt(intno, 0, 0, 0);
                         env->interrupt_request &= ~CPU_INTERRUPT_HARD;
+                        /* ensure that no TB jump will be modified as
+                           the program flow was changed */
+#ifdef __sparc__
+                        tmp_T0 = 0;
+#else
+                        T0 = 0;
+#endif
                     }
 #endif
                     if (interrupt_request & CPU_INTERRUPT_EXIT) {
