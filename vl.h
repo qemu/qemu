@@ -594,14 +594,33 @@ void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
 		   const char *kernel_filename, const char *kernel_cmdline,
 		   const char *initrd_filename);
 ppc_tb_t *cpu_ppc_tb_init (CPUPPCState *env, uint32_t freq);
-struct sysctrl_t;
-int prep_NVRAM_init (struct sysctrl_t *sysctrl, uint32_t RAM_size,
-                     uint32_t BIOS_size, int boot_device,
-                     uint32_t kernel_image);
+void PREP_debug_write (void *opaque, uint32_t addr, uint32_t val);
 
 extern CPUWriteMemoryFunc *PPC_io_write[];
 extern CPUReadMemoryFunc *PPC_io_read[];
 extern int prep_enabled;
+
+/* NVRAM helpers */
+#include "hw/m48t59.h"
+
+void NVRAM_set_byte (m48t59_t *nvram, uint32_t addr, uint8_t value);
+uint8_t NVRAM_get_byte (m48t59_t *nvram, uint32_t addr);
+void NVRAM_set_word (m48t59_t *nvram, uint32_t addr, uint16_t value);
+uint16_t NVRAM_get_word (m48t59_t *nvram, uint32_t addr);
+void NVRAM_set_lword (m48t59_t *nvram, uint32_t addr, uint32_t value);
+uint32_t NVRAM_get_lword (m48t59_t *nvram, uint32_t addr);
+void NVRAM_set_string (m48t59_t *nvram, uint32_t addr,
+                       const unsigned char *str, uint32_t max);
+int NVRAM_get_string (m48t59_t *nvram, uint8_t *dst, uint16_t addr, int max);
+void NVRAM_set_crc (m48t59_t *nvram, uint32_t addr,
+                    uint32_t start, uint32_t count);
+int PPC_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
+                          const unsigned char *arch,
+                          uint32_t RAM_size, int boot_device,
+                          uint32_t kernel_image, uint32_t kernel_size,
+                          uint32_t cmdline, uint32_t cmdline_size,
+                          uint32_t initrd_image, uint32_t initrd_size,
+                          uint32_t NVRAM_image);
 
 /* monitor.c */
 void monitor_init(void);

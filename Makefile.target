@@ -244,8 +244,8 @@ ifeq ($(TARGET_ARCH), ppc)
 VL_OBJS+= ppc.o
 # PREP hardware support
 VL_OBJS+= ide.o ne2000.o pckbd.o vga.o sb16.o dma.o oss.o
-VL_OBJS+= mc146818rtc.o serial.o i8259.o i8254.o fdc.o m48t59.o ppc_prep.o
-#VL_OBJS+= hw.o of.o setup.o
+VL_OBJS+= mc146818rtc.o serial.o i8259.o i8254.o fdc.o m48t59.o
+VL_OBJS+= ppc_prep.o ppc_chrp.o
 endif
 ifdef CONFIG_GDBSTUB
 VL_OBJS+=gdbstub.o 

@@ -23,11 +23,6 @@
  */
 #include "vl.h"
 
-void ppc_prep_init (int ram_size, int vga_ram_size, int boot_device,
-		    DisplayState *ds, const char **fd_filename, int snapshot,
-		    const char *kernel_filename, const char *kernel_cmdline,
-		    const char *initrd_filename);
-
 /*****************************************************************************/
 /* PPC time base and decrementer emulation */
 //#define DEBUG_TB
@@ -202,14 +197,249 @@ void cpu_ppc_reset (CPUState *env)
 }
 #endif
 
+static void PPC_io_writeb (target_phys_addr_t addr, uint32_t value)
+{
+    cpu_outb(NULL, addr & 0xffff, value);
+}
+
+static uint32_t PPC_io_readb (target_phys_addr_t addr)
+{
+    uint32_t ret = cpu_inb(NULL, addr & 0xffff);
+    return ret;
+}
+
+static void PPC_io_writew (target_phys_addr_t addr, uint32_t value)
+{
+#ifdef TARGET_WORDS_BIGENDIAN
+    value = bswap16(value);
+#endif
+    cpu_outw(NULL, addr & 0xffff, value);
+}
+
+static uint32_t PPC_io_readw (target_phys_addr_t addr)
+{
+    uint32_t ret = cpu_inw(NULL, addr & 0xffff);
+#ifdef TARGET_WORDS_BIGENDIAN
+    ret = bswap16(ret);
+#endif
+    return ret;
+}
+
+static void PPC_io_writel (target_phys_addr_t addr, uint32_t value)
+{
+#ifdef TARGET_WORDS_BIGENDIAN
+    value = bswap32(value);
+#endif
+    cpu_outl(NULL, addr & 0xffff, value);
+}
+
+static uint32_t PPC_io_readl (target_phys_addr_t addr)
+{
+    uint32_t ret = cpu_inl(NULL, addr & 0xffff);
+
+#ifdef TARGET_WORDS_BIGENDIAN
+    ret = bswap32(ret);
+#endif
+    return ret;
+}
+
+CPUWriteMemoryFunc *PPC_io_write[] = {
+    &PPC_io_writeb,
+    &PPC_io_writew,
+    &PPC_io_writel,
+};
+
+CPUReadMemoryFunc *PPC_io_read[] = {
+    &PPC_io_readb,
+    &PPC_io_readw,
+    &PPC_io_readl,
+};
+
+/*****************************************************************************/
+/* Debug port */
+void PREP_debug_write (void *opaque, uint32_t addr, uint32_t val)
+{
+    addr &= 0xF;
+    switch (addr) {
+    case 0:
+        printf("%c", val);
+        break;
+    case 1:
+        printf("\n");
+        fflush(stdout);
+        break;
+    case 2:
+        printf("Set loglevel to %04x\n", val);
+        cpu_set_log(val);
+        break;
+    }
+}
+
+/*****************************************************************************/
+/* NVRAM helpers */
+void NVRAM_set_byte (m48t59_t *nvram, uint32_t addr, uint8_t value)
+{
+    m48t59_set_addr(nvram, addr);
+    m48t59_write(nvram, value);
+}
+
+uint8_t NVRAM_get_byte (m48t59_t *nvram, uint32_t addr)
+{
+    m48t59_set_addr(nvram, addr);
+    return m48t59_read(nvram);
+}
+
+void NVRAM_set_word (m48t59_t *nvram, uint32_t addr, uint16_t value)
+{
+    m48t59_set_addr(nvram, addr);
+    m48t59_write(nvram, value >> 8);
+    m48t59_set_addr(nvram, addr + 1);
+    m48t59_write(nvram, value & 0xFF);
+}
+
+uint16_t NVRAM_get_word (m48t59_t *nvram, uint32_t addr)
+{
+    uint16_t tmp;
+
+    m48t59_set_addr(nvram, addr);
+    tmp = m48t59_read(nvram) << 8;
+    m48t59_set_addr(nvram, addr + 1);
+    tmp |= m48t59_read(nvram);
+
+    return tmp;
+}
+
+void NVRAM_set_lword (m48t59_t *nvram, uint32_t addr, uint32_t value)
+{
+    m48t59_set_addr(nvram, addr);
+    m48t59_write(nvram, value >> 24);
+    m48t59_set_addr(nvram, addr + 1);
+    m48t59_write(nvram, (value >> 16) & 0xFF);
+    m48t59_set_addr(nvram, addr + 2);
+    m48t59_write(nvram, (value >> 8) & 0xFF);
+    m48t59_set_addr(nvram, addr + 3);
+    m48t59_write(nvram, value & 0xFF);
+}
+
+uint32_t NVRAM_get_lword (m48t59_t *nvram, uint32_t addr)
+{
+    uint32_t tmp;
+
+    m48t59_set_addr(nvram, addr);
+    tmp = m48t59_read(nvram) << 24;
+    m48t59_set_addr(nvram, addr + 1);
+    tmp |= m48t59_read(nvram) << 16;
+    m48t59_set_addr(nvram, addr + 2);
+    tmp |= m48t59_read(nvram) << 8;
+    m48t59_set_addr(nvram, addr + 3);
+    tmp |= m48t59_read(nvram);
+
+    return tmp;
+}
+
+void NVRAM_set_string (m48t59_t *nvram, uint32_t addr,
+                       const unsigned char *str, uint32_t max)
+{
+    int i;
+
+    for (i = 0; i < max && str[i] != '\0'; i++) {
+        m48t59_set_addr(nvram, addr + i);
+        m48t59_write(nvram, str[i]);
+    }
+    m48t59_set_addr(nvram, addr + max - 1);
+    m48t59_write(nvram, '\0');
+}
+
+int NVRAM_get_string (m48t59_t *nvram, uint8_t *dst, uint16_t addr, int max)
+{
+    int i;
+
+    memset(dst, 0, max);
+    for (i = 0; i < max; i++) {
+        dst[i] = NVRAM_get_byte(nvram, addr + i);
+        if (dst[i] == '\0')
+            break;
+    }
+
+    return i;
+}
+
+static uint16_t NVRAM_crc_update (uint16_t prev, uint16_t value)
+{
+    uint16_t tmp;
+    uint16_t pd, pd1, pd2;
+
+    tmp = prev >> 8;
+    pd = prev ^ value;
+    pd1 = pd & 0x000F;
+    pd2 = ((pd >> 4) & 0x000F) ^ pd1;
+    tmp ^= (pd1 << 3) | (pd1 << 8);
+    tmp ^= pd2 | (pd2 << 7) | (pd2 << 12);
+
+    return tmp;
+}
+
+uint16_t NVRAM_compute_crc (m48t59_t *nvram, uint32_t start, uint32_t count)
+{
+    uint32_t i;
+    uint16_t crc = 0xFFFF;
+    int odd;
+
+    odd = count & 1;
+    count &= ~1;
+    for (i = 0; i != count; i++) {
+	crc = NVRAM_crc_update(crc, NVRAM_get_word(nvram, start + i));
+    }
+    if (odd) {
+	crc = NVRAM_crc_update(crc, NVRAM_get_byte(nvram, start + i) << 8);
+    }
+
+    return crc;
+}
+
+int PPC_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
+                          const unsigned char *arch,
+                          uint32_t RAM_size, int boot_device,
+                          uint32_t kernel_image, uint32_t kernel_size,
+                          uint32_t cmdline, uint32_t cmdline_size,
+                          uint32_t initrd_image, uint32_t initrd_size,
+                          uint32_t NVRAM_image)
+{
+    uint16_t crc;
+
+    /* Set parameters for Open Hack'Ware BIOS */
+    NVRAM_set_string(nvram, 0x00, "QEMU_BIOS", 16);
+    NVRAM_set_lword(nvram,  0x10, 0x00000002); /* structure v2 */
+    NVRAM_set_word(nvram,   0x14, NVRAM_size);
+    NVRAM_set_string(nvram, 0x20, arch, 16);
+    NVRAM_set_lword(nvram,  0x30, RAM_size);
+    NVRAM_set_byte(nvram,   0x34, boot_device);
+    NVRAM_set_lword(nvram,  0x38, kernel_image);
+    NVRAM_set_lword(nvram,  0x3C, kernel_size);
+    NVRAM_set_lword(nvram,  0x40, cmdline);
+    NVRAM_set_lword(nvram,  0x44, cmdline_size);
+    NVRAM_set_lword(nvram,  0x48, initrd_image);
+    NVRAM_set_lword(nvram,  0x4C, initrd_size);
+    NVRAM_set_lword(nvram,  0x50, NVRAM_image);
+    crc = NVRAM_compute_crc(nvram, 0x00, 0x5C);
+    NVRAM_set_word(nvram,  0x5C, crc);
+
+    return 0;
+ }
+
 /*****************************************************************************/
 void ppc_init (int ram_size, int vga_ram_size, int boot_device,
 	       DisplayState *ds, const char **fd_filename, int snapshot,
 	       const char *kernel_filename, const char *kernel_cmdline,
 	       const char *initrd_filename)
 {
-    /* For now, only PREP is supported */
-    return ppc_prep_init(ram_size, vga_ram_size, boot_device, ds, fd_filename,
-			 snapshot, kernel_filename, kernel_cmdline,
-			 initrd_filename);
+    if (prep_enabled) {
+        ppc_prep_init(ram_size, vga_ram_size, boot_device, ds, fd_filename,
+                      snapshot, kernel_filename, kernel_cmdline,
+                      initrd_filename);
+    } else {
+        ppc_chrp_init(ram_size, vga_ram_size, boot_device, ds, fd_filename,
+                      snapshot, kernel_filename, kernel_cmdline,
+                      initrd_filename);
+    }
 }
