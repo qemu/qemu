@@ -85,6 +85,17 @@
 #define VIP_MASK                0x00100000
 #define ID_MASK                 0x00200000
 
+#define CR0_PE_MASK  (1 << 0)
+#define CR0_TS_MASK  (1 << 3)
+#define CR0_WP_MASK  (1 << 16)
+#define CR0_AM_MASK  (1 << 18)
+#define CR0_PG_MASK  (1 << 31)
+
+#define CR4_VME_MASK  (1 << 0)
+#define CR4_PVI_MASK  (1 << 1)
+#define CR4_TSD_MASK  (1 << 2)
+#define CR4_DE_MASK   (1 << 3)
+
 #define EXCP00_DIVZ	0
 #define EXCP01_SSTP	1
 #define EXCP02_NMI	2
@@ -161,18 +172,11 @@ typedef double CPU86_LDouble;
 #endif
 
 typedef struct SegmentCache {
+    uint32_t selector;
     uint8_t *base;
     unsigned long limit;
     uint8_t seg_32bit;
 } SegmentCache;
-
-typedef struct SegmentDescriptorTable {
-    uint8_t *base;
-    unsigned long limit;
-    /* this is the returned base when reading the register, just to
-    avoid that the emulated program modifies it */
-    unsigned long emu_base;
-} SegmentDescriptorTable;
 
 typedef struct CPUX86State {
     /* standard registers */
@@ -205,17 +209,18 @@ typedef struct CPUX86State {
     } fp_convert;
     
     /* segments */
-    uint32_t segs[6]; /* selector values */
-    SegmentCache seg_cache[6]; /* info taken from LDT/GDT */
-    SegmentDescriptorTable gdt;
-    SegmentDescriptorTable ldt;
-    SegmentDescriptorTable idt;
+    SegmentCache segs[6]; /* selector values */
+    SegmentCache ldt;
+    SegmentCache tr;
+    SegmentCache gdt; /* only base and limit are used */
+    SegmentCache idt; /* only base and limit are used */
     
     /* exception/interrupt handling */
     jmp_buf jmp_env;
     int exception_index;
     int error_code;
-    uint32_t cr2;
+    uint32_t cr[5]; /* NOTE: cr1 is unused */
+    uint32_t dr[8]; /* debug registers */
     int interrupt_request;
 
     /* user data */
