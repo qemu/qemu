@@ -31,6 +31,7 @@
 #endif
 
 #define TERM_CMD_BUF_SIZE 4095
+#define TERM_MAX_CMDS 64
 
 #define IS_NORM 0
 #define IS_ESC  1
@@ -43,6 +44,9 @@ static int term_cmd_buf_index;
 static int term_cmd_buf_size;
 static int term_esc_state;
 static int term_esc_param;
+
+static char *term_history[TERM_MAX_CMDS];
+static int term_hist_entry;
 
 /*
  * Supported types:
@@ -188,6 +192,17 @@ static void do_info_registers(void)
 #else
     cpu_dump_state(cpu_single_env, stdout, 0);
 #endif
+}
+
+static void do_info_history (void)
+{
+    int i;
+
+    for (i = 0; i < TERM_MAX_CMDS; i++) {
+	if (term_history[i] == NULL)
+	    break;
+	term_printf("%d: '%s'\n", i, term_history[i]);
+    }
 }
 
 static void do_quit(void)
@@ -499,6 +514,8 @@ static term_cmd_t info_cmds[] = {
       "", "show the block devices" },
     { "registers", "", do_info_registers,
       "", "show the cpu registers" },
+    { "history", "", do_info_history,
+      "", "show the command line history", },
     { NULL, NULL, },
 };
 
@@ -1056,6 +1073,13 @@ static void term_show_prompt(void)
     term_esc_state = IS_NORM;
 }
 
+static void term_print_cmdline (const char *cmdline)
+{
+    term_show_prompt();
+    term_printf(cmdline);
+    term_flush();
+}
+
 static void term_insert_char(int ch)
 {
     if (term_cmd_buf_index < TERM_CMD_BUF_SIZE) {
@@ -1120,6 +1144,92 @@ static void term_eol(void)
         term_forward_char();
 }
 
+static void term_up_char(void)
+{
+    int idx;
+
+    if (term_hist_entry == 0)
+	return;
+    if (term_hist_entry == -1) {
+	/* Find latest entry */
+	for (idx = 0; idx < TERM_MAX_CMDS; idx++) {
+	    if (term_history[idx] == NULL)
+		break;
+	}
+	term_hist_entry = idx;
+    }
+    term_hist_entry--;
+    if (term_hist_entry >= 0) {
+	strcpy(term_cmd_buf, term_history[term_hist_entry]);
+	term_printf("\n");
+	term_print_cmdline(term_cmd_buf);
+	term_cmd_buf_index = term_cmd_buf_size = strlen(term_cmd_buf);
+    }
+}
+
+static void term_down_char(void)
+{
+    if (term_hist_entry == TERM_MAX_CMDS - 1 || term_hist_entry == -1)
+	return;
+    if (term_history[++term_hist_entry] != NULL) {
+	strcpy(term_cmd_buf, term_history[term_hist_entry]);
+    } else {
+	term_hist_entry = -1;
+    }
+    term_printf("\n");
+    term_print_cmdline(term_cmd_buf);
+    term_cmd_buf_index = term_cmd_buf_size = strlen(term_cmd_buf);
+}
+
+static void term_hist_add(const char *cmdline)
+{
+    char *hist_entry, *new_entry;
+    int idx;
+
+    if (cmdline[0] == '\0')
+	return;
+    new_entry = NULL;
+    if (term_hist_entry != -1) {
+	/* We were editing an existing history entry: replace it */
+	hist_entry = term_history[term_hist_entry];
+	idx = term_hist_entry;
+	if (strcmp(hist_entry, cmdline) == 0) {
+	    goto same_entry;
+	}
+    }
+    /* Search cmdline in history buffers */
+    for (idx = 0; idx < TERM_MAX_CMDS; idx++) {
+	hist_entry = term_history[idx];
+	if (hist_entry == NULL)
+	    break;
+	if (strcmp(hist_entry, cmdline) == 0) {
+	same_entry:
+	    new_entry = hist_entry;
+	    /* Put this entry at the end of history */
+	    memmove(&term_history[idx], &term_history[idx + 1],
+		    &term_history[TERM_MAX_CMDS] - &term_history[idx + 1]);
+	    term_history[TERM_MAX_CMDS - 1] = NULL;
+	    for (; idx < TERM_MAX_CMDS; idx++) {
+		if (term_history[idx] == NULL)
+		    break;
+	    }
+	    break;
+	}
+    }
+    if (idx == TERM_MAX_CMDS) {
+	/* Need to get one free slot */
+	free(term_history[0]);
+	memcpy(term_history, &term_history[1],
+	       &term_history[TERM_MAX_CMDS] - &term_history[1]);
+	term_history[TERM_MAX_CMDS - 1] = NULL;
+	idx = TERM_MAX_CMDS - 1;
+    }
+    if (new_entry == NULL)
+	new_entry = strdup(cmdline);
+    term_history[idx] = new_entry;
+    term_hist_entry = -1;
+}
+
 /* return true if command handled */
 static void term_handle_byte(int ch)
 {
@@ -1135,6 +1245,7 @@ static void term_handle_byte(int ch)
         case 10:
         case 13:
             term_cmd_buf[term_cmd_buf_size] = '\0';
+	    term_hist_add(term_cmd_buf);
             term_printf("\n");
             term_handle_command(term_cmd_buf);
             term_show_prompt();
@@ -1146,6 +1257,9 @@ static void term_handle_byte(int ch)
         case 8:
             term_backspace();
             break;
+	case 155:
+            term_esc_state = IS_CSI;
+	    break;
         default:
             if (ch >= 32) {
                 term_insert_char(ch);
@@ -1163,6 +1277,14 @@ static void term_handle_byte(int ch)
         break;
     case IS_CSI:
         switch(ch) {
+	case 'A':
+	case 'F':
+	    term_up_char();
+	    break;
+	case 'B':
+	case 'E':
+	    term_down_char();
+	    break;
         case 'D':
             term_backward_char();
             break;
@@ -1290,5 +1412,6 @@ void monitor_init(void)
                     QEMU_VERSION);
         term_show_prompt();
     }
+    term_hist_entry = -1;
     qemu_add_fd_read_handler(0, term_can_read, term_read, NULL);
 }
