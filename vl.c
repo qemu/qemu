@@ -385,6 +385,41 @@ void hw_error(const char *fmt, ...)
 }
 
 /***********************************************************/
+/* keyboard/mouse */
+
+static QEMUPutKBDEvent *qemu_put_kbd_event;
+static void *qemu_put_kbd_event_opaque;
+static QEMUPutMouseEvent *qemu_put_mouse_event;
+static void *qemu_put_mouse_event_opaque;
+
+void qemu_add_kbd_event_handler(QEMUPutKBDEvent *func, void *opaque)
+{
+    qemu_put_kbd_event_opaque = opaque;
+    qemu_put_kbd_event = func;
+}
+
+void qemu_add_mouse_event_handler(QEMUPutMouseEvent *func, void *opaque)
+{
+    qemu_put_mouse_event_opaque = opaque;
+    qemu_put_mouse_event = func;
+}
+
+void kbd_put_keycode(int keycode)
+{
+    if (qemu_put_kbd_event) {
+        qemu_put_kbd_event(qemu_put_kbd_event_opaque, keycode);
+    }
+}
+
+void kbd_mouse_event(int dx, int dy, int dz, int buttons_state)
+{
+    if (qemu_put_mouse_event) {
+        qemu_put_mouse_event(qemu_put_mouse_event_opaque, 
+                             dx, dy, dz, buttons_state);
+    }
+}
+
+/***********************************************************/
 /* timers */
 
 #if defined(__powerpc__)

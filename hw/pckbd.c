@@ -190,9 +190,9 @@ static void kbd_queue(KBDState *s, int b, int aux)
     kbd_update_irq(s);
 }
 
-void kbd_put_keycode(int keycode)
+static void pc_kbd_put_keycode(void *opaque, int keycode)
 {
-    KBDState *s = &kbd_state;
+    KBDState *s = opaque;
     kbd_queue(s, keycode, 0);
 }
 
@@ -434,9 +434,10 @@ static void kbd_mouse_send_packet(KBDState *s)
     s->mouse_dz -= dz1;
 }
 
-void kbd_mouse_event(int dx, int dy, int dz, int buttons_state)
+static void pc_kbd_mouse_event(void *opaque, 
+                               int dx, int dy, int dz, int buttons_state)
 {
-    KBDState *s = &kbd_state;
+    KBDState *s = opaque;
 
     /* check if deltas are recorded when disabled */
     if (!(s->mouse_status & MOUSE_STATUS_ENABLED))
@@ -652,4 +653,7 @@ void kbd_init(void)
     register_ioport_write(0x60, 1, 1, kbd_write_data, s);
     register_ioport_read(0x64, 1, 1, kbd_read_status, s);
     register_ioport_write(0x64, 1, 1, kbd_write_command, s);
+
+    qemu_add_kbd_event_handler(pc_kbd_put_keycode, s);
+    qemu_add_mouse_event_handler(pc_kbd_mouse_event, s);
 }

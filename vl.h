@@ -179,6 +179,21 @@ extern int rtc_utc;
 #define BIOS_SIZE 0
 #endif
 
+/* keyboard/mouse support */
+
+#define MOUSE_EVENT_LBUTTON 0x01
+#define MOUSE_EVENT_RBUTTON 0x02
+#define MOUSE_EVENT_MBUTTON 0x04
+
+typedef void QEMUPutKBDEvent(void *opaque, int keycode);
+typedef void QEMUPutMouseEvent(void *opaque, int dx, int dy, int dz, int buttons_state);
+
+void qemu_add_kbd_event_handler(QEMUPutKBDEvent *func, void *opaque);
+void qemu_add_mouse_event_handler(QEMUPutMouseEvent *func, void *opaque);
+
+void kbd_put_keycode(int keycode);
+void kbd_mouse_event(int dx, int dy, int dz, int buttons_state);
+
 /* async I/O support */
 
 typedef void IOReadHandler(void *opaque, const uint8_t *buf, int size);
@@ -530,13 +545,6 @@ void pci_ne2000_init(NetDriverState *nd);
 
 /* pckbd.c */
 
-void kbd_put_keycode(int keycode);
-
-#define MOUSE_EVENT_LBUTTON 0x01
-#define MOUSE_EVENT_RBUTTON 0x02
-#define MOUSE_EVENT_MBUTTON 0x04
-void kbd_mouse_event(int dx, int dy, int dz, int buttons_state);
-
 void kbd_init(void);
 
 /* mc146818rtc.c */
@@ -626,6 +634,41 @@ int PPC_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
                           uint32_t cmdline, uint32_t cmdline_size,
                           uint32_t initrd_image, uint32_t initrd_size,
                           uint32_t NVRAM_image);
+
+/* adb.c */
+
+#define MAX_ADB_DEVICES 16
+
+typedef struct ADBDevice ADBDevice;
+
+typedef void ADBDeviceReceivePacket(ADBDevice *d, const uint8_t *buf, int len);
+
+struct ADBDevice {
+    struct ADBBusState *bus;
+    int devaddr;
+    int handler;
+    ADBDeviceReceivePacket *receive_packet;
+    void *opaque;
+};
+
+typedef struct ADBBusState {
+    ADBDevice devices[MAX_ADB_DEVICES];
+    int nb_devices;
+} ADBBusState;
+
+void adb_receive_packet(ADBBusState *s, const uint8_t *buf, int len);
+void adb_send_packet(ADBBusState *s, const uint8_t *buf, int len);
+
+ADBDevice *adb_register_device(ADBBusState *s, int devaddr, 
+                               ADBDeviceReceivePacket *receive_packet, 
+                               void *opaque);
+void adb_kbd_init(ADBBusState *bus);
+void adb_mouse_init(ADBBusState *bus);
+
+/* cuda.c */
+
+extern ADBBusState adb_bus;
+int cuda_init(void);
 
 /* monitor.c */
 void monitor_init(void);
