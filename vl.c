@@ -1783,27 +1783,116 @@ static void host_alarm_handler(int host_signum, siginfo_t *info,
     }
 }
 
+/* main execution loop */
+
+CPUState *cpu_gdbstub_get_env(void *opaque)
+{
+    return global_env;
+}
+
+void main_loop(void *opaque)
+{
+    struct pollfd ufds[2], *pf, *serial_ufd, *net_ufd, *gdb_ufd;
+    int ret, n, timeout;
+    uint8_t ch;
+    CPUState *env = global_env;
+
+    for(;;) {
+
+        ret = cpu_x86_exec(env);
+
+        /* if hlt instruction, we wait until the next IRQ */
+        if (ret == EXCP_HLT) 
+            timeout = 10;
+        else
+            timeout = 0;
+        /* poll any events */
+        serial_ufd = NULL;
+        pf = ufds;
+        if (!(serial_ports[0].lsr & UART_LSR_DR)) {
+            serial_ufd = pf;
+            pf->fd = 0;
+            pf->events = POLLIN;
+            pf++;
+        }
+        net_ufd = NULL;
+        if (net_fd > 0 && ne2000_can_receive(&ne2000_state)) {
+            net_ufd = pf;
+            pf->fd = net_fd;
+            pf->events = POLLIN;
+            pf++;
+        }
+        gdb_ufd = NULL;
+        if (gdbstub_fd > 0) {
+            gdb_ufd = pf;
+            pf->fd = gdbstub_fd;
+            pf->events = POLLIN;
+            pf++;
+        }
+
+        ret = poll(ufds, pf - ufds, timeout);
+        if (ret > 0) {
+            if (serial_ufd && (serial_ufd->revents & POLLIN)) {
+                n = read(0, &ch, 1);
+                if (n == 1) {
+                    serial_received_byte(&serial_ports[0], ch);
+                }
+            }
+            if (net_ufd && (net_ufd->revents & POLLIN)) {
+                uint8_t buf[MAX_ETH_FRAME_SIZE];
+
+                n = read(net_fd, buf, MAX_ETH_FRAME_SIZE);
+                if (n > 0) {
+                    if (n < 60) {
+                        memset(buf + n, 0, 60 - n);
+                        n = 60;
+                    }
+                    ne2000_receive(&ne2000_state, buf, n);
+                }
+            }
+            if (gdb_ufd && (gdb_ufd->revents & POLLIN)) {
+                uint8_t buf[1];
+                /* stop emulation if requested by gdb */
+                n = read(gdbstub_fd, buf, 1);
+                if (n == 1)
+                    break;
+            }
+        }
+
+        /* timer IRQ */
+        if (timer_irq_pending) {
+            pic_set_irq(0, 1);
+            pic_set_irq(0, 0);
+            timer_irq_pending = 0;
+        }
+
+        pic_handle_irq();
+    }
+}
+
 void help(void)
 {
     printf("Virtual Linux version " QEMU_VERSION ", Copyright (c) 2003 Fabrice Bellard\n"
-           "usage: vl [-h] bzImage initrd [kernel parameters...]\n"
+           "usage: vl [options] bzImage initrd [kernel parameters...]\n"
            "\n"
            "'bzImage' is a Linux kernel image (PAGE_OFFSET must be defined\n"
            "to 0x90000000 in asm/page.h and arch/i386/vmlinux.lds)\n"
            "'initrd' is an initrd image\n"
            "-m megs   set virtual RAM size to megs MB\n"
            "-n script set network init script [default=%s]\n"
+           "-s        wait gdb connection to port %d\n"
+           "-p port   change gdb connection port\n"
            "-d        output log in /tmp/vl.log\n"
            "\n"
            "During emulation, use C-a h to get terminal commands:\n",
-           DEFAULT_NETWORK_SCRIPT);
+           DEFAULT_NETWORK_SCRIPT, DEFAULT_GDBSTUB_PORT);
     term_print_help();
     exit(1);
 }
 
 int main(int argc, char **argv)
 {
-    int c, ret, initrd_size, i;
+    int c, ret, initrd_size, i, use_gdbstub, gdbstub_port;
     struct linux_params *params;
     struct sigaction act;
     struct itimerval itv;
@@ -1815,8 +1904,10 @@ int main(int argc, char **argv)
     
     phys_ram_size = 32 * 1024 * 1024;
     pstrcpy(network_script, sizeof(network_script), DEFAULT_NETWORK_SCRIPT);
+    use_gdbstub = 0;
+    gdbstub_port = DEFAULT_GDBSTUB_PORT;
     for(;;) {
-        c = getopt(argc, argv, "hm:dn:");
+        c = getopt(argc, argv, "hm:dn:sp:");
         if (c == -1)
             break;
         switch(c) {
@@ -1833,6 +1924,12 @@ int main(int argc, char **argv)
             break;
         case 'n':
             pstrcpy(network_script, sizeof(network_script), optarg);
+            break;
+        case 's':
+            use_gdbstub = 1;
+            break;
+        case 'p':
+            gdbstub_port = atoi(optarg);
             break;
         }
     }
@@ -1974,66 +2071,11 @@ int main(int argc, char **argv)
     getitimer(ITIMER_REAL, &itv);
     pit_min_timer_count = ((uint64_t)itv.it_interval.tv_usec * PIT_FREQ) / 
         1000000;
-
-    for(;;) {
-        struct pollfd ufds[2], *pf, *serial_ufd, *net_ufd;
-        int ret, n, timeout;
-        uint8_t ch;
-
-        ret = cpu_x86_exec(env);
-
-        /* if hlt instruction, we wait until the next IRQ */
-        if (ret == EXCP_HLT) 
-            timeout = 10;
-        else
-            timeout = 0;
-        /* poll any events */
-        serial_ufd = NULL;
-        net_ufd = NULL;
-        pf = ufds;
-        if (!(serial_ports[0].lsr & UART_LSR_DR)) {
-            serial_ufd = pf;
-            pf->fd = 0;
-            pf->events = POLLIN;
-            pf++;
-        }
-        if (net_fd > 0 && ne2000_can_receive(&ne2000_state)) {
-            net_ufd = pf;
-            pf->fd = net_fd;
-            pf->events = POLLIN;
-            pf++;
-        }
-        ret = poll(ufds, pf - ufds, timeout);
-        if (ret > 0) {
-            if (serial_ufd && (serial_ufd->revents & POLLIN)) {
-                n = read(0, &ch, 1);
-                if (n == 1) {
-                    serial_received_byte(&serial_ports[0], ch);
-                }
-            }
-            if (net_ufd && (net_ufd->revents & POLLIN)) {
-                uint8_t buf[MAX_ETH_FRAME_SIZE];
-
-                n = read(net_fd, buf, MAX_ETH_FRAME_SIZE);
-                if (n > 0) {
-                    if (n < 60) {
-                        memset(buf + n, 0, 60 - n);
-                        n = 60;
-                    }
-                    ne2000_receive(&ne2000_state, buf, n);
-                }
-            }
-        }
-
-        /* timer IRQ */
-        if (timer_irq_pending) {
-            pic_set_irq(0, 1);
-            pic_set_irq(0, 0);
-            timer_irq_pending = 0;
-        }
-
-        pic_handle_irq();
+    
+    if (use_gdbstub) {
+        cpu_gdbstub(NULL, main_loop, gdbstub_port);
+    } else {
+        main_loop(NULL);
     }
-
     return 0;
 }

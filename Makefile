@@ -98,7 +98,7 @@ SRCS:= $(OBJS:.o=.c)
 OBJS+= libqemu.a
 
 # cpu emulator library
-LIBOBJS=thunk.o exec.o translate.o cpu-exec.o 
+LIBOBJS=thunk.o exec.o translate.o cpu-exec.o gdbstub.o
 
 ifeq ($(TARGET_ARCH), i386)
 LIBOBJS+=translate-i386.o op-i386.o helper-i386.o
