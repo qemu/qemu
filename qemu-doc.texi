@@ -11,35 +11,62 @@
 
 @section Features
 
-QEMU is a FAST! processor emulator. Its purpose is to run Linux executables
-compiled for one architecture on another. For example, x86 Linux
-processes can be ran on PowerPC Linux architectures. By using dynamic
-translation it achieves a reasonnable speed while being easy to port on
-new host CPUs. Its main goal is to be able to launch the @code{Wine}
-Windows API emulator (@url{http://www.winehq.org}) or @code{DOSEMU}
-(@url{http://www.dosemu.org}) on non-x86 CPUs.
+QEMU is a FAST! processor emulator. By using dynamic translation it
+achieves a reasonnable speed while being easy to port on new host
+CPUs.
+
+QEMU has two operating modes:
+@itemize
+@item User mode emulation. In this mode, QEMU can launch Linux processes
+compiled for one CPU on another CPU. Linux system calls are converted
+because of endianness and 32/64 bit mismatches. The Wine Windows API
+emulator (@url{http://www.winehq.org}) and the DOSEMU DOS emulator
+(@url{www.dosemu.org}) are the main targets for QEMU.
+
+@item Full system emulation. In this mode, QEMU emulates a full
+system, including a processor and various peripherials. Currently, it
+is only used to launch an x86 Linux kernel on an x86 Linux system. It
+enables easier testing and debugging of system code. It can also be
+used to provide virtual hosting of several virtual PCs on a single
+server.
+
+@end itemize
+
+As QEMU requires no host kernel patches to run, it is very safe and
+easy to use.
 
 QEMU generic features:
 
 @itemize 
 
-@item User space only emulation.
-
-@item Working on x86 and PowerPC hosts. Being tested on ARM, Sparc32, Alpha and S390.
+@item User space only or full system emulation.
 
 @item Using dynamic translation to native code for reasonnable speed.
 
+@item Working on x86 and PowerPC hosts. Being tested on ARM, Sparc32, Alpha and S390.
+
+@item Self-modifying code support.
+
+@item Precise exception support.
+
+@item The virtual CPU is a library (@code{libqemu}) which can be used 
+in other projects.
+
+@end itemize
+
+QEMU user mode emulation features:
+@itemize 
 @item Generic Linux system call converter, including most ioctls.
 
 @item clone() emulation using native CPU clone() to use Linux scheduler for threads.
 
 @item Accurate signal handling by remapping host signals to target signals. 
+@end itemize
+@end itemize
 
-@item Self-modifying code support.
-
-@item The virtual CPU is a library (@code{libqemu}) which can be used 
-in other projects.
-
+QEMU full system emulation features:
+@itemize 
+@item Using mmap() system calls to simulate the MMU
 @end itemize
 
 @section x86 emulation
@@ -49,11 +76,9 @@ QEMU x86 target features:
 @itemize 
 
 @item The virtual x86 CPU supports 16 bit and 32 bit addressing with segmentation. 
-User space LDT and GDT are emulated. VM86 mode is also supported to run DOSEMU.
+LDT/GDT and IDT are emulated. VM86 mode is also supported to run DOSEMU.
 
-@item Precise user space x86 exceptions.
-
-@item Support of host page sizes bigger than 4KB.
+@item Support of host page sizes bigger than 4KB in user mode emulation.
 
 @item QEMU can emulate itself on x86.
 
@@ -73,11 +98,20 @@ Current QEMU limitations:
 @item IPC syscalls are missing.
 
 @item The x86 segment limits and access rights are not tested at every 
-memory access (and will never be to have good performances).
+memory access.
 
 @item On non x86 host CPUs, @code{double}s are used instead of the non standard 
 10 byte @code{long double}s of x86 for floating point emulation to get
 maximum performances.
+
+@item Full system emulation only works if no data are mapped above the virtual address 
+0xc0000000 (yet).
+
+@item Some priviledged instructions or behaviors are missing. Only the ones 
+needed for proper Linux kernel operation are emulated.
+
+@item No memory separation between the kernel and the user processes is done. 
+It will be implemented very soon.
 
 @end itemize
 
@@ -94,7 +128,7 @@ generic dynamic code generation architecture of QEMU.
 
 @end itemize
 
-@chapter Invocation
+@chapter QEMU User space emulation invocation
 
 @section Quick Start
 
@@ -198,27 +232,188 @@ Activate log (logfile=/tmp/qemu.log)
 Act as if the host page size was 'pagesize' bytes
 @end table
 
+@chapter QEMU System emulator invocation
+
+@section Quick Start
+
+This section explains how to launch a Linux kernel inside QEMU.
+
+@enumerate
+@item
+Download the archive @file{vl-test-xxx.tar.gz} containing a Linux kernel
+and an initrd (initial Ram Disk). The archive also contains a
+precompiled version of @file{vl}, the QEMU System emulator.
+
+@item Optional: If you want network support (for example to launch X11 examples), you
+must copy the script @file{vl-ifup} in @file{/etc} and configure
+properly @code{sudo} so that the command @code{ifconfig} contained in
+@file{vl-ifup} can be executed as root. You must verify that your host
+kernel supports the TUN/TAP network interfaces: the device
+@file{/dev/net/tun} must be present.
+
+When network is enabled, there is a virtual network connection between
+the host kernel and the emulated kernel. The emulated kernel is seen
+from the host kernel at IP address 172.20.0.2 and the host kernel is
+seen from the emulated kernel at IP address 172.20.0.1.
+
+@item Launch @code{vl.sh}. You should have the following output:
+
+@example
+> ./vl.sh 
+connected to host network interface: tun0
+Uncompressing Linux... Ok, booting the kernel.
+Linux version 2.4.20 (bellard@voyager) (gcc version 2.95.2 20000220 (Debian GNU/Linux)) #42 Wed Jun 25 14:16:12 CEST 2003
+BIOS-provided physical RAM map:
+ BIOS-88: 0000000000000000 - 000000000009f000 (usable)
+ BIOS-88: 0000000000100000 - 0000000002000000 (usable)
+32MB LOWMEM available.
+On node 0 totalpages: 8192
+zone(0): 4096 pages.
+zone(1): 4096 pages.
+zone(2): 0 pages.
+Kernel command line: root=/dev/ram ramdisk_size=6144
+Initializing CPU#0
+Detected 501.785 MHz processor.
+Calibrating delay loop... 973.20 BogoMIPS
+Memory: 24776k/32768k available (725k kernel code, 7604k reserved, 151k data, 48k init, 0k highmem)
+Dentry cache hash table entries: 4096 (order: 3, 32768 bytes)
+Inode cache hash table entries: 2048 (order: 2, 16384 bytes)
+Mount-cache hash table entries: 512 (order: 0, 4096 bytes)
+Buffer-cache hash table entries: 1024 (order: 0, 4096 bytes)
+Page-cache hash table entries: 8192 (order: 3, 32768 bytes)
+CPU: Intel Pentium Pro stepping 03
+Checking 'hlt' instruction... OK.
+POSIX conformance testing by UNIFIX
+Linux NET4.0 for Linux 2.4
+Based upon Swansea University Computer Society NET3.039
+Initializing RT netlink socket
+apm: BIOS not found.
+Starting kswapd
+pty: 256 Unix98 ptys configured
+Serial driver version 5.05c (2001-07-08) with no serial options enabled
+ttyS00 at 0x03f8 (irq = 4) is a 16450
+ne.c:v1.10 9/23/94 Donald Becker (becker@scyld.com)
+Last modified Nov 1, 2000 by Paul Gortmaker
+NE*000 ethercard probe at 0x300: 52 54 00 12 34 56
+eth0: NE2000 found at 0x300, using IRQ 9.
+RAMDISK driver initialized: 16 RAM disks of 6144K size 1024 blocksize
+NET4: Linux TCP/IP 1.0 for NET4.0
+IP Protocols: ICMP, UDP, TCP, IGMP
+IP: routing cache hash table of 512 buckets, 4Kbytes
+TCP: Hash tables configured (established 2048 bind 2048)
+NET4: Unix domain sockets 1.0/SMP for Linux NET4.0.
+RAMDISK: ext2 filesystem found at block 0
+RAMDISK: Loading 6144 blocks [1 disk] into ram disk... done.
+Freeing initrd memory: 6144k freed
+VFS: Mounted root (ext2 filesystem).
+Freeing unused kernel memory: 48k freed
+sh: can't access tty; job control turned off
+#
+@end example
+
+@item
+Then you can play with the kernel inside the virtual serial console. You
+can launch @code{ls} for example. Type @key{Ctrl-a h} to have an help
+about the keys you can type inside the virtual serial console. In
+particular @key{Ctrl-a b} is the Magic SysRq key.
+
+@item 
+If the network is enabled, launch the script @file{/etc/linuxrc} in the
+emulator (don't forget the leading dot):
+@example
+. /etc/linuxrc
+@end example
+
+Then enable X11 connections on your PC from the emulated Linux: 
+@example
+xhost +172.20.0.2
+@end example
+
+You can now launch @file{xterm} or @file{xlogo} and verify that you have
+a real Virtual Linux system !
+
+@end enumerate
+
+NOTE: the example initrd is a modified version of the one made by Kevin
+Lawton for the plex86 Project (@url{www.plex86.org}).
+
+@section Kernel Compilation
+
+You can use any Linux kernel within QEMU provided it is mapped at
+address 0x90000000 (the default is 0xc0000000). You must modify only two
+lines in the kernel source:
+
+In asm/page.h, replace
+@example
+#define __PAGE_OFFSET           (0xc0000000)
+@end example
+by
+@example
+#define __PAGE_OFFSET           (0x90000000)
+@end example
+
+And in arch/i386/vmlinux.lds, replace
+@example
+  . = 0xc0000000 + 0x100000;
+@end example
+by 
+@example
+  . = 0x90000000 + 0x100000;
+@end example
+
+The file config-2.4.20 gives the configuration of the example kernel.
+
+Just type
+@example
+make bzImage
+@end example
+
+As you would do to make a real kernel. Then you can use with QEMU
+exactly the same kernel as you would boot on your PC (in
+@file{arch/i386/boot/bzImage}).
+
+@section PC Emulation
+
+QEMU emulates the following PC peripherials:
+
+@itemize
+@item
+PIC (interrupt controler)
+@item
+PIT (timers)
+@item 
+CMOS memory
+@item
+Serial port (port=0x3f8, irq=4)
+@item 
+NE2000 network adapter (port=0x300, irq=9)
+@item
+Dumb VGA (to print the @code{uncompressing Linux kernel} message)
+@end itemize
+
 @chapter QEMU Internals
 
 @section QEMU compared to other emulators
 
-Unlike bochs [3], QEMU emulates only a user space x86 CPU. It means that
-you cannot launch an operating system with it. The benefit is that it is
-simpler and faster due to the fact that some of the low level CPU state
-can be ignored (in particular, no virtual memory needs to be emulated).
+Like bochs [3], QEMU emulates an x86 CPU. But QEMU is much faster than
+bochs as it uses dynamic compilation and because it uses the host MMU to
+simulate the x86 MMU. The downside is that currently the emulation is
+not as accurate as bochs (for example, you cannot currently run Windows
+inside QEMU).
 
 Like Valgrind [2], QEMU does user space emulation and dynamic
 translation. Valgrind is mainly a memory debugger while QEMU has no
-support for it (QEMU could be used to detect out of bound memory accesses
-as Valgrind, but it has no support to track uninitialised data as
-Valgrind does). Valgrind dynamic translator generates better code than
-QEMU (in particular it does register allocation) but it is closely tied
-to an x86 host and target.
+support for it (QEMU could be used to detect out of bound memory
+accesses as Valgrind, but it has no support to track uninitialised data
+as Valgrind does). Valgrind dynamic translator generates better code
+than QEMU (in particular it does register allocation) but it is closely
+tied to an x86 host and target and has no support for precise exception
+and system emulation.
 
-EM86 [4] is the closest project to QEMU (and QEMU still uses some of its
-code, in particular the ELF file loader). EM86 was limited to an alpha
-host and used a proprietary and slow interpreter (the interpreter part
-of the FX!32 Digital Win32 code translator [5]).
+EM86 [4] is the closest project to user space QEMU (and QEMU still uses
+some of its code, in particular the ELF file loader). EM86 was limited
+to an alpha host and used a proprietary and slow interpreter (the
+interpreter part of the FX!32 Digital Win32 code translator [5]).
 
 TWIN [6] is a Windows API emulator like Wine. It is less accurate than
 Wine but includes a protected mode x86 interpreter to launch x86 Windows
@@ -226,6 +421,20 @@ executables. Such an approach as greater potential because most of the
 Windows API is executed natively but it is far more difficult to develop
 because all the data structures and function parameters exchanged
 between the API and the x86 code must be converted.
+
+User mode Linux [7] was the only solution before QEMU to launch a Linux
+kernel as a process while not needing any host kernel patches. However,
+user mode Linux requires heavy kernel patches while QEMU accepts
+unpatched Linux kernels. It would be interesting to compare the
+performance of the two approaches.
+
+The new Plex86 [8] PC virtualizer is done in the same spirit as the QEMU
+system emulator. It requires a patched Linux kernel to work (you cannot
+launch the same kernel on your PC), but the patches are really small. As
+it is a PC virtualizer (no emulation is done except for some priveledged
+instructions), it has the potential of being faster than QEMU. The
+downside is that a complicated (and potentially unsafe) kernel patch is
+needed.
 
 @section Portable dynamic translation
 
@@ -409,6 +618,16 @@ space conflicts. QEMU solves this problem by being an executable ELF
 shared object as the ld-linux.so ELF interpreter. That way, it can be
 relocated at load time.
 
+@section MMU emulation
+
+For system emulation, QEMU uses the mmap() system call to emulate the
+target CPU MMU. It works as long the emulated OS does not use an area
+reserved by the host OS (such as the area above 0xc0000000 on x86
+Linux).
+
+It is planned to add a slower but more precise MMU emulation
+with a software MMU.
+
 @section Bibliography
 
 @table @asis
@@ -438,6 +657,14 @@ Chernoff and Ray Hookway.
 @item [6]
 @url{http://www.willows.com/}, Windows API library emulation from
 Willows Software.
+
+@item [7]
+@url{http://user-mode-linux.sourceforge.net/}, 
+The User-mode Linux Kernel.
+
+@item [8]
+@url{http://www.plex86.org/}, 
+The new Plex86 project.
 
 @end table
 

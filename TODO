@@ -1,4 +1,5 @@
 
+- finish segment ops (call far, ret far, load_seg suppressed)
 - fix arm fpu rounding (at least for float->integer conversions)
 - fix CCOP optimisation
 - optimize FPU operations (evaluate x87 stack pointer statically) 
@@ -7,7 +8,6 @@
   state, find a solution for tb_flush()).
 - add gcc 2.96 test configure (some gcc3 flags are needed)
 - add IPC syscalls
-- submit a patch to fix DOSEMU coopthreads
 
 lower priority:
 --------------

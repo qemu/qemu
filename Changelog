@@ -4,6 +4,7 @@ version 0.4:
  - fixed signal handling for correct dosemu DPMI emulation
  - fast x86 MMU emulation with mmap()
  - fixed popl (%esp) case
+ - Linux kernel can be executed by QEMU with the 'vl' command.
 
 version 0.3:
 
@@ -17,10 +18,10 @@ version 0.3:
 
 version 0.2:
 
- - PowerPC disassembly and ELF symbols output (Rusty Russel)
- - flock support (Rusty Russel)
- - ugetrlimit support (Rusty Russel)
- - fstat64 fix (Rusty Russel)
+ - PowerPC disassembly and ELF symbols output (Rusty Russell)
+ - flock support (Rusty Russell)
+ - ugetrlimit support (Rusty Russell)
+ - fstat64 fix (Rusty Russell)
  - initial Alpha port (Falk Hueffner)
  - initial IA64 port (Matt Wilson)
  - initial Sparc and Sparc64 port (David S. Miller)
