@@ -61,10 +61,13 @@
 #define HAVE_STDLIB_H
 
 /* Define if you have sys/ioctl.h */
-#undef HAVE_SYS_IOCTL_H
+#define HAVE_SYS_IOCTL_H
 
 /* Define if you have sys/filio.h */
 #undef HAVE_SYS_FILIO_H
+#ifdef __APPLE__
+#define HAVE_SYS_FILIO_H
+#endif
 
 /* Define if you have strerror */
 #define HAVE_STRERROR
@@ -160,9 +163,6 @@
 
 /* Define if you have memmove */
 #define HAVE_MEMMOVE
-
-/* Define if you have <termios.h> */
-#undef HAVE_TERMIOS_H
 
 /* Define if you have gethostid */
 #undef HAVE_GETHOSTID
