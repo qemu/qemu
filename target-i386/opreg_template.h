@@ -83,12 +83,14 @@ void OPPROTO glue(glue(op_cmovw,REGNAME),_T1_T0)(void)
 {
     if (T0)
         REG = (REG & 0xffff0000) | (T1 & 0xffff);
+    FORCE_RET();
 }
 
 void OPPROTO glue(glue(op_cmovl,REGNAME),_T1_T0)(void)
 {
     if (T0)
         REG = T1;
+    FORCE_RET();
 }
 
 /* NOTE: T0 high order bits are ignored */
