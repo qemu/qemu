@@ -95,6 +95,12 @@ typedef uint64_t host_ulong;
 #define swabls(x) swab64s(x)
 #endif
 
+#ifdef ELF_USES_RELOCA
+#define SHT_RELOC SHT_RELA
+#else
+#define SHT_RELOC SHT_REL
+#endif
+
 #include "thunk.h"
 
 /* all dynamically generated functions begin with this code */
@@ -170,16 +176,24 @@ void elf_swap_phdr(struct elf_phdr *h)
     swabls(&h->p_align);		/* Segment alignment */
 }
 
+void elf_swap_rel(ELF_RELOC *rel)
+{
+    swabls(&rel->r_offset);
+    swabls(&rel->r_info);
+#ifdef ELF_USES_RELOCA
+    swabls(&rel->r_addend);
+#endif
+}
+
 /* ELF file info */
 int do_swap;
 struct elf_shdr *shdr;
+uint8_t **sdata;
 struct elfhdr ehdr;
 ElfW(Sym) *symtab;
 int nb_syms;
 char *strtab;
-/* data section */
-uint8_t *data_data, *sdata_data;
-int data_shndx, sdata_shndx;
+int text_shndx;
 
 uint16_t get16(uint16_t *p)
 {
@@ -243,6 +257,19 @@ struct elf_shdr *find_elf_section(struct elf_shdr *shdr, int shnum, const char *
     return NULL;
 }
 
+int find_reloc(int sh_index)
+{
+    struct elf_shdr *sec;
+    int i;
+
+    for(i = 0; i < ehdr.e_shnum; i++) {
+        sec = &shdr[i];
+        if (sec->sh_type == SHT_RELOC && sec->sh_info == sh_index) 
+            return i;
+    }
+    return 0;
+}
+
 void *load_data(int fd, long offset, unsigned int size)
 {
     char *data;
@@ -278,7 +305,7 @@ int strstart(const char *str, const char *val, const char **ptr)
 
 /* generate op code */
 void gen_code(const char *name, host_ulong offset, host_ulong size, 
-              FILE *outfile, uint8_t *text, ELF_RELOC *relocs, int nb_relocs, int reloc_sh_type,
+              FILE *outfile, uint8_t *text, ELF_RELOC *relocs, int nb_relocs,
               int gen_switch)
 {
     int copy_size = 0;
@@ -500,16 +527,39 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                 sym_name = strtab + sym->st_name;
                 if (strstart(sym_name, "__op_label", &p)) {
                     uint8_t *ptr;
-
+                    int addend;
+                    unsigned long offset;
+                    
                     /* test if the variable refers to a label inside
                        the code we are generating */
-                    if (sym->st_shndx == data_shndx)
-                        ptr = data_data;
-                    else if (sym->st_shndx == sdata_shndx)
-                        ptr = sdata_data;
-                    else
-                        error("__op_labelN symbols must be in .data or .sdata section");
-                    val = *(target_ulong *)(ptr + sym->st_value);
+                    ptr = sdata[sym->st_shndx];
+                    if (!ptr)
+                        error("__op_labelN in invalid section");
+                    offset = sym->st_value;
+                    addend = 0;
+#ifdef ELF_USES_RELOCA
+                    {
+                        int reloc_shndx, nb_relocs1, j;
+
+                        /* try to find a matching relocation */
+                        reloc_shndx = find_reloc(sym->st_shndx);
+                        if (reloc_shndx) {
+                            nb_relocs1 = shdr[reloc_shndx].sh_size / 
+                                shdr[reloc_shndx].sh_entsize;
+                            rel = (ELF_RELOC *)sdata[reloc_shndx];
+                            for(j = 0; j < nb_relocs1; j++) {
+                                if (rel->r_offset == offset) {
+                                    addend = rel->r_addend;
+                                    break;
+                                }
+				rel++;
+                            }
+                        }
+                    }
+#endif                    
+                    val = *(target_ulong *)(ptr + offset);
+                    val += addend;
+
                     if (val >= start_offset && val < start_offset + copy_size) {
                         n = strtol(p, NULL, 10);
                         fprintf(outfile, "    label_offsets[%d] = %d + (gen_code_ptr - gen_code_buf);\n", n, val - start_offset);
@@ -886,8 +936,9 @@ int load_elf(const char *filename, FILE *outfile, int do_print_enum)
     ElfW(Sym) *sym;
     char *shstr;
     uint8_t *text;
-    void *relocs;
-    int nb_relocs, reloc_sh_type;
+    ELF_RELOC *relocs;
+    int nb_relocs;
+    ELF_RELOC *rel;
     
     fd = open(filename, O_RDONLY);
     if (fd < 0) 
@@ -926,58 +977,45 @@ int load_elf(const char *filename, FILE *outfile, int do_print_enum)
         }
     }
 
-    sec = &shdr[ehdr.e_shstrndx];
-    shstr = load_data(fd, sec->sh_offset, sec->sh_size);
+    /* read all section data */
+    sdata = malloc(sizeof(void *) * ehdr.e_shnum);
+    memset(sdata, 0, sizeof(void *) * ehdr.e_shnum);
+    
+    for(i = 0;i < ehdr.e_shnum; i++) {
+        sec = &shdr[i];
+        if (sec->sh_type != SHT_NOBITS)
+            sdata[i] = load_data(fd, sec->sh_offset, sec->sh_size);
+    }
 
+    sec = &shdr[ehdr.e_shstrndx];
+    shstr = sdata[ehdr.e_shstrndx];
+
+    /* swap relocations */
+    for(i = 0; i < ehdr.e_shnum; i++) {
+        sec = &shdr[i];
+        if (sec->sh_type == SHT_RELOC) {
+            nb_relocs = sec->sh_size / sec->sh_entsize;
+            if (do_swap) {
+                for(j = 0, rel = (ELF_RELOC *)sdata[i]; j < nb_relocs; j++, rel++)
+                    elf_swap_rel(rel);
+            }
+        }
+    }
     /* text section */
 
     text_sec = find_elf_section(shdr, ehdr.e_shnum, shstr, ".text");
     if (!text_sec)
         error("could not find .text section");
-    text = load_data(fd, text_sec->sh_offset, text_sec->sh_size);
+    text_shndx = text_sec - shdr;
+    text = sdata[text_shndx];
 
-    data_shndx = -1;
-    sec = find_elf_section(shdr, ehdr.e_shnum, shstr, ".data");
-    if (sec) {
-        data_shndx = sec - shdr;
-        data_data = load_data(fd, sec->sh_offset, sec->sh_size);
-    }
-    sdata_shndx = -1;
-    sec = find_elf_section(shdr, ehdr.e_shnum, shstr, ".sdata");
-    if (sec) {
-        sdata_shndx = sec - shdr;
-        sdata_data = load_data(fd, sec->sh_offset, sec->sh_size);
-    }
-    
     /* find text relocations, if any */
-    nb_relocs = 0;
     relocs = NULL;
-    reloc_sh_type = 0;
-    for(i = 0; i < ehdr.e_shnum; i++) {
-        sec = &shdr[i];
-        if ((sec->sh_type == SHT_REL || sec->sh_type == SHT_RELA) &&
-            sec->sh_info == (text_sec - shdr)) {
-            reloc_sh_type = sec->sh_type;
-            relocs = load_data(fd, sec->sh_offset, sec->sh_size);
-            nb_relocs = sec->sh_size / sec->sh_entsize;
-            if (do_swap) {
-                if (sec->sh_type == SHT_REL) {
-                    ElfW(Rel) *rel = relocs;
-                    for(j = 0, rel = relocs; j < nb_relocs; j++, rel++) {
-                        swabls(&rel->r_offset);
-                        swabls(&rel->r_info);
-                    }
-                } else {
-                    ElfW(Rela) *rel = relocs;
-                    for(j = 0, rel = relocs; j < nb_relocs; j++, rel++) {
-                        swabls(&rel->r_offset);
-                        swabls(&rel->r_info);
-                        swabls(&rel->r_addend);
-                    }
-                }
-            }
-            break;
-        }
+    nb_relocs = 0;
+    i = find_reloc(text_shndx);
+    if (i != 0) {
+        relocs = (ELF_RELOC *)sdata[i];
+        nb_relocs = shdr[i].sh_size / shdr[i].sh_entsize;
     }
 
     symtab_sec = find_elf_section(shdr, ehdr.e_shnum, shstr, ".symtab");
@@ -985,8 +1023,8 @@ int load_elf(const char *filename, FILE *outfile, int do_print_enum)
         error("could not find .symtab section");
     strtab_sec = &shdr[symtab_sec->sh_link];
 
-    symtab = load_data(fd, symtab_sec->sh_offset, symtab_sec->sh_size);
-    strtab = load_data(fd, strtab_sec->sh_offset, strtab_sec->sh_size);
+    symtab = (ElfW(Sym) *)sdata[symtab_sec - shdr];
+    strtab = sdata[symtab_sec->sh_link];
     
     nb_syms = symtab_sec->sh_size / sizeof(ElfW(Sym));
     if (do_swap) {
@@ -1005,7 +1043,7 @@ int load_elf(const char *filename, FILE *outfile, int do_print_enum)
             name = strtab + sym->st_name;
             if (strstart(name, OP_PREFIX, &p)) {
                 gen_code(name, sym->st_value, sym->st_size, outfile, 
-                         text, relocs, nb_relocs, reloc_sh_type, 2);
+                         text, relocs, nb_relocs, 2);
             }
         }
     } else {
@@ -1071,7 +1109,7 @@ fprintf(outfile,
                 if (sym->st_shndx != (text_sec - shdr))
                     error("invalid section for opcode (0x%x)", sym->st_shndx);
                 gen_code(name, sym->st_value, sym->st_size, outfile, 
-                         text, relocs, nb_relocs, reloc_sh_type, 1);
+                         text, relocs, nb_relocs, 1);
             }
         }
 
@@ -1126,7 +1164,7 @@ fprintf(outfile,
                 if (sym->st_shndx != (text_sec - shdr))
                     error("invalid section for opcode (0x%x)", sym->st_shndx);
                 gen_code(name, sym->st_value, sym->st_size, outfile, 
-                         text, relocs, nb_relocs, reloc_sh_type, 0);
+                         text, relocs, nb_relocs, 0);
             }
         }
     }
