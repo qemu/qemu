@@ -268,6 +268,8 @@ void isa_unassign_ioport(int start, int length)
     }
 }
 
+/***********************************************************/
+
 void pstrcpy(char *buf, int buf_size, const char *str)
 {
     int c;
@@ -2064,7 +2066,7 @@ int qemu_loadvm(const char *filename)
 static void cpu_put_seg(QEMUFile *f, SegmentCache *dt)
 {
     qemu_put_be32(f, dt->selector);
-    qemu_put_be32(f, (uint32_t)dt->base);
+    qemu_put_betl(f, dt->base);
     qemu_put_be32(f, dt->limit);
     qemu_put_be32(f, dt->flags);
 }
@@ -2072,7 +2074,7 @@ static void cpu_put_seg(QEMUFile *f, SegmentCache *dt)
 static void cpu_get_seg(QEMUFile *f, SegmentCache *dt)
 {
     dt->selector = qemu_get_be32(f);
-    dt->base = (uint8_t *)qemu_get_be32(f);
+    dt->base = qemu_get_betl(f);
     dt->limit = qemu_get_be32(f);
     dt->flags = qemu_get_be32(f);
 }
@@ -2084,11 +2086,11 @@ void cpu_save(QEMUFile *f, void *opaque)
     uint32_t hflags;
     int i;
 
-    for(i = 0; i < 8; i++)
-        qemu_put_be32s(f, &env->regs[i]);
-    qemu_put_be32s(f, &env->eip);
-    qemu_put_be32s(f, &env->eflags);
-    qemu_put_be32s(f, &env->eflags);
+    for(i = 0; i < CPU_NB_REGS; i++)
+        qemu_put_betls(f, &env->regs[i]);
+    qemu_put_betls(f, &env->eip);
+    qemu_put_betls(f, &env->eflags);
+    qemu_put_betl(f, 0); /* XXX: suppress that */
     hflags = env->hflags; /* XXX: suppress most of the redundant hflags */
     qemu_put_be32s(f, &hflags);
     
@@ -2126,13 +2128,13 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_be32s(f, &env->sysenter_esp);
     qemu_put_be32s(f, &env->sysenter_eip);
     
-    qemu_put_be32s(f, &env->cr[0]);
-    qemu_put_be32s(f, &env->cr[2]);
-    qemu_put_be32s(f, &env->cr[3]);
-    qemu_put_be32s(f, &env->cr[4]);
+    qemu_put_betls(f, &env->cr[0]);
+    qemu_put_betls(f, &env->cr[2]);
+    qemu_put_betls(f, &env->cr[3]);
+    qemu_put_betls(f, &env->cr[4]);
     
     for(i = 0; i < 8; i++)
-        qemu_put_be32s(f, &env->dr[i]);
+        qemu_put_betls(f, &env->dr[i]);
 
     /* MMU */
     qemu_put_be32s(f, &env->a20_mask);
@@ -2147,11 +2149,11 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
 
     if (version_id != 2)
         return -EINVAL;
-    for(i = 0; i < 8; i++)
-        qemu_get_be32s(f, &env->regs[i]);
-    qemu_get_be32s(f, &env->eip);
-    qemu_get_be32s(f, &env->eflags);
-    qemu_get_be32s(f, &env->eflags);
+    for(i = 0; i < CPU_NB_REGS; i++)
+        qemu_get_betls(f, &env->regs[i]);
+    qemu_get_betls(f, &env->eip);
+    qemu_get_betls(f, &env->eflags);
+    qemu_get_betl(f); /* XXX: suppress that */
     qemu_get_be32s(f, &hflags);
 
     qemu_get_be16s(f, &fpuc);
@@ -2185,13 +2187,13 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_be32s(f, &env->sysenter_esp);
     qemu_get_be32s(f, &env->sysenter_eip);
     
-    qemu_get_be32s(f, &env->cr[0]);
-    qemu_get_be32s(f, &env->cr[2]);
-    qemu_get_be32s(f, &env->cr[3]);
-    qemu_get_be32s(f, &env->cr[4]);
+    qemu_get_betls(f, &env->cr[0]);
+    qemu_get_betls(f, &env->cr[2]);
+    qemu_get_betls(f, &env->cr[3]);
+    qemu_get_betls(f, &env->cr[4]);
     
     for(i = 0; i < 8; i++)
-        qemu_get_be32s(f, &env->dr[i]);
+        qemu_get_betls(f, &env->dr[i]);
 
     /* MMU */
     qemu_get_be32s(f, &env->a20_mask);
