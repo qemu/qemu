@@ -16,6 +16,8 @@
 # include <sys/bitypes.h>
 #endif
 
+#include <sys/time.h>
+
 #ifdef NEED_TYPEDEFS
 typedef char int8_t;
 typedef unsigned char u_int8_t;
