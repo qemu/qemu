@@ -72,4 +72,4 @@ test2:
         done
 
 clean:
-	rm -f *~ *.o $(TESTS)
+	rm -f *~ *.o test-i386.out test-i386.ref $(TESTS)
