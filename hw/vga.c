@@ -40,9 +40,6 @@
 #include <sys/wait.h>
 #include <netinet/in.h>
 
-#define NO_THUNK_TYPE_SIZE
-#include "thunk.h"
-
 #include "cpu.h"
 #include "exec-all.h"
 
@@ -260,9 +257,9 @@ static uint8_t expand4to8[16];
 VGAState vga_state;
 int vga_io_memory;
 
-static uint32_t vga_ioport_read(CPUState *env, uint32_t addr)
+static uint32_t vga_ioport_read(void *opaque, uint32_t addr)
 {
-    VGAState *s = &vga_state;
+    VGAState *s = opaque;
     int val, index;
 
     /* check port range access depending on color/monochrome mode */
@@ -356,9 +353,9 @@ static uint32_t vga_ioport_read(CPUState *env, uint32_t addr)
     return val;
 }
 
-static void vga_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
+static void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
-    VGAState *s = &vga_state;
+    VGAState *s = opaque;
     int index, v;
 
     /* check port range access depending on color/monochrome mode */
@@ -506,9 +503,9 @@ static void vga_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
 }
 
 #ifdef CONFIG_BOCHS_VBE
-static uint32_t vbe_ioport_read(CPUState *env, uint32_t addr)
+static uint32_t vbe_ioport_read(void *opaque, uint32_t addr)
 {
-    VGAState *s = &vga_state;
+    VGAState *s = opaque;
     uint32_t val;
 
     addr &= 1;
@@ -526,9 +523,9 @@ static uint32_t vbe_ioport_read(CPUState *env, uint32_t addr)
     return val;
 }
 
-static void vbe_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
+static void vbe_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
-    VGAState *s = &vga_state;
+    VGAState *s = opaque;
 
     addr &= 1;
     if (addr == 0) {
@@ -1519,40 +1516,14 @@ static void vga_draw_graphic(VGAState *s, int full_update)
     }
 }
 
-/* draw text terminal (very limited, just for simple boot debug
-   messages) */
-static int last_cursor_pos;
-
-void vga_draw_dumb(VGAState *s)
-{
-    int c, i, cursor_pos, eol;
-
-    cursor_pos = s->cr[0x0f] | (s->cr[0x0e] << 8);
-    eol = 0;
-    for(i = last_cursor_pos; i < cursor_pos; i++) {
-        /* XXX: should use vga RAM */
-        c = phys_ram_base[0xb8000 + (i) * 2];
-        if (c >= ' ') {
-            putchar(c);
-            eol = 0;
-        } else {
-            if (!eol)
-                putchar('\n');
-            eol = 1;
-        }
-    }
-    fflush(stdout);
-    last_cursor_pos = cursor_pos;
-}
-
 void vga_update_display(void)
 {
     VGAState *s = &vga_state;
     int full_update, graphic_mode;
 
     if (s->ds->depth == 0) {
-        vga_draw_dumb(s);
-    } else {
+        /* nothing to do */
+   } else {
         full_update = 0;
         graphic_mode = s->gr[6] & 1;
         if (graphic_mode != s->graphic_mode) {
@@ -1643,29 +1614,29 @@ int vga_initialize(DisplayState *ds, uint8_t *vga_ram_base,
     s->vram_size = vga_ram_size;
     s->ds = ds;
 
-    register_ioport_write(0x3c0, 16, vga_ioport_write, 1);
+    register_ioport_write(0x3c0, 16, 1, vga_ioport_write, s);
 
-    register_ioport_write(0x3b4, 2, vga_ioport_write, 1);
-    register_ioport_write(0x3d4, 2, vga_ioport_write, 1);
-    register_ioport_write(0x3ba, 1, vga_ioport_write, 1);
-    register_ioport_write(0x3da, 1, vga_ioport_write, 1);
+    register_ioport_write(0x3b4, 2, 1, vga_ioport_write, s);
+    register_ioport_write(0x3d4, 2, 1, vga_ioport_write, s);
+    register_ioport_write(0x3ba, 1, 1, vga_ioport_write, s);
+    register_ioport_write(0x3da, 1, 1, vga_ioport_write, s);
 
-    register_ioport_read(0x3c0, 16, vga_ioport_read, 1);
+    register_ioport_read(0x3c0, 16, 1, vga_ioport_read, s);
 
-    register_ioport_read(0x3b4, 2, vga_ioport_read, 1);
-    register_ioport_read(0x3d4, 2, vga_ioport_read, 1);
-    register_ioport_read(0x3ba, 1, vga_ioport_read, 1);
-    register_ioport_read(0x3da, 1, vga_ioport_read, 1);
+    register_ioport_read(0x3b4, 2, 1, vga_ioport_read, s);
+    register_ioport_read(0x3d4, 2, 1, vga_ioport_read, s);
+    register_ioport_read(0x3ba, 1, 1, vga_ioport_read, s);
+    register_ioport_read(0x3da, 1, 1, vga_ioport_read, s);
     s->bank_offset = -0xa0000;
 
 #ifdef CONFIG_BOCHS_VBE
     s->vbe_regs[VBE_DISPI_INDEX_ID] = VBE_DISPI_ID0;
     s->vbe_bank_mask = ((s->vram_size >> 16) - 1);
-    register_ioport_read(0x1ce, 1, vbe_ioport_read, 2);
-    register_ioport_read(0x1cf, 1, vbe_ioport_read, 2);
+    register_ioport_read(0x1ce, 1, 2, vbe_ioport_read, s);
+    register_ioport_read(0x1cf, 1, 2, vbe_ioport_read, s);
 
-    register_ioport_write(0x1ce, 1, vbe_ioport_write, 2);
-    register_ioport_write(0x1cf, 1, vbe_ioport_write, 2);
+    register_ioport_write(0x1ce, 1, 2, vbe_ioport_write, s);
+    register_ioport_write(0x1cf, 1, 2, vbe_ioport_write, s);
 #endif
 
     vga_io_memory = cpu_register_io_memory(0, vga_mem_read, vga_mem_write);
