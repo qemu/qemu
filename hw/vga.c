@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "vl.h"
+#include "vga_int.h"
 
 //#define DEBUG_VGA
 //#define DEBUG_VGA_MEM
@@ -33,96 +34,8 @@
 /* S3 VGA is deprecated - another graphic card will be emulated */
 //#define CONFIG_S3VGA
 
-#define MSR_COLOR_EMULATION 0x01
-#define MSR_PAGE_SELECT     0x20
-
-#define ST01_V_RETRACE      0x08
-#define ST01_DISP_ENABLE    0x01
-
-/* bochs VBE support */
-#define CONFIG_BOCHS_VBE
-
-#define VBE_DISPI_MAX_XRES              1024
-#define VBE_DISPI_MAX_YRES              768
-
-#define VBE_DISPI_INDEX_ID              0x0
-#define VBE_DISPI_INDEX_XRES            0x1
-#define VBE_DISPI_INDEX_YRES            0x2
-#define VBE_DISPI_INDEX_BPP             0x3
-#define VBE_DISPI_INDEX_ENABLE          0x4
-#define VBE_DISPI_INDEX_BANK            0x5
-#define VBE_DISPI_INDEX_VIRT_WIDTH      0x6
-#define VBE_DISPI_INDEX_VIRT_HEIGHT     0x7
-#define VBE_DISPI_INDEX_X_OFFSET        0x8
-#define VBE_DISPI_INDEX_Y_OFFSET        0x9
-#define VBE_DISPI_INDEX_NB              0xa
-      
-#define VBE_DISPI_ID0                   0xB0C0
-#define VBE_DISPI_ID1                   0xB0C1
-#define VBE_DISPI_ID2                   0xB0C2
-  
-#define VBE_DISPI_DISABLED              0x00
-#define VBE_DISPI_ENABLED               0x01
-#define VBE_DISPI_LFB_ENABLED           0x40
-#define VBE_DISPI_NOCLEARMEM            0x80
-  
-#define VBE_DISPI_LFB_PHYSICAL_ADDRESS  0xE0000000
-
-typedef struct VGAState {
-    uint8_t *vram_ptr;
-    unsigned long vram_offset;
-    unsigned int vram_size;
-    uint32_t latch;
-    uint8_t sr_index;
-    uint8_t sr[8];
-    uint8_t gr_index;
-    uint8_t gr[16];
-    uint8_t ar_index;
-    uint8_t ar[21];
-    int ar_flip_flop;
-    uint8_t cr_index;
-    uint8_t cr[256]; /* CRT registers */
-    uint8_t msr; /* Misc Output Register */
-    uint8_t fcr; /* Feature Control Register */
-    uint8_t st00; /* status 0 */
-    uint8_t st01; /* status 1 */
-    uint8_t dac_state;
-    uint8_t dac_sub_index;
-    uint8_t dac_read_index;
-    uint8_t dac_write_index;
-    uint8_t dac_cache[3]; /* used when writing */
-    uint8_t palette[768];
-    int32_t bank_offset;
-#ifdef CONFIG_BOCHS_VBE
-    uint16_t vbe_index;
-    uint16_t vbe_regs[VBE_DISPI_INDEX_NB];
-    uint32_t vbe_start_addr;
-    uint32_t vbe_line_offset;
-    uint32_t vbe_bank_mask;
-#endif
-    /* display refresh support */
-    DisplayState *ds;
-    uint32_t font_offsets[2];
-    int graphic_mode;
-    uint8_t shift_control;
-    uint8_t double_scan;
-    uint32_t line_offset;
-    uint32_t line_compare;
-    uint32_t start_addr;
-    uint8_t last_cw, last_ch;
-    uint32_t last_width, last_height; /* in chars or pixels */
-    uint32_t last_scr_width, last_scr_height; /* in pixels */
-    uint8_t cursor_start, cursor_end;
-    uint32_t cursor_offset;
-    unsigned int (*rgb_to_pixel)(unsigned int r, unsigned int g, unsigned b);
-    /* tell for each page if it has been updated since the last time */
-    uint32_t last_palette[256];
-#define CH_ATTR_SIZE (160 * 100)
-    uint32_t last_ch_attr[CH_ATTR_SIZE]; /* XXX: make it dynamic */
-} VGAState;
-
 /* force some bits to zero */
-static const uint8_t sr_mask[8] = {
+const uint8_t sr_mask[8] = {
     (uint8_t)~0xfc,
     (uint8_t)~0xc2,
     (uint8_t)~0xf0,
@@ -133,7 +46,7 @@ static const uint8_t sr_mask[8] = {
     (uint8_t)~0x00,
 };
 
-static const uint8_t gr_mask[16] = {
+const uint8_t gr_mask[16] = {
     (uint8_t)~0xf0, /* 0x00 */
     (uint8_t)~0xf0, /* 0x01 */
     (uint8_t)~0xf0, /* 0x02 */
@@ -656,7 +569,7 @@ static void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val)
 #endif
 
 /* called for accesses between 0xa0000 and 0xc0000 */
-static uint32_t vga_mem_readb(void *opaque, target_phys_addr_t addr)
+uint32_t vga_mem_readb(void *opaque, target_phys_addr_t addr)
 {
     VGAState *s = opaque;
     int memory_map_mode, plane;
@@ -743,7 +656,7 @@ static uint32_t vga_mem_readl(void *opaque, target_phys_addr_t addr)
 }
 
 /* called for accesses between 0xa0000 and 0xc0000 */
-static void vga_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
+void vga_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     VGAState *s = opaque;
     int memory_map_mode, plane, write_mode, b, func_select;
@@ -1027,14 +940,11 @@ static int update_palette256(VGAState *s)
     return full_update;
 }
 
-/* update start_addr and line_offset. Return TRUE if modified */
-static int update_basic_params(VGAState *s)
+static void vga_get_offsets(VGAState *s, 
+                            uint32_t *pline_offset, 
+                            uint32_t *pstart_addr)
 {
-    int full_update;
-    uint32_t start_addr, line_offset, line_compare;
-    
-    full_update = 0;
-
+    uint32_t start_addr, line_offset;
 #ifdef CONFIG_BOCHS_VBE
     if (s->vbe_regs[VBE_DISPI_INDEX_ENABLE] & VBE_DISPI_ENABLED) {
         line_offset = s->vbe_line_offset;
@@ -1061,7 +971,19 @@ static int update_basic_params(VGAState *s)
         start_addr |= (s->cr[0x69] & 0x1f) << 16; /* S3 extension */
 #endif
     }
+    *pline_offset = line_offset;
+    *pstart_addr = start_addr;
+}
+
+/* update start_addr and line_offset. Return TRUE if modified */
+static int update_basic_params(VGAState *s)
+{
+    int full_update;
+    uint32_t start_addr, line_offset, line_compare;
     
+    full_update = 0;
+
+    s->get_offsets(s, &line_offset, &start_addr);
     /* line compare */
     line_compare = s->cr[0x18] | 
         ((s->cr[0x07] & 0x10) << 4) |
@@ -1373,6 +1295,20 @@ static vga_draw_line_func *vga_draw_line_table[4 * VGA_DRAW_LINE_NB] = {
     vga_draw_line32_32,
 };
 
+static int vga_get_bpp(VGAState *s)
+{
+    int ret;
+#ifdef CONFIG_BOCHS_VBE
+    if (s->vbe_regs[VBE_DISPI_INDEX_ENABLE] & VBE_DISPI_ENABLED) {
+        ret = s->vbe_regs[VBE_DISPI_INDEX_BPP];
+    } else 
+#endif
+    {
+        ret = 0;
+    }
+    return ret;
+}
+
 /* 
  * graphic modes
  * Missing:
@@ -1429,32 +1365,28 @@ static void vga_draw_graphic(VGAState *s, int full_update)
             v = VGA_DRAW_LINE2;
         }
     } else {
-#ifdef CONFIG_BOCHS_VBE
-        if (s->vbe_regs[VBE_DISPI_INDEX_ENABLE] & VBE_DISPI_ENABLED) {
-            switch(s->vbe_regs[VBE_DISPI_INDEX_BPP]) {
-            default:
-            case 8:
-                full_update |= update_palette256(s);
-                v = VGA_DRAW_LINE8;
-                break;
-            case 15:
-                v = VGA_DRAW_LINE15;
-                break;
-            case 16:
-                v = VGA_DRAW_LINE16;
-                break;
-            case 24:
-                v = VGA_DRAW_LINE24;
-                break;
-            case 32:
-                v = VGA_DRAW_LINE32;
-                break;
-            }
-        } else 
-#endif
-        {
+        switch(s->get_bpp(s)) {
+        default:
+        case 0:
             full_update |= update_palette256(s);
             v = VGA_DRAW_LINE8D2;
+            break;
+        case 8:
+            full_update |= update_palette256(s);
+            v = VGA_DRAW_LINE8;
+            break;
+        case 15:
+            v = VGA_DRAW_LINE15;
+            break;
+        case 16:
+            v = VGA_DRAW_LINE16;
+            break;
+        case 24:
+            v = VGA_DRAW_LINE24;
+            break;
+        case 32:
+            v = VGA_DRAW_LINE32;
+            break;
         }
     }
     vga_draw_line = vga_draw_line_table[v * 4 + get_depth_index(s->ds->depth)];
@@ -1747,11 +1679,9 @@ static void vga_map(PCIDevice *pci_dev, int region_num,
     cpu_register_physical_memory(addr, s->vram_size, s->vram_offset);
 }
 
-int vga_initialize(DisplayState *ds, uint8_t *vga_ram_base, 
-                   unsigned long vga_ram_offset, int vga_ram_size, 
-                   int is_pci)
+void vga_common_init(VGAState *s, DisplayState *ds, uint8_t *vga_ram_base, 
+                     unsigned long vga_ram_offset, int vga_ram_size)
 {
-    VGAState *s = &vga_state;
     int i, j, v, b;
 
     for(i = 0;i < 256; i++) {
@@ -1783,6 +1713,18 @@ int vga_initialize(DisplayState *ds, uint8_t *vga_ram_base,
     s->vram_offset = vga_ram_offset;
     s->vram_size = vga_ram_size;
     s->ds = ds;
+    s->get_bpp = vga_get_bpp;
+    s->get_offsets = vga_get_offsets;
+}
+
+
+int vga_initialize(DisplayState *ds, uint8_t *vga_ram_base, 
+                   unsigned long vga_ram_offset, int vga_ram_size, 
+                   int is_pci)
+{
+    VGAState *s = &vga_state;
+
+    vga_common_init(s, ds, vga_ram_base, vga_ram_offset, vga_ram_size);
 
     register_savevm("vga", 0, 1, vga_save, vga_load, s);
 
