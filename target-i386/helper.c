@@ -1679,7 +1679,7 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
                        ss_e2);
         cpu_x86_set_cpl(env, rpl);
         sp = new_esp;
-        /* XXX: change sp_mask according to old segment ? */
+        sp_mask = get_sp_mask(ss_e2);
 
         /* validate data segments */
         validate_seg(R_ES, cpl);
