@@ -114,18 +114,19 @@ static inline void tswap64s(uint64_t *s)
 #define tswapls(s) tswap64s((uint64_t *)(s))
 #endif
 
-/* NOTE: arm is horrible as double 32 bit words are stored in big endian ! */
+/* NOTE: arm FPA is horrible as double 32 bit words are stored in big
+   endian ! */
 typedef union {
     double d;
-#if !defined(WORDS_BIGENDIAN) && !defined(__arm__)
+#if defined(WORDS_BIGENDIAN) || (defined(__arm__) && !defined(__VFP_FP__))
     struct {
-        uint32_t lower;
         uint32_t upper;
+        uint32_t lower;
     } l;
 #else
     struct {
-        uint32_t upper;
         uint32_t lower;
+        uint32_t upper;
     } l;
 #endif
     uint64_t ll;
