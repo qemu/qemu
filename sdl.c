@@ -42,8 +42,8 @@
 
 #include <SDL.h>
 
-#include "cpu-i386.h"
-#include "exec.h"
+#include "cpu.h"
+#include "exec-all.h"
 
 #include "vl.h"
 
@@ -264,6 +264,10 @@ void sdl_display_init(DisplayState *ds)
         fprintf(stderr, "Could not initialize SDL - exiting\n");
         exit(1);
     }
+    /* NOTE: we still want Ctrl-C to work, so we undo the SDL redirections */
+    signal(SIGINT, SIG_DFL);
+    signal(SIGQUIT, SIG_DFL);
+
     ds->dpy_update = sdl_update;
     ds->dpy_resize = sdl_resize;
     ds->dpy_refresh = sdl_refresh;
