@@ -1161,6 +1161,12 @@ tar zxvf qemu-x.y.z.tar.gz
 cd qemu-x.y.z
 @end example
 
+If you want to use the optional QEMU Accelerator Module, then download
+it and install it in qemu-x.y.z/:
+@example
+tar zxvf /tmp/kqemu-x.y.z.tar.gz
+@end example
+
 Then you configure QEMU and build it (usually no options are needed):
 @example
 ./configure
@@ -1226,7 +1232,7 @@ following in @file{/etc/rc.d/rc.local}:
 
 @example
 # Create the KQEMU device
-mknod /dev/kqemu c 254 0
+mknod /dev/kqemu c 250 0
 chmod 666 /dev/kqemu
 @end example
 
