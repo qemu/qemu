@@ -241,12 +241,9 @@ VL_OBJS+= fdc.o mc146818rtc.o serial.o i8259.o i8254.o pc.o
 VL_OBJS+= cirrus_vga.o
 endif
 ifeq ($(TARGET_ARCH), ppc)
-# Generic PPC support
-VL_OBJS+= ppc.o
-# PREP hardware support
-VL_OBJS+= ide.o ne2000.o pckbd.o vga.o sb16.o dma.o oss.o
+VL_OBJS+= ppc.o ide.o ne2000.o pckbd.o vga.o sb16.o dma.o oss.o
 VL_OBJS+= mc146818rtc.o serial.o i8259.o i8254.o fdc.o m48t59.o
-VL_OBJS+= ppc_prep.o ppc_chrp.o cuda.o adb.o
+VL_OBJS+= ppc_prep.o ppc_chrp.o cuda.o adb.o openpic.o
 endif
 ifdef CONFIG_GDBSTUB
 VL_OBJS+=gdbstub.o 
