@@ -599,10 +599,21 @@ int cpu_register_io_memory(int io_index,
                            CPUReadMemoryFunc **mem_read,
                            CPUWriteMemoryFunc **mem_write);
 
-void cpu_physical_memory_rw(CPUState *env, uint8_t *buf, target_ulong addr, 
+void cpu_physical_memory_rw(target_ulong addr, uint8_t *buf,
                             int len, int is_write);
-int cpu_memory_rw_debug(CPUState *env, 
-                        uint8_t *buf, target_ulong addr, int len, int is_write);
+static inline void cpu_physical_memory_read(target_ulong addr, uint8_t *buf,
+                                            int len)
+{
+    cpu_physical_memory_rw(addr, buf, len, 0);
+}
+static inline void cpu_physical_memory_write(target_ulong addr, const uint8_t *buf,
+                                            int len)
+{
+    cpu_physical_memory_rw(addr, (uint8_t *)buf, len, 1);
+}
+
+int cpu_memory_rw_debug(CPUState *env, target_ulong addr, 
+                        uint8_t *buf, int len, int is_write);
 
 /* read dirty bit (return 0 or 1) */
 static inline int cpu_physical_memory_is_dirty(target_ulong addr)

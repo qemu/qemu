@@ -472,7 +472,7 @@ int cpu_gdbstub(void *opaque, int (*main_loop)(void *opaque), int port)
             if (*p == ',')
                 p++;
             len = strtoul(p, NULL, 16);
-            if (cpu_memory_rw_debug(env, mem_buf, addr, len, 0) != 0)
+            if (cpu_memory_rw_debug(env, addr, mem_buf, len, 0) != 0)
                 memset(mem_buf, 0, len);
             memtohex(buf, mem_buf, len);
             put_packet(buf);
@@ -486,7 +486,7 @@ int cpu_gdbstub(void *opaque, int (*main_loop)(void *opaque), int port)
             if (*p == ',')
                 p++;
             hextomem(mem_buf, p, len);
-            if (cpu_memory_rw_debug(env, mem_buf, addr, len, 1) != 0)
+            if (cpu_memory_rw_debug(env, addr, mem_buf, len, 1) != 0)
                 put_packet("ENN");
             else
                 put_packet("OK");
