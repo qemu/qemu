@@ -512,7 +512,7 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
 
 //    printf("%s 0\n", __func__);
     is_user = flags & 0x01;
-    access_type = flags & ~0x01;
+    access_type = env->access_type;
     if (env->user_mode_only) {
         /* user mode only emulation */
         ret = -1;

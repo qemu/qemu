@@ -153,6 +153,8 @@ typedef struct CPUPPCState {
     jmp_buf jmp_env;
     int exception_index;
     int error_code;
+    int access_type; /* when a memory exception occurs, the access
+                        type is stored here */
     uint32_t exceptions; /* exception queue */
     uint32_t errors[16];
     int user_mode_only; /* user mode only simulation */
