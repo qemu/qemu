@@ -24,9 +24,9 @@
 #include "vl.h"
 #include "m48t59.h"
 
-//#define NVRAM_DEBUG
+//#define DEBUG_NVRAM
 
-#if defined(NVRAM_DEBUG)
+#if defined(DEBUG_NVRAM)
 #define NVRAM_PRINTF(fmt, args...) do { printf(fmt , ##args); } while (0)
 #else
 #define NVRAM_PRINTF(fmt, args...) do { } while (0)
@@ -45,6 +45,7 @@ struct m48t59_t {
     struct QEMUTimer *alrm_timer;
     struct QEMUTimer *wd_timer;
     /* NVRAM storage */
+    uint8_t  lock;
     uint16_t addr;
     uint8_t *buffer;
 };
@@ -152,7 +153,10 @@ static void watchdog_cb (void *opaque)
     if (NVRAM->buffer[0x1FF7] & 0x80) {
 	NVRAM->buffer[0x1FF7] = 0x00;
 	NVRAM->buffer[0x1FFC] &= ~0x40;
-	//	reset_CPU();
+        /* May it be a hw CPU Reset instead ? */
+        reset_requested = 1;
+        printf("Watchdog reset...\n");
+        cpu_interrupt(cpu_single_env, CPU_INTERRUPT_EXIT);
     } else {
 	pic_set_irq(NVRAM->IRQ, 1);
 	pic_set_irq(NVRAM->IRQ, 0);
@@ -315,6 +319,11 @@ void m48t59_write (m48t59_t *NVRAM, uint32_t val)
 	}
         break;
     default:
+        /* Check lock registers state */
+        if (NVRAM->addr >= 0x20 && NVRAM->addr <= 0x2F && (NVRAM->lock & 1))
+            break;
+        if (NVRAM->addr >= 0x30 && NVRAM->addr <= 0x3F && (NVRAM->lock & 2))
+            break;
         if (NVRAM->addr < 0x1FF0 ||
 	    (NVRAM->addr > 0x1FFF && NVRAM->addr < NVRAM->size)) {
             NVRAM->buffer[NVRAM->addr] = val & 0xFF;
@@ -394,6 +403,11 @@ uint32_t m48t59_read (m48t59_t *NVRAM)
         retval = toBCD(tm.tm_year);
         break;
     default:
+        /* Check lock registers state */
+        if (NVRAM->addr >= 0x20 && NVRAM->addr <= 0x2F && (NVRAM->lock & 1))
+            break;
+        if (NVRAM->addr >= 0x30 && NVRAM->addr <= 0x3F && (NVRAM->lock & 2))
+            break;
         if (NVRAM->addr < 0x1FF0 ||
 	    (NVRAM->addr > 0x1FFF && NVRAM->addr < NVRAM->size)) {
 	do_read:
@@ -412,12 +426,18 @@ void m48t59_set_addr (m48t59_t *NVRAM, uint32_t addr)
     NVRAM->addr = addr;
 }
 
+void m48t59_toggle_lock (m48t59_t *NVRAM, int lock)
+{
+    NVRAM->lock ^= 1 << lock;
+}
+
 /* IO access to NVRAM */
 static void NVRAM_writeb (void *opaque, uint32_t addr, uint32_t val)
 {
     m48t59_t *NVRAM = opaque;
 
     addr -= NVRAM->io_base;
+    NVRAM_PRINTF("0x%08x => 0x%08x\n", addr, val);
     switch (addr) {
     case 0:
         NVRAM->addr &= ~0x00FF;
@@ -439,11 +459,20 @@ static void NVRAM_writeb (void *opaque, uint32_t addr, uint32_t val)
 static uint32_t NVRAM_readb (void *opaque, uint32_t addr)
 {
     m48t59_t *NVRAM = opaque;
+    uint32_t retval;
 
-    if (addr == NVRAM->io_base + 3)
-        return m48t59_read(NVRAM);
+    addr -= NVRAM->io_base;
+    switch (addr) {
+    case 3:
+        retval = m48t59_read(NVRAM);
+        break;
+    default:
+        retval = -1;
+        break;
+    }
+    NVRAM_PRINTF("0x%08x <= 0x%08x\n", addr, retval);
 
-    return 0xFF;
+    return retval;
 }
 
 /* Initialisation routine */
@@ -467,5 +496,7 @@ m48t59_t *m48t59_init (int IRQ, uint32_t io_base, uint16_t size)
     register_ioport_write(io_base, 0x04, 1, NVRAM_writeb, s);
     s->alrm_timer = qemu_new_timer(vm_clock, &alarm_cb, s);
     s->wd_timer = qemu_new_timer(vm_clock, &watchdog_cb, s);
+    s->lock = 0;
+
     return s;
 }
