@@ -232,7 +232,7 @@ ifeq ($(ARCH),alpha)
 endif
 
 # must use static linking to avoid leaving stuff in virtual address space
-VL_OBJS=vl.o osdep.o block.o monitor.o pci.o pci2isa.o
+VL_OBJS=vl.o osdep.o block.o monitor.o pci.o
 
 ifeq ($(TARGET_ARCH), i386)
 # Hardware support
