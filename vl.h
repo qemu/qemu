@@ -31,15 +31,15 @@ extern int reset_requested;
 extern int64_t ticks_per_sec;
 extern int pit_min_timer_count;
 
-typedef void (IOPortWriteFunc)(struct CPUState *env, uint32_t address, uint32_t data);
-typedef uint32_t (IOPortReadFunc)(struct CPUState *env, uint32_t address);
+typedef void (IOPortWriteFunc)(void *opaque, uint32_t address, uint32_t data);
+typedef uint32_t (IOPortReadFunc)(void *opaque, uint32_t address);
 
-int register_ioport_read(int start, int length, IOPortReadFunc *func, int size);
-int register_ioport_write(int start, int length, IOPortWriteFunc *func, int size);
+int register_ioport_read(int start, int length, int size, 
+                         IOPortReadFunc *func, void *opaque);
+int register_ioport_write(int start, int length, int size, 
+                          IOPortWriteFunc *func, void *opaque);
 int64_t cpu_get_ticks(void);
 uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c);
-
-void net_send_packet(int net_fd, const uint8_t *buf, int size);
 
 void hw_error(const char *fmt, ...);
 
@@ -49,10 +49,37 @@ extern const char *bios_dir;
 void pstrcpy(char *buf, int buf_size, const char *str);
 char *pstrcat(char *buf, int buf_size, const char *s);
 
+int serial_open_device(void);
+
+/* network redirectors support */
+
+#define MAX_NICS 8
+
+typedef struct NetDriverState {
+    int fd;
+    uint8_t macaddr[6];
+    char ifname[16];
+} NetDriverState;
+
+extern int nb_nics;
+extern NetDriverState nd_table[MAX_NICS];
+
+void net_send_packet(NetDriverState *nd, const uint8_t *buf, int size);
+
+/* async I/O support */
+
+typedef void IOReadHandler(void *opaque, const uint8_t *buf, int size);
+typedef int IOCanRWHandler(void *opaque);
+
+int add_fd_read_handler(int fd, IOCanRWHandler *fd_can_read, 
+                        IOReadHandler *fd_read, void *opaque);
+
 /* block.c */
 typedef struct BlockDriverState BlockDriverState;
 
-BlockDriverState *bdrv_open(const char *filename, int snapshot);
+BlockDriverState *bdrv_new(const char *device_name);
+void bdrv_delete(BlockDriverState *bs);
+int bdrv_open(BlockDriverState *bs, const char *filename, int snapshot);
 void bdrv_close(BlockDriverState *bs);
 int bdrv_read(BlockDriverState *bs, int64_t sector_num, 
               uint8_t *buf, int nb_sectors);
@@ -61,6 +88,27 @@ int bdrv_write(BlockDriverState *bs, int64_t sector_num,
 void bdrv_get_geometry(BlockDriverState *bs, int64_t *nb_sectors_ptr);
 int bdrv_commit(BlockDriverState *bs);
 void bdrv_set_boot_sector(BlockDriverState *bs, const uint8_t *data, int size);
+
+#define BDRV_TYPE_HD     0
+#define BDRV_TYPE_CDROM  1
+#define BDRV_TYPE_FLOPPY 2
+
+void bdrv_set_geometry_hint(BlockDriverState *bs, 
+                            int cyls, int heads, int secs);
+void bdrv_set_type_hint(BlockDriverState *bs, int type);
+void bdrv_get_geometry_hint(BlockDriverState *bs, 
+                            int *pcyls, int *pheads, int *psecs);
+int bdrv_get_type_hint(BlockDriverState *bs);
+int bdrv_is_removable(BlockDriverState *bs);
+int bdrv_is_read_only(BlockDriverState *bs);
+int bdrv_is_inserted(BlockDriverState *bs);
+int bdrv_is_locked(BlockDriverState *bs);
+void bdrv_set_locked(BlockDriverState *bs, int locked);
+void bdrv_set_change_cb(BlockDriverState *bs, 
+                        void (*change_cb)(void *opaque), void *opaque);
+
+void bdrv_info(void);
+BlockDriverState *bdrv_find(const char *name);
 
 /* vga.c */
 
@@ -97,9 +145,8 @@ void sdl_display_init(DisplayState *ds);
 
 extern BlockDriverState *bs_table[MAX_DISKS];
 
-void ide_init(void);
-void ide_set_geometry(int n, int cyls, int heads, int secs);
-void ide_set_cdrom(int n, int is_cdrom);
+void ide_init(int iobase, int iobase2, int irq,
+              BlockDriverState *hd0, BlockDriverState *hd1);
 
 /* oss.c */
 typedef enum {
@@ -138,20 +185,13 @@ void SB16_init (void);
 #define MAX_FD 2
 extern BlockDriverState *fd_table[MAX_FD];
 
-void cmos_register_fd (uint8_t fd0, uint8_t fd1);
 void fdctrl_init (int irq_lvl, int dma_chann, int mem_mapped, uint32_t base,
-                  char boot_device);
-int fdctrl_disk_change (int idx, const unsigned char *filename, int ro);
+                  BlockDriverState **fds);
+int fdctrl_get_drive_type(int drive_num);
 
 /* ne2000.c */
 
-#define MAX_ETH_FRAME_SIZE 1514
-
-void ne2000_init(int base, int irq);
-int ne2000_can_receive(void);
-void ne2000_receive(uint8_t *buf, int size);
-
-extern int net_fd;
+void ne2000_init(int base, int irq, NetDriverState *nd);
 
 /* pckbd.c */
 
@@ -179,10 +219,14 @@ void rtc_timer(void);
 
 /* serial.c */
 
-void serial_init(int base, int irq);
-int serial_can_receive(void);
-void serial_receive_byte(int ch);
-void serial_receive_break(void);
+typedef struct SerialState SerialState;
+
+extern SerialState *serial_console;
+
+SerialState *serial_init(int base, int irq, int fd);
+int serial_can_receive(SerialState *s);
+void serial_receive_byte(SerialState *s, int ch);
+void serial_receive_break(SerialState *s);
 
 /* i8259.c */
 
@@ -206,7 +250,7 @@ typedef struct PITChannelState {
 
 extern PITChannelState pit_channels[3];
 
-void pit_init(void);
+void pit_init(int base);
 void pit_set_gate(PITChannelState *s, int val);
 int pit_get_out(PITChannelState *s);
 int pit_get_out_edges(PITChannelState *s);
@@ -216,5 +260,11 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
              DisplayState *ds, const char **fd_filename, int snapshot,
              const char *kernel_filename, const char *kernel_cmdline,
              const char *initrd_filename);
+
+/* monitor.c */
+void monitor_init(void);
+void term_printf(const char *fmt, ...);
+void term_flush(void);
+void term_print_help(void);
 
 #endif /* VL_H */

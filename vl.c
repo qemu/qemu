@@ -39,6 +39,7 @@
 #include <sys/poll.h>
 #include <errno.h>
 #include <sys/wait.h>
+#include <pty.h>
 
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -81,6 +82,7 @@ const char *bios_dir = CONFIG_QEMU_SHAREDIR;
 char phys_ram_file[1024];
 CPUState *global_env;
 CPUState *cpu_single_env;
+void *ioport_opaque[MAX_IOPORTS];
 IOPortReadFunc *ioport_read_table[3][MAX_IOPORTS];
 IOPortWriteFunc *ioport_write_table[3][MAX_IOPORTS];
 BlockDriverState *bs_table[MAX_DISKS], *fd_table[MAX_FD];
@@ -93,11 +95,14 @@ int boot_device = 'c';
 static int ram_size;
 static char network_script[1024];
 int pit_min_timer_count = 0;
+int nb_nics;
+NetDriverState nd_table[MAX_NICS];
+SerialState *serial_console;
 
 /***********************************************************/
 /* x86 io ports */
 
-uint32_t default_ioport_readb(CPUState *env, uint32_t address)
+uint32_t default_ioport_readb(void *opaque, uint32_t address)
 {
 #ifdef DEBUG_UNUSED_IOPORT
     fprintf(stderr, "inb: port=0x%04x\n", address);
@@ -105,7 +110,7 @@ uint32_t default_ioport_readb(CPUState *env, uint32_t address)
     return 0xff;
 }
 
-void default_ioport_writeb(CPUState *env, uint32_t address, uint32_t data)
+void default_ioport_writeb(void *opaque, uint32_t address, uint32_t data)
 {
 #ifdef DEBUG_UNUSED_IOPORT
     fprintf(stderr, "outb: port=0x%04x data=0x%02x\n", address, data);
@@ -113,21 +118,21 @@ void default_ioport_writeb(CPUState *env, uint32_t address, uint32_t data)
 }
 
 /* default is to make two byte accesses */
-uint32_t default_ioport_readw(CPUState *env, uint32_t address)
+uint32_t default_ioport_readw(void *opaque, uint32_t address)
 {
     uint32_t data;
-    data = ioport_read_table[0][address & (MAX_IOPORTS - 1)](env, address);
-    data |= ioport_read_table[0][(address + 1) & (MAX_IOPORTS - 1)](env, address + 1) << 8;
+    data = ioport_read_table[0][address & (MAX_IOPORTS - 1)](opaque, address);
+    data |= ioport_read_table[0][(address + 1) & (MAX_IOPORTS - 1)](opaque, address + 1) << 8;
     return data;
 }
 
-void default_ioport_writew(CPUState *env, uint32_t address, uint32_t data)
+void default_ioport_writew(void *opaque, uint32_t address, uint32_t data)
 {
-    ioport_write_table[0][address & (MAX_IOPORTS - 1)](env, address, data & 0xff);
-    ioport_write_table[0][(address + 1) & (MAX_IOPORTS - 1)](env, address + 1, (data >> 8) & 0xff);
+    ioport_write_table[0][address & (MAX_IOPORTS - 1)](opaque, address, data & 0xff);
+    ioport_write_table[0][(address + 1) & (MAX_IOPORTS - 1)](opaque, address + 1, (data >> 8) & 0xff);
 }
 
-uint32_t default_ioport_readl(CPUState *env, uint32_t address)
+uint32_t default_ioport_readl(void *opaque, uint32_t address)
 {
 #ifdef DEBUG_UNUSED_IOPORT
     fprintf(stderr, "inl: port=0x%04x\n", address);
@@ -135,7 +140,7 @@ uint32_t default_ioport_readl(CPUState *env, uint32_t address)
     return 0xffffffff;
 }
 
-void default_ioport_writel(CPUState *env, uint32_t address, uint32_t data)
+void default_ioport_writel(void *opaque, uint32_t address, uint32_t data)
 {
 #ifdef DEBUG_UNUSED_IOPORT
     fprintf(stderr, "outl: port=0x%04x data=0x%02x\n", address, data);
@@ -157,38 +162,52 @@ void init_ioports(void)
 }
 
 /* size is the word size in byte */
-int register_ioport_read(int start, int length, IOPortReadFunc *func, int size)
+int register_ioport_read(int start, int length, int size, 
+                         IOPortReadFunc *func, void *opaque)
 {
     int i, bsize;
 
-    if (size == 1)
+    if (size == 1) {
         bsize = 0;
-    else if (size == 2)
+    } else if (size == 2) {
         bsize = 1;
-    else if (size == 4)
+    } else if (size == 4) {
         bsize = 2;
-    else
+    } else {
+        hw_error("register_ioport_read: invalid size");
         return -1;
-    for(i = start; i < start + length; i += size)
+    }
+    for(i = start; i < start + length; i += size) {
         ioport_read_table[bsize][i] = func;
+        if (ioport_opaque[i] != NULL && ioport_opaque[i] != opaque)
+            hw_error("register_ioport_read: invalid opaque");
+        ioport_opaque[i] = opaque;
+    }
     return 0;
 }
 
 /* size is the word size in byte */
-int register_ioport_write(int start, int length, IOPortWriteFunc *func, int size)
+int register_ioport_write(int start, int length, int size, 
+                          IOPortWriteFunc *func, void *opaque)
 {
     int i, bsize;
 
-    if (size == 1)
+    if (size == 1) {
         bsize = 0;
-    else if (size == 2)
+    } else if (size == 2) {
         bsize = 1;
-    else if (size == 4)
+    } else if (size == 4) {
         bsize = 2;
-    else
+    } else {
+        hw_error("register_ioport_write: invalid size");
         return -1;
-    for(i = start; i < start + length; i += size)
+    }
+    for(i = start; i < start + length; i += size) {
         ioport_write_table[bsize][i] = func;
+        if (ioport_opaque[i] != NULL && ioport_opaque[i] != opaque)
+            hw_error("register_ioport_read: invalid opaque");
+        ioport_opaque[i] = opaque;
+    }
     return 0;
 }
 
@@ -238,32 +257,38 @@ int load_image(const char *filename, uint8_t *addr)
 
 void cpu_outb(CPUState *env, int addr, int val)
 {
-    ioport_write_table[0][addr & (MAX_IOPORTS - 1)](env, addr, val);
+    addr &= (MAX_IOPORTS - 1);
+    ioport_write_table[0][addr](ioport_opaque[addr], addr, val);
 }
 
 void cpu_outw(CPUState *env, int addr, int val)
 {
-    ioport_write_table[1][addr & (MAX_IOPORTS - 1)](env, addr, val);
+    addr &= (MAX_IOPORTS - 1);
+    ioport_write_table[1][addr](ioport_opaque[addr], addr, val);
 }
 
 void cpu_outl(CPUState *env, int addr, int val)
 {
-    ioport_write_table[2][addr & (MAX_IOPORTS - 1)](env, addr, val);
+    addr &= (MAX_IOPORTS - 1);
+    ioport_write_table[2][addr](ioport_opaque[addr], addr, val);
 }
 
 int cpu_inb(CPUState *env, int addr)
 {
-    return ioport_read_table[0][addr & (MAX_IOPORTS - 1)](env, addr);
+    addr &= (MAX_IOPORTS - 1);
+    return ioport_read_table[0][addr](ioport_opaque[addr], addr);
 }
 
 int cpu_inw(CPUState *env, int addr)
 {
-    return ioport_read_table[1][addr & (MAX_IOPORTS - 1)](env, addr);
+    addr &= (MAX_IOPORTS - 1);
+    return ioport_read_table[1][addr](ioport_opaque[addr], addr);
 }
 
 int cpu_inl(CPUState *env, int addr)
 {
-    return ioport_read_table[2][addr & (MAX_IOPORTS - 1)](env, addr);
+    addr &= (MAX_IOPORTS - 1);
+    return ioport_read_table[2][addr](ioport_opaque[addr], addr);
 }
 
 /***********************************************************/
@@ -389,171 +414,34 @@ uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c)
     return res.ll;
 }
 
-#define TERM_ESCAPE 0x01 /* ctrl-a is used for escape */
-static int term_got_escape, term_command;
-static unsigned char term_cmd_buf[128];
+/***********************************************************/
+/* serial device */
 
-typedef struct term_cmd_t {
-    const unsigned char *name;
-    void (*handler)(unsigned char *params);
-} term_cmd_t;
-
-static void do_change_cdrom (unsigned char *params);
-static void do_change_fd0 (unsigned char *params);
-static void do_change_fd1 (unsigned char *params);
-
-static term_cmd_t term_cmds[] = {
-    { "changecd", &do_change_cdrom, },
-    { "changefd0", &do_change_fd0, },
-    { "changefd1", &do_change_fd1, },
-    { NULL, NULL, },
-};
-
-void term_print_help(void)
+int serial_open_device(void)
 {
-    printf("\n"
-           "C-a h    print this help\n"
-           "C-a x    exit emulatior\n"
-           "C-a d    switch on/off debug log\n"
-	   "C-a s    save disk data back to file (if -snapshot)\n"
-           "C-a b    send break (magic sysrq)\n"
-           "C-a c    send qemu internal command\n"
-           "C-a C-a  send C-a\n"
-           );
-}
+    char slave_name[1024];
+    int master_fd, slave_fd;
 
-static void do_change_cdrom (unsigned char *params)
-{
-    /* Dunno how to do it... */
-}
-
-static void do_change_fd (int fd, unsigned char *params)
-{
-    unsigned char *name_start, *name_end, *ros;
-    int ro;
-
-    for (name_start = params;
-         isspace(*name_start); name_start++)
-        continue;
-    if (*name_start == '\0')
-        return;
-    for (name_end = name_start;
-         !isspace(*name_end) && *name_end != '\0'; name_end++)
-        continue;
-    for (ros = name_end + 1; isspace(*ros); ros++)
-        continue;
-    if (ros[0] == 'r' && ros[1] == 'o')
-        ro = 1;
-    else
-        ro = 0;
-    *name_end = '\0';
-    printf("Change fd %d to %s (%s)\n", fd, name_start, params);
-    fdctrl_disk_change(fd, name_start, ro);
-}
-
-static void do_change_fd0 (unsigned char *params)
-{
-    do_change_fd(0, params);
-}
-
-static void do_change_fd1 (unsigned char *params)
-{
-    do_change_fd(1, params);
-}
-
-static void term_treat_command(void)
-{
-    unsigned char *cmd_start, *cmd_end;
-    int i;
-
-    for (cmd_start = term_cmd_buf; isspace(*cmd_start); cmd_start++)
-        continue;
-    for (cmd_end = cmd_start;
-         !isspace(*cmd_end) && *cmd_end != '\0'; cmd_end++)
-        continue;
-    for (i = 0; term_cmds[i].name != NULL; i++) {
-        if (strlen(term_cmds[i].name) == (cmd_end - cmd_start) &&
-            memcmp(term_cmds[i].name, cmd_start, cmd_end - cmd_start) == 0) {
-            (*term_cmds[i].handler)(cmd_end + 1);
-            return;
-        }
-    }
-    *cmd_end = '\0';
-    printf("Unknown term command: %s\n", cmd_start);
-}
-
-extern FILE *logfile;
-
-/* called when a char is received */
-void term_received_byte(int ch)
-{
-    if (term_command) {
-        if (ch == '\n' || ch == '\r' || term_command == 127) {
-            printf("\n");
-            term_treat_command();
-            term_command = 0;
-        } else {
-            if (ch == 0x7F || ch == 0x08) {
-                if (term_command > 1) {
-                    term_cmd_buf[--term_command - 1] = '\0';
-                    printf("\r                                               "
-                           "                               ");
-                    printf("\r> %s", term_cmd_buf);
-                }
-            } else if (ch > 0x1f) {
-                term_cmd_buf[term_command++ - 1] = ch;
-                term_cmd_buf[term_command - 1] = '\0';
-                printf("\r> %s", term_cmd_buf);
-            }
-            fflush(stdout);
-        }
-    } else if (term_got_escape) {
-        term_got_escape = 0;
-        switch(ch) {
-        case 'h':
-            term_print_help();
-            break;
-        case 'x':
-            exit(0);
-            break;
-	case 's': 
-            {
-                int i;
-                for (i = 0; i < MAX_DISKS; i++) {
-                    if (bs_table[i])
-                        bdrv_commit(bs_table[i]);
-                }
-	    }
-            break;
-        case 'b':
-            serial_receive_break();
-            break;
-        case 'c':
-            printf("> ");
-            fflush(stdout);
-            term_command = 1;
-            break;
-        case 'd':
-            cpu_set_log(CPU_LOG_ALL);
-            break;
-        case TERM_ESCAPE:
-            goto send_char;
-        }
-    } else if (ch == TERM_ESCAPE) {
-        term_got_escape = 1;
+    if (serial_console == NULL && nographic) {
+        /* use console for serial port */
+        return 0;
     } else {
-    send_char:
-        serial_receive_byte(ch);
+        if (openpty(&master_fd, &slave_fd, slave_name, NULL, NULL) < 0) {
+            fprintf(stderr, "warning: could not create pseudo terminal for serial port\n");
+            return -1;
+        }
+        fprintf(stderr, "Serial port redirected to %s\n", slave_name);
+        return master_fd;
     }
 }
 
 /***********************************************************/
 /* Linux network device redirector */
 
-int net_init(void)
+static int tun_open(char *ifname, int ifname_size)
 {
     struct ifreq ifr;
-    int fd, ret, pid, status;
+    int fd, ret;
     
     fd = open("/dev/net/tun", O_RDWR);
     if (fd < 0) {
@@ -570,32 +458,62 @@ int net_init(void)
         return -1;
     }
     printf("Connected to host network interface: %s\n", ifr.ifr_name);
+    pstrcpy(ifname, ifname_size, ifr.ifr_name);
     fcntl(fd, F_SETFL, O_NONBLOCK);
-    net_fd = fd;
+    return fd;
+}
 
-    /* try to launch network init script */
-    pid = fork();
-    if (pid >= 0) {
-        if (pid == 0) {
-            execl(network_script, network_script, ifr.ifr_name, NULL);
-            exit(1);
+static int net_init(void)
+{
+    int pid, status, launch_script, i;
+    NetDriverState *nd;
+    char *args[MAX_NICS + 2];
+    char **parg;
+
+    launch_script = 0;
+    for(i = 0; i < nb_nics; i++) {
+        nd = &nd_table[i];
+        if (nd->fd < 0) {
+            nd->fd = tun_open(nd->ifname, sizeof(nd->ifname));
+            if (nd->fd >= 0) 
+                launch_script = 1;
         }
-        while (waitpid(pid, &status, 0) != pid);
-        if (!WIFEXITED(status) ||
-            WEXITSTATUS(status) != 0) {
-            fprintf(stderr, "%s: could not launch network script for '%s'\n",
-                    network_script, ifr.ifr_name);
+    }
+
+    if (launch_script) {
+        /* try to launch network init script */
+        pid = fork();
+        if (pid >= 0) {
+            if (pid == 0) {
+                parg = args;
+                *parg++ = network_script;
+                for(i = 0; i < nb_nics; i++) {
+                    nd = &nd_table[i];
+                    if (nd->fd >= 0) {
+                        *parg++ = nd->ifname;
+                    }
+                }
+                *parg++ = NULL;
+                execv(network_script, args);
+                exit(1);
+            }
+            while (waitpid(pid, &status, 0) != pid);
+            if (!WIFEXITED(status) ||
+                WEXITSTATUS(status) != 0) {
+                fprintf(stderr, "%s: could not launch network script\n",
+                        network_script);
+            }
         }
     }
     return 0;
 }
 
-void net_send_packet(int net_fd, const uint8_t *buf, int size)
+void net_send_packet(NetDriverState *nd, const uint8_t *buf, int size)
 {
 #ifdef DEBUG_NE2000
     printf("NE2000: sending packet size=%d\n", size);
 #endif
-    write(net_fd, buf, size);
+    write(nd->fd, buf, size);
 }
 
 /***********************************************************/
@@ -702,6 +620,37 @@ static void host_alarm_handler(int host_signum, siginfo_t *info,
     }
 }
 
+#define MAX_IO_HANDLERS 64
+
+typedef struct IOHandlerRecord {
+    int fd;
+    IOCanRWHandler *fd_can_read;
+    IOReadHandler *fd_read;
+    void *opaque;
+    /* temporary data */
+    struct pollfd *ufd;
+    int max_size;
+} IOHandlerRecord;
+
+static IOHandlerRecord io_handlers[MAX_IO_HANDLERS];
+static int nb_io_handlers = 0;
+
+int add_fd_read_handler(int fd, IOCanRWHandler *fd_can_read, 
+                        IOReadHandler *fd_read, void *opaque)
+{
+    IOHandlerRecord *ioh;
+
+    if (nb_io_handlers >= MAX_IO_HANDLERS)
+        return -1;
+    ioh = &io_handlers[nb_io_handlers];
+    ioh->fd = fd;
+    ioh->fd_can_read = fd_can_read;
+    ioh->fd_read = fd_read;
+    ioh->opaque = opaque;
+    nb_io_handlers++;
+    return 0;
+}
+
 /* main execution loop */
 
 CPUState *cpu_gdbstub_get_env(void *opaque)
@@ -711,12 +660,10 @@ CPUState *cpu_gdbstub_get_env(void *opaque)
 
 int main_loop(void *opaque)
 {
-    struct pollfd ufds[3], *pf, *serial_ufd, *gdb_ufd;
-#if defined (TARGET_I386)
-    struct pollfd *net_ufd;
-#endif
-    int ret, n, timeout, serial_ok;
-    uint8_t ch;
+    struct pollfd ufds[MAX_IO_HANDLERS + 1], *pf, *gdb_ufd;
+    int ret, n, timeout, serial_ok, max_size, i;
+    uint8_t buf[4096];
+    IOHandlerRecord *ioh;
     CPUState *env = global_env;
 
     if (!term_inited) {
@@ -747,24 +694,26 @@ int main_loop(void *opaque)
             timeout = 10;
         else
             timeout = 0;
+
         /* poll any events */
-        serial_ufd = NULL;
         pf = ufds;
-        if (serial_ok && serial_can_receive()) {
-            serial_ufd = pf;
-            pf->fd = 0;
-            pf->events = POLLIN;
-            pf++;
+        ioh = io_handlers;
+        for(i = 0; i < nb_io_handlers; i++) {
+            max_size = ioh->fd_can_read(ioh->opaque);
+            if (max_size > 0) {
+                if (max_size > sizeof(buf))
+                    max_size = sizeof(buf);
+                pf->fd = ioh->fd;
+                pf->events = POLLIN;
+                ioh->ufd = pf;
+                pf++;
+            } else {
+                ioh->ufd = NULL;
+            }
+            ioh->max_size = max_size;
+            ioh++;
         }
-#if defined (TARGET_I386)
-        net_ufd = NULL;
-        if (net_fd > 0 && ne2000_can_receive()) {
-            net_ufd = pf;
-            pf->fd = net_fd;
-            pf->events = POLLIN;
-            pf++;
-        }
-#endif
+
         gdb_ufd = NULL;
         if (gdbstub_fd > 0) {
             gdb_ufd = pf;
@@ -775,29 +724,17 @@ int main_loop(void *opaque)
 
         ret = poll(ufds, pf - ufds, timeout);
         if (ret > 0) {
-            if (serial_ufd && (serial_ufd->revents & POLLIN)) {
-                n = read(0, &ch, 1);
-                if (n == 1) {
-                    term_received_byte(ch);
-                } else {
-		    /* Closed, stop polling. */
-                    serial_ok = 0;
-                }
-            }
-#if defined (TARGET_I386)
-            if (net_ufd && (net_ufd->revents & POLLIN)) {
-                uint8_t buf[MAX_ETH_FRAME_SIZE];
-
-                n = read(net_fd, buf, MAX_ETH_FRAME_SIZE);
-                if (n > 0) {
-                    if (n < 60) {
-                        memset(buf + n, 0, 60 - n);
-                        n = 60;
+            ioh = io_handlers;
+            for(i = 0; i < nb_io_handlers; i++) {
+                pf = ioh->ufd;
+                if (pf) {
+                    n = read(ioh->fd, buf, ioh->max_size);
+                    if (n > 0) {
+                        ioh->fd_read(ioh->opaque, buf, n);
                     }
-                    ne2000_receive(buf, n);
                 }
+                ioh++;
             }
-#endif
             if (gdb_ufd && (gdb_ufd->revents & POLLIN)) {
                 uint8_t buf[1];
                 /* stop emulation if requested by gdb */
@@ -845,15 +782,18 @@ void help(void)
            "-fda/-fdb file  use 'file' as floppy disk 0/1 image\n"
            "-hda/-hdb file  use 'file' as IDE hard disk 0/1 image\n"
            "-hdc/-hdd file  use 'file' as IDE hard disk 2/3 image\n"
-           "-cdrom file     use 'file' as IDE cdrom 2 image\n"
+           "-cdrom file     use 'file' as IDE cdrom image (cdrom is ide1 master)\n"
            "-boot [a|b|c|d] boot on floppy (a, b), hard disk (c) or CD-ROM (d)\n"
 	   "-snapshot       write to temporary files instead of disk image files\n"
            "-m megs         set virtual RAM size to megs MB\n"
-           "-n script       set network init script [default=%s]\n"
-           "-tun-fd fd      this fd talks to tap/tun, use it.\n"
-           "-nographic      disable graphical output\n"
+           "-nographic      disable graphical output and redirect serial I/Os to console\n"
            "\n"
-           "Linux boot specific (does not require PC BIOS):\n"
+           "Network options:\n"
+           "-n script       set network init script [default=%s]\n"
+           "-nics n         simulate 'n' network interfaces [default=1]\n"
+           "-tun-fd fd0[,...] use these fds as already opened tap/tun interfaces\n"
+           "\n"
+           "Linux boot specific:\n"
            "-kernel bzImage use 'bzImage' as kernel image\n"
            "-append cmdline use 'cmdline' as kernel command line\n"
            "-initrd file    use 'file' as initial ram disk\n"
@@ -904,7 +844,8 @@ struct option long_options[] = {
     { "boot", 1, NULL, 0, },
     { "fda", 1, NULL, 0, },
     { "fdb", 1, NULL, 0, },
-    { "no-code-copy", 0, NULL, 0},
+    { "no-code-copy", 0, NULL, 0 },
+    { "nics", 1, NULL, 0 },
     { NULL, 0, NULL, 0 },
 };
 
@@ -931,7 +872,7 @@ static uint8_t *signal_stack;
 
 int main(int argc, char **argv)
 {
-    int c, i, use_gdbstub, gdbstub_port, long_index;
+    int c, i, use_gdbstub, gdbstub_port, long_index, has_cdrom;
     int snapshot, linux_boot;
     struct sigaction act;
     struct itimerval itv;
@@ -940,6 +881,7 @@ int main(int argc, char **argv)
     const char *hd_filename[MAX_DISKS], *fd_filename[MAX_FD];
     const char *kernel_filename, *kernel_cmdline;
     DisplayState *ds = &display_state;
+    int cyls, heads, secs;
 
     /* we never want that malloc() uses mmap() */
     mallopt(M_MMAP_THRESHOLD, 4096 * 1024);
@@ -950,15 +892,29 @@ int main(int argc, char **argv)
         hd_filename[i] = NULL;
     ram_size = 32 * 1024 * 1024;
     vga_ram_size = VGA_RAM_SIZE;
-#if defined (TARGET_I386)
     pstrcpy(network_script, sizeof(network_script), DEFAULT_NETWORK_SCRIPT);
-#endif
     use_gdbstub = 0;
     gdbstub_port = DEFAULT_GDBSTUB_PORT;
     snapshot = 0;
     nographic = 0;
     kernel_filename = NULL;
     kernel_cmdline = "";
+    has_cdrom = 1;
+    cyls = heads = secs = 0;
+
+    nb_nics = 1;
+    for(i = 0; i < MAX_NICS; i++) {
+        NetDriverState *nd = &nd_table[i];
+        nd->fd = -1;
+        /* init virtual mac address */
+        nd->macaddr[0] = 0x52;
+        nd->macaddr[1] = 0x54;
+        nd->macaddr[2] = 0x00;
+        nd->macaddr[3] = 0x12;
+        nd->macaddr[4] = 0x34;
+        nd->macaddr[5] = 0x56 + i;
+    }
+    
     for(;;) {
         c = getopt_long_only(argc, argv, "hm:dn:sp:L:", long_options, &long_index);
         if (c == -1)
@@ -980,7 +936,6 @@ int main(int argc, char **argv)
                 break;
             case 4:
                 {
-                    int cyls, heads, secs;
                     const char *p;
                     p = optarg;
                     cyls = strtol(p, (char **)&p, 0);
@@ -992,10 +947,10 @@ int main(int argc, char **argv)
                         goto chs_fail;
                     p++;
                     secs = strtol(p, (char **)&p, 0);
-                    if (*p != '\0')
-                        goto chs_fail;
-                    ide_set_geometry(0, cyls, heads, secs);
-                chs_fail: ;
+                    if (*p != '\0') {
+                    chs_fail:
+                        cyls = 0;
+                    }
                 }
                 break;
             case 5:
@@ -1007,20 +962,38 @@ int main(int argc, char **argv)
             case 7:
                 kernel_cmdline = optarg;
                 break;
-#if defined (TARGET_I386)
 	    case 8:
-		net_fd = atoi(optarg);
+                {
+                    const char *p;
+                    int fd;
+                    p = optarg;
+                    nb_nics = 0;
+                    for(;;) {
+                        fd = strtol(p, (char **)&p, 0);
+                        nd_table[nb_nics].fd = fd;
+                        snprintf(nd_table[nb_nics].ifname, 
+                                 sizeof(nd_table[nb_nics].ifname),
+                                 "fd%d", nb_nics);
+                        nb_nics++;
+                        if (*p == ',') {
+                            p++;
+                        } else if (*p != '\0') {
+                            fprintf(stderr, "qemu: invalid fd for network interface %d\n", nb_nics);
+                            exit(1);
+                        }
+                    }
+                }
 		break;
-#endif
             case 9:
                 hd_filename[2] = optarg;
+                has_cdrom = 0;
                 break;
             case 10:
                 hd_filename[3] = optarg;
                 break;
             case 11:
                 hd_filename[2] = optarg;
-                ide_set_cdrom(2, 1);
+                has_cdrom = 1;
                 break;
             case 12:
                 boot_device = optarg[0];
@@ -1038,6 +1011,13 @@ int main(int argc, char **argv)
                 break;
             case 15:
                 code_copy_enabled = 0;
+                break;
+            case 16:
+                nb_nics = atoi(optarg);
+                if (nb_nics < 1 || nb_nics > MAX_NICS) {
+                    fprintf(stderr, "qemu: invalid number of network interfaces\n");
+                    exit(1);
+                }
                 break;
             }
             break;
@@ -1057,11 +1037,9 @@ int main(int argc, char **argv)
         case 'd':
             cpu_set_log(CPU_LOG_ALL);
             break;
-#if defined (TARGET_I386)
         case 'n':
             pstrcpy(network_script, sizeof(network_script), optarg);
             break;
-#endif
         case 's':
             use_gdbstub = 1;
             break;
@@ -1102,11 +1080,8 @@ int main(int argc, char **argv)
     setvbuf(stdout, NULL, _IOLBF, 0);
 #endif
 
-    /* init network tun interface */
-#if defined (TARGET_I386)
-    if (net_fd < 0)
-	net_init();
-#endif
+    /* init host network redirectors */
+    net_init();
 
     /* init the memory */
     phys_ram_size = ram_size + vga_ram_size;
@@ -1151,14 +1126,48 @@ int main(int argc, char **argv)
     }
 #endif
 
+    /* we always create the cdrom drive, even if no disk is there */
+    if (has_cdrom) {
+        bs_table[2] = bdrv_new("cdrom");
+        bdrv_set_type_hint(bs_table[2], BDRV_TYPE_CDROM);
+    }
+
     /* open the virtual block devices */
     for(i = 0; i < MAX_DISKS; i++) {
         if (hd_filename[i]) {
-            bs_table[i] = bdrv_open(hd_filename[i], snapshot);
             if (!bs_table[i]) {
+                char buf[64];
+                snprintf(buf, sizeof(buf), "hd%c", i + 'a');
+                bs_table[i] = bdrv_new(buf);
+            }
+            if (bdrv_open(bs_table[i], hd_filename[i], snapshot) < 0) {
                 fprintf(stderr, "qemu: could not open hard disk image '%s\n",
                         hd_filename[i]);
                 exit(1);
+            }
+            if (i == 0 && cyls != 0) 
+                bdrv_set_geometry_hint(bs_table[i], cyls, heads, secs);
+        }
+    }
+
+    /* we always create at least one floppy disk */
+    fd_table[0] = bdrv_new("fda");
+    bdrv_set_type_hint(fd_table[0], BDRV_TYPE_FLOPPY);
+
+    for(i = 0; i < MAX_FD; i++) {
+        if (fd_filename[i]) {
+            if (!fd_table[i]) {
+                char buf[64];
+                snprintf(buf, sizeof(buf), "fd%c", i + 'a');
+                fd_table[i] = bdrv_new(buf);
+                bdrv_set_type_hint(fd_table[i], BDRV_TYPE_FLOPPY);
+            }
+            if (fd_filename[i] != '\0') {
+                if (bdrv_open(fd_table[i], fd_filename[i], snapshot) < 0) {
+                    fprintf(stderr, "qemu: could not open floppy disk image '%s\n",
+                            fd_filename[i]);
+                    exit(1);
+                }
             }
         }
     }
@@ -1189,6 +1198,10 @@ int main(int argc, char **argv)
 #elif defined(TARGET_PPC)
     ppc_init();
 #endif
+
+    /* launched after the device init so that it can display or not a
+       banner */
+    monitor_init();
 
     /* setup cpu signal handlers for MMU / self modifying code handling */
 #if !defined(CONFIG_SOFTMMU)
