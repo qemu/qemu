@@ -2,7 +2,7 @@
 #define THUNK_H
 
 #include <inttypes.h>
-#include <endian.h>
+#include "config.h"
 
 #ifdef HAVE_BYTESWAP_H
 #include <byteswap.h>
@@ -40,11 +40,6 @@
 		(uint64_t)(((uint64_t)(__x) & (uint64_t)0xff00000000000000ULL) >> 56) )); \
 })
 
-#endif
-
-#undef WORDS_BIGENDIAN
-#if __BYTE_ORDER == __BIG_ENDIAN
-#define WORDS_BIGENDIAN
 #endif
 
 #ifdef WORDS_BIGENDIAN

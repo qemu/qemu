@@ -628,6 +628,9 @@ long do_syscall(int num, long arg1, long arg2, long arg3,
 #endif
     switch(num) {
     case TARGET_NR_exit:
+#ifdef HAVE_GPROF
+        _mcleanup();
+#endif
         _exit(arg1);
         ret = 0; /* avoid warning */
         break;

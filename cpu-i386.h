@@ -244,5 +244,6 @@ void cpu_x86_close(CPUX86State *s);
 /* internal functions */
 int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size, 
                      int *gen_code_size_ptr, uint8_t *pc_start);
+void cpu_x86_tblocks_init(void);
 
 #endif /* CPU_I386_H */

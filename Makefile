@@ -1,43 +1,33 @@
-ARCH=i386
-#ARCH=ppc
-HOST_CC=gcc
+include config.mak
 
-ifeq ($(ARCH),i386)
-CFLAGS=-Wall -O2 -g -fomit-frame-pointer
+CFLAGS=-Wall -O2 -g
 LDFLAGS=-g
 LIBS=
-CC=gcc
 DEFINES=-DHAVE_BYTESWAP_H
+
+ifeq ($(ARCH),i386)
+CFLAGS+=-fomit-frame-pointer
 OP_CFLAGS=$(CFLAGS) -malign-functions=0 -mpreferred-stack-boundary=2
 endif
 
 ifeq ($(ARCH),ppc)
-GCC_LIBS_DIR=/usr/netgem/tools/lib/gcc-lib/powerpc-linux/2.95.2
-DIST=/home/fbe/nsv/dist/hw/n6-dtt
-CC=powerpc-linux-gcc -msoft-float 
-CFLAGS=-Wall -pipe -O2 -mcpu=405 -mbig -nostdinc -g -I$(GCC_LIBS_DIR)/include -I$(DIST)/include
-LIBS_DIR=$(DIST)/lib
-CRT1=$(LIBS_DIR)/crt1.o
-CRTI=$(LIBS_DIR)/crti.o
-CRTN=$(LIBS_DIR)/crtn.o
-CRTBEGIN=$(GCC_LIBS_DIR)/crtbegin.o
-CRTEND=$(GCC_LIBS_DIR)/crtend.o
-LDFLAGS=-static -g -nostdlib $(CRT1) $(CRTI) $(CRTBEGIN) 
-LIBS=-L$(LIBS_DIR) -ltinyc -lgcc $(CRTEND) $(CRTN)
-DEFINES=-Dsocklen_t=int
 OP_CFLAGS=$(CFLAGS)
 endif
 
 #########################################################
 
 DEFINES+=-D_GNU_SOURCE
-DEFINES+=-DCONFIG_PREFIX=\"/usr/local\"
 LDSCRIPT=$(ARCH).ld
 LIBS+=-ldl -lm
-VERSION=0.1
+
+# profiling code
+ifdef TARGET_GPROF
+LDFLAGS+=-p
+CFLAGS+=-p
+endif
 
 OBJS= elfload.o main.o thunk.o syscall.o
-OBJS+=translate-i386.o op-i386.o
+OBJS+=translate-i386.o op-i386.o exec-i386.o
 # NOTE: the disassembler code is only needed for debugging
 OBJS+=i386-dis.o dis-buf.o
 SRCS = $(OBJS:.o=.c)
@@ -66,7 +56,11 @@ op-i386.o: op-i386.c opreg_template.h ops_template.h
 	$(CC) $(CFLAGS) $(DEFINES) -c -o $@ $<
 
 clean:
+	$(MAKE) -C tests clean
 	rm -f *.o *~ gemu dyngen TAGS
+
+distclean: clean
+	rm -f config.mak config.h
 
 # various test targets
 test speed: gemu
@@ -82,7 +76,7 @@ TODO         elfload.c   main.c            signal.c        thunk.h\
 cpu-i386.h   gemu.h      op-i386.c         syscall-i386.h  translate-i386.c\
 dis-asm.h    gen-i386.h  op-i386.h         syscall.c\
 dis-buf.c    i386-dis.c  opreg_template.h  syscall_defs.h\
-i386.ld ppc.ld\
+i386.ld ppc.ld exec-i386.h exec-i386.c configure VERSION \
 tests/Makefile\
 tests/test-i386.c tests/test-i386-shift.h tests/test-i386.h\
 tests/test-i386-muldiv.h\

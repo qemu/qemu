@@ -1,109 +1,25 @@
-#define DEBUG_EXEC
-
-typedef unsigned char uint8_t;
-typedef unsigned short uint16_t;
-typedef unsigned int uint32_t;
-typedef unsigned long long uint64_t;
-
-typedef signed char int8_t;
-typedef signed short int16_t;
-typedef signed int int32_t;
-typedef signed long long int64_t;
-
-#define bswap32(x) \
-({ \
-	uint32_t __x = (x); \
-	((uint32_t)( \
-		(((uint32_t)(__x) & (uint32_t)0x000000ffUL) << 24) | \
-		(((uint32_t)(__x) & (uint32_t)0x0000ff00UL) <<  8) | \
-		(((uint32_t)(__x) & (uint32_t)0x00ff0000UL) >>  8) | \
-		(((uint32_t)(__x) & (uint32_t)0xff000000UL) >> 24) )); \
-})
-
-#define NULL 0
-#include <fenv.h>
-
-typedef struct FILE FILE;
-extern FILE *logfile;
-extern int loglevel;
-extern int fprintf(FILE *, const char *, ...);
-
-#ifdef __i386__
-register unsigned int T0 asm("ebx");
-register unsigned int T1 asm("esi");
-register unsigned int A0 asm("edi");
-register struct CPUX86State *env asm("ebp");
-#endif
-#ifdef __powerpc__
-register unsigned int T0 asm("r24");
-register unsigned int T1 asm("r25");
-register unsigned int A0 asm("r26");
-register struct CPUX86State *env asm("r27");
-#endif
-#ifdef __arm__
-register unsigned int T0 asm("r4");
-register unsigned int T1 asm("r5");
-register unsigned int A0 asm("r6");
-register struct CPUX86State *env asm("r7");
-#endif
-#ifdef __mips__
-register unsigned int T0 asm("s0");
-register unsigned int T1 asm("s1");
-register unsigned int A0 asm("s2");
-register struct CPUX86State *env asm("s3");
-#endif
-#ifdef __sparc__
-register unsigned int T0 asm("l0");
-register unsigned int T1 asm("l1");
-register unsigned int A0 asm("l2");
-register struct CPUX86State *env asm("l3");
-#endif
-
-/* force GCC to generate only one epilog at the end of the function */
-#define FORCE_RET() asm volatile ("");
-
-#ifndef OPPROTO
-#define OPPROTO
-#endif
-
-#define xglue(x, y) x ## y
-#define glue(x, y) xglue(x, y)
-
-#define EAX (env->regs[R_EAX])
-#define ECX (env->regs[R_ECX])
-#define EDX (env->regs[R_EDX])
-#define EBX (env->regs[R_EBX])
-#define ESP (env->regs[R_ESP])
-#define EBP (env->regs[R_EBP])
-#define ESI (env->regs[R_ESI])
-#define EDI (env->regs[R_EDI])
-#define PC  (env->pc)
-#define DF  (env->df)
-
-#define CC_SRC (env->cc_src)
-#define CC_DST (env->cc_dst)
-#define CC_OP  (env->cc_op)
-
-/* float macros */
-#define FT0    (env->ft0)
-#define ST0    (env->fpregs[env->fpstt])
-#define ST(n)  (env->fpregs[(env->fpstt + (n)) & 7])
-#define ST1    ST(1)
-
-extern int __op_param1, __op_param2, __op_param3;
-#define PARAM1 ((long)(&__op_param1))
-#define PARAM2 ((long)(&__op_param2))
-#define PARAM3 ((long)(&__op_param3))
-
-#include "cpu-i386.h"
-
-typedef struct CCTable {
-    int (*compute_all)(void); /* return all the flags */
-    int (*compute_c)(void);  /* return the C flag */
-} CCTable;
+/*
+ *  i386 micro operations
+ * 
+ *  Copyright (c) 2003 Fabrice Bellard
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+#include "exec-i386.h"
 
 /* NOTE: data are not static to force relocation generation by GCC */
-extern CCTable cc_table[];
 
 uint8_t parity_table[256] = {
     CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
@@ -1878,100 +1794,3 @@ void OPPROTO op_fldcw_A0(void)
     fesetround(rnd_type);
 }
 
-/* main execution loop */
-uint8_t code_gen_buffer[65536];
-
-#ifdef DEBUG_EXEC
-static const char *cc_op_str[] = {
-    "DYNAMIC",
-    "EFLAGS",
-    "MUL",
-    "ADDB",
-    "ADDW",
-    "ADDL",
-    "ADCB",
-    "ADCW",
-    "ADCL",
-    "SUBB",
-    "SUBW",
-    "SUBL",
-    "SBBB",
-    "SBBW",
-    "SBBL",
-    "LOGICB",
-    "LOGICW",
-    "LOGICL",
-    "INCB",
-    "INCW",
-    "INCL",
-    "DECB",
-    "DECW",
-    "DECL",
-    "SHLB",
-    "SHLW",
-    "SHLL",
-    "SARB",
-    "SARW",
-    "SARL",
-};
-#endif
-
-int cpu_x86_exec(CPUX86State *env1)
-{
-    int saved_T0, saved_T1, saved_A0;
-    CPUX86State *saved_env;
-    int code_gen_size, ret;
-    void (*gen_func)(void);
-
-    /* first we save global registers */
-    saved_T0 = T0;
-    saved_T1 = T1;
-    saved_A0 = A0;
-    saved_env = env;
-    env = env1;
-    
-    /* prepare setjmp context for exception handling */
-    if (setjmp(env->jmp_env) == 0) {
-        for(;;) {
-#ifdef DEBUG_EXEC
-            if (loglevel) {
-                int eflags;
-                eflags = cc_table[CC_OP].compute_all();
-                eflags |= (DF & DIRECTION_FLAG);
-                fprintf(logfile, 
-                        "EAX=%08x EBX=%08X ECX=%08x EDX=%08x\n"
-                        "ESI=%08x EDI=%08X EBP=%08x ESP=%08x\n"
-                        "CCS=%08x CCD=%08x CCO=%-8s EFL=%c%c%c%c%c%c%c\n",
-                        env->regs[R_EAX], env->regs[R_EBX], env->regs[R_ECX], env->regs[R_EDX], 
-                        env->regs[R_ESI], env->regs[R_EDI], env->regs[R_EBP], env->regs[R_ESP], 
-                        env->cc_src, env->cc_dst, cc_op_str[env->cc_op],
-                        eflags & DIRECTION_FLAG ? 'D' : '-',
-                        eflags & CC_O ? 'O' : '-',
-                        eflags & CC_S ? 'S' : '-',
-                        eflags & CC_Z ? 'Z' : '-',
-                        eflags & CC_A ? 'A' : '-',
-                        eflags & CC_P ? 'P' : '-',
-                        eflags & CC_C ? 'C' : '-'
-                        );
-#if 1
-                fprintf(logfile, "ST0=%f ST1=%f ST2=%f ST3=%f\n", 
-                        (double)ST0, (double)ST1, (double)ST(2), (double)ST(3));
-#endif
-            }
-#endif
-            cpu_x86_gen_code(code_gen_buffer, sizeof(code_gen_buffer), 
-                             &code_gen_size, (uint8_t *)env->pc);
-            /* execute the generated code */
-            gen_func = (void *)code_gen_buffer;
-            gen_func();
-        }
-    }
-    ret = env->exception_index;
-
-    /* restore global registers */
-    T0 = saved_T0;
-    T1 = saved_T1;
-    A0 = saved_A0;
-    env = saved_env;
-    return ret;
-}
