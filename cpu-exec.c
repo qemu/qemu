@@ -29,8 +29,6 @@
 
 //#define DEBUG_EXEC
 //#define DEBUG_SIGNAL
-/* enable it to have a fully working x86 emulator for ring 0 */
-//#define RING0_HACKS
 
 #if defined(TARGET_ARM)
 /* XXX: unify with i386 target */
@@ -157,13 +155,16 @@ int cpu_exec(CPUState *env1)
                     /* if user mode only, we simulate a fake exception
                        which will be hanlded outside the cpu execution
                        loop */
+#if defined(TARGET_I386)
                     do_interrupt_user(env->exception_index, 
                                       env->exception_is_int, 
                                       env->error_code, 
                                       env->exception_next_eip);
+#endif
                     ret = env->exception_index;
                     break;
                 } else {
+#if defined(TARGET_I386)
                     /* simulate a real cpu exception. On i386, it can
                        trigger new exceptions, but we do not handle
                        double or triple faults yet. */
@@ -171,6 +172,7 @@ int cpu_exec(CPUState *env1)
                                  env->exception_is_int, 
                                  env->error_code, 
                                  env->exception_next_eip);
+#endif
                 }
                 env->exception_index = -1;
             }
@@ -294,8 +296,6 @@ int cpu_exec(CPUState *env1)
                 T0 = tmp_T0;
 #endif	    
                 /* see if we can patch the calling TB. XXX: remove TF test */
-#ifndef RING0_HACKS
-
                 if (T0 != 0 
 #if defined(TARGET_I386)
                     && !(env->eflags & TF_MASK)
@@ -305,9 +305,8 @@ int cpu_exec(CPUState *env1)
                     tb_add_jump((TranslationBlock *)(T0 & ~3), T0 & 3, tb);
                     spin_unlock(&tb_lock);
                 }
-#endif
                 tc_ptr = tb->tc_ptr;
-                
+                env->current_tb = tb;
                 /* execute the generated code */
                 gen_func = (void *)tc_ptr;
 #if defined(__sparc__)
@@ -326,6 +325,7 @@ int cpu_exec(CPUState *env1)
 #else
                 gen_func();
 #endif
+                env->current_tb = NULL;
             }
         } else {
         }
@@ -380,12 +380,6 @@ int cpu_exec(CPUState *env1)
     env = saved_env;
     return ret;
 }
-
-void cpu_interrupt(CPUState *s)
-{
-    s->interrupt_request = 1;
-}
-
 
 #if defined(TARGET_I386)
 
@@ -461,9 +455,8 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
     TranslationBlock *tb;
     int ret;
     
-#ifdef RING0_HACKS
-    env = global_env; /* XXX: find a better solution */
-#endif
+    if (cpu_single_env)
+        env = cpu_single_env; /* XXX: find a correct solution for multithread */
 #if defined(DEBUG_SIGNAL)
     printf("qemu: SIGSEGV pc=0x%08lx address=%08lx w=%d oldset=0x%08lx\n", 
            pc, address, is_write, *(unsigned long *)old_set);
