@@ -1,3 +1,8 @@
+version 0.6.1:
+
+  - Mac OS X port (Pierre d'Herbemont)
+  - Virtual console support
+
 version 0.6.0:
 
   - minimalist FPU exception support (NetBSD FPU probe fix)
