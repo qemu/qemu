@@ -125,6 +125,7 @@ typedef struct NE2000State {
     uint8_t curpag;
     uint8_t mult[8]; /* multicast mask array */
     int irq;
+    PCIDevice *pci_dev;
     NetDriverState *nd;
     uint8_t mem[NE2000_MEM_SIZE];
 } NE2000State;
@@ -153,10 +154,13 @@ static void ne2000_update_irq(NE2000State *s)
     printf("NE2000: Set IRQ line %d to %d (%02x %02x)\n",
 	   s->irq, isr ? 1 : 0, s->isr, s->imr);
 #endif
-    if (isr)
-        pic_set_irq(s->irq, 1);
-    else
-        pic_set_irq(s->irq, 0);
+    if (s->irq == 16) {
+        /* PCI irq */
+        pci_set_irq(s->pci_dev, 0, (isr != 0));
+    } else {
+        /* ISA irq */
+        pic_set_irq(s->irq, (isr != 0));
+    }
 }
 
 /* return the max buffer size if the NE2000 can receive more data */
@@ -581,21 +585,6 @@ typedef struct PCINE2000State {
     NE2000State ne2000;
 } PCINE2000State;
 
-static uint32_t ne2000_read_config(PCIDevice *d, 
-                                 uint32_t address, int len)
-{
-    uint32_t val;
-    val = 0;
-    memcpy(&val, d->config + address, len);
-    return val;
-}
-
-static void ne2000_write_config(PCIDevice *d, 
-                              uint32_t address, uint32_t val, int len)
-{
-    memcpy(d->config + address, &val, len);
-}
-
 static void ne2000_map(PCIDevice *pci_dev, int region_num, 
                        uint32_t addr, uint32_t size, int type)
 {
@@ -624,8 +613,7 @@ void pci_ne2000_init(NetDriverState *nd)
     
     d = (PCINE2000State *)pci_register_device("NE2000", sizeof(PCINE2000State),
                                               0, -1, 
-                                              ne2000_read_config, 
-                                              ne2000_write_config);
+                                              NULL, NULL);
     pci_conf = d->dev.config;
     pci_conf[0x00] = 0xec; // Realtek 8029
     pci_conf[0x01] = 0x10;
@@ -634,15 +622,13 @@ void pci_ne2000_init(NetDriverState *nd)
     pci_conf[0x0a] = 0x00; // ethernet network controller 
     pci_conf[0x0b] = 0x02;
     pci_conf[0x0e] = 0x00; // header_type
-
-    /* XXX: do that in the BIOS */
-    pci_conf[0x3c] = 11; // interrupt line
-    pci_conf[0x3d] = 1; // interrupt pin
+    pci_conf[0x3d] = 1; // interrupt pin 0
     
     pci_register_io_region((PCIDevice *)d, 0, 0x100, 
                            PCI_ADDRESS_SPACE_IO, ne2000_map);
     s = &d->ne2000;
-    s->irq = 11;
+    s->irq = 16; // PCI interrupt
+    s->pci_dev = (PCIDevice *)d;
     s->nd = nd;
     ne2000_reset(s);
     qemu_add_read_packet(nd, ne2000_can_receive, ne2000_receive, s);
