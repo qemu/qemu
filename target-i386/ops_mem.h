@@ -63,4 +63,21 @@ void OPPROTO glue(glue(op_stl, MEMSUFFIX), _T0_A0)(void)
     glue(stl, MEMSUFFIX)((uint8_t *)A0, T0);
 }
 
+#if 0
+void OPPROTO glue(glue(op_stb, MEMSUFFIX), _T1_A0)(void)
+{
+    glue(stb, MEMSUFFIX)((uint8_t *)A0, T1);
+}
+#endif
+
+void OPPROTO glue(glue(op_stw, MEMSUFFIX), _T1_A0)(void)
+{
+    glue(stw, MEMSUFFIX)((uint8_t *)A0, T1);
+}
+
+void OPPROTO glue(glue(op_stl, MEMSUFFIX), _T1_A0)(void)
+{
+    glue(stl, MEMSUFFIX)((uint8_t *)A0, T1);
+}
+
 #undef MEMSUFFIX
