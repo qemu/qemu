@@ -101,7 +101,12 @@ void init_paths(const char *prefix)
 
     base = new_entry("", NULL, prefix+1);
     base = add_dir_maybe(base);
-    set_parents(base, base);
+    if (base->num_entries == 0) {
+        free (base);
+        base = NULL;
+    } else {
+        set_parents(base, base);
+    }
 }
 
 /* FIXME: Doesn't handle DIR/.. where DIR is not in emulated dir. */
