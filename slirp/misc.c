@@ -212,7 +212,20 @@ strerror(error)
 #endif
 
 
-#if 0
+#ifdef _WIN32
+
+int
+fork_exec(so, ex, do_pty)
+	struct socket *so;
+	char *ex;
+	int do_pty;
+{
+    /* not implemented */
+    return 0;
+}
+
+#else
+
 int
 openpty(amaster, aslave)
 	int *amaster, *aslave;
@@ -301,7 +314,9 @@ fork_exec(so, ex, do_pty)
 	int opt;
         int master;
 	char *argv[256];
+#if 0
 	char buff[256];
+#endif
 	/* don't want to clobber the original */
 	char *bptr;
 	char *curarg;
@@ -360,6 +375,7 @@ fork_exec(so, ex, do_pty)
 			connect(s, (struct sockaddr *)&addr, addrlen);
 		}
 		
+#if 0
 		if (x_port >= 0) {
 #ifdef HAVE_SETENV
 			sprintf(buff, "%s:%d.%d", inet_ntoa(our_addr), x_port, x_screen);
@@ -369,7 +385,7 @@ fork_exec(so, ex, do_pty)
 			putenv(buff);
 #endif
 		}
-	
+#endif	
 		dup2(s, 0);
 		dup2(s, 1);
 		dup2(s, 2);

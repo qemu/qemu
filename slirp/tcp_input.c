@@ -658,10 +658,11 @@ findso:
 	      if(lastbyte==CTL_CMD || lastbyte==CTL_EXEC) {
 		/* Command or exec adress */
 		so->so_state |= SS_CTL;
-	      } else {
+	      } else 
+#endif
+              {
 		/* May be an add exec */
 		struct ex_list *ex_ptr;
-
 		for(ex_ptr = exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next) {
 		  if(ex_ptr->ex_fport == so->so_fport && 
 		     lastbyte == ex_ptr->ex_addr) {
@@ -671,7 +672,6 @@ findso:
 		}
 	      }
 	      if(so->so_state & SS_CTL) goto cont_input;
-#endif
 	    }
 	    /* CTL_ALIAS: Do nothing, tcp_fconnect will be called on it */
 	  }

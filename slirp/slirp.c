@@ -20,6 +20,7 @@ int do_slowtimo;
 int link_up;
 struct timeval tt;
 FILE *lfd;
+struct ex_list *exec_list;
 
 /* XXX: suppress those select globals */
 fd_set *global_readfds, *global_writefds, *global_xfds;
@@ -538,13 +539,20 @@ void arp_input(const uint8_t *pkt, int pkt_len)
     struct ethhdr *reh = (struct ethhdr *)arp_reply;
     struct arphdr *rah = (struct arphdr *)(arp_reply + ETH_HLEN);
     int ar_op;
+    struct ex_list *ex_ptr;
 
     ar_op = ntohs(ah->ar_op);
     switch(ar_op) {
     case ARPOP_REQUEST:
-        if (!memcmp(ah->ar_tip, &special_addr, 3) &&
-            (ah->ar_tip[3] == CTL_DNS || ah->ar_tip[3] == CTL_ALIAS)) {
-
+        if (!memcmp(ah->ar_tip, &special_addr, 3)) {
+            if (ah->ar_tip[3] == CTL_DNS || ah->ar_tip[3] == CTL_ALIAS) 
+                goto arp_ok;
+            for (ex_ptr = exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next) {
+                if (ex_ptr->ex_addr == ah->ar_tip[3])
+                    goto arp_ok;
+            }
+            return;
+        arp_ok:
             /* XXX: make an ARP request to have the client address */
             memcpy(client_ethaddr, eh->h_source, ETH_ALEN);
 
@@ -612,6 +620,7 @@ void if_encap(const uint8_t *ip_data, int ip_data_len)
 
     memcpy(eh->h_dest, client_ethaddr, ETH_ALEN);
     memcpy(eh->h_source, special_ethaddr, ETH_ALEN - 1);
+    /* XXX: not correct */
     eh->h_source[5] = CTL_ALIAS;
     eh->h_proto = htons(ETH_P_IP);
     memcpy(buf + sizeof(struct ethhdr), ip_data, ip_data_len);
@@ -631,4 +640,11 @@ int slirp_redir(int is_udp, int host_port,
             return -1;
     }
     return 0;
+}
+
+int slirp_add_exec(int do_pty, const char *args, int addr_low_byte, 
+                  int guest_port)
+{
+    return add_exec(&exec_list, do_pty, (char *)args, 
+                    addr_low_byte, htons(guest_port));
 }

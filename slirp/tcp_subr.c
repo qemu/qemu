@@ -1249,7 +1249,6 @@ int
 tcp_ctl(so)
 	struct socket *so;
 {
-#if 0
 	struct sbuf *sb = &so->so_snd;
 	int command;
  	struct ex_list *ex_ptr;
@@ -1259,6 +1258,7 @@ tcp_ctl(so)
 	DEBUG_CALL("tcp_ctl");
 	DEBUG_ARG("so = %lx", (long )so);
 	
+#if 0
 	/*
 	 * Check if they're authorised
 	 */
@@ -1267,7 +1267,7 @@ tcp_ctl(so)
 		sb->sb_wptr += sb->sb_cc;
 		return 0;
 	}
-	
+#endif	
 	command = (ntohl(so->so_faddr.s_addr) & 0xff);
 	
 	switch(command) {
@@ -1300,6 +1300,7 @@ tcp_ctl(so)
 		DEBUG_MISC((dfd, " executing %s \n",ex_ptr->ex_exec));
 		return(fork_exec(so, ex_ptr->ex_exec, do_pty));
 		
+#if 0
 	case CTL_CMD:
 	   for (tmpso = tcb.so_next; tmpso != &tcb; tmpso = tmpso->so_next) {
 	     if (tmpso->so_emu == EMU_CTL && 
@@ -1318,8 +1319,6 @@ tcp_ctl(so)
 	   sb->sb_wptr += sb->sb_cc;
 	   do_echo=-1;
 	   return(2);
-	}
-#else
-        return 0;
 #endif
+	}
 }
