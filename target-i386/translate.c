@@ -3166,6 +3166,9 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
                 gen_op_fcomi_ST0_FT0();
                 s->cc_op = CC_OP_EFLAGS;
                 break;
+            case 0x28: /* ffree sti */
+                gen_op_ffree_STN(opreg);
+                break; 
             case 0x2a: /* fst sti */
                 gen_op_fmov_STN_ST0(opreg);
                 break;
@@ -4635,6 +4638,9 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     }
         
 #ifdef DEBUG_DISAS
+    if (loglevel & CPU_LOG_TB_CPU) {
+        cpu_dump_state(env, logfile, X86_DUMP_CCOP);
+    }
     if (loglevel & CPU_LOG_TB_IN_ASM) {
         fprintf(logfile, "----------------\n");
         fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
