@@ -24,6 +24,8 @@
 
 #include "cpu-defs.h"
 
+#include "softfloat.h"
+
 #define EXCP_UDEF            1   /* undefined instruction */
 #define EXCP_SWI             2   /* software interrupt */
 #define EXCP_PREFETCH_ABORT  3
@@ -70,8 +72,8 @@ typedef struct CPUARMState {
     /* VFP coprocessor state.  */
     struct {
         union {
-            float s[32];
-            double d[16];
+            float32 s[32];
+            float64 d[16];
         } regs;
 
         /* We store these fpcsr fields separately for convenience.  */
@@ -81,9 +83,10 @@ typedef struct CPUARMState {
         uint32_t fpscr;
 
         /* Temporary variables if we don't have spare fp regs.  */
-        float tmp0s, tmp1s;
-        double tmp0d, tmp1d;
-
+        float32 tmp0s, tmp1s;
+        float64 tmp0d, tmp1d;
+        
+        float_status fp_status;
     } vfp;
 
     /* user data */

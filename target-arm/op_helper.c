@@ -17,23 +17,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#include <math.h>
-#include <fenv.h>
 #include "exec.h"
-
-/* If the host doesn't define C99 math intrinsics then use the normal
-   operators.  This may generate excess exceptions, but it's probably
-   near enough for most things.  */
-#ifndef isless
-#define isless(x, y) (x < y)
-#endif
-#ifndef isgreater
-#define isgreater(x, y) (x > y)
-#endif
-#ifndef isunordered
-#define isunordered(x, y) (!((x < y) || (x >= y)))
-#endif
 
 void raise_exception(int tt)
 {
@@ -59,119 +43,88 @@ void cpu_unlock(void)
 
 void do_vfp_abss(void)
 {
-  FT0s = fabsf(FT0s);
+    FT0s = float32_abs(FT0s);
 }
 
 void do_vfp_absd(void)
 {
-  FT0d = fabs(FT0d);
+    FT0d = float64_abs(FT0d);
 }
 
 void do_vfp_sqrts(void)
 {
-  FT0s = sqrtf(FT0s);
+    FT0s = float32_sqrt(FT0s, &env->vfp.fp_status);
 }
 
 void do_vfp_sqrtd(void)
 {
-  FT0d = sqrt(FT0d);
+    FT0d = float64_sqrt(FT0d, &env->vfp.fp_status);
 }
 
-/* We use an == operator first to generate teh correct floating point
-   exception.  Subsequent comparisons use the exception-safe macros.  */
-#define DO_VFP_cmp(p)                     \
+/* XXX: check quiet/signaling case */
+#define DO_VFP_cmp(p, size)               \
 void do_vfp_cmp##p(void)                  \
 {                                         \
     uint32_t flags;                       \
-    if (FT0##p == FT1##p)                 \
-        flags = 0xc;                      \
-    else if (isless (FT0##p, FT1##p))     \
-        flags = 0x8;                      \
-    else if (isgreater (FT0##p, FT1##p))  \
-        flags = 0x2;                      \
-    else /* unordered */                  \
-        flags = 0x3;                      \
+    switch(float ## size ## _compare_quiet(FT0##p, FT1##p, &env->vfp.fp_status)) {\
+    case 0: flags = 0xc; break;\
+    case -1: flags = 0x8; break;\
+    case 1: flags = 0x2; break;\
+    default: case 2: flags = 0x3; break;\
+    }\
+    env->vfp.fpscr = (flags << 28) | (env->vfp.fpscr & 0x0fffffff); \
+    FORCE_RET();                          \
+}\
+\
+void do_vfp_cmpe##p(void)                   \
+{                                           \
+    uint32_t flags;                       \
+    switch(float ## size ## _compare(FT0##p, FT1##p, &env->vfp.fp_status)) {\
+    case 0: flags = 0xc; break;\
+    case -1: flags = 0x8; break;\
+    case 1: flags = 0x2; break;\
+    default: case 2: flags = 0x3; break;\
+    }\
     env->vfp.fpscr = (flags << 28) | (env->vfp.fpscr & 0x0fffffff); \
     FORCE_RET();                          \
 }
-DO_VFP_cmp(s)
-DO_VFP_cmp(d)
+DO_VFP_cmp(s, 32)
+DO_VFP_cmp(d, 64)
 #undef DO_VFP_cmp
 
-/* We use a > operator first to get FP exceptions right.  */
-#define DO_VFP_cmpe(p)                      \
-void do_vfp_cmpe##p(void)                   \
-{                                           \
-    uint32_t flags;                         \
-    if (FT0##p > FT1##p)                    \
-        flags = 0x2;                        \
-    else if (isless (FT0##p, FT1##p))       \
-        flags = 0x8;                        \
-    else if (isunordered (FT0##p, FT1##p))  \
-        flags = 0x3;                        \
-    else /* equal */                        \
-        flags = 0xc;                        \
-    env->vfp.fpscr = (flags << 28) | (env->vfp.fpscr & 0x0fffffff); \
-    FORCE_RET();                            \
-}
-DO_VFP_cmpe(s)
-DO_VFP_cmpe(d)
-#undef DO_VFP_cmpe
-
 /* Convert host exception flags to vfp form.  */
-int vfp_exceptbits_from_host(int host_bits)
+static inline int vfp_exceptbits_from_host(int host_bits)
 {
     int target_bits = 0;
 
-#ifdef FE_INVALID
-    if (host_bits & FE_INVALID)
+    if (host_bits & float_flag_invalid)
         target_bits |= 1;
-#endif
-#ifdef FE_DIVBYZERO
-    if (host_bits & FE_DIVBYZERO)
+    if (host_bits & float_flag_divbyzero)
         target_bits |= 2;
-#endif
-#ifdef FE_OVERFLOW
-    if (host_bits & FE_OVERFLOW)
+    if (host_bits & float_flag_overflow)
         target_bits |= 4;
-#endif
-#ifdef FE_UNDERFLOW
-    if (host_bits & FE_UNDERFLOW)
+    if (host_bits & float_flag_underflow)
         target_bits |= 8;
-#endif
-#ifdef FE_INEXACT
-    if (host_bits & FE_INEXACT)
+    if (host_bits & float_flag_inexact)
         target_bits |= 0x10;
-#endif
-    /* C doesn't define an inexact exception.  */
     return target_bits;
 }
 
 /* Convert vfp exception flags to target form.  */
-int vfp_host_exceptbits_to_host(int target_bits)
+static inline int vfp_exceptbits_to_host(int target_bits)
 {
     int host_bits = 0;
 
-#ifdef FE_INVALID
     if (target_bits & 1)
-        host_bits |= FE_INVALID;
-#endif
-#ifdef FE_DIVBYZERO
+        host_bits |= float_flag_invalid;
     if (target_bits & 2)
-        host_bits |= FE_DIVBYZERO;
-#endif
-#ifdef FE_OVERFLOW
+        host_bits |= float_flag_divbyzero;
     if (target_bits & 4)
-        host_bits |= FE_OVERFLOW;
-#endif
-#ifdef FE_UNDERFLOW
+        host_bits |= float_flag_overflow;
     if (target_bits & 8)
-        host_bits |= FE_UNDERFLOW;
-#endif
-#ifdef FE_INEXACT
+        host_bits |= float_flag_underflow;
     if (target_bits & 0x10)
-        host_bits |= FE_INEXACT;
-#endif
+        host_bits |= float_flag_inexact;
     return host_bits;
 }
 
@@ -190,31 +143,23 @@ void do_vfp_set_fpscr(void)
         i = (T0 >> 22) & 3;
         switch (i) {
         case 0:
-            i = FE_TONEAREST;
+            i = float_round_nearest_even;
             break;
         case 1:
-            i = FE_UPWARD;
+            i = float_round_up;
             break;
         case 2:
-            i = FE_DOWNWARD;
+            i = float_round_down;
             break;
         case 3:
-            i = FE_TOWARDZERO;
+            i = float_round_to_zero;
             break;
         }
-        fesetround (i);
+        set_float_rounding_mode(i, &env->vfp.fp_status);
     }
 
-    /* Clear host exception flags.  */
-    feclearexcept(FE_ALL_EXCEPT);
-
-#ifdef feenableexcept
-    if (changed & 0x1f00) {
-        i = vfp_exceptbits_to_host((T0 >> 8) & 0x1f);
-        feenableexcept (i);
-        fedisableexcept (FE_ALL_EXCEPT & ~i);
-    }
-#endif
+    i = vfp_exceptbits_to_host((T0 >> 8) & 0x1f);
+    set_float_exception_flags(i, &env->vfp.fp_status);
     /* XXX: FZ and DN are not implemented.  */
 }
 
@@ -224,6 +169,6 @@ void do_vfp_get_fpscr(void)
 
     T0 = (env->vfp.fpscr & 0xffc8ffff) | (env->vfp.vec_len << 16)
           | (env->vfp.vec_stride << 20);
-    i = fetestexcept(FE_ALL_EXCEPT);
+    i = get_float_exception_flags(&env->vfp.fp_status);
     T0 |= vfp_exceptbits_from_host(i);
 }

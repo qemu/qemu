@@ -119,7 +119,7 @@ static inline void tswap64s(uint64_t *s)
 /* NOTE: arm FPA is horrible as double 32 bit words are stored in big
    endian ! */
 typedef union {
-    double d;
+    float64 d;
 #if defined(WORDS_BIGENDIAN) || (defined(__arm__) && !defined(__VFP_FP__))
     struct {
         uint32_t upper;
@@ -268,27 +268,27 @@ static inline void stq_p(void *ptr, uint64_t v)
 
 /* float access */
 
-static inline float ldfl_p(void *ptr)
+static inline float32 ldfl_p(void *ptr)
 {
     union {
-        float f;
+        float32 f;
         uint32_t i;
     } u;
     u.i = ldl_p(ptr);
     return u.f;
 }
 
-static inline void stfl_p(void *ptr, float v)
+static inline void stfl_p(void *ptr, float32 v)
 {
     union {
-        float f;
+        float32 f;
         uint32_t i;
     } u;
     u.f = v;
     stl_p(ptr, u.i);
 }
 
-static inline double ldfq_p(void *ptr)
+static inline float64 ldfq_p(void *ptr)
 {
     CPU_DoubleU u;
     u.l.lower = ldl_p(ptr);
@@ -296,7 +296,7 @@ static inline double ldfq_p(void *ptr)
     return u.d;
 }
 
-static inline void stfq_p(void *ptr, double v)
+static inline void stfq_p(void *ptr, float64 v)
 {
     CPU_DoubleU u;
     u.d = v;
@@ -397,27 +397,27 @@ static inline void stq_p(void *ptr, uint64_t v)
 
 /* float access */
 
-static inline float ldfl_p(void *ptr)
+static inline float32 ldfl_p(void *ptr)
 {
     union {
-        float f;
+        float32 f;
         uint32_t i;
     } u;
     u.i = ldl_p(ptr);
     return u.f;
 }
 
-static inline void stfl_p(void *ptr, float v)
+static inline void stfl_p(void *ptr, float32 v)
 {
     union {
-        float f;
+        float32 f;
         uint32_t i;
     } u;
     u.f = v;
     stl_p(ptr, u.i);
 }
 
-static inline double ldfq_p(void *ptr)
+static inline float64 ldfq_p(void *ptr)
 {
     CPU_DoubleU u;
     u.l.upper = ldl_p(ptr);
@@ -425,7 +425,7 @@ static inline double ldfq_p(void *ptr)
     return u.d;
 }
 
-static inline void stfq_p(void *ptr, double v)
+static inline void stfq_p(void *ptr, float64 v)
 {
     CPU_DoubleU u;
     u.d = v;
@@ -472,24 +472,24 @@ static inline void stq_p(void *ptr, uint64_t v)
 
 /* float access */
 
-static inline float ldfl_p(void *ptr)
+static inline float32 ldfl_p(void *ptr)
 {
-    return *(float *)ptr;
+    return *(float32 *)ptr;
 }
 
-static inline double ldfq_p(void *ptr)
+static inline float64 ldfq_p(void *ptr)
 {
-    return *(double *)ptr;
+    return *(float64 *)ptr;
 }
 
-static inline void stfl_p(void *ptr, float v)
+static inline void stfl_p(void *ptr, float32 v)
 {
-    *(float *)ptr = v;
+    *(float32 *)ptr = v;
 }
 
-static inline void stfq_p(void *ptr, double v)
+static inline void stfq_p(void *ptr, float64 v)
 {
-    *(double *)ptr = v;
+    *(float64 *)ptr = v;
 }
 #endif
 

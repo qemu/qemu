@@ -864,19 +864,19 @@ void OPPROTO op_undef_insn(void)
 
 #define VFP_OP(name, p) void OPPROTO op_vfp_##name##p(void)
 
-#define VFP_BINOP(name, op) \
+#define VFP_BINOP(name) \
 VFP_OP(name, s)             \
 {                           \
-    FT0s = FT0s op FT1s;    \
+    FT0s = float32_ ## name (FT0s, FT1s, &env->vfp.fp_status);    \
 }                           \
 VFP_OP(name, d)             \
 {                           \
-    FT0d = FT0d op FT1d;    \
+    FT0d = float64_ ## name (FT0d, FT1d, &env->vfp.fp_status);    \
 }
-VFP_BINOP(add, +)
-VFP_BINOP(sub, -)
-VFP_BINOP(mul, *)
-VFP_BINOP(div, /)
+VFP_BINOP(add)
+VFP_BINOP(sub)
+VFP_BINOP(mul)
+VFP_BINOP(div)
 #undef VFP_BINOP
 
 #define VFP_HELPER(name)  \
@@ -898,41 +898,51 @@ VFP_HELPER(cmpe)
    without looking at the rest of the value.  */
 VFP_OP(neg, s)
 {
-    FT0s = -FT0s;
+    FT0s = float32_chs(FT0s);
 }
 
 VFP_OP(neg, d)
 {
-    FT0d = -FT0d;
+    FT0d = float64_chs(FT0d);
 }
 
 VFP_OP(F1_ld0, s)
 {
-    FT1s = 0.0f;
+    union {
+        uint32_t i;
+        float32 s;
+    } v;
+    v.i = 0;
+    FT1s = v.s;
 }
 
 VFP_OP(F1_ld0, d)
 {
-    FT1d = 0.0;
+    union {
+        uint64_t i;
+        float64 d;
+    } v;
+    v.i = 0;
+    FT1d = v.d;
 }
 
 /* Helper routines to perform bitwise copies between float and int.  */
-static inline float vfp_itos(uint32_t i)
+static inline float32 vfp_itos(uint32_t i)
 {
     union {
         uint32_t i;
-        float s;
+        float32 s;
     } v;
 
     v.i = i;
     return v.s;
 }
 
-static inline uint32_t vfp_stoi(float s)
+static inline uint32_t vfp_stoi(float32 s)
 {
     union {
         uint32_t i;
-        float s;
+        float32 s;
     } v;
 
     v.s = s;
@@ -942,111 +952,106 @@ static inline uint32_t vfp_stoi(float s)
 /* Integer to float conversion.  */
 VFP_OP(uito, s)
 {
-    FT0s = (float)(uint32_t)vfp_stoi(FT0s);
+    FT0s = uint32_to_float32(vfp_stoi(FT0s), &env->vfp.fp_status);
 }
 
 VFP_OP(uito, d)
 {
-    FT0d = (double)(uint32_t)vfp_stoi(FT0s);
+    FT0d = uint32_to_float64(vfp_stoi(FT0s), &env->vfp.fp_status);
 }
 
 VFP_OP(sito, s)
 {
-    FT0s = (float)(int32_t)vfp_stoi(FT0s);
+    FT0s = int32_to_float32(vfp_stoi(FT0s), &env->vfp.fp_status);
 }
 
 VFP_OP(sito, d)
 {
-    FT0d = (double)(int32_t)vfp_stoi(FT0s);
+    FT0d = int32_to_float64(vfp_stoi(FT0s), &env->vfp.fp_status);
 }
 
 /* Float to integer conversion.  */
 VFP_OP(toui, s)
 {
-    FT0s = vfp_itos((uint32_t)FT0s);
+    FT0s = vfp_itos(float32_to_uint32(FT0s, &env->vfp.fp_status));
 }
 
 VFP_OP(toui, d)
 {
-    FT0s = vfp_itos((uint32_t)FT0d);
+    FT0s = vfp_itos(float64_to_uint32(FT0d, &env->vfp.fp_status));
 }
 
 VFP_OP(tosi, s)
 {
-    FT0s = vfp_itos((int32_t)FT0s);
+    FT0s = vfp_itos(float32_to_int32(FT0s, &env->vfp.fp_status));
 }
 
 VFP_OP(tosi, d)
 {
-    FT0s = vfp_itos((int32_t)FT0d);
+    FT0s = vfp_itos(float64_to_int32(FT0d, &env->vfp.fp_status));
 }
 
 /* TODO: Set rounding mode properly.  */
 VFP_OP(touiz, s)
 {
-    FT0s = vfp_itos((uint32_t)FT0s);
+    FT0s = vfp_itos(float32_to_uint32_round_to_zero(FT0s, &env->vfp.fp_status));
 }
 
 VFP_OP(touiz, d)
 {
-    FT0s = vfp_itos((uint32_t)FT0d);
+    FT0s = vfp_itos(float64_to_uint32_round_to_zero(FT0d, &env->vfp.fp_status));
 }
 
 VFP_OP(tosiz, s)
 {
-    FT0s = vfp_itos((int32_t)FT0s);
+    FT0s = vfp_itos(float32_to_int32_round_to_zero(FT0s, &env->vfp.fp_status));
 }
 
 VFP_OP(tosiz, d)
 {
-    FT0s = vfp_itos((int32_t)FT0d);
+    FT0s = vfp_itos(float64_to_int32_round_to_zero(FT0d, &env->vfp.fp_status));
 }
 
 /* floating point conversion */
 VFP_OP(fcvtd, s)
 {
-    FT0d = (double)FT0s;
+    FT0d = float32_to_float64(FT0s, &env->vfp.fp_status);
 }
 
 VFP_OP(fcvts, d)
 {
-    FT0s = (float)FT0d;
+    FT0s = float64_to_float32(FT0d, &env->vfp.fp_status);
 }
 
 /* Get and Put values from registers.  */
 VFP_OP(getreg_F0, d)
 {
-  FT0d = *(double *)((char *) env + PARAM1);
+  FT0d = *(float64 *)((char *) env + PARAM1);
 }
 
 VFP_OP(getreg_F0, s)
 {
-  FT0s = *(float *)((char *) env + PARAM1);
+  FT0s = *(float32 *)((char *) env + PARAM1);
 }
 
 VFP_OP(getreg_F1, d)
 {
-  FT1d = *(double *)((char *) env + PARAM1);
+  FT1d = *(float64 *)((char *) env + PARAM1);
 }
 
 VFP_OP(getreg_F1, s)
 {
-  FT1s = *(float *)((char *) env + PARAM1);
+  FT1s = *(float32 *)((char *) env + PARAM1);
 }
 
 VFP_OP(setreg_F0, d)
 {
-  *(double *)((char *) env + PARAM1) = FT0d;
+  *(float64 *)((char *) env + PARAM1) = FT0d;
 }
 
 VFP_OP(setreg_F0, s)
 {
-  *(float *)((char *) env + PARAM1) = FT0s;
-}
-
-VFP_OP(foobar, d)
-{
-  FT0d = env->vfp.regs.s[3];
+  *(float32 *)((char *) env + PARAM1) = FT0s;
 }
 
 void OPPROTO op_vfp_movl_T0_fpscr(void)
