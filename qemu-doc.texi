@@ -353,6 +353,61 @@ Lawton for the plex86 Project (@url{www.plex86.org}).
 
 @end enumerate
 
+@section Invocation
+
+@example
+usage: vl [options] bzImage [kernel parameters...]
+@end example
+
+@file{bzImage} is a Linux kernel image.
+
+General options:
+@table @option
+@item -initrd file
+Use 'file' as initial ram disk.
+
+@item -hda file
+@item -hdb file
+Use 'file' as hard disk 0 or 1 image. The disk images are simply raw
+images of the hard disk. You can create them with the command:
+@example
+dd if=/dev/zero of=myimage bs=1024 count=mysize
+@end example
+where @var{myimage} is the image filename and @var{mysize} is its size
+in kilobytes.
+
+@item -m megs
+Set virtual RAM size to @var{megs} megabytes.
+
+@item -n script      
+Set network init script [default=/etc/vl-ifup]. This script is
+launched to configure the host network interface (usually tun0)
+corresponding to the virtual NE2000 card.
+@end table
+
+Debug options:
+@table @option
+@item -s
+Wait gdb connection to port 1234.
+@item -p port
+Change gdb connection port.
+@item -d             
+Output log in /tmp/vl.log
+@end table
+
+During emulation, use @key{C-a h} to get terminal commands:
+
+@table @key
+@item C-a h
+Print this help
+@item C-a x    
+Exit emulatior
+@item C-a b    
+Send break (magic sysrq)
+@item C-a C-a  
+Send C-a
+@end table
+
 @section Kernel Compilation
 
 You can use any Linux kernel within QEMU provided it is mapped at
@@ -417,11 +472,13 @@ PIT (timers)
 @item 
 CMOS memory
 @item
+Dumb VGA (to print the @code{Uncompressing Linux} message)
+@item
 Serial port (port=0x3f8, irq=4)
 @item 
 NE2000 network adapter (port=0x300, irq=9)
-@item
-Dumb VGA (to print the @code{Uncompressing Linux} message)
+@item 
+IDE disk interface (port=0x1f0, irq=14)
 @end itemize
 
 @section GDB usage
