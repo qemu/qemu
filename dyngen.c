@@ -1185,6 +1185,26 @@ int load_object(const char *filename)
 
 #endif /* CONFIG_FORMAT_MACH */
 
+void get_reloc_expr(char *name, int name_size, const char *sym_name)
+{
+    const char *p;
+
+    if (strstart(sym_name, "__op_param", &p)) {
+        snprintf(name, name_size, "param%s", p);
+    } else if (strstart(sym_name, "__op_gen_label", &p)) {
+        snprintf(name, name_size, "gen_labels[param%s]", p);
+    } else {
+#ifdef HOST_SPARC
+        if (sym_name[0] == '.')
+            snprintf(name, sizeof(name),
+                     "(long)(&__dot_%s)",
+                     sym_name + 1);
+        else
+#endif
+            snprintf(name, name_size, "(long)(&%s)", sym_name);
+    }
+}
+
 #ifdef HOST_ARM
 
 int arm_emit_ldr_info(const char *name, unsigned long start_offset,
@@ -1244,11 +1264,7 @@ int arm_emit_ldr_info(const char *name, unsigned long start_offset,
                         if (rel->r_offset == (pc_offset + start_offset)) {
                             sym_name = get_rel_sym_name(rel);
                             /* the compiler leave some unnecessary references to the code */
-                            if (strstart(sym_name, "__op_param", &p)) {
-                                snprintf(relname, sizeof(relname), "param%s", p);
-                            } else {
-                                snprintf(relname, sizeof(relname), "(long)(&%s)", sym_name);
-                            }
+                            get_reloc_expr(relname, sizeof(relname), sym_name);
                             type = ELF32_R_TYPE(rel->r_info);
                             if (type != R_ARM_ABS32)
                                 error("%s: unsupported data relocation", name);
@@ -1641,13 +1657,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                         continue;
                     }
                         
-                    if (strstart(sym_name, "__op_param", &p)) {
-                        snprintf(name, sizeof(name), "param%s", p);
-                    } else if (strstart(sym_name, "__op_gen_label", &p)) {
-                        snprintf(name, sizeof(name), "gen_labels[param%s]", p);
-                    } else {
-                        snprintf(name, sizeof(name), "(long)(&%s)", sym_name);
-                    }
+                    get_reloc_expr(name, sizeof(name), sym_name);
                     addend = get32((uint32_t *)(text + rel->r_offset));
 #ifdef CONFIG_FORMAT_ELF
                     type = ELF32_R_TYPE(rel->r_info);
@@ -1705,11 +1715,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                 if (rel->r_offset >= start_offset &&
 		    rel->r_offset < start_offset + copy_size) {
                     sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
-                    if (strstart(sym_name, "__op_param", &p)) {
-                        snprintf(name, sizeof(name), "param%s", p);
-                    } else {
-                        snprintf(name, sizeof(name), "(long)(&%s)", sym_name);
-                    }
+                    get_reloc_expr(name, sizeof(name), sym_name);
                     type = ELF32_R_TYPE(rel->r_info);
                     addend = rel->r_addend;
                     switch(type) {
@@ -1753,11 +1759,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                             continue;
                         }
                         
-                        if (strstart(sym_name, "__op_param", &p)) {
-                            snprintf(name, sizeof(name), "param%s", p);
-                        } else {
-                            snprintf(name, sizeof(name), "(long)(&%s)", sym_name);
-                        }
+                        get_reloc_expr(name, sizeof(name), sym_name);
                         type = ELF32_R_TYPE(rel->r_info);
                         addend = rel->r_addend;
                         switch(type) {
@@ -1842,12 +1844,8 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 						continue; /* dunno how to handle without final_sym_name */
 					}
 													   
-					if (strstart(sym_name, "__op_param", &p)) {
-						snprintf(final_sym_name, sizeof(final_sym_name), "param%s", p);
-					} else {
-						snprintf(final_sym_name, sizeof(final_sym_name), "(long)(&%s)", sym_name);
-					}
-			
+                                        get_reloc_expr(final_sym_name, sizeof(final_sym_name), 
+                                                       sym_name);
 					switch(type) {
 					case PPC_RELOC_BR24:
 						fprintf(outfile, "{\n");
@@ -1885,11 +1883,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                     if (rel->r_offset >= start_offset &&
 			rel->r_offset < start_offset + copy_size) {
                         sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
-                        if (strstart(sym_name, "__op_param", &p)) {
-                            snprintf(name, sizeof(name), "param%s", p);
-                        } else {
-                            snprintf(name, sizeof(name), "(long)(&%s)", sym_name);
-                        }
+                        get_reloc_expr(name, sizeof(name), sym_name);
                         type = ELF32_R_TYPE(rel->r_info);
                         addend = rel->r_addend;
                         switch(type) {
@@ -1973,11 +1967,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                 for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
                     if (rel->r_offset >= start_offset && rel->r_offset < start_offset + copy_size) {
                         sym_name = strtab + symtab[ELF64_R_SYM(rel->r_info)].st_name;
-                        if (strstart(sym_name, "__op_param", &p)) {
-                            snprintf(name, sizeof(name), "param%s", p);
-                        } else {
-                            snprintf(name, sizeof(name), "(long)(&%s)", sym_name);
-                        }
+                        get_reloc_expr(name, sizeof(name), sym_name);
                         type = ELF64_R_TYPE(rel->r_info);
                         addend = rel->r_addend;
                         switch(type) {
@@ -2000,17 +1990,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                     if (rel->r_offset >= start_offset &&
 			rel->r_offset < start_offset + copy_size) {
                         sym_name = strtab + symtab[ELF32_R_SYM(rel->r_info)].st_name;
-                        if (strstart(sym_name, "__op_param", &p)) {
-                            snprintf(name, sizeof(name), "param%s", p);
-                        } else {
-				if (sym_name[0] == '.')
-					snprintf(name, sizeof(name),
-						 "(long)(&__dot_%s)",
-						 sym_name + 1);
-				else
-					snprintf(name, sizeof(name),
-						 "(long)(&%s)", sym_name);
-                        }
+                        get_reloc_expr(name, sizeof(name), sym_name);
                         type = ELF32_R_TYPE(rel->r_info);
                         addend = rel->r_addend;
                         switch(type) {
@@ -2065,11 +2045,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                     if (rel->r_offset >= start_offset &&
 			rel->r_offset < start_offset + copy_size) {
                         sym_name = strtab + symtab[ELF64_R_SYM(rel->r_info)].st_name;
-                        if (strstart(sym_name, "__op_param", &p)) {
-                            snprintf(name, sizeof(name), "param%s", p);
-                        } else {
-                            snprintf(name, sizeof(name), "(long)(&%s)", sym_name);
-                        }
+                        get_reloc_expr(name, sizeof(name), sym_name);
                         type = ELF64_R_TYPE(rel->r_info);
                         addend = rel->r_addend;
                         switch(type) {
@@ -2131,11 +2107,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                     /* the compiler leave some unnecessary references to the code */
                     if (sym_name[0] == '\0')
                         continue;
-                    if (strstart(sym_name, "__op_param", &p)) {
-                        snprintf(name, sizeof(name), "param%s", p);
-                    } else {
-                        snprintf(name, sizeof(name), "(long)(&%s)", sym_name);
-                    }
+                    get_reloc_expr(name, sizeof(name), sym_name);
                     type = ELF32_R_TYPE(rel->r_info);
                     addend = get32((uint32_t *)(text + rel->r_offset));
                     switch(type) {
@@ -2164,11 +2136,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 		    rel->r_offset < start_offset + copy_size) {
 		    sym = &(symtab[ELFW(R_SYM)(rel->r_info)]);
                     sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
-                    if (strstart(sym_name, "__op_param", &p)) {
-                        snprintf(name, sizeof(name), "param%s", p);
-                    } else {
-                        snprintf(name, sizeof(name), "(long)(&%s)", sym_name);
-                    }
+                    get_reloc_expr(name, sizeof(name), sym_name);
                     type = ELF32_R_TYPE(rel->r_info);
                     addend = get32((uint32_t *)(text + rel->r_offset)) + rel->r_addend;
                     switch(type) {
