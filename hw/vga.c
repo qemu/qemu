@@ -344,7 +344,7 @@ static void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         printf("vga: write CR%x = 0x%02x\n", s->cr_index, val);
 #endif
         /* handle CR0-7 protection */
-        if ((s->cr[11] & 0x80) && s->cr_index <= 7) {
+        if ((s->cr[0x11] & 0x80) && s->cr_index <= 7) {
             /* can always write bit 4 of CR7 */
             if (s->cr_index == 7)
                 s->cr[7] = (s->cr[7] & ~0x10) | (val & 0x10);
@@ -1346,11 +1346,13 @@ static void vga_draw_graphic(VGAState *s, int full_update)
     disp_width = width;
 
     shift_control = (s->gr[0x05] >> 5) & 3;
-    double_scan = (s->cr[0x09] & 0x80);
-    if (shift_control > 1) {
-        multi_scan = (s->cr[0x09] & 0x1f);
+    double_scan = (s->cr[0x09] >> 7);
+    if (shift_control != 1) {
+        multi_scan = (((s->cr[0x09] & 0x1f) + 1) << double_scan) - 1;
     } else {
-        multi_scan = 0;
+        /* in CGA modes, multi_scan is ignored */
+        /* XXX: is it correct ? */
+        multi_scan = double_scan;
     }
     multi_run = multi_scan;
     if (shift_control != s->shift_control ||
@@ -1417,7 +1419,7 @@ static void vga_draw_graphic(VGAState *s, int full_update)
     
     line_offset = s->line_offset;
 #if 0
-    printf("w=%d h=%d v=%d line_offset=%d double_scan=0x%02x cr[0x17]=0x%02x linecmp=%d sr[0x01]=%02x\n",
+    printf("w=%d h=%d v=%d line_offset=%d cr[0x09]=0x%02x cr[0x17]=0x%02x linecmp=%d sr[0x01]=0x%02x\n",
            width, height, v, line_offset, s->cr[9], s->cr[0x17], s->line_compare, s->sr[0x01]);
 #endif
     addr1 = (s->start_addr * 4);
@@ -1468,21 +1470,17 @@ static void vga_draw_graphic(VGAState *s, int full_update)
             }
         }
         if (!multi_run) {
-            if (!double_scan || (y & 1) != 0) {
-                if (y1 == s->line_compare) {
-                    addr1 = 0;
-                } else {
-                    mask = (s->cr[0x17] & 3) ^ 3;
-                    if ((y1 & mask) == mask)
-                        addr1 += line_offset;
-                }
-                y1++;
-            }
+            mask = (s->cr[0x17] & 3) ^ 3;
+            if ((y1 & mask) == mask)
+                addr1 += line_offset;
+            y1++;
             multi_run = multi_scan;
         } else {
             multi_run--;
-            y1++;
         }
+        /* line compare acts on the displayed lines */
+        if (y == s->line_compare)
+            addr1 = 0;
         d += linesize;
     }
     if (y_start >= 0) {
