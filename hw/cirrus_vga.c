@@ -1492,6 +1492,7 @@ cirrus_hook_write_cr(CirrusVGAState * s, unsigned reg_index, int reg_value)
     case 0x1a:			// Miscellaneous Control
     case 0x1b:			// Extended Display Control
     case 0x1c:			// Sync Adjust and Genlock
+    case 0x1d:			// Overlay Extended Control
 	s->cr[reg_index] = reg_value;
 #ifdef DEBUG_CIRRUS
 	printf("cirrus: handled outport cr_index %02x, cr_value %02x\n",
@@ -1503,7 +1504,6 @@ cirrus_hook_write_cr(CirrusVGAState * s, unsigned reg_index, int reg_value)
     case 0x26:			// Attribute Controller Index Readback (R)
     case 0x27:			// Part ID (R)
 	break;
-    case 0x1d:			// Overlay Extended Control
     case 0x25:			// Part Status
     default:
 #ifdef DEBUG_CIRRUS
@@ -2440,7 +2440,11 @@ static uint32_t vga_ioport_read(void *opaque, uint32_t addr)
 	case 0x3c7:
 	    val = s->dac_state;
 	    break;
-	case 0x3c9:
+	case 0x3c8:
+	    val = s->dac_write_index;
+	    s->cirrus_hidden_dac_lockindex = 0;
+	    break;
+        case 0x3c9:
 	    if (cirrus_hook_read_palette(s, &val))
 		break;
 	    val = s->palette[s->dac_read_index * 3 + s->dac_sub_index];
