@@ -18,6 +18,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include "exec-i386.h"
+#include "disas.h"
 
 //#define DEBUG_EXEC
 #define DEBUG_FLUSH
@@ -185,7 +186,7 @@ static void cpu_x86_dump_state(FILE *f)
 {
     int eflags;
     eflags = cc_table[CC_OP].compute_all();
-    eflags |= (DF & DIRECTION_FLAG);
+    eflags |= (DF & DF_MASK);
     fprintf(f, 
             "EAX=%08x EBX=%08X ECX=%08x EDX=%08x\n"
             "ESI=%08x EDI=%08X EBP=%08x ESP=%08x\n"
@@ -194,7 +195,7 @@ static void cpu_x86_dump_state(FILE *f)
             env->regs[R_EAX], env->regs[R_EBX], env->regs[R_ECX], env->regs[R_EDX], 
             env->regs[R_ESI], env->regs[R_EDI], env->regs[R_EBP], env->regs[R_ESP], 
             env->cc_src, env->cc_dst, cc_op_str[env->cc_op],
-            eflags & DIRECTION_FLAG ? 'D' : '-',
+            eflags & DF_MASK ? 'D' : '-',
             eflags & CC_O ? 'O' : '-',
             eflags & CC_S ? 'S' : '-',
             eflags & CC_Z ? 'Z' : '-',
@@ -397,6 +398,12 @@ int cpu_x86_exec(CPUX86State *env1)
                 code_gen_ptr = (void *)(((unsigned long)code_gen_ptr + code_gen_size + CODE_GEN_ALIGN - 1) & ~(CODE_GEN_ALIGN - 1));
                 cpu_unlock();
             }
+	    if (loglevel) {
+		fprintf(logfile, "Trace 0x%08lx [0x%08lx] %s\n",
+			(long)tb->tc_ptr, (long)tb->pc,
+			lookup_symbol((void *)tb->pc));
+		fflush(logfile);
+	    }
             /* execute the generated code */
             tc_ptr = tb->tc_ptr;
             gen_func = (void *)tc_ptr;
