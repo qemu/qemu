@@ -312,11 +312,9 @@ TranslationBlock *tb_find_pc(unsigned long pc_ptr);
 #elif defined(__APPLE__)
 #define ASM_DATA_SECTION ".data\n"
 #define ASM_PREVIOUS_SECTION ".text\n"
-#define ASM_NAME(x) "_" #x
 #else
 #define ASM_DATA_SECTION ".section \".data\"\n"
 #define ASM_PREVIOUS_SECTION ".previous\n"
-#define ASM_NAME(x) stringify(x)
 #endif
 
 #if defined(__powerpc__)
