@@ -178,8 +178,8 @@ ElfW(Sym) *symtab;
 int nb_syms;
 char *strtab;
 /* data section */
-uint8_t *data_data;
-int data_shndx;
+uint8_t *data_data, *sdata_data;
+int data_shndx, sdata_shndx;
 
 uint16_t get16(uint16_t *p)
 {
@@ -499,11 +499,17 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
             for(i = 0, sym = symtab; i < nb_syms; i++, sym++) {
                 sym_name = strtab + sym->st_name;
                 if (strstart(sym_name, "__op_label", &p)) {
+                    uint8_t *ptr;
+
                     /* test if the variable refers to a label inside
                        the code we are generating */
-                    if (sym->st_shndx != data_shndx)
+                    if (sym->st_shndx == data_shndx)
+                        ptr = data_data;
+                    else if (sym->st_shndx == sdata_shndx)
+                        ptr = sdata_data;
+                    else
                         error("__op_labelN symbols must be in .data or .sdata section");
-                    val = *(target_ulong *)(data_data + sym->st_value);
+                    val = *(target_ulong *)(ptr + sym->st_value);
                     if (val >= start_offset && val < start_offset + copy_size) {
                         n = strtol(p, NULL, 10);
                         fprintf(outfile, "    label_offsets[%d] = %d + (gen_code_ptr - gen_code_buf);\n", n, val - start_offset);
@@ -878,7 +884,7 @@ int load_elf(const char *filename, FILE *outfile, int do_print_enum)
     struct elf_shdr *sec, *symtab_sec, *strtab_sec, *text_sec;
     int i, j;
     ElfW(Sym) *sym;
-    char *shstr, *data_name;
+    char *shstr;
     uint8_t *text;
     void *relocs;
     int nb_relocs, reloc_sh_type;
@@ -930,16 +936,18 @@ int load_elf(const char *filename, FILE *outfile, int do_print_enum)
         error("could not find .text section");
     text = load_data(fd, text_sec->sh_offset, text_sec->sh_size);
 
-#if defined(HOST_PPC)
-    data_name = ".sdata";
-#else
-    data_name = ".data";
-#endif
-    sec = find_elf_section(shdr, ehdr.e_shnum, shstr, data_name);
-    if (!sec)
-        error("could not find %s section", data_name);
-    data_shndx = sec - shdr;
-    data_data = load_data(fd, sec->sh_offset, sec->sh_size);
+    data_shndx = -1;
+    sec = find_elf_section(shdr, ehdr.e_shnum, shstr, ".data");
+    if (sec) {
+        data_shndx = sec - shdr;
+        data_data = load_data(fd, sec->sh_offset, sec->sh_size);
+    }
+    sdata_shndx = -1;
+    sec = find_elf_section(shdr, ehdr.e_shnum, shstr, ".sdata");
+    if (sec) {
+        sdata_shndx = sec - shdr;
+        sdata_data = load_data(fd, sec->sh_offset, sec->sh_size);
+    }
     
     /* find text relocations, if any */
     nb_relocs = 0;
