@@ -1,14 +1,24 @@
 include config.mak
 
-VPATH=$(SRC_PATH)
+TARGET_PATH=$(SRC_PATH)/target-$(TARGET_ARCH)
+VPATH=$(SRC_PATH):$(TARGET_PATH)
 CFLAGS=-Wall -O2 -g
 LDFLAGS=-g
 LIBS=
-DEFINES=-I.
+DEFINES=-I. -I$(TARGET_PATH) -I$(SRC_PATH)
 HELPER_CFLAGS=$(CFLAGS)
 DYNGEN=../dyngen
+# user emulator name
+QEMU_USER=qemu-$(TARGET_ARCH)
+# system emulator name
+ifdef CONFIG_SOFTMMU
+QEMU_SYSTEM=qemu-softmmu
+else
+QEMU_SYSTEM=qemu
+endif
+
 ifndef CONFIG_SOFTMMU
-PROGS=qemu
+PROGS=$(QEMU_USER)
 endif
 
 ifdef CONFIG_STATIC
@@ -32,7 +42,7 @@ else
 LDFLAGS+=-Wl,-shared
 endif
 ifeq ($(TARGET_ARCH), i386)
-PROGS+=vl
+PROGS+=$(QEMU_SYSTEM)
 endif
 endif
 
@@ -108,13 +118,11 @@ SRCS:= $(OBJS:.o=.c)
 OBJS+= libqemu.a
 
 # cpu emulator library
-LIBOBJS=thunk.o exec.o translate.o cpu-exec.o gdbstub.o
+LIBOBJS=thunk.o exec.o translate-all.o cpu-exec.o gdbstub.o \
+        translate.o op.o
 
 ifeq ($(TARGET_ARCH), i386)
-LIBOBJS+=translate-i386.o op-i386.o helper-i386.o helper2-i386.o
-endif
-ifeq ($(TARGET_ARCH), arm)
-LIBOBJS+=translate-arm.o op-arm.o
+LIBOBJS+=helper.o helper2.o
 endif
 
 # NOTE: the disassembler code is only needed for debugging
@@ -139,9 +147,9 @@ ifeq ($(ARCH),ia64)
 OBJS += ia64-syscall.o
 endif
 
-all: $(PROGS) qemu-doc.html
+all: $(PROGS)
 
-qemu: $(OBJS)
+$(QEMU_USER): $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^  $(LIBS)
 ifeq ($(ARCH),alpha)
 # Mark as 32 bit binary, i. e. it will be mapped into the low 31 bit of
@@ -156,7 +164,7 @@ VL_OBJS+=sdl.o
 SDL_LIBS+=-L/usr/X11R6/lib -lX11 -lXext -lXv -ldl -lm
 endif
 
-vl: $(VL_OBJS) libqemu.a
+$(QEMU_SYSTEM): $(VL_OBJS) libqemu.a
 	$(CC) -static -Wl,-T,$(SRC_PATH)/i386-vl.ld -o $@ $^ $(LIBS) $(SDL_LIBS)
 
 sdl.o: sdl.c
@@ -171,35 +179,45 @@ libqemu.a: $(LIBOBJS)
 	rm -f $@
 	$(AR) rcs $@ $(LIBOBJS)
 
-translate-$(TARGET_ARCH).o: translate-$(TARGET_ARCH).c gen-op-$(TARGET_ARCH).h opc-$(TARGET_ARCH).h cpu-$(TARGET_ARCH).h
+translate.o: translate.c gen-op.h opc.h cpu.h
 
-translate.o: translate.c op-$(TARGET_ARCH).h opc-$(TARGET_ARCH).h cpu-$(TARGET_ARCH).h
+translate-all.o: translate-all.c op.h opc.h cpu.h
 
-op-$(TARGET_ARCH).h: op-$(TARGET_ARCH).o $(DYNGEN)
+op.h: op.o $(DYNGEN)
 	$(DYNGEN) -o $@ $<
 
-opc-$(TARGET_ARCH).h: op-$(TARGET_ARCH).o $(DYNGEN)
+opc.h: op.o $(DYNGEN)
 	$(DYNGEN) -c -o $@ $<
 
-gen-op-$(TARGET_ARCH).h: op-$(TARGET_ARCH).o $(DYNGEN)
+gen-op.h: op.o $(DYNGEN)
 	$(DYNGEN) -g -o $@ $<
 
-op-$(TARGET_ARCH).o: op-$(TARGET_ARCH).c
+op.o: op.c
 	$(CC) $(OP_CFLAGS) $(DEFINES) -c -o $@ $<
 
-helper-$(TARGET_ARCH).o: helper-$(TARGET_ARCH).c
+helper.o: helper.c
 	$(CC) $(HELPER_CFLAGS) $(DEFINES) -c -o $@ $<
 
-op-i386.o: op-i386.c opreg_template.h ops_template.h ops_template_mem.h ops_mem.h
+ifeq ($(TARGET_ARCH), i386)
+op.o: op.c opreg_template.h ops_template.h ops_template_mem.h ops_mem.h
+endif
 
-op-arm.o: op-arm.c op-arm-template.h
+ifeq ($(TARGET_ARCH), arm)
+op.o: op.c op_template.h
+endif
+
+ifeq ($(TARGET_ARCH), sparc)
+op.o: op.c op_template.h
+endif
 
 %.o: %.c
 	$(CC) $(CFLAGS) $(DEFINES) -c -o $@ $<
 
 clean:
-	rm -f *.o  *.a *~ $(PROGS) \
-           gen-op-$(TARGET_ARCH).h opc-$(TARGET_ARCH).h op-$(TARGET_ARCH).h
+	rm -f *.o  *.a *~ $(PROGS) gen-op.h opc.h op.h
+
+install: all 
+	install -m 755 -s $(PROGS) $(prefix)/bin
 
 ifneq ($(wildcard .depend),)
 include .depend
