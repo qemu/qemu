@@ -1,6 +1,7 @@
 #define _GNU_SOURCE
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <inttypes.h>
 #include <math.h>
 #include <signal.h>
@@ -591,7 +592,7 @@ void test_fbcd(double a)
     asm("fld1\n"\
         prefix "fnstenv %1\n"\
         prefix "fldenv %1\n"\
-        : "=t" (res) : "m" (*(env)) : "st");\
+        : "=t" (res) : "m" (*(env)));\
     printf("res=%f\n", res);\
     printf("fpuc=%04x fpus=%04x fptag=%04x\n",\
            (env)->fpuc,\
@@ -601,7 +602,7 @@ void test_fbcd(double a)
     asm("fld1\n"\
         prefix "fnsave %1\n"\
         prefix "frstor %1\n"\
-        : "=t" (res) : "m" (*(env)) : "st");\
+        : "=t" (res) : "m" (*(env)));\
     printf("res=%f\n", res);\
     printf("fpuc=%04x fpus=%04x fptag=%04x\n",\
            (env)->fpuc,\
