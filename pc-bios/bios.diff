@@ -4,7 +4,7 @@ RCS file: /cvsroot/bochs/bochs/bios/rombios.c,v
 retrieving revision 1.108
 diff -u -w -r1.108 rombios.c
 --- rombios.c	9 Feb 2004 16:48:50 -0000	1.108
-+++ rombios.c	16 May 2004 13:44:26 -0000
++++ rombios.c	16 May 2004 15:16:57 -0000
 @@ -2254,6 +2254,7 @@
        type      = read_byte(get_SS(),buffer+1) & 0x1f;
        removable = (read_byte(get_SS(),buffer+0) & 0x80) ? 1 : 0;
@@ -13,7 +13,24 @@ diff -u -w -r1.108 rombios.c
  
        write_byte(ebda_seg,&EbdaData->ata.devices[device].device, type);
        write_byte(ebda_seg,&EbdaData->ata.devices[device].removable, removable);
-@@ -3781,7 +3782,17 @@
+@@ -3378,6 +3379,8 @@
+       and al,#0x10
+       mov ah, al
+ 
++      or ecx, ecx                    
++      je int1586_tick_end
+ int1586_tick:
+       in al, #0x61
+       and al,#0x10
+@@ -3386,6 +3389,7 @@
+       mov ah, al
+       dec ecx
+       jnz int1586_tick
++int1586_tick_end:
+ ASM_END
+ 
+       break;
+@@ -3781,7 +3785,17 @@
            write_word(ebda_seg, 0x0022, mouse_driver_offset);
            write_word(ebda_seg, 0x0024, mouse_driver_seg);
            mouse_flags_2 = read_byte(ebda_seg, 0x0027);
@@ -31,7 +48,7 @@ diff -u -w -r1.108 rombios.c
            write_byte(ebda_seg, 0x0027, mouse_flags_2);
            CLEAR_CF();
            regs.u.r8.ah = 0;
-@@ -4409,7 +4420,8 @@
+@@ -4409,7 +4423,8 @@
    mouse_flags_2 = read_byte(ebda_seg, 0x0027);
  
    if ( (mouse_flags_2 & 0x80) != 0x80 ) {
