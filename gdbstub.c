@@ -37,7 +37,7 @@
 #include "thunk.h"
 #include "exec.h"
 
-#define DEBUG_GDB
+//#define DEBUG_GDB
 
 int gdbstub_fd = -1;
 
