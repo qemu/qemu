@@ -964,7 +964,8 @@ static void openpic_map(PCIDevice *pci_dev, int region_num,
 #endif
 }
 
-openpic_t *openpic_init (uint32_t isu_base, uint32_t idu_base, int nb_cpus)
+openpic_t *openpic_init (PCIBus *bus,
+                         uint32_t isu_base, uint32_t idu_base, int nb_cpus)
 {
     openpic_t *opp;
     uint8_t *pci_conf;
@@ -973,8 +974,8 @@ openpic_t *openpic_init (uint32_t isu_base, uint32_t idu_base, int nb_cpus)
     /* XXX: for now, only one CPU is supported */
     if (nb_cpus != 1)
         return NULL;
-    opp = (openpic_t *)pci_register_device("OpenPIC", sizeof(openpic_t),
-                                           0, -1, NULL, NULL);
+    opp = (openpic_t *)pci_register_device(bus, "OpenPIC", sizeof(openpic_t),
+                                           -1, NULL, NULL);
     if (opp == NULL)
         return NULL;
     pci_conf = opp->pci_dev.config;

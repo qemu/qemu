@@ -457,6 +457,7 @@ extern int pci_enabled;
 
 extern target_phys_addr_t pci_mem_base;
 
+typedef struct PCIBus PCIBus;
 typedef struct PCIDevice PCIDevice;
 
 typedef void PCIConfigWriteFunc(PCIDevice *pci_dev, 
@@ -484,7 +485,7 @@ struct PCIDevice {
     uint8_t config[256];
 
     /* the following fields are read only */
-    int bus_num;
+    PCIBus *bus;
     int devfn;
     char name[64];
     PCIIORegion io_regions[PCI_NUM_REGIONS];
@@ -495,8 +496,8 @@ struct PCIDevice {
     int irq_index;
 };
 
-PCIDevice *pci_register_device(const char *name, int instance_size,
-                               int bus_num, int devfn,
+PCIDevice *pci_register_device(PCIBus *bus, const char *name,
+                               int instance_size, int devfn,
                                PCIConfigReadFunc *config_read, 
                                PCIConfigWriteFunc *config_write);
 
@@ -513,20 +514,22 @@ void pci_default_write_config(PCIDevice *d,
 
 extern struct PIIX3State *piix3_state;
 
-void i440fx_init(void);
-void piix3_init(void);
+PCIBus *i440fx_init(void);
+void piix3_init(PCIBus *bus);
 void pci_bios_init(void);
 void pci_info(void);
 
 /* temporary: will be moved in platform specific file */
-void pci_prep_init(void);
-void pci_pmac_init(void);
-void pci_ppc_bios_init(void);
+PCIBus *pci_prep_init(void);
+struct openpic_t;
+void pci_pmac_set_openpic(PCIBus *bus, struct openpic_t *openpic);
+PCIBus *pci_pmac_init(void);
 
 /* openpic.c */
 typedef struct openpic_t openpic_t;
 void openpic_set_irq (openpic_t *opp, int n_IRQ, int level);
-openpic_t *openpic_init (uint32_t isu_base, uint32_t idu_base, int nb_cpus);
+openpic_t *openpic_init (PCIBus *bus,
+                         uint32_t isu_base, uint32_t idu_base, int nb_cpus);
 
 /* vga.c */
 
@@ -551,17 +554,15 @@ static inline void dpy_resize(DisplayState *s, int w, int h)
     s->dpy_resize(s, w, h);
 }
 
-int vga_initialize(DisplayState *ds, uint8_t *vga_ram_base, 
-                   unsigned long vga_ram_offset, int vga_ram_size, 
-                   int is_pci);
+int vga_initialize(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base, 
+                   unsigned long vga_ram_offset, int vga_ram_size);
 void vga_update_display(void);
 void vga_invalidate_display(void);
 void vga_screen_dump(const char *filename);
 
 /* cirrus_vga.c */
-void pci_cirrus_vga_init(DisplayState *ds, uint8_t *vga_ram_base, 
+void pci_cirrus_vga_init(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base, 
                          unsigned long vga_ram_offset, int vga_ram_size);
-
 void isa_cirrus_vga_init(DisplayState *ds, uint8_t *vga_ram_base, 
                          unsigned long vga_ram_offset, int vga_ram_size);
 
@@ -575,8 +576,8 @@ extern BlockDriverState *bs_table[MAX_DISKS];
 
 void isa_ide_init(int iobase, int iobase2, int irq,
                   BlockDriverState *hd0, BlockDriverState *hd1);
-void pci_ide_init(BlockDriverState **hd_table);
-void pci_piix3_ide_init(BlockDriverState **hd_table);
+void pci_ide_init(PCIBus *bus, BlockDriverState **hd_table);
+void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table);
 int pmac_ide_init (BlockDriverState **hd_table,
                    openpic_t *openpic, int irq);
 
@@ -627,7 +628,7 @@ int fdctrl_get_drive_type(fdctrl_t *fdctrl, int drive_num);
 /* ne2000.c */
 
 void isa_ne2000_init(int base, int irq, NetDriverState *nd);
-void pci_ne2000_init(NetDriverState *nd);
+void pci_ne2000_init(PCIBus *bus, NetDriverState *nd);
 
 /* pckbd.c */
 

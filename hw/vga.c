@@ -1747,9 +1747,8 @@ void vga_common_init(VGAState *s, DisplayState *ds, uint8_t *vga_ram_base,
 }
 
 
-int vga_initialize(DisplayState *ds, uint8_t *vga_ram_base, 
-                   unsigned long vga_ram_offset, int vga_ram_size, 
-                   int is_pci)
+int vga_initialize(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base, 
+                   unsigned long vga_ram_offset, int vga_ram_size)
 {
     VGAState *s;
 
@@ -1805,14 +1804,13 @@ int vga_initialize(DisplayState *ds, uint8_t *vga_ram_base,
     cpu_register_physical_memory(isa_mem_base + 0x000a0000, 0x20000, 
                                  vga_io_memory);
 
-    if (is_pci) {
+    if (bus) {
         PCIDevice *d;
         uint8_t *pci_conf;
 
-        d = pci_register_device("VGA", 
+        d = pci_register_device(bus, "VGA", 
                                 sizeof(PCIDevice),
-                                0, -1, 
-                                NULL, NULL);
+                                -1, NULL, NULL);
         pci_conf = d->config;
         pci_conf[0x00] = 0x34; // dummy VGA (same as Bochs ID)
         pci_conf[0x01] = 0x12;

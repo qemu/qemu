@@ -418,6 +418,7 @@ void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
     int ret, linux_boot, i, nb_nics1, fd;
     unsigned long bios_offset;
     uint32_t kernel_base, kernel_size, initrd_base, initrd_size;
+    PCIBus *pci_bus;
 
     sysctrl = qemu_mallocz(sizeof(sysctrl_t));
     if (sysctrl == NULL)
@@ -477,14 +478,14 @@ void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
     cpu_ppc_tb_init(cpu_single_env, 100UL * 1000UL * 1000UL);
 
     isa_mem_base = 0xc0000000;
-    pci_prep_init();
+    pci_bus = pci_prep_init();
     /* Register 64 KB of ISA IO space */
     PPC_io_memory = cpu_register_io_memory(0, PPC_io_read, PPC_io_write, NULL);
     cpu_register_physical_memory(0x80000000, 0x00010000, PPC_io_memory);
 
     /* init basic PC hardware */
-    vga_initialize(ds, phys_ram_base + ram_size, ram_size, 
-                   vga_ram_size, 1);
+    vga_initialize(pci_bus, ds, phys_ram_base + ram_size, ram_size, 
+                   vga_ram_size);
     rtc_init(0x70, 8);
     //    openpic = openpic_init(0x00000000, 0xF0000000, 1);
     //    pic_init(openpic);
@@ -545,6 +546,4 @@ void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
                          /* XXX: need an option to load a NVRAM image */
                          0,
                          graphic_width, graphic_height, graphic_depth);
-
-    pci_ppc_bios_init();
 }

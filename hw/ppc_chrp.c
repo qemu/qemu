@@ -89,13 +89,12 @@ static void macio_map(PCIDevice *pci_dev, int region_num,
     cpu_register_physical_memory(addr + 0x20000, 0x1000, ide1_mem_index);
 }
 
-static void macio_init(void)
+static void macio_init(PCIBus *bus)
 {
     PCIDevice *d;
 
-    d = pci_register_device("macio", sizeof(PCIDevice),
-                            0, -1, 
-                            NULL, NULL);
+    d = pci_register_device(bus, "macio", sizeof(PCIDevice),
+                            -1, NULL, NULL);
     /* Note: this code is strongly inspirated from the corresponding code
        in PearPC */
     d->config[0x00] = 0x6b; // vendor_id
@@ -128,7 +127,8 @@ void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
     int ret, linux_boot, i, fd;
     unsigned long bios_offset;
     uint32_t kernel_base, kernel_size, initrd_base, initrd_size;
-    
+    PCIBus *pci_bus;
+
     linux_boot = (kernel_filename != NULL);
 
     /* allocate RAM */
@@ -182,17 +182,18 @@ void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
     cpu_ppc_tb_init(cpu_single_env, 100UL * 1000UL * 1000UL);
 
     isa_mem_base = 0x80000000;
-    pci_pmac_init();
+    pci_bus = pci_pmac_init();
 
     /* Register 8 MB of ISA IO space */
     PPC_io_memory = cpu_register_io_memory(0, PPC_io_read, PPC_io_write, NULL);
     cpu_register_physical_memory(0xF2000000, 0x00800000, PPC_io_memory);
 
     /* init basic PC hardware */
-    vga_initialize(ds, phys_ram_base + ram_size, ram_size, 
-                   vga_ram_size, 1);
-    openpic = openpic_init(0x00000000, 0xF0000000, 1);
-
+    vga_initialize(pci_bus, ds, phys_ram_base + ram_size, ram_size, 
+                   vga_ram_size);
+    openpic = openpic_init(pci_bus, 0x00000000, 0xF0000000, 1);
+    pci_pmac_set_openpic(pci_bus, openpic);
+    
     /* XXX: suppress that */
     pic_init();
 
@@ -201,7 +202,7 @@ void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
     serial_init(0x3f8, 4, fd);
 
     for(i = 0; i < nb_nics; i++) {
-        pci_ne2000_init(&nd_table[i]);
+        pci_ne2000_init(pci_bus, &nd_table[i]);
     }
 
     ide0_mem_index = pmac_ide_init(&bs_table[0], openpic, 0x13);
@@ -213,7 +214,7 @@ void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
     adb_kbd_init(&adb_bus);
     adb_mouse_init(&adb_bus);
     
-    macio_init();
+    macio_init(pci_bus);
 
     nvram = m48t59_init(8, 0xFFF04000, 0x0074, NVRAM_SIZE);
     

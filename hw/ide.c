@@ -1579,14 +1579,14 @@ static void ide_map(PCIDevice *pci_dev, int region_num,
 }
 
 /* hd_table must contain 4 block drivers */
-void pci_ide_init(BlockDriverState **hd_table)
+void pci_ide_init(PCIBus *bus, BlockDriverState **hd_table)
 {
     PCIIDEState *d;
     uint8_t *pci_conf;
     int i;
 
-    d = (PCIIDEState *)pci_register_device("IDE", sizeof(PCIIDEState),
-                                           0, -1, 
+    d = (PCIIDEState *)pci_register_device(bus, "IDE", sizeof(PCIIDEState),
+                                           -1, 
                                            NULL, NULL);
     pci_conf = d->dev.config;
     pci_conf[0x00] = 0x86; // Intel
@@ -1621,14 +1621,15 @@ void pci_ide_init(BlockDriverState **hd_table)
 
 /* hd_table must contain 4 block drivers */
 /* NOTE: for the PIIX3, the IRQs and IOports are hardcoded */
-void pci_piix3_ide_init(BlockDriverState **hd_table)
+void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table)
 {
     PCIIDEState *d;
     uint8_t *pci_conf;
     
     /* register a function 1 of PIIX3 */
-    d = (PCIIDEState *)pci_register_device("PIIX3 IDE", sizeof(PCIIDEState),
-                                           0, ((PCIDevice *)piix3_state)->devfn + 1, 
+    d = (PCIIDEState *)pci_register_device(bus, "PIIX3 IDE", 
+                                           sizeof(PCIIDEState),
+                                           ((PCIDevice *)piix3_state)->devfn + 1, 
                                            NULL, NULL);
     pci_conf = d->dev.config;
     pci_conf[0x00] = 0x86; // Intel

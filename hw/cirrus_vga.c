@@ -2891,7 +2891,7 @@ static void cirrus_pci_mmio_map(PCIDevice *d, int region_num,
 				 s->cirrus_mmio_io_addr);
 }
 
-void pci_cirrus_vga_init(DisplayState *ds, uint8_t *vga_ram_base, 
+void pci_cirrus_vga_init(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base, 
                          unsigned long vga_ram_offset, int vga_ram_size)
 {
     PCICirrusVGAState *d;
@@ -2902,9 +2902,9 @@ void pci_cirrus_vga_init(DisplayState *ds, uint8_t *vga_ram_base,
     device_id = CIRRUS_ID_CLGD5446;
 
     /* setup PCI configuration registers */
-    d = (PCICirrusVGAState *)pci_register_device("Cirrus VGA", 
+    d = (PCICirrusVGAState *)pci_register_device(bus, "Cirrus VGA", 
                                                  sizeof(PCICirrusVGAState), 
-                                                 0, -1, NULL, NULL);
+                                                 -1, NULL, NULL);
     pci_conf = d->dev.config;
     pci_conf[0x00] = (uint8_t) (PCI_VENDOR_CIRRUS & 0xff);
     pci_conf[0x01] = (uint8_t) (PCI_VENDOR_CIRRUS >> 8);

@@ -324,7 +324,8 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
     int ret, linux_boot, initrd_size, i, nb_nics1, fd;
     unsigned long bios_offset, vga_bios_offset;
     int bios_size, isa_bios_size;
-
+    PCIBus *pci_bus;
+    
     linux_boot = (kernel_filename != NULL);
 
     /* allocate RAM */
@@ -432,8 +433,10 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
     }
 
     if (pci_enabled) {
-        i440fx_init();
-        piix3_init();
+        pci_bus = i440fx_init();
+        piix3_init(pci_bus);
+    } else {
+        pci_bus = NULL;
     }
 
     /* init basic PC hardware */
@@ -443,15 +446,16 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
 
     if (cirrus_vga_enabled) {
         if (pci_enabled) {
-            pci_cirrus_vga_init(ds, phys_ram_base + ram_size, ram_size, 
+            pci_cirrus_vga_init(pci_bus, 
+                                ds, phys_ram_base + ram_size, ram_size, 
                                 vga_ram_size);
         } else {
             isa_cirrus_vga_init(ds, phys_ram_base + ram_size, ram_size, 
                                 vga_ram_size);
         }
     } else {
-        vga_initialize(ds, phys_ram_base + ram_size, ram_size, 
-                       vga_ram_size, pci_enabled);
+        vga_initialize(pci_bus, ds, phys_ram_base + ram_size, ram_size, 
+                       vga_ram_size);
     }
 
     rtc_state = rtc_init(0x70, 8);
@@ -469,9 +473,9 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
 
     if (pci_enabled) {
         for(i = 0; i < nb_nics; i++) {
-            pci_ne2000_init(&nd_table[i]);
+            pci_ne2000_init(pci_bus, &nd_table[i]);
         }
-        pci_piix3_ide_init(bs_table);
+        pci_piix3_ide_init(pci_bus, bs_table);
     } else {
         nb_nics1 = nb_nics;
         if (nb_nics1 > NE2000_NB_MAX)
