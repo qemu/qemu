@@ -29,8 +29,13 @@
 #error TARGET_LONG_BITS must be defined before including this header
 #endif
 
+#ifndef TARGET_PHYS_ADDR_BITS 
+#define TARGET_PHYS_ADDR_BITS TARGET_LONG_BITS
+#endif
+
 #define TARGET_LONG_SIZE (TARGET_LONG_BITS / 8)
 
+/* target_ulong is the type of a virtual address */
 #if TARGET_LONG_SIZE == 4
 typedef int32_t target_long;
 typedef uint32_t target_ulong;
@@ -39,6 +44,16 @@ typedef int64_t target_long;
 typedef uint64_t target_ulong;
 #else
 #error TARGET_LONG_SIZE undefined
+#endif
+
+/* target_phys_addr_t is the type of a physical address (its size can
+   be different from 'target_ulong') */
+#if TARGET_PHYS_ADDR_BITS == 32
+typedef uint32_t target_phys_addr_t;
+#elif TARGET_PHYS_ADDR_BITS == 64
+typedef uint64_t target_phys_addr_t;
+#else
+#error TARGET_PHYS_ADDR_BITS undefined
 #endif
 
 #if defined(__alpha__) || defined (__ia64__) || defined(__x86_64__)
