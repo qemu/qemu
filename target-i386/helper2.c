@@ -31,6 +31,13 @@
 
 //#define DEBUG_MMU
 
+#ifdef USE_CODE_COPY
+#include <asm/ldt.h>
+#include <linux/unistd.h>
+
+_syscall3(int, modify_ldt, int, func, void *, ptr, unsigned long, bytecount)
+#endif
+
 CPUX86State *cpu_x86_init(void)
 {
     CPUX86State *env;
@@ -84,6 +91,26 @@ CPUX86State *cpu_x86_init(void)
         inited = 1;
         optimize_flags_init();
     }
+#ifdef USE_CODE_COPY
+    /* testing code for code copy case */
+    {
+        struct modify_ldt_ldt_s ldt;
+
+        ldt.entry_number = 1;
+        ldt.base_addr = (unsigned long)env;
+        ldt.limit = (sizeof(CPUState) + 0xfff) >> 12;
+        ldt.seg_32bit = 1;
+        ldt.contents = MODIFY_LDT_CONTENTS_DATA;
+        ldt.read_exec_only = 0;
+        ldt.limit_in_pages = 1;
+        ldt.seg_not_present = 0;
+        ldt.useable = 1;
+        modify_ldt(1, &ldt, sizeof(ldt)); /* write ldt entry */
+        
+        asm volatile ("movl %0, %%fs" : : "r" ((1 << 3) | 7));
+        cpu_single_env = env;
+    }
+#endif
     return env;
 }
 
@@ -213,7 +240,7 @@ void cpu_x86_set_a20(CPUX86State *env, int a20_state)
 #endif
         /* if the cpu is currently executing code, we must unlink it and
            all the potentially executing TB */
-        cpu_interrupt(env, 0);
+        cpu_interrupt(env, CPU_INTERRUPT_EXITTB);
 
         /* when a20 is changed, all the MMU mappings are invalid, so
            we must flush everything */
