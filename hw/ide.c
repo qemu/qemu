@@ -185,7 +185,7 @@
 #define DISABLE_SEAGATE			0xFB
 
 /* set to 1 set disable mult support */
-#define MAX_MULT_SECTORS 8
+#define MAX_MULT_SECTORS 16
 
 /* ATAPI defines */
 
@@ -1142,7 +1142,7 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         case WIN_WRITE:
         case WIN_WRITE_ONCE:
             s->error = 0;
-            s->status = SEEK_STAT;
+            s->status = SEEK_STAT | READY_STAT;
             s->req_nb_sectors = 1;
             ide_transfer_start(s, s->io_buffer, 512, ide_sector_write);
             break;
@@ -1156,7 +1156,7 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             if (!s->mult_sectors)
                 goto abort_cmd;
             s->error = 0;
-            s->status = SEEK_STAT;
+            s->status = SEEK_STAT | READY_STAT;
             s->req_nb_sectors = s->mult_sectors;
             n = s->nsector;
             if (n > s->req_nb_sectors)
