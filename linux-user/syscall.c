@@ -958,6 +958,18 @@ StructEntry struct_termios_def = {
     .align = { __alignof__(struct target_termios), __alignof__(struct host_termios) },
 };
 
+static bitmask_transtbl mmap_flags_tbl[] = {
+	{ TARGET_MAP_SHARED, TARGET_MAP_SHARED, MAP_SHARED, MAP_SHARED },
+	{ TARGET_MAP_PRIVATE, TARGET_MAP_PRIVATE, MAP_PRIVATE, MAP_PRIVATE },
+	{ TARGET_MAP_FIXED, TARGET_MAP_FIXED, MAP_FIXED, MAP_FIXED },
+	{ TARGET_MAP_ANONYMOUS, TARGET_MAP_ANONYMOUS, MAP_ANONYMOUS, MAP_ANONYMOUS },
+	{ TARGET_MAP_GROWSDOWN, TARGET_MAP_GROWSDOWN, MAP_GROWSDOWN, MAP_GROWSDOWN },
+	{ TARGET_MAP_DENYWRITE, TARGET_MAP_DENYWRITE, MAP_DENYWRITE, MAP_DENYWRITE },
+	{ TARGET_MAP_EXECUTABLE, TARGET_MAP_EXECUTABLE, MAP_EXECUTABLE, MAP_EXECUTABLE },
+	{ TARGET_MAP_LOCKED, TARGET_MAP_LOCKED, MAP_LOCKED, MAP_LOCKED },
+	{ 0, 0, 0, 0 }
+};
+
 #ifdef TARGET_I386
 
 /* NOTE: there is really one LDT for all the threads */
@@ -1744,7 +1756,9 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             v4 = tswap32(vptr[3]);
             v5 = tswap32(vptr[4]);
             v6 = tswap32(vptr[5]);
-            ret = get_errno(target_mmap(v1, v2, v3, v4, v5, v6));
+            ret = get_errno(target_mmap(v1, v2, v3, 
+                                        target_to_host_bitmask(v4, mmap_flags_tbl),
+                                        v5, v6));
         }
         break;
 #endif
@@ -1753,7 +1767,9 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #else
     case TARGET_NR_mmap:
 #endif
-        ret = get_errno(target_mmap(arg1, arg2, arg3, arg4, arg5, 
+        ret = get_errno(target_mmap(arg1, arg2, arg3, 
+                                    target_to_host_bitmask(arg4, mmap_flags_tbl), 
+                                    arg5,
                                     arg6 << TARGET_PAGE_BITS));
         break;
     case TARGET_NR_munmap:

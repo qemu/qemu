@@ -780,6 +780,18 @@ struct target_modify_ldt_ldt_s {
 };
 
 
+#define TARGET_MAP_SHARED	0x01		/* Share changes */
+#define TARGET_MAP_PRIVATE	0x02		/* Changes are private */
+#define TARGET_MAP_TYPE	0x0f		/* Mask for type of mapping */
+#define TARGET_MAP_FIXED	0x10		/* Interpret addr exactly */
+#define TARGET_MAP_ANONYMOUS	0x20		/* don't use a file */
+
+#define TARGET_MAP_GROWSDOWN	0x0100		/* stack-like segment */
+#define TARGET_MAP_DENYWRITE	0x0800		/* ETXTBSY */
+#define TARGET_MAP_EXECUTABLE	0x1000		/* mark it as an executable */
+#define TARGET_MAP_LOCKED	0x2000		/* pages are locked */
+#define TARGET_MAP_NORESERVE	0x4000		/* don't check for reservations */
+
 /* vm86 defines */
 
 #define TARGET_BIOSSEG		0x0f000
