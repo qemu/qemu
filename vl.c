@@ -2282,6 +2282,11 @@ void ide_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
                 n = s->req_nb_sectors;
             ide_transfer_start(s, 512 * n, ide_sector_write);
             break;
+        case WIN_READ_NATIVE_MAX:
+            ide_set_sector(s, s->nb_sectors - 1);
+            s->status = READY_STAT;
+            ide_set_irq(s);
+            break;
         default:
         abort_cmd:
             ide_abort_command(s);
@@ -2450,6 +2455,34 @@ void ide_init(void)
 }
 
 /***********************************************************/
+/* simulate reset (stop qemu) */
+
+int reset_requested;
+
+uint32_t kbd_read_status(CPUX86State *env, uint32_t addr)
+{
+    return 0;
+}
+
+void kbd_write_command(CPUX86State *env, uint32_t addr, uint32_t val)
+{
+    switch(val) {
+    case 0xfe:
+        reset_requested = 1;
+        cpu_x86_interrupt(global_env, CPU_INTERRUPT_EXIT);
+        break;
+    default:
+        break;
+    }
+}
+
+void kbd_init(void)
+{
+    register_ioport_read(0x64, 1, kbd_read_status, 1);
+    register_ioport_write(0x64, 1, kbd_write_command, 1);
+}
+
+/***********************************************************/
 /* cpu signal handler */
 static void host_segv_handler(int host_signum, siginfo_t *info, 
                               void *puc)
@@ -2497,7 +2530,9 @@ void main_loop(void *opaque)
     for(;;) {
 
         ret = cpu_x86_exec(env);
-
+        if (reset_requested)
+            break;
+        
         /* if hlt instruction, we wait until the next IRQ */
         if (ret == EXCP_HLT) 
             timeout = 10;
@@ -2767,6 +2802,7 @@ int main(int argc, char **argv)
     serial_init();
     ne2000_init();
     ide_init();
+    kbd_init();
 
     /* setup cpu signal handlers for MMU / self modifying code handling */
     sigfillset(&act.sa_mask);
