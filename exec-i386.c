@@ -21,6 +21,7 @@
 
 //#define DEBUG_EXEC
 #define DEBUG_FLUSH
+//#define DEBUG_SIGNAL
 
 /* main execution loop */
 
@@ -98,7 +99,41 @@ void cpu_unlock(void)
     global_cpu_lock = 0;
 }
 
-#ifdef DEBUG_EXEC
+/* exception support */
+/* NOTE: not static to force relocation generation by GCC */
+void raise_exception(int exception_index)
+{
+    /* NOTE: the register at this point must be saved by hand because
+       longjmp restore them */
+#ifdef reg_EAX
+    env->regs[R_EAX] = EAX;
+#endif
+#ifdef reg_ECX
+    env->regs[R_ECX] = ECX;
+#endif
+#ifdef reg_EDX
+    env->regs[R_EDX] = EDX;
+#endif
+#ifdef reg_EBX
+    env->regs[R_EBX] = EBX;
+#endif
+#ifdef reg_ESP
+    env->regs[R_ESP] = ESP;
+#endif
+#ifdef reg_EBP
+    env->regs[R_EBP] = EBP;
+#endif
+#ifdef reg_ESI
+    env->regs[R_ESI] = ESI;
+#endif
+#ifdef reg_EDI
+    env->regs[R_EDI] = EDI;
+#endif
+    env->exception_index = exception_index;
+    longjmp(env->jmp_env, 1);
+}
+
+#if defined(DEBUG_EXEC)
 static const char *cc_op_str[] = {
     "DYNAMIC",
     "EFLAGS",
@@ -132,15 +167,16 @@ static const char *cc_op_str[] = {
     "SARL",
 };
 
-static void cpu_x86_dump_state(void)
+static void cpu_x86_dump_state(FILE *f)
 {
     int eflags;
     eflags = cc_table[CC_OP].compute_all();
     eflags |= (DF & DIRECTION_FLAG);
-    fprintf(logfile, 
+    fprintf(f, 
             "EAX=%08x EBX=%08X ECX=%08x EDX=%08x\n"
             "ESI=%08x EDI=%08X EBP=%08x ESP=%08x\n"
-            "CCS=%08x CCD=%08x CCO=%-8s EFL=%c%c%c%c%c%c%c\n",
+            "CCS=%08x CCD=%08x CCO=%-8s EFL=%c%c%c%c%c%c%c\n"
+            "EIP=%08x\n",
             env->regs[R_EAX], env->regs[R_EBX], env->regs[R_ECX], env->regs[R_EDX], 
             env->regs[R_ESI], env->regs[R_EDI], env->regs[R_EBP], env->regs[R_ESP], 
             env->cc_src, env->cc_dst, cc_op_str[env->cc_op],
@@ -150,10 +186,10 @@ static void cpu_x86_dump_state(void)
             eflags & CC_Z ? 'Z' : '-',
             eflags & CC_A ? 'A' : '-',
             eflags & CC_P ? 'P' : '-',
-            eflags & CC_C ? 'C' : '-'
-            );
+            eflags & CC_C ? 'C' : '-',
+            env->eip);
 #if 1
-    fprintf(logfile, "ST0=%f ST1=%f ST2=%f ST3=%f\n", 
+    fprintf(f, "ST0=%f ST1=%f ST2=%f ST3=%f\n", 
             (double)ST0, (double)ST1, (double)ST(2), (double)ST(3));
 #endif
 }
@@ -185,10 +221,11 @@ static void tb_flush(void)
 }
 
 /* find a translation block in the translation cache. If not found,
-   allocate a new one */
-static inline TranslationBlock *tb_find_and_alloc(unsigned long pc, 
-                                                  unsigned long cs_base,
-                                                  unsigned int flags)
+   return NULL and the pointer to the last element of the list in pptb */
+static inline TranslationBlock *tb_find(TranslationBlock ***pptb,
+                                        unsigned long pc, 
+                                        unsigned long cs_base,
+                                        unsigned int flags)
 {
     TranslationBlock **ptb, *tb;
     unsigned int h;
@@ -203,16 +240,19 @@ static inline TranslationBlock *tb_find_and_alloc(unsigned long pc,
             return tb;
         ptb = &tb->hash_next;
     }
+    *pptb = ptb;
+    return NULL;
+}
+
+/* allocate a new translation block. flush the translation buffer if
+   too many translation blocks or too much generated code */
+static inline TranslationBlock *tb_alloc(void)
+{
+    TranslationBlock *tb;
     if (nb_tbs >= CODE_GEN_MAX_BLOCKS || 
         (code_gen_ptr - code_gen_buffer) >= CODE_GEN_BUFFER_MAX_SIZE)
         tb_flush();
     tb = &tbs[nb_tbs++];
-    *ptb = tb;
-    tb->pc = pc;
-    tb->cs_base = cs_base;
-    tb->flags = flags;
-    tb->tc_ptr = NULL;
-    tb->hash_next = NULL;
     return tb;
 }
 
@@ -246,7 +286,7 @@ int cpu_x86_exec(CPUX86State *env1)
 #endif
     int code_gen_size, ret;
     void (*gen_func)(void);
-    TranslationBlock *tb;
+    TranslationBlock *tb, **ptb;
     uint8_t *tc_ptr, *cs_base, *pc;
     unsigned int flags;
 
@@ -289,12 +329,21 @@ int cpu_x86_exec(CPUX86State *env1)
     EDI = env->regs[R_EDI];
 #endif
     
+    /* put eflags in CPU temporary format */
+    T0 = env->eflags;
+    op_movl_eflags_T0();
+    CC_OP = CC_OP_EFLAGS;
+    env->interrupt_request = 0;
+    
     /* prepare setjmp context for exception handling */
     if (setjmp(env->jmp_env) == 0) {
         for(;;) {
+            if (env->interrupt_request) {
+                raise_exception(EXCP_INTERRUPT);
+            }
 #ifdef DEBUG_EXEC
             if (loglevel) {
-                cpu_x86_dump_state();
+                cpu_x86_dump_state(logfile);
             }
 #endif
             /* we compute the CPU state. We assume it will not
@@ -307,27 +356,42 @@ int cpu_x86_exec(CPUX86State *env1)
                 GEN_FLAG_ADDSEG_SHIFT;
             cs_base = env->seg_cache[R_CS].base;
             pc = cs_base + env->eip;
-            tb = tb_find_and_alloc((unsigned long)pc, (unsigned long)cs_base, 
-                                   flags);
-            tc_ptr = tb->tc_ptr;
-            if (!tb->tc_ptr) {
+            tb = tb_find(&ptb, (unsigned long)pc, (unsigned long)cs_base, 
+                         flags);
+            if (!tb) {
                 /* if no translated code available, then translate it now */
                 /* XXX: very inefficient: we lock all the cpus when
                    generating code */
                 cpu_lock();
                 tc_ptr = code_gen_ptr;
-                cpu_x86_gen_code(code_gen_ptr, CODE_GEN_MAX_SIZE, 
-                                 &code_gen_size, pc, cs_base, flags);
+                ret = cpu_x86_gen_code(code_gen_ptr, CODE_GEN_MAX_SIZE, 
+                                       &code_gen_size, pc, cs_base, flags);
+                /* if invalid instruction, signal it */
+                if (ret != 0) {
+                    cpu_unlock();
+                    raise_exception(EXCP06_ILLOP);
+                }
+                tb = tb_alloc();
+                *ptb = tb;
+                tb->pc = (unsigned long)pc;
+                tb->cs_base = (unsigned long)cs_base;
+                tb->flags = flags;
                 tb->tc_ptr = tc_ptr;
+                tb->hash_next = NULL;
                 code_gen_ptr = (void *)(((unsigned long)code_gen_ptr + code_gen_size + CODE_GEN_ALIGN - 1) & ~(CODE_GEN_ALIGN - 1));
                 cpu_unlock();
             }
             /* execute the generated code */
+            tc_ptr = tb->tc_ptr;
             gen_func = (void *)tc_ptr;
             gen_func();
         }
     }
     ret = env->exception_index;
+
+    /* restore flags in standard format */
+    op_movl_T0_eflags();
+    env->eflags = T0;
 
     /* restore global registers */
 #ifdef reg_EAX
@@ -361,6 +425,12 @@ int cpu_x86_exec(CPUX86State *env1)
     return ret;
 }
 
+void cpu_x86_interrupt(CPUX86State *s)
+{
+    s->interrupt_request = 1;
+}
+
+
 void cpu_x86_load_seg(CPUX86State *s, int seg_reg, int selector)
 {
     CPUX86State *saved_env;
@@ -369,4 +439,57 @@ void cpu_x86_load_seg(CPUX86State *s, int seg_reg, int selector)
     env = s;
     load_seg(seg_reg, selector);
     env = saved_env;
+}
+
+#undef EAX
+#undef ECX
+#undef EDX
+#undef EBX
+#undef ESP
+#undef EBP
+#undef ESI
+#undef EDI
+#undef EIP
+#include <signal.h>
+#include <sys/ucontext.h>
+
+static inline int handle_cpu_signal(unsigned long pc,
+                                    sigset_t *old_set)
+{
+#ifdef DEBUG_SIGNAL
+    printf("gemu: SIGSEGV pc=0x%08lx oldset=0x%08lx\n", 
+           pc, *(unsigned long *)old_set);
+#endif
+    if (pc >= (unsigned long)code_gen_buffer &&
+        pc < (unsigned long)code_gen_buffer + CODE_GEN_BUFFER_SIZE) {
+        /* the PC is inside the translated code. It means that we have
+           a virtual CPU fault */
+        /* we restore the process signal mask as the sigreturn should
+           do it */
+        sigprocmask(SIG_SETMASK, old_set, NULL);
+        /* XXX: need to compute virtual pc position by retranslating
+           code. The rest of the CPU state should be correct. */
+        raise_exception(EXCP0D_GPF);
+        /* never comes here */
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+int cpu_x86_signal_handler(int host_signum, struct siginfo *info, 
+                           void *puc)
+{
+#if defined(__i386__)
+    struct ucontext *uc = puc;
+    unsigned long pc;
+    sigset_t *pold_set;
+    
+    pc = uc->uc_mcontext.gregs[EIP];
+    pold_set = &uc->uc_sigmask;
+    return handle_cpu_signal(pc, pold_set);
+#else
+#warning No CPU specific signal handler: cannot handle target SIGSEGV events
+    return 0;
+#endif
 }

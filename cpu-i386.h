@@ -68,7 +68,7 @@
 #define EXCP11_ALGN	18
 #define EXCP12_MCHK	19
 
-#define EXCP_SIGNAL	256 /* async signal */
+#define EXCP_INTERRUPT 	256 /* async interruption */
 
 enum {
     CC_OP_DYNAMIC, /* must use dynamic code to get cc_op */
@@ -170,9 +170,10 @@ typedef struct CPUX86State {
     /* various CPU modes */
     int vm86;
 
-    /* exception handling */
+    /* exception/interrupt handling */
     jmp_buf jmp_env;
     int exception_index;
+    int interrupt_request;
 } CPUX86State;
 
 /* all CPU memory access use these macros */
@@ -383,10 +384,18 @@ int cpu_x86_inl(int addr);
 
 CPUX86State *cpu_x86_init(void);
 int cpu_x86_exec(CPUX86State *s);
+void cpu_x86_interrupt(CPUX86State *s);
 void cpu_x86_close(CPUX86State *s);
 
 /* needed to load some predefinied segment registers */
 void cpu_x86_load_seg(CPUX86State *s, int seg_reg, int selector);
+
+/* you can call these signal handler from you SIGBUS and SIGSEGV
+   signal handlers to inform the virtual CPU of exceptions. non zero
+   is returned if the signal was handled by the virtual CPU.  */
+struct siginfo;
+int cpu_x86_signal_handler(int host_signum, struct siginfo *info, 
+                           void *puc);
 
 /* internal functions */
 

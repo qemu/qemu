@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
+#include <signal.h>
 #include <assert.h>
 
 #define DEBUG_DISAS
@@ -3487,7 +3488,8 @@ static void dump_ops(const uint16_t *opc_buf)
 static uint16_t gen_opc_buf[OPC_BUF_SIZE];
 static uint32_t gen_opparam_buf[OPPARAM_BUF_SIZE];
 
-/* return the next pc */
+/* return non zero if the very first instruction is invalid so that
+   the virtual CPU can trigger an exception. */
 int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size, 
                      int *gen_code_size_ptr,
                      uint8_t *pc_start,  uint8_t *cs_base, int flags)
@@ -3519,9 +3521,13 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size,
     do {
         ret = disas_insn(dc, pc_ptr);
         if (ret == -1) {
-            fprintf(stderr, "unknown instruction at PC=0x%08lx B=%02x %02x %02x", 
-                    (long)pc_ptr, pc_ptr[0], pc_ptr[1], pc_ptr[2]);
-            abort();
+            /* we trigger an illegal instruction operation only if it
+               is the first instruction. Otherwise, we simply stop
+               generating the code just before it */
+            if (pc_ptr == pc_start)
+                return -1;
+            else
+                break;
         }
         pc_ptr = (void *)ret;
     } while (!dc->is_jmp && gen_opc_ptr < gen_opc_end);
@@ -3640,8 +3646,7 @@ CPUX86State *cpu_x86_init(void)
         env->fptags[i] = 1;
     env->fpuc = 0x37f;
     /* flags setup */
-    env->cc_op = CC_OP_EFLAGS;
-    env->df = 1;
+    env->eflags = 0;
 
     /* init various static tables */
     if (!inited) {

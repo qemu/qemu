@@ -119,40 +119,6 @@ static inline int lshift(int x, int n)
         return x >> (-n);
 }
 
-/* exception support */
-/* NOTE: not static to force relocation generation by GCC */
-void raise_exception(int exception_index)
-{
-    /* NOTE: the register at this point must be saved by hand because
-       longjmp restore them */
-#ifdef reg_EAX
-    env->regs[R_EAX] = EAX;
-#endif
-#ifdef reg_ECX
-    env->regs[R_ECX] = ECX;
-#endif
-#ifdef reg_EDX
-    env->regs[R_EDX] = EDX;
-#endif
-#ifdef reg_EBX
-    env->regs[R_EBX] = EBX;
-#endif
-#ifdef reg_ESP
-    env->regs[R_ESP] = ESP;
-#endif
-#ifdef reg_EBP
-    env->regs[R_EBP] = EBP;
-#endif
-#ifdef reg_ESI
-    env->regs[R_ESI] = ESI;
-#endif
-#ifdef reg_EDI
-    env->regs[R_EDI] = EDI;
-#endif
-    env->exception_index = exception_index;
-    longjmp(env->jmp_env, 1);
-}
-
 /* we define the various pieces of code used by the JIT */
 
 #define REG EAX
@@ -391,13 +357,15 @@ void OPPROTO op_imull_T0_T1(void)
 }
 
 /* division, flags are undefined */
-/* XXX: add exceptions for overflow & div by zero */
+/* XXX: add exceptions for overflow */
 void OPPROTO op_divb_AL_T0(void)
 {
     unsigned int num, den, q, r;
 
     num = (EAX & 0xffff);
     den = (T0 & 0xff);
+    if (den == 0)
+        raise_exception(EXCP00_DIVZ);
     q = (num / den) & 0xff;
     r = (num % den) & 0xff;
     EAX = (EAX & 0xffff0000) | (r << 8) | q;
@@ -409,6 +377,8 @@ void OPPROTO op_idivb_AL_T0(void)
 
     num = (int16_t)EAX;
     den = (int8_t)T0;
+    if (den == 0)
+        raise_exception(EXCP00_DIVZ);
     q = (num / den) & 0xff;
     r = (num % den) & 0xff;
     EAX = (EAX & 0xffff0000) | (r << 8) | q;
@@ -420,6 +390,8 @@ void OPPROTO op_divw_AX_T0(void)
 
     num = (EAX & 0xffff) | ((EDX & 0xffff) << 16);
     den = (T0 & 0xffff);
+    if (den == 0)
+        raise_exception(EXCP00_DIVZ);
     q = (num / den) & 0xffff;
     r = (num % den) & 0xffff;
     EAX = (EAX & 0xffff0000) | q;
@@ -432,6 +404,8 @@ void OPPROTO op_idivw_AX_T0(void)
 
     num = (EAX & 0xffff) | ((EDX & 0xffff) << 16);
     den = (int16_t)T0;
+    if (den == 0)
+        raise_exception(EXCP00_DIVZ);
     q = (num / den) & 0xffff;
     r = (num % den) & 0xffff;
     EAX = (EAX & 0xffff0000) | q;
@@ -445,6 +419,8 @@ void OPPROTO op_divl_EAX_T0(void)
     
     num = EAX | ((uint64_t)EDX << 32);
     den = T0;
+    if (den == 0)
+        raise_exception(EXCP00_DIVZ);
     q = (num / den);
     r = (num % den);
     EAX = q;
@@ -458,6 +434,8 @@ void OPPROTO op_idivl_EAX_T0(void)
     
     num = EAX | ((uint64_t)EDX << 32);
     den = T0;
+    if (den == 0)
+        raise_exception(EXCP00_DIVZ);
     q = (num / den);
     r = (num % den);
     EAX = q;

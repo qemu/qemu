@@ -3,30 +3,12 @@
 
 #include "thunk.h"
 
+#include <signal.h>
+#include "syscall_defs.h"
+
 #ifdef TARGET_I386
-
-/* default linux values for the selectors */
-#define __USER_CS	(0x23)
-#define __USER_DS	(0x2B)
-
-struct target_pt_regs {
-	long ebx;
-	long ecx;
-	long edx;
-	long esi;
-	long edi;
-	long ebp;
-	long eax;
-	int  xds;
-	int  xes;
-	long orig_eax;
-	long eip;
-	int  xcs;
-	long eflags;
-	long esp;
-	int  xss;
-};
-
+#include "cpu-i386.h"
+#include "syscall-i386.h"
 #endif
 
 /* This struct is used to hold certain information about the image.
@@ -59,9 +41,10 @@ void syscall_init(void);
 long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3, 
                 long arg4, long arg5, long arg6);
 void gemu_log(const char *fmt, ...) __attribute__((format(printf,1,2)));
-struct CPUX86State;
-void cpu_loop(struct CPUX86State *env);
+extern CPUX86State *global_env;
+void cpu_loop(CPUX86State *env);
 void process_pending_signals(void *cpu_env);
 void signal_init(void);
+int queue_signal(int sig, target_siginfo_t *info);
 
 #endif

@@ -359,7 +359,7 @@ struct target_sigaction {
 
 typedef union target_sigval {
 	int sival_int;
-	void *sival_ptr;
+        target_ulong sival_ptr;
 } target_sigval_t;
 
 #define TARGET_SI_MAX_SIZE	128
@@ -389,7 +389,7 @@ typedef struct target_siginfo {
 		struct {
 			pid_t _pid;		/* sender's pid */
 			uid_t _uid;		/* sender's uid */
-			sigval_t _sigval;
+			target_sigval_t _sigval;
 		} _rt;
 
 		/* SIGCHLD */
@@ -403,7 +403,7 @@ typedef struct target_siginfo {
 
 		/* SIGILL, SIGFPE, SIGSEGV, SIGBUS */
 		struct {
-			void *_addr; /* faulting insn/memory ref. */
+			target_ulong _addr; /* faulting insn/memory ref. */
 		} _sigfault;
 
 		/* SIGPOLL */
@@ -413,6 +413,46 @@ typedef struct target_siginfo {
 		} _sigpoll;
 	} _sifields;
 } target_siginfo_t;
+
+/*
+ * SIGILL si_codes
+ */
+#define TARGET_ILL_ILLOPN	(2)	/* illegal operand */
+
+/*
+ * SIGFPE si_codes
+ */
+#define TARGET_FPE_INTDIV      (1)  /* integer divide by zero */
+#define TARGET_FPE_INTOVF      (2)  /* integer overflow */
+#define TARGET_FPE_FLTDIV      (3)  /* floating point divide by zero */
+#define TARGET_FPE_FLTOVF      (4)  /* floating point overflow */
+#define TARGET_FPE_FLTUND      (5)  /* floating point underflow */
+#define TARGET_FPE_FLTRES      (6)  /* floating point inexact result */
+#define TARGET_FPE_FLTINV      (7)  /* floating point invalid operation */
+#define TARGET_FPE_FLTSUB      (8)  /* subscript out of range */
+#define TARGET_NSIGFPE         8
+
+/* default linux values for the selectors */
+#define __USER_CS	(0x23)
+#define __USER_DS	(0x2B)
+
+struct target_pt_regs {
+	long ebx;
+	long ecx;
+	long edx;
+	long esi;
+	long edi;
+	long ebp;
+	long eax;
+	int  xds;
+	int  xes;
+	long orig_eax;
+	long eip;
+	int  xcs;
+	long eflags;
+	long esp;
+	int  xss;
+};
 
 /* ioctls */
 

@@ -38,6 +38,7 @@
 #include <sched.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
+#include <sys/poll.h>
 //#include <sys/user.h>
 
 #define termios host_termios
@@ -68,15 +69,8 @@
 #define	VFAT_IOCTL_READDIR_BOTH		_IOR('r', 1, struct dirent [2])
 #define	VFAT_IOCTL_READDIR_SHORT	_IOR('r', 2, struct dirent [2])
 
-#include "syscall_defs.h"
-
-#ifdef TARGET_I386
-#include "cpu-i386.h"
-#include "syscall-i386.h"
-#endif
-
-void host_to_target_siginfo(target_siginfo_t *tinfo, siginfo_t *info);
-void target_to_host_siginfo(siginfo_t *info, target_siginfo_t *tinfo);
+void host_to_target_siginfo(target_siginfo_t *tinfo, const siginfo_t *info);
+void target_to_host_siginfo(siginfo_t *info, const target_siginfo_t *tinfo);
 long do_sigreturn(CPUX86State *env);
 long do_rt_sigreturn(CPUX86State *env);
 
@@ -106,6 +100,9 @@ _syscall2(int,sys_fstatfs,int,fd,struct kernel_statfs *,buf)
 _syscall3(int,sys_rt_sigqueueinfo,int,pid,int,sig,siginfo_t *,uinfo)
 
 extern int personality(int);
+extern int flock(int, int);
+extern int setfsuid(int);
+extern int setfsgid(int);
 
 static inline long get_errno(long ret)
 {
@@ -437,7 +434,7 @@ static long do_ioctl(long fd, long cmd, long arg)
         ie++;
     }
     arg_type = ie->arg_type;
-#ifdef DEBUG
+#if defined(DEBUG)
     gemu_log("ioctl: cmd=0x%04lx (%s)\n", cmd, ie->name);
 #endif
     switch(arg_type[0]) {
@@ -1244,9 +1241,30 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         ret = get_errno(sethostname((const char *)arg1, arg2));
         break;
     case TARGET_NR_setrlimit:
-        goto unimplemented;
+        {
+            /* XXX: convert resource ? */
+            int resource = arg1;
+            struct target_rlimit *target_rlim = (void *)arg2;
+            struct rlimit rlim;
+            rlim.rlim_cur = tswapl(target_rlim->rlim_cur);
+            rlim.rlim_max = tswapl(target_rlim->rlim_max);
+            ret = get_errno(setrlimit(resource, &rlim));
+        }
+        break;
     case TARGET_NR_getrlimit:
-        goto unimplemented;
+        {
+            /* XXX: convert resource ? */
+            int resource = arg1;
+            struct target_rlimit *target_rlim = (void *)arg2;
+            struct rlimit rlim;
+            
+            ret = get_errno(getrlimit(resource, &rlim));
+            if (!is_error(ret)) {
+                target_rlim->rlim_cur = tswapl(rlim.rlim_cur);
+                target_rlim->rlim_max = tswapl(rlim.rlim_max);
+            }
+        }
+        break;
     case TARGET_NR_getrusage:
         goto unimplemented;
     case TARGET_NR_gettimeofday:
@@ -1316,6 +1334,27 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         break;
     case TARGET_NR_munmap:
         ret = get_errno(munmap((void *)arg1, arg2));
+        break;
+    case TARGET_NR_mprotect:
+        ret = get_errno(mprotect((void *)arg1, arg2, arg3));
+        break;
+    case TARGET_NR_mremap:
+        ret = get_errno((long)mremap((void *)arg1, arg2, arg3, arg4));
+        break;
+    case TARGET_NR_msync:
+        ret = get_errno(msync((void *)arg1, arg2, arg3));
+        break;
+    case TARGET_NR_mlock:
+        ret = get_errno(mlock((void *)arg1, arg2));
+        break;
+    case TARGET_NR_munlock:
+        ret = get_errno(munlock((void *)arg1, arg2));
+        break;
+    case TARGET_NR_mlockall:
+        ret = get_errno(mlockall(arg1));
+        break;
+    case TARGET_NR_munlockall:
+        ret = get_errno(munlockall());
         break;
     case TARGET_NR_truncate:
         ret = get_errno(truncate((const char *)arg1, arg2));
@@ -1506,9 +1545,6 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #endif
     case TARGET_NR_adjtimex:
         goto unimplemented;
-    case TARGET_NR_mprotect:
-        ret = get_errno(mprotect((void *)arg1, arg2, arg3));
-        break;
     case TARGET_NR_create_module:
     case TARGET_NR_init_module:
     case TARGET_NR_delete_module:
@@ -1532,9 +1568,11 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_afs_syscall:
         goto unimplemented;
     case TARGET_NR_setfsuid:
-        goto unimplemented;
+        ret = get_errno(setfsuid(arg1));
+        break;
     case TARGET_NR_setfsgid:
-        goto unimplemented;
+        ret = get_errno(setfsgid(arg1));
+        break;
     case TARGET_NR__llseek:
         {
             int64_t res;
@@ -1596,10 +1634,31 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         ret = do_select(arg1, (void *)arg2, (void *)arg3, (void *)arg4, 
                         (void *)arg5);
         break;
+    case TARGET_NR_poll:
+        {
+            struct target_pollfd *target_pfd = (void *)arg1;
+            unsigned int nfds = arg2;
+            int timeout = arg3;
+            struct pollfd *pfd;
+            int i;
+
+            pfd = alloca(sizeof(struct pollfd) * nfds);
+            for(i = 0; i < nfds; i++) {
+                pfd->fd = tswap32(target_pfd->fd);
+                pfd->events = tswap16(target_pfd->events);
+            }
+            ret = get_errno(poll(pfd, nfds, timeout));
+            if (!is_error(ret)) {
+                for(i = 0; i < nfds; i++) {
+                    target_pfd->revents = tswap16(pfd->revents);
+                }
+            }
+        }
+        break;
     case TARGET_NR_flock:
-        goto unimplemented;
-    case TARGET_NR_msync:
-        ret = get_errno(msync((void *)arg1, arg2, arg3));
+        /* NOTE: the flock constant seems to be the same for every
+           Linux platform */
+        ret = get_errno(flock(arg1, arg2));
         break;
     case TARGET_NR_readv:
         {
@@ -1638,18 +1697,6 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         goto unimplemented;
     case TARGET_NR__sysctl:
         goto unimplemented;
-    case TARGET_NR_mlock:
-        ret = get_errno(mlock((void *)arg1, arg2));
-        break;
-    case TARGET_NR_munlock:
-        ret = get_errno(munlock((void *)arg1, arg2));
-        break;
-    case TARGET_NR_mlockall:
-        ret = get_errno(mlockall(arg1));
-        break;
-    case TARGET_NR_munlockall:
-        ret = get_errno(munlockall());
-        break;
     case TARGET_NR_sched_setparam:
         goto unimplemented;
     case TARGET_NR_sched_getparam:
@@ -1681,12 +1728,10 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         }
         break;
 
-    case TARGET_NR_mremap:
     case TARGET_NR_setresuid:
     case TARGET_NR_getresuid:
     case TARGET_NR_vm86:
     case TARGET_NR_query_module:
-    case TARGET_NR_poll:
     case TARGET_NR_nfsservctl:
     case TARGET_NR_setresgid:
     case TARGET_NR_getresgid:
@@ -1800,7 +1845,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         goto unimplemented;
     default:
     unimplemented:
-        gemu_log("Unsupported syscall: %d\n", num);
+        gemu_log("gemu: Unsupported syscall: %d\n", num);
         ret = -ENOSYS;
         break;
     }

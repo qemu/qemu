@@ -150,6 +150,17 @@ struct target_sigaction;
 int do_sigaction(int sig, const struct target_sigaction *act,
                  struct target_sigaction *oact);
 
+struct target_rlimit {
+        target_ulong   rlim_cur;
+        target_ulong   rlim_max;
+};
+
+struct target_pollfd {
+    int fd;           /* file descriptor */
+    short events;     /* requested events */
+    short revents;    /* returned events */
+};
+
 /* Networking ioctls */
 #define TARGET_SIOCADDRT       0x890B          /* add routing table entry */
 #define TARGET_SIOCDELRT       0x890C          /* delete routing table entry */

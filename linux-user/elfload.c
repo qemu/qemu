@@ -261,6 +261,9 @@ unsigned long setup_arg_pages(unsigned long p, struct linux_binprm * bprm,
     /* Create enough stack to hold everything.  If we don't use
      * it for args, we'll use it for something else...
      */
+    /* XXX: on x86 MAP_GROWSDOWN only works if ESP <= address + 32, so
+       we allocate a bigger stack. Need a better solution, for example
+       by remapping the process stack directly at the right place */
     if(x86_stack_size >  MAX_ARG_PAGES*X86_PAGE_SIZE) {
         if((long)mmap4k((void *)(X86_STACK_TOP-x86_stack_size), x86_stack_size + X86_PAGE_SIZE,
     		     PROT_READ | PROT_WRITE,

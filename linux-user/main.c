@@ -33,7 +33,10 @@
 FILE *logfile = NULL;
 int loglevel;
 
-unsigned long x86_stack_size;
+/* XXX: on x86 MAP_GROWSDOWN only works if ESP <= address + 32, so
+   we allocate a bigger stack. Need a better solution, for example
+   by remapping the process stack directly at the right place */
+unsigned long x86_stack_size = 512 * 1024;
 unsigned long stktop;
 
 void gemu_log(const char *fmt, ...)
@@ -102,10 +105,11 @@ uint64_t gdt_table[6];
 
 void cpu_loop(struct CPUX86State *env)
 {
+    int err;
+    uint8_t *pc;
+    target_siginfo_t info;
+    
     for(;;) {
-        int err;
-        uint8_t *pc;
-        
         err = cpu_x86_exec(env);
         pc = env->seg_cache[R_CS].base + env->eip;
         switch(err) {
@@ -122,12 +126,42 @@ void cpu_loop(struct CPUX86State *env)
                                               env->regs[R_EDI],
                                               env->regs[R_EBP]);
             } else {
-                goto trap_error;
+                /* XXX: more precise info */
+                info.si_signo = SIGSEGV;
+                info.si_errno = 0;
+                info.si_code = 0;
+                info._sifields._sigfault._addr = 0;
+                queue_signal(info.si_signo, &info);
             }
             break;
+        case EXCP00_DIVZ:
+            /* division by zero */
+            info.si_signo = SIGFPE;
+            info.si_errno = 0;
+            info.si_code = TARGET_FPE_INTDIV;
+            info._sifields._sigfault._addr = env->eip;
+            queue_signal(info.si_signo, &info);
+            break;
+        case EXCP04_INTO:
+        case EXCP05_BOUND:
+            info.si_signo = SIGSEGV;
+            info.si_errno = 0;
+            info.si_code = 0;
+            info._sifields._sigfault._addr = 0;
+            queue_signal(info.si_signo, &info);
+            break;
+        case EXCP06_ILLOP:
+            info.si_signo = SIGILL;
+            info.si_errno = 0;
+            info.si_code = TARGET_ILL_ILLOPN;
+            info._sifields._sigfault._addr = env->eip;
+            queue_signal(info.si_signo, &info);
+            break;
+        case EXCP_INTERRUPT:
+            /* just indicate that signals should be handled asap */
+            break;
         default:
-        trap_error:
-            fprintf(stderr, "0x%08lx: Unknown exception %d, aborting\n", 
+            fprintf(stderr, "0x%08lx: Unknown exception CPU %d, aborting\n", 
                     (long)pc, err);
             abort();
         }
@@ -143,6 +177,9 @@ void usage(void)
            );
     exit(1);
 }
+
+/* XXX: currently only used for async signals (see signal.c) */
+CPUX86State *global_env;
 
 int main(int argc, char **argv)
 {
@@ -199,6 +236,7 @@ int main(int argc, char **argv)
     signal_init();
 
     env = cpu_x86_init();
+    global_env = env;
 
     /* linux register setup */
     env->regs[R_EAX] = regs->eax;

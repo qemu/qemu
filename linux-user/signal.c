@@ -27,13 +27,6 @@
 
 #include "gemu.h"
 
-#include "syscall_defs.h"
-
-#ifdef TARGET_I386
-#include "cpu-i386.h"
-#include "syscall-i386.h"
-#endif
-
 /* signal handling inspired from em86. */
 
 //#define DEBUG_SIGNAL
@@ -42,7 +35,7 @@
 
 struct sigqueue {
     struct sigqueue *next;
-    siginfo_t info;
+    target_siginfo_t info;
 };
 
 struct emulated_sigaction {
@@ -101,20 +94,66 @@ void target_to_host_old_sigset(sigset_t *sigset,
     *(unsigned long *)sigset = tswapl(*old_sigset);
 }
 
-/* XXX: finish it */
-void host_to_target_siginfo(target_siginfo_t *tinfo, siginfo_t *info)
+/* siginfo conversion */
+
+static inline void host_to_target_siginfo_noswap(target_siginfo_t *tinfo, 
+                                                 const siginfo_t *info)
 {
-    tinfo->si_signo = tswap32(info->si_signo);
-    tinfo->si_errno = tswap32(info->si_errno);
-    tinfo->si_code = tswap32(info->si_code);
+    int sig;
+    sig = host_to_target_signal(info->si_signo);
+    tinfo->si_signo = sig;
+    tinfo->si_errno = 0;
+    tinfo->si_code = 0;
+    if (sig == SIGILL || sig == SIGFPE || sig == SIGSEGV || sig == SIGBUS) {
+        /* should never come here, but who knows. The information for
+           the target is irrelevant */
+        tinfo->_sifields._sigfault._addr = 0;
+    } else if (sig >= TARGET_SIGRTMIN) {
+        tinfo->_sifields._rt._pid = info->si_pid;
+        tinfo->_sifields._rt._uid = info->si_uid;
+        /* XXX: potential problem if 64 bit */
+        tinfo->_sifields._rt._sigval.sival_ptr = 
+            (target_ulong)info->si_value.sival_ptr;
+    }
 }
 
-/* XXX: finish it */
-void target_to_host_siginfo(siginfo_t *info, target_siginfo_t *tinfo)
+static void tswap_siginfo(target_siginfo_t *tinfo, 
+                          const target_siginfo_t *info)
+{
+    int sig;
+    sig = info->si_signo;
+    tinfo->si_signo = tswap32(sig);
+    tinfo->si_errno = tswap32(info->si_errno);
+    tinfo->si_code = tswap32(info->si_code);
+    if (sig == SIGILL || sig == SIGFPE || sig == SIGSEGV || sig == SIGBUS) {
+        tinfo->_sifields._sigfault._addr = 
+            tswapl(info->_sifields._sigfault._addr);
+    } else if (sig >= TARGET_SIGRTMIN) {
+        tinfo->_sifields._rt._pid = tswap32(info->_sifields._rt._pid);
+        tinfo->_sifields._rt._uid = tswap32(info->_sifields._rt._uid);
+        tinfo->_sifields._rt._sigval.sival_ptr = 
+            tswapl(info->_sifields._rt._sigval.sival_ptr);
+    }
+}
+
+
+void host_to_target_siginfo(target_siginfo_t *tinfo, const siginfo_t *info)
+{
+    host_to_target_siginfo_noswap(tinfo, info);
+    tswap_siginfo(tinfo, tinfo);
+}
+
+/* XXX: we support only POSIX RT signals are used. */
+/* XXX: find a solution for 64 bit (additionnal malloced data is needed) */
+void target_to_host_siginfo(siginfo_t *info, const target_siginfo_t *tinfo)
 {
     info->si_signo = tswap32(tinfo->si_signo);
     info->si_errno = tswap32(tinfo->si_errno);
     info->si_code = tswap32(tinfo->si_code);
+    info->si_pid = tswap32(tinfo->_sifields._rt._pid);
+    info->si_uid = tswap32(tinfo->_sifields._rt._uid);
+    info->si_value.sival_ptr = 
+        (void *)tswapl(tinfo->_sifields._rt._sigval.sival_ptr);
 }
 
 void signal_init(void)
@@ -122,8 +161,9 @@ void signal_init(void)
     struct sigaction act;
     int i;
 
-    /* set all host signal handlers */
-    sigemptyset(&act.sa_mask);
+    /* set all host signal handlers. ALL signals are blocked during
+       the handlers to serialize them. */
+    sigfillset(&act.sa_mask);
     act.sa_flags = SA_SIGINFO;
     act.sa_sigaction = host_signal_handler;
     for(i = 1; i < NSIG; i++) {
@@ -155,56 +195,40 @@ static inline void free_sigqueue(struct sigqueue *q)
     first_free = q;
 }
 
-static int queue_signal(struct emulated_sigaction *k, int sig, siginfo_t *info)
-{
-    struct sigqueue *q, **pq;
-
-    pq = &k->first;
-    if (!k->pending || sig < TARGET_SIGRTMIN) {
-        /* first signal or non real time signal */
-        q = &k->info;
-    } else {
-        q = alloc_sigqueue();
-        if (!q)
-            return -EAGAIN;
-        while (*pq != NULL)
-            pq = &(*pq)->next;
-    }
-    *pq = q;
-    q->info = *info;
-    q->next = NULL;
-    k->pending = 1;
-    /* signal that a new signal is pending */
-    signal_pending = 1;
-    return 0;
-}
-
-void force_sig(int sig)
+/* abort execution with signal */
+void __attribute((noreturn)) force_sig(int sig)
 {
     int host_sig;
-    /* abort execution with signal */
     host_sig = target_to_host_signal(sig);
     fprintf(stderr, "gemu: uncaught target signal %d (%s) - exiting\n", 
             sig, strsignal(host_sig));
+#if 1
     _exit(-host_sig);
+#else
+    {
+        struct sigaction act;
+        sigemptyset(&act.sa_mask);
+        act.sa_flags = SA_SIGINFO;
+        act.sa_sigaction = SIG_DFL;
+        sigaction(SIGABRT, &act, NULL);
+        abort();
+    }
+#endif
 }
 
-
-static void host_signal_handler(int host_signum, siginfo_t *info, 
-                                void *puc)
+/* queue a signal so that it will be send to the virtual CPU as soon
+   as possible */
+int queue_signal(int sig, target_siginfo_t *info)
 {
     struct emulated_sigaction *k;
-    int sig;
+    struct sigqueue *q, **pq;
     target_ulong handler;
 
-    /* get target signal number */
-    sig = host_to_target_signal(host_signum);
-    if (sig < 1 || sig > TARGET_NSIG)
-        return;
-    k = &sigact_table[sig - 1];
-#ifdef DEBUG_SIGNAL
-    fprintf(stderr, "gemu: got signal %d\n", sig);
+#if defined(DEBUG_SIGNAL)
+    fprintf(stderr, "queue_sigal: sig=%d\n", 
+            sig);
 #endif
+    k = &sigact_table[sig - 1];
     handler = k->sa._sa_handler;
     if (handler == TARGET_SIG_DFL) {
         /* default handler : ignore some signal. The other are fatal */
@@ -212,13 +236,96 @@ static void host_signal_handler(int host_signum, siginfo_t *info,
             sig != TARGET_SIGURG && 
             sig != TARGET_SIGWINCH) {
             force_sig(sig);
+        } else {
+            return 0; /* indicate ignored */
         }
     } else if (handler == TARGET_SIG_IGN) {
         /* ignore signal */
+        return 0;
     } else if (handler == TARGET_SIG_ERR) {
         force_sig(sig);
     } else {
-        queue_signal(k, sig, info);
+        pq = &k->first;
+        if (sig < TARGET_SIGRTMIN) {
+            /* if non real time signal, we queue exactly one signal */
+            if (!k->pending)
+                q = &k->info;
+            else
+                return 0;
+        } else {
+            if (!k->pending) {
+                /* first signal */
+                q = &k->info;
+            } else {
+                q = alloc_sigqueue();
+                if (!q)
+                    return -EAGAIN;
+                while (*pq != NULL)
+                    pq = &(*pq)->next;
+            }
+        }
+        *pq = q;
+        q->info = *info;
+        q->next = NULL;
+        k->pending = 1;
+        /* signal that a new signal is pending */
+        signal_pending = 1;
+        return 1; /* indicates that the signal was queued */
+    }
+}
+
+#if defined(DEBUG_SIGNAL)
+#ifdef __i386__
+static void dump_regs(struct ucontext *uc)
+{
+    fprintf(stderr, 
+            "EAX=%08x EBX=%08x ECX=%08x EDX=%08x\n"
+            "ESI=%08x EDI=%08x EBP=%08x ESP=%08x\n"
+            "EFL=%08x EIP=%08x\n",
+            uc->uc_mcontext.gregs[EAX],
+            uc->uc_mcontext.gregs[EBX],
+            uc->uc_mcontext.gregs[ECX],
+            uc->uc_mcontext.gregs[EDX],
+            uc->uc_mcontext.gregs[ESI],
+            uc->uc_mcontext.gregs[EDI],
+            uc->uc_mcontext.gregs[EBP],
+            uc->uc_mcontext.gregs[ESP],
+            uc->uc_mcontext.gregs[EFL],
+            uc->uc_mcontext.gregs[EIP]);
+}
+#else
+static void dump_regs(struct ucontext *uc)
+{
+}
+#endif
+
+#endif
+
+static void host_signal_handler(int host_signum, siginfo_t *info, 
+                                void *puc)
+{
+    int sig;
+    target_siginfo_t tinfo;
+
+    /* the CPU emulator uses some host signals to detect exceptions,
+       we we forward to it some signals */
+    if (host_signum == SIGSEGV || host_signum == SIGBUS) {
+        if (cpu_x86_signal_handler(host_signum, info, puc))
+            return;
+    }
+
+    /* get target signal number */
+    sig = host_to_target_signal(host_signum);
+    if (sig < 1 || sig > TARGET_NSIG)
+        return;
+#if defined(DEBUG_SIGNAL)
+    fprintf(stderr, "gemu: got signal %d\n", sig);
+    dump_regs(puc);
+#endif
+    host_to_target_siginfo_noswap(&tinfo, info);
+    if (queue_signal(sig, &tinfo) == 1) {
+        /* interrupt the virtual CPU as soon as possible */
+        cpu_x86_interrupt(global_env);
     }
 }
 
@@ -388,9 +495,10 @@ struct rt_sigframe
     0;\
 })
 
-static inline int copy_siginfo_to_user(target_siginfo_t *tinfo, siginfo_t *info)
+static inline int copy_siginfo_to_user(target_siginfo_t *tinfo, 
+                                       const target_siginfo_t *info)
 {
-    host_to_target_siginfo(tinfo, info);
+    tswap_siginfo(tinfo, info);
     return 0;
 }
 
@@ -531,7 +639,8 @@ give_sigsegv:
 	force_sig(TARGET_SIGSEGV /* , current */);
 }
 
-static void setup_rt_frame(int sig, struct emulated_sigaction *ka, siginfo_t *info,
+static void setup_rt_frame(int sig, struct emulated_sigaction *ka, 
+                           target_siginfo_t *info,
 			   target_sigset_t *set, CPUX86State *env)
 {
 	struct rt_sigframe *frame;
@@ -734,7 +843,8 @@ void process_pending_signals(void *cpu_env)
 {
     int sig;
     target_ulong handler;
-    target_sigset_t set;
+    sigset_t set, old_set;
+    target_sigset_t target_old_set;
     struct emulated_sigaction *k;
     struct sigqueue *q;
     
@@ -774,12 +884,24 @@ void process_pending_signals(void *cpu_env)
     } else if (handler == TARGET_SIG_ERR) {
         force_sig(sig);
     } else {
-        set = k->sa.sa_mask;
-        /* send the signal to the CPU */
+        /* compute the blocked signals during the handler execution */
+        target_to_host_sigset(&set, &k->sa.sa_mask);
+        /* SA_NODEFER indicates that the current signal should not be
+           blocked during the handler */
+        if (!(k->sa.sa_flags & TARGET_SA_NODEFER))
+            sigaddset(&set, target_to_host_signal(sig));
+        
+        /* block signals in the handler using Linux */
+        sigprocmask(SIG_BLOCK, &set, &old_set);
+        /* save the previous blocked signal state to restore it at the
+           end of the signal execution (see do_sigreturn) */
+        host_to_target_sigset(&target_old_set, &old_set);
+
+        /* prepare the stack frame of the virtual CPU */
         if (k->sa.sa_flags & TARGET_SA_SIGINFO)
-            setup_rt_frame(sig, k, &q->info, &set, cpu_env);
+            setup_rt_frame(sig, k, &q->info, &target_old_set, cpu_env);
         else
-            setup_frame(sig, k, &set, cpu_env);
+            setup_frame(sig, k, &target_old_set, cpu_env);
 	if (k->sa.sa_flags & TARGET_SA_RESETHAND)
             k->sa._sa_handler = TARGET_SIG_DFL;
     }
