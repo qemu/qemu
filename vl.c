@@ -921,8 +921,7 @@ static void init_timers(void)
             setitimer(ITIMER_REAL, &itv, NULL);
 
             /* use the RTC */
-            sigaction(SIGRTMIN, &act, NULL);
-            fcntl(rtc_fd, F_SETSIG, SIGRTMIN);
+            sigaction(SIGIO, &act, NULL);
             fcntl(rtc_fd, F_SETFL, O_ASYNC);
             fcntl(rtc_fd, F_SETOWN, getpid());
         } else {
