@@ -21,6 +21,8 @@ version 0.5.6:
   - APM and system shutdown support
   - Fixed system reset
   - Support for other PC BIOSes
+  - Initial PowerMac hardware emulation
+  - PowerMac/PREP OpenFirmware compatible BIOS (Jocelyn Mayer)
 
 version 0.5.5:
 
