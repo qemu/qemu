@@ -1154,6 +1154,11 @@ static void vga_draw_text(VGAState *s, int full_update)
             ((s->cr[0x07] & 0x40) << 3);
         height = (height + 1) / cheight;
     }
+    if ((height * width) > CH_ATTR_SIZE) {
+        /* better than nothing: exit if transient size is too big */
+        return;
+    }
+
     if (width != s->last_width || height != s->last_height ||
         cw != s->last_cw || cheight != s->last_ch) {
         s->last_scr_width = width * cw;
