@@ -213,6 +213,8 @@ static name2keysym_t name2keysym[]={
 {"Meta_R", SDLK_RMETA},
 {"Shift_L", SDLK_LSHIFT},
 {"Shift_R", SDLK_RSHIFT},
+{"Super_L", SDLK_LSUPER},
+{"Super_R", SDLK_RSUPER},
 
     /* special keys */
 {"BackSpace", SDLK_BACKSPACE},
