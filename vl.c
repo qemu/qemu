@@ -980,6 +980,8 @@ int main(int argc, char **argv)
                         } else if (*p != '\0') {
                             fprintf(stderr, "qemu: invalid fd for network interface %d\n", nb_nics);
                             exit(1);
+                        } else {
+                            break;
                         }
                     }
                 }
