@@ -295,8 +295,9 @@ int cpu_exec(CPUState *env1)
                             tb->cs_base == (unsigned long)cs_base && 
                             tb->flags == flags) {
                             /* check next page if needed */
-                            virt_page2 = ((unsigned long)pc + tb->size - 1) & TARGET_PAGE_MASK;
-                            if (((unsigned long)pc & TARGET_PAGE_MASK) != virt_page2) {
+                            if (tb->page_addr[1] != -1) {
+                                virt_page2 = ((unsigned long)pc & TARGET_PAGE_MASK) + 
+                                    TARGET_PAGE_SIZE;
                                 phys_page2 = get_phys_addr_code(env, virt_page2);
                                 if (tb->page_addr[1] == phys_page2)
                                     goto found;
