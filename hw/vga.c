@@ -49,6 +49,7 @@
 #include "thunk.h"
 
 //#define DEBUG_VGA
+//#define DEBUG_VGA_MEM
 
 #define MSR_COLOR_EMULATION 0x01
 #define MSR_PAGE_SELECT     0x20
@@ -85,7 +86,8 @@ typedef struct VGAState {
     DisplayState *ds;
     uint32_t font_offsets[2];
     int graphic_mode;
-    int shift_control;
+    uint8_t shift_control;
+    uint8_t double_scan;
     uint32_t line_offset;
     uint32_t line_compare;
     uint32_t start_addr;
@@ -93,10 +95,11 @@ typedef struct VGAState {
     uint32_t last_width, last_height;
     uint8_t cursor_start, cursor_end;
     uint32_t cursor_offset;
+    unsigned int (*rgb_to_pixel)(unsigned int r, unsigned int g, unsigned b);
     /* tell for each page if it has been updated since the last time */
     uint8_t vram_updated[VGA_RAM_SIZE / 4096];
     uint32_t last_palette[256];
-#define CH_ATTR_SIZE (132 * 60)
+#define CH_ATTR_SIZE (160 * 100)
     uint32_t last_ch_attr[CH_ATTR_SIZE]; /* XXX: make it dynamic */
 } VGAState;
 
@@ -199,6 +202,7 @@ static const uint32_t dmask4[4] = {
 
 static uint32_t expand4[256];
 static uint16_t expand2[256];
+static uint8_t expand4to8[16];
 
 VGAState vga_state;
 int vga_io_memory;
@@ -503,7 +507,7 @@ void vga_mem_writeb(uint32_t addr, uint32_t val)
     int memory_map_mode, plane, write_mode, b, func_select;
     uint32_t write_mask, bit_mask, set_mask;
 
-#ifdef DEBUG_VGA
+#ifdef DEBUG_VGA_MEM
     printf("vga: [0x%x] = 0x%02x\n", addr, val);
 #endif
     /* convert to VGA memory offset */
@@ -533,7 +537,7 @@ void vga_mem_writeb(uint32_t addr, uint32_t val)
         plane = addr & 3;
         if (s->sr[2] & (1 << plane)) {
             s->vram_ptr[addr] = val;
-#ifdef DEBUG_VGA
+#ifdef DEBUG_VGA_MEM
             printf("vga: chain4: [0x%x]\n", addr);
 #endif
             s->vram_updated[addr >> 12] = 1;
@@ -544,7 +548,7 @@ void vga_mem_writeb(uint32_t addr, uint32_t val)
         if (s->sr[2] & (1 << plane)) {
             addr = ((addr & ~1) << 1) | plane;
             s->vram_ptr[addr] = val;
-#ifdef DEBUG_VGA
+#ifdef DEBUG_VGA_MEM
             printf("vga: odd/even: [0x%x]\n", addr);
 #endif
             s->vram_updated[addr >> 12] = 1;
@@ -615,7 +619,7 @@ void vga_mem_writeb(uint32_t addr, uint32_t val)
         ((uint32_t *)s->vram_ptr)[addr] = 
             (((uint32_t *)s->vram_ptr)[addr] & ~write_mask) | 
             (val & write_mask);
-#ifdef DEBUG_VGA
+#ifdef DEBUG_VGA_MEM
             printf("vga: latch: [0x%x] mask=0x%08x val=0x%08x\n", 
                    addr * 4, write_mask, val);
 #endif
@@ -699,28 +703,43 @@ static inline int c6_to_8(int v)
     return (v << 2) | (b << 1) | b;
 }
 
+static unsigned int rgb_to_pixel8_dup(unsigned int r, unsigned int g, unsigned b)
+{
+    unsigned int col;
+    col = rgb_to_pixel8(r, g, b);
+    col |= col << 8;
+    col |= col << 16;
+    return col;
+}
+
+static unsigned int rgb_to_pixel15_dup(unsigned int r, unsigned int g, unsigned b)
+{
+    unsigned int col;
+    col = rgb_to_pixel15(r, g, b);
+    col |= col << 16;
+    return col;
+}
+
+static unsigned int rgb_to_pixel16_dup(unsigned int r, unsigned int g, unsigned b)
+{
+    unsigned int col;
+    col = rgb_to_pixel16(r, g, b);
+    col |= col << 16;
+    return col;
+}
+
+static unsigned int rgb_to_pixel32_dup(unsigned int r, unsigned int g, unsigned b)
+{
+    unsigned int col;
+    col = rgb_to_pixel32(r, g, b);
+    return col;
+}
+
 /* return true if the palette was modified */
 static int update_palette16(VGAState *s)
 {
-    int full_update, i, depth;
+    int full_update, i;
     uint32_t v, col, *palette;
-    unsigned int (*rgb_to_pixel)(unsigned int r, unsigned int g, unsigned b);
-    depth = s->ds->depth;
-    switch(depth) {
-    case 8:
-        rgb_to_pixel = rgb_to_pixel8;
-        break;
-    case 15:
-        rgb_to_pixel = rgb_to_pixel15;
-        break;
-    default:
-    case 16:
-        rgb_to_pixel = rgb_to_pixel16;
-        break;
-    case 32:
-        rgb_to_pixel = rgb_to_pixel32;
-        break;
-    }
 
     full_update = 0;
     palette = s->last_palette;
@@ -731,21 +750,35 @@ static int update_palette16(VGAState *s)
         else
             v = ((s->ar[0x14] & 0xc) << 4) | (v & 0x3f);
         v = v * 3;
-        col = rgb_to_pixel(c6_to_8(s->palette[v]), 
-                           c6_to_8(s->palette[v + 1]), 
-                           c6_to_8(s->palette[v + 2]));
-        
-        if (depth == 8) {
-            col |= col << 8;
-            col |= col << 16;
-        } else if (depth <= 16) {
-            col |= col << 16;
-        }
-        //        printf("%2d: %08x\n", i, col);
+        col = s->rgb_to_pixel(c6_to_8(s->palette[v]), 
+                              c6_to_8(s->palette[v + 1]), 
+                              c6_to_8(s->palette[v + 2]));
         if (col != palette[i]) {
             full_update = 1;
             palette[i] = col;
         }
+    }
+    return full_update;
+}
+
+/* return true if the palette was modified */
+static int update_palette256(VGAState *s)
+{
+    int full_update, i;
+    uint32_t v, col, *palette;
+
+    full_update = 0;
+    palette = s->last_palette;
+    v = 0;
+    for(i = 0; i < 256; i++) {
+        col = s->rgb_to_pixel(c6_to_8(s->palette[v]), 
+                              c6_to_8(s->palette[v + 1]), 
+                              c6_to_8(s->palette[v + 2]));
+        if (col != palette[i]) {
+            full_update = 1;
+            palette[i] = col;
+        }
+        v += 3;
     }
     return full_update;
 }
@@ -804,6 +837,13 @@ static vga_draw_glyph8_func *vga_draw_glyph8_table[4] = {
     vga_draw_glyph8_16,
     vga_draw_glyph8_16,
     vga_draw_glyph8_32,
+};
+
+static vga_draw_glyph8_func *vga_draw_glyph16_table[4] = {
+    vga_draw_glyph16_8,
+    vga_draw_glyph16_16,
+    vga_draw_glyph16_16,
+    vga_draw_glyph16_32,
 };
 
 static vga_draw_glyph9_func *vga_draw_glyph9_table[4] = {
@@ -882,12 +922,19 @@ static void vga_draw_text(VGAState *s, int full_update)
     cw = 8;
     if (s->sr[1] & 0x01)
         cw = 9;
+    if (s->sr[1] & 0x08)
+        cw = 16; /* NOTE: no 18 pixel wide */
     x_incr = cw * ((s->ds->depth + 7) >> 3);
     width = (s->cr[0x01] + 1);
-    height = s->cr[0x12] | 
-        ((s->cr[0x07] & 0x02) << 7) | 
-        ((s->cr[0x07] & 0x40) << 3);
-    height = (height + 1) / cheight;
+    if (s->cr[0x06] == 100) {
+        /* ugly hack for CGA 160x100x16 - explain me the logic */
+        height = 100;
+    } else {
+        height = s->cr[0x12] | 
+            ((s->cr[0x07] & 0x02) << 7) | 
+            ((s->cr[0x07] & 0x40) << 3);
+        height = (height + 1) / cheight;
+    }
     if (width != s->last_width || height != s->last_height ||
         cw != s->last_cw || cw != s->last_cw) {
         dpy_resize(s->ds, width * cw, height * cheight);
@@ -914,7 +961,10 @@ static void vga_draw_text(VGAState *s, int full_update)
     cursor_ptr = s->vram_ptr + (s->start_addr + cursor_offset) * 4;
     
     depth_index = get_depth_index(s->ds->depth);
-    vga_draw_glyph8 = vga_draw_glyph8_table[depth_index];
+    if (cw == 16)
+        vga_draw_glyph8 = vga_draw_glyph16_table[depth_index];
+    else
+        vga_draw_glyph8 = vga_draw_glyph8_table[depth_index];
     vga_draw_glyph9 = vga_draw_glyph9_table[depth_index];
     
     dest = s->ds->data;
@@ -944,7 +994,7 @@ static void vga_draw_text(VGAState *s, int full_update)
                 font_ptr += 32 * 4 * ch;
                 bgcol = palette[cattr >> 4];
                 fgcol = palette[cattr & 0x0f];
-                if (cw == 8) {
+                if (cw != 9) {
                     vga_draw_glyph8(d1, linesize, 
                                     font_ptr, cheight, fgcol, bgcol);
                 } else {
@@ -966,7 +1016,7 @@ static void vga_draw_text(VGAState *s, int full_update)
                     if (line_last >= line_start && line_start < cheight) {
                         h = line_last - line_start + 1;
                         d = d1 + linesize * line_start;
-                        if (cw == 8) {
+                        if (cw != 9) {
                             vga_draw_glyph8(d, linesize, 
                                             cursor_glyph, h, fgcol, bgcol);
                         } else {
@@ -989,16 +1039,44 @@ static void vga_draw_text(VGAState *s, int full_update)
     }
 }
 
-static vga_draw_line_func *vga_draw_line_table[4 * 6] = {
+enum {
+    VGA_DRAW_LINE2,
+    VGA_DRAW_LINE2D2,
+    VGA_DRAW_LINE4,
+    VGA_DRAW_LINE4D2,
+    VGA_DRAW_LINE8D2,
+    VGA_DRAW_LINE8,
+    VGA_DRAW_LINE15,
+    VGA_DRAW_LINE16,
+    VGA_DRAW_LINE32,
+    VGA_DRAW_LINE_NB,
+};
+
+static vga_draw_line_func *vga_draw_line_table[4 * VGA_DRAW_LINE_NB] = {
     vga_draw_line2_8,
     vga_draw_line2_16,
     vga_draw_line2_16,
     vga_draw_line2_32,
 
+    vga_draw_line2d2_8,
+    vga_draw_line2d2_16,
+    vga_draw_line2d2_16,
+    vga_draw_line2d2_32,
+
     vga_draw_line4_8,
     vga_draw_line4_16,
     vga_draw_line4_16,
     vga_draw_line4_32,
+
+    vga_draw_line4d2_8,
+    vga_draw_line4d2_16,
+    vga_draw_line4d2_16,
+    vga_draw_line4d2_32,
+
+    vga_draw_line8d2_8,
+    vga_draw_line8d2_16,
+    vga_draw_line8d2_16,
+    vga_draw_line8d2_32,
 
     vga_draw_line8_8,
     vga_draw_line8_16,
@@ -1029,14 +1107,13 @@ static vga_draw_line_func *vga_draw_line_table[4 * 6] = {
  */
 static void vga_draw_graphic(VGAState *s, int full_update)
 {
-    int y, update, page_min, page_max, linesize, y_start;
+    int y1, y, update, page_min, page_max, linesize, y_start, double_scan, mask;
     int width, height, shift_control, line_offset, page0, page1, bwidth;
+    int disp_width;
     uint8_t *d;
     uint32_t v, addr1, addr;
     vga_draw_line_func *vga_draw_line;
-
-    full_update |= update_palette16(s);
-
+    
     full_update |= update_basic_params(s);
 
     width = (s->cr[0x01] + 1) * 8;
@@ -1044,30 +1121,53 @@ static void vga_draw_graphic(VGAState *s, int full_update)
         ((s->cr[0x07] & 0x02) << 7) | 
         ((s->cr[0x07] & 0x40) << 3);
     height = (height + 1);
+    disp_width = width;
+    
+    shift_control = (s->gr[0x05] >> 5) & 3;
+    double_scan = (s->cr[0x09] & 0x80);
+    if (shift_control != s->shift_control ||
+        double_scan != s->double_scan) {
+        full_update = 1;
+        s->shift_control = shift_control;
+        s->double_scan = double_scan;
+    }
+    
+    if (shift_control == 0) {
+        full_update |= update_palette16(s);
+        if (s->sr[0x01] & 8) {
+            v = VGA_DRAW_LINE4D2;
+            disp_width <<= 1;
+        } else {
+            v = VGA_DRAW_LINE4;
+        }
+    } else if (shift_control == 1) {
+        full_update |= update_palette16(s);
+        if (s->sr[0x01] & 8) {
+            v = VGA_DRAW_LINE2D2;
+            disp_width <<= 1;
+        } else {
+            v = VGA_DRAW_LINE2;
+        }
+    } else {
+        full_update |= update_palette256(s);
+        v = VGA_DRAW_LINE8D2;
+        double_scan = 1; /* XXX: explain me why it is always activated */
+    }
+    vga_draw_line = vga_draw_line_table[v * 4 + get_depth_index(s->ds->depth)];
 
-    if (width != s->last_width ||
+    if (disp_width != s->last_width ||
         height != s->last_height) {
-        dpy_resize(s->ds, width, height);
-        s->last_width = width;
+        dpy_resize(s->ds, disp_width, height);
+        s->last_width = disp_width;
         s->last_height = height;
         full_update = 1;
     }
 
-    shift_control = (s->gr[0x05] >> 5) & 3;
-    if (shift_control != s->shift_control) {
-        full_update = 1;
-        s->shift_control = shift_control;
-    }
-    
-    if (shift_control == 0)
-        v = 1; /* 4 bit/pixel */
-    else if (shift_control == 1)
-        v = 0; /* 2 bit/pixel */
-    else
-        v = 2; /* 8 bit/pixel */
-    vga_draw_line = vga_draw_line_table[v * 4 + get_depth_index(s->ds->depth)];
-    
     line_offset = s->line_offset;
+#if 0
+    printf("w=%d h=%d v=%d line_offset=%d double_scan=0x%02x cr[0x17]=0x%02x linecmp=%d sr[0x01]=%02x\n",
+           width, height, v, line_offset, s->cr[9], s->cr[0x17], s->line_compare, s->sr[0x01]);
+#endif
     addr1 = (s->start_addr * 4);
     bwidth = width * 4;
     y_start = -1;
@@ -1075,14 +1175,17 @@ static void vga_draw_graphic(VGAState *s, int full_update)
     page_max = -1;
     d = s->ds->data;
     linesize = s->ds->linesize;
+    y1 = 0;
     for(y = 0; y < height; y++) {
         addr = addr1;
         if (!(s->cr[0x17] & 1)) {
+            int shift;
             /* CGA compatibility handling */
-            addr = (addr & ~0x2000) | ((y & 1) << 13);
+            shift = 14 + ((s->cr[0x17] >> 6) & 1);
+            addr = (addr & ~(1 << shift)) | ((y1 & 1) << shift);
         }
         if (!(s->cr[0x17] & 2)) {
-            addr = (addr & ~0x4000) | ((y & 2) << 13);
+            addr = (addr & ~0x8000) | ((y1 & 2) << 14);
         }
         page0 = addr >> 12;
         page1 = (addr + bwidth - 1) >> 12;
@@ -1103,21 +1206,26 @@ static void vga_draw_graphic(VGAState *s, int full_update)
             if (y_start >= 0) {
                 /* flush to display */
                 dpy_update(s->ds, 0, y_start, 
-                           width, y - y_start);
+                           disp_width, y - y_start);
                 y_start = -1;
             }
         }
-        if (y == s->line_compare) {
-            addr1 = 0;
-        } else {
-            addr1 += line_offset;
+        if (!double_scan || (y & 1) != 0) {
+            if (y1 == s->line_compare) {
+                addr1 = 0;
+            } else {
+                mask = (s->cr[0x17] & 3) ^ 3;
+                if ((y1 & mask) == mask)
+                    addr1 += line_offset; 
+            }
+            y1++;
         }
         d += linesize;
     }
     if (y_start >= 0) {
         /* flush to display */
         dpy_update(s->ds, 0, y_start, 
-                   width, y - y_start);
+                   disp_width, y - y_start);
     }
     /* reset modified pages */
     if (page_max != -1) {
@@ -1199,7 +1307,7 @@ int vga_init(DisplayState *ds, uint8_t *vga_ram_base,
              unsigned long vga_ram_offset, int vga_ram_size)
 {
     VGAState *s = &vga_state;
-    int i, j, v;
+    int i, j, v, b;
 
     for(i = 0;i < 256; i++) {
         v = 0;
@@ -1214,8 +1322,33 @@ int vga_init(DisplayState *ds, uint8_t *vga_ram_base,
         }
         expand2[i] = v;
     }
+    for(i = 0; i < 16; i++) {
+        v = 0;
+        for(j = 0; j < 4; j++) {
+            b = ((i >> j) & 1);
+            v |= b << (2 * j);
+            v |= b << (2 * j + 1);
+        }
+        expand4to8[i] = v;
+    }
 
     vga_reset(s);
+
+    switch(ds->depth) {
+    case 8:
+        s->rgb_to_pixel = rgb_to_pixel8_dup;
+        break;
+    case 15:
+        s->rgb_to_pixel = rgb_to_pixel15_dup;
+        break;
+    default:
+    case 16:
+        s->rgb_to_pixel = rgb_to_pixel16_dup;
+        break;
+    case 32:
+        s->rgb_to_pixel = rgb_to_pixel32_dup;
+        break;
+    }
 
     s->vram_ptr = vga_ram_base;
     s->vram_offset = vga_ram_offset;

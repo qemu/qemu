@@ -37,15 +37,11 @@
 
 #if DEPTH != 15
 
-static void glue(vga_draw_glyph8_, DEPTH)(uint8_t *d, int linesize,
-                                          const uint8_t *font_ptr, int h,
-                                          uint32_t fgcol, uint32_t bgcol)
+static inline void glue(vga_draw_glyph_line_, DEPTH)(uint8_t *d, 
+                                                     uint32_t font_data,
+                                                     uint32_t xorcol, 
+                                                     uint32_t bgcol)
 {
-    uint32_t font_data, xorcol;
-    
-    xorcol = bgcol ^ fgcol;
-    do {
-        font_data = font_ptr[0];
 #if BPP == 1
         ((uint32_t *)d)[0] = (dmask16[(font_data >> 4)] & xorcol) ^ bgcol;
         ((uint32_t *)d)[3] = (dmask16[(font_data >> 0) & 0xf] & xorcol) ^ bgcol;
@@ -64,6 +60,38 @@ static void glue(vga_draw_glyph8_, DEPTH)(uint8_t *d, int linesize,
         ((uint32_t *)d)[6] = ((-(font_data >> 1) & 1) & xorcol) ^ bgcol;
         ((uint32_t *)d)[7] = ((-(font_data >> 0) & 1) & xorcol) ^ bgcol;
 #endif
+}
+
+static void glue(vga_draw_glyph8_, DEPTH)(uint8_t *d, int linesize,
+                                          const uint8_t *font_ptr, int h,
+                                          uint32_t fgcol, uint32_t bgcol)
+{
+    uint32_t font_data, xorcol;
+    
+    xorcol = bgcol ^ fgcol;
+    do {
+        font_data = font_ptr[0];
+        glue(vga_draw_glyph_line_, DEPTH)(d, font_data, xorcol, bgcol);
+        font_ptr += 4;
+        d += linesize;
+    } while (--h);
+}
+
+static void glue(vga_draw_glyph16_, DEPTH)(uint8_t *d, int linesize,
+                                          const uint8_t *font_ptr, int h,
+                                          uint32_t fgcol, uint32_t bgcol)
+{
+    uint32_t font_data, xorcol;
+    
+    xorcol = bgcol ^ fgcol;
+    do {
+        font_data = font_ptr[0];
+        glue(vga_draw_glyph_line_, DEPTH)(d, 
+                                          expand4to8[font_data >> 4], 
+                                          xorcol, bgcol);
+        glue(vga_draw_glyph_line_, DEPTH)(d + 8 * BPP, 
+                                          expand4to8[font_data & 0x0f], 
+                                          xorcol, bgcol);
         font_ptr += 4;
         d += linesize;
     } while (--h);
@@ -151,6 +179,48 @@ static void glue(vga_draw_line2_, DEPTH)(VGAState *s1, uint8_t *d,
     }
 }
 
+#if BPP == 1
+#define PUT_PIXEL2(d, n, v) ((uint16_t *)d)[(n)] = (v)
+#elif BPP == 2
+#define PUT_PIXEL2(d, n, v) ((uint32_t *)d)[(n)] = (v)
+#else
+#define PUT_PIXEL2(d, n, v) \
+((uint32_t *)d)[2*(n)] = ((uint32_t *)d)[2*(n)+1] = (v)
+#endif
+
+/* 
+ * 4 color mode, dup2 horizontal
+ */
+static void glue(vga_draw_line2d2_, DEPTH)(VGAState *s1, uint8_t *d, 
+                                           const uint8_t *s, int width)
+{
+    uint32_t plane_mask, *palette, data, v;
+    int x;
+
+    palette = s1->last_palette;
+    plane_mask = mask16[s1->ar[0x12] & 0xf];
+    width >>= 3;
+    for(x = 0; x < width; x++) {
+        data = ((uint32_t *)s)[0];
+        data &= plane_mask;
+        v = expand2[GET_PLANE(data, 0)];
+        v |= expand2[GET_PLANE(data, 2)] << 2;
+        PUT_PIXEL2(d, 0, palette[v >> 12]);
+        PUT_PIXEL2(d, 1, palette[(v >> 8) & 0xf]);
+        PUT_PIXEL2(d, 2, palette[(v >> 4) & 0xf]);
+        PUT_PIXEL2(d, 3, palette[(v >> 0) & 0xf]);
+
+        v = expand2[GET_PLANE(data, 1)];
+        v |= expand2[GET_PLANE(data, 3)] << 2;
+        PUT_PIXEL2(d, 4, palette[v >> 12]);
+        PUT_PIXEL2(d, 5, palette[(v >> 8) & 0xf]);
+        PUT_PIXEL2(d, 6, palette[(v >> 4) & 0xf]);
+        PUT_PIXEL2(d, 7, palette[(v >> 0) & 0xf]);
+        d += BPP * 16;
+        s += 4;
+    }
+}
+
 /* 
  * 16 color mode
  */
@@ -184,7 +254,62 @@ static void glue(vga_draw_line4_, DEPTH)(VGAState *s1, uint8_t *d,
 }
 
 /* 
- * 256 color mode
+ * 16 color mode, dup2 horizontal
+ */
+static void glue(vga_draw_line4d2_, DEPTH)(VGAState *s1, uint8_t *d, 
+                                           const uint8_t *s, int width)
+{
+    uint32_t plane_mask, data, v, *palette;
+    int x;
+
+    palette = s1->last_palette;
+    plane_mask = mask16[s1->ar[0x12] & 0xf];
+    width >>= 3;
+    for(x = 0; x < width; x++) {
+        data = ((uint32_t *)s)[0];
+        data &= plane_mask;
+        v = expand4[GET_PLANE(data, 0)];
+        v |= expand4[GET_PLANE(data, 1)] << 1;
+        v |= expand4[GET_PLANE(data, 2)] << 2;
+        v |= expand4[GET_PLANE(data, 3)] << 3;
+        PUT_PIXEL2(d, 0, palette[v >> 28]);
+        PUT_PIXEL2(d, 1, palette[(v >> 24) & 0xf]);
+        PUT_PIXEL2(d, 2, palette[(v >> 20) & 0xf]);
+        PUT_PIXEL2(d, 3, palette[(v >> 16) & 0xf]);
+        PUT_PIXEL2(d, 4, palette[(v >> 12) & 0xf]);
+        PUT_PIXEL2(d, 5, palette[(v >> 8) & 0xf]);
+        PUT_PIXEL2(d, 6, palette[(v >> 4) & 0xf]);
+        PUT_PIXEL2(d, 7, palette[(v >> 0) & 0xf]);
+        d += BPP * 16;
+        s += 4;
+    }
+}
+
+/* 
+ * 256 color mode, double pixels
+ *
+ * XXX: add plane_mask support (never used in standard VGA modes)
+ */
+static void glue(vga_draw_line8d2_, DEPTH)(VGAState *s1, uint8_t *d, 
+                                           const uint8_t *s, int width)
+{
+    uint32_t *palette;
+    int x;
+
+    palette = s1->last_palette;
+    width >>= 3;
+    for(x = 0; x < width; x++) {
+        PUT_PIXEL2(d, 0, palette[s[0]]);
+        PUT_PIXEL2(d, 1, palette[s[1]]);
+        PUT_PIXEL2(d, 2, palette[s[2]]);
+        PUT_PIXEL2(d, 3, palette[s[3]]);
+        d += BPP * 8;
+        s += 4;
+    }
+}
+
+/* 
+ * standard 256 color mode
  *
  * XXX: add plane_mask support (never used in standard VGA modes)
  */
@@ -289,6 +414,7 @@ static void glue(vga_draw_line32_, DEPTH)(VGAState *s1, uint8_t *d,
 #endif
 }
 
+#undef PUT_PIXEL2
 #undef DEPTH
 #undef BPP
 #undef PIXEL_TYPE
