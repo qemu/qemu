@@ -313,6 +313,7 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
 
     if (linux_boot) {
         uint8_t bootsect[512];
+        uint8_t old_bootsect[512];
 
         if (bs_table[0] == NULL) {
             fprintf(stderr, "A disk image must be given for 'hda' when booting a Linux kernel\n");
@@ -324,6 +325,11 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
             fprintf(stderr, "qemu: could not load linux boot sector '%s'\n",
                     buf);
             exit(1);
+        }
+
+        if (bdrv_read(bs_table[0], 0, old_bootsect, 1) >= 0) {
+            /* copy the MSDOS partition table */
+            memcpy(bootsect + 0x1be, old_bootsect + 0x1be, 0x40);
         }
 
         bdrv_set_boot_sector(bs_table[0], bootsect, sizeof(bootsect));
