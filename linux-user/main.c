@@ -67,34 +67,34 @@ void gemu_log(const char *fmt, ...)
 /***********************************************************/
 /* CPUX86 core interface */
 
-void cpu_x86_outb(int addr, int val)
+void cpu_x86_outb(CPUX86State *env, int addr, int val)
 {
     fprintf(stderr, "outb: port=0x%04x, data=%02x\n", addr, val);
 }
 
-void cpu_x86_outw(int addr, int val)
+void cpu_x86_outw(CPUX86State *env, int addr, int val)
 {
     fprintf(stderr, "outw: port=0x%04x, data=%04x\n", addr, val);
 }
 
-void cpu_x86_outl(int addr, int val)
+void cpu_x86_outl(CPUX86State *env, int addr, int val)
 {
     fprintf(stderr, "outl: port=0x%04x, data=%08x\n", addr, val);
 }
 
-int cpu_x86_inb(int addr)
+int cpu_x86_inb(CPUX86State *env, int addr)
 {
     fprintf(stderr, "inb: port=0x%04x\n", addr);
     return 0;
 }
 
-int cpu_x86_inw(int addr)
+int cpu_x86_inw(CPUX86State *env, int addr)
 {
     fprintf(stderr, "inw: port=0x%04x\n", addr);
     return 0;
 }
 
-int cpu_x86_inl(int addr)
+int cpu_x86_inl(CPUX86State *env, int addr)
 {
     fprintf(stderr, "inl: port=0x%04x\n", addr);
     return 0;
@@ -303,11 +303,21 @@ void cpu_loop(struct CPUX86State *env)
                     /* XXX: more precise info */
                     info.si_signo = SIGSEGV;
                     info.si_errno = 0;
-                    info.si_code = 0;
+                    info.si_code = TARGET_SI_KERNEL;
                     info._sifields._sigfault._addr = 0;
                     queue_signal(info.si_signo, &info);
                 }
             }
+            break;
+        case EXCP0E_PAGE:
+            info.si_signo = SIGSEGV;
+            info.si_errno = 0;
+            if (!(env->error_code & 1))
+                info.si_code = TARGET_SEGV_MAPERR;
+            else
+                info.si_code = TARGET_SEGV_ACCERR;
+            info._sifields._sigfault._addr = env->cr2;
+            queue_signal(info.si_signo, &info);
             break;
         case EXCP00_DIVZ:
             if (env->eflags & VM_MASK) {
@@ -328,7 +338,7 @@ void cpu_loop(struct CPUX86State *env)
             } else {
                 info.si_signo = SIGSEGV;
                 info.si_errno = 0;
-                info.si_code = 0;
+                info.si_code = TARGET_SI_KERNEL;
                 info._sifields._sigfault._addr = 0;
                 queue_signal(info.si_signo, &info);
             }
