@@ -1550,7 +1550,8 @@ void helper_ljmp_protected_T0_T1(int next_eip)
         if (!(e2 & DESC_P_MASK))
             raise_exception_err(EXCP0B_NOSEG, new_cs & 0xfffc);
         limit = get_seg_limit(e1, e2);
-        if (new_eip > limit)
+        if (new_eip > limit && 
+            !(env->hflags & HF_LMA_MASK) && !(e2 & DESC_L_MASK))
             raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
         cpu_x86_load_seg_cache(env, R_CS, (new_cs & 0xfffc) | cpl,
                        get_seg_base(e1, e2), limit, e2);
@@ -1949,7 +1950,8 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
         raise_exception_err(EXCP0B_NOSEG, new_cs & 0xfffc);
     
     sp += addend;
-    if (rpl == cpl && !(env->hflags & HF_CS64_MASK)) {
+    if (rpl == cpl && (!(env->hflags & HF_CS64_MASK) || 
+                       ((env->hflags & HF_CS64_MASK) && !is_iret))) {
         /* return to same priledge level */
         cpu_x86_load_seg_cache(env, R_CS, new_cs, 
                        get_seg_base(e1, e2),
