@@ -368,13 +368,13 @@ Use 'file' as initial ram disk.
 
 @item -hda file
 @item -hdb file
-Use 'file' as hard disk 0 or 1 image. The disk images are simply raw
-images of the hard disk. You can create them with the command:
-@example
-dd if=/dev/zero of=myimage bs=1024 count=mysize
-@end example
-where @var{myimage} is the image filename and @var{mysize} is its size
-in kilobytes.
+Use 'file' as hard disk 0 or 1 image (@xref{disk_images}). 
+
+@item -snapshot
+
+Write to temporary files instead of disk image files. In this case,
+the raw disk image you use is not written back. You can however force
+the write back by pressing @key{C-a s} (@xref{disk_images}). 
 
 @item -m megs
 Set virtual RAM size to @var{megs} megabytes.
@@ -402,11 +402,84 @@ During emulation, use @key{C-a h} to get terminal commands:
 Print this help
 @item C-a x    
 Exit emulatior
-@item C-a b    
+@item C-a s    
+Save disk data back to file (if -snapshot)
+@item C-a b
 Send break (magic sysrq)
-@item C-a C-a  
+@item C-a C-a
 Send C-a
 @end table
+
+@node disk_images
+@section Disk Images
+
+@subsection Raw disk images
+
+The disk images can simply be raw images of the hard disk. You can
+create them with the command:
+@example
+dd if=/dev/zero of=myimage bs=1024 count=mysize
+@end example
+where @var{myimage} is the image filename and @var{mysize} is its size
+in kilobytes.
+
+@subsection Snapshot mode
+
+If you use the option @option{-snapshot}, all disk images are
+considered as read only. When sectors in written, they are written in
+a temporary file created in @file{/tmp}. You can however force the
+write back to the raw disk images by pressing @key{C-a s}.
+
+NOTE: The snapshot mode only works with raw disk images.
+
+@subsection Copy On Write disk images
+
+QEMU also supports user mode Linux
+(@url{http://user-mode-linux.sourceforge.net/}) Copy On Write (COW)
+disk images. The COW disk images are much smaller than normal images
+as they store only modified sectors. They also permit the use of the
+same disk image template for many users.
+
+To create a COW disk images, use the command:
+
+@example
+vlmkcow -f myrawimage.bin mycowimage.cow
+@end example
+
+@file{myrawimage.bin} is a raw image you want to use as original disk
+image. It will never be written to.
+
+@file{mycowimage.cow} is the COW disk image which is created by
+@code{vlmkcow}. You can use it directly with the @option{-hdx}
+options. You must not modify the original raw disk image if you use
+COW images, as COW images only store the modified sectors from the raw
+disk image. QEMU stores the original raw disk image name and its
+modified time in the COW disk image so that chances of mistakes are
+reduced.
+
+If raw disk image is not read-only, by pressing @key{C-a s} you can
+flush the COW disk image back into the raw disk image, as in snapshot
+mode.
+
+COW disk images can also be created without a corresponding raw disk
+image. It is useful to have a big initial virtual disk image without
+using much disk space. Use:
+
+@example
+vlmkcow mycowimage.cow 1024
+@end example
+
+to create a 1 gigabyte empty COW disk image.
+
+NOTES: 
+@enumerate
+@item
+COW disk images must be created on file systems supporting
+@emph{holes} such as ext2 or ext3.
+@item 
+Since holes are used, the displayed size of the COW disk image is not
+the real one. To know it, use the @code{ls -ls} command.
+@end enumerate
 
 @section Kernel Compilation
 
