@@ -43,53 +43,62 @@
 #define ADB_MODEM	5
 #define ADB_MISC	7
 
+/* error codes */
+#define ADB_RET_NOTPRESENT (-2)
+
 int adb_request(ADBBusState *s, uint8_t *obuf, const uint8_t *buf, int len)
 {
     ADBDevice *d;
     int devaddr, cmd, i;
 
     cmd = buf[0] & 0xf;
+    if (cmd == ADB_BUSRESET) {
+        for(i = 0; i < s->nb_devices; i++) {
+            d = &s->devices[i];
+            if (d->devreset) {
+                d->devreset(d);
+            }
+        }
+        return 0;
+    }
     devaddr = buf[0] >> 4;
-    if (buf[1] == ADB_BUSRESET) {
-        obuf[0] = 0x00;
-        obuf[1] = 0x00;
-        return 2;
-    }
-    if (cmd == ADB_FLUSH) {
-        obuf[0] = 0x00;
-        obuf[1] = 0x00;
-        return 2;
-    }
-
     for(i = 0; i < s->nb_devices; i++) {
         d = &s->devices[i];
         if (d->devaddr == devaddr) {
             return d->devreq(d, obuf, buf, len);
         }
     }
-    return 0;
+    return ADB_RET_NOTPRESENT;
 }
 
+/* XXX: move that to cuda ? */
 int adb_poll(ADBBusState *s, uint8_t *obuf)
 {
     ADBDevice *d;
     int olen, i;
+    uint8_t buf[1];
 
     olen = 0;
     for(i = 0; i < s->nb_devices; i++) {
         if (s->poll_index >= s->nb_devices)
             s->poll_index = 0;
         d = &s->devices[s->poll_index];
-        olen = d->devreq(d, obuf, NULL, 0);
-        s->poll_index++;
-        if (olen)
+        buf[0] = ADB_READREG | (d->devaddr << 4);
+        olen = adb_request(s, obuf + 1, buf, 1);
+        /* if there is data, we poll again the same device */
+        if (olen > 0) {
+            obuf[0] = buf[0];
+            olen++;
             break;
+        }
+        s->poll_index++;
     }
     return olen;
 }
 
 ADBDevice *adb_register_device(ADBBusState *s, int devaddr, 
                                ADBDeviceRequest *devreq, 
+                               ADBDeviceReset *devreset, 
                                void *opaque)
 {
     ADBDevice *d;
@@ -99,6 +108,7 @@ ADBDevice *adb_register_device(ADBBusState *s, int devaddr,
     d->bus = s;
     d->devaddr = devaddr;
     d->devreq = devreq;
+    d->devreset = devreset;
     d->opaque = opaque;
     return d;
 }
@@ -166,10 +176,10 @@ static int adb_kbd_poll(ADBDevice *d, uint8_t *obuf)
                 adb_keycode =  pc_to_adb_keycode[keycode | 0x80];
             else
                 adb_keycode =  pc_to_adb_keycode[keycode & 0x7f];
-            obuf[0] = (d->devaddr << 4) | 0x0c;
-            obuf[1] = adb_keycode | (keycode & 0x80);
-            obuf[2] = 0xff;
-            olen = 3;
+            obuf[0] = adb_keycode | (keycode & 0x80);
+            /* NOTE: could put a second keycode if needed */
+            obuf[1] = 0xff;
+            olen = 2;
             ext_keycode = 0;
             break;
         }
@@ -180,10 +190,13 @@ static int adb_kbd_poll(ADBDevice *d, uint8_t *obuf)
 static int adb_kbd_request(ADBDevice *d, uint8_t *obuf,
                            const uint8_t *buf, int len)
 {
+    KBDState *s = d->opaque;
     int cmd, reg, olen;
 
-    if (!buf) {
-        return adb_kbd_poll(d, obuf);
+    if ((buf[0] & 0x0f) == ADB_FLUSH) {
+        /* flush keyboard fifo */
+        s->wptr = s->rptr = s->count = 0;
+        return 0;
     }
 
     cmd = buf[0] & 0xc;
@@ -214,6 +227,9 @@ static int adb_kbd_request(ADBDevice *d, uint8_t *obuf,
         break;
     case ADB_READREG:
         switch(reg) {
+        case 0:
+            olen = adb_kbd_poll(d, obuf);
+            break;
         case 1:
             break;
         case 2:
@@ -237,7 +253,7 @@ void adb_kbd_init(ADBBusState *bus)
     ADBDevice *d;
     KBDState *s;
     s = qemu_mallocz(sizeof(KBDState));
-    d = adb_register_device(bus, ADB_KEYBOARD, adb_kbd_request, s);
+    d = adb_register_device(bus, ADB_KEYBOARD, adb_kbd_request, NULL, s);
     d->handler = 1;
     qemu_add_kbd_event_handler(adb_kbd_put_keycode, d);
 }
@@ -291,24 +307,29 @@ static int adb_mouse_poll(ADBDevice *d, uint8_t *obuf)
     dx &= 0x7f;
     dy &= 0x7f;
     
-    if (s->buttons_state & MOUSE_EVENT_LBUTTON)
+    if (!(s->buttons_state & MOUSE_EVENT_LBUTTON))
         dy |= 0x80;
-    if (s->buttons_state & MOUSE_EVENT_RBUTTON)
+    if (!(s->buttons_state & MOUSE_EVENT_RBUTTON))
         dx |= 0x80;
     
-    obuf[0] = (d->devaddr << 4) | 0x0c;
-    obuf[1] = dy;
-    obuf[2] = dx;
-    return 3;
+    obuf[0] = dy;
+    obuf[1] = dx;
+    return 2;
 }
 
 static int adb_mouse_request(ADBDevice *d, uint8_t *obuf,
                              const uint8_t *buf, int len)
 {
+    MouseState *s = d->opaque;
     int cmd, reg, olen;
     
-    if (!buf) {
-        return adb_mouse_poll(d, obuf);
+    if ((buf[0] & 0x0f) == ADB_FLUSH) {
+        /* flush mouse fifo */
+        s->buttons_state = s->last_buttons_state;
+        s->dx = 0;
+        s->dy = 0;
+        s->dz = 0;
+        return 0;
     }
 
     cmd = buf[0] & 0xc;
@@ -337,6 +358,9 @@ static int adb_mouse_request(ADBDevice *d, uint8_t *obuf,
         break;
     case ADB_READREG:
         switch(reg) {
+        case 0:
+            olen = adb_mouse_poll(d, obuf);
+            break;
         case 1:
             break;
         case 3:
@@ -356,7 +380,7 @@ void adb_mouse_init(ADBBusState *bus)
     MouseState *s;
 
     s = qemu_mallocz(sizeof(MouseState));
-    d = adb_register_device(bus, ADB_MOUSE, adb_mouse_request, s);
+    d = adb_register_device(bus, ADB_MOUSE, adb_mouse_request, NULL, s);
     d->handler = 2;
     qemu_add_mouse_event_handler(adb_mouse_event, d);
 }
