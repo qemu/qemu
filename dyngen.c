@@ -691,7 +691,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 			case R_ALPHA_BRSGP:
 			    /* PC-relative jump. Tweak offset to skip the two instructions that try to
 			       set up the gp from the pv.  */
-			    fprintf(outfile, "    fix_bsr(gen_code_ptr + %ld, (uint8_t *) &%s - (gen_code_ptr + %ld) + 4);\n",
+			    fprintf(outfile, "    fix_bsr(gen_code_ptr + %ld, (uint8_t *) &%s - (gen_code_ptr + %ld + 4) + 8);\n",
 				    rel->r_offset - start_offset, sym_name, rel->r_offset - start_offset);
 			    break;
 			default:

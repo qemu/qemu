@@ -1762,16 +1762,16 @@ typedef union {
     double d;
 #ifndef WORDS_BIGENDIAN
     struct {
-        unsigned long lower;
-        long upper;
+        uint32_t lower;
+        int32_t upper;
     } l;
 #else
     struct {
-        long upper;
-        unsigned long lower;
+        int32_t upper;
+        uint32_t lower;
     } l;
 #endif
-    long long ll;
+    int64_t ll;
 } CPU86_LDoubleU;
 
 /* the following deal with IEEE double-precision numbers */

@@ -214,7 +214,7 @@ static inline int testandset (int *p)
 #endif
 
 #ifdef __alpha__
-int testandset (int *p)
+static inline int testandset (int *p)
 {
     int ret;
     unsigned long one;

@@ -124,6 +124,8 @@ register unsigned int A0 asm("$11");
 register unsigned int EAX asm("$12");
 register unsigned int ESP asm("$13");
 register unsigned int EBP asm("$14");
+/* Note $15 is the frame pointer, so anything in op-i386.c that would
+   require a frame pointer, like alloca, would probably loose.  */
 register struct CPUX86State *env asm("$15");
 #define reg_EAX
 #define reg_ESP
