@@ -94,10 +94,7 @@ static void fd_init (fdrive_t *drv, BlockDriverState *bs)
 {
     /* Drive */
     drv->bs = bs;
-    if (bs)
-        drv->drive = FDRIVE_DRV_144;
-    else
-        drv->drive = FDRIVE_DRV_NONE;
+    drv->drive = FDRIVE_DRV_NONE;
     drv->drflags = 0;
     drv->perpendicular = 0;
     /* Disk */
