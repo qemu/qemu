@@ -155,16 +155,16 @@ int target_msync(unsigned long start, unsigned long len, int flags);
     int size = sizeof(*ptr);\
     switch(size) {\
     case 1:\
-        x = (typeof(*ptr))ldub(ptr);\
+        x = (typeof(*ptr))ldub((void *)ptr);\
         break;\
     case 2:\
-        x = (typeof(*ptr))lduw(ptr);\
+        x = (typeof(*ptr))lduw((void *)ptr);\
         break;\
     case 4:\
-        x = (typeof(*ptr))ldl(ptr);\
+        x = (typeof(*ptr))ldl((void *)ptr);\
         break;\
     case 8:\
-        x = (typeof(*ptr))ldq(ptr);\
+        x = (typeof(*ptr))ldq((void *)ptr);\
         break;\
     default:\
         abort();\
