@@ -215,25 +215,25 @@ static void cmos_init(int ram_size, int boot_device, BlockDriverState **hd_table
         cmos_init_hd(0x1a, 0x24, hd_table[1]);
 
     val = 0;
-    for (i = 0; i < 4; i++)
+    for (i = 0; i < 4; i++) {
         if (hd_table[i]) {
             int cylinders, heads, sectors;
             uint8_t translation;
-            
+            /* NOTE: bdrv_get_geometry_hint() returns the geometry
+               that the hard disk returns. It is always such that: 1 <=
+               sects <= 63, 1 <= heads <= 16, 1 <= cylinders <=
+               16383. The BIOS geometry can be different. */
             bdrv_get_geometry_hint(hd_table[i], &cylinders, &heads, &sectors);
             if (cylinders <= 1024 && heads <= 16 && sectors <= 63) {
                 /* No translation. */
                 translation = 0;
-            } else if (cylinders * heads > 131072) {
+            } else {
                 /* LBA translation. */
                 translation = 1;
-            } else {
-                /* LARGE translation. */
-                translation = 2;
             }
-
             val |= translation << (i * 2);
         }
+    }
     rtc_set_memory(s, 0x39, val);
 
     /* Disable check of 0x55AA signature on the last two bytes of
