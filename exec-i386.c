@@ -335,7 +335,6 @@ static inline int handle_cpu_signal(unsigned long pc,
 #endif
     /* XXX: locking issue */
     if (is_write && page_unprotect(address)) {
-        sigprocmask(SIG_SETMASK, old_set, NULL);
         return 1;
     }
     if (pc >= (unsigned long)code_gen_buffer &&
