@@ -25,7 +25,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#include "config.h"
+#include "config-host.h"
 
 /* elf format definitions. We use these macros to test the CPU to
    allow cross compilation (this tool must be ran on the build
@@ -108,8 +108,7 @@ typedef uint64_t host_ulong;
 #define SHT_RELOC SHT_REL
 #endif
 
-#define NO_THUNK_TYPE_SIZE
-#include "thunk.h"
+#include "bswap.h"
 
 enum {
     OUT_GEN_OP,
@@ -648,7 +647,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
         {
             ElfW(Sym) *sym;
             const char *sym_name, *p;
-            target_ulong val;
+            unsigned long val;
             int n;
 
             for(i = 0, sym = symtab; i < nb_syms; i++, sym++) {
@@ -663,7 +662,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                     if (!ptr)
                         error("__op_labelN in invalid section");
                     offset = sym->st_value;
-                    val = *(target_ulong *)(ptr + offset);
+                    val = *(unsigned long *)(ptr + offset);
 #ifdef ELF_USES_RELOCA
                     {
                         int reloc_shndx, nb_relocs1, j;
@@ -687,7 +686,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 
                     if (val >= start_offset && val < start_offset + copy_size) {
                         n = strtol(p, NULL, 10);
-                        fprintf(outfile, "    label_offsets[%d] = %d + (gen_code_ptr - gen_code_buf);\n", n, val - start_offset);
+                        fprintf(outfile, "    label_offsets[%d] = %ld + (gen_code_ptr - gen_code_buf);\n", n, val - start_offset);
                     }
                 }
             }

@@ -38,12 +38,12 @@
 #include <sys/poll.h>
 #include <errno.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 #include <netinet/in.h>
 
 #include "vl.h"
 
-#define NO_THUNK_TYPE_SIZE
-#include "thunk.h"
+#include "bswap.h"
 
 int cow_create(int cow_fd, const char *image_filename, 
                int64_t image_sectors)
