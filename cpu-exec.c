@@ -205,9 +205,7 @@ int cpu_exec(CPUState *env1)
                     do_interrupt(env);
 #elif defined(TARGET_SPARC)
                     do_interrupt(env->exception_index, 
-                                 0,
-                                 env->error_code, 
-                                 env->exception_next_pc, 0);
+                                 env->error_code);
 #endif
                 }
                 env->exception_index = -1;
@@ -263,7 +261,7 @@ int cpu_exec(CPUState *env1)
                     }
 #elif defined(TARGET_SPARC)
                     if (interrupt_request & CPU_INTERRUPT_HARD) {
-			do_interrupt(env->interrupt_index, 0, 0, 0, 0);
+			do_interrupt(env->interrupt_index, 0);
                         env->interrupt_request &= ~CPU_INTERRUPT_HARD;
 		    } else if (interrupt_request & CPU_INTERRUPT_TIMER) {
 			//do_interrupt(0, 0, 0, 0, 0);
@@ -731,22 +729,72 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
                                     int is_write, sigset_t *old_set,
                                     void *puc)
 {
+    TranslationBlock *tb;
+    int ret;
+
+    if (cpu_single_env)
+        env = cpu_single_env; /* XXX: find a correct solution for multithread */
+#if defined(DEBUG_SIGNAL)
+    printf("qemu: SIGSEGV pc=0x%08lx address=%08lx w=%d oldset=0x%08lx\n", 
+           pc, address, is_write, *(unsigned long *)old_set);
+#endif
     /* XXX: locking issue */
     if (is_write && page_unprotect(address, pc, puc)) {
         return 1;
     }
-    return 0;
+    /* see if it is an MMU fault */
+    ret = cpu_arm_handle_mmu_fault(env, address, is_write, 1, 0);
+    if (ret < 0)
+        return 0; /* not an MMU fault */
+    if (ret == 0)
+        return 1; /* the MMU fault was handled without causing real CPU fault */
+    /* now we have a real cpu fault */
+    tb = tb_find_pc(pc);
+    if (tb) {
+        /* the PC is inside the translated code. It means that we have
+           a virtual CPU fault */
+        cpu_restore_state(tb, env, pc, puc);
+    }
+    /* we restore the process signal mask as the sigreturn should
+       do it (XXX: use sigsetjmp) */
+    sigprocmask(SIG_SETMASK, old_set, NULL);
+    cpu_loop_exit();
 }
 #elif defined(TARGET_SPARC)
 static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
                                     int is_write, sigset_t *old_set,
                                     void *puc)
 {
+    TranslationBlock *tb;
+    int ret;
+
+    if (cpu_single_env)
+        env = cpu_single_env; /* XXX: find a correct solution for multithread */
+#if defined(DEBUG_SIGNAL)
+    printf("qemu: SIGSEGV pc=0x%08lx address=%08lx w=%d oldset=0x%08lx\n", 
+           pc, address, is_write, *(unsigned long *)old_set);
+#endif
     /* XXX: locking issue */
     if (is_write && page_unprotect(address, pc, puc)) {
         return 1;
     }
-    return 0;
+    /* see if it is an MMU fault */
+    ret = cpu_sparc_handle_mmu_fault(env, address, is_write, 1, 0);
+    if (ret < 0)
+        return 0; /* not an MMU fault */
+    if (ret == 0)
+        return 1; /* the MMU fault was handled without causing real CPU fault */
+    /* now we have a real cpu fault */
+    tb = tb_find_pc(pc);
+    if (tb) {
+        /* the PC is inside the translated code. It means that we have
+           a virtual CPU fault */
+        cpu_restore_state(tb, env, pc, puc);
+    }
+    /* we restore the process signal mask as the sigreturn should
+       do it (XXX: use sigsetjmp) */
+    sigprocmask(SIG_SETMASK, old_set, NULL);
+    cpu_loop_exit();
 }
 #elif defined (TARGET_PPC)
 static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
@@ -756,10 +804,8 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
     TranslationBlock *tb;
     int ret;
     
-#if 1
     if (cpu_single_env)
         env = cpu_single_env; /* XXX: find a correct solution for multithread */
-#endif
 #if defined(DEBUG_SIGNAL)
     printf("qemu: SIGSEGV pc=0x%08lx address=%08lx w=%d oldset=0x%08lx\n", 
            pc, address, is_write, *(unsigned long *)old_set);

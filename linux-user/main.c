@@ -368,6 +368,17 @@ void cpu_loop(CPUARMState *env)
         case EXCP_INTERRUPT:
             /* just indicate that signals should be handled asap */
             break;
+        case EXCP_PREFETCH_ABORT:
+        case EXCP_DATA_ABORT:
+            {
+                info.si_signo = SIGSEGV;
+                info.si_errno = 0;
+                /* XXX: check env->error_code */
+                info.si_code = TARGET_SEGV_MAPERR;
+                info._sifields._sigfault._addr = env->cp15_6;
+                queue_signal(info.si_signo, &info);
+            }
+            break;
         default:
         error:
             fprintf(stderr, "qemu: unhandled CPU exception 0x%x - aborting\n", 
