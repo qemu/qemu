@@ -1,8 +1,8 @@
 /*
- * QEMU Cirrus VGA Emulator.
+ * QEMU Cirrus CLGD 54xx VGA Emulator.
  * 
  * Copyright (c) 2004 Fabrice Bellard
- * Copyright (c) 2004 Suzu
+ * Copyright (c) 2004 Makoto Suzuki (suzu)
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,6 +21,10 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
+ */
+/*
+ * Reference: Finn Thogersons' VGADOC4b
+ *   available at http://home.worldonline.dk/~finth/
  */
 #include "vl.h"
 #include "vga_int.h"
@@ -478,8 +482,8 @@ cirrus_colorexpand_8(CirrusVGAState * s, uint8_t * dst,
     unsigned bitmask;
     int srcskipleft = 0;
 
-    colors[0] = s->gr[0x00];
-    colors[1] = s->gr[0x01];
+    colors[0] = s->cirrus_shadow_gr0;
+    colors[1] = s->cirrus_shadow_gr1;
 
     bitmask = 0x80 >> srcskipleft;
     bits = *src++;
@@ -504,9 +508,9 @@ cirrus_colorexpand_16(CirrusVGAState * s, uint8_t * dst,
     unsigned index;
     int srcskipleft = 0;
 
-    colors[0][0] = s->gr[0x00];
+    colors[0][0] = s->cirrus_shadow_gr0;
     colors[0][1] = s->gr[0x10];
-    colors[1][0] = s->gr[0x01];
+    colors[1][0] = s->cirrus_shadow_gr1;
     colors[1][1] = s->gr[0x11];
 
     bitmask = 0x80 >> srcskipleft;
@@ -534,10 +538,10 @@ cirrus_colorexpand_24(CirrusVGAState * s, uint8_t * dst,
     unsigned index;
     int srcskipleft = 0;
 
-    colors[0][0] = s->gr[0x00];
+    colors[0][0] = s->cirrus_shadow_gr0;
     colors[0][1] = s->gr[0x10];
     colors[0][2] = s->gr[0x12];
-    colors[1][0] = s->gr[0x01];
+    colors[1][0] = s->cirrus_shadow_gr1;
     colors[1][1] = s->gr[0x11];
     colors[1][2] = s->gr[0x13];
 
@@ -567,11 +571,11 @@ cirrus_colorexpand_32(CirrusVGAState * s, uint8_t * dst,
     unsigned index;
     int srcskipleft = 0;
 
-    colors[0][0] = s->gr[0x00];
+    colors[0][0] = s->cirrus_shadow_gr0;
     colors[0][1] = s->gr[0x10];
     colors[0][2] = s->gr[0x12];
     colors[0][3] = s->gr[0x14];
-    colors[1][0] = s->gr[0x01];
+    colors[1][0] = s->cirrus_shadow_gr1;
     colors[1][1] = s->gr[0x11];
     colors[1][2] = s->gr[0x13];
     colors[1][3] = s->gr[0x15];
@@ -1103,7 +1107,7 @@ static int cirrus_get_bpp(VGAState *s1)
 	}
     } else {
 	/* VGA */
-	ret = 8;
+	ret = 0;
     }
 
     return ret;
@@ -1172,6 +1176,25 @@ cirrus_hook_read_sr(CirrusVGAState * s, unsigned reg_index, int *reg_value)
     case 0x06:			// Unlock Cirrus extensions
 	*reg_value = s->sr[reg_index];
 	break;
+    case 0x10:
+    case 0x30:
+    case 0x50:
+    case 0x70:			// Graphics Cursor X
+    case 0x90:
+    case 0xb0:
+    case 0xd0:
+    case 0xf0:			// Graphics Cursor X
+	*reg_value = s->sr[0x10];
+	break;
+    case 0x11:
+    case 0x31:
+    case 0x51:
+    case 0x71:			// Graphics Cursor Y
+    case 0x91:
+    case 0xb1:
+    case 0xd1:
+	*reg_value = s->sr[0x11];
+	break;
     case 0x05:			// ???
     case 0x07:			// Extended Sequencer Mode
     case 0x08:			// EEPROM Control
@@ -1182,21 +1205,6 @@ cirrus_hook_read_sr(CirrusVGAState * s, unsigned reg_index, int *reg_value)
     case 0x0d:			// VCLK 2
     case 0x0e:			// VCLK 3
     case 0x0f:			// DRAM Control
-    case 0x10:
-    case 0x30:
-    case 0x50:
-    case 0x70:			// Graphics Cursor X
-    case 0x90:
-    case 0xb0:
-    case 0xd0:
-    case 0xf0:			// Graphics Cursor X
-    case 0x11:
-    case 0x31:
-    case 0x51:
-    case 0x71:			// Graphics Cursor Y
-    case 0x91:
-    case 0xb1:
-    case 0xd1:
     case 0xf1:			// Graphics Cursor Y
     case 0x12:			// Graphics Cursor Attribute
     case 0x13:			// Graphics Cursor Pattern Address
@@ -1387,6 +1395,12 @@ static int
 cirrus_hook_read_gr(CirrusVGAState * s, unsigned reg_index, int *reg_value)
 {
     switch (reg_index) {
+    case 0x00: // Standard VGA, BGCOLOR 0x000000ff
+      *reg_value = s->cirrus_shadow_gr0;
+      return CIRRUS_HOOK_HANDLED;
+    case 0x01: // Standard VGA, FGCOLOR 0x000000ff
+      *reg_value = s->cirrus_shadow_gr1;
+      return CIRRUS_HOOK_HANDLED;
     case 0x02:			// Standard VGA
     case 0x03:			// Standard VGA
     case 0x04:			// Standard VGA
@@ -1416,10 +1430,10 @@ cirrus_hook_write_gr(CirrusVGAState * s, unsigned reg_index, int reg_value)
 {
     switch (reg_index) {
     case 0x00:			// Standard VGA, BGCOLOR 0x000000ff
-	s->gr[0x00] = reg_value;
+	s->cirrus_shadow_gr0 = reg_value;
 	return CIRRUS_HOOK_NOT_HANDLED;
     case 0x01:			// Standard VGA, FGCOLOR 0x000000ff
-	s->gr[0x01] = reg_value;
+	s->cirrus_shadow_gr1 = reg_value;
 	return CIRRUS_HOOK_NOT_HANDLED;
     case 0x02:			// Standard VGA
     case 0x03:			// Standard VGA
@@ -1840,9 +1854,9 @@ static void cirrus_mem_writeb_mode4and5_8bpp(CirrusVGAState * s,
     dst = s->vram_ptr + offset;
     for (x = 0; x < 8; x++) {
 	if (val & 0x80) {
-	    *dst++ = s->gr[0x01];
+	    *dst++ = s->cirrus_shadow_gr1;
 	} else if (mode == 5) {
-	    *dst++ = s->gr[0x00];
+	    *dst++ = s->cirrus_shadow_gr0;
 	}
 	val <<= 1;
     }
@@ -1862,10 +1876,10 @@ static void cirrus_mem_writeb_mode4and5_16bpp(CirrusVGAState * s,
     dst = s->vram_ptr + offset;
     for (x = 0; x < 8; x++) {
 	if (val & 0x80) {
-	    *dst++ = s->gr[0x01];
+	    *dst++ = s->cirrus_shadow_gr1;
 	    *dst++ = s->gr[0x11];
 	} else if (mode == 5) {
-	    *dst++ = s->gr[0x00];
+	    *dst++ = s->cirrus_shadow_gr0;
 	    *dst++ = s->gr[0x10];
 	}
 	val <<= 1;
@@ -1890,6 +1904,8 @@ static uint32_t cirrus_vga_mem_readb(void *opaque, target_phys_addr_t addr)
     if ((s->sr[0x07] & 0x01) == 0) {
 	return vga_mem_readb(s, addr);
     }
+
+    addr &= 0x1ffff;
 
     if (addr < 0x10000) {
 	/* XXX handle bitblt */
@@ -1964,6 +1980,8 @@ static void cirrus_vga_mem_writeb(void *opaque, target_phys_addr_t addr,
 	vga_mem_writeb(s, addr, mem_value);
         return;
     }
+
+    addr &= 0x1ffff;
 
     if (addr < 0x10000) {
 	if (s->cirrus_srcptr != s->cirrus_srcptr_end) {
@@ -2282,11 +2300,6 @@ static uint32_t vga_ioport_read(void *opaque, uint32_t addr)
 	    val = s->cr[s->cr_index];
 #ifdef DEBUG_VGA_REG
 	    printf("vga: read CR%x = 0x%02x\n", s->cr_index, val);
-#endif
-#ifdef DEBUG_S3
-	    if (s->cr_index >= 0x20)
-		printf("S3: CR read index=0x%x val=0x%x\n",
-		       s->cr_index, val);
 #endif
 	    break;
 	case 0x3ba:
