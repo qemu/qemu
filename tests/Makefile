@@ -35,9 +35,11 @@ test-i386: test-i386.c test-i386-code16.S test-i386-vm86.S \
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ test-i386.c \
               test-i386-code16.S test-i386-vm86.S -lm
 
-test: test-i386
 ifeq ($(ARCH),i386)
+test: test-i386
 	./test-i386 > test-i386.ref
+else
+test:
 endif
 	$(QEMU) test-i386 > test-i386.out
 	@if diff -u test-i386.ref test-i386.out ; then echo "Auto Test OK"; fi
