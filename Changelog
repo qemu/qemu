@@ -26,6 +26,7 @@ version 0.6.1:
   - BIOS floppy fix for NT4 (Mike Nordell, Derek Fawcus, Volker Ruppert)
   - Floppy fixes for NT4 and NT5 (Mike Nordell)
   - NT4 IDE fixes (Ben Pfaf, Mike Nordell)
+  - SDL Audio support and SB16 fixes (malc)
 
 version 0.6.0:
 
