@@ -73,7 +73,7 @@ ifeq ($(ARCH),i386)
 CFLAGS+=-fomit-frame-pointer
 OP_CFLAGS=$(CFLAGS) -mpreferred-stack-boundary=2
 ifeq ($(HAVE_GCC3_OPTIONS),yes)
-OP_CFLAGS+= -falign-functions=0
+OP_CFLAGS+= -falign-functions=0 -fno-gcse
 else
 OP_CFLAGS+= -malign-functions=0
 endif
