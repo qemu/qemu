@@ -188,7 +188,7 @@ long target_mmap(unsigned long start, unsigned long len, int prot,
     host_start = start & host_page_mask;
 
     if (!(flags & MAP_FIXED)) {
-#ifdef __alpha__
+#if defined(__alpha__) || defined(__sparc__)
         /* tell the kenel to search at the same place as i386 */
         if (host_start == 0)
             host_start = 0x40000000;
@@ -282,8 +282,13 @@ long target_mmap(unsigned long start, unsigned long len, int prot,
     
     /* map the middle (easier) */
     if (host_start < host_end) {
+        unsigned long offset1;
+	if (flags & MAP_ANONYMOUS)
+	  offset1 = 0;
+	else
+	  offset1 = offset + host_start - start;
         ret = (long)mmap((void *)host_start, host_end - host_start, 
-                         prot, flags, fd, offset + host_start - start);
+                         prot, flags, fd, offset1);
         if (ret == -1)
             return ret;
     }
