@@ -136,6 +136,7 @@ int graphic_depth = 15;
 int full_screen = 0;
 TextConsole *vga_console;
 CharDriverState *serial_hds[MAX_SERIAL_PORTS];
+CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
 
 /***********************************************************/
 /* x86 ISA bus support */
@@ -2750,6 +2751,7 @@ void help(void)
            "Debug/Expert options:\n"
            "-monitor dev    redirect the monitor to char device 'dev'\n"
            "-serial dev     redirect the serial port to char device 'dev'\n"
+           "-parallel dev   redirect the parallel port to char device 'dev'\n"
            "-pidfile file   Write PID to 'file'\n"
            "-S              freeze CPU at startup (use 'c' to start execution)\n"
            "-s              wait gdb connection to port %d\n"
@@ -2842,6 +2844,7 @@ enum {
     QEMU_OPTION_std_vga,
     QEMU_OPTION_monitor,
     QEMU_OPTION_serial,
+    QEMU_OPTION_parallel,
     QEMU_OPTION_loadvm,
     QEMU_OPTION_full_screen,
     QEMU_OPTION_pidfile,
@@ -2904,6 +2907,7 @@ const QEMUOption qemu_options[] = {
     { "std-vga", 0, QEMU_OPTION_std_vga },
     { "monitor", 1, QEMU_OPTION_monitor },
     { "serial", 1, QEMU_OPTION_serial },
+    { "parallel", 1, QEMU_OPTION_parallel },
     { "loadvm", HAS_ARG, QEMU_OPTION_loadvm },
     { "full-screen", 0, QEMU_OPTION_full_screen },
     { "pidfile", HAS_ARG, QEMU_OPTION_pidfile },
@@ -2986,6 +2990,8 @@ int main(int argc, char **argv)
     char monitor_device[128];
     char serial_devices[MAX_SERIAL_PORTS][128];
     int serial_device_index;
+    char parallel_devices[MAX_PARALLEL_PORTS][128];
+    int parallel_device_index;
     const char *loadvm = NULL;
     
 #if !defined(CONFIG_SOFTMMU)
@@ -3018,6 +3024,11 @@ int main(int argc, char **argv)
     for(i = 1; i < MAX_SERIAL_PORTS; i++)
         serial_devices[i][0] = '\0';
     serial_device_index = 0;
+    
+    pstrcpy(parallel_devices[0], sizeof(parallel_devices[0]), "vc");
+    for(i = 1; i < MAX_PARALLEL_PORTS; i++)
+        parallel_devices[i][0] = '\0';
+    parallel_device_index = 0;
     
     nb_tun_fds = 0;
     net_if_type = -1;
@@ -3115,6 +3126,7 @@ int main(int argc, char **argv)
             case QEMU_OPTION_nographic:
                 pstrcpy(monitor_device, sizeof(monitor_device), "stdio");
                 pstrcpy(serial_devices[0], sizeof(serial_devices[0]), "stdio");
+                pstrcpy(parallel_devices[0], sizeof(parallel_devices[0]), "stdio");
                 nographic = 1;
                 break;
             case QEMU_OPTION_kernel:
@@ -3328,6 +3340,15 @@ int main(int argc, char **argv)
                 pstrcpy(serial_devices[serial_device_index], 
                         sizeof(serial_devices[0]), optarg);
                 serial_device_index++;
+                break;
+            case QEMU_OPTION_parallel:
+                if (parallel_device_index >= MAX_PARALLEL_PORTS) {
+                    fprintf(stderr, "qemu: too many parallel ports\n");
+                    exit(1);
+                }
+                pstrcpy(parallel_devices[parallel_device_index], 
+                        sizeof(parallel_devices[0]), optarg);
+                parallel_device_index++;
                 break;
 	    case QEMU_OPTION_loadvm:
 		loadvm = optarg;
@@ -3549,6 +3570,19 @@ int main(int argc, char **argv)
             }
             if (!strcmp(serial_devices[i], "vc"))
                 qemu_chr_printf(serial_hds[i], "serial%d console\n", i);
+        }
+    }
+
+    for(i = 0; i < MAX_PARALLEL_PORTS; i++) {
+        if (parallel_devices[i][0] != '\0') {
+            parallel_hds[i] = qemu_chr_open(parallel_devices[i]);
+            if (!parallel_hds[i]) {
+                fprintf(stderr, "qemu: could not open parallel device '%s'\n", 
+                        parallel_devices[i]);
+                exit(1);
+            }
+            if (!strcmp(parallel_devices[i], "vc"))
+                qemu_chr_printf(parallel_hds[i], "parallel%d console\n", i);
         }
     }
 

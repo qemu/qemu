@@ -12,6 +12,7 @@ version 0.6.2:
   - initial x86_64 target support
   - initial APIC support
   - MMX/SSE/SSE2/PNI support
+  - PC parallel port support (Mark Jonckheere)
 
 version 0.6.1:
 

@@ -224,6 +224,12 @@ void console_select(unsigned int index);
 
 extern CharDriverState *serial_hds[MAX_SERIAL_PORTS];
 
+/* parallel ports */
+
+#define MAX_PARALLEL_PORTS 3
+
+extern CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
+
 /* network redirectors support */
 
 #define MAX_NICS 8
@@ -631,6 +637,11 @@ void rtc_set_date(RTCState *s, const struct tm *tm);
 
 typedef struct SerialState SerialState;
 SerialState *serial_init(int base, int irq, CharDriverState *chr);
+
+/* parallel.c */
+
+typedef struct ParallelState ParallelState;
+ParallelState *parallel_init(int base, int irq, CharDriverState *chr);
 
 /* i8259.c */
 
