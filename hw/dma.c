@@ -43,6 +43,7 @@ struct dma_regs {
     uint16_t base[2];
     uint8_t mode;
     uint8_t page;
+    uint8_t pageh;
     uint8_t dack;
     uint8_t eop;
     DMA_transfer_handler transfer_handler;
@@ -84,12 +85,24 @@ static void write_page (void *opaque, uint32_t nport, uint32_t data)
     int ichan;
 
     ichan = channels[nport & 7];
-
     if (-1 == ichan) {
         log ("invalid channel %#x %#x\n", nport, data);
         return;
     }
     d->regs[ichan].page = data;
+}
+
+static void write_pageh (void *opaque, uint32_t nport, uint32_t data)
+{
+    struct dma_cont *d = opaque;
+    int ichan;
+
+    ichan = channels[nport & 7];
+    if (-1 == ichan) {
+        log ("invalid channel %#x %#x\n", nport, data);
+        return;
+    }
+    d->regs[ichan].pageh = data;
 }
 
 static uint32_t read_page (void *opaque, uint32_t nport)
@@ -98,12 +111,24 @@ static uint32_t read_page (void *opaque, uint32_t nport)
     int ichan;
 
     ichan = channels[nport & 7];
-
     if (-1 == ichan) {
         log ("invalid channel read %#x\n", nport);
         return 0;
     }
     return d->regs[ichan].page;
+}
+
+static uint32_t read_pageh (void *opaque, uint32_t nport)
+{
+    struct dma_cont *d = opaque;
+    int ichan;
+
+    ichan = channels[nport & 7];
+    if (-1 == ichan) {
+        log ("invalid channel read %#x\n", nport);
+        return 0;
+    }
+    return d->regs[ichan].pageh;
 }
 
 static inline void init_chan (struct dma_cont *d, int ichan)
@@ -306,7 +331,8 @@ static void channel_run (int ncont, int ichan)
 /*   ai = r->mode & 16; */
 /*   dir = r->mode & 32 ? -1 : 1; */
 
-    addr = (r->page << 16) | r->now[ADDR];
+    /* NOTE: pageh is only used by PPC PREP */
+    addr = ((r->pageh & 0x7f) << 24) | (r->page << 16) | r->now[ADDR];
     n = r->transfer_handler (r->opaque, addr, 
                              (r->base[COUNT] << ncont) + (1 << ncont));
     r->now[COUNT] = n;
@@ -362,7 +388,8 @@ static void dma_reset(void *opaque)
 }
 
 /* dshift = 0: 8 bit DMA, 1 = 16 bit DMA */
-static void dma_init2(struct dma_cont *d, int base, int dshift, int page_base)
+static void dma_init2(struct dma_cont *d, int base, int dshift, 
+                      int page_base, int pageh_base)
 {
     const static int page_port_list[] = { 0x1, 0x2, 0x3, 0x7 };
     int i;
@@ -377,6 +404,12 @@ static void dma_init2(struct dma_cont *d, int base, int dshift, int page_base)
                                write_page, d);
         register_ioport_read (page_base + page_port_list[i], 1, 1, 
                               read_page, d);
+        if (pageh_base >= 0) {
+            register_ioport_write (pageh_base + page_port_list[i], 1, 1, 
+                                   write_pageh, d);
+            register_ioport_read (pageh_base + page_port_list[i], 1, 1, 
+                                  read_pageh, d);
+        }
     }
     for (i = 0; i < 8; i++) {
         register_ioport_write (base + ((i + 8) << dshift), 1, 1, 
@@ -388,8 +421,10 @@ static void dma_init2(struct dma_cont *d, int base, int dshift, int page_base)
     dma_reset(d);
 }
 
-void DMA_init (void)
+void DMA_init (int high_page_enable)
 {
-    dma_init2(&dma_controllers[0], 0x00, 0, 0x80);
-    dma_init2(&dma_controllers[1], 0xc0, 1, 0x88);
+    dma_init2(&dma_controllers[0], 0x00, 0, 0x80, 
+              high_page_enable ? 0x480 : -1);
+    dma_init2(&dma_controllers[1], 0xc0, 1, 0x88,
+              high_page_enable ? 0x488 : -1);
 }
