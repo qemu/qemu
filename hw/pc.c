@@ -45,6 +45,18 @@ static void ioport80_write(void *opaque, uint32_t addr, uint32_t data)
 {
 }
 
+/* MSDOS compatibility mode FPU exception support */
+/* XXX: add IGNNE support */
+void cpu_set_ferr(CPUX86State *s)
+{
+    pic_set_irq(13, 1);
+}
+
+static void ioportF0_write(void *opaque, uint32_t addr, uint32_t data)
+{
+    pic_set_irq(13, 0);
+}
+
 /* PC cmos mappings */
 
 #define REG_EQUIPMENT_BYTE          0x14
@@ -370,6 +382,8 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
 
     /* init basic PC hardware */
     register_ioport_write(0x80, 1, 1, ioport80_write, NULL);
+
+    register_ioport_write(0xf0, 1, 1, ioportF0_write, NULL);
 
     vga_initialize(ds, phys_ram_base + ram_size, ram_size, 
                    vga_ram_size);
