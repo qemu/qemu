@@ -60,44 +60,122 @@ static int signal_pending; /* non zero if a signal may be pending */
 static void host_signal_handler(int host_signum, siginfo_t *info, 
                                 void *puc);
 
-/* XXX: do it properly */
+static uint8_t host_to_target_signal_table[65] = {
+    [SIGHUP] = TARGET_SIGHUP,
+    [SIGINT] = TARGET_SIGINT,
+    [SIGQUIT] = TARGET_SIGQUIT,
+    [SIGILL] = TARGET_SIGILL,
+    [SIGTRAP] = TARGET_SIGTRAP,
+    [SIGABRT] = TARGET_SIGABRT,
+    [SIGIOT] = TARGET_SIGIOT,
+    [SIGBUS] = TARGET_SIGBUS,
+    [SIGFPE] = TARGET_SIGFPE,
+    [SIGKILL] = TARGET_SIGKILL,
+    [SIGUSR1] = TARGET_SIGUSR1,
+    [SIGSEGV] = TARGET_SIGSEGV,
+    [SIGUSR2] = TARGET_SIGUSR2,
+    [SIGPIPE] = TARGET_SIGPIPE,
+    [SIGALRM] = TARGET_SIGALRM,
+    [SIGTERM] = TARGET_SIGTERM,
+#ifdef SIGSTKFLT
+    [SIGSTKFLT] = TARGET_SIGSTKFLT,
+#endif
+    [SIGCHLD] = TARGET_SIGCHLD,
+    [SIGCONT] = TARGET_SIGCONT,
+    [SIGSTOP] = TARGET_SIGSTOP,
+    [SIGTSTP] = TARGET_SIGTSTP,
+    [SIGTTIN] = TARGET_SIGTTIN,
+    [SIGTTOU] = TARGET_SIGTTOU,
+    [SIGURG] = TARGET_SIGURG,
+    [SIGXCPU] = TARGET_SIGXCPU,
+    [SIGXFSZ] = TARGET_SIGXFSZ,
+    [SIGVTALRM] = TARGET_SIGVTALRM,
+    [SIGPROF] = TARGET_SIGPROF,
+    [SIGWINCH] = TARGET_SIGWINCH,
+    [SIGIO] = TARGET_SIGIO,
+    [SIGPWR] = TARGET_SIGPWR,
+    [SIGSYS] = TARGET_SIGSYS,
+    /* next signals stay the same */
+};
+static uint8_t target_to_host_signal_table[65];
+
 static inline int host_to_target_signal(int sig)
 {
-    return sig;
+    return host_to_target_signal_table[sig];
 }
 
 static inline int target_to_host_signal(int sig)
 {
-    return sig;
+    return target_to_host_signal_table[sig];
 }
 
-void host_to_target_sigset(target_sigset_t *d, sigset_t *s)
+void host_to_target_sigset(target_sigset_t *d, const sigset_t *s)
 {
     int i;
-    for(i = 0;i < TARGET_NSIG_WORDS; i++) {
+    unsigned long sigmask;
+    uint32_t target_sigmask;
+    
+    sigmask = ((unsigned long *)s)[0];
+    target_sigmask = 0;
+    for(i = 0; i < 32; i++) {
+        if (sigmask & (1 << i)) 
+            target_sigmask |= 1 << (host_to_target_signal(i + 1) - 1);
+    }
+#if TARGET_LONG_BITS == 32 && HOST_LONG_BITS == 32
+    d->sig[0] = tswapl(target_sigmask);
+    for(i = 1;i < TARGET_NSIG_WORDS; i++) {
         d->sig[i] = tswapl(((unsigned long *)s)[i]);
     }
+#elif TARGET_LONG_BITS == 32 && HOST_LONG_BITS == 64 && TARGET_NSIG_WORDS == 2
+    d->sig[0] = tswapl(target_sigmask);
+    d->sig[1] = tswapl(sigmask >> 32);
+#else
+#error host_to_target_sigset
+#endif
 }
 
-void target_to_host_sigset(sigset_t *d, target_sigset_t *s)
+void target_to_host_sigset(sigset_t *d, const target_sigset_t *s)
 {
     int i;
-    for(i = 0;i < TARGET_NSIG_WORDS; i++) {
+    unsigned long sigmask;
+    target_ulong target_sigmask;
+
+    target_sigmask = tswapl(s->sig[0]);
+    sigmask = 0;
+    for(i = 0; i < 32; i++) {
+        if (target_sigmask & (1 << i)) 
+            sigmask |= 1 << (target_to_host_signal(i + 1) - 1);
+    }
+#if TARGET_LONG_BITS == 32 && HOST_LONG_BITS == 32
+    ((unsigned long *)d)[0] = sigmask;
+    for(i = 1;i < TARGET_NSIG_WORDS; i++) {
         ((unsigned long *)d)[i] = tswapl(s->sig[i]);
     }
+#elif TARGET_LONG_BITS == 32 && HOST_LONG_BITS == 64 && TARGET_NSIG_WORDS == 2
+    ((unsigned long *)d)[0] = sigmask | (tswapl(s->sig[1]) << 32);
+#else
+#error target_to_host_sigset
+#endif /* TARGET_LONG_BITS */
 }
 
 void host_to_target_old_sigset(target_ulong *old_sigset, 
                                const sigset_t *sigset)
 {
-    *old_sigset = tswap32(*(unsigned long *)sigset & 0xffffffff);
+    target_sigset_t d;
+    host_to_target_sigset(&d, sigset);
+    *old_sigset = d.sig[0];
 }
 
 void target_to_host_old_sigset(sigset_t *sigset, 
                                const target_ulong *old_sigset)
 {
-    sigemptyset(sigset);
-    *(unsigned long *)sigset = tswapl(*old_sigset);
+    target_sigset_t d;
+    int i;
+
+    d.sig[0] = *old_sigset;
+    for(i = 1;i < TARGET_NSIG_WORDS; i++)
+        d.sig[i] = 0;
+    target_to_host_sigset(sigset, &d);
 }
 
 /* siginfo conversion */
@@ -167,8 +245,18 @@ void target_to_host_siginfo(siginfo_t *info, const target_siginfo_t *tinfo)
 void signal_init(void)
 {
     struct sigaction act;
-    int i;
+    int i, j;
 
+    /* generate signal conversion tables */
+    for(i = 1; i <= 64; i++) {
+        if (host_to_target_signal_table[i] == 0)
+            host_to_target_signal_table[i] = i;
+    }
+    for(i = 1; i <= 64; i++) {
+        j = host_to_target_signal_table[i];
+        target_to_host_signal_table[j] = i;
+    }
+        
     /* set all host signal handlers. ALL signals are blocked during
        the handlers to serialize them. */
     sigfillset(&act.sa_mask);
