@@ -244,12 +244,12 @@ int cpu_exec(CPUState *env1)
                            (unsigned long)env->segs[R_ES].base |
                            (unsigned long)env->segs[R_SS].base) != 0) << 
                     GEN_FLAG_ADDSEG_SHIFT;
-                if (!(env->eflags & VM_MASK)) {
-                    flags |= (env->segs[R_CS].selector & 3) << GEN_FLAG_CPL_SHIFT;
-                } else {
-                    /* NOTE: a dummy CPL is kept */
-                    flags |= (1 << GEN_FLAG_VM_SHIFT);
-                    flags |= (3 << GEN_FLAG_CPL_SHIFT);
+                if (env->cr[0] & CR0_PE_MASK) {
+                    if (!(env->eflags & VM_MASK))
+                        flags |= (env->segs[R_CS].selector & 3) << 
+                            GEN_FLAG_CPL_SHIFT;
+                    else
+                        flags |= (1 << GEN_FLAG_VM_SHIFT);
                 }
                 flags |= (env->eflags & (IOPL_MASK | TF_MASK));
                 cs_base = env->segs[R_CS].base;
@@ -396,12 +396,10 @@ void cpu_x86_load_seg(CPUX86State *s, int seg_reg, int selector)
 
     saved_env = env;
     env = s;
-    if (env->eflags & VM_MASK) {
+    if (!(env->cr[0] & CR0_PE_MASK) || (env->eflags & VM_MASK)) {
         SegmentCache *sc;
         selector &= 0xffff;
         sc = &env->segs[seg_reg];
-        /* NOTE: in VM86 mode, limit and flags are never reloaded,
-           so we must load them here */
         sc->base = (void *)(selector << 4);
         sc->limit = 0xffff;
         sc->flags = 0;
