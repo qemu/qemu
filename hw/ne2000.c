@@ -401,10 +401,10 @@ static inline void ne2000_mem_writew(NE2000State *s, uint32_t addr,
 static inline void ne2000_mem_writel(NE2000State *s, uint32_t addr, 
                                      uint32_t val)
 {
-    addr &= ~3; /* XXX: check exact behaviour if not even */
+    addr &= ~1; /* XXX: check exact behaviour if not even */
     if (addr < 32 || 
         (addr >= NE2000_PMEM_START && addr < NE2000_MEM_SIZE)) {
-        *(uint32_t *)(s->mem + addr) = cpu_to_le32(val);
+        cpu_to_le32wu((uint32_t *)(s->mem + addr), val);
     }
 }
 
@@ -431,10 +431,10 @@ static inline uint32_t ne2000_mem_readw(NE2000State *s, uint32_t addr)
 
 static inline uint32_t ne2000_mem_readl(NE2000State *s, uint32_t addr)
 {
-    addr &= ~3; /* XXX: check exact behaviour if not even */
+    addr &= ~1; /* XXX: check exact behaviour if not even */
     if (addr < 32 || 
         (addr >= NE2000_PMEM_START && addr < NE2000_MEM_SIZE)) {
-        return le32_to_cpu(*(uint32_t *)(s->mem + addr));
+        return le32_to_cpupu((uint32_t *)(s->mem + addr));
     } else {
         return 0xffffffff;
     }
