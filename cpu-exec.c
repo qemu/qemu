@@ -21,6 +21,20 @@
 #include "exec.h"
 #include "disas.h"
 
+#if !defined(CONFIG_SOFTMMU)
+#undef EAX
+#undef ECX
+#undef EDX
+#undef EBX
+#undef ESP
+#undef EBP
+#undef ESI
+#undef EDI
+#undef EIP
+#include <signal.h>
+#include <sys/ucontext.h>
+#endif
+
 int tb_invalidated_flag;
 
 //#define DEBUG_EXEC
@@ -33,6 +47,28 @@ void cpu_loop_exit(void)
     longjmp(env->jmp_env, 1);
 }
 #endif
+
+/* exit the current TB from a signal handler. The host registers are
+   restored in a state compatible with the CPU emulator
+ */
+void cpu_resume_from_signal(CPUState *env1, void *puc) 
+{
+#if !defined(CONFIG_SOFTMMU)
+    struct ucontext *uc = puc;
+#endif
+
+    env = env1;
+
+    /* XXX: restore cpu registers saved in host registers */
+
+#if !defined(CONFIG_SOFTMMU)
+    if (puc) {
+        /* XXX: use siglongjmp ? */
+        sigprocmask(SIG_SETMASK, &uc->uc_sigmask, NULL);
+    }
+#endif
+    longjmp(env->jmp_env, 1);
+}
 
 /* main execution loop */
 
@@ -190,12 +226,12 @@ int cpu_exec(CPUState *env1)
                         (env->eflags & IF_MASK) && 
                         !(env->hflags & HF_INHIBIT_IRQ_MASK)) {
                         int intno;
+                        env->interrupt_request &= ~CPU_INTERRUPT_HARD;
                         intno = cpu_get_pic_interrupt(env);
                         if (loglevel & CPU_LOG_TB_IN_ASM) {
                             fprintf(logfile, "Servicing hardware INT=0x%02x\n", intno);
                         }
                         do_interrupt(intno, 0, 0, 0, 1);
-                        env->interrupt_request &= ~CPU_INTERRUPT_HARD;
                         /* ensure that no TB jump will be modified as
                            the program flow was changed */
 #ifdef __sparc__
@@ -548,6 +584,15 @@ int cpu_exec(CPUState *env1)
     return ret;
 }
 
+/* must only be called from the generated code as an exception can be
+   generated */
+void tb_invalidate_page_range(target_ulong start, target_ulong end)
+{
+    target_ulong phys_addr;
+    phys_addr = get_phys_addr_code(env, start);
+    tb_invalidate_phys_page_range(phys_addr, phys_addr + end - start, 0);
+}
+
 #if defined(TARGET_I386) && defined(CONFIG_USER_ONLY)
 
 void cpu_x86_load_seg(CPUX86State *s, int seg_reg, int selector)
@@ -594,18 +639,6 @@ void cpu_x86_frstor(CPUX86State *s, uint8_t *ptr, int data32)
 
 #if !defined(CONFIG_SOFTMMU)
 
-#undef EAX
-#undef ECX
-#undef EDX
-#undef EBX
-#undef ESP
-#undef EBP
-#undef ESI
-#undef EDI
-#undef EIP
-#include <signal.h>
-#include <sys/ucontext.h>
-
 #if defined(TARGET_I386)
 
 /* 'pc' is the host PC at which the exception was raised. 'address' is
@@ -626,9 +659,10 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
                 pc, address, is_write, *(unsigned long *)old_set);
 #endif
     /* XXX: locking issue */
-    if (is_write && page_unprotect(address)) {
+    if (is_write && page_unprotect(address, pc, puc)) {
         return 1;
     }
+
     /* see if it is an MMU fault */
     ret = cpu_x86_handle_mmu_fault(env, address, is_write, 
                                    ((env->hflags & HF_CPL_MASK) == 3), 0);
@@ -655,8 +689,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
     } else {
         /* activate soft MMU for this block */
         env->hflags |= HF_SOFTMMU_MASK;
-        sigprocmask(SIG_SETMASK, old_set, NULL);
-        cpu_loop_exit();
+        cpu_resume_from_signal(env, puc);
     }
     /* never comes here */
     return 1;
@@ -676,7 +709,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
                                     void *puc)
 {
     /* XXX: locking issue */
-    if (is_write && page_unprotect(address)) {
+    if (is_write && page_unprotect(address, pc, puc)) {
         return 1;
     }
     return 0;
@@ -698,7 +731,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
            pc, address, is_write, *(unsigned long *)old_set);
 #endif
     /* XXX: locking issue */
-    if (is_write && page_unprotect(address)) {
+    if (is_write && page_unprotect(address, pc, puc)) {
         return 1;
     }
 
@@ -727,8 +760,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
         do_queue_exception_err(env->exception_index, env->error_code);
     } else {
         /* activate soft MMU for this block */
-        sigprocmask(SIG_SETMASK, old_set, NULL);
-        cpu_loop_exit();
+        cpu_resume_from_signal(env, puc);
     }
     /* never comes here */
     return 1;
