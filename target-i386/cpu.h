@@ -248,7 +248,7 @@ enum {
     CC_OP_DECW,
     CC_OP_DECL,
 
-    CC_OP_SHLB, /* modify all flags, CC_DST = res, CC_SRC.lsb = C */
+    CC_OP_SHLB, /* modify all flags, CC_DST = res, CC_SRC.msb = C */
     CC_OP_SHLW,
     CC_OP_SHLL,
 
