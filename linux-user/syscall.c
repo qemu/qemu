@@ -1674,6 +1674,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_chdir:
         ret = get_errno(chdir((const char *)arg1));
         break;
+#ifdef TARGET_NR_time
     case TARGET_NR_time:
         {
             int *time_ptr = (int *)arg1;
@@ -1682,6 +1683,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                 tswap32s(time_ptr);
         }
         break;
+#endif
     case TARGET_NR_mknod:
         ret = get_errno(mknod((const char *)arg1, arg2, arg3));
         break;
@@ -2168,6 +2170,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                                     arg6));
 #endif
         break;
+#ifdef TARGET_NR_mmap2
     case TARGET_NR_mmap2:
 #if defined(TARGET_SPARC)
 #define MMAP_SHIFT 12
@@ -2179,6 +2182,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                                     arg5,
                                     arg6 << MMAP_SHIFT));
         break;
+#endif
     case TARGET_NR_munmap:
         ret = get_errno(target_munmap(arg1, arg2));
         break;
@@ -2471,7 +2475,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         break;
     case TARGET_NR_getdents:
 #if TARGET_LONG_SIZE != 4
-#error not supported
+#warning not supported
 #elif TARGET_LONG_SIZE == 4 && HOST_LONG_SIZE == 8
         {
             struct target_dirent *target_dirp = (void *)arg2;
@@ -2746,16 +2750,25 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 	break;
     }
 #endif
+#ifdef TARGET_NR_truncate64
     case TARGET_NR_truncate64:
         goto unimplemented;
+#endif
+#ifdef TARGET_NR_ftruncate64
     case TARGET_NR_ftruncate64:
         goto unimplemented;
+#endif
+#ifdef TARGET_NR_stat64
     case TARGET_NR_stat64:
         ret = get_errno(stat(path((const char *)arg1), &st));
         goto do_stat64;
+#endif
+#ifdef TARGET_NR_lstat64
     case TARGET_NR_lstat64:
         ret = get_errno(lstat(path((const char *)arg1), &st));
         goto do_stat64;
+#endif
+#ifdef TARGET_NR_fstat64
     case TARGET_NR_fstat64:
         {
             ret = get_errno(fstat(arg1, &st));
@@ -2783,7 +2796,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             }
         }
         break;
-
+#endif
 #ifdef USE_UID16
     case TARGET_NR_lchown:
         ret = get_errno(lchown((const char *)arg1, low2highuid(arg2), low2highgid(arg3)));
@@ -2894,37 +2907,60 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         break;
 #endif /* USE_UID16 */
 
+#ifdef TARGET_NR_lchown32
     case TARGET_NR_lchown32:
         ret = get_errno(lchown((const char *)arg1, arg2, arg3));
         break;
+#endif
+#ifdef TARGET_NR_getuid32
     case TARGET_NR_getuid32:
         ret = get_errno(getuid());
         break;
+#endif
+#ifdef TARGET_NR_getgid32
     case TARGET_NR_getgid32:
         ret = get_errno(getgid());
         break;
+#endif
+#ifdef TARGET_NR_geteuid32
     case TARGET_NR_geteuid32:
         ret = get_errno(geteuid());
         break;
+#endif
+#ifdef TARGET_NR_getegid32
     case TARGET_NR_getegid32:
         ret = get_errno(getegid());
         break;
+#endif
+#ifdef TARGET_NR_setreuid32
     case TARGET_NR_setreuid32:
         ret = get_errno(setreuid(arg1, arg2));
         break;
+#endif
+#ifdef TARGET_NR_setregid32
     case TARGET_NR_setregid32:
         ret = get_errno(setregid(arg1, arg2));
         break;
+#endif
+#ifdef TARGET_NR_getgroups32
     case TARGET_NR_getgroups32:
         goto unimplemented;
+#endif
+#ifdef TARGET_NR_setgroups32
     case TARGET_NR_setgroups32:
         goto unimplemented;
+#endif
+#ifdef TARGET_NR_fchown32
     case TARGET_NR_fchown32:
         ret = get_errno(fchown(arg1, arg2, arg3));
         break;
+#endif
+#ifdef TARGET_NR_setresuid32
     case TARGET_NR_setresuid32:
         ret = get_errno(setresuid(arg1, arg2, arg3));
         break;
+#endif
+#ifdef TARGET_NR_getresuid32
     case TARGET_NR_getresuid32:
         {
             int ruid, euid, suid;
@@ -2936,9 +2972,13 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             }
         }
         break;
+#endif
+#ifdef TARGET_NR_setresgid32
     case TARGET_NR_setresgid32:
         ret = get_errno(setresgid(arg1, arg2, arg3));
         break;
+#endif
+#ifdef TARGET_NR_getresgid32
     case TARGET_NR_getresgid32:
         {
             int rgid, egid, sgid;
@@ -2950,21 +2990,32 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             }
         }
         break;
+#endif
+#ifdef TARGET_NR_chown32
     case TARGET_NR_chown32:
         ret = get_errno(chown((const char *)arg1, arg2, arg3));
         break;
+#endif
+#ifdef TARGET_NR_setuid32
     case TARGET_NR_setuid32:
         ret = get_errno(setuid(arg1));
         break;
+#endif
+#ifdef TARGET_NR_setgid32
     case TARGET_NR_setgid32:
         ret = get_errno(setgid(arg1));
         break;
+#endif
+#ifdef TARGET_NR_setfsuid32
     case TARGET_NR_setfsuid32:
         ret = get_errno(setfsuid(arg1));
         break;
+#endif
+#ifdef TARGET_NR_setfsgid32
     case TARGET_NR_setfsgid32:
         ret = get_errno(setfsgid(arg1));
         break;
+#endif
 
     case TARGET_NR_pivot_root:
         goto unimplemented;

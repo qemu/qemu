@@ -131,7 +131,7 @@ static void host_to_target_sigset_internal(target_sigset_t *d,
     d->sig[0] = target_sigmask;
     d->sig[1] = sigmask >> 32;
 #else
-#error host_to_target_sigset
+#warning host_to_target_sigset
 #endif
 }
 
@@ -165,7 +165,7 @@ void target_to_host_sigset_internal(sigset_t *d, const target_sigset_t *s)
 #elif TARGET_LONG_BITS == 32 && HOST_LONG_BITS == 64 && TARGET_NSIG_WORDS == 2
     ((unsigned long *)d)[0] = sigmask | ((unsigned long)(s->sig[1]) << 32);
 #else
-#error target_to_host_sigset
+#warning target_to_host_sigset
 #endif /* TARGET_LONG_BITS */
 }
 
@@ -1391,10 +1391,10 @@ setup___siginfo(__siginfo_t *si, CPUState *env, target_ulong mask)
 	err |= __put_user(env->pc, &si->si_regs.pc);
 	err |= __put_user(env->npc, &si->si_regs.npc);
 	err |= __put_user(env->y, &si->si_regs.y);
-	for (i=0; i < 7; i++) {
+	for (i=0; i < 8; i++) {
 		err |= __put_user(env->gregs[i], &si->si_regs.u_regs[i]);
 	}
-	for (i=0; i < 7; i++) {
+	for (i=0; i < 8; i++) {
 		err |= __put_user(env->regwptr[UREG_I0 + i], &si->si_regs.u_regs[i+8]);
 	}
 	err |= __put_user(mask, &si->si_mask);
@@ -1452,10 +1452,10 @@ static void setup_frame(int sig, struct emulated_sigaction *ka,
 		err |= __put_user(set->sig[i + 1], &sf->extramask[i]);
 	}
 
-	for (i = 0; i < 7; i++) {
+	for (i = 0; i < 8; i++) {
 	  	err |= __put_user(env->regwptr[i + UREG_L0], &sf->ss.locals[i]);
 	}
-	for (i = 0; i < 7; i++) {
+	for (i = 0; i < 8; i++) {
 	  	err |= __put_user(env->regwptr[i + UREG_I0], &sf->ss.ins[i]);
 	}
 	if (err)
@@ -1488,7 +1488,6 @@ static void setup_frame(int sig, struct emulated_sigaction *ka,
 		//flush_sig_insns(current->mm, (unsigned long) &(sf->insns[0]));
                 //		tb_flush(env);
 	}
-	//cpu_dump_state(env, stderr, fprintf, 0);
 	return;
 
         //sigill_and_return:
@@ -1569,7 +1568,6 @@ long do_sigreturn(CPUState *env)
         err = __get_user(pc,  &sf->info.si_regs.pc);
         err |= __get_user(npc, &sf->info.si_regs.npc);
 
-        //	fprintf(stderr, "pc: %lx npc %lx\n", pc, npc);
         if ((pc | npc) & 3)
                 goto segv_and_exit;
 
@@ -1577,16 +1575,16 @@ long do_sigreturn(CPUState *env)
         err |= __get_user(up_psr, &sf->info.si_regs.psr);
 
         /* User can only change condition codes and FPU enabling in %psr. */
-        env->psr = (up_psr & ~(PSR_ICC /* | PSR_EF */))
-                  | (env->psr & (PSR_ICC /* | PSR_EF */));
-	fprintf(stderr, "psr: %x\n", env->psr);
-	env->pc = pc-4;
-	env->npc = pc;
+        env->psr = (up_psr & (PSR_ICC /* | PSR_EF */))
+                  | (env->psr & ~(PSR_ICC /* | PSR_EF */));
+
+	env->pc = pc;
+	env->npc = npc;
         err |= __get_user(env->y, &sf->info.si_regs.y);
-	for (i=0; i < 7; i++) {
+	for (i=0; i < 8; i++) {
 		err |= __get_user(env->gregs[i], &sf->info.si_regs.u_regs[i]);
 	}
-	for (i=0; i < 7; i++) {
+	for (i=0; i < 8; i++) {
 		err |= __get_user(env->regwptr[i + UREG_I0], &sf->info.si_regs.u_regs[i+8]);
 	}
 
@@ -1609,7 +1607,6 @@ long do_sigreturn(CPUState *env)
         if (err)
                 goto segv_and_exit;
 
-        //	fprintf(stderr, "returning %lx\n", env->regwptr[0]);
         return env->regwptr[0];
 
 segv_and_exit:

@@ -94,7 +94,29 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 #endif
 
 #ifdef TARGET_SPARC
+#ifdef TARGET_SPARC64
 
+#define ELF_START_MMAP 0x80000000
+
+#define elf_check_arch(x) ( (x) == EM_SPARC )
+
+#define ELF_CLASS   ELFCLASS64
+#define ELF_DATA    ELFDATA2MSB
+#define ELF_ARCH    EM_SPARC
+
+/*XXX*/
+#define ELF_PLAT_INIT(_r)
+
+static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
+{
+    regs->tstate = 0;
+    regs->pc = infop->entry;
+    regs->npc = regs->pc + 4;
+    regs->y = 0;
+    regs->u_regs[14] = infop->start_stack - 16 * 4;
+}
+
+#else
 #define ELF_START_MMAP 0x80000000
 
 #define elf_check_arch(x) ( (x) == EM_SPARC )
@@ -115,6 +137,7 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
     regs->u_regs[14] = infop->start_stack - 16 * 4;
 }
 
+#endif
 #endif
 
 #ifdef TARGET_PPC
