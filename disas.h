@@ -3,7 +3,7 @@
 
 /* Disassemble this for me please... (debugging). */
 void disas(FILE *out, void *code, unsigned long size);
-void target_disas(FILE *out, target_ulong code, unsigned long size, int flags);
+void target_disas(FILE *out, target_ulong code, target_ulong size, int flags);
 void monitor_disas(target_ulong pc, int nb_insn, int is_physical, int flags);
 
 /* Look up symbol for debugging purpose.  Returns "" if unknown. */

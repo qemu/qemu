@@ -110,7 +110,7 @@ bfd_vma bfd_getb32 (const bfd_byte *addr)
 
 /* Disassemble this for me please... (debugging). 'flags' is only used
    for i386: non zero means 16 bit code */
-void target_disas(FILE *out, target_ulong code, unsigned long size, int flags)
+void target_disas(FILE *out, target_ulong code, target_ulong size, int flags)
 {
     target_ulong pc;
     int count;
