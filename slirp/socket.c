@@ -352,8 +352,12 @@ sowrite(so)
 	}
 	
 #ifndef HAVE_READV
-	if (n == 2 && nn == iov[0].iov_len)
-	   nn += send(so->s, iov[1].iov_base, iov[1].iov_len,0);
+	if (n == 2 && nn == iov[0].iov_len) {
+            int ret;
+            ret = send(so->s, iov[1].iov_base, iov[1].iov_len,0);
+            if (ret > 0)
+                nn += ret;
+        }
         DEBUG_MISC((dfd, "  ... wrote nn = %d bytes\n", nn));
 #endif
 	
