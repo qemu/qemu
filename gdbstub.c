@@ -368,6 +368,7 @@ int cpu_gdbstub(void *opaque, int (*main_loop)(void *opaque), int port)
             }
             env->eip = registers[8];
             env->eflags = registers[9];
+#if defined(CONFIG_USER_ONLY)
 #define LOAD_SEG(index, sreg)\
             if (tswapl(registers[index]) != env->segs[sreg].selector)\
                 cpu_x86_load_seg(env, sreg, tswapl(registers[index]));
@@ -377,6 +378,7 @@ int cpu_gdbstub(void *opaque, int (*main_loop)(void *opaque), int port)
             LOAD_SEG(13, R_ES);
             LOAD_SEG(14, R_FS);
             LOAD_SEG(15, R_GS);
+#endif
 #endif
             put_packet("OK");
             break;
