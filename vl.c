@@ -3737,10 +3737,13 @@ int main(int argc, char **argv)
         
         params->gdt_table[2] = 0x00cf9a000000ffffLL; /* KERNEL_CS */
         params->gdt_table[3] = 0x00cf92000000ffffLL; /* KERNEL_DS */
+        /* for newer kernels (2.6.0) CS/DS are at different addresses */
+        params->gdt_table[12] = 0x00cf9a000000ffffLL; /* KERNEL_CS */
+        params->gdt_table[13] = 0x00cf92000000ffffLL; /* KERNEL_DS */
         
-        env->idt.base = (void *)params->idt_table;
+        env->idt.base = (void *)((uint8_t *)params->idt_table - phys_ram_base);
         env->idt.limit = sizeof(params->idt_table) - 1;
-        env->gdt.base = (void *)params->gdt_table;
+        env->gdt.base = (void *)((uint8_t *)params->gdt_table - phys_ram_base);
         env->gdt.limit = sizeof(params->gdt_table) - 1;
         
         cpu_x86_load_seg_cache(env, R_CS, KERNEL_CS, NULL, 0xffffffff, 0x00cf9a00);
