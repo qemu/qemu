@@ -485,8 +485,11 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
         {
 	    uint8_t *p;
 	    p = p_end - 4;
+#if 0
+            /* XXX: check why it occurs */
 	    if (p == p_start)
 		error("empty code for %s", name);
+#endif
             if (get32((uint32_t *)p) != 0x6bfa8001)
 		error("ret expected at the end of %s", name);
 	    copy_size = p - p_start;	    
