@@ -442,12 +442,12 @@ void OPPROTO glue(glue(op_cmpxchg, MEM_SUFFIX), _T0_T1_EAX_cc)(void)
     dst = EAX - T0;
     if ((DATA_TYPE)dst == 0) {
         T0 = T1;
+#ifdef MEM_WRITE
+        glue(st, MEM_SUFFIX)((uint8_t *)A0, T0);
+#endif
     } else {
         EAX = (EAX & ~DATA_MASK) | (T0 & DATA_MASK);
     }
-#ifdef MEM_WRITE
-    glue(st, MEM_SUFFIX)((uint8_t *)A0, T0);
-#endif
     CC_SRC = src;
     CC_DST = dst;
     FORCE_RET();
