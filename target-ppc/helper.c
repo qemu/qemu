@@ -357,11 +357,11 @@ int get_physical_address (CPUState *env, uint32_t *physical, int *prot,
                           uint32_t address, int rw, int access_type)
 {
     int ret;
-
+#if 0
     if (loglevel > 0) {
         fprintf(logfile, "%s\n", __func__);
     }
-    
+#endif    
     if ((access_type == ACCESS_CODE && msr_ir == 0) ||
         (access_type != ACCESS_CODE && msr_dr == 0)) {
         /* No address translation */
@@ -376,11 +376,12 @@ int get_physical_address (CPUState *env, uint32_t *physical, int *prot,
             ret = get_segment(env, physical, prot, address, rw, access_type);
         }
     }
+#if 0
     if (loglevel > 0) {
         fprintf(logfile, "%s address %08x => %08x\n",
 		__func__, address, *physical);
     }
-    
+#endif    
     return ret;
 }
 
@@ -439,7 +440,7 @@ void tlb_fill(unsigned long addr, int is_write, int is_user, void *retaddr)
         index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
         tlb_addrr = env->tlb_read[is_user][index].address;
         tlb_addrw = env->tlb_write[is_user][index].address;
-#if 1
+#if 0
         if (loglevel) {
             fprintf(logfile,
                     "%s 1 %p %p idx=%d addr=0x%08lx tbl_addr=0x%08lx 0x%08lx "
