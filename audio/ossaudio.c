@@ -370,29 +370,30 @@ static int oss_hw_init (HWVoice *hw, int freq, int nchannels, audfmt_e fmt)
         if (oss->pcm_buf == MAP_FAILED) {
             dolog ("Failed to mmap OSS device\nReason: %s\n",
                    errstr ());
-        } else for (;;) {
+        } else {
             int err;
             int trig = 0;
             if (ioctl (oss->fd, SNDCTL_DSP_SETTRIGGER, &trig) < 0) {
                 dolog ("SNDCTL_DSP_SETTRIGGER 0 failed\nReason: %s\n",
                        errstr ());
-                goto fail;
+            }
+            else {
+                trig = PCM_ENABLE_OUTPUT;
+                if (ioctl (oss->fd, SNDCTL_DSP_SETTRIGGER, &trig) < 0) {
+                    dolog ("SNDCTL_DSP_SETTRIGGER PCM_ENABLE_OUTPUT failed\n"
+                           "Reason: %s\n", errstr ());
+                }
+                else {
+                    oss->mmapped = 1;
+                }
             }
 
-            trig = PCM_ENABLE_OUTPUT;
-            if (ioctl (oss->fd, SNDCTL_DSP_SETTRIGGER, &trig) < 0) {
-                dolog ("SNDCTL_DSP_SETTRIGGER PCM_ENABLE_OUTPUT failed\n"
-                       "Reason: %s\n", errstr ());
-                goto fail;
-            }
-            oss->mmapped = 1;
-            break;
-
-        fail:
-            err = munmap (oss->pcm_buf, hw->bufsize);
-            if (err) {
-                dolog ("Failed to unmap OSS device\nReason: %s\n",
-                       errstr ());
+            if (!oss->mmapped) {
+                err = munmap (oss->pcm_buf, hw->bufsize);
+                if (err) {
+                    dolog ("Failed to unmap OSS device\nReason: %s\n",
+                           errstr ());
+                }
             }
         }
     }
