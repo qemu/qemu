@@ -11,6 +11,7 @@ version 0.5.1:
   - Full task switching/task gate support
   - added verr, verw, arpl, fcmovxx
   - PowerPC target support (Jocelyn Mayer)
+  - Major SPARC target fixes (dynamically linked programs begin to work)
 
 version 0.5.0:
   
