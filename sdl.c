@@ -127,11 +127,18 @@ static void sdl_process_key(SDL_KeyboardEvent *ev)
     
     /* XXX: not portable, but avoids complicated mappings */
     keycode = ev->keysym.scancode;
+#ifdef _WIN32
+    if (keycode < 97) {
+        /* nothing to do */
+    } else 
+#else
     if (keycode < 9) {
         keycode = 0;
     } else if (keycode < 97) {
         keycode -= 8; /* just an offset */
-    } else if (keycode < 158) {
+    } else 
+#endif
+    if (keycode < 158) {
         /* use conversion table */
         keycode = x_keycode_to_pc_keycode[keycode - 97];
     } else {
