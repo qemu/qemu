@@ -21,18 +21,13 @@
 #define THUNK_H
 
 #include <inttypes.h>
-#include "config.h"
+#include "cpu.h"
 
 #include "bswap.h"
 
 #if defined(WORDS_BIGENDIAN) != defined(TARGET_WORDS_BIGENDIAN)
 #define BSWAP_NEEDED
 #endif
-
-/* XXX: autoconf */
-#define TARGET_LONG_BITS 32
-
-#define TARGET_LONG_SIZE (TARGET_LONG_BITS / 8)
 
 #ifdef BSWAP_NEEDED
 
@@ -103,16 +98,6 @@ static inline void tswap64s(uint64_t *s)
 #else
 #define tswapl(s) tswap64(s)
 #define tswapls(s) tswap64s((uint64_t *)(s))
-#endif
-
-#if TARGET_LONG_SIZE == 4
-typedef int32_t target_long;
-typedef uint32_t target_ulong;
-#elif TARGET_LONG_SIZE == 8
-typedef int64_t target_long;
-typedef uint64_t target_ulong;
-#else
-#error TARGET_LONG_SIZE undefined
 #endif
 
 /* types enums definitions */

@@ -28,11 +28,6 @@
 #define tostring(s)	#s
 #endif
 
-#ifndef THUNK_H
-/* horrible */
-typedef uint32_t target_ulong;
-#endif
-
 #if GCC_MAJOR < 3
 #define __builtin_expect(x, n) (x)
 #endif

@@ -23,6 +23,22 @@
 #include "config.h"
 #include <setjmp.h>
 
+#ifndef TARGET_LONG_BITS
+#error TARGET_LONG_BITS must be defined before including this header
+#endif
+
+#define TARGET_LONG_SIZE (TARGET_LONG_BITS / 8)
+
+#if TARGET_LONG_SIZE == 4
+typedef int32_t target_long;
+typedef uint32_t target_ulong;
+#elif TARGET_LONG_SIZE == 8
+typedef int64_t target_long;
+typedef uint64_t target_ulong;
+#else
+#error TARGET_LONG_SIZE undefined
+#endif
+
 #define EXCP_INTERRUPT 	256 /* async interruption */
 #define EXCP_HLT        257 /* hlt instruction reached */
 #define EXCP_DEBUG      258 /* cpu stopped after a breakpoint or singlestep */
