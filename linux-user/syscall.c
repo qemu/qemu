@@ -2403,7 +2403,6 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                 strcpy (buf->machine, UNAME_MACHINE);
             }
         }
-        ret = get_errno(sys_uname((struct new_utsname *)arg1));
         break;
 #ifdef TARGET_I386
     case TARGET_NR_modify_ldt:
