@@ -58,6 +58,7 @@
 #include <linux/hdreg.h>
 #include <linux/soundcard.h>
 #include <linux/dirent.h>
+#include <linux/kd.h>
 
 #include "qemu.h"
 
@@ -117,6 +118,7 @@ extern int setresuid(uid_t, uid_t, uid_t);
 extern int getresuid(uid_t *, uid_t *, uid_t *);
 extern int setresgid(gid_t, gid_t, gid_t);
 extern int getresgid(gid_t *, gid_t *, gid_t *);
+extern int setgroups(int, gid_t *);
 
 static inline long get_errno(long ret)
 {
@@ -1722,9 +1724,33 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         }
         break;
     case TARGET_NR_getgroups:
-        goto unimplemented;
+        {
+            int gidsetsize = arg1;
+            uint16_t *target_grouplist = (void *)arg2;
+            gid_t *grouplist;
+            int i;
+
+            grouplist = alloca(gidsetsize * sizeof(gid_t));
+            ret = get_errno(getgroups(gidsetsize, grouplist));
+            if (!is_error(ret)) {
+                for(i = 0;i < gidsetsize; i++)
+                    target_grouplist[i] = tswap16(grouplist[i]);
+            }
+        }
+        break;
     case TARGET_NR_setgroups:
-        goto unimplemented;
+        {
+            int gidsetsize = arg1;
+            uint16_t *target_grouplist = (void *)arg2;
+            gid_t *grouplist;
+            int i;
+
+            grouplist = alloca(gidsetsize * sizeof(gid_t));
+            for(i = 0;i < gidsetsize; i++)
+                grouplist[i] = tswap16(target_grouplist[i]);
+            ret = get_errno(setgroups(gidsetsize, grouplist));
+        }
+        break;
     case TARGET_NR_select:
         goto unimplemented;
     case TARGET_NR_symlink:
