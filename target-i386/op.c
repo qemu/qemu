@@ -376,14 +376,16 @@ void OPPROTO op_andl_A0_ffff(void)
 
 /* memory access */
 
-#define MEMSUFFIX
+#define MEMSUFFIX _raw
 #include "ops_mem.h"
 
+#if !defined(CONFIG_USER_ONLY)
 #define MEMSUFFIX _user
 #include "ops_mem.h"
 
 #define MEMSUFFIX _kernel
 #include "ops_mem.h"
+#endif
 
 /* used for bit operations */
 

@@ -153,11 +153,11 @@ static inline void get_ss_esp_from_tss(uint32_t *ss_ptr,
     if (index + (4 << shift) - 1 > env->tr.limit)
         raise_exception_err(EXCP0A_TSS, env->tr.selector & 0xfffc);
     if (shift == 0) {
-        *esp_ptr = lduw(env->tr.base + index);
-        *ss_ptr = lduw(env->tr.base + index + 2);
+        *esp_ptr = lduw_kernel(env->tr.base + index);
+        *ss_ptr = lduw_kernel(env->tr.base + index + 2);
     } else {
-        *esp_ptr = ldl(env->tr.base + index);
-        *ss_ptr = lduw(env->tr.base + index + 4);
+        *esp_ptr = ldl_kernel(env->tr.base + index);
+        *ss_ptr = lduw_kernel(env->tr.base + index + 4);
     }
 }
 
@@ -177,8 +177,8 @@ static inline int load_segment(uint32_t *e1_ptr, uint32_t *e2_ptr,
     if ((index + 7) > dt->limit)
         return -1;
     ptr = dt->base + index;
-    *e1_ptr = ldl(ptr);
-    *e2_ptr = ldl(ptr + 4);
+    *e1_ptr = ldl_kernel(ptr);
+    *e2_ptr = ldl_kernel(ptr + 4);
     return 0;
 }
                                      
@@ -226,8 +226,8 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
     if (intno * 8 + 7 > dt->limit)
         raise_exception_err(EXCP0D_GPF, intno * 8 + 2);
     ptr = dt->base + intno * 8;
-    e1 = ldl(ptr);
-    e2 = ldl(ptr + 4);
+    e1 = ldl_kernel(ptr);
+    e2 = ldl_kernel(ptr + 4);
     /* check gate type */
     type = (e2 >> DESC_TYPE_SHIFT) & 0x1f;
     switch(type) {
@@ -344,47 +344,47 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
         int old_eflags;
         if (env->eflags & VM_MASK) {
             ssp -= 4;
-            stl(ssp, env->segs[R_GS].selector);
+            stl_kernel(ssp, env->segs[R_GS].selector);
             ssp -= 4;
-            stl(ssp, env->segs[R_FS].selector);
+            stl_kernel(ssp, env->segs[R_FS].selector);
             ssp -= 4;
-            stl(ssp, env->segs[R_DS].selector);
+            stl_kernel(ssp, env->segs[R_DS].selector);
             ssp -= 4;
-            stl(ssp, env->segs[R_ES].selector);
+            stl_kernel(ssp, env->segs[R_ES].selector);
         }
         if (new_stack) {
             ssp -= 4;
-            stl(ssp, old_ss);
+            stl_kernel(ssp, old_ss);
             ssp -= 4;
-            stl(ssp, old_esp);
+            stl_kernel(ssp, old_esp);
         }
         ssp -= 4;
         old_eflags = compute_eflags();
-        stl(ssp, old_eflags);
+        stl_kernel(ssp, old_eflags);
         ssp -= 4;
-        stl(ssp, old_cs);
+        stl_kernel(ssp, old_cs);
         ssp -= 4;
-        stl(ssp, old_eip);
+        stl_kernel(ssp, old_eip);
         if (has_error_code) {
             ssp -= 4;
-            stl(ssp, error_code);
+            stl_kernel(ssp, error_code);
         }
     } else {
         if (new_stack) {
             ssp -= 2;
-            stw(ssp, old_ss);
+            stw_kernel(ssp, old_ss);
             ssp -= 2;
-            stw(ssp, old_esp);
+            stw_kernel(ssp, old_esp);
         }
         ssp -= 2;
-        stw(ssp, compute_eflags());
+        stw_kernel(ssp, compute_eflags());
         ssp -= 2;
-        stw(ssp, old_cs);
+        stw_kernel(ssp, old_cs);
         ssp -= 2;
-        stw(ssp, old_eip);
+        stw_kernel(ssp, old_eip);
         if (has_error_code) {
             ssp -= 2;
-            stw(ssp, error_code);
+            stw_kernel(ssp, error_code);
         }
     }
     
@@ -410,8 +410,8 @@ static void do_interrupt_real(int intno, int is_int, int error_code,
     if (intno * 4 + 3 > dt->limit)
         raise_exception_err(EXCP0D_GPF, intno * 8 + 2);
     ptr = dt->base + intno * 4;
-    offset = lduw(ptr);
-    selector = lduw(ptr + 2);
+    offset = lduw_kernel(ptr);
+    selector = lduw_kernel(ptr + 2);
     esp = ESP;
     ssp = env->segs[R_SS].base;
     if (is_int)
@@ -420,11 +420,11 @@ static void do_interrupt_real(int intno, int is_int, int error_code,
         old_eip = env->eip;
     old_cs = env->segs[R_CS].selector;
     esp -= 2;
-    stw(ssp + (esp & 0xffff), compute_eflags());
+    stw_kernel(ssp + (esp & 0xffff), compute_eflags());
     esp -= 2;
-    stw(ssp + (esp & 0xffff), old_cs);
+    stw_kernel(ssp + (esp & 0xffff), old_cs);
     esp -= 2;
-    stw(ssp + (esp & 0xffff), old_eip);
+    stw_kernel(ssp + (esp & 0xffff), old_eip);
     
     /* update processor state */
     ESP = (ESP & ~0xffff) | (esp & 0xffff);
@@ -445,7 +445,7 @@ void do_interrupt_user(int intno, int is_int, int error_code,
 
     dt = &env->idt;
     ptr = dt->base + (intno * 8);
-    e2 = ldl(ptr + 4);
+    e2 = ldl_kernel(ptr + 4);
     
     dpl = (e2 >> DESC_DPL_SHIFT) & 3;
     cpl = env->hflags & HF_CPL_MASK;
@@ -651,8 +651,8 @@ void helper_lldt_T0(void)
         if ((index + 7) > dt->limit)
             raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
         ptr = dt->base + index;
-        e1 = ldl(ptr);
-        e2 = ldl(ptr + 4);
+        e1 = ldl_kernel(ptr);
+        e2 = ldl_kernel(ptr + 4);
         if ((e2 & DESC_S_MASK) || ((e2 >> DESC_TYPE_SHIFT) & 0xf) != 2)
             raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
         if (!(e2 & DESC_P_MASK))
@@ -684,8 +684,8 @@ void helper_ltr_T0(void)
         if ((index + 7) > dt->limit)
             raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
         ptr = dt->base + index;
-        e1 = ldl(ptr);
-        e2 = ldl(ptr + 4);
+        e1 = ldl_kernel(ptr);
+        e2 = ldl_kernel(ptr + 4);
         type = (e2 >> DESC_TYPE_SHIFT) & 0xf;
         if ((e2 & DESC_S_MASK) || 
             (type != 2 && type != 9))
@@ -694,7 +694,7 @@ void helper_ltr_T0(void)
             raise_exception_err(EXCP0B_NOSEG, selector & 0xfffc);
         load_seg_cache_raw_dt(&env->tr, e1, e2);
         e2 |= 0x00000200; /* set the busy bit */
-        stl(ptr + 4, e2);
+        stl_kernel(ptr + 4, e2);
     }
     env->tr.selector = selector;
 }
@@ -813,14 +813,14 @@ void helper_lcall_real_T0_T1(int shift, int next_eip)
     ssp = env->segs[R_SS].base;
     if (shift) {
         esp -= 4;
-        stl(ssp + (esp & esp_mask), env->segs[R_CS].selector);
+        stl_kernel(ssp + (esp & esp_mask), env->segs[R_CS].selector);
         esp -= 4;
-        stl(ssp + (esp & esp_mask), next_eip);
+        stl_kernel(ssp + (esp & esp_mask), next_eip);
     } else {
         esp -= 2;
-        stw(ssp + (esp & esp_mask), env->segs[R_CS].selector);
+        stw_kernel(ssp + (esp & esp_mask), env->segs[R_CS].selector);
         esp -= 2;
-        stw(ssp + (esp & esp_mask), next_eip);
+        stw_kernel(ssp + (esp & esp_mask), next_eip);
     }
 
     if (!(env->segs[R_SS].flags & DESC_B_MASK))
@@ -873,14 +873,14 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip)
         ssp = env->segs[R_SS].base + sp;
         if (shift) {
             ssp -= 4;
-            stl(ssp, env->segs[R_CS].selector);
+            stl_kernel(ssp, env->segs[R_CS].selector);
             ssp -= 4;
-            stl(ssp, next_eip);
+            stl_kernel(ssp, next_eip);
         } else {
             ssp -= 2;
-            stw(ssp, env->segs[R_CS].selector);
+            stw_kernel(ssp, env->segs[R_CS].selector);
             ssp -= 2;
-            stw(ssp, next_eip);
+            stw_kernel(ssp, next_eip);
         }
         sp -= (4 << shift);
         
@@ -975,23 +975,23 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip)
             ssp = env->segs[R_SS].base + sp;
             if (shift) {
                 ssp -= 4;
-                stl(ssp, old_ss);
+                stl_kernel(ssp, old_ss);
                 ssp -= 4;
-                stl(ssp, old_esp);
+                stl_kernel(ssp, old_esp);
                 ssp -= 4 * param_count;
                 for(i = 0; i < param_count; i++) {
-                    val = ldl(old_ssp + i * 4);
-                    stl(ssp + i * 4, val);
+                    val = ldl_kernel(old_ssp + i * 4);
+                    stl_kernel(ssp + i * 4, val);
                 }
             } else {
                 ssp -= 2;
-                stw(ssp, old_ss);
+                stw_kernel(ssp, old_ss);
                 ssp -= 2;
-                stw(ssp, old_esp);
+                stw_kernel(ssp, old_esp);
                 ssp -= 2 * param_count;
                 for(i = 0; i < param_count; i++) {
-                    val = lduw(old_ssp + i * 2);
-                    stw(ssp + i * 2, val);
+                    val = lduw_kernel(old_ssp + i * 2);
+                    stw_kernel(ssp + i * 2, val);
                 }
             }
         } else {
@@ -1004,14 +1004,14 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip)
 
         if (shift) {
             ssp -= 4;
-            stl(ssp, env->segs[R_CS].selector);
+            stl_kernel(ssp, env->segs[R_CS].selector);
             ssp -= 4;
-            stl(ssp, next_eip);
+            stl_kernel(ssp, next_eip);
         } else {
             ssp -= 2;
-            stw(ssp, env->segs[R_CS].selector);
+            stw_kernel(ssp, env->segs[R_CS].selector);
             ssp -= 2;
-            stw(ssp, next_eip);
+            stw_kernel(ssp, next_eip);
         }
 
         sp -= push_size;
@@ -1042,14 +1042,14 @@ void helper_iret_real(int shift)
     ssp = env->segs[R_SS].base + sp;
     if (shift == 1) {
         /* 32 bits */
-        new_eflags = ldl(ssp + 8);
-        new_cs = ldl(ssp + 4) & 0xffff;
-        new_eip = ldl(ssp) & 0xffff;
+        new_eflags = ldl_kernel(ssp + 8);
+        new_cs = ldl_kernel(ssp + 4) & 0xffff;
+        new_eip = ldl_kernel(ssp) & 0xffff;
     } else {
         /* 16 bits */
-        new_eflags = lduw(ssp + 4);
-        new_cs = lduw(ssp + 2);
-        new_eip = lduw(ssp);
+        new_eflags = lduw_kernel(ssp + 4);
+        new_cs = lduw_kernel(ssp + 2);
+        new_eip = lduw_kernel(ssp);
     }
     new_esp = sp + (6 << shift);
     ESP = (ESP & 0xffff0000) | 
@@ -1078,17 +1078,17 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
     if (shift == 1) {
         /* 32 bits */
         if (is_iret)
-            new_eflags = ldl(ssp + 8);
-        new_cs = ldl(ssp + 4) & 0xffff;
-        new_eip = ldl(ssp);
+            new_eflags = ldl_kernel(ssp + 8);
+        new_cs = ldl_kernel(ssp + 4) & 0xffff;
+        new_eip = ldl_kernel(ssp);
         if (is_iret && (new_eflags & VM_MASK))
             goto return_to_vm86;
     } else {
         /* 16 bits */
         if (is_iret)
-            new_eflags = lduw(ssp + 4);
-        new_cs = lduw(ssp + 2);
-        new_eip = lduw(ssp);
+            new_eflags = lduw_kernel(ssp + 4);
+        new_cs = lduw_kernel(ssp + 2);
+        new_eip = lduw_kernel(ssp);
     }
     if ((new_cs & 0xfffc) == 0)
         raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
@@ -1124,12 +1124,12 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
         ssp += (4 << shift) + ((2 * is_iret) << shift) + addend;
         if (shift == 1) {
             /* 32 bits */
-            new_esp = ldl(ssp);
-            new_ss = ldl(ssp + 4) & 0xffff;
+            new_esp = ldl_kernel(ssp);
+            new_ss = ldl_kernel(ssp + 4) & 0xffff;
         } else {
             /* 16 bits */
-            new_esp = lduw(ssp);
-            new_ss = lduw(ssp + 2);
+            new_esp = lduw_kernel(ssp);
+            new_ss = lduw_kernel(ssp + 2);
         }
         
         if ((new_ss & 3) != rpl)
@@ -1175,12 +1175,12 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
     return;
 
  return_to_vm86:
-    new_esp = ldl(ssp + 12);
-    new_ss = ldl(ssp + 16);
-    new_es = ldl(ssp + 20);
-    new_ds = ldl(ssp + 24);
-    new_fs = ldl(ssp + 28);
-    new_gs = ldl(ssp + 32);
+    new_esp = ldl_kernel(ssp + 12);
+    new_ss = ldl_kernel(ssp + 16);
+    new_es = ldl_kernel(ssp + 20);
+    new_ds = ldl_kernel(ssp + 24);
+    new_fs = ldl_kernel(ssp + 28);
+    new_gs = ldl_kernel(ssp + 32);
     
     /* modify processor state */
     load_eflags(new_eflags, FL_UPDATE_CPL0_MASK | VM_MASK | VIF_MASK | VIP_MASK);
@@ -1770,6 +1770,11 @@ void helper_frstor(uint8_t *ptr, int data32)
     }
 }
 
+#if !defined(CONFIG_USER_ONLY) 
+
+#define MMUSUFFIX _mmu
+#define GETPC() (__builtin_return_address(0))
+
 #define SHIFT 0
 #include "softmmu_template.h"
 
@@ -1782,22 +1787,41 @@ void helper_frstor(uint8_t *ptr, int data32)
 #define SHIFT 3
 #include "softmmu_template.h"
 
-/* try to fill the TLB and return an exception if error */
-void tlb_fill(unsigned long addr, int is_write, void *retaddr)
+#endif
+
+/* try to fill the TLB and return an exception if error. If retaddr is
+   NULL, it means that the function was called in C code (i.e. not
+   from generated code or from helper.c) */
+/* XXX: fix it to restore all registers */
+void tlb_fill(unsigned long addr, int is_write, int is_user, void *retaddr)
 {
     TranslationBlock *tb;
     int ret;
     unsigned long pc;
-    ret = cpu_x86_handle_mmu_fault(env, addr, is_write);
+    CPUX86State *saved_env;
+
+    /* XXX: hack to restore env in all cases, even if not called from
+       generated code */
+    saved_env = env;
+    env = cpu_single_env;
+    if (is_write && page_unprotect(addr)) {
+        /* nothing more to do: the page was write protected because
+           there was code in it. page_unprotect() flushed the code. */
+    }
+
+    ret = cpu_x86_handle_mmu_fault(env, addr, is_write, is_user, 1);
     if (ret) {
-        /* now we have a real cpu fault */
-        pc = (unsigned long)retaddr;
-        tb = tb_find_pc(pc);
-        if (tb) {
-            /* the PC is inside the translated code. It means that we have
-               a virtual CPU fault */
-            cpu_restore_state(tb, env, pc);
+        if (retaddr) {
+            /* now we have a real cpu fault */
+            pc = (unsigned long)retaddr;
+            tb = tb_find_pc(pc);
+            if (tb) {
+                /* the PC is inside the translated code. It means that we have
+                   a virtual CPU fault */
+                cpu_restore_state(tb, env, pc);
+            }
         }
         raise_exception_err(EXCP0E_PAGE, env->error_code);
     }
+    env = saved_env;
 }

@@ -137,8 +137,10 @@ void helper_invlpg(unsigned int addr);
 void cpu_x86_update_cr0(CPUX86State *env);
 void cpu_x86_update_cr3(CPUX86State *env);
 void cpu_x86_flush_tlb(CPUX86State *env, uint32_t addr);
-int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr, int is_write);
-void tlb_fill(unsigned long addr, int is_write, void *retaddr);
+int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr, 
+                             int is_write, int is_user, int is_softmmu);
+void tlb_fill(unsigned long addr, int is_write, int is_user, 
+              void *retaddr);
 void __hidden cpu_lock(void);
 void __hidden cpu_unlock(void);
 void do_interrupt(int intno, int is_int, int error_code, 
@@ -366,26 +368,14 @@ static inline void load_eflags(int eflags, int update_mask)
         (eflags & update_mask);
 }
 
-/* memory access macros */
+/* XXX: move that to a generic header */
+#if !defined(CONFIG_USER_ONLY)
 
-#define ldul ldl
-#define lduq ldq
 #define ldul_user ldl_user
 #define ldul_kernel ldl_kernel
 
-#define ldub_raw ldub
-#define ldsb_raw ldsb
-#define lduw_raw lduw
-#define ldsw_raw ldsw
-#define ldl_raw ldl
-#define ldq_raw ldq
-
-#define stb_raw stb
-#define stw_raw stw
-#define stl_raw stl
-#define stq_raw stq
-
-#define MEMUSER 0
+#define ACCESS_TYPE 0
+#define MEMSUFFIX _kernel
 #define DATA_SIZE 1
 #include "softmmu_header.h"
 
@@ -397,9 +387,11 @@ static inline void load_eflags(int eflags, int update_mask)
 
 #define DATA_SIZE 8
 #include "softmmu_header.h"
+#undef ACCESS_TYPE
+#undef MEMSUFFIX
 
-#undef MEMUSER
-#define MEMUSER 1
+#define ACCESS_TYPE 1
+#define MEMSUFFIX _user
 #define DATA_SIZE 1
 #include "softmmu_header.h"
 
@@ -411,6 +403,76 @@ static inline void load_eflags(int eflags, int update_mask)
 
 #define DATA_SIZE 8
 #include "softmmu_header.h"
+#undef ACCESS_TYPE
+#undef MEMSUFFIX
 
-#undef MEMUSER
+/* these access are slower, they must be as rare as possible */
+#define ACCESS_TYPE 2
+#define MEMSUFFIX _data
+#define DATA_SIZE 1
+#include "softmmu_header.h"
 
+#define DATA_SIZE 2
+#include "softmmu_header.h"
+
+#define DATA_SIZE 4
+#include "softmmu_header.h"
+
+#define DATA_SIZE 8
+#include "softmmu_header.h"
+#undef ACCESS_TYPE
+#undef MEMSUFFIX
+
+#define ldub(p) ldub_data(p)
+#define ldsb(p) ldsb_data(p)
+#define lduw(p) lduw_data(p)
+#define ldsw(p) ldsw_data(p)
+#define ldl(p) ldl_data(p)
+#define ldq(p) ldq_data(p)
+
+#define stb(p, v) stb_data(p, v)
+#define stw(p, v) stw_data(p, v)
+#define stl(p, v) stl_data(p, v)
+#define stq(p, v) stq_data(p, v)
+
+static inline double ldfq(void *ptr)
+{
+    union {
+        double d;
+        uint64_t i;
+    } u;
+    u.i = ldq(ptr);
+    return u.d;
+}
+
+static inline void stfq(void *ptr, double v)
+{
+    union {
+        double d;
+        uint64_t i;
+    } u;
+    u.d = v;
+    stq(ptr, u.i);
+}
+
+static inline float ldfl(void *ptr)
+{
+    union {
+        float f;
+        uint32_t i;
+    } u;
+    u.i = ldl(ptr);
+    return u.f;
+}
+
+static inline void stfl(void *ptr, float v)
+{
+    union {
+        float f;
+        uint32_t i;
+    } u;
+    u.f = v;
+    stl(ptr, u.i);
+}
+
+#endif /* !defined(CONFIG_USER_ONLY) */

@@ -570,10 +570,10 @@ static GenOpFunc *gen_op_bsx_T0_cc[2][2] = {
 };
 
 static GenOpFunc *gen_op_lds_T0_A0[3 * 3] = {
-    gen_op_ldsb_T0_A0,
-    gen_op_ldsw_T0_A0,
+    gen_op_ldsb_raw_T0_A0,
+    gen_op_ldsw_raw_T0_A0,
     NULL,
-
+#ifndef CONFIG_USER_ONLY
     gen_op_ldsb_kernel_T0_A0,
     gen_op_ldsw_kernel_T0_A0,
     NULL,
@@ -581,13 +581,15 @@ static GenOpFunc *gen_op_lds_T0_A0[3 * 3] = {
     gen_op_ldsb_user_T0_A0,
     gen_op_ldsw_user_T0_A0,
     NULL,
+#endif
 };
 
 static GenOpFunc *gen_op_ldu_T0_A0[3 * 3] = {
-    gen_op_ldub_T0_A0,
-    gen_op_lduw_T0_A0,
+    gen_op_ldub_raw_T0_A0,
+    gen_op_lduw_raw_T0_A0,
     NULL,
 
+#ifndef CONFIG_USER_ONLY
     gen_op_ldub_kernel_T0_A0,
     gen_op_lduw_kernel_T0_A0,
     NULL,
@@ -595,14 +597,16 @@ static GenOpFunc *gen_op_ldu_T0_A0[3 * 3] = {
     gen_op_ldub_user_T0_A0,
     gen_op_lduw_user_T0_A0,
     NULL,
+#endif
 };
 
 /* sign does not matter, except for lidt/lgdt call (TODO: fix it) */
 static GenOpFunc *gen_op_ld_T0_A0[3 * 3] = {
-    gen_op_ldub_T0_A0,
-    gen_op_lduw_T0_A0,
-    gen_op_ldl_T0_A0,
+    gen_op_ldub_raw_T0_A0,
+    gen_op_lduw_raw_T0_A0,
+    gen_op_ldl_raw_T0_A0,
 
+#ifndef CONFIG_USER_ONLY
     gen_op_ldub_kernel_T0_A0,
     gen_op_lduw_kernel_T0_A0,
     gen_op_ldl_kernel_T0_A0,
@@ -610,13 +614,15 @@ static GenOpFunc *gen_op_ld_T0_A0[3 * 3] = {
     gen_op_ldub_user_T0_A0,
     gen_op_lduw_user_T0_A0,
     gen_op_ldl_user_T0_A0,
+#endif
 };
 
 static GenOpFunc *gen_op_ld_T1_A0[3 * 3] = {
-    gen_op_ldub_T1_A0,
-    gen_op_lduw_T1_A0,
-    gen_op_ldl_T1_A0,
+    gen_op_ldub_raw_T1_A0,
+    gen_op_lduw_raw_T1_A0,
+    gen_op_ldl_raw_T1_A0,
 
+#ifndef CONFIG_USER_ONLY
     gen_op_ldub_kernel_T1_A0,
     gen_op_lduw_kernel_T1_A0,
     gen_op_ldl_kernel_T1_A0,
@@ -624,13 +630,15 @@ static GenOpFunc *gen_op_ld_T1_A0[3 * 3] = {
     gen_op_ldub_user_T1_A0,
     gen_op_lduw_user_T1_A0,
     gen_op_ldl_user_T1_A0,
+#endif
 };
 
 static GenOpFunc *gen_op_st_T0_A0[3 * 3] = {
-    gen_op_stb_T0_A0,
-    gen_op_stw_T0_A0,
-    gen_op_stl_T0_A0,
+    gen_op_stb_raw_T0_A0,
+    gen_op_stw_raw_T0_A0,
+    gen_op_stl_raw_T0_A0,
 
+#ifndef CONFIG_USER_ONLY
     gen_op_stb_kernel_T0_A0,
     gen_op_stw_kernel_T0_A0,
     gen_op_stl_kernel_T0_A0,
@@ -638,6 +646,7 @@ static GenOpFunc *gen_op_st_T0_A0[3 * 3] = {
     gen_op_stb_user_T0_A0,
     gen_op_stw_user_T0_A0,
     gen_op_stl_user_T0_A0,
+#endif
 };
 
 static inline void gen_string_movl_A0_ESI(DisasContext *s)
@@ -1176,7 +1185,7 @@ static void gen_lea_modrm(DisasContext *s, int modrm, int *reg_ptr, int *offset_
         
         if (base == 4) {
             havesib = 1;
-            code = ldub(s->pc++);
+            code = ldub_code(s->pc++);
             scale = (code >> 6) & 3;
             index = (code >> 3) & 7;
             base = code & 7;
@@ -1186,18 +1195,18 @@ static void gen_lea_modrm(DisasContext *s, int modrm, int *reg_ptr, int *offset_
         case 0:
             if (base == 5) {
                 base = -1;
-                disp = ldl(s->pc);
+                disp = ldl_code(s->pc);
                 s->pc += 4;
             } else {
                 disp = 0;
             }
             break;
         case 1:
-            disp = (int8_t)ldub(s->pc++);
+            disp = (int8_t)ldub_code(s->pc++);
             break;
         default:
         case 2:
-            disp = ldl(s->pc);
+            disp = ldl_code(s->pc);
             s->pc += 4;
             break;
         }
@@ -1229,7 +1238,7 @@ static void gen_lea_modrm(DisasContext *s, int modrm, int *reg_ptr, int *offset_
         switch (mod) {
         case 0:
             if (rm == 6) {
-                disp = lduw(s->pc);
+                disp = lduw_code(s->pc);
                 s->pc += 2;
                 gen_op_movl_A0_im(disp);
                 rm = 0; /* avoid SS override */
@@ -1239,11 +1248,11 @@ static void gen_lea_modrm(DisasContext *s, int modrm, int *reg_ptr, int *offset_
             }
             break;
         case 1:
-            disp = (int8_t)ldub(s->pc++);
+            disp = (int8_t)ldub_code(s->pc++);
             break;
         default:
         case 2:
-            disp = lduw(s->pc);
+            disp = lduw_code(s->pc);
             s->pc += 2;
             break;
         }
@@ -1337,16 +1346,16 @@ static inline uint32_t insn_get(DisasContext *s, int ot)
 
     switch(ot) {
     case OT_BYTE:
-        ret = ldub(s->pc);
+        ret = ldub_code(s->pc);
         s->pc++;
         break;
     case OT_WORD:
-        ret = lduw(s->pc);
+        ret = lduw_code(s->pc);
         s->pc += 2;
         break;
     default:
     case OT_LONG:
-        ret = ldl(s->pc);
+        ret = ldl_code(s->pc);
         s->pc += 4;
         break;
     }
@@ -1756,7 +1765,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
     dflag = s->code32;
     s->override = -1;
  next_byte:
-    b = ldub(s->pc);
+    b = ldub_code(s->pc);
     s->pc++;
     /* check prefixes */
     switch (b) {
@@ -1814,7 +1823,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
     case 0x0f:
         /**************************/
         /* extended op code */
-        b = ldub(s->pc++) | 0x100;
+        b = ldub_code(s->pc++) | 0x100;
         goto reswitch;
         
         /**************************/
@@ -1839,7 +1848,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
             
             switch(f) {
             case 0: /* OP Ev, Gv */
-                modrm = ldub(s->pc++);
+                modrm = ldub_code(s->pc++);
                 reg = ((modrm >> 3) & 7);
                 mod = (modrm >> 6) & 3;
                 rm = modrm & 7;
@@ -1861,7 +1870,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
                 gen_op(s, op, ot, opreg);
                 break;
             case 1: /* OP Gv, Ev */
-                modrm = ldub(s->pc++);
+                modrm = ldub_code(s->pc++);
                 mod = (modrm >> 6) & 3;
                 reg = ((modrm >> 3) & 7);
                 rm = modrm & 7;
@@ -1895,7 +1904,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
             else
                 ot = dflag ? OT_LONG : OT_WORD;
             
-            modrm = ldub(s->pc++);
+            modrm = ldub_code(s->pc++);
             mod = (modrm >> 6) & 3;
             rm = modrm & 7;
             op = (modrm >> 3) & 7;
@@ -1939,7 +1948,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         else
             ot = dflag ? OT_LONG : OT_WORD;
 
-        modrm = ldub(s->pc++);
+        modrm = ldub_code(s->pc++);
         mod = (modrm >> 6) & 3;
         rm = modrm & 7;
         op = (modrm >> 3) & 7;
@@ -2045,7 +2054,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         else
             ot = dflag ? OT_LONG : OT_WORD;
 
-        modrm = ldub(s->pc++);
+        modrm = ldub_code(s->pc++);
         mod = (modrm >> 6) & 3;
         rm = modrm & 7;
         op = (modrm >> 3) & 7;
@@ -2085,10 +2094,10 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
             gen_push_T0(s);
             gen_eob(s);
             break;
-        case 3: /*< lcall Ev */
+        case 3: /* lcall Ev */
             gen_op_ld_T1_A0[ot + s->mem_index]();
             gen_op_addl_A0_im(1 << (ot - OT_WORD + 1));
-            gen_op_ld_T0_A0[OT_WORD + s->mem_index]();
+            gen_op_ldu_T0_A0[OT_WORD + s->mem_index]();
         do_lcall:
             if (s->pe && !s->vm86) {
                 if (s->cc_op != CC_OP_DYNAMIC)
@@ -2109,7 +2118,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         case 5: /* ljmp Ev */
             gen_op_ld_T1_A0[ot + s->mem_index]();
             gen_op_addl_A0_im(1 << (ot - OT_WORD + 1));
-            gen_op_lduw_T0_A0();
+            gen_op_ldu_T0_A0[OT_WORD + s->mem_index]();
         do_ljmp:
             if (s->pe && !s->vm86) {
                 if (s->cc_op != CC_OP_DYNAMIC)
@@ -2138,7 +2147,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         else
             ot = dflag ? OT_LONG : OT_WORD;
 
-        modrm = ldub(s->pc++);
+        modrm = ldub_code(s->pc++);
         mod = (modrm >> 6) & 3;
         rm = modrm & 7;
         reg = (modrm >> 3) & 7;
@@ -2179,7 +2188,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
     case 0x69: /* imul Gv, Ev, I */
     case 0x6b:
         ot = dflag ? OT_LONG : OT_WORD;
-        modrm = ldub(s->pc++);
+        modrm = ldub_code(s->pc++);
         reg = ((modrm >> 3) & 7) + OR_EAX;
         gen_ldst_modrm(s, modrm, ot, OR_TMP0, 0);
         if (b == 0x69) {
@@ -2206,7 +2215,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
             ot = OT_BYTE;
         else
             ot = dflag ? OT_LONG : OT_WORD;
-        modrm = ldub(s->pc++);
+        modrm = ldub_code(s->pc++);
         reg = (modrm >> 3) & 7;
         mod = (modrm >> 6) & 3;
         if (mod == 3) {
@@ -2233,7 +2242,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
             ot = OT_BYTE;
         else
             ot = dflag ? OT_LONG : OT_WORD;
-        modrm = ldub(s->pc++);
+        modrm = ldub_code(s->pc++);
         reg = (modrm >> 3) & 7;
         mod = (modrm >> 6) & 3;
         gen_op_mov_TN_reg[ot][1][reg]();
@@ -2250,7 +2259,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         s->cc_op = CC_OP_SUBB + ot;
         break;
     case 0x1c7: /* cmpxchg8b */
-        modrm = ldub(s->pc++);
+        modrm = ldub_code(s->pc++);
         mod = (modrm >> 6) & 3;
         if (mod == 3)
             goto illegal_op;
@@ -2291,7 +2300,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         break;
     case 0x8f: /* pop Ev */
         ot = dflag ? OT_LONG : OT_WORD;
-        modrm = ldub(s->pc++);
+        modrm = ldub_code(s->pc++);
         gen_pop_T0(s);
         s->popl_esp_hack = 2 << dflag;
         gen_ldst_modrm(s, modrm, ot, OR_TMP0, 1);
@@ -2301,9 +2310,9 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
     case 0xc8: /* enter */
         {
             int level;
-            val = lduw(s->pc);
+            val = lduw_code(s->pc);
             s->pc += 2;
-            level = ldub(s->pc++);
+            level = ldub_code(s->pc++);
             gen_enter(s, val, level);
         }
         break;
@@ -2369,7 +2378,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
             ot = OT_BYTE;
         else
             ot = dflag ? OT_LONG : OT_WORD;
-        modrm = ldub(s->pc++);
+        modrm = ldub_code(s->pc++);
         reg = (modrm >> 3) & 7;
         
         /* generate a generic store */
@@ -2381,7 +2390,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
             ot = OT_BYTE;
         else
             ot = dflag ? OT_LONG : OT_WORD;
-        modrm = ldub(s->pc++);
+        modrm = ldub_code(s->pc++);
         mod = (modrm >> 6) & 3;
         if (mod != 3)
             gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
@@ -2398,14 +2407,14 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
             ot = OT_BYTE;
         else
             ot = dflag ? OT_LONG : OT_WORD;
-        modrm = ldub(s->pc++);
+        modrm = ldub_code(s->pc++);
         reg = (modrm >> 3) & 7;
         
         gen_ldst_modrm(s, modrm, ot, OR_TMP0, 0);
         gen_op_mov_reg_T0[ot][reg]();
         break;
     case 0x8e: /* mov seg, Gv */
-        modrm = ldub(s->pc++);
+        modrm = ldub_code(s->pc++);
         reg = (modrm >> 3) & 7;
         if (reg >= 6 || reg == R_CS)
             goto illegal_op;
@@ -2422,7 +2431,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         }
         break;
     case 0x8c: /* mov Gv, seg */
-        modrm = ldub(s->pc++);
+        modrm = ldub_code(s->pc++);
         reg = (modrm >> 3) & 7;
         mod = (modrm >> 6) & 3;
         if (reg >= 6)
@@ -2444,7 +2453,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
             d_ot = dflag + OT_WORD;
             /* ot is the size of source */
             ot = (b & 1) + OT_BYTE;
-            modrm = ldub(s->pc++);
+            modrm = ldub_code(s->pc++);
             reg = ((modrm >> 3) & 7) + OR_EAX;
             mod = (modrm >> 6) & 3;
             rm = modrm & 7;
@@ -2481,7 +2490,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
 
     case 0x8d: /* lea */
         ot = dflag ? OT_LONG : OT_WORD;
-        modrm = ldub(s->pc++);
+        modrm = ldub_code(s->pc++);
         reg = (modrm >> 3) & 7;
         /* we must ensure that no segment is added */
         s->override = -1;
@@ -2574,7 +2583,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
             ot = OT_BYTE;
         else
             ot = dflag ? OT_LONG : OT_WORD;
-        modrm = ldub(s->pc++);
+        modrm = ldub_code(s->pc++);
         reg = (modrm >> 3) & 7;
         mod = (modrm >> 6) & 3;
         if (mod == 3) {
@@ -2613,7 +2622,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         op = R_GS;
     do_lxx:
         ot = dflag ? OT_LONG : OT_WORD;
-        modrm = ldub(s->pc++);
+        modrm = ldub_code(s->pc++);
         reg = (modrm >> 3) & 7;
         mod = (modrm >> 6) & 3;
         if (mod == 3)
@@ -2622,7 +2631,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         gen_op_ld_T1_A0[ot + s->mem_index]();
         gen_op_addl_A0_im(1 << (ot - OT_WORD + 1));
         /* load the segment first to handle exceptions properly */
-        gen_op_lduw_T0_A0();
+        gen_op_ldu_T0_A0[OT_WORD + s->mem_index]();
         gen_movl_seg_T0(s, op, pc_start - s->cs_base);
         /* then put the data */
         gen_op_mov_reg_T1[ot][reg]();
@@ -2645,7 +2654,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
             else
                 ot = dflag ? OT_LONG : OT_WORD;
             
-            modrm = ldub(s->pc++);
+            modrm = ldub_code(s->pc++);
             mod = (modrm >> 6) & 3;
             rm = modrm & 7;
             op = (modrm >> 3) & 7;
@@ -2662,7 +2671,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
                 gen_shift(s, op, ot, opreg, OR_ECX);
             } else {
                 if (shift == 2) {
-                    shift = ldub(s->pc++);
+                    shift = ldub_code(s->pc++);
                 }
                 gen_shifti(s, op, ot, opreg, shift);
             }
@@ -2696,7 +2705,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         shift = 0;
     do_shiftd:
         ot = dflag ? OT_LONG : OT_WORD;
-        modrm = ldub(s->pc++);
+        modrm = ldub_code(s->pc++);
         mod = (modrm >> 6) & 3;
         rm = modrm & 7;
         reg = (modrm >> 3) & 7;
@@ -2710,7 +2719,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         gen_op_mov_TN_reg[ot][1][reg]();
         
         if (shift) {
-            val = ldub(s->pc++);
+            val = ldub_code(s->pc++);
             val &= 0x1f;
             if (val) {
                 if (mod == 3)
@@ -2739,7 +2748,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         /************************/
         /* floats */
     case 0xd8 ... 0xdf: 
-        modrm = ldub(s->pc++);
+        modrm = ldub_code(s->pc++);
         mod = (modrm >> 6) & 3;
         rm = modrm & 7;
         op = ((b & 7) << 3) | ((modrm >> 3) & 7);
@@ -3256,7 +3265,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
                 ot = OT_BYTE;
             else
                 ot = dflag ? OT_LONG : OT_WORD;
-            val = ldub(s->pc++);
+            val = ldub_code(s->pc++);
             gen_op_movl_T0_im(val);
             gen_op_in[ot]();
             gen_op_mov_reg_T1[ot][R_EAX]();
@@ -3271,7 +3280,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
                 ot = OT_BYTE;
             else
                 ot = dflag ? OT_LONG : OT_WORD;
-            val = ldub(s->pc++);
+            val = ldub_code(s->pc++);
             gen_op_movl_T0_im(val);
             gen_op_mov_TN_reg[ot][1][R_EAX]();
             gen_op_out[ot]();
@@ -3309,7 +3318,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         /************************/
         /* control */
     case 0xc2: /* ret im */
-        val = ldsw(s->pc);
+        val = ldsw_code(s->pc);
         s->pc += 2;
         gen_pop_T0(s);
         gen_stack_update(s, val + (2 << s->dflag));
@@ -3327,7 +3336,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         gen_eob(s);
         break;
     case 0xca: /* lret im */
-        val = ldsw(s->pc);
+        val = ldsw_code(s->pc);
         s->pc += 2;
     do_lret:
         if (s->pe && !s->vm86) {
@@ -3443,13 +3452,13 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         break;
 
     case 0x190 ... 0x19f: /* setcc Gv */
-        modrm = ldub(s->pc++);
+        modrm = ldub_code(s->pc++);
         gen_setcc(s, b);
         gen_ldst_modrm(s, modrm, OT_BYTE, OR_TMP0, 1);
         break;
     case 0x140 ... 0x14f: /* cmov Gv, Ev */
         ot = dflag ? OT_LONG : OT_WORD;
-        modrm = ldub(s->pc++);
+        modrm = ldub_code(s->pc++);
         reg = (modrm >> 3) & 7;
         mod = (modrm >> 6) & 3;
         gen_setcc(s, b);
@@ -3542,7 +3551,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         /* bit operations */
     case 0x1ba: /* bt/bts/btr/btc Gv, im */
         ot = dflag ? OT_LONG : OT_WORD;
-        modrm = ldub(s->pc++);
+        modrm = ldub_code(s->pc++);
         op = (modrm >> 3) & 7;
         mod = (modrm >> 6) & 3;
         rm = modrm & 7;
@@ -3553,7 +3562,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
             gen_op_mov_TN_reg[ot][0][rm]();
         }
         /* load shift */
-        val = ldub(s->pc++);
+        val = ldub_code(s->pc++);
         gen_op_movl_T1_im(val);
         if (op < 4)
             goto illegal_op;
@@ -3581,7 +3590,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         op = 3;
     do_btx:
         ot = dflag ? OT_LONG : OT_WORD;
-        modrm = ldub(s->pc++);
+        modrm = ldub_code(s->pc++);
         reg = (modrm >> 3) & 7;
         mod = (modrm >> 6) & 3;
         rm = modrm & 7;
@@ -3610,7 +3619,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
     case 0x1bc: /* bsf */
     case 0x1bd: /* bsr */
         ot = dflag ? OT_LONG : OT_WORD;
-        modrm = ldub(s->pc++);
+        modrm = ldub_code(s->pc++);
         reg = (modrm >> 3) & 7;
         gen_ldst_modrm(s, modrm, ot, OR_TMP0, 0);
         gen_op_bsx_T0_cc[ot - OT_WORD][b & 1]();
@@ -3646,12 +3655,12 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         s->cc_op = CC_OP_EFLAGS;
         break;
     case 0xd4: /* aam */
-        val = ldub(s->pc++);
+        val = ldub_code(s->pc++);
         gen_op_aam(val);
         s->cc_op = CC_OP_LOGICB;
         break;
     case 0xd5: /* aad */
-        val = ldub(s->pc++);
+        val = ldub_code(s->pc++);
         gen_op_aad(val);
         s->cc_op = CC_OP_LOGICB;
         break;
@@ -3665,7 +3674,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         gen_interrupt(s, EXCP03_INT3, pc_start - s->cs_base, s->pc - s->cs_base);
         break;
     case 0xcd: /* int N */
-        val = ldub(s->pc++);
+        val = ldub_code(s->pc++);
         /* XXX: add error code for vm86 GPF */
         if (!s->vm86)
             gen_interrupt(s, val, pc_start - s->cs_base, s->pc - s->cs_base);
@@ -3718,7 +3727,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         break;
     case 0x62: /* bound */
         ot = dflag ? OT_LONG : OT_WORD;
-        modrm = ldub(s->pc++);
+        modrm = ldub_code(s->pc++);
         reg = (modrm >> 3) & 7;
         mod = (modrm >> 6) & 3;
         if (mod == 3)
@@ -3785,7 +3794,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         }
         break;
     case 0x100:
-        modrm = ldub(s->pc++);
+        modrm = ldub_code(s->pc++);
         mod = (modrm >> 6) & 3;
         op = (modrm >> 3) & 7;
         switch(op) {
@@ -3828,7 +3837,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         }
         break;
     case 0x101:
-        modrm = ldub(s->pc++);
+        modrm = ldub_code(s->pc++);
         mod = (modrm >> 6) & 3;
         op = (modrm >> 3) & 7;
         switch(op) {
@@ -3904,7 +3913,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         if (!s->pe || s->vm86)
             goto illegal_op;
         ot = dflag ? OT_LONG : OT_WORD;
-        modrm = ldub(s->pc++);
+        modrm = ldub_code(s->pc++);
         reg = (modrm >> 3) & 7;
         gen_ldst_modrm(s, modrm, ot, OR_TMP0, 0);
         gen_op_mov_TN_reg[ot][1][reg]();
@@ -3918,7 +3927,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         gen_op_mov_reg_T1[ot][reg]();
         break;
     case 0x118:
-        modrm = ldub(s->pc++);
+        modrm = ldub_code(s->pc++);
         mod = (modrm >> 6) & 3;
         op = (modrm >> 3) & 7;
         switch(op) {
@@ -3940,7 +3949,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         if (s->cpl != 0) {
             gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
-            modrm = ldub(s->pc++);
+            modrm = ldub_code(s->pc++);
             if ((modrm & 0xc0) != 0xc0)
                 goto illegal_op;
             rm = modrm & 7;
@@ -3970,7 +3979,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         if (s->cpl != 0) {
             gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
-            modrm = ldub(s->pc++);
+            modrm = ldub_code(s->pc++);
             if ((modrm & 0xc0) != 0xc0)
                 goto illegal_op;
             rm = modrm & 7;

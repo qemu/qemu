@@ -20,18 +20,19 @@
 #ifndef CPU_ALL_H
 #define CPU_ALL_H
 
-/* all CPU memory access use these macros */
-static inline int ldub(void *ptr)
+/* CPU memory access without any memory or io remapping */
+
+static inline int ldub_raw(void *ptr)
 {
     return *(uint8_t *)ptr;
 }
 
-static inline int ldsb(void *ptr)
+static inline int ldsb_raw(void *ptr)
 {
     return *(int8_t *)ptr;
 }
 
-static inline void stb(void *ptr, int v)
+static inline void stb_raw(void *ptr, int v)
 {
     *(uint8_t *)ptr = v;
 }
@@ -42,7 +43,7 @@ static inline void stb(void *ptr, int v)
 #if defined(WORDS_BIGENDIAN) || defined(__arm__)
 
 /* conservative code for little endian unaligned accesses */
-static inline int lduw(void *ptr)
+static inline int lduw_raw(void *ptr)
 {
 #ifdef __powerpc__
     int val;
@@ -54,7 +55,7 @@ static inline int lduw(void *ptr)
 #endif
 }
 
-static inline int ldsw(void *ptr)
+static inline int ldsw_raw(void *ptr)
 {
 #ifdef __powerpc__
     int val;
@@ -66,7 +67,7 @@ static inline int ldsw(void *ptr)
 #endif
 }
 
-static inline int ldl(void *ptr)
+static inline int ldl_raw(void *ptr)
 {
 #ifdef __powerpc__
     int val;
@@ -78,16 +79,16 @@ static inline int ldl(void *ptr)
 #endif
 }
 
-static inline uint64_t ldq(void *ptr)
+static inline uint64_t ldq_raw(void *ptr)
 {
     uint8_t *p = ptr;
     uint32_t v1, v2;
-    v1 = ldl(p);
-    v2 = ldl(p + 4);
+    v1 = ldl_raw(p);
+    v2 = ldl_raw(p + 4);
     return v1 | ((uint64_t)v2 << 32);
 }
 
-static inline void stw(void *ptr, int v)
+static inline void stw_raw(void *ptr, int v)
 {
 #ifdef __powerpc__
     __asm__ __volatile__ ("sthbrx %1,0,%2" : "=m" (*(uint16_t *)ptr) : "r" (v), "r" (ptr));
@@ -98,7 +99,7 @@ static inline void stw(void *ptr, int v)
 #endif
 }
 
-static inline void stl(void *ptr, int v)
+static inline void stl_raw(void *ptr, int v)
 {
 #ifdef __powerpc__
     __asm__ __volatile__ ("stwbrx %1,0,%2" : "=m" (*(uint32_t *)ptr) : "r" (v), "r" (ptr));
@@ -111,104 +112,104 @@ static inline void stl(void *ptr, int v)
 #endif
 }
 
-static inline void stq(void *ptr, uint64_t v)
+static inline void stq_raw(void *ptr, uint64_t v)
 {
     uint8_t *p = ptr;
-    stl(p, (uint32_t)v);
-    stl(p + 4, v >> 32);
+    stl_raw(p, (uint32_t)v);
+    stl_raw(p + 4, v >> 32);
 }
 
 /* float access */
 
-static inline float ldfl(void *ptr)
+static inline float ldfl_raw(void *ptr)
 {
     union {
         float f;
         uint32_t i;
     } u;
-    u.i = ldl(ptr);
+    u.i = ldl_raw(ptr);
     return u.f;
 }
 
-static inline void stfl(void *ptr, float v)
+static inline void stfl_raw(void *ptr, float v)
 {
     union {
         float f;
         uint32_t i;
     } u;
     u.f = v;
-    stl(ptr, u.i);
+    stl_raw(ptr, u.i);
 }
 
 
 #if defined(__arm__) && !defined(WORDS_BIGENDIAN)
 
 /* NOTE: arm is horrible as double 32 bit words are stored in big endian ! */
-static inline double ldfq(void *ptr)
+static inline double ldfq_raw(void *ptr)
 {
     union {
         double d;
         uint32_t tab[2];
     } u;
-    u.tab[1] = ldl(ptr);
-    u.tab[0] = ldl(ptr + 4);
+    u.tab[1] = ldl_raw(ptr);
+    u.tab[0] = ldl_raw(ptr + 4);
     return u.d;
 }
 
-static inline void stfq(void *ptr, double v)
+static inline void stfq_raw(void *ptr, double v)
 {
     union {
         double d;
         uint32_t tab[2];
     } u;
     u.d = v;
-    stl(ptr, u.tab[1]);
-    stl(ptr + 4, u.tab[0]);
+    stl_raw(ptr, u.tab[1]);
+    stl_raw(ptr + 4, u.tab[0]);
 }
 
 #else
-static inline double ldfq(void *ptr)
+static inline double ldfq_raw(void *ptr)
 {
     union {
         double d;
         uint64_t i;
     } u;
-    u.i = ldq(ptr);
+    u.i = ldq_raw(ptr);
     return u.d;
 }
 
-static inline void stfq(void *ptr, double v)
+static inline void stfq_raw(void *ptr, double v)
 {
     union {
         double d;
         uint64_t i;
     } u;
     u.d = v;
-    stq(ptr, u.i);
+    stq_raw(ptr, u.i);
 }
 #endif
 
 #elif defined(TARGET_WORDS_BIGENDIAN) && !defined(WORDS_BIGENDIAN)
 
-static inline int lduw(void *ptr)
+static inline int lduw_raw(void *ptr)
 {
     uint8_t *b = (uint8_t *) ptr;
     return (b[0]<<8|b[1]);
 }
 
-static inline int ldsw(void *ptr)
+static inline int ldsw_raw(void *ptr)
 {
     int8_t *b = (int8_t *) ptr;
     return (b[0]<<8|b[1]);
 }
 
-static inline int ldl(void *ptr)
+static inline int ldl_raw(void *ptr)
 {
     uint8_t *b = (uint8_t *) ptr;
     return (b[0]<<24|b[1]<<16|b[2]<<8|b[3]);
 }
 
-static inline uint64_t ldq(void *ptr)
+static inline uint64_t ldq_raw(void *ptr)
 {
     uint32_t a,b;
     a = ldl (ptr);
@@ -216,14 +217,14 @@ static inline uint64_t ldq(void *ptr)
     return (((uint64_t)a<<32)|b);
 }
 
-static inline void stw(void *ptr, int v)
+static inline void stw_raw(void *ptr, int v)
 {
     uint8_t *d = (uint8_t *) ptr;
     d[0] = v >> 8;
     d[1] = v;
 }
 
-static inline void stl(void *ptr, int v)
+static inline void stl_raw(void *ptr, int v)
 {
     uint8_t *d = (uint8_t *) ptr;
     d[0] = v >> 24;
@@ -232,7 +233,7 @@ static inline void stl(void *ptr, int v)
     d[3] = v;
 }
 
-static inline void stq(void *ptr, uint64_t v)
+static inline void stq_raw(void *ptr, uint64_t v)
 {
     stl (ptr, v);
     stl (ptr+4, v >> 32);
@@ -240,63 +241,101 @@ static inline void stq(void *ptr, uint64_t v)
 
 #else
 
-static inline int lduw(void *ptr)
+static inline int lduw_raw(void *ptr)
 {
     return *(uint16_t *)ptr;
 }
 
-static inline int ldsw(void *ptr)
+static inline int ldsw_raw(void *ptr)
 {
     return *(int16_t *)ptr;
 }
 
-static inline int ldl(void *ptr)
+static inline int ldl_raw(void *ptr)
 {
     return *(uint32_t *)ptr;
 }
 
-static inline uint64_t ldq(void *ptr)
+static inline uint64_t ldq_raw(void *ptr)
 {
     return *(uint64_t *)ptr;
 }
 
-static inline void stw(void *ptr, int v)
+static inline void stw_raw(void *ptr, int v)
 {
     *(uint16_t *)ptr = v;
 }
 
-static inline void stl(void *ptr, int v)
+static inline void stl_raw(void *ptr, int v)
 {
     *(uint32_t *)ptr = v;
 }
 
-static inline void stq(void *ptr, uint64_t v)
+static inline void stq_raw(void *ptr, uint64_t v)
 {
     *(uint64_t *)ptr = v;
 }
 
 /* float access */
 
-static inline float ldfl(void *ptr)
+static inline float ldfl_raw(void *ptr)
 {
     return *(float *)ptr;
 }
 
-static inline double ldfq(void *ptr)
+static inline double ldfq_raw(void *ptr)
 {
     return *(double *)ptr;
 }
 
-static inline void stfl(void *ptr, float v)
+static inline void stfl_raw(void *ptr, float v)
 {
     *(float *)ptr = v;
 }
 
-static inline void stfq(void *ptr, double v)
+static inline void stfq_raw(void *ptr, double v)
 {
     *(double *)ptr = v;
 }
 #endif
+
+/* MMU memory access macros */
+
+#if defined(CONFIG_USER_ONLY) 
+
+/* if user mode, no other memory access functions */
+#define ldub(p) ldub_raw(p)
+#define ldsb(p) ldsb_raw(p)
+#define lduw(p) lduw_raw(p)
+#define ldsw(p) ldsw_raw(p)
+#define ldl(p) ldl_raw(p)
+#define ldq(p) ldq_raw(p)
+#define ldfl(p) ldfl_raw(p)
+#define ldfq(p) ldfq_raw(p)
+#define stb(p, v) stb_raw(p, v)
+#define stw(p, v) stw_raw(p, v)
+#define stl(p, v) stl_raw(p, v)
+#define stq(p, v) stq_raw(p, v)
+#define stfl(p, v) stfl_raw(p, v)
+#define stfq(p, v) stfq_raw(p, v)
+
+#define ldub_code(p) ldub_raw(p)
+#define ldsb_code(p) ldsb_raw(p)
+#define lduw_code(p) lduw_raw(p)
+#define ldsw_code(p) ldsw_raw(p)
+#define ldl_code(p) ldl_raw(p)
+
+#define ldub_kernel(p) ldub_raw(p)
+#define ldsb_kernel(p) ldsb_raw(p)
+#define lduw_kernel(p) lduw_raw(p)
+#define ldsw_kernel(p) ldsw_raw(p)
+#define ldl_kernel(p) ldl_raw(p)
+#define stb_kernel(p, v) stb_raw(p, v)
+#define stw_kernel(p, v) stw_raw(p, v)
+#define stl_kernel(p, v) stl_raw(p, v)
+#define stq_kernel(p, v) stq_raw(p, v)
+
+#endif /* defined(CONFIG_USER_ONLY) */
 
 /* page related stuff */
 

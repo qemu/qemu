@@ -444,16 +444,20 @@ static inline void tb_alloc_page(TranslationBlock *tb, unsigned int page_index)
         prot = 0;
         for(addr = host_start; addr < host_end; addr += TARGET_PAGE_SIZE)
             prot |= page_get_flags(addr);
+#if !defined(CONFIG_SOFTMMU)
         mprotect((void *)host_start, host_page_size, 
                  (prot & PAGE_BITS) & ~PAGE_WRITE);
+#endif
+#if !defined(CONFIG_USER_ONLY)
+        /* suppress soft TLB */
+        /* XXX: must flush on all processor with same address space */
+        tlb_flush_page_write(cpu_single_env, host_start);
+#endif
 #ifdef DEBUG_TB_INVALIDATE
         printf("protecting code page: 0x%08lx\n", 
                host_start);
 #endif
         p->flags &= ~PAGE_WRITE;
-#ifdef DEBUG_TB_CHECK
-        tb_page_check();
-#endif
     }
 }
 
@@ -483,6 +487,9 @@ void tb_link(TranslationBlock *tb)
     if (page_index2 != page_index1) {
         tb_alloc_page(tb, page_index2);
     }
+#ifdef DEBUG_TB_CHECK
+    tb_page_check();
+#endif
     tb->jmp_first = (TranslationBlock *)((long)tb | 2);
     tb->jmp_next[0] = NULL;
     tb->jmp_next[1] = NULL;
@@ -517,20 +524,23 @@ int page_unprotect(unsigned long address)
     /* if the page was really writable, then we change its
        protection back to writable */
     if (prot & PAGE_WRITE_ORG) {
-        mprotect((void *)host_start, host_page_size, 
-                 (prot & PAGE_BITS) | PAGE_WRITE);
         pindex = (address - host_start) >> TARGET_PAGE_BITS;
-        p1[pindex].flags |= PAGE_WRITE;
-        /* and since the content will be modified, we must invalidate
-           the corresponding translated code. */
-        tb_invalidate_page(address);
-#ifdef DEBUG_TB_CHECK
-        tb_invalidate_check(address);
+        if (!(p1[pindex].flags & PAGE_WRITE)) {
+#if !defined(CONFIG_SOFTMMU)
+            mprotect((void *)host_start, host_page_size, 
+                     (prot & PAGE_BITS) | PAGE_WRITE);
 #endif
-        return 1;
-    } else {
-        return 0;
+            p1[pindex].flags |= PAGE_WRITE;
+            /* and since the content will be modified, we must invalidate
+               the corresponding translated code. */
+            tb_invalidate_page(address);
+#ifdef DEBUG_TB_CHECK
+            tb_invalidate_check(address);
+#endif
+            return 1;
+        }
     }
+    return 0;
 }
 
 /* call this function when system calls directly modify a memory area */
@@ -734,13 +744,17 @@ void cpu_abort(CPUState *env, const char *fmt, ...)
 /* unmap all maped pages and flush all associated code */
 void page_unmap(void)
 {
-    PageDesc *p, *pmap;
-    unsigned long addr;
-    int i, j, ret, j1;
+    PageDesc *pmap;
+    int i;
 
     for(i = 0; i < L1_SIZE; i++) {
         pmap = l1_map[i];
         if (pmap) {
+#if !defined(CONFIG_SOFTMMU)
+            PageDesc *p;
+            unsigned long addr;
+            int j, ret, j1;
+            
             p = pmap;
             for(j = 0;j < L2_SIZE;) {
                 if (p->flags & PAGE_VALID) {
@@ -763,6 +777,7 @@ void page_unmap(void)
                     j++;
                 }
             }
+#endif
             free(pmap);
             l1_map[i] = NULL;
         }
@@ -773,7 +788,7 @@ void page_unmap(void)
 
 void tlb_flush(CPUState *env)
 {
-#if defined(TARGET_I386)
+#if !defined(CONFIG_USER_ONLY)
     int i;
     for(i = 0; i < CPU_TLB_SIZE; i++) {
         env->tlb_read[0][i].address = -1;
@@ -784,16 +799,38 @@ void tlb_flush(CPUState *env)
 #endif
 }
 
+static inline void tlb_flush_entry(CPUTLBEntry *tlb_entry, uint32_t addr)
+{
+    if (addr == (tlb_entry->address & 
+                 (TARGET_PAGE_MASK | TLB_INVALID_MASK)))
+        tlb_entry->address = -1;
+}
+
 void tlb_flush_page(CPUState *env, uint32_t addr)
 {
-#if defined(TARGET_I386)
+#if !defined(CONFIG_USER_ONLY)
     int i;
 
+    addr &= TARGET_PAGE_MASK;
     i = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-    env->tlb_read[0][i].address = -1;
-    env->tlb_write[0][i].address = -1;
-    env->tlb_read[1][i].address = -1;
-    env->tlb_write[1][i].address = -1;
+    tlb_flush_entry(&env->tlb_read[0][i], addr);
+    tlb_flush_entry(&env->tlb_write[0][i], addr);
+    tlb_flush_entry(&env->tlb_read[1][i], addr);
+    tlb_flush_entry(&env->tlb_write[1][i], addr);
+#endif
+}
+
+/* make all write to page 'addr' trigger a TLB exception to detect
+   self modifying code */
+void tlb_flush_page_write(CPUState *env, uint32_t addr)
+{
+#if !defined(CONFIG_USER_ONLY)
+    int i;
+
+    addr &= TARGET_PAGE_MASK;
+    i = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
+    tlb_flush_entry(&env->tlb_write[0][i], addr);
+    tlb_flush_entry(&env->tlb_write[1][i], addr);
 #endif
 }
 
@@ -900,3 +937,25 @@ int cpu_register_io_memory(int io_index,
     }
     return io_index << IO_MEM_SHIFT;
 }
+
+#if !defined(CONFIG_USER_ONLY) 
+
+#define MMUSUFFIX _cmmu
+#define GETPC() NULL
+#define env cpu_single_env
+
+#define SHIFT 0
+#include "softmmu_template.h"
+
+#define SHIFT 1
+#include "softmmu_template.h"
+
+#define SHIFT 2
+#include "softmmu_template.h"
+
+#define SHIFT 3
+#include "softmmu_template.h"
+
+#undef env
+
+#endif

@@ -354,7 +354,7 @@ static void glue(vga_draw_line15_, DEPTH)(VGAState *s1, uint8_t *d,
 
     w = width;
     do {
-        v = lduw((void *)s);
+        v = lduw_raw((void *)s);
         r = (v >> 7) & 0xf8;
         g = (v >> 2) & 0xf8;
         b = (v << 3) & 0xf8;
@@ -379,7 +379,7 @@ static void glue(vga_draw_line16_, DEPTH)(VGAState *s1, uint8_t *d,
 
     w = width;
     do {
-        v = lduw((void *)s);
+        v = lduw_raw((void *)s);
         r = (v >> 8) & 0xf8;
         g = (v >> 3) & 0xfc;
         b = (v << 3) & 0xf8;

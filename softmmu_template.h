@@ -21,23 +21,31 @@
 
 #if DATA_SIZE == 8
 #define SUFFIX q
+#define USUFFIX q
 #define DATA_TYPE uint64_t
 #elif DATA_SIZE == 4
 #define SUFFIX l
+#define USUFFIX l
 #define DATA_TYPE uint32_t
 #elif DATA_SIZE == 2
 #define SUFFIX w
+#define USUFFIX uw
 #define DATA_TYPE uint16_t
 #elif DATA_SIZE == 1
 #define SUFFIX b
+#define USUFFIX ub
 #define DATA_TYPE uint8_t
 #else
 #error unsupported data size
 #endif
 
-static DATA_TYPE glue(slow_ld, SUFFIX)(unsigned long addr, void *retaddr);
-static void glue(slow_st, SUFFIX)(unsigned long addr, DATA_TYPE val,
-                                  void *retaddr);
+static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(unsigned long addr, 
+                                                        int is_user,
+                                                        void *retaddr);
+static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(unsigned long addr, 
+                                                   DATA_TYPE val, 
+                                                   int is_user,
+                                                   void *retaddr);
 
 static inline DATA_TYPE glue(io_read, SUFFIX)(unsigned long physaddr, 
                                               unsigned long tlb_addr)
@@ -81,16 +89,16 @@ static inline void glue(io_write, SUFFIX)(unsigned long physaddr,
 }
 
 /* handle all cases except unaligned access which span two pages */
-DATA_TYPE REGPARM(1) glue(glue(__ld, SUFFIX), _mmu)(unsigned long addr)
+DATA_TYPE REGPARM(1) glue(glue(__ld, SUFFIX), MMUSUFFIX)(unsigned long addr,
+                                                         int is_user)
 {
     DATA_TYPE res;
-    int is_user, index;
+    int index;
     unsigned long physaddr, tlb_addr;
     void *retaddr;
     
     /* test if there is match for unaligned or IO access */
     /* XXX: could done more in memory macro in a non portable way */
-    is_user = ((env->hflags & HF_CPL_MASK) == 3);
     index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
  redo:
     tlb_addr = env->tlb_read[is_user][index].address;
@@ -104,29 +112,31 @@ DATA_TYPE REGPARM(1) glue(glue(__ld, SUFFIX), _mmu)(unsigned long addr)
         } else if (((addr & 0xfff) + DATA_SIZE - 1) >= TARGET_PAGE_SIZE) {
             /* slow unaligned access (it spans two pages or IO) */
         do_unaligned_access:
-            retaddr = __builtin_return_address(0);
-            res = glue(slow_ld, SUFFIX)(addr, retaddr);
+            retaddr = GETPC();
+            res = glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(addr, 
+                                                         is_user, retaddr);
         } else {
             /* unaligned access in the same page */
-            res = glue(glue(ldu, SUFFIX), _raw)((uint8_t *)physaddr);
+            res = glue(glue(ld, USUFFIX), _raw)((uint8_t *)physaddr);
         }
     } else {
         /* the page is not in the TLB : fill it */
-        retaddr = __builtin_return_address(0);
-        tlb_fill(addr, 0, retaddr);
+        retaddr = GETPC();
+        tlb_fill(addr, 0, is_user, retaddr);
         goto redo;
     }
     return res;
 }
 
 /* handle all unaligned cases */
-static DATA_TYPE glue(slow_ld, SUFFIX)(unsigned long addr, void *retaddr)
+static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(unsigned long addr, 
+                                                        int is_user,
+                                                        void *retaddr)
 {
     DATA_TYPE res, res1, res2;
-    int is_user, index, shift;
+    int index, shift;
     unsigned long physaddr, tlb_addr, addr1, addr2;
 
-    is_user = ((env->hflags & HF_CPL_MASK) == 3);
     index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
  redo:
     tlb_addr = env->tlb_read[is_user][index].address;
@@ -142,8 +152,10 @@ static DATA_TYPE glue(slow_ld, SUFFIX)(unsigned long addr, void *retaddr)
             /* slow unaligned access (it spans two pages) */
             addr1 = addr & ~(DATA_SIZE - 1);
             addr2 = addr1 + DATA_SIZE;
-            res1 = glue(slow_ld, SUFFIX)(addr1, retaddr);
-            res2 = glue(slow_ld, SUFFIX)(addr2, retaddr);
+            res1 = glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(addr1, 
+                                                          is_user, retaddr);
+            res2 = glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(addr2, 
+                                                          is_user, retaddr);
             shift = (addr & (DATA_SIZE - 1)) * 8;
 #ifdef TARGET_WORDS_BIGENDIAN
             res = (res1 << shift) | (res2 >> ((DATA_SIZE * 8) - shift));
@@ -152,24 +164,25 @@ static DATA_TYPE glue(slow_ld, SUFFIX)(unsigned long addr, void *retaddr)
 #endif
         } else {
             /* unaligned/aligned access in the same page */
-            res = glue(glue(ldu, SUFFIX), _raw)((uint8_t *)physaddr);
+            res = glue(glue(ld, USUFFIX), _raw)((uint8_t *)physaddr);
         }
     } else {
         /* the page is not in the TLB : fill it */
-        tlb_fill(addr, 0, retaddr);
+        tlb_fill(addr, 0, is_user, retaddr);
         goto redo;
     }
     return res;
 }
 
 
-void REGPARM(2) glue(glue(__st, SUFFIX), _mmu)(unsigned long addr, DATA_TYPE val)
+void REGPARM(2) glue(glue(__st, SUFFIX), MMUSUFFIX)(unsigned long addr, 
+                                                    DATA_TYPE val,
+                                                    int is_user)
 {
     unsigned long physaddr, tlb_addr;
     void *retaddr;
-    int is_user, index;
+    int index;
     
-    is_user = ((env->hflags & HF_CPL_MASK) == 3);
     index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
  redo:
     tlb_addr = env->tlb_write[is_user][index].address;
@@ -182,28 +195,30 @@ void REGPARM(2) glue(glue(__st, SUFFIX), _mmu)(unsigned long addr, DATA_TYPE val
             glue(io_write, SUFFIX)(physaddr, val, tlb_addr);
         } else if (((addr & 0xfff) + DATA_SIZE - 1) >= TARGET_PAGE_SIZE) {
         do_unaligned_access:
-            retaddr = __builtin_return_address(0);
-            glue(slow_st, SUFFIX)(addr, val, retaddr);
+            retaddr = GETPC();
+            glue(glue(slow_st, SUFFIX), MMUSUFFIX)(addr, val, 
+                                                   is_user, retaddr);
         } else {
             /* aligned/unaligned access in the same page */
             glue(glue(st, SUFFIX), _raw)((uint8_t *)physaddr, val);
         }
     } else {
         /* the page is not in the TLB : fill it */
-        retaddr = __builtin_return_address(0);
-        tlb_fill(addr, 1, retaddr);
+        retaddr = GETPC();
+        tlb_fill(addr, 1, is_user, retaddr);
         goto redo;
     }
 }
 
 /* handles all unaligned cases */
-static void glue(slow_st, SUFFIX)(unsigned long addr, DATA_TYPE val,
-                                  void *retaddr)
+static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(unsigned long addr, 
+                                                   DATA_TYPE val,
+                                                   int is_user,
+                                                   void *retaddr)
 {
     unsigned long physaddr, tlb_addr;
-    int is_user, index, i;
+    int index, i;
 
-    is_user = ((env->hflags & HF_CPL_MASK) == 3);
     index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
  redo:
     tlb_addr = env->tlb_write[is_user][index].address;
@@ -219,9 +234,11 @@ static void glue(slow_st, SUFFIX)(unsigned long addr, DATA_TYPE val,
             /* XXX: not efficient, but simple */
             for(i = 0;i < DATA_SIZE; i++) {
 #ifdef TARGET_WORDS_BIGENDIAN
-                slow_stb(addr + i, val >> (((DATA_SIZE - 1) * 8) - (i * 8)), retaddr);
+                glue(slow_stb, MMUSUFFIX)(addr + i, val >> (((DATA_SIZE - 1) * 8) - (i * 8)), 
+                                          is_user, retaddr);
 #else
-                slow_stb(addr + i, val >> (i * 8), retaddr);
+                glue(slow_stb, MMUSUFFIX)(addr + i, val >> (i * 8), 
+                                          is_user, retaddr);
 #endif
             }
         } else {
@@ -230,7 +247,7 @@ static void glue(slow_st, SUFFIX)(unsigned long addr, DATA_TYPE val,
         }
     } else {
         /* the page is not in the TLB : fill it */
-        tlb_fill(addr, 1, retaddr);
+        tlb_fill(addr, 1, is_user, retaddr);
         goto redo;
     }
 }
@@ -238,4 +255,5 @@ static void glue(slow_st, SUFFIX)(unsigned long addr, DATA_TYPE val,
 #undef SHIFT
 #undef DATA_TYPE
 #undef SUFFIX
+#undef USUFFIX
 #undef DATA_SIZE

@@ -210,7 +210,9 @@ void cpu_x86_flush_tlb(CPUX86State *env, uint32_t addr)
     flags = page_get_flags(addr);
     if (flags & PAGE_VALID) {
         virt_addr = addr & ~0xfff;
+#if !defined(CONFIG_SOFTMMU)
         munmap((void *)virt_addr, 4096);
+#endif
         page_set_flags(virt_addr, virt_addr + 4096, 0);
     }
 }
@@ -221,15 +223,13 @@ void cpu_x86_flush_tlb(CPUX86State *env, uint32_t addr)
    1  = generate PF fault
    2  = soft MMU activation required for this block
 */
-int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr, int is_write)
+int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr, 
+                             int is_write, int is_user, int is_softmmu)
 {
     uint8_t *pde_ptr, *pte_ptr;
     uint32_t pde, pte, virt_addr;
-    int cpl, error_code, is_dirty, is_user, prot, page_size, ret;
+    int error_code, is_dirty, prot, page_size, ret;
     unsigned long pd;
-    
-    cpl = env->hflags & HF_CPL_MASK;
-    is_user = (cpl == 3);
     
 #ifdef DEBUG_MMU
     printf("MMU fault: addr=0x%08x w=%d u=%d eip=%08x\n", 
@@ -252,7 +252,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr, int is_write)
 
     /* page directory entry */
     pde_ptr = phys_ram_base + ((env->cr[3] & ~0xfff) + ((addr >> 20) & ~3));
-    pde = ldl(pde_ptr);
+    pde = ldl_raw(pde_ptr);
     if (!(pde & PG_PRESENT_MASK)) {
         error_code = 0;
         goto do_fault;
@@ -274,7 +274,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr, int is_write)
             pde |= PG_ACCESSED_MASK;
             if (is_dirty)
                 pde |= PG_DIRTY_MASK;
-            stl(pde_ptr, pde);
+            stl_raw(pde_ptr, pde);
         }
         
         pte = pde & ~0x003ff000; /* align to 4MB */
@@ -283,12 +283,12 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr, int is_write)
     } else {
         if (!(pde & PG_ACCESSED_MASK)) {
             pde |= PG_ACCESSED_MASK;
-            stl(pde_ptr, pde);
+            stl_raw(pde_ptr, pde);
         }
 
         /* page directory entry */
         pte_ptr = phys_ram_base + ((pde & ~0xfff) + ((addr >> 10) & 0xffc));
-        pte = ldl(pte_ptr);
+        pte = ldl_raw(pte_ptr);
         if (!(pte & PG_PRESENT_MASK)) {
             error_code = 0;
             goto do_fault;
@@ -308,7 +308,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr, int is_write)
             pte |= PG_ACCESSED_MASK;
             if (is_dirty)
                 pte |= PG_DIRTY_MASK;
-            stl(pte_ptr, pte);
+            stl_raw(pte_ptr, pte);
         }
         page_size = 4096;
         virt_addr = addr & ~0xfff;
@@ -325,7 +325,10 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr, int is_write)
     }
     
  do_mapping:
-    if (env->hflags & HF_SOFTMMU_MASK) {
+#if !defined(CONFIG_SOFTMMU)
+    if (is_softmmu) 
+#endif
+    {
         unsigned long paddr, vaddr, address, addend, page_offset;
         int index;
 
@@ -352,32 +355,39 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr, int is_write)
             env->tlb_write[is_user][index].address = address;
             env->tlb_write[is_user][index].addend = addend;
         }
-    }
-    ret = 0;
-    /* XXX: incorrect for 4MB pages */
-    pd = physpage_find(pte & ~0xfff);
-    if ((pd & 0xfff) != 0) {
-        /* IO access: no mapping is done as it will be handled by the
-           soft MMU */
-        if (!(env->hflags & HF_SOFTMMU_MASK))
-            ret = 2;
-    } else {
-        void *map_addr;
-        map_addr = mmap((void *)virt_addr, page_size, prot, 
-                        MAP_SHARED | MAP_FIXED, phys_ram_fd, pd);
-        if (map_addr == MAP_FAILED) {
-            fprintf(stderr, 
-                    "mmap failed when mapped physical address 0x%08x to virtual address 0x%08x\n",
-                    pte & ~0xfff, virt_addr);
-            exit(1);
-        }
-#ifdef DEBUG_MMU
-        printf("mmaping 0x%08x to virt 0x%08x pse=%d\n", 
-               pte & ~0xfff, virt_addr, (page_size != 4096));
-#endif
-        page_set_flags(virt_addr, virt_addr + page_size, 
+        page_set_flags(vaddr, vaddr + TARGET_PAGE_SIZE, 
                        PAGE_VALID | PAGE_EXEC | prot);
+        ret = 0;
     }
+#if !defined(CONFIG_SOFTMMU)
+    else {
+        ret = 0;
+        /* XXX: incorrect for 4MB pages */
+        pd = physpage_find(pte & ~0xfff);
+        if ((pd & 0xfff) != 0) {
+            /* IO access: no mapping is done as it will be handled by the
+               soft MMU */
+            if (!(env->hflags & HF_SOFTMMU_MASK))
+                ret = 2;
+        } else {
+            void *map_addr;
+            map_addr = mmap((void *)virt_addr, page_size, prot, 
+                            MAP_SHARED | MAP_FIXED, phys_ram_fd, pd);
+            if (map_addr == MAP_FAILED) {
+                fprintf(stderr, 
+                        "mmap failed when mapped physical address 0x%08x to virtual address 0x%08x\n",
+                        pte & ~0xfff, virt_addr);
+                exit(1);
+            }
+#ifdef DEBUG_MMU
+            printf("mmaping 0x%08x to virt 0x%08x pse=%d\n", 
+                   pte & ~0xfff, virt_addr, (page_size != 4096));
+#endif
+            page_set_flags(virt_addr, virt_addr + page_size, 
+                           PAGE_VALID | PAGE_EXEC | prot);
+        }
+    }
+#endif
     return ret;
  do_fault_protect:
     error_code = PG_ERROR_P_MASK;
