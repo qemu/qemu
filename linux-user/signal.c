@@ -198,7 +198,7 @@ void __attribute((noreturn)) force_sig(int sig)
 {
     int host_sig;
     host_sig = target_to_host_signal(sig);
-    fprintf(stderr, "gemu: uncaught target signal %d (%s) - exiting\n", 
+    fprintf(stderr, "qemu: uncaught target signal %d (%s) - exiting\n", 
             sig, strsignal(host_sig));
 #if 1
     _exit(-host_sig);
@@ -223,7 +223,7 @@ int queue_signal(int sig, target_siginfo_t *info)
     target_ulong handler;
 
 #if defined(DEBUG_SIGNAL)
-    fprintf(stderr, "queue_sigal: sig=%d\n", 
+    fprintf(stderr, "queue_signal: sig=%d\n", 
             sig);
 #endif
     k = &sigact_table[sig - 1];
@@ -317,7 +317,7 @@ static void host_signal_handler(int host_signum, siginfo_t *info,
     if (sig < 1 || sig > TARGET_NSIG)
         return;
 #if defined(DEBUG_SIGNAL)
-    fprintf(stderr, "gemu: got signal %d\n", sig);
+    fprintf(stderr, "qemu: got signal %d\n", sig);
     dump_regs(puc);
 #endif
     host_to_target_siginfo_noswap(&tinfo, info);
@@ -538,7 +538,6 @@ setup_sigcontext(struct target_sigcontext *sc, struct target_fpstate *fpstate,
 	/* non-iBCS2 extensions.. */
 	err |= __put_user(mask, &sc->oldmask);
 	err |= __put_user(/*current->thread.cr2*/ 0, &sc->cr2);
-
 	return err;
 }
 
@@ -859,7 +858,7 @@ void process_pending_signals(void *cpu_env)
 
  handle_signal:
 #ifdef DEBUG_SIGNAL
-    fprintf(stderr, "gemu: process signal %d\n", sig);
+    fprintf(stderr, "qemu: process signal %d\n", sig);
 #endif
     /* dequeue signal */
     q = k->first;
@@ -893,6 +892,14 @@ void process_pending_signals(void *cpu_env)
            end of the signal execution (see do_sigreturn) */
         host_to_target_sigset(&target_old_set, &old_set);
 
+        /* if the CPU is in VM86 mode, we restore the 32 bit values */
+#ifdef TARGET_I386
+        {
+            CPUX86State *env = cpu_env;
+            if (env->eflags & VM_MASK)
+                save_v86_state(env);
+        }
+#endif
         /* prepare the stack frame of the virtual CPU */
         if (k->sa.sa_flags & TARGET_SA_SIGINFO)
             setup_rt_frame(sig, k, &q->info, &target_old_set, cpu_env);

@@ -1,8 +1,41 @@
+version 0.1.4:
+
+ - more accurate VM86 emulation (can launch small DOS 16 bit
+   executables in wine).
+ - fixed push/pop fs/gs
+ - added iret instruction.
+
+version 0.1.3:
+
+ - S390 support (Ulrich Weigand)
+ - glibc 2.3.x compile fix (Ulrich Weigand)
+ - socketcall endian fix (Ulrich Weigand)
+ - struct sockaddr endian fix (Ulrich Weigand)
+ - sendmsg/recvmsg endian fix (Ulrich Weigand)
+ - execve endian fix (Ulrich Weigand)
+ - fdset endian fix (Ulrich Weigand)
+ - partial setsockopt syscall support (Ulrich Weigand)
+ - more accurate pushf/popf emulation
+ - first partial vm86() syscall support (can be used with runcom example).
+ - added bound, cmpxchg8b, cpuid instructions
+ - added 16 bit addressing support/override for string operations
+ - poll() fix
+ 
+version 0.1.2:
+
+ - compile fixes
+ - xlat instruction
+ - xchg instruction memory lock
+ - added simple vm86 example (not working with QEMU yet). The 54 byte
+   DOS executable 'pi_10.com' program was released by Bertram
+   Felgenhauer (more information at http://www.boo.net/~jasonp/pipage.html).
+
 version 0.1.1:
 
  - glibc 2.2 compilation fixes
  - added -s and -L options
  - binary distribution of x86 glibc and wine
+ - big endian fixes in ELF loader and getdents.
 
 version 0.1:
 

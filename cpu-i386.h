@@ -68,24 +68,24 @@
 #define VIP_MASK                0x00100000
 #define ID_MASK                 0x00200000
 
-#define EXCP00_DIVZ	1
-#define EXCP01_SSTP	2
-#define EXCP02_NMI	3
-#define EXCP03_INT3	4
-#define EXCP04_INTO	5
-#define EXCP05_BOUND	6
-#define EXCP06_ILLOP	7
-#define EXCP07_PREX	8
-#define EXCP08_DBLE	9
-#define EXCP09_XERR	10
-#define EXCP0A_TSS	11
-#define EXCP0B_NOSEG	12
-#define EXCP0C_STACK	13
-#define EXCP0D_GPF	14
-#define EXCP0E_PAGE	15
-#define EXCP10_COPR	17
-#define EXCP11_ALGN	18
-#define EXCP12_MCHK	19
+#define EXCP00_DIVZ	0
+#define EXCP01_SSTP	1
+#define EXCP02_NMI	2
+#define EXCP03_INT3	3
+#define EXCP04_INTO	4
+#define EXCP05_BOUND	5
+#define EXCP06_ILLOP	6
+#define EXCP07_PREX	7
+#define EXCP08_DBLE	8
+#define EXCP09_XERR	9
+#define EXCP0A_TSS	10
+#define EXCP0B_NOSEG	11
+#define EXCP0C_STACK	12
+#define EXCP0D_GPF	13
+#define EXCP0E_PAGE	14
+#define EXCP10_COPR	16
+#define EXCP11_ALGN	17
+#define EXCP12_MCHK	18
 
 #define EXCP_INTERRUPT 	256 /* async interruption */
 

@@ -755,6 +755,11 @@ struct target_modify_ldt_ldt_s {
     unsigned int flags;
 };
 
+
+/* vm86 defines */
+
+#define TARGET_BIOSSEG		0x0f000
+
 #define TARGET_VM86_SIGNAL	0	/* return due to signal */
 #define TARGET_VM86_UNKNOWN	1	/* unhandled GP fault - IO-instruction or similar */
 #define TARGET_VM86_INTx	2	/* int3/int x instruction (ARG = x) */

@@ -1,10 +1,11 @@
+- fix thread locks
+- fix thread stack liberation
+- fix x86 stack allocation
 - optimize translated cache chaining (DLL PLT-like system)
 - more syscalls (in particular all 64 bit ones, IPCs, fix 64 bit
   issues, fix 16 bit uid issues)
 - finish signal handing (fp87 state, more siginfo conversions)
 - verify thread support (clone() and various locks)
-- vm86 syscall support
 - overrides/16bit for string ops
 - make it self runnable (use same trick as ld.so : include its own relocator and libc)
-- improved 16 bit support 
 - fix FPU exceptions (in particular: gen_op_fpush not before mem load)

@@ -106,77 +106,172 @@ uint64_t gdt_table[6];
 
 //#define DEBUG_VM86
 
+static inline int is_revectored(int nr, struct target_revectored_struct *bitmap)
+{
+    return (tswap32(bitmap->__map[nr >> 5]) >> (nr & 0x1f)) & 1;
+}
+
+static inline uint8_t *seg_to_linear(unsigned int seg, unsigned int reg)
+{
+    return (uint8_t *)((seg << 4) + (reg & 0xffff));
+}
+
+static inline void pushw(CPUX86State *env, int val)
+{
+    env->regs[R_ESP] = (env->regs[R_ESP] & ~0xffff) | 
+        ((env->regs[R_ESP] - 2) & 0xffff);
+    *(uint16_t *)seg_to_linear(env->segs[R_SS], env->regs[R_ESP]) = val;
+}
+
+static inline unsigned int get_vflags(CPUX86State *env)
+{
+    unsigned int eflags;
+    eflags = env->eflags & ~(VM_MASK | RF_MASK | IF_MASK);
+    if (eflags & VIF_MASK)
+        eflags |= IF_MASK;
+    return eflags;
+}
+
+void save_v86_state(CPUX86State *env)
+{
+    TaskState *ts = env->opaque;
+#ifdef DEBUG_VM86
+    printf("save_v86_state\n");
+#endif
+
+    /* put the VM86 registers in the userspace register structure */
+    ts->target_v86->regs.eax = tswap32(env->regs[R_EAX]);
+    ts->target_v86->regs.ebx = tswap32(env->regs[R_EBX]);
+    ts->target_v86->regs.ecx = tswap32(env->regs[R_ECX]);
+    ts->target_v86->regs.edx = tswap32(env->regs[R_EDX]);
+    ts->target_v86->regs.esi = tswap32(env->regs[R_ESI]);
+    ts->target_v86->regs.edi = tswap32(env->regs[R_EDI]);
+    ts->target_v86->regs.ebp = tswap32(env->regs[R_EBP]);
+    ts->target_v86->regs.esp = tswap32(env->regs[R_ESP]);
+    ts->target_v86->regs.eip = tswap32(env->eip);
+    ts->target_v86->regs.cs = tswap16(env->segs[R_CS]);
+    ts->target_v86->regs.ss = tswap16(env->segs[R_SS]);
+    ts->target_v86->regs.ds = tswap16(env->segs[R_DS]);
+    ts->target_v86->regs.es = tswap16(env->segs[R_ES]);
+    ts->target_v86->regs.fs = tswap16(env->segs[R_FS]);
+    ts->target_v86->regs.gs = tswap16(env->segs[R_GS]);
+    ts->target_v86->regs.eflags = tswap32(env->eflags);
+
+    /* restore 32 bit registers */
+    env->regs[R_EAX] = ts->vm86_saved_regs.eax;
+    env->regs[R_EBX] = ts->vm86_saved_regs.ebx;
+    env->regs[R_ECX] = ts->vm86_saved_regs.ecx;
+    env->regs[R_EDX] = ts->vm86_saved_regs.edx;
+    env->regs[R_ESI] = ts->vm86_saved_regs.esi;
+    env->regs[R_EDI] = ts->vm86_saved_regs.edi;
+    env->regs[R_EBP] = ts->vm86_saved_regs.ebp;
+    env->regs[R_ESP] = ts->vm86_saved_regs.esp;
+    env->eflags = ts->vm86_saved_regs.eflags;
+    env->eip = ts->vm86_saved_regs.eip;
+    
+    cpu_x86_load_seg(env, R_CS, ts->vm86_saved_regs.cs);
+    cpu_x86_load_seg(env, R_SS, ts->vm86_saved_regs.ss);
+    cpu_x86_load_seg(env, R_DS, ts->vm86_saved_regs.ds);
+    cpu_x86_load_seg(env, R_ES, ts->vm86_saved_regs.es);
+    cpu_x86_load_seg(env, R_FS, ts->vm86_saved_regs.fs);
+    cpu_x86_load_seg(env, R_GS, ts->vm86_saved_regs.gs);
+}
+
+/* return from vm86 mode to 32 bit. The vm86() syscall will return
+   'retval' */
+static inline void return_to_32bit(CPUX86State *env, int retval)
+{
+#ifdef DEBUG_VM86
+    printf("return_to_32bit: ret=0x%x\n", retval);
+#endif
+    save_v86_state(env);
+    env->regs[R_EAX] = retval;
+}
+
+/* handle VM86 interrupt (NOTE: the CPU core currently does not
+   support TSS interrupt revectoring, so this code is always executed) */
+static void do_int(CPUX86State *env, int intno)
+{
+    TaskState *ts = env->opaque;
+    uint32_t *int_ptr, segoffs;
+    
+    if (env->segs[R_CS] == TARGET_BIOSSEG)
+        goto cannot_handle; /* XXX: I am not sure this is really useful */
+    if (is_revectored(intno, &ts->target_v86->int_revectored))
+        goto cannot_handle;
+    if (intno == 0x21 && is_revectored((env->regs[R_EAX] >> 8) & 0xff, 
+                                       &ts->target_v86->int21_revectored))
+        goto cannot_handle;
+    int_ptr = (uint32_t *)(intno << 2);
+    segoffs = tswap32(*int_ptr);
+    if ((segoffs >> 16) == TARGET_BIOSSEG)
+        goto cannot_handle;
+#ifdef DEBUG_VM86
+    printf("VM86: emulating int 0x%x. CS:IP=%04x:%04x\n", 
+           intno, segoffs >> 16, segoffs & 0xffff);
+#endif
+    /* save old state */
+    pushw(env, get_vflags(env));
+    pushw(env, env->segs[R_CS]);
+    pushw(env, env->eip);
+    /* goto interrupt handler */
+    env->eip = segoffs & 0xffff;
+    cpu_x86_load_seg(env, R_CS, segoffs >> 16);
+    env->eflags &= ~(VIF_MASK | TF_MASK);
+    return;
+ cannot_handle:
+#ifdef DEBUG_VM86
+    printf("VM86: return to 32 bits int 0x%x\n", intno);
+#endif
+    return_to_32bit(env, TARGET_VM86_INTx | (intno << 8));
+}
+
 void cpu_loop(struct CPUX86State *env)
 {
-    int err;
+    int trapnr;
     uint8_t *pc;
     target_siginfo_t info;
 
     for(;;) {
-        err = cpu_x86_exec(env);
+        trapnr = cpu_x86_exec(env);
         pc = env->seg_cache[R_CS].base + env->eip;
-        switch(err) {
+        switch(trapnr) {
         case EXCP0D_GPF:
             if (env->eflags & VM_MASK) {
-                TaskState *ts;
-                int ret;
 #ifdef DEBUG_VM86
-                printf("VM86 exception %04x:%08x %02x\n",
-                       env->segs[R_CS], env->eip, pc[0]);
+                printf("VM86 exception %04x:%08x %02x %02x\n",
+                       env->segs[R_CS], env->eip, pc[0], pc[1]);
 #endif
                 /* VM86 mode */
-                ts = env->opaque;
-
-                /* XXX: add all cases */
                 switch(pc[0]) {
                 case 0xcd: /* int */
                     env->eip += 2;
-                    ret = TARGET_VM86_INTx | (pc[1] << 8);
+                    do_int(env, pc[1]);
+                    break;
+                case 0x66:
+                    switch(pc[1]) {
+                    case 0xfb: /* sti */
+                    case 0x9d: /* popf */
+                    case 0xcf: /* iret */
+                        env->eip += 2;
+                        return_to_32bit(env, TARGET_VM86_STI);
+                        break;
+                    default:
+                        goto vm86_gpf;
+                    }
+                    break;
+                case 0xfb: /* sti */
+                case 0x9d: /* popf */
+                case 0xcf: /* iret */
+                    env->eip++;
+                    return_to_32bit(env, TARGET_VM86_STI);
                     break;
                 default:
+                vm86_gpf:
                     /* real VM86 GPF exception */
-                    ret = TARGET_VM86_UNKNOWN;
+                    return_to_32bit(env, TARGET_VM86_UNKNOWN);
                     break;
                 }
-#ifdef DEBUG_VM86
-                printf("ret=0x%x\n", ret);
-#endif
-                /* put the VM86 registers in the userspace register structure */
-                ts->target_v86->regs.eax = tswap32(env->regs[R_EAX]);
-                ts->target_v86->regs.ebx = tswap32(env->regs[R_EBX]);
-                ts->target_v86->regs.ecx = tswap32(env->regs[R_ECX]);
-                ts->target_v86->regs.edx = tswap32(env->regs[R_EDX]);
-                ts->target_v86->regs.esi = tswap32(env->regs[R_ESI]);
-                ts->target_v86->regs.edi = tswap32(env->regs[R_EDI]);
-                ts->target_v86->regs.ebp = tswap32(env->regs[R_EBP]);
-                ts->target_v86->regs.esp = tswap32(env->regs[R_ESP]);
-                ts->target_v86->regs.eip = tswap32(env->eip);
-                ts->target_v86->regs.cs = tswap16(env->segs[R_CS]);
-                ts->target_v86->regs.ss = tswap16(env->segs[R_SS]);
-                ts->target_v86->regs.ds = tswap16(env->segs[R_DS]);
-                ts->target_v86->regs.es = tswap16(env->segs[R_ES]);
-                ts->target_v86->regs.fs = tswap16(env->segs[R_FS]);
-                ts->target_v86->regs.gs = tswap16(env->segs[R_GS]);
-
-                /* restore 32 bit registers */
-                env->regs[R_EBX] = ts->vm86_saved_regs.ebx;
-                env->regs[R_ECX] = ts->vm86_saved_regs.ecx;
-                env->regs[R_EDX] = ts->vm86_saved_regs.edx;
-                env->regs[R_ESI] = ts->vm86_saved_regs.esi;
-                env->regs[R_EDI] = ts->vm86_saved_regs.edi;
-                env->regs[R_EBP] = ts->vm86_saved_regs.ebp;
-                env->regs[R_ESP] = ts->vm86_saved_regs.esp;
-                env->eflags = ts->vm86_saved_regs.eflags;
-                env->eip = ts->vm86_saved_regs.eip;
-
-                cpu_x86_load_seg(env, R_CS, ts->vm86_saved_regs.cs);
-                cpu_x86_load_seg(env, R_SS, ts->vm86_saved_regs.ss);
-                cpu_x86_load_seg(env, R_DS, ts->vm86_saved_regs.ds);
-                cpu_x86_load_seg(env, R_ES, ts->vm86_saved_regs.es);
-                cpu_x86_load_seg(env, R_FS, ts->vm86_saved_regs.fs);
-                cpu_x86_load_seg(env, R_GS, ts->vm86_saved_regs.gs);
-
-                env->regs[R_EAX] = ret;
             } else {
                 if (pc[0] == 0xcd && pc[1] == 0x80) {
                     /* syscall */
@@ -200,20 +295,28 @@ void cpu_loop(struct CPUX86State *env)
             }
             break;
         case EXCP00_DIVZ:
-            /* division by zero */
-            info.si_signo = SIGFPE;
-            info.si_errno = 0;
-            info.si_code = TARGET_FPE_INTDIV;
-            info._sifields._sigfault._addr = env->eip;
-            queue_signal(info.si_signo, &info);
+            if (env->eflags & VM_MASK) {
+                do_int(env, trapnr);
+            } else {
+                /* division by zero */
+                info.si_signo = SIGFPE;
+                info.si_errno = 0;
+                info.si_code = TARGET_FPE_INTDIV;
+                info._sifields._sigfault._addr = env->eip;
+                queue_signal(info.si_signo, &info);
+            }
             break;
         case EXCP04_INTO:
         case EXCP05_BOUND:
-            info.si_signo = SIGSEGV;
-            info.si_errno = 0;
-            info.si_code = 0;
-            info._sifields._sigfault._addr = 0;
-            queue_signal(info.si_signo, &info);
+            if (env->eflags & VM_MASK) {
+                do_int(env, trapnr);
+            } else {
+                info.si_signo = SIGSEGV;
+                info.si_errno = 0;
+                info.si_code = 0;
+                info._sifields._sigfault._addr = 0;
+                queue_signal(info.si_signo, &info);
+            }
             break;
         case EXCP06_ILLOP:
             info.si_signo = SIGILL;
@@ -226,8 +329,8 @@ void cpu_loop(struct CPUX86State *env)
             /* just indicate that signals should be handled asap */
             break;
         default:
-            fprintf(stderr, "0x%08lx: Unknown exception CPU %d, aborting\n", 
-                    (long)pc, err);
+            fprintf(stderr, "qemu: 0x%08lx: unhandled CPU exception 0x%x - aborting\n", 
+                    (long)pc, trapnr);
             abort();
         }
         process_pending_signals(env);
