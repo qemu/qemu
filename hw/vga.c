@@ -40,13 +40,13 @@
 #include <sys/wait.h>
 #include <netinet/in.h>
 
+#define NO_THUNK_TYPE_SIZE
+#include "thunk.h"
+
 #include "cpu.h"
 #include "exec-all.h"
 
 #include "vl.h"
-
-#define NO_THUNK_TYPE_SIZE
-#include "thunk.h"
 
 //#define DEBUG_VGA
 //#define DEBUG_VGA_MEM
