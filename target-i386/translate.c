@@ -874,8 +874,10 @@ static inline void gen_cmps(DisasContext *s, int ot)
 
 static inline void gen_ins(DisasContext *s, int ot)
 {
-    gen_op_in_DX_T0[ot]();
     gen_string_movl_A0_EDI(s);
+    gen_op_movl_T0_0();
+    gen_op_st_T0_A0[ot + s->mem_index]();
+    gen_op_in_DX_T0[ot]();
     gen_op_st_T0_A0[ot + s->mem_index]();
     gen_op_movl_T0_Dshift[ot]();
     if (s->aflag) {
