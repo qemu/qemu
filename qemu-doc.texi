@@ -319,13 +319,13 @@ it is not very useful, it is an important test to show the power of the
 emulator.
 
 Achieving self-virtualization is not easy because there may be address
-space conflicts. QEMU solves this problem by being an ELF shared object
-as the ld-linux.so ELF interpreter. That way, it can be relocated at
-load time.
+space conflicts. QEMU solves this problem by being an executable ELF
+shared object as the ld-linux.so ELF interpreter. That way, it can be
+relocated at load time.
 
-Since self-modifying code is not supported yet, QEMU cannot self
-virtualize itself in case of translation cache flush. This limitation
-will be suppressed soon.
+Since self-modifying code is not supported yet, QEMU cannot emulate
+itself in case of translation cache flush. This limitation will be
+suppressed soon.
 
 @section Bibliography
 
