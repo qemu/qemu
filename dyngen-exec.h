@@ -184,7 +184,7 @@ extern int printf(const char *, ...);
 #define __hidden 
 #endif
 
-#ifdef __alpha__
+#if defined(__alpha__)
 /* Suggested by Richard Henderson. This will result in code like
         ldah $0,__op_param1($29)        !gprelhigh
         lda $0,__op_param1($0)          !gprellow
@@ -197,11 +197,15 @@ extern int __op_param3 __hidden;
 #define PARAM2 ({ int _r; asm("" : "=r"(_r) : "0" (&__op_param2)); _r; })
 #define PARAM3 ({ int _r; asm("" : "=r"(_r) : "0" (&__op_param3)); _r; })
 #else
+#if defined(__APPLE__)
+static int __op_param1, __op_param2, __op_param3;
+#else
 extern int __op_param1, __op_param2, __op_param3;
+#endif
 #define PARAM1 ((long)(&__op_param1))
 #define PARAM2 ((long)(&__op_param2))
 #define PARAM3 ((long)(&__op_param3))
-#endif
+#endif /* !defined(__alpha__) */
 
 extern int __op_jmp0, __op_jmp1, __op_jmp2, __op_jmp3;
 
