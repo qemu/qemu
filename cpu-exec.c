@@ -346,7 +346,8 @@ int cpu_exec(CPUState *env1)
                 cs_base = env->segs[R_CS].base;
                 pc = cs_base + env->eip;
 #elif defined(TARGET_ARM)
-                flags = env->thumb;
+                flags = env->thumb | (env->vfp.vec_len << 1)
+                        | (env->vfp.vec_stride << 4);
                 cs_base = 0;
                 pc = env->regs[15];
 #elif defined(TARGET_SPARC)
@@ -619,6 +620,7 @@ int cpu_exec(CPUState *env1)
 #endif
 #elif defined(TARGET_ARM)
     env->cpsr = compute_cpsr();
+    /* XXX: Save/restore host fpu exception state?.  */
 #elif defined(TARGET_SPARC)
 #elif defined(TARGET_PPC)
 #else

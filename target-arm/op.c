@@ -2,6 +2,7 @@
  *  ARM micro operations
  * 
  *  Copyright (c) 2003 Fabrice Bellard
+ *  Copyright (c) 2005 CodeSourcery, LLC
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -857,17 +858,259 @@ void OPPROTO op_undef_insn(void)
     cpu_loop_exit();
 }
 
-/* thread support */
+/* VFP support.  We follow the convention used for VFP instrunctions:
+   Single precition routines have a "s" suffix, double precision a
+   "d" suffix.  */
 
-spinlock_t global_cpu_lock = SPIN_LOCK_UNLOCKED;
+#define VFP_OP(name, p) void OPPROTO op_vfp_##name##p(void)
 
-void cpu_lock(void)
+#define VFP_BINOP(name, op) \
+VFP_OP(name, s)             \
+{                           \
+    FT0s = FT0s op FT1s;    \
+}                           \
+VFP_OP(name, d)             \
+{                           \
+    FT0d = FT0d op FT1d;    \
+}
+VFP_BINOP(add, +)
+VFP_BINOP(sub, -)
+VFP_BINOP(mul, *)
+VFP_BINOP(div, /)
+#undef VFP_BINOP
+
+#define VFP_HELPER(name)  \
+VFP_OP(name, s)           \
+{                         \
+    do_vfp_##name##s();    \
+}                         \
+VFP_OP(name, d)           \
+{                         \
+    do_vfp_##name##d();    \
+}
+VFP_HELPER(abs)
+VFP_HELPER(sqrt)
+VFP_HELPER(cmp)
+VFP_HELPER(cmpe)
+#undef VFP_HELPER
+
+/* XXX: Will this do the right thing for NANs.  Should invert the signbit
+   without looking at the rest of the value.  */
+VFP_OP(neg, s)
 {
-    spin_lock(&global_cpu_lock);
+    FT0s = -FT0s;
 }
 
-void cpu_unlock(void)
+VFP_OP(neg, d)
 {
-    spin_unlock(&global_cpu_lock);
+    FT0d = -FT0d;
 }
 
+VFP_OP(F1_ld0, s)
+{
+    FT1s = 0.0f;
+}
+
+VFP_OP(F1_ld0, d)
+{
+    FT1d = 0.0;
+}
+
+/* Helper routines to perform bitwise copies between float and int.  */
+static inline float vfp_itos(uint32_t i)
+{
+    union {
+        uint32_t i;
+        float s;
+    } v;
+
+    v.i = i;
+    return v.s;
+}
+
+static inline uint32_t vfp_stoi(float s)
+{
+    union {
+        uint32_t i;
+        float s;
+    } v;
+
+    v.s = s;
+    return v.i;
+}
+
+/* Integer to float conversion.  */
+VFP_OP(uito, s)
+{
+    FT0s = (float)(uint32_t)vfp_stoi(FT0s);
+}
+
+VFP_OP(uito, d)
+{
+    FT0d = (double)(uint32_t)vfp_stoi(FT0s);
+}
+
+VFP_OP(sito, s)
+{
+    FT0s = (float)(int32_t)vfp_stoi(FT0s);
+}
+
+VFP_OP(sito, d)
+{
+    FT0d = (double)(int32_t)vfp_stoi(FT0s);
+}
+
+/* Float to integer conversion.  */
+VFP_OP(toui, s)
+{
+    FT0s = vfp_itos((uint32_t)FT0s);
+}
+
+VFP_OP(toui, d)
+{
+    FT0s = vfp_itos((uint32_t)FT0d);
+}
+
+VFP_OP(tosi, s)
+{
+    FT0s = vfp_itos((int32_t)FT0s);
+}
+
+VFP_OP(tosi, d)
+{
+    FT0s = vfp_itos((int32_t)FT0d);
+}
+
+/* TODO: Set rounding mode properly.  */
+VFP_OP(touiz, s)
+{
+    FT0s = vfp_itos((uint32_t)FT0s);
+}
+
+VFP_OP(touiz, d)
+{
+    FT0s = vfp_itos((uint32_t)FT0d);
+}
+
+VFP_OP(tosiz, s)
+{
+    FT0s = vfp_itos((int32_t)FT0s);
+}
+
+VFP_OP(tosiz, d)
+{
+    FT0s = vfp_itos((int32_t)FT0d);
+}
+
+/* floating point conversion */
+VFP_OP(fcvtd, s)
+{
+    FT0d = (double)FT0s;
+}
+
+VFP_OP(fcvts, d)
+{
+    FT0s = (float)FT0d;
+}
+
+/* Get and Put values from registers.  */
+VFP_OP(getreg_F0, d)
+{
+  FT0d = *(double *)((char *) env + PARAM1);
+}
+
+VFP_OP(getreg_F0, s)
+{
+  FT0s = *(float *)((char *) env + PARAM1);
+}
+
+VFP_OP(getreg_F1, d)
+{
+  FT1d = *(double *)((char *) env + PARAM1);
+}
+
+VFP_OP(getreg_F1, s)
+{
+  FT1s = *(float *)((char *) env + PARAM1);
+}
+
+VFP_OP(setreg_F0, d)
+{
+  *(double *)((char *) env + PARAM1) = FT0d;
+}
+
+VFP_OP(setreg_F0, s)
+{
+  *(float *)((char *) env + PARAM1) = FT0s;
+}
+
+VFP_OP(foobar, d)
+{
+  FT0d = env->vfp.regs.s[3];
+}
+
+void OPPROTO op_vfp_movl_T0_fpscr(void)
+{
+    do_vfp_get_fpscr ();
+}
+
+void OPPROTO op_vfp_movl_T0_fpscr_flags(void)
+{
+    T0 = env->vfp.fpscr & (0xf << 28);
+}
+
+void OPPROTO op_vfp_movl_fpscr_T0(void)
+{
+    do_vfp_set_fpscr();
+}
+
+/* Move between FT0s to T0  */
+void OPPROTO op_vfp_mrs(void)
+{
+    T0 = vfp_stoi(FT0s);
+}
+
+void OPPROTO op_vfp_msr(void)
+{
+    FT0s = vfp_itos(T0);
+}
+
+/* Move between FT0d and {T0,T1} */
+void OPPROTO op_vfp_mrrd(void)
+{
+    CPU_DoubleU u;
+    
+    u.d = FT0d;
+    T0 = u.l.lower;
+    T1 = u.l.upper;
+}
+
+void OPPROTO op_vfp_mdrr(void)
+{
+    CPU_DoubleU u;
+    
+    u.l.lower = T0;
+    u.l.upper = T1;
+    FT0d = u.d;
+}
+
+/* Floating point load/store.  Address is in T1 */
+void OPPROTO op_vfp_lds(void)
+{
+    FT0s = ldfl((void *)T1);
+}
+
+void OPPROTO op_vfp_ldd(void)
+{
+    FT0d = ldfq((void *)T1);
+}
+
+void OPPROTO op_vfp_sts(void)
+{
+    stfl((void *)T1, FT0s);
+}
+
+void OPPROTO op_vfp_std(void)
+{
+    stfq((void *)T1, FT0d);
+}

@@ -15,6 +15,7 @@ version 0.6.2:
   - PC parallel port support (Mark Jonckheere)
   - initial SPARC64 support (Blue Swirl)
   - armv5te user mode support (Paul Brook)
+  - ARM VFP support (Paul Brook)
 
 version 0.6.1:
 

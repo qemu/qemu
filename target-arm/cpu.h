@@ -29,6 +29,14 @@
 #define EXCP_PREFETCH_ABORT  3
 #define EXCP_DATA_ABORT      4
 
+/* We currently assume float and double are IEEE single and double
+   precision respectively.
+   Doing runtime conversions is tricky because VFP registers may contain
+   integer values (eg. as the result of a FTOSI instruction).
+   A double precision register load/store must also load/store the
+   corresponding single precision pair, although it is undefined how
+   these overlap.  */
+
 typedef struct CPUARMState {
     uint32_t regs[16];
     uint32_t cpsr;
@@ -50,6 +58,7 @@ typedef struct CPUARMState {
     int interrupt_request;
     struct TranslationBlock *current_tb;
     int user_mode_only;
+    uint32_t address;
 
     /* in order to avoid passing too many arguments to the memory
        write helpers, we store some rarely used information in the CPU
@@ -58,6 +67,25 @@ typedef struct CPUARMState {
                                    written */
     unsigned long mem_write_vaddr; /* target virtual addr at which the
                                       memory was written */
+    /* VFP coprocessor state.  */
+    struct {
+        union {
+            float s[32];
+            double d[16];
+        } regs;
+
+        /* We store these fpcsr fields separately for convenience.  */
+        int vec_len;
+        int vec_stride;
+
+        uint32_t fpscr;
+
+        /* Temporary variables if we don't have spare fp regs.  */
+        float tmp0s, tmp1s;
+        double tmp0d, tmp1d;
+
+    } vfp;
+
     /* user data */
     void *opaque;
 } CPUARMState;

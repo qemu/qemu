@@ -2,6 +2,7 @@
  *  ARM translation
  * 
  *  Copyright (c) 2003 Fabrice Bellard
+ *  Copyright (c) 2005 CodeSourcery, LLC
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -354,7 +355,527 @@ static inline void gen_add_datah_offset(DisasContext *s, unsigned int insn)
     }
 }
 
-static void disas_arm_insn(DisasContext *s)
+#define VFP_OP(name)                      \
+static inline void gen_vfp_##name(int dp) \
+{                                         \
+    if (dp)                               \
+        gen_op_vfp_##name##d();           \
+    else                                  \
+        gen_op_vfp_##name##s();           \
+}
+
+VFP_OP(add)
+VFP_OP(sub)
+VFP_OP(mul)
+VFP_OP(div)
+VFP_OP(neg)
+VFP_OP(abs)
+VFP_OP(sqrt)
+VFP_OP(cmp)
+VFP_OP(cmpe)
+VFP_OP(F1_ld0)
+VFP_OP(uito)
+VFP_OP(sito)
+VFP_OP(toui)
+VFP_OP(touiz)
+VFP_OP(tosi)
+VFP_OP(tosiz)
+VFP_OP(ld)
+VFP_OP(st)
+
+#undef VFP_OP
+
+static inline void gen_mov_F0_vreg(int dp, int reg)
+{
+    if (dp)
+        gen_op_vfp_getreg_F0d(offsetof(CPUARMState, vfp.regs.d[reg]));
+    else
+        gen_op_vfp_getreg_F0s(offsetof(CPUARMState, vfp.regs.s[reg]));
+}
+
+static inline void gen_mov_F1_vreg(int dp, int reg)
+{
+    if (dp)
+        gen_op_vfp_getreg_F1d(offsetof(CPUARMState, vfp.regs.d[reg]));
+    else
+        gen_op_vfp_getreg_F1s(offsetof(CPUARMState, vfp.regs.s[reg]));
+}
+
+static inline void gen_mov_vreg_F0(int dp, int reg)
+{
+    if (dp)
+        gen_op_vfp_setreg_F0d(offsetof(CPUARMState, vfp.regs.d[reg]));
+    else
+        gen_op_vfp_setreg_F0s(offsetof(CPUARMState, vfp.regs.s[reg]));
+}
+
+/* Disassemble a VFP instruction.  Returns nonzero if an error occured
+   (ie. an undefined instruction).  */
+static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
+{
+    uint32_t rd, rn, rm, op, i, n, offset, delta_d, delta_m, bank_mask;
+    int dp, veclen;
+
+    dp = ((insn & 0xf00) == 0xb00);
+    switch ((insn >> 24) & 0xf) {
+    case 0xe:
+        if (insn & (1 << 4)) {
+            /* single register transfer */
+            if ((insn & 0x6f) != 0x00)
+                return 1;
+            rd = (insn >> 12) & 0xf;
+            if (dp) {
+                if (insn & 0x80)
+                    return 1;
+                rn = (insn >> 16) & 0xf;
+                /* Get the existing value even for arm->vfp moves because
+                   we only set half the register.  */
+                gen_mov_F0_vreg(1, rn);
+                gen_op_vfp_mrrd();
+                if (insn & (1 << 20)) {
+                    /* vfp->arm */
+                    if (insn & (1 << 21))
+                        gen_movl_reg_T1(s, rd);
+                    else
+                        gen_movl_reg_T0(s, rd);
+                } else {
+                    /* arm->vfp */
+                    if (insn & (1 << 21))
+                        gen_movl_T1_reg(s, rd);
+                    else
+                        gen_movl_T0_reg(s, rd);
+                    gen_op_vfp_mdrr();
+                    gen_mov_vreg_F0(dp, rn);
+                }
+            } else {
+                rn = ((insn >> 15) & 0x1e) | ((insn >> 7) & 1);
+                if (insn & (1 << 20)) {
+                    /* vfp->arm */
+                    if (insn & (1 << 21)) {
+                        /* system register */
+                        switch (rn) {
+                        case 0: /* fpsid */
+                            n = 0x0091A0000;
+                            break;
+                        case 2: /* fpscr */
+			    if (rd == 15)
+				gen_op_vfp_movl_T0_fpscr_flags();
+			    else
+				gen_op_vfp_movl_T0_fpscr();
+                            break;
+                        default:
+                            return 1;
+                        }
+                    } else {
+                        gen_mov_F0_vreg(0, rn);
+                        gen_op_vfp_mrs();
+                    }
+                    if (rd == 15) {
+                        /* This will only set the 4 flag bits */
+                        gen_op_movl_psr_T0();
+                    } else
+                        gen_movl_reg_T0(s, rd);
+                } else {
+                    /* arm->vfp */
+                    gen_movl_T0_reg(s, rd);
+                    if (insn & (1 << 21)) {
+                        /* system register */
+                        switch (rn) {
+                        case 0: /* fpsid */
+                            /* Writes are ignored.  */
+                            break;
+                        case 2: /* fpscr */
+                            gen_op_vfp_movl_fpscr_T0();
+                            /* This could change vector settings, so jump to
+                               the next instuction.  */
+                            gen_op_movl_T0_im(s->pc);
+                            gen_movl_reg_T0(s, 15);
+                            s->is_jmp = DISAS_UPDATE;
+                            break;
+                        default:
+                            return 1;
+                        }
+                    } else {
+                        gen_op_vfp_msr();
+                        gen_mov_vreg_F0(0, rn);
+                    }
+                }
+            }
+        } else {
+            /* data processing */
+            /* The opcode is in bits 23, 21, 20 and 6.  */
+            op = ((insn >> 20) & 8) | ((insn >> 19) & 6) | ((insn >> 6) & 1);
+            if (dp) {
+                if (op == 15) {
+                    /* rn is opcode */
+                    rn = ((insn >> 15) & 0x1e) | ((insn >> 7) & 1);
+                } else {
+                    /* rn is register number */
+                    if (insn & (1 << 7))
+                        return 1;
+                    rn = (insn >> 16) & 0xf;
+                }
+
+                if (op == 15 && (rn == 15 || rn > 17)) {
+                    /* Integer or single precision destination.  */
+                    rd = ((insn >> 11) & 0x1e) | ((insn >> 22) & 1);
+                } else {
+                    if (insn & (1 << 22))
+                        return 1;
+                    rd = (insn >> 12) & 0xf;
+                }
+
+                if (op == 15 && (rn == 16 || rn == 17)) {
+                    /* Integer source.  */
+                    rm = ((insn << 1) & 0x1e) | ((insn >> 5) & 1);
+                } else {
+                    if (insn & (1 << 5))
+                        return 1;
+                    rm = insn & 0xf;
+                }
+            } else {
+                rn = ((insn >> 15) & 0x1e) | ((insn >> 7) & 1);
+                if (op == 15 && rn == 15) {
+                    /* Double precision destination.  */
+                    if (insn & (1 << 22))
+                        return 1;
+                    rd = (insn >> 12) & 0xf;
+                } else
+                    rd = ((insn >> 11) & 0x1e) | ((insn >> 22) & 1);
+                rm = ((insn << 1) & 0x1e) | ((insn >> 5) & 1);
+            }
+
+            veclen = env->vfp.vec_len;
+            if (op == 15 && rn > 3)
+                veclen = 0;
+
+            /* Shut up compiler warnings.  */
+            delta_m = 0;
+            delta_d = 0;
+            bank_mask = 0;
+            
+            if (veclen > 0) {
+                if (dp)
+                    bank_mask = 0xc;
+                else
+                    bank_mask = 0x18;
+
+                /* Figure out what type of vector operation this is.  */
+                if ((rd & bank_mask) == 0) {
+                    /* scalar */
+                    veclen = 0;
+                } else {
+                    if (dp)
+                        delta_d = (env->vfp.vec_stride >> 1) + 1;
+                    else
+                        delta_d = env->vfp.vec_stride + 1;
+
+                    if ((rm & bank_mask) == 0) {
+                        /* mixed scalar/vector */
+                        delta_m = 0;
+                    } else {
+                        /* vector */
+                        delta_m = delta_d;
+                    }
+                }
+            }
+
+            /* Load the initial operands.  */
+            if (op == 15) {
+                switch (rn) {
+                case 16:
+                case 17:
+                    /* Integer source */
+                    gen_mov_F0_vreg(0, rm);
+                    break;
+                case 8:
+                case 9:
+                    /* Compare */
+                    gen_mov_F0_vreg(dp, rd);
+                    gen_mov_F1_vreg(dp, rm);
+                    break;
+                case 10:
+                case 11:
+                    /* Compare with zero */
+                    gen_mov_F0_vreg(dp, rd);
+                    gen_vfp_F1_ld0(dp);
+                    break;
+                default:
+                    /* One source operand.  */
+                    gen_mov_F0_vreg(dp, rm);
+                }
+            } else {
+                /* Two source operands.  */
+                gen_mov_F0_vreg(dp, rn);
+                gen_mov_F1_vreg(dp, rm);
+            }
+
+            for (;;) {
+                /* Perform the calculation.  */
+                switch (op) {
+                case 0: /* mac: fd + (fn * fm) */
+                    gen_vfp_mul(dp);
+                    gen_mov_F1_vreg(dp, rd);
+                    gen_vfp_add(dp);
+                    break;
+                case 1: /* nmac: fd - (fn * fm) */
+                    gen_vfp_mul(dp);
+                    gen_vfp_neg(dp);
+                    gen_mov_F1_vreg(dp, rd);
+                    gen_vfp_add(dp);
+                    break;
+                case 2: /* msc: -fd + (fn * fm) */
+                    gen_vfp_mul(dp);
+                    gen_mov_F1_vreg(dp, rd);
+                    gen_vfp_sub(dp);
+                    break;
+                case 3: /* nmsc: -fd - (fn * fm)  */
+                    gen_vfp_mul(dp);
+                    gen_mov_F1_vreg(dp, rd);
+                    gen_vfp_add(dp);
+                    gen_vfp_neg(dp);
+                    break;
+                case 4: /* mul: fn * fm */
+                    gen_vfp_mul(dp);
+                    break;
+                case 5: /* nmul: -(fn * fm) */
+                    gen_vfp_mul(dp);
+                    gen_vfp_neg(dp);
+                    break;
+                case 6: /* add: fn + fm */
+                    gen_vfp_add(dp);
+                    break;
+                case 7: /* sub: fn - fm */
+                    gen_vfp_sub(dp);
+                    break;
+                case 8: /* div: fn / fm */
+                    gen_vfp_div(dp);
+                    break;
+                case 15: /* extension space */
+                    switch (rn) {
+                    case 0: /* cpy */
+                        /* no-op */
+                        break;
+                    case 1: /* abs */
+                        gen_vfp_abs(dp);
+                        break;
+                    case 2: /* neg */
+                        gen_vfp_neg(dp);
+                        break;
+                    case 3: /* sqrt */
+                        gen_vfp_sqrt(dp);
+                        break;
+                    case 8: /* cmp */
+                        gen_vfp_cmp(dp);
+                        break;
+                    case 9: /* cmpe */
+                        gen_vfp_cmpe(dp);
+                        break;
+                    case 10: /* cmpz */
+                        gen_vfp_cmp(dp);
+                        break;
+                    case 11: /* cmpez */
+                        gen_vfp_F1_ld0(dp);
+                        gen_vfp_cmpe(dp);
+                        break;
+                    case 15: /* single<->double conversion */
+                        if (dp)
+                            gen_op_vfp_fcvtsd();
+                        else
+                            gen_op_vfp_fcvtds();
+                        break;
+                    case 16: /* fuito */
+                        gen_vfp_uito(dp);
+                        break;
+                    case 17: /* fsito */
+                        gen_vfp_sito(dp);
+                        break;
+                    case 24: /* ftoui */
+                        gen_vfp_toui(dp);
+                        break;
+                    case 25: /* ftouiz */
+                        gen_vfp_touiz(dp);
+                        break;
+                    case 26: /* ftosi */
+                        gen_vfp_tosi(dp);
+                        break;
+                    case 27: /* ftosiz */
+                        gen_vfp_tosiz(dp);
+                        break;
+                    default: /* undefined */
+                        printf ("rn:%d\n", rn);
+                        return 1;
+                    }
+                    break;
+                default: /* undefined */
+                    printf ("op:%d\n", op);
+                    return 1;
+                }
+
+                /* Write back the result.  */
+                if (op == 15 && (rn >= 8 && rn <= 11))
+                    ; /* Comparison, do nothing.  */
+                else if (op == 15 && rn > 17)
+                    /* Integer result.  */
+                    gen_mov_vreg_F0(0, rd);
+                else if (op == 15 && rn == 15)
+                    /* conversion */
+                    gen_mov_vreg_F0(!dp, rd);
+                else
+                    gen_mov_vreg_F0(dp, rd);
+
+                /* break out of the loop if we have finished  */
+                if (veclen == 0)
+                    break;
+
+                if (op == 15 && delta_m == 0) {
+                    /* single source one-many */
+                    while (veclen--) {
+                        rd = ((rd + delta_d) & (bank_mask - 1))
+                             | (rd & bank_mask);
+                        gen_mov_vreg_F0(dp, rd);
+                    }
+                    break;
+                }
+                /* Setup the next operands.  */
+                veclen--;
+                rd = ((rd + delta_d) & (bank_mask - 1))
+                     | (rd & bank_mask);
+
+                if (op == 15) {
+                    /* One source operand.  */
+                    rm = ((rm + delta_m) & (bank_mask - 1))
+                         | (rm & bank_mask);
+                    gen_mov_F0_vreg(dp, rm);
+                } else {
+                    /* Two source operands.  */
+                    rn = ((rn + delta_d) & (bank_mask - 1))
+                         | (rn & bank_mask);
+                    gen_mov_F0_vreg(dp, rn);
+                    if (delta_m) {
+                        rm = ((rm + delta_m) & (bank_mask - 1))
+                             | (rm & bank_mask);
+                        gen_mov_F1_vreg(dp, rm);
+                    }
+                }
+            }
+        }
+        break;
+    case 0xc:
+    case 0xd:
+        if (dp && (insn & (1 << 22))) {
+            /* two-register transfer */
+            rn = (insn >> 16) & 0xf;
+            rd = (insn >> 12) & 0xf;
+            if (dp) {
+                if (insn & (1 << 5))
+                    return 1;
+                rm = insn & 0xf;
+            } else
+                rm = ((insn << 1) & 0x1e) | ((insn >> 5) & 1);
+
+            if (insn & (1 << 20)) {
+                /* vfp->arm */
+                if (dp) {
+                    gen_mov_F0_vreg(1, rm);
+                    gen_op_vfp_mrrd();
+                    gen_movl_reg_T0(s, rd);
+                    gen_movl_reg_T1(s, rn);
+                } else {
+                    gen_mov_F0_vreg(0, rm);
+                    gen_op_vfp_mrs();
+                    gen_movl_reg_T0(s, rn);
+                    gen_mov_F0_vreg(0, rm + 1);
+                    gen_op_vfp_mrs();
+                    gen_movl_reg_T0(s, rd);
+                }
+            } else {
+                /* arm->vfp */
+                if (dp) {
+                    gen_movl_T0_reg(s, rd);
+                    gen_movl_T1_reg(s, rn);
+                    gen_op_vfp_mdrr();
+                    gen_mov_vreg_F0(1, rm);
+                } else {
+                    gen_movl_T0_reg(s, rn);
+                    gen_op_vfp_msr();
+                    gen_mov_vreg_F0(0, rm);
+                    gen_movl_T0_reg(s, rd);
+                    gen_op_vfp_msr();
+                    gen_mov_vreg_F0(0, rm + 1);
+                }
+            }
+        } else {
+            /* Load/store */
+            rn = (insn >> 16) & 0xf;
+            if (dp)
+                rd = (insn >> 12) & 0xf;
+            else
+                rd = ((insn >> 11) & 0x1e) | ((insn >> 22) & 1);
+            gen_movl_T1_reg(s, rn);
+            if ((insn & 0x01200000) == 0x01000000) {
+                /* Single load/store */
+                offset = (insn & 0xff) << 2;
+                if ((insn & (1 << 23)) == 0)
+                    offset = -offset;
+                gen_op_addl_T1_im(offset);
+                if (insn & (1 << 20)) {
+                    gen_vfp_ld(dp);
+                    gen_mov_vreg_F0(dp, rd);
+                } else {
+                    gen_mov_F0_vreg(dp, rd);
+                    gen_vfp_st(dp);
+                }
+            } else {
+                /* load/store multiple */
+                if (dp)
+                    n = (insn >> 1) & 0x7f;
+                else
+                    n = insn & 0xff;
+
+                if (insn & (1 << 24)) /* pre-decrement */
+                    gen_op_addl_T1_im(-((insn & 0xff) << 2));
+
+                if (dp)
+                    offset = 8;
+                else
+                    offset = 4;
+                for (i = 0; i < n; i++) {
+                    if (insn & (1 << 20)) {
+                        /* load */
+                        gen_vfp_ld(dp);
+                        gen_mov_vreg_F0(dp, rd + i);
+                    } else {
+                        /* store */
+                        gen_mov_F0_vreg(dp, rd + i);
+                        gen_vfp_st(dp);
+                    }
+                    gen_op_addl_T1_im(offset);
+                }
+                if (insn & (1 << 21)) {
+                    /* writeback */
+                    if (insn & (1 << 24))
+                        offset = -offset * n;
+                    else if (dp && (insn & 1))
+                        offset = 4;
+                    else
+                        offset = 0;
+
+                    if (offset != 0)
+                        gen_op_addl_T1_im(offset);
+                    gen_movl_reg_T1(s, rn);
+                }
+            }
+        }
+        break;
+    default:
+        /* Should never happen.  */
+        return 1;
+    }
+    return 0;
+}
+
+static void disas_arm_insn(CPUState * env, DisasContext *s)
 {
     unsigned int cond, insn, val, op1, i, shift, rm, rs, rn, rd, sh;
     
@@ -363,6 +884,7 @@ static void disas_arm_insn(DisasContext *s)
     
     cond = insn >> 28;
     if (cond == 0xf){
+        /* Unconditional instructions.  */
         if ((insn & 0x0d70f000) == 0x0550f000)
             return; /* PLD */
         else if ((insn & 0x0e000000) == 0x0a000000) {
@@ -381,6 +903,10 @@ static void disas_arm_insn(DisasContext *s)
             gen_op_movl_T0_im(val);
             gen_bx(s);
             return;
+        } else if ((insn & 0x0fe00000) == 0x0c400000) {
+            /* Coprocessor double register transfer.  */
+        } else if ((insn & 0x0f000010) == 0x0e000010) {
+            /* Additional coprocessor register transfer.  */
         }
         goto illegal_op;
     }
@@ -934,6 +1460,22 @@ static void disas_arm_insn(DisasContext *s)
                 s->is_jmp = DISAS_TB_JUMP;
             }
             break;
+        case 0xc:
+        case 0xd:
+        case 0xe:
+            /* Coprocessor.  */
+            op1 = (insn >> 8) & 0xf;
+            switch (op1) {
+            case 10:
+            case 11:
+                if (disas_vfp_insn (env, s, insn))
+                    goto illegal_op;
+                break;
+            default:
+                /* unknown coprocessor.  */
+                goto illegal_op;
+            }
+            break;
         case 0xf:
             /* swi */
             gen_op_movl_T0_im((long)s->pc);
@@ -1484,7 +2026,7 @@ static inline int gen_intermediate_code_internal(CPUState *env,
         if (env->thumb)
           disas_thumb_insn(dc);
         else
-          disas_arm_insn(dc);
+          disas_arm_insn(env, dc);
     } while (!dc->is_jmp && gen_opc_ptr < gen_opc_end && 
              (dc->pc - pc_start) < (TARGET_PAGE_SIZE - 32));
     switch(dc->is_jmp) {
@@ -1557,6 +2099,11 @@ void cpu_dump_state(CPUState *env, FILE *f,
                     int flags)
 {
     int i;
+    struct {
+        uint32_t i;
+        float s;
+    } s0, s1;
+    CPU_DoubleU d;
 
     for(i=0;i<16;i++) {
         cpu_fprintf(f, "R%02d=%08x", i, env->regs[i]);
@@ -1566,11 +2113,23 @@ void cpu_dump_state(CPUState *env, FILE *f,
             cpu_fprintf(f, " ");
     }
     cpu_fprintf(f, "PSR=%08x %c%c%c%c\n", 
-            env->cpsr, 
+             env->cpsr, 
             env->cpsr & (1 << 31) ? 'N' : '-',
             env->cpsr & (1 << 30) ? 'Z' : '-',
             env->cpsr & (1 << 29) ? 'C' : '-',
             env->cpsr & (1 << 28) ? 'V' : '-');
+
+    for (i = 0; i < 16; i++) {
+        s0.s = env->vfp.regs.s[i * 2];
+        s1.s = env->vfp.regs.s[i * 2 + 1];
+        d.d = env->vfp.regs.d[i];
+        cpu_fprintf(f, "s%02d=%08x(%8f) s%02d=%08x(%8f) d%02d=%08x%08x(%8f)\n",
+                    i * 2, (int)s0.i, s0.s,
+                    i * 2 + 1, (int)s0.i, s0.s,
+                    i, (int)(uint32_t)d.l.upper, (int)(uint32_t)d.l.lower,
+                    d.d);
+        cpu_fprintf(f, "FPSCR: %08x\n", (int)env->vfp.fpscr);
+    }
 }
 
 target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
