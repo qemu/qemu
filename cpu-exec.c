@@ -354,7 +354,7 @@ int cpu_exec(CPUState *env1)
                 cs_base = env->npc;
                 pc = env->pc;
 #elif defined(TARGET_PPC)
-                flags = 0;
+                flags = (msr_pr << MSR_PR) | (msr_fp << MSR_FP) | (msr_se << MSR_SE);
                 cs_base = 0;
                 pc = env->nip;
 #else
