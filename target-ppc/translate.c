@@ -127,7 +127,7 @@ static uint8_t  spr_access[1024 / 2];
 /* internal defines */
 typedef struct DisasContext {
     struct TranslationBlock *tb;
-    uint32_t *nip;
+    uint32_t nip;
     uint32_t opcode;
     uint32_t exception;
     /* Time base offset */
@@ -1509,13 +1509,13 @@ GEN_HANDLER(b, 0x12, 0xFF, 0xFF, 0x00000000, PPC_FLOW)
 
     gen_op_update_tb(ctx->tb_offset);
     gen_op_update_decr(ctx->decr_offset);
-    gen_op_process_exceptions((uint32_t)ctx->nip - 4);
+    gen_op_process_exceptions(ctx->nip - 4);
     if (AA(ctx->opcode) == 0)
-        target = (uint32_t)ctx->nip + li - 4;
+        target = ctx->nip + li - 4;
     else
         target = li;
     if (LK(ctx->opcode)) {
-        gen_op_setlr((uint32_t)ctx->nip);
+        gen_op_setlr(ctx->nip);
     }
     gen_op_b((long)ctx->tb, target);
     ctx->exception = EXCP_BRANCH;
@@ -1535,7 +1535,7 @@ static inline void gen_bcond(DisasContext *ctx, int type)
 
     gen_op_update_tb(ctx->tb_offset);                                         
     gen_op_update_decr(ctx->decr_offset);                                     
-    gen_op_process_exceptions((uint32_t)ctx->nip - 4);                        
+    gen_op_process_exceptions(ctx->nip - 4);                        
 
     if ((bo & 0x4) == 0)
         gen_op_dec_ctr();                                                     
@@ -1543,7 +1543,7 @@ static inline void gen_bcond(DisasContext *ctx, int type)
     case BCOND_IM:
         li = s_ext16(BD(ctx->opcode));
         if (AA(ctx->opcode) == 0) {
-            target = (uint32_t)ctx->nip + li - 4;
+            target = ctx->nip + li - 4;
         } else {
             target = li;
         }
@@ -1557,7 +1557,7 @@ static inline void gen_bcond(DisasContext *ctx, int type)
         break;
     }
     if (LK(ctx->opcode)) {                                        
-        gen_op_setlr((uint32_t)ctx->nip);
+        gen_op_setlr(ctx->nip);
     }
     if (bo & 0x10) {
         /* No CR condition */                                                 
@@ -1612,9 +1612,9 @@ static inline void gen_bcond(DisasContext *ctx, int type)
         }                                                                     
     }                                                                         
     if (type == BCOND_IM) {
-        gen_op_btest((long)ctx->tb, target, (uint32_t)ctx->nip);
+        gen_op_btest((long)ctx->tb, target, ctx->nip);
     } else {
-        gen_op_btest_T1((uint32_t)ctx->nip);
+        gen_op_btest_T1(ctx->nip);
     }
  no_test:
     ctx->exception = EXCP_BRANCH;                                             
@@ -2989,7 +2989,7 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     gen_opc_ptr = gen_opc_buf;
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
     gen_opparam_ptr = gen_opparam_buf;
-    ctx.nip = (uint32_t *)pc_start;
+    ctx.nip = pc_start;
     ctx.tb_offset = 0;
     ctx.decr_offset = 0;
     ctx.tb = tb;
@@ -3015,18 +3015,18 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
                 lj++;
                 while (lj < j)
                     gen_opc_instr_start[lj++] = 0;
-                gen_opc_pc[lj] = (uint32_t)ctx.nip;
+                gen_opc_pc[lj] = ctx.nip;
                 gen_opc_instr_start[lj] = 1;
             }
         }
 #if defined DEBUG_DISAS
         if (loglevel > 0) {
             fprintf(logfile, "----------------\n");
-            fprintf(logfile, "nip=%p super=%d ir=%d\n",
+            fprintf(logfile, "nip=%08x super=%d ir=%d\n",
                     ctx.nip, 1 - msr_pr, msr_ir);
         }
 #endif
-        ctx.opcode = ldl_code(ctx.nip);
+        ctx.opcode = ldl_code((void *)ctx.nip);
 #if defined DEBUG_DISAS
         if (loglevel > 0) {
             fprintf(logfile, "translate opcode %08x (%02x %02x %02x)\n",
@@ -3034,7 +3034,7 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
                     opc3(ctx.opcode));
         }
 #endif
-        ctx.nip++;
+        ctx.nip += 4;
         ctx.tb_offset++;
         /* Check decrementer exception */
         if (++ctx.decr_offset == env->decr + 1)
@@ -3054,28 +3054,28 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
             if (loglevel > 0) {
                 if (handler->handler == &gen_invalid) {
                     fprintf(logfile, "invalid/unsupported opcode: "
-                            "%02x -%02x - %02x (%08x) %p\n",
+                            "%02x -%02x - %02x (%08x) 0x%08x\n",
                             opc1(ctx.opcode), opc2(ctx.opcode),
-                            opc3(ctx.opcode), ctx.opcode, ctx.nip - 1);
+                            opc3(ctx.opcode), ctx.opcode, ctx.nip - 4);
                 } else {
                     fprintf(logfile, "invalid bits: %08x for opcode: "
-                            "%02x -%02x - %02x (0x%08x) (%p)\n",
+                            "%02x -%02x - %02x (0x%08x) (0x%08x)\n",
                             ctx.opcode & handler->inval, opc1(ctx.opcode),
                             opc2(ctx.opcode), opc3(ctx.opcode),
-                            ctx.opcode, ctx.nip - 1);
+                            ctx.opcode, ctx.nip - 4);
                 }
             } else {
                 if (handler->handler == &gen_invalid) {
                     printf("invalid/unsupported opcode: "
-                           "%02x -%02x - %02x (%08x) %p\n",
+                           "%02x -%02x - %02x (%08x) 0x%08x\n",
                            opc1(ctx.opcode), opc2(ctx.opcode),
-                           opc3(ctx.opcode), ctx.opcode, ctx.nip - 1);
+                           opc3(ctx.opcode), ctx.opcode, ctx.nip - 4);
                 } else {
                     printf("invalid bits: %08x for opcode: "
-                           "%02x -%02x - %02x (0x%08x) (%p)\n",
+                           "%02x -%02x - %02x (0x%08x) (0x%08x)\n",
                             ctx.opcode & handler->inval, opc1(ctx.opcode),
                             opc2(ctx.opcode), opc3(ctx.opcode),
-                           ctx.opcode, ctx.nip - 1);
+                           ctx.opcode, ctx.nip - 4);
             }
             }
             (*gen_invalid)(&ctx);
@@ -3089,9 +3089,9 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
              * - rfi, trap or syscall
              * - first instruction of an exception handler
              */
-            (msr_se && ((uint32_t)ctx.nip < 0x100 ||
-                        (uint32_t)ctx.nip > 0xF00 ||
-                        ((uint32_t)ctx.nip & 0xFC) != 0x04) &&
+            (msr_se && (ctx.nip < 0x100 ||
+                        ctx.nip > 0xF00 ||
+                        (ctx.nip & 0xFC) != 0x04) &&
              ctx.exception != EXCP_SYSCALL && ctx.exception != EXCP_RFI &&
              ctx.exception != EXCP_TRAP)) {
 #if !defined(CONFIG_USER_ONLY)
@@ -3102,9 +3102,9 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     }
         }
         /* if we reach a page boundary, stop generation */
-        if (((uint32_t)ctx.nip & (TARGET_PAGE_SIZE - 1)) == 0) {
+        if ((ctx.nip & (TARGET_PAGE_SIZE - 1)) == 0) {
             if (ctx.exception == EXCP_NONE) {
-        gen_op_b((long)ctx.tb, (uint32_t)ctx.nip);
+        gen_op_b((long)ctx.tb, ctx.nip);
                 ctx.exception = EXCP_BRANCH;
     }
     }
@@ -3113,7 +3113,7 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     if (ctx.exception != EXCP_BRANCH && ctx.exception != EXCP_RFI) {
         gen_op_update_tb(ctx.tb_offset);
         gen_op_update_decr(ctx.decr_offset);
-        gen_op_process_exceptions((uint32_t)ctx.nip);
+        gen_op_process_exceptions(ctx.nip);
     }
 #if 1
     /* TO BE FIXED: T0 hasn't got a proper value, which makes tb_add_jump
@@ -3136,7 +3136,7 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
         }
 #endif
     } else {
-        tb->size = (uint32_t)ctx.nip - pc_start;
+        tb->size = ctx.nip - pc_start;
     }
     env->access_type = ACCESS_INT;
 #ifdef DEBUG_DISAS
@@ -3144,7 +3144,7 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
         fprintf(logfile, "---------------- excp: %04x\n", ctx.exception);
         cpu_ppc_dump_state(env, logfile, 0);
         fprintf(logfile, "IN: %s\n", lookup_symbol((void *)pc_start));
-	disas(logfile, (void *)pc_start, (uint32_t)ctx.nip - pc_start, 0, 0);
+	disas(logfile, (void *)pc_start, ctx.nip - pc_start, 0, 0);
         fprintf(logfile, "\n");
 
         fprintf(logfile, "OP:\n");

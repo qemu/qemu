@@ -178,8 +178,8 @@ static int find_pte (uint32_t *RPN, int *prot, uint32_t base, uint32_t va,
     int ret = -1; /* No entry found */
 
     for (i = 0; i < 8; i++) {
-        pte0 = ldl_raw((void *)((uint32_t)phys_ram_base + base + (i * 8)));
-        pte1 =  ldl_raw((void *)((uint32_t)phys_ram_base + base + (i * 8) + 4));
+        pte0 = ldl_raw(phys_ram_base + base + (i * 8));
+        pte1 =  ldl_raw(phys_ram_base + base + (i * 8) + 4);
 #if defined (DEBUG_MMU)
 	if (loglevel > 0) {
 	    fprintf(logfile, "Load pte from 0x%08x => 0x%08x 0x%08x "
@@ -269,8 +269,7 @@ static int find_pte (uint32_t *RPN, int *prot, uint32_t base, uint32_t va,
             }
         }
         if (store) {
-	    stl_raw((void *)((uint32_t)phys_ram_base + base + (good * 8) + 4),
-		    keep);
+	    stl_raw(phys_ram_base + base + (good * 8) + 4, keep);
 	}
     }
 
