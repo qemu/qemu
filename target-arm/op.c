@@ -485,6 +485,11 @@ void OPPROTO op_rorl_T1_im(void)
     T1 = ((uint32_t)T1 >> shift) | (T1 << (32 - shift));
 }
 
+void OPPROTO op_rrxl_T1(void)
+{
+    T1 = ((uint32_t)T1 >> 1) | ((uint32_t)env->CF << 31);
+}
+
 /* T1 based, set C flag */
 void OPPROTO op_shll_T1_im_cc(void)
 {
@@ -510,6 +515,14 @@ void OPPROTO op_rorl_T1_im_cc(void)
     shift = PARAM1;
     env->CF = (T1 >> (shift - 1)) & 1;
     T1 = ((uint32_t)T1 >> shift) | (T1 << (32 - shift));
+}
+
+void OPPROTO op_rrxl_T1_cc(void)
+{
+    uint32_t c;
+    c = T1 & 1;
+    T1 = ((uint32_t)T1 >> 1) | ((uint32_t)env->CF << 31);
+    env->CF = c;
 }
 
 /* T2 based */

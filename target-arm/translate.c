@@ -365,6 +365,11 @@ static void disas_arm_insn(DisasContext *s)
                     } else {
                         gen_shift_T1_im[shiftop](shift);
                     }
+                } else if (shiftop == 3) {
+                    if (logic_cc)
+                        gen_op_rrxl_T1_cc();
+                    else
+                        gen_op_rrxl_T1();
                 }
             } else {
                 rs = (insn >> 8) & 0xf;
