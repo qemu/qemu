@@ -112,7 +112,6 @@ extern int loglevel;
 #define PREFIX_LOCK   0x04
 #define PREFIX_DATA   0x08
 #define PREFIX_ADR    0x10
-#define PREFIX_FWAIT  0x20
 
 typedef struct DisasContext {
     /* current insn context */
@@ -1439,9 +1438,6 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         goto next_byte;
     case 0x67:
         prefixes |= PREFIX_ADR;
-        goto next_byte;
-    case 0x9b:
-        prefixes |= PREFIX_FWAIT;
         goto next_byte;
     }
 
@@ -3255,6 +3251,8 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         /************************/
         /* misc */
     case 0x90: /* nop */
+        break;
+    case 0x9b: /* fwait */
         break;
     case 0xcc: /* int3 */
         gen_exception(s, EXCP03_INT3, s->pc - s->cs_base);
