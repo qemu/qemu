@@ -598,14 +598,15 @@ static void vbe_ioport_write(void *opaque, uint32_t addr, uint32_t val)
                 } else {
                     shift_control = 2;
                     s->sr[4] |= 0x08; /* set chain 4 mode */
+                    s->sr[2] |= 0x0f; /* activate all planes */
                 }
                 s->gr[0x05] = (s->gr[0x05] & ~0x60) | (shift_control << 5);
                 s->cr[0x09] &= ~0x9f; /* no double scan */
-                s->vbe_regs[s->vbe_index] = val;
             } else {
                 /* XXX: the bios should do that */
                 s->bank_offset = 0;
             }
+            s->vbe_regs[s->vbe_index] = val;
             break;
         case VBE_DISPI_INDEX_VIRT_WIDTH:
             {
