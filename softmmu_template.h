@@ -81,7 +81,7 @@ static inline void glue(io_write, SUFFIX)(unsigned long physaddr,
 }
 
 /* handle all cases except unaligned access which span two pages */
-DATA_TYPE __attribute((regparm(1))) glue(glue(__ld, SUFFIX), _mmu)(unsigned long addr)
+DATA_TYPE REGPARM(1) glue(glue(__ld, SUFFIX), _mmu)(unsigned long addr)
 {
     DATA_TYPE res;
     int is_user, index;
@@ -163,7 +163,7 @@ static DATA_TYPE glue(slow_ld, SUFFIX)(unsigned long addr, void *retaddr)
 }
 
 
-void __attribute((regparm(2))) glue(glue(__st, SUFFIX), _mmu)(unsigned long addr, DATA_TYPE val)
+void REGPARM(2) glue(glue(__st, SUFFIX), _mmu)(unsigned long addr, DATA_TYPE val)
 {
     unsigned long physaddr, tlb_addr;
     void *retaddr;

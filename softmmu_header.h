@@ -49,8 +49,8 @@
 
 
 #if MEMUSER == 0
-DATA_TYPE __attribute((regparm(1))) glue(glue(__ld, SUFFIX), _mmu)(unsigned long addr);
-void __attribute((regparm(2))) glue(glue(__st, SUFFIX), _mmu)(unsigned long addr, DATA_TYPE v);
+DATA_TYPE REGPARM(1) glue(glue(__ld, SUFFIX), _mmu)(unsigned long addr);
+void REGPARM(2) glue(glue(__st, SUFFIX), _mmu)(unsigned long addr, DATA_TYPE v);
 #endif
 
 static inline int glue(glue(ldu, SUFFIX), MEMSUFFIX)(void *ptr)

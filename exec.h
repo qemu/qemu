@@ -32,6 +32,12 @@
 #define __builtin_expect(x, n) (x)
 #endif
 
+#ifdef __i386__
+#define REGPARM(n) __attribute((regparm(n)))
+#else
+#define REGPARM(n)
+#endif
+
 /* is_jmp field values */
 #define DISAS_NEXT    0 /* next instruction can be analyzed */
 #define DISAS_JUMP    1 /* only pc was modified dynamically */
