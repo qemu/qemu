@@ -99,9 +99,49 @@ int cpu_get_pic_interrupt(CPUState *env)
     return -1;
 }
 
+/* timers for rdtsc */
+
+#if defined(__i386__)
+
+int64_t cpu_get_real_ticks(void)
+{
+    int64_t val;
+    asm volatile ("rdtsc" : "=A" (val));
+    return val;
+}
+
+#elif defined(__x86_64__)
+
+int64_t cpu_get_real_ticks(void)
+{
+    uint32_t low,high;
+    int64_t val;
+    asm volatile("rdtsc" : "=a" (low), "=d" (high));
+    val = high;
+    val <<= 32;
+    val |= low;
+    return val;
+}
+
+#else
+
+static uint64_t emu_time;
+
+int64_t cpu_get_real_ticks(void)
+{
+    return emu_time++;
+}
+
+#endif
+
 #ifdef TARGET_I386
 /***********************************************************/
 /* CPUX86 core interface */
+
+uint64_t cpu_get_tsc(CPUX86State *env)
+{
+    return cpu_get_real_ticks();
+}
 
 static void write_dt(void *ptr, unsigned long addr, unsigned long limit, 
                      int flags)

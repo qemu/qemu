@@ -443,6 +443,8 @@ int cpu_x86_signal_handler(int host_signum, struct siginfo *info,
                            void *puc);
 void cpu_x86_set_a20(CPUX86State *env, int a20_state);
 
+uint64_t cpu_get_tsc(CPUX86State *env);
+
 /* will be suppressed */
 void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0);
 

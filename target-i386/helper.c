@@ -1775,20 +1775,11 @@ void helper_invlpg(unsigned int addr)
     cpu_x86_flush_tlb(env, addr);
 }
 
-/* rdtsc */
-#if !defined(__i386__) && !defined(__x86_64__)
-uint64_t emu_time;
-#endif
-
 void helper_rdtsc(void)
 {
     uint64_t val;
-#if defined(__i386__) || defined(__x86_64__)
-    asm volatile ("rdtsc" : "=A" (val));
-#else
-    /* better than nothing: the time increases */
-    val = emu_time++;
-#endif
+    
+    val = cpu_get_tsc(env);
     EAX = val;
     EDX = val >> 32;
 }

@@ -57,6 +57,13 @@ static void ioportF0_write(void *opaque, uint32_t addr, uint32_t data)
     pic_set_irq(13, 0);
 }
 
+/* TSC handling */
+
+uint64_t cpu_get_tsc(CPUX86State *env)
+{
+    return qemu_get_clock(vm_clock);
+}
+
 /* PC cmos mappings */
 
 #define REG_EQUIPMENT_BYTE          0x14

@@ -55,6 +55,11 @@ int cpu_get_pic_interrupt(CPUState *env)
     return -1;
 }
 
+uint64_t cpu_get_tsc(CPUState *env)
+{
+    return 0;
+}
+
 static void set_gate(void *ptr, unsigned int type, unsigned int dpl, 
                      unsigned long addr, unsigned int sel)
 {
