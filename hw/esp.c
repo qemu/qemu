@@ -24,7 +24,7 @@
 #include "vl.h"
 
 /* debug ESP card */
-#define DEBUG_ESP
+//#define DEBUG_ESP
 
 #ifdef DEBUG_ESP
 #define DPRINTF(fmt, args...) \
@@ -39,16 +39,178 @@ do { printf("ESP: " fmt , ##args); } while (0)
 
 typedef struct ESPState {
     BlockDriverState **bd;
-    uint8_t regs[ESP_MAXREG];
+    uint8_t rregs[ESP_MAXREG];
+    uint8_t wregs[ESP_MAXREG];
     int irq;
     uint32_t espdmaregs[ESPDMA_REGS];
+    uint32_t ti_size;
+    int ti_dir;
+    uint8_t ti_buf[65536];
 } ESPState;
+
+#define STAT_DO 0x00
+#define STAT_DI 0x01
+#define STAT_CD 0x02
+#define STAT_ST 0x03
+#define STAT_MI 0x06
+#define STAT_MO 0x07
+
+#define STAT_TC 0x10
+#define STAT_IN 0x80
+
+#define INTR_FC 0x08
+#define INTR_BS 0x10
+#define INTR_DC 0x20
+
+#define SEQ_0 0x0
+#define SEQ_CD 0x4
+
+static void handle_satn(ESPState *s)
+{
+    uint8_t buf[32];
+    uint32_t dmaptr, dmalen;
+    unsigned int i;
+    int64_t nb_sectors;
+    int target;
+
+    dmaptr = iommu_translate(s->espdmaregs[1]);
+    dmalen = s->wregs[0] | (s->wregs[1] << 8);
+    DPRINTF("Select with ATN at %8.8x len %d\n", dmaptr, dmalen);
+    DPRINTF("DMA Direction: %c\n", s->espdmaregs[0] & 0x100? 'w': 'r');
+    cpu_physical_memory_read(dmaptr, buf, dmalen);
+    for (i = 0; i < dmalen; i++) {
+	DPRINTF("Command %2.2x\n", buf[i]);
+    }
+    s->ti_dir = 0;
+    s->ti_size = 0;
+    target = s->wregs[4] & 7;
+
+    if (target > 4 || !s->bd[target]) { // No such drive
+	s->rregs[4] = STAT_IN;
+	s->rregs[5] = INTR_DC;
+	s->rregs[6] = SEQ_0;
+	s->espdmaregs[0] |= 1;
+	pic_set_irq(s->irq, 1);
+	return;
+    }
+    switch (buf[1]) {
+    case 0x0:
+	DPRINTF("Test Unit Ready (len %d)\n", buf[5]);
+	break;
+    case 0x12:
+	DPRINTF("Inquiry (len %d)\n", buf[5]);
+	memset(s->ti_buf, 0, 36);
+	if (bdrv_get_type_hint(s->bd[target]) == BDRV_TYPE_CDROM) {
+	    s->ti_buf[0] = 5;
+	    memcpy(&s->ti_buf[16], "QEMU CDROM     ", 16);
+	} else {
+	    s->ti_buf[0] = 0;
+	    memcpy(&s->ti_buf[16], "QEMU HARDDISK  ", 16);
+	}
+	memcpy(&s->ti_buf[8], "QEMU   ", 8);
+	s->ti_buf[2] = 1;
+	s->ti_buf[3] = 2;
+	s->ti_dir = 1;
+	s->ti_size = 36;
+	break;
+    case 0x1a:
+	DPRINTF("Mode Sense(6) (page %d, len %d)\n", buf[3], buf[5]);
+	break;
+    case 0x25:
+	DPRINTF("Read Capacity (len %d)\n", buf[5]);
+	memset(s->ti_buf, 0, 8);
+	bdrv_get_geometry(s->bd[target], &nb_sectors);
+	s->ti_buf[0] = (nb_sectors >> 24) & 0xff;
+	s->ti_buf[1] = (nb_sectors >> 16) & 0xff;
+	s->ti_buf[2] = (nb_sectors >> 8) & 0xff;
+	s->ti_buf[3] = nb_sectors & 0xff;
+	s->ti_buf[4] = 0;
+	s->ti_buf[5] = 0;
+	s->ti_buf[6] = 2;
+	s->ti_buf[7] = 0;
+	s->ti_dir = 1;
+	s->ti_size = 8;
+	break;
+    case 0x28:
+	{
+	    int64_t offset, len;
+
+	    offset = (buf[3] << 24) | (buf[4] << 16) | (buf[5] << 8) | buf[6];
+	    len = (buf[8] << 8) | buf[9];
+	    DPRINTF("Read (10) (offset %lld len %lld)\n", offset, len);
+	    bdrv_read(s->bd[target], offset, s->ti_buf, len);
+	    s->ti_dir = 1;
+	    s->ti_size = len * 512;
+	    break;
+	}
+    case 0x2a:
+	{
+	    int64_t offset, len;
+
+	    offset = (buf[3] << 24) | (buf[4] << 16) | (buf[5] << 8) | buf[6];
+	    len = (buf[8] << 8) | buf[9];
+	    DPRINTF("Write (10) (offset %lld len %lld)\n", offset, len);
+	    bdrv_write(s->bd[target], offset, s->ti_buf, len);
+	    s->ti_dir = 0;
+	    s->ti_size = len * 512;
+	    break;
+	}
+    default:
+	DPRINTF("Unknown command (%2.2x)\n", buf[1]);
+	break;
+    }
+    s->rregs[4] = STAT_IN | STAT_TC | STAT_DI;
+    s->rregs[5] = INTR_BS | INTR_FC;
+    s->rregs[6] = SEQ_CD;
+    s->espdmaregs[0] |= 1;
+    pic_set_irq(s->irq, 1);
+}
+
+static void dma_write(ESPState *s, const uint8_t *buf, uint32_t len)
+{
+    uint32_t dmaptr, dmalen;
+
+    dmaptr = iommu_translate(s->espdmaregs[1]);
+    dmalen = s->wregs[0] | (s->wregs[1] << 8);
+    DPRINTF("DMA Direction: %c\n", s->espdmaregs[0] & 0x100? 'w': 'r');
+    cpu_physical_memory_write(dmaptr, buf, len);
+    s->rregs[4] = STAT_IN | STAT_TC | STAT_ST;
+    s->rregs[5] = INTR_BS | INTR_FC;
+    s->rregs[6] = SEQ_CD;
+    s->espdmaregs[0] |= 1;
+    pic_set_irq(s->irq, 1);
+
+}
+static const uint8_t okbuf[] = {0, 0};
+
+static void handle_ti(ESPState *s)
+{
+    uint32_t dmaptr, dmalen;
+    unsigned int i;
+
+    dmaptr = iommu_translate(s->espdmaregs[1]);
+    dmalen = s->wregs[0] | (s->wregs[1] << 8);
+    DPRINTF("Transfer Information at %8.8x len %d\n", dmaptr, dmalen);
+    DPRINTF("DMA Direction: %c\n", s->espdmaregs[0] & 0x100? 'w': 'r');
+    for (i = 0; i < s->ti_size; i++) {
+	dmaptr = iommu_translate(s->espdmaregs[1] + i);
+	if (s->ti_dir)
+	    cpu_physical_memory_write(dmaptr, &s->ti_buf[i], 1);
+	else
+	    cpu_physical_memory_read(dmaptr, &s->ti_buf[i], 1);
+    }
+    s->rregs[4] = STAT_IN | STAT_TC | STAT_ST;
+    s->rregs[5] = INTR_BS;
+    s->rregs[6] = 0;
+    s->espdmaregs[0] |= 1;
+    pic_set_irq(s->irq, 1);
+}
 
 static void esp_reset(void *opaque)
 {
     ESPState *s = opaque;
-    memset(s->regs, 0, ESP_MAXREG);
-    s->regs[0x0e] = 0x4; // Indicate fas100a
+    memset(s->rregs, 0, ESP_MAXREG);
+    s->rregs[0x0e] = 0x4; // Indicate fas100a
     memset(s->espdmaregs, 0, ESPDMA_REGS * 4);
 }
 
@@ -62,8 +224,8 @@ static uint32_t esp_mem_readb(void *opaque, target_phys_addr_t addr)
     default:
 	break;
     }
-    DPRINTF("esp: read reg[%d]: 0x%2.2x\n", saddr, s->regs[saddr]);
-    return s->regs[saddr];
+    DPRINTF("read reg[%d]: 0x%2.2x\n", saddr, s->rregs[saddr]);
+    return s->rregs[saddr];
 }
 
 static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
@@ -72,30 +234,51 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
     uint32_t saddr;
 
     saddr = (addr & ESP_MAXREG) >> 2;
-    DPRINTF("esp: write reg[%d]: 0x%2.2x -> 0x%2.2x\n", saddr, s->regs[saddr], val);
+    DPRINTF("write reg[%d]: 0x%2.2x -> 0x%2.2x\n", saddr, s->wregs[saddr], val);
     switch (saddr) {
     case 3:
 	// Command
 	switch(val & 0x7f) {
 	case 0:
-	    DPRINTF("esp: NOP (%2.2x)\n", val);
+	    DPRINTF("NOP (%2.2x)\n", val);
+	    break;
+	case 1:
+	    DPRINTF("Flush FIFO (%2.2x)\n", val);
+	    s->rregs[6] = 0;
+	    s->rregs[5] = INTR_FC;
 	    break;
 	case 2:
-	    DPRINTF("esp: Chip reset (%2.2x)\n", val);
+	    DPRINTF("Chip reset (%2.2x)\n", val);
 	    esp_reset(s);
 	    break;
 	case 3:
-	    DPRINTF("esp: Bus reset (%2.2x)\n", val);
+	    DPRINTF("Bus reset (%2.2x)\n", val);
+	    break;
+	case 0x10:
+	    handle_ti(s);
+	    break;
+	case 0x11:
+	    DPRINTF("Initiator Command Complete Sequence (%2.2x)\n", val);
+	    dma_write(s, okbuf, 2);
+	    break;
+	case 0x12:
+	    DPRINTF("Message Accepted (%2.2x)\n", val);
+	    dma_write(s, okbuf, 2);
+	    s->rregs[5] = INTR_DC;
+	    s->rregs[6] = 0;
 	    break;
 	case 0x1a:
-	    DPRINTF("esp: Set ATN (%2.2x)\n", val);
+	    DPRINTF("Set ATN (%2.2x)\n", val);
 	    break;
 	case 0x42:
-	    DPRINTF("esp: Select with ATN (%2.2x)\n", val);
-	    s->regs[4] = 0x1a; // Status: TCNT | TDONE | CMD
-	    s->regs[5] = 0x20; // Intr: Disconnect, nobody there
-	    s->regs[6] = 0x4;  // Seq: Cmd done
-	    pic_set_irq(s->irq, 1);
+	    handle_satn(s);
+	    break;
+	case 0x43:
+	    DPRINTF("Set ATN & stop (%2.2x)\n", val);
+	    handle_satn(s);
+	    break;
+	default:
+	    DPRINTF("Unhandled command (%2.2x)\n", val);
 	    break;
 	}
 	break;
@@ -103,9 +286,9 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
     case 9 ... 0xf:
 	break;
     default:
-	s->regs[saddr] = val;
 	break;
     }
+    s->wregs[saddr] = val;
 }
 
 static CPUReadMemoryFunc *esp_mem_read[3] = {
@@ -126,6 +309,7 @@ static uint32_t espdma_mem_readl(void *opaque, target_phys_addr_t addr)
     uint32_t saddr;
 
     saddr = (addr & ESPDMA_MAXADDR) >> 2;
+    DPRINTF("read dmareg[%d]: 0x%2.2x\n", saddr, s->espdmaregs[saddr]);
     return s->espdmaregs[saddr];
 }
 
@@ -135,6 +319,15 @@ static void espdma_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t va
     uint32_t saddr;
 
     saddr = (addr & ESPDMA_MAXADDR) >> 2;
+    DPRINTF("write dmareg[%d]: 0x%2.2x -> 0x%2.2x\n", saddr, s->espdmaregs[saddr], val);
+    switch (saddr) {
+    case 0:
+	if (!(val & 0x10))
+	    pic_set_irq(s->irq, 0);
+	break;
+    default:
+	break;
+    }
     s->espdmaregs[saddr] = val;
 }
 
@@ -153,15 +346,28 @@ static CPUWriteMemoryFunc *espdma_mem_write[3] = {
 static void esp_save(QEMUFile *f, void *opaque)
 {
     ESPState *s = opaque;
-    
+    unsigned int i;
+
+    qemu_put_buffer(f, s->rregs, ESP_MAXREG);
+    qemu_put_buffer(f, s->wregs, ESP_MAXREG);
+    qemu_put_be32s(f, &s->irq);
+    for (i = 0; i < ESPDMA_REGS; i++)
+	qemu_put_be32s(f, &s->espdmaregs[i]);
 }
 
 static int esp_load(QEMUFile *f, void *opaque, int version_id)
 {
     ESPState *s = opaque;
+    unsigned int i;
     
     if (version_id != 1)
         return -EINVAL;
+
+    qemu_get_buffer(f, s->rregs, ESP_MAXREG);
+    qemu_get_buffer(f, s->wregs, ESP_MAXREG);
+    qemu_get_be32s(f, &s->irq);
+    for (i = 0; i < ESPDMA_REGS; i++)
+	qemu_get_be32s(f, &s->espdmaregs[i]);
 
     return 0;
 }
