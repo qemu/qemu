@@ -21,31 +21,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdarg.h>
-#include <string.h>
-#include <getopt.h>
-#include <inttypes.h>
-#include <unistd.h>
-#include <sys/mman.h>
-#include <fcntl.h>
-#include <signal.h>
-#include <time.h>
-#include <sys/time.h>
-#include <malloc.h>
-#include <termios.h>
-#include <sys/poll.h>
-#include <errno.h>
-#include <sys/wait.h>
-#include <netinet/in.h>
+#include "vl.h"
 
 #include <SDL.h>
 
-#include "cpu.h"
-#include "exec-all.h"
-
-#include "vl.h"
+#ifndef _WIN32
+#include <signal.h>
+#endif
 
 static SDL_Surface *screen;
 static int gui_grab; /* if true, all keyboard/mouse events are grabbed */
@@ -291,9 +273,12 @@ void sdl_display_init(DisplayState *ds)
         fprintf(stderr, "Could not initialize SDL - exiting\n");
         exit(1);
     }
+
+#ifndef _WIN32
     /* NOTE: we still want Ctrl-C to work, so we undo the SDL redirections */
     signal(SIGINT, SIG_DFL);
     signal(SIGQUIT, SIG_DFL);
+#endif
 
     ds->dpy_update = sdl_update;
     ds->dpy_resize = sdl_resize;

@@ -21,35 +21,40 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdarg.h>
-#include <string.h>
-#include <ctype.h>
+#include "vl.h"
+
 #include <getopt.h>
-#include <inttypes.h>
 #include <unistd.h>
-#include <sys/mman.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <time.h>
-#include <sys/time.h>
 #include <malloc.h>
-#include <termios.h>
-#include <sys/poll.h>
 #include <errno.h>
+#include <sys/time.h>
+
+#ifndef _WIN32
+#include <sys/times.h>
 #include <sys/wait.h>
 #include <pty.h>
-#include <sys/times.h>
-
+#include <termios.h>
+#include <sys/poll.h>
+#include <sys/mman.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <linux/if.h>
 #include <linux/if_tun.h>
+#endif
+
+#ifdef _WIN32
+#include <sys/timeb.h>
+#include <windows.h>
+#define getopt_long_only getopt_long
+#define memalign(align, size) malloc(size)
+#endif
+
 
 #include "disas.h"
 
-#include "vl.h"
 #include "exec-all.h"
 
 #define DEFAULT_NETWORK_SCRIPT "/etc/qemu-ifup"
@@ -375,11 +380,17 @@ void cpu_disable_ticks(void)
     }
 }
 
-int64_t get_clock(void)
+static int64_t get_clock(void)
 {
+#ifdef _WIN32
+    struct _timeb tb;
+    _ftime(&tb);
+    return ((int64_t)tb.time * 1000 + (int64_t)tb.millitm) * 1000;
+#else
     struct timeval tv;
     gettimeofday(&tv, NULL);
     return tv.tv_sec * 1000000LL + tv.tv_usec;
+#endif
 }
 
 void cpu_calibrate_ticks(void)
@@ -388,7 +399,11 @@ void cpu_calibrate_ticks(void)
 
     usec = get_clock();
     ticks = cpu_get_real_ticks();
+#ifdef _WIN32
+    Sleep(50);
+#else
     usleep(50 * 1000);
+#endif
     usec = get_clock() - usec;
     ticks = cpu_get_real_ticks() - ticks;
     ticks_per_sec = (ticks * 1000000LL + (usec >> 1)) / usec;
@@ -438,8 +453,10 @@ QEMUClock *rt_clock;
 QEMUClock *vm_clock;
 
 static QEMUTimer *active_timers[2];
+#ifndef _WIN32
 /* frequency of the times() clock tick */
 static int timer_freq;
+#endif
 
 QEMUClock *qemu_new_clock(int type)
 {
@@ -550,12 +567,16 @@ int64_t qemu_get_clock(QEMUClock *clock)
 {
     switch(clock->type) {
     case QEMU_TIMER_REALTIME:
+#ifdef _WIN32
+        return GetTickCount();
+#else
         /* XXX: portability among Linux hosts */
         if (timer_freq == 100) {
             return times(NULL) * 10;
         } else {
             return ((int64_t)times(NULL) * 1000) / timer_freq;
         }
+#endif
     default:
     case QEMU_TIMER_VIRTUAL:
         return cpu_get_ticks();
@@ -608,7 +629,12 @@ static int timer_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
+#ifdef _WIN32
+void CALLBACK host_alarm_handler(UINT uTimerID, UINT uMsg, 
+                                 DWORD_PTR dwUser, DWORD_PTR dw1, DWORD_PTR dw2)
+#else
 static void host_alarm_handler(int host_signum)
+#endif
 {
     if (qemu_timer_expired(active_timers[QEMU_TIMER_VIRTUAL],
                            qemu_get_clock(vm_clock)) ||
@@ -621,38 +647,65 @@ static void host_alarm_handler(int host_signum)
 
 static void init_timers(void)
 {
-    struct sigaction act;
-    struct itimerval itv;
-
-    /* get times() syscall frequency */
-    timer_freq = sysconf(_SC_CLK_TCK);
-
     rt_clock = qemu_new_clock(QEMU_TIMER_REALTIME);
     vm_clock = qemu_new_clock(QEMU_TIMER_VIRTUAL);
 
-    /* timer signal */
-    sigfillset(&act.sa_mask);
-    act.sa_flags = 0;
+#ifdef _WIN32
+    {
+        int count=0;
+        MMRESULT timerID = timeSetEvent(10,    // interval (ms)
+                                        0,     // resolution
+                                        host_alarm_handler, // function
+                                        (DWORD)&count,  // user parameter
+                                        TIME_PERIODIC | TIME_CALLBACK_FUNCTION);
+ 	if( !timerID ) {
+            perror("failed timer alarm");
+            exit(1);
+ 	}
+    }
+    pit_min_timer_count = ((uint64_t)10000 * PIT_FREQ) / 1000000;
+#else
+    {
+        struct sigaction act;
+        struct itimerval itv;
+        
+        /* get times() syscall frequency */
+        timer_freq = sysconf(_SC_CLK_TCK);
+        
+        /* timer signal */
+        sigfillset(&act.sa_mask);
+        act.sa_flags = 0;
 #if defined (TARGET_I386) && defined(USE_CODE_COPY)
-    act.sa_flags |= SA_ONSTACK;
+        act.sa_flags |= SA_ONSTACK;
 #endif
-    act.sa_handler = host_alarm_handler;
-    sigaction(SIGALRM, &act, NULL);
-
-    itv.it_interval.tv_sec = 0;
-    itv.it_interval.tv_usec = 1000;
-    itv.it_value.tv_sec = 0;
-    itv.it_value.tv_usec = 10 * 1000;
-    setitimer(ITIMER_REAL, &itv, NULL);
-    /* we probe the tick duration of the kernel to inform the user if
-       the emulated kernel requested a too high timer frequency */
-    getitimer(ITIMER_REAL, &itv);
-    pit_min_timer_count = ((uint64_t)itv.it_interval.tv_usec * PIT_FREQ) / 
-        1000000;
+        act.sa_handler = host_alarm_handler;
+        sigaction(SIGALRM, &act, NULL);
+        
+        itv.it_interval.tv_sec = 0;
+        itv.it_interval.tv_usec = 1000;
+        itv.it_value.tv_sec = 0;
+        itv.it_value.tv_usec = 10 * 1000;
+        setitimer(ITIMER_REAL, &itv, NULL);
+        /* we probe the tick duration of the kernel to inform the user if
+           the emulated kernel requested a too high timer frequency */
+        getitimer(ITIMER_REAL, &itv);
+        pit_min_timer_count = ((uint64_t)itv.it_interval.tv_usec * PIT_FREQ) / 
+            1000000;
+    }
+#endif
 }
 
 /***********************************************************/
 /* serial device */
+
+#ifdef _WIN32
+
+int serial_open_device(void)
+{
+    return -1;
+}
+
+#else
 
 int serial_open_device(void)
 {
@@ -672,8 +725,23 @@ int serial_open_device(void)
     }
 }
 
+#endif
+
 /***********************************************************/
 /* Linux network device redirector */
+
+#ifdef _WIN32
+
+static int net_init(void)
+{
+    return 0;
+}
+
+void net_send_packet(NetDriverState *nd, const uint8_t *buf, int size)
+{
+}
+
+#else
 
 static int tun_open(char *ifname, int ifname_size)
 {
@@ -753,8 +821,22 @@ void net_send_packet(NetDriverState *nd, const uint8_t *buf, int size)
     write(nd->fd, buf, size);
 }
 
+#endif
+
 /***********************************************************/
 /* dumb display */
+
+#ifdef _WIN32
+
+static void term_exit(void)
+{
+}
+
+static void term_init(void)
+{
+}
+
+#else
 
 /* init terminal so that we can grab keys */
 static struct termios oldtty;
@@ -789,6 +871,8 @@ static void term_init(void)
 
     fcntl(0, F_SETFL, O_NONBLOCK);
 }
+
+#endif
 
 static void dumb_update(DisplayState *ds, int x, int y, int w, int h)
 {
@@ -1396,10 +1480,13 @@ void vm_stop(int reason)
 
 int main_loop(void)
 {
+#ifndef _WIN32
     struct pollfd ufds[MAX_IO_HANDLERS + 1], *pf;
-    int ret, n, timeout, max_size;
-    uint8_t buf[4096];
     IOHandlerRecord *ioh, *ioh_next;
+    uint8_t buf[4096];
+    int n, max_size;
+#endif
+    int ret, timeout;
     CPUState *env = global_env;
 
     for(;;) {
@@ -1422,6 +1509,7 @@ int main_loop(void)
             timeout = 10;
         }
 
+#ifndef _WIN32
         /* poll any events */
         /* XXX: separate device handlers from system ones */
         pf = ufds;
@@ -1471,6 +1559,7 @@ int main_loop(void)
                 }
             }
         }
+#endif
 
         if (vm_running) {
             qemu_run_timers(&active_timers[QEMU_TIMER_VIRTUAL], 
@@ -1592,7 +1681,10 @@ static uint8_t *signal_stack;
 
 int main(int argc, char **argv)
 {
-    int c, i, use_gdbstub, gdbstub_port, long_index, has_cdrom;
+#ifdef CONFIG_GDBSTUB
+    int use_gdbstub, gdbstub_port;
+#endif
+    int c, i, long_index, has_cdrom;
     int snapshot, linux_boot;
     CPUState *env;
     const char *initrd_filename;
@@ -1601,8 +1693,10 @@ int main(int argc, char **argv)
     DisplayState *ds = &display_state;
     int cyls, heads, secs;
 
+#if !defined(CONFIG_SOFTMMU)
     /* we never want that malloc() uses mmap() */
     mallopt(M_MMAP_THRESHOLD, 4096 * 1024);
+#endif
     initrd_filename = NULL;
     for(i = 0; i < MAX_FD; i++)
         fd_filename[i] = NULL;
@@ -1611,8 +1705,10 @@ int main(int argc, char **argv)
     ram_size = 32 * 1024 * 1024;
     vga_ram_size = VGA_RAM_SIZE;
     pstrcpy(network_script, sizeof(network_script), DEFAULT_NETWORK_SCRIPT);
+#ifdef CONFIG_GDBSTUB
     use_gdbstub = 0;
     gdbstub_port = DEFAULT_GDBSTUB_PORT;
+#endif
     snapshot = 0;
     nographic = 0;
     kernel_filename = NULL;
@@ -1773,12 +1869,14 @@ int main(int argc, char **argv)
         case 'n':
             pstrcpy(network_script, sizeof(network_script), optarg);
             break;
+#ifdef CONFIG_GDBSTUB
         case 's':
             use_gdbstub = 1;
             break;
         case 'p':
             gdbstub_port = atoi(optarg);
             break;
+#endif
         case 'L':
             bios_dir = optarg;
             break;
@@ -1976,6 +2074,7 @@ int main(int argc, char **argv)
     }
 #endif
 
+#ifndef _WIN32
     {
         struct sigaction act;
         sigfillset(&act.sa_mask);
@@ -1983,10 +2082,12 @@ int main(int argc, char **argv)
         act.sa_handler = SIG_IGN;
         sigaction(SIGPIPE, &act, NULL);
     }
+#endif
 
     gui_timer = qemu_new_timer(rt_clock, gui_update, NULL);
     qemu_mod_timer(gui_timer, qemu_get_clock(rt_clock));
 
+#ifdef CONFIG_GDBSTUB
     if (use_gdbstub) {
         if (gdbserver_start(gdbstub_port) < 0) {
             fprintf(stderr, "Could not open gdbserver socket on port %d\n", 
@@ -1995,7 +2096,9 @@ int main(int argc, char **argv)
         } else {
             printf("Waiting gdb connection on port %d\n", gdbstub_port);
         }
-    } else {
+    } else 
+#endif
+    {
         vm_start();
     }
     term_init();

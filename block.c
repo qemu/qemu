@@ -21,29 +21,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdarg.h>
-#include <string.h>
-#include <getopt.h>
-#include <inttypes.h>
-#include <unistd.h>
-#include <sys/mman.h>
-#include <fcntl.h>
-#include <signal.h>
-#include <time.h>
-#include <sys/time.h>
-#include <malloc.h>
-#include <termios.h>
-#include <sys/poll.h>
-#include <errno.h>
-#include <sys/wait.h>
-#include <netinet/in.h>
-
 #include "vl.h"
 
-#define NO_THUNK_TYPE_SIZE
-#include "thunk.h"
+#ifndef _WIN32
+#include <sys/mman.h>
+#endif
 
 #include "cow.h"
 
@@ -97,11 +79,14 @@ BlockDriverState *bdrv_new(const char *device_name)
 
 int bdrv_open(BlockDriverState *bs, const char *filename, int snapshot)
 {
-    int fd, cow_fd;
+    int fd;
     int64_t size;
-    char template[] = "/tmp/vl.XXXXXX";
     struct cow_header_v2 cow_header;
+#ifndef _WIN32
+    char template[] = "/tmp/vl.XXXXXX";
+    int cow_fd;
     struct stat st;
+#endif
 
     bs->read_only = 0;
     bs->fd = -1;
@@ -110,10 +95,18 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int snapshot)
     strcpy(bs->filename, filename);
 
     /* open standard HD image */
+#ifdef _WIN32
+    fd = open(filename, O_RDWR | O_BINARY);
+#else
     fd = open(filename, O_RDWR | O_LARGEFILE);
+#endif
     if (fd < 0) {
         /* read only image on disk */
+#ifdef _WIN32
+        fd = open(filename, O_RDONLY | O_BINARY);
+#else
         fd = open(filename, O_RDONLY | O_LARGEFILE);
+#endif
         if (fd < 0) {
             perror(filename);
             goto fail;
@@ -128,8 +121,9 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int snapshot)
         fprintf(stderr, "%s: could not read header\n", filename);
         goto fail;
     }
-    if (cow_header.magic == htonl(COW_MAGIC) &&
-        cow_header.version == htonl(COW_VERSION)) {
+#ifndef _WIN32
+    if (be32_to_cpu(cow_header.magic) == COW_MAGIC &&
+        be32_to_cpu(cow_header.version) == COW_VERSION) {
         /* cow image found */
         size = cow_header.size;
 #ifndef WORDS_BIGENDIAN
@@ -144,7 +138,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int snapshot)
                 fprintf(stderr, "%s: could not find original disk image '%s'\n", filename, cow_header.backing_file);
                 goto fail;
             }
-            if (st.st_mtime != htonl(cow_header.mtime)) {
+            if (st.st_mtime != be32_to_cpu(cow_header.mtime)) {
                 fprintf(stderr, "%s: original raw disk image '%s' does not match saved timestamp\n", filename, cow_header.backing_file);
                 goto fail;
             }
@@ -164,13 +158,16 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int snapshot)
         bs->cow_bitmap = bs->cow_bitmap_addr + sizeof(cow_header);
         bs->cow_sectors_offset = (bs->cow_bitmap_size + 511) & ~511;
         snapshot = 0;
-    } else {
+    } else 
+#endif
+    {
         /* standard raw image */
         size = lseek64(fd, 0, SEEK_END);
         bs->total_sectors = size / 512;
         bs->fd = fd;
     }
 
+#ifndef _WIN32
     if (snapshot) {
         /* create a temporary COW file */
         cow_fd = mkstemp(template);
@@ -190,6 +187,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int snapshot)
         bs->cow_bitmap = bs->cow_bitmap_addr;
         bs->cow_sectors_offset = 0;
     }
+#endif
     
     bs->inserted = 1;
 
@@ -206,9 +204,11 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int snapshot)
 void bdrv_close(BlockDriverState *bs)
 {
     if (bs->inserted) {
+#ifndef _WIN32
         /* we unmap the mapping so that it is written to the COW file */
         if (bs->cow_bitmap_addr)
             munmap(bs->cow_bitmap_addr, bs->cow_bitmap_size);
+#endif
         if (bs->cow_fd >= 0)
             close(bs->cow_fd);
         if (bs->fd >= 0)

@@ -24,6 +24,7 @@ version 0.5.3:
   - VM save/restore commands
   - new timer API
   - more precise RTC emulation (periodic timers + time updates)
+  - Win32 port (initial patch by Kazu)
 
 version 0.5.2:
 

@@ -21,25 +21,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdarg.h>
-#include <string.h>
-#include <getopt.h>
-#include <inttypes.h>
-#include <unistd.h>
-#include <sys/mman.h>
-#include <fcntl.h>
-#include <signal.h>
-#include <time.h>
-#include <sys/time.h>
-#include <malloc.h>
-#include <termios.h>
-#include <sys/poll.h>
-#include <errno.h>
-#include <ctype.h>
-
-#include "cpu.h"
 #include "vl.h"
 
 //#define DEBUG
@@ -311,6 +292,7 @@ static void do_cont(int argc, const char **argv)
     vm_start();
 }
 
+#ifdef CONFIG_GDBSTUB
 static void do_gdbserver(int argc, const char **argv)
 {
     int port;
@@ -324,6 +306,7 @@ static void do_gdbserver(int argc, const char **argv)
         qemu_printf("Waiting gdb connection on port %d\n", port);
     }
 }
+#endif
 
 static term_cmd_t term_cmds[] = {
     { "help|?", do_help, 
@@ -348,7 +331,9 @@ static term_cmd_t term_cmds[] = {
       "filename", "restore the whole virtual machine state from 'filename'" }, 
     { "stop", do_stop, "", "stop emulation", },
     { "c|cont", do_cont, "", "resume emulation", },
+#ifdef CONFIG_GDBSTUB
     { "gdbserver", do_gdbserver, "[port]", "start gdbserver session (default port=1234)", },
+#endif
     { NULL, NULL, }, 
 };
 

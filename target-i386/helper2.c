@@ -24,7 +24,6 @@
 #include <inttypes.h>
 #include <signal.h>
 #include <assert.h>
-#include <sys/mman.h>
 
 #include "cpu.h"
 #include "exec-all.h"
@@ -334,7 +333,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr,
     if (!(env->cr[0] & CR0_PG_MASK)) {
         pte = addr;
         virt_addr = addr & TARGET_PAGE_MASK;
-        prot = PROT_READ | PROT_WRITE;
+        prot = PAGE_READ | PAGE_WRITE;
         page_size = 4096;
         goto do_mapping;
     }
@@ -409,17 +408,17 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr,
     }
 
     /* the page can be put in the TLB */
-    prot = PROT_READ;
+    prot = PAGE_READ;
     if (pte & PG_DIRTY_MASK) {
         /* only set write access if already dirty... otherwise wait
            for dirty access */
         if (is_user) {
             if (ptep & PG_RW_MASK)
-                prot |= PROT_WRITE;
+                prot |= PAGE_WRITE;
         } else {
             if (!(env->cr[0] & CR0_WP_MASK) ||
                 (ptep & PG_RW_MASK))
-                prot |= PROT_WRITE;
+                prot |= PAGE_WRITE;
         }
     }
 

@@ -592,6 +592,8 @@ void cpu_x86_frstor(CPUX86State *s, uint8_t *ptr, int data32)
 
 #endif /* TARGET_I386 */
 
+#if !defined(CONFIG_SOFTMMU)
+
 #undef EAX
 #undef ECX
 #undef EDX
@@ -925,3 +927,5 @@ int cpu_signal_handler(int host_signum, struct siginfo *info,
 #error host CPU specific signal handler needed
 
 #endif
+
+#endif /* !defined(CONFIG_SOFTMMU) */

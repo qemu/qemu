@@ -25,14 +25,15 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
-#include <sys/mman.h>
-#include <sys/ipc.h>
 #include <errno.h>
 #include <unistd.h>
 
 #include "cpu.h"
 
 #if defined(__i386__) && !defined(CONFIG_SOFTMMU) && !defined(CONFIG_USER_ONLY)
+
+#include <sys/mman.h>
+#include <sys/ipc.h>
 
 /* When not using soft mmu, libc independant functions are needed for
    the CPU core because it needs to use alternates stacks and

@@ -1,12 +1,17 @@
 include config-host.mak
 
 CFLAGS=-Wall -O2 -g
+ifdef CONFIG_WIN32
+CFLAGS+=-fpack-struct 
+endif
 LDFLAGS=-g
 LIBS=
 DEFINES+=-D_GNU_SOURCE
+ifndef CONFIG_WIN32
 TOOLS=qemu-mkcow
+endif
 
-all: dyngen $(TOOLS) qemu-doc.html qemu.1
+all: dyngen$(EXESUF) $(TOOLS) qemu-doc.html qemu.1
 	for d in $(TARGET_DIRS); do \
 	make -C $$d $@ || exit 1 ; \
         done
@@ -14,7 +19,7 @@ all: dyngen $(TOOLS) qemu-doc.html qemu.1
 qemu-mkcow: qemu-mkcow.o
 	$(HOST_CC) -o $@ $^  $(LIBS)
 
-dyngen: dyngen.o
+dyngen$(EXESUF): dyngen.o
 	$(HOST_CC) -o $@ $^  $(LIBS)
 
 %.o: %.c
@@ -23,7 +28,7 @@ dyngen: dyngen.o
 clean:
 # avoid old build problems by removing potentially incorrect old files
 	rm -f config.mak config.h op-i386.h opc-i386.h gen-op-i386.h op-arm.h opc-arm.h gen-op-arm.h 
-	rm -f *.o *.a $(TOOLS) dyngen TAGS qemu.pod
+	rm -f *.o *.a $(TOOLS) dyngen$(EXESUF) TAGS qemu.pod
 	make -C tests clean
 	for d in $(TARGET_DIRS); do \
 	make -C $$d $@ || exit 1 ; \

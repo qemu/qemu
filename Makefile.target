@@ -11,12 +11,12 @@ CFLAGS=-Wall -O2 -g
 LDFLAGS=-g
 LIBS=
 HELPER_CFLAGS=$(CFLAGS)
-DYNGEN=../dyngen
+DYNGEN=../dyngen$(EXESUF)
 # user emulator name
 QEMU_USER=qemu-$(TARGET_ARCH)
 # system emulator name
 ifdef CONFIG_SOFTMMU
-QEMU_SYSTEM=qemu
+QEMU_SYSTEM=qemu$(EXESUF)
 else
 QEMU_SYSTEM=qemu-fast
 endif
@@ -146,6 +146,9 @@ endif
 
 DEFINES+=-D_GNU_SOURCE
 LIBS+=-lm
+ifdef CONFIG_WIN32
+LIBS+=-lwinmm
+endif
 
 # profiling code
 ifdef TARGET_GPROF
@@ -219,9 +222,12 @@ ifeq ($(ARCH),alpha)
 endif
 
 # must use static linking to avoid leaving stuff in virtual address space
-VL_OBJS=vl.o osdep.o block.o monitor.o gdbstub.o \
+VL_OBJS=vl.o osdep.o block.o monitor.o \
         ide.o ne2000.o pckbd.o vga.o sb16.o dma.o oss.o \
         fdc.o mc146818rtc.o serial.o i8259.o i8254.o pc.o
+ifdef CONFIG_GDBSTUB
+VL_OBJS+=gdbstub.o 
+endif
 ifeq ($(TARGET_ARCH), ppc)
 VL_OBJS+= hw.o
 endif

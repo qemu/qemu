@@ -141,7 +141,7 @@ int tlb_set_page(CPUState *env, uint32_t vaddr, uint32_t paddr, int prot,
 #if defined(__powerpc__) 
 #define USE_DIRECT_JUMP
 #endif
-#if defined(__i386__) 
+#if defined(__i386__) && !defined(_WIN32)
 #define USE_DIRECT_JUMP
 #endif
 
@@ -322,13 +322,19 @@ do {\
 
 #elif defined(__i386__) && defined(USE_DIRECT_JUMP)
 
+#ifdef _WIN32
+#define ASM_PREVIOUS_SECTION ".section .text\n"
+#else
+#define ASM_PREVIOUS_SECTION ".previous\n"
+#endif
+
 /* we patch the jump instruction directly */
 #define JUMP_TB(opname, tbparam, n, eip)\
 do {\
-    asm volatile (".section \".data\"\n"\
+    asm volatile (".section .data\n"\
 		  "__op_label" #n "." stringify(opname) ":\n"\
 		  ".long 1f\n"\
-		  ".previous\n"\
+		  ASM_PREVIOUS_SECTION \
                   "jmp __op_jmp" #n "\n"\
 		  "1:\n");\
     T0 = (long)(tbparam) + (n);\

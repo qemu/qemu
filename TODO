@@ -1,9 +1,12 @@
 short term:
 ----------
+- handle fast timers + add explicit clocks
+- OS/2 install bug
+- win 95 install bug
+- handle Self Modifying Code even if modifying current TB (BE OS 5 install)
 - physical memory cache (reduce qemu-fast address space size to about 32 MB)
 - better code fetch
 - XP security bug
-- handle Self Modifying Code even if modifying current TB (BE OS 5 install)
 - cycle counter for all archs
 - TLB code protection support for PPC
 - add sysenter/sysexit and fxsr for L4 pistachio 686

@@ -24,9 +24,78 @@
 #ifndef VL_H
 #define VL_H
 
+/* we put basic includes here to avoid repeating them in device drivers */
+#include <stdlib.h>
+#include <stdio.h>
+#include <stdarg.h>
+#include <string.h>
+#include <inttypes.h>
 #include <time.h>
+#include <ctype.h>
+#include <errno.h>
+#include <unistd.h>
+#include <fcntl.h>
+
+#ifndef O_LARGEFILE
+#define O_LARGEFILE 0
+#endif
+
+#ifdef _WIN32
+#define lseek64 lseek
+#endif
 
 #include "cpu.h"
+
+#ifndef glue
+#define xglue(x, y) x ## y
+#define glue(x, y) xglue(x, y)
+#define stringify(s)	tostring(s)
+#define tostring(s)	#s
+#endif
+
+#if defined(WORDS_BIGENDIAN)
+static inline uint32_t be32_to_cpu(uint32_t v)
+{
+    return v;
+}
+
+static inline uint16_t be16_to_cpu(uint16_t v)
+{
+    return v;
+}
+
+static inline uint32_t le32_to_cpu(uint32_t v)
+{
+    return bswap32(v);
+}
+
+static inline uint16_t le16_to_cpu(uint16_t v)
+{
+    return bswap16(v);
+}
+
+#else
+static inline uint32_t be32_to_cpu(uint32_t v)
+{
+    return bswap32(v);
+}
+
+static inline uint16_t be16_to_cpu(uint16_t v)
+{
+    return bswap16(v);
+}
+
+static inline uint32_t le32_to_cpu(uint32_t v)
+{
+    return v;
+}
+
+static inline uint16_t le16_to_cpu(uint16_t v)
+{
+    return v;
+}
+#endif
+
 
 /* vl.c */
 extern int reset_requested;

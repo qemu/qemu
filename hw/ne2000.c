@@ -21,26 +21,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdarg.h>
-#include <string.h>
-#include <getopt.h>
-#include <inttypes.h>
-#include <unistd.h>
-#include <sys/mman.h>
-#include <fcntl.h>
-#include <signal.h>
-#include <time.h>
-#include <sys/time.h>
-#include <malloc.h>
-#include <termios.h>
-#include <sys/poll.h>
-#include <errno.h>
-#include <sys/wait.h>
-#include <netinet/in.h>
-
-#include "cpu.h"
 #include "vl.h"
 
 /* debug NE2000 card */

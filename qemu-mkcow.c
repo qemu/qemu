@@ -28,16 +28,11 @@
 #include <getopt.h>
 #include <inttypes.h>
 #include <unistd.h>
-#include <sys/mman.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <time.h>
 #include <sys/time.h>
-#include <malloc.h>
-#include <termios.h>
-#include <sys/poll.h>
 #include <errno.h>
-#include <sys/wait.h>
 #include <sys/stat.h>
 #include <netinet/in.h>
 

@@ -21,26 +21,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdarg.h>
-#include <string.h>
-#include <getopt.h>
-#include <inttypes.h>
-#include <unistd.h>
-#include <sys/mman.h>
-#include <fcntl.h>
-#include <signal.h>
-#include <time.h>
-#include <sys/time.h>
-#include <malloc.h>
-#include <termios.h>
-#include <sys/poll.h>
-#include <errno.h>
-#include <sys/wait.h>
-#include <netinet/in.h>
-
-#include "cpu.h"
 #include "vl.h"
 
 /* output Bochs bios info messages */
@@ -393,9 +373,13 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
                  bs_table[2 * i], bs_table[2 * i + 1]);
     }
     kbd_init();
-    AUD_init();
     DMA_init();
+
+#ifndef _WIN32
+    /* no audio supported yet for win32 */
+    AUD_init();
     SB16_init();
+#endif
 
     floppy_controller = fdctrl_init(6, 2, 0, 0x3f0, fd_table);
 

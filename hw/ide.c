@@ -21,31 +21,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdarg.h>
-#include <string.h>
-#include <getopt.h>
-#include <inttypes.h>
-#include <unistd.h>
-#include <sys/mman.h>
-#include <fcntl.h>
-#include <signal.h>
-#include <time.h>
-#include <sys/time.h>
-#include <malloc.h>
-#include <termios.h>
-#include <sys/poll.h>
-#include <errno.h>
-#include <sys/wait.h>
-#include <netinet/in.h>
-
-#define NO_THUNK_TYPE_SIZE
-#include "thunk.h"
-
-#include "cpu.h"
-#include "exec-all.h"
-
 #include "vl.h"
 
 /* debug IDE devices */
@@ -375,6 +350,15 @@ static void padstr8(uint8_t *buf, int buf_size, const char *src)
     }
 }
 
+static void put_le16(uint16_t *p, unsigned int v)
+{
+#ifdef WORDS_BIGENDIAN
+    *p = bswap16(v);
+#else
+    *p = v;
+#endif
+}
+
 static void ide_identify(IDEState *s)
 {
     uint16_t *p;
@@ -382,43 +366,43 @@ static void ide_identify(IDEState *s)
 
     memset(s->io_buffer, 0, 512);
     p = (uint16_t *)s->io_buffer;
-    stw_raw(p + 0, 0x0040);
-    stw_raw(p + 1, s->cylinders); 
-    stw_raw(p + 3, s->heads);
-    stw_raw(p + 4, 512 * s->sectors); /* XXX: retired, remove ? */
-    stw_raw(p + 5, 512); /* XXX: retired, remove ? */
-    stw_raw(p + 6, s->sectors); 
+    put_le16(p + 0, 0x0040);
+    put_le16(p + 1, s->cylinders); 
+    put_le16(p + 3, s->heads);
+    put_le16(p + 4, 512 * s->sectors); /* XXX: retired, remove ? */
+    put_le16(p + 5, 512); /* XXX: retired, remove ? */
+    put_le16(p + 6, s->sectors); 
     padstr((uint8_t *)(p + 10), "QM00001", 20); /* serial number */
-    stw_raw(p + 20, 3); /* XXX: retired, remove ? */
-    stw_raw(p + 21, 512); /* cache size in sectors */
-    stw_raw(p + 22, 4); /* ecc bytes */
+    put_le16(p + 20, 3); /* XXX: retired, remove ? */
+    put_le16(p + 21, 512); /* cache size in sectors */
+    put_le16(p + 22, 4); /* ecc bytes */
     padstr((uint8_t *)(p + 23), QEMU_VERSION, 8); /* firmware version */
     padstr((uint8_t *)(p + 27), "QEMU HARDDISK", 40); /* model */
 #if MAX_MULT_SECTORS > 1    
-    stw_raw(p + 47, 0x8000 | MAX_MULT_SECTORS);
+    put_le16(p + 47, 0x8000 | MAX_MULT_SECTORS);
 #endif
-    stw_raw(p + 48, 1); /* dword I/O */
-    stw_raw(p + 49, 1 << 9); /* LBA supported, no DMA */
-    stw_raw(p + 51, 0x200); /* PIO transfer cycle */
-    stw_raw(p + 52, 0x200); /* DMA transfer cycle */
-    stw_raw(p + 53, 1); /* words 54-58 are valid */
-    stw_raw(p + 54, s->cylinders);
-    stw_raw(p + 55, s->heads);
-    stw_raw(p + 56, s->sectors);
+    put_le16(p + 48, 1); /* dword I/O */
+    put_le16(p + 49, 1 << 9); /* LBA supported, no DMA */
+    put_le16(p + 51, 0x200); /* PIO transfer cycle */
+    put_le16(p + 52, 0x200); /* DMA transfer cycle */
+    put_le16(p + 53, 1); /* words 54-58 are valid */
+    put_le16(p + 54, s->cylinders);
+    put_le16(p + 55, s->heads);
+    put_le16(p + 56, s->sectors);
     oldsize = s->cylinders * s->heads * s->sectors;
-    stw_raw(p + 57, oldsize);
-    stw_raw(p + 58, oldsize >> 16);
+    put_le16(p + 57, oldsize);
+    put_le16(p + 58, oldsize >> 16);
     if (s->mult_sectors)
-        stw_raw(p + 59, 0x100 | s->mult_sectors);
-    stw_raw(p + 60, s->nb_sectors);
-    stw_raw(p + 61, s->nb_sectors >> 16);
-    stw_raw(p + 80, (1 << 1) | (1 << 2));
-    stw_raw(p + 82, (1 << 14));
-    stw_raw(p + 83, (1 << 14));
-    stw_raw(p + 84, (1 << 14));
-    stw_raw(p + 85, (1 << 14));
-    stw_raw(p + 86, 0);
-    stw_raw(p + 87, (1 << 14));
+        put_le16(p + 59, 0x100 | s->mult_sectors);
+    put_le16(p + 60, s->nb_sectors);
+    put_le16(p + 61, s->nb_sectors >> 16);
+    put_le16(p + 80, (1 << 1) | (1 << 2));
+    put_le16(p + 82, (1 << 14));
+    put_le16(p + 83, (1 << 14));
+    put_le16(p + 84, (1 << 14));
+    put_le16(p + 85, (1 << 14));
+    put_le16(p + 86, 0);
+    put_le16(p + 87, (1 << 14));
 }
 
 static void ide_atapi_identify(IDEState *s)
@@ -428,32 +412,32 @@ static void ide_atapi_identify(IDEState *s)
     memset(s->io_buffer, 0, 512);
     p = (uint16_t *)s->io_buffer;
     /* Removable CDROM, 50us response, 12 byte packets */
-    stw_raw(p + 0, (2 << 14) | (5 << 8) | (1 << 7) | (2 << 5) | (0 << 0));
-    stw_raw(p + 1, s->cylinders); 
-    stw_raw(p + 3, s->heads);
-    stw_raw(p + 4, 512 * s->sectors); /* sectors */
-    stw_raw(p + 5, 512); /* sector size */
-    stw_raw(p + 6, s->sectors); 
+    put_le16(p + 0, (2 << 14) | (5 << 8) | (1 << 7) | (2 << 5) | (0 << 0));
+    put_le16(p + 1, s->cylinders); 
+    put_le16(p + 3, s->heads);
+    put_le16(p + 4, 512 * s->sectors); /* sectors */
+    put_le16(p + 5, 512); /* sector size */
+    put_le16(p + 6, s->sectors); 
     padstr((uint8_t *)(p + 10), "QM00001", 20); /* serial number */
-    stw_raw(p + 20, 3); /* buffer type */
-    stw_raw(p + 21, 512); /* cache size in sectors */
-    stw_raw(p + 22, 4); /* ecc bytes */
+    put_le16(p + 20, 3); /* buffer type */
+    put_le16(p + 21, 512); /* cache size in sectors */
+    put_le16(p + 22, 4); /* ecc bytes */
     padstr((uint8_t *)(p + 23), QEMU_VERSION, 8); /* firmware version */
     padstr((uint8_t *)(p + 27), "QEMU CD-ROM", 40); /* model */
-    stw_raw(p + 48, 1); /* dword I/O (XXX: should not be set on CDROM) */
-    stw_raw(p + 49, 1 << 9); /* LBA supported, no DMA */
-    stw_raw(p + 53, 3); /* words 64-70, 54-58 valid */
-    stw_raw(p + 63, 0x103); /* DMA modes XXX: may be incorrect */
-    stw_raw(p + 64, 1); /* PIO modes */
-    stw_raw(p + 65, 0xb4); /* minimum DMA multiword tx cycle time */
-    stw_raw(p + 66, 0xb4); /* recommended DMA multiword tx cycle time */
-    stw_raw(p + 67, 0x12c); /* minimum PIO cycle time without flow control */
-    stw_raw(p + 68, 0xb4); /* minimum PIO cycle time with IORDY flow control */
+    put_le16(p + 48, 1); /* dword I/O (XXX: should not be set on CDROM) */
+    put_le16(p + 49, 1 << 9); /* LBA supported, no DMA */
+    put_le16(p + 53, 3); /* words 64-70, 54-58 valid */
+    put_le16(p + 63, 0x103); /* DMA modes XXX: may be incorrect */
+    put_le16(p + 64, 1); /* PIO modes */
+    put_le16(p + 65, 0xb4); /* minimum DMA multiword tx cycle time */
+    put_le16(p + 66, 0xb4); /* recommended DMA multiword tx cycle time */
+    put_le16(p + 67, 0x12c); /* minimum PIO cycle time without flow control */
+    put_le16(p + 68, 0xb4); /* minimum PIO cycle time with IORDY flow control */
     
-    stw_raw(p + 71, 30); /* in ns */
-    stw_raw(p + 72, 30); /* in ns */
+    put_le16(p + 71, 30); /* in ns */
+    put_le16(p + 72, 30); /* in ns */
 
-    stw_raw(p + 80, 0x1e); /* support up to ATA/ATAPI-4 */
+    put_le16(p + 80, 0x1e); /* support up to ATA/ATAPI-4 */
 }
 
 static void ide_set_signature(IDEState *s)

@@ -21,6 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#include "vl.h"
+
+#ifndef _WIN32
 #include <fcntl.h>
 #include <errno.h>
 #include <stdio.h>
@@ -33,7 +36,6 @@
 #include <sys/ioctl.h>
 #include <sys/soundcard.h>
 
-#include "vl.h"
 
 /* http://www.df.lth.se/~john_e/gems/gem002d.html */
 /* http://www.multi-platforms.com/Tips/PopCount.htm */
@@ -510,3 +512,43 @@ void AUD_init (void)
 
     conf_fragsize = lsbindex (fsp);
 }
+
+#else
+
+void AUD_run (void)
+{
+}
+
+int AUD_write (void *in_buf, int size)
+{
+    return 0;
+}
+
+void AUD_reset (int rfreq, int rnchannels, audfmt_e rfmt)
+{
+}
+
+void AUD_adjust_estimate (int _leftover)
+{
+}
+
+int AUD_get_free (void)
+{
+    return 0;
+}
+
+int AUD_get_live (void)
+{
+    return 0;
+}
+
+int AUD_get_buffer_size (void)
+{
+    return 0;
+}
+
+void AUD_init (void)
+{
+}
+
+#endif

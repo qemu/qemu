@@ -17,6 +17,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+#include "config.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -24,9 +25,10 @@
 #include <errno.h>
 #include <unistd.h>
 #include <inttypes.h>
+#if !defined(CONFIG_SOFTMMU)
 #include <sys/mman.h>
+#endif
 
-#include "config.h"
 #include "cpu.h"
 #include "exec-all.h"
 
@@ -121,7 +123,11 @@ static void page_init(void)
 {
     /* NOTE: we can always suppose that host_page_size >=
        TARGET_PAGE_SIZE */
+#ifdef _WIN32
+    real_host_page_size = 4096;
+#else
     real_host_page_size = getpagesize();
+#endif
     if (host_page_size == 0)
         host_page_size = real_host_page_size;
     if (host_page_size < TARGET_PAGE_SIZE)
@@ -1369,14 +1375,14 @@ int tlb_set_page(CPUState *env, uint32_t vaddr, uint32_t paddr, int prot,
         
         index = (vaddr >> 12) & (CPU_TLB_SIZE - 1);
         addend -= vaddr;
-        if (prot & PROT_READ) {
+        if (prot & PAGE_READ) {
             env->tlb_read[is_user][index].address = address;
             env->tlb_read[is_user][index].addend = addend;
         } else {
             env->tlb_read[is_user][index].address = -1;
             env->tlb_read[is_user][index].addend = -1;
         }
-        if (prot & PROT_WRITE) {
+        if (prot & PAGE_WRITE) {
             if ((pd & ~TARGET_PAGE_MASK) == IO_MEM_ROM) {
                 /* ROM: access is ignored (same as unassigned) */
                 env->tlb_write[is_user][index].address = vaddr | IO_MEM_ROM;

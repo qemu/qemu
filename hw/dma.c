@@ -21,11 +21,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <stdio.h>
-#include <stdlib.h>
-#include <inttypes.h>
-
-#include "cpu.h"
 #include "vl.h"
 
 #define log(...) fprintf (stderr, "dma: " __VA_ARGS__)
