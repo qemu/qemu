@@ -76,6 +76,10 @@ static void cmos_init(int ram_size, int boot_device)
     /* various important CMOS locations needed by PC/Bochs bios */
 
     /* memory size */
+    val = 640; /* base memory in K */
+    rtc_set_memory(s, 0x15, val);
+    rtc_set_memory(s, 0x16, val >> 8);
+
     val = (ram_size / 1024) - 1024;
     if (val > 65535)
         val = 65535;
