@@ -1218,15 +1218,18 @@ uint8_t code[] = {
     0xc3, /* ret */
 };
 
+typedef int FuncType(void);
+
 void test_self_modifying_code(void)
 {
-    int (*func)(void);
+    int i;
 
-    func = (void *)code;
     printf("self modifying code:\n");
-    printf("func1 = 0x%x\n", func());
-    code[1] = 0x2;
-    printf("func1 = 0x%x\n", func());
+    printf("func1 = 0x%x\n", ((FuncType *)code)());
+    for(i = 2; i <= 4; i++) {
+        code[1] = i;
+        printf("func%d = 0x%x\n", i, ((FuncType *)code)());
+    }
 }
     
 static void *call_end __init_call = NULL;
