@@ -1364,7 +1364,7 @@ void test_exceptions(void)
         /* bound exception */
         tab[0] = 1;
         tab[1] = 10;
-        asm volatile ("bound %0, %1" : : "r" (11), "m" (tab));
+        asm volatile ("bound %0, %1" : : "r" (11), "m" (tab[0]));
     }
 
     printf("segment exceptions:\n");
