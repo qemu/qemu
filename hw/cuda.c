@@ -461,17 +461,7 @@ static void cuda_send_packet_to_host(CUDAState *s,
     cuda_update_irq(s);
 }
 
-void adb_send_packet(ADBBusState *bus, const uint8_t *buf, int len)
-{
-    CUDAState *s = &cuda_state;
-    uint8_t data[16];
-
-    memcpy(data + 1, buf, len);
-    data[0] = ADB_PACKET;
-    cuda_send_packet_to_host(s, data, len + 1);
-}
-
-void cuda_adb_poll(void *opaque)
+static void cuda_adb_poll(void *opaque)
 {
     CUDAState *s = opaque;
     uint8_t obuf[ADB_MAX_OUT_LEN + 2];
