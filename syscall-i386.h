@@ -445,6 +445,18 @@ typedef struct target_siginfo {
 } target_siginfo_t;
 
 /*
+ * si_code values
+ * Digital reserves positive values for kernel-generated signals.
+ */
+#define TARGET_SI_USER		0	/* sent by kill, sigsend, raise */
+#define TARGET_SI_KERNEL	0x80	/* sent by the kernel from somewhere */
+#define TARGET_SI_QUEUE	-1		/* sent by sigqueue */
+#define TARGET_SI_TIMER -2              /* sent by timer expiration */
+#define TARGET_SI_MESGQ	-3		/* sent by real time mesq state change */
+#define TARGET_SI_ASYNCIO	-4	/* sent by AIO completion */
+#define TARGET_SI_SIGIO	-5		/* sent by queued SIGIO */
+
+/*
  * SIGILL si_codes
  */
 #define TARGET_ILL_ILLOPN	(2)	/* illegal operand */
@@ -461,6 +473,12 @@ typedef struct target_siginfo {
 #define TARGET_FPE_FLTINV      (7)  /* floating point invalid operation */
 #define TARGET_FPE_FLTSUB      (8)  /* subscript out of range */
 #define TARGET_NSIGFPE         8
+
+/*
+ * SIGSEGV si_codes
+ */
+#define TARGET_SEGV_MAPERR     (1)  /* address not mapped to object */
+#define TARGET_SEGV_ACCERR     (2)  /* invalid permissions for mapped object */
 
 /* default linux values for the selectors */
 #define __USER_CS	(0x23)
