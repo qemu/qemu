@@ -27,7 +27,7 @@ ar="ar"
 make="make"
 strip="strip"
 cpu=`uname -m`
-target_list="i386-user i386 i386-softmmu arm-user armeb-user sparc-user ppc-user ppc-softmmu sparc-softmmu x86_64-softmmu"
+target_list=""
 case "$cpu" in
   i386|i486|i586|i686|i86pc|BePC)
     cpu="i386"
@@ -80,6 +80,7 @@ oss="no"
 fmod="no"
 fmod_lib=""
 fmod_inc=""
+linux="no"
 
 # OS specific
 targetos=`uname -s`
@@ -105,6 +106,7 @@ darwin="yes"
 ;;
 *) 
 oss="yes"
+linux="yes"
 ;;
 esac
 
@@ -112,7 +114,6 @@ if [ "$bsd" = "yes" ] ; then
   if [ ! "$darwin" = "yes" ] ; then
     make="gmake"
   fi
-  target_list="i386-softmmu ppc-softmmu sparc-softmmu"
 fi
 
 # find source path
@@ -181,10 +182,19 @@ ar="${cross_prefix}${ar}"
 strip="${cross_prefix}${strip}"
 
 if test "$mingw32" = "yes" ; then
-    target_list="i386-softmmu ppc-softmmu sparc-softmmu"
+    linux="no"
     EXESUF=".exe"
     gdbstub="no"
     oss="no"
+fi
+
+if test -z "$target_list" ; then
+# these targets are portable
+    target_list="i386-softmmu ppc-softmmu sparc-softmmu x86_64-softmmu"
+# the following are Linux specific
+    if [ "$linux" = "yes" ] ; then
+        target_list="i386-user i386 arm-user armeb-user sparc-user ppc-user $target_list"
+    fi
 fi
 
 if test -z "$cross_prefix" ; then
