@@ -26,34 +26,19 @@
 #include "config.h"
 
 #define IN_OP_I386
-#if defined(TARGET_I386)
-#include "cpu-i386.h"
-#define OPC_CPU_H "opc-i386.h"
-#elif defined(TARGET_ARM)
-#include "cpu-arm.h"
-#define OPC_CPU_H "opc-arm.h"
-#else
-#error unsupported target CPU
-#endif
-
-#include "exec.h"
+#include "cpu.h"
+#include "exec-all.h"
 #include "disas.h"
 
 enum {
 #define DEF(s, n, copy_size) INDEX_op_ ## s,
-#include OPC_CPU_H
+#include "opc.h"
 #undef DEF
     NB_OPS,
 };
 
 #include "dyngen.h"
-#if defined(TARGET_I386)
-#include "op-i386.h"
-#elif defined(TARGET_ARM)
-#include "op-arm.h"
-#else
-#error unsupported target CPU
-#endif
+#include "op.h"
 
 uint16_t gen_opc_buf[OPC_BUF_SIZE];
 uint32_t gen_opparam_buf[OPPARAM_BUF_SIZE];
@@ -66,13 +51,13 @@ uint8_t gen_opc_cc_op[OPC_BUF_SIZE];
 #ifdef DEBUG_DISAS
 static const char *op_str[] = {
 #define DEF(s, n, copy_size) #s,
-#include OPC_CPU_H
+#include "opc.h"
 #undef DEF
 };
 
 static uint8_t op_nb_args[] = {
 #define DEF(s, n, copy_size) n,
-#include OPC_CPU_H
+#include "opc.h"
 #undef DEF
 };
 
@@ -146,7 +131,7 @@ int cpu_gen_code(CPUState *env, TranslationBlock *tb,
 
 static const unsigned short opc_copy_size[] = {
 #define DEF(s, n, copy_size) copy_size,
-#include OPC_CPU_H
+#include "opc.h"
 #undef DEF
 };
 
@@ -204,6 +189,8 @@ int cpu_restore_state(TranslationBlock *tb,
     }
 #elif defined(TARGET_ARM)
     env->regs[15] = gen_opc_pc[j];
+#elif defined(TARGET_SPARC)
+	env->pc = gen_opc_pc[j];
 #endif
     return 0;
 }
