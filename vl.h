@@ -60,7 +60,7 @@ int bdrv_commit(BlockDriverState *bs);
 
 struct cow_header_v2 {
     uint32_t magic;
-    uint32_t  long version;
+    uint32_t version;
     char backing_file[1024];
     int32_t mtime;
     uint64_t size;

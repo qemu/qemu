@@ -152,7 +152,7 @@ void target_to_host_sigset(sigset_t *d, const target_sigset_t *s)
         ((unsigned long *)d)[i] = tswapl(s->sig[i]);
     }
 #elif TARGET_LONG_BITS == 32 && HOST_LONG_BITS == 64 && TARGET_NSIG_WORDS == 2
-    ((unsigned long *)d)[0] = sigmask | (tswapl(s->sig[1]) << 32);
+    ((unsigned long *)d)[0] = sigmask | ((unsigned long)tswapl(s->sig[1]) << 32);
 #else
 #error target_to_host_sigset
 #endif /* TARGET_LONG_BITS */
