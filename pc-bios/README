@@ -3,3 +3,6 @@
 
 - The VGA BIOS and the Cirrus VGA BIOS come from the LGPL VGA bios
   project (http://www.nongnu.org/vgabios/).
+
+- The PowerPC Open Hack'Ware Open Firmware Compatible BIOS is
+  available at http://site.voila.fr/jmayer/OpenHackWare/index.htm.
