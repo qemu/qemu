@@ -295,6 +295,7 @@ if test "$gprof" = "yes" ; then
 fi
 if test "$static" = "yes" ; then
   echo "CONFIG_STATIC=yes" >> $config_mak
+  echo "#define CONFIG_STATIC 1" >> $config_h
 fi
 if test "$sdl" = "yes" ; then
   echo "CONFIG_SDL=yes" >> $config_mak
