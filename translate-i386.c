@@ -32,10 +32,6 @@
 #define IN_OP_I386
 #include "cpu-i386.h"
 
-#ifndef offsetof
-#define offsetof(type, field) ((size_t) &((type *)0)->field)
-#endif
-
 /* XXX: move that elsewhere */
 static uint16_t *gen_opc_ptr;
 static uint32_t *gen_opparam_ptr;
@@ -3721,10 +3717,19 @@ static uint16_t gen_opc_buf[OPC_BUF_SIZE];
 static uint32_t gen_opparam_buf[OPPARAM_BUF_SIZE];
 
 /* return non zero if the very first instruction is invalid so that
-   the virtual CPU can trigger an exception. */
+   the virtual CPU can trigger an exception. 
+
+   '*code_size_ptr' contains the target code size including the
+   instruction which triggered an exception, except in case of invalid
+   illegal opcode. It must never exceed one target page. 
+   
+   '*gen_code_size_ptr' contains the size of the generated code (host
+   code).
+*/
 int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size, 
                      int *gen_code_size_ptr,
-                     uint8_t *pc_start,  uint8_t *cs_base, int flags)
+                     uint8_t *pc_start,  uint8_t *cs_base, int flags,
+                     int *code_size_ptr)
 {
     DisasContext dc1, *dc = &dc1;
     uint8_t *pc_ptr;
@@ -3767,7 +3772,8 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size,
            generate an exception */
         if (dc->tf)
             break;
-    } while (!dc->is_jmp && gen_opc_ptr < gen_opc_end);
+    } while (!dc->is_jmp && gen_opc_ptr < gen_opc_end && 
+             (pc_ptr - pc_start) < (TARGET_PAGE_SIZE - 32));
     /* we must store the eflags state if it is not already done */
     if (dc->cc_op != CC_OP_DYNAMIC)
         gen_op_set_cc_op(dc->cc_op);
@@ -3810,7 +3816,7 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size,
     gen_code_size = dyngen_code(gen_code_buf, gen_opc_buf, gen_opparam_buf);
     flush_icache_range((unsigned long)gen_code_buf, (unsigned long)(gen_code_buf + gen_code_size));
     *gen_code_size_ptr = gen_code_size;
-
+    *code_size_ptr = pc_ptr - pc_start;
 #ifdef DEBUG_DISAS
     if (loglevel) {
         fprintf(logfile, "OUT: [size=%d]\n", *gen_code_size_ptr);
