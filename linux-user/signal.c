@@ -370,33 +370,6 @@ int queue_signal(int sig, target_siginfo_t *info)
     }
 }
 
-#if defined(DEBUG_SIGNAL)
-#ifdef __i386__
-static void dump_regs(struct ucontext *uc)
-{
-    fprintf(stderr, 
-            "EAX=%08x EBX=%08x ECX=%08x EDX=%08x\n"
-            "ESI=%08x EDI=%08x EBP=%08x ESP=%08x\n"
-            "EFL=%08x EIP=%08x\n",
-            uc->uc_mcontext.gregs[EAX],
-            uc->uc_mcontext.gregs[EBX],
-            uc->uc_mcontext.gregs[ECX],
-            uc->uc_mcontext.gregs[EDX],
-            uc->uc_mcontext.gregs[ESI],
-            uc->uc_mcontext.gregs[EDI],
-            uc->uc_mcontext.gregs[EBP],
-            uc->uc_mcontext.gregs[ESP],
-            uc->uc_mcontext.gregs[EFL],
-            uc->uc_mcontext.gregs[EIP]);
-}
-#else
-static void dump_regs(struct ucontext *uc)
-{
-}
-#endif
-
-#endif
-
 static void host_signal_handler(int host_signum, siginfo_t *info, 
                                 void *puc)
 {
@@ -416,7 +389,6 @@ static void host_signal_handler(int host_signum, siginfo_t *info,
         return;
 #if defined(DEBUG_SIGNAL)
     fprintf(stderr, "qemu: got signal %d\n", sig);
-    dump_regs(puc);
 #endif
     host_to_target_siginfo_noswap(&tinfo, info);
     if (queue_signal(sig, &tinfo) == 1) {
@@ -429,11 +401,13 @@ int do_sigaction(int sig, const struct target_sigaction *act,
                  struct target_sigaction *oact)
 {
     struct emulated_sigaction *k;
+    struct sigaction act1;
+    int host_sig;
 
     if (sig < 1 || sig > TARGET_NSIG)
         return -EINVAL;
     k = &sigact_table[sig - 1];
-#if defined(DEBUG_SIGNAL) && 0
+#if defined(DEBUG_SIGNAL)
     fprintf(stderr, "sigaction sig=%d act=0x%08x, oact=0x%08x\n", 
             sig, (int)act, (int)oact);
 #endif
@@ -448,6 +422,26 @@ int do_sigaction(int sig, const struct target_sigaction *act,
         k->sa.sa_flags = tswapl(act->sa_flags);
         k->sa.sa_restorer = tswapl(act->sa_restorer);
         k->sa.sa_mask = act->sa_mask;
+
+        /* we update the host linux signal state */
+        host_sig = target_to_host_signal(sig);
+        if (host_sig != SIGSEGV && host_sig != SIGBUS) {
+            sigfillset(&act1.sa_mask);
+            act1.sa_flags = SA_SIGINFO;
+            if (k->sa.sa_flags & TARGET_SA_RESTART)
+                act1.sa_flags |= SA_RESTART;
+            /* NOTE: it is important to update the host kernel signal
+               ignore state to avoid getting unexpected interrupted
+               syscalls */
+            if (k->sa._sa_handler == TARGET_SIG_IGN) {
+                act1.sa_sigaction = (void *)SIG_IGN;
+            } else if (k->sa._sa_handler == TARGET_SIG_DFL) {
+                act1.sa_sigaction = (void *)SIG_DFL;
+            } else {
+                act1.sa_sigaction = host_signal_handler;
+            }
+            sigaction(host_sig, &act1, NULL);
+        }
     }
     return 0;
 }
