@@ -227,8 +227,8 @@ fork_exec(so, ex, do_pty)
 #else
 
 int
-openpty(amaster, aslave)
-	int *amaster, *aslave;
+slirp_openpty(amaster, aslave)
+     int *amaster, *aslave;
 {
 	register int master, slave;
 
@@ -328,7 +328,7 @@ fork_exec(so, ex, do_pty)
 	DEBUG_ARG("do_pty = %lx", (long)do_pty);
 	
 	if (do_pty == 2) {
-		if (openpty(&master, &s) == -1) {
+		if (slirp_openpty(&master, &s) == -1) {
 			lprint("Error: openpty failed: %s\n", strerror(errno));
 			return 0;
 		}
@@ -881,7 +881,7 @@ rsh_exec(so,ns, user, host, args)
           return 0;
         }
 #else
-        if (openpty(&fd0[0], &fd0[1]) == -1) {
+        if (slirp_openpty(&fd0[0], &fd0[1]) == -1) {
           close(fd[0]);
           close(fd[1]);
           lprint("Error: openpty failed: %s\n", strerror(errno));
