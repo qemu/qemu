@@ -5,6 +5,9 @@
 #include "elf.h"
 #include <errno.h>
 
+#include "cpu.h"
+#include "exec-all.h"
+
 /* Filled in by elfload.c.  Simplistic, but will do for now. */
 unsigned int disas_num_syms;
 void *disas_symtab;
@@ -19,13 +22,31 @@ buffer_read_memory (memaddr, myaddr, length, info)
      int length;
      struct disassemble_info *info;
 {
-  if (memaddr < info->buffer_vma
-      || memaddr + length > info->buffer_vma + info->buffer_length)
-    /* Out of bounds.  Use EIO because GDB uses it.  */
-    return EIO;
-  memcpy (myaddr, info->buffer + (memaddr - info->buffer_vma), length);
-  return 0;
+    if (memaddr < info->buffer_vma
+        || memaddr + length > info->buffer_vma + info->buffer_length)
+        /* Out of bounds.  Use EIO because GDB uses it.  */
+        return EIO;
+    memcpy (myaddr, info->buffer + (memaddr - info->buffer_vma), length);
+    return 0;
 }
+
+#if !defined(CONFIG_USER_ONLY)
+/* Get LENGTH bytes from info's buffer, at target address memaddr.
+   Transfer them to myaddr.  */
+static int
+target_read_memory (memaddr, myaddr, length, info)
+     bfd_vma memaddr;
+     bfd_byte *myaddr;
+     int length;
+     struct disassemble_info *info;
+{
+    int i;
+    for(i = 0; i < length; i++) {
+        myaddr[i] = ldub_code((void *)((long)memaddr));
+    }
+    return 0;
+}
+#endif
 
 /* Print an error message.  We can assume that this is in response to
    an error return from buffer_read_memory.  */
@@ -102,6 +123,12 @@ void disas(FILE *out, void *code, unsigned long size, int is_host, int flags)
     int (*print_insn)(bfd_vma pc, disassemble_info *info);
 
     INIT_DISASSEMBLE_INFO(disasm_info, out, fprintf);
+
+#if !defined(CONFIG_USER_ONLY)
+    if (!is_host) {
+        disasm_info.read_memory_func = target_read_memory;
+    }
+#endif
 
     disasm_info.buffer = code;
     disasm_info.buffer_vma = (unsigned long)code;
