@@ -212,8 +212,8 @@ static inline int ldl_raw(void *ptr)
 static inline uint64_t ldq_raw(void *ptr)
 {
     uint32_t a,b;
-    a = ldl (ptr);
-    b = ldl (ptr+4);
+    a = ldl_raw(ptr);
+    b = ldl_raw(ptr+4);
     return (((uint64_t)a<<32)|b);
 }
 
@@ -235,8 +235,8 @@ static inline void stl_raw(void *ptr, int v)
 
 static inline void stq_raw(void *ptr, uint64_t v)
 {
-    stl (ptr, v);
-    stl (ptr+4, v >> 32);
+    stl_raw(ptr, v);
+    stl_raw(ptr+4, v >> 32);
 }
 
 #else
