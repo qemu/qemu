@@ -22,6 +22,8 @@
 
 #include "config.h"
 #include <setjmp.h>
+#include <inttypes.h>
+#include "osdep.h"
 
 #ifndef TARGET_LONG_BITS
 #error TARGET_LONG_BITS must be defined before including this header
