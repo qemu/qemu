@@ -314,8 +314,11 @@ static const int ide_irq[2] = { 14, 15 };
 
 #define NE2000_NB_MAX 6
 
-static uint32_t ne2000_io[NE2000_NB_MAX] = { 0x300, 0x320, 0x340, 0x360, 0x280, 0x380 };
+static int ne2000_io[NE2000_NB_MAX] = { 0x300, 0x320, 0x340, 0x360, 0x280, 0x380 };
 static int ne2000_irq[NE2000_NB_MAX] = { 9, 10, 11, 3, 4, 5 };
+
+static int serial_io[MAX_SERIAL_PORTS] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8 };
+static int serial_irq[MAX_SERIAL_PORTS] = { 4, 3, 4, 3 };
 
 /* PC hardware initialisation */
 void pc_init(int ram_size, int vga_ram_size, int boot_device,
@@ -471,7 +474,11 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
     pic_init();
     pit = pit_init(0x40, 0);
 
-    serial_init(0x3f8, 4, serial_hd);
+    for(i = 0; i < MAX_SERIAL_PORTS; i++) {
+        if (serial_hds[i]) {
+            serial_init(serial_io[i], serial_irq[i], serial_hds[i]);
+        }
+    }
 
     if (pci_enabled) {
         for(i = 0; i < nb_nics; i++) {

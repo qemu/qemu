@@ -200,7 +200,7 @@ void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
     pic_init();
 
     /* XXX: use Mac Serial port */
-    serial_init(0x3f8, 4, serial_hd);
+    serial_init(0x3f8, 4, serial_hds[0]);
 
     for(i = 0; i < nb_nics; i++) {
         pci_ne2000_init(pci_bus, &nd_table[i]);

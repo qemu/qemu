@@ -200,8 +200,6 @@ void qemu_chr_add_read_handler(CharDriverState *s,
                                IOReadHandler *fd_read, void *opaque);
 void qemu_chr_add_event_handler(CharDriverState *s, IOEventHandler *chr_event);
                                
-CharDriverState *serial_hd;
-
 /* consoles */
 
 typedef struct DisplayState DisplayState;
@@ -213,6 +211,12 @@ TextConsole *graphic_console_init(DisplayState *ds);
 int is_active_console(TextConsole *s);
 CharDriverState *text_console_init(DisplayState *ds);
 void console_select(unsigned int index);
+
+/* serial ports */
+
+#define MAX_SERIAL_PORTS 4
+
+extern CharDriverState *serial_hds[MAX_SERIAL_PORTS];
 
 /* network redirectors support */
 

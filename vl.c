@@ -128,6 +128,7 @@ int graphic_width = 800;
 int graphic_height = 600;
 int graphic_depth = 15;
 TextConsole *vga_console;
+CharDriverState *serial_hds[MAX_SERIAL_PORTS];
 
 /***********************************************************/
 /* x86 ISA bus support */
@@ -1166,6 +1167,43 @@ static void stdio_read(void *opaque, const uint8_t *buf, int size)
         stdio_received_byte(buf[i]);
 }
 
+/* init terminal so that we can grab keys */
+static struct termios oldtty;
+static int old_fd0_flags;
+
+static void term_exit(void)
+{
+    tcsetattr (0, TCSANOW, &oldtty);
+    fcntl(0, F_SETFL, old_fd0_flags);
+}
+
+static void term_init(void)
+{
+    struct termios tty;
+
+    tcgetattr (0, &tty);
+    oldtty = tty;
+    old_fd0_flags = fcntl(0, F_GETFL);
+
+    tty.c_iflag &= ~(IGNBRK|BRKINT|PARMRK|ISTRIP
+                          |INLCR|IGNCR|ICRNL|IXON);
+    tty.c_oflag |= OPOST;
+    tty.c_lflag &= ~(ECHO|ECHONL|ICANON|IEXTEN);
+    /* if graphical mode, we allow Ctrl-C handling */
+    if (nographic)
+        tty.c_lflag &= ~ISIG;
+    tty.c_cflag &= ~(CSIZE|PARENB);
+    tty.c_cflag |= CS8;
+    tty.c_cc[VMIN] = 1;
+    tty.c_cc[VTIME] = 0;
+    
+    tcsetattr (0, TCSANOW, &tty);
+
+    atexit(term_exit);
+
+    fcntl(0, F_SETFL, O_NONBLOCK);
+}
+
 CharDriverState *qemu_chr_open_stdio(void)
 {
     CharDriverState *chr;
@@ -1183,6 +1221,10 @@ CharDriverState *qemu_chr_open_stdio(void)
         chr = qemu_chr_open_fd(0, 1);
     }
     stdio_clients[stdio_nb_clients++] = chr;
+    if (stdio_nb_clients == 1) {
+        /* set the terminal in raw mode */
+        term_init();
+    }
     return chr;
 }
 
@@ -1449,57 +1491,6 @@ static int net_fd_init(NetDriverState *nd, int fd)
 /***********************************************************/
 /* dumb display */
 
-#ifdef _WIN32
-
-static void term_exit(void)
-{
-}
-
-static void term_init(void)
-{
-}
-
-#else
-
-/* init terminal so that we can grab keys */
-static struct termios oldtty;
-static int old_fd0_flags;
-
-static void term_exit(void)
-{
-    tcsetattr (0, TCSANOW, &oldtty);
-    fcntl(0, F_SETFL, old_fd0_flags);
-}
-
-static void term_init(void)
-{
-    struct termios tty;
-
-    tcgetattr (0, &tty);
-    oldtty = tty;
-    old_fd0_flags = fcntl(0, F_GETFL);
-
-    tty.c_iflag &= ~(IGNBRK|BRKINT|PARMRK|ISTRIP
-                          |INLCR|IGNCR|ICRNL|IXON);
-    tty.c_oflag |= OPOST;
-    tty.c_lflag &= ~(ECHO|ECHONL|ICANON|IEXTEN);
-    /* if graphical mode, we allow Ctrl-C handling */
-    if (nographic)
-        tty.c_lflag &= ~ISIG;
-    tty.c_cflag &= ~(CSIZE|PARENB);
-    tty.c_cflag |= CS8;
-    tty.c_cc[VMIN] = 1;
-    tty.c_cc[VTIME] = 0;
-    
-    tcsetattr (0, TCSANOW, &tty);
-
-    atexit(term_exit);
-
-    fcntl(0, F_SETFL, O_NONBLOCK);
-}
-
-#endif
-
 static void dumb_update(DisplayState *ds, int x, int y, int w, int h)
 {
 }
@@ -1531,7 +1522,8 @@ static void host_segv_handler(int host_signum, siginfo_t *info,
 {
     if (cpu_signal_handler(host_signum, info, puc))
         return;
-    term_exit();
+    if (stdio_nb_clients > 0)
+        term_exit();
     abort();
 }
 #endif
@@ -2568,8 +2560,9 @@ int main(int argc, char **argv)
     const char *r, *optarg;
     CharDriverState *monitor_hd;
     char monitor_device[128];
-    char serial_device[128];
-
+    char serial_devices[MAX_SERIAL_PORTS][128];
+    int serial_device_index;
+    
 #if !defined(CONFIG_SOFTMMU)
     /* we never want that malloc() uses mmap() */
     mallopt(M_MMAP_THRESHOLD, 4096 * 1024);
@@ -2594,8 +2587,12 @@ int main(int argc, char **argv)
     has_cdrom = 1;
     cyls = heads = secs = 0;
     pstrcpy(monitor_device, sizeof(monitor_device), "vc");
-    pstrcpy(serial_device, sizeof(serial_device), "vc");
 
+    pstrcpy(serial_devices[0], sizeof(serial_devices[0]), "vc");
+    for(i = 1; i < MAX_SERIAL_PORTS; i++)
+        serial_devices[i][0] = '\0';
+    serial_device_index = 0;
+    
     nb_tun_fds = 0;
     net_if_type = -1;
     nb_nics = 1;
@@ -2674,7 +2671,7 @@ int main(int argc, char **argv)
                 break;
             case QEMU_OPTION_nographic:
                 pstrcpy(monitor_device, sizeof(monitor_device), "stdio");
-                pstrcpy(serial_device, sizeof(serial_device), "stdio");
+                pstrcpy(serial_devices[0], sizeof(serial_devices[0]), "stdio");
                 nographic = 1;
                 break;
             case QEMU_OPTION_kernel:
@@ -2865,7 +2862,13 @@ int main(int argc, char **argv)
                 pstrcpy(monitor_device, sizeof(monitor_device), optarg);
                 break;
             case QEMU_OPTION_serial:
-                pstrcpy(serial_device, sizeof(serial_device), optarg);
+                if (serial_device_index >= MAX_SERIAL_PORTS) {
+                    fprintf(stderr, "qemu: too many serial ports\n");
+                    exit(1);
+                }
+                pstrcpy(serial_devices[serial_device_index], 
+                        sizeof(serial_devices[0]), optarg);
+                serial_device_index++;
                 break;
             }
         }
@@ -3066,14 +3069,18 @@ int main(int argc, char **argv)
     }
     monitor_init(monitor_hd, !nographic);
 
-    serial_hd = qemu_chr_open(serial_device);
-    if (!serial_hd) {
-        fprintf(stderr, "qemu: could not open serial device '%s'\n", serial_device);
-        exit(1);
+    for(i = 0; i < MAX_SERIAL_PORTS; i++) {
+        if (serial_devices[i][0] != '\0') {
+            serial_hds[i] = qemu_chr_open(serial_devices[i]);
+            if (!serial_hds[i]) {
+                fprintf(stderr, "qemu: could not open serial device '%s'\n", 
+                        serial_devices[i]);
+                exit(1);
+            }
+            if (!strcmp(serial_devices[i], "vc"))
+                qemu_chr_printf(serial_hds[i], "serial%d console\n", i);
+        }
     }
-    if (!strcmp(serial_device, "vc"))
-        qemu_chr_printf(serial_hd, "serial0 console\n");
-    
 
     /* setup cpu signal handlers for MMU / self modifying code handling */
 #if !defined(CONFIG_SOFTMMU)
@@ -3142,11 +3149,9 @@ int main(int argc, char **argv)
         } else {
             printf("Waiting gdb connection on port %d\n", gdbstub_port);
         }
-        term_init();
     } else 
 #endif
     {
-        term_init();
         /* XXX: simplify init */
         read_passwords();
         if (start_emulation) {
