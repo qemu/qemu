@@ -19,6 +19,57 @@
  */
 #include "exec-i386.h"
 
+const uint8_t parity_table[256] = {
+    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
+    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
+    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
+    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
+    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
+    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
+    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
+    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
+    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
+    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
+    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
+    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
+    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
+    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
+    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
+    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
+    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
+    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
+    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
+    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
+    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
+    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
+    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
+    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
+    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
+    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
+    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
+    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
+    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
+    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
+    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
+    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
+};
+
+/* modulo 17 table */
+const uint8_t rclw_table[32] = {
+    0, 1, 2, 3, 4, 5, 6, 7, 
+    8, 9,10,11,12,13,14,15,
+   16, 0, 1, 2, 3, 4, 5, 6,
+    7, 8, 9,10,11,12,13,14,
+};
+
+/* modulo 9 table */
+const uint8_t rclb_table[32] = {
+    0, 1, 2, 3, 4, 5, 6, 7, 
+    8, 0, 1, 2, 3, 4, 5, 6,
+    7, 8, 0, 1, 2, 3, 4, 5, 
+    6, 7, 8, 0, 1, 2, 3, 4,
+};
+
 const CPU86_LDouble f15rk[7] =
 {
     0.00000000000000000000L,
@@ -693,7 +744,29 @@ void helper_fsincos(void)
 
 void helper_frndint(void)
 {
-    ST0 = rint(ST0);
+    CPU86_LDouble a;
+
+    a = ST0;
+#ifdef __arm__
+    switch(env->fpuc & RC_MASK) {
+    default:
+    case RC_NEAR:
+        asm("rndd %0, %1" : "=f" (a) : "f"(a));
+        break;
+    case RC_DOWN:
+        asm("rnddm %0, %1" : "=f" (a) : "f"(a));
+        break;
+    case RC_UP:
+        asm("rnddp %0, %1" : "=f" (a) : "f"(a));
+        break;
+    case RC_CHOP:
+        asm("rnddz %0, %1" : "=f" (a) : "f"(a));
+        break;
+    }
+#else
+    a = rint(a);
+#endif
+    ST0 = a;
 }
 
 void helper_fscale(void)

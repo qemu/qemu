@@ -19,57 +19,6 @@
  */
 #include "exec-i386.h"
 
-uint8_t parity_table[256] = {
-    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
-    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
-    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
-    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
-    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
-    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
-    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
-    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
-    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
-    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
-    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
-    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
-    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
-    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
-    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
-    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
-    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
-    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
-    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
-    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
-    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
-    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
-    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
-    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
-    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
-    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
-    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
-    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
-    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
-    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
-    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
-    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
-};
-
-/* modulo 17 table */
-const uint8_t rclw_table[32] = {
-    0, 1, 2, 3, 4, 5, 6, 7, 
-    8, 9,10,11,12,13,14,15,
-   16, 0, 1, 2, 3, 4, 5, 6,
-    7, 8, 9,10,11,12,13,14,
-};
-
-/* modulo 9 table */
-const uint8_t rclb_table[32] = {
-    0, 1, 2, 3, 4, 5, 6, 7, 
-    8, 0, 1, 2, 3, 4, 5, 6,
-    7, 8, 0, 1, 2, 3, 4, 5, 
-    6, 7, 8, 0, 1, 2, 3, 4,
-};
-
 /* n must be a constant to be efficient */
 static inline int lshift(int x, int n)
 {
@@ -623,33 +572,6 @@ void OPPROTO op_cmpxchg8b(void)
 {
     helper_cmpxchg8b();
 }
-
-#if defined(__powerpc__)
-
-/* on PowerPC we patch the jump instruction directly */
-#define JUMP_TB(tbparam, n, eip)\
-do {\
-    static void __attribute__((unused)) *__op_label ## n = &&label ## n;\
-    asm volatile ("b %0" : : "i" (&__op_jmp ## n));\
-label ## n:\
-    T0 = (long)(tbparam) + (n);\
-    EIP = eip;\
-} while (0)
-
-#else
-
-/* jump to next block operations (more portable code, does not need
-   cache flushing, but slower because of indirect jump) */
-#define JUMP_TB(tbparam, n, eip)\
-do {\
-    static void __attribute__((unused)) *__op_label ## n = &&label ## n;\
-    goto *(void *)(((TranslationBlock *)tbparam)->tb_next[n]);\
-label ## n:\
-    T0 = (long)(tbparam) + (n);\
-    EIP = eip;\
-} while (0)
-
-#endif
 
 void OPPROTO op_jmp_tb_next(void)
 {
@@ -1561,6 +1483,8 @@ void OPPROTO op_fist_ST0_A0(void)
 
     d = ST0;
     val = lrint(d);
+    if (val != (int16_t)val)
+        val = -32768;
     stw((void *)A0, val);
 }
 
