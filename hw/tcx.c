@@ -104,11 +104,7 @@ void tcx_update_display(void *opaque)
 
     if (ts->ds->depth == 0)
 	return;
-#ifdef LD_BYPASS_OK
     page = ts->vram_offset + YOFF*MAXX;
-#else
-    page = ts->addr + YOFF*MAXX;
-#endif
     y_start = -1;
     page_min = 0x7fffffff;
     page_max = -1;
@@ -131,7 +127,7 @@ void tcx_update_display(void *opaque)
     case 0:
 	return;
     }
-
+    
     for(y = 0; y < YSZ; y += 4, page += TARGET_PAGE_SIZE) {
 	if (cpu_physical_memory_is_dirty(page)) {
 	    if (y_start < 0)
@@ -180,11 +176,7 @@ void tcx_invalidate_display(void *opaque)
     int i;
 
     for (i = 0; i < MAXX*MAXY; i += TARGET_PAGE_SIZE) {
-#ifdef LD_BYPASS_OK
 	cpu_physical_memory_set_dirty(s->vram_offset + i);
-#else
-	cpu_physical_memory_set_dirty(s->addr + i);
-#endif
     }
 }
 
@@ -224,9 +216,7 @@ static void tcx_reset(void *opaque)
     memset(s->b, 0, 256);
     s->r[255] = s->g[255] = s->b[255] = 255;
     memset(s->vram, 0, MAXX*MAXY);
-#ifdef LD_BYPASS_OK
-    cpu_physical_memory_reset_dirty(s->vram_offset, s->vram_offset + MAXX*MAXY - 1);
-#endif
+    cpu_physical_memory_reset_dirty(s->vram_offset, s->vram_offset + MAXX*MAXY);
 }
 
 void *tcx_init(DisplayState *ds, uint32_t addr, uint8_t *vram_base,
