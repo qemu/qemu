@@ -18,10 +18,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include "exec.h"
-#if defined (USE_OPEN_FIRMWARE)
-#include <time.h>
-#include "of.h"
-#endif
 
 //#define DEBUG_MMU
 //#define DEBUG_BATS
@@ -688,18 +684,6 @@ void do_interrupt (CPUState *env)
     }
     /* Generate informations in save/restore registers */
     switch (excp) {
-    case EXCP_OFCALL:
-#if defined (USE_OPEN_FIRMWARE)
-        env->gpr[3] = OF_client_entry((void *)env->gpr[3]);
-#endif
-        return;
-    case EXCP_RTASCALL:
-#if defined (USE_OPEN_FIRMWARE)
-        printf("RTAS call !\n");
-        env->gpr[3] = RTAS_entry((void *)env->gpr[3]);
-        printf("RTAS call done\n");
-#endif
-        return;
     case EXCP_NONE:
         /* Do nothing */
 #if defined (DEBUG_EXCEPTIONS)

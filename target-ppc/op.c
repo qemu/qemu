@@ -697,9 +697,9 @@ PPC_OP(addzeo)
 PPC_OP(divw)
 {
     if ((Ts0 == INT32_MIN && Ts1 == -1) || Ts1 == 0) {
-        Ts0 = (-1) * (T0 >> 31);
+        T0 = (int32_t)((-1) * (T0 >> 31));
     } else {
-        Ts0 /= Ts1;
+        T0 = (Ts0 / Ts1);
     }
     RETURN();
 }
@@ -712,7 +712,7 @@ PPC_OP(divwo)
         T0 = (-1) * (T0 >> 31);
     } else {
         xer_ov = 0;
-        Ts0 /= Ts1;
+        T0 = (Ts0 / Ts1);
     }
     RETURN();
 }
@@ -744,7 +744,7 @@ PPC_OP(divwuo)
 /* multiply high word */
 PPC_OP(mulhw)
 {
-    Ts0 = ((int64_t)Ts0 * (int64_t)Ts1) >> 32;
+    T0 = ((int64_t)Ts0 * (int64_t)Ts1) >> 32;
     RETURN();
 }
 
@@ -758,7 +758,7 @@ PPC_OP(mulhwu)
 /* multiply low immediate */
 PPC_OP(mulli)
 {
-    Ts0 *= SPARAM(1);
+    T0 = (Ts0 * SPARAM(1));
     RETURN();
 }
 
@@ -779,7 +779,7 @@ PPC_OP(mullwo)
     } else {
         xer_ov = 0;
     }
-    Ts0 = res;
+    T0 = (int32_t)res;
     RETURN();
 }
 
@@ -787,7 +787,7 @@ PPC_OP(mullwo)
 PPC_OP(neg)
 {
     if (T0 != 0x80000000) {
-        Ts0 = -Ts0;
+        T0 = -Ts0;
     }
     RETURN();
 }
@@ -799,7 +799,7 @@ PPC_OP(nego)
         xer_so = 1;
     } else {
         xer_ov = 0;
-        Ts0 = -Ts0;
+        T0 = -Ts0;
     }
     RETURN();
 }
@@ -1047,14 +1047,14 @@ PPC_OP(eqv)
 /* extend sign byte */
 PPC_OP(extsb)
 {
-    Ts0 = (int8_t)(Ts0);
+    T0 = (int32_t)((int8_t)(Ts0));
     RETURN();
 }
 
 /* extend sign half word */
 PPC_OP(extsh)
 {
-    Ts0 = (int16_t)(Ts0);
+    T0 = (int32_t)((int16_t)(Ts0));
     RETURN();
 }
 
@@ -1175,8 +1175,8 @@ PPC_OP(sraw)
 /* shift right algebraic word immediate */
 PPC_OP(srawi)
 {
-    Ts1 = Ts0;
-    Ts0 = Ts0 >> PARAM(1);
+    T1 = T0;
+    T0 = (Ts0 >> PARAM(1));
     if (Ts1 < 0 && (Ts1 & PARAM(2)) != 0) {
         xer_ca = 1;
     } else {
@@ -1207,7 +1207,7 @@ PPC_OP(fadd)
 /* fadds - fadds. */
 PPC_OP(fadds)
 {
-    FTS0 += FTS1;
+    FT0 = FTS0 + FTS1;
     RETURN();
 }
 
@@ -1221,7 +1221,7 @@ PPC_OP(fsub)
 /* fsubs - fsubs. */
 PPC_OP(fsubs)
 {
-    FTS0 -= FTS1;
+    FT0 = FTS0 - FTS1;
     RETURN();
 }
 
@@ -1235,7 +1235,7 @@ PPC_OP(fmul)
 /* fmuls - fmuls. */
 PPC_OP(fmuls)
 {
-    FTS0 *= FTS1;
+    FT0 = FTS0 * FTS1;
     RETURN();
 }
 
@@ -1249,7 +1249,7 @@ PPC_OP(fdiv)
 /* fdivs - fdivs. */
 PPC_OP(fdivs)
 {
-    FTS0 /= FTS1;
+    FT0 = FTS0 / FTS1;
     RETURN();
 }
 
@@ -1299,7 +1299,7 @@ PPC_OP(fmadd)
 /* fmadds - fmadds. */
 PPC_OP(fmadds)
 {
-    FTS0 = (FTS0 * FTS1) + FTS2;
+    FT0 = (FTS0 * FTS1) + FTS2;
     RETURN();
 }
 
@@ -1313,7 +1313,7 @@ PPC_OP(fmsub)
 /* fmsubs - fmsubs. */
 PPC_OP(fmsubs)
 {
-    FTS0 = (FTS0 * FTS1) - FTS2;
+    FT0 = (FTS0 * FTS1) - FTS2;
     RETURN();
 }
 
@@ -1349,7 +1349,7 @@ PPC_OP(fnmsubs)
 /* frsp - frsp. */
 PPC_OP(frsp)
 {
-    FTS0 = FT0;
+    FT0 = (float)FT0;
     RETURN();
 }
 

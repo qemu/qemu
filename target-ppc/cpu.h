@@ -24,8 +24,6 @@
 
 #include "cpu-defs.h"
 
-//#define USE_OPEN_FIRMWARE
-
 #include "config.h"
 #include <setjmp.h>
 

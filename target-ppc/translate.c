@@ -134,12 +134,13 @@ typedef struct DisasContext {
     target_ulong nip;
     uint32_t opcode;
     uint32_t exception;
-    /* Execution mode */
+    /* Routine used to access memory */
+    int mem_idx;
+    /* Translation flags */
 #if !defined(CONFIG_USER_ONLY)
     int supervisor;
 #endif
-    /* Routine used to access memory */
-    int mem_idx;
+    int fpu_enabled;
 } DisasContext;
 
 typedef struct opc_handler_t {
@@ -328,19 +329,6 @@ GEN_HANDLER(invalid, 0x00, 0x00, 0x00, 0xFFFFFFFF, PPC_NONE)
 GEN_HANDLER(stop, 0x06, 0x00, 0xFF, 0x03FFFFC1, PPC_COMMON)
 {
     RET_EXCP(ctx, EXCP_HLT, 0);
-}
-
-/* Special opcode to call open-firmware */
-GEN_HANDLER(of_enter, 0x06, 0x01, 0xFF, 0x03FFFFC1, PPC_COMMON)
-{
-    RET_EXCP(ctx, EXCP_OFCALL, 0);
-}
-
-/* Special opcode to call RTAS */
-GEN_HANDLER(rtas_enter, 0x06, 0x02, 0xFF, 0x03FFFFC1, PPC_COMMON)
-{
-    printf("RTAS entry point !\n");
-    RET_EXCP(ctx, EXCP_RTASCALL, 0);
 }
 
 static opc_handler_t invalid_handler = {
@@ -764,6 +752,10 @@ __GEN_LOGICAL2(srw, 0x18, 0x10);
 #define _GEN_FLOAT_ACB(name, op1, op2)                                        \
 GEN_HANDLER(f##name, op1, op2, 0xFF, 0x00000000, PPC_FLOAT)                   \
 {                                                                             \
+    if (!ctx->fpu_enabled) {                                                  \
+        RET_EXCP(ctx, EXCP_NO_FP, 0);                                         \
+        return;                                                               \
+    }                                                                         \
     gen_op_reset_scrfx();                                                     \
     gen_op_load_fpr_FT0(rA(ctx->opcode));                                     \
     gen_op_load_fpr_FT1(rC(ctx->opcode));                                     \
@@ -781,6 +773,10 @@ _GEN_FLOAT_ACB(name##s, 0x3B, op2);
 #define _GEN_FLOAT_AB(name, op1, op2, inval)                                  \
 GEN_HANDLER(f##name, op1, op2, 0xFF, inval, PPC_FLOAT)                        \
 {                                                                             \
+    if (!ctx->fpu_enabled) {                                                  \
+        RET_EXCP(ctx, EXCP_NO_FP, 0);                                         \
+        return;                                                               \
+    }                                                                         \
     gen_op_reset_scrfx();                                                     \
     gen_op_load_fpr_FT0(rA(ctx->opcode));                                     \
     gen_op_load_fpr_FT1(rB(ctx->opcode));                                     \
@@ -796,6 +792,10 @@ _GEN_FLOAT_AB(name##s, 0x3B, op2, inval);
 #define _GEN_FLOAT_AC(name, op1, op2, inval)                                  \
 GEN_HANDLER(f##name, op1, op2, 0xFF, inval, PPC_FLOAT)                        \
 {                                                                             \
+    if (!ctx->fpu_enabled) {                                                  \
+        RET_EXCP(ctx, EXCP_NO_FP, 0);                                         \
+        return;                                                               \
+    }                                                                         \
     gen_op_reset_scrfx();                                                     \
     gen_op_load_fpr_FT0(rA(ctx->opcode));                                     \
     gen_op_load_fpr_FT1(rC(ctx->opcode));                                     \
@@ -811,6 +811,10 @@ _GEN_FLOAT_AC(name##s, 0x3B, op2, inval);
 #define GEN_FLOAT_B(name, op2, op3)                                           \
 GEN_HANDLER(f##name, 0x3F, op2, op3, 0x001F0000, PPC_FLOAT)                   \
 {                                                                             \
+    if (!ctx->fpu_enabled) {                                                  \
+        RET_EXCP(ctx, EXCP_NO_FP, 0);                                         \
+        return;                                                               \
+    }                                                                         \
     gen_op_reset_scrfx();                                                     \
     gen_op_load_fpr_FT0(rB(ctx->opcode));                                     \
     gen_op_f##name();                                                         \
@@ -822,6 +826,10 @@ GEN_HANDLER(f##name, 0x3F, op2, op3, 0x001F0000, PPC_FLOAT)                   \
 #define GEN_FLOAT_BS(name, op2)                                               \
 GEN_HANDLER(f##name, 0x3F, op2, 0xFF, 0x001F07C0, PPC_FLOAT)                  \
 {                                                                             \
+    if (!ctx->fpu_enabled) {                                                  \
+        RET_EXCP(ctx, EXCP_NO_FP, 0);                                         \
+        return;                                                               \
+    }                                                                         \
     gen_op_reset_scrfx();                                                     \
     gen_op_load_fpr_FT0(rB(ctx->opcode));                                     \
     gen_op_f##name();                                                         \
@@ -853,6 +861,10 @@ GEN_FLOAT_BS(sqrt, 0x16);
 
 GEN_HANDLER(fsqrts, 0x3B, 0x16, 0xFF, 0x001F07C0, PPC_FLOAT_OPT)
 {
+    if (!ctx->fpu_enabled) {
+        RET_EXCP(ctx, EXCP_NO_FP, 0);
+        return;
+    }
     gen_op_reset_scrfx();
     gen_op_load_fpr_FT0(rB(ctx->opcode));
     gen_op_fsqrts();
@@ -883,6 +895,10 @@ GEN_FLOAT_B(rsp, 0x0C, 0x00);
 /* fcmpo */
 GEN_HANDLER(fcmpo, 0x3F, 0x00, 0x00, 0x00600001, PPC_FLOAT)
 {
+    if (!ctx->fpu_enabled) {
+        RET_EXCP(ctx, EXCP_NO_FP, 0);
+        return;
+    }
     gen_op_reset_scrfx();
     gen_op_load_fpr_FT0(rA(ctx->opcode));
     gen_op_load_fpr_FT1(rB(ctx->opcode));
@@ -893,6 +909,10 @@ GEN_HANDLER(fcmpo, 0x3F, 0x00, 0x00, 0x00600001, PPC_FLOAT)
 /* fcmpu */
 GEN_HANDLER(fcmpu, 0x3F, 0x00, 0x01, 0x00600001, PPC_FLOAT)
 {
+    if (!ctx->fpu_enabled) {
+        RET_EXCP(ctx, EXCP_NO_FP, 0);
+        return;
+    }
     gen_op_reset_scrfx();
     gen_op_load_fpr_FT0(rA(ctx->opcode));
     gen_op_load_fpr_FT1(rB(ctx->opcode));
@@ -907,6 +927,10 @@ GEN_FLOAT_B(abs, 0x08, 0x08);
 /* fmr  - fmr. */
 GEN_HANDLER(fmr, 0x3F, 0x08, 0x02, 0x001F0000, PPC_FLOAT)
 {
+    if (!ctx->fpu_enabled) {
+        RET_EXCP(ctx, EXCP_NO_FP, 0);
+        return;
+    }
     gen_op_reset_scrfx();
     gen_op_load_fpr_FT0(rB(ctx->opcode));
     gen_op_store_FT0_fpr(rD(ctx->opcode));
@@ -923,6 +947,10 @@ GEN_FLOAT_B(neg, 0x08, 0x01);
 /* mcrfs */
 GEN_HANDLER(mcrfs, 0x3F, 0x00, 0x02, 0x0063F801, PPC_FLOAT)
 {
+    if (!ctx->fpu_enabled) {
+        RET_EXCP(ctx, EXCP_NO_FP, 0);
+        return;
+    }
     gen_op_load_fpscr_T0(crfS(ctx->opcode));
     gen_op_store_T0_crf(crfD(ctx->opcode));
     gen_op_clear_fpscr(crfS(ctx->opcode));
@@ -931,6 +959,10 @@ GEN_HANDLER(mcrfs, 0x3F, 0x00, 0x02, 0x0063F801, PPC_FLOAT)
 /* mffs */
 GEN_HANDLER(mffs, 0x3F, 0x07, 0x12, 0x001FF800, PPC_FLOAT)
 {
+    if (!ctx->fpu_enabled) {
+        RET_EXCP(ctx, EXCP_NO_FP, 0);
+        return;
+    }
     gen_op_load_fpscr();
     gen_op_store_FT0_fpr(rD(ctx->opcode));
     if (Rc(ctx->opcode))
@@ -942,6 +974,10 @@ GEN_HANDLER(mtfsb0, 0x3F, 0x06, 0x02, 0x001FF800, PPC_FLOAT)
 {
     uint8_t crb;
     
+    if (!ctx->fpu_enabled) {
+        RET_EXCP(ctx, EXCP_NO_FP, 0);
+        return;
+    }
     crb = crbD(ctx->opcode) >> 2;
     gen_op_load_fpscr_T0(crb);
     gen_op_andi_(~(1 << (crbD(ctx->opcode) & 0x03)));
@@ -955,6 +991,10 @@ GEN_HANDLER(mtfsb1, 0x3F, 0x06, 0x01, 0x001FF800, PPC_FLOAT)
 {
     uint8_t crb;
     
+    if (!ctx->fpu_enabled) {
+        RET_EXCP(ctx, EXCP_NO_FP, 0);
+        return;
+    }
     crb = crbD(ctx->opcode) >> 2;
     gen_op_load_fpscr_T0(crb);
     gen_op_ori(1 << (crbD(ctx->opcode) & 0x03));
@@ -966,6 +1006,10 @@ GEN_HANDLER(mtfsb1, 0x3F, 0x06, 0x01, 0x001FF800, PPC_FLOAT)
 /* mtfsf */
 GEN_HANDLER(mtfsf, 0x3F, 0x07, 0x16, 0x02010000, PPC_FLOAT)
 {
+    if (!ctx->fpu_enabled) {
+        RET_EXCP(ctx, EXCP_NO_FP, 0);
+        return;
+    }
     gen_op_load_fpr_FT0(rB(ctx->opcode));
     gen_op_store_fpscr(FM(ctx->opcode));
     if (Rc(ctx->opcode))
@@ -975,6 +1019,10 @@ GEN_HANDLER(mtfsf, 0x3F, 0x07, 0x16, 0x02010000, PPC_FLOAT)
 /* mtfsfi */
 GEN_HANDLER(mtfsfi, 0x3F, 0x06, 0x04, 0x006f0800, PPC_FLOAT)
 {
+    if (!ctx->fpu_enabled) {
+        RET_EXCP(ctx, EXCP_NO_FP, 0);
+        return;
+    }
     gen_op_store_T0_fpscri(crbD(ctx->opcode) >> 2, FPIMM(ctx->opcode));
     if (Rc(ctx->opcode))
         gen_op_set_Rc1();
@@ -1525,6 +1573,10 @@ GEN_STFS(fs, 0x14);
 /* stfiwx */
 GEN_HANDLER(stfiwx, 0x1F, 0x17, 0x1E, 0x00000001, PPC_FLOAT)
 {
+    if (!ctx->fpu_enabled) {
+        RET_EXCP(ctx, EXCP_NO_FP, 0);
+        return;
+    }
     RET_INVAL(ctx);
 }
 
@@ -2978,10 +3030,6 @@ void cpu_dump_state(CPUState *env, FILE *f,
     cpu_fprintf(f, "reservation 0x%08x\n", env->reserve);
 }
 
-#if !defined(CONFIG_USER_ONLY) && defined (USE_OPENFIRMWARE)
-int setup_machine (CPUPPCState *env, uint32_t mid);
-#endif
-
 CPUPPCState *cpu_ppc_init(void)
 {
     CPUPPCState *env;
@@ -2991,14 +3039,10 @@ CPUPPCState *cpu_ppc_init(void)
     env = qemu_mallocz(sizeof(CPUPPCState));
     if (!env)
         return NULL;
-#if !defined(CONFIG_USER_ONLY) && defined (USE_OPEN_FIRMWARE)
-    setup_machine(env, 0);
-#else
 //    env->spr[PVR] = 0; /* Basic PPC */
     env->spr[PVR] = 0x00080100; /* G3 CPU */
 //    env->spr[PVR] = 0x00083100; /* MPC755 (G3 embedded) */
 //    env->spr[PVR] = 0x00070100; /* IBM 750FX */
-#endif
     tlb_flush(env, 1);
 #if defined (DO_SINGLE_STEP)
     /* Single step trace mode */
@@ -3053,8 +3097,9 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     ctx.mem_idx = 0;
 #else
     ctx.supervisor = 1 - msr_pr;
-    ctx.mem_idx = (1 - msr_pr);
+    ctx.mem_idx = 1 - msr_pr;
 #endif
+    ctx.fpu_enabled = msr_fp;
 #if defined (DO_SINGLE_STEP)
     /* Single step trace mode */
     msr_se = 1;

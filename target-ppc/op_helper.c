@@ -188,10 +188,17 @@ void do_load_fpscr (void)
     } u;
     int i;
 
-    u.s.u[0] = 0;
-    u.s.u[1] = 0;
+#ifdef WORDS_BIGENDIAN
+#define WORD0 0
+#define WORD1 1
+#else
+#define WORD0 1
+#define WORD1 0
+#endif
+    u.s.u[WORD0] = 0;
+    u.s.u[WORD1] = 0;
     for (i = 0; i < 8; i++)
-        u.s.u[1] |= env->fpscr[i] << (4 * i);
+        u.s.u[WORD1] |= env->fpscr[i] << (4 * i);
     FT0 = u.d;
 }
 
@@ -210,10 +217,10 @@ void do_store_fpscr (uint32_t mask)
 
     u.d = FT0;
     if (mask & 0x80)
-        env->fpscr[0] = (env->fpscr[0] & 0x9) | ((u.s.u[1] >> 28) & ~0x9);
+        env->fpscr[0] = (env->fpscr[0] & 0x9) | ((u.s.u[WORD1] >> 28) & ~0x9);
     for (i = 1; i < 7; i++) {
         if (mask & (1 << (7 - i)))
-            env->fpscr[i] = (u.s.u[1] >> (4 * (7 - i))) & 0xF;
+            env->fpscr[i] = (u.s.u[WORD1] >> (4 * (7 - i))) & 0xF;
     }
     /* TODO: update FEX & VX */
     /* Set rounding mode */
