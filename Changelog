@@ -17,6 +17,7 @@ version 0.6.1:
   - Fixed Fedora Core 2 problems (now you can run qemu without any
     LD_ASSUME_KERNEL tricks on FC2)
   - DHCP fix for Windows (accept DHCPREQUEST alone)
+  - SPARC system emulation (Blue Swirl)
 
 version 0.6.0:
 

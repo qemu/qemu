@@ -1077,7 +1077,7 @@ static void breakpoint_invalidate(CPUState *env, target_ulong pc)
    breakpoint is reached */
 int cpu_breakpoint_insert(CPUState *env, target_ulong pc)
 {
-#if defined(TARGET_I386) || defined(TARGET_PPC)
+#if defined(TARGET_I386) || defined(TARGET_PPC) || defined(TARGET_SPARC)
     int i;
     
     for(i = 0; i < env->nb_breakpoints; i++) {
@@ -1099,7 +1099,7 @@ int cpu_breakpoint_insert(CPUState *env, target_ulong pc)
 /* remove a breakpoint */
 int cpu_breakpoint_remove(CPUState *env, target_ulong pc)
 {
-#if defined(TARGET_I386) || defined(TARGET_PPC)
+#if defined(TARGET_I386) || defined(TARGET_PPC) || defined(TARGET_SPARC)
     int i;
     for(i = 0; i < env->nb_breakpoints; i++) {
         if (env->breakpoints[i] == pc)
@@ -1122,7 +1122,7 @@ int cpu_breakpoint_remove(CPUState *env, target_ulong pc)
    CPU loop after each instruction */
 void cpu_single_step(CPUState *env, int enabled)
 {
-#if defined(TARGET_I386) || defined(TARGET_PPC)
+#if defined(TARGET_I386) || defined(TARGET_PPC) || defined(TARGET_SPARC)
     if (env->singlestep_enabled != enabled) {
         env->singlestep_enabled = enabled;
         /* must flush all the translated code to avoid inconsistancies */

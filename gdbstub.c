@@ -157,42 +157,40 @@ static int put_packet(GDBState *s, char *buf)
 
 #if defined(TARGET_I386)
 
-static void to_le32(uint8_t *p, int v)
-{
-    p[0] = v;
-    p[1] = v >> 8;
-    p[2] = v >> 16;
-    p[3] = v >> 24;
-}
-
 static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
 {
+    uint32_t *registers = (uint32_t *)mem_buf;
     int i, fpus;
 
     for(i = 0; i < 8; i++) {
-        to_le32(mem_buf + i * 4, env->regs[i]);
+        registers[i] = env->regs[i];
     }
-    to_le32(mem_buf + 8 * 4, env->eip);
-    to_le32(mem_buf + 9 * 4, env->eflags);
-    to_le32(mem_buf + 10 * 4, env->segs[R_CS].selector);
-    to_le32(mem_buf + 11 * 4, env->segs[R_SS].selector);
-    to_le32(mem_buf + 12 * 4, env->segs[R_DS].selector);
-    to_le32(mem_buf + 13 * 4, env->segs[R_ES].selector);
-    to_le32(mem_buf + 14 * 4, env->segs[R_FS].selector);
-    to_le32(mem_buf + 15 * 4, env->segs[R_GS].selector);
+    registers[8] = env->eip;
+    registers[9] = env->eflags;
+    registers[10] = env->segs[R_CS].selector;
+    registers[11] = env->segs[R_SS].selector;
+    registers[12] = env->segs[R_DS].selector;
+    registers[13] = env->segs[R_ES].selector;
+    registers[14] = env->segs[R_FS].selector;
+    registers[15] = env->segs[R_GS].selector;
     /* XXX: convert floats */
     for(i = 0; i < 8; i++) {
         memcpy(mem_buf + 16 * 4 + i * 10, &env->fpregs[i], 10);
     }
-    to_le32(mem_buf + 36 * 4, env->fpuc);
+    registers[36] = env->fpuc;
     fpus = (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
-    to_le32(mem_buf + 37 * 4, fpus);
-    to_le32(mem_buf + 38 * 4, 0); /* XXX: convert tags */
-    to_le32(mem_buf + 39 * 4, 0); /* fiseg */
-    to_le32(mem_buf + 40 * 4, 0); /* fioff */
-    to_le32(mem_buf + 41 * 4, 0); /* foseg */
-    to_le32(mem_buf + 42 * 4, 0); /* fooff */
-    to_le32(mem_buf + 43 * 4, 0); /* fop */
+    registers[37] = fpus;
+    registers[38] = 0; /* XXX: convert tags */
+    registers[39] = 0; /* fiseg */
+    registers[40] = 0; /* fioff */
+    registers[41] = 0; /* foseg */
+    registers[42] = 0; /* fooff */
+    registers[43] = 0; /* fop */
+    
+    for(i = 0; i < 16; i++)
+        tswapls(&registers[i]);
+    for(i = 36; i < 44; i++)
+        tswapls(&registers[i]);
     return 44 * 4;
 }
 
@@ -204,8 +202,8 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
     for(i = 0; i < 8; i++) {
         env->regs[i] = tswapl(registers[i]);
     }
-    env->eip = registers[8];
-    env->eflags = registers[9];
+    env->eip = tswapl(registers[8]);
+    env->eflags = tswapl(registers[9]);
 #if defined(CONFIG_USER_ONLY)
 #define LOAD_SEG(index, sreg)\
             if (tswapl(registers[index]) != env->segs[sreg].selector)\
@@ -220,15 +218,6 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
 }
 
 #elif defined (TARGET_PPC)
-static void to_le32(uint32_t *buf, uint32_t v)
-{
-    uint8_t *p = (uint8_t *)buf;
-    p[3] = v;
-    p[2] = v >> 8;
-    p[1] = v >> 16;
-    p[0] = v >> 24;
-}
-
 static uint32_t from_le32 (uint32_t *buf)
 {
     uint8_t *p = (uint8_t *)buf;
@@ -243,24 +232,24 @@ static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
 
     /* fill in gprs */
     for(i = 0; i < 32; i++) {
-        to_le32(&registers[i], env->gpr[i]);
+        registers[i] = tswapl(env->gpr[i]);
     }
     /* fill in fprs */
     for (i = 0; i < 32; i++) {
-        to_le32(&registers[(i * 2) + 32], *((uint32_t *)&env->fpr[i]));
-	to_le32(&registers[(i * 2) + 33], *((uint32_t *)&env->fpr[i] + 1));
+        registers[(i * 2) + 32] = tswapl(*((uint32_t *)&env->fpr[i]));
+	registers[(i * 2) + 33] = tswapl(*((uint32_t *)&env->fpr[i] + 1));
     }
     /* nip, msr, ccr, lnk, ctr, xer, mq */
-    to_le32(&registers[96], (uint32_t)env->nip/* - 4*/);
-    to_le32(&registers[97], _load_msr(env));
+    registers[96] = tswapl(env->nip);
+    registers[97] = tswapl(_load_msr(env));
     tmp = 0;
     for (i = 0; i < 8; i++)
         tmp |= env->crf[i] << (32 - ((i + 1) * 4));
-    to_le32(&registers[98], tmp);
-    to_le32(&registers[99], env->lr);
-    to_le32(&registers[100], env->ctr);
-    to_le32(&registers[101], _load_xer(env));
-    to_le32(&registers[102], 0);
+    registers[98] = tswapl(tmp);
+    registers[99] = tswapl(env->lr);
+    registers[100] = tswapl(env->ctr);
+    registers[101] = tswapl(_load_xer(env));
+    registers[102] = 0;
 
     return 103 * 4;
 }
@@ -272,22 +261,90 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
 
     /* fill in gprs */
     for (i = 0; i < 32; i++) {
-        env->gpr[i] = from_le32(&registers[i]);
+        env->gpr[i] = tswapl(registers[i]);
     }
     /* fill in fprs */
     for (i = 0; i < 32; i++) {
-        *((uint32_t *)&env->fpr[i]) = from_le32(&registers[(i * 2) + 32]);
-	*((uint32_t *)&env->fpr[i] + 1) = from_le32(&registers[(i * 2) + 33]);
+        *((uint32_t *)&env->fpr[i]) = tswapl(registers[(i * 2) + 32]);
+	*((uint32_t *)&env->fpr[i] + 1) = tswapl(registers[(i * 2) + 33]);
     }
     /* nip, msr, ccr, lnk, ctr, xer, mq */
-    env->nip = from_le32(&registers[96]);
-    _store_msr(env, from_le32(&registers[97]));
-    registers[98] = from_le32(&registers[98]);
+    env->nip = tswapl(registers[96]);
+    _store_msr(env, tswapl(registers[97]));
+    registers[98] = tswapl(registers[98]);
     for (i = 0; i < 8; i++)
         env->crf[i] = (registers[98] >> (32 - ((i + 1) * 4))) & 0xF;
-    env->lr = from_le32(&registers[99]);
-    env->ctr = from_le32(&registers[100]);
-    _store_xer(env, from_le32(&registers[101]));
+    env->lr = tswapl(registers[99]);
+    env->ctr = tswapl(registers[100]);
+    _store_xer(env, tswapl(registers[101]));
+}
+#elif defined (TARGET_SPARC)
+static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
+{
+    uint32_t *registers = (uint32_t *)mem_buf, tmp;
+    int i;
+
+    /* fill in g0..g7 */
+    for(i = 0; i < 7; i++) {
+        registers[i] = tswapl(env->gregs[i]);
+    }
+    /* fill in register window */
+    for(i = 0; i < 24; i++) {
+        registers[i + 8] = tswapl(env->regwptr[i]);
+    }
+    /* fill in fprs */
+    for (i = 0; i < 32; i++) {
+        registers[i + 32] = tswapl(*((uint32_t *)&env->fpr[i]));
+    }
+    /* Y, PSR, WIM, TBR, PC, NPC, FPSR, CPSR */
+    registers[64] = tswapl(env->y);
+    tmp = (0<<28) | (4<<24) | env->psr		\
+	| (env->psrs? PSR_S : 0)		\
+	| (env->psrs? PSR_PS : 0)		\
+	| (env->psret? PSR_ET : 0)		\
+	| env->cwp;
+    registers[65] = tswapl(tmp);
+    registers[66] = tswapl(env->wim);
+    registers[67] = tswapl(env->tbr);
+    registers[68] = tswapl(env->pc);
+    registers[69] = tswapl(env->npc);
+    registers[70] = tswapl(env->fsr);
+    registers[71] = 0; /* csr */
+    registers[72] = 0;
+
+    return 73 * 4;
+}
+
+static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
+{
+    uint32_t *registers = (uint32_t *)mem_buf, tmp;
+    int i;
+
+    /* fill in g0..g7 */
+    for(i = 0; i < 7; i++) {
+        env->gregs[i] = tswapl(registers[i]);
+    }
+    /* fill in register window */
+    for(i = 0; i < 24; i++) {
+        env->regwptr[i] = tswapl(registers[i]);
+    }
+    /* fill in fprs */
+    for (i = 0; i < 32; i++) {
+        *((uint32_t *)&env->fpr[i]) = tswapl(registers[i + 32]);
+    }
+    /* Y, PSR, WIM, TBR, PC, NPC, FPSR, CPSR */
+    env->y = tswapl(registers[64]);
+    tmp = tswapl(registers[65]);
+    env->psr = tmp & ~PSR_ICC;
+    env->psrs = (tmp & PSR_S)? 1 : 0;
+    env->psrps = (tmp & PSR_PS)? 1 : 0;
+    env->psret = (tmp & PSR_ET)? 1 : 0;
+    env->cwp = (tmp & PSR_CWP);
+    env->wim = tswapl(registers[66]);
+    env->tbr = tswapl(registers[67]);
+    env->pc = tswapl(registers[68]);
+    env->npc = tswapl(registers[69]);
+    env->fsr = tswapl(registers[70]);
 }
 #else
 

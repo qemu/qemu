@@ -178,7 +178,8 @@ static void bootp_reply(struct bootp_t *bp)
     rbp->bp_hlen = 6;
     memcpy(rbp->bp_hwaddr, bp->bp_hwaddr, 6);
 
-    rbp->bp_yiaddr = daddr.sin_addr; /* IP address */
+    rbp->bp_yiaddr = daddr.sin_addr; /* Client IP address */
+    rbp->bp_siaddr = saddr.sin_addr; /* Server IP address */
 
     q = rbp->bp_vend;
     memcpy(q, rfc1533_cookie, 4);

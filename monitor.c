@@ -883,18 +883,18 @@ static jmp_buf expr_env;
 typedef struct MonitorDef {
     const char *name;
     int offset;
-    int (*get_value)(struct MonitorDef *md);
+    int (*get_value)(struct MonitorDef *md, int val);
 } MonitorDef;
 
 #if defined(TARGET_I386)
-static int monitor_get_pc (struct MonitorDef *md)
+static int monitor_get_pc (struct MonitorDef *md, int val)
 {
     return cpu_single_env->eip + (long)cpu_single_env->segs[R_CS].base;
 }
 #endif
 
 #if defined(TARGET_PPC)
-static int monitor_get_ccr (struct MonitorDef *md)
+static int monitor_get_ccr (struct MonitorDef *md, int val)
 {
     unsigned int u;
     int i;
@@ -906,7 +906,7 @@ static int monitor_get_ccr (struct MonitorDef *md)
     return u;
 }
 
-static int monitor_get_msr (struct MonitorDef *md)
+static int monitor_get_msr (struct MonitorDef *md, int val)
 {
     return (cpu_single_env->msr[MSR_POW] << MSR_POW) |
         (cpu_single_env->msr[MSR_ILE] << MSR_ILE) |
@@ -925,7 +925,7 @@ static int monitor_get_msr (struct MonitorDef *md)
         (cpu_single_env->msr[MSR_LE] << MSR_LE);
 }
 
-static int monitor_get_xer (struct MonitorDef *md)
+static int monitor_get_xer (struct MonitorDef *md, int val)
 {
     return (cpu_single_env->xer[XER_SO] << XER_SO) |
         (cpu_single_env->xer[XER_OV] << XER_OV) |
@@ -933,22 +933,35 @@ static int monitor_get_xer (struct MonitorDef *md)
         (cpu_single_env->xer[XER_BC] << XER_BC);
 }
 
-uint32_t cpu_ppc_load_decr (CPUState *env);
-static int monitor_get_decr (struct MonitorDef *md)
+static int monitor_get_decr (struct MonitorDef *md, int val)
 {
     return cpu_ppc_load_decr(cpu_single_env);
 }
 
-uint32_t cpu_ppc_load_tbu (CPUState *env);
-static int monitor_get_tbu (struct MonitorDef *md)
+static int monitor_get_tbu (struct MonitorDef *md, int val)
 {
     return cpu_ppc_load_tbu(cpu_single_env);
 }
 
-uint32_t cpu_ppc_load_tbl (CPUState *env);
-static int monitor_get_tbl (struct MonitorDef *md)
+static int monitor_get_tbl (struct MonitorDef *md, int val)
 {
     return cpu_ppc_load_tbl(cpu_single_env);
+}
+#endif
+
+#if defined(TARGET_SPARC)
+static int monitor_get_psr (struct MonitorDef *md, int val)
+{
+    return (0<<28) | (4<<24) | cpu_single_env->psr	\
+	| (cpu_single_env->psrs? PSR_S : 0)		\
+	| (cpu_single_env->psrs? PSR_PS : 0)		\
+	| (cpu_single_env->psret? PSR_ET : 0)		\
+	| cpu_single_env->cwp;
+}
+
+static int monitor_get_reg(struct MonitorDef *md, int val)
+{
+    return cpu_single_env->regwptr[val];
 }
 #endif
 
@@ -1037,6 +1050,78 @@ static MonitorDef monitor_defs[] = {
     { "sr14", offsetof(CPUState, sr[14]) },
     { "sr15", offsetof(CPUState, sr[15]) },
     /* Too lazy to put BATs and SPRs ... */
+#elif defined(TARGET_SPARC)
+    { "g0", offsetof(CPUState, gregs[0]) },
+    { "g1", offsetof(CPUState, gregs[1]) },
+    { "g2", offsetof(CPUState, gregs[2]) },
+    { "g3", offsetof(CPUState, gregs[3]) },
+    { "g4", offsetof(CPUState, gregs[4]) },
+    { "g5", offsetof(CPUState, gregs[5]) },
+    { "g6", offsetof(CPUState, gregs[6]) },
+    { "g7", offsetof(CPUState, gregs[7]) },
+    { "o0", 0, monitor_get_reg },
+    { "o1", 1, monitor_get_reg },
+    { "o2", 2, monitor_get_reg },
+    { "o3", 3, monitor_get_reg },
+    { "o4", 4, monitor_get_reg },
+    { "o5", 5, monitor_get_reg },
+    { "o6", 6, monitor_get_reg },
+    { "o7", 7, monitor_get_reg },
+    { "l0", 8, monitor_get_reg },
+    { "l1", 9, monitor_get_reg },
+    { "l2", 10, monitor_get_reg },
+    { "l3", 11, monitor_get_reg },
+    { "l4", 12, monitor_get_reg },
+    { "l5", 13, monitor_get_reg },
+    { "l6", 14, monitor_get_reg },
+    { "l7", 15, monitor_get_reg },
+    { "i0", 16, monitor_get_reg },
+    { "i1", 17, monitor_get_reg },
+    { "i2", 18, monitor_get_reg },
+    { "i3", 19, monitor_get_reg },
+    { "i4", 20, monitor_get_reg },
+    { "i5", 21, monitor_get_reg },
+    { "i6", 22, monitor_get_reg },
+    { "i7", 23, monitor_get_reg },
+    { "pc", offsetof(CPUState, pc) },
+    { "npc", offsetof(CPUState, npc) },
+    { "y", offsetof(CPUState, y) },
+    { "psr", 0, &monitor_get_psr, },
+    { "wim", offsetof(CPUState, wim) },
+    { "tbr", offsetof(CPUState, tbr) },
+    { "fsr", offsetof(CPUState, fsr) },
+    { "f0", offsetof(CPUState, fpr[0]) },
+    { "f1", offsetof(CPUState, fpr[1]) },
+    { "f2", offsetof(CPUState, fpr[2]) },
+    { "f3", offsetof(CPUState, fpr[3]) },
+    { "f4", offsetof(CPUState, fpr[4]) },
+    { "f5", offsetof(CPUState, fpr[5]) },
+    { "f6", offsetof(CPUState, fpr[6]) },
+    { "f7", offsetof(CPUState, fpr[7]) },
+    { "f8", offsetof(CPUState, fpr[8]) },
+    { "f9", offsetof(CPUState, fpr[9]) },
+    { "f10", offsetof(CPUState, fpr[10]) },
+    { "f11", offsetof(CPUState, fpr[11]) },
+    { "f12", offsetof(CPUState, fpr[12]) },
+    { "f13", offsetof(CPUState, fpr[13]) },
+    { "f14", offsetof(CPUState, fpr[14]) },
+    { "f15", offsetof(CPUState, fpr[15]) },
+    { "f16", offsetof(CPUState, fpr[16]) },
+    { "f17", offsetof(CPUState, fpr[17]) },
+    { "f18", offsetof(CPUState, fpr[18]) },
+    { "f19", offsetof(CPUState, fpr[19]) },
+    { "f20", offsetof(CPUState, fpr[20]) },
+    { "f21", offsetof(CPUState, fpr[21]) },
+    { "f22", offsetof(CPUState, fpr[22]) },
+    { "f23", offsetof(CPUState, fpr[23]) },
+    { "f24", offsetof(CPUState, fpr[24]) },
+    { "f25", offsetof(CPUState, fpr[25]) },
+    { "f26", offsetof(CPUState, fpr[26]) },
+    { "f27", offsetof(CPUState, fpr[27]) },
+    { "f28", offsetof(CPUState, fpr[28]) },
+    { "f29", offsetof(CPUState, fpr[29]) },
+    { "f30", offsetof(CPUState, fpr[30]) },
+    { "f31", offsetof(CPUState, fpr[31]) },
 #endif
     { NULL },
 };
@@ -1054,7 +1139,7 @@ static int get_monitor_def(int *pval, const char *name)
     for(md = monitor_defs; md->name != NULL; md++) {
         if (compare_cmd(name, md->name)) {
             if (md->get_value) {
-                *pval = md->get_value(md);
+                *pval = md->get_value(md, md->offset);
             } else {
                 *pval = *(uint32_t *)((uint8_t *)cpu_single_env + md->offset);
             }

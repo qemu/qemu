@@ -208,6 +208,11 @@ int cpu_exec(CPUState *env1)
                                  env->exception_next_eip, 0);
 #elif defined(TARGET_PPC)
                     do_interrupt(env);
+#elif defined(TARGET_SPARC)
+                    do_interrupt(env->exception_index, 
+                                 0,
+                                 env->error_code, 
+                                 env->exception_next_pc, 0);
 #endif
                 }
                 env->exception_index = -1;
@@ -261,6 +266,14 @@ int cpu_exec(CPUState *env1)
                             env->interrupt_request &= ~CPU_INTERRUPT_TIMER;
 			}
                     }
+#elif defined(TARGET_SPARC)
+                    if (interrupt_request & CPU_INTERRUPT_HARD) {
+			do_interrupt(0, 0, 0, 0, 0);
+                        env->interrupt_request &= ~CPU_INTERRUPT_HARD;
+		    } else if (interrupt_request & CPU_INTERRUPT_TIMER) {
+			//do_interrupt(0, 0, 0, 0, 0);
+			env->interrupt_request &= ~CPU_INTERRUPT_TIMER;
+		    }
 #endif
                     if (interrupt_request & CPU_INTERRUPT_EXITTB) {
                         env->interrupt_request &= ~CPU_INTERRUPT_EXITTB;

@@ -27,7 +27,7 @@ ar="ar"
 make="make"
 strip="strip"
 cpu=`uname -m`
-target_list="i386-user i386 i386-softmmu arm-user sparc-user ppc-user ppc-softmmu"
+target_list="i386-user i386 i386-softmmu arm-user sparc-user ppc-user ppc-softmmu sparc-softmmu"
 case "$cpu" in
   i386|i486|i586|i686|i86pc|BePC)
     cpu="i386"
@@ -99,7 +99,7 @@ if [ "$bsd" = "yes" ] ; then
   if [ ! "$darwin" = "yes" ] ; then
     make="gmake"
   fi
-  target_list="i386-softmmu ppc-softmmu"
+  target_list="i386-softmmu ppc-softmmu sparc-softmmu"
 fi
 
 # find source path
@@ -160,7 +160,7 @@ ar="${cross_prefix}${ar}"
 strip="${cross_prefix}${strip}"
 
 if test "$mingw32" = "yes" ; then
-    target_list="i386-softmmu ppc-softmmu"
+    target_list="i386-softmmu ppc-softmmu sparc-softmmu"
     EXESUF=".exe"
     gdbstub="no"
 fi

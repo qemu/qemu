@@ -664,6 +664,28 @@ extern CPUWriteMemoryFunc *PPC_io_write[];
 extern CPUReadMemoryFunc *PPC_io_read[];
 extern int prep_enabled;
 
+/* sun4m.c */
+void sun4m_init(int ram_size, int vga_ram_size, int boot_device,
+             DisplayState *ds, const char **fd_filename, int snapshot,
+             const char *kernel_filename, const char *kernel_cmdline,
+             const char *initrd_filename);
+
+/* iommu.c */
+void iommu_init();
+uint32_t iommu_translate(uint32_t addr);
+
+/* lance.c */
+void lance_init(NetDriverState *nd, int irq);
+
+/* tcx.c */
+void tcx_init(DisplayState *ds);
+
+/* sched.c */
+void sched_init();
+
+/* magic-load.c */
+void magic_init(const char *kfn, int kloadaddr);
+
 /* NVRAM helpers */
 #include "hw/m48t59.h"
 

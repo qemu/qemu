@@ -56,6 +56,7 @@ struct TranslationBlock;
 extern uint16_t gen_opc_buf[OPC_BUF_SIZE];
 extern uint32_t gen_opparam_buf[OPPARAM_BUF_SIZE];
 extern uint32_t gen_opc_pc[OPC_BUF_SIZE];
+extern uint32_t gen_opc_npc[OPC_BUF_SIZE];
 extern uint8_t gen_opc_cc_op[OPC_BUF_SIZE];
 extern uint8_t gen_opc_instr_start[OPC_BUF_SIZE];
 
@@ -541,8 +542,7 @@ extern spinlock_t tb_lock;
 
 extern int tb_invalidated_flag;
 
-#if (defined(TARGET_I386) || defined(TARGET_PPC)) && \
-    !defined(CONFIG_USER_ONLY)
+#if !defined(CONFIG_USER_ONLY)
 
 void tlb_fill(unsigned long addr, int is_write, int is_user, 
               void *retaddr);
@@ -585,6 +585,8 @@ static inline target_ulong get_phys_addr_code(CPUState *env, target_ulong addr)
     is_user = ((env->hflags & HF_CPL_MASK) == 3);
 #elif defined (TARGET_PPC)
     is_user = msr_pr;
+#elif defined (TARGET_SPARC)
+    is_user = (env->psrs == 0);
 #else
 #error "Unimplemented !"
 #endif

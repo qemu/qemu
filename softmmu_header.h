@@ -55,6 +55,8 @@
 #define CPU_MEM_INDEX ((env->hflags & HF_CPL_MASK) == 3)
 #elif defined (TARGET_PPC)
 #define CPU_MEM_INDEX (msr_pr)
+#elif defined (TARGET_SPARC)
+#define CPU_MEM_INDEX ((env->psrs) == 0)
 #endif
 #define MMUSUFFIX _mmu
 
@@ -64,6 +66,8 @@
 #define CPU_MEM_INDEX ((env->hflags & HF_CPL_MASK) == 3)
 #elif defined (TARGET_PPC)
 #define CPU_MEM_INDEX (msr_pr)
+#elif defined (TARGET_SPARC)
+#define CPU_MEM_INDEX ((env->psrs) == 0)
 #endif
 #define MMUSUFFIX _cmmu
 

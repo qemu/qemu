@@ -46,6 +46,8 @@ uint32_t gen_opc_pc[OPC_BUF_SIZE];
 uint8_t gen_opc_instr_start[OPC_BUF_SIZE];
 #if defined(TARGET_I386)
 uint8_t gen_opc_cc_op[OPC_BUF_SIZE];
+#elif defined(TARGET_SPARC)
+uint32_t gen_opc_npc[OPC_BUF_SIZE];
 #endif
 
 int code_copy_enabled = 1;
@@ -208,6 +210,7 @@ int cpu_restore_state(TranslationBlock *tb,
 #elif defined(TARGET_SPARC)
     /* XXX: restore npc too */
     env->pc = gen_opc_pc[j];
+    env->npc = gen_opc_npc[j];
 #elif defined(TARGET_PPC)
     {
         int type;

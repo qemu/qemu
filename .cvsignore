@@ -12,3 +12,4 @@ qemu.1
 qemu.pod
 sparc-user
 qemu-img
+sparc-softmmu

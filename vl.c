@@ -710,7 +710,7 @@ static void qemu_run_timers(QEMUTimer **ptimer_head, int64_t current_time)
     
     for(;;) {
         ts = *ptimer_head;
-        if (ts->expire_time > current_time)
+        if (!ts || ts->expire_time > current_time)
             break;
         /* remove timer from the list before calling the callback */
         *ptimer_head = ts->next;
@@ -2166,6 +2166,15 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
 {
     return 0;
 }
+#elif defined(TARGET_SPARC)
+void cpu_save(QEMUFile *f, void *opaque)
+{
+}
+
+int cpu_load(QEMUFile *f, void *opaque, int version_id)
+{
+    return 0;
+}
 #else
 
 #warning No CPU save/restore functions
@@ -3336,6 +3345,10 @@ int main(int argc, char **argv)
     ppc_init(ram_size, vga_ram_size, boot_device,
 	     ds, fd_filename, snapshot,
 	     kernel_filename, kernel_cmdline, initrd_filename);
+#elif defined(TARGET_SPARC)
+    sun4m_init(ram_size, vga_ram_size, boot_device,
+            ds, fd_filename, snapshot,
+            kernel_filename, kernel_cmdline, initrd_filename);
 #endif
 
     gui_timer = qemu_new_timer(rt_clock, gui_update, NULL);
