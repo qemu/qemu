@@ -20,6 +20,9 @@
 #if !defined(__DYNGEN_EXEC_H__)
 #define __DYNGEN_EXEC_H__
 
+/* NOTE: standard headers should be used with special care at this
+   point because host CPU registers are used as global variables. Some
+   host headers do not allow that. */
 #include <stddef.h>
 
 typedef unsigned char uint8_t;
