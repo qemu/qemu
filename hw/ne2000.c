@@ -118,6 +118,7 @@ typedef struct NE2000State {
     uint16_t tcnt;
     uint16_t rcnt;
     uint32_t rsar;
+    uint8_t rsr;
     uint8_t isr;
     uint8_t dcfg;
     uint8_t imr;
@@ -212,7 +213,11 @@ static void ne2000_receive(void *opaque, const uint8_t *buf, int size)
         next -= (s->stop - s->start);
     /* prepare packet header */
     p = s->mem + index;
-    p[0] = ENRSR_RXOK; /* receive status */
+    s->rsr = ENRSR_RXOK; /* receive status */
+    /* XXX: check this */
+    if (buf[0] & 0x01)
+        s->rsr |= ENRSR_PHY;
+    p[0] = s->rsr;
     p[1] = next >> 8;
     p[2] = total_len;
     p[3] = total_len >> 8;
@@ -232,7 +237,7 @@ static void ne2000_receive(void *opaque, const uint8_t *buf, int size)
         size -= len;
     }
     s->curpag = next >> 8;
-    
+
     /* now we can signal we have receive something */
     s->isr |= ENISR_RX;
     ne2000_update_irq(s);
@@ -359,6 +364,9 @@ static uint32_t ne2000_ioport_read(void *opaque, uint32_t addr)
             break;
         case EN1_MULT ... EN1_MULT + 7:
             ret = s->mult[offset - EN1_MULT];
+            break;
+        case EN0_RSR:
+            ret = s->rsr;
             break;
         default:
             ret = 0x00;
