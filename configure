@@ -510,23 +510,24 @@ fi
 
 if test "$target_user_only" = "no"; then
     if test "$target_softmmu" = "no" -o "$static" = "yes"; then
-        if test "$sdl_static" = "yes" ; then
-            echo "#define CONFIG_SDL 1" >> $config_h
-            echo "CONFIG_SDL=yes" >> $config_mak
-            echo "SDL_LIBS=$sdl_static_libs" >> $config_mak
-        fi
+        sdl1=$sdl_static
     else
-        if test "$sdl" = "yes" ; then
-            echo "#define CONFIG_SDL 1" >> $config_h
-            echo "CONFIG_SDL=yes" >> $config_mak
+        sdl1=$sdl
+    fi
+    if test "$sdl1" = "yes" ; then
+        echo "#define CONFIG_SDL 1" >> $config_h
+        echo "CONFIG_SDL=yes" >> $config_mak
+        if test "$target_softmmu" = "no" -o "$static" = "yes"; then
+            echo "SDL_LIBS=$sdl_static_libs" >> $config_mak
+        else
             echo "SDL_LIBS=`$sdl_config --libs`" >> $config_mak
         fi
+        echo -n "SDL_CFLAGS=`$sdl_config --cflags`" >> $config_mak
+        if [ "${aa}" = "yes" ] ; then
+            echo -n " `aalib-config --cflags`" >> $config_mak ;
+        fi
+        echo "" >> $config_mak
     fi
-    echo -n "SDL_CFLAGS=`$sdl_config --cflags`" >> $config_mak
-    if [ "${aa}" = "yes" ] ; then
-        echo -n " `aalib-config --cflags`" >> $config_mak ;
-    fi
-    echo "" >> $config_mak
 fi
 
 done # for target in $targets
