@@ -120,6 +120,11 @@ int cpu_gen_code(CPUState *env, TranslationBlock *tb,
     tb->tb_next_offset[0] = 0xffff;
     tb->tb_next_offset[1] = 0xffff;
     gen_code_buf = tb->tc_ptr;
+#ifdef USE_DIRECT_JUMP
+    /* the following two entries are optional (only used for string ops) */
+    tb->tb_jmp_offset[2] = 0xffff;
+    tb->tb_jmp_offset[3] = 0xffff;
+#endif
     gen_code_size = dyngen_code(gen_code_buf, tb->tb_next_offset,
 #ifdef USE_DIRECT_JUMP
                                 tb->tb_jmp_offset,

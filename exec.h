@@ -108,7 +108,7 @@ typedef struct TranslationBlock {
        the code of this one. */
     uint16_t tb_next_offset[2]; /* offset of original jump target */
 #ifdef USE_DIRECT_JUMP
-    uint16_t tb_jmp_offset[2]; /* offset of jump instruction */
+    uint16_t tb_jmp_offset[4]; /* offset of jump instruction */
 #else
     uint32_t tb_next[2]; /* address of jump generated code */
 #endif
@@ -160,18 +160,14 @@ static inline TranslationBlock *tb_find(TranslationBlock ***pptb,
 
 #if defined(__powerpc__)
 
-static inline void tb_set_jmp_target(TranslationBlock *tb, 
-                                     int n, unsigned long addr)
+static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr)
 {
     uint32_t val, *ptr;
-    unsigned long offset;
-
-    offset = (unsigned long)(tb->tc_ptr + tb->tb_jmp_offset[n]);
 
     /* patch the branch destination */
-    ptr = (uint32_t *)offset;
+    ptr = (uint32_t *)jmp_addr;
     val = *ptr;
-    val = (val & ~0x03fffffc) | ((addr - offset) & 0x03fffffc);
+    val = (val & ~0x03fffffc) | ((addr - jmp_addr) & 0x03fffffc);
     *ptr = val;
     /* flush icache */
     asm volatile ("dcbst 0,%0" : : "r"(ptr) : "memory");
@@ -179,6 +175,18 @@ static inline void tb_set_jmp_target(TranslationBlock *tb,
     asm volatile ("icbi 0,%0" : : "r"(ptr) : "memory");
     asm volatile ("sync" : : : "memory");
     asm volatile ("isync" : : : "memory");
+}
+
+static inline void tb_set_jmp_target(TranslationBlock *tb, 
+                                     int n, unsigned long addr)
+{
+    unsigned long offset;
+
+    offset = tb->tb_jmp_offset[n];
+    tb_set_jmp_target1((unsigned long)(tb->tc_ptr + offset), addr);
+    offset = tb->tb_jmp_offset[n + 2];
+    if (offset != 0xffff)
+        tb_set_jmp_target1((unsigned long)(tb->tc_ptr + offset), addr);
 }
 
 #else
@@ -228,6 +236,11 @@ do {\
     EXIT_TB();\
 } while (0)
 
+#define JUMP_TB2(opname, tbparam, n)\
+do {\
+    asm volatile ("b __op_jmp%0\n" : : "i" (n + 2));\
+} while (0)
+
 #else
 
 /* jump to next block operations (more portable code, does not need
@@ -242,6 +255,12 @@ label ## n:\
     EIP = eip;\
 dummy_label ## n:\
     EXIT_TB();\
+} while (0)
+
+/* second jump to same destination 'n' */
+#define JUMP_TB2(opname, tbparam, n)\
+do {\
+    goto *(void *)(((TranslationBlock *)tbparam)->tb_next[n]);\
 } while (0)
 
 #endif
