@@ -600,12 +600,14 @@ static GenOpFunc *gen_op_shift_mem_T0_T1_cc[3 * 4][8] = {
     {\
         gen_op_shldw ## SUFFIX ## _T0_T1_ ## op ## _cc,\
         gen_op_shrdw ## SUFFIX ## _T0_T1_ ## op ## _cc,\
-    },\
+     },\
     {\
         gen_op_shldl ## SUFFIX ## _T0_T1_ ## op ## _cc,\
         gen_op_shrdl ## SUFFIX ## _T0_T1_ ## op ## _cc,\
     },\
     {\
+X86_64_DEF(gen_op_shldq ## SUFFIX ## _T0_T1_ ## op ## _cc,\
+           gen_op_shrdq ## SUFFIX ## _T0_T1_ ## op ## _cc,)\
     },
 
 static GenOpFunc1 *gen_op_shiftd_T0_T1_im_cc[4][2] = {
@@ -2723,14 +2725,14 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
             sse_op2(op2_offset, op1_offset);
             break;
         case 0x050: /* movmskps */
-            gen_op_movmskps(offsetof(CPUX86State,xmm_regs[reg]));
             rm = (modrm & 7) | REX_B(s);
-            gen_op_mov_reg_T0[OT_LONG][rm]();
+            gen_op_movmskps(offsetof(CPUX86State,xmm_regs[rm]));
+            gen_op_mov_reg_T0[OT_LONG][reg]();
             break;
         case 0x150: /* movmskpd */
-            gen_op_movmskpd(offsetof(CPUX86State,xmm_regs[reg]));
             rm = (modrm & 7) | REX_B(s);
-            gen_op_mov_reg_T0[OT_LONG][rm]();
+            gen_op_movmskpd(offsetof(CPUX86State,xmm_regs[rm]));
+            gen_op_mov_reg_T0[OT_LONG][reg]();
             break;
         case 0x02a: /* cvtpi2ps */
         case 0x12a: /* cvtpi2pd */
@@ -2795,10 +2797,22 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
         case 0x22d: /* cvtss2si */
         case 0x32d: /* cvtsd2si */
             ot = (s->dflag == 2) ? OT_QUAD : OT_LONG;
-            op1_offset = offsetof(CPUX86State,xmm_regs[reg]);
+            if (mod != 3) {
+                gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+                if ((b >> 8) & 1) {
+                    gen_ldq_env_A0[s->mem_index >> 2](offsetof(CPUX86State,xmm_t0.XMM_Q(0)));
+                } else {
+                    gen_op_ld_T0_A0[OT_LONG + s->mem_index]();
+                    gen_op_movl_env_T0(offsetof(CPUX86State,xmm_t0.XMM_L(0)));
+                }
+                op2_offset = offsetof(CPUX86State,xmm_t0);
+            } else {
+                rm = (modrm & 7) | REX_B(s);
+                op2_offset = offsetof(CPUX86State,xmm_regs[rm]);
+            }
             sse_op_table3[(s->dflag == 2) * 2 + ((b >> 8) - 2) + 4 + 
-                          (b & 1) * 4](op1_offset);
-            gen_ldst_modrm(s, modrm, ot, OR_TMP0, 1);
+                          (b & 1) * 4](op2_offset);
+            gen_op_mov_reg_T0[ot][reg]();
             break;
         case 0xc4: /* pinsrw */
         case 0x1c4: 

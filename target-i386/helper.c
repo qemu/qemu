@@ -1012,7 +1012,8 @@ void helper_sysret(int dflag)
                                DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
                                DESC_S_MASK | (3 << DESC_DPL_SHIFT) |
                                DESC_W_MASK | DESC_A_MASK);
-        load_eflags((uint32_t)(env->regs[11]), 0xffffffff);
+        load_eflags((uint32_t)(env->regs[11]), TF_MASK | AC_MASK | ID_MASK | 
+                    IF_MASK | IOPL_MASK | VM_MASK | RF_MASK | NT_MASK);
         cpu_x86_set_cpl(env, 3);
     } else {
         cpu_x86_load_seg_cache(env, R_CS, selector | 3, 
@@ -1209,7 +1210,7 @@ void helper_divl_EAX_T0(void)
     unsigned int den, q, r;
     uint64_t num;
     
-    num = EAX | ((uint64_t)EDX << 32);
+    num = ((uint32_t)EAX) | ((uint64_t)((uint32_t)EDX) << 32);
     den = T0;
     if (den == 0) {
         raise_exception(EXCP00_DIVZ);
@@ -1229,7 +1230,7 @@ void helper_idivl_EAX_T0(void)
     int den, q, r;
     int64_t num;
     
-    num = EAX | ((uint64_t)EDX << 32);
+    num = ((uint32_t)EAX) | ((uint64_t)((uint32_t)EDX) << 32);
     den = T0;
     if (den == 0) {
         raise_exception(EXCP00_DIVZ);
@@ -3003,7 +3004,7 @@ void helper_fxrstor(target_ulong ptr, int data64)
     }
 
     if (env->cr[4] & CR4_OSFXSR_MASK) {
-        /* XXX: finish it, endianness */
+        /* XXX: finish it */
         env->mxcsr = ldl(ptr + 0x18);
         //ldl(ptr + 0x1c);
         nb_xmm_regs = 8 << data64;
@@ -3170,7 +3171,7 @@ static void div64(uint64_t *plow, uint64_t *phigh, uint64_t b)
     }
 }
 
-static void idiv64(uint64_t *plow, uint64_t *phigh, uint64_t b)
+static void idiv64(uint64_t *plow, uint64_t *phigh, int64_t b)
 {
     int sa, sb;
     sa = ((int64_t)*phigh < 0);
@@ -3182,7 +3183,7 @@ static void idiv64(uint64_t *plow, uint64_t *phigh, uint64_t b)
     div64(plow, phigh, b);
     if (sa ^ sb)
         *plow = - *plow;
-    if (sb)
+    if (sa)
         *phigh = - *phigh;
 }
 

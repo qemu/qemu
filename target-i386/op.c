@@ -286,8 +286,8 @@ void OPPROTO op_imull_EAX_T0(void)
 {
     int64_t res;
     res = (int64_t)((int32_t)EAX) * (int64_t)((int32_t)T0);
-    EAX = res;
-    EDX = res >> 32;
+    EAX = (uint32_t)(res);
+    EDX = (uint32_t)(res >> 32);
     CC_DST = res;
     CC_SRC = (res != (int32_t)res);
 }

@@ -160,7 +160,7 @@ void OPPROTO glue(glue(op_rcl, MEM_SUFFIX), _T0_T1_cc)(void)
         eflags = cc_table[CC_OP].compute_all();
         T0 &= DATA_MASK;
         src = T0;
-        res = (T0 << count) | ((eflags & CC_C) << (count - 1));
+        res = (T0 << count) | ((target_ulong)(eflags & CC_C) << (count - 1));
         if (count > 1)
             res |= T0 >> (DATA_BITS + 1 - count);
         T0 = res;
@@ -191,7 +191,7 @@ void OPPROTO glue(glue(op_rcr, MEM_SUFFIX), _T0_T1_cc)(void)
         eflags = cc_table[CC_OP].compute_all();
         T0 &= DATA_MASK;
         src = T0;
-        res = (T0 >> count) | ((eflags & CC_C) << (DATA_BITS - count));
+        res = (T0 >> count) | ((target_ulong)(eflags & CC_C) << (DATA_BITS - count));
         if (count > 1)
             res |= T0 << (DATA_BITS + 1 - count);
         T0 = res;
