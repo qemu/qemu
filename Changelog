@@ -5,6 +5,7 @@ version 0.6.2:
   - undocumented FPU ops support
   - Cirrus VGA: support for 1280x1024x[8,15,16] modes
   - 'pidfile' option
+  - .dmg disk image format support (Johannes Schindelin)
 
 version 0.6.1:
 

@@ -1,5 +1,5 @@
 /*
- * QEMU System Emulator block driver
+ * QEMU Block driver for CLOOP images
  * 
  * Copyright (c) 2004 Johannes E. Schindelin
  * 
@@ -149,6 +149,8 @@ static void cloop_close(BlockDriverState *bs)
 {
     BDRVCloopState *s = bs->opaque;
     close(s->fd);
+    if(s->n_blocks>0)
+	free(s->offsets);
     free(s->compressed_block);
     free(s->uncompressed_block);
     inflateEnd(&s->zstream);
