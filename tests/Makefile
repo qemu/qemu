@@ -65,5 +65,11 @@ hello-arm: hello-arm.o
 hello-arm.o: hello-arm.c
 	arm-linux-gcc -Wall -g -O2 -c -o $@ $<
 
+# XXX: find a way to compile easily a test for each arch
+test2:
+	@for arch in i386 arm sparc ppc; do \
+           ../$${arch}-user/qemu-$${arch} $${arch}/ls -l linux-test.c ; \
+        done
+
 clean:
 	rm -f *~ *.o $(TESTS)
