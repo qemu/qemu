@@ -981,7 +981,11 @@ void helper_lar(void)
 #ifndef USE_X86LDOUBLE
 void helper_fldt_ST0_A0(void)
 {
-    ST0 = helper_fldt((uint8_t *)A0);
+    int new_fpstt;
+    new_fpstt = (env->fpstt - 1) & 7;
+    env->fpregs[new_fpstt] = helper_fldt((uint8_t *)A0);
+    env->fpstt = new_fpstt;
+    env->fptags[new_fpstt] = 0; /* validate stack entry */
 }
 
 void helper_fstt_ST0_A0(void)
@@ -996,81 +1000,47 @@ void helper_fstt_ST0_A0(void)
 
 void helper_fbld_ST0_A0(void)
 {
-    uint8_t *seg;
-    CPU86_LDouble fpsrcop;
-    int m32i;
+    CPU86_LDouble tmp;
+    uint64_t val;
     unsigned int v;
+    int i;
 
-    /* in this code, seg/m32i will be used as temporary ptr/int */
-    seg = (uint8_t *)A0 + 8;
-    v = ldub(seg--);
-    /* XXX: raise exception */
-    if (v != 0)
-        return;
-    v = ldub(seg--);
-    /* XXX: raise exception */
-    if ((v & 0xf0) != 0)
-        return;
-    m32i = v;  /* <-- d14 */
-    v = ldub(seg--);
-    m32i = MUL10(m32i) + (v >> 4);  /* <-- val * 10 + d13 */
-    m32i = MUL10(m32i) + (v & 0xf); /* <-- val * 10 + d12 */
-    v = ldub(seg--);
-    m32i = MUL10(m32i) + (v >> 4);  /* <-- val * 10 + d11 */
-    m32i = MUL10(m32i) + (v & 0xf); /* <-- val * 10 + d10 */
-    v = ldub(seg--);
-    m32i = MUL10(m32i) + (v >> 4);  /* <-- val * 10 + d9 */
-    m32i = MUL10(m32i) + (v & 0xf); /* <-- val * 10 + d8 */
-    fpsrcop = ((CPU86_LDouble)m32i) * 100000000.0;
-
-    v = ldub(seg--);
-    m32i = (v >> 4);  /* <-- d7 */
-    m32i = MUL10(m32i) + (v & 0xf); /* <-- val * 10 + d6 */
-    v = ldub(seg--);
-    m32i = MUL10(m32i) + (v >> 4);  /* <-- val * 10 + d5 */
-    m32i = MUL10(m32i) + (v & 0xf); /* <-- val * 10 + d4 */
-    v = ldub(seg--);
-    m32i = MUL10(m32i) + (v >> 4);  /* <-- val * 10 + d3 */
-    m32i = MUL10(m32i) + (v & 0xf); /* <-- val * 10 + d2 */
-    v = ldub(seg);
-    m32i = MUL10(m32i) + (v >> 4);  /* <-- val * 10 + d1 */
-    m32i = MUL10(m32i) + (v & 0xf); /* <-- val * 10 + d0 */
-    fpsrcop += ((CPU86_LDouble)m32i);
-    if ( ldub(seg+9) & 0x80 )
-        fpsrcop = -fpsrcop;
-    ST0 = fpsrcop;
+    val = 0;
+    for(i = 8; i >= 0; i--) {
+        v = ldub((uint8_t *)A0 + i);
+        val = (val * 100) + ((v >> 4) * 10) + (v & 0xf);
+    }
+    tmp = val;
+    if (ldub((uint8_t *)A0 + 9) & 0x80)
+        tmp = -tmp;
+    fpush();
+    ST0 = tmp;
 }
 
 void helper_fbst_ST0_A0(void)
 {
-    CPU86_LDouble fptemp;
-    CPU86_LDouble fpsrcop;
+    CPU86_LDouble tmp;
     int v;
     uint8_t *mem_ref, *mem_end;
+    int64_t val;
 
-    fpsrcop = rint(ST0);
+    tmp = rint(ST0);
+    val = (int64_t)tmp;
     mem_ref = (uint8_t *)A0;
-    mem_end = mem_ref + 8;
-    if ( fpsrcop < 0.0 ) {
-        stw(mem_end, 0x8000);
-        fpsrcop = -fpsrcop;
+    mem_end = mem_ref + 9;
+    if (val < 0) {
+        stb(mem_end, 0x80);
+        val = -val;
     } else {
-        stw(mem_end, 0x0000);
+        stb(mem_end, 0x00);
     }
     while (mem_ref < mem_end) {
-        if (fpsrcop == 0.0)
+        if (val == 0)
             break;
-        fptemp = floor(fpsrcop/10.0);
-        v = ((int)(fpsrcop - fptemp*10.0));
-        if  (fptemp == 0.0)  { 
-            stb(mem_ref++, v); 
-            break; 
-        }
-        fpsrcop = fptemp;
-        fptemp = floor(fpsrcop/10.0);
-        v |= (((int)(fpsrcop - fptemp*10.0)) << 4);
+        v = val % 100;
+        val = val / 100;
+        v = ((v / 10) << 4) | (v % 10);
         stb(mem_ref++, v);
-        fpsrcop = fptemp;
     }
     while (mem_ref < mem_end) {
         stb(mem_ref++, 0);
