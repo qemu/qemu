@@ -66,17 +66,19 @@ FILE=qemu-$(shell cat VERSION)
 tar:
 	rm -rf /tmp/$(FILE)
 	cp -r . /tmp/$(FILE)
-	( cd /tmp ; tar zcvf ~/$(FILE).tar.gz $(FILE) )
+	( cd /tmp ; tar zcvf ~/$(FILE).tar.gz $(FILE) --exclude CVS )
 	rm -rf /tmp/$(FILE)
 
-# generate a binary distribution including the test binary environnment 
-BINPATH=/usr/local/qemu-i386
-
+# generate a binary distribution
 tarbin:
-	tar zcvf /tmp/qemu-$(VERSION)-i386-glibc21.tar.gz \
-                 $(BINPATH)/etc $(BINPATH)/lib $(BINPATH)/bin $(BINPATH)/usr
-	tar zcvf /tmp/qemu-$(VERSION)-i386-wine.tar.gz \
-                 $(BINPATH)/wine
+	( cd / ; tar zcvf ~/qemu-$(VERSION)-i386.tar.gz \
+	$(prefix)/bin/qemu $(prefix)/bin/qemu-fast \
+	$(prefix)/bin/qemu-i386 \
+        $(prefix)/bin/qemu-arm \
+        $(prefix)/bin/qemu-sparc \
+	$(sharedir)/bios.bin \
+	$(sharedir)/vgabios.bin \
+	$(mandir)/man1/qemu.1 )
 
 ifneq ($(wildcard .depend),)
 include .depend
