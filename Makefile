@@ -141,7 +141,7 @@ endif
 
 # must use static linking to avoid leaving stuff in virtual address space
 vl: vl.o block.o libqemu.a
-	$(CC) -pg -static -Wl,-T,i386-vl.ld -o $@ $^  $(LIBS)
+	$(CC) -static -Wl,-T,i386-vl.ld -o $@ $^  $(LIBS)
 
 vlmkcow: vlmkcow.o
 	$(CC) -o $@ $^  $(LIBS)
@@ -213,11 +213,11 @@ dyngen.c dyngen.h dyngen-exec.h ioctls.h syscall_types.h \
 Makefile elf.h elfload.c main.c signal.c qemu.h \
 syscall.c syscall_defs.h vm86.c path.c mmap.c \
 i386.ld ppc.ld alpha.ld s390.ld sparc.ld arm.ld\
-vl.c i386-vl.ld vl.h block.c\
+vl.c i386-vl.ld vl.h block.c vlmkcow.c\
 thunk.c cpu-exec.c translate.c cpu-all.h thunk.h exec.h\
-exec.c cpu-exec.c\
+exec.c cpu-exec.c gdbstub.c\
 cpu-i386.h op-i386.c helper-i386.c syscall-i386.h translate-i386.c \
-exec-i386.h ops_template.h op_string.h opreg_template.h \
+exec-i386.h ops_template.h ops_template_mem.h op_string.h opreg_template.h \
 cpu-arm.h syscall-arm.h exec-arm.h op-arm.c translate-arm.c op-arm-template.h \
 dis-asm.h disas.c disas.h alpha-dis.c ppc-dis.c i386-dis.c sparc-dis.c \
 arm-dis.c \

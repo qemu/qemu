@@ -1,16 +1,17 @@
-
-- finish segment ops (call far, ret far, load_seg suppressed)
-- fix arm fpu rounding (at least for float->integer conversions)
+- optimize FPU operations (evaluate x87 stack pointer statically) and
+  fix cr0.TS emulation
 - fix CCOP optimisation
-- optimize FPU operations (evaluate x87 stack pointer statically) 
-- fpush not before mem load restarting
 - fix all remaining thread lock issues (must put TBs in a specific invalid
   state, find a solution for tb_flush()).
-- add gcc 2.96 test configure (some gcc3 flags are needed)
+- cpu loop optimisation (optimise ret case as the cpu state does not change)
+- fix arm fpu rounding (at least for float->integer conversions)
 - add IPC syscalls
 
 lower priority:
 --------------
+- sysenter/sysexit emulation
+- SMP support
+- finish segment ops (call far, ret far, load_seg suppressed)
 - use -msoft-float on ARM
 - use kernel traps for unaligned accesses on ARM ?
 - handle rare page fault cases (in particular if page fault in heplers or

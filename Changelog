@@ -1,3 +1,12 @@
+version 0.4.2:
+
+ - many exception handling fixes (can compile a Linux kernel inside vl)
+ - IDE emulation support
+ - initial GDB stub support
+ - deferred update support for disk images (Rusty Russell)
+ - accept user mode Linux Copy On Write disk images
+ - SMP kernels can at least be booted
+
 version 0.4.1:
   
  - more accurate timer support in vl.

@@ -85,7 +85,8 @@ int cow_create(int cow_fd, const char *image_filename,
 
 void help(void)
 {
-    printf("usage vlmkcow [-h] [-f disk_image] cow_image [cow_size]\n"
+    printf("vlmkcow version " QEMU_VERSION ", Copyright (c) 2003 Fabrice Bellard\n"
+           "usage: vlmkcow [-h] [-f disk_image] cow_image [cow_size]\n"
            "Create a Copy On Write disk image from an optional raw disk image\n"
            "\n"
            "-f disk_image   set the raw disk image name\n"

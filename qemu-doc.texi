@@ -240,9 +240,9 @@ This section explains how to launch a Linux kernel inside QEMU.
 
 @enumerate
 @item
-Download the archive @file{vl-test-xxx.tar.gz} containing a Linux kernel
-and an initrd (initial Ram Disk). The archive also contains a
-precompiled version of @file{vl}, the QEMU System emulator.
+Download the archive @file{vl-test-xxx.tar.gz} containing a Linux
+kernel and a disk image. The archive also contains a precompiled
+version of @file{vl}, the QEMU System emulator.
 
 @item Optional: If you want network support (for example to launch X11 examples), you
 must copy the script @file{vl-ifup} in @file{/etc} and configure
@@ -262,20 +262,25 @@ seen from the emulated kernel at IP address 172.20.0.1.
 > ./vl.sh 
 connected to host network interface: tun0
 Uncompressing Linux... Ok, booting the kernel.
-Linux version 2.4.20 (bellard@voyager) (gcc version 2.95.2 20000220 (Debian GNU/Linux)) #42 Wed Jun 25 14:16:12 CEST 2003
+Linux version 2.4.20 (fabrice@localhost.localdomain) (gcc version 2.96 20000731 (Red Hat Linux 7.3 2.96-110)) #22 lun jui 7 13:37:41 CEST 2003
 BIOS-provided physical RAM map:
- BIOS-88: 0000000000000000 - 000000000009f000 (usable)
- BIOS-88: 0000000000100000 - 0000000002000000 (usable)
+ BIOS-e801: 0000000000000000 - 000000000009f000 (usable)
+ BIOS-e801: 0000000000100000 - 0000000002000000 (usable)
 32MB LOWMEM available.
 On node 0 totalpages: 8192
 zone(0): 4096 pages.
 zone(1): 4096 pages.
 zone(2): 0 pages.
-Kernel command line: root=/dev/ram ramdisk_size=6144
+Kernel command line: root=/dev/hda ide1=noprobe ide2=noprobe ide3=noprobe ide4=noprobe ide5=noprobe
+ide_setup: ide1=noprobe
+ide_setup: ide2=noprobe
+ide_setup: ide3=noprobe
+ide_setup: ide4=noprobe
+ide_setup: ide5=noprobe
 Initializing CPU#0
-Detected 501.785 MHz processor.
-Calibrating delay loop... 973.20 BogoMIPS
-Memory: 24776k/32768k available (725k kernel code, 7604k reserved, 151k data, 48k init, 0k highmem)
+Detected 501.285 MHz processor.
+Calibrating delay loop... 989.59 BogoMIPS
+Memory: 29268k/32768k available (907k kernel code, 3112k reserved, 212k data, 52k init, 0k highmem)
 Dentry cache hash table entries: 4096 (order: 3, 32768 bytes)
 Inode cache hash table entries: 2048 (order: 2, 16384 bytes)
 Mount-cache hash table entries: 512 (order: 0, 4096 bytes)
@@ -289,24 +294,30 @@ Based upon Swansea University Computer Society NET3.039
 Initializing RT netlink socket
 apm: BIOS not found.
 Starting kswapd
+Journalled Block Device driver loaded
 pty: 256 Unix98 ptys configured
 Serial driver version 5.05c (2001-07-08) with no serial options enabled
 ttyS00 at 0x03f8 (irq = 4) is a 16450
+Uniform Multi-Platform E-IDE driver Revision: 6.31
+ide: Assuming 50MHz system bus speed for PIO modes; override with idebus=xx
+hda: QEMU HARDDISK, ATA DISK drive
+ide0 at 0x1f0-0x1f7,0x3f6 on irq 14
+hda: 12288 sectors (6 MB) w/256KiB Cache, CHS=12/16/63
+Partition check:
+ hda: unknown partition table
 ne.c:v1.10 9/23/94 Donald Becker (becker@scyld.com)
 Last modified Nov 1, 2000 by Paul Gortmaker
 NE*000 ethercard probe at 0x300: 52 54 00 12 34 56
 eth0: NE2000 found at 0x300, using IRQ 9.
-RAMDISK driver initialized: 16 RAM disks of 6144K size 1024 blocksize
+RAMDISK driver initialized: 16 RAM disks of 4096K size 1024 blocksize
 NET4: Linux TCP/IP 1.0 for NET4.0
 IP Protocols: ICMP, UDP, TCP, IGMP
 IP: routing cache hash table of 512 buckets, 4Kbytes
-TCP: Hash tables configured (established 2048 bind 2048)
+TCP: Hash tables configured (established 2048 bind 4096)
 NET4: Unix domain sockets 1.0/SMP for Linux NET4.0.
-RAMDISK: ext2 filesystem found at block 0
-RAMDISK: Loading 6144 blocks [1 disk] into ram disk... done.
-Freeing initrd memory: 6144k freed
+EXT2-fs warning: mounting unchecked fs, running e2fsck is recommended
 VFS: Mounted root (ext2 filesystem).
-Freeing unused kernel memory: 48k freed
+Freeing unused kernel memory: 52k freed
 sh: can't access tty; job control turned off
 #
 @end example
@@ -338,7 +349,7 @@ a real Virtual Linux system !
 NOTES:
 @enumerate
 @item 
-A 2.5.66 kernel is also included in the vl-test archive. Just
+A 2.5.74 kernel is also included in the vl-test archive. Just
 replace the bzImage in vl.sh to try it.
 
 @item 
@@ -348,7 +359,19 @@ a temporary directory using the tmpfs filesystem to avoid too many
 unnecessary disk accesses.
 
 @item 
-The example initrd is a modified version of the one made by Kevin
+In order to exit cleanly for vl, you can do a @emph{shutdown} inside
+vl. vl will automatically exit when the Linux shutdown is done.
+
+@item 
+You can boot slightly faster by disabling the probe of non present IDE
+interfaces. To do so, add the following options on the kernel command
+line:
+@example
+ide1=noprobe ide2=noprobe ide3=noprobe ide4=noprobe ide5=noprobe
+@end example
+
+@item 
+The example disk image is a modified version of the one made by Kevin
 Lawton for the plex86 Project (@url{www.plex86.org}).
 
 @end enumerate
@@ -363,9 +386,6 @@ usage: vl [options] bzImage [kernel parameters...]
 
 General options:
 @table @option
-@item -initrd file
-Use 'file' as initial ram disk.
-
 @item -hda file
 @item -hdb file
 Use 'file' as hard disk 0 or 1 image (@xref{disk_images}). 
@@ -383,6 +403,9 @@ Set virtual RAM size to @var{megs} megabytes.
 Set network init script [default=/etc/vl-ifup]. This script is
 launched to configure the host network interface (usually tun0)
 corresponding to the virtual NE2000 card.
+
+@item -initrd file
+Use 'file' as initial ram disk.
 @end table
 
 Debug options:
@@ -481,13 +504,17 @@ Since holes are used, the displayed size of the COW disk image is not
 the real one. To know it, use the @code{ls -ls} command.
 @end enumerate
 
-@section Kernel Compilation
+@section Linux Kernel Compilation
 
-You can use any Linux kernel within QEMU provided it is mapped at
-address 0x90000000 (the default is 0xc0000000). You must modify only two
-lines in the kernel source:
+You should be able to use any kernel with QEMU provided you make the
+following changes (only 2.4.x and 2.5.x were tested):
 
-In asm/page.h, replace
+@enumerate
+@item
+The kernel must be mapped at 0x90000000 (the default is
+0xc0000000). You must modify only two lines in the kernel source:
+
+In @file{include/asm/page.h}, replace
 @example
 #define __PAGE_OFFSET           (0xc0000000)
 @end example
@@ -496,7 +523,7 @@ by
 #define __PAGE_OFFSET           (0x90000000)
 @end example
 
-And in arch/i386/vmlinux.lds, replace
+And in @file{arch/i386/vmlinux.lds}, replace
 @example
   . = 0xc0000000 + 0x100000;
 @end example
@@ -505,22 +532,25 @@ by
   . = 0x90000000 + 0x100000;
 @end example
 
-The file config-2.4.20 gives the configuration of the example kernel.
-
-Just type
+@item
+If you want to enable SMP (Symmetric Multi-Processing) support, you
+must make the following change in @file{include/asm/fixmap.h}. Replace
 @example
-make bzImage
+#define FIXADDR_TOP	(0xffffX000UL)
 @end example
+by 
+@example
+#define FIXADDR_TOP	(0xa7ffX000UL)
+@end example
+(X is 'e' or 'f' depending on the kernel version). Although you can
+use an SMP kernel with QEMU, it only supports one CPU.
 
-As you would do to make a real kernel. Then you can use with QEMU
-exactly the same kernel as you would boot on your PC (in
-@file{arch/i386/boot/bzImage}).
-
+@item
 If you are not using a 2.5 kernel as host kernel but if you use a target
 2.5 kernel, you must also ensure that the 'HZ' define is set to 100
 (1000 is the default) as QEMU cannot currently emulate timers at
 frequencies greater than 100 Hz on host Linux systems < 2.5. In
-asm/param.h, replace:
+@file{include/asm/param.h}, replace:
 
 @example
 # define HZ		1000		/* Internal kernel timer frequency */
@@ -530,8 +560,18 @@ by
 # define HZ		100		/* Internal kernel timer frequency */
 @end example
 
-If you have problems running your kernel, verify that neither the SMP nor
-HIGHMEM configuration options are activated.
+@end enumerate
+
+The file config-2.x.x gives the configuration of the example kernels.
+
+Just type
+@example
+make bzImage
+@end example
+
+As you would do to make a real kernel. Then you can use with QEMU
+exactly the same kernel as you would boot on your PC (in
+@file{arch/i386/boot/bzImage}).
 
 @section PC Emulation
 
@@ -733,7 +773,7 @@ Correct translated code invalidation is done efficiently by maintaining
 a linked list of every translated block contained in a given page. Other
 linked lists are also maintained to undo direct block chaining. 
 
-Althought the overhead of doing @code{mprotect()} calls is important,
+Although the overhead of doing @code{mprotect()} calls is important,
 most MSDOS programs can be emulated at reasonnable speed with QEMU and
 DOSEMU.
 
@@ -802,7 +842,7 @@ reentrancy.
 
 @section Self-virtualization
 
-QEMU was conceived so that ultimately it can emulate itself. Althought
+QEMU was conceived so that ultimately it can emulate itself. Although
 it is not very useful, it is an important test to show the power of the
 emulator.
 

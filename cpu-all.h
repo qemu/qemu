@@ -311,7 +311,7 @@ extern CPUState *cpu_single_env;
 
 #define CPU_INTERRUPT_EXIT 0x01 /* wants exit from main loop */
 #define CPU_INTERRUPT_HARD 0x02 /* hardware interrupt pending */
-void cpu_interrupt(CPUX86State *s, int mask);
+void cpu_interrupt(CPUState *s, int mask);
 
 /* gdb stub API */
 extern int gdbstub_fd;

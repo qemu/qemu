@@ -49,7 +49,6 @@ typedef struct CPUARMState {
 
 CPUARMState *cpu_arm_init(void);
 int cpu_arm_exec(CPUARMState *s);
-void cpu_arm_interrupt(CPUARMState *s);
 void cpu_arm_close(CPUARMState *s);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
