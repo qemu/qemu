@@ -1437,7 +1437,7 @@ static void term_show_prompt(void)
 static void term_print_cmdline (const char *cmdline)
 {
     term_show_prompt();
-    term_printf(cmdline);
+    term_printf("%s", cmdline);
     term_flush();
 }
 
@@ -1521,7 +1521,8 @@ static void term_up_char(void)
     }
     term_hist_entry--;
     if (term_hist_entry >= 0) {
-	strcpy(term_cmd_buf, term_history[term_hist_entry]);
+	pstrcpy(term_cmd_buf, sizeof(term_cmd_buf), 
+                term_history[term_hist_entry]);
 	term_printf("\n");
 	term_print_cmdline(term_cmd_buf);
 	term_cmd_buf_index = term_cmd_buf_size = strlen(term_cmd_buf);
@@ -1533,7 +1534,8 @@ static void term_down_char(void)
     if (term_hist_entry == TERM_MAX_CMDS - 1 || term_hist_entry == -1)
 	return;
     if (term_history[++term_hist_entry] != NULL) {
-	strcpy(term_cmd_buf, term_history[term_hist_entry]);
+	pstrcpy(term_cmd_buf, sizeof(term_cmd_buf),
+                term_history[term_hist_entry]);
     } else {
 	term_hist_entry = -1;
     }
