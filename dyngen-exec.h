@@ -20,6 +20,8 @@
 #if !defined(__DYNGEN_EXEC_H__)
 #define __DYNGEN_EXEC_H__
 
+#include <stddef.h>
+
 typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
 typedef unsigned int uint32_t;
@@ -56,6 +58,7 @@ typedef signed long long int64_t;
 typedef struct FILE FILE;
 extern int fprintf(FILE *, const char *, ...);
 extern int printf(const char *, ...);
+#undef NULL
 #define NULL 0
 #include <fenv.h>
 
