@@ -389,6 +389,7 @@ static int disas_insn(DisasContext *s)
 
     case 0x80: /* GRP1 */
     case 0x81:
+    case 0x82:
     case 0x83:
         {
             if ((b & 1) == 0)
@@ -403,6 +404,7 @@ static int disas_insn(DisasContext *s)
             default:
             case 0x80:
             case 0x81:
+            case 0x82:
                 insn_get(s, ot);
                 break;
             case 0x83:

@@ -1938,6 +1938,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
 
     case 0x80: /* GRP1 */
     case 0x81:
+    case 0x82:
     case 0x83:
         {
             int val;
@@ -1963,6 +1964,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
             default:
             case 0x80:
             case 0x81:
+            case 0x82:
                 val = insn_get(s, ot);
                 break;
             case 0x83:
@@ -2242,7 +2244,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
             val = insn_get(s, ot);
             gen_op_movl_T1_im(val);
         } else if (b == 0x6b) {
-            val = insn_get(s, OT_BYTE);
+            val = (int8_t)insn_get(s, OT_BYTE);
             gen_op_movl_T1_im(val);
         } else {
             gen_op_mov_TN_reg[ot][1][reg]();
