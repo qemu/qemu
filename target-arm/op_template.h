@@ -19,6 +19,10 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
+#ifndef SET_REG
+#define SET_REG(x) REG = x
+#endif
+
 void OPPROTO glue(op_movl_T0_, REGNAME)(void)
 {
     T0 = REG;
@@ -36,13 +40,14 @@ void OPPROTO glue(op_movl_T2_, REGNAME)(void)
 
 void OPPROTO glue(glue(op_movl_, REGNAME), _T0)(void)
 {
-    REG = T0;
+    SET_REG (T0);
 }
 
 void OPPROTO glue(glue(op_movl_, REGNAME), _T1)(void)
 {
-    REG = T1;
+    SET_REG (T1);
 }
 
 #undef REG
 #undef REGNAME
+#undef SET_REG

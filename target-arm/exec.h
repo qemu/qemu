@@ -31,12 +31,14 @@ void cpu_lock(void);
 void cpu_unlock(void);
 void cpu_loop_exit(void);
 
+/* Implemented CPSR bits.  */
+#define CACHED_CPSR_BITS 0xf8000000
 static inline int compute_cpsr(void)
 {
     int ZF;
     ZF = (env->NZF == 0);
     return env->cpsr | (env->NZF & 0x80000000) | (ZF << 30) | 
-        (env->CF << 29) | ((env->VF & 0x80000000) >> 3);
+        (env->CF << 29) | ((env->VF & 0x80000000) >> 3) | (env->QF << 27);
 }
 
 static inline void env_to_regs(void)

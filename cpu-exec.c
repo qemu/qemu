@@ -160,7 +160,8 @@ int cpu_exec(CPUState *env1)
         env->CF = (psr >> 29) & 1;
         env->NZF = (psr & 0xc0000000) ^ 0x40000000;
         env->VF = (psr << 3) & 0x80000000;
-        env->cpsr = psr & ~0xf0000000;
+        env->QF = (psr >> 27) & 1;
+        env->cpsr = psr & ~CACHED_CPSR_BITS;
     }
 #elif defined(TARGET_SPARC)
 #elif defined(TARGET_PPC)
@@ -303,7 +304,7 @@ int cpu_exec(CPUState *env1)
 #elif defined(TARGET_ARM)
                     env->cpsr = compute_cpsr();
                     cpu_dump_state(env, logfile, fprintf, 0);
-                    env->cpsr &= ~0xf0000000;
+                    env->cpsr &= ~CACHED_CPSR_BITS;
 #elif defined(TARGET_SPARC)
                     cpu_dump_state (env, logfile, fprintf, 0);
 #elif defined(TARGET_PPC)
@@ -322,7 +323,7 @@ int cpu_exec(CPUState *env1)
                 cs_base = env->segs[R_CS].base;
                 pc = cs_base + env->eip;
 #elif defined(TARGET_ARM)
-                flags = 0;
+                flags = env->thumb;
                 cs_base = 0;
                 pc = env->regs[15];
 #elif defined(TARGET_SPARC)

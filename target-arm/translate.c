@@ -245,6 +245,18 @@ static GenOpFunc1 *gen_op_movl_TN_im[3] = {
     gen_op_movl_T2_im,
 };
 
+static GenOpFunc1 *gen_shift_T0_im_thumb[3] = {
+    gen_op_shll_T0_im_thumb,
+    gen_op_shrl_T0_im_thumb,
+    gen_op_sarl_T0_im_thumb,
+};
+
+static inline void gen_bx(DisasContext *s)
+{
+  s->is_jmp = DISAS_UPDATE;
+  gen_op_bx_T0();
+}
+
 static inline void gen_movl_TN_reg(DisasContext *s, int reg, int t)
 {
     int val;
@@ -350,17 +362,166 @@ static void disas_arm_insn(DisasContext *s)
     s->pc += 4;
     
     cond = insn >> 28;
-    if (cond == 0xf)
+    if (cond == 0xf){
+        if ((insn & 0x0d70f000) == 0x0550f000)
+            return; /* PLD */
+        else if ((insn & 0x0e000000) == 0x0a000000) {
+            /* branch link and change to thumb (blx <offset>) */
+            int32_t offset;
+
+            val = (uint32_t)s->pc;
+            gen_op_movl_T0_im(val);
+            gen_movl_reg_T0(s, 14);
+            /* Sign-extend the 24-bit offset */
+            offset = (((int32_t)insn) << 8) >> 8;
+            /* offset * 4 + bit24 * 2 + (thumb bit) */
+            val += (offset << 2) | ((insn >> 23) & 2) | 1;
+            /* pipeline offset */
+            val += 4;
+            gen_op_movl_T0_im(val);
+            gen_bx(s);
+            return;
+        }
         goto illegal_op;
+    }
     if (cond != 0xe) {
         /* if not always execute, we generate a conditional jump to
            next instruction */
         gen_test_cc[cond ^ 1]((long)s->tb, (long)s->pc);
         s->is_jmp = DISAS_JUMP_NEXT;
     }
-    if (((insn & 0x0e000000) == 0 &&
-         (insn & 0x00000090) != 0x90) ||
-        ((insn & 0x0e000000) == (1 << 25))) {
+    if ((insn & 0x0f900000) == 0x03000000) {
+        if ((insn & 0x0ff0f000) != 0x0360f000)
+            goto illegal_op;
+        /* CPSR = immediate */
+        val = insn & 0xff;
+        shift = ((insn >> 8) & 0xf) * 2;
+        if (shift)
+            val = (val >> shift) | (val << (32 - shift));
+        gen_op_movl_T0_im(val);
+        if (insn & (1 << 19))
+            gen_op_movl_psr_T0();
+    } else if ((insn & 0x0f900000) == 0x01000000
+               && (insn & 0x00000090) != 0x00000090) {
+        /* miscellaneous instructions */
+        op1 = (insn >> 21) & 3;
+        sh = (insn >> 4) & 0xf;
+        rm = insn & 0xf;
+        switch (sh) {
+        case 0x0: /* move program status register */
+            if (op1 & 2) {
+                /* SPSR not accessible in user mode */
+                goto illegal_op;
+            }
+            if (op1 & 1) {
+                /* CPSR = reg */
+                gen_movl_T0_reg(s, rm);
+                if (insn & (1 << 19))
+                    gen_op_movl_psr_T0();
+            } else {
+                /* reg = CPSR */
+                rd = (insn >> 12) & 0xf;
+                gen_op_movl_T0_psr();
+                gen_movl_reg_T0(s, rd);
+            }
+        case 0x1:
+            if (op1 == 1) {
+                /* branch/exchange thumb (bx).  */
+                gen_movl_T0_reg(s, rm);
+                gen_bx(s);
+            } else if (op1 == 3) {
+                /* clz */
+                rd = (insn >> 12) & 0xf;
+                gen_movl_T0_reg(s, rm);
+                gen_op_clz_T0();
+                gen_movl_reg_T0(s, rd);
+            } else {
+                goto illegal_op;
+            }
+            break;
+        case 0x3:
+            if (op1 != 1)
+              goto illegal_op;
+
+            /* branch link/exchange thumb (blx) */
+            val = (uint32_t)s->pc;
+            gen_op_movl_T0_im(val);
+            gen_movl_reg_T0(s, 14);
+            gen_movl_T0_reg(s, rm);
+            gen_bx(s);
+            break;
+        case 0x5: /* saturating add/subtract */
+            rd = (insn >> 12) & 0xf;
+            rn = (insn >> 16) & 0xf;
+            gen_movl_T0_reg(s, rn);
+            if (op1 & 2) {
+                gen_movl_T1_reg(s, rn);
+                if (op1 & 1) 
+                    gen_op_subl_T0_T1_saturate();
+                else
+                    gen_op_addl_T0_T1_saturate();
+            }
+            gen_movl_T1_reg(s, rm);
+            if (op1 & 1)
+                gen_op_subl_T0_T1_saturate();
+            else
+                gen_op_addl_T0_T1_saturate();
+            gen_movl_reg_T0(s, rn);
+            break;
+        case 0x8: /* signed multiply */
+        case 0xa:
+        case 0xc:
+        case 0xe:
+            rs = (insn >> 8) & 0xf;
+            rn = (insn >> 12) & 0xf;
+            rd = (insn >> 16) & 0xf;
+            if (op1 == 1) {
+                /* (32 * 16) >> 16 */
+                gen_movl_T0_reg(s, rm);
+                gen_movl_T1_reg(s, rs);
+                if (sh & 4)
+                    gen_op_sarl_T1_im(16);
+                else
+                    gen_op_sxl_T1();
+                gen_op_imulw_T0_T1();
+                if ((sh & 2) == 0) {
+                    gen_movl_T1_reg(s, rn);
+                    gen_op_addl_T0_T1_setq();
+                }
+                gen_movl_reg_T0(s, rd);
+            } else {
+                /* 16 * 16 */
+                gen_movl_T0_reg(s, rm);
+                if (sh & 2)
+                    gen_op_sarl_T0_im(16);
+                else
+                    gen_op_sxl_T0();
+                gen_movl_T1_reg(s, rs);
+                if (sh & 4)
+                    gen_op_sarl_T1_im(16);
+                else
+                    gen_op_sxl_T1();
+                if (op1 == 2) {
+                    gen_op_imull_T0_T1();
+                    gen_op_addq_T0_T1(rn, rd);
+                    gen_movl_reg_T0(s, rn);
+                    gen_movl_reg_T1(s, rd);
+                } else {
+                    gen_op_mul_T0_T1();
+                    if (op1 == 0) {
+                        gen_movl_T1_reg(s, rn);
+                        gen_op_addl_T0_T1_setq();
+                    }
+                    gen_movl_reg_T0(s, rd);
+                }
+            }
+            break;
+        default:
+            goto illegal_op;
+        }
+    } else if (((insn & 0x0e000000) == 0 &&
+                (insn & 0x00000090) != 0x90) ||
+               ((insn & 0x0e000000) == (1 << 25))) {
         int set_cc, logic_cc, shiftop;
         
         op1 = (insn >> 21) & 0xf;
@@ -519,6 +680,7 @@ static void disas_arm_insn(DisasContext *s)
         switch(op1) {
         case 0x0:
         case 0x1:
+            /* multiplies, extra load/stores */
             sh = (insn >> 5) & 3;
             if (sh == 0) {
                 if (op1 == 0x0) {
@@ -526,7 +688,7 @@ static void disas_arm_insn(DisasContext *s)
                     rn = (insn >> 12) & 0xf;
                     rs = (insn >> 8) & 0xf;
                     rm = (insn) & 0xf;
-                    if (!(insn & (1 << 23))) {
+                    if (((insn >> 22) & 3) == 0) {
                         /* 32 bit mul */
                         gen_movl_T0_reg(s, rs);
                         gen_movl_T1_reg(s, rm);
@@ -546,30 +708,39 @@ static void disas_arm_insn(DisasContext *s)
                             gen_op_imull_T0_T1();
                         else
                             gen_op_mull_T0_T1();
-                        if (insn & (1 << 21)) 
+                        if (insn & (1 << 21)) /* mult accumulate */
                             gen_op_addq_T0_T1(rn, rd);
+                        if (!(insn & (1 << 23))) { /* double accumulate */
+                            gen_op_addq_lo_T0_T1(rn);
+                            gen_op_addq_lo_T0_T1(rd);
+                        }
                         if (insn & (1 << 20)) 
                             gen_op_logicq_cc();
                         gen_movl_reg_T0(s, rn);
                         gen_movl_reg_T1(s, rd);
                     }
                 } else {
-                    /* SWP instruction */
                     rn = (insn >> 16) & 0xf;
                     rd = (insn >> 12) & 0xf;
-                    rm = (insn) & 0xf;
-                    
-                    gen_movl_T0_reg(s, rm);
-                    gen_movl_T1_reg(s, rn);
-                    if (insn & (1 << 22)) {
-                        gen_op_swpb_T0_T1();
+                    if (insn & (1 << 23)) {
+                        /* load/store exclusive */
+                        goto illegal_op;
                     } else {
-                        gen_op_swpl_T0_T1();
+                        /* SWP instruction */
+                        rm = (insn) & 0xf;
+                        
+                        gen_movl_T0_reg(s, rm);
+                        gen_movl_T1_reg(s, rn);
+                        if (insn & (1 << 22)) {
+                            gen_op_swpb_T0_T1();
+                        } else {
+                            gen_op_swpl_T0_T1();
+                        }
+                        gen_movl_reg_T0(s, rd);
                     }
-                    gen_movl_reg_T0(s, rd);
                 }
             } else {
-                /* load/store half word */
+                /* Misc load/store */
                 rn = (insn >> 16) & 0xf;
                 rd = (insn >> 12) & 0xf;
                 gen_movl_T1_reg(s, rn);
@@ -590,6 +761,27 @@ static void disas_arm_insn(DisasContext *s)
                         break;
                     }
                     gen_movl_reg_T0(s, rd);
+                } else if (sh & 2) {
+                    /* doubleword */
+                    if (sh & 1) {
+                        /* store */
+                        gen_movl_T0_reg(s, rd);
+                        gen_op_stl_T0_T1();
+                        gen_op_addl_T1_im(4);
+                        gen_movl_T0_reg(s, rd + 1);
+                        gen_op_stl_T0_T1();
+                        if ((insn & (1 << 24)) || (insn & (1 << 20)))
+                            gen_op_addl_T1_im(-4);
+                    } else {
+                        /* load */
+                        gen_op_ldl_T0_T1();
+                        gen_movl_reg_T0(s, rd);
+                        gen_op_addl_T1_im(4);
+                        gen_op_ldl_T0_T1();
+                        gen_movl_reg_T0(s, rd + 1);
+                        if ((insn & (1 << 24)) || (insn & (1 << 20)))
+                            gen_op_addl_T1_im(-4);
+                    }
                 } else {
                     /* store */
                     gen_movl_T0_reg(s, rd);
@@ -619,7 +811,10 @@ static void disas_arm_insn(DisasContext *s)
                     gen_op_ldub_T0_T1();
                 else
                     gen_op_ldl_T0_T1();
-                gen_movl_reg_T0(s, rd);
+                if (rd == 15)
+                    gen_bx(s);
+                else
+                    gen_movl_reg_T0(s, rd);
             } else {
                 /* store */
                 gen_movl_T0_reg(s, rd);
@@ -676,7 +871,10 @@ static void disas_arm_insn(DisasContext *s)
                         if (insn & (1 << 20)) {
                             /* load */
                             gen_op_ldl_T0_T1();
-                            gen_movl_reg_T0(s, i);
+                            if (i == 15)
+                                gen_bx(s);
+                            else
+                                gen_movl_reg_T0(s, i);
                         } else {
                             /* store */
                             if (i == 15) {
@@ -720,15 +918,15 @@ static void disas_arm_insn(DisasContext *s)
         case 0xa:
         case 0xb:
             {
-                int offset;
+                int32_t offset;
                 
                 /* branch (and link) */
-                val = (int)s->pc;
+                val = (int32_t)s->pc;
                 if (insn & (1 << 24)) {
                     gen_op_movl_T0_im(val);
                     gen_op_movl_reg_TN[0][14]();
                 }
-                offset = (((int)insn << 8) >> 8);
+                offset = (((int32_t)insn << 8) >> 8);
                 val += (offset << 2) + 4;
                 gen_op_jmp((long)s->tb, val);
                 s->is_jmp = DISAS_TB_JUMP;
@@ -750,6 +948,500 @@ static void disas_arm_insn(DisasContext *s)
             break;
         }
     }
+}
+
+static void disas_thumb_insn(DisasContext *s)
+{
+    uint32_t val, insn, op, rm, rn, rd, shift, cond;
+    int32_t offset;
+    int i;
+
+    insn = lduw(s->pc);
+    s->pc += 2;
+    
+    switch (insn >> 12) {
+    case 0: case 1:
+        rd = insn & 7;
+        op = (insn >> 11) & 3;
+        if (op == 3) {
+            /* add/subtract */
+            rn = (insn >> 3) & 7;
+            gen_movl_T0_reg(s, rn);
+            if (insn & (1 << 10)) {
+                /* immediate */
+                gen_op_movl_T1_im((insn >> 6) & 7);
+            } else {
+                /* reg */
+                rm = (insn >> 6) & 7;
+                gen_movl_T1_reg(s, rm);
+            }
+            if (insn & (1 << 9))
+                gen_op_addl_T0_T1_cc();
+            else
+                gen_op_addl_T0_T1_cc();
+            gen_movl_reg_T0(s, rd);
+        } else {
+            /* shift immediate */
+            rm = (insn >> 3) & 7;
+            shift = (insn >> 6) & 0x1f;
+            gen_movl_T0_reg(s, rm);
+            gen_shift_T0_im_thumb[op](shift);
+            gen_movl_reg_T0(s, rd);
+        }
+        break;
+    case 2: case 3:
+        /* arithmetic large immediate */
+        op = (insn >> 11) & 3;
+        rd = (insn >> 8) & 0x7;
+        if (op == 0) {
+            gen_op_movl_T0_im(insn & 0xff);
+        } else {
+            gen_movl_T0_reg(s, rd);
+            gen_op_movl_T1_im(insn & 0xff);
+        }
+        switch (op) {
+        case 0: /* mov */
+            gen_op_logic_T0_cc();
+            break;
+        case 1: /* cmp */
+            gen_op_subl_T0_T1_cc();
+            break;
+        case 2: /* add */
+            gen_op_addl_T0_T1_cc();
+            break;
+        case 3: /* sub */
+            gen_op_subl_T0_T1_cc();
+            break;
+        }
+        if (op != 1)
+            gen_movl_reg_T0(s, rd);
+        break;
+    case 4:
+        if (insn & (1 << 11)) {
+            rd = (insn >> 8) & 7;
+            /* load pc-relative */
+            val = (insn & 0xff) * 4;
+            gen_op_movl_T1_im(val);
+            gen_movl_T2_reg(s, 15);
+            gen_op_addl_T1_T2();
+            gen_op_ldl_T0_T1();
+            gen_movl_reg_T0(s, rd);
+            break;
+        }
+        if (insn & (1 << 10)) {
+            /* data processing extended or blx */
+            rd = (insn & 7) | ((insn >> 4) & 8);
+            rm = (insn >> 3) & 0xf;
+            op = (insn >> 8) & 3;
+            switch (op) {
+            case 0: /* add */
+                gen_movl_T0_reg(s, rd);
+                gen_movl_T1_reg(s, rm);
+                gen_op_addl_T0_T1();
+                gen_movl_reg_T0(s, rd);
+                break;
+            case 1: /* cmp */
+                gen_movl_T0_reg(s, rd);
+                gen_movl_T1_reg(s, rm);
+                gen_op_subl_T0_T1_cc();
+                break;
+            case 2: /* mov/cpy */
+                gen_movl_T0_reg(s, rm);
+                gen_movl_reg_T0(s, rd);
+                break;
+            case 3:/* branch [and link] exchange thumb register */
+                if (insn & (1 << 7)) {
+                    val = (uint32_t)s->pc | 1;
+                    gen_op_movl_T1_im(val);
+                    gen_movl_reg_T1(s, 14);
+                }
+                gen_movl_T0_reg(s, rm);
+                gen_bx(s);
+                break;
+            }
+            break;
+        }
+
+        /* data processing register */
+        rd = insn & 7;
+        rm = (insn >> 3) & 7;
+        op = (insn >> 6) & 0xf;
+        if (op == 2 || op == 3 || op == 4 || op == 7) {
+            /* the shift/rotate ops want the operands backwards */
+            val = rm;
+            rm = rd;
+            rd = val;
+            val = 1;
+        } else {
+            val = 0;
+        }
+
+        if (op == 9) /* neg */
+            gen_op_movl_T0_im(0);
+        else if (op != 0xf) /* mvn doesn't read its first operand */
+            gen_movl_T0_reg(s, rd);
+
+        gen_movl_T1_reg(s, rm);
+        switch (insn >> 6) {
+        case 0x0: /* and */
+            gen_op_andl_T0_T1();
+            gen_op_logic_T0_cc();
+            break;
+        case 0x1: /* eor */
+            gen_op_xorl_T0_T1();
+            gen_op_logic_T0_cc();
+            break;
+        case 0x2: /* lsl */
+            gen_op_shll_T1_T0_cc();
+            break;
+        case 0x3: /* lsr */
+            gen_op_shrl_T1_T0_cc();
+            break;
+        case 0x4: /* asr */
+            gen_op_sarl_T1_T0_cc();
+            break;
+        case 0x5: /* adc */
+            gen_op_adcl_T0_T1_cc();
+            break;
+        case 0x6: /* sbc */
+            gen_op_sbcl_T0_T1_cc();
+            break;
+        case 0x7: /* ror */
+            gen_op_rorl_T1_T0_cc();
+            break;
+        case 0x8: /* tst */
+            gen_op_andl_T0_T1();
+            gen_op_logic_T0_cc();
+            rd = 16;
+        case 0x9: /* neg */
+            gen_op_rsbl_T0_T1_cc();
+            break;
+        case 0xa: /* cmp */
+            gen_op_subl_T0_T1_cc();
+            rd = 16;
+            break;
+        case 0xb: /* cmn */
+            gen_op_addl_T0_T1_cc();
+            rd = 16;
+            break;
+        case 0xc: /* orr */
+            gen_op_orl_T0_T1();
+            gen_op_logic_T0_cc();
+            break;
+        case 0xd: /* mul */
+            gen_op_mull_T0_T1();
+            gen_op_logic_T0_cc();
+            break;
+        case 0xe: /* bic */
+            gen_op_bicl_T0_T1();
+            gen_op_logic_T0_cc();
+            break;
+        case 0xf: /* mvn */
+            gen_op_notl_T1();
+            gen_op_logic_T1_cc();
+            val = 1;
+            break;
+        }
+        if (rd != 16) {
+            if (val)
+                gen_movl_reg_T1(s, rd);
+            else
+                gen_movl_reg_T0(s, rd);
+        }
+        break;
+
+    case 5:
+        /* load/store register offset.  */
+        rd = insn & 7;
+        rn = (insn >> 3) & 7;
+        rm = (insn >> 6) & 7;
+        op = (insn >> 9) & 7;
+        gen_movl_T1_reg(s, rn);
+        gen_movl_T2_reg(s, rm);
+        gen_op_addl_T1_T2();
+
+        if (op < 3) /* store */
+            gen_movl_T0_reg(s, rd);
+
+        switch (op) {
+        case 0: /* str */
+            gen_op_stl_T0_T1();
+            break;
+        case 1: /* strh */
+            gen_op_stw_T0_T1();
+            break;
+        case 2: /* strb */
+            gen_op_stb_T0_T1();
+            break;
+        case 3: /* ldrsb */
+            gen_op_ldsb_T0_T1();
+            break;
+        case 4: /* ldr */
+            gen_op_ldl_T0_T1();
+            break;
+        case 5: /* ldrh */
+            gen_op_ldsw_T0_T1();
+            break;
+        case 6: /* ldrb */
+            gen_op_ldub_T0_T1();
+            break;
+        case 7: /* ldrsh */
+            gen_op_ldsw_T0_T1();
+            break;
+        }
+        if (op >= 3) /* load */
+            gen_movl_reg_T0(s, rd);
+        break;
+
+    case 6:
+        /* load/store word immediate offset */
+        rd = insn & 7;
+        rn = (insn >> 3) & 7;
+        gen_movl_T1_reg(s, rn);
+        val = (insn >> 4) & 0x7c;
+        gen_op_movl_T2_im(val);
+        gen_op_addl_T1_T2();
+
+        if (insn & (1 << 11)) {
+            /* load */
+            gen_op_ldl_T0_T1();
+            gen_movl_reg_T0(s, rd);
+        } else {
+            /* store */
+            gen_movl_T0_reg(s, rd);
+            gen_op_stl_T0_T1();
+        }
+        break;
+
+    case 7:
+        /* load/store byte immediate offset */
+        rd = insn & 7;
+        rn = (insn >> 3) & 7;
+        gen_movl_T1_reg(s, rn);
+        val = (insn >> 6) & 0x1f;
+        gen_op_movl_T2_im(val);
+        gen_op_addl_T1_T2();
+
+        if (insn & (1 << 11)) {
+            /* load */
+            gen_op_ldub_T0_T1();
+            gen_movl_reg_T0(s, rd);
+        } else {
+            /* store */
+            gen_movl_T0_reg(s, rd);
+            gen_op_stb_T0_T1();
+        }
+        break;
+
+    case 8:
+        /* load/store halfword immediate offset */
+        rd = insn & 7;
+        rn = (insn >> 3) & 7;
+        gen_movl_T1_reg(s, rn);
+        val = (insn >> 5) & 0x3e;
+        gen_op_movl_T2_im(val);
+        gen_op_addl_T1_T2();
+
+        if (insn & (1 << 11)) {
+            /* load */
+            gen_op_lduw_T0_T1();
+            gen_movl_reg_T0(s, rd);
+        } else {
+            /* store */
+            gen_movl_T0_reg(s, rd);
+            gen_op_stw_T0_T1();
+        }
+        break;
+
+    case 9:
+        /* load/store from stack */
+        rd = (insn >> 8) & 7;
+        gen_movl_T1_reg(s, 13);
+        val = (insn & 0xff) * 4;
+        gen_op_movl_T2_im(val);
+        gen_op_addl_T1_T2();
+
+        if (insn & (1 << 11)) {
+            /* load */
+            gen_op_ldl_T0_T1();
+            gen_movl_reg_T0(s, rd);
+        } else {
+            /* store */
+            gen_movl_T0_reg(s, rd);
+            gen_op_stl_T0_T1();
+        }
+        break;
+
+    case 10:
+        /* add to high reg */
+        rd = (insn >> 8) & 7;
+        if (insn & (1 << 11))
+            rm = 13; /* sp */
+        else
+            rm = 15; /* pc */
+        gen_movl_T0_reg(s, rm);
+        val = (insn & 0xff) * 4;
+        gen_op_movl_T1_im(val);
+        gen_op_addl_T0_T1();
+        gen_movl_reg_T0(s, rd);
+        break;
+
+    case 11:
+        /* misc */
+        op = (insn >> 8) & 0xf;
+        switch (op) {
+        case 0:
+            /* adjust stack pointer */
+            gen_movl_T1_reg(s, 13);
+            val = (insn & 0x7f) * 4;
+            if (insn & (1 << 7))
+              val = -(int32_t)val;
+            gen_op_movl_T2_im(val);
+            gen_op_addl_T1_T2();
+            gen_movl_reg_T1(s, 13);
+            break;
+
+        case 4: case 5: case 0xc: case 0xd:
+            /* push/pop */
+            gen_movl_T1_reg(s, 13);
+            if (insn & (1 << 11))
+                val = 4;
+            else
+                val = -4;
+            gen_op_movl_T2_im(val);
+            for (i = 0; i < 8; i++) {
+                if (insn & (1 << i)) {
+                    if (insn & (1 << 11)) {
+                        /* pop */
+                        gen_op_ldl_T0_T1();
+                        gen_movl_reg_T0(s, i);
+                    } else {
+                        /* push */
+                        gen_movl_T0_reg(s, i);
+                        gen_op_stl_T0_T1();
+                    }
+                    /* move to the next address */
+                    gen_op_addl_T1_T2();
+                }
+            }
+            if (insn & (1 << 8)) {
+                if (insn & (1 << 11)) {
+                    /* pop pc */
+                    gen_op_ldl_T0_T1();
+                    /* don't set the pc until the rest of the instruction
+                       has completed */
+                } else {
+                    /* push lr */
+                    gen_movl_T0_reg(s, 14);
+                    gen_op_stl_T0_T1();
+                }
+                gen_op_addl_T1_T2();
+            }
+
+            /* write back the new stack pointer */
+            gen_movl_reg_T1(s, 13);
+            /* set the new PC value */
+            if ((insn & 0x0900) == 0x0900)
+                gen_bx(s);
+            break;
+
+        default:
+            goto undef;
+        }
+        break;
+
+    case 12:
+        /* load/store multiple */
+        rn = (insn >> 8) & 0x7;
+        gen_movl_T1_reg(s, rn);
+        gen_op_movl_T2_im(4);
+        val = 0;
+        for (i = 0; i < 8; i++) {
+            if (insn & (1 << i)) {
+                /* advance to the next address */
+                if (val)
+                    gen_op_addl_T1_T2();
+                else
+                    val = 1;
+                if (insn & (1 << 11)) {
+                    /* load */
+                    gen_op_ldl_T0_T1();
+                    gen_movl_reg_T0(s, i);
+                } else {
+                    /* store */
+                    gen_movl_T0_reg(s, i);
+                    gen_op_stl_T0_T1();
+                }
+            }
+        }
+        break;
+
+    case 13:
+        /* conditional branch or swi */
+        cond = (insn >> 8) & 0xf;
+        if (cond == 0xe)
+            goto undef;
+
+        if (cond == 0xf) {
+            /* swi */
+            gen_op_movl_T0_im((long)s->pc | 1);
+            /* Don't set r15.  */
+            gen_op_movl_reg_TN[0][15]();
+            gen_op_swi();
+            s->is_jmp = DISAS_JUMP;
+            break;
+        }
+        /* generate a conditional jump to next instruction */
+        gen_test_cc[cond ^ 1]((long)s->tb, (long)s->pc);
+        s->is_jmp = DISAS_JUMP_NEXT;
+        gen_movl_T1_reg(s, 15);
+
+        /* jump to the offset */
+        val = (uint32_t)s->pc;
+        offset = ((int32_t)insn << 24) >> 24;
+        val += (offset << 1) + 2;
+        gen_op_jmp((long)s->tb, val);
+        s->is_jmp = DISAS_TB_JUMP;
+        break;
+
+    case 14:
+        /* unconditional branch */
+        if (insn & (1 << 11))
+            goto undef; /* Second half of a blx */
+        val = (uint32_t)s->pc;
+        offset = ((int32_t)insn << 21) >> 21;
+        val += (offset << 1) + 2;
+        gen_op_jmp((long)s->tb, val);
+        s->is_jmp = DISAS_TB_JUMP;
+        break;
+
+    case 15:
+        /* branch and link [and switch to arm] */
+        offset = ((int32_t)insn << 21) >> 10;
+        insn = lduw(s->pc);
+        offset |= insn & 0x7ff;
+
+        val = (uint32_t)s->pc + 2;
+        gen_op_movl_T1_im(val | 1);
+        gen_movl_reg_T1(s, 14);
+        
+        val += offset;
+        if (insn & (1 << 11)) {
+            /* bl */
+            gen_op_jmp((long)s->tb, val);
+            s->is_jmp = DISAS_TB_JUMP;
+        } else {
+            /* blx */
+            gen_op_movl_T0_im(val);
+            gen_bx(s);
+        }
+    }
+    return;
+undef:
+    gen_op_movl_T0_im((long)s->pc - 4);
+    gen_op_movl_reg_TN[0][15]();
+    gen_op_undef_insn();
+    s->is_jmp = DISAS_JUMP;
 }
 
 /* generate intermediate code in gen_opc_buf and gen_opparam_buf for
@@ -787,7 +1479,10 @@ static inline int gen_intermediate_code_internal(CPUState *env,
             gen_opc_pc[lj] = dc->pc;
             gen_opc_instr_start[lj] = 1;
         }
-        disas_arm_insn(dc);
+        if (env->thumb)
+          disas_thumb_insn(dc);
+        else
+          disas_arm_insn(dc);
     } while (!dc->is_jmp && gen_opc_ptr < gen_opc_end && 
              (dc->pc - pc_start) < (TARGET_PAGE_SIZE - 32));
     switch(dc->is_jmp) {
@@ -797,6 +1492,7 @@ static inline int gen_intermediate_code_internal(CPUState *env,
         break;
     default:
     case DISAS_JUMP:
+    case DISAS_UPDATE:
         /* indicate that the hash table must be used to find the next TB */
         gen_op_movl_T0_0();
         gen_op_exit_tb();

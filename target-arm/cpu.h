@@ -35,6 +35,9 @@ typedef struct CPUARMState {
     uint32_t CF; /* 0 or 1 */
     uint32_t VF; /* V is the bit 31. All other bits are undefined */
     uint32_t NZF; /* N is bit 31. Z is computed from NZF */
+    uint32_t QF; /* 0 or 1 */
+
+    int thumb; /* 0 = arm mode, 1 = thumb mode */
 
     /* exception/interrupt handling */
     jmp_buf jmp_env;

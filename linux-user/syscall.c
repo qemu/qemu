@@ -2944,11 +2944,35 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #endif
 #ifdef TARGET_NR_getgroups32
     case TARGET_NR_getgroups32:
-        goto unimplemented;
+        {
+            int gidsetsize = arg1;
+            uint32_t *target_grouplist = (void *)arg2;
+            gid_t *grouplist;
+            int i;
+
+            grouplist = alloca(gidsetsize * sizeof(gid_t));
+            ret = get_errno(getgroups(gidsetsize, grouplist));
+            if (!is_error(ret)) {
+                for(i = 0;i < gidsetsize; i++)
+                    put_user(grouplist[i], &target_grouplist[i]);
+            }
+        }
+        break;
 #endif
 #ifdef TARGET_NR_setgroups32
     case TARGET_NR_setgroups32:
-        goto unimplemented;
+        {
+            int gidsetsize = arg1;
+            uint32_t *target_grouplist = (void *)arg2;
+            gid_t *grouplist;
+            int i;
+            
+            grouplist = alloca(gidsetsize * sizeof(gid_t));
+            for(i = 0;i < gidsetsize; i++)
+                get_user(grouplist[i], &target_grouplist[i]);
+            ret = get_errno(setgroups(gidsetsize, grouplist));
+        }
+        break;
 #endif
 #ifdef TARGET_NR_fchown32
     case TARGET_NR_fchown32:

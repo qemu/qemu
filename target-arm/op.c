@@ -81,7 +81,14 @@
 
 #define REGNAME r15
 #define REG (env->regs[15])
+#define SET_REG(x) REG = x & ~(uint32_t)1
 #include "op_template.h"
+
+void OPPROTO op_bx_T0(void)
+{
+  env->regs[15] = T0 & ~(uint32_t)1;
+  env->thumb = (T0 & 1) != 0;
+}
 
 void OPPROTO op_movl_T0_0(void)
 {
@@ -382,11 +389,28 @@ void OPPROTO op_imull_T0_T1(void)
     T0 = res;
 }
 
+/* 48 bit signed mul, top 32 bits */
+void OPPROTO op_imulw_T0_T1(void)
+{
+  uint64_t res;
+  res = (int64_t)((int32_t)T0) * (int64_t)((int32_t)T1);
+  T0 = res >> 16;
+}
+
 void OPPROTO op_addq_T0_T1(void)
 {
     uint64_t res;
     res = ((uint64_t)T1 << 32) | T0;
     res += ((uint64_t)(env->regs[PARAM2]) << 32) | (env->regs[PARAM1]);
+    T1 = res >> 32;
+    T0 = res;
+}
+
+void OPPROTO op_addq_lo_T0_T1(void)
+{
+    uint64_t res;
+    res = ((uint64_t)T1 << 32) | T0;
+    res += (uint64_t)(env->regs[PARAM1]);
     T1 = res >> 32;
     T0 = res;
 }
@@ -691,6 +715,126 @@ void OPPROTO op_rorl_T1_T0_cc(void)
         env->CF = (T1 >> (shift - 1)) & 1;
         T1 = ((uint32_t)T1 >> shift) | (T1 << (32 - shift));
     }
+    FORCE_RET();
+}
+
+/* misc */
+void OPPROTO op_clz_T0(void)
+{
+    int count;
+    for (count = 32; T0 > 0; count--)
+        T0 = T0 >> 1;
+    T0 = count;
+    FORCE_RET();
+}
+
+void OPPROTO op_sarl_T0_im(void)
+{
+    T0 = (int32_t)T0 >> PARAM1;
+}
+
+/* 16->32 Sign extend */
+void OPPROTO op_sxl_T0(void)
+{
+  T0 = (int16_t)T0;
+}
+
+void OPPROTO op_sxl_T1(void)
+{
+  T1 = (int16_t)T1;
+}
+
+#define SIGNBIT (uint32_t)0x80000000
+/* saturating arithmetic  */
+void OPPROTO op_addl_T0_T1_setq(void)
+{
+  uint32_t res;
+
+  res = T0 + T1;
+  if (((res ^ T0) & SIGNBIT) && !((T0 ^ T1) & SIGNBIT))
+      env->QF = 1;
+
+  T0 = res;
+  FORCE_RET();
+}
+
+void OPPROTO op_addl_T0_T1_saturate(void)
+{
+  uint32_t res;
+
+  res = T0 + T1;
+  if (((res ^ T0) & SIGNBIT) && !((T0 ^ T1) & SIGNBIT)) {
+      env->QF = 1;
+      if (T0 & SIGNBIT)
+          T0 = 0x80000000;
+      else
+          T0 = 0x7fffffff;
+  }
+  else
+    T0 = res;
+  
+  FORCE_RET();
+}
+
+void OPPROTO op_subl_T0_T1_saturate(void)
+{
+  uint32_t res;
+
+  res = T0 - T1;
+  if (((res ^ T0) & SIGNBIT) && ((T0 ^ T1) & SIGNBIT)) {
+      env->QF = 1;
+      if (T0 & SIGNBIT)
+          T0 = 0x8000000;
+      else
+          T0 = 0x7fffffff;
+  }
+  else
+    T0 = res;
+  
+  FORCE_RET();
+}
+
+/* thumb shift by immediate */
+void OPPROTO op_shll_T0_im_thumb(void)
+{
+    int shift;
+    shift = PARAM1;
+    if (shift != 0) {
+	env->CF = (T1 >> (32 - shift)) & 1;
+	T0 = T0 << shift;
+    }
+    env->NZF = T0;
+    FORCE_RET();
+}
+
+void OPPROTO op_shrl_T0_im_thumb(void)
+{
+    int shift;
+
+    shift = PARAM1;
+    if (shift == 0) {
+	env->CF = 0;
+	T0 = 0;
+    } else {
+	env->CF = (T0 >> (shift - 1)) & 1;
+	T0 = T0 >> shift;
+    }
+    FORCE_RET();
+}
+
+void OPPROTO op_sarl_T0_im_thumb(void)
+{
+    int shift;
+
+    shift = PARAM1;
+    if (shift == 0) {
+	T0 = ((int32_t)T0) >> 31;
+	env->CF = T0 & 1;
+    } else {
+	env->CF = (T0 >> (shift - 1)) & 1;
+	T0 = ((int32_t)T0) >> shift;
+    }
+    env->NZF = T0;
     FORCE_RET();
 }
 
