@@ -413,6 +413,8 @@ uint32_t pci_default_read_config(PCIDevice *d,
 void pci_default_write_config(PCIDevice *d, 
                               uint32_t address, uint32_t val, int len);
 
+extern struct PIIX3State *piix3_state;
+
 void i440fx_init(void);
 void piix3_init(void);
 void pci_bios_init(void);
@@ -458,6 +460,7 @@ extern BlockDriverState *bs_table[MAX_DISKS];
 void isa_ide_init(int iobase, int iobase2, int irq,
                   BlockDriverState *hd0, BlockDriverState *hd1);
 void pci_ide_init(BlockDriverState **hd_table);
+void pci_piix3_ide_init(BlockDriverState **hd_table);
 
 /* oss.c */
 typedef enum {
