@@ -11,7 +11,7 @@ ifndef CONFIG_WIN32
 TOOLS=qemu-mkcow
 endif
 
-all: dyngen$(EXESUF) $(TOOLS) qemu-doc.html qemu.1
+all: dyngen$(EXESUF) $(TOOLS) qemu-doc.html qemu-tech.html qemu.1
 	for d in $(TARGET_DIRS); do \
 	make -C $$d $@ || exit 1 ; \
         done
@@ -61,7 +61,7 @@ TAGS:
 	etags *.[ch] tests/*.[ch]
 
 # documentation
-qemu-doc.html: qemu-doc.texi
+%.html: %.texi
 	texi2html -monolithic -number $<
 
 qemu.1: qemu-doc.texi

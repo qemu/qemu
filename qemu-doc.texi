@@ -1,10 +1,10 @@
 \input texinfo @c -*- texinfo -*-
 
 @iftex
-@settitle QEMU CPU Emulator Reference Documentation
+@settitle QEMU CPU Emulator User Documentation
 @titlepage
 @sp 7
-@center @titlefont{QEMU CPU Emulator Reference Documentation}
+@center @titlefont{QEMU CPU Emulator User Documentation}
 @sp 3
 @end titlepage
 @end iftex
@@ -13,125 +13,38 @@
 
 @section Features
 
-QEMU is a FAST! processor emulator. By using dynamic translation it
-achieves a reasonnable speed while being easy to port on new host
-CPUs.
+QEMU is a FAST! processor emulator using dynamic translation to
+achieve good emulation speed.
 
 QEMU has two operating modes:
 
 @itemize @minus
 
 @item 
-User mode emulation. In this mode, QEMU can launch Linux processes
-compiled for one CPU on another CPU. Linux system calls are converted
-because of endianness and 32/64 bit mismatches. The Wine Windows API
-emulator (@url{http://www.winehq.org}) and the DOSEMU DOS emulator
-(@url{http://www.dosemu.org}) are the main targets for QEMU.
+Full system emulation. In this mode, QEMU emulates a full system (for
+example a PC), including a processor and various peripherials. It can
+be used to launch different Operating Systems without rebooting the
+PC or to debug system code.
 
 @item 
-Full system emulation. In this mode, QEMU emulates a full
-system, including a processor and various peripherials. Currently, it
-is only used to launch an x86 Linux kernel on an x86 Linux system. It
-enables easier testing and debugging of system code. It can also be
-used to provide virtual hosting of several virtual PCs on a single
-server.
+User mode emulation (Linux host only). In this mode, QEMU can launch
+Linux processes compiled for one CPU on another CPU. It can be used to
+launch the Wine Windows API emulator (@url{http://www.winehq.org}) or
+to ease cross-compilation and cross-debugging.
 
 @end itemize
 
-As QEMU requires no host kernel patches to run, it is very safe and
+As QEMU requires no host kernel driver to run, it is very safe and
 easy to use.
 
-QEMU generic features:
+For system emulation, only the x86 PC emulator is currently
+usable. The PowerPC system emulator is being developped.
 
-@itemize 
-
-@item User space only or full system emulation.
-
-@item Using dynamic translation to native code for reasonnable speed.
-
-@item Working on x86 and PowerPC hosts. Being tested on ARM, Sparc32, Alpha and S390.
-
-@item Self-modifying code support.
-
-@item Precise exceptions support.
-
-@item The virtual CPU is a library (@code{libqemu}) which can be used 
-in other projects.
-
-@end itemize
-
-QEMU user mode emulation features:
-@itemize 
-@item Generic Linux system call converter, including most ioctls.
-
-@item clone() emulation using native CPU clone() to use Linux scheduler for threads.
-
-@item Accurate signal handling by remapping host signals to target signals. 
-@end itemize
-@end itemize
-
-QEMU full system emulation features:
-@itemize 
-@item QEMU can either use a full software MMU for maximum portability or use the host system call mmap() to simulate the target MMU.
-@end itemize
-
-@section x86 emulation
-
-QEMU x86 target features:
-
-@itemize 
-
-@item The virtual x86 CPU supports 16 bit and 32 bit addressing with segmentation. 
-LDT/GDT and IDT are emulated. VM86 mode is also supported to run DOSEMU.
-
-@item Support of host page sizes bigger than 4KB in user mode emulation.
-
-@item QEMU can emulate itself on x86.
-
-@item An extensive Linux x86 CPU test program is included @file{tests/test-i386}. 
-It can be used to test other x86 virtual CPUs.
-
-@end itemize
-
-Current QEMU limitations:
-
-@itemize 
-
-@item No SSE/MMX support (yet).
-
-@item No x86-64 support.
-
-@item IPC syscalls are missing.
-
-@item The x86 segment limits and access rights are not tested at every 
-memory access.
-
-@item On non x86 host CPUs, @code{double}s are used instead of the non standard 
-10 byte @code{long double}s of x86 for floating point emulation to get
-maximum performances.
-
-@item Some priviledged instructions or behaviors are missing, especially for segment protection testing (yet). 
-
-@end itemize
-
-@section ARM emulation
-
-@itemize
-
-@item ARM emulation can currently launch small programs while using the
-generic dynamic code generation architecture of QEMU.
-
-@item No FPU support (yet).
-
-@item No automatic regression testing (yet).
-
-@end itemize
-
-@section SPARC emulation
-
-The SPARC emulation is currently in development.
+For user emulation, x86, PowerPC, ARM, and SPARC CPUs are supported.
 
 @chapter Installation
+
+@section Linux
 
 If you want to compile QEMU, please read the @file{README} which gives
 the related information. Otherwise just download the binary
@@ -144,106 +57,69 @@ cd /
 tar zxvf /tmp/qemu-XXX-i386.tar.gz
 @end example
 
-@chapter QEMU User space emulator invocation
-
-@section Quick Start
-
-In order to launch a Linux process, QEMU needs the process executable
-itself and all the target (x86) dynamic libraries used by it. 
-
+@section Windows
+w
 @itemize
+@item Install the current versions of MSYS and MinGW from
+@url{http://www.mingw.org/}. You can find detailed installation
+instructions in the download section and the FAQ.
 
-@item On x86, you can just try to launch any process by using the native
-libraries:
+@item Download 
+the MinGW development library of SDL 1.2.x
+(@file{SDL-devel-1.2.x-mingw32.tar.gz}) from
+@url{http://www.libsdl.org}. Unpack it in a temporary place, and
+unpack the archive @file{i386-mingw32msvc.tar.gz} in the MinGW tool
+directory. Edit the @file{sdl-config} script so that it gives the
+correct SDL directory when invoked.
 
-@example 
-qemu-i386 -L / /bin/ls
-@end example
+@item Extract the current version of QEMU.
+ 
+@item Start the MSYS shell (file @file{msys.bat}).
 
-@code{-L /} tells that the x86 dynamic linker must be searched with a
-@file{/} prefix.
+@item Change to the QEMU directory. Launch @file{./configure} and 
+@file{make}.  If you have problems using SDL, verify that
+@file{sdl-config} can be launched from the MSYS command line.
 
-@item Since QEMU is also a linux process, you can launch qemu with qemu (NOTE: you can only do that if you compiled QEMU from the sources):
-
-@example 
-qemu-i386 -L / qemu-i386 -L / /bin/ls
-@end example
-
-@item On non x86 CPUs, you need first to download at least an x86 glibc
-(@file{qemu-runtime-i386-XXX-.tar.gz} on the QEMU web page). Ensure that
-@code{LD_LIBRARY_PATH} is not set:
-
-@example
-unset LD_LIBRARY_PATH 
-@end example
-
-Then you can launch the precompiled @file{ls} x86 executable:
-
-@example
-qemu-i386 tests/i386/ls
-@end example
-You can look at @file{qemu-binfmt-conf.sh} so that
-QEMU is automatically launched by the Linux kernel when you try to
-launch x86 executables. It requires the @code{binfmt_misc} module in the
-Linux kernel.
-
-@item The x86 version of QEMU is also included. You can try weird things such as:
-@example
-qemu-i386 /usr/local/qemu-i386/bin/qemu-i386 /usr/local/qemu-i386/bin/ls-i386
-@end example
+@item You can install QEMU in @file{Program Files/Qemu} by typing 
+@file{make install}. Don't forget to copy @file{SDL.dll} in
+@file{Program Files/Qemu}.
 
 @end itemize
 
-@section Wine launch
+@section Cross compilation for Windows with Linux
 
 @itemize
+@item
+Install the MinGW cross compilation tools available at
+@url{http://www.mingw.org/}.
 
-@item Ensure that you have a working QEMU with the x86 glibc
-distribution (see previous section). In order to verify it, you must be
-able to do:
+@item 
+Install the Win32 version of SDL (@url{http://www.libsdl.org}) by
+unpacking @file{i386-mingw32msvc.tar.gz}. Set up the PATH environment
+variable so that @file{i386-mingw32msvc-sdl-config} can be launched by
+the QEMU configuration script.
 
+@item 
+Configure QEMU for Windows cross compilation:
 @example
-qemu-i386 /usr/local/qemu-i386/bin/ls-i386
+./configure --enable-mingw32
 @end example
+If necessary, you can change the cross-prefix according to the prefix
+choosen for the MinGW tools with --cross-prefix. You can also use
+--prefix to set the Win32 install path.
 
-@item Download the binary x86 Wine install
-(@file{qemu-XXX-i386-wine.tar.gz} on the QEMU web page). 
-
-@item Configure Wine on your account. Look at the provided script
-@file{/usr/local/qemu-i386/bin/wine-conf.sh}. Your previous
-@code{$@{HOME@}/.wine} directory is saved to @code{$@{HOME@}/.wine.org}.
-
-@item Then you can try the example @file{putty.exe}:
-
-@example
-qemu-i386 /usr/local/qemu-i386/wine/bin/wine /usr/local/qemu-i386/wine/c/Program\ Files/putty.exe
-@end example
+@item You can install QEMU in the installation directory by typing 
+@file{make install}. Don't forget to copy @file{SDL.dll} in the
+installation directory. 
 
 @end itemize
 
-@section Command line options
+Note: Currently, Wine does not seem able to launch
+QEMU for Win32.
 
-@example
-usage: qemu-i386 [-h] [-d] [-L path] [-s size] program [arguments...]
-@end example
+@section Mac OS X
 
-@table @option
-@item -h
-Print the help
-@item -L path   
-Set the x86 elf interpreter prefix (default=/usr/local/qemu-i386)
-@item -s size
-Set the x86 stack size in bytes (default=524288)
-@end table
-
-Debug options:
-
-@table @option
-@item -d
-Activate log (logfile=/tmp/qemu.log)
-@item -p pagesize
-Act as if the host page size was 'pagesize' bytes
-@end table
+Mac OS X is currently not supported.
 
 @chapter QEMU System emulator invocation
 
@@ -251,9 +127,7 @@ Act as if the host page size was 'pagesize' bytes
 
 @c man begin DESCRIPTION
 
-The QEMU System emulator simulates a complete PC. It can either boot
-directly a Linux kernel (without any BIOS or boot loader) or boot like a
-real PC with the included BIOS.
+The QEMU System emulator simulates a complete PC. 
 
 In order to meet specific user needs, two versions of QEMU are
 available:
@@ -282,18 +156,14 @@ VGA (hardware level, including all non standard modes)
 PS/2 mouse and keyboard
 @item 
 2 IDE interfaces with hard disk and CD-ROM support
+@item
+Floppy disk
 @item 
-NE2000 network adapter (port=0x300, irq=9)
+up to 6 NE2000 network adapters
 @item
 Serial port
 @item 
 Soundblaster 16 card
-@item
-PIC (interrupt controler)
-@item
-PIT (timers)
-@item 
-CMOS memory
 @end itemize
 
 @c man end
@@ -307,6 +177,364 @@ qemu linux.img
 @end example
 
 Linux should boot and give you a prompt.
+
+@section Invocation
+
+@example
+@c man begin SYNOPSIS
+usage: qemu [options] [disk_image]
+@c man end
+@end example
+
+@c man begin OPTIONS
+@var{disk_image} is a raw hard disk image for IDE hard disk 0.
+
+General options:
+@table @option
+@item -fda file
+@item -fdb file
+Use @var{file} as floppy disk 0/1 image (@xref{disk_images}).
+
+@item -hda file
+@item -hdb file
+@item -hdc file
+@item -hdd file
+Use @var{file} as hard disk 0, 1, 2 or 3 image (@xref{disk_images}).
+
+@item -cdrom file
+Use @var{file} as CD-ROM image (you cannot use @option{-hdc} and and
+@option{-cdrom} at the same time).
+
+@item -boot [a|c|d]
+Boot on floppy (a), hard disk (c) or CD-ROM (d). Hard disk boot is
+the default.
+
+@item -snapshot
+Write to temporary files instead of disk image files. In this case,
+the raw disk image you use is not written back. You can however force
+the write back by pressing @key{C-a s} (@xref{disk_images}). 
+
+@item -m megs
+Set virtual RAM size to @var{megs} megabytes.
+
+@item -initrd file
+Use @var{file} as initial ram disk.
+
+@item -nographic
+
+Normally, QEMU uses SDL to display the VGA output. With this option,
+you can totally disable graphical output so that QEMU is a simple
+command line application. The emulated serial port is redirected on
+the console. Therefore, you can still use QEMU to debug a Linux kernel
+with a serial console.
+
+@end table
+
+Network options:
+
+@table @option
+
+@item -n script      
+Set network init script [default=/etc/qemu-ifup]. This script is
+launched to configure the host network interface (usually tun0)
+corresponding to the virtual NE2000 card.
+
+@item nics n
+Simulate @var{n} network interfaces (default=1).
+
+@item -macaddr addr   
+
+Set the mac address of the first interface (the format is
+aa:bb:cc:dd:ee:ff in hexa). The mac address is incremented for each
+new network interface.
+
+@item -tun-fd fd1,...
+Assumes @var{fd} talks to tap/tun and use it. Read
+@url{http://bellard.org/qemu/tetrinet.html} to have an example of its
+use.
+
+@end table
+
+Linux boot specific. When using this options, you can use a given
+Linux kernel without installing it in the disk image. It can be useful
+for easier testing of various kernels.
+
+@table @option
+
+@item -kernel bzImage 
+Use @var{bzImage} as kernel image.
+
+@item -append cmdline 
+Use @var{cmdline} as kernel command line
+
+@item -initrd file
+Use @var{file} as initial ram disk.
+
+@end table
+
+Debug options:
+@table @option
+@item -s
+Wait gdb connection to port 1234 (@xref{gdb_usage}). 
+@item -p port
+Change gdb connection port.
+@item -d             
+Output log in /tmp/qemu.log
+@end table
+
+During emulation, if you are using the serial console, use @key{C-a h}
+to get terminal commands:
+
+@table @key
+@item C-a h
+Print this help
+@item C-a x    
+Exit emulatior
+@item C-a s    
+Save disk data back to file (if -snapshot)
+@item C-a b
+Send break (magic sysrq in Linux)
+@item C-a c
+Switch between console and monitor
+@item C-a C-a
+Send C-a
+@end table
+@c man end
+
+@ignore
+
+@setfilename qemu 
+@settitle QEMU System Emulator
+
+@c man begin SEEALSO
+The HTML documentation of QEMU for more precise information and Linux
+user mode emulator invocation.
+@c man end
+
+@c man begin AUTHOR
+Fabrice Bellard
+@c man end
+
+@end ignore
+
+@end ignore
+
+
+@section QEMU Monitor
+
+The QEMU monitor is used to give complex commands to the QEMU
+emulator. You can use it to:
+
+@itemize @minus
+
+@item
+Remove or insert removable medias images
+(such as CD-ROM or floppies)
+
+@item 
+Freeze/unfreeze the Virtual Machine (VM) and save or restore its state
+from a disk file.
+
+@item Inspect the VM state without an external debugger.
+
+@end itemize
+
+@subsection Commands
+
+The following commands are available:
+
+@table @option
+
+@item help or ? [cmd]
+Show the help for all commands or just for command @var{cmd}.
+
+@item commit  
+Commit changes to the disk images (if -snapshot is used)
+
+@item info subcommand 
+show various information about the system state
+
+@table @option
+@item info network
+show the network state
+@item info block
+show the block devices
+@item info registers
+show the cpu registers
+@item info history
+show the command line history
+@end table
+
+@item q or quit
+Quit the emulator.
+
+@item eject [-f] device
+Eject a removable media (use -f to force it).
+
+@item change device filename
+Change a removable media.
+
+@item screendump filename
+Save screen into PPM image @var{filename}.
+
+@item log item1[,...]
+Activate logging of the specified items to @file{/tmp/qemu.log}.
+
+@item savevm filename
+Save the whole virtual machine state to @var{filename}.
+
+@item loadvm filename
+Restore the whole virtual machine state from @var{filename}.
+
+@item stop
+Stop emulation.
+
+@item c or cont
+Resume emulation.
+
+@item gdbserver [port]
+Start gdbserver session (default port=1234)
+
+@item x/fmt addr
+Virtual memory dump starting at @var{addr}.
+
+@item xp /fmt addr
+Physical memory dump starting at @var{addr}.
+
+@var{fmt} is a format which tells the command how to format the
+data. Its syntax is: @option{/@{count@}@{format@}@{size@}}
+
+@table @var
+@item count 
+is the number of items to be dumped.
+
+@item format
+can be x (hexa), d (signed decimal), u (unsigned decimal), o (octal),
+c (char) or i (asm instruction).
+
+@item size
+can be b (8 bits), h (16 bits), w (32 bits) or g (64 bits)
+
+@end table
+
+Examples: 
+@itemize
+@item
+Dump 10 instructions at the current instruction pointer:
+@example 
+(qemu) x/10i $eip
+0x90107063:  ret
+0x90107064:  sti
+0x90107065:  lea    0x0(%esi,1),%esi
+0x90107069:  lea    0x0(%edi,1),%edi
+0x90107070:  ret
+0x90107071:  jmp    0x90107080
+0x90107073:  nop
+0x90107074:  nop
+0x90107075:  nop
+0x90107076:  nop
+@end example
+
+@item
+Dump 80 16 bit values at the start of the video memory.
+@example 
+(qemu) xp/80hx 0xb8000
+0x000b8000: 0x0b50 0x0b6c 0x0b65 0x0b78 0x0b38 0x0b36 0x0b2f 0x0b42
+0x000b8010: 0x0b6f 0x0b63 0x0b68 0x0b73 0x0b20 0x0b56 0x0b47 0x0b41
+0x000b8020: 0x0b42 0x0b69 0x0b6f 0x0b73 0x0b20 0x0b63 0x0b75 0x0b72
+0x000b8030: 0x0b72 0x0b65 0x0b6e 0x0b74 0x0b2d 0x0b63 0x0b76 0x0b73
+0x000b8040: 0x0b20 0x0b30 0x0b35 0x0b20 0x0b4e 0x0b6f 0x0b76 0x0b20
+0x000b8050: 0x0b32 0x0b30 0x0b30 0x0b33 0x0720 0x0720 0x0720 0x0720
+0x000b8060: 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720
+0x000b8070: 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720
+0x000b8080: 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720
+0x000b8090: 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720
+@end example
+@end itemize
+
+@item p or print/fmt expr
+
+Print expression value. Only the @var{format} part of @var{fmt} is
+used.
+
+@end table
+
+@subsection Integer expressions
+
+The monitor understands integers expressions for every integer
+argument. You can use register names to get the value of specifics
+CPU registers by prefixing them with @emph{$}.
+
+@node disk_images
+@section Disk Images
+
+@subsection Raw disk images
+
+The disk images can simply be raw images of the hard disk. You can
+create them with the command:
+@example
+dd if=/dev/zero of=myimage bs=1024 count=mysize
+@end example
+where @var{myimage} is the image filename and @var{mysize} is its size
+in kilobytes.
+
+@subsection Snapshot mode
+
+If you use the option @option{-snapshot}, all disk images are
+considered as read only. When sectors in written, they are written in
+a temporary file created in @file{/tmp}. You can however force the
+write back to the raw disk images by pressing @key{C-a s}.
+
+NOTE: The snapshot mode only works with raw disk images.
+
+@subsection Copy On Write disk images
+
+QEMU also supports user mode Linux
+(@url{http://user-mode-linux.sourceforge.net/}) Copy On Write (COW)
+disk images. The COW disk images are much smaller than normal images
+as they store only modified sectors. They also permit the use of the
+same disk image template for many users.
+
+To create a COW disk images, use the command:
+
+@example
+qemu-mkcow -f myrawimage.bin mycowimage.cow
+@end example
+
+@file{myrawimage.bin} is a raw image you want to use as original disk
+image. It will never be written to.
+
+@file{mycowimage.cow} is the COW disk image which is created by
+@code{qemu-mkcow}. You can use it directly with the @option{-hdx}
+options. You must not modify the original raw disk image if you use
+COW images, as COW images only store the modified sectors from the raw
+disk image. QEMU stores the original raw disk image name and its
+modified time in the COW disk image so that chances of mistakes are
+reduced.
+
+If the raw disk image is not read-only, by pressing @key{C-a s} you
+can flush the COW disk image back into the raw disk image, as in
+snapshot mode.
+
+COW disk images can also be created without a corresponding raw disk
+image. It is useful to have a big initial virtual disk image without
+using much disk space. Use:
+
+@example
+qemu-mkcow mycowimage.cow 1024
+@end example
+
+to create a 1 gigabyte empty COW disk image.
+
+NOTES: 
+@enumerate
+@item
+COW disk images must be created on file systems supporting
+@emph{holes} such as ext2 or ext3.
+@item 
+Since holes are used, the displayed size of the COW disk image is not
+the real one. To know it, use the @code{ls -ls} command.
+@end enumerate
 
 @section Direct Linux Boot and Network emulation
 
@@ -436,7 +664,7 @@ A 2.5.74 kernel is also included in the archive. Just
 replace the bzImage in qemu.sh to try it.
 
 @item 
-qemu creates a temporary file in @var{$QEMU_TMPDIR} (@file{/tmp} is the
+qemu-fast creates a temporary file in @var{$QEMU_TMPDIR} (@file{/tmp} is the
 default) containing all the simulated PC memory. If possible, try to use
 a temporary directory using the tmpfs filesystem to avoid too many
 unnecessary disk accesses.
@@ -459,203 +687,15 @@ Lawton for the plex86 Project (@url{www.plex86.org}).
 
 @end enumerate
 
-@section Invocation
-
-@example
-@c man begin SYNOPSIS
-usage: qemu [options] [disk_image]
-@c man end
-@end example
-
-@c man begin OPTIONS
-@var{disk_image} is a raw hard disk image for IDE hard disk 0.
-
-General options:
-@table @option
-@item -fda file
-@item -fdb file
-Use @var{file} as floppy disk 0/1 image (@xref{disk_images}).
-
-@item -hda file
-@item -hdb file
-@item -hdc file
-@item -hdd file
-Use @var{file} as hard disk 0, 1, 2 or 3 image (@xref{disk_images}).
-
-@item -cdrom file
-Use @var{file} as CD-ROM image (you cannot use @option{-hdc} and and
-@option{-cdrom} at the same time).
-
-@item -boot [a|b|c|d]
-Boot on floppy (a, b), hard disk (c) or CD-ROM (d). Hard disk boot is
-the default.
-
-@item -snapshot
-Write to temporary files instead of disk image files. In this case,
-the raw disk image you use is not written back. You can however force
-the write back by pressing @key{C-a s} (@xref{disk_images}). 
-
-@item -m megs
-Set virtual RAM size to @var{megs} megabytes.
-
-@item -n script      
-Set network init script [default=/etc/qemu-ifup]. This script is
-launched to configure the host network interface (usually tun0)
-corresponding to the virtual NE2000 card.
-
-@item -initrd file
-Use @var{file} as initial ram disk.
-
-@item -tun-fd fd      
-Assumes @var{fd} talks to tap/tun and use it. Read
-@url{http://bellard.org/qemu/tetrinet.html} to have an example of its
-use.
-
-@item -nographic
-
-Normally, QEMU uses SDL to display the VGA output. With this option,
-you can totally disable graphical output so that QEMU is a simple
-command line application. The emulated serial port is redirected on
-the console. Therefore, you can still use QEMU to debug a Linux kernel
-with a serial console.
-
-@end table
-
-Linux boot specific (does not require a full PC boot with a BIOS):
-@table @option
-
-@item -kernel bzImage 
-Use @var{bzImage} as kernel image.
-
-@item -append cmdline 
-Use @var{cmdline} as kernel command line
-
-@item -initrd file
-Use @var{file} as initial ram disk.
-
-@end table
-
-Debug options:
-@table @option
-@item -s
-Wait gdb connection to port 1234 (@xref{gdb_usage}). 
-@item -p port
-Change gdb connection port.
-@item -d             
-Output log in /tmp/qemu.log
-@end table
-
-During emulation, use @key{C-a h} to get terminal commands:
-
-@table @key
-@item C-a h
-Print this help
-@item C-a x    
-Exit emulatior
-@item C-a s    
-Save disk data back to file (if -snapshot)
-@item C-a b
-Send break (magic sysrq)
-@item C-a C-a
-Send C-a
-@end table
-@c man end
-
-@ignore
-
-@setfilename qemu 
-@settitle QEMU System Emulator
-
-@c man begin SEEALSO
-The HTML documentation of QEMU for more precise information and Linux
-user mode emulator invocation.
-@c man end
-
-@c man begin AUTHOR
-Fabrice Bellard
-@c man end
-
-@end ignore
-
-@end ignore
-@node disk_images
-@section Disk Images
-
-@subsection Raw disk images
-
-The disk images can simply be raw images of the hard disk. You can
-create them with the command:
-@example
-dd if=/dev/zero of=myimage bs=1024 count=mysize
-@end example
-where @var{myimage} is the image filename and @var{mysize} is its size
-in kilobytes.
-
-@subsection Snapshot mode
-
-If you use the option @option{-snapshot}, all disk images are
-considered as read only. When sectors in written, they are written in
-a temporary file created in @file{/tmp}. You can however force the
-write back to the raw disk images by pressing @key{C-a s}.
-
-NOTE: The snapshot mode only works with raw disk images.
-
-@subsection Copy On Write disk images
-
-QEMU also supports user mode Linux
-(@url{http://user-mode-linux.sourceforge.net/}) Copy On Write (COW)
-disk images. The COW disk images are much smaller than normal images
-as they store only modified sectors. They also permit the use of the
-same disk image template for many users.
-
-To create a COW disk images, use the command:
-
-@example
-qemu-mkcow -f myrawimage.bin mycowimage.cow
-@end example
-
-@file{myrawimage.bin} is a raw image you want to use as original disk
-image. It will never be written to.
-
-@file{mycowimage.cow} is the COW disk image which is created by
-@code{qemu-mkcow}. You can use it directly with the @option{-hdx}
-options. You must not modify the original raw disk image if you use
-COW images, as COW images only store the modified sectors from the raw
-disk image. QEMU stores the original raw disk image name and its
-modified time in the COW disk image so that chances of mistakes are
-reduced.
-
-If the raw disk image is not read-only, by pressing @key{C-a s} you
-can flush the COW disk image back into the raw disk image, as in
-snapshot mode.
-
-COW disk images can also be created without a corresponding raw disk
-image. It is useful to have a big initial virtual disk image without
-using much disk space. Use:
-
-@example
-qemu-mkcow mycowimage.cow 1024
-@end example
-
-to create a 1 gigabyte empty COW disk image.
-
-NOTES: 
-@enumerate
-@item
-COW disk images must be created on file systems supporting
-@emph{holes} such as ext2 or ext3.
-@item 
-Since holes are used, the displayed size of the COW disk image is not
-the real one. To know it, use the @code{ls -ls} command.
-@end enumerate
-
 @node linux_compile
 @section Linux Kernel Compilation
 
 You can use any linux kernel with QEMU. However, if you want to use
-@code{qemu-fast} to get maximum performances, you should make the
-following changes to the Linux kernel (only 2.4.x and 2.5.x were
-tested):
+@code{qemu-fast} to get maximum performances, you must use a modified
+guest kernel. If you are using a 2.6 guest kernel, you can use
+directly the patch @file{linux-2.6-qemu-fast.patch} made by Rusty
+Russel available in the QEMU source archive. Otherwise, you can make the
+following changes @emph{by hand} to the Linux kernel:
 
 @enumerate
 @item
@@ -694,10 +734,10 @@ by
 use an SMP kernel with QEMU, it only supports one CPU.
 
 @item
-If you are not using a 2.5 kernel as host kernel but if you use a target
-2.5 kernel, you must also ensure that the 'HZ' define is set to 100
+If you are not using a 2.6 kernel as host kernel but if you use a target
+2.6 kernel, you must also ensure that the 'HZ' define is set to 100
 (1000 is the default) as QEMU cannot currently emulate timers at
-frequencies greater than 100 Hz on host Linux systems < 2.5. In
+frequencies greater than 100 Hz on host Linux systems < 2.6. In
 @file{include/asm/param.h}, replace:
 
 @example
@@ -762,322 +802,104 @@ Use @code{set architecture i8086} to dump 16 bit code. Then use
 @code{x/10i $cs*16+*eip} to dump the code at the PC position.
 @end enumerate
 
-@chapter QEMU Internals
-
-@section QEMU compared to other emulators
-
-Like bochs [3], QEMU emulates an x86 CPU. But QEMU is much faster than
-bochs as it uses dynamic compilation and because it uses the host MMU to
-simulate the x86 MMU. The downside is that currently the emulation is
-not as accurate as bochs (for example, you cannot currently run Windows
-inside QEMU).
-
-Like Valgrind [2], QEMU does user space emulation and dynamic
-translation. Valgrind is mainly a memory debugger while QEMU has no
-support for it (QEMU could be used to detect out of bound memory
-accesses as Valgrind, but it has no support to track uninitialised data
-as Valgrind does). The Valgrind dynamic translator generates better code
-than QEMU (in particular it does register allocation) but it is closely
-tied to an x86 host and target and has no support for precise exceptions
-and system emulation.
-
-EM86 [4] is the closest project to user space QEMU (and QEMU still uses
-some of its code, in particular the ELF file loader). EM86 was limited
-to an alpha host and used a proprietary and slow interpreter (the
-interpreter part of the FX!32 Digital Win32 code translator [5]).
-
-TWIN [6] is a Windows API emulator like Wine. It is less accurate than
-Wine but includes a protected mode x86 interpreter to launch x86 Windows
-executables. Such an approach as greater potential because most of the
-Windows API is executed natively but it is far more difficult to develop
-because all the data structures and function parameters exchanged
-between the API and the x86 code must be converted.
-
-User mode Linux [7] was the only solution before QEMU to launch a Linux
-kernel as a process while not needing any host kernel patches. However,
-user mode Linux requires heavy kernel patches while QEMU accepts
-unpatched Linux kernels. It would be interesting to compare the
-performance of the two approaches.
-
-The new Plex86 [8] PC virtualizer is done in the same spirit as the QEMU
-system emulator. It requires a patched Linux kernel to work (you cannot
-launch the same kernel on your PC), but the patches are really small. As
-it is a PC virtualizer (no emulation is done except for some priveledged
-instructions), it has the potential of being faster than QEMU. The
-downside is that a complicated (and potentially unsafe) host kernel
-patch is needed.
-
-@section Portable dynamic translation
-
-QEMU is a dynamic translator. When it first encounters a piece of code,
-it converts it to the host instruction set. Usually dynamic translators
-are very complicated and highly CPU dependent. QEMU uses some tricks
-which make it relatively easily portable and simple while achieving good
-performances.
-
-The basic idea is to split every x86 instruction into fewer simpler
-instructions. Each simple instruction is implemented by a piece of C
-code (see @file{op-i386.c}). Then a compile time tool (@file{dyngen})
-takes the corresponding object file (@file{op-i386.o}) to generate a
-dynamic code generator which concatenates the simple instructions to
-build a function (see @file{op-i386.h:dyngen_code()}).
-
-In essence, the process is similar to [1], but more work is done at
-compile time. 
-
-A key idea to get optimal performances is that constant parameters can
-be passed to the simple operations. For that purpose, dummy ELF
-relocations are generated with gcc for each constant parameter. Then,
-the tool (@file{dyngen}) can locate the relocations and generate the
-appriopriate C code to resolve them when building the dynamic code.
-
-That way, QEMU is no more difficult to port than a dynamic linker.
-
-To go even faster, GCC static register variables are used to keep the
-state of the virtual CPU.
-
-@section Register allocation
-
-Since QEMU uses fixed simple instructions, no efficient register
-allocation can be done. However, because RISC CPUs have a lot of
-register, most of the virtual CPU state can be put in registers without
-doing complicated register allocation.
-
-@section Condition code optimisations
-
-Good CPU condition codes emulation (@code{EFLAGS} register on x86) is a
-critical point to get good performances. QEMU uses lazy condition code
-evaluation: instead of computing the condition codes after each x86
-instruction, it just stores one operand (called @code{CC_SRC}), the
-result (called @code{CC_DST}) and the type of operation (called
-@code{CC_OP}).
-
-@code{CC_OP} is almost never explicitely set in the generated code
-because it is known at translation time.
-
-In order to increase performances, a backward pass is performed on the
-generated simple instructions (see
-@code{translate-i386.c:optimize_flags()}). When it can be proved that
-the condition codes are not needed by the next instructions, no
-condition codes are computed at all.
-
-@section CPU state optimisations
-
-The x86 CPU has many internal states which change the way it evaluates
-instructions. In order to achieve a good speed, the translation phase
-considers that some state information of the virtual x86 CPU cannot
-change in it. For example, if the SS, DS and ES segments have a zero
-base, then the translator does not even generate an addition for the
-segment base.
+@chapter QEMU User space emulator invocation
 
-[The FPU stack pointer register is not handled that way yet].
+@section Quick Start
 
-@section Translation cache
+In order to launch a Linux process, QEMU needs the process executable
+itself and all the target (x86) dynamic libraries used by it. 
 
-A 2MByte cache holds the most recently used translations. For
-simplicity, it is completely flushed when it is full. A translation unit
-contains just a single basic block (a block of x86 instructions
-terminated by a jump or by a virtual CPU state change which the
-translator cannot deduce statically).
+@itemize
 
-@section Direct block chaining
+@item On x86, you can just try to launch any process by using the native
+libraries:
 
-After each translated basic block is executed, QEMU uses the simulated
-Program Counter (PC) and other cpu state informations (such as the CS
-segment base value) to find the next basic block.
+@example 
+qemu-i386 -L / /bin/ls
+@end example
 
-In order to accelerate the most common cases where the new simulated PC
-is known, QEMU can patch a basic block so that it jumps directly to the
-next one.
+@code{-L /} tells that the x86 dynamic linker must be searched with a
+@file{/} prefix.
 
-The most portable code uses an indirect jump. An indirect jump makes it
-easier to make the jump target modification atomic. On some
-architectures (such as PowerPC), the @code{JUMP} opcode is directly
-patched so that the block chaining has no overhead.
+@item Since QEMU is also a linux process, you can launch qemu with qemu (NOTE: you can only do that if you compiled QEMU from the sources):
 
-@section Self-modifying code and translated code invalidation
+@example 
+qemu-i386 -L / qemu-i386 -L / /bin/ls
+@end example
 
-Self-modifying code is a special challenge in x86 emulation because no
-instruction cache invalidation is signaled by the application when code
-is modified.
+@item On non x86 CPUs, you need first to download at least an x86 glibc
+(@file{qemu-runtime-i386-XXX-.tar.gz} on the QEMU web page). Ensure that
+@code{LD_LIBRARY_PATH} is not set:
 
-When translated code is generated for a basic block, the corresponding
-host page is write protected if it is not already read-only (with the
-system call @code{mprotect()}). Then, if a write access is done to the
-page, Linux raises a SEGV signal. QEMU then invalidates all the
-translated code in the page and enables write accesses to the page.
+@example
+unset LD_LIBRARY_PATH 
+@end example
 
-Correct translated code invalidation is done efficiently by maintaining
-a linked list of every translated block contained in a given page. Other
-linked lists are also maintained to undo direct block chaining. 
+Then you can launch the precompiled @file{ls} x86 executable:
 
-Although the overhead of doing @code{mprotect()} calls is important,
-most MSDOS programs can be emulated at reasonnable speed with QEMU and
-DOSEMU.
+@example
+qemu-i386 tests/i386/ls
+@end example
+You can look at @file{qemu-binfmt-conf.sh} so that
+QEMU is automatically launched by the Linux kernel when you try to
+launch x86 executables. It requires the @code{binfmt_misc} module in the
+Linux kernel.
 
-Note that QEMU also invalidates pages of translated code when it detects
-that memory mappings are modified with @code{mmap()} or @code{munmap()}.
+@item The x86 version of QEMU is also included. You can try weird things such as:
+@example
+qemu-i386 /usr/local/qemu-i386/bin/qemu-i386 /usr/local/qemu-i386/bin/ls-i386
+@end example
 
-@section Exception support
+@end itemize
 
-longjmp() is used when an exception such as division by zero is
-encountered. 
+@section Wine launch
 
-The host SIGSEGV and SIGBUS signal handlers are used to get invalid
-memory accesses. The exact CPU state can be retrieved because all the
-x86 registers are stored in fixed host registers. The simulated program
-counter is found by retranslating the corresponding basic block and by
-looking where the host program counter was at the exception point.
+@itemize
 
-The virtual CPU cannot retrieve the exact @code{EFLAGS} register because
-in some cases it is not computed because of condition code
-optimisations. It is not a big concern because the emulated code can
-still be restarted in any cases.
+@item Ensure that you have a working QEMU with the x86 glibc
+distribution (see previous section). In order to verify it, you must be
+able to do:
 
-@section Linux system call translation
+@example
+qemu-i386 /usr/local/qemu-i386/bin/ls-i386
+@end example
 
-QEMU includes a generic system call translator for Linux. It means that
-the parameters of the system calls can be converted to fix the
-endianness and 32/64 bit issues. The IOCTLs are converted with a generic
-type description system (see @file{ioctls.h} and @file{thunk.c}).
+@item Download the binary x86 Wine install
+(@file{qemu-XXX-i386-wine.tar.gz} on the QEMU web page). 
 
-QEMU supports host CPUs which have pages bigger than 4KB. It records all
-the mappings the process does and try to emulated the @code{mmap()}
-system calls in cases where the host @code{mmap()} call would fail
-because of bad page alignment.
+@item Configure Wine on your account. Look at the provided script
+@file{/usr/local/qemu-i386/bin/wine-conf.sh}. Your previous
+@code{$@{HOME@}/.wine} directory is saved to @code{$@{HOME@}/.wine.org}.
 
-@section Linux signals
+@item Then you can try the example @file{putty.exe}:
 
-Normal and real-time signals are queued along with their information
-(@code{siginfo_t}) as it is done in the Linux kernel. Then an interrupt
-request is done to the virtual CPU. When it is interrupted, one queued
-signal is handled by generating a stack frame in the virtual CPU as the
-Linux kernel does. The @code{sigreturn()} system call is emulated to return
-from the virtual signal handler.
+@example
+qemu-i386 /usr/local/qemu-i386/wine/bin/wine /usr/local/qemu-i386/wine/c/Program\ Files/putty.exe
+@end example
 
-Some signals (such as SIGALRM) directly come from the host. Other
-signals are synthetized from the virtual CPU exceptions such as SIGFPE
-when a division by zero is done (see @code{main.c:cpu_loop()}).
+@end itemize
 
-The blocked signal mask is still handled by the host Linux kernel so
-that most signal system calls can be redirected directly to the host
-Linux kernel. Only the @code{sigaction()} and @code{sigreturn()} system
-calls need to be fully emulated (see @file{signal.c}).
+@section Command line options
 
-@section clone() system call and threads
+@example
+usage: qemu-i386 [-h] [-d] [-L path] [-s size] program [arguments...]
+@end example
 
-The Linux clone() system call is usually used to create a thread. QEMU
-uses the host clone() system call so that real host threads are created
-for each emulated thread. One virtual CPU instance is created for each
-thread.
-
-The virtual x86 CPU atomic operations are emulated with a global lock so
-that their semantic is preserved.
-
-Note that currently there are still some locking issues in QEMU. In
-particular, the translated cache flush is not protected yet against
-reentrancy.
-
-@section Self-virtualization
-
-QEMU was conceived so that ultimately it can emulate itself. Although
-it is not very useful, it is an important test to show the power of the
-emulator.
-
-Achieving self-virtualization is not easy because there may be address
-space conflicts. QEMU solves this problem by being an executable ELF
-shared object as the ld-linux.so ELF interpreter. That way, it can be
-relocated at load time.
-
-@section MMU emulation
-
-For system emulation, QEMU uses the mmap() system call to emulate the
-target CPU MMU. It works as long the emulated OS does not use an area
-reserved by the host OS (such as the area above 0xc0000000 on x86
-Linux).
-
-It is planned to add a slower but more precise MMU emulation
-with a software MMU.
-
-@section Bibliography
-
-@table @asis
-
-@item [1] 
-@url{http://citeseer.nj.nec.com/piumarta98optimizing.html}, Optimizing
-direct threaded code by selective inlining (1998) by Ian Piumarta, Fabio
-Riccardi.
-
-@item [2]
-@url{http://developer.kde.org/~sewardj/}, Valgrind, an open-source
-memory debugger for x86-GNU/Linux, by Julian Seward.
-
-@item [3]
-@url{http://bochs.sourceforge.net/}, the Bochs IA-32 Emulator Project,
-by Kevin Lawton et al.
-
-@item [4]
-@url{http://www.cs.rose-hulman.edu/~donaldlf/em86/index.html}, the EM86
-x86 emulator on Alpha-Linux.
-
-@item [5]
-@url{http://www.usenix.org/publications/library/proceedings/usenix-nt97/full_papers/chernoff/chernoff.pdf},
-DIGITAL FX!32: Running 32-Bit x86 Applications on Alpha NT, by Anton
-Chernoff and Ray Hookway.
-
-@item [6]
-@url{http://www.willows.com/}, Windows API library emulation from
-Willows Software.
-
-@item [7]
-@url{http://user-mode-linux.sourceforge.net/}, 
-The User-mode Linux Kernel.
-
-@item [8]
-@url{http://www.plex86.org/}, 
-The new Plex86 project.
-
+@table @option
+@item -h
+Print the help
+@item -L path   
+Set the x86 elf interpreter prefix (default=/usr/local/qemu-i386)
+@item -s size
+Set the x86 stack size in bytes (default=524288)
 @end table
 
-@chapter Regression Tests
+Debug options:
 
-In the directory @file{tests/}, various interesting testing programs
-are available. There are used for regression testing.
-
-@section @file{test-i386}
-
-This program executes most of the 16 bit and 32 bit x86 instructions and
-generates a text output. It can be compared with the output obtained with
-a real CPU or another emulator. The target @code{make test} runs this
-program and a @code{diff} on the generated output.
-
-The Linux system call @code{modify_ldt()} is used to create x86 selectors
-to test some 16 bit addressing and 32 bit with segmentation cases.
-
-The Linux system call @code{vm86()} is used to test vm86 emulation.
-
-Various exceptions are raised to test most of the x86 user space
-exception reporting.
-
-@section @file{linux-test}
-
-This program tests various Linux system calls. It is used to verify
-that the system call parameters are correctly converted between target
-and host CPUs.
-
-@section @file{hello-i386}
-
-Very simple statically linked x86 program, just to test QEMU during a
-port to a new host CPU.
-
-@section @file{hello-arm}
-
-Very simple statically linked ARM program, just to test QEMU during a
-port to a new host CPU.
-
-@section @file{sha1}
-
-It is a simple benchmark. Care must be taken to interpret the results
-because it mostly tests the ability of the virtual CPU to optimize the
-@code{rol} x86 instruction and the condition code computations.
+@table @option
+@item -d
+Activate log (logfile=/tmp/qemu.log)
+@item -p pagesize
+Act as if the host page size was 'pagesize' bytes
+@end table
 

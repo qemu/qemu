@@ -1,0 +1,305 @@
+diff -urpN --exclude TAGS -X /home/rusty/devel/kernel/kernel-patches/current-dontdiff --minimal .32324-linux-2.6.0/arch/i386/Kconfig .32324-linux-2.6.0.updated/arch/i386/Kconfig
+--- .32324-linux-2.6.0/arch/i386/Kconfig	2003-10-09 18:02:48.000000000 +1000
++++ .32324-linux-2.6.0.updated/arch/i386/Kconfig	2003-12-26 16:46:49.000000000 +1100
+@@ -307,6 +307,14 @@ config X86_GENERIC
+ 	  when it has moderate overhead. This is intended for generic 
+ 	  distributions kernels.
+ 
++config QEMU
++	bool "Kernel to run under QEMU"
++	depends on EXPERIMENTAL
++	help
++	  Select this if you want to boot the kernel inside qemu-fast,
++	  the non-mmu version of the x86 emulator.  See
++	  <http://fabrice.bellard.free.fr/qemu/>.  Say N.
++
+ #
+ # Define implied options from the CPU selection here
+ #
+diff -urpN --exclude TAGS -X /home/rusty/devel/kernel/kernel-patches/current-dontdiff --minimal .32324-linux-2.6.0/arch/i386/kernel/Makefile .32324-linux-2.6.0.updated/arch/i386/kernel/Makefile
+--- .32324-linux-2.6.0/arch/i386/kernel/Makefile	2003-09-29 10:25:15.000000000 +1000
++++ .32324-linux-2.6.0.updated/arch/i386/kernel/Makefile	2003-12-26 16:46:49.000000000 +1100
+@@ -46,12 +46,14 @@ quiet_cmd_syscall = SYSCALL $@
+       cmd_syscall = $(CC) -nostdlib $(SYSCFLAGS_$(@F)) \
+ 		          -Wl,-T,$(filter-out FORCE,$^) -o $@
+ 
++export AFLAGS_vsyscall.lds.o += -P -C -U$(ARCH)
++
+ vsyscall-flags = -shared -s -Wl,-soname=linux-gate.so.1
+ SYSCFLAGS_vsyscall-sysenter.so	= $(vsyscall-flags)
+ SYSCFLAGS_vsyscall-int80.so	= $(vsyscall-flags)
+ 
+ $(obj)/vsyscall-int80.so $(obj)/vsyscall-sysenter.so: \
+-$(obj)/vsyscall-%.so: $(src)/vsyscall.lds $(obj)/vsyscall-%.o FORCE
++$(obj)/vsyscall-%.so: $(src)/vsyscall.lds.s $(obj)/vsyscall-%.o FORCE
+ 	$(call if_changed,syscall)
+ 
+ # We also create a special relocatable object that should mirror the symbol
+@@ -62,5 +64,5 @@ $(obj)/built-in.o: $(obj)/vsyscall-syms.
+ $(obj)/built-in.o: ld_flags += -R $(obj)/vsyscall-syms.o
+ 
+ SYSCFLAGS_vsyscall-syms.o = -r
+-$(obj)/vsyscall-syms.o: $(src)/vsyscall.lds $(obj)/vsyscall-sysenter.o FORCE
++$(obj)/vsyscall-syms.o: $(src)/vsyscall.lds.s $(obj)/vsyscall-sysenter.o FORCE
+ 	$(call if_changed,syscall)
+diff -urpN --exclude TAGS -X /home/rusty/devel/kernel/kernel-patches/current-dontdiff --minimal .32324-linux-2.6.0/arch/i386/kernel/vmlinux.lds.S .32324-linux-2.6.0.updated/arch/i386/kernel/vmlinux.lds.S
+--- .32324-linux-2.6.0/arch/i386/kernel/vmlinux.lds.S	2003-09-22 10:27:28.000000000 +1000
++++ .32324-linux-2.6.0.updated/arch/i386/kernel/vmlinux.lds.S	2003-12-26 16:46:49.000000000 +1100
+@@ -3,6 +3,7 @@
+  */
+ 
+ #include <asm-generic/vmlinux.lds.h>
++#include <asm/page.h>
+ 	
+ OUTPUT_FORMAT("elf32-i386", "elf32-i386", "elf32-i386")
+ OUTPUT_ARCH(i386)
+@@ -10,7 +11,7 @@ ENTRY(startup_32)
+ jiffies = jiffies_64;
+ SECTIONS
+ {
+-  . = 0xC0000000 + 0x100000;
++  . = __PAGE_OFFSET + 0x100000;
+   /* read-only */
+   _text = .;			/* Text and read-only data */
+   .text : {
+diff -urpN --exclude TAGS -X /home/rusty/devel/kernel/kernel-patches/current-dontdiff --minimal .32324-linux-2.6.0/arch/i386/kernel/vsyscall.lds .32324-linux-2.6.0.updated/arch/i386/kernel/vsyscall.lds
+--- .32324-linux-2.6.0/arch/i386/kernel/vsyscall.lds	2003-09-22 10:07:26.000000000 +1000
++++ .32324-linux-2.6.0.updated/arch/i386/kernel/vsyscall.lds	1970-01-01 10:00:00.000000000 +1000
+@@ -1,67 +0,0 @@
+-/*
+- * Linker script for vsyscall DSO.  The vsyscall page is an ELF shared
+- * object prelinked to its virtual address, and with only one read-only
+- * segment (that fits in one page).  This script controls its layout.
+- */
+-
+-/* This must match <asm/fixmap.h>.  */
+-VSYSCALL_BASE = 0xffffe000;
+-
+-SECTIONS
+-{
+-  . = VSYSCALL_BASE + SIZEOF_HEADERS;
+-
+-  .hash           : { *(.hash) }		:text
+-  .dynsym         : { *(.dynsym) }
+-  .dynstr         : { *(.dynstr) }
+-  .gnu.version    : { *(.gnu.version) }
+-  .gnu.version_d  : { *(.gnu.version_d) }
+-  .gnu.version_r  : { *(.gnu.version_r) }
+-
+-  /* This linker script is used both with -r and with -shared.
+-     For the layouts to match, we need to skip more than enough
+-     space for the dynamic symbol table et al.  If this amount
+-     is insufficient, ld -shared will barf.  Just increase it here.  */
+-  . = VSYSCALL_BASE + 0x400;
+-
+-  .text           : { *(.text) }		:text =0x90909090
+-
+-  .eh_frame_hdr   : { *(.eh_frame_hdr) }	:text :eh_frame_hdr
+-  .eh_frame       : { KEEP (*(.eh_frame)) }	:text
+-  .dynamic        : { *(.dynamic) }		:text :dynamic
+-  .useless        : {
+-  	*(.got.plt) *(.got)
+-	*(.data .data.* .gnu.linkonce.d.*)
+-	*(.dynbss)
+-	*(.bss .bss.* .gnu.linkonce.b.*)
+-  }						:text
+-}
+-
+-/*
+- * We must supply the ELF program headers explicitly to get just one
+- * PT_LOAD segment, and set the flags explicitly to make segments read-only.
+- */
+-PHDRS
+-{
+-  text PT_LOAD FILEHDR PHDRS FLAGS(5); /* PF_R|PF_X */
+-  dynamic PT_DYNAMIC FLAGS(4); /* PF_R */
+-  eh_frame_hdr 0x6474e550; /* PT_GNU_EH_FRAME, but ld doesn't match the name */
+-}
+-
+-/*
+- * This controls what symbols we export from the DSO.
+- */
+-VERSION
+-{
+-  LINUX_2.5 {
+-    global:
+-    	__kernel_vsyscall;
+-    	__kernel_sigreturn;
+-    	__kernel_rt_sigreturn;
+-
+-    local: *;
+-  };
+-}
+-
+-/* The ELF entry point can be used to set the AT_SYSINFO value.  */
+-ENTRY(__kernel_vsyscall);
+diff -urpN --exclude TAGS -X /home/rusty/devel/kernel/kernel-patches/current-dontdiff --minimal .32324-linux-2.6.0/arch/i386/kernel/vsyscall.lds.S .32324-linux-2.6.0.updated/arch/i386/kernel/vsyscall.lds.S
+--- .32324-linux-2.6.0/arch/i386/kernel/vsyscall.lds.S	1970-01-01 10:00:00.000000000 +1000
++++ .32324-linux-2.6.0.updated/arch/i386/kernel/vsyscall.lds.S	2003-12-26 16:46:49.000000000 +1100
+@@ -0,0 +1,67 @@
++/*
++ * Linker script for vsyscall DSO.  The vsyscall page is an ELF shared
++ * object prelinked to its virtual address, and with only one read-only
++ * segment (that fits in one page).  This script controls its layout.
++ */
++#include <asm/fixmap.h>
++	
++VSYSCALL_BASE = __FIXADDR_TOP - 0x1000;
++
++SECTIONS
++{
++  . = VSYSCALL_BASE + SIZEOF_HEADERS;
++
++  .hash           : { *(.hash) }		:text
++  .dynsym         : { *(.dynsym) }
++  .dynstr         : { *(.dynstr) }
++  .gnu.version    : { *(.gnu.version) }
++  .gnu.version_d  : { *(.gnu.version_d) }
++  .gnu.version_r  : { *(.gnu.version_r) }
++
++  /* This linker script is used both with -r and with -shared.
++     For the layouts to match, we need to skip more than enough
++     space for the dynamic symbol table et al.  If this amount
++     is insufficient, ld -shared will barf.  Just increase it here.  */
++  . = VSYSCALL_BASE + 0x400;
++
++  .text           : { *(.text) }		:text =0x90909090
++
++  .eh_frame_hdr   : { *(.eh_frame_hdr) }	:text :eh_frame_hdr
++  .eh_frame       : { KEEP (*(.eh_frame)) }	:text
++  .dynamic        : { *(.dynamic) }		:text :dynamic
++  .useless        : {
++  	*(.got.plt) *(.got)
++	*(.data .data.* .gnu.linkonce.d.*)
++	*(.dynbss)
++	*(.bss .bss.* .gnu.linkonce.b.*)
++  }						:text
++}
++
++/*
++ * We must supply the ELF program headers explicitly to get just one
++ * PT_LOAD segment, and set the flags explicitly to make segments read-only.
++ */
++PHDRS
++{
++  text PT_LOAD FILEHDR PHDRS FLAGS(5); /* PF_R|PF_X */
++  dynamic PT_DYNAMIC FLAGS(4); /* PF_R */
++  eh_frame_hdr 0x6474e550; /* PT_GNU_EH_FRAME, but ld doesn't match the name */
++}
++
++/*
++ * This controls what symbols we export from the DSO.
++ */
++VERSION
++{
++  LINUX_2.5 {
++    global:
++    	__kernel_vsyscall;
++    	__kernel_sigreturn;
++    	__kernel_rt_sigreturn;
++
++    local: *;
++  };
++}
++
++/* The ELF entry point can be used to set the AT_SYSINFO value.  */
++ENTRY(__kernel_vsyscall);
+diff -urpN --exclude TAGS -X /home/rusty/devel/kernel/kernel-patches/current-dontdiff --minimal .32324-linux-2.6.0/include/asm-i386/fixmap.h .32324-linux-2.6.0.updated/include/asm-i386/fixmap.h
+--- .32324-linux-2.6.0/include/asm-i386/fixmap.h	2003-09-22 10:09:12.000000000 +1000
++++ .32324-linux-2.6.0.updated/include/asm-i386/fixmap.h	2003-12-26 16:46:49.000000000 +1100
+@@ -14,6 +14,19 @@
+ #define _ASM_FIXMAP_H
+ 
+ #include <linux/config.h>
++
++/* used by vmalloc.c, vsyscall.lds.S.
++ *
++ * Leave one empty page between vmalloc'ed areas and
++ * the start of the fixmap.
++ */
++#ifdef CONFIG_QEMU
++#define __FIXADDR_TOP	0xa7fff000
++#else
++#define __FIXADDR_TOP	0xfffff000
++#endif
++
++#ifndef __ASSEMBLY__
+ #include <linux/kernel.h>
+ #include <asm/acpi.h>
+ #include <asm/apicdef.h>
+@@ -94,13 +107,8 @@ extern void __set_fixmap (enum fixed_add
+ #define clear_fixmap(idx) \
+ 		__set_fixmap(idx, 0, __pgprot(0))
+ 
+-/*
+- * used by vmalloc.c.
+- *
+- * Leave one empty page between vmalloc'ed areas and
+- * the start of the fixmap.
+- */
+-#define FIXADDR_TOP	(0xfffff000UL)
++#define FIXADDR_TOP	((unsigned long)__FIXADDR_TOP)
++
+ #define __FIXADDR_SIZE	(__end_of_permanent_fixed_addresses << PAGE_SHIFT)
+ #define FIXADDR_START	(FIXADDR_TOP - __FIXADDR_SIZE)
+ 
+@@ -145,4 +153,5 @@ static inline unsigned long virt_to_fix(
+ 	return __virt_to_fix(vaddr);
+ }
+ 
++#endif /* !__ASSEMBLY__ */
+ #endif
+diff -urpN --exclude TAGS -X /home/rusty/devel/kernel/kernel-patches/current-dontdiff --minimal .32324-linux-2.6.0/include/asm-i386/page.h .32324-linux-2.6.0.updated/include/asm-i386/page.h
+--- .32324-linux-2.6.0/include/asm-i386/page.h	2003-09-22 10:06:42.000000000 +1000
++++ .32324-linux-2.6.0.updated/include/asm-i386/page.h	2003-12-26 16:46:49.000000000 +1100
+@@ -10,10 +10,10 @@
+ #define LARGE_PAGE_SIZE (1UL << PMD_SHIFT)
+ 
+ #ifdef __KERNEL__
+-#ifndef __ASSEMBLY__
+-
+ #include <linux/config.h>
+ 
++#ifndef __ASSEMBLY__
++
+ #ifdef CONFIG_X86_USE_3DNOW
+ 
+ #include <asm/mmx.h>
+@@ -115,12 +115,19 @@ static __inline__ int get_order(unsigned
+ #endif /* __ASSEMBLY__ */
+ 
+ #ifdef __ASSEMBLY__
++#ifdef CONFIG_QEMU
++#define __PAGE_OFFSET		(0x90000000)
++#else
+ #define __PAGE_OFFSET		(0xC0000000)
++#endif /* QEMU */
++#else
++#ifdef CONFIG_QEMU
++#define __PAGE_OFFSET		(0x90000000UL)
+ #else
+ #define __PAGE_OFFSET		(0xC0000000UL)
++#endif /* QEMU */
+ #endif
+ 
+-
+ #define PAGE_OFFSET		((unsigned long)__PAGE_OFFSET)
+ #define VMALLOC_RESERVE		((unsigned long)__VMALLOC_RESERVE)
+ #define MAXMEM			(-__PAGE_OFFSET-__VMALLOC_RESERVE)
+diff -urpN --exclude TAGS -X /home/rusty/devel/kernel/kernel-patches/current-dontdiff --minimal .32324-linux-2.6.0/include/asm-i386/param.h .32324-linux-2.6.0.updated/include/asm-i386/param.h
+--- .32324-linux-2.6.0/include/asm-i386/param.h	2003-09-21 17:26:06.000000000 +1000
++++ .32324-linux-2.6.0.updated/include/asm-i386/param.h	2003-12-26 16:46:49.000000000 +1100
+@@ -2,7 +2,12 @@
+ #define _ASMi386_PARAM_H
+ 
+ #ifdef __KERNEL__
+-# define HZ		1000		/* Internal kernel timer frequency */
++# include <linux/config.h>
++# ifdef CONFIG_QEMU
++#  define HZ		100
++# else
++#  define HZ		1000		/* Internal kernel timer frequency */
++# endif
+ # define USER_HZ	100		/* .. some user interfaces are in "ticks" */
+ # define CLOCKS_PER_SEC	(USER_HZ)	/* like times() */
+ #endif
