@@ -42,7 +42,7 @@ target_read_memory (memaddr, myaddr, length, info)
 {
     int i;
     for(i = 0; i < length; i++) {
-        myaddr[i] = ldub_code((void *)((long)memaddr));
+        myaddr[i] = ldub_code((void *)((long)memaddr + i));
     }
     return 0;
 }
