@@ -617,6 +617,48 @@ static void tb_reset_jump_recursive(TranslationBlock *tb)
     tb_reset_jump_recursive2(tb, 1);
 }
 
+/* add a breakpoint */
+int cpu_breakpoint_insert(CPUState *env, uint32_t pc)
+{
+#if defined(TARGET_I386)
+    int i;
+
+    for(i = 0; i < env->nb_breakpoints; i++) {
+        if (env->breakpoints[i] == pc)
+            return 0;
+    }
+
+    if (env->nb_breakpoints >= MAX_BREAKPOINTS)
+        return -1;
+    env->breakpoints[env->nb_breakpoints++] = pc;
+    tb_invalidate_page(pc);
+    return 0;
+#else
+    return -1;
+#endif
+}
+
+/* remove a breakpoint */
+int cpu_breakpoint_remove(CPUState *env, uint32_t pc)
+{
+#if defined(TARGET_I386)
+    int i;
+    for(i = 0; i < env->nb_breakpoints; i++) {
+        if (env->breakpoints[i] == pc)
+            goto found;
+    }
+    return -1;
+ found:
+    memmove(&env->breakpoints[i], &env->breakpoints[i + 1],
+            (env->nb_breakpoints - (i + 1)) * sizeof(env->breakpoints[0]));
+    env->nb_breakpoints--;
+    tb_invalidate_page(pc);
+    return 0;
+#else
+    return -1;
+#endif
+}
+
 /* mask must never be zero */
 void cpu_interrupt(CPUState *env, int mask)
 {

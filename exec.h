@@ -58,10 +58,10 @@ extern uint8_t gen_opc_instr_start[OPC_BUF_SIZE];
 extern FILE *logfile;
 extern int loglevel;
 
-int gen_intermediate_code(struct TranslationBlock *tb);
-int gen_intermediate_code_pc(struct TranslationBlock *tb);
+int gen_intermediate_code(CPUState *env, struct TranslationBlock *tb);
+int gen_intermediate_code_pc(CPUState *env, struct TranslationBlock *tb);
 void dump_ops(const uint16_t *opc_buf, const uint32_t *opparam_buf);
-int cpu_gen_code(struct TranslationBlock *tb,
+int cpu_gen_code(CPUState *env, struct TranslationBlock *tb,
                  int max_code_size, int *gen_code_size_ptr);
 int cpu_restore_state(struct TranslationBlock *tb, 
                       CPUState *env, unsigned long searched_pc);

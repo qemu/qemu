@@ -1463,6 +1463,15 @@ static void gen_interrupt(DisasContext *s, int intno,
     s->is_jmp = 1;
 }
 
+static void gen_debug(DisasContext *s, unsigned int cur_eip)
+{
+    if (s->cc_op != CC_OP_DYNAMIC)
+        gen_op_set_cc_op(s->cc_op);
+    gen_op_jmp_im(cur_eip);
+    gen_op_debug();
+    s->is_jmp = 1;
+}
+
 /* generate a jump to eip. No segment change must happen before as a
    direct call to the next block may occur */
 static void gen_jmp(DisasContext *s, unsigned int eip)
@@ -4080,7 +4089,9 @@ static void optimize_flags(uint16_t *opc_buf, int opc_buf_len)
 /* generate intermediate code in gen_opc_buf and gen_opparam_buf for
    basic block 'tb'. If search_pc is TRUE, also generate PC
    information for each intermediate instruction. */
-static inline int gen_intermediate_code_internal(TranslationBlock *tb, int search_pc)
+static inline int gen_intermediate_code_internal(CPUState *env,
+                                                 TranslationBlock *tb, 
+                                                 int search_pc)
 {
     DisasContext dc1, *dc = &dc1;
     uint8_t *pc_ptr;
@@ -4116,6 +4127,14 @@ static inline int gen_intermediate_code_internal(TranslationBlock *tb, int searc
     pc_ptr = pc_start;
     lj = -1;
     do {
+        if (env->nb_breakpoints > 0) {
+            for(j = 0; j < env->nb_breakpoints; j++) {
+                if (env->breakpoints[j] == (unsigned long)pc_ptr) {
+                    gen_debug(dc, pc_ptr - dc->cs_base);
+                    goto the_end;
+                }
+            }
+        }
         if (search_pc) {
             j = gen_opc_ptr - gen_opc_buf;
             if (lj < j) {
@@ -4160,6 +4179,7 @@ static inline int gen_intermediate_code_internal(TranslationBlock *tb, int searc
     if (dc->tf) {
         gen_op_raise_exception(EXCP01_SSTP);
     }
+ the_end:
     if (dc->is_jmp != DISAS_TB_JUMP) {
         /* indicate that the hash table must be used to find the next TB */
         gen_op_movl_T0_0();
@@ -4202,14 +4222,14 @@ static inline int gen_intermediate_code_internal(TranslationBlock *tb, int searc
     return 0;
 }
 
-int gen_intermediate_code(TranslationBlock *tb)
+int gen_intermediate_code(CPUState *env, TranslationBlock *tb)
 {
-    return gen_intermediate_code_internal(tb, 0);
+    return gen_intermediate_code_internal(env, tb, 0);
 }
 
-int gen_intermediate_code_pc(TranslationBlock *tb)
+int gen_intermediate_code_pc(CPUState *env, TranslationBlock *tb)
 {
-    return gen_intermediate_code_internal(tb, 1);
+    return gen_intermediate_code_internal(env, tb, 1);
 }
 
 CPUX86State *cpu_x86_init(void)

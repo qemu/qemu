@@ -155,6 +155,9 @@
 
 #define EXCP_INTERRUPT 	256 /* async interruption */
 #define EXCP_HLT        257 /* hlt instruction reached */
+#define EXCP_DEBUG      258 /* cpu stopped after a breakpoint or singlestep */
+
+#define MAX_BREAKPOINTS 32
 
 enum {
     CC_OP_DYNAMIC, /* must use dynamic code to get cc_op */
@@ -270,6 +273,9 @@ typedef struct CPUX86State {
     uint32_t dr[8]; /* debug registers */
     int interrupt_request; 
     int user_mode_only; /* user mode only simulation */
+
+    uint32_t breakpoints[MAX_BREAKPOINTS];
+    int nb_breakpoints;
     
     /* user data */
     void *opaque;

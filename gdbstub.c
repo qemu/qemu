@@ -37,7 +37,7 @@
 #include "thunk.h"
 #include "exec.h"
 
-//#define DEBUG_GDB
+#define DEBUG_GDB
 
 int gdbstub_fd = -1;
 
@@ -283,11 +283,11 @@ static int memory_rw(uint8_t *buf, uint32_t addr, int len, int is_write)
 }
 
 /* port = 0 means default port */
-int cpu_gdbstub(void *opaque, void (*main_loop)(void *opaque), int port)
+int cpu_gdbstub(void *opaque, int (*main_loop)(void *opaque), int port)
 {
     CPUState *env;
     const char *p;
-    int ret, ch, nb_regs, i;
+    int ret, ch, nb_regs, i, type;
     char buf[4096];
     uint8_t mem_buf[2000];
     uint32_t *registers;
@@ -309,8 +309,19 @@ int cpu_gdbstub(void *opaque, void (*main_loop)(void *opaque), int port)
             put_packet(buf);
             break;
         case 'c':
-            main_loop(opaque);
-            snprintf(buf, sizeof(buf), "S%02x", 0);
+            if (*p != '\0') {
+                addr = strtoul(p, (char **)&p, 16);
+                env = cpu_gdbstub_get_env(opaque);
+#if defined(TARGET_I386)
+                env->eip = addr;
+#endif
+            }
+            ret = main_loop(opaque);
+            if (ret == EXCP_DEBUG)
+                ret = SIGTRAP;
+            else
+                ret = 0;
+            snprintf(buf, sizeof(buf), "S%02x", ret);
             put_packet(buf);
             break;
         case 'g':
@@ -378,6 +389,40 @@ int cpu_gdbstub(void *opaque, void (*main_loop)(void *opaque), int port)
                 put_packet("ENN");
             else
                 put_packet("OK");
+            break;
+        case 'Z':
+            type = strtoul(p, (char **)&p, 16);
+            if (*p == ',')
+                p++;
+            addr = strtoul(p, (char **)&p, 16);
+            if (*p == ',')
+                p++;
+            len = strtoul(p, (char **)&p, 16);
+            if (type == 0 || type == 1) {
+                env = cpu_gdbstub_get_env(opaque);
+                if (cpu_breakpoint_insert(env, addr) < 0)
+                    goto breakpoint_error;
+                put_packet("OK");
+            } else {
+            breakpoint_error:
+                put_packet("ENN");
+            }
+            break;
+        case 'z':
+            type = strtoul(p, (char **)&p, 16);
+            if (*p == ',')
+                p++;
+            addr = strtoul(p, (char **)&p, 16);
+            if (*p == ',')
+                p++;
+            len = strtoul(p, (char **)&p, 16);
+            if (type == 0 || type == 1) {
+                env = cpu_gdbstub_get_env(opaque);
+                cpu_breakpoint_remove(env, addr);
+                put_packet("OK");
+            } else {
+                goto breakpoint_error;
+            }
             break;
         default:
             /* put empty packet */

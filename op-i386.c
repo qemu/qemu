@@ -471,6 +471,12 @@ void OPPROTO op_hlt(void)
     cpu_loop_exit();
 }
 
+void OPPROTO op_debug(void)
+{
+    env->exception_index = EXCP_DEBUG;
+    cpu_loop_exit();
+}
+
 void OPPROTO op_raise_interrupt(void)
 {
     int intno;

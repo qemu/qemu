@@ -280,7 +280,7 @@ int cpu_exec(CPUState *env1)
                     tb->tc_ptr = tc_ptr;
                     tb->cs_base = (unsigned long)cs_base;
                     tb->flags = flags;
-                    ret = cpu_gen_code(tb, CODE_GEN_MAX_SIZE, &code_gen_size);
+                    ret = cpu_gen_code(env, tb, CODE_GEN_MAX_SIZE, &code_gen_size);
 #if defined(TARGET_I386)
                     /* XXX: suppress that, this is incorrect */
                     /* if invalid instruction, signal it */

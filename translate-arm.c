@@ -786,7 +786,9 @@ static void disas_arm_insn(DisasContext *s)
 /* generate intermediate code in gen_opc_buf and gen_opparam_buf for
    basic block 'tb'. If search_pc is TRUE, also generate PC
    information for each intermediate instruction. */
-static inline int gen_intermediate_code_internal(TranslationBlock *tb, int search_pc)
+static inline int gen_intermediate_code_internal(CPUState *env, 
+                                                 TranslationBlock *tb, 
+                                                 int search_pc)
 {
     DisasContext dc1, *dc = &dc1;
     uint16_t *gen_opc_end;
@@ -853,14 +855,14 @@ static inline int gen_intermediate_code_internal(TranslationBlock *tb, int searc
     return 0;
 }
 
-int gen_intermediate_code(TranslationBlock *tb)
+int gen_intermediate_code(CPUState *env, TranslationBlock *tb)
 {
-    return gen_intermediate_code_internal(tb, 0);
+    return gen_intermediate_code_internal(env, tb, 0);
 }
 
-int gen_intermediate_code_pc(TranslationBlock *tb)
+int gen_intermediate_code_pc(CPUState *env, TranslationBlock *tb)
 {
-    return gen_intermediate_code_internal(tb, 1);
+    return gen_intermediate_code_internal(env, tb, 1);
 }
 
 CPUARMState *cpu_arm_init(void)

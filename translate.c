@@ -107,13 +107,13 @@ void dump_ops(const uint16_t *opc_buf, const uint32_t *opparam_buf)
    '*gen_code_size_ptr' contains the size of the generated code (host
    code).
 */
-int cpu_gen_code(TranslationBlock *tb,
+int cpu_gen_code(CPUState *env, TranslationBlock *tb,
                  int max_code_size, int *gen_code_size_ptr)
 {
     uint8_t *gen_code_buf;
     int gen_code_size;
 
-    if (gen_intermediate_code(tb) < 0)
+    if (gen_intermediate_code(env, tb) < 0)
         return -1;
 
     /* generate machine code */
@@ -154,7 +154,7 @@ int cpu_restore_state(TranslationBlock *tb,
     unsigned long tc_ptr;
     uint16_t *opc_ptr;
 
-    if (gen_intermediate_code_pc(tb) < 0)
+    if (gen_intermediate_code_pc(env, tb) < 0)
         return -1;
     
     /* find opc index corresponding to search_pc */

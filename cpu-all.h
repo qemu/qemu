@@ -313,9 +313,12 @@ extern CPUState *cpu_single_env;
 #define CPU_INTERRUPT_HARD 0x02 /* hardware interrupt pending */
 void cpu_interrupt(CPUState *s, int mask);
 
+int cpu_breakpoint_insert(CPUState *env, uint32_t pc);
+int cpu_breakpoint_remove(CPUState *env, uint32_t pc);
+
 /* gdb stub API */
 extern int gdbstub_fd;
 CPUState *cpu_gdbstub_get_env(void *opaque);
-int cpu_gdbstub(void *opaque, void (*main_loop)(void *opaque), int port);
+int cpu_gdbstub(void *opaque, int (*main_loop)(void *opaque), int port);
 
 #endif /* CPU_ALL_H */

@@ -2540,7 +2540,7 @@ CPUState *cpu_gdbstub_get_env(void *opaque)
     return global_env;
 }
 
-void main_loop(void *opaque)
+int main_loop(void *opaque)
 {
     struct pollfd ufds[2], *pf, *serial_ufd, *net_ufd, *gdb_ufd;
     int ret, n, timeout;
@@ -2552,7 +2552,8 @@ void main_loop(void *opaque)
         ret = cpu_x86_exec(env);
         if (reset_requested)
             break;
-        
+        if (ret == EXCP_DEBUG)
+            return EXCP_DEBUG;
         /* if hlt instruction, we wait until the next IRQ */
         if (ret == EXCP_HLT) 
             timeout = 10;
@@ -2618,6 +2619,7 @@ void main_loop(void *opaque)
             timer_irq_pending = 0;
         }
     }
+    return EXCP_INTERRUPT;
 }
 
 void help(void)
