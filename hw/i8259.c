@@ -43,6 +43,8 @@ typedef struct PicState {
     uint8_t rotate_on_auto_eoi;
     uint8_t special_fully_nested_mode;
     uint8_t init4; /* true if 4 byte init */
+    uint8_t elcr; /* PIIX edge/trigger selection*/
+    uint8_t elcr_mask;
 } PicState;
 
 /* 0 is master pic, 1 is slave pic */
@@ -54,12 +56,24 @@ static inline void pic_set_irq1(PicState *s, int irq, int level)
 {
     int mask;
     mask = 1 << irq;
-    if (level) {
-        if ((s->last_irr & mask) == 0)
+    if (s->elcr & mask) {
+        /* level triggered */
+        if (level) {
             s->irr |= mask;
-        s->last_irr |= mask;
+            s->last_irr |= mask;
+        } else {
+            s->irr &= ~mask;
+            s->last_irr &= ~mask;
+        }
     } else {
-        s->last_irr &= ~mask;
+        /* edge triggered */
+        if (level) {
+            if ((s->last_irr & mask) == 0)
+                s->irr |= mask;
+            s->last_irr |= mask;
+        } else {
+            s->last_irr &= ~mask;
+        }
     }
 }
 
@@ -205,7 +219,7 @@ int cpu_get_pic_interrupt(CPUState *env)
 static void pic_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
     PicState *s = opaque;
-    int priority, cmd, irq;
+    int priority, cmd, irq, tmp;
 
 #ifdef DEBUG_PIC
     printf("pic_write: addr=0x%02x val=0x%02x\n", addr, val);
@@ -214,7 +228,10 @@ static void pic_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     if (addr == 0) {
         if (val & 0x10) {
             /* init */
+            tmp = s->elcr_mask;
             memset(s, 0, sizeof(PicState));
+            s->elcr_mask = tmp;
+
             s->init_state = 1;
             s->init4 = val & 1;
             if (val & 0x02)
@@ -356,6 +373,18 @@ uint32_t pic_intack_read(CPUState *env)
     return ret;
 }
 
+static void elcr_ioport_write(void *opaque, uint32_t addr, uint32_t val)
+{
+    PicState *s = opaque;
+    s->elcr = val & s->elcr_mask;
+}
+
+static uint32_t elcr_ioport_read(void *opaque, uint32_t addr1)
+{
+    PicState *s = opaque;
+    return s->elcr;
+}
+
 static void pic_save(QEMUFile *f, void *opaque)
 {
     PicState *s = opaque;
@@ -374,6 +403,7 @@ static void pic_save(QEMUFile *f, void *opaque)
     qemu_put_8s(f, &s->rotate_on_auto_eoi);
     qemu_put_8s(f, &s->special_fully_nested_mode);
     qemu_put_8s(f, &s->init4);
+    qemu_put_8s(f, &s->elcr);
 }
 
 static int pic_load(QEMUFile *f, void *opaque, int version_id)
@@ -397,15 +427,19 @@ static int pic_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_8s(f, &s->rotate_on_auto_eoi);
     qemu_get_8s(f, &s->special_fully_nested_mode);
     qemu_get_8s(f, &s->init4);
+    qemu_get_8s(f, &s->elcr);
     return 0;
 }
 
 /* XXX: add generic master/slave system */
-static void pic_init1(int io_addr, PicState *s)
+static void pic_init1(int io_addr, int elcr_addr, PicState *s)
 {
     register_ioport_write(io_addr, 2, 1, pic_ioport_write, s);
     register_ioport_read(io_addr, 2, 1, pic_ioport_read, s);
-
+    if (elcr_addr >= 0) {
+        register_ioport_write(elcr_addr, 1, 1, elcr_ioport_write, s);
+        register_ioport_read(elcr_addr, 1, 1, elcr_ioport_read, s);
+    }
     register_savevm("i8259", io_addr, 1, pic_save, pic_load, s);
 }
 
@@ -416,15 +450,18 @@ void pic_info(void)
 
     for(i=0;i<2;i++) {
         s = &pics[i];
-        term_printf("pic%d: irr=%02x imr=%02x isr=%02x hprio=%d irq_base=%02x rr_sel=%d\n",
-                    i, s->irr, s->imr, s->isr, s->priority_add, s->irq_base, s->read_reg_select);
+        term_printf("pic%d: irr=%02x imr=%02x isr=%02x hprio=%d irq_base=%02x rr_sel=%d elcr=%02x\n",
+                    i, s->irr, s->imr, s->isr, s->priority_add, 
+                    s->irq_base, s->read_reg_select, s->elcr);
     }
 }
 
 
 void pic_init(void)
 {
-    pic_init1(0x20, &pics[0]);
-    pic_init1(0xa0, &pics[1]);
+    pic_init1(0x20, 0x4d0, &pics[0]);
+    pic_init1(0xa0, 0x4d1, &pics[1]);
+    pics[0].elcr_mask = 0xf8;
+    pics[1].elcr_mask = 0xde;
 }
 
