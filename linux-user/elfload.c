@@ -1284,14 +1284,9 @@ int elf_exec(const char * filename, char ** argv, char ** envp,
         for (i=0 ; i<MAX_ARG_PAGES ; i++)       /* clear page-table */
                 bprm.page[i] = 0;
         retval = open(filename, O_RDONLY);
-        if (retval == -1) {
-	    perror(filename);
-	    exit(-1);
-            /* return retval; */
-	}
-	else {
-	    bprm.fd = retval;
-	}
+        if (retval < 0)
+            return retval;
+        bprm.fd = retval;
         bprm.filename = (char *)filename;
         bprm.sh_bang = 0;
         bprm.loader = 0;
