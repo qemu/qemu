@@ -68,11 +68,6 @@
 #define	VFAT_IOCTL_READDIR_BOTH		_IOR('r', 1, struct dirent [2])
 #define	VFAT_IOCTL_READDIR_SHORT	_IOR('r', 2, struct dirent [2])
 
-void host_to_target_siginfo(target_siginfo_t *tinfo, const siginfo_t *info);
-void target_to_host_siginfo(siginfo_t *info, const target_siginfo_t *tinfo);
-long do_sigreturn(CPUX86State *env);
-long do_rt_sigreturn(CPUX86State *env);
-
 #define __NR_sys_uname __NR_uname
 #define __NR_sys_getcwd1 __NR_getcwd
 #define __NR_sys_statfs __NR_statfs
@@ -702,8 +697,8 @@ enum {
 #undef STRUCT_SPECIAL
 
 typedef struct IOCTLEntry {
-    int target_cmd;
-    int host_cmd;
+    unsigned int target_cmd;
+    unsigned int host_cmd;
     const char *name;
     int access;
     const argtype arg_type[5];
@@ -715,7 +710,7 @@ typedef struct IOCTLEntry {
 
 #define MAX_STRUCT_SIZE 4096
 
-const IOCTLEntry ioctl_entries[] = {
+IOCTLEntry ioctl_entries[] = {
 #define IOCTL(cmd, access, types...) \
     { TARGET_ ## cmd, cmd, #cmd, access, { types } },
 #include "ioctls.h"
@@ -970,7 +965,7 @@ static bitmask_transtbl mmap_flags_tbl[] = {
 	{ 0, 0, 0, 0 }
 };
 
-#ifdef TARGET_I386
+#if defined(TARGET_I386)
 
 /* NOTE: there is really one LDT for all the threads */
 uint8_t *ldt_table;
@@ -1087,28 +1082,28 @@ int do_modify_ldt(CPUX86State *env, int func, void *ptr, unsigned long bytecount
     return ret;
 }
 
+#endif /* defined(TARGET_I386) */
+
 /* this stack is the equivalent of the kernel stack associated with a
    thread/process */
 #define NEW_STACK_SIZE 8192
 
 static int clone_func(void *arg)
 {
-    CPUX86State *env = arg;
+    CPUState *env = arg;
     cpu_loop(env);
     /* never exits */
     return 0;
 }
 
-int do_fork(CPUX86State *env, unsigned int flags, unsigned long newsp)
+int do_fork(CPUState *env, unsigned int flags, unsigned long newsp)
 {
     int ret;
     TaskState *ts;
     uint8_t *new_stack;
-    CPUX86State *new_env;
+    CPUState *new_env;
     
     if (flags & CLONE_VM) {
-        if (!newsp)
-            newsp = env->regs[R_ESP];
         ts = malloc(sizeof(TaskState) + NEW_STACK_SIZE);
         memset(ts, 0, sizeof(TaskState));
         new_stack = ts->stack;
@@ -1117,10 +1112,21 @@ int do_fork(CPUX86State *env, unsigned int flags, unsigned long newsp)
         ts->next = first_task_state;
         first_task_state = ts;
         /* we create a new CPU instance. */
-        new_env = cpu_x86_init();
-        memcpy(new_env, env, sizeof(CPUX86State));
+        new_env = cpu_init();
+        memcpy(new_env, env, sizeof(CPUState));
+#if defined(TARGET_I386)
+        if (!newsp)
+            newsp = env->regs[R_ESP];
         new_env->regs[R_ESP] = newsp;
         new_env->regs[R_EAX] = 0;
+#elif defined(TARGET_ARM)
+        if (!newsp)
+            newsp = env->regs[13];
+        new_env->regs[13] = newsp;
+        new_env->regs[0] = 0;
+#else
+#error unsupported target CPU
+#endif
         new_env->opaque = ts;
 #ifdef __ia64__
         ret = clone2(clone_func, new_stack + NEW_STACK_SIZE, flags, new_env);
@@ -1135,8 +1141,6 @@ int do_fork(CPUX86State *env, unsigned int flags, unsigned long newsp)
     }
     return ret;
 }
-
-#endif
 
 static long do_fcntl(int fd, int cmd, unsigned long arg)
 {
@@ -1188,11 +1192,43 @@ static long do_fcntl(int fd, int cmd, unsigned long arg)
 
 void syscall_init(void)
 {
+    IOCTLEntry *ie;
+    const argtype *arg_type;
+    int size;
+
 #define STRUCT(name, list...) thunk_register_struct(STRUCT_ ## name, #name, struct_ ## name ## _def); 
 #define STRUCT_SPECIAL(name) thunk_register_struct_direct(STRUCT_ ## name, #name, &struct_ ## name ## _def); 
 #include "syscall_types.h"
 #undef STRUCT
 #undef STRUCT_SPECIAL
+
+    /* we patch the ioctl size if necessary. We rely on the fact that
+       no ioctl has all the bits at '1' in the size field */
+    ie = ioctl_entries;
+    while (ie->target_cmd != 0) {
+        if (((ie->target_cmd >> TARGET_IOC_SIZESHIFT) & TARGET_IOC_SIZEMASK) ==
+            TARGET_IOC_SIZEMASK) {
+            arg_type = ie->arg_type;
+            if (arg_type[0] != TYPE_PTR) {
+                fprintf(stderr, "cannot patch size for ioctl 0x%x\n", 
+                        ie->target_cmd);
+                exit(1);
+            }
+            arg_type++;
+            size = thunk_type_size(arg_type, 0);
+            ie->target_cmd = (ie->target_cmd & 
+                              ~(TARGET_IOC_SIZEMASK << TARGET_IOC_SIZESHIFT)) |
+                (size << TARGET_IOC_SIZESHIFT);
+        }
+        /* automatic consistency check if same arch */
+#if defined(__i386__) && defined(TARGET_I386)
+        if (ie->target_cmd != ie->host_cmd) {
+            fprintf(stderr, "ERROR: ioctl: target=0x%x host=0x%x\n", 
+                    ie->target_cmd, ie->host_cmd);
+        }
+#endif
+        ie++;
+    }
 }
                                  
 long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3, 
