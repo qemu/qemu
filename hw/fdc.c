@@ -636,11 +636,11 @@ static void fdctrl_write_dor (fdctrl_t *fdctrl, uint32_t value)
         if (!(fdctrl->state & FD_CTRL_RESET)) {
             FLOPPY_DPRINTF("controler enter RESET state\n");
             fdctrl->state |= FD_CTRL_RESET;
-            fdctrl_reset(fdctrl, 1);
         }
     } else {
         if (fdctrl->state & FD_CTRL_RESET) {
             FLOPPY_DPRINTF("controler out of RESET state\n");
+            fdctrl_reset(fdctrl, 1);
             fdctrl->state &= ~(FD_CTRL_RESET | FD_CTRL_SLEEP);
         }
     }
