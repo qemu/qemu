@@ -56,61 +56,76 @@
   
 #define VBE_DISPI_LFB_PHYSICAL_ADDRESS  0xE0000000
 
-typedef struct VGAState {
-    uint8_t *vram_ptr;
-    unsigned long vram_offset;
-    unsigned int vram_size;
-    uint32_t latch;
-    uint8_t sr_index;
-    uint8_t sr[256];
-    uint8_t gr_index;
-    uint8_t gr[256];
-    uint8_t ar_index;
-    uint8_t ar[21];
-    int ar_flip_flop;
-    uint8_t cr_index;
-    uint8_t cr[256]; /* CRT registers */
-    uint8_t msr; /* Misc Output Register */
-    uint8_t fcr; /* Feature Control Register */
-    uint8_t st00; /* status 0 */
-    uint8_t st01; /* status 1 */
-    uint8_t dac_state;
-    uint8_t dac_sub_index;
-    uint8_t dac_read_index;
-    uint8_t dac_write_index;
-    uint8_t dac_cache[3]; /* used when writing */
-    uint8_t palette[768];
-    int32_t bank_offset;
-    int (*get_bpp)(struct VGAState *s);
-    void (*get_offsets)(struct VGAState *s, 
-                        uint32_t *pline_offset, 
-                        uint32_t *pstart_addr);
 #ifdef CONFIG_BOCHS_VBE
-    uint16_t vbe_index;
-    uint16_t vbe_regs[VBE_DISPI_INDEX_NB];
-    uint32_t vbe_start_addr;
-    uint32_t vbe_line_offset;
+
+#define VGA_STATE_COMMON_BOCHS_VBE              \
+    uint16_t vbe_index;                         \
+    uint16_t vbe_regs[VBE_DISPI_INDEX_NB];      \
+    uint32_t vbe_start_addr;                    \
+    uint32_t vbe_line_offset;                   \
     uint32_t vbe_bank_mask;
-#endif
-    /* display refresh support */
-    DisplayState *ds;
-    uint32_t font_offsets[2];
-    int graphic_mode;
-    uint8_t shift_control;
-    uint8_t double_scan;
-    uint32_t line_offset;
-    uint32_t line_compare;
-    uint32_t start_addr;
-    uint8_t last_cw, last_ch;
-    uint32_t last_width, last_height; /* in chars or pixels */
-    uint32_t last_scr_width, last_scr_height; /* in pixels */
-    uint8_t cursor_start, cursor_end;
-    uint32_t cursor_offset;
-    unsigned int (*rgb_to_pixel)(unsigned int r, unsigned int g, unsigned b);
-    /* tell for each page if it has been updated since the last time */
-    uint32_t last_palette[256];
+
+#else
+
+#define VGA_STATE_COMMON_BOCHS_VBE
+
+#endif /* !CONFIG_BOCHS_VBE */
+
 #define CH_ATTR_SIZE (160 * 100)
+
+#define VGA_STATE_COMMON                                                \
+    uint8_t *vram_ptr;                                                  \
+    unsigned long vram_offset;                                          \
+    unsigned int vram_size;                                             \
+    uint32_t latch;                                                     \
+    uint8_t sr_index;                                                   \
+    uint8_t sr[256];                                                    \
+    uint8_t gr_index;                                                   \
+    uint8_t gr[256];                                                    \
+    uint8_t ar_index;                                                   \
+    uint8_t ar[21];                                                     \
+    int ar_flip_flop;                                                   \
+    uint8_t cr_index;                                                   \
+    uint8_t cr[256]; /* CRT registers */                                \
+    uint8_t msr; /* Misc Output Register */                             \
+    uint8_t fcr; /* Feature Control Register */                         \
+    uint8_t st00; /* status 0 */                                        \
+    uint8_t st01; /* status 1 */                                        \
+    uint8_t dac_state;                                                  \
+    uint8_t dac_sub_index;                                              \
+    uint8_t dac_read_index;                                             \
+    uint8_t dac_write_index;                                            \
+    uint8_t dac_cache[3]; /* used when writing */                       \
+    uint8_t palette[768];                                               \
+    int32_t bank_offset;                                                \
+    int (*get_bpp)(struct VGAState *s);                                 \
+    void (*get_offsets)(struct VGAState *s,                             \
+                        uint32_t *pline_offset,                         \
+                        uint32_t *pstart_addr);                         \
+    VGA_STATE_COMMON_BOCHS_VBE                                          \
+    /* display refresh support */                                       \
+    DisplayState *ds;                                                   \
+    uint32_t font_offsets[2];                                           \
+    int graphic_mode;                                                   \
+    uint8_t shift_control;                                              \
+    uint8_t double_scan;                                                \
+    uint32_t line_offset;                                               \
+    uint32_t line_compare;                                              \
+    uint32_t start_addr;                                                \
+    uint8_t last_cw, last_ch;                                           \
+    uint32_t last_width, last_height; /* in chars or pixels */          \
+    uint32_t last_scr_width, last_scr_height; /* in pixels */           \
+    uint8_t cursor_start, cursor_end;                                   \
+    uint32_t cursor_offset;                                             \
+    unsigned int (*rgb_to_pixel)(unsigned int r,                        \
+                                 unsigned int g, unsigned b);           \
+    /* tell for each page if it has been updated since the last time */ \
+    uint32_t last_palette[256];                                         \
     uint32_t last_ch_attr[CH_ATTR_SIZE]; /* XXX: make it dynamic */
+
+
+typedef struct VGAState {
+    VGA_STATE_COMMON
 } VGAState;
 
 void vga_common_init(VGAState *s, DisplayState *ds, uint8_t *vga_ram_base, 

@@ -205,8 +205,7 @@ typedef void (*cirrus_bitblt_rop_t) (uint8_t * dst, const uint8_t * src,
 typedef void (*cirrus_bitblt_handler_t) (void *opaque);
 
 typedef struct CirrusVGAState {
-    /* XXX: we use the anonymous struct/union gcc 3.x extension */
-    __extension__ struct VGAState;
+    VGA_STATE_COMMON
 
     int cirrus_linear_io_addr;
     int cirrus_mmio_io_addr;
