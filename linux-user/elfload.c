@@ -74,7 +74,8 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
     regs->ARM_sp = infop->start_stack;
     regs->ARM_r2 = tswapl(stack[2]); /* envp */
     regs->ARM_r1 = tswapl(stack[1]); /* argv */
-    regs->ARM_r0 = tswapl(stack[0]); /* argc */
+    /* XXX: it seems that r0 is zeroed after ! */
+    //    regs->ARM_r0 = tswapl(stack[0]); /* argc */
 }
 
 #define USE_ELF_CORE_DUMP
@@ -490,7 +491,7 @@ static unsigned int * create_elf_tables(char *p, int argc, int envc,
          * Force 16 byte alignment here for generality.
          */
         sp = (unsigned int *) (~15UL & (unsigned long) p);
-        sp -= exec ? DLINFO_ITEMS*2 : 2;
+        sp -= DLINFO_ITEMS*2;
         dlinfo = sp;
         sp -= envc+1;
         envp = sp;
@@ -505,21 +506,20 @@ static unsigned int * create_elf_tables(char *p, int argc, int envc,
           put_user (tswapl(id), dlinfo++); \
           put_user (tswapl(val), dlinfo++)
 
-        if (exec) { /* Put this here for an ELF program interpreter */
-          NEW_AUX_ENT (AT_PHDR, (target_ulong)(load_addr + exec->e_phoff));
-          NEW_AUX_ENT (AT_PHENT, (target_ulong)(sizeof (struct elf_phdr)));
-          NEW_AUX_ENT (AT_PHNUM, (target_ulong)(exec->e_phnum));
-          NEW_AUX_ENT (AT_PAGESZ, (target_ulong)(TARGET_PAGE_SIZE));
-          NEW_AUX_ENT (AT_BASE, (target_ulong)(interp_load_addr));
-          NEW_AUX_ENT (AT_FLAGS, (target_ulong)0);
-          NEW_AUX_ENT (AT_ENTRY, load_bias + exec->e_entry);
-          NEW_AUX_ENT (AT_UID, (target_ulong) getuid());
-          NEW_AUX_ENT (AT_EUID, (target_ulong) geteuid());
-          NEW_AUX_ENT (AT_GID, (target_ulong) getgid());
-          NEW_AUX_ENT (AT_EGID, (target_ulong) getegid());
-        }
+        NEW_AUX_ENT (AT_PHDR, (target_ulong)(load_addr + exec->e_phoff));
+        NEW_AUX_ENT (AT_PHENT, (target_ulong)(sizeof (struct elf_phdr)));
+        NEW_AUX_ENT (AT_PHNUM, (target_ulong)(exec->e_phnum));
+        NEW_AUX_ENT (AT_PAGESZ, (target_ulong)(TARGET_PAGE_SIZE));
+        NEW_AUX_ENT (AT_BASE, (target_ulong)(interp_load_addr));
+        NEW_AUX_ENT (AT_FLAGS, (target_ulong)0);
+        NEW_AUX_ENT (AT_ENTRY, load_bias + exec->e_entry);
+        NEW_AUX_ENT (AT_UID, (target_ulong) getuid());
+        NEW_AUX_ENT (AT_EUID, (target_ulong) geteuid());
+        NEW_AUX_ENT (AT_GID, (target_ulong) getgid());
+        NEW_AUX_ENT (AT_EGID, (target_ulong) getegid());
         NEW_AUX_ENT (AT_NULL, 0);
 #undef NEW_AUX_ENT
+
         put_user(tswapl(argc),--sp);
         info->arg_start = (unsigned int)((unsigned long)p & 0xffffffff);
         while (argc-->0) {
@@ -1087,7 +1087,7 @@ static int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * r
       create_elf_tables((char *)bprm->p,
 		    bprm->argc,
 		    bprm->envc,
-		    (interpreter_type == INTERPRETER_ELF ? &elf_ex : NULL),
+                    &elf_ex,
                     load_addr, load_bias,
 		    interp_load_addr,
 		    (interpreter_type == INTERPRETER_AOUT ? 0 : 1),
