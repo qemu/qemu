@@ -17,3 +17,5 @@ sparc-user
 qemu-img
 sparc-softmmu
 x86_64-softmmu
+sparc64-user
+sparc64-softmmu
