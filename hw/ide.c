@@ -550,6 +550,7 @@ static void ide_sector_read(IDEState *s)
     int ret, n;
 
     s->status = READY_STAT | SEEK_STAT;
+    s->error = 0; /* not needed by IDE spec, but needed by Windows */
     sector_num = ide_get_sector(s);
     n = s->nsector;
     if (n == 0) {
@@ -694,10 +695,9 @@ static void ide_atapi_cmd_reply_end(IDEState *s)
                 if (byte_count_limit & 1)
                     byte_count_limit--;
                 size = byte_count_limit;
-            } else {
-                s->lcyl = size;
-                s->hcyl = size >> 8;
             }
+            s->lcyl = size;
+            s->hcyl = size >> 8;
             s->elementary_transfer_size = size;
             /* we cannot transmit more than one sector at a time */
             if (s->lba != -1) {
@@ -1106,6 +1106,7 @@ static void ide_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
             break;
         case WIN_SPECIFY:
         case WIN_RECAL:
+            s->error = 0;
             s->status = READY_STAT;
             ide_set_irq(s);
             break;
@@ -1135,6 +1136,7 @@ static void ide_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
             break;
         case WIN_WRITE:
         case WIN_WRITE_ONCE:
+            s->error = 0;
             s->status = SEEK_STAT;
             s->req_nb_sectors = 1;
             ide_transfer_start(s, s->io_buffer, 512, ide_sector_write);
@@ -1148,6 +1150,7 @@ static void ide_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
         case WIN_MULTWRITE:
             if (!s->mult_sectors)
                 goto abort_cmd;
+            s->error = 0;
             s->status = SEEK_STAT;
             s->req_nb_sectors = s->mult_sectors;
             n = s->nsector;
@@ -1157,6 +1160,11 @@ static void ide_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
             break;
         case WIN_READ_NATIVE_MAX:
             ide_set_sector(s, s->nb_sectors - 1);
+            s->status = READY_STAT;
+            ide_set_irq(s);
+            break;
+        case WIN_CHECKPOWERMODE1:
+            s->nsector = 0xff; /* device active or idle */
             s->status = READY_STAT;
             ide_set_irq(s);
             break;
