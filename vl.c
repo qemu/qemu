@@ -858,6 +858,7 @@ typedef struct PITChannelState {
 
 PITChannelState pit_channels[3];
 int speaker_data_on;
+int dummy_refresh_clock;
 int pit_min_timer_count = 0;
 
 int64_t ticks_per_sec;
@@ -1115,7 +1116,9 @@ uint32_t speaker_ioport_read(CPUX86State *env, uint32_t addr)
 {
     int out;
     out = pit_get_out(&pit_channels[2]);
-    return (speaker_data_on << 1) | pit_channels[2].gate | (out << 5);
+    dummy_refresh_clock ^= 1;
+    return (speaker_data_on << 1) | pit_channels[2].gate | (out << 5) |
+      (dummy_refresh_clock << 4);
 }
 
 void pit_init(void)
