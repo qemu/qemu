@@ -89,11 +89,17 @@ available:
 simulate the x86 MMU. It is @emph{fast} but has limitations because
 the whole 4 GB address space cannot be used and some memory mapped
 peripherials cannot be emulated accurately yet. Therefore, a specific
-guest Linux kernel can be used (@xref{linux_compile}) as guest OS.
+guest Linux kernel can be used (@xref{linux_compile}) as guest
+OS. 
+
+Moreover there is no separation between the host and target address
+spaces, so it offers no security (the target OS can modify the
+@code{qemu-fast} code by writing at the right addresses).
 
 @item 
-@code{qemu} uses a software MMU. It is about @emph{two times 
-slower} but gives a more accurate emulation. 
+@code{qemu} uses a software MMU. It is about @emph{two times slower}
+but gives a more accurate emulation and a complete separation between
+the host and target address spaces.
 
 @end enumerate
 
