@@ -170,6 +170,7 @@ void vm_stop(int reason);
 extern int audio_enabled;
 extern int ram_size;
 extern int bios_size;
+extern int rtc_utc;
 
 /* XXX: make it dynamic */
 #if defined (TARGET_PPC)

@@ -110,7 +110,10 @@ static void cmos_init(int ram_size, int boot_device)
 
     /* set the CMOS date */
     time(&ti);
-    tm = gmtime(&ti);
+    if (rtc_utc)
+        tm = gmtime(&ti);
+    else
+        tm = localtime(&ti);
     rtc_set_date(s, tm);
 
     val = to_bcd(s, (tm->tm_year / 100) + 19);

@@ -129,6 +129,7 @@ int vm_running;
 int audio_enabled = 0;
 int pci_enabled = 0;
 int prep_enabled = 0;
+int rtc_utc = 1;
 
 /***********************************************************/
 /* x86 ISA bus support */
@@ -2015,6 +2016,7 @@ enum {
     QEMU_OPTION_no_code_copy,
     QEMU_OPTION_pci,
     QEMU_OPTION_prep,
+    QEMU_OPTION_localtime,
 };
 
 typedef struct QEMUOption {
@@ -2065,6 +2067,7 @@ const QEMUOption qemu_options[] = {
 #ifdef TARGET_PPC
     { "prep", 0, QEMU_OPTION_prep },
 #endif
+    { "localtime", 0, QEMU_OPTION_localtime },
     { NULL },
 };
 
@@ -2340,6 +2343,9 @@ int main(int argc, char **argv)
                 break;
             case QEMU_OPTION_prep:
                 prep_enabled = 1;
+                break;
+            case QEMU_OPTION_localtime:
+                rtc_utc = 0;
                 break;
             }
         }
