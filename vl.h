@@ -593,7 +593,9 @@ void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
 		   DisplayState *ds, const char **fd_filename, int snapshot,
 		   const char *kernel_filename, const char *kernel_cmdline,
 		   const char *initrd_filename);
-ppc_tb_t *cpu_ppc_tb_init (CPUPPCState *env, uint32_t freq);
+#ifdef TARGET_PPC
+ppc_tb_t *cpu_ppc_tb_init (CPUState *env, uint32_t freq);
+#endif
 void PREP_debug_write (void *opaque, uint32_t addr, uint32_t val);
 
 extern CPUWriteMemoryFunc *PPC_io_write[];
