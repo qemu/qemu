@@ -51,12 +51,20 @@
 
 #elif ACCESS_TYPE == 2
 
+#ifdef TARGET_I386
 #define CPU_MEM_INDEX ((env->hflags & HF_CPL_MASK) == 3)
+#elif defined (TARGET_PPC)
+#define CPU_MEM_INDEX (msr_pr)
+#endif
 #define MMUSUFFIX _mmu
 
 #elif ACCESS_TYPE == 3
 
+#ifdef TARGET_I386
 #define CPU_MEM_INDEX ((env->hflags & HF_CPL_MASK) == 3)
+#elif defined (TARGET_PPC)
+#define CPU_MEM_INDEX (msr_pr)
+#endif
 #define MMUSUFFIX _cmmu
 
 #else
@@ -282,6 +290,50 @@ static inline void glue(glue(st, SUFFIX), MEMSUFFIX)(void *ptr, RES_TYPE v)
 }
 
 #endif
+
+#if DATA_SIZE == 8
+static inline double glue(ldfq, MEMSUFFIX)(void *ptr)
+{
+    union {
+        double d;
+        uint64_t i;
+    } u;
+    u.i = glue(ldq, MEMSUFFIX)(ptr);
+    return u.d;
+}
+
+static inline void glue(stfq, MEMSUFFIX)(void *ptr, double v)
+{
+    union {
+        double d;
+        uint64_t i;
+    } u;
+    u.d = v;
+    glue(stq, MEMSUFFIX)(ptr, u.i);
+}
+#endif /* DATA_SIZE == 8 */
+
+#if DATA_SIZE == 4
+static inline float glue(ldfl, MEMSUFFIX)(void *ptr)
+{
+    union {
+        float f;
+        uint32_t i;
+    } u;
+    u.i = glue(ldl, MEMSUFFIX)(ptr);
+    return u.f;
+}
+
+static inline void glue(stfl, MEMSUFFIX)(void *ptr, float v)
+{
+    union {
+        float f;
+        uint32_t i;
+    } u;
+    u.f = v;
+    glue(stl, MEMSUFFIX)(ptr, u.i);
+}
+#endif /* DATA_SIZE == 4 */
 
 #undef RES_TYPE
 #undef DATA_TYPE
