@@ -25,6 +25,8 @@
 #include "vl.h"
 #include "vga_int.h"
 
+//#define DEBUG_CIRRUS
+
 /***************************************
  *
  *  definitions
@@ -204,7 +206,7 @@ typedef void (*cirrus_bitblt_handler_t) (void *opaque);
 
 typedef struct CirrusVGAState {
     /* XXX: we use the anonymous struct/union gcc 3.x extension */
-    struct VGAState;
+    __extension__ struct VGAState;
 
     int cirrus_linear_io_addr;
     int cirrus_mmio_io_addr;
@@ -1036,7 +1038,7 @@ static void cirrus_get_offsets(VGAState *s1,
     uint32_t line_offset;
 
     line_offset = s->cr[0x13]
-	| ((s->cr[0x1b] & 0x10) << 8);
+	| ((s->cr[0x1b] & 0x10) << 4);
     line_offset <<= 3;
     *pline_offset = line_offset;
 
@@ -1821,31 +1823,6 @@ static void cirrus_mmio_blt_write(CirrusVGAState * s, unsigned address,
 
 /***************************************
  *
- *  memory-mapped I/O (vga)
- *
- ***************************************/
-
-static uint8_t cirrus_mmio_vga_read(CirrusVGAState * s, unsigned address)
-{
-#ifdef DEBUG_CIRRUS
-    printf("cirrus: mmio vga read (unimplemented) - address 0x%04x\n",
-	   address);
-#endif
-    return 0xff;
-}
-
-static void cirrus_mmio_vga_write(CirrusVGAState * s, unsigned address,
-				  uint8_t value)
-{
-#ifdef DEBUG_CIRRUS
-    printf
-	("cirrus: mmio vga write (unimplemented) - address 0x%04x, value 0x%02x\n",
-	 address, value);
-#endif
-}
-
-/***************************************
- *
  *  write mode 4/5
  *
  * assume TARGET_PAGE_SIZE >= 16
@@ -2221,108 +2198,6 @@ static CPUWriteMemoryFunc *cirrus_linear_write[3] = {
     cirrus_linear_writel,
 };
 
-/***************************************
- *
- *  memory-mapped I/O access
- *
- ***************************************/
-
-static uint32_t cirrus_mmio_readb(void *opaque, target_phys_addr_t addr)
-{
-    CirrusVGAState *s = (CirrusVGAState *) opaque;
-
-    addr &= CIRRUS_PNPMMIO_SIZE - 1;
-    /* ??? Does CLGD5430 have memory-mapped VGA registers ??? */
-    return (addr >= 0x100) ?
-	cirrus_mmio_blt_read(s, addr - 0x100) :
-	cirrus_mmio_vga_read(s, addr);
-}
-
-static uint32_t cirrus_mmio_readw(void *opaque, target_phys_addr_t addr)
-{
-    uint32_t v;
-#ifdef TARGET_WORDS_BIGENDIAN
-    v = cirrus_mmio_readb(opaque, addr) << 8;
-    v |= cirrus_mmio_readb(opaque, addr + 1);
-#else
-    v = cirrus_mmio_readb(opaque, addr);
-    v |= cirrus_mmio_readb(opaque, addr + 1) << 8;
-#endif
-    return v;
-}
-
-static uint32_t cirrus_mmio_readl(void *opaque, target_phys_addr_t addr)
-{
-    uint32_t v;
-#ifdef TARGET_WORDS_BIGENDIAN
-    v = cirrus_mmio_readb(opaque, addr) << 24;
-    v |= cirrus_mmio_readb(opaque, addr + 1) << 16;
-    v |= cirrus_mmio_readb(opaque, addr + 2) << 8;
-    v |= cirrus_mmio_readb(opaque, addr + 3);
-#else
-    v = cirrus_mmio_readb(opaque, addr);
-    v |= cirrus_mmio_readb(opaque, addr + 1) << 8;
-    v |= cirrus_mmio_readb(opaque, addr + 2) << 16;
-    v |= cirrus_mmio_readb(opaque, addr + 3) << 24;
-#endif
-    return v;
-}
-
-static void cirrus_mmio_writeb(void *opaque, target_phys_addr_t addr,
-			       uint32_t val)
-{
-    CirrusVGAState *s = (CirrusVGAState *) opaque;
-
-    addr &= CIRRUS_PNPMMIO_SIZE - 1;
-    /* ??? Does CLGD5430 have memory-mapped VGA registers ??? */
-    if (addr >= 0x100) {
-	cirrus_mmio_blt_write(s, addr - 0x100, val);
-    } else {
-	cirrus_mmio_vga_write(s, addr, val);
-    }
-}
-
-static void cirrus_mmio_writew(void *opaque, target_phys_addr_t addr,
-			       uint32_t val)
-{
-#ifdef TARGET_WORDS_BIGENDIAN
-    cirrus_mmio_writeb(opaque, addr, (val >> 8) & 0xff);
-    cirrus_mmio_writeb(opaque, addr + 1, val & 0xff);
-#else
-    cirrus_mmio_writeb(opaque, addr, val & 0xff);
-    cirrus_mmio_writeb(opaque, addr + 1, (val >> 8) & 0xff);
-#endif
-}
-
-static void cirrus_mmio_writel(void *opaque, target_phys_addr_t addr,
-			       uint32_t val)
-{
-#ifdef TARGET_WORDS_BIGENDIAN
-    cirrus_mmio_writeb(opaque, addr, (val >> 24) & 0xff);
-    cirrus_mmio_writeb(opaque, addr + 1, (val >> 16) & 0xff);
-    cirrus_mmio_writeb(opaque, addr + 2, (val >> 8) & 0xff);
-    cirrus_mmio_writeb(opaque, addr + 3, val & 0xff);
-#else
-    cirrus_mmio_writeb(opaque, addr, val & 0xff);
-    cirrus_mmio_writeb(opaque, addr + 1, (val >> 8) & 0xff);
-    cirrus_mmio_writeb(opaque, addr + 2, (val >> 16) & 0xff);
-    cirrus_mmio_writeb(opaque, addr + 3, (val >> 24) & 0xff);
-#endif
-}
-
-
-static CPUReadMemoryFunc *cirrus_mmio_read[3] = {
-    cirrus_mmio_readb,
-    cirrus_mmio_readw,
-    cirrus_mmio_readl,
-};
-
-static CPUWriteMemoryFunc *cirrus_mmio_write[3] = {
-    cirrus_mmio_writeb,
-    cirrus_mmio_writew,
-    cirrus_mmio_writel,
-};
-
 /* I/O ports */
 
 static uint32_t vga_ioport_read(void *opaque, uint32_t addr)
@@ -2567,6 +2442,110 @@ static void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 	break;
     }
 }
+
+/***************************************
+ *
+ *  memory-mapped I/O access
+ *
+ ***************************************/
+
+static uint32_t cirrus_mmio_readb(void *opaque, target_phys_addr_t addr)
+{
+    CirrusVGAState *s = (CirrusVGAState *) opaque;
+
+    addr &= CIRRUS_PNPMMIO_SIZE - 1;
+
+    if (addr >= 0x100) {
+        return cirrus_mmio_blt_read(s, addr - 0x100);
+    } else {
+        return vga_ioport_read(s, addr + 0x3c0);
+    }
+}
+
+static uint32_t cirrus_mmio_readw(void *opaque, target_phys_addr_t addr)
+{
+    uint32_t v;
+#ifdef TARGET_WORDS_BIGENDIAN
+    v = cirrus_mmio_readb(opaque, addr) << 8;
+    v |= cirrus_mmio_readb(opaque, addr + 1);
+#else
+    v = cirrus_mmio_readb(opaque, addr);
+    v |= cirrus_mmio_readb(opaque, addr + 1) << 8;
+#endif
+    return v;
+}
+
+static uint32_t cirrus_mmio_readl(void *opaque, target_phys_addr_t addr)
+{
+    uint32_t v;
+#ifdef TARGET_WORDS_BIGENDIAN
+    v = cirrus_mmio_readb(opaque, addr) << 24;
+    v |= cirrus_mmio_readb(opaque, addr + 1) << 16;
+    v |= cirrus_mmio_readb(opaque, addr + 2) << 8;
+    v |= cirrus_mmio_readb(opaque, addr + 3);
+#else
+    v = cirrus_mmio_readb(opaque, addr);
+    v |= cirrus_mmio_readb(opaque, addr + 1) << 8;
+    v |= cirrus_mmio_readb(opaque, addr + 2) << 16;
+    v |= cirrus_mmio_readb(opaque, addr + 3) << 24;
+#endif
+    return v;
+}
+
+static void cirrus_mmio_writeb(void *opaque, target_phys_addr_t addr,
+			       uint32_t val)
+{
+    CirrusVGAState *s = (CirrusVGAState *) opaque;
+
+    addr &= CIRRUS_PNPMMIO_SIZE - 1;
+
+    if (addr >= 0x100) {
+	cirrus_mmio_blt_write(s, addr - 0x100, val);
+    } else {
+        vga_ioport_write(s, addr + 0x3c0, val);
+    }
+}
+
+static void cirrus_mmio_writew(void *opaque, target_phys_addr_t addr,
+			       uint32_t val)
+{
+#ifdef TARGET_WORDS_BIGENDIAN
+    cirrus_mmio_writeb(opaque, addr, (val >> 8) & 0xff);
+    cirrus_mmio_writeb(opaque, addr + 1, val & 0xff);
+#else
+    cirrus_mmio_writeb(opaque, addr, val & 0xff);
+    cirrus_mmio_writeb(opaque, addr + 1, (val >> 8) & 0xff);
+#endif
+}
+
+static void cirrus_mmio_writel(void *opaque, target_phys_addr_t addr,
+			       uint32_t val)
+{
+#ifdef TARGET_WORDS_BIGENDIAN
+    cirrus_mmio_writeb(opaque, addr, (val >> 24) & 0xff);
+    cirrus_mmio_writeb(opaque, addr + 1, (val >> 16) & 0xff);
+    cirrus_mmio_writeb(opaque, addr + 2, (val >> 8) & 0xff);
+    cirrus_mmio_writeb(opaque, addr + 3, val & 0xff);
+#else
+    cirrus_mmio_writeb(opaque, addr, val & 0xff);
+    cirrus_mmio_writeb(opaque, addr + 1, (val >> 8) & 0xff);
+    cirrus_mmio_writeb(opaque, addr + 2, (val >> 16) & 0xff);
+    cirrus_mmio_writeb(opaque, addr + 3, (val >> 24) & 0xff);
+#endif
+}
+
+
+static CPUReadMemoryFunc *cirrus_mmio_read[3] = {
+    cirrus_mmio_readb,
+    cirrus_mmio_readw,
+    cirrus_mmio_readl,
+};
+
+static CPUWriteMemoryFunc *cirrus_mmio_write[3] = {
+    cirrus_mmio_writeb,
+    cirrus_mmio_writew,
+    cirrus_mmio_writel,
+};
 
 /***************************************
  *
