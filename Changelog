@@ -1,3 +1,9 @@
+version 0.6.2:
+
+  - better BIOS translation and HDD geometry auto-detection
+  - user mode networking bug fix
+  - undocumented FPU ops support
+
 version 0.6.1:
 
   - Mac OS X port (Pierre d'Herbemont)
