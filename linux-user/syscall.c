@@ -1002,10 +1002,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_sigaction:
 #if 1
         {
-            int signum = arg1;
-            struct target_old_sigaction *tact = arg2, *toldact = arg3;
             ret = 0;
-
         }
         break;
 #else
@@ -1464,9 +1461,37 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_ugetrlimit:
     case TARGET_NR_truncate64:
     case TARGET_NR_ftruncate64:
+        goto unimplemented;
     case TARGET_NR_stat64:
+        ret = get_errno(stat((const char *)arg1, &st));
+        goto do_stat64;
     case TARGET_NR_lstat64:
+        ret = get_errno(lstat((const char *)arg1, &st));
+        goto do_stat64;
     case TARGET_NR_fstat64:
+        {
+            ret = get_errno(fstat(arg1, &st));
+        do_stat64:
+            if (!is_error(ret)) {
+                struct target_stat64 *target_st = (void *)arg2;
+                target_st->st_dev = tswap16(st.st_dev);
+                target_st->st_ino = tswapl(st.st_ino);
+                target_st->st_mode = tswap16(st.st_mode);
+                target_st->st_nlink = tswap16(st.st_nlink);
+                target_st->st_uid = tswap16(st.st_uid);
+                target_st->st_gid = tswap16(st.st_gid);
+                target_st->st_rdev = tswap16(st.st_rdev);
+                /* XXX: better use of kernel struct */
+                target_st->st_size = tswapl(st.st_size);
+                target_st->st_blksize = tswapl(st.st_blksize);
+                target_st->st_blocks = tswapl(st.st_blocks);
+                target_st->st_atime = tswapl(st.st_atime);
+                target_st->st_mtime = tswapl(st.st_mtime);
+                target_st->st_ctime = tswapl(st.st_ctime);
+            }
+        }
+        break;
+
     case TARGET_NR_lchown32:
     case TARGET_NR_getuid32:
     case TARGET_NR_getgid32:
@@ -1490,7 +1515,20 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_mincore:
     case TARGET_NR_madvise:
     case TARGET_NR_getdents64:
+        goto unimplemented;
+#if TARGET_LONG_BITS == 32
     case TARGET_NR_fcntl64:
+        switch(arg2) {
+        case F_GETLK64:
+        case F_SETLK64:
+        case F_SETLKW64:
+            goto unimplemented;
+        default:
+            ret = get_errno(fcntl(arg1, arg2, arg3));
+            break;
+        }
+        break;
+#endif
     case TARGET_NR_security:
         goto unimplemented;
     case TARGET_NR_gettid:
