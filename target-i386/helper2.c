@@ -320,7 +320,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr,
             if (is_write && !(pde & PG_RW_MASK))
                 goto do_fault_protect;
         } else {
-            if ((env->cr[0] & CR0_WP_MASK) && (pde & PG_USER_MASK) &&
+            if ((env->cr[0] & CR0_WP_MASK) && 
                 is_write && !(pde & PG_RW_MASK)) 
                 goto do_fault_protect;
         }
@@ -358,7 +358,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr,
             if (is_write && !(ptep & PG_RW_MASK))
                 goto do_fault_protect;
         } else {
-            if ((env->cr[0] & CR0_WP_MASK) && (ptep & PG_USER_MASK) &&
+            if ((env->cr[0] & CR0_WP_MASK) &&
                 is_write && !(ptep & PG_RW_MASK)) 
                 goto do_fault_protect;
         }
@@ -382,7 +382,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr,
             if (ptep & PG_RW_MASK)
                 prot |= PROT_WRITE;
         } else {
-            if (!(env->cr[0] & CR0_WP_MASK) || !(ptep & PG_USER_MASK) ||
+            if (!(env->cr[0] & CR0_WP_MASK) ||
                 (ptep & PG_RW_MASK))
                 prot |= PROT_WRITE;
         }
