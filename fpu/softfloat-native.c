@@ -120,9 +120,38 @@ float32 float32_round_to_int( float32 a STATUS_PARAM)
     return rintf(a);
 }
 
+float32 float32_rem( float32 a, float32 b STATUS_PARAM)
+{
+    return remainderf(a, b);
+}
+
 float32 float32_sqrt( float32 a STATUS_PARAM)
 {
     return sqrtf(a);
+}
+char float32_compare( float32 a, float32 b STATUS_PARAM )
+{
+    if (a < b) {
+        return -1;
+    } else if (a == b) {
+        return 0;
+    } else if (a > b) {
+        return 1;
+    } else {
+        return 2;
+    }
+}
+char float32_compare_quiet( float32 a, float32 b STATUS_PARAM )
+{
+    if (isless(a, b)) {
+        return -1;
+    } else if (a == b) {
+        return 0;
+    } else if (isgreater(a, b)) {
+        return 1;
+    } else {
+        return 2;
+    }
 }
 char float32_is_signaling_nan( float32 a1)
 {
@@ -195,9 +224,38 @@ float64 float64_round_to_int( float64 a STATUS_PARAM )
 #endif
 }
 
+float64 float64_rem( float64 a, float64 b STATUS_PARAM)
+{
+    return remainder(a, b);
+}
+
 float64 float64_sqrt( float64 a STATUS_PARAM)
 {
     return sqrt(a);
+}
+char float64_compare( float64 a, float64 b STATUS_PARAM )
+{
+    if (a < b) {
+        return -1;
+    } else if (a == b) {
+        return 0;
+    } else if (a > b) {
+        return 1;
+    } else {
+        return 2;
+    }
+}
+char float64_compare_quiet( float64 a, float64 b STATUS_PARAM )
+{
+    if (isless(a, b)) {
+        return -1;
+    } else if (a == b) {
+        return 0;
+    } else if (isgreater(a, b)) {
+        return 1;
+    } else {
+        return 2;
+    }
 }
 char float64_is_signaling_nan( float64 a1)
 {
@@ -248,9 +306,37 @@ floatx80 floatx80_round_to_int( floatx80 a STATUS_PARAM)
 {
     return rintl(a);
 }
+floatx80 floatx80_rem( floatx80 a, floatx80 b STATUS_PARAM)
+{
+    return remainderl(a, b);
+}
 floatx80 floatx80_sqrt( floatx80 a STATUS_PARAM)
 {
     return sqrtl(a);
+}
+char floatx80_compare( floatx80 a, floatx80 b STATUS_PARAM )
+{
+    if (a < b) {
+        return -1;
+    } else if (a == b) {
+        return 0;
+    } else if (a > b) {
+        return 1;
+    } else {
+        return 2;
+    }
+}
+char floatx80_compare_quiet( floatx80 a, floatx80 b STATUS_PARAM )
+{
+    if (isless(a, b)) {
+        return -1;
+    } else if (a == b) {
+        return 0;
+    } else if (isgreater(a, b)) {
+        return 1;
+    } else {
+        return 2;
+    }
 }
 char floatx80_is_signaling_nan( floatx80 a1)
 {
