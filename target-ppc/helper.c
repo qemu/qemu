@@ -32,10 +32,6 @@ extern FILE *logfile, *stderr;
 void exit (int);
 void abort (void);
 
-int phys_ram_size;
-int phys_ram_fd;
-uint8_t *phys_ram_base;
-
 void cpu_loop_exit(void)
 {
     longjmp(env->jmp_env, 1);
@@ -487,7 +483,7 @@ void tlb_fill(unsigned long addr, int is_write, int flags, void *retaddr)
             if (tb) {
                 /* the PC is inside the translated code. It means that we have
                    a virtual CPU fault */
-                cpu_restore_state(tb, env, pc);
+                cpu_restore_state(tb, env, pc, NULL);
             }
         }
         do_queue_exception_err(env->exception_index, env->error_code);
