@@ -240,7 +240,7 @@ tcp_newtcpcb(so)
  * the specified error.  If connection is synchronized,
  * then send a RST to peer.
  */
-struct tcpcb *tcp_drop(struct tcpcb *tp, int errno) 
+struct tcpcb *tcp_drop(struct tcpcb *tp, int err) 
 {
 /* tcp_drop(tp, errno)
 	register struct tcpcb *tp;

@@ -295,7 +295,7 @@ int tcp_attach _P((struct socket *));
 u_int8_t tcp_tos _P((struct socket *));
 int tcp_emu _P((struct socket *, struct mbuf *));
 int tcp_ctl _P((struct socket *));
-struct tcpcb *tcp_drop(struct tcpcb *tp, int errno);
+struct tcpcb *tcp_drop(struct tcpcb *tp, int err);
 
 #ifdef USE_PPP
 #define MIN_MRU MINMRU
