@@ -1120,6 +1120,12 @@ static void ide_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
             }
             ide_set_irq(s);
             break;
+        case WIN_VERIFY:
+        case WIN_VERIFY_ONCE:
+            /* do sector number check ? */
+            s->status = READY_STAT;
+            ide_set_irq(s);
+            break;
         case WIN_READ:
         case WIN_READ_ONCE:
             s->req_nb_sectors = 1;
