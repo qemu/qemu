@@ -396,8 +396,18 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
 
     register_ioport_write(0xf0, 1, 1, ioportF0_write, NULL);
 
-    vga_initialize(ds, phys_ram_base + ram_size, ram_size, 
-                   vga_ram_size, pci_enabled);
+    if (cirrus_vga_enabled) {
+        if (pci_enabled) {
+            pci_cirrus_vga_init(ds, phys_ram_base + ram_size, ram_size, 
+                                vga_ram_size);
+        } else {
+            isa_cirrus_vga_init(ds, phys_ram_base + ram_size, ram_size, 
+                                vga_ram_size);
+        }
+    } else {
+        vga_initialize(ds, phys_ram_base + ram_size, ram_size, 
+                       vga_ram_size, pci_enabled);
+    }
 
     rtc_state = rtc_init(0x70, 8);
     register_ioport_read(0x61, 1, 1, speaker_ioport_read, NULL);

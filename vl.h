@@ -171,6 +171,7 @@ extern int audio_enabled;
 extern int ram_size;
 extern int bios_size;
 extern int rtc_utc;
+extern int cirrus_vga_enabled;
 
 /* XXX: make it dynamic */
 #if defined (TARGET_PPC)

@@ -130,6 +130,7 @@ int audio_enabled = 0;
 int pci_enabled = 0;
 int prep_enabled = 0;
 int rtc_utc = 1;
+int cirrus_vga_enabled = 0;
 
 /***********************************************************/
 /* x86 ISA bus support */
@@ -2053,6 +2054,7 @@ enum {
     QEMU_OPTION_pci,
     QEMU_OPTION_prep,
     QEMU_OPTION_localtime,
+    QEMU_OPTION_cirrusvga,
 };
 
 typedef struct QEMUOption {
@@ -2097,13 +2099,14 @@ const QEMUOption qemu_options[] = {
     { "hdachs", HAS_ARG, QEMU_OPTION_hdachs },
     { "L", HAS_ARG, QEMU_OPTION_L },
     { "no-code-copy", 0, QEMU_OPTION_no_code_copy },
-
-    /* temporary options */
-    { "pci", 0, QEMU_OPTION_pci },
 #ifdef TARGET_PPC
     { "prep", 0, QEMU_OPTION_prep },
 #endif
     { "localtime", 0, QEMU_OPTION_localtime },
+
+    /* temporary options */
+    { "pci", 0, QEMU_OPTION_pci },
+    { "cirrusvga", 0, QEMU_OPTION_cirrusvga },
     { NULL },
 };
 
@@ -2382,6 +2385,9 @@ int main(int argc, char **argv)
                 break;
             case QEMU_OPTION_localtime:
                 rtc_utc = 0;
+                break;
+            case QEMU_OPTION_cirrusvga:
+                cirrus_vga_enabled = 1;
                 break;
             }
         }
