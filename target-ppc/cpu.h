@@ -74,6 +74,10 @@ enum {
 
 #define PPC_COMMON  (PPC_INTEGER | PPC_FLOAT | PPC_FLOW | PPC_MEM |           \
                      PPC_RES | PPC_CACHE | PPC_MISC | PPC_SEGMENT)
+/* PPC 604 */
+#define PPC_604 (PPC_INTEGER | PPC_FLOAT | PPC_FLOW | PPC_MEM |               \
+                 PPC_RES | PPC_CACHE | PPC_MISC | PPC_EXTERN | PPC_SEGMENT    \
+                 PPC_MEM_OPT)
 /* PPC 740/745/750/755 (aka G3) has external access instructions */
 #define PPC_750 (PPC_INTEGER | PPC_FLOAT | PPC_FLOW | PPC_MEM |               \
                  PPC_RES | PPC_CACHE | PPC_MISC | PPC_EXTERN | PPC_SEGMENT)
@@ -202,6 +206,8 @@ void _store_xer (CPUPPCState *env, uint32_t value);
 uint32_t _load_msr (CPUPPCState *env);
 void _store_msr (CPUPPCState *env, uint32_t value);
 
+int cpu_ppc_register (CPUPPCState *env, uint32_t pvr);
+
 /* Time-base and decrementer management */
 #ifndef NO_CPU_IO_DEFS
 uint32_t cpu_ppc_load_tbl (CPUPPCState *env);
@@ -235,7 +241,10 @@ void cpu_ppc_store_decr (CPUPPCState *env, uint32_t value);
 #define xer_ca env->xer[1]
 #define xer_bc env->xer[0]
 
+#define MQ     SPR_ENCODE(0)
 #define XER    SPR_ENCODE(1)
+#define RTCUR  SPR_ENCODE(4)
+#define RTCLR  SPR_ENCODE(5)
 #define LR     SPR_ENCODE(8)
 #define CTR    SPR_ENCODE(9)
 /* VEA mode SPR */
@@ -244,6 +253,8 @@ void cpu_ppc_store_decr (CPUPPCState *env, uint32_t value);
 /* supervisor mode SPR */
 #define DSISR  SPR_ENCODE(18)
 #define DAR    SPR_ENCODE(19)
+#define RTCUW  SPR_ENCODE(20)
+#define RTCLW  SPR_ENCODE(21)
 #define DECR   SPR_ENCODE(22)
 #define SDR1   SPR_ENCODE(25)
 #define SRR0   SPR_ENCODE(26)
@@ -293,13 +304,49 @@ void cpu_ppc_store_decr (CPUPPCState *env, uint32_t value);
 #define DBAT6L SPR_ENCODE(573)
 #define DBAT7U SPR_ENCODE(574)
 #define DBAT7L SPR_ENCODE(575)
+#define UMMCR0 SPR_ENCODE(936)
+#define UPMC1  SPR_ENCODE(937)
+#define UPMC2  SPR_ENCODE(938)
+#define USIA   SPR_ENCODE(939)
+#define UMMCR1 SPR_ENCODE(940)
+#define UPMC3  SPR_ENCODE(941)
+#define UPMC4  SPR_ENCODE(942)
+#define MMCR0  SPR_ENCODE(952)
+#define PMC1   SPR_ENCODE(953)
+#define PMC2   SPR_ENCODE(954)
+#define SIA    SPR_ENCODE(955)
+#define MMCR1  SPR_ENCODE(956)
+#define PMC3   SPR_ENCODE(957)
+#define PMC4   SPR_ENCODE(958)
+#define SDA    SPR_ENCODE(959)
+#define DMISS  SPR_ENCODE(976)
+#define DCMP   SPR_ENCODE(977)
+#define DHASH1 SPR_ENCODE(978)
+#define DHASH2 SPR_ENCODE(979)
+#define IMISS  SPR_ENCODE(980)
+#define ICMP   SPR_ENCODE(981)
+#define RPA    SPR_ENCODE(982)
+#define TCR    SPR_ENCODE(984)
+#define IBR    SPR_ENCODE(986)
+#define ESASRR SPR_ENCODE(987)
+#define SEBR   SPR_ENCODE(990)
+#define SER    SPR_ENCODE(991)
+#define HID0   SPR_ENCODE(1008)
+#define HID1   SPR_ENCODE(1009)
+#define IABR   SPR_ENCODE(1010)
+#define HID2   SPR_ENCODE(1011)
 #define DABR   SPR_ENCODE(1013)
+#define L2PM   SPR_ENCODE(1016)
+#define L2CR   SPR_ENCODE(1017)
+#define ICTC   SPR_ENCODE(1019)
+#define THRM1  SPR_ENCODE(1020)
+#define THRM2  SPR_ENCODE(1021)
+#define THRM3  SPR_ENCODE(1022)
+#define SP     SPR_ENCODE(1021)
+#define LP     SPR_ENCODE(1022)
 #define DABR_MASK 0xFFFFFFF8
 #define FPECR  SPR_ENCODE(1022)
 #define PIR    SPR_ENCODE(1023)
-
-#define TARGET_PAGE_BITS 12
-#include "cpu-all.h"
 
 /* Memory access type :
  * may be needed for precise access rights control and precise exceptions.
