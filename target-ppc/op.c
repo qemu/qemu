@@ -473,121 +473,94 @@ PPC_OP(setcrfbit)
 }
 
 /* Branch */
-#if 0
 #define EIP regs->nip
-#define TB_DO_JUMP(name, tb, n, target) JUMP_TB(name, tb, n, target)
-#else
-#define TB_DO_JUMP(name, tb, n, target) regs->nip = target;
-#endif
 
-#define __PPC_OP_B(name, target)                                              \
-PPC_OP(name)                                                                  \
-{                                                                             \
-    TB_DO_JUMP(glue(op_, name), T1, 0, (target));                             \
-    RETURN();                                                                 \
-}
-
-#define __PPC_OP_BL(name, target, link)                                       \
-PPC_OP(name)                                                                  \
-{                                                                             \
-    regs->lr = (link);                                                        \
-    TB_DO_JUMP(glue(op_, name), T1, 0, (target));                             \
-    RETURN();                                                                 \
-}
-
-#define PPC_OP_B(name, target, link)                                          \
-__PPC_OP_B(name, target);                                                     \
-__PPC_OP_BL(glue(name, l), target, link)
-
-#define __PPC_OP_BC(name, cond, target)                                       \
-PPC_OP(name)                                                                  \
-{                                                                             \
-    if (cond) {                                                               \
-        TB_DO_JUMP(glue(op_, name), T1, 1, (target));                         \
-    } else {                                                                  \
-        TB_DO_JUMP(glue(op_, name), T1, 0, PARAM(1));                         \
-    }                                                                         \
-    RETURN();                                                                 \
-}
-
-#define __PPC_OP_BCL(name, cond, target)                                      \
-PPC_OP(name)                                                                  \
-{                                                                             \
-    regs->lr = PARAM(1);                                                      \
-    if (cond) {                                                               \
-        TB_DO_JUMP(glue(op_, name), T1, 1, (target));                         \
-    } else {                                                                  \
-        TB_DO_JUMP(glue(op_, name), T1, 0, PARAM(1));                         \
-    }                                                                         \
-    RETURN();                                                                 \
-}
-
-#define __PPC_OP_BCLRL(name, cond, target)                                    \
-PPC_OP(name)                                                                  \
-{                                                                             \
-    T2 = (target);                                                            \
-    regs->lr = PARAM(1);                                                      \
-    if (cond) {                                                               \
-        TB_DO_JUMP(glue(op_, name), T1, 1, T2);                               \
-    } else {                                                                  \
-        TB_DO_JUMP(glue(op_, name), T1, 0, PARAM(1));                         \
-    }                                                                         \
-    RETURN();                                                                 \
-}
-
-#define _PPC_OP_BC(name, namel, cond, target)                                 \
-__PPC_OP_BC(name, cond, target);                                              \
-__PPC_OP_BCL(namel, cond, target)
-
-/* Branch to target */
-#define PPC_OP_BC(name, cond)                                                 \
-_PPC_OP_BC(b_##name, bl_##name, cond, PARAM(2))
-
-PPC_OP_B(b, PARAM(1), PARAM(2));
-PPC_OP_BC(ctr,        (regs->ctr != 0));
-PPC_OP_BC(ctr_true,   (regs->ctr != 0 && (T0 & PARAM(3)) != 0));
-PPC_OP_BC(ctr_false,  (regs->ctr != 0 && (T0 & PARAM(3)) == 0));
-PPC_OP_BC(ctrz,       (regs->ctr == 0));
-PPC_OP_BC(ctrz_true,  (regs->ctr == 0 && (T0 & PARAM(3)) != 0));
-PPC_OP_BC(ctrz_false, (regs->ctr == 0 && (T0 & PARAM(3)) == 0));
-PPC_OP_BC(true,       ((T0 & PARAM(3)) != 0));
-PPC_OP_BC(false,      ((T0 & PARAM(3)) == 0));
-
-/* Branch to CTR */
-#define PPC_OP_BCCTR(name, cond)                                              \
-_PPC_OP_BC(bctr_##name, bctrl_##name, cond, regs->ctr & ~0x03)
-
-PPC_OP_B(bctr, regs->ctr & ~0x03, PARAM(1));
-PPC_OP_BCCTR(ctr,        (regs->ctr != 0));
-PPC_OP_BCCTR(ctr_true,   (regs->ctr != 0 && (T0 & PARAM(2)) != 0));
-PPC_OP_BCCTR(ctr_false,  (regs->ctr != 0 && (T0 & PARAM(2)) == 0));
-PPC_OP_BCCTR(ctrz,       (regs->ctr == 0));
-PPC_OP_BCCTR(ctrz_true,  (regs->ctr == 0 && (T0 & PARAM(2)) != 0));
-PPC_OP_BCCTR(ctrz_false, (regs->ctr == 0 && (T0 & PARAM(2)) == 0));
-PPC_OP_BCCTR(true,       ((T0 & PARAM(2)) != 0));
-PPC_OP_BCCTR(false,      ((T0 & PARAM(2)) == 0));
-
-/* Branch to LR */
-#define PPC_OP_BCLR(name, cond)                                               \
-__PPC_OP_BC(blr_##name, cond, regs->lr & ~0x03);                              \
-__PPC_OP_BCLRL(blrl_##name, cond, regs->lr & ~0x03)
-
-__PPC_OP_B(blr, regs->lr & ~0x03);
-PPC_OP(blrl)
+PPC_OP(setlr)
 {
-    T0 = regs->lr & ~0x03;
-    regs->lr = PARAM(1);
-    TB_DO_JUMP(op_blrl, T1, 0, T0);
+    regs->lr = PARAM1;
+}
+
+PPC_OP(b)
+{
+    JUMP_TB(b1, PARAM1, 0, PARAM2);
+}
+
+PPC_OP(b_T1)
+{
+    regs->nip = T1;
+}
+
+PPC_OP(btest) 
+{
+    if (T0) {
+        JUMP_TB(btest, PARAM1, 0, PARAM2);
+    } else {
+        JUMP_TB(btest, PARAM1, 1, PARAM3);
+    }
     RETURN();
 }
-PPC_OP_BCLR(ctr,        (regs->ctr != 0));
-PPC_OP_BCLR(ctr_true,   (regs->ctr != 0 && (T0 & PARAM(2)) != 0));
-PPC_OP_BCLR(ctr_false,  (regs->ctr != 0 && (T0 & PARAM(2)) == 0));
-PPC_OP_BCLR(ctrz,       (regs->ctr == 0));
-PPC_OP_BCLR(ctrz_true,  (regs->ctr == 0 && (T0 & PARAM(2)) != 0));
-PPC_OP_BCLR(ctrz_false, (regs->ctr == 0 && (T0 & PARAM(2)) == 0));
-PPC_OP_BCLR(true,       ((T0 & PARAM(2)) != 0));
-PPC_OP_BCLR(false,      ((T0 & PARAM(2)) == 0));
+
+PPC_OP(btest_T1) 
+{
+    if (T0) {
+        regs->nip = T1 & ~3;
+    } else {
+        regs->nip = PARAM1;
+    }
+    RETURN();
+}
+
+PPC_OP(movl_T1_ctr)
+{
+    T1 = regs->ctr;
+}
+
+PPC_OP(movl_T1_lr)
+{
+    T1 = regs->lr;
+}
+
+/* tests with result in T0 */
+
+PPC_OP(test_ctr)
+{
+    T0 = (regs->ctr != 0);
+}
+
+PPC_OP(test_ctr_true)
+{
+    T0 = (regs->ctr != 0 && (T0 & PARAM(1)) != 0);
+}
+
+PPC_OP(test_ctr_false)
+{
+    T0 = (regs->ctr != 0 && (T0 & PARAM(1)) == 0);
+}
+
+PPC_OP(test_ctrz)
+{
+    T0 = (regs->ctr == 0);
+}
+
+PPC_OP(test_ctrz_true)
+{
+    T0 = (regs->ctr == 0 && (T0 & PARAM(1)) != 0);
+}
+
+PPC_OP(test_ctrz_false)
+{
+    T0 = (regs->ctr == 0 && (T0 & PARAM(1)) == 0);
+}
+
+PPC_OP(test_true)
+{
+    T0 = ((T0 & PARAM(1)) != 0);
+}
+
+PPC_OP(test_false)
+{
+    T0 = ((T0 & PARAM(1)) == 0);
+}
 
 /* CTR maintenance */
 PPC_OP(dec_ctr)

@@ -1501,118 +1501,6 @@ GEN_HANDLER(stfiwx, 0x1F, 0x17, 0x1E, 0x00000001, PPC_FLOAT)
 }
 
 /***                                Branch                                 ***/
-#define GEN_BCOND(name, opc1, opc2, opc3, prologue,                           \
-   bl_ctr,       b_ctr,       bl_ctrz,       b_ctrz,       b,        bl,      \
-   bl_ctr_true,  b_ctr_true,  bl_ctrz_true,  b_ctrz_true,  bl_true,  b_true,  \
-   bl_ctr_false, b_ctr_false, bl_ctrz_false, b_ctrz_false, bl_false, b_false) \
-GEN_HANDLER(name, opc1, opc2, opc3, 0x00000000, PPC_FLOW)                     \
-{                                                                             \
-    __attribute__ ((unused)) uint32_t target;                                 \
-    uint32_t bo = BO(ctx->opcode);                                            \
-    uint32_t bi = BI(ctx->opcode);                                            \
-    uint32_t mask;                                                            \
-    gen_op_update_tb(ctx->tb_offset);                                         \
-    gen_op_update_decr(ctx->decr_offset);                                     \
-    gen_op_process_exceptions((uint32_t)ctx->nip - 4);                        \
-    prologue;                                                                 \
-/*    gen_op_set_T1((uint32_t)ctx->tb);*/                                     \
-    if ((bo & 0x4) == 0)                                                      \
-        gen_op_dec_ctr();                                                     \
-    if (bo & 0x10) {                                                          \
-        /* No CR condition */                                                 \
-        switch (bo & 0x6) {                                                   \
-        case 0:                                                               \
-            if (LK(ctx->opcode)) {                                            \
-                bl_ctr;                                                       \
-            } else {                                                          \
-                b_ctr;                                                        \
-            }                                                                 \
-            break;                                                            \
-        case 2:                                                               \
-            if (LK(ctx->opcode)) {                                            \
-                bl_ctrz;                                                      \
-            } else {                                                          \
-                b_ctrz;                                                       \
-            }                                                                 \
-            break;                                                            \
-        case 4:                                                               \
-        case 6:                                                               \
-            if (LK(ctx->opcode)) {                                            \
-                bl;                                                           \
-            } else {                                                          \
-            b;                                                                \
-            }                                                                 \
-            break;                                                            \
-        default:                                                              \
-            printf("ERROR: %s: unhandled ba case (%d)\n", __func__, bo);      \
-            RET_INVAL();                                                      \
-            break;                                                            \
-        }                                                                     \
-    } else {                                                                  \
-        mask = 1 << (3 - (bi & 0x03));                                        \
-        gen_op_load_crf_T0(bi >> 2);                                          \
-        if (bo & 0x8) {                                                       \
-            switch (bo & 0x6) {                                               \
-            case 0:                                                           \
-                if (LK(ctx->opcode)) {                                        \
-                    bl_ctr_true;                                              \
-                } else {                                                      \
-                    b_ctr_true;                                               \
-                }                                                             \
-                break;                                                        \
-            case 2:                                                           \
-                if (LK(ctx->opcode)) {                                        \
-                    bl_ctrz_true;                                             \
-                } else {                                                      \
-                    b_ctrz_true;                                              \
-                }                                                             \
-                break;                                                        \
-            case 4:                                                           \
-            case 6:                                                           \
-                if (LK(ctx->opcode)) {                                        \
-                    bl_true;                                                  \
-                } else {                                                      \
-                    b_true;                                                   \
-                }                                                             \
-                break;                                                        \
-            default:                                                          \
-                printf("ERROR: %s: unhandled b case (%d)\n", __func__, bo);   \
-                RET_INVAL();                                                  \
-                break;                                                        \
-            }                                                                 \
-        } else {                                                              \
-            switch (bo & 0x6) {                                               \
-            case 0:                                                           \
-                if (LK(ctx->opcode)) {                                        \
-                    bl_ctr_false;                                             \
-                } else {                                                      \
-                    b_ctr_false;                                              \
-                }                                                             \
-                break;                                                        \
-            case 2:                                                           \
-                if (LK(ctx->opcode)) {                                        \
-                    bl_ctrz_false;                                            \
-                } else {                                                      \
-                    b_ctrz_false;                                             \
-                }                                                             \
-                break;                                                        \
-            case 4:                                                           \
-            case 6:                                                           \
-                if (LK(ctx->opcode)) {                                        \
-                    bl_false;                                                 \
-                } else {                                                      \
-                    b_false;                                                  \
-                }                                                             \
-                break;                                                        \
-            default:                                                          \
-                printf("ERROR: %s: unhandled bn case (%d)\n", __func__, bo);  \
-                RET_INVAL();                                                  \
-                break;                                                        \
-            }                                                                 \
-        }                                                                     \
-    }                                                                         \
-    ctx->exception = EXCP_BRANCH;                                             \
-}
 
 /* b ba bl bla */
 GEN_HANDLER(b, 0x12, 0xFF, 0xFF, 0x00000000, PPC_FLOW)
@@ -1626,85 +1514,127 @@ GEN_HANDLER(b, 0x12, 0xFF, 0xFF, 0x00000000, PPC_FLOW)
         target = (uint32_t)ctx->nip + li - 4;
     else
         target = li;
-//    gen_op_set_T1((uint32_t)ctx->tb);
     if (LK(ctx->opcode)) {
-        gen_op_bl(target, (uint32_t)ctx->nip);
-    } else {
-    gen_op_b(target);
+        gen_op_setlr((uint32_t)ctx->nip);
     }
+    gen_op_b((long)ctx->tb, target);
     ctx->exception = EXCP_BRANCH;
 }
 
-/* bc bca bcl bcla */
-GEN_BCOND(bc, 0x10, 0xFF, 0xFF,
-          do {
-              uint32_t li = s_ext16(BD(ctx->opcode));
-              if (AA(ctx->opcode) == 0) {
-                  target = (uint32_t)ctx->nip + li - 4;
-              } else {
-                  target = li;
-              }
-          } while (0),
-          gen_op_bl_ctr((uint32_t)ctx->nip, target),
-          gen_op_b_ctr((uint32_t)ctx->nip, target),
-          gen_op_bl_ctrz((uint32_t)ctx->nip, target),
-          gen_op_b_ctrz((uint32_t)ctx->nip, target),
-          gen_op_b(target),
-          gen_op_bl(target, (uint32_t)ctx->nip),
-          gen_op_bl_ctr_true((uint32_t)ctx->nip, target, mask),
-          gen_op_b_ctr_true((uint32_t)ctx->nip, target, mask),
-          gen_op_bl_ctrz_true((uint32_t)ctx->nip, target, mask),
-          gen_op_b_ctrz_true((uint32_t)ctx->nip, target, mask),
-          gen_op_bl_true((uint32_t)ctx->nip, target, mask),
-          gen_op_b_true((uint32_t)ctx->nip, target, mask),
-          gen_op_bl_ctr_false((uint32_t)ctx->nip, target, mask),
-          gen_op_b_ctr_false((uint32_t)ctx->nip, target, mask),
-          gen_op_bl_ctrz_false((uint32_t)ctx->nip, target, mask),
-          gen_op_b_ctrz_false((uint32_t)ctx->nip, target, mask),
-          gen_op_bl_false((uint32_t)ctx->nip, target, mask),
-          gen_op_b_false((uint32_t)ctx->nip, target, mask));
+#define BCOND_IM  0
+#define BCOND_LR  1
+#define BCOND_CTR 2
 
-/* bcctr bcctrl */
-GEN_BCOND(bcctr, 0x13, 0x10, 0x10, do { } while (0),
-          gen_op_bctrl_ctr((uint32_t)ctx->nip),
-          gen_op_bctr_ctr((uint32_t)ctx->nip),
-          gen_op_bctrl_ctrz((uint32_t)ctx->nip),
-          gen_op_bctr_ctrz((uint32_t)ctx->nip),
-          gen_op_bctr(),
-          gen_op_bctrl((uint32_t)ctx->nip),
-          gen_op_bctrl_ctr_true((uint32_t)ctx->nip, mask),
-          gen_op_bctr_ctr_true((uint32_t)ctx->nip, mask),
-          gen_op_bctrl_ctrz_true((uint32_t)ctx->nip, mask),
-          gen_op_bctr_ctrz_true((uint32_t)ctx->nip, mask),
-          gen_op_bctrl_true((uint32_t)ctx->nip, mask),
-          gen_op_bctr_true((uint32_t)ctx->nip, mask),
-          gen_op_bctrl_ctr_false((uint32_t)ctx->nip, mask),
-          gen_op_bctr_ctr_false((uint32_t)ctx->nip, mask),
-          gen_op_bctrl_ctrz_false((uint32_t)ctx->nip, mask),
-          gen_op_bctr_ctrz_false((uint32_t)ctx->nip, mask),
-          gen_op_bctrl_false((uint32_t)ctx->nip, mask),
-          gen_op_bctr_false((uint32_t)ctx->nip, mask))
+static inline void gen_bcond(DisasContext *ctx, int type) 
+{                                                                             
+    uint32_t target = 0;
+    uint32_t bo = BO(ctx->opcode);                                            
+    uint32_t bi = BI(ctx->opcode);                                            
+    uint32_t mask;                                                            
+    uint32_t li;
 
-/* bclr bclrl */
-GEN_BCOND(bclr, 0x13, 0x10, 0x00, do { } while (0),
-          gen_op_blrl_ctr((uint32_t)ctx->nip),
-          gen_op_blr_ctr((uint32_t)ctx->nip),
-          gen_op_blrl_ctrz((uint32_t)ctx->nip),
-          gen_op_blr_ctrz((uint32_t)ctx->nip),
-          gen_op_blr(),
-          gen_op_blrl((uint32_t)ctx->nip),
-          gen_op_blrl_ctr_true((uint32_t)ctx->nip, mask),
-          gen_op_blr_ctr_true((uint32_t)ctx->nip, mask),
-          gen_op_blrl_ctrz_true((uint32_t)ctx->nip, mask),
-          gen_op_blr_ctrz_true((uint32_t)ctx->nip, mask),
-          gen_op_blrl_true((uint32_t)ctx->nip, mask),
-          gen_op_blr_true((uint32_t)ctx->nip, mask),
-          gen_op_blrl_ctr_false((uint32_t)ctx->nip, mask),
-          gen_op_blr_ctr_false((uint32_t)ctx->nip, mask),
-          gen_op_blrl_ctrz_false((uint32_t)ctx->nip, mask),
-          gen_op_blr_ctrz_false((uint32_t)ctx->nip, mask),
-          gen_op_blrl_false((uint32_t)ctx->nip, mask),
-          gen_op_blr_false((uint32_t)ctx->nip, mask))
+    gen_op_update_tb(ctx->tb_offset);                                         
+    gen_op_update_decr(ctx->decr_offset);                                     
+    gen_op_process_exceptions((uint32_t)ctx->nip - 4);                        
+
+    if ((bo & 0x4) == 0)
+        gen_op_dec_ctr();                                                     
+    switch(type) {
+    case BCOND_IM:
+        li = s_ext16(BD(ctx->opcode));
+        if (AA(ctx->opcode) == 0) {
+            target = (uint32_t)ctx->nip + li - 4;
+        } else {
+            target = li;
+        }
+        break;
+    case BCOND_CTR:
+        gen_op_movl_T1_ctr();
+        break;
+    default:
+    case BCOND_LR:
+        gen_op_movl_T1_lr();
+        break;
+    }
+    if (LK(ctx->opcode)) {                                        
+        gen_op_setlr((uint32_t)ctx->nip);
+    }
+    if (bo & 0x10) {
+        /* No CR condition */                                                 
+        switch (bo & 0x6) {                                                   
+        case 0:                                                               
+            gen_op_test_ctr();
+            break;
+        case 2:                                                               
+            gen_op_test_ctrz();
+            break;                                                            
+        default:
+        case 4:                                                               
+        case 6:                                                               
+            if (type == BCOND_IM) {
+                gen_op_b((long)ctx->tb, target);
+            } else {
+                gen_op_b_T1();
+                break;
+            }
+            goto no_test;
+        }
+    } else {                                                                  
+        mask = 1 << (3 - (bi & 0x03));                                        
+        gen_op_load_crf_T0(bi >> 2);                                          
+        if (bo & 0x8) {                                                       
+            switch (bo & 0x6) {                                               
+            case 0:                                                           
+                gen_op_test_ctr_true(mask);
+                break;                                                        
+            case 2:                                                           
+                gen_op_test_ctrz_true(mask);
+                break;                                                        
+            default:                                                          
+            case 4:                                                           
+            case 6:                                                           
+                gen_op_test_true(mask);
+                break;                                                        
+            }                                                                 
+        } else {                                                              
+            switch (bo & 0x6) {                                               
+            case 0:                                                           
+                gen_op_test_ctr_false(mask);
+                break;                                                        
+            case 2:                                                           
+                gen_op_test_ctrz_false(mask);
+                break;                                                        
+            default:
+            case 4:                                                           
+            case 6:                                                           
+                gen_op_test_false(mask);
+                break;                                                        
+            }                                                                 
+        }                                                                     
+    }                                                                         
+    if (type == BCOND_IM) {
+        gen_op_btest((long)ctx->tb, target, (uint32_t)ctx->nip);
+    } else {
+        gen_op_btest_T1((uint32_t)ctx->nip);
+    }
+ no_test:
+    ctx->exception = EXCP_BRANCH;                                             
+}
+
+GEN_HANDLER(bc, 0x10, 0xFF, 0xFF, 0x00000000, PPC_FLOW)
+{                                                                             
+    gen_bcond(ctx, BCOND_IM);
+}
+
+GEN_HANDLER(bcctr, 0x13, 0x10, 0x10, 0x00000000, PPC_FLOW)
+{                                                                             
+    gen_bcond(ctx, BCOND_CTR);
+}
+
+GEN_HANDLER(bclr, 0x13, 0x10, 0x00, 0x00000000, PPC_FLOW)
+{                                                                             
+    gen_bcond(ctx, BCOND_LR);
+}
 
 /***                      Condition register logical                       ***/
 #define GEN_CRLOGIC(op, opc)                                                  \
@@ -3148,7 +3078,7 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
         if (gen_opc_ptr >= gen_opc_end ||
             ((uint32_t)ctx.nip - pc_start) >= (TARGET_PAGE_SIZE - 32)) {
             if (ctx.exception == EXCP_NONE) {
-        gen_op_b((uint32_t)ctx.nip);
+        gen_op_b((long)ctx.tb, (uint32_t)ctx.nip);
                 ctx.exception = EXCP_BRANCH;
     }
     }
