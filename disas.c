@@ -1,12 +1,12 @@
 /* General "disassemble this chunk" code.  Used for debugging. */
 #include "config.h"
 #include "dis-asm.h"
-#include "disas.h"
 #include "elf.h"
 #include <errno.h>
 
 #include "cpu.h"
 #include "exec-all.h"
+#include "disas.h"
 
 /* Filled in by elfload.c.  Simplistic, but will do for now. */
 unsigned int disas_num_syms;
@@ -219,3 +219,71 @@ const char *lookup_symbol(void *orig_addr)
     }
     return "";
 }
+
+#if !defined(CONFIG_USER_ONLY)
+
+static int monitor_disas_is_physical;
+
+static int
+monitor_read_memory (memaddr, myaddr, length, info)
+     bfd_vma memaddr;
+     bfd_byte *myaddr;
+     int length;
+     struct disassemble_info *info;
+{
+    if (monitor_disas_is_physical) {
+        cpu_physical_memory_rw(memaddr, myaddr, length, 0);
+    } else {
+        cpu_memory_rw_debug(cpu_single_env, memaddr,myaddr, length, 0);
+    }
+    return 0;
+}
+
+void monitor_disas(target_ulong pc, int nb_insn, int is_physical, int flags)
+{
+    FILE *out;
+    int count, i;
+    struct disassemble_info disasm_info;
+    int (*print_insn)(bfd_vma pc, disassemble_info *info);
+
+    out = stdout;
+
+    INIT_DISASSEMBLE_INFO(disasm_info, out, fprintf);
+
+    monitor_disas_is_physical = is_physical;
+    disasm_info.read_memory_func = monitor_read_memory;
+
+    disasm_info.buffer_vma = pc;
+
+#ifdef TARGET_WORDS_BIGENDIAN
+    disasm_info.endian = BFD_ENDIAN_BIG;
+#else
+    disasm_info.endian = BFD_ENDIAN_LITTLE;
+#endif
+#if defined(TARGET_I386)
+    if (!flags)
+        disasm_info.mach = bfd_mach_i386_i386;
+    else
+        disasm_info.mach = bfd_mach_i386_i8086;
+    print_insn = print_insn_i386;
+#elif defined(TARGET_ARM)
+    print_insn = print_insn_arm;
+#elif defined(TARGET_SPARC)
+    print_insn = print_insn_sparc;
+#elif defined(TARGET_PPC)
+    print_insn = print_insn_ppc;
+#else
+    fprintf(out, "Asm output not supported on this arch\n");
+    return;
+#endif
+
+    for(i = 0; i < nb_insn; i++) {
+	fprintf(out, "0x%08lx:  ", (unsigned long)pc);
+	count = print_insn(pc, &disasm_info);
+	fprintf(out, "\n");
+	if (count < 0)
+	    break;
+        pc += count;
+    }
+}
+#endif
