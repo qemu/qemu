@@ -1055,7 +1055,7 @@ typedef union {
 
 #else
 
-typedef {
+typedef union {
     double d;
 #ifndef WORDS_BIGENDIAN
     struct {
@@ -1119,6 +1119,31 @@ void OPPROTO op_fldl_ST0_A0(void)
     ST0 = ldfq((void *)A0);
 }
 
+#ifdef USE_X86LDOUBLE
+void OPPROTO op_fldt_ST0_A0(void)
+{
+    ST0 = *(long double *)A0;
+}
+#else
+void helper_fldt_ST0_A0(void)
+{
+    CPU86_LDoubleU temp;
+    int upper, e;
+    /* mantissa */
+    upper = lduw((uint8_t *)A0 + 8);
+    /* XXX: handle overflow ? */
+    e = (upper & 0x7fff) - 16383 + EXPBIAS; /* exponent */
+    e |= (upper >> 4) & 0x800; /* sign */
+    temp.ll = ((ldq((void *)A0) >> 11) & ((1LL << 52) - 1)) | ((uint64_t)e << 52);
+    ST0 = temp.d;
+}
+
+void OPPROTO op_fldt_ST0_A0(void)
+{
+    helper_fldt_ST0_A0();
+}
+#endif
+
 void OPPROTO op_fild_ST0_A0(void)
 {
     ST0 = (CPU86_LDouble)ldsw((void *)A0);
@@ -1143,8 +1168,33 @@ void OPPROTO op_fsts_ST0_A0(void)
 
 void OPPROTO op_fstl_ST0_A0(void)
 {
-    ST0 = ldfq((void *)A0);
+    stfq((void *)A0, (double)ST0);
 }
+
+#ifdef USE_X86LDOUBLE
+void OPPROTO op_fstt_ST0_A0(void)
+{
+    *(long double *)A0 = ST0;
+}
+#else
+void helper_fstt_ST0_A0(void)
+{
+    CPU86_LDoubleU temp;
+    int e;
+    temp.d = ST0;
+    /* mantissa */
+    stq((void *)A0, (MANTD(temp) << 11) | (1LL << 63));
+    /* exponent + sign */
+    e = EXPD(temp) - EXPBIAS + 16383;
+    e |= SIGND(temp) >> 16;
+    stw((uint8_t *)A0 + 8, e);
+}
+
+void OPPROTO op_fstt_ST0_A0(void)
+{
+    helper_fstt_ST0_A0();
+}
+#endif
 
 void OPPROTO op_fist_ST0_A0(void)
 {
@@ -1165,6 +1215,103 @@ void OPPROTO op_fistll_ST0_A0(void)
     int64_t val;
     val = llrint(ST0);
     stq((void *)A0, val);
+}
+
+/* BCD ops */
+
+#define MUL10(iv) ( iv + iv + (iv << 3) )
+
+void helper_fbld_ST0_A0(void)
+{
+    uint8_t *seg;
+    CPU86_LDouble fpsrcop;
+    int m32i;
+    unsigned int v;
+
+    /* in this code, seg/m32i will be used as temporary ptr/int */
+    seg = (uint8_t *)A0 + 8;
+    v = ldub(seg--);
+    /* XXX: raise exception */
+    if (v != 0)
+        return;
+    v = ldub(seg--);
+    /* XXX: raise exception */
+    if ((v & 0xf0) != 0)
+        return;
+    m32i = v;  /* <-- d14 */
+    v = ldub(seg--);
+    m32i = MUL10(m32i) + (v >> 4);  /* <-- val * 10 + d13 */
+    m32i = MUL10(m32i) + (v & 0xf); /* <-- val * 10 + d12 */
+    v = ldub(seg--);
+    m32i = MUL10(m32i) + (v >> 4);  /* <-- val * 10 + d11 */
+    m32i = MUL10(m32i) + (v & 0xf); /* <-- val * 10 + d10 */
+    v = ldub(seg--);
+    m32i = MUL10(m32i) + (v >> 4);  /* <-- val * 10 + d9 */
+    m32i = MUL10(m32i) + (v & 0xf); /* <-- val * 10 + d8 */
+    fpsrcop = ((CPU86_LDouble)m32i) * 100000000.0;
+
+    v = ldub(seg--);
+    m32i = (v >> 4);  /* <-- d7 */
+    m32i = MUL10(m32i) + (v & 0xf); /* <-- val * 10 + d6 */
+    v = ldub(seg--);
+    m32i = MUL10(m32i) + (v >> 4);  /* <-- val * 10 + d5 */
+    m32i = MUL10(m32i) + (v & 0xf); /* <-- val * 10 + d4 */
+    v = ldub(seg--);
+    m32i = MUL10(m32i) + (v >> 4);  /* <-- val * 10 + d3 */
+    m32i = MUL10(m32i) + (v & 0xf); /* <-- val * 10 + d2 */
+    v = ldub(seg);
+    m32i = MUL10(m32i) + (v >> 4);  /* <-- val * 10 + d1 */
+    m32i = MUL10(m32i) + (v & 0xf); /* <-- val * 10 + d0 */
+    fpsrcop += ((CPU86_LDouble)m32i);
+    if ( ldub(seg+9) & 0x80 )
+        fpsrcop = -fpsrcop;
+    ST0 = fpsrcop;
+}
+
+void OPPROTO op_fbld_ST0_A0(void)
+{
+    helper_fbld_ST0_A0();
+}
+
+void helper_fbst_ST0_A0(void)
+{
+    CPU86_LDouble fptemp;
+    CPU86_LDouble fpsrcop;
+    int v;
+    uint8_t *mem_ref, *mem_end;
+
+    fpsrcop = rint(ST0);
+    mem_ref = (uint8_t *)A0;
+    mem_end = mem_ref + 8;
+    if ( fpsrcop < 0.0 ) {
+        stw(mem_end, 0x8000);
+        fpsrcop = -fpsrcop;
+    } else {
+        stw(mem_end, 0x0000);
+    }
+    while (mem_ref < mem_end) {
+        if (fpsrcop == 0.0)
+            break;
+        fptemp = floor(fpsrcop/10.0);
+        v = ((int)(fpsrcop - fptemp*10.0));
+        if  (fptemp == 0.0)  { 
+            stb(mem_ref++, v); 
+            break; 
+        }
+        fpsrcop = fptemp;
+        fptemp = floor(fpsrcop/10.0);
+        v |= (((int)(fpsrcop - fptemp*10.0)) << 4);
+        stb(mem_ref++, v);
+        fpsrcop = fptemp;
+    }
+    while (mem_ref < mem_end) {
+        stb(mem_ref++, 0);
+    }
+}
+
+void OPPROTO op_fbst_ST0_A0(void)
+{
+    helper_fbst_ST0_A0();
 }
 
 /* FPU move */
@@ -1235,6 +1382,17 @@ void OPPROTO op_fxchg_ST0_STN(void)
 
 /* XXX: handle nans */
 void OPPROTO op_fcom_ST0_FT0(void)
+{
+    env->fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
+    if (ST0 < FT0)
+        env->fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
+    else if (ST0 == FT0)
+        env->fpus |= 0x4000; /* (C3,C2,C0) <-- 100 */
+    FORCE_RET();
+}
+
+/* XXX: handle nans */
+void OPPROTO op_fucom_ST0_FT0(void)
 {
     env->fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
     if (ST0 < FT0)
@@ -1321,7 +1479,7 @@ void OPPROTO op_fabs_ST0(void)
     ST0 = fabs(ST0);
 }
 
-void OPPROTO op_fxam_ST0(void)
+void helper_fxam_ST0(void)
 {
     CPU86_LDoubleU temp;
     int expdif;
@@ -1346,7 +1504,11 @@ void OPPROTO op_fxam_ST0(void)
     } else {
         env->fpus |= 0x400;
     }
-    FORCE_RET();
+}
+
+void OPPROTO op_fxam_ST0(void)
+{
+    helper_fxam_ST0();
 }
 
 void OPPROTO op_fld1_ST0(void)
@@ -1354,12 +1516,12 @@ void OPPROTO op_fld1_ST0(void)
     ST0 = *(CPU86_LDouble *)&f15rk[1];
 }
 
-void OPPROTO op_fld2t_ST0(void)
+void OPPROTO op_fldl2t_ST0(void)
 {
     ST0 = *(CPU86_LDouble *)&f15rk[6];
 }
 
-void OPPROTO op_fld2e_ST0(void)
+void OPPROTO op_fldl2e_ST0(void)
 {
     ST0 = *(CPU86_LDouble *)&f15rk[5];
 }
@@ -1681,6 +1843,13 @@ void OPPROTO op_fnstsw_A0(void)
     stw((void *)A0, fpus);
 }
 
+void OPPROTO op_fnstsw_EAX(void)
+{
+    int fpus;
+    fpus = (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
+    EAX = (EAX & 0xffff0000) | fpus;
+}
+
 void OPPROTO op_fnstcw_A0(void)
 {
     stw((void *)A0, env->fpuc);
@@ -1784,6 +1953,10 @@ int cpu_x86_exec(CPUX86State *env1)
                         eflags & CC_P ? 'P' : '-',
                         eflags & CC_C ? 'C' : '-'
                         );
+#if 1
+                fprintf(logfile, "ST0=%f ST1=%f ST2=%f ST3=%f\n", 
+                        (double)ST0, (double)ST1, (double)ST(2), (double)ST(3));
+#endif
             }
 #endif
             cpu_x86_gen_code(code_gen_buffer, &code_gen_size, (uint8_t *)env->pc);

@@ -114,7 +114,7 @@ enum {
 };
 
 #ifdef __i386__
-#define USE_X86LDOUBLE
+//#define USE_X86LDOUBLE
 #endif
 
 #ifdef USE_X86LDOUBLE
@@ -201,7 +201,7 @@ static inline void stl(void *ptr, int v)
     *(uint32_t *)ptr = v;
 }
 
-static inline void stq(void *ptr, int v)
+static inline void stq(void *ptr, uint64_t v)
 {
     *(uint64_t *)ptr = v;
 }

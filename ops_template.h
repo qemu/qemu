@@ -633,6 +633,42 @@ void OPPROTO glue(glue(op_btc, SUFFIX), _T0_T1_cc)(void)
     T0 ^= (1 << count);
 }
 
+void OPPROTO glue(glue(op_bsf, SUFFIX), _T0_cc)(void)
+{
+    int res, count;
+    res = T0 & DATA_MASK;
+    if (res != 0) {
+        count = 0;
+        while ((res & 1) == 0) {
+            count++;
+            res >>= 1;
+        }
+        T0 = count;
+        CC_DST = 1; /* ZF = 1 */
+    } else {
+        CC_DST = 0; /* ZF = 1 */
+    }
+    FORCE_RET();
+}
+
+void OPPROTO glue(glue(op_bsr, SUFFIX), _T0_cc)(void)
+{
+    int res, count;
+    res = T0 & DATA_MASK;
+    if (res != 0) {
+        count = DATA_BITS - 1;
+        while ((res & SIGN_MASK) == 0) {
+            count--;
+            res <<= 1;
+        }
+        T0 = count;
+        CC_DST = 1; /* ZF = 1 */
+    } else {
+        CC_DST = 0; /* ZF = 1 */
+    }
+    FORCE_RET();
+}
+
 #endif
 
 /* string operations */

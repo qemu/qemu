@@ -431,6 +431,17 @@ static GenOpFunc *gen_op_btx_T0_T1_cc[2][4] = {
     },
 };
 
+static GenOpFunc *gen_op_bsx_T0_cc[2][2] = {
+    [0] = {
+        gen_op_bsfw_T0_cc,
+        gen_op_bsrw_T0_cc,
+    },
+    [1] = {
+        gen_op_bsfl_T0_cc,
+        gen_op_bsrl_T0_cc,
+    },
+};
+
 static GenOpFunc *gen_op_lds_T0_A0[3] = {
     gen_op_ldsb_T0_A0,
     gen_op_ldsw_T0_A0,
@@ -652,15 +663,16 @@ static GenOpFunc *gen_op_fp_arith_ST0_FT0[8] = {
     gen_op_fdivr_ST0_FT0,
 };
 
+/* NOTE the exception in "r" op ordering */
 static GenOpFunc1 *gen_op_fp_arith_STN_ST0[8] = {
     gen_op_fadd_STN_ST0,
     gen_op_fmul_STN_ST0,
     NULL,
     NULL,
-    gen_op_fsub_STN_ST0,
     gen_op_fsubr_STN_ST0,
-    gen_op_fdiv_STN_ST0,
+    gen_op_fsub_STN_ST0,
     gen_op_fdivr_STN_ST0,
+    gen_op_fdiv_STN_ST0,
 };
 
 static void gen_op(DisasContext *s1, int op, int ot, int d, int s)
@@ -1866,13 +1878,25 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
             case 0x0f: /* fnstcw mem */
                 gen_op_fnstcw_A0();
                 break;
+            case 0x1d: /* fldt mem */
+                gen_op_fpush();
+                gen_op_fldt_ST0_A0();
+                break;
+            case 0x1f: /* fstpt mem */
+                gen_op_fstt_ST0_A0();
+                gen_op_fpop();
+                break;
             case 0x2f: /* fnstsw mem */
                 gen_op_fnstsw_A0();
                 break;
             case 0x3c: /* fbld */
+                gen_op_fpush();
+                op_fbld_ST0_A0();
+                break;
             case 0x3e: /* fbstp */
-                error("float BCD not hanlded");
-                return -1;
+                gen_op_fbst_ST0_A0();
+                gen_op_fpop();
+                break;
             case 0x3d: /* fildll */
                 gen_op_fpush();
                 gen_op_fildll_ST0_A0();
@@ -1882,7 +1906,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
                 gen_op_fpop();
                 break;
             default:
-                error("unhandled memory FP [op=0x%02x]\n", op);
+                error("unhandled FPm [op=0x%02x]\n", op);
                 return -1;
             }
         } else {
@@ -1895,7 +1919,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
                 gen_op_fmov_ST0_STN((opreg + 1) & 7);
                 break;
             case 0x09: /* fxchg sti */
-                gen_op_fxchg_ST0_STN((opreg + 1) & 7);
+                gen_op_fxchg_ST0_STN(opreg);
                 break;
             case 0x0a: /* grp d9/2 */
                 switch(rm) {
@@ -1929,24 +1953,31 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
                 {
                     switch(rm) {
                     case 0:
+                        gen_op_fpush();
                         gen_op_fld1_ST0();
                         break;
                     case 1:
-                        gen_op_fld2t_ST0();
+                        gen_op_fpush();
+                        gen_op_fldl2t_ST0();
                         break;
                     case 2:
-                        gen_op_fld2e_ST0();
+                        gen_op_fpush();
+                        gen_op_fldl2e_ST0();
                         break;
                     case 3:
+                        gen_op_fpush();
                         gen_op_fldpi_ST0();
                         break;
                     case 4:
+                        gen_op_fpush();
                         gen_op_fldlg2_ST0();
                         break;
                     case 5:
+                        gen_op_fpush();
                         gen_op_fldln2_ST0();
                         break;
                     case 6:
+                        gen_op_fpush();
                         gen_op_fldz_ST0();
                         break;
                     default:
@@ -2021,12 +2052,12 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
                     op1 = op & 7;
                     if (op >= 0x20) {
                         gen_op_fp_arith_STN_ST0[op1](opreg);
+                        if (op >= 0x30)
+                            gen_op_fpop();
                     } else {
                         gen_op_fmov_FT0_STN(opreg);
                         gen_op_fp_arith_ST0_FT0[op1]();
                     }
-                    if (op >= 0x30)
-                        gen_op_fpop();
                 }
                 break;
             case 0x02: /* fcom */
@@ -2042,7 +2073,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
                 switch(rm) {
                 case 1: /* fucompp */
                     gen_op_fmov_FT0_STN(1);
-                    gen_op_fcom_ST0_FT0();
+                    gen_op_fucom_ST0_FT0();
                     gen_op_fpop();
                     gen_op_fpop();
                     break;
@@ -2055,6 +2086,15 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
                 break;
             case 0x2b: /* fstp sti */
                 gen_op_fmov_STN_ST0(opreg);
+                gen_op_fpop();
+                break;
+            case 0x2c: /* fucom st(i) */
+                gen_op_fmov_FT0_STN(opreg);
+                gen_op_fucom_ST0_FT0();
+                break;
+            case 0x2d: /* fucomp st(i) */
+                gen_op_fmov_FT0_STN(opreg);
+                gen_op_fucom_ST0_FT0();
                 gen_op_fpop();
                 break;
             case 0x33: /* de/3 */
@@ -2071,18 +2111,16 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
                 break;
             case 0x3c: /* df/4 */
                 switch(rm) {
-#if 0
                 case 0:
-                    gen_insn3(OP_FNSTS, OR_EAX, OR_ZERO, OR_ZERO);
+                    gen_op_fnstsw_EAX();
                     break;
-#endif
                 default:
-                    error("unhandled FP df/4\n");
+                    error("unhandled FP %x df/4\n", rm);
                     return -1;
                 }
                 break;
             default:
-                error("unhandled FP\n");
+                error("unhandled FPr [op=0x%x]\n", op);
                 return -1;
             }
         }
@@ -2413,7 +2451,18 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
                 gen_op_mov_reg_T0[ot][rm]();
         }
         break;
-
+    case 0x1bc: /* bsf */
+    case 0x1bd: /* bsr */
+        ot = dflag ? OT_LONG : OT_WORD;
+        modrm = ldub(s->pc++);
+        reg = (modrm >> 3) & 7;
+        gen_ldst_modrm(s, modrm, ot, OR_TMP0, 0);
+        gen_op_bsx_T0_cc[ot - OT_WORD][b & 1]();
+        /* NOTE: we always write back the result. Intel doc says it is
+           undefined if T0 == 0 */
+        gen_op_mov_reg_T0[ot][reg]();
+        s->cc_op = CC_OP_LOGICB + ot;
+        break;
         /************************/
         /* misc */
     case 0x90: /* nop */

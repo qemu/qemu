@@ -3,4 +3,4 @@
 - threads
 - fix printf for doubles (fp87.c bug ?)
 - make it self runnable (use same trick as ld.so : include its own relocator and libc)
-- better FPU comparisons (ucom/com)
+- fix FPU exceptions (in particular: gen_op_fpush not before mem load)
