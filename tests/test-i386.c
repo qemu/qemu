@@ -35,6 +35,7 @@
 #define TEST_VM86
 //#define LINUX_VM86_IOPL_FIX
 //#define TEST_P4_FLAGS
+//#define TEST_SSE
 
 #define xglue(x, y) x ## y
 #define glue(x, y) xglue(x, y)
@@ -647,8 +648,8 @@ void test_fbcd(double a)
     memset((env), 0xaa, sizeof(*(env)));\
     for(i=0;i<5;i++)\
         asm volatile ("fldl %0" : : "m" (dtab[i]));\
-    asm(save " %0\n" : : "m" (*(env)));\
-    asm(restore " %0\n": : "m" (*(env)));\
+    asm volatile (save " %0\n" : : "m" (*(env)));\
+    asm volatile (restore " %0\n": : "m" (*(env)));\
     for(i=0;i<5;i++)\
         asm volatile ("fstpl %0" : "=m" (rtab[i]));\
     for(i=0;i<5;i++)\
@@ -1674,6 +1675,433 @@ static void test_enter(void)
     TEST_ENTER("w", uint16_t, 31);
 }
 
+#ifdef TEST_SSE
+
+typedef int __m64 __attribute__ ((__mode__ (__V2SI__)));
+typedef int __m128 __attribute__ ((__mode__(__V4SF__)));
+
+typedef union {
+    double d[2];
+    float s[4];
+    uint32_t l[4];
+    uint64_t q[2];
+    __m128 dq;
+} XMMReg;
+
+static uint64_t __attribute__((aligned(16))) test_values[4][2] = {
+    { 0x456723c698694873, 0xdc515cff944a58ec },
+    { 0x1f297ccd58bad7ab, 0x41f21efba9e3e146 },
+    { 0x007c62c2085427f8, 0x231be9e8cde7438d },
+    { 0x0f76255a085427f8, 0xc233e9e8c4c9439a },
+};
+
+#define SSE_OP(op)\
+{\
+    asm volatile (#op " %2, %0" : "=x" (r.dq) : "0" (a.dq), "x" (b.dq));\
+    printf("%-9s: a=%016llx%016llx b=%016llx%016llx r=%016llx%016llx\n",\
+           #op,\
+           a.q[1], a.q[0],\
+           b.q[1], b.q[0],\
+           r.q[1], r.q[0]);\
+}
+
+#define SSE_OP2(op)\
+{\
+    int i;\
+    for(i=0;i<2;i++) {\
+    a.q[0] = test_values[2*i][0];\
+    a.q[1] = test_values[2*i][1];\
+    b.q[0] = test_values[2*i+1][0];\
+    b.q[1] = test_values[2*i+1][1];\
+    SSE_OP(op);\
+    }\
+}
+
+#define MMX_OP2(op)\
+{\
+    int i;\
+    for(i=0;i<2;i++) {\
+    a.q[0] = test_values[2*i][0];\
+    b.q[0] = test_values[2*i+1][0];\
+    asm volatile (#op " %2, %0" : "=y" (r.q[0]) : "0" (a.q[0]), "y" (b.q[0]));\
+    printf("%-9s: a=%016llx b=%016llx r=%016llx\n",\
+           #op,\
+           a.q[0],\
+           b.q[0],\
+           r.q[0]);\
+    }\
+    SSE_OP2(op);\
+}
+
+#define PSHUF_OP(op, ib)\
+{\
+    int i;\
+    for(i=0;i<2;i++) {\
+    a.q[0] = test_values[2*i][0];\
+    a.q[1] = test_values[2*i][1];\
+    asm volatile (#op " $" #ib ", %1, %0" : "=x" (r.dq) : "x" (a.dq));\
+    printf("%-9s: a=%016llx%016llx ib=%02x r=%016llx%016llx\n",\
+           #op,\
+           a.q[1], a.q[0],\
+           ib,\
+           r.q[1], r.q[0]);\
+    }\
+}
+
+#define SHIFT_IM(op, ib)\
+{\
+    int i;\
+    for(i=0;i<2;i++) {\
+    a.q[0] = test_values[2*i][0];\
+    a.q[1] = test_values[2*i][1];\
+    asm volatile (#op " $" #ib ", %0" : "=x" (r.dq) : "0" (a.dq));\
+    printf("%-9s: a=%016llx%016llx ib=%02x r=%016llx%016llx\n",\
+           #op,\
+           a.q[1], a.q[0],\
+           ib,\
+           r.q[1], r.q[0]);\
+    }\
+}
+
+#define SHIFT_OP(op, ib)\
+{\
+    int i;\
+    SHIFT_IM(op, ib);\
+    for(i=0;i<2;i++) {\
+    a.q[0] = test_values[2*i][0];\
+    a.q[1] = test_values[2*i][1];\
+    b.q[0] = ib;\
+    b.q[1] = 0;\
+    asm volatile (#op " %2, %0" : "=x" (r.dq) : "0" (a.dq), "x" (b.dq));\
+    printf("%-9s: a=%016llx%016llx b=%016llx%016llx r=%016llx%016llx\n",\
+           #op,\
+           a.q[1], a.q[0],\
+           b.q[1], b.q[0],\
+           r.q[1], r.q[0]);\
+    }\
+}
+
+#define MOVMSK(op)\
+{\
+    int i, reg;\
+    for(i=0;i<2;i++) {\
+    a.q[0] = test_values[2*i][0];\
+    a.q[1] = test_values[2*i][1];\
+    asm volatile (#op " %1, %0" : "=r" (reg) : "x" (a.dq));\
+    printf("%-9s: a=%016llx%016llx r=%08x\n",\
+           #op,\
+           a.q[1], a.q[0],\
+           reg);\
+    }\
+}
+
+#define SSE_OPS(a) \
+SSE_OP(a ## ps);\
+SSE_OP(a ## ss);
+
+#define SSE_OPD(a) \
+SSE_OP(a ## pd);\
+SSE_OP(a ## sd);
+
+#define SSE_COMI(op, field)\
+{\
+    unsigned int eflags;\
+    XMMReg a, b;\
+    a.field[0] = a1;\
+    b.field[0] = b1;\
+    asm volatile (#op " %2, %1\n"\
+        "pushf\n"\
+        "pop %0\n"\
+        : "=m" (eflags)\
+        : "x" (a.dq), "x" (b.dq));\
+    printf("%-9s: a=%f b=%f cc=%04x\n",\
+           #op, a1, b1,\
+           eflags & (CC_C | CC_P | CC_Z | CC_S | CC_O | CC_A));\
+}
+
+void test_sse_comi(double a1, double b1)
+{
+    SSE_COMI(ucomiss, s);
+    SSE_COMI(ucomisd, d);
+    SSE_COMI(comiss, s);
+    SSE_COMI(comisd, d);
+}
+
+#define CVT_OP_XMM(op)\
+{\
+    asm volatile (#op " %1, %0" : "=x" (r.dq) : "x" (a.dq));\
+    printf("%-9s: a=%016llx%016llx r=%016llx%016llx\n",\
+           #op,\
+           a.q[1], a.q[0],\
+           r.q[1], r.q[0]);\
+}
+
+#define CVT_OP_XMM2MMX(op)\
+{\
+    asm volatile (#op " %1, %0" : "=y" (r.q[0]) : "x" (a.dq));\
+    printf("%-9s: a=%016llx%016llx r=%016llx\n",\
+           #op,\
+           a.q[1], a.q[0],\
+           r.q[0]);\
+}
+
+#define CVT_OP_MMX2XMM(op)\
+{\
+    asm volatile (#op " %1, %0" : "=x" (r.dq) : "y" (a.q[0]));\
+    printf("%-9s: a=%016llx r=%016llx%016llx\n",\
+           #op,\
+           a.q[0],\
+           r.q[1], r.q[0]);\
+}
+
+#define CVT_OP_REG2XMM(op)\
+{\
+    asm volatile (#op " %1, %0" : "=x" (r.dq) : "r" (a.l[0]));\
+    printf("%-9s: a=%08x r=%016llx%016llx\n",\
+           #op,\
+           a.l[0],\
+           r.q[1], r.q[0]);\
+}
+
+#define CVT_OP_XMM2REG(op)\
+{\
+    asm volatile (#op " %1, %0" : "=r" (r.l[0]) : "x" (a.dq));\
+    printf("%-9s: a=%016llx%016llx r=%08x\n",\
+           #op,\
+           a.q[1], a.q[0],\
+           r.l[0]);\
+}
+
+void test_sse(void)
+{
+    XMMReg r, a, b;
+
+    MMX_OP2(punpcklbw);
+    MMX_OP2(punpcklwd);
+    MMX_OP2(punpckldq);
+    MMX_OP2(packsswb);
+    MMX_OP2(pcmpgtb);
+    MMX_OP2(pcmpgtw);
+    MMX_OP2(pcmpgtd);
+    MMX_OP2(packuswb);
+    MMX_OP2(punpckhbw);
+    MMX_OP2(punpckhwd);
+    MMX_OP2(punpckhdq);
+    MMX_OP2(packssdw);
+    MMX_OP2(pcmpeqb);
+    MMX_OP2(pcmpeqw);
+    MMX_OP2(pcmpeqd);
+
+    MMX_OP2(paddq);
+    MMX_OP2(pmullw);
+    MMX_OP2(psubusb);
+    MMX_OP2(psubusw);
+    MMX_OP2(pminub);
+    MMX_OP2(pand);
+    MMX_OP2(paddusb);
+    MMX_OP2(paddusw);
+    MMX_OP2(pmaxub);
+    MMX_OP2(pandn);
+
+    MMX_OP2(pmulhuw);
+    MMX_OP2(pmulhw);
+    
+    MMX_OP2(psubsb);
+    MMX_OP2(psubsw);
+    MMX_OP2(pminsw);
+    MMX_OP2(por);
+    MMX_OP2(paddsb);
+    MMX_OP2(paddsw);
+    MMX_OP2(pmaxsw);
+    MMX_OP2(pxor);
+    MMX_OP2(pmuludq);
+    MMX_OP2(pmaddwd);
+    MMX_OP2(psadbw);
+    MMX_OP2(psubb);
+    MMX_OP2(psubw);
+    MMX_OP2(psubd);
+    MMX_OP2(psubq);
+    MMX_OP2(paddb);
+    MMX_OP2(paddw);
+    MMX_OP2(paddd);
+
+    MMX_OP2(pavgb);
+    MMX_OP2(pavgw);
+
+    asm volatile ("pinsrw $1, %1, %0" : "=y" (r.q[0]) : "r" (0x12345678));
+    printf("%-9s: r=%016llx\n", "pinsrw", r.q[0]);
+
+    asm volatile ("pinsrw $5, %1, %0" : "=x" (r.dq) : "r" (0x12345678));
+    printf("%-9s: r=%016llx%016llx\n", "pinsrw", r.q[1], r.q[0]);
+
+    a.q[0] = test_values[0][0];
+    a.q[1] = test_values[0][1];
+    asm volatile ("pextrw $1, %1, %0" : "=r" (r.l[0]) : "y" (a.q[0]));
+    printf("%-9s: r=%08x\n", "pextrw", r.l[0]);
+
+    asm volatile ("pextrw $5, %1, %0" : "=r" (r.l[0]) : "x" (a.dq));
+    printf("%-9s: r=%08x\n", "pextrw", r.l[0]);
+
+    asm volatile ("pmovmskb %1, %0" : "=r" (r.l[0]) : "y" (a.q[0]));
+    printf("%-9s: r=%08x\n", "pmovmskb", r.l[0]);
+    
+    asm volatile ("pmovmskb %1, %0" : "=r" (r.l[0]) : "x" (a.dq));
+    printf("%-9s: r=%08x\n", "pmovmskb", r.l[0]);
+
+    asm volatile ("emms");
+
+    SSE_OP2(punpcklqdq);
+    SSE_OP2(punpckhqdq);
+    SSE_OP2(andps);
+    SSE_OP2(andpd);
+    SSE_OP2(andnps);
+    SSE_OP2(andnpd);
+    SSE_OP2(orps);
+    SSE_OP2(orpd);
+    SSE_OP2(xorps);
+    SSE_OP2(xorpd);
+
+    SSE_OP2(unpcklps);
+    SSE_OP2(unpcklpd);
+    SSE_OP2(unpckhps);
+    SSE_OP2(unpckhpd);
+
+    PSHUF_OP(shufps, 0x78);
+    PSHUF_OP(shufpd, 0x02);
+
+    PSHUF_OP(pshufd, 0x78);
+    PSHUF_OP(pshuflw, 0x78);
+    PSHUF_OP(pshufhw, 0x78);
+
+    SHIFT_OP(psrlw, 7);
+    SHIFT_OP(psrlw, 16);
+    SHIFT_OP(psraw, 7);
+    SHIFT_OP(psraw, 16);
+    SHIFT_OP(psllw, 7);
+    SHIFT_OP(psllw, 16);
+
+    SHIFT_OP(psrld, 7);
+    SHIFT_OP(psrld, 32);
+    SHIFT_OP(psrad, 7);
+    SHIFT_OP(psrad, 32);
+    SHIFT_OP(pslld, 7);
+    SHIFT_OP(pslld, 32);
+
+    SHIFT_OP(psrlq, 7);
+    SHIFT_OP(psrlq, 32);
+    SHIFT_OP(psllq, 7);
+    SHIFT_OP(psllq, 32);
+
+    SHIFT_IM(psrldq, 16);
+    SHIFT_IM(psrldq, 7);
+    SHIFT_IM(pslldq, 16);
+    SHIFT_IM(pslldq, 7);
+
+    MOVMSK(movmskps);
+    MOVMSK(movmskpd);
+
+    /* FPU specific ops */
+
+    {
+        uint32_t mxcsr;
+        asm volatile("stmxcsr %0" : "=m" (mxcsr));
+        printf("mxcsr=%08x\n", mxcsr & 0x1f80);
+        asm volatile("ldmxcsr %0" : : "m" (mxcsr));
+    }
+
+    test_sse_comi(2, -1);
+    test_sse_comi(2, 2);
+    test_sse_comi(2, 3);
+
+    a.s[0] = 2.7;
+    a.s[1] = 3.4;
+    a.s[2] = 4;
+    a.s[3] = -6.3;
+    b.s[0] = 45.7;
+    b.s[1] = 353.4;
+    b.s[2] = 4;
+    b.s[3] = 56.3;
+    SSE_OPS(add);
+    SSE_OPS(mul);
+    SSE_OPS(sub);
+    SSE_OPS(min);
+    SSE_OPS(div);
+    SSE_OPS(max);
+    SSE_OPS(sqrt);
+    SSE_OPS(cmpeq);
+    SSE_OPS(cmplt);
+    SSE_OPS(cmple);
+    SSE_OPS(cmpunord);
+    SSE_OPS(cmpneq);
+    SSE_OPS(cmpnlt);
+    SSE_OPS(cmpnle);
+    SSE_OPS(cmpord);
+
+    a.d[0] = 2.7;
+    a.d[1] = -3.4;
+    b.d[0] = 45.7;
+    b.d[1] = -53.4;
+    SSE_OPD(add);
+    SSE_OPD(mul);
+    SSE_OPD(sub);
+    SSE_OPD(min);
+    SSE_OPD(div);
+    SSE_OPD(max);
+    SSE_OPD(sqrt);
+    SSE_OPD(cmpeq);
+    SSE_OPD(cmplt);
+    SSE_OPD(cmple);
+    SSE_OPD(cmpunord);
+    SSE_OPD(cmpneq);
+    SSE_OPD(cmpnlt);
+    SSE_OPD(cmpnle);
+    SSE_OPD(cmpord);
+    
+    /* float to float/int */
+    a.s[0] = 2.7;
+    a.s[1] = 3.4;
+    a.s[2] = 4;
+    a.s[3] = -6.3;
+    CVT_OP_XMM(cvtps2pd);
+    CVT_OP_XMM(cvtss2sd);
+    CVT_OP_XMM2MMX(cvtps2pi);
+    CVT_OP_XMM2MMX(cvttps2pi);
+    CVT_OP_XMM2REG(cvtss2si);
+    CVT_OP_XMM2REG(cvttss2si);
+    CVT_OP_XMM(cvtps2dq);
+    CVT_OP_XMM(cvttps2dq);
+
+    a.d[0] = 2.6;
+    a.d[1] = -3.4;
+    CVT_OP_XMM(cvtpd2ps);
+    CVT_OP_XMM(cvtsd2ss);
+    CVT_OP_XMM2MMX(cvtpd2pi);
+    CVT_OP_XMM2MMX(cvttpd2pi);
+    CVT_OP_XMM2REG(cvtsd2si);
+    CVT_OP_XMM2REG(cvttsd2si);
+    CVT_OP_XMM(cvtpd2dq);
+    CVT_OP_XMM(cvttpd2dq);
+
+    /* int to float */
+    a.l[0] = -6;
+    a.l[1] = 2;
+    a.l[2] = 100;
+    a.l[3] = -60000;
+    CVT_OP_MMX2XMM(cvtpi2ps);
+    CVT_OP_MMX2XMM(cvtpi2pd);
+    CVT_OP_REG2XMM(cvtsi2ss);
+    CVT_OP_REG2XMM(cvtsi2sd);
+    CVT_OP_XMM(cvtdq2ps);
+    CVT_OP_XMM(cvtdq2pd);
+
+    /* XXX: test PNI insns */
+#if 0
+    SSE_OP2(movshdup);
+#endif
+}
+
+#endif
+
 static void *call_end __init_call = NULL;
 
 int main(int argc, char **argv)
@@ -1704,5 +2132,8 @@ int main(int argc, char **argv)
     test_self_modifying_code();
     test_single_step();
     test_enter();
+#ifdef TEST_SSE
+    test_sse();
+#endif
     return 0;
 }
