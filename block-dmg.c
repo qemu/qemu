@@ -109,10 +109,12 @@ dmg_close:
     /* read offsets */
     last_in_offset = last_out_offset = 0;
     while(lseek(s->fd,0,SEEK_CUR)<info_end) {
+        uint32_t type;
+
 	count = read_uint32(s->fd);
 	if(count==0)
 	    goto dmg_close;
-	uint32_t type = read_uint32(s->fd);
+	type = read_uint32(s->fd);
 	if(type!=0x6d697368 || count<244)
 	    lseek(s->fd,count-4,SEEK_CUR);
 	else {
