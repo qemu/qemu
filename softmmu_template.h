@@ -162,6 +162,7 @@ static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(unsigned long addr,
 #else
             res = (res1 >> shift) | (res2 << ((DATA_SIZE * 8) - shift));
 #endif
+            res = (DATA_TYPE)res;
         } else {
             /* unaligned/aligned access in the same page */
             res = glue(glue(ld, USUFFIX), _raw)((uint8_t *)physaddr);
