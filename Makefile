@@ -10,7 +10,7 @@ endif
 LDFLAGS=-g
 LIBS=
 DEFINES+=-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
-TOOLS=qemu-img
+TOOLS=qemu-img$(EXESUF)
 ifdef CONFIG_STATIC
 LDFLAGS+=-static
 endif
@@ -21,7 +21,7 @@ all: dyngen$(EXESUF) $(TOOLS) $(DOCS)
 	$(MAKE) -C $$d $@ || exit 1 ; \
         done
 
-qemu-img: qemu-img.c block.c block-cow.c block-qcow.c aes.c block-vmdk.c block-cloop.c
+qemu-img$(EXESUF): qemu-img.c block.c block-cow.c block-qcow.c aes.c block-vmdk.c block-cloop.c
 	$(CC) -DQEMU_TOOL $(CFLAGS) $(LDFLAGS) $(DEFINES) -o $@ $^ -lz $(LIBS)
 
 dyngen$(EXESUF): dyngen.c
@@ -44,9 +44,7 @@ distclean: clean
 
 install: all 
 	mkdir -p "$(bindir)"
-ifndef CONFIG_WIN32
 	install -m 755 -s $(TOOLS) "$(bindir)"
-endif
 	mkdir -p "$(datadir)"
 	install -m 644 pc-bios/bios.bin pc-bios/vgabios.bin \
                        pc-bios/vgabios-cirrus.bin \
