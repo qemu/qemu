@@ -464,11 +464,9 @@ void do_store_dbat (int ul, int nr)
 
 /*****************************************************************************/
 /* Special helpers for debug */
-extern FILE *stdout;
-
 void dump_state (void)
 {
-    cpu_ppc_dump_state(env, stdout, 0);
+    //    cpu_ppc_dump_state(env, stdout, 0);
 }
 
 void dump_rfi (void)
