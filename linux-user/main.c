@@ -179,7 +179,7 @@ int main(int argc, char **argv)
     env->regs[R_EDI] = regs->edi;
     env->regs[R_EBP] = regs->ebp;
     env->regs[R_ESP] = regs->esp;
-    env->pc = regs->eip;
+    env->eip = regs->eip;
 
     /* linux segment setup */
     env->gdt.base = (void *)gdt_table;
@@ -198,12 +198,12 @@ int main(int argc, char **argv)
         uint8_t *pc;
         
         err = cpu_x86_exec(env);
+        pc = env->seg_cache[R_CS].base + env->eip;
         switch(err) {
         case EXCP0D_GPF:
-            pc = (uint8_t *)env->pc;
             if (pc[0] == 0xcd && pc[1] == 0x80) {
                 /* syscall */
-                env->pc += 2;
+                env->eip += 2;
                 env->regs[R_EAX] = do_syscall(env, 
                                               env->regs[R_EAX], 
                                               env->regs[R_EBX],
@@ -219,7 +219,7 @@ int main(int argc, char **argv)
         default:
         trap_error:
             fprintf(stderr, "0x%08lx: Unknown exception %d, aborting\n", 
-                    (long)env->pc, err);
+                    (long)pc, err);
             abort();
         }
     }

@@ -214,18 +214,18 @@ void OPPROTO glue(op_jb_sub, SUFFIX)(void)
     src2 = CC_SRC - CC_DST;
 
     if ((DATA_TYPE)src1 < (DATA_TYPE)src2)
-        PC = PARAM1;
+        EIP = PARAM1;
     else
-        PC = PARAM2;
+        EIP = PARAM2;
     FORCE_RET();
 }
 
 void OPPROTO glue(op_jz_sub, SUFFIX)(void)
 {
     if ((DATA_TYPE)CC_DST == 0)
-        PC = PARAM1;
+        EIP = PARAM1;
     else
-        PC = PARAM2;
+        EIP = PARAM2;
     FORCE_RET();
 }
 
@@ -236,18 +236,18 @@ void OPPROTO glue(op_jbe_sub, SUFFIX)(void)
     src2 = CC_SRC - CC_DST;
 
     if ((DATA_TYPE)src1 <= (DATA_TYPE)src2)
-        PC = PARAM1;
+        EIP = PARAM1;
     else
-        PC = PARAM2;
+        EIP = PARAM2;
     FORCE_RET();
 }
 
 void OPPROTO glue(op_js_sub, SUFFIX)(void)
 {
     if (CC_DST & SIGN_MASK)
-        PC = PARAM1;
+        EIP = PARAM1;
     else
-        PC = PARAM2;
+        EIP = PARAM2;
     FORCE_RET();
 }
 
@@ -258,9 +258,9 @@ void OPPROTO glue(op_jl_sub, SUFFIX)(void)
     src2 = CC_SRC - CC_DST;
 
     if ((DATA_STYPE)src1 < (DATA_STYPE)src2)
-        PC = PARAM1;
+        EIP = PARAM1;
     else
-        PC = PARAM2;
+        EIP = PARAM2;
     FORCE_RET();
 }
 
@@ -271,9 +271,9 @@ void OPPROTO glue(op_jle_sub, SUFFIX)(void)
     src2 = CC_SRC - CC_DST;
 
     if ((DATA_STYPE)src1 <= (DATA_STYPE)src2)
-        PC = PARAM1;
+        EIP = PARAM1;
     else
-        PC = PARAM2;
+        EIP = PARAM2;
     FORCE_RET();
 }
 
@@ -289,9 +289,9 @@ void OPPROTO glue(op_loopnz, SUFFIX)(void)
     tmp = (ECX - 1) & DATA_MASK;
     ECX = (ECX & ~DATA_MASK) | tmp;
     if (tmp != 0 && !(eflags & CC_Z))
-        PC = PARAM1;
+        EIP = PARAM1;
     else
-        PC = PARAM2;
+        EIP = PARAM2;
     FORCE_RET();
 }
 
@@ -303,9 +303,9 @@ void OPPROTO glue(op_loopz, SUFFIX)(void)
     tmp = (ECX - 1) & DATA_MASK;
     ECX = (ECX & ~DATA_MASK) | tmp;
     if (tmp != 0 && (eflags & CC_Z))
-        PC = PARAM1;
+        EIP = PARAM1;
     else
-        PC = PARAM2;
+        EIP = PARAM2;
     FORCE_RET();
 }
 
@@ -315,18 +315,18 @@ void OPPROTO glue(op_loop, SUFFIX)(void)
     tmp = (ECX - 1) & DATA_MASK;
     ECX = (ECX & ~DATA_MASK) | tmp;
     if (tmp != 0)
-        PC = PARAM1;
+        EIP = PARAM1;
     else
-        PC = PARAM2;
+        EIP = PARAM2;
     FORCE_RET();
 }
 
 void OPPROTO glue(op_jecxz, SUFFIX)(void)
 {
     if ((DATA_TYPE)ECX == 0)
-        PC = PARAM1;
+        EIP = PARAM1;
     else
-        PC = PARAM2;
+        EIP = PARAM2;
     FORCE_RET();
 }
 

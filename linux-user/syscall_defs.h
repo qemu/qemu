@@ -75,6 +75,22 @@ struct kernel_statfs {
 	int f_spare[6];
 };
 
+struct target_dirent {
+	target_long	d_ino;
+	target_long	d_off;
+	unsigned short	d_reclen;
+	char		d_name[256]; /* We must not include limits.h! */
+};
+
+struct target_dirent64 {
+	uint64_t	d_ino;
+	int64_t		d_off;
+	unsigned short	d_reclen;
+	unsigned char	d_type;
+	char		d_name[256];
+};
+
+
 /* mostly generic signal stuff */
 #define TARGET_SIG_DFL	((target_long)0)	/* default signal handling */
 #define TARGET_SIG_IGN	((target_long)1)	/* ignore signal */

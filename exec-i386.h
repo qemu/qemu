@@ -111,7 +111,7 @@ register struct CPUX86State *env asm("l3");
 #ifndef reg_EDI
 #define EDI (env->regs[R_EDI])
 #endif
-#define PC  (env->pc)
+#define EIP  (env->eip)
 #define DF  (env->df)
 
 #define CC_SRC (env->cc_src)

@@ -464,16 +464,41 @@ void OPPROTO op_idivl_EAX_T0(void)
     EDX = r;
 }
 
-/* constant load */
+/* constant load & misc op */
 
 void OPPROTO op_movl_T0_im(void)
 {
     T0 = PARAM1;
 }
 
+void OPPROTO op_addl_T0_im(void)
+{
+    T0 += PARAM1;
+}
+
+void OPPROTO op_andl_T0_ffff(void)
+{
+    T0 = T0 & 0xffff;
+}
+
+void OPPROTO op_movl_T0_T1(void)
+{
+    T0 = T1;
+}
+
 void OPPROTO op_movl_T1_im(void)
 {
     T1 = PARAM1;
+}
+
+void OPPROTO op_addl_T1_im(void)
+{
+    T1 += PARAM1;
+}
+
+void OPPROTO op_movl_T1_A0(void)
+{
+    T1 = A0;
 }
 
 void OPPROTO op_movl_A0_im(void)
@@ -574,23 +599,23 @@ void OPPROTO op_add_bitl_A0_T1(void)
 
 void OPPROTO op_jmp_T0(void)
 {
-    PC = T0;
+    EIP = T0;
 }
 
 void OPPROTO op_jmp_im(void)
 {
-    PC = PARAM1;
+    EIP = PARAM1;
 }
 
 void OPPROTO op_int_im(void)
 {
-    PC = PARAM1;
+    EIP = PARAM1;
     raise_exception(EXCP0D_GPF);
 }
 
 void OPPROTO op_int3(void)
 {
-    PC = PARAM1;
+    EIP = PARAM1;
     raise_exception(EXCP03_INT3);
 }
 
@@ -599,10 +624,10 @@ void OPPROTO op_into(void)
     int eflags;
     eflags = cc_table[CC_OP].compute_all();
     if (eflags & CC_O) {
-        PC = PARAM1;
+        EIP = PARAM1;
         raise_exception(EXCP04_INTO);
     } else {
-        PC = PARAM2;
+        EIP = PARAM2;
     }
 }
 
@@ -665,7 +690,6 @@ void OPPROTO op_movswl_DX_AX(void)
 }
 
 /* push/pop */
-/* XXX: add 16 bit operand/16 bit seg variants */
 
 void op_pushl_T0(void)
 {
@@ -676,19 +700,100 @@ void op_pushl_T0(void)
     ESP = offset;
 }
 
-void op_pushl_T1(void)
+void op_pushw_T0(void)
 {
     uint32_t offset;
-    offset = ESP - 4;
-    stl((void *)offset, T1);
+    offset = ESP - 2;
+    stw((void *)offset, T0);
     /* modify ESP after to handle exceptions correctly */
     ESP = offset;
 }
 
+void op_pushl_ss32_T0(void)
+{
+    uint32_t offset;
+    offset = ESP - 4;
+    stl(env->seg_cache[R_SS].base + offset, T0);
+    /* modify ESP after to handle exceptions correctly */
+    ESP = offset;
+}
+
+void op_pushw_ss32_T0(void)
+{
+    uint32_t offset;
+    offset = ESP - 2;
+    stw(env->seg_cache[R_SS].base + offset, T0);
+    /* modify ESP after to handle exceptions correctly */
+    ESP = offset;
+}
+
+void op_pushl_ss16_T0(void)
+{
+    uint32_t offset;
+    offset = (ESP - 4) & 0xffff;
+    stl(env->seg_cache[R_SS].base + offset, T0);
+    /* modify ESP after to handle exceptions correctly */
+    ESP = (ESP & ~0xffff) | offset;
+}
+
+void op_pushw_ss16_T0(void)
+{
+    uint32_t offset;
+    offset = (ESP - 2) & 0xffff;
+    stw(env->seg_cache[R_SS].base + offset, T0);
+    /* modify ESP after to handle exceptions correctly */
+    ESP = (ESP & ~0xffff) | offset;
+}
+
+/* NOTE: ESP update is done after */
 void op_popl_T0(void)
 {
     T0 = ldl((void *)ESP);
+}
+
+void op_popw_T0(void)
+{
+    T0 = lduw((void *)ESP);
+}
+
+void op_popl_ss32_T0(void)
+{
+    T0 = ldl(env->seg_cache[R_SS].base + ESP);
+}
+
+void op_popw_ss32_T0(void)
+{
+    T0 = lduw(env->seg_cache[R_SS].base + ESP);
+}
+
+void op_popl_ss16_T0(void)
+{
+    T0 = ldl(env->seg_cache[R_SS].base + (ESP & 0xffff));
+}
+
+void op_popw_ss16_T0(void)
+{
+    T0 = lduw(env->seg_cache[R_SS].base + (ESP & 0xffff));
+}
+
+void op_addl_ESP_4(void)
+{
     ESP += 4;
+}
+
+void op_addl_ESP_2(void)
+{
+    ESP += 2;
+}
+
+void op_addw_ESP_4(void)
+{
+    ESP = (ESP & ~0xffff) | ((ESP + 4) & 0xffff);
+}
+
+void op_addw_ESP_2(void)
+{
+    ESP = (ESP & ~0xffff) | ((ESP + 2) & 0xffff);
 }
 
 void op_addl_ESP_im(void)
@@ -696,87 +801,9 @@ void op_addl_ESP_im(void)
     ESP += PARAM1;
 }
 
-void op_pushal(void)
+void op_addw_ESP_im(void)
 {
-    uint8_t *sp;
-    sp = (void *)(ESP - 32);
-    stl(sp, EDI);
-    stl(sp + 4, ESI);
-    stl(sp + 8, EBP);
-    stl(sp + 12, ESP);
-    stl(sp + 16, EBX);
-    stl(sp + 20, EDX);
-    stl(sp + 24, ECX);
-    stl(sp + 28, EAX);
-    ESP = (unsigned long)sp;
-}
-
-void op_pushaw(void)
-{
-    uint8_t *sp;
-    sp = (void *)(ESP - 16);
-    stw(sp, EDI);
-    stw(sp + 2, ESI);
-    stw(sp + 4, EBP);
-    stw(sp + 6, ESP);
-    stw(sp + 8, EBX);
-    stw(sp + 10, EDX);
-    stw(sp + 12, ECX);
-    stw(sp + 14, EAX);
-    ESP = (unsigned long)sp;
-}
-
-void op_popal(void)
-{
-    uint8_t *sp;
-    sp = (void *)ESP;
-    EDI = ldl(sp);
-    ESI = ldl(sp + 4);
-    EBP = ldl(sp + 8);
-    EBX = ldl(sp + 16);
-    EDX = ldl(sp + 20);
-    ECX = ldl(sp + 24);
-    EAX = ldl(sp + 28);
-    ESP = (unsigned long)sp + 32;
-}
-
-void op_popaw(void)
-{
-    uint8_t *sp;
-    sp = (void *)ESP;
-    EDI = ldl(sp);
-    ESI = ldl(sp + 2);
-    EBP = ldl(sp + 4);
-    EBX = ldl(sp + 8);
-    EDX = ldl(sp + 10);
-    ECX = ldl(sp + 12);
-    EAX = ldl(sp + 14);
-    ESP = (unsigned long)sp + 16;
-}
-
-void op_enterl(void)
-{
-    unsigned int bp, frame_temp, level;
-    uint8_t *sp;
-
-    sp = (void *)ESP;
-    bp = EBP;
-    sp -= 4;
-    stl(sp, bp);
-    frame_temp = (unsigned int)sp;
-    level = PARAM2;
-    if (level) {
-        while (level--) {
-            bp -= 4; 
-            sp -= 4;
-            stl(sp, bp);
-        }
-        sp -= 4;
-        stl(sp, frame_temp);
-    }
-    EBP = frame_temp;
-    sp -= PARAM1;
-    ESP = (int)sp;
+    ESP = (ESP & ~0xffff) | ((ESP + PARAM1) & 0xffff);
 }
 
 /* rdtsc */
@@ -988,18 +1015,18 @@ void OPPROTO op_jo_cc(void)
     int eflags;
     eflags = cc_table[CC_OP].compute_all();
     if (eflags & CC_O)
-        PC = PARAM1;
+        EIP = PARAM1;
     else
-        PC = PARAM2;
+        EIP = PARAM2;
     FORCE_RET();
 }
 
 void OPPROTO op_jb_cc(void)
 {
     if (cc_table[CC_OP].compute_c())
-        PC = PARAM1;
+        EIP = PARAM1;
     else
-        PC = PARAM2;
+        EIP = PARAM2;
     FORCE_RET();
 }
 
@@ -1008,9 +1035,9 @@ void OPPROTO op_jz_cc(void)
     int eflags;
     eflags = cc_table[CC_OP].compute_all();
     if (eflags & CC_Z)
-        PC = PARAM1;
+        EIP = PARAM1;
     else
-        PC = PARAM2;
+        EIP = PARAM2;
     FORCE_RET();
 }
 
@@ -1019,9 +1046,9 @@ void OPPROTO op_jbe_cc(void)
     int eflags;
     eflags = cc_table[CC_OP].compute_all();
     if (eflags & (CC_Z | CC_C))
-        PC = PARAM1;
+        EIP = PARAM1;
     else
-        PC = PARAM2;
+        EIP = PARAM2;
     FORCE_RET();
 }
 
@@ -1030,9 +1057,9 @@ void OPPROTO op_js_cc(void)
     int eflags;
     eflags = cc_table[CC_OP].compute_all();
     if (eflags & CC_S)
-        PC = PARAM1;
+        EIP = PARAM1;
     else
-        PC = PARAM2;
+        EIP = PARAM2;
     FORCE_RET();
 }
 
@@ -1041,9 +1068,9 @@ void OPPROTO op_jp_cc(void)
     int eflags;
     eflags = cc_table[CC_OP].compute_all();
     if (eflags & CC_P)
-        PC = PARAM1;
+        EIP = PARAM1;
     else
-        PC = PARAM2;
+        EIP = PARAM2;
     FORCE_RET();
 }
 
@@ -1052,9 +1079,9 @@ void OPPROTO op_jl_cc(void)
     int eflags;
     eflags = cc_table[CC_OP].compute_all();
     if ((eflags ^ (eflags >> 4)) & 0x80)
-        PC = PARAM1;
+        EIP = PARAM1;
     else
-        PC = PARAM2;
+        EIP = PARAM2;
     FORCE_RET();
 }
 
@@ -1063,9 +1090,9 @@ void OPPROTO op_jle_cc(void)
     int eflags;
     eflags = cc_table[CC_OP].compute_all();
     if (((eflags ^ (eflags >> 4)) & 0x80) || (eflags & CC_Z))
-        PC = PARAM1;
+        EIP = PARAM1;
     else
-        PC = PARAM2;
+        EIP = PARAM2;
     FORCE_RET();
 }
 

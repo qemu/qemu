@@ -141,7 +141,7 @@ typedef struct SegmentDescriptorTable {
 typedef struct CPUX86State {
     /* standard registers */
     uint32_t regs[8];
-    uint32_t pc; /* cs_case + eip value */
+    uint32_t eip;
     uint32_t eflags;
 
     /* emulator internal eflags handling */
@@ -392,10 +392,12 @@ void cpu_x86_load_seg(CPUX86State *s, int seg_reg, int selector);
 
 #define GEN_FLAG_CODE32_SHIFT 0
 #define GEN_FLAG_ADDSEG_SHIFT 1
-#define GEN_FLAG_ST_SHIFT     2
+#define GEN_FLAG_SS32_SHIFT   2
+#define GEN_FLAG_ST_SHIFT     3
+
 int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size, 
-                     int *gen_code_size_ptr, uint8_t *pc_start, 
-                     int flags);
+                     int *gen_code_size_ptr,
+                     uint8_t *pc_start,  uint8_t *cs_base, int flags);
 void cpu_x86_tblocks_init(void);
 
 #endif /* CPU_I386_H */

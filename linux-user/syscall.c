@@ -53,6 +53,7 @@
 #include <linux/cdrom.h>
 #include <linux/hdreg.h>
 #include <linux/soundcard.h>
+#include <linux/dirent.h>
 
 #include "gemu.h"
 
@@ -62,13 +63,6 @@
 #define PAGE_SIZE 4096
 #define PAGE_MASK ~(PAGE_SIZE - 1)
 #endif
-
-struct dirent {
-        long            d_ino;
-        long            d_off;
-        unsigned short  d_reclen;
-        char            d_name[256]; /* We must not include limits.h! */
-};
 
 //#include <linux/msdos_fs.h>
 #define	VFAT_IOCTL_READDIR_BOTH		_IOR('r', 1, struct dirent [2])
@@ -86,6 +80,7 @@ struct dirent {
 #define __NR_sys_statfs __NR_statfs
 #define __NR_sys_fstatfs __NR_fstatfs
 #define __NR_sys_getdents __NR_getdents
+#define __NR_sys_getdents64 __NR_getdents64
 
 #ifdef __NR_gettid
 _syscall0(int, gettid)
@@ -97,6 +92,7 @@ static int gettid(void) {
 _syscall1(int,sys_uname,struct new_utsname *,buf)
 _syscall2(int,sys_getcwd1,char *,buf,size_t,size)
 _syscall3(int, sys_getdents, uint, fd, struct dirent *, dirp, uint, count);
+_syscall3(int, sys_getdents64, uint, fd, struct dirent64 *, dirp, uint, count);
 _syscall5(int, _llseek,  uint,  fd, ulong, hi, ulong, lo,
           loff_t *, res, uint, wh);
 _syscall2(int,sys_statfs,const char *,path,struct kernel_statfs *,buf)
@@ -1005,7 +1001,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         ret = get_errno(setsid());
         break;
     case TARGET_NR_sigaction:
-#if 0
+#if 1
         {
             ret = 0;
         }
@@ -1336,6 +1332,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         {
             struct dirent *dirp = (void *)arg2;
             long count = arg3;
+
             ret = get_errno(sys_getdents(arg1, dirp, count));
             if (!is_error(ret)) {
                 struct dirent *de;
@@ -1350,6 +1347,29 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                     tswapls(&de->d_ino);
                     tswapls(&de->d_off);
                     de = (struct dirent *)((char *)de + reclen);
+                    len -= reclen;
+                }
+            }
+        }
+        break;
+    case TARGET_NR_getdents64:
+        {
+            struct dirent64 *dirp = (void *)arg2;
+            long count = arg3;
+            ret = get_errno(sys_getdents64(arg1, dirp, count));
+            if (!is_error(ret)) {
+                struct dirent64 *de;
+                int len = ret;
+                int reclen;
+                de = dirp;
+                while (len > 0) {
+                    reclen = tswap16(de->d_reclen);
+                    if (reclen > len)
+                        break;
+                    de->d_reclen = reclen;
+                    tswap64s(&de->d_ino);
+                    tswap64s(&de->d_off);
+                    de = (struct dirent64 *)((char *)de + reclen);
                     len -= reclen;
                 }
             }
@@ -1519,7 +1539,6 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_pivot_root:
     case TARGET_NR_mincore:
     case TARGET_NR_madvise:
-    case TARGET_NR_getdents64:
         goto unimplemented;
 #if TARGET_LONG_BITS == 32
     case TARGET_NR_fcntl64:

@@ -1,3 +1,4 @@
+- overrides/16bit for string ops
 - optimize translated cache chaining (DLL PLT-like system)
 - 64 bit syscalls
 - signals
