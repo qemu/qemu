@@ -429,10 +429,6 @@ echo "TARGET_DIRS=$target_list" >> $config_mak
 # XXX: suppress that
 if [ "$bsd" = "yes" ] ; then
   echo "#define O_LARGEFILE 0" >> $config_h
-  echo "#define lseek64 lseek" >> $config_h
-  echo "#define mkstemp64 mkstemp" >> $config_h
-  echo "#define ftruncate64 ftruncate" >> $config_h
-  echo "#define off64_t off_t" >> $config_h
   echo "#define MAP_ANONYMOUS MAP_ANON" >> $config_h
   echo "#define _BSD 1" >> $config_h
 fi

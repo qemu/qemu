@@ -1,6 +1,6 @@
 include config-host.mak
 
-CFLAGS=-Wall -O2 -g -fno-strict-aliasing
+CFLAGS=-Wall -O2 -g -fno-strict-aliasing 
 ifdef CONFIG_DARWIN
 CFLAGS+= -mdynamic-no-pic
 endif
@@ -9,7 +9,7 @@ CFLAGS+=-fpack-struct
 endif
 LDFLAGS=-g
 LIBS=
-DEFINES+=-D_GNU_SOURCE
+DEFINES+=-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
 TOOLS=qemu-img
 ifdef CONFIG_STATIC
 LDFLAGS+=-static

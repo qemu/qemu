@@ -239,7 +239,7 @@ static int vmdk_read(BlockDriverState *bs, int64_t sector_num,
         if (!cluster_offset) {
             memset(buf, 0, 512 * n);
         } else {
-            lseek64(s->fd, cluster_offset + index_in_cluster * 512, SEEK_SET);
+            lseek(s->fd, cluster_offset + index_in_cluster * 512, SEEK_SET);
             ret = read(s->fd, buf, n * 512);
             if (ret != n * 512) 
                 return -1;

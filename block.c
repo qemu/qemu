@@ -71,14 +71,22 @@ int bdrv_create(BlockDriver *drv,
     return drv->bdrv_create(filename, size_in_sectors, backing_file, flags);
 }
 
-/* XXX: race condition possible */
+#ifdef _WIN32
+static void get_tmp_filename(char *filename, int size)
+{
+    /* XXX: find a better function */
+    tmpnam(filename);
+}
+#else
 static void get_tmp_filename(char *filename, int size)
 {
     int fd;
+    /* XXX: race condition possible */
     pstrcpy(filename, size, "/tmp/vl.XXXXXX");
     fd = mkstemp(filename);
     close(fd);
 }
+#endif
 
 static BlockDriver *find_image_format(const char *filename)
 {
@@ -514,7 +522,7 @@ static int raw_open(BlockDriverState *bs, const char *filename)
             return -1;
         bs->read_only = 1;
     }
-    size = lseek64(fd, 0, SEEK_END);
+    size = lseek(fd, 0, SEEK_END);
     bs->total_sectors = size / 512;
     s->fd = fd;
     return 0;
@@ -526,7 +534,7 @@ static int raw_read(BlockDriverState *bs, int64_t sector_num,
     BDRVRawState *s = bs->opaque;
     int ret;
     
-    lseek64(s->fd, sector_num * 512, SEEK_SET);
+    lseek(s->fd, sector_num * 512, SEEK_SET);
     ret = read(s->fd, buf, nb_sectors * 512);
     if (ret != nb_sectors * 512) 
         return -1;
@@ -539,7 +547,7 @@ static int raw_write(BlockDriverState *bs, int64_t sector_num,
     BDRVRawState *s = bs->opaque;
     int ret;
     
-    lseek64(s->fd, sector_num * 512, SEEK_SET);
+    lseek(s->fd, sector_num * 512, SEEK_SET);
     ret = write(s->fd, buf, nb_sectors * 512);
     if (ret != nb_sectors * 512) 
         return -1;
@@ -564,7 +572,7 @@ static int raw_create(const char *filename, int64_t total_size,
               0644);
     if (fd < 0)
         return -EIO;
-    ftruncate64(fd, total_size * 512);
+    ftruncate(fd, total_size * 512);
     close(fd);
     return 0;
 }

@@ -173,7 +173,7 @@ static int cow_read(BlockDriverState *bs, int64_t sector_num,
     
     while (nb_sectors > 0) {
         if (is_changed(s->cow_bitmap, sector_num, nb_sectors, &n)) {
-            lseek64(s->fd, s->cow_sectors_offset + sector_num * 512, SEEK_SET);
+            lseek(s->fd, s->cow_sectors_offset + sector_num * 512, SEEK_SET);
             ret = read(s->fd, buf, n * 512);
             if (ret != n * 512) 
                 return -1;
@@ -193,7 +193,7 @@ static int cow_write(BlockDriverState *bs, int64_t sector_num,
     BDRVCowState *s = bs->opaque;
     int ret, i;
     
-    lseek64(s->fd, s->cow_sectors_offset + sector_num * 512, SEEK_SET);
+    lseek(s->fd, s->cow_sectors_offset + sector_num * 512, SEEK_SET);
     ret = write(s->fd, buf, nb_sectors * 512);
     if (ret != nb_sectors * 512) 
         return -1;

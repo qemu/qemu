@@ -137,7 +137,7 @@ static int qcow_open(BlockDriverState *bs, const char *filename)
     s->l1_table = qemu_malloc(s->l1_size * sizeof(uint64_t));
     if (!s->l1_table)
         goto fail;
-    lseek64(fd, s->l1_table_offset, SEEK_SET);
+    lseek(fd, s->l1_table_offset, SEEK_SET);
     if (read(fd, s->l1_table, s->l1_size * sizeof(uint64_t)) != 
         s->l1_size * sizeof(uint64_t))
         goto fail;
@@ -161,7 +161,7 @@ static int qcow_open(BlockDriverState *bs, const char *filename)
         len = header.backing_file_size;
         if (len > 1023)
             len = 1023;
-        lseek64(fd, header.backing_file_offset, SEEK_SET);
+        lseek(fd, header.backing_file_offset, SEEK_SET);
         if (read(fd, bs->backing_file, len) != len)
             goto fail;
         bs->backing_file[len] = '\0';
@@ -275,13 +275,13 @@ static uint64_t get_cluster_offset(BlockDriverState *bs,
         if (!allocate)
             return 0;
         /* allocate a new l2 entry */
-        l2_offset = lseek64(s->fd, 0, SEEK_END);
+        l2_offset = lseek(s->fd, 0, SEEK_END);
         /* round to cluster size */
         l2_offset = (l2_offset + s->cluster_size - 1) & ~(s->cluster_size - 1);
         /* update the L1 entry */
         s->l1_table[l1_index] = l2_offset;
         tmp = cpu_to_be64(l2_offset);
-        lseek64(s->fd, s->l1_table_offset + l1_index * sizeof(tmp), SEEK_SET);
+        lseek(s->fd, s->l1_table_offset + l1_index * sizeof(tmp), SEEK_SET);
         if (write(s->fd, &tmp, sizeof(tmp)) != sizeof(tmp))
             return 0;
         new_l2_table = 1;
@@ -336,16 +336,16 @@ static uint64_t get_cluster_offset(BlockDriverState *bs,
                overwritten */
             if (decompress_cluster(s, cluster_offset) < 0)
                 return 0;
-            cluster_offset = lseek64(s->fd, 0, SEEK_END);
+            cluster_offset = lseek(s->fd, 0, SEEK_END);
             cluster_offset = (cluster_offset + s->cluster_size - 1) & 
                 ~(s->cluster_size - 1);
             /* write the cluster content */
-            lseek64(s->fd, cluster_offset, SEEK_SET);
+            lseek(s->fd, cluster_offset, SEEK_SET);
             if (write(s->fd, s->cluster_cache, s->cluster_size) != 
                 s->cluster_size)
                 return -1;
         } else {
-            cluster_offset = lseek64(s->fd, 0, SEEK_END);
+            cluster_offset = lseek(s->fd, 0, SEEK_END);
             if (allocate == 1) {
                 /* round to cluster size */
                 cluster_offset = (cluster_offset + s->cluster_size - 1) & 
@@ -364,7 +364,7 @@ static uint64_t get_cluster_offset(BlockDriverState *bs,
                                             s->cluster_data, 
                                             s->cluster_data + 512, 1, 1,
                                             &s->aes_encrypt_key);
-                            lseek64(s->fd, cluster_offset + i * 512, SEEK_SET);
+                            lseek(s->fd, cluster_offset + i * 512, SEEK_SET);
                             if (write(s->fd, s->cluster_data, 512) != 512)
                                 return -1;
                         }
@@ -378,7 +378,7 @@ static uint64_t get_cluster_offset(BlockDriverState *bs,
         /* update L2 table */
         tmp = cpu_to_be64(cluster_offset);
         l2_table[l2_index] = tmp;
-        lseek64(s->fd, l2_offset + l2_index * sizeof(tmp), SEEK_SET);
+        lseek(s->fd, l2_offset + l2_index * sizeof(tmp), SEEK_SET);
         if (write(s->fd, &tmp, sizeof(tmp)) != sizeof(tmp))
             return 0;
     }
@@ -437,7 +437,7 @@ static int decompress_cluster(BDRVQcowState *s, uint64_t cluster_offset)
     if (s->cluster_cache_offset != coffset) {
         csize = cluster_offset >> (63 - s->cluster_bits);
         csize &= (s->cluster_size - 1);
-        lseek64(s->fd, coffset, SEEK_SET);
+        lseek(s->fd, coffset, SEEK_SET);
         ret = read(s->fd, s->cluster_data, csize);
         if (ret != csize) 
             return -1;
@@ -470,7 +470,7 @@ static int qcow_read(BlockDriverState *bs, int64_t sector_num,
                 return -1;
             memcpy(buf, s->cluster_cache + index_in_cluster * 512, 512 * n);
         } else {
-            lseek64(s->fd, cluster_offset + index_in_cluster * 512, SEEK_SET);
+            lseek(s->fd, cluster_offset + index_in_cluster * 512, SEEK_SET);
             ret = read(s->fd, buf, n * 512);
             if (ret != n * 512) 
                 return -1;
@@ -503,7 +503,7 @@ static int qcow_write(BlockDriverState *bs, int64_t sector_num,
                                             index_in_cluster + n);
         if (!cluster_offset)
             return -1;
-        lseek64(s->fd, cluster_offset + index_in_cluster * 512, SEEK_SET);
+        lseek(s->fd, cluster_offset + index_in_cluster * 512, SEEK_SET);
         if (s->crypt_method) {
             encrypt_sectors(s, sector_num, s->cluster_data, buf, n, 1,
                             &s->aes_encrypt_key);
@@ -650,7 +650,7 @@ int qcow_compress_cluster(BlockDriverState *bs, int64_t sector_num,
         cluster_offset = get_cluster_offset(bs, sector_num << 9, 2, 
                                             out_len, 0, 0);
         cluster_offset &= s->cluster_offset_mask;
-        lseek64(s->fd, cluster_offset, SEEK_SET);
+        lseek(s->fd, cluster_offset, SEEK_SET);
         if (write(s->fd, out_buf, out_len) != out_len) {
             qemu_free(out_buf);
             return -1;
