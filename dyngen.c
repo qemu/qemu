@@ -729,6 +729,18 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                 if (rel->r_offset >= start_offset &&
 		    rel->r_offset < start_offset + copy_size) {
                     sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
+                    if (strstart(sym_name, "__op_jmp", &p)) {
+                        int n;
+                        n = strtol(p, NULL, 10);
+                        /* __op_jmp relocations are done at
+                           runtime to do translated block
+                           chaining: the offset of the instruction
+                           needs to be stored */
+                        fprintf(outfile, "    jmp_offsets[%d] = %d + (gen_code_ptr - gen_code_buf);\n",
+                                n, rel->r_offset - start_offset);
+                        continue;
+                    }
+                        
                     if (strstart(sym_name, "__op_param", &p)) {
                         snprintf(name, sizeof(name), "param%s", p);
                     } else {
