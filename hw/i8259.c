@@ -46,6 +46,8 @@
 /* debug PIC */
 //#define DEBUG_PIC
 
+//#define DEBUG_IRQ_LATENCY
+
 typedef struct PicState {
     uint8_t last_irr; /* edge detection */
     uint8_t irr; /* interrupt request register */
@@ -220,15 +222,14 @@ int cpu_x86_get_pic_interrupt(CPUState *env)
     return intno;
 }
 
-void pic_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
+static void pic_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
-    PicState *s;
+    PicState *s = opaque;
     int priority, cmd, irq;
 
 #ifdef DEBUG_PIC
     printf("pic_write: addr=0x%02x val=0x%02x\n", addr, val);
 #endif
-    s = &pics[addr >> 7];
     addr &= 1;
     if (addr == 0) {
         if (val & 0x10) {
@@ -334,14 +335,13 @@ static uint32_t pic_poll_read (PicState *s, uint32_t addr1)
     return ret;
 }
 
-uint32_t pic_ioport_read(CPUState *env, uint32_t addr1)
+static uint32_t pic_ioport_read(void *opaque, uint32_t addr1)
 {
-    PicState *s;
+    PicState *s = opaque;
     unsigned int addr;
     int ret;
 
     addr = addr1;
-    s = &pics[addr >> 7];
     addr &= 1;
     if (s->poll) {
         ret = pic_poll_read(s, addr1);
@@ -378,11 +378,9 @@ uint32_t pic_intack_read(CPUState *env)
 
 void pic_init(void)
 {
-#if defined (TARGET_I386) || defined (TARGET_PPC)
-    register_ioport_write(0x20, 2, pic_ioport_write, 1);
-    register_ioport_read(0x20, 2, pic_ioport_read, 1);
-    register_ioport_write(0xa0, 2, pic_ioport_write, 1);
-    register_ioport_read(0xa0, 2, pic_ioport_read, 1);
-#endif
+    register_ioport_write(0x20, 2, 1, pic_ioport_write, &pics[0]);
+    register_ioport_read(0x20, 2, 1, pic_ioport_read, &pics[0]);
+    register_ioport_write(0xa0, 2, 1, pic_ioport_write, &pics[1]);
+    register_ioport_read(0xa0, 2, 1, pic_ioport_read, &pics[1]);
 }
 

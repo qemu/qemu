@@ -90,7 +90,7 @@
 #define UART_LSR_OE	0x02	/* Overrun error indicator */
 #define UART_LSR_DR	0x01	/* Receiver data ready */
 
-typedef struct SerialState {
+struct SerialState {
     uint8_t divider;
     uint8_t rbr; /* receive register */
     uint8_t ier;
@@ -104,14 +104,11 @@ typedef struct SerialState {
        it can be reset while reading iir */
     int thr_ipending;
     int irq;
-} SerialState;
+    int out_fd;
+};
 
-SerialState serial_ports[1];
-
-void serial_update_irq(void)
+static void serial_update_irq(SerialState *s)
 {
-    SerialState *s = &serial_ports[0];
-
     if ((s->lsr & UART_LSR_DR) && (s->ier & UART_IER_RDI)) {
         s->iir = UART_IIR_RDI;
     } else if (s->thr_ipending && (s->ier & UART_IER_THRI)) {
@@ -126,9 +123,9 @@ void serial_update_irq(void)
     }
 }
 
-void serial_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
+static void serial_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
-    SerialState *s = &serial_ports[0];
+    SerialState *s = opaque;
     unsigned char ch;
     int ret;
     
@@ -144,16 +141,16 @@ void serial_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
         } else {
             s->thr_ipending = 0;
             s->lsr &= ~UART_LSR_THRE;
-            serial_update_irq();
+            serial_update_irq(s);
 
             ch = val;
             do {
-                ret = write(1, &ch, 1);
+                ret = write(s->out_fd, &ch, 1);
             } while (ret != 1);
             s->thr_ipending = 1;
             s->lsr |= UART_LSR_THRE;
             s->lsr |= UART_LSR_TEMT;
-            serial_update_irq();
+            serial_update_irq(s);
         }
         break;
     case 1:
@@ -161,7 +158,7 @@ void serial_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
             s->divider = (s->divider & 0x00ff) | (val << 8);
         } else {
             s->ier = val;
-            serial_update_irq();
+            serial_update_irq(s);
         }
         break;
     case 2:
@@ -183,9 +180,9 @@ void serial_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
     }
 }
 
-uint32_t serial_ioport_read(CPUState *env, uint32_t addr)
+static uint32_t serial_ioport_read(void *opaque, uint32_t addr)
 {
-    SerialState *s = &serial_ports[0];
+    SerialState *s = opaque;
     uint32_t ret;
 
     addr &= 7;
@@ -197,7 +194,7 @@ uint32_t serial_ioport_read(CPUState *env, uint32_t addr)
         } else {
             ret = s->rbr;
             s->lsr &= ~(UART_LSR_DR | UART_LSR_BI);
-            serial_update_irq();
+            serial_update_irq(s);
         }
         break;
     case 1:
@@ -212,7 +209,7 @@ uint32_t serial_ioport_read(CPUState *env, uint32_t addr)
         /* reset THR pending bit */
         if ((ret & 0x7) == UART_IIR_THRI)
             s->thr_ipending = 0;
-        serial_update_irq();
+        serial_update_irq(s);
         break;
     case 3:
         ret = s->lcr;
@@ -244,38 +241,58 @@ uint32_t serial_ioport_read(CPUState *env, uint32_t addr)
     return ret;
 }
 
-int serial_can_receive(void)
+int serial_can_receive(SerialState *s)
 {
-    SerialState *s = &serial_ports[0];
     return !(s->lsr & UART_LSR_DR);
 }
 
-void serial_receive_byte(int ch)
+void serial_receive_byte(SerialState *s, int ch)
 {
-    SerialState *s = &serial_ports[0];
-
     s->rbr = ch;
     s->lsr |= UART_LSR_DR;
-    serial_update_irq();
+    serial_update_irq(s);
 }
 
-void serial_receive_break(void)
+void serial_receive_break(SerialState *s)
 {
-    SerialState *s = &serial_ports[0];
-
     s->rbr = 0;
     s->lsr |= UART_LSR_BI | UART_LSR_DR;
-    serial_update_irq();
+    serial_update_irq(s);
 }
 
-void serial_init(int base, int irq)
+static int serial_can_receive1(void *opaque)
 {
-    SerialState *s = &serial_ports[0];
+    SerialState *s = opaque;
+    return serial_can_receive(s);
+}
 
+static void serial_receive1(void *opaque, const uint8_t *buf, int size)
+{
+    SerialState *s = opaque;
+    serial_receive_byte(s, buf[0]);
+}
+
+/* If fd is zero, it means that the serial device uses the console */
+SerialState *serial_init(int base, int irq, int fd)
+{
+    SerialState *s;
+
+    s = qemu_mallocz(sizeof(SerialState));
+    if (!s)
+        return NULL;
     s->irq = irq;
     s->lsr = UART_LSR_TEMT | UART_LSR_THRE;
     s->iir = UART_IIR_NO_INT;
-    
-    register_ioport_write(base, 8, serial_ioport_write, 1);
-    register_ioport_read(base, 8, serial_ioport_read, 1);
+
+    register_ioport_write(base, 8, 1, serial_ioport_write, s);
+    register_ioport_read(base, 8, 1, serial_ioport_read, s);
+
+    if (fd != 0) {
+        add_fd_read_handler(fd, serial_can_receive1, serial_receive1, s);
+        s->out_fd = fd;
+    } else {
+        serial_console = s;
+        s->out_fd = 1;
+    }
+    return s;
 }

@@ -69,9 +69,9 @@
 
 RTCState rtc_state;
 
-static void cmos_ioport_write(CPUState *env, uint32_t addr, uint32_t data)
+static void cmos_ioport_write(void *opaque, uint32_t addr, uint32_t data)
 {
-    RTCState *s = &rtc_state;
+    RTCState *s = opaque;
 
     if ((addr & 1) == 0) {
         s->cmos_index = data & 0x7f;
@@ -134,9 +134,9 @@ static void cmos_update_time(RTCState *s)
     s->cmos_data[REG_IBM_PS2_CENTURY_BYTE] = s->cmos_data[REG_IBM_CENTURY_BYTE];
 }
 
-static uint32_t cmos_ioport_read(CPUState *env, uint32_t addr)
+static uint32_t cmos_ioport_read(void *opaque, uint32_t addr)
 {
-    RTCState *s = &rtc_state;
+    RTCState *s = opaque;
     int ret;
     if ((addr & 1) == 0) {
         return 0xff;
@@ -197,7 +197,7 @@ void rtc_init(int base, int irq)
     s->cmos_data[RTC_REG_C] = 0x00;
     s->cmos_data[RTC_REG_D] = 0x80;
 
-    register_ioport_write(base, 2, cmos_ioport_write, 1);
-    register_ioport_read(base, 2, cmos_ioport_read, 1);
+    register_ioport_write(base, 2, 1, cmos_ioport_write, s);
+    register_ioport_read(base, 2, 1, cmos_ioport_read, s);
 }
 

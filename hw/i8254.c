@@ -201,7 +201,7 @@ static inline void pit_load_count(PITChannelState *s, int val)
     }
 }
 
-void pit_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
+static void pit_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
     int channel, access;
     PITChannelState *s;
@@ -246,7 +246,7 @@ void pit_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
     }
 }
 
-uint32_t pit_ioport_read(CPUState *env, uint32_t addr)
+static uint32_t pit_ioport_read(void *opaque, uint32_t addr)
 {
     int ret, count;
     PITChannelState *s;
@@ -279,7 +279,7 @@ uint32_t pit_ioport_read(CPUState *env, uint32_t addr)
     return ret;
 }
 
-void pit_init(void)
+void pit_init(int base)
 {
     PITChannelState *s;
     int i;
@@ -291,7 +291,7 @@ void pit_init(void)
         pit_load_count(s, 0);
     }
 
-    register_ioport_write(0x40, 4, pit_ioport_write, 1);
-    register_ioport_read(0x40, 3, pit_ioport_read, 1);
+    register_ioport_write(base, 4, 1, pit_ioport_write, NULL);
+    register_ioport_read(base, 3, 1, pit_ioport_read, NULL);
 }
 

@@ -43,6 +43,9 @@
 #include "cpu.h"
 #include "vl.h"
 
+/* output Bochs bios info messages */
+//#define DEBUG_BIOS
+
 #define BIOS_FILENAME "bios.bin"
 #define VGABIOS_FILENAME "vgabios.bin"
 #define LINUX_BOOT_FILENAME "linux_boot.bin"
@@ -55,7 +58,7 @@
 int speaker_data_on;
 int dummy_refresh_clock;
 
-static void ioport80_write(CPUState *env, uint32_t addr, uint32_t data)
+static void ioport80_write(void *opaque, uint32_t addr, uint32_t data)
 {
 }
 
@@ -65,6 +68,7 @@ static void cmos_init(int ram_size, int boot_device)
 {
     RTCState *s = &rtc_state;
     int val;
+    int fd0, fd1, nb;
     
     /* various important CMOS locations needed by PC/Bochs bios */
 
@@ -99,12 +103,11 @@ static void cmos_init(int ram_size, int boot_device)
         s->cmos_data[0x3d] = 0x03; /* CD-ROM boot */
         break;
     }
-}
 
-void cmos_register_fd (uint8_t fd0, uint8_t fd1)
-{
-    RTCState *s = &rtc_state;
-    int nb = 0;
+    /* floppy type */
+
+    fd0 = fdctrl_get_drive_type(0);
+    fd1 = fdctrl_get_drive_type(1);
 
     s->cmos_data[0x10] = 0;
     switch (fd0) {
@@ -135,6 +138,7 @@ void cmos_register_fd (uint8_t fd0, uint8_t fd1)
         s->cmos_data[0x10] |= 0x02;
         break;
     }
+    nb = 0;
     if (fd0 < 3)
         nb++;
     if (fd1 < 3)
@@ -151,13 +155,13 @@ void cmos_register_fd (uint8_t fd0, uint8_t fd1)
     }
 }
 
-void speaker_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
+static void speaker_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
     speaker_data_on = (val >> 1) & 1;
     pit_set_gate(&pit_channels[2], val & 1);
 }
 
-uint32_t speaker_ioport_read(CPUState *env, uint32_t addr)
+static uint32_t speaker_ioport_read(void *opaque, uint32_t addr)
 {
     int out;
     out = pit_get_out(&pit_channels[2]);
@@ -167,27 +171,9 @@ uint32_t speaker_ioport_read(CPUState *env, uint32_t addr)
 }
 
 /***********************************************************/
-/* PC floppy disk controler emulation glue */
-#define PC_FDC_DMA  0x2
-#define PC_FDC_IRQ  0x6
-#define PC_FDC_BASE 0x3F0
-
-static void fdctrl_register (unsigned char **disknames, int ro,
-                             char boot_device)
-{
-    int i;
-
-    fdctrl_init(PC_FDC_IRQ, PC_FDC_DMA, 0, PC_FDC_BASE, boot_device);
-    for (i = 0; i < MAX_FD; i++) {
-        if (disknames[i] != NULL)
-            fdctrl_disk_change(i, disknames[i], ro);
-    }
-}
-
-/***********************************************************/
 /* Bochs BIOS debug ports */
 
-void bochs_bios_write(CPUX86State *env, uint32_t addr, uint32_t val)
+void bochs_bios_write(void *opaque, uint32_t addr, uint32_t val)
 {
     switch(addr) {
         /* Bochs BIOS messages */
@@ -218,15 +204,15 @@ void bochs_bios_write(CPUX86State *env, uint32_t addr, uint32_t val)
 
 void bochs_bios_init(void)
 {
-    register_ioport_write(0x400, 1, bochs_bios_write, 2);
-    register_ioport_write(0x401, 1, bochs_bios_write, 2);
-    register_ioport_write(0x402, 1, bochs_bios_write, 1);
-    register_ioport_write(0x403, 1, bochs_bios_write, 1);
+    register_ioport_write(0x400, 1, 2, bochs_bios_write, NULL);
+    register_ioport_write(0x401, 1, 2, bochs_bios_write, NULL);
+    register_ioport_write(0x402, 1, 1, bochs_bios_write, NULL);
+    register_ioport_write(0x403, 1, 1, bochs_bios_write, NULL);
 
-    register_ioport_write(0x501, 1, bochs_bios_write, 2);
-    register_ioport_write(0x502, 1, bochs_bios_write, 2);
-    register_ioport_write(0x500, 1, bochs_bios_write, 1);
-    register_ioport_write(0x503, 1, bochs_bios_write, 1);
+    register_ioport_write(0x501, 1, 2, bochs_bios_write, NULL);
+    register_ioport_write(0x502, 1, 2, bochs_bios_write, NULL);
+    register_ioport_write(0x500, 1, 1, bochs_bios_write, NULL);
+    register_ioport_write(0x503, 1, 1, bochs_bios_write, NULL);
 }
 
 
@@ -261,6 +247,15 @@ int load_kernel(const char *filename, uint8_t *addr,
     return -1;
 }
 
+static const int ide_iobase[2] = { 0x1f0, 0x170 };
+static const int ide_iobase2[2] = { 0x3f6, 0x376 };
+static const int ide_irq[2] = { 14, 15 };
+
+#define NE2000_NB_MAX 6
+
+static uint32_t ne2000_io[NE2000_NB_MAX] = { 0x300, 0x320, 0x340, 0x360, 0x280, 0x380 };
+static int ne2000_irq[NE2000_NB_MAX] = { 9, 10, 11, 3, 4, 5 };
+
 /* PC hardware initialisation */
 void pc_init(int ram_size, int vga_ram_size, int boot_device,
              DisplayState *ds, const char **fd_filename, int snapshot,
@@ -268,7 +263,7 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
              const char *initrd_filename)
 {
     char buf[1024];
-    int ret, linux_boot, initrd_size;
+    int ret, linux_boot, initrd_size, i, nb_nics1, fd;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -344,25 +339,38 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
     }
 
     /* init basic PC hardware */
-    register_ioport_write(0x80, 1, ioport80_write, 1);
+    register_ioport_write(0x80, 1, 1, ioport80_write, NULL);
 
     vga_initialize(ds, phys_ram_base + ram_size, ram_size, 
                    vga_ram_size);
 
     rtc_init(0x70, 8);
-    cmos_init(ram_size, boot_device);
-    register_ioport_read(0x61, 1, speaker_ioport_read, 1);
-    register_ioport_write(0x61, 1, speaker_ioport_write, 1);
+    register_ioport_read(0x61, 1, 1, speaker_ioport_read, NULL);
+    register_ioport_write(0x61, 1, 1, speaker_ioport_write, NULL);
 
     pic_init();
-    pit_init();
-    serial_init(0x3f8, 4);
-    ne2000_init(0x300, 9);
-    ide_init();
+    pit_init(0x40);
+
+    fd = serial_open_device();
+    serial_init(0x3f8, 4, fd);
+
+    nb_nics1 = nb_nics;
+    if (nb_nics1 > NE2000_NB_MAX)
+        nb_nics1 = NE2000_NB_MAX;
+    for(i = 0; i < nb_nics1; i++) {
+        ne2000_init(ne2000_io[i], ne2000_irq[i], &nd_table[i]);
+    }
+
+    for(i = 0; i < 2; i++) {
+        ide_init(ide_iobase[i], ide_iobase2[i], ide_irq[i],
+                 bs_table[2 * i], bs_table[2 * i + 1]);
+    }
     kbd_init();
     AUD_init();
     DMA_init();
     SB16_init();
 
-    fdctrl_register((unsigned char **)fd_filename, snapshot, boot_device);
+    fdctrl_init(6, 2, 0, 0x3f0, fd_table);
+
+    cmos_init(ram_size, boot_device);
 }

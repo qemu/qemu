@@ -189,7 +189,7 @@ static void kbd_update_irq(KBDState *s)
 
 static void kbd_queue(KBDState *s, int b, int aux)
 {
-    KBDQueue *q = &kbd_state.queues[aux];
+    KBDQueue *q = &s->queues[aux];
 
 #if defined(DEBUG_MOUSE) || defined(DEBUG_KBD)
     if (aux)
@@ -214,9 +214,9 @@ void kbd_put_keycode(int keycode)
     kbd_queue(s, keycode, 0);
 }
 
-static uint32_t kbd_read_status(CPUState *env, uint32_t addr)
+static uint32_t kbd_read_status(void *opaque, uint32_t addr)
 {
-    KBDState *s = &kbd_state;
+    KBDState *s = opaque;
     int val;
     val = s->status;
 #if defined(DEBUG_KBD)
@@ -225,9 +225,9 @@ static uint32_t kbd_read_status(CPUState *env, uint32_t addr)
     return val;
 }
 
-static void kbd_write_command(CPUState *env, uint32_t addr, uint32_t val)
+static void kbd_write_command(void *opaque, uint32_t addr, uint32_t val)
 {
-    KBDState *s = &kbd_state;
+    KBDState *s = opaque;
 
 #ifdef DEBUG_KBD
     printf("kbd: write cmd=0x%02x\n", val);
@@ -285,10 +285,10 @@ static void kbd_write_command(CPUState *env, uint32_t addr, uint32_t val)
         break;
 #ifdef TARGET_I386
     case KBD_CCMD_ENABLE_A20:
-        cpu_x86_set_a20(env, 1);
+        cpu_x86_set_a20(cpu_single_env, 1);
         break;
     case KBD_CCMD_DISABLE_A20:
-        cpu_x86_set_a20(env, 0);
+        cpu_x86_set_a20(cpu_single_env, 0);
         break;
 #endif
     case KBD_CCMD_RESET:
@@ -304,9 +304,9 @@ static void kbd_write_command(CPUState *env, uint32_t addr, uint32_t val)
     }
 }
 
-static uint32_t kbd_read_data(CPUState *env, uint32_t addr)
+static uint32_t kbd_read_data(void *opaque, uint32_t addr)
 {
-    KBDState *s = &kbd_state;
+    KBDState *s = opaque;
     KBDQueue *q;
     int val, index;
     
@@ -605,9 +605,9 @@ static void kbd_write_mouse(KBDState *s, int val)
     }
 }
 
-void kbd_write_data(CPUState *env, uint32_t addr, uint32_t val)
+void kbd_write_data(void *opaque, uint32_t addr, uint32_t val)
 {
-    KBDState *s = &kbd_state;
+    KBDState *s = opaque;
 
 #ifdef DEBUG_KBD
     printf("kbd: write data=0x%02x\n", val);
@@ -629,7 +629,7 @@ void kbd_write_data(CPUState *env, uint32_t addr, uint32_t val)
         break;
     case KBD_CCMD_WRITE_OUTPORT:
 #ifdef TARGET_I386
-        cpu_x86_set_a20(env, (val >> 1) & 1);
+        cpu_x86_set_a20(cpu_single_env, (val >> 1) & 1);
 #endif
         if (!(val & 1)) {
             reset_requested = 1;
@@ -664,9 +664,11 @@ void kbd_reset(KBDState *s)
 
 void kbd_init(void)
 {
-    kbd_reset(&kbd_state);
-    register_ioport_read(0x60, 1, kbd_read_data, 1);
-    register_ioport_write(0x60, 1, kbd_write_data, 1);
-    register_ioport_read(0x64, 1, kbd_read_status, 1);
-    register_ioport_write(0x64, 1, kbd_write_command, 1);
+    KBDState *s = &kbd_state;
+    
+    kbd_reset(s);
+    register_ioport_read(0x60, 1, 1, kbd_read_data, s);
+    register_ioport_write(0x60, 1, 1, kbd_write_data, s);
+    register_ioport_read(0x64, 1, 1, kbd_read_status, s);
+    register_ioport_write(0x64, 1, 1, kbd_write_command, s);
 }

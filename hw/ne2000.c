@@ -46,8 +46,7 @@
 /* debug NE2000 card */
 //#define DEBUG_NE2000
 
-/***********************************************************/
-/* ne2000 emulation */
+#define MAX_ETH_FRAME_SIZE 1514
 
 #define E8390_CMD	0x00  /* The command register (for all pages) */
 /* Page 0 register offsets. */
@@ -143,23 +142,16 @@ typedef struct NE2000State {
     uint8_t curpag;
     uint8_t mult[8]; /* multicast mask array */
     int irq;
+    NetDriverState *nd;
     uint8_t mem[NE2000_MEM_SIZE];
 } NE2000State;
-
-static NE2000State ne2000_state;
-int net_fd = -1;
 
 static void ne2000_reset(NE2000State *s)
 {
     int i;
 
     s->isr = ENISR_RESET;
-    s->mem[0] = 0x52;
-    s->mem[1] = 0x54;
-    s->mem[2] = 0x00;
-    s->mem[3] = 0x12;
-    s->mem[4] = 0x34;
-    s->mem[5] = 0x56;
+    memcpy(s->mem, s->nd->macaddr, 6);
     s->mem[14] = 0x57;
     s->mem[15] = 0x57;
 
@@ -180,10 +172,10 @@ static void ne2000_update_irq(NE2000State *s)
         pic_set_irq(s->irq, 0);
 }
 
-/* return true if the NE2000 can receive more data */
-int ne2000_can_receive(void)
+/* return the max buffer size if the NE2000 can receive more data */
+static int ne2000_can_receive(void *opaque)
 {
-    NE2000State *s = &ne2000_state;
+    NE2000State *s = opaque;
     int avail, index, boundary;
     
     if (s->cmd & E8390_STOP)
@@ -196,18 +188,29 @@ int ne2000_can_receive(void)
         avail = (s->stop - s->start) - (index - boundary);
     if (avail < (MAX_ETH_FRAME_SIZE + 4))
         return 0;
-    return 1;
+    return MAX_ETH_FRAME_SIZE;
 }
 
-void ne2000_receive(uint8_t *buf, int size)
+#define MIN_BUF_SIZE 60
+
+static void ne2000_receive(void *opaque, const uint8_t *buf, int size)
 {
-    NE2000State *s = &ne2000_state;
+    NE2000State *s = opaque;
     uint8_t *p;
     int total_len, next, avail, len, index;
-
+    uint8_t buf1[60];
+    
 #if defined(DEBUG_NE2000)
     printf("NE2000: received len=%d\n", size);
 #endif
+
+    /* if too small buffer, then expand it */
+    if (size < MIN_BUF_SIZE) {
+        memcpy(buf1, buf, size);
+        memset(buf1 + size, 0, MIN_BUF_SIZE - size);
+        buf = buf1;
+        size = MIN_BUF_SIZE;
+    }
 
     index = s->curpag << 8;
     /* 4 bytes for header */
@@ -244,9 +247,9 @@ void ne2000_receive(uint8_t *buf, int size)
     ne2000_update_irq(s);
 }
 
-static void ne2000_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
+static void ne2000_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
-    NE2000State *s = &ne2000_state;
+    NE2000State *s = opaque;
     int offset, page;
 
     addr &= 0xf;
@@ -264,7 +267,7 @@ static void ne2000_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
                 ne2000_update_irq(s);
             }
             if (val & E8390_TRANS) {
-                net_send_packet(net_fd, s->mem + (s->tpsr << 8), s->tcnt);
+                net_send_packet(s->nd, s->mem + (s->tpsr << 8), s->tcnt);
                 /* signal end of transfert */
                 s->tsr = ENTSR_PTX;
                 s->isr |= ENISR_TX;
@@ -329,9 +332,9 @@ static void ne2000_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
     }
 }
 
-static uint32_t ne2000_ioport_read(CPUState *env, uint32_t addr)
+static uint32_t ne2000_ioport_read(void *opaque, uint32_t addr)
 {
-    NE2000State *s = &ne2000_state;
+    NE2000State *s = opaque;
     int offset, page, ret;
 
     addr &= 0xf;
@@ -370,9 +373,9 @@ static uint32_t ne2000_ioport_read(CPUState *env, uint32_t addr)
     return ret;
 }
 
-static void ne2000_asic_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
+static void ne2000_asic_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
-    NE2000State *s = &ne2000_state;
+    NE2000State *s = opaque;
     uint8_t *p;
 
 #ifdef DEBUG_NE2000
@@ -401,9 +404,9 @@ static void ne2000_asic_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
     }
 }
 
-static uint32_t ne2000_asic_ioport_read(CPUState *env, uint32_t addr)
+static uint32_t ne2000_asic_ioport_read(void *opaque, uint32_t addr)
 {
-    NE2000State *s = &ne2000_state;
+    NE2000State *s = opaque;
     uint8_t *p;
     int ret;
 
@@ -433,33 +436,40 @@ static uint32_t ne2000_asic_ioport_read(CPUState *env, uint32_t addr)
     return ret;
 }
 
-static void ne2000_reset_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
+static void ne2000_reset_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
     /* nothing to do (end of reset pulse) */
 }
 
-static uint32_t ne2000_reset_ioport_read(CPUState *env, uint32_t addr)
+static uint32_t ne2000_reset_ioport_read(void *opaque, uint32_t addr)
 {
-    NE2000State *s = &ne2000_state;
+    NE2000State *s = opaque;
     ne2000_reset(s);
     return 0;
 }
 
-void ne2000_init(int base, int irq)
+void ne2000_init(int base, int irq, NetDriverState *nd)
 {
-    NE2000State *s = &ne2000_state;
+    NE2000State *s;
 
-    register_ioport_write(base, 16, ne2000_ioport_write, 1);
-    register_ioport_read(base, 16, ne2000_ioport_read, 1);
+    s = qemu_mallocz(sizeof(NE2000State));
+    if (!s)
+        return;
+    
+    register_ioport_write(base, 16, 1, ne2000_ioport_write, s);
+    register_ioport_read(base, 16, 1, ne2000_ioport_read, s);
 
-    register_ioport_write(base + 0x10, 1, ne2000_asic_ioport_write, 1);
-    register_ioport_read(base + 0x10, 1, ne2000_asic_ioport_read, 1);
-    register_ioport_write(base + 0x10, 2, ne2000_asic_ioport_write, 2);
-    register_ioport_read(base + 0x10, 2, ne2000_asic_ioport_read, 2);
+    register_ioport_write(base + 0x10, 1, 1, ne2000_asic_ioport_write, s);
+    register_ioport_read(base + 0x10, 1, 1, ne2000_asic_ioport_read, s);
+    register_ioport_write(base + 0x10, 2, 2, ne2000_asic_ioport_write, s);
+    register_ioport_read(base + 0x10, 2, 2, ne2000_asic_ioport_read, s);
 
-    register_ioport_write(base + 0x1f, 1, ne2000_reset_ioport_write, 1);
-    register_ioport_read(base + 0x1f, 1, ne2000_reset_ioport_read, 1);
+    register_ioport_write(base + 0x1f, 1, 1, ne2000_reset_ioport_write, s);
+    register_ioport_read(base + 0x1f, 1, 1, ne2000_reset_ioport_read, s);
     s->irq = irq;
+    s->nd = nd;
 
     ne2000_reset(s);
+
+    add_fd_read_handler(nd->fd, ne2000_can_receive, ne2000_receive, s);
 }
