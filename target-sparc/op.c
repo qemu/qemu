@@ -120,7 +120,6 @@
 #define EIP (env->pc)
 
 #define FLAG_SET(x) (env->psr&x)?1:0
-#define GET_FLAGS unsigned int Z = FLAG_SET(PSR_ZERO), N = FLAG_SET(PSR_NEG), V = FLAG_SET(PSR_OVF), C = FLAG_SET(PSR_CARRY)
 
 void OPPROTO op_movl_T0_0(void)
 {
@@ -538,19 +537,22 @@ void OPPROTO op_eval_be(void)
 
 void OPPROTO op_eval_ble(void)
 {
-    GET_FLAGS;
+    unsigned int Z = FLAG_SET(PSR_ZERO), N = FLAG_SET(PSR_NEG), V = FLAG_SET(PSR_OVF);
+    
     T2 = Z | (N ^ V);
 }
 
 void OPPROTO op_eval_bl(void)
 {
-    GET_FLAGS;
+    unsigned int N = FLAG_SET(PSR_NEG), V = FLAG_SET(PSR_OVF);
+
     T2 = N ^ V;
 }
 
 void OPPROTO op_eval_bleu(void)
 {
-    GET_FLAGS;
+    unsigned int Z = FLAG_SET(PSR_ZERO), C = FLAG_SET(PSR_CARRY);
+
     T2 = C | Z;
 }
 
@@ -576,19 +578,22 @@ void OPPROTO op_eval_bne(void)
 
 void OPPROTO op_eval_bg(void)
 {
-    GET_FLAGS;
+    unsigned int Z = FLAG_SET(PSR_ZERO), N = FLAG_SET(PSR_NEG), V = FLAG_SET(PSR_OVF);
+
     T2 = !(Z | (N ^ V));
 }
 
 void OPPROTO op_eval_bge(void)
 {
-    GET_FLAGS;
+    unsigned int N = FLAG_SET(PSR_NEG), V = FLAG_SET(PSR_OVF);
+
     T2 = !(N ^ V);
 }
 
 void OPPROTO op_eval_bgu(void)
 {
-    GET_FLAGS;
+    unsigned int Z = FLAG_SET(PSR_ZERO), C = FLAG_SET(PSR_CARRY);
+
     T2 = !(C | Z);
 }
 
