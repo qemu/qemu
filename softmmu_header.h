@@ -74,6 +74,152 @@ DATA_TYPE REGPARM(1) glue(glue(__ld, SUFFIX), MMUSUFFIX)(unsigned long addr,
                                                          int is_user);
 void REGPARM(2) glue(glue(__st, SUFFIX), MMUSUFFIX)(unsigned long addr, DATA_TYPE v, int is_user);
 
+#if (DATA_SIZE <= 4) && defined(__i386__) && (ACCESS_TYPE <= 1) && defined(ASM_SOFTMMU)
+
+static inline RES_TYPE glue(glue(ld, USUFFIX), MEMSUFFIX)(void *ptr)
+{
+    int res;
+
+    asm volatile ("movl %1, %%edx\n"
+                  "movl %1, %%eax\n"
+                  "shrl %3, %%edx\n"
+                  "andl %4, %%eax\n"
+                  "andl %2, %%edx\n"
+                  "leal %5(%%edx, %%ebp), %%edx\n"
+                  "cmpl (%%edx), %%eax\n"
+                  "movl %1, %%eax\n"
+                  "je 1f\n"
+                  "pushl %6\n"
+                  "call %7\n"
+                  "popl %%edx\n"
+                  "movl %%eax, %0\n"
+                  "jmp 2f\n"
+                  "1:\n"
+                  "addl 4(%%edx), %%eax\n"
+#if DATA_SIZE == 1
+                  "movzbl (%%eax), %0\n"
+#elif DATA_SIZE == 2
+                  "movzwl (%%eax), %0\n"
+#elif DATA_SIZE == 4
+                  "movl (%%eax), %0\n"
+#else
+#error unsupported size
+#endif
+                  "2:\n"
+                  : "=r" (res)
+                  : "r" (ptr), 
+                  "i" ((CPU_TLB_SIZE - 1) << 3), 
+                  "i" (TARGET_PAGE_BITS - 3), 
+                  "i" (TARGET_PAGE_MASK | (DATA_SIZE - 1)),
+                  "m" (*(uint32_t *)offsetof(CPUState, tlb_read[CPU_MEM_INDEX][0].address)),
+                  "i" (CPU_MEM_INDEX),
+                  "m" (*(uint8_t *)&glue(glue(__ld, SUFFIX), MMUSUFFIX))
+                  : "%eax", "%ecx", "%edx", "memory", "cc");
+    return res;
+}
+
+#if DATA_SIZE <= 2
+static inline int glue(glue(lds, SUFFIX), MEMSUFFIX)(void *ptr)
+{
+    int res;
+
+    asm volatile ("movl %1, %%edx\n"
+                  "movl %1, %%eax\n"
+                  "shrl %3, %%edx\n"
+                  "andl %4, %%eax\n"
+                  "andl %2, %%edx\n"
+                  "leal %5(%%edx, %%ebp), %%edx\n"
+                  "cmpl (%%edx), %%eax\n"
+                  "movl %1, %%eax\n"
+                  "je 1f\n"
+                  "pushl %6\n"
+                  "call %7\n"
+                  "popl %%edx\n"
+#if DATA_SIZE == 1
+                  "movsbl %%al, %0\n"
+#elif DATA_SIZE == 2
+                  "movswl %%ax, %0\n"
+#else
+#error unsupported size
+#endif
+                  "jmp 2f\n"
+                  "1:\n"
+                  "addl 4(%%edx), %%eax\n"
+#if DATA_SIZE == 1
+                  "movsbl (%%eax), %0\n"
+#elif DATA_SIZE == 2
+                  "movswl (%%eax), %0\n"
+#else
+#error unsupported size
+#endif
+                  "2:\n"
+                  : "=r" (res)
+                  : "r" (ptr), 
+                  "i" ((CPU_TLB_SIZE - 1) << 3), 
+                  "i" (TARGET_PAGE_BITS - 3), 
+                  "i" (TARGET_PAGE_MASK | (DATA_SIZE - 1)),
+                  "m" (*(uint32_t *)offsetof(CPUState, tlb_read[CPU_MEM_INDEX][0].address)),
+                  "i" (CPU_MEM_INDEX),
+                  "m" (*(uint8_t *)&glue(glue(__ld, SUFFIX), MMUSUFFIX))
+                  : "%eax", "%ecx", "%edx", "memory", "cc");
+    return res;
+}
+#endif
+
+static inline void glue(glue(st, SUFFIX), MEMSUFFIX)(void *ptr, RES_TYPE v)
+{
+    asm volatile ("movl %0, %%edx\n"
+                  "movl %0, %%eax\n"
+                  "shrl %3, %%edx\n"
+                  "andl %4, %%eax\n"
+                  "andl %2, %%edx\n"
+                  "leal %5(%%edx, %%ebp), %%edx\n"
+                  "cmpl (%%edx), %%eax\n"
+                  "movl %0, %%eax\n"
+                  "je 1f\n"
+#if DATA_SIZE == 1
+                  "movzbl %b1, %%edx\n"
+#elif DATA_SIZE == 2
+                  "movzwl %w1, %%edx\n"
+#elif DATA_SIZE == 4
+                  "movl %1, %%edx\n"
+#else
+#error unsupported size
+#endif
+                  "pushl %6\n"
+                  "call %7\n"
+                  "popl %%eax\n"
+                  "jmp 2f\n"
+                  "1:\n"
+                  "addl 4(%%edx), %%eax\n"
+#if DATA_SIZE == 1
+                  "movb %b1, (%%eax)\n"
+#elif DATA_SIZE == 2
+                  "movw %w1, (%%eax)\n"
+#elif DATA_SIZE == 4
+                  "movl %1, (%%eax)\n"
+#else
+#error unsupported size
+#endif
+                  "2:\n"
+                  : 
+                  : "r" (ptr), 
+/* NOTE: 'q' would be needed as constraint, but we could not use it
+   with T1 ! */
+                  "r" (v), 
+                  "i" ((CPU_TLB_SIZE - 1) << 3), 
+                  "i" (TARGET_PAGE_BITS - 3), 
+                  "i" (TARGET_PAGE_MASK | (DATA_SIZE - 1)),
+                  "m" (*(uint32_t *)offsetof(CPUState, tlb_write[CPU_MEM_INDEX][0].address)),
+                  "i" (CPU_MEM_INDEX),
+                  "m" (*(uint8_t *)&glue(glue(__st, SUFFIX), MMUSUFFIX))
+                  : "%eax", "%ecx", "%edx", "memory", "cc");
+}
+
+#else
+
+/* generic load/store macros */
+
 static inline RES_TYPE glue(glue(ld, USUFFIX), MEMSUFFIX)(void *ptr)
 {
     int index;
@@ -115,6 +261,8 @@ static inline int glue(glue(lds, SUFFIX), MEMSUFFIX)(void *ptr)
 }
 #endif
 
+/* generic store macro */
+
 static inline void glue(glue(st, SUFFIX), MEMSUFFIX)(void *ptr, RES_TYPE v)
 {
     int index;
@@ -132,6 +280,8 @@ static inline void glue(glue(st, SUFFIX), MEMSUFFIX)(void *ptr, RES_TYPE v)
         glue(glue(st, SUFFIX), _raw)((uint8_t *)physaddr, v);
     }
 }
+
+#endif
 
 #undef RES_TYPE
 #undef DATA_TYPE
