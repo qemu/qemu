@@ -1207,26 +1207,6 @@ int load_elf(const char *filename, FILE *outfile, int do_print_enum)
         }
     } else {
         /* generate big code generation switch */
-#ifdef HOST_ALPHA
-fprintf(outfile,
-"register int gp asm(\"$29\");\n"
-"static inline void immediate_ldah(void *p, int val) {\n"
-"    uint32_t *dest = p;\n"
-"    long high = ((val >> 16) + ((val >> 15) & 1)) & 0xffff;\n"
-"\n"
-"    *dest &= ~0xffff;\n"
-"    *dest |= high;\n"
-"    *dest |= 31 << 16;\n"
-"}\n"
-"static inline void immediate_lda(void *dest, int val) {\n"
-"    *(uint16_t *) dest = val;\n"
-"}\n"
-"void fix_bsr(void *p, int offset) {\n"
-"    uint32_t *dest = p;\n"
-"    *dest &= ~((1 << 21) - 1);\n"
-"    *dest |= (offset >> 2) & ((1 << 21) - 1);\n"
-"}\n");
-#endif
 fprintf(outfile,
 "int dyngen_code(uint8_t *gen_code_buf,\n"
 "                uint16_t *label_offsets, uint16_t *jmp_offsets,\n"
