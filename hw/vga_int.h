@@ -72,6 +72,7 @@
 #endif /* !CONFIG_BOCHS_VBE */
 
 #define CH_ATTR_SIZE (160 * 100)
+#define VGA_MAX_HEIGHT 1024
 
 #define VGA_STATE_COMMON                                                \
     uint8_t *vram_ptr;                                                  \
@@ -119,6 +120,10 @@
     uint32_t cursor_offset;                                             \
     unsigned int (*rgb_to_pixel)(unsigned int r,                        \
                                  unsigned int g, unsigned b);           \
+    /* hardware mouse cursor support */                                 \
+    uint32_t invalidated_y_table[VGA_MAX_HEIGHT / 32];                  \
+    void (*cursor_invalidate)(struct VGAState *s);                      \
+    void (*cursor_draw_line)(struct VGAState *s, uint8_t *d, int y);    \
     /* tell for each page if it has been updated since the last time */ \
     uint32_t last_palette[256];                                         \
     uint32_t last_ch_attr[CH_ATTR_SIZE]; /* XXX: make it dynamic */
@@ -128,10 +133,32 @@ typedef struct VGAState {
     VGA_STATE_COMMON
 } VGAState;
 
+static inline int c6_to_8(int v)
+{
+    int b;
+    v &= 0x3f;
+    b = v & 1;
+    return (v << 2) | (b << 1) | b;
+}
+
 void vga_common_init(VGAState *s, DisplayState *ds, uint8_t *vga_ram_base, 
                      unsigned long vga_ram_offset, int vga_ram_size);
 uint32_t vga_mem_readb(void *opaque, target_phys_addr_t addr);
 void vga_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val);
+void vga_invalidate_scanlines(VGAState *s, int y1, int y2);
+
+void vga_draw_cursor_line_8(uint8_t *d1, const uint8_t *src1, 
+                            int poffset, int w, 
+                            unsigned int color0, unsigned int color1,
+                            unsigned int color_xor);
+void vga_draw_cursor_line_16(uint8_t *d1, const uint8_t *src1, 
+                             int poffset, int w, 
+                             unsigned int color0, unsigned int color1,
+                             unsigned int color_xor);
+void vga_draw_cursor_line_32(uint8_t *d1, const uint8_t *src1, 
+                             int poffset, int w, 
+                             unsigned int color0, unsigned int color1,
+                             unsigned int color_xor);
 
 extern const uint8_t sr_mask[8];
 extern const uint8_t gr_mask[16];

@@ -852,14 +852,6 @@ static inline unsigned int rgb_to_pixel32(unsigned int r, unsigned int g, unsign
 #define DEPTH 32
 #include "vga_template.h"
 
-static inline int c6_to_8(int v)
-{
-    int b;
-    v &= 0x3f;
-    b = v & 1;
-    return (v << 2) | (b << 1) | b;
-}
-
 static unsigned int rgb_to_pixel8_dup(unsigned int r, unsigned int g, unsigned b)
 {
     unsigned int col;
@@ -1309,11 +1301,20 @@ static int vga_get_bpp(VGAState *s)
     return ret;
 }
 
+void vga_invalidate_scanlines(VGAState *s, int y1, int y2)
+{
+    int y;
+    if (y1 >= VGA_MAX_HEIGHT)
+        return;
+    if (y2 >= VGA_MAX_HEIGHT)
+        y2 = VGA_MAX_HEIGHT;
+    for(y = y1; y < y2; y++) {
+        s->invalidated_y_table[y >> 5] |= 1 << (y & 0x1f);
+    }
+}
+
 /* 
  * graphic modes
- * Missing:
- * - double scan
- * - double width 
  */
 static void vga_draw_graphic(VGAState *s, int full_update)
 {
@@ -1400,7 +1401,9 @@ static void vga_draw_graphic(VGAState *s, int full_update)
         s->last_height = height;
         full_update = 1;
     }
-
+    if (s->cursor_invalidate)
+        s->cursor_invalidate(s);
+    
     line_offset = s->line_offset;
 #if 0
     printf("w=%d h=%d v=%d line_offset=%d double_scan=0x%02x cr[0x17]=0x%02x linecmp=%d sr[0x01]=%02x\n",
@@ -1433,6 +1436,8 @@ static void vga_draw_graphic(VGAState *s, int full_update)
             /* if wide line, can use another page */
             update |= cpu_physical_memory_is_dirty(page0 + TARGET_PAGE_SIZE);
         }
+        /* explicit invalidation for the hardware cursor */
+        update |= (s->invalidated_y_table[y >> 5] >> (y & 0x1f)) & 1;
         if (update) {
             if (y_start < 0)
                 y_start = y;
@@ -1441,6 +1446,8 @@ static void vga_draw_graphic(VGAState *s, int full_update)
             if (page1 > page_max)
                 page_max = page1;
             vga_draw_line(s, d, s->vram_ptr + addr, width);
+            if (s->cursor_draw_line)
+                s->cursor_draw_line(s, d, y);
         } else {
             if (y_start >= 0) {
                 /* flush to display */
@@ -1476,6 +1483,7 @@ static void vga_draw_graphic(VGAState *s, int full_update)
     if (page_max != -1) {
         cpu_physical_memory_reset_dirty(page_min, page_max + TARGET_PAGE_SIZE);
     }
+    memset(s->invalidated_y_table, 0, ((height + 31) >> 5) * 4);
 }
 
 static void vga_draw_blank(VGAState *s, int full_update)
