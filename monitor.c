@@ -245,6 +245,15 @@ static void do_change(int argc, const char **argv)
     bdrv_open(bs, argv[2], 0);
 }
 
+static void do_screen_dump(int argc, const char **argv)
+{
+    if (argc != 2) {
+        help_cmd(argv[0]);
+        return;
+    }
+    vga_screen_dump(argv[1]);
+}
+
 static term_cmd_t term_cmds[] = {
     { "help|?", do_help, 
       "[cmd]", "show the help" },
@@ -258,6 +267,8 @@ static term_cmd_t term_cmds[] = {
       "[-f] device", "eject a removable media (use -f to force it)" },
     { "change", do_change,
       "device filename", "change a removable media" },
+    { "screendump", do_screen_dump, 
+      "filename", "save screen into PPM image 'filename'" },
     { NULL, NULL, },
 };
 

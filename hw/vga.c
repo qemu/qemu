@@ -737,7 +737,7 @@ static uint32_t vga_mem_readl(uint32_t addr)
 }
 
 /* called for accesses between 0xa0000 and 0xc0000 */
-void vga_mem_writeb(uint32_t addr, uint32_t val, uint32_t vaddr)
+static void vga_mem_writeb(uint32_t addr, uint32_t val, uint32_t vaddr)
 {
     VGAState *s = &vga_state;
     int memory_map_mode, plane, write_mode, b, func_select;
@@ -865,13 +865,13 @@ void vga_mem_writeb(uint32_t addr, uint32_t val, uint32_t vaddr)
     }
 }
 
-void vga_mem_writew(uint32_t addr, uint32_t val, uint32_t vaddr)
+static void vga_mem_writew(uint32_t addr, uint32_t val, uint32_t vaddr)
 {
     vga_mem_writeb(addr, val & 0xff, vaddr);
     vga_mem_writeb(addr + 1, (val >> 8) & 0xff, vaddr);
 }
 
-void vga_mem_writel(uint32_t addr, uint32_t val, uint32_t vaddr)
+static void vga_mem_writel(uint32_t addr, uint32_t val, uint32_t vaddr)
 {
     vga_mem_writeb(addr, val & 0xff, vaddr);
     vga_mem_writeb(addr + 1, (val >> 8) & 0xff, vaddr);
@@ -1523,7 +1523,23 @@ void vga_update_display(void)
 
     if (s->ds->depth == 0) {
         /* nothing to do */
-   } else {
+    } else {
+        switch(s->ds->depth) {
+        case 8:
+            s->rgb_to_pixel = rgb_to_pixel8_dup;
+            break;
+        case 15:
+            s->rgb_to_pixel = rgb_to_pixel15_dup;
+            break;
+        default:
+        case 16:
+            s->rgb_to_pixel = rgb_to_pixel16_dup;
+            break;
+        case 32:
+            s->rgb_to_pixel = rgb_to_pixel32_dup;
+            break;
+        }
+        
         full_update = 0;
         graphic_mode = s->gr[6] & 1;
         if (graphic_mode != s->graphic_mode) {
@@ -1537,7 +1553,7 @@ void vga_update_display(void)
     }
 }
 
-void vga_reset(VGAState *s)
+static void vga_reset(VGAState *s)
 {
     memset(s, 0, sizeof(VGAState));
 #ifdef CONFIG_S3VGA
@@ -1550,13 +1566,13 @@ void vga_reset(VGAState *s)
     s->graphic_mode = -1; /* force full update */
 }
 
-CPUReadMemoryFunc *vga_mem_read[3] = {
+static CPUReadMemoryFunc *vga_mem_read[3] = {
     vga_mem_readb,
     vga_mem_readw,
     vga_mem_readl,
 };
 
-CPUWriteMemoryFunc *vga_mem_write[3] = {
+static CPUWriteMemoryFunc *vga_mem_write[3] = {
     vga_mem_writeb,
     vga_mem_writew,
     vga_mem_writel,
@@ -1592,22 +1608,6 @@ int vga_initialize(DisplayState *ds, uint8_t *vga_ram_base,
     }
 
     vga_reset(s);
-
-    switch(ds->depth) {
-    case 8:
-        s->rgb_to_pixel = rgb_to_pixel8_dup;
-        break;
-    case 15:
-        s->rgb_to_pixel = rgb_to_pixel15_dup;
-        break;
-    default:
-    case 16:
-        s->rgb_to_pixel = rgb_to_pixel16_dup;
-        break;
-    case 32:
-        s->rgb_to_pixel = rgb_to_pixel32_dup;
-        break;
-    }
 
     s->vram_ptr = vga_ram_base;
     s->vram_offset = vga_ram_offset;
@@ -1651,4 +1651,85 @@ int vga_initialize(DisplayState *ds, uint8_t *vga_ram_base,
     cpu_register_physical_memory(0xf00a0000, 0x20000, vga_io_memory);
 #endif
     return 0;
+}
+
+/********************************************************/
+/* vga screen dump */
+
+static int vga_save_w, vga_save_h;
+
+static void vga_save_dpy_update(DisplayState *s, 
+                                int x, int y, int w, int h)
+{
+}
+
+static void vga_save_dpy_resize(DisplayState *s, int w, int h)
+{
+    s->linesize = w * 4;
+    s->data = qemu_malloc(h * s->linesize);
+    vga_save_w = w;
+    vga_save_h = h;
+}
+
+static void vga_save_dpy_refresh(DisplayState *s)
+{
+}
+
+static int ppm_save(const char *filename, uint8_t *data, 
+                    int w, int h, int linesize)
+{
+    FILE *f;
+    uint8_t *d, *d1;
+    unsigned int v;
+    int y, x;
+
+    f = fopen(filename, "wb");
+    if (!f)
+        return -1;
+    fprintf(f, "P6\n%d %d\n%d\n",
+            w, h, 255);
+    d1 = data;
+    for(y = 0; y < h; y++) {
+        d = d1;
+        for(x = 0; x < w; x++) {
+            v = *(uint32_t *)d;
+            fputc((v >> 16) & 0xff, f);
+            fputc((v >> 8) & 0xff, f);
+            fputc((v) & 0xff, f);
+            d += 4;
+        }
+        d1 += linesize;
+    }
+    fclose(f);
+    return 0;
+}
+
+/* save the vga display in a PPM image even if no display is
+   available */
+void vga_screen_dump(const char *filename)
+{
+    VGAState *s = &vga_state;
+    DisplayState *saved_ds, ds1, *ds = &ds1;
+    
+    /* XXX: this is a little hackish */
+    s->last_width = -1;
+    s->last_height = -1;
+    saved_ds = s->ds;
+
+    memset(ds, 0, sizeof(DisplayState));
+    ds->dpy_update = vga_save_dpy_update;
+    ds->dpy_resize = vga_save_dpy_resize;
+    ds->dpy_refresh = vga_save_dpy_refresh;
+    ds->depth = 32;
+
+    s->ds = ds;
+    s->graphic_mode = -1;
+    vga_update_display();
+    
+    if (ds->data) {
+        ppm_save(filename, ds->data, vga_save_w, vga_save_h, 
+                 s->ds->linesize);
+        qemu_free(ds->data);
+    }
+    s->ds = saved_ds;
 }
