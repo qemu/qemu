@@ -1538,15 +1538,17 @@ static void gen_movl_seg_T0(DisasContext *s, int seg_reg, unsigned int cur_eip)
             gen_op_set_cc_op(s->cc_op);
         gen_op_jmp_im(cur_eip);
         gen_op_movl_seg_T0(seg_reg);
+        /* abort translation because the addseg value may change or
+           because ss32 may change. For R_SS, translation must always
+           stop as a special handling must be done to disable hardware
+           interrupts for the next instruction */
+        if (seg_reg == R_SS || (s->code32 && seg_reg < R_FS))
+            s->is_jmp = 3;
     } else {
         gen_op_movl_seg_T0_vm(offsetof(CPUX86State,segs[seg_reg]));
+        if (seg_reg == R_SS)
+            s->is_jmp = 3;
     }
-    /* abort translation because the register may have a non zero base
-       or because ss32 may change. For R_SS, translation must always
-       stop as a special handling must be done to disable hardware
-       interrupts for the next instruction */
-    if (seg_reg == R_SS || (!s->addseg && seg_reg < R_FS))
-        s->is_jmp = 3;
 }
 
 static inline void gen_stack_update(DisasContext *s, int addend)
@@ -4572,7 +4574,7 @@ static inline int gen_intermediate_code_internal(CPUState *env,
                     );
 #if 0
     /* check addseg logic */
-    if (!dc->addseg && (dc->vm86 || !dc->pe))
+    if (!dc->addseg && (dc->vm86 || !dc->pe || !dc->code32))
         printf("ERROR addseg\n");
 #endif
 

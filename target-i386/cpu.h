@@ -116,7 +116,7 @@
 /* 16 or 32 segments */
 #define HF_CS32_SHIFT        4
 #define HF_SS32_SHIFT        5
-/* zero base for DS, ES and SS */
+/* zero base for DS, ES and SS : can be '0' only in 32 bit CS segment */
 #define HF_ADDSEG_SHIFT      6
 /* copy of CR0.PE (protected mode) */
 #define HF_PE_SHIFT          7
@@ -398,7 +398,9 @@ static inline void cpu_x86_load_seg_cache(CPUX86State *env,
         >> (DESC_B_SHIFT - HF_CS32_SHIFT);
     new_hflags |= (env->segs[R_SS].flags & DESC_B_MASK)
         >> (DESC_B_SHIFT - HF_SS32_SHIFT);
-    if (!(env->cr[0] & CR0_PE_MASK) || (env->eflags & VM_MASK)) {
+    if (!(env->cr[0] & CR0_PE_MASK) || 
+        (env->eflags & VM_MASK) ||
+        !(new_hflags & HF_CS32_MASK)) {
         /* XXX: try to avoid this test. The problem comes from the
            fact that is real mode or vm86 mode we only modify the
            'base' and 'selector' fields of the segment cache to go
