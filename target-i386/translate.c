@@ -3732,6 +3732,9 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         /************************/
         /* misc */
     case 0x90: /* nop */
+        /* XXX: correct lock test for all insn */
+        if (prefixes & PREFIX_LOCK)
+            goto illegal_op;
         break;
     case 0x9b: /* fwait */
         break;
@@ -4137,6 +4140,8 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         gen_op_unlock();
     return s->pc;
  illegal_op:
+    if (s->prefix & PREFIX_LOCK)
+        gen_op_unlock();
     /* XXX: ensure that no lock was generated */
     gen_exception(s, EXCP06_ILLOP, pc_start - s->cs_base);
     return s->pc;
