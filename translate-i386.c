@@ -53,6 +53,12 @@ static inline void flush_icache_range(unsigned long start, unsigned long stop)
 }
 #endif
 
+#ifdef __ia64__
+static inline void flush_icache_range(unsigned long start, unsigned long stop)
+{
+}
+#endif
+
 #ifdef __powerpc__
 
 #define MIN_CACHE_LINE_SIZE 8 /* conservative value */
@@ -73,6 +79,13 @@ static void inline flush_icache_range(unsigned long start, unsigned long stop)
     }
     asm ("sync");
     asm ("isync");
+}
+#endif
+
+#ifdef __alpha__
+static inline void flush_icache_range(unsigned long start, unsigned long stop)
+{
+    asm ("imb");
 }
 #endif
 

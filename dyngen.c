@@ -58,19 +58,28 @@
 #define elf_check_arch(x) ((x) == EM_ALPHA)
 #define ELF_USES_RELOCA
 
+#elif defined(HOST_IA64)
+
+#define ELF_CLASS	ELFCLASS64
+#define ELF_ARCH	EM_IA_64
+#define elf_check_arch(x) ((x) == EM_IA_64)
+#define ELF_USES_RELOCA
+
 #else
 #error unsupported CPU - please update the code
 #endif
 
+#include "elf.h"
+
 #if ELF_CLASS == ELFCLASS32
 typedef int32_t host_long;
 typedef uint32_t host_ulong;
+#define swabls(x) swab32s(x)
 #else
 typedef int64_t host_long;
 typedef uint64_t host_ulong;
+#define swabls(x) swab64s(x)
 #endif
-
-#include "elf.h"
 
 #include "thunk.h"
 
@@ -103,12 +112,6 @@ void swab64s(uint64_t *p)
 {
     *p = bswap64(*p);
 }
-
-#if ELF_CLASS == ELFCLASS32
-#define swabls(x) swab32s(x)
-#else
-#define swabls(x) swab64s(x)
-#endif
 
 void elf_swap_ehdr(struct elfhdr *h)
 {
@@ -187,7 +190,7 @@ void put32(uint32_t *p, uint32_t val)
     *p = val;
 }
 
-void __attribute__((noreturn)) error(const char *fmt, ...)
+void __attribute__((noreturn)) __attribute__((format (printf, 1, 2))) error(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -295,10 +298,36 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 	    if (p == p_start)
 		error("empty code for %s", name);
 	    if (get16((uint16_t *)p) != 0x07fe && get16((uint16_t *)p) != 0x07f4)
-		error("br %r14 expected at the end of %s", name);
+		error("br %%r14 expected at the end of %s", name);
 	    copy_size = p - p_start;
 	}
         break;
+    case EM_ALPHA:
+        {
+	    uint8_t *p;
+	    p = p_end - 4;
+	    if (p == p_start)
+		error("empty code for %s", name);
+            if (get32((uint32_t *)p) != 0x6bfa8001)
+		error("ret expected at the end of %s", name);
+	    copy_size = p - p_start;	    
+	}
+	break;
+    case EM_IA_64:
+	{
+            uint8_t *p;
+            p = (void *)(p_end - 4);
+            if (p == p_start)
+                error("empty code for %s", name);
+	    /* br.ret.sptk.many b0;; */
+	    /* 08 00 84 00 */
+            if (get32((uint32_t *)p) != 0x00840008)
+                error("br.ret.sptk.many b0;; expected at the end of %s", name);
+            copy_size = p - p_start;
+	}
+        break;
+    default:
+	error("unknown ELF architecture");
     }
 
     /* compute the number of arguments by looking at the relocations */
@@ -344,7 +373,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 
         for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
             if (rel->r_offset >= offset && rel->r_offset < offset + copy_size) {
-                sym_name = strtab + symtab[ELF32_R_SYM(rel->r_info)].st_name;
+                sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
                 if (!strstart(sym_name, "__op_param", &p)) {
                     fprintf(outfile, "extern char %s;\n", sym_name);
                 }
@@ -364,7 +393,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                 int addend;
                 for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
                 if (rel->r_offset >= offset && rel->r_offset < offset + copy_size) {
-                    sym_name = strtab + symtab[ELF32_R_SYM(rel->r_info)].st_name;
+                    sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
                     if (strstart(sym_name, "__op_param", &p)) {
                         snprintf(name, sizeof(name), "param%s", p);
                     } else {
@@ -394,7 +423,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                 int addend;
                 for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
                     if (rel->r_offset >= offset && rel->r_offset < offset + copy_size) {
-                        sym_name = strtab + symtab[ELF32_R_SYM(rel->r_info)].st_name;
+                        sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
                         if (strstart(sym_name, "__op_param", &p)) {
                             snprintf(name, sizeof(name), "param%s", p);
                         } else {
@@ -437,7 +466,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                 int addend;
                 for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
                     if (rel->r_offset >= offset && rel->r_offset < offset + copy_size) {
-                        sym_name = strtab + symtab[ELF32_R_SYM(rel->r_info)].st_name;
+                        sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
                         if (strstart(sym_name, "__op_param", &p)) {
                             snprintf(name, sizeof(name), "param%s", p);
                         } else {
@@ -460,6 +489,67 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                             break;
                         default:
                             error("unsupported s390 relocation (%d)", type);
+                        }
+                    }
+                }
+            }
+#elif defined(HOST_ALPHA)
+            {
+                for (i = 0, rel = relocs; i < nb_relocs; i++, rel++) {
+		    if (rel->r_offset >= offset && rel->r_offset < offset + copy_size) {
+			int type;
+			sym_name = strtab + symtab[ELF64_R_SYM(rel->r_info)].st_name;
+			
+			type = ELF64_R_TYPE(rel->r_info);
+			switch (type) {
+			case R_ALPHA_GPDISP:
+			    /* Instructions to set up the gp can be nopped, since we keep it current
+			       all the time.  FIXME assert that target is really gp  */
+			    fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = 0x2ffe0000; /* unop */\n",
+				    rel->r_offset - offset);
+			    break;
+			case R_ALPHA_LITUSE:
+			    /* jsr to literal hint. Could be used to optimize to bsr. Ignore for
+			       now, since some called functions (libc) need pv to be set up.  */
+			    break;
+			case R_ALPHA_HINT:
+			    /* Branch target prediction hint. Ignore for now.  Should be already
+			       correct for in-function jumps.  */
+			    break;
+			case R_ALPHA_LITERAL:
+			    /* Load a literal from the GOT relative to the gp.  Need to patch the
+			       16-bit immediate offset.  */
+			    fprintf(outfile, "    *(int16_t *)(gen_code_ptr + %d) = gp - (long)(&%s);\n",
+				    rel->r_offset - offset, name);
+			    break;
+			default:
+			    error("unsupported Alpha relocation (%d)", type);
+			}
+		    }
+                }
+            }
+#elif defined(HOST_IA64)
+            {
+                char name[256];
+                int type;
+                int addend;
+                for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
+                    if (rel->r_offset >= offset && rel->r_offset < offset + copy_size) {
+                        sym_name = strtab + symtab[ELF64_R_SYM(rel->r_info)].st_name;
+                        if (strstart(sym_name, "__op_param", &p)) {
+                            snprintf(name, sizeof(name), "param%s", p);
+                        } else {
+                            snprintf(name, sizeof(name), "(long)(&%s)", sym_name);
+                        }
+                        type = ELF64_R_TYPE(rel->r_info);
+                        addend = rel->r_addend;
+                        switch(type) {
+			case R_IA64_LTOFF22:
+			    error("must implemnt R_IA64_LTOFF22 relocation");
+			case R_IA64_PCREL21B:
+			    error("must implemnt R_IA64_PCREL21B relocation");
+                        default:
+                            error("unsupported ia64 relocation (%d)", type);
                         }
                     }
                 }
@@ -564,17 +654,17 @@ int load_elf(const char *filename, FILE *outfile, int do_print_enum)
             nb_relocs = sec->sh_size / sec->sh_entsize;
             if (do_swap) {
                 if (sec->sh_type == SHT_REL) {
-                    Elf32_Rel *rel = relocs;
+                    ElfW(Rel) *rel = relocs;
                     for(j = 0, rel = relocs; j < nb_relocs; j++, rel++) {
-                        swab32s(&rel->r_offset);
-                        swab32s(&rel->r_info);
+                        swabls(&rel->r_offset);
+                        swabls(&rel->r_info);
                     }
                 } else {
-                    Elf32_Rela *rel = relocs;
+                    ElfW(Rela) *rel = relocs;
                     for(j = 0, rel = relocs; j < nb_relocs; j++, rel++) {
-                        swab32s(&rel->r_offset);
-                        swab32s(&rel->r_info);
-                        swab32s(&rel->r_addend);
+                        swabls(&rel->r_offset);
+                        swabls(&rel->r_info);
+                        swabls(&rel->r_addend);
                     }
                 }
             }
@@ -590,7 +680,7 @@ int load_elf(const char *filename, FILE *outfile, int do_print_enum)
     symtab = load_data(fd, symtab_sec->sh_offset, symtab_sec->sh_size);
     strtab = load_data(fd, strtab_sec->sh_offset, strtab_sec->sh_size);
     
-    nb_syms = symtab_sec->sh_size / sizeof(Elf32_Sym);
+    nb_syms = symtab_sec->sh_size / sizeof(ElfW(Sym));
     if (do_swap) {
         for(i = 0, sym = symtab; i < nb_syms; i++, sym++) {
             swab32s(&sym->st_name);
@@ -612,6 +702,9 @@ int load_elf(const char *filename, FILE *outfile, int do_print_enum)
         }
     } else {
         /* generate big code generation switch */
+#ifdef HOST_ALPHA
+	fprintf(outfile, "register long gp asm(\"%%$29\");\n");
+#endif
 fprintf(outfile,
 "int dyngen_code(uint8_t *gen_code_buf,\n"
 "                const uint16_t *opc_buf, const uint32_t *opparam_buf)\n"
@@ -660,6 +753,14 @@ fprintf(outfile,
     case EM_S390:
         fprintf(outfile, "*((uint16_t *)gen_code_ptr)++ = 0x07fe; /* br %%r14 */\n");
         break;
+    case EM_ALPHA:
+        fprintf(outfile, "*((uint32_t *)gen_code_ptr)++ = 0x6bfa8001; /* ret */\n");
+        break;
+    case EM_IA_64:
+        fprintf(outfile, "*((uint32_t *)gen_code_ptr)++ = 0x00840008; /* br.ret.sptk.many b0;; */\n");
+        break;
+    default:
+	error("unknown ELF architecture");
     }
     
     fprintf(outfile, "return gen_code_ptr -  gen_code_buf;\n");
