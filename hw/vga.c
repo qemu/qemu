@@ -30,7 +30,8 @@
 //#define DEBUG_S3
 //#define DEBUG_BOCHS_VBE
 
-#define CONFIG_S3VGA
+/* S3 VGA is deprecated - another graphic card will be emulated */
+//#define CONFIG_S3VGA
 
 #define MSR_COLOR_EMULATION 0x01
 #define MSR_PAGE_SELECT     0x20
@@ -335,7 +336,7 @@ static uint32_t vga_ioport_read(void *opaque, uint32_t addr)
 static void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
     VGAState *s = opaque;
-    int index, v;
+    int index;
 
     /* check port range access depending on color/monochrome mode */
     if ((addr >= 0x3b0 && addr <= 0x3bf && (s->msr & MSR_COLOR_EMULATION)) ||
@@ -453,15 +454,21 @@ static void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             break;
         case 0x31:
             /* update start address */
-            s->cr[s->cr_index] = val;
-            v = (val >> 4) & 3;
-            s->cr[0x69] = (s->cr[69] & ~0x03) | v;
+            {
+                int v;
+                s->cr[s->cr_index] = val;
+                v = (val >> 4) & 3;
+                s->cr[0x69] = (s->cr[69] & ~0x03) | v;
+            }
             break;
         case 0x51:
             /* update start address */
-            s->cr[s->cr_index] = val;
-            v = val & 3;
-            s->cr[0x69] = (s->cr[69] & ~0x0c) | (v << 2);
+            {
+                int v;
+                s->cr[s->cr_index] = val;
+                v = val & 3;
+                s->cr[0x69] = (s->cr[69] & ~0x0c) | (v << 2);
+            }
             break;
 #endif
         default:
@@ -716,7 +723,7 @@ static uint32_t vga_mem_readl(uint32_t addr)
 }
 
 /* called for accesses between 0xa0000 and 0xc0000 */
-static void vga_mem_writeb(uint32_t addr, uint32_t val, uint32_t vaddr)
+static void vga_mem_writeb(uint32_t addr, uint32_t val)
 {
     VGAState *s = &vga_state;
     int memory_map_mode, plane, write_mode, b, func_select;
@@ -844,18 +851,18 @@ static void vga_mem_writeb(uint32_t addr, uint32_t val, uint32_t vaddr)
     }
 }
 
-static void vga_mem_writew(uint32_t addr, uint32_t val, uint32_t vaddr)
+static void vga_mem_writew(uint32_t addr, uint32_t val)
 {
-    vga_mem_writeb(addr, val & 0xff, vaddr);
-    vga_mem_writeb(addr + 1, (val >> 8) & 0xff, vaddr);
+    vga_mem_writeb(addr, val & 0xff);
+    vga_mem_writeb(addr + 1, (val >> 8) & 0xff);
 }
 
-static void vga_mem_writel(uint32_t addr, uint32_t val, uint32_t vaddr)
+static void vga_mem_writel(uint32_t addr, uint32_t val)
 {
-    vga_mem_writeb(addr, val & 0xff, vaddr);
-    vga_mem_writeb(addr + 1, (val >> 8) & 0xff, vaddr);
-    vga_mem_writeb(addr + 2, (val >> 16) & 0xff, vaddr);
-    vga_mem_writeb(addr + 3, (val >> 24) & 0xff, vaddr);
+    vga_mem_writeb(addr, val & 0xff);
+    vga_mem_writeb(addr + 1, (val >> 8) & 0xff);
+    vga_mem_writeb(addr + 2, (val >> 16) & 0xff);
+    vga_mem_writeb(addr + 3, (val >> 24) & 0xff);
 }
 
 typedef void vga_draw_glyph8_func(uint8_t *d, int linesize,
@@ -992,7 +999,7 @@ static int update_palette256(VGAState *s)
 static int update_basic_params(VGAState *s)
 {
     int full_update;
-    uint32_t start_addr, line_offset, line_compare, v;
+    uint32_t start_addr, line_offset, line_compare;
     
     full_update = 0;
 
@@ -1006,10 +1013,13 @@ static int update_basic_params(VGAState *s)
         /* compute line_offset in bytes */
         line_offset = s->cr[0x13];
 #ifdef CONFIG_S3VGA
-        v = (s->cr[0x51] >> 4) & 3; /* S3 extension */
-        if (v == 0)
-            v = (s->cr[0x43] >> 2) & 1; /* S3 extension */
-        line_offset |= (v << 8);
+        {
+            uinr32_t v;
+            v = (s->cr[0x51] >> 4) & 3; /* S3 extension */
+            if (v == 0)
+                v = (s->cr[0x43] >> 2) & 1; /* S3 extension */
+            line_offset |= (v << 8);
+        }
 #endif
         line_offset <<= 3;
         
