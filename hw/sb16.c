@@ -48,9 +48,9 @@
 #endif
 
 #define IO_READ_PROTO(name) \
-    uint32_t name (struct CPUX86State *env, uint32_t nport)
+    uint32_t name (struct CPUState *env, uint32_t nport)
 #define IO_WRITE_PROTO(name) \
-    void name (struct CPUX86State *env, uint32_t nport, uint32_t val)
+    void name (struct CPUState *env, uint32_t nport, uint32_t val)
 
 static struct {
     int ver_lo;

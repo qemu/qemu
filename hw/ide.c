@@ -1047,7 +1047,7 @@ static void ide_atapi_cmd(IDEState *s)
     }
 }
 
-static void ide_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
+static void ide_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
 {
     IDEState *ide_if = get_ide_interface(addr);
     IDEState *s = ide_if->cur_drive;
@@ -1198,7 +1198,7 @@ static void ide_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
     }
 }
 
-static uint32_t ide_ioport_read(CPUX86State *env, uint32_t addr1)
+static uint32_t ide_ioport_read(CPUState *env, uint32_t addr1)
 {
     IDEState *s = get_ide_interface(addr1)->cur_drive;
     uint32_t addr;
@@ -1239,7 +1239,7 @@ static uint32_t ide_ioport_read(CPUX86State *env, uint32_t addr1)
     return ret;
 }
 
-static uint32_t ide_status_read(CPUX86State *env, uint32_t addr)
+static uint32_t ide_status_read(CPUState *env, uint32_t addr)
 {
     IDEState *s = get_ide_interface(addr)->cur_drive;
     int ret;
@@ -1250,7 +1250,7 @@ static uint32_t ide_status_read(CPUX86State *env, uint32_t addr)
     return ret;
 }
 
-static void ide_cmd_write(CPUX86State *env, uint32_t addr, uint32_t val)
+static void ide_cmd_write(CPUState *env, uint32_t addr, uint32_t val)
 {
     IDEState *ide_if = get_ide_interface(addr);
     IDEState *s;
@@ -1285,7 +1285,7 @@ static void ide_cmd_write(CPUX86State *env, uint32_t addr, uint32_t val)
     ide_if[1].cmd = val;
 }
 
-static void ide_data_writew(CPUX86State *env, uint32_t addr, uint32_t val)
+static void ide_data_writew(CPUState *env, uint32_t addr, uint32_t val)
 {
     IDEState *s = get_ide_interface(addr)->cur_drive;
     uint8_t *p;
@@ -1298,7 +1298,7 @@ static void ide_data_writew(CPUX86State *env, uint32_t addr, uint32_t val)
         s->end_transfer_func(s);
 }
 
-static uint32_t ide_data_readw(CPUX86State *env, uint32_t addr)
+static uint32_t ide_data_readw(CPUState *env, uint32_t addr)
 {
     IDEState *s = get_ide_interface(addr)->cur_drive;
     uint8_t *p;
@@ -1312,7 +1312,7 @@ static uint32_t ide_data_readw(CPUX86State *env, uint32_t addr)
     return ret;
 }
 
-static void ide_data_writel(CPUX86State *env, uint32_t addr, uint32_t val)
+static void ide_data_writel(CPUState *env, uint32_t addr, uint32_t val)
 {
     IDEState *s = get_ide_interface(addr)->cur_drive;
     uint8_t *p;
@@ -1325,7 +1325,7 @@ static void ide_data_writel(CPUX86State *env, uint32_t addr, uint32_t val)
         s->end_transfer_func(s);
 }
 
-static uint32_t ide_data_readl(CPUX86State *env, uint32_t addr)
+static uint32_t ide_data_readl(CPUState *env, uint32_t addr)
 {
     IDEState *s = get_ide_interface(addr)->cur_drive;
     uint8_t *p;

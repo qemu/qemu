@@ -25,12 +25,12 @@
 #define VL_H
 
 /* vl.c */
-struct CPUX86State;
+struct CPUState;
 extern int reset_requested;
 extern int64_t ticks_per_sec;
 
-typedef void (IOPortWriteFunc)(struct CPUX86State *env, uint32_t address, uint32_t data);
-typedef uint32_t (IOPortReadFunc)(struct CPUX86State *env, uint32_t address);
+typedef void (IOPortWriteFunc)(struct CPUState *env, uint32_t address, uint32_t data);
+typedef uint32_t (IOPortReadFunc)(struct CPUState *env, uint32_t address);
 
 void *get_mmap_addr(unsigned long size);
 int register_ioport_read(int start, int length, IOPortReadFunc *func, int size);
@@ -93,8 +93,8 @@ static inline void dpy_resize(DisplayState *s, int w, int h)
     s->dpy_resize(s, w, h);
 }
 
-int vga_init(DisplayState *ds, uint8_t *vga_ram_base, 
-             unsigned long vga_ram_offset, int vga_ram_size);
+int vga_initialize(DisplayState *ds, uint8_t *vga_ram_base, 
+                   unsigned long vga_ram_offset, int vga_ram_size);
 void vga_update_display(void);
 
 /* sdl.c */
@@ -144,4 +144,13 @@ void DMA_register_channel (int nchan,
 void SB16_run (void);
 void SB16_init (void);
  
+/* fdc.c */
+#define MAX_FD 2
+extern BlockDriverState *fd_table[MAX_FD];
+
+void cmos_register_fd (uint8_t fd0, uint8_t fd1);
+void fdctrl_init (int irq_lvl, int dma_chann, int mem_mapped, uint32_t base,
+                  char boot_device);
+int fdctrl_disk_change (int idx, const unsigned char *filename, int ro);
+
 #endif /* VL_H */

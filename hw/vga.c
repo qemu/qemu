@@ -223,7 +223,7 @@ static uint8_t expand4to8[16];
 VGAState vga_state;
 int vga_io_memory;
 
-static uint32_t vga_ioport_read(CPUX86State *env, uint32_t addr)
+static uint32_t vga_ioport_read(CPUState *env, uint32_t addr)
 {
     VGAState *s = &vga_state;
     int val, index;
@@ -319,7 +319,7 @@ static uint32_t vga_ioport_read(CPUX86State *env, uint32_t addr)
     return val;
 }
 
-static void vga_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
+static void vga_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
 {
     VGAState *s = &vga_state;
     int index, v;
@@ -1350,8 +1350,8 @@ CPUWriteMemoryFunc *vga_mem_write[3] = {
     vga_mem_writel,
 };
 
-int vga_init(DisplayState *ds, uint8_t *vga_ram_base, 
-             unsigned long vga_ram_offset, int vga_ram_size)
+int vga_initialize(DisplayState *ds, uint8_t *vga_ram_base, 
+                   unsigned long vga_ram_offset, int vga_ram_size)
 {
     VGAState *s = &vga_state;
     int i, j, v, b;
@@ -1417,6 +1417,10 @@ int vga_init(DisplayState *ds, uint8_t *vga_ram_base,
     register_ioport_read(0x3da, 1, vga_ioport_read, 1);
 
     vga_io_memory = cpu_register_io_memory(0, vga_mem_read, vga_mem_write);
-    cpu_register_physical_memory(0xa0000, 0x20000, vga_io_memory);
+#if defined (TARGET_I386)
+    cpu_register_physical_memory(0x000a0000, 0x20000, vga_io_memory);
+#elif defined (TARGET_PPC)
+    cpu_register_physical_memory(0xf00a0000, 0x20000, vga_io_memory);
+#endif
     return 0;
 }
