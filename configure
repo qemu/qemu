@@ -79,8 +79,22 @@ case $targetos in
 MINGW32*)
 mingw32="yes"
 ;;
+FreeBSD)
+bsd="yes"
+;;
+NetBSD)
+bsd="yes"
+;;
+OpenBSD)
+bsd="yes"
+;;
 *) ;;
 esac
+
+if [ "$bsd" = "yes" ] ; then
+  make="gmake"
+  target_list="i386-softmmu"
+fi
 
 # find source path
 # XXX: we assume an absolute path is given when launching configure, 
@@ -373,7 +387,7 @@ fi
 if test "$mingw32" = "yes" ; then
   echo "CONFIG_WIN32=yes" >> $config_mak
   echo "#define CONFIG_WIN32 1" >> $config_h
-else
+elif test -f "/usr/include/byteswap.h" ; then
   echo "#define HAVE_BYTESWAP_H 1" >> $config_h
 fi
 if test "$gdbstub" = "yes" ; then
@@ -401,6 +415,10 @@ echo "\"" >> $config_h
 
 echo "SRC_PATH=$source_path" >> $config_mak
 echo "TARGET_DIRS=$target_list" >> $config_mak
+
+if [ "$bsd" = "yes" ] ; then
+  echo "#define _BSD 1" >> $config_h
+fi
 
 for target in $target_list; do 
 

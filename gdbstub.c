@@ -532,7 +532,7 @@ static void gdb_accept(void *opaque, const uint8_t *buf, int size)
 
     /* set short latency */
     val = 1;
-    setsockopt(fd, SOL_TCP, TCP_NODELAY, &val, sizeof(val));
+    setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &val, sizeof(val));
     
     s = qemu_mallocz(sizeof(GDBState));
     if (!s) {

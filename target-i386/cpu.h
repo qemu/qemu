@@ -259,7 +259,7 @@ enum {
     CC_OP_NB,
 };
 
-#if defined(__i386__) || defined(__x86_64__)
+#if (defined(__i386__) || defined(__x86_64__)) && !defined(_BSD)
 #define USE_X86LDOUBLE
 #endif
 

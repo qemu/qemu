@@ -59,7 +59,11 @@ extern int fprintf(FILE *, const char *, ...);
 extern int printf(const char *, ...);
 #undef NULL
 #define NULL 0
+#ifdef _BSD
+#include <ieeefp.h>
+#else
 #include <fenv.h>
+#endif
 
 #ifdef __i386__
 #define AREG0 "ebp"

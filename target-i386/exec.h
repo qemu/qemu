@@ -17,6 +17,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+#include "config.h"
 #include "dyngen-exec.h"
 
 /* at least 4 register variables are defines */
@@ -307,8 +308,13 @@ static inline void stfl(void *ptr, float v)
 #define rint rintl
 #endif
 
+#if !defined(_BSD)
 extern int lrint(CPU86_LDouble x);
 extern int64_t llrint(CPU86_LDouble x);
+#else
+#define lrint(d)		((int)rint(d))
+#define llrint(d)		((int)rint(d))
+#endif
 extern CPU86_LDouble fabs(CPU86_LDouble x);
 extern CPU86_LDouble sin(CPU86_LDouble x);
 extern CPU86_LDouble cos(CPU86_LDouble x);

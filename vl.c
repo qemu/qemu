@@ -28,22 +28,27 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <time.h>
-#include <malloc.h>
 #include <errno.h>
 #include <sys/time.h>
 
 #ifndef _WIN32
 #include <sys/times.h>
 #include <sys/wait.h>
-#include <pty.h>
 #include <termios.h>
 #include <sys/poll.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#ifdef _BSD
+#include <sys/stat.h>
+#include <libutil.h>
+#else
 #include <linux/if.h>
 #include <linux/if_tun.h>
+#include <pty.h>
+#include <malloc.h>
 #include <linux/rtc.h>
+#endif
 #endif
 
 #if defined(CONFIG_SLIRP)
@@ -51,6 +56,7 @@
 #endif
 
 #ifdef _WIN32
+#include <malloc.h>
 #include <sys/timeb.h>
 #include <windows.h>
 #define getopt_long_only getopt_long
@@ -58,15 +64,17 @@
 #endif
 
 #ifdef CONFIG_SDL
+#if defined(__linux__)
 /* SDL use the pthreads and they modify sigaction. We don't
    want that. */
-#if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 2)
+#if (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 2))
 extern void __libc_sigaction();
 #define sigaction(sig, act, oact) __libc_sigaction(sig, act, oact)
 #else
 extern void __sigaction();
 #define sigaction(sig, act, oact) __sigaction(sig, act, oact)
 #endif
+#endif /* __linux__ */
 #endif /* CONFIG_SDL */
 
 #include "disas.h"
@@ -637,11 +645,17 @@ int64_t qemu_get_clock(QEMUClock *clock)
 #ifdef _WIN32
         return GetTickCount();
 #else
-        /* XXX: portability among Linux hosts */
-        if (timer_freq == 100) {
-            return times(NULL) * 10;
-        } else {
-            return ((int64_t)times(NULL) * 1000) / timer_freq;
+        {
+            struct tms tp;
+
+            /* Note that using gettimeofday() is not a good solution
+               for timers because its value change when the date is
+               modified. */
+            if (timer_freq == 100) {
+                return times(&tp) * 10;
+            } else {
+                return ((int64_t)times(&tp) * 1000) / timer_freq;
+            }
         }
 #endif
     default:
@@ -964,7 +978,27 @@ static int net_slirp_init(NetDriverState *nd)
 #endif /* CONFIG_SLIRP */
 
 #if !defined(_WIN32)
+#ifdef _BSD
+static int tun_open(char *ifname, int ifname_size)
+{
+    int fd;
+    char *dev;
+    struct stat s;
 
+    fd = open("/dev/tap", O_RDWR);
+    if (fd < 0) {
+        fprintf(stderr, "warning: could not open /dev/tap: no virtual network emulation\n");
+        return -1;
+    }
+
+    fstat(fd, &s);
+    dev = devname(s.st_rdev, S_IFCHR);
+    pstrcpy(ifname, ifname_size, dev);
+
+    fcntl(fd, F_SETFL, O_NONBLOCK);
+    return fd;
+}
+#else
 static int tun_open(char *ifname, int ifname_size)
 {
     struct ifreq ifr;
@@ -989,6 +1023,7 @@ static int tun_open(char *ifname, int ifname_size)
     fcntl(fd, F_SETFL, O_NONBLOCK);
     return fd;
 }
+#endif
 
 static void tun_send_packet(NetDriverState *nd, const uint8_t *buf, int size)
 {
@@ -2248,7 +2283,12 @@ int main(int argc, char **argv)
     phys_ram_size = ram_size + vga_ram_size;
 
 #ifdef CONFIG_SOFTMMU
+#ifdef _BSD
+    /* mallocs are always aligned on BSD. */
+    phys_ram_base = malloc(phys_ram_size);
+#else
     phys_ram_base = memalign(TARGET_PAGE_SIZE, phys_ram_size);
+#endif
     if (!phys_ram_base) {
         fprintf(stderr, "Could not allocate physical memory\n");
         exit(1);
