@@ -169,6 +169,8 @@ int cpu_exec(CPUState *env1)
                                  env->exception_is_int, 
                                  env->error_code, 
                                  env->exception_next_eip, 0);
+#elif defined(TARGET_PPC)
+                    do_interrupt(env);
 #endif
                 }
                 env->exception_index = -1;
@@ -200,6 +202,13 @@ int cpu_exec(CPUState *env1)
 #else
                         T0 = 0;
 #endif
+                    }
+#elif defined(TARGET_PPC)
+                    if ((interrupt_request & CPU_INTERRUPT_HARD)) {
+                        do_queue_exception(EXCP_EXTERNAL);
+                        if (check_exception_state(env))
+                            do_interrupt(env);
+                        env->interrupt_request &= ~CPU_INTERRUPT_HARD;
                     }
 #endif
                     if (interrupt_request & CPU_INTERRUPT_EXIT) {
@@ -250,7 +259,7 @@ int cpu_exec(CPUState *env1)
                 pc = (uint8_t *)env->regs[15];
 #elif defined(TARGET_SPARC)
                 flags = 0;
-                cs_base = env->npc;
+                cs_base = (uint8_t *)env->npc;
                 pc = (uint8_t *) env->pc;
 #elif defined(TARGET_PPC)
                 flags = 0;
@@ -571,8 +580,9 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
                                     int is_write, sigset_t *old_set)
 {
     TranslationBlock *tb;
+    int ret;
     
-#if 0
+#if 1
     if (cpu_single_env)
         env = cpu_single_env; /* XXX: find a correct solution for multithread */
 #endif
@@ -585,6 +595,13 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
         return 1;
     }
 
+    /* see if it is an MMU fault */
+    ret = cpu_ppc_handle_mmu_fault(env, address, is_write | ACCESS_INT, msr_pr, 0);
+    if (ret < 0)
+        return 0; /* not an MMU fault */
+    if (ret == 0)
+        return 1; /* the MMU fault was handled without causing real CPU fault */
+
     /* now we have a real cpu fault */
     tb = tb_find_pc(pc);
     if (tb) {
@@ -592,14 +609,20 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
            a virtual CPU fault */
         cpu_restore_state(tb, env, pc);
     }
+    if (ret == 1) {
 #if 0
-    printf("PF exception: EIP=0x%08x CR2=0x%08x error=0x%x\n", 
-           env->eip, env->cr[2], env->error_code);
+        printf("PF exception: NIP=0x%08x error=0x%x %p\n", 
+               env->nip, env->error_code, tb);
 #endif
     /* we restore the process signal mask as the sigreturn should
        do it (XXX: use sigsetjmp) */
     sigprocmask(SIG_SETMASK, old_set, NULL);
-    raise_exception_err(EXCP_PROGRAM, env->error_code);
+        do_queue_exception_err(env->exception_index, env->error_code);
+    } else {
+        /* activate soft MMU for this block */
+        sigprocmask(SIG_SETMASK, old_set, NULL);
+        cpu_loop_exit();
+    }
     /* never comes here */
     return 1;
 }
