@@ -322,7 +322,7 @@ TranslationBlock *tb_find_pc(unsigned long pc_ptr);
 #if defined(__powerpc__)
 
 /* we patch the jump instruction directly */
-#define JUMP_TB(opname, tbparam, n, eip)\
+#define GOTO_TB(opname, tbparam, n)\
 do {\
     asm volatile (ASM_DATA_SECTION\
 		  ASM_NAME(__op_label) #n "." ASM_NAME(opname) ":\n"\
@@ -330,20 +330,12 @@ do {\
 		  ASM_PREVIOUS_SECTION \
                   "b " ASM_NAME(__op_jmp) #n "\n"\
 		  "1:\n");\
-    T0 = (long)(tbparam) + (n);\
-    EIP = (int32_t)eip;\
-    EXIT_TB();\
-} while (0)
-
-#define JUMP_TB2(opname, tbparam, n)\
-do {\
-    asm volatile ("b " ASM_NAME(__op_jmp) #n "\n");\
 } while (0)
 
 #elif defined(__i386__) && defined(USE_DIRECT_JUMP)
 
 /* we patch the jump instruction directly */
-#define GOTO_TB(opname, n)\
+#define GOTO_TB(opname, tbparam, n)\
 do {\
     asm volatile (".section .data\n"\
 		  ASM_NAME(__op_label) #n "." ASM_NAME(opname) ":\n"\
@@ -351,49 +343,31 @@ do {\
 		  ASM_PREVIOUS_SECTION \
                   "jmp " ASM_NAME(__op_jmp) #n "\n"\
 		  "1:\n");\
-} while (0)
-
-#define JUMP_TB(opname, tbparam, n, eip)\
-do {\
-    asm volatile (".section .data\n"\
-		  ASM_NAME(__op_label) #n "." ASM_NAME(opname) ":\n"\
-		  ".long 1f\n"\
-		  ASM_PREVIOUS_SECTION \
-                  "jmp " ASM_NAME(__op_jmp) #n "\n"\
-		  "1:\n");\
-    T0 = (long)(tbparam) + (n);\
-    EIP = (int32_t)eip;\
-    EXIT_TB();\
-} while (0)
-
-#define JUMP_TB2(opname, tbparam, n)\
-do {\
-    asm volatile ("jmp " ASM_NAME(__op_jmp) #n "\n");\
 } while (0)
 
 #else
 
 /* jump to next block operations (more portable code, does not need
    cache flushing, but slower because of indirect jump) */
-#define JUMP_TB(opname, tbparam, n, eip)\
+#define GOTO_TB(opname, tbparam, n)\
 do {\
-    static void __attribute__((unused)) *__op_label ## n = &&label ## n;\
     static void __attribute__((unused)) *dummy ## n = &&dummy_label ## n;\
+    static void __attribute__((unused)) *__op_label ## n = &&label ## n;\
     goto *(void *)(((TranslationBlock *)tbparam)->tb_next[n]);\
-label ## n:\
-    T0 = (long)(tbparam) + (n);\
-    EIP = (int32_t)eip;\
-dummy_label ## n:\
-    EXIT_TB();\
-} while (0)
-
-/* second jump to same destination 'n' */
-#define JUMP_TB2(opname, tbparam, n)\
-do {\
-    goto *(void *)(((TranslationBlock *)tbparam)->tb_next[n - 2]);\
+label ## n: ;\
+dummy_label ## n: ;\
 } while (0)
 
 #endif
+
+/* XXX: will be suppressed */
+#define JUMP_TB(opname, tbparam, n, eip)\
+do {\
+    GOTO_TB(opname, tbparam, n);\
+    T0 = (long)(tbparam) + (n);\
+    EIP = (int32_t)eip;\
+    EXIT_TB();\
+} while (0)
 
 extern CPUWriteMemoryFunc *io_mem_write[IO_MEM_NB_ENTRIES][4];
 extern CPUReadMemoryFunc *io_mem_read[IO_MEM_NB_ENTRIES][4];

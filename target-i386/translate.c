@@ -61,6 +61,12 @@ static uint32_t *gen_opparam_ptr;
 static int x86_64_hregs;
 #endif
 
+#ifdef USE_DIRECT_JUMP
+#define TBPARAM(x)
+#else
+#define TBPARAM(x) (long)(x)
+#endif
+
 typedef struct DisasContext {
     /* current insn context */
     int override; /* -1 if no override */
@@ -1782,13 +1788,13 @@ static inline void gen_jcc(DisasContext *s, int b,
         l1 = gen_new_label();
         func(l1);
 
-        gen_op_goto_tb0();
+        gen_op_goto_tb0(TBPARAM(tb));
         gen_jmp_im(next_eip);
         gen_op_movl_T0_im((long)tb + 0);
         gen_op_exit_tb();
 
         gen_set_label(l1);
-        gen_op_goto_tb1();
+        gen_op_goto_tb1(TBPARAM(tb));
         gen_jmp_im(val);
         gen_op_movl_T0_im((long)tb + 1);
         gen_op_exit_tb();
@@ -2179,9 +2185,9 @@ static void gen_jmp_tb(DisasContext *s, target_ulong eip, int tb_num)
         if (s->cc_op != CC_OP_DYNAMIC)
             gen_op_set_cc_op(s->cc_op);
         if (tb_num)
-            gen_op_goto_tb1();
+            gen_op_goto_tb1(TBPARAM(tb));
         else
-            gen_op_goto_tb0();
+            gen_op_goto_tb0(TBPARAM(tb));
         gen_jmp_im(eip);
         gen_op_movl_T0_im((long)tb + tb_num);
         gen_op_exit_tb();
