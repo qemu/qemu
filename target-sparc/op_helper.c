@@ -105,8 +105,11 @@ void helper_ld_asi(int asi, int size, int sign)
 	    int reg = (T0 >> 8) & 0xf;
 	    
 	    ret = env->mmuregs[reg];
-	    if (reg == 3 || reg == 4) /* Fault status, addr cleared on read*/
-		env->mmuregs[4] = 0;
+	    if (reg == 3) /* Fault status cleared on read */
+		env->mmuregs[reg] = 0;
+#ifdef DEBUG_MMU
+	    printf("mmu_read: reg[%d] = 0x%08x\n", reg, ret);
+#endif
 	}
 	break;
     case 0x20 ... 0x2f: /* MMU passthrough */
@@ -131,20 +134,25 @@ void helper_st_asi(int asi, int size, int sign)
 	    int mmulev;
 
 	    mmulev = (T0 >> 8) & 15;
+#ifdef DEBUG_MMU
+	    printf("mmu flush level %d\n", mmulev);
+#endif
 	    switch (mmulev) {
 	    case 0: // flush page
-		tlb_flush_page(cpu_single_env, T0 & 0xfffff000);
+		tlb_flush_page(env, T0 & 0xfffff000);
 		break;
 	    case 1: // flush segment (256k)
 	    case 2: // flush region (16M)
 	    case 3: // flush context (4G)
 	    case 4: // flush entire
-		tlb_flush(cpu_single_env, 1);
+		tlb_flush(env, 1);
 		break;
 	    default:
 		break;
 	    }
+#ifdef DEBUG_MMU
 	    dump_mmu();
+#endif
 	    return;
 	}
     case 4: /* write MMU regs */
@@ -152,20 +160,34 @@ void helper_st_asi(int asi, int size, int sign)
 	    int reg = (T0 >> 8) & 0xf, oldreg;
 	    
 	    oldreg = env->mmuregs[reg];
-	    if (reg == 0) {
+            switch(reg) {
+            case 0:
 		env->mmuregs[reg] &= ~(MMU_E | MMU_NF);
 		env->mmuregs[reg] |= T1 & (MMU_E | MMU_NF);
-	    } else
+                if ((oldreg & MMU_E) != (env->mmuregs[reg] & MMU_E))
+                    tlb_flush(env, 1);
+                break;
+            case 2:
 		env->mmuregs[reg] = T1;
-	    if (oldreg != env->mmuregs[reg]) {
-#if 0
-		// XXX: Only if MMU mapping change, we may need to flush?
-		tlb_flush(cpu_single_env, 1);
-		cpu_loop_exit();
-		FORCE_RET();
-#endif
-	    }
+                if (oldreg != env->mmuregs[reg]) {
+                    /* we flush when the MMU context changes because
+                       QEMU has no MMU context support */
+                    tlb_flush(env, 1);
+                }
+                break;
+            case 3:
+            case 4:
+                break;
+            default:
+		env->mmuregs[reg] = T1;
+                break;
+            }
+#ifdef DEBUG_MMU
+            if (oldreg != env->mmuregs[reg]) {
+                printf("mmu change reg[%d]: 0x%08x -> 0x%08x\n", reg, oldreg, env->mmuregs[reg]);
+            }
 	    dump_mmu();
+#endif
 	    return;
 	}
     case 0x17: /* Block copy, sta access */

@@ -414,9 +414,9 @@ target_ulong mmu_probe(target_ulong address, int mmulev)
     return 0;
 }
 
+#ifdef DEBUG_MMU
 void dump_mmu(void)
 {
-#ifdef DEBUG_MMU
      target_ulong va, va1, va2;
      unsigned int n, m, o;
      target_phys_addr_t pde_ptr, pa;
@@ -448,5 +448,5 @@ void dump_mmu(void)
 	}
     }
     printf("MMU dump ends\n");
-#endif
 }
+#endif
