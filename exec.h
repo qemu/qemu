@@ -225,6 +225,7 @@ label ## n:\
     T0 = (long)(tbparam) + (n);\
     EIP = eip;\
 dummy_label ## n:\
+    return;\
 } while (0)
 
 #endif
