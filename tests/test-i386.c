@@ -701,6 +701,18 @@ void test_segs(void)
            #op, op0, op1);\
 }
 
+#define TEST_CMPXCHG(op, size, opconst, eax)\
+{\
+    int op0, op1;\
+    op0 = 0x12345678;\
+    op1 = 0xfbca7654;\
+    asm(#op " %" size "0, %" size "1" \
+        : "=q" (op0), opconst (op1) \
+        : "0" (op0), "1" (op1), "a" (eax));\
+    printf("%-10s EAX=%08x A=%08x C=%08x\n",\
+           #op, eax, op0, op1);\
+}
+
 void test_xchg(void)
 {
     TEST_XCHG(xchgl, "", "=q");
@@ -718,6 +730,22 @@ void test_xchg(void)
     TEST_XCHG(xaddl, "", "=m");
     TEST_XCHG(xaddw, "w", "=m");
     TEST_XCHG(xaddb, "b", "=m");
+
+    TEST_CMPXCHG(cmpxchgl, "", "=q", 0xfbca7654);
+    TEST_CMPXCHG(cmpxchgw, "w", "=q", 0xfbca7654);
+    TEST_CMPXCHG(cmpxchgb, "b", "=q", 0xfbca7654);
+
+    TEST_CMPXCHG(cmpxchgl, "", "=q", 0xfffefdfc);
+    TEST_CMPXCHG(cmpxchgw, "w", "=q", 0xfffefdfc);
+    TEST_CMPXCHG(cmpxchgb, "b", "=q", 0xfffefdfc);
+
+    TEST_CMPXCHG(cmpxchgl, "", "=m", 0xfbca7654);
+    TEST_CMPXCHG(cmpxchgw, "w", "=m", 0xfbca7654);
+    TEST_CMPXCHG(cmpxchgb, "b", "=m", 0xfbca7654);
+
+    TEST_CMPXCHG(cmpxchgl, "", "=m", 0xfffefdfc);
+    TEST_CMPXCHG(cmpxchgw, "w", "=m", 0xfffefdfc);
+    TEST_CMPXCHG(cmpxchgb, "b", "=m", 0xfffefdfc);
 }
 
 static void *call_end __init_call = NULL;
