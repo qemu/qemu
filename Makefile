@@ -76,6 +76,7 @@ tarbin:
 	$(prefix)/bin/qemu-i386 \
         $(prefix)/bin/qemu-arm \
         $(prefix)/bin/qemu-sparc \
+        $(prefix)/bin/qemu-ppc \
 	$(sharedir)/bios.bin \
 	$(sharedir)/vgabios.bin \
 	$(mandir)/man1/qemu.1 )
