@@ -34,7 +34,7 @@
  */
 #include "vl.h"
 
-#define DEBUG_OPENPIC
+//#define DEBUG_OPENPIC
 
 #ifdef DEBUG_OPENPIC
 #define DPRINTF(fmt, args...) do { printf(fmt , ##args); } while (0)
@@ -65,7 +65,7 @@
 
 #define MAX_CPU     2
 #define MAX_IRQ    64
-#define EXT_IRQ    16
+#define EXT_IRQ    48
 #define MAX_DBL     0
 #define MAX_MBX     0
 #define MAX_TMR     4
@@ -139,7 +139,7 @@ typedef struct IRQ_src_t {
     uint32_t ide;   /* IRQ destination register */
     int type;
     int last_cpu;
-    int waited_acks;
+    int pending;    /* TRUE if IRQ is pending */
 } IRQ_src_t;
 
 enum IPVP_bits {
@@ -150,7 +150,7 @@ enum IPVP_bits {
     IPVP_SENSE    = 22,
 };
 #define IPVP_PRIORITY_MASK     (0x1F << 16)
-#define IPVP_PRIORITY(_ipvpr_) (((_ipvpr_) & IPVP_PRIORITY_MASK) >> 16)
+#define IPVP_PRIORITY(_ipvpr_) ((int)(((_ipvpr_) & IPVP_PRIORITY_MASK) >> 16))
 #define IPVP_VECTOR_MASK       ((1 << VECTOR_BITS) - 1)
 #define IPVP_VECTOR(_ipvpr_)   ((_ipvpr_) & IPVP_VECTOR_MASK)
 
@@ -162,7 +162,7 @@ typedef struct IRQ_dst_t {
     CPUState *env; /* Needed if we did SMP */
 } IRQ_dst_t;
 
-typedef struct openpic_t {
+struct openpic_t {
     PCIDevice pci_dev;
     /* Global registers */
     uint32_t frep; /* Feature reporting register */
@@ -194,7 +194,7 @@ typedef struct openpic_t {
 	uint32_t mbr;    /* Mailbox register */
     } mailboxes[MAX_MAILBOXES];
 #endif
-} openpic_t;
+};
 
 static inline void IRQ_setbit (IRQ_queue_t *q, int n_IRQ)
 {
@@ -220,6 +220,8 @@ static void IRQ_check (openpic_t *opp, IRQ_queue_t *q)
     priority = -1;
     for (i = 0; i < MAX_IRQ; i++) {
 	if (IRQ_testbit(q, i)) {
+            DPRINTF("IRQ_check: irq %d set ipvp_pr=%d pr=%d\n", 
+                    i, IPVP_PRIORITY(opp->src[i].ipvp), priority);
 	    if (IPVP_PRIORITY(opp->src[i].ipvp) > priority) {
 		next = i;
 		priority = IPVP_PRIORITY(opp->src[i].ipvp);
@@ -233,10 +235,7 @@ static void IRQ_check (openpic_t *opp, IRQ_queue_t *q)
 static int IRQ_get_next (openpic_t *opp, IRQ_queue_t *q)
 {
     if (q->next == -1) {
-	if (q->queue == 0) {
-	    /* No more IRQ */
-	    return -1;
-	}
+        /* XXX: optimize */
 	IRQ_check(opp, q);
     }
 
@@ -269,13 +268,19 @@ static void IRQ_local_pipe (openpic_t *opp, int n_CPU, int n_IRQ)
     }
 }
 
-void openpic_set_IRQ (openpic_t *opp, int n_IRQ, int level)
+/* update pic state because registers for n_IRQ have changed value */
+static void openpic_update_irq(openpic_t *opp, int n_IRQ)
 {
     IRQ_src_t *src;
     int i;
 
     src = &opp->src[n_IRQ];
-    if (!test_bit(&src->ipvp, IPVP_MASK)) {
+
+    if (!src->pending) {
+        /* no irq pending */
+        return;
+    }
+    if (test_bit(&src->ipvp, IPVP_MASK)) {
 	/* Interrupt source is disabled */
 	return;
     }
@@ -283,41 +288,55 @@ void openpic_set_IRQ (openpic_t *opp, int n_IRQ, int level)
 	/* Priority set to zero */
 	return;
     }
+    if (test_bit(&src->ipvp, IPVP_ACTIVITY)) {
+        /* IRQ already active */
+        return;
+    }
     if (src->ide == 0x00000000) {
 	/* No target */
 	return;
     }
-    if (level == 0) {
-	if (test_bit(&src->ipvp, IPVP_ACTIVITY) &&
-	    test_bit(&src->ipvp, IPVP_SENSE)) {
-	    /* Inactivate a active level-sensitive IRQ */
-	    reset_bit(&src->ipvp, IPVP_ACTIVITY);
-	}
+
+    if (!test_bit(&src->ipvp, IPVP_MODE) ||
+        src->ide == (1 << src->last_cpu)) {
+        /* Directed delivery mode */
+        for (i = 0; i < opp->nb_cpus; i++) {
+            if (test_bit(&src->ide, i))
+                IRQ_local_pipe(opp, i, n_IRQ);
+        }
     } else {
-	if (test_bit(&src->ipvp, IPVP_ACTIVITY)) {
-	    /* Interrupt already pending */
-	    return;
-	}
-	if (!test_bit(&src->ipvp, IPVP_MODE) ||
-	    src->ide == (1 << src->last_cpu)) {
-	    /* Directed delivery mode */
-	    for (i = 0; i < opp->nb_cpus; i++) {
-		if (test_bit(&src->ide, i))
-		    IRQ_local_pipe(opp, i, n_IRQ);
-	    }
-	} else {
-	    /* Distributed delivery mode */
-	    for (i = src->last_cpu; i < src->last_cpu; i++) {
-		if (i == MAX_IRQ)
-		    i = 0;
-		if (test_bit(&src->ide, i)) {
-		    IRQ_local_pipe(opp, i, n_IRQ);
-		    src->last_cpu = i;
-		    break;
-		}
-	    }
-	}
+        /* Distributed delivery mode */
+        /* XXX: incorrect code */
+        for (i = src->last_cpu; i < src->last_cpu; i++) {
+            if (i == MAX_IRQ)
+                i = 0;
+            if (test_bit(&src->ide, i)) {
+                IRQ_local_pipe(opp, i, n_IRQ);
+                src->last_cpu = i;
+                break;
+            }
+        }
     }
+}
+
+void openpic_set_irq(openpic_t *opp, int n_IRQ, int level)
+{
+    IRQ_src_t *src;
+
+    src = &opp->src[n_IRQ];
+    DPRINTF("openpic: set irq %d = %d ipvp=%08x\n", 
+            n_IRQ, level, src->ipvp);
+    if (test_bit(&src->ipvp, IPVP_SENSE)) {
+        /* level-sensitive irq */
+        src->pending = level;
+        if (!level)
+            reset_bit(&src->ipvp, IPVP_ACTIVITY);
+    } else {
+        /* edge-sensitive irq */
+        if (level)
+            src->pending = 1;
+    }
+    openpic_update_irq(opp, n_IRQ);
 }
 
 static void openpic_reset (openpic_t *opp)
@@ -389,18 +408,15 @@ static inline void write_IRQreg (openpic_t *opp, int n_IRQ,
 
     switch (reg) {
     case IRQ_IPVP:
-	tmp = opp->src[n_IRQ].ipvp & 0x40000000;
-	if (tmp == 0) {
-	    tmp |= val & 0x80000000;
-	    if ((opp->src[n_IRQ].type & IRQ_EXTERNAL) != 0)
-		tmp |= val & 0x40C00000;
-	    else if ((opp->src[n_IRQ].type & IRQ_TIMER) != 0)
-		tmp |= val & 0x00F00000;
-	} else {
-	    tmp |= val & 0x80000000;
-	}
-	opp->src[n_IRQ].ipvp = tmp | (val & 0x000F00FF);
-        DPRINTF("Set IPVP %d to 0x%08x\n", n_IRQ, opp->src[n_IRQ].ipvp);
+        /* NOTE: not fully accurate for special IRQs, but simple and
+           sufficient */
+        /* ACTIVITY bit is read-only */
+	opp->src[n_IRQ].ipvp = 
+            (opp->src[n_IRQ].ipvp & 0x40000000) |
+            (val & 0x800F00FF);
+        openpic_update_irq(opp, n_IRQ);
+        DPRINTF("Set IPVP %d to 0x%08x -> 0x%08x\n", 
+                n_IRQ, val, opp->src[n_IRQ].ipvp);
 	break;
     case IRQ_IDE:
 	tmp = val & 0xC0000000;
@@ -736,8 +752,8 @@ static void openpic_cpu_write (void *opaque, uint32_t addr, uint32_t val)
     case 0x70:
         idx = (addr - 0x40) >> 4;
         write_IRQreg(opp, IRQ_IPI0 + idx, IRQ_IDE, val);
-        openpic_set_IRQ(opp, IRQ_IPI0 + idx, 1);
-        openpic_set_IRQ(opp, IRQ_IPI0 + idx, 0);
+        openpic_set_irq(opp, IRQ_IPI0 + idx, 1);
+        openpic_set_irq(opp, IRQ_IPI0 + idx, 0);
         break;
 #endif
     case 0x80: /* PCTP */
@@ -818,8 +834,11 @@ static uint32_t openpic_cpu_read (void *opaque, uint32_t addr)
 	    }
 	    IRQ_resetbit(&dst->raised, n_IRQ);
 	    dst->raised.next = -1;
-	    if (!test_bit(&src->ipvp, IPVP_SENSE))
+	    if (!test_bit(&src->ipvp, IPVP_SENSE)) {
+                /* edge-sensitive IRQ */
 		reset_bit(&src->ipvp, IPVP_ACTIVITY);
+                src->pending = 0;
+            }
 	}
 	break;
     case 0xB0: /* PEOI */
@@ -862,7 +881,7 @@ static void openpic_writel (void *opaque,
     openpic_t *opp = opaque;
 
     addr &= 0x3FFFF;
-    DPRINTF("%s: offset %08lx val: %08x\n", __func__, addr, val);
+    DPRINTF("%s: offset %08x val: %08x\n", __func__, (int)addr, val);
     if (addr < 0x1100) {
         /* Global registers */
         openpic_gbl_write(opp, addr, val);
@@ -884,7 +903,7 @@ static uint32_t openpic_readl (void *opaque,target_phys_addr_t addr)
     uint32_t retval;
 
     addr &= 0x3FFFF;
-    DPRINTF("%s: offset %08lx\n", __func__, addr);
+    DPRINTF("%s: offset %08x\n", __func__, (int)addr);
     if (addr < 0x1100) {
         /* Global registers */
         retval = openpic_gbl_read(opp, addr);
