@@ -177,6 +177,17 @@ static uint32_t speaker_ioport_read(void *opaque, uint32_t addr)
       (dummy_refresh_clock << 4);
 }
 
+static void ioport92_write(void *opaque, uint32_t addr, uint32_t val)
+{
+    cpu_x86_set_a20(cpu_single_env, (val >> 1) & 1);
+    /* XXX: bit 0 is fast reset */
+}
+
+static uint32_t ioport92_read(void *opaque, uint32_t addr)
+{
+    return ((cpu_single_env->a20_mask >> 20) & 1) << 1;
+}
+
 /***********************************************************/
 /* Bochs BIOS debug ports */
 
@@ -354,6 +365,9 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
     rtc_state = rtc_init(0x70, 8);
     register_ioport_read(0x61, 1, 1, speaker_ioport_read, NULL);
     register_ioport_write(0x61, 1, 1, speaker_ioport_write, NULL);
+
+    register_ioport_read(0x92, 1, 1, ioport92_read, NULL);
+    register_ioport_write(0x92, 1, 1, ioport92_write, NULL);
 
     pic_init();
     pit_init(0x40, 0);
