@@ -386,10 +386,12 @@ static unsigned long copy_strings(int argc,char ** argv,unsigned long *page,
 	    --p; --tmp; --len;
 	    if (--offset < 0) {
 		offset = p % TARGET_PAGE_SIZE;
-		if (!(pag = (char *) page[p/TARGET_PAGE_SIZE]) &&
-		    !(pag = (char *) page[p/TARGET_PAGE_SIZE] =
-		      (unsigned long *) get_free_page())) {
-			return 0;
+                pag = (char *) page[p/TARGET_PAGE_SIZE];
+                if (!pag) {
+                    pag = (char *)get_free_page();
+                    page[p/TARGET_PAGE_SIZE] = (unsigned long)pag;
+                    if (!pag)
+                        return 0;
 		}
 	    }
 	    if (len == 0 || offset == 0) {
