@@ -36,6 +36,49 @@
 #error unsupported DEPTH
 #endif                
 
+static void
+glue(glue(glue(cirrus_patternfill_, ROP_NAME), _),DEPTH)
+     (CirrusVGAState * s, uint8_t * dst,
+      const uint8_t * src, 
+      int dstpitch, int srcpitch, 
+      int bltwidth, int bltheight)
+{
+    uint8_t *d;
+    int x, y, pattern_y, pattern_pitch, pattern_x;
+    unsigned int col;
+    const uint8_t *src1;
+
+#if DEPTH == 8
+    pattern_pitch = 8;
+#elif DEPTH == 16
+    pattern_pitch = 16;
+#else
+    pattern_pitch = 32;
+#endif
+    pattern_y = s->cirrus_blt_srcaddr & 7;
+    pattern_x = 0;
+    for(y = 0; y < bltheight; y++) {
+        d = dst;
+        src1 = src + pattern_y * pattern_pitch;
+        for (x = 0; x < bltwidth; x += (DEPTH / 8)) {
+#if DEPTH == 8
+            col = src1[pattern_x];
+            pattern_x = (pattern_x + 1) & 7;
+#elif DEPTH == 16
+            col = ((uint16_t *)(src1 + pattern_x))[0];
+            pattern_x = (pattern_x + 2) & 15;
+#else
+            col = ((uint32_t *)(src1 + pattern_x))[0];
+            pattern_x = (pattern_x + 4) & 31;
+#endif
+            PUTPIXEL();
+            d += (DEPTH / 8);
+        }
+        pattern_y = (pattern_y + 1) & 7;
+        dst += dstpitch;
+    }
+}
+
 /* NOTE: srcpitch is ignored */
 static void
 glue(glue(glue(cirrus_colorexpand_transp_, ROP_NAME), _),DEPTH)

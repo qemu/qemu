@@ -31,9 +31,7 @@
 
 /*
  * TODO:
- *    - fix 24 bpp pattern fills (source is 32 bpp in that case)
  *    - add support for WRITEMASK (GR2F)
- *    - add support for scanline modulo in pattern fill
  *    - optimize linear mappings
  *    - optimize bitblt functions
  */
@@ -420,6 +418,25 @@ static const cirrus_bitblt_rop_t cirrus_bkwd_rop[16] = {
     func,\
         }
 
+static const cirrus_bitblt_rop_t cirrus_patternfill[16][4] = {
+    ROP2(cirrus_patternfill_0),
+    ROP2(cirrus_patternfill_src_and_dst),
+    ROP_NOP2(cirrus_bitblt_rop_nop),
+    ROP2(cirrus_patternfill_src_and_notdst),
+    ROP2(cirrus_patternfill_notdst),
+    ROP2(cirrus_patternfill_src),
+    ROP2(cirrus_patternfill_1),
+    ROP2(cirrus_patternfill_notsrc_and_dst),
+    ROP2(cirrus_patternfill_src_xor_dst),
+    ROP2(cirrus_patternfill_src_or_dst),
+    ROP2(cirrus_patternfill_notsrc_or_notdst),
+    ROP2(cirrus_patternfill_src_notxor_dst),
+    ROP2(cirrus_patternfill_src_or_notdst),
+    ROP2(cirrus_patternfill_notsrc),
+    ROP2(cirrus_patternfill_notsrc_or_dst),
+    ROP2(cirrus_patternfill_notsrc_and_notdst),
+};
+
 static const cirrus_bitblt_rop_t cirrus_colorexpand_transp[16][4] = {
     ROP2(cirrus_colorexpand_transp_0),
     ROP2(cirrus_colorexpand_transp_src_and_dst),
@@ -569,9 +586,6 @@ static int cirrus_bitblt_common_patterncopy(CirrusVGAState * s,
 {
     uint8_t work_colorexp[256];
     uint8_t *dst;
-    uint8_t *dstc;
-    int x, y;
-    int tilewidth, tileheight;
     int patternbytes = s->cirrus_blt_pixelwidth * 8;
 
     if (s->cirrus_blt_mode & CIRRUS_BLTMODE_COLOREXPAND) {
@@ -592,21 +606,12 @@ static int cirrus_bitblt_common_patterncopy(CirrusVGAState * s,
     }
     
     dst = s->vram_ptr + s->cirrus_blt_dstaddr;
-    for (y = 0; y < s->cirrus_blt_height; y += 8) {
-	dstc = dst;
-	tileheight = qemu_MIN(8, s->cirrus_blt_height - y);
-	for (x = 0; x < s->cirrus_blt_width; x += patternbytes) {
-	    tilewidth = qemu_MIN(patternbytes, s->cirrus_blt_width - x);
-	    (*s->cirrus_rop) (s, dstc, src,
-			      s->cirrus_blt_dstpitch, patternbytes,
-			      tilewidth, tileheight);
-	    dstc += patternbytes;
-	}
-	dst += s->cirrus_blt_dstpitch * 8;
-    }
+    (*s->cirrus_rop) (s, dst, src,
+                      s->cirrus_blt_dstpitch, 0, 
+                      s->cirrus_blt_width, s->cirrus_blt_height);
     cirrus_invalidate_region(s, s->cirrus_blt_dstaddr,
-			     s->cirrus_blt_dstpitch, s->cirrus_blt_width,
-			     s->cirrus_blt_height);
+                             s->cirrus_blt_dstpitch, s->cirrus_blt_width,
+                             s->cirrus_blt_height);
     return 1;
 }
 
@@ -636,8 +641,8 @@ static int cirrus_bitblt_solidfill(CirrusVGAState *s, int blt_rop)
 static int cirrus_bitblt_videotovideo_patterncopy(CirrusVGAState * s)
 {
     return cirrus_bitblt_common_patterncopy(s,
-					    s->vram_ptr +
-					    s->cirrus_blt_srcaddr);
+					    s->vram_ptr + 
+                                            (s->cirrus_blt_srcaddr & ~7));
 }
 
 static int cirrus_bitblt_videotovideo_copy(CirrusVGAState * s)
@@ -855,6 +860,8 @@ static void cirrus_bitblt_start(CirrusVGAState * s)
                 cirrus_bitblt_bgcol(s);
                 s->cirrus_rop = cirrus_colorexpand[rop_to_index[blt_rop]][s->cirrus_blt_pixelwidth - 1];
             }
+        } else if (s->cirrus_blt_mode & CIRRUS_BLTMODE_PATTERNCOPY) {
+            s->cirrus_rop = cirrus_patternfill[rop_to_index[blt_rop]][s->cirrus_blt_pixelwidth - 1];
         } else {
             if (s->cirrus_blt_mode & CIRRUS_BLTMODE_BACKWARDS) {
                 s->cirrus_blt_dstpitch = -s->cirrus_blt_dstpitch;
