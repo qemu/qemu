@@ -697,7 +697,15 @@ static GenOpFunc *gen_op_dec_ECX[2] = {
     gen_op_decl_ECX,
 };
 
-static GenOpFunc1 *gen_op_string_jnz_sub[2][3] = {
+#ifdef USE_DIRECT_JUMP
+typedef GenOpFunc GenOpFuncTB2;
+#define gen_op_string_jnz_sub(nz, ot, tb) gen_op_string_jnz_sub2[nz][ot]()
+#else
+typedef GenOpFunc1 GenOpFuncTB2;
+#define gen_op_string_jnz_sub(nz, ot, tb) gen_op_string_jnz_sub2[nz][ot](tb)
+#endif
+
+static GenOpFuncTB2 *gen_op_string_jnz_sub2[2][3] = {
     {
         gen_op_string_jnz_subb,
         gen_op_string_jnz_subw,
@@ -921,7 +929,7 @@ static inline void gen_repz_ ## op(DisasContext *s, int ot,                   \
     if (!s->jmp_opt)                                                          \
         gen_op_string_jnz_sub_im[nz][ot](next_eip);                           \
     else                                                                      \
-        gen_op_string_jnz_sub[nz][ot]((long)s->tb);                           \
+        gen_op_string_jnz_sub(nz, ot, (long)s->tb);                           \
     if (!s->jmp_opt)                                                          \
         gen_op_jz_ecx_im[s->aflag](next_eip);                                 \
     gen_jmp(s, cur_eip);                                                      \
@@ -2807,7 +2815,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         mod = (modrm >> 6) & 3;
         rm = modrm & 7;
         op = ((b & 7) << 3) | ((modrm >> 3) & 7);
-        
+
         if (mod != 3) {
             /* memory op */
             gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
@@ -4227,6 +4235,12 @@ static uint16_t opc_read_flags[NB_OPS] = {
     [INDEX_op_movl_T0_eflags] = CC_OSZAPC,
     [INDEX_op_cmc] = CC_C,
     [INDEX_op_salc] = CC_C,
+
+    /* needed for correct flag optimisation before string ops */
+    [INDEX_op_jz_ecxw] = CC_OSZAPC,
+    [INDEX_op_jz_ecxl] = CC_OSZAPC,
+    [INDEX_op_jz_ecxw_im] = CC_OSZAPC,
+    [INDEX_op_jz_ecxl_im] = CC_OSZAPC,
 
 #define DEF_READF(SUFFIX)\
     [INDEX_op_adcb ## SUFFIX ## _T0_T1_cc] = CC_C,\
