@@ -538,6 +538,59 @@ static uint32_t ne2000_reset_ioport_read(void *opaque, uint32_t addr)
     return 0;
 }
 
+static void ne2000_save(QEMUFile* f,void* opaque)
+{
+	NE2000State* s=(NE2000State*)opaque;
+
+	qemu_put_8s(f, &s->cmd);
+	qemu_put_be32s(f, &s->start);
+	qemu_put_be32s(f, &s->stop);
+	qemu_put_8s(f, &s->boundary);
+	qemu_put_8s(f, &s->tsr);
+	qemu_put_8s(f, &s->tpsr);
+	qemu_put_be16s(f, &s->tcnt);
+	qemu_put_be16s(f, &s->rcnt);
+	qemu_put_be32s(f, &s->rsar);
+	qemu_put_8s(f, &s->rsr);
+	qemu_put_8s(f, &s->isr);
+	qemu_put_8s(f, &s->dcfg);
+	qemu_put_8s(f, &s->imr);
+	qemu_put_buffer(f, s->phys, 6);
+	qemu_put_8s(f, &s->curpag);
+	qemu_put_buffer(f, s->mult, 8);
+	qemu_put_be32s(f, &s->irq);
+	qemu_put_buffer(f, s->mem, NE2000_MEM_SIZE);
+}
+
+static int ne2000_load(QEMUFile* f,void* opaque,int version_id)
+{
+	NE2000State* s=(NE2000State*)opaque;
+
+	if (version_id != 1)
+            return -EINVAL;
+
+	qemu_get_8s(f, &s->cmd);
+	qemu_get_be32s(f, &s->start);
+	qemu_get_be32s(f, &s->stop);
+	qemu_get_8s(f, &s->boundary);
+	qemu_get_8s(f, &s->tsr);
+	qemu_get_8s(f, &s->tpsr);
+	qemu_get_be16s(f, &s->tcnt);
+	qemu_get_be16s(f, &s->rcnt);
+	qemu_get_be32s(f, &s->rsar);
+	qemu_get_8s(f, &s->rsr);
+	qemu_get_8s(f, &s->isr);
+	qemu_get_8s(f, &s->dcfg);
+	qemu_get_8s(f, &s->imr);
+	qemu_get_buffer(f, s->phys, 6);
+	qemu_get_8s(f, &s->curpag);
+	qemu_get_buffer(f, s->mult, 8);
+	qemu_get_be32s(f, &s->irq);
+	qemu_get_buffer(f, s->mem, NE2000_MEM_SIZE);
+
+	return 0;
+}
+
 void isa_ne2000_init(int base, int irq, NetDriverState *nd)
 {
     NE2000State *s;
@@ -562,6 +615,9 @@ void isa_ne2000_init(int base, int irq, NetDriverState *nd)
     ne2000_reset(s);
 
     qemu_add_read_packet(nd, ne2000_can_receive, ne2000_receive, s);
+
+    register_savevm("ne2000", 0, 1, ne2000_save, ne2000_load, s);
+
 }
 
 /***********************************************************/
@@ -612,7 +668,7 @@ void pci_ne2000_init(PCIBus *bus, NetDriverState *nd)
     pci_conf[0x0e] = 0x00; // header_type
     pci_conf[0x3d] = 1; // interrupt pin 0
     
-    pci_register_io_region((PCIDevice *)d, 0, 0x100, 
+    pci_register_io_region(&d->dev, 0, 0x100, 
                            PCI_ADDRESS_SPACE_IO, ne2000_map);
     s = &d->ne2000;
     s->irq = 16; // PCI interrupt
@@ -620,4 +676,9 @@ void pci_ne2000_init(PCIBus *bus, NetDriverState *nd)
     s->nd = nd;
     ne2000_reset(s);
     qemu_add_read_packet(nd, ne2000_can_receive, ne2000_receive, s);
+
+    /* XXX: instance number ? */
+    register_savevm("ne2000", 0, 1, ne2000_save, ne2000_load, s);
+    register_savevm("ne2000_pci", 0, 1, generic_pci_save, generic_pci_load, 
+                    &d->dev);
 }

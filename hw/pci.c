@@ -62,6 +62,24 @@ static PCIBus *pci_register_bus(void)
     return bus;
 }
 
+void generic_pci_save(QEMUFile* f, void *opaque)
+{
+    PCIDevice* s=(PCIDevice*)opaque;
+
+    qemu_put_buffer(f, s->config, 256);
+}
+
+int generic_pci_load(QEMUFile* f, void *opaque, int version_id)
+{
+    PCIDevice* s=(PCIDevice*)opaque;
+
+    if (version_id != 1)
+        return -EINVAL;
+
+    qemu_get_buffer(f, s->config, 256);
+    return 0;
+}
+
 /* -1 for devfn means auto assign */
 PCIDevice *pci_register_device(PCIBus *bus, const char *name, 
                                int instance_size, int devfn,
@@ -558,6 +576,8 @@ void piix3_init(PCIBus *bus)
 
     d = (PIIX3State *)pci_register_device(bus, "PIIX3", sizeof(PIIX3State),
                                           -1, NULL, NULL);
+    register_savevm("PIIX3", 0, 1, generic_pci_save, generic_pci_load, d);
+
     piix3_state = d;
     pci_conf = d->dev.config;
 

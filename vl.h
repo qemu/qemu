@@ -480,6 +480,8 @@ uint32_t pci_default_read_config(PCIDevice *d,
                                  uint32_t address, int len);
 void pci_default_write_config(PCIDevice *d, 
                               uint32_t address, uint32_t val, int len);
+void generic_pci_save(QEMUFile* f, void *opaque);
+int generic_pci_load(QEMUFile* f, void *opaque, int version_id);
 
 extern struct PIIX3State *piix3_state;
 
