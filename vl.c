@@ -519,7 +519,7 @@ void cmos_init(void)
     cmos_data[RTC_HOURS] = to_bcd(tm->tm_hour);
     cmos_data[RTC_DAY_OF_WEEK] = to_bcd(tm->tm_wday);
     cmos_data[RTC_DAY_OF_MONTH] = to_bcd(tm->tm_mday);
-    cmos_data[RTC_MONTH] = to_bcd(tm->tm_mon);
+    cmos_data[RTC_MONTH] = to_bcd(tm->tm_mon + 1);
     cmos_data[RTC_YEAR] = to_bcd(tm->tm_year % 100);
 
     cmos_data[RTC_REG_A] = 0x26;
