@@ -18,15 +18,17 @@
 /*#define EXCP_INTERRUPT 0x100*/
 
 /* trap definitions */
+#define TT_TFAULT   0x01
 #define TT_ILL_INSN 0x02
 #define TT_PRIV_INSN 0x03
 #define TT_NFPU_INSN 0x04
 #define TT_WIN_OVF  0x05
 #define TT_WIN_UNF  0x06 
 #define TT_FP_EXCP  0x08
+#define TT_DFAULT   0x09
+#define TT_EXTINT   0x10
 #define TT_DIV_ZERO 0x2a
 #define TT_TRAP     0x80
-#define TT_EXTINT   0x10
 
 #define PSR_NEG   (1<<23)
 #define PSR_ZERO  (1<<22)
@@ -142,7 +144,6 @@ typedef struct CPUSPARCState {
     /* 0 = kernel, 1 = user (may have 2 = kernel code, 3 = user code ?) */
     CPUTLBEntry tlb_read[2][CPU_TLB_SIZE];
     CPUTLBEntry tlb_write[2][CPU_TLB_SIZE];
-    int error_code;
     /* MMU regs */
     uint32_t mmuregs[16];
     /* temporary float registers */

@@ -44,8 +44,10 @@ int cpu_sparc_handle_mmu_fault(CPUState *env, target_ulong address, int rw,
                                int is_user, int is_softmmu)
 {
     env->mmuregs[4] = address;
-    env->exception_index = 0; /* XXX: must be incorrect */
-    env->error_code = -2; /* XXX: is it really used ! */
+    if (rw & 2)
+        env->exception_index = TT_TFAULT;
+    else
+        env->exception_index = TT_DFAULT;
     return 1;
 }
 
@@ -95,7 +97,7 @@ void tlb_fill(target_ulong addr, int is_write, int is_user, void *retaddr)
                 cpu_restore_state(tb, env, pc, NULL);
             }
         }
-        raise_exception(ret);
+        cpu_loop_exit();
     }
     env = saved_env;
 }
@@ -229,7 +231,6 @@ int get_physical_address (CPUState *env, target_phys_addr_t *physical, int *prot
 int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                               int is_user, int is_softmmu)
 {
-    int exception = 0;
     target_ulong virt_addr;
     target_phys_addr_t paddr;
     unsigned long vaddr;
@@ -248,11 +249,15 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
     env->mmuregs[3] |= (access_index << 5) | (error_code << 2) | 2;
     env->mmuregs[4] = address; /* Fault address register */
 
-    if (env->mmuregs[0] & MMU_NF || env->psret == 0) // No fault
-	return 0;
-    env->exception_index = exception;
-    env->error_code = error_code;
-    return error_code;
+    if ((env->mmuregs[0] & MMU_NF) || env->psret == 0)  {
+        // No fault
+	cpu_abort(env, "Unsupported MMU no fault case");
+    }
+    if (rw & 2)
+        env->exception_index = TT_TFAULT;
+    else
+        env->exception_index = TT_DFAULT;
+    return 1;
 }
 #endif
 
@@ -289,15 +294,15 @@ void cpu_set_cwp(CPUState *env1, int new_cwp)
     env = saved_env;
 }
 
-void do_interrupt(int intno, int error_code)
+void do_interrupt(int intno)
 {
     int cwp;
 
 #ifdef DEBUG_PCALL
     if (loglevel & CPU_LOG_INT) {
 	static int count;
-	fprintf(logfile, "%6d: v=%02x e=%04x pc=%08x npc=%08x SP=%08x\n",
-                count, intno, error_code,
+	fprintf(logfile, "%6d: v=%02x pc=%08x npc=%08x SP=%08x\n",
+                count, intno,
                 env->pc,
                 env->npc, env->regwptr[6]);
 #if 1
@@ -319,22 +324,15 @@ void do_interrupt(int intno, int error_code)
 #endif
 #if !defined(CONFIG_USER_ONLY) 
     if (env->psret == 0) {
-        cpu_abort(cpu_single_env, "Trap while interrupts disabled, Error state");
+        cpu_abort(cpu_single_env, "Trap 0x%02x while interrupts disabled, Error state", env->exception_index);
 	return;
     }
 #endif
     env->psret = 0;
     cwp = (env->cwp - 1) & (NWINDOWS - 1); 
     set_cwp(cwp);
-    if (intno & 0x80) {
-	env->regwptr[9] = env->pc;
-	env->regwptr[10] = env->npc;
-    } else {
-        /* XXX: this code is clearly incorrect - npc should have the
-           incorrect value */
-	env->regwptr[9] = env->pc - 4; // XXX?
-	env->regwptr[10] = env->pc;
-    }
+    env->regwptr[9] = env->pc;
+    env->regwptr[10] = env->npc;
     env->psrps = env->psrs;
     env->psrs = 1;
     env->tbr = (env->tbr & TBR_BASE_MASK) | (intno << 4);

@@ -41,7 +41,7 @@ void do_fcmpd(void);
 void do_ldd_kernel(target_ulong addr);
 void do_ldd_user(target_ulong addr);
 void do_ldd_raw(target_ulong addr);
-void do_interrupt(int intno, int error_code);
+void do_interrupt(int intno);
 void raise_exception(int tt);
 void memcpy32(target_ulong *dst, const target_ulong *src);
 target_ulong mmu_probe(target_ulong address, int mmulev);
