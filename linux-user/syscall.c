@@ -577,7 +577,9 @@ static long do_setsockopt(int sockfd, int level, int optname,
         case SO_OOBINLINE:
         case SO_NO_CHECK:
         case SO_PRIORITY:
+#ifdef SO_BSDCOMPAT
         case SO_BSDCOMPAT:
+#endif
         case SO_PASSCRED:
         case SO_TIMESTAMP:
         case SO_RCVLOWAT:
