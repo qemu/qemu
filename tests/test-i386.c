@@ -490,6 +490,9 @@ void test_fcvt(double a)
     la = a;
     printf("(float)%f = %f\n", a, fa);
     printf("(long double)%f = %Lf\n", a, la);
+    printf("a=%016Lx\n", *(long long *)&a);
+    printf("la=%016Lx %04x\n", *(long long *)&la, 
+           *(unsigned short *)((char *)(&la) + 8));
     printf("a=%f floor(a)=%f\n", a, floor(a));
     printf("a=%f ceil(a)=%f\n", a, ceil(a));
     printf("a=%f rint(a)=%f\n", a, rint(a));
@@ -511,6 +514,17 @@ void test_fconst(void)
     TEST(z);
 }
 
+void test_fbcd(double a)
+{
+    unsigned short bcd[5];
+    double b;
+
+    asm("fbstp %0" : "=m" (bcd[0]) : "t" (a) : "st");
+    asm("fbld %1" : "=t" (b) : "m" (bcd[0]));
+    printf("a=%f bcd=%04x%04x%04x%04x%04x b=%f\n", 
+           a, bcd[4], bcd[3], bcd[2], bcd[1], bcd[0], b);
+}
+
 void test_floats(void)
 {
     test_fops(2, 3);
@@ -522,6 +536,8 @@ void test_floats(void)
     test_fcvt(-1.0/9.0);
     test_fcvt(1e30);
     test_fconst();
+    test_fbcd(1234567890123456);
+    test_fbcd(-123451234567890);
 }
 
 static void *call_end __init_call = NULL;

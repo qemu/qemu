@@ -2,7 +2,7 @@ CC=gcc
 CFLAGS=-Wall -O2 -g
 LDFLAGS=
 
-TESTS=hello test1 test2 sha1 test-i386
+TESTS=hello test2 sha1 test-i386
 TESTS+=op-i386.o #op-i386.o op-ppc.o op-arm.o op-mips.o op-sparc.o
 
 GEMU=../gemu
@@ -11,9 +11,6 @@ all: $(TESTS)
 
 hello: hello.c
 	$(CC) -nostdlib $(CFLAGS) -static $(LDFLAGS) -o $@ $<
-
-test1: test1.c
-	$(CC) $(CFLAGS) -static $(LDFLAGS) -o $@ $<
 
 test2: test2.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
