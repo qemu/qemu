@@ -788,8 +788,12 @@ static int fdctrl_transfer_handler (uint32_t addr, int size, int *irq)
         }
         if (fdctrl.data_dir != FD_DIR_WRITE) {
             /* READ & SCAN commands */
-            if (cur_drv->bs == NULL ||
-                bdrv_read(cur_drv->bs, fd_sector(cur_drv), orig, 1) < 0) {
+            if (cur_drv->bs == NULL) {
+                fdctrl_stop_transfer(0x40, 0x00, 0x00);
+                goto transfer_error;
+            }
+                
+            if (bdrv_read(cur_drv->bs, fd_sector(cur_drv), orig, 1) < 0) {
                 FLOPPY_DPRINTF("Floppy: error getting sector %d\n",
                                fd_sector(cur_drv));
                 /* Sure, image size is too small... */
