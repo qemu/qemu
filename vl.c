@@ -43,6 +43,7 @@
 #include <sys/socket.h>
 #include <linux/if.h>
 #include <linux/if_tun.h>
+#include <linux/rtc.h>
 #endif
 
 #if defined(CONFIG_SLIRP)
@@ -77,6 +78,7 @@ extern void __sigaction();
 #define DEFAULT_NETWORK_SCRIPT "/etc/qemu-ifup"
 
 //#define DEBUG_UNUSED_IOPORT
+//#define DEBUG_IOPORT
 
 #if !defined(CONFIG_SOFTMMU)
 #define PHYS_RAM_MAX_SIZE (256 * 1024 * 1024)
@@ -274,37 +276,67 @@ int load_image(const char *filename, uint8_t *addr)
 void cpu_outb(CPUState *env, int addr, int val)
 {
     addr &= (MAX_IOPORTS - 1);
+#ifdef DEBUG_IOPORT
+    if (loglevel & CPU_LOG_IOPORT)
+        fprintf(logfile, "outb: %04x %02x\n", addr, val);
+#endif    
     ioport_write_table[0][addr](ioport_opaque[addr], addr, val);
 }
 
 void cpu_outw(CPUState *env, int addr, int val)
 {
     addr &= (MAX_IOPORTS - 1);
+#ifdef DEBUG_IOPORT
+    if (loglevel & CPU_LOG_IOPORT)
+        fprintf(logfile, "outw: %04x %04x\n", addr, val);
+#endif    
     ioport_write_table[1][addr](ioport_opaque[addr], addr, val);
 }
 
 void cpu_outl(CPUState *env, int addr, int val)
 {
     addr &= (MAX_IOPORTS - 1);
+#ifdef DEBUG_IOPORT
+    if (loglevel & CPU_LOG_IOPORT)
+        fprintf(logfile, "outl: %04x %08x\n", addr, val);
+#endif
     ioport_write_table[2][addr](ioport_opaque[addr], addr, val);
 }
 
 int cpu_inb(CPUState *env, int addr)
 {
+    int val;
     addr &= (MAX_IOPORTS - 1);
-    return ioport_read_table[0][addr](ioport_opaque[addr], addr);
+    val = ioport_read_table[0][addr](ioport_opaque[addr], addr);
+#ifdef DEBUG_IOPORT
+    if (loglevel & CPU_LOG_IOPORT)
+        fprintf(logfile, "inb : %04x %02x\n", addr, val);
+#endif
+    return val;
 }
 
 int cpu_inw(CPUState *env, int addr)
 {
+    int val;
     addr &= (MAX_IOPORTS - 1);
-    return ioport_read_table[1][addr](ioport_opaque[addr], addr);
+    val = ioport_read_table[1][addr](ioport_opaque[addr], addr);
+#ifdef DEBUG_IOPORT
+    if (loglevel & CPU_LOG_IOPORT)
+        fprintf(logfile, "inw : %04x %04x\n", addr, val);
+#endif
+    return val;
 }
 
 int cpu_inl(CPUState *env, int addr)
 {
+    int val;
     addr &= (MAX_IOPORTS - 1);
-    return ioport_read_table[2][addr](ioport_opaque[addr], addr);
+    val = ioport_read_table[2][addr](ioport_opaque[addr], addr);
+#ifdef DEBUG_IOPORT
+    if (loglevel & CPU_LOG_IOPORT)
+        fprintf(logfile, "inl : %04x %08x\n", addr, val);
+#endif
+    return val;
 }
 
 /***********************************************************/
@@ -680,6 +712,34 @@ static void host_alarm_handler(int host_signum)
     }
 }
 
+#ifndef _WIN32
+
+#define RTC_FREQ 1024
+
+static int rtc_fd;
+    
+static int start_rtc_timer(void)
+{
+    rtc_fd = open("/dev/rtc", O_RDONLY);
+    if (rtc_fd < 0)
+        return -1;
+    if (ioctl(rtc_fd, RTC_IRQP_SET, RTC_FREQ) < 0) {
+        fprintf(stderr, "Could not configure '/dev/rtc' to have a 1024 Hz timer. This is not a fatal\n"
+                "error, but for better emulation accuracy either use a 2.6 host Linux kernel or\n"
+                "type 'echo 1024 > /proc/sys/dev/rtc/max-user-freq' as root.\n");
+        goto fail;
+    }
+    if (ioctl(rtc_fd, RTC_PIE_ON, 0) < 0) {
+    fail:
+        close(rtc_fd);
+        return -1;
+    }
+    pit_min_timer_count = PIT_FREQ / RTC_FREQ;
+    return 0;
+}
+
+#endif
+
 static void init_timers(void)
 {
     rt_clock = qemu_new_clock(QEMU_TIMER_REALTIME);
@@ -715,7 +775,7 @@ static void init_timers(void)
 #endif
         act.sa_handler = host_alarm_handler;
         sigaction(SIGALRM, &act, NULL);
-        
+
         itv.it_interval.tv_sec = 0;
         itv.it_interval.tv_usec = 1000;
         itv.it_value.tv_sec = 0;
@@ -724,8 +784,27 @@ static void init_timers(void)
         /* we probe the tick duration of the kernel to inform the user if
            the emulated kernel requested a too high timer frequency */
         getitimer(ITIMER_REAL, &itv);
-        pit_min_timer_count = ((uint64_t)itv.it_interval.tv_usec * PIT_FREQ) / 
-            1000000;
+
+        if (itv.it_interval.tv_usec > 1000) {
+            /* try to use /dev/rtc to have a faster timer */
+            if (start_rtc_timer() < 0)
+                goto use_itimer;
+            /* disable itimer */
+            itv.it_interval.tv_sec = 0;
+            itv.it_interval.tv_usec = 0;
+            itv.it_value.tv_sec = 0;
+            itv.it_value.tv_usec = 0;
+            setitimer(ITIMER_REAL, &itv, NULL);
+
+            /* use the RTC */
+            sigaction(SIGIO, &act, NULL);
+            fcntl(rtc_fd, F_SETFL, O_ASYNC);
+            fcntl(rtc_fd, F_SETOWN, getpid());
+        } else {
+        use_itimer:
+            pit_min_timer_count = ((uint64_t)itv.it_interval.tv_usec * 
+                                   PIT_FREQ) / 1000000;
+        }
     }
 #endif
 }

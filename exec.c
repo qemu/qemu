@@ -1131,6 +1131,8 @@ CPULogItem cpu_log_items[] = {
     { CPU_LOG_PCALL, "pcall",
       "show protected mode far calls/returns/exceptions" },
 #endif
+    { CPU_LOG_IOPORT, "ioport",
+      "show all i/o ports accesses" },
     { 0, NULL, NULL },
 };
 

@@ -636,6 +636,7 @@ target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr);
 #define CPU_LOG_INT        (1 << 4)
 #define CPU_LOG_EXEC       (1 << 5)
 #define CPU_LOG_PCALL      (1 << 6)
+#define CPU_LOG_IOPORT     (1 << 7)
 
 /* define log items */
 typedef struct CPULogItem {
