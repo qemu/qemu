@@ -385,6 +385,7 @@ void OPPROTO glue(op_setle_T0_sub, SUFFIX)(void)
 void OPPROTO glue(glue(op_rol, SUFFIX), _T0_T1_cc)(void)
 {
     int count, src;
+    /* XXX: testing */
     count = T1 & SHIFT_MASK;
     if (count) {
         CC_SRC = cc_table[CC_OP].compute_all() & ~(CC_O | CC_C);

@@ -44,19 +44,6 @@ int __op_param1, __op_param2, __op_param3;
 extern FILE *logfile;
 extern int loglevel;
 
-/* supress that */
-static void error(const char *fmt, ...)
-{
-    va_list ap;
-
-    va_start(ap, fmt);
-    fprintf(stderr, "\n");
-    vfprintf(stderr, fmt, ap);
-    fprintf(stderr, "\n");
-    va_end(ap);
-    exit(1);
-}
-
 #define PREFIX_REPZ 1
 #define PREFIX_REPNZ 2
 #define PREFIX_LOCK 4
@@ -349,6 +336,29 @@ static GenOpFunc *gen_op_addl_A0_reg_sN[4][8] = {
         gen_op_addl_A0_EBP_s3,
         gen_op_addl_A0_ESI_s3,
         gen_op_addl_A0_EDI_s3,
+    },
+};
+
+static GenOpFunc *gen_op_cmov_reg_T1_T0[2][8] = {
+    [0] = {
+        gen_op_cmovw_EAX_T1_T0,
+        gen_op_cmovw_ECX_T1_T0,
+        gen_op_cmovw_EDX_T1_T0,
+        gen_op_cmovw_EBX_T1_T0,
+        gen_op_cmovw_ESP_T1_T0,
+        gen_op_cmovw_EBP_T1_T0,
+        gen_op_cmovw_ESI_T1_T0,
+        gen_op_cmovw_EDI_T1_T0,
+    },
+    [1] = {
+        gen_op_cmovl_EAX_T1_T0,
+        gen_op_cmovl_ECX_T1_T0,
+        gen_op_cmovl_EDX_T1_T0,
+        gen_op_cmovl_EBX_T1_T0,
+        gen_op_cmovl_ESP_T1_T0,
+        gen_op_cmovl_EBP_T1_T0,
+        gen_op_cmovl_ESI_T1_T0,
+        gen_op_cmovl_EDI_T1_T0,
     },
 };
 
@@ -2586,12 +2596,27 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         s->is_jmp = 1;
         break;
 
-    case 0x190 ... 0x19f:
+    case 0x190 ... 0x19f: /* setcc Gv */
         modrm = ldub(s->pc++);
         gen_setcc(s, b);
         gen_ldst_modrm(s, modrm, OT_BYTE, OR_TMP0, 1);
         break;
-
+    case 0x140 ... 0x14f: /* cmov Gv, Ev */
+        ot = dflag ? OT_LONG : OT_WORD;
+        modrm = ldub(s->pc++);
+        reg = (modrm >> 3) & 7;
+        mod = (modrm >> 6) & 3;
+        gen_setcc(s, b);
+        if (mod != 3) {
+            gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+            gen_op_ld_T1_A0[ot]();
+        } else {
+            rm = modrm & 7;
+            gen_op_mov_TN_reg[ot][1][rm]();
+        }
+        gen_op_cmov_reg_T1_T0[ot - OT_WORD][reg]();
+        break;
+        
         /************************/
         /* flags */
     case 0x9c: /* pushf */
@@ -2801,7 +2826,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         gen_op_loop[s->aflag][b & 3](val, (long)s->pc);
         s->is_jmp = 1;
         break;
-    case 0x1a2: /* rdtsc */
+    case 0x131: /* rdtsc */
         gen_op_rdtsc();
         break;
 #if 0
@@ -2841,8 +2866,8 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size,
     do {
         ret = disas_insn(dc, pc_ptr);
         if (ret == -1) {
-            error("unknown instruction at PC=0x%x B=%02x %02x %02x", 
-                  pc_ptr, pc_ptr[0], pc_ptr[1], pc_ptr[2]);
+            fprintf(stderr, "unknown instruction at PC=0x%08lx B=%02x %02x %02x", 
+                    (long)pc_ptr, pc_ptr[0], pc_ptr[1], pc_ptr[2]);
             abort();
         }
         pc_ptr = (void *)ret;

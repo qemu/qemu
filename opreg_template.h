@@ -60,6 +60,19 @@ void OPPROTO glue(glue(op_movl,REGNAME),_A0)(void)
     REG = A0;
 }
 
+/* mov T1 to REG if T0 is true */
+void OPPROTO glue(glue(op_cmovw,REGNAME),_T1_T0)(void)
+{
+    if (T0)
+        REG = (REG & 0xffff0000) | (T1 & 0xffff);
+}
+
+void OPPROTO glue(glue(op_cmovl,REGNAME),_T1_T0)(void)
+{
+    if (T0)
+        REG = T1;
+}
+
 /* NOTE: T0 high order bits are ignored */
 void OPPROTO glue(glue(op_movw,REGNAME),_T0)(void)
 {

@@ -3,6 +3,8 @@
 #include <inttypes.h>
 #include <math.h>
 
+#define TEST_CMOV 0
+
 #define xglue(x, y) x ## y
 #define glue(x, y) xglue(x, y)
 #define stringify(s)	tostring(s)
@@ -225,79 +227,99 @@ void test_lea(void)
 
 #define TEST_JCC(JCC, v1, v2)\
 {\
+    int res;\
     asm("movl $1, %0\n\t"\
         "cmpl %2, %1\n\t"\
-        JCC " 1f\n\t"\
+        "j" JCC " 1f\n\t"\
         "movl $0, %0\n\t"\
         "1:\n\t"\
         : "=r" (res)\
         : "r" (v1), "r" (v2));\
-    printf("%-10s %d\n", JCC, res);\
+    printf("%-10s %d\n", "j" JCC, res);\
+\
+    asm("movl $0, %0\n\t"\
+        "cmpl %2, %1\n\t"\
+        "set" JCC " %b0\n\t"\
+        : "=r" (res)\
+        : "r" (v1), "r" (v2));\
+    printf("%-10s %d\n", "set" JCC, res);\
+ if (TEST_CMOV) {\
+    asm("movl $0x12345678, %0\n\t"\
+        "cmpl %2, %1\n\t"\
+        "cmov" JCC "l %3, %0\n\t"\
+        : "=r" (res)\
+        : "r" (v1), "r" (v2), "m" (1));\
+        printf("%-10s R=0x%08x\n", "cmov" JCC "l", res);\
+    asm("movl $0x12345678, %0\n\t"\
+        "cmpl %2, %1\n\t"\
+        "cmov" JCC "w %w3, %w0\n\t"\
+        : "=r" (res)\
+        : "r" (v1), "r" (v2), "r" (1));\
+        printf("%-10s R=0x%08x\n", "cmov" JCC "w", res);\
+ } \
 }
 
 /* various jump tests */
 void test_jcc(void)
 {
-    int res;
+    TEST_JCC("ne", 1, 1);
+    TEST_JCC("ne", 1, 0);
 
-    TEST_JCC("jne", 1, 1);
-    TEST_JCC("jne", 1, 0);
+    TEST_JCC("e", 1, 1);
+    TEST_JCC("e", 1, 0);
 
-    TEST_JCC("je", 1, 1);
-    TEST_JCC("je", 1, 0);
+    TEST_JCC("l", 1, 1);
+    TEST_JCC("l", 1, 0);
+    TEST_JCC("l", 1, -1);
 
-    TEST_JCC("jl", 1, 1);
-    TEST_JCC("jl", 1, 0);
-    TEST_JCC("jl", 1, -1);
+    TEST_JCC("le", 1, 1);
+    TEST_JCC("le", 1, 0);
+    TEST_JCC("le", 1, -1);
 
-    TEST_JCC("jle", 1, 1);
-    TEST_JCC("jle", 1, 0);
-    TEST_JCC("jle", 1, -1);
+    TEST_JCC("ge", 1, 1);
+    TEST_JCC("ge", 1, 0);
+    TEST_JCC("ge", -1, 1);
 
-    TEST_JCC("jge", 1, 1);
-    TEST_JCC("jge", 1, 0);
-    TEST_JCC("jge", -1, 1);
+    TEST_JCC("g", 1, 1);
+    TEST_JCC("g", 1, 0);
+    TEST_JCC("g", 1, -1);
 
-    TEST_JCC("jg", 1, 1);
-    TEST_JCC("jg", 1, 0);
-    TEST_JCC("jg", 1, -1);
+    TEST_JCC("b", 1, 1);
+    TEST_JCC("b", 1, 0);
+    TEST_JCC("b", 1, -1);
 
-    TEST_JCC("jb", 1, 1);
-    TEST_JCC("jb", 1, 0);
-    TEST_JCC("jb", 1, -1);
+    TEST_JCC("be", 1, 1);
+    TEST_JCC("be", 1, 0);
+    TEST_JCC("be", 1, -1);
 
-    TEST_JCC("jbe", 1, 1);
-    TEST_JCC("jbe", 1, 0);
-    TEST_JCC("jbe", 1, -1);
+    TEST_JCC("ae", 1, 1);
+    TEST_JCC("ae", 1, 0);
+    TEST_JCC("ae", 1, -1);
 
-    TEST_JCC("jae", 1, 1);
-    TEST_JCC("jae", 1, 0);
-    TEST_JCC("jae", 1, -1);
-
-    TEST_JCC("ja", 1, 1);
-    TEST_JCC("ja", 1, 0);
-    TEST_JCC("ja", 1, -1);
+    TEST_JCC("a", 1, 1);
+    TEST_JCC("a", 1, 0);
+    TEST_JCC("a", 1, -1);
 
 
-    TEST_JCC("jp", 1, 1);
-    TEST_JCC("jp", 1, 0);
+    TEST_JCC("p", 1, 1);
+    TEST_JCC("p", 1, 0);
 
-    TEST_JCC("jnp", 1, 1);
-    TEST_JCC("jnp", 1, 0);
+    TEST_JCC("np", 1, 1);
+    TEST_JCC("np", 1, 0);
 
-    TEST_JCC("jo", 0x7fffffff, 0);
-    TEST_JCC("jo", 0x7fffffff, -1);
+    TEST_JCC("o", 0x7fffffff, 0);
+    TEST_JCC("o", 0x7fffffff, -1);
 
-    TEST_JCC("jno", 0x7fffffff, 0);
-    TEST_JCC("jno", 0x7fffffff, -1);
+    TEST_JCC("no", 0x7fffffff, 0);
+    TEST_JCC("no", 0x7fffffff, -1);
 
-    TEST_JCC("js", 0, 1);
-    TEST_JCC("js", 0, -1);
-    TEST_JCC("js", 0, 0);
+    TEST_JCC("s", 0, 1);
+    TEST_JCC("s", 0, -1);
+    TEST_JCC("s", 0, 0);
 
-    TEST_JCC("jns", 0, 1);
-    TEST_JCC("jns", 0, -1);
-    TEST_JCC("jns", 0, 0);
+    TEST_JCC("ns", 0, 1);
+    TEST_JCC("ns", 0, -1);
+    TEST_JCC("ns", 0, 0);
 }
 
 #undef CC_MASK
