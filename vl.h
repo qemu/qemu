@@ -733,11 +733,14 @@ typedef struct ADBDevice ADBDevice;
 /* buf = NULL means polling */
 typedef int ADBDeviceRequest(ADBDevice *d, uint8_t *buf_out,
                               const uint8_t *buf, int len);
+typedef int ADBDeviceReset(ADBDevice *d);
+
 struct ADBDevice {
     struct ADBBusState *bus;
     int devaddr;
     int handler;
     ADBDeviceRequest *devreq;
+    ADBDeviceReset *devreset;
     void *opaque;
 };
 
@@ -753,6 +756,7 @@ int adb_poll(ADBBusState *s, uint8_t *buf_out);
 
 ADBDevice *adb_register_device(ADBBusState *s, int devaddr, 
                                ADBDeviceRequest *devreq, 
+                               ADBDeviceReset *devreset, 
                                void *opaque);
 void adb_kbd_init(ADBBusState *bus);
 void adb_mouse_init(ADBBusState *bus);
