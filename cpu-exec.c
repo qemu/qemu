@@ -29,6 +29,8 @@
 
 //#define DEBUG_EXEC
 //#define DEBUG_SIGNAL
+/* enable it to have a fully working x86 emulator for ring 0 */
+//#define RING0_HACKS
 
 #if defined(TARGET_ARM)
 /* XXX: unify with i386 target */
@@ -140,146 +142,195 @@ int cpu_exec(CPUState *env1)
 #error unsupported target CPU
 #endif
     env->interrupt_request = 0;
+    env->exception_index = -1;
 
     /* prepare setjmp context for exception handling */
-    if (setjmp(env->jmp_env) == 0) {
-        T0 = 0; /* force lookup of first TB */
-        for(;;) {
-#ifdef __sparc__
-	  /* g1 can be modified by some libc? functions */ 
-	    tmp_T0 = T0;
-#endif	    
-            if (env->interrupt_request) {
-                env->exception_index = EXCP_INTERRUPT;
-                cpu_loop_exit();
+    for(;;) {
+        if (setjmp(env->jmp_env) == 0) {
+            /* if an exception is pending, we execute it here */
+            if (env->exception_index >= 0) {
+                if (env->exception_index >= EXCP_INTERRUPT) {
+                    /* exit request from the cpu execution loop */
+                    ret = env->exception_index;
+                    break;
+                } else if (env->user_mode_only) {
+                    /* if user mode only, we simulate a fake exception
+                       which will be hanlded outside the cpu execution
+                       loop */
+                    do_interrupt_user(env->exception_index, 
+                                      env->exception_is_int, 
+                                      env->error_code, 
+                                      env->exception_next_eip);
+                    ret = env->exception_index;
+                    break;
+                } else {
+                    /* simulate a real cpu exception. On i386, it can
+                       trigger new exceptions, but we do not handle
+                       double or triple faults yet. */
+                    do_interrupt(env->exception_index, 
+                                 env->exception_is_int, 
+                                 env->error_code, 
+                                 env->exception_next_eip);
+                }
+                env->exception_index = -1;
             }
-#ifdef DEBUG_EXEC
-            if (loglevel) {
 #if defined(TARGET_I386)
-                /* restore flags in standard format */
-                env->regs[R_EAX] = EAX;
-                env->regs[R_EBX] = EBX;
-                env->regs[R_ECX] = ECX;
-                env->regs[R_EDX] = EDX;
-                env->regs[R_ESI] = ESI;
-                env->regs[R_EDI] = EDI;
-                env->regs[R_EBP] = EBP;
-                env->regs[R_ESP] = ESP;
-                env->eflags = env->eflags | cc_table[CC_OP].compute_all() | (DF & DF_MASK);
-                cpu_x86_dump_state(env, logfile, 0);
-                env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
+            /* if hardware interrupt pending, we execute it */
+            if (env->hard_interrupt_request &&
+                (env->eflags & IF_MASK)) {
+                int intno;
+                intno = cpu_x86_get_pic_interrupt(env);
+                if (loglevel) {
+                    fprintf(logfile, "Servicing hardware INT=0x%02x\n", intno);
+                }
+                do_interrupt(intno, 0, 0, 0);
+                env->hard_interrupt_request = 0;
+            }
+#endif
+            T0 = 0; /* force lookup of first TB */
+            for(;;) {
+#ifdef __sparc__
+                /* g1 can be modified by some libc? functions */ 
+                tmp_T0 = T0;
+#endif	    
+                if (env->interrupt_request) {
+                    env->exception_index = EXCP_INTERRUPT;
+                    cpu_loop_exit();
+                }
+#ifdef DEBUG_EXEC
+                if (loglevel) {
+#if defined(TARGET_I386)
+                    /* restore flags in standard format */
+                    env->regs[R_EAX] = EAX;
+                    env->regs[R_EBX] = EBX;
+                    env->regs[R_ECX] = ECX;
+                    env->regs[R_EDX] = EDX;
+                    env->regs[R_ESI] = ESI;
+                    env->regs[R_EDI] = EDI;
+                    env->regs[R_EBP] = EBP;
+                    env->regs[R_ESP] = ESP;
+                    env->eflags = env->eflags | cc_table[CC_OP].compute_all() | (DF & DF_MASK);
+                    cpu_x86_dump_state(env, logfile, 0);
+                    env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
 #elif defined(TARGET_ARM)
-                cpu_arm_dump_state(env, logfile, 0);
+                    cpu_arm_dump_state(env, logfile, 0);
 #else
 #error unsupported target CPU 
 #endif
-            }
+                }
 #endif
-            /* we compute the CPU state. We assume it will not
-               change during the whole generated block. */
+                /* we compute the CPU state. We assume it will not
+                   change during the whole generated block. */
 #if defined(TARGET_I386)
-            flags = env->segs[R_CS].seg_32bit << GEN_FLAG_CODE32_SHIFT;
-            flags |= env->segs[R_SS].seg_32bit << GEN_FLAG_SS32_SHIFT;
-            flags |= (((unsigned long)env->segs[R_DS].base | 
-                       (unsigned long)env->segs[R_ES].base |
-                       (unsigned long)env->segs[R_SS].base) != 0) << 
-                GEN_FLAG_ADDSEG_SHIFT;
-            if (!(env->eflags & VM_MASK)) {
-                flags |= (env->segs[R_CS].selector & 3) << GEN_FLAG_CPL_SHIFT;
-            } else {
-                /* NOTE: a dummy CPL is kept */
-                flags |= (1 << GEN_FLAG_VM_SHIFT);
-                flags |= (3 << GEN_FLAG_CPL_SHIFT);
-            }
-            flags |= (env->eflags & (IOPL_MASK | TF_MASK));
-            cs_base = env->segs[R_CS].base;
-            pc = cs_base + env->eip;
+                flags = (env->segs[R_CS].flags & DESC_B_MASK)
+                    >> (DESC_B_SHIFT - GEN_FLAG_CODE32_SHIFT);
+                flags |= (env->segs[R_SS].flags & DESC_B_MASK)
+                    >> (DESC_B_SHIFT - GEN_FLAG_SS32_SHIFT);
+                flags |= (((unsigned long)env->segs[R_DS].base | 
+                           (unsigned long)env->segs[R_ES].base |
+                           (unsigned long)env->segs[R_SS].base) != 0) << 
+                    GEN_FLAG_ADDSEG_SHIFT;
+                if (!(env->eflags & VM_MASK)) {
+                    flags |= (env->segs[R_CS].selector & 3) << GEN_FLAG_CPL_SHIFT;
+                } else {
+                    /* NOTE: a dummy CPL is kept */
+                    flags |= (1 << GEN_FLAG_VM_SHIFT);
+                    flags |= (3 << GEN_FLAG_CPL_SHIFT);
+                }
+                flags |= (env->eflags & (IOPL_MASK | TF_MASK));
+                cs_base = env->segs[R_CS].base;
+                pc = cs_base + env->eip;
 #elif defined(TARGET_ARM)
-            flags = 0;
-            cs_base = 0;
-            pc = (uint8_t *)env->regs[15];
+                flags = 0;
+                cs_base = 0;
+                pc = (uint8_t *)env->regs[15];
 #else
 #error unsupported CPU
 #endif
-            tb = tb_find(&ptb, (unsigned long)pc, (unsigned long)cs_base, 
-                         flags);
-            if (!tb) {
-                spin_lock(&tb_lock);
-                /* if no translated code available, then translate it now */
-                tb = tb_alloc((unsigned long)pc);
+                tb = tb_find(&ptb, (unsigned long)pc, (unsigned long)cs_base, 
+                             flags);
                 if (!tb) {
-                    /* flush must be done */
-                    tb_flush();
-                    /* cannot fail at this point */
+                    spin_lock(&tb_lock);
+                    /* if no translated code available, then translate it now */
                     tb = tb_alloc((unsigned long)pc);
-                    /* don't forget to invalidate previous TB info */
-                    ptb = &tb_hash[tb_hash_func((unsigned long)pc)];
-                    T0 = 0;
-                }
-                tc_ptr = code_gen_ptr;
-                tb->tc_ptr = tc_ptr;
-                tb->cs_base = (unsigned long)cs_base;
-                tb->flags = flags;
-                ret = cpu_gen_code(tb, CODE_GEN_MAX_SIZE, &code_gen_size);
+                    if (!tb) {
+                        /* flush must be done */
+                        tb_flush();
+                        /* cannot fail at this point */
+                        tb = tb_alloc((unsigned long)pc);
+                        /* don't forget to invalidate previous TB info */
+                        ptb = &tb_hash[tb_hash_func((unsigned long)pc)];
+                        T0 = 0;
+                    }
+                    tc_ptr = code_gen_ptr;
+                    tb->tc_ptr = tc_ptr;
+                    tb->cs_base = (unsigned long)cs_base;
+                    tb->flags = flags;
+                    ret = cpu_gen_code(tb, CODE_GEN_MAX_SIZE, &code_gen_size);
 #if defined(TARGET_I386)
-                /* XXX: suppress that, this is incorrect */
-                /* if invalid instruction, signal it */
-                if (ret != 0) {
-                    /* NOTE: the tb is allocated but not linked, so we
-                       can leave it */
-                    spin_unlock(&tb_lock);
-                    raise_exception(EXCP06_ILLOP);
-                }
+                    /* XXX: suppress that, this is incorrect */
+                    /* if invalid instruction, signal it */
+                    if (ret != 0) {
+                        /* NOTE: the tb is allocated but not linked, so we
+                           can leave it */
+                        spin_unlock(&tb_lock);
+                        raise_exception(EXCP06_ILLOP);
+                    }
 #endif
-                *ptb = tb;
-                tb->hash_next = NULL;
-                tb_link(tb);
-                code_gen_ptr = (void *)(((unsigned long)code_gen_ptr + code_gen_size + CODE_GEN_ALIGN - 1) & ~(CODE_GEN_ALIGN - 1));
-                spin_unlock(&tb_lock);
-            }
+                    *ptb = tb;
+                    tb->hash_next = NULL;
+                    tb_link(tb);
+                    code_gen_ptr = (void *)(((unsigned long)code_gen_ptr + code_gen_size + CODE_GEN_ALIGN - 1) & ~(CODE_GEN_ALIGN - 1));
+                    spin_unlock(&tb_lock);
+                }
 #ifdef DEBUG_EXEC
-	    if (loglevel) {
-		fprintf(logfile, "Trace 0x%08lx [0x%08lx] %s\n",
-			(long)tb->tc_ptr, (long)tb->pc,
-			lookup_symbol((void *)tb->pc));
-	    }
+                if (loglevel) {
+                    fprintf(logfile, "Trace 0x%08lx [0x%08lx] %s\n",
+                            (long)tb->tc_ptr, (long)tb->pc,
+                            lookup_symbol((void *)tb->pc));
+                }
 #endif
 #ifdef __sparc__
-	    T0 = tmp_T0;
+                T0 = tmp_T0;
 #endif	    
-            /* see if we can patch the calling TB. XXX: remove TF test */
-            if (T0 != 0 
-#if defined(TARGET_I386)
-                && !(env->eflags & TF_MASK)
-#endif
-                ) {
-                spin_lock(&tb_lock);
-                tb_add_jump((TranslationBlock *)(T0 & ~3), T0 & 3, tb);
-                spin_unlock(&tb_lock);
-            }
-            tc_ptr = tb->tc_ptr;
+                /* see if we can patch the calling TB. XXX: remove TF test */
+#ifndef RING0_HACKS
 
-            /* execute the generated code */
-            gen_func = (void *)tc_ptr;
-#if defined(__sparc__)
-	    __asm__ __volatile__("call	%0\n\t"
-				 "mov	%%o7,%%i0"
-				 : /* no outputs */
-				 : "r" (gen_func) 
-				 : "i0", "i1", "i2", "i3", "i4", "i5");
-#elif defined(__arm__)
-            asm volatile ("mov pc, %0\n\t"
-                          ".global exec_loop\n\t"
-                          "exec_loop:\n\t"
-                          : /* no outputs */
-                          : "r" (gen_func)
-                          : "r1", "r2", "r3", "r8", "r9", "r10", "r12", "r14");
-#else
-            gen_func();
+                if (T0 != 0 
+#if defined(TARGET_I386)
+                    && !(env->eflags & TF_MASK)
 #endif
+                    ) {
+                    spin_lock(&tb_lock);
+                    tb_add_jump((TranslationBlock *)(T0 & ~3), T0 & 3, tb);
+                    spin_unlock(&tb_lock);
+                }
+#endif
+                tc_ptr = tb->tc_ptr;
+                
+                /* execute the generated code */
+                gen_func = (void *)tc_ptr;
+#if defined(__sparc__)
+                __asm__ __volatile__("call	%0\n\t"
+                                     "mov	%%o7,%%i0"
+                                     : /* no outputs */
+                                     : "r" (gen_func) 
+                                     : "i0", "i1", "i2", "i3", "i4", "i5");
+#elif defined(__arm__)
+                asm volatile ("mov pc, %0\n\t"
+                              ".global exec_loop\n\t"
+                              "exec_loop:\n\t"
+                              : /* no outputs */
+                              : "r" (gen_func)
+                              : "r1", "r2", "r3", "r8", "r9", "r10", "r12", "r14");
+#else
+                gen_func();
+#endif
+            }
+        } else {
         }
-    }
-    ret = env->exception_index;
+    } /* for(;;) */
+
 
 #if defined(TARGET_I386)
     /* restore flags in standard format */
@@ -348,11 +399,11 @@ void cpu_x86_load_seg(CPUX86State *s, int seg_reg, int selector)
         SegmentCache *sc;
         selector &= 0xffff;
         sc = &env->segs[seg_reg];
-        /* NOTE: in VM86 mode, limit and seg_32bit are never reloaded,
+        /* NOTE: in VM86 mode, limit and flags are never reloaded,
            so we must load them here */
         sc->base = (void *)(selector << 4);
         sc->limit = 0xffff;
-        sc->seg_32bit = 0;
+        sc->flags = 0;
         sc->selector = selector;
     } else {
         load_seg(seg_reg, selector, 0);
@@ -398,6 +449,8 @@ void cpu_x86_frstor(CPUX86State *s, uint8_t *ptr, int data32)
 #include <signal.h>
 #include <sys/ucontext.h>
 
+#if defined(TARGET_I386)
+
 /* 'pc' is the host PC at which the exception was raised. 'address' is
    the effective address of the memory exception. 'is_write' is 1 if a
    write caused the exception and otherwise 0'. 'old_set' is the
@@ -407,42 +460,53 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
 {
     TranslationBlock *tb;
     int ret;
-    uint32_t found_pc;
     
+#ifdef RING0_HACKS
+    env = global_env; /* XXX: find a better solution */
+#endif
 #if defined(DEBUG_SIGNAL)
-    printf("qemu: SIGSEGV pc=0x%08lx address=%08lx wr=%d oldset=0x%08lx\n", 
+    printf("qemu: SIGSEGV pc=0x%08lx address=%08lx w=%d oldset=0x%08lx\n", 
            pc, address, is_write, *(unsigned long *)old_set);
 #endif
     /* XXX: locking issue */
     if (is_write && page_unprotect(address)) {
         return 1;
     }
+    /* see if it is an MMU fault */
+    ret = cpu_x86_handle_mmu_fault(env, address, is_write);
+    if (ret < 0)
+        return 0; /* not an MMU fault */
+    if (ret == 0)
+        return 1; /* the MMU fault was handled without causing real CPU fault */
+    /* now we have a real cpu fault */
     tb = tb_find_pc(pc);
     if (tb) {
         /* the PC is inside the translated code. It means that we have
            a virtual CPU fault */
-        ret = cpu_search_pc(tb, &found_pc, pc);
-        if (ret < 0)
-            return 0;
-#if defined(TARGET_I386)
-        env->eip = found_pc - tb->cs_base;
-        env->cr[2] = address;
-        /* we restore the process signal mask as the sigreturn should
-           do it (XXX: use sigsetjmp) */
-        sigprocmask(SIG_SETMASK, old_set, NULL);
-        raise_exception_err(EXCP0E_PAGE, 4 | (is_write << 1));
+        cpu_restore_state(tb, env, pc);
+    }
+#if 0
+    printf("PF exception: EIP=0x%08x CR2=0x%08x error=0x%x\n", 
+           env->eip, env->cr[2], env->error_code);
+#endif
+    /* we restore the process signal mask as the sigreturn should
+       do it (XXX: use sigsetjmp) */
+    sigprocmask(SIG_SETMASK, old_set, NULL);
+    raise_exception_err(EXCP0E_PAGE, env->error_code);
+    /* never comes here */
+    return 1;
+}
+
 #elif defined(TARGET_ARM)
-        env->regs[15] = found_pc;
-        /* XXX: do more */
+static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
+                                    int is_write, sigset_t *old_set)
+{
+    /* XXX: do more */
+    return 0;
+}
 #else
 #error unsupported target CPU
 #endif
-        /* never comes here */
-        return 1;
-    } else {
-        return 0;
-    }
-}
 
 #if defined(__i386__)
 
@@ -570,6 +634,6 @@ int cpu_signal_handler(int host_signum, struct siginfo *info,
 
 #else
 
-#error CPU specific signal handler needed
+#error host CPU specific signal handler needed
 
 #endif
