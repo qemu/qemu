@@ -536,15 +536,12 @@ setup_sigcontext(struct target_sigcontext *sc, struct target_fpstate *fpstate,
 	err |= __put_user(env->eflags, &sc->eflags);
 	err |= __put_user(env->regs[R_ESP], &sc->esp_at_signal);
 	err |= __put_user(env->segs[R_SS], (unsigned int *)&sc->ss);
-#if 0
-	tmp = save_i387(fpstate);
-	if (tmp < 0)
-	  err = 1;
-	else
-	  err |= __put_user(tmp ? fpstate : NULL, &sc->fpstate);
-#else
-        err |= __put_user(0, &sc->fpstate);
-#endif
+
+        cpu_x86_fsave(env, (void *)fpstate, 1);
+        fpstate->status = fpstate->sw;
+        err |= __put_user(0xffff, &fpstate->magic);
+        err |= __put_user(fpstate, &sc->fpstate);
+
 	/* non-iBCS2 extensions.. */
 	err |= __put_user(mask, &sc->oldmask);
 	err |= __put_user(env->cr2, &sc->cr2);
@@ -721,25 +718,6 @@ restore_sigcontext(CPUX86State *env, struct target_sigcontext *sc, int *peax)
 {
 	unsigned int err = 0;
 
-
-        
-#define COPY(x)		err |= __get_user(regs->x, &sc->x)
-
-#define COPY_SEG(seg)							\
-	{ unsigned short tmp;						\
-	  err |= __get_user(tmp, &sc->seg);				\
-	  regs->x##seg = tmp; }
-
-#define COPY_SEG_STRICT(seg)						\
-	{ unsigned short tmp;						\
-	  err |= __get_user(tmp, &sc->seg);				\
-	  regs->x##seg = tmp|3; }
-
-#define GET_SEG(seg)							\
-	{ unsigned short tmp;						\
-	  err |= __get_user(tmp, &sc->seg);				\
-	  loadsegment(seg,tmp); }
-
         cpu_x86_load_seg(env, R_GS, lduw(&sc->gs));
         cpu_x86_load_seg(env, R_FS, lduw(&sc->fs));
         cpu_x86_load_seg(env, R_ES, lduw(&sc->es));
@@ -764,17 +742,18 @@ restore_sigcontext(CPUX86State *env, struct target_sigcontext *sc, int *peax)
                 //		regs->orig_eax = -1;		/* disable syscall checks */
 	}
 
-#if 0
 	{
 		struct _fpstate * buf;
-		err |= __get_user(buf, &sc->fpstate);
+                buf = (void *)ldl(&sc->fpstate);
 		if (buf) {
+#if 0
 			if (verify_area(VERIFY_READ, buf, sizeof(*buf)))
 				goto badframe;
-			err |= restore_i387(buf);
+#endif
+                        cpu_x86_frstor(env, (void *)buf, 1);
 		}
 	}
-#endif
+
         *peax = ldl(&sc->eax);
 	return err;
 #if 0
