@@ -282,7 +282,9 @@ void gen_code(const char *name, unsigned long offset, unsigned long size,
             error("inconsistent argument numbering in %s", name);
     }
 
-    if (gen_switch) {
+    if (gen_switch == 2) {
+        fprintf(outfile, "DEF(%s, %d)\n", name + 3, nb_args);
+    } else if (gen_switch == 1) {
 
         /* output C code */
         fprintf(outfile, "case INDEX_%s: {\n", name);
@@ -559,12 +561,13 @@ int load_elf(const char *filename, FILE *outfile, int do_print_enum)
     }
 
     if (do_print_enum) {
-        fprintf(outfile, "DEF(end)\n");
+        fprintf(outfile, "DEF(end, 0)\n");
         for(i = 0, sym = symtab; i < nb_syms; i++, sym++) {
             const char *name, *p;
             name = strtab + sym->st_name;
             if (strstart(name, OP_PREFIX, &p)) {
-                fprintf(outfile, "DEF(%s)\n", p);
+                gen_code(name, sym->st_value, sym->st_size, outfile, 
+                         text, relocs, nb_relocs, reloc_sh_type, symtab, strtab, 2);
             }
         }
     } else {
