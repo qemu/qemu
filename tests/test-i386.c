@@ -40,6 +40,7 @@
 #define TEST_CMOV  1
 #define TEST_FCOMI 1
 #else
+//#define TEST_SSE
 #define TEST_CMOV  0
 #define TEST_FCOMI 0
 #endif
@@ -697,6 +698,14 @@ void test_bsx(void)
 
 /**********************************************/
 
+union float64u {
+    double d;
+    uint64_t l;
+};
+
+union float64u q_nan = { .l = 0xFFF8000000000000 };
+union float64u s_nan = { .l = 0xFFF0000000000000 };
+
 void test_fops(double a, double b)
 {
     printf("a=%f b=%f a+b=%f\n", a, b, a + b);
@@ -718,28 +727,68 @@ void test_fops(double a, double b)
 
 }
 
+void fpu_clear_exceptions(void)
+{
+    struct __attribute__((packed)) {
+        uint16_t fpuc;
+        uint16_t dummy1;
+        uint16_t fpus;
+        uint16_t dummy2;
+        uint16_t fptag;
+        uint16_t dummy3;
+        uint32_t ignored[4];
+        long double fpregs[8];
+    } float_env32;
+    
+    asm volatile ("fnstenv %0\n" : : "m" (float_env32));
+    float_env32.fpus &= ~0x7f;
+    asm volatile ("fldenv %0\n" : : "m" (float_env32));
+}
+
+/* XXX: display exception bits when supported */
+#define FPUS_EMASK 0x0000
+//#define FPUS_EMASK 0x007f
+
 void test_fcmp(double a, double b)
 {
-    printf("(%f<%f)=%d\n",
-           a, b, a < b);
-    printf("(%f<=%f)=%d\n",
-           a, b, a <= b);
-    printf("(%f==%f)=%d\n",
-           a, b, a == b);
-    printf("(%f>%f)=%d\n",
-           a, b, a > b);
-    printf("(%f<=%f)=%d\n",
-           a, b, a >= b);
+    long eflags, fpus;
+
+    fpu_clear_exceptions();
+    asm("fcom %2\n"
+        "fstsw %%ax\n"
+        : "=a" (fpus)
+        : "t" (a), "u" (b));
+    printf("fcom(%f %f)=%04lx \n", 
+           a, b, fpus & (0x4500 | FPUS_EMASK));
+    fpu_clear_exceptions();
+    asm("fucom %2\n"
+        "fstsw %%ax\n"
+        : "=a" (fpus)
+        : "t" (a), "u" (b));
+    printf("fucom(%f %f)=%04lx\n", 
+           a, b, fpus & (0x4500 | FPUS_EMASK));
     if (TEST_FCOMI) {
-        long eflags;
         /* test f(u)comi instruction */
-        asm("fcomi %2, %1\n"
+        fpu_clear_exceptions();
+        asm("fcomi %3, %2\n"
+            "fstsw %%ax\n"
             "pushf\n"
             "pop %0\n"
-            : "=r" (eflags)
+            : "=r" (eflags), "=a" (fpus)
             : "t" (a), "u" (b));
-        printf("fcomi(%f %f)=%08lx\n", a, b, eflags & (CC_Z | CC_P | CC_C));
+        printf("fcomi(%f %f)=%04lx %02lx\n", 
+               a, b, fpus & FPUS_EMASK, eflags & (CC_Z | CC_P | CC_C));
+        fpu_clear_exceptions();
+        asm("fucomi %3, %2\n"
+            "fstsw %%ax\n"
+            "pushf\n"
+            "pop %0\n"
+            : "=r" (eflags), "=a" (fpus)
+            : "t" (a), "u" (b));
+        printf("fucomi(%f %f)=%04lx %02lx\n", 
+               a, b, fpus & FPUS_EMASK, eflags & (CC_Z | CC_P | CC_C));
     }
+    fpu_clear_exceptions();
 }
 
 void test_fcvt(double a)
@@ -907,6 +956,8 @@ void test_floats(void)
     test_fcmp(2, -1);
     test_fcmp(2, 2);
     test_fcmp(2, 3);
+    test_fcmp(2, q_nan.d);
+    test_fcmp(q_nan.d, -1);
     test_fcvt(0.5);
     test_fcvt(-0.5);
     test_fcvt(1.0/7.0);
@@ -2191,6 +2242,7 @@ void test_fxsave(void)
 void test_sse(void)
 {
     XMMReg r, a, b;
+    int i;
 
     MMX_OP2(punpcklbw);
     MMX_OP2(punpcklwd);
@@ -2354,51 +2406,65 @@ void test_sse(void)
     test_sse_comi(2, -1);
     test_sse_comi(2, 2);
     test_sse_comi(2, 3);
+    test_sse_comi(2, q_nan.d);
+    test_sse_comi(q_nan.d, -1);
 
-    a.s[0] = 2.7;
-    a.s[1] = 3.4;
-    a.s[2] = 4;
-    a.s[3] = -6.3;
-    b.s[0] = 45.7;
-    b.s[1] = 353.4;
-    b.s[2] = 4;
-    b.s[3] = 56.3;
-    SSE_OPS(add);
-    SSE_OPS(mul);
-    SSE_OPS(sub);
-    SSE_OPS(min);
-    SSE_OPS(div);
-    SSE_OPS(max);
-    SSE_OPS(sqrt);
-    SSE_OPS(cmpeq);
-    SSE_OPS(cmplt);
-    SSE_OPS(cmple);
-    SSE_OPS(cmpunord);
-    SSE_OPS(cmpneq);
-    SSE_OPS(cmpnlt);
-    SSE_OPS(cmpnle);
-    SSE_OPS(cmpord);
+    for(i = 0; i < 2; i++) {
+        a.s[0] = 2.7;
+        a.s[1] = 3.4;
+        a.s[2] = 4;
+        a.s[3] = -6.3;
+        b.s[0] = 45.7;
+        b.s[1] = 353.4;
+        b.s[2] = 4;
+        b.s[3] = 56.3;
+        if (i == 1) {
+            a.s[0] = q_nan.d;
+            b.s[3] = q_nan.d;
+        }
 
-    a.d[0] = 2.7;
-    a.d[1] = -3.4;
-    b.d[0] = 45.7;
-    b.d[1] = -53.4;
-    SSE_OPD(add);
-    SSE_OPD(mul);
-    SSE_OPD(sub);
-    SSE_OPD(min);
-    SSE_OPD(div);
-    SSE_OPD(max);
-    SSE_OPD(sqrt);
-    SSE_OPD(cmpeq);
-    SSE_OPD(cmplt);
-    SSE_OPD(cmple);
-    SSE_OPD(cmpunord);
-    SSE_OPD(cmpneq);
-    SSE_OPD(cmpnlt);
-    SSE_OPD(cmpnle);
-    SSE_OPD(cmpord);
-    
+        SSE_OPS(add);
+        SSE_OPS(mul);
+        SSE_OPS(sub);
+        SSE_OPS(min);
+        SSE_OPS(div);
+        SSE_OPS(max);
+        SSE_OPS(sqrt);
+        SSE_OPS(cmpeq);
+        SSE_OPS(cmplt);
+        SSE_OPS(cmple);
+        SSE_OPS(cmpunord);
+        SSE_OPS(cmpneq);
+        SSE_OPS(cmpnlt);
+        SSE_OPS(cmpnle);
+        SSE_OPS(cmpord);
+        
+        
+        a.d[0] = 2.7;
+        a.d[1] = -3.4;
+        b.d[0] = 45.7;
+        b.d[1] = -53.4;
+        if (i == 1) {
+            a.d[0] = q_nan.d;
+            b.d[1] = q_nan.d;
+        }
+        SSE_OPD(add);
+        SSE_OPD(mul);
+        SSE_OPD(sub);
+        SSE_OPD(min);
+        SSE_OPD(div);
+        SSE_OPD(max);
+        SSE_OPD(sqrt);
+        SSE_OPD(cmpeq);
+        SSE_OPD(cmplt);
+        SSE_OPD(cmple);
+        SSE_OPD(cmpunord);
+        SSE_OPD(cmpneq);
+        SSE_OPD(cmpnlt);
+        SSE_OPD(cmpnle);
+        SSE_OPD(cmpord);
+    }
+
     /* float to float/int */
     a.s[0] = 2.7;
     a.s[1] = 3.4;
