@@ -380,6 +380,11 @@ int cpu_exec(CPUState *env1)
                     ) {
                     spin_lock(&tb_lock);
                     tb_add_jump((TranslationBlock *)(T0 & ~3), T0 & 3, tb);
+#if defined(USE_CODE_COPY)
+                    /* propagates the FP use info */
+                    ((TranslationBlock *)(T0 & ~3))->cflags |= 
+                        (tb->cflags & CF_FP_USED);
+#endif
                     spin_unlock(&tb_lock);
                 }
                 tc_ptr = tb->tc_ptr;
@@ -402,8 +407,14 @@ int cpu_exec(CPUState *env1)
 #elif defined(TARGET_I386) && defined(USE_CODE_COPY)
 {
     if (!(tb->cflags & CF_CODE_COPY)) {
+        if ((tb->cflags & CF_FP_USED) && env->native_fp_regs) {
+            save_native_fp_state(env);
+        }
         gen_func();
     } else {
+        if ((tb->cflags & CF_FP_USED) && !env->native_fp_regs) {
+            restore_native_fp_state(env);
+        }
         /* we work with native eflags */
         CC_SRC = cc_table[CC_OP].compute_all();
         CC_OP = CC_OP_EFLAGS;
@@ -487,6 +498,11 @@ int cpu_exec(CPUState *env1)
 
 
 #if defined(TARGET_I386)
+#if defined(USE_CODE_COPY)
+    if (env->native_fp_regs) {
+        save_native_fp_state(env);
+    }
+#endif
     /* restore flags in standard format */
     env->eflags = env->eflags | cc_table[CC_OP].compute_all() | (DF & DF_MASK);
 
@@ -747,7 +763,7 @@ int cpu_signal_handler(int host_signum, struct siginfo *info,
     struct ucontext *uc = puc;
     unsigned long pc;
     int trapno;
-    
+
 #ifndef REG_EIP
 /* for glibc 2.1 */
 #define REG_EIP    EIP
