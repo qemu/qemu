@@ -384,7 +384,7 @@ typedef int spinlock_t;
 
 #define SPIN_LOCK_UNLOCKED 0
 
-#if 1
+#if defined(CONFIG_USER_ONLY)
 static inline void spin_lock(spinlock_t *lock)
 {
     while (testandset(lock));
