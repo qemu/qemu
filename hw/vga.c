@@ -141,10 +141,22 @@ static const uint8_t gr_mask[16] = {
 		(((uint32_t)(__x) & (uint32_t)0x00ff0000UL) >>  8) | \
 		(((uint32_t)(__x) & (uint32_t)0xff000000UL) >> 24) ))
 
-#ifdef WORD_BIGENDIAN
+#ifdef WORDS_BIGENDIAN
 #define PAT(x) cbswap_32(x)
 #else
 #define PAT(x) (x)
+#endif
+
+#ifdef WORDS_BIGENDIAN
+#define BIG 1
+#else
+#define BIG 0
+#endif
+
+#ifdef WORDS_BIGENDIAN
+#define GET_PLANE(data, p) (((data) >> (24 - (p) * 8)) & 0xff)
+#else
+#define GET_PLANE(data, p) (((data) >> ((p) * 8)) & 0xff)
 #endif
 
 static const uint32_t mask16[16] = {
@@ -168,7 +180,7 @@ static const uint32_t mask16[16] = {
 
 #undef PAT
 
-#ifdef WORD_BIGENDIAN
+#ifdef WORDS_BIGENDIAN
 #define PAT(x) (x)
 #else
 #define PAT(x) cbswap_32(x)
@@ -465,11 +477,7 @@ static uint32_t vga_mem_readb(uint32_t addr)
         if (!(s->gr[5] & 0x08)) {
             /* read mode 0 */
             plane = s->gr[4];
-#ifdef WORD_BIGENDIAN
-            ret = (s->latch >> (24 - (plane * 8))) & 0xff;
-#else
-            ret = (s->latch >> (plane * 8)) & 0xff;
-#endif
+            ret = GET_PLANE(s->latch, plane);
         } else {
             /* read mode 1 */
             ret = (s->latch ^ mask16[s->gr[2]]) & mask16[s->gr[7]];
@@ -640,18 +648,6 @@ void vga_mem_writel(uint32_t addr, uint32_t val)
     vga_mem_writeb(addr + 2, (val >> 16) & 0xff);
     vga_mem_writeb(addr + 3, (val >> 24) & 0xff);
 }
-
-#ifdef WORD_BIGENDIAN
-#define BIG 1
-#else
-#define BIG 0
-#endif
-
-#ifdef WORDS_BIGENDIAN
-#define GET_PLANE(data, p) (((data) >> (24 - (p) * 8)) & 0xff)
-#else
-#define GET_PLANE(data, p) (((data) >> ((p) * 8)) & 0xff)
-#endif
 
 typedef void vga_draw_glyph8_func(uint8_t *d, int linesize,
                              const uint8_t *font_ptr, int h,
