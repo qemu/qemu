@@ -412,6 +412,22 @@ void OPPROTO op_idivw_AX_T0(void)
     EDX = (EDX & 0xffff0000) | r;
 }
 
+#ifdef BUGGY_GCC_DIV64
+/* gcc 2.95.4 on PowerPC does not seem to like using __udivdi3, so we
+   call it from another function */
+uint32_t div64(uint32_t *q_ptr, uint64_t num, uint32_t den)
+{
+    *q_ptr = num / den;
+    return num % den;
+}
+
+int32_t idiv64(int32_t *q_ptr, int64_t num, int32_t den)
+{
+    *q_ptr = num / den;
+    return num % den;
+}
+#endif
+
 void OPPROTO op_divl_EAX_T0(void)
 {
     unsigned int den, q, r;
@@ -421,8 +437,12 @@ void OPPROTO op_divl_EAX_T0(void)
     den = T0;
     if (den == 0)
         raise_exception(EXCP00_DIVZ);
+#ifdef BUGGY_GCC_DIV64
+    r = div64(&q, num, den);
+#else
     q = (num / den);
     r = (num % den);
+#endif
     EAX = q;
     EDX = r;
 }
@@ -436,8 +456,12 @@ void OPPROTO op_idivl_EAX_T0(void)
     den = T0;
     if (den == 0)
         raise_exception(EXCP00_DIVZ);
+#ifdef BUGGY_GCC_DIV64
+    r = idiv64(&q, num, den);
+#else
     q = (num / den);
     r = (num % den);
+#endif
     EAX = q;
     EDX = r;
 }
@@ -1502,6 +1526,26 @@ extern CPU86_LDouble atan2(CPU86_LDouble, CPU86_LDouble);
 extern CPU86_LDouble floor(CPU86_LDouble x);
 extern CPU86_LDouble ceil(CPU86_LDouble x);
 extern CPU86_LDouble rint(CPU86_LDouble x);
+
+#if defined(__powerpc__)
+extern CPU86_LDouble copysign(CPU86_LDouble, CPU86_LDouble);
+
+/* correct (but slow) PowerPC rint() (glibc version is incorrect) */
+double qemu_rint(double x)
+{
+    double y = 4503599627370496.0;
+    if (fabs(x) >= y)
+        return x;
+    if (x < 0) 
+        y = -y;
+    y = (x + y) - y;
+    if (y == 0.0)
+        y = copysign(y, x);
+    return y;
+}
+
+#define rint qemu_rint
+#endif
 
 #define RC_MASK         0xc00
 #define RC_NEAR		0x000
