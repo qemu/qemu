@@ -83,7 +83,7 @@ FILES= \
 COPYING.LIB  dyngen.c    ioctls.h          ops_template.h  syscall_types.h\
 Makefile     elf.h       linux_bin.h       segment.h       thunk.c\
 TODO         elfload.c   main.c            signal.c        thunk.h\
-cpu-i386.h   gemu.h      op-i386.c         syscall-i386.h  translate-i386.c\
+cpu-i386.h   gemu.h      op-i386.c opc-i386.h syscall-i386.h  translate-i386.c\
 dis-asm.h    gen-i386.h  op-i386.h         syscall.c\
 dis-buf.c    i386-dis.c  opreg_template.h  syscall_defs.h\
 i386.ld ppc.ld exec-i386.h exec-i386.c configure VERSION \
