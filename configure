@@ -81,6 +81,8 @@ fmod="no"
 fmod_lib=""
 fmod_inc=""
 linux="no"
+kqemu="no"
+kernel_path=""
 
 # OS specific
 targetos=`uname -s`
@@ -107,6 +109,9 @@ darwin="yes"
 *) 
 oss="yes"
 linux="yes"
+if [ "$cpu" = "i386" ] ; then
+    kqemu="yes"
+fi
 ;;
 esac
 
@@ -169,6 +174,10 @@ for opt do
   ;; 
   --enable-adlib) adlib="yes"
   ;; 
+  --disable-kqemu) kqemu="no"
+  ;; 
+  --kernel-path=*) kernel_path=${opt#--kernel-path=}
+  ;; 
   esac
 done
 
@@ -193,7 +202,7 @@ if test -z "$target_list" ; then
     target_list="i386-softmmu ppc-softmmu sparc-softmmu x86_64-softmmu sparc64-softmmu"
 # the following are Linux specific
     if [ "$linux" = "yes" ] ; then
-        target_list="i386-user i386 arm-user armeb-user sparc-user ppc-user sparc64-user $target_list"
+        target_list="i386-user arm-user armeb-user sparc-user ppc-user sparc64-user $target_list"
     fi
 fi
 
@@ -300,6 +309,10 @@ echo "  --interp-prefix=PREFIX   where to find shared libraries, etc."
 echo "                           use %M for cpu name [$interp_prefix]"
 echo "  --target-list=LIST       set target list [$target_list]"
 echo ""
+echo "kqemu kernel acceleration support:"
+echo "  --disable-kqemu          disable kqemu build"
+echo "  --kernel-path=PATH       set the kernel path (configure probes it)"
+echo ""
 echo "Advanced options (experts only):"
 echo "  --source-path=PATH       path of source code [$source_path]"
 echo "  --cross-prefix=PREFIX    use PREFIX for compile tools [$cross_prefix]"
@@ -333,6 +346,40 @@ docdir="$prefix/share/doc/qemu"
 bindir="$prefix/bin"
 fi
 
+# kernel module support
+if test $kqemu = "yes" ; then
+# find the kernel path
+if test -z "$kernel_path" ; then
+kernel_version=`uname -r`
+kernel_path="/lib/modules/$kernel_version/build"
+if test '!' -d "$kernel_path/include" ; then 
+    kernel_path="/usr/src/linux"
+    if test '!' -d "$kernel_path/include" ; then 
+        echo "Could not find kernel includes in /lib/modules or /usr/src/linux - cannot build the kqemu module"
+        kqemu="no"
+    fi
+fi
+fi
+
+if test $kqemu = "yes" ; then
+
+# test that the kernel config is present
+if test '!' -f "$kernel_path/Makefile" ; then
+    echo "No .config file present in $kernel_path - kqemu cannot be built"
+    kqemu="no"
+fi    
+
+# find build system (2.6 or legacy)
+kbuild26="yes"
+if grep -q "PATCHLEVEL = 4" $kernel_path/Makefile ; then
+kbuild26="no"
+fi
+
+fi # kqemu
+
+fi # kqemu
+
+
 echo "Install prefix    $prefix"
 echo "BIOS directory    $datadir"
 echo "binary directory  $bindir"
@@ -357,6 +404,17 @@ if test $fmod = "yes"; then
     echo -n " (lib='$fmod_lib' include='$fmod_inc')"
 fi
 echo ""
+if test $kqemu = "yes" ; then
+echo ""
+echo "KQEMU module configuration:"
+echo "kernel sources    $kernel_path"
+echo -n "kbuild type       "
+if test $kbuild26 = "yes"; then
+echo "2.6"
+else
+echo "2.4"
+fi
+fi
 
 if test $sdl_too_old = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have FFplay/SDL support"
@@ -481,6 +539,13 @@ echo -n "#define QEMU_VERSION \"" >> $config_h
 head $source_path/VERSION >> $config_h
 echo "\"" >> $config_h
 
+if test $kqemu = "yes" ; then
+  echo "CONFIG_KQEMU=yes" >> $config_mak
+  echo "KERNEL_PATH=$kernel_path" >> $config_mak
+  if test $kbuild26 = "yes" ; then
+    echo "CONFIG_KBUILD26=yes" >> $config_mak
+  fi
+fi
 echo "SRC_PATH=$source_path" >> $config_mak
 echo "TARGET_DIRS=$target_list" >> $config_mak
 
