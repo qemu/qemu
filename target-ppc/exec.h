@@ -32,9 +32,6 @@ register uint32_t T2 asm(AREG3);
 #define FT0 (env->ft0)
 #define FT1 (env->ft1)
 #define FT2 (env->ft2)
-#define FTS0 ((float)env->ft0)
-#define FTS1 ((float)env->ft1)
-#define FTS2 ((float)env->ft2)
 
 #if defined (DEBUG_OP)
 #define RETURN() __asm__ __volatile__("nop");
@@ -137,17 +134,12 @@ void do_fctiw (void);
 void do_fctiwz (void);
 void do_fnmadd (void);
 void do_fnmsub (void);
-void do_fnmadds (void);
-void do_fnmsubs (void);
 void do_fsqrt (void);
-void do_fsqrts (void);
 void do_fres (void);
-void do_fsqrte (void);
+void do_frsqrte (void);
 void do_fsel (void);
 void do_fcmpu (void);
 void do_fcmpo (void);
-void do_fabs (void);
-void do_fnabs (void);
 
 void do_check_reservation (void);
 void do_icbi (void);

@@ -32,10 +32,6 @@
 #define FT1 (env->ft1)
 #define FT2 (env->ft2)
 
-#define FTS0 ((float)env->ft0)
-#define FTS1 ((float)env->ft1)
-#define FTS2 ((float)env->ft2)
-
 #define PPC_OP(name) void glue(op_, name)(void)
 
 #define REG 0
@@ -1204,24 +1200,10 @@ PPC_OP(fadd)
     RETURN();
 }
 
-/* fadds - fadds. */
-PPC_OP(fadds)
-{
-    FT0 = FTS0 + FTS1;
-    RETURN();
-}
-
 /* fsub - fsub. */
 PPC_OP(fsub)
 {
     FT0 -= FT1;
-    RETURN();
-}
-
-/* fsubs - fsubs. */
-PPC_OP(fsubs)
-{
-    FT0 = FTS0 - FTS1;
     RETURN();
 }
 
@@ -1232,24 +1214,11 @@ PPC_OP(fmul)
     RETURN();
 }
 
-/* fmuls - fmuls. */
-PPC_OP(fmuls)
-{
-    FT0 = FTS0 * FTS1;
-    RETURN();
-}
-
 /* fdiv - fdiv. */
+void do_fdiv (void);
 PPC_OP(fdiv)
 {
-    FT0 /= FT1;
-    RETURN();
-}
-
-/* fdivs - fdivs. */
-PPC_OP(fdivs)
-{
-    FT0 = FTS0 / FTS1;
+    do_fdiv();
     RETURN();
 }
 
@@ -1257,13 +1226,6 @@ PPC_OP(fdivs)
 PPC_OP(fsqrt)
 {
     do_fsqrt();
-    RETURN();
-}
-
-/* fsqrts - fsqrts. */
-PPC_OP(fsqrts)
-{
-    do_fsqrts();
     RETURN();
 }
 
@@ -1277,7 +1239,7 @@ PPC_OP(fres)
 /* frsqrte  - frsqrte. */
 PPC_OP(frsqrte)
 {
-    do_fsqrte();
+    do_frsqrte();
     RETURN();
 }
 
@@ -1296,24 +1258,10 @@ PPC_OP(fmadd)
     RETURN();
 }
 
-/* fmadds - fmadds. */
-PPC_OP(fmadds)
-{
-    FT0 = (FTS0 * FTS1) + FTS2;
-    RETURN();
-}
-
 /* fmsub - fmsub. */
 PPC_OP(fmsub)
 {
     FT0 = (FT0 * FT1) - FT2;
-    RETURN();
-}
-
-/* fmsubs - fmsubs. */
-PPC_OP(fmsubs)
-{
-    FT0 = (FTS0 * FTS1) - FTS2;
     RETURN();
 }
 
@@ -1324,24 +1272,10 @@ PPC_OP(fnmadd)
     RETURN();
 }
 
-/* fnmadds - fnmadds. */
-PPC_OP(fnmadds)
-{
-    do_fnmadds();
-    RETURN();
-}
-
 /* fnmsub - fnmsub. */
 PPC_OP(fnmsub)
 {
     do_fnmsub();
-    RETURN();
-}
-
-/* fnmsubs - fnmsubs. */
-PPC_OP(fnmsubs)
-{
-    do_fnmsubs();
     RETURN();
 }
 
@@ -1385,6 +1319,7 @@ PPC_OP(fcmpo)
 
 /***                         Floating-point move                           ***/
 /* fabs */
+void do_fabs (void);
 PPC_OP(fabs)
 {
     do_fabs();
@@ -1392,6 +1327,7 @@ PPC_OP(fabs)
 }
 
 /* fnabs */
+void do_fnabs (void);
 PPC_OP(fnabs)
 {
     do_fnabs();

@@ -213,7 +213,7 @@ void do_store_fpscr (uint32_t mask)
             uint32_t u[2];
         } s;
     } u;
-    int i;
+    int i, rnd_type;
 
     u.d = FT0;
     if (mask & 0x80)
@@ -227,21 +227,23 @@ void do_store_fpscr (uint32_t mask)
     switch (env->fpscr[0] & 0x3) {
     case 0:
         /* Best approximation (round to nearest) */
-        fesetround(FE_TONEAREST);
+        rnd_type = float_round_nearest_even;
         break;
     case 1:
         /* Smaller magnitude (round toward zero) */
-        fesetround(FE_TOWARDZERO);
+        rnd_type = float_round_to_zero;
         break;
     case 2:
         /* Round toward +infinite */
-        fesetround(FE_UPWARD);
+        rnd_type = float_round_up;
         break;
+    default:
     case 3:
         /* Round toward -infinite */
-        fesetround(FE_DOWNWARD);
+        rnd_type = float_round_down;
         break;
     }
+    set_float_rounding_mode(rnd_type, &env->fp_status);
 }
 
 void do_fctiw (void)
@@ -249,16 +251,14 @@ void do_fctiw (void)
     union {
         double d;
         uint64_t i;
-    } *p = (void *)&FT1;
+    } p;
 
-    if (FT0 > (double)0x7FFFFFFF)
-        p->i = 0x7FFFFFFFULL << 32;
-    else if (FT0 < -(double)0x80000000)
-        p->i = 0x80000000ULL << 32;
-    else
-        p->i = 0;
-    p->i |= (uint32_t)FT0;
-    FT0 = p->d;
+    /* XXX: higher bits are not supposed to be significant.
+     *      to make tests easier, return the same as a real PPC 750 (aka G3)
+     */
+    p.i = float64_to_int32(FT0, &env->fp_status);
+    p.i |= 0xFFF80000ULL << 32;
+    FT0 = p.d;
 }
 
 void do_fctiwz (void)
@@ -266,39 +266,36 @@ void do_fctiwz (void)
     union {
         double d;
         uint64_t i;
-    } *p = (void *)&FT1;
-    int cround = fegetround();
+    } p;
 
-    fesetround(FE_TOWARDZERO);
-    if (FT0 > (double)0x7FFFFFFF)
-        p->i = 0x7FFFFFFFULL << 32;
-    else if (FT0 < -(double)0x80000000)
-        p->i = 0x80000000ULL << 32;
-    else
-        p->i = 0;
-    p->i |= (uint32_t)FT0;
-    FT0 = p->d;
-    fesetround(cround);
+    /* XXX: higher bits are not supposed to be significant.
+     *      to make tests easier, return the same as a real PPC 750 (aka G3)
+     */
+    p.i = float64_to_int32_round_to_zero(FT0, &env->fp_status);
+    p.i |= 0xFFF80000ULL << 32;
+    FT0 = p.d;
 }
 
 void do_fnmadd (void)
 {
-    FT0 = -((FT0 * FT1) + FT2);
+    FT0 = (FT0 * FT1) + FT2;
+    if (!isnan(FT0))
+        FT0 = -FT0;
 }
 
 void do_fnmsub (void)
 {
-    FT0 = -((FT0 * FT1) - FT2);
+    FT0 = (FT0 * FT1) - FT2;
+    if (!isnan(FT0))
+        FT0 = -FT0;
 }
 
-void do_fnmadds (void)
+void do_fdiv (void)
 {
-    FT0 = -((FTS0 * FTS1) + FTS2);
-}
-
-void do_fnmsubs (void)
-{
-    FT0 = -((FTS0 * FTS1) - FTS2);
+    if (FT0 == -0.0 && FT1 == -0.0)
+        FT0 = 0.0 / 0.0;
+    else
+        FT0 /= FT1;
 }
 
 void do_fsqrt (void)
@@ -306,27 +303,65 @@ void do_fsqrt (void)
     FT0 = sqrt(FT0);
 }
 
-void do_fsqrts (void)
-{
-    FT0 = (float)sqrt((float)FT0);
-}
-
 void do_fres (void)
 {
-    FT0 = 1.0 / FT0;
+    union {
+        double d;
+        uint64_t i;
+    } p;
+
+    if (isnormal(FT0)) {
+        FT0 = (float)(1.0 / FT0);
+    } else {
+        p.d = FT0;
+        if (p.i == 0x8000000000000000ULL) {
+            p.i = 0xFFF0000000000000ULL;
+        } else if (p.i == 0x0000000000000000ULL) {
+            p.i = 0x7FF0000000000000ULL;
+        } else if (isnan(FT0)) {
+            p.i = 0x7FF8000000000000ULL;
+        } else if (FT0 < 0.0) {
+            p.i = 0x8000000000000000ULL;
+        } else {
+            p.i = 0x0000000000000000ULL;
+        }
+        FT0 = p.d;
+    }
 }
 
-void do_fsqrte (void)
+void do_frsqrte (void)
 {
-    FT0 = 1.0 / sqrt(FT0);
+    union {
+        double d;
+        uint64_t i;
+    } p;
+
+    if (isnormal(FT0) && FT0 > 0.0) {
+        FT0 = (float)(1.0 / sqrt(FT0));
+    } else {
+        p.d = FT0;
+        if (p.i == 0x8000000000000000ULL) {
+            p.i = 0xFFF0000000000000ULL;
+        } else if (p.i == 0x0000000000000000ULL) {
+            p.i = 0x7FF0000000000000ULL;
+        } else if (isnan(FT0)) {
+            if (!(p.i & 0x0008000000000000ULL))
+                p.i |= 0x000FFFFFFFFFFFFFULL;
+        } else if (FT0 < 0) {
+            p.i = 0x7FF8000000000000ULL;
+        } else {
+            p.i = 0x0000000000000000ULL;
+        }
+        FT0 = p.d;
+    }
 }
 
 void do_fsel (void)
 {
     if (FT0 >= 0)
-        FT0 = FT2;
-    else
         FT0 = FT1;
+    else
+        FT0 = FT2;
 }
 
 void do_fcmpu (void)
@@ -371,12 +406,26 @@ void do_fcmpo (void)
 
 void do_fabs (void)
 {
-    FT0 = fabsl(FT0);
+    union {
+        double d;
+        uint64_t i;
+    } p;
+
+    p.d = FT0;
+    p.i &= ~0x8000000000000000ULL;
+    FT0 = p.d;
 }
 
 void do_fnabs (void)
 {
-    FT0 = -fabsl(FT0);
+    union {
+        double d;
+        uint64_t i;
+    } p;
+
+    p.d = FT0;
+    p.i |= 0x8000000000000000ULL;
+    FT0 = p.d;
 }
 
 /* Instruction cache invalidation helper */

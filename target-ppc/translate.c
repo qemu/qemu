@@ -740,6 +740,7 @@ __GEN_LOGICAL2(sraw, 0x18, 0x18);
 GEN_HANDLER(srawi, 0x1F, 0x18, 0x19, 0x00000000, PPC_INTEGER)
 {
     gen_op_load_gpr_T0(rS(ctx->opcode));
+    if (SH(ctx->opcode) != 0)
     gen_op_srawi(SH(ctx->opcode), MASK(32 - SH(ctx->opcode), 31));
     if (Rc(ctx->opcode) != 0)
         gen_op_set_Rc0();
@@ -749,7 +750,7 @@ GEN_HANDLER(srawi, 0x1F, 0x18, 0x19, 0x00000000, PPC_INTEGER)
 __GEN_LOGICAL2(srw, 0x18, 0x10);
 
 /***                       Floating-Point arithmetic                       ***/
-#define _GEN_FLOAT_ACB(name, op1, op2)                                        \
+#define _GEN_FLOAT_ACB(name, op, op1, op2, isfloat)                           \
 GEN_HANDLER(f##name, op1, op2, 0xFF, 0x00000000, PPC_FLOAT)                   \
 {                                                                             \
     if (!ctx->fpu_enabled) {                                                  \
@@ -760,17 +761,20 @@ GEN_HANDLER(f##name, op1, op2, 0xFF, 0x00000000, PPC_FLOAT)                   \
     gen_op_load_fpr_FT0(rA(ctx->opcode));                                     \
     gen_op_load_fpr_FT1(rC(ctx->opcode));                                     \
     gen_op_load_fpr_FT2(rB(ctx->opcode));                                     \
-    gen_op_f##name();                                                         \
+    gen_op_f##op();                                                           \
+    if (isfloat) {                                                            \
+        gen_op_frsp();                                                        \
+    }                                                                         \
     gen_op_store_FT0_fpr(rD(ctx->opcode));                                    \
     if (Rc(ctx->opcode))                                                      \
         gen_op_set_Rc1();                                                     \
 }
 
 #define GEN_FLOAT_ACB(name, op2)                                              \
-_GEN_FLOAT_ACB(name, 0x3F, op2);                                              \
-_GEN_FLOAT_ACB(name##s, 0x3B, op2);
+_GEN_FLOAT_ACB(name, name, 0x3F, op2, 0);                                     \
+_GEN_FLOAT_ACB(name##s, name, 0x3B, op2, 1);
 
-#define _GEN_FLOAT_AB(name, op1, op2, inval)                                  \
+#define _GEN_FLOAT_AB(name, op, op1, op2, inval, isfloat)                     \
 GEN_HANDLER(f##name, op1, op2, 0xFF, inval, PPC_FLOAT)                        \
 {                                                                             \
     if (!ctx->fpu_enabled) {                                                  \
@@ -780,16 +784,19 @@ GEN_HANDLER(f##name, op1, op2, 0xFF, inval, PPC_FLOAT)                        \
     gen_op_reset_scrfx();                                                     \
     gen_op_load_fpr_FT0(rA(ctx->opcode));                                     \
     gen_op_load_fpr_FT1(rB(ctx->opcode));                                     \
-    gen_op_f##name();                                                         \
+    gen_op_f##op();                                                           \
+    if (isfloat) {                                                            \
+        gen_op_frsp();                                                        \
+    }                                                                         \
     gen_op_store_FT0_fpr(rD(ctx->opcode));                                    \
     if (Rc(ctx->opcode))                                                      \
         gen_op_set_Rc1();                                                     \
 }
 #define GEN_FLOAT_AB(name, op2, inval)                                        \
-_GEN_FLOAT_AB(name, 0x3F, op2, inval);                                        \
-_GEN_FLOAT_AB(name##s, 0x3B, op2, inval);
+_GEN_FLOAT_AB(name, name, 0x3F, op2, inval, 0);                               \
+_GEN_FLOAT_AB(name##s, name, 0x3B, op2, inval, 1);
 
-#define _GEN_FLOAT_AC(name, op1, op2, inval)                                  \
+#define _GEN_FLOAT_AC(name, op, op1, op2, inval, isfloat)                     \
 GEN_HANDLER(f##name, op1, op2, 0xFF, inval, PPC_FLOAT)                        \
 {                                                                             \
     if (!ctx->fpu_enabled) {                                                  \
@@ -799,14 +806,17 @@ GEN_HANDLER(f##name, op1, op2, 0xFF, inval, PPC_FLOAT)                        \
     gen_op_reset_scrfx();                                                     \
     gen_op_load_fpr_FT0(rA(ctx->opcode));                                     \
     gen_op_load_fpr_FT1(rC(ctx->opcode));                                     \
-    gen_op_f##name();                                                         \
+    gen_op_f##op();                                                           \
+    if (isfloat) {                                                            \
+        gen_op_frsp();                                                        \
+    }                                                                         \
     gen_op_store_FT0_fpr(rD(ctx->opcode));                                    \
     if (Rc(ctx->opcode))                                                      \
         gen_op_set_Rc1();                                                     \
 }
 #define GEN_FLOAT_AC(name, op2, inval)                                        \
-_GEN_FLOAT_AC(name, 0x3F, op2, inval);                                        \
-_GEN_FLOAT_AC(name##s, 0x3B, op2, inval);
+_GEN_FLOAT_AC(name, name, 0x3F, op2, inval, 0);                               \
+_GEN_FLOAT_AC(name##s, name, 0x3B, op2, inval, 1);
 
 #define GEN_FLOAT_B(name, op2, op3)                                           \
 GEN_HANDLER(f##name, 0x3F, op2, op3, 0x001F0000, PPC_FLOAT)                   \
@@ -823,8 +833,8 @@ GEN_HANDLER(f##name, 0x3F, op2, op3, 0x001F0000, PPC_FLOAT)                   \
         gen_op_set_Rc1();                                                     \
 }
 
-#define GEN_FLOAT_BS(name, op2)                                               \
-GEN_HANDLER(f##name, 0x3F, op2, 0xFF, 0x001F07C0, PPC_FLOAT)                  \
+#define GEN_FLOAT_BS(name, op1, op2)                                          \
+GEN_HANDLER(f##name, op1, op2, 0xFF, 0x001F07C0, PPC_FLOAT)                   \
 {                                                                             \
     if (!ctx->fpu_enabled) {                                                  \
         RET_EXCP(ctx, EXCP_NO_FP, 0);                                         \
@@ -840,24 +850,24 @@ GEN_HANDLER(f##name, 0x3F, op2, 0xFF, 0x001F07C0, PPC_FLOAT)                  \
 
 /* fadd - fadds */
 GEN_FLOAT_AB(add, 0x15, 0x000007C0);
-/* fdiv */
+/* fdiv - fdivs */
 GEN_FLOAT_AB(div, 0x12, 0x000007C0);
-/* fmul */
+/* fmul - fmuls */
 GEN_FLOAT_AC(mul, 0x19, 0x0000F800);
 
 /* fres */
-GEN_FLOAT_BS(res, 0x18);
+GEN_FLOAT_BS(res, 0x3B, 0x18);
 
 /* frsqrte */
-GEN_FLOAT_BS(rsqrte, 0x1A);
+GEN_FLOAT_BS(rsqrte, 0x3F, 0x1A);
 
 /* fsel */
-_GEN_FLOAT_ACB(sel, 0x3F, 0x17);
-/* fsub */
+_GEN_FLOAT_ACB(sel, sel, 0x3F, 0x17, 0);
+/* fsub - fsubs */
 GEN_FLOAT_AB(sub, 0x14, 0x000007C0);
 /* Optional: */
 /* fsqrt */
-GEN_FLOAT_BS(sqrt, 0x16);
+GEN_FLOAT_BS(sqrt, 0x3F, 0x16);
 
 GEN_HANDLER(fsqrts, 0x3B, 0x16, 0xFF, 0x001F07C0, PPC_FLOAT_OPT)
 {
@@ -867,20 +877,21 @@ GEN_HANDLER(fsqrts, 0x3B, 0x16, 0xFF, 0x001F07C0, PPC_FLOAT_OPT)
     }
     gen_op_reset_scrfx();
     gen_op_load_fpr_FT0(rB(ctx->opcode));
-    gen_op_fsqrts();
+    gen_op_fsqrt();
+    gen_op_frsp();
     gen_op_store_FT0_fpr(rD(ctx->opcode));
     if (Rc(ctx->opcode))
         gen_op_set_Rc1();
 }
 
 /***                     Floating-Point multiply-and-add                   ***/
-/* fmadd */
+/* fmadd - fmadds */
 GEN_FLOAT_ACB(madd, 0x1D);
-/* fmsub */
+/* fmsub - fmsubs */
 GEN_FLOAT_ACB(msub, 0x1C);
-/* fnmadd */
+/* fnmadd - fnmadds */
 GEN_FLOAT_ACB(nmadd, 0x1F);
-/* fnmsub */
+/* fnmsub - fnmsubs */
 GEN_FLOAT_ACB(nmsub, 0x1E);
 
 /***                     Floating-Point round & convert                    ***/
@@ -1426,6 +1437,10 @@ GEN_HANDLER(sync, 0x1F, 0x16, 0x12, 0x03FF0801, PPC_MEM)
 GEN_HANDLER(l##width, opc, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)               \
 {                                                                             \
     uint32_t simm = SIMM(ctx->opcode);                                        \
+    if (!ctx->fpu_enabled) {                                                  \
+        RET_EXCP(ctx, EXCP_NO_FP, 0);                                         \
+        return;                                                               \
+    }                                                                         \
     if (rA(ctx->opcode) == 0) {                                               \
         gen_op_set_T0(simm);                                                  \
     } else {                                                                  \
@@ -1441,6 +1456,10 @@ GEN_HANDLER(l##width, opc, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)               \
 GEN_HANDLER(l##width##u, opc, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)            \
 {                                                                             \
     uint32_t simm = SIMM(ctx->opcode);                                        \
+    if (!ctx->fpu_enabled) {                                                  \
+        RET_EXCP(ctx, EXCP_NO_FP, 0);                                         \
+        return;                                                               \
+    }                                                                         \
     if (rA(ctx->opcode) == 0 ||                                               \
         rA(ctx->opcode) == rD(ctx->opcode)) {                                 \
         RET_INVAL(ctx);                                                       \
@@ -1457,6 +1476,10 @@ GEN_HANDLER(l##width##u, opc, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)            \
 #define GEN_LDUXF(width, opc)                                                 \
 GEN_HANDLER(l##width##ux, 0x1F, 0x17, opc, 0x00000001, PPC_INTEGER)           \
 {                                                                             \
+    if (!ctx->fpu_enabled) {                                                  \
+        RET_EXCP(ctx, EXCP_NO_FP, 0);                                         \
+        return;                                                               \
+    }                                                                         \
     if (rA(ctx->opcode) == 0 ||                                               \
         rA(ctx->opcode) == rD(ctx->opcode)) {                                 \
         RET_INVAL(ctx);                                                       \
@@ -1473,6 +1496,10 @@ GEN_HANDLER(l##width##ux, 0x1F, 0x17, opc, 0x00000001, PPC_INTEGER)           \
 #define GEN_LDXF(width, opc2, opc3)                                           \
 GEN_HANDLER(l##width##x, 0x1F, opc2, opc3, 0x00000001, PPC_INTEGER)           \
 {                                                                             \
+    if (!ctx->fpu_enabled) {                                                  \
+        RET_EXCP(ctx, EXCP_NO_FP, 0);                                         \
+        return;                                                               \
+    }                                                                         \
     if (rA(ctx->opcode) == 0) {                                               \
         gen_op_load_gpr_T0(rB(ctx->opcode));                                  \
     } else {                                                                  \
@@ -1501,6 +1528,10 @@ GEN_LDFS(fs, 0x10);
 GEN_HANDLER(st##width, opc, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)              \
 {                                                                             \
     uint32_t simm = SIMM(ctx->opcode);                                        \
+    if (!ctx->fpu_enabled) {                                                  \
+        RET_EXCP(ctx, EXCP_NO_FP, 0);                                         \
+        return;                                                               \
+    }                                                                         \
     if (rA(ctx->opcode) == 0) {                                               \
         gen_op_set_T0(simm);                                                  \
     } else {                                                                  \
@@ -1516,6 +1547,10 @@ GEN_HANDLER(st##width, opc, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)              \
 GEN_HANDLER(st##width##u, opc, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)           \
 {                                                                             \
     uint32_t simm = SIMM(ctx->opcode);                                        \
+    if (!ctx->fpu_enabled) {                                                  \
+        RET_EXCP(ctx, EXCP_NO_FP, 0);                                         \
+        return;                                                               \
+    }                                                                         \
     if (rA(ctx->opcode) == 0) {                                               \
         RET_INVAL(ctx);                                                       \
         return;                                                               \
@@ -1531,6 +1566,10 @@ GEN_HANDLER(st##width##u, opc, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)           \
 #define GEN_STUXF(width, opc)                                                 \
 GEN_HANDLER(st##width##ux, 0x1F, 0x17, opc, 0x00000001, PPC_INTEGER)          \
 {                                                                             \
+    if (!ctx->fpu_enabled) {                                                  \
+        RET_EXCP(ctx, EXCP_NO_FP, 0);                                         \
+        return;                                                               \
+    }                                                                         \
     if (rA(ctx->opcode) == 0) {                                               \
         RET_INVAL(ctx);                                                       \
         return;                                                               \
@@ -1546,6 +1585,10 @@ GEN_HANDLER(st##width##ux, 0x1F, 0x17, opc, 0x00000001, PPC_INTEGER)          \
 #define GEN_STXF(width, opc2, opc3)                                           \
 GEN_HANDLER(st##width##x, 0x1F, opc2, opc3, 0x00000001, PPC_INTEGER)          \
 {                                                                             \
+    if (!ctx->fpu_enabled) {                                                  \
+        RET_EXCP(ctx, EXCP_NO_FP, 0);                                         \
+        return;                                                               \
+    }                                                                         \
     if (rA(ctx->opcode) == 0) {                                               \
         gen_op_load_gpr_T0(rB(ctx->opcode));                                  \
     } else {                                                                  \

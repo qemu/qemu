@@ -27,6 +27,8 @@
 #include "config.h"
 #include <setjmp.h>
 
+#include "softfloat.h"
+
 /* Instruction types */
 enum {
     PPC_NONE     = 0x0000,
@@ -94,7 +96,7 @@ typedef struct CPUPPCState {
     /* general purpose registers */
     uint32_t gpr[32];
     /* floating point registers */
-    double fpr[32];
+    float64 fpr[32];
     /* segment registers */
     uint32_t sdr1;
     uint32_t sr[16];
@@ -119,9 +121,11 @@ typedef struct CPUPPCState {
     uint32_t spr[1024];
     /* qemu dedicated */
      /* temporary float registers */
-    double ft0;
-    double ft1;
-    double ft2;
+    float64 ft0;
+    float64 ft1;
+    float64 ft2;
+    float_status fp_status;
+
     int interrupt_request;
     jmp_buf jmp_env;
     int exception_index;

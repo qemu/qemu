@@ -809,6 +809,7 @@ void do_interrupt (CPUState *env)
         msr |= 0x00010000;
         goto store_current;
     case EXCP_NO_FP:
+        msr &= ~0xFFFF0000;
         goto store_current;
     case EXCP_DECR:
         if (msr_ee == 0) {
@@ -854,7 +855,6 @@ void do_interrupt (CPUState *env)
         return;
     case EXCP_RFI:
         /* Restore user-mode state */
-	tb_flush(env);
 #if defined (DEBUG_EXCEPTIONS)
 	if (msr_pr == 1)
 	    printf("Return from exception => 0x%08x\n", (uint32_t)env->nip);
@@ -887,7 +887,6 @@ void do_interrupt (CPUState *env)
     env->nip = excp << 8;
     env->exception_index = EXCP_NONE;
     /* Invalidate all TLB as we may have changed translation mode */
-    tlb_flush(env, 1);
     /* ensure that no TB jump will be modified as
        the program flow was changed */
 #ifdef __sparc__
