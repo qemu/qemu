@@ -62,7 +62,6 @@ typedef struct PageDesc {
 #define L1_SIZE (1 << L1_BITS)
 #define L2_SIZE (1 << L2_BITS)
 
-static void tb_invalidate_page(unsigned long address);
 static void io_mem_init(void);
 
 unsigned long real_host_page_size;
@@ -229,15 +228,19 @@ static void page_flush_tb(void)
 
 /* flush all the translation blocks */
 /* XXX: tb_flush is currently not thread safe */
-void tb_flush(void)
+void tb_flush(CPUState *env)
 {
     int i;
-#ifdef DEBUG_FLUSH
+#if defined(DEBUG_FLUSH)
     printf("qemu: flush code_size=%d nb_tbs=%d avg_tb_size=%d\n", 
            code_gen_ptr - code_gen_buffer, 
            nb_tbs, 
-           (code_gen_ptr - code_gen_buffer) / nb_tbs);
+           nb_tbs > 0 ? (code_gen_ptr - code_gen_buffer) / nb_tbs : 0);
 #endif
+    /* must reset current TB so that interrupts cannot modify the
+       links while we are modifying them */
+    env->current_tb = NULL;
+
     nb_tbs = 0;
     for(i = 0;i < CODE_GEN_HASH_SIZE; i++)
         tb_hash[i] = NULL;
@@ -402,7 +405,7 @@ static inline void tb_invalidate(TranslationBlock *tb, int parity)
 }
 
 /* invalidate all TBs which intersect with the target page starting at addr */
-static void tb_invalidate_page(unsigned long address)
+void tb_invalidate_page(unsigned long address)
 {
     TranslationBlock *tb_next, *tb;
     unsigned int page_index;
@@ -626,7 +629,7 @@ static inline void tb_reset_jump_recursive2(TranslationBlock *tb, int n)
         /* suppress the jump to next tb in generated code */
         tb_reset_jump(tb, n);
 
-        /* suppress jumps in the tb on which we could have jump */
+        /* suppress jumps in the tb on which we could have jumped */
         tb_reset_jump_recursive(tb_next);
     }
 }
@@ -688,7 +691,7 @@ void cpu_single_step(CPUState *env, int enabled)
     if (env->singlestep_enabled != enabled) {
         env->singlestep_enabled = enabled;
         /* must flush all the translated code to avoid inconsistancies */
-        tb_flush();
+        tb_flush(env);
     }
 #endif
 }
@@ -712,7 +715,7 @@ void cpu_set_log_filename(const char *filename)
     logfilename = strdup(filename);
 }
 
-/* mask must never be zero */
+/* mask must never be zero, except for A20 change call */
 void cpu_interrupt(CPUState *env, int mask)
 {
     TranslationBlock *tb;
@@ -742,9 +745,10 @@ void cpu_abort(CPUState *env, const char *fmt, ...)
     abort();
 }
 
-#ifdef TARGET_I386
+#if !defined(CONFIG_USER_ONLY)
+
 /* unmap all maped pages and flush all associated code */
-void page_unmap(void)
+static void page_unmap(CPUState *env)
 {
     PageDesc *pmap;
     int i;
@@ -784,21 +788,25 @@ void page_unmap(void)
             l1_map[i] = NULL;
         }
     }
-    tb_flush();
+    tb_flush(env);
 }
-#endif
 
 void tlb_flush(CPUState *env)
 {
-#if !defined(CONFIG_USER_ONLY)
     int i;
+
+    /* must reset current TB so that interrupts cannot modify the
+       links while we are modifying them */
+    env->current_tb = NULL;
+
     for(i = 0; i < CPU_TLB_SIZE; i++) {
         env->tlb_read[0][i].address = -1;
         env->tlb_write[0][i].address = -1;
         env->tlb_read[1][i].address = -1;
         env->tlb_write[1][i].address = -1;
     }
-#endif
+    /* XXX: avoid flushing the TBs */
+    page_unmap(env);
 }
 
 static inline void tlb_flush_entry(CPUTLBEntry *tlb_entry, uint32_t addr)
@@ -810,8 +818,11 @@ static inline void tlb_flush_entry(CPUTLBEntry *tlb_entry, uint32_t addr)
 
 void tlb_flush_page(CPUState *env, uint32_t addr)
 {
-#if !defined(CONFIG_USER_ONLY)
-    int i;
+    int i, flags;
+
+    /* must reset current TB so that interrupts cannot modify the
+       links while we are modifying them */
+    env->current_tb = NULL;
 
     addr &= TARGET_PAGE_MASK;
     i = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
@@ -819,22 +830,43 @@ void tlb_flush_page(CPUState *env, uint32_t addr)
     tlb_flush_entry(&env->tlb_write[0][i], addr);
     tlb_flush_entry(&env->tlb_read[1][i], addr);
     tlb_flush_entry(&env->tlb_write[1][i], addr);
+
+    flags = page_get_flags(addr);
+    if (flags & PAGE_VALID) {
+#if !defined(CONFIG_SOFTMMU)
+        munmap((void *)addr, TARGET_PAGE_SIZE);
 #endif
+        page_set_flags(addr, addr + TARGET_PAGE_SIZE, 0);
+    }
 }
 
 /* make all write to page 'addr' trigger a TLB exception to detect
    self modifying code */
 void tlb_flush_page_write(CPUState *env, uint32_t addr)
 {
-#if !defined(CONFIG_USER_ONLY)
     int i;
 
     addr &= TARGET_PAGE_MASK;
     i = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     tlb_flush_entry(&env->tlb_write[0][i], addr);
     tlb_flush_entry(&env->tlb_write[1][i], addr);
-#endif
 }
+
+#else
+
+void tlb_flush(CPUState *env)
+{
+}
+
+void tlb_flush_page(CPUState *env, uint32_t addr)
+{
+}
+
+void tlb_flush_page_write(CPUState *env, uint32_t addr)
+{
+}
+
+#endif /* defined(CONFIG_USER_ONLY) */
 
 static inline unsigned long *physpage_find_alloc(unsigned int page)
 {

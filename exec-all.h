@@ -77,7 +77,7 @@ int cpu_restore_state(struct TranslationBlock *tb,
                       CPUState *env, unsigned long searched_pc);
 void cpu_exec_init(void);
 int page_unprotect(unsigned long address);
-void page_unmap(void);
+void tb_invalidate_page(unsigned long address);
 void tlb_flush_page(CPUState *env, uint32_t addr);
 void tlb_flush_page_write(CPUState *env, uint32_t addr);
 void tlb_flush(CPUState *env);
@@ -127,7 +127,7 @@ static inline unsigned int tb_hash_func(unsigned long pc)
 }
 
 TranslationBlock *tb_alloc(unsigned long pc);
-void tb_flush(void);
+void tb_flush(CPUState *env);
 void tb_link(TranslationBlock *tb);
 
 extern TranslationBlock *tb_hash[CODE_GEN_HASH_SIZE];
