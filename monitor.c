@@ -350,10 +350,17 @@ static void memory_dump(int count, int format, int wsize,
         int flags;
         flags = 0;
 #ifdef TARGET_I386
-        /* we use the current CS size */
-        if (!(cpu_single_env->segs[R_CS].flags & DESC_B_MASK))
+        if (wsize == 2) {
             flags = 1;
-#endif        
+        } else if (wsize == 4) {
+            flags = 0;
+        } else {
+            /* as default we use the current CS size */
+            flags = 0;
+            if (!(cpu_single_env->segs[R_CS].flags & DESC_B_MASK))
+                flags = 1;
+        }
+#endif
         monitor_disas(addr, count, is_physical, flags);
         return;
     }
@@ -516,6 +523,8 @@ static term_cmd_t info_cmds[] = {
       "", "show the cpu registers" },
     { "history", "", do_info_history,
       "", "show the command line history", },
+    { "pic", "", pic_info,
+      "", "show i8259 (PIC) state", },
     { NULL, NULL, },
 };
 
@@ -1047,16 +1056,23 @@ static void term_handle_command(const char *cmdline)
                         term_printf("invalid char in format: '%c'\n", *p);
                         goto fail;
                     }
-                    if (size < 0)
-                        size = default_fmt_size;
                     if (format < 0)
                         format = default_fmt_format;
+                    if (format != 'i') {
+                        /* for 'i', not specifying a size gives -1 as size */
+                        if (size < 0)
+                            size = default_fmt_size;
+                    }
                     default_fmt_size = size;
                     default_fmt_format = format;
                 } else {
                     count = 1;
                     format = default_fmt_format;
-                    size = default_fmt_size;
+                    if (format != 'i') {
+                        size = default_fmt_size;
+                    } else {
+                        size = -1;
+                    }
                 }
                 if (nb_args + 3 > MAX_ARGS)
                     goto error_args;
