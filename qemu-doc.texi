@@ -297,22 +297,30 @@ Do not start CPU at startup (you must type 'c' in the monitor).
 Output log in /tmp/qemu.log
 @end table
 
+During the graphical emulation, you can use the following keys:
+@table @key
+@item Ctrl+Shift
+Toggle mouse and keyboard grab.
+@item Ctrl+Shift-f
+Toggle full screen
+@end table
+
 During emulation, if you are using the serial console, use @key{C-a h}
 to get terminal commands:
 
 @table @key
-@item C-a h
+@item Ctrl-a h
 Print this help
-@item C-a x    
+@item Ctrl-a x    
 Exit emulatior
-@item C-a s    
+@item Ctrl-a s    
 Save disk data back to file (if -snapshot)
-@item C-a b
+@item Ctrl-a b
 Send break (magic sysrq in Linux)
-@item C-a c
+@item Ctrl-a c
 Switch between console and monitor
-@item C-a C-a
-Send C-a
+@item Ctrl-a Ctrl-a
+Send Ctrl-a
 @end table
 @c man end
 
@@ -490,7 +498,7 @@ CPU registers by prefixing them with @emph{$}.
 The disk images can simply be raw images of the hard disk. You can
 create them with the command:
 @example
-dd if=/dev/zero of=myimage bs=1024 count=mysize
+dd of=myimage bs=1024 seek=mysize count=0
 @end example
 where @var{myimage} is the image filename and @var{mysize} is its size
 in kilobytes.

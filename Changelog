@@ -3,8 +3,10 @@ version 0.5.5:
   - SDL full screen support (initial patch by malc)
   - VGA support on PowerPC PREP
   - VBE fixes (Matthew Mastracci)
-  - PIT fixes (aka Win98 hardware probe and timer bug)
+  - PIT fixes (aka Win98 hardware probe and "VGA slowness" bug)
   - IDE master only fixes (aka Win98 CD-ROM probe bug)
+  - ARM load/store half word fix (Ulrich Hecht)
+  - FDC fixes for Win98
 
 version 0.5.4:
   
