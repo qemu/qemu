@@ -426,14 +426,14 @@ A 2.5.74 kernel is also included in the archive. Just
 replace the bzImage in qemu.sh to try it.
 
 @item 
-vl creates a temporary file in @var{$QEMU_TMPDIR} (@file{/tmp} is the
+qemu creates a temporary file in @var{$QEMU_TMPDIR} (@file{/tmp} is the
 default) containing all the simulated PC memory. If possible, try to use
 a temporary directory using the tmpfs filesystem to avoid too many
 unnecessary disk accesses.
 
 @item 
-In order to exit cleanly for vl, you can do a @emph{shutdown} inside
-vl. vl will automatically exit when the Linux shutdown is done.
+In order to exit cleanly from qemu, you can do a @emph{shutdown} inside
+qemu. qemu will automatically exit when the Linux shutdown is done.
 
 @item 
 You can boot slightly faster by disabling the probe of non present IDE
@@ -458,7 +458,7 @@ usage: qemu [options] [disk_image]
 @end example
 
 @c man begin OPTIONS
-@var{disk_image} is a raw hard image image for IDE hard disk 0.
+@var{disk_image} is a raw hard disk image for IDE hard disk 0.
 
 General options:
 @table @option
@@ -476,7 +476,7 @@ the write back by pressing @key{C-a s} (@xref{disk_images}).
 Set virtual RAM size to @var{megs} megabytes.
 
 @item -n script      
-Set network init script [default=/etc/vl-ifup]. This script is
+Set network init script [default=/etc/qemu-ifup]. This script is
 launched to configure the host network interface (usually tun0)
 corresponding to the virtual NE2000 card.
 
@@ -519,7 +519,7 @@ Wait gdb connection to port 1234 (@xref{gdb_usage}).
 @item -p port
 Change gdb connection port.
 @item -d             
-Output log in /tmp/vl.log
+Output log in /tmp/qemu.log
 @end table
 
 During emulation, use @key{C-a h} to get terminal commands:
@@ -704,10 +704,10 @@ exactly the same kernel as you would boot on your PC (in
 QEMU has a primitive support to work with gdb, so that you can do
 'Ctrl-C' while the virtual machine is running and inspect its state.
 
-In order to use gdb, launch vl with the '-s' option. It will wait for a
+In order to use gdb, launch qemu with the '-s' option. It will wait for a
 gdb connection:
 @example
-> vl -s arch/i386/boot/bzImage -hda root-2.4.20.img root=/dev/hda
+> qemu -s arch/i386/boot/bzImage -hda root-2.4.20.img root=/dev/hda
 Connected to host network interface: tun0
 Waiting gdb connection on port 1234
 @end example
