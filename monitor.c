@@ -815,7 +815,7 @@ static int expr_prod(void)
         case '/':
         case '%':
             if (val2 == 0) 
-                expr_error("divison by zero");
+                expr_error("division by zero");
             if (op == '/')
                 val /= val2;
             else
@@ -933,7 +933,7 @@ static int get_str(char *buf, int buf_size, const char **pp)
             }
         }
         if (*p != '\"') {
-            qemu_printf("untermintated string\n");
+            qemu_printf("unterminated string\n");
             goto fail;
         }
         p++;
