@@ -108,7 +108,7 @@ zero_fill:
 
 int open_vmdk(const char *filename)
 {
-    int fd = open(filename, O_RDONLY);
+    int fd = open(filename, O_RDONLY | O_LARGEFILE);
     if (fd == -1)
     {
         perror(filename);
