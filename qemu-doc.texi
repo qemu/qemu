@@ -42,6 +42,7 @@ For system emulation, the following hardware targets are supported:
 @item PC (x86 processor)
 @item PREP (PowerPC processor)
 @item PowerMac (PowerPC processor, in progress)
+@item Sun4m (Sparc processor, in progress)
 @end itemize
 
 For user emulation, x86, PowerPC, ARM, and SPARC CPUs are supported.
@@ -1016,6 +1017,9 @@ Slave I/O: timers, interrupt controllers, Zilog serial ports
 
 QEMU uses the Proll, a PROM replacement available at
 @url{http://people.redhat.com/zaitcev/linux/}.
+
+A sample Linux kernel and ram disk image are available on the QEMU web
+site.
 
 @chapter QEMU User space emulator invocation
 
