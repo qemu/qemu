@@ -635,6 +635,65 @@ void test_bcd(void)
     TEST_BCD(aad, 0x12340407, CC_A, (CC_C | CC_P | CC_Z | CC_S | CC_O | CC_A));
 }
 
+#define TEST_XCHG(op, size, opconst)\
+{\
+    int op0, op1;\
+    op0 = 0x12345678;\
+    op1 = 0xfbca7654;\
+    asm(#op " %" size "0, %" size "1" \
+        : "=q" (op0), opconst (op1) \
+        : "0" (op0), "1" (op1));\
+    printf("%-10s A=%08x B=%08x\n",\
+           #op, op0, op1);\
+}
+
+#define TEST_CMPXCHG(op, size, opconst, eax)\
+{\
+    int op0, op1;\
+    op0 = 0x12345678;\
+    op1 = 0xfbca7654;\
+    asm(#op " %" size "0, %" size "1" \
+        : "=q" (op0), opconst (op1) \
+        : "0" (op0), "1" (op1), "a" (eax));\
+    printf("%-10s EAX=%08x A=%08x C=%08x\n",\
+           #op, eax, op0, op1);\
+}
+
+void test_xchg(void)
+{
+    TEST_XCHG(xchgl, "", "=q");
+    TEST_XCHG(xchgw, "w", "=q");
+    TEST_XCHG(xchgb, "b", "=q");
+
+    TEST_XCHG(xchgl, "", "=m");
+    TEST_XCHG(xchgw, "w", "=m");
+    TEST_XCHG(xchgb, "b", "=m");
+
+    TEST_XCHG(xaddl, "", "=q");
+    TEST_XCHG(xaddw, "w", "=q");
+    TEST_XCHG(xaddb, "b", "=q");
+
+    TEST_XCHG(xaddl, "", "=m");
+    TEST_XCHG(xaddw, "w", "=m");
+    TEST_XCHG(xaddb, "b", "=m");
+
+    TEST_CMPXCHG(cmpxchgl, "", "=q", 0xfbca7654);
+    TEST_CMPXCHG(cmpxchgw, "w", "=q", 0xfbca7654);
+    TEST_CMPXCHG(cmpxchgb, "b", "=q", 0xfbca7654);
+
+    TEST_CMPXCHG(cmpxchgl, "", "=q", 0xfffefdfc);
+    TEST_CMPXCHG(cmpxchgw, "w", "=q", 0xfffefdfc);
+    TEST_CMPXCHG(cmpxchgb, "b", "=q", 0xfffefdfc);
+
+    TEST_CMPXCHG(cmpxchgl, "", "=m", 0xfbca7654);
+    TEST_CMPXCHG(cmpxchgw, "w", "=m", 0xfbca7654);
+    TEST_CMPXCHG(cmpxchgb, "b", "=m", 0xfbca7654);
+
+    TEST_CMPXCHG(cmpxchgl, "", "=m", 0xfffefdfc);
+    TEST_CMPXCHG(cmpxchgw, "w", "=m", 0xfffefdfc);
+    TEST_CMPXCHG(cmpxchgb, "b", "=m", 0xfffefdfc);
+}
+
 /**********************************************/
 /* segmentation tests */
 
@@ -646,7 +705,7 @@ _syscall3(int, modify_ldt, int, func, void *, ptr, unsigned long, bytecount)
 uint8_t seg_data1[4096];
 uint8_t seg_data2[4096];
 
-#define MK_SEL(n) (((n) << 3) | 4)
+#define MK_SEL(n) (((n) << 3) | 7)
 
 /* NOTE: we use Linux modify_ldt syscall */
 void test_segs(void)
@@ -715,64 +774,44 @@ void test_segs(void)
     printf("SS[tmp] = %02x\n", res2);
 }
 
-#define TEST_XCHG(op, size, opconst)\
-{\
-    int op0, op1;\
-    op0 = 0x12345678;\
-    op1 = 0xfbca7654;\
-    asm(#op " %" size "0, %" size "1" \
-        : "=q" (op0), opconst (op1) \
-        : "0" (op0), "1" (op1));\
-    printf("%-10s A=%08x B=%08x\n",\
-           #op, op0, op1);\
-}
+/* 16 bit code test */
+extern char code16_start, code16_end;
+extern char code16_func1;
+extern char code16_func2;
+extern char code16_func3;
 
-#define TEST_CMPXCHG(op, size, opconst, eax)\
-{\
-    int op0, op1;\
-    op0 = 0x12345678;\
-    op1 = 0xfbca7654;\
-    asm(#op " %" size "0, %" size "1" \
-        : "=q" (op0), opconst (op1) \
-        : "0" (op0), "1" (op1), "a" (eax));\
-    printf("%-10s EAX=%08x A=%08x C=%08x\n",\
-           #op, eax, op0, op1);\
-}
-
-void test_xchg(void)
+void test_code16(void)
 {
-    TEST_XCHG(xchgl, "", "=q");
-    TEST_XCHG(xchgw, "w", "=q");
-    TEST_XCHG(xchgb, "b", "=q");
+    struct modify_ldt_ldt_s ldt;
+    int res, res2;
 
-    TEST_XCHG(xchgl, "", "=m");
-    TEST_XCHG(xchgw, "w", "=m");
-    TEST_XCHG(xchgb, "b", "=m");
+    /* build a code segment */
+    ldt.entry_number = 1;
+    ldt.base_addr = (unsigned long)&code16_start;
+    ldt.limit = &code16_end - &code16_start;
+    ldt.seg_32bit = 0;
+    ldt.contents = MODIFY_LDT_CONTENTS_CODE;
+    ldt.read_exec_only = 0;
+    ldt.limit_in_pages = 0;
+    ldt.seg_not_present = 0;
+    ldt.useable = 1;
+    modify_ldt(1, &ldt, sizeof(ldt)); /* write ldt entry */
 
-    TEST_XCHG(xaddl, "", "=q");
-    TEST_XCHG(xaddw, "w", "=q");
-    TEST_XCHG(xaddb, "b", "=q");
-
-    TEST_XCHG(xaddl, "", "=m");
-    TEST_XCHG(xaddw, "w", "=m");
-    TEST_XCHG(xaddb, "b", "=m");
-
-    TEST_CMPXCHG(cmpxchgl, "", "=q", 0xfbca7654);
-    TEST_CMPXCHG(cmpxchgw, "w", "=q", 0xfbca7654);
-    TEST_CMPXCHG(cmpxchgb, "b", "=q", 0xfbca7654);
-
-    TEST_CMPXCHG(cmpxchgl, "", "=q", 0xfffefdfc);
-    TEST_CMPXCHG(cmpxchgw, "w", "=q", 0xfffefdfc);
-    TEST_CMPXCHG(cmpxchgb, "b", "=q", 0xfffefdfc);
-
-    TEST_CMPXCHG(cmpxchgl, "", "=m", 0xfbca7654);
-    TEST_CMPXCHG(cmpxchgw, "w", "=m", 0xfbca7654);
-    TEST_CMPXCHG(cmpxchgb, "b", "=m", 0xfbca7654);
-
-    TEST_CMPXCHG(cmpxchgl, "", "=m", 0xfffefdfc);
-    TEST_CMPXCHG(cmpxchgw, "w", "=m", 0xfffefdfc);
-    TEST_CMPXCHG(cmpxchgb, "b", "=m", 0xfffefdfc);
+    /* call the first function */
+    asm volatile ("lcall %1, %2" 
+                  : "=a" (res)
+                  : "i" (MK_SEL(1)), "i" (&code16_func1): "memory", "cc");
+    printf("func1() = 0x%08x\n", res);
+    asm volatile ("lcall %2, %3" 
+                  : "=a" (res), "=c" (res2)
+                  : "i" (MK_SEL(1)), "i" (&code16_func2): "memory", "cc");
+    printf("func2() = 0x%08x spdec=%d\n", res, res2);
+    asm volatile ("lcall %1, %2" 
+                  : "=a" (res)
+                  : "i" (MK_SEL(1)), "i" (&code16_func3): "memory", "cc");
+    printf("func3() = 0x%08x\n", res);
 }
+
 
 static void *call_end __init_call = NULL;
 
@@ -794,5 +833,6 @@ int main(int argc, char **argv)
     test_xchg();
     test_lea();
     test_segs();
+    test_code16();
     return 0;
 }
