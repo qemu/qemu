@@ -168,9 +168,9 @@ static void write_cont (void *opaque, uint32_t nport, uint32_t data)
     iport = (nport >> d->dshift) & 0x0f;
     switch (iport) {
     case 8:                     /* command */
-        if (data && (data | CMD_NOT_SUPPORTED)) {
+        if ((data != 0) && (data & CMD_NOT_SUPPORTED)) {
             log ("command %#x not supported\n", data);
-            goto error;
+            return;
         }
         d->command = data;
         break;
@@ -236,7 +236,7 @@ static void write_cont (void *opaque, uint32_t nport, uint32_t data)
 
     default:
         log ("dma: unknown iport %#x\n", iport);
-        goto error;
+        break;
     }
 
 #ifdef DEBUG_DMA
@@ -245,10 +245,6 @@ static void write_cont (void *opaque, uint32_t nport, uint32_t data)
                nport, ichan, data);
     }
 #endif
-    return;
-
- error:
-    abort ();
 }
 
 static uint32_t read_cont (void *opaque, uint32_t nport)
