@@ -630,6 +630,35 @@ static void do_send_key(const char *string)
     }
 }
 
+static void do_ioport_read(int count, int format, int size, int addr, int has_index, int index)
+{
+    uint32_t val;
+    int suffix;
+
+    if (has_index) {
+        cpu_outb(NULL, addr & 0xffff, index & 0xff);
+        addr++;
+    }
+    addr &= 0xffff;
+
+    switch(size) {
+    default:
+    case 1:
+        val = cpu_inb(NULL, addr);
+        suffix = 'b';
+        break;
+    case 2:
+        val = cpu_inw(NULL, addr);
+        suffix = 'w';
+        break;
+    case 4:
+        val = cpu_inl(NULL, addr);
+        suffix = 'l';
+        break;
+    }
+    term_printf("port%c[0x%04x] = %#0*x\n",
+                suffix, addr, size * 2, val);
+}
 
 static term_cmd_t term_cmds[] = {
     { "help|?", "s?", do_help, 
@@ -666,6 +695,9 @@ static term_cmd_t term_cmds[] = {
       "/fmt addr", "physical memory dump starting at 'addr'", },
     { "p|print", "/i", do_print, 
       "/fmt expr", "print expression value (use $reg for CPU register access)", },
+    { "i", "/ii.", do_ioport_read, 
+      "/fmt addr", "I/O port read" },
+
     { "sendkey", "s", do_send_key, 
       "keys", "send keys to the VM (e.g. 'sendkey ctrl-alt-f1')" },
     { NULL, NULL, }, 
@@ -1285,12 +1317,23 @@ static void term_handle_command(const char *cmdline)
                 int val;
                 while (isspace(*p)) 
                     p++;
-                if (*typestr == '?') {
+                if (*typestr == '?' || *typestr == '.') {
                     typestr++;
-                    if (*p == '\0')
-                        has_arg = 0;
-                    else
-                        has_arg = 1;
+                    if (*typestr == '?') {
+                        if (*p == '\0')
+                            has_arg = 0;
+                        else
+                            has_arg = 1;
+                    } else {
+                        if (*p == '.') {
+                            p++;
+                            while (isspace(*p)) 
+                                p++;
+                            has_arg = 1;
+                        } else {
+                            has_arg = 0;
+                        }
+                    }
                     if (nb_args >= MAX_ARGS)
                         goto error_args;
                     args[nb_args++] = (void *)has_arg;
@@ -1368,6 +1411,9 @@ static void term_handle_command(const char *cmdline)
         break;
     case 5:
         cmd->handler(args[0], args[1], args[2], args[3], args[4]);
+        break;
+    case 6:
+        cmd->handler(args[0], args[1], args[2], args[3], args[4], args[5]);
         break;
     default:
         term_printf("unsupported number of arguments: %d\n", nb_args);
