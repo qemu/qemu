@@ -39,6 +39,8 @@ const char interp[] __attribute__((section(".interp"))) = "/lib/ld-linux.so.2";
 /* for recent libc, we add these dummy symbols which are not declared
    when generating a linked object (bug in ld ?) */
 #if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 3)
+long __preinit_array_start[0];
+long __preinit_array_end[0];
 long __init_array_start[0];
 long __init_array_end[0];
 long __fini_array_start[0];
@@ -254,11 +256,25 @@ void cpu_loop(CPUARMState *env)
         trapnr = cpu_arm_exec(env);
         switch(trapnr) {
         case EXCP_UDEF:
-            info.si_signo = SIGILL;
-            info.si_errno = 0;
-            info.si_code = TARGET_ILL_ILLOPN;
-            info._sifields._sigfault._addr = env->regs[15];
-            queue_signal(info.si_signo, &info);
+            {
+                TaskState *ts = env->opaque;
+                uint32_t opcode;
+
+                /* we handle the FPU emulation here, as Linux */
+                /* we get the opcode */
+                opcode = ldl_raw((uint8_t *)env->regs[15]);
+                
+                if (EmulateAll(opcode, &ts->fpa, env->regs) == 0) {
+                    info.si_signo = SIGILL;
+                    info.si_errno = 0;
+                    info.si_code = TARGET_ILL_ILLOPN;
+                    info._sifields._sigfault._addr = env->regs[15];
+                    queue_signal(info.si_signo, &info);
+                } else {
+                    /* increment PC */
+                    env->regs[15] += 4;
+                }
+            }
             break;
         case EXCP_SWI:
             {
@@ -783,6 +799,9 @@ void usage(void)
            "-s size      set the stack size in bytes (default=%ld)\n"
            "\n"
            "debug options:\n"
+#ifdef USE_CODE_COPY
+           "-no-code-copy   disable code copy acceleration\n"
+#endif
            "-d           activate log (logfile=%s)\n"
            "-p pagesize  set the host page size to 'pagesize'\n",
            TARGET_ARCH,
@@ -847,7 +866,13 @@ int main(int argc, char **argv)
                 fprintf(stderr, "page size must be a power of two\n");
                 exit(1);
             }
-        } else {
+        } else 
+#ifdef USE_CODE_COPY
+        if (!strcmp(r, "no-code-copy")) {
+            code_copy_enabled = 0;
+        } else 
+#endif
+        {
             usage();
         }
     }
