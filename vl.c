@@ -1827,8 +1827,8 @@ struct option long_options[] = {
     { "no-code-copy", 0, NULL, 0 },
     { "nics", 1, NULL, 0 },
     { "macaddr", 1, NULL, 0 },
-    { "user-net", 1, NULL, 0 },
-    { "dummy-net", 1, NULL, 0 },
+    { "user-net", 0, NULL, 0 },
+    { "dummy-net", 0, NULL, 0 },
     { NULL, 0, NULL, 0 },
 };
 
