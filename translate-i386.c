@@ -3085,6 +3085,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             }
             gen_pop_update(s);
             s->cc_op = CC_OP_EFLAGS;
+            s->is_jmp = 2; /* abort translation because TF flag may change */
         }
         break;
     case 0x9e: /* sahf */
