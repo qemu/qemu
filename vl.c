@@ -61,6 +61,8 @@
 /* output Bochs bios info messages */
 //#define DEBUG_BIOS
 
+//#define DEBUG_CMOS
+
 /* debug PIC */
 //#define DEBUG_PIC
 
@@ -72,6 +74,8 @@
 
 /* debug PC keyboard : only mouse */
 //#define DEBUG_MOUSE
+
+//#define DEBUG_SERIAL
 
 #define PHYS_RAM_BASE     0xac000000
 #define PHYS_RAM_MAX_SIZE (256 * 1024 * 1024)
@@ -197,7 +201,8 @@ struct  __attribute__ ((packed)) linux_params {
 #define KERNEL_CS     0x10
 #define KERNEL_DS     0x18
 
-#define MAX_IOPORTS 4096
+/* XXX: use a two level table to limit memory usage */
+#define MAX_IOPORTS 65536
 
 static const char *bios_dir = CONFIG_QEMU_SHAREDIR;
 char phys_ram_file[1024];
@@ -461,6 +466,39 @@ void cmos_ioport_write(CPUX86State *env, uint32_t addr, uint32_t data)
 {
     if (addr == 0x70) {
         cmos_index = data & 0x7f;
+    } else {
+#ifdef DEBUG_CMOS
+        printf("cmos: write index=0x%02x val=0x%02x\n",
+               cmos_index, data);
+#endif        
+        switch(addr) {
+        case RTC_SECONDS_ALARM:
+        case RTC_MINUTES_ALARM:
+        case RTC_HOURS_ALARM:
+            /* XXX: not supported */
+            cmos_data[cmos_index] = data;
+            break;
+        case RTC_SECONDS:
+        case RTC_MINUTES:
+        case RTC_HOURS:
+        case RTC_DAY_OF_WEEK:
+        case RTC_DAY_OF_MONTH:
+        case RTC_MONTH:
+        case RTC_YEAR:
+            cmos_data[cmos_index] = data;
+            break;
+        case RTC_REG_A:
+        case RTC_REG_B:
+            cmos_data[cmos_index] = data;
+            break;
+        case RTC_REG_C:
+        case RTC_REG_D:
+            /* cannot write to them */
+            break;
+        default:
+            cmos_data[cmos_index] = data;
+            break;
+        }
     }
 }
 
@@ -471,13 +509,22 @@ uint32_t cmos_ioport_read(CPUX86State *env, uint32_t addr)
     if (addr == 0x70) {
         return 0xff;
     } else {
-        /* toggle update-in-progress bit for Linux (same hack as
-           plex86) */
         ret = cmos_data[cmos_index];
-        if (cmos_index == RTC_REG_A)
+        switch(cmos_index) {
+        case RTC_REG_A:
+            /* toggle update-in-progress bit for Linux (same hack as
+               plex86) */
             cmos_data[RTC_REG_A] ^= 0x80; 
-        else if (cmos_index == RTC_REG_C)
+            break;
+        case RTC_REG_C:
+            pic_set_irq(8, 0);
             cmos_data[RTC_REG_C] = 0x00; 
+            break;
+        }
+#ifdef DEBUG_CMOS
+        printf("cmos: read index=0x%02x val=0x%02x\n",
+               cmos_index, ret);
+#endif
         return ret;
     }
 }
@@ -675,7 +722,7 @@ int cpu_x86_get_pic_interrupt(CPUX86State *env)
            irq, 
            (double)(cpu_get_ticks() - irq_time[irq]) * 1000000.0 / ticks_per_sec);
 #endif
-#ifdef DEBUG_PIC
+#if defined(DEBUG_PIC)
     printf("pic_interrupt: irq=%d\n", irq);
 #endif
 
@@ -1191,6 +1238,28 @@ void pit_init(void)
 #define UART_IIR_RDI	0x04	/* Receiver data interrupt */
 #define UART_IIR_RLSI	0x06	/* Receiver line status interrupt */
 
+/*
+ * These are the definitions for the Modem Control Register
+ */
+#define UART_MCR_LOOP	0x10	/* Enable loopback test mode */
+#define UART_MCR_OUT2	0x08	/* Out2 complement */
+#define UART_MCR_OUT1	0x04	/* Out1 complement */
+#define UART_MCR_RTS	0x02	/* RTS complement */
+#define UART_MCR_DTR	0x01	/* DTR complement */
+
+/*
+ * These are the definitions for the Modem Status Register
+ */
+#define UART_MSR_DCD	0x80	/* Data Carrier Detect */
+#define UART_MSR_RI	0x40	/* Ring Indicator */
+#define UART_MSR_DSR	0x20	/* Data Set Ready */
+#define UART_MSR_CTS	0x10	/* Clear to Send */
+#define UART_MSR_DDCD	0x08	/* Delta DCD */
+#define UART_MSR_TERI	0x04	/* Trailing edge ring indicator */
+#define UART_MSR_DDSR	0x02	/* Delta DSR */
+#define UART_MSR_DCTS	0x01	/* Delta CTS */
+#define UART_MSR_ANY_DELTA 0x0F	/* Any of the delta bits! */
+
 #define UART_LSR_TEMT	0x40	/* Transmitter empty */
 #define UART_LSR_THRE	0x20	/* Transmit-hold-register empty */
 #define UART_LSR_BI	0x10	/* Break interrupt indicator */
@@ -1209,6 +1278,9 @@ typedef struct SerialState {
     uint8_t lsr; /* read only */
     uint8_t msr;
     uint8_t scr;
+    /* NOTE: this hidden state is necessary for tx irq generation as
+       it can be reset while reading iir */
+    int thr_ipending;
 } SerialState;
 
 SerialState serial_ports[1];
@@ -1219,7 +1291,7 @@ void serial_update_irq(void)
 
     if ((s->lsr & UART_LSR_DR) && (s->ier & UART_IER_RDI)) {
         s->iir = UART_IIR_RDI;
-    } else if ((s->lsr & UART_LSR_THRE) && (s->ier & UART_IER_THRI)) {
+    } else if (s->thr_ipending && (s->ier & UART_IER_THRI)) {
         s->iir = UART_IIR_THRI;
     } else {
         s->iir = UART_IIR_NO_INT;
@@ -1238,12 +1310,16 @@ void serial_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
     int ret;
     
     addr &= 7;
+#ifdef DEBUG_SERIAL
+    printf("serial: write addr=0x%02x val=0x%02x\n", addr, val);
+#endif
     switch(addr) {
     default:
     case 0:
         if (s->lcr & UART_LCR_DLAB) {
             s->divider = (s->divider & 0xff00) | val;
         } else {
+            s->thr_ipending = 0;
             s->lsr &= ~UART_LSR_THRE;
             serial_update_irq();
 
@@ -1251,6 +1327,7 @@ void serial_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
             do {
                 ret = write(1, &ch, 1);
             } while (ret != 1);
+            s->thr_ipending = 1;
             s->lsr |= UART_LSR_THRE;
             s->lsr |= UART_LSR_TEMT;
             serial_update_irq();
@@ -1309,6 +1386,10 @@ uint32_t serial_ioport_read(CPUX86State *env, uint32_t addr)
         break;
     case 2:
         ret = s->iir;
+        /* reset THR pending bit */
+        if ((ret & 0x7) == UART_IIR_THRI)
+            s->thr_ipending = 0;
+        serial_update_irq();
         break;
     case 3:
         ret = s->lcr;
@@ -1320,12 +1401,23 @@ uint32_t serial_ioport_read(CPUX86State *env, uint32_t addr)
         ret = s->lsr;
         break;
     case 6:
-        ret = s->msr;
+        if (s->mcr & UART_MCR_LOOP) {
+            /* in loopback, the modem output pins are connected to the
+               inputs */
+            ret = (s->mcr & 0x0c) << 4;
+            ret |= (s->mcr & 0x02) << 3;
+            ret |= (s->mcr & 0x01) << 5;
+        } else {
+            ret = s->msr;
+        }
         break;
     case 7:
         ret = s->scr;
         break;
     }
+#ifdef DEBUG_SERIAL
+    printf("serial: read addr=0x%02x val=0x%02x\n", addr, ret);
+#endif
     return ret;
 }
 
@@ -1388,7 +1480,8 @@ void serial_init(void)
     SerialState *s = &serial_ports[0];
 
     s->lsr = UART_LSR_TEMT | UART_LSR_THRE;
-
+    s->iir = UART_IIR_NO_INT;
+    
     register_ioport_write(0x3f8, 8, serial_ioport_write, 1);
     register_ioport_read(0x3f8, 8, serial_ioport_read, 1);
 }
@@ -2108,14 +2201,20 @@ uint32_t kbd_read_data(CPUX86State *env, uint32_t addr)
 {
     KBDState *s = &kbd_state;
     KBDQueue *q;
-    int val;
+    int val, index;
     
     q = &s->queues[0]; /* first check KBD data */
     if (q->count == 0)
         q = &s->queues[1]; /* then check AUX data */
     if (q->count == 0) {
-        /* XXX: return something else ? */
-        val = 0;
+        /* NOTE: if no data left, we return the last keyboard one
+           (needed for EMM386) */
+        /* XXX: need a timer to do things correctly */
+        q = &s->queues[0];
+        index = q->rptr - 1;
+        if (index < 0)
+            index = KBD_QUEUE_SIZE - 1;
+        val = q->data[index];
     } else {
         val = q->data[q->rptr];
         if (++q->rptr == KBD_QUEUE_SIZE)
@@ -2730,6 +2829,10 @@ int main_loop(void *opaque)
             pic_set_irq(0, 1);
             pic_set_irq(0, 0);
             timer_irq_pending = 0;
+            /* XXX: RTC test */
+            if (cmos_data[RTC_REG_B] & 0x40) {
+                pic_set_irq(8, 1);
+            }
         }
 
         /* VGA */
@@ -3116,6 +3219,9 @@ int main(int argc, char **argv)
         env->idt.limit = 0xffff;
         env->gdt.limit = 0xffff;
         env->ldt.limit = 0xffff;
+        env->ldt.flags = DESC_P_MASK;
+        env->tr.limit = 0xffff;
+        env->tr.flags = DESC_P_MASK;
 
         /* not correct (CS base=0xffff0000) */
         cpu_x86_load_seg_cache(env, R_CS, 0xf000, (uint8_t *)0x000f0000, 0xffff, 0); 
