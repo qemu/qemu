@@ -409,11 +409,6 @@ static void ide_atapi_identify(IDEState *s)
     p = (uint16_t *)s->io_buffer;
     /* Removable CDROM, 50us response, 12 byte packets */
     put_le16(p + 0, (2 << 14) | (5 << 8) | (1 << 7) | (2 << 5) | (0 << 0));
-    put_le16(p + 1, s->cylinders); 
-    put_le16(p + 3, s->heads);
-    put_le16(p + 4, 512 * s->sectors); /* sectors */
-    put_le16(p + 5, 512); /* sector size */
-    put_le16(p + 6, s->sectors); 
     padstr((uint8_t *)(p + 10), "QM00001", 20); /* serial number */
     put_le16(p + 20, 3); /* buffer type */
     put_le16(p + 21, 512); /* cache size in sectors */
@@ -1088,6 +1083,9 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         printf("ide: CMD=%02x\n", val);
 #endif
         s = ide_if->cur_drive;
+        /* ignore commands to non existant slave */
+        if (s != ide_if && !s->bs) 
+            break;
         switch(val) {
         case WIN_IDENTIFY:
             if (s->bs && !s->is_cdrom) {
@@ -1254,7 +1252,8 @@ static uint32_t ide_ioport_read(void *opaque, uint32_t addr1)
         break;
     default:
     case 7:
-        if (!ide_if[0].bs && !ide_if[1].bs)
+        if ((!ide_if[0].bs && !ide_if[1].bs) ||
+            (s != ide_if && !s->bs))
             ret = 0;
         else
             ret = s->status;
@@ -1273,7 +1272,8 @@ static uint32_t ide_status_read(void *opaque, uint32_t addr)
     IDEState *s = ide_if->cur_drive;
     int ret;
 
-    if (!ide_if[0].bs && !ide_if[1].bs)
+    if ((!ide_if[0].bs && !ide_if[1].bs) ||
+        (s != ide_if && !s->bs))
         ret = 0;
     else
         ret = s->status;
