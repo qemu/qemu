@@ -25,13 +25,13 @@
 #include <slirp.h>
 
 struct tftp_session {
-  int in_use;
-  unsigned char filename[TFTP_FILENAME_MAX];
-
-  struct in_addr client_ip;
-  u_int16_t client_port;
-
-  struct timeval timestamp;
+    int in_use;
+    unsigned char filename[TFTP_FILENAME_MAX];
+    
+    struct in_addr client_ip;
+    u_int16_t client_port;
+    
+    int timestamp;
 };
 
 struct tftp_session tftp_sessions[TFTP_SESSIONS_MAX];
@@ -40,8 +40,8 @@ char *tftp_prefix;
 
 static void tftp_session_update(struct tftp_session *spt)
 {
-  gettimeofday(&spt->timestamp, 0);
-  spt->in_use = 1;
+    spt->timestamp = curtime;
+    spt->in_use = 1;
 }
 
 static void tftp_session_terminate(struct tftp_session *spt)
@@ -52,23 +52,17 @@ static void tftp_session_terminate(struct tftp_session *spt)
 static int tftp_session_allocate(struct tftp_t *tp)
 {
   struct tftp_session *spt;
-  struct timeval tv;
   int k;
-
-  gettimeofday(&tv, 0);
 
   for (k = 0; k < TFTP_SESSIONS_MAX; k++) {
     spt = &tftp_sessions[k];
 
-    if (!spt->in_use) {
-      goto found;
-    }
+    if (!spt->in_use)
+        goto found;
 
     /* sessions time out after 5 inactive seconds */
-
-    if (tv.tv_sec > (spt->timestamp.tv_sec + 5)) {
-      goto found;
-    }
+    if ((int)(curtime - spt->timestamp) > 5000)
+        goto found;
   }
 
   return -1;
