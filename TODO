@@ -1,8 +1,10 @@
 short term:
 ----------
-- XP install bug fix
+- physical memory cache (reduce qemu-fast address space size to about 32 MB)
+- better code fetch
+- XP security bug
 - handle Self Modifying Code even if modifying current TB (BE OS 5 install)
-- L4 Pistachio kernel boot fix
+- cycle counter for all archs
 - TLB code protection support for PPC
 - add sysenter/sysexit and fxsr for L4 pistachio 686
 - basic VGA optimizations
@@ -10,7 +12,6 @@ short term:
 - see undefined flags for BTx insn
 - user/kernel PUSHL/POPL in helper.c
 - keyboard output buffer filling timing emulation
-- verify tb_flush() with a20 and TLBs
 - return UD exception if LOCK prefix incorrectly used
 - cmos clock update and timers
 - test ldt limit < 7 ?
@@ -26,8 +27,7 @@ lower priority:
 - suppress shift_mem ops
 - fix some 16 bit sp push/pop overflow (pusha/popa, lcall lret)
 - sysenter/sysexit emulation
-- optimize FPU operations (evaluate x87 stack pointer statically) and
-  fix cr0.TS emulation
+- optimize FPU operations (evaluate x87 stack pointer statically)
 - add IPC syscalls
 - use -msoft-float on ARM
 - use kernel traps for unaligned accesses on ARM ?
