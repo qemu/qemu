@@ -2328,28 +2328,27 @@ void cpu_save(QEMUFile *f, void *opaque)
     int i;
     uint32_t tmp;
 
-    for(i = 1; i < 8; i++)
-        qemu_put_be32s(f, &env->gregs[i]);
-    tmp = env->regwptr - env->regbase;
-    qemu_put_be32s(f, &tmp);
-    for(i = 1; i < NWINDOWS * 16 + 8; i++)
-        qemu_put_be32s(f, &env->regbase[i]);
+    for(i = 0; i < 8; i++)
+        qemu_put_betls(f, &env->gregs[i]);
+    for(i = 0; i < NWINDOWS * 16; i++)
+        qemu_put_betls(f, &env->regbase[i]);
 
     /* FPU */
-    for(i = 0; i < 32; i++) {
-        uint64_t mant;
-        uint16_t exp;
-	cpu_get_fp64(&mant, &exp, env->fpr[i]);
-        qemu_put_be64(f, mant);
-        qemu_put_be16(f, exp);
+    for(i = 0; i < TARGET_FPREGS; i++) {
+        union {
+            TARGET_FPREG_T f;
+            target_ulong i;
+        } u;
+        u.f = env->fpr[i];
+        qemu_put_betl(f, u.i);
     }
-    qemu_put_be32s(f, &env->pc);
-    qemu_put_be32s(f, &env->npc);
-    qemu_put_be32s(f, &env->y);
+
+    qemu_put_betls(f, &env->pc);
+    qemu_put_betls(f, &env->npc);
+    qemu_put_betls(f, &env->y);
     tmp = GET_PSR(env);
-    qemu_put_be32s(f, &tmp);
+    qemu_put_be32(f, tmp);
     qemu_put_be32s(f, &env->fsr);
-    qemu_put_be32s(f, &env->cwp);
     qemu_put_be32s(f, &env->wim);
     qemu_put_be32s(f, &env->tbr);
     /* MMU */
@@ -2363,34 +2362,35 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     int i;
     uint32_t tmp;
 
-    for(i = 1; i < 8; i++)
-        qemu_get_be32s(f, &env->gregs[i]);
-    qemu_get_be32s(f, &tmp);
-    env->regwptr = env->regbase + tmp;
-    for(i = 1; i < NWINDOWS * 16 + 8; i++)
-        qemu_get_be32s(f, &env->regbase[i]);
+    for(i = 0; i < 8; i++)
+        qemu_get_betls(f, &env->gregs[i]);
+    for(i = 0; i < NWINDOWS * 16; i++)
+        qemu_get_betls(f, &env->regbase[i]);
 
     /* FPU */
-    for(i = 0; i < 32; i++) {
-        uint64_t mant;
-        uint16_t exp;
-
-        qemu_get_be64s(f, &mant);
-        qemu_get_be16s(f, &exp);
-	env->fpr[i] = cpu_put_fp64(mant, exp);
+    for(i = 0; i < TARGET_FPREGS; i++) {
+        union {
+            TARGET_FPREG_T f;
+            target_ulong i;
+        } u;
+        u.i = qemu_get_betl(f);
+        env->fpr[i] = u.f;
     }
-    qemu_get_be32s(f, &env->pc);
-    qemu_get_be32s(f, &env->npc);
-    qemu_get_be32s(f, &env->y);
-    qemu_get_be32s(f, &tmp);
+
+    qemu_get_betls(f, &env->pc);
+    qemu_get_betls(f, &env->npc);
+    qemu_get_betls(f, &env->y);
+    tmp = qemu_get_be32(f);
+    env->cwp = 0; /* needed to ensure that the wrapping registers are
+                     correctly updated */
     PUT_PSR(env, tmp);
     qemu_get_be32s(f, &env->fsr);
-    qemu_get_be32s(f, &env->cwp);
     qemu_get_be32s(f, &env->wim);
     qemu_get_be32s(f, &env->tbr);
     /* MMU */
     for(i = 0; i < 16; i++)
         qemu_get_be32s(f, &env->mmuregs[i]);
+
     tlb_flush(env, 1);
     return 0;
 }
