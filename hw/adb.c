@@ -248,13 +248,25 @@ static int adb_kbd_request(ADBDevice *d, uint8_t *obuf,
     return olen;
 }
 
+static int adb_kbd_reset(ADBDevice *d)
+{
+    KBDState *s = d->opaque;
+
+    d->handler = 1;
+    d->devaddr = ADB_KEYBOARD;
+    memset(s, 0, sizeof(KBDState));
+
+    return 0;
+}
+
 void adb_kbd_init(ADBBusState *bus)
 {
     ADBDevice *d;
     KBDState *s;
     s = qemu_mallocz(sizeof(KBDState));
-    d = adb_register_device(bus, ADB_KEYBOARD, adb_kbd_request, NULL, s);
-    d->handler = 1;
+    d = adb_register_device(bus, ADB_KEYBOARD, adb_kbd_request,
+                            adb_kbd_reset, s);
+    adb_kbd_reset(d);
     qemu_add_kbd_event_handler(adb_kbd_put_keycode, d);
 }
 
@@ -374,13 +386,25 @@ static int adb_mouse_request(ADBDevice *d, uint8_t *obuf,
     return olen;
 }
 
+static int adb_mouse_reset(ADBDevice *d)
+{
+    MouseState *s = d->opaque;
+
+    d->handler = 2;
+    d->devaddr = ADB_MOUSE;
+    memset(s, 0, sizeof(MouseState));
+
+    return 0;
+}
+
 void adb_mouse_init(ADBBusState *bus)
 {
     ADBDevice *d;
     MouseState *s;
 
     s = qemu_mallocz(sizeof(MouseState));
-    d = adb_register_device(bus, ADB_MOUSE, adb_mouse_request, NULL, s);
-    d->handler = 2;
+    d = adb_register_device(bus, ADB_MOUSE, adb_mouse_request,
+                            adb_mouse_reset, s);
+    adb_mouse_reset(d);
     qemu_add_mouse_event_handler(adb_mouse_event, d);
 }
