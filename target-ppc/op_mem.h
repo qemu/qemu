@@ -141,8 +141,8 @@ PPC_OP(glue(lwarx, MEMSUFFIX))
         do_queue_exception(EXCP_ALIGN);
         do_process_exceptions();
     } else {
-	glue(ldl, MEMSUFFIX)((void *)T0);
-	regs->reserve = T0 & ~0x03;
+       T1 = glue(ldl, MEMSUFFIX)((void *)T0);
+       regs->reserve = T0;
     }
     RETURN();
 }
