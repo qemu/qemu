@@ -730,7 +730,7 @@ QEMU has a primitive support to work with gdb, so that you can do
 In order to use gdb, launch qemu with the '-s' option. It will wait for a
 gdb connection:
 @example
-> qemu -s arch/i386/boot/bzImage -hda root-2.4.20.img root=/dev/hda
+> qemu -s -kernel arch/i386/boot/bzImage -hda root-2.4.20.img -append "root=/dev/hda"
 Connected to host network interface: tun0
 Waiting gdb connection on port 1234
 @end example
@@ -742,7 +742,7 @@ Then launch gdb on the 'vmlinux' executable:
 
 In gdb, connect to QEMU:
 @example
-(gdb) target remote locahost:1234
+(gdb) target remote localhost:1234
 @end example
 
 Then you can use gdb normally. For example, type 'c' to launch the kernel:
