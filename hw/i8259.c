@@ -49,7 +49,6 @@ typedef struct PicState {
 
 /* 0 is master pic, 1 is slave pic */
 static PicState pics[2];
-static int pic_irq_requested;
 
 /* set irq level. If an edge is detected, then the IRR is set to 1 */
 static inline void pic_set_irq1(PicState *s, int irq, int level)
@@ -130,13 +129,6 @@ static void pic_update_irq(void)
     /* look at requested irq */
     irq = pic_get_irq(&pics[0]);
     if (irq >= 0) {
-        if (irq == 2) {
-            /* from slave pic */
-            pic_irq_requested = 8 + irq2;
-        } else {
-            /* from master pic */
-            pic_irq_requested = irq;
-        }
 #if defined(DEBUG_PIC)
         {
             int i;
@@ -192,8 +184,31 @@ int cpu_get_pic_interrupt(CPUState *env)
 {
     int irq, irq2, intno;
 
-    /* signal the pic that the irq was acked by the CPU */
-    irq = pic_irq_requested;
+    /* read the irq from the PIC */
+
+    irq = pic_get_irq(&pics[0]);
+    if (irq >= 0) {
+        pic_intack(&pics[0], irq);
+        if (irq == 2) {
+            irq2 = pic_get_irq(&pics[1]);
+            if (irq2 >= 0) {
+                pic_intack(&pics[1], irq2);
+            } else {
+                /* spurious IRQ on slave controller */
+                irq2 = 7;
+            }
+            intno = pics[1].irq_base + irq2;
+            irq = irq2 + 8;
+        } else {
+            intno = pics[0].irq_base + irq;
+        }
+    } else {
+        /* spurious IRQ on host controller */
+        irq = 7;
+        intno = pics[0].irq_base + irq;
+    }
+    pic_update_irq();
+        
 #ifdef DEBUG_IRQ_LATENCY
     printf("IRQ%d latency=%0.3fus\n", 
            irq, 
@@ -202,17 +217,6 @@ int cpu_get_pic_interrupt(CPUState *env)
 #if defined(DEBUG_PIC)
     printf("pic_interrupt: irq=%d\n", irq);
 #endif
-
-    if (irq >= 8) {
-        irq2 = irq & 7;
-        pic_intack(&pics[1], irq2);
-        irq = 2;
-        intno = pics[1].irq_base + irq2;
-    } else {
-        intno = pics[0].irq_base + irq;
-    }
-    pic_intack(&pics[0], irq);
-    pic_update_irq();
     return intno;
 }
 
@@ -452,9 +456,10 @@ void pic_info(void)
 
     for(i=0;i<2;i++) {
         s = &pics[i];
-        term_printf("pic%d: irr=%02x imr=%02x isr=%02x hprio=%d irq_base=%02x rr_sel=%d elcr=%02x\n",
+        term_printf("pic%d: irr=%02x imr=%02x isr=%02x hprio=%d irq_base=%02x rr_sel=%d elcr=%02x fnm=%d\n",
                     i, s->irr, s->imr, s->isr, s->priority_add, 
-                    s->irq_base, s->read_reg_select, s->elcr);
+                    s->irq_base, s->read_reg_select, s->elcr, 
+                    s->special_fully_nested_mode);
     }
 }
 
