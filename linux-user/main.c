@@ -433,6 +433,8 @@ int main(int argc, char **argv)
     env->user_mode_only = 1;
     
 #if defined(TARGET_I386)
+    env->cr[0] = CR0_PG_MASK | CR0_WP_MASK | CR0_PE_MASK;
+
     /* linux register setup */
     env->regs[R_EAX] = regs->eax;
     env->regs[R_EBX] = regs->ebx;
