@@ -643,6 +643,36 @@ void OPPROTO op_next_insn(void)
     env->npc = env->npc + 4;
 }
 
+void OPPROTO op_branch(void)
+{
+    env->npc = PARAM3; /* XXX: optimize */
+    JUMP_TB(op_branch, PARAM1, 0, PARAM2);
+}
+
+void OPPROTO op_branch2(void)
+{
+    if (T2) {
+        env->npc = PARAM2 + 4; 
+        JUMP_TB(op_branch2, PARAM1, 0, PARAM2);
+    } else {
+        env->npc = PARAM3 + 4; 
+        JUMP_TB(op_branch2, PARAM1, 1, PARAM3);
+    }
+    FORCE_RET();
+}
+
+void OPPROTO op_branch_a(void)
+{
+    if (T2) {
+	env->npc = PARAM2; /* XXX: optimize */
+        JUMP_TB(op_generic_branch_a, PARAM1, 0, PARAM3);
+    } else {
+	env->npc = PARAM3 + 8; /* XXX: optimize */
+        JUMP_TB(op_generic_branch_a, PARAM1, 1, PARAM3 + 4);
+    }
+    FORCE_RET();
+}
+
 void OPPROTO op_generic_branch(void)
 {
     if (T2) {
@@ -653,14 +683,3 @@ void OPPROTO op_generic_branch(void)
     FORCE_RET();
 }
 
-void OPPROTO op_generic_branch_a(void)
-{
-    if (T2) {
-	env->pc = PARAM2;
-	env->npc = PARAM1;
-    } else {
-	env->pc = PARAM2 + 4;
-	env->npc = PARAM2 + 8;
-    }
-    FORCE_RET();
-}

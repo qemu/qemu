@@ -42,9 +42,14 @@
 
 #define DEBUG_DISAS
 
+#define DYNAMIC_PC  1 /* dynamic pc value */
+#define JUMP_PC     2 /* dynamic pc value which takes only two values
+                         according to jump_pc[T2] */
+
 typedef struct DisasContext {
-    uint8_t *pc;		/* NULL means dynamic value */
-    uint8_t *npc;		/* NULL means dynamic value */
+    target_ulong pc;	/* current Program Counter: integer or DYNAMIC_PC */
+    target_ulong npc;	/* next PC: integer or DYNAMIC_PC or JUMP_PC */
+    target_ulong jump_pc[2]; /* used when JUMP_PC pc value is used */
     int is_br;
     struct TranslationBlock *tb;
 } DisasContext;
@@ -306,6 +311,31 @@ static inline void gen_movl_T1_reg(int reg)
     gen_movl_TN_reg(reg, 1);
 }
 
+/* call this function before using T2 as it may have been set for a jump */
+static inline void flush_T2(DisasContext * dc)
+{
+    if (dc->npc == JUMP_PC) {
+        gen_op_generic_branch(dc->jump_pc[0], dc->jump_pc[1]);
+        dc->npc = DYNAMIC_PC;
+    }
+}
+
+static inline void save_npc(DisasContext * dc)
+{
+    if (dc->npc == JUMP_PC) {
+        gen_op_generic_branch(dc->jump_pc[0], dc->jump_pc[1]);
+        dc->npc = DYNAMIC_PC;
+    } else if (dc->npc != DYNAMIC_PC) {
+        gen_op_movl_npc_im(dc->npc);
+    }
+}
+
+static inline void save_state(DisasContext * dc)
+{
+    gen_op_jmp_im((uint32_t)dc->pc);
+    save_npc(dc);
+}
+
 static void gen_cond(int cond)
 {
 	switch (cond) {
@@ -378,25 +408,23 @@ static void do_branch(DisasContext * dc, uint32_t target, uint32_t insn)
     } else if (cond == 0x8) {
 	/* unconditional taken */
 	if (a) {
-	    dc->pc = (uint8_t *) target;
+	    dc->pc = target;
 	    dc->npc = dc->pc + 4;
 	} else {
 	    dc->pc = dc->npc;
-	    dc->npc = (uint8_t *) target;
+	    dc->npc = target;
 	}
     } else {
+        flush_T2(dc);
         gen_cond(cond);
 	if (a) {
-	    gen_op_generic_branch_a((uint32_t) target,
-				    (uint32_t) (dc->npc));
+	    gen_op_branch_a((long)dc->tb, target, dc->npc);
             dc->is_br = 1;
-            dc->pc = NULL;
-            dc->npc = NULL;
 	} else {
             dc->pc = dc->npc;
-	    gen_op_generic_branch((uint32_t) target,
-				  (uint32_t) (dc->npc + 4));
-            dc->npc = NULL;
+            dc->jump_pc[0] = target;
+            dc->jump_pc[1] = dc->npc + 4;
+            dc->npc = JUMP_PC;
 	}
     }
 }
@@ -409,18 +437,11 @@ static int sign_extend(int x, int len)
     return (x << len) >> len;
 }
 
-static inline void save_state(DisasContext * dc)
-{
-    gen_op_jmp_im((uint32_t)dc->pc);
-    if (dc->npc != NULL)
-        gen_op_movl_npc_im((long) dc->npc);
-}
-
 static void disas_sparc_insn(DisasContext * dc)
 {
     unsigned int insn, opc, rs1, rs2, rd;
 
-    insn = ldl_code(dc->pc);
+    insn = ldl_code((uint8_t *)dc->pc);
     opc = GET_FIELD(insn, 0, 1);
 
     rd = GET_FIELD(insn, 2, 6);
@@ -458,9 +479,9 @@ static void disas_sparc_insn(DisasContext * dc)
 
 	    gen_op_movl_T0_im((long) (dc->pc));
 	    gen_movl_T0_reg(15);
-	    target = (long) dc->pc + target;
+	    target = dc->pc + target;
 	    dc->pc = dc->npc;
-	    dc->npc = (uint8_t *) target;
+	    dc->npc = target;
 	}
 	goto jmp_insn;
     case 2:			/* FPU & Logical Operations */
@@ -625,7 +646,7 @@ static void disas_sparc_insn(DisasContext * dc)
                                 gen_movl_T0_reg(rd);
                             }
                             dc->pc = dc->npc;
-                            dc->npc = NULL;
+                            dc->npc = DYNAMIC_PC;
                         }
                         goto jmp_insn;
                     case 0x3b: /* flush */
@@ -705,6 +726,7 @@ static void disas_sparc_insn(DisasContext * dc)
 		    gen_op_sth();
 		    break;
 		case 0x7:
+                    flush_T2(dc);
 		    gen_movl_reg_T2(rd + 1);
 		    gen_op_std();
 		    break;
@@ -713,19 +735,21 @@ static void disas_sparc_insn(DisasContext * dc)
 	}
     }
     /* default case for non jump instructions */
-    if (dc->npc != NULL) {
+    if (dc->npc == DYNAMIC_PC) {
+	dc->pc = DYNAMIC_PC;
+	gen_op_next_insn();
+    } else if (dc->npc == JUMP_PC) {
+        /* we can do a static jump */
+        gen_op_branch2((long)dc->tb, dc->jump_pc[0], dc->jump_pc[1]);
+        dc->is_br = 1;
+    } else {
 	dc->pc = dc->npc;
 	dc->npc = dc->npc + 4;
-    } else {
-	dc->pc = NULL;
-	gen_op_next_insn();
     }
   jmp_insn:;
     return;
  illegal_insn:
-    gen_op_jmp_im((uint32_t)dc->pc);
-    if (dc->npc != NULL)
-        gen_op_movl_npc_im((long) dc->npc);
+    save_state(dc);
     gen_op_exception(TT_ILL_INSN);
     dc->is_br = 1;
 }
@@ -733,7 +757,7 @@ static void disas_sparc_insn(DisasContext * dc)
 static inline int gen_intermediate_code_internal(TranslationBlock * tb,
 						 int spc)
 {
-    uint8_t *pc_start, *last_pc;
+    target_ulong pc_start, last_pc;
     uint16_t *gen_opc_end;
     DisasContext dc1, *dc = &dc1;
 
@@ -743,9 +767,9 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
 	exit(0);
     }
     dc->tb = tb;
-    pc_start = (uint8_t *) tb->pc;
+    pc_start = tb->pc;
     dc->pc = pc_start;
-    dc->npc = (uint8_t *) tb->cs_base;
+    dc->npc = (target_ulong) tb->cs_base;
 
     gen_opc_ptr = gen_opc_buf;
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
@@ -761,19 +785,25 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
 	    break;
     } while ((gen_opc_ptr < gen_opc_end) &&
 	     (dc->pc - pc_start) < (TARGET_PAGE_SIZE - 32));
-    if (dc->pc != NULL)
-	gen_op_jmp_im((long) dc->pc);
-    if (dc->npc != NULL)
-	gen_op_movl_npc_im((long) dc->npc);
-    gen_op_movl_T0_0();
-    gen_op_exit_tb();
-
+    if (!dc->is_br) {
+        if (dc->pc != DYNAMIC_PC && 
+            (dc->npc != DYNAMIC_PC && dc->npc != JUMP_PC)) {
+            /* static PC and NPC: we can use direct chaining */
+            gen_op_branch((long)tb, dc->pc, dc->npc);
+        } else {
+            if (dc->pc != DYNAMIC_PC)
+                gen_op_jmp_im(dc->pc);
+            save_npc(dc);
+            gen_op_movl_T0_0();
+            gen_op_exit_tb();
+        }
+    }
     *gen_opc_ptr = INDEX_op_end;
 #ifdef DEBUG_DISAS
     if (loglevel) {
 	fprintf(logfile, "--------------\n");
-	fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
-	disas(logfile, pc_start, last_pc + 4 - pc_start, 0, 0);
+	fprintf(logfile, "IN: %s\n", lookup_symbol((uint8_t *)pc_start));
+	disas(logfile, (uint8_t *)pc_start, last_pc + 4 - pc_start, 0, 0);
 	fprintf(logfile, "\n");
 	fprintf(logfile, "OP:\n");
 	dump_ops(gen_opc_buf, gen_opparam_buf);
