@@ -39,6 +39,7 @@ int speaker_data_on;
 int dummy_refresh_clock;
 static fdctrl_t *floppy_controller;
 static RTCState *rtc_state;
+static PITState *pit;
 
 static void ioport80_write(void *opaque, uint32_t addr, uint32_t data)
 {
@@ -169,15 +170,15 @@ static void cmos_init(int ram_size, int boot_device)
 static void speaker_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
     speaker_data_on = (val >> 1) & 1;
-    pit_set_gate(&pit_channels[2], val & 1);
+    pit_set_gate(pit, 2, val & 1);
 }
 
 static uint32_t speaker_ioport_read(void *opaque, uint32_t addr)
 {
     int out;
-    out = pit_get_out(&pit_channels[2], qemu_get_clock(vm_clock));
+    out = pit_get_out(pit, 2, qemu_get_clock(vm_clock));
     dummy_refresh_clock ^= 1;
-    return (speaker_data_on << 1) | pit_channels[2].gate | (out << 5) |
+    return (speaker_data_on << 1) | pit_get_gate(pit, 2) | (out << 5) |
       (dummy_refresh_clock << 4);
 }
 
@@ -381,7 +382,7 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
     register_ioport_write(0x92, 1, 1, ioport92_write, NULL);
 
     pic_init();
-    pit_init(0x40, 0);
+    pit = pit_init(0x40, 0);
 
     fd = serial_open_device();
     serial_init(0x3f8, 4, fd);

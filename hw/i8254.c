@@ -25,14 +25,36 @@
 
 //#define DEBUG_PIT
 
-#define RW_STATE_LSB 0
-#define RW_STATE_MSB 1
-#define RW_STATE_WORD0 2
-#define RW_STATE_WORD1 3
-#define RW_STATE_LATCHED_WORD0 4
-#define RW_STATE_LATCHED_WORD1 5
+#define RW_STATE_LSB 1
+#define RW_STATE_MSB 2
+#define RW_STATE_WORD0 3
+#define RW_STATE_WORD1 4
 
-PITChannelState pit_channels[3];
+typedef struct PITChannelState {
+    int count; /* can be 65536 */
+    uint16_t latched_count;
+    uint8_t count_latched;
+    uint8_t status_latched;
+    uint8_t status;
+    uint8_t read_state;
+    uint8_t write_state;
+    uint8_t write_latch;
+    uint8_t rw_mode;
+    uint8_t mode;
+    uint8_t bcd; /* not supported */
+    uint8_t gate; /* timer start */
+    int64_t count_load_time;
+    /* irq handling */
+    int64_t next_transition_time;
+    QEMUTimer *irq_timer;
+    int irq;
+} PITChannelState;
+
+struct PITState {
+    PITChannelState channels[3];
+};
+
+static PITState pit_state;
 
 static void pit_irq_timer_update(PITChannelState *s, int64_t current_time);
 
@@ -61,7 +83,7 @@ static int pit_get_count(PITChannelState *s)
 }
 
 /* get pit output bit */
-int pit_get_out(PITChannelState *s, int64_t current_time)
+static int pit_get_out1(PITChannelState *s, int64_t current_time)
 {
     uint64_t d;
     int out;
@@ -90,6 +112,12 @@ int pit_get_out(PITChannelState *s, int64_t current_time)
         break;
     }
     return out;
+}
+
+int pit_get_out(PITState *pit, int channel, int64_t current_time)
+{
+    PITChannelState *s = &pit->channels[channel];
+    return pit_get_out1(s, current_time);
 }
 
 /* return -1 if no transition will occur.  */
@@ -144,8 +172,10 @@ static int64_t pit_get_next_transition_time(PITChannelState *s,
 }
 
 /* val must be 0 or 1 */
-void pit_set_gate(PITChannelState *s, int val)
+void pit_set_gate(PITState *pit, int channel, int val)
 {
+    PITChannelState *s = &pit->channels[channel];
+
     switch(s->mode) {
     default:
     case 0:
@@ -173,6 +203,12 @@ void pit_set_gate(PITChannelState *s, int val)
     s->gate = val;
 }
 
+int pit_get_gate(PITState *pit, int channel)
+{
+    PITChannelState *s = &pit->channels[channel];
+    return s->gate;
+}
+
 static inline void pit_load_count(PITChannelState *s, int val)
 {
     if (val == 0)
@@ -182,33 +218,62 @@ static inline void pit_load_count(PITChannelState *s, int val)
     pit_irq_timer_update(s, s->count_load_time);
 }
 
+/* if already latched, do not latch again */
+static void pit_latch_count(PITChannelState *s)
+{
+    if (!s->count_latched) {
+        s->latched_count = pit_get_count(s);
+        s->count_latched = s->rw_mode;
+    }
+}
+
 static void pit_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
+    PITState *pit = opaque;
     int channel, access;
     PITChannelState *s;
 
     addr &= 3;
     if (addr == 3) {
         channel = val >> 6;
-        if (channel == 3)
-            return;
-        s = &pit_channels[channel];
-        access = (val >> 4) & 3;
-        switch(access) {
-        case 0:
-            s->latched_count = pit_get_count(s);
-            s->rw_state = RW_STATE_LATCHED_WORD0;
-            break;
-        default:
-            s->mode = (val >> 1) & 7;
-            s->bcd = val & 1;
-            s->rw_state = access - 1 +  RW_STATE_LSB;
-            /* XXX: update irq timer ? */
-            break;
+        if (channel == 3) {
+            /* read back command */
+            for(channel = 0; channel < 3; channel++) {
+                s = &pit->channels[channel];
+                if (val & (2 << channel)) {
+                    if (!(val & 0x20)) {
+                        pit_latch_count(s);
+                    }
+                    if (!(val & 0x10) && !s->status_latched) {
+                        /* status latch */
+                        /* XXX: add BCD and null count */
+                        s->status =  (pit_get_out1(s, qemu_get_clock(vm_clock)) << 7) |
+                            (s->rw_mode << 4) |
+                            (s->mode << 1) |
+                            s->bcd;
+                        s->status_latched = 1;
+                    }
+                }
+            }
+        } else {
+            s = &pit->channels[channel];
+            access = (val >> 4) & 3;
+            if (access == 0) {
+                pit_latch_count(s);
+            } else {
+                s->rw_mode = access;
+                s->read_state = access;
+                s->write_state = access;
+
+                s->mode = (val >> 1) & 7;
+                s->bcd = val & 1;
+                /* XXX: update irq timer ? */
+            }
         }
     } else {
-        s = &pit_channels[addr];
-        switch(s->rw_state) {
+        s = &pit->channels[addr];
+        switch(s->write_state) {
+        default:
         case RW_STATE_LSB:
             pit_load_count(s, val);
             break;
@@ -216,13 +281,12 @@ static void pit_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             pit_load_count(s, val << 8);
             break;
         case RW_STATE_WORD0:
+            s->write_latch = val;
+            s->write_state = RW_STATE_WORD1;
+            break;
         case RW_STATE_WORD1:
-            if (s->rw_state & 1) {
-                pit_load_count(s, (s->latched_count & 0xff) | (val << 8));
-            } else {
-                s->latched_count = val;
-            }
-            s->rw_state ^= 1;
+            pit_load_count(s, s->write_latch | (val << 8));
+            s->write_state = RW_STATE_WORD0;
             break;
         }
     }
@@ -230,33 +294,53 @@ static void pit_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 
 static uint32_t pit_ioport_read(void *opaque, uint32_t addr)
 {
+    PITState *pit = opaque;
     int ret, count;
     PITChannelState *s;
     
     addr &= 3;
-    s = &pit_channels[addr];
-    switch(s->rw_state) {
-    case RW_STATE_LSB:
-    case RW_STATE_MSB:
-    case RW_STATE_WORD0:
-    case RW_STATE_WORD1:
-        count = pit_get_count(s);
-        if (s->rw_state & 1)
-            ret = (count >> 8) & 0xff;
-        else
-            ret = count & 0xff;
-        if (s->rw_state & 2)
-            s->rw_state ^= 1;
-        break;
-    default:
-    case RW_STATE_LATCHED_WORD0:
-    case RW_STATE_LATCHED_WORD1:
-        if (s->rw_state & 1)
-            ret = s->latched_count >> 8;
-        else
+    s = &pit->channels[addr];
+    if (s->status_latched) {
+        s->status_latched = 0;
+        ret = s->status;
+    } else if (s->count_latched) {
+        switch(s->count_latched) {
+        default:
+        case RW_STATE_LSB:
             ret = s->latched_count & 0xff;
-        s->rw_state ^= 1;
-        break;
+            s->count_latched = 0;
+            break;
+        case RW_STATE_MSB:
+            ret = s->latched_count >> 8;
+            s->count_latched = 0;
+            break;
+        case RW_STATE_WORD0:
+            ret = s->latched_count & 0xff;
+            s->count_latched = RW_STATE_MSB;
+            break;
+        }
+    } else {
+        switch(s->read_state) {
+        default:
+        case RW_STATE_LSB:
+            count = pit_get_count(s);
+            ret = count & 0xff;
+            break;
+        case RW_STATE_MSB:
+            count = pit_get_count(s);
+            ret = (count >> 8) & 0xff;
+            break;
+        case RW_STATE_WORD0:
+            count = pit_get_count(s);
+            ret = count & 0xff;
+            s->read_state = RW_STATE_WORD1;
+            break;
+        case RW_STATE_WORD1:
+            count = pit_get_count(s);
+            ret = (count >> 8) & 0xff;
+            s->read_state = RW_STATE_WORD0;
+            break;
+        }
     }
     return ret;
 }
@@ -269,7 +353,7 @@ static void pit_irq_timer_update(PITChannelState *s, int64_t current_time)
     if (!s->irq_timer)
         return;
     expire_time = pit_get_next_transition_time(s, current_time);
-    irq_level = pit_get_out(s, current_time);
+    irq_level = pit_get_out1(s, current_time);
     pic_set_irq(s->irq, irq_level);
 #ifdef DEBUG_PIT
     printf("irq_level=%d next_delay=%f\n",
@@ -292,14 +376,21 @@ static void pit_irq_timer(void *opaque)
 
 static void pit_save(QEMUFile *f, void *opaque)
 {
+    PITState *pit = opaque;
     PITChannelState *s;
     int i;
     
     for(i = 0; i < 3; i++) {
-        s = &pit_channels[i];
+        s = &pit->channels[i];
         qemu_put_be32s(f, &s->count);
         qemu_put_be16s(f, &s->latched_count);
-        qemu_put_8s(f, &s->rw_state);
+        qemu_put_8s(f, &s->count_latched);
+        qemu_put_8s(f, &s->status_latched);
+        qemu_put_8s(f, &s->status);
+        qemu_put_8s(f, &s->read_state);
+        qemu_put_8s(f, &s->write_state);
+        qemu_put_8s(f, &s->write_latch);
+        qemu_put_8s(f, &s->rw_mode);
         qemu_put_8s(f, &s->mode);
         qemu_put_8s(f, &s->bcd);
         qemu_put_8s(f, &s->gate);
@@ -313,6 +404,7 @@ static void pit_save(QEMUFile *f, void *opaque)
 
 static int pit_load(QEMUFile *f, void *opaque, int version_id)
 {
+    PITState *pit = opaque;
     PITChannelState *s;
     int i;
     
@@ -320,10 +412,16 @@ static int pit_load(QEMUFile *f, void *opaque, int version_id)
         return -EINVAL;
 
     for(i = 0; i < 3; i++) {
-        s = &pit_channels[i];
+        s = &pit->channels[i];
         qemu_get_be32s(f, &s->count);
         qemu_get_be16s(f, &s->latched_count);
-        qemu_get_8s(f, &s->rw_state);
+        qemu_get_8s(f, &s->count_latched);
+        qemu_get_8s(f, &s->status_latched);
+        qemu_get_8s(f, &s->status);
+        qemu_get_8s(f, &s->read_state);
+        qemu_get_8s(f, &s->write_state);
+        qemu_get_8s(f, &s->write_latch);
+        qemu_get_8s(f, &s->rw_mode);
         qemu_get_8s(f, &s->mode);
         qemu_get_8s(f, &s->bcd);
         qemu_get_8s(f, &s->gate);
@@ -336,13 +434,14 @@ static int pit_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-void pit_init(int base, int irq)
+PITState *pit_init(int base, int irq)
 {
+    PITState *pit = &pit_state;
     PITChannelState *s;
     int i;
 
     for(i = 0;i < 3; i++) {
-        s = &pit_channels[i];
+        s = &pit->channels[i];
         if (i == 0) {
             /* the timer 0 is connected to an IRQ */
             s->irq_timer = qemu_new_timer(vm_clock, pit_irq_timer, s);
@@ -353,9 +452,9 @@ void pit_init(int base, int irq)
         pit_load_count(s, 0);
     }
 
-    register_savevm("i8254", base, 1, pit_save, pit_load, NULL);
+    register_savevm("i8254", base, 1, pit_save, pit_load, pit);
 
-    register_ioport_write(base, 4, 1, pit_ioport_write, NULL);
-    register_ioport_read(base, 3, 1, pit_ioport_read, NULL);
+    register_ioport_write(base, 4, 1, pit_ioport_write, pit);
+    register_ioport_read(base, 3, 1, pit_ioport_read, pit);
+    return pit;
 }
-

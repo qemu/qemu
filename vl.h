@@ -481,26 +481,12 @@ void pic_info(void);
 
 #define PIT_FREQ 1193182
 
-typedef struct PITChannelState {
-    int count; /* can be 65536 */
-    uint16_t latched_count;
-    uint8_t rw_state;
-    uint8_t mode;
-    uint8_t bcd; /* not supported */
-    uint8_t gate; /* timer start */
-    int64_t count_load_time;
-    /* irq handling */
-    int64_t next_transition_time;
-    QEMUTimer *irq_timer;
-    int irq;
-} PITChannelState;
+typedef struct PITState PITState;
 
-extern PITChannelState pit_channels[3];
-
-void pit_init(int base, int irq);
-void pit_set_gate(PITChannelState *s, int val);
-int pit_get_out(PITChannelState *s, int64_t current_time);
-int pit_get_out_edges(PITChannelState *s);
+PITState *pit_init(int base, int irq);
+void pit_set_gate(PITState *pit, int channel, int val);
+int pit_get_gate(PITState *pit, int channel);
+int pit_get_out(PITState *pit, int channel, int64_t current_time);
 
 /* pc.c */
 void pc_init(int ram_size, int vga_ram_size, int boot_device,
