@@ -629,7 +629,7 @@ static void openpic_timer_write (void *opaque, uint32_t addr, uint32_t val)
         break;
     case 0x10: /* TIBC */
 	if ((opp->timers[idx].ticc & 0x80000000) != 0 &&
-	    (val & 0x800000000) == 0 &&
+	    (val & 0x80000000) == 0 &&
             (opp->timers[idx].tibc & 0x80000000) != 0)
 	    opp->timers[idx].ticc &= ~0x80000000;
 	opp->timers[idx].tibc = val;
