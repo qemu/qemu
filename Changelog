@@ -4,6 +4,7 @@ version 0.6.2:
   - user mode networking bug fix
   - undocumented FPU ops support
   - Cirrus VGA: support for 1280x1024x[8,15,16] modes
+  - 'pidfile' option
 
 version 0.6.1:
 
