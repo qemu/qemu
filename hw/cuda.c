@@ -545,13 +545,14 @@ static void cuda_receive_packet_from_host(CUDAState *s,
             uint8_t obuf[ADB_MAX_OUT_LEN + 2];
             int olen;
             olen = adb_request(&adb_bus, obuf + 2, data + 1, len - 1);
-            if (olen != 0) {
+            if (olen > 0) {
                 obuf[0] = ADB_PACKET;
                 obuf[1] = 0x00;
             } else {
-                /* empty reply */
+                /* error */
                 obuf[0] = ADB_PACKET;
-                obuf[1] = 0x02;
+                obuf[1] = -olen;
+                olen = 0;
             }
             cuda_send_packet_to_host(s, obuf, olen + 2);
         }
