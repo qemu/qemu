@@ -621,6 +621,7 @@ void cpu_reset_interrupt(CPUState *env, int mask);
 int cpu_breakpoint_insert(CPUState *env, target_ulong pc);
 int cpu_breakpoint_remove(CPUState *env, target_ulong pc);
 void cpu_single_step(CPUState *env, int enabled);
+void cpu_reset(CPUState *s);
 
 /* Return the physical page corresponding to a virtual one. Use it
    only for debugging because no protection checks are done. Return -1
