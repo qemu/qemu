@@ -260,10 +260,6 @@ void tb_flush(CPUState *env)
            nb_tbs, 
            nb_tbs > 0 ? (code_gen_ptr - code_gen_buffer) / nb_tbs : 0);
 #endif
-    /* must reset current TB so that interrupts cannot modify the
-       links while we are modifying them */
-    env->current_tb = NULL;
-
     nb_tbs = 0;
     for(i = 0;i < CODE_GEN_HASH_SIZE; i++)
         tb_hash[i] = NULL;
@@ -970,13 +966,16 @@ void cpu_set_log_filename(const char *filename)
 void cpu_interrupt(CPUState *env, int mask)
 {
     TranslationBlock *tb;
+    static int interrupt_lock;
     
     env->interrupt_request |= mask;
     /* if the cpu is currently executing code, we must unlink it and
        all the potentially executing TB */
     tb = env->current_tb;
-    if (tb) {
+    if (tb && !testandset(&interrupt_lock)) {
+        env->current_tb = NULL;
         tb_reset_jump_recursive(tb);
+        interrupt_lock = 0;
     }
 }
 
@@ -998,7 +997,9 @@ void cpu_abort(CPUState *env, const char *fmt, ...)
 
 #if !defined(CONFIG_USER_ONLY)
 
-void tlb_flush(CPUState *env)
+/* NOTE: if flush_global is true, also flush global entries (not
+   implemented yet) */
+void tlb_flush(CPUState *env, int flush_global)
 {
     int i;
 
@@ -1293,7 +1294,7 @@ int page_unprotect(unsigned long addr)
 
 #else
 
-void tlb_flush(CPUState *env)
+void tlb_flush(CPUState *env, int flush_global)
 {
 }
 

@@ -85,7 +85,7 @@ int page_unprotect(unsigned long address);
 void tb_invalidate_page_range(target_ulong start, target_ulong end);
 void tlb_flush_page(CPUState *env, uint32_t addr);
 void tlb_flush_page_write(CPUState *env, uint32_t addr);
-void tlb_flush(CPUState *env);
+void tlb_flush(CPUState *env, int flush_global);
 int tlb_set_page(CPUState *env, uint32_t vaddr, uint32_t paddr, int prot, 
                  int is_user, int is_softmmu);
 
