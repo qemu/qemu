@@ -10,6 +10,9 @@ version 0.4.4:
   - m68k host port (Richard Zidlicky)
   - partial soft MMU support for memory mapped I/Os
   - multi-target build
+  - fixed: no error code in hardware interrupts
+  - fixed: pop ss, mov ss, x and sti disable hardware irqs for the next insn
+  - correct single stepping thru string operations
 
 version 0.4.3:
 
