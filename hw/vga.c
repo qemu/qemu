@@ -1454,11 +1454,13 @@ static void vga_draw_graphic(VGAState *s, int full_update)
         }
         page0 = s->vram_offset + (addr & TARGET_PAGE_MASK);
         page1 = s->vram_offset + ((addr + bwidth - 1) & TARGET_PAGE_MASK);
-        update = full_update | cpu_physical_memory_is_dirty(page0) |
-            cpu_physical_memory_is_dirty(page1);
+        update = full_update | 
+            cpu_physical_memory_get_dirty(page0, VGA_DIRTY_FLAG) |
+            cpu_physical_memory_get_dirty(page1, VGA_DIRTY_FLAG);
         if ((page1 - page0) > TARGET_PAGE_SIZE) {
             /* if wide line, can use another page */
-            update |= cpu_physical_memory_is_dirty(page0 + TARGET_PAGE_SIZE);
+            update |= cpu_physical_memory_get_dirty(page0 + TARGET_PAGE_SIZE, 
+                                                    VGA_DIRTY_FLAG);
         }
         /* explicit invalidation for the hardware cursor */
         update |= (s->invalidated_y_table[y >> 5] >> (y & 0x1f)) & 1;
@@ -1501,7 +1503,8 @@ static void vga_draw_graphic(VGAState *s, int full_update)
     }
     /* reset modified pages */
     if (page_max != -1) {
-        cpu_physical_memory_reset_dirty(page_min, page_max + TARGET_PAGE_SIZE);
+        cpu_physical_memory_reset_dirty(page_min, page_max + TARGET_PAGE_SIZE,
+                                        VGA_DIRTY_FLAG);
     }
     memset(s->invalidated_y_table, 0, ((height + 31) >> 5) * 4);
 }

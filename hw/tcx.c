@@ -129,7 +129,7 @@ void tcx_update_display(void *opaque)
     }
     
     for(y = 0; y < YSZ; y += 4, page += TARGET_PAGE_SIZE) {
-	if (cpu_physical_memory_is_dirty(page)) {
+	if (cpu_physical_memory_get_dirty(page, VGA_DIRTY_FLAG)) {
 	    if (y_start < 0)
                 y_start = y;
             if (page < page_min)
@@ -166,7 +166,8 @@ void tcx_update_display(void *opaque)
     }
     /* reset modified pages */
     if (page_max != -1) {
-        cpu_physical_memory_reset_dirty(page_min, page_max + TARGET_PAGE_SIZE);
+        cpu_physical_memory_reset_dirty(page_min, page_max + TARGET_PAGE_SIZE,
+                                        VGA_DIRTY_FLAG);
     }
 }
 
@@ -216,7 +217,8 @@ static void tcx_reset(void *opaque)
     memset(s->b, 0, 256);
     s->r[255] = s->g[255] = s->b[255] = 255;
     memset(s->vram, 0, MAXX*MAXY);
-    cpu_physical_memory_reset_dirty(s->vram_offset, s->vram_offset + MAXX*MAXY);
+    cpu_physical_memory_reset_dirty(s->vram_offset, s->vram_offset + MAXX*MAXY,
+                                    VGA_DIRTY_FLAG);
 }
 
 void *tcx_init(DisplayState *ds, uint32_t addr, uint8_t *vram_base,

@@ -109,9 +109,11 @@ static inline void tswap64s(uint64_t *s)
 #if TARGET_LONG_SIZE == 4
 #define tswapl(s) tswap32(s)
 #define tswapls(s) tswap32s((uint32_t *)(s))
+#define bswaptls(s) bswap32s(s)
 #else
 #define tswapl(s) tswap64(s)
 #define tswapls(s) tswap64s((uint64_t *)(s))
+#define bswaptls(s) bswap64s(s)
 #endif
 
 /* NOTE: arm FPA is horrible as double 32 bit words are stored in big
@@ -733,18 +735,27 @@ void stl_phys(target_phys_addr_t addr, uint32_t val);
 int cpu_memory_rw_debug(CPUState *env, target_ulong addr, 
                         uint8_t *buf, int len, int is_write);
 
+#define VGA_DIRTY_FLAG 0x01
+
 /* read dirty bit (return 0 or 1) */
 static inline int cpu_physical_memory_is_dirty(target_ulong addr)
 {
-    return phys_ram_dirty[addr >> TARGET_PAGE_BITS];
+    return phys_ram_dirty[addr >> TARGET_PAGE_BITS] == 0xff;
+}
+
+static inline int cpu_physical_memory_get_dirty(target_ulong addr, 
+                                                int dirty_flags)
+{
+    return phys_ram_dirty[addr >> TARGET_PAGE_BITS] & dirty_flags;
 }
 
 static inline void cpu_physical_memory_set_dirty(target_ulong addr)
 {
-    phys_ram_dirty[addr >> TARGET_PAGE_BITS] = 1;
+    phys_ram_dirty[addr >> TARGET_PAGE_BITS] = 0xff;
 }
 
-void cpu_physical_memory_reset_dirty(target_ulong start, target_ulong end);
+void cpu_physical_memory_reset_dirty(target_ulong start, target_ulong end,
+                                     int dirty_flags);
 
 void dump_exec_info(FILE *f,
                     int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
