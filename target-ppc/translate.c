@@ -184,10 +184,6 @@ typedef struct opcode_t {
     opc_handler_t handler;
 } opcode_t;
 
-/* XXX: move that elsewhere */
-extern FILE *logfile;
-extern int loglevel;
-
 /***                           Instruction decoding                        ***/
 #define EXTRACT_HELPER(name, shift, nb)                                       \
 static inline uint32_t name (uint32_t opcode)                                 \
@@ -2890,7 +2886,6 @@ static int create_ppc_proc (opc_handler_t **ppc_opcodes, unsigned long pvr)
 
 /*****************************************************************************/
 /* Misc PPC helpers */
-FILE *stdout;
 
 void cpu_ppc_dump_state(CPUPPCState *env, FILE *f, int flags)
 {
