@@ -188,7 +188,7 @@ typedef struct CharDriverState {
                                  IOCanRWHandler *fd_can_read, 
                                  IOReadHandler *fd_read, void *opaque);
     IOEventHandler *chr_event;
-    IOEventHandler *chr_send_event;
+    void (*chr_send_event)(struct CharDriverState *chr, int event);
     void *opaque;
 } CharDriverState;
 
