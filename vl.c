@@ -2138,6 +2138,20 @@ void cpu_save(QEMUFile *f, void *opaque)
 
     /* MMU */
     qemu_put_be32s(f, &env->a20_mask);
+
+#ifdef TARGET_X86_64
+    for(i = 0; i < CPU_NB_REGS; i++) {
+        qemu_put_be64s(f, &env->xmm_regs[i].XMM_Q(0));
+        qemu_put_be64s(f, &env->xmm_regs[i].XMM_Q(1));
+    }
+
+    qemu_put_be64s(f, &env->efer);
+    qemu_put_be64s(f, &env->star);
+    qemu_put_be64s(f, &env->lstar);
+    qemu_put_be64s(f, &env->cstar);
+    qemu_put_be64s(f, &env->fmask);
+    qemu_put_be64s(f, &env->kernelgsbase);
+#endif
 }
 
 int cpu_load(QEMUFile *f, void *opaque, int version_id)
@@ -2197,6 +2211,20 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
 
     /* MMU */
     qemu_get_be32s(f, &env->a20_mask);
+
+#ifdef TARGET_X86_64
+    for(i = 0; i < CPU_NB_REGS; i++) {
+        qemu_get_be64s(f, &env->xmm_regs[i].XMM_Q(0));
+        qemu_get_be64s(f, &env->xmm_regs[i].XMM_Q(1));
+    }
+
+    qemu_get_be64s(f, &env->efer);
+    qemu_get_be64s(f, &env->star);
+    qemu_get_be64s(f, &env->lstar);
+    qemu_get_be64s(f, &env->cstar);
+    qemu_get_be64s(f, &env->fmask);
+    qemu_get_be64s(f, &env->kernelgsbase);
+#endif
 
     /* XXX: compute hflags from scratch, except for CPL and IIF */
     env->hflags = hflags;
