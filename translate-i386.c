@@ -2489,7 +2489,6 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
                 
                 switch(op & 7) {
                 case 0:
-                    gen_op_fpush();
                     switch(op >> 4) {
                     case 0:
                         gen_op_flds_ST0_A0();
@@ -2540,7 +2539,6 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
                 gen_op_fnstcw_A0();
                 break;
             case 0x1d: /* fldt mem */
-                gen_op_fpush();
                 gen_op_fldt_ST0_A0();
                 break;
             case 0x1f: /* fstpt mem */
@@ -2557,7 +2555,6 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
                 gen_op_fnstsw_A0();
                 break;
             case 0x3c: /* fbld */
-                gen_op_fpush();
                 gen_op_fbld_ST0_A0();
                 break;
             case 0x3e: /* fbstp */
@@ -2565,7 +2562,6 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
                 gen_op_fpop();
                 break;
             case 0x3d: /* fildll */
-                gen_op_fpush();
                 gen_op_fildll_ST0_A0();
                 break;
             case 0x3f: /* fistpll */

@@ -1406,28 +1406,40 @@ void OPPROTO op_fildll_FT0_A0(void)
 
 void OPPROTO op_flds_ST0_A0(void)
 {
+    int new_fpstt;
+    new_fpstt = (env->fpstt - 1) & 7;
 #ifdef USE_FP_CONVERT
     FP_CONVERT.i32 = ldl((void *)A0);
-    ST0 = FP_CONVERT.f;
+    env->fpregs[new_fpstt] = FP_CONVERT.f;
 #else
-    ST0 = ldfl((void *)A0);
+    env->fpregs[new_fpstt] = ldfl((void *)A0);
 #endif
+    env->fpstt = new_fpstt;
+    env->fptags[new_fpstt] = 0; /* validate stack entry */
 }
 
 void OPPROTO op_fldl_ST0_A0(void)
 {
+    int new_fpstt;
+    new_fpstt = (env->fpstt - 1) & 7;
 #ifdef USE_FP_CONVERT
     FP_CONVERT.i64 = ldq((void *)A0);
-    ST0 = FP_CONVERT.d;
+    env->fpregs[new_fpstt] = FP_CONVERT.d;
 #else
-    ST0 = ldfq((void *)A0);
+    env->fpregs[new_fpstt] = ldfq((void *)A0);
 #endif
+    env->fpstt = new_fpstt;
+    env->fptags[new_fpstt] = 0; /* validate stack entry */
 }
 
 #ifdef USE_X86LDOUBLE
 void OPPROTO op_fldt_ST0_A0(void)
 {
-    ST0 = *(long double *)A0;
+    int new_fpstt;
+    new_fpstt = (env->fpstt - 1) & 7;
+    env->fpregs[new_fpstt] = *(long double *)A0;
+    env->fpstt = new_fpstt;
+    env->fptags[new_fpstt] = 0; /* validate stack entry */
 }
 #else
 void OPPROTO op_fldt_ST0_A0(void)
@@ -1441,17 +1453,29 @@ void OPPROTO op_fldt_ST0_A0(void)
 
 void helper_fild_ST0_A0(void)
 {
-    ST0 = (CPU86_LDouble)ldsw((void *)A0);
+    int new_fpstt;
+    new_fpstt = (env->fpstt - 1) & 7;
+    env->fpregs[new_fpstt] = (CPU86_LDouble)ldsw((void *)A0);
+    env->fpstt = new_fpstt;
+    env->fptags[new_fpstt] = 0; /* validate stack entry */
 }
 
 void helper_fildl_ST0_A0(void)
 {
-    ST0 = (CPU86_LDouble)((int32_t)ldl((void *)A0));
+    int new_fpstt;
+    new_fpstt = (env->fpstt - 1) & 7;
+    env->fpregs[new_fpstt] = (CPU86_LDouble)((int32_t)ldl((void *)A0));
+    env->fpstt = new_fpstt;
+    env->fptags[new_fpstt] = 0; /* validate stack entry */
 }
 
 void helper_fildll_ST0_A0(void)
 {
-    ST0 = (CPU86_LDouble)((int64_t)ldq((void *)A0));
+    int new_fpstt;
+    new_fpstt = (env->fpstt - 1) & 7;
+    env->fpregs[new_fpstt] = (CPU86_LDouble)((int64_t)ldq((void *)A0));
+    env->fpstt = new_fpstt;
+    env->fptags[new_fpstt] = 0; /* validate stack entry */
 }
 
 void OPPROTO op_fild_ST0_A0(void)
@@ -1473,32 +1497,44 @@ void OPPROTO op_fildll_ST0_A0(void)
 
 void OPPROTO op_fild_ST0_A0(void)
 {
+    int new_fpstt;
+    new_fpstt = (env->fpstt - 1) & 7;
 #ifdef USE_FP_CONVERT
     FP_CONVERT.i32 = ldsw((void *)A0);
-    ST0 = (CPU86_LDouble)FP_CONVERT.i32;
+    env->fpregs[new_fpstt] = (CPU86_LDouble)FP_CONVERT.i32;
 #else
-    ST0 = (CPU86_LDouble)ldsw((void *)A0);
+    env->fpregs[new_fpstt] = (CPU86_LDouble)ldsw((void *)A0);
 #endif
+    env->fpstt = new_fpstt;
+    env->fptags[new_fpstt] = 0; /* validate stack entry */
 }
 
 void OPPROTO op_fildl_ST0_A0(void)
 {
+    int new_fpstt;
+    new_fpstt = (env->fpstt - 1) & 7;
 #ifdef USE_FP_CONVERT
     FP_CONVERT.i32 = (int32_t) ldl((void *)A0);
-    ST0 = (CPU86_LDouble)FP_CONVERT.i32;
+    env->fpregs[new_fpstt] = (CPU86_LDouble)FP_CONVERT.i32;
 #else
-    ST0 = (CPU86_LDouble)((int32_t)ldl((void *)A0));
+    env->fpregs[new_fpstt] = (CPU86_LDouble)((int32_t)ldl((void *)A0));
 #endif
+    env->fpstt = new_fpstt;
+    env->fptags[new_fpstt] = 0; /* validate stack entry */
 }
 
 void OPPROTO op_fildll_ST0_A0(void)
 {
+    int new_fpstt;
+    new_fpstt = (env->fpstt - 1) & 7;
 #ifdef USE_FP_CONVERT
     FP_CONVERT.i64 = (int64_t) ldq((void *)A0);
-    ST0 = (CPU86_LDouble)FP_CONVERT.i64;
+    env->fpregs[new_fpstt] = (CPU86_LDouble)FP_CONVERT.i64;
 #else
-    ST0 = (CPU86_LDouble)((int64_t)ldq((void *)A0));
+    env->fpregs[new_fpstt] = (CPU86_LDouble)((int64_t)ldq((void *)A0));
 #endif
+    env->fpstt = new_fpstt;
+    env->fptags[new_fpstt] = 0; /* validate stack entry */
 }
 
 #endif
