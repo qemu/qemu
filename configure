@@ -301,8 +301,18 @@ if test "$sdl" = "yes" ; then
   echo "CONFIG_SDL=yes" >> $config_mak
   echo "#define CONFIG_SDL 1" >> $config_h
   echo "SDL_LIBS=`sdl-config --libs`" >> $config_mak
-  echo "SDL_STATIC_LIBS=`sdl-config --static-libs`" >> $config_mak
-  echo "SDL_CFLAGS=`sdl-config --cflags`" >> $config_mak
+  aa="no"
+  `sdl-config --static-libs | grep \\\-laa > /dev/null` && aa="yes"
+  echo -n "SDL_STATIC_LIBS=`sdl-config --static-libs`" >> $config_mak
+  if [ "${aa}" = "yes" ] ; then
+      echo -n " `aalib-config --libs`" >> $config_mak ;
+  fi
+  echo "" >> $config_mak
+  echo -n "SDL_CFLAGS=`sdl-config --cflags`" >> $config_mak
+  if [ "${aa}" = "yes" ] ; then
+      echo -n " `aalib-config --cflags`" >> $config_mak ;
+  fi
+  echo "" >> $config_mak
 fi
 echo -n "VERSION=" >>$config_mak
 head $source_path/VERSION >>$config_mak
