@@ -303,16 +303,29 @@ TranslationBlock *tb_find_pc(unsigned long pc_ptr);
 #define offsetof(type, field) ((size_t) &((type *)0)->field)
 #endif
 
+#if defined(_WIN32)
+#define ASM_DATA_SECTION ".section \".data\"\n"
+#define ASM_PREVIOUS_SECTION ".section .text\n"
+#elif defined(__APPLE__)
+#define ASM_DATA_SECTION ".data\n"
+#define ASM_PREVIOUS_SECTION ".text\n"
+#define ASM_NAME(x) "_" #x
+#else
+#define ASM_DATA_SECTION ".section \".data\"\n"
+#define ASM_PREVIOUS_SECTION ".previous\n"
+#define ASM_NAME(x) stringify(x)
+#endif
+
 #if defined(__powerpc__)
 
 /* we patch the jump instruction directly */
 #define JUMP_TB(opname, tbparam, n, eip)\
 do {\
-    asm volatile (".section \".data\"\n"\
-		  "__op_label" #n "." stringify(opname) ":\n"\
+    asm volatile (ASM_DATA_SECTION\
+		  ASM_NAME(__op_label) #n "." ASM_NAME(opname) ":\n"\
 		  ".long 1f\n"\
-		  ".previous\n"\
-                  "b __op_jmp" #n "\n"\
+		  ASM_PREVIOUS_SECTION \
+                  "b " ASM_NAME(__op_jmp) #n "\n"\
 		  "1:\n");\
     T0 = (long)(tbparam) + (n);\
     EIP = eip;\
@@ -321,25 +334,19 @@ do {\
 
 #define JUMP_TB2(opname, tbparam, n)\
 do {\
-    asm volatile ("b __op_jmp" #n "\n");\
+    asm volatile ("b " ASM_NAME(__op_jmp) #n "\n");\
 } while (0)
 
 #elif defined(__i386__) && defined(USE_DIRECT_JUMP)
-
-#ifdef _WIN32
-#define ASM_PREVIOUS_SECTION ".section .text\n"
-#else
-#define ASM_PREVIOUS_SECTION ".previous\n"
-#endif
 
 /* we patch the jump instruction directly */
 #define JUMP_TB(opname, tbparam, n, eip)\
 do {\
     asm volatile (".section .data\n"\
-		  "__op_label" #n "." stringify(opname) ":\n"\
+		  ASM_NAME(__op_label) #n "." ASM_NAME(opname) ":\n"\
 		  ".long 1f\n"\
 		  ASM_PREVIOUS_SECTION \
-                  "jmp __op_jmp" #n "\n"\
+                  "jmp " ASM_NAME(__op_jmp) #n "\n"\
 		  "1:\n");\
     T0 = (long)(tbparam) + (n);\
     EIP = eip;\
@@ -348,7 +355,7 @@ do {\
 
 #define JUMP_TB2(opname, tbparam, n)\
 do {\
-    asm volatile ("jmp __op_jmp" #n "\n");\
+    asm volatile ("jmp " ASM_NAME(__op_jmp) #n "\n");\
 } while (0)
 
 #else
