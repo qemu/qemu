@@ -292,7 +292,6 @@ void handle_vm86_fault(CPUX86State *env)
     /* VM86 mode */
     switch(opcode) {
     case 0x9c: /* pushf */
-        ADD16(env->eip, 2);
         if (data32) {
             vm_putl(ssp, sp - 4, get_vflags(env));
             ADD16(env->regs[R_ESP], -4);
