@@ -34,8 +34,10 @@
               x  simple graphical prompt to demo
               -  better graphical prompt
 */
-#include "vl.h"
+
 #import <Cocoa/Cocoa.h>
+
+#include "vl.h"
 
 NSWindow *window = NULL;
 NSQuickDrawView *qd_view = NULL;

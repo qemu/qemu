@@ -572,6 +572,9 @@ void isa_cirrus_vga_init(DisplayState *ds, uint8_t *vga_ram_base,
 /* sdl.c */
 void sdl_display_init(DisplayState *ds, int full_screen);
 
+/* cocoa.m */
+void cocoa_display_init(DisplayState *ds, int full_screen);
+
 /* ide.c */
 #define MAX_DISKS 4
 
