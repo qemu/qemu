@@ -27,6 +27,7 @@
 /* vl.c */
 struct CPUX86State;
 extern int reset_requested;
+extern int64_t ticks_per_sec;
 
 typedef void (IOPortWriteFunc)(struct CPUX86State *env, uint32_t address, uint32_t data);
 typedef uint32_t (IOPortReadFunc)(struct CPUX86State *env, uint32_t address);
@@ -35,6 +36,7 @@ void *get_mmap_addr(unsigned long size);
 int register_ioport_read(int start, int length, IOPortReadFunc *func, int size);
 int register_ioport_write(int start, int length, IOPortWriteFunc *func, int size);
 void pic_set_irq(int irq, int level);
+int64_t cpu_get_ticks(void);
 
 void kbd_put_keycode(int keycode);
 
@@ -107,4 +109,39 @@ void ide_init(void);
 void ide_set_geometry(int n, int cyls, int heads, int secs);
 void ide_set_cdrom(int n, int is_cdrom);
 
+/* oss.c */
+typedef enum {
+  AUD_FMT_U8,
+  AUD_FMT_S8,
+  AUD_FMT_U16,
+  AUD_FMT_S16
+} audfmt_e;
+
+void AUD_open (int rfreq, int rnchannels, audfmt_e rfmt);
+void AUD_reset (int rfreq, int rnchannels, audfmt_e rfmt);
+int AUD_write (void *in_buf, int size);
+void AUD_run (void);
+void AUD_adjust_estimate (int _leftover);
+int AUD_get_free (void);
+int AUD_get_live (void);
+int AUD_get_buffer_size (void);
+void AUD_init (void);
+
+/* dma.c */
+typedef int (*DMA_read_handler) (uint32_t addr, int size, int *irq);
+typedef int (*DMA_misc_handler) (int);
+
+int DMA_get_channel_mode (int nchan);
+void DMA_hold_DREQ (int nchan);
+void DMA_release_DREQ (int nchan);
+void DMA_run (void);
+void DMA_init (void);
+void DMA_register_channel (int nchan,
+                           DMA_read_handler read_handler,
+                           DMA_misc_handler misc_handler);
+
+/* sb16.c */
+void SB16_run (void);
+void SB16_init (void);
+ 
 #endif /* VL_H */

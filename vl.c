@@ -2095,6 +2095,9 @@ void kbd_write_command(CPUX86State *env, uint32_t addr, uint32_t val)
         reset_requested = 1;
         cpu_x86_interrupt(global_env, CPU_INTERRUPT_EXIT);
         break;
+    case 0xff:
+        /* ignore that - I don't know what is its use */
+        break;
     default:
         fprintf(stderr, "qemu: unsupported keyboard cmd=0x%02x\n", val);
         break;
@@ -2598,6 +2601,10 @@ static void host_alarm_handler(int host_signum, siginfo_t *info,
         gui_refresh_pending = 1;
     }
 
+    /* XXX: seems dangerous to run that here. */
+    DMA_run();
+    SB16_run();
+
     if (gui_refresh_pending || timer_irq_pending) {
         /* just exit from the cpu to have a chance to handle timers */
         cpu_x86_interrupt(global_env, CPU_INTERRUPT_EXIT);
@@ -2746,7 +2753,7 @@ void help(void)
            "-hda/-hdb file  use 'file' as IDE hard disk 0/1 image\n"
            "-hdc/-hdd file  use 'file' as IDE hard disk 2/3 image\n"
            "-cdrom file     use 'file' as IDE cdrom 2 image\n"
-           "-boot [c|d]     boot on hard disk or CD-ROM\n"
+           "-boot [c|d]     boot on hard disk (c) or CD-ROM (d)\n"
 	   "-snapshot       write to temporary files instead of disk image files\n"
            "-m megs         set virtual RAM size to megs MB\n"
            "-n script       set network init script [default=%s]\n"
@@ -3148,6 +3155,9 @@ int main(int argc, char **argv)
     ne2000_init();
     ide_init();
     kbd_init();
+    AUD_init();
+    DMA_init();
+    SB16_init();
     
     /* setup cpu signal handlers for MMU / self modifying code handling */
     sigfillset(&act.sa_mask);
