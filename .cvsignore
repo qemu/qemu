@@ -7,9 +7,8 @@ i386-user
 ppc-softmmu
 ppc-user
 qemu-doc.html
-qemu-mkcow
 qemu-tech.html
 qemu.1
 qemu.pod
 sparc-user
-vmdk2raw
+qemu-img
