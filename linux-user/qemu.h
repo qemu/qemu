@@ -3,6 +3,12 @@
 
 #include "thunk.h"
 
+#ifdef TARGET_I386
+
+/* default linux values for the selectors */
+#define __USER_CS	(0x23)
+#define __USER_DS	(0x2B)
+
 struct target_pt_regs {
 	long ebx;
 	long ecx;
@@ -20,6 +26,8 @@ struct target_pt_regs {
 	long esp;
 	int  xss;
 };
+
+#endif
 
 /* This struct is used to hold certain information about the image.
  * Basically, it replicates in user space what would be certain
@@ -53,5 +61,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 void gemu_log(const char *fmt, ...) __attribute__((format(printf,1,2)));
 struct CPUX86State;
 void cpu_loop(struct CPUX86State *env);
+void process_pending_signals(void *cpu_env);
+void signal_init(void);
 
 #endif

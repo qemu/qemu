@@ -29,6 +29,11 @@ struct target_timespec {
     target_long tv_nsec;
 };
 
+struct target_itimerval {
+    struct target_timeval it_interval;
+    struct target_timeval it_value;
+};
+
 struct target_iovec {
     target_long iov_base;   /* Starting address */
     target_long iov_len;   /* Number of bytes */
@@ -112,6 +117,38 @@ struct target_dirent64 {
 typedef struct {
     target_ulong sig[TARGET_NSIG_WORDS];
 } target_sigset_t;
+
+#ifdef BSWAP_NEEDED
+static inline void tswap_sigset(target_sigset_t *d, const target_sigset_t *s)
+{
+    int i;
+    for(i = 0;i < TARGET_NSIG_WORDS; i++)
+        d->sig[i] = tswapl(s->sig[i]);
+}
+#else
+static inline void tswap_sigset(target_sigset_t *d, const target_sigset_t *s)
+{
+    *d = *s;
+}
+#endif
+
+static inline void target_siginitset(target_sigset_t *d, target_ulong set)
+{
+    int i;
+    d->sig[0] = set;
+    for(i = 1;i < TARGET_NSIG_WORDS; i++)
+        d->sig[i] = 0;
+}
+
+void host_to_target_sigset(target_sigset_t *d, sigset_t *s);
+void target_to_host_sigset(sigset_t *d, target_sigset_t *s);
+void host_to_target_old_sigset(target_ulong *old_sigset, 
+                               const sigset_t *sigset);
+void target_to_host_old_sigset(sigset_t *sigset, 
+                               const target_ulong *old_sigset);
+struct target_sigaction;
+int do_sigaction(int sig, const struct target_sigaction *act,
+                 struct target_sigaction *oact);
 
 /* Networking ioctls */
 #define TARGET_SIOCADDRT       0x890B          /* add routing table entry */

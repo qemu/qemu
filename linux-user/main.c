@@ -81,10 +81,6 @@ int cpu_x86_inl(int addr)
     return 0;
 }
 
-/* default linux values for the selectors */
-#define __USER_CS	(0x23)
-#define __USER_DS	(0x2B)
-
 void write_dt(void *ptr, unsigned long addr, unsigned long limit, 
               int seg32_bit)
 {
@@ -135,6 +131,7 @@ void cpu_loop(struct CPUX86State *env)
                     (long)pc, err);
             abort();
         }
+        process_pending_signals(env);
     }
 }
 
@@ -199,6 +196,7 @@ int main(int argc, char **argv)
 
     target_set_brk((char *)info->brk);
     syscall_init();
+    signal_init();
 
     env = cpu_x86_init();
 

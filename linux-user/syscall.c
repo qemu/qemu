@@ -75,12 +75,18 @@
 #include "syscall-i386.h"
 #endif
 
+void host_to_target_siginfo(target_siginfo_t *tinfo, siginfo_t *info);
+void target_to_host_siginfo(siginfo_t *info, target_siginfo_t *tinfo);
+long do_sigreturn(CPUX86State *env);
+long do_rt_sigreturn(CPUX86State *env);
+
 #define __NR_sys_uname __NR_uname
 #define __NR_sys_getcwd1 __NR_getcwd
 #define __NR_sys_statfs __NR_statfs
 #define __NR_sys_fstatfs __NR_fstatfs
 #define __NR_sys_getdents __NR_getdents
 #define __NR_sys_getdents64 __NR_getdents64
+#define __NR_sys_rt_sigqueueinfo __NR_rt_sigqueueinfo
 
 #ifdef __NR_gettid
 _syscall0(int, gettid)
@@ -97,6 +103,9 @@ _syscall5(int, _llseek,  uint,  fd, ulong, hi, ulong, lo,
           loff_t *, res, uint, wh);
 _syscall2(int,sys_statfs,const char *,path,struct kernel_statfs *,buf)
 _syscall2(int,sys_fstatfs,int,fd,struct kernel_statfs *,buf)
+_syscall3(int,sys_rt_sigqueueinfo,int,pid,int,sig,siginfo_t *,uinfo)
+
+extern int personality(int);
 
 static inline long get_errno(long ret)
 {
@@ -199,18 +208,18 @@ static inline void host_to_target_fds(target_long *target_fds,
 #endif
 }
 
-/* XXX: incorrect for some archs */
-static void host_to_target_old_sigset(target_ulong *old_sigset, 
-                                      const sigset_t *sigset)
+static inline void target_to_host_timeval(struct timeval *tv, 
+                                          struct target_timeval *target_tv)
 {
-    *old_sigset = tswap32(*(unsigned long *)sigset & 0xffffffff);
+    tv->tv_sec = tswapl(target_tv->tv_sec);
+    tv->tv_usec = tswapl(target_tv->tv_usec);
 }
 
-static void target_to_host_old_sigset(sigset_t *sigset, 
-                                      const target_ulong *old_sigset)
+static inline void host_to_target_timeval(struct target_timeval *target_tv, 
+                                          struct timeval *tv)
 {
-    sigemptyset(sigset);
-    *(unsigned long *)sigset = tswapl(*old_sigset);
+    target_tv->tv_sec = tswapl(tv->tv_sec);
+    target_tv->tv_usec = tswapl(tv->tv_usec);
 }
 
 
@@ -1042,28 +1051,195 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         ret = get_errno(setsid());
         break;
     case TARGET_NR_sigaction:
-#if 1
         {
-            ret = 0;
+            struct target_old_sigaction *old_act = (void *)arg2;
+            struct target_old_sigaction *old_oact = (void *)arg3;
+            struct target_sigaction act, oact, *pact;
+            if (old_act) {
+                act._sa_handler = old_act->_sa_handler;
+                target_siginitset(&act.sa_mask, old_act->sa_mask);
+                act.sa_flags = old_act->sa_flags;
+                act.sa_restorer = old_act->sa_restorer;
+                pact = &act;
+            } else {
+                pact = NULL;
+            }
+            ret = get_errno(do_sigaction(arg1, pact, &oact));
+            if (!is_error(ret) && old_oact) {
+                old_oact->_sa_handler = oact._sa_handler;
+                old_oact->sa_mask = oact.sa_mask.sig[0];
+                old_oact->sa_flags = oact.sa_flags;
+                old_oact->sa_restorer = oact.sa_restorer;
+            }
         }
         break;
-#else
-        goto unimplemented;
-#endif
+    case TARGET_NR_rt_sigaction:
+        ret = get_errno(do_sigaction(arg1, (void *)arg2, (void *)arg3));
+        break;
     case TARGET_NR_sgetmask:
-        goto unimplemented;
+        {
+            sigset_t cur_set;
+            target_ulong target_set;
+            sigprocmask(0, NULL, &cur_set);
+            host_to_target_old_sigset(&target_set, &cur_set);
+            ret = target_set;
+        }
+        break;
     case TARGET_NR_ssetmask:
-        goto unimplemented;
+        {
+            sigset_t set, oset, cur_set;
+            target_ulong target_set = arg1;
+            sigprocmask(0, NULL, &cur_set);
+            target_to_host_old_sigset(&set, &target_set);
+            sigorset(&set, &set, &cur_set);
+            sigprocmask(SIG_SETMASK, &set, &oset);
+            host_to_target_old_sigset(&target_set, &oset);
+            ret = target_set;
+        }
+        break;
+    case TARGET_NR_sigprocmask:
+        {
+            int how = arg1;
+            sigset_t set, oldset, *set_ptr;
+            target_ulong *pset = (void *)arg2, *poldset = (void *)arg3;
+            
+            if (pset) {
+                switch(how) {
+                case TARGET_SIG_BLOCK:
+                    how = SIG_BLOCK;
+                    break;
+                case TARGET_SIG_UNBLOCK:
+                    how = SIG_UNBLOCK;
+                    break;
+                case TARGET_SIG_SETMASK:
+                    how = SIG_SETMASK;
+                    break;
+                default:
+                    ret = -EINVAL;
+                    goto fail;
+                }
+                target_to_host_old_sigset(&set, pset);
+                set_ptr = &set;
+            } else {
+                how = 0;
+                set_ptr = NULL;
+            }
+            ret = get_errno(sigprocmask(arg1, set_ptr, &oldset));
+            if (!is_error(ret) && poldset) {
+                host_to_target_old_sigset(poldset, &oldset);
+            }
+        }
+        break;
+    case TARGET_NR_rt_sigprocmask:
+        {
+            int how = arg1;
+            sigset_t set, oldset, *set_ptr;
+            target_sigset_t *pset = (void *)arg2;
+            target_sigset_t *poldset = (void *)arg3;
+            
+            if (pset) {
+                switch(how) {
+                case TARGET_SIG_BLOCK:
+                    how = SIG_BLOCK;
+                    break;
+                case TARGET_SIG_UNBLOCK:
+                    how = SIG_UNBLOCK;
+                    break;
+                case TARGET_SIG_SETMASK:
+                    how = SIG_SETMASK;
+                    break;
+                default:
+                    ret = -EINVAL;
+                    goto fail;
+                }
+                target_to_host_sigset(&set, pset);
+                set_ptr = &set;
+            } else {
+                how = 0;
+                set_ptr = NULL;
+            }
+            ret = get_errno(sigprocmask(how, set_ptr, &oldset));
+            if (!is_error(ret) && poldset) {
+                host_to_target_sigset(poldset, &oldset);
+            }
+        }
+        break;
+    case TARGET_NR_sigpending:
+        {
+            sigset_t set;
+            ret = get_errno(sigpending(&set));
+            if (!is_error(ret)) {
+                host_to_target_old_sigset((target_ulong *)arg1, &set);
+            }
+        }
+        break;
+    case TARGET_NR_rt_sigpending:
+        {
+            sigset_t set;
+            ret = get_errno(sigpending(&set));
+            if (!is_error(ret)) {
+                host_to_target_sigset((target_sigset_t *)arg1, &set);
+            }
+        }
+        break;
+    case TARGET_NR_sigsuspend:
+        {
+            sigset_t set;
+            target_to_host_old_sigset(&set, (target_ulong *)arg1);
+            ret = get_errno(sigsuspend(&set));
+        }
+        break;
+    case TARGET_NR_rt_sigsuspend:
+        {
+            sigset_t set;
+            target_to_host_sigset(&set, (target_sigset_t *)arg1);
+            ret = get_errno(sigsuspend(&set));
+        }
+        break;
+    case TARGET_NR_rt_sigtimedwait:
+        {
+            target_sigset_t *target_set = (void *)arg1;
+            target_siginfo_t *target_uinfo = (void *)arg2;
+            struct target_timespec *target_uts = (void *)arg3;
+            sigset_t set;
+            struct timespec uts, *puts;
+            siginfo_t uinfo;
+            
+            target_to_host_sigset(&set, target_set);
+            if (target_uts) {
+                puts = &uts;
+                puts->tv_sec = tswapl(target_uts->tv_sec);
+                puts->tv_nsec = tswapl(target_uts->tv_nsec);
+            } else {
+                puts = NULL;
+            }
+            ret = get_errno(sigtimedwait(&set, &uinfo, puts));
+            if (!is_error(ret) && target_uinfo) {
+                host_to_target_siginfo(target_uinfo, &uinfo);
+            }
+        }
+        break;
+    case TARGET_NR_rt_sigqueueinfo:
+        {
+            siginfo_t uinfo;
+            target_to_host_siginfo(&uinfo, (target_siginfo_t *)arg3);
+            ret = get_errno(sys_rt_sigqueueinfo(arg1, arg2, &uinfo));
+        }
+        break;
+    case TARGET_NR_sigreturn:
+        /* NOTE: ret is eax, so not transcoding must be done */
+        ret = do_sigreturn(cpu_env);
+        break;
+    case TARGET_NR_rt_sigreturn:
+        /* NOTE: ret is eax, so not transcoding must be done */
+        ret = do_rt_sigreturn(cpu_env);
+        break;
     case TARGET_NR_setreuid:
         ret = get_errno(setreuid(arg1, arg2));
         break;
     case TARGET_NR_setregid:
         ret = get_errno(setregid(arg1, arg2));
         break;
-    case TARGET_NR_sigsuspend:
-        goto unimplemented;
-    case TARGET_NR_sigpending:
-        goto unimplemented;
     case TARGET_NR_sethostname:
         ret = get_errno(sethostname((const char *)arg1, arg2));
         break;
@@ -1190,9 +1366,43 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_syslog:
         goto unimplemented;
     case TARGET_NR_setitimer:
-        goto unimplemented;
+        {
+            struct target_itimerval *target_value = (void *)arg2;
+            struct target_itimerval *target_ovalue = (void *)arg3;
+            struct itimerval value, ovalue, *pvalue;
+
+            if (target_value) {
+                pvalue = &value;
+                target_to_host_timeval(&pvalue->it_interval, 
+                                       &target_value->it_interval);
+                target_to_host_timeval(&pvalue->it_value, 
+                                       &target_value->it_value);
+            } else {
+                pvalue = NULL;
+            }
+            ret = get_errno(setitimer(arg1, pvalue, &ovalue));
+            if (!is_error(ret) && target_ovalue) {
+                host_to_target_timeval(&target_ovalue->it_interval, 
+                                       &ovalue.it_interval);
+                host_to_target_timeval(&target_ovalue->it_value, 
+                                       &ovalue.it_value);
+            }
+        }
+        break;
     case TARGET_NR_getitimer:
-        goto unimplemented;
+        {
+            struct target_itimerval *target_value = (void *)arg2;
+            struct itimerval value;
+            
+            ret = get_errno(getitimer(arg1, &value));
+            if (!is_error(ret) && target_value) {
+                host_to_target_timeval(&target_value->it_interval, 
+                                       &value.it_interval);
+                host_to_target_timeval(&target_value->it_value, 
+                                       &value.it_value);
+            }
+        }
+        break;
     case TARGET_NR_stat:
         ret = get_errno(stat((const char *)arg1, &st));
         goto do_stat;
@@ -1279,8 +1489,6 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_fsync:
         ret = get_errno(fsync(arg1));
         break;
-    case TARGET_NR_sigreturn:
-        goto unimplemented;
     case TARGET_NR_clone:
         ret = get_errno(do_fork(cpu_env, arg1, arg2));
         break;
@@ -1300,39 +1508,6 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         goto unimplemented;
     case TARGET_NR_mprotect:
         ret = get_errno(mprotect((void *)arg1, arg2, arg3));
-        break;
-    case TARGET_NR_sigprocmask:
-        {
-            int how = arg1;
-            sigset_t set, oldset, *set_ptr;
-            target_ulong *pset = (void *)arg2, *poldset = (void *)arg3;
-            
-            switch(how) {
-            case TARGET_SIG_BLOCK:
-                how = SIG_BLOCK;
-                break;
-            case TARGET_SIG_UNBLOCK:
-                how = SIG_UNBLOCK;
-                break;
-            case TARGET_SIG_SETMASK:
-                how = SIG_SETMASK;
-                break;
-            default:
-                ret = -EINVAL;
-                goto fail;
-            }
-            
-            if (pset) {
-                target_to_host_old_sigset(&set, pset);
-                set_ptr = &set;
-            } else {
-                set_ptr = NULL;
-            }
-            ret = get_errno(sigprocmask(arg1, set_ptr, &oldset));
-            if (!is_error(ret) && poldset) {
-                host_to_target_old_sigset(poldset, &oldset);
-            }
-        }
         break;
     case TARGET_NR_create_module:
     case TARGET_NR_init_module:
@@ -1516,13 +1691,6 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_setresgid:
     case TARGET_NR_getresgid:
     case TARGET_NR_prctl:
-    case TARGET_NR_rt_sigreturn:
-    case TARGET_NR_rt_sigaction:
-    case TARGET_NR_rt_sigprocmask:
-    case TARGET_NR_rt_sigpending:
-    case TARGET_NR_rt_sigtimedwait:
-    case TARGET_NR_rt_sigqueueinfo:
-    case TARGET_NR_rt_sigsuspend:
     case TARGET_NR_pread:
     case TARGET_NR_pwrite:
         goto unimplemented;

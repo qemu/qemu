@@ -36,7 +36,7 @@ LDFLAGS+=-p
 main.o: CFLAGS+=-p
 endif
 
-OBJS= elfload.o main.o thunk.o syscall.o libgemu.a
+OBJS= elfload.o main.o thunk.o syscall.o signal.o libgemu.a
 
 LIBOBJS+=translate-i386.o op-i386.o exec-i386.o
 # NOTE: the disassembler code is only needed for debugging

@@ -1,5 +1,7 @@
+- asynchronous signal interrupt / clear synchronous signal handling
+- add eflags restore in emulator
+- finish signal handing (fp87 state)
 - verify thread support (clone() and various locks)
-- signals
 - optimize translated cache chaining (DLL PLT-like system)
 - vm86 syscall support
 - overrides/16bit for string ops
