@@ -114,7 +114,7 @@ enum {
 };
 
 #ifdef __i386__
-//#define USE_X86LDOUBLE
+#define USE_X86LDOUBLE
 #endif
 
 #ifdef USE_X86LDOUBLE

@@ -628,6 +628,236 @@ void op_addl_ESP_im(void)
     ESP += PARAM1;
 }
 
+void op_pushal(void)
+{
+    uint8_t *sp;
+    sp = (void *)(ESP - 32);
+    stl(sp, EDI);
+    stl(sp + 4, ESI);
+    stl(sp + 8, EBP);
+    stl(sp + 12, ESP);
+    stl(sp + 16, EBX);
+    stl(sp + 20, EDX);
+    stl(sp + 24, ECX);
+    stl(sp + 28, EAX);
+    ESP = (unsigned long)sp;
+}
+
+void op_pushaw(void)
+{
+    uint8_t *sp;
+    sp = (void *)(ESP - 16);
+    stw(sp, EDI);
+    stw(sp + 2, ESI);
+    stw(sp + 4, EBP);
+    stw(sp + 6, ESP);
+    stw(sp + 8, EBX);
+    stw(sp + 10, EDX);
+    stw(sp + 12, ECX);
+    stw(sp + 14, EAX);
+    ESP = (unsigned long)sp;
+}
+
+void op_popal(void)
+{
+    uint8_t *sp;
+    sp = (void *)ESP;
+    EDI = ldl(sp);
+    ESI = ldl(sp + 4);
+    EBP = ldl(sp + 8);
+    EBX = ldl(sp + 16);
+    EDX = ldl(sp + 20);
+    ECX = ldl(sp + 24);
+    EAX = ldl(sp + 28);
+    ESP = (unsigned long)sp + 32;
+}
+
+void op_popaw(void)
+{
+    uint8_t *sp;
+    sp = (void *)ESP;
+    EDI = ldl(sp);
+    ESI = ldl(sp + 2);
+    EBP = ldl(sp + 4);
+    EBX = ldl(sp + 8);
+    EDX = ldl(sp + 10);
+    ECX = ldl(sp + 12);
+    EAX = ldl(sp + 14);
+    ESP = (unsigned long)sp + 16;
+}
+
+void op_enterl(void)
+{
+    unsigned int bp, frame_temp, level;
+    uint8_t *sp;
+
+    sp = (void *)ESP;
+    bp = EBP;
+    sp -= 4;
+    stl(sp, bp);
+    frame_temp = (unsigned int)sp;
+    level = PARAM2;
+    if (level) {
+        while (level--) {
+            bp -= 4; 
+            sp -= 4;
+            stl(sp, bp);
+        }
+        sp -= 4;
+        stl(sp, frame_temp);
+    }
+    EBP = frame_temp;
+    sp -= PARAM1;
+    ESP = (int)sp;
+}
+
+/* rdtsc */
+#ifndef __i386__
+uint64_t emu_time;
+#endif
+void op_rdtsc(void)
+{
+    uint64_t val;
+#ifdef __i386__
+    asm("rdtsc" : "=A" (val));
+#else
+    /* better than nothing: the time increases */
+    val = emu_time++;
+#endif
+    EAX = val;
+    EDX = val >> 32;
+}
+
+/* bcd */
+
+/* XXX: exception */
+void OPPROTO op_aam(void)
+{
+    int base = PARAM1;
+    int al, ah;
+    al = EAX & 0xff;
+    ah = al / base;
+    al = al % base;
+    EAX = (EAX & ~0xffff) | al | (ah << 8);
+    CC_DST = al;
+}
+
+void OPPROTO op_aad(void)
+{
+    int base = PARAM1;
+    int al, ah;
+    al = EAX & 0xff;
+    ah = (EAX >> 8) & 0xff;
+    al = ((ah * base) + al) & 0xff;
+    EAX = (EAX & ~0xffff) | al;
+    CC_DST = al;
+}
+
+void OPPROTO op_aaa(void)
+{
+    int icarry;
+    int al, ah, af;
+    int eflags;
+
+    eflags = cc_table[CC_OP].compute_all();
+    af = eflags & CC_A;
+    al = EAX & 0xff;
+    ah = (EAX >> 8) & 0xff;
+
+    icarry = (al > 0xf9);
+    if (((al & 0x0f) > 9 ) || af) {
+        al = (al + 6) & 0x0f;
+        ah = (ah + 1 + icarry) & 0xff;
+        eflags |= CC_C | CC_A;
+    } else {
+        eflags &= ~(CC_C | CC_A);
+        al &= 0x0f;
+    }
+    EAX = (EAX & ~0xffff) | al | (ah << 8);
+    CC_SRC = eflags;
+}
+
+void OPPROTO op_aas(void)
+{
+    int icarry;
+    int al, ah, af;
+    int eflags;
+
+    eflags = cc_table[CC_OP].compute_all();
+    af = eflags & CC_A;
+    al = EAX & 0xff;
+    ah = (EAX >> 8) & 0xff;
+
+    icarry = (al < 6);
+    if (((al & 0x0f) > 9 ) || af) {
+        al = (al - 6) & 0x0f;
+        ah = (ah - 1 - icarry) & 0xff;
+        eflags |= CC_C | CC_A;
+    } else {
+        eflags &= ~(CC_C | CC_A);
+        al &= 0x0f;
+    }
+    EAX = (EAX & ~0xffff) | al | (ah << 8);
+    CC_SRC = eflags;
+}
+
+void OPPROTO op_daa(void)
+{
+    int al, af, cf;
+    int eflags;
+
+    eflags = cc_table[CC_OP].compute_all();
+    cf = eflags & CC_C;
+    af = eflags & CC_A;
+    al = EAX & 0xff;
+
+    eflags = 0;
+    if (((al & 0x0f) > 9 ) || af) {
+        al = (al + 6) & 0xff;
+        eflags |= CC_A;
+    }
+    if ((al > 0x9f) || cf) {
+        al = (al + 0x60) & 0xff;
+        eflags |= CC_C;
+    }
+    EAX = (EAX & ~0xff) | al;
+    /* well, speed is not an issue here, so we compute the flags by hand */
+    eflags |= (al == 0) << 6; /* zf */
+    eflags |= parity_table[al]; /* pf */
+    eflags |= (al & 0x80); /* sf */
+    CC_SRC = eflags;
+}
+
+void OPPROTO op_das(void)
+{
+    int al, al1, af, cf;
+    int eflags;
+
+    eflags = cc_table[CC_OP].compute_all();
+    cf = eflags & CC_C;
+    af = eflags & CC_A;
+    al = EAX & 0xff;
+
+    eflags = 0;
+    al1 = al;
+    if (((al & 0x0f) > 9 ) || af) {
+        eflags |= CC_A;
+        if (al < 6 || cf)
+            eflags |= CC_C;
+        al = (al - 6) & 0xff;
+    }
+    if ((al1 > 0x99) || cf) {
+        al = (al - 0x60) & 0xff;
+        eflags |= CC_C;
+    }
+    EAX = (EAX & ~0xff) | al;
+    /* well, speed is not an issue here, so we compute the flags by hand */
+    eflags |= (al == 0) << 6; /* zf */
+    eflags |= parity_table[al]; /* pf */
+    eflags |= (al & 0x80); /* sf */
+    CC_SRC = eflags;
+}
+
 /* flags handling */
 
 /* slow jumps cases (compute x86 flags) */
@@ -834,6 +1064,13 @@ void OPPROTO op_cmc(void)
     eflags = cc_table[CC_OP].compute_all();
     eflags ^= CC_C;
     CC_SRC = eflags;
+}
+
+void OPPROTO op_salc(void)
+{
+    int cf;
+    cf = cc_table[CC_OP].compute_c();
+    EAX = (EAX & ~0xff) | ((-cf) & 0xff);
 }
 
 static int compute_all_eflags(void)

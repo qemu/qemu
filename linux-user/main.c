@@ -87,7 +87,7 @@ int cpu_x86_inl(int addr)
 
 void usage(void)
 {
-    printf("gemu version" GEMU_VERSION ", Copyright (c) 2003 Fabrice Bellard\n"
+    printf("gemu version " GEMU_VERSION ", Copyright (c) 2003 Fabrice Bellard\n"
            "usage: gemu [-d] program [arguments...]\n"
            "Linux x86 emulator\n"
            );

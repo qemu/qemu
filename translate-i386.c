@@ -1511,6 +1511,18 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
         gen_op_popl_T0();
         gen_op_mov_reg_T0[OT_LONG][b & 7]();
         break;
+    case 0x60: /* pusha */
+        if (s->dflag)
+            gen_op_pushal();
+        else
+            gen_op_pushaw();
+        break;
+    case 0x61: /* popa */
+        if (s->dflag)
+            gen_op_popal();
+        else
+            gen_op_popaw();
+        break;
     case 0x68: /* push Iv */
     case 0x6a:
         ot = dflag ? OT_LONG : OT_WORD;
@@ -1526,6 +1538,16 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
         modrm = ldub(s->pc++);
         gen_op_popl_T0();
         gen_ldst_modrm(s, modrm, ot, OR_TMP0, 1);
+        break;
+    case 0xc8: /* enter */
+        {
+            int level;
+            val = lduw(s->pc);
+            s->pc += 2;
+            level = ldub(s->pc++);
+            level &= 0x1f;
+            gen_op_enterl(val, level);
+        }
         break;
     case 0xc9: /* leave */
         gen_op_mov_TN_reg[OT_LONG][0][R_EBP]();
@@ -2485,6 +2507,42 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
         s->cc_op = CC_OP_LOGICB + ot;
         break;
         /************************/
+        /* bcd */
+    case 0x27: /* daa */
+        if (s->cc_op != CC_OP_DYNAMIC)
+            gen_op_set_cc_op(s->cc_op);
+        gen_op_daa();
+        s->cc_op = CC_OP_EFLAGS;
+        break;
+    case 0x2f: /* das */
+        if (s->cc_op != CC_OP_DYNAMIC)
+            gen_op_set_cc_op(s->cc_op);
+        gen_op_das();
+        s->cc_op = CC_OP_EFLAGS;
+        break;
+    case 0x37: /* aaa */
+        if (s->cc_op != CC_OP_DYNAMIC)
+            gen_op_set_cc_op(s->cc_op);
+        gen_op_aaa();
+        s->cc_op = CC_OP_EFLAGS;
+        break;
+    case 0x3f: /* aas */
+        if (s->cc_op != CC_OP_DYNAMIC)
+            gen_op_set_cc_op(s->cc_op);
+        gen_op_aas();
+        s->cc_op = CC_OP_EFLAGS;
+        break;
+    case 0xd4: /* aam */
+        val = ldub(s->pc++);
+        gen_op_aam(val);
+        s->cc_op = CC_OP_LOGICB;
+        break;
+    case 0xd5: /* aad */
+        val = ldub(s->pc++);
+        gen_op_aad(val);
+        s->cc_op = CC_OP_LOGICB;
+        break;
+        /************************/
         /* misc */
     case 0x90: /* nop */
         break;
@@ -2505,19 +2563,26 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
         *is_jmp_ptr = 1;
         break;
     case 0x1c8 ... 0x1cf: /* bswap reg */
-      reg = b & 7;
-      gen_op_mov_TN_reg[OT_LONG][0][reg]();
-      gen_op_bswapl_T0();
-      gen_op_mov_reg_T0[OT_LONG][reg]();
-      break;
-      
+        reg = b & 7;
+        gen_op_mov_TN_reg[OT_LONG][0][reg]();
+        gen_op_bswapl_T0();
+        gen_op_mov_reg_T0[OT_LONG][reg]();
+        break;
+    case 0xd6: /* salc */
+        if (s->cc_op != CC_OP_DYNAMIC)
+            gen_op_set_cc_op(s->cc_op);
+        gen_op_salc();
+        break;
+    case 0x1a2: /* rdtsc */
+        gen_op_rdtsc();
+        break;
 #if 0
     case 0x1a2: /* cpuid */
         gen_insn0(OP_ASM);
         break;
 #endif
     default:
-        error("unknown opcode %x", b);
+        error("unknown opcode 0x%x", b);
         return -1;
     }
     return (long)s->pc;
