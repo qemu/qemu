@@ -420,7 +420,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         if (*p == ',')
             p++;
         len = strtoul(p, (char **)&p, 16);
-        if (*p == ',')
+        if (*p == ':')
             p++;
         hextomem(mem_buf, p, len);
         if (cpu_memory_rw_debug(env, addr, mem_buf, len, 1) != 0)
