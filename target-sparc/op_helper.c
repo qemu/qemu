@@ -255,6 +255,7 @@ void helper_ldfsr(void)
     case FSR_RD_NEAREST:
         rnd_mode = float_round_nearest_even;
 	break;
+    default:
     case FSR_RD_ZERO:
         rnd_mode = float_round_to_zero;
 	break;
