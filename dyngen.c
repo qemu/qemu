@@ -429,7 +429,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
         for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
             if (rel->r_offset >= offset && rel->r_offset < offset + copy_size) {
                 sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
-                if (!strstart(sym_name, "__op_param", &p)) {
+                if (*sym_name && !strstart(sym_name, "__op_param", &p)) {
 #if defined(HOST_SPARC)
 		    if (sym_name[0] == '.') {
 			fprintf(outfile,
@@ -561,15 +561,17 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                 for (i = 0, rel = relocs; i < nb_relocs; i++, rel++) {
 		    if (rel->r_offset >= offset && rel->r_offset < offset + copy_size) {
 			int type;
-			sym_name = strtab + symtab[ELF64_R_SYM(rel->r_info)].st_name;
-			
+
 			type = ELF64_R_TYPE(rel->r_info);
+			sym_name = strtab + symtab[ELF64_R_SYM(rel->r_info)].st_name;
 			switch (type) {
 			case R_ALPHA_GPDISP:
-			    /* Instructions to set up the gp can be nopped, since we keep it current
-			       all the time.  FIXME assert that target is really gp  */
-			    fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = 0x2ffe0000; /* unop */\n",
+			    /* The gp is just 32 bit, and never changes, so it's easiest to emit it
+			       as an immediate instead of constructing it from the pv or ra.  */
+			    fprintf(outfile, "    immediate_ldah(gen_code_ptr + %ld, gp);\n",
 				    rel->r_offset - offset);
+			    fprintf(outfile, "    immediate_lda(gen_code_ptr + %ld, gp);\n",
+				    rel->r_offset - offset + rel->r_addend);
 			    break;
 			case R_ALPHA_LITUSE:
 			    /* jsr to literal hint. Could be used to optimize to bsr. Ignore for
@@ -580,10 +582,27 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 			       correct for in-function jumps.  */
 			    break;
 			case R_ALPHA_LITERAL:
-			    /* Load a literal from the GOT relative to the gp.  Need to patch the
-			       16-bit immediate offset.  */
-			    fprintf(outfile, "    *(int16_t *)(gen_code_ptr + %d) = gp - (long)(&%s);\n",
-				    rel->r_offset - offset, name);
+			    /* Load a literal from the GOT relative to the gp.  Since there's only a
+			       single gp, nothing is to be done.  */
+			    break;
+			case R_ALPHA_GPRELHIGH:
+			    /* Handle fake relocations against __op_param symbol.  Need to emit the
+			       high part of the immediate value instead.  Other symbols need no
+			       special treatment.  */
+			    if (strstart(sym_name, "__op_param", &p))
+				fprintf(outfile, "    immediate_ldah(gen_code_ptr + %ld, param%s);\n",
+					rel->r_offset - offset, p);
+			    break;
+			case R_ALPHA_GPRELLOW:
+			    if (strstart(sym_name, "__op_param", &p))
+				fprintf(outfile, "    immediate_lda(gen_code_ptr + %ld, param%s);\n",
+					rel->r_offset - offset, p);
+			    break;
+			case R_ALPHA_BRSGP:
+			    /* PC-relative jump. Tweak offset to skip the two instructions that try to
+			       set up the gp from the pv.  */
+			    fprintf(outfile, "    fix_bsr(gen_code_ptr + %ld, (uint8_t *) &%s - (gen_code_ptr + %ld) + 4);\n",
+				    rel->r_offset - offset, sym_name, rel->r_offset - offset);
 			    break;
 			default:
 			    error("unsupported Alpha relocation (%d)", type);
@@ -886,7 +905,24 @@ int load_elf(const char *filename, FILE *outfile, int do_print_enum)
     } else {
         /* generate big code generation switch */
 #ifdef HOST_ALPHA
-	fprintf(outfile, "register long gp asm(\"%%$29\");\n");
+fprintf(outfile,
+"register int gp asm(\"$29\");\n"
+"static inline void immediate_ldah(void *p, int val) {\n"
+"    uint32_t *dest = p;\n"
+"    long high = ((val >> 16) + ((val >> 15) & 1)) & 0xffff;\n"
+"\n"
+"    *dest &= ~0xffff;\n"
+"    *dest |= high;\n"
+"    *dest |= 31 << 16;\n"
+"}\n"
+"static inline void immediate_lda(void *dest, int val) {\n"
+"    *(uint16_t *) dest = val;\n"
+"}\n"
+"void fix_bsr(void *p, int offset) {\n"
+"    uint32_t *dest = p;\n"
+"    *dest &= ~((1 << 21) - 1);\n"
+"    *dest |= (offset >> 2) & ((1 << 21) - 1);\n"
+"}\n");
 #endif
 fprintf(outfile,
 "int dyngen_code(uint8_t *gen_code_buf,\n"

@@ -105,7 +105,13 @@ register struct CPUX86State *env asm("r10");
 register unsigned int T0 asm("$9");
 register unsigned int T1 asm("$10");
 register unsigned int A0 asm("$11");
-register struct CPUX86State *env asm("$12");
+register unsigned int EAX asm("$12");
+register unsigned int ESP asm("$13");
+register unsigned int EBP asm("$14");
+register struct CPUX86State *env asm("$15");
+#define reg_EAX
+#define reg_ESP
+#define reg_EBP
 #endif
 #ifdef __ia64__
 register unsigned int T0 asm("r24");
@@ -165,10 +171,24 @@ register struct CPUX86State *env asm("r27");
 #define FP_CONVERT  (env->fp_convert)
 #endif
 
+#ifdef __alpha__
+/* Suggested by Richard Henderson. This will result in code like
+        ldah $0,__op_param1($29)        !gprelhigh
+        lda $0,__op_param1($0)          !gprellow
+   We can then conveniently change $29 to $31 and adapt the offsets to
+   emit the appropriate constant.  */
+extern int __op_param1 __attribute__((visibility("hidden")));
+extern int __op_param2 __attribute__((visibility("hidden")));
+extern int __op_param3 __attribute__((visibility("hidden")));
+#define PARAM1 ({ int _r; asm("" : "=r"(_r) : "0" (&__op_param1)); _r; })
+#define PARAM2 ({ int _r; asm("" : "=r"(_r) : "0" (&__op_param2)); _r; })
+#define PARAM3 ({ int _r; asm("" : "=r"(_r) : "0" (&__op_param3)); _r; })
+#else
 extern int __op_param1, __op_param2, __op_param3;
 #define PARAM1 ((long)(&__op_param1))
 #define PARAM2 ((long)(&__op_param2))
 #define PARAM3 ((long)(&__op_param3))
+#endif
 
 #include "cpu-i386.h"
 
