@@ -1,7 +1,7 @@
 /*
  * QEMU Sun4m System Emulator
  * 
- * Copyright (c) 2003-2004 Fabrice Bellard
+ * Copyright (c) 2003-2005 Fabrice Bellard
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -225,7 +225,9 @@ void sun4m_init(int ram_size, int vga_ram_size, int boot_device,
     nvram = m48t08_init(PHYS_JJ_EEPROM, PHYS_JJ_EEPROM_SIZE);
     slavio_timer_init(PHYS_JJ_CLOCK, PHYS_JJ_CLOCK_IRQ, PHYS_JJ_CLOCK1, PHYS_JJ_CLOCK1_IRQ);
     slavio_serial_ms_kbd_init(PHYS_JJ_MS_KBD, PHYS_JJ_MS_KBD_IRQ);
-    slavio_serial_init(PHYS_JJ_SER, PHYS_JJ_SER_IRQ, serial_hds[0], serial_hds[1]);
+    // Slavio TTYA (base+4, Linux ttyS0) is the first Qemu serial device
+    // Slavio TTYB (base+0, Linux ttyS1) is the second Qemu serial device
+    slavio_serial_init(PHYS_JJ_SER, PHYS_JJ_SER_IRQ, serial_hds[1], serial_hds[0]);
     fdctrl_init(PHYS_JJ_FLOPPY_IRQ, 0, 1, PHYS_JJ_FDC, fd_table);
     esp_init(bs_table, PHYS_JJ_ESP_IRQ, PHYS_JJ_ESP, PHYS_JJ_ESPDMA);
 
