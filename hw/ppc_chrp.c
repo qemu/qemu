@@ -207,7 +207,7 @@ void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
     }
 
     ide0_mem_index = pmac_ide_init(&bs_table[0], openpic, 0x13);
-    ide1_mem_index = pmac_ide_init(&bs_table[2], openpic, 0x13);
+    ide1_mem_index = pmac_ide_init(&bs_table[2], openpic, 0x14);
 
     /* cuda also initialize ADB */
     cuda_mem_index = cuda_init(openpic, 0x19);
