@@ -39,6 +39,15 @@ struct target_itimerval {
     struct target_timeval it_value;
 };
 
+typedef target_long target_clock_t;
+
+struct target_tms {
+    target_clock_t tms_utime;
+    target_clock_t tms_stime;
+    target_clock_t tms_cutime;
+    target_clock_t tms_cstime;
+};
+
 struct target_iovec {
     target_long iov_base;   /* Starting address */
     target_long iov_len;   /* Number of bytes */

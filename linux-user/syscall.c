@@ -40,6 +40,7 @@
 #include <sys/socket.h>
 #include <sys/uio.h>
 #include <sys/poll.h>
+#include <sys/times.h>
 //#include <sys/user.h>
 #include <netinet/tcp.h>
 
@@ -1367,7 +1368,18 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         }
         break;
     case TARGET_NR_times:
-        goto unimplemented;
+        {
+            struct target_tms *tmsp = (void *)arg1;
+            struct tms tms;
+            ret = get_errno(times(&tms));
+            if (tmsp) {
+                tmsp->tms_utime = tswapl(tms.tms_utime);
+                tmsp->tms_stime = tswapl(tms.tms_stime);
+                tmsp->tms_cutime = tswapl(tms.tms_cutime);
+                tmsp->tms_cstime = tswapl(tms.tms_cstime);
+            }
+        }
+        break;
     case TARGET_NR_prof:
         goto unimplemented;
     case TARGET_NR_setgid:
