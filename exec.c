@@ -585,22 +585,32 @@ void page_unmap(void)
 {
     PageDesc *p, *pmap;
     unsigned long addr;
-    int i, j, ret;
+    int i, j, ret, j1;
 
     for(i = 0; i < L1_SIZE; i++) {
         pmap = l1_map[i];
         if (pmap) {
             p = pmap;
-            for(j = 0;j < L2_SIZE; j++) {
+            for(j = 0;j < L2_SIZE;) {
                 if (p->flags & PAGE_VALID) {
                     addr = (i << (32 - L1_BITS)) | (j << TARGET_PAGE_BITS);
-                    ret = munmap((void *)addr, TARGET_PAGE_SIZE);
+                    /* we try to find a range to make less syscalls */
+                    j1 = j;
+                    p++;
+                    j++;
+                    while (j < L2_SIZE && (p->flags & PAGE_VALID)) {
+                        p++;
+                        j++;
+                    }
+                    ret = munmap((void *)addr, (j - j1) << TARGET_PAGE_BITS);
                     if (ret != 0) {
                         fprintf(stderr, "Could not unmap page 0x%08lx\n", addr);
                         exit(1);
                     }
+                } else {
+                    p++;
+                    j++;
                 }
-                p++;
             }
             free(pmap);
             l1_map[i] = NULL;
