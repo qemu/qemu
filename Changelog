@@ -1,3 +1,10 @@
+version 0.5.3:
+
+  - VGA memory map mode 3 access fix (OS/2 install fix)
+  - IDE fixes (Jens Axboe)
+  - CPU interrupt fixes
+  - fixed various TLB invalidation cases (NT install)
+
 version 0.5.2:
 
   - improved soft MMU speed (assembly functions and specializing)
