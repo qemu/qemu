@@ -539,6 +539,13 @@ typedef struct MonitorDef {
     int (*get_value)(struct MonitorDef *md);
 } MonitorDef;
 
+#if defined(TARGET_I386)
+static int monitor_get_pc (struct MonitorDef *md)
+{
+    return cpu_single_env->eip + (long)cpu_single_env->segs[R_CS].base;
+}
+#endif
+
 #if defined(TARGET_PPC)
 static int monitor_get_ccr (struct MonitorDef *md)
 {
@@ -582,6 +589,12 @@ static int monitor_get_xer (struct MonitorDef *md)
 
 static MonitorDef monitor_defs[] = {
 #ifdef TARGET_I386
+
+#define SEG(name, seg) \
+    { name, offsetof(CPUState, segs[seg].selector) },\
+    { name ".base", offsetof(CPUState, segs[seg].base) },\
+    { name ".limit", offsetof(CPUState, segs[seg].limit) },
+
     { "eax", offsetof(CPUState, regs[0]) },
     { "ecx", offsetof(CPUState, regs[1]) },
     { "edx", offsetof(CPUState, regs[2]) },
@@ -591,7 +604,13 @@ static MonitorDef monitor_defs[] = {
     { "esi", offsetof(CPUState, regs[6]) },
     { "esi", offsetof(CPUState, regs[7]) },
     { "eflags", offsetof(CPUState, eflags) },
-    { "eip|pc", offsetof(CPUState, eip) },
+    { "eip", offsetof(CPUState, eip) },
+    SEG("cs", R_CS)
+    SEG("ds", R_DS)
+    SEG("es", R_ES)
+    SEG("fs", R_FS)
+    SEG("gs", R_GS)
+    { "pc", 0, monitor_get_pc, },
 #elif defined(TARGET_PPC)
     { "r0", offsetof(CPUState, gpr[0]) },
     { "r1", offsetof(CPUState, gpr[1]) },
@@ -625,6 +644,7 @@ static MonitorDef monitor_defs[] = {
     { "r29", offsetof(CPUState, gpr[29]) },
     { "r30", offsetof(CPUState, gpr[30]) },
     { "r31", offsetof(CPUState, gpr[31]) },
+    { "nip|pc", offsetof(CPUState, nip) },
     { "lr", offsetof(CPUState, lr) },
     { "ctr", offsetof(CPUState, ctr) },
     { "decr", offsetof(CPUState, decr) },
@@ -724,7 +744,7 @@ static int expr_unary(void)
             while ((*pch >= 'a' && *pch <= 'z') ||
                    (*pch >= 'A' && *pch <= 'Z') ||
                    (*pch >= '0' && *pch <= '9') ||
-                   *pch == '_') {
+                   *pch == '_' || *pch == '.') {
                 if ((q - buf) < sizeof(buf) - 1)
                     *q++ = *pch;
                 pch++;
