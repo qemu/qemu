@@ -65,7 +65,9 @@
 #endif
 
 #ifdef CONFIG_SDL
+#ifdef __APPLE__
 #include <SDL/SDL.h>
+#endif
 #if defined(__linux__)
 /* SDL use the pthreads and they modify sigaction. We don't
    want that. */
