@@ -996,11 +996,11 @@ static const char * get_reloc_name(EXE_RELOC * rel, int * sslide)
 
 	switch(rel->r_type)
 	{
-		case PPC_RELOC_LO16: fetch_next_pair_value(rel+1, &other_half); sectoffset = (sectoffset & 0xffff);
+		case PPC_RELOC_LO16: fetch_next_pair_value(rel+1, &other_half); sectoffset |= (other_half << 16);
 			break;
-		case PPC_RELOC_HI16: fetch_next_pair_value(rel+1, &other_half); sectoffset = (other_half & 0xffff);
+		case PPC_RELOC_HI16: fetch_next_pair_value(rel+1, &other_half); sectoffset = (sectoffset << 16) | (uint16_t)(other_half & 0xffff);
 			break;
-		case PPC_RELOC_HA16: fetch_next_pair_value(rel+1, &other_half); sectoffset = (other_half & 0xffff);
+		case PPC_RELOC_HA16: fetch_next_pair_value(rel+1, &other_half); sectoffset = (sectoffset << 16) + (int16_t)(other_half & 0xffff);
 			break;
 		case PPC_RELOC_BR24:
 			sectoffset = ( *(uint32_t *)(text + rel->r_address) & 0x03fffffc );
@@ -1146,13 +1146,11 @@ int load_object(const char *filename)
 	
 	/* Now transform the symtab, to an extended version, with the sym size, and the C name */
 	for(i = 0, sym = symtab, syment = symtab_std; i < nb_syms; i++, sym++, syment++) {
-        const char *name;
         struct nlist *sym_follow, *sym_next = 0;
         unsigned int j;
-        name = find_str_by_index(sym->n_un.n_strx);
 		memset(sym, 0, sizeof(*sym));
 		
-		if ( sym->n_type & N_STAB ) /* Debug symbols are skipped */
+		if ( syment->n_type & N_STAB ) /* Debug symbols are skipped */
             continue;
 			
 		memcpy(sym, syment, sizeof(*syment));
@@ -1848,11 +1846,16 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                                                        sym_name);
 					switch(type) {
 					case PPC_RELOC_BR24:
-						fprintf(outfile, "{\n");
-						fprintf(outfile, "    uint32_t imm = *(uint32_t *)(gen_code_ptr + %d) & 0x3fffffc;\n", slide);
-						fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = (*(uint32_t *)(gen_code_ptr + %d) & ~0x03fffffc) | ((imm + ((long)%s - (long)gen_code_ptr) + %d) & 0x03fffffc);\n", 
+					    if (!strstart(sym_name,"__op_gen_label",&p)) {
+    						fprintf(outfile, "{\n");
+    						fprintf(outfile, "    uint32_t imm = *(uint32_t *)(gen_code_ptr + %d) & 0x3fffffc;\n", slide);
+    						fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = (*(uint32_t *)(gen_code_ptr + %d) & ~0x03fffffc) | ((imm + ((long)%s - (long)gen_code_ptr) + %d) & 0x03fffffc);\n", 
 											slide, slide, name, sslide );
-						fprintf(outfile, "}\n");
+    						fprintf(outfile, "}\n");
+    					} else {
+							fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = (*(uint32_t *)(gen_code_ptr + %d) & ~0x03fffffc) | (((long)%s - (long)gen_code_ptr - %d) & 0x03fffffc);\n",
+											slide, slide, final_sym_name, slide);
+    					}
 						break;
 					case PPC_RELOC_HI16:
 						fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d + 2) = (%s + %d) >> 16;\n", 
