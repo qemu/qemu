@@ -364,8 +364,10 @@ void OPPROTO op_divb_AL_T0(void)
 
     num = (EAX & 0xffff);
     den = (T0 & 0xff);
-    if (den == 0)
+    if (den == 0) {
+        EIP = PARAM1;
         raise_exception(EXCP00_DIVZ);
+    }
     q = (num / den) & 0xff;
     r = (num % den) & 0xff;
     EAX = (EAX & 0xffff0000) | (r << 8) | q;
@@ -377,8 +379,10 @@ void OPPROTO op_idivb_AL_T0(void)
 
     num = (int16_t)EAX;
     den = (int8_t)T0;
-    if (den == 0)
+    if (den == 0) {
+        EIP = PARAM1;
         raise_exception(EXCP00_DIVZ);
+    }
     q = (num / den) & 0xff;
     r = (num % den) & 0xff;
     EAX = (EAX & 0xffff0000) | (r << 8) | q;
@@ -390,8 +394,10 @@ void OPPROTO op_divw_AX_T0(void)
 
     num = (EAX & 0xffff) | ((EDX & 0xffff) << 16);
     den = (T0 & 0xffff);
-    if (den == 0)
+    if (den == 0) {
+        EIP = PARAM1;
         raise_exception(EXCP00_DIVZ);
+    }
     q = (num / den) & 0xffff;
     r = (num % den) & 0xffff;
     EAX = (EAX & 0xffff0000) | q;
@@ -404,8 +410,10 @@ void OPPROTO op_idivw_AX_T0(void)
 
     num = (EAX & 0xffff) | ((EDX & 0xffff) << 16);
     den = (int16_t)T0;
-    if (den == 0)
+    if (den == 0) {
+        EIP = PARAM1;
         raise_exception(EXCP00_DIVZ);
+    }
     q = (num / den) & 0xffff;
     r = (num % den) & 0xffff;
     EAX = (EAX & 0xffff0000) | q;
@@ -435,8 +443,10 @@ void OPPROTO op_divl_EAX_T0(void)
     
     num = EAX | ((uint64_t)EDX << 32);
     den = T0;
-    if (den == 0)
+    if (den == 0) {
+        EIP = PARAM1;
         raise_exception(EXCP00_DIVZ);
+    }
 #ifdef BUGGY_GCC_DIV64
     r = div64(&q, num, den);
 #else
@@ -454,8 +464,10 @@ void OPPROTO op_idivl_EAX_T0(void)
     
     num = EAX | ((uint64_t)EDX << 32);
     den = T0;
-    if (den == 0)
+    if (den == 0) {
+        EIP = PARAM1;
         raise_exception(EXCP00_DIVZ);
+    }
 #ifdef BUGGY_GCC_DIV64
     r = idiv64(&q, num, den);
 #else
@@ -614,12 +626,102 @@ void OPPROTO op_jmp_im(void)
     EIP = PARAM1;
 }
 
-void OPPROTO op_int_im(void)
+#if 0
+/* full interrupt support (only useful for real CPU emulation, not
+   finished) - I won't do it any time soon, finish it if you want ! */
+void raise_interrupt(int intno, int is_int, int error_code, 
+                     unsigned int next_eip)
+{
+    SegmentDescriptorTable *dt;
+    uint8_t *ptr;
+    int type, dpl, cpl;
+    uint32_t e1, e2;
+    
+    dt = &env->idt;
+    if (intno * 8 + 7 > dt->limit)
+        raise_exception_err(EXCP0D_GPF, intno * 8 + 2);
+    ptr = dt->base + intno * 8;
+    e1 = ldl(ptr);
+    e2 = ldl(ptr + 4);
+    /* check gate type */
+    type = (e2 >> DESC_TYPE_SHIFT) & 0x1f;
+    switch(type) {
+    case 5: /* task gate */
+    case 6: /* 286 interrupt gate */
+    case 7: /* 286 trap gate */
+    case 14: /* 386 interrupt gate */
+    case 15: /* 386 trap gate */
+        break;
+    default:
+        raise_exception_err(EXCP0D_GPF, intno * 8 + 2);
+        break;
+    }
+    dpl = (e2 >> DESC_DPL_SHIFT) & 3;
+    cpl = env->segs[R_CS] & 3;
+    /* check privledge if software int */
+    if (is_int && dpl < cpl)
+        raise_exception_err(EXCP0D_GPF, intno * 8 + 2);
+    /* check valid bit */
+    if (!(e2 & DESC_P_MASK))
+        raise_exception_err(EXCP0B_NOSEG, intno * 8 + 2);
+}
+
+#else
+
+/*
+ * is_int is TRUE if coming from the int instruction. next_eip is the
+ * EIP value AFTER the interrupt instruction. It is only relevant if
+ * is_int is TRUE.  
+ */
+void raise_interrupt(int intno, int is_int, int error_code, 
+                     unsigned int next_eip)
+{
+    SegmentDescriptorTable *dt;
+    uint8_t *ptr;
+    int dpl, cpl;
+    uint32_t e2;
+
+    dt = &env->idt;
+    ptr = dt->base + (intno * 8);
+    e2 = ldl(ptr + 4);
+    
+    dpl = (e2 >> DESC_DPL_SHIFT) & 3;
+    cpl = 3;
+    /* check privledge if software int */
+    if (is_int && dpl < cpl)
+        raise_exception_err(EXCP0D_GPF, intno * 8 + 2);
+
+    /* Since we emulate only user space, we cannot do more than
+       exiting the emulation with the suitable exception and error
+       code */
+    if (is_int)
+        EIP = next_eip;
+    env->exception_index = intno;
+    env->error_code = error_code;
+
+    cpu_loop_exit();
+}
+
+#endif
+
+/* shortcuts to generate exceptions */
+void raise_exception_err(int exception_index, int error_code)
+{
+    raise_interrupt(exception_index, 0, error_code, 0);
+}
+
+void raise_exception(int exception_index)
+{
+    raise_interrupt(exception_index, 0, 0, 0);
+}
+
+void OPPROTO op_raise_interrupt(void)
 {
     int intno;
+    unsigned int next_eip;
     intno = PARAM1;
-    EIP = PARAM2;
-    raise_exception_err(EXCP0D_GPF, intno * 8 + 2);
+    next_eip = PARAM2;
+    raise_interrupt(intno, 1, 0, next_eip);
 }
 
 void OPPROTO op_raise_exception(void)
@@ -634,8 +736,7 @@ void OPPROTO op_into(void)
     int eflags;
     eflags = cc_table[CC_OP].compute_all();
     if (eflags & CC_O) {
-        EIP = PARAM1;
-        raise_exception(EXCP04_INTO);
+        raise_interrupt(EXCP04_INTO, 1, 0, PARAM1);
     }
     FORCE_RET();
 }
@@ -674,8 +775,10 @@ void OPPROTO op_boundw(void)
     low = ldsw((uint8_t *)A0);
     high = ldsw((uint8_t *)A0 + 2);
     v = (int16_t)T0;
-    if (v < low || v > high)
+    if (v < low || v > high) {
+        EIP = PARAM1;
         raise_exception(EXCP05_BOUND);
+    }
     FORCE_RET();
 }
 
@@ -685,8 +788,10 @@ void OPPROTO op_boundl(void)
     low = ldl((uint8_t *)A0);
     high = ldl((uint8_t *)A0 + 4);
     v = T0;
-    if (v < low || v > high)
+    if (v < low || v > high) {
+        EIP = PARAM1;
         raise_exception(EXCP05_BOUND);
+    }
     FORCE_RET();
 }
 
@@ -1116,8 +1221,8 @@ void OPPROTO op_das(void)
 
 /* segment handling */
 
-/* XXX: use static VM86 information */
-void load_seg(int seg_reg, int selector)
+/* only works if protected mode and not VM86 */
+void load_seg(int seg_reg, int selector, unsigned cur_eip)
 {
     SegmentCache *sc;
     SegmentDescriptorTable *dt;
@@ -1126,21 +1231,56 @@ void load_seg(int seg_reg, int selector)
     uint8_t *ptr;
 
     sc = &env->seg_cache[seg_reg];
-    if (env->eflags & VM_MASK) {
-        sc->base = (void *)(selector << 4);
-        sc->limit = 0xffff;
-        sc->seg_32bit = 0;
+    if ((selector & 0xfffc) == 0) {
+        /* null selector case */
+        if (seg_reg == R_SS) {
+            EIP = cur_eip;
+            raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+        } else {
+            /* XXX: each access should trigger an exception */
+            sc->base = NULL;
+            sc->limit = 0;
+            sc->seg_32bit = 1;
+        }
     } else {
         if (selector & 0x4)
             dt = &env->ldt;
         else
             dt = &env->gdt;
         index = selector & ~7;
-        if ((index + 7) > dt->limit)
-            raise_exception_err(EXCP0D_GPF, selector);
+        if ((index + 7) > dt->limit) {
+            EIP = cur_eip;
+            raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+        }
         ptr = dt->base + index;
         e1 = ldl(ptr);
         e2 = ldl(ptr + 4);
+        if (!(e2 & DESC_S_MASK) ||
+            (e2 & (DESC_CS_MASK | DESC_R_MASK)) == DESC_CS_MASK) {
+            EIP = cur_eip;
+            raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+        }
+
+        if (seg_reg == R_SS) {
+            if ((e2 & (DESC_CS_MASK | DESC_W_MASK)) == 0) {
+                EIP = cur_eip;
+                raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+            }
+        } else {
+            if ((e2 & (DESC_CS_MASK | DESC_R_MASK)) == DESC_CS_MASK) {
+                EIP = cur_eip;
+                raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+            }
+        }
+
+        if (!(e2 & DESC_P_MASK)) {
+            EIP = cur_eip;
+            if (seg_reg == R_SS)
+                raise_exception_err(EXCP0C_STACK, selector & 0xfffc);
+            else
+                raise_exception_err(EXCP0B_NOSEG, selector & 0xfffc);
+        }
+        
         sc->base = (void *)((e1 >> 16) | ((e2 & 0xff) << 16) | (e2 & 0xff000000));
         sc->limit = (e1 & 0xffff) | (e2 & 0x000f0000);
         if (e2 & (1 << 23))
@@ -1156,7 +1296,19 @@ void load_seg(int seg_reg, int selector)
 
 void OPPROTO op_movl_seg_T0(void)
 {
-    load_seg(PARAM1, T0 & 0xffff);
+    load_seg(PARAM1, T0 & 0xffff, PARAM2);
+}
+
+/* faster VM86 version */
+void OPPROTO op_movl_seg_T0_vm(void)
+{
+    int selector;
+    
+    selector = T0 & 0xffff;
+    /* env->segs[] access */
+    *(uint32_t *)((char *)env + PARAM1) = selector;
+    /* env->seg_cache[] access */
+    ((SegmentCache *)((char *)env + PARAM2))->base = (void *)(selector << 4);
 }
 
 void OPPROTO op_movl_T0_seg(void)
