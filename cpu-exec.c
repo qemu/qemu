@@ -245,6 +245,7 @@ int cpu_exec(CPUState *env1)
                            (unsigned long)env->segs[R_SS].base) != 0) << 
                     GEN_FLAG_ADDSEG_SHIFT;
                 flags |= env->cpl << GEN_FLAG_CPL_SHIFT;
+                flags |= env->soft_mmu << GEN_FLAG_SOFT_MMU_SHIFT;
                 flags |= (env->eflags & VM_MASK) >> (17 - GEN_FLAG_VM_SHIFT);
                 flags |= (env->eflags & (IOPL_MASK | TF_MASK));
                 cs_base = env->segs[R_CS].base;
@@ -333,6 +334,15 @@ int cpu_exec(CPUState *env1)
                 gen_func();
 #endif
                 env->current_tb = NULL;
+                /* reset soft MMU for next block (it can currently
+                   only be set by a memory fault) */
+#if defined(TARGET_I386) && !defined(CONFIG_SOFTMMU)
+                if (env->soft_mmu) {
+                    env->soft_mmu = 0;
+                    /* do not allow linking to another block */
+                    T0 = 0;
+                }
+#endif
             }
         } else {
         }
@@ -478,14 +488,21 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
            a virtual CPU fault */
         cpu_restore_state(tb, env, pc);
     }
+    if (ret == 1) {
 #if 0
-    printf("PF exception: EIP=0x%08x CR2=0x%08x error=0x%x\n", 
-           env->eip, env->cr[2], env->error_code);
+        printf("PF exception: EIP=0x%08x CR2=0x%08x error=0x%x\n", 
+               env->eip, env->cr[2], env->error_code);
 #endif
-    /* we restore the process signal mask as the sigreturn should
-       do it (XXX: use sigsetjmp) */
-    sigprocmask(SIG_SETMASK, old_set, NULL);
-    raise_exception_err(EXCP0E_PAGE, env->error_code);
+        /* we restore the process signal mask as the sigreturn should
+           do it (XXX: use sigsetjmp) */
+        sigprocmask(SIG_SETMASK, old_set, NULL);
+        raise_exception_err(EXCP0E_PAGE, env->error_code);
+    } else {
+        /* activate soft MMU for this block */
+        env->soft_mmu = 1;
+        sigprocmask(SIG_SETMASK, old_set, NULL);
+        cpu_loop_exit();
+    }
     /* never comes here */
     return 1;
 }
