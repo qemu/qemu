@@ -1,14 +1,17 @@
+- user/kernel PUSHL/POPL in helper.c
+- keyboard output buffer filling timing emulation
+- verify tb_flush() with a20 and TLBs
+
+- cmos clock update and timers
+- test ldt limit < 7 ?
 - tests for each target CPU
-- ppc qemu test
 - optimize FPU operations (evaluate x87 stack pointer statically) and
   fix cr0.TS emulation
-- fix some 16 bit sp push/pop overflow
+- fix some 16 bit sp push/pop overflow (pusha/popa, lcall lret)
 - sysenter/sysexit emulation
-- finish segment ops (call far, ret far, load_seg suppressed)
 - fix CCOP optimisation
 - fix all remaining thread lock issues (must put TBs in a specific invalid
   state, find a solution for tb_flush()).
-- cpu loop optimisation (optimise ret case as the cpu state does not change)
 - fix arm fpu rounding (at least for float->integer conversions)
 
 lower priority:

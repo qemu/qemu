@@ -46,7 +46,7 @@ install: all
         done
 
 # various test targets
-test speed: all
+test speed test2: all
 	make -C tests $@
 
 TAGS: 
