@@ -47,7 +47,7 @@ QEMU generic features:
 
 @item Self-modifying code support.
 
-@item Precise exception support.
+@item Precise exceptions support.
 
 @item The virtual CPU is a library (@code{libqemu}) which can be used 
 in other projects.
@@ -128,7 +128,7 @@ generic dynamic code generation architecture of QEMU.
 
 @end itemize
 
-@chapter QEMU User space emulation invocation
+@chapter QEMU User space emulator invocation
 
 @section Quick Start
 
@@ -315,7 +315,8 @@ sh: can't access tty; job control turned off
 Then you can play with the kernel inside the virtual serial console. You
 can launch @code{ls} for example. Type @key{Ctrl-a h} to have an help
 about the keys you can type inside the virtual serial console. In
-particular @key{Ctrl-a b} is the Magic SysRq key.
+particular, use @key{Ctrl-a x} to exit QEMU and use @key{Ctrl-a b} as
+the Magic SysRq key.
 
 @item 
 If the network is enabled, launch the script @file{/etc/linuxrc} in the
@@ -334,8 +335,23 @@ a real Virtual Linux system !
 
 @end enumerate
 
-NOTE: the example initrd is a modified version of the one made by Kevin
+NOTES:
+@enumerate
+@item 
+A 2.5.66 kernel is also included in the vl-test archive. Just
+replace the bzImage in vl.sh to try it.
+
+@item 
+vl creates a temporary file in @var{$VLTMPDIR} (@file{/tmp} is the
+default) containing all the simulated PC memory. If possible, try to use
+a temporary directory using the tmpfs filesystem to avoid too many
+unnecessary disk accesses.
+
+@item 
+The example initrd is a modified version of the one made by Kevin
 Lawton for the plex86 Project (@url{www.plex86.org}).
+
+@end enumerate
 
 @section Kernel Compilation
 
@@ -372,6 +388,20 @@ As you would do to make a real kernel. Then you can use with QEMU
 exactly the same kernel as you would boot on your PC (in
 @file{arch/i386/boot/bzImage}).
 
+If you are not using a 2.5 kernel as host kernel but if you use a target
+2.5 kernel, you must also ensure that the 'HZ' define is set to 100
+(1000 is the default) as QEMU cannot currently emulate timers at
+frequencies greater than 100 Hz on host Linux systems < 2.5. In
+asm/param.h, replace:
+
+@example
+# define HZ		1000		/* Internal kernel timer frequency */
+@end example
+by
+@example
+# define HZ		100		/* Internal kernel timer frequency */
+@end example
+
 @section PC Emulation
 
 QEMU emulates the following PC peripherials:
@@ -388,7 +418,7 @@ Serial port (port=0x3f8, irq=4)
 @item 
 NE2000 network adapter (port=0x300, irq=9)
 @item
-Dumb VGA (to print the @code{uncompressing Linux kernel} message)
+Dumb VGA (to print the @code{Uncompressing Linux} message)
 @end itemize
 
 @chapter QEMU Internals
@@ -405,9 +435,9 @@ Like Valgrind [2], QEMU does user space emulation and dynamic
 translation. Valgrind is mainly a memory debugger while QEMU has no
 support for it (QEMU could be used to detect out of bound memory
 accesses as Valgrind, but it has no support to track uninitialised data
-as Valgrind does). Valgrind dynamic translator generates better code
+as Valgrind does). The Valgrind dynamic translator generates better code
 than QEMU (in particular it does register allocation) but it is closely
-tied to an x86 host and target and has no support for precise exception
+tied to an x86 host and target and has no support for precise exceptions
 and system emulation.
 
 EM86 [4] is the closest project to user space QEMU (and QEMU still uses
@@ -433,8 +463,8 @@ system emulator. It requires a patched Linux kernel to work (you cannot
 launch the same kernel on your PC), but the patches are really small. As
 it is a PC virtualizer (no emulation is done except for some priveledged
 instructions), it has the potential of being faster than QEMU. The
-downside is that a complicated (and potentially unsafe) kernel patch is
-needed.
+downside is that a complicated (and potentially unsafe) host kernel
+patch is needed.
 
 @section Portable dynamic translation
 

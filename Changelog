@@ -1,3 +1,10 @@
+version 0.4.1:
+  
+ - more accurate timer support in vl.
+ - more reliable NE2000 probe in vl.
+ - added 2.5.66 kernel in vl-test.
+ - added VLTMPDIR environment variable in vl.
+
 version 0.4:
 
  - initial support for ring 0 x86 processor emulation

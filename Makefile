@@ -189,6 +189,7 @@ distclean: clean
 	rm -f config.mak config.h
 
 install: $(PROGS)
+	mkdir -p $(prefix)/bin
 	install -m 755 -s $(PROGS) $(prefix)/bin
 
 # various test targets
