@@ -570,8 +570,6 @@ get_sigframe(struct emulated_sigaction *ka, CPUX86State *env, size_t frame_size)
 	return (void *)((esp - frame_size) & -8ul);
 }
 
-#define TF_MASK TRAP_FLAG
-
 static void setup_frame(int sig, struct emulated_sigaction *ka,
 			target_sigset_t *set, CPUX86State *env)
 {
