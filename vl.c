@@ -68,17 +68,6 @@
 #ifdef __APPLE__
 #include <SDL/SDL.h>
 #endif
-#if defined(__linux__)
-/* SDL use the pthreads and they modify sigaction. We don't
-   want that. */
-#if (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 2))
-extern void __libc_sigaction();
-#define sigaction(sig, act, oact) __libc_sigaction(sig, act, oact)
-#else
-extern void __sigaction();
-#define sigaction(sig, act, oact) __sigaction(sig, act, oact)
-#endif
-#endif /* __linux__ */
 #endif /* CONFIG_SDL */
 
 #include "disas.h"

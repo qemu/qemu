@@ -144,6 +144,22 @@ void *shmat(int shmid, const void *shmaddr, int shmflg)
 }
 
 /****************************************************************/
+/* sigaction bypassing the threads */
+
+static int kernel_sigaction(int signum, const struct qemu_sigaction *act, 
+                            struct qemu_sigaction *oldact, 
+                            int sigsetsize)
+{
+    QEMU_SYSCALL4(rt_sigaction, signum, act, oldact, sigsetsize);
+}
+
+int qemu_sigaction(int signum, const struct qemu_sigaction *act, 
+                   struct qemu_sigaction *oldact)
+{
+    return kernel_sigaction(signum, act, oldact, 8);
+}
+
+/****************************************************************/
 /* memory allocation */
 
 //#define DEBUG_MALLOC
