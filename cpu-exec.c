@@ -225,7 +225,9 @@ int cpu_exec(CPUState *env1)
                     cpu_x86_dump_state(env, logfile, X86_DUMP_CCOP);
                     env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
 #elif defined(TARGET_ARM)
+                    env->cpsr = compute_cpsr();
                     cpu_arm_dump_state(env, logfile, 0);
+                    env->cpsr &= ~0xf0000000;
 #else
 #error unsupported target CPU 
 #endif
@@ -306,7 +308,7 @@ int cpu_exec(CPUState *env1)
                 T0 = tmp_T0;
 #endif	    
                 /* see if we can patch the calling TB. XXX: remove TF test */
-                if (T0 != 0 
+                if (T0 != 0
 #if defined(TARGET_I386)
                     && !(env->eflags & TF_MASK)
 #endif
@@ -372,12 +374,7 @@ int cpu_exec(CPUState *env1)
     EDI = saved_EDI;
 #endif
 #elif defined(TARGET_ARM)
-    {
-        int ZF;
-        ZF = (env->NZF == 0);
-        env->cpsr = env->cpsr | (env->NZF & 0x80000000) | (ZF << 30) | 
-            (env->CF << 29) | ((env->VF & 0x80000000) >> 3);
-    }
+    env->cpsr = compute_cpsr();
 #else
 #error unsupported target CPU
 #endif
