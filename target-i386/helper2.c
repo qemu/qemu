@@ -158,9 +158,28 @@ void cpu_x86_dump_state(CPUX86State *env, FILE *f, int flags)
 /* called when cr3 or PG bit are modified */
 static int last_pg_state = -1;
 static int last_pe_state = 0;
+static uint32_t a20_mask;
+int a20_enabled;
+
 int phys_ram_size;
 int phys_ram_fd;
 uint8_t *phys_ram_base;
+
+void cpu_x86_set_a20(CPUX86State *env, int a20_state)
+{
+    a20_state = (a20_state != 0);
+    if (a20_state != a20_enabled) {
+        /* when a20 is changed, all the MMU mappings are invalid, so
+           we must flush everything */
+        page_unmap();
+        tlb_flush(env);
+        a20_enabled = a20_state;
+        if (a20_enabled)
+            a20_mask = 0xffffffff;
+        else
+            a20_mask = 0xffefffff;
+    }
+}
 
 void cpu_x86_update_cr0(CPUX86State *env)
 {
@@ -195,6 +214,9 @@ void cpu_x86_update_cr3(CPUX86State *env)
 
 void cpu_x86_init_mmu(CPUX86State *env)
 {
+    a20_enabled = 1;
+    a20_mask = 0xffffffff;
+
     last_pg_state = -1;
     cpu_x86_update_cr0(env);
 }
@@ -244,14 +266,15 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr,
 
     if (!(env->cr[0] & CR0_PG_MASK)) {
         pte = addr;
-        virt_addr = addr & ~0xfff;
+        virt_addr = addr & TARGET_PAGE_MASK;
         prot = PROT_READ | PROT_WRITE;
         page_size = 4096;
         goto do_mapping;
     }
 
     /* page directory entry */
-    pde_ptr = phys_ram_base + ((env->cr[3] & ~0xfff) + ((addr >> 20) & ~3));
+    pde_ptr = phys_ram_base + 
+        (((env->cr[3] & ~0xfff) + ((addr >> 20) & ~3)) & a20_mask);
     pde = ldl_raw(pde_ptr);
     if (!(pde & PG_PRESENT_MASK)) {
         error_code = 0;
@@ -287,7 +310,8 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr,
         }
 
         /* page directory entry */
-        pte_ptr = phys_ram_base + ((pde & ~0xfff) + ((addr >> 10) & 0xffc));
+        pte_ptr = phys_ram_base + 
+            (((pde & ~0xfff) + ((addr >> 10) & 0xffc)) & a20_mask);
         pte = ldl_raw(pte_ptr);
         if (!(pte & PG_PRESENT_MASK)) {
             error_code = 0;
@@ -325,6 +349,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr,
     }
     
  do_mapping:
+    pte = pte & a20_mask;
 #if !defined(CONFIG_SOFTMMU)
     if (is_softmmu) 
 #endif
@@ -334,8 +359,8 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr,
 
         /* software MMU case. Even if 4MB pages, we map only one 4KB
            page in the cache to avoid filling it too fast */
-        page_offset = (addr & ~0xfff) & (page_size - 1);
-        paddr = (pte & ~0xfff) + page_offset;
+        page_offset = (addr & TARGET_PAGE_MASK) & (page_size - 1);
+        paddr = (pte & TARGET_PAGE_MASK) + page_offset;
         vaddr = virt_addr + page_offset;
         index = (addr >> 12) & (CPU_TLB_SIZE - 1);
         pd = physpage_find(paddr);

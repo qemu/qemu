@@ -389,6 +389,9 @@ void cpu_x86_init_mmu(CPUX86State *env);
 extern int phys_ram_size;
 extern int phys_ram_fd;
 extern uint8_t *phys_ram_base;
+extern int a20_enabled;
+
+void cpu_x86_set_a20(CPUX86State *env, int a20_state);
 
 /* used to debug */
 #define X86_DUMP_FPU  0x0001 /* dump FPU state too */
