@@ -195,10 +195,12 @@ static void sdl_send_mouse_event(void)
         buttons |= MOUSE_EVENT_MBUTTON;
     /* XXX: test wheel */
     dz = 0;
+#ifdef SDL_BUTTON_WHEELUP
     if (state & SDL_BUTTON(SDL_BUTTON_WHEELUP))
         dz--;
     if (state & SDL_BUTTON(SDL_BUTTON_WHEELDOWN))
         dz++;
+#endif
     kbd_mouse_event(dx, dy, dz, buttons);
 }
 
