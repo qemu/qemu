@@ -1229,10 +1229,10 @@ GEN_HANDLER(lswi, 0x1F, 0x15, 0x12, 0x00000001, PPC_INTEGER)
     if (nb == 0)
         nb = 32;
     nr = nb / 4;
-    if (((start + nr) > 32  && start <= ra && (start + nr - 32) >= ra) ||
-        ((start + nr) <= 32 && start <= ra && (start + nr) >= ra)) {
+    if (((start + nr) > 32  && start <= ra && (start + nr - 32) > ra) ||
+        ((start + nr) <= 32 && start <= ra && (start + nr) > ra)) {
         RET_EXCP(EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_LSWX);
-        }
+    }
     if (ra == 0) {
         gen_op_set_T0(0);
     } else {
