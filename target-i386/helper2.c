@@ -181,13 +181,8 @@ void cpu_x86_dump_state(CPUX86State *env, FILE *f, int flags)
 
 /* called when cr3 or PG bit are modified */
 static int last_pg_state = -1;
-static int last_pe_state = 0;
 static uint32_t a20_mask;
 int a20_enabled;
-
-int phys_ram_size;
-int phys_ram_fd;
-uint8_t *phys_ram_base;
 
 void cpu_x86_set_a20(CPUX86State *env, int a20_state)
 {
@@ -223,11 +218,11 @@ void cpu_x86_update_cr0(CPUX86State *env)
         tlb_flush(env);
         last_pg_state = pg_state;
     }
-    pe_state = env->cr[0] & CR0_PE_MASK;
-    if (last_pe_state != pe_state) {
-        tb_flush(env);
-        last_pe_state = pe_state;
-    }
+    /* update PE flag in hidden flags */
+    pe_state = (env->cr[0] & CR0_PE_MASK);
+    env->hflags = (env->hflags & ~HF_PE_MASK) | (pe_state << HF_PE_SHIFT);
+    /* ensure that ADDSEG is always set in real mode */
+    env->hflags |= ((pe_state ^ 1) << HF_ADDSEG_SHIFT);
 }
 
 void cpu_x86_update_cr3(CPUX86State *env)
@@ -267,9 +262,9 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr,
     uint8_t *pde_ptr, *pte_ptr;
     uint32_t pde, pte, virt_addr;
     int error_code, is_dirty, prot, page_size, ret;
-    unsigned long pd;
+    unsigned long paddr, vaddr, page_offset;
     
-#ifdef DEBUG_MMU
+#if defined(DEBUG_MMU)
     printf("MMU fault: addr=0x%08x w=%d u=%d eip=%08x\n", 
            addr, is_write, is_user, env->eip);
 #endif
@@ -366,72 +361,14 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr,
     
  do_mapping:
     pte = pte & a20_mask;
-#if !defined(CONFIG_SOFTMMU)
-    if (is_softmmu) 
-#endif
-    {
-        unsigned long paddr, vaddr, address, addend, page_offset;
-        int index;
 
-        /* software MMU case. Even if 4MB pages, we map only one 4KB
-           page in the cache to avoid filling it too fast */
-        page_offset = (addr & TARGET_PAGE_MASK) & (page_size - 1);
-        paddr = (pte & TARGET_PAGE_MASK) + page_offset;
-        vaddr = virt_addr + page_offset;
-        index = (addr >> 12) & (CPU_TLB_SIZE - 1);
-        pd = physpage_find(paddr);
-        if (pd & 0xfff) {
-            /* IO memory case */
-            address = vaddr | pd;
-            addend = paddr;
-        } else {
-            /* standard memory */
-            address = vaddr;
-            addend = (unsigned long)phys_ram_base + pd;
-        }
-        addend -= vaddr;
-        env->tlb_read[is_user][index].address = address;
-        env->tlb_read[is_user][index].addend = addend;
-        if (prot & PROT_WRITE) {
-            env->tlb_write[is_user][index].address = address;
-            env->tlb_write[is_user][index].addend = addend;
-        } else {
-            env->tlb_write[is_user][index].address = -1;
-            env->tlb_write[is_user][index].addend = -1;
-        }
-        page_set_flags(vaddr, vaddr + TARGET_PAGE_SIZE, 
-                       PAGE_VALID | PAGE_EXEC | prot);
-        ret = 0;
-    }
-#if !defined(CONFIG_SOFTMMU)
-    else {
-        ret = 0;
-        /* XXX: incorrect for 4MB pages */
-        pd = physpage_find(pte & ~0xfff);
-        if ((pd & 0xfff) != 0) {
-            /* IO access: no mapping is done as it will be handled by the
-               soft MMU */
-            if (!(env->hflags & HF_SOFTMMU_MASK))
-                ret = 2;
-        } else {
-            void *map_addr;
-            map_addr = mmap((void *)virt_addr, page_size, prot, 
-                            MAP_SHARED | MAP_FIXED, phys_ram_fd, pd);
-            if (map_addr == MAP_FAILED) {
-                fprintf(stderr, 
-                        "mmap failed when mapped physical address 0x%08x to virtual address 0x%08x\n",
-                        pte & ~0xfff, virt_addr);
-                exit(1);
-            }
-#ifdef DEBUG_MMU
-            printf("mmaping 0x%08x to virt 0x%08x pse=%d\n", 
-                   pte & ~0xfff, virt_addr, (page_size != 4096));
-#endif
-            page_set_flags(virt_addr, virt_addr + page_size, 
-                           PAGE_VALID | PAGE_EXEC | prot);
-        }
-    }
-#endif
+    /* Even if 4MB pages, we map only one 4KB page in the cache to
+       avoid filling it too fast */
+    page_offset = (addr & TARGET_PAGE_MASK) & (page_size - 1);
+    paddr = (pte & TARGET_PAGE_MASK) + page_offset;
+    vaddr = virt_addr + page_offset;
+    
+    ret = tlb_set_page(env, vaddr, paddr, prot, is_user, is_softmmu);
     return ret;
  do_fault_protect:
     error_code = PG_ERROR_P_MASK;
