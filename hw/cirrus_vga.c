@@ -259,9 +259,6 @@ typedef struct CirrusVGAState {
     uint8_t *cirrus_srcptr;
     uint8_t *cirrus_srcptr_end;
     uint32_t cirrus_srccounter;
-    uint8_t *cirrus_dstptr;
-    uint8_t *cirrus_dstptr_end;
-    uint32_t cirrus_dstcounter;
     /* hwcursor display state */
     int last_hw_cursor_size;
     int last_hw_cursor_x;
@@ -269,6 +266,7 @@ typedef struct CirrusVGAState {
     int last_hw_cursor_y_start;
     int last_hw_cursor_y_end;
     int real_vram_size; /* XXX: suppress that */
+    CPUWriteMemoryFunc **cirrus_linear_write;
 } CirrusVGAState;
 
 typedef struct PCICirrusVGAState {
@@ -285,7 +283,8 @@ static uint8_t rop_to_index[256];
  ***************************************/
 
 
-static void cirrus_bitblt_reset(CirrusVGAState * s);
+static void cirrus_bitblt_reset(CirrusVGAState *s);
+static void cirrus_update_memory_access(CirrusVGAState *s);
 
 /***************************************
  *
@@ -711,9 +710,7 @@ static void cirrus_bitblt_reset(CirrusVGAState * s)
     s->cirrus_srcptr = &s->cirrus_bltbuf[0];
     s->cirrus_srcptr_end = &s->cirrus_bltbuf[0];
     s->cirrus_srccounter = 0;
-    s->cirrus_dstptr = &s->cirrus_bltbuf[0];
-    s->cirrus_dstptr_end = &s->cirrus_bltbuf[0];
-    s->cirrus_dstcounter = 0;
+    cirrus_update_memory_access(s);
 }
 
 static int cirrus_bitblt_cputovideo(CirrusVGAState * s)
@@ -746,6 +743,7 @@ static int cirrus_bitblt_cputovideo(CirrusVGAState * s)
     }
     s->cirrus_srcptr = s->cirrus_bltbuf;
     s->cirrus_srcptr_end = s->cirrus_bltbuf + s->cirrus_blt_srcpitch;
+    cirrus_update_memory_access(s);
     return 1;
 }
 
@@ -1199,7 +1197,6 @@ cirrus_hook_write_sr(CirrusVGAState * s, unsigned reg_index, int reg_value)
     case 0x14:			// Scratch Register 2
     case 0x15:			// Scratch Register 3
     case 0x16:			// Performance Tuning Register
-    case 0x17:			// Configuration Readback and Extended Control
     case 0x18:			// Signature Generator Control
     case 0x19:			// Signature Generator Result
     case 0x1a:			// Signature Generator Result
@@ -1214,6 +1211,10 @@ cirrus_hook_write_sr(CirrusVGAState * s, unsigned reg_index, int reg_value)
 	       reg_index, reg_value);
 #endif
 	break;
+    case 0x17:			// Configuration Readback and Extended Control
+	s->sr[reg_index] = reg_value;
+        cirrus_update_memory_access(s);
+        break;
     default:
 #ifdef DEBUG_CIRRUS
 	printf("cirrus: outport sr_index %02x, sr_value %02x\n", reg_index,
@@ -1348,13 +1349,19 @@ cirrus_hook_write_gr(CirrusVGAState * s, unsigned reg_index, int reg_value)
 	return CIRRUS_HOOK_NOT_HANDLED;
     case 0x05:			// Standard VGA, Cirrus extended mode
 	s->gr[reg_index] = reg_value & 0x7f;
+        cirrus_update_memory_access(s);
 	break;
     case 0x09:			// bank offset #0
     case 0x0A:			// bank offset #1
+	s->gr[reg_index] = reg_value;
+	cirrus_update_bank_ptr(s, 0);
+	cirrus_update_bank_ptr(s, 1);
+        break;
     case 0x0B:
 	s->gr[reg_index] = reg_value;
 	cirrus_update_bank_ptr(s, 0);
 	cirrus_update_bank_ptr(s, 1);
+        cirrus_update_memory_access(s);
 	break;
     case 0x10:			// BGCOLOR 0x0000ff00
     case 0x11:			// FGCOLOR 0x0000ff00
@@ -2304,6 +2311,36 @@ static CPUWriteMemoryFunc *cirrus_linear_write[3] = {
     cirrus_linear_writel,
 };
 
+static void cirrus_linear_mem_writeb(void *opaque, target_phys_addr_t addr,
+                                     uint32_t val)
+{
+    CirrusVGAState *s = (CirrusVGAState *) opaque;
+
+    addr &= s->cirrus_addr_mask;
+    *(s->vram_ptr + addr) = val;
+    cpu_physical_memory_set_dirty(s->vram_offset + addr);
+}
+
+static void cirrus_linear_mem_writew(void *opaque, target_phys_addr_t addr,
+                                     uint32_t val)
+{
+    CirrusVGAState *s = (CirrusVGAState *) opaque;
+
+    addr &= s->cirrus_addr_mask;
+    cpu_to_le16w((uint16_t *)(s->vram_ptr + addr), val);
+    cpu_physical_memory_set_dirty(s->vram_offset + addr);
+}
+
+static void cirrus_linear_mem_writel(void *opaque, target_phys_addr_t addr,
+                                     uint32_t val)
+{
+    CirrusVGAState *s = (CirrusVGAState *) opaque;
+
+    addr &= s->cirrus_addr_mask;
+    cpu_to_le32w((uint32_t *)(s->vram_ptr + addr), val);
+    cpu_physical_memory_set_dirty(s->vram_offset + addr);
+}
+
 /***************************************
  *
  *  system to screen memory access
@@ -2404,6 +2441,37 @@ static CPUWriteMemoryFunc *cirrus_linear_bitblt_write[3] = {
     cirrus_linear_bitblt_writew,
     cirrus_linear_bitblt_writel,
 };
+
+/* Compute the memory access functions */
+static void cirrus_update_memory_access(CirrusVGAState *s)
+{
+    unsigned mode;
+
+    if ((s->sr[0x17] & 0x44) == 0x44) {
+        goto generic_io;
+    } else if (s->cirrus_srcptr != s->cirrus_srcptr_end) {
+        goto generic_io;
+    } else {
+	if ((s->gr[0x0B] & 0x14) == 0x14) {
+            goto generic_io;
+	} else if (s->gr[0x0B] & 0x02) {
+            goto generic_io;
+        }
+        
+	mode = s->gr[0x05] & 0x7;
+	if (mode < 4 || mode > 5 || ((s->gr[0x0B] & 0x4) == 0)) {
+            s->cirrus_linear_write[0] = cirrus_linear_mem_writeb;
+            s->cirrus_linear_write[1] = cirrus_linear_mem_writew;
+            s->cirrus_linear_write[2] = cirrus_linear_mem_writel;
+        } else {
+        generic_io:
+            s->cirrus_linear_write[0] = cirrus_linear_writeb;
+            s->cirrus_linear_write[1] = cirrus_linear_writew;
+            s->cirrus_linear_write[2] = cirrus_linear_writel;
+        }
+    }
+}
+
 
 /* I/O ports */
 
@@ -2933,6 +3001,8 @@ static void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci)
     s->cirrus_linear_io_addr =
 	cpu_register_io_memory(0, cirrus_linear_read, cirrus_linear_write,
 			       s);
+    s->cirrus_linear_write = cpu_get_io_memory_write(s->cirrus_linear_io_addr);
+
     /* I/O handler for LFB */
     s->cirrus_linear_bitblt_io_addr =
 	cpu_register_io_memory(0, cirrus_linear_bitblt_read, cirrus_linear_bitblt_write,

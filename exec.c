@@ -1977,6 +1977,16 @@ int cpu_register_io_memory(int io_index,
     return io_index << IO_MEM_SHIFT;
 }
 
+CPUWriteMemoryFunc **cpu_get_io_memory_write(int io_index)
+{
+    return io_mem_write[io_index >> IO_MEM_SHIFT];
+}
+
+CPUReadMemoryFunc **cpu_get_io_memory_read(int io_index)
+{
+    return io_mem_read[io_index >> IO_MEM_SHIFT];
+}
+
 /* physical memory access (slow version, mainly for debug) */
 #if defined(CONFIG_USER_ONLY)
 void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf, 
