@@ -25,6 +25,7 @@
 #include "m48t08.h"
 
 #define KERNEL_LOAD_ADDR     0x00004000
+#define INITRD_LOAD_ADDR     0x00800000
 #define PROM_ADDR	     0xffd00000
 #define PROM_FILENAMEB	     "proll.bin"
 #define PROM_FILENAMEE	     "proll.elf"
@@ -135,7 +136,8 @@ void sun4m_init(int ram_size, int vga_ram_size, int boot_device,
 {
     char buf[1024];
     int ret, linux_boot;
-    unsigned long vram_size = 0x100000, prom_offset;
+    unsigned int i;
+    unsigned long vram_size = 0x100000, prom_offset, initrd_size;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -179,6 +181,27 @@ void sun4m_init(int ram_size, int vga_ram_size, int boot_device,
             fprintf(stderr, "qemu: could not load kernel '%s'\n", 
                     kernel_filename);
 	    exit(1);
+        }
+
+        /* load initrd */
+        initrd_size = 0;
+        if (initrd_filename) {
+            initrd_size = load_image(initrd_filename, phys_ram_base + INITRD_LOAD_ADDR);
+            if (initrd_size < 0) {
+                fprintf(stderr, "qemu: could not load initial ram disk '%s'\n", 
+                        initrd_filename);
+                exit(1);
+            }
+        }
+        if (initrd_size > 0) {
+	    for (i = 0; i < 64 * TARGET_PAGE_SIZE; i += TARGET_PAGE_SIZE) {
+		if (ldl_raw(phys_ram_base + KERNEL_LOAD_ADDR + i)
+		    == 0x48647253) { // HdrS
+		    stl_raw(phys_ram_base + KERNEL_LOAD_ADDR + i + 16, INITRD_LOAD_ADDR);
+		    stl_raw(phys_ram_base + KERNEL_LOAD_ADDR + i + 20, initrd_size);
+		    break;
+		}
+	    }
         }
     }
 }
