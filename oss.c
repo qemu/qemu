@@ -403,7 +403,7 @@ void AUD_run (void)
 
         left = oss.bufsize - oss.rpos;
         play = MIN (left, bytes);
-        written = write (oss.fd, (void *) ((uint32_t) oss.buf + oss.rpos), play);
+        written = write (oss.fd, (uint8_t *)oss.buf + oss.rpos, play);
 
         if (-1 == written) {
             if (EAGAIN == errno || EINTR == errno) {
