@@ -4,23 +4,18 @@ CFLAGS=-Wall -O2 -g
 LDFLAGS=
 
 ifeq ($(ARCH),i386)
-TESTS=testclone testsig testthread sha1-i386 test-i386 runcom
+TESTS=linux-test testthread sha1-i386 test-i386 runcom
 endif
-TESTS+=sha1 test_path
+TESTS+=sha1# test_path
+#TESTS+=test_path
 
-QEMU=../i386/qemu
+QEMU=../i386/qemu-i386
 
 all: $(TESTS)
 
 hello-i386: hello-i386.c
 	$(CC) -nostdlib $(CFLAGS) -static $(LDFLAGS) -o $@ $<
 	strip $@
-
-testclone: testclone.c
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
-
-testsig: testsig.c
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 
 testthread: testthread.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< -lpthread
@@ -32,7 +27,7 @@ test_path: test_path.c
 # i386 emulation test (test various opcodes) */
 test-i386: test-i386.c test-i386-code16.S test-i386-vm86.S \
            test-i386.h test-i386-shift.h test-i386-muldiv.h
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ test-i386.c \
+	$(CC) $(CFLAGS) $(LDFLAGS) -static -o $@ test-i386.c \
               test-i386-code16.S test-i386-vm86.S -lm
 
 ifeq ($(ARCH),i386)
@@ -43,6 +38,10 @@ test:
 endif
 	$(QEMU) test-i386 > test-i386.out
 	@if diff -u test-i386.ref test-i386.out ; then echo "Auto Test OK"; fi
+
+# generic Linux and CPU test
+linux-test: linux-test.c
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< -lm
 
 # speed test
 sha1-i386: sha1.c
