@@ -23,8 +23,12 @@ libraries installed on your PC. For example:
     ./qemu -L / /bin/ls
 
 * On non x86 CPUs, you need first to download at least an x86 glibc
-(qemu-i386-glibc21.tar.gz on the qemu web page). Then you can launch
-the precompiled 'ls' x86 executable:
+(qemu-i386-glibc21.tar.gz on the qemu web page). Ensure that
+LD_LIBRARY_PATH is not set:
+
+    unset LD_LIBRARY_PATH 
+
+Then you can launch the precompiled 'ls' x86 executable:
 
     ./qemu /usr/local/qemu-i386/bin/ls
 

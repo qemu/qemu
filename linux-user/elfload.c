@@ -360,9 +360,6 @@ static unsigned int * create_elf_tables(char *p, int argc, int envc,
           put_user (tswapl(val), dlinfo++)
 
         if (exec) { /* Put this here for an ELF program interpreter */
-          struct elf_phdr * eppnt;
-          eppnt = (struct elf_phdr *)((unsigned long)exec->e_phoff);
-
           NEW_AUX_ENT (AT_PHDR, (unsigned int)(load_addr + exec->e_phoff));
           NEW_AUX_ENT (AT_PHENT, (unsigned int)(sizeof (struct elf_phdr)));
           NEW_AUX_ENT (AT_PHNUM, (unsigned int)(exec->e_phnum));
@@ -418,6 +415,9 @@ static unsigned long load_elf_interp(struct elfhdr * interp_elf_ex,
 	 */
 	load_addr = INTERP_LOADADDR;
 	
+#ifdef BSWAP_NEEDED
+        bswap_ehdr(interp_elf_ex);
+#endif
 	/* First of all, some simple consistency checks */
 	if ((interp_elf_ex->e_type != ET_EXEC && 
 	    interp_elf_ex->e_type != ET_DYN) || 
@@ -425,6 +425,7 @@ static unsigned long load_elf_interp(struct elfhdr * interp_elf_ex,
 		return ~0UL;
 	}
 	
+
 	/* Now read in all of the header information */
 	
 	if (sizeof(struct elf_phdr) * interp_elf_ex->e_phnum > X86_PAGE_SIZE)
@@ -452,7 +453,6 @@ static unsigned long load_elf_interp(struct elfhdr * interp_elf_ex,
 			   (char *) elf_phdata,
 			   sizeof(struct elf_phdr) * interp_elf_ex->e_phnum);
 	}
-	
 	if (retval < 0) {
 		perror("load_elf_interp");
 		exit(-1);

@@ -92,8 +92,15 @@ qemu -L / /bin/ls
 
 
 @item On non x86 CPUs, you need first to download at least an x86 glibc
-(@file{qemu-i386-glibc21.tar.gz} on the QEMU web page). Then you can
-launch the precompiled @file{ls} x86 executable:
+(@file{qemu-i386-glibc21.tar.gz} on the QEMU web page). Ensure that
+@code{LD_LIBRARY_PATH} is not set:
+
+@example
+unset LD_LIBRARY_PATH 
+@end example
+
+Then you can launch the precompiled @file{ls} x86 executable:
+
 @example
 qemu /usr/local/qemu-i386/bin/ls
 @end example
