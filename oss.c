@@ -24,6 +24,7 @@
 #include "vl.h"
 
 #ifndef _WIN32
+#include <ctype.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <stdio.h>
@@ -32,6 +33,7 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <inttypes.h>
+#include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/soundcard.h>
@@ -90,25 +92,38 @@ static inline uint32_t lsbindex (uint32_t u)
   ldebug ("ioctl " #args " = %d\n", ret);       \
 } while (0)
 
-static int audio_fd = -1;
-static int freq;
-static int conf_nfrags = 4;
-static int conf_fragsize;
-static int nfrags;
-static int fragsize;
-static int bufsize;
-static int nchannels;
-static int fmt;
-static int rpos;
-static int wpos;
-static int atom;
-static int live;
-static int leftover;
-static int bytes_per_second;
-static void *buf;
-static enum {DONT, DSP, TID} estimate = TID;
+static struct {
+    int fd;
+    int freq;
+    int bits16;
+    int nchannels;
+    int rpos;
+    int wpos;
+    int live;
+    int oss_fmt;
+    int bytes_per_second;
+    int is_mapped;
+    void *buf;
+    int bufsize;
+    int nfrags;
+    int fragsize;
+    int old_optr;
+    int leftover;
+    uint64_t old_ticks;
+    void (*copy_fn)(void *, void *, int);
+} oss = { .fd = -1 };
 
-static void (*copy_fn)(void *, void *, int);
+static struct {
+    int try_mmap;
+    int nfrags;
+    int fragsize;
+} conf = {
+    .try_mmap = 0,
+    .nfrags = 4,
+    .fragsize = 4096
+};
+
+static enum {DONT, DSP, TID} est = DONT;
 
 static void copy_no_conversion (void *dst, void *src, int size)
 {
@@ -141,182 +156,167 @@ static void pab (struct audio_buf_info *abinfo)
             rpos, wpos, live);
 }
 
-void AUD_reset (int rfreq, int rnchannels, audfmt_e rfmt)
+static void do_open ()
 {
-    int fmt_;
-    int bits16;
-
-    if (-1 == audio_fd) {
-        AUD_open (rfreq, rnchannels, rfmt);
-        return;
-    }
-
-    switch (rfmt) {
-    case AUD_FMT_U8:
-        bits16 = 0;
-        fmt_ = AFMT_U8;
-        copy_fn = copy_no_conversion;
-        atom = 1;
-        break;
-
-    case AUD_FMT_S8:
-        Fail ("can not play 8bit signed");
-
-    case AUD_FMT_S16:
-        bits16 = 1;
-        fmt_ = AFMT_S16_LE;
-        copy_fn = copy_no_conversion;
-        atom = 2;
-        break;
-
-    case AUD_FMT_U16:
-        bits16 = 1;
-        fmt_ = AFMT_S16_LE;
-        copy_fn = copy_u16_to_s16;
-        atom = 2;
-        break;
-
-    default:
-        abort ();
-    }
-
-    if ((fmt_ == fmt) && (bits16 + 1 == nchannels) && (rfreq == freq))
-        return;
-    else {
-        AUD_open (rfreq, rnchannels, rfmt);
-    }
-}
-
-void AUD_open (int rfreq, int rnchannels, audfmt_e rfmt)
-{
-    int fmt_;
     int mmmmssss;
-    struct audio_buf_info abinfo;
-    int _fmt;
-    int _freq;
-    int _nchannels;
-    int bits16;
+    audio_buf_info abinfo;
+    int fmt, freq, nchannels;
 
-    bits16 = 0;
-
-    switch (rfmt) {
-    case AUD_FMT_U8:
-        bits16 = 0;
-        fmt_ = AFMT_U8;
-        copy_fn = copy_no_conversion;
-        atom = 1;
-        break;
-
-    case AUD_FMT_S8:
-        Fail ("can not play 8bit signed");
-
-    case AUD_FMT_S16:
-        bits16 = 1;
-        fmt_ = AFMT_S16_LE;
-        copy_fn = copy_no_conversion;
-        atom = 2;
-        break;
-
-    case AUD_FMT_U16:
-        bits16 = 1;
-        fmt_ = AFMT_S16_LE;
-        copy_fn = copy_u16_to_s16;
-        atom = 2;
-        break;
-
-    default:
-        abort ();
+    if (oss.buf) {
+        if (-1 == munmap (oss.buf, oss.bufsize)) {
+            ERRFail ("failed to unmap audio buffer %p %d",
+                     oss.buf, oss.bufsize);
+        }
+        oss.buf = NULL;
     }
 
-    if (buf) {
-        free (buf);
-        buf = 0;
-    }
+    if (-1 != oss.fd)
+        close (oss.fd);
 
-    if (-1 != audio_fd)
-        close (audio_fd);
-
-    audio_fd = open ("/dev/dsp", O_WRONLY | O_NONBLOCK);
-    if (-1 == audio_fd) {
+    oss.fd = open ("/dev/dsp", O_RDWR | O_NONBLOCK);
+    if (-1 == oss.fd) {
         ERRFail ("can not open /dev/dsp");
     }
 
-    _fmt = fmt_;
-    _freq = rfreq;
-    _nchannels = rnchannels;
+    fmt = oss.oss_fmt;
+    freq = oss.freq;
+    nchannels = oss.nchannels;
 
-    IOCTL ((audio_fd, SNDCTL_DSP_RESET, 1));
-    IOCTL ((audio_fd, SNDCTL_DSP_SAMPLESIZE, &_fmt));
-    IOCTL ((audio_fd, SNDCTL_DSP_CHANNELS, &_nchannels));
-    IOCTL ((audio_fd, SNDCTL_DSP_SPEED, &_freq));
-    IOCTL ((audio_fd, SNDCTL_DSP_NONBLOCK));
+    IOCTL ((oss.fd, SNDCTL_DSP_RESET, 1));
+    IOCTL ((oss.fd, SNDCTL_DSP_SAMPLESIZE, &fmt));
+    IOCTL ((oss.fd, SNDCTL_DSP_CHANNELS, &nchannels));
+    IOCTL ((oss.fd, SNDCTL_DSP_SPEED, &freq));
+    IOCTL ((oss.fd, SNDCTL_DSP_NONBLOCK));
 
-    /* from oss.pdf:
+    mmmmssss = (conf.nfrags << 16) | conf.fragsize;
+    IOCTL ((oss.fd, SNDCTL_DSP_SETFRAGMENT, &mmmmssss));
 
-    The argument to this call is an integer encoded as 0xMMMMSSSS (in
-    hex). The 16 least significant bits determine the fragment
-    size. The size is 2^SSSS. For examp le SSSS=0008 gives fragment
-    size of 256 bytes (2^8). The minimum is 16 bytes (SSSS=4) and the
-    maximum is total_buffer_size/2. Some devices or processor
-    architectures may require larger fragments - in this case the
-    requested fragment size is automatically increased.
-
-    So ahem... 4096 = 2^12, and grand total 0x0004000c
-    */
-
-    mmmmssss = (conf_nfrags << 16) | conf_fragsize;
-    IOCTL ((audio_fd, SNDCTL_DSP_SETFRAGMENT, &mmmmssss));
-
-    linfo ("_fmt = %d, fmt = %d\n"
-           "_channels = %d, rnchannels = %d\n"
-           "_freq = %d, freq = %d\n",
-           _fmt, fmt_,
-           _nchannels, rnchannels,
-           _freq, rfreq);
-
-    if (_fmt != fmt_) {
-        Fail ("format %d != %d", _fmt, fmt_);
+    if ((oss.oss_fmt != fmt)
+        || (oss.nchannels != nchannels)
+        || (oss.freq != freq)) {
+        Fail ("failed to set audio parameters\n"
+              "parameter | requested value | obtained value\n"
+              "format    |      %10d |     %10d\n"
+              "channels  |      %10d |     %10d\n"
+              "frequency |      %10d |     %10d\n",
+              oss.oss_fmt, fmt,
+              oss.nchannels, nchannels,
+              oss.freq, freq);
     }
 
-    if (_nchannels != rnchannels) {
-        Fail ("channels %d != %d", _nchannels, rnchannels);
-    }
+    IOCTL ((oss.fd, SNDCTL_DSP_GETOSPACE, &abinfo));
 
-    if (_freq != rfreq) {
-        Fail ("freq %d != %d", _freq, rfreq);
-    }
+    oss.nfrags = abinfo.fragstotal;
+    oss.fragsize = abinfo.fragsize;
+    oss.bufsize = oss.nfrags * oss.fragsize;
+    oss.old_optr = 0;
 
-    IOCTL ((audio_fd, SNDCTL_DSP_GETOSPACE, &abinfo));
+    oss.bytes_per_second = (freq << (nchannels >> 1)) << oss.bits16;
 
-    nfrags = abinfo.fragstotal;
-    fragsize = abinfo.fragsize;
-    freq = _freq;
-    fmt = _fmt;
-    nchannels = rnchannels;
-    atom <<= nchannels >>  1;
-    bufsize = nfrags * fragsize;
-
-    bytes_per_second = (freq << (nchannels >> 1)) << bits16;
-
-    linfo ("bytes per second %d\n", bytes_per_second);
+    linfo ("bytes per second %d\n", oss.bytes_per_second);
 
     linfo ("fragments %d, fragstotal %d, fragsize %d, bytes %d, bufsize %d\n",
            abinfo.fragments,
            abinfo.fragstotal,
            abinfo.fragsize,
            abinfo.bytes,
-           bufsize);
+           oss.bufsize);
 
-    if (NULL == buf) {
-        buf = malloc (bufsize);
-        if (NULL == buf) {
-            abort ();
+    oss.buf = MAP_FAILED;
+    oss.is_mapped = 0;
+
+    if (conf.try_mmap) {
+        oss.buf = mmap (NULL, oss.bufsize, PROT_WRITE, MAP_SHARED, oss.fd, 0);
+        if (MAP_FAILED == oss.buf) {
+            int err;
+
+            err = errno;
+            log ("failed to mmap audio, size %d, fd %d\n"
+                 "syserr: %s\n",
+                 oss.bufsize, oss.fd, strerror (err));
+        }
+    else {
+            est = TID;
+            oss.is_mapped = 1;
         }
     }
 
-    rpos = 0;
-    wpos = 0;
-    live = 0;
+    if (MAP_FAILED == oss.buf) {
+        est = TID;
+        oss.buf = mmap (NULL, oss.bufsize, PROT_READ | PROT_WRITE,
+                        MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+        if (MAP_FAILED == oss.buf) {
+            ERRFail ("mmap audio buf, size %d", oss.bufsize);
+        }
+    }
+
+    oss.rpos = 0;
+    oss.wpos = 0;
+    oss.live = 0;
+
+    if (oss.is_mapped) {
+        int trig;
+
+        trig = 0;
+        IOCTL ((oss.fd, SNDCTL_DSP_SETTRIGGER, &trig));
+        trig = PCM_ENABLE_OUTPUT;
+        IOCTL ((oss.fd, SNDCTL_DSP_SETTRIGGER, &trig));
+    }
+}
+
+static void maybe_open (int req_freq, int req_nchannels,
+                        audfmt_e req_fmt, int force_open)
+{
+    int oss_fmt, bits16;
+
+    switch (req_fmt) {
+    case AUD_FMT_U8:
+        bits16 = 0;
+        oss_fmt = AFMT_U8;
+        oss.copy_fn = copy_no_conversion;
+        break;
+
+    case AUD_FMT_S8:
+        Fail ("can not play 8bit signed");
+
+    case AUD_FMT_S16:
+        bits16 = 1;
+        oss_fmt = AFMT_S16_LE;
+        oss.copy_fn = copy_no_conversion;
+        break;
+
+    case AUD_FMT_U16:
+        bits16 = 1;
+        oss_fmt = AFMT_S16_LE;
+        oss.copy_fn = copy_u16_to_s16;
+        break;
+
+    default:
+        abort ();
+    }
+
+    if (force_open
+        || (-1 == oss.fd)
+        || (oss_fmt != oss.oss_fmt)
+        || (req_nchannels != oss.nchannels)
+        || (req_freq != oss.freq)
+        || (bits16 != oss.bits16)) {
+        oss.oss_fmt = oss_fmt;
+        oss.nchannels = req_nchannels;
+        oss.freq = req_freq;
+        oss.bits16 = bits16;
+        do_open ();
+    }
+}
+
+void AUD_reset (int req_freq, int req_nchannels, audfmt_e req_fmt)
+{
+    maybe_open (req_freq, req_nchannels, req_fmt, 0);
+}
+
+void AUD_open (int req_freq, int req_nchannels, audfmt_e req_fmt)
+{
+    maybe_open (req_freq, req_nchannels, req_fmt, 1);
 }
 
 int AUD_write (void *in_buf, int size)
@@ -324,27 +324,27 @@ int AUD_write (void *in_buf, int size)
     int to_copy, temp;
     uint8_t *in, *out;
 
-    to_copy = MIN (bufsize - live, size);
+    to_copy = MIN (oss.bufsize - oss.live, size);
 
     temp = to_copy;
 
     in = in_buf;
-    out = buf;
+    out = oss.buf;
 
     while (temp) {
         int copy;
 
-        copy = MIN (temp, bufsize - wpos);
-        copy_fn (out + wpos, in, copy);
+        copy = MIN (temp, oss.bufsize - oss.wpos);
+        oss.copy_fn (out + oss.wpos, in, copy);
 
-        wpos += copy;
-        if (wpos == bufsize) {
-            wpos = 0;
+        oss.wpos += copy;
+        if (oss.wpos == oss.bufsize) {
+            oss.wpos = 0;
         }
 
         temp -= copy;
         in += copy;
-        live += copy;
+        oss.live += copy;
     }
 
     return to_copy;
@@ -356,10 +356,34 @@ void AUD_run (void)
     int bytes;
     struct audio_buf_info abinfo;
 
-    if (0 == live)
+    if (0 == oss.live)
         return;
 
-    res = ioctl (audio_fd, SNDCTL_DSP_GETOSPACE, &abinfo);
+    if (oss.is_mapped) {
+        count_info info;
+
+        res = ioctl (oss.fd, SNDCTL_DSP_GETOPTR, &info);
+        if (-1 == res) {
+            int err;
+
+            err = errno;
+            lwarn ("SNDCTL_DSP_GETOPTR failed with %s\n", strerror (err));
+            return;
+        }
+
+        if (info.ptr > oss.old_optr) {
+            bytes = info.ptr - oss.old_optr;
+        }
+        else {
+            bytes = oss.bufsize + info.ptr - oss.old_optr;
+        }
+
+        oss.old_optr = info.ptr;
+        oss.live -= bytes;
+        return;
+    }
+
+    res = ioctl (oss.fd, SNDCTL_DSP_GETOSPACE, &abinfo);
 
     if (-1 == res) {
         int err;
@@ -369,7 +393,7 @@ void AUD_run (void)
     }
 
     bytes = abinfo.bytes;
-    bytes = MIN (live, bytes);
+    bytes = MIN (oss.live, bytes);
 #if 0
     bytes = (bytes / fragsize) * fragsize;
 #endif
@@ -377,9 +401,9 @@ void AUD_run (void)
     while (bytes) {
         int left, play, written;
 
-        left = bufsize - rpos;
+        left = oss.bufsize - oss.rpos;
         play = MIN (left, bytes);
-        written = write (audio_fd, (void *) ((uint32_t) buf + rpos), play);
+        written = write (oss.fd, (void *) ((uint32_t) oss.buf + oss.rpos), play);
 
         if (-1 == written) {
             if (EAGAIN == errno || EINTR == errno) {
@@ -391,12 +415,12 @@ void AUD_run (void)
         }
 
         play = written;
-        live -= play;
-        rpos += play;
+        oss.live -= play;
+        oss.rpos += play;
         bytes -= play;
 
-        if (rpos == bufsize) {
-            rpos = 0;
+        if (oss.rpos == oss.bufsize) {
+            oss.rpos = 0;
         }
     }
 }
@@ -406,7 +430,7 @@ static int get_dsp_bytes (void)
     int res;
     struct count_info info;
 
-    res = ioctl (audio_fd, SNDCTL_DSP_GETOPTR, &info);
+    res = ioctl (oss.fd, SNDCTL_DSP_GETOPTR, &info);
     if (-1 == res) {
         int err;
 
@@ -420,22 +444,22 @@ static int get_dsp_bytes (void)
     }
 }
 
-void AUD_adjust_estimate (int _leftover)
+void AUD_adjust_estimate (int leftover)
 {
-    leftover = _leftover;
+    oss.leftover = leftover;
 }
 
 int AUD_get_free (void)
 {
     int free, elapsed;
 
-    free = bufsize - live;
+    free = oss.bufsize - oss.live;
 
     if (0 == free)
         return 0;
 
     elapsed = free;
-    switch (estimate) {
+    switch (est) {
     case DONT:
         break;
 
@@ -456,16 +480,15 @@ int AUD_get_free (void)
 
     case TID:
         {
-            static uint64_t old_ticks;
             uint64_t ticks, delta;
             uint64_t ua_elapsed;
             uint64_t al_elapsed;
 
             ticks = qemu_get_clock(rt_clock);
-            delta = ticks - old_ticks;
-            old_ticks = ticks;
+            delta = ticks - oss.old_ticks;
+            oss.old_ticks = ticks;
 
-            ua_elapsed = (delta * bytes_per_second) / 1000;
+            ua_elapsed = (delta * oss.bytes_per_second) / 1000;
             al_elapsed = ua_elapsed & ~3ULL;
 
             ldebug ("tid elapsed %llu bytes\n", ua_elapsed);
@@ -475,7 +498,7 @@ int AUD_get_free (void)
             else
                 elapsed = al_elapsed;
 
-            elapsed += leftover;
+            elapsed += oss.leftover;
         }
     }
 
@@ -490,27 +513,47 @@ int AUD_get_free (void)
 
 int AUD_get_live (void)
 {
-    return live;
+    return oss.live;
 }
 
 int AUD_get_buffer_size (void)
 {
-    return bufsize;
+    return oss.bufsize;
+}
+
+#define QC_OSS_FRAGSIZE "QEMU_OSS_FRAGSIZE"
+#define QC_OSS_NFRAGS "QEMU_OSS_NFRAGS"
+#define QC_OSS_MMAP "QEMU_OSS_MMAP"
+
+static int get_conf_val (const char *key, int defval)
+{
+    int val = defval;
+    char *strval;
+
+    strval = getenv (key);
+    if (strval) {
+        val = atoi (strval);
+    }
+
+    return val;
 }
 
 void AUD_init (void)
 {
     int fsp;
-    int _fragsize = 4096;
 
     DEREF (pab);
 
-    fsp = _fragsize;
+    conf.fragsize = get_conf_val (QC_OSS_FRAGSIZE, conf.fragsize);
+    conf.nfrags = get_conf_val (QC_OSS_NFRAGS, conf.nfrags);
+    conf.try_mmap = get_conf_val (QC_OSS_MMAP, conf.try_mmap);
+
+    fsp = conf.fragsize;
     if (0 != (fsp & (fsp - 1))) {
         Fail ("fragment size %d is not power of 2", fsp);
     }
 
-    conf_fragsize = lsbindex (fsp);
+    conf.fragsize = lsbindex (fsp);
 }
 
 #else

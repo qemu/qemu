@@ -26,7 +26,10 @@
 #define MIN(a, b) ((a)>(b)?(b):(a))
 #define LENOFA(a) ((int) (sizeof(a)/sizeof(a[0])))
 
-#define log(...) fprintf (stderr, "sb16: " __VA_ARGS__)
+#define log(...) do {                           \
+    fprintf (stderr, "sb16: " __VA_ARGS__);     \
+    fputc ('\n', stderr);                       \
+} while (0)
 
 /* #define DEBUG_SB16 */
 #ifdef DEBUG_SB16
@@ -43,6 +46,8 @@
     uint32_t name (void *opaque, uint32_t nport)
 #define IO_WRITE_PROTO(name) \
     void name (void *opaque, uint32_t nport, uint32_t val)
+
+static const char e3[] = "COPYRIGHT (C) CREATIVE TECHNOLOGY LTD, 1992.";
 
 static struct {
     int ver_lo;
@@ -76,7 +81,7 @@ typedef struct SB16State {
     int v2x6;
 
     uint8_t in_data[10];
-    uint8_t out_data[10];
+    uint8_t out_data[50];
 
     int left_till_irq;
 
@@ -223,6 +228,20 @@ static void command (SB16State *dsp, uint8_t cmd)
             /* IMS uses those when probing for sound devices */
             return;
 
+        case 0x04:
+            dsp->needed_bytes = 1;
+            break;
+
+        case 0x05:
+        case 0x0e:
+            dsp->needed_bytes = 2;
+            break;
+
+        case 0x0f:
+            dsp->needed_bytes = 1;
+            dsp_out_data (dsp, 0);
+            break;
+
         case 0x10:
             dsp->needed_bytes = 1;
             break;
@@ -274,8 +293,8 @@ static void command (SB16State *dsp, uint8_t cmd)
                 uint8_t d0;
 
                 d0 = 4;
-                if (dsp->fmt_signed) d0 |= 16;
-                if (dsp->fmt_stereo) d0 |= 32;
+                /* if (dsp->fmt_signed) d0 |= 16; */
+                /* if (dsp->fmt_stereo) d0 |= 32; */
                 dma_cmd (cmd == 0x90 ? 0xc4 : 0xc0, d0, -1);
                 cmd = -1;
                 break;
@@ -324,6 +343,14 @@ static void command (SB16State *dsp, uint8_t cmd)
             dsp_out_data(dsp, sb.ver_hi);
             return;
 
+        case 0xe3:
+            {
+                int i;
+                for (i = sizeof (e3) - 1; i >= 0; --i)
+                    dsp_out_data (dsp, e3[i]);
+                return;
+            }
+
         case 0xf2:
             dsp_out_data(dsp, 0xaa);
             dsp->mixer_regs[0x82] |= dsp->mixer_regs[0x80];
@@ -360,6 +387,11 @@ static void complete (SB16State *dsp)
     }
     else {
         switch (dsp->cmd) {
+        case 0x05:
+        case 0x04:
+        case 0x0e:
+        case 0x0f:
+            break;
 
         case 0x10:
             break;
@@ -425,8 +457,10 @@ static IO_WRITE_PROTO (dsp_write)
 
     iport = nport - sb.port;
 
+    ldebug ("write %#x %#x\n", nport, iport);
     switch (iport) {
     case 0x6:
+        control (0);
         if (0 == val)
             dsp->v2x6 = 0;
         else if ((1 == val) && (0 == dsp->v2x6)) {
@@ -477,7 +511,7 @@ static IO_READ_PROTO (dsp_read)
         if (dsp->out_data_len) {
             retval = dsp->out_data[--dsp->out_data_len];
         } else {
-            log("empty output buffer\n");
+            log("empty output buffer");
             goto error;
         }
         break;
@@ -487,7 +521,7 @@ static IO_READ_PROTO (dsp_read)
         break;
 
     case 0xd:                   /* timer interrupt clear */
-        log("timer interrupt clear\n");
+        log("timer interrupt clear");
         goto error;
 
     case 0xe:                   /* data available status | irq 8 ack */
@@ -669,7 +703,7 @@ static int magic_of_irq (int irq)
     case 10:
         return 8;
     default:
-        log ("bad irq %d\n", irq);
+        log ("bad irq %d", irq);
         return 2;
     }
 }
@@ -687,7 +721,7 @@ static int irq_of_magic (int magic)
     case 8:
         return 10;
     default:
-        log ("bad irq magic %d\n", magic);
+        log ("bad irq magic %d", magic);
         return 2;
     }
 }
