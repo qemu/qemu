@@ -2997,7 +2997,7 @@ CPUPPCState *cpu_ppc_init(void)
     if (create_ppc_proc(ppc_opcodes, env->spr[PVR]) < 0)
         return NULL;
     init_spr_rights(env->spr[PVR]);
-    tlb_flush(env);
+    tlb_flush(env, 1);
 #if defined (DO_SINGLE_STEP)
     /* Single step trace mode */
     msr_se = 1;

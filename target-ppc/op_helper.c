@@ -361,7 +361,7 @@ void do_icbi (void)
 /* TLB invalidation helpers */
 void do_tlbia (void)
 {
-    tlb_flush(env);
+    tlb_flush(env, 1);
 }
 
 void do_tlbie (void)
