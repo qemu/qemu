@@ -313,7 +313,8 @@ static void fd_reset (fdrive_t *drv)
 
 static void fdctrl_reset (fdctrl_t *fdctrl, int do_irq);
 static void fdctrl_reset_fifo (fdctrl_t *fdctrl);
-static int fdctrl_transfer_handler (void *opaque, target_ulong addr, int size);
+static int fdctrl_transfer_handler (void *opaque, int nchan,
+                                    int dma_pos, int dma_len);
 static void fdctrl_raise_irq (fdctrl_t *fdctrl, uint8_t status);
 static void fdctrl_result_timer(void *opaque);
 
@@ -908,7 +909,8 @@ static void fdctrl_start_transfer_del (fdctrl_t *fdctrl, int direction)
 }
 
 /* handlers for DMA transfers */
-static int fdctrl_transfer_handler (void *opaque, target_ulong addr, int size)
+static int fdctrl_transfer_handler (void *opaque, int nchan,
+                                    int dma_pos, int dma_len)
 {
     fdctrl_t *fdctrl;
     fdrive_t *cur_drv;
@@ -924,8 +926,8 @@ static int fdctrl_transfer_handler (void *opaque, target_ulong addr, int size)
     if (fdctrl->data_dir == FD_DIR_SCANE || fdctrl->data_dir == FD_DIR_SCANL ||
         fdctrl->data_dir == FD_DIR_SCANH)
         status2 = 0x04;
-    if (size > fdctrl->data_len)
-	size = fdctrl->data_len;
+    if (dma_len > fdctrl->data_len)
+        dma_len = fdctrl->data_len;
     if (cur_drv->bs == NULL) {
 	if (fdctrl->data_dir == FD_DIR_WRITE)
 	    fdctrl_stop_transfer(fdctrl, 0x60, 0x00, 0x00);
@@ -935,8 +937,8 @@ static int fdctrl_transfer_handler (void *opaque, target_ulong addr, int size)
         goto transfer_error;
     }
     rel_pos = fdctrl->data_pos % FD_SECTOR_LEN;
-    for (start_pos = fdctrl->data_pos; fdctrl->data_pos < size;) {
-        len = size - fdctrl->data_pos;
+    for (start_pos = fdctrl->data_pos; fdctrl->data_pos < dma_len;) {
+        len = dma_len - fdctrl->data_pos;
         if (len + rel_pos > FD_SECTOR_LEN)
             len = FD_SECTOR_LEN - rel_pos;
         FLOPPY_DPRINTF("copy %d bytes (%d %d %d) %d pos %d %02x %02x "
@@ -958,13 +960,17 @@ static int fdctrl_transfer_handler (void *opaque, target_ulong addr, int size)
 	switch (fdctrl->data_dir) {
 	case FD_DIR_READ:
 	    /* READ commands */
-	    cpu_physical_memory_write(addr + fdctrl->data_pos,
-				      fdctrl->fifo + rel_pos, len);
+            DMA_write_memory (nchan, fdctrl->fifo + rel_pos,
+                              fdctrl->data_pos, len);
+/* 	    cpu_physical_memory_write(addr + fdctrl->data_pos, */
+/* 				      fdctrl->fifo + rel_pos, len); */
 	    break;
 	case FD_DIR_WRITE:
             /* WRITE commands */
-            cpu_physical_memory_read(addr + fdctrl->data_pos,
-				     fdctrl->fifo + rel_pos, len);
+            DMA_read_memory (nchan, fdctrl->fifo + rel_pos,
+                             fdctrl->data_pos, len);
+/*             cpu_physical_memory_read(addr + fdctrl->data_pos, */
+/* 				     fdctrl->fifo + rel_pos, len); */
             if (bdrv_write(cur_drv->bs, fd_sector(cur_drv),
 			   fdctrl->fifo, 1) < 0) {
                 FLOPPY_ERROR("writting sector %d\n", fd_sector(cur_drv));
@@ -977,8 +983,9 @@ static int fdctrl_transfer_handler (void *opaque, target_ulong addr, int size)
             {
 		uint8_t tmpbuf[FD_SECTOR_LEN];
                 int ret;
-                cpu_physical_memory_read(addr + fdctrl->data_pos,
-                                         tmpbuf, len);
+                DMA_read_memory (nchan, tmpbuf, fdctrl->data_pos, len);
+/*                 cpu_physical_memory_read(addr + fdctrl->data_pos, */
+/*                                          tmpbuf, len); */
                 ret = memcmp(tmpbuf, fdctrl->fifo + rel_pos, len);
                 if (ret == 0) {
                     status2 = 0x08;

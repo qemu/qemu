@@ -30,6 +30,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <time.h>
 #include <ctype.h>
 #include <errno.h>
@@ -553,39 +554,22 @@ void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table);
 int pmac_ide_init (BlockDriverState **hd_table,
                    openpic_t *openpic, int irq);
 
-/* oss.c */
-typedef enum {
-  AUD_FMT_U8,
-  AUD_FMT_S8,
-  AUD_FMT_U16,
-  AUD_FMT_S16
-} audfmt_e;
-
-void AUD_open (int rfreq, int rnchannels, audfmt_e rfmt);
-void AUD_reset (int rfreq, int rnchannels, audfmt_e rfmt);
-int AUD_write (void *in_buf, int size);
-void AUD_run (void);
-void AUD_adjust_estimate (int _leftover);
-int AUD_get_free (void);
-int AUD_get_live (void);
-int AUD_get_buffer_size (void);
+/* audio.c */
 void AUD_init (void);
 
 /* dma.c */
-typedef int (*DMA_transfer_handler) (void *opaque, target_ulong addr, int size);
+typedef int (*DMA_transfer_handler) (void *opaque, int nchan, int pos, int size);
 int DMA_get_channel_mode (int nchan);
+int DMA_read_memory (int nchan, void *buf, int pos, int size);
+int DMA_write_memory (int nchan, void *buf, int pos, int size);
 void DMA_hold_DREQ (int nchan);
 void DMA_release_DREQ (int nchan);
 void DMA_schedule(int nchan);
 void DMA_run (void);
 void DMA_init (int high_page_enable);
 void DMA_register_channel (int nchan,
-                           DMA_transfer_handler transfer_handler, void *opaque);
-
-/* sb16.c */
-void SB16_run (void);
-void SB16_init (void);
- 
+                           DMA_transfer_handler transfer_handler,
+                           void *opaque);
 /* fdc.c */
 #define MAX_FD 2
 extern BlockDriverState *fd_table[MAX_FD];

@@ -1,8 +1,8 @@
 /*
  * QEMU DMA emulation
- * 
- * Copyright (c) 2003 Vassili Karpov (malc)
- * 
+ *
+ * Copyright (c) 2003-2004 Vassili Karpov (malc)
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -23,9 +23,9 @@
  */
 #include "vl.h"
 
-//#define DEBUG_DMA
+/* #define DEBUG_DMA */
 
-#define log(...) fprintf (stderr, "dma: " __VA_ARGS__)
+#define dolog(...) fprintf (stderr, "dma: " __VA_ARGS__)
 #ifdef DEBUG_DMA
 #define lwarn(...) fprintf (stderr, "dma: " __VA_ARGS__)
 #define linfo(...) fprintf (stderr, "dma: " __VA_ARGS__)
@@ -86,7 +86,7 @@ static void write_page (void *opaque, uint32_t nport, uint32_t data)
 
     ichan = channels[nport & 7];
     if (-1 == ichan) {
-        log ("invalid channel %#x %#x\n", nport, data);
+        dolog ("invalid channel %#x %#x\n", nport, data);
         return;
     }
     d->regs[ichan].page = data;
@@ -99,7 +99,7 @@ static void write_pageh (void *opaque, uint32_t nport, uint32_t data)
 
     ichan = channels[nport & 7];
     if (-1 == ichan) {
-        log ("invalid channel %#x %#x\n", nport, data);
+        dolog ("invalid channel %#x %#x\n", nport, data);
         return;
     }
     d->regs[ichan].pageh = data;
@@ -112,7 +112,7 @@ static uint32_t read_page (void *opaque, uint32_t nport)
 
     ichan = channels[nport & 7];
     if (-1 == ichan) {
-        log ("invalid channel read %#x\n", nport);
+        dolog ("invalid channel read %#x\n", nport);
         return 0;
     }
     return d->regs[ichan].page;
@@ -125,7 +125,7 @@ static uint32_t read_pageh (void *opaque, uint32_t nport)
 
     ichan = channels[nport & 7];
     if (-1 == ichan) {
-        log ("invalid channel read %#x\n", nport);
+        dolog ("invalid channel read %#x\n", nport);
         return 0;
     }
     return d->regs[ichan].pageh;
@@ -136,7 +136,7 @@ static inline void init_chan (struct dma_cont *d, int ichan)
     struct dma_regs *r;
 
     r = d->regs + ichan;
-    r->now[ADDR] = r->base[0] << d->dshift;
+    r->now[ADDR] = r->base[ADDR] << d->dshift;
     r->now[COUNT] = 0;
 }
 
@@ -152,7 +152,7 @@ static inline int getff (struct dma_cont *d)
 static uint32_t read_chan (void *opaque, uint32_t nport)
 {
     struct dma_cont *d = opaque;
-    int ichan, nreg, iport, ff, val;
+    int ichan, nreg, iport, ff, val, dir;
     struct dma_regs *r;
 
     iport = (nport >> d->dshift) & 0x0f;
@@ -160,12 +160,14 @@ static uint32_t read_chan (void *opaque, uint32_t nport)
     nreg = iport & 1;
     r = d->regs + ichan;
 
+    dir = ((r->mode >> 5) & 1) ? -1 : 1;
     ff = getff (d);
     if (nreg)
         val = (r->base[COUNT] << d->dshift) - r->now[COUNT];
     else
-        val = r->now[ADDR] + r->now[COUNT];
+        val = r->now[ADDR] + r->now[COUNT] * dir;
 
+    ldebug ("read_chan %#x -> %d\n", iport, val);
     return (val >> (d->dshift + (ff << 3))) & 0xff;
 }
 
@@ -190,19 +192,19 @@ static void write_chan (void *opaque, uint32_t nport, uint32_t data)
 static void write_cont (void *opaque, uint32_t nport, uint32_t data)
 {
     struct dma_cont *d = opaque;
-    int iport, ichan;
+    int iport, ichan = 0;
 
     iport = (nport >> d->dshift) & 0x0f;
     switch (iport) {
-    case 8:                     /* command */
+    case 0x08:                  /* command */
         if ((data != 0) && (data & CMD_NOT_SUPPORTED)) {
-            log ("command %#x not supported\n", data);
+            dolog ("command %#x not supported\n", data);
             return;
         }
         d->command = data;
         break;
 
-    case 9:
+    case 0x09:
         ichan = data & 3;
         if (data & 4) {
             d->status |= 1 << (ichan + 4);
@@ -213,22 +215,19 @@ static void write_cont (void *opaque, uint32_t nport, uint32_t data)
         d->status &= ~(1 << ichan);
         break;
 
-    case 0xa:                   /* single mask */
+    case 0x0a:                  /* single mask */
         if (data & 4)
             d->mask |= 1 << (data & 3);
         else
             d->mask &= ~(1 << (data & 3));
         break;
 
-    case 0xb:                   /* mode */
+    case 0x0b:                  /* mode */
         {
             ichan = data & 3;
 #ifdef DEBUG_DMA
-            int op;
-            int ai;
-            int dir;
-            int opmode;
-
+            {
+                int op, ai, dir, opmode;
             op = (data >> 2) & 3;
             ai = (data >> 4) & 1;
             dir = (data >> 5) & 1;
@@ -236,39 +235,39 @@ static void write_cont (void *opaque, uint32_t nport, uint32_t data)
 
             linfo ("ichan %d, op %d, ai %d, dir %d, opmode %d\n",
                    ichan, op, ai, dir, opmode);
+            }
 #endif
-
             d->regs[ichan].mode = data;
             break;
         }
 
-    case 0xc:                   /* clear flip flop */
+    case 0x0c:                  /* clear flip flop */
         d->flip_flop = 0;
         break;
 
-    case 0xd:                   /* reset */
+    case 0x0d:                  /* reset */
         d->flip_flop = 0;
         d->mask = ~0;
         d->status = 0;
         d->command = 0;
         break;
 
-    case 0xe:                   /* clear mask for all channels */
+    case 0x0e:                  /* clear mask for all channels */
         d->mask = 0;
         break;
 
-    case 0xf:                   /* write mask for all channels */
+    case 0x0f:                  /* write mask for all channels */
         d->mask = data;
         break;
 
     default:
-        log ("dma: unknown iport %#x\n", iport);
+        dolog ("unknown iport %#x\n", iport);
         break;
     }
 
 #ifdef DEBUG_DMA
     if (0xc != iport) {
-        linfo ("nport %#06x, ichan % 2d, val %#06x\n",
+        linfo ("write_cont: nport %#06x, ichan % 2d, val %#06x\n",
                nport, ichan, data);
     }
 #endif
@@ -278,20 +277,22 @@ static uint32_t read_cont (void *opaque, uint32_t nport)
 {
     struct dma_cont *d = opaque;
     int iport, val;
-    
+
     iport = (nport >> d->dshift) & 0x0f;
     switch (iport) {
-    case 0x08: /* status */
+    case 0x08:                  /* status */
         val = d->status;
         d->status &= 0xf0;
         break;
-    case 0x0f: /* mask */
+    case 0x0f:                  /* mask */
         val = d->mask;
         break;
     default:
         val = 0;
         break;
     }
+
+    ldebug ("read_cont: nport %#06x, iport %#04x val %#x\n", nport, iport, val);
     return val;
 }
 
@@ -322,23 +323,27 @@ void DMA_release_DREQ (int nchan)
 
 static void channel_run (int ncont, int ichan)
 {
-    struct dma_regs *r;
     int n;
-    target_ulong addr;
-/*     int ai, dir; */
+    struct dma_regs *r = &dma_controllers[ncont].regs[ichan];
+#ifdef DEBUG_DMA
+    int dir, opmode;
+
+    dir = (r->mode >> 5) & 1;
+    opmode = (r->mode >> 6) & 3;
+
+    if (dir) {
+        dolog ("DMA in address decrement mode\n");
+    }
+    if (opmode != 1) {
+        dolog ("DMA not in single mode select %#x\n", opmode);
+    }
+#endif
 
     r = dma_controllers[ncont].regs + ichan;
-/*   ai = r->mode & 16; */
-/*   dir = r->mode & 32 ? -1 : 1; */
-
-    /* NOTE: pageh is only used by PPC PREP */
-    addr = ((r->pageh & 0x7f) << 24) | (r->page << 16) | r->now[ADDR];
-    n = r->transfer_handler (r->opaque, addr, 
-                             (r->base[COUNT] << ncont) + (1 << ncont));
+    n = r->transfer_handler (r->opaque, ichan + (ncont << 2),
+                             r->now[COUNT], (r->base[COUNT] + 1) << ncont);
     r->now[COUNT] = n;
-
-    ldebug ("dma_pos %d size %d\n",
-            n, (r->base[1] << ncont) + (1 << ncont));
+    ldebug ("dma_pos %d size %d\n", n, (r->base[COUNT] + 1) << ncont);
 }
 
 void DMA_run (void)
@@ -361,7 +366,7 @@ void DMA_run (void)
 }
 
 void DMA_register_channel (int nchan,
-                           DMA_transfer_handler transfer_handler, 
+                           DMA_transfer_handler transfer_handler,
                            void *opaque)
 {
     struct dma_regs *r;
@@ -373,6 +378,50 @@ void DMA_register_channel (int nchan,
     r = dma_controllers[ncont].regs + ichan;
     r->transfer_handler = transfer_handler;
     r->opaque = opaque;
+}
+
+int DMA_read_memory (int nchan, void *buf, int pos, int len)
+{
+    struct dma_regs *r = &dma_controllers[nchan > 3].regs[nchan & 3];
+    target_ulong addr = ((r->pageh & 0x7f) << 24) | (r->page << 16) | r->now[ADDR];
+
+    if (r->mode & 0x20) {
+        int i;
+        uint8_t *p = buf;
+
+        cpu_physical_memory_read (addr - pos - len, buf, len);
+        /* What about 16bit transfers? */
+        for (i = 0; i < len >> 1; i++) {
+            uint8_t b = p[len - i - 1];
+            p[i] = b;
+        }
+    }
+    else
+        cpu_physical_memory_read (addr + pos, buf, len);
+
+    return len;
+}
+
+int DMA_write_memory (int nchan, void *buf, int pos, int len)
+{
+    struct dma_regs *r = &dma_controllers[nchan > 3].regs[nchan & 3];
+    target_ulong addr = ((r->pageh & 0x7f) << 24) | (r->page << 16) | r->now[ADDR];
+
+    if (r->mode & 0x20) {
+        int i;
+        uint8_t *p = buf;
+
+        cpu_physical_memory_write (addr - pos - len, buf, len);
+        /* What about 16bit transfers? */
+        for (i = 0; i < len; i++) {
+            uint8_t b = p[len - i - 1];
+            p[i] = b;
+        }
+    }
+    else
+        cpu_physical_memory_write (addr + pos, buf, len);
+
+    return len;
 }
 
 /* request the emulator to transfer a new DMA memory block ASAP */
@@ -388,7 +437,7 @@ static void dma_reset(void *opaque)
 }
 
 /* dshift = 0: 8 bit DMA, 1 = 16 bit DMA */
-static void dma_init2(struct dma_cont *d, int base, int dshift, 
+static void dma_init2(struct dma_cont *d, int base, int dshift,
                       int page_base, int pageh_base)
 {
     const static int page_port_list[] = { 0x1, 0x2, 0x3, 0x7 };
@@ -400,31 +449,87 @@ static void dma_init2(struct dma_cont *d, int base, int dshift,
         register_ioport_read (base + (i << dshift), 1, 1, read_chan, d);
     }
     for (i = 0; i < LENOFA (page_port_list); i++) {
-        register_ioport_write (page_base + page_port_list[i], 1, 1, 
+        register_ioport_write (page_base + page_port_list[i], 1, 1,
                                write_page, d);
-        register_ioport_read (page_base + page_port_list[i], 1, 1, 
+        register_ioport_read (page_base + page_port_list[i], 1, 1,
                               read_page, d);
         if (pageh_base >= 0) {
-            register_ioport_write (pageh_base + page_port_list[i], 1, 1, 
+            register_ioport_write (pageh_base + page_port_list[i], 1, 1,
                                    write_pageh, d);
-            register_ioport_read (pageh_base + page_port_list[i], 1, 1, 
+            register_ioport_read (pageh_base + page_port_list[i], 1, 1,
                                   read_pageh, d);
         }
     }
     for (i = 0; i < 8; i++) {
-        register_ioport_write (base + ((i + 8) << dshift), 1, 1, 
+        register_ioport_write (base + ((i + 8) << dshift), 1, 1,
                                write_cont, d);
-        register_ioport_read (base + ((i + 8) << dshift), 1, 1, 
+        register_ioport_read (base + ((i + 8) << dshift), 1, 1,
                               read_cont, d);
     }
     qemu_register_reset(dma_reset, d);
     dma_reset(d);
 }
 
+static void dma_save (QEMUFile *f, void *opaque)
+{
+    struct dma_cont *d = opaque;
+    int i;
+
+    /* qemu_put_8s (f, &d->status); */
+    qemu_put_8s (f, &d->command);
+    qemu_put_8s (f, &d->mask);
+    qemu_put_8s (f, &d->flip_flop);
+    qemu_put_be32s (f, &d->dshift);
+
+    for (i = 0; i < 4; ++i) {
+        struct dma_regs *r = &d->regs[i];
+        qemu_put_be32s (f, &r->now[0]);
+        qemu_put_be32s (f, &r->now[1]);
+        qemu_put_be16s (f, &r->base[0]);
+        qemu_put_be16s (f, &r->base[1]);
+        qemu_put_8s (f, &r->mode);
+        qemu_put_8s (f, &r->page);
+        qemu_put_8s (f, &r->pageh);
+        qemu_put_8s (f, &r->dack);
+        qemu_put_8s (f, &r->eop);
+    }
+}
+
+static int dma_load (QEMUFile *f, void *opaque, int version_id)
+{
+    struct dma_cont *d = opaque;
+    int i;
+
+    if (version_id != 1)
+        return -EINVAL;
+
+    /* qemu_get_8s (f, &d->status); */
+    qemu_get_8s (f, &d->command);
+    qemu_get_8s (f, &d->mask);
+    qemu_get_8s (f, &d->flip_flop);
+    qemu_get_be32s (f, &d->dshift);
+
+    for (i = 0; i < 4; ++i) {
+        struct dma_regs *r = &d->regs[i];
+        qemu_get_be32s (f, &r->now[0]);
+        qemu_get_be32s (f, &r->now[1]);
+        qemu_get_be16s (f, &r->base[0]);
+        qemu_get_be16s (f, &r->base[1]);
+        qemu_get_8s (f, &r->mode);
+        qemu_get_8s (f, &r->page);
+        qemu_get_8s (f, &r->pageh);
+        qemu_get_8s (f, &r->dack);
+        qemu_get_8s (f, &r->eop);
+    }
+    return 0;
+}
+
 void DMA_init (int high_page_enable)
 {
-    dma_init2(&dma_controllers[0], 0x00, 0, 0x80, 
+    dma_init2(&dma_controllers[0], 0x00, 0, 0x80,
               high_page_enable ? 0x480 : -1);
     dma_init2(&dma_controllers[1], 0xc0, 1, 0x88,
               high_page_enable ? 0x488 : -1);
+    register_savevm ("dma", 0, 1, dma_save, dma_load, &dma_controllers[0]);
+    register_savevm ("dma", 1, 1, dma_save, dma_load, &dma_controllers[1]);
 }

@@ -1,7 +1,17 @@
 include config.mak
 
+#After enabling Adlib and/or FMOD rebuild QEMU from scratch
+#Uncomment following for adlib support
+#USE_ADLIB=1
+
+#Uncomment following and specify proper paths/names for FMOD support
+#USE_FMOD=1
+#FMOD_INCLUDE=/net/include/fmod
+#FMOD_LIBPATH=/net/lib
+#FMOD_VERSION=3.74
+
 TARGET_PATH=$(SRC_PATH)/target-$(TARGET_ARCH)
-VPATH=$(SRC_PATH):$(TARGET_PATH):$(SRC_PATH)/hw
+VPATH=$(SRC_PATH):$(TARGET_PATH):$(SRC_PATH)/hw:$(SRC_PATH)/audio
 DEFINES=-I. -I$(TARGET_PATH) -I$(SRC_PATH)
 ifdef CONFIG_USER_ONLY
 VPATH+=:$(SRC_PATH)/linux-user
@@ -267,16 +277,31 @@ endif
 VL_OBJS=vl.o osdep.o block.o readline.o monitor.o pci.o console.o 
 VL_OBJS+=block-cow.o block-qcow.o aes.o block-vmdk.o block-cloop.o
 
+SOUND_HW = sb16.o
+AUDIODRV = audio.o ossaudio.o sdlaudio.o wavaudio.o
+
+ifeq ($(USE_ADLIB),1)
+SOUND_HW += fmopl.o adlib.o
+audio.o: DEFINES := -DUSE_ADLIB $(DEFINES)
+endif
+
+ifeq ($(USE_FMOD),1)
+AUDIODRV += fmodaudio.o
+audio.o fmodaudio.o: DEFINES := -DUSE_FMOD_AUDIO -I$(FMOD_INCLUDE) $(DEFINES)
+LDFLAGS += -L$(FMOD_LIBPATH) -Wl,-rpath,$(FMOD_LIBPATH)
+LIBS += -lfmod-$(FMOD_VERSION)
+endif
+
 ifeq ($(TARGET_ARCH), i386)
 # Hardware support
-VL_OBJS+= ide.o ne2000.o pckbd.o vga.o sb16.o dma.o oss.o
-VL_OBJS+= fdc.o mc146818rtc.o serial.o i8259.o i8254.o pc.o 
-VL_OBJS+= cirrus_vga.o
+VL_OBJS+= ide.o ne2000.o pckbd.o vga.o $(SOUND_HW) dma.o $(AUDIODRV)
+VL_OBJS+= fdc.o mc146818rtc.o serial.o i8259.o i8254.o pc.o
+VL_OBJS+= cirrus_vga.o mixeng.o
 endif
 ifeq ($(TARGET_ARCH), ppc)
-VL_OBJS+= ppc.o ide.o ne2000.o pckbd.o vga.o sb16.o dma.o oss.o
+VL_OBJS+= ppc.o ide.o ne2000.o pckbd.o vga.o $(SOUND_HW) dma.o $(AUDIODRV)
 VL_OBJS+= mc146818rtc.o serial.o i8259.o i8254.o fdc.o m48t59.o
-VL_OBJS+= ppc_prep.o ppc_chrp.o cuda.o adb.o openpic.o
+VL_OBJS+= ppc_prep.o ppc_chrp.o cuda.o adb.o openpic.o mixeng.o
 endif
 ifeq ($(TARGET_ARCH), sparc)
 VL_OBJS+= sun4m.o tcx.o lance.o iommu.o sched.o m48t08.o magic-load.o timer.o
@@ -359,6 +384,8 @@ ifeq ($(TARGET_ARCH), ppc)
 op.o: op.c op_template.h op_mem.h
 op_helper.o: op_helper_mem.h
 endif
+
+mixeng.o: mixeng.c mixeng.h mixeng_template.h
 
 %.o: %.c
 	$(CC) $(CFLAGS) $(DEFINES) -c -o $@ $<

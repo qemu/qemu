@@ -2438,12 +2438,6 @@ void main_loop_wait(int timeout)
         if (vm_running) {
             qemu_run_timers(&active_timers[QEMU_TIMER_VIRTUAL], 
                             qemu_get_clock(vm_clock));
-            
-            if (audio_enabled) {
-                /* XXX: add explicit timer */
-                SB16_run();
-            }
-            
             /* run dma transfers, if any */
             DMA_run();
         }
