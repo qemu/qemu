@@ -602,7 +602,7 @@ QEMU has a primitive support to work with gdb, so that you can do
 In order to use gdb, launch vl with the '-s' option. It will wait for a
 gdb connection:
 @example
-> vl -s arch/i386/boot/bzImage initrd-2.4.20.img root=/dev/ram0 ramdisk_size=6144
+> vl -s arch/i386/boot/bzImage -hda root-2.4.20.img root=/dev/hda
 Connected to host network interface: tun0
 Waiting gdb connection on port 1234
 @end example
