@@ -106,6 +106,11 @@
 #define HF_SS32_SHIFT        5
 /* zero base for DS, ES and SS */
 #define HF_ADDSEG_SHIFT      6
+/* copy of CR0.PE (protected mode) */
+#define HF_PE_SHIFT          7
+#define HF_TF_SHIFT          8 /* must be same as eflags */
+#define HF_IOPL_SHIFT       12 /* must be same as eflags */
+#define HF_VM_SHIFT         17 /* must be same as eflags */
 
 #define HF_CPL_MASK          (3 << HF_CPL_SHIFT)
 #define HF_SOFTMMU_MASK      (1 << HF_SOFTMMU_SHIFT)
@@ -113,6 +118,7 @@
 #define HF_CS32_MASK         (1 << HF_CS32_SHIFT)
 #define HF_SS32_MASK         (1 << HF_SS32_SHIFT)
 #define HF_ADDSEG_MASK       (1 << HF_ADDSEG_SHIFT)
+#define HF_PE_MASK           (1 << HF_PE_SHIFT)
 
 #define CR0_PE_MASK  (1 << 0)
 #define CR0_TS_MASK  (1 << 3)
@@ -391,9 +397,6 @@ int cpu_x86_signal_handler(int host_signum, struct siginfo *info,
 
 /* MMU defines */
 void cpu_x86_init_mmu(CPUX86State *env);
-extern int phys_ram_size;
-extern int phys_ram_fd;
-extern uint8_t *phys_ram_base;
 extern int a20_enabled;
 
 void cpu_x86_set_a20(CPUX86State *env, int a20_state);
