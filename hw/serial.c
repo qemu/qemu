@@ -133,7 +133,10 @@ static void serial_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         if (s->lcr & UART_LCR_DLAB) {
             s->divider = (s->divider & 0x00ff) | (val << 8);
         } else {
-            s->ier = val;
+            s->ier = val & 0x0f;
+            if (s->lsr & UART_LSR_THRE) {
+                s->thr_ipending = 1;
+            }
             serial_update_irq(s);
         }
         break;
@@ -143,7 +146,7 @@ static void serial_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         s->lcr = val;
         break;
     case 4:
-        s->mcr = val;
+        s->mcr = val & 0x1f;
         break;
     case 5:
         break;
