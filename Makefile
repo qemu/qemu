@@ -8,7 +8,7 @@ LDFLAGS=-g
 LIBS=
 DEFINES+=-D_GNU_SOURCE
 ifndef CONFIG_WIN32
-TOOLS=qemu-mkcow
+TOOLS=qemu-mkcow vmdk2raw
 endif
 ifdef CONFIG_STATIC
 LDFLAGS+=-static
@@ -20,6 +20,9 @@ all: dyngen$(EXESUF) $(TOOLS) qemu-doc.html qemu-tech.html qemu.1
         done
 
 qemu-mkcow: qemu-mkcow.c
+	$(CC) $(CFLAGS) $(LDFLAGS) $(DEFINES) -o $@ $^ $(LIBS)
+
+vmdk2raw: vmdk2raw.c
 	$(CC) $(CFLAGS) $(LDFLAGS) $(DEFINES) -o $@ $^ $(LIBS)
 
 dyngen$(EXESUF): dyngen.c
@@ -91,7 +94,7 @@ tarbin:
         $(bindir)/qemu-arm \
         $(bindir)/qemu-sparc \
         $(bindir)/qemu-ppc \
-        $(bindir)/qemu-mkcow \
+        $(bindir)/qemu-mkcow $(bindir)/vmdk2raw \
 	$(datadir)/bios.bin \
 	$(datadir)/vgabios.bin \
 	$(datadir)/linux_boot.bin \
