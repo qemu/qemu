@@ -613,7 +613,7 @@ void tb_invalidate_phys_page_range(target_ulong start, target_ulong end,
     CPUState *env = cpu_single_env;
 #endif
     PageDesc *p;
-    TranslationBlock *tb, *tb_next, *current_tb;
+    TranslationBlock *tb, *tb_next, *current_tb, *saved_tb;
     target_ulong tb_start, tb_end;
     target_ulong current_pc, current_cs_base;
 
@@ -681,7 +681,12 @@ void tb_invalidate_phys_page_range(target_ulong start, target_ulong end,
 #endif
             }
 #endif /* TARGET_HAS_PRECISE_SMC */
+            saved_tb = env->current_tb;
+            env->current_tb = NULL;
             tb_phys_invalidate(tb, -1);
+            env->current_tb = saved_tb;
+            if (env->interrupt_request && env->current_tb)
+                cpu_interrupt(env, env->interrupt_request);
         }
         tb = tb_next;
     }
@@ -699,6 +704,7 @@ void tb_invalidate_phys_page_range(target_ulong start, target_ulong end,
         /* we generate a block containing just the instruction
            modifying the memory. It will ensure that it cannot modify
            itself */
+        env->current_tb = NULL;
         tb_gen_code(env, current_pc, current_cs_base, current_flags, 
                     CF_SINGLE_INSN);
         cpu_resume_from_signal(env, NULL);
@@ -795,6 +801,7 @@ static void tb_invalidate_phys_page(target_ulong addr,
         /* we generate a block containing just the instruction
            modifying the memory. It will ensure that it cannot modify
            itself */
+        env->current_tb = NULL;
         tb_gen_code(env, current_pc, current_cs_base, current_flags, 
                     CF_SINGLE_INSN);
         cpu_resume_from_signal(env, puc);
