@@ -2554,6 +2554,9 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
     case 0x8d: /* lea */
         ot = dflag ? OT_LONG : OT_WORD;
         modrm = ldub_code(s->pc++);
+        mod = (modrm >> 6) & 3;
+        if (mod == 3)
+            goto illegal_op;
         reg = (modrm >> 3) & 7;
         /* we must ensure that no segment is added */
         s->override = -1;
@@ -2815,7 +2818,6 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         mod = (modrm >> 6) & 3;
         rm = modrm & 7;
         op = ((b & 7) << 3) | ((modrm >> 3) & 7);
-
         if (mod != 3) {
             /* memory op */
             gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
@@ -4479,7 +4481,7 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     pc_start = (uint8_t *)tb->pc;
     cs_base = (uint8_t *)tb->cs_base;
     flags = tb->flags;
-       
+
     dc->pe = (flags >> HF_PE_SHIFT) & 1;
     dc->code32 = (flags >> HF_CS32_SHIFT) & 1;
     dc->ss32 = (flags >> HF_SS32_SHIFT) & 1;
