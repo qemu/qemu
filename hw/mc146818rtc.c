@@ -206,6 +206,7 @@ static void rtc_set_time(RTCState *s)
 static void rtc_update_second(void *opaque)
 {
     RTCState *s = opaque;
+    int64_t delay;
 
     /* if the oscillator is not in normal operation, we do not update */
     if ((s->cmos_data[RTC_REG_A] & 0x70) != 0x20) {
@@ -218,8 +219,13 @@ static void rtc_update_second(void *opaque)
             /* update in progress bit */
             s->cmos_data[RTC_REG_A] |= REG_A_UIP;
         }
+        /* should be 244 us = 8 / 32768 seconds, but currently the
+           timers do not have the necessary resolution. */
+        delay = (ticks_per_sec * 1) / 100;
+        if (delay < 1)
+            delay = 1;
         qemu_mod_timer(s->second_timer2, 
-                       s->next_second_time + (ticks_per_sec * 99) / 100);
+                       s->next_second_time + delay);
     }
 }
 
