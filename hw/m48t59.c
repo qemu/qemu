@@ -21,14 +21,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-
-#include <stdlib.h>
-#include <stdio.h> /* needed by vl.h */
-#include <stdint.h>
-#include <string.h>
-#include <time.h>
-
 #include "vl.h"
+#include "m48t59.h"
 
 //#define NVRAM_DEBUG
 
@@ -38,7 +32,7 @@
 #define NVRAM_PRINTF(fmt, args...) do { } while (0)
 #endif
 
-typedef struct m48t59_t {
+struct m48t59_t {
     /* Hardware parameters */
     int      IRQ;
     uint32_t io_base;
@@ -53,10 +47,7 @@ typedef struct m48t59_t {
     /* NVRAM storage */
     uint16_t addr;
     uint8_t *buffer;
-} m48t59_t;
-
-static m48t59_t *NVRAMs;
-static int nb_NVRAMs;
+};
 
 /* Fake timer functions */
 /* Generic helpers for BCD */
@@ -185,9 +176,8 @@ static void set_up_watchdog (m48t59_t *NVRAM, uint8_t value)
 }
 
 /* Direct access to NVRAM */
-void m48t59_write (void *opaque, uint32_t val)
+void m48t59_write (m48t59_t *NVRAM, uint32_t val)
 {
-    m48t59_t *NVRAM = opaque;
     struct tm tm;
     int tmp;
 
@@ -333,9 +323,8 @@ void m48t59_write (void *opaque, uint32_t val)
     }
 }
 
-uint32_t m48t59_read (void *opaque)
+uint32_t m48t59_read (m48t59_t *NVRAM)
 {
-    m48t59_t *NVRAM = opaque;
     struct tm tm;
     uint32_t retval = 0xFF;
 
@@ -418,10 +407,8 @@ uint32_t m48t59_read (void *opaque)
     return retval;
 }
 
-void m48t59_set_addr (void *opaque, uint32_t addr)
+void m48t59_set_addr (m48t59_t *NVRAM, uint32_t addr)
 {
-    m48t59_t *NVRAM = opaque;
-
     NVRAM->addr = addr;
 }
 
@@ -460,27 +447,25 @@ static uint32_t NVRAM_readb (void *opaque, uint32_t addr)
 }
 
 /* Initialisation routine */
-void *m48t59_init (int IRQ, uint32_t io_base, uint16_t size)
+m48t59_t *m48t59_init (int IRQ, uint32_t io_base, uint16_t size)
 {
-    m48t59_t *tmp;
+    m48t59_t *s;
 
-    tmp = realloc(NVRAMs, (nb_NVRAMs + 1) * sizeof(m48t59_t));
-    if (tmp == NULL)
+    s = qemu_mallocz(sizeof(m48t59_t));
+    if (!s)
 	return NULL;
-    NVRAMs = tmp;
-    tmp[nb_NVRAMs].buffer = malloc(size);
-    if (tmp[nb_NVRAMs].buffer == NULL)
-	return NULL;
-    memset(tmp[nb_NVRAMs].buffer, 0, size);
-    tmp[nb_NVRAMs].IRQ = IRQ;
-    tmp[nb_NVRAMs].size = size;
-    tmp[nb_NVRAMs].io_base = io_base;
-    tmp[nb_NVRAMs].addr = 0;
-    register_ioport_read(io_base, 0x04, 1, NVRAM_readb, &NVRAMs[nb_NVRAMs]);
-    register_ioport_write(io_base, 0x04, 1, NVRAM_writeb, &NVRAMs[nb_NVRAMs]);
-    tmp[nb_NVRAMs].alrm_timer = qemu_new_timer(vm_clock, &alarm_cb,
-					       &tmp[nb_NVRAMs]);
-    tmp[nb_NVRAMs].wd_timer = qemu_new_timer(vm_clock, &watchdog_cb,
-					     &tmp[nb_NVRAMs]);
-    return &NVRAMs[nb_NVRAMs++];
+    s->buffer = qemu_mallocz(size);
+    if (!s->buffer) {
+        qemu_free(s);
+        return NULL;
+    }
+    s->IRQ = IRQ;
+    s->size = size;
+    s->io_base = io_base;
+    s->addr = 0;
+    register_ioport_read(io_base, 0x04, 1, NVRAM_readb, s);
+    register_ioport_write(io_base, 0x04, 1, NVRAM_writeb, s);
+    s->alrm_timer = qemu_new_timer(vm_clock, &alarm_cb, s);
+    s->wd_timer = qemu_new_timer(vm_clock, &watchdog_cb, s);
+    return s;
 }

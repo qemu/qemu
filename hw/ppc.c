@@ -21,8 +21,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-
-#include <stdio.h>
 #include "vl.h"
 
 void ppc_prep_init (int ram_size, int vga_ram_size, int boot_device,

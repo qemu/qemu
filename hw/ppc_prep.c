@@ -21,26 +21,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdarg.h>
-#include <string.h>
-#include <getopt.h>
-#include <inttypes.h>
-#include <unistd.h>
-#include <sys/mman.h>
-#include <fcntl.h>
-#include <signal.h>
-#include <time.h>
-#include <sys/time.h>
-#include <malloc.h>
-#include <termios.h>
-#include <sys/poll.h>
-#include <errno.h>
-#include <sys/wait.h>
-#include <netinet/in.h>
-
-#include "cpu.h"
 #include "vl.h"
 #include "m48t59.h"
 
@@ -209,8 +189,6 @@ static CPUReadMemoryFunc *PPC_io_read[] = {
     &PPC_io_readl,
 };
 
-uint32_t pic_intack_read(CPUState *env);
-
 /* Read-only register (?) */
 static void _PPC_ioB_write (uint32_t addr, uint32_t value, uint32_t vaddr)
 {
@@ -368,63 +346,63 @@ static uint32_t PREP_io_800_readb (void *opaque, uint32_t addr)
 #define NVRAM_OSAREA_SIZE 512
 #define NVRAM_CONFSIZE    1024
 
-static inline void NVRAM_set_byte (void *opaque, uint32_t addr, uint8_t value)
+static inline void NVRAM_set_byte (m48t59_t *nvram, uint32_t addr, uint8_t value)
 {
-    m48t59_set_addr(opaque, addr);
-    m48t59_write(opaque, value);
+    m48t59_set_addr(nvram, addr);
+    m48t59_write(nvram, value);
 }
 
-static inline uint8_t NVRAM_get_byte (void *opaque, uint32_t addr)
+static inline uint8_t NVRAM_get_byte (m48t59_t *nvram, uint32_t addr)
 {
-    m48t59_set_addr(opaque, addr);
-    return m48t59_read(opaque);
+    m48t59_set_addr(nvram, addr);
+    return m48t59_read(nvram);
 }
 
-static inline void NVRAM_set_word (void *opaque, uint32_t addr, uint16_t value)
+static inline void NVRAM_set_word (m48t59_t *nvram, uint32_t addr, uint16_t value)
 {
-    m48t59_set_addr(opaque, addr);
-    m48t59_write(opaque, value >> 8);
-    m48t59_set_addr(opaque, addr + 1);
-    m48t59_write(opaque, value & 0xFF);
+    m48t59_set_addr(nvram, addr);
+    m48t59_write(nvram, value >> 8);
+    m48t59_set_addr(nvram, addr + 1);
+    m48t59_write(nvram, value & 0xFF);
 }
 
-static inline uint16_t NVRAM_get_word (void *opaque, uint32_t addr)
+static inline uint16_t NVRAM_get_word (m48t59_t *nvram, uint32_t addr)
 {
     uint16_t tmp;
 
-    m48t59_set_addr(opaque, addr);
-    tmp = m48t59_read(opaque) << 8;
-    m48t59_set_addr(opaque, addr + 1);
-    tmp |= m48t59_read(opaque);
+    m48t59_set_addr(nvram, addr);
+    tmp = m48t59_read(nvram) << 8;
+    m48t59_set_addr(nvram, addr + 1);
+    tmp |= m48t59_read(nvram);
 
     return tmp;
 }
 
-static inline void NVRAM_set_lword (void *opaque, uint32_t addr,
+static inline void NVRAM_set_lword (m48t59_t *nvram, uint32_t addr,
 				    uint32_t value)
 {
-    m48t59_set_addr(opaque, addr);
-    m48t59_write(opaque, value >> 24);
-    m48t59_set_addr(opaque, addr + 1);
-    m48t59_write(opaque, (value >> 16) & 0xFF);
-    m48t59_set_addr(opaque, addr + 2);
-    m48t59_write(opaque, (value >> 8) & 0xFF);
-    m48t59_set_addr(opaque, addr + 3);
-    m48t59_write(opaque, value & 0xFF);
+    m48t59_set_addr(nvram, addr);
+    m48t59_write(nvram, value >> 24);
+    m48t59_set_addr(nvram, addr + 1);
+    m48t59_write(nvram, (value >> 16) & 0xFF);
+    m48t59_set_addr(nvram, addr + 2);
+    m48t59_write(nvram, (value >> 8) & 0xFF);
+    m48t59_set_addr(nvram, addr + 3);
+    m48t59_write(nvram, value & 0xFF);
 }
 
-static inline uint32_t NVRAM_get_lword (void *opaque, uint32_t addr)
+static inline uint32_t NVRAM_get_lword (m48t59_t *nvram, uint32_t addr)
 {
     uint32_t tmp;
 
-    m48t59_set_addr(opaque, addr);
-    tmp = m48t59_read(opaque) << 24;
-    m48t59_set_addr(opaque, addr + 1);
-    tmp |= m48t59_read(opaque) << 16;
-    m48t59_set_addr(opaque, addr + 2);
-    tmp |= m48t59_read(opaque) << 8;
-    m48t59_set_addr(opaque, addr + 3);
-    tmp |= m48t59_read(opaque);
+    m48t59_set_addr(nvram, addr);
+    tmp = m48t59_read(nvram) << 24;
+    m48t59_set_addr(nvram, addr + 1);
+    tmp |= m48t59_read(nvram) << 16;
+    m48t59_set_addr(nvram, addr + 2);
+    tmp |= m48t59_read(nvram) << 8;
+    m48t59_set_addr(nvram, addr + 3);
+    tmp |= m48t59_read(nvram);
 
     return tmp;
 }
@@ -444,7 +422,7 @@ static uint16_t NVRAM_crc_update (uint16_t prev, uint16_t value)
     return tmp;
 }
 
-static void NVRAM_set_crc (void *opaque, uint32_t addr,
+static void NVRAM_set_crc (m48t59_t *nvram, uint32_t addr,
 			   uint32_t start, uint32_t count)
 {
     uint32_t i;
@@ -455,74 +433,74 @@ static void NVRAM_set_crc (void *opaque, uint32_t addr,
 	odd = 1;
     count &= ~1;
     for (i = 0; i != count; i++) {
-	crc = NVRAM_crc_update(crc, NVRAM_get_word(opaque, start + i));
+	crc = NVRAM_crc_update(crc, NVRAM_get_word(nvram, start + i));
     }
     if (odd) {
-	crc = NVRAM_crc_update(crc, NVRAM_get_byte(opaque, start + i) << 8);
+	crc = NVRAM_crc_update(crc, NVRAM_get_byte(nvram, start + i) << 8);
     }
-    NVRAM_set_word(opaque, addr, crc);
+    NVRAM_set_word(nvram, addr, crc);
 }
 
 static void prep_NVRAM_init (void)
 {
-    void *opaque;
+    m48t59_t *nvram;
 
-    opaque = m48t59_init(8, 0x0074, NVRAM_SIZE);
+    nvram = m48t59_init(8, 0x0074, NVRAM_SIZE);
     /* NVRAM header */
     /* 0x00: NVRAM size in kB */
-    NVRAM_set_word(opaque, 0x00, NVRAM_SIZE >> 10);
+    NVRAM_set_word(nvram, 0x00, NVRAM_SIZE >> 10);
     /* 0x02: NVRAM version */
-    NVRAM_set_byte(opaque, 0x02, 0x01);
+    NVRAM_set_byte(nvram, 0x02, 0x01);
     /* 0x03: NVRAM revision */
-    NVRAM_set_byte(opaque, 0x03, 0x01);
+    NVRAM_set_byte(nvram, 0x03, 0x01);
     /* 0x08: last OS */
-    NVRAM_set_byte(opaque, 0x08, 0x00); /* Unknown */
+    NVRAM_set_byte(nvram, 0x08, 0x00); /* Unknown */
     /* 0x09: endian */
-    NVRAM_set_byte(opaque, 0x09, 'B');  /* Big-endian */
+    NVRAM_set_byte(nvram, 0x09, 'B');  /* Big-endian */
     /* 0x0A: OSArea usage */
-    NVRAM_set_byte(opaque, 0x0A, 0x00); /* Empty */
+    NVRAM_set_byte(nvram, 0x0A, 0x00); /* Empty */
     /* 0x0B: PM mode */
-    NVRAM_set_byte(opaque, 0x0B, 0x00); /* Normal */
+    NVRAM_set_byte(nvram, 0x0B, 0x00); /* Normal */
     /* Restart block description record */
     /* 0x0C: restart block version */
-    NVRAM_set_word(opaque, 0x0C, 0x01);
+    NVRAM_set_word(nvram, 0x0C, 0x01);
     /* 0x0E: restart block revision */
-    NVRAM_set_word(opaque, 0x0E, 0x01);
+    NVRAM_set_word(nvram, 0x0E, 0x01);
     /* 0x20: restart address */
-    NVRAM_set_lword(opaque, 0x20, 0x00);
+    NVRAM_set_lword(nvram, 0x20, 0x00);
     /* 0x24: save area address */
-    NVRAM_set_lword(opaque, 0x24, 0x00);
+    NVRAM_set_lword(nvram, 0x24, 0x00);
     /* 0x28: save area length */
-    NVRAM_set_lword(opaque, 0x28, 0x00);
+    NVRAM_set_lword(nvram, 0x28, 0x00);
     /* 0x1C: checksum of restart block */
-    NVRAM_set_crc(opaque, 0x1C, 0x0C, 32);
+    NVRAM_set_crc(nvram, 0x1C, 0x0C, 32);
 
     /* Security section */
     /* Set all to zero */
     /* 0xC4: pointer to global environment area */
-    NVRAM_set_lword(opaque, 0xC4, 0x0100);
+    NVRAM_set_lword(nvram, 0xC4, 0x0100);
     /* 0xC8: size of global environment area */
-    NVRAM_set_lword(opaque, 0xC8,
+    NVRAM_set_lword(nvram, 0xC8,
 		    NVRAM_END - NVRAM_OSAREA_SIZE - NVRAM_CONFSIZE - 0x0100);
     /* 0xD4: pointer to configuration area */
-    NVRAM_set_lword(opaque, 0xD4, NVRAM_END - NVRAM_CONFSIZE);
+    NVRAM_set_lword(nvram, 0xD4, NVRAM_END - NVRAM_CONFSIZE);
     /* 0xD8: size of configuration area */
-    NVRAM_set_lword(opaque, 0xD8, NVRAM_CONFSIZE);
+    NVRAM_set_lword(nvram, 0xD8, NVRAM_CONFSIZE);
     /* 0xE8: pointer to OS specific area */
-    NVRAM_set_lword(opaque, 0xE8,
+    NVRAM_set_lword(nvram, 0xE8,
 		    NVRAM_END - NVRAM_CONFSIZE - NVRAM_OSAREA_SIZE);
     /* 0xD8: size of OS specific area */
-    NVRAM_set_lword(opaque, 0xEC, NVRAM_OSAREA_SIZE);
+    NVRAM_set_lword(nvram, 0xEC, NVRAM_OSAREA_SIZE);
 
     /* Configuration area */
     /* RTC init */
-    //    NVRAM_set_lword(opaque, 0x1FFC, 0x50);
+    //    NVRAM_set_lword(nvram, 0x1FFC, 0x50);
 
     /* 0x04: checksum 0 => OS area   */
-    NVRAM_set_crc(opaque, 0x04, 0x00,
+    NVRAM_set_crc(nvram, 0x04, 0x00,
 		  NVRAM_END - NVRAM_CONFSIZE - NVRAM_OSAREA_SIZE);
     /* 0x06: checksum of config area */
-    NVRAM_set_crc(opaque, 0x06, NVRAM_END - NVRAM_CONFSIZE, NVRAM_CONFSIZE);
+    NVRAM_set_crc(nvram, 0x06, NVRAM_END - NVRAM_CONFSIZE, NVRAM_CONFSIZE);
 }
 
 int load_initrd (const char *filename, uint8_t *addr)

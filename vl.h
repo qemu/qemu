@@ -416,6 +416,7 @@ void serial_receive_break(SerialState *s);
 
 void pic_set_irq(int irq, int level);
 void pic_init(void);
+uint32_t pic_intack_read(CPUState *env);
 
 /* i8254.c */
 
