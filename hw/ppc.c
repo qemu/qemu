@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "vl.h"
+#include "m48t59.h"
 
 /*****************************************************************************/
 /* PPC time base and decrementer emulation */
@@ -109,7 +110,7 @@ uint32_t cpu_ppc_load_decr (CPUState *env)
 
     decr = muldiv64(tb_env->decr_next - qemu_get_clock(vm_clock),
                     tb_env->tb_freq, ticks_per_sec);
-#ifdef DEBUG_TB
+#if defined(DEBUG_TB)
     printf("%s: 0x%08x\n", __func__, decr);
 #endif
 
@@ -257,7 +258,7 @@ CPUReadMemoryFunc *PPC_io_read[] = {
 
 /*****************************************************************************/
 /* Debug port */
-void PREP_debug_write (void *opaque, uint32_t addr, uint32_t val)
+void PPC_debug_write (void *opaque, uint32_t addr, uint32_t val)
 {
     addr &= 0xF;
     switch (addr) {
@@ -270,7 +271,7 @@ void PREP_debug_write (void *opaque, uint32_t addr, uint32_t val)
         break;
     case 2:
         printf("Set loglevel to %04x\n", val);
-        cpu_set_log(val);
+        cpu_set_log(val | 0x100);
         break;
     }
 }
@@ -397,13 +398,16 @@ uint16_t NVRAM_compute_crc (m48t59_t *nvram, uint32_t start, uint32_t count)
     return crc;
 }
 
+#define CMDLINE_ADDR 0x017ff000
+
 int PPC_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
                           const unsigned char *arch,
                           uint32_t RAM_size, int boot_device,
                           uint32_t kernel_image, uint32_t kernel_size,
-                          uint32_t cmdline, uint32_t cmdline_size,
+                          const char *cmdline,
                           uint32_t initrd_image, uint32_t initrd_size,
-                          uint32_t NVRAM_image)
+                          uint32_t NVRAM_image,
+                          int width, int height, int depth)
 {
     uint16_t crc;
 
@@ -416,13 +420,24 @@ int PPC_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
     NVRAM_set_byte(nvram,   0x34, boot_device);
     NVRAM_set_lword(nvram,  0x38, kernel_image);
     NVRAM_set_lword(nvram,  0x3C, kernel_size);
-    NVRAM_set_lword(nvram,  0x40, cmdline);
-    NVRAM_set_lword(nvram,  0x44, cmdline_size);
+    if (cmdline) {
+        /* XXX: put the cmdline in NVRAM too ? */
+        strcpy(phys_ram_base + CMDLINE_ADDR, cmdline);
+        NVRAM_set_lword(nvram,  0x40, CMDLINE_ADDR);
+        NVRAM_set_lword(nvram,  0x44, strlen(cmdline));
+    } else {
+        NVRAM_set_lword(nvram,  0x40, 0);
+        NVRAM_set_lword(nvram,  0x44, 0);
+    }
     NVRAM_set_lword(nvram,  0x48, initrd_image);
     NVRAM_set_lword(nvram,  0x4C, initrd_size);
     NVRAM_set_lword(nvram,  0x50, NVRAM_image);
-    crc = NVRAM_compute_crc(nvram, 0x00, 0x5C);
-    NVRAM_set_word(nvram,  0x5C, crc);
+
+    NVRAM_set_word(nvram,   0x54, width);
+    NVRAM_set_word(nvram,   0x56, height);
+    NVRAM_set_word(nvram,   0x58, depth);
+    crc = NVRAM_compute_crc(nvram, 0x00, 0xF8);
+    NVRAM_set_word(nvram,  0xFC, crc);
 
     return 0;
  }
@@ -442,4 +457,6 @@ void ppc_init (int ram_size, int vga_ram_size, int boot_device,
                       snapshot, kernel_filename, kernel_cmdline,
                       initrd_filename);
     }
+    /* Special port to get debug messages from Open-Firmware */
+    register_ioport_write(0x0F00, 4, 1, &PPC_debug_write, NULL);
 }
