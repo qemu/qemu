@@ -142,9 +142,9 @@ dyngen.c ioctls.h ops_template.h op_string.h  syscall_types.h\
 Makefile     elf.h       thunk.c\
 elfload.c   main.c            signal.c        thunk.h\
 cpu-i386.h qemu.h op-i386.c opc-i386.h syscall-i386.h  translate-i386.c\
-dis-asm.h    gen-i386.h  syscall.c\
-dis-buf.c disas.c disas.h ppc-dis.c i386-dis.c  opreg_template.h  syscall_defs.h\
-ppc.ld s390.ld exec-i386.h exec-i386.c path.c configure \
+syscall.c opreg_template.h  syscall_defs.h vm86.c\
+dis-asm.h dis-buf.c disas.c disas.h alpha-dis.c ppc-dis.c i386-dis.c\
+ppc.ld s390.ld exec-i386.h exec-i386.c path.c exec.c mmap.c configure \
 tests/Makefile\
 tests/test-i386.c tests/test-i386-shift.h tests/test-i386.h\
 tests/test-i386-muldiv.h tests/test-i386-code16.S\
