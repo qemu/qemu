@@ -24,10 +24,13 @@
 #include <inttypes.h>
 #include <signal.h>
 #include <assert.h>
+#include <sys/mman.h>
 
 #include "cpu-i386.h"
 #include "exec.h"
 #include "disas.h"
+
+//#define DEBUG_MMU
 
 /* XXX: move that elsewhere */
 static uint16_t *gen_opc_ptr;
@@ -59,6 +62,7 @@ typedef struct DisasContext {
     int iopl;
     int tf;     /* TF cpu flag */
     struct TranslationBlock *tb;
+    int popl_esp_hack; /* for correct popl with esp base handling */
 } DisasContext;
 
 /* i386 arith/logic operations */
@@ -862,12 +866,16 @@ static void gen_lea_modrm(DisasContext *s, int modrm, int *reg_ptr, int *offset_
         }
         
         if (base >= 0) {
+            /* for correct popl handling with esp */
+            if (base == 4 && s->popl_esp_hack)
+                disp += 4;
             gen_op_movl_A0_reg[base]();
             if (disp != 0)
                 gen_op_addl_A0_im(disp);
         } else {
             gen_op_movl_A0_im(disp);
         }
+        /* XXX: index == 4 is always invalid */
         if (havesib && (index != 4 || scale != 0)) {
             gen_op_addl_A0_reg_sN[scale][index]();
         }
@@ -1894,7 +1902,9 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         ot = dflag ? OT_LONG : OT_WORD;
         modrm = ldub(s->pc++);
         gen_pop_T0(s);
+        s->popl_esp_hack = 1;
         gen_ldst_modrm(s, modrm, ot, OR_TMP0, 1);
+        s->popl_esp_hack = 0;
         gen_pop_update(s);
         break;
     case 0xc8: /* enter */
@@ -2940,29 +2950,10 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         if (s->vm86 && s->iopl != 3) {
             gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
-            /* XXX: not restartable */
-            gen_stack_A0(s);
-            /* pop offset */
-            gen_op_ld_T0_A0[1 + s->dflag]();
-            if (s->dflag == 0)
-                gen_op_andl_T0_ffff();
-            /* NOTE: keeping EIP updated is not a problem in case of
-               exception */
-            gen_op_jmp_T0(); 
-            /* pop selector */
-            gen_op_addl_A0_im(2 << s->dflag);
-            gen_op_ld_T0_A0[1 + s->dflag]();
-            /* pop eflags */
-            gen_op_addl_A0_im(2 << s->dflag);
-            gen_op_ld_T1_A0[1 + s->dflag]();
-            gen_movl_seg_T0(s, R_CS, pc_start - s->cs_base);
-            gen_op_movl_T0_T1();
-            if (s->dflag) {
-                gen_op_movl_eflags_T0();
-            } else {
-                gen_op_movw_eflags_T0();
-            }
-            gen_stack_update(s, (6 << s->dflag));
+            if (s->cc_op != CC_OP_DYNAMIC)
+                gen_op_set_cc_op(s->cc_op);
+            gen_op_jmp_im(pc_start - s->cs_base);
+            gen_op_iret_protected(s->dflag);
             s->cc_op = CC_OP_EFLAGS;
         }
         s->is_jmp = 1;
@@ -3096,10 +3087,18 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
             gen_pop_T0(s);
-            if (s->dflag) {
-                gen_op_movl_eflags_T0();
+            if (s->cpl == 0) {
+                if (s->dflag) {
+                    gen_op_movl_eflags_T0_cpl0();
+                } else {
+                    gen_op_movw_eflags_T0_cpl0();
+                }
             } else {
-                gen_op_movw_eflags_T0();
+                if (s->dflag) {
+                    gen_op_movl_eflags_T0();
+                } else {
+                    gen_op_movw_eflags_T0();
+                }
             }
             gen_pop_update(s);
             s->cc_op = CC_OP_EFLAGS;
@@ -3358,8 +3357,15 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         gen_op_cpuid();
         break;
     case 0xf4: /* hlt */
-        /* XXX: if cpl == 0, then should do something else */
-        gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
+        if (s->cpl != 0) {
+            gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
+        } else {
+            if (s->cc_op != CC_OP_DYNAMIC)
+                gen_op_set_cc_op(s->cc_op);
+            gen_op_jmp_im(s->pc - s->cs_base);
+            gen_op_hlt();
+            s->is_jmp = 1;
+        }
         break;
     case 0x100:
         modrm = ldub(s->pc++);
@@ -3460,6 +3466,16 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             } else {
                 gen_ldst_modrm(s, modrm, OT_WORD, OR_TMP0, 0);
                 gen_op_lmsw_T0();
+            }
+            break;
+        case 7: /* invlpg */
+            if (s->cpl != 0) {
+                gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
+            } else {
+                if (mod == 3)
+                    goto illegal_op;
+                gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+                gen_op_invlpg_A0();
             }
             break;
         default:
@@ -3866,7 +3882,7 @@ static void optimize_flags(uint16_t *opc_buf, int opc_buf_len)
 /* generate intermediate code in gen_opc_buf and gen_opparam_buf for
    basic block 'tb'. If search_pc is TRUE, also generate PC
    information for each intermediate instruction. */
-int gen_intermediate_code(TranslationBlock *tb, int search_pc)
+static inline int gen_intermediate_code_internal(TranslationBlock *tb, int search_pc)
 {
     DisasContext dc1, *dc = &dc1;
     uint8_t *pc_ptr;
@@ -3892,7 +3908,8 @@ int gen_intermediate_code(TranslationBlock *tb, int search_pc)
     dc->cc_op = CC_OP_DYNAMIC;
     dc->cs_base = cs_base;
     dc->tb = tb;
-
+    dc->popl_esp_hack = 0;
+    
     gen_opc_ptr = gen_opc_buf;
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
     gen_opparam_ptr = gen_opparam_buf;
@@ -3908,6 +3925,7 @@ int gen_intermediate_code(TranslationBlock *tb, int search_pc)
                 while (lj < j)
                     gen_opc_instr_start[lj++] = 0;
                 gen_opc_pc[lj] = (uint32_t)pc_ptr;
+                gen_opc_cc_op[lj] = dc->cc_op;
                 gen_opc_instr_start[lj] = 1;
             }
         }
@@ -3974,6 +3992,16 @@ int gen_intermediate_code(TranslationBlock *tb, int search_pc)
     return 0;
 }
 
+int gen_intermediate_code(TranslationBlock *tb)
+{
+    return gen_intermediate_code_internal(tb, 0);
+}
+
+int gen_intermediate_code_pc(TranslationBlock *tb)
+{
+    return gen_intermediate_code_internal(tb, 1);
+}
+
 CPUX86State *cpu_x86_init(void)
 {
     CPUX86State *env;
@@ -4005,6 +4033,197 @@ void cpu_x86_close(CPUX86State *env)
 {
     free(env);
 }
+
+/***********************************************************/
+/* x86 mmu */
+
+/* called when cr3 or PG bit are modified */
+static int last_pg_state = -1;
+int phys_ram_size;
+int phys_ram_fd;
+uint8_t *phys_ram_base;
+
+void cpu_x86_update_cr0(CPUX86State *env)
+{
+    int pg_state;
+    void *map_addr;
+
+#ifdef DEBUG_MMU
+    printf("CR0 update: CR0=0x%08x\n", env->cr[0]);
+#endif
+    pg_state = env->cr[0] & CR0_PG_MASK;
+    if (pg_state != last_pg_state) {
+        if (!pg_state) {
+            /* we map the physical memory at address 0 */
+            
+            map_addr = mmap((void *)0, phys_ram_size, PROT_WRITE | PROT_READ, 
+                            MAP_SHARED | MAP_FIXED, phys_ram_fd, 0);
+            if (map_addr == MAP_FAILED) {
+                fprintf(stderr, 
+                        "Could not map physical memory at host address 0x%08x\n",
+                        0);
+                exit(1);
+            }
+            page_set_flags(0, phys_ram_size, 
+                           PAGE_VALID | PAGE_READ | PAGE_WRITE | PAGE_EXEC);
+        } else {
+            /* we unmap the physical memory */
+            munmap((void *)0, phys_ram_size);
+            page_set_flags(0, phys_ram_size, 0);
+        }
+        last_pg_state = pg_state;
+    }
+}
+
+void cpu_x86_update_cr3(CPUX86State *env)
+{
+    if (env->cr[0] & CR0_PG_MASK) {
+#ifdef DEBUG_MMU
+        printf("CR3 update: CR3=%08x\n", env->cr[3]);
+#endif
+        page_unmap();
+    }
+}
+
+void cpu_x86_init_mmu(CPUX86State *env)
+{
+    last_pg_state = -1;
+    cpu_x86_update_cr0(env);
+}
+
+void cpu_x86_flush_tlb(CPUX86State *env, uint32_t addr)
+{
+}
+
+/* return value:
+   -1 = cannot handle fault 
+   0  = nothing more to do 
+   1  = generate PF fault
+*/
+int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr, int is_write)
+{
+    uint8_t *pde_ptr, *pte_ptr;
+    uint32_t pde, pte, virt_addr;
+    int cpl, error_code, is_dirty, is_user, prot, page_size;
+    void *map_addr;
+
+    cpl = env->segs[R_CS].selector & 3;
+    is_user = (cpl == 3);
+    
+#ifdef DEBUG_MMU
+    printf("MMU fault: addr=0x%08x w=%d u=%d eip=%08x\n", 
+           addr, is_write, is_user, env->eip);
+#endif
+
+    if (env->user_mode_only) {
+        /* user mode only emulation */
+        error_code = 0;
+        goto do_fault;
+    }
+
+    if (!(env->cr[0] & CR0_PG_MASK))
+        return -1;
+
+    /* page directory entry */
+    pde_ptr = phys_ram_base + ((env->cr[3] & ~0xfff) + ((addr >> 20) & ~3));
+    pde = ldl(pde_ptr);
+    if (!(pde & PG_PRESENT_MASK)) {
+        error_code = 0;
+        goto do_fault;
+    }
+    if (is_user) {
+        if (!(pde & PG_USER_MASK))
+            goto do_fault_protect;
+        if (is_write && !(pde & PG_RW_MASK))
+            goto do_fault_protect;
+    } else {
+        if ((env->cr[0] & CR0_WP_MASK) && (pde & PG_USER_MASK) &&
+            is_write && !(pde & PG_RW_MASK)) 
+            goto do_fault_protect;
+    }
+    /* if PSE bit is set, then we use a 4MB page */
+    if ((pde & PG_PSE_MASK) && (env->cr[4] & CR4_PSE_MASK)) {
+        is_dirty = is_write && !(pde & PG_DIRTY_MASK);
+        if (!(pde & PG_ACCESSED_MASK)) {
+            pde |= PG_ACCESSED_MASK;
+            if (is_dirty)
+                pde |= PG_DIRTY_MASK;
+            stl(pde_ptr, pde);
+        }
+        
+        pte = pde & ~0x003ff000; /* align to 4MB */
+        page_size = 4096 * 1024;
+        virt_addr = addr & ~0x003fffff;
+    } else {
+        if (!(pde & PG_ACCESSED_MASK)) {
+            pde |= PG_ACCESSED_MASK;
+            stl(pde_ptr, pde);
+        }
+
+        /* page directory entry */
+        pte_ptr = phys_ram_base + ((pde & ~0xfff) + ((addr >> 10) & 0xffc));
+        pte = ldl(pte_ptr);
+        if (!(pte & PG_PRESENT_MASK)) {
+            error_code = 0;
+            goto do_fault;
+        }
+        if (is_user) {
+            if (!(pte & PG_USER_MASK))
+                goto do_fault_protect;
+            if (is_write && !(pte & PG_RW_MASK))
+                goto do_fault_protect;
+        } else {
+            if ((env->cr[0] & CR0_WP_MASK) && (pte & PG_USER_MASK) &&
+                is_write && !(pte & PG_RW_MASK)) 
+                goto do_fault_protect;
+        }
+        is_dirty = is_write && !(pte & PG_DIRTY_MASK);
+        if (!(pte & PG_ACCESSED_MASK) || is_dirty) {
+            pte |= PG_ACCESSED_MASK;
+            if (is_dirty)
+                pte |= PG_DIRTY_MASK;
+            stl(pte_ptr, pte);
+        }
+        page_size = 4096;
+        virt_addr = addr & ~0xfff;
+    }
+    /* the page can be put in the TLB */
+    prot = PROT_READ;
+    if (is_user) {
+        if (pte & PG_RW_MASK)
+            prot |= PROT_WRITE;
+    } else {
+        if (!(env->cr[0] & CR0_WP_MASK) || !(pte & PG_USER_MASK) ||
+            (pte & PG_RW_MASK))
+            prot |= PROT_WRITE;
+    }
+    map_addr = mmap((void *)virt_addr, page_size, prot, 
+                    MAP_SHARED | MAP_FIXED, phys_ram_fd, pte & ~0xfff);
+    if (map_addr == MAP_FAILED) {
+        fprintf(stderr, 
+                "mmap failed when mapped physical address 0x%08x to virtual address 0x%08x\n",
+                pte & ~0xfff, virt_addr);
+        exit(1);
+    }
+    page_set_flags(virt_addr, virt_addr + page_size, 
+                   PAGE_VALID | PAGE_EXEC | prot);
+#ifdef DEBUG_MMU
+    printf("mmaping 0x%08x to virt 0x%08x pse=%d\n", 
+           pte & ~0xfff, virt_addr, (page_size != 4096));
+#endif
+    return 0;
+ do_fault_protect:
+    error_code = PG_ERROR_P_MASK;
+ do_fault:
+    env->cr[2] = addr;
+    env->error_code = (is_write << PG_ERROR_W_BIT) | error_code;
+    if (is_user)
+        env->error_code |= PG_ERROR_U_MASK;
+    return 1;
+}
+
+/***********************************************************/
+/* x86 debug */
 
 static const char *cc_op_str[] = {
     "DYNAMIC",
