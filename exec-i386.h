@@ -182,6 +182,7 @@ extern CCTable cc_table[];
 void load_seg(int seg_reg, int selector);
 void cpu_lock(void);
 void cpu_unlock(void);
+void raise_exception_err(int exception_index, int error_code);
 void raise_exception(int exception_index);
 
 void OPPROTO op_movl_eflags_T0(void);
