@@ -87,6 +87,9 @@
 #define CUDA_TIMER_FREQ (4700000 / 6)
 #define CUDA_ADB_POLL_FREQ 50
 
+/* CUDA returns time_t's offset from Jan 1, 1904, not 1970 */
+#define RTC_OFFSET                      2082844800
+
 typedef struct CUDATimer {
     unsigned int latch;
     uint16_t counter_value; /* counter value at load time */
@@ -503,7 +506,7 @@ static void cuda_receive_packet(CUDAState *s,
         break;
     case CUDA_GET_TIME:
         /* XXX: add time support ? */
-        ti = time(NULL);
+        ti = time(NULL) + RTC_OFFSET;
         obuf[0] = CUDA_PACKET;
         obuf[1] = 0;
         obuf[2] = 0;
@@ -522,6 +525,12 @@ static void cuda_receive_packet(CUDAState *s,
         obuf[1] = 0;
         cuda_send_packet_to_host(s, obuf, 2);
         break;
+    case CUDA_POWERDOWN:
+        obuf[0] = CUDA_PACKET;
+        obuf[1] = 0;
+        cuda_send_packet_to_host(s, obuf, 2);
+	qemu_system_shutdown_request();
+	break;
     default:
         break;
     }
