@@ -54,6 +54,8 @@ typedef struct TaskState {
     struct TaskState *next;
     struct target_vm86plus_struct *target_v86;
     struct vm86_saved_state vm86_saved_regs;
+    uint32_t v86flags;
+    uint32_t v86mask;
     int used; /* non zero if used */
     uint8_t stack[0];
 } __attribute__((aligned(16))) TaskState;
@@ -73,9 +75,17 @@ void cpu_loop(CPUX86State *env);
 void process_pending_signals(void *cpu_env);
 void signal_init(void);
 int queue_signal(int sig, target_siginfo_t *info);
-void save_v86_state(CPUX86State *env);
 void init_paths(const char *prefix);
 const char *path(const char *pathname);
 
 extern int loglevel;
+extern FILE *logfile;
+
+/* vm86.c */
+void save_v86_state(CPUX86State *env);
+void do_int(CPUX86State *env, int intno);
+void handle_vm86_fault(CPUX86State *env);
+int do_vm86(CPUX86State *env, long subfunction, 
+            struct target_vm86plus_struct * target_v86);
+
 #endif
