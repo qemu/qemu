@@ -27,13 +27,8 @@
 #include <sys/mman.h>
 
 #include "config.h"
-#ifdef TARGET_I386
-#include "cpu-i386.h"
-#endif
-#ifdef TARGET_ARM
-#include "cpu-arm.h"
-#endif
-#include "exec.h"
+#include "cpu.h"
+#include "exec-all.h"
 
 //#define DEBUG_TB_INVALIDATE
 //#define DEBUG_FLUSH

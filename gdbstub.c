@@ -28,14 +28,9 @@
 #include <signal.h>
 
 #include "config.h"
-#ifdef TARGET_I386
-#include "cpu-i386.h"
-#endif
-#ifdef TARGET_ARM
-#include "cpu-arm.h"
-#endif
+#include "cpu.h"
 #include "thunk.h"
-#include "exec.h"
+#include "exec-all.h"
 
 //#define DEBUG_GDB
 

@@ -40,8 +40,8 @@
 #include <sys/wait.h>
 #include <netinet/in.h>
 
-#include "cpu-i386.h"
-#include "exec.h"
+#include "cpu.h"
+#include "exec-all.h"
 
 #include "vl.h"
 

@@ -6,15 +6,8 @@
 #include <signal.h>
 #include "syscall_defs.h"
 
-#if defined(TARGET_I386)
-#include "cpu-i386.h"
-#include "syscall-i386.h"
-#elif defined(TARGET_ARM)
-#include "cpu-arm.h"
-#include "syscall-arm.h"
-#else
-#error unsupported target CPU
-#endif
+#include "cpu.h"
+#include "syscall.h"
 
 /* This struct is used to hold certain information about the image.
  * Basically, it replicates in user space what would be certain
