@@ -125,6 +125,8 @@ extern int printf(const char *, ...);
 
 #define xglue(x, y) x ## y
 #define glue(x, y) xglue(x, y)
+#define stringify(s)	tostring(s)
+#define tostring(s)	#s
 
 #ifdef __alpha__
 /* the symbols are considered non exported so a br immediate is generated */
@@ -153,3 +155,27 @@ extern int __op_param1, __op_param2, __op_param3;
 #endif
 
 extern int __op_jmp0, __op_jmp1;
+
+#ifdef __i386__
+#define EXIT_TB() asm volatile ("ret")
+#endif
+#ifdef __powerpc__
+#define EXIT_TB() asm volatile ("blr")
+#endif
+#ifdef __s390__
+#define EXIT_TB() asm volatile ("br %r14")
+#endif
+#ifdef __alpha__
+#define EXIT_TB() asm volatile ("ret")
+#endif
+#ifdef __ia64__
+#define EXIT_TB() asm volatile ("br.ret.sptk.many b0;;")
+#endif
+#ifdef __sparc__
+#define EXIT_TB() asm volatile ("jmpl %i0 + 8, %g0\n"
+                                "nop")
+#endif
+#ifdef __arm__
+#define EXIT_TB() asm volatile ("b exec_loop")
+#endif
+

@@ -1306,38 +1306,10 @@ fprintf(outfile,
 " the_end:\n"
 );
 
-/* generate epilogue */ 
-    switch(ELF_ARCH) {
-    case EM_386:
-        fprintf(outfile, "*gen_code_ptr++ = 0xc3; /* ret */\n");
-        break;
-    case EM_PPC:
-        fprintf(outfile, "*((uint32_t *)gen_code_ptr)++ = 0x4e800020; /* blr */\n");
-        break;
-    case EM_S390:
-        fprintf(outfile, "*((uint16_t *)gen_code_ptr)++ = 0x07fe; /* br %%r14 */\n");
-        break;
-    case EM_ALPHA:
-        fprintf(outfile, "*((uint32_t *)gen_code_ptr)++ = 0x6bfa8001; /* ret */\n");
-        break;
-    case EM_IA_64:
-        fprintf(outfile, "*((uint32_t *)gen_code_ptr)++ = 0x00840008; /* br.ret.sptk.many b0;; */\n");
-        break;
-    case EM_SPARC:
-    case EM_SPARC32PLUS:
-	fprintf(outfile, "*((uint32_t *)gen_code_ptr)++ = 0x81c62008; /* jmpl %%i0 + 8, %%g0 */\n");
-	fprintf(outfile, "*((uint32_t *)gen_code_ptr)++ = 0x01000000; /* nop */\n");
-        break;
-    case EM_SPARCV9:
-	fprintf(outfile, "*((uint32_t *)gen_code_ptr)++ = 0x81c7e008; /* ret */\n");
-	fprintf(outfile, "*((uint32_t *)gen_code_ptr)++ = 0x81e80000; /* restore */\n");
-        break;
-    case EM_ARM:
-	fprintf(outfile, "gen_code_ptr = arm_flush_ldr(gen_code_ptr, arm_ldr_table, arm_ldr_ptr, arm_data_table, arm_data_ptr, 0);\n");
-        break;
-    default:
-	error("unknown ELF architecture");
-    }
+/* generate some code patching */ 
+#ifdef HOST_ARM
+fprintf(outfile, "gen_code_ptr = arm_flush_ldr(gen_code_ptr, arm_ldr_table, arm_ldr_ptr, arm_data_table, arm_data_ptr, 0);\n");
+#endif
     /* flush instruction cache */
     fprintf(outfile, "flush_icache_range((unsigned long)gen_code_buf, (unsigned long)gen_code_ptr);\n");
 

@@ -4163,6 +4163,7 @@ static inline int gen_intermediate_code_internal(TranslationBlock *tb, int searc
     if (dc->is_jmp != DISAS_TB_JUMP) {
         /* indicate that the hash table must be used to find the next TB */
         gen_op_movl_T0_0();
+        gen_op_exit_tb();
     }
     *gen_opc_ptr = INDEX_op_end;
     /* we don't forget to fill the last values */

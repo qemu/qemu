@@ -225,7 +225,7 @@ label ## n:\
     T0 = (long)(tbparam) + (n);\
     EIP = eip;\
 dummy_label ## n:\
-    return;\
+    EXIT_TB();\
 } while (0)
 
 #endif

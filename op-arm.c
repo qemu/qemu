@@ -338,6 +338,11 @@ void OPPROTO op_jmp(void)
     JUMP_TB(PARAM1, 1, PARAM2);
 }
 
+void OPPROTO op_exit_tb(void)
+{
+    EXIT_TB();
+}
+
 void OPPROTO op_movl_T0_psr(void)
 {
     T0 = compute_cpsr();

@@ -566,6 +566,11 @@ void OPPROTO op_movl_T0_0(void)
     T0 = 0;
 }
 
+void OPPROTO op_exit_tb(void)
+{
+    EXIT_TB();
+}
+
 /* multiple size ops */
 
 #define ldul ldl

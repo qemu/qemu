@@ -828,6 +828,7 @@ static inline int gen_intermediate_code_internal(TranslationBlock *tb, int searc
     case DISAS_JUMP:
         /* indicate that the hash table must be used to find the next TB */
         gen_op_movl_T0_0();
+        gen_op_exit_tb();
         break;
     case DISAS_TB_JUMP:
         /* nothing more to generate */

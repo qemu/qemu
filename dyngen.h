@@ -152,11 +152,7 @@ static uint8_t *arm_flush_ldr(uint8_t *gen_code_ptr,
  
     data_size = (uint8_t *)data_end - (uint8_t *)data_start;
 
-    if (!gen_jmp) {
-        /* b exec_loop */
-        arm_reloc_pc24((uint32_t *)gen_code_ptr, 0xeafffffe, (long)(&exec_loop)); 
-        gen_code_ptr += 4;
-    } else {
+    if (gen_jmp) {
         /* generate branch to skip the data */
         if (data_size == 0)
             return gen_code_ptr;
