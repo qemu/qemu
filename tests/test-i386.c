@@ -832,6 +832,13 @@ void test_xchg(void)
     TEST_XCHG(xaddw, "w", "=q");
     TEST_XCHG(xaddb, "b", "=q");
 
+    {
+        int res;
+        res = 0x12345678;
+        asm("xaddl %1, %0" : "=r" (res) : "0" (res));
+        printf("xaddl same res=%08x\n", res);
+    }
+
     TEST_XCHG(xaddl, "", "=m");
     TEST_XCHG(xaddw, "w", "=m");
     TEST_XCHG(xaddb, "b", "=m");
@@ -851,6 +858,27 @@ void test_xchg(void)
     TEST_CMPXCHG(cmpxchgl, "", "=m", 0xfffefdfc);
     TEST_CMPXCHG(cmpxchgw, "w", "=m", 0xfffefdfc);
     TEST_CMPXCHG(cmpxchgb, "b", "=m", 0xfffefdfc);
+
+    {
+        uint64_t op0, op1, op2;
+        int i, eflags;
+
+        for(i = 0; i < 2; i++) {
+            op0 = 0x123456789abcd;
+            if (i == 0)
+                op1 = 0xfbca765423456;
+            else
+                op1 = op0;
+            op2 = 0x6532432432434;
+            asm("cmpxchg8b %1\n" 
+                "pushf\n"
+                "popl %2\n"
+                : "=A" (op0), "=m" (op1), "=g" (eflags)
+                : "0" (op0), "m" (op1), "b" ((int)op2), "c" ((int)(op2 >> 32)));
+            printf("cmpxchg8b: op0=%016llx op1=%016llx CC=%02x\n", 
+                    op0, op1, eflags & CC_Z);
+        }
+    }
 }
 
 /**********************************************/
