@@ -27,15 +27,14 @@ PROGS+=$(QEMU_SYSTEM)
 ifndef CONFIG_SOFTMMU
 CONFIG_STATIC=y
 endif
-endif
-
-ifeq ($(ARCH), ppc)
+else
+# the system emulator using soft mmu is portable
 ifdef CONFIG_SOFTMMU
 PROGS+=$(QEMU_SYSTEM)
 endif
-endif
+endif # ARCH != i386
 
-endif
+endif # TARGET_ARCH = i386
 
 ifeq ($(TARGET_ARCH), ppc)
 
