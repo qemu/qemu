@@ -130,6 +130,8 @@ typedef struct DisasContext {
     int addseg; /* non zero if either DS/ES/SS have a non zero base */
     int f_st;   /* currently unused */
     int vm86;   /* vm86 mode */
+    int cpl;
+    int iopl;
 } DisasContext;
 
 /* i386 arith/logic operations */
@@ -2766,26 +2768,36 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         break;
     case 0x6c: /* insS */
     case 0x6d:
-        if ((b & 1) == 0)
-            ot = OT_BYTE;
-        else
-            ot = dflag ? OT_LONG : OT_WORD;
-        if (prefixes & PREFIX_REPZ) {
-            gen_string_es(s, ot, gen_op_ins + 9);
+        if (s->cpl > s->iopl || s->vm86) {
+            /* NOTE: even for (E)CX = 0 the exception is raised */
+            gen_op_gpf(pc_start - s->cs_base);
         } else {
-            gen_string_es(s, ot, gen_op_ins);
+            if ((b & 1) == 0)
+                ot = OT_BYTE;
+            else
+                ot = dflag ? OT_LONG : OT_WORD;
+            if (prefixes & PREFIX_REPZ) {
+                gen_string_es(s, ot, gen_op_ins + 9);
+            } else {
+                gen_string_es(s, ot, gen_op_ins);
+            }
         }
         break;
     case 0x6e: /* outsS */
     case 0x6f:
-        if ((b & 1) == 0)
-            ot = OT_BYTE;
-        else
-            ot = dflag ? OT_LONG : OT_WORD;
-        if (prefixes & PREFIX_REPZ) {
-            gen_string_ds(s, ot, gen_op_outs + 9);
+        if (s->cpl > s->iopl || s->vm86) {
+            /* NOTE: even for (E)CX = 0 the exception is raised */
+            gen_op_gpf(pc_start - s->cs_base);
         } else {
-            gen_string_ds(s, ot, gen_op_outs);
+            if ((b & 1) == 0)
+                ot = OT_BYTE;
+            else
+                ot = dflag ? OT_LONG : OT_WORD;
+            if (prefixes & PREFIX_REPZ) {
+                gen_string_ds(s, ot, gen_op_outs + 9);
+            } else {
+                gen_string_ds(s, ot, gen_op_outs);
+            }
         }
         break;
 
@@ -2793,45 +2805,61 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         /* port I/O */
     case 0xe4:
     case 0xe5:
-        if ((b & 1) == 0)
-            ot = OT_BYTE;
-        else
-            ot = dflag ? OT_LONG : OT_WORD;
-        val = ldub(s->pc++);
-        gen_op_movl_T0_im(val);
-        gen_op_in[ot]();
-        gen_op_mov_reg_T1[ot][R_EAX]();
+        if (s->cpl > s->iopl || s->vm86) {
+            gen_op_gpf(pc_start - s->cs_base);
+        } else {
+            if ((b & 1) == 0)
+                ot = OT_BYTE;
+            else
+                ot = dflag ? OT_LONG : OT_WORD;
+            val = ldub(s->pc++);
+            gen_op_movl_T0_im(val);
+            gen_op_in[ot]();
+            gen_op_mov_reg_T1[ot][R_EAX]();
+        }
         break;
     case 0xe6:
     case 0xe7:
-        if ((b & 1) == 0)
-            ot = OT_BYTE;
-        else
-            ot = dflag ? OT_LONG : OT_WORD;
-        val = ldub(s->pc++);
-        gen_op_movl_T0_im(val);
-        gen_op_mov_TN_reg[ot][1][R_EAX]();
-        gen_op_out[ot]();
+        if (s->cpl > s->iopl || s->vm86) {
+            gen_op_gpf(pc_start - s->cs_base);
+        } else {
+            if ((b & 1) == 0)
+                ot = OT_BYTE;
+            else
+                ot = dflag ? OT_LONG : OT_WORD;
+            val = ldub(s->pc++);
+            gen_op_movl_T0_im(val);
+            gen_op_mov_TN_reg[ot][1][R_EAX]();
+            gen_op_out[ot]();
+        }
         break;
     case 0xec:
     case 0xed:
-        if ((b & 1) == 0)
-            ot = OT_BYTE;
-        else
-            ot = dflag ? OT_LONG : OT_WORD;
-        gen_op_mov_TN_reg[OT_WORD][0][R_EDX]();
-        gen_op_in[ot]();
-        gen_op_mov_reg_T1[ot][R_EAX]();
+        if (s->cpl > s->iopl || s->vm86) {
+            gen_op_gpf(pc_start - s->cs_base);
+        } else {
+            if ((b & 1) == 0)
+                ot = OT_BYTE;
+            else
+                ot = dflag ? OT_LONG : OT_WORD;
+            gen_op_mov_TN_reg[OT_WORD][0][R_EDX]();
+            gen_op_in[ot]();
+            gen_op_mov_reg_T1[ot][R_EAX]();
+        }
         break;
     case 0xee:
     case 0xef:
-        if ((b & 1) == 0)
-            ot = OT_BYTE;
-        else
-            ot = dflag ? OT_LONG : OT_WORD;
-        gen_op_mov_TN_reg[OT_WORD][0][R_EDX]();
-        gen_op_mov_TN_reg[ot][1][R_EAX]();
-        gen_op_out[ot]();
+        if (s->cpl > s->iopl || s->vm86) {
+            gen_op_gpf(pc_start - s->cs_base);
+        } else {
+            if ((b & 1) == 0)
+                ot = OT_BYTE;
+            else
+                ot = dflag ? OT_LONG : OT_WORD;
+            gen_op_mov_TN_reg[OT_WORD][0][R_EDX]();
+            gen_op_mov_TN_reg[ot][1][R_EAX]();
+            gen_op_out[ot]();
+        }
         break;
 
         /************************/
@@ -3219,8 +3247,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         break;
     case 0xcd: /* int N */
         val = ldub(s->pc++);
-        /* XXX: currently we ignore the interrupt number */
-        gen_op_int_im(pc_start - s->cs_base);
+        gen_op_int_im(val, pc_start - s->cs_base);
         s->is_jmp = 1;
         break;
     case 0xce: /* into */
@@ -3229,16 +3256,30 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         gen_op_into();
         break;
     case 0xfa: /* cli */
-        if (s->vm86) 
-            gen_op_cli_vm();
-        else
-            gen_op_cli();
+        if (!s->vm86) {
+            if (s->cpl <= s->iopl)
+                gen_op_cli();
+            else
+                gen_op_gpf(pc_start - s->cs_base);
+        } else {
+            if (s->iopl == 3)
+                gen_op_cli();
+            else
+                gen_op_cli_vm();
+        }
         break;
     case 0xfb: /* sti */
-        if (s->vm86) 
-            gen_op_sti_vm(pc_start - s->cs_base);
-        else
-            gen_op_sti();
+        if (!s->vm86) {
+            if (s->cpl <= s->iopl)
+                gen_op_sti();
+            else
+                gen_op_gpf(pc_start - s->cs_base);
+        } else {
+            if (s->iopl == 3)
+                gen_op_sti();
+            else
+                gen_op_sti_vm(pc_start - s->cs_base);
+        }
         break;
     case 0x62: /* bound */
         ot = dflag ? OT_LONG : OT_WORD;
@@ -3286,6 +3327,13 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
     case 0x1a2: /* cpuid */
         gen_op_cpuid();
         break;
+    case 0xf4: /* hlt */
+        if (s->cpl == 0) {
+            /* ignored */
+        } else {
+            gen_op_gpf(pc_start - s->cs_base);
+        }
+        break;
     default:
         goto illegal_op;
     }
@@ -3314,6 +3362,10 @@ static uint16_t opc_read_flags[NB_OPS] = {
     [INDEX_op_sbbb_T0_T1_cc] = CC_C,
     [INDEX_op_sbbw_T0_T1_cc] = CC_C,
     [INDEX_op_sbbl_T0_T1_cc] = CC_C,
+
+    /* subtle: due to the incl/decl implementation, C is used */
+    [INDEX_op_incl_T0_cc] = CC_C, 
+    [INDEX_op_decl_T0_cc] = CC_C,
 
     [INDEX_op_into] = CC_O,
 
@@ -3416,8 +3468,9 @@ static uint16_t opc_write_flags[NB_OPS] = {
     [INDEX_op_xorl_T0_T1_cc] = CC_OSZAPC,
     [INDEX_op_cmpl_T0_T1_cc] = CC_OSZAPC,
     [INDEX_op_negl_T0_cc] = CC_OSZAPC,
-    [INDEX_op_incl_T0_cc] = CC_OSZAP,
-    [INDEX_op_decl_T0_cc] = CC_OSZAP,
+    /* subtle: due to the incl/decl implementation, C is used */
+    [INDEX_op_incl_T0_cc] = CC_OSZAPC, 
+    [INDEX_op_decl_T0_cc] = CC_OSZAPC,
     [INDEX_op_testl_T0_T1_cc] = CC_OSZAPC,
 
     [INDEX_op_mulb_AL_T0] = CC_OSZAPC,
@@ -3659,6 +3712,8 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size,
     dc->addseg = (flags >> GEN_FLAG_ADDSEG_SHIFT) & 1;
     dc->f_st = (flags >> GEN_FLAG_ST_SHIFT) & 7;
     dc->vm86 = (flags >> GEN_FLAG_VM_SHIFT) & 1;
+    dc->cpl = (flags >> GEN_FLAG_CPL_SHIFT) & 3;
+    dc->iopl = (flags >> GEN_FLAG_IOPL_SHIFT) & 3;
     dc->cc_op = CC_OP_DYNAMIC;
     dc->cs_base = cs_base;
 
@@ -3697,7 +3752,7 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size,
 	disas(logfile, pc_start, pc_ptr - pc_start,
 	      dc->code32 ? DISAS_I386_I386 : DISAS_I386_I8086);
         fprintf(logfile, "\n");
-        
+
         fprintf(logfile, "OP:\n");
         dump_ops(gen_opc_buf, gen_opparam_buf);
         fprintf(logfile, "\n");
