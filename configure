@@ -56,22 +56,6 @@ bigendian="no"
 # OS specific
 targetos=`uname -s`
 case $targetos in
-BeOS)
-prefix="/boot/home/config"
-# helps building libavcodec
-CFLAGS="-O2 -DPIC"
-# no need for libm, but the inet stuff
-# Check for BONE
-if (echo $BEINCLUDES|grep 'headers/be/bone' >/dev/null); then
-extralibs="-lbind -lsocket"
-else
-echo "Not sure building for net_server will succeed... good luck."
-extralibs="-lsocket"
-fi ;;
-BSD/OS)
-extralibs="-lpoll -lgnugetopt -lm"
-make="gmake"
-;;
 *) ;;
 esac
 
@@ -246,10 +230,6 @@ echo "" >>config.mak
 echo -n "#define QEMU_VERSION \"" >> $TMPH
 head $source_path/VERSION >> $TMPH
 echo "\"" >> $TMPH
-if test "$network" = "yes" ; then
-  echo "#define CONFIG_NETWORK 1" >> $TMPH
-  echo "CONFIG_NETWORK=yes" >> config.mak
-fi
 
 # build tree in object directory if source path is different from current one
 if test "$source_path_used" = "yes" ; then
