@@ -283,7 +283,7 @@ int load_kernel(const char *filename, uint8_t *addr,
     int fd, size;
     int setup_sects;
 
-    fd = open(filename, O_RDONLY);
+    fd = open(filename, O_RDONLY | O_BINARY);
     if (fd < 0)
         return -1;
 
