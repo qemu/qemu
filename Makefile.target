@@ -20,10 +20,18 @@ endif
 ifdef CONFIG_USER_ONLY
 PROGS=$(QEMU_USER)
 else
-ifeq ($(ARCH),i386)
 ifeq ($(TARGET_ARCH), i386)
+
+ifeq ($(ARCH), i386)
 PROGS+=$(QEMU_SYSTEM)
 endif
+
+ifeq ($(ARCH), ppc)
+ifdef CONFIG_SOFTMMU
+PROGS+=$(QEMU_SYSTEM)
+endif
+endif
+
 endif
 endif
 
@@ -174,8 +182,17 @@ VL_OBJS+=sdl.o
 SDL_LIBS+=-L/usr/X11R6/lib -lX11 -lXext -lXv -ldl -lm
 endif
 
+VL_LDFLAGS=
+# specific flags are needed for non soft mmu emulator
+ifndef CONFIG_SOFTMMU
+VL_LDFLAGS+=-static -Wl,-T,$(SRC_PATH)/i386-vl.ld 
+endif
+ifdef CONFIG_STATIC
+VL_LDFLAGS+=-static
+endif
+
 $(QEMU_SYSTEM): $(VL_OBJS) libqemu.a
-	$(CC) -static -Wl,-T,$(SRC_PATH)/i386-vl.ld -o $@ $^ $(LIBS) $(SDL_LIBS)
+	$(CC) $(VL_LDFLAGS) -o $@ $^ $(LIBS) $(SDL_LIBS)
 
 sdl.o: sdl.c
 	$(CC) $(CFLAGS) $(DEFINES) $(SDL_CFLAGS) -c -o $@ $<
