@@ -37,6 +37,7 @@
     abort ();                                   \
 } while (0)
 
+/* #define DEBUG_SB16 */
 #ifdef DEBUG_SB16
 #define lwarn(...) fprintf (stderr, "sb16: " __VA_ARGS__)
 #define linfo(...) fprintf (stderr, "sb16: " __VA_ARGS__)
@@ -60,7 +61,7 @@ static struct {
     int hdma;
     int port;
     int mix_block;
-} sb = {4, 5, 5, 1, 5, 0x220, -1};
+} sb = {5, 4, 5, 1, 5, 0x220, -1};
 
 static int mix_block, noirq;
 
@@ -205,7 +206,7 @@ static void command (uint8_t cmd)
 {
     char *msg;
 
-    msg = (char *)-1;
+    msg = (char *) -1;
 
     linfo ("%#x\n", cmd);
 
@@ -225,6 +226,12 @@ static void command (uint8_t cmd)
     }
     else {
         switch (cmd) {
+        case 0x00:
+        case 0x03:
+        case 0xe7:
+            /* IMS uses those when probing for sound devices */
+            return;
+
         case 0x10:
             dsp.needed_bytes = 1;
             break;
@@ -328,7 +335,7 @@ static void command (uint8_t cmd)
 
         case 0xf2:
             dsp.out_data[dsp.out_data_len++] = 0xaa;
-            mixer.regs[0x82] |= 1;
+            mixer.regs[0x82] |= mixer.regs[0x80];
             pic_set_irq (sb.irq, 1);
             return;
 
@@ -500,13 +507,19 @@ static IO_READ_PROTO (dsp_read)
         goto error;
 
     case 0xe:                   /* data available status | irq 8 ack */
+        /* XXX drop pic irq line here? */
+        ldebug ("8 ack\n");
         retval = (0 == dsp.out_data_len) ? 0 : 0x80;
+        mixer.regs[0x82] &= ~mixer.regs[0x80];
+        pic_set_irq (sb.irq, 0);
         break;
 
     case 0xf:                   /* irq 16 ack */
-        retval = 0xff;
-        mixer.regs[0x82] &= ~2;
+        /* XXX drop pic irq line here? */
         ldebug ("16 ack\n");
+        retval = 0xff;
+        mixer.regs[0x82] &= ~mixer.regs[0x80];
+        pic_set_irq (sb.irq, 0);
         break;
 
     default:
@@ -514,8 +527,8 @@ static IO_READ_PROTO (dsp_read)
     }
 
     if ((0xc != iport) && (0xe != iport)) {
-        ldebug ("(nport=%#x, size=%d) iport %#x = %#x\n",
-                nport, size, iport, retval);
+        ldebug ("nport=%#x iport %#x = %#x\n",
+                nport, iport, retval);
     }
 
     return retval;
@@ -617,8 +630,6 @@ static int SB_read_DMA (uint32_t addr, int size, int *_irq)
 
     ldebug ("addr:%#010x free:%d till:%d size:%d\n",
             addr, free, till, size);
-/*   linfo ("pos %d free %d size %d till %d copy %d auto %d noirq %d\n", */
-/*       dsp.dma_pos, free, size, till, copy, dsp.dma_auto, noirq); */
     if (till <= copy) {
         if (0 == dsp.dma_auto) {
             copy = till;
@@ -631,8 +642,10 @@ static int SB_read_DMA (uint32_t addr, int size, int *_irq)
 
     if (dsp.left_till_irq <= 0) {
         mixer.regs[0x82] |= mixer.regs[0x80];
-        if (0 == noirq)
+        if (0 == noirq) {
+            ldebug ("request irq\n");
             *_irq = sb.irq;
+        }
 
         if (0 == dsp.dma_auto) {
             control (0);
