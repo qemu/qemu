@@ -19,6 +19,62 @@
  */
 #include "exec-i386.h"
 
+const CPU86_LDouble f15rk[7] =
+{
+    0.00000000000000000000L,
+    1.00000000000000000000L,
+    3.14159265358979323851L,  /*pi*/
+    0.30102999566398119523L,  /*lg2*/
+    0.69314718055994530943L,  /*ln2*/
+    1.44269504088896340739L,  /*l2e*/
+    3.32192809488736234781L,  /*l2t*/
+};
+    
+/* thread support */
+
+spinlock_t global_cpu_lock = SPIN_LOCK_UNLOCKED;
+
+void cpu_lock(void)
+{
+    spin_lock(&global_cpu_lock);
+}
+
+void cpu_unlock(void)
+{
+    spin_unlock(&global_cpu_lock);
+}
+
+void cpu_loop_exit(void)
+{
+    /* NOTE: the register at this point must be saved by hand because
+       longjmp restore them */
+#ifdef reg_EAX
+    env->regs[R_EAX] = EAX;
+#endif
+#ifdef reg_ECX
+    env->regs[R_ECX] = ECX;
+#endif
+#ifdef reg_EDX
+    env->regs[R_EDX] = EDX;
+#endif
+#ifdef reg_EBX
+    env->regs[R_EBX] = EBX;
+#endif
+#ifdef reg_ESP
+    env->regs[R_ESP] = ESP;
+#endif
+#ifdef reg_EBP
+    env->regs[R_EBP] = EBP;
+#endif
+#ifdef reg_ESI
+    env->regs[R_ESI] = ESI;
+#endif
+#ifdef reg_EDI
+    env->regs[R_EDI] = EDI;
+#endif
+    longjmp(env->jmp_env, 1);
+}
+
 #if 0
 /* full interrupt support (only useful for real CPU emulation, not
    finished) - I won't do it any time soon, finish it if you want ! */
@@ -106,6 +162,82 @@ void raise_exception_err(int exception_index, int error_code)
 void raise_exception(int exception_index)
 {
     raise_interrupt(exception_index, 0, 0, 0);
+}
+
+#ifdef BUGGY_GCC_DIV64
+/* gcc 2.95.4 on PowerPC does not seem to like using __udivdi3, so we
+   call it from another function */
+uint32_t div64(uint32_t *q_ptr, uint64_t num, uint32_t den)
+{
+    *q_ptr = num / den;
+    return num % den;
+}
+
+int32_t idiv64(int32_t *q_ptr, int64_t num, int32_t den)
+{
+    *q_ptr = num / den;
+    return num % den;
+}
+#endif
+
+void helper_divl_EAX_T0(uint32_t eip)
+{
+    unsigned int den, q, r;
+    uint64_t num;
+    
+    num = EAX | ((uint64_t)EDX << 32);
+    den = T0;
+    if (den == 0) {
+        EIP = eip;
+        raise_exception(EXCP00_DIVZ);
+    }
+#ifdef BUGGY_GCC_DIV64
+    r = div64(&q, num, den);
+#else
+    q = (num / den);
+    r = (num % den);
+#endif
+    EAX = q;
+    EDX = r;
+}
+
+void helper_idivl_EAX_T0(uint32_t eip)
+{
+    int den, q, r;
+    int64_t num;
+    
+    num = EAX | ((uint64_t)EDX << 32);
+    den = T0;
+    if (den == 0) {
+        EIP = eip;
+        raise_exception(EXCP00_DIVZ);
+    }
+#ifdef BUGGY_GCC_DIV64
+    r = idiv64(&q, num, den);
+#else
+    q = (num / den);
+    r = (num % den);
+#endif
+    EAX = q;
+    EDX = r;
+}
+
+void helper_cmpxchg8b(void)
+{
+    uint64_t d;
+    int eflags;
+
+    eflags = cc_table[CC_OP].compute_all();
+    d = ldq((uint8_t *)A0);
+    if (d == (((uint64_t)EDX << 32) | EAX)) {
+        stq((uint8_t *)A0, ((uint64_t)ECX << 32) | EBX);
+        eflags |= CC_Z;
+    } else {
+        EDX = d >> 32;
+        EAX = d;
+        eflags &= ~CC_Z;
+    }
+    CC_SRC = eflags;
 }
 
 /* We simulate a pre-MMX pentium as in valgrind */
@@ -219,6 +351,24 @@ void load_seg(int seg_reg, int selector, unsigned cur_eip)
 #endif
     }
     env->segs[seg_reg] = selector;
+}
+
+/* rdtsc */
+#ifndef __i386__
+uint64_t emu_time;
+#endif
+
+void helper_rdtsc(void)
+{
+    uint64_t val;
+#ifdef __i386__
+    asm("rdtsc" : "=A" (val));
+#else
+    /* better than nothing: the time increases */
+    val = emu_time++;
+#endif
+    EAX = val;
+    EDX = val >> 32;
 }
 
 void helper_lsl(void)
