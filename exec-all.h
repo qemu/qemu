@@ -79,6 +79,7 @@ void cpu_exec_init(void);
 int page_unprotect(unsigned long address);
 void page_unmap(void);
 void tlb_flush_page(CPUState *env, uint32_t addr);
+void tlb_flush_page_write(CPUState *env, uint32_t addr);
 void tlb_flush(CPUState *env);
 
 #define CODE_GEN_MAX_SIZE        65536
@@ -415,3 +416,27 @@ static inline int spin_trylock(spinlock_t *lock)
 
 extern spinlock_t tb_lock;
 
+
+#if defined(TARGET_I386) && !defined(CONFIG_USER_ONLY)
+
+void tlb_fill(unsigned long addr, int is_write, int is_user, 
+              void *retaddr);
+
+#define ACCESS_TYPE 3
+#define MEMSUFFIX _code
+#define env cpu_single_env
+
+#define DATA_SIZE 1
+#include "softmmu_header.h"
+
+#define DATA_SIZE 2
+#include "softmmu_header.h"
+
+#define DATA_SIZE 4
+#include "softmmu_header.h"
+
+#undef ACCESS_TYPE
+#undef MEMSUFFIX
+#undef env
+
+#endif
