@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
+#include <unistd.h>
 #include <signal.h>
 #include <errno.h>
 #include <sys/ucontext.h>
