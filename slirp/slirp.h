@@ -210,6 +210,7 @@ int inet_aton _P((const char *cp, struct in_addr *ia));
 #endif
 
 #include "bootp.h"
+#include "tftp.h"
 #include "libslirp.h"
 
 extern struct ttys *ttys_unit[MAX_INTERFACES];

@@ -2334,6 +2334,7 @@ void help(void)
            "-tun-fd fd      use this fd as already opened tap/tun interface\n"
 #ifdef CONFIG_SLIRP
            "-user-net       use user mode network stack [default if no tap/tun script]\n"
+           "-tftp prefix    allow tftp access to files starting with prefix [only with -user-net enabled]\n"
 #endif
            "-dummy-net      use dummy network stack\n"
            "\n"
@@ -2408,6 +2409,7 @@ enum {
     QEMU_OPTION_n,
     QEMU_OPTION_tun_fd,
     QEMU_OPTION_user_net,
+    QEMU_OPTION_tftp,
     QEMU_OPTION_dummy_net,
 
     QEMU_OPTION_kernel,
@@ -2460,6 +2462,7 @@ const QEMUOption qemu_options[] = {
     { "tun-fd", HAS_ARG, QEMU_OPTION_tun_fd },
 #ifdef CONFIG_SLIRP
     { "user-net", 0, QEMU_OPTION_user_net },
+    { "tftp", HAS_ARG, QEMU_OPTION_tftp },
 #endif
     { "dummy-net", 0, QEMU_OPTION_dummy_net },
 
@@ -2751,9 +2754,17 @@ int main(int argc, char **argv)
                     }
                 }
                 break;
+#ifdef CONFIG_SLIRP
+            case QEMU_OPTION_tftp:
+	      {
+		extern const char *tftp_prefix;
+		tftp_prefix = optarg;
+	      }
+	      break;
             case QEMU_OPTION_user_net:
                 net_if_type = NET_IF_USER;
                 break;
+#endif
             case QEMU_OPTION_dummy_net:
                 net_if_type = NET_IF_DUMMY;
                 break;

@@ -153,6 +153,14 @@ udp_input(m, iphlen)
             goto bad;
         }
 
+        /*
+         *  handle TFTP
+         */
+        if (ntohs(uh->uh_dport) == TFTP_SERVER) {
+            tftp_input(m);
+            goto bad;
+        }
+
 	/*
 	 * Locate pcb for datagram.
 	 */
