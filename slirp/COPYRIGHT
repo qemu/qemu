@@ -1,0 +1,64 @@
+Slirp was written by Danny Gasparovski.
+Copyright (c), 1995,1996 All Rights Reserved.
+
+Slirp is maintained by Kelly Price <tygris+slirp@erols.com>
+
+Slirp is free software; "free" as in you don't have to pay for it, and you
+are free to do whatever you want with it.  I do not accept any donations,
+monetary or otherwise, for Slirp.  Instead, I would ask you to pass this
+potential donation to your favorite charity.  In fact, I encourage
+*everyone* who finds Slirp useful to make a small donation to their
+favorite charity (for example, GreenPeace).  This is not a requirement, but
+a suggestion from someone who highly values the service they provide.
+
+The copyright terms and conditions:
+
+---BEGIN---
+
+ Copyright (c) 1995,1996 Danny Gasparovski.  All rights reserved.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions
+ are met:
+ 1. Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+ 2. Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions and the following disclaimer in the
+    documentation and/or other materials provided with the distribution.
+ 3. All advertising materials mentioning features or use of this software
+    must display the following acknowledgment:
+      This product includes software developed by Danny Gasparovski.
+
+ THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+ AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL
+ DANNY GASPAROVSKI OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+---END---
+
+This basically means you can do anything you want with the software, except
+1) call it your own, and 2) claim warranty on it.  There is no warranty for
+this software.  None.  Nada.  If you lose a million dollars while using
+Slirp, that's your loss not mine.  So, ***USE AT YOUR OWN RISK!***.
+
+If these conditions cannot be met due to legal restrictions (E.g. where it
+is against the law to give out Software without warranty), you must cease
+using the software and delete all copies you have.
+
+Slirp uses code that is copyrighted by the following people/organizations:
+
+Juha Pirkola.
+Gregory M. Christy.
+The Regents of the University of California.
+Carnegie Mellon University.
+The Australian National University.
+RSA Data Security, Inc.
+
+Please read the top of each source file for the details on the various
+copyrights.
