@@ -136,6 +136,7 @@
 
 // control 0x33
 #define CIRRUS_BLTMODEEXT_SOLIDFILL        0x04
+#define CIRRUS_BLTMODEEXT_COLOREXPINV      0x02
 #define CIRRUS_BLTMODEEXT_DWORDGRANULARITY 0x01
 
 // memory-mapped IO
@@ -325,7 +326,7 @@ static void cirrus_bitblt_fill_nop(CirrusVGAState *s,
 #include "cirrus_vga_rop.h"
 
 #define ROP_NAME 1
-#define ROP_OP(d, s) d = 0xff
+#define ROP_OP(d, s) d = ~0
 #include "cirrus_vga_rop.h"
 
 #define ROP_NAME notsrc_and_dst
@@ -433,6 +434,25 @@ static const cirrus_bitblt_rop_t cirrus_colorexpand_transp[16][4] = {
     ROP2(cirrus_colorexpand_transp_notsrc),
     ROP2(cirrus_colorexpand_transp_notsrc_or_dst),
     ROP2(cirrus_colorexpand_transp_notsrc_and_notdst),
+};
+
+static const cirrus_bitblt_rop_t cirrus_colorexpand_transp_inv[16][4] = {
+    ROP2(cirrus_colorexpand_transp_inv_0),
+    ROP2(cirrus_colorexpand_transp_inv_src_and_dst),
+    ROP_NOP2(cirrus_bitblt_rop_nop),
+    ROP2(cirrus_colorexpand_transp_inv_src_and_notdst),
+    ROP2(cirrus_colorexpand_transp_inv_notdst),
+    ROP2(cirrus_colorexpand_transp_inv_src),
+    ROP2(cirrus_colorexpand_transp_inv_1),
+    ROP2(cirrus_colorexpand_transp_inv_notsrc_and_dst),
+    ROP2(cirrus_colorexpand_transp_inv_src_xor_dst),
+    ROP2(cirrus_colorexpand_transp_inv_src_or_dst),
+    ROP2(cirrus_colorexpand_transp_inv_notsrc_or_notdst),
+    ROP2(cirrus_colorexpand_transp_inv_src_notxor_dst),
+    ROP2(cirrus_colorexpand_transp_inv_src_or_notdst),
+    ROP2(cirrus_colorexpand_transp_inv_notsrc),
+    ROP2(cirrus_colorexpand_transp_inv_notsrc_or_dst),
+    ROP2(cirrus_colorexpand_transp_inv_notsrc_and_notdst),
 };
 
 static const cirrus_bitblt_rop_t cirrus_colorexpand[16][4] = {
@@ -820,8 +840,13 @@ static void cirrus_bitblt_start(CirrusVGAState * s)
             CIRRUS_BLTMODE_COLOREXPAND) {
 
             if (s->cirrus_blt_mode & CIRRUS_BLTMODE_TRANSPARENTCOMP) {
-                cirrus_bitblt_fgcol(s);
-                s->cirrus_rop = cirrus_colorexpand_transp[rop_to_index[blt_rop]][s->cirrus_blt_pixelwidth - 1];
+                if (s->cirrus_blt_modeext & CIRRUS_BLTMODEEXT_COLOREXPINV) {
+                    cirrus_bitblt_bgcol(s);
+                    s->cirrus_rop = cirrus_colorexpand_transp_inv[rop_to_index[blt_rop]][s->cirrus_blt_pixelwidth - 1];
+                } else {
+                    cirrus_bitblt_fgcol(s);
+                    s->cirrus_rop = cirrus_colorexpand_transp[rop_to_index[blt_rop]][s->cirrus_blt_pixelwidth - 1];
+                }
             } else {
                 cirrus_bitblt_fgcol(s);
                 cirrus_bitblt_bgcol(s);
