@@ -339,14 +339,39 @@ typedef struct SegmentCache {
     uint32_t flags;
 } SegmentCache;
 
-typedef struct {
-    union {
-        uint8_t b[16];
-        uint16_t w[8];
-        uint32_t l[4];
-        uint64_t q[2];
-    } u;
+typedef union {
+        uint8_t _b[16];
+        uint16_t _w[8];
+        uint32_t _l[4];
+        uint64_t _q[2];
 } XMMReg;
+
+typedef union {
+    uint8_t _b[8];
+    uint16_t _w[2];
+    uint32_t _l[1];
+    uint64_t q;
+} MMXReg;
+
+#ifdef WORDS_BIGENDIAN
+#define XMM_B(n) _b[15 - (n)]
+#define XMM_W(n) _w[7 - (n)]
+#define XMM_L(n) _l[3 - (n)]
+#define XMM_Q(n) _q[1 - (n)]
+
+#define MMX_B(n) _b[7 - (n)]
+#define MMX_W(n) _w[3 - (n)]
+#define MMX_L(n) _l[1 - (n)]
+#else
+#define XMM_B(n) _b[n]
+#define XMM_W(n) _w[n]
+#define XMM_L(n) _l[n]
+#define XMM_Q(n) _q[n]
+
+#define MMX_B(n) _b[n]
+#define MMX_W(n) _w[n]
+#define MMX_L(n) _l[n]
+#endif
 
 #ifdef TARGET_X86_64
 #define CPU_NB_REGS 16
@@ -425,7 +450,7 @@ typedef struct CPUX86State {
     int exception_index;
     int error_code;
     int exception_is_int;
-    int exception_next_eip;
+    target_ulong exception_next_eip;
     struct TranslationBlock *current_tb; /* currently executing TB */
     target_ulong cr[5]; /* NOTE: cr1 is unused */
     target_ulong dr[8]; /* debug registers */
