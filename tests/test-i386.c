@@ -6,6 +6,7 @@
 #include <math.h>
 #include <signal.h>
 #include <setjmp.h>
+#include <errno.h>
 #include <sys/ucontext.h>
 #include <sys/mman.h>
 #include <asm/vm86.h>
@@ -855,7 +856,6 @@ void test_segs(void)
 #endif
     /* do some tests with fs or gs */
     asm volatile ("movl %0, %%fs" : : "r" (MK_SEL(1)));
-    asm volatile ("movl %0, %%gs" : : "r" (MK_SEL(2)));
 
     seg_data1[1] = 0xaa;
     seg_data2[1] = 0x55;
@@ -863,7 +863,12 @@ void test_segs(void)
     asm volatile ("fs movzbl 0x1, %0" : "=r" (res));
     printf("FS[1] = %02x\n", res);
 
-    asm volatile ("gs movzbl 0x1, %0" : "=r" (res));
+    asm volatile ("pushl %%gs\n"
+                  "movl %1, %%gs\n"
+                  "gs movzbl 0x1, %0\n"
+                  "popl %%gs\n"
+                  : "=r" (res)
+                  : "r" (MK_SEL(2)));
     printf("GS[1] = %02x\n", res);
 
     /* tests with ds/ss (implicit segment case) */
