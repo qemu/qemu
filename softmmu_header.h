@@ -74,7 +74,7 @@ DATA_TYPE REGPARM(1) glue(glue(__ld, SUFFIX), MMUSUFFIX)(unsigned long addr,
                                                          int is_user);
 void REGPARM(2) glue(glue(__st, SUFFIX), MMUSUFFIX)(unsigned long addr, DATA_TYPE v, int is_user);
 
-static inline int glue(glue(ld, USUFFIX), MEMSUFFIX)(void *ptr)
+static inline RES_TYPE glue(glue(ld, USUFFIX), MEMSUFFIX)(void *ptr)
 {
     int index;
     RES_TYPE res;
