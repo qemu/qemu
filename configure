@@ -220,7 +220,7 @@ aa="no"
 `$sdl_config --static-libs | grep \\\-laa > /dev/null` && aa="yes"
 sdl_static_libs=`$sdl_config --static-libs`
 if [ "$aa" = "yes" ] ; then
-  sdl_static_libs="$sdl_static_libs `aalib-config --libs`"
+  sdl_static_libs="$sdl_static_libs `aalib-config --static-libs`"
 fi
 
 if $cc -o $TMPE `$sdl_config --cflags 2> /dev/null` $TMPC $sdl_static_libs 2> /dev/null; then
