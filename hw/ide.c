@@ -352,11 +352,7 @@ static void padstr8(uint8_t *buf, int buf_size, const char *src)
 
 static void put_le16(uint16_t *p, unsigned int v)
 {
-#ifdef WORDS_BIGENDIAN
-    *p = bswap16(v);
-#else
-    *p = v;
-#endif
+    *p = cpu_to_le16(v);
 }
 
 static void ide_identify(IDEState *s)
@@ -1328,7 +1324,7 @@ static void ide_data_writew(void *opaque, uint32_t addr, uint32_t val)
     uint8_t *p;
 
     p = s->data_ptr;
-    *(uint16_t *)p = tswap16(val);
+    *(uint16_t *)p = le16_to_cpu(val);
     p += 2;
     s->data_ptr = p;
     if (p >= s->data_end)
@@ -1341,7 +1337,7 @@ static uint32_t ide_data_readw(void *opaque, uint32_t addr)
     uint8_t *p;
     int ret;
     p = s->data_ptr;
-    ret = tswap16(*(uint16_t *)p);
+    ret = cpu_to_le16(*(uint16_t *)p);
     p += 2;
     s->data_ptr = p;
     if (p >= s->data_end)
@@ -1355,7 +1351,7 @@ static void ide_data_writel(void *opaque, uint32_t addr, uint32_t val)
     uint8_t *p;
 
     p = s->data_ptr;
-    *(uint32_t *)p = tswap32(val);
+    *(uint32_t *)p = le32_to_cpu(val);
     p += 4;
     s->data_ptr = p;
     if (p >= s->data_end)
@@ -1369,7 +1365,7 @@ static uint32_t ide_data_readl(void *opaque, uint32_t addr)
     int ret;
     
     p = s->data_ptr;
-    ret = tswap32(*(uint32_t *)p);
+    ret = cpu_to_le32(*(uint32_t *)p);
     p += 4;
     s->data_ptr = p;
     if (p >= s->data_end)
@@ -1417,7 +1413,7 @@ static void ide_guess_geometry(IDEState *s)
         return;
     for(i = 0; i < 4; i++) {
         p = ((struct partition *)(buf + 0x1be)) + i;
-        nr_sects = tswap32(p->nr_sects);
+        nr_sects = le32_to_cpu(p->nr_sects);
         if (nr_sects && p->end_head) {
             /* We make the assumption that the partition terminates on
                a cylinder boundary */
