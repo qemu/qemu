@@ -54,6 +54,7 @@ typedef struct TaskState {
     struct TaskState *next;
     struct target_vm86plus_struct *target_v86;
     struct vm86_saved_state vm86_saved_regs;
+    struct target_vm86plus_struct vm86plus;
     uint32_t v86flags;
     uint32_t v86mask;
     int used; /* non zero if used */

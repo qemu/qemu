@@ -784,6 +784,13 @@ struct target_modify_ldt_ldt_s {
 
 #define TARGET_BIOSSEG		0x0f000
 
+#define TARGET_CPU_086		0
+#define TARGET_CPU_186		1
+#define TARGET_CPU_286		2
+#define TARGET_CPU_386		3
+#define TARGET_CPU_486		4
+#define TARGET_CPU_586		5
+
 #define TARGET_VM86_SIGNAL	0	/* return due to signal */
 #define TARGET_VM86_UNKNOWN	1	/* unhandled GP fault - IO-instruction or similar */
 #define TARGET_VM86_INTx	2	/* int3/int x instruction (ARG = x) */

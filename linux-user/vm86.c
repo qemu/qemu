@@ -36,7 +36,7 @@
 
 static inline int is_revectored(int nr, struct target_revectored_struct *bitmap)
 {
-    return (tswap32(bitmap->__map[nr >> 5]) >> (nr & 0x1f)) & 1;
+    return (((uint8_t *)bitmap)[nr >> 3] >> (nr & 7)) & 1;
 }
 
 static inline void vm_putw(uint8_t *segptr, unsigned int reg16, unsigned int val)
@@ -194,17 +194,12 @@ static void do_int(CPUX86State *env, int intno)
     uint8_t *ssp;
     unsigned int sp;
 
-#if 1
-    if (intno == 0xe6 && (env->regs[R_EAX] & 0xffff) == 0x00c0)
-        loglevel = 1;
-#endif
-
     if (env->segs[R_CS] == TARGET_BIOSSEG)
         goto cannot_handle;
-    if (is_revectored(intno, &ts->target_v86->int_revectored))
+    if (is_revectored(intno, &ts->vm86plus.int_revectored))
         goto cannot_handle;
     if (intno == 0x21 && is_revectored((env->regs[R_EAX] >> 8) & 0xff, 
-                                       &ts->target_v86->int21_revectored))
+                                       &ts->vm86plus.int21_revectored))
         goto cannot_handle;
     int_ptr = (uint32_t *)(intno << 2);
     segoffs = tswap32(*int_ptr);
@@ -244,13 +239,13 @@ void handle_vm86_trap(CPUX86State *env, int trapno)
     }
 }
 
-#define CHECK_IF_IN_TRAP(disp) \
-      if ((tswap32(ts->target_v86->vm86plus.flags) & TARGET_vm86dbg_active) && \
-          (tswap32(ts->target_v86->vm86plus.flags) & TARGET_vm86dbg_TFpendig)) \
-		vm_putw(ssp,sp + disp,vm_getw(ssp,sp + disp) | TF_MASK)
+#define CHECK_IF_IN_TRAP() \
+      if ((ts->vm86plus.vm86plus.flags & TARGET_vm86dbg_active) && \
+          (ts->vm86plus.vm86plus.flags & TARGET_vm86dbg_TFpendig)) \
+		newflags |= TF_MASK
 
 #define VM86_FAULT_RETURN \
-        if ((tswap32(ts->target_v86->vm86plus.flags) & TARGET_force_return_for_pic) && \
+        if ((ts->vm86plus.vm86plus.flags & TARGET_force_return_for_pic) && \
             (ts->v86flags & (IF_MASK | VIF_MASK))) \
             return_to_32bit(env, TARGET_VM86_PICRETURN); \
         return
@@ -259,7 +254,8 @@ void handle_vm86_fault(CPUX86State *env)
 {
     TaskState *ts = env->opaque;
     uint8_t *csp, *pc, *ssp;
-    unsigned int ip, sp;
+    unsigned int ip, sp, newflags, newip, newcs, opcode, intno;
+    int data32, pref_done;
 
     csp = (uint8_t *)(env->segs[R_CS] << 4);
     ip = env->eip & 0xffff;
@@ -273,78 +269,109 @@ void handle_vm86_fault(CPUX86State *env)
             env->segs[R_CS], env->eip, pc[0], pc[1]);
 #endif
 
-    /* VM86 mode */
-    switch(pc[0]) {
-    case 0x66:
-        switch(pc[1]) {
-        case 0x9c: /* pushfd */
-            ADD16(env->eip, 2);
-            ADD16(env->regs[R_ESP], -4);
-            vm_putl(ssp, sp - 4, get_vflags(env));
-            VM86_FAULT_RETURN;
-
-        case 0x9d: /* popfd */
-            ADD16(env->eip, 2);
-            ADD16(env->regs[R_ESP], 4);
-            CHECK_IF_IN_TRAP(0);
-            if (set_vflags_long(vm_getl(ssp, sp), env))
-                return;
-            VM86_FAULT_RETURN;
-
-        case 0xcf: /* iretd */
-            ADD16(env->regs[R_ESP], 12);
-            env->eip = vm_getl(ssp, sp) & 0xffff;
-            cpu_x86_load_seg(env, R_CS, vm_getl(ssp, sp + 4) & 0xffff);
-            CHECK_IF_IN_TRAP(8);
-            if (set_vflags_long(vm_getl(ssp, sp + 8), env))
-                return;
-            VM86_FAULT_RETURN;
-
-        default:
-            goto vm86_gpf;
+    data32 = 0;
+    pref_done = 0;
+    do {
+        opcode = csp[ip];
+        ADD16(ip, 1);
+        switch (opcode) {
+        case 0x66:      /* 32-bit data */     data32=1; break;
+        case 0x67:      /* 32-bit address */  break;
+        case 0x2e:      /* CS */              break;
+        case 0x3e:      /* DS */              break;
+        case 0x26:      /* ES */              break;
+        case 0x36:      /* SS */              break;
+        case 0x65:      /* GS */              break;
+        case 0x64:      /* FS */              break;
+        case 0xf2:      /* repnz */	      break;
+        case 0xf3:      /* rep */             break;
+        default: pref_done = 1;
         }
-        break;
+    } while (!pref_done);
+
+    /* VM86 mode */
+    switch(opcode) {
     case 0x9c: /* pushf */
-        ADD16(env->eip, 1);
-        ADD16(env->regs[R_ESP], -2);
-        vm_putw(ssp, sp - 2, get_vflags(env));
+        ADD16(env->eip, 2);
+        if (data32) {
+            vm_putl(ssp, sp - 4, get_vflags(env));
+            ADD16(env->regs[R_ESP], -4);
+        } else {
+            vm_putw(ssp, sp - 2, get_vflags(env));
+            ADD16(env->regs[R_ESP], -2);
+        }
+        env->eip = ip;
         VM86_FAULT_RETURN;
 
     case 0x9d: /* popf */
-        ADD16(env->eip, 1);
-        ADD16(env->regs[R_ESP], 2);
-        CHECK_IF_IN_TRAP(0);
-        if (set_vflags_short(vm_getw(ssp, sp), env))
-            return;
+        if (data32) {
+            newflags = vm_getl(ssp, sp);
+            ADD16(env->regs[R_ESP], 4);
+        } else {
+            newflags = vm_getw(ssp, sp);
+            ADD16(env->regs[R_ESP], 2);
+        }
+        env->eip = ip;
+        CHECK_IF_IN_TRAP();
+        if (data32) {
+            if (set_vflags_long(newflags, env))
+                return;
+        } else {
+            if (set_vflags_short(newflags, env))
+                return;
+        }
         VM86_FAULT_RETURN;
 
     case 0xcd: /* int */
-        ADD16(env->eip, 2);
-        do_int(env, pc[1]);
+        intno = csp[ip];
+        ADD16(ip, 1);
+        env->eip = ip;
+        if (ts->vm86plus.vm86plus.flags & TARGET_vm86dbg_active) {
+            if ( (ts->vm86plus.vm86plus.vm86dbg_intxxtab[intno >> 3] >> 
+                  (intno &7)) & 1) {
+                return_to_32bit(env, TARGET_VM86_INTx + (intno << 8));
+                return;
+            }
+        }
+        do_int(env, intno);
         break;
 
     case 0xcf: /* iret */
-        ADD16(env->regs[R_ESP], 6);
-        env->eip = vm_getw(ssp, sp);
-        cpu_x86_load_seg(env, R_CS, vm_getw(ssp, sp + 2));
-        CHECK_IF_IN_TRAP(4);
-        if (set_vflags_short(vm_getw(ssp, sp + 4), env))
-            return;
+        if (data32) {
+            newip = vm_getl(ssp, sp) & 0xffff;
+            newcs = vm_getl(ssp, sp + 4) & 0xffff;
+            newflags = vm_getl(ssp, sp + 8);
+            ADD16(env->regs[R_ESP], 12);
+        } else {
+            newip = vm_getw(ssp, sp);
+            newcs = vm_getw(ssp, sp + 2);
+            newflags = vm_getw(ssp, sp + 4);
+            ADD16(env->regs[R_ESP], 6);
+        }
+        env->eip = newip;
+        cpu_x86_load_seg(env, R_CS, newcs);
+        CHECK_IF_IN_TRAP();
+        if (data32) {
+            if (set_vflags_long(newflags, env))
+                return;
+        } else {
+            if (set_vflags_short(newflags, env))
+                return;
+        }
         VM86_FAULT_RETURN;
-
+        
     case 0xfa: /* cli */
-        ADD16(env->eip, 1);
+        env->eip = ip;
         clear_IF(env);
         VM86_FAULT_RETURN;
         
     case 0xfb: /* sti */
-        ADD16(env->eip, 1);
+        env->eip = ip;
         if (set_IF(env))
             return;
         VM86_FAULT_RETURN;
 
     default:
-    vm86_gpf:
         /* real VM86 GPF exception */
         return_to_32bit(env, TARGET_VM86_UNKNOWN);
         break;
@@ -398,7 +425,22 @@ int do_vm86(CPUX86State *env, long subfunction,
     ts->v86flags = tswap32(target_v86->regs.eflags);
     env->eflags = (env->eflags & ~SAFE_MASK) | 
         (tswap32(target_v86->regs.eflags) & SAFE_MASK) | VM_MASK;
-    ts->v86mask = ID_MASK | AC_MASK | NT_MASK | IOPL_MASK;
+
+    ts->vm86plus.cpu_type = tswapl(target_v86->cpu_type);
+    switch (ts->vm86plus.cpu_type) {
+    case TARGET_CPU_286:
+        ts->v86mask = 0;
+        break;
+    case TARGET_CPU_386:
+        ts->v86mask = NT_MASK | IOPL_MASK;
+        break;
+    case TARGET_CPU_486:
+        ts->v86mask = AC_MASK | NT_MASK | IOPL_MASK;
+        break;
+    default:
+        ts->v86mask = ID_MASK | AC_MASK | NT_MASK | IOPL_MASK;
+        break;
+    }
 
     env->regs[R_EBX] = tswap32(target_v86->regs.ebx);
     env->regs[R_ECX] = tswap32(target_v86->regs.ecx);
@@ -416,6 +458,14 @@ int do_vm86(CPUX86State *env, long subfunction,
     cpu_x86_load_seg(env, R_GS, tswap16(target_v86->regs.gs));
     ret = tswap32(target_v86->regs.eax); /* eax will be restored at
                                             the end of the syscall */
+    memcpy(&ts->vm86plus.int_revectored, 
+           &target_v86->int_revectored, 32);
+    memcpy(&ts->vm86plus.int21_revectored, 
+           &target_v86->int21_revectored, 32);
+    ts->vm86plus.vm86plus.flags = tswapl(target_v86->vm86plus.flags);
+    memcpy(&ts->vm86plus.vm86plus.vm86dbg_intxxtab, 
+           target_v86->vm86plus.vm86dbg_intxxtab, 32);
+    
 #ifdef DEBUG_VM86
     fprintf(logfile, "do_vm86: cs:ip=%04x:%04x\n", env->segs[R_CS], env->eip);
 #endif
