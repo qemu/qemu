@@ -30,8 +30,6 @@
 #include "exec.h"
 #include "disas.h"
 
-//#define DEBUG_MMU
-
 /* XXX: move that elsewhere */
 static uint16_t *gen_opc_ptr;
 static uint32_t *gen_opparam_ptr;
@@ -62,6 +60,7 @@ typedef struct DisasContext {
     int cpl;
     int iopl;
     int tf;     /* TF cpu flag */
+    int mem_index; /* select memory access functions */
     struct TranslationBlock *tb;
     int popl_esp_hack; /* for correct popl with esp base handling */
 } DisasContext;
@@ -565,36 +564,80 @@ static GenOpFunc *gen_op_bsx_T0_cc[2][2] = {
     },
 };
 
-static GenOpFunc *gen_op_lds_T0_A0[3] = {
+static GenOpFunc *gen_op_lds_T0_A0[3 * 3] = {
     gen_op_ldsb_T0_A0,
     gen_op_ldsw_T0_A0,
+    NULL,
+
+    gen_op_ldsb_kernel_T0_A0,
+    gen_op_ldsw_kernel_T0_A0,
+    NULL,
+
+    gen_op_ldsb_user_T0_A0,
+    gen_op_ldsw_user_T0_A0,
+    NULL,
 };
 
-static GenOpFunc *gen_op_ldu_T0_A0[3] = {
+static GenOpFunc *gen_op_ldu_T0_A0[3 * 3] = {
     gen_op_ldub_T0_A0,
     gen_op_lduw_T0_A0,
+    NULL,
+
+    gen_op_ldub_kernel_T0_A0,
+    gen_op_lduw_kernel_T0_A0,
+    NULL,
+
+    gen_op_ldub_user_T0_A0,
+    gen_op_lduw_user_T0_A0,
+    NULL,
 };
 
-/* sign does not matter */
-static GenOpFunc *gen_op_ld_T0_A0[3] = {
+/* sign does not matter, except for lidt/lgdt call (TODO: fix it) */
+static GenOpFunc *gen_op_ld_T0_A0[3 * 3] = {
     gen_op_ldub_T0_A0,
     gen_op_lduw_T0_A0,
     gen_op_ldl_T0_A0,
+
+    gen_op_ldub_kernel_T0_A0,
+    gen_op_lduw_kernel_T0_A0,
+    gen_op_ldl_kernel_T0_A0,
+
+    gen_op_ldub_user_T0_A0,
+    gen_op_lduw_user_T0_A0,
+    gen_op_ldl_user_T0_A0,
 };
 
-static GenOpFunc *gen_op_ld_T1_A0[3] = {
+static GenOpFunc *gen_op_ld_T1_A0[3 * 3] = {
     gen_op_ldub_T1_A0,
     gen_op_lduw_T1_A0,
     gen_op_ldl_T1_A0,
+
+    gen_op_ldub_kernel_T1_A0,
+    gen_op_lduw_kernel_T1_A0,
+    gen_op_ldl_kernel_T1_A0,
+
+    gen_op_ldub_user_T1_A0,
+    gen_op_lduw_user_T1_A0,
+    gen_op_ldl_user_T1_A0,
 };
 
-static GenOpFunc *gen_op_st_T0_A0[3] = {
+static GenOpFunc *gen_op_st_T0_A0[3 * 3] = {
     gen_op_stb_T0_A0,
     gen_op_stw_T0_A0,
     gen_op_stl_T0_A0,
+
+    gen_op_stb_kernel_T0_A0,
+    gen_op_stw_kernel_T0_A0,
+    gen_op_stl_kernel_T0_A0,
+
+    gen_op_stb_user_T0_A0,
+    gen_op_stw_user_T0_A0,
+    gen_op_stl_user_T0_A0,
 };
 
 /* the _a32 and _a16 string operations use A0 as the base register. */
+
+#define STRINGOP_NB 9
 
 #define STRINGOP(x) \
     gen_op_ ## x ## b_fast, \
@@ -607,44 +650,275 @@ static GenOpFunc *gen_op_st_T0_A0[3] = {
     gen_op_ ## x ## w_a16, \
     gen_op_ ## x ## l_a16,
      
-static GenOpFunc *gen_op_movs[9 * 2] = {
-    STRINGOP(movs)
-    STRINGOP(rep_movs)
-};
-
-static GenOpFunc *gen_op_stos[9 * 2] = {
-    STRINGOP(stos)
-    STRINGOP(rep_stos)
-};
-
-static GenOpFunc *gen_op_lods[9 * 2] = {
-    STRINGOP(lods)
-    STRINGOP(rep_lods)
-};
-
-static GenOpFunc *gen_op_scas[9 * 3] = {
-    STRINGOP(scas)
+static GenOpFunc *gen_op_scas[STRINGOP_NB * 3] = {
     STRINGOP(repz_scas)
     STRINGOP(repnz_scas)
 };
 
-static GenOpFunc *gen_op_cmps[9 * 3] = {
-    STRINGOP(cmps)
+static GenOpFunc *gen_op_cmps[STRINGOP_NB * 3] = {
     STRINGOP(repz_cmps)
     STRINGOP(repnz_cmps)
 };
 
-static GenOpFunc *gen_op_ins[9 * 2] = {
-    STRINGOP(ins)
-    STRINGOP(rep_ins)
+static inline void gen_string_movl_A0_ESI(DisasContext *s)
+{
+    int override;
+
+    override = s->override;
+    if (s->aflag) {
+        /* 32 bit address */
+        if (s->addseg && override < 0)
+            override = R_DS;
+        if (override >= 0) {
+            gen_op_movl_A0_seg(offsetof(CPUX86State,segs[override].base));
+            gen_op_addl_A0_reg_sN[0][R_ESI]();
+        } else {
+            gen_op_movl_A0_reg[R_ESI]();
+        }
+    } else {
+        /* 16 address, always override */
+        if (override < 0)
+            override = R_DS;
+        gen_op_movl_A0_reg[R_ESI]();
+        gen_op_andl_A0_ffff();
+        gen_op_addl_A0_seg(offsetof(CPUX86State,segs[override].base));
+    }
+}
+
+static inline void gen_string_movl_A0_EDI(DisasContext *s)
+{
+    if (s->aflag) {
+        if (s->addseg) {
+            gen_op_movl_A0_seg(offsetof(CPUX86State,segs[R_ES].base));
+            gen_op_addl_A0_reg_sN[0][R_EDI]();
+        } else {
+            gen_op_movl_A0_reg[R_EDI]();
+        }
+    } else {
+        gen_op_movl_A0_reg[R_EDI]();
+        gen_op_andl_A0_ffff();
+        gen_op_addl_A0_seg(offsetof(CPUX86State,segs[R_ES].base));
+    }
+}
+
+static GenOpFunc *gen_op_movl_T0_Dshift[3] = {
+    gen_op_movl_T0_Dshiftb,
+    gen_op_movl_T0_Dshiftw,
+    gen_op_movl_T0_Dshiftl,
 };
 
-
-static GenOpFunc *gen_op_outs[9 * 2] = {
-    STRINGOP(outs)
-    STRINGOP(rep_outs)
+static GenOpFunc2 *gen_op_jz_ecx[2] = {
+    gen_op_jz_ecxw,
+    gen_op_jz_ecxl,
+};
+    
+static GenOpFunc *gen_op_dec_ECX[2] = {
+    gen_op_decw_ECX,
+    gen_op_decl_ECX,
 };
 
+static GenOpFunc2 *gen_op_string_jnz_sub[2][3] = {
+    {
+        gen_op_string_jnz_subb,
+        gen_op_string_jnz_subw,
+        gen_op_string_jnz_subl,
+    },
+    {
+        gen_op_string_jz_subb,
+        gen_op_string_jz_subw,
+        gen_op_string_jz_subl,
+    },
+};
+
+static GenOpFunc *gen_op_in_DX_T0[3] = {
+    gen_op_inb_DX_T0,
+    gen_op_inw_DX_T0,
+    gen_op_inl_DX_T0,
+};
+
+static GenOpFunc *gen_op_out_DX_T0[3] = {
+    gen_op_outb_DX_T0,
+    gen_op_outw_DX_T0,
+    gen_op_outl_DX_T0,
+};
+
+static inline void gen_movs(DisasContext *s, int ot)
+{
+    gen_string_movl_A0_ESI(s);
+    gen_op_ld_T0_A0[ot + s->mem_index]();
+    gen_string_movl_A0_EDI(s);
+    gen_op_st_T0_A0[ot + s->mem_index]();
+    gen_op_movl_T0_Dshift[ot]();
+    if (s->aflag) {
+        gen_op_addl_ESI_T0();
+        gen_op_addl_EDI_T0();
+    } else {
+        gen_op_addw_ESI_T0();
+        gen_op_addw_EDI_T0();
+    }
+}
+
+/* same method as Valgrind : we generate jumps to current or next
+   instruction */
+static inline void gen_repz_movs(DisasContext *s, int ot, 
+                                 unsigned int cur_eip, unsigned int next_eip)
+{
+    if (s->cc_op != CC_OP_DYNAMIC)
+        gen_op_set_cc_op(s->cc_op);
+    gen_op_jz_ecx[s->aflag]((long)s->tb, next_eip);
+    gen_movs(s, ot);
+    gen_op_dec_ECX[s->aflag]();
+    gen_op_jmp_tb_next((long)s->tb, cur_eip);
+    s->is_jmp = 3;
+}
+
+static inline void gen_stos(DisasContext *s, int ot)
+{
+    gen_op_mov_TN_reg[OT_LONG][0][R_EAX]();
+    gen_string_movl_A0_EDI(s);
+    gen_op_st_T0_A0[ot + s->mem_index]();
+    gen_op_movl_T0_Dshift[ot]();
+    if (s->aflag) {
+        gen_op_addl_EDI_T0();
+    } else {
+        gen_op_addw_EDI_T0();
+    }
+}
+
+static inline void gen_repz_stos(DisasContext *s, int ot, 
+                                 unsigned int cur_eip, unsigned int next_eip)
+{
+    if (s->cc_op != CC_OP_DYNAMIC)
+        gen_op_set_cc_op(s->cc_op);
+    gen_op_jz_ecx[s->aflag]((long)s->tb, next_eip);
+    gen_stos(s, ot);
+    gen_op_dec_ECX[s->aflag]();
+    gen_op_jmp_tb_next((long)s->tb, cur_eip);
+    s->is_jmp = 3;
+}
+
+static inline void gen_lods(DisasContext *s, int ot)
+{
+    gen_string_movl_A0_ESI(s);
+    gen_op_ld_T0_A0[ot + s->mem_index]();
+    gen_op_mov_reg_T0[ot][R_EAX]();
+    gen_op_movl_T0_Dshift[ot]();
+    if (s->aflag) {
+        gen_op_addl_ESI_T0();
+    } else {
+        gen_op_addw_ESI_T0();
+    }
+}
+
+static inline void gen_repz_lods(DisasContext *s, int ot, 
+                                 unsigned int cur_eip, unsigned int next_eip)
+{
+    if (s->cc_op != CC_OP_DYNAMIC)
+        gen_op_set_cc_op(s->cc_op);
+    gen_op_jz_ecx[s->aflag]((long)s->tb, next_eip);
+    gen_lods(s, ot);
+    gen_op_dec_ECX[s->aflag]();
+    gen_op_jmp_tb_next((long)s->tb, cur_eip);
+    s->is_jmp = 3;
+}
+
+static inline void gen_scas(DisasContext *s, int ot)
+{
+    gen_op_mov_TN_reg[OT_LONG][0][R_EAX]();
+    gen_string_movl_A0_EDI(s);
+    gen_op_ld_T1_A0[ot + s->mem_index]();
+    gen_op_cmpl_T0_T1_cc();
+    gen_op_movl_T0_Dshift[ot]();
+    if (s->aflag) {
+        gen_op_addl_EDI_T0();
+    } else {
+        gen_op_addw_EDI_T0();
+    }
+}
+
+#if 0
+static inline void gen_repz_scas(DisasContext *s, int ot, 
+                                 unsigned int cur_eip, unsigned int next_eip,
+                                 int nz)
+{
+    if (s->cc_op != CC_OP_DYNAMIC)
+        gen_op_set_cc_op(s->cc_op);
+    gen_op_jz_ecx[s->aflag]((long)s->tb, next_eip);
+    gen_scas(s, ot);
+    gen_op_set_cc_op(CC_OP_SUBB + ot);
+    gen_op_string_jnz_sub[nz][ot]((long)s->tb, next_eip);
+    gen_op_dec_ECX[s->aflag]();
+    gen_op_jmp_tb_next((long)s->tb, cur_eip);
+    s->is_jmp = 3;
+}
+#endif
+
+static inline void gen_cmps(DisasContext *s, int ot)
+{
+    gen_string_movl_A0_ESI(s);
+    gen_op_ld_T0_A0[ot + s->mem_index]();
+    gen_string_movl_A0_EDI(s);
+    gen_op_ld_T1_A0[ot + s->mem_index]();
+    gen_op_cmpl_T0_T1_cc();
+    gen_op_movl_T0_Dshift[ot]();
+    if (s->aflag) {
+        gen_op_addl_ESI_T0();
+        gen_op_addl_EDI_T0();
+    } else {
+        gen_op_addw_ESI_T0();
+        gen_op_addw_EDI_T0();
+    }
+}
+
+static inline void gen_ins(DisasContext *s, int ot)
+{
+    gen_op_in_DX_T0[ot]();
+    gen_string_movl_A0_EDI(s);
+    gen_op_st_T0_A0[ot + s->mem_index]();
+    gen_op_movl_T0_Dshift[ot]();
+    if (s->aflag) {
+        gen_op_addl_EDI_T0();
+    } else {
+        gen_op_addw_EDI_T0();
+    }
+}
+
+static inline void gen_repz_ins(DisasContext *s, int ot, 
+                                 unsigned int cur_eip, unsigned int next_eip)
+{
+    if (s->cc_op != CC_OP_DYNAMIC)
+        gen_op_set_cc_op(s->cc_op);
+    gen_op_jz_ecx[s->aflag]((long)s->tb, next_eip);
+    gen_ins(s, ot);
+    gen_op_dec_ECX[s->aflag]();
+    gen_op_jmp_tb_next((long)s->tb, cur_eip);
+    s->is_jmp = 3;
+}
+
+static inline void gen_outs(DisasContext *s, int ot)
+{
+    gen_string_movl_A0_ESI(s);
+    gen_op_ld_T0_A0[ot + s->mem_index]();
+    gen_op_out_DX_T0[ot]();
+    gen_op_movl_T0_Dshift[ot]();
+    if (s->aflag) {
+        gen_op_addl_ESI_T0();
+    } else {
+        gen_op_addw_ESI_T0();
+    }
+}
+
+static inline void gen_repz_outs(DisasContext *s, int ot, 
+                                 unsigned int cur_eip, unsigned int next_eip)
+{
+    if (s->cc_op != CC_OP_DYNAMIC)
+        gen_op_set_cc_op(s->cc_op);
+    gen_op_jz_ecx[s->aflag]((long)s->tb, next_eip);
+    gen_outs(s, ot);
+    gen_op_dec_ECX[s->aflag]();
+    gen_op_jmp_tb_next((long)s->tb, cur_eip);
+    s->is_jmp = 3;
+}
 
 static inline void gen_string_ds(DisasContext *s, int ot, GenOpFunc **func)
 {
@@ -833,7 +1107,7 @@ static void gen_op(DisasContext *s1, int op, int ot, int d)
     if (d != OR_TMP0) {
         gen_op_mov_TN_reg[ot][0][d]();
     } else {
-        gen_op_ld_T0_A0[ot]();
+        gen_op_ld_T0_A0[ot + s1->mem_index]();
     }
     switch(op) {
     case OP_ADCL:
@@ -876,7 +1150,7 @@ static void gen_op(DisasContext *s1, int op, int ot, int d)
         if (d != OR_TMP0)
             gen_op_mov_reg_T0[ot][d]();
         else
-            gen_op_st_T0_A0[ot]();
+            gen_op_st_T0_A0[ot + s1->mem_index]();
     }
     /* the flags update must happen after the memory write (precise
        exception support) */
@@ -891,7 +1165,7 @@ static void gen_inc(DisasContext *s1, int ot, int d, int c)
     if (d != OR_TMP0)
         gen_op_mov_TN_reg[ot][0][d]();
     else
-        gen_op_ld_T0_A0[ot]();
+        gen_op_ld_T0_A0[ot + s1->mem_index]();
     if (s1->cc_op != CC_OP_DYNAMIC)
         gen_op_set_cc_op(s1->cc_op);
     if (c > 0) {
@@ -904,7 +1178,7 @@ static void gen_inc(DisasContext *s1, int ot, int d, int c)
     if (d != OR_TMP0)
         gen_op_mov_reg_T0[ot][d]();
     else
-        gen_op_st_T0_A0[ot]();
+        gen_op_st_T0_A0[ot + s1->mem_index]();
     gen_op_update_inc_cc();
 }
 
@@ -913,7 +1187,7 @@ static void gen_shift(DisasContext *s1, int op, int ot, int d, int s)
     if (d != OR_TMP0)
         gen_op_mov_TN_reg[ot][0][d]();
     else
-        gen_op_ld_T0_A0[ot]();
+        gen_op_ld_T0_A0[ot + s1->mem_index]();
     if (s != OR_TMP1)
         gen_op_mov_TN_reg[ot][1][s]();
     /* for zero counts, flags are not updated, so must do it dynamically */
@@ -1107,9 +1381,9 @@ static void gen_ldst_modrm(DisasContext *s, int modrm, int ot, int reg, int is_s
         if (is_store) {
             if (reg != OR_TMP0)
                 gen_op_mov_TN_reg[ot][0][reg]();
-            gen_op_st_T0_A0[ot]();
+            gen_op_st_T0_A0[ot + s->mem_index]();
         } else {
-            gen_op_ld_T0_A0[ot]();
+            gen_op_ld_T0_A0[ot + s->mem_index]();
             if (reg != OR_TMP0)
                 gen_op_mov_reg_T0[ot][reg]();
         }
@@ -1376,7 +1650,7 @@ static void gen_pusha(DisasContext *s)
         gen_op_addl_A0_seg(offsetof(CPUX86State,segs[R_SS].base));
     for(i = 0;i < 8; i++) {
         gen_op_mov_TN_reg[OT_LONG][0][7 - i]();
-        gen_op_st_T0_A0[OT_WORD + s->dflag]();
+        gen_op_st_T0_A0[OT_WORD + s->dflag + s->mem_index]();
         gen_op_addl_A0_im(2 <<  s->dflag);
     }
     gen_op_mov_reg_T1[OT_WORD + s->dflag][R_ESP]();
@@ -1396,7 +1670,7 @@ static void gen_popa(DisasContext *s)
     for(i = 0;i < 8; i++) {
         /* ESP is not reloaded */
         if (i != 3) {
-            gen_op_ld_T0_A0[OT_WORD + s->dflag]();
+            gen_op_ld_T0_A0[OT_WORD + s->dflag + s->mem_index]();
             gen_op_mov_reg_T0[OT_WORD + s->dflag][7 - i]();
         }
         gen_op_addl_A0_im(2 <<  s->dflag);
@@ -1424,17 +1698,17 @@ static void gen_enter(DisasContext *s, int esp_addend, int level)
         gen_op_addl_A0_seg(offsetof(CPUX86State,segs[R_SS].base));
     /* push bp */
     gen_op_mov_TN_reg[OT_LONG][0][R_EBP]();
-    gen_op_st_T0_A0[ot]();
+    gen_op_st_T0_A0[ot + s->mem_index]();
     if (level) {
         while (level--) {
             gen_op_addl_A0_im(-opsize);
             gen_op_addl_T0_im(-opsize);
-            gen_op_st_T0_A0[ot]();
+            gen_op_st_T0_A0[ot + s->mem_index]();
         }
         gen_op_addl_A0_im(-opsize);
         /* XXX: add st_T1_A0 ? */
         gen_op_movl_T0_T1();
-        gen_op_st_T0_A0[ot]();
+        gen_op_st_T0_A0[ot + s->mem_index]();
     }
     gen_op_mov_reg_T1[ot][R_EBP]();
     addend = -esp_addend;
@@ -1613,7 +1887,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
                 rm = modrm & 7;
                 if (mod != 3) {
                     gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
-                    gen_op_ld_T1_A0[ot]();
+                    gen_op_ld_T1_A0[ot + s->mem_index]();
                 } else if (op == OP_XORL && rm == reg) {
                     goto xor_zero;
                 } else {
@@ -1691,7 +1965,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         op = (modrm >> 3) & 7;
         if (mod != 3) {
             gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
-            gen_op_ld_T0_A0[ot]();
+            gen_op_ld_T0_A0[ot + s->mem_index]();
         } else {
             gen_op_mov_TN_reg[ot][0][rm]();
         }
@@ -1706,7 +1980,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         case 2: /* not */
             gen_op_notl_T0();
             if (mod != 3) {
-                gen_op_st_T0_A0[ot]();
+                gen_op_st_T0_A0[ot + s->mem_index]();
             } else {
                 gen_op_mov_reg_T0[ot][rm]();
             }
@@ -1714,7 +1988,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         case 3: /* neg */
             gen_op_negl_T0();
             if (mod != 3) {
-                gen_op_st_T0_A0[ot]();
+                gen_op_st_T0_A0[ot + s->mem_index]();
             } else {
                 gen_op_mov_reg_T0[ot][rm]();
             }
@@ -1801,7 +2075,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         if (mod != 3) {
             gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
             if (op >= 2 && op != 3 && op != 5)
-                gen_op_ld_T0_A0[ot]();
+                gen_op_ld_T0_A0[ot + s->mem_index]();
         } else {
             gen_op_mov_TN_reg[ot][0][rm]();
         }
@@ -1832,9 +2106,9 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             s->is_jmp = 1;
             break;
         case 3: /* lcall Ev */
-            gen_op_ld_T1_A0[ot]();
+            gen_op_ld_T1_A0[ot + s->mem_index]();
             gen_op_addl_A0_im(1 << (ot - OT_WORD + 1));
-            gen_op_lduw_T0_A0();
+            gen_op_ld_T0_A0[OT_WORD + s->mem_index]();
         do_lcall:
             if (s->pe && !s->vm86) {
                 if (s->cc_op != CC_OP_DYNAMIC)
@@ -1853,7 +2127,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             s->is_jmp = 1;
             break;
         case 5: /* ljmp Ev */
-            gen_op_ld_T1_A0[ot]();
+            gen_op_ld_T1_A0[ot + s->mem_index]();
             gen_op_addl_A0_im(1 << (ot - OT_WORD + 1));
             gen_op_lduw_T0_A0();
         do_ljmp:
@@ -1965,9 +2239,9 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         } else {
             gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
             gen_op_mov_TN_reg[ot][0][reg]();
-            gen_op_ld_T1_A0[ot]();
+            gen_op_ld_T1_A0[ot + s->mem_index]();
             gen_op_addl_T0_T1();
-            gen_op_st_T0_A0[ot]();
+            gen_op_st_T0_A0[ot + s->mem_index]();
             gen_op_mov_reg_T1[ot][reg]();
         }
         gen_op_update2_cc();
@@ -1990,7 +2264,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             gen_op_mov_reg_T0[ot][rm]();
         } else {
             gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
-            gen_op_ld_T0_A0[ot]();
+            gen_op_ld_T0_A0[ot + s->mem_index]();
             gen_op_cmpxchg_mem_T0_T1_EAX_cc[ot]();
         }
         s->cc_op = CC_OP_SUBB + ot;
@@ -2121,7 +2395,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         val = insn_get(s, ot);
         gen_op_movl_T0_im(val);
         if (mod != 3)
-            gen_op_st_T0_A0[ot]();
+            gen_op_st_T0_A0[ot + s->mem_index]();
         else
             gen_op_mov_reg_T0[ot][modrm & 7]();
         break;
@@ -2195,9 +2469,9 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             } else {
                 gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
                 if (b & 8) {
-                    gen_op_lds_T0_A0[ot]();
+                    gen_op_lds_T0_A0[ot + s->mem_index]();
                 } else {
-                    gen_op_ldu_T0_A0[ot]();
+                    gen_op_ldu_T0_A0[ot + s->mem_index]();
                 }
                 gen_op_mov_reg_T0[d_ot][reg]();
             }
@@ -2245,11 +2519,11 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             }
         }
         if ((b & 2) == 0) {
-            gen_op_ld_T0_A0[ot]();
+            gen_op_ld_T0_A0[ot + s->mem_index]();
             gen_op_mov_reg_T0[ot][R_EAX]();
         } else {
             gen_op_mov_TN_reg[ot][0][R_EAX]();
-            gen_op_st_T0_A0[ot]();
+            gen_op_st_T0_A0[ot + s->mem_index]();
         }
         break;
     case 0xd7: /* xlat */
@@ -2272,7 +2546,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
                 gen_op_addl_A0_seg(offsetof(CPUX86State,segs[override].base));
             }
         }
-        gen_op_ldub_T0_A0();
+        gen_op_ldu_T0_A0[OT_BYTE + s->mem_index]();
         gen_op_mov_reg_T0[OT_BYTE][R_EAX]();
         break;
     case 0xb0 ... 0xb7: /* mov R, Ib */
@@ -2315,8 +2589,8 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             /* for xchg, lock is implicit */
             if (!(prefixes & PREFIX_LOCK))
                 gen_op_lock();
-            gen_op_ld_T1_A0[ot]();
-            gen_op_st_T0_A0[ot]();
+            gen_op_ld_T1_A0[ot + s->mem_index]();
+            gen_op_st_T0_A0[ot + s->mem_index]();
             if (!(prefixes & PREFIX_LOCK))
                 gen_op_unlock();
             gen_op_mov_reg_T1[ot][reg]();
@@ -2344,7 +2618,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         if (mod == 3)
             goto illegal_op;
         gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
-        gen_op_ld_T1_A0[ot]();
+        gen_op_ld_T1_A0[ot + s->mem_index]();
         gen_op_addl_A0_im(1 << (ot - OT_WORD + 1));
         /* load the segment first to handle exceptions properly */
         gen_op_lduw_T0_A0();
@@ -2424,7 +2698,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         
         if (mod != 3) {
             gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
-            gen_op_ld_T0_A0[ot]();
+            gen_op_ld_T0_A0[ot + s->mem_index]();
         } else {
             gen_op_mov_TN_reg[ot][0][rm]();
         }
@@ -2869,9 +3143,9 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             ot = dflag ? OT_LONG : OT_WORD;
 
         if (prefixes & (PREFIX_REPZ | PREFIX_REPNZ)) {
-            gen_string_ds(s, ot, gen_op_movs + 9);
+            gen_repz_movs(s, ot, pc_start - s->cs_base, s->pc - s->cs_base);
         } else {
-            gen_string_ds(s, ot, gen_op_movs);
+            gen_movs(s, ot);
         }
         break;
         
@@ -2883,9 +3157,9 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             ot = dflag ? OT_LONG : OT_WORD;
 
         if (prefixes & (PREFIX_REPZ | PREFIX_REPNZ)) {
-            gen_string_es(s, ot, gen_op_stos + 9);
+            gen_repz_stos(s, ot, pc_start - s->cs_base, s->pc - s->cs_base);
         } else {
-            gen_string_es(s, ot, gen_op_stos);
+            gen_stos(s, ot);
         }
         break;
     case 0xac: /* lodsS */
@@ -2895,9 +3169,9 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         else
             ot = dflag ? OT_LONG : OT_WORD;
         if (prefixes & (PREFIX_REPZ | PREFIX_REPNZ)) {
-            gen_string_ds(s, ot, gen_op_lods + 9);
+            gen_repz_lods(s, ot, pc_start - s->cs_base, s->pc - s->cs_base);
         } else {
-            gen_string_ds(s, ot, gen_op_lods);
+            gen_lods(s, ot);
         }
         break;
     case 0xae: /* scasS */
@@ -2909,15 +3183,15 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         if (prefixes & PREFIX_REPNZ) {
             if (s->cc_op != CC_OP_DYNAMIC)
                 gen_op_set_cc_op(s->cc_op);
-            gen_string_es(s, ot, gen_op_scas + 9 * 2);
+            gen_string_es(s, ot, gen_op_scas + STRINGOP_NB);
             s->cc_op = CC_OP_DYNAMIC; /* cannot predict flags after */
         } else if (prefixes & PREFIX_REPZ) {
             if (s->cc_op != CC_OP_DYNAMIC)
                 gen_op_set_cc_op(s->cc_op);
-            gen_string_es(s, ot, gen_op_scas + 9);
+            gen_string_es(s, ot, gen_op_scas);
             s->cc_op = CC_OP_DYNAMIC; /* cannot predict flags after */
         } else {
-            gen_string_es(s, ot, gen_op_scas);
+            gen_scas(s, ot);
             s->cc_op = CC_OP_SUBB + ot;
         }
         break;
@@ -2931,15 +3205,15 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         if (prefixes & PREFIX_REPNZ) {
             if (s->cc_op != CC_OP_DYNAMIC)
                 gen_op_set_cc_op(s->cc_op);
-            gen_string_ds(s, ot, gen_op_cmps + 9 * 2);
+            gen_string_ds(s, ot, gen_op_cmps + STRINGOP_NB);
             s->cc_op = CC_OP_DYNAMIC; /* cannot predict flags after */
         } else if (prefixes & PREFIX_REPZ) {
             if (s->cc_op != CC_OP_DYNAMIC)
                 gen_op_set_cc_op(s->cc_op);
-            gen_string_ds(s, ot, gen_op_cmps + 9);
+            gen_string_ds(s, ot, gen_op_cmps);
             s->cc_op = CC_OP_DYNAMIC; /* cannot predict flags after */
         } else {
-            gen_string_ds(s, ot, gen_op_cmps);
+            gen_cmps(s, ot);
             s->cc_op = CC_OP_SUBB + ot;
         }
         break;
@@ -2954,9 +3228,9 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             else
                 ot = dflag ? OT_LONG : OT_WORD;
             if (prefixes & (PREFIX_REPZ | PREFIX_REPNZ)) {
-                gen_string_es(s, ot, gen_op_ins + 9);
+                gen_repz_ins(s, ot, pc_start - s->cs_base, s->pc - s->cs_base);
             } else {
-                gen_string_es(s, ot, gen_op_ins);
+                gen_ins(s, ot);
             }
         }
         break;
@@ -2971,9 +3245,9 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             else
                 ot = dflag ? OT_LONG : OT_WORD;
             if (prefixes & (PREFIX_REPZ | PREFIX_REPNZ)) {
-                gen_string_ds(s, ot, gen_op_outs + 9);
+                gen_repz_outs(s, ot, pc_start - s->cs_base, s->pc - s->cs_base);
             } else {
-                gen_string_ds(s, ot, gen_op_outs);
+                gen_outs(s, ot);
             }
         }
         break;
@@ -3071,7 +3345,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         } else {
             gen_stack_A0(s);
             /* pop offset */
-            gen_op_ld_T0_A0[1 + s->dflag]();
+            gen_op_ld_T0_A0[1 + s->dflag + s->mem_index]();
             if (s->dflag == 0)
                 gen_op_andl_T0_ffff();
             /* NOTE: keeping EIP updated is not a problem in case of
@@ -3079,7 +3353,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             gen_op_jmp_T0();
             /* pop selector */
             gen_op_addl_A0_im(2 << s->dflag);
-            gen_op_ld_T0_A0[1 + s->dflag]();
+            gen_op_ld_T0_A0[1 + s->dflag + s->mem_index]();
             gen_op_movl_seg_T0_vm(offsetof(CPUX86State,segs[R_CS]));
             /* add stack offset */
             gen_stack_update(s, val + (4 << s->dflag));
@@ -3188,7 +3462,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         gen_setcc(s, b);
         if (mod != 3) {
             gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
-            gen_op_ld_T1_A0[ot]();
+            gen_op_ld_T1_A0[ot + s->mem_index]();
         } else {
             rm = modrm & 7;
             gen_op_mov_TN_reg[ot][1][rm]();
@@ -3279,7 +3553,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         rm = modrm & 7;
         if (mod != 3) {
             gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
-            gen_op_ld_T0_A0[ot]();
+            gen_op_ld_T0_A0[ot + s->mem_index]();
         } else {
             gen_op_mov_TN_reg[ot][0][rm]();
         }
@@ -3293,7 +3567,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         s->cc_op = CC_OP_SARB + ot;
         if (op != 0) {
             if (mod != 3)
-                gen_op_st_T0_A0[ot]();
+                gen_op_st_T0_A0[ot + s->mem_index]();
             else
                 gen_op_mov_reg_T0[ot][rm]();
             gen_op_update_bt_cc();
@@ -3324,7 +3598,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
                 gen_op_add_bitw_A0_T1();
             else
                 gen_op_add_bitl_A0_T1();
-            gen_op_ld_T0_A0[ot]();
+            gen_op_ld_T0_A0[ot + s->mem_index]();
         } else {
             gen_op_mov_TN_reg[ot][0][rm]();
         }
@@ -3332,7 +3606,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         s->cc_op = CC_OP_SARB + ot;
         if (op != 0) {
             if (mod != 3)
-                gen_op_st_T0_A0[ot]();
+                gen_op_st_T0_A0[ot + s->mem_index]();
             else
                 gen_op_mov_reg_T0[ot][rm]();
             gen_op_update_bt_cc();
@@ -3569,7 +3843,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
                 gen_op_movl_T0_env(offsetof(CPUX86State,gdt.limit));
             else
                 gen_op_movl_T0_env(offsetof(CPUX86State,idt.limit));
-            gen_op_stw_T0_A0();
+            gen_op_st_T0_A0[OT_WORD + s->mem_index]();
             gen_op_addl_A0_im(2);
             if (op == 0)
                 gen_op_movl_T0_env(offsetof(CPUX86State,gdt.base));
@@ -3577,7 +3851,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
                 gen_op_movl_T0_env(offsetof(CPUX86State,idt.base));
             if (!s->dflag)
                 gen_op_andl_T0_im(0xffffff);
-            gen_op_stl_T0_A0();
+            gen_op_st_T0_A0[OT_LONG + s->mem_index]();
             break;
         case 2: /* lgdt */
         case 3: /* lidt */
@@ -3587,9 +3861,9 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
                 gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
             } else {
                 gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
-                gen_op_lduw_T1_A0();
+                gen_op_ld_T1_A0[OT_WORD + s->mem_index]();
                 gen_op_addl_A0_im(2);
-                gen_op_ldl_T0_A0();
+                gen_op_ld_T0_A0[OT_LONG + s->mem_index]();
                 if (!s->dflag)
                     gen_op_andl_T0_im(0xffffff);
                 if (op == 2) {
@@ -3990,10 +4264,8 @@ static uint16_t opc_write_flags[NB_OPS] = {
     [INDEX_op_ ## x ## w_a16] = CC_OSZAPC, \
     [INDEX_op_ ## x ## l_a16] = CC_OSZAPC,
 
-    STRINGOP(scas)
     STRINGOP(repz_scas)
     STRINGOP(repnz_scas)
-    STRINGOP(cmps)
     STRINGOP(repz_cmps)
     STRINGOP(repnz_cmps)
 
@@ -4050,7 +4322,7 @@ static uint16_t opc_simpler[NB_OPS] = {
     [INDEX_op_sarl_T0_T1_cc] = INDEX_op_sarl_T0_T1,
 };
 
-static void optimize_flags_init(void)
+void optimize_flags_init(void)
 {
     int i;
     /* put default values in arrays */
@@ -4120,6 +4392,14 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     dc->cs_base = cs_base;
     dc->tb = tb;
     dc->popl_esp_hack = 0;
+    /* select memory access functions */
+    dc->mem_index = 0;
+    if ((flags >> GEN_FLAG_SOFT_MMU_SHIFT) & 1) {
+        if (dc->cpl == 3)
+            dc->mem_index = 6;
+        else
+            dc->mem_index = 3;
+    }
 
     gen_opc_ptr = gen_opc_buf;
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
@@ -4234,323 +4514,3 @@ int gen_intermediate_code_pc(CPUState *env, TranslationBlock *tb)
     return gen_intermediate_code_internal(env, tb, 1);
 }
 
-CPUX86State *cpu_x86_init(void)
-{
-    CPUX86State *env;
-    int i;
-    static int inited;
-
-    cpu_exec_init();
-
-    env = malloc(sizeof(CPUX86State));
-    if (!env)
-        return NULL;
-    memset(env, 0, sizeof(CPUX86State));
-    /* basic FPU init */
-    for(i = 0;i < 8; i++)
-        env->fptags[i] = 1;
-    env->fpuc = 0x37f;
-    /* flags setup : we activate the IRQs by default as in user mode */
-    env->eflags = 0x2 | IF_MASK;
-
-    /* init various static tables */
-    if (!inited) {
-        inited = 1;
-        optimize_flags_init();
-    }
-    return env;
-}
-
-void cpu_x86_close(CPUX86State *env)
-{
-    free(env);
-}
-
-/***********************************************************/
-/* x86 mmu */
-/* XXX: add PGE support */
-
-/* called when cr3 or PG bit are modified */
-static int last_pg_state = -1;
-static int last_pe_state = 0;
-int phys_ram_size;
-int phys_ram_fd;
-uint8_t *phys_ram_base;
-
-void cpu_x86_update_cr0(CPUX86State *env)
-{
-    int pg_state, pe_state;
-    void *map_addr;
-
-#ifdef DEBUG_MMU
-    printf("CR0 update: CR0=0x%08x\n", env->cr[0]);
-#endif
-    pg_state = env->cr[0] & CR0_PG_MASK;
-    if (pg_state != last_pg_state) {
-        if (!pg_state) {
-            /* we map the physical memory at address 0 */
-            
-            map_addr = mmap((void *)0, phys_ram_size, PROT_WRITE | PROT_READ, 
-                            MAP_SHARED | MAP_FIXED, phys_ram_fd, 0);
-            if (map_addr == MAP_FAILED) {
-                fprintf(stderr, 
-                        "Could not map physical memory at host address 0x%08x\n",
-                        0);
-                exit(1);
-            }
-            page_set_flags(0, phys_ram_size, 
-                           PAGE_VALID | PAGE_READ | PAGE_WRITE | PAGE_EXEC);
-        } else {
-            /* we unmap the physical memory */
-            munmap((void *)0, phys_ram_size);
-            page_set_flags(0, phys_ram_size, 0);
-        }
-        last_pg_state = pg_state;
-    }
-    pe_state = env->cr[0] & CR0_PE_MASK;
-    if (last_pe_state != pe_state) {
-        tb_flush();
-        last_pe_state = pe_state;
-    }
-}
-
-void cpu_x86_update_cr3(CPUX86State *env)
-{
-    if (env->cr[0] & CR0_PG_MASK) {
-#if defined(DEBUG_MMU)
-        printf("CR3 update: CR3=%08x\n", env->cr[3]);
-#endif
-        page_unmap();
-    }
-}
-
-void cpu_x86_init_mmu(CPUX86State *env)
-{
-    last_pg_state = -1;
-    cpu_x86_update_cr0(env);
-}
-
-/* XXX: also flush 4MB pages */
-void cpu_x86_flush_tlb(CPUX86State *env, uint32_t addr)
-{
-    int flags;
-    unsigned long virt_addr;
-
-    flags = page_get_flags(addr);
-    if (flags & PAGE_VALID) {
-        virt_addr = addr & ~0xfff;
-        munmap((void *)virt_addr, 4096);
-        page_set_flags(virt_addr, virt_addr + 4096, 0);
-    }
-}
-
-/* return value:
-   -1 = cannot handle fault 
-   0  = nothing more to do 
-   1  = generate PF fault
-*/
-int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr, int is_write)
-{
-    uint8_t *pde_ptr, *pte_ptr;
-    uint32_t pde, pte, virt_addr;
-    int cpl, error_code, is_dirty, is_user, prot, page_size;
-    void *map_addr;
-
-    cpl = env->cpl;
-    is_user = (cpl == 3);
-    
-#ifdef DEBUG_MMU
-    printf("MMU fault: addr=0x%08x w=%d u=%d eip=%08x\n", 
-           addr, is_write, is_user, env->eip);
-#endif
-
-    if (env->user_mode_only) {
-        /* user mode only emulation */
-        error_code = 0;
-        goto do_fault;
-    }
-
-    if (!(env->cr[0] & CR0_PG_MASK))
-        return -1;
-
-    /* page directory entry */
-    pde_ptr = phys_ram_base + ((env->cr[3] & ~0xfff) + ((addr >> 20) & ~3));
-    pde = ldl(pde_ptr);
-    if (!(pde & PG_PRESENT_MASK)) {
-        error_code = 0;
-        goto do_fault;
-    }
-    if (is_user) {
-        if (!(pde & PG_USER_MASK))
-            goto do_fault_protect;
-        if (is_write && !(pde & PG_RW_MASK))
-            goto do_fault_protect;
-    } else {
-        if ((env->cr[0] & CR0_WP_MASK) && (pde & PG_USER_MASK) &&
-            is_write && !(pde & PG_RW_MASK)) 
-            goto do_fault_protect;
-    }
-    /* if PSE bit is set, then we use a 4MB page */
-    if ((pde & PG_PSE_MASK) && (env->cr[4] & CR4_PSE_MASK)) {
-        is_dirty = is_write && !(pde & PG_DIRTY_MASK);
-        if (!(pde & PG_ACCESSED_MASK)) {
-            pde |= PG_ACCESSED_MASK;
-            if (is_dirty)
-                pde |= PG_DIRTY_MASK;
-            stl(pde_ptr, pde);
-        }
-        
-        pte = pde & ~0x003ff000; /* align to 4MB */
-        page_size = 4096 * 1024;
-        virt_addr = addr & ~0x003fffff;
-    } else {
-        if (!(pde & PG_ACCESSED_MASK)) {
-            pde |= PG_ACCESSED_MASK;
-            stl(pde_ptr, pde);
-        }
-
-        /* page directory entry */
-        pte_ptr = phys_ram_base + ((pde & ~0xfff) + ((addr >> 10) & 0xffc));
-        pte = ldl(pte_ptr);
-        if (!(pte & PG_PRESENT_MASK)) {
-            error_code = 0;
-            goto do_fault;
-        }
-        if (is_user) {
-            if (!(pte & PG_USER_MASK))
-                goto do_fault_protect;
-            if (is_write && !(pte & PG_RW_MASK))
-                goto do_fault_protect;
-        } else {
-            if ((env->cr[0] & CR0_WP_MASK) && (pte & PG_USER_MASK) &&
-                is_write && !(pte & PG_RW_MASK)) 
-                goto do_fault_protect;
-        }
-        is_dirty = is_write && !(pte & PG_DIRTY_MASK);
-        if (!(pte & PG_ACCESSED_MASK) || is_dirty) {
-            pte |= PG_ACCESSED_MASK;
-            if (is_dirty)
-                pte |= PG_DIRTY_MASK;
-            stl(pte_ptr, pte);
-        }
-        page_size = 4096;
-        virt_addr = addr & ~0xfff;
-    }
-    /* the page can be put in the TLB */
-    prot = PROT_READ;
-    if (is_user) {
-        if (pte & PG_RW_MASK)
-            prot |= PROT_WRITE;
-    } else {
-        if (!(env->cr[0] & CR0_WP_MASK) || !(pte & PG_USER_MASK) ||
-            (pte & PG_RW_MASK))
-            prot |= PROT_WRITE;
-    }
-    map_addr = mmap((void *)virt_addr, page_size, prot, 
-                    MAP_SHARED | MAP_FIXED, phys_ram_fd, pte & ~0xfff);
-    if (map_addr == MAP_FAILED) {
-        fprintf(stderr, 
-                "mmap failed when mapped physical address 0x%08x to virtual address 0x%08x\n",
-                pte & ~0xfff, virt_addr);
-        exit(1);
-    }
-    page_set_flags(virt_addr, virt_addr + page_size, 
-                   PAGE_VALID | PAGE_EXEC | prot);
-#ifdef DEBUG_MMU
-    printf("mmaping 0x%08x to virt 0x%08x pse=%d\n", 
-           pte & ~0xfff, virt_addr, (page_size != 4096));
-#endif
-    return 0;
- do_fault_protect:
-    error_code = PG_ERROR_P_MASK;
- do_fault:
-    env->cr[2] = addr;
-    env->error_code = (is_write << PG_ERROR_W_BIT) | error_code;
-    if (is_user)
-        env->error_code |= PG_ERROR_U_MASK;
-    return 1;
-}
-
-/***********************************************************/
-/* x86 debug */
-
-static const char *cc_op_str[] = {
-    "DYNAMIC",
-    "EFLAGS",
-    "MUL",
-    "ADDB",
-    "ADDW",
-    "ADDL",
-    "ADCB",
-    "ADCW",
-    "ADCL",
-    "SUBB",
-    "SUBW",
-    "SUBL",
-    "SBBB",
-    "SBBW",
-    "SBBL",
-    "LOGICB",
-    "LOGICW",
-    "LOGICL",
-    "INCB",
-    "INCW",
-    "INCL",
-    "DECB",
-    "DECW",
-    "DECL",
-    "SHLB",
-    "SHLW",
-    "SHLL",
-    "SARB",
-    "SARW",
-    "SARL",
-};
-
-void cpu_x86_dump_state(CPUX86State *env, FILE *f, int flags)
-{
-    int eflags;
-    char cc_op_name[32];
-
-    eflags = env->eflags;
-    fprintf(f, "EAX=%08x EBX=%08x ECX=%08x EDX=%08x\n"
-            "ESI=%08x EDI=%08x EBP=%08x ESP=%08x\n"
-            "EIP=%08x EFL=%08x [%c%c%c%c%c%c%c]\n",
-            env->regs[R_EAX], env->regs[R_EBX], env->regs[R_ECX], env->regs[R_EDX], 
-            env->regs[R_ESI], env->regs[R_EDI], env->regs[R_EBP], env->regs[R_ESP], 
-            env->eip, eflags,
-            eflags & DF_MASK ? 'D' : '-',
-            eflags & CC_O ? 'O' : '-',
-            eflags & CC_S ? 'S' : '-',
-            eflags & CC_Z ? 'Z' : '-',
-            eflags & CC_A ? 'A' : '-',
-            eflags & CC_P ? 'P' : '-',
-            eflags & CC_C ? 'C' : '-');
-    fprintf(f, "CS=%04x SS=%04x DS=%04x ES=%04x FS=%04x GS=%04x\n",
-            env->segs[R_CS].selector,
-            env->segs[R_SS].selector,
-            env->segs[R_DS].selector,
-            env->segs[R_ES].selector,
-            env->segs[R_FS].selector,
-            env->segs[R_GS].selector);
-    if (flags & X86_DUMP_CCOP) {
-        if ((unsigned)env->cc_op < CC_OP_NB)
-            strcpy(cc_op_name, cc_op_str[env->cc_op]);
-        else
-            snprintf(cc_op_name, sizeof(cc_op_name), "[%d]", env->cc_op);
-        fprintf(f, "CCS=%08x CCD=%08x CCO=%-8s\n",
-                env->cc_src, env->cc_dst, cc_op_name);
-    }
-    if (flags & X86_DUMP_FPU) {
-        fprintf(f, "ST0=%f ST1=%f ST2=%f ST3=%f\n", 
-                (double)env->fpregs[0], 
-                (double)env->fpregs[1], 
-                (double)env->fpregs[2], 
-                (double)env->fpregs[3]);
-        fprintf(f, "ST4=%f ST5=%f ST6=%f ST7=%f\n", 
-                (double)env->fpregs[4], 
-                (double)env->fpregs[5], 
-                (double)env->fpregs[7], 
-                (double)env->fpregs[8]);
-    }
-}
