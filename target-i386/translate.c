@@ -2262,8 +2262,8 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
             gen_op_mov_TN_reg[ot][0][reg]();
             gen_op_mov_TN_reg[ot][1][rm]();
             gen_op_addl_T0_T1();
-            gen_op_mov_reg_T0[ot][rm]();
             gen_op_mov_reg_T1[ot][reg]();
+            gen_op_mov_reg_T0[ot][rm]();
         } else {
             gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
             gen_op_mov_TN_reg[ot][0][reg]();
@@ -4561,9 +4561,11 @@ static inline int gen_intermediate_code_internal(CPUState *env,
         fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
 	disas(logfile, pc_start, pc_ptr - pc_start, 0, !dc->code32);
         fprintf(logfile, "\n");
+#if 0
         fprintf(logfile, "OP:\n");
         dump_ops(gen_opc_buf, gen_opparam_buf);
         fprintf(logfile, "\n");
+#endif
     }
 #endif
 
