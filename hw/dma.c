@@ -23,6 +23,8 @@
  */
 #include "vl.h"
 
+//#define DEBUG_DMA
+
 #define log(...) fprintf (stderr, "dma: " __VA_ARGS__)
 #ifdef DEBUG_DMA
 #define lwarn(...) fprintf (stderr, "dma: " __VA_ARGS__)
