@@ -190,6 +190,10 @@ void cpu_x86_set_a20(CPUX86State *env, int a20_state)
 {
     a20_state = (a20_state != 0);
     if (a20_state != a20_enabled) {
+        /* if the cpu is currently executing code, we must unlink it and
+           all the potentially executing TB */
+        cpu_interrupt(env, 0);
+
         /* when a20 is changed, all the MMU mappings are invalid, so
            we must flush everything */
         page_unmap();
