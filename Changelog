@@ -18,6 +18,7 @@ version 0.5.3:
   - generic removable device support
   - support of CD-ROM change
   - multiple network interface support
+  - initial x86-64 host support (Gwenole Beauchesne)
   
 version 0.5.2:
 

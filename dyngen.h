@@ -27,6 +27,12 @@ static inline void flush_icache_range(unsigned long start, unsigned long stop)
 }
 #endif
 
+#ifdef __x86_64__
+static inline void flush_icache_range(unsigned long start, unsigned long stop)
+{
+}
+#endif
+
 #ifdef __s390__
 static inline void flush_icache_range(unsigned long start, unsigned long stop)
 {

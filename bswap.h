@@ -43,7 +43,7 @@
 
 #endif /* !HAVE_BYTESWAP_H */
 
-#if defined(__alpha__) || defined (__ia64__)
+#if defined(__alpha__) || defined (__ia64__) || defined(__x86_64__)
 #define HOST_LONG_BITS 64
 #else
 #define HOST_LONG_BITS 32

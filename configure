@@ -59,6 +59,9 @@ case "$cpu" in
   m68k)
     cpu="m68k"
   ;;
+  x86_64|amd64)
+    cpu="amd64"
+  ;;
   *)
     cpu="unknown"
   ;;
@@ -253,6 +256,9 @@ echo "LDFLAGS=$LDFLAGS" >> $config_mak
 if test "$cpu" = "i386" ; then
   echo "ARCH=i386" >> $config_mak
   echo "#define HOST_I386 1" >> $config_h
+elif test "$cpu" = "amd64" ; then
+  echo "ARCH=amd64" >> $config_mak
+  echo "#define HOST_AMD64 1" >> $config_h
 elif test "$cpu" = "armv4l" ; then
   echo "ARCH=arm" >> $config_mak
   echo "#define HOST_ARM 1" >> $config_h

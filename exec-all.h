@@ -400,6 +400,20 @@ static inline int testandset (int *p)
 }
 #endif
 
+#ifdef __x86_64__
+static inline int testandset (int *p)
+{
+    char ret;
+    int readval;
+    
+    __asm__ __volatile__ ("lock; cmpxchgl %3, %1; sete %0"
+                          : "=q" (ret), "=m" (*p), "=a" (readval)
+                          : "r" (1), "m" (*p), "a" (0)
+                          : "memory");
+    return ret;
+}
+#endif
+
 #ifdef __s390__
 static inline int testandset (int *p)
 {

@@ -785,6 +785,21 @@ int cpu_signal_handler(int host_signum, struct siginfo *info,
                                  &uc->uc_sigmask, puc);
 }
 
+#elif defined(__x86_64__)
+
+int cpu_signal_handler(int host_signum, struct siginfo *info,
+                       void *puc)
+{
+    struct ucontext *uc = puc;
+    unsigned long pc;
+
+    pc = uc->uc_mcontext.gregs[REG_RIP];
+    return handle_cpu_signal(pc, (unsigned long)info->si_addr, 
+                             uc->uc_mcontext.gregs[REG_TRAPNO] == 0xe ? 
+                             (uc->uc_mcontext.gregs[REG_ERR] >> 1) & 1 : 0,
+                             &uc->uc_sigmask, puc);
+}
+
 #elif defined(__powerpc)
 
 int cpu_signal_handler(int host_signum, struct siginfo *info, 

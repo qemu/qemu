@@ -68,6 +68,14 @@ extern int printf(const char *, ...);
 #define AREG2 "esi"
 #define AREG3 "edi"
 #endif
+#ifdef __x86_64__
+#define AREG0 "rbp"
+#define AREG1 "rbx"
+#define AREG2 "r12"
+#define AREG3 "r13"
+#define AREG4 "r14"
+#define AREG5 "r15"
+#endif
 #ifdef __powerpc__
 #define AREG0 "r27"
 #define AREG1 "r24"
@@ -186,6 +194,9 @@ extern int __op_param1, __op_param2, __op_param3;
 extern int __op_jmp0, __op_jmp1, __op_jmp2, __op_jmp3;
 
 #ifdef __i386__
+#define EXIT_TB() asm volatile ("ret")
+#endif
+#ifdef __x86_64__
 #define EXIT_TB() asm volatile ("ret")
 #endif
 #ifdef __powerpc__

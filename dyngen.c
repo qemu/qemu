@@ -37,6 +37,13 @@
 #define elf_check_arch(x) ( ((x) == EM_386) || ((x) == EM_486) )
 #undef ELF_USES_RELOCA
 
+#elif defined(HOST_AMD64)
+
+#define ELF_CLASS	ELFCLASS64
+#define ELF_ARCH	EM_X86_64
+#define elf_check_arch(x) ((x) == EM_X86_64)
+#define ELF_USES_RELOCA
+
 #elif defined(HOST_PPC)
 
 #define ELF_CLASS	ELFCLASS32
@@ -446,6 +453,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
     start_offset = offset;
     switch(ELF_ARCH) {
     case EM_386:
+    case EM_X86_64:
         {
             int len;
             len = p_end - p_start;
@@ -762,6 +770,41 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                         break;
                     default:
                         error("unsupported i386 relocation (%d)", type);
+                    }
+                }
+                }
+            }
+#elif defined(HOST_AMD64)
+            {
+                char name[256];
+                int type;
+                int addend;
+                for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
+                if (rel->r_offset >= start_offset &&
+		    rel->r_offset < start_offset + copy_size) {
+                    sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
+                    if (strstart(sym_name, "__op_param", &p)) {
+                        snprintf(name, sizeof(name), "param%s", p);
+                    } else {
+                        snprintf(name, sizeof(name), "(long)(&%s)", sym_name);
+                    }
+                    type = ELF32_R_TYPE(rel->r_info);
+                    addend = rel->r_addend;
+                    switch(type) {
+                    case R_X86_64_32:
+                        fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = (uint32_t)%s + %d;\n", 
+                                rel->r_offset - start_offset, name, addend);
+                        break;
+                    case R_X86_64_32S:
+                        fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = (int32_t)%s + %d;\n", 
+                                rel->r_offset - start_offset, name, addend);
+                        break;
+                    case R_X86_64_PC32:
+                        fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s - (long)(gen_code_ptr + %d) + %d;\n", 
+                                rel->r_offset - start_offset, name, rel->r_offset - start_offset, addend);
+                        break;
+                    default:
+                        error("unsupported AMD64 relocation (%d)", type);
                     }
                 }
                 }

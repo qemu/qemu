@@ -16,7 +16,9 @@
 #define PARAMS(x) x
 typedef void *PTR;
 typedef uint64_t bfd_vma;
+typedef int64_t bfd_signed_vma;
 typedef uint8_t bfd_byte;
+#define sprintf_vma(s,x) sprintf (s, "%0" PRIx64, x)
 
 enum bfd_flavour {
   bfd_target_unknown_flavour,
@@ -105,6 +107,9 @@ enum bfd_architecture
   bfd_arch_i386,       /* Intel 386 */
 #define bfd_mach_i386_i386 0
 #define bfd_mach_i386_i8086 1
+#define bfd_mach_i386_i386_intel_syntax 2
+#define bfd_mach_x86_64 3
+#define bfd_mach_x86_64_intel_syntax 4
   bfd_arch_we32k,      /* AT&T WE32xxx */
   bfd_arch_tahoe,      /* CCI/Harris Tahoe */
   bfd_arch_i860,       /* Intel 860 */

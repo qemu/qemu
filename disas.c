@@ -140,8 +140,11 @@ void disas(FILE *out, void *code, unsigned long size, int is_host, int flags)
 #else
 	disasm_info.endian = BFD_ENDIAN_LITTLE;
 #endif
-#ifdef __i386__
+#if defined(__i386__)
 	disasm_info.mach = bfd_mach_i386_i386;
+	print_insn = print_insn_i386;
+#elif defined(__x86_64__)
+	disasm_info.mach = bfd_mach_x86_64;
 	print_insn = print_insn_i386;
 #elif defined(__powerpc__)
 	print_insn = print_insn_ppc;

@@ -188,7 +188,7 @@ long target_mmap(unsigned long start, unsigned long len, int prot,
     host_start = start & host_page_mask;
 
     if (!(flags & MAP_FIXED)) {
-#if defined(__alpha__) || defined(__sparc__)
+#if defined(__alpha__) || defined(__sparc__) || defined(__x86_64__)
         /* tell the kenel to search at the same place as i386 */
         if (host_start == 0)
             host_start = 0x40000000;

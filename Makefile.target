@@ -80,6 +80,11 @@ LDFLAGS+=-Wl,-shared
 endif
 endif
 
+ifeq ($(ARCH),amd64)
+OP_CFLAGS=$(CFLAGS) -falign-functions=0
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/amd64.ld
+endif
+
 ifeq ($(ARCH),ppc)
 OP_CFLAGS=$(CFLAGS)
 LDFLAGS+=-Wl,-T,$(SRC_PATH)/ppc.ld
@@ -174,6 +179,12 @@ endif
 # NOTE: the disassembler code is only needed for debugging
 LIBOBJS+=disas.o 
 ifeq ($(findstring i386, $(TARGET_ARCH) $(ARCH)),i386)
+USE_I386_DIS=y
+endif
+ifeq ($(findstring amd64, $(TARGET_ARCH) $(ARCH)),amd64)
+USE_I386_DIS=y
+endif
+ifdef USE_I386_DIS
 LIBOBJS+=i386-dis.o
 endif
 ifeq ($(findstring alpha, $(TARGET_ARCH) $(ARCH)),alpha)

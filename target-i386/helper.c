@@ -1802,14 +1802,14 @@ void helper_invlpg(unsigned int addr)
 }
 
 /* rdtsc */
-#ifndef __i386__
+#if !defined(__i386__) && !defined(__x86_64__)
 uint64_t emu_time;
 #endif
 
 void helper_rdtsc(void)
 {
     uint64_t val;
-#ifdef __i386__
+#if defined(__i386__) || defined(__x86_64__)
     asm("rdtsc" : "=A" (val));
 #else
     /* better than nothing: the time increases */
