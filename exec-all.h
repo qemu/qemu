@@ -152,7 +152,9 @@ typedef struct TranslationBlock {
     uint16_t size;      /* size of target code for this block (1 <=
                            size <= TARGET_PAGE_SIZE) */
     uint16_t cflags;    /* compile flags */
-#define CF_CODE_COPY  0x0001 /* block was generated in code copy mode */
+#define CF_CODE_COPY   0x0001 /* block was generated in code copy mode */
+#define CF_TB_FP_USED  0x0002 /* fp ops are used in the TB */
+#define CF_FP_USED     0x0004 /* fp ops are used in the TB or in a chained TB */
 
     uint8_t *tc_ptr;    /* pointer to the translated code */
     struct TranslationBlock *hash_next; /* next matching tb for virtual address */
