@@ -231,6 +231,11 @@ command line application. The emulated serial port is redirected on
 the console. Therefore, you can still use QEMU to debug a Linux kernel
 with a serial console.
 
+@item -enable-audio
+
+The SB16 emulation is disabled by default as it may give problems with
+Windows. You can enable it manually with this option.
+
 @end table
 
 Network options:
