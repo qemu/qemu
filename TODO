@@ -1,0 +1,2 @@
+- swap all elf paramters
+- fix printf for doubles (fp87.c bug ?)
