@@ -42,8 +42,7 @@
 #define DLINFO_ITEMS 12
 
 /* Where we find X86 libraries... */
-//#define X86_DEFAULT_LIB_DIR	"/usr/x86/"
-#define X86_DEFAULT_LIB_DIR	"/"
+
 
 //extern void * mmap4k();
 #define mmap4k(a, b, c, d, e, f) mmap((void *)(a), b, c, d, e, f)
@@ -638,7 +637,8 @@ static int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * r
 	     * is an a.out format binary
 	     */
 
-	    elf_interpreter = (char *)malloc(elf_ppnt->p_filesz+strlen(X86_DEFAULT_LIB_DIR));
+	    elf_interpreter = (char *)malloc(elf_ppnt->p_filesz+
+                                             strlen(bprm->interp_prefix));
 
 	    if (elf_interpreter == NULL) {
 		free (elf_phdata);
@@ -646,11 +646,11 @@ static int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * r
 		return -ENOMEM;
 	    }
 
-	    strcpy(elf_interpreter, X86_DEFAULT_LIB_DIR);
+	    strcpy(elf_interpreter, bprm->interp_prefix);
 	    retval = lseek(bprm->fd, elf_ppnt->p_offset, SEEK_SET);
 	    if(retval >= 0) {
 		retval = read(bprm->fd, 
-			      elf_interpreter+strlen(X86_DEFAULT_LIB_DIR), 
+			      elf_interpreter+strlen(bprm->interp_prefix), 
 			      elf_ppnt->p_filesz);
 	    }
 	    if(retval < 0) {
@@ -911,7 +911,8 @@ static int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * r
 
 
 
-int elf_exec(const char * filename, char ** argv, char ** envp, 
+int elf_exec(const char *interp_prefix, 
+             const char * filename, char ** argv, char ** envp, 
              struct target_pt_regs * regs, struct image_info *infop)
 {
         struct linux_binprm bprm;
@@ -930,6 +931,7 @@ int elf_exec(const char * filename, char ** argv, char ** envp,
 	else {
 	    bprm.fd = retval;
 	}
+        bprm.interp_prefix = (char *)interp_prefix;
         bprm.filename = (char *)filename;
         bprm.sh_bang = 0;
         bprm.loader = 0;

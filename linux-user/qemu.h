@@ -33,7 +33,8 @@ struct image_info {
 	int		personality;
 };
 
-int elf_exec(const char * filename, char ** argv, char ** envp, 
+int elf_exec(const char *interp_prefix, 
+             const char * filename, char ** argv, char ** envp, 
              struct target_pt_regs * regs, struct image_info *infop);
 
 void target_set_brk(char *new_brk);

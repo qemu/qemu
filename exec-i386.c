@@ -485,6 +485,10 @@ int cpu_x86_signal_handler(int host_signum, struct siginfo *info,
     unsigned long pc;
     sigset_t *pold_set;
     
+#ifndef REG_EIP
+/* for glibc 2.1 */
+#define REG_EIP EIP
+#endif
     pc = uc->uc_mcontext.gregs[EIP];
     pold_set = &uc->uc_sigmask;
     return handle_cpu_signal(pc, pold_set);

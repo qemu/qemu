@@ -406,7 +406,7 @@ void cpu_x86_close(CPUX86State *s);
 /* needed to load some predefinied segment registers */
 void cpu_x86_load_seg(CPUX86State *s, int seg_reg, int selector);
 
-/* you can call these signal handler from you SIGBUS and SIGSEGV
+/* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
    is returned if the signal was handled by the virtual CPU.  */
 struct siginfo;

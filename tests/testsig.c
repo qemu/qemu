@@ -15,21 +15,34 @@ void alarm_handler(int sig)
     alarm(1);
 }
 
+#ifndef REG_EAX
+#define REG_EAX EAX
+#define REG_EBX EBX
+#define REG_ECX ECX
+#define REG_EDX EDX
+#define REG_ESI ESI
+#define REG_EDI EDI
+#define REG_EBP EBP
+#define REG_ESP ESP
+#define REG_EIP EIP
+#define REG_EFL EFL
+#endif
+
 void dump_regs(struct ucontext *uc)
 {
     printf("EAX=%08x EBX=%08x ECX=%08x EDX=%08x\n"
            "ESI=%08x EDI=%08x EBP=%08x ESP=%08x\n"
            "EFL=%08x EIP=%08x\n",
-           uc->uc_mcontext.gregs[EAX],
-           uc->uc_mcontext.gregs[EBX],
-           uc->uc_mcontext.gregs[ECX],
-           uc->uc_mcontext.gregs[EDX],
-           uc->uc_mcontext.gregs[ESI],
-           uc->uc_mcontext.gregs[EDI],
-           uc->uc_mcontext.gregs[EBP],
-           uc->uc_mcontext.gregs[ESP],
-           uc->uc_mcontext.gregs[EFL],
-           uc->uc_mcontext.gregs[EIP]);
+           uc->uc_mcontext.gregs[REG_EAX],
+           uc->uc_mcontext.gregs[REG_EBX],
+           uc->uc_mcontext.gregs[REG_ECX],
+           uc->uc_mcontext.gregs[REG_EDX],
+           uc->uc_mcontext.gregs[REG_ESI],
+           uc->uc_mcontext.gregs[REG_EDI],
+           uc->uc_mcontext.gregs[REG_EBP],
+           uc->uc_mcontext.gregs[REG_ESP],
+           uc->uc_mcontext.gregs[REG_EFL],
+           uc->uc_mcontext.gregs[REG_EIP]);
 }
 
 void sig_handler(int sig, siginfo_t *info, void *puc)

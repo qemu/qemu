@@ -32,6 +32,7 @@
 
 FILE *logfile = NULL;
 int loglevel;
+const char *interp_prefix = CONFIG_QEMU_PREFIX "/qemu-i386";
 
 /* XXX: on x86 MAP_GROWSDOWN only works if ESP <= address + 32, so
    we allocate a bigger stack. Need a better solution, for example
@@ -172,9 +173,16 @@ void cpu_loop(struct CPUX86State *env)
 void usage(void)
 {
     printf("qemu version " QEMU_VERSION ", Copyright (c) 2003 Fabrice Bellard\n"
-           "usage: qemu [-d] program [arguments...]\n"
+           "usage: qemu [-h] [-d] [-L path] [-s size] program [arguments...]\n"
            "Linux x86 emulator\n"
-           );
+           "\n"
+           "-h        print this help\n"
+           "-d        activate log (logfile=%s)\n"
+           "-L path   set the x86 elf interpreter prefix (default=%s)\n"
+           "-s size   set the x86 stack size in bytes (default=%ld)\n",
+           DEBUG_LOGFILE,
+           interp_prefix, 
+           x86_stack_size);
     exit(1);
 }
 
@@ -188,15 +196,41 @@ int main(int argc, char **argv)
     struct image_info info1, *info = &info1;
     CPUX86State *env;
     int optind;
-
+    const char *r;
+    
     if (argc <= 1)
         usage();
     loglevel = 0;
     optind = 1;
-    if (argv[optind] && !strcmp(argv[optind], "-d")) {
-        loglevel = 1;
+    for(;;) {
+        if (optind >= argc)
+            break;
+        r = argv[optind];
+        if (r[0] != '-')
+            break;
         optind++;
+        r++;
+        if (!strcmp(r, "-")) {
+            break;
+        } else if (!strcmp(r, "d")) {
+            loglevel = 1;
+        } else if (!strcmp(r, "s")) {
+            r = argv[optind++];
+            x86_stack_size = strtol(r, (char **)&r, 0);
+            if (x86_stack_size <= 0)
+                usage();
+            if (*r == 'M')
+                x86_stack_size *= 1024 * 1024;
+            else if (*r == 'k' || *r == 'K')
+                x86_stack_size *= 1024;
+        } else if (!strcmp(r, "L")) {
+            interp_prefix = argv[optind++];
+        } else {
+            usage();
+        }
     }
+    if (optind >= argc)
+        usage();
     filename = argv[optind];
 
     /* init debug */
@@ -215,7 +249,7 @@ int main(int argc, char **argv)
     /* Zero out image_info */
     memset(info, 0, sizeof(struct image_info));
 
-    if(elf_exec(filename, argv+optind, environ, regs, info) != 0) {
+    if(elf_exec(interp_prefix, filename, argv+optind, environ, regs, info) != 0) {
 	printf("Error loading %s\n", filename);
 	exit(1);
     }

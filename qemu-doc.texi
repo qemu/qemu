@@ -73,25 +73,52 @@ maximum performances.
 
 @chapter Invocation
 
+@section Quick Start
+
 In order to launch a Linux process, QEMU needs the process executable
-itself and all the target (x86) dynamic libraries used by it. Currently,
-QEMU is not distributed with the necessary packages so that you can test
-it easily on non x86 CPUs.
+itself and all the target (x86) dynamic libraries used by it. 
 
-However, the statically x86 binary 'tests/hello' can be used to do a
-first test:
+@itemize
 
-@example 
-qemu tests/hello
-@end example
-
-@code{Hello world} should be printed on the terminal.
-
-If you are testing it on a x86 CPU, then you can test it on any process:
+@item On x86, you can just try to launch any process by using the native
+libraries:
 
 @example 
-qemu /bin/ls -l
+qemu -L / /bin/ls
 @end example
+
+@code{-L /} tells that the x86 dynamic linker must be searched with a
+@file{/} prefix.
+
+
+@item On non x86 CPUs, you need first to download at least an x86 glibc
+(@file{qemu-i386-glibc21.tar.gz} on the QEMU web page). Then you can
+launch the precompiled @file{ls} x86 executable:
+@example
+qemu /usr/local/qemu-i386/bin/ls
+@end example
+You can look at @file{/usr/local/qemu-i386/bin/qemu-conf.sh} so that QEMU is automatically
+launched by the Linux kernel when you try to launch x86 executables. It
+requires the @code{binfmt_misc} module in the Linux kernel.
+
+@end itemize
+
+@section Command line options
+
+@example
+usage: qemu [-h] [-d] [-L path] [-s size] program [arguments...]
+@end example
+
+@table @samp
+@item -h
+Print the help
+@item -d
+Activate log (logfile=/tmp/qemu.log)
+@item -L path   
+Set the x86 elf interpreter prefix (default=/usr/local/qemu-i386)
+@item -s size
+Set the x86 stack size in bytes (default=524288)
+@end table
 
 @chapter QEMU Internals
 

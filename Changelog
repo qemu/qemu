@@ -1,3 +1,9 @@
+version 0.1.1:
+
+ - glibc 2.2 compilation fixes
+ - added -s and -L options
+ - binary distribution of x86 glibc and wine
+
 version 0.1:
 
  - initial public release.

@@ -118,6 +118,15 @@ tar:
 	( cd /tmp ; tar zcvf ~/$(FILE).tar.gz $(FILE) )
 	rm -rf /tmp/$(FILE)
 
+# generate a binary distribution including the test binary environnment 
+BINPATH=/usr/local/qemu-i386
+
+tarbin:
+	tar zcvf /tmp/qemu-i386-glibc21.tar.gz \
+                 $(BINPATH)/etc $(BINPATH)/lib $(BINPATH)/bin
+	tar zcvf /tmp/qemu-i386-wine.tar.gz \
+                 $(BINPATH)/X11R6 $(BINPATH)/wine
+
 ifneq ($(wildcard .depend),)
 include .depend
 endif
