@@ -137,6 +137,8 @@ int get_physical_address (CPUState *env, target_phys_addr_t *physical, int *prot
         return 0;
     }
 
+    *access_index = ((rw & 1) << 2) | (rw & 2) | (is_user? 0 : 1);
+
     /* SPARC reference MMU table walk: Context table->L1->L2->PTE */
     /* Context base + context number */
     pde_ptr = (env->mmuregs[1] << 4) + (env->mmuregs[2] << 4);
@@ -146,10 +148,10 @@ int get_physical_address (CPUState *env, target_phys_addr_t *physical, int *prot
     switch (pde & PTE_ENTRYTYPE_MASK) {
     default:
     case 0: /* Invalid */
-	return 1;
+	return 1 << 2;
     case 2: /* L0 PTE, maybe should not happen? */
     case 3: /* Reserved */
-        return 4;
+        return 4 << 2;
     case 1: /* L0 PDE */
 	pde_ptr = ((address >> 22) & ~3) + ((pde & ~3) << 4);
         pde = ldl_phys(pde_ptr);
@@ -157,9 +159,9 @@ int get_physical_address (CPUState *env, target_phys_addr_t *physical, int *prot
 	switch (pde & PTE_ENTRYTYPE_MASK) {
 	default:
 	case 0: /* Invalid */
-	    return 1;
+	    return (1 << 8) | (1 << 2);
 	case 3: /* Reserved */
-	    return 4;
+	    return (1 << 8) | (4 << 2);
 	case 1: /* L1 PDE */
 	    pde_ptr = ((address & 0xfc0000) >> 16) + ((pde & ~3) << 4);
             pde = ldl_phys(pde_ptr);
@@ -167,9 +169,9 @@ int get_physical_address (CPUState *env, target_phys_addr_t *physical, int *prot
 	    switch (pde & PTE_ENTRYTYPE_MASK) {
 	    default:
 	    case 0: /* Invalid */
-		return 1;
+		return (2 << 8) | (1 << 2);
 	    case 3: /* Reserved */
-		return 4;
+		return (2 << 8) | (4 << 2);
 	    case 1: /* L2 PDE */
 		pde_ptr = ((address & 0x3f000) >> 10) + ((pde & ~3) << 4);
                 pde = ldl_phys(pde_ptr);
@@ -177,10 +179,10 @@ int get_physical_address (CPUState *env, target_phys_addr_t *physical, int *prot
 		switch (pde & PTE_ENTRYTYPE_MASK) {
 		default:
 		case 0: /* Invalid */
-		    return 1;
+		    return (3 << 8) | (1 << 2);
 		case 1: /* PDE, should not happen */
 		case 3: /* Reserved */
-		    return 4;
+		    return (3 << 8) | (4 << 2);
 		case 2: /* L3 PTE */
 		    virt_addr = address & TARGET_PAGE_MASK;
 		    page_offset = (address & TARGET_PAGE_MASK) & (TARGET_PAGE_SIZE - 1);
@@ -206,7 +208,6 @@ int get_physical_address (CPUState *env, target_phys_addr_t *physical, int *prot
         stl_phys_notdirty(pde_ptr, pde);
     }
     /* check access */
-    *access_index = ((rw & 1) << 2) | (rw & 2) | (is_user? 0 : 1);
     access_perms = (pde & PTE_ACCESS_MASK) >> PTE_ACCESS_SHIFT;
     error_code = access_table[*access_index][access_perms];
     if (error_code)
@@ -246,18 +247,28 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 
     if (env->mmuregs[3]) /* Fault status register */
 	env->mmuregs[3] = 1; /* overflow (not read before another fault) */
-    env->mmuregs[3] |= (access_index << 5) | (error_code << 2) | 2;
+    env->mmuregs[3] |= (access_index << 5) | error_code | 2;
     env->mmuregs[4] = address; /* Fault address register */
 
     if ((env->mmuregs[0] & MMU_NF) || env->psret == 0)  {
+#if 0
         // No fault
-	cpu_abort(env, "Unsupported MMU no fault case");
+	vaddr = address & TARGET_PAGE_MASK;
+        paddr = 0xfffff000;
+        prot = PAGE_READ | PAGE_WRITE;
+        ret = tlb_set_page(env, vaddr, paddr, prot, is_user, is_softmmu);
+	return ret;
+#else
+        cpu_abort(env, "MMU no fault case no handled");
+        return 0;
+#endif
+    } else {
+        if (rw & 2)
+            env->exception_index = TT_TFAULT;
+        else
+            env->exception_index = TT_DFAULT;
+        return 1;
     }
-    if (rw & 2)
-        env->exception_index = TT_TFAULT;
-    else
-        env->exception_index = TT_DFAULT;
-    return 1;
 }
 #endif
 
