@@ -25,15 +25,12 @@
 #include <signal.h>
 #include <assert.h>
 
+#include "disas.h"
+
 #define DEBUG_DISAS
 
 #define IN_OP_I386
 #include "cpu-i386.h"
-
-/* dump all code */
-#ifdef DEBUG_DISAS
-#include "dis-asm.h"
-#endif
 
 #ifndef offsetof
 #define offsetof(type, field) ((size_t) &((type *)0)->field)
@@ -3626,9 +3623,6 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size,
     uint16_t *gen_opc_end;
     int gen_code_size;
     long ret;
-#ifdef DEBUG_DISAS
-    struct disassemble_info disasm_info;
-#endif
     
     /* generate intermediate code */
 
@@ -3668,35 +3662,12 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size,
     }
     *gen_opc_ptr = INDEX_op_end;
 
-    /* optimize flag computations */
 #ifdef DEBUG_DISAS
     if (loglevel) {
-        uint8_t *pc;
-        int count;
-
-        INIT_DISASSEMBLE_INFO(disasm_info, logfile, fprintf);
-#if 0        
-        disasm_info.flavour = bfd_get_flavour (abfd);
-        disasm_info.arch = bfd_get_arch (abfd);
-        disasm_info.mach = bfd_get_mach (abfd);
-#endif
-        disasm_info.endian = BFD_ENDIAN_LITTLE;
-        if (dc->code32)
-            disasm_info.mach = bfd_mach_i386_i386;
-        else
-            disasm_info.mach = bfd_mach_i386_i8086;
         fprintf(logfile, "----------------\n");
-        fprintf(logfile, "IN:\n");
-        disasm_info.buffer = pc_start;
-        disasm_info.buffer_vma = (unsigned long)pc_start;
-        disasm_info.buffer_length = pc_ptr - pc_start;
-        pc = pc_start;
-        while (pc < pc_ptr) {
-            fprintf(logfile, "0x%08lx:  ", (long)pc);
-            count = print_insn_i386((unsigned long)pc, &disasm_info);
-            fprintf(logfile, "\n");
-            pc += count;
-        }
+        fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
+	disas(logfile, pc_start, pc_ptr - pc_start,
+	      dc->code32 ? DISAS_I386_I386 : DISAS_I386_I8086);
         fprintf(logfile, "\n");
         
         fprintf(logfile, "OP:\n");
@@ -3723,33 +3694,8 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size,
 
 #ifdef DEBUG_DISAS
     if (loglevel) {
-        uint8_t *pc;
-        int count;
-
-        INIT_DISASSEMBLE_INFO(disasm_info, logfile, fprintf);
-#if 0        
-        disasm_info.flavour = bfd_get_flavour (abfd);
-        disasm_info.arch = bfd_get_arch (abfd);
-        disasm_info.mach = bfd_get_mach (abfd);
-#endif
-#ifdef WORDS_BIGENDIAN
-        disasm_info.endian = BFD_ENDIAN_BIG;
-#else
-        disasm_info.endian = BFD_ENDIAN_LITTLE;
-#endif        
-        disasm_info.mach = bfd_mach_i386_i386;
-
-        pc = gen_code_buf;
-        disasm_info.buffer = pc;
-        disasm_info.buffer_vma = (unsigned long)pc;
-        disasm_info.buffer_length = *gen_code_size_ptr;
         fprintf(logfile, "OUT: [size=%d]\n", *gen_code_size_ptr);
-        while (pc < gen_code_buf + *gen_code_size_ptr) {
-            fprintf(logfile, "0x%08lx:  ", (long)pc);
-            count = print_insn_i386((unsigned long)pc, &disasm_info);
-            fprintf(logfile, "\n");
-            pc += count;
-        }
+	disas(logfile, gen_code_buf, *gen_code_size_ptr, DISAS_TARGET);
         fprintf(logfile, "\n");
         fflush(logfile);
     }

@@ -51,7 +51,7 @@ OBJS+= libqemu.a
 
 LIBOBJS+=thunk.o translate-i386.o op-i386.o exec-i386.o
 # NOTE: the disassembler code is only needed for debugging
-LIBOBJS+=i386-dis.o dis-buf.o
+LIBOBJS+=disas.o ppc-dis.o i386-dis.o dis-buf.o
 
 all: qemu qemu-doc.html
 
@@ -96,7 +96,7 @@ test speed: qemu
 	make -C tests $@
 
 TAGS: 
-	etags *.[ch] i386/*.[ch]
+	etags *.[ch] tests/*.[ch]
 
 # documentation
 qemu-doc.html: qemu-doc.texi
@@ -109,7 +109,7 @@ Makefile     elf.h       thunk.c\
 elfload.c   main.c            signal.c        thunk.h\
 cpu-i386.h qemu.h op-i386.c opc-i386.h syscall-i386.h  translate-i386.c\
 dis-asm.h    gen-i386.h  syscall.c\
-dis-buf.c    i386-dis.c  opreg_template.h  syscall_defs.h\
+dis-buf.c disas.c disas.h ppc-dis.c i386-dis.c  opreg_template.h  syscall_defs.h\
 ppc.ld s390.ld exec-i386.h exec-i386.c path.c configure \
 tests/Makefile\
 tests/test-i386.c tests/test-i386-shift.h tests/test-i386.h\
