@@ -528,8 +528,7 @@ PCIBus *pci_pmac_init(void);
 /* openpic.c */
 typedef struct openpic_t openpic_t;
 void openpic_set_irq (openpic_t *opp, int n_IRQ, int level);
-openpic_t *openpic_init (PCIBus *bus,
-                         uint32_t isu_base, uint32_t idu_base, int nb_cpus);
+openpic_t *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus);
 
 /* vga.c */
 
@@ -727,28 +726,33 @@ int PPC_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
 
 #define MAX_ADB_DEVICES 16
 
+#define ADB_MAX_OUT_LEN 16
+
 typedef struct ADBDevice ADBDevice;
 
-typedef void ADBDeviceReceivePacket(ADBDevice *d, const uint8_t *buf, int len);
-
+/* buf = NULL means polling */
+typedef int ADBDeviceRequest(ADBDevice *d, uint8_t *buf_out,
+                              const uint8_t *buf, int len);
 struct ADBDevice {
     struct ADBBusState *bus;
     int devaddr;
     int handler;
-    ADBDeviceReceivePacket *receive_packet;
+    ADBDeviceRequest *devreq;
     void *opaque;
 };
 
 typedef struct ADBBusState {
     ADBDevice devices[MAX_ADB_DEVICES];
     int nb_devices;
+    int poll_index;
 } ADBBusState;
 
-void adb_receive_packet(ADBBusState *s, const uint8_t *buf, int len);
-void adb_send_packet(ADBBusState *s, const uint8_t *buf, int len);
+int adb_request(ADBBusState *s, uint8_t *buf_out,
+                const uint8_t *buf, int len);
+int adb_poll(ADBBusState *s, uint8_t *buf_out);
 
 ADBDevice *adb_register_device(ADBBusState *s, int devaddr, 
-                               ADBDeviceReceivePacket *receive_packet, 
+                               ADBDeviceRequest *devreq, 
                                void *opaque);
 void adb_kbd_init(ADBBusState *bus);
 void adb_mouse_init(ADBBusState *bus);

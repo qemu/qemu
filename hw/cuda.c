@@ -85,6 +85,7 @@
 #define CUDA_COMBINED_FORMAT_IIC	0x25
 
 #define CUDA_TIMER_FREQ (4700000 / 6)
+#define CUDA_ADB_POLL_FREQ 50
 
 typedef struct CUDATimer {
     unsigned int latch;
@@ -121,6 +122,7 @@ typedef struct CUDAState {
     uint8_t autopoll;
     uint8_t data_in[128];
     uint8_t data_out[16];
+    QEMUTimer *adb_poll_timer;
 } CUDAState;
 
 static CUDAState cuda_state;
@@ -469,15 +471,42 @@ void adb_send_packet(ADBBusState *bus, const uint8_t *buf, int len)
     cuda_send_packet_to_host(s, data, len + 1);
 }
 
+void cuda_adb_poll(void *opaque)
+{
+    CUDAState *s = opaque;
+    uint8_t obuf[ADB_MAX_OUT_LEN + 2];
+    int olen;
+
+    olen = adb_poll(&adb_bus, obuf + 2);
+    if (olen > 0) {
+        obuf[0] = ADB_PACKET;
+        obuf[1] = 0x40; /* polled data */
+        cuda_send_packet_to_host(s, obuf, olen + 2);
+    }
+    qemu_mod_timer(s->adb_poll_timer, 
+                   qemu_get_clock(vm_clock) + 
+                   (ticks_per_sec / CUDA_ADB_POLL_FREQ));
+}
+
 static void cuda_receive_packet(CUDAState *s, 
                                 const uint8_t *data, int len)
 {
     uint8_t obuf[16];
-    int ti;
+    int ti, autopoll;
 
     switch(data[0]) {
     case CUDA_AUTOPOLL:
-        s->autopoll = data[1];
+        autopoll = (data[1] != 0);
+        if (autopoll != s->autopoll) {
+            s->autopoll = autopoll;
+            if (autopoll) {
+                qemu_mod_timer(s->adb_poll_timer, 
+                               qemu_get_clock(vm_clock) + 
+                               (ticks_per_sec / CUDA_ADB_POLL_FREQ));
+            } else {
+                qemu_del_timer(s->adb_poll_timer);
+            }
+        }
         obuf[0] = CUDA_PACKET;
         obuf[1] = data[1];
         cuda_send_packet_to_host(s, obuf, 2);
@@ -522,7 +551,20 @@ static void cuda_receive_packet_from_host(CUDAState *s,
 #endif
     switch(data[0]) {
     case ADB_PACKET:
-        adb_receive_packet(&adb_bus, data + 1, len - 1);
+        {
+            uint8_t obuf[ADB_MAX_OUT_LEN + 2];
+            int olen;
+            olen = adb_request(&adb_bus, obuf + 2, data + 1, len - 1);
+            if (olen != 0) {
+                obuf[0] = ADB_PACKET;
+                obuf[1] = 0x00;
+            } else {
+                /* empty reply */
+                obuf[0] = ADB_PACKET;
+                obuf[1] = 0x02;
+            }
+            cuda_send_packet_to_host(s, obuf, olen + 2);
+        }
         break;
     case CUDA_PACKET:
         cuda_receive_packet(s, data + 1, len - 1);
@@ -574,6 +616,8 @@ int cuda_init(openpic_t *openpic, int irq)
     s->timers[1].latch = 0x10000;
     s->ier = T1_INT | SR_INT;
     set_counter(s, &s->timers[1], 0xffff);
+
+    s->adb_poll_timer = qemu_new_timer(vm_clock, cuda_adb_poll, s);
     cuda_mem_index = cpu_register_io_memory(0, cuda_read, cuda_write, s);
     return cuda_mem_index;
 }
