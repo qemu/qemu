@@ -1323,7 +1323,7 @@ int qemu_loadvm(const char *filename)
     }
     for(;;) {
 #if defined (DO_TB_FLUSH)
-        tb_flush();
+        tb_flush(global_env);
 #endif
         len = qemu_get_byte(f);
         if (feof(f))
@@ -2143,7 +2143,8 @@ int main(int argc, char **argv)
             if (i < nb_tun_fds) {
                 net_fd_init(nd, tun_fds[i]);
             } else {
-                net_tun_init(nd);
+                if (net_tun_init(nd) < 0)
+                    net_dummy_init(nd);
             }
             break;
 #endif
