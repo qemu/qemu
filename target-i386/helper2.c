@@ -170,7 +170,7 @@ void cpu_x86_dump_state(CPUX86State *env, FILE *f, int flags)
     eflags = env->eflags;
     fprintf(f, "EAX=%08x EBX=%08x ECX=%08x EDX=%08x\n"
             "ESI=%08x EDI=%08x EBP=%08x ESP=%08x\n"
-            "EIP=%08x EFL=%08x [%c%c%c%c%c%c%c]    CPL=%d II=%d\n",
+            "EIP=%08x EFL=%08x [%c%c%c%c%c%c%c]    CPL=%d II=%d A20=%d\n",
             env->regs[R_EAX], env->regs[R_EBX], env->regs[R_ECX], env->regs[R_EDX], 
             env->regs[R_ESI], env->regs[R_EDI], env->regs[R_EBP], env->regs[R_ESP], 
             env->eip, eflags,
@@ -182,7 +182,8 @@ void cpu_x86_dump_state(CPUX86State *env, FILE *f, int flags)
             eflags & CC_P ? 'P' : '-',
             eflags & CC_C ? 'C' : '-',
             env->hflags & HF_CPL_MASK, 
-            (env->hflags >> HF_INHIBIT_IRQ_SHIFT) & 1);
+            (env->hflags >> HF_INHIBIT_IRQ_SHIFT) & 1,
+            (env->a20_mask >> 20) & 1);
     for(i = 0; i < 6; i++) {
         SegmentCache *sc = &env->segs[i];
         fprintf(f, "%s =%04x %08x %08x %08x\n",
