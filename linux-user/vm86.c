@@ -141,6 +141,11 @@ static inline void clear_TF(CPUX86State *env)
     env->eflags &= ~TF_MASK;
 }
 
+static inline void clear_AC(CPUX86State *env)
+{
+    env->eflags &= ~AC_MASK;
+}
+
 static inline int set_vflags_long(unsigned long eflags, CPUX86State *env)
 {
     TaskState *ts = env->opaque;
@@ -149,6 +154,8 @@ static inline int set_vflags_long(unsigned long eflags, CPUX86State *env)
     set_flags(env->eflags, eflags, SAFE_MASK);
     if (eflags & IF_MASK)
         return set_IF(env);
+    else
+        clear_IF(env);
     return 0;
 }
 
@@ -160,6 +167,8 @@ static inline int set_vflags_short(unsigned short flags, CPUX86State *env)
     set_flags(env->eflags, flags, SAFE_MASK);
     if (flags & IF_MASK)
         return set_IF(env);
+    else
+        clear_IF(env);
     return 0;
 }
 
@@ -217,6 +226,7 @@ static void do_int(CPUX86State *env, int intno)
     cpu_x86_load_seg(env, R_CS, segoffs >> 16);
     clear_TF(env);
     clear_IF(env);
+    clear_AC(env);
     return;
  cannot_handle:
 #if defined(DEBUG_VM86)
