@@ -11,6 +11,7 @@
 #include <string.h>
 
 #include "qemu.h"
+#include "disas.h"
 
 #ifdef TARGET_I386
 
@@ -194,6 +195,28 @@ static void bswap_phdr(Elf32_Phdr *phdr)
     bswap32s(&phdr->p_memsz);		/* Segment size in memory */
     bswap32s(&phdr->p_flags);		/* Segment flags */
     bswap32s(&phdr->p_align);		/* Segment alignment */
+}
+
+static void bswap_shdr(Elf32_Shdr *shdr)
+{
+    bswap32s(&shdr->sh_name);
+    bswap32s(&shdr->sh_type);
+    bswap32s(&shdr->sh_flags);
+    bswap32s(&shdr->sh_addr);
+    bswap32s(&shdr->sh_offset);
+    bswap32s(&shdr->sh_size);
+    bswap32s(&shdr->sh_link);
+    bswap32s(&shdr->sh_info);
+    bswap32s(&shdr->sh_addralign);
+    bswap32s(&shdr->sh_entsize);
+}
+
+static void bswap_sym(Elf32_Sym *sym)
+{
+    bswap32s(&sym->st_name);
+    bswap32s(&sym->st_value);
+    bswap32s(&sym->st_size);
+    bswap16s(&sym->st_shndx);
 }
 #endif
 
@@ -656,7 +679,56 @@ static unsigned long load_elf_interp(struct elfhdr * interp_elf_ex,
 	return ((unsigned long) interp_elf_ex->e_entry) + load_addr;
 }
 
+/* Best attempt to load symbols from this ELF object. */
+static void load_symbols(struct elfhdr *hdr, int fd)
+{
+    unsigned int i;
+    struct elf_shdr sechdr, symtab, strtab;
+    char *strings;
 
+    lseek(fd, hdr->e_shoff, SEEK_SET);
+    for (i = 0; i < hdr->e_shnum; i++) {
+	if (read(fd, &sechdr, sizeof(sechdr)) != sizeof(sechdr))
+	    return;
+#ifdef BSWAP_NEEDED
+	bswap_shdr(&sechdr);
+#endif
+	if (sechdr.sh_type == SHT_SYMTAB) {
+	    symtab = sechdr;
+	    lseek(fd, hdr->e_shoff
+		  + sizeof(sechdr) * sechdr.sh_link, SEEK_SET);
+	    if (read(fd, &strtab, sizeof(strtab))
+		!= sizeof(strtab))
+		return;
+#ifdef BSWAP_NEEDED
+	    bswap_shdr(&strtab);
+#endif
+	    goto found;
+	}
+    }
+    return; /* Shouldn't happen... */
+
+ found:
+    /* Now know where the strtab and symtab are.  Snarf them. */
+    disas_symtab = malloc(symtab.sh_size);
+    disas_strtab = strings = malloc(strtab.sh_size);
+    if (!disas_symtab || !disas_strtab)
+	return;
+	
+    lseek(fd, symtab.sh_offset, SEEK_SET);
+    if (read(fd, disas_symtab, symtab.sh_size) != symtab.sh_size)
+	return;
+
+#ifdef BSWAP_NEEDED
+    for (i = 0; i < symtab.sh_size / sizeof(struct elf_sym); i++)
+	bswap_sym(disas_symtab + sizeof(struct elf_sym)*i);
+#endif
+
+    lseek(fd, strtab.sh_offset, SEEK_SET);
+    if (read(fd, strings, strtab.sh_size) != strtab.sh_size)
+	return;
+    disas_num_syms = symtab.sh_size / sizeof(struct elf_sym);
+}
 
 static int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
                            struct image_info * info)
@@ -988,6 +1060,9 @@ static int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * r
     }
 
     free(elf_phdata);
+
+    if (loglevel)
+	load_symbols(&elf_ex, bprm->fd);
 
     if (interpreter_type != INTERPRETER_AOUT) close(bprm->fd);
     info->personality = (ibcs2_interpreter ? PER_SVR4 : PER_LINUX);

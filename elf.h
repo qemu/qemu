@@ -1,5 +1,5 @@
-#ifndef _ELF_H
-#define _ELF_H
+#ifndef _QEMU_ELF_H
+#define _QEMU_ELF_H
 
 #include <inttypes.h>
 
@@ -996,6 +996,7 @@ typedef struct elf64_note {
 #define elf_phdr	elf32_phdr
 #define elf_note	elf32_note
 #define elf_shdr	elf32_shdr
+#define elf_sym		elf32_sym
 
 #ifdef ELF_USES_RELOCA
 # define ELF_RELOC      Elf32_Rela
@@ -1009,6 +1010,7 @@ typedef struct elf64_note {
 #define elf_phdr	elf64_phdr
 #define elf_note	elf64_note
 #define elf_shdr	elf64_shdr
+#define elf_sym		elf64_sym
 
 #ifdef ELF_USES_RELOCA
 # define ELF_RELOC      Elf64_Rela
@@ -1029,4 +1031,4 @@ typedef struct elf64_note {
 #endif
 
 
-#endif /* _ELF_H */
+#endif /* _QEMU_ELF_H */
