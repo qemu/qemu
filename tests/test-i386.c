@@ -527,6 +527,12 @@ void test_fcvt(double a)
 {
     float fa;
     long double la;
+    int16_t fpuc;
+    int i;
+    int64_t lla;
+    int ia;
+    int16_t wa;
+    double ra;
 
     fa = a;
     la = a;
@@ -535,9 +541,21 @@ void test_fcvt(double a)
     printf("a=%016Lx\n", *(long long *)&a);
     printf("la=%016Lx %04x\n", *(long long *)&la, 
            *(unsigned short *)((char *)(&la) + 8));
-    printf("a=%f floor(a)=%f\n", a, floor(a));
-    printf("a=%f ceil(a)=%f\n", a, ceil(a));
-    printf("a=%f rint(a)=%f\n", a, rint(a));
+
+    /* test all roundings */
+    asm volatile ("fstcw %0" : "=m" (fpuc));
+    for(i=0;i<4;i++) {
+        asm volatile ("fldcw %0" : : "m" ((fpuc & ~0x0c00) | (i << 10)));
+        asm volatile ("fist %0" : "=m" (wa) : "t" (a));
+        asm volatile ("fistl %0" : "=m" (ia) : "t" (a));
+        asm volatile ("fistpll %0" : "=m" (lla) : "t" (a) : "st");
+        asm volatile ("frndint ; fstl %0" : "=m" (ra) : "t" (a));
+        asm volatile ("fldcw %0" : : "m" (fpuc));
+        printf("(short)a = %d\n", wa);
+        printf("(int)a = %d\n", ia);
+        printf("(int64_t)a = %Ld\n", lla);
+        printf("rint(a) = %f\n", ra);
+    }
 }
 
 #define TEST(N) \
@@ -625,9 +643,12 @@ void test_floats(void)
     test_fcmp(2, -1);
     test_fcmp(2, 2);
     test_fcmp(2, 3);
+    test_fcvt(0.5);
+    test_fcvt(-0.5);
     test_fcvt(1.0/7.0);
     test_fcvt(-1.0/9.0);
-    test_fcvt(1e30);
+    test_fcvt(32768);
+    test_fcvt(-1e20);
     test_fconst();
     test_fbcd(1234567890123456);
     test_fbcd(-123451234567890);
