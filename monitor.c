@@ -190,6 +190,11 @@ static void do_info(const char *item)
     cmd->handler();
 }
 
+static void do_info_version(void)
+{
+  term_printf("%s\n", QEMU_VERSION);
+}
+
 static void do_info_network(void)
 {
     int i, j;
@@ -864,6 +869,8 @@ static term_cmd_t term_cmds[] = {
 };
 
 static term_cmd_t info_cmds[] = {
+    { "version", "", do_info_version,
+      "", "show the version of qemu" },
     { "network", "", do_info_network,
       "", "show the network state" },
     { "block", "", do_info_block,
