@@ -235,6 +235,8 @@ void qemu_free(void *ptr)
 {
     MemoryBlock *mb;
 
+    if (!ptr)
+        return;
     mb = (MemoryBlock *)((uint8_t *)ptr - BLOCK_HEADER_SIZE);
     mb->next = first_free_block;
     first_free_block = mb;
