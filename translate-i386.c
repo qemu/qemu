@@ -132,6 +132,7 @@ typedef struct DisasContext {
     int vm86;   /* vm86 mode */
     int cpl;
     int iopl;
+    int tf;     /* TF cpu flag */
 } DisasContext;
 
 /* i386 arith/logic operations */
@@ -1364,6 +1365,15 @@ static void gen_enter(DisasContext *s, int esp_addend, int level)
         addend -= opsize * (level1 + 1);
     gen_op_addl_T1_im(addend);
     gen_op_mov_reg_T1[ot][R_ESP]();
+}
+
+static void gen_exception(DisasContext *s, int trapno, unsigned int cur_eip)
+{
+    if (s->cc_op != CC_OP_DYNAMIC)
+        gen_op_set_cc_op(s->cc_op);
+    gen_op_jmp_im(cur_eip);
+    gen_op_raise_exception(trapno);
+    s->is_jmp = 1;
 }
 
 /* return the next pc address. Return -1 if no insn found. *is_jmp_ptr
@@ -2770,8 +2780,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
     case 0x6d:
         if (s->cpl > s->iopl || s->vm86) {
             /* NOTE: even for (E)CX = 0 the exception is raised */
-            gen_op_gpf(pc_start - s->cs_base);
-            s->is_jmp = 1;
+            gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
             if ((b & 1) == 0)
                 ot = OT_BYTE;
@@ -2788,8 +2797,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
     case 0x6f:
         if (s->cpl > s->iopl || s->vm86) {
             /* NOTE: even for (E)CX = 0 the exception is raised */
-            gen_op_gpf(pc_start - s->cs_base);
-            s->is_jmp = 1;
+            gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
             if ((b & 1) == 0)
                 ot = OT_BYTE;
@@ -2808,8 +2816,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
     case 0xe4:
     case 0xe5:
         if (s->cpl > s->iopl || s->vm86) {
-            gen_op_gpf(pc_start - s->cs_base);
-            s->is_jmp = 1;
+            gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
             if ((b & 1) == 0)
                 ot = OT_BYTE;
@@ -2824,8 +2831,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
     case 0xe6:
     case 0xe7:
         if (s->cpl > s->iopl || s->vm86) {
-            gen_op_gpf(pc_start - s->cs_base);
-            s->is_jmp = 1;
+            gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
             if ((b & 1) == 0)
                 ot = OT_BYTE;
@@ -2840,8 +2846,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
     case 0xec:
     case 0xed:
         if (s->cpl > s->iopl || s->vm86) {
-            gen_op_gpf(pc_start - s->cs_base);
-            s->is_jmp = 1;
+            gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
             if ((b & 1) == 0)
                 ot = OT_BYTE;
@@ -2855,8 +2860,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
     case 0xee:
     case 0xef:
         if (s->cpl > s->iopl || s->vm86) {
-            gen_op_gpf(pc_start - s->cs_base);
-            s->is_jmp = 1;
+            gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
             if ((b & 1) == 0)
                 ot = OT_BYTE;
@@ -2928,8 +2932,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         break;
     case 0xcf: /* iret */
         if (s->vm86 && s->iopl != 3) {
-            gen_op_gpf(pc_start - s->cs_base);
-            s->is_jmp = 1;
+            gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
             /* XXX: not restartable */
             /* pop offset */
@@ -3066,8 +3069,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         /* flags */
     case 0x9c: /* pushf */
         if (s->vm86 && s->iopl != 3) {
-            gen_op_gpf(pc_start - s->cs_base);
-            s->is_jmp = 1;
+            gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
             if (s->cc_op != CC_OP_DYNAMIC)
                 gen_op_set_cc_op(s->cc_op);
@@ -3077,8 +3079,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         break;
     case 0x9d: /* popf */
         if (s->vm86 && s->iopl != 3) {
-            gen_op_gpf(pc_start - s->cs_base);
-            s->is_jmp = 1;
+            gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
             gen_pop_T0(s);
             if (s->dflag) {
@@ -3248,11 +3249,12 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
     case 0x90: /* nop */
         break;
     case 0xcc: /* int3 */
-        gen_op_int3((long)pc_start);
-        s->is_jmp = 1;
+        gen_exception(s, EXCP03_INT3, pc_start - s->cs_base);
         break;
     case 0xcd: /* int N */
         val = ldub(s->pc++);
+        if (s->cc_op != CC_OP_DYNAMIC)
+            gen_op_set_cc_op(s->cc_op);
         gen_op_int_im(val, pc_start - s->cs_base);
         s->is_jmp = 1;
         break;
@@ -3266,15 +3268,13 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             if (s->cpl <= s->iopl) {
                 gen_op_cli();
             } else {
-                gen_op_gpf(pc_start - s->cs_base);
-                s->is_jmp = 1;
+                gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
             }
         } else {
             if (s->iopl == 3) {
                 gen_op_cli();
             } else {
-                gen_op_gpf(pc_start - s->cs_base);
-                s->is_jmp = 1;
+                gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
             }
         }
         break;
@@ -3283,15 +3283,13 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             if (s->cpl <= s->iopl) {
                 gen_op_sti();
             } else {
-                gen_op_gpf(pc_start - s->cs_base);
-                s->is_jmp = 1;
+                gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
             }
         } else {
             if (s->iopl == 3) {
                 gen_op_sti();
             } else {
-                gen_op_gpf(pc_start - s->cs_base);
-                s->is_jmp = 1;
+                gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
             }
         }
         break;
@@ -3343,8 +3341,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         break;
     case 0xf4: /* hlt */
         /* XXX: if cpl == 0, then should do something else */
-        gen_op_gpf(pc_start - s->cs_base);
-        s->is_jmp = 1;
+        gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         break;
     default:
         goto illegal_op;
@@ -3453,7 +3450,6 @@ static uint16_t opc_read_flags[NB_OPS] = {
     [INDEX_op_setle_T0_subl] = CC_O | CC_S | CC_Z,
 
     [INDEX_op_movl_T0_eflags] = CC_OSZAPC,
-    [INDEX_op_movl_T0_eflags_vm] = CC_OSZAPC,
     [INDEX_op_cmc] = CC_C,
     [INDEX_op_salc] = CC_C,
 
@@ -3504,9 +3500,7 @@ static uint16_t opc_write_flags[NB_OPS] = {
 
     [INDEX_op_movb_eflags_T0] = CC_S | CC_Z | CC_A | CC_P | CC_C,
     [INDEX_op_movw_eflags_T0] = CC_OSZAPC,
-    [INDEX_op_movw_eflags_T0_vm] = CC_OSZAPC,
     [INDEX_op_movl_eflags_T0] = CC_OSZAPC,
-    [INDEX_op_movl_eflags_T0_vm] = CC_OSZAPC,
     [INDEX_op_clc] = CC_C,
     [INDEX_op_stc] = CC_C,
     [INDEX_op_cmc] = CC_C,
@@ -3726,6 +3720,7 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size,
     dc->vm86 = (flags >> GEN_FLAG_VM_SHIFT) & 1;
     dc->cpl = (flags >> GEN_FLAG_CPL_SHIFT) & 3;
     dc->iopl = (flags >> GEN_FLAG_IOPL_SHIFT) & 3;
+    dc->tf = (flags >> GEN_FLAG_TF_SHIFT) & 1;
     dc->cc_op = CC_OP_DYNAMIC;
     dc->cs_base = cs_base;
 
@@ -3747,6 +3742,10 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size,
                 break;
         }
         pc_ptr = (void *)ret;
+        /* if single step mode, we generate only one instruction and
+           generate an exception */
+        if (dc->tf)
+            break;
     } while (!dc->is_jmp && gen_opc_ptr < gen_opc_end);
     /* we must store the eflags state if it is not already done */
     if (dc->cc_op != CC_OP_DYNAMIC)
@@ -3755,6 +3754,10 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size,
         /* we add an additionnal jmp to update the simulated PC */
         gen_op_jmp_im(ret - (unsigned long)dc->cs_base);
     }
+    if (dc->tf) {
+        gen_op_raise_exception(EXCP01_SSTP);
+    }
+
     *gen_opc_ptr = INDEX_op_end;
 
 #ifdef DEBUG_DISAS
