@@ -21,6 +21,7 @@
 #ifdef _WIN32
 #include <windows.h>
 #else
+#include <sys/types.h>
 #include <sys/mman.h>
 #endif
 #include <stdlib.h>
