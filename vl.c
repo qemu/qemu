@@ -110,11 +110,12 @@ IOPortReadFunc *ioport_read_table[3][MAX_IOPORTS];
 IOPortWriteFunc *ioport_write_table[3][MAX_IOPORTS];
 BlockDriverState *bs_table[MAX_DISKS], *fd_table[MAX_FD];
 int vga_ram_size;
+int bios_size;
 static DisplayState display_state;
 int nographic;
 int64_t ticks_per_sec;
 int boot_device = 'c';
-static int ram_size;
+int ram_size;
 static char network_script[1024];
 int pit_min_timer_count = 0;
 int nb_nics;
@@ -2095,6 +2096,7 @@ int main(int argc, char **argv)
         hd_filename[i] = NULL;
     ram_size = DEFAULT_RAM_SIZE * 1024 * 1024;
     vga_ram_size = VGA_RAM_SIZE;
+    bios_size = BIOS_SIZE;
     pstrcpy(network_script, sizeof(network_script), DEFAULT_NETWORK_SCRIPT);
 #ifdef CONFIG_GDBSTUB
     use_gdbstub = 0;
@@ -2393,7 +2395,7 @@ int main(int argc, char **argv)
     }
 
     /* init the memory */
-    phys_ram_size = ram_size + vga_ram_size;
+    phys_ram_size = ram_size + vga_ram_size + bios_size;
 
 #ifdef CONFIG_SOFTMMU
 #ifdef _BSD

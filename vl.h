@@ -168,6 +168,15 @@ void vm_start(void);
 void vm_stop(int reason);
 
 extern int audio_enabled;
+extern int ram_size;
+extern int bios_size;
+
+/* XXX: make it dynamic */
+#if defined (TARGET_PPC)
+#define BIOS_SIZE (512 * 1024)
+#else
+#define BIOS_SIZE 0
+#endif
 
 /* async I/O support */
 
