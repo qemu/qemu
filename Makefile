@@ -13,10 +13,14 @@ OP_CFLAGS+= -falign-functions=0
 else
 OP_CFLAGS+= -malign-functions=0
 endif
+ifdef TARGET_GPROF
+LDFLAGS+=-Wl,-T,i386.ld
+else
 # WARNING: this LDFLAGS is _very_ tricky : qemu is an ELF shared object
 # that the kernel ELF loader considers as an executable. I think this
 # is the simplest way to make it self virtualizable!
 LDFLAGS+=-Wl,-shared
+endif
 endif
 
 ifeq ($(ARCH),ppc)
@@ -111,10 +115,13 @@ libqemu.a: $(LIBOBJS)
 dyngen: dyngen.c
 	$(HOST_CC) -O2 -Wall -g $< -o $@
 
-translate-i386.o: translate-i386.c op-i386.h cpu-i386.h
+translate-i386.o: translate-i386.c op-i386.h opc-i386.h cpu-i386.h
 
 op-i386.h: op-i386.o dyngen
 	./dyngen -o $@ $<
+
+opc-i386.h: op-i386.o dyngen
+	./dyngen -c -o $@ $<
 
 op-i386.o: op-i386.c opreg_template.h ops_template.h
 	$(CC) $(OP_CFLAGS) $(DEFINES) -c -o $@ $<
@@ -148,7 +155,7 @@ README README.distrib COPYING COPYING.LIB TODO Changelog VERSION \
 dyngen.c ioctls.h ops_template.h op_string.h  syscall_types.h\
 Makefile     elf.h       thunk.c\
 elfload.c   main.c            signal.c        thunk.h exec.h\
-cpu-i386.h qemu.h op-i386.c opc-i386.h syscall-i386.h  translate-i386.c\
+cpu-i386.h qemu.h op-i386.c syscall-i386.h  translate-i386.c\
 syscall.c opreg_template.h  syscall_defs.h vm86.c\
 dis-asm.h dis-buf.c disas.c disas.h alpha-dis.c ppc-dis.c i386-dis.c\
 ppc.ld s390.ld exec-i386.h exec-i386.c path.c exec.c mmap.c configure \
