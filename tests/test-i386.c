@@ -612,30 +612,21 @@ void test_fbcd(double a)
            a, bcd[4], bcd[3], bcd[2], bcd[1], bcd[0], b);
 }
 
-#define TEST_ENV(env, prefix)\
+#define TEST_ENV(env, save, restore)\
 {\
     memset((env), 0xaa, sizeof(*(env)));\
-    asm("fld1\n"\
-        prefix "fnstenv %1\n"\
-        prefix "fldenv %1\n"\
-        : "=t" (res) : "m" (*(env)));\
-    printf("res=%f\n", res);\
+    for(i=0;i<5;i++)\
+        asm volatile ("fldl %0" : : "m" (dtab[i]));\
+    asm(save " %0\n" : : "m" (*(env)));\
+    asm(restore " %0\n": : "m" (*(env)));\
+    for(i=0;i<5;i++)\
+        asm volatile ("fstpl %0" : "=m" (rtab[i]));\
+    for(i=0;i<5;i++)\
+        printf("res[%d]=%f\n", i, rtab[i]);\
     printf("fpuc=%04x fpus=%04x fptag=%04x\n",\
            (env)->fpuc,\
            (env)->fpus & 0xff00,\
            (env)->fptag);\
-    memset((env), 0xaa, sizeof(*(env)));\
-    asm("fld1\n"\
-        prefix "fnsave %1\n"\
-        prefix "frstor %1\n"\
-        : "=t" (res) : "m" (*(env)));\
-    printf("res=%f\n", res);\
-    printf("fpuc=%04x fpus=%04x fptag=%04x\n",\
-           (env)->fpuc,\
-           (env)->fpus & 0xff00,\
-           (env)->fptag);\
-    printf("ST(0) = %Lf\n",\
-           (env)->fpregs[0]);\
 }
 
 void test_fenv(void)
@@ -657,10 +648,17 @@ void test_fenv(void)
         uint16_t ignored[4];
         long double fpregs[8];
     } float_env16;
-    double res;
+    double dtab[8];
+    double rtab[8];
+    int i;
 
-    TEST_ENV(&float_env16, "data16 ");
-    TEST_ENV(&float_env32, "");
+    for(i=0;i<8;i++)
+        dtab[i] = i + 1;
+
+    TEST_ENV(&float_env16, "data16 fnstenv", "data16 fldenv");
+    TEST_ENV(&float_env16, "data16 fnsave", "data16 frstor");
+    TEST_ENV(&float_env32, "fnstenv", "fldenv");
+    TEST_ENV(&float_env32, "fnsave", "frstor");
 }
 
 
