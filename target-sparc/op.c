@@ -812,6 +812,11 @@ void OPPROTO op_movl_npc_T0(void)
     env->npc = T0;
 }
 
+void OPPROTO op_mov_pc_npc(void)
+{
+    env->pc = env->npc;
+}
+
 void OPPROTO op_next_insn(void)
 {
     env->pc = env->npc;

@@ -427,6 +427,20 @@ static inline void save_state(DisasContext * dc)
     save_npc(dc);
 }
 
+static inline void gen_mov_pc_npc(DisasContext * dc)
+{
+    if (dc->npc == JUMP_PC) {
+        gen_op_generic_branch(dc->jump_pc[0], dc->jump_pc[1]);
+        gen_op_mov_pc_npc();
+        dc->pc = DYNAMIC_PC;
+    } else if (dc->npc == DYNAMIC_PC) {
+        gen_op_mov_pc_npc();
+        dc->pc = DYNAMIC_PC;
+    } else {
+        dc->pc = dc->npc;
+    }
+}
+
 static void gen_cond(int cond)
 {
 	switch (cond) {
@@ -525,6 +539,7 @@ static void gen_fcond(int cond)
 	}
 }
 
+/* XXX: potentially incorrect if dynamic npc */
 static void do_branch(DisasContext * dc, int32_t offset, uint32_t insn)
 {
     unsigned int cond = GET_FIELD(insn, 3, 6), a = (insn & (1 << 29));
@@ -533,7 +548,7 @@ static void do_branch(DisasContext * dc, int32_t offset, uint32_t insn)
     if (cond == 0x0) {
 	/* unconditional not taken */
 	if (a) {
-	    dc->pc = dc->npc + 4;
+	    dc->pc = dc->npc + 4; 
 	    dc->npc = dc->pc + 4;
 	} else {
 	    dc->pc = dc->npc;
@@ -563,6 +578,7 @@ static void do_branch(DisasContext * dc, int32_t offset, uint32_t insn)
     }
 }
 
+/* XXX: potentially incorrect if dynamic npc */
 static void do_fbranch(DisasContext * dc, int32_t offset, uint32_t insn)
 {
     unsigned int cond = GET_FIELD(insn, 3, 6), a = (insn & (1 << 29));
@@ -609,6 +625,7 @@ static int sign_extend(int x, int len)
     return (x << len) >> len;
 }
 
+/* before an instruction, dc->pc must be static */
 static void disas_sparc_insn(DisasContext * dc)
 {
     unsigned int insn, opc, rs1, rs2, rd;
@@ -669,7 +686,7 @@ static void disas_sparc_insn(DisasContext * dc)
 	    gen_op_movl_T0_im(dc->pc);
 	    gen_movl_T0_reg(15);
 	    target += dc->pc;
-	    dc->pc = dc->npc;
+            gen_mov_pc_npc(dc);
 	    dc->npc = target;
 	}
 	goto jmp_insn;
@@ -1173,12 +1190,12 @@ static void disas_sparc_insn(DisasContext * dc)
 		switch (xop) {
 		case 0x38:	/* jmpl */
 		    {
-			gen_op_movl_npc_T0();
 			if (rd != 0) {
-			    gen_op_movl_T0_im(dc->pc);
-			    gen_movl_T0_reg(rd);
+			    gen_op_movl_T1_im(dc->pc);
+			    gen_movl_T1_reg(rd);
 			}
-			dc->pc = dc->npc;
+                        gen_mov_pc_npc(dc);
+			gen_op_movl_npc_T0();
 			dc->npc = DYNAMIC_PC;
 		    }
 		    goto jmp_insn;
@@ -1187,10 +1204,12 @@ static void disas_sparc_insn(DisasContext * dc)
 		    {
 			if (!supervisor(dc))
 			    goto priv_insn;
+                        gen_mov_pc_npc(dc);
 			gen_op_movl_npc_T0();
+			dc->npc = DYNAMIC_PC;
 			gen_op_rett();
 		    }
-		    break;
+		    goto jmp_insn;
 #endif
 		case 0x3b: /* flush */
 		    gen_op_flush_T0();
@@ -1605,6 +1624,7 @@ void cpu_reset(CPUSPARCState *env)
     env->user_mode_only = 1;
 #else
     env->psrs = 1;
+    env->psrps = 1;
     env->pc = 0xffd00000;
     env->gregs[1] = ram_size;
     env->mmuregs[0] = (0x04 << 24); /* Impl 0, ver 4, MMU disabled */
