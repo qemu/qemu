@@ -161,7 +161,7 @@ extern int __op_param1, __op_param2, __op_param3;
 #define PARAM3 ((long)(&__op_param3))
 #endif
 
-extern int __op_jmp0, __op_jmp1;
+extern int __op_jmp0, __op_jmp1, __op_jmp2, __op_jmp3;
 
 #ifdef __i386__
 #define EXIT_TB() asm volatile ("ret")

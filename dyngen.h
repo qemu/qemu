@@ -19,7 +19,7 @@
  */
 
 int __op_param1, __op_param2, __op_param3;
-int __op_jmp0, __op_jmp1;
+int __op_jmp0, __op_jmp1, __op_jmp2, __op_jmp3;
 
 #ifdef __i386__
 static inline void flush_icache_range(unsigned long start, unsigned long stop)
