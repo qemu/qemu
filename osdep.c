@@ -294,6 +294,16 @@ void *qemu_mallocz(size_t size)
     return ptr;
 }
 
+char *qemu_strdup(const char *str)
+{
+    char *ptr;
+    ptr = qemu_malloc(strlen(str) + 1);
+    if (!ptr)
+        return NULL;
+    strcpy(ptr, str);
+    return ptr;
+}
+
 /****************************************************************/
 /* printf support */
 

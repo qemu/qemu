@@ -10,6 +10,7 @@ void qemu_printf(const char *fmt, ...);
 void *qemu_malloc(size_t size);
 void *qemu_mallocz(size_t size);
 void qemu_free(void *ptr);
+char *qemu_strdup(const char *str);
 
 void *get_mmap_addr(unsigned long size);
 
