@@ -982,6 +982,12 @@ void qemu_chr_printf(CharDriverState *s, const char *fmt, ...)
     va_end(ap);
 }
 
+void qemu_chr_send_event(CharDriverState *s, int event)
+{
+    if (s->chr_send_event)
+        s->chr_send_event(s, event);
+}
+
 void qemu_chr_add_read_handler(CharDriverState *s, 
                                IOCanRWHandler *fd_can_read, 
                                IOReadHandler *fd_read, void *opaque)
@@ -2179,7 +2185,7 @@ static void main_cpu_reset(void *opaque)
 #endif
 }
 
-int main_loop(void)
+void main_loop_wait(int timeout)
 {
 #ifndef _WIN32
     struct pollfd ufds[MAX_IO_HANDLERS + 1], *pf;
@@ -2187,39 +2193,12 @@ int main_loop(void)
     uint8_t buf[4096];
     int n, max_size;
 #endif
-    int ret, timeout;
-    CPUState *env = global_env;
-
-    for(;;) {
-        if (vm_running) {
-            ret = cpu_exec(env);
-            if (shutdown_requested) {
-                ret = EXCP_INTERRUPT; 
-                break;
-            }
-            if (reset_requested) {
-                reset_requested = 0;
-                qemu_system_reset();
-                ret = EXCP_INTERRUPT; 
-            }
-            if (ret == EXCP_DEBUG) {
-                vm_stop(EXCP_DEBUG);
-            }
-            /* if hlt instruction, we wait until the next IRQ */
-            /* XXX: use timeout computed from timers */
-            if (ret == EXCP_HLT) 
-                timeout = 10;
-            else
-                timeout = 0;
-        } else {
-            timeout = 10;
-        }
+    int ret;
 
 #ifdef _WIN32
         if (timeout > 0)
             Sleep(timeout);
 #else
-
         /* poll any events */
         /* XXX: separate device handlers from system ones */
         pf = ufds;
@@ -2269,7 +2248,7 @@ int main_loop(void)
                 }
             }
         }
-
+#endif /* !defined(_WIN32) */
 #if defined(CONFIG_SLIRP)
         /* XXX: merge with poll() */
         if (slirp_inited) {
@@ -2291,8 +2270,6 @@ int main_loop(void)
         }
 #endif
 
-#endif
-
         if (vm_running) {
             qemu_run_timers(&active_timers[QEMU_TIMER_VIRTUAL], 
                             qemu_get_clock(vm_clock));
@@ -2309,6 +2286,38 @@ int main_loop(void)
         /* real time timers */
         qemu_run_timers(&active_timers[QEMU_TIMER_REALTIME], 
                         qemu_get_clock(rt_clock));
+}
+
+int main_loop(void)
+{
+    int ret, timeout;
+    CPUState *env = global_env;
+
+    for(;;) {
+        if (vm_running) {
+            ret = cpu_exec(env);
+            if (shutdown_requested) {
+                ret = EXCP_INTERRUPT; 
+                break;
+            }
+            if (reset_requested) {
+                reset_requested = 0;
+                qemu_system_reset();
+                ret = EXCP_INTERRUPT; 
+            }
+            if (ret == EXCP_DEBUG) {
+                vm_stop(EXCP_DEBUG);
+            }
+            /* if hlt instruction, we wait until the next IRQ */
+            /* XXX: use timeout computed from timers */
+            if (ret == EXCP_HLT) 
+                timeout = 10;
+            else
+                timeout = 0;
+        } else {
+            timeout = 10;
+        }
+        main_loop_wait(timeout);
     }
     cpu_disable_ticks();
     return ret;
@@ -2508,6 +2517,43 @@ const QEMUOption qemu_options[] = {
 static uint8_t *signal_stack;
 
 #endif
+
+/* password input */
+
+static BlockDriverState *get_bdrv(int index)
+{
+    BlockDriverState *bs;
+
+    if (index < 4) {
+        bs = bs_table[index];
+    } else if (index < 6) {
+        bs = fd_table[index - 4];
+    } else {
+        bs = NULL;
+    }
+    return bs;
+}
+
+static void read_passwords(void)
+{
+    BlockDriverState *bs;
+    int i, j;
+    char password[256];
+
+    for(i = 0; i < 6; i++) {
+        bs = get_bdrv(i);
+        if (bs && bdrv_is_encrypted(bs)) {
+            term_printf("%s is encrypted.\n", bdrv_get_device_name(bs));
+            for(j = 0; j < 3; j++) {
+                monitor_readline("Password: ", 
+                                 1, password, sizeof(password));
+                if (bdrv_set_key(bs, password) == 0)
+                    break;
+                term_printf("invalid password\n");
+            }
+        }
+    }
+}
 
 #define NET_IF_TUN   0
 #define NET_IF_USER  1
@@ -2952,6 +2998,7 @@ int main(int argc, char **argv)
 #endif
 
     /* we always create the cdrom drive, even if no disk is there */
+    bdrv_init();
     if (has_cdrom) {
         bs_table[2] = bdrv_new("cdrom");
         bdrv_set_type_hint(bs_table[2], BDRV_TYPE_CDROM);
@@ -2966,7 +3013,7 @@ int main(int argc, char **argv)
                 bs_table[i] = bdrv_new(buf);
             }
             if (bdrv_open(bs_table[i], hd_filename[i], snapshot) < 0) {
-                fprintf(stderr, "qemu: could not open hard disk image '%s\n",
+                fprintf(stderr, "qemu: could not open hard disk image '%s'\n",
                         hd_filename[i]);
                 exit(1);
             }
@@ -3106,13 +3153,17 @@ int main(int argc, char **argv)
         } else {
             printf("Waiting gdb connection on port %d\n", gdbstub_port);
         }
+        term_init();
     } else 
 #endif
-    if (start_emulation)
     {
-        vm_start();
+        term_init();
+        /* XXX: simplify init */
+        read_passwords();
+        if (start_emulation) {
+            vm_start();
+        }
     }
-    term_init();
     main_loop();
     quit_timers();
     return 0;
