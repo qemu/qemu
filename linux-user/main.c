@@ -191,6 +191,41 @@ void INT_handler(int num, void *env)
 }
 
 /***********************************************************/
+/* new CPU core */
+
+void port_outb(int addr, int val)
+{
+    fprintf(stderr, "outb: port=0x%04x, data=%02x\n", addr, val);
+}
+
+void port_outw(int addr, int val)
+{
+    fprintf(stderr, "outw: port=0x%04x, data=%04x\n", addr, val);
+}
+
+void port_outl(int addr, int val)
+{
+    fprintf(stderr, "outl: port=0x%04x, data=%08x\n", addr, val);
+}
+
+int port_inb(int addr)
+{
+    fprintf(stderr, "inb: port=0x%04x\n", addr);
+    return 0;
+}
+
+int port_inw(int addr)
+{
+    fprintf(stderr, "inw: port=0x%04x\n", addr);
+    return 0;
+}
+
+int port_inl(int addr)
+{
+    fprintf(stderr, "inl: port=0x%04x\n", addr);
+    return 0;
+}
+
 
 /* XXX: currently we use LDT entries */
 #define __USER_CS	(0x23|4)
@@ -270,6 +305,7 @@ int main(int argc, char **argv)
     LDT[__USER_DS >> 3].dwSelLimit = 0xfffff;
     LDT[__USER_DS >> 3].lpSelBase = NULL;
     init_npu();
+    build_decode_tables();
 
     for(;;) {
         int err;

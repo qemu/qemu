@@ -8,6 +8,8 @@ typedef signed short int16_t;
 typedef signed int int32_t;
 typedef signed long long int64_t;
 
+#define NULL 0
+
 #ifdef __i386__
 register int T0 asm("esi");
 register int T1 asm("ebx");
@@ -74,12 +76,11 @@ extern int __op_param1, __op_param2, __op_param3;
 #include "cpu-i386.h"
 
 typedef struct CCTable {
-    int (*compute_c)(void);  /* return the C flag */
-    int (*compute_z)(void);  /* return the Z flag */
-    int (*compute_s)(void);  /* return the S flag */
-    int (*compute_o)(void);  /* return the O flag */
     int (*compute_all)(void); /* return all the flags */
+    int (*compute_c)(void);  /* return the C flag */
 } CCTable;
+
+extern CCTable cc_table[];
 
 uint8_t parity_table[256] = {
     CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
@@ -116,120 +117,30 @@ uint8_t parity_table[256] = {
     0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
 };
 
-static int compute_eflags_all(void)
-{
-    return CC_SRC;
-}
-
-static int compute_eflags_addb(void)
-{
-    int cf, pf, af, zf, sf, of;
-    int src1, src2;
-    src1 = CC_SRC;
-    src2 = CC_DST - CC_SRC;
-    cf = (uint8_t)CC_DST < (uint8_t)src1;
-    pf = parity_table[(uint8_t)CC_DST];
-    af = (CC_DST ^ src1 ^ src2) & 0x10;
-    zf = ((uint8_t)CC_DST != 0) << 6;
-    sf = CC_DST & 0x80;
-    of = ((src1 ^ src2 ^ -1) & (src1 ^ CC_DST) & 0x80) << 4;
-    return cf | pf | af | zf | sf | of;
-}
-
-static int compute_eflags_subb(void)
-{
-    int cf, pf, af, zf, sf, of;
-    int src1, src2;
-    src1 = CC_SRC;
-    src2 = CC_SRC - CC_DST;
-    cf = (uint8_t)src1 < (uint8_t)src2;
-    pf = parity_table[(uint8_t)CC_DST];
-    af = (CC_DST ^ src1 ^ src2) & 0x10;
-    zf = ((uint8_t)CC_DST != 0) << 6;
-    sf = CC_DST & 0x80;
-    of = ((src1 ^ src2 ^ -1) & (src1 ^ CC_DST) & 0x80) << 4;
-    return cf | pf | af | zf | sf | of;
-}
-
-static int compute_eflags_logicb(void)
-{
-    cf = 0;
-    pf = parity_table[(uint8_t)CC_DST];
-    af = 0;
-    zf = ((uint8_t)CC_DST != 0) << 6;
-    sf = CC_DST & 0x80;
-    of = 0;
-    return cf | pf | af | zf | sf | of;
-}
-
-static int compute_eflags_incb(void)
-{
-    int cf, pf, af, zf, sf, of;
-    int src2;
-    src1 = CC_DST - 1;
-    src2 = 1;
-    cf = CC_SRC;
-    pf = parity_table[(uint8_t)CC_DST];
-    af = (CC_DST ^ src1 ^ src2) & 0x10;
-    zf = ((uint8_t)CC_DST != 0) << 6;
-    sf = CC_DST & 0x80;
-    of = ((src1 ^ src2 ^ -1) & (src1 ^ CC_DST) & 0x80) << 4;
-    return cf | pf | af | zf | sf | of;
-}
-
-static int compute_eflags_decb(void)
-{
-    int cf, pf, af, zf, sf, of;
-    int src1, src2;
-    src1 = CC_DST + 1;
-    src2 = 1;
-    cf = (uint8_t)src1 < (uint8_t)src2;
-    pf = parity_table[(uint8_t)CC_DST];
-    af = (CC_DST ^ src1 ^ src2) & 0x10;
-    zf = ((uint8_t)CC_DST != 0) << 6;
-    sf = CC_DST & 0x80;
-    of = ((src1 ^ src2 ^ -1) & (src1 ^ CC_DST) & 0x80) << 4;
-    return cf | pf | af | zf | sf | of;
-}
-
-static int compute_eflags_shlb(void)
-{
-    cf = CC_SRC;
-    pf = parity_table[(uint8_t)CC_DST];
-    af = 0; /* undefined */
-    zf = ((uint8_t)CC_DST != 0) << 6;
-    sf = CC_DST & 0x80;
-    of = 0; /* undefined */
-    return cf | pf | af | zf | sf | of;
-}
-
-static int compute_eflags_shrb(void)
-{
-    cf = CC_SRC & 1;
-    pf = parity_table[(uint8_t)CC_DST];
-    af = 0; /* undefined */
-    zf = ((uint8_t)CC_DST != 0) << 6;
-    sf = CC_DST & 0x80;
-    of = sf << 4;
-    return cf | pf | af | zf | sf | of;
-}
-
-static int compute_eflags_mul(void)
-{
-    cf = (CC_SRC != 0);
-    pf = 0; /* undefined */
-    af = 0; /* undefined */
-    zf = 0; /* undefined */
-    sf = 0; /* undefined */
-    of = cf << 11;
-    return cf | pf | af | zf | sf | of;
-}
-    
-CTable cc_table[CC_OP_NB] = {
-    [CC_OP_DYNAMIC] = { NULL, NULL, NULL },
-    [CC_OP_EFLAGS] = { NULL, NULL, NULL },
-    
+/* modulo 17 table */
+const uint8_t rclw_table[32] = {
+    0, 1, 2, 3, 4, 5, 6, 7, 
+    8, 9,10,11,12,13,14,15,
+   16, 0, 1, 2, 3, 4, 5, 6,
+    7, 8, 9,10,11,12,13,14,
 };
+
+/* modulo 9 table */
+const uint8_t rclb_table[32] = {
+    0, 1, 2, 3, 4, 5, 6, 7, 
+    8, 0, 1, 2, 3, 4, 5, 6,
+    7, 8, 0, 1, 2, 3, 4, 5, 
+    6, 7, 8, 0, 1, 2, 3, 4,
+};
+
+/* n must be a constant to be efficient */
+static inline int lshift(int x, int n)
+{
+    if (n >= 0)
+        return x << n;
+    else
+        return x >> (-n);
+}
 
 /* we define the various pieces of code used by the JIT */
 
@@ -363,338 +274,6 @@ void OPPROTO op_testl_T0_T1_cc(void)
 {
     CC_SRC = T0;
     CC_DST = T0 & T1;
-}
-
-/* shifts */
-
-void OPPROTO op_roll_T0_T1_cc(void)
-{
-    int count;
-    count = T1 & 0x1f;
-    if (count) {
-        CC_SRC = T0;
-        T0 = (T0 << count) | (T0 >> (32 - count));
-        CC_DST = T0;
-        CC_OP = CC_OP_ROLL;
-    }
-}
-
-void OPPROTO op_rolw_T0_T1_cc(void)
-{
-    int count;
-    count = T1 & 0xf;
-    if (count) {
-        T0 = T0 & 0xffff;
-        CC_SRC = T0;
-        T0 = (T0 << count) | (T0 >> (16 - count));
-        CC_DST = T0;
-        CC_OP = CC_OP_ROLW;
-    }
-}
-
-void OPPROTO op_rolb_T0_T1_cc(void)
-{
-    int count;
-    count = T1 & 0x7;
-    if (count) {
-        T0 = T0 & 0xff;
-        CC_SRC = T0;
-        T0 = (T0 << count) | (T0 >> (8 - count));
-        CC_DST = T0;
-        CC_OP = CC_OP_ROLB;
-    }
-}
-
-void OPPROTO op_rorl_T0_T1_cc(void)
-{
-    int count;
-    count = T1 & 0x1f;
-    if (count) {
-        CC_SRC = T0;
-        T0 = (T0 >> count) | (T0 << (32 - count));
-        CC_DST = T0;
-        CC_OP = CC_OP_RORB;
-    }
-}
-
-void OPPROTO op_rorw_T0_T1_cc(void)
-{
-    int count;
-    count = T1 & 0xf;
-    if (count) {
-        CC_SRC = T0;
-        T0 = (T0 >> count) | (T0 << (16 - count));
-        CC_DST = T0;
-        CC_OP = CC_OP_RORW;
-    }
-}
-
-void OPPROTO op_rorb_T0_T1_cc(void)
-{
-    int count;
-    count = T1 & 0x7;
-    if (count) {
-        CC_SRC = T0;
-        T0 = (T0 >> count) | (T0 << (8 - count));
-        CC_DST = T0;
-        CC_OP = CC_OP_RORL;
-    }
-}
-
-/* modulo 17 table */
-const uint8_t rclw_table[32] = {
-    0, 1, 2, 3, 4, 5, 6, 7, 
-    8, 9,10,11,12,13,14,15,
-   16, 0, 1, 2, 3, 4, 5, 6,
-    7, 8, 9,10,11,12,13,14,
-};
-
-/* modulo 9 table */
-const uint8_t rclb_table[32] = {
-    0, 1, 2, 3, 4, 5, 6, 7, 
-    8, 0, 1, 2, 3, 4, 5, 6,
-    7, 8, 0, 1, 2, 3, 4, 5, 
-    6, 7, 8, 0, 1, 2, 3, 4,
-};
-
-void helper_rcll_T0_T1_cc(void)
-{
-    int count, res;
-
-    count = T1 & 0x1f;
-    if (count) {
-        CC_SRC = T0;
-        res = (T0 << count) | (cc_table[CC_OP].compute_c() << (count - 1));
-        if (count > 1)
-            res |= T0 >> (33 - count);
-        T0 = res;
-        CC_DST = T0 ^ CC_SRC;    /* O is in bit 31 */
-        CC_SRC >>= (32 - count); /* CC is in bit 0 */
-        CC_OP = CC_OP_RCLL;
-    }
-}
-
-void OPPROTO op_rcll_T0_T1_cc(void)
-{
-    helper_rcll_T0_T1_cc();
-}
-
-void OPPROTO op_rclw_T0_T1_cc(void)
-{
-    int count;
-    count = rclw_table[T1 & 0x1f];
-    if (count) {
-        T0 = T0 & 0xffff;
-        CC_SRC = T0;
-        T0 = (T0 << count) | (cc_table[CC_OP].compute_c() << (count - 1)) |
-            (T0 >> (17 - count));
-        CC_DST = T0 ^ CC_SRC;
-        CC_SRC >>= (16 - count);
-        CC_OP = CC_OP_RCLW;
-    }
-}
-
-void OPPROTO op_rclb_T0_T1_cc(void)
-{
-    int count;
-    count = rclb_table[T1 & 0x1f];
-    if (count) {
-        T0 = T0 & 0xff;
-        CC_SRC = T0;
-        T0 = (T0 << count) | (cc_table[CC_OP].compute_c() << (count - 1)) |
-            (T0 >> (9 - count));
-        CC_DST = T0 ^ CC_SRC;
-        CC_SRC >>= (8 - count);
-        CC_OP = CC_OP_RCLB;
-    }
-}
-
-void OPPROTO op_rcrl_T0_T1_cc(void)
-{
-    int count, res;
-    count = T1 & 0x1f;
-    if (count) {
-        CC_SRC = T0;
-        res = (T0 >> count) | (cc_table[CC_OP].compute_c() << (32 - count));
-        if (count > 1)
-            res |= T0 << (33 - count);
-        T0 = res;
-        CC_DST = T0 ^ CC_SRC;
-        CC_SRC >>= (count - 1);
-        CC_OP = CC_OP_RCLL;
-    }
-}
-
-void OPPROTO op_rcrw_T0_T1_cc(void)
-{
-    int count;
-    count = rclw_table[T1 & 0x1f];
-    if (count) {
-        T0 = T0 & 0xffff;
-        CC_SRC = T0;
-        T0 = (T0 >> count) | (cc_table[CC_OP].compute_c() << (16 - count)) |
-            (T0 << (17 - count));
-        CC_DST = T0 ^ CC_SRC;
-        CC_SRC >>= (count - 1);
-        CC_OP = CC_OP_RCLW;
-    }
-}
-
-void OPPROTO op_rcrb_T0_T1_cc(void)
-{
-    int count;
-    count = rclb_table[T1 & 0x1f];
-    if (count) {
-        T0 = T0 & 0xff;
-        CC_SRC = T0;
-        T0 = (T0 >> count) | (cc_table[CC_OP].compute_c() << (8 - count)) |
-            (T0 << (9 - count));
-        CC_DST = T0 ^ CC_SRC;
-        CC_SRC >>= (count - 1);
-        CC_OP = CC_OP_RCLB;
-    }
-}
-
-void OPPROTO op_shll_T0_T1_cc(void)
-{
-    int count;
-    count = T1 & 0x1f;
-    if (count == 1) {
-        CC_SRC = T0;
-        T0 = T0 << 1;
-        CC_DST = T0;
-        CC_OP = CC_OP_ADDL;
-    } else if (count) {
-        CC_SRC = T0 >> (32 - count);
-        T0 = T0 << count;
-        CC_DST = T0;
-        CC_OP = CC_OP_SHLL;
-    }
-}
-
-void OPPROTO op_shlw_T0_T1_cc(void)
-{
-    int count;
-    count = T1 & 0x1f;
-    if (count == 1) {
-        CC_SRC = T0;
-        T0 = T0 << 1;
-        CC_DST = T0;
-        CC_OP = CC_OP_ADDW;
-    } else if (count) {
-        CC_SRC = T0 >> (16 - count);
-        T0 = T0 << count;
-        CC_DST = T0;
-        CC_OP = CC_OP_SHLW;
-    }
-}
-
-void OPPROTO op_shlb_T0_T1_cc(void)
-{
-    int count;
-    count = T1 & 0x1f;
-    if (count == 1) {
-        CC_SRC = T0;
-        T0 = T0 << 1;
-        CC_DST = T0;
-        CC_OP = CC_OP_ADDB;
-    } else if (count) {
-        CC_SRC = T0 >> (8 - count);
-        T0 = T0 << count;
-        CC_DST = T0;
-        CC_OP = CC_OP_SHLB;
-    }
-}
-
-void OPPROTO op_shrl_T0_T1_cc(void)
-{
-    int count;
-    count = T1 & 0x1f;
-    if (count == 1) {
-        CC_SRC = T0;
-        T0 = T0 >> 1;
-        CC_DST = T0;
-        CC_OP = CC_OP_SHRL;
-    } else if (count) {
-        CC_SRC = T0 >> (count - 1);
-        T0 = T0 >> count;
-        CC_DST = T0;
-        CC_OP = CC_OP_SHLL;
-    }
-}
-
-void OPPROTO op_shrw_T0_T1_cc(void)
-{
-    int count;
-    count = T1 & 0x1f;
-    if (count == 1) {
-        T0 = T0 & 0xffff;
-        CC_SRC = T0;
-        T0 = T0 >> 1;
-        CC_DST = T0;
-        CC_OP = CC_OP_SHRW;
-    } else if (count) {
-        T0 = T0 & 0xffff;
-        CC_SRC = T0 >> (count - 1);
-        T0 = T0 >> count;
-        CC_DST = T0;
-        CC_OP = CC_OP_SHLW;
-    }
-}
-
-void OPPROTO op_shrb_T0_T1_cc(void)
-{
-    int count;
-    count = T1 & 0x1f;
-    if (count == 1) {
-        T0 = T0 & 0xff;
-        CC_SRC = T0;
-        T0 = T0 >> 1;
-        CC_DST = T0;
-        CC_OP = CC_OP_SHRB;
-    } else if (count) {
-        T0 = T0 & 0xff;
-        CC_SRC = T0 >> (count - 1);
-        T0 = T0 >> count;
-        CC_DST = T0;
-        CC_OP = CC_OP_SHLB;
-    }
-}
-
-void OPPROTO op_sarl_T0_T1_cc(void)
-{
-    int count;
-    count = T1 & 0x1f;
-    if (count) {
-        CC_SRC = (int32_t)T0 >> (count - 1);
-        T0 = (int32_t)T0 >> count;
-        CC_DST = T0;
-        CC_OP = CC_OP_SHLL;
-    }
-}
-
-void OPPROTO op_sarw_T0_T1_cc(void)
-{
-    int count;
-    count = T1 & 0x1f;
-    if (count) {
-        CC_SRC = (int16_t)T0 >> (count - 1);
-        T0 = (int16_t)T0 >> count;
-        CC_DST = T0;
-        CC_OP = CC_OP_SHLW;
-    }
-}
-
-void OPPROTO op_sarb_T0_T1_cc(void)
-{
-    int count;
-    count = T1 & 0x1f;
-    if (count) {
-        CC_SRC = (int8_t)T0 >> (count - 1);
-        T0 = (int8_t)T0 >> count;
-        CC_DST = T0;
-        CC_OP = CC_OP_SHLB;
-    }
 }
 
 /* multiply/divide */
@@ -924,41 +503,6 @@ void OPPROTO op_stl_T0_A0(void)
     stl((uint8_t *)A0, T0);
 }
 
-/* flags */
-
-void OPPROTO op_set_cc_op(void)
-{
-    CC_OP = PARAM1;
-}
-
-void OPPROTO op_movl_eflags_T0(void)
-{
-    CC_SRC = T0;
-    DF = (T0 & DIRECTION_FLAG) ? -1 : 1;
-}
-
-void OPPROTO op_movb_eflags_T0(void)
-{
-    int cc_o;
-    cc_o = cc_table[CC_OP].compute_o();
-    CC_SRC = T0 | (cc_o << 11);
-}
-
-void OPPROTO op_movl_T0_eflags(void)
-{
-    cc_table[CC_OP].compute_eflags();
-}
-
-void OPPROTO op_cld(void)
-{
-    DF = 1;
-}
-
-void OPPROTO op_std(void)
-{
-    DF = -1;
-}
-
 /* jumps */
 
 /* indirect jump */
@@ -972,54 +516,20 @@ void OPPROTO op_jmp_im(void)
     PC = PARAM1;
 }
 
-void OPPROTO op_jne_b(void)
-{
-    if ((uint8_t)CC_DST != 0)
-        PC += PARAM1;
-    else
-        PC += PARAM2;
-    FORCE_RET();
-}
-
-void OPPROTO op_jne_w(void)
-{
-    if ((uint16_t)CC_DST != 0)
-        PC += PARAM1;
-    else
-        PC += PARAM2;
-    FORCE_RET();
-}
-
-void OPPROTO op_jne_l(void)
-{
-    if (CC_DST != 0)
-        PC += PARAM1;
-    else
-        PC += PARAM2;
-    FORCE_RET(); /* generate a return so that gcc does not generate an
-                    early function return */
-}
-
 /* string ops */
 
 #define ldul ldl
 
-#define SUFFIX b
 #define SHIFT 0
-#include "opstring_template.h"
-#undef SUFFIX
+#include "ops_template.h"
 #undef SHIFT
 
-#define SUFFIX w
 #define SHIFT 1
-#include "opstring_template.h"
-#undef SUFFIX
+#include "ops_template.h"
 #undef SHIFT
 
-#define SUFFIX l
 #define SHIFT 2
-#include "opstring_template.h"
-#undef SUFFIX
+#include "ops_template.h"
 #undef SHIFT
 
 /* sign extend */
@@ -1095,3 +605,264 @@ void op_addl_ESP_im(void)
 {
     ESP += PARAM1;
 }
+
+/* flags handling */
+
+/* slow jumps cases (compute x86 flags) */
+void OPPROTO op_jo_cc(void)
+{
+    int eflags;
+    eflags = cc_table[CC_OP].compute_all();
+    if (eflags & CC_O)
+        PC += PARAM1;
+    else
+        PC += PARAM2;
+}
+
+void OPPROTO op_jb_cc(void)
+{
+    if (cc_table[CC_OP].compute_c())
+        PC += PARAM1;
+    else
+        PC += PARAM2;
+}
+
+void OPPROTO op_jz_cc(void)
+{
+    int eflags;
+    eflags = cc_table[CC_OP].compute_all();
+    if (eflags & CC_Z)
+        PC += PARAM1;
+    else
+        PC += PARAM2;
+}
+
+void OPPROTO op_jbe_cc(void)
+{
+    int eflags;
+    eflags = cc_table[CC_OP].compute_all();
+    if (eflags & (CC_Z | CC_C))
+        PC += PARAM1;
+    else
+        PC += PARAM2;
+}
+
+void OPPROTO op_js_cc(void)
+{
+    int eflags;
+    eflags = cc_table[CC_OP].compute_all();
+    if (eflags & CC_S)
+        PC += PARAM1;
+    else
+        PC += PARAM2;
+}
+
+void OPPROTO op_jp_cc(void)
+{
+    int eflags;
+    eflags = cc_table[CC_OP].compute_all();
+    if (eflags & CC_P)
+        PC += PARAM1;
+    else
+        PC += PARAM2;
+}
+
+void OPPROTO op_jl_cc(void)
+{
+    int eflags;
+    eflags = cc_table[CC_OP].compute_all();
+    if ((eflags ^ (eflags >> 4)) & 0x80)
+        PC += PARAM1;
+    else
+        PC += PARAM2;
+}
+
+void OPPROTO op_jle_cc(void)
+{
+    int eflags;
+    eflags = cc_table[CC_OP].compute_all();
+    if (((eflags ^ (eflags >> 4)) & 0x80) || (eflags & CC_Z))
+        PC += PARAM1;
+    else
+        PC += PARAM2;
+}
+
+/* slow set cases (compute x86 flags) */
+void OPPROTO op_seto_T0_cc(void)
+{
+    int eflags;
+    eflags = cc_table[CC_OP].compute_all();
+    T0 = (eflags >> 11) & 1;
+}
+
+void OPPROTO op_setb_T0_cc(void)
+{
+    T0 = cc_table[CC_OP].compute_c();
+}
+
+void OPPROTO op_setz_T0_cc(void)
+{
+    int eflags;
+    eflags = cc_table[CC_OP].compute_all();
+    T0 = (eflags >> 6) & 1;
+}
+
+void OPPROTO op_setbe_T0_cc(void)
+{
+    int eflags;
+    eflags = cc_table[CC_OP].compute_all();
+    T0 = (eflags & (CC_Z | CC_C)) != 0;
+}
+
+void OPPROTO op_sets_T0_cc(void)
+{
+    int eflags;
+    eflags = cc_table[CC_OP].compute_all();
+    T0 = (eflags >> 7) & 1;
+}
+
+void OPPROTO op_setp_T0_cc(void)
+{
+    int eflags;
+    eflags = cc_table[CC_OP].compute_all();
+    T0 = (eflags >> 2) & 1;
+}
+
+void OPPROTO op_setl_T0_cc(void)
+{
+    int eflags;
+    eflags = cc_table[CC_OP].compute_all();
+    T0 = ((eflags ^ (eflags >> 4)) >> 7) & 1;
+}
+
+void OPPROTO op_setle_T0_cc(void)
+{
+    int eflags;
+    eflags = cc_table[CC_OP].compute_all();
+    T0 = (((eflags ^ (eflags >> 4)) & 0x80) || (eflags & CC_Z)) != 0;
+}
+
+void OPPROTO op_xor_T0_1(void)
+{
+    T0 ^= 1;
+}
+
+void OPPROTO op_set_cc_op(void)
+{
+    CC_OP = PARAM1;
+}
+
+void OPPROTO op_movl_eflags_T0(void)
+{
+    CC_SRC = T0;
+    DF = 1 - (2 * ((T0 >> 10) & 1));
+}
+
+/* XXX: compute only O flag */
+void OPPROTO op_movb_eflags_T0(void)
+{
+    int of;
+    of = cc_table[CC_OP].compute_all() & CC_O;
+    CC_SRC = T0 | of;
+}
+
+void OPPROTO op_movl_T0_eflags(void)
+{
+    T0 = cc_table[CC_OP].compute_all();
+    T0 |= (DF & DIRECTION_FLAG);
+}
+
+void OPPROTO op_cld(void)
+{
+    DF = 1;
+}
+
+void OPPROTO op_std(void)
+{
+    DF = -1;
+}
+
+void OPPROTO op_clc(void)
+{
+    int eflags;
+    eflags = cc_table[CC_OP].compute_all();
+    eflags &= ~CC_C;
+    CC_SRC = eflags;
+}
+
+void OPPROTO op_stc(void)
+{
+    int eflags;
+    eflags = cc_table[CC_OP].compute_all();
+    eflags |= CC_C;
+    CC_SRC = eflags;
+}
+
+void OPPROTO op_cmc(void)
+{
+    int eflags;
+    eflags = cc_table[CC_OP].compute_all();
+    eflags ^= CC_C;
+    CC_SRC = eflags;
+}
+
+static int compute_all_eflags(void)
+{
+    return CC_SRC;
+}
+
+static int compute_c_eflags(void)
+{
+    return CC_SRC & CC_C;
+}
+
+static int compute_c_mul(void)
+{
+    int cf;
+    cf = (CC_SRC != 0);
+    return cf;
+}
+
+static int compute_all_mul(void)
+{
+    int cf, pf, af, zf, sf, of;
+    cf = (CC_SRC != 0);
+    pf = 0; /* undefined */
+    af = 0; /* undefined */
+    zf = 0; /* undefined */
+    sf = 0; /* undefined */
+    of = cf << 11;
+    return cf | pf | af | zf | sf | of;
+}
+    
+CCTable cc_table[CC_OP_NB] = {
+    [CC_OP_DYNAMIC] = { /* should never happen */ },
+
+    [CC_OP_EFLAGS] = { compute_all_eflags, compute_c_eflags },
+
+    [CC_OP_MUL] = { compute_all_mul, compute_c_mul },
+
+    [CC_OP_ADDB] = { compute_all_addb, compute_c_addb },
+    [CC_OP_ADDW] = { compute_all_addw, compute_c_addw  },
+    [CC_OP_ADDL] = { compute_all_addl, compute_c_addl  },
+
+    [CC_OP_SUBB] = { compute_all_subb, compute_c_subb  },
+    [CC_OP_SUBW] = { compute_all_subw, compute_c_subw  },
+    [CC_OP_SUBL] = { compute_all_subl, compute_c_subl  },
+    
+    [CC_OP_LOGICB] = { compute_all_logicb, compute_c_logicb },
+    [CC_OP_LOGICW] = { compute_all_logicw, compute_c_logicw },
+    [CC_OP_LOGICL] = { compute_all_logicl, compute_c_logicl },
+    
+    [CC_OP_INCB] = { compute_all_incb, compute_c_incb },
+    [CC_OP_INCW] = { compute_all_incw, compute_c_incw },
+    [CC_OP_INCL] = { compute_all_incl, compute_c_incl },
+    
+    [CC_OP_DECB] = { compute_all_decb, compute_c_incb },
+    [CC_OP_DECW] = { compute_all_decw, compute_c_incw },
+    [CC_OP_DECL] = { compute_all_decl, compute_c_incl },
+    
+    [CC_OP_SHLB] = { compute_all_shlb, compute_c_shlb },
+    [CC_OP_SHLW] = { compute_all_shlw, compute_c_shlw },
+    [CC_OP_SHLL] = { compute_all_shll, compute_c_shll },
+};

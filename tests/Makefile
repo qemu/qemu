@@ -2,7 +2,9 @@ CC=gcc
 CFLAGS=-Wall -O2 -g
 LDFLAGS=
 
-TESTS=hello test1 test2 sha1 test-i386 
+TESTS=hello test1 test2 sha1 test-i386
+TESTS+=op-i386.o #op-i386.o op-ppc.o op-arm.o op-mips.o op-sparc.o
+
 GEMU=../gemu
 
 all: $(TESTS)
@@ -24,6 +26,22 @@ test: test-i386
 	./test-i386 > test-i386.ref
 	$(GEMU) test-i386 > test-i386.out
 	@if diff -u test-i386.ref test-i386.out ; then echo "Auto Test OK"; fi
+
+# dyngen tests
+op-i386.o: op.c
+	gcc $(CFLAGS) -c -o $@ $<
+
+op-ppc.o: op.c
+	powerpc-linux-gcc $(CFLAGS) -c -o $@ $<
+
+op-arm.o: op.c
+	arm-linux-gcc $(CFLAGS) -c -o $@ $<
+
+op-mips.o: op.c
+	mips-linux-gcc $(CFLAGS) -mno-abicalls -c -o $@ $<
+
+op-sparc.o: op.c
+	sparc-linux-gcc $(CFLAGS) -mflat -c -o $@ $<
 
 # speed test
 sha1: sha1.c

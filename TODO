@@ -1,2 +1,5 @@
-- swap all elf paramters
+- tests
+- signals
+- threads
 - fix printf for doubles (fp87.c bug ?)
+- make it self runnable (use same trick as ld.so : include its own relocator and libc)

@@ -1,8 +1,9 @@
 ARCH=i386
 #ARCH=ppc
+HOST_CC=gcc
 
 ifeq ($(ARCH),i386)
-CFLAGS=-Wall -O2 -g
+CFLAGS=-Wall -O2 -g -fomit-frame-pointer
 LDFLAGS=-g
 LIBS=
 CC=gcc
@@ -27,38 +28,59 @@ endif
 
 #########################################################
 
-DEFINES+=-D_GNU_SOURCE -DGEMU -DDOSEMU #-DNO_TRACE_MSGS
+DEFINES+=-D_GNU_SOURCE -DGEMU -DDOSEMU -DNO_TRACE_MSGS
+DEFINES+=-DCONFIG_PREFIX=\"/usr/local\"
 LDSCRIPT=$(ARCH).ld
+LIBS+=-ldl
 
 OBJS= i386/fp87.o i386/interp_main.o i386/interp_modrm.o i386/interp_16_32.o \
       i386/interp_32_16.o i386/interp_32_32.o i386/emu-utils.o \
       i386/dis8086.o i386/emu-ldt.o
+OBJS+=translate-i386.o op-i386.o
 OBJS+= elfload.o main.o thunk.o syscall.o
-
 SRCS = $(OBJS:.o=.c)
 
 all: gemu
 
 gemu: $(OBJS)
-	$(CC) -Wl,-T,$(LDSCRIPT) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
+	$(CC) -Wl,-T,$(LDSCRIPT) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 depend: $(SRCS)
 	$(CC) -MM $(CFLAGS) $^ 1>.depend
+
+# old i386 emulator
+i386/interp_32_32.o: i386/interp_32_32.c i386/interp_gen.h
+
+i386/interp_gen.h: i386/gencode
+	./i386/gencode > $@
+
+i386/gencode: i386/gencode.c
+	$(CC) -O2 -Wall -g $< -o $@
+
+# new i386 emulator
+dyngen: dyngen.c
+	$(HOST_CC) -O2 -Wall -g $< -o $@
+
+translate-i386.o: translate-i386.c op-i386.h cpu-i386.h
+
+op-i386.h: op-i386.o dyngen
+	./dyngen -o $@ $<
+
+op-i386.o: op-i386.c opreg_template.h ops_template.h
+	$(CC) $(CFLAGS) $(DEFINES) -c -o $@ $<
 
 %.o: %.c
 	$(CC) $(CFLAGS) $(DEFINES) -c -o $@ $<
 
 clean:
-	rm -f *.o *~ i386/*.o i386/*~ gemu hello test1 test2 TAGS
+	rm -f *.o *~ i386/*.o i386/*~ gemu TAGS
 
-hello: hello.c
-	$(CC) -nostdlib $(CFLAGS) -static $(LDFLAGS) -o $@ $<
+# various test targets
+test speed: gemu
+	make -C tests $@
 
-test1: test1.c
-	$(CC) $(CFLAGS) -static $(LDFLAGS) -o $@ $<
-
-test2: test2.c
-	$(CC) $(CFLAGS) -static $(LDFLAGS) -o $@ $<
+TAGS: 
+	etags *.[ch] i386/*.[ch]
 
 ifneq ($(wildcard .depend),)
 include .depend
