@@ -44,6 +44,7 @@
 struct BlockDriverState {
     int fd;
     int64_t total_sectors;
+    int read_only;
 };
 
 BlockDriverState *bdrv_open(const char *filename)
@@ -55,11 +56,16 @@ BlockDriverState *bdrv_open(const char *filename)
     bs = malloc(sizeof(BlockDriverState));
     if(!bs)
         return NULL;
+    bs->read_only = 0;
     fd = open(filename, O_RDWR);
     if (fd < 0) {
-        close(fd);
-        free(bs);
-        return NULL;
+        fd = open(filename, O_RDONLY);
+        if (fd < 0) {
+            close(fd);
+            free(bs);
+            return NULL;
+        }
+        bs->read_only = 1;
     }
     size = lseek64(fd, 0, SEEK_END);
     bs->total_sectors = size / 512;
@@ -92,6 +98,9 @@ int bdrv_write(BlockDriverState *bs, int64_t sector_num,
                const uint8_t *buf, int nb_sectors)
 {
     int ret;
+
+    if (bs->read_only)
+        return -1;
 
     lseek64(bs->fd, sector_num * 512, SEEK_SET);
     ret = write(bs->fd, buf, nb_sectors * 512);
