@@ -922,7 +922,7 @@ static void init_timers(void)
         sigaction(SIGALRM, &act, NULL);
 
         itv.it_interval.tv_sec = 0;
-        itv.it_interval.tv_usec = 1000;
+        itv.it_interval.tv_usec = 999; /* for i386 kernel 2.6 to get 1 ms */
         itv.it_value.tv_sec = 0;
         itv.it_value.tv_usec = 10 * 1000;
         setitimer(ITIMER_REAL, &itv, NULL);
