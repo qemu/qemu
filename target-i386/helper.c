@@ -281,6 +281,10 @@ static void switch_tss(int tss_selector,
     uint8_t *ptr;
 
     type = (e2 >> DESC_TYPE_SHIFT) & 0xf;
+#ifdef DEBUG_PCALL
+    if (loglevel)
+        fprintf(logfile, "switch_tss: sel=0x%04x type=%d src=%d\n", tss_selector, type, source);
+#endif
 
     /* if task gate, we read the TSS segment and we load it */
     if (type == 5) {
@@ -848,24 +852,40 @@ void do_interrupt(int intno, int is_int, int error_code,
     {
         extern FILE *stdout;
         static int count;
-        if (env->cr[0] & CR0_PE_MASK) {
-            fprintf(stdout, "%d: interrupt: vector=%02x error_code=%04x int=%d\n",
-                    count, intno, error_code, is_int);
+        if ((env->cr[0] && CR0_PE_MASK)) {
+            fprintf(stdout, "%d: interrupt: vector=%02x error_code=%04x int=%d CPL=%d CS:EIP=%04x:%08x SS:ESP=%04x:%08x EAX=%08x\n",
+                    count, intno, error_code, is_int,
+                    env->hflags & HF_CPL_MASK,
+                    env->segs[R_CS].selector, EIP,
+                    env->segs[R_SS].selector, ESP, 
+                    EAX);
+            if (0) {
+                cpu_x86_dump_state(env, stdout, X86_DUMP_CCOP);
+#if 0
+                {
+                    int i;
+                    uint8_t *ptr;
+                    fprintf(stdout, "       code=");
+                    ptr = env->segs[R_CS].base + env->eip;
+                    for(i = 0; i < 16; i++) {
+                        fprintf(stdout, " %02x", ldub(ptr + i));
+                    }
+                    fprintf(stdout, "\n");
+                }
+#endif
+            }
             count++;
         }
     }
-    if ((env->cr[0] & CR0_PE_MASK) && intno == 0x10) {
-        tb_flush(env);
-        cpu_set_log(CPU_LOG_ALL);
-    }
 #endif
+
 #ifdef DEBUG_PCALL
     if (loglevel) {
         static int count;
         fprintf(logfile, "%d: interrupt: vector=%02x error_code=%04x int=%d\n",
                 count, intno, error_code, is_int);
         cpu_x86_dump_state(env, logfile, X86_DUMP_CCOP);
-#if 1
+#if 0
         {
             int i;
             uint8_t *ptr;
@@ -2431,10 +2451,6 @@ void tlb_fill(unsigned long addr, int is_write, int is_user, void *retaddr)
        generated code */
     saved_env = env;
     env = cpu_single_env;
-    if (is_write && page_unprotect(addr)) {
-        /* nothing more to do: the page was write protected because
-           there was code in it. page_unprotect() flushed the code. */
-    }
 
     ret = cpu_x86_handle_mmu_fault(env, addr, is_write, is_user, 1);
     if (ret) {
