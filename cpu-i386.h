@@ -251,7 +251,7 @@ typedef struct CPUX86State {
     int error_code;
     int exception_is_int;
     int exception_next_eip;
-
+    struct TranslationBlock *current_tb; /* currently executing TB */
     uint32_t cr[5]; /* NOTE: cr1 is unused */
     uint32_t dr[8]; /* debug registers */
     int interrupt_request; /* if true, will exit from cpu_exec() ASAP */
@@ -259,7 +259,7 @@ typedef struct CPUX86State {
        request interrupt number */
     int hard_interrupt_request; 
     int user_mode_only; /* user mode only simulation */
-
+    
     /* user data */
     void *opaque;
 } CPUX86State;
@@ -295,7 +295,6 @@ int cpu_x86_signal_handler(int host_signum, struct siginfo *info,
 
 /* MMU defines */
 void cpu_x86_init_mmu(CPUX86State *env);
-extern CPUX86State *global_env;
 extern int phys_ram_size;
 extern int phys_ram_fd;
 extern uint8_t *phys_ram_base;
