@@ -2915,11 +2915,11 @@ void helper_fxsave(target_ulong ptr, int data64)
     fpus = (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
     fptag = 0;
     for(i = 0; i < 8; i++) {
-        fptag |= ((!env->fptags[(env->fpstt + i) & 7]) << i);
+        fptag |= (env->fptags[i] << i);
     }
     stw(ptr, env->fpuc);
     stw(ptr + 2, fpus);
-    stw(ptr + 4, fptag);
+    stw(ptr + 4, fptag ^ 0xff);
 
     addr = ptr + 0x20;
     for(i = 0;i < 8; i++) {
@@ -2931,7 +2931,7 @@ void helper_fxsave(target_ulong ptr, int data64)
     if (env->cr[4] & CR4_OSFXSR_MASK) {
         /* XXX: finish it */
         stl(ptr + 0x18, env->mxcsr); /* mxcsr */
-        stl(ptr + 0x1c, 0); /* mxcsr_mask */
+        stl(ptr + 0x1c, 0x0000ffff); /* mxcsr_mask */
         nb_xmm_regs = 8 << data64;
         addr = ptr + 0xa0;
         for(i = 0; i < nb_xmm_regs; i++) {
@@ -2950,12 +2950,12 @@ void helper_fxrstor(target_ulong ptr, int data64)
 
     env->fpuc = lduw(ptr);
     fpus = lduw(ptr + 2);
-    fptag = ldub(ptr + 4);
+    fptag = lduw(ptr + 4);
     env->fpstt = (fpus >> 11) & 7;
     env->fpus = fpus & ~0x3800;
     fptag ^= 0xff;
     for(i = 0;i < 8; i++) {
-        env->fptags[(env->fpstt + i) & 7] = ((fptag >> i) & 1);
+        env->fptags[i] = ((fptag >> i) & 1);
     }
 
     addr = ptr + 0x20;
