@@ -950,7 +950,7 @@ void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
 
     /* init basic PC hardware */
     vga_initialize(ds, phys_ram_base + ram_size, ram_size, 
-                   vga_ram_size);
+                   vga_ram_size, 0);
     rtc_init(0x70, 8);
     pic_init();
     //    pit_init(0x40, 0);
