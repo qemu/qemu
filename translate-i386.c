@@ -38,9 +38,39 @@
 #define offsetof(type, field) ((size_t) &((type *)0)->field)
 #endif
 
+/* XXX: move that elsewhere */
 static uint16_t *gen_opc_ptr;
 static uint32_t *gen_opparam_ptr;
 int __op_param1, __op_param2, __op_param3;
+
+#ifdef __i386__
+static inline void flush_icache_range(unsigned long start, unsigned long stop)
+{
+}
+#endif
+
+#ifdef __powerpc__
+
+#define MIN_CACHE_LINE_SIZE 8 /* conservative value */
+
+static void inline flush_icache_range(unsigned long start, unsigned long stop)
+{
+    unsigned long p;
+
+    p = start & ~(MIN_CACHE_LINE_SIZE - 1);
+    stop = (stop + MIN_CACHE_LINE_SIZE - 1) & ~(MIN_CACHE_LINE_SIZE - 1);
+    
+    for (p = start; p < stop; p += MIN_CACHE_LINE_SIZE) {
+        asm ("dcbst 0,%0;" : : "r"(p) : "memory");
+    }
+    asm ("sync");
+    for (p = start; p < stop; p += MIN_CACHE_LINE_SIZE) {
+        asm ("icbi 0,%0; sync;" : : "r"(p) : "memory");
+    }
+    asm ("sync");
+    asm ("isync");
+}
+#endif
 
 extern FILE *logfile;
 extern int loglevel;
@@ -3179,6 +3209,7 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size,
     DisasContext dc1, *dc = &dc1;
     uint8_t *pc_ptr;
     uint16_t *gen_opc_end;
+    int gen_code_size;
     long ret;
 #ifdef DEBUG_DISAS
     struct disassemble_info disasm_info;
@@ -3264,7 +3295,9 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size,
 #endif
 
     /* generate machine code */
-    *gen_code_size_ptr = dyngen_code(gen_code_buf, gen_opc_buf, gen_opparam_buf);
+    gen_code_size = dyngen_code(gen_code_buf, gen_opc_buf, gen_opparam_buf);
+    flush_icache_range((unsigned long)gen_code_buf, (unsigned long)(gen_code_buf + gen_code_size));
+    *gen_code_size_ptr = gen_code_size;
 
 #ifdef DEBUG_DISAS
     if (loglevel) {

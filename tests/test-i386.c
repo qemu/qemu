@@ -653,7 +653,7 @@ void test_segs(void)
 {
     struct modify_ldt_ldt_s ldt;
     long long ldt_table[3];
-    int i, res, res2;
+    int res, res2;
     char tmp;
 
     ldt.entry_number = 1;
@@ -679,9 +679,13 @@ void test_segs(void)
     modify_ldt(1, &ldt, sizeof(ldt)); /* write ldt entry */
 
     modify_ldt(0, &ldt_table, sizeof(ldt_table)); /* read ldt entries */
-    for(i=0;i<3;i++)
-        printf("%d: %016Lx\n", i, ldt_table[i]);
-
+#if 0
+    {
+        int i;
+        for(i=0;i<3;i++)
+            printf("%d: %016Lx\n", i, ldt_table[i]);
+    }
+#endif
     /* do some tests with fs or gs */
     asm volatile ("movl %0, %%fs" : : "r" (MK_SEL(1)));
     asm volatile ("movl %0, %%gs" : : "r" (MK_SEL(2)));

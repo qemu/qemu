@@ -809,6 +809,7 @@ void OPPROTO glue(op_rep_movs, SUFFIX)(void)
         EDI += inc;
         ECX--;
     }
+    FORCE_RET();
 }
 
 void OPPROTO glue(op_stos, SUFFIX)(void)
@@ -826,6 +827,7 @@ void OPPROTO glue(op_rep_stos, SUFFIX)(void)
         EDI += inc;
         ECX--;
     }
+    FORCE_RET();
 }
 
 void OPPROTO glue(op_lods, SUFFIX)(void)
@@ -859,6 +861,7 @@ void OPPROTO glue(op_rep_lods, SUFFIX)(void)
         ESI += inc;
         ECX--;
     }
+    FORCE_RET();
 }
 
 void OPPROTO glue(op_scas, SUFFIX)(void)
@@ -890,6 +893,7 @@ void OPPROTO glue(op_repz_scas, SUFFIX)(void)
         CC_DST = v1 - v2;
         CC_OP = CC_OP_SUBB + SHIFT;
     }
+    FORCE_RET();
 }
 
 void OPPROTO glue(op_repnz_scas, SUFFIX)(void)
@@ -911,6 +915,7 @@ void OPPROTO glue(op_repnz_scas, SUFFIX)(void)
         CC_DST = v1 - v2;
         CC_OP = CC_OP_SUBB + SHIFT;
     }
+    FORCE_RET();
 }
 
 void OPPROTO glue(op_cmps, SUFFIX)(void)
@@ -942,6 +947,7 @@ void OPPROTO glue(op_repz_cmps, SUFFIX)(void)
         CC_DST = v1 - v2;
         CC_OP = CC_OP_SUBB + SHIFT;
     }
+    FORCE_RET();
 }
 
 void OPPROTO glue(op_repnz_cmps, SUFFIX)(void)
@@ -962,6 +968,7 @@ void OPPROTO glue(op_repnz_cmps, SUFFIX)(void)
         CC_DST = v1 - v2;
         CC_OP = CC_OP_SUBB + SHIFT;
     }
+    FORCE_RET();
 }
 
 /* port I/O */
@@ -986,6 +993,7 @@ void OPPROTO glue(op_rep_outs, SUFFIX)(void)
         ESI += inc;
         ECX--;
     }
+    FORCE_RET();
 }
 
 void OPPROTO glue(op_ins, SUFFIX)(void)
@@ -1008,6 +1016,7 @@ void OPPROTO glue(op_rep_ins, SUFFIX)(void)
         EDI += (DF << SHIFT);
         ECX--;
     }
+    FORCE_RET();
 }
 
 void OPPROTO glue(glue(op_out, SUFFIX), _T0_T1)(void)

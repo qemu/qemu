@@ -19,6 +19,7 @@
  */
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <stdarg.h>
 #include <inttypes.h>
 #include <elf.h>
@@ -228,14 +229,10 @@ void gen_code(const char *name, unsigned long offset, unsigned long size,
         {
             uint8_t *p;
             p = (void *)(p_end - 4);
-            /* find ret */
-            while (p > p_start && get32((uint32_t *)p) != 0x4e800020)
-                p -= 4;
-            /* skip double ret */
-            if (p > p_start && get32((uint32_t *)(p - 4)) == 0x4e800020)
-                p -= 4;
             if (p == p_start)
                 error("empty code for %s", name);
+            if (get32((uint32_t *)p) != 0x4e800020)
+                error("blr expected at the end of %s", name);
             copy_size = p - p_start;
         }
         break;
@@ -358,6 +355,51 @@ void gen_code(const char *name, unsigned long offset, unsigned long size,
                         error("unsupported i386 relocation (%d)", type);
                     }
                 }
+                }
+            }
+            break;
+        case EM_PPC:
+            {
+                Elf32_Rela *rel;
+                char name[256];
+                int type;
+                long addend;
+                for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
+                    if (rel->r_offset >= offset && rel->r_offset < offset + copy_size) {
+                        sym_name = strtab + symtab[ELF32_R_SYM(rel->r_info)].st_name;
+                        if (strstart(sym_name, "__op_param", &p)) {
+                            snprintf(name, sizeof(name), "param%s", p);
+                        } else {
+                            snprintf(name, sizeof(name), "(long)(&%s)", sym_name);
+                        }
+                        type = ELF32_R_TYPE(rel->r_info);
+                        addend = rel->r_addend;
+                        switch(type) {
+                        case R_PPC_ADDR32:
+                            fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %ld) = %s + %ld;\n", 
+                                    rel->r_offset - offset, name, addend);
+                            break;
+                        case R_PPC_ADDR16_LO:
+                            fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %ld) = (%s + %ld);\n", 
+                                    rel->r_offset - offset, name, addend);
+                            break;
+                        case R_PPC_ADDR16_HI:
+                            fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %ld) = (%s + %ld) >> 16;\n", 
+                                    rel->r_offset - offset, name, addend);
+                            break;
+                        case R_PPC_ADDR16_HA:
+                            fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %ld) = (%s + %ld + 0x8000) >> 16;\n", 
+                                    rel->r_offset - offset, name, addend);
+                            break;
+                        case R_PPC_REL24:
+                            /* warning: must be at 32 MB distancy */
+                            fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %ld) = (*(uint32_t *)(gen_code_ptr + %ld) & ~0x03fffffc) | ((%s - (long)(gen_code_ptr + %ld) + %ld) & 0x03fffffc);\n", 
+                                    rel->r_offset - offset, rel->r_offset - offset, name, rel->r_offset - offset, addend);
+                            break;
+                        default:
+                            error("unsupported powerpc relocation (%d)", type);
+                        }
+                    }
                 }
             }
             break;
@@ -568,6 +610,9 @@ fprintf(outfile,
     switch(e_machine) {
     case EM_386:
         fprintf(outfile, "*gen_code_ptr++ = 0xc3; /* ret */\n");
+        break;
+    case EM_PPC:
+        fprintf(outfile, "*((uint32_t *)gen_code_ptr)++ = 0x4e800020; /* blr */\n");
         break;
     default:
         error("no return generation for cpu '%s'", cpu_name);

@@ -171,6 +171,30 @@ int cpu_x86_exec(CPUX86State *env1)
 {
     int saved_T0, saved_T1, saved_A0;
     CPUX86State *saved_env;
+#ifdef reg_EAX
+    int saved_EAX;
+#endif
+#ifdef reg_ECX
+    int saved_ECX;
+#endif
+#ifdef reg_EDX
+    int saved_EDX;
+#endif
+#ifdef reg_EBX
+    int saved_EBX;
+#endif
+#ifdef reg_ESP
+    int saved_ESP;
+#endif
+#ifdef reg_EBP
+    int saved_EBP;
+#endif
+#ifdef reg_ESI
+    int saved_ESI;
+#endif
+#ifdef reg_EDI
+    int saved_EDI;
+#endif
     int code_gen_size, ret;
     void (*gen_func)(void);
     TranslationBlock *tb;
@@ -183,6 +207,38 @@ int cpu_x86_exec(CPUX86State *env1)
     saved_A0 = A0;
     saved_env = env;
     env = env1;
+#ifdef reg_EAX
+    saved_EAX = EAX;
+    EAX = env->regs[R_EAX];
+#endif
+#ifdef reg_ECX
+    saved_ECX = ECX;
+    ECX = env->regs[R_ECX];
+#endif
+#ifdef reg_EDX
+    saved_EDX = EDX;
+    EDX = env->regs[R_EDX];
+#endif
+#ifdef reg_EBX
+    saved_EBX = EBX;
+    EBX = env->regs[R_EBX];
+#endif
+#ifdef reg_ESP
+    saved_ESP = ESP;
+    ESP = env->regs[R_ESP];
+#endif
+#ifdef reg_EBP
+    saved_EBP = EBP;
+    EBP = env->regs[R_EBP];
+#endif
+#ifdef reg_ESI
+    saved_ESI = ESI;
+    ESI = env->regs[R_ESI];
+#endif
+#ifdef reg_EDI
+    saved_EDI = EDI;
+    EDI = env->regs[R_EDI];
+#endif
     
     /* prepare setjmp context for exception handling */
     if (setjmp(env->jmp_env) == 0) {
@@ -217,6 +273,30 @@ int cpu_x86_exec(CPUX86State *env1)
     ret = env->exception_index;
 
     /* restore global registers */
+#ifdef reg_EAX
+    EAX = saved_EAX;
+#endif
+#ifdef reg_ECX
+    ECX = saved_ECX;
+#endif
+#ifdef reg_EDX
+    EDX = saved_EDX;
+#endif
+#ifdef reg_EBX
+    EBX = saved_EBX;
+#endif
+#ifdef reg_ESP
+    ESP = saved_ESP;
+#endif
+#ifdef reg_EBP
+    EBP = saved_EBP;
+#endif
+#ifdef reg_ESI
+    ESI = saved_ESI;
+#endif
+#ifdef reg_EDI
+    EDI = saved_EDI;
+#endif
     T0 = saved_T0;
     T1 = saved_T1;
     A0 = saved_A0;

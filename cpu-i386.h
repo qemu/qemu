@@ -4,6 +4,7 @@
 #ifndef CPU_I386_H
 #define CPU_I386_H
 
+#include "config.h"
 #include <setjmp.h>
 
 #define R_EAX 0
@@ -174,6 +175,7 @@ typedef struct CPUX86State {
     int exception_index;
 } CPUX86State;
 
+/* all CPU memory access use these macros */
 static inline int ldub(void *ptr)
 {
     return *(uint8_t *)ptr;
@@ -183,6 +185,134 @@ static inline int ldsb(void *ptr)
 {
     return *(int8_t *)ptr;
 }
+
+static inline void stb(void *ptr, int v)
+{
+    *(uint8_t *)ptr = v;
+}
+
+#ifdef WORDS_BIGENDIAN
+
+/* conservative code for little endian unaligned accesses */
+static inline int lduw(void *ptr)
+{
+#ifdef __powerpc__
+    int val;
+    __asm__ __volatile__ ("lhbrx %0,0,%1" : "=r" (val) : "r" (ptr));
+    return val;
+#else
+    uint8_t *p = ptr;
+    return p[0] | (p[1] << 8);
+#endif
+}
+
+static inline int ldsw(void *ptr)
+{
+#ifdef __powerpc__
+    int val;
+    __asm__ __volatile__ ("lhbrx %0,0,%1" : "=r" (val) : "r" (ptr));
+    return (int16_t)val;
+#else
+    uint8_t *p = ptr;
+    return (int16_t)(p[0] | (p[1] << 8));
+#endif
+}
+
+static inline int ldl(void *ptr)
+{
+#ifdef __powerpc__
+    int val;
+    __asm__ __volatile__ ("lwbrx %0,0,%1" : "=r" (val) : "r" (ptr));
+    return val;
+#else
+    uint8_t *p = ptr;
+    return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
+#endif
+}
+
+static inline uint64_t ldq(void *ptr)
+{
+    uint8_t *p = ptr;
+    uint32_t v1, v2;
+    v1 = ldl(p);
+    v2 = ldl(p + 4);
+    return v1 | ((uint64_t)v2 << 32);
+}
+
+static inline void stw(void *ptr, int v)
+{
+#ifdef __powerpc__
+    __asm__ __volatile__ ("sthbrx %1,0,%2" : "=m" (*(uint16_t *)ptr) : "r" (v), "r" (ptr));
+#else
+    uint8_t *p = ptr;
+    p[0] = v;
+    p[1] = v >> 8;
+#endif
+}
+
+static inline void stl(void *ptr, int v)
+{
+#ifdef __powerpc__
+    __asm__ __volatile__ ("stwbrx %1,0,%2" : "=m" (*(uint32_t *)ptr) : "r" (v), "r" (ptr));
+#else
+    uint8_t *p = ptr;
+    p[0] = v;
+    p[1] = v >> 8;
+    p[2] = v >> 16;
+    p[3] = v >> 24;
+#endif
+}
+
+static inline void stq(void *ptr, uint64_t v)
+{
+    uint8_t *p = ptr;
+    stl(p, (uint32_t)v);
+    stl(p + 4, v >> 32);
+}
+
+/* float access */
+
+static inline float ldfl(void *ptr)
+{
+    union {
+        float f;
+        uint32_t i;
+    } u;
+    u.i = ldl(ptr);
+    return u.f;
+}
+
+static inline double ldfq(void *ptr)
+{
+    union {
+        double d;
+        uint64_t i;
+    } u;
+    u.i = ldq(ptr);
+    return u.d;
+}
+
+static inline void stfl(void *ptr, float v)
+{
+    union {
+        float f;
+        uint32_t i;
+    } u;
+    u.f = v;
+    stl(ptr, u.i);
+}
+
+static inline void stfq(void *ptr, double v)
+{
+    union {
+        double d;
+        uint64_t i;
+    } u;
+    u.d = v;
+    stq(ptr, u.i);
+}
+
+#else
 
 static inline int lduw(void *ptr)
 {
@@ -202,11 +332,6 @@ static inline int ldl(void *ptr)
 static inline uint64_t ldq(void *ptr)
 {
     return *(uint64_t *)ptr;
-}
-
-static inline void stb(void *ptr, int v)
-{
-    *(uint8_t *)ptr = v;
 }
 
 static inline void stw(void *ptr, int v)
@@ -245,6 +370,7 @@ static inline void stfq(void *ptr, double v)
 {
     *(double *)ptr = v;
 }
+#endif
 
 #ifndef IN_OP_I386
 void cpu_x86_outb(int addr, int val);

@@ -36,10 +36,27 @@ register unsigned int A0 asm("edi");
 register struct CPUX86State *env asm("ebp");
 #endif
 #ifdef __powerpc__
+register unsigned int EAX asm("r16");
+register unsigned int ECX asm("r17");
+register unsigned int EDX asm("r18");
+register unsigned int EBX asm("r19");
+register unsigned int ESP asm("r20");
+register unsigned int EBP asm("r21");
+register unsigned int ESI asm("r22");
+register unsigned int EDI asm("r23");
 register unsigned int T0 asm("r24");
 register unsigned int T1 asm("r25");
 register unsigned int A0 asm("r26");
 register struct CPUX86State *env asm("r27");
+#define USE_INT_TO_FLOAT_HELPERS
+#define reg_EAX
+#define reg_ECX
+#define reg_EDX
+#define reg_EBX
+#define reg_ESP
+#define reg_EBP
+#define reg_ESI
+#define reg_EDI
 #endif
 #ifdef __arm__
 register unsigned int T0 asm("r4");
@@ -70,14 +87,30 @@ register struct CPUX86State *env asm("l3");
 #define xglue(x, y) x ## y
 #define glue(x, y) xglue(x, y)
 
+#ifndef reg_EAX
 #define EAX (env->regs[R_EAX])
+#endif
+#ifndef reg_ECX
 #define ECX (env->regs[R_ECX])
+#endif
+#ifndef reg_EDX
 #define EDX (env->regs[R_EDX])
+#endif
+#ifndef reg_EBX
 #define EBX (env->regs[R_EBX])
+#endif
+#ifndef reg_ESP
 #define ESP (env->regs[R_ESP])
+#endif
+#ifndef reg_EBP
 #define EBP (env->regs[R_EBP])
+#endif
+#ifndef reg_ESI
 #define ESI (env->regs[R_ESI])
+#endif
+#ifndef reg_EDI
 #define EDI (env->regs[R_EDI])
+#endif
 #define PC  (env->pc)
 #define DF  (env->df)
 

@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <string.h>
 #include <elf.h>
 #include <endian.h>
 #include <errno.h>
@@ -42,6 +43,9 @@
 #define termios host_termios
 #define winsize host_winsize
 #define termio host_termio
+#define sgttyb host_sgttyb /* same as target */
+#define tchars host_tchars /* same as target */
+#define ltchars host_ltchars /* same as target */
 
 #include <linux/termios.h>
 #include <linux/unistd.h>
@@ -904,7 +908,8 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_ftime:
         goto unimplemented;
     case TARGET_NR_sync:
-        ret = get_errno(sync());
+        sync();
+        ret = 0;
         break;
     case TARGET_NR_kill:
         ret = get_errno(kill(arg1, arg2));

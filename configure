@@ -11,11 +11,11 @@ else
     TMPDIR1="/tmp"
 fi
 
-TMPC="${TMPDIR1}/qemacs-conf-${RANDOM}-$$-${RANDOM}.c"
-TMPO="${TMPDIR1}/qemacs-conf-${RANDOM}-$$-${RANDOM}.o"
-TMPE="${TMPDIR1}/qemacs-conf-${RANDOM}-$$-${RANDOM}"
-TMPS="${TMPDIR1}/qemacs-conf-${RANDOM}-$$-${RANDOM}.S"
-TMPH="${TMPDIR1}/qemacs-conf-${RANDOM}-$$-${RANDOM}.h"
+TMPC="${TMPDIR1}/gemu-conf-${RANDOM}-$$-${RANDOM}.c"
+TMPO="${TMPDIR1}/gemu-conf-${RANDOM}-$$-${RANDOM}.o"
+TMPE="${TMPDIR1}/gemu-conf-${RANDOM}-$$-${RANDOM}"
+TMPS="${TMPDIR1}/gemu-conf-${RANDOM}-$$-${RANDOM}.S"
+TMPH="${TMPDIR1}/gemu-conf-${RANDOM}-$$-${RANDOM}.h"
 
 # default parameters
 prefix="/usr/local"
@@ -144,12 +144,20 @@ fi
 fi
 
 # check gcc version
+cat > $TMPC <<EOF
+int main(void) {
+#if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 2)
+return 0;
+#else
+#error gcc < 3.2
+#endif
+}
+EOF
+
 gcc_major="2"
-gcc_version="$($cc -v 2>&1 | grep version | cut -d ' ' -f3-)"
-case "$gcc_version" in
-3.*) gcc_major="3";
-;;
-esac
+if $cc -o $TMPO $TMPC 2> /dev/null ; then
+   gcc_major="3"
+fi
 
 if test x"$1" = x"-h" -o x"$1" = x"--help" ; then
 cat << EOF
@@ -201,9 +209,9 @@ if test "$cpu" = "x86" ; then
 elif test "$cpu" = "armv4l" ; then
   echo "ARCH=arm" >> config.mak
 elif test "$cpu" = "powerpc" ; then
-  echo "ARCH=ppc" > config.mak
+  echo "ARCH=ppc" >> config.mak
 elif test "$cpu" = "mips" ; then
-  echo "ARCH=mips" > config.mak
+  echo "ARCH=mips" >> config.mak
 else
   echo "Unsupported CPU"
   exit 1

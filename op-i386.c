@@ -123,6 +123,32 @@ static inline int lshift(int x, int n)
 /* NOTE: not static to force relocation generation by GCC */
 void raise_exception(int exception_index)
 {
+    /* NOTE: the register at this point must be saved by hand because
+       longjmp restore them */
+#ifdef reg_EAX
+    env->regs[R_EAX] = EAX;
+#endif
+#ifdef reg_ECX
+    env->regs[R_ECX] = ECX;
+#endif
+#ifdef reg_EDX
+    env->regs[R_EDX] = EDX;
+#endif
+#ifdef reg_EBX
+    env->regs[R_EBX] = EBX;
+#endif
+#ifdef reg_ESP
+    env->regs[R_ESP] = ESP;
+#endif
+#ifdef reg_EBP
+    env->regs[R_EBP] = EBP;
+#endif
+#ifdef reg_ESI
+    env->regs[R_ESI] = ESI;
+#endif
+#ifdef reg_EDI
+    env->regs[R_EDI] = EDI;
+#endif
     env->exception_index = exception_index;
     longjmp(env->jmp_env, 1);
 }
@@ -1341,6 +1367,41 @@ void OPPROTO op_fldl_FT0_A0(void)
     FT0 = ldfq((void *)A0);
 }
 
+/* helpers are needed to avoid static constant reference. XXX: find a better way */
+#ifdef USE_INT_TO_FLOAT_HELPERS
+
+void helper_fild_FT0_A0(void)
+{
+    FT0 = (CPU86_LDouble)ldsw((void *)A0);
+}
+
+void helper_fildl_FT0_A0(void)
+{
+    FT0 = (CPU86_LDouble)((int32_t)ldl((void *)A0));
+}
+
+void helper_fildll_FT0_A0(void)
+{
+    FT0 = (CPU86_LDouble)((int64_t)ldq((void *)A0));
+}
+
+void OPPROTO op_fild_FT0_A0(void)
+{
+    helper_fild_FT0_A0();
+}
+
+void OPPROTO op_fildl_FT0_A0(void)
+{
+    helper_fildl_FT0_A0();
+}
+
+void OPPROTO op_fildll_FT0_A0(void)
+{
+    helper_fildll_FT0_A0();
+}
+
+#else
+
 void OPPROTO op_fild_FT0_A0(void)
 {
     FT0 = (CPU86_LDouble)ldsw((void *)A0);
@@ -1355,6 +1416,7 @@ void OPPROTO op_fildll_FT0_A0(void)
 {
     FT0 = (CPU86_LDouble)((int64_t)ldq((void *)A0));
 }
+#endif
 
 /* fp load ST0 */
 
@@ -1393,6 +1455,41 @@ void OPPROTO op_fldt_ST0_A0(void)
 }
 #endif
 
+/* helpers are needed to avoid static constant reference. XXX: find a better way */
+#ifdef USE_INT_TO_FLOAT_HELPERS
+
+void helper_fild_ST0_A0(void)
+{
+    ST0 = (CPU86_LDouble)ldsw((void *)A0);
+}
+
+void helper_fildl_ST0_A0(void)
+{
+    ST0 = (CPU86_LDouble)((int32_t)ldl((void *)A0));
+}
+
+void helper_fildll_ST0_A0(void)
+{
+    ST0 = (CPU86_LDouble)((int64_t)ldq((void *)A0));
+}
+
+void OPPROTO op_fild_ST0_A0(void)
+{
+    helper_fild_ST0_A0();
+}
+
+void OPPROTO op_fildl_ST0_A0(void)
+{
+    helper_fildl_ST0_A0();
+}
+
+void OPPROTO op_fildll_ST0_A0(void)
+{
+    helper_fildll_ST0_A0();
+}
+
+#else
+
 void OPPROTO op_fild_ST0_A0(void)
 {
     ST0 = (CPU86_LDouble)ldsw((void *)A0);
@@ -1407,6 +1504,8 @@ void OPPROTO op_fildll_ST0_A0(void)
 {
     ST0 = (CPU86_LDouble)((int64_t)ldq((void *)A0));
 }
+
+#endif
 
 /* fp store */
 

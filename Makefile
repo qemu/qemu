@@ -90,7 +90,7 @@ i386.ld ppc.ld exec-i386.h exec-i386.c configure VERSION \
 tests/Makefile\
 tests/test-i386.c tests/test-i386-shift.h tests/test-i386.h\
 tests/test-i386-muldiv.h\
-tests/test2.c tests/hello.c tests/sha1.c
+tests/test2.c tests/hello.c tests/hello tests/sha1.c
 
 FILE=gemu-$(VERSION)
 
