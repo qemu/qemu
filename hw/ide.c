@@ -416,10 +416,10 @@ static void ide_identify(IDEState *s)
     put_le16(p + 47, 0x8000 | MAX_MULT_SECTORS);
 #endif
     put_le16(p + 48, 1); /* dword I/O */
-    put_le16(p + 49, 1 << 9); /* LBA supported, no DMA */
+    put_le16(p + 49, 1 << 9 | 1 << 8); /* DMA and LBA supported */
     put_le16(p + 51, 0x200); /* PIO transfer cycle */
     put_le16(p + 52, 0x200); /* DMA transfer cycle */
-    put_le16(p + 53, 1); /* words 54-58 are valid */
+    put_le16(p + 53, 1 | 1 << 2); /* words 54-58,88 are valid */
     put_le16(p + 54, s->cylinders);
     put_le16(p + 55, s->heads);
     put_le16(p + 56, s->sectors);
@@ -437,6 +437,8 @@ static void ide_identify(IDEState *s)
     put_le16(p + 85, (1 << 14));
     put_le16(p + 86, 0);
     put_le16(p + 87, (1 << 14));
+    put_le16(p + 88, 0x1f | (1 << 13));
+    put_le16(p + 93, 1 | (1 << 14) | 0x2000 | 0x4000);
 }
 
 static void ide_atapi_identify(IDEState *s)
@@ -1560,7 +1562,7 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             case 0x82: /* write cache disable */
             case 0xaa: /* read look-ahead enable */
             case 0x55: /* read look-ahead disable */
-                s->status = READY_STAT;
+                s->status = READY_STAT | SEEK_STAT;
                 ide_set_irq(s);
                 break;
             default:
