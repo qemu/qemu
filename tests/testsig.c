@@ -67,7 +67,7 @@ int tab[2];
 int main(int argc, char **argv)
 {
     struct sigaction act;
-    int val;
+    volatile int val;
     
     act.sa_sigaction = sig_handler;
     sigemptyset(&act.sa_mask);
@@ -75,6 +75,7 @@ int main(int argc, char **argv)
     sigaction(SIGFPE, &act, NULL);
     sigaction(SIGILL, &act, NULL);
     sigaction(SIGSEGV, &act, NULL);
+    sigaction(SIGTRAP, &act, NULL);
 
     /* test division by zero reporting */
     if (setjmp(jmp_env) == 0) {
@@ -110,6 +111,11 @@ int main(int argc, char **argv)
     printf("INT exception:\n");
     if (setjmp(jmp_env) == 0) {
         asm volatile ("int $0xfd");
+    }
+
+    printf("INT3 exception:\n");
+    if (setjmp(jmp_env) == 0) {
+        asm volatile ("int3");
     }
 
     printf("CLI exception:\n");
@@ -158,10 +164,20 @@ int main(int argc, char **argv)
 
     printf("HLT exception:\n");
     if (setjmp(jmp_env) == 0) {
-        asm volatile ("hlt" : : "d" (0x4321), "D" (tab), "c" (1));
+        asm volatile ("hlt");
     }
 
-#if 0
+    printf("single step exception:\n");
+    val = 0;
+    if (setjmp(jmp_env) == 0) {
+        asm volatile ("pushf\n"
+                      "orl $0x00100, (%%esp)\n"
+                      "popf\n"
+                      "movl $0xabcd, %0\n" : "=m" (val) : : "cc", "memory");
+    }
+    printf("val=0x%x\n", val);
+    
+#if 1
     {
         int i;
         act.sa_handler = alarm_handler;
