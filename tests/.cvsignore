@@ -1,6 +1,7 @@
  gmon.out
  testsig
  hello
+ hello-arm
  sha1.test.c
  sha1.c
  test-i386

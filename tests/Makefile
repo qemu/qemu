@@ -59,5 +59,12 @@ speed: sha1 sha1-i386
 runcom: runcom.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 
+# arm test
+hello-arm: hello-arm.o
+	arm-linux-ld -o $@ $<
+
+hello-arm.o: hello-arm.c
+	arm-linux-gcc -Wall -g -O2 -c -o $@ $<
+
 clean:
 	rm -f *~ *.o $(TESTS)
