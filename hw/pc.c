@@ -76,6 +76,30 @@ static inline int to_bcd(RTCState *s, int a)
     return ((a / 10) << 4) | (a % 10);
 }
 
+static int cmos_get_fd_drive_type(int fd0)
+{
+    int val;
+
+    switch (fd0) {
+    case 0:
+        /* 1.44 Mb 3"5 drive */
+        val = 4;
+        break;
+    case 1:
+        /* 2.88 Mb 3"5 drive */
+        val = 5;
+        break;
+    case 2:
+        /* 1.2 Mb 5"5 drive */
+        val = 2;
+        break;
+    default:
+        val = 0;
+        break;
+    }
+    return val;
+}
+
 static void cmos_init(int ram_size, int boot_device)
 {
     RTCState *s = rtc_state;
@@ -133,35 +157,7 @@ static void cmos_init(int ram_size, int boot_device)
     fd0 = fdctrl_get_drive_type(floppy_controller, 0);
     fd1 = fdctrl_get_drive_type(floppy_controller, 1);
 
-    val = 0;
-    switch (fd0) {
-    case 0:
-        /* 1.44 Mb 3"5 drive */
-        val |= 0x40;
-        break;
-    case 1:
-        /* 2.88 Mb 3"5 drive */
-        val |= 0x60;
-        break;
-    case 2:
-        /* 1.2 Mb 5"5 drive */
-        val |= 0x20;
-        break;
-    }
-    switch (fd1) {
-    case 0:
-        /* 1.44 Mb 3"5 drive */
-        val |= 0x04;
-        break;
-    case 1:
-        /* 2.88 Mb 3"5 drive */
-        val |= 0x06;
-        break;
-    case 2:
-        /* 1.2 Mb 5"5 drive */
-        val |= 0x02;
-        break;
-    }
+    val = (cmos_get_fd_drive_type(fd0) << 4) | cmos_get_fd_drive_type(fd1);
     rtc_set_memory(s, 0x10, val);
     
     val = 0;
