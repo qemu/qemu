@@ -335,7 +335,7 @@ static inline int ldsw_raw(void *ptr)
 
 static inline int ldl_raw(void *ptr)
 {
-#if defined(__i386__)
+#if defined(__i386__) || defined(__x86_64__)
     int val;
     asm volatile ("movl %1, %0\n"
                   "bswap %0\n"
@@ -372,7 +372,7 @@ static inline void stw_raw(void *ptr, int v)
 
 static inline void stl_raw(void *ptr, int v)
 {
-#if defined(__i386__)
+#if defined(__i386__) || defined(__x86_64__)
     asm volatile ("bswap %0\n"
                   "movl %0, %1\n"
                   : "=r" (v)

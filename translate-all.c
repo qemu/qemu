@@ -194,7 +194,7 @@ int cpu_restore_state(TranslationBlock *tb,
                     fprintf(logfile, "0x%04x: 0x%08x\n", i, gen_opc_pc[i]);
                 }
             }
-            fprintf(logfile, "spc=0x%08lx j=0x%x eip=0x%lx cs_base=%lx\n", 
+            fprintf(logfile, "spc=0x%08lx j=0x%x eip=0x%x cs_base=%x\n", 
                     searched_pc, j, gen_opc_pc[j] - tb->cs_base, tb->cs_base);
         }
 #endif

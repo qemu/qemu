@@ -25,12 +25,21 @@
 typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
 typedef unsigned int uint32_t;
+/* XXX may be done for all 64 bits targets ? */
+#if defined (__x86_64__)
+typedef unsigned long uint64_t;
+#else
 typedef unsigned long long uint64_t;
+#endif
 
 typedef signed char int8_t;
 typedef signed short int16_t;
 typedef signed int int32_t;
+#if defined (__x86_64__)
+typedef signed long int64_t;
+#else
 typedef signed long long int64_t;
+#endif
 
 #define INT8_MIN		(-128)
 #define INT16_MIN		(-32767-1)

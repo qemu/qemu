@@ -167,8 +167,8 @@ static inline PageDesc *page_find(unsigned int index)
 }
 
 #if !defined(CONFIG_USER_ONLY)
-static void tlb_protect_code(CPUState *env, uint32_t addr);
-static void tlb_unprotect_code_phys(CPUState *env, uint32_t phys_addr, target_ulong vaddr);
+static void tlb_protect_code(CPUState *env, target_ulong addr);
+static void tlb_unprotect_code_phys(CPUState *env, unsigned long phys_addr, target_ulong vaddr);
 
 static inline VirtPageDesc *virt_page_find_alloc(unsigned int index)
 {
@@ -1270,7 +1270,7 @@ void tlb_flush_page(CPUState *env, target_ulong addr)
 #endif
 }
 
-static inline void tlb_protect_code1(CPUTLBEntry *tlb_entry, uint32_t addr)
+static inline void tlb_protect_code1(CPUTLBEntry *tlb_entry, target_ulong addr)
 {
     if (addr == (tlb_entry->address & 
                  (TARGET_PAGE_MASK | TLB_INVALID_MASK)) &&
@@ -1282,7 +1282,7 @@ static inline void tlb_protect_code1(CPUTLBEntry *tlb_entry, uint32_t addr)
 
 /* update the TLBs so that writes to code in the virtual page 'addr'
    can be detected */
-static void tlb_protect_code(CPUState *env, uint32_t addr)
+static void tlb_protect_code(CPUState *env, target_ulong addr)
 {
     int i;
 
@@ -1299,7 +1299,7 @@ static void tlb_protect_code(CPUState *env, uint32_t addr)
 }
 
 static inline void tlb_unprotect_code2(CPUTLBEntry *tlb_entry, 
-                                       uint32_t phys_addr)
+                                       unsigned long phys_addr)
 {
     if ((tlb_entry->address & ~TARGET_PAGE_MASK) == IO_MEM_CODE &&
         ((tlb_entry->address & TARGET_PAGE_MASK) + tlb_entry->addend) == phys_addr) {
@@ -1309,7 +1309,7 @@ static inline void tlb_unprotect_code2(CPUTLBEntry *tlb_entry,
 
 /* update the TLB so that writes in physical page 'phys_addr' are no longer
    tested self modifying code */
-static void tlb_unprotect_code_phys(CPUState *env, uint32_t phys_addr, target_ulong vaddr)
+static void tlb_unprotect_code_phys(CPUState *env, unsigned long phys_addr, target_ulong vaddr)
 {
     int i;
 
@@ -1335,7 +1335,7 @@ static inline void tlb_reset_dirty_range(CPUTLBEntry *tlb_entry,
 void cpu_physical_memory_reset_dirty(target_ulong start, target_ulong end)
 {
     CPUState *env;
-    target_ulong length, start1;
+    unsigned long length, start1;
     int i;
 
     start &= TARGET_PAGE_MASK;
@@ -1420,10 +1420,11 @@ int tlb_set_page(CPUState *env, target_ulong vaddr,
                  int is_user, int is_softmmu)
 {
     PageDesc *p;
-    target_ulong pd;
+    unsigned long pd;
     TranslationBlock *first_tb;
     unsigned int index;
-    target_ulong address, addend;
+    target_ulong address;
+    unsigned long addend;
     int ret;
 
     p = page_find(paddr >> TARGET_PAGE_BITS);
@@ -1825,19 +1826,19 @@ static CPUWriteMemoryFunc *code_mem_write[3] = {
     code_mem_writel,
 };
 
-static void notdirty_mem_writeb(uint32_t addr, uint32_t val)
+static void notdirty_mem_writeb(target_phys_addr_t addr, uint32_t val)
 {
     stb_raw((uint8_t *)addr, val);
     tlb_set_dirty(addr, cpu_single_env->mem_write_vaddr);
 }
 
-static void notdirty_mem_writew(uint32_t addr, uint32_t val)
+static void notdirty_mem_writew(target_phys_addr_t addr, uint32_t val)
 {
     stw_raw((uint8_t *)addr, val);
     tlb_set_dirty(addr, cpu_single_env->mem_write_vaddr);
 }
 
-static void notdirty_mem_writel(uint32_t addr, uint32_t val)
+static void notdirty_mem_writel(target_phys_addr_t addr, uint32_t val)
 {
     stl_raw((uint8_t *)addr, val);
     tlb_set_dirty(addr, cpu_single_env->mem_write_vaddr);

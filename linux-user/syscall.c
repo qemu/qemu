@@ -2402,9 +2402,14 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         goto unimplemented;
     case TARGET_NR__llseek:
         {
+#if defined (__x86_64__)
+            ret = get_errno(lseek(arg1, ((uint64_t )arg2 << 32) | arg3, arg5));
+            *(int64_t *)arg4 = ret;
+#else
             int64_t res;
             ret = get_errno(_llseek(arg1, arg2, arg3, &res, arg5));
             *(int64_t *)arg4 = tswap64(res);
+#endif
         }
         break;
     case TARGET_NR_getdents:

@@ -152,6 +152,9 @@ long target_mmap(unsigned long start, unsigned long len, int prot,
                  int flags, int fd, unsigned long offset)
 {
     unsigned long ret, end, host_start, host_end, retaddr, host_offset, host_len;
+#if defined(__alpha__) || defined(__sparc__) || defined(__x86_64__)
+    static unsigned long last_start = 0x40000000;
+#endif
 
 #ifdef DEBUG_MMAP
     {
@@ -190,8 +193,10 @@ long target_mmap(unsigned long start, unsigned long len, int prot,
     if (!(flags & MAP_FIXED)) {
 #if defined(__alpha__) || defined(__sparc__) || defined(__x86_64__)
         /* tell the kenel to search at the same place as i386 */
-        if (host_start == 0)
-            host_start = 0x40000000;
+        if (host_start == 0) {
+            host_start = last_start;
+            last_start += HOST_PAGE_ALIGN(len);
+        }
 #endif
         if (host_page_size != real_host_page_size) {
             /* NOTE: this code is only for debugging with '-p' option */

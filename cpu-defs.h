@@ -29,8 +29,18 @@
 #error TARGET_LONG_BITS must be defined before including this header
 #endif
 
+#if defined(__alpha__) || defined (__ia64__) || defined(__x86_64__)
+#define HOST_LONG_BITS 64
+#else
+#define HOST_LONG_BITS 32
+#endif
+
 #ifndef TARGET_PHYS_ADDR_BITS 
+#if TARGET_LONG_BITS >= HOST_LONG_BITS
 #define TARGET_PHYS_ADDR_BITS TARGET_LONG_BITS
+#else
+#define TARGET_PHYS_ADDR_BITS HOST_LONG_BITS
+#endif
 #endif
 
 #define TARGET_LONG_SIZE (TARGET_LONG_BITS / 8)
@@ -47,19 +57,17 @@ typedef uint64_t target_ulong;
 #endif
 
 /* target_phys_addr_t is the type of a physical address (its size can
-   be different from 'target_ulong') */
+   be different from 'target_ulong'). We have sizeof(target_phys_addr)
+   = max(sizeof(unsigned long),
+   sizeof(size_of_target_physical_address)) because we must pass a
+   host pointer to memory operations in some cases */
+
 #if TARGET_PHYS_ADDR_BITS == 32
 typedef uint32_t target_phys_addr_t;
 #elif TARGET_PHYS_ADDR_BITS == 64
 typedef uint64_t target_phys_addr_t;
 #else
 #error TARGET_PHYS_ADDR_BITS undefined
-#endif
-
-#if defined(__alpha__) || defined (__ia64__) || defined(__x86_64__)
-#define HOST_LONG_BITS 64
-#else
-#define HOST_LONG_BITS 32
 #endif
 
 #define HOST_LONG_SIZE (HOST_LONG_BITS / 8)
@@ -79,9 +87,9 @@ typedef struct CPUTLBEntry {
        bit 3                      : indicates that the entry is invalid
        bit 2..0                   : zero
     */
-    uint32_t address; 
+    target_ulong address; 
     /* addend to virtual address to get physical address */
-    uint32_t addend; 
+    target_phys_addr_t addend; 
 } CPUTLBEntry;
 
 #endif

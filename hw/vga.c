@@ -92,7 +92,7 @@ typedef struct VGAState {
     uint8_t dac_write_index;
     uint8_t dac_cache[3]; /* used when writing */
     uint8_t palette[768];
-    uint32_t bank_offset;
+    int32_t bank_offset;
 #ifdef CONFIG_BOCHS_VBE
     uint16_t vbe_index;
     uint16_t vbe_regs[VBE_DISPI_INDEX_NB];
