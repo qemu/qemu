@@ -2172,7 +2172,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
                 if (s->cc_op != CC_OP_DYNAMIC)
                     gen_op_set_cc_op(s->cc_op);
                 gen_op_jmp_im(pc_start - s->cs_base);
-                gen_op_ljmp_protected_T0_T1();
+                gen_op_ljmp_protected_T0_T1(s->pc - s->cs_base);
             } else {
                 gen_op_movl_seg_T0_vm(offsetof(CPUX86State,segs[R_CS]));
                 gen_op_movl_T0_T1();
@@ -3453,7 +3453,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
             if (s->cc_op != CC_OP_DYNAMIC)
                 gen_op_set_cc_op(s->cc_op);
             gen_op_jmp_im(pc_start - s->cs_base);
-            gen_op_iret_protected(s->dflag);
+            gen_op_iret_protected(s->dflag, s->pc - s->cs_base);
             s->cc_op = CC_OP_EFLAGS;
         }
         gen_eob(s);

@@ -1219,7 +1219,7 @@ void load_seg(int seg_reg, int selector)
 }
 
 /* protected mode jump */
-void helper_ljmp_protected_T0_T1(void)
+void helper_ljmp_protected_T0_T1(int next_eip)
 {
     int new_cs, new_eip, gate_cs, type;
     uint32_t e1, e2, cpl, dpl, rpl, limit;
@@ -1267,8 +1267,7 @@ void helper_ljmp_protected_T0_T1(void)
         case 5: /* task gate */
             if (dpl < cpl || dpl < rpl)
                 raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
-            /* XXX: check if it is really the current EIP */
-            switch_tss(new_cs, e1, e2, SWITCH_TSS_JMP, env->eip);
+            switch_tss(new_cs, e1, e2, SWITCH_TSS_JMP, next_eip);
             break;
         case 4: /* 286 call gate */
         case 12: /* 386 call gate */
@@ -1732,7 +1731,7 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
     ESP = new_esp;
 }
 
-void helper_iret_protected(int shift)
+void helper_iret_protected(int shift, int next_eip)
 {
     int tss_selector, type;
     uint32_t e1, e2;
@@ -1748,8 +1747,7 @@ void helper_iret_protected(int shift)
         /* NOTE: we check both segment and busy TSS */
         if (type != 3)
             raise_exception_err(EXCP0A_TSS, tss_selector & 0xfffc);
-        /* XXX: check if it is really the current EIP */
-        switch_tss(tss_selector, e1, e2, SWITCH_TSS_IRET, env->eip);
+        switch_tss(tss_selector, e1, e2, SWITCH_TSS_IRET, next_eip);
     } else {
         helper_ret_protected(shift, 1, 0);
     }
