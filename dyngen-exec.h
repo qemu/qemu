@@ -242,6 +242,7 @@ extern int __op_jmp0, __op_jmp1, __op_jmp2, __op_jmp3;
 #endif
 #ifdef __arm__
 #define EXIT_TB() asm volatile ("b exec_loop")
+#define GOTO_LABEL_PARAM(n) asm volatile ("b " ASM_NAME(__op_gen_label) #n)
 #endif
 #ifdef __mc68000
 #define EXIT_TB() asm volatile ("rts")
