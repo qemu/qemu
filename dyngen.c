@@ -108,6 +108,7 @@ typedef uint64_t host_ulong;
 #define SHT_RELOC SHT_REL
 #endif
 
+#define NO_THUNK_TYPE_SIZE
 #include "thunk.h"
 
 enum {
