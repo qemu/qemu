@@ -1552,7 +1552,9 @@ static void gen_movl_seg_T0(DisasContext *s, int seg_reg, unsigned int cur_eip)
     else
         gen_op_movl_seg_T0_vm(offsetof(CPUX86State,segs[seg_reg]));
     /* abort translation because the register may have a non zero base
-       or because ss32 may change */
+       or because ss32 may change. For R_SS, translation must always
+       stop as a special handling must be done to disable hardware
+       interrupts for the next instruction */
     if (seg_reg == R_SS || (!s->addseg && seg_reg < R_FS))
         s->is_jmp = 2; 
 }
@@ -2356,10 +2358,14 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
     case 0x07: /* pop es */
     case 0x17: /* pop ss */
     case 0x1f: /* pop ds */
+        reg = b >> 3;
         gen_pop_T0(s);
-        gen_movl_seg_T0(s, b >> 3, pc_start - s->cs_base);
+        gen_movl_seg_T0(s, reg, pc_start - s->cs_base);
         gen_pop_update(s);
-        /* XXX: if reg == SS, inhibit interrupts/trace */
+        if (reg == R_SS) {
+            /* if reg == SS, inhibit interrupts/trace */
+            gen_op_set_inhibit_irq();
+        }
         break;
     case 0x1a1: /* pop fs */
     case 0x1a9: /* pop gs */
@@ -2418,7 +2424,10 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             goto illegal_op;
         gen_ldst_modrm(s, modrm, OT_WORD, OR_TMP0, 0);
         gen_movl_seg_T0(s, reg, pc_start - s->cs_base);
-        /* XXX: if reg == SS, inhibit interrupts/trace */
+        if (reg == R_SS) {
+            /* if reg == SS, inhibit interrupts/trace */
+            gen_op_set_inhibit_irq();
+        }
         break;
     case 0x8c: /* mov Gv, seg */
         modrm = ldub(s->pc++);
@@ -3704,6 +3713,8 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         if (!s->vm86) {
             if (s->cpl <= s->iopl) {
                 gen_op_sti();
+                /* interruptions are enabled only the first insn after sti */
+                gen_op_set_inhibit_irq();
                 s->is_jmp = 2; /* give a chance to handle pending irqs */
             } else {
                 gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
@@ -3711,12 +3722,13 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         } else {
             if (s->iopl == 3) {
                 gen_op_sti();
+                /* interruptions are enabled only the first insn after sti */
+                gen_op_set_inhibit_irq();
                 s->is_jmp = 2; /* give a chance to handle pending irqs */
             } else {
                 gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
             }
         }
-        /* XXX: interruptions are enabled only the first insn after sti */
         break;
     case 0x62: /* bound */
         ot = dflag ? OT_LONG : OT_WORD;
@@ -4380,21 +4392,21 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     flags = tb->flags;
        
     dc->pe = env->cr[0] & CR0_PE_MASK;
-    dc->code32 = (flags >> GEN_FLAG_CODE32_SHIFT) & 1;
-    dc->ss32 = (flags >> GEN_FLAG_SS32_SHIFT) & 1;
-    dc->addseg = (flags >> GEN_FLAG_ADDSEG_SHIFT) & 1;
-    dc->f_st = (flags >> GEN_FLAG_ST_SHIFT) & 7;
-    dc->vm86 = (flags >> GEN_FLAG_VM_SHIFT) & 1;
-    dc->cpl = (flags >> GEN_FLAG_CPL_SHIFT) & 3;
-    dc->iopl = (flags >> GEN_FLAG_IOPL_SHIFT) & 3;
-    dc->tf = (flags >> GEN_FLAG_TF_SHIFT) & 1;
+    dc->code32 = (flags >> HF_CS32_SHIFT) & 1;
+    dc->ss32 = (flags >> HF_SS32_SHIFT) & 1;
+    dc->addseg = (flags >> HF_ADDSEG_SHIFT) & 1;
+    dc->f_st = 0;
+    dc->vm86 = (flags >> VM_SHIFT) & 1;
+    dc->cpl = (flags >> HF_CPL_SHIFT) & 3;
+    dc->iopl = (flags >> IOPL_SHIFT) & 3;
+    dc->tf = (flags >> TF_SHIFT) & 1;
     dc->cc_op = CC_OP_DYNAMIC;
     dc->cs_base = cs_base;
     dc->tb = tb;
     dc->popl_esp_hack = 0;
     /* select memory access functions */
     dc->mem_index = 0;
-    if ((flags >> GEN_FLAG_SOFT_MMU_SHIFT) & 1) {
+    if (flags & HF_SOFTMMU_MASK) {
         if (dc->cpl == 3)
             dc->mem_index = 6;
         else
@@ -4408,6 +4420,13 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     dc->is_jmp = DISAS_NEXT;
     pc_ptr = pc_start;
     lj = -1;
+
+    /* if irq were inhibited for the next instruction, we can disable
+       them here as it is simpler (otherwise jumps would have to
+       handled as special case) */
+    if (flags & HF_INHIBIT_IRQ_MASK) {
+        gen_op_reset_inhibit_irq();
+    }
     do {
         if (env->nb_breakpoints > 0) {
             for(j = 0; j < env->nb_breakpoints; j++) {

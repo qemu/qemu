@@ -52,7 +52,7 @@ CPUX86State *cpu_x86_init(void)
 
     tlb_flush(env);
 #ifdef CONFIG_SOFTMMU
-    env->soft_mmu = 1;
+    env->hflags |= HF_SOFTMMU_MASK;
 #endif
     /* init various static tables */
     if (!inited) {
@@ -228,7 +228,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr, int is_write)
     int cpl, error_code, is_dirty, is_user, prot, page_size, ret;
     unsigned long pd;
     
-    cpl = env->cpl;
+    cpl = env->hflags & HF_CPL_MASK;
     is_user = (cpl == 3);
     
 #ifdef DEBUG_MMU
@@ -325,7 +325,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr, int is_write)
     }
     
  do_mapping:
-    if (env->soft_mmu) {
+    if (env->hflags & HF_SOFTMMU_MASK) {
         unsigned long paddr, vaddr, address, addend, page_offset;
         int index;
 
@@ -359,7 +359,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr, int is_write)
     if ((pd & 0xfff) != 0) {
         /* IO access: no mapping is done as it will be handled by the
            soft MMU */
-        if (!env->soft_mmu)
+        if (!(env->hflags & HF_SOFTMMU_MASK))
             ret = 2;
     } else {
         void *map_addr;

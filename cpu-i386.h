@@ -73,6 +73,10 @@
 #define CC_S    0x0080
 #define CC_O    0x0800
 
+#define TF_SHIFT   8
+#define IOPL_SHIFT 12
+#define VM_SHIFT   17
+
 #define TF_MASK 		0x00000100
 #define IF_MASK 		0x00000200
 #define DF_MASK 		0x00000400
@@ -84,6 +88,29 @@
 #define VIF_MASK                0x00080000
 #define VIP_MASK                0x00100000
 #define ID_MASK                 0x00200000
+
+/* hidden flags - used internally by qemu to represent additionnal cpu
+   states. Only the CPL and INHIBIT_IRQ are not redundant. We avoid
+   using the IOPL_MASK, TF_MASK and VM_MASK bit position to ease oring
+   with eflags. */
+/* current cpl */
+#define HF_CPL_SHIFT         0
+/* true if soft mmu is being used */
+#define HF_SOFTMMU_SHIFT     2
+/* true if hardware interrupts must be disabled for next instruction */
+#define HF_INHIBIT_IRQ_SHIFT 3
+/* 16 or 32 segments */
+#define HF_CS32_SHIFT        4
+#define HF_SS32_SHIFT        5
+/* zero base for DS, ES and SS */
+#define HF_ADDSEG_SHIFT      6
+
+#define HF_CPL_MASK          (3 << HF_CPL_SHIFT)
+#define HF_SOFTMMU_MASK      (1 << HF_SOFTMMU_SHIFT)
+#define HF_INHIBIT_IRQ_MASK  (1 << HF_INHIBIT_IRQ_SHIFT)
+#define HF_CS32_MASK         (1 << HF_CS32_SHIFT)
+#define HF_SS32_MASK         (1 << HF_CS32_SHIFT)
+#define HF_ADDSEG_MASK       (1 << HF_ADDSEG_SHIFT)
 
 #define CR0_PE_MASK  (1 << 0)
 #define CR0_TS_MASK  (1 << 3)
@@ -226,6 +253,7 @@ typedef struct CPUX86State {
     uint32_t cc_dst;
     uint32_t cc_op;
     int32_t df; /* D flag : 1 if D = 0, -1 if D = 1 */
+    uint32_t hflags; /* hidden flags, see HF_xxx constants */
 
     /* FPU state */
     unsigned int fpstt; /* top of stack index */
@@ -249,8 +277,6 @@ typedef struct CPUX86State {
     SegmentCache tr;
     SegmentCache gdt; /* only base and limit are used */
     SegmentCache idt; /* only base and limit are used */
-    int cpl;          /* current cpl */
-    int soft_mmu;     /* TRUE if soft mmu is being used */
     
     /* sysenter registers */
     uint32_t sysenter_cs;
@@ -303,7 +329,11 @@ void cpu_x86_load_seg(CPUX86State *s, int seg_reg, int selector);
 /* wrapper, just in case memory mappings must be changed */
 static inline void cpu_x86_set_cpl(CPUX86State *s, int cpl)
 {
-    s->cpl = cpl;
+#if HF_CPL_MASK == 3
+    s->hflags = (s->hflags & ~HF_CPL_MASK) | cpl;
+#else
+#error HF_CPL_MASK is hardcoded
+#endif
 }
 
 /* simulate fsave/frstor */

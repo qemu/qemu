@@ -90,7 +90,7 @@ DATA_TYPE REGPARM(1) glue(glue(__ld, SUFFIX), _mmu)(unsigned long addr)
     
     /* test if there is match for unaligned or IO access */
     /* XXX: could done more in memory macro in a non portable way */
-    is_user = (env->cpl == 3);
+    is_user = ((env->hflags & HF_CPL_MASK) == 3);
     index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
  redo:
     tlb_addr = env->tlb_read[is_user][index].address;
@@ -126,7 +126,7 @@ static DATA_TYPE glue(slow_ld, SUFFIX)(unsigned long addr, void *retaddr)
     int is_user, index, shift;
     unsigned long physaddr, tlb_addr, addr1, addr2;
 
-    is_user = (env->cpl == 3);
+    is_user = ((env->hflags & HF_CPL_MASK) == 3);
     index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
  redo:
     tlb_addr = env->tlb_read[is_user][index].address;
@@ -169,7 +169,7 @@ void REGPARM(2) glue(glue(__st, SUFFIX), _mmu)(unsigned long addr, DATA_TYPE val
     void *retaddr;
     int is_user, index;
     
-    is_user = (env->cpl == 3);
+    is_user = ((env->hflags & HF_CPL_MASK) == 3);
     index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
  redo:
     tlb_addr = env->tlb_write[is_user][index].address;
@@ -203,7 +203,7 @@ static void glue(slow_st, SUFFIX)(unsigned long addr, DATA_TYPE val,
     unsigned long physaddr, tlb_addr;
     int is_user, index, i;
 
-    is_user = (env->cpl == 3);
+    is_user = ((env->hflags & HF_CPL_MASK) == 3);
     index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
  redo:
     tlb_addr = env->tlb_write[is_user][index].address;

@@ -189,7 +189,7 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
 {
     SegmentCache *dt;
     uint8_t *ptr, *ssp;
-    int type, dpl, selector, ss_dpl;
+    int type, dpl, selector, ss_dpl, cpl;
     int has_error_code, new_stack, shift;
     uint32_t e1, e2, offset, ss, esp, ss_e1, ss_e2, push_size;
     uint32_t old_cs, old_ss, old_esp, old_eip;
@@ -216,8 +216,9 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
         break;
     }
     dpl = (e2 >> DESC_DPL_SHIFT) & 3;
+    cpl = env->hflags & HF_CPL_MASK;
     /* check privledge if software int */
-    if (is_int && dpl < env->cpl)
+    if (is_int && dpl < cpl)
         raise_exception_err(EXCP0D_GPF, intno * 8 + 2);
     /* check valid bit */
     if (!(e2 & DESC_P_MASK))
@@ -232,11 +233,11 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
     if (!(e2 & DESC_S_MASK) || !(e2 & (DESC_CS_MASK)))
         raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
     dpl = (e2 >> DESC_DPL_SHIFT) & 3;
-    if (dpl > env->cpl)
+    if (dpl > cpl)
         raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
     if (!(e2 & DESC_P_MASK))
         raise_exception_err(EXCP0B_NOSEG, selector & 0xfffc);
-    if (!(e2 & DESC_C_MASK) && dpl < env->cpl) {
+    if (!(e2 & DESC_C_MASK) && dpl < cpl) {
         /* to inner priviledge */
         get_ss_esp_from_tss(&ss, &esp, dpl);
         if ((ss & 0xfffc) == 0)
@@ -255,7 +256,7 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
         if (!(ss_e2 & DESC_P_MASK))
             raise_exception_err(EXCP0A_TSS, ss & 0xfffc);
         new_stack = 1;
-    } else if ((e2 & DESC_C_MASK) || dpl == env->cpl) {
+    } else if ((e2 & DESC_C_MASK) || dpl == cpl) {
         /* to same priviledge */
         new_stack = 0;
     } else {
@@ -402,7 +403,7 @@ void do_interrupt_user(int intno, int is_int, int error_code,
 {
     SegmentCache *dt;
     uint8_t *ptr;
-    int dpl;
+    int dpl, cpl;
     uint32_t e2;
 
     dt = &env->idt;
@@ -410,8 +411,9 @@ void do_interrupt_user(int intno, int is_int, int error_code,
     e2 = ldl(ptr + 4);
     
     dpl = (e2 >> DESC_DPL_SHIFT) & 3;
+    cpl = env->hflags & HF_CPL_MASK;
     /* check privledge if software int */
-    if (is_int && dpl < env->cpl)
+    if (is_int && dpl < cpl)
         raise_exception_err(EXCP0D_GPF, intno * 8 + 2);
 
     /* Since we emulate only user space, we cannot do more than
@@ -742,7 +744,7 @@ void helper_ljmp_protected_T0_T1(void)
         raise_exception_err(EXCP0D_GPF, 0);
     if (load_segment(&e1, &e2, new_cs) != 0)
         raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
-    cpl = env->cpl;
+    cpl = env->hflags & HF_CPL_MASK;
     if (e2 & DESC_S_MASK) {
         if (!(e2 & DESC_CS_MASK))
             raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
@@ -826,7 +828,7 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip)
         raise_exception_err(EXCP0D_GPF, 0);
     if (load_segment(&e1, &e2, new_cs) != 0)
         raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
-    cpl = env->cpl;
+    cpl = env->hflags & HF_CPL_MASK;
     if (e2 & DESC_S_MASK) {
         if (!(e2 & DESC_CS_MASK))
             raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
@@ -1079,7 +1081,7 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
     if (!(e2 & DESC_S_MASK) ||
         !(e2 & DESC_CS_MASK))
         raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
-    cpl = env->cpl;
+    cpl = env->hflags & HF_CPL_MASK;
     rpl = new_cs & 3; 
     if (rpl < cpl)
         raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);

@@ -186,7 +186,8 @@ int cpu_exec(CPUState *env1)
 #if defined(TARGET_I386)
                     /* if hardware interrupt pending, we execute it */
                     if ((interrupt_request & CPU_INTERRUPT_HARD) &&
-                        (env->eflags & IF_MASK)) {
+                        (env->eflags & IF_MASK) && 
+                        !(env->hflags & HF_INHIBIT_IRQ_MASK)) {
                         int intno;
                         intno = cpu_x86_get_pic_interrupt(env);
                         if (loglevel) {
@@ -233,21 +234,20 @@ int cpu_exec(CPUState *env1)
 #endif
                 }
 #endif
-                /* we compute the CPU state. We assume it will not
-                   change during the whole generated block. */
+                /* we record a subset of the CPU state. It will
+                   always be the same before a given translated block
+                   is executed. */
 #if defined(TARGET_I386)
                 flags = (env->segs[R_CS].flags & DESC_B_MASK)
-                    >> (DESC_B_SHIFT - GEN_FLAG_CODE32_SHIFT);
+                    >> (DESC_B_SHIFT - HF_CS32_SHIFT);
                 flags |= (env->segs[R_SS].flags & DESC_B_MASK)
-                    >> (DESC_B_SHIFT - GEN_FLAG_SS32_SHIFT);
+                    >> (DESC_B_SHIFT - HF_SS32_SHIFT);
                 flags |= (((unsigned long)env->segs[R_DS].base | 
                            (unsigned long)env->segs[R_ES].base |
                            (unsigned long)env->segs[R_SS].base) != 0) << 
-                    GEN_FLAG_ADDSEG_SHIFT;
-                flags |= env->cpl << GEN_FLAG_CPL_SHIFT;
-                flags |= env->soft_mmu << GEN_FLAG_SOFT_MMU_SHIFT;
-                flags |= (env->eflags & VM_MASK) >> (17 - GEN_FLAG_VM_SHIFT);
-                flags |= (env->eflags & (IOPL_MASK | TF_MASK));
+                    HF_ADDSEG_SHIFT;
+                flags |= env->hflags;
+                flags |= (env->eflags & (IOPL_MASK | TF_MASK | VM_MASK));
                 cs_base = env->segs[R_CS].base;
                 pc = cs_base + env->eip;
 #elif defined(TARGET_ARM)
@@ -337,8 +337,8 @@ int cpu_exec(CPUState *env1)
                 /* reset soft MMU for next block (it can currently
                    only be set by a memory fault) */
 #if defined(TARGET_I386) && !defined(CONFIG_SOFTMMU)
-                if (env->soft_mmu) {
-                    env->soft_mmu = 0;
+                if (env->hflags & HF_SOFTMMU_MASK) {
+                    env->hflags &= ~HF_SOFTMMU_MASK;
                     /* do not allow linking to another block */
                     T0 = 0;
                 }
@@ -499,7 +499,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
         raise_exception_err(EXCP0E_PAGE, env->error_code);
     } else {
         /* activate soft MMU for this block */
-        env->soft_mmu = 1;
+        env->hflags |= HF_SOFTMMU_MASK;
         sigprocmask(SIG_SETMASK, old_set, NULL);
         cpu_loop_exit();
     }

@@ -61,16 +61,6 @@ extern uint8_t gen_opc_instr_start[OPC_BUF_SIZE];
 
 #if defined(TARGET_I386)
 
-#define GEN_FLAG_CODE32_SHIFT    0
-#define GEN_FLAG_ADDSEG_SHIFT    1
-#define GEN_FLAG_SS32_SHIFT      2
-#define GEN_FLAG_VM_SHIFT        3
-#define GEN_FLAG_ST_SHIFT        4
-#define GEN_FLAG_TF_SHIFT        8 /* same position as eflags */
-#define GEN_FLAG_CPL_SHIFT       9
-#define GEN_FLAG_SOFT_MMU_SHIFT 11
-#define GEN_FLAG_IOPL_SHIFT     12 /* same position as eflags */
-
 void optimize_flags_init(void);
 
 #endif

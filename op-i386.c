@@ -457,6 +457,16 @@ void OPPROTO op_sti(void)
     env->eflags |= IF_MASK;
 }
 
+void OPPROTO op_set_inhibit_irq(void)
+{
+    env->hflags |= HF_INHIBIT_IRQ_MASK;
+}
+
+void OPPROTO op_reset_inhibit_irq(void)
+{
+    env->hflags &= ~HF_INHIBIT_IRQ_MASK;
+}
+
 #if 0
 /* vm86plus instructions */
 void OPPROTO op_cli_vm(void)
