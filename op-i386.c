@@ -634,6 +634,7 @@ void OPPROTO op_into(void)
     int eflags;
     eflags = cc_table[CC_OP].compute_all();
     if (eflags & CC_O) {
+        EIP = PARAM1;
         raise_exception(EXCP04_INTO);
     }
     FORCE_RET();
@@ -1136,6 +1137,66 @@ void OPPROTO op_addl_A0_seg(void)
     A0 += *(unsigned long *)((char *)env + PARAM1);
 }
 
+void helper_lsl(void)
+{
+    unsigned int selector, limit;
+    SegmentDescriptorTable *dt;
+    int index;
+    uint32_t e1, e2;
+    uint8_t *ptr;
+
+    CC_SRC = cc_table[CC_OP].compute_all() & ~CC_Z;
+    selector = T0 & 0xffff;
+    if (selector & 0x4)
+        dt = &env->ldt;
+    else
+        dt = &env->gdt;
+    index = selector & ~7;
+    if ((index + 7) > dt->limit)
+        return;
+    ptr = dt->base + index;
+    e1 = ldl(ptr);
+    e2 = ldl(ptr + 4);
+    limit = (e1 & 0xffff) | (e2 & 0x000f0000);
+    if (e2 & (1 << 23))
+        limit = (limit << 12) | 0xfff;
+    T1 = limit;
+    CC_SRC |= CC_Z;
+}
+
+void OPPROTO op_lsl(void)
+{
+    helper_lsl();
+}
+
+void helper_lar(void)
+{
+    unsigned int selector;
+    SegmentDescriptorTable *dt;
+    int index;
+    uint32_t e2;
+    uint8_t *ptr;
+
+    CC_SRC = cc_table[CC_OP].compute_all() & ~CC_Z;
+    selector = T0 & 0xffff;
+    if (selector & 0x4)
+        dt = &env->ldt;
+    else
+        dt = &env->gdt;
+    index = selector & ~7;
+    if ((index + 7) > dt->limit)
+        return;
+    ptr = dt->base + index;
+    e2 = ldl(ptr + 4);
+    T1 = e2 & 0x00f0ff00;
+    CC_SRC |= CC_Z;
+}
+
+void OPPROTO op_lar(void)
+{
+    helper_lar();
+}
+
 /* flags handling */
 
 /* slow jumps cases (compute x86 flags) */
@@ -1490,13 +1551,13 @@ CCTable cc_table[CC_OP_NB] = {
     [CC_OP_DECW] = { compute_all_decw, compute_c_incl },
     [CC_OP_DECL] = { compute_all_decl, compute_c_incl },
     
-    [CC_OP_SHLB] = { compute_all_shlb, compute_c_shll },
-    [CC_OP_SHLW] = { compute_all_shlw, compute_c_shll },
+    [CC_OP_SHLB] = { compute_all_shlb, compute_c_shlb },
+    [CC_OP_SHLW] = { compute_all_shlw, compute_c_shlw },
     [CC_OP_SHLL] = { compute_all_shll, compute_c_shll },
 
-    [CC_OP_SARB] = { compute_all_sarb, compute_c_shll },
-    [CC_OP_SARW] = { compute_all_sarw, compute_c_shll },
-    [CC_OP_SARL] = { compute_all_sarl, compute_c_shll },
+    [CC_OP_SARB] = { compute_all_sarb, compute_c_sarl },
+    [CC_OP_SARW] = { compute_all_sarw, compute_c_sarl },
+    [CC_OP_SARL] = { compute_all_sarl, compute_c_sarl },
 };
 
 /* floating point support. Some of the code for complicated x87
