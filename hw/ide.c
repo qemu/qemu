@@ -1826,22 +1826,21 @@ struct partition {
 	uint32_t nr_sects;		/* nr of sectors in partition */
 } __attribute__((packed));
 
-/* try to guess the IDE physical geometry from the MSDOS partition table */
-static void ide_guess_geometry(IDEState *s)
+/* try to guess the disk logical geometry from the MSDOS partition table. Return 0 if OK, -1 if could not guess */
+static int guess_disk_lchs(IDEState *s, 
+                           int *pcylinders, int *pheads, int *psectors)
 {
     uint8_t buf[512];
     int ret, i, heads, sectors, cylinders;
     struct partition *p;
     uint32_t nr_sects;
 
-    if (s->cylinders != 0)
-        return;
     ret = bdrv_read(s->bs, 0, buf, 1);
     if (ret < 0)
-        return;
+        return -1;
     /* test msdos magic */
     if (buf[510] != 0x55 || buf[511] != 0xaa)
-        return;
+        return -1;
     for(i = 0; i < 4; i++) {
         p = ((struct partition *)(buf + 0x1be)) + i;
         nr_sects = le32_to_cpu(p->nr_sects);
@@ -1849,23 +1848,23 @@ static void ide_guess_geometry(IDEState *s)
             /* We make the assumption that the partition terminates on
                a cylinder boundary */
             heads = p->end_head + 1;
-            if (heads < 1 || heads > 16)
-                continue;
             sectors = p->end_sector & 63;
             if (sectors == 0)
                 continue;
             cylinders = s->nb_sectors / (heads * sectors);
             if (cylinders < 1 || cylinders > 16383)
                 continue;
-            s->heads = heads;
-            s->sectors = sectors;
-            s->cylinders = cylinders;
+            *pheads = heads;
+            *psectors = sectors;
+            *pcylinders = cylinders;
 #if 0
-            printf("guessed partition: CHS=%d %d %d\n", 
-                   s->cylinders, s->heads, s->sectors);
+            printf("guessed geometry: LCHS=%d %d %d\n", 
+                   cylinders, heads, sectors);
 #endif
+            return 0;
         }
     }
+    return -1;
 }
 
 static void ide_init2(IDEState *ide_state, int irq,
@@ -1873,7 +1872,7 @@ static void ide_init2(IDEState *ide_state, int irq,
 {
     IDEState *s;
     static int drive_serial = 1;
-    int i, cylinders, heads, secs;
+    int i, cylinders, heads, secs, translation;
     int64_t nb_sectors;
 
     for(i = 0; i < 2; i++) {
@@ -1892,8 +1891,26 @@ static void ide_init2(IDEState *ide_state, int irq,
                 s->heads = heads;
                 s->sectors = secs;
             } else {
-                ide_guess_geometry(s);
-                if (s->cylinders == 0) {
+                if (guess_disk_lchs(s, &cylinders, &heads, &secs) == 0) {
+                    if (heads > 16) {
+                        /* if heads > 16, it means that a BIOS LBA
+                           translation was active, so the default
+                           hardware geometry is OK */
+                        goto default_geometry;
+                    } else {
+                        s->cylinders = cylinders;
+                        s->heads = heads;
+                        s->sectors = secs;
+                        /* disable any translation to be in sync with
+                           the logical geometry */
+                        translation = bdrv_get_translation_hint(s->bs);
+                        if (translation == BIOS_ATA_TRANSLATION_AUTO) {
+                            bdrv_set_translation_hint(s->bs,
+                                                      BIOS_ATA_TRANSLATION_NONE);
+                        }
+                    }
+                } else {
+                default_geometry:
                     /* if no geometry, use a standard physical disk geometry */
                     cylinders = nb_sectors / (16 * 63);
                     if (cylinders > 16383)
