@@ -103,6 +103,9 @@
     void (*get_offsets)(struct VGAState *s,                             \
                         uint32_t *pline_offset,                         \
                         uint32_t *pstart_addr);                         \
+    void (*get_resolution)(struct VGAState *s,                          \
+                        int *pwidth,                                    \
+                        int *pheight);                                  \
     VGA_STATE_COMMON_BOCHS_VBE                                          \
     /* display refresh support */                                       \
     DisplayState *ds;                                                   \

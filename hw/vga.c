@@ -1301,6 +1301,19 @@ static int vga_get_bpp(VGAState *s)
     return ret;
 }
 
+static void vga_get_resolution(VGAState *s, int *pwidth, int *pheight)
+{
+    int width, height;
+    
+    width = (s->cr[0x01] + 1) * 8;
+    height = s->cr[0x12] | 
+        ((s->cr[0x07] & 0x02) << 7) | 
+        ((s->cr[0x07] & 0x40) << 3);
+    height = (height + 1);
+    *pwidth = width;
+    *pheight = height;
+}
+
 void vga_invalidate_scanlines(VGAState *s, int y1, int y2)
 {
     int y;
@@ -1327,11 +1340,7 @@ static void vga_draw_graphic(VGAState *s, int full_update)
     
     full_update |= update_basic_params(s);
 
-    width = (s->cr[0x01] + 1) * 8;
-    height = s->cr[0x12] | 
-        ((s->cr[0x07] & 0x02) << 7) | 
-        ((s->cr[0x07] & 0x40) << 3);
-    height = (height + 1);
+    s->get_resolution(s, &width, &height);
     disp_width = width;
 
     shift_control = (s->gr[0x05] >> 5) & 3;
@@ -1562,6 +1571,15 @@ void vga_update_display(void)
     }
 }
 
+/* force a full display refresh */
+void vga_invalidate_display(void)
+{
+    VGAState *s = vga_state;
+    
+    s->last_width = -1;
+    s->last_height = -1;
+}
+
 static void vga_reset(VGAState *s)
 {
     memset(s, 0, sizeof(VGAState));
@@ -1723,6 +1741,7 @@ void vga_common_init(VGAState *s, DisplayState *ds, uint8_t *vga_ram_base,
     s->ds = ds;
     s->get_bpp = vga_get_bpp;
     s->get_offsets = vga_get_offsets;
+    s->get_resolution = vga_get_resolution;
     /* XXX: currently needed for display */
     vga_state = s;
 }
@@ -1875,8 +1894,7 @@ void vga_screen_dump(const char *filename)
     DisplayState *saved_ds, ds1, *ds = &ds1;
     
     /* XXX: this is a little hackish */
-    s->last_width = -1;
-    s->last_height = -1;
+    vga_invalidate_display();
     saved_ds = s->ds;
 
     memset(ds, 0, sizeof(DisplayState));
