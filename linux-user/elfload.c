@@ -17,13 +17,6 @@
 
 #define ELF_START_MMAP 0x80000000
 
-typedef uint32_t  elf_greg_t;
-
-#define ELF_NGREG (sizeof (struct target_pt_regs) / sizeof(elf_greg_t))
-typedef elf_greg_t elf_gregset_t[ELF_NGREG];
-
-typedef struct user_i387_struct elf_fpregset_t;
-
 /*
  * This is used to ensure we don't load something for the wrong architecture.
  */
@@ -758,7 +751,6 @@ static int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * r
     }
 
     /* Now read in all of the header information */
-
     elf_phdata = (struct elf_phdr *)malloc(elf_ex.e_phentsize*elf_ex.e_phnum);
     if (elf_phdata == NULL) {
 	return -ENOMEM;
