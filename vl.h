@@ -209,6 +209,7 @@ uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c);
 
 void hw_error(const char *fmt, ...);
 
+int get_image_size(const char *filename);
 int load_image(const char *filename, uint8_t *addr);
 extern const char *bios_dir;
 
@@ -243,7 +244,7 @@ extern int cirrus_vga_enabled;
 #if defined (TARGET_PPC)
 #define BIOS_SIZE (512 * 1024)
 #else
-#define BIOS_SIZE 0
+#define BIOS_SIZE ((256 + 64) * 1024)
 #endif
 
 /* keyboard/mouse support */

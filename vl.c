@@ -291,6 +291,18 @@ char *pstrcat(char *buf, int buf_size, const char *s)
 }
 
 /* return the size or -1 if error */
+int get_image_size(const char *filename)
+{
+    int fd, size;
+    fd = open(filename, O_RDONLY | O_BINARY);
+    if (fd < 0)
+        return -1;
+    size = lseek(fd, 0, SEEK_END);
+    close(fd);
+    return size;
+}
+
+/* return the size or -1 if error */
 int load_image(const char *filename, uint8_t *addr)
 {
     int fd, size;

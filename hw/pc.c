@@ -322,6 +322,8 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
 {
     char buf[1024];
     int ret, linux_boot, initrd_size, i, nb_nics1, fd;
+    unsigned long bios_offset, vga_bios_offset;
+    int bios_size, isa_bios_size;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -329,25 +331,47 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
     cpu_register_physical_memory(0, ram_size, 0);
 
     /* BIOS load */
+    bios_offset = ram_size + vga_ram_size;
+    vga_bios_offset = bios_offset + 256 * 1024;
+
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
-    ret = load_image(buf, phys_ram_base + 0x000f0000);
-    if (ret != 0x10000) {
+    bios_size = get_image_size(buf);
+    if (bios_size <= 0 || 
+        (bios_size % 65536) != 0 ||
+        bios_size > (256 * 1024)) {
+        goto bios_error;
+    }
+    ret = load_image(buf, phys_ram_base + bios_offset);
+    if (ret != bios_size) {
+    bios_error:
         fprintf(stderr, "qemu: could not load PC bios '%s'\n", buf);
         exit(1);
     }
-    
+
     /* VGA BIOS load */
     if (cirrus_vga_enabled) {
         snprintf(buf, sizeof(buf), "%s/%s", bios_dir, VGABIOS_CIRRUS_FILENAME);
     } else {
         snprintf(buf, sizeof(buf), "%s/%s", bios_dir, VGABIOS_FILENAME);
     }
-    ret = load_image(buf, phys_ram_base + 0x000c0000);
+    ret = load_image(buf, phys_ram_base + vga_bios_offset);
     
     /* setup basic memory access */
-    cpu_register_physical_memory(0xc0000, 0x10000, 0xc0000 | IO_MEM_ROM);
-    cpu_register_physical_memory(0xd0000, 0x20000, IO_MEM_UNASSIGNED);
-    cpu_register_physical_memory(0xf0000, 0x10000, 0xf0000 | IO_MEM_ROM);
+    cpu_register_physical_memory(0xc0000, 0x10000, 
+                                 vga_bios_offset | IO_MEM_ROM);
+
+    /* map the last 128KB of the BIOS in ISA space */
+    isa_bios_size = bios_size;
+    if (isa_bios_size > (128 * 1024))
+        isa_bios_size = 128 * 1024;
+    cpu_register_physical_memory(0xd0000, (192 * 1024) - isa_bios_size, 
+                                 IO_MEM_UNASSIGNED);
+    cpu_register_physical_memory(0x100000 - isa_bios_size, 
+                                 isa_bios_size, 
+                                 (bios_offset + bios_size - isa_bios_size) | IO_MEM_ROM);
+    /* map all the bios at the top of memory */
+    cpu_register_physical_memory((uint32_t)(-bios_size), 
+                                 bios_size, bios_offset | IO_MEM_ROM);
     
     bochs_bios_init();
 
