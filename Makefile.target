@@ -24,6 +24,9 @@ ifeq ($(TARGET_ARCH), i386)
 
 ifeq ($(ARCH), i386)
 PROGS+=$(QEMU_SYSTEM)
+ifndef CONFIG_SOFTMMU
+CONFIG_STATIC=y
+endif
 endif
 
 ifeq ($(ARCH), ppc)
@@ -179,16 +182,18 @@ endif
 VL_OBJS=vl.o block.o ide.o vga.o sb16.o dma.o oss.o
 ifdef CONFIG_SDL
 VL_OBJS+=sdl.o
-SDL_LIBS+=-L/usr/X11R6/lib -lX11 -lXext -lXv -ldl -lm
+ifdef CONFIG_STATIC
+SDL_LIBS:=$(SDL_STATIC_LIBS)
+endif
 endif
 
 VL_LDFLAGS=
 # specific flags are needed for non soft mmu emulator
-ifndef CONFIG_SOFTMMU
-VL_LDFLAGS+=-static -Wl,-T,$(SRC_PATH)/i386-vl.ld 
-endif
 ifdef CONFIG_STATIC
 VL_LDFLAGS+=-static
+endif
+ifndef CONFIG_SOFTMMU
+VL_LDFLAGS+=-Wl,-T,$(SRC_PATH)/i386-vl.ld 
 endif
 
 $(QEMU_SYSTEM): $(VL_OBJS) libqemu.a
