@@ -17,8 +17,6 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#include <sys/mman.h>
-
 #include "exec.h"
 #if defined (USE_OPEN_FIRMWARE)
 #include <time.h>
@@ -133,14 +131,14 @@ static int get_bat (CPUState *env, uint32_t *real, int *prot,
                     ((virtual & 0x0FFE0000 & bl) | (*BATl & 0x0FFE0000)) |
                     (virtual & 0x0001F000);
                 if (*BATl & 0x00000001)
-                    *prot = PROT_READ;
+                    *prot = PAGE_READ;
                 if (*BATl & 0x00000002)
-                    *prot = PROT_WRITE | PROT_READ;
+                    *prot = PAGE_WRITE | PAGE_READ;
 #if defined (DEBUG_BATS)
                 if (loglevel > 0) {
                     fprintf(logfile, "BAT %d match: r 0x%08x prot=%c%c\n",
-                            i, *real, *prot & PROT_READ ? 'R' : '-',
-                            *prot & PROT_WRITE ? 'W' : '-');
+                            i, *real, *prot & PAGE_READ ? 'R' : '-',
+                            *prot & PAGE_WRITE ? 'W' : '-');
                 }
 #endif
                 ret = 0;
@@ -203,9 +201,9 @@ static int find_pte (uint32_t *RPN, int *prot, uint32_t base, uint32_t va,
                 }
                 /* Check access rights */
                 if (key == 0) {
-                    access = PROT_READ;
+                    access = PAGE_READ;
                     if ((pte1 & 0x00000003) != 0x3)
-                        access |= PROT_WRITE;
+                        access |= PAGE_WRITE;
                 } else {
                     switch (pte1 & 0x00000003) {
                     case 0x0:
@@ -213,16 +211,16 @@ static int find_pte (uint32_t *RPN, int *prot, uint32_t base, uint32_t va,
                         break;
                     case 0x1:
                     case 0x3:
-                        access = PROT_READ;
+                        access = PAGE_READ;
                         break;
                     case 0x2:
-                        access = PROT_READ | PROT_WRITE;
+                        access = PAGE_READ | PAGE_WRITE;
                         break;
                     }
                 }
                 if (ret < 0) {
-		    if ((rw == 0 && (access & PROT_READ)) ||
-			(rw == 1 && (access & PROT_WRITE))) {
+		    if ((rw == 0 && (access & PAGE_READ)) ||
+			(rw == 1 && (access & PAGE_WRITE))) {
 #if defined (DEBUG_MMU)
 			if (loglevel > 0)
 			    fprintf(logfile, "PTE access granted !\n");
@@ -264,7 +262,7 @@ static int find_pte (uint32_t *RPN, int *prot, uint32_t base, uint32_t va,
                 store = 1;
 	    } else {
 		/* Force page fault for first write access */
-		*prot &= ~PROT_WRITE;
+		*prot &= ~PAGE_WRITE;
             }
         }
         if (store) {
@@ -409,7 +407,7 @@ int get_physical_address (CPUState *env, uint32_t *physical, int *prot,
     if ((access_type == ACCESS_CODE && msr_ir == 0) || msr_dr == 0) {
         /* No address translation */
         *physical = address & ~0xFFF;
-        *prot = PROT_READ | PROT_WRITE;
+        *prot = PAGE_READ | PAGE_WRITE;
         ret = 0;
     } else {
         /* Try to find a BAT */
