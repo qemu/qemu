@@ -440,6 +440,24 @@ static inline uint32_t ne2000_mem_readl(NE2000State *s, uint32_t addr)
     }
 }
 
+static inline void ne2000_dma_update(NE2000State *s, int len)
+{
+    s->rsar += len;
+    /* wrap */
+    /* XXX: check what to do if rsar > stop */
+    if (s->rsar == s->stop)
+        s->rsar = s->start;
+
+    if (s->rcnt <= len) {
+        s->rcnt = 0;
+        /* signal end of transfert */
+        s->isr |= ENISR_RDC;
+        ne2000_update_irq(s);
+    } else {
+        s->rcnt -= len;
+    }
+}
+
 static void ne2000_asic_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
     NE2000State *s = opaque;
@@ -448,25 +466,15 @@ static void ne2000_asic_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     printf("NE2000: asic write val=0x%04x\n", val);
 #endif
     if (s->rcnt == 0)
-	    return;
+        return;
     if (s->dcfg & 0x01) {
         /* 16 bit access */
         ne2000_mem_writew(s, s->rsar, val);
-        s->rsar += 2;
-        s->rcnt -= 2;
+        ne2000_dma_update(s, 2);
     } else {
         /* 8 bit access */
         ne2000_mem_writeb(s, s->rsar, val);
-        s->rsar++;
-        s->rcnt--;
-    }
-    /* wrap */
-    if (s->rsar == s->stop)
-        s->rsar = s->start;
-    if (s->rcnt == 0) {
-        /* signal end of transfert */
-        s->isr |= ENISR_RDC;
-        ne2000_update_irq(s);
+        ne2000_dma_update(s, 1);
     }
 }
 
@@ -478,21 +486,11 @@ static uint32_t ne2000_asic_ioport_read(void *opaque, uint32_t addr)
     if (s->dcfg & 0x01) {
         /* 16 bit access */
         ret = ne2000_mem_readw(s, s->rsar);
-        s->rsar += 2;
-        s->rcnt -= 2;
+        ne2000_dma_update(s, 2);
     } else {
         /* 8 bit access */
         ret = ne2000_mem_readb(s, s->rsar);
-        s->rsar++;
-        s->rcnt--;
-    }
-    /* wrap */
-    if (s->rsar == s->stop)
-        s->rsar = s->start;
-    if (s->rcnt == 0) {
-        /* signal end of transfert */
-        s->isr |= ENISR_RDC;
-        ne2000_update_irq(s);
+        ne2000_dma_update(s, 1);
     }
 #ifdef DEBUG_NE2000
     printf("NE2000: asic read val=0x%04x\n", ret);
@@ -508,19 +506,10 @@ static void ne2000_asic_ioport_writel(void *opaque, uint32_t addr, uint32_t val)
     printf("NE2000: asic writel val=0x%04x\n", val);
 #endif
     if (s->rcnt == 0)
-	    return;
+        return;
     /* 32 bit access */
     ne2000_mem_writel(s, s->rsar, val);
-    s->rsar += 4;
-    s->rcnt -= 4;
-    /* wrap */
-    if (s->rsar == s->stop)
-        s->rsar = s->start;
-    if (s->rcnt == 0) {
-        /* signal end of transfert */
-        s->isr |= ENISR_RDC;
-        ne2000_update_irq(s);
-    }
+    ne2000_dma_update(s, 4);
 }
 
 static uint32_t ne2000_asic_ioport_readl(void *opaque, uint32_t addr)
@@ -530,17 +519,7 @@ static uint32_t ne2000_asic_ioport_readl(void *opaque, uint32_t addr)
 
     /* 32 bit access */
     ret = ne2000_mem_readl(s, s->rsar);
-    s->rsar += 4;
-    s->rcnt -= 4;
-
-    /* wrap */
-    if (s->rsar == s->stop)
-        s->rsar = s->start;
-    if (s->rcnt == 0) {
-        /* signal end of transfert */
-        s->isr |= ENISR_RDC;
-        ne2000_update_irq(s);
-    }
+    ne2000_dma_update(s, 4);
 #ifdef DEBUG_NE2000
     printf("NE2000: asic readl val=0x%04x\n", ret);
 #endif
