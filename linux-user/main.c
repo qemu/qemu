@@ -299,27 +299,127 @@ void cpu_loop(CPUARMState *env)
 
 #ifdef TARGET_SPARC
 
+//#define DEBUG_WIN
+
+/* WARNING: dealing with register windows _is_ complicated */
+static inline int get_reg_index(CPUSPARCState *env, int cwp, int index)
+{
+    index = (index + cwp * 16) & (16 * NWINDOWS - 1);
+    /* wrap handling : if cwp is on the last window, then we use the
+       registers 'after' the end */
+    if (index < 8 && env->cwp == (NWINDOWS - 1))
+        index += (16 * NWINDOWS);
+    return index;
+}
+
+static inline void save_window_offset(CPUSPARCState *env, int offset)
+{
+    unsigned int new_wim, i, cwp1;
+    uint32_t *sp_ptr;
+    
+    new_wim = ((env->wim >> 1) | (env->wim << (NWINDOWS - 1))) &
+        ((1LL << NWINDOWS) - 1);
+    /* save the window */
+    cwp1 = (env->cwp + offset) & (NWINDOWS - 1);
+    sp_ptr = (uint32_t *)(env->regbase[get_reg_index(env, cwp1, 6)]);
+#if defined(DEBUG_WIN)
+    printf("win_overflow: sp_ptr=0x%x save_cwp=%d\n", 
+           (int)sp_ptr, cwp1);
+#endif
+    for(i = 0; i < 16; i++)
+        stl_raw(sp_ptr + i, env->regbase[get_reg_index(env, cwp1, 8 + i)]);
+    env->wim = new_wim;
+}
+
+static void save_window(CPUSPARCState *env)
+{
+    save_window_offset(env, 2);
+}
+
+static void restore_window(CPUSPARCState *env)
+{
+    unsigned int new_wim, i, cwp1;
+    uint32_t *sp_ptr;
+    
+    new_wim = ((env->wim << 1) | (env->wim >> (NWINDOWS - 1))) &
+        ((1LL << NWINDOWS) - 1);
+    
+    /* restore the invalid window */
+    cwp1 = (env->cwp + 1) & (NWINDOWS - 1);
+    sp_ptr = (uint32_t *)(env->regbase[get_reg_index(env, cwp1, 6)]);
+#if defined(DEBUG_WIN)
+    printf("win_underflow: sp_ptr=0x%x load_cwp=%d\n", 
+           (int)sp_ptr, cwp1);
+#endif
+    for(i = 0; i < 16; i++)
+        env->regbase[get_reg_index(env, cwp1, 8 + i)] = ldl_raw(sp_ptr + i);
+    env->wim = new_wim;
+}
+
+static void flush_windows(CPUSPARCState *env)
+{
+    int offset, cwp1;
+#if defined(DEBUG_WIN)
+    printf("flush_windows:\n");
+#endif
+    offset = 2;
+    for(;;) {
+        /* if restore would invoke restore_window(), then we can stop */
+        cwp1 = (env->cwp + 1) & (NWINDOWS - 1);
+        if (env->wim & (1 << cwp1))
+            break;
+#if defined(DEBUG_WIN)
+        printf("offset=%d: ", offset);
+#endif
+        save_window_offset(env, offset);
+        offset++;
+    }
+}
+
 void cpu_loop (CPUSPARCState *env)
 {
-	int trapnr;
-
-	while (1) {
-		trapnr = cpu_sparc_exec (env);
-
-		switch (trapnr) {
-		  case 0x8: case 0x10:
-			env->regwptr[0] = do_syscall (env, env->gregs[1],
-				env->regwptr[0], env->regwptr[1], env->regwptr[2],
-				env->regwptr[3], env->regwptr[4], env->regwptr[13]);
-			if (env->regwptr[0] >= 0xffffffe0)
-				env->psr |= PSR_CARRY;
-			break;
-		  default:
-			printf ("Invalid trap: %d\n", trapnr);
-			exit (1);
-		}
-		process_pending_signals (env);
-	}
+    int trapnr, ret;
+    
+    while (1) {
+        trapnr = cpu_sparc_exec (env);
+        
+        switch (trapnr) {
+        case 0x88: 
+        case 0x90:
+            ret = do_syscall (env, env->gregs[1],
+                              env->regwptr[0], env->regwptr[1], 
+                              env->regwptr[2], env->regwptr[3], 
+                              env->regwptr[4], env->regwptr[5]);
+            if ((unsigned int)ret >= (unsigned int)(-515)) {
+                env->psr |= PSR_CARRY;
+                ret = -ret;
+            } else {
+                env->psr &= ~PSR_CARRY;
+            }
+            env->regwptr[0] = ret;
+            /* next instruction */
+            env->pc = env->npc;
+            env->npc = env->npc + 4;
+            break;
+        case 0x83: /* flush windows */
+            //            flush_windows(env);
+            /* next instruction */
+            env->pc = env->npc;
+            env->npc = env->npc + 4;
+            break;
+        case TT_WIN_OVF: /* window overflow */
+            save_window(env);
+            break;
+        case TT_WIN_UNF: /* window underflow */
+            restore_window(env);
+            break;
+        default:
+            printf ("Unhandled trap: 0x%x\n", trapnr);
+            cpu_sparc_dump_state(env, stderr, 0);
+            exit (1);
+        }
+        process_pending_signals (env);
+    }
 }
 
 #endif
@@ -636,8 +736,16 @@ int main(int argc, char **argv)
         env->cpsr = regs->uregs[16];
     }
 #elif defined(TARGET_SPARC)
-	env->pc = regs->u_regs[0];
-	env->regwptr[6] = regs->u_regs[1]-0x40;
+    {
+        int i;
+	env->pc = regs->pc;
+	env->npc = regs->npc;
+        env->y = regs->y;
+        for(i = 0; i < 8; i++)
+            env->gregs[i] = regs->u_regs[i];
+        for(i = 0; i < 8; i++)
+            env->regwptr[i] = regs->u_regs[i + 8];
+    }
 #elif defined(TARGET_PPC)
     {
         int i;
