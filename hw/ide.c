@@ -40,13 +40,13 @@
 #include <sys/wait.h>
 #include <netinet/in.h>
 
+#define NO_THUNK_TYPE_SIZE
+#include "thunk.h"
+
 #include "cpu.h"
 #include "exec-all.h"
 
 #include "vl.h"
-
-#define NO_THUNK_TYPE_SIZE
-#include "thunk.h"
 
 /* debug IDE devices */
 //#define DEBUG_IDE
@@ -1128,6 +1128,8 @@ static void ide_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
             break;
         case WIN_READ:
         case WIN_READ_ONCE:
+            if (!s->bs) 
+                goto abort_cmd;
             s->req_nb_sectors = 1;
             ide_sector_read(s);
             break;
@@ -1174,7 +1176,7 @@ static void ide_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
             if (!s->is_cdrom)
                 goto abort_cmd;
             ide_set_signature(s);
-            s->status = READY_STAT;
+            s->status = 0x00; /* NOTE: READY is _not_ set */
             s->error = 0x01;
             break;
         case WIN_PACKETCMD:
@@ -1271,7 +1273,10 @@ static void ide_cmd_write(CPUX86State *env, uint32_t addr, uint32_t val)
         /* high to low */
         for(i = 0;i < 2; i++) {
             s = &ide_if[i];
-            s->status = READY_STAT;
+            if (s->is_cdrom)
+                s->status = 0x00; /* NOTE: READY is _not_ set */
+            else
+                s->status = READY_STAT;
             ide_set_signature(s);
         }
     }
