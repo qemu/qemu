@@ -29,8 +29,6 @@
 
 /*****************************************************************************/
 /* PPC MMU emulation */
-int cpu_ppc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
-                              int is_user, int is_softmmu);
 
 /* Perform BAT hit & translation */
 static int get_bat (CPUState *env, uint32_t *real, int *prot,
@@ -421,7 +419,7 @@ target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
 /* XXX: fix it to restore all registers */
-void tlb_fill(unsigned long addr, int is_write, int is_user, void *retaddr)
+void tlb_fill(target_ulong addr, int is_write, int is_user, void *retaddr)
 {
     TranslationBlock *tb;
     CPUState *saved_env;
@@ -782,7 +780,7 @@ void do_interrupt (CPUState *env)
         /* Store exception cause */
         /* Get rS/rD and rA from faulting opcode */
         env->spr[DSISR] |=
-            (ldl_code((void *)(env->nip - 4)) & 0x03FF0000) >> 16;
+            (ldl_code((env->nip - 4)) & 0x03FF0000) >> 16;
         /* data location address has been stored
          * when the fault has been detected
          */

@@ -108,7 +108,7 @@ void helper_ld_asi(int asi, int size, int sign)
 	if (size == 4)
 	    bswap32s(&ret);
 	else if (size == 2)
-	    bswap16s(&ret);
+	    bswap16s((uint16_t *)&ret);
 	break;
     default:
 	ret = 0;
@@ -198,7 +198,7 @@ void helper_st_asi(int asi, int size, int sign)
 	    if (size == 4)
 		bswap32s(&temp);
 	    else if (size == 2)
-		bswap16s(&temp);
+		bswap16s((uint16_t *)&temp);
 
 	    cpu_physical_memory_write(T0, (void *) &temp, size);
 	}

@@ -291,10 +291,7 @@ GEN32(gen_op_store_DT2_fpr, gen_op_store_DT2_fpr_fprf);
 
 #if defined(CONFIG_USER_ONLY)
 #define gen_op_ldst(name)        gen_op_##name##_raw()
-#define OP_LD_TABLE(width)						      \
-static void gen_op_##width##a(int insn, int is_ld, int size, int sign)        \
-{                                                                             \
-}
+#define OP_LD_TABLE(width)
 #define supervisor(dc) 0
 #else
 #define gen_op_ldst(name)        (*gen_op_##name[dc->mem_idx])()
@@ -614,12 +611,14 @@ static void do_fbranch(DisasContext * dc, uint32_t target, uint32_t insn)
     }
 }
 
+#if 0
 static void gen_debug(DisasContext *s, uint32_t pc)
 {
     gen_op_jmp_im(pc);
     gen_op_debug();
     s->is_br = 1;
 }
+#endif
 
 #define GET_FIELDs(x,a,b) sign_extend (GET_FIELD(x,a,b), (b) - (a) + 1)
 
@@ -633,7 +632,7 @@ static void disas_sparc_insn(DisasContext * dc)
 {
     unsigned int insn, opc, rs1, rs2, rd;
 
-    insn = ldl_code((uint8_t *)dc->pc);
+    insn = ldl_code(dc->pc);
     opc = GET_FIELD(insn, 0, 1);
 
     rd = GET_FIELD(insn, 2, 6);
@@ -1290,6 +1289,12 @@ static void disas_sparc_insn(DisasContext * dc)
 		    gen_movl_reg_T1(rd);
 		    gen_op_swapa(insn, 1, 4, 0);
 		    break;
+                    
+                    /* avoid warnings */
+                    (void) &gen_op_stfa;
+                    (void) &gen_op_stdfa;
+                    (void) &gen_op_ldfa;
+                    (void) &gen_op_lddfa;
 #endif
 		default:
 		    goto illegal_insn;
@@ -1520,8 +1525,8 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
 #ifdef DEBUG_DISAS
     if (loglevel & CPU_LOG_TB_IN_ASM) {
 	fprintf(logfile, "--------------\n");
-	fprintf(logfile, "IN: %s\n", lookup_symbol((uint8_t *)pc_start));
-	disas(logfile, (uint8_t *)pc_start, last_pc + 4 - pc_start, 0, 0);
+	fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
+	target_disas(logfile, pc_start, last_pc + 4 - pc_start, 0);
 	fprintf(logfile, "\n");
         if (loglevel & CPU_LOG_TB_OP) {
             fprintf(logfile, "OP:\n");
@@ -1626,6 +1631,10 @@ target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 }
 
 #else
+extern int get_physical_address (CPUState *env, uint32_t *physical, int *prot,
+                                 int *access_index, uint32_t address, int rw,
+                                 int is_user);
+
 target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {
     uint32_t phys_addr;

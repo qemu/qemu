@@ -173,4 +173,7 @@ static inline void regs_to_env(void)
 {
 }
 
+int cpu_ppc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
+                              int is_user, int is_softmmu);
+
 #endif /* !defined (__PPC_H__) */

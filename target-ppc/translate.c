@@ -131,7 +131,7 @@ static uint8_t  spr_access[1024 / 2];
 /* internal defines */
 typedef struct DisasContext {
     struct TranslationBlock *tb;
-    uint32_t nip;
+    target_ulong nip;
     uint32_t opcode;
     uint32_t exception;
     /* Execution mode */
@@ -3029,7 +3029,7 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
 {
     DisasContext ctx, *ctxp = &ctx;
     opc_handler_t **table, *handler;
-    uint32_t pc_start;
+    target_ulong pc_start;
     uint16_t *gen_opc_end;
     int j, lj = -1;
 
@@ -3069,7 +3069,7 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
                     ctx.nip, 1 - msr_pr, msr_ir);
         }
 #endif
-        ctx.opcode = ldl_code((void *)ctx.nip);
+        ctx.opcode = ldl_code(ctx.nip);
 #if defined PPC_DEBUG_DISAS
         if (loglevel & CPU_LOG_TB_IN_ASM) {
             fprintf(logfile, "translate opcode %08x (%02x %02x %02x)\n",
@@ -3174,8 +3174,8 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
         cpu_dump_state(env, logfile, fprintf, 0);
     }
     if (loglevel & CPU_LOG_TB_IN_ASM) {
-        fprintf(logfile, "IN: %s\n", lookup_symbol((void *)pc_start));
-	disas(logfile, (void *)pc_start, ctx.nip - pc_start, 0, 0);
+        fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
+	target_disas(logfile, pc_start, ctx.nip - pc_start, 0);
         fprintf(logfile, "\n");
     }
     if (loglevel & CPU_LOG_TB_OP) {

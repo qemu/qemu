@@ -62,7 +62,7 @@ void cpu_unlock(void)
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
 /* XXX: fix it to restore all registers */
-void tlb_fill(unsigned long addr, int is_write, int is_user, void *retaddr)
+void tlb_fill(target_ulong addr, int is_write, int is_user, void *retaddr)
 {
     TranslationBlock *tb;
     int ret;
@@ -282,6 +282,15 @@ void set_cwp(int new_cwp)
     env->regwptr = env->regbase + (new_cwp * 16);
 }
 
+void cpu_set_cwp(CPUState *env1, int new_cwp)
+{
+    CPUState *saved_env;
+    saved_env = env;
+    env = env1;
+    set_cwp(new_cwp);
+    env = saved_env;
+}
+
 /*
  * Begin execution of an interruption. is_int is TRUE if coming from
  * the int instruction. next_eip is the EIP value AFTER the interrupt
@@ -318,8 +327,7 @@ void do_interrupt(int intno, int is_int, int error_code,
 #endif
 #if !defined(CONFIG_USER_ONLY) 
     if (env->psret == 0) {
-	fprintf(logfile, "Trap while interrupts disabled, Error state!\n");
-	qemu_system_shutdown_request();
+        cpu_abort(cpu_single_env, "Trap while interrupts disabled, Error state");
 	return;
     }
 #endif

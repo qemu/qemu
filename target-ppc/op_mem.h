@@ -2,26 +2,26 @@
 void glue(do_lsw, MEMSUFFIX) (int dst);
 void glue(do_stsw, MEMSUFFIX) (int src);
 
-static inline uint16_t glue(ld16r, MEMSUFFIX) (void *EA)
+static inline uint16_t glue(ld16r, MEMSUFFIX) (target_ulong EA)
 {
     uint16_t tmp = glue(lduw, MEMSUFFIX)(EA);
     return ((tmp & 0xFF00) >> 8) | ((tmp & 0x00FF) << 8);
 }
 
-static inline uint32_t glue(ld32r, MEMSUFFIX) (void *EA)
+static inline uint32_t glue(ld32r, MEMSUFFIX) (target_ulong EA)
 {
     uint32_t tmp = glue(ldl, MEMSUFFIX)(EA);
     return ((tmp & 0xFF000000) >> 24) | ((tmp & 0x00FF0000) >> 8) |
         ((tmp & 0x0000FF00) << 8) | ((tmp & 0x000000FF) << 24);
 }
 
-static inline void glue(st16r, MEMSUFFIX) (void *EA, uint16_t data)
+static inline void glue(st16r, MEMSUFFIX) (target_ulong EA, uint16_t data)
 {
     uint16_t tmp = ((data & 0xFF00) >> 8) | ((data & 0x00FF) << 8);
     glue(stw, MEMSUFFIX)(EA, tmp);
 }
 
-static inline void glue(st32r, MEMSUFFIX) (void *EA, uint32_t data)
+static inline void glue(st32r, MEMSUFFIX) (target_ulong EA, uint32_t data)
 {
     uint32_t tmp = ((data & 0xFF000000) >> 24) | ((data & 0x00FF0000) >> 8) |
         ((data & 0x0000FF00) << 8) | ((data & 0x000000FF) << 24);
@@ -32,14 +32,14 @@ static inline void glue(st32r, MEMSUFFIX) (void *EA, uint32_t data)
 #define PPC_LD_OP(name, op)                                                   \
 PPC_OP(glue(glue(l, name), MEMSUFFIX))                                        \
 {                                                                             \
-    T1 = glue(op, MEMSUFFIX)((void *)T0);                                     \
+    T1 = glue(op, MEMSUFFIX)(T0);                                             \
     RETURN();                                                                 \
 }
 
 #define PPC_ST_OP(name, op)                                                   \
 PPC_OP(glue(glue(st, name), MEMSUFFIX))                                       \
 {                                                                             \
-    glue(op, MEMSUFFIX)((void *)T0, T1);                                      \
+    glue(op, MEMSUFFIX)(T0, T1);                                              \
     RETURN();                                                                 \
 }
 
@@ -65,7 +65,7 @@ PPC_OP(glue(lmw, MEMSUFFIX))
     int dst = PARAM(1);
 
     for (; dst < 32; dst++, T0 += 4) {
-        ugpr(dst) = glue(ldl, MEMSUFFIX)((void *)T0);
+        ugpr(dst) = glue(ldl, MEMSUFFIX)(T0);
     }
     RETURN();
 }
@@ -75,7 +75,7 @@ PPC_OP(glue(stmw, MEMSUFFIX))
     int src = PARAM(1);
 
     for (; src < 32; src++, T0 += 4) {
-        glue(stl, MEMSUFFIX)((void *)T0, ugpr(src));
+        glue(stl, MEMSUFFIX)(T0, ugpr(src));
     }
     RETURN();
 }
@@ -115,7 +115,7 @@ PPC_OP(glue(stsw, MEMSUFFIX))
 #define PPC_STF_OP(name, op)                                                  \
 PPC_OP(glue(glue(st, name), MEMSUFFIX))                                       \
 {                                                                             \
-    glue(op, MEMSUFFIX)((void *)T0, FT1);                                     \
+    glue(op, MEMSUFFIX)(T0, FT1);                                     \
     RETURN();                                                                 \
 }
 
@@ -126,7 +126,7 @@ PPC_STF_OP(fs, stfl);
 #define PPC_LDF_OP(name, op)                                                  \
 PPC_OP(glue(glue(l, name), MEMSUFFIX))                                        \
 {                                                                             \
-    FT1 = glue(op, MEMSUFFIX)((void *)T0);                                    \
+    FT1 = glue(op, MEMSUFFIX)(T0);                                    \
     RETURN();                                                                 \
 }
 
@@ -139,7 +139,7 @@ PPC_OP(glue(lwarx, MEMSUFFIX))
     if (T0 & 0x03) {
         do_raise_exception(EXCP_ALIGN);
     } else {
-       T1 = glue(ldl, MEMSUFFIX)((void *)T0);
+       T1 = glue(ldl, MEMSUFFIX)(T0);
        regs->reserve = T0;
     }
     RETURN();
@@ -154,7 +154,7 @@ PPC_OP(glue(stwcx, MEMSUFFIX))
         if (regs->reserve != T0) {
             env->crf[0] = xer_ov;
         } else {
-            glue(stl, MEMSUFFIX)((void *)T0, T1);
+            glue(stl, MEMSUFFIX)(T0, T1);
             env->crf[0] = xer_ov | 0x02;
         }
     }
@@ -164,27 +164,27 @@ PPC_OP(glue(stwcx, MEMSUFFIX))
 
 PPC_OP(glue(dcbz, MEMSUFFIX))
 {
-    glue(stl, MEMSUFFIX)((void *)(T0 + 0x00), 0);
-    glue(stl, MEMSUFFIX)((void *)(T0 + 0x04), 0);
-    glue(stl, MEMSUFFIX)((void *)(T0 + 0x08), 0);
-    glue(stl, MEMSUFFIX)((void *)(T0 + 0x0C), 0);
-    glue(stl, MEMSUFFIX)((void *)(T0 + 0x10), 0);
-    glue(stl, MEMSUFFIX)((void *)(T0 + 0x14), 0);
-    glue(stl, MEMSUFFIX)((void *)(T0 + 0x18), 0);
-    glue(stl, MEMSUFFIX)((void *)(T0 + 0x1C), 0);
+    glue(stl, MEMSUFFIX)(T0 + 0x00, 0);
+    glue(stl, MEMSUFFIX)(T0 + 0x04, 0);
+    glue(stl, MEMSUFFIX)(T0 + 0x08, 0);
+    glue(stl, MEMSUFFIX)(T0 + 0x0C, 0);
+    glue(stl, MEMSUFFIX)(T0 + 0x10, 0);
+    glue(stl, MEMSUFFIX)(T0 + 0x14, 0);
+    glue(stl, MEMSUFFIX)(T0 + 0x18, 0);
+    glue(stl, MEMSUFFIX)(T0 + 0x1C, 0);
     RETURN();
 }
 
 /* External access */
 PPC_OP(glue(eciwx, MEMSUFFIX))
 {
-    T1 = glue(ldl, MEMSUFFIX)((void *)T0);
+    T1 = glue(ldl, MEMSUFFIX)(T0);
     RETURN();
 }
 
 PPC_OP(glue(ecowx, MEMSUFFIX))
 {
-    glue(stl, MEMSUFFIX)((void *)T0, T1);
+    glue(stl, MEMSUFFIX)(T0, T1);
     RETURN();
 }
 

@@ -29,7 +29,7 @@
 
 /* internal defines */
 typedef struct DisasContext {
-    uint8_t *pc;
+    target_ulong pc;
     int is_jmp;
     struct TranslationBlock *tb;
 } DisasContext;
@@ -762,10 +762,10 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     DisasContext dc1, *dc = &dc1;
     uint16_t *gen_opc_end;
     int j, lj;
-    uint8_t *pc_start;
+    target_ulong pc_start;
     
     /* generate intermediate code */
-    pc_start = (uint8_t *)tb->pc;
+    pc_start = tb->pc;
        
     dc->tb = tb;
 
@@ -784,7 +784,7 @@ static inline int gen_intermediate_code_internal(CPUState *env,
                 while (lj < j)
                     gen_opc_instr_start[lj++] = 0;
             }
-            gen_opc_pc[lj] = (uint32_t)dc->pc;
+            gen_opc_pc[lj] = dc->pc;
             gen_opc_instr_start[lj] = 1;
         }
         disas_arm_insn(dc);
@@ -811,7 +811,7 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     if (loglevel & CPU_LOG_TB_IN_ASM) {
         fprintf(logfile, "----------------\n");
         fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
-        disas(logfile, pc_start, dc->pc - pc_start, 0, 0);
+        target_disas(logfile, pc_start, dc->pc - pc_start, 0);
         fprintf(logfile, "\n");
         if (loglevel & (CPU_LOG_TB_OP)) {
             fprintf(logfile, "OP:\n");
