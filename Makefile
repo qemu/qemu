@@ -50,7 +50,7 @@ ifeq ($(ARCH),alpha)
 # for the constant constructions
 OP_CFLAGS=-Wall -O2 -g
 # Ensure there's only a single GP
-CFLAGS += -msmall-data -msmall-text
+CFLAGS += -msmall-data
 LDFLAGS+=-Wl,-T,alpha.ld
 endif
 
@@ -78,7 +78,7 @@ OBJS= elfload.o main.o syscall.o mmap.o signal.o vm86.o path.o
 SRCS:= $(OBJS:.o=.c)
 OBJS+= libqemu.a
 
-LIBOBJS+=thunk.o translate-i386.o op-i386.o exec-i386.o exec.o
+LIBOBJS+=thunk.o translate-i386.o op-i386.o helper-i386.o exec-i386.o exec.o
 
 # NOTE: the disassembler code is only needed for debugging
 LIBOBJS+=disas.o i386-dis.o dis-buf.o
@@ -155,10 +155,10 @@ README README.distrib COPYING COPYING.LIB TODO Changelog VERSION \
 dyngen.c ioctls.h ops_template.h op_string.h  syscall_types.h\
 Makefile     elf.h       thunk.c\
 elfload.c   main.c            signal.c        thunk.h exec.h\
-cpu-i386.h qemu.h op-i386.c syscall-i386.h  translate-i386.c\
+cpu-i386.h qemu.h op-i386.c helper-i386.c syscall-i386.h  translate-i386.c\
 syscall.c opreg_template.h  syscall_defs.h vm86.c\
 dis-asm.h dis-buf.c disas.c disas.h alpha-dis.c ppc-dis.c i386-dis.c\
-ppc.ld s390.ld exec-i386.h exec-i386.c path.c exec.c mmap.c configure \
+ppc.ld alpha.ld s390.ld exec-i386.h exec-i386.c path.c exec.c mmap.c configure \
 tests/Makefile\
 tests/test-i386.c tests/test-i386-shift.h tests/test-i386.h\
 tests/test-i386-muldiv.h tests/test-i386-code16.S\
