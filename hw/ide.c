@@ -1567,6 +1567,10 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
                 goto abort_cmd;
             }
             break;
+	case WIN_STANDBYNOW1:
+	    s->status = READY_STAT;
+            ide_set_irq(s);
+            break;
             /* ATAPI commands */
         case WIN_PIDENTIFY:
             if (s->is_cdrom) {
@@ -1784,6 +1788,16 @@ static uint32_t ide_data_readl(void *opaque, uint32_t addr)
     return ret;
 }
 
+static void ide_dummy_transfer_stop(IDEState *s)
+{
+    s->data_ptr = s->io_buffer;
+    s->data_end = s->io_buffer;
+    s->io_buffer[0] = 0xff;
+    s->io_buffer[1] = 0xff;
+    s->io_buffer[2] = 0xff;
+    s->io_buffer[3] = 0xff;
+}
+
 static void ide_reset(IDEState *s)
 {
     s->mult_sectors = MAX_MULT_SECTORS;
@@ -1791,6 +1805,10 @@ static void ide_reset(IDEState *s)
     s->select = 0xa0;
     s->status = READY_STAT;
     ide_set_signature(s);
+    /* init the transfer handler so that 0xffff is returned on data
+       accesses */
+    s->end_transfer_func = ide_dummy_transfer_stop;
+    ide_dummy_transfer_stop(s);
 }
 
 struct partition {
