@@ -549,7 +549,7 @@ static void vbe_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         case VBE_DISPI_INDEX_BANK:
             val &= s->vbe_bank_mask;
             s->vbe_regs[s->vbe_index] = val;
-            s->bank_offset = (val << 16) - 0xa0000;
+            s->bank_offset = (val << 16);
             break;
         case VBE_DISPI_INDEX_ENABLE:
             if (val & VBE_DISPI_ENABLED) {
@@ -603,7 +603,7 @@ static void vbe_ioport_write(void *opaque, uint32_t addr, uint32_t val)
                 s->vbe_regs[s->vbe_index] = val;
             } else {
                 /* XXX: the bios should do that */
-                s->bank_offset = -0xa0000;
+                s->bank_offset = 0;
             }
             break;
         case VBE_DISPI_INDEX_VIRT_WIDTH:
@@ -656,23 +656,23 @@ static uint32_t vga_mem_readb(target_phys_addr_t addr)
     
     /* convert to VGA memory offset */
     memory_map_mode = (s->gr[6] >> 2) & 3;
+    addr &= 0x1ffff;
     switch(memory_map_mode) {
     case 0:
-        addr -= 0xa0000;
         break;
     case 1:
-        if (addr >= 0xb0000)
+        if (addr >= 0x10000)
             return 0xff;
         addr += s->bank_offset;
         break;
     case 2:
-        addr -= 0xb0000;
+        addr -= 0x10000;
         if (addr >= 0x8000)
             return 0xff;
         break;
     default:
     case 3:
-        addr -= 0xb8000;
+        addr -= 0x18000;
         if (addr >= 0x8000)
             return 0xff;
         break;
@@ -734,23 +734,23 @@ static void vga_mem_writeb(target_phys_addr_t addr, uint32_t val)
 #endif
     /* convert to VGA memory offset */
     memory_map_mode = (s->gr[6] >> 2) & 3;
+    addr &= 0x1ffff;
     switch(memory_map_mode) {
     case 0:
-        addr -= 0xa0000;
         break;
     case 1:
-        if (addr >= 0xb0000)
+        if (addr >= 0x10000)
             return;
         addr += s->bank_offset;
         break;
     case 2:
-        addr -= 0xb0000;
+        addr -= 0x10000;
         if (addr >= 0x8000)
             return;
         break;
     default:
     case 3:
-        addr -= 0xb8000;
+        addr -= 0x18000;
         if (addr >= 0x8000)
             return;
         break;
@@ -1758,7 +1758,7 @@ int vga_initialize(DisplayState *ds, uint8_t *vga_ram_base,
     register_ioport_read(0x3d4, 2, 1, vga_ioport_read, s);
     register_ioport_read(0x3ba, 1, 1, vga_ioport_read, s);
     register_ioport_read(0x3da, 1, 1, vga_ioport_read, s);
-    s->bank_offset = -0xa0000;
+    s->bank_offset = 0;
 
 #ifdef CONFIG_BOCHS_VBE
     s->vbe_regs[VBE_DISPI_INDEX_ID] = VBE_DISPI_ID0;
@@ -1771,15 +1771,14 @@ int vga_initialize(DisplayState *ds, uint8_t *vga_ram_base,
 #endif
 
     vga_io_memory = cpu_register_io_memory(0, vga_mem_read, vga_mem_write);
-#if defined (TARGET_I386)
-    cpu_register_physical_memory(0x000a0000, 0x20000, vga_io_memory);
+    cpu_register_physical_memory(isa_mem_base + 0x000a0000, 0x20000, 
+                                 vga_io_memory);
 #ifdef CONFIG_BOCHS_VBE
+#if defined (TARGET_I386)
     /* XXX: use optimized standard vga accesses */
     cpu_register_physical_memory(VBE_DISPI_LFB_PHYSICAL_ADDRESS, 
                                  vga_ram_size, vga_ram_offset);
 #endif
-#elif defined (TARGET_PPC)
-    cpu_register_physical_memory(0xf00a0000, 0x20000, vga_io_memory);
 #endif
     return 0;
 }

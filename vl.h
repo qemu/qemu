@@ -144,13 +144,6 @@ static inline uint16_t cpu_to_le16(uint16_t v)
 /* vl.c */
 extern int reset_requested;
 
-typedef void (IOPortWriteFunc)(void *opaque, uint32_t address, uint32_t data);
-typedef uint32_t (IOPortReadFunc)(void *opaque, uint32_t address);
-
-int register_ioport_read(int start, int length, int size, 
-                         IOPortReadFunc *func, void *opaque);
-int register_ioport_write(int start, int length, int size, 
-                          IOPortWriteFunc *func, void *opaque);
 uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c);
 
 void hw_error(const char *fmt, ...);
@@ -348,6 +341,18 @@ void bdrv_set_change_cb(BlockDriverState *bs,
 void bdrv_info(void);
 BlockDriverState *bdrv_find(const char *name);
 
+/* ISA bus */
+
+extern target_phys_addr_t isa_mem_base;
+
+typedef void (IOPortWriteFunc)(void *opaque, uint32_t address, uint32_t data);
+typedef uint32_t (IOPortReadFunc)(void *opaque, uint32_t address);
+
+int register_ioport_read(int start, int length, int size, 
+                         IOPortReadFunc *func, void *opaque);
+int register_ioport_write(int start, int length, int size, 
+                          IOPortWriteFunc *func, void *opaque);
+
 /* vga.c */
 
 #define VGA_RAM_SIZE (4096 * 1024)
@@ -502,6 +507,12 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
              DisplayState *ds, const char **fd_filename, int snapshot,
              const char *kernel_filename, const char *kernel_cmdline,
              const char *initrd_filename);
+
+/* ppc.c */
+void ppc_init (int ram_size, int vga_ram_size, int boot_device,
+	       DisplayState *ds, const char **fd_filename, int snapshot,
+	       const char *kernel_filename, const char *kernel_cmdline,
+	       const char *initrd_filename);
 
 /* monitor.c */
 void monitor_init(void);

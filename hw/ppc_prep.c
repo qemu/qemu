@@ -896,7 +896,7 @@ void PPC_end_init (void)
     VGA_init();
 }
 
-/* PC hardware initialisation */
+/* PowerPC PREP hardware initialisation */
 void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
 		   DisplayState *ds, const char **fd_filename, int snapshot,
 		   const char *kernel_filename, const char *kernel_cmdline,
@@ -910,6 +910,8 @@ void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
 
     /* allocate RAM */
     cpu_register_physical_memory(0, ram_size, 0);
+
+    isa_mem_base = 0xc0000000;
 
     if (linux_boot) {
         /* now we can load the kernel */

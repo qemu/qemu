@@ -114,7 +114,9 @@ int vm_running;
 int audio_enabled = 0;
 
 /***********************************************************/
-/* x86 io ports */
+/* x86 ISA bus support */
+
+target_phys_addr_t isa_mem_base = 0;
 
 uint32_t default_ioport_readb(void *opaque, uint32_t address)
 {
