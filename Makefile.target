@@ -246,9 +246,12 @@ endif
 ifndef CONFIG_SOFTMMU
 VL_LDFLAGS+=-Wl,-T,$(SRC_PATH)/i386-vl.ld 
 endif
+ifndef CONFIG_WIN32
+VL_LIBS=-lutil
+endif
 
 $(QEMU_SYSTEM): $(VL_OBJS) libqemu.a
-	$(CC) $(VL_LDFLAGS) -o $@ $^ $(LIBS) $(SDL_LIBS) -lutil 
+	$(CC) $(VL_LDFLAGS) -o $@ $^ $(LIBS) $(SDL_LIBS) $(VL_LIBS)
 
 sdl.o: sdl.c
 	$(CC) $(CFLAGS) $(DEFINES) $(SDL_CFLAGS) -c -o $@ $<
@@ -309,7 +312,7 @@ clean:
 
 install: all 
 ifneq ($(PROGS),)
-	install -m 755 -s $(PROGS) $(prefix)/bin
+	install -m 755 -s $(PROGS) "$(bindir)"
 endif
 
 ifneq ($(wildcard .depend),)

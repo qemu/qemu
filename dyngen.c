@@ -30,7 +30,9 @@
 
 #include "config-host.h"
 
-#if defined(_WIN32)
+/* NOTE: we test CONFIG_WIN32 instead of _WIN32 to enabled cross
+   compilation */
+#if defined(CONFIG_WIN32)
 #define CONFIG_FORMAT_COFF
 #else
 #define CONFIG_FORMAT_ELF

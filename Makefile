@@ -16,14 +16,11 @@ all: dyngen$(EXESUF) $(TOOLS) qemu-doc.html qemu.1
 	make -C $$d $@ || exit 1 ; \
         done
 
-qemu-mkcow: qemu-mkcow.o
-	$(HOST_CC) -o $@ $^  $(LIBS)
+qemu-mkcow: qemu-mkcow.c
+	$(CC) $(CFLAGS) $(DEFINES) -o $@ $^ $(LIBS)
 
-dyngen$(EXESUF): dyngen.o
-	$(HOST_CC) -o $@ $^  $(LIBS)
-
-%.o: %.c
-	$(HOST_CC) $(CFLAGS) $(DEFINES) -c -o $@ $<
+dyngen$(EXESUF): dyngen.c
+	$(HOST_CC) $(CFLAGS) $(DEFINES) -o $@ $^
 
 clean:
 # avoid old build problems by removing potentially incorrect old files
@@ -41,13 +38,17 @@ distclean: clean
         done
 
 install: all 
-	mkdir -p $(prefix)/bin
-	install -m 755 -s $(TOOLS) $(prefix)/bin
-	mkdir -p $(sharedir)
+	mkdir -p "$(bindir)"
+ifndef CONFIG_WIN32
+	install -m 755 -s $(TOOLS) "$(bindir)"
+endif
+	mkdir -p "$(sharedir)"
 	install -m 644 pc-bios/bios.bin pc-bios/vgabios.bin \
-                       pc-bios/linux_boot.bin $(sharedir)
-	mkdir -p $(mandir)/man1
-	install qemu.1 qemu-mkcow.1 $(mandir)/man1
+                       pc-bios/linux_boot.bin "$(sharedir)"
+ifndef CONFIG_WIN32
+	mkdir -p "$(mandir)/man1"
+	install qemu.1 qemu-mkcow.1 "$(mandir)/man1"
+endif
 	for d in $(TARGET_DIRS); do \
 	make -C $$d $@ || exit 1 ; \
         done
