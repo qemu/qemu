@@ -70,18 +70,90 @@ void OPPROTO glue(op_store_T1_crf_crf, REG)(void)
     regs->crf[REG] = T1;
 }
 
+/* Floating point condition and status register moves */
+void OPPROTO glue(op_load_fpscr_T0_fpscr, REG)(void)
+{
+    T0 = regs->fpscr[REG];
+    RETURN();
+}
+
+#if REG == 0
+void OPPROTO glue(op_store_T0_fpscr_fpscr, REG)(void)
+{
+    regs->fpscr[REG] = (regs->fpscr[REG] & 0x9) | (T0 & ~0x9);
+    RETURN();
+}
+
+void OPPROTO glue(op_store_T0_fpscri_fpscr, REG)(void)
+{
+    regs->fpscr[REG] = (regs->fpscr[REG] & ~0x9) | (PARAM(1) & 0x9);
+    RETURN();
+}
+
+void OPPROTO glue(op_clear_fpscr_fpscr, REG)(void)
+{
+    regs->fpscr[REG] = (regs->fpscr[REG] & 0x9);
+    RETURN();
+}
+#else
+void OPPROTO glue(op_store_T0_fpscr_fpscr, REG)(void)
+{
+    regs->fpscr[REG] = T0;
+    RETURN();
+}
+
+void OPPROTO glue(op_store_T0_fpscri_fpscr, REG)(void)
+{
+    regs->fpscr[REG] = PARAM(1);
+    RETURN();
+}
+
+void OPPROTO glue(op_clear_fpscr_fpscr, REG)(void)
+{
+    regs->fpscr[REG] = 0x0;
+    RETURN();
+}
+#endif
+
 #endif /* REG <= 7 */
 
 /* float moves */
 
-void OPPROTO glue(op_load_FT0_fpr, REG)(void)
+/* floating point registers moves */
+void OPPROTO glue(op_load_fpr_FT0_fpr, REG)(void)
 {
     FT0 = env->fpr[REG];
+    RETURN();
 }
 
-void OPPROTO glue(op_store_FT0_fpr, REG)(void)
+void OPPROTO glue(op_store_FT0_fpr_fpr, REG)(void)
 {
     env->fpr[REG] = FT0;
+    RETURN();
+}
+
+void OPPROTO glue(op_load_fpr_FT1_fpr, REG)(void)
+{
+    FT1 = env->fpr[REG];
+    RETURN();
+}
+
+void OPPROTO glue(op_store_FT1_fpr_fpr, REG)(void)
+{
+    env->fpr[REG] = FT1;
+    RETURN();
+}
+
+void OPPROTO glue(op_load_fpr_FT2_fpr, REG)(void)
+{
+    FT2 = env->fpr[REG];
+    RETURN();
+}
+
+void OPPROTO glue(op_store_FT2_fpr_fpr, REG)(void)
+{
+    env->fpr[REG] = FT2;
+    RETURN();
 }
 
 #undef REG

@@ -121,67 +121,67 @@ void do_store_msr (uint32_t msr_value)
 }
 
 /* The 32 MSB of the target fpr are undefined. They'll be zero... */
-uint32_t do_load_fpscr (void)
+/* Floating point operations helpers */
+void do_load_fpscr (void)
 {
-    return (fpscr_fx  << FPSCR_FX) |
-        (fpscr_fex    << FPSCR_FEX) |
-        (fpscr_vx     << FPSCR_VX) |
-        (fpscr_ox     << FPSCR_OX) |
-        (fpscr_ux     << FPSCR_UX) |
-        (fpscr_zx     << FPSCR_ZX) |
-        (fpscr_xx     << FPSCR_XX) |
-        (fpscr_vsxnan << FPSCR_VXSNAN) |
-        (fpscr_vxisi  << FPSCR_VXISI) |
-        (fpscr_vxidi  << FPSCR_VXIDI) |
-        (fpscr_vxzdz  << FPSCR_VXZDZ) |
-        (fpscr_vximz  << FPSCR_VXIMZ) |
-        (fpscr_fr     << FPSCR_FR) |
-        (fpscr_fi     << FPSCR_FI) |
-        (fpscr_fprf   << FPSCR_FPRF) |
-        (fpscr_vxsoft << FPSCR_VXSOFT) |
-        (fpscr_vxsqrt << FPSCR_VXSQRT) |
-        (fpscr_oe     << FPSCR_OE) |
-        (fpscr_ue     << FPSCR_UE) |
-        (fpscr_ze     << FPSCR_ZE) |
-        (fpscr_xe     << FPSCR_XE) |
-        (fpscr_ni     << FPSCR_NI) |
-        (fpscr_rn     << FPSCR_RN);
-}
-
-/* We keep only 32 bits of input... */
-/* For now, this is COMPLETELY BUGGY ! */
-void do_store_fpscr (uint8_t mask, uint32_t fp)
-{
+    /* The 32 MSB of the target fpr are undefined.
+     * They'll be zero...
+     */
+    union {
+        double d;
+        struct {
+            uint32_t u[2];
+        } s;
+    } u;
     int i;
 
-    for (i = 0; i < 7; i++) {
-        if ((mask & (1 << i)) == 0)
-            fp &= ~(0xf << (4 * i));
+    u.s.u[0] = 0;
+    u.s.u[1] = 0;
+    for (i = 0; i < 8; i++)
+        u.s.u[1] |= env->fpscr[i] << (4 * i);
+    FT0 = u.d;
+}
+
+void do_store_fpscr (uint32_t mask)
+{
+    /*
+     * We use only the 32 LSB of the incoming fpr
+     */
+    union {
+        double d;
+        struct {
+            uint32_t u[2];
+        } s;
+    } u;
+    int i;
+
+    u.d = FT0;
+    if (mask & 0x80)
+        env->fpscr[0] = (env->fpscr[0] & 0x9) | ((u.s.u[1] >> 28) & ~0x9);
+    for (i = 1; i < 7; i++) {
+        if (mask & (1 << (7 - i)))
+            env->fpscr[i] = (u.s.u[1] >> (4 * (7 - i))) & 0xF;
     }
-    if ((mask & 80) != 0)
-        fpscr_fx = (fp >> FPSCR_FX) & 0x01;
-    fpscr_fex = (fp >> FPSCR_FEX) & 0x01;
-    fpscr_vx = (fp >> FPSCR_VX) & 0x01;
-    fpscr_ox = (fp >> FPSCR_OX) & 0x01;
-    fpscr_ux = (fp >> FPSCR_UX) & 0x01;
-    fpscr_zx = (fp >> FPSCR_ZX) & 0x01;
-    fpscr_xx = (fp >> FPSCR_XX) & 0x01;
-    fpscr_vsxnan = (fp >> FPSCR_VXSNAN) & 0x01;
-    fpscr_vxisi = (fp >> FPSCR_VXISI) & 0x01;
-    fpscr_vxidi = (fp >> FPSCR_VXIDI) & 0x01;
-    fpscr_vxzdz = (fp >> FPSCR_VXZDZ) & 0x01;
-    fpscr_vximz = (fp >> FPSCR_VXIMZ) & 0x01;
-    fpscr_fr = (fp >> FPSCR_FR) & 0x01;
-    fpscr_fi = (fp >> FPSCR_FI) & 0x01;
-    fpscr_fprf = (fp >> FPSCR_FPRF) & 0x1F;
-    fpscr_vxsoft = (fp >> FPSCR_VXSOFT) & 0x01;
-    fpscr_vxsqrt = (fp >> FPSCR_VXSQRT) & 0x01;
-    fpscr_oe = (fp >> FPSCR_OE) & 0x01;
-    fpscr_ue = (fp >> FPSCR_UE) & 0x01;
-    fpscr_ze = (fp >> FPSCR_ZE) & 0x01;
-    fpscr_xe = (fp >> FPSCR_XE) & 0x01;
-    fpscr_ni = (fp >> FPSCR_NI) & 0x01;
-    fpscr_rn = (fp >> FPSCR_RN) & 0x03;
+    /* TODO: update FEX & VX */
+    /* Set rounding mode */
+    switch (env->fpscr[0] & 0x3) {
+    case 0:
+        /* Best approximation (round to nearest) */
+        fesetround(FE_TONEAREST);
+        break;
+    case 1:
+        /* Smaller magnitude (round toward zero) */
+        fesetround(FE_TOWARDZERO);
+        break;
+    case 2:
+        /* Round toward +infinite */
+        fesetround(FE_UPWARD);
+        break;
+    case 3:
+        /* Round toward -infinite */
+        fesetround(FE_DOWNWARD);
+        break;
+    }
 }
 
 int32_t do_sraw(int32_t value, uint32_t shift)
@@ -220,20 +220,14 @@ void do_lsw (uint32_t reg, int count, uint32_t src)
     int sh;
     
     for (; count > 3; count -= 4, src += 4) {
-        if (reg == 32)
-            reg = 0;
         ugpr(reg++) = ld32(src);
+        if (T2 == 32)
+            T2 = 0;
     }
     if (count > 0) {
-        for (sh = 24, tmp = 0; count > 0; count--, src++, sh -= 8) {
-            if (reg == 32)
-                reg = 0;
-            tmp |= ld8(src) << sh;
-            if (sh == 0) {
-                sh = 32;
-                ugpr(reg++) = tmp;
                 tmp = 0;
-            }
+        for (sh = 24; count > 0; count--, src++, sh -= 8) {
+            tmp |= ld8(src) << sh;
         }
         ugpr(reg) = tmp;
     }
@@ -244,19 +238,30 @@ void do_stsw (uint32_t reg, int count, uint32_t dest)
     int sh;
 
     for (; count > 3; count -= 4, dest += 4) {
+        st32(dest, ugpr(reg++));
         if (reg == 32)
             reg = 0;
-        st32(dest, ugpr(reg++));
     }
     if (count > 0) {
         for (sh = 24; count > 0; count--, dest++, sh -= 8) {
-            if (reg == 32)
-                reg = 0;
             st8(dest, (ugpr(reg) >> sh) & 0xFF);
-            if (sh == 0) {
-                sh = 32;
-                reg++;
             }
         }
+}
+
+void do_dcbz (void)
+{
+    int i;
+
+    /* Assume cache line size is 32 */
+    for (i = 0; i < 8; i++) {
+        st32(T0, 0);
+        T0 += 4;
     }
+}
+    
+/* Instruction cache invalidation helper */
+void do_icbi (void)
+{
+    tb_invalidate_page(T0);
 }

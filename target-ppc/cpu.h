@@ -152,7 +152,7 @@ typedef struct CPUPPCState {
     /* general purpose registers */
     uint32_t gpr[32];
     /* floating point registers */
-    uint64_t fpr[32];
+    double fpr[32];
     /* segment registers */
     ppc_sr_t sr[16];
     /* special purpose registers */
@@ -172,7 +172,10 @@ typedef struct CPUPPCState {
     uint32_t exception;
 
     /* qemu dedicated */
-    uint64_t ft0; /* temporary float register */
+     /* temporary float registers */
+    double ft0;
+    double ft1;
+    double ft2;
     int interrupt_request;
     jmp_buf jmp_env;
     int exception_index;
@@ -374,35 +377,4 @@ enum {
     EXCP_BRANCH        = 0x104,   /* branch instruction               */
 };
 
-/*
- * We need to put in some extra aux table entries to tell glibc what
- * the cache block size is, so it can use the dcbz instruction safely.
- */
-#define AT_DCACHEBSIZE          19
-#define AT_ICACHEBSIZE          20
-#define AT_UCACHEBSIZE          21
-/* A special ignored type value for PPC, for glibc compatibility.  */
-#define AT_IGNOREPPC            22
-/*
- * The requirements here are:
- * - keep the final alignment of sp (sp & 0xf)
- * - make sure the 32-bit value at the first 16 byte aligned position of
- *   AUXV is greater than 16 for glibc compatibility.
- *   AT_IGNOREPPC is used for that.
- * - for compatibility with glibc ARCH_DLINFO must always be defined on PPC,
- *   even if DLINFO_ARCH_ITEMS goes to zero or is undefined.
- */
-#define DLINFO_ARCH_ITEMS       3
-#define ARCH_DLINFO                                                     \
-do {                                                                    \
-        /*                                                              \
-         * Now handle glibc compatibility.                              \
-         */                                                             \
-        NEW_AUX_ENT(AT_IGNOREPPC, AT_IGNOREPPC);                        \
-        NEW_AUX_ENT(AT_IGNOREPPC, AT_IGNOREPPC);                        \
-                                                                        \
-        NEW_AUX_ENT(AT_DCACHEBSIZE, 0x20);                              \
-        NEW_AUX_ENT(AT_ICACHEBSIZE, 0x20);                              \
-        NEW_AUX_ENT(AT_UCACHEBSIZE, 0);                                 \
- } while (0)
 #endif /* !defined (__CPU_PPC_H__) */

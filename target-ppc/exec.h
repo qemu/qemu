@@ -29,6 +29,12 @@ register uint32_t T2 asm(AREG3);
 
 #define PARAM(n) ((uint32_t)PARAM##n)
 #define SPARAM(n) ((int32_t)PARAM##n)
+#define FT0 (env->ft0)
+#define FT1 (env->ft1)
+#define FT2 (env->ft2)
+#define FTS0 ((float)env->ft0)
+#define FTS1 ((float)env->ft1)
+#define FTS2 ((float)env->ft2)
 
 #define RETURN() __asm__ __volatile__("");
 
@@ -145,13 +151,16 @@ uint32_t do_load_xer (void);
 void do_store_xer (uint32_t value);
 uint32_t do_load_msr (void);
 void do_store_msr (uint32_t msr_value);
-uint32_t do_load_fpscr (void);
-void do_store_fpscr (uint8_t mask, uint32_t fp);
+void do_load_fpscr (void);
+void do_store_fpscr (uint32_t mask);
 
 int32_t do_sraw(int32_t Ta, uint32_t Tb);
 void do_lmw (int reg, uint32_t src);
 void do_stmw (int reg, uint32_t dest);
 void do_lsw (uint32_t reg, int count, uint32_t src);
 void do_stsw (uint32_t reg, int count, uint32_t dest);
+
+void do_dcbz (void);
+void do_icbi (void);
 
 #endif /* !defined (__PPC_H__) */

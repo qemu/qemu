@@ -27,6 +27,12 @@
 #define Ts2 (int32_t)T2
 
 #define FT0 (env->ft0)
+#define FT1 (env->ft1)
+#define FT2 (env->ft2)
+
+#define FTS0 ((float)env->ft0)
+#define FTS1 ((float)env->ft1)
+#define FTS2 ((float)env->ft2)
 
 #define PPC_OP(name) void op_##name(void)
 
@@ -173,6 +179,13 @@ PPC_OP(set_Rc0_1)
     RETURN();
 }
 
+/* Set Rc1 (for floating point arithmetic) */
+PPC_OP(set_Rc1)
+{
+    env->crf[1] = regs->fpscr[7];
+    RETURN();
+}
+
 PPC_OP(set_T0)
 {
     T0 = PARAM(1);
@@ -275,6 +288,25 @@ PPC_OP(store_msr)
 PPC_OP(load_lr)
 {
     regs->LR = PARAM(1);
+    RETURN();
+}
+
+/* FPSCR */
+PPC_OP(load_fpscr)
+{
+    do_load_fpscr();
+    RETURN();
+}
+
+PPC_OP(store_fpscr)
+{
+    do_store_fpscr(PARAM(1));
+    RETURN();
+}
+
+PPC_OP(reset_scrfx)
+{
+    regs->fpscr[7] &= ~0x8;
     RETURN();
 }
 
@@ -988,7 +1020,7 @@ PPC_OP(xori)
 /* rotate left word immediate then mask insert */
 PPC_OP(rlwimi)
 {
-    T0 = rotl(T0, PARAM(1) & PARAM(2)) | (T0 & PARAM(3));
+    T0 = (rotl(T0, PARAM(1)) & PARAM(2)) | (T1 & PARAM(3));
     RETURN();
 }
 
@@ -1216,123 +1248,171 @@ PPC_OP(store_spr)
     regs->spr[PARAM(1)] = T0;
 }
 
-/* FPSCR */
-PPC_OP(load_fpscr)
-{
-    T0 = do_load_fpscr();
-}
-
-PPC_OP(store_fpscr)
-{
-    do_store_fpscr(PARAM(1), T0);
-}
-
 /***                         Floating-point store                          ***/
-
-static inline uint32_t dtos(uint64_t f)
-{
-    unsigned int e, m, s;
-    e = (((f >> 52) & 0x7ff) - 1022) + 126;
-    s = (f >> 63);
-    m = (f >> 29);
-    return (s << 31) | (e << 23) | m;
-}
-
-static inline uint64_t stod(uint32_t f)
-{
-    unsigned int e, m, s;
-    e = ((f >> 23) & 0xff) - 126 + 1022;
-    s = f >> 31;
-    m = f & ((1 << 23) - 1);
-    return ((uint64_t)s << 63) | ((uint64_t)e << 52) | ((uint64_t)m << 29);
-}
 
 PPC_OP(stfd_z_FT0)
 {
-    st64(SPARAM(1), FT0);
+    stfq((void *)SPARAM(1), FT0);
 }
 
 PPC_OP(stfd_FT0)
 {
     T0 += SPARAM(1);
-    st64(T0, FT0);
+    stfq((void *)T0, FT0);
 }
 
 PPC_OP(stfdx_z_FT0)
 {
-    st64(T0, FT0);
+    stfq((void *)T0, FT0);
 }
 
 PPC_OP(stfdx_FT0)
 {
     T0 += T1;
-    st64(T0, FT0);
+    stfq((void *)T0, FT0);
 }
-
 
 PPC_OP(stfs_z_FT0)
 {
-    st32(SPARAM(1), dtos(FT0));
+    float tmp = FT0;
+    stfl((void *)SPARAM(1), tmp);
 }
 
 PPC_OP(stfs_FT0)
 {
+    float tmp = FT0;
     T0 += SPARAM(1);
-    st32(T0, dtos(FT0));
+    stfl((void *)T0, tmp);
 }
 
 PPC_OP(stfsx_z_FT0)
 {
-    st32(T0, dtos(FT0));
+    float tmp = FT0;
+    stfl((void *)T0, tmp);
 }
 
 PPC_OP(stfsx_FT0)
 {
+    float tmp = FT0;
     T0 += T1;
-    st32(T0, dtos(FT0));
+    stfl((void *)T0, tmp);
 }
 
 /***                         Floating-point load                          ***/
 PPC_OP(lfd_z_FT0)
 {
-    FT0 = ld64(SPARAM(1));
+    FT0 = ldfq((void *)SPARAM(1));
 }
 
 PPC_OP(lfd_FT0)
 {
     T0 += SPARAM(1);
-    FT0 = ld64(T0);
+    FT0 = ldfq((void *)T0);
 }
 
 PPC_OP(lfdx_z_FT0)
 {
-    FT0 = ld64(T0);
+    FT0 = ldfq((void *)T0);
 }
 
 PPC_OP(lfdx_FT0)
 {
     T0 += T1;
-    FT0 = ld64(T0);
+    FT0 = ldfq((void *)T0);
 }
 
 PPC_OP(lfs_z_FT0)
 {
-    FT0 = stod(ld32(SPARAM(1)));
+    float tmp = ldfl((void *)SPARAM(1));
+    FT0 = tmp;
 }
 
 PPC_OP(lfs_FT0)
 {
+    float tmp;
     T0 += SPARAM(1);
-    FT0 = stod(ld32(T0));
+    tmp = ldfl((void *)T0);
+    FT0 = tmp;
 }
 
 PPC_OP(lfsx_z_FT0)
 {
-    FT0 = stod(ld32(T0));
+    float tmp;
+    tmp = ldfl((void *)T0);
+    FT0 = tmp;
 }
 
 PPC_OP(lfsx_FT0)
 {
+    float tmp;
     T0 += T1;
-    FT0 = stod(ld32(T0));
+    tmp = ldfl((void *)T0);
+    FT0 = tmp;
+}
+
+PPC_OP(lwarx_z)
+{
+    T1 = ld32(T0);
+    regs->reserve = T0;
+    RETURN();
+}
+
+PPC_OP(lwarx)
+{
+    T0 += T1;
+    T1 = ld32(T0);
+    regs->reserve = T0;
+    RETURN();
+}
+
+PPC_OP(stwcx_z)
+{
+    if (regs->reserve != T0) {
+        env->crf[0] = xer_ov;
+    } else {
+        st32(T0, T1);
+        env->crf[0] = xer_ov | 0x02;
+    }
+    regs->reserve = 0;
+    RETURN();
+}
+
+PPC_OP(stwcx)
+{
+    T0 += T1;
+    if (regs->reserve != (T0 & ~0x03)) {
+        env->crf[0] = xer_ov;
+    } else {
+        st32(T0, T2);
+        env->crf[0] = xer_ov | 0x02;
+    }
+    regs->reserve = 0;
+    RETURN();
+}
+
+PPC_OP(dcbz_z)
+{
+    do_dcbz();
+    RETURN();
+}
+
+PPC_OP(dcbz)
+{
+    T0 += T1;
+    do_dcbz();
+    RETURN();
+}
+
+/* Instruction cache block invalidate */
+PPC_OP(icbi_z)
+{
+    do_icbi();
+    RETURN();
+}
+
+PPC_OP(icbi)
+{
+    T0 += T1;
+    do_icbi();
+    RETURN();
 }
