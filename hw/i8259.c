@@ -146,7 +146,7 @@ static void pic_update_irq(void)
                 
             }
         }
-        printf("pic: cpu_interrupt req=%d\n", pic_irq_requested);
+        printf("pic: cpu_interrupt\n");
 #endif
         cpu_interrupt(cpu_single_env, CPU_INTERRUPT_HARD);
     }
@@ -172,7 +172,7 @@ void pic_set_irq(int irq, int level)
 #endif
 #ifdef DEBUG_IRQ_LATENCY
     if (level) {
-        irq_time[irq] = cpu_get_ticks();
+        irq_time[irq] = qemu_get_clock(vm_clock);
     }
 #endif
     pic_set_irq1(&pics[irq >> 3], irq & 7, level);
@@ -223,7 +223,7 @@ int cpu_get_pic_interrupt(CPUState *env)
 #ifdef DEBUG_IRQ_LATENCY
     printf("IRQ%d latency=%0.3fus\n", 
            irq, 
-           (double)(cpu_get_ticks() - irq_time[irq]) * 1000000.0 / ticks_per_sec);
+           (double)(qemu_get_clock(vm_clock) - irq_time[irq]) * 1000000.0 / ticks_per_sec);
 #endif
 #if defined(DEBUG_PIC)
     printf("pic_interrupt: irq=%d\n", irq);
