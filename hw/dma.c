@@ -55,6 +55,7 @@ static struct dma_cont {
     uint8_t command;
     uint8_t mask;
     uint8_t flip_flop;
+    int dshift;
     struct dma_regs regs[4];
 } dma_controllers[2];
 
@@ -73,76 +74,87 @@ enum {
 
 };
 
+static int channels[8] = {-1, 2, 3, 1, -1, -1, -1, 0};
+
 static void write_page (void *opaque, uint32_t nport, uint32_t data)
 {
+    struct dma_cont *d = opaque;
     int ichan;
-    int ncont;
-    static int channels[8] = {-1, 2, 3, 1, -1, -1, -1, 0};
 
-    ncont = nport > 0x87;
-    ichan = channels[nport - 0x80 - (ncont << 3)];
+    ichan = channels[nport & 7];
 
     if (-1 == ichan) {
         log ("invalid channel %#x %#x\n", nport, data);
         return;
     }
-
-    dma_controllers[ncont].regs[ichan].page = data;
+    d->regs[ichan].page = data;
 }
 
-static void init_chan (int ncont, int ichan)
+static uint32_t read_page (void *opaque, uint32_t nport)
+{
+    struct dma_cont *d = opaque;
+    int ichan;
+
+    ichan = channels[nport & 7];
+
+    if (-1 == ichan) {
+        log ("invalid channel read %#x\n", nport);
+        return 0;
+    }
+    return d->regs[ichan].page;
+}
+
+static inline void init_chan (struct dma_cont *d, int ichan)
 {
     struct dma_regs *r;
 
-    r = dma_controllers[ncont].regs + ichan;
-    r->now[ADDR] = r->base[0] << ncont;
+    r = d->regs + ichan;
+    r->now[ADDR] = r->base[0] << d->dshift;
     r->now[COUNT] = 0;
 }
 
-static inline int getff (int ncont)
+static inline int getff (struct dma_cont *d)
 {
     int ff;
 
-    ff = dma_controllers[ncont].flip_flop;
-    dma_controllers[ncont].flip_flop = !ff;
+    ff = d->flip_flop;
+    d->flip_flop = !ff;
     return ff;
 }
 
 static uint32_t read_chan (void *opaque, uint32_t nport)
 {
-    int ff;
-    int ncont, ichan, nreg;
+    struct dma_cont *d = opaque;
+    int ichan, nreg, iport, ff, val;
     struct dma_regs *r;
-    int val;
 
-    ncont = nport > 7;
-    ichan = (nport >> (1 + ncont)) & 3;
-    nreg = (nport >> ncont) & 1;
-    r = dma_controllers[ncont].regs + ichan;
+    iport = (nport >> d->dshift) & 0x0f;
+    ichan = iport >> 1;
+    nreg = iport & 1;
+    r = d->regs + ichan;
 
-    ff = getff (ncont);
-
+    ff = getff (d);
     if (nreg)
-        val = (r->base[COUNT] << ncont) - r->now[COUNT];
+        val = (r->base[COUNT] << d->dshift) - r->now[COUNT];
     else
         val = r->now[ADDR] + r->now[COUNT];
 
-    return (val >> (ncont + (ff << 3))) & 0xff;
+    return (val >> (d->dshift + (ff << 3))) & 0xff;
 }
 
 static void write_chan (void *opaque, uint32_t nport, uint32_t data)
 {
-    int ncont, ichan, nreg;
+    struct dma_cont *d = opaque;
+    int iport, ichan, nreg;
     struct dma_regs *r;
 
-    ncont = nport > 7;
-    ichan = (nport >> (1 + ncont)) & 3;
-    nreg = (nport >> ncont) & 1;
-    r = dma_controllers[ncont].regs + ichan;
-
-    if (getff (ncont)) {
+    iport = (nport >> d->dshift) & 0x0f;
+    ichan = iport >> 1;
+    nreg = iport & 1;
+    r = d->regs + ichan;
+    if (getff (d)) {
         r->base[nreg] = (r->base[nreg] & 0xff) | ((data << 8) & 0xff00);
-        init_chan (ncont, ichan);
+        init_chan (d, ichan);
     } else {
         r->base[nreg] = (r->base[nreg] & 0xff00) | (data & 0xff);
     }
@@ -150,20 +162,10 @@ static void write_chan (void *opaque, uint32_t nport, uint32_t data)
 
 static void write_cont (void *opaque, uint32_t nport, uint32_t data)
 {
-    int iport, ichan, ncont;
-    struct dma_cont *d;
+    struct dma_cont *d = opaque;
+    int iport, ichan;
 
-    ncont = nport > 0xf;
-    ichan = -1;
-
-    d = dma_controllers + ncont;
-    if (ncont) {
-        iport = ((nport - 0xd0) >> 1) + 8;
-    }
-    else {
-        iport = nport;
-    }
-
+    iport = (nport >> d->dshift) & 0x0f;
     switch (iport) {
     case 8:                     /* command */
         if (data && (data | CMD_NOT_SUPPORTED)) {
@@ -239,14 +241,35 @@ static void write_cont (void *opaque, uint32_t nport, uint32_t data)
 
 #ifdef DEBUG_DMA
     if (0xc != iport) {
-        linfo ("nport %#06x, ncont %d, ichan % 2d, val %#06x\n",
-               nport, d != dma_controllers, ichan, data);
+        linfo ("nport %#06x, ichan % 2d, val %#06x\n",
+               nport, ichan, data);
     }
 #endif
     return;
 
  error:
     abort ();
+}
+
+static uint32_t read_cont (void *opaque, uint32_t nport)
+{
+    struct dma_cont *d = opaque;
+    int iport, val;
+    
+    iport = (nport >> d->dshift) & 0x0f;
+    switch (iport) {
+    case 0x08: /* status */
+        val = d->status;
+        d->status &= 0xf0;
+        break;
+    case 0x0f: /* mask */
+        val = d->mask;
+        break;
+    default:
+        val = 0;
+        break;
+    }
+    return val;
 }
 
 int DMA_get_channel_mode (int nchan)
@@ -334,30 +357,34 @@ void DMA_schedule(int nchan)
     cpu_interrupt(cpu_single_env, CPU_INTERRUPT_EXIT);
 }
 
+/* dshift = 0: 8 bit DMA, 1 = 16 bit DMA */
+static void dma_init2(struct dma_cont *d, int base, int dshift, int page_base)
+{
+    const static int page_port_list[] = { 0x1, 0x2, 0x3, 0x7 };
+    int i;
+
+    d->dshift = dshift;
+    for (i = 0; i < 8; i++) {
+        register_ioport_write (base + (i << dshift), 1, 1, write_chan, d);
+        register_ioport_read (base + (i << dshift), 1, 1, read_chan, d);
+    }
+    for (i = 0; i < LENOFA (page_port_list); i++) {
+        register_ioport_write (page_base + page_port_list[i], 1, 1, 
+                               write_page, d);
+        register_ioport_read (page_base + page_port_list[i], 1, 1, 
+                              read_page, d);
+    }
+    for (i = 0; i < 8; i++) {
+        register_ioport_write (base + ((i + 8) << dshift), 1, 1, 
+                               write_cont, d);
+        register_ioport_read (base + ((i + 8) << dshift), 1, 1, 
+                              read_cont, d);
+    }
+    write_cont (d, base + (0x0d << dshift), 0);
+}
+
 void DMA_init (void)
 {
-    int i;
-    int page_port_list[] = { 0x1, 0x2, 0x3, 0x7 };
-
-    for (i = 0; i < 8; i++) {
-        register_ioport_write (i, 1, 1, write_chan, NULL);
-
-        register_ioport_write (0xc0 + (i << 1), 1, 1, write_chan, NULL);
-
-        register_ioport_read (i, 1, 1, read_chan, NULL);
-        register_ioport_read (0xc0 + (i << 1), 1, 1, read_chan, NULL);
-    }
-
-    for (i = 0; i < LENOFA (page_port_list); i++) {
-        register_ioport_write (page_port_list[i] + 0x80, 1, 1, write_page, NULL);
-        register_ioport_write (page_port_list[i] + 0x88, 1, 1, write_page, NULL);
-    }
-
-    for (i = 0; i < 8; i++) {
-        register_ioport_write (i + 8, 1, 1, write_cont, NULL);
-        register_ioport_write (0xd0 + (i << 1), 1, 1, write_cont, NULL);
-    }
-
-    write_cont (NULL, 0x0d, 0);
-    write_cont (NULL, 0xda, 0);
+    dma_init2(&dma_controllers[0], 0x00, 0, 0x80);
+    dma_init2(&dma_controllers[1], 0xc0, 1, 0x88);
 }
