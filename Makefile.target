@@ -346,6 +346,10 @@ endif
 ifdef CONFIG_SDL
 VL_OBJS+=sdl.o
 endif
+ifdef CONFIG_COCOA
+VL_OBJS+=cocoa.o
+COCOA_LIBS=-F/System/Library/Frameworks -framework Cocoa
+endif
 ifdef CONFIG_SLIRP
 DEFINES+=-I$(SRC_PATH)/slirp
 SLIRP_OBJS=cksum.o if.o ip_icmp.o ip_input.o ip_output.o \
@@ -373,7 +377,10 @@ VL_LDFLAGS+=-p
 endif
 
 $(QEMU_SYSTEM): $(VL_OBJS) libqemu.a
-	$(CC) $(VL_LDFLAGS) -o $@ $^ $(LIBS) $(SDL_LIBS) $(VL_LIBS)
+	$(CC) $(VL_LDFLAGS) -o $@ $^ $(LIBS) $(SDL_LIBS) $(COCOA_LIBS) $(VL_LIBS)
+
+cocoa.o: cocoa.m
+	$(CC) $(CFLAGS) $(DEFINES) -c -o $@ $<
 
 sdl.o: sdl.c keymaps.c sdl_keysym.h
 	$(CC) $(CFLAGS) $(DEFINES) $(SDL_CFLAGS) -c -o $@ $<

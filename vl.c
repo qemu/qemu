@@ -72,6 +72,11 @@
 #endif
 #endif /* CONFIG_SDL */
 
+#ifdef CONFIG_COCOA
+#undef main
+#define main qemu_main
+#endif /* CONFIG_COCOA */
+
 #include "disas.h"
 
 #include "exec-all.h"
@@ -3554,8 +3559,10 @@ int main(int argc, char **argv)
     if (nographic) {
         dumb_display_init(ds);
     } else {
-#ifdef CONFIG_SDL
+#if defined(CONFIG_SDL)
         sdl_display_init(ds, full_screen);
+#elif defined(CONFIG_COCOA)
+        cocoa_display_init(ds, full_screen);
 #else
         dumb_display_init(ds);
 #endif

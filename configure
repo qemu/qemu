@@ -83,6 +83,7 @@ fmod_inc=""
 linux="no"
 kqemu="no"
 kernel_path=""
+cocoa="no"
 
 # OS specific
 targetos=`uname -s`
@@ -177,6 +178,8 @@ for opt do
   --disable-kqemu) kqemu="no"
   ;; 
   --kernel-path=*) kernel_path=${opt#--kernel-path=}
+  ;; 
+  --enable-cocoa) cocoa="yes" ; sdl="no"
   ;; 
   esac
 done
@@ -403,6 +406,9 @@ echo "host big endian   $bigendian"
 echo "target list       $target_list"
 echo "gprof enabled     $gprof"
 echo "static build      $static"
+if test "$darwin" = "yes" ; then
+    echo "Cocoa support     $cocoa"
+fi
 echo "SDL support       $sdl"
 echo "SDL static link   $sdl_static"
 echo "mingw32 support   $mingw32"
@@ -674,6 +680,11 @@ if test "$target_user_only" = "no"; then
         fi
         echo "" >> $config_mak
     fi
+fi
+
+if test "$cocoa" = "yes" ; then
+    echo "#define CONFIG_COCOA 1" >> $config_h
+    echo "CONFIG_COCOA=yes" >> $config_mak
 fi
 
 done # for target in $targets
