@@ -1,20 +1,16 @@
 short term:
 ----------
 - debug option in 'configure' script + disable -fomit-frame-pointer
-- Solaris display error with Cirrus VGA
-  (http://lists.gnu.org/archive/html/qemu-devel/2004-10/msg00390.html).
 - Precise VGA timings for old games/demos (malc patch)
 - merge PIC spurious interrupt patch
 - merge VNC keyboard patch
 - merge Solaris patch
-- merge ARM patches + self modifying code patch (Paul Brook)
-- warning for OS/2: must not use 128 MB memory
+- warning for OS/2: must not use 128 MB memory (merge bochs cmos patch ?)
 - config file (at least for windows/Mac OS X)
 - commit message if execution of code in IO memory
 - update doc: PCI infos.
 - VNC patch + Synaptic patch.
 - basic VGA optimizations
-- test sysenter/sysexit and fxsr for L4 pistachio 686
 - physical memory cache (reduce qemu-fast address space size to about 32 MB)
 - better code fetch (different exception handling + CS.limit support)
 - do not resize vga if invalid size.
@@ -45,10 +41,8 @@ lower priority:
 --------------
 - more friendly BIOS (logo)
 - int15 ah=86: use better timing
-- HDD geometry in CMOS (not used except for very old DOS programs)
 - suppress shift_mem ops
 - fix some 16 bit sp push/pop overflow (pusha/popa, lcall lret)
-- sysenter/sysexit emulation
 - optimize FPU operations (evaluate x87 stack pointer statically)
 - add IPC syscalls
 - use -msoft-float on ARM
@@ -62,4 +56,3 @@ lower priority:
   cases of self modifying code.
 - use gcc as a backend to generate better code (easy to do by using
   op-i386.c operations as local inline functions).
-- add SSE2/MMX operations
