@@ -279,7 +279,8 @@ static inline void gen_add_data_offset(DisasContext *s, unsigned int insn)
         val = insn & 0xfff;
         if (!(insn & (1 << 23)))
             val = -val;
-        gen_op_addl_T1_im(val);
+        if (val != 0)
+            gen_op_addl_T1_im(val);
     } else {
         /* shift/register */
         rm = (insn) & 0xf;
@@ -304,7 +305,8 @@ static inline void gen_add_datah_offset(DisasContext *s, unsigned int insn)
         val = (insn & 0xf) | ((insn >> 4) & 0xf0);
         if (!(insn & (1 << 23)))
             val = -val;
-        gen_op_addl_T1_im(val);
+        if (val != 0)
+            gen_op_addl_T1_im(val);
     } else {
         /* register */
         rm = (insn) & 0xf;
