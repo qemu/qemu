@@ -408,6 +408,10 @@ static inline void cpu_x86_set_cpl(CPUX86State *s, int cpl)
 #endif
 }
 
+/* used for debug or cpu save/restore */
+void cpu_get_fp80(uint64_t *pmant, uint16_t *pexp, CPU86_LDouble f);
+CPU86_LDouble cpu_set_fp80(uint64_t mant, uint16_t upper);
+
 /* the following helpers are only usable in user mode simulation as
    they can trigger unexpected exceptions */
 void cpu_x86_load_seg(CPUX86State *s, int seg_reg, int selector);

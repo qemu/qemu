@@ -2005,8 +2005,6 @@ void helper_fstt_ST0_A0(void)
 
 /* BCD ops */
 
-#define MUL10(iv) ( iv + iv + (iv << 3) )
-
 void helper_fbld_ST0_A0(void)
 {
     CPU86_LDouble tmp;
@@ -2430,6 +2428,64 @@ void helper_frstor(uint8_t *ptr, int data32)
         ptr += 10;
     }
 }
+
+/* XXX: merge with helper_fstt ? */
+
+#ifndef USE_X86LDOUBLE
+
+void cpu_get_fp80(uint64_t *pmant, uint16_t *pexp, CPU86_LDouble f)
+{
+    CPU86_LDoubleU temp;
+    int e;
+
+    temp.d = f;
+    /* mantissa */
+    *pmant = (MANTD(temp) << 11) | (1LL << 63);
+    /* exponent + sign */
+    e = EXPD(temp) - EXPBIAS + 16383;
+    e |= SIGND(temp) >> 16;
+    *pexp = e;
+}
+
+CPU86_LDouble cpu_set_fp80(uint64_t mant, uint16_t upper)
+{
+    CPU86_LDoubleU temp;
+    int e;
+    uint64_t ll;
+
+    /* XXX: handle overflow ? */
+    e = (upper & 0x7fff) - 16383 + EXPBIAS; /* exponent */
+    e |= (upper >> 4) & 0x800; /* sign */
+    ll = (mant >> 11) & ((1LL << 52) - 1);
+#ifdef __arm__
+    temp.l.upper = (e << 20) | (ll >> 32);
+    temp.l.lower = ll;
+#else
+    temp.ll = ll | ((uint64_t)e << 52);
+#endif
+    return temp.d;
+}
+
+#else
+
+void cpu_get_fp80(uint64_t *pmant, uint16_t *pexp, CPU86_LDouble f)
+{
+    CPU86_LDoubleU temp;
+
+    temp.d = f;
+    *pmant = temp.l.lower;
+    *pexp = temp.l.upper;
+}
+
+CPU86_LDouble cpu_set_fp80(uint64_t mant, uint16_t upper)
+{
+    CPU86_LDoubleU temp;
+
+    temp.l.upper = upper;
+    temp.l.lower = mant;
+    return temp.d;
+}
+#endif
 
 #if !defined(CONFIG_USER_ONLY) 
 
