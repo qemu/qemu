@@ -28,6 +28,15 @@
 
 #include "thunk.h"
 
+/* temporary fix to make it compile with old elf headers (XXX: use
+   included elf.h in all cases) */
+#ifndef EM_390
+#define EM_S390		22		/* IBM S390 */
+#define R_390_8		1	       /* Direct 8 bit.	 */
+#define R_390_16	3	       /* Direct 16 bit.  */
+#define R_390_32	4	       /* Direct 32 bit.  */
+#endif
+
 /* all dynamically generated functions begin with this code */
 #define OP_PREFIX "op_"
 
@@ -236,6 +245,17 @@ void gen_code(const char *name, unsigned long offset, unsigned long size,
             copy_size = p - p_start;
         }
         break;
+    case EM_S390:
+	{
+	    uint8_t *p;
+	    p = (void *)(p_end - 2);
+	    if (p == p_start)
+		error("empty code for %s", name);
+	    if (get16((uint16_t *)p) != 0x07fe && get16((uint16_t *)p) != 0x07f4)
+		error("br %r14 expected at the end of %s", name);
+	    copy_size = p - p_start;
+	}
+        break;
     default:
         error("unsupported CPU (%d)", e_machine);
     }
@@ -405,6 +425,42 @@ void gen_code(const char *name, unsigned long offset, unsigned long size,
                 }
             }
             break;
+        case EM_S390:
+            {
+                Elf32_Rela *rel;
+                char name[256];
+                int type;
+                long addend;
+                for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
+                    if (rel->r_offset >= offset && rel->r_offset < offset + copy_size) {
+                        sym_name = strtab + symtab[ELF32_R_SYM(rel->r_info)].st_name;
+                        if (strstart(sym_name, "__op_param", &p)) {
+                            snprintf(name, sizeof(name), "param%s", p);
+                        } else {
+                            snprintf(name, sizeof(name), "(long)(&%s)", sym_name);
+                        }
+                        type = ELF32_R_TYPE(rel->r_info);
+                        addend = rel->r_addend;
+                        switch(type) {
+                        case R_390_32:
+                            fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %ld) = %s + %ld;\n", 
+                                    rel->r_offset - offset, name, addend);
+                            break;
+                        case R_390_16:
+                            fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %ld) = %s + %ld;\n", 
+                                    rel->r_offset - offset, name, addend);
+                            break;
+                        case R_390_8:
+                            fprintf(outfile, "    *(uint8_t *)(gen_code_ptr + %ld) = %s + %ld;\n", 
+                                    rel->r_offset - offset, name, addend);
+                            break;
+                        default:
+                            error("unsupported s390 relocation (%d)", type);
+                        }
+                    }
+                }
+            }
+            break;
         default:
             error("unsupported CPU for relocations (%d)", e_machine);
         }
@@ -556,6 +612,9 @@ int load_elf(const char *filename, FILE *outfile, int do_print_enum)
     case EM_SPARC:
         cpu_name = "sparc";
         break;
+    case EM_S390:
+        cpu_name = "s390";
+        break;
     default:
         error("unsupported CPU (e_machine=%d)", e_machine);
     }
@@ -616,6 +675,9 @@ fprintf(outfile,
         break;
     case EM_PPC:
         fprintf(outfile, "*((uint32_t *)gen_code_ptr)++ = 0x4e800020; /* blr */\n");
+        break;
+    case EM_S390:
+        fprintf(outfile, "*((uint16_t *)gen_code_ptr)++ = 0x07fe; /* br %%r14 */\n");
         break;
     default:
         error("no return generation for cpu '%s'", cpu_name);

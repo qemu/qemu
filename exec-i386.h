@@ -93,6 +93,12 @@ register unsigned int T1 asm("l1");
 register unsigned int A0 asm("l2");
 register struct CPUX86State *env asm("l3");
 #endif
+#ifdef __s390__
+register unsigned int T0 asm("r7");
+register unsigned int T1 asm("r8");
+register unsigned int A0 asm("r9");
+register struct CPUX86State *env asm("r10");
+#endif
 
 /* force GCC to generate only one epilog at the end of the function */
 #define FORCE_RET() asm volatile ("");

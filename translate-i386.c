@@ -50,6 +50,12 @@ static inline void flush_icache_range(unsigned long start, unsigned long stop)
 }
 #endif
 
+#ifdef __s390__
+static inline void flush_icache_range(unsigned long start, unsigned long stop)
+{
+}
+#endif
+
 #ifdef __powerpc__
 
 #define MIN_CACHE_LINE_SIZE 8 /* conservative value */

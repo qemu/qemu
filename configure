@@ -42,6 +42,9 @@ case "$cpu" in
   mips)
     cpu="mips"
   ;;
+  s390)
+    cpu="s390"
+  ;;
   *)
     cpu="unknown"
   ;;
@@ -137,7 +140,7 @@ fi
 else
 
 # if cross compiling, cannot launch a program, so make a static guess
-if test "$cpu" = "powerpc" -o "$cpu" = "mips" ; then
+if test "$cpu" = "powerpc" -o "$cpu" = "mips" -o "$cpu" = "s390" ; then
     bigendian="yes"
 fi
 
@@ -212,6 +215,8 @@ elif test "$cpu" = "powerpc" ; then
   echo "ARCH=ppc" >> config.mak
 elif test "$cpu" = "mips" ; then
   echo "ARCH=mips" >> config.mak
+elif test "$cpu" = "s390" ; then
+  echo "ARCH=s390" >> config.mak
 else
   echo "Unsupported CPU"
   exit 1

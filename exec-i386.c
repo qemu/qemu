@@ -87,6 +87,20 @@ static inline int testandset (int *p)
 }
 #endif
 
+#ifdef __s390__
+static inline int testandset (int *p)
+{
+    int ret;
+
+    __asm__ __volatile__ ("0: cs    %0,%1,0(%2)\n"
+			  "   jl    0b"
+			  : "=&d" (ret)
+			  : "r" (1), "a" (p), "0" (*p) 
+			  : "cc", "memory" );
+    return ret;
+}
+#endif
+
 int global_cpu_lock = 0;
 
 void cpu_lock(void)
