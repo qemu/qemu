@@ -1820,7 +1820,7 @@ int main_loop(void)
                             n = read(ioh->fd, buf, ioh->max_size);
                             if (n >= 0) {
                                 ioh->fd_read(ioh->opaque, buf, n);
-                            } else if (errno != -EAGAIN) {
+                            } else if (errno != EAGAIN) {
                                 ioh->fd_read(ioh->opaque, NULL, -errno);
                             }
                         }
@@ -2001,7 +2001,9 @@ const QEMUOption qemu_options[] = {
     { "macaddr", HAS_ARG, QEMU_OPTION_macaddr},
     { "n", HAS_ARG, QEMU_OPTION_d },
     { "tun-fd", HAS_ARG, QEMU_OPTION_tun_fd },
+#ifdef CONFIG_SLIRP
     { "user-net", 0, QEMU_OPTION_user_net },
+#endif
     { "dummy-net", 0, QEMU_OPTION_dummy_net },
 
     { "kernel", HAS_ARG, QEMU_OPTION_kernel },
