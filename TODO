@@ -1,12 +1,12 @@
-before 0.5.2:
-------------
-
-- TLB code protection support
-- basic VGA optimizations
-- disable SMC handling for ARM/SPARC/PPC
-
 short term:
 ----------
+- XP install bug fix
+- L4 Pistachio kernel boot fix
+- TLB code protection support for PPC
+- add sysenter/sysexit and fxsr for L4 pistachio 686
+- basic VGA optimizations
+- disable SMC handling for ARM/SPARC/PPC
+- see undefined flags for BTx insn
 - user/kernel PUSHL/POPL in helper.c
 - keyboard output buffer filling timing emulation
 - verify tb_flush() with a20 and TLBs

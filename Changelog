@@ -1,4 +1,5 @@
 version 0.5.2:
+
   - improved soft MMU speed (assembly functions and specializing)
   - improved multitasking speed by avoiding flushing TBs when
     switching tasks
@@ -15,6 +16,9 @@ version 0.5.2:
   - PowerPC system emulation update (Jocelyn Mayer)
   - PC floppy emulation and DMA fixes (Jocelyn Mayer)
   - polled mode for PIC (Jocelyn Mayer)
+  - fixed PTE dirty bit handling
+  - fixed xadd same reg bug
+  - fixed cmpxchg exception safeness
 
 version 0.5.1:
   

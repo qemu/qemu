@@ -26,7 +26,7 @@ User mode emulation. In this mode, QEMU can launch Linux processes
 compiled for one CPU on another CPU. Linux system calls are converted
 because of endianness and 32/64 bit mismatches. The Wine Windows API
 emulator (@url{http://www.winehq.org}) and the DOSEMU DOS emulator
-(@url{www.dosemu.org}) are the main targets for QEMU.
+(@url{http://www.dosemu.org}) are the main targets for QEMU.
 
 @item 
 Full system emulation. In this mode, QEMU emulates a full
@@ -472,18 +472,23 @@ usage: qemu [options] [disk_image]
 
 General options:
 @table @option
+@item -fda file
+@item -fdb file
+Use @var{file} as floppy disk 0/1 image (@xref{disk_images}).
+
 @item -hda file
 @item -hdb file
 @item -hdc file
 @item -hdd file
-Use @var{file} as hard disk 0, 1, 2 or 3 image (@xref{disk_images}). 
+Use @var{file} as hard disk 0, 1, 2 or 3 image (@xref{disk_images}).
 
 @item -cdrom file
 Use @var{file} as CD-ROM image (you cannot use @option{-hdc} and and
 @option{-cdrom} at the same time).
 
-@item -boot [c|d]
-Boot on hard disk (c) or CD-ROM (d). Hard disk boot is the default.
+@item -boot [a|b|c|d]
+Boot on floppy (a, b), hard disk (c) or CD-ROM (d). Hard disk boot is
+the default.
 
 @item -snapshot
 Write to temporary files instead of disk image files. In this case,
