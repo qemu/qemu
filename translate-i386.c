@@ -160,7 +160,7 @@ enum {
 };
 
 enum {
-#define DEF(s, n) INDEX_op_ ## s,
+#define DEF(s, n, copy_size) INDEX_op_ ## s,
 #include "opc-i386.h"
 #undef DEF
     NB_OPS,
@@ -1215,9 +1215,13 @@ static void gen_setcc(DisasContext *s, int b)
 }
 
 /* move T0 to seg_reg and compute if the CPU state may change */
-static void gen_movl_seg_T0(DisasContext *s, int seg_reg)
+static void gen_movl_seg_T0(DisasContext *s, int seg_reg, unsigned int cur_eip)
 {
-    gen_op_movl_seg_T0(seg_reg);
+    if (!s->vm86)
+        gen_op_movl_seg_T0(seg_reg, cur_eip);
+    else
+        gen_op_movl_seg_T0_vm(offsetof(CPUX86State,segs[seg_reg]),
+                              offsetof(CPUX86State,seg_cache[seg_reg].base));
     if (!s->addseg && seg_reg < R_FS)
         s->is_jmp = 2; /* abort translation because the register may
                           have a non zero base */
@@ -1371,6 +1375,18 @@ static void gen_exception(DisasContext *s, int trapno, unsigned int cur_eip)
         gen_op_set_cc_op(s->cc_op);
     gen_op_jmp_im(cur_eip);
     gen_op_raise_exception(trapno);
+    s->is_jmp = 1;
+}
+
+/* an interrupt is different from an exception because of the
+   priviledge checks */
+static void gen_interrupt(DisasContext *s, int intno, 
+                          unsigned int cur_eip, unsigned int next_eip)
+{
+    if (s->cc_op != CC_OP_DYNAMIC)
+        gen_op_set_cc_op(s->cc_op);
+    gen_op_jmp_im(cur_eip);
+    gen_op_raise_interrupt(intno, next_eip);
     s->is_jmp = 1;
 }
 
@@ -1650,28 +1666,28 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         case 6: /* div */
             switch(ot) {
             case OT_BYTE:
-                gen_op_divb_AL_T0();
+                gen_op_divb_AL_T0(pc_start - s->cs_base);
                 break;
             case OT_WORD:
-                gen_op_divw_AX_T0();
+                gen_op_divw_AX_T0(pc_start - s->cs_base);
                 break;
             default:
             case OT_LONG:
-                gen_op_divl_EAX_T0();
+                gen_op_divl_EAX_T0(pc_start - s->cs_base);
                 break;
             }
             break;
         case 7: /* idiv */
             switch(ot) {
             case OT_BYTE:
-                gen_op_idivb_AL_T0();
+                gen_op_idivb_AL_T0(pc_start - s->cs_base);
                 break;
             case OT_WORD:
-                gen_op_idivw_AX_T0();
+                gen_op_idivw_AX_T0(pc_start - s->cs_base);
                 break;
             default:
             case OT_LONG:
-                gen_op_idivl_EAX_T0();
+                gen_op_idivl_EAX_T0(pc_start - s->cs_base);
                 break;
             }
             break;
@@ -1738,7 +1754,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             gen_op_ld_T1_A0[ot]();
             gen_op_addl_A0_im(1 << (ot - OT_WORD + 1));
             gen_op_lduw_T0_A0();
-            gen_movl_seg_T0(s, R_CS);
+            gen_movl_seg_T0(s, R_CS, pc_start - s->cs_base);
             gen_op_movl_T0_T1();
             gen_op_jmp_T0();
             s->is_jmp = 1;
@@ -1753,7 +1769,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             gen_op_ld_T1_A0[ot]();
             gen_op_addl_A0_im(1 << (ot - OT_WORD + 1));
             gen_op_lduw_T0_A0();
-            gen_movl_seg_T0(s, R_CS);
+            gen_movl_seg_T0(s, R_CS, pc_start - s->cs_base);
             gen_op_movl_T0_T1();
             gen_op_jmp_T0();
             s->is_jmp = 1;
@@ -1970,13 +1986,13 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
     case 0x17: /* pop ss */
     case 0x1f: /* pop ds */
         gen_pop_T0(s);
-        gen_movl_seg_T0(s, b >> 3);
+        gen_movl_seg_T0(s, b >> 3, pc_start - s->cs_base);
         gen_pop_update(s);
         break;
     case 0x1a1: /* pop fs */
     case 0x1a9: /* pop gs */
         gen_pop_T0(s);
-        gen_movl_seg_T0(s, (b >> 3) & 7);
+        gen_movl_seg_T0(s, (b >> 3) & 7, pc_start - s->cs_base);
         gen_pop_update(s);
         break;
 
@@ -2030,7 +2046,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         gen_ldst_modrm(s, modrm, ot, OR_TMP0, 0);
         if (reg >= 6 || reg == R_CS)
             goto illegal_op;
-        gen_movl_seg_T0(s, reg);
+        gen_movl_seg_T0(s, reg, pc_start - s->cs_base);
         break;
     case 0x8c: /* mov Gv, seg */
         ot = dflag ? OT_LONG : OT_WORD;
@@ -2231,7 +2247,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         gen_op_addl_A0_im(1 << (ot - OT_WORD + 1));
         /* load the segment first to handle exceptions properly */
         gen_op_lduw_T0_A0();
-        gen_movl_seg_T0(s, op);
+        gen_movl_seg_T0(s, op, pc_start - s->cs_base);
         /* then put the data */
         gen_op_mov_reg_T1[ot][reg]();
         break;
@@ -2914,7 +2930,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         gen_pop_update(s);
         /* pop selector */
         gen_pop_T0(s);
-        gen_movl_seg_T0(s, R_CS);
+        gen_movl_seg_T0(s, R_CS, pc_start - s->cs_base);
         gen_pop_update(s);
         /* add stack offset */
         if (s->ss32)
@@ -2933,7 +2949,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         gen_pop_update(s);
         /* pop selector */
         gen_pop_T0(s);
-        gen_movl_seg_T0(s, R_CS);
+        gen_movl_seg_T0(s, R_CS, pc_start - s->cs_base);
         gen_pop_update(s);
         s->is_jmp = 1;
         break;
@@ -2950,7 +2966,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             gen_pop_update(s);
             /* pop selector */
             gen_pop_T0(s);
-            gen_movl_seg_T0(s, R_CS);
+            gen_movl_seg_T0(s, R_CS, pc_start - s->cs_base);
             gen_pop_update(s);
             /* pop eflags */
             gen_pop_T0(s);
@@ -2995,7 +3011,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
 
             /* change cs and pc */
             gen_op_movl_T0_im(selector);
-            gen_movl_seg_T0(s, R_CS);
+            gen_movl_seg_T0(s, R_CS, pc_start - s->cs_base);
             gen_op_jmp_im((unsigned long)offset);
             s->is_jmp = 1;
         }
@@ -3018,7 +3034,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             
             /* change cs and pc */
             gen_op_movl_T0_im(selector);
-            gen_movl_seg_T0(s, R_CS);
+            gen_movl_seg_T0(s, R_CS, pc_start - s->cs_base);
             gen_op_jmp_im((unsigned long)offset);
             s->is_jmp = 1;
         }
@@ -3255,14 +3271,15 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
     case 0x9b: /* fwait */
         break;
     case 0xcc: /* int3 */
-        gen_exception(s, EXCP03_INT3, s->pc - s->cs_base);
+        gen_interrupt(s, EXCP03_INT3, pc_start - s->cs_base, s->pc - s->cs_base);
         break;
     case 0xcd: /* int N */
         val = ldub(s->pc++);
-        if (s->cc_op != CC_OP_DYNAMIC)
-            gen_op_set_cc_op(s->cc_op);
-        gen_op_int_im(val, pc_start - s->cs_base);
-        s->is_jmp = 1;
+        /* XXX: add error code for vm86 GPF */
+        if (!s->vm86)
+            gen_interrupt(s, val, pc_start - s->cs_base, s->pc - s->cs_base);
+        else
+            gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base); 
         break;
     case 0xce: /* into */
         if (s->cc_op != CC_OP_DYNAMIC)
@@ -3309,9 +3326,9 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         gen_op_mov_reg_T0[ot][reg]();
         gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
         if (ot == OT_WORD)
-            gen_op_boundw();
+            gen_op_boundw(pc_start - s->cs_base);
         else
-            gen_op_boundl();
+            gen_op_boundl(pc_start - s->cs_base);
         break;
     case 0x1c8 ... 0x1cf: /* bswap reg */
         reg = b & 7;
@@ -3670,13 +3687,13 @@ static void optimize_flags(uint16_t *opc_buf, int opc_buf_len)
 
 #ifdef DEBUG_DISAS
 static const char *op_str[] = {
-#define DEF(s, n) #s,
+#define DEF(s, n, copy_size) #s,
 #include "opc-i386.h"
 #undef DEF
 };
 
 static uint8_t op_nb_args[] = {
-#define DEF(s, n) n,
+#define DEF(s, n, copy_size) n,
 #include "opc-i386.h"
 #undef DEF
 };
@@ -3706,7 +3723,6 @@ static void dump_ops(const uint16_t *opc_buf, const uint32_t *opparam_buf)
 
 #endif
 
-/* XXX: make this buffer thread safe */
 /* XXX: make safe guess about sizes */
 #define MAX_OP_PER_INSTR 32
 #define OPC_BUF_SIZE 512
@@ -3716,30 +3732,27 @@ static void dump_ops(const uint16_t *opc_buf, const uint32_t *opparam_buf)
 
 static uint16_t gen_opc_buf[OPC_BUF_SIZE];
 static uint32_t gen_opparam_buf[OPPARAM_BUF_SIZE];
+static uint32_t gen_opc_pc[OPC_BUF_SIZE];
+static uint8_t gen_opc_instr_start[OPC_BUF_SIZE];
 
-/* return non zero if the very first instruction is invalid so that
-   the virtual CPU can trigger an exception. 
-
-   '*code_size_ptr' contains the target code size including the
-   instruction which triggered an exception, except in case of invalid
-   illegal opcode. It must never exceed one target page. 
-   
-   '*gen_code_size_ptr' contains the size of the generated code (host
-   code).
-*/
-int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size, 
-                     int *gen_code_size_ptr,
-                     uint8_t *pc_start,  uint8_t *cs_base, int flags,
-                     int *code_size_ptr, TranslationBlock *tb)
+/* generate intermediate code in gen_opc_buf and gen_opparam_buf for
+   basic block 'tb'. If search_pc is TRUE, also generate PC
+   information for each intermediate instruction. */
+static inline int gen_intermediate_code(TranslationBlock *tb, int search_pc)
 {
     DisasContext dc1, *dc = &dc1;
     uint8_t *pc_ptr;
     uint16_t *gen_opc_end;
-    int gen_code_size;
+    int flags, j, lj;
     long ret;
+    uint8_t *pc_start;
+    uint8_t *cs_base;
     
     /* generate intermediate code */
-
+    pc_start = (uint8_t *)tb->pc;
+    cs_base = (uint8_t *)tb->cs_base;
+    flags = tb->flags;
+       
     dc->code32 = (flags >> GEN_FLAG_CODE32_SHIFT) & 1;
     dc->ss32 = (flags >> GEN_FLAG_SS32_SHIFT) & 1;
     dc->addseg = (flags >> GEN_FLAG_ADDSEG_SHIFT) & 1;
@@ -3758,7 +3771,18 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size,
 
     dc->is_jmp = 0;
     pc_ptr = pc_start;
+    lj = -1;
     do {
+        if (search_pc) {
+            j = gen_opc_ptr - gen_opc_buf;
+            if (lj < j) {
+                lj++;
+                while (lj < j)
+                    gen_opc_instr_start[lj++] = 0;
+                gen_opc_pc[lj] = (uint32_t)pc_ptr;
+                gen_opc_instr_start[lj] = 1;
+            }
+        }
         ret = disas_insn(dc, pc_ptr);
         if (ret == -1) {
             /* we trigger an illegal instruction operation only if it
@@ -3819,10 +3843,31 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size,
         fprintf(logfile, "\n");
     }
 #endif
+    if (!search_pc)
+        tb->size = pc_ptr - pc_start;
+    return 0;
+}
+
+
+/* return non zero if the very first instruction is invalid so that
+   the virtual CPU can trigger an exception. 
+
+   '*gen_code_size_ptr' contains the size of the generated code (host
+   code).
+*/
+int cpu_x86_gen_code(TranslationBlock *tb,
+                     int max_code_size, int *gen_code_size_ptr)
+{
+    uint8_t *gen_code_buf;
+    int gen_code_size;
+
+    if (gen_intermediate_code(tb, 0) < 0)
+        return -1;
 
     /* generate machine code */
     tb->tb_next_offset[0] = 0xffff;
     tb->tb_next_offset[1] = 0xffff;
+    gen_code_buf = tb->tc_ptr;
     gen_code_size = dyngen_code(gen_code_buf, tb->tb_next_offset,
 #ifdef USE_DIRECT_JUMP
                                 tb->tb_jmp_offset,
@@ -3831,19 +3876,62 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size,
 #endif
                                 gen_opc_buf, gen_opparam_buf);
     flush_icache_range((unsigned long)gen_code_buf, (unsigned long)(gen_code_buf + gen_code_size));
-
+    
     *gen_code_size_ptr = gen_code_size;
-    *code_size_ptr = pc_ptr - pc_start;
 #ifdef DEBUG_DISAS
     if (loglevel) {
         fprintf(logfile, "OUT: [size=%d]\n", *gen_code_size_ptr);
-	disas(logfile, gen_code_buf, *gen_code_size_ptr, DISAS_TARGET);
+        disas(logfile, gen_code_buf, *gen_code_size_ptr, DISAS_TARGET);
         fprintf(logfile, "\n");
         fflush(logfile);
     }
 #endif
     return 0;
 }
+
+static const unsigned short opc_copy_size[] = {
+#define DEF(s, n, copy_size) copy_size,
+#include "opc-i386.h"
+#undef DEF
+};
+
+/* The simulated PC corresponding to
+   'searched_pc' in the generated code is searched. 0 is returned if
+   found. *found_pc contains the found PC. 
+ */
+int cpu_x86_search_pc(TranslationBlock *tb, 
+                      uint32_t *found_pc, unsigned long searched_pc)
+{
+    int j, c;
+    unsigned long tc_ptr;
+    uint16_t *opc_ptr;
+
+    if (gen_intermediate_code(tb, 1) < 0)
+        return -1;
+    
+    /* find opc index corresponding to search_pc */
+    tc_ptr = (unsigned long)tb->tc_ptr;
+    if (searched_pc < tc_ptr)
+        return -1;
+    j = 0;
+    opc_ptr = gen_opc_buf;
+    for(;;) {
+        c = *opc_ptr;
+        if (c == INDEX_op_end)
+            return -1;
+        tc_ptr += opc_copy_size[c];
+        if (searched_pc < tc_ptr)
+            break;
+        opc_ptr++;
+    }
+    j = opc_ptr - gen_opc_buf;
+    /* now find start of instruction before */
+    while (gen_opc_instr_start[j] == 0)
+        j--;
+    *found_pc = gen_opc_pc[j];
+    return 0;
+}
+
 
 CPUX86State *cpu_x86_init(void)
 {
