@@ -27,7 +27,7 @@ ar="ar"
 make="make"
 strip="strip"
 cpu=`uname -m`
-target_list="i386 i386-softmmu arm sparc"
+target_list="i386-user i386 i386-softmmu arm-user sparc-user"
 case "$cpu" in
   i386|i486|i586|i686|i86pc|BePC)
     cpu="i386"
@@ -324,6 +324,10 @@ target_softmmu="no"
 if expr $target : '.*-softmmu' > /dev/null ; then
   target_softmmu="yes"
 fi
+target_user_only="no"
+if expr $target : '.*-user' > /dev/null ; then
+  target_user_only="yes"
+fi
 
 echo "Creating $config_mak, $config_h and $target_dir/Makefile"
 
@@ -363,6 +367,10 @@ fi
 if test "$target_softmmu" = "yes" ; then
   echo "CONFIG_SOFTMMU=yes" >> $config_mak
   echo "#define CONFIG_SOFTMMU 1" >> $config_h
+fi
+if test "$target_user_only" = "yes" ; then
+  echo "CONFIG_USER_ONLY=yes" >> $config_mak
+  echo "#define CONFIG_USER_ONLY 1" >> $config_h
 fi
 
 done # for target in $targets
