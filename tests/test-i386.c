@@ -1733,6 +1733,22 @@ static uint64_t __attribute__((aligned(16))) test_values[4][2] = {
     SSE_OP2(op);\
 }
 
+#define SHUF_OP(op, ib)\
+{\
+    int i;\
+    a.q[0] = test_values[0][0];\
+    a.q[1] = test_values[0][1];\
+    b.q[0] = test_values[1][0];\
+    b.q[1] = test_values[1][1];\
+    asm volatile (#op " $" #ib ", %2, %0" : "=x" (r.dq) : "0" (a.dq), "x" (b.dq));\
+    printf("%-9s: a=%016llx%016llx b=%016llx%016llx ib=%02x r=%016llx%016llx\n",\
+           #op,\
+           a.q[1], a.q[0],\
+           b.q[1], b.q[0],\
+           ib,\
+           r.q[1], r.q[0]);\
+}
+
 #define PSHUF_OP(op, ib)\
 {\
     int i;\
@@ -2009,6 +2025,32 @@ void test_sse(void)
     asm volatile ("pmovmskb %1, %0" : "=r" (r.l[0]) : "x" (a.dq));
     printf("%-9s: r=%08x\n", "pmovmskb", r.l[0]);
 
+    {
+        r.q[0] = -1;
+        r.q[1] = -1;
+
+        a.q[0] = test_values[0][0];
+        a.q[1] = test_values[0][1];
+        b.q[0] = test_values[1][0];
+        b.q[1] = test_values[1][1];
+        asm volatile("maskmovq %1, %0" : 
+                     : "y" (a.q[0]), "y" (b.q[0]), "D" (&r)
+                     : "memory"); 
+        printf("%-9s: r=%016llx a=%016llx b=%016llx\n", 
+               "maskmov", 
+               r.q[0], 
+               a.q[0], 
+               b.q[0]);
+        asm volatile("maskmovdqu %1, %0" : 
+                     : "x" (a.dq), "x" (b.dq), "D" (&r)
+                     : "memory"); 
+        printf("%-9s: r=%016llx%016llx a=%016llx%016llx b=%016llx%016llx\n", 
+               "maskmov", 
+               r.q[1], r.q[0], 
+               a.q[1], a.q[0], 
+               b.q[1], b.q[0]);
+    }
+
     asm volatile ("emms");
 
     SSE_OP2(punpcklqdq);
@@ -2027,8 +2069,8 @@ void test_sse(void)
     SSE_OP2(unpckhps);
     SSE_OP2(unpckhpd);
 
-    PSHUF_OP(shufps, 0x78);
-    PSHUF_OP(shufpd, 0x02);
+    SHUF_OP(shufps, 0x78);
+    SHUF_OP(shufpd, 0x02);
 
     PSHUF_OP(pshufd, 0x78);
     PSHUF_OP(pshuflw, 0x78);
