@@ -113,7 +113,7 @@ static uint32_t slavio_intctlm_mem_readl(void *opaque, target_phys_addr_t addr)
     saddr = (addr & INTCTLM_MAXADDR) >> 2;
     switch (saddr) {
     case 0:
-	return s->intregm_pending;
+	return s->intregm_pending & 0x7fffffff;
     case 1:
 	return s->intregm_disabled;
     case 4:
@@ -132,12 +132,12 @@ static void slavio_intctlm_mem_writel(void *opaque, target_phys_addr_t addr, uin
     saddr = (addr & INTCTLM_MAXADDR) >> 2;
     switch (saddr) {
     case 2: // clear (enable)
-	// Force unused bits
-	val |= 0x7fb2007f;
+	// Force clear unused bits
+	val &= ~0x7fb2007f;
 	s->intregm_disabled &= ~val;
 	break;
     case 3: // set (disable, clear pending)
-	// Force unused bits
+	// Force clear unused bits
 	val &= ~0x7fb2007f;
 	s->intregm_disabled |= val;
 	s->intregm_pending &= ~val;
@@ -269,7 +269,7 @@ static void slavio_intctl_reset(void *opaque)
     for (i = 0; i < MAX_CPUS; i++) {
 	s->intreg_pending[i] = 0;
     }
-    s->intregm_disabled = 0xffffffff;
+    s->intregm_disabled = ~0xffb2007f;
     s->intregm_pending = 0;
     s->target_cpu = 0;
 }
