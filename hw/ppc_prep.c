@@ -937,18 +937,28 @@ void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
         PPC_init_hw(/*env,*/ ram_size, KERNEL_LOAD_ADDR, ret,
                     KERNEL_STACK_ADDR, boot_device, initrd_filename);
     } else {
+        int bios_ram_offset;
+
+#define BIOS_START 0x00800000
+
 	/* allocate ROM */
-	//        snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
-	snprintf(buf, sizeof(buf), "%s", BIOS_FILENAME);
-	printf("load BIOS at %p\n", phys_ram_base + 0x000f0000);
-	ret = load_image(buf, phys_ram_base + 0x000f0000);
-	if (ret != 0x10000) {
+        snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
+        bios_ram_offset = ram_size + vga_ram_size;
+	printf("load BIOS at 0x%08x\n", BIOS_START);
+	ret = load_image(buf, phys_ram_base + bios_ram_offset);
+	if (ret != BIOS_SIZE) {
 	    fprintf(stderr, "qemu: could not load PPC bios '%s' (%d)\n%m\n",
 		    buf, ret);
 	    exit(1);
 	}
+        global_env->nip = BIOS_START + BIOS_SIZE - 4;
+        cpu_register_physical_memory(BIOS_START, BIOS_SIZE, 
+                                     IO_MEM_ROM | bios_ram_offset);
     }
 
+    /* Register CPU as a 74x/75x */
+    cpu_ppc_register(cpu_single_env, 0x00080000);
+    /* Set time-base frequency to 100 Mhz */
     cpu_ppc_tb_init(cpu_single_env, 100UL * 1000UL * 1000UL);
 
     /* init basic PC hardware */
