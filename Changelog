@@ -3,6 +3,13 @@ version 0.5.1:
   - float access fixes when using soft mmu
   - PC emulation support on PowerPC
   - A20 support
+  - IDE CD-ROM emulation
+  - ARM fixes (Ulrich Hecht)
+  - SB16 emulation (malc)
+  - IRET and INT fixes in VM86 mode with IOPL=3
+  - Port I/Os use TSS io map
+  - Full task switching/task gate support
+  - added verr, verw, arpl
 
 version 0.5.0:
   

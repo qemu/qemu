@@ -281,11 +281,13 @@ VGA (hardware level, including all non standard modes)
 @item
 PS/2 mouse and keyboard
 @item 
-IDE disk interface (port=0x1f0, irq=14)
+2 IDE interfaces with hard disk and CD-ROM support
 @item 
 NE2000 network adapter (port=0x300, irq=9)
 @item
-Serial port (port=0x3f8, irq=4)
+Serial port
+@item 
+Soundblaster 16 card
 @item
 PIC (interrupt controler)
 @item
@@ -333,9 +335,8 @@ seen from the emulated kernel at IP address 172.20.0.1.
 
 @example
 > ./qemu.sh 
-connected to host network interface: tun0
-Uncompressing Linux... Ok, booting the kernel.
-Linux version 2.4.20 (fabrice@localhost.localdomain) (gcc version 2.96 20000731 (Red Hat Linux 7.3 2.96-110)) #22 lun jui 7 13:37:41 CEST 2003
+Connected to host network interface: tun0
+Linux version 2.4.21 (bellard@voyager.localdomain) (gcc version 3.2.2 20030222 (Red Hat Linux 3.2.2-5)) #5 Tue Nov 11 18:18:53 CET 2003
 BIOS-provided physical RAM map:
  BIOS-e801: 0000000000000000 - 000000000009f000 (usable)
  BIOS-e801: 0000000000100000 - 0000000002000000 (usable)
@@ -344,19 +345,19 @@ On node 0 totalpages: 8192
 zone(0): 4096 pages.
 zone(1): 4096 pages.
 zone(2): 0 pages.
-Kernel command line: root=/dev/hda ide1=noprobe ide2=noprobe ide3=noprobe ide4=noprobe ide5=noprobe
-ide_setup: ide1=noprobe
+Kernel command line: root=/dev/hda sb=0x220,5,1,5 ide2=noprobe ide3=noprobe ide4=noprobe ide5=noprobe console=ttyS0
 ide_setup: ide2=noprobe
 ide_setup: ide3=noprobe
 ide_setup: ide4=noprobe
 ide_setup: ide5=noprobe
 Initializing CPU#0
-Detected 501.285 MHz processor.
-Calibrating delay loop... 989.59 BogoMIPS
-Memory: 29268k/32768k available (907k kernel code, 3112k reserved, 212k data, 52k init, 0k highmem)
+Detected 2399.621 MHz processor.
+Console: colour EGA 80x25
+Calibrating delay loop... 4744.80 BogoMIPS
+Memory: 28872k/32768k available (1210k kernel code, 3508k reserved, 266k data, 64k init, 0k highmem)
 Dentry cache hash table entries: 4096 (order: 3, 32768 bytes)
 Inode cache hash table entries: 2048 (order: 2, 16384 bytes)
-Mount-cache hash table entries: 512 (order: 0, 4096 bytes)
+Mount cache hash table entries: 512 (order: 0, 4096 bytes)
 Buffer-cache hash table entries: 1024 (order: 0, 4096 bytes)
 Page-cache hash table entries: 8192 (order: 3, 32768 bytes)
 CPU: Intel Pentium Pro stepping 03
@@ -368,21 +369,24 @@ Initializing RT netlink socket
 apm: BIOS not found.
 Starting kswapd
 Journalled Block Device driver loaded
+Detected PS/2 Mouse Port.
 pty: 256 Unix98 ptys configured
 Serial driver version 5.05c (2001-07-08) with no serial options enabled
 ttyS00 at 0x03f8 (irq = 4) is a 16450
-Uniform Multi-Platform E-IDE driver Revision: 6.31
-ide: Assuming 50MHz system bus speed for PIO modes; override with idebus=xx
-hda: QEMU HARDDISK, ATA DISK drive
-ide0 at 0x1f0-0x1f7,0x3f6 on irq 14
-hda: 12288 sectors (6 MB) w/256KiB Cache, CHS=12/16/63
-Partition check:
- hda: unknown partition table
 ne.c:v1.10 9/23/94 Donald Becker (becker@scyld.com)
 Last modified Nov 1, 2000 by Paul Gortmaker
 NE*000 ethercard probe at 0x300: 52 54 00 12 34 56
 eth0: NE2000 found at 0x300, using IRQ 9.
 RAMDISK driver initialized: 16 RAM disks of 4096K size 1024 blocksize
+Uniform Multi-Platform E-IDE driver Revision: 7.00beta4-2.4
+ide: Assuming 50MHz system bus speed for PIO modes; override with idebus=xx
+hda: QEMU HARDDISK, ATA DISK drive
+ide0 at 0x1f0-0x1f7,0x3f6 on irq 14
+hda: attached ide-disk driver.
+hda: 20480 sectors (10 MB) w/256KiB Cache, CHS=20/16/63
+Partition check:
+ hda:
+Soundblaster audio driver Copyright (C) by Hannu Savolainen 1993-1996
 NET4: Linux TCP/IP 1.0 for NET4.0
 IP Protocols: ICMP, UDP, TCP, IGMP
 IP: routing cache hash table of 512 buckets, 4Kbytes
@@ -390,9 +394,15 @@ TCP: Hash tables configured (established 2048 bind 4096)
 NET4: Unix domain sockets 1.0/SMP for Linux NET4.0.
 EXT2-fs warning: mounting unchecked fs, running e2fsck is recommended
 VFS: Mounted root (ext2 filesystem).
-Freeing unused kernel memory: 52k freed
-sh: can't access tty; job control turned off
-#
+Freeing unused kernel memory: 64k freed
+ 
+Linux version 2.4.21 (bellard@voyager.localdomain) (gcc version 3.2.2 20030222 (Red Hat Linux 3.2.2-5)) #5 Tue Nov 11 18:18:53 CET 2003
+ 
+QEMU Linux test distribution (based on Redhat 9)
+ 
+Type 'exit' to halt the system
+ 
+sh-2.05b# 
 @end example
 
 @item
@@ -464,10 +474,18 @@ General options:
 @table @option
 @item -hda file
 @item -hdb file
-Use @var{file} as hard disk 0 or 1 image (@xref{disk_images}). 
+@item -hdc file
+@item -hdd file
+Use @var{file} as hard disk 0, 1, 2 or 3 image (@xref{disk_images}). 
+
+@item -cdrom file
+Use @var{file} as CD-ROM image (you cannot use @option{-hdc} and and
+@option{-cdrom} at the same time).
+
+@item -boot [c|d]
+Boot on hard disk (c) or CD-ROM (d). Hard disk boot is the default.
 
 @item -snapshot
-
 Write to temporary files instead of disk image files. In this case,
 the raw disk image you use is not written back. You can however force
 the write back by pressing @key{C-a s} (@xref{disk_images}). 
