@@ -28,6 +28,11 @@
 #define tostring(s)	#s
 #endif
 
+#ifndef THUNK_H
+/* horrible */
+typedef uint32_t target_ulong;
+#endif
+
 #if GCC_MAJOR < 3
 #define __builtin_expect(x, n) (x)
 #endif
@@ -77,10 +82,12 @@ int cpu_restore_state(struct TranslationBlock *tb,
                       CPUState *env, unsigned long searched_pc);
 void cpu_exec_init(void);
 int page_unprotect(unsigned long address);
-void tb_invalidate_page(unsigned long address);
+void tb_invalidate_page_range(target_ulong start, target_ulong end);
 void tlb_flush_page(CPUState *env, uint32_t addr);
 void tlb_flush_page_write(CPUState *env, uint32_t addr);
 void tlb_flush(CPUState *env);
+int tlb_set_page(CPUState *env, uint32_t vaddr, uint32_t paddr, int prot, 
+                 int is_user, int is_softmmu);
 
 #define CODE_GEN_MAX_SIZE        65536
 #define CODE_GEN_ALIGN           16 /* must be >= of the size of a icache line */
@@ -88,11 +95,47 @@ void tlb_flush(CPUState *env);
 #define CODE_GEN_HASH_BITS     15
 #define CODE_GEN_HASH_SIZE     (1 << CODE_GEN_HASH_BITS)
 
+#define CODE_GEN_PHYS_HASH_BITS     15
+#define CODE_GEN_PHYS_HASH_SIZE     (1 << CODE_GEN_PHYS_HASH_BITS)
+
 /* maximum total translate dcode allocated */
-#define CODE_GEN_BUFFER_SIZE     (2048 * 1024)
+
+/* NOTE: the translated code area cannot be too big because on some
+   archs the range of "fast" function calls are limited. Here is a
+   summary of the ranges:
+
+   i386  : signed 32 bits
+   arm   : signed 26 bits
+   ppc   : signed 24 bits
+   sparc : signed 32 bits
+   alpha : signed 23 bits
+*/
+
+#if defined(__alpha__)
+#define CODE_GEN_BUFFER_SIZE     (2 * 1024 * 1024)
+#elif defined(__powerpc__)
+#define CODE_GEN_BUFFER_SIZE     (6 * 1024)
+#else
+#define CODE_GEN_BUFFER_SIZE     (8 * 1024 * 1024)
+#endif
+
 //#define CODE_GEN_BUFFER_SIZE     (128 * 1024)
 
-#if defined(__powerpc__)
+/* estimated block size for TB allocation */
+/* XXX: use a per code average code fragment size and modulate it
+   according to the host CPU */
+#if defined(CONFIG_SOFTMMU)
+#define CODE_GEN_AVG_BLOCK_SIZE 128
+#else
+#define CODE_GEN_AVG_BLOCK_SIZE 64
+#endif
+
+#define CODE_GEN_MAX_BLOCKS    (CODE_GEN_BUFFER_SIZE / CODE_GEN_AVG_BLOCK_SIZE)
+
+#if defined(__powerpc__) 
+#define USE_DIRECT_JUMP
+#endif
+#if defined(__i386__) 
 #define USE_DIRECT_JUMP
 #endif
 
@@ -103,8 +146,14 @@ typedef struct TranslationBlock {
     uint16_t size;      /* size of target code for this block (1 <=
                            size <= TARGET_PAGE_SIZE) */
     uint8_t *tc_ptr;    /* pointer to the translated code */
-    struct TranslationBlock *hash_next; /* next matching block */
-    struct TranslationBlock *page_next[2]; /* next blocks in even/odd page */
+    struct TranslationBlock *hash_next; /* next matching tb for virtual address */
+    /* next matching tb for physical address. */
+    struct TranslationBlock *phys_hash_next; 
+    /* first and second physical page containing code. The lower bit
+       of the pointer tells the index in page_next[] */
+    struct TranslationBlock *page_next[2]; 
+    target_ulong page_addr[2]; 
+
     /* the following data are used to directly call another TB from
        the code of this one. */
     uint16_t tb_next_offset[2]; /* offset of original jump target */
@@ -126,11 +175,19 @@ static inline unsigned int tb_hash_func(unsigned long pc)
     return pc & (CODE_GEN_HASH_SIZE - 1);
 }
 
+static inline unsigned int tb_phys_hash_func(unsigned long pc)
+{
+    return pc & (CODE_GEN_PHYS_HASH_SIZE - 1);
+}
+
 TranslationBlock *tb_alloc(unsigned long pc);
 void tb_flush(CPUState *env);
 void tb_link(TranslationBlock *tb);
+void tb_link_phys(TranslationBlock *tb, 
+                  target_ulong phys_pc, target_ulong phys_page2);
 
 extern TranslationBlock *tb_hash[CODE_GEN_HASH_SIZE];
+extern TranslationBlock *tb_phys_hash[CODE_GEN_PHYS_HASH_SIZE];
 
 extern uint8_t code_gen_buffer[CODE_GEN_BUFFER_SIZE];
 extern uint8_t *code_gen_ptr;
@@ -159,8 +216,10 @@ static inline TranslationBlock *tb_find(TranslationBlock ***pptb,
     return NULL;
 }
 
-#if defined(__powerpc__)
 
+#if defined(USE_DIRECT_JUMP)
+
+#if defined(__powerpc__)
 static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr)
 {
     uint32_t val, *ptr;
@@ -177,6 +236,14 @@ static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr
     asm volatile ("sync" : : : "memory");
     asm volatile ("isync" : : : "memory");
 }
+#elif defined(__i386__)
+static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr)
+{
+    /* patch the branch destination */
+    *(uint32_t *)jmp_addr = addr - (jmp_addr + 4);
+    /* no need to flush icache explicitely */
+}
+#endif
 
 static inline void tb_set_jmp_target(TranslationBlock *tb, 
                                      int n, unsigned long addr)
@@ -223,7 +290,7 @@ TranslationBlock *tb_find_pc(unsigned long pc_ptr);
 
 #if defined(__powerpc__)
 
-/* on PowerPC we patch the jump instruction directly */
+/* we patch the jump instruction directly */
 #define JUMP_TB(opname, tbparam, n, eip)\
 do {\
     asm volatile (".section \".data\"\n"\
@@ -239,7 +306,28 @@ do {\
 
 #define JUMP_TB2(opname, tbparam, n)\
 do {\
-    asm volatile ("b __op_jmp%0\n" : : "i" (n + 2));\
+    asm volatile ("b __op_jmp" #n "\n");\
+} while (0)
+
+#elif defined(__i386__) && defined(USE_DIRECT_JUMP)
+
+/* we patch the jump instruction directly */
+#define JUMP_TB(opname, tbparam, n, eip)\
+do {\
+    asm volatile (".section \".data\"\n"\
+		  "__op_label" #n "." stringify(opname) ":\n"\
+		  ".long 1f\n"\
+		  ".previous\n"\
+                  "jmp __op_jmp" #n "\n"\
+		  "1:\n");\
+    T0 = (long)(tbparam) + (n);\
+    EIP = eip;\
+    EXIT_TB();\
+} while (0)
+
+#define JUMP_TB2(opname, tbparam, n)\
+do {\
+    asm volatile ("jmp __op_jmp" #n "\n");\
 } while (0)
 
 #else
@@ -261,18 +349,10 @@ dummy_label ## n:\
 /* second jump to same destination 'n' */
 #define JUMP_TB2(opname, tbparam, n)\
 do {\
-    goto *(void *)(((TranslationBlock *)tbparam)->tb_next[n]);\
+    goto *(void *)(((TranslationBlock *)tbparam)->tb_next[n - 2]);\
 } while (0)
 
 #endif
-
-/* physical memory access */
-#define IO_MEM_NB_ENTRIES  256
-#define TLB_INVALID_MASK   (1 << 3)
-#define IO_MEM_SHIFT       4
-#define IO_MEM_UNASSIGNED  (1 << IO_MEM_SHIFT)
-
-unsigned long physpage_find(unsigned long page);
 
 extern CPUWriteMemoryFunc *io_mem_write[IO_MEM_NB_ENTRIES][4];
 extern CPUReadMemoryFunc *io_mem_read[IO_MEM_NB_ENTRIES][4];
@@ -441,3 +521,26 @@ void tlb_fill(unsigned long addr, int is_write, int is_user,
 #undef env
 
 #endif
+
+#if defined(CONFIG_USER_ONLY)
+static inline target_ulong get_phys_addr_code(CPUState *env, target_ulong addr)
+{
+    return addr;
+}
+#else
+/* NOTE: this function can trigger an exception */
+/* XXX: i386 target specific */
+static inline target_ulong get_phys_addr_code(CPUState *env, target_ulong addr)
+{
+    int is_user, index;
+
+    index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
+    is_user = ((env->hflags & HF_CPL_MASK) == 3);
+    if (__builtin_expect(env->tlb_read[is_user][index].address != 
+                         (addr & TARGET_PAGE_MASK), 0)) {
+        ldub_code((void *)addr);
+    }
+    return addr + env->tlb_read[is_user][index].addend - (unsigned long)phys_ram_base;
+}
+#endif
+
