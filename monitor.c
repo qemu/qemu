@@ -32,36 +32,6 @@
 #define offsetof(type, field) ((size_t) &((type *)0)->field)
 #endif
 
-#define TERM_CMD_BUF_SIZE 4095
-#define TERM_MAX_CMDS 64
-#define NB_COMPLETIONS_MAX 256
-
-#define IS_NORM 0
-#define IS_ESC  1
-#define IS_CSI  2
-
-#define printf do_not_use_printf
-
-static char term_cmd_buf[TERM_CMD_BUF_SIZE + 1];
-static int term_cmd_buf_index;
-static int term_cmd_buf_size;
-
-static char term_last_cmd_buf[TERM_CMD_BUF_SIZE + 1];
-static int term_last_cmd_buf_index;
-static int term_last_cmd_buf_size;
-
-static int term_esc_state;
-static int term_esc_param;
-
-static char *term_history[TERM_MAX_CMDS];
-static int term_hist_entry;
-static CharDriverState *monitor_hd;
-
-static int nb_completions;
-static int completion_index;
-static char *completions[NB_COMPLETIONS_MAX];
-
-
 /*
  * Supported types:
  * 
@@ -83,23 +53,52 @@ typedef struct term_cmd_t {
     const char *help;
 } term_cmd_t;
 
+static CharDriverState *monitor_hd;
+
 static term_cmd_t term_cmds[];
 static term_cmd_t info_cmds[];
 
-static void add_completion(const char *str);
+static char term_outbuf[1024];
+static int term_outbuf_index;
 
-void term_printf(const char *fmt, ...)
-{
-    char buf[4096];
-    va_list ap;
-    va_start(ap, fmt);
-    vsnprintf(buf, sizeof(buf), fmt, ap);
-    qemu_chr_write(monitor_hd, buf, strlen(buf));
-    va_end(ap);
-}
+static void monitor_start_input(void);
 
 void term_flush(void)
 {
+    if (term_outbuf_index > 0) {
+        qemu_chr_write(monitor_hd, term_outbuf, term_outbuf_index);
+        term_outbuf_index = 0;
+    }
+}
+
+/* flush at every end of line or if the buffer is full */
+void term_puts(const char *str)
+{
+    int c;
+    for(;;) {
+        c = *str++;
+        if (c == '\0')
+            break;
+        term_outbuf[term_outbuf_index++] = c;
+        if (term_outbuf_index >= sizeof(term_outbuf) ||
+            c == '\n')
+            term_flush();
+    }
+}
+
+void term_vprintf(const char *fmt, va_list ap)
+{
+    char buf[4096];
+    vsnprintf(buf, sizeof(buf), fmt, ap);
+    term_puts(buf);
+}
+
+void term_printf(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    term_vprintf(fmt, ap);
+    va_end(ap);
 }
 
 static int compare_cmd(const char *name, const char *list)
@@ -159,8 +158,9 @@ static void do_commit(void)
     int i;
 
     for (i = 0; i < MAX_DISKS; i++) {
-        if (bs_table[i])
+        if (bs_table[i]) {
             bdrv_commit(bs_table[i]);
+        }
     }
 }
 
@@ -215,11 +215,14 @@ static void do_info_registers(void)
 static void do_info_history (void)
 {
     int i;
-
-    for (i = 0; i < TERM_MAX_CMDS; i++) {
-	if (term_history[i] == NULL)
-	    break;
-	term_printf("%d: '%s'\n", i, term_history[i]);
+    const char *str;
+    
+    i = 0;
+    for(;;) {
+        str = readline_get_history(i);
+        if (!str)
+            break;
+	term_printf("%d: '%s'\n", i, str);
     }
 }
 
@@ -261,6 +264,8 @@ static void do_eject(int force, const char *filename)
 static void do_change(const char *device, const char *filename)
 {
     BlockDriverState *bs;
+    int i;
+    char password[256];
 
     bs = bdrv_find(device);
     if (!bs) {
@@ -270,6 +275,15 @@ static void do_change(const char *device, const char *filename)
     if (eject_device(bs, 0) < 0)
         return;
     bdrv_open(bs, filename, 0);
+    if (bdrv_is_encrypted(bs)) {
+        term_printf("%s is encrypted.\n", device);
+        for(i = 0; i < 3; i++) {
+            monitor_readline("Password: ", 1, password, sizeof(password));
+            if (bdrv_set_key(bs, password) == 0)
+                break;
+            term_printf("invalid password\n");
+        }
+    }
 }
 
 static void do_screen_dump(const char *filename)
@@ -1178,7 +1192,7 @@ static int default_fmt_size = 4;
 
 #define MAX_ARGS 16
 
-static void term_handle_command(const char *cmdline)
+static void monitor_handle_command(const char *cmdline)
 {
     const char *p, *pstart, *typestr;
     char *q;
@@ -1577,7 +1591,7 @@ static void parse_cmdline(const char *cmdline,
     *pnb_args = nb_args;
 }
 
-static void find_completion(const char *cmdline)
+void readline_find_completion(const char *cmdline)
 {
     const char *cmdname;
     char *args[MAX_ARGS];
@@ -1646,348 +1660,6 @@ static void find_completion(const char *cmdline)
         qemu_free(args[i]);
 }
 
-static void term_show_prompt2(void)
-{
-    term_printf("(qemu) ");
-    fflush(stdout);
-    term_last_cmd_buf_index = 0;
-    term_last_cmd_buf_size = 0;
-    term_esc_state = IS_NORM;
-}
-
-static void term_show_prompt(void)
-{
-    term_show_prompt2();
-    term_cmd_buf_index = 0;
-    term_cmd_buf_size = 0;
-}
-
-/* update the displayed command line */
-static void term_update(void)
-{
-    int i, delta;
-
-    if (term_cmd_buf_size != term_last_cmd_buf_size ||
-        memcmp(term_cmd_buf, term_last_cmd_buf, term_cmd_buf_size) != 0) {
-        for(i = 0; i < term_last_cmd_buf_index; i++) {
-            term_printf("\033[D");
-        }
-        term_cmd_buf[term_cmd_buf_size] = '\0';
-        term_printf("%s", term_cmd_buf);
-        term_printf("\033[K");
-        memcpy(term_last_cmd_buf, term_cmd_buf, term_cmd_buf_size);
-        term_last_cmd_buf_size = term_cmd_buf_size;
-        term_last_cmd_buf_index = term_cmd_buf_size;
-    }
-    if (term_cmd_buf_index != term_last_cmd_buf_index) {
-        delta = term_cmd_buf_index - term_last_cmd_buf_index;
-        if (delta > 0) {
-            for(i = 0;i < delta; i++) {
-                term_printf("\033[C");
-            }
-        } else {
-            delta = -delta;
-            for(i = 0;i < delta; i++) {
-                term_printf("\033[D");
-            }
-        }
-        term_last_cmd_buf_index = term_cmd_buf_index;
-    }
-    term_flush();
-}
-
-static void term_insert_char(int ch)
-{
-    if (term_cmd_buf_index < TERM_CMD_BUF_SIZE) {
-        memmove(term_cmd_buf + term_cmd_buf_index + 1,
-                term_cmd_buf + term_cmd_buf_index,
-                term_cmd_buf_size - term_cmd_buf_index);
-        term_cmd_buf[term_cmd_buf_index] = ch;
-        term_cmd_buf_size++;
-        term_cmd_buf_index++;
-    }
-}
-
-static void term_backward_char(void)
-{
-    if (term_cmd_buf_index > 0) {
-        term_cmd_buf_index--;
-    }
-}
-
-static void term_forward_char(void)
-{
-    if (term_cmd_buf_index < term_cmd_buf_size) {
-        term_cmd_buf_index++;
-    }
-}
-
-static void term_delete_char(void)
-{
-    if (term_cmd_buf_index < term_cmd_buf_size) {
-        memmove(term_cmd_buf + term_cmd_buf_index,
-                term_cmd_buf + term_cmd_buf_index + 1,
-                term_cmd_buf_size - term_cmd_buf_index - 1);
-        term_cmd_buf_size--;
-    }
-}
-
-static void term_backspace(void)
-{
-    if (term_cmd_buf_index > 0) {
-        term_backward_char();
-        term_delete_char();
-    }
-}
-
-static void term_bol(void)
-{
-    term_cmd_buf_index = 0;
-}
-
-static void term_eol(void)
-{
-    term_cmd_buf_index = term_cmd_buf_size;
-}
-
-static void term_up_char(void)
-{
-    int idx;
-
-    if (term_hist_entry == 0)
-	return;
-    if (term_hist_entry == -1) {
-	/* Find latest entry */
-	for (idx = 0; idx < TERM_MAX_CMDS; idx++) {
-	    if (term_history[idx] == NULL)
-		break;
-	}
-	term_hist_entry = idx;
-    }
-    term_hist_entry--;
-    if (term_hist_entry >= 0) {
-	pstrcpy(term_cmd_buf, sizeof(term_cmd_buf), 
-                term_history[term_hist_entry]);
-	term_cmd_buf_index = term_cmd_buf_size = strlen(term_cmd_buf);
-    }
-}
-
-static void term_down_char(void)
-{
-    if (term_hist_entry == TERM_MAX_CMDS - 1 || term_hist_entry == -1)
-	return;
-    if (term_history[++term_hist_entry] != NULL) {
-	pstrcpy(term_cmd_buf, sizeof(term_cmd_buf),
-                term_history[term_hist_entry]);
-    } else {
-	term_hist_entry = -1;
-    }
-    term_cmd_buf_index = term_cmd_buf_size = strlen(term_cmd_buf);
-}
-
-static void term_hist_add(const char *cmdline)
-{
-    char *hist_entry, *new_entry;
-    int idx;
-
-    if (cmdline[0] == '\0')
-	return;
-    new_entry = NULL;
-    if (term_hist_entry != -1) {
-	/* We were editing an existing history entry: replace it */
-	hist_entry = term_history[term_hist_entry];
-	idx = term_hist_entry;
-	if (strcmp(hist_entry, cmdline) == 0) {
-	    goto same_entry;
-	}
-    }
-    /* Search cmdline in history buffers */
-    for (idx = 0; idx < TERM_MAX_CMDS; idx++) {
-	hist_entry = term_history[idx];
-	if (hist_entry == NULL)
-	    break;
-	if (strcmp(hist_entry, cmdline) == 0) {
-	same_entry:
-	    new_entry = hist_entry;
-	    /* Put this entry at the end of history */
-	    memmove(&term_history[idx], &term_history[idx + 1],
-		    &term_history[TERM_MAX_CMDS] - &term_history[idx + 1]);
-	    term_history[TERM_MAX_CMDS - 1] = NULL;
-	    for (; idx < TERM_MAX_CMDS; idx++) {
-		if (term_history[idx] == NULL)
-		    break;
-	    }
-	    break;
-	}
-    }
-    if (idx == TERM_MAX_CMDS) {
-	/* Need to get one free slot */
-	free(term_history[0]);
-	memcpy(term_history, &term_history[1],
-	       &term_history[TERM_MAX_CMDS] - &term_history[1]);
-	term_history[TERM_MAX_CMDS - 1] = NULL;
-	idx = TERM_MAX_CMDS - 1;
-    }
-    if (new_entry == NULL)
-	new_entry = strdup(cmdline);
-    term_history[idx] = new_entry;
-    term_hist_entry = -1;
-}
-
-/* completion support */
-
-static void add_completion(const char *str)
-{
-    if (nb_completions < NB_COMPLETIONS_MAX) {
-        completions[nb_completions++] = qemu_strdup(str);
-    }
-}
-
-static void term_completion(void)
-{
-    int len, i, j, max_width, nb_cols;
-    char *cmdline;
-
-    nb_completions = 0;
-    
-    cmdline = qemu_malloc(term_cmd_buf_index + 1);
-    if (!cmdline)
-        return;
-    memcpy(cmdline, term_cmd_buf, term_cmd_buf_index);
-    cmdline[term_cmd_buf_index] = '\0';
-    find_completion(cmdline);
-    qemu_free(cmdline);
-
-    /* no completion found */
-    if (nb_completions <= 0)
-        return;
-    if (nb_completions == 1) {
-        len = strlen(completions[0]);
-        for(i = completion_index; i < len; i++) {
-            term_insert_char(completions[0][i]);
-        }
-        /* extra space for next argument. XXX: make it more generic */
-        if (len > 0 && completions[0][len - 1] != '/')
-            term_insert_char(' ');
-    } else {
-        term_printf("\n");
-        max_width = 0;
-        for(i = 0; i < nb_completions; i++) {
-            len = strlen(completions[i]);
-            if (len > max_width)
-                max_width = len;
-        }
-        max_width += 2;
-        if (max_width < 10)
-            max_width = 10;
-        else if (max_width > 80)
-            max_width = 80;
-        nb_cols = 80 / max_width;
-        j = 0;
-        for(i = 0; i < nb_completions; i++) {
-            term_printf("%-*s", max_width, completions[i]);
-            if (++j == nb_cols || i == (nb_completions - 1)) {
-                term_printf("\n");
-                j = 0;
-            }
-        }
-        term_show_prompt2();
-    }
-}
-
-/* return true if command handled */
-static void term_handle_byte(int ch)
-{
-    switch(term_esc_state) {
-    case IS_NORM:
-        switch(ch) {
-        case 1:
-            term_bol();
-            break;
-        case 4:
-            term_delete_char();
-            break;
-        case 5:
-            term_eol();
-            break;
-        case 9:
-            term_completion();
-            break;
-        case 10:
-        case 13:
-            term_cmd_buf[term_cmd_buf_size] = '\0';
-	    term_hist_add(term_cmd_buf);
-            term_printf("\n");
-            term_handle_command(term_cmd_buf);
-            term_show_prompt();
-            break;
-        case 27:
-            term_esc_state = IS_ESC;
-            break;
-        case 127:
-        case 8:
-            term_backspace();
-            break;
-	case 155:
-            term_esc_state = IS_CSI;
-	    break;
-        default:
-            if (ch >= 32) {
-                term_insert_char(ch);
-            }
-            break;
-        }
-        break;
-    case IS_ESC:
-        if (ch == '[') {
-            term_esc_state = IS_CSI;
-            term_esc_param = 0;
-        } else {
-            term_esc_state = IS_NORM;
-        }
-        break;
-    case IS_CSI:
-        switch(ch) {
-	case 'A':
-	case 'F':
-	    term_up_char();
-	    break;
-	case 'B':
-	case 'E':
-	    term_down_char();
-	    break;
-        case 'D':
-            term_backward_char();
-            break;
-        case 'C':
-            term_forward_char();
-            break;
-        case '0' ... '9':
-            term_esc_param = term_esc_param * 10 + (ch - '0');
-            goto the_end;
-        case '~':
-            switch(term_esc_param) {
-            case 1:
-                term_bol();
-                break;
-            case 3:
-                term_delete_char();
-                break;
-            case 4:
-                term_eol();
-                break;
-            }
-            break;
-        default:
-            break;
-        }
-        term_esc_state = IS_NORM;
-    the_end:
-        break;
-    }
-    term_update();
-}
-
 static int term_can_read(void *opaque)
 {
     return 128;
@@ -1997,7 +1669,20 @@ static void term_read(void *opaque, const uint8_t *buf, int size)
 {
     int i;
     for(i = 0; i < size; i++)
-        term_handle_byte(buf[i]);
+        readline_handle_byte(buf[i]);
+}
+
+static void monitor_start_input(void);
+
+static void monitor_handle_command1(void *opaque, const char *cmdline)
+{
+    monitor_handle_command(cmdline);
+    monitor_start_input();
+}
+
+static void monitor_start_input(void)
+{
+    readline_start("(qemu) ", 0, monitor_handle_command1, NULL);
 }
 
 void monitor_init(CharDriverState *hd, int show_banner)
@@ -2006,8 +1691,34 @@ void monitor_init(CharDriverState *hd, int show_banner)
     if (show_banner) {
         term_printf("QEMU %s monitor - type 'help' for more information\n",
                     QEMU_VERSION);
-        term_show_prompt();
     }
-    term_hist_entry = -1;
     qemu_chr_add_read_handler(hd, term_can_read, term_read, NULL);
+    monitor_start_input();
+}
+
+/* XXX: use threads ? */
+/* modal monitor readline */
+static int monitor_readline_started;
+static char *monitor_readline_buf;
+static int monitor_readline_buf_size;
+
+static void monitor_readline_cb(void *opaque, const char *input)
+{
+    pstrcpy(monitor_readline_buf, monitor_readline_buf_size, input);
+    monitor_readline_started = 0;
+}
+
+void monitor_readline(const char *prompt, int is_password,
+                      char *buf, int buf_size)
+{
+    if (is_password) {
+        qemu_chr_send_event(monitor_hd, CHR_EVENT_FOCUS);
+    }
+    readline_start(prompt, is_password, monitor_readline_cb, NULL);
+    monitor_readline_buf = buf;
+    monitor_readline_buf_size = buf_size;
+    monitor_readline_started = 1;
+    while (monitor_readline_started) {
+        main_loop_wait(10);
+    }
 }
