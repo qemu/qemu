@@ -33,10 +33,6 @@
 
 #define DEREF(x) (void)x
 #define log(...) fprintf (stderr, "sb16: " __VA_ARGS__)
-#define Fail(...) do {                          \
-    fprintf (stderr, "sb16: " __VA_ARGS__);     \
-    abort ();                                   \
-} while (0)
 
 /* #define DEBUG_SB16 */
 #ifdef DEBUG_SB16
@@ -66,12 +62,7 @@ static struct {
 
 static int mix_block, noirq;
 
-static struct mixer {
-    int nreg;
-    uint8_t regs[0x83];
-} mixer;
-
-static struct dsp {
+typedef struct SB16State {
     int in_index;
     int out_data_len;
     int fmt_stereo;
@@ -94,24 +85,27 @@ static struct dsp {
     uint8_t out_data[10];
 
     int left_till_irq;
-} dsp;
 
-#define nocmd ~0
+    /* mixer state */
+    int mixer_nreg;
+    uint8_t mixer_regs[0x83];
+} SB16State;
 
-static void log_dsp (const char *cap)
+/* XXX: suppress that and use a context */
+static struct SB16State dsp;
+
+static void log_dsp (SB16State *dsp)
 {
-    DEREF (cap);
-
     linfo ("%c:%c:%d:%c:dmabuf=%d:pos=%d:freq=%d:timeconst=%d:speaker=%d\n",
-           dsp.fmt_stereo ? 'S' : 'M',
-           dsp.fmt_signed ? 'S' : 'U',
-           dsp.fmt_bits,
-           dsp.dma_auto ? 'a' : 's',
-           dsp.dma_buffer_size,
-           dsp.dma_pos,
-           dsp.freq,
-           dsp.time_const,
-           dsp.speaker);
+           dsp->fmt_stereo ? 'S' : 'M',
+           dsp->fmt_signed ? 'S' : 'U',
+           dsp->fmt_bits,
+           dsp->dma_auto ? 'a' : 's',
+           dsp->dma_buffer_size,
+           dsp->dma_pos,
+           dsp->freq,
+           dsp->time_const,
+           dsp->speaker);
 }
 
 static void control (int hold)
@@ -203,12 +197,8 @@ static void dma_cmd (uint8_t cmd, uint8_t d0, int dma_len)
     dsp.speaker = 1;
 }
 
-static void command (uint8_t cmd)
+static void command (SB16State *dsp, uint8_t cmd)
 {
-    char *msg;
-
-    msg = (char *) -1;
-
     linfo ("%#x\n", cmd);
 
     if (cmd > 0xaf && cmd < 0xd0) {
@@ -220,10 +210,10 @@ static void command (uint8_t cmd)
         case 12:
             break;
         default:
-            msg = "wrong bits";
+            log("%#x wrong bits", cmd);
             goto error;
         }
-        dsp.needed_bytes = 3;
+        dsp->needed_bytes = 3;
     }
     else {
         switch (cmd) {
@@ -234,16 +224,16 @@ static void command (uint8_t cmd)
             return;
 
         case 0x10:
-            dsp.needed_bytes = 1;
+            dsp->needed_bytes = 1;
             break;
 
         case 0x14:
-            dsp.needed_bytes = 2;
-            dsp.dma_buffer_size = 0;
+            dsp->needed_bytes = 2;
+            dsp->dma_buffer_size = 0;
             break;
 
         case 0x20:
-            dsp.out_data[dsp.out_data_len++] = 0xff;
+            dsp->out_data[dsp->out_data_len++] = 0xff;
             break;
 
         case 0x35:
@@ -251,23 +241,23 @@ static void command (uint8_t cmd)
             break;
 
         case 0x40:
-            dsp.freq = -1;
-            dsp.time_const = -1;
-            dsp.needed_bytes = 1;
+            dsp->freq = -1;
+            dsp->time_const = -1;
+            dsp->needed_bytes = 1;
             break;
 
         case 0x41:
         case 0x42:
-            dsp.freq = -1;
-            dsp.time_const = -1;
-            dsp.needed_bytes = 2;
+            dsp->freq = -1;
+            dsp->time_const = -1;
+            dsp->needed_bytes = 2;
             break;
 
         case 0x47:                /* Continue Auto-Initialize DMA 16bit */
             break;
 
         case 0x48:
-            dsp.needed_bytes = 2;
+            dsp->needed_bytes = 2;
             break;
 
         case 0x27:                /* ????????? */
@@ -275,7 +265,7 @@ static void command (uint8_t cmd)
             return;
 
         case 0x80:
-            cmd = nocmd;
+            cmd = -1;
             break;
 
         case 0x90:
@@ -284,10 +274,10 @@ static void command (uint8_t cmd)
                 uint8_t d0;
 
                 d0 = 4;
-                if (dsp.fmt_signed) d0 |= 16;
-                if (dsp.fmt_stereo) d0 |= 32;
+                if (dsp->fmt_signed) d0 |= 16;
+                if (dsp->fmt_stereo) d0 |= 32;
                 dma_cmd (cmd == 0x90 ? 0xc4 : 0xc0, d0, -1);
-                cmd = nocmd;
+                cmd = -1;
                 break;
             }
 
@@ -296,11 +286,11 @@ static void command (uint8_t cmd)
             return;
 
         case 0xd1:
-            dsp.speaker = 1;
+            dsp->speaker = 1;
             break;
 
         case 0xd3:
-            dsp.speaker = 0;
+            dsp->speaker = 0;
             return;
 
         case 0xd4:
@@ -317,60 +307,59 @@ static void command (uint8_t cmd)
 
         case 0xd9:
             control (0);
-            dsp.dma_auto = 0;
+            dsp->dma_auto = 0;
             return;
 
         case 0xda:
             control (0);
-            dsp.dma_auto = 0;
+            dsp->dma_auto = 0;
             break;
 
         case 0xe0:
-            dsp.needed_bytes = 1;
+            dsp->needed_bytes = 1;
             break;
 
         case 0xe1:
-            dsp.out_data[dsp.out_data_len++] = sb.ver_lo;
-            dsp.out_data[dsp.out_data_len++] = sb.ver_hi;
+            dsp->out_data[dsp->out_data_len++] = sb.ver_lo;
+            dsp->out_data[dsp->out_data_len++] = sb.ver_hi;
             return;
 
         case 0xf2:
-            dsp.out_data[dsp.out_data_len++] = 0xaa;
-            mixer.regs[0x82] |= mixer.regs[0x80];
+            dsp->out_data[dsp->out_data_len++] = 0xaa;
+            dsp->mixer_regs[0x82] |= dsp->mixer_regs[0x80];
             pic_set_irq (sb.irq, 1);
             return;
 
         default:
-            msg = "is unknown";
+            log("%#x is unknown", cmd);
             goto error;
         }
     }
-    dsp.cmd = cmd;
+    dsp->cmd = cmd;
     return;
 
  error:
-    Fail ("%#x %s", cmd, msg);
     return;
 }
 
-static void complete (void)
+static void complete (SB16State *dsp)
 {
     linfo ("complete command %#x, in_index %d, needed_bytes %d\n",
-           dsp.cmd, dsp.in_index, dsp.needed_bytes);
+           dsp->cmd, dsp->in_index, dsp->needed_bytes);
 
-    if (dsp.cmd > 0xaf && dsp.cmd < 0xd0) {
+    if (dsp->cmd > 0xaf && dsp->cmd < 0xd0) {
         int d0, d1, d2;
 
-        d0 = dsp.in_data[0];
-        d1 = dsp.in_data[1];
-        d2 = dsp.in_data[2];
+        d0 = dsp->in_data[0];
+        d1 = dsp->in_data[1];
+        d2 = dsp->in_data[2];
 
         ldebug ("d0 = %d, d1 = %d, d2 = %d\n",
                 d0, d1, d2);
-        dma_cmd (dsp.cmd, d0, d1 + (d2 << 8));
+        dma_cmd (dsp->cmd, d0, d1 + (d2 << 8));
     }
     else {
-        switch (dsp.cmd) {
+        switch (dsp->cmd) {
 
         case 0x10:
             break;
@@ -381,58 +370,57 @@ static void complete (void)
                 int save_left;
                 int save_pos;
 
-                d0 = dsp.in_data[0];
-                d1 = dsp.in_data[1];
+                d0 = dsp->in_data[0];
+                d1 = dsp->in_data[1];
 
-                save_left = dsp.left_till_irq;
-                save_pos = dsp.dma_pos;
+                save_left = dsp->left_till_irq;
+                save_pos = dsp->dma_pos;
                 dma_cmd (0xc0, 0, d0 + (d1 << 8));
-                dsp.left_till_irq = save_left;
-                dsp.dma_pos = save_pos;
+                dsp->left_till_irq = save_left;
+                dsp->dma_pos = save_pos;
 
                 linfo ("set buffer size data[%d, %d] %d pos %d\n",
-                       d0, d1, dsp.dma_buffer_size, dsp.dma_pos);
+                       d0, d1, dsp->dma_buffer_size, dsp->dma_pos);
                 break;
             }
 
         case 0x40:
-            dsp.time_const = dsp.in_data[0];
-            linfo ("set time const %d\n", dsp.time_const);
+            dsp->time_const = dsp->in_data[0];
+            linfo ("set time const %d\n", dsp->time_const);
             break;
 
         case 0x41:
         case 0x42:
-            dsp.freq = dsp.in_data[1] + (dsp.in_data[0] << 8);
+            dsp->freq = dsp->in_data[1] + (dsp->in_data[0] << 8);
             linfo ("set freq %#x, %#x = %d\n",
-                   dsp.in_data[1], dsp.in_data[0], dsp.freq);
+                   dsp->in_data[1], dsp->in_data[0], dsp->freq);
             break;
 
         case 0x48:
-            dsp.dma_buffer_size = dsp.in_data[1] + (dsp.in_data[0] << 8);
+            dsp->dma_buffer_size = dsp->in_data[1] + (dsp->in_data[0] << 8);
             linfo ("set dma len %#x, %#x = %d\n",
-                   dsp.in_data[1], dsp.in_data[0], dsp.dma_buffer_size);
+                   dsp->in_data[1], dsp->in_data[0], dsp->dma_buffer_size);
             break;
 
         case 0xe0:
-            dsp.out_data_len = 1;
-            linfo ("data = %#x\n", dsp.in_data[0]);
-            dsp.out_data[0] = dsp.in_data[0] ^ 0xff;
+            dsp->out_data_len = 1;
+            linfo ("data = %#x\n", dsp->in_data[0]);
+            dsp->out_data[0] = dsp->in_data[0] ^ 0xff;
             break;
 
         default:
-            goto error;
+            log ("unrecognized command %#x", dsp->cmd);
+            return;
         }
     }
 
-    dsp.cmd = -1;
+    dsp->cmd = -1;
     return;
-
- error:
-    Fail ("unrecognized command %#x", dsp.cmd);
 }
 
 static IO_WRITE_PROTO (dsp_write)
 {
+    SB16State *dsp = opaque;
     int iport;
 
     iport = nport - sb.port;
@@ -440,44 +428,44 @@ static IO_WRITE_PROTO (dsp_write)
     switch (iport) {
     case 0x6:
         if (0 == val)
-            dsp.v2x6 = 0;
-        else if ((1 == val) && (0 == dsp.v2x6)) {
-            dsp.v2x6 = 1;
-            dsp.out_data[dsp.out_data_len++] = 0xaa;
+            dsp->v2x6 = 0;
+        else if ((1 == val) && (0 == dsp->v2x6)) {
+            dsp->v2x6 = 1;
+            dsp->out_data[dsp->out_data_len++] = 0xaa;
         }
         else
-            dsp.v2x6 = ~0;
+            dsp->v2x6 = ~0;
         break;
 
     case 0xc:                   /* write data or command | write status */
-        if (0 == dsp.needed_bytes) {
-            command (val);
-            if (0 == dsp.needed_bytes) {
-                log_dsp (__func__);
+        if (0 == dsp->needed_bytes) {
+            command (dsp, val);
+            if (0 == dsp->needed_bytes) {
+                log_dsp (dsp);
             }
         }
         else {
-            dsp.in_data[dsp.in_index++] = val;
-            if (dsp.in_index == dsp.needed_bytes) {
-                dsp.needed_bytes = 0;
-                dsp.in_index = 0;
-                complete ();
-                log_dsp (__func__);
+            dsp->in_data[dsp->in_index++] = val;
+            if (dsp->in_index == dsp->needed_bytes) {
+                dsp->needed_bytes = 0;
+                dsp->in_index = 0;
+                complete (dsp);
+                log_dsp (dsp);
             }
         }
         break;
 
     default:
-        Fail ("(nport=%#x, val=%#x)", nport, val);
+        log ("(nport=%#x, val=%#x)", nport, val);
+        break;
     }
 }
 
 static IO_READ_PROTO (dsp_read)
 {
-    char *msg;
+    SB16State *dsp = opaque;
     int iport, retval;
 
-    msg = (char *) -1;
     iport = nport - sb.port;
 
     switch (iport) {
@@ -486,17 +474,11 @@ static IO_READ_PROTO (dsp_read)
         return 0;
 
     case 0xa:                   /* read data */
-        if (dsp.out_data_len) {
-            retval = dsp.out_data[--dsp.out_data_len];
-        }
-        else {
-#if 1
-            lwarn ("empty output buffer\n");
-            retval = 0;
-#else
-            msg = "empty output buffer";
+        if (dsp->out_data_len) {
+            retval = dsp->out_data[--dsp->out_data_len];
+        } else {
+            log("empty output buffer\n");
             goto error;
-#endif
         }
         break;
 
@@ -505,13 +487,14 @@ static IO_READ_PROTO (dsp_read)
         break;
 
     case 0xd:                   /* timer interrupt clear */
+        log("timer interrupt clear\n");
         goto error;
 
     case 0xe:                   /* data available status | irq 8 ack */
         /* XXX drop pic irq line here? */
         ldebug ("8 ack\n");
-        retval = (0 == dsp.out_data_len) ? 0 : 0x80;
-        mixer.regs[0x82] &= ~mixer.regs[0x80];
+        retval = (0 == dsp->out_data_len) ? 0 : 0x80;
+        dsp->mixer_regs[0x82] &= ~dsp->mixer_regs[0x80];
         pic_set_irq (sb.irq, 0);
         break;
 
@@ -519,7 +502,7 @@ static IO_READ_PROTO (dsp_read)
         /* XXX drop pic irq line here? */
         ldebug ("16 ack\n");
         retval = 0xff;
-        mixer.regs[0x82] &= ~mixer.regs[0x80];
+        dsp->mixer_regs[0x82] &= ~dsp->mixer_regs[0x80];
         pic_set_irq (sb.irq, 0);
         break;
 
@@ -535,17 +518,19 @@ static IO_READ_PROTO (dsp_read)
     return retval;
 
  error:
-    Fail ("(nport=%#x) %s",  nport, msg);
+    return 0;
 }
 
 static IO_WRITE_PROTO(mixer_write_indexb)
 {
-    mixer.nreg = val & 0xff;
+    SB16State *dsp = opaque;
+    dsp->mixer_nreg = val & 0xff;
 }
 
 static IO_WRITE_PROTO(mixer_write_datab)
 {
-    mixer.regs[mixer.nreg] = val;
+    SB16State *dsp = opaque;
+    dsp->mixer_regs[dsp->mixer_nreg] = val;
 }
 
 static IO_WRITE_PROTO(mixer_write_indexw)
@@ -556,7 +541,8 @@ static IO_WRITE_PROTO(mixer_write_indexw)
 
 static IO_READ_PROTO(mixer_read)
 {
-    return mixer.regs[mixer.nreg];
+    SB16State *dsp = opaque;
+    return dsp->mixer_regs[dsp->mixer_nreg];
 }
 
 void SB16_run (void)
@@ -607,20 +593,21 @@ static int write_audio (uint32_t addr, int len, int size)
 
 static int SB_read_DMA (void *opaque, target_ulong addr, int size)
 {
+    SB16State *dsp = opaque;
     int free, till, copy, written;
 
-    if (0 == dsp.speaker)
+    if (0 == dsp->speaker)
         return 0;
 
-    if (dsp.left_till_irq < 0) {
-        dsp.left_till_irq += dsp.dma_buffer_size;
-        return dsp.dma_pos;
+    if (dsp->left_till_irq < 0) {
+        dsp->left_till_irq += dsp->dma_buffer_size;
+        return dsp->dma_pos;
     }
 
     free = AUD_get_free ();
 
     if ((free <= 0) || (0 == size)) {
-        return dsp.dma_pos;
+        return dsp->dma_pos;
     }
 
     if (mix_block > 0) {
@@ -630,41 +617,41 @@ static int SB_read_DMA (void *opaque, target_ulong addr, int size)
         copy = free;
     }
 
-    till = dsp.left_till_irq;
+    till = dsp->left_till_irq;
 
     ldebug ("addr:%#010x free:%d till:%d size:%d\n",
             addr, free, till, size);
     if (till <= copy) {
-        if (0 == dsp.dma_auto) {
+        if (0 == dsp->dma_auto) {
             copy = till;
         }
     }
 
     written = write_audio (addr, size, copy);
-    dsp.left_till_irq -= written;
+    dsp->left_till_irq -= written;
     AUD_adjust_estimate (free - written);
 
-    if (dsp.left_till_irq <= 0) {
-        mixer.regs[0x82] |= mixer.regs[0x80];
+    if (dsp->left_till_irq <= 0) {
+        dsp->mixer_regs[0x82] |= dsp->mixer_regs[0x80];
         if (0 == noirq) {
             ldebug ("request irq\n");
             pic_set_irq(sb.irq, 1);
         }
 
-        if (0 == dsp.dma_auto) {
+        if (0 == dsp->dma_auto) {
             control (0);
         }
     }
 
     ldebug ("pos %5d free %5d size %5d till % 5d copy %5d dma size %5d\n",
-            dsp.dma_pos, free, size, dsp.left_till_irq, copy,
-            dsp.dma_buffer_size);
+            dsp->dma_pos, free, size, dsp->left_till_irq, copy,
+            dsp->dma_buffer_size);
 
-    if (dsp.left_till_irq <= 0) {
-        dsp.left_till_irq += dsp.dma_buffer_size;
+    if (dsp->left_till_irq <= 0) {
+        dsp->left_till_irq += dsp->dma_buffer_size;
     }
 
-    return dsp.dma_pos;
+    return dsp->dma_pos;
 }
 
 static int magic_of_irq (int irq)
@@ -703,33 +690,34 @@ static int irq_of_magic (int magic)
 
 void SB16_init (void)
 {
+    SB16State *s = &dsp;
     int i;
     static const uint8_t dsp_write_ports[] = {0x6, 0xc};
     static const uint8_t dsp_read_ports[] = {0x6, 0xa, 0xc, 0xd, 0xe, 0xf};
 
-    mixer.regs[0x0e] = ~0;
-    mixer.regs[0x80] = magic_of_irq (sb.irq);
-    mixer.regs[0x81] = 0x20 | (sb.dma << 1);
+    s->mixer_regs[0x0e] = ~0;
+    s->mixer_regs[0x80] = magic_of_irq (sb.irq);
+    s->mixer_regs[0x81] = 0x20 | (sb.dma << 1);
 
     DEREF (irq_of_magic);
 
     for (i = 0x30; i < 0x48; i++) {
-        mixer.regs[i] = 0x20;
+        s->mixer_regs[i] = 0x20;
     }
 
     for (i = 0; i < LENOFA (dsp_write_ports); i++) {
-        register_ioport_write (sb.port + dsp_write_ports[i], 1, 1, dsp_write, NULL);
+        register_ioport_write (sb.port + dsp_write_ports[i], 1, 1, dsp_write, s);
     }
 
     for (i = 0; i < LENOFA (dsp_read_ports); i++) {
-        register_ioport_read (sb.port + dsp_read_ports[i], 1, 1, dsp_read, NULL);
+        register_ioport_read (sb.port + dsp_read_ports[i], 1, 1, dsp_read, s);
     }
 
-    register_ioport_write (sb.port + 0x4, 1, 1, mixer_write_indexb, NULL);
-    register_ioport_write (sb.port + 0x4, 1, 2, mixer_write_indexw, NULL);
-    register_ioport_read (sb.port + 0x5, 1, 1, mixer_read, NULL);
-    register_ioport_write (sb.port + 0x5, 1, 1, mixer_write_datab, NULL);
+    register_ioport_write (sb.port + 0x4, 1, 1, mixer_write_indexb, s);
+    register_ioport_write (sb.port + 0x4, 1, 2, mixer_write_indexw, s);
+    register_ioport_read (sb.port + 0x5, 1, 1, mixer_read, s);
+    register_ioport_write (sb.port + 0x5, 1, 1, mixer_write_datab, s);
 
-    DMA_register_channel (sb.hdma, SB_read_DMA, NULL);
-    DMA_register_channel (sb.dma, SB_read_DMA, NULL);
+    DMA_register_channel (sb.hdma, SB_read_DMA, s);
+    DMA_register_channel (sb.dma, SB_read_DMA, s);
 }
