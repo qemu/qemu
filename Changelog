@@ -1,3 +1,9 @@
+version 0.1.6:
+
+ - ISO C warning fixes (Alistair Strachan)
+ - first self-virtualizable version (works only as long as the icache
+   is not flushed)
+
 version 0.1.5:
 
  - ppc64 support + personality() patch (Rusty Russell)
