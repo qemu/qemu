@@ -106,7 +106,7 @@ int tlb_set_page(CPUState *env, uint32_t vaddr, uint32_t paddr, int prot,
 /* maximum total translate dcode allocated */
 
 /* NOTE: the translated code area cannot be too big because on some
-   archs the range of "fast" function calls are limited. Here is a
+   archs the range of "fast" function calls is limited. Here is a
    summary of the ranges:
 
    i386  : signed 32 bits
@@ -119,7 +119,7 @@ int tlb_set_page(CPUState *env, uint32_t vaddr, uint32_t paddr, int prot,
 #if defined(__alpha__)
 #define CODE_GEN_BUFFER_SIZE     (2 * 1024 * 1024)
 #elif defined(__powerpc__)
-#define CODE_GEN_BUFFER_SIZE     (6 * 1024)
+#define CODE_GEN_BUFFER_SIZE     (6 * 1024 * 1024)
 #else
 #define CODE_GEN_BUFFER_SIZE     (8 * 1024 * 1024)
 #endif
