@@ -692,6 +692,8 @@ void test_fcmov(void)
         TEST_FCMOV(a, b, eflags, "nbe");
     }
     TEST_FCMOV(a, b, 0, "u");
+    TEST_FCMOV(a, b, CC_P, "u");
+    TEST_FCMOV(a, b, 0, "nu");
     TEST_FCMOV(a, b, CC_P, "nu");
 }
 
