@@ -396,7 +396,8 @@ void cpu_loop(CPUARMState *env)
 
 //#define DEBUG_WIN
 
-/* WARNING: dealing with register windows _is_ complicated */
+/* WARNING: dealing with register windows _is_ complicated. More info
+   can be found at http://www.sics.se/~psm/sparcstack.html */
 static inline int get_reg_index(CPUSPARCState *env, int cwp, int index)
 {
     index = (index + cwp * 16) & (16 * NWINDOWS - 1);
@@ -407,34 +408,36 @@ static inline int get_reg_index(CPUSPARCState *env, int cwp, int index)
     return index;
 }
 
-static inline void save_window_offset(CPUSPARCState *env, int offset)
+/* save the register window 'cwp1' */
+static inline void save_window_offset(CPUSPARCState *env, int cwp1)
 {
-    unsigned int new_wim, i, cwp1;
+    unsigned int i;
     uint32_t *sp_ptr;
     
-    new_wim = ((env->wim >> 1) | (env->wim << (NWINDOWS - 1))) &
-        ((1LL << NWINDOWS) - 1);
-    /* save the window */
-    cwp1 = (env->cwp + offset) & (NWINDOWS - 1);
     sp_ptr = (uint32_t *)(env->regbase[get_reg_index(env, cwp1, 6)]);
 #if defined(DEBUG_WIN)
     printf("win_overflow: sp_ptr=0x%x save_cwp=%d\n", 
            (int)sp_ptr, cwp1);
 #endif
-    for(i = 0; i < 16; i++)
-        stl_raw(sp_ptr + i, env->regbase[get_reg_index(env, cwp1, 8 + i)]);
-    env->wim = new_wim;
+    for(i = 0; i < 16; i++) {
+        put_user(env->regbase[get_reg_index(env, cwp1, 8 + i)], sp_ptr);
+        sp_ptr++;
+    }
 }
 
 static void save_window(CPUSPARCState *env)
 {
-    save_window_offset(env, 2);
+    unsigned int new_wim;
+    new_wim = ((env->wim >> 1) | (env->wim << (NWINDOWS - 1))) &
+        ((1LL << NWINDOWS) - 1);
+    save_window_offset(env, (env->cwp - 2) & (NWINDOWS - 1));
+    env->wim = new_wim;
 }
 
 static void restore_window(CPUSPARCState *env)
 {
     unsigned int new_wim, i, cwp1;
-    uint32_t *sp_ptr;
+    uint32_t *sp_ptr, reg;
     
     new_wim = ((env->wim << 1) | (env->wim >> (NWINDOWS - 1))) &
         ((1LL << NWINDOWS) - 1);
@@ -446,32 +449,34 @@ static void restore_window(CPUSPARCState *env)
     printf("win_underflow: sp_ptr=0x%x load_cwp=%d\n", 
            (int)sp_ptr, cwp1);
 #endif
-    for(i = 0; i < 16; i++)
-        env->regbase[get_reg_index(env, cwp1, 8 + i)] = ldl_raw(sp_ptr + i);
+    for(i = 0; i < 16; i++) {
+        get_user(reg, sp_ptr);
+        env->regbase[get_reg_index(env, cwp1, 8 + i)] = reg;
+        sp_ptr++;
+    }
     env->wim = new_wim;
 }
 
-#if 0
 static void flush_windows(CPUSPARCState *env)
 {
     int offset, cwp1;
-#if defined(DEBUG_WIN)
-    printf("flush_windows:\n");
-#endif
-    offset = 2;
+
+    offset = 1;
     for(;;) {
         /* if restore would invoke restore_window(), then we can stop */
-        cwp1 = (env->cwp + 1) & (NWINDOWS - 1);
+        cwp1 = (env->cwp + offset) & (NWINDOWS - 1);
         if (env->wim & (1 << cwp1))
             break;
-#if defined(DEBUG_WIN)
-        printf("offset=%d: ", offset);
-#endif
-        save_window_offset(env, offset);
+        save_window_offset(env, cwp1);
         offset++;
     }
-}
+    /* set wim so that restore will reload the registers */
+    cwp1 = (env->cwp + 1) & (NWINDOWS - 1);
+    env->wim = 1 << cwp1;
+#if defined(DEBUG_WIN)
+    printf("flush_windows: nb=%d\n", offset - 1);
 #endif
+}
 
 void cpu_loop (CPUSPARCState *env)
 {
@@ -500,7 +505,7 @@ void cpu_loop (CPUSPARCState *env)
             env->npc = env->npc + 4;
             break;
         case 0x83: /* flush windows */
-            //            flush_windows(env);
+            flush_windows(env);
             /* next instruction */
             env->pc = env->npc;
             env->npc = env->npc + 4;
