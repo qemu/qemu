@@ -341,7 +341,7 @@ int64_t cpu_get_real_ticks(void)
 int64_t cpu_get_real_ticks(void)
 {
     int64_t val;
-    asm("rdtsc" : "=A" (val));
+    asm volatile ("rdtsc" : "=A" (val));
     return val;
 }
 

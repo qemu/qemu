@@ -1796,7 +1796,7 @@ void helper_rdtsc(void)
 {
     uint64_t val;
 #if defined(__i386__) || defined(__x86_64__)
-    asm("rdtsc" : "=A" (val));
+    asm volatile ("rdtsc" : "=A" (val));
 #else
     /* better than nothing: the time increases */
     val = emu_time++;
