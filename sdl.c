@@ -264,8 +264,8 @@ static void toggle_full_screen(DisplayState *ds)
         if (!gui_saved_grab)
             sdl_grab_end();
     }
+    vga_invalidate_display();
     vga_update_display();
-    sdl_update(ds, 0, 0, screen->w, screen->h);
 }
 
 static void sdl_refresh(DisplayState *ds)
