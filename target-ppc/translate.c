@@ -28,8 +28,6 @@
 #include "disas.h"
 
 //#define DO_SINGLE_STEP
-//#define DO_STEP_FLUSH
-//#define DEBUG_DISAS
 //#define PPC_DEBUG_DISAS
 
 enum {
@@ -639,7 +637,7 @@ GEN_HANDLER(xori, 0x1A, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
     }
     gen_op_load_gpr_T0(rS(ctx->opcode));
     if (uimm != 0)
-    gen_op_xori(UIMM(ctx->opcode));
+    gen_op_xori(uimm);
     gen_op_store_T0_gpr(rA(ctx->opcode));
 }
 
@@ -654,7 +652,7 @@ GEN_HANDLER(xoris, 0x1B, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
     }
     gen_op_load_gpr_T0(rS(ctx->opcode));
     if (uimm != 0)
-    gen_op_xori(UIMM(ctx->opcode) << 16);
+    gen_op_xori(uimm << 16);
     gen_op_store_T0_gpr(rA(ctx->opcode));
 }
 
@@ -682,25 +680,29 @@ GEN_HANDLER(rlwinm, 0x15, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
     mb = MB(ctx->opcode);
     me = ME(ctx->opcode);
     gen_op_load_gpr_T0(rS(ctx->opcode));
+#if 1 // TRY
+    if (sh == 0) {
+        gen_op_andi_(MASK(mb, me));
+        goto store;
+    }
+#endif
     if (mb == 0) {
         if (me == 31) {
             gen_op_rotlwi(sh);
             goto store;
+#if 0
         } else if (me == (31 - sh)) {
             gen_op_slwi(sh);
             goto store;
-        } else if (sh == 0) {
-            gen_op_andi_(MASK(0, me));
-            goto store;
+#endif
         }
     } else if (me == 31) {
+#if 0
         if (sh == (32 - mb)) {
             gen_op_srwi(mb);
             goto store;
-        } else if (sh == 0) {
-            gen_op_andi_(MASK(mb, 31));
-            goto store;
         }
+#endif
     }
     gen_op_rlwinm(sh, MASK(mb, me));
 store:
@@ -1268,12 +1270,16 @@ GEN_HANDLER(lswx, 0x1F, 0x15, 0x10, 0x00000001, PPC_INTEGER)
 /* stswi */
 GEN_HANDLER(stswi, 0x1F, 0x15, 0x16, 0x00000001, PPC_INTEGER)
 {
+    int nb = NB(ctx->opcode);
+
     if (rA(ctx->opcode) == 0) {
         gen_op_set_T0(0);
     } else {
         gen_op_load_gpr_T0(rA(ctx->opcode));
     }
-    gen_op_set_T1(NB(ctx->opcode));
+    if (nb == 0)
+        nb = 32;
+    gen_op_set_T1(nb);
     op_ldsts(stsw, rS(ctx->opcode));
 }
 
@@ -1931,7 +1937,6 @@ GEN_HANDLER(mftb, 0x1F, 0x13, 0x0B, 0x00000001, PPC_MISC)
         /* We need to update the time base before reading it */
     switch (sprn) {
     case V_TBL:
-        /* TBL is still in T0 */
         gen_op_load_tbl();
         break;
     case V_TBU:
@@ -2007,135 +2012,135 @@ GEN_HANDLER(mtspr, 0x1F, 0x13, 0x0E, 0x00000001, PPC_MISC)
         break;
     case IBAT0U:
         gen_op_store_ibat(0, 0);
-        gen_op_tlbia();
+        RET_MTMSR(ctx);
         break;
     case IBAT1U:
         gen_op_store_ibat(0, 1);
-        gen_op_tlbia();
+        RET_MTMSR(ctx);
         break;
     case IBAT2U:
         gen_op_store_ibat(0, 2);
-        gen_op_tlbia();
+        RET_MTMSR(ctx);
         break;
     case IBAT3U:
         gen_op_store_ibat(0, 3);
-        gen_op_tlbia();
+        RET_MTMSR(ctx);
         break;
     case IBAT4U:
         gen_op_store_ibat(0, 4);
-        gen_op_tlbia();
+        RET_MTMSR(ctx);
         break;
     case IBAT5U:
         gen_op_store_ibat(0, 5);
-        gen_op_tlbia();
+        RET_MTMSR(ctx);
         break;
     case IBAT6U:
         gen_op_store_ibat(0, 6);
-        gen_op_tlbia();
+        RET_MTMSR(ctx);
         break;
     case IBAT7U:
         gen_op_store_ibat(0, 7);
-        gen_op_tlbia();
+        RET_MTMSR(ctx);
         break;
     case IBAT0L:
         gen_op_store_ibat(1, 0);
-        gen_op_tlbia();
+        RET_MTMSR(ctx);
         break;
     case IBAT1L:
         gen_op_store_ibat(1, 1);
-        gen_op_tlbia();
+        RET_MTMSR(ctx);
         break;
     case IBAT2L:
         gen_op_store_ibat(1, 2);
-        gen_op_tlbia();
+        RET_MTMSR(ctx);
         break;
     case IBAT3L:
         gen_op_store_ibat(1, 3);
-        gen_op_tlbia();
+        RET_MTMSR(ctx);
         break;
     case IBAT4L:
         gen_op_store_ibat(1, 4);
-        gen_op_tlbia();
+        RET_MTMSR(ctx);
         break;
     case IBAT5L:
         gen_op_store_ibat(1, 5);
-        gen_op_tlbia();
+        RET_MTMSR(ctx);
         break;
     case IBAT6L:
         gen_op_store_ibat(1, 6);
-        gen_op_tlbia();
+        RET_MTMSR(ctx);
         break;
     case IBAT7L:
         gen_op_store_ibat(1, 7);
-        gen_op_tlbia();
+        RET_MTMSR(ctx);
         break;
     case DBAT0U:
         gen_op_store_dbat(0, 0);
-        gen_op_tlbia();
+        RET_MTMSR(ctx);
         break;
     case DBAT1U:
         gen_op_store_dbat(0, 1);
-        gen_op_tlbia();
+        RET_MTMSR(ctx);
         break;
     case DBAT2U:
         gen_op_store_dbat(0, 2);
-        gen_op_tlbia();
+        RET_MTMSR(ctx);
         break;
     case DBAT3U:
         gen_op_store_dbat(0, 3);
-        gen_op_tlbia();
+        RET_MTMSR(ctx);
         break;
     case DBAT4U:
         gen_op_store_dbat(0, 4);
-        gen_op_tlbia();
+        RET_MTMSR(ctx);
         break;
     case DBAT5U:
         gen_op_store_dbat(0, 5);
-        gen_op_tlbia();
+        RET_MTMSR(ctx);
         break;
     case DBAT6U:
         gen_op_store_dbat(0, 6);
-        gen_op_tlbia();
+        RET_MTMSR(ctx);
         break;
     case DBAT7U:
         gen_op_store_dbat(0, 7);
-        gen_op_tlbia();
+        RET_MTMSR(ctx);
         break;
     case DBAT0L:
         gen_op_store_dbat(1, 0);
-        gen_op_tlbia();
+        RET_MTMSR(ctx);
         break;
     case DBAT1L:
         gen_op_store_dbat(1, 1);
-        gen_op_tlbia();
+        RET_MTMSR(ctx);
         break;
     case DBAT2L:
         gen_op_store_dbat(1, 2);
-        gen_op_tlbia();
+        RET_MTMSR(ctx);
         break;
     case DBAT3L:
         gen_op_store_dbat(1, 3);
-        gen_op_tlbia();
+        RET_MTMSR(ctx);
         break;
     case DBAT4L:
         gen_op_store_dbat(1, 4);
-        gen_op_tlbia();
+        RET_MTMSR(ctx);
         break;
     case DBAT5L:
         gen_op_store_dbat(1, 5);
-        gen_op_tlbia();
+        RET_MTMSR(ctx);
         break;
     case DBAT6L:
         gen_op_store_dbat(1, 6);
-        gen_op_tlbia();
+        RET_MTMSR(ctx);
         break;
     case DBAT7L:
         gen_op_store_dbat(1, 7);
-        gen_op_tlbia();
+        RET_MTMSR(ctx);
         break;
     case SDR1:
         gen_op_store_sdr1();
-        gen_op_tlbia();
+        RET_MTMSR(ctx);
         break;
     case O_TBL:
         gen_op_store_tbl();
@@ -2146,6 +2151,11 @@ GEN_HANDLER(mtspr, 0x1F, 0x13, 0x0E, 0x00000001, PPC_MISC)
     case DECR:
         gen_op_store_decr();
         break;
+#if 0
+    case HID0:
+        gen_op_store_hid0();
+        break;
+#endif
     default:
         gen_op_store_spr(sprn);
         break;
@@ -2236,6 +2246,7 @@ GEN_HANDLER(dcbz, 0x1F, 0x16, 0x1F, 0x03E00001, PPC_CACHE)
         gen_op_add();
     }
     op_dcbz();
+    gen_op_check_reservation();
 }
 
 /* icbi */
@@ -2302,10 +2313,6 @@ GEN_HANDLER(mtsr, 0x1F, 0x12, 0x06, 0x0010F801, PPC_SEGMENT)
     }
     gen_op_load_gpr_T0(rS(ctx->opcode));
     gen_op_store_sr(SR(ctx->opcode));
-#if 0
-    gen_op_tlbia();
-    RET_MTMSR(ctx);
-#endif
 #endif
 }
 
@@ -2322,7 +2329,6 @@ GEN_HANDLER(mtsrin, 0x1F, 0x12, 0x07, 0x001F0001, PPC_SEGMENT)
     gen_op_load_gpr_T0(rS(ctx->opcode));
     gen_op_load_gpr_T1(rB(ctx->opcode));
     gen_op_store_srin();
-    gen_op_tlbia();
 #endif
 }
 
@@ -2341,6 +2347,7 @@ GEN_HANDLER(tlbia, 0x1F, 0x12, 0x0B, 0x03FFFC01, PPC_MEM_OPT)
         return;
     }
     gen_op_tlbia();
+    RET_MTMSR(ctx);
 #endif
 }
 
@@ -2356,6 +2363,7 @@ GEN_HANDLER(tlbie, 0x1F, 0x12, 0x09, 0x03FF0001, PPC_MEM)
     }
     gen_op_load_gpr_T0(rB(ctx->opcode));
     gen_op_tlbie();
+    RET_MTMSR(ctx);
 #endif
 }
 
@@ -2372,6 +2380,7 @@ GEN_HANDLER(tlbsync, 0x1F, 0x16, 0x11, 0x03FFF801, PPC_MEM)
     /* This has no effect: it should ensure that all previous
      * tlbie have completed
      */
+    RET_MTMSR(ctx);
 #endif
 }
 
@@ -2692,59 +2701,78 @@ static void init_spr_rights (uint32_t pvr)
     spr_set_rights(DBAT3U, SPR_SR | SPR_SW);
     /* DBAT3L (SPR 543) */
     spr_set_rights(DBAT3L, SPR_SR | SPR_SW);
-    /* DABR   (SPR 1013) */
-    spr_set_rights(DABR,   SPR_SR | SPR_SW);
     /* FPECR  (SPR 1022) */
     spr_set_rights(FPECR,  SPR_SR | SPR_SW);
-    /* PIR    (SPR 1023) */
+    /* Special registers for PPC 604 */
+    if ((pvr & 0xFFFF0000) == 0x00040000) {
+        /* IABR */
+        spr_set_rights(IABR ,  SPR_SR | SPR_SW);
+        /* DABR   (SPR 1013) */
+        spr_set_rights(DABR,   SPR_SR | SPR_SW);
+        /* HID0 */
+        spr_set_rights(HID0,   SPR_SR | SPR_SW);
+        /* PIR */
     spr_set_rights(PIR,    SPR_SR | SPR_SW);
+        /* PMC1 */
+        spr_set_rights(PMC1,   SPR_SR | SPR_SW);
+        /* PMC2 */
+        spr_set_rights(PMC2,   SPR_SR | SPR_SW);
+        /* MMCR0 */
+        spr_set_rights(MMCR0,  SPR_SR | SPR_SW);
+        /* SIA */
+        spr_set_rights(SIA,    SPR_SR | SPR_SW);
+        /* SDA */
+        spr_set_rights(SDA,    SPR_SR | SPR_SW);
+    }
     /* Special registers for MPC740/745/750/755 (aka G3) & IBM 750 */
     if ((pvr & 0xFFFF0000) == 0x00080000 ||
         (pvr & 0xFFFF0000) == 0x70000000) {
         /* HID0 */
-        spr_set_rights(SPR_ENCODE(1008), SPR_SR | SPR_SW);
+        spr_set_rights(HID0,   SPR_SR | SPR_SW);
         /* HID1 */
-        spr_set_rights(SPR_ENCODE(1009), SPR_SR | SPR_SW);
+        spr_set_rights(HID1,   SPR_SR | SPR_SW);
         /* IABR */
-        spr_set_rights(SPR_ENCODE(1010), SPR_SR | SPR_SW);
+        spr_set_rights(IABR,   SPR_SR | SPR_SW);
         /* ICTC */
-        spr_set_rights(SPR_ENCODE(1019), SPR_SR | SPR_SW);
+        spr_set_rights(ICTC,   SPR_SR | SPR_SW);
         /* L2CR */
-        spr_set_rights(SPR_ENCODE(1017), SPR_SR | SPR_SW);
+        spr_set_rights(L2CR,   SPR_SR | SPR_SW);
         /* MMCR0 */
-        spr_set_rights(SPR_ENCODE(952), SPR_SR | SPR_SW);
+        spr_set_rights(MMCR0,  SPR_SR | SPR_SW);
         /* MMCR1 */
-        spr_set_rights(SPR_ENCODE(956), SPR_SR | SPR_SW);
+        spr_set_rights(MMCR1,  SPR_SR | SPR_SW);
         /* PMC1 */
-        spr_set_rights(SPR_ENCODE(953), SPR_SR | SPR_SW);
+        spr_set_rights(PMC1,   SPR_SR | SPR_SW);
         /* PMC2 */
-        spr_set_rights(SPR_ENCODE(954), SPR_SR | SPR_SW);
+        spr_set_rights(PMC2,   SPR_SR | SPR_SW);
         /* PMC3 */
-        spr_set_rights(SPR_ENCODE(957), SPR_SR | SPR_SW);
+        spr_set_rights(PMC3,   SPR_SR | SPR_SW);
         /* PMC4 */
-        spr_set_rights(SPR_ENCODE(958), SPR_SR | SPR_SW);
+        spr_set_rights(PMC4,   SPR_SR | SPR_SW);
         /* SIA */
-        spr_set_rights(SPR_ENCODE(955), SPR_SR | SPR_SW);
+        spr_set_rights(SIA,    SPR_SR | SPR_SW);
+        /* SDA */
+        spr_set_rights(SDA,    SPR_SR | SPR_SW);
         /* THRM1 */
-        spr_set_rights(SPR_ENCODE(1020), SPR_SR | SPR_SW);
+        spr_set_rights(THRM1,  SPR_SR | SPR_SW);
         /* THRM2 */
-        spr_set_rights(SPR_ENCODE(1021), SPR_SR | SPR_SW);
+        spr_set_rights(THRM2,  SPR_SR | SPR_SW);
         /* THRM3 */
-        spr_set_rights(SPR_ENCODE(1022), SPR_SR | SPR_SW);
+        spr_set_rights(THRM3,  SPR_SR | SPR_SW);
         /* UMMCR0 */
-        spr_set_rights(SPR_ENCODE(936), SPR_UR | SPR_UW);
+        spr_set_rights(UMMCR0, SPR_UR | SPR_UW);
         /* UMMCR1 */
-        spr_set_rights(SPR_ENCODE(940), SPR_UR | SPR_UW);
+        spr_set_rights(UMMCR1, SPR_UR | SPR_UW);
         /* UPMC1 */
-        spr_set_rights(SPR_ENCODE(937), SPR_UR | SPR_UW);
+        spr_set_rights(UPMC1,  SPR_UR | SPR_UW);
         /* UPMC2 */
-        spr_set_rights(SPR_ENCODE(938), SPR_UR | SPR_UW);
+        spr_set_rights(UPMC2,  SPR_UR | SPR_UW);
         /* UPMC3 */
-        spr_set_rights(SPR_ENCODE(941), SPR_UR | SPR_UW);
+        spr_set_rights(UPMC3,  SPR_UR | SPR_UW);
         /* UPMC4 */
-        spr_set_rights(SPR_ENCODE(942), SPR_UR | SPR_UW);
+        spr_set_rights(UPMC4,  SPR_UR | SPR_UW);
         /* USIA */
-        spr_set_rights(SPR_ENCODE(939), SPR_UR | SPR_UW);
+        spr_set_rights(USIA,   SPR_UR | SPR_UW);
     }
     /* MPC755 has special registers */
     if (pvr == 0x00083100) {
@@ -2789,23 +2817,23 @@ static void init_spr_rights (uint32_t pvr)
         /* DBAT7L */
         spr_set_rights(DBAT7L, SPR_SR | SPR_SW);
         /* DMISS */
-        spr_set_rights(SPR_ENCODE(976), SPR_SR | SPR_SW);
+        spr_set_rights(DMISS,  SPR_SR | SPR_SW);
         /* DCMP */
-        spr_set_rights(SPR_ENCODE(977), SPR_SR | SPR_SW);
+        spr_set_rights(DCMP,   SPR_SR | SPR_SW);
         /* DHASH1 */
-        spr_set_rights(SPR_ENCODE(978), SPR_SR | SPR_SW);
+        spr_set_rights(DHASH1, SPR_SR | SPR_SW);
         /* DHASH2 */
-        spr_set_rights(SPR_ENCODE(979), SPR_SR | SPR_SW);
+        spr_set_rights(DHASH2, SPR_SR | SPR_SW);
         /* IMISS */
-        spr_set_rights(SPR_ENCODE(980), SPR_SR | SPR_SW);
+        spr_set_rights(IMISS,  SPR_SR | SPR_SW);
         /* ICMP */
-        spr_set_rights(SPR_ENCODE(981), SPR_SR | SPR_SW);
+        spr_set_rights(ICMP,   SPR_SR | SPR_SW);
         /* RPA */
-        spr_set_rights(SPR_ENCODE(982), SPR_SR | SPR_SW);
+        spr_set_rights(RPA,    SPR_SR | SPR_SW);
         /* HID2 */
-        spr_set_rights(SPR_ENCODE(1011), SPR_SR | SPR_SW);
+        spr_set_rights(HID2,   SPR_SR | SPR_SW);
         /* L2PM */
-        spr_set_rights(SPR_ENCODE(1016), SPR_SR | SPR_SW);
+        spr_set_rights(L2PM,   SPR_SR | SPR_SW);
     }
 }
 
@@ -2941,10 +2969,9 @@ CPUPPCState *cpu_ppc_init(void)
 
     cpu_exec_init();
 
-    env = malloc(sizeof(CPUPPCState));
+    env = qemu_mallocz(sizeof(CPUPPCState));
     if (!env)
         return NULL;
-    memset(env, 0, sizeof(CPUPPCState));
 #if !defined(CONFIG_USER_ONLY) && defined (USE_OPEN_FIRMWARE)
     setup_machine(env, 0);
 #else
@@ -2953,20 +2980,32 @@ CPUPPCState *cpu_ppc_init(void)
 //    env->spr[PVR] = 0x00083100; /* MPC755 (G3 embedded) */
 //    env->spr[PVR] = 0x00070100; /* IBM 750FX */
 #endif
-    if (create_ppc_proc(ppc_opcodes, env->spr[PVR]) < 0)
-        return NULL;
-    init_spr_rights(env->spr[PVR]);
     tlb_flush(env, 1);
 #if defined (DO_SINGLE_STEP)
     /* Single step trace mode */
     msr_se = 1;
 #endif
+    msr_fp = 1; /* Allow floating point exceptions */
+    msr_me = 1; /* Allow machine check exceptions  */
 #if defined(CONFIG_USER_ONLY)
     msr_pr = 1;
+    cpu_ppc_register(env, 0x00080000);
+#else
+    env->nip = 0xFFFFFFFC;
 #endif
     env->access_type = ACCESS_INT;
 
     return env;
+}
+
+int cpu_ppc_register (CPUPPCState *env, uint32_t pvr)
+{
+    env->spr[PVR] = pvr;
+    if (create_ppc_proc(ppc_opcodes, env->spr[PVR]) < 0)
+        return -1;
+    init_spr_rights(env->spr[PVR]);
+
+    return 0;
 }
 
 void cpu_ppc_close(CPUPPCState *env)
@@ -3047,26 +3086,26 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
             }
         }
         /* Is opcode *REALLY* valid ? */
-        if ((ctx.opcode & handler->inval) != 0) {
-            if (loglevel > 0) {
                 if (handler->handler == &gen_invalid) {
+            if (loglevel > 0) {
                     fprintf(logfile, "invalid/unsupported opcode: "
-                            "%02x -%02x - %02x (%08x) 0x%08x\n",
+                        "%02x - %02x - %02x (%08x) 0x%08x %d\n",
                             opc1(ctx.opcode), opc2(ctx.opcode),
-                            opc3(ctx.opcode), ctx.opcode, ctx.nip - 4);
+                        opc3(ctx.opcode), ctx.opcode, ctx.nip - 4, msr_ir);
+            } else {
+                printf("invalid/unsupported opcode: "
+                       "%02x - %02x - %02x (%08x) 0x%08x %d\n",
+                       opc1(ctx.opcode), opc2(ctx.opcode),
+                       opc3(ctx.opcode), ctx.opcode, ctx.nip - 4, msr_ir);
+            }
                 } else {
+            if ((ctx.opcode & handler->inval) != 0) {
+                if (loglevel > 0) {
                     fprintf(logfile, "invalid bits: %08x for opcode: "
                             "%02x -%02x - %02x (0x%08x) (0x%08x)\n",
                             ctx.opcode & handler->inval, opc1(ctx.opcode),
                             opc2(ctx.opcode), opc3(ctx.opcode),
                             ctx.opcode, ctx.nip - 4);
-                }
-            } else {
-                if (handler->handler == &gen_invalid) {
-                    printf("invalid/unsupported opcode: "
-                           "%02x -%02x - %02x (%08x) 0x%08x\n",
-                           opc1(ctx.opcode), opc2(ctx.opcode),
-                           opc3(ctx.opcode), ctx.opcode, ctx.nip - 4);
                 } else {
                     printf("invalid bits: %08x for opcode: "
                            "%02x -%02x - %02x (0x%08x) (0x%08x)\n",
@@ -3074,11 +3113,11 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
                             opc2(ctx.opcode), opc3(ctx.opcode),
                            ctx.opcode, ctx.nip - 4);
             }
+                RET_INVAL(ctxp);
+                break;
             }
-            (*gen_invalid)(&ctx);
-        } else {
-            (*(handler->handler))(&ctx);
         }
+        (*(handler->handler))(&ctx);
         /* Check trace mode exceptions */
         if ((msr_be && ctx.exception == EXCP_BRANCH) ||
             /* Check in single step trace mode
@@ -3126,7 +3165,6 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     } else {
         tb->size = ctx.nip - pc_start;
     }
-    env->access_type = ACCESS_INT;
 #ifdef DEBUG_DISAS
     if (loglevel & CPU_LOG_TB_CPU) {
         fprintf(logfile, "---------------- excp: %04x\n", ctx.exception);
@@ -3143,6 +3181,7 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
         fprintf(logfile, "\n");
     }
 #endif
+    env->access_type = ACCESS_INT;
 
     return 0;
 }

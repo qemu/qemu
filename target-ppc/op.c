@@ -242,10 +242,7 @@ PPC_OP(load_srin)
 
 PPC_OP(store_srin)
 {
-#if defined (DEBUG_OP)
-    dump_store_sr(T1 >> 28);
-#endif
-    regs->sr[T1 >> 28] = T0;
+    do_store_sr(T1 >> 28);
     RETURN();
 }
 
@@ -402,10 +399,7 @@ PPC_OP(load_ibat)
 
 PPC_OP(store_ibat)
 {
-#if defined (DEBUG_OP)
-    dump_store_ibat(PARAM(1), PARAM(2));
-#endif
-    regs->IBAT[PARAM(1)][PARAM(2)] = T0;
+    do_store_ibat(PARAM(1), PARAM(2));
 }
 
 PPC_OP(load_dbat)
@@ -415,10 +409,7 @@ PPC_OP(load_dbat)
 
 PPC_OP(store_dbat)
 {
-#if defined (DEBUG_OP)
-    dump_store_dbat(PARAM(1), PARAM(2));
-#endif
-    regs->DBAT[PARAM(1)][PARAM(2)] = T0;
+    do_store_dbat(PARAM(1), PARAM(2));
 }
 
 /* FPSCR */
@@ -1344,9 +1335,7 @@ PPC_OP(fmsubs)
 /* fnmadd - fnmadd. - fnmadds - fnmadds. */
 PPC_OP(fnmadd)
 {
-    FT0 *= FT1;
-    FT0 += FT2;
-    FT0 = -FT0;
+    do_fnmadd();
     RETURN();
 }
 
@@ -1360,9 +1349,7 @@ PPC_OP(fnmadds)
 /* fnmsub - fnmsub. */
 PPC_OP(fnmsub)
 {
-    FT0 *= FT1;
-    FT0 -= FT2;
-    FT0 = -FT0;
+    do_fnmsub();
     RETURN();
 }
 
@@ -1444,11 +1431,22 @@ PPC_OP(fneg)
 #include "op_mem.h"
 #endif
 
+/* Special op to check and maybe clear reservation */
+PPC_OP(check_reservation)
+{
+    do_check_reservation();
+    RETURN();
+}
+
 /* Return from interrupt */
 PPC_OP(rfi)
 {
     regs->nip = regs->spr[SRR0] & ~0x00000003;
+#if 1 // TRY
+    T0 = regs->spr[SRR1] & ~0xFFF00000;
+#else
     T0 = regs->spr[SRR1] & ~0xFFFF0000;
+#endif
     do_store_msr();
 #if defined (DEBUG_OP)
     dump_rfi();

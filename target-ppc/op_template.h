@@ -175,10 +175,7 @@ void OPPROTO glue(op_load_sr, REG)(void)
 
 void OPPROTO glue(op_store_sr, REG)(void)
 {
-#if defined (DEBUG_OP)
-    dump_store_sr(REG);
-#endif
-    env->sr[REG] = T0;
+    do_store_sr(REG);
     RETURN();
 }
 #endif

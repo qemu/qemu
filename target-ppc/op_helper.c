@@ -127,11 +127,14 @@ void do_load_msr (void)
 
 void do_store_msr (void)
 {
+#if 1 // TRY
     if (((T0 >> MSR_IR) & 0x01) != msr_ir ||
-        ((T0 >> MSR_DR) & 0x01) != msr_dr) {
-        /* Flush all tlb when changing translation mode or privilege level */
+        ((T0 >> MSR_DR) & 0x01) != msr_dr ||
+        ((T0 >> MSR_PR) & 0x01) != msr_pr)
+    {
         do_tlbia();
     }
+#endif
     msr_pow = (T0 >> MSR_POW) & 0x03;
     msr_ile = (T0 >> MSR_ILE) & 0x01;
     msr_ee = (T0 >> MSR_EE) & 0x01;
@@ -157,14 +160,18 @@ void do_sraw (void)
     xer_ca = 0;
     if (T1 & 0x20) {
         ret = (-1) * (T0 >> 31);
-        if (ret < 0)
+        if (ret < 0 && (T0 & ~0x80000000) != 0)
             xer_ca = 1;
+#if 1 // TRY
+    } else if (T1 == 0) {
+        ret = T0;
+#endif
     } else {
         ret = (int32_t)T0 >> (T1 & 0x1f);
         if (ret < 0 && ((int32_t)T0 & ((1 << T1) - 1)) != 0)
             xer_ca = 1;
     }
-    (int32_t)T0 = ret;
+    T0 = ret;
 }
 
 /* Floating point operations helpers */
@@ -267,14 +274,24 @@ void do_fctiwz (void)
     fesetround(cround);
 }
 
+void do_fnmadd (void)
+{
+    FT0 = -((FT0 * FT1) + FT2);
+}
+
+void do_fnmsub (void)
+{
+    FT0 = -((FT0 * FT1) - FT2);
+}
+
 void do_fnmadds (void)
 {
-    FTS0 = -((FTS0 * FTS1) + FTS2);
+    FT0 = -((FTS0 * FTS1) + FTS2);
 }
 
 void do_fnmsubs (void)
 {
-    FTS0 = -((FTS0 * FTS1) - FTS2);
+    FT0 = -((FTS0 * FTS1) - FTS2);
 }
 
 void do_fsqrt (void)
@@ -307,7 +324,6 @@ void do_fsel (void)
 
 void do_fcmpu (void)
 {
-    env->fpscr[4] &= ~0x1;
     if (isnan(FT0) || isnan(FT1)) {
         T0 = 0x01;
         env->fpscr[4] |= 0x1;
@@ -319,7 +335,7 @@ void do_fcmpu (void)
     } else {
         T0 = 0x02;
     }
-    env->fpscr[3] |= T0;
+    env->fpscr[3] = T0;
 }
 
 void do_fcmpo (void)
@@ -343,7 +359,7 @@ void do_fcmpo (void)
     } else {
         T0 = 0x02;
     }
-    env->fpscr[3] |= T0;
+    env->fpscr[3] = T0;
 }
 
 void do_fabs (void)
@@ -358,6 +374,12 @@ void do_fnabs (void)
 
 /* Instruction cache invalidation helper */
 #define ICACHE_LINE_SIZE 32
+
+void do_check_reservation (void)
+{
+    if ((env->reserve & ~(ICACHE_LINE_SIZE - 1)) == T0)
+        env->reserve = -1;
+}
 
 void do_icbi (void)
 {
@@ -377,6 +399,69 @@ void do_tlbie (void)
     tlb_flush_page(env, T0);
 }
 
+void do_store_sr (uint32_t srnum)
+{
+#if defined (DEBUG_OP)
+    dump_store_sr(srnum);
+#endif
+#if 0 // TRY
+    {
+        uint32_t base, page;
+        
+        base = srnum << 28;
+        for (page = base; page != base + 0x100000000; page += 0x1000)
+            tlb_flush_page(env, page);
+    }
+#else
+    tlb_flush(env, 1);
+#endif
+    env->sr[srnum] = T0;
+}
+
+/* For BATs, we may not invalidate any TLBs if the change is only on
+ * protection bits for user mode.
+ */
+void do_store_ibat (int ul, int nr)
+{
+#if defined (DEBUG_OP)
+    dump_store_ibat(ul, nr);
+#endif
+#if 0 // TRY
+    {
+        uint32_t base, length, page;
+
+        base = env->IBAT[0][nr];
+        length = (((base >> 2) & 0x000007FF) + 1) << 17;
+        base &= 0xFFFC0000;
+        for (page = base; page != base + length; page += 0x1000)
+            tlb_flush_page(env, page);
+    }
+#else
+    tlb_flush(env, 1);
+#endif
+    env->IBAT[ul][nr] = T0;
+}
+
+void do_store_dbat (int ul, int nr)
+{
+#if defined (DEBUG_OP)
+    dump_store_dbat(ul, nr);
+#endif
+#if 0 // TRY
+    {
+        uint32_t base, length, page;
+        base = env->DBAT[0][nr];
+        length = (((base >> 2) & 0x000007FF) + 1) << 17;
+        base &= 0xFFFC0000;
+        for (page = base; page != base + length; page += 0x1000)
+            tlb_flush_page(env, page);
+    }
+#else
+    tlb_flush(env, 1);
+#endif
+    env->DBAT[ul][nr] = T0;
+}
+
 /*****************************************************************************/
 /* Special helpers for debug */
 extern FILE *stdout;
@@ -389,7 +474,7 @@ void dump_state (void)
 void dump_rfi (void)
 {
 #if 0
-    printf("Return from interrupt %d => 0x%08x\n", pos, env->nip);
+    printf("Return from interrupt => 0x%08x\n", env->nip);
     //    cpu_ppc_dump_state(env, stdout, 0);
 #endif
 }

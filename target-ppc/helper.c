@@ -28,9 +28,6 @@
 //#define DEBUG_EXCEPTIONS
 
 extern FILE *stdout, *stderr;
-void abort (void);
-
-/*****************************************************************************/
 
 /*****************************************************************************/
 /* PPC MMU emulation */
@@ -365,7 +362,8 @@ int get_physical_address (CPUState *env, uint32_t *physical, int *prot,
         fprintf(logfile, "%s\n", __func__);
     }
     
-    if ((access_type == ACCESS_CODE && msr_ir == 0) || msr_dr == 0) {
+    if ((access_type == ACCESS_CODE && msr_ir == 0) ||
+        (access_type != ACCESS_CODE && msr_dr == 0)) {
         /* No address translation */
         *physical = address & ~0xFFF;
         *prot = PAGE_READ | PAGE_WRITE;
@@ -441,12 +439,15 @@ void tlb_fill(unsigned long addr, int is_write, int is_user, void *retaddr)
         index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
         tlb_addrr = env->tlb_read[is_user][index].address;
         tlb_addrw = env->tlb_write[is_user][index].address;
-#if 0
-        printf("%s 1 %p %p idx=%d addr=0x%08lx tbl_addr=0x%08lx 0x%08lx "
+#if 1
+        if (loglevel) {
+            fprintf(logfile,
+                    "%s 1 %p %p idx=%d addr=0x%08lx tbl_addr=0x%08lx 0x%08lx "
                "(0x%08lx 0x%08lx)\n", __func__, env,
                &env->tlb_read[is_user][index], index, addr,
                tlb_addrr, tlb_addrw, addr & TARGET_PAGE_MASK,
                tlb_addrr & (TARGET_PAGE_MASK | TLB_INVALID_MASK));
+        }
 #endif
     }
     ret = cpu_ppc_handle_mmu_fault(env, addr, is_write, is_user, 1);
@@ -631,11 +632,14 @@ uint32_t _load_msr (CPUState *env)
 
 void _store_msr (CPUState *env, uint32_t value)
 {
+#if 0 // TRY
     if (((value >> MSR_IR) & 0x01) != msr_ir ||
-        ((value >> MSR_DR) & 0x01) != msr_dr) {
+        ((value >> MSR_DR) & 0x01) != msr_dr)
+    {
         /* Flush all tlb when changing translation mode or privilege level */
 	tlb_flush(env, 1);
     }
+#endif
     msr_pow = (value >> MSR_POW) & 0x03;
     msr_ile = (value >> MSR_ILE) & 0x01;
     msr_ee = (value >> MSR_EE) & 0x01;
@@ -699,13 +703,8 @@ void do_interrupt (CPUState *env)
         goto store_next;
     case EXCP_MACHINE_CHECK:
         if (msr_me == 0) {
-            printf("Machine check exception while not allowed !\n");
-            if (loglevel) {
-                fprintf(logfile,
-                        "Machine check exception while not allowed !\n");
+            cpu_abort(env, "Machine check exception while not allowed\n");
         }
-            abort();
-    }
         msr_me = 0;
         break;
     case EXCP_DSI:
@@ -801,7 +800,7 @@ void do_interrupt (CPUState *env)
                 env->fpscr[7] |= 0x4;
         break;
         case EXCP_INVAL:
-	    printf("Invalid instruction at 0x%08x\n", env->nip);
+            //	    printf("Invalid instruction at 0x%08x\n", env->nip);
             msr |= 0x00080000;
         break;
         case EXCP_PRIV:

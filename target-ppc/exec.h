@@ -135,6 +135,8 @@ void do_sraw(void);
 
 void do_fctiw (void);
 void do_fctiwz (void);
+void do_fnmadd (void);
+void do_fnmsub (void);
 void do_fnmadds (void);
 void do_fnmsubs (void);
 void do_fsqrt (void);
@@ -147,7 +149,11 @@ void do_fcmpo (void);
 void do_fabs (void);
 void do_fnabs (void);
 
+void do_check_reservation (void);
 void do_icbi (void);
+void do_store_sr (uint32_t srnum);
+void do_store_ibat (int ul, int nr);
+void do_store_dbat (int ul, int nr);
 void do_tlbia (void);
 void do_tlbie (void);
 
