@@ -953,6 +953,11 @@ void OPPROTO op_ljmp_T0_T1(void)
     jmp_seg(T0 & 0xffff, T1);
 }
 
+void OPPROTO op_iret_real(void)
+{
+    helper_iret_real(PARAM1);
+}
+
 void OPPROTO op_iret_protected(void)
 {
     helper_iret_protected(PARAM1);

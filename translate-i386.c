@@ -52,6 +52,7 @@ typedef struct DisasContext {
                    static state change (stop translation) */
     /* current block context */
     uint8_t *cs_base; /* base of CS segment */
+    int pe;     /* protected mode */
     int code32; /* 32 bit code segment */
     int ss32;   /* 32 bit stack segment */
     int cc_op;  /* current CC operation */
@@ -989,7 +990,7 @@ static void gen_lea_modrm(DisasContext *s, int modrm, int *reg_ptr, int *offset_
         if (base >= 0) {
             /* for correct popl handling with esp */
             if (base == 4 && s->popl_esp_hack)
-                disp += 4;
+                disp += s->popl_esp_hack;
             gen_op_movl_A0_reg[base]();
             if (disp != 0)
                 gen_op_addl_A0_im(disp);
@@ -1272,7 +1273,7 @@ static void gen_setcc(DisasContext *s, int b)
 /* move T0 to seg_reg and compute if the CPU state may change */
 static void gen_movl_seg_T0(DisasContext *s, int seg_reg, unsigned int cur_eip)
 {
-    if (!s->vm86)
+    if (s->pe && !s->vm86)
         gen_op_movl_seg_T0(seg_reg, cur_eip);
     else
         gen_op_movl_seg_T0_vm(offsetof(CPUX86State,segs[seg_reg]));
@@ -1855,7 +1856,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             gen_op_ld_T1_A0[ot]();
             gen_op_addl_A0_im(1 << (ot - OT_WORD + 1));
             gen_op_lduw_T0_A0();
-            if (!s->vm86) {
+            if (s->pe && !s->vm86) {
                 /* we compute EIP to handle the exception case */
                 gen_op_jmp_im(pc_start - s->cs_base);
                 gen_op_ljmp_T0_T1();
@@ -2036,7 +2037,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         ot = dflag ? OT_LONG : OT_WORD;
         modrm = ldub(s->pc++);
         gen_pop_T0(s);
-        s->popl_esp_hack = 1;
+        s->popl_esp_hack = 2 << dflag;
         gen_ldst_modrm(s, modrm, ot, OR_TMP0, 1);
         s->popl_esp_hack = 0;
         gen_pop_update(s);
@@ -2082,6 +2083,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         gen_pop_T0(s);
         gen_movl_seg_T0(s, b >> 3, pc_start - s->cs_base);
         gen_pop_update(s);
+        /* XXX: if reg == SS, inhibit interrupts/trace */
         break;
     case 0x1a1: /* pop fs */
     case 0x1a9: /* pop gs */
@@ -2134,21 +2136,24 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         gen_op_mov_reg_T0[ot][reg]();
         break;
     case 0x8e: /* mov seg, Gv */
-        ot = dflag ? OT_LONG : OT_WORD;
         modrm = ldub(s->pc++);
         reg = (modrm >> 3) & 7;
-        gen_ldst_modrm(s, modrm, ot, OR_TMP0, 0);
         if (reg >= 6 || reg == R_CS)
             goto illegal_op;
+        gen_ldst_modrm(s, modrm, OT_WORD, OR_TMP0, 0);
         gen_movl_seg_T0(s, reg, pc_start - s->cs_base);
+        /* XXX: if reg == SS, inhibit interrupts/trace */
         break;
     case 0x8c: /* mov Gv, seg */
-        ot = dflag ? OT_LONG : OT_WORD;
         modrm = ldub(s->pc++);
         reg = (modrm >> 3) & 7;
+        mod = (modrm >> 6) & 3;
         if (reg >= 6)
             goto illegal_op;
         gen_op_movl_T0_seg(reg);
+        ot = OT_WORD;
+        if (mod == 3 && dflag)
+            ot = OT_LONG;
         gen_ldst_modrm(s, modrm, ot, OR_TMP0, 1);
         break;
 
@@ -2938,7 +2943,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         break;
     case 0x6c: /* insS */
     case 0x6d:
-        if (s->cpl > s->iopl || s->vm86) {
+        if (s->pe && (s->cpl > s->iopl || s->vm86)) {
             /* NOTE: even for (E)CX = 0 the exception is raised */
             gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
@@ -2955,7 +2960,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         break;
     case 0x6e: /* outsS */
     case 0x6f:
-        if (s->cpl > s->iopl || s->vm86) {
+        if (s->pe && (s->cpl > s->iopl || s->vm86)) {
             /* NOTE: even for (E)CX = 0 the exception is raised */
             gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
@@ -2975,7 +2980,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         /* port I/O */
     case 0xe4:
     case 0xe5:
-        if (s->cpl > s->iopl || s->vm86) {
+        if (s->pe && (s->cpl > s->iopl || s->vm86)) {
             gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
             if ((b & 1) == 0)
@@ -2990,7 +2995,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         break;
     case 0xe6:
     case 0xe7:
-        if (s->cpl > s->iopl || s->vm86) {
+        if (s->pe && (s->cpl > s->iopl || s->vm86)) {
             gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
             if ((b & 1) == 0)
@@ -3005,7 +3010,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         break;
     case 0xec:
     case 0xed:
-        if (s->cpl > s->iopl || s->vm86) {
+        if (s->pe && (s->cpl > s->iopl || s->vm86)) {
             gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
             if ((b & 1) == 0)
@@ -3019,7 +3024,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         break;
     case 0xee:
     case 0xef:
-        if (s->cpl > s->iopl || s->vm86) {
+        if (s->pe && (s->cpl > s->iopl || s->vm86)) {
             gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
             if ((b & 1) == 0)
@@ -3076,7 +3081,11 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         val = 0;
         goto do_lret;
     case 0xcf: /* iret */
-        if (s->vm86 && s->iopl != 3) {
+        if (!s->pe) {
+            /* real mode */
+            gen_op_iret_real(s->dflag);
+            s->cc_op = CC_OP_EFLAGS;
+        } else if (s->vm86 && s->iopl != 3) {
             gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
             if (s->cc_op != CC_OP_DYNAMIC)
@@ -3142,7 +3151,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             
             /* change cs and pc */
             gen_op_movl_T0_im(selector);
-            if (!s->vm86) {
+            if (s->pe && !s->vm86) {
                 /* we compute EIP to handle the exception case */
                 gen_op_jmp_im(pc_start - s->cs_base);
                 gen_op_movl_T1_im(offset);
@@ -3442,6 +3451,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
                 gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
             }
         }
+        /* XXX: interruptions are enabled only the first insn after sti */
         break;
     case 0x62: /* bound */
         ot = dflag ? OT_LONG : OT_WORD;
@@ -3628,7 +3638,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         break;
     case 0x102: /* lar */
     case 0x103: /* lsl */
-        if (s->vm86)
+        if (!s->pe || s->vm86)
             goto illegal_op;
         ot = dflag ? OT_LONG : OT_WORD;
         modrm = ldub(s->pc++);
@@ -4106,19 +4116,26 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     cs_base = (uint8_t *)tb->cs_base;
     flags = tb->flags;
        
+    dc->pe = env->cr[0] & CR0_PE_MASK;
     dc->code32 = (flags >> GEN_FLAG_CODE32_SHIFT) & 1;
     dc->ss32 = (flags >> GEN_FLAG_SS32_SHIFT) & 1;
     dc->addseg = (flags >> GEN_FLAG_ADDSEG_SHIFT) & 1;
     dc->f_st = (flags >> GEN_FLAG_ST_SHIFT) & 7;
     dc->vm86 = (flags >> GEN_FLAG_VM_SHIFT) & 1;
-    dc->cpl = (flags >> GEN_FLAG_CPL_SHIFT) & 3;
+    /* CPL is implicit if real mode or vm86 mode */
+    if (!dc->pe)
+        dc->cpl = 0;
+    else if (dc->vm86)
+        dc->cpl = 3;
+    else
+        dc->cpl = (flags >> GEN_FLAG_CPL_SHIFT) & 3;
     dc->iopl = (flags >> GEN_FLAG_IOPL_SHIFT) & 3;
     dc->tf = (flags >> GEN_FLAG_TF_SHIFT) & 1;
     dc->cc_op = CC_OP_DYNAMIC;
     dc->cs_base = cs_base;
     dc->tb = tb;
     dc->popl_esp_hack = 0;
-    
+
     gen_opc_ptr = gen_opc_buf;
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
     gen_opparam_ptr = gen_opparam_buf;
@@ -4270,13 +4287,14 @@ void cpu_x86_close(CPUX86State *env)
 
 /* called when cr3 or PG bit are modified */
 static int last_pg_state = -1;
+static int last_pe_state = 0;
 int phys_ram_size;
 int phys_ram_fd;
 uint8_t *phys_ram_base;
 
 void cpu_x86_update_cr0(CPUX86State *env)
 {
-    int pg_state;
+    int pg_state, pe_state;
     void *map_addr;
 
 #ifdef DEBUG_MMU
@@ -4303,6 +4321,11 @@ void cpu_x86_update_cr0(CPUX86State *env)
             page_set_flags(0, phys_ram_size, 0);
         }
         last_pg_state = pg_state;
+    }
+    pe_state = env->cr[0] & CR0_PE_MASK;
+    if (last_pe_state != pe_state) {
+        tb_flush();
+        last_pe_state = pe_state;
     }
 }
 
