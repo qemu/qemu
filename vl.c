@@ -1538,6 +1538,9 @@ void net_slirp_smb(const char *exported_dir)
     }
     fprintf(f, 
             "[global]\n"
+            "private dir=%s\n"
+            "smb ports=0\n"
+            "socket address=127.0.0.1\n"
             "pid directory=%s\n"
             "lock directory=%s\n"
             "log file=%s/log.smbd\n"
@@ -1547,6 +1550,7 @@ void net_slirp_smb(const char *exported_dir)
             "path=%s\n"
             "read only=no\n"
             "guest ok=yes\n",
+            smb_dir,
             smb_dir,
             smb_dir,
             smb_dir,
