@@ -51,6 +51,7 @@ endif
 	mkdir -p "$(datadir)"
 	install -m 644 pc-bios/bios.bin pc-bios/vgabios.bin \
                        pc-bios/vgabios-cirrus.bin \
+                       pc-bios/ppc_rom.bin \
                        pc-bios/linux_boot.bin "$(datadir)"
 	mkdir -p "$(docdir)"
 	install -m 644 qemu-doc.html  qemu-tech.html "$(docdir)"
@@ -99,6 +100,7 @@ tarbin:
 	$(datadir)/bios.bin \
 	$(datadir)/vgabios.bin \
 	$(datadir)/vgabios-cirrus.bin \
+	$(datadir)/ppc_rom.bin \
 	$(datadir)/linux_boot.bin \
 	$(docdir)/qemu-doc.html \
 	$(docdir)/qemu-tech.html \
