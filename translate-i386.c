@@ -76,21 +76,16 @@ static void inline flush_icache_range(unsigned long start, unsigned long stop)
 extern FILE *logfile;
 extern int loglevel;
 
-#define PREFIX_REPZ 1
-#define PREFIX_REPNZ 2
-#define PREFIX_LOCK 4
-#define PREFIX_CS 8
-#define PREFIX_SS 0x10
-#define PREFIX_DS 0x20
-#define PREFIX_ES 0x40
-#define PREFIX_FS 0x80
-#define PREFIX_GS 0x100
-#define PREFIX_DATA 0x200
-#define PREFIX_ADR 0x400
-#define PREFIX_FWAIT 0x800
+#define PREFIX_REPZ   0x01
+#define PREFIX_REPNZ  0x02
+#define PREFIX_LOCK   0x04
+#define PREFIX_DATA   0x08
+#define PREFIX_ADR    0x10
+#define PREFIX_FWAIT  0x20
 
 typedef struct DisasContext {
     /* current insn context */
+    int override; /* -1 if no override */
     int prefix;
     int aflag, dflag;
     uint8_t *pc; /* pc = eip + cs_base */
@@ -103,6 +98,7 @@ typedef struct DisasContext {
     int cc_op;  /* current CC operation */
     int addseg; /* non zero if either DS/ES/SS have a non zero base */
     int f_st;   /* currently unused */
+    int vm86;   /* vm86 mode */
 } DisasContext;
 
 /* i386 arith/logic operations */
@@ -130,7 +126,7 @@ enum {
 };
 
 enum {
-#define DEF(s) INDEX_op_ ## s,
+#define DEF(s, n) INDEX_op_ ## s,
 #include "opc-i386.h"
 #undef DEF
     NB_OPS,
@@ -556,75 +552,99 @@ static GenOpFunc *gen_op_st_T0_A0[3] = {
     gen_op_stl_T0_A0,
 };
 
-static GenOpFunc *gen_op_movs[6] = {
-    gen_op_movsb,
-    gen_op_movsw,
-    gen_op_movsl,
-    gen_op_rep_movsb,
-    gen_op_rep_movsw,
-    gen_op_rep_movsl,
+/* the _a32 and _a16 string operations use A0 as the base register. */
+
+#define STRINGOP(x) \
+    gen_op_ ## x ## b_fast, \
+    gen_op_ ## x ## w_fast, \
+    gen_op_ ## x ## l_fast, \
+    gen_op_ ## x ## b_a32, \
+    gen_op_ ## x ## w_a32, \
+    gen_op_ ## x ## l_a32, \
+    gen_op_ ## x ## b_a16, \
+    gen_op_ ## x ## w_a16, \
+    gen_op_ ## x ## l_a16,
+     
+static GenOpFunc *gen_op_movs[9 * 2] = {
+    STRINGOP(movs)
+    STRINGOP(rep_movs)
 };
 
-static GenOpFunc *gen_op_stos[6] = {
-    gen_op_stosb,
-    gen_op_stosw,
-    gen_op_stosl,
-    gen_op_rep_stosb,
-    gen_op_rep_stosw,
-    gen_op_rep_stosl,
+static GenOpFunc *gen_op_stos[9 * 2] = {
+    STRINGOP(stos)
+    STRINGOP(rep_stos)
 };
 
-static GenOpFunc *gen_op_lods[6] = {
-    gen_op_lodsb,
-    gen_op_lodsw,
-    gen_op_lodsl,
-    gen_op_rep_lodsb,
-    gen_op_rep_lodsw,
-    gen_op_rep_lodsl,
+static GenOpFunc *gen_op_lods[9 * 2] = {
+    STRINGOP(lods)
+    STRINGOP(rep_lods)
 };
 
-static GenOpFunc *gen_op_scas[9] = {
-    gen_op_scasb,
-    gen_op_scasw,
-    gen_op_scasl,
-    gen_op_repz_scasb,
-    gen_op_repz_scasw,
-    gen_op_repz_scasl,
-    gen_op_repnz_scasb,
-    gen_op_repnz_scasw,
-    gen_op_repnz_scasl,
+static GenOpFunc *gen_op_scas[9 * 3] = {
+    STRINGOP(scas)
+    STRINGOP(repz_scas)
+    STRINGOP(repnz_scas)
 };
 
-static GenOpFunc *gen_op_cmps[9] = {
-    gen_op_cmpsb,
-    gen_op_cmpsw,
-    gen_op_cmpsl,
-    gen_op_repz_cmpsb,
-    gen_op_repz_cmpsw,
-    gen_op_repz_cmpsl,
-    gen_op_repnz_cmpsb,
-    gen_op_repnz_cmpsw,
-    gen_op_repnz_cmpsl,
+static GenOpFunc *gen_op_cmps[9 * 3] = {
+    STRINGOP(cmps)
+    STRINGOP(repz_cmps)
+    STRINGOP(repnz_cmps)
 };
 
-static GenOpFunc *gen_op_ins[6] = {
-    gen_op_insb,
-    gen_op_insw,
-    gen_op_insl,
-    gen_op_rep_insb,
-    gen_op_rep_insw,
-    gen_op_rep_insl,
+static GenOpFunc *gen_op_ins[9 * 2] = {
+    STRINGOP(ins)
+    STRINGOP(rep_ins)
 };
 
 
-static GenOpFunc *gen_op_outs[6] = {
-    gen_op_outsb,
-    gen_op_outsw,
-    gen_op_outsl,
-    gen_op_rep_outsb,
-    gen_op_rep_outsw,
-    gen_op_rep_outsl,
+static GenOpFunc *gen_op_outs[9 * 2] = {
+    STRINGOP(outs)
+    STRINGOP(rep_outs)
 };
+
+
+static inline void gen_string_ds(DisasContext *s, int ot, GenOpFunc **func)
+{
+    int index, override;
+
+    override = s->override;
+    if (s->aflag) {
+        /* 32 bit address */
+        if (s->addseg && override < 0)
+            override = R_DS;
+        if (override >= 0) {
+            gen_op_movl_A0_seg(offsetof(CPUX86State,seg_cache[override].base));
+            index = 3 + ot;
+        } else {
+            index = ot;
+        }
+    } else {
+        if (override < 0)
+            override = R_DS;
+        gen_op_movl_A0_seg(offsetof(CPUX86State,seg_cache[override].base));
+        /* 16 address, always override */
+        index = 6 + ot;
+    }
+    func[index]();
+}
+
+static inline void gen_string_es(DisasContext *s, int ot, GenOpFunc **func)
+{
+    int index;
+            
+    if (s->aflag) {
+        if (s->addseg) {
+            index = 3 + ot;
+        } else {
+            index = ot;
+        }
+    } else {
+        index = 6 + ot;
+    }
+    func[index]();
+}
+
 
 static GenOpFunc *gen_op_in[3] = {
     gen_op_inb_T0_T1,
@@ -849,26 +869,10 @@ static void gen_lea_modrm(DisasContext *s, int modrm, int *reg_ptr, int *offset_
     int opreg;
     int mod, rm, code, override, must_add_seg;
 
-    /* XXX: add a generation time variable to tell if base == 0 in DS/ES/SS */
-    override = -1;
+    override = s->override;
     must_add_seg = s->addseg;
-    if (s->prefix & (PREFIX_CS | PREFIX_SS | PREFIX_DS | 
-                     PREFIX_ES | PREFIX_FS | PREFIX_GS)) {
-        if (s->prefix & PREFIX_ES)
-            override = R_ES;
-        else if (s->prefix & PREFIX_CS)
-            override = R_CS;
-        else if (s->prefix & PREFIX_SS)
-            override = R_SS;
-        else if (s->prefix & PREFIX_DS)
-            override = R_DS;
-        else if (s->prefix & PREFIX_FS)
-            override = R_FS;
-        else
-            override = R_GS;
+    if (override >= 0)
         must_add_seg = 1;
-    }
-
     mod = (modrm >> 6) & 3;
     rm = modrm & 7;
 
@@ -1343,7 +1347,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
     prefixes = 0;
     aflag = s->code32;
     dflag = s->code32;
-    //    cur_pc = s->pc; /* for insn generation */
+    s->override = -1;
  next_byte:
     b = ldub(s->pc);
     s->pc++;
@@ -1359,22 +1363,22 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         prefixes |= PREFIX_LOCK;
         goto next_byte;
     case 0x2e:
-        prefixes |= PREFIX_CS;
+        s->override = R_CS;
         goto next_byte;
     case 0x36:
-        prefixes |= PREFIX_SS;
+        s->override = R_SS;
         goto next_byte;
     case 0x3e:
-        prefixes |= PREFIX_DS;
+        s->override = R_DS;
         goto next_byte;
     case 0x26:
-        prefixes |= PREFIX_ES;
+        s->override = R_ES;
         goto next_byte;
     case 0x64:
-        prefixes |= PREFIX_FS;
+        s->override = R_FS;
         goto next_byte;
     case 0x65:
-        prefixes |= PREFIX_GS;
+        s->override = R_GS;
         goto next_byte;
     case 0x66:
         prefixes |= PREFIX_DATA;
@@ -1830,6 +1834,17 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         }
         s->cc_op = CC_OP_SUBB + ot;
         break;
+    case 0x1c7: /* cmpxchg8b */
+        modrm = ldub(s->pc++);
+        mod = (modrm >> 6) & 3;
+        if (mod == 3)
+            goto illegal_op;
+        if (s->cc_op != CC_OP_DYNAMIC)
+            gen_op_set_cc_op(s->cc_op);
+        gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+        gen_op_cmpxchg8b();
+        s->cc_op = CC_OP_EFLAGS;
+        break;
         
         /**************************/
         /* push/pop */
@@ -2027,8 +2042,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         modrm = ldub(s->pc++);
         reg = (modrm >> 3) & 7;
         /* we must ensure that no segment is added */
-        s->prefix &= ~(PREFIX_CS | PREFIX_SS | PREFIX_DS | 
-                       PREFIX_ES | PREFIX_FS | PREFIX_GS);
+        s->override = -1;
         val = s->addseg;
         s->addseg = 0;
         gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
@@ -2050,26 +2064,14 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             offset_addr = insn_get(s, OT_WORD);
         gen_op_movl_A0_im(offset_addr);
         /* handle override */
-        /* XXX: factorize that */
         {
             int override, must_add_seg;
-            override = R_DS;
             must_add_seg = s->addseg;
-            if (s->prefix & (PREFIX_CS | PREFIX_SS | PREFIX_DS | 
-                             PREFIX_ES | PREFIX_FS | PREFIX_GS)) {
-                if (s->prefix & PREFIX_ES)
-                    override = R_ES;
-                else if (s->prefix & PREFIX_CS)
-                    override = R_CS;
-                else if (s->prefix & PREFIX_SS)
-                    override = R_SS;
-                else if (s->prefix & PREFIX_DS)
-                    override = R_DS;
-                else if (s->prefix & PREFIX_FS)
-                    override = R_FS;
-                else
-                    override = R_GS;
+            if (s->override >= 0) {
+                override = s->override;
                 must_add_seg = 1;
+            } else {
+                override = R_DS;
             }
             if (must_add_seg) {
                 gen_op_addl_A0_seg(offsetof(CPUX86State,seg_cache[override].base));
@@ -2084,31 +2086,20 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         }
         break;
     case 0xd7: /* xlat */
-        /* handle override */
         gen_op_movl_A0_reg[R_EBX]();
         gen_op_addl_A0_AL();
         if (s->aflag == 0)
             gen_op_andl_A0_ffff();
-        /* XXX: factorize that */
+        /* handle override */
         {
             int override, must_add_seg;
-            override = R_DS;
             must_add_seg = s->addseg;
-            if (s->prefix & (PREFIX_CS | PREFIX_SS | PREFIX_DS | 
-                             PREFIX_ES | PREFIX_FS | PREFIX_GS)) {
-                if (s->prefix & PREFIX_ES)
-                    override = R_ES;
-                else if (s->prefix & PREFIX_CS)
-                    override = R_CS;
-                else if (s->prefix & PREFIX_SS)
-                    override = R_SS;
-                else if (s->prefix & PREFIX_DS)
-                    override = R_DS;
-                else if (s->prefix & PREFIX_FS)
-                    override = R_FS;
-                else
-                    override = R_GS;
+            override = R_DS;
+            if (s->override >= 0) {
+                override = s->override;
                 must_add_seg = 1;
+            } else {
+                override = R_DS;
             }
             if (must_add_seg) {
                 gen_op_addl_A0_seg(offsetof(CPUX86State,seg_cache[override].base));
@@ -2185,6 +2176,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         mod = (modrm >> 6) & 3;
         if (mod == 3)
             goto illegal_op;
+        gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
         gen_op_ld_T1_A0[ot]();
         gen_op_addl_A0_im(1 << (ot - OT_WORD + 1));
         /* load the segment first to handle exceptions properly */
@@ -2658,16 +2650,18 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         break;
         /************************/
         /* string ops */
+
     case 0xa4: /* movsS */
     case 0xa5:
         if ((b & 1) == 0)
             ot = OT_BYTE;
         else
             ot = dflag ? OT_LONG : OT_WORD;
+
         if (prefixes & PREFIX_REPZ) {
-            gen_op_movs[3 + ot]();
+            gen_string_ds(s, ot, gen_op_movs + 9);
         } else {
-            gen_op_movs[ot]();
+            gen_string_ds(s, ot, gen_op_movs);
         }
         break;
         
@@ -2677,10 +2671,11 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             ot = OT_BYTE;
         else
             ot = dflag ? OT_LONG : OT_WORD;
+
         if (prefixes & PREFIX_REPZ) {
-            gen_op_stos[3 + ot]();
+            gen_string_es(s, ot, gen_op_stos + 9);
         } else {
-            gen_op_stos[ot]();
+            gen_string_es(s, ot, gen_op_stos);
         }
         break;
     case 0xac: /* lodsS */
@@ -2690,9 +2685,9 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         else
             ot = dflag ? OT_LONG : OT_WORD;
         if (prefixes & PREFIX_REPZ) {
-            gen_op_lods[3 + ot]();
+            gen_string_ds(s, ot, gen_op_lods + 9);
         } else {
-            gen_op_lods[ot]();
+            gen_string_ds(s, ot, gen_op_lods);
         }
         break;
     case 0xae: /* scasS */
@@ -2700,19 +2695,19 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         if ((b & 1) == 0)
             ot = OT_BYTE;
         else
-            ot = dflag ? OT_LONG : OT_WORD;
+                ot = dflag ? OT_LONG : OT_WORD;
         if (prefixes & PREFIX_REPNZ) {
             if (s->cc_op != CC_OP_DYNAMIC)
                 gen_op_set_cc_op(s->cc_op);
-            gen_op_scas[6 + ot]();
+            gen_string_es(s, ot, gen_op_scas + 9 * 2);
             s->cc_op = CC_OP_DYNAMIC; /* cannot predict flags after */
         } else if (prefixes & PREFIX_REPZ) {
             if (s->cc_op != CC_OP_DYNAMIC)
                 gen_op_set_cc_op(s->cc_op);
-            gen_op_scas[3 + ot]();
+            gen_string_es(s, ot, gen_op_scas + 9);
             s->cc_op = CC_OP_DYNAMIC; /* cannot predict flags after */
         } else {
-            gen_op_scas[ot]();
+            gen_string_es(s, ot, gen_op_scas);
             s->cc_op = CC_OP_SUBB + ot;
         }
         break;
@@ -2726,21 +2721,18 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         if (prefixes & PREFIX_REPNZ) {
             if (s->cc_op != CC_OP_DYNAMIC)
                 gen_op_set_cc_op(s->cc_op);
-            gen_op_cmps[6 + ot]();
+            gen_string_ds(s, ot, gen_op_cmps + 9 * 2);
             s->cc_op = CC_OP_DYNAMIC; /* cannot predict flags after */
         } else if (prefixes & PREFIX_REPZ) {
             if (s->cc_op != CC_OP_DYNAMIC)
                 gen_op_set_cc_op(s->cc_op);
-            gen_op_cmps[3 + ot]();
+            gen_string_ds(s, ot, gen_op_cmps + 9);
             s->cc_op = CC_OP_DYNAMIC; /* cannot predict flags after */
         } else {
-            gen_op_cmps[ot]();
+            gen_string_ds(s, ot, gen_op_cmps);
             s->cc_op = CC_OP_SUBB + ot;
         }
         break;
-        
-        /************************/
-        /* port I/O */
     case 0x6c: /* insS */
     case 0x6d:
         if ((b & 1) == 0)
@@ -2748,9 +2740,9 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         else
             ot = dflag ? OT_LONG : OT_WORD;
         if (prefixes & PREFIX_REPZ) {
-            gen_op_ins[3 + ot]();
+            gen_string_es(s, ot, gen_op_ins + 9);
         } else {
-            gen_op_ins[ot]();
+            gen_string_es(s, ot, gen_op_ins);
         }
         break;
     case 0x6e: /* outsS */
@@ -2760,11 +2752,14 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         else
             ot = dflag ? OT_LONG : OT_WORD;
         if (prefixes & PREFIX_REPZ) {
-            gen_op_outs[3 + ot]();
+            gen_string_ds(s, ot, gen_op_outs + 9);
         } else {
-            gen_op_outs[ot]();
+            gen_string_ds(s, ot, gen_op_outs);
         }
         break;
+
+        /************************/
+        /* port I/O */
     case 0xe4:
     case 0xe5:
         if ((b & 1) == 0)
@@ -3150,14 +3145,27 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
     case 0xcd: /* int N */
         val = ldub(s->pc++);
         /* XXX: currently we ignore the interrupt number */
-        gen_op_int_im((long)pc_start);
+        gen_op_int_im(pc_start - s->cs_base);
         s->is_jmp = 1;
         break;
     case 0xce: /* into */
         if (s->cc_op != CC_OP_DYNAMIC)
             gen_op_set_cc_op(s->cc_op);
-        gen_op_into((long)pc_start, (long)s->pc);
-        s->is_jmp = 1;
+        gen_op_into();
+        break;
+    case 0x62: /* bound */
+        ot = dflag ? OT_LONG : OT_WORD;
+        modrm = ldub(s->pc++);
+        reg = (modrm >> 3) & 7;
+        mod = (modrm >> 6) & 3;
+        if (mod == 3)
+            goto illegal_op;
+        gen_op_mov_reg_T0[ot][reg]();
+        gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+        if (ot == OT_WORD)
+            gen_op_boundw();
+        else
+            gen_op_boundl();
         break;
     case 0x1c8 ... 0x1cf: /* bswap reg */
         reg = b & 7;
@@ -3188,11 +3196,9 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
     case 0x131: /* rdtsc */
         gen_op_rdtsc();
         break;
-#if 0
     case 0x1a2: /* cpuid */
-        gen_insn0(OP_ASM);
+        gen_op_cpuid();
         break;
-#endif
     default:
         goto illegal_op;
     }
@@ -3399,28 +3405,30 @@ static uint16_t opc_write_flags[NB_OPS] = {
     [INDEX_op_bsrw_T0_cc] = CC_OSZAPC,
     [INDEX_op_bsrl_T0_cc] = CC_OSZAPC,
 
-    [INDEX_op_scasb] = CC_OSZAPC,
-    [INDEX_op_scasw] = CC_OSZAPC,
-    [INDEX_op_scasl] = CC_OSZAPC,
-    [INDEX_op_repz_scasb] = CC_OSZAPC,
-    [INDEX_op_repz_scasw] = CC_OSZAPC,
-    [INDEX_op_repz_scasl] = CC_OSZAPC,
-    [INDEX_op_repnz_scasb] = CC_OSZAPC,
-    [INDEX_op_repnz_scasw] = CC_OSZAPC,
-    [INDEX_op_repnz_scasl] = CC_OSZAPC,
+#undef STRINGOP
+#define STRINGOP(x) \
+    [INDEX_op_ ## x ## b_fast] = CC_OSZAPC, \
+    [INDEX_op_ ## x ## w_fast] = CC_OSZAPC, \
+    [INDEX_op_ ## x ## l_fast] = CC_OSZAPC, \
+    [INDEX_op_ ## x ## b_a32] = CC_OSZAPC, \
+    [INDEX_op_ ## x ## w_a32] = CC_OSZAPC, \
+    [INDEX_op_ ## x ## l_a32] = CC_OSZAPC, \
+    [INDEX_op_ ## x ## b_a16] = CC_OSZAPC, \
+    [INDEX_op_ ## x ## w_a16] = CC_OSZAPC, \
+    [INDEX_op_ ## x ## l_a16] = CC_OSZAPC,
 
-    [INDEX_op_cmpsb] = CC_OSZAPC,
-    [INDEX_op_cmpsw] = CC_OSZAPC,
-    [INDEX_op_cmpsl] = CC_OSZAPC,
-    [INDEX_op_repz_cmpsb] = CC_OSZAPC,
-    [INDEX_op_repz_cmpsw] = CC_OSZAPC,
-    [INDEX_op_repz_cmpsl] = CC_OSZAPC,
-    [INDEX_op_repnz_cmpsb] = CC_OSZAPC,
-    [INDEX_op_repnz_cmpsw] = CC_OSZAPC,
-    [INDEX_op_repnz_cmpsl] = CC_OSZAPC,
+    STRINGOP(scas)
+    STRINGOP(repz_scas)
+    STRINGOP(repnz_scas)
+    STRINGOP(cmps)
+    STRINGOP(repz_cmps)
+    STRINGOP(repnz_cmps)
 
+    [INDEX_op_cmpxchgb_T0_T1_EAX_cc] = CC_OSZAPC,
     [INDEX_op_cmpxchgw_T0_T1_EAX_cc] = CC_OSZAPC,
     [INDEX_op_cmpxchgl_T0_T1_EAX_cc] = CC_OSZAPC,
+
+    [INDEX_op_cmpxchg8b] = CC_Z,
 };
 
 /* simpler form of an operation if no flags need to be generated */
@@ -3495,21 +3503,36 @@ static void optimize_flags(uint16_t *opc_buf, int opc_buf_len)
 
 #ifdef DEBUG_DISAS
 static const char *op_str[] = {
-#define DEF(s) #s,
+#define DEF(s, n) #s,
 #include "opc-i386.h"
 #undef DEF
 };
 
-static void dump_ops(const uint16_t *opc_buf)
+static uint8_t op_nb_args[] = {
+#define DEF(s, n) n,
+#include "opc-i386.h"
+#undef DEF
+};
+
+static void dump_ops(const uint16_t *opc_buf, const uint32_t *opparam_buf)
 {
     const uint16_t *opc_ptr;
-    int c;
+    const uint32_t *opparam_ptr;
+    int c, n, i;
+
     opc_ptr = opc_buf;
+    opparam_ptr = opparam_buf;
     for(;;) {
         c = *opc_ptr++;
-        fprintf(logfile, "0x%04x: %s\n", opc_ptr - opc_buf - 1, op_str[c]);
+        n = op_nb_args[c];
+        fprintf(logfile, "0x%04x: %s", opc_ptr - opc_buf - 1, op_str[c]);
+        for(i = 0; i < n; i++) {
+            fprintf(logfile, " 0x%x", opparam_ptr[i]);
+        }
+        fprintf(logfile, "\n");
         if (c == INDEX_op_end)
             break;
+        opparam_ptr += n;
     }
 }
 
@@ -3547,6 +3570,7 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size,
     dc->ss32 = (flags >> GEN_FLAG_SS32_SHIFT) & 1;
     dc->addseg = (flags >> GEN_FLAG_ADDSEG_SHIFT) & 1;
     dc->f_st = (flags >> GEN_FLAG_ST_SHIFT) & 7;
+    dc->vm86 = (flags >> GEN_FLAG_VM_SHIFT) & 1;
     dc->cc_op = CC_OP_DYNAMIC;
     dc->cs_base = cs_base;
 
@@ -3610,7 +3634,7 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size,
         fprintf(logfile, "\n");
         
         fprintf(logfile, "OP:\n");
-        dump_ops(gen_opc_buf);
+        dump_ops(gen_opc_buf, gen_opparam_buf);
         fprintf(logfile, "\n");
     }
 #endif
@@ -3621,7 +3645,7 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size,
 #ifdef DEBUG_DISAS
     if (loglevel) {
         fprintf(logfile, "AFTER FLAGS OPT:\n");
-        dump_ops(gen_opc_buf);
+        dump_ops(gen_opc_buf, gen_opparam_buf);
         fprintf(logfile, "\n");
     }
 #endif
@@ -3683,8 +3707,8 @@ CPUX86State *cpu_x86_init(void)
     for(i = 0;i < 8; i++)
         env->fptags[i] = 1;
     env->fpuc = 0x37f;
-    /* flags setup */
-    env->eflags = 0;
+    /* flags setup : we activate the IRQs by default as in user mode */
+    env->eflags = 0x2 | IF_MASK;
 
     /* init various static tables */
     if (!inited) {
