@@ -546,8 +546,7 @@ static void disas_arm_insn(DisasContext *s)
                 rn = (insn >> 16) & 0xf;
                 rd = (insn >> 12) & 0xf;
                 gen_movl_T1_reg(s, rn);
-                if (insn & (1 << 25))
-                    gen_add_datah_offset(s, insn);
+                gen_add_datah_offset(s, insn);
                 if (insn & (1 << 20)) {
                     /* load */
                     switch(sh) {
@@ -562,8 +561,10 @@ static void disas_arm_insn(DisasContext *s)
                         gen_op_ldsw_T0_T1();
                         break;
                     }
+                    gen_movl_reg_T0(s, rd);
                 } else {
                     /* store */
+                    gen_movl_T0_reg(s, rd);
                     gen_op_stw_T0_T1();
                 }
                 if (!(insn & (1 << 24))) {
