@@ -57,6 +57,7 @@
 
 int speaker_data_on;
 int dummy_refresh_clock;
+static fdctrl_t *floppy_controller;
 
 static void ioport80_write(void *opaque, uint32_t addr, uint32_t data)
 {
@@ -106,8 +107,8 @@ static void cmos_init(int ram_size, int boot_device)
 
     /* floppy type */
 
-    fd0 = fdctrl_get_drive_type(0);
-    fd1 = fdctrl_get_drive_type(1);
+    fd0 = fdctrl_get_drive_type(floppy_controller, 0);
+    fd1 = fdctrl_get_drive_type(floppy_controller, 1);
 
     s->cmos_data[0x10] = 0;
     switch (fd0) {
@@ -370,7 +371,7 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
     DMA_init();
     SB16_init();
 
-    fdctrl_init(6, 2, 0, 0x3f0, fd_table);
+    floppy_controller = fdctrl_init(6, 2, 0, 0x3f0, fd_table);
 
     cmos_init(ram_size, boot_device);
 }

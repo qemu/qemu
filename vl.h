@@ -186,9 +186,12 @@ void SB16_init (void);
 #define MAX_FD 2
 extern BlockDriverState *fd_table[MAX_FD];
 
-void fdctrl_init (int irq_lvl, int dma_chann, int mem_mapped, uint32_t base,
-                  BlockDriverState **fds);
-int fdctrl_get_drive_type(int drive_num);
+typedef struct fdctrl_t fdctrl_t;
+
+fdctrl_t *fdctrl_init (int irq_lvl, int dma_chann, int mem_mapped, 
+                       uint32_t io_base,
+                       BlockDriverState **fds);
+int fdctrl_get_drive_type(fdctrl_t *fdctrl, int drive_num);
 
 /* ne2000.c */
 
