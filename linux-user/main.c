@@ -63,6 +63,7 @@ void gemu_log(const char *fmt, ...)
     va_end(ap);
 }
 
+#ifdef TARGET_I386
 /***********************************************************/
 /* CPUX86 core interface */
 
@@ -238,20 +239,76 @@ void cpu_loop(CPUX86State *env)
         process_pending_signals(env);
     }
 }
+#endif
+
+#ifdef TARGET_ARM
+
+#define ARM_SYSCALL_BASE	0x900000
+
+void cpu_loop(CPUARMState *env)
+{
+    int trapnr;
+    unsigned int n, insn;
+    target_siginfo_t info;
+    
+    for(;;) {
+        trapnr = cpu_arm_exec(env);
+        switch(trapnr) {
+        case EXCP_UDEF:
+            info.si_signo = SIGILL;
+            info.si_errno = 0;
+            info.si_code = TARGET_ILL_ILLOPN;
+            info._sifields._sigfault._addr = env->regs[15];
+            queue_signal(info.si_signo, &info);
+            break;
+        case EXCP_SWI:
+            {
+                /* system call */
+                insn = ldl((void *)(env->regs[15] - 4));
+                n = insn & 0xffffff;
+                if (n >= ARM_SYSCALL_BASE) {
+                    /* linux syscall */
+                    n -= ARM_SYSCALL_BASE;
+                    env->regs[0] = do_syscall(env, 
+                                              n, 
+                                              env->regs[0],
+                                              env->regs[1],
+                                              env->regs[2],
+                                              env->regs[3],
+                                              env->regs[4],
+                                              0);
+                } else {
+                    goto error;
+                }
+            }
+            break;
+        default:
+        error:
+            fprintf(stderr, "qemu: unhandled CPU exception 0x%x - aborting\n", 
+                    trapnr);
+            cpu_arm_dump_state(env, stderr, 0);
+            abort();
+        }
+        process_pending_signals(env);
+    }
+}
+
+#endif
 
 void usage(void)
 {
     printf("qemu version " QEMU_VERSION ", Copyright (c) 2003 Fabrice Bellard\n"
            "usage: qemu [-h] [-d] [-L path] [-s size] program [arguments...]\n"
-           "Linux x86 emulator\n"
+           "Linux CPU emulator (compiled for %s emulation)\n"
            "\n"
            "-h           print this help\n"
-           "-L path      set the x86 elf interpreter prefix (default=%s)\n"
-           "-s size      set the x86 stack size in bytes (default=%ld)\n"
+           "-L path      set the elf interpreter prefix (default=%s)\n"
+           "-s size      set the stack size in bytes (default=%ld)\n"
            "\n"
            "debug options:\n"
            "-d           activate log (logfile=%s)\n"
            "-p pagesize  set the host page size to 'pagesize'\n",
+           TARGET_ARCH,
            interp_prefix, 
            x86_stack_size,
            DEBUG_LOGFILE);
@@ -259,7 +316,7 @@ void usage(void)
 }
 
 /* XXX: currently only used for async signals (see signal.c) */
-CPUX86State *global_env;
+CPUState *global_env;
 /* used to free thread contexts */
 TaskState *first_task_state;
 
@@ -269,7 +326,7 @@ int main(int argc, char **argv)
     struct target_pt_regs regs1, *regs = &regs1;
     struct image_info info1, *info = &info1;
     TaskState ts1, *ts = &ts1;
-    CPUX86State *env;
+    CPUState *env;
     int optind;
     const char *r;
     
@@ -337,7 +394,7 @@ int main(int argc, char **argv)
 
     /* NOTE: we need to init the CPU at this stage to get the
        host_page_size */
-    env = cpu_x86_init();
+    env = cpu_init();
 
     if (elf_exec(filename, argv+optind, environ, regs, info) != 0) {
 	printf("Error loading %s\n", filename);
@@ -353,8 +410,7 @@ int main(int argc, char **argv)
         fprintf(logfile, "end_data    0x%08lx\n" , info->end_data);
         fprintf(logfile, "start_stack 0x%08lx\n" , info->start_stack);
         fprintf(logfile, "brk         0x%08lx\n" , info->brk);
-        fprintf(logfile, "esp         0x%08lx\n" , regs->esp);
-        fprintf(logfile, "eip         0x%08lx\n" , regs->eip);
+        fprintf(logfile, "entry       0x%08lx\n" , info->entry);
     }
 
     target_set_brk((char *)info->brk);
@@ -368,6 +424,7 @@ int main(int argc, char **argv)
     env->opaque = ts;
     ts->used = 1;
     
+#if defined(TARGET_I386)
     /* linux register setup */
     env->regs[R_EAX] = regs->eax;
     env->regs[R_EBX] = regs->ebx;
@@ -419,6 +476,17 @@ int main(int argc, char **argv)
     cpu_x86_load_seg(env, R_SS, __USER_DS);
     cpu_x86_load_seg(env, R_FS, __USER_DS);
     cpu_x86_load_seg(env, R_GS, __USER_DS);
+#elif defined(TARGET_ARM)
+    {
+        int i;
+        for(i = 0; i < 16; i++) {
+            env->regs[i] = regs->uregs[i];
+        }
+        env->cpsr = regs->uregs[16];
+    }
+#else
+#error unsupported target CPU
+#endif
 
     cpu_loop(env);
     /* never exits */

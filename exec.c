@@ -70,7 +70,7 @@ unsigned long host_page_mask;
 
 static PageDesc *l1_map[L1_SIZE];
 
-void page_init(void)
+static void page_init(void)
 {
     /* NOTE: we can always suppose that host_page_size >=
        TARGET_PAGE_SIZE */
@@ -190,10 +190,11 @@ void page_set_flags(unsigned long start, unsigned long end, int flags)
     spin_unlock(&tb_lock);
 }
 
-void cpu_x86_tblocks_init(void)
+void cpu_exec_init(void)
 {
     if (!code_gen_ptr) {
         code_gen_ptr = code_gen_buffer;
+        page_init();
     }
 }
 

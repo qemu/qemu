@@ -318,7 +318,7 @@ static void host_signal_handler(int host_signum, siginfo_t *info,
     /* the CPU emulator uses some host signals to detect exceptions,
        we we forward to it some signals */
     if (host_signum == SIGSEGV || host_signum == SIGBUS) {
-        if (cpu_x86_signal_handler(host_signum, info, puc))
+        if (cpu_signal_handler(host_signum, info, puc))
             return;
     }
 
@@ -333,7 +333,7 @@ static void host_signal_handler(int host_signum, siginfo_t *info,
     host_to_target_siginfo_noswap(&tinfo, info);
     if (queue_signal(sig, &tinfo) == 1) {
         /* interrupt the virtual CPU as soon as possible */
-        cpu_x86_interrupt(global_env);
+        cpu_interrupt(global_env);
     }
 }
 
@@ -822,6 +822,33 @@ long do_rt_sigreturn(CPUX86State *env)
 badframe:
 	force_sig(TARGET_SIGSEGV);
 	return 0;
+}
+
+#else
+
+static void setup_frame(int sig, struct emulated_sigaction *ka,
+			target_sigset_t *set, CPUState *env)
+{
+    fprintf(stderr, "setup_frame: not implemented\n");
+}
+
+static void setup_rt_frame(int sig, struct emulated_sigaction *ka, 
+                           target_siginfo_t *info,
+			   target_sigset_t *set, CPUState *env)
+{
+    fprintf(stderr, "setup_rt_frame: not implemented\n");
+}
+
+long do_sigreturn(CPUState *env)
+{
+    fprintf(stderr, "do_sigreturn: not implemented\n");
+    return -ENOSYS;
+}
+
+long do_rt_sigreturn(CPUState *env)
+{
+    fprintf(stderr, "do_rt_sigreturn: not implemented\n");
+    return -ENOSYS;
 }
 
 #endif

@@ -38,6 +38,45 @@
 	   A value of 0 tells we have no such handler.  */
 #define ELF_PLAT_INIT(_r)	_r->edx = 0
 
+static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
+{
+    regs->esp = infop->start_stack;
+    regs->eip = infop->entry;
+}
+
+#define USE_ELF_CORE_DUMP
+#define ELF_EXEC_PAGESIZE	4096
+
+#endif
+
+#ifdef TARGET_ARM
+
+#define ELF_START_MMAP 0x80000000
+
+#define elf_check_arch(x) ( (x) == EM_ARM )
+
+#define ELF_CLASS	ELFCLASS32
+#ifdef TARGET_WORDS_BIGENDIAN
+#define ELF_DATA	ELFDATA2MSB
+#else
+#define ELF_DATA	ELFDATA2LSB
+#endif
+#define ELF_ARCH	EM_ARM
+
+#define ELF_PLAT_INIT(_r)	_r->ARM_r0 = 0
+
+static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
+{
+    target_long *stack = (void *)infop->start_stack;
+    memset(regs, 0, sizeof(*regs));
+    regs->ARM_cpsr = 0x10;
+    regs->ARM_pc = infop->entry;
+    regs->ARM_sp = infop->start_stack;
+    regs->ARM_r2 = tswapl(stack[2]); /* envp */
+    regs->ARM_r1 = tswapl(stack[1]); /* argv */
+    regs->ARM_r0 = tswapl(stack[0]); /* argc */
+}
+
 #define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE	4096
 
@@ -1148,8 +1187,7 @@ int elf_exec(const char * filename, char ** argv, char ** envp,
 	}
         if(retval>=0) {
 	    /* success.  Initialize important registers */
-	    regs->esp = infop->start_stack;
-	    regs->eip = infop->entry;
+            init_thread(regs, infop);
 	    return retval;
 	}
 

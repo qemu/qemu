@@ -18,6 +18,31 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+/* allow to see translation results - the slowdown should be negligible, so we leave it */
+#define DEBUG_DISAS
+
+/* is_jmp field values */
+#define DISAS_NEXT    0 /* next instruction can be analyzed */
+#define DISAS_JUMP    1 /* only pc was modified dynamically */
+#define DISAS_UPDATE  2 /* cpu state was modified dynamically */
+#define DISAS_TB_JUMP 3 /* only pc was modified statically */
+
+struct TranslationBlock;
+
+/* XXX: make safe guess about sizes */
+#define MAX_OP_PER_INSTR 32
+#define OPC_BUF_SIZE 512
+#define OPC_MAX_SIZE (OPC_BUF_SIZE - MAX_OP_PER_INSTR)
+
+#define OPPARAM_BUF_SIZE (OPC_BUF_SIZE * 3)
+
+extern uint16_t gen_opc_buf[OPC_BUF_SIZE];
+extern uint32_t gen_opparam_buf[OPPARAM_BUF_SIZE];
+extern uint32_t gen_opc_pc[OPC_BUF_SIZE];
+extern uint8_t gen_opc_instr_start[OPC_BUF_SIZE];
+
+#if defined(TARGET_I386)
+
 #define GEN_FLAG_CODE32_SHIFT 0
 #define GEN_FLAG_ADDSEG_SHIFT 1
 #define GEN_FLAG_SS32_SHIFT   2
@@ -27,13 +52,18 @@
 #define GEN_FLAG_CPL_SHIFT    9
 #define GEN_FLAG_IOPL_SHIFT   12 /* same position as eflags */
 
-struct TranslationBlock;
-int cpu_x86_gen_code(struct TranslationBlock *tb,
-                     int max_code_size, int *gen_code_size_ptr);
-int cpu_x86_search_pc(struct TranslationBlock *tb, 
-                      uint32_t *found_pc, unsigned long searched_pc);
-void cpu_x86_tblocks_init(void);
-void page_init(void);
+#endif
+
+extern FILE *logfile;
+extern int loglevel;
+
+int gen_intermediate_code(struct TranslationBlock *tb, int search_pc);
+void dump_ops(const uint16_t *opc_buf, const uint32_t *opparam_buf);
+int cpu_gen_code(struct TranslationBlock *tb,
+                 int max_code_size, int *gen_code_size_ptr);
+int cpu_search_pc(struct TranslationBlock *tb, 
+                  uint32_t *found_pc, unsigned long searched_pc);
+void cpu_exec_init(void);
 int page_unprotect(unsigned long address);
 
 #define CODE_GEN_MAX_SIZE        65536
@@ -165,6 +195,33 @@ TranslationBlock *tb_find_pc(unsigned long pc_ptr);
 
 #ifndef offsetof
 #define offsetof(type, field) ((size_t) &((type *)0)->field)
+#endif
+
+#if defined(__powerpc__)
+
+/* on PowerPC we patch the jump instruction directly */
+#define JUMP_TB(tbparam, n, eip)\
+do {\
+    static void __attribute__((unused)) *__op_label ## n = &&label ## n;\
+    asm volatile ("b %0" : : "i" (&__op_jmp ## n));\
+label ## n:\
+    T0 = (long)(tbparam) + (n);\
+    EIP = eip;\
+} while (0)
+
+#else
+
+/* jump to next block operations (more portable code, does not need
+   cache flushing, but slower because of indirect jump) */
+#define JUMP_TB(tbparam, n, eip)\
+do {\
+    static void __attribute__((unused)) *__op_label ## n = &&label ## n;\
+    goto *(void *)(((TranslationBlock *)tbparam)->tb_next[n]);\
+label ## n:\
+    T0 = (long)(tbparam) + (n);\
+    EIP = eip;\
+} while (0)
+
 #endif
 
 #ifdef __powerpc__
