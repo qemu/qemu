@@ -233,6 +233,7 @@ int nographic;
 int term_inited;
 int64_t ticks_per_sec;
 int boot_device = 'c';
+static int ram_size;
 
 /***********************************************************/
 /* x86 io ports */
@@ -610,7 +611,7 @@ void cmos_init(void)
     cmos_data[REG_EQUIPMENT_BYTE] |= 0x04; /* PS/2 mouse installed */
 
     /* memory size */
-    val = (phys_ram_size / 1024) - 1024;
+    val = (ram_size / 1024) - 1024;
     if (val > 65535)
         val = 65535;
     cmos_data[0x17] = val;
@@ -618,7 +619,7 @@ void cmos_init(void)
     cmos_data[0x30] = val;
     cmos_data[0x31] = val >> 8;
 
-    val = (phys_ram_size / 65536) - ((16 * 1024 * 1024) / 65536);
+    val = (ram_size / 65536) - ((16 * 1024 * 1024) / 65536);
     if (val > 65535)
         val = 65535;
     cmos_data[0x34] = val;
@@ -3312,7 +3313,7 @@ extern void __sigaction();
 int main(int argc, char **argv)
 {
     int c, ret, initrd_size, i, use_gdbstub, gdbstub_port, long_index;
-    int snapshot, linux_boot, total_ram_size;
+    int snapshot, linux_boot;
 #if defined (TARGET_I386)
     struct linux_params *params;
 #endif
@@ -3331,7 +3332,7 @@ int main(int argc, char **argv)
         fd_filename[i] = NULL;
     for(i = 0; i < MAX_DISKS; i++)
         hd_filename[i] = NULL;
-    phys_ram_size = 32 * 1024 * 1024;
+    ram_size = 32 * 1024 * 1024;
     vga_ram_size = VGA_RAM_SIZE;
 #if defined (TARGET_I386)
     pstrcpy(network_script, sizeof(network_script), DEFAULT_NETWORK_SCRIPT);
@@ -3425,10 +3426,10 @@ int main(int argc, char **argv)
             help();
             break;
         case 'm':
-            phys_ram_size = atoi(optarg) * 1024 * 1024;
-            if (phys_ram_size <= 0)
+            ram_size = atoi(optarg) * 1024 * 1024;
+            if (ram_size <= 0)
                 help();
-            if (phys_ram_size > PHYS_RAM_MAX_SIZE) {
+            if (ram_size > PHYS_RAM_MAX_SIZE) {
                 fprintf(stderr, "qemu: at most %d MB RAM can be simulated\n",
                         PHYS_RAM_MAX_SIZE / (1024 * 1024));
                 exit(1);
@@ -3489,10 +3490,10 @@ int main(int argc, char **argv)
 #endif
 
     /* init the memory */
-    total_ram_size = phys_ram_size + vga_ram_size;
+    phys_ram_size = ram_size + vga_ram_size;
 
 #ifdef CONFIG_SOFTMMU
-    phys_ram_base = malloc(total_ram_size);
+    phys_ram_base = memalign(TARGET_PAGE_SIZE, phys_ram_size);
     if (!phys_ram_base) {
         fprintf(stderr, "Could not allocate physical memory\n");
         exit(1);
@@ -3518,10 +3519,10 @@ int main(int argc, char **argv)
                     phys_ram_file);
             exit(1);
         }
-        ftruncate(phys_ram_fd, total_ram_size);
+        ftruncate(phys_ram_fd, phys_ram_size);
         unlink(phys_ram_file);
-        phys_ram_base = mmap(get_mmap_addr(total_ram_size), 
-                             total_ram_size, 
+        phys_ram_base = mmap(get_mmap_addr(phys_ram_size), 
+                             phys_ram_size, 
                              PROT_WRITE | PROT_READ, MAP_SHARED | MAP_FIXED, 
                              phys_ram_fd, 0);
         if (phys_ram_base == MAP_FAILED) {
@@ -3551,7 +3552,7 @@ int main(int argc, char **argv)
     init_ioports();
 
     /* allocate RAM */
-    cpu_register_physical_memory(0, phys_ram_size, 0);
+    cpu_register_physical_memory(0, ram_size, 0);
 
     if (linux_boot) {
         /* now we can load the kernel */
@@ -3580,7 +3581,7 @@ int main(int argc, char **argv)
         params->mount_root_rdonly = 0;
         stw_raw(&params->cl_magic, 0xA33F);
         stw_raw(&params->cl_offset, params->commandline - (uint8_t *)params);
-        stl_raw(&params->alt_mem_k, (phys_ram_size / 1024) - 1024);
+        stl_raw(&params->alt_mem_k, (ram_size / 1024) - 1024);
         pstrcat(params->commandline, sizeof(params->commandline), kernel_cmdline);
         params->loader_type = 0x01;
         if (initrd_size > 0) {
@@ -3617,7 +3618,7 @@ int main(int argc, char **argv)
         env->regs[R_ESI] = KERNEL_PARAMS_ADDR;
         env->eflags = 0x2;
 #elif defined (TARGET_PPC)
-        PPC_init_hw(env, phys_ram_size, KERNEL_LOAD_ADDR, ret,
+        PPC_init_hw(env, ram_size, KERNEL_LOAD_ADDR, ret,
                     KERNEL_STACK_ADDR, boot_device);
 #endif
     } else {
@@ -3669,7 +3670,7 @@ int main(int argc, char **argv)
     /* init basic PC hardware */
     register_ioport_write(0x80, 1, ioport80_write, 1);
 
-    vga_initialize(ds, phys_ram_base + phys_ram_size, phys_ram_size, 
+    vga_initialize(ds, phys_ram_base + ram_size, ram_size, 
              vga_ram_size);
 #if defined (TARGET_I386)
     cmos_init();

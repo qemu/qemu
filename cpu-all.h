@@ -500,6 +500,7 @@ int cpu_inl(CPUState *env, int addr);
 extern int phys_ram_size;
 extern int phys_ram_fd;
 extern uint8_t *phys_ram_base;
+extern uint8_t *phys_ram_dirty;
 
 /* physical memory access */
 #define IO_MEM_NB_ENTRIES  256
@@ -509,9 +510,11 @@ extern uint8_t *phys_ram_base;
 #define IO_MEM_RAM         (0 << IO_MEM_SHIFT) /* hardcoded offset */
 #define IO_MEM_ROM         (1 << IO_MEM_SHIFT) /* hardcoded offset */
 #define IO_MEM_UNASSIGNED  (2 << IO_MEM_SHIFT)
-#define IO_MEM_CODE        (3 << IO_MEM_SHIFT)
+#define IO_MEM_CODE        (3 << IO_MEM_SHIFT) /* used internally, never use directly */
+#define IO_MEM_NOTDIRTY    (4 << IO_MEM_SHIFT) /* used internally, never use directly */
 
-typedef void CPUWriteMemoryFunc(uint32_t addr, uint32_t value);
+/* NOTE: vaddr is only used internally. Never use it except if you know what you do */
+typedef void CPUWriteMemoryFunc(uint32_t addr, uint32_t value, uint32_t vaddr);
 typedef uint32_t CPUReadMemoryFunc(uint32_t addr);
 
 void cpu_register_physical_memory(unsigned long start_addr, unsigned long size,
@@ -524,6 +527,19 @@ void cpu_physical_memory_rw(CPUState *env, uint8_t *buf, target_ulong addr,
                             int len, int is_write);
 int cpu_memory_rw_debug(CPUState *env, 
                         uint8_t *buf, target_ulong addr, int len, int is_write);
+
+/* read dirty bit (return 0 or 1) */
+static inline int cpu_physical_memory_is_dirty(target_ulong addr)
+{
+    return phys_ram_dirty[addr >> TARGET_PAGE_BITS];
+}
+
+static inline void cpu_physical_memory_set_dirty(target_ulong addr)
+{
+    phys_ram_dirty[addr >> TARGET_PAGE_BITS] = 1;
+}
+
+void cpu_physical_memory_reset_dirty(target_ulong start, target_ulong end);
 
 /* gdb stub API */
 extern int gdbstub_fd;

@@ -530,6 +530,8 @@ static inline target_ulong get_phys_addr_code(CPUState *env, target_ulong addr)
 }
 #else
 /* NOTE: this function can trigger an exception */
+/* NOTE2: the returned address is not exactly the physical address: it
+   is the offset relative to phys_ram_base */
 /* XXX: i386 target specific */
 static inline target_ulong get_phys_addr_code(CPUState *env, target_ulong addr)
 {

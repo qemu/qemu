@@ -76,14 +76,14 @@ static inline void glue(io_write, SUFFIX)(unsigned long physaddr,
 
     index = (tlb_addr >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
 #if SHIFT <= 2
-    io_mem_write[index][SHIFT](physaddr, val);
+    io_mem_write[index][SHIFT](physaddr, val, tlb_addr);
 #else
 #ifdef TARGET_WORDS_BIGENDIAN
-    io_mem_write[index][2](physaddr, val >> 32);
-    io_mem_write[index][2](physaddr + 4, val);
+    io_mem_write[index][2](physaddr, val >> 32, tlb_addr);
+    io_mem_write[index][2](physaddr + 4, val, tlb_addr);
 #else
-    io_mem_write[index][2](physaddr, val);
-    io_mem_write[index][2](physaddr + 4, val >> 32);
+    io_mem_write[index][2](physaddr, val, tlb_addr);
+    io_mem_write[index][2](physaddr + 4, val >> 32, tlb_addr);
 #endif
 #endif /* SHIFT > 2 */
 }
