@@ -48,3 +48,6 @@ static inline void env_to_regs(void)
 static inline void regs_to_env(void)
 {
 }
+
+int cpu_arm_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
+                              int is_user, int is_softmmu);

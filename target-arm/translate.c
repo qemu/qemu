@@ -424,6 +424,7 @@ static void disas_arm_insn(DisasContext *s)
                 gen_op_movl_T0_psr();
                 gen_movl_reg_T0(s, rd);
             }
+            break;
         case 0x1:
             if (op1 == 1) {
                 /* branch/exchange thumb (bx).  */
@@ -1576,3 +1577,23 @@ target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {
     return addr;
 }
+
+#if defined(CONFIG_USER_ONLY) 
+
+int cpu_arm_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
+                              int is_user, int is_softmmu)
+{
+    env->cp15_6 = address;
+    if (rw == 2) {
+        env->exception_index = EXCP_PREFETCH_ABORT;
+    } else {
+        env->exception_index = EXCP_DATA_ABORT;
+    }
+    return 1;
+}
+
+#else
+
+#error not implemented
+
+#endif

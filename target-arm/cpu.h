@@ -24,8 +24,10 @@
 
 #include "cpu-defs.h"
 
-#define EXCP_UDEF       1   /* undefined instruction */
-#define EXCP_SWI        2   /* software interrupt */
+#define EXCP_UDEF            1   /* undefined instruction */
+#define EXCP_SWI             2   /* software interrupt */
+#define EXCP_PREFETCH_ABORT  3
+#define EXCP_DATA_ABORT      4
 
 typedef struct CPUARMState {
     uint32_t regs[16];
@@ -39,6 +41,9 @@ typedef struct CPUARMState {
 
     int thumb; /* 0 = arm mode, 1 = thumb mode */
 
+    /* coprocessor 15 (MMU) status */
+    uint32_t cp15_6;
+    
     /* exception/interrupt handling */
     jmp_buf jmp_env;
     int exception_index;
