@@ -173,6 +173,8 @@ void qemu_del_vm_stop_handler(VMStopHandler *cb, void *opaque);
 void vm_start(void);
 void vm_stop(int reason);
 
+extern int audio_enabled;
+
 /* async I/O support */
 
 typedef void IOReadHandler(void *opaque, const uint8_t *buf, int size);

@@ -401,9 +401,11 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
     DMA_init();
 
 #ifndef _WIN32
-    /* no audio supported yet for win32 */
-    AUD_init();
-    SB16_init();
+    if (audio_enabled) {
+        /* no audio supported yet for win32 */
+        AUD_init();
+        SB16_init();
+    }
 #endif
 
     floppy_controller = fdctrl_init(6, 2, 0, 0x3f0, fd_table);

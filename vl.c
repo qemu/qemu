@@ -111,6 +111,7 @@ NetDriverState nd_table[MAX_NICS];
 SerialState *serial_console;
 QEMUTimer *gui_timer;
 int vm_running;
+int audio_enabled = 0;
 
 /***********************************************************/
 /* x86 io ports */
@@ -1744,8 +1745,10 @@ int main_loop(void)
             qemu_run_timers(&active_timers[QEMU_TIMER_VIRTUAL], 
                             qemu_get_clock(vm_clock));
             
-            /* XXX: add explicit timer */
-            SB16_run();
+            if (audio_enabled) {
+                /* XXX: add explicit timer */
+                SB16_run();
+            }
             
             /* run dma transfers, if any */
             DMA_run();
@@ -1761,7 +1764,7 @@ int main_loop(void)
 
 void help(void)
 {
-    printf("QEMU PC emulator version " QEMU_VERSION ", Copyright (c) 2003 Fabrice Bellard\n"
+    printf("QEMU PC emulator version " QEMU_VERSION ", Copyright (c) 2003-2004 Fabrice Bellard\n"
            "usage: %s [options] [disk_image]\n"
            "\n"
            "'disk_image' is a raw hard image image for IDE hard disk 0\n"
@@ -1775,6 +1778,7 @@ void help(void)
 	   "-snapshot       write to temporary files instead of disk image files\n"
            "-m megs         set virtual RAM size to megs MB\n"
            "-nographic      disable graphical output and redirect serial I/Os to console\n"
+           "-enable-audio   enable audio support\n"
            "\n"
            "Network options:\n"
            "-nics n         simulate 'n' network cards [default=1]\n"
@@ -1842,6 +1846,7 @@ struct option long_options[] = {
     { "macaddr", 1, NULL, 0 },
     { "user-net", 0, NULL, 0 },
     { "dummy-net", 0, NULL, 0 },
+    { "enable-audio", 0, NULL, 0 },
     { NULL, 0, NULL, 0 },
 };
 
@@ -2032,6 +2037,9 @@ int main(int argc, char **argv)
                 break;
             case 19:
                 net_if_type = NET_IF_DUMMY;
+                break;
+            case 20:
+                audio_enabled = 1;
                 break;
             }
             break;
