@@ -492,7 +492,7 @@ static void sdl_refresh(DisplayState *ds)
                     }
                 }
             } else if (ev->type == SDL_KEYUP) {
-                mod_state = (SDL_GetModState() & gui_grab_code);
+                mod_state = (ev->key.keysym.mod & gui_grab_code);
                 if (!mod_state) {
                     if (gui_key_modifier_pressed) {
                         if (gui_keysym == 0) {
