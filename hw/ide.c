@@ -1477,7 +1477,7 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         case WIN_SPECIFY:
         case WIN_RECAL:
             s->error = 0;
-            s->status = READY_STAT;
+            s->status = READY_STAT | SEEK_STAT;
             ide_set_irq(s);
             break;
         case WIN_SETMULT:
@@ -1875,6 +1875,7 @@ static void ide_init2(IDEState *ide_state, int irq,
                     s->heads = 16;
                     s->sectors = 63;
                 }
+                bdrv_set_geometry_hint(s->bs, s->cylinders, s->heads, s->sectors);
             }
             if (bdrv_get_type_hint(s->bs) == BDRV_TYPE_CDROM) {
                 s->is_cdrom = 1;
