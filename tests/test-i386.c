@@ -1,7 +1,13 @@
+#define _GNU_SOURCE
 #include <stdlib.h>
 #include <stdio.h>
 #include <inttypes.h>
 #include <math.h>
+#include <signal.h>
+#include <setjmp.h>
+#include <sys/ucontext.h>
+#include <sys/mman.h>
+#include <asm/vm86.h>
 
 #define TEST_CMOV 0
 
@@ -913,6 +919,316 @@ void test_string(void)
    TEST_STRING(cmps, "repnz ");
 }
 
+/* VM86 test */
+
+static inline void set_bit(uint8_t *a, unsigned int bit)
+{
+    a[bit / 8] |= (1 << (bit % 8));
+}
+
+static inline uint8_t *seg_to_linear(unsigned int seg, unsigned int reg)
+{
+    return (uint8_t *)((seg << 4) + (reg & 0xffff));
+}
+
+static inline void pushw(struct vm86_regs *r, int val)
+{
+    r->esp = (r->esp & ~0xffff) | ((r->esp - 2) & 0xffff);
+    *(uint16_t *)seg_to_linear(r->ss, r->esp) = val;
+}
+
+#undef __syscall_return
+#define __syscall_return(type, res) \
+do { \
+	return (type) (res); \
+} while (0)
+
+_syscall2(int, vm86, int, func, struct vm86plus_struct *, v86)
+
+extern char vm86_code_start;
+extern char vm86_code_end;
+
+#define VM86_CODE_CS 0x100
+#define VM86_CODE_IP 0x100
+
+void test_vm86(void)
+{
+    struct vm86plus_struct ctx;
+    struct vm86_regs *r;
+    uint8_t *vm86_mem;
+    int seg, ret;
+
+    vm86_mem = mmap((void *)0x00000000, 0x110000, 
+                    PROT_WRITE | PROT_READ | PROT_EXEC, 
+                    MAP_FIXED | MAP_ANON | MAP_PRIVATE, -1, 0);
+    if (vm86_mem == MAP_FAILED) {
+        printf("ERROR: could not map vm86 memory");
+        return;
+    }
+    memset(&ctx, 0, sizeof(ctx));
+
+    /* init basic registers */
+    r = &ctx.regs;
+    r->eip = VM86_CODE_IP;
+    r->esp = 0xfffe;
+    seg = VM86_CODE_CS;
+    r->cs = seg;
+    r->ss = seg;
+    r->ds = seg;
+    r->es = seg;
+    r->fs = seg;
+    r->gs = seg;
+    r->eflags = VIF_MASK;
+
+    /* move code to proper address. We use the same layout as a .com
+       dos program. */
+    memcpy(vm86_mem + (VM86_CODE_CS << 4) + VM86_CODE_IP, 
+           &vm86_code_start, &vm86_code_end - &vm86_code_start);
+
+    /* mark int 0x21 as being emulated */
+    set_bit((uint8_t *)&ctx.int_revectored, 0x21);
+
+    for(;;) {
+        ret = vm86(VM86_ENTER, &ctx);
+        switch(VM86_TYPE(ret)) {
+        case VM86_INTx:
+            {
+                int int_num, ah;
+                
+                int_num = VM86_ARG(ret);
+                if (int_num != 0x21)
+                    goto unknown_int;
+                ah = (r->eax >> 8) & 0xff;
+                switch(ah) {
+                case 0x00: /* exit */
+                    goto the_end;
+                case 0x02: /* write char */
+                    {
+                        uint8_t c = r->edx;
+                        putchar(c);
+                    }
+                    break;
+                case 0x09: /* write string */
+                    {
+                        uint8_t c, *ptr;
+                        ptr = seg_to_linear(r->ds, r->edx);
+                        for(;;) {
+                            c = *ptr++;
+                            if (c == '$')
+                                break;
+                            putchar(c);
+                        }
+                        r->eax = (r->eax & ~0xff) | '$';
+                    }
+                    break;
+                case 0xff: /* extension: write hex number in edx */
+                    printf("%08x\n", (int)r->edx);
+                    break;
+                default:
+                unknown_int:
+                    printf("unsupported int 0x%02x\n", int_num);
+                    goto the_end;
+                }
+            }
+            break;
+        case VM86_SIGNAL:
+            /* a signal came, we just ignore that */
+            break;
+        case VM86_STI:
+            break;
+        default:
+            printf("ERROR: unhandled vm86 return code (0x%x)\n", ret);
+            goto the_end;
+        }
+    }
+ the_end:
+    printf("VM86 end\n");
+    munmap(vm86_mem, 0x110000);
+}
+
+/* exception tests */
+#ifndef REG_EAX
+#define REG_EAX EAX
+#define REG_EBX EBX
+#define REG_ECX ECX
+#define REG_EDX EDX
+#define REG_ESI ESI
+#define REG_EDI EDI
+#define REG_EBP EBP
+#define REG_ESP ESP
+#define REG_EIP EIP
+#define REG_EFL EFL
+#define REG_TRAPNO TRAPNO
+#define REG_ERR ERR
+#endif
+
+jmp_buf jmp_env;
+int dump_eip;
+int dump_si_addr;
+int v1;
+int tab[2];
+
+void sig_handler(int sig, siginfo_t *info, void *puc)
+{
+    struct ucontext *uc = puc;
+
+    printf("si_signo=%d si_errno=%d si_code=%d",
+           info->si_signo, info->si_errno, info->si_code);
+    if (dump_si_addr) {
+        printf(" si_addr=0x%08lx",
+               (unsigned long)info->si_addr);
+    }
+    printf("\n");
+
+    printf("trapno=0x%02x err=0x%08x",
+           uc->uc_mcontext.gregs[REG_TRAPNO],
+           uc->uc_mcontext.gregs[REG_ERR]);
+    if (dump_eip)
+        printf(" EIP=0x%08x", uc->uc_mcontext.gregs[REG_EIP]);
+    printf("\n");
+    longjmp(jmp_env, 1);
+}
+
+void test_exceptions(void)
+{
+    struct sigaction act;
+    volatile int val;
+    
+    act.sa_sigaction = sig_handler;
+    sigemptyset(&act.sa_mask);
+    act.sa_flags = SA_SIGINFO;
+    sigaction(SIGFPE, &act, NULL);
+    sigaction(SIGILL, &act, NULL);
+    sigaction(SIGSEGV, &act, NULL);
+    sigaction(SIGTRAP, &act, NULL);
+
+    /* test division by zero reporting */
+    dump_eip = 0;
+    dump_si_addr = 0;
+    printf("DIVZ exception (currently imprecise):\n");
+    if (setjmp(jmp_env) == 0) {
+        /* now divide by zero */
+        v1 = 0;
+        v1 = 2 / v1;
+    }
+
+    dump_si_addr = 1;
+    printf("BOUND exception (currently imprecise):\n");
+    if (setjmp(jmp_env) == 0) {
+        /* bound exception */
+        tab[0] = 1;
+        tab[1] = 10;
+        asm volatile ("bound %0, %1" : : "r" (11), "m" (tab));
+    }
+
+    /* test SEGV reporting */
+    printf("PF exception (currently imprecise):\n");
+    if (setjmp(jmp_env) == 0) {
+        /* now store in an invalid address */
+        *(char *)0x1234 = 1;
+    }
+
+    /* test SEGV reporting */
+    printf("PF exception (currently imprecise):\n");
+    if (setjmp(jmp_env) == 0) {
+        /* read from an invalid address */
+        v1 = *(char *)0x1234;
+    }
+    
+    printf("segment GPF exception (currently imprecise):\n");
+    if (setjmp(jmp_env) == 0) {
+        /* load an invalid segment */
+        asm volatile ("movl %0, %%fs" : : "r" ((0x1234 << 3) | 0));
+    }
+
+    dump_eip = 1;
+    /* test illegal instruction reporting */
+    printf("UD2 exception:\n");
+    if (setjmp(jmp_env) == 0) {
+        /* now execute an invalid instruction */
+        asm volatile("ud2");
+    }
+    
+    printf("INT exception:\n");
+    if (setjmp(jmp_env) == 0) {
+        asm volatile ("int $0xfd");
+    }
+
+    printf("INT3 exception:\n");
+    if (setjmp(jmp_env) == 0) {
+        asm volatile ("int3");
+    }
+
+    printf("CLI exception:\n");
+    if (setjmp(jmp_env) == 0) {
+        asm volatile ("cli");
+    }
+
+    printf("STI exception:\n");
+    if (setjmp(jmp_env) == 0) {
+        asm volatile ("cli");
+    }
+
+    printf("INTO exception:\n");
+    if (setjmp(jmp_env) == 0) {
+        /* overflow exception */
+        asm volatile ("addl $1, %0 ; into" : : "r" (0x7fffffff));
+    }
+
+    printf("OUTB exception:\n");
+    if (setjmp(jmp_env) == 0) {
+        asm volatile ("outb %%al, %%dx" : : "d" (0x4321), "a" (0));
+    }
+
+    printf("INB exception:\n");
+    if (setjmp(jmp_env) == 0) {
+        asm volatile ("inb %%dx, %%al" : "=a" (val) : "d" (0x4321));
+    }
+
+    printf("REP OUTSB exception:\n");
+    if (setjmp(jmp_env) == 0) {
+        asm volatile ("rep outsb" : : "d" (0x4321), "S" (tab), "c" (1));
+    }
+
+    printf("REP INSB exception:\n");
+    if (setjmp(jmp_env) == 0) {
+        asm volatile ("rep insb" : : "d" (0x4321), "D" (tab), "c" (1));
+    }
+
+    printf("HLT exception:\n");
+    if (setjmp(jmp_env) == 0) {
+        asm volatile ("hlt");
+    }
+
+    printf("single step exception:\n");
+    val = 0;
+    if (setjmp(jmp_env) == 0) {
+        asm volatile ("pushf\n"
+                      "orl $0x00100, (%%esp)\n"
+                      "popf\n"
+                      "movl $0xabcd, %0\n" 
+                      "movl $0x0, %0\n" : "=m" (val) : : "cc", "memory");
+    }
+    printf("val=0x%x\n", val);
+}
+
+/* self modifying code test */
+uint8_t code[] = {
+    0xb8, 0x1, 0x00, 0x00, 0x00, /* movl $1, %eax */
+    0xc3, /* ret */
+};
+
+void test_self_modifying_code(void)
+{
+    int (*func)(void);
+
+    func = (void *)code;
+    printf("self modifying code:\n");
+    printf("func1 = 0x%x\n", func());
+    code[1] = 0x2;
+    printf("func1 = 0x%x\n", func());
+}
+    
 static void *call_end __init_call = NULL;
 
 int main(int argc, char **argv)
@@ -936,5 +1252,8 @@ int main(int argc, char **argv)
     test_lea();
     test_segs();
     test_code16();
+    test_vm86();
+    test_exceptions();
+    test_self_modifying_code();
     return 0;
 }
