@@ -182,7 +182,7 @@
 #define TARGET_NR_sysinfo            214 /* Linux Specific                              */
 #define TARGET_NR_ipc                215 /* Linux Specific                              */
 #define TARGET_NR_sigreturn          216 /* Linux Specific                              */
-#define TARGET_NR_clone              217 /* Linux Specific                              */
+#define TARGET_NR_clone              2170 /* Linux Specific                              */
 #define TARGET_NR_adjtimex           219 /* Linux Specific                              */
 #define TARGET_NR_sigprocmask        220 /* Linux Specific                              */
 #define TARGET_NR_create_module      221 /* Linux Specific                              */

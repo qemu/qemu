@@ -20,7 +20,7 @@
 
 #include "exec.h"
 
-/*XXX*/
+ /*XXX*/
 #define REGNAME g0
 #define REG (env->gregs[0])
 #include "op_template.h"
@@ -117,380 +117,545 @@
 #define REGNAME o7
 #define REG (env->regwptr[7])
 #include "op_template.h"
-
 #define EIP (env->pc)
-
-void OPPROTO op_movl_T0_0(void)
-{
-	T0 = 0;
-}
-
-void OPPROTO op_movl_T0_1(void)
-{
-	T0 = 1;
-}
-
-void OPPROTO op_movl_T0_im(void)
-{
-	T0 = PARAM1;
-}
-
-void OPPROTO op_movl_T1_im(void)
-{
-	T1 = PARAM1;
-}
-
-void OPPROTO op_movl_T2_im(void)
-{
-	T2 = PARAM1;
-}
-
-void OPPROTO op_addl_T1_im(void)
-{
-	T1 += PARAM1;
-}
-
-void OPPROTO op_addl_T1_T2(void)
-{
-	T1 += T2;
-}
-
-void OPPROTO op_subl_T1_T2(void)
-{
-	T1 -= T2;
-}
-
-void OPPROTO op_add_T1_T0 (void)
-{
-	T0 += T1;
-}
-
-void OPPROTO op_and_T1_T0 (void)
-{
-	T0 &= T1;
-}
-
-void OPPROTO op_or_T1_T0 (void)
-{
-	T0 |= T1;
-}
-
-void OPPROTO op_xor_T1_T0 (void)
-{
-	T0 ^= T1;
-}
-
-void OPPROTO op_sub_T1_T0 (void)
-{
-	T0 -= T1;
-}
-
-void OPPROTO op_andn_T1_T0 (void)
-{
-	T0 &= ~T1;
-}
-
-void OPPROTO op_orn_T1_T0 (void)
-{
-	T0 |= ~T1;
-}
-
-void OPPROTO op_xnor_T1_T0 (void)
-{
-	T0 ^= ~T1;
-}
-
-void OPPROTO op_addx_T1_T0 (void)
-{
-	T0 += T1+((env->psr & PSR_CARRY)?1:0);
-}
-
-void OPPROTO op_umul_T1_T0 (void)
-{
-	unsigned long long res = T0*T1;
-	T0 = res & 0xffffffff;
-	env->y = res >> 32;
-}
-
-void OPPROTO op_smul_T1_T0 (void)
-{
-	long long res = T0*T1;
-	T0 = res & 0xffffffff;
-	env->y = res >> 32;
-}
-
-void OPPROTO op_udiv_T1_T0 (void)
-{
-	unsigned long long x0 = T0 * env->y;
-	unsigned int x1 = T1;
-	T0 = x0 / x1;
-}
-
-void OPPROTO op_sdiv_T1_T0 (void)
-{
-	long long x0 = T0 * env->y;
-	int x1 = T1;
-	T0 = x0 / x1;
-}
-
-void OPPROTO op_subx_T1_T0 (void)
-{
-	T0 -= T1+((env->psr & PSR_CARRY)?1:0);
-}
-
-void OPPROTO op_set_flags (void)
-{
-	env->psr = 0;
-	if (!T0) env->psr |= PSR_ZERO;
-	if ((unsigned int) T0 < (unsigned int) T1) env->psr |= PSR_CARRY;
-	if ((int) T0 < (int) T1) env->psr |= PSR_OVF;
-	if ((int) T0 < 0) env->psr |= PSR_NEG;
-}
-
-void OPPROTO op_sll (void)
-{
-	T0 <<= T1;
-}
-
-void OPPROTO op_srl (void)
-{
-	T0 >>= T1;
-}
-
-void OPPROTO op_sra (void)
-{
-	int x = T0 >> T1;
-	T0 = x;
-}
-
-void OPPROTO op_st (void)
-{
-	stl ((void *) T0, T1);
-}
-
-void OPPROTO op_stb (void)
-{
-	stb ((void *) T0, T1);
-}
-
-void OPPROTO op_sth (void)
-{
-	stw ((void *) T0, T1);
-}
-
-void OPPROTO op_ld (void)
-{
-	T1 = ldl ((void *) T0);
-}
-
-void OPPROTO op_ldub (void)
-{
-	T1 = ldub ((void *) T0);
-}
-
-void OPPROTO op_lduh (void)
-{
-	T1 = lduw ((void *) T0);
-}
-
-void OPPROTO op_ldsb (void)
-{
-	T1 = ldsb ((void *) T0);
-}
-
-void OPPROTO op_ldsh (void)
-{
-	T1 = ldsw ((void *) T0);
-}
-
-void OPPROTO op_ldstub (void)
-{
-	T1 = ldub ((void *) T0);
-	stb ((void *) T0, 0xff); /* XXX: Should be Atomically */
-}
-
-void OPPROTO op_swap (void)
-{
-	unsigned int tmp = ldl ((void *) T0);
-	stl ((void *) T0, T1);   /* XXX: Should be Atomically */
-	T1 = tmp;
-}
-
-void OPPROTO op_ldd (void)
-{
-	T1 = ldl ((void *) T0);
-	T0 = ldl ((void *) T0+4);
-}
-
-void OPPROTO op_wry (void)
-{
-	env->y = T0^T1;
-}
-
-void OPPROTO op_rdy (void)
-{
-	T0 = env->y;
-}
-
-#define regwptr (env->regwptr)
-
-void OPPROTO op_save (void)
-{
-	regwptr -= 16;
-}
-
-void OPPROTO op_restore (void)
-{
-	regwptr += 16;
-}
-
-void OPPROTO op_trap (void)
-{
-	env->exception_index = PARAM1;
-	cpu_loop_exit ();
-}
-
-void OPPROTO op_exit_tb (void)
-{
-	EXIT_TB ();
-}
-
-void OPPROTO op_eval_be (void)
-{
-	T0 = (env->psr & PSR_ZERO);
-}
 
 #define FLAG_SET(x) (env->psr&x)?1:0
 #define GET_FLAGS unsigned int Z = FLAG_SET(PSR_ZERO), N = FLAG_SET(PSR_NEG), V = FLAG_SET(PSR_OVF), C = FLAG_SET(PSR_CARRY)
 
-void OPPROTO op_eval_ble (void)
+void OPPROTO op_movl_T0_0(void)
 {
-	GET_FLAGS;
-	T0 = Z | (N^V);
+    T0 = 0;
 }
 
-void OPPROTO op_eval_bl (void)
+void OPPROTO op_movl_T0_1(void)
 {
-	GET_FLAGS;
-	T0 = N^V;
+    T0 = 1;
 }
 
-void OPPROTO op_eval_bleu (void)
+void OPPROTO op_movl_T0_im(void)
 {
-	GET_FLAGS;
-	T0 = C|Z;
+    T0 = PARAM1;
 }
 
-void OPPROTO op_eval_bcs (void)
+void OPPROTO op_movl_T1_im(void)
 {
-	T0 = (env->psr & PSR_CARRY);
+    T1 = PARAM1;
 }
 
-void OPPROTO op_eval_bvs (void)
+void OPPROTO op_movl_T2_im(void)
 {
-	T0 = (env->psr & PSR_OVF);
+    T2 = PARAM1;
 }
 
-void OPPROTO op_eval_bneg (void)
+void OPPROTO op_addl_T1_im(void)
 {
-	T0 = (env->psr & PSR_NEG);
+    T1 += PARAM1;
 }
 
-void OPPROTO op_eval_bne (void)
+void OPPROTO op_addl_T1_T2(void)
 {
-	T0 = !(env->psr & PSR_ZERO);
+    T1 += T2;
 }
 
-void OPPROTO op_eval_bg (void)
+void OPPROTO op_subl_T1_T2(void)
 {
-	GET_FLAGS;
-	T0 = !(Z | (N^V));
+    T1 -= T2;
 }
 
-/*XXX: This seems to be documented wrong in the SPARC V8 Manual
-  The manual states: !(N^V)
-  but I assume Z | !(N^V) to be correct */
-void OPPROTO op_eval_bge (void)
+void OPPROTO op_add_T1_T0(void)
 {
-	GET_FLAGS;
-	T0 = Z | !(N^V);
+    T0 += T1;
 }
 
-void OPPROTO op_eval_bgu (void)
+void OPPROTO op_add_T1_T0_cc(void)
 {
-	GET_FLAGS;
-	T0 = !(C | Z);
+    unsigned int src1;
+    src1 = T0;
+    T0 += T1;
+    env->psr = 0;
+    if (!T0)
+	env->psr |= PSR_ZERO;
+    if ((int) T0 < 0)
+	env->psr |= PSR_NEG;
+    if (T0 < src1)
+	env->psr |= PSR_CARRY;
+    if (((src1 ^ T1 ^ -1) & (src1 ^ T0)) & (1 << 31))
+	env->psr |= PSR_OVF;
+    FORCE_RET();
 }
 
-void OPPROTO op_eval_bcc (void)
+void OPPROTO op_sub_T1_T0(void)
 {
-	T0 = !(env->psr & PSR_CARRY);
+    T0 -= T1;
 }
 
-void OPPROTO op_eval_bpos (void)
+void OPPROTO op_sub_T1_T0_cc(void)
 {
-	T0 = !(env->psr & PSR_NEG);
+    unsigned int src1;
+
+    src1 = T0;
+    T0 -= T1;
+    env->psr = 0;
+    if (!T0)
+	env->psr |= PSR_ZERO;
+    if ((int) T0 < 0)
+	env->psr |= PSR_NEG;
+    if (src1 < T1)
+	env->psr |= PSR_CARRY;
+    if (((src1 ^ T1) & (src1 ^ T0)) & (1 << 31))
+	env->psr |= PSR_OVF;
+    FORCE_RET();
 }
 
-void OPPROTO op_eval_bvc (void)
+void OPPROTO op_and_T1_T0(void)
 {
-	T0 = !(env->psr & PSR_OVF);
+    T0 &= T1;
 }
 
-void OPPROTO op_jmp_im (void)
+void OPPROTO op_or_T1_T0(void)
 {
-	env->pc = PARAM1;
+    T0 |= T1;
 }
 
-void OPPROTO op_call (void)
+void OPPROTO op_xor_T1_T0(void)
 {
-	regwptr[7] = PARAM1-4;
-	env->pc = PARAM1+PARAM2;
+    T0 ^= T1;
 }
 
-void OPPROTO op_jmpl (void)
+void OPPROTO op_andn_T1_T0(void)
 {
-	env->npc = T0;
+    T0 &= ~T1;
 }
 
-void OPPROTO op_generic_jmp_1 (void)
+void OPPROTO op_orn_T1_T0(void)
 {
-	T1 = PARAM1;
-	env->pc = PARAM1+PARAM2;
+    T0 |= ~T1;
 }
 
-void OPPROTO op_generic_jmp_2 (void)
+void OPPROTO op_xnor_T1_T0(void)
 {
-	T1 = PARAM1;
-	env->pc = env->npc;
+    T0 ^= ~T1;
 }
 
-unsigned long old_T0;
-
-void OPPROTO op_save_T0 (void)
+void OPPROTO op_addx_T1_T0(void)
 {
-	old_T0 = T0;
+    T0 += T1 + ((env->psr & PSR_CARRY) ? 1 : 0);
 }
 
-void OPPROTO op_restore_T0 (void)
+void OPPROTO op_umul_T1_T0(void)
 {
-	T0 = old_T0;
+    uint64_t res;
+    res = (uint64_t) T0 *(uint64_t) T1;
+    T0 = res & 0xffffffff;
+    env->y = res >> 32;
 }
 
-void OPPROTO op_generic_branch (void)
+void OPPROTO op_smul_T1_T0(void)
 {
-	if (T0)
-		JUMP_TB (op_generic_branch, PARAM1, 0, PARAM2);
-	else
-		JUMP_TB (op_generic_branch, PARAM1, 1, PARAM3);
-	FORCE_RET ();
+    uint64_t res;
+    res = (int64_t) ((int32_t) T0) * (int64_t) ((int32_t) T1);
+    T0 = res & 0xffffffff;
+    env->y = res >> 32;
 }
 
-void OPPROTO op_generic_branch_a (void)
+void OPPROTO op_mulscc_T1_T0(void)
 {
-	if (T0)
-		env->npc = PARAM3;
-	else
-		JUMP_TB (op_generic_branch_a, PARAM1, 0, PARAM2);
-	FORCE_RET ();
+    unsigned int b1, C, V, b2, src1;
+    C = FLAG_SET(PSR_CARRY);
+    V = FLAG_SET(PSR_OVF);
+    b1 = C ^ V;
+    b2 = T0 & 1;
+    T0 = (b1 << 31) | (T0 >> 1);
+    if (!(env->y & 1))
+        T1 = 0;
+    /* do addition and update flags */
+    src1 = T0;
+    T0 += T1;
+    env->psr = 0;
+    if (!T0)
+	env->psr |= PSR_ZERO;
+    if ((int) T0 < 0)
+	env->psr |= PSR_NEG;
+    if (T0 < src1)
+	env->psr |= PSR_CARRY;
+    if (((src1 ^ T1 ^ -1) & (src1 ^ T0)) & (1 << 31))
+	env->psr |= PSR_OVF;
+    env->y = (b2 << 31) | (env->y >> 1);
+    FORCE_RET();
+}
+
+void OPPROTO op_udiv_T1_T0(void)
+{
+    uint64_t x0;
+    uint32_t x1;
+
+    x0 = T0 | ((uint64_t) (env->y) << 32);
+    x1 = T1;
+    x0 = x0 / x1;
+    if (x0 > 0xffffffff) {
+	T0 = 0xffffffff;
+	T1 = 1;
+    } else {
+	T0 = x0;
+	T1 = 0;
+    }
+    FORCE_RET();
+}
+
+void OPPROTO op_sdiv_T1_T0(void)
+{
+    int64_t x0;
+    int32_t x1;
+
+    x0 = T0 | ((uint64_t) (env->y) << 32);
+    x1 = T1;
+    x0 = x0 / x1;
+    if ((int32_t) x0 != x0) {
+	T0 = x0 >> 63;
+	T1 = 1;
+    } else {
+	T0 = x0;
+	T1 = 0;
+    }
+    FORCE_RET();
+}
+
+void OPPROTO op_div_cc(void)
+{
+    env->psr = 0;
+    if (!T0)
+	env->psr |= PSR_ZERO;
+    if ((int) T0 < 0)
+	env->psr |= PSR_NEG;
+    if (T1)
+	env->psr |= PSR_OVF;
+    FORCE_RET();
+}
+
+void OPPROTO op_subx_T1_T0(void)
+{
+    T0 -= T1 + ((env->psr & PSR_CARRY) ? 1 : 0);
+}
+
+void OPPROTO op_logic_T0_cc(void)
+{
+    env->psr = 0;
+    if (!T0)
+	env->psr |= PSR_ZERO;
+    if ((int) T0 < 0)
+	env->psr |= PSR_NEG;
+    FORCE_RET();
+}
+
+void OPPROTO op_set_flags(void)
+{
+    env->psr = 0;
+    if (!T0)
+	env->psr |= PSR_ZERO;
+    if ((unsigned int) T0 < (unsigned int) T1)
+	env->psr |= PSR_CARRY;
+    if ((int) T0 < (int) T1)
+	env->psr |= PSR_OVF;
+    if ((int) T0 < 0)
+	env->psr |= PSR_NEG;
+    FORCE_RET();
+}
+
+void OPPROTO op_sll(void)
+{
+    T0 <<= T1;
+}
+
+void OPPROTO op_srl(void)
+{
+    T0 >>= T1;
+}
+
+void OPPROTO op_sra(void)
+{
+    T0 = ((int32_t) T0) >> T1;
+}
+
+void OPPROTO op_st(void)
+{
+    stl((void *) T0, T1);
+}
+
+void OPPROTO op_stb(void)
+{
+    stb((void *) T0, T1);
+}
+
+void OPPROTO op_sth(void)
+{
+    stw((void *) T0, T1);
+}
+
+void OPPROTO op_std(void)
+{
+    stl((void *) T0, T1);
+    stl((void *) (T0 + 4), T2);
+}
+
+void OPPROTO op_ld(void)
+{
+    T1 = ldl((void *) T0);
+}
+
+void OPPROTO op_ldub(void)
+{
+    T1 = ldub((void *) T0);
+}
+
+void OPPROTO op_lduh(void)
+{
+    T1 = lduw((void *) T0);
+}
+
+void OPPROTO op_ldsb(void)
+{
+    T1 = ldsb((void *) T0);
+}
+
+void OPPROTO op_ldsh(void)
+{
+    T1 = ldsw((void *) T0);
+}
+
+void OPPROTO op_ldstub(void)
+{
+    T1 = ldub((void *) T0);
+    stb((void *) T0, 0xff);	/* XXX: Should be Atomically */
+}
+
+void OPPROTO op_swap(void)
+{
+    unsigned int tmp = ldl((void *) T0);
+    stl((void *) T0, T1);	/* XXX: Should be Atomically */
+    T1 = tmp;
+}
+
+void OPPROTO op_ldd(void)
+{
+    T1 = ldl((void *) T0);
+    T0 = ldl((void *) (T0 + 4));
+}
+
+void OPPROTO op_wry(void)
+{
+    env->y = T0;
+}
+
+void OPPROTO op_rdy(void)
+{
+    T0 = env->y;
+}
+
+void raise_exception(int tt)
+{
+    env->exception_index = tt;
+    cpu_loop_exit();
+}   
+
+void memcpy32(uint32_t *dst, const uint32_t *src)
+{
+    dst[0] = src[0];
+    dst[1] = src[1];
+    dst[2] = src[2];
+    dst[3] = src[3];
+    dst[4] = src[4];
+    dst[5] = src[5];
+    dst[6] = src[6];
+    dst[7] = src[7];
+}
+
+static inline void set_cwp(int new_cwp)
+{
+    /* put the modified wrap registers at their proper location */
+    if (env->cwp == (NWINDOWS - 1))
+        memcpy32(env->regbase, env->regbase + NWINDOWS * 16);
+    env->cwp = new_cwp;
+    /* put the wrap registers at their temporary location */
+    if (new_cwp == (NWINDOWS - 1))
+        memcpy32(env->regbase + NWINDOWS * 16, env->regbase);
+    env->regwptr = env->regbase + (new_cwp * 16);
+}
+
+/* XXX: use another pointer for %iN registers to avoid slow wrapping
+   handling ? */
+void OPPROTO op_save(void)
+{
+    int cwp;
+    cwp = (env->cwp - 1) & (NWINDOWS - 1); 
+    if (env->wim & (1 << cwp)) {
+        raise_exception(TT_WIN_OVF);
+    }
+    set_cwp(cwp);
+    FORCE_RET();
+}
+
+void OPPROTO op_restore(void)
+{
+    int cwp;
+    cwp = (env->cwp + 1) & (NWINDOWS - 1); 
+    if (env->wim & (1 << cwp)) {
+        raise_exception(TT_WIN_UNF);
+    }
+    set_cwp(cwp);
+    FORCE_RET();
+}
+
+void OPPROTO op_exception(void)
+{
+    env->exception_index = PARAM1;
+    cpu_loop_exit();
+}
+
+void OPPROTO op_trap_T0(void)
+{
+    env->exception_index = TT_TRAP + (T0 & 0x7f);
+    cpu_loop_exit();
+}
+
+void OPPROTO op_trapcc_T0(void)
+{
+    if (T2) {
+        env->exception_index = TT_TRAP + (T0 & 0x7f);
+        cpu_loop_exit();
+    }
+    FORCE_RET();
+}
+
+void OPPROTO op_exit_tb(void)
+{
+    EXIT_TB();
+}
+
+void OPPROTO op_eval_be(void)
+{
+    T2 = (env->psr & PSR_ZERO);
+}
+
+void OPPROTO op_eval_ble(void)
+{
+    GET_FLAGS;
+    T2 = Z | (N ^ V);
+}
+
+void OPPROTO op_eval_bl(void)
+{
+    GET_FLAGS;
+    T2 = N ^ V;
+}
+
+void OPPROTO op_eval_bleu(void)
+{
+    GET_FLAGS;
+    T2 = C | Z;
+}
+
+void OPPROTO op_eval_bcs(void)
+{
+    T2 = (env->psr & PSR_CARRY);
+}
+
+void OPPROTO op_eval_bvs(void)
+{
+    T2 = (env->psr & PSR_OVF);
+}
+
+void OPPROTO op_eval_bneg(void)
+{
+    T2 = (env->psr & PSR_NEG);
+}
+
+void OPPROTO op_eval_bne(void)
+{
+    T2 = !(env->psr & PSR_ZERO);
+}
+
+void OPPROTO op_eval_bg(void)
+{
+    GET_FLAGS;
+    T2 = !(Z | (N ^ V));
+}
+
+void OPPROTO op_eval_bge(void)
+{
+    GET_FLAGS;
+    T2 = !(N ^ V);
+}
+
+void OPPROTO op_eval_bgu(void)
+{
+    GET_FLAGS;
+    T2 = !(C | Z);
+}
+
+void OPPROTO op_eval_bcc(void)
+{
+    T2 = !(env->psr & PSR_CARRY);
+}
+
+void OPPROTO op_eval_bpos(void)
+{
+    T2 = !(env->psr & PSR_NEG);
+}
+
+void OPPROTO op_eval_bvc(void)
+{
+    T2 = !(env->psr & PSR_OVF);
+}
+
+void OPPROTO op_movl_T2_0(void)
+{
+    T2 = 0;
+}
+
+void OPPROTO op_movl_T2_1(void)
+{
+    T2 = 1;
+}
+
+void OPPROTO op_jmp_im(void)
+{
+    env->pc = PARAM1;
+}
+
+void OPPROTO op_movl_npc_im(void)
+{
+    env->npc = PARAM1;
+}
+
+void OPPROTO op_movl_npc_T0(void)
+{
+    env->npc = T0;
+}
+
+void OPPROTO op_next_insn(void)
+{
+    env->pc = env->npc;
+    env->npc = env->npc + 4;
+}
+
+void OPPROTO op_generic_branch(void)
+{
+    if (T2) {
+	env->npc = PARAM1;
+    } else {
+	env->npc = PARAM2;
+    }
+    FORCE_RET();
+}
+
+void OPPROTO op_generic_branch_a(void)
+{
+    if (T2) {
+	env->pc = PARAM2;
+	env->npc = PARAM1;
+    } else {
+	env->pc = PARAM2 + 4;
+	env->npc = PARAM2 + 8;
+    }
+    FORCE_RET();
 }
