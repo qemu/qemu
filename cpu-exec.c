@@ -212,6 +212,16 @@ int cpu_exec(CPUState *env1)
                         env->interrupt_request &= ~CPU_INTERRUPT_HARD;
                     }
 #endif
+                    if (interrupt_request & CPU_INTERRUPT_EXITTB) {
+                        env->interrupt_request &= ~CPU_INTERRUPT_EXITTB;
+                        /* ensure that no TB jump will be modified as
+                           the program flow was changed */
+#ifdef __sparc__
+                        tmp_T0 = 0;
+#else
+                        T0 = 0;
+#endif
+                    }
                     if (interrupt_request & CPU_INTERRUPT_EXIT) {
                         env->interrupt_request &= ~CPU_INTERRUPT_EXIT;
                         env->exception_index = EXCP_INTERRUPT;
@@ -362,7 +372,12 @@ int cpu_exec(CPUState *env1)
                 T0 = tmp_T0;
 #endif	    
                 /* see if we can patch the calling TB. */
-                if (T0 != 0) {
+                if (T0 != 0
+#if defined(TARGET_I386) && defined(USE_CODE_COPY)
+                    && (tb->cflags & CF_CODE_COPY) == 
+                    (((TranslationBlock *)(T0 & ~3))->cflags & CF_CODE_COPY)
+#endif
+                    ) {
                     spin_lock(&tb_lock);
                     tb_add_jump((TranslationBlock *)(T0 & ~3), T0 & 3, tb);
                     spin_unlock(&tb_lock);
@@ -384,6 +399,74 @@ int cpu_exec(CPUState *env1)
                               : /* no outputs */
                               : "r" (gen_func)
                               : "r1", "r2", "r3", "r8", "r9", "r10", "r12", "r14");
+#elif defined(TARGET_I386) && defined(USE_CODE_COPY)
+{
+    if (!(tb->cflags & CF_CODE_COPY)) {
+        gen_func();
+    } else {
+        /* we work with native eflags */
+        CC_SRC = cc_table[CC_OP].compute_all();
+        CC_OP = CC_OP_EFLAGS;
+        asm(".globl exec_loop\n"
+            "\n"
+            "debug1:\n"
+            "    pushl %%ebp\n"
+            "    fs movl %10, %9\n"
+            "    fs movl %11, %%eax\n"
+            "    andl $0x400, %%eax\n"
+            "    fs orl %8, %%eax\n"
+            "    pushl %%eax\n"
+            "    popf\n"
+            "    fs movl %%esp, %12\n"
+            "    fs movl %0, %%eax\n"
+            "    fs movl %1, %%ecx\n"
+            "    fs movl %2, %%edx\n"
+            "    fs movl %3, %%ebx\n"
+            "    fs movl %4, %%esp\n"
+            "    fs movl %5, %%ebp\n"
+            "    fs movl %6, %%esi\n"
+            "    fs movl %7, %%edi\n"
+            "    fs jmp *%9\n"
+            "exec_loop:\n"
+            "    fs movl %%esp, %4\n"
+            "    fs movl %12, %%esp\n"
+            "    fs movl %%eax, %0\n"
+            "    fs movl %%ecx, %1\n"
+            "    fs movl %%edx, %2\n"
+            "    fs movl %%ebx, %3\n"
+            "    fs movl %%ebp, %5\n"
+            "    fs movl %%esi, %6\n"
+            "    fs movl %%edi, %7\n"
+            "    pushf\n"
+            "    popl %%eax\n"
+            "    movl %%eax, %%ecx\n"
+            "    andl $0x400, %%ecx\n"
+            "    shrl $9, %%ecx\n"
+            "    andl $0x8d5, %%eax\n"
+            "    fs movl %%eax, %8\n"
+            "    movl $1, %%eax\n"
+            "    subl %%ecx, %%eax\n"
+            "    fs movl %%eax, %11\n"
+            "    fs movl %9, %%ebx\n" /* get T0 value */
+            "    popl %%ebp\n"
+            :
+            : "m" (*(uint8_t *)offsetof(CPUState, regs[0])),
+            "m" (*(uint8_t *)offsetof(CPUState, regs[1])),
+            "m" (*(uint8_t *)offsetof(CPUState, regs[2])),
+            "m" (*(uint8_t *)offsetof(CPUState, regs[3])),
+            "m" (*(uint8_t *)offsetof(CPUState, regs[4])),
+            "m" (*(uint8_t *)offsetof(CPUState, regs[5])),
+            "m" (*(uint8_t *)offsetof(CPUState, regs[6])),
+            "m" (*(uint8_t *)offsetof(CPUState, regs[7])),
+            "m" (*(uint8_t *)offsetof(CPUState, cc_src)),
+            "m" (*(uint8_t *)offsetof(CPUState, tmp0)),
+            "a" (gen_func),
+            "m" (*(uint8_t *)offsetof(CPUState, df)),
+            "m" (*(uint8_t *)offsetof(CPUState, saved_esp))
+            : "%ecx", "%edx"
+            );
+    }
+}
 #else
                 gen_func();
 #endif
@@ -512,7 +595,8 @@ void cpu_x86_frstor(CPUX86State *s, uint8_t *ptr, int data32)
    write caused the exception and otherwise 0'. 'old_set' is the
    signal set which should be restored */
 static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
-                                    int is_write, sigset_t *old_set)
+                                    int is_write, sigset_t *old_set, 
+                                    void *puc)
 {
     TranslationBlock *tb;
     int ret;
@@ -520,8 +604,8 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
     if (cpu_single_env)
         env = cpu_single_env; /* XXX: find a correct solution for multithread */
 #if defined(DEBUG_SIGNAL)
-    printf("qemu: SIGSEGV pc=0x%08lx address=%08lx w=%d oldset=0x%08lx\n", 
-           pc, address, is_write, *(unsigned long *)old_set);
+    qemu_printf("qemu: SIGSEGV pc=0x%08lx address=%08lx w=%d oldset=0x%08lx\n", 
+                pc, address, is_write, *(unsigned long *)old_set);
 #endif
     /* XXX: locking issue */
     if (is_write && page_unprotect(address)) {
@@ -539,7 +623,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
     if (tb) {
         /* the PC is inside the translated code. It means that we have
            a virtual CPU fault */
-        cpu_restore_state(tb, env, pc);
+        cpu_restore_state(tb, env, pc, puc);
     }
     if (ret == 1) {
 #if 0
@@ -562,14 +646,16 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
 
 #elif defined(TARGET_ARM)
 static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
-                                    int is_write, sigset_t *old_set)
+                                    int is_write, sigset_t *old_set,
+                                    void *puc)
 {
     /* XXX: do more */
     return 0;
 }
 #elif defined(TARGET_SPARC)
 static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
-                                    int is_write, sigset_t *old_set)
+                                    int is_write, sigset_t *old_set,
+                                    void *puc)
 {
     /* XXX: locking issue */
     if (is_write && page_unprotect(address)) {
@@ -579,7 +665,8 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
 }
 #elif defined (TARGET_PPC)
 static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
-                                    int is_write, sigset_t *old_set)
+                                    int is_write, sigset_t *old_set,
+                                    void *puc)
 {
     TranslationBlock *tb;
     int ret;
@@ -609,7 +696,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
     if (tb) {
         /* the PC is inside the translated code. It means that we have
            a virtual CPU fault */
-        cpu_restore_state(tb, env, pc);
+        cpu_restore_state(tb, env, pc, puc);
     }
     if (ret == 1) {
 #if 0
@@ -618,7 +705,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
 #endif
     /* we restore the process signal mask as the sigreturn should
        do it (XXX: use sigsetjmp) */
-    sigprocmask(SIG_SETMASK, old_set, NULL);
+        sigprocmask(SIG_SETMASK, old_set, NULL);
         do_queue_exception_err(env->exception_index, env->error_code);
     } else {
         /* activate soft MMU for this block */
@@ -634,11 +721,32 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
 
 #if defined(__i386__)
 
+#if defined(USE_CODE_COPY)
+static void cpu_send_trap(unsigned long pc, int trap, 
+                          struct ucontext *uc)
+{
+    TranslationBlock *tb;
+
+    if (cpu_single_env)
+        env = cpu_single_env; /* XXX: find a correct solution for multithread */
+    /* now we have a real cpu fault */
+    tb = tb_find_pc(pc);
+    if (tb) {
+        /* the PC is inside the translated code. It means that we have
+           a virtual CPU fault */
+        cpu_restore_state(tb, env, pc, uc);
+    }
+    sigprocmask(SIG_SETMASK, &uc->uc_sigmask, NULL);
+    raise_exception_err(trap, env->error_code);
+}
+#endif
+
 int cpu_signal_handler(int host_signum, struct siginfo *info, 
                        void *puc)
 {
     struct ucontext *uc = puc;
     unsigned long pc;
+    int trapno;
     
 #ifndef REG_EIP
 /* for glibc 2.1 */
@@ -647,10 +755,18 @@ int cpu_signal_handler(int host_signum, struct siginfo *info,
 #define REG_TRAPNO TRAPNO
 #endif
     pc = uc->uc_mcontext.gregs[REG_EIP];
-    return handle_cpu_signal(pc, (unsigned long)info->si_addr, 
-                             uc->uc_mcontext.gregs[REG_TRAPNO] == 0xe ? 
-                             (uc->uc_mcontext.gregs[REG_ERR] >> 1) & 1 : 0,
-                             &uc->uc_sigmask);
+    trapno = uc->uc_mcontext.gregs[REG_TRAPNO];
+#if defined(TARGET_I386) && defined(USE_CODE_COPY)
+    if (trapno == 0x00 || trapno == 0x05) {
+        /* send division by zero or bound exception */
+        cpu_send_trap(pc, trapno, uc);
+        return 1;
+    } else
+#endif
+        return handle_cpu_signal(pc, (unsigned long)info->si_addr, 
+                                 trapno == 0xe ? 
+                                 (uc->uc_mcontext.gregs[REG_ERR] >> 1) & 1 : 0,
+                                 &uc->uc_sigmask, puc);
 }
 
 #elif defined(__powerpc)
@@ -674,7 +790,7 @@ int cpu_signal_handler(int host_signum, struct siginfo *info,
         is_write = 1;
 #endif
     return handle_cpu_signal(pc, (unsigned long)info->si_addr, 
-                             is_write, &uc->uc_sigmask);
+                             is_write, &uc->uc_sigmask, puc);
 }
 
 #elif defined(__alpha__)
@@ -704,7 +820,7 @@ int cpu_signal_handler(int host_signum, struct siginfo *info,
     }
 
     return handle_cpu_signal(pc, (unsigned long)info->si_addr, 
-                             is_write, &uc->uc_sigmask);
+                             is_write, &uc->uc_sigmask, puc);
 }
 #elif defined(__sparc__)
 
@@ -736,7 +852,7 @@ int cpu_signal_handler(int host_signum, struct siginfo *info,
       }
     }
     return handle_cpu_signal(pc, (unsigned long)info->si_addr, 
-                             is_write, sigmask);
+                             is_write, sigmask, NULL);
 }
 
 #elif defined(__arm__)
@@ -770,7 +886,7 @@ int cpu_signal_handler(int host_signum, struct siginfo *info,
     is_write = 0;
     return handle_cpu_signal(pc, (unsigned long)info->si_addr, 
                              is_write,
-                             &uc->uc_sigmask);
+                             &uc->uc_sigmask, puc);
 }
 
 #else
