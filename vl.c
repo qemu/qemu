@@ -1030,10 +1030,30 @@ typedef struct {
 static int stdio_nb_clients;
 static CharDriverState *stdio_clients[STDIO_MAX_CLIENTS];
 
+static int unix_write(int fd, const uint8_t *buf, int len1)
+{
+    int ret, len;
+
+    len = len1;
+    while (len > 0) {
+        ret = write(fd, buf, len);
+        if (ret < 0) {
+            if (errno != EINTR && errno != EAGAIN)
+                return -1;
+        } else if (ret == 0) {
+            break;
+        } else {
+            buf += ret;
+            len -= ret;
+        }
+    }
+    return len1 - len;
+}
+
 static int fd_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
 {
     FDCharDriver *s = chr->opaque;
-    return write(s->fd_out, buf, len);
+    return unix_write(s->fd_out, buf, len);
 }
 
 static void fd_chr_add_read_handler(CharDriverState *chr, 
