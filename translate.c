@@ -182,13 +182,14 @@ int cpu_restore_state(TranslationBlock *tb,
 #ifdef DEBUG_DISAS
         if (loglevel) {
             int i;
+            fprintf(logfile, "RESTORE:\n");
             for(i=0;i<=j; i++) {
                 if (gen_opc_instr_start[i]) {
-                    fprintf(logfile, "0x%04x: 0x%08x", i, gen_opc_pc[i]);
+                    fprintf(logfile, "0x%04x: 0x%08x\n", i, gen_opc_pc[i]);
                 }
             }
-            fprintf(logfile, "j=0x%x eip=0x%lx cs_base=%lx\n", 
-                    j, gen_opc_pc[j] - tb->cs_base, tb->cs_base);
+            fprintf(logfile, "spc=0x%08lx j=0x%x eip=0x%lx cs_base=%lx\n", 
+                    searched_pc, j, gen_opc_pc[j] - tb->cs_base, tb->cs_base);
         }
 #endif
         env->eip = gen_opc_pc[j] - tb->cs_base;
