@@ -248,19 +248,6 @@ enum bfd_reloc_code_real {
     BFD_RELOC_ALPHA_HINT
 };
 
-bfd_vma
-bfd_getl32 (addr)
-     register const bfd_byte *addr;
-{
-  unsigned long v;
-
-  v = (unsigned long) addr[0];
-  v |= (unsigned long) addr[1] << 8;
-  v |= (unsigned long) addr[2] << 16;
-  v |= (unsigned long) addr[3] << 24;
-  return (bfd_vma) v;
-}
-
 /* This file holds the Alpha AXP opcode table.  The opcode table includes
    almost all of the extended instruction mnemonics.  This permits the
    disassembler to use them, and simplifies the assembler logic, at the
