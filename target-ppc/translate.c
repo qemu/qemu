@@ -3002,7 +3002,6 @@ CPUPPCState *cpu_ppc_init(void)
 #else
     env->nip = 0xFFFFFFFC;
 #endif
-    env->access_type = ACCESS_INT;
     cpu_single_env = env;
     return env;
 }
@@ -3050,12 +3049,9 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     /* Single step trace mode */
     msr_se = 1;
 #endif
-    env->access_type = ACCESS_CODE;
     /* Set env in case of segfault during code fetch */
     while (ctx.exception == EXCP_NONE && gen_opc_ptr < gen_opc_end) {
         if (search_pc) {
-            if (loglevel > 0)
-                fprintf(logfile, "Search PC...\n");
             j = gen_opc_ptr - gen_opc_buf;
             if (lj < j) {
                 lj++;
@@ -3187,8 +3183,6 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
         fprintf(logfile, "\n");
     }
 #endif
-    env->access_type = ACCESS_INT;
-
     return 0;
 }
 

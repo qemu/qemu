@@ -132,13 +132,12 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
                               int is_user, int is_softmmu)
 {
     int exception = 0;
-    int access_type, access_perms = 0, access_index = 0;
+    int access_perms = 0, access_index = 0;
     uint8_t *pde_ptr;
     uint32_t pde, virt_addr;
     int error_code = 0, is_dirty, prot, ret = 0;
     unsigned long paddr, vaddr, page_offset;
 
-    access_type = env->access_type;
     if (env->user_mode_only) {
         /* user mode only emulation */
         ret = -2;
@@ -156,7 +155,6 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
     /* SPARC reference MMU table walk: Context table->L1->L2->PTE */
     /* Context base + context number */
     pde_ptr = phys_ram_base + (env->mmuregs[1] << 4) + (env->mmuregs[2] << 4);
-    env->access_type = ACCESS_MMU;
     pde = ldl_raw(pde_ptr);
 
     /* Ctx pde */
@@ -219,7 +217,7 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
     }
 
     /* update page modified and dirty bits */
-    is_dirty = rw && !(pde & PG_MODIFIED_MASK);
+    is_dirty = (rw & 1) && !(pde & PG_MODIFIED_MASK);
     if (!(pde & PG_ACCESSED_MASK) || is_dirty) {
 	pde |= PG_ACCESSED_MASK;
 	if (is_dirty)
@@ -228,7 +226,7 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
     }
 
     /* check access */
-    access_index = (rw << 2) | ((access_type == ACCESS_CODE)? 2 : 0) | (is_user? 0 : 1);
+    access_index = ((rw & 1) << 2) | (rw & 2) | (is_user? 0 : 1);
     access_perms = (pde & PTE_ACCESS_MASK) >> PTE_ACCESS_SHIFT;
     error_code = access_table[access_index][access_perms];
     if (error_code)
@@ -249,14 +247,12 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
     paddr = ((pde & PTE_ADDR_MASK) << 4) + page_offset;
 
  do_mapping:
-    env->access_type = access_type;
     vaddr = virt_addr + ((address & TARGET_PAGE_MASK) & (TARGET_PAGE_SIZE - 1));
 
     ret = tlb_set_page(env, vaddr, paddr, prot, is_user, is_softmmu);
     return ret;
 
  do_fault:
-    env->access_type = access_type;
     if (env->mmuregs[3]) /* Fault status register */
 	env->mmuregs[3] = 1; /* overflow (not read before another fault) */
     env->mmuregs[3] |= (access_index << 5) | (error_code << 2) | 2;

@@ -331,7 +331,8 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr,
     printf("MMU fault: addr=0x%08x w=%d u=%d eip=%08x\n", 
            addr, is_write, is_user, env->eip);
 #endif
-
+    is_write &= 1;
+    
     if (env->user_mode_only) {
         /* user mode only emulation */
         error_code = 0;

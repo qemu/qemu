@@ -2115,6 +2115,7 @@ int cpu_memory_rw_debug(CPUState *env, target_ulong addr,
 #define MMUSUFFIX _cmmu
 #define GETPC() NULL
 #define env cpu_single_env
+#define SOFTMMU_CODE_ACCESS
 
 #define SHIFT 0
 #include "softmmu_template.h"

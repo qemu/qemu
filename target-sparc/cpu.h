@@ -86,10 +86,6 @@
 #define PG_MODIFIED_MASK (1 << PG_MODIFIED_BIT)
 #define PG_CACHE_MASK    (1 << PG_CACHE_BIT)
 
-#define ACCESS_DATA	0
-#define ACCESS_CODE	1
-#define ACCESS_MMU	2
-
 #define NWINDOWS  32
 
 typedef struct CPUSPARCState {
@@ -131,7 +127,6 @@ typedef struct CPUSPARCState {
     CPUTLBEntry tlb_read[2][CPU_TLB_SIZE];
     CPUTLBEntry tlb_write[2][CPU_TLB_SIZE];
     int error_code;
-    int access_type;
     /* MMU regs */
     uint32_t mmuregs[16];
     /* temporary float registers */

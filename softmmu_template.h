@@ -39,14 +39,15 @@
 #error unsupported data size
 #endif
 
+#ifdef SOFTMMU_CODE_ACCESS
+#define READ_ACCESS_TYPE 2
+#else
+#define READ_ACCESS_TYPE 0
+#endif
+
 static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(unsigned long addr, 
                                                         int is_user,
                                                         void *retaddr);
-static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(unsigned long addr, 
-                                                   DATA_TYPE val, 
-                                                   int is_user,
-                                                   void *retaddr);
-
 static inline DATA_TYPE glue(io_read, SUFFIX)(unsigned long physaddr, 
                                               unsigned long tlb_addr)
 {
@@ -66,29 +67,6 @@ static inline DATA_TYPE glue(io_read, SUFFIX)(unsigned long physaddr,
 #endif
 #endif /* SHIFT > 2 */
     return res;
-}
-
-static inline void glue(io_write, SUFFIX)(unsigned long physaddr, 
-                                          DATA_TYPE val,
-                                          unsigned long tlb_addr,
-                                          void *retaddr)
-{
-    int index;
-
-    index = (tlb_addr >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
-    env->mem_write_vaddr = tlb_addr;
-    env->mem_write_pc = (unsigned long)retaddr;
-#if SHIFT <= 2
-    io_mem_write[index][SHIFT](io_mem_opaque[index], physaddr, val);
-#else
-#ifdef TARGET_WORDS_BIGENDIAN
-    io_mem_write[index][2](io_mem_opaque[index], physaddr, val >> 32);
-    io_mem_write[index][2](io_mem_opaque[index], physaddr + 4, val);
-#else
-    io_mem_write[index][2](io_mem_opaque[index], physaddr, val);
-    io_mem_write[index][2](io_mem_opaque[index], physaddr + 4, val >> 32);
-#endif
-#endif /* SHIFT > 2 */
 }
 
 /* handle all cases except unaligned access which span two pages */
@@ -125,7 +103,7 @@ DATA_TYPE REGPARM(1) glue(glue(__ld, SUFFIX), MMUSUFFIX)(unsigned long addr,
     } else {
         /* the page is not in the TLB : fill it */
         retaddr = GETPC();
-        tlb_fill(addr, 0, is_user, retaddr);
+        tlb_fill(addr, READ_ACCESS_TYPE, is_user, retaddr);
         goto redo;
     }
     return res;
@@ -172,12 +150,41 @@ static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(unsigned long addr,
         }
     } else {
         /* the page is not in the TLB : fill it */
-        tlb_fill(addr, 0, is_user, retaddr);
+        tlb_fill(addr, READ_ACCESS_TYPE, is_user, retaddr);
         goto redo;
     }
     return res;
 }
 
+#ifndef SOFTMMU_CODE_ACCESS
+
+static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(unsigned long addr, 
+                                                   DATA_TYPE val, 
+                                                   int is_user,
+                                                   void *retaddr);
+
+static inline void glue(io_write, SUFFIX)(unsigned long physaddr, 
+                                          DATA_TYPE val,
+                                          unsigned long tlb_addr,
+                                          void *retaddr)
+{
+    int index;
+
+    index = (tlb_addr >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
+    env->mem_write_vaddr = tlb_addr;
+    env->mem_write_pc = (unsigned long)retaddr;
+#if SHIFT <= 2
+    io_mem_write[index][SHIFT](io_mem_opaque[index], physaddr, val);
+#else
+#ifdef TARGET_WORDS_BIGENDIAN
+    io_mem_write[index][2](io_mem_opaque[index], physaddr, val >> 32);
+    io_mem_write[index][2](io_mem_opaque[index], physaddr + 4, val);
+#else
+    io_mem_write[index][2](io_mem_opaque[index], physaddr, val);
+    io_mem_write[index][2](io_mem_opaque[index], physaddr + 4, val >> 32);
+#endif
+#endif /* SHIFT > 2 */
+}
 
 void REGPARM(2) glue(glue(__st, SUFFIX), MMUSUFFIX)(unsigned long addr, 
                                                     DATA_TYPE val,
@@ -257,6 +264,9 @@ static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(unsigned long addr,
     }
 }
 
+#endif /* !defined(SOFTMMU_CODE_ACCESS) */
+
+#undef READ_ACCESS_TYPE
 #undef SHIFT
 #undef DATA_TYPE
 #undef SUFFIX

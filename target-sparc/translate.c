@@ -1278,8 +1278,6 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
     gen_opparam_ptr = gen_opparam_buf;
 
-    env->access_type = ACCESS_CODE;
-
     do {
         if (env->nb_breakpoints > 0) {
             for(j = 0; j < env->nb_breakpoints; j++) {
@@ -1352,8 +1350,6 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
         }
     }
 #endif
-
-    env->access_type = ACCESS_DATA;
     return 0;
 }
 
@@ -1379,7 +1375,6 @@ CPUSPARCState *cpu_sparc_init(void)
     env->cwp = 0;
     env->wim = 1;
     env->regwptr = env->regbase + (env->cwp * 16);
-    env->access_type = ACCESS_DATA;
 #if defined(CONFIG_USER_ONLY)
     env->user_mode_only = 1;
 #else

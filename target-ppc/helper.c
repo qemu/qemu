@@ -432,13 +432,13 @@ void tlb_fill(unsigned long addr, int is_write, int is_user, void *retaddr)
        generated code */
     saved_env = env;
     env = cpu_single_env;
+#if 0
     {
         unsigned long tlb_addrr, tlb_addrw;
         int index;
         index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
         tlb_addrr = env->tlb_read[is_user][index].address;
         tlb_addrw = env->tlb_write[is_user][index].address;
-#if 0
         if (loglevel) {
             fprintf(logfile,
                     "%s 1 %p %p idx=%d addr=0x%08lx tbl_addr=0x%08lx 0x%08lx "
@@ -447,8 +447,8 @@ void tlb_fill(unsigned long addr, int is_write, int is_user, void *retaddr)
                tlb_addrr, tlb_addrw, addr & TARGET_PAGE_MASK,
                tlb_addrr & (TARGET_PAGE_MASK | TLB_INVALID_MASK));
         }
-#endif
     }
+#endif
     ret = cpu_ppc_handle_mmu_fault(env, addr, is_write, is_user, 1);
     if (ret) {
         if (retaddr) {
@@ -463,20 +463,20 @@ void tlb_fill(unsigned long addr, int is_write, int is_user, void *retaddr)
         }
         do_raise_exception_err(env->exception_index, env->error_code);
     }
+#if 0
     {
         unsigned long tlb_addrr, tlb_addrw;
         int index;
         index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
         tlb_addrr = env->tlb_read[is_user][index].address;
         tlb_addrw = env->tlb_write[is_user][index].address;
-#if 0
         printf("%s 2 %p %p idx=%d addr=0x%08lx tbl_addr=0x%08lx 0x%08lx "
                "(0x%08lx 0x%08lx)\n", __func__, env,
                &env->tlb_read[is_user][index], index, addr,
                tlb_addrr, tlb_addrw, addr & TARGET_PAGE_MASK,
                tlb_addrr & (TARGET_PAGE_MASK | TLB_INVALID_MASK));
-#endif
     }
+#endif
     env = saved_env;
 }
 
@@ -496,17 +496,21 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
     int access_type;
     int ret = 0;
 
-//    printf("%s 0\n", __func__);
-    access_type = env->access_type;
+    if (rw == 2) {
+        /* code access */
+        rw = 0;
+        access_type = ACCESS_CODE;
+    } else {
+        /* data access */
+        /* XXX: put correct access by using cpu_restore_state()
+           correctly */
+        access_type = ACCESS_INT;
+        //        access_type = env->access_type;
+    }
     if (env->user_mode_only) {
         /* user mode only emulation */
         ret = -2;
         goto do_fault;
-    }
-    /* NASTY BUG workaround */
-    if (access_type == ACCESS_CODE && rw) {
-	printf("%s: ERROR WRITE CODE ACCESS\n", __func__);
-	access_type = ACCESS_INT;
     }
     ret = get_physical_address(env, &physical, &prot,
                                address, rw, access_type);
@@ -590,7 +594,6 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
         env->error_code = error_code;
         ret = 1;
     }
-
     return ret;
 }
 
@@ -671,11 +674,15 @@ void do_interrupt (CPUState *env)
         if (loglevel > 0) {
             fprintf(logfile, "Raise exception at 0x%08x => 0x%08x (%02x)\n",
                     env->nip, excp << 8, env->error_code);
-    }
+        }
 	if (loglevel > 0)
 	    cpu_ppc_dump_state(env, logfile, 0);
     }
 #endif
+    if (loglevel & CPU_LOG_INT) {
+        fprintf(logfile, "Raise exception at 0x%08x => 0x%08x (%02x)\n",
+                env->nip, excp << 8, env->error_code);
+    }
     /* Generate informations in save/restore registers */
     switch (excp) {
     case EXCP_OFCALL:
@@ -824,19 +831,29 @@ void do_interrupt (CPUState *env)
         }
         goto store_next;
     case EXCP_SYSCALL:
-#if defined (DEBUG_EXCEPTIONS)
-	if (msr_pr) {
-	    if (loglevel) {
-		fprintf(logfile, "syscall %d 0x%08x 0x%08x 0x%08x 0x%08x\n",
-			env->gpr[0], env->gpr[3], env->gpr[4],
-			env->gpr[5], env->gpr[6]);
-	    } else {
-		printf("syscall %d from 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x\n",
-		       env->gpr[0], env->nip, env->gpr[3], env->gpr[4],
-		       env->gpr[5], env->gpr[6]);
-	    }
-	}
-#endif
+        if (loglevel & CPU_LOG_INT) {
+            fprintf(logfile, "syscall %d 0x%08x 0x%08x 0x%08x 0x%08x\n",
+                    env->gpr[0], env->gpr[3], env->gpr[4],
+                    env->gpr[5], env->gpr[6]);
+            if (env->gpr[0] == 4 && env->gpr[3] == 1) {
+                int len, addr, i;
+                uint8_t c;
+
+                fprintf(logfile, "write: ");
+                addr = env->gpr[4];
+                len = env->gpr[5];
+                if (len > 64)
+                    len = 64;
+                for(i = 0; i < len; i++) {
+                    c = 0;
+                    cpu_memory_rw_debug(env, addr + i, &c, 1, 0);
+                    if (c < 32 || c > 126)
+                        c = '.';
+                    fprintf(logfile, "%c", c);
+                }
+                fprintf(logfile, "\n");
+            }
+        }
         goto store_next;
     case EXCP_TRACE:
         goto store_next;
