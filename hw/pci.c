@@ -1241,40 +1241,40 @@ static void pci_info_device(PCIDevice *d)
     int i, class;
     PCIIORegion *r;
 
-    printf("  Bus %2d, device %3d, function %d:\n",
+    term_printf("  Bus %2d, device %3d, function %d:\n",
            d->bus->bus_num, d->devfn >> 3, d->devfn & 7);
     class = le16_to_cpu(*((uint16_t *)(d->config + PCI_CLASS_DEVICE)));
-    printf("    ");
+    term_printf("    ");
     switch(class) {
     case 0x0101:
-        printf("IDE controller");
+        term_printf("IDE controller");
         break;
     case 0x0200:
-        printf("Ethernet controller");
+        term_printf("Ethernet controller");
         break;
     case 0x0300:
-        printf("VGA controller");
+        term_printf("VGA controller");
         break;
     default:
-        printf("Class %04x", class);
+        term_printf("Class %04x", class);
         break;
     }
-    printf(": PCI device %04x:%04x\n",
+    term_printf(": PCI device %04x:%04x\n",
            le16_to_cpu(*((uint16_t *)(d->config + PCI_VENDOR_ID))),
            le16_to_cpu(*((uint16_t *)(d->config + PCI_DEVICE_ID))));
 
     if (d->config[PCI_INTERRUPT_PIN] != 0) {
-        printf("      IRQ %d.\n", d->config[PCI_INTERRUPT_LINE]);
+        term_printf("      IRQ %d.\n", d->config[PCI_INTERRUPT_LINE]);
     }
     for(i = 0;i < PCI_NUM_REGIONS; i++) {
         r = &d->io_regions[i];
         if (r->size != 0) {
-            printf("      BAR%d: ", i);
+            term_printf("      BAR%d: ", i);
             if (r->type & PCI_ADDRESS_SPACE_IO) {
-                printf("I/O at 0x%04x [0x%04x].\n", 
+                term_printf("I/O at 0x%04x [0x%04x].\n", 
                        r->addr, r->addr + r->size - 1);
             } else {
-                printf("32 bit memory at 0x%08x [0x%08x].\n", 
+                term_printf("32 bit memory at 0x%08x [0x%08x].\n", 
                        r->addr, r->addr + r->size - 1);
             }
         }

@@ -570,8 +570,11 @@ void console_select(unsigned int index)
         active_console = s;
         if (s->text_console) {
             if (s->g_width != s->ds->width ||
-                s->g_height != s->ds->height)
+                s->g_height != s->ds->height) {
+		s->g_width = s->ds->width;
+		s->g_height = s->ds->height;
                 text_console_resize(s);
+	    }
             console_refresh(s);
         }
     }

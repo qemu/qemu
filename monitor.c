@@ -223,6 +223,7 @@ static void do_info_history (void)
         if (!str)
             break;
 	term_printf("%d: '%s'\n", i, str);
+        i++;
     }
 }
 

@@ -1199,8 +1199,10 @@ CPULogItem cpu_log_items[] = {
     { CPU_LOG_PCALL, "pcall",
       "show protected mode far calls/returns/exceptions" },
 #endif
+#ifdef DEBUG_IOPORT
     { CPU_LOG_IOPORT, "ioport",
       "show all i/o ports accesses" },
+#endif
     { 0, NULL, NULL },
 };
 
@@ -1224,11 +1226,17 @@ int cpu_str_to_log_mask(const char *str)
         p1 = strchr(p, ',');
         if (!p1)
             p1 = p + strlen(p);
+	if(cmp1(p,p1-p,"all")) {
+		for(item = cpu_log_items; item->mask != 0; item++) {
+			mask |= item->mask;
+		}
+	} else {
         for(item = cpu_log_items; item->mask != 0; item++) {
             if (cmp1(p, p1 - p, item->name))
                 goto found;
         }
         return 0;
+	}
     found:
         mask |= item->mask;
         if (*p1 != ',')
