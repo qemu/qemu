@@ -2339,6 +2339,11 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_idle:
         goto unimplemented;
 #endif
+#ifdef TARGET_NR_syscall
+    case TARGET_NR_syscall:
+    	ret = do_syscall(cpu_env,arg1 & 0xffff,arg2,arg3,arg4,arg5,arg6,0);
+    	break;
+#endif
     case TARGET_NR_wait4:
         {
             int status;
