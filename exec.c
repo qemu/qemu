@@ -362,6 +362,8 @@ static inline void tb_invalidate(TranslationBlock *tb, int parity)
     unsigned int h, n1;
     TranslationBlock *tb1, *tb2;
     
+    tb_invalidated_flag = 1;
+    
     /* remove the TB from the hash list */
     h = tb_hash_func(tb->pc);
     tb_remove(&tb_hash[h], tb, 

@@ -416,6 +416,7 @@ static inline int spin_trylock(spinlock_t *lock)
 
 extern spinlock_t tb_lock;
 
+extern int tb_invalidated_flag;
 
 #if defined(TARGET_I386) && !defined(CONFIG_USER_ONLY)
 

@@ -21,6 +21,8 @@
 #include "exec.h"
 #include "disas.h"
 
+int tb_invalidated_flag;
+
 //#define DEBUG_EXEC
 //#define DEBUG_SIGNAL
 
@@ -273,8 +275,17 @@ int cpu_exec(CPUState *env1)
                     tb->tc_ptr = tc_ptr;
                     tb->cs_base = (unsigned long)cs_base;
                     tb->flags = flags;
-                    /* XXX: an MMU exception can occur here */
+                    tb_invalidated_flag = 0;
                     cpu_gen_code(env, tb, CODE_GEN_MAX_SIZE, &code_gen_size);
+                    if (tb_invalidated_flag) {
+                        /* as some TB could have been invalidated because
+                           of memory exceptions while generating the code, we
+                           must recompute the hash index here */
+                        ptb = &tb_hash[tb_hash_func((unsigned long)pc)];
+                        while (*ptb != NULL)
+                            ptb = &(*ptb)->hash_next;
+                        T0 = 0;
+                    }
                     *ptb = tb;
                     tb->hash_next = NULL;
                     tb_link(tb);
