@@ -86,7 +86,6 @@ typedef struct AudioState {
     int fixed_channels;
     int fixed_fmt;
     int nb_hw_voices;
-    int voice_size;
     int64_t ticks_threshold;
     int freq_threshold;
     void *opaque;

@@ -367,14 +367,15 @@ static int dist (void *hw)
 {
     if (hw) {
         return (((uint8_t *) hw - (uint8_t *) hw_voices)
-                / audio_state.voice_size) + 1;
+                / audio_state.drv->voice_size) + 1;
     }
     else {
         return 0;
     }
 }
 
-#define ADVANCE(hw) hw ? advance (hw, audio_state.voice_size) : hw_voices
+#define ADVANCE(hw) \
+    ((hw) ? advance (hw, audio_state.drv->voice_size) : hw_voices)
 
 HWVoice *pcm_hw_find_any (HWVoice *hw)
 {

@@ -41,7 +41,6 @@ static void no_hw_run (HWVoice *hw)
 {
     NoVoice *no = (NoVoice *) hw;
     int rpos, live, decr, samples;
-    uint8_t *dst;
     st_sample_t *src;
     int64_t now = qemu_get_clock (vm_clock);
     int64_t ticks = now - no->old_ticks;
@@ -82,7 +81,6 @@ static int no_hw_write (SWVoice *sw, void *buf, int len)
 
 static int no_hw_init (HWVoice *hw, int freq, int nchannels, audfmt_e fmt)
 {
-    NoVoice *no = (NoVoice *) hw;
     hw->freq = freq;
     hw->nchannels = nchannels;
     hw->fmt = fmt;
