@@ -26,6 +26,86 @@
 #define BIOS_FILENAME "ppc_rom.bin"
 #define NVRAM_SIZE        0x2000
 
+/* MacIO devices (mapped inside the MacIO address space): CUDA, DBDMA,
+   NVRAM (not implemented).  */
+
+static int dbdma_mem_index;
+static int cuda_mem_index;
+
+/* DBDMA: currently no op - should suffice right now */
+
+static void dbdma_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
+{
+}
+
+static void dbdma_writew (void *opaque, target_phys_addr_t addr, uint32_t value)
+{
+}
+
+static void dbdma_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
+{
+}
+
+static uint32_t dbdma_readb (void *opaque, target_phys_addr_t addr)
+{
+    return 0;
+}
+
+static uint32_t dbdma_readw (void *opaque, target_phys_addr_t addr)
+{
+    return 0;
+}
+
+static uint32_t dbdma_readl (void *opaque, target_phys_addr_t addr)
+{
+    return 0;
+}
+
+static CPUWriteMemoryFunc *dbdma_write[] = {
+    &dbdma_writeb,
+    &dbdma_writew,
+    &dbdma_writel,
+};
+
+static CPUReadMemoryFunc *dbdma_read[] = {
+    &dbdma_readb,
+    &dbdma_readw,
+    &dbdma_readl,
+};
+
+static void macio_map(PCIDevice *pci_dev, int region_num, 
+                      uint32_t addr, uint32_t size, int type)
+{
+    cpu_register_physical_memory(addr + 0x08000, 0x1000, dbdma_mem_index);
+    cpu_register_physical_memory(addr + 0x16000, 0x2000, cuda_mem_index);
+}
+
+static void macio_init(void)
+{
+    PCIDevice *d;
+
+    d = pci_register_device("macio", sizeof(PCIDevice),
+                            0, -1, 
+                            NULL, NULL);
+    /* Note: this code is strongly inspirated from the corresponding code
+       in PearPC */
+    d->config[0x00] = 0x6b; // vendor_id
+    d->config[0x01] = 0x10;
+    d->config[0x02] = 0x17;
+    d->config[0x03] = 0x00;
+
+    d->config[0x0a] = 0x00; // class_sub = pci2pci
+    d->config[0x0b] = 0xff; // class_base = bridge
+    d->config[0x0e] = 0x00; // header_type
+
+    d->config[0x3d] = 0x01; // interrupt on pin 1
+    
+    dbdma_mem_index = cpu_register_io_memory(0, dbdma_read, dbdma_write, NULL);
+
+    pci_register_io_region(d, 0, 0x80000, 
+                           PCI_ADDRESS_SPACE_MEM, macio_map);
+}
+
 /* PowerPC PREP hardware initialisation */
 void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
 		   DisplayState *ds, const char **fd_filename, int snapshot,
@@ -86,7 +166,13 @@ void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
 
     pci_ide_init(bs_table);
 
-    kbd_init();
+    /* cuda also initialize ADB */
+    cuda_mem_index = cuda_init();
+
+    adb_kbd_init(&adb_bus);
+    adb_mouse_init(&adb_bus);
+    
+    macio_init();
 
     nvram = m48t59_init(8, 0x0074, NVRAM_SIZE);
 
