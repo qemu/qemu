@@ -379,7 +379,7 @@ X86_64_ONLY(\
         "cmov" JCC "q %3, %0\n\t"\
         : "=r" (res)\
         : "r" (v1), "r" (v2), "m" (val), "0" (res));\
-        printf("%-10s R=" FMTLX "\n", "cmov" JCC "l", res);)\
+        printf("%-10s R=" FMTLX "\n", "cmov" JCC "q", res);)\
     asm("cmpl %2, %1\n\t"\
         "cmov" JCC "l %k3, %k0\n\t"\
         : "=r" (res)\
