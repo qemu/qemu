@@ -136,7 +136,10 @@ static void cmos_init(int ram_size, int boot_device)
     rtc_set_memory(s, 0x30, val);
     rtc_set_memory(s, 0x31, val >> 8);
 
-    val = (ram_size / 65536) - ((16 * 1024 * 1024) / 65536);
+    if (ram_size > (16 * 1024 * 1024))
+        val = (ram_size / 65536) - ((16 * 1024 * 1024) / 65536);
+    else
+        val = 0;
     if (val > 65535)
         val = 65535;
     rtc_set_memory(s, 0x34, val);
