@@ -554,7 +554,7 @@ static int raw_write(BlockDriverState *bs, int64_t sector_num,
     return 0;
 }
 
-static int raw_close(BlockDriverState *bs)
+static void raw_close(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
     close(s->fd);

@@ -521,7 +521,7 @@ static int qcow_write(BlockDriverState *bs, int64_t sector_num,
     return 0;
 }
 
-static int qcow_close(BlockDriverState *bs)
+static void qcow_close(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
     qemu_free(s->l1_table);

@@ -202,7 +202,7 @@ static int cow_write(BlockDriverState *bs, int64_t sector_num,
     return 0;
 }
 
-static int cow_close(BlockDriverState *bs)
+static void cow_close(BlockDriverState *bs)
 {
     BDRVCowState *s = bs->opaque;
     munmap(s->cow_bitmap_addr, s->cow_bitmap_size);

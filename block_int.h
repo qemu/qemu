@@ -33,7 +33,7 @@ struct BlockDriver {
                      uint8_t *buf, int nb_sectors);
     int (*bdrv_write)(BlockDriverState *bs, int64_t sector_num, 
                       const uint8_t *buf, int nb_sectors);
-    int (*bdrv_close)(BlockDriverState *bs);
+    void (*bdrv_close)(BlockDriverState *bs);
     int (*bdrv_create)(const char *filename, int64_t total_sectors, 
                        const char *backing_file, int flags);
     int (*bdrv_is_allocated)(BlockDriverState *bs, int64_t sector_num,

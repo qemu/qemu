@@ -258,7 +258,7 @@ static int vmdk_write(BlockDriverState *bs, int64_t sector_num,
     return -1;
 }
 
-static int vmdk_close(BlockDriverState *bs)
+static void vmdk_close(BlockDriverState *bs)
 {
     BDRVVmdkState *s = bs->opaque;
     qemu_free(s->l1_table);
