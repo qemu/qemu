@@ -67,3 +67,12 @@ STRUCT(dirent,
 
 STRUCT(kbentry,
        TYPE_CHAR, TYPE_CHAR, TYPE_SHORT)
+
+STRUCT(audio_buf_info,
+       TYPE_INT, TYPE_INT, TYPE_INT, TYPE_INT)
+
+STRUCT(count_info,
+       TYPE_INT, TYPE_INT, TYPE_INT)
+
+STRUCT(mixer_info,
+       MK_ARRAY(TYPE_CHAR, 16), MK_ARRAY(TYPE_CHAR, 32), TYPE_INT, MK_ARRAY(TYPE_INT, 10))
