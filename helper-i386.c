@@ -216,7 +216,10 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
         break;
     }
     dpl = (e2 >> DESC_DPL_SHIFT) & 3;
-    cpl = env->segs[R_CS].selector & 3;
+    if (env->eflags & VM_MASK)
+        cpl = 3;
+    else
+        cpl = env->segs[R_CS].selector & 3;
     /* check privledge if software int */
     if (is_int && dpl < cpl)
         raise_exception_err(EXCP0D_GPF, intno * 8 + 2);
@@ -572,13 +575,25 @@ void helper_cpuid(void)
         ECX = 0x6c65746e;
         EDX = 0x49656e69;
     } else if (EAX == 1) {
+        int family, model, stepping;
         /* EAX = 1 info */
-        EAX = 0x52b;
+#if 0
+        /* pentium 75-200 */
+        family = 5;
+        model = 2;
+        stepping = 11;
+#else
+        /* pentium pro */
+        family = 6;
+        model = 1;
+        stepping = 3;
+#endif
+        EAX = (family << 8) | (model << 4) | stepping;
         EBX = 0;
         ECX = 0;
         EDX = CPUID_FP87 | CPUID_DE | CPUID_PSE |
             CPUID_TSC | CPUID_MSR | CPUID_MCE |
-            CPUID_CX8;
+            CPUID_CX8 | CPUID_PGE | CPUID_CMOV;
     }
 }
 
@@ -751,7 +766,9 @@ void jmp_seg(int selector, unsigned int new_eip)
         load_seg_cache(&sc1, e1, e2);
         if (new_eip > sc1.limit)
             raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
-        env->segs[R_CS] = sc1;
+        env->segs[R_CS].base = sc1.base;
+        env->segs[R_CS].limit = sc1.limit;
+        env->segs[R_CS].flags = sc1.flags;
         env->segs[R_CS].selector = (selector & 0xfffc) | cpl;
         EIP = new_eip;
     } else {
