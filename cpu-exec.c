@@ -597,7 +597,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
     }
 
     /* see if it is an MMU fault */
-    ret = cpu_ppc_handle_mmu_fault(env, address, is_write | ACCESS_INT, msr_pr, 0);
+    ret = cpu_ppc_handle_mmu_fault(env, address, is_write, msr_pr, 0);
     if (ret < 0)
         return 0; /* not an MMU fault */
     if (ret == 0)
