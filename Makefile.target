@@ -7,7 +7,7 @@ ifdef CONFIG_USER_ONLY
 VPATH+=:$(SRC_PATH)/linux-user
 DEFINES+=-I$(SRC_PATH)/linux-user -I$(SRC_PATH)/linux-user/$(TARGET_ARCH)
 endif
-CFLAGS=-Wall -O2 -g
+CFLAGS=-Wall -O2 -g -fno-strict-aliasing
 LDFLAGS=-g
 LIBS=
 HELPER_CFLAGS=$(CFLAGS)
