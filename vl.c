@@ -2553,9 +2553,9 @@ void help(void)
            "-loadvm file    start right away with a saved state (loadvm in monitor)\n"
            "\n"
            "During emulation, the following keys are useful:\n"
-           "ctrl-shift-f    toggle full screen\n"
-           "ctrl-shift-Fn   switch to virtual console 'n'\n"
-           "ctrl-shift      toggle mouse and keyboard grab\n"
+           "ctrl-alt-f      toggle full screen\n"
+           "ctrl-alt-n      switch to virtual console 'n'\n"
+           "ctrl-alt        toggle mouse and keyboard grab\n"
            "\n"
            "When using -nographic, press 'ctrl-a h' to get some help.\n"
            ,
