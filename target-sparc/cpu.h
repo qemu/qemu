@@ -29,23 +29,6 @@
 #define PSR_PS    (1<<6)
 #define PSR_ET    (1<<5)
 #define PSR_CWP   0x1f
-/* Fake impl 0, version 4 */
-#define GET_PSR(env) ((0 << 28) | (4 << 24) | env->psr |		\
-		      (env->psref? PSR_EF : 0) |			\
-		      (env->psrpil << 8) |				\
-		      (env->psrs? PSR_S : 0) |				\
-		      (env->psrs? PSR_PS : 0) |				\
-		      (env->psret? PSR_ET : 0) | env->cwp)
-
-#define PUT_PSR(env, val) do { int _tmp = val;				\
-	env->psr = _tmp & ~PSR_ICC;					\
-	env->psref = (_tmp & PSR_EF)? 1 : 0;				\
-	env->psrpil = (_tmp & PSR_PIL) >> 8;				\
-	env->psrs = (_tmp & PSR_S)? 1 : 0;				\
-	env->psrps = (_tmp & PSR_PS)? 1 : 0;				\
-	env->psret = (_tmp & PSR_ET)? 1 : 0;				\
-	set_cwp(_tmp & PSR_CWP & (NWINDOWS - 1));			\
-    } while (0)
 
 /* Trap base register */
 #define TBR_BASE_MASK 0xfffff000
@@ -170,6 +153,28 @@ int cpu_sparc_exec(CPUSPARCState *s);
 int cpu_sparc_close(CPUSPARCState *s);
 void cpu_get_fp64(uint64_t *pmant, uint16_t *pexp, double f);
 double cpu_put_fp64(uint64_t mant, uint16_t exp);
+
+/* Fake impl 0, version 4 */
+#define GET_PSR(env) ((0 << 28) | (4 << 24) | env->psr |		\
+		      (env->psref? PSR_EF : 0) |			\
+		      (env->psrpil << 8) |				\
+		      (env->psrs? PSR_S : 0) |				\
+		      (env->psrs? PSR_PS : 0) |				\
+		      (env->psret? PSR_ET : 0) | env->cwp)
+
+#ifndef NO_CPU_IO_DEFS
+void cpu_set_cwp(CPUSPARCState *env1, int new_cwp);
+#endif
+
+#define PUT_PSR(env, val) do { int _tmp = val;				\
+	env->psr = _tmp & ~PSR_ICC;					\
+	env->psref = (_tmp & PSR_EF)? 1 : 0;				\
+	env->psrpil = (_tmp & PSR_PIL) >> 8;				\
+	env->psrs = (_tmp & PSR_S)? 1 : 0;				\
+	env->psrps = (_tmp & PSR_PS)? 1 : 0;				\
+	env->psret = (_tmp & PSR_ET)? 1 : 0;				\
+	cpu_set_cwp(env, _tmp & PSR_CWP & (NWINDOWS - 1));		\
+    } while (0)
 
 struct siginfo;
 int cpu_sparc_signal_handler(int hostsignum, struct siginfo *info, void *puc);
