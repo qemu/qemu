@@ -170,7 +170,7 @@ int cpu_exec(CPUState *env1)
                     do_interrupt(env->exception_index, 
                                  env->exception_is_int, 
                                  env->error_code, 
-                                 env->exception_next_eip);
+                                 env->exception_next_eip, 0);
 #endif
                 }
                 env->exception_index = -1;
@@ -192,7 +192,7 @@ int cpu_exec(CPUState *env1)
                         if (loglevel) {
                             fprintf(logfile, "Servicing hardware INT=0x%02x\n", intno);
                         }
-                        do_interrupt(intno, 0, 0, 0);
+                        do_interrupt(intno, 0, 0, 0, 1);
                         env->interrupt_request &= ~CPU_INTERRUPT_HARD;
                         /* ensure that no TB jump will be modified as
                            the program flow was changed */

@@ -142,7 +142,7 @@ void tlb_fill(unsigned long addr, int is_write, void *retaddr);
 void __hidden cpu_lock(void);
 void __hidden cpu_unlock(void);
 void do_interrupt(int intno, int is_int, int error_code, 
-                  unsigned int next_eip);
+                  unsigned int next_eip, int is_hw);
 void do_interrupt_user(int intno, int is_int, int error_code, 
                        unsigned int next_eip);
 void raise_interrupt(int intno, int is_int, int error_code, 

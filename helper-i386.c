@@ -185,7 +185,7 @@ static inline int load_segment(uint32_t *e1_ptr, uint32_t *e2_ptr,
 
 /* protected mode interrupt */
 static void do_interrupt_protected(int intno, int is_int, int error_code,
-                                   unsigned int next_eip)
+                                   unsigned int next_eip, int is_hw)
 {
     SegmentCache *dt;
     uint8_t *ptr, *ssp;
@@ -265,7 +265,7 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
 
     shift = type >> 3;
     has_error_code = 0;
-    if (!is_int) {
+    if (!is_int && !is_hw) {
         switch(intno) {
         case 8:
         case 10:
@@ -427,10 +427,10 @@ void do_interrupt_user(int intno, int is_int, int error_code,
  * instruction. It is only relevant if is_int is TRUE.  
  */
 void do_interrupt(int intno, int is_int, int error_code, 
-                  unsigned int next_eip)
+                  unsigned int next_eip, int is_hw)
 {
     if (env->cr[0] & CR0_PE_MASK) {
-        do_interrupt_protected(intno, is_int, error_code, next_eip);
+        do_interrupt_protected(intno, is_int, error_code, next_eip, is_hw);
     } else {
         do_interrupt_real(intno, is_int, error_code, next_eip);
     }
