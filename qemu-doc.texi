@@ -37,8 +37,11 @@ to ease cross-compilation and cross-debugging.
 As QEMU requires no host kernel driver to run, it is very safe and
 easy to use.
 
-For system emulation, only the x86 PC emulator is currently
-usable. The PowerPC system emulator is being developped.
+For system emulation, the following hardware targets are supported:
+@itemize
+@item PC (x86 processor)
+@item PREP (PowerPC processor)
+@end itemize
 
 For user emulation, x86, PowerPC, ARM, and SPARC CPUs are supported.
 
@@ -121,13 +124,13 @@ QEMU for Win32.
 
 Mac OS X is currently not supported.
 
-@chapter QEMU System emulator invocation
+@chapter QEMU PC System emulator invocation
 
 @section Introduction
 
 @c man begin DESCRIPTION
 
-The QEMU System emulator simulates a complete PC. 
+The QEMU System emulator simulates a complete PC.
 
 In order to meet specific user needs, two versions of QEMU are
 available:
@@ -235,12 +238,9 @@ Network options:
 @table @option
 
 @item -n script      
-Set network init script [default=/etc/qemu-ifup]. This script is
-launched to configure the host network interface (usually tun0)
+Set TUN/TAP network init script [default=/etc/qemu-ifup]. This script
+is launched to configure the host network interface (usually tun0)
 corresponding to the virtual NE2000 card.
-
-@item nics n
-Simulate @var{n} network interfaces (default=1).
 
 @item -macaddr addr   
 
@@ -248,10 +248,18 @@ Set the mac address of the first interface (the format is
 aa:bb:cc:dd:ee:ff in hexa). The mac address is incremented for each
 new network interface.
 
-@item -tun-fd fd1,...
-Assumes @var{fd} talks to tap/tun and use it. Read
-@url{http://bellard.org/qemu/tetrinet.html} to have an example of its
-use.
+@item -tun-fd fd
+Assumes @var{fd} talks to a tap/tun host network interface and use
+it. Read @url{http://bellard.org/qemu/tetrinet.html} to have an
+example of its use.
+
+@item -user-net 
+(Experimental) Use the user mode network stack. This is the default if
+no tun/tap network init script is found.
+
+@item -dummy-net 
+Use the dummy network stack: no packet will be received on the network
+cards.
 
 @end table
 
@@ -278,6 +286,8 @@ Debug options:
 Wait gdb connection to port 1234 (@xref{gdb_usage}). 
 @item -p port
 Change gdb connection port.
+@item -S
+Do not start CPU at startup (you must type 'c' in the monitor).
 @item -d             
 Output log in /tmp/qemu.log
 @end table
@@ -413,7 +423,9 @@ can be x (hexa), d (signed decimal), u (unsigned decimal), o (octal),
 c (char) or i (asm instruction).
 
 @item size
-can be b (8 bits), h (16 bits), w (32 bits) or g (64 bits)
+can be b (8 bits), h (16 bits), w (32 bits) or g (64 bits). On x86,
+@code{h} or @code{w} can be specified with the @code{i} format to
+respectively select 16 or 32 bit code instruction size.
 
 @end table
 
@@ -801,6 +813,32 @@ Use @code{x/10i $eip} to display the code at the PC position.
 Use @code{set architecture i8086} to dump 16 bit code. Then use
 @code{x/10i $cs*16+*eip} to dump the code at the PC position.
 @end enumerate
+
+@chapter QEMU PREP PowerPC System emulator invocation
+
+Use the executable @file{qemu-system-ppc} to simulate a complete PREP
+PowerPC system.
+
+QEMU emulates the following PREP peripherials:
+
+@itemize @minus
+@item 
+2 IDE interfaces with hard disk and CD-ROM support
+@item
+Floppy disk
+@item 
+up to 6 NE2000 network adapters
+@item
+Serial port
+@item
+PREP Non Volatile RAM
+@end itemize
+
+You can read the qemu PC system emulation chapter to have more
+informations about QEMU usage.
+
+More information is available at
+@url{http://jocelyn.mayer.free.fr/qemu-ppc/}.
 
 @chapter QEMU User space emulator invocation
 

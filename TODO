@@ -1,21 +1,20 @@
 short term:
 ----------
+- physical memory cache (reduce qemu-fast address space size to about 32 MB)
+- better code fetch (different exception handling + CS.limit support)
+- do not resize vga if invalid size.
+- avoid looping if only exceptions
 - handle fast timers + add explicit clocks
 - OS/2 install bug
-- handle Self Modifying Code even if modifying current TB (BE OS 5 install)
-- physical memory cache (reduce qemu-fast address space size to about 32 MB)
-- better code fetch
-- XP security bug
 - cycle counter for all archs
 - TLB code protection support for PPC
 - add sysenter/sysexit and fxsr for L4 pistachio 686
 - basic VGA optimizations
-- disable SMC handling for ARM/SPARC/PPC
+- disable SMC handling for ARM/SPARC/PPC (not finished)
 - see undefined flags for BTx insn
 - user/kernel PUSHL/POPL in helper.c
 - keyboard output buffer filling timing emulation
 - return UD exception if LOCK prefix incorrectly used
-- cmos clock update and timers
 - test ldt limit < 7 ?
 - tests for each target CPU
 - fix CCOP optimisation
@@ -26,6 +25,7 @@ short term:
 
 lower priority:
 --------------
+- HDD geometry in CMOS (not used except for very old DOS programs)
 - suppress shift_mem ops
 - fix some 16 bit sp push/pop overflow (pusha/popa, lcall lret)
 - sysenter/sysexit emulation

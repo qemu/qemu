@@ -8,6 +8,7 @@ version 0.5.4:
   - QEMU can now boot a PowerPC Linux kernel (Jocelyn Mayer)
   - User mode network stack
   - imul imm8 fix + 0x82 opcode support (Hidemi KAWAI)
+  - precise self modifying code (aka BeOS install bug)
 
 version 0.5.3:
 
