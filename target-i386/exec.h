@@ -503,6 +503,8 @@ void helper_fstenv(uint8_t *ptr, int data32);
 void helper_fldenv(uint8_t *ptr, int data32);
 void helper_fsave(uint8_t *ptr, int data32);
 void helper_frstor(uint8_t *ptr, int data32);
+void restore_native_fp_state(CPUState *env);
+void save_native_fp_state(CPUState *env);
 
 const uint8_t parity_table[256];
 const uint8_t rclw_table[32];
