@@ -13,4 +13,5 @@ register uint32_t T2 asm(AREG3);
 void cpu_lock(void);
 void cpu_unlock(void);
 void cpu_loop_exit(void);
+void helper_flush(target_ulong addr);
 #endif

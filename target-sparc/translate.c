@@ -650,7 +650,8 @@ static void disas_sparc_insn(DisasContext * dc)
                         }
                         goto jmp_insn;
                     case 0x3b: /* flush */
-                        /* nothing to do */
+                        gen_op_add_T1_T0();
+                        gen_op_flush_T0();
                         break;
                     case 0x3c:	/* save */
                         save_state(dc);
@@ -877,4 +878,10 @@ void cpu_sparc_dump_state(CPUSPARCState * env, FILE * f, int flags)
 target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {
     return addr;
+}
+
+void helper_flush(target_ulong addr)
+{
+    addr &= ~7;
+    tb_invalidate_page_range(addr, addr + 8);
 }

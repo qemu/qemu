@@ -683,3 +683,7 @@ void OPPROTO op_generic_branch(void)
     FORCE_RET();
 }
 
+void OPPROTO op_flush_T0(void)
+{
+    helper_flush(T0);
+}
