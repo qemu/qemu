@@ -85,7 +85,7 @@ typedef long double CPU86_LDouble;
 typedef double CPU86_LDouble;
 #endif
 
-typedef struct CPU86State {
+typedef struct CPUX86State {
     /* standard registers */
     uint32_t regs[8];
     uint32_t pc; /* cs_case + eip value */
@@ -109,11 +109,8 @@ typedef struct CPU86State {
     unsigned int fpuc;
 
     /* emulator internal variables */
-    uint32_t t0; /* temporary t0 storage */
-    uint32_t t1; /* temporary t1 storage */
-    uint32_t a0; /* temporary a0 storage (address) */
     CPU86_LDouble ft0;
-} CPU86State;
+} CPUX86State;
 
 static inline int ldub(void *ptr)
 {
@@ -188,12 +185,20 @@ static inline void stfq(void *ptr, double v)
 }
 
 #ifndef IN_OP_I386
-void port_outb(int addr, int val);
-void port_outw(int addr, int val);
-void port_outl(int addr, int val);
-int port_inb(int addr);
-int port_inw(int addr);
-int port_inl(int addr);
+void cpu_x86_outb(int addr, int val);
+void cpu_x86_outw(int addr, int val);
+void cpu_x86_outl(int addr, int val);
+int cpu_x86_inb(int addr);
+int cpu_x86_inw(int addr);
+int cpu_x86_inl(int addr);
 #endif
+
+CPUX86State *cpu_x86_init(void);
+int cpu_x86_exec(CPUX86State *s);
+void cpu_x86_close(CPUX86State *s);
+
+/* internal functions */
+int cpu_x86_gen_code(uint8_t *gen_code_buf, int *gen_code_size_ptr,
+                     uint8_t *pc_start);
 
 #endif /* CPU_I386_H */

@@ -575,12 +575,14 @@ void OPPROTO glue(op_repnz_cmps, SUFFIX)(void)
     }
 }
 
+/* port I/O */
+
 void OPPROTO glue(op_outs, SUFFIX)(void)
 {
     int v, dx;
     dx = EDX & 0xffff;
     v = glue(ldu, SUFFIX)((void *)ESI);
-    glue(port_out, SUFFIX)(dx, v);
+    glue(cpu_x86_out, SUFFIX)(dx, v);
     ESI += (DF << SHIFT);
 }
 
@@ -591,7 +593,7 @@ void OPPROTO glue(op_rep_outs, SUFFIX)(void)
     dx = EDX & 0xffff;
     while (ECX != 0) {
         v = glue(ldu, SUFFIX)((void *)ESI);
-        glue(port_out, SUFFIX)(dx, v);
+        glue(cpu_x86_out, SUFFIX)(dx, v);
         ESI += inc;
         ECX--;
     }
@@ -601,7 +603,7 @@ void OPPROTO glue(op_ins, SUFFIX)(void)
 {
     int v, dx;
     dx = EDX & 0xffff;
-    v = glue(port_in, SUFFIX)(dx);
+    v = glue(cpu_x86_in, SUFFIX)(dx);
     glue(st, SUFFIX)((void *)EDI, v);
     EDI += (DF << SHIFT);
 }
@@ -612,11 +614,21 @@ void OPPROTO glue(op_rep_ins, SUFFIX)(void)
     inc = (DF << SHIFT);
     dx = EDX & 0xffff;
     while (ECX != 0) {
-        v = glue(port_in, SUFFIX)(dx);
+        v = glue(cpu_x86_in, SUFFIX)(dx);
         glue(st, SUFFIX)((void *)EDI, v);
         EDI += (DF << SHIFT);
         ECX--;
     }
+}
+
+void OPPROTO glue(glue(op_out, SUFFIX), _T0_T1)(void)
+{
+    glue(cpu_x86_out, SUFFIX)(T0 & 0xffff, T1 & DATA_MASK);
+}
+
+void OPPROTO glue(glue(op_in, SUFFIX), _T0_T1)(void)
+{
+    T1 = glue(cpu_x86_in, SUFFIX)(T0 & 0xffff);
 }
 
 #undef DATA_BITS

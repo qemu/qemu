@@ -10,39 +10,44 @@ typedef signed long long int64_t;
 
 #define NULL 0
 
+typedef struct FILE FILE;
+
+extern FILE *stderr;
+extern int fprintf(FILE *, const char *, ...);
+
 #ifdef __i386__
 register int T0 asm("esi");
 register int T1 asm("ebx");
 register int A0 asm("edi");
-register struct CPU86State *env asm("ebp");
+register struct CPUX86State *env asm("ebp");
 #define FORCE_RET() asm volatile ("ret");
 #endif
 #ifdef __powerpc__
 register int T0 asm("r24");
 register int T1 asm("r25");
 register int A0 asm("r26");
-register struct CPU86State *env asm("r27");
+register struct CPUX86State *env asm("r27");
 #define FORCE_RET() asm volatile ("blr");
 #endif
 #ifdef __arm__
 register int T0 asm("r4");
 register int T1 asm("r5");
 register int A0 asm("r6");
-register struct CPU86State *env asm("r7");
+register struct CPUX86State *env asm("r7");
 #define FORCE_RET() asm volatile ("mov pc, lr");
 #endif
 #ifdef __mips__
 register int T0 asm("s0");
 register int T1 asm("s1");
 register int A0 asm("s2");
-register struct CPU86State *env asm("s3");
+register struct CPUX86State *env asm("s3");
 #define FORCE_RET() asm volatile ("jr $31");
 #endif
 #ifdef __sparc__
 register int T0 asm("l0");
 register int T1 asm("l1");
 register int A0 asm("l2");
-register struct CPU86State *env asm("l3");
+register struct CPUX86State *env asm("l3");
 #define FORCE_RET() asm volatile ("retl ; nop");
 #endif
 
@@ -465,17 +470,17 @@ void OPPROTO op_idivl_EAX_T0(void)
 
 /* constant load */
 
-void OPPROTO op1_movl_T0_im(void)
+void OPPROTO op_movl_T0_im(void)
 {
     T0 = PARAM1;
 }
 
-void OPPROTO op1_movl_T1_im(void)
+void OPPROTO op_movl_T1_im(void)
 {
     T1 = PARAM1;
 }
 
-void OPPROTO op1_movl_A0_im(void)
+void OPPROTO op_movl_A0_im(void)
 {
     A0 = PARAM1;
 }
@@ -1592,3 +1597,35 @@ void OPPROTO op_fcos(void)
     helper_fcos();
 }
 
+/* main execution loop */
+uint8_t code_gen_buffer[65536];
+
+
+int cpu_x86_exec(CPUX86State *env1)
+{
+    int saved_T0, saved_T1, saved_A0;
+    CPUX86State *saved_env;
+    int code_gen_size;
+    void (*gen_func)(void);
+    
+    /* first we save global registers */
+    saved_T0 = T0;
+    saved_T1 = T1;
+    saved_A0 = A0;
+    saved_env = env;
+    env = env1;
+    
+    for(;;) {
+        cpu_x86_gen_code(code_gen_buffer, &code_gen_size, (uint8_t *)env->pc);
+        /* execute the generated code */
+        gen_func = (void *)code_gen_buffer;
+        gen_func();
+    }
+        
+    /* restore global registers */
+    T0 = saved_T0;
+    T1 = saved_T1;
+    A0 = saved_A0;
+    env = saved_env;
+    return 0;
+}

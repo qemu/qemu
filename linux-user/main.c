@@ -193,34 +193,34 @@ void INT_handler(int num, void *env)
 /***********************************************************/
 /* new CPU core */
 
-void port_outb(int addr, int val)
+void cpu_x86_outb(int addr, int val)
 {
     fprintf(stderr, "outb: port=0x%04x, data=%02x\n", addr, val);
 }
 
-void port_outw(int addr, int val)
+void cpu_x86_outw(int addr, int val)
 {
     fprintf(stderr, "outw: port=0x%04x, data=%04x\n", addr, val);
 }
 
-void port_outl(int addr, int val)
+void cpu_x86_outl(int addr, int val)
 {
     fprintf(stderr, "outl: port=0x%04x, data=%08x\n", addr, val);
 }
 
-int port_inb(int addr)
+int cpu_x86_inb(int addr)
 {
     fprintf(stderr, "inb: port=0x%04x\n", addr);
     return 0;
 }
 
-int port_inw(int addr)
+int cpu_x86_inw(int addr)
 {
     fprintf(stderr, "inw: port=0x%04x\n", addr);
     return 0;
 }
 
-int port_inl(int addr)
+int cpu_x86_inl(int addr)
 {
     fprintf(stderr, "inl: port=0x%04x\n", addr);
     return 0;
