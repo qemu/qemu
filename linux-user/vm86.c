@@ -41,22 +41,22 @@ static inline int is_revectored(int nr, struct target_revectored_struct *bitmap)
 
 static inline void vm_putw(uint8_t *segptr, unsigned int reg16, unsigned int val)
 {
-    *(uint16_t *)(segptr + (reg16 & 0xffff)) = tswap16(val);
+    stw(segptr + (reg16 & 0xffff), val);
 }
 
 static inline void vm_putl(uint8_t *segptr, unsigned int reg16, unsigned int val)
 {
-    *(uint32_t *)(segptr + (reg16 & 0xffff)) = tswap32(val);
+    stl(segptr + (reg16 & 0xffff), val);
 }
 
 static inline unsigned int vm_getw(uint8_t *segptr, unsigned int reg16)
 {
-    return tswap16(*(uint16_t *)(segptr + (reg16 & 0xffff)));
+    return lduw(segptr + (reg16 & 0xffff));
 }
 
 static inline unsigned int vm_getl(uint8_t *segptr, unsigned int reg16)
 {
-    return tswap32(*(uint32_t *)(segptr + (reg16 & 0xffff)));
+    return ldl(segptr + (reg16 & 0xffff));
 }
 
 void save_v86_state(CPUX86State *env)
