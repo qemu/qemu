@@ -21,6 +21,14 @@
 
 //#define DEBUG_PCALL
 
+#if 0
+#define raise_exception_err(a, b)\
+do {\
+    printf("raise_exception line=%d\n", __LINE__);\
+    (raise_exception_err)(a, b);\
+} while (0)
+#endif
+
 const uint8_t parity_table[256] = {
     CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
     0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
@@ -424,7 +432,7 @@ static void switch_tss(int tss_selector,
        possible exception */
     env->eip = new_eip;
     eflags_mask = TF_MASK | AC_MASK | ID_MASK | 
-        IF_MASK | IOPL_MASK | VM_MASK | RF_MASK;
+        IF_MASK | IOPL_MASK | VM_MASK | RF_MASK | NT_MASK;
     if (!(type & 8))
         eflags_mask &= 0xffff;
     load_eflags(new_eflags, eflags_mask);
@@ -452,18 +460,20 @@ static void switch_tss(int tss_selector,
     if (new_ldt & 4)
         raise_exception_err(EXCP0A_TSS, new_ldt & 0xfffc);
 
-    dt = &env->gdt;
-    index = new_ldt & ~7;
-    if ((index + 7) > dt->limit)
-        raise_exception_err(EXCP0A_TSS, new_ldt & 0xfffc);
-    ptr = dt->base + index;
-    e1 = ldl_kernel(ptr);
-    e2 = ldl_kernel(ptr + 4);
-    if ((e2 & DESC_S_MASK) || ((e2 >> DESC_TYPE_SHIFT) & 0xf) != 2)
-        raise_exception_err(EXCP0A_TSS, new_ldt & 0xfffc);
-    if (!(e2 & DESC_P_MASK))
-        raise_exception_err(EXCP0A_TSS, new_ldt & 0xfffc);
-    load_seg_cache_raw_dt(&env->ldt, e1, e2);
+    if ((new_ldt & 0xfffc) != 0) {
+        dt = &env->gdt;
+        index = new_ldt & ~7;
+        if ((index + 7) > dt->limit)
+            raise_exception_err(EXCP0A_TSS, new_ldt & 0xfffc);
+        ptr = dt->base + index;
+        e1 = ldl_kernel(ptr);
+        e2 = ldl_kernel(ptr + 4);
+        if ((e2 & DESC_S_MASK) || ((e2 >> DESC_TYPE_SHIFT) & 0xf) != 2)
+            raise_exception_err(EXCP0A_TSS, new_ldt & 0xfffc);
+        if (!(e2 & DESC_P_MASK))
+            raise_exception_err(EXCP0A_TSS, new_ldt & 0xfffc);
+        load_seg_cache_raw_dt(&env->ldt, e1, e2);
+    }
     
     /* load the segments */
     if (!(new_eflags & VM_MASK)) {
@@ -748,6 +758,7 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
         if (env->eflags & VM_MASK) {
             /* XXX: explain me why W2K hangs if the whole segment cache is
                reset ? */
+#if 1
             env->segs[R_ES].selector = 0;
             env->segs[R_ES].flags = 0;
             env->segs[R_DS].selector = 0;
@@ -756,6 +767,12 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
             env->segs[R_FS].flags = 0;
             env->segs[R_GS].selector = 0;
             env->segs[R_GS].flags = 0;
+#else
+            cpu_x86_load_seg_cache(env, R_ES, 0, NULL, 0, 0);
+            cpu_x86_load_seg_cache(env, R_DS, 0, NULL, 0, 0);
+            cpu_x86_load_seg_cache(env, R_FS, 0, NULL, 0, 0);
+            cpu_x86_load_seg_cache(env, R_GS, 0, NULL, 0, 0);
+#endif
         }
         ss = (ss & ~3) | dpl;
         cpu_x86_load_seg_cache(env, R_SS, ss, 
@@ -853,13 +870,19 @@ void do_interrupt(int intno, int is_int, int error_code,
     {
         extern FILE *stdout;
         static int count;
-        if ((env->cr[0] && CR0_PE_MASK)) {
-            fprintf(stdout, "%d: interrupt: vector=%02x error_code=%04x int=%d CPL=%d CS:EIP=%04x:%08x SS:ESP=%04x:%08x EAX=%08x\n",
+        if (env->cr[0] & CR0_PE_MASK) {
+            fprintf(stdout, "%d: v=%02x e=%04x i=%d CPL=%d CS:EIP=%04x:%08x SS:ESP=%04x:%08x",
                     count, intno, error_code, is_int,
                     env->hflags & HF_CPL_MASK,
                     env->segs[R_CS].selector, EIP,
-                    env->segs[R_SS].selector, ESP, 
-                    EAX);
+                    env->segs[R_SS].selector, ESP);
+            if (intno == 0x0e) {
+                fprintf(stdout, " CR2=%08x", env->cr[2]);
+            } else {
+                fprintf(stdout, " EAX=%08x", env->regs[R_EAX]);
+            }
+            fprintf(stdout, "\n");
+
             if (0) {
                 cpu_x86_dump_state(env, stdout, X86_DUMP_CCOP);
 #if 0
@@ -879,7 +902,6 @@ void do_interrupt(int intno, int is_int, int error_code,
         }
     }
 #endif
-
 #ifdef DEBUG_PCALL
     if (loglevel) {
         static int count;
@@ -925,7 +947,8 @@ void raise_interrupt(int intno, int is_int, int error_code,
 }
 
 /* shortcuts to generate exceptions */
-void raise_exception_err(int exception_index, int error_code)
+
+void (raise_exception_err)(int exception_index, int error_code)
 {
     raise_interrupt(exception_index, 0, error_code, 0);
 }
@@ -1409,7 +1432,7 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip)
             if (dpl < cpl || dpl < rpl)
                 raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
             switch_tss(new_cs, e1, e2, SWITCH_TSS_CALL);
-            break;
+            return;
         case 4: /* 286 call gate */
         case 12: /* 386 call gate */
             break;
@@ -1551,9 +1574,9 @@ void helper_iret_real(int shift)
     load_seg_vm(R_CS, new_cs);
     env->eip = new_eip;
     if (env->eflags & VM_MASK)
-        eflags_mask = TF_MASK | AC_MASK | ID_MASK | IF_MASK | RF_MASK;
+        eflags_mask = TF_MASK | AC_MASK | ID_MASK | IF_MASK | RF_MASK | NT_MASK;
     else
-        eflags_mask = TF_MASK | AC_MASK | ID_MASK | IF_MASK | IOPL_MASK | RF_MASK;
+        eflags_mask = TF_MASK | AC_MASK | ID_MASK | IF_MASK | IOPL_MASK | RF_MASK | NT_MASK;
     if (shift == 0)
         eflags_mask &= 0xffff;
     load_eflags(new_eflags, eflags_mask);
@@ -1688,7 +1711,7 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
     env->eip = new_eip;
     if (is_iret) {
         /* NOTE: 'cpl' is the _old_ CPL */
-        eflags_mask = TF_MASK | AC_MASK | ID_MASK | RF_MASK;
+        eflags_mask = TF_MASK | AC_MASK | ID_MASK | RF_MASK | NT_MASK;
         if (cpl == 0)
             eflags_mask |= IOPL_MASK;
         iopl = (env->eflags >> IOPL_SHIFT) & 3;
@@ -1710,7 +1733,7 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
     
     /* modify processor state */
     load_eflags(new_eflags, TF_MASK | AC_MASK | ID_MASK | 
-                IF_MASK | IOPL_MASK | VM_MASK | VIF_MASK | VIP_MASK);
+                IF_MASK | IOPL_MASK | VM_MASK | NT_MASK | VIF_MASK | VIP_MASK);
     load_seg_vm(R_CS, new_cs & 0xffff);
     cpu_x86_set_cpl(env, 3);
     load_seg_vm(R_SS, new_ss & 0xffff);
