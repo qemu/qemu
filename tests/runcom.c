@@ -3,6 +3,7 @@
  */
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <inttypes.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -13,6 +14,12 @@
 #include <asm/vm86.h>
 
 //#define SIGTEST
+
+#undef __syscall_return
+#define __syscall_return(type, res) \
+do { \
+	return (type) (res); \
+} while (0)
 
 _syscall2(int, vm86, int, func, struct vm86plus_struct *, v86)
 

@@ -6,7 +6,7 @@ LDFLAGS=
 ifeq ($(ARCH),i386)
 TESTS=testclone testsig testthread sha1-i386 test-i386 runcom
 endif
-TESTS+=sha1
+TESTS+=sha1 test_path
 
 QEMU=../qemu
 
@@ -24,6 +24,10 @@ testsig: testsig.c
 
 testthread: testthread.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< -lpthread
+
+test_path: test_path.c
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
+	./$@ || { rm $@; exit 1; }
 
 # i386 emulation test (test various opcodes) */
 test-i386: test-i386.c test-i386-code16.S \
