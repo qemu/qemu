@@ -1078,8 +1078,8 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         ide_if[1].hcyl = val;
         break;
     case 6:
-        ide_if[0].select = val & 0x4f;
-        ide_if[1].select = val & 0x4f;
+        ide_if[0].select = (val & ~0x10) | 0xa0;
+        ide_if[1].select = (val | 0x10) | 0xa0;
         /* select drive */
         unit = (val >> 4) & 1;
         s = ide_if + unit;
@@ -1210,7 +1210,8 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 
 static uint32_t ide_ioport_read(void *opaque, uint32_t addr1)
 {
-    IDEState *s = ((IDEState *)opaque)->cur_drive;
+    IDEState *ide_if = opaque;
+    IDEState *s = ide_if->cur_drive;
     uint32_t addr;
     int ret;
 
@@ -1220,44 +1221,44 @@ static uint32_t ide_ioport_read(void *opaque, uint32_t addr1)
         ret = 0xff;
         break;
     case 1:
-        if (!s->bs)
+        if (!ide_if[0].bs && !ide_if[1].bs)
             ret = 0;
         else
             ret = s->error;
         break;
     case 2:
-        if (!s->bs)
+        if (!ide_if[0].bs && !ide_if[1].bs)
             ret = 0;
         else
             ret = s->nsector & 0xff;
         break;
     case 3:
-        if (!s->bs)
+        if (!ide_if[0].bs && !ide_if[1].bs)
             ret = 0;
         else
             ret = s->sector;
         break;
     case 4:
-        if (!s->bs)
+        if (!ide_if[0].bs && !ide_if[1].bs)
             ret = 0;
         else
             ret = s->lcyl;
         break;
     case 5:
-        if (!s->bs)
+        if (!ide_if[0].bs && !ide_if[1].bs)
             ret = 0;
         else
             ret = s->hcyl;
         break;
     case 6:
-        if (!s->bs)
+        if (!ide_if[0].bs && !ide_if[1].bs)
             ret = 0;
         else
-            ret = s->select | 0xa0;
+            ret = s->select;
         break;
     default:
     case 7:
-        if (!s->bs)
+        if (!ide_if[0].bs && !ide_if[1].bs)
             ret = 0;
         else
             ret = s->status;
@@ -1272,9 +1273,14 @@ static uint32_t ide_ioport_read(void *opaque, uint32_t addr1)
 
 static uint32_t ide_status_read(void *opaque, uint32_t addr)
 {
-    IDEState *s = ((IDEState *)opaque)->cur_drive;
+    IDEState *ide_if = opaque;
+    IDEState *s = ide_if->cur_drive;
     int ret;
-    ret = s->status;
+
+    if (!ide_if[0].bs && !ide_if[1].bs)
+        ret = 0;
+    else
+        ret = s->status;
 #ifdef DEBUG_IDE
     printf("ide: read status addr=0x%x val=%02x\n", addr, ret);
 #endif
