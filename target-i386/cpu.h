@@ -352,6 +352,7 @@ typedef struct CPUX86State {
     CPUTLBEntry tlb_read[2][CPU_TLB_SIZE];
     CPUTLBEntry tlb_write[2][CPU_TLB_SIZE];
     
+    /* from this point: preserved by CPU reset */
     /* ice debug support */
     uint32_t breakpoints[MAX_BREAKPOINTS];
     int nb_breakpoints;

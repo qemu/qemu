@@ -45,7 +45,6 @@ _syscall3(int, modify_ldt, int, func, void *, ptr, unsigned long, bytecount)
 CPUX86State *cpu_x86_init(void)
 {
     CPUX86State *env;
-    int i;
     static int inited;
 
     cpu_exec_init();
@@ -54,10 +53,46 @@ CPUX86State *cpu_x86_init(void)
     if (!env)
         return NULL;
     memset(env, 0, sizeof(CPUX86State));
+    /* init various static tables */
+    if (!inited) {
+        inited = 1;
+        optimize_flags_init();
+    }
+#ifdef USE_CODE_COPY
+    /* testing code for code copy case */
+    {
+        struct modify_ldt_ldt_s ldt;
+
+        ldt.entry_number = 1;
+        ldt.base_addr = (unsigned long)env;
+        ldt.limit = (sizeof(CPUState) + 0xfff) >> 12;
+        ldt.seg_32bit = 1;
+        ldt.contents = MODIFY_LDT_CONTENTS_DATA;
+        ldt.read_exec_only = 0;
+        ldt.limit_in_pages = 1;
+        ldt.seg_not_present = 0;
+        ldt.useable = 1;
+        modify_ldt(1, &ldt, sizeof(ldt)); /* write ldt entry */
+        
+        asm volatile ("movl %0, %%fs" : : "r" ((1 << 3) | 7));
+        cpu_single_env = env;
+    }
+#endif
+    cpu_reset(env);
+    return env;
+}
+
+/* NOTE: must be called outside the CPU execute loop */
+void cpu_reset(CPUX86State *env)
+{
+    int i;
+
+    memset(env, 0, offsetof(CPUX86State, breakpoints));
+
+    tlb_flush(env, 1);
 
     /* init to reset state */
 
-    tlb_flush(env, 1);
 #ifdef CONFIG_SOFTMMU
     env->hflags |= HF_SOFTMMU_MASK;
 #endif
@@ -89,33 +124,6 @@ CPUX86State *cpu_x86_init(void)
     for(i = 0;i < 8; i++)
         env->fptags[i] = 1;
     env->fpuc = 0x37f;
-    
-    /* init various static tables */
-    if (!inited) {
-        inited = 1;
-        optimize_flags_init();
-    }
-#ifdef USE_CODE_COPY
-    /* testing code for code copy case */
-    {
-        struct modify_ldt_ldt_s ldt;
-
-        ldt.entry_number = 1;
-        ldt.base_addr = (unsigned long)env;
-        ldt.limit = (sizeof(CPUState) + 0xfff) >> 12;
-        ldt.seg_32bit = 1;
-        ldt.contents = MODIFY_LDT_CONTENTS_DATA;
-        ldt.read_exec_only = 0;
-        ldt.limit_in_pages = 1;
-        ldt.seg_not_present = 0;
-        ldt.useable = 1;
-        modify_ldt(1, &ldt, sizeof(ldt)); /* write ldt entry */
-        
-        asm volatile ("movl %0, %%fs" : : "r" ((1 << 3) | 7));
-        cpu_single_env = env;
-    }
-#endif
-    return env;
 }
 
 void cpu_x86_close(CPUX86State *env)
