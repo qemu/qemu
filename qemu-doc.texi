@@ -876,21 +876,54 @@ To have access to SVGA graphic modes under X11, use the @code{vesa} or
 the @code{cirrus} X11 driver. For optimal performances, use 16 bit
 color depth in the guest and the host OS.
 
+When using a 2.6 guest Linux kernel, you should add the option
+@code{clock=pit} on the kernel command line because the 2.6 Linux
+kernels make very strict real time clock checks by default that QEMU
+cannot simulate exactly.
+
 @subsection Windows
 
 If you have a slow host, using Windows 95 is better as it gives the
 best speed. Windows 2000 is also a good choice.
 
-SVGA graphic modes support: QEMU emulates a Cirrus Logic GD5446 Video
+@subsubsection SVGA graphic modes support
+
+QEMU emulates a Cirrus Logic GD5446 Video
 card. All Windows versions starting from Windows 95 should recognize
 and use this graphic card. For optimal performances, use 16 bit color
 depth in the guest and the host OS.
 
-CPU usage reduction: Windows 9x does not correctly use the CPU HLT
+@subsubsection CPU usage reduction
+
+Windows 9x does not correctly use the CPU HLT
 instruction. The result is that it takes host CPU cycles even when
 idle. You can install the utility from
 @url{http://www.user.cityline.ru/~maxamn/amnhltm.zip} to solve this
 problem. Note that no such tool is needed for NT, 2000 or XP.
+
+@subsubsection Windows 2000 disk full problems
+
+Currently (release 0.6.0) QEMU has a bug which gives a @code{disk
+full} error during installation of some releases of Windows 2000. The
+workaround is to stop QEMU as soon as you notice that your disk image
+size is growing too fast (monitor it with @code{ls -ls}). Then
+relaunch QEMU to continue the installation. If you still experience
+the problem, relaunch QEMU again.
+
+Future QEMU releases are likely to correct this bug.
+
+@subsubsection Windows XP security problems
+
+Some releases of Windows XP install correctly but give a security
+error when booting:
+@example
+A problem is preventing Windows from accurately checking the
+license for this computer. Error code: 0x800703e6.
+@end example
+The only known workaround is to boot in Safe mode
+without networking support. 
+
+Future QEMU releases are likely to correct this bug.
 
 @chapter QEMU PowerPC System emulator invocation
 
