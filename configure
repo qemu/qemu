@@ -373,7 +373,7 @@ if test $kqemu = "yes" ; then
 
 # test that the kernel config is present
 if test '!' -f "$kernel_path/Makefile" ; then
-    echo "No .config file present in $kernel_path - kqemu cannot be built"
+    echo "No Makefile file present in $kernel_path - kqemu cannot be built"
     kqemu="no"
 fi    
 
