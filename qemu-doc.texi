@@ -608,6 +608,10 @@ In order to check that the user mode network is working, you can ping
 the address 10.0.2.2 and verify that you got an address in the range
 10.0.2.x from the QEMU virtual DHCP server.
 
+Note that @code{ping} is not supported reliably to the internet as it
+would require root priviledges. It means you can only ping the local
+router (10.0.2.2).
+
 @node direct_linux_boot
 @section Direct Linux Boot
 
