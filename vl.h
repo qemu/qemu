@@ -382,7 +382,7 @@ typedef void PCIMapIORegionFunc(PCIDevice *pci_dev, int region_num,
 #define PCI_ADDRESS_SPACE_MEM_PREFETCH	0x08
 
 typedef struct PCIIORegion {
-    uint32_t addr;
+    uint32_t addr; /* current PCI mapping address. -1 means not mapped */
     uint32_t size;
     uint8_t type;
     PCIMapIORegionFunc *map_func;
@@ -401,6 +401,7 @@ struct PCIDevice {
     /* do not access the following fields */
     PCIConfigReadFunc *config_read;
     PCIConfigWriteFunc *config_write;
+    int irq_index;
 };
 
 PCIDevice *pci_register_device(const char *name, int instance_size,
@@ -412,9 +413,17 @@ void pci_register_io_region(PCIDevice *pci_dev, int region_num,
                             uint32_t size, int type, 
                             PCIMapIORegionFunc *map_func);
 
+void pci_set_irq(PCIDevice *pci_dev, int irq_num, int level);
+
+uint32_t pci_default_read_config(PCIDevice *d, 
+                                 uint32_t address, int len);
+void pci_default_write_config(PCIDevice *d, 
+                              uint32_t address, uint32_t val, int len);
+
 void i440fx_init(void);
 void piix3_init(void);
 void pci_bios_init(void);
+void pci_info(void);
 
 /* vga.c */
 
@@ -440,7 +449,8 @@ static inline void dpy_resize(DisplayState *s, int w, int h)
 }
 
 int vga_initialize(DisplayState *ds, uint8_t *vga_ram_base, 
-                   unsigned long vga_ram_offset, int vga_ram_size);
+                   unsigned long vga_ram_offset, int vga_ram_size, 
+                   int is_pci);
 void vga_update_display(void);
 void vga_screen_dump(const char *filename);
 
