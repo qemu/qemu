@@ -1,5 +1,5 @@
 /*
- *  qemu main
+ *  qemu user main
  * 
  *  Copyright (c) 2003 Fabrice Bellard
  *
@@ -38,7 +38,7 @@ static const char *interp_prefix = CONFIG_QEMU_PREFIX;
 const char interp[] __attribute__((section(".interp"))) = "/lib/ld-linux.so.2";
 #endif
 
-/* for recent libc, we add these dummies symbol which are not declared
+/* for recent libc, we add these dummy symbols which are not declared
    when generating a linked object (bug in ld ?) */
 #if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 3)
 long __init_array_start[0];
@@ -299,10 +299,37 @@ void cpu_loop(CPUARMState *env)
 
 #endif
 
+#ifdef TARGET_SPARC
+
+void cpu_loop (CPUSPARCState *env)
+{
+	int trapnr;
+
+	while (1) {
+		trapnr = cpu_sparc_exec (env);
+
+		switch (trapnr) {
+		  case 0x8: case 0x10:
+			env->regwptr[0] = do_syscall (env, env->gregs[1],
+				env->regwptr[0], env->regwptr[1], env->regwptr[2],
+				env->regwptr[3], env->regwptr[4], env->regwptr[13]);
+			if (env->regwptr[0] >= 0xffffffe0)
+				env->psr |= PSR_CARRY;
+			break;
+		  default:
+			printf ("Invalid trap: %d\n", trapnr);
+			exit (1);
+		}
+		process_pending_signals (env);
+	}
+}
+
+#endif
+
 void usage(void)
 {
-    printf("qemu version " QEMU_VERSION ", Copyright (c) 2003 Fabrice Bellard\n"
-           "usage: qemu [-h] [-d] [-L path] [-s size] program [arguments...]\n"
+    printf("qemu-" TARGET_ARCH " version " QEMU_VERSION ", Copyright (c) 2003 Fabrice Bellard\n"
+           "usage: qemu-" TARGET_ARCH " [-h] [-d] [-L path] [-s size] program [arguments...]\n"
            "Linux CPU emulator (compiled for %s emulation)\n"
            "\n"
            "-h           print this help\n"
@@ -497,6 +524,9 @@ int main(int argc, char **argv)
         }
         env->cpsr = regs->uregs[16];
     }
+#elif defined(TARGET_SPARC)
+	env->pc = regs->u_regs[0];
+	env->regwptr[6] = regs->u_regs[1]-0x40;
 #else
 #error unsupported target CPU
 #endif

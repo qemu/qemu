@@ -142,6 +142,8 @@ void disas(FILE *out, void *code, unsigned long size, int is_host, int flags)
 	print_insn = print_insn_i386;
 #elif defined(TARGET_ARM)
 	print_insn = print_insn_arm;
+#elif defined(TARGET_SPARC)
+	print_insn = print_insn_sparc;
 #else
 	fprintf(out, "Asm output not supported on this arch\n");
 	return;

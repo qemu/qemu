@@ -188,6 +188,56 @@ static inline void stfq(void *ptr, double v)
 }
 #endif
 
+#elif defined(TARGET_WORDS_BIGENDIAN) && !defined(WORDS_BIGENDIAN)
+
+static inline int lduw(void *ptr)
+{
+    uint8_t *b = (uint8_t *) ptr;
+    return (b[0]<<8|b[1]);
+}
+
+static inline int ldsw(void *ptr)
+{
+    int8_t *b = (int8_t *) ptr;
+    return (b[0]<<8|b[1]);
+}
+
+static inline int ldl(void *ptr)
+{
+    uint8_t *b = (uint8_t *) ptr;
+    return (b[0]<<24|b[1]<<16|b[2]<<8|b[3]);
+}
+
+static inline uint64_t ldq(void *ptr)
+{
+    uint32_t a,b;
+    a = ldl (ptr);
+    b = ldl (ptr+4);
+    return (((uint64_t)a<<32)|b);
+}
+
+static inline void stw(void *ptr, int v)
+{
+    uint8_t *d = (uint8_t *) ptr;
+    d[0] = v >> 8;
+    d[1] = v;
+}
+
+static inline void stl(void *ptr, int v)
+{
+    uint8_t *d = (uint8_t *) ptr;
+    d[0] = v >> 24;
+    d[1] = v >> 16;
+    d[2] = v >> 8;
+    d[3] = v;
+}
+
+static inline void stq(void *ptr, uint64_t v)
+{
+    stl (ptr, v);
+    stl (ptr+4, v >> 32);
+}
+
 #else
 
 static inline int lduw(void *ptr)
@@ -296,6 +346,15 @@ void page_unprotect_range(uint8_t *data, unsigned long data_size);
 #define cpu_gen_code cpu_arm_gen_code
 #define cpu_interrupt cpu_arm_interrupt
 #define cpu_signal_handler cpu_arm_signal_handler
+
+#elif defined(TARGET_SPARC)
+
+#define CPUState CPUSPARCState
+#define cpu_init cpu_sparc_init
+#define cpu_exec cpu_sparc_exec
+#define cpu_gen_code cpu_sparc_gen_code
+#define cpu_interrupt cpu_sparc_interrupt
+#define cpu_signal_handler cpu_sparc_signal_handler
 
 #else
 

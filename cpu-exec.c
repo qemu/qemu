@@ -18,19 +18,13 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include "config.h"
-#ifdef TARGET_I386
-#include "exec-i386.h"
-#endif
-#ifdef TARGET_ARM
-#include "exec-arm.h"
-#endif
-
+#include "exec.h"
 #include "disas.h"
 
 //#define DEBUG_EXEC
 //#define DEBUG_SIGNAL
 
-#if defined(TARGET_ARM)
+#if defined(TARGET_ARM) || defined(TARGET_SPARC)
 /* XXX: unify with i386 target */
 void cpu_loop_exit(void)
 {
@@ -136,6 +130,7 @@ int cpu_exec(CPUState *env1)
         env->VF = (psr << 3) & 0x80000000;
         env->cpsr = psr & ~0xf0000000;
     }
+#elif defined(TARGET_SPARC)
 #else
 #error unsupported target CPU
 #endif
@@ -229,6 +224,8 @@ int cpu_exec(CPUState *env1)
                     env->cpsr = compute_cpsr();
                     cpu_arm_dump_state(env, logfile, 0);
                     env->cpsr &= ~0xf0000000;
+#elif defined(TARGET_SPARC)
+					cpu_sparc_dump_state (env, logfile, 0);
 #else
 #error unsupported target CPU 
 #endif
@@ -246,6 +243,14 @@ int cpu_exec(CPUState *env1)
                 flags = 0;
                 cs_base = 0;
                 pc = (uint8_t *)env->regs[15];
+#elif defined(TARGET_SPARC)
+				flags = 0;
+				cs_base = 0;
+				if (env->npc) {
+					env->pc = env->npc;
+					env->npc = 0;
+				}
+				pc = (uint8_t *) env->pc;
 #else
 #error unsupported CPU
 #endif
@@ -358,6 +363,7 @@ int cpu_exec(CPUState *env1)
 #endif
 #elif defined(TARGET_ARM)
     env->cpsr = compute_cpsr();
+#elif defined(TARGET_SPARC)
 #else
 #error unsupported target CPU
 #endif
@@ -487,6 +493,12 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
 {
     /* XXX: do more */
     return 0;
+}
+#elif defined(TARGET_SPARC)
+static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
+                                    int is_write, sigset_t *old_set)
+{
+	return 0;
 }
 #else
 #error unsupported target CPU
