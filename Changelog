@@ -10,6 +10,10 @@ version 0.6.1:
   - Support for up to 4 serial ports
   - TFTP server support (Magnus Damm)
   - Port redirection support in user mode networking
+  - Support for not executable data sections
+  - Compressed loop disk image support (Johannes Schindelin)
+  - Level triggered IRQ fix (aka NE2000 PCI performance fix) (Steve
+    Wormley)
 
 version 0.6.0:
 
