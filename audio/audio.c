@@ -183,7 +183,6 @@ int pcm_hw_alloc_resources (HWVoice *hw)
     return 0;
 }
 
-
 void pcm_hw_fini (HWVoice *hw)
 {
     if (hw->active) {
@@ -786,6 +785,7 @@ static struct audio_output_driver *drvtab[] = {
 #ifdef CONFIG_SDL
     &sdl_output_driver,
 #endif
+    &no_output_driver,
 #ifdef USE_WAV_AUDIO
     &wav_output_driver,
 #endif
@@ -906,6 +906,6 @@ void AUD_init (void)
     register_savevm ("audio", 0, 1, audio_save, audio_load, NULL);
     if (!done) {
         dolog ("Can not initialize audio subsystem\n");
-        return;
+        voice_init (&no_output_driver);
     }
 }

@@ -55,6 +55,9 @@ typedef struct HWVoice {
     struct pcm_ops *pcm_ops;
 } HWVoice;
 
+extern struct pcm_ops no_pcm_ops;
+extern struct audio_output_driver no_output_driver;
+
 extern struct pcm_ops oss_pcm_ops;
 extern struct audio_output_driver oss_output_driver;
 

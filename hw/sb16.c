@@ -640,8 +640,8 @@ static void complete (SB16State *s)
                     s->freq = 11025;
                 samples = dsp_get_lohi (s);
                 bytes = samples << s->fmt_stereo << (s->fmt_bits == 16);
-                ticks = ticks_per_sec / (s->freq / bytes);
-                if (ticks < ticks_per_sec / 1024)
+                ticks = bytes ? (ticks_per_sec / (s->freq / bytes)) : 0;
+                if (!bytes || ticks < ticks_per_sec / 1024)
                     pic_set_irq (s->irq, 1);
                 else
                     qemu_mod_timer (s->aux_ts, qemu_get_clock (vm_clock) + ticks);

@@ -274,7 +274,7 @@ VL_OBJS=vl.o osdep.o block.o readline.o monitor.o pci.o console.o
 VL_OBJS+=block-cow.o block-qcow.o aes.o block-vmdk.o block-cloop.o
 
 SOUND_HW = sb16.o
-AUDIODRV = audio.o wavaudio.o
+AUDIODRV = audio.o noaudio.o wavaudio.o
 ifdef CONFIG_SDL
 AUDIODRV += sdlaudio.o
 endif

@@ -34,7 +34,6 @@ typedef struct FMODVoice {
     int channel;
 } FMODVoice;
 
-
 #define dolog(...) AUD_log ("fmod", __VA_ARGS__)
 #ifdef DEBUG
 #define ldebug(...) dolog (__VA_ARGS__)

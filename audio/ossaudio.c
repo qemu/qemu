@@ -40,7 +40,6 @@ typedef struct OSSVoice {
     int old_optr;
 } OSSVoice;
 
-
 #define dolog(...) AUD_log ("oss", __VA_ARGS__)
 #ifdef DEBUG
 #define ldebug(...) dolog (__VA_ARGS__)
@@ -371,9 +370,7 @@ static int oss_hw_init (HWVoice *hw, int freq, int nchannels, audfmt_e fmt)
         if (oss->pcm_buf == MAP_FAILED) {
             dolog ("Failed to mmap OSS device\nReason: %s\n",
                    errstr ());
-        }
-
-        for (;;) {
+        } else for (;;) {
             int err;
             int trig = 0;
             if (ioctl (oss->fd, SNDCTL_DSP_SETTRIGGER, &trig) < 0) {

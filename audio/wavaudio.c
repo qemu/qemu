@@ -55,7 +55,6 @@ static void wav_hw_run (HWVoice *hw)
     int64_t now = qemu_get_clock (vm_clock);
     int64_t ticks = now - wav->old_ticks;
     int64_t bytes = (ticks * hw->bytes_per_second) / ticks_per_sec;
-    wav->old_ticks = now;
 
     if (bytes > INT_MAX)
         samples = INT_MAX >> hw->shift;
@@ -66,6 +65,7 @@ static void wav_hw_run (HWVoice *hw)
     if (live <= 0)
         return;
 
+    wav->old_ticks = now;
     decr = audio_MIN (live, samples);
     samples = decr;
     rpos = hw->rpos;
@@ -93,7 +93,6 @@ static int wav_hw_write (SWVoice *sw, void *buf, int len)
 {
     return pcm_hw_write (sw, buf, len);
 }
-
 
 /* VICE code: Store number as little endian. */
 static void le_store (uint8_t *buf, uint32_t val, int len)
@@ -145,6 +144,8 @@ static int wav_hw_init (HWVoice *hw, int freq, int nchannels, audfmt_e fmt)
     if (!wav->f) {
         dolog ("failed to open wave file `%s'\nReason: %s\n",
                conf.wav_path, strerror (errno));
+        qemu_free (wav->pcm_buf);
+        wav->pcm_buf = NULL;
         return -1;
     }
 
@@ -175,6 +176,9 @@ static void wav_hw_fini (HWVoice *hw)
 
     fclose (wav->f);
     wav->f = NULL;
+
+    qemu_free (wav->pcm_buf);
+    wav->pcm_buf = NULL;
 }
 
 static int wav_hw_ctl (HWVoice *hw, int cmd, ...)
