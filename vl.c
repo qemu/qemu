@@ -38,6 +38,7 @@
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <dirent.h>
 #ifdef _BSD
 #include <sys/stat.h>
 #ifndef __APPLE__
@@ -1453,6 +1454,80 @@ static void net_slirp_redir(const char *redir_str)
     fprintf(stderr, "qemu: syntax: -redir [tcp|udp]:host-port:[guest-host]:guest-port\n");
     exit(1);
 }
+    
+char smb_dir[1024];
+
+static void smb_exit(void)
+{
+    DIR *d;
+    struct dirent *de;
+    char filename[1024];
+
+    /* erase all the files in the directory */
+    d = opendir(smb_dir);
+    for(;;) {
+        de = readdir(d);
+        if (!de)
+            break;
+        if (strcmp(de->d_name, ".") != 0 &&
+            strcmp(de->d_name, "..") != 0) {
+            snprintf(filename, sizeof(filename), "%s/%s", 
+                     smb_dir, de->d_name);
+            unlink(filename);
+        }
+    }
+    rmdir(smb_dir);
+}
+
+/* automatic user mode samba server configuration */
+void net_slirp_smb(const char *exported_dir)
+{
+    char smb_conf[1024];
+    char smb_cmdline[1024];
+    FILE *f;
+
+    if (!slirp_inited) {
+        slirp_inited = 1;
+        slirp_init();
+    }
+
+    /* XXX: better tmp dir construction */
+    snprintf(smb_dir, sizeof(smb_dir), "/tmp/qemu-smb.%d", getpid());
+    if (mkdir(smb_dir, 0700) < 0) {
+        fprintf(stderr, "qemu: could not create samba server dir '%s'\n", smb_dir);
+        exit(1);
+    }
+    snprintf(smb_conf, sizeof(smb_conf), "%s/%s", smb_dir, "smb.conf");
+    
+    f = fopen(smb_conf, "w");
+    if (!f) {
+        fprintf(stderr, "qemu: could not create samba server configuration file '%s'\n", smb_conf);
+        exit(1);
+    }
+    fprintf(f, 
+            "[global]\n"
+            "pid directory=%s\n"
+            "lock directory=%s\n"
+            "log file=%s/log.smbd\n"
+            "smb passwd file=%s/smbpasswd\n"
+            "[qemu]\n"
+            "path=%s\n"
+            "read only=no\n"
+            "guest ok=yes\n",
+            smb_dir,
+            smb_dir,
+            smb_dir,
+            smb_dir,
+            exported_dir
+            );
+    fclose(f);
+    atexit(smb_exit);
+
+    snprintf(smb_cmdline, sizeof(smb_cmdline), "/usr/sbin/smbd -s %s",
+             smb_conf);
+    
+    slirp_add_exec(0, smb_cmdline, 4, 139);
+}
 
 #endif /* CONFIG_SLIRP */
 
@@ -2407,6 +2482,7 @@ void help(void)
 #ifdef CONFIG_SLIRP
            "-user-net       use user mode network stack [default if no tap/tun script]\n"
            "-tftp prefix    allow tftp access to files starting with prefix [-user-net]\n"
+           "-smb dir        allow SMB access to files in 'dir' [-user-net]\n"
            "-redir [tcp|udp]:host-port:[guest-host]:guest-port\n"
            "                redirect TCP or UDP connections from host to guest [-user-net]\n"
 #endif
@@ -2484,6 +2560,7 @@ enum {
     QEMU_OPTION_tun_fd,
     QEMU_OPTION_user_net,
     QEMU_OPTION_tftp,
+    QEMU_OPTION_smb,
     QEMU_OPTION_redir,
     QEMU_OPTION_dummy_net,
 
@@ -2538,6 +2615,7 @@ const QEMUOption qemu_options[] = {
 #ifdef CONFIG_SLIRP
     { "user-net", 0, QEMU_OPTION_user_net },
     { "tftp", HAS_ARG, QEMU_OPTION_tftp },
+    { "smb", HAS_ARG, QEMU_OPTION_smb },
     { "redir", HAS_ARG, QEMU_OPTION_redir },
 #endif
     { "dummy-net", 0, QEMU_OPTION_dummy_net },
@@ -2833,6 +2911,9 @@ int main(int argc, char **argv)
 #ifdef CONFIG_SLIRP
             case QEMU_OPTION_tftp:
 		tftp_prefix = optarg;
+                break;
+            case QEMU_OPTION_smb:
+		net_slirp_smb(optarg);
                 break;
             case QEMU_OPTION_user_net:
                 net_if_type = NET_IF_USER;
