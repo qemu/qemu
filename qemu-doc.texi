@@ -52,8 +52,8 @@ If you want to compile QEMU yourself, see @ref{compilation}.
 
 @section Linux
 
-Download the binary distribution (@file{qemu-XXX-i386.tar.gz}) and
-untar it as root in @file{/}:
+Download the binary distribution (@file{qemu-XXX-i386.tar.gz}) in
+@file{/tmp} and untar it as root from @file{/}:
 
 @example
 su
