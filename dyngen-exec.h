@@ -209,16 +209,22 @@ extern int __op_param1, __op_param2, __op_param3;
 
 extern int __op_jmp0, __op_jmp1, __op_jmp2, __op_jmp3;
 
+#if defined(_WIN32)
+#define ASM_NAME(x) "_" #x
+#else
+#define ASM_NAME(x) #x
+#endif
+
 #ifdef __i386__
 #define EXIT_TB() asm volatile ("ret")
-#define GOTO_LABEL_PARAM(n) asm volatile ("jmp __op_gen_label" #n)
+#define GOTO_LABEL_PARAM(n) asm volatile ("jmp " ASM_NAME(__op_gen_label) #n)
 #endif
 #ifdef __x86_64__
 #define EXIT_TB() asm volatile ("ret")
 #endif
 #ifdef __powerpc__
 #define EXIT_TB() asm volatile ("blr")
-#define GOTO_LABEL_PARAM(n) asm volatile ("b __op_gen_label" #n)
+#define GOTO_LABEL_PARAM(n) asm volatile ("b " ASM_NAME(__op_gen_label) #n)
 #endif
 #ifdef __s390__
 #define EXIT_TB() asm volatile ("br %r14")
