@@ -1529,7 +1529,11 @@ int main_loop(void)
             timeout = 10;
         }
 
-#ifndef _WIN32
+#ifdef _WIN32
+        if (timeout > 0)
+            Sleep(timeout);
+#else
+
         /* poll any events */
         /* XXX: separate device handlers from system ones */
         pf = ufds;
