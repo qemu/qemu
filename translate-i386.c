@@ -3249,7 +3249,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
     case 0x90: /* nop */
         break;
     case 0xcc: /* int3 */
-        gen_exception(s, EXCP03_INT3, pc_start - s->cs_base);
+        gen_exception(s, EXCP03_INT3, s->pc - s->cs_base);
         break;
     case 0xcd: /* int N */
         val = ldub(s->pc++);
@@ -3261,7 +3261,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
     case 0xce: /* into */
         if (s->cc_op != CC_OP_DYNAMIC)
             gen_op_set_cc_op(s->cc_op);
-        gen_op_into();
+        gen_op_into(s->pc - s->cs_base);
         break;
     case 0xfa: /* cli */
         if (!s->vm86) {
@@ -3342,6 +3342,24 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
     case 0xf4: /* hlt */
         /* XXX: if cpl == 0, then should do something else */
         gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
+        break;
+    case 0x102: /* lar */
+    case 0x103: /* lsl */
+        if (s->vm86)
+            goto illegal_op;
+        ot = dflag ? OT_LONG : OT_WORD;
+        modrm = ldub(s->pc++);
+        reg = (modrm >> 3) & 7;
+        gen_ldst_modrm(s, modrm, ot, OR_TMP0, 0);
+        gen_op_mov_TN_reg[ot][1][reg]();
+        if (s->cc_op != CC_OP_DYNAMIC)
+            gen_op_set_cc_op(s->cc_op);
+        if (b == 0x102)
+            gen_op_lar();
+        else
+            gen_op_lsl();
+        s->cc_op = CC_OP_EFLAGS;
+        gen_op_mov_reg_T1[ot][reg]();
         break;
     default:
         goto illegal_op;
@@ -3579,6 +3597,8 @@ static uint16_t opc_write_flags[NB_OPS] = {
     [INDEX_op_cmpxchgl_T0_T1_EAX_cc] = CC_OSZAPC,
 
     [INDEX_op_cmpxchg8b] = CC_Z,
+    [INDEX_op_lar] = CC_Z,
+    [INDEX_op_lsl] = CC_Z,
 };
 
 /* simpler form of an operation if no flags need to be generated */
