@@ -100,10 +100,10 @@ typedef struct VirtPageDesc {
 
 static void io_mem_init(void);
 
-unsigned long real_host_page_size;
-unsigned long host_page_bits;
-unsigned long host_page_size;
-unsigned long host_page_mask;
+unsigned long qemu_real_host_page_size;
+unsigned long qemu_host_page_bits;
+unsigned long qemu_host_page_size;
+unsigned long qemu_host_page_mask;
 
 /* XXX: for system emulation, it could just be an array */
 static PageDesc *l1_map[L1_SIZE];
@@ -127,21 +127,21 @@ int loglevel;
 
 static void page_init(void)
 {
-    /* NOTE: we can always suppose that host_page_size >=
+    /* NOTE: we can always suppose that qemu_host_page_size >=
        TARGET_PAGE_SIZE */
 #ifdef _WIN32
-    real_host_page_size = 4096;
+    qemu_real_host_page_size = 4096;
 #else
-    real_host_page_size = getpagesize();
+    qemu_real_host_page_size = getpagesize();
 #endif
-    if (host_page_size == 0)
-        host_page_size = real_host_page_size;
-    if (host_page_size < TARGET_PAGE_SIZE)
-        host_page_size = TARGET_PAGE_SIZE;
-    host_page_bits = 0;
-    while ((1 << host_page_bits) < host_page_size)
-        host_page_bits++;
-    host_page_mask = ~(host_page_size - 1);
+    if (qemu_host_page_size == 0)
+        qemu_host_page_size = qemu_real_host_page_size;
+    if (qemu_host_page_size < TARGET_PAGE_SIZE)
+        qemu_host_page_size = TARGET_PAGE_SIZE;
+    qemu_host_page_bits = 0;
+    while ((1 << qemu_host_page_bits) < qemu_host_page_size)
+        qemu_host_page_bits++;
+    qemu_host_page_mask = ~(qemu_host_page_size - 1);
 #if !defined(CONFIG_USER_ONLY)
     virt_valid_tag = 1;
 #endif
@@ -831,12 +831,12 @@ static inline void tb_alloc_page(TranslationBlock *tb,
 
         /* force the host page as non writable (writes will have a
            page fault + mprotect overhead) */
-        host_start = page_addr & host_page_mask;
-        host_end = host_start + host_page_size;
+        host_start = page_addr & qemu_host_page_mask;
+        host_end = host_start + qemu_host_page_size;
         prot = 0;
         for(addr = host_start; addr < host_end; addr += TARGET_PAGE_SIZE)
             prot |= page_get_flags(addr);
-        mprotect((void *)host_start, host_page_size, 
+        mprotect((void *)host_start, qemu_host_page_size, 
                  (prot & PAGE_BITS) & ~PAGE_WRITE);
 #ifdef DEBUG_TB_INVALIDATE
         printf("protecting code page: 0x%08lx\n", 
@@ -1737,12 +1737,12 @@ int page_unprotect(unsigned long address, unsigned long pc, void *puc)
     PageDesc *p, *p1;
     unsigned long host_start, host_end, addr;
 
-    host_start = address & host_page_mask;
+    host_start = address & qemu_host_page_mask;
     page_index = host_start >> TARGET_PAGE_BITS;
     p1 = page_find(page_index);
     if (!p1)
         return 0;
-    host_end = host_start + host_page_size;
+    host_end = host_start + qemu_host_page_size;
     p = p1;
     prot = 0;
     for(addr = host_start;addr < host_end; addr += TARGET_PAGE_SIZE) {
@@ -1754,7 +1754,7 @@ int page_unprotect(unsigned long address, unsigned long pc, void *puc)
     if (prot & PAGE_WRITE_ORG) {
         pindex = (address - host_start) >> TARGET_PAGE_BITS;
         if (!(p1[pindex].flags & PAGE_WRITE)) {
-            mprotect((void *)host_start, host_page_size, 
+            mprotect((void *)host_start, qemu_host_page_size, 
                      (prot & PAGE_BITS) | PAGE_WRITE);
             p1[pindex].flags |= PAGE_WRITE;
             /* and since the content will be modified, we must invalidate

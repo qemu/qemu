@@ -13,6 +13,16 @@
 #include "qemu.h"
 #include "disas.h"
 
+/* this flag is uneffective under linux too, should be deleted */
+#ifndef MAP_DENYWRITE
+#define MAP_DENYWRITE 0
+#endif
+
+/* should probably go in elf.h */
+#ifndef ELIBBAD
+#define ELIBBAD 80
+#endif
+
 #ifdef TARGET_I386
 
 #define ELF_START_MMAP 0x80000000
@@ -332,7 +342,7 @@ static void * get_free_page(void)
     /* User-space version of kernel get_free_page.  Returns a page-aligned
      * page-sized chunk of memory.
      */
-    retval = (void *)target_mmap(0, host_page_size, PROT_READ|PROT_WRITE, 
+    retval = (void *)target_mmap(0, qemu_host_page_size, PROT_READ|PROT_WRITE, 
                                  MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
 
     if((long)retval == -1) {
@@ -346,7 +356,7 @@ static void * get_free_page(void)
 
 static void free_page(void * pageaddr)
 {
-    target_munmap((unsigned long)pageaddr, host_page_size);
+    target_munmap((unsigned long)pageaddr, qemu_host_page_size);
 }
 
 /*
@@ -502,7 +512,7 @@ unsigned long setup_arg_pages(unsigned long p, struct linux_binprm * bprm,
     if (size < MAX_ARG_PAGES*TARGET_PAGE_SIZE)
         size = MAX_ARG_PAGES*TARGET_PAGE_SIZE;
     error = target_mmap(0, 
-                        size + host_page_size,
+                        size + qemu_host_page_size,
                         PROT_READ | PROT_WRITE,
                         MAP_PRIVATE | MAP_ANONYMOUS,
                         -1, 0);
@@ -511,7 +521,7 @@ unsigned long setup_arg_pages(unsigned long p, struct linux_binprm * bprm,
         exit(-1);
     }
     /* we reserve one extra page at the top of the stack as guard */
-    target_mprotect(error + size, host_page_size, PROT_NONE);
+    target_mprotect(error + size, qemu_host_page_size, PROT_NONE);
 
     stack_base = error + size - MAX_ARG_PAGES*TARGET_PAGE_SIZE;
     p += stack_base;
@@ -562,10 +572,10 @@ static void padzero(unsigned long elf_bss)
            of the file may not be mapped. A better fix would be to
            patch target_mmap(), but it is more complicated as the file
            size must be known */
-        if (real_host_page_size < host_page_size) {
+        if (qemu_real_host_page_size < qemu_host_page_size) {
             unsigned long end_addr, end_addr1;
-            end_addr1 = (elf_bss + real_host_page_size - 1) & 
-                ~(real_host_page_size - 1);
+            end_addr1 = (elf_bss + qemu_real_host_page_size - 1) & 
+                ~(qemu_real_host_page_size - 1);
             end_addr = HOST_PAGE_ALIGN(elf_bss);
             if (end_addr1 < end_addr) {
                 mmap((void *)end_addr1, end_addr - end_addr1,
@@ -574,9 +584,9 @@ static void padzero(unsigned long elf_bss)
             }
         }
 
-        nbyte = elf_bss & (host_page_size-1);
+        nbyte = elf_bss & (qemu_host_page_size-1);
         if (nbyte) {
-	    nbyte = host_page_size - nbyte;
+	    nbyte = qemu_host_page_size - nbyte;
 	    fpnt = (char *) elf_bss;
 	    do {
 		*fpnt++ = 0;
@@ -811,7 +821,7 @@ static unsigned long load_elf_interp(struct elfhdr * interp_elf_ex,
 	 * bss page.
 	 */
 	padzero(elf_bss);
-	elf_bss = TARGET_ELF_PAGESTART(elf_bss + host_page_size - 1); /* What we have mapped so far */
+	elf_bss = TARGET_ELF_PAGESTART(elf_bss + qemu_host_page_size - 1); /* What we have mapped so far */
 
 	/* Map the last of the bss segment */
 	if (last_bss > elf_bss) {
@@ -1252,7 +1262,7 @@ static int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * r
 	       and some applications "depend" upon this behavior.
 	       Since we do not have the power to recompile these, we
 	       emulate the SVr4 behavior.  Sigh.  */
-	    mapped_addr = target_mmap(0, host_page_size, PROT_READ | PROT_EXEC,
+	    mapped_addr = target_mmap(0, qemu_host_page_size, PROT_READ | PROT_EXEC,
                                       MAP_FIXED | MAP_PRIVATE, -1, 0);
     }
 

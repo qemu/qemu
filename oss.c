@@ -23,7 +23,7 @@
  */
 #include "vl.h"
 
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(__APPLE__)
 #include <ctype.h>
 #include <fcntl.h>
 #include <errno.h>

@@ -28,6 +28,11 @@
 
 #define DEBUG_LOGFILE "/tmp/qemu.log"
 
+#ifdef __APPLE__
+#include <crt_externs.h>
+# define environ  (*_NSGetEnviron())
+#endif
+
 static const char *interp_prefix = CONFIG_QEMU_PREFIX;
 
 #if defined(__i386__) && !defined(CONFIG_STATIC)
@@ -977,9 +982,9 @@ int main(int argc, char **argv)
         } else if (!strcmp(r, "L")) {
             interp_prefix = argv[optind++];
         } else if (!strcmp(r, "p")) {
-            host_page_size = atoi(argv[optind++]);
-            if (host_page_size == 0 ||
-                (host_page_size & (host_page_size - 1)) != 0) {
+            qemu_host_page_size = atoi(argv[optind++]);
+            if (qemu_host_page_size == 0 ||
+                (qemu_host_page_size & (qemu_host_page_size - 1)) != 0) {
                 fprintf(stderr, "page size must be a power of two\n");
                 exit(1);
             }
@@ -1006,8 +1011,8 @@ int main(int argc, char **argv)
     /* Scan interp_prefix dir for replacement files. */
     init_paths(interp_prefix);
 
-    /* NOTE: we need to init the CPU at this stage to get the
-       host_page_size */
+    /* NOTE: we need to init the CPU at this stage to get
+       qemu_host_page_size */
     env = cpu_init();
     
     if (elf_exec(filename, argv+optind, environ, regs, info) != 0) {

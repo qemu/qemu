@@ -498,7 +498,7 @@ static inline void helper_fstt(CPU86_LDouble f, uint8_t *ptr)
 
 #define FPUC_EM 0x3f
 
-const CPU86_LDouble f15rk[7];
+extern const CPU86_LDouble f15rk[7];
 
 void helper_fldt_ST0_A0(void);
 void helper_fstt_ST0_A0(void);
@@ -528,9 +528,9 @@ void helper_frstor(uint8_t *ptr, int data32);
 void restore_native_fp_state(CPUState *env);
 void save_native_fp_state(CPUState *env);
 
-const uint8_t parity_table[256];
-const uint8_t rclw_table[32];
-const uint8_t rclb_table[32];
+extern const uint8_t parity_table[256];
+extern const uint8_t rclw_table[32];
+extern const uint8_t rclb_table[32];
 
 static inline uint32_t compute_eflags(void)
 {

@@ -1955,24 +1955,6 @@ void OPPROTO op_fldcw_A0(void)
     int rnd_type;
     env->fpuc = lduw((void *)A0);
     /* set rounding mode */
-#ifdef _BSD
-    switch(env->fpuc & RC_MASK) {
-    default:
-    case RC_NEAR:
-        rnd_type = FP_RN;
-        break;
-    case RC_DOWN:
-        rnd_type = FP_RM;
-        break;
-    case RC_UP:
-        rnd_type = FP_RP;
-        break;
-    case RC_CHOP:
-        rnd_type = FP_RZ;
-        break;
-    }
-    fpsetround(rnd_type);
-#else
     switch(env->fpuc & RC_MASK) {
     default:
     case RC_NEAR:
@@ -1989,7 +1971,6 @@ void OPPROTO op_fldcw_A0(void)
         break;
     }
     fesetround(rnd_type);
-#endif
 }
 
 void OPPROTO op_fclex(void)

@@ -538,12 +538,12 @@ static inline void stfq_raw(void *ptr, double v)
 #define TARGET_PAGE_MASK ~(TARGET_PAGE_SIZE - 1)
 #define TARGET_PAGE_ALIGN(addr) (((addr) + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK)
 
-extern unsigned long real_host_page_size;
-extern unsigned long host_page_bits;
-extern unsigned long host_page_size;
-extern unsigned long host_page_mask;
+extern unsigned long qemu_real_host_page_size;
+extern unsigned long qemu_host_page_bits;
+extern unsigned long qemu_host_page_size;
+extern unsigned long qemu_host_page_mask;
 
-#define HOST_PAGE_ALIGN(addr) (((addr) + host_page_size - 1) & host_page_mask)
+#define HOST_PAGE_ALIGN(addr) (((addr) + qemu_host_page_size - 1) & qemu_host_page_mask)
 
 /* same as PROT_xxx */
 #define PAGE_READ      0x0001

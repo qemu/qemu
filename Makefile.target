@@ -100,6 +100,7 @@ LDFLAGS+=-Wl,-T,$(SRC_PATH)/amd64.ld
 endif
 
 ifeq ($(ARCH),ppc)
+CFLAGS+= -D__powerpc__
 OP_CFLAGS=$(CFLAGS)
 LDFLAGS+=-Wl,-T,$(SRC_PATH)/ppc.ld
 endif
@@ -150,6 +151,10 @@ endif
 ifeq ($(HAVE_GCC3_OPTIONS),yes)
 # very important to generate a return at the end of every operation
 OP_CFLAGS+=-fno-reorder-blocks -fno-optimize-sibling-calls
+endif
+
+ifeq ($(CONFIG_DARWIN),yes)
+OP_CFLAGS+= -mdynamic-no-pic
 endif
 
 #########################################################
@@ -267,8 +272,10 @@ endif
 ifndef CONFIG_SOFTMMU
 VL_LDFLAGS+=-Wl,-T,$(SRC_PATH)/i386-vl.ld 
 endif
+ifndef CONFIG_DARWIN
 ifndef CONFIG_WIN32
 VL_LIBS=-lutil
+endif
 endif
 
 $(QEMU_SYSTEM): $(VL_OBJS) libqemu.a

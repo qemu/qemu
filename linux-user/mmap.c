@@ -53,7 +53,7 @@ int target_mprotect(unsigned long start, unsigned long len, int prot)
     if (len == 0)
         return 0;
     
-    host_start = start & host_page_mask;
+    host_start = start & qemu_host_page_mask;
     host_end = HOST_PAGE_ALIGN(end);
     if (start > host_start) {
         /* handle host page containing start */
@@ -61,27 +61,27 @@ int target_mprotect(unsigned long start, unsigned long len, int prot)
         for(addr = host_start; addr < start; addr += TARGET_PAGE_SIZE) {
             prot1 |= page_get_flags(addr);
         }
-        if (host_end == host_start + host_page_size) {
+        if (host_end == host_start + qemu_host_page_size) {
             for(addr = end; addr < host_end; addr += TARGET_PAGE_SIZE) {
                 prot1 |= page_get_flags(addr);
             }
             end = host_end;
         }
-        ret = mprotect((void *)host_start, host_page_size, prot1 & PAGE_BITS);
+        ret = mprotect((void *)host_start, qemu_host_page_size, prot1 & PAGE_BITS);
         if (ret != 0)
             return ret;
-        host_start += host_page_size;
+        host_start += qemu_host_page_size;
     }
     if (end < host_end) {
         prot1 = prot;
         for(addr = end; addr < host_end; addr += TARGET_PAGE_SIZE) {
             prot1 |= page_get_flags(addr);
         }
-        ret = mprotect((void *)(host_end - host_page_size), host_page_size, 
+        ret = mprotect((void *)(host_end - qemu_host_page_size), qemu_host_page_size, 
                        prot1 & PAGE_BITS);
         if (ret != 0)
             return ret;
-        host_end -= host_page_size;
+        host_end -= qemu_host_page_size;
     }
     
     /* handle the pages in the middle */
@@ -102,7 +102,7 @@ int mmap_frag(unsigned long host_start,
     unsigned long host_end, ret, addr;
     int prot1, prot_new;
 
-    host_end = host_start + host_page_size;
+    host_end = host_start + qemu_host_page_size;
 
     /* get the protection of the target pages outside the mapping */
     prot1 = 0;
@@ -113,7 +113,7 @@ int mmap_frag(unsigned long host_start,
     
     if (prot1 == 0) {
         /* no page was there, so we allocate one */
-        ret = (long)mmap((void *)host_start, host_page_size, prot, 
+        ret = (long)mmap((void *)host_start, qemu_host_page_size, prot, 
                          flags | MAP_ANONYMOUS, -1, 0);
         if (ret == -1)
             return ret;
@@ -130,18 +130,18 @@ int mmap_frag(unsigned long host_start,
 
         /* adjust protection to be able to read */
         if (!(prot1 & PROT_WRITE))
-            mprotect((void *)host_start, host_page_size, prot1 | PROT_WRITE);
+            mprotect((void *)host_start, qemu_host_page_size, prot1 | PROT_WRITE);
         
         /* read the corresponding file data */
         pread(fd, (void *)start, end - start, offset);
         
         /* put final protection */
         if (prot_new != (prot1 | PROT_WRITE))
-            mprotect((void *)host_start, host_page_size, prot_new);
+            mprotect((void *)host_start, qemu_host_page_size, prot_new);
     } else {
         /* just update the protection */
         if (prot_new != prot1) {
-            mprotect((void *)host_start, host_page_size, prot_new);
+            mprotect((void *)host_start, qemu_host_page_size, prot_new);
         }
     }
     return 0;
@@ -188,7 +188,7 @@ long target_mmap(unsigned long start, unsigned long len, int prot,
     len = TARGET_PAGE_ALIGN(len);
     if (len == 0)
         return start;
-    host_start = start & host_page_mask;
+    host_start = start & qemu_host_page_mask;
 
     if (!(flags & MAP_FIXED)) {
 #if defined(__alpha__) || defined(__sparc__) || defined(__x86_64__)
@@ -198,10 +198,10 @@ long target_mmap(unsigned long start, unsigned long len, int prot,
             last_start += HOST_PAGE_ALIGN(len);
         }
 #endif
-        if (host_page_size != real_host_page_size) {
+        if (qemu_host_page_size != qemu_real_host_page_size) {
             /* NOTE: this code is only for debugging with '-p' option */
             /* reserve a memory area */
-            host_len = HOST_PAGE_ALIGN(len) + host_page_size - TARGET_PAGE_SIZE;
+            host_len = HOST_PAGE_ALIGN(len) + qemu_host_page_size - TARGET_PAGE_SIZE;
             host_start = (long)mmap((void *)host_start, host_len, PROT_NONE, 
                                     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
             if (host_start == -1)
@@ -217,7 +217,7 @@ long target_mmap(unsigned long start, unsigned long len, int prot,
             flags |= MAP_FIXED;
         } else {
             /* if not fixed, no need to do anything */
-            host_offset = offset & host_page_mask;
+            host_offset = offset & qemu_host_page_mask;
             host_len = len + offset - host_offset;
             start = (long)mmap((void *)host_start, host_len, 
                                prot, flags, fd, host_offset);
@@ -238,7 +238,7 @@ long target_mmap(unsigned long start, unsigned long len, int prot,
     /* worst case: we cannot map the file because the offset is not
        aligned, so we read it */
     if (!(flags & MAP_ANONYMOUS) &&
-        (offset & ~host_page_mask) != (start & ~host_page_mask)) {
+        (offset & ~qemu_host_page_mask) != (start & ~qemu_host_page_mask)) {
         /* msync() won't work here, so we return an error if write is
            possible while it is a shared mapping */
         if ((flags & MAP_TYPE) == MAP_SHARED &&
@@ -260,7 +260,7 @@ long target_mmap(unsigned long start, unsigned long len, int prot,
 
     /* handle the start of the mapping */
     if (start > host_start) {
-        if (host_end == host_start + host_page_size) {
+        if (host_end == host_start + qemu_host_page_size) {
             /* one single host page */
             ret = mmap_frag(host_start, start, end,
                             prot, flags, fd, offset);
@@ -268,21 +268,21 @@ long target_mmap(unsigned long start, unsigned long len, int prot,
                 return ret;
             goto the_end1;
         }
-        ret = mmap_frag(host_start, start, host_start + host_page_size,
+        ret = mmap_frag(host_start, start, host_start + qemu_host_page_size,
                         prot, flags, fd, offset);
         if (ret == -1)
             return ret;
-        host_start += host_page_size;
+        host_start += qemu_host_page_size;
     }
     /* handle the end of the mapping */
     if (end < host_end) {
-        ret = mmap_frag(host_end - host_page_size, 
-                        host_end - host_page_size, host_end,
+        ret = mmap_frag(host_end - qemu_host_page_size, 
+                        host_end - qemu_host_page_size, host_end,
                         prot, flags, fd, 
-                        offset + host_end - host_page_size - start);
+                        offset + host_end - qemu_host_page_size - start);
         if (ret == -1)
             return ret;
-        host_end -= host_page_size;
+        host_end -= qemu_host_page_size;
     }
     
     /* map the middle (easier) */
@@ -322,7 +322,7 @@ int target_munmap(unsigned long start, unsigned long len)
     if (len == 0)
         return -EINVAL;
     end = start + len;
-    host_start = start & host_page_mask;
+    host_start = start & qemu_host_page_mask;
     host_end = HOST_PAGE_ALIGN(end);
 
     if (start > host_start) {
@@ -331,14 +331,14 @@ int target_munmap(unsigned long start, unsigned long len)
         for(addr = host_start; addr < start; addr += TARGET_PAGE_SIZE) {
             prot |= page_get_flags(addr);
         }
-        if (host_end == host_start + host_page_size) {
+        if (host_end == host_start + qemu_host_page_size) {
             for(addr = end; addr < host_end; addr += TARGET_PAGE_SIZE) {
                 prot |= page_get_flags(addr);
             }
             end = host_end;
         }
         if (prot != 0)
-            host_start += host_page_size;
+            host_start += qemu_host_page_size;
     }
     if (end < host_end) {
         prot = 0;
@@ -346,7 +346,7 @@ int target_munmap(unsigned long start, unsigned long len)
             prot |= page_get_flags(addr);
         }
         if (prot != 0)
-            host_end -= host_page_size;
+            host_end -= qemu_host_page_size;
     }
     
     /* unmap what we can */
@@ -391,7 +391,7 @@ int target_msync(unsigned long start, unsigned long len, int flags)
     if (end == start)
         return 0;
     
-    start &= host_page_mask;
+    start &= qemu_host_page_mask;
     return msync((void *)start, end - start, flags);
 }
 

@@ -1,6 +1,9 @@
 include config-host.mak
 
 CFLAGS=-Wall -O2 -g
+ifdef CONFIG_DARWIN
+CFLAGS+= -mdynamic-no-pic
+endif
 ifdef CONFIG_WIN32
 CFLAGS+=-fpack-struct 
 endif

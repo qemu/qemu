@@ -852,24 +852,72 @@ int cpu_signal_handler(int host_signum, struct siginfo *info,
                              &uc->uc_sigmask, puc);
 }
 
-#elif defined(__powerpc)
+#elif defined(__powerpc__)
 
-int cpu_signal_handler(int host_signum, struct siginfo *info, 
+/***********************************************************************
+ * signal context platform-specific definitions
+ * From Wine
+ */
+#ifdef linux
+/* All Registers access - only for local access */
+# define REG_sig(reg_name, context)		((context)->uc_mcontext.regs->reg_name)
+/* Gpr Registers access  */
+# define GPR_sig(reg_num, context)		REG_sig(gpr[reg_num], context)
+# define IAR_sig(context)			REG_sig(nip, context)	/* Program counter */
+# define MSR_sig(context)			REG_sig(msr, context)   /* Machine State Register (Supervisor) */
+# define CTR_sig(context)			REG_sig(ctr, context)   /* Count register */
+# define XER_sig(context)			REG_sig(xer, context) /* User's integer exception register */
+# define LR_sig(context)			REG_sig(link, context) /* Link register */
+# define CR_sig(context)			REG_sig(ccr, context) /* Condition register */
+/* Float Registers access  */
+# define FLOAT_sig(reg_num, context)		(((double*)((char*)((context)->uc_mcontext.regs+48*4)))[reg_num])
+# define FPSCR_sig(context)			(*(int*)((char*)((context)->uc_mcontext.regs+(48+32*2)*4)))
+/* Exception Registers access */
+# define DAR_sig(context)			REG_sig(dar, context)
+# define DSISR_sig(context)			REG_sig(dsisr, context)
+# define TRAP_sig(context)			REG_sig(trap, context)
+#endif /* linux */
+
+#ifdef __APPLE__
+# include <sys/ucontext.h>
+typedef struct ucontext SIGCONTEXT;
+/* All Registers access - only for local access */
+# define REG_sig(reg_name, context)		((context)->uc_mcontext->ss.reg_name)
+# define FLOATREG_sig(reg_name, context)	((context)->uc_mcontext->fs.reg_name)
+# define EXCEPREG_sig(reg_name, context)	((context)->uc_mcontext->es.reg_name)
+# define VECREG_sig(reg_name, context)		((context)->uc_mcontext->vs.reg_name)
+/* Gpr Registers access */
+# define GPR_sig(reg_num, context)		REG_sig(r##reg_num, context)
+# define IAR_sig(context)			REG_sig(srr0, context)	/* Program counter */
+# define MSR_sig(context)			REG_sig(srr1, context)  /* Machine State Register (Supervisor) */
+# define CTR_sig(context)			REG_sig(ctr, context)
+# define XER_sig(context)			REG_sig(xer, context) /* Link register */
+# define LR_sig(context)			REG_sig(lr, context)  /* User's integer exception register */
+# define CR_sig(context)			REG_sig(cr, context)  /* Condition register */
+/* Float Registers access */
+# define FLOAT_sig(reg_num, context)		FLOATREG_sig(fpregs[reg_num], context)
+# define FPSCR_sig(context)			((double)FLOATREG_sig(fpscr, context))
+/* Exception Registers access */
+# define DAR_sig(context)			EXCEPREG_sig(dar, context)     /* Fault registers for coredump */
+# define DSISR_sig(context)			EXCEPREG_sig(dsisr, context)
+# define TRAP_sig(context)			EXCEPREG_sig(exception, context) /* number of powerpc exception taken */
+#endif /* __APPLE__ */
+
+int cpu_signal_handler(int host_signum, siginfo *info, 
                        void *puc)
 {
     struct ucontext *uc = puc;
-    struct pt_regs *regs = uc->uc_mcontext.regs;
     unsigned long pc;
     int is_write;
 
-    pc = regs->nip;
+    pc = IAR_sig(uc);
     is_write = 0;
 #if 0
     /* ppc 4xx case */
-    if (regs->dsisr & 0x00800000)
+    if (DSISR_sig(uc) & 0x00800000)
         is_write = 1;
 #else
-    if (regs->trap != 0x400 && (regs->dsisr & 0x02000000))
+    if (TRAP_sig(uc) != 0x400 && (DSISR_sig(uc) & 0x02000000))
         is_write = 1;
 #endif
     return handle_cpu_signal(pc, (unsigned long)info->si_addr, 

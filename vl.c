@@ -40,7 +40,9 @@
 #include <sys/socket.h>
 #ifdef _BSD
 #include <sys/stat.h>
+#ifndef __APPLE__
 #include <libutil.h>
+#endif
 #else
 #include <linux/if.h>
 #include <linux/if_tun.h>
@@ -63,6 +65,7 @@
 #endif
 
 #ifdef CONFIG_SDL
+#include <SDL/SDL.h>
 #if defined(__linux__)
 /* SDL use the pthreads and they modify sigaction. We don't
    want that. */
@@ -909,6 +912,7 @@ static void init_timers(void)
            the emulated kernel requested a too high timer frequency */
         getitimer(ITIMER_REAL, &itv);
 
+#if defined(__linux__)
         if (itv.it_interval.tv_usec > 1000) {
             /* try to use /dev/rtc to have a faster timer */
             if (start_rtc_timer() < 0)
@@ -924,7 +928,9 @@ static void init_timers(void)
             sigaction(SIGIO, &act, NULL);
             fcntl(rtc_fd, F_SETFL, O_ASYNC);
             fcntl(rtc_fd, F_SETOWN, getpid());
-        } else {
+        } else 
+#endif /* defined(__linux__) */
+        {
         use_itimer:
             pit_min_timer_count = ((uint64_t)itv.it_interval.tv_usec * 
                                    PIT_FREQ) / 1000000;
@@ -2622,8 +2628,8 @@ int main(int argc, char **argv)
 
 #ifdef CONFIG_SOFTMMU
 #ifdef _BSD
-    /* mallocs are always aligned on BSD. */
-    phys_ram_base = malloc(phys_ram_size);
+    /* mallocs are always aligned on BSD. valloc is better for correctness */
+    phys_ram_base = valloc(phys_ram_size);
 #else
     phys_ram_base = memalign(TARGET_PAGE_SIZE, phys_ram_size);
 #endif
