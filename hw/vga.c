@@ -1109,7 +1109,7 @@ static void vga_draw_graphic(VGAState *s, int full_update)
 {
     int y1, y, update, page_min, page_max, linesize, y_start, double_scan, mask;
     int width, height, shift_control, line_offset, page0, page1, bwidth;
-    int disp_width;
+    int disp_width, multi_scan, multi_run;
     uint8_t *d;
     uint32_t v, addr1, addr;
     vga_draw_line_func *vga_draw_line;
@@ -1124,10 +1124,13 @@ static void vga_draw_graphic(VGAState *s, int full_update)
     disp_width = width;
     
     shift_control = (s->gr[0x05] >> 5) & 3;
-    if (shift_control > 1)
-        double_scan = ((s->cr[0x09] & 0x1f) != 0);
-    else
-        double_scan = (s->cr[0x09] & 0x80);
+    double_scan = (s->cr[0x09] & 0x80);
+    if (shift_control > 1) {
+        multi_scan = (s->cr[0x09] & 0x1f);
+    } else {
+        multi_scan = 0;
+    }
+    multi_run = multi_scan;
     if (shift_control != s->shift_control ||
         double_scan != s->double_scan) {
         full_update = 1;
@@ -1212,14 +1215,20 @@ static void vga_draw_graphic(VGAState *s, int full_update)
                 y_start = -1;
             }
         }
-        if (!double_scan || (y & 1) != 0) {
-            if (y1 == s->line_compare) {
-                addr1 = 0;
-            } else {
-                mask = (s->cr[0x17] & 3) ^ 3;
-                if ((y1 & mask) == mask)
-                    addr1 += line_offset; 
+        if (!multi_run) {
+            if (!double_scan || (y & 1) != 0) {
+                if (y1 == s->line_compare) {
+                    addr1 = 0;
+                } else {
+                    mask = (s->cr[0x17] & 3) ^ 3;
+                    if ((y1 & mask) == mask)
+                        addr1 += line_offset;
+                }
+                y1++;
             }
+            multi_run = multi_scan;
+        } else {
+            multi_run--;
             y1++;
         }
         d += linesize;
