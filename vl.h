@@ -205,8 +205,6 @@ static inline uint32_t le32_to_cpupu(const uint32_t *p)
 #endif
 
 /* vl.c */
-extern int reset_requested;
-
 uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c);
 
 void hw_error(const char *fmt, ...);
@@ -228,6 +226,12 @@ void qemu_del_vm_stop_handler(VMStopHandler *cb, void *opaque);
 
 void vm_start(void);
 void vm_stop(int reason);
+
+typedef void QEMUResetHandler(void *opaque);
+
+void qemu_register_reset(QEMUResetHandler *func, void *opaque);
+void qemu_system_reset_request(void);
+void qemu_system_shutdown_request(void);
 
 extern int audio_enabled;
 extern int ram_size;

@@ -127,7 +127,7 @@ SerialState *serial_console;
 QEMUTimer *gui_timer;
 int vm_running;
 int audio_enabled = 0;
-int pci_enabled = 0;
+int pci_enabled = 1;
 int prep_enabled = 0;
 int rtc_utc = 1;
 int cirrus_vga_enabled = 0;
@@ -1819,6 +1819,62 @@ void vm_stop(int reason)
     }
 }
 
+/* reset/shutdown handler */
+
+typedef struct QEMUResetEntry {
+    QEMUResetHandler *func;
+    void *opaque;
+    struct QEMUResetEntry *next;
+} QEMUResetEntry;
+
+static QEMUResetEntry *first_reset_entry;
+static int reset_requested;
+static int shutdown_requested;
+
+void qemu_register_reset(QEMUResetHandler *func, void *opaque)
+{
+    QEMUResetEntry **pre, *re;
+
+    pre = &first_reset_entry;
+    while (*pre != NULL)
+        pre = &(*pre)->next;
+    re = qemu_mallocz(sizeof(QEMUResetEntry));
+    re->func = func;
+    re->opaque = opaque;
+    re->next = NULL;
+    *pre = re;
+}
+
+void qemu_system_reset(void)
+{
+    QEMUResetEntry *re;
+
+    /* reset all devices */
+    for(re = first_reset_entry; re != NULL; re = re->next) {
+        re->func(re->opaque);
+    }
+}
+
+void qemu_system_reset_request(void)
+{
+    reset_requested = 1;
+    cpu_interrupt(cpu_single_env, CPU_INTERRUPT_EXIT);
+}
+
+void qemu_system_shutdown_request(void)
+{
+    shutdown_requested = 1;
+    cpu_interrupt(cpu_single_env, CPU_INTERRUPT_EXIT);
+}
+
+static void main_cpu_reset(void *opaque)
+{
+#ifdef TARGET_I386
+    CPUState *env = opaque;
+    cpu_reset(env);
+#endif
+}
+
 int main_loop(void)
 {
 #ifndef _WIN32
@@ -1833,9 +1889,14 @@ int main_loop(void)
     for(;;) {
         if (vm_running) {
             ret = cpu_exec(env);
-            if (reset_requested) {
+            if (shutdown_requested) {
                 ret = EXCP_INTERRUPT; 
                 break;
+            }
+            if (reset_requested) {
+                reset_requested = 0;
+                qemu_system_reset();
+                ret = EXCP_INTERRUPT; 
             }
             if (ret == EXCP_DEBUG) {
                 vm_stop(EXCP_DEBUG);
@@ -1967,6 +2028,9 @@ void help(void)
            "-nographic      disable graphical output and redirect serial I/Os to console\n"
            "-enable-audio   enable audio support\n"
            "-localtime      set the real time clock to local time [default=utc]\n"
+#ifdef TARGET_PPC
+           "-prep           Simulate a PREP system (default is PowerMAC)\n"
+#endif
            "\n"
            "Network options:\n"
            "-nics n         simulate 'n' network cards [default=1]\n"
@@ -1993,7 +2057,9 @@ void help(void)
 #ifdef USE_CODE_COPY
            "-no-code-copy   disable code copy acceleration\n"
 #endif
-
+#ifdef TARGET_I386
+           "-isa            simulate an ISA-only system (default is PCI system)\n"
+#endif
            "\n"
            "During emulation, use C-a h to get terminal commands:\n",
 #ifdef CONFIG_SOFTMMU
@@ -2052,6 +2118,7 @@ enum {
     QEMU_OPTION_L,
     QEMU_OPTION_no_code_copy,
     QEMU_OPTION_pci,
+    QEMU_OPTION_isa,
     QEMU_OPTION_prep,
     QEMU_OPTION_localtime,
     QEMU_OPTION_cirrusvga,
@@ -2103,6 +2170,7 @@ const QEMUOption qemu_options[] = {
     { "prep", 0, QEMU_OPTION_prep },
 #endif
     { "localtime", 0, QEMU_OPTION_localtime },
+    { "isa", 0, QEMU_OPTION_isa },
 
     /* temporary options */
     { "pci", 0, QEMU_OPTION_pci },
@@ -2380,6 +2448,9 @@ int main(int argc, char **argv)
             case QEMU_OPTION_pci:
                 pci_enabled = 1;
                 break;
+            case QEMU_OPTION_isa:
+                pci_enabled = 0;
+                break;
             case QEMU_OPTION_prep:
                 prep_enabled = 1;
                 break;
@@ -2562,6 +2633,7 @@ int main(int argc, char **argv)
     register_savevm("timer", 0, 1, timer_save, timer_load, env);
     register_savevm("cpu", 0, 1, cpu_save, cpu_load, env);
     register_savevm("ram", 0, 1, ram_save, ram_load, NULL);
+    qemu_register_reset(main_cpu_reset, global_env);
 
     init_ioports();
     cpu_calibrate_ticks();
