@@ -3695,7 +3695,8 @@ static void dump_ops(const uint16_t *opc_buf, const uint32_t *opparam_buf)
     for(;;) {
         c = *opc_ptr++;
         n = op_nb_args[c];
-        fprintf(logfile, "0x%04x: %s", opc_ptr - opc_buf - 1, op_str[c]);
+        fprintf(logfile, "0x%04x: %s", 
+                (int)(opc_ptr - opc_buf - 1), op_str[c]);
         for(i = 0; i < n; i++) {
             fprintf(logfile, " 0x%x", opparam_ptr[i]);
         }
