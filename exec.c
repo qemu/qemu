@@ -609,9 +609,7 @@ void tb_invalidate_phys_page_range(target_ulong start, target_ulong end,
                                    int is_cpu_write_access)
 {
     int n, current_tb_modified, current_tb_not_found, current_flags;
-#if defined(TARGET_HAS_PRECISE_SMC) || !defined(CONFIG_USER_ONLY)
     CPUState *env = cpu_single_env;
-#endif
     PageDesc *p;
     TranslationBlock *tb, *tb_next, *current_tb, *saved_tb;
     target_ulong tb_start, tb_end;
