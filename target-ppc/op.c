@@ -453,13 +453,6 @@ PPC_OP(reset_scrfx)
     RETURN();
 }
 
-/* Set reservation */
-PPC_OP(set_reservation)
-{
-    regs->reserve = T0 & ~0x03;
-    RETURN();
-}
-
 /* crf operations */
 PPC_OP(getbit_T0)
 {

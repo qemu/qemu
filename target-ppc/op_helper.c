@@ -349,9 +349,13 @@ void do_fnabs (void)
 }
 
 /* Instruction cache invalidation helper */
+#define ICACHE_LINE_SIZE 32
+
 void do_icbi (void)
 {
-    //    tb_invalidate_page(T0);
+    /* Invalidate one cache line */
+    T0 &= ~(ICACHE_LINE_SIZE - 1);
+    tb_invalidate_page_range(T0, T0 + ICACHE_LINE_SIZE);
 }
 
 /* TLB invalidation helpers */

@@ -134,6 +134,19 @@ PPC_OP(glue(glue(l, name), MEMSUFFIX))                                        \
 PPC_LDF_OP(fd, ldfq);
 PPC_LDF_OP(fs, ldfl);
 
+/* Load and set reservation */
+PPC_OP(glue(lwarx, MEMSUFFIX))
+{
+    if (T0 & 0x03) {
+        do_queue_exception(EXCP_ALIGN);
+        do_process_exceptions();
+    } else {
+	glue(ldl, MEMSUFFIX)((void *)T0);
+	regs->reserve = T0 & ~0x03;
+    }
+    RETURN();
+}
+
 /* Store with reservation */
 PPC_OP(glue(stwcx, MEMSUFFIX))
 {

@@ -1302,8 +1302,14 @@ GEN_HANDLER(isync, 0x13, 0x16, 0xFF, 0x03FF0801, PPC_MEM)
 
 /* lwarx */
 #if defined(CONFIG_USER_ONLY)
+#define op_lwarx() gen_op_lwarx_raw()
 #define op_stwcx() gen_op_stwcx_raw()
 #else
+#define op_lwarx() (*gen_op_lwarx[ctx->mem_idx])()
+static GenOpFunc *gen_op_lwarx[] = {
+    &gen_op_lwarx_user,
+    &gen_op_lwarx_kernel,
+};
 #define op_stwcx() (*gen_op_stwcx[ctx->mem_idx])()
 static GenOpFunc *gen_op_stwcx[] = {
     &gen_op_stwcx_user,
@@ -1320,9 +1326,8 @@ GEN_HANDLER(lwarx, 0x1F, 0x14, 0xFF, 0x00000001, PPC_RES)
         gen_op_load_gpr_T1(rB(ctx->opcode));
         gen_op_add();
     }
-    op_ldst(lwz);
+    op_lwarx();
     gen_op_store_T1_gpr(rD(ctx->opcode));
-    gen_op_set_reservation();
 }
 
 /* stwcx. */
@@ -3169,9 +3174,11 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
         while (lj <= j)
             gen_opc_instr_start[lj++] = 0;
         tb->size = 0;
+#if 0
         if (loglevel > 0) {
             page_dump(logfile);
         }
+#endif
     } else {
         tb->size = (uint32_t)ctx.nip - pc_start;
     }
