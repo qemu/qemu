@@ -1600,6 +1600,7 @@ void help(void)
            "Network options:\n"
            "-n script       set network init script [default=%s]\n"
            "-nics n         simulate 'n' network interfaces [default=1]\n"
+           "-macaddr addr   set the mac address of the first interface\n"
            "-tun-fd fd0[,...] use these fds as already opened tap/tun interfaces\n"
            "\n"
            "Linux boot specific:\n"
@@ -1655,6 +1656,7 @@ struct option long_options[] = {
     { "fdb", 1, NULL, 0, },
     { "no-code-copy", 0, NULL, 0 },
     { "nics", 1, NULL, 0 },
+    { "macaddr", 1, NULL, 0 },
     { NULL, 0, NULL, 0 },
 };
 
@@ -1692,6 +1694,7 @@ int main(int argc, char **argv)
     const char *kernel_filename, *kernel_cmdline;
     DisplayState *ds = &display_state;
     int cyls, heads, secs;
+    uint8_t macaddr[6];
 
 #if !defined(CONFIG_SOFTMMU)
     /* we never want that malloc() uses mmap() */
@@ -1717,17 +1720,13 @@ int main(int argc, char **argv)
     cyls = heads = secs = 0;
 
     nb_nics = 1;
-    for(i = 0; i < MAX_NICS; i++) {
-        NetDriverState *nd = &nd_table[i];
-        nd->fd = -1;
-        /* init virtual mac address */
-        nd->macaddr[0] = 0x52;
-        nd->macaddr[1] = 0x54;
-        nd->macaddr[2] = 0x00;
-        nd->macaddr[3] = 0x12;
-        nd->macaddr[4] = 0x34;
-        nd->macaddr[5] = 0x56 + i;
-    }
+    /* default mac address of the first network interface */
+    macaddr[0] = 0x52;
+    macaddr[1] = 0x54;
+    macaddr[2] = 0x00;
+    macaddr[3] = 0x12;
+    macaddr[4] = 0x34;
+    macaddr[5] = 0x56;
     
     for(;;) {
         c = getopt_long_only(argc, argv, "hm:d:n:sp:L:", long_options, &long_index);
@@ -1835,6 +1834,27 @@ int main(int argc, char **argv)
                     exit(1);
                 }
                 break;
+            case 17:
+                {
+                    const char *p;
+                    int i;
+                    p = optarg;
+                    for(i = 0; i < 6; i++) {
+                        macaddr[i] = strtol(p, (char **)&p, 16);
+                        if (i == 5) {
+                            if (*p != '\0') 
+                                goto macaddr_error;
+                        } else {
+                            if (*p != ':') {
+                            macaddr_error:
+                                fprintf(stderr, "qemu: invalid syntax for ethernet address\n");
+                                exit(1);
+                            }
+                            p++;
+                        }
+                    }
+                }
+                break;
             }
             break;
         case 'h':
@@ -1912,6 +1932,17 @@ int main(int argc, char **argv)
 #endif
 
     /* init host network redirectors */
+    for(i = 0; i < MAX_NICS; i++) {
+        NetDriverState *nd = &nd_table[i];
+        nd->fd = -1;
+        /* init virtual mac address */
+        nd->macaddr[0] = macaddr[0];
+        nd->macaddr[1] = macaddr[1];
+        nd->macaddr[2] = macaddr[2];
+        nd->macaddr[3] = macaddr[3];
+        nd->macaddr[4] = macaddr[4];
+        nd->macaddr[5] = macaddr[5] + i;
+    }
     net_init();
 
     /* init the memory */
