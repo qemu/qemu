@@ -421,7 +421,7 @@ int cpu_exec(CPUState *env1)
                     spin_unlock(&tb_lock);
                 }
 #ifdef DEBUG_EXEC
-                if ((loglevel & CPU_LOG_EXEC) && (env->hflags & HF_LMA_MASK)) {
+                if ((loglevel & CPU_LOG_EXEC)) {
                     fprintf(logfile, "Trace 0x%08lx [" TARGET_FMT_lx "] %s\n",
                             (long)tb->tc_ptr, tb->pc,
                             lookup_symbol(tb->pc));
