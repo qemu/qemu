@@ -33,6 +33,7 @@
 
 typedef struct {
     uint8_t allocated;
+    uint8_t macaddr[6];
 } BOOTPClient;
 
 BOOTPClient bootp_clients[NB_ADDR];
@@ -53,6 +54,23 @@ static BOOTPClient *get_new_addr(struct in_addr *paddr)
 
     for(i = 0; i < NB_ADDR; i++) {
         if (!bootp_clients[i].allocated)
+            goto found;
+    }
+    return NULL;
+ found:
+    bc = &bootp_clients[i];
+    bc->allocated = 1;
+    paddr->s_addr = htonl(ntohl(special_addr.s_addr) | (i + START_ADDR));
+    return bc;
+}
+
+static BOOTPClient *find_addr(struct in_addr *paddr, const uint8_t *macaddr)
+{
+    BOOTPClient *bc;
+    int i;
+
+    for(i = 0; i < NB_ADDR; i++) {
+        if (!memcmp(macaddr, bootp_clients[i].macaddr, 6))
             goto found;
     }
     return NULL;
@@ -131,10 +149,19 @@ static void bootp_reply(struct bootp_t *bp)
     m->m_data += sizeof(struct udpiphdr);
     memset(rbp, 0, sizeof(struct bootp_t));
 
-    bc = get_new_addr(&daddr.sin_addr);
-    if (!bc) {
-        dprintf("no address left\n");
-        return;
+    if (dhcp_msg_type == DHCPDISCOVER) {
+        bc = get_new_addr(&daddr.sin_addr);
+        if (!bc) {
+            dprintf("no address left\n");
+            return;
+        }
+        memcpy(bc->macaddr, client_ethaddr, 6);
+    } else {
+        bc = find_addr(&daddr.sin_addr, bp->bp_hwaddr);
+        if (!bc) {
+            dprintf("no address assigned\n");
+            return;
+        }
     }
     dprintf("offered addr=%08x\n", ntohl(daddr.sin_addr.s_addr));
 

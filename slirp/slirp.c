@@ -74,7 +74,7 @@ static int get_dns_addr(struct in_addr *pdns_addr)
 
 void slirp_init(void)
 {
-    debug_init("/tmp/slirp.log", DEBUG_DEFAULT);
+    //    debug_init("/tmp/slirp.log", DEBUG_DEFAULT);
 
     link_up = 1;
 
