@@ -137,7 +137,6 @@ static uint32_t PPC_io_readb (target_phys_addr_t addr)
     {
         PPC_IO_DPRINTF("0x%08x <= 0x%02x\n", addr - PPC_IO_BASE, ret);
     }
-
     return ret;
 }
 
@@ -147,24 +146,31 @@ static void PPC_io_writew (target_phys_addr_t addr, uint32_t value)
         (addr < 0x80000170 || addr > 0x80000177)) {
         PPC_IO_DPRINTF("0x%08x => 0x%04x\n", addr - PPC_IO_BASE, value);
     }
+#ifdef TARGET_WORDS_BIGENDIAN
+    value = bswap16(value);
+#endif
     cpu_outw(NULL, addr - PPC_IO_BASE, value);
 }
 
 static uint32_t PPC_io_readw (target_phys_addr_t addr)
 {
     uint32_t ret = cpu_inw(NULL, addr - PPC_IO_BASE);
-
+#ifdef TARGET_WORDS_BIGENDIAN
+    ret = bswap16(ret);
+#endif
     if ((addr < 0x800001f0 || addr > 0x800001f7) &&
         (addr < 0x80000170 || addr > 0x80000177)) {
         PPC_IO_DPRINTF("0x%08x <= 0x%04x\n", addr - PPC_IO_BASE, ret);
     }
-
     return ret;
 }
 
 static void PPC_io_writel (target_phys_addr_t addr, uint32_t value)
 {
     PPC_IO_DPRINTF("0x%08x => 0x%08x\n", addr - PPC_IO_BASE, value);
+#ifdef TARGET_WORDS_BIGENDIAN
+    value = bswap32(value);
+#endif
     cpu_outl(NULL, addr - PPC_IO_BASE, value);
 }
 
@@ -172,8 +178,10 @@ static uint32_t PPC_io_readl (target_phys_addr_t addr)
 {
     uint32_t ret = cpu_inl(NULL, addr - PPC_IO_BASE);
 
+#ifdef TARGET_WORDS_BIGENDIAN
+    ret = bswap32(ret);
+#endif
     PPC_IO_DPRINTF("0x%08x <= 0x%08x\n", addr - PPC_IO_BASE, ret);
-
     return ret;
 }
 
