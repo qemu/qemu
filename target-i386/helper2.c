@@ -75,9 +75,9 @@ CPUX86State *cpu_x86_init(void)
         modify_ldt(1, &ldt, sizeof(ldt)); /* write ldt entry */
         
         asm volatile ("movl %0, %%fs" : : "r" ((1 << 3) | 7));
-        cpu_single_env = env;
     }
 #endif
+    cpu_single_env = env;
     cpu_reset(env);
     return env;
 }

@@ -840,6 +840,7 @@ CPUSPARCState *cpu_sparc_init(void)
     env->wim = 1;
     env->regwptr = env->regbase + (env->cwp * 16);
     env->user_mode_only = 1;
+    cpu_single_env = env;
     return (env);
 }
 

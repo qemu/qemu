@@ -2994,7 +2994,7 @@ CPUPPCState *cpu_ppc_init(void)
     env->nip = 0xFFFFFFFC;
 #endif
     env->access_type = ACCESS_INT;
-
+    cpu_single_env = env;
     return env;
 }
 

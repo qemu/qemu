@@ -815,6 +815,7 @@ CPUARMState *cpu_arm_init(void)
     if (!env)
         return NULL;
     memset(env, 0, sizeof(CPUARMState));
+    cpu_single_env = env;
     return env;
 }
 
