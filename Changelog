@@ -23,7 +23,9 @@ version 0.6.1:
   - ne2000 savevm support (Johannes Schindelin)
   - Ctrl-Alt is now the default grab key. Ctrl-Alt-[0-9] switches to
     the virtual consoles.
-  - BIOS floppy fix for NT4 (Mike Nordell, Derek Fawcus)
+  - BIOS floppy fix for NT4 (Mike Nordell, Derek Fawcus, Volker Ruppert)
+  - Floppy fixes for NT4 and NT5 (Mike Nordell)
+  - NT4 IDE fixes (Ben Pfaf, Mike Nordell)
 
 version 0.6.0:
 
