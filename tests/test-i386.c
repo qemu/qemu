@@ -937,6 +937,9 @@ void test_code16(void)
     printf("func3() = 0x%08x\n", res);
 }
 
+extern char func_lret32;
+extern char func_iret32;
+
 void test_misc(void)
 {
     char table[256];
@@ -946,6 +949,21 @@ void test_misc(void)
     res = 0x12345678;
     asm ("xlat" : "=a" (res) : "b" (table), "0" (res));
     printf("xlat: EAX=%08x\n", res);
+
+    asm volatile ("pushl %%cs ; call %1" 
+                  : "=a" (res)
+                  : "m" (func_lret32): "memory", "cc");
+    printf("func_lret32=%x\n", res);
+
+    asm volatile ("pushfl ; pushl %%cs ; call %1" 
+                  : "=a" (res)
+                  : "m" (func_iret32): "memory", "cc");
+    printf("func_iret32=%x\n", res);
+
+    /* specific popl test */
+    asm volatile ("pushl $12345432 ; pushl $0x9abcdef ; popl (%%esp) ; popl %0"
+                  : "=g" (res));
+    printf("popl esp=%x\n", res);
 }
 
 uint8_t str_buffer[4096];
