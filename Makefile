@@ -42,6 +42,10 @@ distclean: clean
 	rm -rf $$d || exit 1 ; \
         done
 
+KEYMAPS=da     en-gb  et  fr     fr-ch  is  lt  modifiers  no  pt-br  sv \
+ar      de     en-us  fi  fr-be  hr     it  lv  nl         pl  ru     th \
+common  de-ch  es     fo  fr-ca  hu     ja  mk  nl-be      pt  sl     tr
+
 install: all 
 	mkdir -p "$(bindir)"
 	install -m 755 -s $(TOOLS) "$(bindir)"
@@ -57,7 +61,7 @@ ifndef CONFIG_WIN32
 	mkdir -p "$(mandir)/man1"
 	install qemu.1 qemu-img.1 "$(mandir)/man1"
 	mkdir -p "$(datadir)/keymaps"
-	install -m 644 keymaps/* "$(datadir)"
+	install -m 644 $(addprefix keymaps/,$(KEYMAPS)) "$(datadir)/keymaps"
 endif
 	for d in $(TARGET_DIRS); do \
 	$(MAKE) -C $$d $@ || exit 1 ; \
