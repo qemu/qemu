@@ -1,3 +1,18 @@
+version 0.5.2:
+  - improved soft MMU speed (assembly functions and specializing)
+  - improved multitasking speed by avoiding flushing TBs when
+    switching tasks
+  - improved qemu-fast speed
+  - improved self modifying code handling (big performance gain in
+    softmmu mode).
+  - fixed IO checking
+  - fixed CD-ROM detection (win98 install CD)
+  - fixed addseg real mode bug (GRUB boot fix)
+  - added ROM memory support (win98 boot)
+  - fixed 'call Ev' in case of paging exception
+  - updated the script 'qemu-binfmt-conf.sh' to use QEMU automagically
+    when launching executables for the supported target CPUs.
+
 version 0.5.1:
   
   - float access fixes when using soft mmu
