@@ -26,7 +26,6 @@
 #define MIN(a, b) ((a)>(b)?(b):(a))
 #define LENOFA(a) ((int) (sizeof(a)/sizeof(a[0])))
 
-#define DEREF(x) (void)x
 #define log(...) fprintf (stderr, "sb16: " __VA_ARGS__)
 
 /* #define DEBUG_SB16 */
@@ -83,7 +82,7 @@ typedef struct SB16State {
 
     /* mixer state */
     int mixer_nreg;
-    uint8_t mixer_regs[0x83];
+    uint8_t mixer_regs[256];
 } SB16State;
 
 /* XXX: suppress that and use a context */
@@ -192,6 +191,12 @@ static void dma_cmd (uint8_t cmd, uint8_t d0, int dma_len)
     dsp.speaker = 1;
 }
 
+static inline void dsp_out_data(SB16State *dsp, int val)
+{
+    if (dsp->out_data_len < sizeof(dsp->out_data))
+        dsp->out_data[dsp->out_data_len++] = val;
+}
+
 static void command (SB16State *dsp, uint8_t cmd)
 {
     linfo ("%#x\n", cmd);
@@ -228,7 +233,7 @@ static void command (SB16State *dsp, uint8_t cmd)
             break;
 
         case 0x20:
-            dsp->out_data[dsp->out_data_len++] = 0xff;
+            dsp_out_data(dsp, 0xff);
             break;
 
         case 0x35:
@@ -315,12 +320,12 @@ static void command (SB16State *dsp, uint8_t cmd)
             break;
 
         case 0xe1:
-            dsp->out_data[dsp->out_data_len++] = sb.ver_lo;
-            dsp->out_data[dsp->out_data_len++] = sb.ver_hi;
+            dsp_out_data(dsp, sb.ver_lo);
+            dsp_out_data(dsp, sb.ver_hi);
             return;
 
         case 0xf2:
-            dsp->out_data[dsp->out_data_len++] = 0xaa;
+            dsp_out_data(dsp, 0xaa);
             dsp->mixer_regs[0x82] |= dsp->mixer_regs[0x80];
             pic_set_irq (sb.irq, 1);
             return;
@@ -398,9 +403,9 @@ static void complete (SB16State *dsp)
             break;
 
         case 0xe0:
-            dsp->out_data_len = 1;
+            dsp->out_data_len = 0;
             linfo ("data = %#x\n", dsp->in_data[0]);
-            dsp->out_data[0] = dsp->in_data[0] ^ 0xff;
+            dsp_out_data(dsp, dsp->in_data[0] ^ 0xff);
             break;
 
         default:
@@ -426,7 +431,7 @@ static IO_WRITE_PROTO (dsp_write)
             dsp->v2x6 = 0;
         else if ((1 == val) && (0 == dsp->v2x6)) {
             dsp->v2x6 = 1;
-            dsp->out_data[dsp->out_data_len++] = 0xaa;
+            dsp_out_data(dsp, 0xaa);
         }
         else
             dsp->v2x6 = ~0;
@@ -519,12 +524,15 @@ static IO_READ_PROTO (dsp_read)
 static IO_WRITE_PROTO(mixer_write_indexb)
 {
     SB16State *dsp = opaque;
-    dsp->mixer_nreg = val & 0xff;
+    dsp->mixer_nreg = val;
 }
 
 static IO_WRITE_PROTO(mixer_write_datab)
 {
     SB16State *dsp = opaque;
+
+    if (dsp->mixer_nreg > 0x83)
+        return;
     dsp->mixer_regs[dsp->mixer_nreg] = val;
 }
 
@@ -666,6 +674,7 @@ static int magic_of_irq (int irq)
     }
 }
 
+#if 0
 static int irq_of_magic (int magic)
 {
     switch (magic) {
@@ -682,6 +691,7 @@ static int irq_of_magic (int magic)
         return 2;
     }
 }
+#endif
 
 void SB16_init (void)
 {
@@ -690,11 +700,11 @@ void SB16_init (void)
     static const uint8_t dsp_write_ports[] = {0x6, 0xc};
     static const uint8_t dsp_read_ports[] = {0x6, 0xa, 0xc, 0xd, 0xe, 0xf};
 
+    memset(s->mixer_regs, 0xff, sizeof(s->mixer_regs));
+
     s->mixer_regs[0x0e] = ~0;
     s->mixer_regs[0x80] = magic_of_irq (sb.irq);
     s->mixer_regs[0x81] = 0x20 | (sb.dma << 1);
-
-    DEREF (irq_of_magic);
 
     for (i = 0x30; i < 0x48; i++) {
         s->mixer_regs[i] = 0x20;
