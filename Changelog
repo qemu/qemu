@@ -11,6 +11,8 @@ version 0.5.6:
   - vmdk2raw: convert VMware disk images to raw images
   - PCI support
   - NE2K PCI support
+  - dummy VGA PCI support
+  - VGA font selection fix (Daniel Serpell)
 
 version 0.5.5:
 
