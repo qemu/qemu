@@ -20,6 +20,7 @@ TMPH="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.h"
 # default parameters
 prefix="/usr/local"
 interp_prefix="/usr/gnemul/qemu-i386"
+static="no"
 cross_prefix=""
 cc="gcc"
 host_cc="gcc"
@@ -104,6 +105,8 @@ for opt do
   ;;
   --enable-gprof) gprof="yes"
   ;;
+  --static) static="yes"
+  ;;
   esac
 done
 
@@ -176,19 +179,22 @@ echo "  --source-path=PATH       path of source code [$source_path]"
 echo "  --cross-prefix=PREFIX    use PREFIX for compile tools [$cross_prefix]"
 echo "  --cc=CC                  use C compiler CC [$cc]"
 echo "  --make=MAKE              use specified make [$make]"
+echo "  --static                 enable static build [$static]"
 echo ""
 echo "NOTE: The object files are build at the place where configure is launched"
 exit 1
 fi
 
-echo "Install prefix   $prefix"
-echo "Source path      $source_path"
-echo "C compiler       $cc"
-echo "make             $make"
-echo "host CPU         $cpu"
-echo "Big Endian       $bigendian"
-echo "target CPU       $target_cpu"
-echo "gprof enabled    $gprof"
+echo "Install prefix    $prefix"
+echo "Source path       $source_path"
+echo "ELF interp prefix $interp_prefix"
+echo "C compiler        $cc"
+echo "make              $make"
+echo "host CPU          $cpu"
+echo "Big Endian        $bigendian"
+echo "target CPU        $target_cpu"
+echo "gprof enabled     $gprof"
+echo "static build      $static"
 
 echo "Creating config.mak and config.h"
 
@@ -243,6 +249,9 @@ fi
 if test "$gprof" = "yes" ; then
   echo "TARGET_GPROF=yes" >> config.mak
   echo "#define HAVE_GPROF 1" >> $TMPH
+fi
+if test "$static" = "yes" ; then
+  echo "CONFIG_STATIC=yes" >> config.mak
 fi
 echo -n "VERSION=" >>config.mak
 head $source_path/VERSION >>config.mak

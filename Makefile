@@ -6,6 +6,10 @@ LIBS=
 DEFINES=-DHAVE_BYTESWAP_H
 HELPER_CFLAGS=$(CFLAGS)
 
+ifdef CONFIG_STATIC
+LDFLAGS+=-static
+endif
+
 ifeq ($(ARCH),i386)
 CFLAGS+=-fomit-frame-pointer
 OP_CFLAGS=$(CFLAGS) -mpreferred-stack-boundary=2
