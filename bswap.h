@@ -43,14 +43,6 @@
 
 #endif /* !HAVE_BYTESWAP_H */
 
-#if defined(__alpha__) || defined (__ia64__) || defined(__x86_64__)
-#define HOST_LONG_BITS 64
-#else
-#define HOST_LONG_BITS 32
-#endif
-
-#define HOST_LONG_SIZE (HOST_LONG_BITS / 8)
-
 static inline uint16_t bswap16(uint16_t x)
 {
     return bswap_16(x);

@@ -191,7 +191,7 @@ int cpu_exec(CPUState *env1)
                         !(env->hflags & HF_INHIBIT_IRQ_MASK)) {
                         int intno;
                         intno = cpu_x86_get_pic_interrupt(env);
-                        if (loglevel) {
+                        if (loglevel & CPU_LOG_TB_IN_ASM) {
                             fprintf(logfile, "Servicing hardware INT=0x%02x\n", intno);
                         }
                         do_interrupt(intno, 0, 0, 0, 1);
@@ -229,7 +229,7 @@ int cpu_exec(CPUState *env1)
                     }
                 }
 #ifdef DEBUG_EXEC
-                if (loglevel) {
+                if (loglevel & CPU_LOG_EXEC) {
 #if defined(TARGET_I386)
                     /* restore flags in standard format */
                     env->regs[R_EAX] = EAX;
@@ -362,7 +362,7 @@ int cpu_exec(CPUState *env1)
                     spin_unlock(&tb_lock);
                 }
 #ifdef DEBUG_EXEC
-                if (loglevel) {
+                if (loglevel & CPU_LOG_EXEC) {
                     fprintf(logfile, "Trace 0x%08lx [0x%08lx] %s\n",
                             (long)tb->tc_ptr, (long)tb->pc,
                             lookup_symbol((void *)tb->pc));

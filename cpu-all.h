@@ -37,6 +37,83 @@
  * TARGET_WORDS_BIGENDIAN : same for target cpu
  */
 
+#include "bswap.h"
+
+#if defined(WORDS_BIGENDIAN) != defined(TARGET_WORDS_BIGENDIAN)
+#define BSWAP_NEEDED
+#endif
+
+#ifdef BSWAP_NEEDED
+
+static inline uint16_t tswap16(uint16_t s)
+{
+    return bswap16(s);
+}
+
+static inline uint32_t tswap32(uint32_t s)
+{
+    return bswap32(s);
+}
+
+static inline uint64_t tswap64(uint64_t s)
+{
+    return bswap64(s);
+}
+
+static inline void tswap16s(uint16_t *s)
+{
+    *s = bswap16(*s);
+}
+
+static inline void tswap32s(uint32_t *s)
+{
+    *s = bswap32(*s);
+}
+
+static inline void tswap64s(uint64_t *s)
+{
+    *s = bswap64(*s);
+}
+
+#else
+
+static inline uint16_t tswap16(uint16_t s)
+{
+    return s;
+}
+
+static inline uint32_t tswap32(uint32_t s)
+{
+    return s;
+}
+
+static inline uint64_t tswap64(uint64_t s)
+{
+    return s;
+}
+
+static inline void tswap16s(uint16_t *s)
+{
+}
+
+static inline void tswap32s(uint32_t *s)
+{
+}
+
+static inline void tswap64s(uint64_t *s)
+{
+}
+
+#endif
+
+#if TARGET_LONG_SIZE == 4
+#define tswapl(s) tswap32(s)
+#define tswapls(s) tswap32s((uint32_t *)(s))
+#else
+#define tswapl(s) tswap64(s)
+#define tswapls(s) tswap64s((uint64_t *)(s))
+#endif
+
 /* NOTE: arm is horrible as double 32 bit words are stored in big endian ! */
 typedef union {
     double d;
@@ -554,9 +631,26 @@ void cpu_single_step(CPUState *env, int enabled);
    if no page found. */
 target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr);
 
-#define CPU_LOG_ALL 1
+#define CPU_LOG_TB_OUT_ASM  (1 << 0) 
+#define CPU_LOG_TB_IN_ASM     (1 << 1)
+#define CPU_LOG_TB_OP      (1 << 2)
+#define CPU_LOG_TB_OP_OPT  (1 << 3)
+#define CPU_LOG_INT        (1 << 4)
+#define CPU_LOG_EXEC       (1 << 5)
+#define CPU_LOG_PCALL      (1 << 6)
+
+/* define log items */
+typedef struct CPULogItem {
+    int mask;
+    const char *name;
+    const char *help;
+} CPULogItem;
+
+extern CPULogItem cpu_log_items[];
+
 void cpu_set_log(int log_flags);
 void cpu_set_log_filename(const char *filename);
+int cpu_str_to_log_mask(const char *str);
 
 /* IO ports API */
 

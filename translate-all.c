@@ -129,7 +129,7 @@ int cpu_gen_code(CPUState *env, TranslationBlock *tb,
     }
     *gen_code_size_ptr = gen_code_size;
 #ifdef DEBUG_DISAS
-    if (loglevel) {
+    if (loglevel & CPU_LOG_TB_OUT_ASM) {
         fprintf(logfile, "OUT: [size=%d]\n", *gen_code_size_ptr);
         disas(logfile, tb->tc_ptr, *gen_code_size_ptr, 1, 0);
         fprintf(logfile, "\n");
@@ -186,7 +186,7 @@ int cpu_restore_state(TranslationBlock *tb,
     {
         int cc_op;
 #ifdef DEBUG_DISAS
-        if (loglevel) {
+        if (loglevel & CPU_LOG_TB_OP) {
             int i;
             fprintf(logfile, "RESTORE:\n");
             for(i=0;i<=j; i++) {

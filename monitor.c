@@ -118,6 +118,14 @@ static void help_cmd(const char *name)
         help_cmd1(info_cmds, "info ", NULL);
     } else {
         help_cmd1(term_cmds, "", name);
+        if (name && !strcmp(name, "log")) {
+            CPULogItem *item;
+            term_printf("Log items (comma separated):\n");
+            term_printf("%-10s %s\n", "none", "remove all logs");
+            for(item = cpu_log_items; item->mask != 0; item++) {
+                term_printf("%-10s %s\n", item->name, item->help);
+            }
+        }
     }
 }
 
@@ -254,6 +262,25 @@ static void do_screen_dump(int argc, const char **argv)
     vga_screen_dump(argv[1]);
 }
 
+static void do_log(int argc, const char **argv)
+{
+    int mask;
+    
+    if (argc != 2)
+        goto help;
+    if (!strcmp(argv[1], "none")) {
+        mask = 0;
+    } else {
+        mask = cpu_str_to_log_mask(argv[1]);
+        if (!mask) {
+        help:
+            help_cmd(argv[0]);
+            return;
+        }
+    }
+    cpu_set_log(mask);
+}
+
 static term_cmd_t term_cmds[] = {
     { "help|?", do_help, 
       "[cmd]", "show the help" },
@@ -269,7 +296,9 @@ static term_cmd_t term_cmds[] = {
       "device filename", "change a removable media" },
     { "screendump", do_screen_dump, 
       "filename", "save screen into PPM image 'filename'" },
-    { NULL, NULL, },
+    { "log", do_log,
+      "item1[,...]", "activate logging of the specified items to '/tmp/qemu.log'" }, 
+    { NULL, NULL, }, 
 };
 
 static term_cmd_t info_cmds[] = {
@@ -488,7 +517,6 @@ void term_print_help(void)
     term_printf("\n"
                 "C-a h    print this help\n"
                 "C-a x    exit emulatior\n"
-                "C-a d    switch on/off debug log\n"
                 "C-a s    save disk data back to file (if -snapshot)\n"
                 "C-a b    send break (magic sysrq)\n"
                 "C-a c    switch between console and monitor\n"
@@ -533,9 +561,6 @@ static void term_received_byte(int ch)
                     term_command = 0;
                 }
                 break;
-            case 'd':
-                cpu_set_log(CPU_LOG_ALL);
-                break;
             case TERM_ESCAPE:
                 goto send_char;
             }
@@ -558,7 +583,7 @@ static int term_can_read(void *opaque)
     if (serial_console) {
         return serial_can_receive(serial_console);
     } else {
-        return 1;
+        return 128;
     }
 }
 

@@ -1005,6 +1005,61 @@ void cpu_interrupt(CPUState *env, int mask)
     }
 }
 
+CPULogItem cpu_log_items[] = {
+    { CPU_LOG_TB_OUT_ASM, "out_asm", 
+      "show generated host assembly code for each compiled TB" },
+    { CPU_LOG_TB_IN_ASM, "in_asm",
+      "show target assembly code for each compiled TB" },
+    { CPU_LOG_TB_OP, "op", 
+      "show micro ops for each compiled TB (only usable if 'in_asm' used)" },
+#ifdef TARGET_I386
+    { CPU_LOG_TB_OP_OPT, "op_opt",
+      "show micro ops after optimization for each compiled TB" },
+#endif
+    { CPU_LOG_INT, "int",
+      "show interrupts/exceptions in short format" },
+    { CPU_LOG_EXEC, "exec",
+      "show trace before each executed TB (lots of logs)" },
+#ifdef TARGET_I386
+    { CPU_LOG_PCALL, "pcall",
+      "show protected mode far calls/returns/exceptions" },
+#endif
+    { 0, NULL, NULL },
+};
+
+static int cmp1(const char *s1, int n, const char *s2)
+{
+    if (strlen(s2) != n)
+        return 0;
+    return memcmp(s1, s2, n) == 0;
+}
+      
+/* takes a comma separated list of log masks. Return 0 if error. */
+int cpu_str_to_log_mask(const char *str)
+{
+    CPULogItem *item;
+    int mask;
+    const char *p, *p1;
+
+    p = str;
+    mask = 0;
+    for(;;) {
+        p1 = strchr(p, ',');
+        if (!p1)
+            p1 = p + strlen(p);
+        for(item = cpu_log_items; item->mask != 0; item++) {
+            if (cmp1(p, p1 - p, item->name))
+                goto found;
+        }
+        return 0;
+    found:
+        mask |= item->mask;
+        if (*p1 != ',')
+            break;
+        p = p1 + 1;
+    }
+    return mask;
+}
 
 void cpu_abort(CPUState *env, const char *fmt, ...)
 {

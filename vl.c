@@ -47,7 +47,6 @@
 #include <linux/if_tun.h>
 
 #include "disas.h"
-#include "thunk.h"
 
 #include "vl.h"
 
@@ -801,7 +800,7 @@ void help(void)
            "Debug/Expert options:\n"
            "-s              wait gdb connection to port %d\n"
            "-p port         change gdb connection port\n"
-           "-d              output log to %s\n"
+           "-d item1,...    output log to %s (use -d ? for a list of log items)\n"
            "-hdachs c,h,s   force hard disk 0 geometry (usually qemu can guess it)\n"
            "-L path         set the directory for the BIOS and VGA BIOS\n"
 #ifdef USE_CODE_COPY
@@ -916,7 +915,7 @@ int main(int argc, char **argv)
     }
     
     for(;;) {
-        c = getopt_long_only(argc, argv, "hm:dn:sp:L:", long_options, &long_index);
+        c = getopt_long_only(argc, argv, "hm:d:n:sp:L:", long_options, &long_index);
         if (c == -1)
             break;
         switch(c) {
@@ -1037,7 +1036,20 @@ int main(int argc, char **argv)
             }
             break;
         case 'd':
-            cpu_set_log(CPU_LOG_ALL);
+            {
+                int mask;
+                CPULogItem *item;
+
+                mask = cpu_str_to_log_mask(optarg);
+                if (!mask) {
+                    printf("Log items (comma separated):\n");
+                    for(item = cpu_log_items; item->mask != 0; item++) {
+                        printf("%-10s %s\n", item->name, item->help);
+                    }
+                    exit(1);
+                }
+                cpu_set_log(mask);
+            }
             break;
         case 'n':
             pstrcpy(network_script, sizeof(network_script), optarg);
