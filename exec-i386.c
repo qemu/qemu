@@ -25,58 +25,6 @@
 
 /* main execution loop */
 
-/* thread support */
-
-spinlock_t global_cpu_lock = SPIN_LOCK_UNLOCKED;
-
-void cpu_lock(void)
-{
-    spin_lock(&global_cpu_lock);
-}
-
-void cpu_unlock(void)
-{
-    spin_unlock(&global_cpu_lock);
-}
-
-void cpu_loop_exit(void)
-{
-    /* NOTE: the register at this point must be saved by hand because
-       longjmp restore them */
-#ifdef __sparc__
-	/* We have to stay in the same register window as our caller,
-	 * thus this trick.
-	 */
-	__asm__ __volatile__("restore\n\t"
-			     "mov\t%o0, %i0");
-#endif
-#ifdef reg_EAX
-    env->regs[R_EAX] = EAX;
-#endif
-#ifdef reg_ECX
-    env->regs[R_ECX] = ECX;
-#endif
-#ifdef reg_EDX
-    env->regs[R_EDX] = EDX;
-#endif
-#ifdef reg_EBX
-    env->regs[R_EBX] = EBX;
-#endif
-#ifdef reg_ESP
-    env->regs[R_ESP] = ESP;
-#endif
-#ifdef reg_EBP
-    env->regs[R_EBP] = EBP;
-#endif
-#ifdef reg_ESI
-    env->regs[R_ESI] = ESI;
-#endif
-#ifdef reg_EDI
-    env->regs[R_EDI] = EDI;
-#endif
-    longjmp(env->jmp_env, 1);
-}
-
 int cpu_x86_exec(CPUX86State *env1)
 {
     int saved_T0, saved_T1, saved_A0;
@@ -105,12 +53,15 @@ int cpu_x86_exec(CPUX86State *env1)
 #ifdef reg_EDI
     int saved_EDI;
 #endif
+#ifdef __sparc__
+    int saved_i7, tmp_T0;
+#endif
     int code_gen_size, ret;
     void (*gen_func)(void);
     TranslationBlock *tb, **ptb;
     uint8_t *tc_ptr, *cs_base, *pc;
     unsigned int flags;
-    
+
     /* first we save global registers */
     saved_T0 = T0;
     saved_T1 = T1;
@@ -149,6 +100,10 @@ int cpu_x86_exec(CPUX86State *env1)
     saved_EDI = EDI;
     EDI = env->regs[R_EDI];
 #endif
+#ifdef __sparc__
+    /* we also save i7 because longjmp may not restore it */
+    asm volatile ("mov %%i7, %0" : "=r" (saved_i7));
+#endif
     
     /* put eflags in CPU temporary format */
     CC_SRC = env->eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
@@ -161,6 +116,10 @@ int cpu_x86_exec(CPUX86State *env1)
     if (setjmp(env->jmp_env) == 0) {
         T0 = 0; /* force lookup of first TB */
         for(;;) {
+#ifdef __sparc__
+	  /* g1 can be modified by some libc? functions */ 
+	    tmp_T0 = T0;
+#endif	    
             if (env->interrupt_request) {
                 env->exception_index = EXCP_INTERRUPT;
                 cpu_loop_exit();
@@ -240,23 +199,32 @@ int cpu_x86_exec(CPUX86State *env1)
 			lookup_symbol((void *)tb->pc));
 	    }
 #endif
+#ifdef __sparc__
+	    T0 = tmp_T0;
+#endif	    
             /* see if we can patch the calling TB */
             if (T0 != 0 && !(env->eflags & TF_MASK)) {
                 spin_lock(&tb_lock);
                 tb_add_jump((TranslationBlock *)(T0 & ~3), T0 & 3, tb);
                 spin_unlock(&tb_lock);
             }
-
             tc_ptr = tb->tc_ptr;
 
             /* execute the generated code */
             gen_func = (void *)tc_ptr;
-#ifdef __sparc__
+#if defined(__sparc__)
 	    __asm__ __volatile__("call	%0\n\t"
-				 " mov	%%o7,%%i0"
+				 "mov	%%o7,%%i0"
 				 : /* no outputs */
 				 : "r" (gen_func) 
 				 : "i0", "i1", "i2", "i3", "i4", "i5");
+#elif defined(__arm__)
+            asm volatile ("mov pc, %0\n\t"
+                          ".global exec_loop\n\t"
+                          "exec_loop:\n\t"
+                          : /* no outputs */
+                          : "r" (gen_func)
+                          : "r1", "r2", "r3", "r8", "r9", "r10", "r12", "r14");
 #else
             gen_func();
 #endif
@@ -291,6 +259,9 @@ int cpu_x86_exec(CPUX86State *env1)
 #endif
 #ifdef reg_EDI
     EDI = saved_EDI;
+#endif
+#ifdef __sparc__
+    asm volatile ("mov %0, %%i7" : : "r" (saved_i7));
 #endif
     T0 = saved_T0;
     T1 = saved_T1;
@@ -457,6 +428,7 @@ int cpu_x86_signal_handler(int host_signum, struct siginfo *info,
     uint32_t insn = *pc;
     int is_write = 0;
 
+    /* XXX: need kernel patch to get write flag faster */
     switch (insn >> 26) {
     case 0x0d: // stw
     case 0x0e: // stb
@@ -475,6 +447,56 @@ int cpu_x86_signal_handler(int host_signum, struct siginfo *info,
     return handle_cpu_signal(pc, (unsigned long)info->si_addr, 
                              is_write, &uc->uc_sigmask);
 }
+#elif defined(__sparc__)
+
+int cpu_x86_signal_handler(int host_signum, struct siginfo *info, 
+                           void *puc)
+{
+    uint32_t *regs = (uint32_t *)(info + 1);
+    void *sigmask = (regs + 20);
+    unsigned long pc;
+    int is_write;
+    uint32_t insn;
+    
+    /* XXX: is there a standard glibc define ? */
+    pc = regs[1];
+    /* XXX: need kernel patch to get write flag faster */
+    is_write = 0;
+    insn = *(uint32_t *)pc;
+    if ((insn >> 30) == 3) {
+      switch((insn >> 19) & 0x3f) {
+      case 0x05: // stb
+      case 0x06: // sth
+      case 0x04: // st
+      case 0x07: // std
+      case 0x24: // stf
+      case 0x27: // stdf
+      case 0x25: // stfsr
+	is_write = 1;
+	break;
+      }
+    }
+    return handle_cpu_signal(pc, (unsigned long)info->si_addr, 
+                             is_write, sigmask);
+}
+
+#elif defined(__arm__)
+
+int cpu_x86_signal_handler(int host_signum, struct siginfo *info, 
+                           void *puc)
+{
+    struct ucontext *uc = puc;
+    unsigned long pc;
+    int is_write;
+    
+    pc = uc->uc_mcontext.gregs[R15];
+    /* XXX: compute is_write */
+    is_write = 0;
+    return handle_cpu_signal(pc, (unsigned long)info->si_addr, 
+                             is_write,
+                             &uc->uc_sigmask);
+}
+
 #else
 
 #error CPU specific signal handler needed
