@@ -273,6 +273,36 @@ int read_password(char *buf, int buf_size)
 }
 #endif
 
+static BlockDriverState *bdrv_new_open(const char *filename,
+                                       const char *fmt)
+{
+    BlockDriverState *bs;
+    BlockDriver *drv;
+    char password[256];
+
+    bs = bdrv_new("");
+    if (!bs)
+        error("Not enough memory");
+    if (fmt) {
+        drv = bdrv_find_format(fmt);
+        if (!drv)
+            error("Unknown file format '%s'", fmt);
+    } else {
+        drv = NULL;
+    }
+    if (bdrv_open2(bs, filename, 0, drv) < 0) {
+        error("Could not open '%s'", filename);
+    }
+    if (bdrv_is_encrypted(bs)) {
+        printf("Disk image '%s' is encrypted.\n", filename);
+        if (read_password(password, sizeof(password)) < 0)
+            error("No password given");
+        if (bdrv_set_key(bs, password) < 0)
+            error("invalid password");
+    }
+    return bs;
+}
+
 static int img_create(int argc, char **argv)
 {
     int c, ret, encrypted;
@@ -308,7 +338,13 @@ static int img_create(int argc, char **argv)
         help();
     filename = argv[optind++];
     size = 0;
-    if (!base_filename) {
+    if (base_filename) {
+        BlockDriverState *bs;
+        bs = bdrv_new_open(base_filename, NULL);
+        bdrv_get_geometry(bs, &size);
+        size *= 512;
+        bdrv_delete(bs);
+    } else {
         if (optind >= argc)
             help();
         p = argv[optind];
@@ -330,11 +366,11 @@ static int img_create(int argc, char **argv)
            filename, fmt);
     if (encrypted)
         printf(", encrypted");
-    if (base_filename)
-        printf(", backing_file=%s\n",
+    if (base_filename) {
+        printf(", backing_file=%s",
                base_filename);
-    else
-        printf(", size=%lld kB\n", size / 1024);
+    }
+    printf(", size=%lld kB\n", size / 1024);
     ret = bdrv_create(drv, filename, size / 512, base_filename, encrypted);
     if (ret < 0) {
         if (ret == -ENOTSUP) {
@@ -435,36 +471,6 @@ static int is_allocated_sectors(const uint8_t *buf, int n, int *pnum)
     }
     *pnum = i;
     return v;
-}
-
-static BlockDriverState *bdrv_new_open(const char *filename,
-                                       const char *fmt)
-{
-    BlockDriverState *bs;
-    BlockDriver *drv;
-    char password[256];
-
-    bs = bdrv_new("");
-    if (!bs)
-        error("Not enough memory");
-    if (fmt) {
-        drv = bdrv_find_format(fmt);
-        if (!drv)
-            error("Unknown file format '%s'", fmt);
-    } else {
-        drv = NULL;
-    }
-    if (bdrv_open2(bs, filename, 0, drv) < 0) {
-        error("Could not open '%s'", filename);
-    }
-    if (bdrv_is_encrypted(bs)) {
-        printf("Disk image '%s' is encrypted.\n", filename);
-        if (read_password(password, sizeof(password)) < 0)
-            error("No password given");
-        if (bdrv_set_key(bs, password) < 0)
-            error("invalid password");
-    }
-    return bs;
 }
 
 #define IO_BUF_SIZE 65536
