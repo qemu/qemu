@@ -2,7 +2,6 @@
 void OPPROTO glue(glue(op_movs, SUFFIX), STRING_SUFFIX)(void)
 {
     int v, inc;
-    inc = (DF << SHIFT);
     v = glue(ldu, SUFFIX)(SI_ADDR);
     glue(st, SUFFIX)(DI_ADDR, v);
     inc = (DF << SHIFT);
