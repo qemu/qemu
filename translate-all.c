@@ -30,15 +30,16 @@
 #include "exec-all.h"
 #include "disas.h"
 
+extern int dyngen_code(uint8_t *gen_code_buf,
+                       uint16_t *label_offsets, uint16_t *jmp_offsets,
+                       const uint16_t *opc_buf, const uint32_t *opparam_buf, const long *gen_labels);
+
 enum {
 #define DEF(s, n, copy_size) INDEX_op_ ## s,
 #include "opc.h"
 #undef DEF
     NB_OPS,
 };
-
-#include "dyngen.h"
-#include "op.h"
 
 uint16_t gen_opc_buf[OPC_BUF_SIZE];
 uint32_t gen_opparam_buf[OPPARAM_BUF_SIZE];
