@@ -7,9 +7,14 @@ version 0.2:
  - initial Alpha port (Falk Hueffner)
  - initial IA64 port (Matt Wilson)
  - initial Sparc and Sparc64 port (David S. Miller)
- - better exception support for dosemu
  - added HLT instruction
- - added GPF generation for I/Os
+ - LRET instruction fix.
+ - added GPF generation for I/Os.
+ - added INT3 and TF flag support.
+ - SHL instruction C flag fix.
+ - mmap emulation for host page size > 4KB
+ - self-modifying code support
+ - better VM86 support (dosemu begins to work)
 
 version 0.1.6:
 
