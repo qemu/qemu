@@ -2,10 +2,14 @@ include config.mak
 
 TARGET_PATH=$(SRC_PATH)/target-$(TARGET_ARCH)
 VPATH=$(SRC_PATH):$(TARGET_PATH):$(SRC_PATH)/hw
+DEFINES=-I. -I$(TARGET_PATH) -I$(SRC_PATH)
+ifdef CONFIG_USER_ONLY
+VPATH+=:$(SRC_PATH)/linux-user
+DEFINES+=-I$(SRC_PATH)/linux-user -I$(SRC_PATH)/linux-user/$(TARGET_ARCH)
+endif
 CFLAGS=-Wall -O2 -g
 LDFLAGS=-g
 LIBS=
-DEFINES=-I. -I$(TARGET_PATH) -I$(SRC_PATH)
 HELPER_CFLAGS=$(CFLAGS)
 DYNGEN=../dyngen
 # user emulator name
@@ -149,7 +153,7 @@ LDFLAGS+=-p
 main.o: CFLAGS+=-p
 endif
 
-OBJS= elfload.o main.o syscall.o mmap.o signal.o path.o osdep.o
+OBJS= elfload.o main.o syscall.o mmap.o signal.o path.o osdep.o thunk.o 
 ifeq ($(TARGET_ARCH), i386)
 OBJS+= vm86.o
 endif
@@ -162,7 +166,7 @@ SRCS:= $(OBJS:.o=.c)
 OBJS+= libqemu.a
 
 # cpu emulator library
-LIBOBJS=thunk.o exec.o translate-all.o cpu-exec.o gdbstub.o \
+LIBOBJS=exec.o translate-all.o cpu-exec.o gdbstub.o \
         translate.o op.o
 
 ifeq ($(TARGET_ARCH), i386)
