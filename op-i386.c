@@ -493,6 +493,12 @@ void OPPROTO op_jmp_im(void)
     EIP = PARAM1;
 }
 
+void OPPROTO op_hlt(void)
+{
+    env->exception_index = EXCP_HLT;
+    cpu_loop_exit();
+}
+
 void OPPROTO op_raise_interrupt(void)
 {
     int intno;
@@ -954,6 +960,11 @@ void OPPROTO op_ljmp_T0_T1(void)
     jmp_seg(T0 & 0xffff, T1);
 }
 
+void OPPROTO op_iret_protected(void)
+{
+    helper_iret_protected(PARAM1);
+}
+
 void OPPROTO op_lldt_T0(void)
 {
     helper_lldt_T0();
@@ -981,6 +992,11 @@ void OPPROTO op_lmsw_T0(void)
     /* only 4 lower bits of CR0 are modified */
     T0 = (env->cr[0] & ~0xf) | (T0 & 0xf);
     helper_movl_crN_T0(0);
+}
+
+void OPPROTO op_invlpg_A0(void)
+{
+    helper_invlpg(A0);
 }
 
 void OPPROTO op_movl_T0_env(void)
@@ -1082,8 +1098,7 @@ void OPPROTO op_set_cc_op(void)
     CC_OP = PARAM1;
 }
 
-#define FL_UPDATE_MASK32 (TF_MASK | AC_MASK | ID_MASK)
-#define FL_UPDATE_MASK16 (TF_MASK)
+#define FL_UPDATE_MASK16 (FL_UPDATE_MASK32 & 0xffff)
 
 void OPPROTO op_movl_eflags_T0(void)
 {
@@ -1092,7 +1107,8 @@ void OPPROTO op_movl_eflags_T0(void)
     CC_SRC = eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
     DF = 1 - (2 * ((eflags >> 10) & 1));
     /* we also update some system flags as in user mode */
-    env->eflags = (env->eflags & ~FL_UPDATE_MASK32) | (eflags & FL_UPDATE_MASK32);
+    env->eflags = (env->eflags & ~FL_UPDATE_MASK32) | 
+        (eflags & FL_UPDATE_MASK32);
 }
 
 void OPPROTO op_movw_eflags_T0(void)
@@ -1102,7 +1118,18 @@ void OPPROTO op_movw_eflags_T0(void)
     CC_SRC = eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
     DF = 1 - (2 * ((eflags >> 10) & 1));
     /* we also update some system flags as in user mode */
-    env->eflags = (env->eflags & ~FL_UPDATE_MASK16) | (eflags & FL_UPDATE_MASK16);
+    env->eflags = (env->eflags & ~FL_UPDATE_MASK16) | 
+        (eflags & FL_UPDATE_MASK16);
+}
+
+void OPPROTO op_movl_eflags_T0_cpl0(void)
+{
+    load_eflags(T0, FL_UPDATE_CPL0_MASK);
+}
+
+void OPPROTO op_movw_eflags_T0_cpl0(void)
+{
+    load_eflags(T0, FL_UPDATE_CPL0_MASK & 0xffff);
 }
 
 #if 0

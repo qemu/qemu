@@ -124,12 +124,22 @@ extern CCTable cc_table[];
 
 void load_seg(int seg_reg, int selector, unsigned cur_eip);
 void jmp_seg(int selector, unsigned int new_eip);
+void helper_iret_protected(int shift);
 void helper_lldt_T0(void);
 void helper_ltr_T0(void);
 void helper_movl_crN_T0(int reg);
 void helper_movl_drN_T0(int reg);
+void helper_invlpg(unsigned int addr);
+void cpu_x86_update_cr0(CPUX86State *env);
+void cpu_x86_update_cr3(CPUX86State *env);
+void cpu_x86_flush_tlb(CPUX86State *env, uint32_t addr);
+int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr, int is_write);
 void __hidden cpu_lock(void);
 void __hidden cpu_unlock(void);
+void do_interrupt(int intno, int is_int, int error_code, 
+                  unsigned int next_eip);
+void do_interrupt_user(int intno, int is_int, int error_code, 
+                       unsigned int next_eip);
 void raise_interrupt(int intno, int is_int, int error_code, 
                      unsigned int next_eip);
 void raise_exception_err(int exception_index, int error_code);
@@ -329,3 +339,22 @@ void helper_frstor(uint8_t *ptr, int data32);
 const uint8_t parity_table[256];
 const uint8_t rclw_table[32];
 const uint8_t rclb_table[32];
+
+static inline uint32_t compute_eflags(void)
+{
+    return env->eflags | cc_table[CC_OP].compute_all() | (DF & DF_MASK);
+}
+
+#define FL_UPDATE_MASK32 (TF_MASK | AC_MASK | ID_MASK)
+
+#define FL_UPDATE_CPL0_MASK (TF_MASK | IF_MASK | IOPL_MASK | NT_MASK | \
+                             RF_MASK | AC_MASK | ID_MASK)
+
+/* NOTE: CC_OP must be modified manually to CC_OP_EFLAGS */
+static inline void load_eflags(int eflags, int update_mask)
+{
+    CC_SRC = eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
+    DF = 1 - (2 * ((eflags >> 10) & 1));
+    env->eflags = (env->eflags & ~update_mask) | 
+        (eflags & update_mask);
+}
