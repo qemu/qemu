@@ -445,6 +445,10 @@ void kbd_mouse_event(int dx, int dy, int dz, int buttons_state)
     s->mouse_dx += dx;
     s->mouse_dy -= dy;
     s->mouse_dz += dz;
+    /* XXX: SDL sometimes generates nul events: we delete them */
+    if (s->mouse_dx == 0 && s->mouse_dy == 0 && s->mouse_dz == 0 &&
+        s->mouse_buttons == buttons_state)
+	return;
     s->mouse_buttons = buttons_state;
     
     if (!(s->mouse_status & MOUSE_STATUS_REMOTE) &&
