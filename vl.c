@@ -2594,8 +2594,8 @@ void ide_init(void)
 #define KBD_CCMD_WRITE_AUX_OBUF	0xD3    /* Write to output buffer as if
 					   initiated by the auxiliary device */
 #define KBD_CCMD_WRITE_MOUSE	0xD4	/* Write the following byte to the mouse */
-#define KBD_CCMD_ENABLE_A20     0xDD
-#define KBD_CCMD_DISABLE_A20    0xDF
+#define KBD_CCMD_DISABLE_A20    0xDD    /* HP vectra only ? */
+#define KBD_CCMD_ENABLE_A20     0xDF    /* HP vectra only ? */
 #define KBD_CCMD_RESET	        0xFE
 
 /* Keyboard Commands */
@@ -2685,7 +2685,6 @@ typedef struct KBDState {
 
 KBDState kbd_state;
 int reset_requested;
-int a20_enabled;
 
 /* update irq and KBD_STAT_[MOUSE_]OBF */
 static void kbd_update_irq(KBDState *s)
@@ -2802,10 +2801,10 @@ void kbd_write_command(CPUX86State *env, uint32_t addr, uint32_t val)
         kbd_queue(s, val, 0);
         break;
     case KBD_CCMD_ENABLE_A20:
-        a20_enabled = 1;
+        cpu_x86_set_a20(env, 1);
         break;
     case KBD_CCMD_DISABLE_A20:
-        a20_enabled = 0;
+        cpu_x86_set_a20(env, 0);
         break;
     case KBD_CCMD_RESET:
         reset_requested = 1;
@@ -2875,6 +2874,7 @@ static void kbd_write_keyboard(KBDState *s, int val)
         case KBD_CMD_SET_LEDS:
         case KBD_CMD_SET_RATE:
             s->kbd_write_cmd = val;
+            kbd_queue(s, KBD_REPLY_ACK, 0);
             break;
         case KBD_CMD_RESET_DISABLE:
             kbd_reset_keyboard(s);
@@ -3129,7 +3129,7 @@ void kbd_write_data(CPUX86State *env, uint32_t addr, uint32_t val)
         kbd_queue(s, val, 1);
         break;
     case KBD_CCMD_WRITE_OUTPORT:
-        a20_enabled = (val >> 1) & 1;
+        cpu_x86_set_a20(env, (val >> 1) & 1);
         if (!(val & 1)) {
             reset_requested = 1;
             cpu_x86_interrupt(global_env, CPU_INTERRUPT_EXIT);
