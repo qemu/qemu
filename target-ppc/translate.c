@@ -17,9 +17,14 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#include "dyngen-exec.h"
+#include <stdarg.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <inttypes.h>
+
 #include "cpu.h"
-#include "exec.h"
+#include "exec-all.h"
 #include "disas.h"
 
 //#define DO_SINGLE_STEP
