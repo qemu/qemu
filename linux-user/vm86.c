@@ -73,17 +73,17 @@ void save_v86_state(CPUX86State *env)
     ts->target_v86->regs.ebp = tswap32(env->regs[R_EBP]);
     ts->target_v86->regs.esp = tswap32(env->regs[R_ESP]);
     ts->target_v86->regs.eip = tswap32(env->eip);
-    ts->target_v86->regs.cs = tswap16(env->segs[R_CS]);
-    ts->target_v86->regs.ss = tswap16(env->segs[R_SS]);
-    ts->target_v86->regs.ds = tswap16(env->segs[R_DS]);
-    ts->target_v86->regs.es = tswap16(env->segs[R_ES]);
-    ts->target_v86->regs.fs = tswap16(env->segs[R_FS]);
-    ts->target_v86->regs.gs = tswap16(env->segs[R_GS]);
+    ts->target_v86->regs.cs = tswap16(env->segs[R_CS].selector);
+    ts->target_v86->regs.ss = tswap16(env->segs[R_SS].selector);
+    ts->target_v86->regs.ds = tswap16(env->segs[R_DS].selector);
+    ts->target_v86->regs.es = tswap16(env->segs[R_ES].selector);
+    ts->target_v86->regs.fs = tswap16(env->segs[R_FS].selector);
+    ts->target_v86->regs.gs = tswap16(env->segs[R_GS].selector);
     set_flags(env->eflags, ts->v86flags, VIF_MASK | ts->v86mask);
     ts->target_v86->regs.eflags = tswap32(env->eflags);
 #ifdef DEBUG_VM86
     fprintf(logfile, "save_v86_state: eflags=%08x cs:ip=%04x:%04x\n", 
-            env->eflags, env->segs[R_CS], env->eip);
+            env->eflags, env->segs[R_CS].selector, env->eip);
 #endif
 
     /* restore 32 bit registers */
@@ -180,6 +180,7 @@ static inline unsigned int get_vflags(CPUX86State *env)
     flags = env->eflags & RETURN_MASK;
     if (ts->v86flags & VIF_MASK)
         flags |= IF_MASK;
+    flags |= IOPL_MASK;
     return flags | (ts->v86flags & ts->v86mask);
 }
 
@@ -194,7 +195,7 @@ static void do_int(CPUX86State *env, int intno)
     uint8_t *ssp;
     unsigned int sp;
 
-    if (env->segs[R_CS] == TARGET_BIOSSEG)
+    if (env->segs[R_CS].selector == TARGET_BIOSSEG)
         goto cannot_handle;
     if (is_revectored(intno, &ts->vm86plus.int_revectored))
         goto cannot_handle;
@@ -210,10 +211,10 @@ static void do_int(CPUX86State *env, int intno)
             intno, segoffs >> 16, segoffs & 0xffff);
 #endif
     /* save old state */
-    ssp = (uint8_t *)(env->segs[R_SS] << 4);
+    ssp = (uint8_t *)(env->segs[R_SS].selector << 4);
     sp = env->regs[R_ESP] & 0xffff;
     vm_putw(ssp, sp - 2, get_vflags(env));
-    vm_putw(ssp, sp - 4, env->segs[R_CS]);
+    vm_putw(ssp, sp - 4, env->segs[R_CS].selector);
     vm_putw(ssp, sp - 6, env->eip);
     ADD16(env->regs[R_ESP], -6);
     /* goto interrupt handler */
@@ -257,16 +258,16 @@ void handle_vm86_fault(CPUX86State *env)
     unsigned int ip, sp, newflags, newip, newcs, opcode, intno;
     int data32, pref_done;
 
-    csp = (uint8_t *)(env->segs[R_CS] << 4);
+    csp = (uint8_t *)(env->segs[R_CS].selector << 4);
     ip = env->eip & 0xffff;
     pc = csp + ip;
     
-    ssp = (uint8_t *)(env->segs[R_SS] << 4);
+    ssp = (uint8_t *)(env->segs[R_SS].selector << 4);
     sp = env->regs[R_ESP] & 0xffff;
 
 #if defined(DEBUG_VM86)
     fprintf(logfile, "VM86 exception %04x:%08x %02x %02x\n",
-            env->segs[R_CS], env->eip, pc[0], pc[1]);
+            env->segs[R_CS].selector, env->eip, pc[0], pc[1]);
 #endif
 
     data32 = 0;
@@ -413,12 +414,12 @@ int do_vm86(CPUX86State *env, long subfunction,
     ts->vm86_saved_regs.esp = env->regs[R_ESP];
     ts->vm86_saved_regs.eflags = env->eflags;
     ts->vm86_saved_regs.eip  = env->eip;
-    ts->vm86_saved_regs.cs = env->segs[R_CS];
-    ts->vm86_saved_regs.ss = env->segs[R_SS];
-    ts->vm86_saved_regs.ds = env->segs[R_DS];
-    ts->vm86_saved_regs.es = env->segs[R_ES];
-    ts->vm86_saved_regs.fs = env->segs[R_FS];
-    ts->vm86_saved_regs.gs = env->segs[R_GS];
+    ts->vm86_saved_regs.cs = env->segs[R_CS].selector;
+    ts->vm86_saved_regs.ss = env->segs[R_SS].selector;
+    ts->vm86_saved_regs.ds = env->segs[R_DS].selector;
+    ts->vm86_saved_regs.es = env->segs[R_ES].selector;
+    ts->vm86_saved_regs.fs = env->segs[R_FS].selector;
+    ts->vm86_saved_regs.gs = env->segs[R_GS].selector;
 
     /* build vm86 CPU state */
     ts->v86flags = tswap32(target_v86->regs.eflags);
@@ -466,7 +467,8 @@ int do_vm86(CPUX86State *env, long subfunction,
            target_v86->vm86plus.vm86dbg_intxxtab, 32);
     
 #ifdef DEBUG_VM86
-    fprintf(logfile, "do_vm86: cs:ip=%04x:%04x\n", env->segs[R_CS], env->eip);
+    fprintf(logfile, "do_vm86: cs:ip=%04x:%04x\n", 
+            env->segs[R_CS].selector, env->eip);
 #endif
     /* now the virtual CPU is ready for vm86 execution ! */
  out:
