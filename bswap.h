@@ -133,6 +133,9 @@ CPU_CONVERT(le, 64, uint64_t)
 #define le16_to_cpupu(p) le16_to_cpup(p)
 #define le32_to_cpupu(p) le32_to_cpup(p)
 
+#define cpu_to_be16wu(p, v) cpu_to_be16w(p, v)
+#define cpu_to_be32wu(p, v) cpu_to_be32w(p, v)
+
 #else
 
 static inline void cpu_to_le16wu(uint16_t *p, uint16_t v)
@@ -165,6 +168,30 @@ static inline uint32_t le32_to_cpupu(const uint32_t *p)
     return p1[0] | (p1[1] << 8) | (p1[2] << 16) | (p1[3] << 24);
 }
 
+static inline void cpu_to_be16wu(uint16_t *p, uint16_t v)
+{
+    uint8_t *p1 = (uint8_t *)p;
+
+    p1[0] = v >> 8;
+    p1[1] = v;
+}
+
+static inline void cpu_to_be32wu(uint32_t *p, uint32_t v)
+{
+    uint8_t *p1 = (uint8_t *)p;
+
+    p1[0] = v >> 24;
+    p1[1] = v >> 16;
+    p1[2] = v >> 8;
+    p1[3] = v;
+}
+
+#endif
+
+#ifdef WORDS_BIGENDIAN
+#define cpu_to_32wu cpu_to_be32wu
+#else
+#define cpu_to_32wu cpu_to_le32wu
 #endif
 
 #undef le_bswap

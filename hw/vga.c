@@ -824,8 +824,7 @@ typedef void vga_draw_line_func(VGAState *s1, uint8_t *d,
 
 static inline unsigned int rgb_to_pixel8(unsigned int r, unsigned int g, unsigned b)
 {
-    /* XXX: TODO */
-    return 0;
+    return ((r >> 5) << 5) | ((g >> 5) << 2) | (b >> 6);
 }
 
 static inline unsigned int rgb_to_pixel15(unsigned int r, unsigned int g, unsigned b)

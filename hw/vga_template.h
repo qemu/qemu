@@ -44,7 +44,7 @@ static inline void glue(vga_draw_glyph_line_, DEPTH)(uint8_t *d,
 {
 #if BPP == 1
         ((uint32_t *)d)[0] = (dmask16[(font_data >> 4)] & xorcol) ^ bgcol;
-        ((uint32_t *)d)[3] = (dmask16[(font_data >> 0) & 0xf] & xorcol) ^ bgcol;
+        ((uint32_t *)d)[1] = (dmask16[(font_data >> 0) & 0xf] & xorcol) ^ bgcol;
 #elif BPP == 2
         ((uint32_t *)d)[0] = (dmask4[(font_data >> 6)] & xorcol) ^ bgcol;
         ((uint32_t *)d)[1] = (dmask4[(font_data >> 4) & 3] & xorcol) ^ bgcol;
@@ -106,22 +106,21 @@ static void glue(vga_draw_glyph9_, DEPTH)(uint8_t *d, int linesize,
     xorcol = bgcol ^ fgcol;
     do {
         font_data = font_ptr[0];
-        /* XXX: unaligned accesses are done */
 #if BPP == 1
-        ((uint32_t *)d)[0] = (dmask16[(font_data >> 4)] & xorcol) ^ bgcol;
+        cpu_to_32wu((uint32_t *)d, (dmask16[(font_data >> 4)] & xorcol) ^ bgcol);
         v = (dmask16[(font_data >> 0) & 0xf] & xorcol) ^ bgcol;
-        ((uint32_t *)d)[3] = v;
+        cpu_to_32wu(((uint32_t *)d)+1, v);
         if (dup9)
             ((uint8_t *)d)[8] = v >> (24 * (1 - BIG));
         else
             ((uint8_t *)d)[8] = bgcol;
         
 #elif BPP == 2
-        ((uint32_t *)d)[0] = (dmask4[(font_data >> 6)] & xorcol) ^ bgcol;
-        ((uint32_t *)d)[1] = (dmask4[(font_data >> 4) & 3] & xorcol) ^ bgcol;
-        ((uint32_t *)d)[2] = (dmask4[(font_data >> 2) & 3] & xorcol) ^ bgcol;
+        cpu_to_32wu(((uint32_t *)d)+0, (dmask4[(font_data >> 6)] & xorcol) ^ bgcol);
+        cpu_to_32wu(((uint32_t *)d)+1, (dmask4[(font_data >> 4) & 3] & xorcol) ^ bgcol);
+        cpu_to_32wu(((uint32_t *)d)+2, (dmask4[(font_data >> 2) & 3] & xorcol) ^ bgcol);
         v = (dmask4[(font_data >> 0) & 3] & xorcol) ^ bgcol;
-        ((uint32_t *)d)[3] = v;
+        cpu_to_32wu(((uint32_t *)d)+3, v);
         if (dup9)
             ((uint16_t *)d)[8] = v >> (16 * (1 - BIG));
         else
