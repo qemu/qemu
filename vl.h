@@ -29,21 +29,25 @@
 /* vl.c */
 extern int reset_requested;
 extern int64_t ticks_per_sec;
+extern int pit_min_timer_count;
 
 typedef void (IOPortWriteFunc)(struct CPUState *env, uint32_t address, uint32_t data);
 typedef uint32_t (IOPortReadFunc)(struct CPUState *env, uint32_t address);
 
 int register_ioport_read(int start, int length, IOPortReadFunc *func, int size);
 int register_ioport_write(int start, int length, IOPortWriteFunc *func, int size);
-void pic_set_irq(int irq, int level);
 int64_t cpu_get_ticks(void);
+uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c);
 
-void kbd_put_keycode(int keycode);
+void net_send_packet(int net_fd, const uint8_t *buf, int size);
 
-#define MOUSE_EVENT_LBUTTON 0x01
-#define MOUSE_EVENT_RBUTTON 0x02
-#define MOUSE_EVENT_MBUTTON 0x04
-void kbd_mouse_event(int dx, int dy, int dz, int buttons_state);
+void hw_error(const char *fmt, ...);
+
+int load_image(const char *filename, uint8_t *addr);
+extern const char *bios_dir;
+
+void pstrcpy(char *buf, int buf_size, const char *str);
+char *pstrcat(char *buf, int buf_size, const char *s);
 
 /* block.c */
 typedef struct BlockDriverState BlockDriverState;
@@ -138,5 +142,79 @@ void cmos_register_fd (uint8_t fd0, uint8_t fd1);
 void fdctrl_init (int irq_lvl, int dma_chann, int mem_mapped, uint32_t base,
                   char boot_device);
 int fdctrl_disk_change (int idx, const unsigned char *filename, int ro);
+
+/* ne2000.c */
+
+#define MAX_ETH_FRAME_SIZE 1514
+
+void ne2000_init(int base, int irq);
+int ne2000_can_receive(void);
+void ne2000_receive(uint8_t *buf, int size);
+
+extern int net_fd;
+
+/* pckbd.c */
+
+void kbd_put_keycode(int keycode);
+
+#define MOUSE_EVENT_LBUTTON 0x01
+#define MOUSE_EVENT_RBUTTON 0x02
+#define MOUSE_EVENT_MBUTTON 0x04
+void kbd_mouse_event(int dx, int dy, int dz, int buttons_state);
+
+void kbd_init(void);
+
+/* mc146818rtc.c */
+
+typedef struct RTCState {
+    uint8_t cmos_data[128];
+    uint8_t cmos_index;
+    int irq;
+} RTCState;
+
+extern RTCState rtc_state;
+
+void rtc_init(int base, int irq);
+void rtc_timer(void);
+
+/* serial.c */
+
+void serial_init(int base, int irq);
+int serial_can_receive(void);
+void serial_receive_byte(int ch);
+void serial_receive_break(void);
+
+/* i8259.c */
+
+void pic_set_irq(int irq, int level);
+void pic_init(void);
+
+/* i8254.c */
+
+#define PIT_FREQ 1193182
+
+typedef struct PITChannelState {
+    int count; /* can be 65536 */
+    uint16_t latched_count;
+    uint8_t rw_state;
+    uint8_t mode;
+    uint8_t bcd; /* not supported */
+    uint8_t gate; /* timer start */
+    int64_t count_load_time;
+    int64_t count_last_edge_check_time;
+} PITChannelState;
+
+extern PITChannelState pit_channels[3];
+
+void pit_init(void);
+void pit_set_gate(PITChannelState *s, int val);
+int pit_get_out(PITChannelState *s);
+int pit_get_out_edges(PITChannelState *s);
+
+/* pc.c */
+void pc_init(int ram_size, int vga_ram_size, int boot_device,
+             DisplayState *ds, const char **fd_filename, int snapshot,
+             const char *kernel_filename, const char *kernel_cmdline,
+             const char *initrd_filename);
 
 #endif /* VL_H */
