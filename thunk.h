@@ -77,7 +77,7 @@
 #endif
 
 #define TARGET_LONG_SIZE (TARGET_LONG_BITS / 8)
-#define HOST_LONG_SIZE (TARGET_LONG_BITS / 8)
+#define HOST_LONG_SIZE (HOST_LONG_BITS / 8)
 
 static inline uint16_t bswap16(uint16_t x)
 {
