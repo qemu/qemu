@@ -371,6 +371,7 @@ int cpu_x86_exec(CPUX86State *env1)
                 flags |= (3 << GEN_FLAG_CPL_SHIFT);
             }
             flags |= (env->eflags & IOPL_MASK) >> (12 - GEN_FLAG_IOPL_SHIFT);
+            flags |= (env->eflags & TF_MASK) << (GEN_FLAG_TF_SHIFT - 8);
             cs_base = env->seg_cache[R_CS].base;
             pc = cs_base + env->eip;
             tb = tb_find(&ptb, (unsigned long)pc, (unsigned long)cs_base, 

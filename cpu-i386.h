@@ -440,6 +440,7 @@ void cpu_x86_dump_state(CPUX86State *env, FILE *f, int flags);
 #define GEN_FLAG_ST_SHIFT     4
 #define GEN_FLAG_CPL_SHIFT    7
 #define GEN_FLAG_IOPL_SHIFT   9
+#define GEN_FLAG_TF_SHIFT     11
 
 int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size, 
                      int *gen_code_size_ptr,
