@@ -390,6 +390,12 @@ struct target_tms {
     target_clock_t tms_cstime;
 };
 
+struct target_sel_arg_struct {
+    target_long n;
+    target_long inp, outp, exp;
+    target_long tvp;
+};
+
 struct target_iovec {
     target_long iov_base;   /* Starting address */
     target_long iov_len;   /* Number of bytes */

@@ -1763,7 +1763,17 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         }
         break;
     case TARGET_NR_select:
-        goto unimplemented;
+        {
+            struct target_sel_arg_struct *sel = (void *)arg1;
+            sel->n = tswapl(sel->n);
+            sel->inp = tswapl(sel->inp);
+            sel->outp = tswapl(sel->outp);
+            sel->exp = tswapl(sel->exp);
+            sel->tvp = tswapl(sel->tvp);
+            ret = do_select(sel->n, (void *)sel->inp, (void *)sel->outp,
+                            (void *)sel->exp, (void *)sel->tvp);
+        }
+        break;
     case TARGET_NR_symlink:
         ret = get_errno(symlink((const char *)arg1, (const char *)arg2));
         break;
