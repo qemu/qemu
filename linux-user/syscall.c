@@ -1130,6 +1130,24 @@ static bitmask_transtbl mmap_flags_tbl[] = {
 	{ 0, 0, 0, 0 }
 };
 
+static bitmask_transtbl fcntl_flags_tbl[] = {
+	{ TARGET_O_ACCMODE,   TARGET_O_WRONLY,    O_ACCMODE,   O_WRONLY,    },
+	{ TARGET_O_ACCMODE,   TARGET_O_RDWR,      O_ACCMODE,   O_RDWR,      },
+	{ TARGET_O_CREAT,     TARGET_O_CREAT,     O_CREAT,     O_CREAT,     },
+	{ TARGET_O_EXCL,      TARGET_O_EXCL,      O_EXCL,      O_EXCL,      },
+	{ TARGET_O_NOCTTY,    TARGET_O_NOCTTY,    O_NOCTTY,    O_NOCTTY,    },
+	{ TARGET_O_TRUNC,     TARGET_O_TRUNC,     O_TRUNC,     O_TRUNC,     },
+	{ TARGET_O_APPEND,    TARGET_O_APPEND,    O_APPEND,    O_APPEND,    },
+	{ TARGET_O_NONBLOCK,  TARGET_O_NONBLOCK,  O_NONBLOCK,  O_NONBLOCK,  },
+	{ TARGET_O_SYNC,      TARGET_O_SYNC,      O_SYNC,      O_SYNC,      },
+	{ TARGET_FASYNC,      TARGET_FASYNC,      FASYNC,      FASYNC,      },
+	{ TARGET_O_DIRECTORY, TARGET_O_DIRECTORY, O_DIRECTORY, O_DIRECTORY, },
+	{ TARGET_O_NOFOLLOW,  TARGET_O_NOFOLLOW,  O_NOFOLLOW,  O_NOFOLLOW,  },
+	{ TARGET_O_LARGEFILE, TARGET_O_LARGEFILE, O_LARGEFILE, O_LARGEFILE, },
+	{ TARGET_O_DIRECT,    TARGET_O_DIRECT,    O_DIRECT,    O_DIRECT,    },
+	{ 0, 0, 0, 0 }
+};
+
 #if defined(TARGET_I386)
 
 /* NOTE: there is really one LDT for all the threads */
@@ -1353,6 +1371,15 @@ static long do_fcntl(int fd, int cmd, unsigned long arg)
         errno = EINVAL;
         break;
 
+    case F_GETFL:
+        ret = fcntl(fd, cmd, arg);
+        ret = host_to_target_bitmask(ret, fcntl_flags_tbl);
+        break;
+
+    case F_SETFL:
+        ret = fcntl(fd, cmd, target_to_host_bitmask(arg, fcntl_flags_tbl));
+        break;
+
     default:
         ret = fcntl(fd, cmd, arg);
         break;
@@ -1464,7 +1491,9 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         ret = get_errno(write(arg1, (void *)arg2, arg3));
         break;
     case TARGET_NR_open:
-        ret = get_errno(open(path((const char *)arg1), arg2, arg3));
+        ret = get_errno(open(path((const char *)arg1),
+                             target_to_host_bitmask(arg2, fcntl_flags_tbl),
+                             arg3));
         break;
     case TARGET_NR_close:
         ret = get_errno(close(arg1));
@@ -2750,10 +2779,14 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 
     case TARGET_NR_pivot_root:
         goto unimplemented;
+#ifdef TARGET_NR_mincore
     case TARGET_NR_mincore:
         goto unimplemented;
+#endif
+#ifdef TARGET_NR_madvise
     case TARGET_NR_madvise:
         goto unimplemented;
+#endif
 #if TARGET_LONG_BITS == 32
     case TARGET_NR_fcntl64:
     {
