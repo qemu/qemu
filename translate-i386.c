@@ -25,97 +25,13 @@
 #include <signal.h>
 #include <assert.h>
 
-#include "disas.h"
-
-#define DEBUG_DISAS
-
-#define IN_OP_I386
 #include "cpu-i386.h"
 #include "exec.h"
+#include "disas.h"
 
 /* XXX: move that elsewhere */
 static uint16_t *gen_opc_ptr;
 static uint32_t *gen_opparam_ptr;
-int __op_param1, __op_param2, __op_param3;
-#ifdef USE_DIRECT_JUMP
-int __op_jmp0, __op_jmp1;
-#endif
-
-#ifdef __i386__
-static inline void flush_icache_range(unsigned long start, unsigned long stop)
-{
-}
-#endif
-
-#ifdef __s390__
-static inline void flush_icache_range(unsigned long start, unsigned long stop)
-{
-}
-#endif
-
-#ifdef __ia64__
-static inline void flush_icache_range(unsigned long start, unsigned long stop)
-{
-}
-#endif
-
-#ifdef __powerpc__
-
-#define MIN_CACHE_LINE_SIZE 8 /* conservative value */
-
-static void inline flush_icache_range(unsigned long start, unsigned long stop)
-{
-    unsigned long p;
-
-    p = start & ~(MIN_CACHE_LINE_SIZE - 1);
-    stop = (stop + MIN_CACHE_LINE_SIZE - 1) & ~(MIN_CACHE_LINE_SIZE - 1);
-    
-    for (p = start; p < stop; p += MIN_CACHE_LINE_SIZE) {
-        asm volatile ("dcbst 0,%0" : : "r"(p) : "memory");
-    }
-    asm volatile ("sync" : : : "memory");
-    for (p = start; p < stop; p += MIN_CACHE_LINE_SIZE) {
-        asm volatile ("icbi 0,%0" : : "r"(p) : "memory");
-    }
-    asm volatile ("sync" : : : "memory");
-    asm volatile ("isync" : : : "memory");
-}
-#endif
-
-#ifdef __alpha__
-static inline void flush_icache_range(unsigned long start, unsigned long stop)
-{
-    asm ("imb");
-}
-#endif
-
-#ifdef __sparc__
-
-static void inline flush_icache_range(unsigned long start, unsigned long stop)
-{
-	unsigned long p;
-
-	p = start & ~(8UL - 1UL);
-	stop = (stop + (8UL - 1UL)) & ~(8UL - 1UL);
-
-	for (; p < stop; p += 8)
-		__asm__ __volatile__("flush\t%0" : : "r" (p));
-}
-
-#endif
-
-#ifdef __arm__
-static inline void flush_icache_range(unsigned long start, unsigned long stop)
-{
-    register unsigned long _beg __asm ("a1") = start;
-    register unsigned long _end __asm ("a2") = stop;
-    register unsigned long _flg __asm ("a3") = 0;
-    __asm __volatile__ ("swi 0x9f0002" : : "r" (_beg), "r" (_end), "r" (_flg));
-}
-#endif
-
-extern FILE *logfile;
-extern int loglevel;
 
 #define PREFIX_REPZ   0x01
 #define PREFIX_REPNZ  0x02
@@ -142,7 +58,7 @@ typedef struct DisasContext {
     int cpl;
     int iopl;
     int tf;     /* TF cpu flag */
-    TranslationBlock *tb;
+    struct TranslationBlock *tb;
 } DisasContext;
 
 /* i386 arith/logic operations */
@@ -176,8 +92,7 @@ enum {
     NB_OPS,
 };
 
-#include "dyngen.h"
-#include "op-i386.h"
+#include "gen-op-i386.h"
 
 /* operand size */
 enum {
@@ -3748,61 +3663,10 @@ static void optimize_flags(uint16_t *opc_buf, int opc_buf_len)
     }
 }
 
-
-#ifdef DEBUG_DISAS
-static const char *op_str[] = {
-#define DEF(s, n, copy_size) #s,
-#include "opc-i386.h"
-#undef DEF
-};
-
-static uint8_t op_nb_args[] = {
-#define DEF(s, n, copy_size) n,
-#include "opc-i386.h"
-#undef DEF
-};
-
-static void dump_ops(const uint16_t *opc_buf, const uint32_t *opparam_buf)
-{
-    const uint16_t *opc_ptr;
-    const uint32_t *opparam_ptr;
-    int c, n, i;
-
-    opc_ptr = opc_buf;
-    opparam_ptr = opparam_buf;
-    for(;;) {
-        c = *opc_ptr++;
-        n = op_nb_args[c];
-        fprintf(logfile, "0x%04x: %s", 
-                (int)(opc_ptr - opc_buf - 1), op_str[c]);
-        for(i = 0; i < n; i++) {
-            fprintf(logfile, " 0x%x", opparam_ptr[i]);
-        }
-        fprintf(logfile, "\n");
-        if (c == INDEX_op_end)
-            break;
-        opparam_ptr += n;
-    }
-}
-
-#endif
-
-/* XXX: make safe guess about sizes */
-#define MAX_OP_PER_INSTR 32
-#define OPC_BUF_SIZE 512
-#define OPC_MAX_SIZE (OPC_BUF_SIZE - MAX_OP_PER_INSTR)
-
-#define OPPARAM_BUF_SIZE (OPC_BUF_SIZE * 3)
-
-static uint16_t gen_opc_buf[OPC_BUF_SIZE];
-static uint32_t gen_opparam_buf[OPPARAM_BUF_SIZE];
-static uint32_t gen_opc_pc[OPC_BUF_SIZE];
-static uint8_t gen_opc_instr_start[OPC_BUF_SIZE];
-
 /* generate intermediate code in gen_opc_buf and gen_opparam_buf for
    basic block 'tb'. If search_pc is TRUE, also generate PC
    information for each intermediate instruction. */
-static inline int gen_intermediate_code(TranslationBlock *tb, int search_pc)
+int gen_intermediate_code(TranslationBlock *tb, int search_pc)
 {
     DisasContext dc1, *dc = &dc1;
     uint8_t *pc_ptr;
@@ -3833,7 +3697,7 @@ static inline int gen_intermediate_code(TranslationBlock *tb, int search_pc)
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
     gen_opparam_ptr = gen_opparam_buf;
 
-    dc->is_jmp = 0;
+    dc->is_jmp = DISAS_NEXT;
     pc_ptr = pc_start;
     lj = -1;
     do {
@@ -3865,10 +3729,10 @@ static inline int gen_intermediate_code(TranslationBlock *tb, int search_pc)
     } while (!dc->is_jmp && gen_opc_ptr < gen_opc_end && 
              (pc_ptr - pc_start) < (TARGET_PAGE_SIZE - 32));
     /* we must store the eflags state if it is not already done */
-    if (dc->is_jmp != 3) {
+    if (dc->is_jmp != DISAS_TB_JUMP) {
         if (dc->cc_op != CC_OP_DYNAMIC)
             gen_op_set_cc_op(dc->cc_op);
-        if (dc->is_jmp != 1) {
+        if (dc->is_jmp != DISAS_JUMP) {
             /* we add an additionnal jmp to update the simulated PC */
             gen_op_jmp_im(ret - (unsigned long)dc->cs_base);
         }
@@ -3880,15 +3744,13 @@ static inline int gen_intermediate_code(TranslationBlock *tb, int search_pc)
         /* indicate that the hash table must be used to find the next TB */
         gen_op_movl_T0_0();
     }
-
     *gen_opc_ptr = INDEX_op_end;
 
 #ifdef DEBUG_DISAS
     if (loglevel) {
         fprintf(logfile, "----------------\n");
         fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
-	disas(logfile, pc_start, pc_ptr - pc_start,
-	      dc->code32 ? DISAS_I386_I386 : DISAS_I386_I8086);
+	disas(logfile, pc_start, pc_ptr - pc_start, 0, !dc->code32);
         fprintf(logfile, "\n");
 
         fprintf(logfile, "OP:\n");
@@ -3912,98 +3774,13 @@ static inline int gen_intermediate_code(TranslationBlock *tb, int search_pc)
     return 0;
 }
 
-
-/* return non zero if the very first instruction is invalid so that
-   the virtual CPU can trigger an exception. 
-
-   '*gen_code_size_ptr' contains the size of the generated code (host
-   code).
-*/
-int cpu_x86_gen_code(TranslationBlock *tb,
-                     int max_code_size, int *gen_code_size_ptr)
-{
-    uint8_t *gen_code_buf;
-    int gen_code_size;
-
-    if (gen_intermediate_code(tb, 0) < 0)
-        return -1;
-
-    /* generate machine code */
-    tb->tb_next_offset[0] = 0xffff;
-    tb->tb_next_offset[1] = 0xffff;
-    gen_code_buf = tb->tc_ptr;
-    gen_code_size = dyngen_code(gen_code_buf, tb->tb_next_offset,
-#ifdef USE_DIRECT_JUMP
-                                tb->tb_jmp_offset,
-#else
-                                NULL,
-#endif
-                                gen_opc_buf, gen_opparam_buf);
-    flush_icache_range((unsigned long)gen_code_buf, (unsigned long)(gen_code_buf + gen_code_size));
-    
-    *gen_code_size_ptr = gen_code_size;
-#ifdef DEBUG_DISAS
-    if (loglevel) {
-        fprintf(logfile, "OUT: [size=%d]\n", *gen_code_size_ptr);
-        disas(logfile, gen_code_buf, *gen_code_size_ptr, DISAS_TARGET);
-        fprintf(logfile, "\n");
-        fflush(logfile);
-    }
-#endif
-    return 0;
-}
-
-static const unsigned short opc_copy_size[] = {
-#define DEF(s, n, copy_size) copy_size,
-#include "opc-i386.h"
-#undef DEF
-};
-
-/* The simulated PC corresponding to
-   'searched_pc' in the generated code is searched. 0 is returned if
-   found. *found_pc contains the found PC. 
- */
-int cpu_x86_search_pc(TranslationBlock *tb, 
-                      uint32_t *found_pc, unsigned long searched_pc)
-{
-    int j, c;
-    unsigned long tc_ptr;
-    uint16_t *opc_ptr;
-
-    if (gen_intermediate_code(tb, 1) < 0)
-        return -1;
-    
-    /* find opc index corresponding to search_pc */
-    tc_ptr = (unsigned long)tb->tc_ptr;
-    if (searched_pc < tc_ptr)
-        return -1;
-    j = 0;
-    opc_ptr = gen_opc_buf;
-    for(;;) {
-        c = *opc_ptr;
-        if (c == INDEX_op_end)
-            return -1;
-        tc_ptr += opc_copy_size[c];
-        if (searched_pc < tc_ptr)
-            break;
-        opc_ptr++;
-    }
-    j = opc_ptr - gen_opc_buf;
-    /* now find start of instruction before */
-    while (gen_opc_instr_start[j] == 0)
-        j--;
-    *found_pc = gen_opc_pc[j];
-    return 0;
-}
-
-
 CPUX86State *cpu_x86_init(void)
 {
     CPUX86State *env;
     int i;
     static int inited;
 
-    cpu_x86_tblocks_init();
+    cpu_exec_init();
 
     env = malloc(sizeof(CPUX86State));
     if (!env)
@@ -4020,7 +3797,6 @@ CPUX86State *cpu_x86_init(void)
     if (!inited) {
         inited = 1;
         optimize_flags_init();
-        page_init();
     }
     return env;
 }
