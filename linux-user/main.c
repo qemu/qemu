@@ -94,14 +94,14 @@ int cpu_inl(CPUState *env, int addr)
     return 0;
 }
 
-#ifdef TARGET_I386
-/***********************************************************/
-/* CPUX86 core interface */
-
-int cpu_x86_get_pic_interrupt(CPUState *env)
+int cpu_get_pic_interrupt(CPUState *env)
 {
     return -1;
 }
+
+#ifdef TARGET_I386
+/***********************************************************/
+/* CPUX86 core interface */
 
 static void write_dt(void *ptr, unsigned long addr, unsigned long limit, 
                      int flags)
@@ -441,7 +441,6 @@ void cpu_loop (CPUSPARCState *env)
 #endif
 
 #ifdef TARGET_PPC
-
 void cpu_loop(CPUPPCState *env)
 {
     target_siginfo_t info;
@@ -769,6 +768,8 @@ void cpu_loop(CPUPPCState *env)
         case EXCP_INTERRUPT:
             /* Don't know why this should ever happen... */
             break;
+	case EXCP_DEBUG:
+	    break;
         default:
             fprintf(stderr, "qemu: unhandled CPU exception 0x%x - aborting\n", 
                     trapnr);

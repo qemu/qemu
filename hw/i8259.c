@@ -174,7 +174,7 @@ static inline void pic_intack(PicState *s, int irq)
     s->irr &= ~(1 << irq);
 }
 
-int cpu_x86_get_pic_interrupt(CPUState *env)
+int cpu_get_pic_interrupt(CPUState *env)
 {
     int irq, irq2, intno;
 

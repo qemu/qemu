@@ -2168,22 +2168,48 @@ GEN_HANDLER(mtspr, 0x1F, 0x13, 0x0E, 0x00000001, PPC_MISC)
 /* dcbf */
 GEN_HANDLER(dcbf, 0x1F, 0x16, 0x02, 0x03E00001, PPC_CACHE)
 {
+    if (rA(ctx->opcode) == 0) {
+        gen_op_load_gpr_T0(rB(ctx->opcode));
+    } else {
+        gen_op_load_gpr_T0(rA(ctx->opcode));
+        gen_op_load_gpr_T1(rB(ctx->opcode));
+        gen_op_add();
+    }
+    op_ldst(lbz);
 }
 
 /* dcbi (Supervisor only) */
 GEN_HANDLER(dcbi, 0x1F, 0x16, 0x0E, 0x03E00001, PPC_CACHE)
 {
-#if !defined(CONFIG_USER_ONLY)
-    if (!ctx->supervisor)
-#endif
-    {
+#if defined(CONFIG_USER_ONLY)
+    RET_PRIVOPC();
+#else
+    if (!ctx->supervisor) {
         RET_PRIVOPC();
     }
+    if (rA(ctx->opcode) == 0) {
+        gen_op_load_gpr_T0(rB(ctx->opcode));
+    } else {
+        gen_op_load_gpr_T0(rA(ctx->opcode));
+        gen_op_load_gpr_T1(rB(ctx->opcode));
+        gen_op_add();
+    }
+    op_ldst(lbz);
+    op_ldst(stb);
+#endif
 }
 
 /* dcdst */
 GEN_HANDLER(dcbst, 0x1F, 0x16, 0x01, 0x03E00001, PPC_CACHE)
 {
+    if (rA(ctx->opcode) == 0) {
+        gen_op_load_gpr_T0(rB(ctx->opcode));
+    } else {
+        gen_op_load_gpr_T0(rA(ctx->opcode));
+        gen_op_load_gpr_T1(rB(ctx->opcode));
+        gen_op_add();
+    }
+    op_ldst(lbz);
 }
 
 /* dcbt */
@@ -2863,7 +2889,7 @@ void cpu_ppc_dump_state(CPUPPCState *env, FILE *f, int flags)
 
     fprintf(f, "nip=0x%08x LR=0x%08x CTR=0x%08x XER=0x%08x "
             "MSR=0x%08x\n", env->nip, env->lr, env->ctr,
-            _load_xer(), _load_msr());
+            _load_xer(env), _load_msr(env));
         for (i = 0; i < 32; i++) {
             if ((i & 7) == 0)
             fprintf(f, "GPR%02d:", i);
@@ -2894,8 +2920,8 @@ void cpu_ppc_dump_state(CPUPPCState *env, FILE *f, int flags)
             if ((i & 3) == 3)
             fprintf(f, "\n");
     }
-    fprintf(f, "SRR0 0x%08x SRR1 0x%08x\n",
-            env->spr[SRR0], env->spr[SRR1]);
+    fprintf(f, "SRR0 0x%08x SRR1 0x%08x DECR=0x%08x excp:0x%08x\n",
+            env->spr[SRR0], env->spr[SRR1], env->decr, env->exceptions);
     fprintf(f, "reservation 0x%08x\n", env->reserve);
     fflush(f);
 }
@@ -2934,6 +2960,7 @@ CPUPPCState *cpu_ppc_init(void)
 #if defined(CONFIG_USER_ONLY)
     msr_pr = 1;
 #endif
+    env->access_type = ACCESS_INT;
 
     return env;
 }
@@ -2977,6 +3004,7 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     /* Single step trace mode */
     msr_se = 1;
 #endif
+    env->access_type = ACCESS_CODE;
     /* Set env in case of segfault during code fetch */
     while (ctx.exception == EXCP_NONE && gen_opc_ptr < gen_opc_end) {
         if (search_pc) {
@@ -3073,9 +3101,8 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
                 ctx.exception = EXCP_TRACE;
     }
         }
-        /* if too long translation, stop generation too */
-        if (gen_opc_ptr >= gen_opc_end ||
-            ((uint32_t)ctx.nip - pc_start) >= (TARGET_PAGE_SIZE - 32)) {
+        /* if we reach a page boundary, stop generation */
+        if (((uint32_t)ctx.nip & (TARGET_PAGE_SIZE - 1)) == 0) {
             if (ctx.exception == EXCP_NONE) {
         gen_op_b((long)ctx.tb, (uint32_t)ctx.nip);
                 ctx.exception = EXCP_BRANCH;
@@ -3111,6 +3138,7 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     } else {
         tb->size = (uint32_t)ctx.nip - pc_start;
     }
+    env->access_type = ACCESS_INT;
 #ifdef DEBUG_DISAS
     if (loglevel > 0) {
         fprintf(logfile, "---------------- excp: %04x\n", ctx.exception);

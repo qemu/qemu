@@ -190,7 +190,7 @@ int cpu_exec(CPUState *env1)
                         (env->eflags & IF_MASK) && 
                         !(env->hflags & HF_INHIBIT_IRQ_MASK)) {
                         int intno;
-                        intno = cpu_x86_get_pic_interrupt(env);
+                        intno = cpu_get_pic_interrupt(env);
                         if (loglevel & CPU_LOG_TB_IN_ASM) {
                             fprintf(logfile, "Servicing hardware INT=0x%02x\n", intno);
                         }

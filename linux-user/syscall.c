@@ -2475,6 +2475,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         }
 #endif
         break;
+#ifdef TARGET_NR_getdents64
     case TARGET_NR_getdents64:
         {
             struct dirent64 *dirp = (void *)arg2;
@@ -2498,6 +2499,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             }
         }
         break;
+#endif /* TARGET_NR_getdents64 */
     case TARGET_NR__newselect:
         ret = do_select(arg1, (void *)arg2, (void *)arg3, (void *)arg4, 
                         (void *)arg5);

@@ -578,7 +578,13 @@ static inline target_ulong get_phys_addr_code(CPUState *env, target_ulong addr)
 #endif
     if (__builtin_expect(env->tlb_read[is_user][index].address != 
                          (addr & TARGET_PAGE_MASK), 0)) {
+#if defined (TARGET_PPC)
+	env->access_type = ACCESS_CODE;
+	ldub_code((void *)addr);
+	env->access_type = ACCESS_INT;
+#else
         ldub_code((void *)addr);
+#endif
     }
     return addr + env->tlb_read[is_user][index].addend - (unsigned long)phys_ram_base;
 }

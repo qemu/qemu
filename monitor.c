@@ -530,6 +530,47 @@ typedef struct MonitorDef {
     int (*get_value)(struct MonitorDef *md);
 } MonitorDef;
 
+#if defined(TARGET_PPC)
+static int monitor_get_ccr (struct MonitorDef *md)
+{
+    unsigned int u;
+    int i;
+
+    u = 0;
+    for (i = 0; i < 8; i++)
+	u |= cpu_single_env->crf[i] << (32 - (4 * i));
+
+    return u;
+}
+
+static int monitor_get_msr (struct MonitorDef *md)
+{
+    return (cpu_single_env->msr[MSR_POW] << MSR_POW) |
+        (cpu_single_env->msr[MSR_ILE] << MSR_ILE) |
+        (cpu_single_env->msr[MSR_EE] << MSR_EE) |
+        (cpu_single_env->msr[MSR_PR] << MSR_PR) |
+        (cpu_single_env->msr[MSR_FP] << MSR_FP) |
+        (cpu_single_env->msr[MSR_ME] << MSR_ME) |
+        (cpu_single_env->msr[MSR_FE0] << MSR_FE0) |
+        (cpu_single_env->msr[MSR_SE] << MSR_SE) |
+        (cpu_single_env->msr[MSR_BE] << MSR_BE) |
+        (cpu_single_env->msr[MSR_FE1] << MSR_FE1) |
+        (cpu_single_env->msr[MSR_IP] << MSR_IP) |
+        (cpu_single_env->msr[MSR_IR] << MSR_IR) |
+        (cpu_single_env->msr[MSR_DR] << MSR_DR) |
+        (cpu_single_env->msr[MSR_RI] << MSR_RI) |
+        (cpu_single_env->msr[MSR_LE] << MSR_LE);
+}
+
+static int monitor_get_xer (struct MonitorDef *md)
+{
+    return (cpu_single_env->xer[XER_SO] << XER_SO) |
+        (cpu_single_env->xer[XER_OV] << XER_OV) |
+        (cpu_single_env->xer[XER_CA] << XER_CA) |
+        (cpu_single_env->xer[XER_BC] << XER_BC);
+}
+#endif
+
 static MonitorDef monitor_defs[] = {
 #ifdef TARGET_I386
     { "eax", offsetof(CPUState, regs[0]) },
@@ -542,6 +583,65 @@ static MonitorDef monitor_defs[] = {
     { "esi", offsetof(CPUState, regs[7]) },
     { "eflags", offsetof(CPUState, eflags) },
     { "eip|pc", offsetof(CPUState, eip) },
+#elif defined(TARGET_PPC)
+    { "r0", offsetof(CPUState, gpr[0]) },
+    { "r1", offsetof(CPUState, gpr[1]) },
+    { "r2", offsetof(CPUState, gpr[2]) },
+    { "r3", offsetof(CPUState, gpr[3]) },
+    { "r4", offsetof(CPUState, gpr[4]) },
+    { "r5", offsetof(CPUState, gpr[5]) },
+    { "r6", offsetof(CPUState, gpr[6]) },
+    { "r7", offsetof(CPUState, gpr[7]) },
+    { "r8", offsetof(CPUState, gpr[8]) },
+    { "r9", offsetof(CPUState, gpr[9]) },
+    { "r10", offsetof(CPUState, gpr[10]) },
+    { "r11", offsetof(CPUState, gpr[11]) },
+    { "r12", offsetof(CPUState, gpr[12]) },
+    { "r13", offsetof(CPUState, gpr[13]) },
+    { "r14", offsetof(CPUState, gpr[14]) },
+    { "r15", offsetof(CPUState, gpr[15]) },
+    { "r16", offsetof(CPUState, gpr[16]) },
+    { "r17", offsetof(CPUState, gpr[17]) },
+    { "r18", offsetof(CPUState, gpr[18]) },
+    { "r19", offsetof(CPUState, gpr[19]) },
+    { "r20", offsetof(CPUState, gpr[20]) },
+    { "r21", offsetof(CPUState, gpr[21]) },
+    { "r22", offsetof(CPUState, gpr[22]) },
+    { "r23", offsetof(CPUState, gpr[23]) },
+    { "r24", offsetof(CPUState, gpr[24]) },
+    { "r25", offsetof(CPUState, gpr[25]) },
+    { "r26", offsetof(CPUState, gpr[26]) },
+    { "r27", offsetof(CPUState, gpr[27]) },
+    { "r28", offsetof(CPUState, gpr[28]) },
+    { "r29", offsetof(CPUState, gpr[29]) },
+    { "r30", offsetof(CPUState, gpr[30]) },
+    { "r31", offsetof(CPUState, gpr[31]) },
+    { "lr", offsetof(CPUState, lr) },
+    { "ctr", offsetof(CPUState, ctr) },
+    { "decr", offsetof(CPUState, decr) },
+    { "ccr", 0, &monitor_get_ccr, },
+    { "msr", 0, &monitor_get_msr, },
+    { "xer", 0, &monitor_get_xer, },
+    { "tbu", offsetof(CPUState, tb[0]) },
+    { "tbl", offsetof(CPUState, tb[1]) },
+    { "sdr1", offsetof(CPUState, sdr1) },
+    { "sr0", offsetof(CPUState, sr[0]) },
+    { "sr1", offsetof(CPUState, sr[1]) },
+    { "sr2", offsetof(CPUState, sr[2]) },
+    { "sr3", offsetof(CPUState, sr[3]) },
+    { "sr4", offsetof(CPUState, sr[4]) },
+    { "sr5", offsetof(CPUState, sr[5]) },
+    { "sr6", offsetof(CPUState, sr[6]) },
+    { "sr7", offsetof(CPUState, sr[7]) },
+    { "sr8", offsetof(CPUState, sr[8]) },
+    { "sr9", offsetof(CPUState, sr[9]) },
+    { "sr10", offsetof(CPUState, sr[10]) },
+    { "sr11", offsetof(CPUState, sr[11]) },
+    { "sr12", offsetof(CPUState, sr[12]) },
+    { "sr13", offsetof(CPUState, sr[13]) },
+    { "sr14", offsetof(CPUState, sr[14]) },
+    { "sr15", offsetof(CPUState, sr[15]) },
+    /* Too lazy to put BATs and SPRs ... */
 #endif
     { NULL },
 };

@@ -20,10 +20,9 @@
 #include <math.h>
 #include "exec.h"
 
-#if defined(CONFIG_USER_ONLY)
 #define MEMSUFFIX _raw
 #include "op_helper_mem.h"
-#else
+#if !defined(CONFIG_USER_ONLY)
 #define MEMSUFFIX _user
 #include "op_helper_mem.h"
 #define MEMSUFFIX _kernel
@@ -122,8 +121,7 @@ void do_load_msr (void)
 void do_store_msr (void)
 {
     if (((T0 >> MSR_IR) & 0x01) != msr_ir ||
-        ((T0 >> MSR_DR) & 0x01) != msr_dr ||
-        ((T0 >> MSR_PR) & 0x01) != msr_pr) {
+        ((T0 >> MSR_DR) & 0x01) != msr_dr) {
         /* Flush all tlb when changing translation mode or privilege level */
         do_tlbia();
     }
@@ -371,44 +369,18 @@ void do_tlbie (void)
 
 /*****************************************************************************/
 /* Special helpers for debug */
+extern FILE *stdout;
+
+void dump_state (void)
+{
+    cpu_ppc_dump_state(env, stdout, 0);
+}
+
 void dump_rfi (void)
 {
 #if 0
-    printf("Return from interrupt\n");
-    printf("nip=0x%08x LR=0x%08x CTR=0x%08x MSR=0x%08x\n",
-           env->nip, env->lr, env->ctr,
-           (msr_pow << MSR_POW) | (msr_ile << MSR_ILE) | (msr_ee << MSR_EE) |
-           (msr_pr  << MSR_PR)  | (msr_fp  << MSR_FP)  | (msr_me << MSR_ME) |
-           (msr_fe0 << MSR_FE0) | (msr_se  << MSR_SE)  | (msr_be << MSR_BE) |
-           (msr_fe1 << MSR_FE1) | (msr_ip  << MSR_IP)  | (msr_ir << MSR_IR) |
-           (msr_dr  << MSR_DR)  | (msr_ri  << MSR_RI)  | (msr_le << MSR_LE));
-    {
-        int  i;
-        for (i = 0; i < 32; i++) {
-            if ((i & 7) == 0)
-                printf("GPR%02d:", i);
-            printf(" %08x", env->gpr[i]);
-            if ((i & 7) == 7)
-                printf("\n");
-        }
-        printf("CR: 0x");
-        for (i = 0; i < 8; i++)
-            printf("%01x", env->crf[i]);
-        printf("  [");
-        for (i = 0; i < 8; i++) {
-            char a = '-';
-            if (env->crf[i] & 0x08)
-                a = 'L';
-            else if (env->crf[i] & 0x04)
-                a = 'G';
-            else if (env->crf[i] & 0x02)
-                a = 'E';
-            printf(" %c%c", a, env->crf[i] & 0x01 ? 'O' : ' ');
-        }
-        printf(" ] ");
-    }
-    printf("TB: 0x%08x %08x\n", env->tb[1], env->tb[0]);
-    printf("SRR0 0x%08x SRR1 0x%08x\n", env->spr[SRR0], env->spr[SRR1]);
+    printf("Return from interrupt %d => 0x%08x\n", pos, env->nip);
+    //    cpu_ppc_dump_state(env, stdout, 0);
 #endif
 }
 

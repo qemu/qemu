@@ -21,6 +21,7 @@
 
 #include "exec.h"
 #if defined (USE_OPEN_FIRMWARE)
+#include <time.h>
 #include "of.h"
 #endif
 
@@ -28,7 +29,7 @@
 //#define DEBUG_BATS
 //#define DEBUG_EXCEPTIONS
 
-extern FILE *logfile, *stderr;
+extern FILE *logfile, *stdout, *stderr;
 void exit (int);
 void abort (void);
 
@@ -74,6 +75,9 @@ int check_exception_state (CPUState *env)
 
 /*****************************************************************************/
 /* PPC MMU emulation */
+int cpu_ppc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
+                              int is_user, int is_softmmu);
+
 /* Perform BAT hit & translation */
 static int get_bat (CPUState *env, uint32_t *real, int *prot,
                     uint32_t virtual, int rw, int type)
@@ -88,8 +92,6 @@ static int get_bat (CPUState *env, uint32_t *real, int *prot,
         fprintf(logfile, "%s: %cBAT v 0x%08x\n", __func__,
                type == ACCESS_CODE ? 'I' : 'D', virtual);
     }
-    printf("%s: %cBAT v 0x%08x\n", __func__,
-           type == ACCESS_CODE ? 'I' : 'D', virtual);
 #endif
     switch (type) {
     case ACCESS_CODE:
@@ -106,8 +108,6 @@ static int get_bat (CPUState *env, uint32_t *real, int *prot,
         fprintf(logfile, "%s...: %cBAT v 0x%08x\n", __func__,
                type == ACCESS_CODE ? 'I' : 'D', virtual);
     }
-    printf("%s...: %cBAT v 0x%08x\n", __func__,
-           type == ACCESS_CODE ? 'I' : 'D', virtual);
 #endif
     base = virtual & 0xFFFC0000;
     for (i = 0; i < 4; i++) {
@@ -121,10 +121,6 @@ static int get_bat (CPUState *env, uint32_t *real, int *prot,
             fprintf(logfile, "%s: %cBAT%d v 0x%08x BATu 0x%08x BATl 0x%08x\n",
                     __func__, type == ACCESS_CODE ? 'I' : 'D', i, virtual,
                     *BATu, *BATl);
-        } else {
-            printf("%s: %cBAT%d v 0x%08x BATu 0x%08x BATl 0x%08x\n",
-                   __func__, type == ACCESS_CODE ? 'I' : 'D', i, virtual,
-                   *BATu, *BATl);
         }
 #endif
         if ((virtual & 0xF0000000) == BEPIu &&
@@ -135,7 +131,7 @@ static int get_bat (CPUState *env, uint32_t *real, int *prot,
                 /* Get physical address */
                 *real = (*BATl & 0xF0000000) |
                     ((virtual & 0x0FFE0000 & bl) | (*BATl & 0x0FFE0000)) |
-                    (virtual & 0x0001FFFF);
+                    (virtual & 0x0001F000);
                 if (*BATl & 0x00000001)
                     *prot = PROT_READ;
                 if (*BATl & 0x00000002)
@@ -145,10 +141,6 @@ static int get_bat (CPUState *env, uint32_t *real, int *prot,
                     fprintf(logfile, "BAT %d match: r 0x%08x prot=%c%c\n",
                             i, *real, *prot & PROT_READ ? 'R' : '-',
                             *prot & PROT_WRITE ? 'W' : '-');
-                } else {
-                    printf("BAT %d match: 0x%08x => 0x%08x prot=%c%c\n",
-                           i, virtual, *real, *prot & PROT_READ ? 'R' : '-',
-                           *prot & PROT_WRITE ? 'W' : '-');
                 }
 #endif
                 ret = 0;
@@ -181,7 +173,7 @@ static int get_bat (CPUState *env, uint32_t *real, int *prot,
 static int find_pte (uint32_t *RPN, int *prot, uint32_t base, uint32_t va,
                      int h, int key, int rw)
 {
-    uint32_t pte0, pte1, keep = 0;
+    uint32_t pte0, pte1, keep = 0, access = 0;
     int i, good = -1, store = 0;
     int ret = -1; /* No entry found */
 
@@ -189,85 +181,97 @@ static int find_pte (uint32_t *RPN, int *prot, uint32_t base, uint32_t va,
         pte0 = ldl_raw((void *)((uint32_t)phys_ram_base + base + (i * 8)));
         pte1 =  ldl_raw((void *)((uint32_t)phys_ram_base + base + (i * 8) + 4));
 #if defined (DEBUG_MMU)
-        printf("Load pte from 0x%08x => 0x%08x 0x%08x\n", base + (i * 8),
-               pte0, pte1);
+	if (loglevel > 0) {
+	    fprintf(logfile, "Load pte from 0x%08x => 0x%08x 0x%08x "
+		    "%d %d %d 0x%08x\n", base + (i * 8), pte0, pte1,
+		    pte0 >> 31, h, (pte0 >> 6) & 1, va);
+	}
 #endif
         /* Check validity and table match */
         if (pte0 & 0x80000000 && (h == ((pte0 >> 6) & 1))) {
-#if defined (DEBUG_MMU)
-            printf("PTE is valid and table matches... compare 0x%08x:%08x\n",
-                   pte0 & 0x7FFFFFBF, va);
-#endif
             /* Check vsid & api */
             if ((pte0 & 0x7FFFFFBF) == va) {
-#if defined (DEBUG_MMU)
-                printf("PTE match !\n");
-#endif
                 if (good == -1) {
                     good = i;
                     keep = pte1;
                 } else {
                     /* All matches should have equal RPN, WIMG & PP */
                     if ((keep & 0xFFFFF07B) != (pte1 & 0xFFFFF07B)) {
-                        printf("Bad RPN/WIMG/PP\n");
+			if (loglevel > 0)
+			    fprintf(logfile, "Bad RPN/WIMG/PP\n");
                         return -1;
                     }
                 }
                 /* Check access rights */
                 if (key == 0) {
-                    *prot = PROT_READ;
+                    access = PROT_READ;
                     if ((pte1 & 0x00000003) != 0x3)
-                        *prot |= PROT_WRITE;
+                        access |= PROT_WRITE;
                 } else {
                     switch (pte1 & 0x00000003) {
                     case 0x0:
-                        *prot = 0;
+                        access = 0;
                         break;
                     case 0x1:
                     case 0x3:
-                        *prot = PROT_READ;
+                        access = PROT_READ;
                         break;
                     case 0x2:
-                        *prot = PROT_READ | PROT_WRITE;
+                        access = PROT_READ | PROT_WRITE;
                         break;
                     }
                 }
-                if ((rw == 0 && *prot != 0) ||
-                    (rw == 1 && (*prot & PROT_WRITE))) {
+                if (ret < 0) {
+		    if ((rw == 0 && (access & PROT_READ)) ||
+			(rw == 1 && (access & PROT_WRITE))) {
 #if defined (DEBUG_MMU)
-                    printf("PTE access granted !\n");
+			if (loglevel > 0)
+			    fprintf(logfile, "PTE access granted !\n");
 #endif
                     good = i;
                     keep = pte1;
                     ret = 0;
-                } else if (ret == -1) {
-                    ret = -2; /* Access right violation */
+		    } else {
+			/* Access right violation */
+			ret = -2;
 #if defined (DEBUG_MMU)
-                    printf("PTE access rejected\n");
+			if (loglevel > 0)
+			    fprintf(logfile, "PTE access rejected\n");
 #endif
                 }
+		    *prot = access;
+		}
             }
         }
     }
     if (good != -1) {
         *RPN = keep & 0xFFFFF000;
 #if defined (DEBUG_MMU)
-        printf("found PTE at addr 0x%08x prot=0x%01x ret=%d\n",
+	if (loglevel > 0) {
+	    fprintf(logfile, "found PTE at addr 0x%08x prot=0x%01x ret=%d\n",
                *RPN, *prot, ret);
+	}
 #endif
         /* Update page flags */
         if (!(keep & 0x00000100)) {
+	    /* Access flag */
             keep |= 0x00000100;
             store = 1;
         }
-        if (rw) {
             if (!(keep & 0x00000080)) {
+	    if (rw && ret == 0) {
+		/* Change flag */
                 keep |= 0x00000080;
                 store = 1;
+	    } else {
+		/* Force page fault for first write access */
+		*prot &= ~PROT_WRITE;
             }
         }
-        if (store)
-            stl_raw((void *)(base + (good * 2) + 1), keep);
+        if (store) {
+	    stl_raw((void *)((uint32_t)phys_ram_base + base + (good * 8) + 4),
+		    keep);
+	}
     }
 
     return ret;
@@ -290,29 +294,37 @@ static int get_segment (CPUState *env, uint32_t *real, int *prot,
 
     sr = env->sr[virtual >> 28];
 #if defined (DEBUG_MMU)
-    printf("Check segment v=0x%08x %d 0x%08x nip=0x%08x lr=0x%08x ir=%d dr=%d "
-           "pr=%d t=%d\n", virtual, virtual >> 28, sr, env->nip,
-           env->lr, msr_ir, msr_dr, msr_pr, type);
+    if (loglevel > 0) {
+	fprintf(logfile, "Check segment v=0x%08x %d 0x%08x nip=0x%08x "
+		"lr=0x%08x ir=%d dr=%d pr=%d %d t=%d\n",
+		virtual, virtual >> 28, sr, env->nip,
+		env->lr, msr_ir, msr_dr, msr_pr, rw, type);
+    }
 #endif
-    key = ((sr & 0x20000000) && msr_pr == 1) ||
-        ((sr & 0x40000000) && msr_pr == 0) ? 1 : 0;
+    key = (((sr & 0x20000000) && msr_pr == 1) ||
+        ((sr & 0x40000000) && msr_pr == 0)) ? 1 : 0;
     if ((sr & 0x80000000) == 0) {
 #if defined (DEBUG_MMU)
-        printf("pte segment: key=%d n=0x%08x\n", key, sr & 0x10000000);
+	if (loglevel > 0)
+	    fprintf(logfile, "pte segment: key=%d n=0x%08x\n",
+		    key, sr & 0x10000000);
 #endif
         /* Check if instruction fetch is allowed, if needed */
         if (type != ACCESS_CODE || (sr & 0x10000000) == 0) {
             /* Page address translation */
             vsid = sr & 0x00FFFFFF;
             pgidx = (virtual >> 12) & 0xFFFF;
-            sdr = env->spr[SDR1];
-            hash = ((vsid ^ pgidx) & 0x07FFFF) << 6;
+            sdr = env->sdr1;
+            hash = ((vsid ^ pgidx) & 0x0007FFFF) << 6;
             mask = ((sdr & 0x000001FF) << 16) | 0xFFC0;
             pg_addr = get_pgaddr(sdr, hash, mask);
             ptem = (vsid << 7) | (pgidx >> 10);
 #if defined (DEBUG_MMU)
-            printf("0 sdr1=0x%08x vsid=0x%06x api=0x%04x hash=0x%07x "
-                   "pg_addr=0x%08x\n", sdr, vsid, pgidx, hash, pg_addr);
+	    if (loglevel > 0) {
+		fprintf(logfile, "0 sdr1=0x%08x vsid=0x%06x api=0x%04x "
+			"hash=0x%07x pg_addr=0x%08x\n", sdr, vsid, pgidx, hash,
+			pg_addr);
+	    }
 #endif
             /* Primary table lookup */
             ret = find_pte(real, prot, pg_addr, ptem, 0, key, rw);
@@ -321,25 +333,27 @@ static int get_segment (CPUState *env, uint32_t *real, int *prot,
                 hash = (~hash) & 0x01FFFFC0;
                 pg_addr = get_pgaddr(sdr, hash, mask);
 #if defined (DEBUG_MMU)
-                printf("1 sdr1=0x%08x vsid=0x%06x api=0x%04x hash=0x%05x "
-                       "pg_addr=0x%08x\n", sdr, vsid, pgidx, hash, pg_addr);
+		if (virtual != 0xEFFFFFFF && loglevel > 0) {
+		    fprintf(logfile, "1 sdr1=0x%08x vsid=0x%06x api=0x%04x "
+			    "hash=0x%05x pg_addr=0x%08x\n", sdr, vsid, pgidx,
+			    hash, pg_addr);
+		}
 #endif
                 ret2 = find_pte(real, prot, pg_addr, ptem, 1, key, rw);
                 if (ret2 != -1)
                     ret = ret2;
             }
-            if (ret != -1)
-                *real |= (virtual & 0x00000FFF);
-            if (ret == -2 && type == ACCESS_CODE && (sr & 0x10000000))
-                ret = -3;
         } else {
 #if defined (DEBUG_MMU)
-            printf("No access allowed\n");
+	    if (loglevel > 0)
+		fprintf(logfile, "No access allowed\n");
 #endif
+	    ret = -3;
         }
     } else {
 #if defined (DEBUG_MMU)
-        printf("direct store...\n");
+        if (loglevel > 0)
+	    fprintf(logfile, "direct store...\n");
 #endif
         /* Direct-store segment : absolutely *BUGGY* for now */
         switch (type) {
@@ -393,9 +407,10 @@ int get_physical_address (CPUState *env, uint32_t *physical, int *prot,
     if (loglevel > 0) {
         fprintf(logfile, "%s\n", __func__);
     }
+    
     if ((access_type == ACCESS_CODE && msr_ir == 0) || msr_dr == 0) {
         /* No address translation */
-        *physical = address;
+        *physical = address & ~0xFFF;
         *prot = PROT_READ | PROT_WRITE;
         ret = 0;
     } else {
@@ -405,6 +420,10 @@ int get_physical_address (CPUState *env, uint32_t *physical, int *prot,
             /* We didn't match any BAT entry */
             ret = get_segment(env, physical, prot, address, rw, access_type);
         }
+    }
+    if (loglevel > 0) {
+        fprintf(logfile, "%s address %08x => %08x\n",
+		__func__, address, *physical);
     }
     
     return ret;
@@ -448,18 +467,17 @@ target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
 /* XXX: fix it to restore all registers */
-void tlb_fill(unsigned long addr, int is_write, int flags, void *retaddr)
+void tlb_fill(unsigned long addr, int is_write, int is_user, void *retaddr)
 {
     TranslationBlock *tb;
-    int ret, is_user;
-    unsigned long pc;
     CPUState *saved_env;
+    unsigned long pc;
+    int ret;
 
     /* XXX: hack to restore env in all cases, even if not called from
        generated code */
     saved_env = env;
     env = cpu_single_env;
-    is_user = flags & 0x01;
     {
         unsigned long tlb_addrr, tlb_addrw;
         int index;
@@ -474,7 +492,7 @@ void tlb_fill(unsigned long addr, int is_write, int flags, void *retaddr)
                tlb_addrr & (TARGET_PAGE_MASK | TLB_INVALID_MASK));
 #endif
     }
-    ret = cpu_handle_mmu_fault(env, addr, is_write, flags, 1);
+    ret = cpu_ppc_handle_mmu_fault(env, addr, is_write, is_user, 1);
     if (ret) {
         if (retaddr) {
             /* now we have a real cpu fault */
@@ -506,7 +524,7 @@ void tlb_fill(unsigned long addr, int is_write, int flags, void *retaddr)
     env = saved_env;
 }
 
-void cpu_ppc_init_mmu(CPUPPCState *env)
+void cpu_ppc_init_mmu(CPUState *env)
 {
     /* Nothing to do: all translation are disabled */
 }
@@ -514,59 +532,36 @@ void cpu_ppc_init_mmu(CPUPPCState *env)
 
 /* Perform address translation */
 int cpu_ppc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
-                              int flags, int is_softmmu)
+                              int is_user, int is_softmmu)
 {
     uint32_t physical;
     int prot;
     int exception = 0, error_code = 0;
-    int is_user, access_type;
+    int access_type;
     int ret = 0;
 
 //    printf("%s 0\n", __func__);
-    is_user = flags & 0x01;
     access_type = env->access_type;
     if (env->user_mode_only) {
         /* user mode only emulation */
         ret = -1;
         goto do_fault;
     }
+    /* NASTY BUG workaround */
+    if (access_type == ACCESS_CODE && rw) {
+	//	printf("%s: ERROR WRITE CODE ACCESS\n", __func__);
+	access_type = ACCESS_INT;
+    }
     ret = get_physical_address(env, &physical, &prot,
                                address, rw, access_type);
     if (ret == 0) {
-        ret = tlb_set_page(env, address, physical, prot, is_user, is_softmmu);
+	ret = tlb_set_page(env, address & ~0xFFF, physical, prot,
+			   is_user, is_softmmu);
     } else if (ret < 0) {
     do_fault:
 #if defined (DEBUG_MMU)
-        printf("%s 5\n", __func__);
-        printf("nip=0x%08x LR=0x%08x CTR=0x%08x MSR=0x%08x TBL=0x%08x\n",
-               env->nip, env->lr, env->ctr, /*msr*/0, env->tb[0]);
-        {
-            int  i;
-            for (i = 0; i < 32; i++) {
-                if ((i & 7) == 0)
-                    printf("GPR%02d:", i);
-                printf(" %08x", env->gpr[i]);
-                if ((i & 7) == 7)
-                    printf("\n");
-            }
-            printf("CR: 0x");
-            for (i = 0; i < 8; i++)
-                printf("%01x", env->crf[i]);
-            printf("  [");
-            for (i = 0; i < 8; i++) {
-                char a = '-';
-                if (env->crf[i] & 0x08)
-                    a = 'L';
-                else if (env->crf[i] & 0x04)
-                    a = 'G';
-                else if (env->crf[i] & 0x02)
-                    a = 'E';
-                printf(" %c%c", a, env->crf[i] & 0x01 ? 'O' : ' ');
-            }
-            printf(" ] ");
-        }
-        printf("TB: 0x%08x %08x\n", env->tb[1], env->tb[0]);
-        printf("SRR0 0x%08x SRR1 0x%08x\n", env->spr[SRR0], env->spr[SRR1]);
+	if (loglevel > 0)
+	    cpu_ppc_dump_state(env, logfile, 0);
 #endif
         if (access_type == ACCESS_CODE) {
             exception = EXCP_ISI;
@@ -580,13 +575,13 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
                 error_code = EXCP_ISI_PROT;
                 break;
             case -3:
+		/* No execute protection violation */
                 error_code = EXCP_ISI_NOEXEC;
                 break;
             case -4:
                 /* Direct store exception */
                 /* No code fetch is allowed in direct-store areas */
-                exception = EXCP_ISI;
-                error_code = EXCP_ISI_NOEXEC;
+                error_code = EXCP_ISI_DIRECT;
                 break;
             }
         } else {
@@ -612,15 +607,15 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
                     /* lwarx, ldarx or srwcx. */
                     exception = EXCP_DSI;
                     error_code = EXCP_DSI_NOTSUP | EXCP_DSI_DIRECT;
-                    if (rw)
-                        error_code |= EXCP_DSI_STORE;
                     break;
                 case ACCESS_EXT:
                     /* eciwx or ecowx */
                     exception = EXCP_DSI;
-                    error_code = EXCP_DSI_NOTSUP | EXCP_DSI_DIRECT | EXCP_ECXW;
+                    error_code = EXCP_DSI_NOTSUP | EXCP_DSI_DIRECT |
+			EXCP_DSI_ECXW;
                     break;
                 default:
+		    printf("DSI: invalid exception (%d)\n", ret);
                     exception = EXCP_PROGRAM;
                     error_code = EXCP_INVAL | EXCP_INVAL_INVAL;
                     break;
@@ -628,27 +623,8 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
             }
             if (rw)
                 error_code |= EXCP_DSI_STORE;
-            /* Should find a better solution:
-             * this will be invalid for some exception if more than one
-             * exception occurs for one instruction
-             */
-            env->spr[DSISR] = 0;
-            if (error_code & EXCP_DSI_DIRECT) {
-                env->spr[DSISR] |= 0x80000000;
-                if (access_type == ACCESS_EXT ||
-                    access_type == ACCESS_RES)
-                    env->spr[DSISR] |= 0x04000000;
-            }
-            if ((error_code & 0xF) == EXCP_DSI_TRANSLATE)
-                env->spr[DSISR] |= 0x40000000;
-            if (error_code & EXCP_DSI_PROT)
-                env->spr[DSISR] |= 0x08000000;
-            if (error_code & EXCP_DSI_STORE)
-                env->spr[DSISR] |= 0x02000000;
-            if ((error_code & 0xF) == EXCP_DSI_DABR)
-                env->spr[DSISR] |= 0x00400000;
-            if (access_type == ACCESS_EXT)
-                env->spr[DSISR] |= 0x00100000;
+	    /* Store fault address */
+	    env->spr[DAR] = address;
         }
 #if 0
         printf("%s: set exception to %d %02x\n",
@@ -656,15 +632,13 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
 #endif
         env->exception_index = exception;
         env->error_code = error_code;
-        /* Store fault address */
-        env->spr[DAR] = address;
         ret = 1;
     }
 
     return ret;
 }
 
-uint32_t _load_xer (void)
+uint32_t _load_xer (CPUState *env)
 {
     return (xer_so << XER_SO) |
         (xer_ov << XER_OV) |
@@ -672,7 +646,7 @@ uint32_t _load_xer (void)
         (xer_bc << XER_BC);
 }
 
-void _store_xer (uint32_t value)
+void _store_xer (CPUState *env, uint32_t value)
 {
     xer_so = (value >> XER_SO) & 0x01;
     xer_ov = (value >> XER_OV) & 0x01;
@@ -680,7 +654,7 @@ void _store_xer (uint32_t value)
     xer_bc = (value >> XER_BC) & 0x1f;
 }
 
-uint32_t _load_msr (void)
+uint32_t _load_msr (CPUState *env)
 {
     return (msr_pow << MSR_POW) |
         (msr_ile << MSR_ILE) |
@@ -699,8 +673,13 @@ uint32_t _load_msr (void)
         (msr_le << MSR_LE);
 }
 
-void _store_msr (uint32_t value)
+void _store_msr (CPUState *env, uint32_t value)
 {
+    if (((T0 >> MSR_IR) & 0x01) != msr_ir ||
+        ((T0 >> MSR_DR) & 0x01) != msr_dr) {
+        /* Flush all tlb when changing translation mode or privilege level */
+        do_tlbia();
+    }
     msr_pow = (value >> MSR_POW) & 0x03;
     msr_ile = (value >> MSR_ILE) & 0x01;
     msr_ee = (value >> MSR_EE) & 0x01;
@@ -729,47 +708,16 @@ void do_interrupt (CPUState *env)
     /* Dequeue PPC exceptions */
     if (excp < EXCP_PPC_MAX)
         env->exceptions &= ~(1 << excp);
-    msr = _load_msr();
+    msr = _load_msr(env);
 #if defined (DEBUG_EXCEPTIONS)
-    if (excp != EXCP_DECR && excp == EXCP_PROGRAM && excp < EXCP_PPC_MAX) 
+    if ((excp == EXCP_PROGRAM || excp == EXCP_DSI) && msr_pr == 1) 
     {
         if (loglevel > 0) {
             fprintf(logfile, "Raise exception at 0x%08x => 0x%08x (%02x)\n",
                     env->nip, excp << 8, env->error_code);
-        } else {
-            printf("Raise exception at 0x%08x => 0x%08x (%02x)\n",
-                   env->nip, excp << 8, env->error_code);
-        }
-        printf("nip=0x%08x LR=0x%08x CTR=0x%08x MSR=0x%08x DECR=0x%08x\n",
-               env->nip, env->lr, env->ctr, msr, env->decr);
-        {
-    int i;
-            for (i = 0; i < 32; i++) {
-                if ((i & 7) == 0)
-                    printf("GPR%02d:", i);
-                printf(" %08x", env->gpr[i]);
-                if ((i & 7) == 7)
-                    printf("\n");
     }
-            printf("CR: 0x");
-    for (i = 0; i < 8; i++)
-                printf("%01x", env->crf[i]);
-            printf("  [");
-            for (i = 0; i < 8; i++) {
-                char a = '-';
-                if (env->crf[i] & 0x08)
-                    a = 'L';
-                else if (env->crf[i] & 0x04)
-                    a = 'G';
-                else if (env->crf[i] & 0x02)
-                    a = 'E';
-                printf(" %c%c", a, env->crf[i] & 0x01 ? 'O' : ' ');
-    }
-            printf(" ] ");
-    }
-        printf("TB: 0x%08x %08x\n", env->tb[1], env->tb[0]);
-        printf("XER 0x%08x SRR0 0x%08x SRR1 0x%08x\n",
-               _load_xer(), env->spr[SRR0], env->spr[SRR1]);
+	if (loglevel > 0)
+	    cpu_ppc_dump_state(env, logfile, 0);
     }
 #endif
     /* Generate informations in save/restore registers */
@@ -812,26 +760,63 @@ void do_interrupt (CPUState *env)
         /* data location address has been stored
          * when the fault has been detected
      */
-        goto store_current;
+	msr &= ~0xFFFF0000;
+	env->spr[DSISR] = 0;
+	if (env->error_code &  EXCP_DSI_TRANSLATE)
+	    env->spr[DSISR] |= 0x40000000;
+	else if (env->error_code & EXCP_DSI_PROT)
+	    env->spr[DSISR] |= 0x08000000;
+	else if (env->error_code & EXCP_DSI_NOTSUP) {
+	    env->spr[DSISR] |= 0x80000000;
+	    if (env->error_code & EXCP_DSI_DIRECT)
+		env->spr[DSISR] |= 0x04000000;
+	}
+	if (env->error_code & EXCP_DSI_STORE)
+	    env->spr[DSISR] |= 0x02000000;
+	if ((env->error_code & 0xF) == EXCP_DSI_DABR)
+	    env->spr[DSISR] |= 0x00400000;
+	if (env->error_code & EXCP_DSI_ECXW)
+	    env->spr[DSISR] |= 0x00100000;
+#if defined (DEBUG_EXCEPTIONS)
+	if (loglevel) {
+	    fprintf(logfile, "DSI exception: DSISR=0x%08x, DAR=0x%08x\n",
+		    env->spr[DSISR], env->spr[DAR]);
+	} else {
+	    printf("DSI exception: DSISR=0x%08x, DAR=0x%08x nip=0x%08x\n",
+		   env->spr[DSISR], env->spr[DAR], env->nip);
+	}
+#endif
+        goto store_next;
     case EXCP_ISI:
         /* Store exception cause */
+	msr &= ~0xFFFF0000;
         if (env->error_code == EXCP_ISI_TRANSLATE)
             msr |= 0x40000000;
         else if (env->error_code == EXCP_ISI_NOEXEC ||
-            env->error_code == EXCP_ISI_GUARD)
+		 env->error_code == EXCP_ISI_GUARD ||
+		 env->error_code == EXCP_ISI_DIRECT)
             msr |= 0x10000000;
         else
             msr |= 0x08000000;
+#if defined (DEBUG_EXCEPTIONS)
+	if (loglevel) {
+	    fprintf(logfile, "ISI exception: msr=0x%08x, nip=0x%08x\n",
+		    msr, env->nip);
+	} else {
+	    printf("ISI exception: msr=0x%08x, nip=0x%08x tbl:0x%08x\n",
+		   msr, env->nip, env->spr[V_TBL]);
+	}
+#endif
         goto store_next;
     case EXCP_EXTERNAL:
         if (msr_ee == 0) {
 #if defined (DEBUG_EXCEPTIONS)
             if (loglevel > 0) {
                 fprintf(logfile, "Skipping hardware interrupt\n");
-            } else {
-                printf("Skipping hardware interrupt\n");
     }
 #endif
+            /* Requeue it */
+            do_queue_exception(EXCP_EXTERNAL);
             return;
             }
         goto store_next;
@@ -863,6 +848,7 @@ void do_interrupt (CPUState *env)
                 env->fpscr[7] |= 0x4;
         break;
         case EXCP_INVAL:
+	    printf("Invalid instruction at 0x%08x\n", env->nip);
             msr |= 0x00080000;
         break;
         case EXCP_PRIV:
@@ -888,8 +874,17 @@ void do_interrupt (CPUState *env)
         goto store_next;
     case EXCP_SYSCALL:
 #if defined (DEBUG_EXCEPTIONS)
-        printf("syscall %d 0x%08x 0x%08x 0x%08x 0x%08x\n",
-               env->gpr[0], env->gpr[3], env->gpr[4], env->gpr[5], env->gpr[6]);
+	if (msr_pr) {
+	    if (loglevel) {
+		fprintf(logfile, "syscall %d 0x%08x 0x%08x 0x%08x 0x%08x\n",
+			env->gpr[0], env->gpr[3], env->gpr[4],
+			env->gpr[5], env->gpr[6]);
+	    } else {
+		printf("syscall %d from 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x\n",
+		       env->gpr[0], env->nip, env->gpr[3], env->gpr[4],
+		       env->gpr[5], env->gpr[6]);
+	    }
+	}
 #endif
         goto store_next;
     case EXCP_TRACE:
@@ -898,20 +893,16 @@ void do_interrupt (CPUState *env)
         goto store_next;
     case EXCP_MTMSR:
         /* Nothing to do */
-#if defined (DEBUG_EXCEPTIONS)
-        printf("%s: escape EXCP_MTMSR\n", __func__);
-#endif
         return;
     case EXCP_BRANCH:
         /* Nothing to do */
-#if defined (DEBUG_EXCEPTIONS)
-        printf("%s: escape EXCP_BRANCH\n", __func__);
-#endif
         return;
     case EXCP_RFI:
         /* Restore user-mode state */
+	tb_flush(env);
 #if defined (DEBUG_EXCEPTIONS)
-        printf("%s: escape EXCP_RFI\n", __func__);
+	if (msr_pr == 1)
+	    printf("Return from exception => 0x%08x\n", (uint32_t)env->nip);
 #endif
         return;
     store_current:

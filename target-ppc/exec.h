@@ -36,7 +36,11 @@ register uint32_t T2 asm(AREG3);
 #define FTS1 ((float)env->ft1)
 #define FTS2 ((float)env->ft2)
 
+#if defined (DEBUG_OP)
+#define RETURN() __asm__ __volatile__("nop");
+#else
 #define RETURN() __asm__ __volatile__("");
+#endif
 
 #include "cpu.h"
 #include "exec-all.h"
@@ -149,6 +153,7 @@ void do_icbi (void);
 void do_tlbia (void);
 void do_tlbie (void);
 
+void dump_state (void);
 void dump_rfi (void);
 void dump_store_sr (int srnum);
 void dump_store_ibat (int ul, int nr);

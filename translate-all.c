@@ -230,6 +230,9 @@ int cpu_restore_state(TranslationBlock *tb,
         CASE3(lfs):
             type = ACCESS_FLOAT;
             break;
+        CASE3(lwarx):
+            type = ACCESS_RES;
+            break;
         CASE3(stwcx):
             type = ACCESS_RES;
             break;

@@ -146,6 +146,10 @@ static void ne2000_update_irq(NE2000State *s)
 {
     int isr;
     isr = s->isr & s->imr;
+#if defined(DEBUG_NE2000)
+    printf("NE2000: Set IRQ line %d to %d (%02x %02x)\n",
+	   s->irq, isr ? 1 : 0, s->isr, s->imr);
+#endif
     if (isr)
         pic_set_irq(s->irq, 1);
     else

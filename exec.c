@@ -914,7 +914,7 @@ static void tb_reset_jump_recursive(TranslationBlock *tb)
    breakpoint is reached */
 int cpu_breakpoint_insert(CPUState *env, uint32_t pc)
 {
-#if defined(TARGET_I386)
+#if defined(TARGET_I386) || defined(TARGET_PPC)
     int i;
 
     for(i = 0; i < env->nb_breakpoints; i++) {
@@ -935,7 +935,7 @@ int cpu_breakpoint_insert(CPUState *env, uint32_t pc)
 /* remove a breakpoint */
 int cpu_breakpoint_remove(CPUState *env, uint32_t pc)
 {
-#if defined(TARGET_I386)
+#if defined(TARGET_I386) || defined(TARGET_PPC)
     int i;
     for(i = 0; i < env->nb_breakpoints; i++) {
         if (env->breakpoints[i] == pc)
@@ -957,7 +957,7 @@ int cpu_breakpoint_remove(CPUState *env, uint32_t pc)
    CPU loop after each instruction */
 void cpu_single_step(CPUState *env, int enabled)
 {
-#if defined(TARGET_I386)
+#if defined(TARGET_I386) || defined(TARGET_PPC)
     if (env->singlestep_enabled != enabled) {
         env->singlestep_enabled = enabled;
         /* must flush all the translated code to avoid inconsistancies */

@@ -68,6 +68,8 @@ extern void __sigaction();
 
 #include "exec-all.h"
 
+//#define DO_TB_FLUSH
+
 #define DEFAULT_NETWORK_SCRIPT "/etc/qemu-ifup"
 
 //#define DEBUG_UNUSED_IOPORT
@@ -1201,6 +1203,9 @@ int qemu_loadvm(const char *filename)
         goto the_end;
     }
     for(;;) {
+#if defined (DO_TB_FLUSH)
+        tb_flush();
+#endif
         len = qemu_get_byte(f);
         if (feof(f))
             break;
@@ -1380,6 +1385,15 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
+#elif defined(TARGET_PPC)
+void cpu_save(QEMUFile *f, void *opaque)
+{
+}
+
+int cpu_load(QEMUFile *f, void *opaque, int version_id)
+{
+    return 0;
+}
 #else
 
 #warning No CPU save/restore functions
@@ -1706,6 +1720,7 @@ int main(int argc, char **argv)
     const char *kernel_filename, *kernel_cmdline;
     DisplayState *ds = &display_state;
     int cyls, heads, secs;
+    int start_emulation = 1;
     uint8_t macaddr[6];
 
 #if !defined(CONFIG_SOFTMMU)
@@ -1744,7 +1759,7 @@ int main(int argc, char **argv)
         nd_table[i].fd = -1;
     
     for(;;) {
-        c = getopt_long_only(argc, argv, "hm:d:n:sp:L:", long_options, &long_index);
+        c = getopt_long_only(argc, argv, "hm:d:n:sp:L:S", long_options, &long_index);
         if (c == -1)
             break;
         switch(c) {
@@ -1915,6 +1930,9 @@ int main(int argc, char **argv)
         case 'L':
             bios_dir = optarg;
             break;
+	case 'S':
+	    start_emulation = 0;
+	    break;
         }
     }
 
@@ -2121,7 +2139,9 @@ int main(int argc, char **argv)
             ds, fd_filename, snapshot,
             kernel_filename, kernel_cmdline, initrd_filename);
 #elif defined(TARGET_PPC)
-    ppc_init();
+    ppc_init(ram_size, vga_ram_size, boot_device,
+	     ds, fd_filename, snapshot,
+	     kernel_filename, kernel_cmdline, initrd_filename);
 #endif
 
     /* launched after the device init so that it can display or not a
@@ -2142,6 +2162,7 @@ int main(int argc, char **argv)
         }
     } else 
 #endif
+    if (start_emulation)
     {
         vm_start();
     }

@@ -83,7 +83,6 @@ typedef struct fdrive_t {
     uint8_t dir;              /* Direction              */
     uint8_t rw;               /* Read/write             */
     /* Media */
-    fdisk_type_t disk;        /* Disk type              */
     fdisk_flags_t flags;
     uint8_t last_sect;        /* Nb sector per track    */
     uint8_t max_track;        /* Nb of tracks           */
@@ -102,7 +101,6 @@ static void fd_init (fdrive_t *drv, BlockDriverState *bs)
     drv->drflags = 0;
     drv->perpendicular = 0;
     /* Disk */
-    drv->disk = FDRIVE_DISK_NONE;
     drv->last_sect = 0;
     drv->max_track = 0;
 }
@@ -171,26 +169,113 @@ static void fd_recalibrate (fdrive_t *drv)
     drv->rw = 0;
 }
 
+/* Recognize floppy formats */
+typedef struct fd_format_t {
+    fdrive_type_t drive;
+    fdisk_type_t  disk;
+    uint8_t last_sect;
+    uint8_t max_track;
+    uint8_t max_head;
+    const unsigned char *str;
+} fd_format_t;
+
+static fd_format_t fd_formats[] = {
+    /* First entry is default format */
+    /* 1.44 MB 3"1/2 floppy disks */
+    { FDRIVE_DRV_144, FDRIVE_DISK_144, 18, 80, 1, "1.44 MB 3\"1/2", },
+    { FDRIVE_DRV_144, FDRIVE_DISK_144, 20, 80, 1,  "1.6 MB 3\"1/2", },
+    { FDRIVE_DRV_144, FDRIVE_DISK_144, 21, 80, 1, "1.68 MB 3\"1/2", },
+    { FDRIVE_DRV_144, FDRIVE_DISK_144, 21, 82, 1, "1.72 MB 3\"1/2", },
+    { FDRIVE_DRV_144, FDRIVE_DISK_144, 21, 83, 1, "1.74 MB 3\"1/2", },
+    { FDRIVE_DRV_144, FDRIVE_DISK_144, 22, 80, 1, "1.76 MB 3\"1/2", },
+    { FDRIVE_DRV_144, FDRIVE_DISK_144, 23, 80, 1, "1.84 MB 3\"1/2", },
+    { FDRIVE_DRV_144, FDRIVE_DISK_144, 24, 80, 1, "1.92 MB 3\"1/2", },
+    /* 2.88 MB 3"1/2 floppy disks */
+    { FDRIVE_DRV_288, FDRIVE_DISK_288, 36, 80, 1, "2.88 MB 3\"1/2", },
+    { FDRIVE_DRV_288, FDRIVE_DISK_288, 39, 80, 1, "3.12 MB 3\"1/2", },
+    { FDRIVE_DRV_288, FDRIVE_DISK_288, 40, 80, 1,  "3.2 MB 3\"1/2", },
+    { FDRIVE_DRV_288, FDRIVE_DISK_288, 44, 80, 1, "3.52 MB 3\"1/2", },
+    { FDRIVE_DRV_288, FDRIVE_DISK_288, 48, 80, 1, "3.84 MB 3\"1/2", },
+    /* 720 kB 3"1/2 floppy disks */
+    { FDRIVE_DRV_144, FDRIVE_DISK_720,  9, 80, 1,  "720 kB 3\"1/2", },
+    { FDRIVE_DRV_144, FDRIVE_DISK_720, 10, 80, 1,  "800 kB 3\"1/2", },
+    { FDRIVE_DRV_144, FDRIVE_DISK_720, 10, 82, 1,  "820 kB 3\"1/2", },
+    { FDRIVE_DRV_144, FDRIVE_DISK_720, 10, 83, 1,  "830 kB 3\"1/2", },
+    { FDRIVE_DRV_144, FDRIVE_DISK_720, 13, 80, 1, "1.04 MB 3\"1/2", },
+    { FDRIVE_DRV_144, FDRIVE_DISK_720, 14, 80, 1, "1.12 MB 3\"1/2", },
+    /* 1.2 MB 5"1/4 floppy disks */
+    { FDRIVE_DRV_120, FDRIVE_DISK_288, 15, 80, 1,  "1.2 kB 5\"1/4", },
+    { FDRIVE_DRV_120, FDRIVE_DISK_288, 18, 80, 1, "1.44 MB 5\"1/4", },
+    { FDRIVE_DRV_120, FDRIVE_DISK_288, 18, 82, 1, "1.48 MB 5\"1/4", },
+    { FDRIVE_DRV_120, FDRIVE_DISK_288, 18, 83, 1, "1.49 MB 5\"1/4", },
+    { FDRIVE_DRV_120, FDRIVE_DISK_288, 20, 80, 1,  "1.6 MB 5\"1/4", },
+    /* 720 kB 5"1/4 floppy disks */
+    { FDRIVE_DRV_120, FDRIVE_DISK_288,  9, 80, 1,  "720 kB 5\"1/4", },
+    { FDRIVE_DRV_120, FDRIVE_DISK_288, 11, 80, 1,  "880 kB 5\"1/4", },
+    /* 360 kB 5"1/4 floppy disks */
+    { FDRIVE_DRV_120, FDRIVE_DISK_288,  9, 40, 1,  "360 kB 5\"1/4", },
+    { FDRIVE_DRV_120, FDRIVE_DISK_288,  9, 40, 0,  "180 kB 5\"1/4", },
+    { FDRIVE_DRV_120, FDRIVE_DISK_288, 10, 41, 1,  "410 kB 5\"1/4", },
+    { FDRIVE_DRV_120, FDRIVE_DISK_288, 10, 42, 1,  "420 kB 5\"1/4", },
+    /* 320 kB 5"1/4 floppy disks */ 
+    { FDRIVE_DRV_120, FDRIVE_DISK_288,  8, 40, 1,  "320 kB 5\"1/4", },
+    { FDRIVE_DRV_120, FDRIVE_DISK_288,  8, 40, 0,  "160 kB 5\"1/4", },
+    /* 360 kB must match 5"1/4 better than 3"1/2... */
+    { FDRIVE_DRV_144, FDRIVE_DISK_720,  9, 80, 0,  "360 kB 3\"1/2", },
+    /* end */
+    { FDRIVE_DRV_NONE, FDRIVE_DISK_NONE, -1, -1, 0, NULL, },
+};
+
 /* Revalidate a disk drive after a disk change */
 static void fd_revalidate (fdrive_t *drv)
 {
-    int64_t nb_sectors;
+    fd_format_t *parse;
+    int64_t nb_sectors, size;
+    int i, first_match, match;
     int nb_heads, max_track, last_sect, ro;
 
     FLOPPY_DPRINTF("revalidate\n");
     drv->drflags &= ~FDRIVE_REVALIDATE;
-
-    /* if no drive present, cannot do more */
-    if (!drv->bs)
-        return;
-
-    if (bdrv_is_inserted(drv->bs)) {
+    if (drv->bs != NULL && bdrv_is_inserted(drv->bs)) {
 	ro = bdrv_is_read_only(drv->bs);
-	bdrv_get_geometry_hint(drv->bs, &max_track, &nb_heads, &last_sect);
+	bdrv_get_geometry_hint(drv->bs, &nb_heads, &max_track, &last_sect);
 	if (nb_heads != 0 && max_track != 0 && last_sect != 0) {
-	    drv->disk = FDRIVE_DISK_USER;
 	    printf("User defined disk (%d %d %d)",
 		   nb_heads - 1, max_track, last_sect);
+	} else {
+	    bdrv_get_geometry(drv->bs, &nb_sectors);
+	    match = -1;
+	    first_match = -1;
+	    for (i = 0;; i++) {
+		parse = &fd_formats[i];
+		if (parse->drive == FDRIVE_DRV_NONE)
+		    break;
+		if (drv->drive == parse->drive ||
+		    drv->drive == FDRIVE_DRV_NONE) {
+		    size = (parse->max_head + 1) * parse->max_track *
+			parse->last_sect;
+		    if (nb_sectors == size) {
+			match = i;
+			break;
+		    }
+		    if (first_match == -1)
+			first_match = i;
+		}
+	    }
+	    if (match == -1) {
+		if (first_match == -1)
+		    match = 1;
+		else
+		    match = first_match;
+		parse = &fd_formats[match];
+	    }
+	    nb_heads = parse->max_head + 1;
+	    max_track = parse->max_track;
+	    last_sect = parse->last_sect;
+	    drv->drive = parse->drive;
+	    printf("%s floppy disk (%d h %d t %d s) %s\n", parse->str,
+		   nb_heads, max_track, last_sect, ro ? "ro" : "rw");
+	}
 	    if (nb_heads == 1) {
 		drv->flags &= ~FDISK_DBL_SIDES;
 	    } else {
@@ -198,236 +283,9 @@ static void fd_revalidate (fdrive_t *drv)
 	    }
 	    drv->max_track = max_track;
 	    drv->last_sect = last_sect;
-	} else {
-        bdrv_get_geometry(drv->bs, &nb_sectors);
-	    switch (nb_sectors) {
-            /* 2.88 MB 3"1/2 drive disks */
-	    case 7680:
-		printf("3.84 Mb 3\"1/2 disk (1 80 48)");
-		drv->drive = FDRIVE_DRV_288;
-		drv->disk = FDRIVE_DISK_288;
-		drv->last_sect = 48;
-		drv->max_track = 80;
-		drv->flags |= FDISK_DBL_SIDES;
-		break;
-	    case 7040:
-		printf("3.52 Mb 3\"1/2 disk (1 80 44)");
-		drv->drive = FDRIVE_DRV_288;
-		drv->disk = FDRIVE_DISK_288;
-		drv->last_sect = 44;
-		drv->max_track = 80;
-		drv->flags |= FDISK_DBL_SIDES;
-		break;
-	    case 6400:
-		printf("3.2 Mb 3\"1/2 disk (1 80 40)");
-		drv->drive = FDRIVE_DRV_288;
-		drv->disk = FDRIVE_DISK_288;
-		drv->last_sect = 40;
-		drv->max_track = 80;
-		drv->flags |= FDISK_DBL_SIDES;
-		break;
-	    case 6240:
-		printf("3.12 Mb 3\"1/2 disk (1 80 39)");
-		drv->drive = FDRIVE_DRV_288;
-		drv->disk = FDRIVE_DISK_288;
-		drv->last_sect = 39;
-		drv->max_track = 80;
-		drv->flags |= FDISK_DBL_SIDES;
-		break;
-	    case 5760:
-		printf("2.88 Mb 3\"1/2 disk (1 80 36)");
-		drv->drive = FDRIVE_DRV_288;
-            drv->disk = FDRIVE_DISK_288;
-            drv->last_sect = 36;
-            drv->max_track = 80;
-		drv->flags |= FDISK_DBL_SIDES;
-		break;
-
-            /* 1.44 MB 3"1/2 drive disks */
-	    case 3840:
-		printf("1.92 Mb 3\"1/2 disk (1 80 24)");
-		drv->drive = FDRIVE_DRV_144;
-		drv->disk = FDRIVE_DISK_144;
-		drv->last_sect = 24;
-		drv->max_track = 80;
-		drv->flags |= FDISK_DBL_SIDES;
-		break;
-	    case 3680:
-		printf("1.84 Mb 3\"1/2 disk (1 80 23)");
-		drv->drive = FDRIVE_DRV_144;
-		drv->disk = FDRIVE_DISK_144;
-		drv->last_sect = 23;
-		drv->max_track = 80;
-		drv->flags |= FDISK_DBL_SIDES;
-		break;
-	    case 3520:
-		printf("1.76 Mb 3\"1/2 disk (1 80 22)");
-		drv->drive = FDRIVE_DRV_144;
-		drv->disk = FDRIVE_DISK_144;
-		drv->last_sect = 22;
-		drv->max_track = 80;
-		drv->flags |= FDISK_DBL_SIDES;
-		break;
-	    case 3486:
-		printf("1.74 Mb 3\"1/2 disk (1 83 21)");
-		drv->drive = FDRIVE_DRV_144;
-		drv->disk = FDRIVE_DISK_144;
-		drv->last_sect = 21;
-		drv->max_track = 83;
-		drv->flags |= FDISK_DBL_SIDES;
-		break;
-	    case 3444:
-		printf("1.72 Mb 3\"1/2 disk (1 82 21)");
-		drv->drive = FDRIVE_DRV_144;
-		drv->disk = FDRIVE_DISK_144;
-		drv->last_sect = 21;
-		drv->max_track = 82;
-		drv->flags |= FDISK_DBL_SIDES;
-		break;
-	    case 3360:
-		printf("1.68 Mb 3\"1/2 disk (1 80 21)");
-		drv->drive = FDRIVE_DRV_144;
-		drv->disk = FDRIVE_DISK_144;
-		drv->last_sect = 21;
-		drv->max_track = 80;
-		drv->flags |= FDISK_DBL_SIDES;
-		break;
-	    case 3200:
-		printf("1.6 Mb 3\"1/2 disk (1 80 20)");
-		drv->drive = FDRIVE_DRV_144;
-		drv->disk = FDRIVE_DISK_144;
-		drv->last_sect = 20;
-		drv->max_track = 80;
-		drv->flags |= FDISK_DBL_SIDES;
-		break;
-	    case 2880:
-	    default:
-		printf("1.44 Mb 3\"1/2 disk (1 80 18)");
-		drv->drive = FDRIVE_DRV_144;
-            drv->disk = FDRIVE_DISK_144;
-            drv->last_sect = 18;
-            drv->max_track = 80;
-		drv->flags |= FDISK_DBL_SIDES;
-		break;
-
-            /* 720 kB 3"1/2 drive disks */
-	    case 2240:
-		printf("1.12 Mb 3\"1/2 disk (1 80 14)");
-		drv->drive = FDRIVE_DRV_144;
-		drv->disk = FDRIVE_DISK_720;
-		drv->last_sect = 14;
-		drv->max_track = 80;
-		drv->flags |= FDISK_DBL_SIDES;
-		break;
-	    case 2080:
-		printf("1.04 Mb 3\"1/2 disk (1 80 13)");
-		drv->drive = FDRIVE_DRV_144;
-		drv->disk = FDRIVE_DISK_720;
-		drv->last_sect = 13;
-		drv->max_track = 80;
-		drv->flags |= FDISK_DBL_SIDES;
-		break;
-	    case 1660:
-		printf("830 kb 3\"1/2 disk (1 83 10)");
-		drv->drive = FDRIVE_DRV_144;
-		drv->disk = FDRIVE_DISK_720;
-		drv->last_sect = 10;
-		drv->max_track = 83;
-		drv->flags |= FDISK_DBL_SIDES;
-		break;
-	    case 1640:
-		printf("820 kb 3\"1/2 disk (1 82 10)");
-		drv->drive = FDRIVE_DRV_144;
-		drv->disk = FDRIVE_DISK_720;
-		drv->last_sect = 10;
-		drv->max_track = 82;
-		drv->flags |= FDISK_DBL_SIDES;
-		break;
-	    case 1600:
-		printf("800 kb 3\"1/2 disk (1 80 10)");
-		drv->drive = FDRIVE_DRV_144;
-		drv->disk = FDRIVE_DISK_720;
-		drv->last_sect = 10;
-		drv->max_track = 80;
-		drv->flags |= FDISK_DBL_SIDES;
-		break;
-	    case 1440:
-		printf("720 kb 3\"1/2 disk (1 80 9)");
-		drv->drive = FDRIVE_DRV_144;
-            drv->disk = FDRIVE_DISK_720;
-            drv->last_sect = 9;
-            drv->max_track = 80;
-		drv->flags |= FDISK_DBL_SIDES;
-		break;
-
-	    /* 1.2 MB 5"1/4 drive disks */
-	    case 2988:
-		printf("1.49 Mb 5\"1/4 disk (1 83 18)");
-		drv->drive = FDRIVE_DRV_120;
-		drv->disk = FDRIVE_DISK_144; /* ? */
-		drv->last_sect = 18;
-		drv->max_track = 83;
-		drv->flags |= FDISK_DBL_SIDES;
-		break;
-	    case 2952:
-		printf("1.48 Mb 5\"1/4 disk (1 82 18)");
-		drv->drive = FDRIVE_DRV_120;
-		drv->disk = FDRIVE_DISK_144; /* ? */
-		drv->last_sect = 18;
-		drv->max_track = 82;
-		drv->flags |= FDISK_DBL_SIDES;
-		break;
-	    case 2400:
-		printf("1.2 Mb 5\"1/4 disk (1 80 15)");
-		drv->drive = FDRIVE_DRV_120;
-		drv->disk = FDRIVE_DISK_144; /* ? */
-		drv->last_sect = 15;
-		drv->max_track = 80;
-		drv->flags |= FDISK_DBL_SIDES;
-		break;
-
-	    case 1760:
-		printf("880 kb 5\"1/4 disk (1 80 11)");
-		drv->drive = FDRIVE_DRV_120;
-		drv->disk = FDRIVE_DISK_144; /* ? */
-		drv->last_sect = 11;
-		drv->max_track = 80;
-		drv->flags |= FDISK_DBL_SIDES;
-		break;
-
-	    /* 360 kB 5"1/4 drive disks */
-	    case 840:
-		/* 420 kB 5"1/4 disk */
-		printf("420 kb 5\"1/4 disk (1 42 10)");
-		drv->drive = FDRIVE_DRV_120;
-		drv->disk = FDRIVE_DISK_144; /* ? */
-		drv->last_sect = 10;
-		drv->max_track = 42;
-		drv->flags |= FDISK_DBL_SIDES;
-	    case 820:
-		/* 410 kB 5"1/4 disk */
-		printf("410 kb 5\"1/4 disk (1 41 10)");
-		drv->drive = FDRIVE_DRV_120;
-		drv->disk = FDRIVE_DISK_144; /* ? */
-		drv->last_sect = 10;
-		drv->max_track = 41;
-		drv->flags |= FDISK_DBL_SIDES;
-	    case 720:
-		/* 360 kB 5"1/4 disk */
-		printf("360 kb 5\"1/4 disk (1 40 9)");
-		drv->drive = FDRIVE_DRV_120;
-		drv->disk = FDRIVE_DISK_144; /* ? */
-		drv->last_sect = 9;
-		drv->max_track = 40;
-		drv->flags |= FDISK_DBL_SIDES;
-		break;
-        }
-	    printf(" %s\n", ro == 0 ? "rw" : "ro");
-	}
 	drv->ro = ro;
     } else {
 	printf("No disk in drive\n");
-        drv->disk = FDRIVE_DISK_NONE;
         drv->last_sect = 0;
 	drv->max_track = 0;
 	drv->flags &= ~FDISK_DBL_SIDES;
@@ -544,20 +402,29 @@ static uint32_t fdctrl_read (void *opaque, uint32_t reg)
     fdctrl_t *fdctrl = opaque;
     uint32_t retval;
 
-    if (reg == fdctrl->io_base + 0x01)
+    switch (reg & 0x07) {
+    case 0x01:
 	retval = fdctrl_read_statusB(fdctrl);
-    else if (reg == fdctrl->io_base + 0x02)
+	break;
+    case 0x02:
 	retval = fdctrl_read_dor(fdctrl);
-    else if (reg == fdctrl->io_base + 0x03)
+	break;
+    case 0x03:
         retval = fdctrl_read_tape(fdctrl);
-    else if (reg == fdctrl->io_base + 0x04)
+	break;
+    case 0x04:
         retval = fdctrl_read_main_status(fdctrl);
-    else if (reg == fdctrl->io_base + 0x05)
+	break;
+    case 0x05:
         retval = fdctrl_read_data(fdctrl);
-    else if (reg == fdctrl->io_base + 0x07)
+	break;
+    case 0x07:
         retval = fdctrl_read_dir(fdctrl);
-    else 
+	break;
+    default:
 	retval = (uint32_t)(-1);
+	break;
+    }
 
     return retval;
 }
@@ -566,14 +433,22 @@ static void fdctrl_write (void *opaque, uint32_t reg, uint32_t value)
 {
     fdctrl_t *fdctrl = opaque;
 
-    if (reg == fdctrl->io_base + 0x02)
+    switch (reg & 0x07) {
+    case 0x02:
 	fdctrl_write_dor(fdctrl, value);
-    else if (reg == fdctrl->io_base + 0x03)
+	break;
+    case 0x03:
         fdctrl_write_tape(fdctrl, value);
-    else if (reg == fdctrl->io_base + 0x04)
+	break;
+    case 0x04:
         fdctrl_write_rate(fdctrl, value);
-    else if (reg == fdctrl->io_base + 0x05)
+	break;
+    case 0x05:
         fdctrl_write_data(fdctrl, value);
+	break;
+    default:
+	break;
+    }
 }
 
 static void fd_change_cb (void *opaque)
@@ -581,7 +456,6 @@ static void fd_change_cb (void *opaque)
     fdrive_t *drv = opaque;
 
     FLOPPY_DPRINTF("disk change\n");
-    /* TODO: use command-line parameters to force geometry */
     fd_revalidate(drv);
 #if 0
     fd_recalibrate(drv);
@@ -606,7 +480,7 @@ fdctrl_t *fdctrl_init (int irq_lvl, int dma_chann, int mem_mapped,
     fdctrl->irq_lvl = irq_lvl;
     fdctrl->dma_chann = dma_chann;
     fdctrl->io_base = io_base;
-    fdctrl->config = 0x40; /* Implicit seek, polling & FIFO enabled */
+    fdctrl->config = 0x60; /* Implicit seek, polling & FIFO enabled */
     if (fdctrl->dma_chann != -1) {
         fdctrl->dma_en = 1;
         DMA_register_channel(dma_chann, &fdctrl_transfer_handler, fdctrl);
@@ -634,9 +508,10 @@ fdctrl_t *fdctrl_init (int irq_lvl, int dma_chann, int mem_mapped,
         register_ioport_write(io_base + 0x01, 5, 1, &fdctrl_write, fdctrl);
         register_ioport_write(io_base + 0x07, 1, 1, &fdctrl_write, fdctrl);
     }
-    for (i = 0; i < MAX_FD; i++) {
+    for (i = 0; i < 2; i++) {
         fd_revalidate(&fdctrl->drives[i]);
     }
+
     return fdctrl;
 }
 

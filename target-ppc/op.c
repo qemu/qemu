@@ -18,10 +18,10 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+//#define DEBUG_OP
+
 #include "config.h"
 #include "exec.h"
-
-//#define DEBUG_OP
 
 #define regs (env)
 #define Ts0 (int32_t)T0
@@ -224,6 +224,17 @@ PPC_OP(process_exceptions)
     if (env->exceptions != 0) {
         do_check_exception_state();
     }
+}
+
+PPC_OP(debug)
+{
+    env->nip = PARAM(1);
+    env->brkstate = 1;
+#if defined (DEBUG_OP)
+    dump_state();
+#endif
+    do_queue_exception(EXCP_DEBUG);
+    RETURN();
 }
 
 /* Segment registers load and store with immediate index */
@@ -1443,10 +1454,9 @@ PPC_OP(fneg)
 }
 
 /* Load and store */
-#if defined(CONFIG_USER_ONLY)
 #define MEMSUFFIX _raw
 #include "op_mem.h"
-#else
+#if !defined(CONFIG_USER_ONLY)
 #define MEMSUFFIX _user
 #include "op_mem.h"
 
@@ -1460,8 +1470,11 @@ PPC_OP(rfi)
     T0 = regs->spr[SRR1] & ~0xFFFF0000;
     do_store_msr();
     do_tlbia();
+#if defined (DEBUG_OP)
     dump_rfi();
+#endif
     regs->nip = regs->spr[SRR0] & ~0x00000003;
+    do_queue_exception(EXCP_RFI);
     if (env->exceptions != 0) {
         do_check_exception_state();
     }

@@ -27,7 +27,7 @@ ar="ar"
 make="make"
 strip="strip"
 cpu=`uname -m`
-target_list="i386-user i386 i386-softmmu arm-user sparc-user ppc-user"
+target_list="i386-user i386 i386-softmmu arm-user sparc-user ppc-user ppc-softmmu"
 case "$cpu" in
   i386|i486|i586|i686|i86pc|BePC)
     cpu="i386"

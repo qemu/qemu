@@ -1,0 +1,486 @@
+/*
+ * QEMU M48T59 NVRAM emulation for PPC PREP platform
+ * 
+ * Copyright (c) 2003-2004 Jocelyn Mayer
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+
+#include <stdlib.h>
+#include <stdio.h> /* needed by vl.h */
+#include <stdint.h>
+#include <string.h>
+#include <time.h>
+
+#include "vl.h"
+
+//#define NVRAM_DEBUG
+
+#if defined(NVRAM_DEBUG)
+#define NVRAM_PRINTF(fmt, args...) do { printf(fmt , ##args); } while (0)
+#else
+#define NVRAM_PRINTF(fmt, args...) do { } while (0)
+#endif
+
+typedef struct m48t59_t {
+    /* Hardware parameters */
+    int      IRQ;
+    uint32_t io_base;
+    uint16_t size;
+    /* RTC management */
+    time_t   time_offset;
+    time_t   stop_time;
+    /* Alarm & watchdog */
+    time_t   alarm;
+    struct QEMUTimer *alrm_timer;
+    struct QEMUTimer *wd_timer;
+    /* NVRAM storage */
+    uint16_t addr;
+    uint8_t *buffer;
+} m48t59_t;
+
+static m48t59_t *NVRAMs;
+static int nb_NVRAMs;
+
+/* Fake timer functions */
+/* Generic helpers for BCD */
+static inline uint8_t toBCD (uint8_t value)
+{
+    return (((value / 10) % 10) << 4) | (value % 10);
+}
+
+static inline uint8_t fromBCD (uint8_t BCD)
+{
+    return ((BCD >> 4) * 10) + (BCD & 0x0F);
+}
+
+/* RTC management helpers */
+static void get_time (m48t59_t *NVRAM, struct tm *tm)
+{
+    time_t t;
+
+    t = time(NULL) + NVRAM->time_offset;
+    localtime_r(&t, tm);
+}
+
+static void set_time (m48t59_t *NVRAM, struct tm *tm)
+{
+    time_t now, new_time;
+    
+    new_time = mktime(tm);
+    now = time(NULL);
+    NVRAM->time_offset = new_time - now;
+}
+
+/* Alarm management */
+static void alarm_cb (void *opaque)
+{
+    struct tm tm, tm_now;
+    uint64_t next_time;
+    m48t59_t *NVRAM = opaque;
+
+    pic_set_irq(NVRAM->IRQ, 1);
+    if ((NVRAM->buffer[0x1FF5] & 0x80) == 0 && 
+	(NVRAM->buffer[0x1FF4] & 0x80) == 0 &&
+	(NVRAM->buffer[0x1FF3] & 0x80) == 0 &&
+	(NVRAM->buffer[0x1FF2] & 0x80) == 0) {
+	/* Repeat once a month */
+	get_time(NVRAM, &tm_now);
+	memcpy(&tm, &tm_now, sizeof(struct tm));
+	tm.tm_mon++;
+	if (tm.tm_mon == 13) {
+	    tm.tm_mon = 1;
+	    tm.tm_year++;
+	}
+	next_time = mktime(&tm);
+    } else if ((NVRAM->buffer[0x1FF5] & 0x80) != 0 &&
+	       (NVRAM->buffer[0x1FF4] & 0x80) == 0 &&
+	       (NVRAM->buffer[0x1FF3] & 0x80) == 0 &&
+	       (NVRAM->buffer[0x1FF2] & 0x80) == 0) {
+	/* Repeat once a day */
+	next_time = 24 * 60 * 60 + mktime(&tm_now);
+    } else if ((NVRAM->buffer[0x1FF5] & 0x80) != 0 &&
+	       (NVRAM->buffer[0x1FF4] & 0x80) != 0 &&
+	       (NVRAM->buffer[0x1FF3] & 0x80) == 0 &&
+	       (NVRAM->buffer[0x1FF2] & 0x80) == 0) {
+	/* Repeat once an hour */
+	next_time = 60 * 60 + mktime(&tm_now);
+    } else if ((NVRAM->buffer[0x1FF5] & 0x80) != 0 &&
+	       (NVRAM->buffer[0x1FF4] & 0x80) != 0 &&
+	       (NVRAM->buffer[0x1FF3] & 0x80) != 0 &&
+	       (NVRAM->buffer[0x1FF2] & 0x80) == 0) {
+	/* Repeat once a minute */
+	next_time = 60 + mktime(&tm_now);
+    } else {
+	/* Repeat once a second */
+	next_time = 1 + mktime(&tm_now);
+    }
+    qemu_mod_timer(NVRAM->alrm_timer, next_time * 1000);
+    pic_set_irq(NVRAM->IRQ, 0);
+}
+
+
+static void get_alarm (m48t59_t *NVRAM, struct tm *tm)
+{
+    localtime_r(&NVRAM->alarm, tm);
+}
+
+static void set_alarm (m48t59_t *NVRAM, struct tm *tm)
+{
+    NVRAM->alarm = mktime(tm);
+    if (NVRAM->alrm_timer != NULL) {
+        qemu_del_timer(NVRAM->alrm_timer);
+	NVRAM->alrm_timer = NULL;
+    }
+    if (NVRAM->alarm - time(NULL) > 0)
+	qemu_mod_timer(NVRAM->alrm_timer, NVRAM->alarm * 1000);
+}
+
+/* Watchdog management */
+static void watchdog_cb (void *opaque)
+{
+    m48t59_t *NVRAM = opaque;
+
+    NVRAM->buffer[0x1FF0] |= 0x80;
+    if (NVRAM->buffer[0x1FF7] & 0x80) {
+	NVRAM->buffer[0x1FF7] = 0x00;
+	NVRAM->buffer[0x1FFC] &= ~0x40;
+	//	reset_CPU();
+    } else {
+	pic_set_irq(NVRAM->IRQ, 1);
+	pic_set_irq(NVRAM->IRQ, 0);
+    }
+}
+
+static void set_up_watchdog (m48t59_t *NVRAM, uint8_t value)
+{
+    uint64_t interval; /* in 1/16 seconds */
+
+    if (NVRAM->wd_timer != NULL) {
+        qemu_del_timer(NVRAM->wd_timer);
+	NVRAM->wd_timer = NULL;
+    }
+    NVRAM->buffer[0x1FF0] &= ~0x80;
+    if (value != 0) {
+	interval = (1 << (2 * (value & 0x03))) * ((value >> 2) & 0x1F);
+	qemu_mod_timer(NVRAM->wd_timer, ((uint64_t)time(NULL) * 1000) +
+		       ((interval * 1000) >> 4));
+    }
+}
+
+/* Direct access to NVRAM */
+void m48t59_write (void *opaque, uint32_t val)
+{
+    m48t59_t *NVRAM = opaque;
+    struct tm tm;
+    int tmp;
+
+    if (NVRAM->addr > 0x1FF8 && NVRAM->addr < 0x2000)
+	NVRAM_PRINTF("%s: 0x%08x => 0x%08x\n", __func__, NVRAM->addr, val);
+    switch (NVRAM->addr) {
+    case 0x1FF0:
+        /* flags register : read-only */
+        break;
+    case 0x1FF1:
+        /* unused */
+        break;
+    case 0x1FF2:
+        /* alarm seconds */
+	tmp = fromBCD(val & 0x7F);
+	if (tmp >= 0 && tmp <= 59) {
+	    get_alarm(NVRAM, &tm);
+	    tm.tm_sec = tmp;
+	    NVRAM->buffer[0x1FF2] = val;
+	    set_alarm(NVRAM, &tm);
+	}
+        break;
+    case 0x1FF3:
+        /* alarm minutes */
+	tmp = fromBCD(val & 0x7F);
+	if (tmp >= 0 && tmp <= 59) {
+	    get_alarm(NVRAM, &tm);
+	    tm.tm_min = tmp;
+	    NVRAM->buffer[0x1FF3] = val;
+	    set_alarm(NVRAM, &tm);
+	}
+        break;
+    case 0x1FF4:
+        /* alarm hours */
+	tmp = fromBCD(val & 0x3F);
+	if (tmp >= 0 && tmp <= 23) {
+	    get_alarm(NVRAM, &tm);
+	    tm.tm_hour = tmp;
+	    NVRAM->buffer[0x1FF4] = val;
+	    set_alarm(NVRAM, &tm);
+	}
+        break;
+    case 0x1FF5:
+        /* alarm date */
+	tmp = fromBCD(val & 0x1F);
+	if (tmp != 0) {
+	    get_alarm(NVRAM, &tm);
+	    tm.tm_mday = tmp;
+	    NVRAM->buffer[0x1FF5] = val;
+	    set_alarm(NVRAM, &tm);
+	}
+        break;
+    case 0x1FF6:
+        /* interrupts */
+	NVRAM->buffer[0x1FF6] = val;
+        break;
+    case 0x1FF7:
+        /* watchdog */
+	NVRAM->buffer[0x1FF7] = val;
+	set_up_watchdog(NVRAM, val);
+        break;
+    case 0x1FF8:
+        /* control */
+	NVRAM->buffer[0x1FF8] = (val & ~0xA0) | 0x90;
+        break;
+    case 0x1FF9:
+        /* seconds (BCD) */
+	tmp = fromBCD(val & 0x7F);
+	if (tmp >= 0 && tmp <= 59) {
+	    get_time(NVRAM, &tm);
+	    tm.tm_sec = tmp;
+	    set_time(NVRAM, &tm);
+	}
+	if ((val & 0x80) ^ (NVRAM->buffer[0x1FF9] & 0x80)) {
+	    if (val & 0x80) {
+		NVRAM->stop_time = time(NULL);
+	    } else {
+		NVRAM->time_offset += NVRAM->stop_time - time(NULL);
+		NVRAM->stop_time = 0;
+	    }
+	}
+	NVRAM->buffer[0x1FF9] = val & 0x80;
+        break;
+    case 0x1FFA:
+        /* minutes (BCD) */
+	tmp = fromBCD(val & 0x7F);
+	if (tmp >= 0 && tmp <= 59) {
+	    get_time(NVRAM, &tm);
+	    tm.tm_min = tmp;
+	    set_time(NVRAM, &tm);
+	}
+        break;
+    case 0x1FFB:
+        /* hours (BCD) */
+	tmp = fromBCD(val & 0x3F);
+	if (tmp >= 0 && tmp <= 23) {
+	    get_time(NVRAM, &tm);
+	    tm.tm_hour = tmp;
+	    set_time(NVRAM, &tm);
+	}
+        break;
+    case 0x1FFC:
+        /* day of the week / century */
+	tmp = fromBCD(val & 0x07);
+	get_time(NVRAM, &tm);
+	tm.tm_wday = tmp;
+	set_time(NVRAM, &tm);
+        NVRAM->buffer[0x1FFC] = val & 0x40;
+        break;
+    case 0x1FFD:
+        /* date */
+	tmp = fromBCD(val & 0x1F);
+	if (tmp != 0) {
+	    get_time(NVRAM, &tm);
+	    tm.tm_mday = tmp;
+	    set_time(NVRAM, &tm);
+	}
+        break;
+    case 0x1FFE:
+        /* month */
+	tmp = fromBCD(val & 0x1F);
+	if (tmp >= 1 && tmp <= 12) {
+	    get_time(NVRAM, &tm);
+	    tm.tm_mon = tmp - 1;
+	    set_time(NVRAM, &tm);
+	}
+        break;
+    case 0x1FFF:
+        /* year */
+	tmp = fromBCD(val);
+	if (tmp >= 0 && tmp <= 99) {
+	    get_time(NVRAM, &tm);
+	    tm.tm_year = fromBCD(val);
+	    set_time(NVRAM, &tm);
+	}
+        break;
+    default:
+        if (NVRAM->addr < 0x1FF0 ||
+	    (NVRAM->addr > 0x1FFF && NVRAM->addr < NVRAM->size)) {
+            NVRAM->buffer[NVRAM->addr] = val & 0xFF;
+	}
+        break;
+    }
+}
+
+uint32_t m48t59_read (void *opaque)
+{
+    m48t59_t *NVRAM = opaque;
+    struct tm tm;
+    uint32_t retval = 0xFF;
+
+    switch (NVRAM->addr) {
+    case 0x1FF0:
+        /* flags register */
+	goto do_read;
+    case 0x1FF1:
+        /* unused */
+	retval = 0;
+        break;
+    case 0x1FF2:
+        /* alarm seconds */
+	goto do_read;
+    case 0x1FF3:
+        /* alarm minutes */
+	goto do_read;
+    case 0x1FF4:
+        /* alarm hours */
+	goto do_read;
+    case 0x1FF5:
+        /* alarm date */
+	goto do_read;
+    case 0x1FF6:
+        /* interrupts */
+	goto do_read;
+    case 0x1FF7:
+	/* A read resets the watchdog */
+	set_up_watchdog(NVRAM, NVRAM->buffer[0x1FF7]);
+	goto do_read;
+    case 0x1FF8:
+        /* control */
+	goto do_read;
+    case 0x1FF9:
+        /* seconds (BCD) */
+        get_time(NVRAM, &tm);
+        retval = (NVRAM->buffer[0x1FF9] & 0x80) | toBCD(tm.tm_sec);
+        break;
+    case 0x1FFA:
+        /* minutes (BCD) */
+        get_time(NVRAM, &tm);
+        retval = toBCD(tm.tm_min);
+        break;
+    case 0x1FFB:
+        /* hours (BCD) */
+        get_time(NVRAM, &tm);
+        retval = toBCD(tm.tm_hour);
+        break;
+    case 0x1FFC:
+        /* day of the week / century */
+        get_time(NVRAM, &tm);
+        retval = NVRAM->buffer[0x1FFC] | tm.tm_wday;
+        break;
+    case 0x1FFD:
+        /* date */
+        get_time(NVRAM, &tm);
+        retval = toBCD(tm.tm_mday);
+        break;
+    case 0x1FFE:
+        /* month */
+        get_time(NVRAM, &tm);
+        retval = toBCD(tm.tm_mon + 1);
+        break;
+    case 0x1FFF:
+        /* year */
+        get_time(NVRAM, &tm);
+        retval = toBCD(tm.tm_year);
+        break;
+    default:
+        if (NVRAM->addr < 0x1FF0 ||
+	    (NVRAM->addr > 0x1FFF && NVRAM->addr < NVRAM->size)) {
+	do_read:
+            retval = NVRAM->buffer[NVRAM->addr];
+	}
+        break;
+    }
+    if (NVRAM->addr > 0x1FF9 && NVRAM->addr < 0x2000)
+	NVRAM_PRINTF("0x%08x <= 0x%08x\n", NVRAM->addr, retval);
+
+    return retval;
+}
+
+void m48t59_set_addr (void *opaque, uint32_t addr)
+{
+    m48t59_t *NVRAM = opaque;
+
+    NVRAM->addr = addr;
+}
+
+/* IO access to NVRAM */
+static void NVRAM_writeb (void *opaque, uint32_t addr, uint32_t val)
+{
+    m48t59_t *NVRAM = opaque;
+
+    addr -= NVRAM->io_base;
+    switch (addr) {
+    case 0:
+        NVRAM->addr &= ~0x00FF;
+        NVRAM->addr |= val;
+        break;
+    case 1:
+        NVRAM->addr &= ~0xFF00;
+        NVRAM->addr |= val << 8;
+        break;
+    case 3:
+        m48t59_write(NVRAM, val);
+        NVRAM->addr = 0x0000;
+        break;
+    default:
+        break;
+    }
+}
+
+static uint32_t NVRAM_readb (void *opaque, uint32_t addr)
+{
+    m48t59_t *NVRAM = opaque;
+
+    if (addr == NVRAM->io_base + 3)
+        return m48t59_read(NVRAM);
+
+    return 0xFF;
+}
+
+/* Initialisation routine */
+void *m48t59_init (int IRQ, uint32_t io_base, uint16_t size)
+{
+    m48t59_t *tmp;
+
+    tmp = realloc(NVRAMs, (nb_NVRAMs + 1) * sizeof(m48t59_t));
+    if (tmp == NULL)
+	return NULL;
+    NVRAMs = tmp;
+    tmp[nb_NVRAMs].buffer = malloc(size);
+    if (tmp[nb_NVRAMs].buffer == NULL)
+	return NULL;
+    memset(tmp[nb_NVRAMs].buffer, 0, size);
+    tmp[nb_NVRAMs].IRQ = IRQ;
+    tmp[nb_NVRAMs].size = size;
+    tmp[nb_NVRAMs].io_base = io_base;
+    tmp[nb_NVRAMs].addr = 0;
+    register_ioport_read(io_base, 0x04, 1, NVRAM_readb, &NVRAMs[nb_NVRAMs]);
+    register_ioport_write(io_base, 0x04, 1, NVRAM_writeb, &NVRAMs[nb_NVRAMs]);
+    tmp[nb_NVRAMs].alrm_timer = qemu_new_timer(vm_clock, &alarm_cb,
+					       &tmp[nb_NVRAMs]);
+    tmp[nb_NVRAMs].wd_timer = qemu_new_timer(vm_clock, &watchdog_cb,
+					     &tmp[nb_NVRAMs]);
+    return &NVRAMs[nb_NVRAMs++];
+}

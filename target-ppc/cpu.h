@@ -20,9 +20,6 @@
 #if !defined (__CPU_PPC_H__)
 #define __CPU_PPC_H__
 
-#include <endian.h>
-#include <asm/byteorder.h>
-
 #define TARGET_LONG_BITS 32
 
 #include "cpu-defs.h"
@@ -157,14 +154,26 @@ typedef struct CPUPPCState {
     int error_code;
     int access_type; /* when a memory exception occurs, the access
                         type is stored here */
+#if 0 /* TODO */
+    uint32_t pending_exceptions; /* For external & decr exception,
+				  * that can be delayed */
+#else
     uint32_t exceptions; /* exception queue */
-    uint32_t errors[16];
+    uint32_t errors[32];
+#endif
     int user_mode_only; /* user mode only simulation */
     struct TranslationBlock *current_tb; /* currently executing TB */
     /* soft mmu support */
-    /* 0 = kernel, 1 = user */
+    /* 0 = kernel, 1 = user (may have 2 = kernel code, 3 = user code ?) */
     CPUTLBEntry tlb_read[2][CPU_TLB_SIZE];
     CPUTLBEntry tlb_write[2][CPU_TLB_SIZE];
+
+    /* ice debug support */
+    uint32_t breakpoints[MAX_BREAKPOINTS];
+    int nb_breakpoints;
+    int brkstate;
+    int singlestep_enabled;
+
     /* user data */
     void *opaque;
 } CPUPPCState;
@@ -179,14 +188,21 @@ struct siginfo;
 int cpu_ppc_signal_handler(int host_signum, struct siginfo *info, 
                            void *puc);
 
-void cpu_ppc_dump_state(CPUPPCState *env, FILE *f, int flags);
-void cpu_loop_exit(void);
-void dump_stack (CPUPPCState *env);
-uint32_t _load_xer (void);
-void _store_xer (uint32_t value);
-uint32_t _load_msr (void);
-void _store_msr (uint32_t value);
 void do_interrupt (CPUPPCState *env);
+void cpu_loop_exit(void);
+
+void cpu_ppc_dump_state(CPUPPCState *env, FILE *f, int flags);
+void dump_stack (CPUPPCState *env);
+
+uint32_t _load_xer (CPUPPCState *env);
+void _store_xer (CPUPPCState *env, uint32_t value);
+uint32_t _load_msr (CPUPPCState *env);
+void _store_msr (CPUPPCState *env, uint32_t value);
+
+void PPC_init_hw (uint32_t mem_size,
+                  uint32_t kernel_addr, uint32_t kernel_size,
+                  uint32_t stack_addr, int boot_device,
+		  const unsigned char *initrd_file);
 
 #define TARGET_PAGE_BITS 12
 #include "cpu-all.h"
@@ -277,14 +293,6 @@ void do_interrupt (CPUPPCState *env);
 #define TARGET_PAGE_BITS 12
 #include "cpu-all.h"
 
-CPUPPCState *cpu_ppc_init(void);
-int cpu_ppc_exec(CPUPPCState *s);
-void cpu_ppc_close(CPUPPCState *s);
-void cpu_ppc_dump_state(CPUPPCState *env, FILE *f, int flags);
-void PPC_init_hw (CPUPPCState *env, uint32_t mem_size,
-                  uint32_t kernel_addr, uint32_t kernel_size,
-                  uint32_t stack_addr, int boot_device);
-
 /* Memory access type :
  * may be needed for precise access rights control and precise exceptions.
  */
@@ -351,12 +359,14 @@ enum {
     /* flags for EXCP_DSI */
     EXCP_DSI_DIRECT    = 0x10,
     EXCP_DSI_STORE     = 0x20,
-    EXCP_ECXW          = 0x40,
+    EXCP_DSI_ECXW      = 0x40,
     /* Exception subtypes for EXCP_ISI                              */
     EXCP_ISI_TRANSLATE = 0x01,  /* Code address can't be translated */
     EXCP_ISI_NOEXEC    = 0x02,  /* Try to fetch from a data segment */
     EXCP_ISI_GUARD     = 0x03,  /* Fetch from guarded memory        */
     EXCP_ISI_PROT      = 0x04,  /* Memory protection violation      */
+    EXCP_ISI_DIRECT    = 0x05,  /* Trying to fetch from             *
+				 * a direct store segment           */
     /* Exception subtypes for EXCP_ALIGN                            */
     EXCP_ALIGN_FP      = 0x01,  /* FP alignment exception           */
     EXCP_ALIGN_LST     = 0x02,  /* Unaligned mult/extern load/store */

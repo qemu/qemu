@@ -220,42 +220,49 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
 }
 
 #elif defined (TARGET_PPC)
-static void to_le32(uint8_t *p, int v)
+static void to_le32(uint32_t *buf, uint32_t v)
 {
+    uint8_t *p = (uint8_t *)buf;
     p[3] = v;
     p[2] = v >> 8;
     p[1] = v >> 16;
     p[0] = v >> 24;
 }
 
+static uint32_t from_le32 (uint32_t *buf)
+{
+    uint8_t *p = (uint8_t *)buf;
+
+    return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
+}
+
 static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
 {
-    uint32_t tmp;
+    uint32_t *registers = (uint32_t *)mem_buf, tmp;
     int i;
 
     /* fill in gprs */
-    for(i = 0; i < 8; i++) {
-        to_le32(mem_buf + i * 4, env->gpr[i]);
+    for(i = 0; i < 32; i++) {
+        to_le32(&registers[i], env->gpr[i]);
     }
     /* fill in fprs */
     for (i = 0; i < 32; i++) {
-        to_le32(mem_buf + (i * 2) + 32, *((uint32_t *)&env->fpr[i]));
-	to_le32(mem_buf + (i * 2) + 33, *((uint32_t *)&env->fpr[i] + 1));
+        to_le32(&registers[(i * 2) + 32], *((uint32_t *)&env->fpr[i]));
+	to_le32(&registers[(i * 2) + 33], *((uint32_t *)&env->fpr[i] + 1));
     }
     /* nip, msr, ccr, lnk, ctr, xer, mq */
-    to_le32(mem_buf + 96, tswapl(env->nip));
-    to_le32(mem_buf + 97, tswapl(_load_msr()));
-    to_le32(mem_buf + 98, 0);
+    to_le32(&registers[96], (uint32_t)env->nip/* - 4*/);
+    to_le32(&registers[97], _load_msr(env));
     tmp = 0;
     for (i = 0; i < 8; i++)
-        tmp |= env->crf[i] << (32 - (i * 4));
-    to_le32(mem_buf + 98, tmp);
-    to_le32(mem_buf + 99, tswapl(env->lr));
-    to_le32(mem_buf + 100, tswapl(env->ctr));
-    to_le32(mem_buf + 101, tswapl(_load_xer()));
-    to_le32(mem_buf + 102, 0);
+        tmp |= env->crf[i] << (32 - ((i + 1) * 4));
+    to_le32(&registers[98], tmp);
+    to_le32(&registers[99], env->lr);
+    to_le32(&registers[100], env->ctr);
+    to_le32(&registers[101], _load_xer(env));
+    to_le32(&registers[102], 0);
 
-    return 102;
+    return 103 * 4;
 }
 
 static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
@@ -265,22 +272,22 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
 
     /* fill in gprs */
     for (i = 0; i < 32; i++) {
-        env->gpr[i] = tswapl(registers[i]);
+        env->gpr[i] = from_le32(&registers[i]);
     }
     /* fill in fprs */
     for (i = 0; i < 32; i++) {
-        *((uint32_t *)&env->fpr[i]) = tswapl(registers[(i * 2) + 32]);
-	*((uint32_t *)&env->fpr[i] + 1) = tswapl(registers[(i * 2) + 33]);
+        *((uint32_t *)&env->fpr[i]) = from_le32(&registers[(i * 2) + 32]);
+	*((uint32_t *)&env->fpr[i] + 1) = from_le32(&registers[(i * 2) + 33]);
     }
     /* nip, msr, ccr, lnk, ctr, xer, mq */
-    env->nip = tswapl(registers[96]);
-    _store_msr(tswapl(registers[97]));
-    registers[98] = tswapl(registers[98]);
+    env->nip = from_le32(&registers[96]);
+    _store_msr(env, from_le32(&registers[97]));
+    registers[98] = from_le32(&registers[98]);
     for (i = 0; i < 8; i++)
-        env->crf[i] = (registers[98] >> (32 - (i * 4))) & 0xF;
-    env->lr = tswapl(registers[99]);
-    env->ctr = tswapl(registers[100]);
-    _store_xer(tswapl(registers[101]));
+        env->crf[i] = (registers[98] >> (32 - ((i + 1) * 4))) & 0xF;
+    env->lr = from_le32(&registers[99]);
+    env->ctr = from_le32(&registers[100]);
+    _store_xer(env, from_le32(&registers[101]));
 }
 #else
 
