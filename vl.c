@@ -2497,7 +2497,7 @@ void help(void)
            "-hda/-hdb file  use 'file' as IDE hard disk 0/1 image\n"
            "-hdc/-hdd file  use 'file' as IDE hard disk 2/3 image\n"
            "-cdrom file     use 'file' as IDE cdrom image (cdrom is ide1 master)\n"
-           "-boot [a|b|c|d] boot on floppy (a, b), hard disk (c) or CD-ROM (d)\n"
+           "-boot [a|c|d]   boot on floppy (a), hard disk (c) or CD-ROM (d)\n"
 	   "-snapshot       write to temporary files instead of disk image files\n"
            "-m megs         set virtual RAM size to megs MB [default=%d]\n"
            "-nographic      disable graphical output and redirect serial I/Os to console\n"
@@ -2910,7 +2910,7 @@ int main(int argc, char **argv)
                 break;
             case QEMU_OPTION_boot:
                 boot_device = optarg[0];
-                if (boot_device != 'a' && boot_device != 'b' &&
+                if (boot_device != 'a' && 
                     boot_device != 'c' && boot_device != 'd') {
                     fprintf(stderr, "qemu: invalid boot device '%c'\n", boot_device);
                     exit(1);
