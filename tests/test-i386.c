@@ -401,6 +401,23 @@ void test_imull2(int op0, int op1)
            "imull", s0, s1, res, flags & CC_MASK);
 }
 
+#define TEST_IMUL_IM(size, size1, op0, op1)\
+{\
+    int res, flags;\
+    flags = 0;\
+    res = 0;\
+    asm ("push %3\n\t"\
+         "popf\n\t"\
+         "imul" size " $" #op0 ", %" size1 "2, %" size1 "0\n\t" \
+         "pushf\n\t"\
+         "popl %1\n\t"\
+         : "=r" (res), "=g" (flags)\
+         : "r" (op1), "1" (flags), "0" (res));\
+    printf("%-10s A=%08x B=%08x R=%08x CC=%04x\n",\
+           "imul" size, op0, op1, res, flags & CC_MASK);\
+}
+
+
 #undef CC_MASK
 #define CC_MASK (0)
 
@@ -451,6 +468,16 @@ void test_mul(void)
     test_imull2(23, -45);
     test_imull2(0x80000000, 0x80000000);
     test_imull2(0x10000, 0x10000);
+
+    TEST_IMUL_IM("w", "w", 45, 0x1234);
+    TEST_IMUL_IM("w", "w", -45, 23);
+    TEST_IMUL_IM("w", "w", 0x8000, 0x80000000);
+    TEST_IMUL_IM("w", "w", 0x7fff, 0x1000);
+
+    TEST_IMUL_IM("l", "", 45, 0x1234);
+    TEST_IMUL_IM("l", "", -45, 23);
+    TEST_IMUL_IM("l", "", 0x8000, 0x80000000);
+    TEST_IMUL_IM("l", "", 0x7fff, 0x1000);
 
     test_idivb(0x12341678, 0x127e);
     test_idivb(0x43210123, -5);

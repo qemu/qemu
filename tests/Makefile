@@ -38,6 +38,10 @@ test:
 endif
 	$(QEMU) test-i386 > test-i386.out
 	@if diff -u test-i386.ref test-i386.out ; then echo "Auto Test OK"; fi
+ifeq ($(ARCH),i386)
+	$(QEMU) -no-code-copy test-i386 > test-i386.out
+	@if diff -u test-i386.ref test-i386.out ; then echo "Auto Test OK (no code copy)"; fi
+endif
 
 # generic Linux and CPU test
 linux-test: linux-test.c
