@@ -25,8 +25,8 @@
 #include <stdlib.h>
 #include <inttypes.h>
 
-#include "vl.h"
 #include "cpu.h"
+#include "vl.h"
 
 #define log(...) fprintf (stderr, "dma: " __VA_ARGS__)
 #ifdef DEBUG_DMA
@@ -79,7 +79,7 @@ enum {
 
 };
 
-static void write_page (struct CPUX86State *env, uint32_t nport, uint32_t data)
+static void write_page (CPUState *env, uint32_t nport, uint32_t data)
 {
     int ichan;
     int ncont;
@@ -114,7 +114,7 @@ static inline int getff (int ncont)
     return ff;
 }
 
-static uint32_t read_chan (struct CPUX86State *env, uint32_t nport)
+static uint32_t read_chan (CPUState *env, uint32_t nport)
 {
     int ff;
     int ncont, ichan, nreg;
@@ -160,17 +160,17 @@ static void write_chan (uint32_t nport, int size, uint32_t data)
         }
     }
 }
-static void write_chanb (struct CPUX86State *env, uint32_t nport, uint32_t data)
+static void write_chanb (CPUState *env, uint32_t nport, uint32_t data)
 {
     write_chan (nport, 1, data);
 }
 
-static void write_chanw (struct CPUX86State *env, uint32_t nport, uint32_t data)
+static void write_chanw (CPUState *env, uint32_t nport, uint32_t data)
 {
     write_chan (nport, 2, data);
 }
 
-static void write_cont (struct CPUX86State *env, uint32_t nport, uint32_t data)
+static void write_cont (CPUState *env, uint32_t nport, uint32_t data)
 {
     int iport, ichan, ncont;
     struct dma_cont *d;
@@ -215,17 +215,17 @@ static void write_cont (struct CPUX86State *env, uint32_t nport, uint32_t data)
 
     case 0xb:                   /* mode */
         {
-#ifdef DMA_DEBUG
+            ichan = data & 3;
+#ifdef DEBUG_DMA
             int op;
             int ai;
             int dir;
             int opmode;
 
-            ichan = val & 3;
-            op = (val >> 2) & 3;
-            ai = (val >> 4) & 1;
-            dir = (val >> 5) & 1;
-            opmode = (val >> 6) & 3;
+            op = (data >> 2) & 3;
+            ai = (data >> 4) & 1;
+            dir = (data >> 5) & 1;
+            opmode = (data >> 6) & 3;
 
             linfo ("ichan %d, op %d, ai %d, dir %d, opmode %d\n",
                    ichan, op, ai, dir, opmode);
@@ -259,7 +259,7 @@ static void write_cont (struct CPUX86State *env, uint32_t nport, uint32_t data)
         goto error;
     }
 
-#ifdef DMA_DEBUG
+#ifdef DEBUG_DMA
     if (0xc != iport) {
         linfo ("nport %#06x, ncont %d, ichan % 2d, val %#06x\n",
                nport, d != dma_controllers, ichan, data);
