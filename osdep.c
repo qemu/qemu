@@ -273,7 +273,15 @@ void *get_mmap_addr(unsigned long size)
 
 #else
 
+#ifdef _BSD
+#include <stdlib.h>
+#else
 #include <malloc.h>
+#endif
+#ifdef _WIN32
+/* XXX: find a solution to have page aligned data */
+#define memalign(align, size) malloc(size)
+#endif
 
 int qemu_write(int fd, const void *buf, size_t n)
 {
