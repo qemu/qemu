@@ -172,7 +172,7 @@ double cpu_put_fp64(uint64_t mant, uint16_t exp);
 		      (env->psref? PSR_EF : 0) |			\
 		      (env->psrpil << 8) |				\
 		      (env->psrs? PSR_S : 0) |				\
-		      (env->psrs? PSR_PS : 0) |				\
+		      (env->psrps? PSR_PS : 0) |			\
 		      (env->psret? PSR_ET : 0) | env->cwp)
 
 #ifndef NO_CPU_IO_DEFS
