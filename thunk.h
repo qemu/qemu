@@ -2,14 +2,52 @@
 #define THUNK_H
 
 #include <inttypes.h>
+#include <endian.h>
+
+#ifdef HAVE_BYTESWAP_H
 #include <byteswap.h>
+#else
+
+#define bswap_16(x) \
+({ \
+	uint16_t __x = (x); \
+	((uint16_t)( \
+		(((uint16_t)(__x) & (uint16_t)0x00ffU) << 8) | \
+		(((uint16_t)(__x) & (uint16_t)0xff00U) >> 8) )); \
+})
+
+#define bswap_32(x) \
+({ \
+	uint32_t __x = (x); \
+	((uint32_t)( \
+		(((uint32_t)(__x) & (uint32_t)0x000000ffUL) << 24) | \
+		(((uint32_t)(__x) & (uint32_t)0x0000ff00UL) <<  8) | \
+		(((uint32_t)(__x) & (uint32_t)0x00ff0000UL) >>  8) | \
+		(((uint32_t)(__x) & (uint32_t)0xff000000UL) >> 24) )); \
+})
+
+#define bswap_64(x) \
+({ \
+	__u64 __x = (x); \
+	((__u64)( \
+		(__u64)(((__u64)(__x) & (__u64)0x00000000000000ffULL) << 56) | \
+		(__u64)(((__u64)(__x) & (__u64)0x000000000000ff00ULL) << 40) | \
+		(__u64)(((__u64)(__x) & (__u64)0x0000000000ff0000ULL) << 24) | \
+		(__u64)(((__u64)(__x) & (__u64)0x00000000ff000000ULL) <<  8) | \
+	        (__u64)(((__u64)(__x) & (__u64)0x000000ff00000000ULL) >>  8) | \
+		(__u64)(((__u64)(__x) & (__u64)0x0000ff0000000000ULL) >> 24) | \
+		(__u64)(((__u64)(__x) & (__u64)0x00ff000000000000ULL) >> 40) | \
+		(__u64)(((__u64)(__x) & (__u64)0xff00000000000000ULL) >> 56) )); \
+})
+
+#endif
 
 #undef WORDS_BIGENDIAN
 #if __BYTE_ORDER == __BIG_ENDIAN
 #define WORDS_BIGENDIAN
 #endif
 
-#ifdef WORD_BIGENDIAN
+#ifdef WORDS_BIGENDIAN
 #define BSWAP_NEEDED
 #endif
 
