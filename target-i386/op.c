@@ -19,8 +19,12 @@
  */
 
 /* XXX: must use this define because the soft mmu macros have huge
-   register constraints so they cannot be used in any C code */
+   register constraints so they cannot be used in any C code. gcc 3.3
+   does not seem to be able to handle some constraints in rol
+   operations, so we disable it. */
+#if !(__GNUC__ == 3 && __GNUC_MINOR__ == 3)
 #define ASM_SOFTMMU
+#endif
 #include "exec.h"
 
 /* n must be a constant to be efficient */
