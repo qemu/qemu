@@ -360,10 +360,10 @@ Start right away with a saved state (@code{loadvm} in monitor)
 
 During the graphical emulation, you can use the following keys:
 @table @key
-@item Ctrl-Shift-f
+@item Ctrl-Alt-f
 Toggle full screen
 
-@item Ctrl-Shift-Fn
+@item Ctrl-Alt-n
 Switch to virtual console 'n'. Standard console mappings are:
 @table @emph
 @item 1
@@ -374,7 +374,7 @@ Monitor
 Serial port
 @end table
 
-@item Ctrl-Shift
+@item Ctrl-Alt
 Toggle mouse and keyboard grab.
 @end table
 

@@ -20,6 +20,9 @@ version 0.6.1:
   - SPARC system emulation (Blue Swirl)
   - Automatic Samba configuration for host file access from Windows.
   - '-loadvm' and '-full-screen' options
+  - ne2000 savevm support (Johannes Schindelin)
+  - Ctrl-Alt is now the default grab key. Ctrl-Alt-[0-9] switches to
+    the virtual consoles.
 
 version 0.6.0:
 
