@@ -487,7 +487,7 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
     }
 
     kbd_init();
-    DMA_init();
+    DMA_init(0);
 
 #ifndef _WIN32
     if (audio_enabled) {
