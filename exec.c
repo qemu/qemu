@@ -36,6 +36,7 @@
 
 /* make various TB consistency checks */
 //#define DEBUG_TB_CHECK 
+//#define DEBUG_TLB_CHECK 
 
 /* threshold to flush the translated code buffer */
 #define CODE_GEN_BUFFER_MAX_SIZE (CODE_GEN_BUFFER_SIZE - CODE_GEN_MAX_SIZE)
@@ -766,12 +767,26 @@ void tb_link(TranslationBlock *tb)
         /* save the code memory mappings (needed to invalidate the code) */
         addr = tb->pc & TARGET_PAGE_MASK;
         vp = virt_page_find_alloc(addr >> TARGET_PAGE_BITS);
+#ifdef DEBUG_TLB_CHECK 
+        if (vp->valid_tag == virt_valid_tag &&
+            vp->phys_addr != tb->page_addr[0]) {
+            printf("Error tb addr=0x%x phys=0x%x vp->phys_addr=0x%x\n",
+                   addr, tb->page_addr[0], vp->phys_addr);
+        }
+#endif
         vp->phys_addr = tb->page_addr[0];
         vp->valid_tag = virt_valid_tag;
         
         if (tb->page_addr[1] != -1) {
             addr += TARGET_PAGE_SIZE;
             vp = virt_page_find_alloc(addr >> TARGET_PAGE_BITS);
+#ifdef DEBUG_TLB_CHECK 
+            if (vp->valid_tag == virt_valid_tag &&
+                vp->phys_addr != tb->page_addr[1]) { 
+                printf("Error tb addr=0x%x phys=0x%x vp->phys_addr=0x%x\n",
+                       addr, tb->page_addr[1], vp->phys_addr);
+            }
+#endif
             vp->phys_addr = tb->page_addr[1];
             vp->valid_tag = virt_valid_tag;
         }
@@ -1057,6 +1072,7 @@ void tlb_flush_page(CPUState *env, uint32_t addr)
                 tb = tb->page_next[n];
             }
         }
+        vp->valid_tag = 0;
     }
 
 #if !defined(CONFIG_SOFTMMU)
@@ -1069,7 +1085,8 @@ static inline void tlb_protect_code1(CPUTLBEntry *tlb_entry, uint32_t addr)
 {
     if (addr == (tlb_entry->address & 
                  (TARGET_PAGE_MASK | TLB_INVALID_MASK)) &&
-        (tlb_entry->address & ~TARGET_PAGE_MASK) != IO_MEM_CODE) {
+        (tlb_entry->address & ~TARGET_PAGE_MASK) != IO_MEM_CODE &&
+        (tlb_entry->address & ~TARGET_PAGE_MASK) != IO_MEM_ROM) {
         tlb_entry->address |= IO_MEM_CODE;
         tlb_entry->addend -= (unsigned long)phys_ram_base;
     }
@@ -1139,7 +1156,7 @@ static void tlb_unprotect_code_phys(CPUState *env, uint32_t phys_addr)
         tlb_unprotect_code2(&env->tlb_write[1][i], phys_addr);
 }
 
-/* add a new TLB entry. At most a single entry for a given virtual
+/* add a new TLB entry. At most one entry for a given virtual
    address is permitted. */
 int tlb_set_page(CPUState *env, uint32_t vaddr, uint32_t paddr, int prot, 
                  int is_user, int is_softmmu)
