@@ -995,7 +995,7 @@ static void gen_jcc(DisasContext *s, int b, int val)
     default:
     slow_jcc:
         if (s->cc_op != CC_OP_DYNAMIC)
-            op_set_cc_op(s->cc_op);
+            gen_op_set_cc_op(s->cc_op);
         func = gen_jcc_slow[jcc_op];
         break;
     }
@@ -1041,10 +1041,10 @@ static void gen_setcc(DisasContext *s, int b)
     case CC_OP_SHLL:
         switch(jcc_op) {
         case JCC_Z:
-            func = gen_setcc_sub[s->cc_op - CC_OP_ADDB][jcc_op];
+            func = gen_setcc_sub[(s->cc_op - CC_OP_ADDB) % 3][jcc_op];
             break;
         case JCC_S:
-            func = gen_setcc_sub[s->cc_op - CC_OP_ADDB][jcc_op];
+            func = gen_setcc_sub[(s->cc_op - CC_OP_ADDB) % 3][jcc_op];
             break;
         default:
             goto slow_jcc;
@@ -1053,7 +1053,7 @@ static void gen_setcc(DisasContext *s, int b)
     default:
     slow_jcc:
         if (s->cc_op != CC_OP_DYNAMIC)
-            op_set_cc_op(s->cc_op);
+            gen_op_set_cc_op(s->cc_op);
         func = gen_setcc_slow[jcc_op];
         break;
     }
@@ -1891,7 +1891,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
                 break;
             case 0x3c: /* fbld */
                 gen_op_fpush();
-                op_fbld_ST0_A0();
+                gen_op_fbld_ST0_A0();
                 break;
             case 0x3e: /* fbstp */
                 gen_op_fbst_ST0_A0();
@@ -2338,6 +2338,8 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
         /************************/
         /* flags */
     case 0x9c: /* pushf */
+        if (s->cc_op != CC_OP_DYNAMIC)
+            gen_op_set_cc_op(s->cc_op);
         gen_op_movl_T0_eflags();
         gen_op_pushl_T0();
         break;
@@ -2349,31 +2351,31 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
     case 0x9e: /* sahf */
         gen_op_mov_TN_reg[OT_BYTE][0][R_AH]();
         if (s->cc_op != CC_OP_DYNAMIC)
-            op_set_cc_op(s->cc_op);
+            gen_op_set_cc_op(s->cc_op);
         gen_op_movb_eflags_T0();
         s->cc_op = CC_OP_EFLAGS;
         break;
     case 0x9f: /* lahf */
         if (s->cc_op != CC_OP_DYNAMIC)
-            op_set_cc_op(s->cc_op);
+            gen_op_set_cc_op(s->cc_op);
         gen_op_movl_T0_eflags();
         gen_op_mov_reg_T0[OT_BYTE][R_AH]();
         break;
     case 0xf5: /* cmc */
         if (s->cc_op != CC_OP_DYNAMIC)
-            op_set_cc_op(s->cc_op);
+            gen_op_set_cc_op(s->cc_op);
         gen_op_cmc();
         s->cc_op = CC_OP_EFLAGS;
         break;
     case 0xf8: /* clc */
         if (s->cc_op != CC_OP_DYNAMIC)
-            op_set_cc_op(s->cc_op);
+            gen_op_set_cc_op(s->cc_op);
         gen_op_clc();
         s->cc_op = CC_OP_EFLAGS;
         break;
     case 0xf9: /* stc */
         if (s->cc_op != CC_OP_DYNAMIC)
-            op_set_cc_op(s->cc_op);
+            gen_op_set_cc_op(s->cc_op);
         gen_op_stc();
         s->cc_op = CC_OP_EFLAGS;
         break;
@@ -2503,10 +2505,11 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
 }
 
 /* return the next pc */
-int cpu_x86_gen_code(uint8_t *gen_code_buf, int *gen_code_size_ptr,
-                     uint8_t *pc_start)
+int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size, 
+                     int *gen_code_size_ptr, uint8_t *pc_start)
 {
     DisasContext dc1, *dc = &dc1;
+    uint8_t *gen_code_end, *pc_ptr;
     int is_jmp;
     long ret;
 #ifdef DEBUG_DISAS
@@ -2515,35 +2518,18 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int *gen_code_size_ptr,
 
     dc->cc_op = CC_OP_DYNAMIC;
     gen_code_ptr = gen_code_buf;
+    gen_code_end = gen_code_buf + max_code_size - 4096;
     gen_start();
 
-#ifdef DEBUG_DISAS
-    if (loglevel) {
-        INIT_DISASSEMBLE_INFO(disasm_info, logfile, fprintf);
-        disasm_info.buffer = pc_start;
-        disasm_info.buffer_vma = (unsigned long)pc_start;
-        disasm_info.buffer_length = 15;
-#if 0        
-        disasm_info.flavour = bfd_get_flavour (abfd);
-        disasm_info.arch = bfd_get_arch (abfd);
-        disasm_info.mach = bfd_get_mach (abfd);
-#endif
-#ifdef WORDS_BIGENDIAN
-        disasm_info.endian = BFD_ENDIAN_BIG;
-#else
-        disasm_info.endian = BFD_ENDIAN_LITTLE;
-#endif        
-        fprintf(logfile, "IN:\n");
-        fprintf(logfile, "0x%08lx:  ", (long)pc_start);
-        print_insn_i386((unsigned long)pc_start, &disasm_info);
-        fprintf(logfile, "\n\n");
-    }
-#endif
     is_jmp = 0;
-    ret = disas_insn(dc, pc_start, &is_jmp);
-    if (ret == -1) 
-        error("unknown instruction at PC=0x%x B=%02x %02x", 
-              pc_start, pc_start[0], pc_start[1]);
+    pc_ptr = pc_start;
+    do {
+        ret = disas_insn(dc, pc_ptr, &is_jmp);
+        if (ret == -1) 
+            error("unknown instruction at PC=0x%x B=%02x %02x", 
+                  pc_ptr, pc_ptr[0], pc_ptr[1]);
+        pc_ptr = (void *)ret;
+    } while (!is_jmp && gen_code_ptr < gen_code_end);
     /* we must store the eflags state if it is not already done */
     if (dc->cc_op != CC_OP_DYNAMIC)
         gen_op_set_cc_op(dc->cc_op);
@@ -2559,6 +2545,30 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int *gen_code_size_ptr,
         uint8_t *pc;
         int count;
 
+        INIT_DISASSEMBLE_INFO(disasm_info, logfile, fprintf);
+#if 0        
+        disasm_info.flavour = bfd_get_flavour (abfd);
+        disasm_info.arch = bfd_get_arch (abfd);
+        disasm_info.mach = bfd_get_mach (abfd);
+#endif
+#ifdef WORDS_BIGENDIAN
+        disasm_info.endian = BFD_ENDIAN_BIG;
+#else
+        disasm_info.endian = BFD_ENDIAN_LITTLE;
+#endif        
+        fprintf(logfile, "IN:\n");
+        disasm_info.buffer = pc_start;
+        disasm_info.buffer_vma = (unsigned long)pc_start;
+        disasm_info.buffer_length = pc_ptr - pc_start;
+        pc = pc_start;
+        while (pc < pc_ptr) {
+            fprintf(logfile, "0x%08lx:  ", (long)pc);
+            count = print_insn_i386((unsigned long)pc, &disasm_info);
+            fprintf(logfile, "\n");
+            pc += count;
+        }
+        fprintf(logfile, "\n");
+        
         pc = gen_code_buf;
         disasm_info.buffer = pc;
         disasm_info.buffer_vma = (unsigned long)pc;

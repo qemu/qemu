@@ -1959,7 +1959,8 @@ int cpu_x86_exec(CPUX86State *env1)
 #endif
             }
 #endif
-            cpu_x86_gen_code(code_gen_buffer, &code_gen_size, (uint8_t *)env->pc);
+            cpu_x86_gen_code(code_gen_buffer, sizeof(code_gen_buffer), 
+                             &code_gen_size, (uint8_t *)env->pc);
             /* execute the generated code */
             gen_func = (void *)code_gen_buffer;
             gen_func();
