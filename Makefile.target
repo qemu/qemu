@@ -56,6 +56,12 @@ PROGS+=$(QEMU_SYSTEM)
 endif
 endif # ARCH = i386
 
+ifeq ($(ARCH), amd64)
+ifdef CONFIG_SOFTMMU
+PROGS+=$(QEMU_SYSTEM)
+endif
+endif # ARCH = amd64
+
 endif # TARGET_ARCH = ppc
 endif # !CONFIG_USER_ONLY
 
