@@ -3844,7 +3844,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         mod = (modrm >> 6) & 3;
         if (mod == 3)
             goto illegal_op;
-        gen_op_mov_reg_T0[ot][reg]();
+        gen_op_mov_TN_reg[ot][0][reg]();
         gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
         if (ot == OT_WORD)
             gen_op_boundw(pc_start - s->cs_base);
