@@ -1,3 +1,16 @@
+version 0.4.4:
+  
+  - full hardware level VGA emulation
+  - graphical display with SDL
+  - added PS/2 mouse and keyboard emulation
+  - popw (%esp) fix
+  - mov to/from segment data width fix
+  - added real mode support
+  - added Bochs BIOS and LGPL'ed VGA BIOS loader in vl
+  - m68k host port (Richard Zidlicky)
+  - partial soft MMU support for memory mapped I/Os
+  - multi-target build
+
 version 0.4.3:
 
   - x86 exception fix in case of nop instruction.
