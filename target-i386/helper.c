@@ -1274,7 +1274,7 @@ void helper_cpuid(void)
     case 1:
         EAX = env->cpuid_version;
         EBX = 0;
-        ECX = 0;
+        ECX = env->cpuid_ext_features;
         EDX = env->cpuid_features;
         break;
     default:
@@ -1828,6 +1828,12 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip)
         ESP = (ESP & ~sp_mask) | (sp & sp_mask);
         EIP = offset;
     }
+#ifdef USE_KQEMU
+    if (kqemu_is_ok(env)) {
+        env->exception_index = -1;
+        cpu_loop_exit();
+    }
+#endif
 }
 
 /* real and vm86 mode iret */
@@ -2097,11 +2103,25 @@ void helper_iret_protected(int shift, int next_eip)
     } else {
         helper_ret_protected(shift, 1, 0);
     }
+#ifdef USE_KQEMU
+    if (kqemu_is_ok(env)) {
+        CC_OP = CC_OP_EFLAGS;
+        env->exception_index = -1;
+        cpu_loop_exit();
+    }
+#endif
 }
 
 void helper_lret_protected(int shift, int addend)
 {
     helper_ret_protected(shift, 0, addend);
+#ifdef USE_KQEMU
+    if (kqemu_is_ok(env)) {
+        CC_OP = CC_OP_EFLAGS;
+        env->exception_index = -1;
+        cpu_loop_exit();
+    }
+#endif
 }
 
 void helper_sysenter(void)
@@ -2146,6 +2166,12 @@ void helper_sysexit(void)
                            DESC_W_MASK | DESC_A_MASK);
     ESP = ECX;
     EIP = EDX;
+#ifdef USE_KQEMU
+    if (kqemu_is_ok(env)) {
+        env->exception_index = -1;
+        cpu_loop_exit();
+    }
+#endif
 }
 
 void helper_movl_crN_T0(int reg)

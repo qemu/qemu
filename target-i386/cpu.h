@@ -39,6 +39,9 @@
 #if defined(__i386__) && !defined(CONFIG_SOFTMMU)
 #define USE_CODE_COPY
 #endif
+#if defined(__linux__) && defined(CONFIG_SOFTMMU) && defined(__i386__) && !defined(TARGET_X86_64)
+#define USE_KQEMU
+#endif
 
 #define R_EAX 0
 #define R_ECX 1
@@ -248,6 +251,14 @@
 #define CPUID_SSE  (1 << 25)
 #define CPUID_SSE2 (1 << 26)
 
+#define CPUID_EXT_SS3      (1 << 0)
+#define CPUID_EXT_MONITOR  (1 << 3)
+#define CPUID_EXT_CX16     (1 << 13)
+
+#define CPUID_EXT2_SYSCALL (1 << 11)
+#define CPUID_EXT2_NX      (1 << 20)
+#define CPUID_EXT2_LM      (1 << 29)
+
 #define EXCP00_DIVZ	0
 #define EXCP01_SSTP	1
 #define EXCP02_NMI	2
@@ -408,6 +419,16 @@ typedef struct CPUX86State {
     int32_t df; /* D flag : 1 if D = 0, -1 if D = 1 */
     uint32_t hflags; /* hidden flags, see HF_xxx constants */
 
+    /* segments */
+    SegmentCache segs[6]; /* selector values */
+    SegmentCache ldt;
+    SegmentCache tr;
+    SegmentCache gdt; /* only base and limit are used */
+    SegmentCache idt; /* only base and limit are used */
+
+    target_ulong cr[5]; /* NOTE: cr1 is unused */
+    uint32_t a20_mask;
+
     /* FPU state */
     unsigned int fpstt; /* top of stack index */
     unsigned int fpus;
@@ -431,13 +452,6 @@ typedef struct CPUX86State {
         int64_t i64;
     } fp_convert;
     
-    /* segments */
-    SegmentCache segs[6]; /* selector values */
-    SegmentCache ldt;
-    SegmentCache tr;
-    SegmentCache gdt; /* only base and limit are used */
-    SegmentCache idt; /* only base and limit are used */
-
     uint32_t mxcsr;
     XMMReg xmm_regs[CPU_NB_REGS];
     XMMReg xmm_t0;
@@ -470,12 +484,9 @@ typedef struct CPUX86State {
     int exception_is_int;
     target_ulong exception_next_eip;
     struct TranslationBlock *current_tb; /* currently executing TB */
-    target_ulong cr[5]; /* NOTE: cr1 is unused */
     target_ulong dr[8]; /* debug registers */
     int interrupt_request; 
     int user_mode_only; /* user mode only simulation */
-
-    uint32_t a20_mask;
 
     /* soft mmu support */
     /* in order to avoid passing too many arguments to the memory
@@ -501,7 +512,11 @@ typedef struct CPUX86State {
     uint32_t cpuid_vendor3;
     uint32_t cpuid_version;
     uint32_t cpuid_features;
+    uint32_t cpuid_ext_features;
 
+#ifdef USE_KQEMU
+    int kqemu_enabled;
+#endif
     /* in order to simplify APIC support, we leave this pointer to the
        user */
     struct APICState *apic_state;

@@ -586,3 +586,25 @@ static inline target_ulong get_phys_addr_code(CPUState *env, target_ulong addr)
     return addr + env->tlb_read[is_user][index].addend - (unsigned long)phys_ram_base;
 }
 #endif
+
+
+#ifdef USE_KQEMU
+extern int kqemu_fd;
+extern int kqemu_flushed;
+
+int kqemu_init(CPUState *env);
+int kqemu_cpu_exec(CPUState *env);
+void kqemu_flush_page(CPUState *env, target_ulong addr);
+void kqemu_flush(CPUState *env, int global);
+
+static inline int kqemu_is_ok(CPUState *env)
+{
+    return(env->kqemu_enabled &&
+           (env->hflags & HF_CPL_MASK) == 3 &&
+           (env->eflags & IOPL_MASK) != IOPL_MASK &&
+           (env->cr[0] & CR0_PE_MASK) && 
+           (env->eflags & IF_MASK) &&
+           !(env->eflags & VM_MASK));
+}
+
+#endif
