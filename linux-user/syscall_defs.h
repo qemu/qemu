@@ -213,7 +213,11 @@ struct target_pollfd {
 };
 
 /* virtual terminal ioctls */
+#define TARGET_KIOCSOUND       0x4B2F	/* start sound generation (0 for off) */
+#define TARGET_KDMKTONE	       0x4B30	/* generate tone */
 #define TARGET_KDGKBTYPE       0x4b33
+#define TARGET_KDGKBENT	       0x4B46	/* gets one entry in translation table */
+#define TARGET_KDGKBSENT       0x4B48	/* gets one function key string entry */
 
 /* Networking ioctls */
 #define TARGET_SIOCADDRT       0x890B          /* add routing table entry */

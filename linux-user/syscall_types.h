@@ -64,3 +64,6 @@ STRUCT(hd_geometry,
 
 STRUCT(dirent,
        TYPE_LONG, TYPE_LONG, TYPE_SHORT, MK_ARRAY(TYPE_CHAR, 256))
+
+STRUCT(kbentry,
+       TYPE_CHAR, TYPE_CHAR, TYPE_SHORT)
