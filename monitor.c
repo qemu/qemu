@@ -695,6 +695,117 @@ static void do_system_reset(void)
     qemu_system_reset_request();
 }
 
+#if defined(TARGET_I386)
+static void print_pte(uint32_t addr, uint32_t pte, uint32_t mask)
+{
+    term_printf("%08x: %08x %c%c%c%c%c%c%c%c\n", 
+                addr,
+                pte & mask,
+                pte & PG_GLOBAL_MASK ? 'G' : '-',
+                pte & PG_PSE_MASK ? 'P' : '-',
+                pte & PG_DIRTY_MASK ? 'D' : '-',
+                pte & PG_ACCESSED_MASK ? 'A' : '-',
+                pte & PG_PCD_MASK ? 'C' : '-',
+                pte & PG_PWT_MASK ? 'T' : '-',
+                pte & PG_USER_MASK ? 'U' : '-',
+                pte & PG_RW_MASK ? 'W' : '-');
+}
+
+static void tlb_info(void)
+{
+    CPUState *env = cpu_single_env;
+    int l1, l2;
+    uint32_t pgd, pde, pte;
+
+    if (!(env->cr[0] & CR0_PG_MASK)) {
+        term_printf("PG disabled\n");
+        return;
+    }
+    pgd = env->cr[3] & ~0xfff;
+    for(l1 = 0; l1 < 1024; l1++) {
+        cpu_physical_memory_read(pgd + l1 * 4, (uint8_t *)&pde, 4);
+        pde = le32_to_cpu(pde);
+        if (pde & PG_PRESENT_MASK) {
+            if ((pde & PG_PSE_MASK) && (env->cr[4] & CR4_PSE_MASK)) {
+                print_pte((l1 << 22), pde, ~((1 << 20) - 1));
+            } else {
+                for(l2 = 0; l2 < 1024; l2++) {
+                    cpu_physical_memory_read((pde & ~0xfff) + l2 * 4, 
+                                             (uint8_t *)&pte, 4);
+                    pte = le32_to_cpu(pte);
+                    if (pte & PG_PRESENT_MASK) {
+                        print_pte((l1 << 22) + (l2 << 12), 
+                                  pte & ~PG_PSE_MASK, 
+                                  ~0xfff);
+                    }
+                }
+            }
+        }
+    }
+}
+
+static void mem_print(uint32_t *pstart, int *plast_prot, 
+                      uint32_t end, int prot)
+{
+    if (prot != *plast_prot) {
+        if (*pstart != -1) {
+            term_printf("%08x-%08x %08x %c%c%c\n",
+                        *pstart, end, end - *pstart, 
+                        prot & PG_USER_MASK ? 'u' : '-',
+                        'r',
+                        prot & PG_RW_MASK ? 'w' : '-');
+        }
+        if (prot != 0)
+            *pstart = end;
+        else
+            *pstart = -1;
+        *plast_prot = prot;
+    }
+}
+
+static void mem_info(void)
+{
+    CPUState *env = cpu_single_env;
+    int l1, l2, prot, last_prot;
+    uint32_t pgd, pde, pte, start, end;
+
+    if (!(env->cr[0] & CR0_PG_MASK)) {
+        term_printf("PG disabled\n");
+        return;
+    }
+    pgd = env->cr[3] & ~0xfff;
+    last_prot = 0;
+    start = -1;
+    for(l1 = 0; l1 < 1024; l1++) {
+        cpu_physical_memory_read(pgd + l1 * 4, (uint8_t *)&pde, 4);
+        pde = le32_to_cpu(pde);
+        end = l1 << 22;
+        if (pde & PG_PRESENT_MASK) {
+            if ((pde & PG_PSE_MASK) && (env->cr[4] & CR4_PSE_MASK)) {
+                prot = pde & (PG_USER_MASK | PG_RW_MASK | PG_PRESENT_MASK);
+                mem_print(&start, &last_prot, end, prot);
+            } else {
+                for(l2 = 0; l2 < 1024; l2++) {
+                    cpu_physical_memory_read((pde & ~0xfff) + l2 * 4, 
+                                             (uint8_t *)&pte, 4);
+                    pte = le32_to_cpu(pte);
+                    end = (l1 << 22) + (l2 << 12);
+                    if (pte & PG_PRESENT_MASK) {
+                        prot = pte & (PG_USER_MASK | PG_RW_MASK | PG_PRESENT_MASK);
+                    } else {
+                        prot = 0;
+                    }
+                    mem_print(&start, &last_prot, end, prot);
+                }
+            }
+        } else {
+            prot = 0;
+            mem_print(&start, &last_prot, end, prot);
+        }
+    }
+}
+#endif
+
 static term_cmd_t term_cmds[] = {
     { "help|?", "s?", do_help, 
       "[cmd]", "show the help" },
@@ -755,6 +866,12 @@ static term_cmd_t info_cmds[] = {
       "", "show i8259 (PIC) state", },
     { "pci", "", pci_info,
       "", "show PCI info", },
+#if defined(TARGET_I386)
+    { "tlb", "", tlb_info,
+      "", "show virtual to physical memory mappings", },
+    { "mem", "", mem_info,
+      "", "show the active virtual memory mappings", },
+#endif
     { NULL, NULL, },
 };
 
