@@ -111,12 +111,13 @@
 #define KBD_QUEUE_SIZE 256
 
 typedef struct {
+    uint8_t aux[KBD_QUEUE_SIZE];
     uint8_t data[KBD_QUEUE_SIZE];
     int rptr, wptr, count;
 } KBDQueue;
 
 typedef struct KBDState {
-    KBDQueue queues[2];
+    KBDQueue queue;
     uint8_t write_cmd; /* if non zero, write data to port 60 is expected */
     uint8_t status;
     uint8_t mode;
@@ -145,15 +146,15 @@ int reset_requested;
    incorrect, but it avoids having to simulate exact delays */
 static void kbd_update_irq(KBDState *s)
 {
+    KBDQueue *q = &s->queue;
     int irq12_level, irq1_level;
 
     irq1_level = 0;    
     irq12_level = 0;    
     s->status &= ~(KBD_STAT_OBF | KBD_STAT_MOUSE_OBF);
-    if (s->queues[0].count != 0 ||
-        s->queues[1].count != 0) {
+    if (q->count != 0) {
         s->status |= KBD_STAT_OBF;
-        if (s->queues[1].count != 0) {
+        if (q->aux[q->rptr]) {
             s->status |= KBD_STAT_MOUSE_OBF;
             if (s->mode & KBD_MODE_MOUSE_INT)
                 irq12_level = 1;
@@ -169,7 +170,7 @@ static void kbd_update_irq(KBDState *s)
 
 static void kbd_queue(KBDState *s, int b, int aux)
 {
-    KBDQueue *q = &s->queues[aux];
+    KBDQueue *q = &s->queue;
 
 #if defined(DEBUG_MOUSE) || defined(DEBUG_KBD)
     if (aux)
@@ -181,6 +182,7 @@ static void kbd_queue(KBDState *s, int b, int aux)
 #endif
     if (q->count >= KBD_QUEUE_SIZE)
         return;
+    q->aux[q->wptr] = aux;
     q->data[q->wptr] = b;
     if (++q->wptr == KBD_QUEUE_SIZE)
         q->wptr = 0;
@@ -288,30 +290,28 @@ static uint32_t kbd_read_data(void *opaque, uint32_t addr)
 {
     KBDState *s = opaque;
     KBDQueue *q;
-    int val, index;
+    int val, index, aux;
     
-    q = &s->queues[1]; /* first check AUX data */
-    if (q->count == 0)
-        q = &s->queues[0]; /* then check KBD data */
+    q = &s->queue;
     if (q->count == 0) {
         /* NOTE: if no data left, we return the last keyboard one
            (needed for EMM386) */
         /* XXX: need a timer to do things correctly */
-        q = &s->queues[0];
         index = q->rptr - 1;
         if (index < 0)
             index = KBD_QUEUE_SIZE - 1;
         val = q->data[index];
     } else {
+        aux = q->aux[q->rptr];
         val = q->data[q->rptr];
         if (++q->rptr == KBD_QUEUE_SIZE)
             q->rptr = 0;
         q->count--;
         /* reading deasserts IRQ */
-        if (q == &s->queues[0])
-            pic_set_irq(1, 0);
-        else
+        if (aux)
             pic_set_irq(12, 0);
+        else
+            pic_set_irq(1, 0);
     }
     /* reassert IRQs if data left */
     kbd_update_irq(s);
@@ -452,7 +452,7 @@ void kbd_mouse_event(int dx, int dy, int dz, int buttons_state)
     s->mouse_buttons = buttons_state;
     
     if (!(s->mouse_status & MOUSE_STATUS_REMOTE) &&
-        (s->queues[1].count < (KBD_QUEUE_SIZE - 16))) {
+        (s->queue.count < (KBD_QUEUE_SIZE - 16))) {
         for(;;) {
             /* if not remote, send event. Multiple events are sent if
                too big deltas */
@@ -632,18 +632,15 @@ void kbd_write_data(void *opaque, uint32_t addr, uint32_t val)
 void kbd_reset(KBDState *s)
 {
     KBDQueue *q;
-    int i;
 
     s->kbd_write_cmd = -1;
     s->mouse_write_cmd = -1;
     s->mode = KBD_MODE_KBD_INT | KBD_MODE_MOUSE_INT;
     s->status = KBD_STAT_CMD | KBD_STAT_UNLOCKED;
-    for(i = 0; i < 2; i++) {
-        q = &s->queues[i];
-        q->rptr = 0;
-        q->wptr = 0;
-        q->count = 0;
-    }
+    q = &s->queue;
+    q->rptr = 0;
+    q->wptr = 0;
+    q->count = 0;
 }
 
 void kbd_init(void)
