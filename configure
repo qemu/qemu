@@ -200,10 +200,10 @@ fi
 
 if test -z "$target_list" ; then
 # these targets are portable
-    target_list="i386-softmmu ppc-softmmu sparc-softmmu x86_64-softmmu sparc64-softmmu"
+    target_list="i386-softmmu ppc-softmmu sparc-softmmu x86_64-softmmu"
 # the following are Linux specific
     if [ "$linux" = "yes" ] ; then
-        target_list="i386-user arm-user armeb-user sparc-user ppc-user sparc64-user $target_list"
+        target_list="i386-user arm-user armeb-user sparc-user ppc-user $target_list"
     fi
 fi
 
