@@ -188,7 +188,9 @@ static inline void pic_intack(PicState *s, int irq)
     } else {
         s->isr |= (1 << irq);
     }
-    s->irr &= ~(1 << irq);
+    /* We don't clear a level sensitive interrupt here */
+    if (!(s->elcr & (1 << irq)))
+        s->irr &= ~(1 << irq);
 }
 
 int cpu_get_pic_interrupt(CPUState *env)
