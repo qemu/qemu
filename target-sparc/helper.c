@@ -129,8 +129,7 @@ int get_physical_address (CPUState *env, uint32_t *physical, int *prot,
     /* SPARC reference MMU table walk: Context table->L1->L2->PTE */
     /* Context base + context number */
     pde_ptr = (env->mmuregs[1] << 4) + (env->mmuregs[2] << 4);
-    cpu_physical_memory_read(pde_ptr, (uint8_t *)&pde, 4);
-    bswap32s(&pde);
+    pde = ldl_phys(pde_ptr);
 
     /* Ctx pde */
     switch (pde & PTE_ENTRYTYPE_MASK) {
@@ -142,8 +141,7 @@ int get_physical_address (CPUState *env, uint32_t *physical, int *prot,
         return 4;
     case 1: /* L0 PDE */
 	pde_ptr = ((address >> 22) & ~3) + ((pde & ~3) << 4);
-	cpu_physical_memory_read(pde_ptr, (uint8_t *)&pde, 4);
-	bswap32s(&pde);
+        pde = ldl_phys(pde_ptr);
 
 	switch (pde & PTE_ENTRYTYPE_MASK) {
 	default:
@@ -153,8 +151,7 @@ int get_physical_address (CPUState *env, uint32_t *physical, int *prot,
 	    return 4;
 	case 1: /* L1 PDE */
 	    pde_ptr = ((address & 0xfc0000) >> 16) + ((pde & ~3) << 4);
-	    cpu_physical_memory_read(pde_ptr, (uint8_t *)&pde, 4);
-	    bswap32s(&pde);
+            pde = ldl_phys(pde_ptr);
 
 	    switch (pde & PTE_ENTRYTYPE_MASK) {
 	    default:
@@ -164,8 +161,7 @@ int get_physical_address (CPUState *env, uint32_t *physical, int *prot,
 		return 4;
 	    case 1: /* L2 PDE */
 		pde_ptr = ((address & 0x3f000) >> 10) + ((pde & ~3) << 4);
-		cpu_physical_memory_read(pde_ptr, (uint8_t *)&pde, 4);
-		bswap32s(&pde);
+                pde = ldl_phys(pde_ptr);
 
 		switch (pde & PTE_ENTRYTYPE_MASK) {
 		default:
@@ -193,12 +189,10 @@ int get_physical_address (CPUState *env, uint32_t *physical, int *prot,
     /* update page modified and dirty bits */
     is_dirty = (rw & 1) && !(pde & PG_MODIFIED_MASK);
     if (!(pde & PG_ACCESSED_MASK) || is_dirty) {
-	uint32_t tmppde;
 	pde |= PG_ACCESSED_MASK;
 	if (is_dirty)
 	    pde |= PG_MODIFIED_MASK;
-	tmppde = bswap32(pde);
-	cpu_physical_memory_write(pde_ptr, (uint8_t *)&tmppde, 4);
+        stl_phys_notdirty(pde_ptr, pde);
     }
     /* check access */
     *access_index = ((rw & 1) << 2) | (rw & 2) | (is_user? 0 : 1);
@@ -356,8 +350,8 @@ uint32_t mmu_probe(uint32_t address, int mmulev)
 
     /* Context base + context number */
     pde_ptr = (env->mmuregs[1] << 4) + (env->mmuregs[2] << 4);
-    cpu_physical_memory_read(pde_ptr, (uint8_t *)&pde, 4);
-    bswap32s(&pde);
+    pde = ldl_phys(pde_ptr);
+
     switch (pde & PTE_ENTRYTYPE_MASK) {
     default:
     case 0: /* Invalid */
@@ -368,8 +362,7 @@ uint32_t mmu_probe(uint32_t address, int mmulev)
 	if (mmulev == 3)
 	    return pde;
 	pde_ptr = ((address >> 22) & ~3) + ((pde & ~3) << 4);
-	cpu_physical_memory_read(pde_ptr, (uint8_t *)&pde, 4);
-	bswap32s(&pde);
+        pde = ldl_phys(pde_ptr);
 
 	switch (pde & PTE_ENTRYTYPE_MASK) {
 	default:
@@ -382,8 +375,7 @@ uint32_t mmu_probe(uint32_t address, int mmulev)
 	    if (mmulev == 2)
 		return pde;
 	    pde_ptr = ((address & 0xfc0000) >> 16) + ((pde & ~3) << 4);
-	    cpu_physical_memory_read(pde_ptr, (uint8_t *)&pde, 4);
-	    bswap32s(&pde);
+            pde = ldl_phys(pde_ptr);
 
 	    switch (pde & PTE_ENTRYTYPE_MASK) {
 	    default:
@@ -396,8 +388,7 @@ uint32_t mmu_probe(uint32_t address, int mmulev)
 		if (mmulev == 1)
 		    return pde;
 		pde_ptr = ((address & 0x3f000) >> 10) + ((pde & ~3) << 4);
-		cpu_physical_memory_read(pde_ptr, (uint8_t *)&pde, 4);
-		bswap32s(&pde);
+                pde = ldl_phys(pde_ptr);
 
 		switch (pde & PTE_ENTRYTYPE_MASK) {
 		default:
@@ -424,8 +415,7 @@ void dump_mmu(void)
 
     printf("MMU dump:\n");
     pde_ptr = (env->mmuregs[1] << 4) + (env->mmuregs[2] << 4);
-    cpu_physical_memory_read(pde_ptr, (uint8_t *)&pde, 4);
-    bswap32s(&pde);
+    pde = ldl_phys(pde_ptr);
     printf("Root ptr: 0x%08x, ctx: %d\n", env->mmuregs[1] << 4, env->mmuregs[2]);
     for (n = 0, va = 0; n < 256; n++, va += 16 * 1024 * 1024) {
 	pde_ptr = mmu_probe(va, 2);

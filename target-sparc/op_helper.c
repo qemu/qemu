@@ -106,9 +106,9 @@ void helper_ld_asi(int asi, int size, int sign)
     case 0x20 ... 0x2f: /* MMU passthrough */
 	cpu_physical_memory_read(T0, (void *) &ret, size);
 	if (size == 4)
-	    bswap32s(&ret);
-	else if (size == 2)
-	    bswap16s((uint16_t *)&ret);
+	    tswap32s(&ret);
+        else if (size == 2)
+	    tswap16s((uint16_t *)&ret);
 	break;
     default:
 	ret = 0;
@@ -170,7 +170,7 @@ void helper_st_asi(int asi, int size, int sign)
 	    int src = T1, dst = T0;
 	    uint8_t temp[32];
 	    
-	    bswap32s(&src);
+	    tswap32s(&src);
 
 	    cpu_physical_memory_read(src, (void *) &temp, 32);
 	    cpu_physical_memory_write(dst, (void *) &temp, 32);
@@ -185,7 +185,7 @@ void helper_st_asi(int asi, int size, int sign)
 	    uint64_t val;
 	    
 	    val = (((uint64_t)T1) << 32) | T2;
-	    bswap64s(&val);
+	    tswap64s(&val);
 
 	    for (i = 0; i < 32; i += 8, dst += 8) {
 		cpu_physical_memory_write(dst, (void *) &val, 8);
@@ -196,10 +196,9 @@ void helper_st_asi(int asi, int size, int sign)
 	{
 	    int temp = T1;
 	    if (size == 4)
-		bswap32s(&temp);
+		tswap32s(&temp);
 	    else if (size == 2)
-		bswap16s((uint16_t *)&temp);
-
+		tswap16s((uint16_t *)&temp);
 	    cpu_physical_memory_write(T0, (void *) &temp, size);
 	}
 	return;
