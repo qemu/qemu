@@ -4036,6 +4036,7 @@ void cpu_x86_close(CPUX86State *env)
 
 /***********************************************************/
 /* x86 mmu */
+/* XXX: add PGE support */
 
 /* called when cr3 or PG bit are modified */
 static int last_pg_state = -1;
@@ -4091,8 +4092,18 @@ void cpu_x86_init_mmu(CPUX86State *env)
     cpu_x86_update_cr0(env);
 }
 
+/* XXX: also flush 4MB pages */
 void cpu_x86_flush_tlb(CPUX86State *env, uint32_t addr)
 {
+    int flags;
+    unsigned long virt_addr;
+
+    flags = page_get_flags(addr);
+    if (flags & PAGE_VALID) {
+        virt_addr = addr & ~0xfff;
+        munmap((void *)virt_addr, 4096);
+        page_set_flags(virt_addr, virt_addr + 4096, 0);
+    }
 }
 
 /* return value:
