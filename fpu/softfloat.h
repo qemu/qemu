@@ -93,6 +93,16 @@ typedef int64_t sbits64;
 #define STATUS(field) status->field
 #define STATUS_VAR , status
 
+/*----------------------------------------------------------------------------
+| Software IEC/IEEE floating-point ordering relations
+*----------------------------------------------------------------------------*/
+enum {
+    float_relation_less      = -1,
+    float_relation_equal     =  0,
+    float_relation_greater   =  1,
+    float_relation_unordered =  2
+};
+
 #ifdef CONFIG_SOFTFLOAT
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE floating-point types.
@@ -154,6 +164,11 @@ typedef struct float_status {
 } float_status;
 
 void set_float_rounding_mode(int val STATUS_PARAM);
+void set_float_exception_flags(int val STATUS_PARAM);
+INLINE int get_float_exception_flags(float_status *status)
+{
+    return STATUS(float_exception_flags);
+}
 #ifdef FLOATX80
 void set_floatx80_rounding_precision(int val STATUS_PARAM);
 #endif
@@ -169,6 +184,8 @@ void float_raise( signed char STATUS_PARAM);
 *----------------------------------------------------------------------------*/
 float32 int32_to_float32( int STATUS_PARAM );
 float64 int32_to_float64( int STATUS_PARAM );
+float32 uint32_to_float32( unsigned int STATUS_PARAM );
+float64 uint32_to_float64( unsigned int STATUS_PARAM );
 #ifdef FLOATX80
 floatx80 int32_to_floatx80( int STATUS_PARAM );
 #endif
@@ -189,6 +206,8 @@ float128 int64_to_float128( int64_t STATUS_PARAM );
 *----------------------------------------------------------------------------*/
 int float32_to_int32( float32 STATUS_PARAM );
 int float32_to_int32_round_to_zero( float32 STATUS_PARAM );
+unsigned int float32_to_uint32( float32 STATUS_PARAM );
+unsigned int float32_to_uint32_round_to_zero( float32 STATUS_PARAM );
 int64_t float32_to_int64( float32 STATUS_PARAM );
 int64_t float32_to_int64_round_to_zero( float32 STATUS_PARAM );
 float64 float32_to_float64( float32 STATUS_PARAM );
@@ -215,13 +234,27 @@ char float32_lt( float32, float32 STATUS_PARAM );
 char float32_eq_signaling( float32, float32 STATUS_PARAM );
 char float32_le_quiet( float32, float32 STATUS_PARAM );
 char float32_lt_quiet( float32, float32 STATUS_PARAM );
+char float32_compare( float32, float32 STATUS_PARAM );
+char float32_compare_quiet( float32, float32 STATUS_PARAM );
 char float32_is_signaling_nan( float32 );
+
+INLINE float32 float32_abs(float32 a)
+{
+    return a & 0x7fffffff;
+}
+
+INLINE float32 float32_chs(float32 a)
+{
+    return a ^ 0x80000000;
+}
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE double-precision conversion routines.
 *----------------------------------------------------------------------------*/
 int float64_to_int32( float64 STATUS_PARAM );
 int float64_to_int32_round_to_zero( float64 STATUS_PARAM );
+unsigned int float64_to_uint32( float64 STATUS_PARAM );
+unsigned int float64_to_uint32_round_to_zero( float64 STATUS_PARAM );
 int64_t float64_to_int64( float64 STATUS_PARAM );
 int64_t float64_to_int64_round_to_zero( float64 STATUS_PARAM );
 float32 float64_to_float32( float64 STATUS_PARAM );
@@ -248,7 +281,19 @@ char float64_lt( float64, float64 STATUS_PARAM );
 char float64_eq_signaling( float64, float64 STATUS_PARAM );
 char float64_le_quiet( float64, float64 STATUS_PARAM );
 char float64_lt_quiet( float64, float64 STATUS_PARAM );
+char float64_compare( float64, float64 STATUS_PARAM );
+char float64_compare_quiet( float64, float64 STATUS_PARAM );
 char float64_is_signaling_nan( float64 );
+
+INLINE float64 float64_abs(float64 a)
+{
+    return a & 0x7fffffffffffffffLL;
+}
+
+INLINE float64 float64_chs(float64 a)
+{
+    return a ^ 0x8000000000000000LL;
+}
 
 #ifdef FLOATX80
 
@@ -282,6 +327,18 @@ char floatx80_eq_signaling( floatx80, floatx80 STATUS_PARAM );
 char floatx80_le_quiet( floatx80, floatx80 STATUS_PARAM );
 char floatx80_lt_quiet( floatx80, floatx80 STATUS_PARAM );
 char floatx80_is_signaling_nan( floatx80 );
+
+INLINE floatx80 floatx80_abs(floatx80 a)
+{
+    a.high &= 0x7fff;
+    return a;
+}
+
+INLINE floatx80 floatx80_chs(floatx80 a)
+{
+    a.high ^= 0x8000;
+    return a;
+}
 
 #endif
 
@@ -317,6 +374,18 @@ char float128_eq_signaling( float128, float128 STATUS_PARAM );
 char float128_le_quiet( float128, float128 STATUS_PARAM );
 char float128_lt_quiet( float128, float128 STATUS_PARAM );
 char float128_is_signaling_nan( float128 );
+
+INLINE float128 float128_abs(float128 a)
+{
+    a.high &= 0x7fffffffffffffffLL;
+    return a;
+}
+
+INLINE float128 float128_chs(float128 a)
+{
+    a.high ^= 0x8000000000000000LL;
+    return a;
+}
 
 #endif
 

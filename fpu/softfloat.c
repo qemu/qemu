@@ -54,6 +54,11 @@ void set_float_rounding_mode(int val STATUS_PARAM)
     STATUS(float_rounding_mode) = val;
 }
 
+void set_float_exception_flags(int val STATUS_PARAM)
+{
+    STATUS(float_exception_flags) = val;
+}
+
 #ifdef FLOATX80
 void set_floatx80_rounding_precision(int val STATUS_PARAM)
 {
@@ -5183,3 +5188,133 @@ flag float128_lt_quiet( float128 a, float128 b STATUS_PARAM )
 
 #endif
 
+/* misc functions */
+float32 uint32_to_float32( unsigned int a STATUS_PARAM )
+{
+    return int64_to_float32(a STATUS_VAR);
+}
+
+float64 uint32_to_float64( unsigned int a STATUS_PARAM )
+{
+    return int64_to_float64(a STATUS_VAR);
+}
+
+unsigned int float32_to_uint32( float32 a STATUS_PARAM )
+{
+    int64_t v;
+    unsigned int res;
+
+    v = float32_to_int64(a STATUS_VAR);
+    if (v < 0) {
+        res = 0;
+        float_raise( float_flag_invalid STATUS_VAR);
+    } else if (v > 0xffffffff) {
+        res = 0xffffffff;
+        float_raise( float_flag_invalid STATUS_VAR);
+    } else {
+        res = v;
+    }
+    return res;
+}
+
+unsigned int float32_to_uint32_round_to_zero( float32 a STATUS_PARAM )
+{
+    int64_t v;
+    unsigned int res;
+
+    v = float32_to_int64_round_to_zero(a STATUS_VAR);
+    if (v < 0) {
+        res = 0;
+        float_raise( float_flag_invalid STATUS_VAR);
+    } else if (v > 0xffffffff) {
+        res = 0xffffffff;
+        float_raise( float_flag_invalid STATUS_VAR);
+    } else {
+        res = v;
+    }
+    return res;
+}
+
+unsigned int float64_to_uint32( float64 a STATUS_PARAM )
+{
+    int64_t v;
+    unsigned int res;
+
+    v = float64_to_int64(a STATUS_VAR);
+    if (v < 0) {
+        res = 0;
+        float_raise( float_flag_invalid STATUS_VAR);
+    } else if (v > 0xffffffff) {
+        res = 0xffffffff;
+        float_raise( float_flag_invalid STATUS_VAR);
+    } else {
+        res = v;
+    }
+    return res;
+}
+
+unsigned int float64_to_uint32_round_to_zero( float64 a STATUS_PARAM )
+{
+    int64_t v;
+    unsigned int res;
+
+    v = float64_to_int64_round_to_zero(a STATUS_VAR);
+    if (v < 0) {
+        res = 0;
+        float_raise( float_flag_invalid STATUS_VAR);
+    } else if (v > 0xffffffff) {
+        res = 0xffffffff;
+        float_raise( float_flag_invalid STATUS_VAR);
+    } else {
+        res = v;
+    }
+    return res;
+}
+
+#define COMPARE(s, nan_exp)                                                  \
+INLINE char float ## s ## _compare_internal( float ## s a, float ## s b,     \
+                                      int is_quiet STATUS_PARAM )            \
+{                                                                            \
+    flag aSign, bSign;                                                       \
+                                                                             \
+    if (( ( extractFloat ## s ## Exp( a ) == nan_exp ) &&                    \
+         extractFloat ## s ## Frac( a ) ) ||                                 \
+        ( ( extractFloat ## s ## Exp( b ) == nan_exp ) &&                    \
+          extractFloat ## s ## Frac( b ) )) {                                \
+        if (!is_quiet ||                                                     \
+            float ## s ## _is_signaling_nan( a ) ||                          \
+            float ## s ## _is_signaling_nan( b ) ) {                         \
+            float_raise( float_flag_invalid STATUS_VAR);                     \
+        }                                                                    \
+        return float_relation_unordered;                                     \
+    }                                                                        \
+    aSign = extractFloat ## s ## Sign( a );                                  \
+    bSign = extractFloat ## s ## Sign( b );                                  \
+    if ( aSign != bSign ) {                                                  \
+        if ( (bits ## s) ( ( a | b )<<1 ) == 0 ) {                           \
+            /* zero case */                                                  \
+            return float_relation_equal;                                     \
+        } else {                                                             \
+            return 1 - (2 * aSign);                                          \
+        }                                                                    \
+    } else {                                                                 \
+        if (a == b) {                                                        \
+            return float_relation_equal;                                     \
+        } else {                                                             \
+            return 1 - 2 * (aSign ^ ( a < b ));                              \
+        }                                                                    \
+    }                                                                        \
+}                                                                            \
+                                                                             \
+char float ## s ## _compare( float ## s a, float ## s b STATUS_PARAM )       \
+{                                                                            \
+    return float ## s ## _compare_internal(a, b, 0 STATUS_VAR);              \
+}                                                                            \
+                                                                             \
+char float ## s ## _compare_quiet( float ## s a, float ## s b STATUS_PARAM ) \
+{                                                                            \
+    return float ## s ## _compare_internal(a, b, 1 STATUS_VAR);              \
+}
+
+COMPARE(32, 0xff)
+COMPARE(64, 0x7ff)
