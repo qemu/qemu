@@ -27,7 +27,7 @@ ar="ar"
 make="make"
 strip="strip"
 cpu=`uname -m`
-target_list="i386-user i386 i386-softmmu arm-user armeb-user sparc-user ppc-user ppc-softmmu sparc-softmmu"
+target_list="i386-user i386 i386-softmmu arm-user armeb-user sparc-user ppc-user ppc-softmmu sparc-softmmu x86_64-softmmu"
 case "$cpu" in
   i386|i486|i586|i686|i86pc|BePC)
     cpu="i386"
@@ -63,7 +63,7 @@ case "$cpu" in
     cpu="m68k"
   ;;
   x86_64|amd64)
-    cpu="amd64"
+    cpu="x86_64"
   ;;
   *)
     cpu="unknown"
@@ -383,9 +383,9 @@ echo "EXESUF=$EXESUF" >> $config_mak
 if test "$cpu" = "i386" ; then
   echo "ARCH=i386" >> $config_mak
   echo "#define HOST_I386 1" >> $config_h
-elif test "$cpu" = "amd64" ; then
-  echo "ARCH=amd64" >> $config_mak
-  echo "#define HOST_AMD64 1" >> $config_h
+elif test "$cpu" = "x86_64" ; then
+  echo "ARCH=x86_64" >> $config_mak
+  echo "#define HOST_X86_64 1" >> $config_h
 elif test "$cpu" = "armv4b" ; then
   echo "ARCH=arm" >> $config_mak
   echo "#define HOST_ARM 1" >> $config_h
@@ -538,6 +538,11 @@ elif test "$target_cpu" = "ppc" ; then
   echo "TARGET_ARCH=ppc" >> $config_mak
   echo "#define TARGET_ARCH \"ppc\"" >> $config_h
   echo "#define TARGET_PPC 1" >> $config_h
+elif test "$target_cpu" = "x86_64" ; then
+  echo "TARGET_ARCH=x86_64" >> $config_mak
+  echo "#define TARGET_ARCH \"x86_64\"" >> $config_h
+  echo "#define TARGET_I386 1" >> $config_h
+  echo "#define TARGET_X86_64 1" >> $config_h
 else
   echo "Unsupported target CPU"
   exit 1

@@ -1,6 +1,10 @@
 include config.mak
 
-TARGET_PATH=$(SRC_PATH)/target-$(TARGET_ARCH)
+TARGET_BASE_ARCH:=$(TARGET_ARCH)
+ifeq ($(TARGET_ARCH), x86_64)
+TARGET_BASE_ARCH:=i386
+endif
+TARGET_PATH=$(SRC_PATH)/target-$(TARGET_BASE_ARCH)
 VPATH=$(SRC_PATH):$(TARGET_PATH):$(SRC_PATH)/hw:$(SRC_PATH)/audio
 DEFINES=-I. -I$(TARGET_PATH) -I$(SRC_PATH)
 ifdef CONFIG_USER_ONLY
@@ -8,6 +12,7 @@ VPATH+=:$(SRC_PATH)/linux-user
 DEFINES+=-I$(SRC_PATH)/linux-user -I$(SRC_PATH)/linux-user/$(TARGET_ARCH)
 endif
 CFLAGS=-Wall -O2 -g -fno-strict-aliasing
+#CFLAGS+=-Werror
 LDFLAGS=-g
 LIBS=
 HELPER_CFLAGS=$(CFLAGS)
@@ -52,6 +57,12 @@ endif # ARCH != i386
 
 endif # TARGET_ARCH = i386
 
+ifeq ($(TARGET_ARCH), x86_64)
+ifdef CONFIG_SOFTMMU
+PROGS+=$(QEMU_SYSTEM)
+endif
+endif # TARGET_ARCH = x86_64
+
 ifeq ($(TARGET_ARCH), ppc)
 
 ifeq ($(ARCH), ppc)
@@ -64,11 +75,11 @@ PROGS+=$(QEMU_SYSTEM)
 endif
 endif # ARCH = i386
 
-ifeq ($(ARCH), amd64)
+ifeq ($(ARCH), x86_64)
 ifdef CONFIG_SOFTMMU
 PROGS+=$(QEMU_SYSTEM)
 endif
-endif # ARCH = amd64
+endif # ARCH = x86_64
 
 endif # TARGET_ARCH = ppc
 
@@ -84,11 +95,11 @@ PROGS+=$(QEMU_SYSTEM)
 endif
 endif # ARCH = i386
 
-ifeq ($(ARCH), amd64)
+ifeq ($(ARCH), x86_64)
 ifdef CONFIG_SOFTMMU
 PROGS+=$(QEMU_SYSTEM)
 endif
-endif # ARCH = amd64
+endif # ARCH = x86_64
 
 endif # TARGET_ARCH = sparc
 endif # !CONFIG_USER_ONLY
@@ -122,9 +133,9 @@ LDFLAGS+=-Wl,-shared
 endif
 endif
 
-ifeq ($(ARCH),amd64)
+ifeq ($(ARCH),x86_64)
 OP_CFLAGS=$(CFLAGS) -falign-functions=0
-LDFLAGS+=-Wl,-T,$(SRC_PATH)/amd64.ld
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/x86_64.ld
 endif
 
 ifeq ($(ARCH),ppc)
@@ -226,6 +237,10 @@ LIBOBJS+=translate-copy.o
 endif
 endif
 
+ifeq ($(TARGET_ARCH), x86_64)
+LIBOBJS+=helper.o helper2.o
+endif
+
 ifeq ($(TARGET_ARCH), ppc)
 LIBOBJS+= op_helper.o helper.o
 endif
@@ -239,7 +254,7 @@ LIBOBJS+=disas.o
 ifeq ($(findstring i386, $(TARGET_ARCH) $(ARCH)),i386)
 USE_I386_DIS=y
 endif
-ifeq ($(findstring amd64, $(TARGET_ARCH) $(ARCH)),amd64)
+ifeq ($(findstring x86_64, $(TARGET_ARCH) $(ARCH)),x86_64)
 USE_I386_DIS=y
 endif
 ifdef USE_I386_DIS
@@ -297,11 +312,11 @@ audio.o fmodaudio.o: DEFINES := -I$(CONFIG_FMOD_INC) $(DEFINES)
 LIBS += $(CONFIG_FMOD_LIB)
 endif
 
-ifeq ($(TARGET_ARCH), i386)
+ifeq ($(TARGET_BASE_ARCH), i386)
 # Hardware support
 VL_OBJS+= ide.o ne2000.o pckbd.o vga.o $(SOUND_HW) dma.o $(AUDIODRV)
 VL_OBJS+= fdc.o mc146818rtc.o serial.o i8259.o i8254.o pc.o
-VL_OBJS+= cirrus_vga.o mixeng.o
+VL_OBJS+= cirrus_vga.o mixeng.o apic.o
 endif
 ifeq ($(TARGET_ARCH), ppc)
 VL_OBJS+= ppc.o ide.o ne2000.o pckbd.o vga.o $(SOUND_HW) dma.o $(AUDIODRV)
@@ -376,7 +391,7 @@ op.o: op.c
 helper.o: helper.c
 	$(CC) $(HELPER_CFLAGS) $(DEFINES) -c -o $@ $<
 
-ifeq ($(TARGET_ARCH), i386)
+ifeq ($(TARGET_BASE_ARCH), i386)
 op.o: op.c opreg_template.h ops_template.h ops_template_mem.h ops_mem.h
 endif
 
