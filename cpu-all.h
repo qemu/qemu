@@ -56,6 +56,39 @@ typedef union {
 
 /* CPU memory access without any memory or io remapping */
 
+/*
+ * the generic syntax for the memory accesses is:
+ *
+ * load: ld{type}{sign}{size}{endian}_{access_type}(ptr)
+ *
+ * store: st{type}{size}{endian}_{access_type}(ptr, val)
+ *
+ * type is:
+ * (empty): integer access
+ *   f    : float access
+ * 
+ * sign is:
+ * (empty): for floats or 32 bit size
+ *   u    : unsigned
+ *   s    : signed
+ *
+ * size is:
+ *   b: 8 bits
+ *   w: 16 bits
+ *   l: 32 bits
+ *   q: 64 bits
+ * 
+ * endian is:
+ * (empty): target cpu endianness or 8 bit access
+ *   r    : reversed target cpu endianness (not implemented yet)
+ *   be   : big endian (not implemented yet)
+ *   le   : little endian (not implemented yet)
+ *
+ * access_type is:
+ *   raw    : host memory access
+ *   user   : user mode access using soft MMU
+ *   kernel : kernel mode access using soft MMU
+ */
 static inline int ldub_raw(void *ptr)
 {
     return *(uint8_t *)ptr;
@@ -195,20 +228,47 @@ static inline void stfq_raw(void *ptr, double v)
 
 static inline int lduw_raw(void *ptr)
 {
+#if defined(__i386__)
+    int val;
+    asm volatile ("movzwl %1, %0\n"
+                  "xchgb %b0, %h0\n"
+                  : "=q" (val)
+                  : "m" (*(uint16_t *)ptr));
+    return val;
+#else
     uint8_t *b = (uint8_t *) ptr;
-    return (b[0]<<8|b[1]);
+    return ((b[0] << 8) | b[1]);
+#endif
 }
 
 static inline int ldsw_raw(void *ptr)
 {
-    int8_t *b = (int8_t *) ptr;
-    return (b[0]<<8|b[1]);
+#if defined(__i386__)
+    int val;
+    asm volatile ("movzwl %1, %0\n"
+                  "xchgb %b0, %h0\n"
+                  : "=q" (val)
+                  : "m" (*(uint16_t *)ptr));
+    return (int16_t)val;
+#else
+    uint8_t *b = (uint8_t *) ptr;
+    return (int16_t)((b[0] << 8) | b[1]);
+#endif
 }
 
 static inline int ldl_raw(void *ptr)
 {
+#if defined(__i386__)
+    int val;
+    asm volatile ("movl %1, %0\n"
+                  "bswap %0\n"
+                  : "=r" (val)
+                  : "m" (*(uint32_t *)ptr));
+    return val;
+#else
     uint8_t *b = (uint8_t *) ptr;
-    return (b[0]<<24|b[1]<<16|b[2]<<8|b[3]);
+    return (b[0] << 24) | (b[1] << 16) | (b[2] << 8) | b[3];
+#endif
 }
 
 static inline uint64_t ldq_raw(void *ptr)
@@ -221,18 +281,32 @@ static inline uint64_t ldq_raw(void *ptr)
 
 static inline void stw_raw(void *ptr, int v)
 {
+#if defined(__i386__)
+    asm volatile ("xchgb %b0, %h0\n"
+                  "movw %w0, %1\n"
+                  : "=q" (v)
+                  : "m" (*(uint16_t *)ptr), "0" (v));
+#else
     uint8_t *d = (uint8_t *) ptr;
     d[0] = v >> 8;
     d[1] = v;
+#endif
 }
 
 static inline void stl_raw(void *ptr, int v)
 {
+#if defined(__i386__)
+    asm volatile ("bswap %0\n"
+                  "movl %0, %1\n"
+                  : "=r" (v)
+                  : "m" (*(uint32_t *)ptr), "0" (v));
+#else
     uint8_t *d = (uint8_t *) ptr;
     d[0] = v >> 24;
     d[1] = v >> 16;
     d[2] = v >> 8;
     d[3] = v;
+#endif
 }
 
 static inline void stq_raw(void *ptr, uint64_t v)
