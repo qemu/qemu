@@ -115,6 +115,9 @@
 /* copy of CR0.PE (protected mode) */
 #define HF_PE_SHIFT          7
 #define HF_TF_SHIFT          8 /* must be same as eflags */
+#define HF_MP_SHIFT          9 /* the order must be MP, EM, TS */
+#define HF_EM_SHIFT         10
+#define HF_TS_SHIFT         11
 #define HF_IOPL_SHIFT       12 /* must be same as eflags */
 #define HF_VM_SHIFT         17 /* must be same as eflags */
 
@@ -126,9 +129,15 @@
 #define HF_ADDSEG_MASK       (1 << HF_ADDSEG_SHIFT)
 #define HF_PE_MASK           (1 << HF_PE_SHIFT)
 #define HF_TF_MASK           (1 << HF_TF_SHIFT)
+#define HF_MP_MASK           (1 << HF_MP_SHIFT)
+#define HF_EM_MASK           (1 << HF_EM_SHIFT)
+#define HF_TS_MASK           (1 << HF_TS_SHIFT)
 
 #define CR0_PE_MASK  (1 << 0)
+#define CR0_MP_MASK  (1 << 1)
+#define CR0_EM_MASK  (1 << 2)
 #define CR0_TS_MASK  (1 << 3)
+#define CR0_NE_MASK  (1 << 5)
 #define CR0_WP_MASK  (1 << 16)
 #define CR0_AM_MASK  (1 << 18)
 #define CR0_PG_MASK  (1 << 31)
@@ -280,7 +289,7 @@ typedef struct CPUX86State {
     unsigned int fpus;
     unsigned int fpuc;
     uint8_t fptags[8];   /* 0 = valid, 1 = empty */
-    CPU86_LDouble fpregs[8];    
+    CPU86_LDouble fpregs[8];
 
     /* emulator internal variables */
     CPU86_LDouble ft0;
@@ -304,8 +313,11 @@ typedef struct CPUX86State {
     uint32_t sysenter_eip;
 
     /* temporary data for USE_CODE_COPY mode */
+#ifdef USE_CODE_COPY
     uint32_t tmp0;
     uint32_t saved_esp;
+    int native_fp_regs; /* if true, the FPU state is in the native CPU regs */
+#endif
     
     /* exception/interrupt handling */
     jmp_buf jmp_env;

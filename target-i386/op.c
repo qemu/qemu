@@ -998,6 +998,7 @@ void OPPROTO op_movl_env_T1(void)
 void OPPROTO op_clts(void)
 {
     env->cr[0] &= ~CR0_TS_MASK;
+    env->hflags &= ~HF_TS_MASK;
 }
 
 /* flags handling */

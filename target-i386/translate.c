@@ -63,6 +63,7 @@ typedef struct DisasContext {
     int singlestep_enabled; /* "hardware" single step enabled */
     int jmp_opt; /* use direct block chaining for direct jumps */
     int mem_index; /* select memory access functions */
+    int flags; /* all execution flags */
     struct TranslationBlock *tb;
     int popl_esp_hack; /* for correct popl with esp base handling */
 } DisasContext;
@@ -2814,6 +2815,12 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         /************************/
         /* floats */
     case 0xd8 ... 0xdf: 
+        if (s->flags & (HF_EM_MASK | HF_TS_MASK)) {
+            /* if CR0.EM or CR0.TS are set, generate an FPU exception */
+            /* XXX: what to do if illegal op ? */
+            gen_exception(s, EXCP07_PREX, pc_start - s->cs_base);
+            break;
+        }
         modrm = ldub_code(s->pc++);
         mod = (modrm >> 6) & 3;
         rm = modrm & 7;
@@ -3225,6 +3232,9 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
                 goto illegal_op;
             }
         }
+#ifdef USE_CODE_COPY
+        s->tb->cflags |= CF_TB_FP_USED;
+#endif
         break;
         /************************/
         /* string ops */
@@ -3747,6 +3757,10 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
             goto illegal_op;
         break;
     case 0x9b: /* fwait */
+        if ((s->flags & (HF_MP_MASK | HF_TS_MASK)) == 
+            (HF_MP_MASK | HF_TS_MASK)) {
+            gen_exception(s, EXCP07_PREX, pc_start - s->cs_base);
+        }
         break;
     case 0xcc: /* int3 */
         gen_interrupt(s, EXCP03_INT3, pc_start - s->cs_base, s->pc - s->cs_base);
@@ -4140,6 +4154,9 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
             gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
             gen_op_clts();
+            /* abort block because static cpu state changed */
+            gen_op_jmp_im(s->pc - s->cs_base);
+            gen_eob(s);
         }
         break;
     default:
@@ -4504,6 +4521,7 @@ static inline int gen_intermediate_code_internal(CPUState *env,
         else
             dc->mem_index = 3;
     }
+    dc->flags = flags;
     dc->jmp_opt = !(dc->tf || env->singlestep_enabled ||
                     (flags & HF_INHIBIT_IRQ_MASK)
 #ifndef CONFIG_SOFTMMU
