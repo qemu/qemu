@@ -27,6 +27,7 @@
 //#define DEBUG_PIC
 
 //#define DEBUG_IRQ_LATENCY
+//#define DEBUG_IRQ_COUNT
 
 typedef struct PicState {
     uint8_t last_irr; /* edge detection */
@@ -49,6 +50,13 @@ typedef struct PicState {
 
 /* 0 is master pic, 1 is slave pic */
 static PicState pics[2];
+
+#if defined(DEBUG_PIC) || defined (DEBUG_IRQ_COUNT)
+static int irq_level[16];
+#endif
+#ifdef DEBUG_IRQ_COUNT
+static uint64_t irq_count[16];
+#endif
 
 /* set irq level. If an edge is detected, then the IRR is set to 1 */
 static inline void pic_set_irq1(PicState *s, int irq, int level)
@@ -147,16 +155,19 @@ static void pic_update_irq(void)
 #ifdef DEBUG_IRQ_LATENCY
 int64_t irq_time[16];
 #endif
-#if defined(DEBUG_PIC)
-int irq_level[16];
-#endif
 
 void pic_set_irq(int irq, int level)
 {
-#if defined(DEBUG_PIC)
+#if defined(DEBUG_PIC) || defined(DEBUG_IRQ_COUNT)
     if (level != irq_level[irq]) {
+#if defined(DEBUG_PIC)
         printf("pic_set_irq: irq=%d level=%d\n", irq, level);
+#endif
         irq_level[irq] = level;
+#ifdef DEBUG_IRQ_COUNT
+	if (level == 1)
+	    irq_count[irq]++;
+#endif
     }
 #endif
 #ifdef DEBUG_IRQ_LATENCY
@@ -463,6 +474,22 @@ void pic_info(void)
     }
 }
 
+void irq_info(void)
+{
+#ifndef DEBUG_IRQ_COUNT
+    term_printf("irq statistic code not compiled.\n");
+#else
+    int i;
+    int64_t count;
+
+    term_printf("IRQ statistics:\n");
+    for (i = 0; i < 16; i++) {
+        count = irq_count[i];
+        if (count > 0)
+            term_printf("%2d: %lld\n", i, count);
+    }
+#endif
+}
 
 void pic_init(void)
 {

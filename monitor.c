@@ -523,6 +523,8 @@ static term_cmd_t info_cmds[] = {
       "", "show the cpu registers" },
     { "history", "", do_info_history,
       "", "show the command line history", },
+    { "irq", "", irq_info,
+      "", "show the interrupts statistics (if available)", },
     { "pic", "", pic_info,
       "", "show i8259 (PIC) state", },
     { "pci", "", pci_info,

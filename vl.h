@@ -544,6 +544,7 @@ void pic_set_irq(int irq, int level);
 void pic_init(void);
 uint32_t pic_intack_read(CPUState *env);
 void pic_info(void);
+void irq_info(void);
 
 /* i8254.c */
 
