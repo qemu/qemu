@@ -56,7 +56,9 @@
 //#define DEBUG_UNUSED_IOPORT
 //#define DEBUG_IRQ_LATENCY
 
-#define PHYS_RAM_BASE 0xa8000000
+#define PHYS_RAM_BASE     0xac000000
+#define PHYS_RAM_MAX_SIZE (256 * 1024 * 1024)
+
 #define KERNEL_LOAD_ADDR   0x00100000
 #define INITRD_LOAD_ADDR   0x00400000
 #define KERNEL_PARAMS_ADDR 0x00090000
@@ -2640,6 +2642,11 @@ int main(int argc, char **argv)
             phys_ram_size = atoi(optarg) * 1024 * 1024;
             if (phys_ram_size <= 0)
                 help();
+            if (phys_ram_size > PHYS_RAM_MAX_SIZE) {
+                fprintf(stderr, "vl: at most %d MB RAM can be simulated\n",
+                        PHYS_RAM_MAX_SIZE / (1024 * 1024));
+                exit(1);
+            }
             break;
         case 'd':
             loglevel = 1;
@@ -2734,7 +2741,7 @@ int main(int argc, char **argv)
     params->mount_root_rdonly = 0;
     params->cl_magic = 0xA33F;
     params->cl_offset = params->commandline - (uint8_t *)params;
-    params->ext_mem_k = (phys_ram_size / 1024) - 1024;
+    params->alt_mem_k = (phys_ram_size / 1024) - 1024;
     for(i = optind + 1; i < argc; i++) {
         if (i != optind + 1)
             pstrcat(params->commandline, sizeof(params->commandline), " ");
