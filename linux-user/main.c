@@ -27,6 +27,11 @@
 
 #include "cpu-i386.h"
 
+#define DEBUG_LOGFILE "/tmp/gemu.log"
+
+FILE *logfile = NULL;
+int loglevel;
+
 unsigned long x86_stack_size;
 unsigned long stktop;
 
@@ -83,7 +88,7 @@ int cpu_x86_inl(int addr)
 void usage(void)
 {
     printf("gemu version 0.1, Copyright (c) 2003 Fabrice Bellard\n"
-           "usage: gemu program [arguments...]\n"
+           "usage: gemu [-d] program [arguments...]\n"
            "Linux x86 emulator\n"
            );
     exit(1);
@@ -95,11 +100,27 @@ int main(int argc, char **argv)
     struct target_pt_regs regs1, *regs = &regs1;
     struct image_info info1, *info = &info1;
     CPUX86State *env;
+    int optind;
 
     if (argc <= 1)
         usage();
-    
-    filename = argv[1];
+    loglevel = 0;
+    optind = 1;
+    if (argv[optind] && !strcmp(argv[optind], "-d")) {
+        loglevel = 1;
+        optind++;
+    }
+    filename = argv[optind];
+
+    /* init debug */
+    if (loglevel) {
+        logfile = fopen(DEBUG_LOGFILE, "w");
+        if (!logfile) {
+            perror(DEBUG_LOGFILE);
+            exit(1);
+        }
+        setvbuf(logfile, NULL, _IOLBF, 0);
+    }
 
     /* Zero out regs */
     memset(regs, 0, sizeof(struct target_pt_regs));

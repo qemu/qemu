@@ -5,23 +5,21 @@
 #include <inttypes.h>
 #include <assert.h>
 
-/* dump all code */
 #define DEBUG_DISAS
-#define DEBUG_LOGFILE "/tmp/gemu.log"
-
-#ifdef DEBUG_DISAS
-#include "dis-asm.h"
-#endif
 
 #define IN_OP_I386
 #include "cpu-i386.h"
 
+/* dump all code */
+#ifdef DEBUG_DISAS
+#include "dis-asm.h"
+#endif
+
 static uint8_t *gen_code_ptr;
 int __op_param1, __op_param2, __op_param3;
 
-#ifdef DEBUG_DISAS
-static FILE *logfile = NULL;
-#endif
+extern FILE *logfile;
+extern int loglevel;
 
 /* supress that */
 static void error(const char *fmt, ...)
@@ -716,9 +714,6 @@ static void gen_lea_modrm(DisasContext *s, int modrm, int *reg_ptr, int *offset_
     int reg1, reg2, opreg;
     int mod, rm, code;
 
-#ifdef DEBUG_DISAS
-    fprintf(logfile, "modrm=0x%x\n", modrm);
-#endif
     mod = (modrm >> 6) & 3;
     rm = modrm & 7;
 
@@ -731,9 +726,6 @@ static void gen_lea_modrm(DisasContext *s, int modrm, int *reg_ptr, int *offset_
         if (base == 4) {
             havesib = 1;
             code = ldub(s->pc++);
-#ifdef DEBUG_DISAS
-            fprintf(logfile, "sib=0x%x\n", code);
-#endif
             scale = (code >> 6) & 3;
             index = (code >> 3) & 7;
             base = code & 7;
@@ -988,11 +980,6 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
     //    cur_pc = s->pc; /* for insn generation */
  next_byte:
     b = ldub(s->pc);
-#ifdef DEBUG_DISAS
-    fprintf(logfile, "ib=0x%02x\n", b);
-#endif
-    if (b < 0)
-        return -1;
     s->pc++;
     /* check prefixes */
     switch (b) {
@@ -2247,33 +2234,26 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int *gen_code_size_ptr,
     gen_start();
 
 #ifdef DEBUG_DISAS
-    if (!logfile) {
-        logfile = fopen(DEBUG_LOGFILE, "w");
-        if (!logfile) {
-            perror(DEBUG_LOGFILE);
-            exit(1);
-        }
-        setvbuf(logfile, NULL, _IOLBF, 0);
-    }
-
-    INIT_DISASSEMBLE_INFO(disasm_info, logfile, fprintf);
-    disasm_info.buffer = pc_start;
-    disasm_info.buffer_vma = (unsigned long)pc_start;
-    disasm_info.buffer_length = 15;
+    if (loglevel) {
+        INIT_DISASSEMBLE_INFO(disasm_info, logfile, fprintf);
+        disasm_info.buffer = pc_start;
+        disasm_info.buffer_vma = (unsigned long)pc_start;
+        disasm_info.buffer_length = 15;
 #if 0        
-    disasm_info.flavour = bfd_get_flavour (abfd);
-    disasm_info.arch = bfd_get_arch (abfd);
-    disasm_info.mach = bfd_get_mach (abfd);
+        disasm_info.flavour = bfd_get_flavour (abfd);
+        disasm_info.arch = bfd_get_arch (abfd);
+        disasm_info.mach = bfd_get_mach (abfd);
 #endif
 #ifdef WORDS_BIGENDIAN
-    disasm_info.endian = BFD_ENDIAN_BIG;
+        disasm_info.endian = BFD_ENDIAN_BIG;
 #else
-    disasm_info.endian = BFD_ENDIAN_LITTLE;
+        disasm_info.endian = BFD_ENDIAN_LITTLE;
 #endif        
-    fprintf(logfile, "IN:\n");
-    fprintf(logfile, "0x%08lx:  ", (long)pc_start);
-    print_insn_i386((unsigned long)pc_start, &disasm_info);
-    fprintf(logfile, "\n\n");
+        fprintf(logfile, "IN:\n");
+        fprintf(logfile, "0x%08lx:  ", (long)pc_start);
+        print_insn_i386((unsigned long)pc_start, &disasm_info);
+        fprintf(logfile, "\n\n");
+    }
 #endif
     is_jmp = 0;
     ret = disas_insn(dc, pc_start, &is_jmp);
@@ -2290,7 +2270,7 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int *gen_code_size_ptr,
     *gen_code_size_ptr = gen_code_ptr - gen_code_buf;
 
 #ifdef DEBUG_DISAS
-    {
+    if (loglevel) {
         uint8_t *pc;
         int count;
 

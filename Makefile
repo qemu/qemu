@@ -34,13 +34,10 @@ DEFINES+=-D_GNU_SOURCE
 DEFINES+=-DCONFIG_PREFIX=\"/usr/local\"
 LDSCRIPT=$(ARCH).ld
 LIBS+=-ldl -lm
+VERSION=0.1
 
-#DEFINES+= -DGEMU -DDOSEMU -DNO_TRACE_MSGS
-#OBJS= i386/fp87.o i386/interp_main.o i386/interp_modrm.o i386/interp_16_32.o \
-#      i386/interp_32_16.o i386/interp_32_32.o i386/emu-utils.o \
-#      i386/dis8086.o i386/emu-ldt.o
+OBJS= elfload.o main.o thunk.o syscall.o
 OBJS+=translate-i386.o op-i386.o
-OBJS+= elfload.o main.o thunk.o syscall.o
 # NOTE: the disassembler code is only needed for debugging
 OBJS+=i386-dis.o dis-buf.o
 SRCS = $(OBJS:.o=.c)
@@ -52,15 +49,6 @@ gemu: $(OBJS)
 
 depend: $(SRCS)
 	$(CC) -MM $(CFLAGS) $^ 1>.depend
-
-# old i386 emulator
-i386/interp_32_32.o: i386/interp_32_32.c i386/interp_gen.h
-
-i386/interp_gen.h: i386/gencode
-	./i386/gencode > $@
-
-i386/gencode: i386/gencode.c
-	$(CC) -O2 -Wall -g $< -o $@
 
 # new i386 emulator
 dyngen: dyngen.c
@@ -78,7 +66,7 @@ op-i386.o: op-i386.c opreg_template.h ops_template.h
 	$(CC) $(CFLAGS) $(DEFINES) -c -o $@ $<
 
 clean:
-	rm -f *.o *~ i386/*.o i386/*~ gemu TAGS
+	rm -f *.o *~ gemu dyngen TAGS
 
 # various test targets
 test speed: gemu
@@ -86,6 +74,26 @@ test speed: gemu
 
 TAGS: 
 	etags *.[ch] i386/*.[ch]
+
+FILES= \
+COPYING.LIB  dyngen.c    ioctls.h          ops_template.h  syscall_types.h\
+Makefile     elf.h       linux_bin.h       segment.h       thunk.c\
+TODO         elfload.c   main.c            signal.c        thunk.h\
+cpu-i386.h   gemu.h      op-i386.c         syscall-i386.h  translate-i386.c\
+dis-asm.h    gen-i386.h  op-i386.h         syscall.c\
+dis-buf.c    i386-dis.c  opreg_template.h  syscall_defs.h\
+i386.ld ppc.ld\
+tests/test-i386.c tests/test-i386-shift.h tests/test-i386.h\
+tests/test2.c tests/hello.c tests/sha1.c tests/test1.c
+
+FILE=gemu-$(VERSION)
+
+tar:
+	rm -rf /tmp/$(FILE)
+	mkdir -p /tmp/$(FILE)
+	cp -P $(FILES) /tmp/$(FILE)
+	( cd /tmp ; tar zcvf ~/$(FILE).tar.gz $(FILE) )
+	rm -rf /tmp/$(FILE)
 
 ifneq ($(wildcard .depend),)
 include .depend

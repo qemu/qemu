@@ -1,3 +1,5 @@
+#define DEBUG_EXEC
+
 typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
 typedef unsigned int uint32_t;
@@ -9,6 +11,11 @@ typedef signed int int32_t;
 typedef signed long long int64_t;
 
 #define NULL 0
+
+typedef struct FILE FILE;
+extern FILE *logfile;
+extern int loglevel;
+extern int fprintf(FILE *, const char *, ...);
 
 #ifdef __i386__
 register int T0 asm("esi");
@@ -1636,6 +1643,32 @@ void OPPROTO op_fcos(void)
 /* main execution loop */
 uint8_t code_gen_buffer[65536];
 
+#ifdef DEBUG_EXEC
+static const char *cc_op_str[] = {
+    "DYNAMIC",
+    "EFLAGS",
+    "MUL",
+    "ADDB",
+    "ADDW",
+    "ADDL",
+    "SUBB",
+    "SUBW",
+    "SUBL",
+    "LOGICB",
+    "LOGICW",
+    "LOGICL",
+    "INCB",
+    "INCW",
+    "INCL",
+    "DECB",
+    "DECW",
+    "DECL",
+    "SHLB",
+    "SHLW",
+    "SHLL",
+};
+#endif
+
 int cpu_x86_exec(CPUX86State *env1)
 {
     int saved_T0, saved_T1, saved_A0;
@@ -1653,6 +1686,17 @@ int cpu_x86_exec(CPUX86State *env1)
     /* prepare setjmp context for exception handling */
     if (setjmp(env->jmp_env) == 0) {
         for(;;) {
+#ifdef DEBUG_EXEC
+            if (loglevel) {
+                fprintf(logfile, 
+                        "EAX=%08x EBX=%08X ECX=%08x EDX=%08x\n"
+                        "ESI=%08x ESI=%08X EBP=%08x ESP=%08x\n"
+                        "CCS=%08x CCD=%08x CCOP=%s\n",
+                        env->regs[R_EAX], env->regs[R_EBX], env->regs[R_ECX], env->regs[R_EDX], 
+                        env->regs[R_ESI], env->regs[R_EDI], env->regs[R_EBP], env->regs[R_ESP], 
+                        env->cc_src, env->cc_dst, cc_op_str[env->cc_op]);
+            }
+#endif
             cpu_x86_gen_code(code_gen_buffer, &code_gen_size, (uint8_t *)env->pc);
             /* execute the generated code */
             gen_func = (void *)code_gen_buffer;
