@@ -212,6 +212,9 @@ struct target_pollfd {
     short revents;    /* returned events */
 };
 
+/* virtual terminal ioctls */
+#define TARGET_KDGKBTYPE       0x4b33
+
 /* Networking ioctls */
 #define TARGET_SIOCADDRT       0x890B          /* add routing table entry */
 #define TARGET_SIOCDELRT       0x890C          /* delete routing table entry */
