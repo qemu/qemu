@@ -294,6 +294,7 @@ int do_sigaction(int sig, const struct target_sigaction *act,
 
 #if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SPARC) || defined(TARGET_PPC)
 
+#if !defined(TARGET_SPARC)
 #define TARGET_SA_NOCLDSTOP	0x00000001
 #define TARGET_SA_NOCLDWAIT	0x00000002 /* not supported yet */
 #define TARGET_SA_SIGINFO	0x00000004
@@ -302,6 +303,57 @@ int do_sigaction(int sig, const struct target_sigaction *act,
 #define TARGET_SA_NODEFER	0x40000000
 #define TARGET_SA_RESETHAND	0x80000000
 #define TARGET_SA_RESTORER	0x04000000
+#else /* TARGET_SPARC */
+#define TARGET_SA_NOCLDSTOP    8u
+#define TARGET_SA_NOCLDWAIT    0x100u
+#define TARGET_SA_SIGINFO      0x200u
+#define TARGET_SA_ONSTACK      1u
+#define TARGET_SA_RESTART      2u
+#define TARGET_SA_NODEFER      0x20u
+#define TARGET_SA_RESETHAND    4u
+#endif
+
+#if defined(TARGET_SPARC)
+
+#define TARGET_SIGHUP		 1
+#define TARGET_SIGINT		 2
+#define TARGET_SIGQUIT		 3
+#define TARGET_SIGILL		 4
+#define TARGET_SIGTRAP		 5
+#define TARGET_SIGABRT		 6
+#define TARGET_SIGIOT		 6
+#define TARGET_SIGSTKFLT	 7 /* actually EMT */
+#define TARGET_SIGFPE		 8
+#define TARGET_SIGKILL		 9
+#define TARGET_SIGBUS		10
+#define TARGET_SIGSEGV		11
+#define TARGET_SIGSYS		12
+#define TARGET_SIGPIPE		13
+#define TARGET_SIGALRM		14
+#define TARGET_SIGTERM		15
+#define TARGET_SIGURG		16
+#define TARGET_SIGSTOP		17
+#define TARGET_SIGTSTP		18
+#define TARGET_SIGCONT		19
+#define TARGET_SIGCHLD		20
+#define TARGET_SIGTTIN		21
+#define TARGET_SIGTTOU		22
+#define TARGET_SIGIO		23
+#define TARGET_SIGXCPU		24
+#define TARGET_SIGXFSZ		25
+#define TARGET_SIGVTALRM	26
+#define TARGET_SIGPROF		27
+#define TARGET_SIGWINCH	        28
+#define TARGET_SIGPWR		29
+#define TARGET_SIGUSR1		30
+#define TARGET_SIGUSR2		31
+#define TARGET_SIGRTMIN         32
+
+#define TARGET_SIG_BLOCK          0x01 /* for blocking signals */
+#define TARGET_SIG_UNBLOCK        0x02 /* for unblocking signals */
+#define TARGET_SIG_SETMASK        0x04 /* for setting the signal mask */
+
+#else
 
 #define TARGET_SIGHUP		 1
 #define TARGET_SIGINT		 2
@@ -341,6 +393,8 @@ int do_sigaction(int sig, const struct target_sigaction *act,
 #define TARGET_SIG_UNBLOCK        1    /* for unblocking signals */
 #define TARGET_SIG_SETMASK        2    /* for setting the signal mask */
 
+#endif
+
 struct target_old_sigaction {
         target_ulong _sa_handler;
         target_ulong sa_mask;
@@ -359,6 +413,30 @@ typedef union target_sigval {
 	int sival_int;
         target_ulong sival_ptr;
 } target_sigval_t;
+#if 0
+#if defined (TARGET_SPARC)
+typedef struct {
+	struct {
+		target_ulong psr;
+		target_ulong pc;
+		target_ulong npc;
+		target_ulong y;
+		target_ulong u_regs[16]; /* globals and ins */
+	}		si_regs;
+	int		si_mask;
+} __siginfo_t;
+
+typedef struct {
+	unsigned   long si_float_regs [32];
+	unsigned   long si_fsr;
+	unsigned   long si_fpqdepth;
+	struct {
+		unsigned long *insn_addr;
+		unsigned long insn;
+	} si_fpqueue [16];
+} __siginfo_fpu_t;
+#endif
+#endif
 
 #define TARGET_SI_MAX_SIZE	128
 #define TARGET_SI_PAD_SIZE	((TARGET_SI_MAX_SIZE/sizeof(int)) - 3)
@@ -954,6 +1032,24 @@ struct target_stat64 {
 #define TARGET_O_NOFOLLOW      0100000 /* don't follow links */
 #define TARGET_O_LARGEFILE     0200000
 #define TARGET_O_DIRECT        0400000 /* direct disk access hint */
+#elif defined (TARGET_SPARC)
+#define TARGET_O_RDONLY        0x0000
+#define TARGET_O_WRONLY        0x0001
+#define TARGET_O_RDWR          0x0002
+#define TARGET_O_ACCMODE       0x0003
+#define TARGET_O_APPEND        0x0008
+#define TARGET_FASYNC          0x0040  /* fcntl, for BSD compatibility */
+#define TARGET_O_CREAT         0x0200  /* not fcntl */
+#define TARGET_O_TRUNC         0x0400  /* not fcntl */
+#define TARGET_O_EXCL          0x0800  /* not fcntl */
+#define TARGET_O_SYNC          0x2000
+#define TARGET_O_NONBLOCK      0x4000
+#define TARGET_O_NDELAY        (0x0004 | O_NONBLOCK)
+#define TARGET_O_NOCTTY        0x8000  /* not fcntl */
+#define TARGET_O_DIRECTORY     0x10000 /* must be a directory */
+#define TARGET_O_NOFOLLOW      0x20000 /* don't follow links */
+#define TARGET_O_LARGEFILE     0x40000
+#define TARGET_O_DIRECT        0x100000 /* direct disk access hint */
 #else
 #define TARGET_O_ACCMODE          0003
 #define TARGET_O_RDONLY             00
