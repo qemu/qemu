@@ -1575,7 +1575,6 @@ static inline void gen_bcond(DisasContext *ctx, int type)
                 gen_op_b((long)ctx->tb, target);
             } else {
                 gen_op_b_T1();
-                break;
             }
             goto no_test;
         }
