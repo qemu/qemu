@@ -149,18 +149,18 @@ void OPPROTO glue(op_jb_sub, SUFFIX)(void)
     src2 = CC_SRC - CC_DST;
 
     if ((DATA_TYPE)src1 < (DATA_TYPE)src2)
-        PC += PARAM1;
+        PC = PARAM1;
     else
-        PC += PARAM2;
+        PC = PARAM2;
     FORCE_RET();
 }
 
 void OPPROTO glue(op_jz_sub, SUFFIX)(void)
 {
     if ((DATA_TYPE)CC_DST != 0)
-        PC += PARAM1;
+        PC = PARAM1;
     else
-        PC += PARAM2;
+        PC = PARAM2;
     FORCE_RET();
 }
 
@@ -171,18 +171,18 @@ void OPPROTO glue(op_jbe_sub, SUFFIX)(void)
     src2 = CC_SRC - CC_DST;
 
     if ((DATA_TYPE)src1 <= (DATA_TYPE)src2)
-        PC += PARAM1;
+        PC = PARAM1;
     else
-        PC += PARAM2;
+        PC = PARAM2;
     FORCE_RET();
 }
 
 void OPPROTO glue(op_js_sub, SUFFIX)(void)
 {
     if (CC_DST & SIGN_MASK)
-        PC += PARAM1;
+        PC = PARAM1;
     else
-        PC += PARAM2;
+        PC = PARAM2;
     FORCE_RET();
 }
 
@@ -193,9 +193,9 @@ void OPPROTO glue(op_jl_sub, SUFFIX)(void)
     src2 = CC_SRC - CC_DST;
 
     if ((DATA_STYPE)src1 < (DATA_STYPE)src2)
-        PC += PARAM1;
+        PC = PARAM1;
     else
-        PC += PARAM2;
+        PC = PARAM2;
     FORCE_RET();
 }
 
@@ -206,9 +206,9 @@ void OPPROTO glue(op_jle_sub, SUFFIX)(void)
     src2 = CC_SRC - CC_DST;
 
     if ((DATA_STYPE)src1 <= (DATA_STYPE)src2)
-        PC += PARAM1;
+        PC = PARAM1;
     else
-        PC += PARAM2;
+        PC = PARAM2;
     FORCE_RET();
 }
 

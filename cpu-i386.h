@@ -1,5 +1,10 @@
+/* NOTE: this header is included in op-i386.c where global register
+   variable are used. Care must be used when including glibc headers.
+ */
 #ifndef CPU_I386_H
 #define CPU_I386_H
+
+#include <setjmp.h>
 
 #define R_EAX 0
 #define R_ECX 1
@@ -42,6 +47,27 @@
 #define RF_FLAG			0x10000
 #define VM_FLAG			0x20000
 /* AC				0x40000 */
+
+#define EXCP00_DIVZ	1
+#define EXCP01_SSTP	2
+#define EXCP02_NMI	3
+#define EXCP03_INT3	4
+#define EXCP04_INTO	5
+#define EXCP05_BOUND	6
+#define EXCP06_ILLOP	7
+#define EXCP07_PREX	8
+#define EXCP08_DBLE	9
+#define EXCP09_XERR	10
+#define EXCP0A_TSS	11
+#define EXCP0B_NOSEG	12
+#define EXCP0C_STACK	13
+#define EXCP0D_GPF	14
+#define EXCP0E_PAGE	15
+#define EXCP10_COPR	17
+#define EXCP11_ALGN	18
+#define EXCP12_MCHK	19
+
+#define EXCP_SIGNAL	256 /* async signal */
 
 enum {
     CC_OP_DYNAMIC, /* must use dynamic code to get cc_op */
@@ -89,27 +115,34 @@ typedef struct CPUX86State {
     /* standard registers */
     uint32_t regs[8];
     uint32_t pc; /* cs_case + eip value */
-
-    /* eflags handling */
     uint32_t eflags;
+
+    /* emulator internal eflags handling */
     uint32_t cc_src;
     uint32_t cc_dst;
     uint32_t cc_op;
     int32_t df; /* D flag : 1 if D = 0, -1 if D = 1 */
-    
+
     /* segments */
     uint8_t *segs_base[6];
-    uint32_t segs[6];
 
     /* FPU state */
-    CPU86_LDouble fpregs[8];    
-    uint8_t fptags[8];   /* 0 = valid, 1 = empty */
     unsigned int fpstt; /* top of stack index */
     unsigned int fpus;
     unsigned int fpuc;
+    uint8_t fptags[8];   /* 0 = valid, 1 = empty */
+    CPU86_LDouble fpregs[8];    
+
+    /* segments */
+    uint32_t segs[6];
 
     /* emulator internal variables */
+    
     CPU86_LDouble ft0;
+
+    /* exception handling */
+    jmp_buf jmp_env;
+    int exception_index;
 } CPUX86State;
 
 static inline int ldub(void *ptr)

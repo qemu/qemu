@@ -30,16 +30,19 @@ endif
 
 #########################################################
 
-DEFINES+=-D_GNU_SOURCE -DGEMU -DDOSEMU -DNO_TRACE_MSGS
+DEFINES+=-D_GNU_SOURCE
 DEFINES+=-DCONFIG_PREFIX=\"/usr/local\"
 LDSCRIPT=$(ARCH).ld
 LIBS+=-ldl -lm
 
-OBJS= i386/fp87.o i386/interp_main.o i386/interp_modrm.o i386/interp_16_32.o \
-      i386/interp_32_16.o i386/interp_32_32.o i386/emu-utils.o \
-      i386/dis8086.o i386/emu-ldt.o
+#DEFINES+= -DGEMU -DDOSEMU -DNO_TRACE_MSGS
+#OBJS= i386/fp87.o i386/interp_main.o i386/interp_modrm.o i386/interp_16_32.o \
+#      i386/interp_32_16.o i386/interp_32_32.o i386/emu-utils.o \
+#      i386/dis8086.o i386/emu-ldt.o
 OBJS+=translate-i386.o op-i386.o
 OBJS+= elfload.o main.o thunk.o syscall.o
+# NOTE: the disassembler code is only needed for debugging
+OBJS+=i386-dis.o dis-buf.o
 SRCS = $(OBJS:.o=.c)
 
 all: gemu

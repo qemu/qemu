@@ -10,11 +10,6 @@ typedef signed long long int64_t;
 
 #define NULL 0
 
-typedef struct FILE FILE;
-
-extern FILE *stderr;
-extern int fprintf(FILE *, const char *, ...);
-
 #ifdef __i386__
 register int T0 asm("esi");
 register int T1 asm("ebx");
@@ -91,6 +86,7 @@ typedef struct CCTable {
     int (*compute_c)(void);  /* return the C flag */
 } CCTable;
 
+/* NOTE: data are not static to force relocation generation by GCC */
 extern CCTable cc_table[];
 
 uint8_t parity_table[256] = {
@@ -189,6 +185,14 @@ static inline int lshift(int x, int n)
         return x << n;
     else
         return x >> (-n);
+}
+
+/* exception support */
+/* NOTE: not static to force relocation generation by GCC */
+void raise_exception(int exception_index)
+{
+    env->exception_index = exception_index;
+    longjmp(env->jmp_env, 1);
 }
 
 /* we define the various pieces of code used by the JIT */
@@ -321,7 +325,6 @@ void OPPROTO op_decl_T0_cc(void)
 
 void OPPROTO op_testl_T0_T1_cc(void)
 {
-    CC_SRC = T0;
     CC_DST = T0 & T1;
 }
 
@@ -555,6 +558,7 @@ void OPPROTO op_stl_T0_A0(void)
 /* jumps */
 
 /* indirect jump */
+
 void OPPROTO op_jmp_T0(void)
 {
     PC = T0;
@@ -563,6 +567,30 @@ void OPPROTO op_jmp_T0(void)
 void OPPROTO op_jmp_im(void)
 {
     PC = PARAM1;
+}
+
+void OPPROTO op_int_im(void)
+{
+    PC = PARAM1;
+    raise_exception(EXCP0D_GPF);
+}
+
+void OPPROTO op_int3(void)
+{
+    PC = PARAM1;
+    raise_exception(EXCP03_INT3);
+}
+
+void OPPROTO op_into(void)
+{
+    int eflags;
+    eflags = cc_table[CC_OP].compute_all();
+    if (eflags & CC_O) {
+        PC = PARAM1;
+        raise_exception(EXCP04_INTO);
+    } else {
+        PC = PARAM2;
+    }
 }
 
 /* string ops */
@@ -663,17 +691,19 @@ void OPPROTO op_jo_cc(void)
     int eflags;
     eflags = cc_table[CC_OP].compute_all();
     if (eflags & CC_O)
-        PC += PARAM1;
+        PC = PARAM1;
     else
-        PC += PARAM2;
+        PC = PARAM2;
+    FORCE_RET();
 }
 
 void OPPROTO op_jb_cc(void)
 {
     if (cc_table[CC_OP].compute_c())
-        PC += PARAM1;
+        PC = PARAM1;
     else
-        PC += PARAM2;
+        PC = PARAM2;
+    FORCE_RET();
 }
 
 void OPPROTO op_jz_cc(void)
@@ -681,9 +711,10 @@ void OPPROTO op_jz_cc(void)
     int eflags;
     eflags = cc_table[CC_OP].compute_all();
     if (eflags & CC_Z)
-        PC += PARAM1;
+        PC = PARAM1;
     else
-        PC += PARAM2;
+        PC = PARAM2;
+    FORCE_RET();
 }
 
 void OPPROTO op_jbe_cc(void)
@@ -691,9 +722,10 @@ void OPPROTO op_jbe_cc(void)
     int eflags;
     eflags = cc_table[CC_OP].compute_all();
     if (eflags & (CC_Z | CC_C))
-        PC += PARAM1;
+        PC = PARAM1;
     else
-        PC += PARAM2;
+        PC = PARAM2;
+    FORCE_RET();
 }
 
 void OPPROTO op_js_cc(void)
@@ -701,9 +733,10 @@ void OPPROTO op_js_cc(void)
     int eflags;
     eflags = cc_table[CC_OP].compute_all();
     if (eflags & CC_S)
-        PC += PARAM1;
+        PC = PARAM1;
     else
-        PC += PARAM2;
+        PC = PARAM2;
+    FORCE_RET();
 }
 
 void OPPROTO op_jp_cc(void)
@@ -711,9 +744,10 @@ void OPPROTO op_jp_cc(void)
     int eflags;
     eflags = cc_table[CC_OP].compute_all();
     if (eflags & CC_P)
-        PC += PARAM1;
+        PC = PARAM1;
     else
-        PC += PARAM2;
+        PC = PARAM2;
+    FORCE_RET();
 }
 
 void OPPROTO op_jl_cc(void)
@@ -721,9 +755,10 @@ void OPPROTO op_jl_cc(void)
     int eflags;
     eflags = cc_table[CC_OP].compute_all();
     if ((eflags ^ (eflags >> 4)) & 0x80)
-        PC += PARAM1;
+        PC = PARAM1;
     else
-        PC += PARAM2;
+        PC = PARAM2;
+    FORCE_RET();
 }
 
 void OPPROTO op_jle_cc(void)
@@ -731,9 +766,10 @@ void OPPROTO op_jle_cc(void)
     int eflags;
     eflags = cc_table[CC_OP].compute_all();
     if (((eflags ^ (eflags >> 4)) & 0x80) || (eflags & CC_Z))
-        PC += PARAM1;
+        PC = PARAM1;
     else
-        PC += PARAM2;
+        PC = PARAM2;
+    FORCE_RET();
 }
 
 /* slow set cases (compute x86 flags) */
@@ -1600,14 +1636,13 @@ void OPPROTO op_fcos(void)
 /* main execution loop */
 uint8_t code_gen_buffer[65536];
 
-
 int cpu_x86_exec(CPUX86State *env1)
 {
     int saved_T0, saved_T1, saved_A0;
     CPUX86State *saved_env;
-    int code_gen_size;
+    int code_gen_size, ret;
     void (*gen_func)(void);
-    
+
     /* first we save global registers */
     saved_T0 = T0;
     saved_T1 = T1;
@@ -1615,17 +1650,21 @@ int cpu_x86_exec(CPUX86State *env1)
     saved_env = env;
     env = env1;
     
-    for(;;) {
-        cpu_x86_gen_code(code_gen_buffer, &code_gen_size, (uint8_t *)env->pc);
-        /* execute the generated code */
-        gen_func = (void *)code_gen_buffer;
-        gen_func();
+    /* prepare setjmp context for exception handling */
+    if (setjmp(env->jmp_env) == 0) {
+        for(;;) {
+            cpu_x86_gen_code(code_gen_buffer, &code_gen_size, (uint8_t *)env->pc);
+            /* execute the generated code */
+            gen_func = (void *)code_gen_buffer;
+            gen_func();
+        }
     }
-        
+    ret = env->exception_index;
+
     /* restore global registers */
     T0 = saved_T0;
     T1 = saved_T1;
     A0 = saved_A0;
     env = saved_env;
-    return 0;
+    return ret;
 }

@@ -5,11 +5,23 @@
 #include <inttypes.h>
 #include <assert.h>
 
+/* dump all code */
+#define DEBUG_DISAS
+#define DEBUG_LOGFILE "/tmp/gemu.log"
+
+#ifdef DEBUG_DISAS
+#include "dis-asm.h"
+#endif
+
 #define IN_OP_I386
 #include "cpu-i386.h"
 
 static uint8_t *gen_code_ptr;
 int __op_param1, __op_param2, __op_param3;
+
+#ifdef DEBUG_DISAS
+static FILE *logfile = NULL;
+#endif
 
 /* supress that */
 static void error(const char *fmt, ...)
@@ -704,6 +716,9 @@ static void gen_lea_modrm(DisasContext *s, int modrm, int *reg_ptr, int *offset_
     int reg1, reg2, opreg;
     int mod, rm, code;
 
+#ifdef DEBUG_DISAS
+    fprintf(logfile, "modrm=0x%x\n", modrm);
+#endif
     mod = (modrm >> 6) & 3;
     rm = modrm & 7;
 
@@ -716,6 +731,9 @@ static void gen_lea_modrm(DisasContext *s, int modrm, int *reg_ptr, int *offset_
         if (base == 4) {
             havesib = 1;
             code = ldub(s->pc++);
+#ifdef DEBUG_DISAS
+            fprintf(logfile, "sib=0x%x\n", code);
+#endif
             scale = (code >> 6) & 3;
             index = (code >> 3) & 7;
             base = code & 7;
@@ -762,6 +780,7 @@ static void gen_lea_modrm(DisasContext *s, int modrm, int *reg_ptr, int *offset_
             } else if (scale == 0 && disp == 0) {
                 gen_op_movl_A0_reg[reg1]();
             } else {
+                gen_op_movl_A0_im(disp);
                 gen_op_addl_A0_reg_sN[scale][reg1]();
             }
         } else {
@@ -953,8 +972,10 @@ static void gen_setcc(DisasContext *s, int b)
     }
 }
 
-/* return the size of the intruction. Return -1 if no insn found */
-int disas_insn(DisasContext *s, uint8_t *pc_start)
+/* return the next pc address. Return -1 if no insn found. *is_jmp_ptr
+   is set to true if the instruction sets the PC (last instruction of
+   a basic block) */
+long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
 {
     int b, prefixes, aflag, dflag;
     int shift, ot;
@@ -967,6 +988,9 @@ int disas_insn(DisasContext *s, uint8_t *pc_start)
     //    cur_pc = s->pc; /* for insn generation */
  next_byte:
     b = ldub(s->pc);
+#ifdef DEBUG_DISAS
+    fprintf(logfile, "ib=0x%02x\n", b);
+#endif
     if (b < 0)
         return -1;
     s->pc++;
@@ -1195,6 +1219,7 @@ int disas_insn(DisasContext *s, uint8_t *pc_start)
                 gen_op_mull_EAX_T0();
                 break;
             }
+            s->cc_op = CC_OP_MUL;
             break;
         case 5: /* imul */
             switch(ot) {
@@ -1209,6 +1234,7 @@ int disas_insn(DisasContext *s, uint8_t *pc_start)
                 gen_op_imull_EAX_T0();
                 break;
             }
+            s->cc_op = CC_OP_MUL;
             break;
         case 6: /* div */
             switch(ot) {
@@ -1281,9 +1307,11 @@ int disas_insn(DisasContext *s, uint8_t *pc_start)
             gen_op_movl_T1_im((long)s->pc);
             gen_op_pushl_T1();
             gen_op_jmp_T0();
+            *is_jmp_ptr = 1;
             break;
         case 4: /* jmp Ev */
             gen_op_jmp_T0();
+            *is_jmp_ptr = 1;
             break;
         case 6: /* push Ev */
             gen_op_pushl_T0();
@@ -1362,6 +1390,7 @@ int disas_insn(DisasContext *s, uint8_t *pc_start)
             op_imulw_T0_T1();
         }
         gen_op_mov_reg_T0[ot][reg]();
+        s->cc_op = CC_OP_MUL;
         break;
         
         /**************************/
@@ -1418,10 +1447,14 @@ int disas_insn(DisasContext *s, uint8_t *pc_start)
             ot = dflag ? OT_LONG : OT_WORD;
         modrm = ldub(s->pc++);
         mod = (modrm >> 6) & 3;
-
+        if (mod != 3)
+            gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
         val = insn_get(s, ot);
         gen_op_movl_T0_im(val);
-        gen_ldst_modrm(s, modrm, ot, OR_TMP0, 1);
+        if (mod != 3)
+            gen_op_st_T0_A0[ot]();
+        else
+            gen_op_mov_reg_T0[ot][modrm & 7]();
         break;
     case 0x8a:
     case 0x8b: /* mov Ev, Gv */
@@ -2068,10 +2101,12 @@ int disas_insn(DisasContext *s, uint8_t *pc_start)
         gen_op_popl_T0();
         gen_op_addl_ESP_im(val);
         gen_op_jmp_T0();
+        *is_jmp_ptr = 1;
         break;
     case 0xc3: /* ret */
         gen_op_popl_T0();
         gen_op_jmp_T0();
+        *is_jmp_ptr = 1;
         break;
     case 0xe8: /* call */
         val = insn_get(s, OT_LONG);
@@ -2079,16 +2114,19 @@ int disas_insn(DisasContext *s, uint8_t *pc_start)
         gen_op_movl_T1_im((long)s->pc);
         gen_op_pushl_T1();
         gen_op_jmp_im(val);
+        *is_jmp_ptr = 1;
         break;
     case 0xe9: /* jmp */
         val = insn_get(s, OT_LONG);
         val += (long)s->pc;
         gen_op_jmp_im(val);
+        *is_jmp_ptr = 1;
         break;
     case 0xeb: /* jmp Jb */
         val = (int8_t)insn_get(s, OT_BYTE);
         val += (long)s->pc;
         gen_op_jmp_im(val);
+        *is_jmp_ptr = 1;
         break;
     case 0x70 ... 0x7f: /* jcc Jb */
         val = (int8_t)insn_get(s, OT_BYTE);
@@ -2103,6 +2141,7 @@ int disas_insn(DisasContext *s, uint8_t *pc_start)
         val += (long)s->pc; /* XXX: fix 16 bit wrap */
     do_jcc:
         gen_jcc(s, b, val);
+        *is_jmp_ptr = 1;
         break;
 
     case 0x190 ... 0x19f:
@@ -2164,8 +2203,23 @@ int disas_insn(DisasContext *s, uint8_t *pc_start)
         /* misc */
     case 0x90: /* nop */
         break;
-
-#if 0        
+    case 0xcc: /* int3 */
+        gen_op_int3((long)pc_start);
+        *is_jmp_ptr = 1;
+        break;
+    case 0xcd: /* int N */
+        val = ldub(s->pc++);
+        /* XXX: currently we ignore the interrupt number */
+        gen_op_int_im((long)pc_start);
+        *is_jmp_ptr = 1;
+        break;
+    case 0xce: /* into */
+        if (s->cc_op != CC_OP_DYNAMIC)
+            gen_op_set_cc_op(s->cc_op);
+        gen_op_into((long)pc_start, (long)s->pc);
+        *is_jmp_ptr = 1;
+        break;
+#if 0
     case 0x1a2: /* cpuid */
         gen_insn0(OP_ASM);
         break;
@@ -2182,16 +2236,78 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int *gen_code_size_ptr,
                      uint8_t *pc_start)
 {
     DisasContext dc1, *dc = &dc1;
+    int is_jmp;
     long ret;
+#ifdef DEBUG_DISAS
+    struct disassemble_info disasm_info;
+#endif
+
     dc->cc_op = CC_OP_DYNAMIC;
     gen_code_ptr = gen_code_buf;
     gen_start();
-    ret = disas_insn(dc, pc_start);
+
+#ifdef DEBUG_DISAS
+    if (!logfile) {
+        logfile = fopen(DEBUG_LOGFILE, "w");
+        if (!logfile) {
+            perror(DEBUG_LOGFILE);
+            exit(1);
+        }
+        setvbuf(logfile, NULL, _IOLBF, 0);
+    }
+
+    INIT_DISASSEMBLE_INFO(disasm_info, logfile, fprintf);
+    disasm_info.buffer = pc_start;
+    disasm_info.buffer_vma = (unsigned long)pc_start;
+    disasm_info.buffer_length = 15;
+#if 0        
+    disasm_info.flavour = bfd_get_flavour (abfd);
+    disasm_info.arch = bfd_get_arch (abfd);
+    disasm_info.mach = bfd_get_mach (abfd);
+#endif
+#ifdef WORDS_BIGENDIAN
+    disasm_info.endian = BFD_ENDIAN_BIG;
+#else
+    disasm_info.endian = BFD_ENDIAN_LITTLE;
+#endif        
+    fprintf(logfile, "IN:\n");
+    fprintf(logfile, "0x%08lx:  ", (long)pc_start);
+    print_insn_i386((unsigned long)pc_start, &disasm_info);
+    fprintf(logfile, "\n\n");
+#endif
+    is_jmp = 0;
+    ret = disas_insn(dc, pc_start, &is_jmp);
     if (ret == -1) 
         error("unknown instruction at PC=0x%x", pc_start);
+    /* we must store the eflags state if it is not already done */
+    if (dc->cc_op != CC_OP_DYNAMIC)
+        gen_op_set_cc_op(dc->cc_op);
+    if (!is_jmp) {
+        /* we add an additionnal jmp to update the simulated PC */
+        gen_op_jmp_im(ret);
+    }
     gen_end();
     *gen_code_size_ptr = gen_code_ptr - gen_code_buf;
-    printf("0x%08lx: code_size = %d\n", (long)pc_start, *gen_code_size_ptr);
+
+#ifdef DEBUG_DISAS
+    {
+        uint8_t *pc;
+        int count;
+
+        pc = gen_code_buf;
+        disasm_info.buffer = pc;
+        disasm_info.buffer_vma = (unsigned long)pc;
+        disasm_info.buffer_length = *gen_code_size_ptr;
+        fprintf(logfile, "OUT: [size=%d]\n", *gen_code_size_ptr);
+        while (pc < gen_code_ptr) {
+            fprintf(logfile, "0x%08lx:  ", (long)pc);
+            count = print_insn_i386((unsigned long)pc, &disasm_info);
+            fprintf(logfile, "\n");
+            pc += count;
+        }
+        fprintf(logfile, "\n");
+    }
+#endif
     return 0;
 }
 
