@@ -45,6 +45,8 @@
 #define NO_THUNK_TYPE_SIZE
 #include "thunk.h"
 
+#include "cow.h"
+
 struct BlockDriverState {
     int fd; /* if -1, only COW mappings */
     int64_t total_sectors;

@@ -41,7 +41,7 @@
 #include <sys/stat.h>
 #include <netinet/in.h>
 
-#include "vl.h"
+#include "cow.h"
 
 #include "bswap.h"
 
@@ -101,13 +101,14 @@ void help(void)
 int main(int argc, char **argv)
 {
     const char *image_filename, *cow_filename;
-    int cow_fd, c, nb_args;
+    int cow_fd, c, nb_args, simple_image;
     int64_t image_size;
     
     image_filename = NULL;
     image_size = 0;
+    simple_image = 0;
     for(;;) {
-        c = getopt(argc, argv, "hf:");
+        c = getopt(argc, argv, "hf:s");
         if (c == -1)
             break;
         switch(c) {
@@ -116,6 +117,9 @@ int main(int argc, char **argv)
             break;
         case 'f':
             image_filename = optarg;
+            break;
+        case 's':
+            simple_image = 1;
             break;
         }
     }
@@ -131,12 +135,16 @@ int main(int argc, char **argv)
         image_size = (int64_t)atoi(argv[optind + 1]) * 2 * 1024;
     }
 
-    cow_fd = open(cow_filename, O_RDWR | O_CREAT | O_TRUNC, 0644);
+    cow_fd = open(cow_filename, O_RDWR | O_CREAT | O_TRUNC | O_LARGEFILE, 0644);
     if (!cow_fd < 0)
         return -1;
-    if (cow_create(cow_fd, image_filename, image_size) < 0) {
-        fprintf(stderr, "%s: error while formating\n", cow_filename);
-        exit(1);
+    if (simple_image) {
+        ftruncate64(cow_fd, image_size * 512);
+    } else {
+        if (cow_create(cow_fd, image_filename, image_size) < 0) {
+            fprintf(stderr, "%s: error while formating\n", cow_filename);
+            exit(1);
+        }
     }
     close(cow_fd);
     return 0;
