@@ -187,15 +187,23 @@ sdl_too_old=no
 
 if test -z "$sdl" ; then
 
+sdl_config="sdl-config"
+sdl=no
+
+if test "$mingw32" = "yes" -a ! -z "$cross_prefix" ; then
+# win32 cross compilation case
+    sdl_config="i386-mingw32msvc-sdl-config"
+    sdl=yes
+else
+# normal SDL probe
 cat > $TMPC << EOF
 #include <SDL.h>
 #undef main /* We don't want SDL to override our main() */
 int main( void ) { return SDL_Init (SDL_INIT_VIDEO); }
 EOF
 
-sdl=no
-if $cc -o $TMPE `sdl-config --cflags` $TMPC `sdl-config --libs`  2> /dev/null  ; then
-_sdlversion=`sdl-config --version | sed 's/[^0-9]//g'`
+if $cc -o $TMPE `$sdl_config --cflags 2> /dev/null` $TMPC `$sdl_config --libs 2> /dev/null` 2> /dev/null ; then
+_sdlversion=`$sdl_config --version | sed 's/[^0-9]//g'`
 if test "$_sdlversion" -lt 121 ; then
 sdl_too_old=yes
 else
@@ -203,7 +211,8 @@ sdl=yes
 fi
 fi
 
-fi
+fi # cross compilation
+fi # -z $sdl
 
 if test x"$1" = x"-h" -o x"$1" = x"--help" ; then
 cat << EOF
@@ -355,15 +364,15 @@ fi
 if test "$sdl" = "yes" ; then
   echo "CONFIG_SDL=yes" >> $config_mak
   echo "#define CONFIG_SDL 1" >> $config_h
-  echo "SDL_LIBS=`sdl-config --libs`" >> $config_mak
+  echo "SDL_LIBS=`$sdl_config --libs`" >> $config_mak
   aa="no"
-  `sdl-config --static-libs | grep \\\-laa > /dev/null` && aa="yes"
-  echo -n "SDL_STATIC_LIBS=`sdl-config --static-libs`" >> $config_mak
+  `$sdl_config --static-libs | grep \\\-laa > /dev/null` && aa="yes"
+  echo -n "SDL_STATIC_LIBS=`$sdl_config --static-libs`" >> $config_mak
   if [ "${aa}" = "yes" ] ; then
       echo -n " `aalib-config --libs`" >> $config_mak ;
   fi
   echo "" >> $config_mak
-  echo -n "SDL_CFLAGS=`sdl-config --cflags`" >> $config_mak
+  echo -n "SDL_CFLAGS=`$sdl_config --cflags`" >> $config_mak
   if [ "${aa}" = "yes" ] ; then
       echo -n " `aalib-config --cflags`" >> $config_mak ;
   fi
