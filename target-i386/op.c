@@ -1366,6 +1366,11 @@ void OPPROTO op_set_cc_op(void)
     CC_OP = PARAM1;
 }
 
+void OPPROTO op_mov_T0_cc(void)
+{
+    T0 = cc_table[CC_OP].compute_all();
+}
+
 /* XXX: clear VIF/VIP in all ops ? */
 
 void OPPROTO op_movl_eflags_T0(void)

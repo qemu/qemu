@@ -339,18 +339,14 @@ void OPPROTO glue(op_jle_sub, SUFFIX)(void)
 
 void OPPROTO glue(op_loopnz, SUFFIX)(void)
 {
-    int eflags;
-    eflags = cc_table[CC_OP].compute_all();
-    if ((DATA_TYPE)ECX != 0 && !(eflags & CC_Z))
+    if ((DATA_TYPE)ECX != 0 && !(T0 & CC_Z))
         GOTO_LABEL_PARAM(1);
     FORCE_RET();
 }
 
 void OPPROTO glue(op_loopz, SUFFIX)(void)
 {
-    int eflags;
-    eflags = cc_table[CC_OP].compute_all();
-    if ((DATA_TYPE)ECX != 0 && (eflags & CC_Z))
+    if ((DATA_TYPE)ECX != 0 && (T0 & CC_Z))
         GOTO_LABEL_PARAM(1);
     FORCE_RET();
 }

@@ -5271,6 +5271,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                 gen_op_jz_ecx[s->aflag](l1);
             } else {
                 gen_op_dec_ECX[s->aflag]();
+                if (b <= 1)
+                    gen_op_mov_T0_cc();
                 gen_op_loop[s->aflag][b](l1);
             }
 
