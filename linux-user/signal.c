@@ -109,7 +109,8 @@ static inline int target_to_host_signal(int sig)
     return target_to_host_signal_table[sig];
 }
 
-void host_to_target_sigset(target_sigset_t *d, const sigset_t *s)
+static void host_to_target_sigset_internal(target_sigset_t *d, 
+                                           const sigset_t *s)
 {
     int i;
     unsigned long sigmask;
@@ -122,25 +123,35 @@ void host_to_target_sigset(target_sigset_t *d, const sigset_t *s)
             target_sigmask |= 1 << (host_to_target_signal(i + 1) - 1);
     }
 #if TARGET_LONG_BITS == 32 && HOST_LONG_BITS == 32
-    d->sig[0] = tswapl(target_sigmask);
+    d->sig[0] = target_sigmask;
     for(i = 1;i < TARGET_NSIG_WORDS; i++) {
-        d->sig[i] = tswapl(((unsigned long *)s)[i]);
+        d->sig[i] = ((unsigned long *)s)[i];
     }
 #elif TARGET_LONG_BITS == 32 && HOST_LONG_BITS == 64 && TARGET_NSIG_WORDS == 2
-    d->sig[0] = tswapl(target_sigmask);
-    d->sig[1] = tswapl(sigmask >> 32);
+    d->sig[0] = target_sigmask;
+    d->sig[1] = sigmask >> 32;
 #else
 #error host_to_target_sigset
 #endif
 }
 
-void target_to_host_sigset(sigset_t *d, const target_sigset_t *s)
+void host_to_target_sigset(target_sigset_t *d, const sigset_t *s)
+{
+    target_sigset_t d1;
+    int i;
+
+    host_to_target_sigset_internal(&d1, s);
+    for(i = 0;i < TARGET_NSIG_WORDS; i++)
+        __put_user(d1.sig[i], &d->sig[i]);
+}
+
+void target_to_host_sigset_internal(sigset_t *d, const target_sigset_t *s)
 {
     int i;
     unsigned long sigmask;
     target_ulong target_sigmask;
 
-    target_sigmask = tswapl(s->sig[0]);
+    target_sigmask = s->sig[0];
     sigmask = 0;
     for(i = 0; i < 32; i++) {
         if (target_sigmask & (1 << i)) 
@@ -149,15 +160,25 @@ void target_to_host_sigset(sigset_t *d, const target_sigset_t *s)
 #if TARGET_LONG_BITS == 32 && HOST_LONG_BITS == 32
     ((unsigned long *)d)[0] = sigmask;
     for(i = 1;i < TARGET_NSIG_WORDS; i++) {
-        ((unsigned long *)d)[i] = tswapl(s->sig[i]);
+        ((unsigned long *)d)[i] = s->sig[i];
     }
 #elif TARGET_LONG_BITS == 32 && HOST_LONG_BITS == 64 && TARGET_NSIG_WORDS == 2
-    ((unsigned long *)d)[0] = sigmask | ((unsigned long)tswapl(s->sig[1]) << 32);
+    ((unsigned long *)d)[0] = sigmask | ((unsigned long)(s->sig[1]) << 32);
 #else
 #error target_to_host_sigset
 #endif /* TARGET_LONG_BITS */
 }
 
+void target_to_host_sigset(sigset_t *d, const target_sigset_t *s)
+{
+    target_sigset_t s1;
+    int i;
+
+    for(i = 0;i < TARGET_NSIG_WORDS; i++)
+        __get_user(s1.sig[i], &s->sig[i]);
+    target_to_host_sigset_internal(d, &s1);
+}
+    
 void host_to_target_old_sigset(target_ulong *old_sigset, 
                                const sigset_t *sigset)
 {
@@ -640,7 +661,7 @@ static void setup_frame(int sig, struct emulated_sigaction *ka,
 			target_sigset_t *set, CPUX86State *env)
 {
 	struct sigframe *frame;
-	int err = 0;
+	int i, err = 0;
 
 	frame = get_sigframe(ka, env, sizeof(*frame));
 
@@ -659,12 +680,10 @@ static void setup_frame(int sig, struct emulated_sigaction *ka,
 	if (err)
 		goto give_sigsegv;
 
-	if (TARGET_NSIG_WORDS > 1) {
-		err |= __copy_to_user(frame->extramask, &set->sig[1],
-				      sizeof(frame->extramask));
-	}
-	if (err)
-		goto give_sigsegv;
+        for(i = 1; i < TARGET_NSIG_WORDS; i++) {
+            if (__put_user(set->sig[i], &frame->extramask[i - 1]))
+                goto give_sigsegv;
+        }
 
 	/* Set up to return from userspace.  If provided, use a stub
 	   already in userspace.  */
@@ -704,7 +723,7 @@ static void setup_rt_frame(int sig, struct emulated_sigaction *ka,
 			   target_sigset_t *set, CPUX86State *env)
 {
 	struct rt_sigframe *frame;
-	int err = 0;
+	int i, err = 0;
 
 	frame = get_sigframe(ka, env, sizeof(*frame));
 
@@ -732,9 +751,10 @@ static void setup_rt_frame(int sig, struct emulated_sigaction *ka,
 	err |= __put_user(/* current->sas_ss_size */ 0, &frame->uc.uc_stack.ss_size);
 	err |= setup_sigcontext(&frame->uc.uc_mcontext, &frame->fpstate,
 			        env, set->sig[0]);
-	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
-	if (err)
-		goto give_sigsegv;
+        for(i = 0; i < TARGET_NSIG_WORDS; i++) {
+            if (__put_user(set->sig[i], &frame->uc.uc_sigmask.sig[i]))
+                goto give_sigsegv;
+        }
 
 	/* Set up to return from userspace.  If provided, use a stub
 	   already in userspace.  */
@@ -829,11 +849,14 @@ long do_sigreturn(CPUX86State *env)
     fprintf(stderr, "do_sigreturn\n");
 #endif
     /* set blocked signals */
-    target_set.sig[0] = frame->sc.oldmask;
-    for(i = 1; i < TARGET_NSIG_WORDS; i++)
-        target_set.sig[i] = frame->extramask[i - 1];
+    if (__get_user(target_set.sig[0], &frame->sc.oldmask))
+        goto badframe;
+    for(i = 1; i < TARGET_NSIG_WORDS; i++) {
+        if (__get_user(target_set.sig[i], &frame->extramask[i - 1]))
+            goto badframe;
+    }
 
-    target_to_host_sigset(&set, &target_set);
+    target_to_host_sigset_internal(&set, &target_set);
     sigprocmask(SIG_SETMASK, &set, NULL);
     
     /* restore registers */
@@ -849,7 +872,6 @@ badframe:
 long do_rt_sigreturn(CPUX86State *env)
 {
 	struct rt_sigframe *frame = (struct rt_sigframe *)(env->regs[R_ESP] - 4);
-	target_sigset_t target_set;
         sigset_t set;
         //	stack_t st;
 	int eax;
@@ -858,9 +880,7 @@ long do_rt_sigreturn(CPUX86State *env)
 	if (verify_area(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
 #endif
-        memcpy(&target_set, &frame->uc.uc_sigmask, sizeof(target_sigset_t));
-
-        target_to_host_sigset(&set, &target_set);
+        target_to_host_sigset(&set, &frame->uc.uc_sigmask);
         sigprocmask(SIG_SETMASK, &set, NULL);
 	
 	if (restore_sigcontext(env, &frame->uc.uc_mcontext, &eax))
@@ -1084,13 +1104,13 @@ static void setup_frame(int usig, struct emulated_sigaction *ka,
 			target_sigset_t *set, CPUState *regs)
 {
 	struct sigframe *frame = get_sigframe(ka, regs, sizeof(*frame));
-	int err = 0;
+	int i, err = 0;
 
 	err |= setup_sigcontext(&frame->sc, /*&frame->fpstate,*/ regs, set->sig[0]);
 
-	if (TARGET_NSIG_WORDS > 1) {
-		err |= __copy_to_user(frame->extramask, &set->sig[1],
-				      sizeof(frame->extramask));
+        for(i = 1; i < TARGET_NSIG_WORDS; i++) {
+            if (__put_user(set->sig[i], &frame->extramask[i - 1]))
+                return;
 	}
 
 	if (err == 0)
@@ -1103,7 +1123,7 @@ static void setup_rt_frame(int usig, struct emulated_sigaction *ka,
 			   target_sigset_t *set, CPUState *env)
 {
 	struct rt_sigframe *frame = get_sigframe(ka, env, sizeof(*frame));
-	int err = 0;
+	int i, err = 0;
 
 	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
             return /* 1 */;
@@ -1117,7 +1137,10 @@ static void setup_rt_frame(int usig, struct emulated_sigaction *ka,
 
 	err |= setup_sigcontext(&frame->uc.uc_mcontext, /*&frame->fpstate,*/
 				env, set->sig[0]);
-	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
+        for(i = 0; i < TARGET_NSIG_WORDS; i++) {
+            if (__put_user(set->sig[i], &frame->uc.uc_sigmask.sig[i]))
+                return;
+        }
 
 	if (err == 0)
 		err = setup_return(env, ka, &frame->retcode, frame, usig);
@@ -1170,6 +1193,7 @@ long do_sigreturn(CPUState *env)
 	struct sigframe *frame;
 	target_sigset_t set;
         sigset_t host_set;
+        int i;
 
 	/*
 	 * Since we stacked the signal on a 64-bit boundary,
@@ -1185,13 +1209,14 @@ long do_sigreturn(CPUState *env)
 	if (verify_area(VERIFY_READ, frame, sizeof (*frame)))
 		goto badframe;
 #endif
-	if (__get_user(set.sig[0], &frame->sc.oldmask)
-	    || (TARGET_NSIG_WORDS > 1
-	        && __copy_from_user(&set.sig[1], &frame->extramask,
-				    sizeof(frame->extramask))))
-		goto badframe;
+	if (__get_user(set.sig[0], &frame->sc.oldmask))
+            goto badframe;
+        for(i = 1; i < TARGET_NSIG_WORDS; i++) {
+            if (__get_user(set.sig[i], &frame->extramask[i - 1]))
+                goto badframe;
+        }
 
-        target_to_host_sigset(&host_set, &set);
+        target_to_host_sigset_internal(&host_set, &set);
         sigprocmask(SIG_SETMASK, &host_set, NULL);
 
 	if (restore_sigcontext(env, &frame->sc))
@@ -1212,7 +1237,6 @@ badframe:
 long do_rt_sigreturn(CPUState *env)
 {
 	struct rt_sigframe *frame;
-	target_sigset_t set;
         sigset_t host_set;
 
 	/*
@@ -1229,10 +1253,7 @@ long do_rt_sigreturn(CPUState *env)
 	if (verify_area(VERIFY_READ, frame, sizeof (*frame)))
 		goto badframe;
 #endif
-	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
-		goto badframe;
-
-        target_to_host_sigset(&host_set, &set);
+        target_to_host_sigset(&host_set, &frame->uc.uc_sigmask);
         sigprocmask(SIG_SETMASK, &host_set, NULL);
 
 	if (restore_sigcontext(env, &frame->uc.uc_mcontext))
@@ -1335,7 +1356,7 @@ void process_pending_signals(void *cpu_env)
         sigprocmask(SIG_BLOCK, &set, &old_set);
         /* save the previous blocked signal state to restore it at the
            end of the signal execution (see do_sigreturn) */
-        host_to_target_sigset(&target_old_set, &old_set);
+        host_to_target_sigset_internal(&target_old_set, &old_set);
 
         /* if the CPU is in VM86 mode, we restore the 32 bit values */
 #ifdef TARGET_I386
