@@ -903,6 +903,9 @@ int main(int argc, char **argv)
     env->cr[0] = CR0_PG_MASK | CR0_WP_MASK | CR0_PE_MASK;
     env->hflags |= HF_PE_MASK;
 
+    /* flags setup : we activate the IRQs by default as in user mode */
+    env->eflags |= IF_MASK;
+    
     /* linux register setup */
     env->regs[R_EAX] = regs->eax;
     env->regs[R_EBX] = regs->ebx;

@@ -2527,7 +2527,7 @@ void kbd_write_command(CPUState *env, uint32_t addr, uint32_t val)
     case KBD_CCMD_READ_OUTPORT:
         /* XXX: check that */
 #ifdef TARGET_I386
-        val = 0x01 | (a20_enabled << 1);
+        val = 0x01 | (((cpu_single_env->a20_mask >> 20) & 1) << 1);
 #else
         val = 0x01;
 #endif
@@ -3591,9 +3591,7 @@ int main(int argc, char **argv)
         params->orig_video_cols = 80;
 
         /* setup basic memory access */
-        env->cr[0] = 0x00000033;
-        env->hflags |= HF_PE_MASK;
-        cpu_x86_init_mmu(env);
+        cpu_x86_update_cr0(env, 0x00000033);
         
         memset(params->idt_table, 0, sizeof(params->idt_table));
         
@@ -3619,7 +3617,6 @@ int main(int argc, char **argv)
         env->regs[R_ESI] = KERNEL_PARAMS_ADDR;
         env->eflags = 0x2;
 #elif defined (TARGET_PPC)
-        cpu_x86_init_mmu(env);
         PPC_init_hw(env, phys_ram_size, KERNEL_LOAD_ADDR, ret,
                     KERNEL_STACK_ADDR, boot_device);
 #endif
@@ -3641,35 +3638,11 @@ int main(int argc, char **argv)
         ret = load_image(buf, phys_ram_base + 0x000c0000);
 
         /* setup basic memory access */
-        env->cr[0] = 0x60000010;
-        cpu_x86_init_mmu(env);
-        
         cpu_register_physical_memory(0xc0000, 0x10000, 0xc0000 | IO_MEM_ROM);
         cpu_register_physical_memory(0xf0000, 0x10000, 0xf0000 | IO_MEM_ROM);
 
-        env->idt.limit = 0xffff;
-        env->gdt.limit = 0xffff;
-        env->ldt.limit = 0xffff;
-        env->ldt.flags = DESC_P_MASK;
-        env->tr.limit = 0xffff;
-        env->tr.flags = DESC_P_MASK;
-
-        /* not correct (CS base=0xffff0000) */
-        cpu_x86_load_seg_cache(env, R_CS, 0xf000, (uint8_t *)0x000f0000, 0xffff, 0); 
-        cpu_x86_load_seg_cache(env, R_DS, 0, NULL, 0xffff, 0);
-        cpu_x86_load_seg_cache(env, R_ES, 0, NULL, 0xffff, 0);
-        cpu_x86_load_seg_cache(env, R_SS, 0, NULL, 0xffff, 0);
-        cpu_x86_load_seg_cache(env, R_FS, 0, NULL, 0xffff, 0);
-        cpu_x86_load_seg_cache(env, R_GS, 0, NULL, 0xffff, 0);
-
-        env->eip = 0xfff0;
-        env->regs[R_EDX] = 0x600; /* indicate P6 processor */
-
-        env->eflags = 0x2;
-
         bochs_bios_init();
 #elif defined(TARGET_PPC)
-        cpu_x86_init_mmu(env);
         /* allocate ROM */
         //        snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
         snprintf(buf, sizeof(buf), "%s", BIOS_FILENAME);
