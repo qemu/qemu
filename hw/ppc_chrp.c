@@ -36,6 +36,7 @@ static int dbdma_mem_index;
 static int cuda_mem_index;
 static int ide0_mem_index;
 static int ide1_mem_index;
+static int openpic_mem_index;
 
 /* DBDMA: currently no op - should suffice right now */
 
@@ -87,6 +88,7 @@ static void macio_map(PCIDevice *pci_dev, int region_num,
     cpu_register_physical_memory(addr + 0x16000, 0x2000, cuda_mem_index);
     cpu_register_physical_memory(addr + 0x1f000, 0x1000, ide0_mem_index);
     cpu_register_physical_memory(addr + 0x20000, 0x1000, ide1_mem_index);
+    cpu_register_physical_memory(addr + 0x40000, 0x40000, openpic_mem_index);
 }
 
 static void macio_init(PCIBus *bus)
@@ -191,7 +193,7 @@ void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
     /* init basic PC hardware */
     vga_initialize(pci_bus, ds, phys_ram_base + ram_size, ram_size, 
                    vga_ram_size);
-    openpic = openpic_init(pci_bus, 0x00000000, 0xF0000000, 1);
+    openpic = openpic_init(NULL, &openpic_mem_index, 1);
     pci_pmac_set_openpic(pci_bus, openpic);
     
     /* XXX: suppress that */

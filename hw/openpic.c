@@ -164,6 +164,7 @@ typedef struct IRQ_dst_t {
 
 struct openpic_t {
     PCIDevice pci_dev;
+    int mem_index;
     /* Global registers */
     uint32_t frep; /* Feature reporting register */
     uint32_t glbc; /* Global configuration register  */
@@ -937,7 +938,6 @@ static void openpic_map(PCIDevice *pci_dev, int region_num,
                         uint32_t addr, uint32_t size, int type)
 {
     openpic_t *opp;
-    int opp_io_memory;
 
     DPRINTF("Map OpenPIC\n");
     opp = (openpic_t *)pci_dev;
@@ -953,9 +953,7 @@ static void openpic_map(PCIDevice *pci_dev, int region_num,
     /* Per CPU registers */
     DPRINTF("Register OPENPIC dst   %08x => %08x\n",
             addr + 0x20000, addr + 0x20000 + 0x1000 * MAX_CPU);
-    opp_io_memory = cpu_register_io_memory(0, openpic_read,
-                                           openpic_write, opp);
-    cpu_register_physical_memory(addr, 0x40000, opp_io_memory);
+    cpu_register_physical_memory(addr, 0x40000, opp->mem_index);
 #if 0 // Don't implement ISU for now
     opp_io_memory = cpu_register_io_memory(0, openpic_src_read,
                                            openpic_src_write);
@@ -964,8 +962,7 @@ static void openpic_map(PCIDevice *pci_dev, int region_num,
 #endif
 }
 
-openpic_t *openpic_init (PCIBus *bus,
-                         uint32_t isu_base, uint32_t idu_base, int nb_cpus)
+openpic_t *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus)
 {
     openpic_t *opp;
     uint8_t *pci_conf;
@@ -974,25 +971,32 @@ openpic_t *openpic_init (PCIBus *bus,
     /* XXX: for now, only one CPU is supported */
     if (nb_cpus != 1)
         return NULL;
-    opp = (openpic_t *)pci_register_device(bus, "OpenPIC", sizeof(openpic_t),
-                                           -1, NULL, NULL);
-    if (opp == NULL)
-        return NULL;
-    pci_conf = opp->pci_dev.config;
-    pci_conf[0x00] = 0x14; // IBM MPIC2
-    pci_conf[0x01] = 0x10;
-    pci_conf[0x02] = 0xFF;
-    pci_conf[0x03] = 0xFF;
-    pci_conf[0x0a] = 0x80; // PIC
-    pci_conf[0x0b] = 0x08;
-    pci_conf[0x0e] = 0x00; // header_type
-    pci_conf[0x3d] = 0x00; // no interrupt pin
+    if (bus) {
+        opp = (openpic_t *)pci_register_device(bus, "OpenPIC", sizeof(openpic_t),
+                                               -1, NULL, NULL);
+        if (opp == NULL)
+            return NULL;
+        pci_conf = opp->pci_dev.config;
+        pci_conf[0x00] = 0x14; // IBM MPIC2
+        pci_conf[0x01] = 0x10;
+        pci_conf[0x02] = 0xFF;
+        pci_conf[0x03] = 0xFF;
+        pci_conf[0x0a] = 0x80; // PIC
+        pci_conf[0x0b] = 0x08;
+        pci_conf[0x0e] = 0x00; // header_type
+        pci_conf[0x3d] = 0x00; // no interrupt pin
+        
+        /* Register I/O spaces */
+        pci_register_io_region((PCIDevice *)opp, 0, 0x40000,
+                               PCI_ADDRESS_SPACE_MEM, &openpic_map);
+    } else {
+        opp = qemu_mallocz(sizeof(openpic_t));
+    }
 
-    /* Register I/O spaces */
-    pci_register_io_region((PCIDevice *)opp, 0, 0x40000,
-                           PCI_ADDRESS_SPACE_MEM, &openpic_map);
-
-    isu_base &= 0xFFFC0000;
+    opp->mem_index = cpu_register_io_memory(0, openpic_read,
+                                            openpic_write, opp);
+    
+    //    isu_base &= 0xFFFC0000;
     opp->nb_cpus = nb_cpus;
     /* Set IRQ types */
     for (i = 0; i < EXT_IRQ; i++) {
@@ -1013,6 +1017,7 @@ openpic_t *openpic_init (PCIBus *bus,
         opp->src[i].type = IRQ_INTERNAL;
     }
     openpic_reset(opp);
-
+    if (pmem_index)
+        *pmem_index = opp->mem_index;
     return opp;
 }
