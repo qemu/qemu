@@ -85,12 +85,14 @@ typedef struct fdrive_t {
     uint8_t ro;               /* Is read-only           */
 } fdrive_t;
 
-static void fd_init (fdrive_t *drv)
+static void fd_init (fdrive_t *drv, BlockDriverState *bs)
 {
     /* Drive */
-    drv->bs = NULL;
-//    drv->drive = FDRIVE_DRV_288;
-    drv->drive = FDRIVE_DRV_144;
+    drv->bs = bs;
+    if (bs)
+        drv->drive = FDRIVE_DRV_144;
+    else
+        drv->drive = FDRIVE_DRV_NONE;
     drv->motor = 0;
     drv->perpendicular = 0;
     drv->rv = 0;
@@ -157,13 +159,17 @@ static void fd_recalibrate (fdrive_t *drv)
 }
 
 /* Revalidate a disk drive after a disk change */
-static void fd_revalidate (fdrive_t *drv, int ro)
+static void fd_revalidate (fdrive_t *drv)
 {
     int64_t nb_sectors;
 
     FLOPPY_DPRINTF("revalidate\n");
     drv->rv = 0;
-    if (drv->bs != NULL) {
+    /* if no drive present, cannot do more */
+    if (!drv->bs)
+        return;
+        
+    if (bdrv_is_inserted(drv->bs)) {
         bdrv_get_geometry(drv->bs, &nb_sectors);
 #if 1
         if (nb_sectors > 2880) 
@@ -186,12 +192,19 @@ static void fd_revalidate (fdrive_t *drv, int ro)
             drv->max_track = 80;
 #endif
         }
+        drv->ro = bdrv_is_read_only(drv->bs);
     } else {
         drv->disk = FDRIVE_DISK_NONE;
         drv->last_sect = 1; /* Avoid eventual divide by 0 bugs */
+        drv->ro = 0;
     }
-    drv->ro = ro;
     drv->rv = 1;
+}
+
+static void fd_change_cb (void *opaque)
+{
+    fdrive_t *drv = opaque;
+    fd_revalidate(drv);
 }
 
 /* Motor control */
@@ -220,16 +233,16 @@ static void fdctrl_reset_fifo (void);
 static int fdctrl_transfer_handler (void *opaque, target_ulong addr, int size);
 static void fdctrl_raise_irq (uint8_t status);
 
-static uint32_t fdctrl_read_statusB (CPUState *env, uint32_t reg);
-static uint32_t fdctrl_read_dor (CPUState *env, uint32_t reg);
-static void fdctrl_write_dor (CPUState *env, uint32_t reg, uint32_t value);
-static uint32_t fdctrl_read_tape (CPUState *env, uint32_t reg);
-static void fdctrl_write_tape (CPUState *env, uint32_t reg, uint32_t value);
-static uint32_t fdctrl_read_main_status (CPUState *env, uint32_t reg);
-static void fdctrl_write_rate (CPUState *env, uint32_t reg, uint32_t value);
-static uint32_t fdctrl_read_data (CPUState *env, uint32_t reg);
-static void fdctrl_write_data (CPUState *env, uint32_t reg, uint32_t value);
-static uint32_t fdctrl_read_dir (CPUState *env, uint32_t reg);
+static uint32_t fdctrl_read_statusB (void *opaque, uint32_t reg);
+static uint32_t fdctrl_read_dor (void *opaque, uint32_t reg);
+static void fdctrl_write_dor (void *opaque, uint32_t reg, uint32_t value);
+static uint32_t fdctrl_read_tape (void *opaque, uint32_t reg);
+static void fdctrl_write_tape (void *opaque, uint32_t reg, uint32_t value);
+static uint32_t fdctrl_read_main_status (void *opaque, uint32_t reg);
+static void fdctrl_write_rate (void *opaque, uint32_t reg, uint32_t value);
+static uint32_t fdctrl_read_data (void *opaque, uint32_t reg);
+static void fdctrl_write_data (void *opaque, uint32_t reg, uint32_t value);
+static uint32_t fdctrl_read_dir (void *opaque, uint32_t reg);
 
 enum {
     FD_CTRL_ACTIVE = 0x01,
@@ -295,7 +308,7 @@ typedef struct fdctrl_t {
 static fdctrl_t fdctrl;
 
 void fdctrl_init (int irq_lvl, int dma_chann, int mem_mapped, uint32_t base,
-                  char boot_device)
+                  BlockDriverState **fds)
 {
 //    int io_mem;
     int i;
@@ -312,8 +325,11 @@ void fdctrl_init (int irq_lvl, int dma_chann, int mem_mapped, uint32_t base,
     } else {
         fdctrl.dma_en = 0;
     }
-    for (i = 0; i < MAX_FD; i++)
-        fd_init(&fdctrl.drives[i]);
+    for (i = 0; i < MAX_FD; i++) {
+        fd_init(&fdctrl.drives[i], fds[i]);
+        if (fds[i])
+            bdrv_set_change_cb(fds[i], fd_change_cb, &fdctrl.drives[i]);
+    }
     fdctrl_reset(0);
     fdctrl.state = FD_CTRL_ACTIVE;
     if (mem_mapped) {
@@ -323,51 +339,27 @@ void fdctrl_init (int irq_lvl, int dma_chann, int mem_mapped, uint32_t base,
         cpu_register_physical_memory(base, 0x08, io_mem);
 #endif
     } else {
-        register_ioport_read(base + 0x01, 1, fdctrl_read_statusB, 1);
-        register_ioport_read(base + 0x02, 1, fdctrl_read_dor, 1);
-        register_ioport_write(base + 0x02, 1, fdctrl_write_dor, 1);
-        register_ioport_read(base + 0x03, 1, fdctrl_read_tape, 1);
-        register_ioport_write(base + 0x03, 1, fdctrl_write_tape, 1);
-        register_ioport_read(base + 0x04, 1, fdctrl_read_main_status, 1);
-        register_ioport_write(base + 0x04, 1, fdctrl_write_rate, 1);
-        register_ioport_read(base + 0x05, 1, fdctrl_read_data, 1);
-        register_ioport_write(base + 0x05, 1, fdctrl_write_data, 1);
-        register_ioport_read(base + 0x07, 1, fdctrl_read_dir, 1);
+        register_ioport_read(base + 0x01, 1, 1, fdctrl_read_statusB, NULL);
+        register_ioport_read(base + 0x02, 1, 1, fdctrl_read_dor, NULL);
+        register_ioport_write(base + 0x02, 1, 1, fdctrl_write_dor, NULL);
+        register_ioport_read(base + 0x03, 1, 1, fdctrl_read_tape, NULL);
+        register_ioport_write(base + 0x03, 1, 1, fdctrl_write_tape, NULL);
+        register_ioport_read(base + 0x04, 1, 1, fdctrl_read_main_status, NULL);
+        register_ioport_write(base + 0x04, 1, 1, fdctrl_write_rate, NULL);
+        register_ioport_read(base + 0x05, 1, 1, fdctrl_read_data, NULL);
+        register_ioport_write(base + 0x05, 1, 1, fdctrl_write_data, NULL);
+        register_ioport_read(base + 0x07, 1, 1, fdctrl_read_dir, NULL);
     }
-    if (boot_device == 'b')
-        fdctrl.bootsel = 1;
-    else
-        fdctrl.bootsel = 0;
-#if defined (TARGET_I386)
-    cmos_register_fd(fdctrl.drives[0].drive, fdctrl.drives[1].drive);
-#endif
+    fdctrl.bootsel = 0;
+    
+    for (i = 0; i < MAX_FD; i++) {
+        fd_revalidate(&fdctrl.drives[i]);
+    }
 }
 
-int fdctrl_disk_change (int idx, const unsigned char *filename, int ro)
+int fdctrl_get_drive_type(int drive_num)
 {
-    fdrive_t *drv;
-    
-    if (idx < 0 || idx > 1)
-        return -1;
-    FLOPPY_DPRINTF("disk %d change: %s (%s)\n", idx, filename,
-                   ro == 0 ? "rw" : "ro");
-    drv = &fdctrl.drives[idx];
-    if (fd_table[idx] != NULL) {
-        bdrv_close(fd_table[idx]);
-        fd_table[idx] = NULL;
-    }
-    fd_table[idx] = bdrv_open(filename, ro);
-    drv->bs = fd_table[idx];
-    if (fd_table[idx] == NULL)
-        return -1;
-    fd_revalidate(drv, ro);
-#if 0
-    fd_recalibrate(drv);
-    fdctrl_reset_fifo();
-    fdctrl_raise_irq(0x20);
-#endif
-
-    return 0;
+    return fdctrl.drives[drive_num].drive;
 }
 
 /* Change IRQ state */
@@ -411,7 +403,7 @@ static void fdctrl_reset (int do_irq)
 }
 
 /* Status B register : 0x01 (read-only) */
-static uint32_t fdctrl_read_statusB (CPUState *env, uint32_t reg)
+static uint32_t fdctrl_read_statusB (void *opaque, uint32_t reg)
 {
     fdctrl_reset_irq();
     FLOPPY_DPRINTF("status register: 0x00\n");
@@ -420,7 +412,7 @@ static uint32_t fdctrl_read_statusB (CPUState *env, uint32_t reg)
 }
 
 /* Digital output register : 0x02 */
-static uint32_t fdctrl_read_dor (CPUState *env, uint32_t reg)
+static uint32_t fdctrl_read_dor (void *opaque, uint32_t reg)
 {
     fdrive_t *cur_drv, *drv0, *drv1;
     uint32_t retval = 0;
@@ -442,7 +434,7 @@ static uint32_t fdctrl_read_dor (CPUState *env, uint32_t reg)
     return retval;
 }
 
-static void fdctrl_write_dor (CPUState *env, uint32_t reg, uint32_t value)
+static void fdctrl_write_dor (void *opaque, uint32_t reg, uint32_t value)
 {
     fdrive_t *drv0, *drv1;
     
@@ -489,7 +481,7 @@ static void fdctrl_write_dor (CPUState *env, uint32_t reg, uint32_t value)
 }
 
 /* Tape drive register : 0x03 */
-static uint32_t fdctrl_read_tape (CPUState *env, uint32_t reg)
+static uint32_t fdctrl_read_tape (void *opaque, uint32_t reg)
 {
     uint32_t retval = 0;
 
@@ -502,7 +494,7 @@ static uint32_t fdctrl_read_tape (CPUState *env, uint32_t reg)
     return retval;
 }
 
-static void fdctrl_write_tape (CPUState *env, uint32_t reg, uint32_t value)
+static void fdctrl_write_tape (void *opaque, uint32_t reg, uint32_t value)
 {
     fdctrl_reset_irq();
     /* Reset mode */
@@ -517,7 +509,7 @@ static void fdctrl_write_tape (CPUState *env, uint32_t reg, uint32_t value)
 }
 
 /* Main status register : 0x04 (read) */
-static uint32_t fdctrl_read_main_status (CPUState *env, uint32_t reg)
+static uint32_t fdctrl_read_main_status (void *opaque, uint32_t reg)
 {
     uint32_t retval = 0;
 
@@ -541,7 +533,7 @@ static uint32_t fdctrl_read_main_status (CPUState *env, uint32_t reg)
 }
 
 /* Data select rate register : 0x04 (write) */
-static void fdctrl_write_rate (CPUState *env, uint32_t reg, uint32_t value)
+static void fdctrl_write_rate (void *opaque, uint32_t reg, uint32_t value)
 {
     fdctrl_reset_irq();
     /* Reset mode */
@@ -566,7 +558,7 @@ static void fdctrl_write_rate (CPUState *env, uint32_t reg, uint32_t value)
 }
 
 /* Digital input register : 0x07 (read-only) */
-static uint32_t fdctrl_read_dir (CPUState *env, uint32_t reg)
+static uint32_t fdctrl_read_dir (void *opaque, uint32_t reg)
 {
     fdrive_t *drv0, *drv1;
     uint32_t retval = 0;
@@ -872,7 +864,7 @@ transfer_error:
 }
 
 /* Data register : 0x05 */
-static uint32_t fdctrl_read_data (CPUState *env, uint32_t reg)
+static uint32_t fdctrl_read_data (void *opaque, uint32_t reg)
 {
     fdrive_t *cur_drv, *drv0, *drv1;
     uint32_t retval = 0;
@@ -914,7 +906,7 @@ static uint32_t fdctrl_read_data (CPUState *env, uint32_t reg)
     return retval;
 }
 
-static void fdctrl_write_data (CPUState *env, uint32_t reg, uint32_t value)
+static void fdctrl_write_data (void *opaque, uint32_t reg, uint32_t value)
 {
     fdrive_t *cur_drv, *drv0, *drv1;
 

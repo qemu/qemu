@@ -314,10 +314,10 @@ struct IDEState;
 
 typedef void EndTransferFunc(struct IDEState *);
 
+/* NOTE: IDEState represents in fact one drive */
 typedef struct IDEState {
     /* ide config */
     int is_cdrom;
-    int cdrom_locked;
     int cylinders, heads, sectors;
     int64_t nb_sectors;
     int mult_sectors;
@@ -350,14 +350,6 @@ typedef struct IDEState {
     uint8_t *data_end;
     uint8_t io_buffer[MAX_MULT_SECTORS*512 + 4];
 } IDEState;
-
-IDEState ide_state[MAX_DISKS];
-IDEState *ide_table[0x400 >> 3];
-
-static inline IDEState *get_ide_interface(uint32_t addr)
-{
-    return ide_table[addr >> 3];
-}
 
 static void padstr(char *str, const char *src, int len)
 {
@@ -815,7 +807,7 @@ static void ide_atapi_cmd(IDEState *s)
 #endif
     switch(s->io_buffer[0]) {
     case GPCMD_TEST_UNIT_READY:
-        if (s->bs) {
+        if (bdrv_is_inserted(s->bs)) {
             ide_atapi_cmd_ok(s);
         } else {
             ide_atapi_cmd_error(s, SENSE_NOT_READY, 
@@ -867,7 +859,7 @@ static void ide_atapi_cmd(IDEState *s)
                     buf[12] = 0x70;
                     buf[13] = 3 << 5;
                     buf[14] = (1 << 0) | (1 << 3) | (1 << 5);
-                    if (s->cdrom_locked)
+                    if (bdrv_is_locked(s->bs))
                         buf[6] |= 1 << 1;
                     buf[15] = 0x00;
                     cpu_to_ube16(&buf[16], 706);
@@ -907,8 +899,8 @@ static void ide_atapi_cmd(IDEState *s)
         ide_atapi_cmd_reply(s, 18, max_len);
         break;
     case GPCMD_PREVENT_ALLOW_MEDIUM_REMOVAL:
-        if (s->bs) {
-            s->cdrom_locked = packet[4] & 1;
+        if (bdrv_is_inserted(s->bs)) {
+            bdrv_set_locked(s->bs, packet[4] & 1);
             ide_atapi_cmd_ok(s);
         } else {
             ide_atapi_cmd_error(s, SENSE_NOT_READY, 
@@ -920,7 +912,7 @@ static void ide_atapi_cmd(IDEState *s)
         {
             int nb_sectors, lba;
 
-            if (!s->bs) {
+            if (!bdrv_is_inserted(s->bs)) {
                 ide_atapi_cmd_error(s, SENSE_NOT_READY, 
                                     ASC_MEDIUM_NOT_PRESENT);
                 break;
@@ -945,7 +937,7 @@ static void ide_atapi_cmd(IDEState *s)
     case GPCMD_SEEK:
         {
             int lba;
-            if (!s->bs) {
+            if (!bdrv_is_inserted(s->bs)) {
                 ide_atapi_cmd_error(s, SENSE_NOT_READY, 
                                     ASC_MEDIUM_NOT_PRESENT);
                 break;
@@ -965,7 +957,10 @@ static void ide_atapi_cmd(IDEState *s)
             start = packet[4] & 1;
             eject = (packet[4] >> 1) & 1;
             
-            /* XXX: currently none implemented */
+            if (eject && !start) {
+                /* eject the disk */
+                bdrv_close(s->bs);
+            }
             ide_atapi_cmd_ok(s);
         }
         break;
@@ -986,7 +981,7 @@ static void ide_atapi_cmd(IDEState *s)
         {
             int format, msf, start_track, len;
 
-            if (!s->bs) {
+            if (!bdrv_is_inserted(s->bs)) {
                 ide_atapi_cmd_error(s, SENSE_NOT_READY, 
                                     ASC_MEDIUM_NOT_PRESENT);
                 break;
@@ -1019,7 +1014,7 @@ static void ide_atapi_cmd(IDEState *s)
         }
         break;
     case GPCMD_READ_CDVD_CAPACITY:
-        if (!s->bs) {
+        if (!bdrv_is_inserted(s->bs)) {
             ide_atapi_cmd_error(s, SENSE_NOT_READY, 
                                 ASC_MEDIUM_NOT_PRESENT);
             break;
@@ -1051,9 +1046,20 @@ static void ide_atapi_cmd(IDEState *s)
     }
 }
 
-static void ide_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
+/* called when the inserted state of the media has changed */
+static void cdrom_change_cb(void *opaque)
 {
-    IDEState *ide_if = get_ide_interface(addr);
+    IDEState *s = opaque;
+    int64_t nb_sectors;
+
+    /* XXX: send interrupt too */
+    bdrv_get_geometry(s->bs, &nb_sectors);
+    s->nb_sectors = nb_sectors;
+}
+
+static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
+{
+    IDEState *ide_if = opaque;
     IDEState *s = ide_if->cur_drive;
     int unit, n;
 
@@ -1210,9 +1216,9 @@ static void ide_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
     }
 }
 
-static uint32_t ide_ioport_read(CPUState *env, uint32_t addr1)
+static uint32_t ide_ioport_read(void *opaque, uint32_t addr1)
 {
-    IDEState *s = get_ide_interface(addr1)->cur_drive;
+    IDEState *s = ((IDEState *)opaque)->cur_drive;
     uint32_t addr;
     int ret;
 
@@ -1251,9 +1257,9 @@ static uint32_t ide_ioport_read(CPUState *env, uint32_t addr1)
     return ret;
 }
 
-static uint32_t ide_status_read(CPUState *env, uint32_t addr)
+static uint32_t ide_status_read(void *opaque, uint32_t addr)
 {
-    IDEState *s = get_ide_interface(addr)->cur_drive;
+    IDEState *s = ((IDEState *)opaque)->cur_drive;
     int ret;
     ret = s->status;
 #ifdef DEBUG_IDE
@@ -1262,9 +1268,9 @@ static uint32_t ide_status_read(CPUState *env, uint32_t addr)
     return ret;
 }
 
-static void ide_cmd_write(CPUState *env, uint32_t addr, uint32_t val)
+static void ide_cmd_write(void *opaque, uint32_t addr, uint32_t val)
 {
-    IDEState *ide_if = get_ide_interface(addr);
+    IDEState *ide_if = opaque;
     IDEState *s;
     int i;
 
@@ -1297,9 +1303,9 @@ static void ide_cmd_write(CPUState *env, uint32_t addr, uint32_t val)
     ide_if[1].cmd = val;
 }
 
-static void ide_data_writew(CPUState *env, uint32_t addr, uint32_t val)
+static void ide_data_writew(void *opaque, uint32_t addr, uint32_t val)
 {
-    IDEState *s = get_ide_interface(addr)->cur_drive;
+    IDEState *s = ((IDEState *)opaque)->cur_drive;
     uint8_t *p;
 
     p = s->data_ptr;
@@ -1310,9 +1316,9 @@ static void ide_data_writew(CPUState *env, uint32_t addr, uint32_t val)
         s->end_transfer_func(s);
 }
 
-static uint32_t ide_data_readw(CPUState *env, uint32_t addr)
+static uint32_t ide_data_readw(void *opaque, uint32_t addr)
 {
-    IDEState *s = get_ide_interface(addr)->cur_drive;
+    IDEState *s = ((IDEState *)opaque)->cur_drive;
     uint8_t *p;
     int ret;
     p = s->data_ptr;
@@ -1324,9 +1330,9 @@ static uint32_t ide_data_readw(CPUState *env, uint32_t addr)
     return ret;
 }
 
-static void ide_data_writel(CPUState *env, uint32_t addr, uint32_t val)
+static void ide_data_writel(void *opaque, uint32_t addr, uint32_t val)
 {
-    IDEState *s = get_ide_interface(addr)->cur_drive;
+    IDEState *s = ((IDEState *)opaque)->cur_drive;
     uint8_t *p;
 
     p = s->data_ptr;
@@ -1337,9 +1343,9 @@ static void ide_data_writel(CPUState *env, uint32_t addr, uint32_t val)
         s->end_transfer_func(s);
 }
 
-static uint32_t ide_data_readl(CPUState *env, uint32_t addr)
+static uint32_t ide_data_readl(void *opaque, uint32_t addr)
 {
-    IDEState *s = get_ide_interface(addr)->cur_drive;
+    IDEState *s = ((IDEState *)opaque)->cur_drive;
     uint8_t *p;
     int ret;
     
@@ -1407,64 +1413,64 @@ static void ide_guess_geometry(IDEState *s)
     }
 }
 
-void ide_init(void)
+void ide_init(int iobase, int iobase2, int irq,
+              BlockDriverState *hd0, BlockDriverState *hd1)
 {
-    IDEState *s;
-    int i, cylinders, iobase, iobase2;
+    IDEState *s, *ide_state;
+    int i, cylinders, heads, secs;
     int64_t nb_sectors;
-    static const int ide_iobase[2] = { 0x1f0, 0x170 };
-    static const int ide_iobase2[2] = { 0x3f6, 0x376 };
-    static const int ide_irq[2] = { 14, 15 };
 
-    for(i = 0; i < MAX_DISKS; i++) {
-        s = &ide_state[i];
-        s->bs = bs_table[i];
+    ide_state = qemu_mallocz(sizeof(IDEState) * 2);
+    if (!ide_state)
+        return;
+
+    for(i = 0; i < 2; i++) {
+        s = ide_state + i;
+        if (i == 0)
+            s->bs = hd0;
+        else
+            s->bs = hd1;
         if (s->bs) {
             bdrv_get_geometry(s->bs, &nb_sectors);
             s->nb_sectors = nb_sectors;
-            ide_guess_geometry(s);
-            if (s->cylinders == 0) {
-                /* if no geometry, use a LBA compatible one */
-                cylinders = nb_sectors / (16 * 63);
-                if (cylinders > 16383)
-                    cylinders = 16383;
-                else if (cylinders < 2)
-                    cylinders = 2;
+            /* if a geometry hint is available, use it */
+            bdrv_get_geometry_hint(s->bs, &cylinders, &heads, &secs);
+            if (cylinders != 0) {
                 s->cylinders = cylinders;
-                s->heads = 16;
-                s->sectors = 63;
+                s->heads = heads;
+                s->sectors = secs;
+            } else {
+                ide_guess_geometry(s);
+                if (s->cylinders == 0) {
+                    /* if no geometry, use a LBA compatible one */
+                    cylinders = nb_sectors / (16 * 63);
+                    if (cylinders > 16383)
+                        cylinders = 16383;
+                    else if (cylinders < 2)
+                        cylinders = 2;
+                    s->cylinders = cylinders;
+                    s->heads = 16;
+                    s->sectors = 63;
+                }
+            }
+            if (bdrv_get_type_hint(s->bs) == BDRV_TYPE_CDROM) {
+                s->is_cdrom = 1;
+                bdrv_set_change_cb(s->bs, cdrom_change_cb, s);
             }
         }
-        s->irq = ide_irq[i >> 1];
+        s->irq = irq;
         ide_reset(s);
     }
-    for(i = 0; i < (MAX_DISKS / 2); i++) {
-        iobase = ide_iobase[i];
-        iobase2 = ide_iobase2[i];
-        ide_table[iobase >> 3] = &ide_state[2 * i];
-        if (ide_iobase2[i]) 
-            ide_table[iobase2 >> 3] = &ide_state[2 * i];
-        register_ioport_write(iobase, 8, ide_ioport_write, 1);
-        register_ioport_read(iobase, 8, ide_ioport_read, 1);
-        register_ioport_read(iobase2, 1, ide_status_read, 1);
-        register_ioport_write(iobase2, 1, ide_cmd_write, 1);
-        
-        /* data ports */
-        register_ioport_write(iobase, 2, ide_data_writew, 2);
-        register_ioport_read(iobase, 2, ide_data_readw, 2);
-        register_ioport_write(iobase, 4, ide_data_writel, 4);
-        register_ioport_read(iobase, 4, ide_data_readl, 4);
+    register_ioport_write(iobase, 8, 1, ide_ioport_write, ide_state);
+    register_ioport_read(iobase, 8, 1, ide_ioport_read, ide_state);
+    if (iobase2) {
+        register_ioport_read(iobase2, 1, 1, ide_status_read, ide_state);
+        register_ioport_write(iobase2, 1, 1, ide_cmd_write, ide_state);
     }
-}
-
-void ide_set_geometry(int n, int cyls, int heads, int secs)
-{
-    ide_state[n].cylinders = cyls;
-    ide_state[n].heads = heads;
-    ide_state[n].sectors = secs;
-}
-
-void ide_set_cdrom(int n, int is_cdrom)
-{
-    ide_state[n].is_cdrom = is_cdrom;
+    
+    /* data ports */
+    register_ioport_write(iobase, 2, 2, ide_data_writew, ide_state);
+    register_ioport_read(iobase, 2, 2, ide_data_readw, ide_state);
+    register_ioport_write(iobase, 4, 4, ide_data_writel, ide_state);
+    register_ioport_read(iobase, 4, 4, ide_data_readl, ide_state);
 }
