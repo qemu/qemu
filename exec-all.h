@@ -392,28 +392,26 @@ static inline int testandset (int *p)
 #ifdef __i386__
 static inline int testandset (int *p)
 {
-    char ret;
-    long int readval;
+    long int readval = 0;
     
-    __asm__ __volatile__ ("lock; cmpxchgl %3, %1; sete %0"
-                          : "=q" (ret), "=m" (*p), "=a" (readval)
-                          : "r" (1), "m" (*p), "a" (0)
-                          : "memory");
-    return ret;
+    __asm__ __volatile__ ("lock; cmpxchgl %2, %0"
+                          : "+m" (*p), "+a" (readval)
+                          : "r" (1)
+                          : "cc");
+    return readval;
 }
 #endif
 
 #ifdef __x86_64__
 static inline int testandset (int *p)
 {
-    char ret;
-    int readval;
+    long int readval = 0;
     
-    __asm__ __volatile__ ("lock; cmpxchgl %3, %1; sete %0"
-                          : "=q" (ret), "=m" (*p), "=a" (readval)
-                          : "r" (1), "m" (*p), "a" (0)
-                          : "memory");
-    return ret;
+    __asm__ __volatile__ ("lock; cmpxchgl %2, %0"
+                          : "+m" (*p), "+a" (readval)
+                          : "r" (1)
+                          : "cc");
+    return readval;
 }
 #endif
 
@@ -484,7 +482,7 @@ static inline int testandset (int *p)
                          : "=r" (ret)
                          : "m" (p)
                          : "cc","memory");
-    return ret == 0;
+    return ret;
 }
 #endif
 
