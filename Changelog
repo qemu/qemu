@@ -5,7 +5,12 @@ version 0.5.3:
   - IDE fixes (Jens Axboe)
   - CPU interrupt fixes
   - fixed various TLB invalidation cases (NT install)
-
+  - fixed cr0.WP semantics (XP install)
+  - direct chaining support for SPARC (3x faster)
+  - ARM NWFPE support (initial patch by Ulrich Hecht)
+  - added specific x86 to x86 translator (close to native performance
+    in qemu-i386 and qemu-fast)
+  
 version 0.5.2:
 
   - improved soft MMU speed (assembly functions and specializing)
