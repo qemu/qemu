@@ -123,10 +123,12 @@ static void serial_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             s->lsr &= ~UART_LSR_THRE;
             serial_update_irq(s);
 
-            ch = val;
-            do {
-                ret = write(s->out_fd, &ch, 1);
-            } while (ret != 1);
+            if (s->out_fd >= 0) {
+                ch = val;
+                do {
+                    ret = write(s->out_fd, &ch, 1);
+                } while (ret != 1);
+            }
             s->thr_ipending = 1;
             s->lsr |= UART_LSR_THRE;
             s->lsr |= UART_LSR_TEMT;
@@ -267,7 +269,10 @@ SerialState *serial_init(int base, int irq, int fd)
     register_ioport_write(base, 8, 1, serial_ioport_write, s);
     register_ioport_read(base, 8, 1, serial_ioport_read, s);
 
-    if (fd != 0) {
+    if (fd < 0) {
+        /* no associated device */
+        s->out_fd = -1;
+    } else if (fd != 0) {
         qemu_add_fd_read_handler(fd, serial_can_receive1, serial_receive1, s);
         s->out_fd = fd;
     } else {
