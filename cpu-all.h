@@ -475,6 +475,20 @@ void cpu_set_log_filename(const char *filename);
 
 /* memory API */
 
+extern int phys_ram_size;
+extern int phys_ram_fd;
+extern uint8_t *phys_ram_base;
+
+/* physical memory access */
+#define IO_MEM_NB_ENTRIES  256
+#define TLB_INVALID_MASK   (1 << 3)
+#define IO_MEM_SHIFT       4
+
+#define IO_MEM_RAM         (0 << IO_MEM_SHIFT) /* hardcoded offset */
+#define IO_MEM_ROM         (1 << IO_MEM_SHIFT) /* hardcoded offset */
+#define IO_MEM_UNASSIGNED  (2 << IO_MEM_SHIFT)
+#define IO_MEM_CODE        (3 << IO_MEM_SHIFT)
+
 typedef void CPUWriteMemoryFunc(uint32_t addr, uint32_t value);
 typedef uint32_t CPUReadMemoryFunc(uint32_t addr);
 
