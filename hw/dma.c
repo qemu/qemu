@@ -136,7 +136,7 @@ static uint32_t read_chan (CPUState *env, uint32_t nport)
     return (val >> (ncont + (ff << 3))) & 0xff;
 }
 
-static void write_chan (uint32_t nport, int size, uint32_t data)
+static void write_chan (CPUState *env, uint32_t nport, uint32_t data)
 {
     int ncont, ichan, nreg;
     struct dma_regs *r;
@@ -146,28 +146,12 @@ static void write_chan (uint32_t nport, int size, uint32_t data)
     nreg = (nport >> ncont) & 1;
     r = dma_controllers[ncont].regs + ichan;
 
-    if (2 == size) {
-        r->base[nreg] = data;
+    if (getff (ncont)) {
+        r->base[nreg] = (r->base[nreg] & 0xff) | ((data << 8) & 0xff00);
         init_chan (ncont, ichan);
+    } else {
+        r->base[nreg] = (r->base[nreg] & 0xff00) | (data & 0xff);
     }
-    else {
-        if (getff (ncont)) {
-            r->base[nreg] = (r->base[nreg] & 0xff) | ((data << 8) & 0xff00);
-            init_chan (ncont, ichan);
-        }
-        else {
-            r->base[nreg] = (r->base[nreg] & 0xff00) | (data & 0xff);
-        }
-    }
-}
-static void write_chanb (CPUState *env, uint32_t nport, uint32_t data)
-{
-    write_chan (nport, 1, data);
-}
-
-static void write_chanw (CPUState *env, uint32_t nport, uint32_t data)
-{
-    write_chan (nport, 2, data);
 }
 
 static void write_cont (CPUState *env, uint32_t nport, uint32_t data)
@@ -370,14 +354,12 @@ void DMA_init (void)
     int page_port_list[] = { 0x1, 0x2, 0x3, 0x7 };
 
     for (i = 0; i < 8; i++) {
-        register_ioport_write (i, 1, write_chanb, 1);
-        register_ioport_write (i, 1, write_chanw, 2);
+        register_ioport_write (i, 1, write_chan, 1);
 
-        register_ioport_write (0xc0 + (i << 1), 1, write_chanb, 1);
-        register_ioport_write (0xc0 + (i << 1), 1, write_chanw, 2);
+        register_ioport_write (0xc0 + (i << 1), 1, write_chan, 1);
 
         register_ioport_read (i, 1, read_chan, 1);
-        register_ioport_read (0xc0 + (i << 1), 1, read_chan, 2);
+        register_ioport_read (0xc0 + (i << 1), 1, read_chan, 1);
     }
 
     for (i = 0; i < LENOFA (page_port_list); i++) {
@@ -390,6 +372,6 @@ void DMA_init (void)
         register_ioport_write (0xd0 + (i << 1), 1, write_cont, 1);
     }
 
-    write_cont (NULL, 0xd, 0);
-    write_cont (NULL, 0xdd, 0);
+    write_cont (NULL, 0x0d, 0);
+    write_cont (NULL, 0xda, 0);
 }
