@@ -1,260 +1,104 @@
 Index: rombios.c
 ===================================================================
 RCS file: /cvsroot/bochs/bochs/bios/rombios.c,v
-retrieving revision 1.108
-diff -u -w -r1.108 rombios.c
---- rombios.c	9 Feb 2004 16:48:50 -0000	1.108
-+++ rombios.c	23 May 2004 15:48:52 -0000
-@@ -2254,6 +2254,7 @@
-       type      = read_byte(get_SS(),buffer+1) & 0x1f;
-       removable = (read_byte(get_SS(),buffer+0) & 0x80) ? 1 : 0;
-       mode      = read_byte(get_SS(),buffer+96) ? ATA_MODE_PIO32 : ATA_MODE_PIO16;
-+      blksize   = 2048;
+retrieving revision 1.110
+diff -u -w -r1.110 rombios.c
+--- rombios.c	31 May 2004 13:11:27 -0000	1.110
++++ rombios.c	20 Jun 2004 13:10:07 -0000
+@@ -137,6 +137,7 @@
+ #define DEBUG_INT16        0
+ #define DEBUG_INT1A        0
+ #define DEBUG_INT74        0
++#define DEBUG_APM          0
  
-       write_byte(ebda_seg,&EbdaData->ata.devices[device].device, type);
-       write_byte(ebda_seg,&EbdaData->ata.devices[device].removable, removable);
-@@ -3378,6 +3379,8 @@
-       and al,#0x10
-       mov ah, al
+ #define BX_CPU           3
+ #define BX_USE_PS2_MOUSE 1
+@@ -145,6 +146,7 @@
+ #define BX_SUPPORT_FLOPPY 1
+ #define BX_FLOPPY_ON_CNT 37   // 2 seconds
+ #define BX_PCIBIOS       1
++#define BX_APM           1
  
-+      or ecx, ecx                    
-+      je int1586_tick_end
- int1586_tick:
-       in al, #0x61
-       and al,#0x10
-@@ -3386,6 +3389,7 @@
-       mov ah, al
-       dec ecx
-       jnz int1586_tick
-+int1586_tick_end:
- ASM_END
+ #define BX_USE_ATADRV    1
+ #define BX_ELTORITO_BOOT 1
+@@ -230,17 +232,6 @@
+   out dx,ax
+ MEND
  
-       break;
-@@ -3781,7 +3785,17 @@
-           write_word(ebda_seg, 0x0022, mouse_driver_offset);
-           write_word(ebda_seg, 0x0024, mouse_driver_seg);
-           mouse_flags_2 = read_byte(ebda_seg, 0x0027);
-+          if (mouse_driver_offset == 0 && 
-+              mouse_driver_seg == 0) {
-+              /* remove handler */
-+              if ( (mouse_flags_2 & 0x80) != 0 ) {
-+                  mouse_flags_2 &= ~0x80;
-+                  inhibit_mouse_int_and_events(); // disable IRQ12 and packets
-+              }
-+          } else {
-+              /* install handler */
-           mouse_flags_2 |= 0x80;
-+          }
-           write_byte(ebda_seg, 0x0027, mouse_flags_2);
-           CLEAR_CF();
-           regs.u.r8.ah = 0;
-@@ -4409,7 +4423,8 @@
-   mouse_flags_2 = read_byte(ebda_seg, 0x0027);
- 
-   if ( (mouse_flags_2 & 0x80) != 0x80 ) {
--    BX_PANIC("int74_function:\n");
-+      //    BX_PANIC("int74_function:\n");
-+      return;
+-MACRO HALT2
+-  ;; the HALT macro is called with the line number of the HALT call.
+-  ;; The line number is then sent to the PANIC_PORT, causing Bochs/Plex
+-  ;; to print a BX_PANIC message.  This will normally halt the simulation
+-  ;; with a message such as "BIOS panic at rombios.c, line 4091".
+-  ;; However, users can choose to make panics non-fatal and continue.
+-  mov dx,#PANIC_PORT2
+-  mov ax,#?1
+-  out dx,ax
+-MEND
+-
+ MACRO JMP_AP
+   db 0xea
+   dw ?2
+@@ -1543,15 +1534,12 @@
      }
  
-   package_count = mouse_flags_2 & 0x07;
-@@ -4833,8 +4848,10 @@
- // ---------------------------------------------------------------------------
+   if (action & BIOS_PRINTF_HALT) {
+-    // freeze in a busy loop.  If I do a HLT instruction, then in versions
+-    // 1.3.pre1 and earlier, it will panic without ever updating the VGA
+-    // display, so the panic message will not be visible.  By waiting
+-    // forever, you are certain to see the panic message on screen.
+-    // After a few more versions have passed, we can turn this back into
+-    // a halt or something.
+-    // do {} while (1);
++    // freeze in a busy loop.  
+ ASM_START
+-    HALT2(__LINE__)
++    cli
++ halt2_loop:
++    hlt
++    jmp halt2_loop
+ ASM_END
+     }
+ }
+@@ -8344,6 +8332,19 @@
+   pop   ax
+   iret
  
-   void
--int13_cdrom(DI, SI, BP, SP, BX, DX, CX, AX, DS, ES, FLAGS)
--  Bit16u DI, SI, BP, SP, BX, DX, CX, AX, DS, ES, FLAGS;
-+int13_cdrom(DI, DIH, SI, SIH, BP, BPH, SP, SPH, BX, BXH, DX, DXH, CX, CXH, AX, AXH, 
-+            DS, ES, FLAGS)
-+  Bit16u DI, DIH, SI, SIH, BP, BPH, SP, SPH, BX, BXH, DX, DXH, CX, CXH, AX, AXH,
-+         DS, ES, FLAGS;
- {
-   Bit16u ebda_seg=read_word(0x0040,0x000E);
-   Bit8u  device, status, locks;
-@@ -7692,9 +7709,12 @@
++
++;--------------------
++#if BX_APM
++use32 386
++#define APM_PROT32
++#include "apmbios.S"
++use16 386
++
++#define APM_REAL
++#include "apmbios.S"
++
++#endif
++
+ ;--------------------
+ #if BX_PCIBIOS
+ use32 386
+@@ -9560,6 +9561,10 @@
+ .org 0xf859 ; INT 15h System Services Entry Point
+ int15_handler:
+   pushf
++#if BX_APM
++  cmp ah, #0x53
++  je apm_call
++#endif
    push  ds
-   push  ss
-   pop   ds
--  pusha
-+  // ebx is modified: BSD 5.2.1 boot loader problem, so we save all
-+  // the 32 bit registers. It should be done in all the bios or no 32
-+  // bit register should be used without saving it first.
-+  pushad
-   call  _int13_cdrom
--  popa
-+  popad
-   pop   ds
-   pop   es
+   push  es
+   pushad
+@@ -9570,6 +9575,10 @@
    popf
-@@ -8401,57 +8421,69 @@
-   cmp al, #0x08
-   jne pci_pro_f09
-   call pci_pro_select_reg
-+  push edx
-   mov dx, di
-   and dx, #0x03
-   add dx, #0x0cfc
-   in  al, dx
-+  pop edx
-   mov cl, al
-   jmp pci_pro_ok
- pci_pro_f09: ;; read configuration word
-   cmp al, #0x09
-   jne pci_pro_f0a
-   call pci_pro_select_reg
-+  push edx
-   mov dx, di
-   and dx, #0x02
-   add dx, #0x0cfc
-   in  ax, dx
-+  pop edx
-   mov cx, ax
-   jmp pci_pro_ok
- pci_pro_f0a: ;; read configuration dword
-   cmp al, #0x0a
-   jne pci_pro_f0b
-   call pci_pro_select_reg
-+  push edx
-   mov dx, #0x0cfc
-   in  eax, dx
-+  pop edx
-   mov ecx, eax
-   jmp pci_pro_ok
- pci_pro_f0b: ;; write configuration byte
-   cmp al, #0x0b
-   jne pci_pro_f0c
-   call pci_pro_select_reg
-+  push edx
-   mov dx, di
-   and dx, #0x03
-   add dx, #0x0cfc
-   mov al, cl
-   out dx, al
-+  pop edx
-   jmp pci_pro_ok
- pci_pro_f0c: ;; write configuration word
-   cmp al, #0x0c
-   jne pci_pro_f0d
-   call pci_pro_select_reg
-+  push edx
-   mov dx, di
-   and dx, #0x02
-   add dx, #0x0cfc
-   mov ax, cx
-   out dx, ax
-+  pop edx
-   jmp pci_pro_ok
- pci_pro_f0d: ;; write configuration dword
-   cmp al, #0x0d
-   jne pci_pro_unknown
-   call pci_pro_select_reg
-+  push edx
-   mov dx, #0x0cfc
-   mov eax, ecx
-   out dx, eax
-+  pop edx
-   jmp pci_pro_ok
- pci_pro_unknown:
-   mov ah, #0x81
-@@ -8468,6 +8500,7 @@
-   retf
+   //JMPL(iret_modify_cf)
+   jmp iret_modify_cf
++#if BX_APM
++apm_call:
++  jmp _apmreal_entry
++#endif
  
- pci_pro_select_reg:
-+  push edx
-   mov eax, #0x800000
-   mov ax,  bx
-   shl eax, #8
-@@ -8476,6 +8509,7 @@
-   and al,  #0xfc
-   mov dx, #0x0cf8
-   out dx,  eax
-+  pop edx
-   ret
- 
- use16 386
-@@ -8536,57 +8570,69 @@
-   cmp al, #0x08
-   jne pci_real_f09
-   call pci_real_select_reg
-+  push dx
-   mov dx, di
-   and dx, #0x03
-   add dx, #0x0cfc
-   in  al, dx
-+  pop dx
-   mov cl, al
-   jmp pci_real_ok
- pci_real_f09: ;; read configuration word
-   cmp al, #0x09
-   jne pci_real_f0a
-   call pci_real_select_reg
-+  push dx
-   mov dx, di
-   and dx, #0x02
-   add dx, #0x0cfc
-   in  ax, dx
-+  pop dx
-   mov cx, ax
-   jmp pci_real_ok
- pci_real_f0a: ;; read configuration dword
-   cmp al, #0x0a
-   jne pci_real_f0b
-   call pci_real_select_reg
-+  push dx
-   mov dx, #0x0cfc
-   in  eax, dx
-+  pop dx
-   mov ecx, eax
-   jmp pci_real_ok
- pci_real_f0b: ;; write configuration byte
-   cmp al, #0x0b
-   jne pci_real_f0c
-   call pci_real_select_reg
-+  push dx
-   mov dx, di
-   and dx, #0x03
-   add dx, #0x0cfc
-   mov al, cl
-   out dx, al
-+  pop dx
-   jmp pci_real_ok
- pci_real_f0c: ;; write configuration word
-   cmp al, #0x0c
-   jne pci_real_f0d
-   call pci_real_select_reg
-+  push dx
-   mov dx, di
-   and dx, #0x02
-   add dx, #0x0cfc
-   mov ax, cx
-   out dx, ax
-+  pop dx
-   jmp pci_real_ok
- pci_real_f0d: ;; write configuration dword
-   cmp al, #0x0d
-   jne pci_real_unknown
-   call pci_real_select_reg
-+  push dx
-   mov dx, #0x0cfc
-   mov eax, ecx
-   out dx, eax
-+  pop dx
-   jmp pci_real_ok
- pci_real_unknown:
-   mov ah, #0x81
-@@ -8599,6 +8645,7 @@
-   ret
- 
- pci_real_select_reg:
-+  push dx
-   mov eax, #0x800000
-   mov ax,  bx
-   shl eax, #8
-@@ -8607,6 +8654,7 @@
-   and al,  #0xfc
-   mov dx, #0x0cf8
-   out dx,  eax
-+  pop dx
-   ret
-   
- .align 16
+ ;; Protected mode IDT descriptor
+ ;;
