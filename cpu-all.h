@@ -464,9 +464,11 @@ void page_unprotect_range(uint8_t *data, unsigned long data_size);
 
 void cpu_abort(CPUState *env, const char *fmt, ...);
 extern CPUState *cpu_single_env;
+extern int code_copy_enabled;
 
-#define CPU_INTERRUPT_EXIT 0x01 /* wants exit from main loop */
-#define CPU_INTERRUPT_HARD 0x02 /* hardware interrupt pending */
+#define CPU_INTERRUPT_EXIT   0x01 /* wants exit from main loop */
+#define CPU_INTERRUPT_HARD   0x02 /* hardware interrupt pending */
+#define CPU_INTERRUPT_EXITTB 0x04 /* exit the current TB (use for x86 a20 case) */
 void cpu_interrupt(CPUState *s, int mask);
 
 int cpu_breakpoint_insert(CPUState *env, uint32_t pc);
