@@ -72,7 +72,7 @@ struct cow_header_v2 {
 
 /* vga.c */
 
-#define VGA_RAM_SIZE (8192 * 1024)
+#define VGA_RAM_SIZE (4096 * 1024)
 
 typedef struct DisplayState {
     uint8_t *data;
