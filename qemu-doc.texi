@@ -584,81 +584,34 @@ CPU registers by prefixing them with @emph{$}.
 @node disk_images
 @section Disk Images
 
-@subsection Raw disk images
+Since version 0.6.1, QEMU supports many disk image formats, including
+growable disk images (their size increase as non empty sectors are
+written), compressed and encrypted disk images.
 
-The disk images can simply be raw images of the hard disk. You can
-create them with the command:
+@subsection Quick start for disk image creation
+
+You can create a disk image with the command:
 @example
-dd of=myimage bs=1024 seek=mysize count=0
+qemu-img create myimage.img mysize
 @end example
-where @var{myimage} is the image filename and @var{mysize} is its size
-in kilobytes.
+where @var{myimage.img} is the disk image filename and @var{mysize} is its
+size in kilobytes. You can add an @code{M} suffix to give the size in
+megabytes and a @code{G} suffix for gigabytes.
+
+@xref{qemu_img_invocation} for more information.
 
 @subsection Snapshot mode
 
 If you use the option @option{-snapshot}, all disk images are
 considered as read only. When sectors in written, they are written in
 a temporary file created in @file{/tmp}. You can however force the
-write back to the raw disk images by pressing @key{C-a s}.
+write back to the raw disk images by using the @code{commit} monitor
+command (or @key{C-a s} in the serial console).
 
-NOTE: The snapshot mode only works with raw disk images.
+@node qemu_img_invocation
+@subsection @code{qemu-img} Invocation
 
-@subsection Copy On Write disk images
-
-QEMU also supports user mode Linux
-(@url{http://user-mode-linux.sourceforge.net/}) Copy On Write (COW)
-disk images. The COW disk images are much smaller than normal images
-as they store only modified sectors. They also permit the use of the
-same disk image template for many users.
-
-To create a COW disk images, use the command:
-
-@example
-qemu-mkcow -f myrawimage.bin mycowimage.cow
-@end example
-
-@file{myrawimage.bin} is a raw image you want to use as original disk
-image. It will never be written to.
-
-@file{mycowimage.cow} is the COW disk image which is created by
-@code{qemu-mkcow}. You can use it directly with the @option{-hdx}
-options. You must not modify the original raw disk image if you use
-COW images, as COW images only store the modified sectors from the raw
-disk image. QEMU stores the original raw disk image name and its
-modified time in the COW disk image so that chances of mistakes are
-reduced.
-
-If the raw disk image is not read-only, by pressing @key{C-a s} you
-can flush the COW disk image back into the raw disk image, as in
-snapshot mode.
-
-COW disk images can also be created without a corresponding raw disk
-image. It is useful to have a big initial virtual disk image without
-using much disk space. Use:
-
-@example
-qemu-mkcow mycowimage.cow 1024
-@end example
-
-to create a 1 gigabyte empty COW disk image.
-
-NOTES: 
-@enumerate
-@item
-COW disk images must be created on file systems supporting
-@emph{holes} such as ext2 or ext3.
-@item 
-Since holes are used, the displayed size of the COW disk image is not
-the real one. To know it, use the @code{ls -ls} command.
-@end enumerate
-
-@subsection Convert VMware disk images to raw disk images
-
-You can use the tool @file{vmdk2raw} to convert VMware disk images to
-raw disk images directly usable by QEMU. The syntax is:
-@example
-vmdk2raw vmware_image output_image
-@end example
+@include qemu-img.texi
 
 @section Network emulation
 

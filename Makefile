@@ -14,7 +14,7 @@ TOOLS=qemu-img
 ifdef CONFIG_STATIC
 LDFLAGS+=-static
 endif
-DOCS=qemu-doc.html qemu-tech.html qemu.1
+DOCS=qemu-doc.html qemu-tech.html qemu.1 qemu-img.1
 
 all: dyngen$(EXESUF) $(TOOLS) $(DOCS)
 	for d in $(TARGET_DIRS); do \
@@ -30,7 +30,7 @@ dyngen$(EXESUF): dyngen.c
 clean:
 # avoid old build problems by removing potentially incorrect old files
 	rm -f config.mak config.h op-i386.h opc-i386.h gen-op-i386.h op-arm.h opc-arm.h gen-op-arm.h 
-	rm -f *.o *.a $(TOOLS) dyngen$(EXESUF) TAGS qemu.pod *~ */*~
+	rm -f *.o *.a $(TOOLS) dyngen$(EXESUF) TAGS *.pod *~ */*~
 	$(MAKE) -C tests clean
 	for d in $(TARGET_DIRS); do \
 	$(MAKE) -C $$d $@ || exit 1 ; \
@@ -57,7 +57,7 @@ endif
 	install -m 644 qemu-doc.html  qemu-tech.html "$(docdir)"
 ifndef CONFIG_WIN32
 	mkdir -p "$(mandir)/man1"
-	install qemu.1 qemu-mkcow.1 "$(mandir)/man1"
+	install qemu.1 qemu-img.1 "$(mandir)/man1"
 endif
 	for d in $(TARGET_DIRS); do \
 	$(MAKE) -C $$d $@ || exit 1 ; \
@@ -78,6 +78,10 @@ qemu.1: qemu-doc.texi
 	./texi2pod.pl $< qemu.pod
 	pod2man --section=1 --center=" " --release=" " qemu.pod > $@
 
+qemu-img.1: qemu-img.texi
+	./texi2pod.pl $< qemu-img.pod
+	pod2man --section=1 --center=" " --release=" " qemu-img.pod > $@
+
 FILE=qemu-$(shell cat VERSION)
 
 # tar release (use 'make -k tar' on a checkouted tree)
@@ -92,6 +96,7 @@ tarbin:
 	( cd / ; tar zcvf ~/qemu-$(VERSION)-i386.tar.gz \
 	$(bindir)/qemu $(bindir)/qemu-fast \
 	$(bindir)/qemu-system-ppc \
+	$(bindir)/qemu-system-sparc \
 	$(bindir)/qemu-i386 \
         $(bindir)/qemu-arm \
         $(bindir)/qemu-sparc \
@@ -105,7 +110,7 @@ tarbin:
 	$(datadir)/linux_boot.bin \
 	$(docdir)/qemu-doc.html \
 	$(docdir)/qemu-tech.html \
-	$(mandir)/man1/qemu.1 $(mandir)/man1/qemu-mkcow.1 )
+	$(mandir)/man1/qemu.1 $(mandir)/man1/qemu-img.1 )
 
 ifneq ($(wildcard .depend),)
 include .depend

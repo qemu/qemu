@@ -10,6 +10,8 @@ qemu-doc.html
 qemu-tech.html
 qemu.1
 qemu.pod
+qemu-img.1
+qemu-img.pod
 sparc-user
 qemu-img
 sparc-softmmu
