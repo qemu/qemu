@@ -2067,40 +2067,40 @@ static void ide_identify(IDEState *s)
 
     memset(s->io_buffer, 0, 512);
     p = (uint16_t *)s->io_buffer;
-    stw(p + 0, 0x0040);
-    stw(p + 1, s->cylinders); 
-    stw(p + 3, s->heads);
-    stw(p + 4, 512 * s->sectors); /* sectors */
-    stw(p + 5, 512); /* sector size */
-    stw(p + 6, s->sectors); 
-    stw(p + 20, 3); /* buffer type */
-    stw(p + 21, 512); /* cache size in sectors */
-    stw(p + 22, 4); /* ecc bytes */
+    stw_raw(p + 0, 0x0040);
+    stw_raw(p + 1, s->cylinders); 
+    stw_raw(p + 3, s->heads);
+    stw_raw(p + 4, 512 * s->sectors); /* sectors */
+    stw_raw(p + 5, 512); /* sector size */
+    stw_raw(p + 6, s->sectors); 
+    stw_raw(p + 20, 3); /* buffer type */
+    stw_raw(p + 21, 512); /* cache size in sectors */
+    stw_raw(p + 22, 4); /* ecc bytes */
     padstr((uint8_t *)(p + 27), "QEMU HARDDISK", 40);
 #if MAX_MULT_SECTORS > 1    
-    stw(p + 47, MAX_MULT_SECTORS);
+    stw_raw(p + 47, MAX_MULT_SECTORS);
 #endif
-    stw(p + 48, 1); /* dword I/O */
-    stw(p + 49, 1 << 9); /* LBA supported, no DMA */
-    stw(p + 51, 0x200); /* PIO transfer cycle */
-    stw(p + 52, 0x200); /* DMA transfer cycle */
-    stw(p + 54, s->cylinders);
-    stw(p + 55, s->heads);
-    stw(p + 56, s->sectors);
+    stw_raw(p + 48, 1); /* dword I/O */
+    stw_raw(p + 49, 1 << 9); /* LBA supported, no DMA */
+    stw_raw(p + 51, 0x200); /* PIO transfer cycle */
+    stw_raw(p + 52, 0x200); /* DMA transfer cycle */
+    stw_raw(p + 54, s->cylinders);
+    stw_raw(p + 55, s->heads);
+    stw_raw(p + 56, s->sectors);
     oldsize = s->cylinders * s->heads * s->sectors;
-    stw(p + 57, oldsize);
-    stw(p + 58, oldsize >> 16);
+    stw_raw(p + 57, oldsize);
+    stw_raw(p + 58, oldsize >> 16);
     if (s->mult_sectors)
-        stw(p + 59, 0x100 | s->mult_sectors);
-    stw(p + 60, s->nb_sectors);
-    stw(p + 61, s->nb_sectors >> 16);
-    stw(p + 80, (1 << 1) | (1 << 2));
-    stw(p + 82, (1 << 14));
-    stw(p + 83, (1 << 14));
-    stw(p + 84, (1 << 14));
-    stw(p + 85, (1 << 14));
-    stw(p + 86, 0);
-    stw(p + 87, (1 << 14));
+        stw_raw(p + 59, 0x100 | s->mult_sectors);
+    stw_raw(p + 60, s->nb_sectors);
+    stw_raw(p + 61, s->nb_sectors >> 16);
+    stw_raw(p + 80, (1 << 1) | (1 << 2));
+    stw_raw(p + 82, (1 << 14));
+    stw_raw(p + 83, (1 << 14));
+    stw_raw(p + 84, (1 << 14));
+    stw_raw(p + 85, (1 << 14));
+    stw_raw(p + 86, 0);
+    stw_raw(p + 87, (1 << 14));
 }
 
 static inline void ide_abort_command(IDEState *s)
@@ -3275,6 +3275,7 @@ void dumb_display_init(DisplayState *ds)
     ds->dpy_refresh = dumb_refresh;
 }
 
+#if !defined(CONFIG_SOFTMMU)
 /***********************************************************/
 /* cpu signal handler */
 static void host_segv_handler(int host_signum, siginfo_t *info, 
@@ -3285,6 +3286,7 @@ static void host_segv_handler(int host_signum, siginfo_t *info,
     term_exit();
     abort();
 }
+#endif
 
 static int timer_irq_pending;
 static int timer_irq_count;
@@ -3807,9 +3809,11 @@ int main(int argc, char **argv)
     /* setup cpu signal handlers for MMU / self modifying code handling */
     sigfillset(&act.sa_mask);
     act.sa_flags = SA_SIGINFO;
+#if !defined(CONFIG_SOFTMMU)
     act.sa_sigaction = host_segv_handler;
     sigaction(SIGSEGV, &act, NULL);
     sigaction(SIGBUS, &act, NULL);
+#endif
 
     act.sa_sigaction = host_alarm_handler;
     sigaction(SIGALRM, &act, NULL);
