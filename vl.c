@@ -2078,6 +2078,7 @@ int main(int argc, char **argv)
                 {
                     const char *p;
                     int fd;
+                    net_if_type = NET_IF_TUN;
                     if (nb_tun_fds < MAX_NICS) {
                         fd = strtol(optarg, (char **)&p, 0);
                         if (*p != '\0') {
