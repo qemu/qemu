@@ -1,4 +1,5 @@
 /* General "disassemble this chunk" code.  Used for debugging. */
+#include "config.h"
 #include "dis-asm.h"
 #include "disas.h"
 #include "elf.h"
