@@ -202,6 +202,10 @@ Windows.
 @item -full-screen
 Start in full screen.
 
+@item -pidfile file
+Store the QEMU process PID in @var{file}. It is useful if you launch QEMU
+from a script.
+
 @end table
 
 Network options:

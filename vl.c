@@ -1667,6 +1667,46 @@ static int net_fd_init(NetDriverState *nd, int fd)
 #endif /* !_WIN32 */
 
 /***********************************************************/
+/* pid file */
+
+static char *pid_filename;
+
+/* Remove PID file. Called on normal exit */
+
+static void remove_pidfile(void) 
+{
+    unlink (pid_filename);
+}
+
+static void create_pidfile(const char *filename)
+{
+    struct stat pidstat;
+    FILE *f;
+
+    /* Try to write our PID to the named file */
+    if (stat(filename, &pidstat) < 0) {
+        if (errno == ENOENT) {
+            if ((f = fopen (filename, "w")) == NULL) {
+                perror("Opening pidfile");
+                exit(1);
+            }
+            fprintf(f, "%d\n", getpid());
+            fclose(f);
+            pid_filename = qemu_strdup(filename);
+            if (!pid_filename) {
+                fprintf(stderr, "Could not save PID filename");
+                exit(1);
+            }
+            atexit(remove_pidfile);
+        }
+    } else {
+        fprintf(stderr, "%s already exists. Remove it and try again.\n", 
+                filename);
+        exit(1);
+    }
+}
+
+/***********************************************************/
 /* dumb display */
 
 static void dumb_update(DisplayState *ds, int x, int y, int w, int h)
@@ -2533,6 +2573,7 @@ void help(void)
            "Debug/Expert options:\n"
            "-monitor dev    redirect the monitor to char device 'dev'\n"
            "-serial dev     redirect the serial port to char device 'dev'\n"
+           "-pidfile file   Write PID to 'file'\n"
            "-S              freeze CPU at startup (use 'c' to start execution)\n"
            "-s              wait gdb connection to port %d\n"
            "-p port         change gdb connection port\n"
@@ -2625,6 +2666,7 @@ enum {
     QEMU_OPTION_serial,
     QEMU_OPTION_loadvm,
     QEMU_OPTION_full_screen,
+    QEMU_OPTION_pidfile,
 };
 
 typedef struct QEMUOption {
@@ -2685,7 +2727,8 @@ const QEMUOption qemu_options[] = {
     { "serial", 1, QEMU_OPTION_serial },
     { "loadvm", HAS_ARG, QEMU_OPTION_loadvm },
     { "full-screen", 0, QEMU_OPTION_full_screen },
-    
+    { "pidfile", HAS_ARG, QEMU_OPTION_pidfile },
+
     /* temporary options */
     { "pci", 0, QEMU_OPTION_pci },
     { "cirrusvga", 0, QEMU_OPTION_cirrusvga },
@@ -3109,6 +3152,9 @@ int main(int argc, char **argv)
 		break;
             case QEMU_OPTION_full_screen:
                 full_screen = 1;
+                break;
+            case QEMU_OPTION_pidfile:
+                create_pidfile(optarg);
                 break;
             }
         }
