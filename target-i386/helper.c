@@ -1318,7 +1318,6 @@ void helper_lar(void)
 
 /* FPU helpers */
 
-#ifndef USE_X86LDOUBLE
 void helper_fldt_ST0_A0(void)
 {
     int new_fpstt;
@@ -1332,7 +1331,6 @@ void helper_fstt_ST0_A0(void)
 {
     helper_fstt(ST0, (uint8_t *)A0);
 }
-#endif
 
 /* BCD ops */
 
@@ -1729,11 +1727,7 @@ void helper_fsave(uint8_t *ptr, int data32)
     ptr += (14 << data32);
     for(i = 0;i < 8; i++) {
         tmp = ST(i);
-#ifdef USE_X86LDOUBLE
-        *(long double *)ptr = tmp;
-#else
         helper_fstt(tmp, ptr);
-#endif        
         ptr += 10;
     }
 
@@ -1760,11 +1754,7 @@ void helper_frstor(uint8_t *ptr, int data32)
     ptr += (14 << data32);
 
     for(i = 0;i < 8; i++) {
-#ifdef USE_X86LDOUBLE
-        tmp = *(long double *)ptr;
-#else
         tmp = helper_fldt(ptr);
-#endif        
         ST(i) = tmp;
         ptr += 10;
     }

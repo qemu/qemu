@@ -1471,21 +1471,10 @@ void OPPROTO op_fldl_ST0_A0(void)
     env->fptags[new_fpstt] = 0; /* validate stack entry */
 }
 
-#ifdef USE_X86LDOUBLE
-void OPPROTO op_fldt_ST0_A0(void)
-{
-    int new_fpstt;
-    new_fpstt = (env->fpstt - 1) & 7;
-    env->fpregs[new_fpstt] = *(long double *)A0;
-    env->fpstt = new_fpstt;
-    env->fptags[new_fpstt] = 0; /* validate stack entry */
-}
-#else
 void OPPROTO op_fldt_ST0_A0(void)
 {
     helper_fldt_ST0_A0();
 }
-#endif
 
 /* helpers are needed to avoid static constant reference. XXX: find a better way */
 #ifdef USE_INT_TO_FLOAT_HELPERS
@@ -1595,17 +1584,10 @@ void OPPROTO op_fstl_ST0_A0(void)
     stfq((void *)A0, (double)ST0);
 }
 
-#ifdef USE_X86LDOUBLE
-void OPPROTO op_fstt_ST0_A0(void)
-{
-    *(long double *)A0 = ST0;
-}
-#else
 void OPPROTO op_fstt_ST0_A0(void)
 {
     helper_fstt_ST0_A0();
 }
-#endif
 
 void OPPROTO op_fist_ST0_A0(void)
 {
