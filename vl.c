@@ -78,7 +78,6 @@
 
 //#define DEBUG_SERIAL
 
-#define PHYS_RAM_BASE     0xac000000
 #if !defined(CONFIG_SOFTMMU)
 #define PHYS_RAM_MAX_SIZE (256 * 1024 * 1024)
 #else
@@ -97,125 +96,11 @@
 #define KERNEL_STACK_ADDR   0x00400000
 #endif
 #endif
-#define INITRD_LOAD_ADDR   0x00400000
-#define KERNEL_PARAMS_ADDR 0x00090000
+#define INITRD_LOAD_ADDR     0x00400000
+#define KERNEL_PARAMS_ADDR   0x00090000
+#define KERNEL_CMDLINE_ADDR  0x00099000
 
 #define GUI_REFRESH_INTERVAL 30 
-
-/* from plex86 (BSD license) */
-struct  __attribute__ ((packed)) linux_params {
-  // For 0x00..0x3f, see 'struct screen_info' in linux/include/linux/tty.h.
-  // I just padded out the VESA parts, rather than define them.
-
-  /* 0x000 */ uint8_t   orig_x;
-  /* 0x001 */ uint8_t   orig_y;
-  /* 0x002 */ uint16_t  ext_mem_k;
-  /* 0x004 */ uint16_t  orig_video_page;
-  /* 0x006 */ uint8_t   orig_video_mode;
-  /* 0x007 */ uint8_t   orig_video_cols;
-  /* 0x008 */ uint16_t  unused1;
-  /* 0x00a */ uint16_t  orig_video_ega_bx;
-  /* 0x00c */ uint16_t  unused2;
-  /* 0x00e */ uint8_t   orig_video_lines;
-  /* 0x00f */ uint8_t   orig_video_isVGA;
-  /* 0x010 */ uint16_t  orig_video_points;
-  /* 0x012 */ uint8_t   pad0[0x20 - 0x12]; // VESA info.
-  /* 0x020 */ uint16_t  cl_magic;  // Commandline magic number (0xA33F)
-  /* 0x022 */ uint16_t  cl_offset; // Commandline offset.  Address of commandline
-                                 // is calculated as 0x90000 + cl_offset, bu
-                                 // only if cl_magic == 0xA33F.
-  /* 0x024 */ uint8_t   pad1[0x40 - 0x24]; // VESA info.
-
-  /* 0x040 */ uint8_t   apm_bios_info[20]; // struct apm_bios_info
-  /* 0x054 */ uint8_t   pad2[0x80 - 0x54];
-
-  // Following 2 from 'struct drive_info_struct' in drivers/block/cciss.h.
-  // Might be truncated?
-  /* 0x080 */ uint8_t   hd0_info[16]; // hd0-disk-parameter from intvector 0x41
-  /* 0x090 */ uint8_t   hd1_info[16]; // hd1-disk-parameter from intvector 0x46
-
-  // System description table truncated to 16 bytes
-  // From 'struct sys_desc_table_struct' in linux/arch/i386/kernel/setup.c.
-  /* 0x0a0 */ uint16_t  sys_description_len;
-  /* 0x0a2 */ uint8_t   sys_description_table[14];
-                        // [0] machine id
-                        // [1] machine submodel id
-                        // [2] BIOS revision
-                        // [3] bit1: MCA bus
-
-  /* 0x0b0 */ uint8_t   pad3[0x1e0 - 0xb0];
-  /* 0x1e0 */ uint32_t  alt_mem_k;
-  /* 0x1e4 */ uint8_t   pad4[4];
-  /* 0x1e8 */ uint8_t   e820map_entries;
-  /* 0x1e9 */ uint8_t   eddbuf_entries; // EDD_NR
-  /* 0x1ea */ uint8_t   pad5[0x1f1 - 0x1ea];
-  /* 0x1f1 */ uint8_t   setup_sects; // size of setup.S, number of sectors
-  /* 0x1f2 */ uint16_t  mount_root_rdonly; // MOUNT_ROOT_RDONLY (if !=0)
-  /* 0x1f4 */ uint16_t  sys_size; // size of compressed kernel-part in the
-                                // (b)zImage-file (in 16 byte units, rounded up)
-  /* 0x1f6 */ uint16_t  swap_dev; // (unused AFAIK)
-  /* 0x1f8 */ uint16_t  ramdisk_flags;
-  /* 0x1fa */ uint16_t  vga_mode; // (old one)
-  /* 0x1fc */ uint16_t  orig_root_dev; // (high=Major, low=minor)
-  /* 0x1fe */ uint8_t   pad6[1];
-  /* 0x1ff */ uint8_t   aux_device_info;
-  /* 0x200 */ uint16_t  jump_setup; // Jump to start of setup code,
-                                  // aka "reserved" field.
-  /* 0x202 */ uint8_t   setup_signature[4]; // Signature for SETUP-header, ="HdrS"
-  /* 0x206 */ uint16_t  header_format_version; // Version number of header format;
-  /* 0x208 */ uint8_t   setup_S_temp0[8]; // Used by setup.S for communication with
-                                        // boot loaders, look there.
-  /* 0x210 */ uint8_t   loader_type;
-                        // 0 for old one.
-                        // else 0xTV:
-                        //   T=0: LILO
-                        //   T=1: Loadlin
-                        //   T=2: bootsect-loader
-                        //   T=3: SYSLINUX
-                        //   T=4: ETHERBOOT
-                        //   V=version
-  /* 0x211 */ uint8_t   loadflags;
-                        // bit0 = 1: kernel is loaded high (bzImage)
-                        // bit7 = 1: Heap and pointer (see below) set by boot
-                        //   loader.
-  /* 0x212 */ uint16_t  setup_S_temp1;
-  /* 0x214 */ uint32_t  kernel_start;
-  /* 0x218 */ uint32_t  initrd_start;
-  /* 0x21c */ uint32_t  initrd_size;
-  /* 0x220 */ uint8_t   setup_S_temp2[4];
-  /* 0x224 */ uint16_t  setup_S_heap_end_pointer;
-  /* 0x226 */ uint8_t   pad7[0x2d0 - 0x226];
-
-  /* 0x2d0 : Int 15, ax=e820 memory map. */
-  // (linux/include/asm-i386/e820.h, 'struct e820entry')
-#define E820MAX  32
-#define E820_RAM  1
-#define E820_RESERVED 2
-#define E820_ACPI 3 /* usable as RAM once ACPI tables have been read */
-#define E820_NVS  4
-  struct {
-    uint64_t addr;
-    uint64_t size;
-    uint32_t type;
-    } e820map[E820MAX];
-
-  /* 0x550 */ uint8_t   pad8[0x600 - 0x550];
-
-  // BIOS Enhanced Disk Drive Services.
-  // (From linux/include/asm-i386/edd.h, 'struct edd_info')
-  // Each 'struct edd_info is 78 bytes, times a max of 6 structs in array.
-  /* 0x600 */ uint8_t   eddbuf[0x7d4 - 0x600];
-
-  /* 0x7d4 */ uint8_t   pad9[0x800 - 0x7d4];
-  /* 0x800 */ uint8_t   commandline[0x800];
-
-  /* 0x1000 */
-  uint64_t gdt_table[256];
-  uint64_t idt_table[48];
-};
-
-#define KERNEL_CS     0x10
-#define KERNEL_DS     0x18
 
 /* XXX: use a two level table to limit memory usage */
 #define MAX_IOPORTS 65536
@@ -360,28 +245,28 @@ char *pstrcat(char *buf, int buf_size, const char *s)
     return buf;
 }
 
-int load_kernel(const char *filename, uint8_t *addr)
+#if defined (TARGET_I386)
+int load_kernel(const char *filename, uint8_t *addr, 
+                uint8_t *real_addr)
 {
     int fd, size;
-#if defined (TARGET_I386)
     int setup_sects;
-    uint8_t bootsect[512];
-#endif
 
-    printf("Load kernel at %p (0x%08x)\n", addr,
-           (uint32_t)addr - (uint32_t)phys_ram_base);
     fd = open(filename, O_RDONLY);
     if (fd < 0)
         return -1;
-#if defined (TARGET_I386)
-    if (read(fd, bootsect, 512) != 512)
+
+    /* load 16 bit code */
+    if (read(fd, real_addr, 512) != 512)
         goto fail;
-    setup_sects = bootsect[0x1F1];
+    setup_sects = real_addr[0x1F1];
     if (!setup_sects)
         setup_sects = 4;
-    /* skip 16 bit setup code */
-    lseek(fd, (setup_sects + 1) * 512, SEEK_SET);
-#endif
+    if (read(fd, real_addr + 512, setup_sects * 512) != 
+        setup_sects * 512)
+        goto fail;
+    
+    /* load 32 bit code */
     size = read(fd, addr, 16 * 1024 * 1024);
     if (size < 0)
         goto fail;
@@ -391,6 +276,7 @@ int load_kernel(const char *filename, uint8_t *addr)
     close(fd);
     return -1;
 }
+#endif
 
 /* return the size or -1 if error */
 int load_image(const char *filename, uint8_t *addr)
@@ -486,6 +372,7 @@ void hw_error(const char *fmt, ...)
 /* PC cmos mappings */
 #define REG_EQUIPMENT_BYTE          0x14
 #define REG_IBM_CENTURY_BYTE        0x32
+#define REG_IBM_PS2_CENTURY_BYTE    0x37
 
 uint8_t cmos_data[128];
 uint8_t cmos_index;
@@ -550,6 +437,7 @@ static void cmos_update_time(void)
     cmos_data[RTC_MONTH] = to_bcd(tm->tm_mon + 1);
     cmos_data[RTC_YEAR] = to_bcd(tm->tm_year % 100);
     cmos_data[REG_IBM_CENTURY_BYTE] = to_bcd((tm->tm_year / 100) + 19);
+    cmos_data[REG_IBM_PS2_CENTURY_BYTE] = cmos_data[REG_IBM_CENTURY_BYTE];
 }
 
 uint32_t cmos_ioport_read(CPUState *env, uint32_t addr)
@@ -568,6 +456,7 @@ uint32_t cmos_ioport_read(CPUState *env, uint32_t addr)
         case RTC_MONTH:
         case RTC_YEAR:
         case REG_IBM_CENTURY_BYTE:
+        case REG_IBM_PS2_CENTURY_BYTE:
             cmos_update_time();
             ret = cmos_data[cmos_index];
             break;
@@ -3082,23 +2971,6 @@ static void host_alarm_handler(int host_signum, siginfo_t *info,
     }
 }
 
-#ifdef CONFIG_SOFTMMU
-void *get_mmap_addr(unsigned long size)
-{
-    return NULL;
-}
-#else
-unsigned long mmap_addr = PHYS_RAM_BASE;
-
-void *get_mmap_addr(unsigned long size)
-{
-    unsigned long addr;
-    addr = mmap_addr;
-    mmap_addr += ((size + 4095) & ~4095) + 4096;
-    return (void *)addr;
-}
-#endif
-
 /* main execution loop */
 
 CPUState *cpu_gdbstub_get_env(void *opaque)
@@ -3259,6 +3131,10 @@ void help(void)
            "-d              output log to %s\n"
            "-hdachs c,h,s   force hard disk 0 geometry (usually qemu can guess it)\n"
            "-L path         set the directory for the BIOS and VGA BIOS\n"
+#ifdef USE_CODE_COPY
+           "-no-code-copy   disable code copy acceleration\n"
+#endif
+
            "\n"
            "During emulation, use C-a h to get terminal commands:\n",
 #ifdef CONFIG_SOFTMMU
@@ -3295,6 +3171,7 @@ struct option long_options[] = {
     { "boot", 1, NULL, 0, },
     { "fda", 1, NULL, 0, },
     { "fdb", 1, NULL, 0, },
+    { "no-code-copy", 0, NULL, 0},
     { NULL, 0, NULL, 0 },
 };
 
@@ -3310,19 +3187,26 @@ extern void __sigaction();
 #endif
 #endif /* CONFIG_SDL */
 
+#if defined (TARGET_I386) && defined(USE_CODE_COPY)
+
+/* this stack is only used during signal handling */
+#define SIGNAL_STACK_SIZE 32768
+
+static uint8_t *signal_stack;
+
+#endif
+
 int main(int argc, char **argv)
 {
     int c, ret, initrd_size, i, use_gdbstub, gdbstub_port, long_index;
     int snapshot, linux_boot;
-#if defined (TARGET_I386)
-    struct linux_params *params;
-#endif
     struct sigaction act;
     struct itimerval itv;
     CPUState *env;
     const char *initrd_filename;
     const char *hd_filename[MAX_DISKS], *fd_filename[MAX_FD];
     const char *kernel_filename, *kernel_cmdline;
+    char buf[1024];
     DisplayState *ds = &display_state;
 
     /* we never want that malloc() uses mmap() */
@@ -3419,6 +3303,9 @@ int main(int argc, char **argv)
                 break;
             case 14:
                 fd_filename[1] = optarg;
+                break;
+            case 15:
+                code_copy_enabled = 0;
                 break;
             }
             break;
@@ -3554,9 +3441,42 @@ int main(int argc, char **argv)
     /* allocate RAM */
     cpu_register_physical_memory(0, ram_size, 0);
 
+#if defined(TARGET_I386)
+    /* RAW PC boot */
+
+    /* BIOS load */
+    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
+    ret = load_image(buf, phys_ram_base + 0x000f0000);
+    if (ret != 0x10000) {
+        fprintf(stderr, "qemu: could not load PC bios '%s'\n", buf);
+        exit(1);
+    }
+    
+    /* VGA BIOS load */
+    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, VGABIOS_FILENAME);
+    ret = load_image(buf, phys_ram_base + 0x000c0000);
+    
+    /* setup basic memory access */
+    cpu_register_physical_memory(0xc0000, 0x10000, 0xc0000 | IO_MEM_ROM);
+    cpu_register_physical_memory(0xf0000, 0x10000, 0xf0000 | IO_MEM_ROM);
+    
+    bochs_bios_init();
+
     if (linux_boot) {
+        extern uint8_t linux_boot_start;
+        extern uint8_t linux_boot_end;
+
+        if (bs_table[0] == NULL) {
+            fprintf(stderr, "A disk image must be given for 'hda' when booting a Linux kernel\n");
+            exit(1);
+        }
+        bdrv_set_boot_sector(bs_table[0], &linux_boot_start,
+                             &linux_boot_end - &linux_boot_start);
+
         /* now we can load the kernel */
-        ret = load_kernel(kernel_filename, phys_ram_base + KERNEL_LOAD_ADDR);
+        ret = load_kernel(kernel_filename, 
+                          phys_ram_base + KERNEL_LOAD_ADDR,
+                          phys_ram_base + KERNEL_PARAMS_ADDR);
         if (ret < 0) {
             fprintf(stderr, "qemu: could not load kernel '%s'\n", 
                     kernel_filename);
@@ -3573,89 +3493,30 @@ int main(int argc, char **argv)
                 exit(1);
             }
         }
-        
-        /* init kernel params */
-#ifdef TARGET_I386
-        params = (void *)(phys_ram_base + KERNEL_PARAMS_ADDR);
-        memset(params, 0, sizeof(struct linux_params));
-        params->mount_root_rdonly = 0;
-        stw_raw(&params->cl_magic, 0xA33F);
-        stw_raw(&params->cl_offset, params->commandline - (uint8_t *)params);
-        stl_raw(&params->alt_mem_k, (ram_size / 1024) - 1024);
-        pstrcat(params->commandline, sizeof(params->commandline), kernel_cmdline);
-        params->loader_type = 0x01;
         if (initrd_size > 0) {
-            stl_raw(&params->initrd_start, INITRD_LOAD_ADDR);
-            stl_raw(&params->initrd_size, initrd_size);
+            stl_raw(phys_ram_base + KERNEL_PARAMS_ADDR + 0x218, INITRD_LOAD_ADDR);
+            stl_raw(phys_ram_base + KERNEL_PARAMS_ADDR + 0x21c, initrd_size);
         }
-        params->orig_video_lines = 25;
-        params->orig_video_cols = 80;
-
-        /* setup basic memory access */
-        cpu_x86_update_cr0(env, 0x00000033);
-        
-        memset(params->idt_table, 0, sizeof(params->idt_table));
-        
-        stq_raw(&params->gdt_table[2], 0x00cf9a000000ffffLL); /* KERNEL_CS */
-        stq_raw(&params->gdt_table[3], 0x00cf92000000ffffLL); /* KERNEL_DS */
-        /* for newer kernels (2.6.0) CS/DS are at different addresses */
-        stq_raw(&params->gdt_table[12], 0x00cf9a000000ffffLL); /* KERNEL_CS */
-        stq_raw(&params->gdt_table[13], 0x00cf92000000ffffLL); /* KERNEL_DS */
-        
-        env->idt.base = (void *)((uint8_t *)params->idt_table - phys_ram_base);
-        env->idt.limit = sizeof(params->idt_table) - 1;
-        env->gdt.base = (void *)((uint8_t *)params->gdt_table - phys_ram_base);
-        env->gdt.limit = sizeof(params->gdt_table) - 1;
-        
-        cpu_x86_load_seg_cache(env, R_CS, KERNEL_CS, NULL, 0xffffffff, 0x00cf9a00);
-        cpu_x86_load_seg_cache(env, R_DS, KERNEL_DS, NULL, 0xffffffff, 0x00cf9200);
-        cpu_x86_load_seg_cache(env, R_ES, KERNEL_DS, NULL, 0xffffffff, 0x00cf9200);
-        cpu_x86_load_seg_cache(env, R_SS, KERNEL_DS, NULL, 0xffffffff, 0x00cf9200);
-        cpu_x86_load_seg_cache(env, R_FS, KERNEL_DS, NULL, 0xffffffff, 0x00cf9200);
-        cpu_x86_load_seg_cache(env, R_GS, KERNEL_DS, NULL, 0xffffffff, 0x00cf9200);
-        
-        env->eip = KERNEL_LOAD_ADDR;
-        env->regs[R_ESI] = KERNEL_PARAMS_ADDR;
-        env->eflags = 0x2;
-#elif defined (TARGET_PPC)
-        PPC_init_hw(env, ram_size, KERNEL_LOAD_ADDR, ret,
-                    KERNEL_STACK_ADDR, boot_device);
-#endif
-    } else {
-        char buf[1024];
-
-        /* RAW PC boot */
-#if defined(TARGET_I386)
-        /* BIOS load */
-        snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
-        ret = load_image(buf, phys_ram_base + 0x000f0000);
-        if (ret != 0x10000) {
-            fprintf(stderr, "qemu: could not load PC bios '%s'\n", buf);
-            exit(1);
-        }
-
-        /* VGA BIOS load */
-        snprintf(buf, sizeof(buf), "%s/%s", bios_dir, VGABIOS_FILENAME);
-        ret = load_image(buf, phys_ram_base + 0x000c0000);
-
-        /* setup basic memory access */
-        cpu_register_physical_memory(0xc0000, 0x10000, 0xc0000 | IO_MEM_ROM);
-        cpu_register_physical_memory(0xf0000, 0x10000, 0xf0000 | IO_MEM_ROM);
-
-        bochs_bios_init();
-#elif defined(TARGET_PPC)
-        /* allocate ROM */
-        //        snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
-        snprintf(buf, sizeof(buf), "%s", BIOS_FILENAME);
-        printf("load BIOS at %p\n", phys_ram_base + 0x000f0000);
-        ret = load_image(buf, phys_ram_base + 0x000f0000);
-        if (ret != 0x10000) {
-            fprintf(stderr, "qemu: could not load PPC bios '%s' (%d)\n%m\n",
-                    buf, ret);
-            exit(1);
-        }
-#endif
+        pstrcpy(phys_ram_base + KERNEL_CMDLINE_ADDR, 4096,
+                kernel_cmdline);
+        stw_raw(phys_ram_base + KERNEL_PARAMS_ADDR + 0x20, 0xA33F);
+        stw_raw(phys_ram_base + KERNEL_PARAMS_ADDR + 0x22,
+                KERNEL_CMDLINE_ADDR - KERNEL_PARAMS_ADDR);
+        /* loader type */
+        stw_raw(phys_ram_base + KERNEL_PARAMS_ADDR + 0x210, 0x01);
     }
+#elif defined(TARGET_PPC)
+    /* allocate ROM */
+    //        snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
+    snprintf(buf, sizeof(buf), "%s", BIOS_FILENAME);
+    printf("load BIOS at %p\n", phys_ram_base + 0x000f0000);
+    ret = load_image(buf, phys_ram_base + 0x000f0000);
+    if (ret != 0x10000) {
+        fprintf(stderr, "qemu: could not load PPC bios '%s' (%d)\n%m\n",
+                buf, ret);
+        exit(1);
+    }
+#endif
 
     /* terminal init */
     if (nographic) {
@@ -3692,15 +3553,44 @@ int main(int argc, char **argv)
     PPC_end_init();
 #endif
     fdctrl_register((unsigned char **)fd_filename, snapshot, boot_device);
+
     /* setup cpu signal handlers for MMU / self modifying code handling */
+#if !defined(CONFIG_SOFTMMU)
+
+#if defined (TARGET_I386) && defined(USE_CODE_COPY)
+    {
+        stack_t stk;
+        signal_stack = malloc(SIGNAL_STACK_SIZE);
+        stk.ss_sp = signal_stack;
+        stk.ss_size = SIGNAL_STACK_SIZE;
+        stk.ss_flags = 0;
+
+        if (sigaltstack(&stk, NULL) < 0) {
+            perror("sigaltstack");
+            exit(1);
+        }
+    }
+#endif
+        
     sigfillset(&act.sa_mask);
     act.sa_flags = SA_SIGINFO;
-#if !defined(CONFIG_SOFTMMU)
+#if defined (TARGET_I386) && defined(USE_CODE_COPY)
+    act.sa_flags |= SA_ONSTACK;
+#endif
     act.sa_sigaction = host_segv_handler;
     sigaction(SIGSEGV, &act, NULL);
     sigaction(SIGBUS, &act, NULL);
+#if defined (TARGET_I386) && defined(USE_CODE_COPY)
+    sigaction(SIGFPE, &act, NULL);
+#endif
 #endif
 
+    /* timer signal */
+    sigfillset(&act.sa_mask);
+    act.sa_flags = SA_SIGINFO;
+#if defined (TARGET_I386) && defined(USE_CODE_COPY)
+    act.sa_flags |= SA_ONSTACK;
+#endif
     act.sa_sigaction = host_alarm_handler;
     sigaction(SIGALRM, &act, NULL);
 

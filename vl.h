@@ -32,7 +32,6 @@ extern int64_t ticks_per_sec;
 typedef void (IOPortWriteFunc)(struct CPUState *env, uint32_t address, uint32_t data);
 typedef uint32_t (IOPortReadFunc)(struct CPUState *env, uint32_t address);
 
-void *get_mmap_addr(unsigned long size);
 int register_ioport_read(int start, int length, IOPortReadFunc *func, int size);
 int register_ioport_write(int start, int length, IOPortWriteFunc *func, int size);
 void pic_set_irq(int irq, int level);
@@ -56,6 +55,7 @@ int bdrv_write(BlockDriverState *bs, int64_t sector_num,
                const uint8_t *buf, int nb_sectors);
 void bdrv_get_geometry(BlockDriverState *bs, int64_t *nb_sectors_ptr);
 int bdrv_commit(BlockDriverState *bs);
+void bdrv_set_boot_sector(BlockDriverState *bs, const uint8_t *data, int size);
 
 /* user mode linux compatible COW file */
 #define COW_MAGIC 0x4f4f4f4d  /* MOOO */
