@@ -3247,7 +3247,6 @@ int main_loop(void *opaque)
     }
 
     for(;;) {
-
         ret = cpu_x86_exec(env);
         if (reset_requested)
             break;
@@ -3648,8 +3647,13 @@ int main(int argc, char **argv)
     } else {
 #ifdef CONFIG_SDL
         sdl_display_init(ds);
-        /* the pthreads modify sigaction. We don't want that. */
+        /* SDL use the pthreads and they modify sigaction. We don't
+           want that. */
+#if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 3)
+#define sigaction __libc_sigaction
+#else
 #define sigaction __sigaction
+#endif
 #else
         dumb_display_init(ds);
 #endif
