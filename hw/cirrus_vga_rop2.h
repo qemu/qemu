@@ -67,6 +67,12 @@ glue(glue(glue(cirrus_patternfill_, ROP_NAME), _),DEPTH)
 #elif DEPTH == 16
             col = ((uint16_t *)(src1 + pattern_x))[0];
             pattern_x = (pattern_x + 2) & 15;
+#elif DEPTH == 24
+            {
+                const uint8_t *src2 = src1 + pattern_x * 3;
+                col = src2[0] | (src2[1] << 8) | (src2[2] << 16);
+                pattern_x = (pattern_x + 1) & 7;
+            }
 #else
             col = ((uint32_t *)(src1 + pattern_x))[0];
             pattern_x = (pattern_x + 4) & 31;
@@ -89,61 +95,31 @@ glue(glue(glue(cirrus_colorexpand_transp_, ROP_NAME), _),DEPTH)
 {
     uint8_t *d;
     int x, y;
-    unsigned bits;
+    unsigned bits, bits_xor;
     unsigned int col;
     unsigned bitmask;
     unsigned index;
     int srcskipleft = 0;
 
-    col = s->cirrus_blt_fgcol;
+    if (s->cirrus_blt_modeext & CIRRUS_BLTMODEEXT_COLOREXPINV) {
+        bits_xor = 0xff;
+        col = s->cirrus_blt_bgcol;
+    } else {
+        bits_xor = 0x00;
+        col = s->cirrus_blt_fgcol;
+    }
+
     for(y = 0; y < bltheight; y++) {
         bitmask = 0x80 >> srcskipleft;
-        bits = *src++;
+        bits = *src++ ^ bits_xor;
         d = dst;
         for (x = 0; x < bltwidth; x += (DEPTH / 8)) {
             if ((bitmask & 0xff) == 0) {
                 bitmask = 0x80;
-                bits = *src++;
+                bits = *src++ ^ bits_xor;
             }
             index = (bits & bitmask);
             if (index) {
-                PUTPIXEL();
-            }
-            d += (DEPTH / 8);
-            bitmask >>= 1;
-        }
-        dst += dstpitch;
-    }
-}
-
-/* NOTE: srcpitch is ignored */
-static void
-glue(glue(glue(cirrus_colorexpand_transp_inv_, ROP_NAME), _),DEPTH)
-     (CirrusVGAState * s, uint8_t * dst,
-      const uint8_t * src, 
-      int dstpitch, int srcpitch, 
-      int bltwidth, int bltheight)
-{
-    uint8_t *d;
-    int x, y;
-    unsigned bits;
-    unsigned int col;
-    unsigned bitmask;
-    unsigned index;
-    int srcskipleft = 0;
-
-    col = s->cirrus_blt_bgcol;
-    for(y = 0; y < bltheight; y++) {
-        bitmask = 0x80 >> srcskipleft;
-        bits = *src++;
-        d = dst;
-        for (x = 0; x < bltwidth; x += (DEPTH / 8)) {
-            if ((bitmask & 0xff) == 0) {
-                bitmask = 0x80;
-                bits = *src++;
-            }
-            index = (bits & bitmask);
-            if (!index) {
                 PUTPIXEL();
             }
             d += (DEPTH / 8);
@@ -184,6 +160,75 @@ glue(glue(glue(cirrus_colorexpand_, ROP_NAME), _),DEPTH)
             d += (DEPTH / 8);
             bitmask >>= 1;
         }
+        dst += dstpitch;
+    }
+}
+
+static void
+glue(glue(glue(cirrus_colorexpand_pattern_transp_, ROP_NAME), _),DEPTH)
+     (CirrusVGAState * s, uint8_t * dst,
+      const uint8_t * src, 
+      int dstpitch, int srcpitch, 
+      int bltwidth, int bltheight)
+{
+    uint8_t *d;
+    int x, y, bitpos, pattern_y;
+    unsigned int bits, bits_xor;
+    unsigned int col;
+
+    if (s->cirrus_blt_modeext & CIRRUS_BLTMODEEXT_COLOREXPINV) {
+        bits_xor = 0xff;
+        col = s->cirrus_blt_bgcol;
+    } else {
+        bits_xor = 0x00;
+        col = s->cirrus_blt_fgcol;
+    }
+    pattern_y = s->cirrus_blt_srcaddr & 7;
+
+    for(y = 0; y < bltheight; y++) {
+        bits = src[pattern_y] ^ bits_xor;
+        bitpos = 7;
+        d = dst;
+        for (x = 0; x < bltwidth; x += (DEPTH / 8)) {
+            if ((bits >> bitpos) & 1) {
+                PUTPIXEL();
+            }
+            d += (DEPTH / 8);
+            bitpos = (bitpos - 1) & 7;
+        }
+        pattern_y = (pattern_y + 1) & 7;
+        dst += dstpitch;
+    }
+}
+
+static void
+glue(glue(glue(cirrus_colorexpand_pattern_, ROP_NAME), _),DEPTH)
+     (CirrusVGAState * s, uint8_t * dst,
+      const uint8_t * src, 
+      int dstpitch, int srcpitch, 
+      int bltwidth, int bltheight)
+{
+    uint32_t colors[2];
+    uint8_t *d;
+    int x, y, bitpos, pattern_y;
+    unsigned int bits;
+    unsigned int col;
+
+    colors[0] = s->cirrus_blt_bgcol;
+    colors[1] = s->cirrus_blt_fgcol;
+    pattern_y = s->cirrus_blt_srcaddr & 7;
+
+    for(y = 0; y < bltheight; y++) {
+        bits = src[pattern_y];
+        bitpos = 7;
+        d = dst;
+        for (x = 0; x < bltwidth; x += (DEPTH / 8)) {
+            col = colors[(bits >> bitpos) & 1];
+            PUTPIXEL();
+            d += (DEPTH / 8);
+            bitpos = (bitpos - 1) & 7;
+        }
+        pattern_y = (pattern_y + 1) & 7;
         dst += dstpitch;
     }
 }

@@ -456,25 +456,6 @@ static const cirrus_bitblt_rop_t cirrus_colorexpand_transp[16][4] = {
     ROP2(cirrus_colorexpand_transp_notsrc_and_notdst),
 };
 
-static const cirrus_bitblt_rop_t cirrus_colorexpand_transp_inv[16][4] = {
-    ROP2(cirrus_colorexpand_transp_inv_0),
-    ROP2(cirrus_colorexpand_transp_inv_src_and_dst),
-    ROP_NOP2(cirrus_bitblt_rop_nop),
-    ROP2(cirrus_colorexpand_transp_inv_src_and_notdst),
-    ROP2(cirrus_colorexpand_transp_inv_notdst),
-    ROP2(cirrus_colorexpand_transp_inv_src),
-    ROP2(cirrus_colorexpand_transp_inv_1),
-    ROP2(cirrus_colorexpand_transp_inv_notsrc_and_dst),
-    ROP2(cirrus_colorexpand_transp_inv_src_xor_dst),
-    ROP2(cirrus_colorexpand_transp_inv_src_or_dst),
-    ROP2(cirrus_colorexpand_transp_inv_notsrc_or_notdst),
-    ROP2(cirrus_colorexpand_transp_inv_src_notxor_dst),
-    ROP2(cirrus_colorexpand_transp_inv_src_or_notdst),
-    ROP2(cirrus_colorexpand_transp_inv_notsrc),
-    ROP2(cirrus_colorexpand_transp_inv_notsrc_or_dst),
-    ROP2(cirrus_colorexpand_transp_inv_notsrc_and_notdst),
-};
-
 static const cirrus_bitblt_rop_t cirrus_colorexpand[16][4] = {
     ROP2(cirrus_colorexpand_0),
     ROP2(cirrus_colorexpand_src_and_dst),
@@ -492,6 +473,44 @@ static const cirrus_bitblt_rop_t cirrus_colorexpand[16][4] = {
     ROP2(cirrus_colorexpand_notsrc),
     ROP2(cirrus_colorexpand_notsrc_or_dst),
     ROP2(cirrus_colorexpand_notsrc_and_notdst),
+};
+
+static const cirrus_bitblt_rop_t cirrus_colorexpand_pattern_transp[16][4] = {
+    ROP2(cirrus_colorexpand_pattern_transp_0),
+    ROP2(cirrus_colorexpand_pattern_transp_src_and_dst),
+    ROP_NOP2(cirrus_bitblt_rop_nop),
+    ROP2(cirrus_colorexpand_pattern_transp_src_and_notdst),
+    ROP2(cirrus_colorexpand_pattern_transp_notdst),
+    ROP2(cirrus_colorexpand_pattern_transp_src),
+    ROP2(cirrus_colorexpand_pattern_transp_1),
+    ROP2(cirrus_colorexpand_pattern_transp_notsrc_and_dst),
+    ROP2(cirrus_colorexpand_pattern_transp_src_xor_dst),
+    ROP2(cirrus_colorexpand_pattern_transp_src_or_dst),
+    ROP2(cirrus_colorexpand_pattern_transp_notsrc_or_notdst),
+    ROP2(cirrus_colorexpand_pattern_transp_src_notxor_dst),
+    ROP2(cirrus_colorexpand_pattern_transp_src_or_notdst),
+    ROP2(cirrus_colorexpand_pattern_transp_notsrc),
+    ROP2(cirrus_colorexpand_pattern_transp_notsrc_or_dst),
+    ROP2(cirrus_colorexpand_pattern_transp_notsrc_and_notdst),
+};
+
+static const cirrus_bitblt_rop_t cirrus_colorexpand_pattern[16][4] = {
+    ROP2(cirrus_colorexpand_pattern_0),
+    ROP2(cirrus_colorexpand_pattern_src_and_dst),
+    ROP_NOP2(cirrus_bitblt_rop_nop),
+    ROP2(cirrus_colorexpand_pattern_src_and_notdst),
+    ROP2(cirrus_colorexpand_pattern_notdst),
+    ROP2(cirrus_colorexpand_pattern_src),
+    ROP2(cirrus_colorexpand_pattern_1),
+    ROP2(cirrus_colorexpand_pattern_notsrc_and_dst),
+    ROP2(cirrus_colorexpand_pattern_src_xor_dst),
+    ROP2(cirrus_colorexpand_pattern_src_or_dst),
+    ROP2(cirrus_colorexpand_pattern_notsrc_or_notdst),
+    ROP2(cirrus_colorexpand_pattern_src_notxor_dst),
+    ROP2(cirrus_colorexpand_pattern_src_or_notdst),
+    ROP2(cirrus_colorexpand_pattern_notsrc),
+    ROP2(cirrus_colorexpand_pattern_notsrc_or_dst),
+    ROP2(cirrus_colorexpand_pattern_notsrc_and_notdst),
 };
 
 static const cirrus_fill_t cirrus_fill[16][4] = {
@@ -584,27 +603,8 @@ static void cirrus_invalidate_region(CirrusVGAState * s, int off_begin,
 static int cirrus_bitblt_common_patterncopy(CirrusVGAState * s,
 					    const uint8_t * src)
 {
-    uint8_t work_colorexp[256];
     uint8_t *dst;
-    int patternbytes = s->cirrus_blt_pixelwidth * 8;
 
-    if (s->cirrus_blt_mode & CIRRUS_BLTMODE_COLOREXPAND) {
-        cirrus_bitblt_rop_t rop_func;
-        cirrus_bitblt_fgcol(s);
-        cirrus_bitblt_bgcol(s);
-        rop_func = cirrus_colorexpand[CIRRUS_ROP_SRC_INDEX][s->cirrus_blt_pixelwidth - 1];
-        rop_func(s, work_colorexp, src, patternbytes, 1, patternbytes, 8);
-	src = work_colorexp;
-	s->cirrus_blt_mode &= ~CIRRUS_BLTMODE_COLOREXPAND;
-    }
-    if (s->cirrus_blt_mode & ~CIRRUS_BLTMODE_PATTERNCOPY) {
-#ifdef DEBUG_BITBLT
-	printf("cirrus: blt mode %02x (pattercopy) - unimplemented\n",
-	       s->cirrus_blt_mode);
-#endif
-	return 0;
-    }
-    
     dst = s->vram_ptr + s->cirrus_blt_dstaddr;
     (*s->cirrus_rop) (s, dst, src,
                       s->cirrus_blt_dstpitch, 0, 
@@ -728,6 +728,7 @@ static int cirrus_bitblt_cputovideo(CirrusVGAState * s)
 	if (s->cirrus_blt_mode & CIRRUS_BLTMODE_COLOREXPAND) {
 	    s->cirrus_blt_srcpitch = 8;
 	} else {
+            /* XXX: check for 24 bpp */
 	    s->cirrus_blt_srcpitch = 8 * 8 * s->cirrus_blt_pixelwidth;
 	}
 	s->cirrus_srccounter = s->cirrus_blt_srcpitch;
@@ -848,20 +849,32 @@ static void cirrus_bitblt_start(CirrusVGAState * s)
             CIRRUS_BLTMODE_COLOREXPAND) {
 
             if (s->cirrus_blt_mode & CIRRUS_BLTMODE_TRANSPARENTCOMP) {
-                if (s->cirrus_blt_modeext & CIRRUS_BLTMODEEXT_COLOREXPINV) {
+                if (s->cirrus_blt_modeext & CIRRUS_BLTMODEEXT_COLOREXPINV)
                     cirrus_bitblt_bgcol(s);
-                    s->cirrus_rop = cirrus_colorexpand_transp_inv[rop_to_index[blt_rop]][s->cirrus_blt_pixelwidth - 1];
-                } else {
+                else
                     cirrus_bitblt_fgcol(s);
-                    s->cirrus_rop = cirrus_colorexpand_transp[rop_to_index[blt_rop]][s->cirrus_blt_pixelwidth - 1];
-                }
+                s->cirrus_rop = cirrus_colorexpand_transp[rop_to_index[blt_rop]][s->cirrus_blt_pixelwidth - 1];
             } else {
                 cirrus_bitblt_fgcol(s);
                 cirrus_bitblt_bgcol(s);
                 s->cirrus_rop = cirrus_colorexpand[rop_to_index[blt_rop]][s->cirrus_blt_pixelwidth - 1];
             }
         } else if (s->cirrus_blt_mode & CIRRUS_BLTMODE_PATTERNCOPY) {
-            s->cirrus_rop = cirrus_patternfill[rop_to_index[blt_rop]][s->cirrus_blt_pixelwidth - 1];
+            if (s->cirrus_blt_mode & CIRRUS_BLTMODE_COLOREXPAND) {
+                if (s->cirrus_blt_mode & CIRRUS_BLTMODE_TRANSPARENTCOMP) {
+                    if (s->cirrus_blt_modeext & CIRRUS_BLTMODEEXT_COLOREXPINV)
+                        cirrus_bitblt_bgcol(s);
+                    else
+                        cirrus_bitblt_fgcol(s);
+                    s->cirrus_rop = cirrus_colorexpand_pattern_transp[rop_to_index[blt_rop]][s->cirrus_blt_pixelwidth - 1];
+                } else {
+                    cirrus_bitblt_fgcol(s);
+                    cirrus_bitblt_bgcol(s);
+                    s->cirrus_rop = cirrus_colorexpand_pattern[rop_to_index[blt_rop]][s->cirrus_blt_pixelwidth - 1];
+                }
+            } else {
+                s->cirrus_rop = cirrus_patternfill[rop_to_index[blt_rop]][s->cirrus_blt_pixelwidth - 1];
+            }
         } else {
             if (s->cirrus_blt_mode & CIRRUS_BLTMODE_BACKWARDS) {
                 s->cirrus_blt_dstpitch = -s->cirrus_blt_dstpitch;
@@ -2793,9 +2806,10 @@ static void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci)
                                  vga_io_memory);
 
     s->sr[0x06] = 0x0f;
-    s->sr[0x1F] = 0x22;		// MemClock
     if (device_id == CIRRUS_ID_CLGD5446) {
         /* 4MB 64 bit memory config, always PCI */
+        s->sr[0x1F] = 0x2d;		// MemClock
+        s->gr[0x18] = 0x0f;             // fastest memory configuration
 #if 1
         s->sr[0x0f] = 0x98;
         s->sr[0x17] = 0x20;
@@ -2808,6 +2822,7 @@ static void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci)
         s->real_vram_size = 2048 * 1024;
 #endif
     } else {
+        s->sr[0x1F] = 0x22;		// MemClock
         s->sr[0x0F] = CIRRUS_MEMSIZE_2M;
         if (is_pci) 
             s->sr[0x17] = CIRRUS_BUSTYPE_PCI;
