@@ -787,6 +787,35 @@ void CALLBACK host_alarm_handler(UINT uTimerID, UINT uMsg,
 static void host_alarm_handler(int host_signum)
 #endif
 {
+#if 0
+#define DISP_FREQ 1000
+    {
+        static int64_t delta_min = INT64_MAX;
+        static int64_t delta_max, delta_cum, last_clock, delta, ti;
+        static int count;
+        ti = qemu_get_clock(vm_clock);
+        if (last_clock != 0) {
+            delta = ti - last_clock;
+            if (delta < delta_min)
+                delta_min = delta;
+            if (delta > delta_max)
+                delta_max = delta;
+            delta_cum += delta;
+            if (++count == DISP_FREQ) {
+                printf("timer: min=%lld us max=%lld us avg=%lld us avg_freq=%0.3f Hz\n",
+                       muldiv64(delta_min, 1000000, ticks_per_sec),
+                       muldiv64(delta_max, 1000000, ticks_per_sec),
+                       muldiv64(delta_cum, 1000000 / DISP_FREQ, ticks_per_sec),
+                       (double)ticks_per_sec / ((double)delta_cum / DISP_FREQ));
+                count = 0;
+                delta_min = INT64_MAX;
+                delta_max = 0;
+                delta_cum = 0;
+            }
+        }
+        last_clock = ti;
+    }
+#endif
     if (qemu_timer_expired(active_timers[QEMU_TIMER_VIRTUAL],
                            qemu_get_clock(vm_clock)) ||
         qemu_timer_expired(active_timers[QEMU_TIMER_REALTIME],
@@ -892,7 +921,8 @@ static void init_timers(void)
             setitimer(ITIMER_REAL, &itv, NULL);
 
             /* use the RTC */
-            sigaction(SIGIO, &act, NULL);
+            sigaction(SIGRTMIN, &act, NULL);
+            fcntl(rtc_fd, F_SETSIG, SIGRTMIN);
             fcntl(rtc_fd, F_SETFL, O_ASYNC);
             fcntl(rtc_fd, F_SETOWN, getpid());
         } else {
@@ -1184,10 +1214,12 @@ static void term_init(void)
 
 /* init terminal so that we can grab keys */
 static struct termios oldtty;
+static int old_fd0_flags;
 
 static void term_exit(void)
 {
     tcsetattr (0, TCSANOW, &oldtty);
+    fcntl(0, F_SETFL, old_fd0_flags);
 }
 
 static void term_init(void)
@@ -1196,6 +1228,7 @@ static void term_init(void)
 
     tcgetattr (0, &tty);
     oldtty = tty;
+    old_fd0_flags = fcntl(0, F_GETFL);
 
     tty.c_iflag &= ~(IGNBRK|BRKINT|PARMRK|ISTRIP
                           |INLCR|IGNCR|ICRNL|IXON);
@@ -1570,6 +1603,7 @@ int qemu_loadvm(const char *filename)
 
 static void cpu_put_seg(QEMUFile *f, SegmentCache *dt)
 {
+    qemu_put_be32(f, dt->selector);
     qemu_put_be32(f, (uint32_t)dt->base);
     qemu_put_be32(f, dt->limit);
     qemu_put_be32(f, dt->flags);
@@ -1577,6 +1611,7 @@ static void cpu_put_seg(QEMUFile *f, SegmentCache *dt)
 
 static void cpu_get_seg(QEMUFile *f, SegmentCache *dt)
 {
+    dt->selector = qemu_get_be32(f);
     dt->base = (uint8_t *)qemu_get_be32(f);
     dt->limit = qemu_get_be32(f);
     dt->flags = qemu_get_be32(f);
@@ -1650,7 +1685,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     uint32_t hflags;
     uint16_t fpus, fpuc, fptag;
 
-    if (version_id != 1)
+    if (version_id != 2)
         return -EINVAL;
     for(i = 0; i < 8; i++)
         qemu_get_be32s(f, &env->regs[i]);
@@ -2683,7 +2718,7 @@ int main(int argc, char **argv)
     cpu_single_env = env;
 
     register_savevm("timer", 0, 1, timer_save, timer_load, env);
-    register_savevm("cpu", 0, 1, cpu_save, cpu_load, env);
+    register_savevm("cpu", 0, 2, cpu_save, cpu_load, env);
     register_savevm("ram", 0, 1, ram_save, ram_load, NULL);
     qemu_register_reset(main_cpu_reset, global_env);
 
