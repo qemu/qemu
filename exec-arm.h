@@ -30,3 +30,11 @@ register uint32_t T2 asm(AREG3);
 void cpu_lock(void);
 void cpu_unlock(void);
 void cpu_loop_exit(void);
+
+static inline int compute_cpsr(void)
+{
+    int ZF;
+    ZF = (env->NZF == 0);
+    return env->cpsr | (env->NZF & 0x80000000) | (ZF << 30) | 
+        (env->CF << 29) | ((env->VF & 0x80000000) >> 3);
+}

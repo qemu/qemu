@@ -154,11 +154,11 @@ void OPPROTO op_adcl_T0_T1_cc(void)
     FORCE_RET();
 }
 
-#define OPSUB(sub, sbc, T0, T1)                 \
+#define OPSUB(sub, sbc, res, T0, T1)            \
                                                 \
 void OPPROTO op_ ## sub ## l_T0_T1(void)        \
 {                                               \
-    T0 -= T1;                                   \
+    res = T0 - T1;                              \
 }                                               \
                                                 \
 void OPPROTO op_ ## sub ## l_T0_T1_cc(void)     \
@@ -167,13 +167,14 @@ void OPPROTO op_ ## sub ## l_T0_T1_cc(void)     \
     src1 = T0;                                  \
     T0 -= T1;                                   \
     env->NZF = T0;                              \
-    env->CF = src1 < T1;                        \
+    env->CF = src1 >= T1;                       \
     env->VF = (src1 ^ T1) & (src1 ^ T0);        \
+    res = T0;                                   \
 }                                               \
                                                 \
 void OPPROTO op_ ## sbc ## l_T0_T1(void)        \
 {                                               \
-    T0 = T0 - T1 + env->CF - 1;                 \
+    res = T0 - T1 + env->CF - 1;                \
 }                                               \
                                                 \
 void OPPROTO op_ ## sbc ## l_T0_T1_cc(void)     \
@@ -182,20 +183,20 @@ void OPPROTO op_ ## sbc ## l_T0_T1_cc(void)     \
     src1 = T0;                                  \
     if (!env->CF) {                             \
         T0 = T0 - T1 - 1;                       \
-        T0 += T1;                               \
-        env->CF = src1 < T1;                    \
+        env->CF = src1 >= T1;                   \
     } else {                                    \
         T0 = T0 - T1;                           \
-        env->CF = src1 <= T1;                   \
+        env->CF = src1 > T1;                    \
     }                                           \
     env->VF = (src1 ^ T1) & (src1 ^ T0);        \
     env->NZF = T0;                              \
+    res = T0;                                   \
     FORCE_RET();                                \
 }
 
-OPSUB(sub, sbc, T0, T1)
+OPSUB(sub, sbc, T0, T0, T1)
 
-OPSUB(rsb, rsc, T1, T0)
+OPSUB(rsb, rsc, T0, T1, T0)
 
 void OPPROTO op_andl_T0_T1(void)
 {
@@ -222,9 +223,14 @@ void OPPROTO op_notl_T1(void)
     T1 = ~T1;
 }
 
-void OPPROTO op_logic_cc(void)
+void OPPROTO op_logic_T0_cc(void)
 {
     env->NZF = T0;
+}
+
+void OPPROTO op_logic_T1_cc(void)
+{
+    env->NZF = T1;
 }
 
 #define EIP (env->regs[15])
@@ -334,10 +340,7 @@ void OPPROTO op_jmp(void)
 
 void OPPROTO op_movl_T0_psr(void)
 {
-    int ZF;
-    ZF = (env->NZF == 0);
-    T0 = env->cpsr | (env->NZF & 0x80000000) | (ZF << 30) | 
-        (env->CF << 29) | ((env->VF & 0x80000000) >> 3);
+    T0 = compute_cpsr();
 }
 
 /* NOTE: N = 1 and Z = 1 cannot be stored currently */

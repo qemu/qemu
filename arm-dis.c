@@ -560,8 +560,8 @@ static arm_regname regnames[] =
     { "a1", "a2", "a3", "a4", "v1", "v2", "v3", "WR", "v5", "SB", "SL",  "FP",  "IP",  "SP",  "LR",  "PC" }}
 };
 
-/* Default to GCC register name set.  */
-static unsigned int regname_selected = 1;
+/* Default to STD register name set.  */
+static unsigned int regname_selected = 2;
 
 #define NUM_ARM_REGNAMES  NUM_ELEM (regnames)
 #define arm_regnames      regnames[regname_selected].reg_names

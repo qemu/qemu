@@ -34,6 +34,8 @@ typedef struct DisasContext {
     struct TranslationBlock *tb;
 } DisasContext;
 
+#define DISAS_JUMP_NEXT 4
+
 /* XXX: move that elsewhere */
 static uint16_t *gen_opc_ptr;
 static uint32_t *gen_opparam_ptr;
@@ -333,10 +335,11 @@ static void disas_arm_insn(DisasContext *s)
         /* if not always execute, we generate a conditional jump to
            next instruction */
         gen_test_cc[cond ^ 1]((long)s->tb, (long)s->pc);
-        s->is_jmp = 1;
+        s->is_jmp = DISAS_JUMP_NEXT;
     }
-    if ((insn & 0x0c000000) == 0 &&
-        (insn & 0x00000090) != 0x90) {
+    if (((insn & 0x0e000000) == 0 &&
+         (insn & 0x00000090) != 0x90) ||
+        ((insn & 0x0e000000) == (1 << 25))) {
         int set_cc, logic_cc, shiftop;
         
         op1 = (insn >> 21) & 0xf;
@@ -367,7 +370,7 @@ static void disas_arm_insn(DisasContext *s)
                     }
                 }
             } else {
-                rs = (insn >> 16) & 0xf;
+                rs = (insn >> 8) & 0xf;
                 gen_movl_T0_reg(s, rs);
                 if (logic_cc) {
                     gen_shift_T1_T0_cc[shiftop]();
@@ -385,10 +388,14 @@ static void disas_arm_insn(DisasContext *s)
         case 0x00:
             gen_op_andl_T0_T1();
             gen_movl_reg_T0(s, rd);
+            if (logic_cc)
+                gen_op_logic_T0_cc();
             break;
         case 0x01:
             gen_op_xorl_T0_T1();
             gen_movl_reg_T0(s, rd);
+            if (logic_cc)
+                gen_op_logic_T0_cc();
             break;
         case 0x02:
             if (set_cc)
@@ -435,11 +442,13 @@ static void disas_arm_insn(DisasContext *s)
         case 0x08:
             if (set_cc) {
                 gen_op_andl_T0_T1();
+                gen_op_logic_T0_cc();
             }
             break;
         case 0x09:
             if (set_cc) {
                 gen_op_xorl_T0_T1();
+                gen_op_logic_T0_cc();
             }
             break;
         case 0x0a:
@@ -455,22 +464,28 @@ static void disas_arm_insn(DisasContext *s)
         case 0x0c:
             gen_op_orl_T0_T1();
             gen_movl_reg_T0(s, rd);
+            if (logic_cc)
+                gen_op_logic_T0_cc();
             break;
         case 0x0d:
             gen_movl_reg_T1(s, rd);
+            if (logic_cc)
+                gen_op_logic_T1_cc();
             break;
         case 0x0e:
             gen_op_bicl_T0_T1();
             gen_movl_reg_T0(s, rd);
+            if (logic_cc)
+                gen_op_logic_T0_cc();
             break;
         default:
         case 0x0f:
             gen_op_notl_T1();
             gen_movl_reg_T1(s, rd);
+            if (logic_cc)
+                gen_op_logic_T1_cc();
             break;
         }
-        if (logic_cc)
-            gen_op_logic_cc();
     } else {
         /* other instructions */
         op1 = (insn >> 24) & 0xf;
@@ -494,7 +509,7 @@ static void disas_arm_insn(DisasContext *s)
                             gen_op_addl_T0_T1();
                         }
                         if (insn & (1 << 20)) 
-                            gen_op_logic_cc();
+                            gen_op_logic_T0_cc();
                         gen_movl_reg_T0(s, rd);
                     } else {
                         /* 64 bit mul */
@@ -551,10 +566,12 @@ static void disas_arm_insn(DisasContext *s)
                     /* store */
                     gen_op_stw_T0_T1();
                 }
-                if (!(insn & (1 << 24)))
+                if (!(insn & (1 << 24))) {
                     gen_add_datah_offset(s, insn);
-                if (insn & (1 << 21))
                     gen_movl_reg_T1(s, rn);
+                } else if (insn & (1 << 21)) {
+                    gen_movl_reg_T1(s, rn);
+                }
             }
             break;
         case 0x4:
@@ -582,40 +599,94 @@ static void disas_arm_insn(DisasContext *s)
                 else
                     gen_op_stl_T0_T1();
             }
-            if (!(insn & (1 << 24)))
+            if (!(insn & (1 << 24))) {
                 gen_add_data_offset(s, insn);
-            if (insn & (1 << 21))
                 gen_movl_reg_T1(s, rn);
+            } else if (insn & (1 << 21))
+                gen_movl_reg_T1(s, rn); {
+            }
             break;
         case 0x08:
         case 0x09:
-            /* load/store multiple words */
-            if (insn & (1 << 22))
-                goto illegal_op; /* only usable in supervisor mode */
-            rn = (insn >> 16) & 0xf;
-            gen_movl_T1_reg(s, rn);
-            val = 4;
-            if (!(insn & (1 << 23)))
-                val = -val;
-            for(i=0;i<16;i++) {
-                if (insn & (1 << i)) {
-                    if (insn & (1 << 24))
-                        gen_op_addl_T1_im(val);
-                    if (insn & (1 << 20)) {
-                        /* load */
-                        gen_op_ldl_T0_T1();
-                        gen_movl_reg_T0(s, i);
+            {
+                int j, n;
+                /* load/store multiple words */
+                /* XXX: store correct base if write back */
+                if (insn & (1 << 22))
+                    goto illegal_op; /* only usable in supervisor mode */
+                rn = (insn >> 16) & 0xf;
+                gen_movl_T1_reg(s, rn);
+                
+                /* compute total size */
+                n = 0;
+                for(i=0;i<16;i++) {
+                    if (insn & (1 << i))
+                        n++;
+                }
+                /* XXX: test invalid n == 0 case ? */
+                if (insn & (1 << 23)) {
+                    if (insn & (1 << 24)) {
+                        /* pre increment */
+                        gen_op_addl_T1_im(4);
                     } else {
-                        /* store */
-                        gen_movl_T0_reg(s, i);
-                        gen_op_stl_T0_T1();
+                        /* post increment */
                     }
-                    if (!(insn & (1 << 24)))
-                        gen_op_addl_T1_im(val);
+                } else {
+                    if (insn & (1 << 24)) {
+                        /* pre decrement */
+                        gen_op_addl_T1_im(-(n * 4));
+                    } else {
+                        /* post decrement */
+                        if (n != 1)
+                            gen_op_addl_T1_im(-((n - 1) * 4));
+                    }
+                }
+                j = 0;
+                for(i=0;i<16;i++) {
+                    if (insn & (1 << i)) {
+                        if (insn & (1 << 20)) {
+                            /* load */
+                            gen_op_ldl_T0_T1();
+                            gen_movl_reg_T0(s, i);
+                        } else {
+                            /* store */
+                            if (i == 15) {
+                                /* special case: r15 = PC + 12 */
+                                val = (long)s->pc + 8;
+                                gen_op_movl_TN_im[0](val);
+                            } else {
+                                gen_movl_T0_reg(s, i);
+                            }
+                            gen_op_stl_T0_T1();
+                        }
+                        j++;
+                        /* no need to add after the last transfer */
+                        if (j != n)
+                            gen_op_addl_T1_im(4);
+                    }
+                }
+                if (insn & (1 << 21)) {
+                    /* write back */
+                    if (insn & (1 << 23)) {
+                        if (insn & (1 << 24)) {
+                            /* pre increment */
+                        } else {
+                            /* post increment */
+                            gen_op_addl_T1_im(4);
+                        }
+                    } else {
+                        if (insn & (1 << 24)) {
+                            /* pre decrement */
+                            if (n != 1)
+                                gen_op_addl_T1_im(-((n - 1) * 4));
+                        } else {
+                            /* post decrement */
+                            gen_op_addl_T1_im(-(n * 4));
+                        }
+                    }
+                    gen_movl_reg_T1(s, rn);
                 }
             }
-            if (insn & (1 << 21))
-                gen_movl_reg_T1(s, rn);
             break;
         case 0xa:
         case 0xb:
@@ -640,6 +711,66 @@ static void disas_arm_insn(DisasContext *s)
             gen_op_movl_reg_TN[0][15]();
             gen_op_swi();
             s->is_jmp = DISAS_JUMP;
+            break;
+        case 0xc:
+        case 0xd:
+            rd = (insn >> 12) & 0x7;
+            rn = (insn >> 16) & 0xf;
+            gen_movl_T1_reg(s, rn);
+            val = (insn) & 0xff;
+            if (!(insn & (1 << 23)))
+                val = -val;
+            switch((insn >> 8) & 0xf) {
+            case 0x1:
+                /* load/store */
+                if ((insn & (1 << 24)))
+                    gen_op_addl_T1_im(val);
+                /* XXX: do it */
+                if (!(insn & (1 << 24)))
+                    gen_op_addl_T1_im(val);
+                if (insn & (1 << 21))
+                    gen_movl_reg_T1(s, rn);
+                break;
+            case 0x2:
+                {
+                    int n, i;
+                    /* load store multiple */
+                    if ((insn & (1 << 24)))
+                        gen_op_addl_T1_im(val);
+                    switch(insn & 0x00408000) {
+                    case 0x00008000: n = 1; break;
+                    case 0x00400000: n = 2; break;
+                    case 0x00408000: n = 3; break;
+                    default: n = 4; break;
+                    }
+                    for(i = 0;i < n; i++) {
+                        /* XXX: do it */
+                    }
+                    if (!(insn & (1 << 24)))
+                        gen_op_addl_T1_im(val);
+                    if (insn & (1 << 21))
+                        gen_movl_reg_T1(s, rn);
+                }
+                break;
+            default:
+                goto illegal_op;
+            }
+            break;
+        case 0x0e:
+            /* float ops */
+            /* XXX: do it */
+            switch((insn >> 20) & 0xf) {
+            case 0x2: /* wfs */
+                break;
+            case 0x3: /* rfs */
+                break;
+            case 0x4: /* wfc */
+                break;
+            case 0x5: /* rfc */
+                break;
+            default:
+                goto illegal_op;
+            }
             break;
         default:
         illegal_op:
@@ -688,15 +819,19 @@ static inline int gen_intermediate_code_internal(TranslationBlock *tb, int searc
         disas_arm_insn(dc);
     } while (!dc->is_jmp && gen_opc_ptr < gen_opc_end && 
              (dc->pc - pc_start) < (TARGET_PAGE_SIZE - 32));
-    /* we must store the eflags state if it is not already done */
-    if (dc->is_jmp != DISAS_TB_JUMP && 
-        dc->is_jmp != DISAS_JUMP) {
-        gen_op_movl_T0_im((long)dc->pc - 4);
-        gen_op_movl_reg_TN[0][15]();
-    }
-    if (dc->is_jmp != DISAS_TB_JUMP) {
+    switch(dc->is_jmp) {
+    case DISAS_JUMP_NEXT:
+    case DISAS_NEXT:
+        gen_op_jmp((long)dc->tb, (long)dc->pc);
+        break;
+    default:
+    case DISAS_JUMP:
         /* indicate that the hash table must be used to find the next TB */
         gen_op_movl_T0_0();
+        break;
+    case DISAS_TB_JUMP:
+        /* nothing more to generate */
+        break;
     }
     *gen_opc_ptr = INDEX_op_end;
 
@@ -756,5 +891,10 @@ void cpu_arm_dump_state(CPUARMState *env, FILE *f, int flags)
         else
             fprintf(f, " ");
     }
-    fprintf(f, "CPSR=%08x", env->cpsr);
+    fprintf(f, "PSR=%08x %c%c%c%c\n", 
+            env->cpsr, 
+            env->cpsr & (1 << 31) ? 'N' : '-',
+            env->cpsr & (1 << 30) ? 'Z' : '-',
+            env->cpsr & (1 << 29) ? 'C' : '-',
+            env->cpsr & (1 << 28) ? 'V' : '-');
 }
