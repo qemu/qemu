@@ -11,7 +11,152 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "bfd.h"
+#include <inttypes.h>
+
+#define PARAMS(x) x
+typedef void *PTR;
+typedef uint64_t bfd_vma;
+typedef uint8_t bfd_byte;
+
+enum bfd_flavour {
+  bfd_target_unknown_flavour,
+  bfd_target_aout_flavour,
+  bfd_target_coff_flavour,
+  bfd_target_ecoff_flavour,
+  bfd_target_elf_flavour,
+  bfd_target_ieee_flavour,
+  bfd_target_nlm_flavour,
+  bfd_target_oasys_flavour,
+  bfd_target_tekhex_flavour,
+  bfd_target_srec_flavour,
+  bfd_target_ihex_flavour,
+  bfd_target_som_flavour,
+  bfd_target_os9k_flavour,
+  bfd_target_versados_flavour,
+  bfd_target_msdos_flavour,
+  bfd_target_evax_flavour
+};
+
+enum bfd_endian { BFD_ENDIAN_BIG, BFD_ENDIAN_LITTLE, BFD_ENDIAN_UNKNOWN };
+
+enum bfd_architecture 
+{
+  bfd_arch_unknown,    /* File arch not known */
+  bfd_arch_obscure,    /* Arch known, not one of these */
+  bfd_arch_m68k,       /* Motorola 68xxx */
+#define bfd_mach_m68000 1
+#define bfd_mach_m68008 2
+#define bfd_mach_m68010 3
+#define bfd_mach_m68020 4
+#define bfd_mach_m68030 5
+#define bfd_mach_m68040 6
+#define bfd_mach_m68060 7
+  bfd_arch_vax,        /* DEC Vax */   
+  bfd_arch_i960,       /* Intel 960 */
+     /* The order of the following is important.
+       lower number indicates a machine type that 
+       only accepts a subset of the instructions
+       available to machines with higher numbers.
+       The exception is the "ca", which is
+       incompatible with all other machines except 
+       "core". */
+
+#define bfd_mach_i960_core      1
+#define bfd_mach_i960_ka_sa     2
+#define bfd_mach_i960_kb_sb     3
+#define bfd_mach_i960_mc        4
+#define bfd_mach_i960_xa        5
+#define bfd_mach_i960_ca        6
+#define bfd_mach_i960_jx        7
+#define bfd_mach_i960_hx        8
+
+  bfd_arch_a29k,       /* AMD 29000 */
+  bfd_arch_sparc,      /* SPARC */
+#define bfd_mach_sparc                 1
+ /* The difference between v8plus and v9 is that v9 is a true 64 bit env.  */
+#define bfd_mach_sparc_sparclet        2
+#define bfd_mach_sparc_sparclite       3
+#define bfd_mach_sparc_v8plus          4
+#define bfd_mach_sparc_v8plusa         5  /* with ultrasparc add'ns */
+#define bfd_mach_sparc_v9              6
+#define bfd_mach_sparc_v9a             7  /* with ultrasparc add'ns */
+ /* Nonzero if MACH has the v9 instruction set.  */
+#define bfd_mach_sparc_v9_p(mach) \
+  ((mach) >= bfd_mach_sparc_v8plus && (mach) <= bfd_mach_sparc_v9a)
+  bfd_arch_mips,       /* MIPS Rxxxx */
+#define bfd_mach_mips3000              3000
+#define bfd_mach_mips3900              3900
+#define bfd_mach_mips4000              4000
+#define bfd_mach_mips4010              4010
+#define bfd_mach_mips4100              4100
+#define bfd_mach_mips4300              4300
+#define bfd_mach_mips4400              4400
+#define bfd_mach_mips4600              4600
+#define bfd_mach_mips4650              4650
+#define bfd_mach_mips5000              5000
+#define bfd_mach_mips6000              6000
+#define bfd_mach_mips8000              8000
+#define bfd_mach_mips10000             10000
+#define bfd_mach_mips16                16
+  bfd_arch_i386,       /* Intel 386 */
+#define bfd_mach_i386_i386 0
+#define bfd_mach_i386_i8086 1
+  bfd_arch_we32k,      /* AT&T WE32xxx */
+  bfd_arch_tahoe,      /* CCI/Harris Tahoe */
+  bfd_arch_i860,       /* Intel 860 */
+  bfd_arch_romp,       /* IBM ROMP PC/RT */
+  bfd_arch_alliant,    /* Alliant */
+  bfd_arch_convex,     /* Convex */
+  bfd_arch_m88k,       /* Motorola 88xxx */
+  bfd_arch_pyramid,    /* Pyramid Technology */
+  bfd_arch_h8300,      /* Hitachi H8/300 */
+#define bfd_mach_h8300   1
+#define bfd_mach_h8300h  2
+#define bfd_mach_h8300s  3
+  bfd_arch_powerpc,    /* PowerPC */
+  bfd_arch_rs6000,     /* IBM RS/6000 */
+  bfd_arch_hppa,       /* HP PA RISC */
+  bfd_arch_d10v,       /* Mitsubishi D10V */
+  bfd_arch_z8k,        /* Zilog Z8000 */
+#define bfd_mach_z8001         1
+#define bfd_mach_z8002         2
+  bfd_arch_h8500,      /* Hitachi H8/500 */
+  bfd_arch_sh,         /* Hitachi SH */
+#define bfd_mach_sh            0
+#define bfd_mach_sh3        0x30
+#define bfd_mach_sh3e       0x3e
+#define bfd_mach_sh4        0x40
+  bfd_arch_alpha,      /* Dec Alpha */
+  bfd_arch_arm,        /* Advanced Risc Machines ARM */
+#define bfd_mach_arm_2         1
+#define bfd_mach_arm_2a                2
+#define bfd_mach_arm_3         3
+#define bfd_mach_arm_3M        4
+#define bfd_mach_arm_4                 5
+#define bfd_mach_arm_4T        6
+  bfd_arch_ns32k,      /* National Semiconductors ns32000 */
+  bfd_arch_w65,        /* WDC 65816 */
+  bfd_arch_tic30,      /* Texas Instruments TMS320C30 */
+  bfd_arch_v850,       /* NEC V850 */
+#define bfd_mach_v850          0
+  bfd_arch_arc,        /* Argonaut RISC Core */
+#define bfd_mach_arc_base 0
+  bfd_arch_m32r,       /* Mitsubishi M32R/D */
+#define bfd_mach_m32r          0  /* backwards compatibility */
+  bfd_arch_mn10200,    /* Matsushita MN10200 */
+  bfd_arch_mn10300,    /* Matsushita MN10300 */
+  bfd_arch_last
+  };
+
+typedef struct symbol_cache_entry
+{
+    const char *name;
+    union
+    {
+        PTR p;
+        bfd_vma i;
+    } udata;
+} asymbol;
 
 typedef int (*fprintf_ftype) PARAMS((FILE*, const char*, ...));
 
@@ -176,8 +321,10 @@ extern int print_insn_d10v		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_v850		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_tic30		PARAMS ((bfd_vma, disassemble_info*));
 
+#if 0
 /* Fetch the disassembler for a given BFD, if that support is available.  */
 extern disassembler_ftype disassembler	PARAMS ((bfd *));
+#endif
 
 
 /* This block of definitions is for particular callers who read instructions
