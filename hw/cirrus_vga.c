@@ -737,7 +737,8 @@ static int cirrus_bitblt_cputovideo(CirrusVGAState * s)
             else
                 s->cirrus_blt_srcpitch = ((w + 7) >> 3);
 	} else {
-	    s->cirrus_blt_srcpitch = s->cirrus_blt_width;
+            /* always align input size to 32 bits */
+	    s->cirrus_blt_srcpitch = (s->cirrus_blt_width + 3) & ~3;
 	}
         s->cirrus_srccounter = s->cirrus_blt_srcpitch * s->cirrus_blt_height;
     }
