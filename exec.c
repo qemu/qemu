@@ -734,6 +734,7 @@ TranslationBlock *tb_alloc(unsigned long pc)
         return NULL;
     tb = &tbs[nb_tbs++];
     tb->pc = pc;
+    tb->cflags = 0;
     return tb;
 }
 
@@ -812,6 +813,11 @@ void tb_link(TranslationBlock *tb)
     tb->jmp_first = (TranslationBlock *)((long)tb | 2);
     tb->jmp_next[0] = NULL;
     tb->jmp_next[1] = NULL;
+#ifdef USE_CODE_COPY
+    tb->cflags &= ~CF_FP_USED;
+    if (tb->cflags & CF_TB_FP_USED)
+        tb->cflags |= CF_FP_USED;
+#endif
 
     /* init original jump addresses */
     if (tb->tb_next_offset[0] != 0xffff)
@@ -1738,7 +1744,7 @@ int cpu_register_io_memory(int io_index,
 
 /* physical memory access (slow version, mainly for debug) */
 #if defined(CONFIG_USER_ONLY)
-void cpu_physical_memory_rw(CPUState *env, uint8_t *buf, target_ulong addr, 
+void cpu_physical_memory_rw(target_ulong addr, uint8_t *buf, 
                             int len, int is_write)
 {
     int l, flags;
@@ -1767,7 +1773,7 @@ void cpu_physical_memory_rw(CPUState *env, uint8_t *buf, target_ulong addr,
     }
 }
 #else
-void cpu_physical_memory_rw(CPUState *env, uint8_t *buf, target_ulong addr, 
+void cpu_physical_memory_rw(target_ulong addr, uint8_t *buf, 
                             int len, int is_write)
 {
     int l, io_index;
@@ -1808,10 +1814,15 @@ void cpu_physical_memory_rw(CPUState *env, uint8_t *buf, target_ulong addr,
                     l = 1;
                 }
             } else {
+                unsigned long addr1;
+                addr1 = (pd & TARGET_PAGE_MASK) + (addr & ~TARGET_PAGE_MASK);
                 /* RAM case */
-                ptr = phys_ram_base + (pd & TARGET_PAGE_MASK) + 
-                    (addr & ~TARGET_PAGE_MASK);
+                ptr = phys_ram_base + addr1;
                 memcpy(ptr, buf, l);
+                /* invalidate code */
+                tb_invalidate_phys_page_range(addr1, addr1 + l, 0);
+                /* set dirty bit */
+                phys_ram_dirty[page >> TARGET_PAGE_BITS] = 1;                
             }
         } else {
             if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM &&
@@ -1849,8 +1860,8 @@ void cpu_physical_memory_rw(CPUState *env, uint8_t *buf, target_ulong addr,
 #endif
 
 /* virtual memory access for debug */
-int cpu_memory_rw_debug(CPUState *env, 
-                        uint8_t *buf, target_ulong addr, int len, int is_write)
+int cpu_memory_rw_debug(CPUState *env, target_ulong addr, 
+                        uint8_t *buf, int len, int is_write)
 {
     int l;
     target_ulong page, phys_addr;
@@ -1864,9 +1875,8 @@ int cpu_memory_rw_debug(CPUState *env,
         l = (page + TARGET_PAGE_SIZE) - addr;
         if (l > len)
             l = len;
-        cpu_physical_memory_rw(env, buf, 
-                               phys_addr + (addr & ~TARGET_PAGE_MASK), l, 
-                               is_write);
+        cpu_physical_memory_rw(phys_addr + (addr & ~TARGET_PAGE_MASK), 
+                               buf, l, is_write);
         len -= l;
         buf += l;
         addr += l;
