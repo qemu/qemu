@@ -82,7 +82,6 @@ typedef struct VGAState {
     uint8_t palette[768];
 
     /* display refresh support */
-    /* tell for each page if it has been updated since the last time */
     DisplayState *ds;
     uint32_t font_offsets[2];
     int graphic_mode;
@@ -94,6 +93,7 @@ typedef struct VGAState {
     uint32_t last_width, last_height;
     uint8_t cursor_start, cursor_end;
     uint32_t cursor_offset;
+    /* tell for each page if it has been updated since the last time */
     uint8_t vram_updated[VGA_RAM_SIZE / 4096];
     uint32_t last_palette[256];
 #define CH_ATTR_SIZE (132 * 60)
@@ -763,13 +763,7 @@ static int update_basic_params(VGAState *s)
         v = (s->cr[0x43] >> 2) & 1; /* S3 extension */
     line_offset = s->cr[0x13] | (v << 8);
     line_offset <<= 3;
-#if 0
-    /* XXX: check this - inconsistent with some VGA docs */
-    if (s->cr[0x14] & 0x40)
-        line_offset <<= 2;
-    else if (!(s->cr[0x17] & 0x40))
-        line_offset <<= 1;
-#endif
+
     /* starting address */
     start_addr = s->cr[0x0d] | (s->cr[0x0c] << 8);
     start_addr |= (s->cr[0x69] & 0x1f) << 16; /* S3 extension */
@@ -917,7 +911,7 @@ static void vga_draw_text(VGAState *s, int full_update)
         s->cursor_start = s->cr[0xa];
         s->cursor_end = s->cr[0xb];
     }
-    cursor_ptr = s->vram_ptr + cursor_offset * 4;
+    cursor_ptr = s->vram_ptr + (s->start_addr + cursor_offset) * 4;
     
     depth_index = get_depth_index(s->ds->depth);
     vga_draw_glyph8 = vga_draw_glyph8_table[depth_index];
@@ -1035,18 +1029,17 @@ static vga_draw_line_func *vga_draw_line_table[4 * 6] = {
  */
 static void vga_draw_graphic(VGAState *s, int full_update)
 {
-    int y, update, y_min, y_max, page_min, page_max, linesize;
-    int width, height, shift_control, line_offset, page0, page1;
+    int y, update, page_min, page_max, linesize, y_start;
+    int width, height, shift_control, line_offset, page0, page1, bwidth;
     uint8_t *d;
-    uint32_t v, *palette, addr1, addr;
+    uint32_t v, addr1, addr;
     vga_draw_line_func *vga_draw_line;
 
     full_update |= update_palette16(s);
-    palette = s->last_palette;
 
     full_update |= update_basic_params(s);
 
-    width = (s->cr[0x01] + 1);
+    width = (s->cr[0x01] + 1) * 8;
     height = s->cr[0x12] | 
         ((s->cr[0x07] & 0x02) << 7) | 
         ((s->cr[0x07] & 0x40) << 3);
@@ -1054,6 +1047,7 @@ static void vga_draw_graphic(VGAState *s, int full_update)
 
     if (width != s->last_width ||
         height != s->last_height) {
+        dpy_resize(s->ds, width, height);
         s->last_width = width;
         s->last_height = height;
         full_update = 1;
@@ -1066,44 +1060,52 @@ static void vga_draw_graphic(VGAState *s, int full_update)
     }
     
     if (shift_control == 0)
-        v = 1; /* 4 bit/pxeil */
+        v = 1; /* 4 bit/pixel */
     else if (shift_control == 1)
         v = 0; /* 2 bit/pixel */
     else
         v = 2; /* 8 bit/pixel */
-        
     vga_draw_line = vga_draw_line_table[v * 4 + get_depth_index(s->ds->depth)];
     
     line_offset = s->line_offset;
     addr1 = (s->start_addr * 4);
-    y_min = height;
-    y_max = -1;
+    bwidth = width * 4;
+    y_start = -1;
     page_min = 0x7fffffff;
     page_max = -1;
     d = s->ds->data;
     linesize = s->ds->linesize;
     for(y = 0; y < height; y++) {
         addr = addr1;
-        if (s->cr[0x17] & 1) {
+        if (!(s->cr[0x17] & 1)) {
             /* CGA compatibility handling */
             addr = (addr & ~0x2000) | ((y & 1) << 13);
         }
-        if (s->cr[0x17] & 2) {
+        if (!(s->cr[0x17] & 2)) {
             addr = (addr & ~0x4000) | ((y & 2) << 13);
         }
         page0 = addr >> 12;
-        page1 = (addr + width - 1) >> 12;
+        page1 = (addr + bwidth - 1) >> 12;
         update = full_update | s->vram_updated[page0] | s->vram_updated[page1];
+        if ((page1 - page0) > 1) {
+            /* if wide line, can use another page */
+            update |= s->vram_updated[page0 + 1];
+        }
         if (update) {
-            if (y < y_min)
-                y_min = y;
-            if (y > y_max)
-                y_max = y;
+            if (y_start < 0)
+                y_start = y;
             if (page0 < page_min)
                 page_min = page0;
             if (page1 > page_max)
                 page_max = page1;
             vga_draw_line(s, d, s->vram_ptr + addr, width);
+        } else {
+            if (y_start >= 0) {
+                /* flush to display */
+                dpy_update(s->ds, 0, y_start, 
+                           width, y - y_start);
+                y_start = -1;
+            }
         }
         if (y == s->line_compare) {
             addr1 = 0;
@@ -1112,7 +1114,11 @@ static void vga_draw_graphic(VGAState *s, int full_update)
         }
         d += linesize;
     }
-
+    if (y_start >= 0) {
+        /* flush to display */
+        dpy_update(s->ds, 0, y_start, 
+                   width, y - y_start);
+    }
     /* reset modified pages */
     if (page_max != -1) {
         memset(s->vram_updated + page_min, 0, page_max - page_min + 1);
