@@ -63,8 +63,8 @@ void adb_receive_packet(ADBBusState *s, const uint8_t *buf, int len)
     int devaddr, cmd, i;
     uint8_t obuf[4];
 
-    cmd = buf[1] & 0xf;
-    devaddr = buf[1] >> 4;
+    cmd = buf[0] & 0xf;
+    devaddr = buf[0] >> 4;
     if (buf[1] == ADB_BUSRESET) {
         obuf[0] = 0x00;
         obuf[1] = 0x00;

@@ -23,6 +23,9 @@
  */
 #include "vl.h"
 
+//#define DEBUG_CUDA
+//#define DEBUG_CUDA_PACKET
+
 /* Bits in B data register: all active low */
 #define TREQ		0x08		/* Transfer request (input) */
 #define TACK		0x10		/* Transfer acknowledge (output) */
@@ -114,6 +117,7 @@ typedef struct CUDAState {
     int data_out_index;
 
     int irq;
+    openpic_t *openpic;
     uint8_t autopoll;
     uint8_t data_in[128];
     uint8_t data_out[16];
@@ -125,13 +129,15 @@ ADBBusState adb_bus;
 static void cuda_update(CUDAState *s);
 static void cuda_receive_packet_from_host(CUDAState *s, 
                                           const uint8_t *data, int len);
+static void cuda_timer_update(CUDAState *s, CUDATimer *ti, 
+                              int64_t current_time);
 
 static void cuda_update_irq(CUDAState *s)
 {
-    if (s->ifr & s->ier & SR_INT) {
-        pic_set_irq(s->irq, 1);
+    if (s->ifr & s->ier & (SR_INT | T1_INT)) {
+        openpic_set_irq(s->openpic, s->irq, 1);
     } else {
-        pic_set_irq(s->irq, 0);
+        openpic_set_irq(s->openpic, s->irq, 0);
     }
 }
 
@@ -150,10 +156,15 @@ static unsigned int get_counter(CUDATimer *s)
     return counter;
 }
 
-static void set_counter(CUDATimer *s, unsigned int val)
+static void set_counter(CUDAState *s, CUDATimer *ti, unsigned int val)
 {
-    s->load_time = qemu_get_clock(vm_clock);
-    s->counter_value = val;
+#ifdef DEBUG_CUDA
+    printf("cuda: T%d.counter=%d\n",
+           1 + (ti->timer == NULL), val);
+#endif
+    ti->load_time = qemu_get_clock(vm_clock);
+    ti->counter_value = val;
+    cuda_timer_update(s, ti, ti->load_time);
 }
 
 static int64_t get_next_irq_time(CUDATimer *s, int64_t current_time)
@@ -165,10 +176,14 @@ static int64_t get_next_irq_time(CUDATimer *s, int64_t current_time)
     if (d <= s->counter_value) {
         next_time = s->counter_value + 1;
     } else {
-        base = ((d - s->counter_value) % s->latch);
+        base = ((d - s->counter_value) / s->latch);
         base = (base * s->latch) + s->counter_value;
         next_time = base + s->latch;
     }
+#ifdef DEBUG_CUDA
+    printf("latch=%d counter=%lld delta_next=%lld\n", 
+           s->latch, d, next_time - d);
+#endif
     next_time = muldiv64(next_time, ticks_per_sec, CUDA_TIMER_FREQ) + 
         s->load_time;
     if (next_time <= current_time)
@@ -176,13 +191,25 @@ static int64_t get_next_irq_time(CUDATimer *s, int64_t current_time)
     return next_time;
 }
 
+static void cuda_timer_update(CUDAState *s, CUDATimer *ti, 
+                              int64_t current_time)
+{
+    if (!ti->timer)
+        return;
+    if ((s->acr & T1MODE) != T1MODE_CONT) {
+        qemu_del_timer(ti->timer);
+    } else {
+        ti->next_irq_time = get_next_irq_time(ti, current_time);
+        qemu_mod_timer(ti->timer, ti->next_irq_time);
+    }
+}
+
 static void cuda_timer1(void *opaque)
 {
     CUDAState *s = opaque;
     CUDATimer *ti = &s->timers[0];
 
-    ti->next_irq_time = get_next_irq_time(ti, ti->next_irq_time);
-    qemu_mod_timer(ti->timer, ti->next_irq_time);
+    cuda_timer_update(s, ti, ti->next_irq_time);
     s->ifr |= T1_INT;
     cuda_update_irq(s);
 }
@@ -229,11 +256,9 @@ static uint32_t cuda_readb(void *opaque, target_phys_addr_t addr)
         val = get_counter(&s->timers[1]) >> 8;
         break;
     case 10:
-        if (s->data_in_index < s->data_in_size) {
-            val = s->data_in[s->data_in_index];
-        } else {
-            val = 0;
-        }
+        val = s->sr;
+        s->ifr &= ~SR_INT;
+        cuda_update_irq(s);
         break;
     case 11:
         val = s->acr;
@@ -253,7 +278,8 @@ static uint32_t cuda_readb(void *opaque, target_phys_addr_t addr)
         break;
     }
 #ifdef DEBUG_CUDA
-    printf("cuda: read: reg=0x%x val=%02x\n", addr, val);
+    if (addr != 13 || val != 0)
+        printf("cuda: read: reg=0x%x val=%02x\n", addr, val);
 #endif
     return val;
 }
@@ -283,44 +309,34 @@ static void cuda_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
         break;
     case 4:
         val = val | (get_counter(&s->timers[0]) & 0xff00);
-        set_counter(&s->timers[0], val);
+        set_counter(s, &s->timers[0], val);
         break;
     case 5:
         val = (val << 8) |  (get_counter(&s->timers[0]) & 0xff);
-        set_counter(&s->timers[0], val);
+        set_counter(s, &s->timers[0], val);
         break;
     case 6:
         s->timers[0].latch = (s->timers[0].latch & 0xff00) | val;
+        cuda_timer_update(s, &s->timers[0], qemu_get_clock(vm_clock));
         break;
     case 7:
         s->timers[0].latch = (s->timers[0].latch & 0xff) | (val << 8);
+        cuda_timer_update(s, &s->timers[0], qemu_get_clock(vm_clock));
         break;
     case 8:
         val = val | (get_counter(&s->timers[1]) & 0xff00);
-        set_counter(&s->timers[1], val);
+        set_counter(s, &s->timers[1], val);
         break;
     case 9:
         val = (val << 8) |  (get_counter(&s->timers[1]) & 0xff);
-        set_counter(&s->timers[1], val);
+        set_counter(s, &s->timers[1], val);
         break;
     case 10:
         s->sr = val;
         break;
     case 11:
         s->acr = val;
-        if ((s->acr & T1MODE) == T1MODE_CONT) {
-            if ((s->last_acr & T1MODE) != T1MODE_CONT) {
-                CUDATimer *ti = &s->timers[0];
-                /* activate timer interrupt */
-                ti->next_irq_time = get_next_irq_time(ti, qemu_get_clock(vm_clock));
-                qemu_mod_timer(ti->timer, ti->next_irq_time);
-            }
-        } else {
-            if ((s->last_acr & T1MODE) == T1MODE_CONT) {
-                CUDATimer *ti = &s->timers[0];
-                qemu_del_timer(ti->timer);
-            }
-        }
+        cuda_timer_update(s, &s->timers[0], qemu_get_clock(vm_clock));
         cuda_update(s);
         break;
     case 12:
@@ -351,47 +367,90 @@ static void cuda_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 /* NOTE: TIP and TREQ are negated */
 static void cuda_update(CUDAState *s)
 {
-    if (s->data_in_index < s->data_in_size) {
-        /* data input */
-        if (!(s->b & TIP) && 
-            (s->b & (TACK | TIP)) != (s->last_b & (TACK | TIP))) {
-            s->sr = s->data_in[s->data_in_index++];
-            s->ifr |= SR_INT;
-            cuda_update_irq(s);
-        }
-    }
-    if (s->data_in_index < s->data_in_size) {
-        /* there is some data to read */
-        s->b = (s->b & ~TREQ);
-    } else {
-        s->b = (s->b | TREQ);
-    }
+    int packet_received, len;
 
-    if (s->acr & SR_OUT) {
-        /* data output */
-        if (!(s->b & TIP) && 
-            (s->b & (TACK | TIP)) != (s->last_b & (TACK | TIP))) {
-            if (s->data_out_index < sizeof(s->data_out)) {
-                s->data_out[s->data_out_index++] = s->sr;
+    packet_received = 0;
+    if (!(s->b & TIP)) {
+        /* transfer requested from host */
+
+        if (s->acr & SR_OUT) {
+            /* data output */
+            if ((s->b & (TACK | TIP)) != (s->last_b & (TACK | TIP))) {
+                if (s->data_out_index < sizeof(s->data_out)) {
+#ifdef DEBUG_CUDA
+                    printf("cuda: send: %02x\n", s->sr);
+#endif
+                    s->data_out[s->data_out_index++] = s->sr;
+                    s->ifr |= SR_INT;
+                    cuda_update_irq(s);
+                }
             }
+        } else {
+            if (s->data_in_index < s->data_in_size) {
+                /* data input */
+                if ((s->b & (TACK | TIP)) != (s->last_b & (TACK | TIP))) {
+                    s->sr = s->data_in[s->data_in_index++];
+#ifdef DEBUG_CUDA
+                    printf("cuda: recv: %02x\n", s->sr);
+#endif
+                    /* indicate end of transfer */
+                    if (s->data_in_index >= s->data_in_size) {
+                        s->b = (s->b | TREQ);
+                    }
+                    s->ifr |= SR_INT;
+                    cuda_update_irq(s);
+                }
+            }
+        }
+    } else {
+        /* no transfer requested: handle sync case */
+        if ((s->last_b & TIP) && (s->b & TACK) != (s->last_b & TACK)) {
+            /* update TREQ state each time TACK change state */
+            if (s->b & TACK)
+                s->b = (s->b | TREQ);
+            else
+                s->b = (s->b & ~TREQ);
             s->ifr |= SR_INT;
             cuda_update_irq(s);
+        } else {
+            if (!(s->last_b & TIP)) {
+                /* handle end of host to cuda transfert */
+                packet_received = (s->data_out_index > 0);
+                /* always an IRQ at the end of transfert */
+                s->ifr |= SR_INT;
+                cuda_update_irq(s);
+            }
+            /* signal if there is data to read */
+            if (s->data_in_index < s->data_in_size) {
+                s->b = (s->b & ~TREQ);
+            }
         }
     }
 
-    /* check end of data output */
-    if (!(s->acr & SR_OUT) && (s->last_acr & SR_OUT)) {
-        if (s->data_out_index > 0)
-            cuda_receive_packet_from_host(s, s->data_out, s->data_out_index);
-        s->data_out_index = 0;
-    }
     s->last_acr = s->acr;
     s->last_b = s->b;
+
+    /* NOTE: cuda_receive_packet_from_host() can call cuda_update()
+       recursively */
+    if (packet_received) {
+        len = s->data_out_index;
+        s->data_out_index = 0;
+        cuda_receive_packet_from_host(s, s->data_out, len);
+    }
 }
 
 static void cuda_send_packet_to_host(CUDAState *s, 
                                      const uint8_t *data, int len)
 {
+#ifdef DEBUG_CUDA_PACKET
+    {
+        int i;
+        printf("cuda_send_packet_to_host:\n");
+        for(i = 0; i < len; i++)
+            printf(" %02x", data[i]);
+        printf("\n");
+    }
+#endif
     memcpy(s->data_in, data, len);
     s->data_in_size = len;
     s->data_in_index = 0;
@@ -425,7 +484,7 @@ static void cuda_receive_packet(CUDAState *s,
         break;
     case CUDA_GET_TIME:
         /* XXX: add time support ? */
-        ti = 0;
+        ti = time(NULL);
         obuf[0] = CUDA_PACKET;
         obuf[1] = 0;
         obuf[2] = 0;
@@ -452,6 +511,15 @@ static void cuda_receive_packet(CUDAState *s,
 static void cuda_receive_packet_from_host(CUDAState *s, 
                                           const uint8_t *data, int len)
 {
+#ifdef DEBUG_CUDA_PACKET
+    {
+        int i;
+        printf("cuda_receive_packet_to_host:\n");
+        for(i = 0; i < len; i++)
+            printf(" %02x", data[i]);
+        printf("\n");
+    }
+#endif
     switch(data[0]) {
     case ADB_PACKET:
         adb_receive_packet(&adb_bus, data + 1, len - 1);
@@ -492,16 +560,20 @@ static CPUReadMemoryFunc *cuda_read[] = {
     &cuda_readl,
 };
 
-int cuda_init(void)
+int cuda_init(openpic_t *openpic, int irq)
 {
     CUDAState *s = &cuda_state;
     int cuda_mem_index;
 
-    s->timers[0].latch = 0x10000;
-    set_counter(&s->timers[0], 0xffff);
+    s->openpic = openpic;
+    s->irq = irq;
+
     s->timers[0].timer = qemu_new_timer(vm_clock, cuda_timer1, s);
+    s->timers[0].latch = 0x10000;
+    set_counter(s, &s->timers[0], 0xffff);
     s->timers[1].latch = 0x10000;
-    set_counter(&s->timers[1], 0xffff);
+    s->ier = T1_INT | SR_INT;
+    set_counter(s, &s->timers[1], 0xffff);
     cuda_mem_index = cpu_register_io_memory(0, cuda_read, cuda_write, s);
     return cuda_mem_index;
 }
