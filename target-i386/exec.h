@@ -142,6 +142,44 @@ extern int loglevel;
 #include "cpu.h"
 #include "exec-all.h"
 
+/* XXX: add a generic FPU library */
+
+static inline double float32_to_float64(float a)
+{
+    return a;
+}
+
+static inline float float64_to_float32(double a)
+{
+    return a;
+}
+
+#if defined(__powerpc__)
+/* better to call an helper on ppc */
+float int32_to_float32(int32_t a);
+double int32_to_float64(int32_t a);
+#else
+static inline float int32_to_float32(int32_t a)
+{
+    return (float)a;
+}
+
+static inline double int32_to_float64(int32_t a)
+{
+    return (double)a;
+}
+#endif
+
+static inline float int64_to_float32(int64_t a)
+{
+    return (float)a;
+}
+
+static inline double int64_to_float64(int64_t a)
+{
+    return (double)a;
+}
+
 typedef struct CCTable {
     int (*compute_all)(void); /* return all the flags */
     int (*compute_c)(void);  /* return the C flag */
@@ -559,6 +597,7 @@ void restore_native_fp_state(CPUState *env);
 void save_native_fp_state(CPUState *env);
 float approx_rsqrt(float a);
 float approx_rcp(float a);
+double helper_sqrt(double a);
 int fpu_isnan(double a);
 
 extern const uint8_t parity_table[256];
