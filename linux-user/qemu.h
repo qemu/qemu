@@ -83,7 +83,7 @@ extern FILE *logfile;
 
 /* vm86.c */
 void save_v86_state(CPUX86State *env);
-void do_int(CPUX86State *env, int intno);
+void handle_vm86_trap(CPUX86State *env, int trapno);
 void handle_vm86_fault(CPUX86State *env);
 int do_vm86(CPUX86State *env, long subfunction, 
             struct target_vm86plus_struct * target_v86);

@@ -480,6 +480,12 @@ typedef struct target_siginfo {
 #define TARGET_SEGV_MAPERR     (1)  /* address not mapped to object */
 #define TARGET_SEGV_ACCERR     (2)  /* invalid permissions for mapped object */
 
+/*
+ * SIGTRAP si_codes
+ */
+#define TARGET_TRAP_BRKPT	(1)	/* process breakpoint */
+#define TARGET_TRAP_TRACE	(2)	/* process trace trap */
+
 /* default linux values for the selectors */
 #define __USER_CS	(0x23)
 #define __USER_DS	(0x2B)

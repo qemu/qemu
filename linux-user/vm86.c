@@ -178,7 +178,7 @@ static inline unsigned int get_vflags(CPUX86State *env)
 
 /* handle VM86 interrupt (NOTE: the CPU core currently does not
    support TSS interrupt revectoring, so this code is always executed) */
-void do_int(CPUX86State *env, int intno)
+static void do_int(CPUX86State *env, int intno)
 {
     TaskState *ts = env->opaque;
     uint32_t *int_ptr, segoffs;
@@ -223,6 +223,15 @@ void do_int(CPUX86State *env, int intno)
     fprintf(logfile, "VM86: return to 32 bits int 0x%x\n", intno);
 #endif
     return_to_32bit(env, TARGET_VM86_INTx | (intno << 8));
+}
+
+void handle_vm86_trap(CPUX86State *env, int trapno)
+{
+    if (trapno == 1 || trapno == 3) {
+        return_to_32bit(env, TARGET_VM86_TRAP + (trapno << 8));
+    } else {
+        do_int(env, trapno);
+    }
 }
 
 #define CHECK_IF_IN_TRAP(disp) \

@@ -166,7 +166,7 @@ void cpu_loop(CPUX86State *env)
             break;
         case EXCP00_DIVZ:
             if (env->eflags & VM_MASK) {
-                do_int(env, trapnr);
+                handle_vm86_trap(env, trapnr);
             } else {
                 /* division by zero */
                 info.si_signo = SIGFPE;
@@ -176,10 +176,27 @@ void cpu_loop(CPUX86State *env)
                 queue_signal(info.si_signo, &info);
             }
             break;
+        case EXCP01_SSTP:
+        case EXCP03_INT3:
+            if (env->eflags & VM_MASK) {
+                handle_vm86_trap(env, trapnr);
+            } else {
+                info.si_signo = SIGTRAP;
+                info.si_errno = 0;
+                if (trapnr == EXCP01_SSTP) {
+                    info.si_code = TARGET_TRAP_BRKPT;
+                    info._sifields._sigfault._addr = env->eip;
+                } else {
+                    info.si_code = TARGET_SI_KERNEL;
+                    info._sifields._sigfault._addr = 0;
+                }
+                queue_signal(info.si_signo, &info);
+            }
+            break;
         case EXCP04_INTO:
         case EXCP05_BOUND:
             if (env->eflags & VM_MASK) {
-                do_int(env, trapnr);
+                handle_vm86_trap(env, trapnr);
             } else {
                 info.si_signo = SIGSEGV;
                 info.si_errno = 0;

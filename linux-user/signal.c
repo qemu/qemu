@@ -110,7 +110,8 @@ static inline void host_to_target_siginfo_noswap(target_siginfo_t *tinfo,
     tinfo->si_signo = sig;
     tinfo->si_errno = 0;
     tinfo->si_code = 0;
-    if (sig == SIGILL || sig == SIGFPE || sig == SIGSEGV || sig == SIGBUS) {
+    if (sig == SIGILL || sig == SIGFPE || sig == SIGSEGV || 
+        sig == SIGBUS || sig == SIGTRAP) {
         /* should never come here, but who knows. The information for
            the target is irrelevant */
         tinfo->_sifields._sigfault._addr = 0;
@@ -131,7 +132,8 @@ static void tswap_siginfo(target_siginfo_t *tinfo,
     tinfo->si_signo = tswap32(sig);
     tinfo->si_errno = tswap32(info->si_errno);
     tinfo->si_code = tswap32(info->si_code);
-    if (sig == SIGILL || sig == SIGFPE || sig == SIGSEGV || sig == SIGBUS) {
+    if (sig == SIGILL || sig == SIGFPE || sig == SIGSEGV || 
+        sig == SIGBUS || sig == SIGTRAP) {
         tinfo->_sifields._sigfault._addr = 
             tswapl(info->_sifields._sigfault._addr);
     } else if (sig >= TARGET_SIGRTMIN) {
@@ -788,6 +790,9 @@ long do_sigreturn(CPUX86State *env)
     sigset_t set;
     int eax, i;
 
+#if defined(DEBUG_SIGNAL)
+    fprintf(stderr, "do_sigreturn\n");
+#endif
     /* set blocked signals */
     target_set.sig[0] = frame->sc.oldmask;
     for(i = 1; i < TARGET_NSIG_WORDS; i++)
