@@ -47,7 +47,6 @@ const char interp[] __attribute__((section(".interp"))) = "/lib/ld-linux.so.2";
    we allocate a bigger stack. Need a better solution, for example
    by remapping the process stack directly at the right place */
 unsigned long x86_stack_size = 512 * 1024;
-unsigned long stktop;
 
 void gemu_log(const char *fmt, ...)
 {

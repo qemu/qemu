@@ -7,5 +7,6 @@
   issues, fix 16 bit uid issues)
 - finish signal handing (fp87 state, more siginfo conversions)
 - verify thread support (clone() and various locks)
-- make it self runnable (use same trick as ld.so : include its own relocator and libc)
+- make it self runnable (handle self modifying code, relocate stack
+  and dyn loader)
 - fix FPU exceptions (in particular: gen_op_fpush not before mem load)

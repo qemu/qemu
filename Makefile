@@ -105,7 +105,7 @@ qemu-doc.html: qemu-doc.texi
 FILES= \
 README README.distrib COPYING COPYING.LIB TODO Changelog VERSION \
 dyngen.c ioctls.h ops_template.h op_string.h  syscall_types.h\
-Makefile     elf.h       linux_bin.h       segment.h       thunk.c\
+Makefile     elf.h       thunk.c\
 elfload.c   main.c            signal.c        thunk.h\
 cpu-i386.h qemu.h op-i386.c opc-i386.h syscall-i386.h  translate-i386.c\
 dis-asm.h    gen-i386.h  syscall.c\
