@@ -1138,7 +1138,7 @@ static void vga_draw_text(VGAState *s, int full_update)
     /* total width & height */
     cheight = (s->cr[9] & 0x1f) + 1;
     cw = 8;
-    if (s->sr[1] & 0x01)
+    if (!(s->sr[1] & 0x01))
         cw = 9;
     if (s->sr[1] & 0x08)
         cw = 16; /* NOTE: no 18 pixel wide */
@@ -1154,7 +1154,7 @@ static void vga_draw_text(VGAState *s, int full_update)
         height = (height + 1) / cheight;
     }
     if (width != s->last_width || height != s->last_height ||
-        cw != s->last_cw || cw != s->last_cw) {
+        cw != s->last_cw || cheight != s->last_ch) {
         dpy_resize(s->ds, width * cw, height * cheight);
         s->last_width = width;
         s->last_height = height;
