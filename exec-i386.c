@@ -206,14 +206,13 @@ int cpu_x86_exec(CPUX86State *env1)
                 flags |= (1 << GEN_FLAG_VM_SHIFT);
                 flags |= (3 << GEN_FLAG_CPL_SHIFT);
             }
-            flags |= (env->eflags & IOPL_MASK) >> (12 - GEN_FLAG_IOPL_SHIFT);
-            flags |= (env->eflags & TF_MASK) << (GEN_FLAG_TF_SHIFT - 8);
+            flags |= (env->eflags & (IOPL_MASK | TF_MASK));
             cs_base = env->seg_cache[R_CS].base;
             pc = cs_base + env->eip;
-            spin_lock(&tb_lock);
             tb = tb_find(&ptb, (unsigned long)pc, (unsigned long)cs_base, 
                          flags);
             if (!tb) {
+                spin_lock(&tb_lock);
                 /* if no translated code available, then translate it now */
                 tb = tb_alloc((unsigned long)pc);
                 if (!tb) {
@@ -244,6 +243,7 @@ int cpu_x86_exec(CPUX86State *env1)
                 tb->hash_next = NULL;
                 tb_link(tb);
                 code_gen_ptr = (void *)(((unsigned long)code_gen_ptr + code_gen_size + CODE_GEN_ALIGN - 1) & ~(CODE_GEN_ALIGN - 1));
+                spin_unlock(&tb_lock);
             }
 #ifdef DEBUG_EXEC
 	    if (loglevel) {
@@ -252,13 +252,14 @@ int cpu_x86_exec(CPUX86State *env1)
 			lookup_symbol((void *)tb->pc));
 	    }
 #endif
-
             /* see if we can patch the calling TB */
             if (T0 != 0 && !(env->eflags & TF_MASK)) {
+                spin_lock(&tb_lock);
                 tb_add_jump((TranslationBlock *)(T0 & ~3), T0 & 3, tb);
+                spin_unlock(&tb_lock);
             }
+
             tc_ptr = tb->tc_ptr;
-            spin_unlock(&tb_lock);
 
             /* execute the generated code */
             gen_func = (void *)tc_ptr;

@@ -23,9 +23,9 @@
 #define GEN_FLAG_SS32_SHIFT   2
 #define GEN_FLAG_VM_SHIFT     3
 #define GEN_FLAG_ST_SHIFT     4
-#define GEN_FLAG_CPL_SHIFT    7
-#define GEN_FLAG_IOPL_SHIFT   9
-#define GEN_FLAG_TF_SHIFT     11
+#define GEN_FLAG_TF_SHIFT     8 /* same position as eflags */
+#define GEN_FLAG_CPL_SHIFT    9
+#define GEN_FLAG_IOPL_SHIFT   12 /* same position as eflags */
 
 struct TranslationBlock;
 int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size, 
@@ -150,12 +150,15 @@ static inline void tb_set_jmp_target(TranslationBlock *tb,
 static inline void tb_add_jump(TranslationBlock *tb, int n, 
                                TranslationBlock *tb_next)
 {
-    /* patch the native jump address */
-    tb_set_jmp_target(tb, n, (unsigned long)tb_next->tc_ptr);
-
-    /* add in TB jmp circular list */
-    tb->jmp_next[n] = tb_next->jmp_first;
-    tb_next->jmp_first = (TranslationBlock *)((long)(tb) | (n));
+    /* NOTE: this test is only needed for thread safety */
+    if (!tb->jmp_next[n]) {
+        /* patch the native jump address */
+        tb_set_jmp_target(tb, n, (unsigned long)tb_next->tc_ptr);
+        
+        /* add in TB jmp circular list */
+        tb->jmp_next[n] = tb_next->jmp_first;
+        tb_next->jmp_first = (TranslationBlock *)((long)(tb) | (n));
+    }
 }
 
 #ifndef offsetof
