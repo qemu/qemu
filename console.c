@@ -599,6 +599,21 @@ static void console_chr_add_read_handler(CharDriverState *chr,
     s->fd_opaque = opaque;
 }
 
+static void console_send_event(CharDriverState *chr, int event)
+{
+    TextConsole *s = chr->opaque;
+    int i;
+
+    if (event == CHR_EVENT_FOCUS) {
+        for(i = 0; i < nb_consoles; i++) {
+            if (consoles[i] == s) {
+                console_select(i);
+                break;
+            }
+        }
+    }
+}
+
 /* called when an ascii key is pressed */
 void kbd_put_keysym(int keysym)
 {
@@ -689,6 +704,8 @@ CharDriverState *text_console_init(DisplayState *ds)
     chr->opaque = s;
     chr->chr_write = console_puts;
     chr->chr_add_read_handler = console_chr_add_read_handler;
+    chr->chr_send_event = console_send_event;
+
     if (!color_inited) {
         color_inited = 1;
         for(i = 0; i < 8; i++) {
