@@ -214,7 +214,7 @@ void pci_default_write_config(PCIDevice *d,
                               uint32_t address, uint32_t val, int len)
 {
     int can_write, i;
-    uint32_t end;
+    uint32_t end, addr;
 
     if (len == 4 && (address >= 0x10 && address < 0x10 + 4 * 6)) {
         PCIIORegion *r;
@@ -233,9 +233,10 @@ void pci_default_write_config(PCIDevice *d,
     }
  default_config:
     /* not efficient, but simple */
+    addr = address;
     for(i = 0; i < len; i++) {
         /* default read/write accesses */
-        switch(address) {
+        switch(addr) {
         case 0x00:
         case 0x01:
         case 0x02:
@@ -253,9 +254,9 @@ void pci_default_write_config(PCIDevice *d,
             break;
         }
         if (can_write) {
-            d->config[address] = val;
+            d->config[addr] = val;
         }
-        address++;
+        addr++;
         val >>= 8;
     }
 
