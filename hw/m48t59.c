@@ -35,6 +35,8 @@
 struct m48t59_t {
     /* Hardware parameters */
     int      IRQ;
+    int mem_index;
+    uint32_t mem_base;
     uint32_t io_base;
     uint16_t size;
     /* RTC management */
@@ -481,8 +483,95 @@ static uint32_t NVRAM_readb (void *opaque, uint32_t addr)
     return retval;
 }
 
+static void nvram_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
+{
+    m48t59_t *NVRAM = opaque;
+    
+    addr -= NVRAM->mem_base;
+    if (addr < 0x1FF0)
+        NVRAM->buffer[addr] = value;
+}
+
+static void nvram_writew (void *opaque, target_phys_addr_t addr, uint32_t value)
+{
+    m48t59_t *NVRAM = opaque;
+    
+    addr -= NVRAM->mem_base;
+    if (addr < 0x1FF0) {
+        NVRAM->buffer[addr] = value >> 8;
+        NVRAM->buffer[addr + 1] = value;
+    }
+}
+
+static void nvram_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
+{
+    m48t59_t *NVRAM = opaque;
+    
+    addr -= NVRAM->mem_base;
+    if (addr < 0x1FF0) {
+        NVRAM->buffer[addr] = value >> 24;
+        NVRAM->buffer[addr + 1] = value >> 16;
+        NVRAM->buffer[addr + 2] = value >> 8;
+        NVRAM->buffer[addr + 3] = value;
+    }
+}
+
+static uint32_t nvram_readb (void *opaque, target_phys_addr_t addr)
+{
+    m48t59_t *NVRAM = opaque;
+    uint32_t retval = 0;
+    
+    addr -= NVRAM->mem_base;
+    if (addr < 0x1FF0)
+        retval = NVRAM->buffer[addr];
+
+    return retval;
+}
+
+static uint32_t nvram_readw (void *opaque, target_phys_addr_t addr)
+{
+    m48t59_t *NVRAM = opaque;
+    uint32_t retval = 0;
+    
+    addr -= NVRAM->mem_base;
+    if (addr < 0x1FF0) {
+        retval = NVRAM->buffer[addr] << 8;
+        retval |= NVRAM->buffer[addr + 1];
+    }
+
+    return retval;
+}
+
+static uint32_t nvram_readl (void *opaque, target_phys_addr_t addr)
+{
+    m48t59_t *NVRAM = opaque;
+    uint32_t retval = 0;
+    
+    addr -= NVRAM->mem_base;
+    if (addr < 0x1FF0) {
+        retval = NVRAM->buffer[addr] << 24;
+        retval |= NVRAM->buffer[addr + 1] << 16;
+        retval |= NVRAM->buffer[addr + 2] << 8;
+        retval |= NVRAM->buffer[addr + 3];
+    }
+
+    return retval;
+}
+
+static CPUWriteMemoryFunc *nvram_write[] = {
+    &nvram_writeb,
+    &nvram_writew,
+    &nvram_writel,
+};
+
+static CPUReadMemoryFunc *nvram_read[] = {
+    &nvram_readb,
+    &nvram_readw,
+    &nvram_readl,
+};
 /* Initialisation routine */
-m48t59_t *m48t59_init (int IRQ, uint32_t io_base, uint16_t size)
+m48t59_t *m48t59_init (int IRQ, uint32_t mem_base,
+                       uint32_t io_base, uint16_t size)
 {
     m48t59_t *s;
 
@@ -496,10 +585,15 @@ m48t59_t *m48t59_init (int IRQ, uint32_t io_base, uint16_t size)
     }
     s->IRQ = IRQ;
     s->size = size;
+    s->mem_base = mem_base;
     s->io_base = io_base;
     s->addr = 0;
     register_ioport_read(io_base, 0x04, 1, NVRAM_readb, s);
     register_ioport_write(io_base, 0x04, 1, NVRAM_writeb, s);
+    if (mem_base != 0) {
+        s->mem_index = cpu_register_io_memory(0, nvram_read, nvram_write, s);
+        cpu_register_physical_memory(mem_base, 0x4000, s->mem_index);
+    }
     s->alrm_timer = qemu_new_timer(vm_clock, &alarm_cb, s);
     s->wd_timer = qemu_new_timer(vm_clock, &watchdog_cb, s);
     s->lock = 0;
