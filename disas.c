@@ -222,6 +222,9 @@ const char *lookup_symbol(void *orig_addr)
 
 #if !defined(CONFIG_USER_ONLY)
 
+void term_vprintf(const char *fmt, va_list ap);
+void term_printf(const char *fmt, ...);
+
 static int monitor_disas_is_physical;
 
 static int
@@ -239,16 +242,22 @@ monitor_read_memory (memaddr, myaddr, length, info)
     return 0;
 }
 
+static int monitor_fprintf(FILE *stream, const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    term_vprintf(fmt, ap);
+    va_end(ap);
+    return 0;
+}
+
 void monitor_disas(target_ulong pc, int nb_insn, int is_physical, int flags)
 {
-    FILE *out;
     int count, i;
     struct disassemble_info disasm_info;
     int (*print_insn)(bfd_vma pc, disassemble_info *info);
 
-    out = stdout;
-
-    INIT_DISASSEMBLE_INFO(disasm_info, out, fprintf);
+    INIT_DISASSEMBLE_INFO(disasm_info, NULL, monitor_fprintf);
 
     monitor_disas_is_physical = is_physical;
     disasm_info.read_memory_func = monitor_read_memory;
@@ -278,9 +287,9 @@ void monitor_disas(target_ulong pc, int nb_insn, int is_physical, int flags)
 #endif
 
     for(i = 0; i < nb_insn; i++) {
-	fprintf(out, "0x%08lx:  ", (unsigned long)pc);
+	term_printf("0x%08lx:  ", (unsigned long)pc);
 	count = print_insn(pc, &disasm_info);
-	fprintf(out, "\n");
+	term_printf("\n");
 	if (count < 0)
 	    break;
         pc += count;
