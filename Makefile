@@ -39,7 +39,8 @@ install: all
 	mkdir -p $(prefix)/bin
 	install -m 755 -s $(TOOLS) $(prefix)/bin
 	mkdir -p $(sharedir)
-	install -m 644 pc-bios/bios.bin pc-bios/vgabios.bin $(sharedir)
+	install -m 644 pc-bios/bios.bin pc-bios/vgabios.bin \
+                       pc-bios/linux_boot.bin $(sharedir)
 	mkdir -p $(mandir)/man1
 	install qemu.1 $(mandir)/man1
 	for d in $(TARGET_DIRS); do \

@@ -7,10 +7,9 @@
         
 .code16	
 .text
-	.globl	linux_boot_start
-	.globl	linux_boot_end
+	.globl	_start
 
-linux_boot_start:
+_start:
         cli
         cld
         mov $LOAD_SEG, %ax
@@ -23,10 +22,8 @@ linux_boot_start:
         ljmp $LOAD_SEG + 0x20, $0
 
 1:              
-        .fill 510 - (1b - linux_boot_start), 1, 0
+        .fill 510 - (1b - _start), 1, 0
 
         /* boot sector signature */
         .byte 0x55
         .byte 0xaa
-                
-linux_boot_end:

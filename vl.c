@@ -53,6 +53,7 @@
 #define DEFAULT_NETWORK_SCRIPT "/etc/qemu-ifup"
 #define BIOS_FILENAME "bios.bin"
 #define VGABIOS_FILENAME "vgabios.bin"
+#define LINUX_BOOT_FILENAME "linux_boot.bin"
 
 //#define DEBUG_UNUSED_IOPORT
 
@@ -3463,15 +3464,21 @@ int main(int argc, char **argv)
     bochs_bios_init();
 
     if (linux_boot) {
-        extern uint8_t linux_boot_start;
-        extern uint8_t linux_boot_end;
+        uint8_t bootsect[512];
 
         if (bs_table[0] == NULL) {
             fprintf(stderr, "A disk image must be given for 'hda' when booting a Linux kernel\n");
             exit(1);
         }
-        bdrv_set_boot_sector(bs_table[0], &linux_boot_start,
-                             &linux_boot_end - &linux_boot_start);
+        snprintf(buf, sizeof(buf), "%s/%s", bios_dir, LINUX_BOOT_FILENAME);
+        ret = load_image(buf, bootsect);
+        if (ret != sizeof(bootsect)) {
+            fprintf(stderr, "qemu: could not load linux boot sector '%s'\n",
+                    buf);
+            exit(1);
+        }
+
+        bdrv_set_boot_sector(bs_table[0], bootsect, sizeof(bootsect));
 
         /* now we can load the kernel */
         ret = load_kernel(kernel_filename, 

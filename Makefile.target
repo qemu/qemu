@@ -206,9 +206,6 @@ endif
 
 # must use static linking to avoid leaving stuff in virtual address space
 VL_OBJS=vl.o block.o ide.o vga.o sb16.o dma.o oss.o fdc.o osdep.o
-ifeq ($(TARGET_ARCH), i386)
-VL_OBJS+=linux_boot.o	
-endif
 ifeq ($(TARGET_ARCH), ppc)
 VL_OBJS+= hw.o
 endif
