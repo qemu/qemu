@@ -20,7 +20,7 @@ all: dyngen$(EXESUF) $(TOOLS) qemu-doc.html qemu-tech.html qemu.1
 	$(MAKE) -C $$d $@ || exit 1 ; \
         done
 
-qemu-img: qemu-img.c block.c block-cow.c block-qcow.c aes.c block-vmdk.c
+qemu-img: qemu-img.c block.c block-cow.c block-qcow.c aes.c block-vmdk.c block-cloop.c
 	$(CC) -DQEMU_TOOL $(CFLAGS) $(LDFLAGS) $(DEFINES) -o $@ $^ -lz $(LIBS)
 
 dyngen$(EXESUF): dyngen.c

@@ -374,7 +374,7 @@ static int img_create(int argc, char **argv)
     ret = bdrv_create(drv, filename, size / 512, base_filename, encrypted);
     if (ret < 0) {
         if (ret == -ENOTSUP) {
-            error("Formatting or formatting option not suppored for file format '%s'", fmt);
+            error("Formatting or formatting option not supported for file format '%s'", fmt);
         } else {
             error("Error while formatting");
         }
@@ -534,7 +534,7 @@ static int img_convert(int argc, char **argv)
     ret = bdrv_create(drv, out_filename, total_sectors, NULL, encrypt);
     if (ret < 0) {
         if (ret == -ENOTSUP) {
-            error("Formatting not suppored for file format '%s'", fmt);
+            error("Formatting not supported for file format '%s'", fmt);
         } else {
             error("Error while formatting '%s'", out_filename);
         }

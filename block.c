@@ -596,4 +596,5 @@ void bdrv_init(void)
 #endif
     bdrv_register(&bdrv_qcow);
     bdrv_register(&bdrv_vmdk);
+    bdrv_register(&bdrv_cloop);
 }
