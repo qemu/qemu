@@ -49,6 +49,7 @@
 
 static SDL_Surface *screen;
 static int gui_grab; /* if true, all keyboard/mouse events are grabbed */
+static int last_vm_running;
 
 static void sdl_update(DisplayState *ds, int x, int y, int w, int h)
 {
@@ -165,22 +166,35 @@ static void sdl_process_key(SDL_KeyboardEvent *ev)
     }
 }
 
+static void sdl_update_caption(void)
+{
+    char buf[1024];
+    strcpy(buf, "QEMU");
+    if (!vm_running) {
+        strcat(buf, " [Stopped]");
+    }
+    if (gui_grab) {
+        strcat(buf, " - Press Ctrl-Shift to exit grab");
+    }
+    SDL_WM_SetCaption(buf, "QEMU");
+}
+
 static void sdl_grab_start(void)
 {
-    SDL_WM_SetCaption("QEMU - Press Ctrl-Shift to exit grab", "QEMU");
     SDL_ShowCursor(0);
     SDL_WM_GrabInput(SDL_GRAB_ON);
     /* dummy read to avoid moving the mouse */
     SDL_GetRelativeMouseState(NULL, NULL);
     gui_grab = 1;
+    sdl_update_caption();
 }
 
 static void sdl_grab_end(void)
 {
-    SDL_WM_SetCaption("QEMU", "QEMU");
     SDL_WM_GrabInput(SDL_GRAB_OFF);
     SDL_ShowCursor(1);
     gui_grab = 0;
+    sdl_update_caption();
 }
 
 static void sdl_send_mouse_event(void)
@@ -208,6 +222,11 @@ static void sdl_send_mouse_event(void)
 static void sdl_refresh(DisplayState *ds)
 {
     SDL_Event ev1, *ev = &ev1;
+
+    if (last_vm_running != vm_running) {
+        last_vm_running = vm_running;
+        sdl_update_caption();
+    }
 
     vga_update_display();
     while (SDL_PollEvent(ev)) {
@@ -281,7 +300,7 @@ void sdl_display_init(DisplayState *ds)
     ds->dpy_refresh = sdl_refresh;
 
     sdl_resize(ds, 640, 400);
-    SDL_WM_SetCaption("QEMU", "QEMU");
+    sdl_update_caption();
     SDL_EnableKeyRepeat(250, 50);
     gui_grab = 0;
 

@@ -281,6 +281,50 @@ static void do_log(int argc, const char **argv)
     cpu_set_log(mask);
 }
 
+static void do_savevm(int argc, const char **argv)
+{
+    if (argc != 2) {
+        help_cmd(argv[0]);
+        return;
+    }
+    if (qemu_savevm(argv[1]) < 0)
+        term_printf("I/O error when saving VM to '%s'\n", argv[1]);
+}
+
+static void do_loadvm(int argc, const char **argv)
+{
+    if (argc != 2) {
+        help_cmd(argv[0]);
+        return;
+    }
+    if (qemu_loadvm(argv[1]) < 0) 
+        term_printf("I/O error when loading VM from '%s'\n", argv[1]);
+}
+
+static void do_stop(int argc, const char **argv)
+{
+    vm_stop(EXCP_INTERRUPT);
+}
+
+static void do_cont(int argc, const char **argv)
+{
+    vm_start();
+}
+
+static void do_gdbserver(int argc, const char **argv)
+{
+    int port;
+
+    port = DEFAULT_GDBSTUB_PORT;
+    if (argc >= 2)
+        port = atoi(argv[1]);
+    if (gdbserver_start(port) < 0) {
+        qemu_printf("Could not open gdbserver socket on port %d\n", port);
+    } else {
+        qemu_printf("Waiting gdb connection on port %d\n", port);
+    }
+}
+
 static term_cmd_t term_cmds[] = {
     { "help|?", do_help, 
       "[cmd]", "show the help" },
@@ -298,6 +342,13 @@ static term_cmd_t term_cmds[] = {
       "filename", "save screen into PPM image 'filename'" },
     { "log", do_log,
       "item1[,...]", "activate logging of the specified items to '/tmp/qemu.log'" }, 
+    { "savevm", do_savevm,
+      "filename", "save the whole virtual machine state to 'filename'" }, 
+    { "loadvm", do_loadvm,
+      "filename", "restore the whole virtual machine state from 'filename'" }, 
+    { "stop", do_stop, "", "stop emulation", },
+    { "c|cont", do_cont, "", "resume emulation", },
+    { "gdbserver", do_gdbserver, "[port]", "start gdbserver session (default port=1234)", },
     { NULL, NULL, }, 
 };
 
@@ -601,5 +652,5 @@ void monitor_init(void)
                     QEMU_VERSION);
         term_show_prompt();
     }
-    add_fd_read_handler(0, term_can_read, term_read, NULL);
+    qemu_add_fd_read_handler(0, term_can_read, term_read, NULL);
 }

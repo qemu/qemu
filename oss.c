@@ -459,11 +459,11 @@ int AUD_get_free (void)
             uint64_t ua_elapsed;
             uint64_t al_elapsed;
 
-            ticks = cpu_get_ticks ();
+            ticks = qemu_get_clock(rt_clock);
             delta = ticks - old_ticks;
             old_ticks = ticks;
 
-            ua_elapsed = (delta * bytes_per_second) / ticks_per_sec;
+            ua_elapsed = (delta * bytes_per_second) / 1000;
             al_elapsed = ua_elapsed & ~3ULL;
 
             ldebug ("tid elapsed %llu bytes\n", ua_elapsed);

@@ -24,12 +24,12 @@
 #ifndef VL_H
 #define VL_H
 
+#include <time.h>
+
 #include "cpu.h"
 
 /* vl.c */
 extern int reset_requested;
-extern int64_t ticks_per_sec;
-extern int pit_min_timer_count;
 
 typedef void (IOPortWriteFunc)(void *opaque, uint32_t address, uint32_t data);
 typedef uint32_t (IOPortReadFunc)(void *opaque, uint32_t address);
@@ -38,7 +38,6 @@ int register_ioport_read(int start, int length, int size,
                          IOPortReadFunc *func, void *opaque);
 int register_ioport_write(int start, int length, int size, 
                           IOPortWriteFunc *func, void *opaque);
-int64_t cpu_get_ticks(void);
 uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c);
 
 void hw_error(const char *fmt, ...);
@@ -50,6 +49,16 @@ void pstrcpy(char *buf, int buf_size, const char *str);
 char *pstrcat(char *buf, int buf_size, const char *s);
 
 int serial_open_device(void);
+
+extern int vm_running;
+
+typedef void VMStopHandler(void *opaque, int reason);
+
+int qemu_add_vm_stop_handler(VMStopHandler *cb, void *opaque);
+void qemu_del_vm_stop_handler(VMStopHandler *cb, void *opaque);
+
+void vm_start(void);
+void vm_stop(int reason);
 
 /* network redirectors support */
 
@@ -71,8 +80,112 @@ void net_send_packet(NetDriverState *nd, const uint8_t *buf, int size);
 typedef void IOReadHandler(void *opaque, const uint8_t *buf, int size);
 typedef int IOCanRWHandler(void *opaque);
 
-int add_fd_read_handler(int fd, IOCanRWHandler *fd_can_read, 
-                        IOReadHandler *fd_read, void *opaque);
+int qemu_add_fd_read_handler(int fd, IOCanRWHandler *fd_can_read, 
+                             IOReadHandler *fd_read, void *opaque);
+void qemu_del_fd_read_handler(int fd);
+
+/* timers */
+
+typedef struct QEMUClock QEMUClock;
+typedef struct QEMUTimer QEMUTimer;
+typedef void QEMUTimerCB(void *opaque);
+
+/* The real time clock should be used only for stuff which does not
+   change the virtual machine state, as it is run even if the virtual
+   machine is stopped. The real time clock has a frequency or 1000
+   Hz. */
+extern QEMUClock *rt_clock;
+
+/* Rge virtual clock is only run during the emulation. It is stopped
+   when the virtual machine is stopped. Virtual timers use a high
+   precision clock, usually cpu cycles (use ticks_per_sec). */
+extern QEMUClock *vm_clock;
+
+int64_t qemu_get_clock(QEMUClock *clock);
+
+QEMUTimer *qemu_new_timer(QEMUClock *clock, QEMUTimerCB *cb, void *opaque);
+void qemu_free_timer(QEMUTimer *ts);
+void qemu_del_timer(QEMUTimer *ts);
+void qemu_mod_timer(QEMUTimer *ts, int64_t expire_time);
+int qemu_timer_pending(QEMUTimer *ts);
+
+extern int64_t ticks_per_sec;
+extern int pit_min_timer_count;
+
+void cpu_enable_ticks(void);
+void cpu_disable_ticks(void);
+
+/* VM Load/Save */
+
+typedef FILE QEMUFile;
+
+void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size);
+void qemu_put_byte(QEMUFile *f, int v);
+void qemu_put_be16(QEMUFile *f, unsigned int v);
+void qemu_put_be32(QEMUFile *f, unsigned int v);
+void qemu_put_be64(QEMUFile *f, uint64_t v);
+int qemu_get_buffer(QEMUFile *f, uint8_t *buf, int size);
+int qemu_get_byte(QEMUFile *f);
+unsigned int qemu_get_be16(QEMUFile *f);
+unsigned int qemu_get_be32(QEMUFile *f);
+uint64_t qemu_get_be64(QEMUFile *f);
+
+static inline void qemu_put_be64s(QEMUFile *f, const uint64_t *pv)
+{
+    qemu_put_be64(f, *pv);
+}
+
+static inline void qemu_put_be32s(QEMUFile *f, const uint32_t *pv)
+{
+    qemu_put_be32(f, *pv);
+}
+
+static inline void qemu_put_be16s(QEMUFile *f, const uint16_t *pv)
+{
+    qemu_put_be16(f, *pv);
+}
+
+static inline void qemu_put_8s(QEMUFile *f, const uint8_t *pv)
+{
+    qemu_put_byte(f, *pv);
+}
+
+static inline void qemu_get_be64s(QEMUFile *f, uint64_t *pv)
+{
+    *pv = qemu_get_be64(f);
+}
+
+static inline void qemu_get_be32s(QEMUFile *f, uint32_t *pv)
+{
+    *pv = qemu_get_be32(f);
+}
+
+static inline void qemu_get_be16s(QEMUFile *f, uint16_t *pv)
+{
+    *pv = qemu_get_be16(f);
+}
+
+static inline void qemu_get_8s(QEMUFile *f, uint8_t *pv)
+{
+    *pv = qemu_get_byte(f);
+}
+
+int64_t qemu_ftell(QEMUFile *f);
+int64_t qemu_fseek(QEMUFile *f, int64_t pos, int whence);
+
+typedef void SaveStateHandler(QEMUFile *f, void *opaque);
+typedef int LoadStateHandler(QEMUFile *f, void *opaque, int version_id);
+
+int qemu_loadvm(const char *filename);
+int qemu_savevm(const char *filename);
+int register_savevm(const char *idstr, 
+                    int instance_id, 
+                    int version_id,
+                    SaveStateHandler *save_state,
+                    LoadStateHandler *load_state,
+                    void *opaque);
+void qemu_get_timer(QEMUFile *f, QEMUTimer *ts);
+void qemu_put_timer(QEMUFile *f, QEMUTimer *ts);
 
 /* block.c */
 typedef struct BlockDriverState BlockDriverState;
@@ -210,16 +323,11 @@ void kbd_init(void);
 
 /* mc146818rtc.c */
 
-typedef struct RTCState {
-    uint8_t cmos_data[128];
-    uint8_t cmos_index;
-    int irq;
-} RTCState;
+typedef struct RTCState RTCState;
 
-extern RTCState rtc_state;
-
-void rtc_init(int base, int irq);
-void rtc_timer(void);
+RTCState *rtc_init(int base, int irq);
+void rtc_set_memory(RTCState *s, int addr, int val);
+void rtc_set_date(RTCState *s, const struct tm *tm);
 
 /* serial.c */
 
@@ -249,14 +357,17 @@ typedef struct PITChannelState {
     uint8_t bcd; /* not supported */
     uint8_t gate; /* timer start */
     int64_t count_load_time;
-    int64_t count_last_edge_check_time;
+    /* irq handling */
+    int64_t next_transition_time;
+    QEMUTimer *irq_timer;
+    int irq;
 } PITChannelState;
 
 extern PITChannelState pit_channels[3];
 
-void pit_init(int base);
+void pit_init(int base, int irq);
 void pit_set_gate(PITChannelState *s, int val);
-int pit_get_out(PITChannelState *s);
+int pit_get_out(PITChannelState *s, int64_t current_time);
 int pit_get_out_edges(PITChannelState *s);
 
 /* pc.c */
@@ -270,5 +381,11 @@ void monitor_init(void);
 void term_printf(const char *fmt, ...);
 void term_flush(void);
 void term_print_help(void);
+
+/* gdbstub.c */
+
+#define DEFAULT_GDBSTUB_PORT 1234
+
+int gdbserver_start(int port);
 
 #endif /* VL_H */

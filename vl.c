@@ -40,6 +40,7 @@
 #include <errno.h>
 #include <sys/wait.h>
 #include <pty.h>
+#include <sys/times.h>
 
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -49,6 +50,7 @@
 #include "disas.h"
 
 #include "vl.h"
+#include "exec-all.h"
 
 #define DEFAULT_NETWORK_SCRIPT "/etc/qemu-ifup"
 
@@ -60,19 +62,8 @@
 #define PHYS_RAM_MAX_SIZE (2047 * 1024 * 1024)
 #endif
 
-#if defined (TARGET_I386)
-#elif defined (TARGET_PPC)
-//#define USE_OPEN_FIRMWARE
-#if !defined (USE_OPEN_FIRMWARE)
-#define KERNEL_LOAD_ADDR    0x01000000
-#define KERNEL_STACK_ADDR   0x01200000
-#else
-#define KERNEL_LOAD_ADDR    0x00000000
-#define KERNEL_STACK_ADDR   0x00400000
-#endif
-#endif
-
-#define GUI_REFRESH_INTERVAL 30 
+/* in ms */
+#define GUI_REFRESH_INTERVAL 30
 
 /* XXX: use a two level table to limit memory usage */
 #define MAX_IOPORTS 65536
@@ -88,7 +79,6 @@ BlockDriverState *bs_table[MAX_DISKS], *fd_table[MAX_FD];
 int vga_ram_size;
 static DisplayState display_state;
 int nographic;
-int term_inited;
 int64_t ticks_per_sec;
 int boot_device = 'c';
 static int ram_size;
@@ -97,6 +87,8 @@ int pit_min_timer_count = 0;
 int nb_nics;
 NetDriverState nd_table[MAX_NICS];
 SerialState *serial_console;
+QEMUTimer *gui_timer;
+int vm_running;
 
 /***********************************************************/
 /* x86 io ports */
@@ -308,6 +300,9 @@ void hw_error(const char *fmt, ...)
     abort();
 }
 
+/***********************************************************/
+/* timers */
+
 #if defined(__powerpc__)
 
 static inline uint32_t get_tbl(void) 
@@ -350,24 +345,34 @@ int64_t cpu_get_real_ticks(void)
 #endif
 
 static int64_t cpu_ticks_offset;
-static int64_t cpu_ticks_last;
+static int cpu_ticks_enabled;
 
-int64_t cpu_get_ticks(void)
+static inline int64_t cpu_get_ticks(void)
 {
-    return cpu_get_real_ticks() + cpu_ticks_offset;
+    if (!cpu_ticks_enabled) {
+        return cpu_ticks_offset;
+    } else {
+        return cpu_get_real_ticks() + cpu_ticks_offset;
+    }
 }
 
 /* enable cpu_get_ticks() */
 void cpu_enable_ticks(void)
 {
-    cpu_ticks_offset = cpu_ticks_last - cpu_get_real_ticks();
+    if (!cpu_ticks_enabled) {
+        cpu_ticks_offset -= cpu_get_real_ticks();
+        cpu_ticks_enabled = 1;
+    }
 }
 
 /* disable cpu_get_ticks() : the clock is stopped. You must not call
    cpu_get_ticks() after that.  */
 void cpu_disable_ticks(void)
 {
-    cpu_ticks_last = cpu_get_ticks();
+    if (cpu_ticks_enabled) {
+        cpu_ticks_offset = cpu_get_ticks();
+        cpu_ticks_enabled = 0;
+    }
 }
 
 int64_t get_clock(void)
@@ -382,10 +387,10 @@ void cpu_calibrate_ticks(void)
     int64_t usec, ticks;
 
     usec = get_clock();
-    ticks = cpu_get_ticks();
+    ticks = cpu_get_real_ticks();
     usleep(50 * 1000);
     usec = get_clock() - usec;
-    ticks = cpu_get_ticks() - ticks;
+    ticks = cpu_get_real_ticks() - ticks;
     ticks_per_sec = (ticks * 1000000LL + (usec >> 1)) / usec;
 }
 
@@ -411,6 +416,239 @@ uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c)
     res.l.high = rh / c;
     res.l.low = (((rh % c) << 32) + (rl & 0xffffffff)) / c;
     return res.ll;
+}
+
+#define QEMU_TIMER_REALTIME 0
+#define QEMU_TIMER_VIRTUAL  1
+
+struct QEMUClock {
+    int type;
+    /* XXX: add frequency */
+};
+
+struct QEMUTimer {
+    QEMUClock *clock;
+    int64_t expire_time;
+    QEMUTimerCB *cb;
+    void *opaque;
+    struct QEMUTimer *next;
+};
+
+QEMUClock *rt_clock;
+QEMUClock *vm_clock;
+
+static QEMUTimer *active_timers[2];
+/* frequency of the times() clock tick */
+static int timer_freq;
+
+QEMUClock *qemu_new_clock(int type)
+{
+    QEMUClock *clock;
+    clock = qemu_mallocz(sizeof(QEMUClock));
+    if (!clock)
+        return NULL;
+    clock->type = type;
+    return clock;
+}
+
+QEMUTimer *qemu_new_timer(QEMUClock *clock, QEMUTimerCB *cb, void *opaque)
+{
+    QEMUTimer *ts;
+
+    ts = qemu_mallocz(sizeof(QEMUTimer));
+    ts->clock = clock;
+    ts->cb = cb;
+    ts->opaque = opaque;
+    return ts;
+}
+
+void qemu_free_timer(QEMUTimer *ts)
+{
+    qemu_free(ts);
+}
+
+/* stop a timer, but do not dealloc it */
+void qemu_del_timer(QEMUTimer *ts)
+{
+    QEMUTimer **pt, *t;
+
+    /* NOTE: this code must be signal safe because
+       qemu_timer_expired() can be called from a signal. */
+    pt = &active_timers[ts->clock->type];
+    for(;;) {
+        t = *pt;
+        if (!t)
+            break;
+        if (t == ts) {
+            *pt = t->next;
+            break;
+        }
+        pt = &t->next;
+    }
+}
+
+/* modify the current timer so that it will be fired when current_time
+   >= expire_time. The corresponding callback will be called. */
+void qemu_mod_timer(QEMUTimer *ts, int64_t expire_time)
+{
+    QEMUTimer **pt, *t;
+
+    qemu_del_timer(ts);
+
+    /* add the timer in the sorted list */
+    /* NOTE: this code must be signal safe because
+       qemu_timer_expired() can be called from a signal. */
+    pt = &active_timers[ts->clock->type];
+    for(;;) {
+        t = *pt;
+        if (!t)
+            break;
+        if (t->expire_time > expire_time) 
+            break;
+        pt = &t->next;
+    }
+    ts->expire_time = expire_time;
+    ts->next = *pt;
+    *pt = ts;
+}
+
+int qemu_timer_pending(QEMUTimer *ts)
+{
+    QEMUTimer *t;
+    for(t = active_timers[ts->clock->type]; t != NULL; t = t->next) {
+        if (t == ts)
+            return 1;
+    }
+    return 0;
+}
+
+static inline int qemu_timer_expired(QEMUTimer *timer_head, int64_t current_time)
+{
+    if (!timer_head)
+        return 0;
+    return (timer_head->expire_time <= current_time);
+}
+
+static void qemu_run_timers(QEMUTimer **ptimer_head, int64_t current_time)
+{
+    QEMUTimer *ts;
+    
+    for(;;) {
+        ts = *ptimer_head;
+        if (ts->expire_time > current_time)
+            break;
+        /* remove timer from the list before calling the callback */
+        *ptimer_head = ts->next;
+        ts->next = NULL;
+        
+        /* run the callback (the timer list can be modified) */
+        ts->cb(ts->opaque);
+    }
+}
+
+int64_t qemu_get_clock(QEMUClock *clock)
+{
+    switch(clock->type) {
+    case QEMU_TIMER_REALTIME:
+        /* XXX: portability among Linux hosts */
+        if (timer_freq == 100) {
+            return times(NULL) * 10;
+        } else {
+            return ((int64_t)times(NULL) * 1000) / timer_freq;
+        }
+    default:
+    case QEMU_TIMER_VIRTUAL:
+        return cpu_get_ticks();
+    }
+}
+
+/* save a timer */
+void qemu_put_timer(QEMUFile *f, QEMUTimer *ts)
+{
+    uint64_t expire_time;
+
+    if (qemu_timer_pending(ts)) {
+        expire_time = ts->expire_time;
+    } else {
+        expire_time = -1;
+    }
+    qemu_put_be64(f, expire_time);
+}
+
+void qemu_get_timer(QEMUFile *f, QEMUTimer *ts)
+{
+    uint64_t expire_time;
+
+    expire_time = qemu_get_be64(f);
+    if (expire_time != -1) {
+        qemu_mod_timer(ts, expire_time);
+    } else {
+        qemu_del_timer(ts);
+    }
+}
+
+static void timer_save(QEMUFile *f, void *opaque)
+{
+    if (cpu_ticks_enabled) {
+        hw_error("cannot save state if virtual timers are running");
+    }
+    qemu_put_be64s(f, &cpu_ticks_offset);
+    qemu_put_be64s(f, &ticks_per_sec);
+}
+
+static int timer_load(QEMUFile *f, void *opaque, int version_id)
+{
+    if (version_id != 1)
+        return -EINVAL;
+    if (cpu_ticks_enabled) {
+        return -EINVAL;
+    }
+    qemu_get_be64s(f, &cpu_ticks_offset);
+    qemu_get_be64s(f, &ticks_per_sec);
+    return 0;
+}
+
+static void host_alarm_handler(int host_signum)
+{
+    if (qemu_timer_expired(active_timers[QEMU_TIMER_VIRTUAL],
+                           qemu_get_clock(vm_clock)) ||
+        qemu_timer_expired(active_timers[QEMU_TIMER_REALTIME],
+                           qemu_get_clock(rt_clock))) {
+        /* stop the cpu because a timer occured */
+        cpu_interrupt(global_env, CPU_INTERRUPT_EXIT);
+    }
+}
+
+static void init_timers(void)
+{
+    struct sigaction act;
+    struct itimerval itv;
+
+    /* get times() syscall frequency */
+    timer_freq = sysconf(_SC_CLK_TCK);
+
+    rt_clock = qemu_new_clock(QEMU_TIMER_REALTIME);
+    vm_clock = qemu_new_clock(QEMU_TIMER_VIRTUAL);
+
+    /* timer signal */
+    sigfillset(&act.sa_mask);
+    act.sa_flags = 0;
+#if defined (TARGET_I386) && defined(USE_CODE_COPY)
+    act.sa_flags |= SA_ONSTACK;
+#endif
+    act.sa_handler = host_alarm_handler;
+    sigaction(SIGALRM, &act, NULL);
+
+    itv.it_interval.tv_sec = 0;
+    itv.it_interval.tv_usec = 1000;
+    itv.it_value.tv_sec = 0;
+    itv.it_value.tv_usec = 10 * 1000;
+    setitimer(ITIMER_REAL, &itv, NULL);
+    /* we probe the tick duration of the kernel to inform the user if
+       the emulated kernel requested a too high timer frequency */
+    getitimer(ITIMER_REAL, &itv);
+    pit_min_timer_count = ((uint64_t)itv.it_interval.tv_usec * PIT_FREQ) / 
+        1000000;
 }
 
 /***********************************************************/
@@ -588,36 +826,8 @@ static void host_segv_handler(int host_signum, siginfo_t *info,
 }
 #endif
 
-static int timer_irq_pending;
-static int timer_irq_count;
-
-static int timer_ms;
-static int gui_refresh_pending, gui_refresh_count;
-
-static void host_alarm_handler(int host_signum, siginfo_t *info, 
-                               void *puc)
-{
-    /* NOTE: since usually the OS asks a 100 Hz clock, there can be
-       some drift between cpu_get_ticks() and the interrupt time. So
-       we queue some interrupts to avoid missing some */
-    timer_irq_count += pit_get_out_edges(&pit_channels[0]);
-    if (timer_irq_count) {
-        if (timer_irq_count > 2)
-            timer_irq_count = 2;
-        timer_irq_count--;
-        timer_irq_pending = 1;
-    }
-    gui_refresh_count += timer_ms;
-    if (gui_refresh_count >= GUI_REFRESH_INTERVAL) {
-        gui_refresh_count = 0;
-        gui_refresh_pending = 1;
-    }
-
-    if (gui_refresh_pending || timer_irq_pending) {
-        /* just exit from the cpu to have a chance to handle timers */
-        cpu_interrupt(global_env, CPU_INTERRUPT_EXIT);
-    }
-}
+/***********************************************************/
+/* I/O handling */
 
 #define MAX_IO_HANDLERS 64
 
@@ -629,142 +839,653 @@ typedef struct IOHandlerRecord {
     /* temporary data */
     struct pollfd *ufd;
     int max_size;
+    struct IOHandlerRecord *next;
 } IOHandlerRecord;
 
-static IOHandlerRecord io_handlers[MAX_IO_HANDLERS];
-static int nb_io_handlers = 0;
+static IOHandlerRecord *first_io_handler;
 
-int add_fd_read_handler(int fd, IOCanRWHandler *fd_can_read, 
-                        IOReadHandler *fd_read, void *opaque)
+int qemu_add_fd_read_handler(int fd, IOCanRWHandler *fd_can_read, 
+                             IOReadHandler *fd_read, void *opaque)
 {
     IOHandlerRecord *ioh;
 
-    if (nb_io_handlers >= MAX_IO_HANDLERS)
+    ioh = qemu_mallocz(sizeof(IOHandlerRecord));
+    if (!ioh)
         return -1;
-    ioh = &io_handlers[nb_io_handlers];
     ioh->fd = fd;
     ioh->fd_can_read = fd_can_read;
     ioh->fd_read = fd_read;
     ioh->opaque = opaque;
-    nb_io_handlers++;
+    ioh->next = first_io_handler;
+    first_io_handler = ioh;
     return 0;
 }
 
-/* main execution loop */
-
-CPUState *cpu_gdbstub_get_env(void *opaque)
+void qemu_del_fd_read_handler(int fd)
 {
-    return global_env;
+    IOHandlerRecord **pioh, *ioh;
+
+    pioh = &first_io_handler;
+    for(;;) {
+        ioh = *pioh;
+        if (ioh == NULL)
+            break;
+        if (ioh->fd == fd) {
+            *pioh = ioh->next;
+            break;
+        }
+        pioh = &ioh->next;
+    }
 }
 
-int main_loop(void *opaque)
-{
-    struct pollfd ufds[MAX_IO_HANDLERS + 1], *pf, *gdb_ufd;
-    int ret, n, timeout, serial_ok, max_size, i;
-    uint8_t buf[4096];
-    IOHandlerRecord *ioh;
-    CPUState *env = global_env;
+/***********************************************************/
+/* savevm/loadvm support */
 
-    if (!term_inited) {
-        /* initialize terminal only there so that the user has a
-           chance to stop QEMU with Ctrl-C before the gdb connection
-           is launched */
-        term_inited = 1;
-        term_init();
+void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size)
+{
+    fwrite(buf, 1, size, f);
+}
+
+void qemu_put_byte(QEMUFile *f, int v)
+{
+    fputc(v, f);
+}
+
+void qemu_put_be16(QEMUFile *f, unsigned int v)
+{
+    qemu_put_byte(f, v >> 8);
+    qemu_put_byte(f, v);
+}
+
+void qemu_put_be32(QEMUFile *f, unsigned int v)
+{
+    qemu_put_byte(f, v >> 24);
+    qemu_put_byte(f, v >> 16);
+    qemu_put_byte(f, v >> 8);
+    qemu_put_byte(f, v);
+}
+
+void qemu_put_be64(QEMUFile *f, uint64_t v)
+{
+    qemu_put_be32(f, v >> 32);
+    qemu_put_be32(f, v);
+}
+
+int qemu_get_buffer(QEMUFile *f, uint8_t *buf, int size)
+{
+    return fread(buf, 1, size, f);
+}
+
+int qemu_get_byte(QEMUFile *f)
+{
+    int v;
+    v = fgetc(f);
+    if (v == EOF)
+        return 0;
+    else
+        return v;
+}
+
+unsigned int qemu_get_be16(QEMUFile *f)
+{
+    unsigned int v;
+    v = qemu_get_byte(f) << 8;
+    v |= qemu_get_byte(f);
+    return v;
+}
+
+unsigned int qemu_get_be32(QEMUFile *f)
+{
+    unsigned int v;
+    v = qemu_get_byte(f) << 24;
+    v |= qemu_get_byte(f) << 16;
+    v |= qemu_get_byte(f) << 8;
+    v |= qemu_get_byte(f);
+    return v;
+}
+
+uint64_t qemu_get_be64(QEMUFile *f)
+{
+    uint64_t v;
+    v = (uint64_t)qemu_get_be32(f) << 32;
+    v |= qemu_get_be32(f);
+    return v;
+}
+
+int64_t qemu_ftell(QEMUFile *f)
+{
+    return ftell(f);
+}
+
+int64_t qemu_fseek(QEMUFile *f, int64_t pos, int whence)
+{
+    if (fseek(f, pos, whence) < 0)
+        return -1;
+    return ftell(f);
+}
+
+typedef struct SaveStateEntry {
+    char idstr[256];
+    int instance_id;
+    int version_id;
+    SaveStateHandler *save_state;
+    LoadStateHandler *load_state;
+    void *opaque;
+    struct SaveStateEntry *next;
+} SaveStateEntry;
+
+static SaveStateEntry *first_se;
+
+int register_savevm(const char *idstr, 
+                    int instance_id, 
+                    int version_id,
+                    SaveStateHandler *save_state,
+                    LoadStateHandler *load_state,
+                    void *opaque)
+{
+    SaveStateEntry *se, **pse;
+
+    se = qemu_malloc(sizeof(SaveStateEntry));
+    if (!se)
+        return -1;
+    pstrcpy(se->idstr, sizeof(se->idstr), idstr);
+    se->instance_id = instance_id;
+    se->version_id = version_id;
+    se->save_state = save_state;
+    se->load_state = load_state;
+    se->opaque = opaque;
+    se->next = NULL;
+
+    /* add at the end of list */
+    pse = &first_se;
+    while (*pse != NULL)
+        pse = &(*pse)->next;
+    *pse = se;
+    return 0;
+}
+
+#define QEMU_VM_FILE_MAGIC   0x5145564d
+#define QEMU_VM_FILE_VERSION 0x00000001
+
+int qemu_savevm(const char *filename)
+{
+    SaveStateEntry *se;
+    QEMUFile *f;
+    int len, len_pos, cur_pos, saved_vm_running, ret;
+
+    saved_vm_running = vm_running;
+    vm_stop(0);
+
+    f = fopen(filename, "wb");
+    if (!f) {
+        ret = -1;
+        goto the_end;
     }
 
-    serial_ok = 1;
-    cpu_enable_ticks();
+    qemu_put_be32(f, QEMU_VM_FILE_MAGIC);
+    qemu_put_be32(f, QEMU_VM_FILE_VERSION);
+
+    for(se = first_se; se != NULL; se = se->next) {
+        /* ID string */
+        len = strlen(se->idstr);
+        qemu_put_byte(f, len);
+        qemu_put_buffer(f, se->idstr, len);
+
+        qemu_put_be32(f, se->instance_id);
+        qemu_put_be32(f, se->version_id);
+
+        /* record size: filled later */
+        len_pos = ftell(f);
+        qemu_put_be32(f, 0);
+        
+        se->save_state(f, se->opaque);
+
+        /* fill record size */
+        cur_pos = ftell(f);
+        len = ftell(f) - len_pos - 4;
+        fseek(f, len_pos, SEEK_SET);
+        qemu_put_be32(f, len);
+        fseek(f, cur_pos, SEEK_SET);
+    }
+
+    fclose(f);
+    ret = 0;
+ the_end:
+    if (saved_vm_running)
+        vm_start();
+    return ret;
+}
+
+static SaveStateEntry *find_se(const char *idstr, int instance_id)
+{
+    SaveStateEntry *se;
+
+    for(se = first_se; se != NULL; se = se->next) {
+        if (!strcmp(se->idstr, idstr) && 
+            instance_id == se->instance_id)
+            return se;
+    }
+    return NULL;
+}
+
+int qemu_loadvm(const char *filename)
+{
+    SaveStateEntry *se;
+    QEMUFile *f;
+    int len, cur_pos, ret, instance_id, record_len, version_id;
+    int saved_vm_running;
+    unsigned int v;
+    char idstr[256];
+    
+    saved_vm_running = vm_running;
+    vm_stop(0);
+
+    f = fopen(filename, "rb");
+    if (!f) {
+        ret = -1;
+        goto the_end;
+    }
+
+    v = qemu_get_be32(f);
+    if (v != QEMU_VM_FILE_MAGIC)
+        goto fail;
+    v = qemu_get_be32(f);
+    if (v != QEMU_VM_FILE_VERSION) {
+    fail:
+        fclose(f);
+        ret = -1;
+        goto the_end;
+    }
     for(;;) {
-#if defined (DO_TB_FLUSH)
-        tb_flush();
+        len = qemu_get_byte(f);
+        if (feof(f))
+            break;
+        qemu_get_buffer(f, idstr, len);
+        idstr[len] = '\0';
+        instance_id = qemu_get_be32(f);
+        version_id = qemu_get_be32(f);
+        record_len = qemu_get_be32(f);
+#if 0
+        printf("idstr=%s instance=0x%x version=%d len=%d\n", 
+               idstr, instance_id, version_id, record_len);
 #endif
-        ret = cpu_exec(env);
-        if (reset_requested) {
-            ret = EXCP_INTERRUPT; 
-            break;
+        cur_pos = ftell(f);
+        se = find_se(idstr, instance_id);
+        if (!se) {
+            fprintf(stderr, "qemu: warning: instance 0x%x of device '%s' not present in current VM\n", 
+                    instance_id, idstr);
+        } else {
+            ret = se->load_state(f, se->opaque, version_id);
+            if (ret < 0) {
+                fprintf(stderr, "qemu: warning: error while loading state for instance 0x%x of device '%s'\n", 
+                        instance_id, idstr);
+            }
         }
-        if (ret == EXCP_DEBUG) {
-            ret = EXCP_DEBUG;
-            break;
+        /* always seek to exact end of record */
+        qemu_fseek(f, cur_pos + record_len, SEEK_SET);
+    }
+    fclose(f);
+    ret = 0;
+ the_end:
+    if (saved_vm_running)
+        vm_start();
+    return ret;
+}
+
+/***********************************************************/
+/* cpu save/restore */
+
+#if defined(TARGET_I386)
+
+static void cpu_put_seg(QEMUFile *f, SegmentCache *dt)
+{
+    qemu_put_be32(f, (uint32_t)dt->base);
+    qemu_put_be32(f, dt->limit);
+    qemu_put_be32(f, dt->flags);
+}
+
+static void cpu_get_seg(QEMUFile *f, SegmentCache *dt)
+{
+    dt->base = (uint8_t *)qemu_get_be32(f);
+    dt->limit = qemu_get_be32(f);
+    dt->flags = qemu_get_be32(f);
+}
+
+void cpu_save(QEMUFile *f, void *opaque)
+{
+    CPUState *env = opaque;
+    uint16_t fptag, fpus, fpuc;
+    uint32_t hflags;
+    int i;
+
+    for(i = 0; i < 8; i++)
+        qemu_put_be32s(f, &env->regs[i]);
+    qemu_put_be32s(f, &env->eip);
+    qemu_put_be32s(f, &env->eflags);
+    qemu_put_be32s(f, &env->eflags);
+    hflags = env->hflags; /* XXX: suppress most of the redundant hflags */
+    qemu_put_be32s(f, &hflags);
+    
+    /* FPU */
+    fpuc = env->fpuc;
+    fpus = (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
+    fptag = 0;
+    for (i=7; i>=0; i--) {
+	fptag <<= 2;
+	if (env->fptags[i]) {
+            fptag |= 3;
         }
-        /* if hlt instruction, we wait until the next IRQ */
-        if (ret == EXCP_HLT) 
+    }
+    
+    qemu_put_be16s(f, &fpuc);
+    qemu_put_be16s(f, &fpus);
+    qemu_put_be16s(f, &fptag);
+
+    for(i = 0; i < 8; i++) {
+        uint64_t mant;
+        uint16_t exp;
+        cpu_get_fp80(&mant, &exp, env->fpregs[i]);
+        qemu_put_be64(f, mant);
+        qemu_put_be16(f, exp);
+    }
+
+    for(i = 0; i < 6; i++)
+        cpu_put_seg(f, &env->segs[i]);
+    cpu_put_seg(f, &env->ldt);
+    cpu_put_seg(f, &env->tr);
+    cpu_put_seg(f, &env->gdt);
+    cpu_put_seg(f, &env->idt);
+    
+    qemu_put_be32s(f, &env->sysenter_cs);
+    qemu_put_be32s(f, &env->sysenter_esp);
+    qemu_put_be32s(f, &env->sysenter_eip);
+    
+    qemu_put_be32s(f, &env->cr[0]);
+    qemu_put_be32s(f, &env->cr[2]);
+    qemu_put_be32s(f, &env->cr[3]);
+    qemu_put_be32s(f, &env->cr[4]);
+    
+    for(i = 0; i < 8; i++)
+        qemu_put_be32s(f, &env->dr[i]);
+
+    /* MMU */
+    qemu_put_be32s(f, &env->a20_mask);
+}
+
+int cpu_load(QEMUFile *f, void *opaque, int version_id)
+{
+    CPUState *env = opaque;
+    int i;
+    uint32_t hflags;
+    uint16_t fpus, fpuc, fptag;
+
+    if (version_id != 1)
+        return -EINVAL;
+    for(i = 0; i < 8; i++)
+        qemu_get_be32s(f, &env->regs[i]);
+    qemu_get_be32s(f, &env->eip);
+    qemu_get_be32s(f, &env->eflags);
+    qemu_get_be32s(f, &env->eflags);
+    qemu_get_be32s(f, &hflags);
+
+    qemu_get_be16s(f, &fpuc);
+    qemu_get_be16s(f, &fpus);
+    qemu_get_be16s(f, &fptag);
+
+    for(i = 0; i < 8; i++) {
+        uint64_t mant;
+        uint16_t exp;
+        mant = qemu_get_be64(f);
+        exp = qemu_get_be16(f);
+        env->fpregs[i] = cpu_set_fp80(mant, exp);
+    }
+
+    env->fpuc = fpuc;
+    env->fpstt = (fpus >> 11) & 7;
+    env->fpus = fpus & ~0x3800;
+    for(i = 0; i < 8; i++) {
+        env->fptags[i] = ((fptag & 3) == 3);
+        fptag >>= 2;
+    }
+    
+    for(i = 0; i < 6; i++)
+        cpu_get_seg(f, &env->segs[i]);
+    cpu_get_seg(f, &env->ldt);
+    cpu_get_seg(f, &env->tr);
+    cpu_get_seg(f, &env->gdt);
+    cpu_get_seg(f, &env->idt);
+    
+    qemu_get_be32s(f, &env->sysenter_cs);
+    qemu_get_be32s(f, &env->sysenter_esp);
+    qemu_get_be32s(f, &env->sysenter_eip);
+    
+    qemu_get_be32s(f, &env->cr[0]);
+    qemu_get_be32s(f, &env->cr[2]);
+    qemu_get_be32s(f, &env->cr[3]);
+    qemu_get_be32s(f, &env->cr[4]);
+    
+    for(i = 0; i < 8; i++)
+        qemu_get_be32s(f, &env->dr[i]);
+
+    /* MMU */
+    qemu_get_be32s(f, &env->a20_mask);
+
+    /* XXX: compute hflags from scratch, except for CPL and IIF */
+    env->hflags = hflags;
+    tlb_flush(env, 1);
+    return 0;
+}
+
+#else
+
+#warning No CPU save/restore functions
+
+#endif
+
+/***********************************************************/
+/* ram save/restore */
+
+/* we just avoid storing empty pages */
+static void ram_put_page(QEMUFile *f, const uint8_t *buf, int len)
+{
+    int i, v;
+
+    v = buf[0];
+    for(i = 1; i < len; i++) {
+        if (buf[i] != v)
+            goto normal_save;
+    }
+    qemu_put_byte(f, 1);
+    qemu_put_byte(f, v);
+    return;
+ normal_save:
+    qemu_put_byte(f, 0); 
+    qemu_put_buffer(f, buf, len);
+}
+
+static int ram_get_page(QEMUFile *f, uint8_t *buf, int len)
+{
+    int v;
+
+    v = qemu_get_byte(f);
+    switch(v) {
+    case 0:
+        if (qemu_get_buffer(f, buf, len) != len)
+            return -EIO;
+        break;
+    case 1:
+        v = qemu_get_byte(f);
+        memset(buf, v, len);
+        break;
+    default:
+        return -EINVAL;
+    }
+    return 0;
+}
+
+static void ram_save(QEMUFile *f, void *opaque)
+{
+    int i;
+    qemu_put_be32(f, phys_ram_size);
+    for(i = 0; i < phys_ram_size; i+= TARGET_PAGE_SIZE) {
+        ram_put_page(f, phys_ram_base + i, TARGET_PAGE_SIZE);
+    }
+}
+
+static int ram_load(QEMUFile *f, void *opaque, int version_id)
+{
+    int i, ret;
+
+    if (version_id != 1)
+        return -EINVAL;
+    if (qemu_get_be32(f) != phys_ram_size)
+        return -EINVAL;
+    for(i = 0; i < phys_ram_size; i+= TARGET_PAGE_SIZE) {
+        ret = ram_get_page(f, phys_ram_base + i, TARGET_PAGE_SIZE);
+        if (ret)
+            return ret;
+    }
+    return 0;
+}
+
+/***********************************************************/
+/* main execution loop */
+
+void gui_update(void *opaque)
+{
+    display_state.dpy_refresh(&display_state);
+    qemu_mod_timer(gui_timer, GUI_REFRESH_INTERVAL + qemu_get_clock(rt_clock));
+}
+
+/* XXX: support several handlers */
+VMStopHandler *vm_stop_cb;
+VMStopHandler *vm_stop_opaque;
+
+int qemu_add_vm_stop_handler(VMStopHandler *cb, void *opaque)
+{
+    vm_stop_cb = cb;
+    vm_stop_opaque = opaque;
+    return 0;
+}
+
+void qemu_del_vm_stop_handler(VMStopHandler *cb, void *opaque)
+{
+    vm_stop_cb = NULL;
+}
+
+void vm_start(void)
+{
+    if (!vm_running) {
+        cpu_enable_ticks();
+        vm_running = 1;
+    }
+}
+
+void vm_stop(int reason) 
+{
+    if (vm_running) {
+        cpu_disable_ticks();
+        vm_running = 0;
+        if (reason != 0) {
+            if (vm_stop_cb) {
+                vm_stop_cb(vm_stop_opaque, reason);
+            }
+        }
+    }
+}
+
+int main_loop(void)
+{
+    struct pollfd ufds[MAX_IO_HANDLERS + 1], *pf;
+    int ret, n, timeout, max_size;
+    uint8_t buf[4096];
+    IOHandlerRecord *ioh, *ioh_next;
+    CPUState *env = global_env;
+
+    for(;;) {
+        if (vm_running) {
+            ret = cpu_exec(env);
+            if (reset_requested) {
+                ret = EXCP_INTERRUPT; 
+                break;
+            }
+            if (ret == EXCP_DEBUG) {
+                vm_stop(EXCP_DEBUG);
+            }
+            /* if hlt instruction, we wait until the next IRQ */
+            /* XXX: use timeout computed from timers */
+            if (ret == EXCP_HLT) 
+                timeout = 10;
+            else
+                timeout = 0;
+        } else {
             timeout = 10;
-        else
-            timeout = 0;
+        }
 
         /* poll any events */
+        /* XXX: separate device handlers from system ones */
         pf = ufds;
-        ioh = io_handlers;
-        for(i = 0; i < nb_io_handlers; i++) {
-            max_size = ioh->fd_can_read(ioh->opaque);
-            if (max_size > 0) {
-                if (max_size > sizeof(buf))
-                    max_size = sizeof(buf);
+        for(ioh = first_io_handler; ioh != NULL; ioh = ioh->next) {
+            if (!ioh->fd_can_read) {
+                max_size = 0;
                 pf->fd = ioh->fd;
                 pf->events = POLLIN;
                 ioh->ufd = pf;
                 pf++;
             } else {
-                ioh->ufd = NULL;
+                max_size = ioh->fd_can_read(ioh->opaque);
+                if (max_size > 0) {
+                    if (max_size > sizeof(buf))
+                        max_size = sizeof(buf);
+                    pf->fd = ioh->fd;
+                    pf->events = POLLIN;
+                    ioh->ufd = pf;
+                    pf++;
+                } else {
+                    ioh->ufd = NULL;
+                }
             }
             ioh->max_size = max_size;
-            ioh++;
-        }
-
-        gdb_ufd = NULL;
-        if (gdbstub_fd > 0) {
-            gdb_ufd = pf;
-            pf->fd = gdbstub_fd;
-            pf->events = POLLIN;
-            pf++;
         }
 
         ret = poll(ufds, pf - ufds, timeout);
         if (ret > 0) {
-            ioh = io_handlers;
-            for(i = 0; i < nb_io_handlers; i++) {
+            /* XXX: better handling of removal */
+            for(ioh = first_io_handler; ioh != NULL; ioh = ioh_next) {
+                ioh_next = ioh->next;
                 pf = ioh->ufd;
                 if (pf) {
-                    n = read(ioh->fd, buf, ioh->max_size);
-                    if (n > 0) {
-                        ioh->fd_read(ioh->opaque, buf, n);
+                    if (pf->revents & POLLIN) {
+                        if (ioh->max_size == 0) {
+                            /* just a read event */
+                            ioh->fd_read(ioh->opaque, NULL, 0);
+                        } else {
+                            n = read(ioh->fd, buf, ioh->max_size);
+                            if (n >= 0) {
+                                ioh->fd_read(ioh->opaque, buf, n);
+                            } else if (errno != -EAGAIN) {
+                                ioh->fd_read(ioh->opaque, NULL, -errno);
+                            }
+                        }
                     }
                 }
-                ioh++;
-            }
-            if (gdb_ufd && (gdb_ufd->revents & POLLIN)) {
-                uint8_t buf[1];
-                /* stop emulation if requested by gdb */
-                n = read(gdbstub_fd, buf, 1);
-                if (n == 1) {
-                    ret = EXCP_INTERRUPT; 
-                    break;
-                }
             }
         }
 
-        /* timer IRQ */
-        if (timer_irq_pending) {
-#if defined (TARGET_I386)
-            pic_set_irq(0, 1);
-            pic_set_irq(0, 0);
-            timer_irq_pending = 0;
-            rtc_timer();
-#endif
+        if (vm_running) {
+            qemu_run_timers(&active_timers[QEMU_TIMER_VIRTUAL], 
+                            qemu_get_clock(vm_clock));
+            
+            /* XXX: add explicit timer */
+            SB16_run();
+            
+            /* run dma transfers, if any */
+            DMA_run();
         }
-        /* XXX: add explicit timer */
-        SB16_run();
 
-        /* run dma transfers, if any */
-        DMA_run();
-
-        /* VGA */
-        if (gui_refresh_pending) {
-            display_state.dpy_refresh(&display_state);
-            gui_refresh_pending = 0;
-        }
+        /* real time timers */
+        qemu_run_timers(&active_timers[QEMU_TIMER_REALTIME], 
+                        qemu_get_clock(rt_clock));
     }
     cpu_disable_ticks();
     return ret;
@@ -873,8 +1594,6 @@ int main(int argc, char **argv)
 {
     int c, i, use_gdbstub, gdbstub_port, long_index, has_cdrom;
     int snapshot, linux_boot;
-    struct sigaction act;
-    struct itimerval itv;
     CPUState *env;
     const char *initrd_filename;
     const char *hd_filename[MAX_DISKS], *fd_filename[MAX_FD];
@@ -1186,10 +1905,16 @@ int main(int argc, char **argv)
         }
     }
 
+    init_timers();
+
     /* init CPU state */
     env = cpu_init();
     global_env = env;
     cpu_single_env = env;
+
+    register_savevm("timer", 0, 1, timer_save, timer_load, env);
+    register_savevm("cpu", 0, 1, cpu_save, cpu_load, env);
+    register_savevm("ram", 0, 1, ram_save, ram_load, NULL);
 
     init_ioports();
     cpu_calibrate_ticks();
@@ -1219,7 +1944,7 @@ int main(int argc, char **argv)
 
     /* setup cpu signal handlers for MMU / self modifying code handling */
 #if !defined(CONFIG_SOFTMMU)
-
+    
 #if defined (TARGET_I386) && defined(USE_CODE_COPY)
     {
         stack_t stk;
@@ -1234,45 +1959,46 @@ int main(int argc, char **argv)
         }
     }
 #endif
+    {
+        struct sigaction act;
         
-    sigfillset(&act.sa_mask);
-    act.sa_flags = SA_SIGINFO;
+        sigfillset(&act.sa_mask);
+        act.sa_flags = SA_SIGINFO;
 #if defined (TARGET_I386) && defined(USE_CODE_COPY)
-    act.sa_flags |= SA_ONSTACK;
+        act.sa_flags |= SA_ONSTACK;
 #endif
-    act.sa_sigaction = host_segv_handler;
-    sigaction(SIGSEGV, &act, NULL);
-    sigaction(SIGBUS, &act, NULL);
+        act.sa_sigaction = host_segv_handler;
+        sigaction(SIGSEGV, &act, NULL);
+        sigaction(SIGBUS, &act, NULL);
 #if defined (TARGET_I386) && defined(USE_CODE_COPY)
-    sigaction(SIGFPE, &act, NULL);
+        sigaction(SIGFPE, &act, NULL);
 #endif
+    }
 #endif
 
-    /* timer signal */
-    sigfillset(&act.sa_mask);
-    act.sa_flags = SA_SIGINFO;
-#if defined (TARGET_I386) && defined(USE_CODE_COPY)
-    act.sa_flags |= SA_ONSTACK;
-#endif
-    act.sa_sigaction = host_alarm_handler;
-    sigaction(SIGALRM, &act, NULL);
+    {
+        struct sigaction act;
+        sigfillset(&act.sa_mask);
+        act.sa_flags = 0;
+        act.sa_handler = SIG_IGN;
+        sigaction(SIGPIPE, &act, NULL);
+    }
 
-    itv.it_interval.tv_sec = 0;
-    itv.it_interval.tv_usec = 1000;
-    itv.it_value.tv_sec = 0;
-    itv.it_value.tv_usec = 10 * 1000;
-    setitimer(ITIMER_REAL, &itv, NULL);
-    /* we probe the tick duration of the kernel to inform the user if
-       the emulated kernel requested a too high timer frequency */
-    getitimer(ITIMER_REAL, &itv);
-    timer_ms = itv.it_interval.tv_usec / 1000;
-    pit_min_timer_count = ((uint64_t)itv.it_interval.tv_usec * PIT_FREQ) / 
-        1000000;
+    gui_timer = qemu_new_timer(rt_clock, gui_update, NULL);
+    qemu_mod_timer(gui_timer, qemu_get_clock(rt_clock));
 
     if (use_gdbstub) {
-        cpu_gdbstub(NULL, main_loop, gdbstub_port);
+        if (gdbserver_start(gdbstub_port) < 0) {
+            fprintf(stderr, "Could not open gdbserver socket on port %d\n", 
+                    gdbstub_port);
+            exit(1);
+        } else {
+            printf("Waiting gdb connection on port %d\n", gdbstub_port);
+        }
     } else {
-        main_loop(NULL);
+        vm_start();
     }
+    term_init();
+    main_loop();
     return 0;
 }
