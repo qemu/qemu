@@ -413,7 +413,7 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
         for(i = 0; i < nb_nics; i++) {
             pci_ne2000_init(&nd_table[i]);
         }
-        pci_ide_init(bs_table);
+        pci_piix3_ide_init(bs_table);
     } else {
         nb_nics1 = nb_nics;
         if (nb_nics1 > NE2000_NB_MAX)
