@@ -23,7 +23,7 @@
  */
 #include "vl.h"
 #include "block_int.h"
-#include "zlib.h"
+#include <zlib.h>
 #include "aes.h"
 
 /**************************************************************/
