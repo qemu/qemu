@@ -1580,8 +1580,23 @@ uint8_t code[] = {
     0xc3, /* ret */
 };
 
-typedef int FuncType(void);
+asm("smc_code2:\n"
+    "movl 4(%esp), %eax\n"
+    "movl %eax, smc_patch_addr2 + 1\n"
+    "nop\n"
+    "nop\n"
+    "nop\n"
+    "nop\n"
+    "nop\n"
+    "nop\n"
+    "nop\n"
+    "nop\n"
+    "smc_patch_addr2:\n"
+    "movl $1, %eax\n"
+    "ret\n");
 
+typedef int FuncType(void);
+extern int smc_code2(int);
 void test_self_modifying_code(void)
 {
     int i;
@@ -1591,6 +1606,13 @@ void test_self_modifying_code(void)
     for(i = 2; i <= 4; i++) {
         code[1] = i;
         printf("func%d = 0x%x\n", i, ((FuncType *)code)());
+    }
+
+    /* more difficult test : the modified code is just after the
+       modifying instruction. It is forbidden in Intel specs, but it
+       is used by old DOS programs */
+    for(i = 2; i <= 4; i++) {
+        printf("smc_code2(%d) = %d\n", i, smc_code2(i));
     }
 }
     
