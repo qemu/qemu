@@ -133,6 +133,8 @@
 #define CR4_TSD_MASK  (1 << 2)
 #define CR4_DE_MASK   (1 << 3)
 #define CR4_PSE_MASK  (1 << 4)
+#define CR4_PAE_MASK  (1 << 5)
+#define CR4_PGE_MASK  (1 << 7)
 
 #define PG_PRESENT_BIT	0
 #define PG_RW_BIT	1
@@ -309,6 +311,7 @@ typedef struct CPUX86State {
     int user_mode_only; /* user mode only simulation */
 
     /* soft mmu support */
+    uint32_t a20_mask;
     /* 0 = kernel, 1 = user */
     CPUTLBEntry tlb_read[2][CPU_TLB_SIZE];
     CPUTLBEntry tlb_write[2][CPU_TLB_SIZE];
@@ -396,12 +399,10 @@ void cpu_x86_frstor(CPUX86State *s, uint8_t *ptr, int data32);
 struct siginfo;
 int cpu_x86_signal_handler(int host_signum, struct siginfo *info, 
                            void *puc);
-
-/* MMU defines */
-void cpu_x86_init_mmu(CPUX86State *env);
-extern int a20_enabled;
-
 void cpu_x86_set_a20(CPUX86State *env, int a20_state);
+
+/* will be suppressed */
+void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0);
 
 /* used to debug */
 #define X86_DUMP_FPU  0x0001 /* dump FPU state too */
