@@ -12,9 +12,9 @@ DYNGEN=../dyngen
 QEMU_USER=qemu-$(TARGET_ARCH)
 # system emulator name
 ifdef CONFIG_SOFTMMU
-QEMU_SYSTEM=qemu-softmmu
-else
 QEMU_SYSTEM=qemu
+else
+QEMU_SYSTEM=qemu-fast
 endif
 
 ifdef CONFIG_USER_ONLY

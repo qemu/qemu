@@ -3446,7 +3446,7 @@ int main_loop(void *opaque)
 void help(void)
 {
     printf("QEMU PC emulator version " QEMU_VERSION ", Copyright (c) 2003 Fabrice Bellard\n"
-           "usage: qemu [options] [disk_image]\n"
+           "usage: %s [options] [disk_image]\n"
            "\n"
            "'disk_image' is a raw hard image image for IDE hard disk 0\n"
            "\n"
@@ -3472,8 +3472,20 @@ void help(void)
            "-L path         set the directory for the BIOS and VGA BIOS\n"
            "\n"
            "During emulation, use C-a h to get terminal commands:\n",
-           DEFAULT_NETWORK_SCRIPT, DEFAULT_GDBSTUB_PORT);
+#ifdef CONFIG_SOFTMMU
+           "qemu",
+#else
+           "qemu-fast",
+#endif
+           DEFAULT_NETWORK_SCRIPT, 
+           DEFAULT_GDBSTUB_PORT);
     term_print_help();
+#ifndef CONFIG_SOFTMMU
+    printf("\n"
+           "NOTE: this version of QEMU is faster but it needs slightly patched OSes to\n"
+           "work. Please use the 'qemu' executable to have a more accurate (but slower)\n"
+           "PC emulation.\n");
+#endif
     exit(1);
 }
 
