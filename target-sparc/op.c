@@ -480,9 +480,9 @@ void OPPROTO op_restore_T0 (void)
 void OPPROTO op_generic_branch (void)
 {
 	if (T0)
-		JUMP_TB (__func__, PARAM1, 0, PARAM2);
+		JUMP_TB (op_generic_branch, PARAM1, 0, PARAM2);
 	else
-		JUMP_TB (__func__, PARAM1, 1, PARAM3);
+		JUMP_TB (op_generic_branch, PARAM1, 1, PARAM3);
 	FORCE_RET ();
 }
 
@@ -491,10 +491,6 @@ void OPPROTO op_generic_branch_a (void)
 	if (T0)
 		env->npc = PARAM3;
 	else
-		JUMP_TB (__func__, PARAM1, 0, PARAM2);
+		JUMP_TB (op_generic_branch_a, PARAM1, 0, PARAM2);
 	FORCE_RET ();
-}
-
-void OPPROTO op_noop (void)
-{
 }
