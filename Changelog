@@ -19,6 +19,7 @@ version 0.6.1:
   - DHCP fix for Windows (accept DHCPREQUEST alone)
   - SPARC system emulation (Blue Swirl)
   - Automatic Samba configuration for host file access from Windows.
+  - '-loadvm' and '-full-screen' options
 
 version 0.6.0:
 

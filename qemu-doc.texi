@@ -199,6 +199,9 @@ Set the real time clock to local time (the default is to UTC
 time). This option is needed to have correct date in MS-DOS or
 Windows.
 
+@item -full-screen
+Start in full screen.
+
 @end table
 
 Network options:
@@ -345,7 +348,8 @@ Simulate an ISA-only system (default is PCI system).
 @item -std-vga
 Simulate a standard VGA card with Bochs VBE extensions (default is
 Cirrus Logic GD5446 PCI VGA)
-
+@item -loadvm file
+Start right away with a saved state (@code{loadvm} in monitor)
 @end table
 
 @c man end

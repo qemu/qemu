@@ -129,6 +129,7 @@ int cirrus_vga_enabled = 1;
 int graphic_width = 800;
 int graphic_height = 600;
 int graphic_depth = 15;
+int full_screen = 0;
 TextConsole *vga_console;
 CharDriverState *serial_hds[MAX_SERIAL_PORTS];
 
@@ -2505,6 +2506,7 @@ void help(void)
            "-nographic      disable graphical output and redirect serial I/Os to console\n"
            "-enable-audio   enable audio support\n"
            "-localtime      set the real time clock to local time [default=utc]\n"
+           "-full-screen    start in full screen\n"
 #ifdef TARGET_PPC
            "-prep           Simulate a PREP system (default is PowerMAC)\n"
            "-g WxH[xDEPTH]  Set the initial VGA graphic mode\n"
@@ -2548,6 +2550,7 @@ void help(void)
            "-std-vga        simulate a standard VGA card with VESA Bochs Extensions\n"
            "                (default is CL-GD5446 PCI VGA)\n"
 #endif
+           "-loadvm file    start right away with a saved state (loadvm in monitor)\n"
            "\n"
            "During emulation, the following keys are useful:\n"
            "ctrl-shift-f    toggle full screen\n"
@@ -2622,6 +2625,8 @@ enum {
     QEMU_OPTION_std_vga,
     QEMU_OPTION_monitor,
     QEMU_OPTION_serial,
+    QEMU_OPTION_loadvm,
+    QEMU_OPTION_full_screen,
 };
 
 typedef struct QEMUOption {
@@ -2680,6 +2685,8 @@ const QEMUOption qemu_options[] = {
     { "std-vga", 0, QEMU_OPTION_std_vga },
     { "monitor", 1, QEMU_OPTION_monitor },
     { "serial", 1, QEMU_OPTION_serial },
+    { "loadvm", HAS_ARG, QEMU_OPTION_loadvm },
+    { "full-screen", 0, QEMU_OPTION_full_screen },
     
     /* temporary options */
     { "pci", 0, QEMU_OPTION_pci },
@@ -2759,6 +2766,7 @@ int main(int argc, char **argv)
     char monitor_device[128];
     char serial_devices[MAX_SERIAL_PORTS][128];
     int serial_device_index;
+    const char *loadvm = NULL;
     
 #if !defined(CONFIG_SOFTMMU)
     /* we never want that malloc() uses mmap() */
@@ -3080,6 +3088,12 @@ int main(int argc, char **argv)
                         sizeof(serial_devices[0]), optarg);
                 serial_device_index++;
                 break;
+	    case QEMU_OPTION_loadvm:
+		loadvm = optarg;
+		break;
+            case QEMU_OPTION_full_screen:
+                full_screen = 1;
+                break;
             }
         }
     }
@@ -3264,7 +3278,7 @@ int main(int argc, char **argv)
         dumb_display_init(ds);
     } else {
 #ifdef CONFIG_SDL
-        sdl_display_init(ds);
+        sdl_display_init(ds, full_screen);
 #else
         dumb_display_init(ds);
 #endif
@@ -3365,6 +3379,9 @@ int main(int argc, char **argv)
         }
     } else 
 #endif
+    if (loadvm)
+        qemu_loadvm(loadvm);
+
     {
         /* XXX: simplify init */
         read_passwords();

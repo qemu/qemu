@@ -40,6 +40,7 @@ static int gui_saved_grab;
 static int gui_fullscreen;
 static int gui_key_modifier_pressed;
 static int gui_keysym;
+static int gui_fullscreen_initial_grab;
 
 static void sdl_update(DisplayState *ds, int x, int y, int w, int h)
 {
@@ -525,7 +526,8 @@ static void sdl_refresh(DisplayState *ds)
             }
             break;
         case SDL_ACTIVEEVENT:
-            if (gui_grab && (ev->active.gain & SDL_ACTIVEEVENTMASK) == 0) {
+            if (gui_grab && (ev->active.gain & SDL_ACTIVEEVENTMASK) == 0 &&
+                !gui_fullscreen_initial_grab) {
                 sdl_grab_end();
             }
             break;
@@ -540,7 +542,7 @@ static void sdl_cleanup(void)
     SDL_Quit();
 }
 
-void sdl_display_init(DisplayState *ds)
+void sdl_display_init(DisplayState *ds, int full_screen)
 {
     int flags;
 
@@ -566,4 +568,9 @@ void sdl_display_init(DisplayState *ds)
     gui_grab = 0;
 
     atexit(sdl_cleanup);
+    if (full_screen) {
+        gui_fullscreen = 1;
+        gui_fullscreen_initial_grab = 1;
+        sdl_grab_start();
+    }
 }
