@@ -26,6 +26,13 @@
 #include <errno.h>
 #include <sys/ucontext.h>
 
+#ifdef __ia64__
+#undef uc_mcontext
+#undef uc_sigmask
+#undef uc_stack
+#undef uc_link
+#endif 
+
 #include "qemu.h"
 
 //#define DEBUG_SIGNAL

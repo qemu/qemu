@@ -106,6 +106,12 @@ register unsigned int T1 asm("$10");
 register unsigned int A0 asm("$11");
 register struct CPUX86State *env asm("$12");
 #endif
+#ifdef __ia64__
+register unsigned int T0 asm("r24");
+register unsigned int T1 asm("r25");
+register unsigned int A0 asm("r26");
+register struct CPUX86State *env asm("r27");
+#endif
 
 /* force GCC to generate only one epilog at the end of the function */
 #define FORCE_RET() asm volatile ("");

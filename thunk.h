@@ -70,7 +70,7 @@
 #define TARGET_LONG_BITS 32
 
 
-#if defined(__alpha__)
+#if defined(__alpha__) || defined (__ia64__)
 #define HOST_LONG_BITS 64
 #else
 #define HOST_LONG_BITS 32
