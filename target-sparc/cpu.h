@@ -104,7 +104,8 @@
 #define PG_MODIFIED_MASK (1 << PG_MODIFIED_BIT)
 #define PG_CACHE_MASK    (1 << PG_CACHE_BIT)
 
-#define NWINDOWS  32
+/* 2 <= NWINDOWS <= 32. In QEMU it must also be a power of two. */
+#define NWINDOWS  8
 
 typedef struct CPUSPARCState {
     target_ulong gregs[8]; /* general registers */
