@@ -1368,28 +1368,32 @@ PPC_OP(fmsubs)
 /* fnmadd - fnmadd. - fnmadds - fnmadds. */
 PPC_OP(fnmadd)
 {
-    FT0 = -((FT0 * FT1) + FT2);
+    FT0 *= FT1;
+    FT0 += FT2;
+    FT0 = -FT0;
     RETURN();
 }
 
 /* fnmadds - fnmadds. */
 PPC_OP(fnmadds)
 {
-    FTS0 = -((FTS0 * FTS1) + FTS2);
+    do_fnmadds();
     RETURN();
 }
 
 /* fnmsub - fnmsub. */
 PPC_OP(fnmsub)
 {
-    FT0 = -((FT0 * FT1) - FT2);
+    FT0 *= FT1;
+    FT0 -= FT2;
+    FT0 = -FT0;
     RETURN();
 }
 
 /* fnmsubs - fnmsubs. */
 PPC_OP(fnmsubs)
 {
-    FTS0 = -((FTS0 * FTS1) - FTS2);
+    do_fnmsubs();
     RETURN();
 }
 

@@ -267,6 +267,16 @@ void do_fctiwz (void)
     fesetround(cround);
 }
 
+void do_fnmadds (void)
+{
+    FTS0 = -((FTS0 * FTS1) + FTS2);
+}
+
+void do_fnmsubs (void)
+{
+    FTS0 = -((FTS0 * FTS1) - FTS2);
+}
+
 void do_fsqrt (void)
 {
     FT0 = sqrt(FT0);

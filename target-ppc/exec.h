@@ -139,6 +139,8 @@ void do_sraw(void);
 
 void do_fctiw (void);
 void do_fctiwz (void);
+void do_fnmadds (void);
+void do_fnmsubs (void);
 void do_fsqrt (void);
 void do_fsqrts (void);
 void do_fres (void);

@@ -276,7 +276,7 @@ static inline uint32_t MASK (uint32_t start, uint32_t end)
 }
 
 #define GEN_OPCODE(name, op1, op2, op3, invl, _typ)                           \
-__attribute__ ((section(".opcodes"), unused))                                 \
+__attribute__ ((section(".opcodes"), unused, aligned (8) ))                   \
 static opcode_t opc_##name = {                                                \
     .opc1 = op1,                                                              \
     .opc2 = op2,                                                              \
@@ -289,7 +289,7 @@ static opcode_t opc_##name = {                                                \
 }
 
 #define GEN_OPCODE_MARK(name)                                                 \
-__attribute__ ((section(".opcodes"), unused))                                 \
+__attribute__ ((section(".opcodes"), unused, aligned (8) ))                   \
 static opcode_t opc_##name = {                                                \
     .opc1 = 0xFF,                                                             \
     .opc2 = 0xFF,                                                             \
@@ -3144,7 +3144,9 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
         fprintf(logfile, "---------------- excp: %04x\n", ctx.exception);
         cpu_ppc_dump_state(env, logfile, 0);
         fprintf(logfile, "IN: %s\n", lookup_symbol((void *)pc_start));
+#if defined(CONFIG_USER_ONLY)
 	disas(logfile, (void *)pc_start, ctx.nip - pc_start, 0, 0);
+#endif
         fprintf(logfile, "\n");
 
         fprintf(logfile, "OP:\n");

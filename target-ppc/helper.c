@@ -163,7 +163,6 @@ static int get_bat (CPUState *env, uint32_t *real, int *prot,
                    *BATu, *BATl, BEPIu, BEPIl, bl);
         }
 #endif
-        env->spr[DAR] = virtual;
     }
     /* No hit */
     return ret;
@@ -543,12 +542,12 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
     access_type = env->access_type;
     if (env->user_mode_only) {
         /* user mode only emulation */
-        ret = -1;
+        ret = -2;
         goto do_fault;
     }
     /* NASTY BUG workaround */
     if (access_type == ACCESS_CODE && rw) {
-	//	printf("%s: ERROR WRITE CODE ACCESS\n", __func__);
+	printf("%s: ERROR WRITE CODE ACCESS\n", __func__);
 	access_type = ACCESS_INT;
     }
     ret = get_physical_address(env, &physical, &prot,
@@ -674,10 +673,10 @@ uint32_t _load_msr (CPUState *env)
 
 void _store_msr (CPUState *env, uint32_t value)
 {
-    if (((T0 >> MSR_IR) & 0x01) != msr_ir ||
-        ((T0 >> MSR_DR) & 0x01) != msr_dr) {
+    if (((value >> MSR_IR) & 0x01) != msr_ir ||
+        ((value >> MSR_DR) & 0x01) != msr_dr) {
         /* Flush all tlb when changing translation mode or privilege level */
-        do_tlbia();
+	tlb_flush(env, 1);
     }
     msr_pow = (value >> MSR_POW) & 0x03;
     msr_ile = (value >> MSR_ILE) & 0x01;
@@ -931,7 +930,7 @@ void do_interrupt (CPUState *env)
     env->nip = excp << 8;
     env->exception_index = EXCP_NONE;
     /* Invalidate all TLB as we may have changed translation mode */
-    do_tlbia();
+    tlb_flush(env, 1);
     /* ensure that no TB jump will be modified as
        the program flow was changed */
 #ifdef __sparc__
