@@ -1,5 +1,5 @@
 /*
- * QEMU Floppy disk emulator
+ * QEMU Floppy disk emulator (Intel 82078)
  * 
  * Copyright (c) 2003 Jocelyn Mayer
  * 
@@ -382,6 +382,7 @@ struct fdctrl_t {
     uint8_t data_state;
     uint8_t data_dir;
     uint8_t int_status;
+    uint8_t eot; /* last wanted sector */
     /* States kept only to be returned back */
     /* Timers state */
     uint8_t timer0;
@@ -762,7 +763,7 @@ static void fdctrl_unimplemented (fdctrl_t *fdctrl)
     fdrive_t *cur_drv;
 
     cur_drv = get_cur_drv(fdctrl);
-    fdctrl->fifo[0] = 0x60 | (cur_drv->head << 1) | fdctrl->cur_drv;
+    fdctrl->fifo[0] = 0x60 | (cur_drv->head << 2) | fdctrl->cur_drv;
     fdctrl->fifo[1] = 0x00;
     fdctrl->fifo[2] = 0x00;
     fdctrl_set_fifo(fdctrl, 3, 1);
@@ -782,8 +783,8 @@ static void fdctrl_stop_transfer (fdctrl_t *fdctrl, uint8_t status0,
     cur_drv = get_cur_drv(fdctrl);
     FLOPPY_DPRINTF("transfer status: %02x %02x %02x (%02x)\n",
                    status0, status1, status2,
-                   status0 | (cur_drv->head << 1) | fdctrl->cur_drv);
-    fdctrl->fifo[0] = status0 | (cur_drv->head << 1) | fdctrl->cur_drv;
+                   status0 | (cur_drv->head << 2) | fdctrl->cur_drv);
+    fdctrl->fifo[0] = status0 | (cur_drv->head << 2) | fdctrl->cur_drv;
     fdctrl->fifo[1] = status1;
     fdctrl->fifo[2] = status2;
     fdctrl->fifo[3] = cur_drv->track;
@@ -810,7 +811,7 @@ static void fdctrl_start_transfer (fdctrl_t *fdctrl, int direction)
     kt = fdctrl->fifo[2];
     kh = fdctrl->fifo[3];
     ks = fdctrl->fifo[4];
-    FLOPPY_DPRINTF("Start tranfert at %d %d %02x %02x (%d)\n",
+    FLOPPY_DPRINTF("Start tranfer at %d %d %02x %02x (%d)\n",
                    fdctrl->cur_drv, kh, kt, ks,
                    _fd_sector(kh, kt, ks, cur_drv->last_sect));
     did_seek = 0;
@@ -864,6 +865,7 @@ static void fdctrl_start_transfer (fdctrl_t *fdctrl, int direction)
             tmp += cur_drv->last_sect;
 	fdctrl->data_len *= tmp;
     }
+    fdctrl->eot = fdctrl->fifo[6];
     if (fdctrl->dma_en) {
         int dma_mode;
         /* DMA transfer are enabled. Check if DMA channel is well programmed */
@@ -924,14 +926,14 @@ static int fdctrl_transfer_handler (void *opaque, target_ulong addr, int size)
         status2 = 0x04;
     if (size > fdctrl->data_len)
 	size = fdctrl->data_len;
-            if (cur_drv->bs == NULL) {
+    if (cur_drv->bs == NULL) {
 	if (fdctrl->data_dir == FD_DIR_WRITE)
 	    fdctrl_stop_transfer(fdctrl, 0x60, 0x00, 0x00);
 	else
 	    fdctrl_stop_transfer(fdctrl, 0x40, 0x00, 0x00);
 	len = 0;
-                goto transfer_error;
-            }
+        goto transfer_error;
+    }
     rel_pos = fdctrl->data_pos % FD_SECTOR_LEN;
     for (start_pos = fdctrl->data_pos; fdctrl->data_pos < size;) {
         len = size - fdctrl->data_pos;
@@ -952,7 +954,7 @@ static int fdctrl_transfer_handler (void *opaque, target_ulong addr, int size)
                 /* Sure, image size is too small... */
                 memset(fdctrl->fifo, 0, FD_SECTOR_LEN);
             }
-                }
+        }
 	switch (fdctrl->data_dir) {
 	case FD_DIR_READ:
 	    /* READ commands */
@@ -968,7 +970,7 @@ static int fdctrl_transfer_handler (void *opaque, target_ulong addr, int size)
                 FLOPPY_ERROR("writting sector %d\n", fd_sector(cur_drv));
                 fdctrl_stop_transfer(fdctrl, 0x60, 0x00, 0x00);
                 goto transfer_error;
-                }
+            }
 	    break;
 	default:
 	    /* SCAN commands */
@@ -994,30 +996,34 @@ static int fdctrl_transfer_handler (void *opaque, target_ulong addr, int size)
 	rel_pos = fdctrl->data_pos % FD_SECTOR_LEN;
         if (rel_pos == 0) {
             /* Seek to next sector */
-	    cur_drv->sect++;
 	    FLOPPY_DPRINTF("seek to next sector (%d %02x %02x => %d) (%d)\n",
 			   cur_drv->head, cur_drv->track, cur_drv->sect,
 			   fd_sector(cur_drv),
 			   fdctrl->data_pos - size);
-            if (cur_drv->sect > cur_drv->last_sect) {
+            /* XXX: cur_drv->sect >= cur_drv->last_sect should be an
+               error in fact */
+            if (cur_drv->sect >= cur_drv->last_sect ||
+                cur_drv->sect == fdctrl->eot) {
 		cur_drv->sect = 1;
 		if (FD_MULTI_TRACK(fdctrl->data_state)) {
 		    if (cur_drv->head == 0 &&
 			(cur_drv->flags & FDISK_DBL_SIDES) != 0) {	
-                    cur_drv->head = 1;
-                } else {
-                    cur_drv->head = 0;
+                        cur_drv->head = 1;
+                    } else {
+                        cur_drv->head = 0;
 			cur_drv->track++;
 			if ((cur_drv->flags & FDISK_DBL_SIDES) == 0)
 			    break;
+                    }
+                } else {
+                    cur_drv->track++;
+                    break;
                 }
-            } else {
-		    cur_drv->track++;
-		    break;
-		}
 		FLOPPY_DPRINTF("seek to next track (%d %02x %02x => %d)\n",
 			       cur_drv->head, cur_drv->track,
 			       cur_drv->sect, fd_sector(cur_drv));
+            } else {
+                cur_drv->sect++;
             }
         }
     }
@@ -1033,7 +1039,7 @@ end_transfer:
         status0 |= 0x20;
     fdctrl->data_len -= len;
     //    if (fdctrl->data_len == 0)
-	fdctrl_stop_transfer(fdctrl, status0, status1, status2);
+    fdctrl_stop_transfer(fdctrl, status0, status1, status2);
 transfer_error:
 
     return len;
@@ -1066,7 +1072,7 @@ static uint32_t fdctrl_read_data (fdctrl_t *fdctrl)
     retval = fdctrl->fifo[pos];
     if (++fdctrl->data_pos == fdctrl->data_len) {
         fdctrl->data_pos = 0;
-        /* Switch from transfert mode to status mode
+        /* Switch from transfer mode to status mode
          * then from status mode to command mode
          */
         if (FD_STATE(fdctrl->data_state) == FD_STATE_DATA) {
@@ -1170,7 +1176,7 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
             bdrv_write(cur_drv->bs, fd_sector(cur_drv),
                        fdctrl->fifo, FD_SECTOR_LEN);
         }
-        /* Switch from transfert mode to status mode
+        /* Switch from transfer mode to status mode
          * then from status mode to command mode
          */
         if (FD_STATE(fdctrl->data_state) == FD_STATE_DATA)
@@ -1510,7 +1516,9 @@ enqueue:
             /* 1 Byte status back */
             fdctrl->fifo[0] = (cur_drv->ro << 6) |
                 (cur_drv->track == 0 ? 0x10 : 0x00) |
-                fdctrl->cur_drv;
+                (cur_drv->head << 2) |
+                fdctrl->cur_drv |
+                0x28;
             fdctrl_set_fifo(fdctrl, 1, 0);
             break;
         case 0x07:
@@ -1581,6 +1589,7 @@ enqueue:
                 /* READ_ID */
             FLOPPY_DPRINTF("treat READ_ID command\n");
             /* XXX: should set main status register to busy */
+            cur_drv->head = (fdctrl->fifo[1] >> 2) & 1;
             qemu_mod_timer(fdctrl->result_timer, 
                            qemu_get_clock(vm_clock) + (ticks_per_sec / 50));
             break;
