@@ -56,6 +56,16 @@ SECTIONS
   .rodata    : { *(.rodata) *(.gnu.linkonce.r*) }
   .rodata1   : { *(.rodata1) }
   .reginfo : { *(.reginfo) }
+  __preinit_array_start = .;
+  .preinit_array : { *(.preinit_array) }
+  __preinit_array_end = .;
+  __init_array_start = .;
+  .init_array : { *(.init_array) }
+  __init_array_end = .;
+  __fini_array_start = .;
+  .fini_array : { *(.fini_array) }
+  __fini_array_end = .;
+
   /* Adjust the address for the data segment.  We want to adjust up to
      the same address within the page on the next page up.  */
   . = ALIGN(0x100000) + (. & (0x100000 - 1));
