@@ -20,7 +20,11 @@ version 0.5.3:
   - multiple network interface support
   - initial x86-64 host support (Gwenole Beauchesne)
   - lret to outer priviledge fix (OS/2 install fix)
-  
+  - task switch fixes (SkyOS boot)
+  - VM save/restore commands
+  - new timer API
+  - more precise RTC emulation (periodic timers + time updates)
+
 version 0.5.2:
 
   - improved soft MMU speed (assembly functions and specializing)
