@@ -1,4 +1,5 @@
 - The PC BIOS comes from the Bochs project
-  (http://bochs.sourceforge.net/).
+  (http://bochs.sourceforge.net/). A patch from bios.diff was applied.
+
 - The VGA BIOS comes from the LGPL VGA bios project
   (http://www.nongnu.org/vgabios/).
