@@ -1727,7 +1727,7 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
     load_seg_vm(R_FS, new_fs & 0xffff);
     load_seg_vm(R_GS, new_gs & 0xffff);
 
-    env->eip = new_eip;
+    env->eip = new_eip & 0xffff;
     ESP = new_esp;
 }
 
