@@ -239,27 +239,6 @@ extern int setresgid(gid_t, gid_t, gid_t);
 extern int getresgid(gid_t *, gid_t *, gid_t *);
 extern int setgroups(int, gid_t *);
 
-#define put_user(x,ptr)\
-({\
-    int size = sizeof(*ptr);\
-    switch(size) {\
-    case 1:\
-        stb(ptr, (typeof(*ptr))(x));\
-        break;\
-    case 2:\
-        stw(ptr, (typeof(*ptr))(x));\
-        break;\
-    case 4:\
-        stl(ptr, (typeof(*ptr))(x));\
-        break;\
-    case 8:\
-        stq(ptr, (typeof(*ptr))(x));\
-        break;\
-    default:\
-        abort();\
-    }\
-    0;\
-})
 static inline long get_errno(long ret)
 {
     if (ret == -1)

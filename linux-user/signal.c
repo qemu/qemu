@@ -450,69 +450,6 @@ int do_sigaction(int sig, const struct target_sigaction *act,
     return 0;
 }
 
-#define __put_user(x,ptr)\
-({\
-    int size = sizeof(*ptr);\
-    switch(size) {\
-    case 1:\
-        stb(ptr, (typeof(*ptr))(x));\
-        break;\
-    case 2:\
-        stw(ptr, (typeof(*ptr))(x));\
-        break;\
-    case 4:\
-        stl(ptr, (typeof(*ptr))(x));\
-        break;\
-    case 8:\
-        stq(ptr, (typeof(*ptr))(x));\
-        break;\
-    default:\
-        abort();\
-    }\
-    0;\
-})
-
-#define __get_user(x, ptr) \
-({\
-    int size = sizeof(*ptr);\
-    switch(size) {\
-    case 1:\
-        x = (typeof(*ptr))ldub(ptr);\
-        break;\
-    case 2:\
-        x = (typeof(*ptr))lduw(ptr);\
-        break;\
-    case 4:\
-        x = (typeof(*ptr))ldl(ptr);\
-        break;\
-    case 8:\
-        x = (typeof(*ptr))ldq(ptr);\
-        break;\
-    default:\
-        abort();\
-    }\
-    0;\
-})
-
-
-#define __copy_to_user(dst, src, size)\
-({\
-    memcpy(dst, src, size);\
-    0;\
-})
-
-#define __copy_from_user(dst, src, size)\
-({\
-    memcpy(dst, src, size);\
-    0;\
-})
-
-#define __clear_user(dst, size)\
-({\
-    memset(dst, 0, size);\
-    0;\
-})
-
 #ifndef offsetof
 #define offsetof(type, field) ((size_t) &((type *)0)->field)
 #endif
@@ -707,10 +644,8 @@ static void setup_frame(int sig, struct emulated_sigaction *ka,
 
 	frame = get_sigframe(ka, env, sizeof(*frame));
 
-#if 0
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
 		goto give_sigsegv;
-#endif
 	err |= __put_user((/*current->exec_domain
 		           && current->exec_domain->signal_invmap
 		           && sig < 32
@@ -773,10 +708,8 @@ static void setup_rt_frame(int sig, struct emulated_sigaction *ka,
 
 	frame = get_sigframe(ka, env, sizeof(*frame));
 
-#if 0
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
 		goto give_sigsegv;
-#endif
 
 	err |= __put_user((/*current->exec_domain
 		    	   && current->exec_domain->signal_invmap
@@ -1172,10 +1105,9 @@ static void setup_rt_frame(int usig, struct emulated_sigaction *ka,
 	struct rt_sigframe *frame = get_sigframe(ka, env, sizeof(*frame));
 	int err = 0;
 
-#if 0
 	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
-            return 1;
-#endif
+            return /* 1 */;
+
 	__put_user_error(&frame->info, (target_ulong *)&frame->pinfo, err);
 	__put_user_error(&frame->uc, (target_ulong *)&frame->puc, err);
 	err |= copy_siginfo_to_user(&frame->info, info);

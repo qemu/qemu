@@ -263,15 +263,7 @@ struct exec
 
 #define DLINFO_ITEMS 11
 
-#define put_user(x,ptr) (void)(*(ptr) = (typeof(*ptr))(x))
-#define get_user(ptr) (typeof(*ptr))(*(ptr))
-
 static inline void memcpy_fromfs(void * to, const void * from, unsigned long n)
-{
-	memcpy(to, from, n);
-}
-
-static inline void memcpy_tofs(void * to, const void * from, unsigned long n)
 {
 	memcpy(to, from, n);
 }
@@ -373,11 +365,13 @@ static unsigned long copy_strings(int argc,char ** argv,unsigned long *page,
 	return 0;       /* bullet-proofing */
     }
     while (argc-- > 0) {
-	if (!(tmp1 = tmp = get_user(argv+argc))) {
+        tmp = argv[argc];
+        if (!tmp) {
 	    fprintf(stderr, "VFS: argc is wrong");
 	    exit(-1);
 	}
-	while (get_user(tmp++));
+        tmp1 = tmp;
+	while (*tmp++);
 	len = tmp - tmp1;
 	if (p < len) {  /* this shouldn't happen - 128kB */
 		return 0;
@@ -395,7 +389,7 @@ static unsigned long copy_strings(int argc,char ** argv,unsigned long *page,
 		}
 	    }
 	    if (len == 0 || offset == 0) {
-	        *(pag + offset) = get_user(tmp);
+	        *(pag + offset) = *tmp;
 	    }
 	    else {
 	      int bytes_to_copy = (len > offset) ? offset : len;
@@ -599,7 +593,8 @@ static unsigned int * create_elf_tables(char *p, int argc, int envc,
 {
         target_ulong *argv, *envp;
         target_ulong *sp, *csp;
-        
+        int v;
+
 	/*
 	 * Force 16 byte _final_ alignment here for generality.
 	 */
@@ -616,8 +611,8 @@ static unsigned int * create_elf_tables(char *p, int argc, int envc,
             sp -= ((unsigned long)csp & 15UL) / sizeof(*sp);
         
 #define NEW_AUX_ENT(nr, id, val) \
-          put_user (tswapl(id), sp + (nr * 2)); \
-          put_user (tswapl(val), sp + (nr * 2 + 1))
+          put_user (id, sp + (nr * 2)); \
+          put_user (val, sp + (nr * 2 + 1))
         sp -= 2;
         NEW_AUX_ENT (0, AT_NULL, 0);
 
@@ -647,20 +642,26 @@ static unsigned int * create_elf_tables(char *p, int argc, int envc,
         sp -= argc+1;
         argv = sp;
         if (!ibcs) {
-                put_user(tswapl((target_ulong)envp),--sp);
-                put_user(tswapl((target_ulong)argv),--sp);
+                put_user((target_ulong)envp,--sp);
+                put_user((target_ulong)argv,--sp);
         }
-        put_user(tswapl(argc),--sp);
+        put_user(argc,--sp);
         info->arg_start = (unsigned int)((unsigned long)p & 0xffffffff);
         while (argc-->0) {
-                put_user(tswapl((target_ulong)p),argv++);
-                while (get_user(p++)) /* nothing */ ;
+                put_user((target_ulong)p,argv++);
+                do {
+                    get_user(v, p);
+                    p++;
+                } while (v != 0);
         }
         put_user(0,argv);
         info->arg_end = info->env_start = (unsigned int)((unsigned long)p & 0xffffffff);
         while (envc-->0) {
-                put_user(tswapl((target_ulong)p),envp++);
-                while (get_user(p++)) /* nothing */ ;
+                put_user((target_ulong)p,envp++);
+                do {
+                    get_user(v, p);
+                    p++;
+                } while (v != 0);
         }
         put_user(0,envp);
         info->env_end = (unsigned int)((unsigned long)p & 0xffffffff);

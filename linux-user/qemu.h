@@ -4,6 +4,7 @@
 #include "thunk.h"
 
 #include <signal.h>
+#include <string.h>
 #include "syscall_defs.h"
 
 #include "cpu.h"
@@ -119,5 +120,122 @@ long target_mremap(unsigned long old_addr, unsigned long old_size,
                    unsigned long new_size, unsigned long flags,
                    unsigned long new_addr);
 int target_msync(unsigned long start, unsigned long len, int flags);
+
+/* user access */
+
+#define VERIFY_READ 0
+#define VERIFY_WRITE 1
+
+#define access_ok(type,addr,size) (1)
+
+#define __put_user(x,ptr)\
+({\
+    int size = sizeof(*ptr);\
+    switch(size) {\
+    case 1:\
+        stb(ptr, (typeof(*ptr))(x));\
+        break;\
+    case 2:\
+        stw(ptr, (typeof(*ptr))(x));\
+        break;\
+    case 4:\
+        stl(ptr, (typeof(*ptr))(x));\
+        break;\
+    case 8:\
+        stq(ptr, (typeof(*ptr))(x));\
+        break;\
+    default:\
+        abort();\
+    }\
+    0;\
+})
+
+#define __get_user(x, ptr) \
+({\
+    int size = sizeof(*ptr);\
+    switch(size) {\
+    case 1:\
+        x = (typeof(*ptr))ldub(ptr);\
+        break;\
+    case 2:\
+        x = (typeof(*ptr))lduw(ptr);\
+        break;\
+    case 4:\
+        x = (typeof(*ptr))ldl(ptr);\
+        break;\
+    case 8:\
+        x = (typeof(*ptr))ldq(ptr);\
+        break;\
+    default:\
+        abort();\
+    }\
+    0;\
+})
+
+static inline unsigned long __copy_to_user(void *dst, const void *src, 
+                                           unsigned long size)
+{
+    memcpy(dst, src, size);
+    return 0;
+}
+
+static inline unsigned long __copy_from_user(void *dst, const void *src, 
+                                             unsigned long size)
+{
+    memcpy(dst, src, size);
+    return 0;
+}
+
+static inline unsigned long __clear_user(void *dst, unsigned long size)
+{
+    memset(dst, 0, size);
+    return 0;
+}
+
+#define put_user(x,ptr)\
+({\
+    int __ret;\
+    if (access_ok(VERIFY_WRITE, ptr, sizeof(*ptr)))\
+        __ret = __put_user(x, ptr);\
+    else\
+        __ret = -EFAULT;\
+    __ret;\
+})
+
+#define get_user(x,ptr)\
+({\
+    int __ret;\
+    if (access_ok(VERIFY_READ, ptr, sizeof(*ptr)))\
+        __ret = __get_user(x, ptr);\
+    else\
+        __ret = -EFAULT;\
+    __ret;\
+})
+
+static inline unsigned long copy_to_user(void *dst, const void *src, 
+                                         unsigned long size)
+{
+    if (access_ok(VERIFY_WRITE, dst, size))
+        return __copy_to_user(dst, src, size);
+    else
+        return size;
+}
+
+static inline unsigned long copy_from_user(void *dst, const void *src, 
+                                             unsigned long size)
+{
+    if (access_ok(VERIFY_READ, src, size))
+        return __copy_from_user(dst, src, size);
+    else
+        return size;
+}
+
+static inline unsigned long clear_user(void *dst, unsigned long size)
+{
+    if (access_ok(VERIFY_WRITE, dst, size))
+        return __clear_user(dst, size);
+    else
+        return size;
+}
 
 #endif
