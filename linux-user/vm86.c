@@ -56,7 +56,7 @@ static inline unsigned int vm_getw(uint8_t *segptr, unsigned int reg16)
 
 static inline unsigned int vm_getl(uint8_t *segptr, unsigned int reg16)
 {
-    return tswap32(*(uint16_t *)(segptr + (reg16 & 0xffff)));
+    return tswap32(*(uint32_t *)(segptr + (reg16 & 0xffff)));
 }
 
 void save_v86_state(CPUX86State *env)
