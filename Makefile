@@ -4,6 +4,7 @@ CFLAGS=-Wall -O2 -g
 LDFLAGS=-g
 LIBS=
 DEFINES=-DHAVE_BYTESWAP_H
+HELPER_CFLAGS=$(CFLAGS)
 
 ifeq ($(ARCH),i386)
 CFLAGS+=-fomit-frame-pointer
@@ -37,6 +38,8 @@ ifeq ($(ARCH),sparc)
 CFLAGS+=-m32 -ffixed-g1 -ffixed-g2 -ffixed-g3 -ffixed-g6
 LDFLAGS+=-m32
 OP_CFLAGS=$(CFLAGS) -fno-delayed-branch -ffixed-i0
+HELPER_CFLAGS=$(CFLAGS) -ffixed-i0 -mflat
+LDFLAGS+=-Wl,-T,sparc.ld
 endif
 
 ifeq ($(ARCH),sparc64)
@@ -56,6 +59,11 @@ endif
 
 ifeq ($(ARCH),ia64)
 OP_CFLAGS=$(CFLAGS)
+endif
+
+ifeq ($(ARCH),arm)
+OP_CFLAGS=$(CFLAGS) -mno-sched-prolog
+LDFLAGS+=-Wl,-T,arm.ld
 endif
 
 ifeq ($(GCC_MAJOR),3)
@@ -81,12 +89,18 @@ OBJS+= libqemu.a
 LIBOBJS+=thunk.o translate-i386.o op-i386.o helper-i386.o exec-i386.o exec.o
 
 # NOTE: the disassembler code is only needed for debugging
-LIBOBJS+=disas.o i386-dis.o dis-buf.o
+LIBOBJS+=disas.o i386-dis.o
 ifeq ($(ARCH),alpha)
 LIBOBJS+=alpha-dis.o
 endif
 ifeq ($(ARCH),ppc)
 LIBOBJS+=ppc-dis.o
+endif
+ifeq ($(ARCH),sparc)
+LIBOBJS+=sparc-dis.o
+endif
+ifeq ($(ARCH),arm)
+LIBOBJS+=arm-dis.o
 endif
 
 ifeq ($(ARCH),ia64)
@@ -126,6 +140,9 @@ opc-i386.h: op-i386.o dyngen
 op-i386.o: op-i386.c opreg_template.h ops_template.h
 	$(CC) $(OP_CFLAGS) $(DEFINES) -c -o $@ $<
 
+helper-i386.o: helper-i386.c
+	$(CC) $(HELPER_CFLAGS) $(DEFINES) -c -o $@ $<
+
 %.o: %.c
 	$(CC) $(CFLAGS) $(DEFINES) -c -o $@ $<
 
@@ -152,13 +169,13 @@ qemu-doc.html: qemu-doc.texi
 
 FILES= \
 README README.distrib COPYING COPYING.LIB TODO Changelog VERSION \
-dyngen.c ioctls.h ops_template.h op_string.h  syscall_types.h\
+dyngen.c dyngen.h ioctls.h ops_template.h op_string.h  syscall_types.h\
 Makefile     elf.h       thunk.c\
 elfload.c   main.c            signal.c        thunk.h exec.h\
 cpu-i386.h qemu.h op-i386.c helper-i386.c syscall-i386.h  translate-i386.c\
 syscall.c opreg_template.h  syscall_defs.h vm86.c\
-dis-asm.h dis-buf.c disas.c disas.h alpha-dis.c ppc-dis.c i386-dis.c\
-ppc.ld alpha.ld s390.ld exec-i386.h exec-i386.c path.c exec.c mmap.c configure \
+dis-asm.h disas.c disas.h alpha-dis.c ppc-dis.c i386-dis.c sparc-dis.c arm-dis.c\
+ppc.ld alpha.ld s390.ld sparc.ld arm.ld exec-i386.h exec-i386.c path.c exec.c mmap.c configure \
 tests/Makefile\
 tests/test-i386.c tests/test-i386-shift.h tests/test-i386.h\
 tests/test-i386-muldiv.h tests/test-i386-code16.S\
