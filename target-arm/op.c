@@ -190,10 +190,10 @@ void OPPROTO op_ ## sbc ## l_T0_T1_cc(void)     \
     src1 = T0;                                  \
     if (!env->CF) {                             \
         T0 = T0 - T1 - 1;                       \
-        env->CF = src1 >= T1;                   \
+        env->CF = src1 > T1;                    \
     } else {                                    \
         T0 = T0 - T1;                           \
-        env->CF = src1 > T1;                    \
+        env->CF = src1 >= T1;                   \
     }                                           \
     env->VF = (src1 ^ T1) & (src1 ^ T0);        \
     env->NZF = T0;                              \
