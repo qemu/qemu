@@ -2113,20 +2113,22 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_be16s(f, &fpregs_format);
     
     for(i = 0; i < 8; i++) {
-        uint64_t mant;
-        uint16_t exp;
 #ifdef USE_X86LDOUBLE
-        /* we save the real CPU data (in case of MMX usage only 'mant'
-           contains the MMX register */
-        cpu_get_fp80(&mant, &exp, env->fpregs[i].d);
-        qemu_put_be64(f, mant);
-        qemu_put_be16(f, exp);
+        {
+            uint64_t mant;
+            uint16_t exp;
+            /* we save the real CPU data (in case of MMX usage only 'mant'
+               contains the MMX register */
+            cpu_get_fp80(&mant, &exp, env->fpregs[i].d);
+            qemu_put_be64(f, mant);
+            qemu_put_be16(f, exp);
+        }
 #else
         /* if we use doubles for float emulation, we save the doubles to
            avoid losing information in case of MMX usage. It can give
            problems if the image is restored on a CPU where long
            doubles are used instead. */
-        qemu_put_be64(f, env->fpregs[i].xmm.MMX_Q(0));
+        qemu_put_be64(f, env->fpregs[i].mmx.MMX_Q(0));
 #endif
     }
 
@@ -2169,6 +2171,7 @@ void cpu_save(QEMUFile *f, void *opaque)
 #endif
 }
 
+#ifdef USE_X86LDOUBLE
 /* XXX: add that in a FPU generic layer */
 union x86_longdouble {
     uint64_t mant;
@@ -2190,6 +2193,7 @@ static void fp64_to_fp80(union x86_longdouble *p, uint64_t temp)
     e |= SIGND1(temp) >> 16;
     p->exp = e;
 }
+#endif
 
 int cpu_load(QEMUFile *f, void *opaque, int version_id)
 {
@@ -2218,7 +2222,6 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     for(i = 0; i < 8; i++) {
         uint64_t mant;
         uint16_t exp;
-        union x86_longdouble *p;
         
         switch(fpregs_format) {
         case 0:
@@ -2229,7 +2232,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
 #else
             /* difficult case */
             if (guess_mmx)
-                env->fpregs[i].xmm.MMX_Q(0) = mant;
+                env->fpregs[i].mmx.MMX_Q(0) = mant;
             else
                 env->fpregs[i].d = cpu_set_fp80(mant, exp);
 #endif
@@ -2237,16 +2240,19 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
         case 1:
             mant = qemu_get_be64(f);
 #ifdef USE_X86LDOUBLE
-            /* difficult case */
-            p = (void *)&env->fpregs[i];
-            if (guess_mmx) {
-                p->mant = mant;
-                p->exp = 0xffff;
-            } else {
-                fp64_to_fp80(p, mant);
+            {
+                union x86_longdouble *p;
+                /* difficult case */
+                p = (void *)&env->fpregs[i];
+                if (guess_mmx) {
+                    p->mant = mant;
+                    p->exp = 0xffff;
+                } else {
+                    fp64_to_fp80(p, mant);
+                }
             }
 #else
-            env->fpregs[i].xmm.MMX_Q(0) = mant;
+            env->fpregs[i].mmx.MMX_Q(0) = mant;
 #endif            
             break;
         default:
