@@ -1198,12 +1198,12 @@ void OPPROTO op_movl_crN_T0(void)
     helper_movl_crN_T0(PARAM1);
 }
 
+#if !defined(CONFIG_USER_ONLY) 
 void OPPROTO op_movtl_T0_cr8(void)
 {
-#if !defined(CONFIG_USER_ONLY) 
     T0 = cpu_get_apic_tpr(env);
-#endif
 }
+#endif
 
 /* DR registers access */
 void OPPROTO op_movl_drN_T0(void)

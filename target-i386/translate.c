@@ -5638,9 +5638,11 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                     gen_jmp_im(s->pc - s->cs_base);
                     gen_eob(s);
                 } else {
+#if !defined(CONFIG_USER_ONLY) 
                     if (reg == 8)
                         gen_op_movtl_T0_cr8();
                     else
+#endif
                         gen_op_movtl_T0_env(offsetof(CPUX86State,cr[reg]));
                     gen_op_mov_reg_T0[ot][rm]();
                 }
