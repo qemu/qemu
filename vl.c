@@ -2118,7 +2118,7 @@ int main(int argc, char **argv)
                 break;
             case 16:
                 nb_nics = atoi(optarg);
-                if (nb_nics < 1 || nb_nics > MAX_NICS) {
+                if (nb_nics < 0 || nb_nics > MAX_NICS) {
                     fprintf(stderr, "qemu: invalid number of network interfaces\n");
                     exit(1);
                 }
