@@ -210,6 +210,21 @@ static inline void host_to_target_fds(target_long *target_fds,
 #endif
 }
 
+#if defined(__alpha__)
+#define HOST_HZ 1024
+#else
+#define HOST_HZ 100
+#endif
+
+static inline long host_to_target_clock_t(long ticks)
+{
+#if HOST_HZ == TARGET_HZ
+    return ticks;
+#else
+    return ((int64_t)ticks * TARGET_HZ) / HOST_HZ;
+#endif
+}
+
 static inline void host_to_target_rusage(struct target_rusage *target_rusage, 
                                          const struct rusage *rusage)
 {
@@ -1423,11 +1438,13 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             struct tms tms;
             ret = get_errno(times(&tms));
             if (tmsp) {
-                tmsp->tms_utime = tswapl(tms.tms_utime);
-                tmsp->tms_stime = tswapl(tms.tms_stime);
-                tmsp->tms_cutime = tswapl(tms.tms_cutime);
-                tmsp->tms_cstime = tswapl(tms.tms_cstime);
+                tmsp->tms_utime = tswapl(host_to_target_clock_t(tms.tms_utime));
+                tmsp->tms_stime = tswapl(host_to_target_clock_t(tms.tms_stime));
+                tmsp->tms_cutime = tswapl(host_to_target_clock_t(tms.tms_cutime));
+                tmsp->tms_cstime = tswapl(host_to_target_clock_t(tms.tms_cstime));
             }
+            if (!is_error(ret))
+                ret = host_to_target_clock_t(ret);
         }
         break;
     case TARGET_NR_prof:

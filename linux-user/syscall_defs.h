@@ -383,6 +383,8 @@ struct target_itimerval {
 
 typedef target_long target_clock_t;
 
+#define TARGET_HZ 100
+
 struct target_tms {
     target_clock_t tms_utime;
     target_clock_t tms_stime;
@@ -539,8 +541,8 @@ static inline void target_siginitset(target_sigset_t *d, target_ulong set)
         d->sig[i] = 0;
 }
 
-void host_to_target_sigset(target_sigset_t *d, sigset_t *s);
-void target_to_host_sigset(sigset_t *d, target_sigset_t *s);
+void host_to_target_sigset(target_sigset_t *d, const sigset_t *s);
+void target_to_host_sigset(sigset_t *d, const target_sigset_t *s);
 void host_to_target_old_sigset(target_ulong *old_sigset, 
                                const sigset_t *sigset);
 void target_to_host_old_sigset(sigset_t *sigset, 
@@ -590,6 +592,8 @@ int do_sigaction(int sig, const struct target_sigaction *act,
 #define TARGET_SIGPROF		27
 #define TARGET_SIGWINCH	        28
 #define TARGET_SIGIO		29
+#define TARGET_SIGPWR		30
+#define TARGET_SIGSYS		31
 #define TARGET_SIGRTMIN         32
 
 #define TARGET_SIG_BLOCK          0    /* for blocking signals */
