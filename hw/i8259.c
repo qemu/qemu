@@ -231,6 +231,8 @@ static void pic_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             tmp = s->elcr_mask;
             memset(s, 0, sizeof(PicState));
             s->elcr_mask = tmp;
+            /* deassert a pending interrupt */
+            cpu_reset_interrupt(cpu_single_env, CPU_INTERRUPT_HARD);
 
             s->init_state = 1;
             s->init4 = val & 1;

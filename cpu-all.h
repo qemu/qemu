@@ -569,7 +569,6 @@ void page_unprotect_range(uint8_t *data, unsigned long data_size);
 #define cpu_init cpu_x86_init
 #define cpu_exec cpu_x86_exec
 #define cpu_gen_code cpu_x86_gen_code
-#define cpu_interrupt cpu_x86_interrupt
 #define cpu_signal_handler cpu_x86_signal_handler
 #define cpu_dump_state cpu_x86_dump_state
 
@@ -579,7 +578,6 @@ void page_unprotect_range(uint8_t *data, unsigned long data_size);
 #define cpu_init cpu_arm_init
 #define cpu_exec cpu_arm_exec
 #define cpu_gen_code cpu_arm_gen_code
-#define cpu_interrupt cpu_arm_interrupt
 #define cpu_signal_handler cpu_arm_signal_handler
 #define cpu_dump_state cpu_arm_dump_state
 
@@ -589,7 +587,6 @@ void page_unprotect_range(uint8_t *data, unsigned long data_size);
 #define cpu_init cpu_sparc_init
 #define cpu_exec cpu_sparc_exec
 #define cpu_gen_code cpu_sparc_gen_code
-#define cpu_interrupt cpu_sparc_interrupt
 #define cpu_signal_handler cpu_sparc_signal_handler
 #define cpu_dump_state cpu_sparc_dump_state
 
@@ -599,7 +596,6 @@ void page_unprotect_range(uint8_t *data, unsigned long data_size);
 #define cpu_init cpu_ppc_init
 #define cpu_exec cpu_ppc_exec
 #define cpu_gen_code cpu_ppc_gen_code
-#define cpu_interrupt cpu_ppc_interrupt
 #define cpu_signal_handler cpu_ppc_signal_handler
 #define cpu_dump_state cpu_ppc_dump_state
 
@@ -620,6 +616,7 @@ extern int code_copy_enabled;
 #define CPU_INTERRUPT_EXITTB 0x04 /* exit the current TB (use for x86 a20 case) */
 #define CPU_INTERRUPT_TIMER  0x08 /* internal timer exception pending */
 void cpu_interrupt(CPUState *s, int mask);
+void cpu_reset_interrupt(CPUState *env, int mask);
 
 int cpu_breakpoint_insert(CPUState *env, target_ulong pc);
 int cpu_breakpoint_remove(CPUState *env, target_ulong pc);

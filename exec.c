@@ -1112,6 +1112,11 @@ void cpu_interrupt(CPUState *env, int mask)
     }
 }
 
+void cpu_reset_interrupt(CPUState *env, int mask)
+{
+    env->interrupt_request &= ~mask;
+}
+
 CPULogItem cpu_log_items[] = {
     { CPU_LOG_TB_OUT_ASM, "out_asm", 
       "show generated host assembly code for each compiled TB" },
