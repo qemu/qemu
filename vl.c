@@ -52,6 +52,17 @@
 #define memalign(align, size) malloc(size)
 #endif
 
+#ifdef CONFIG_SDL
+/* SDL use the pthreads and they modify sigaction. We don't
+   want that. */
+#if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 2)
+extern void __libc_sigaction();
+#define sigaction(sig, act, oact) __libc_sigaction(sig, act, oact)
+#else
+extern void __sigaction();
+#define sigaction(sig, act, oact) __sigaction(sig, act, oact)
+#endif
+#endif /* CONFIG_SDL */
 
 #include "disas.h"
 
@@ -1544,7 +1555,7 @@ int main_loop(void)
             }
             ioh->max_size = max_size;
         }
-
+        
         ret = poll(ufds, pf - ufds, timeout);
         if (ret > 0) {
             /* XXX: better handling of removal */
@@ -1668,18 +1679,6 @@ struct option long_options[] = {
     { "macaddr", 1, NULL, 0 },
     { NULL, 0, NULL, 0 },
 };
-
-#ifdef CONFIG_SDL
-/* SDL use the pthreads and they modify sigaction. We don't
-   want that. */
-#if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 2)
-extern void __libc_sigaction();
-#define sigaction(sig, act, oact) __libc_sigaction(sig, act, oact)
-#else
-extern void __sigaction();
-#define sigaction(sig, act, oact) __sigaction(sig, act, oact)
-#endif
-#endif /* CONFIG_SDL */
 
 #if defined (TARGET_I386) && defined(USE_CODE_COPY)
 
@@ -2045,8 +2044,6 @@ int main(int argc, char **argv)
         }
     }
 
-    init_timers();
-
     /* init CPU state */
     env = cpu_init();
     global_env = env;
@@ -2070,25 +2067,13 @@ int main(int argc, char **argv)
 #endif
     }
 
-#if defined(TARGET_I386)
-    pc_init(ram_size, vga_ram_size, boot_device,
-            ds, fd_filename, snapshot,
-            kernel_filename, kernel_cmdline, initrd_filename);
-#elif defined(TARGET_PPC)
-    ppc_init();
-#endif
-
-    /* launched after the device init so that it can display or not a
-       banner */
-    monitor_init();
-
     /* setup cpu signal handlers for MMU / self modifying code handling */
 #if !defined(CONFIG_SOFTMMU)
     
 #if defined (TARGET_I386) && defined(USE_CODE_COPY)
     {
         stack_t stk;
-        signal_stack = malloc(SIGNAL_STACK_SIZE);
+        signal_stack = memalign(16, SIGNAL_STACK_SIZE);
         stk.ss_sp = signal_stack;
         stk.ss_size = SIGNAL_STACK_SIZE;
         stk.ss_flags = 0;
@@ -2125,6 +2110,19 @@ int main(int argc, char **argv)
         sigaction(SIGPIPE, &act, NULL);
     }
 #endif
+    init_timers();
+
+#if defined(TARGET_I386)
+    pc_init(ram_size, vga_ram_size, boot_device,
+            ds, fd_filename, snapshot,
+            kernel_filename, kernel_cmdline, initrd_filename);
+#elif defined(TARGET_PPC)
+    ppc_init();
+#endif
+
+    /* launched after the device init so that it can display or not a
+       banner */
+    monitor_init();
 
     gui_timer = qemu_new_timer(rt_clock, gui_update, NULL);
     qemu_mod_timer(gui_timer, qemu_get_clock(rt_clock));
