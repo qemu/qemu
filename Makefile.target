@@ -188,7 +188,7 @@ OP_CFLAGS=$(CFLAGS)
 endif
 
 ifeq ($(ARCH),arm)
-OP_CFLAGS=$(CFLAGS) -mno-sched-prolog
+OP_CFLAGS=$(CFLAGS) -mno-sched-prolog -fno-omit-frame-pointer
 LDFLAGS+=-Wl,-T,$(SRC_PATH)/arm.ld
 endif
 

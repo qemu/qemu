@@ -32,10 +32,10 @@ case "$cpu" in
   i386|i486|i586|i686|i86pc|BePC)
     cpu="i386"
   ;;
-  armv4b)
+  armv*b)
     cpu="armv4b"
   ;;
-  armv4l)
+  armv*l)
     cpu="armv4l"
   ;;
   alpha)
