@@ -4,7 +4,7 @@ RCS file: /cvsroot/bochs/bochs/bios/rombios.c,v
 retrieving revision 1.110
 diff -u -w -r1.110 rombios.c
 --- rombios.c	31 May 2004 13:11:27 -0000	1.110
-+++ rombios.c	3 Oct 2004 21:41:43 -0000
++++ rombios.c	7 Oct 2004 21:23:50 -0000
 @@ -137,6 +137,7 @@
  #define DEBUG_INT16        0
  #define DEBUG_INT1A        0
@@ -60,6 +60,28 @@ diff -u -w -r1.110 rombios.c
  ASM_END
      }
  }
+@@ -5412,8 +5400,8 @@
+         case 0x03: SET_BL( 0x06 ); break;
+         }
+ 
+-      DI = 0xefc7;
+-      ES = 0xf000;
++      DI = read_word(0x00, 0x1e*4); // INT vector 0x1E
++      ES = read_word(0x00, 0x1e*4+2);
+       goto int13_success;
+       break;
+ 
+@@ -6984,8 +6972,8 @@
+         }
+ 
+       /* set es & di to point to 11 byte diskette param table in ROM */
+-      DI = 0xefc7;
+-      ES = 0xf000;
++      DI = read_word(0x00, 0x1e*4); // INT vector 0x1E
++      ES = read_word(0x00, 0x1e*4+2);
+       CLEAR_CF(); // success
+       /* disk status not changed upon success */
+       return;
 @@ -7880,7 +7868,7 @@
    mov  al, #0x02
    out  #0x0a, al   ;; clear DMA-1 channel 2 mask bit
