@@ -517,7 +517,7 @@ static void ide_set_sector(IDEState *s, int64_t sector_num)
         r = sector_num % (s->heads * s->sectors);
         s->hcyl = cyl >> 8;
         s->lcyl = cyl;
-        s->select = (s->select & 0xf0) | (r / s->sectors);
+        s->select = (s->select & 0xf0) | ((r / s->sectors) & 0x0f);
         s->sector = (r % s->sectors) + 1;
     }
 }
