@@ -29,6 +29,14 @@
 #include "vl.h"
 #include "vga_int.h"
 
+/*
+ * TODO:
+ *    - add support for WRITEMASK (GR2F)
+ *    - add support for scanline modulo in pattern fill
+ *    - optimize linear mappings
+ *    - optimize bitblt functions
+ */
+
 //#define DEBUG_CIRRUS
 //#define DEBUG_BITBLT
 
@@ -103,6 +111,7 @@
 #define CIRRUS_BLT_START                0x02
 #define CIRRUS_BLT_RESET                0x04
 #define CIRRUS_BLT_FIFOUSED             0x10
+#define CIRRUS_BLT_AUTOSTART            0x80
 
 // control 0x32
 #define CIRRUS_ROP_0                    0x00
@@ -122,8 +131,12 @@
 #define CIRRUS_ROP_NOTSRC_OR_DST        0xd6
 #define CIRRUS_ROP_NOTSRC_AND_NOTDST    0xda
 
+#define CIRRUS_ROP_NOP_INDEX 2
+#define CIRRUS_ROP_SRC_INDEX 5
+
 // control 0x33
-#define CIRRUS_BLTMODEEXT_SOLIDFILL     0x04
+#define CIRRUS_BLTMODEEXT_SOLIDFILL        0x04
+#define CIRRUS_BLTMODEEXT_DWORDGRANULARITY 0x01
 
 // memory-mapped IO
 #define CIRRUS_MMIO_BLTBGCOLOR        0x00	// dword
@@ -204,16 +217,19 @@
 #define CIRRUS_HOOK_NOT_HANDLED 0
 #define CIRRUS_HOOK_HANDLED 1
 
-typedef void (*cirrus_bitblt_rop_t) (uint8_t * dst, const uint8_t * src,
+struct CirrusVGAState;
+typedef void (*cirrus_bitblt_rop_t) (struct CirrusVGAState *s,
+                                     uint8_t * dst, const uint8_t * src,
 				     int dstpitch, int srcpitch,
 				     int bltwidth, int bltheight);
-
-typedef void (*cirrus_bitblt_handler_t) (void *opaque);
+typedef void (*cirrus_fill_t)(struct CirrusVGAState *s,
+                              uint8_t *dst, int dst_pitch, int width, int height);
 
 typedef struct CirrusVGAState {
     VGA_STATE_COMMON
 
     int cirrus_linear_io_addr;
+    int cirrus_linear_bitblt_io_addr;
     int cirrus_mmio_io_addr;
     uint32_t cirrus_addr_mask;
     uint8_t cirrus_shadow_gr0;
@@ -223,18 +239,21 @@ typedef struct CirrusVGAState {
     uint32_t cirrus_bank_base[2];
     uint32_t cirrus_bank_limit[2];
     uint8_t cirrus_hidden_palette[48];
-    uint32_t cirrus_hw_cursor_x;
-    uint32_t cirrus_hw_cursor_y;
+    uint32_t hw_cursor_x;
+    uint32_t hw_cursor_y;
     int cirrus_blt_pixelwidth;
     int cirrus_blt_width;
     int cirrus_blt_height;
     int cirrus_blt_dstpitch;
     int cirrus_blt_srcpitch;
+    uint32_t cirrus_blt_fgcol;
+    uint32_t cirrus_blt_bgcol;
     uint32_t cirrus_blt_dstaddr;
     uint32_t cirrus_blt_srcaddr;
     uint8_t cirrus_blt_mode;
+    uint8_t cirrus_blt_modeext;
     cirrus_bitblt_rop_t cirrus_rop;
-#define CIRRUS_BLTBUFSIZE 256
+#define CIRRUS_BLTBUFSIZE (2048 * 4) /* one line width */
     uint8_t cirrus_bltbuf[CIRRUS_BLTBUFSIZE];
     uint8_t *cirrus_srcptr;
     uint8_t *cirrus_srcptr_end;
@@ -242,8 +261,12 @@ typedef struct CirrusVGAState {
     uint8_t *cirrus_dstptr;
     uint8_t *cirrus_dstptr_end;
     uint32_t cirrus_dstcounter;
-    cirrus_bitblt_handler_t cirrus_blt_handler;
-    int cirrus_blt_horz_counter;
+    /* hwcursor display state */
+    int last_hw_cursor_size;
+    int last_hw_cursor_x;
+    int last_hw_cursor_y;
+    int last_hw_cursor_y_start;
+    int last_hw_cursor_y_end;
 } CirrusVGAState;
 
 typedef struct PCICirrusVGAState {
@@ -251,6 +274,8 @@ typedef struct PCICirrusVGAState {
     CirrusVGAState cirrus_vga;
 } PCICirrusVGAState;
 
+static uint8_t rop_to_index[256];
+    
 /***************************************
  *
  *  prototypes.
@@ -266,343 +291,233 @@ static void cirrus_bitblt_reset(CirrusVGAState * s);
  *
  ***************************************/
 
-#define IMPLEMENT_BITBLT(name,opline) \
-  static void \
-  cirrus_bitblt_rop_fwd_##name( \
-    uint8_t *dst,const uint8_t *src, \
-    int dstpitch,int srcpitch, \
-    int bltwidth,int bltheight) \
-  { \
-    int x,y; \
-    dstpitch -= bltwidth; \
-    srcpitch -= bltwidth; \
-    for (y = 0; y < bltheight; y++) { \
-      for (x = 0; x < bltwidth; x++) { \
-        opline; \
-        dst++; \
-        src++; \
-        } \
-      dst += dstpitch; \
-      src += srcpitch; \
-      } \
-    } \
- \
-  static void \
-  cirrus_bitblt_rop_bkwd_##name( \
-    uint8_t *dst,const uint8_t *src, \
-    int dstpitch,int srcpitch, \
-    int bltwidth,int bltheight) \
-  { \
-    int x,y; \
-    dstpitch += bltwidth; \
-    srcpitch += bltwidth; \
-    for (y = 0; y < bltheight; y++) { \
-      for (x = 0; x < bltwidth; x++) { \
-        opline; \
-        dst--; \
-        src--; \
-      } \
-      dst += dstpitch; \
-      src += srcpitch; \
-    } \
-  }
-
-IMPLEMENT_BITBLT(0, *dst = 0)
-IMPLEMENT_BITBLT(src_and_dst, *dst = (*src) & (*dst))
-IMPLEMENT_BITBLT(nop, (void) 0)
-IMPLEMENT_BITBLT(src_and_notdst, *dst = (*src) & (~(*dst)))
-IMPLEMENT_BITBLT(notdst, *dst = ~(*dst))
-IMPLEMENT_BITBLT(src, *dst = *src)
-IMPLEMENT_BITBLT(1, *dst = 0xff)
-IMPLEMENT_BITBLT(notsrc_and_dst, *dst = (~(*src)) & (*dst))
-IMPLEMENT_BITBLT(src_xor_dst, *dst = (*src) ^ (*dst))
-IMPLEMENT_BITBLT(src_or_dst, *dst = (*src) | (*dst))
-IMPLEMENT_BITBLT(notsrc_or_notdst, *dst = (~(*src)) | (~(*dst)))
-IMPLEMENT_BITBLT(src_notxor_dst, *dst = ~((*src) ^ (*dst)))
-IMPLEMENT_BITBLT(src_or_notdst, *dst = (*src) | (~(*dst)))
-IMPLEMENT_BITBLT(notsrc, *dst = (~(*src)))
-IMPLEMENT_BITBLT(notsrc_or_dst, *dst = (~(*src)) | (*dst))
-IMPLEMENT_BITBLT(notsrc_and_notdst, *dst = (~(*src)) & (~(*dst)))
-
-static cirrus_bitblt_rop_t cirrus_get_fwd_rop_handler(uint8_t rop)
+static void cirrus_bitblt_rop_nop(CirrusVGAState *s,
+                                  uint8_t *dst,const uint8_t *src,
+                                  int dstpitch,int srcpitch,
+                                  int bltwidth,int bltheight)
 {
-    cirrus_bitblt_rop_t rop_handler = cirrus_bitblt_rop_fwd_nop;
-
-    switch (rop) {
-    case CIRRUS_ROP_0:
-	rop_handler = cirrus_bitblt_rop_fwd_0;
-	break;
-    case CIRRUS_ROP_SRC_AND_DST:
-	rop_handler = cirrus_bitblt_rop_fwd_src_and_dst;
-	break;
-    case CIRRUS_ROP_NOP:
-	rop_handler = cirrus_bitblt_rop_fwd_nop;
-	break;
-    case CIRRUS_ROP_SRC_AND_NOTDST:
-	rop_handler = cirrus_bitblt_rop_fwd_src_and_notdst;
-	break;
-    case CIRRUS_ROP_NOTDST:
-	rop_handler = cirrus_bitblt_rop_fwd_notdst;
-	break;
-    case CIRRUS_ROP_SRC:
-	rop_handler = cirrus_bitblt_rop_fwd_src;
-	break;
-    case CIRRUS_ROP_1:
-	rop_handler = cirrus_bitblt_rop_fwd_1;
-	break;
-    case CIRRUS_ROP_NOTSRC_AND_DST:
-	rop_handler = cirrus_bitblt_rop_fwd_notsrc_and_dst;
-	break;
-    case CIRRUS_ROP_SRC_XOR_DST:
-	rop_handler = cirrus_bitblt_rop_fwd_src_xor_dst;
-	break;
-    case CIRRUS_ROP_SRC_OR_DST:
-	rop_handler = cirrus_bitblt_rop_fwd_src_or_dst;
-	break;
-    case CIRRUS_ROP_NOTSRC_OR_NOTDST:
-	rop_handler = cirrus_bitblt_rop_fwd_notsrc_or_notdst;
-	break;
-    case CIRRUS_ROP_SRC_NOTXOR_DST:
-	rop_handler = cirrus_bitblt_rop_fwd_src_notxor_dst;
-	break;
-    case CIRRUS_ROP_SRC_OR_NOTDST:
-	rop_handler = cirrus_bitblt_rop_fwd_src_or_notdst;
-	break;
-    case CIRRUS_ROP_NOTSRC:
-	rop_handler = cirrus_bitblt_rop_fwd_notsrc;
-	break;
-    case CIRRUS_ROP_NOTSRC_OR_DST:
-	rop_handler = cirrus_bitblt_rop_fwd_notsrc_or_dst;
-	break;
-    case CIRRUS_ROP_NOTSRC_AND_NOTDST:
-	rop_handler = cirrus_bitblt_rop_fwd_notsrc_and_notdst;
-	break;
-    default:
-#ifdef DEBUG_CIRRUS
-	printf("unknown ROP %02x\n", rop);
-#endif
-	break;
-    }
-
-    return rop_handler;
 }
 
-static cirrus_bitblt_rop_t cirrus_get_bkwd_rop_handler(uint8_t rop)
+static void cirrus_bitblt_fill_nop(CirrusVGAState *s,
+                                   uint8_t *dst,
+                                   int dstpitch, int bltwidth,int bltheight)
 {
-    cirrus_bitblt_rop_t rop_handler = cirrus_bitblt_rop_bkwd_nop;
-
-    switch (rop) {
-    case CIRRUS_ROP_0:
-	rop_handler = cirrus_bitblt_rop_bkwd_0;
-	break;
-    case CIRRUS_ROP_SRC_AND_DST:
-	rop_handler = cirrus_bitblt_rop_bkwd_src_and_dst;
-	break;
-    case CIRRUS_ROP_NOP:
-	rop_handler = cirrus_bitblt_rop_bkwd_nop;
-	break;
-    case CIRRUS_ROP_SRC_AND_NOTDST:
-	rop_handler = cirrus_bitblt_rop_bkwd_src_and_notdst;
-	break;
-    case CIRRUS_ROP_NOTDST:
-	rop_handler = cirrus_bitblt_rop_bkwd_notdst;
-	break;
-    case CIRRUS_ROP_SRC:
-	rop_handler = cirrus_bitblt_rop_bkwd_src;
-	break;
-    case CIRRUS_ROP_1:
-	rop_handler = cirrus_bitblt_rop_bkwd_1;
-	break;
-    case CIRRUS_ROP_NOTSRC_AND_DST:
-	rop_handler = cirrus_bitblt_rop_bkwd_notsrc_and_dst;
-	break;
-    case CIRRUS_ROP_SRC_XOR_DST:
-	rop_handler = cirrus_bitblt_rop_bkwd_src_xor_dst;
-	break;
-    case CIRRUS_ROP_SRC_OR_DST:
-	rop_handler = cirrus_bitblt_rop_bkwd_src_or_dst;
-	break;
-    case CIRRUS_ROP_NOTSRC_OR_NOTDST:
-	rop_handler = cirrus_bitblt_rop_bkwd_notsrc_or_notdst;
-	break;
-    case CIRRUS_ROP_SRC_NOTXOR_DST:
-	rop_handler = cirrus_bitblt_rop_bkwd_src_notxor_dst;
-	break;
-    case CIRRUS_ROP_SRC_OR_NOTDST:
-	rop_handler = cirrus_bitblt_rop_bkwd_src_or_notdst;
-	break;
-    case CIRRUS_ROP_NOTSRC:
-	rop_handler = cirrus_bitblt_rop_bkwd_notsrc;
-	break;
-    case CIRRUS_ROP_NOTSRC_OR_DST:
-	rop_handler = cirrus_bitblt_rop_bkwd_notsrc_or_dst;
-	break;
-    case CIRRUS_ROP_NOTSRC_AND_NOTDST:
-	rop_handler = cirrus_bitblt_rop_bkwd_notsrc_and_notdst;
-	break;
-    default:
-#ifdef DEBUG_CIRRUS
-	printf("unknown ROP %02x\n", rop);
-#endif
-	break;
-    }
-
-    return rop_handler;
 }
 
-/***************************************
- *
- *  color expansion
- *
- ***************************************/
+#define ROP_NAME 0
+#define ROP_OP(d, s) d = 0
+#include "cirrus_vga_rop.h"
 
-static void
-cirrus_colorexpand_8(CirrusVGAState * s, uint8_t * dst,
-		     const uint8_t * src, int count)
+#define ROP_NAME src_and_dst
+#define ROP_OP(d, s) d = (s) & (d)
+#include "cirrus_vga_rop.h"
+
+#define ROP_NAME src_and_notdst
+#define ROP_OP(d, s) d = (s) & (~(d))
+#include "cirrus_vga_rop.h"
+
+#define ROP_NAME notdst
+#define ROP_OP(d, s) d = ~(d)
+#include "cirrus_vga_rop.h"
+
+#define ROP_NAME src
+#define ROP_OP(d, s) d = s
+#include "cirrus_vga_rop.h"
+
+#define ROP_NAME 1
+#define ROP_OP(d, s) d = 0xff
+#include "cirrus_vga_rop.h"
+
+#define ROP_NAME notsrc_and_dst
+#define ROP_OP(d, s) d = (~(s)) & (d)
+#include "cirrus_vga_rop.h"
+
+#define ROP_NAME src_xor_dst
+#define ROP_OP(d, s) d = (s) ^ (d)
+#include "cirrus_vga_rop.h"
+
+#define ROP_NAME src_or_dst
+#define ROP_OP(d, s) d = (s) | (d)
+#include "cirrus_vga_rop.h"
+
+#define ROP_NAME notsrc_or_notdst
+#define ROP_OP(d, s) d = (~(s)) | (~(d))
+#include "cirrus_vga_rop.h"
+
+#define ROP_NAME src_notxor_dst
+#define ROP_OP(d, s) d = ~((s) ^ (d))
+#include "cirrus_vga_rop.h"
+
+#define ROP_NAME src_or_notdst
+#define ROP_OP(d, s) d = (s) | (~(d))
+#include "cirrus_vga_rop.h"
+
+#define ROP_NAME notsrc
+#define ROP_OP(d, s) d = (~(s))
+#include "cirrus_vga_rop.h"
+
+#define ROP_NAME notsrc_or_dst
+#define ROP_OP(d, s) d = (~(s)) | (d)
+#include "cirrus_vga_rop.h"
+
+#define ROP_NAME notsrc_and_notdst
+#define ROP_OP(d, s) d = (~(s)) & (~(d))
+#include "cirrus_vga_rop.h"
+
+static const cirrus_bitblt_rop_t cirrus_fwd_rop[16] = {
+    cirrus_bitblt_rop_fwd_0,
+    cirrus_bitblt_rop_fwd_src_and_dst,
+    cirrus_bitblt_rop_nop,
+    cirrus_bitblt_rop_fwd_src_and_notdst,
+    cirrus_bitblt_rop_fwd_notdst,
+    cirrus_bitblt_rop_fwd_src,
+    cirrus_bitblt_rop_fwd_1,
+    cirrus_bitblt_rop_fwd_notsrc_and_dst,
+    cirrus_bitblt_rop_fwd_src_xor_dst,
+    cirrus_bitblt_rop_fwd_src_or_dst,
+    cirrus_bitblt_rop_fwd_notsrc_or_notdst,
+    cirrus_bitblt_rop_fwd_src_notxor_dst,
+    cirrus_bitblt_rop_fwd_src_or_notdst,
+    cirrus_bitblt_rop_fwd_notsrc,
+    cirrus_bitblt_rop_fwd_notsrc_or_dst,
+    cirrus_bitblt_rop_fwd_notsrc_and_notdst,
+};
+
+static const cirrus_bitblt_rop_t cirrus_bkwd_rop[16] = {
+    cirrus_bitblt_rop_bkwd_0,
+    cirrus_bitblt_rop_bkwd_src_and_dst,
+    cirrus_bitblt_rop_nop,
+    cirrus_bitblt_rop_bkwd_src_and_notdst,
+    cirrus_bitblt_rop_bkwd_notdst,
+    cirrus_bitblt_rop_bkwd_src,
+    cirrus_bitblt_rop_bkwd_1,
+    cirrus_bitblt_rop_bkwd_notsrc_and_dst,
+    cirrus_bitblt_rop_bkwd_src_xor_dst,
+    cirrus_bitblt_rop_bkwd_src_or_dst,
+    cirrus_bitblt_rop_bkwd_notsrc_or_notdst,
+    cirrus_bitblt_rop_bkwd_src_notxor_dst,
+    cirrus_bitblt_rop_bkwd_src_or_notdst,
+    cirrus_bitblt_rop_bkwd_notsrc,
+    cirrus_bitblt_rop_bkwd_notsrc_or_dst,
+    cirrus_bitblt_rop_bkwd_notsrc_and_notdst,
+};
+    
+#define ROP2(name) {\
+    name ## _8,\
+    name ## _16,\
+    name ## _24,\
+    name ## _32,\
+        }
+
+#define ROP_NOP2(func) {\
+    func,\
+    func,\
+    func,\
+    func,\
+        }
+
+static const cirrus_bitblt_rop_t cirrus_colorexpand_transp[16][4] = {
+    ROP2(cirrus_colorexpand_transp_0),
+    ROP2(cirrus_colorexpand_transp_src_and_dst),
+    ROP_NOP2(cirrus_bitblt_rop_nop),
+    ROP2(cirrus_colorexpand_transp_src_and_notdst),
+    ROP2(cirrus_colorexpand_transp_notdst),
+    ROP2(cirrus_colorexpand_transp_src),
+    ROP2(cirrus_colorexpand_transp_1),
+    ROP2(cirrus_colorexpand_transp_notsrc_and_dst),
+    ROP2(cirrus_colorexpand_transp_src_xor_dst),
+    ROP2(cirrus_colorexpand_transp_src_or_dst),
+    ROP2(cirrus_colorexpand_transp_notsrc_or_notdst),
+    ROP2(cirrus_colorexpand_transp_src_notxor_dst),
+    ROP2(cirrus_colorexpand_transp_src_or_notdst),
+    ROP2(cirrus_colorexpand_transp_notsrc),
+    ROP2(cirrus_colorexpand_transp_notsrc_or_dst),
+    ROP2(cirrus_colorexpand_transp_notsrc_and_notdst),
+};
+
+static const cirrus_bitblt_rop_t cirrus_colorexpand[16][4] = {
+    ROP2(cirrus_colorexpand_0),
+    ROP2(cirrus_colorexpand_src_and_dst),
+    ROP_NOP2(cirrus_bitblt_rop_nop),
+    ROP2(cirrus_colorexpand_src_and_notdst),
+    ROP2(cirrus_colorexpand_notdst),
+    ROP2(cirrus_colorexpand_src),
+    ROP2(cirrus_colorexpand_1),
+    ROP2(cirrus_colorexpand_notsrc_and_dst),
+    ROP2(cirrus_colorexpand_src_xor_dst),
+    ROP2(cirrus_colorexpand_src_or_dst),
+    ROP2(cirrus_colorexpand_notsrc_or_notdst),
+    ROP2(cirrus_colorexpand_src_notxor_dst),
+    ROP2(cirrus_colorexpand_src_or_notdst),
+    ROP2(cirrus_colorexpand_notsrc),
+    ROP2(cirrus_colorexpand_notsrc_or_dst),
+    ROP2(cirrus_colorexpand_notsrc_and_notdst),
+};
+
+static const cirrus_fill_t cirrus_fill[16][4] = {
+    ROP2(cirrus_fill_0),
+    ROP2(cirrus_fill_src_and_dst),
+    ROP_NOP2(cirrus_bitblt_fill_nop),
+    ROP2(cirrus_fill_src_and_notdst),
+    ROP2(cirrus_fill_notdst),
+    ROP2(cirrus_fill_src),
+    ROP2(cirrus_fill_1),
+    ROP2(cirrus_fill_notsrc_and_dst),
+    ROP2(cirrus_fill_src_xor_dst),
+    ROP2(cirrus_fill_src_or_dst),
+    ROP2(cirrus_fill_notsrc_or_notdst),
+    ROP2(cirrus_fill_src_notxor_dst),
+    ROP2(cirrus_fill_src_or_notdst),
+    ROP2(cirrus_fill_notsrc),
+    ROP2(cirrus_fill_notsrc_or_dst),
+    ROP2(cirrus_fill_notsrc_and_notdst),
+};
+
+static inline void cirrus_bitblt_fgcol(CirrusVGAState *s)
 {
-    int x;
-    uint8_t colors[2];
-    unsigned bits;
-    unsigned bitmask;
-    int srcskipleft = 0;
-
-    colors[0] = s->cirrus_shadow_gr0;
-    colors[1] = s->cirrus_shadow_gr1;
-
-    bitmask = 0x80 >> srcskipleft;
-    bits = *src++;
-    for (x = 0; x < count; x++) {
-	if ((bitmask & 0xff) == 0) {
-	    bitmask = 0x80;
-	    bits = *src++;
-	}
-	*dst++ = colors[!!(bits & bitmask)];
-	bitmask >>= 1;
-    }
-}
-
-static void
-cirrus_colorexpand_16(CirrusVGAState * s, uint8_t * dst,
-		      const uint8_t * src, int count)
-{
-    int x;
-    uint8_t colors[2][2];
-    unsigned bits;
-    unsigned bitmask;
-    unsigned index;
-    int srcskipleft = 0;
-
-    colors[0][0] = s->cirrus_shadow_gr0;
-    colors[0][1] = s->gr[0x10];
-    colors[1][0] = s->cirrus_shadow_gr1;
-    colors[1][1] = s->gr[0x11];
-
-    bitmask = 0x80 >> srcskipleft;
-    bits = *src++;
-    for (x = 0; x < count; x++) {
-	if ((bitmask & 0xff) == 0) {
-	    bitmask = 0x80;
-	    bits = *src++;
-	}
-	index = !!(bits & bitmask);
-	*dst++ = colors[index][0];
-	*dst++ = colors[index][1];
-	bitmask >>= 1;
-    }
-}
-
-static void
-cirrus_colorexpand_24(CirrusVGAState * s, uint8_t * dst,
-		      const uint8_t * src, int count)
-{
-    int x;
-    uint8_t colors[2][3];
-    unsigned bits;
-    unsigned bitmask;
-    unsigned index;
-    int srcskipleft = 0;
-
-    colors[0][0] = s->cirrus_shadow_gr0;
-    colors[0][1] = s->gr[0x10];
-    colors[0][2] = s->gr[0x12];
-    colors[1][0] = s->cirrus_shadow_gr1;
-    colors[1][1] = s->gr[0x11];
-    colors[1][2] = s->gr[0x13];
-
-    bitmask = 0x80 << srcskipleft;
-    bits = *src++;
-    for (x = 0; x < count; x++) {
-	if ((bitmask & 0xff) == 0) {
-	    bitmask = 0x80;
-	    bits = *src++;
-	}
-	index = !!(bits & bitmask);
-	*dst++ = colors[index][0];
-	*dst++ = colors[index][1];
-	*dst++ = colors[index][2];
-	bitmask >>= 1;
-    }
-}
-
-static void
-cirrus_colorexpand_32(CirrusVGAState * s, uint8_t * dst,
-		      const uint8_t * src, int count)
-{
-    int x;
-    uint8_t colors[2][4];
-    unsigned bits;
-    unsigned bitmask;
-    unsigned index;
-    int srcskipleft = 0;
-
-    colors[0][0] = s->cirrus_shadow_gr0;
-    colors[0][1] = s->gr[0x10];
-    colors[0][2] = s->gr[0x12];
-    colors[0][3] = s->gr[0x14];
-    colors[1][0] = s->cirrus_shadow_gr1;
-    colors[1][1] = s->gr[0x11];
-    colors[1][2] = s->gr[0x13];
-    colors[1][3] = s->gr[0x15];
-
-    bitmask = 0x80 << srcskipleft;
-    bits = *src++;
-    for (x = 0; x < count; x++) {
-	if ((bitmask & 0xff) == 0) {
-	    bitmask = 0x80;
-	    bits = *src++;
-	}
-	index = !!(bits & bitmask);
-	*dst++ = colors[index][0];
-	*dst++ = colors[index][1];
-	*dst++ = colors[index][2];
-	*dst++ = colors[index][3];
-	bitmask >>= 1;
-    }
-}
-
-static void
-cirrus_colorexpand(CirrusVGAState * s, uint8_t * dst, const uint8_t * src,
-		   int count)
-{
+    unsigned int color;
     switch (s->cirrus_blt_pixelwidth) {
     case 1:
-	cirrus_colorexpand_8(s, dst, src, count);
-	break;
+        s->cirrus_blt_fgcol = s->cirrus_shadow_gr1;
+        break;
     case 2:
-	cirrus_colorexpand_16(s, dst, src, count);
-	break;
+        color = s->cirrus_shadow_gr1 | (s->gr[0x11] << 8);
+        s->cirrus_blt_fgcol = le16_to_cpu(color);
+        break;
     case 3:
-	cirrus_colorexpand_24(s, dst, src, count);
-	break;
-    case 4:
-	cirrus_colorexpand_32(s, dst, src, count);
-	break;
+        s->cirrus_blt_fgcol = s->cirrus_shadow_gr1 | 
+            (s->gr[0x11] << 8) | (s->gr[0x13] << 16);
+        break;
     default:
-#ifdef DEBUG_CIRRUS
-	printf("cirrus: COLOREXPAND pixelwidth %d - unimplemented\n",
-	       s->cirrus_blt_pixelwidth);
-#endif
-	break;
+    case 4:
+        color = s->cirrus_shadow_gr1 | (s->gr[0x11] << 8) |
+            (s->gr[0x13] << 16) | (s->gr[0x15] << 24);
+        s->cirrus_blt_fgcol = le32_to_cpu(color);
+        break;
+    }
+}
+
+static inline void cirrus_bitblt_bgcol(CirrusVGAState *s)
+{
+    unsigned int color;
+    switch (s->cirrus_blt_pixelwidth) {
+    case 1:
+        s->cirrus_blt_bgcol = s->cirrus_shadow_gr0;
+        break;
+    case 2:
+        color = s->cirrus_shadow_gr0 | (s->gr[0x10] << 8);
+        s->cirrus_blt_bgcol = le16_to_cpu(color);
+        break;
+    case 3:
+        s->cirrus_blt_bgcol = s->cirrus_shadow_gr0 | 
+            (s->gr[0x10] << 8) | (s->gr[0x12] << 16);
+        break;
+    default:
+    case 4:
+        color = s->cirrus_shadow_gr0 | (s->gr[0x10] << 8) |
+            (s->gr[0x12] << 16) | (s->gr[0x14] << 24);
+        s->cirrus_blt_bgcol = le32_to_cpu(color);
+        break;
     }
 }
 
@@ -626,8 +541,6 @@ static void cirrus_invalidate_region(CirrusVGAState * s, int off_begin,
     }
 }
 
-
-
 static int cirrus_bitblt_common_patterncopy(CirrusVGAState * s,
 					    const uint8_t * src)
 {
@@ -639,12 +552,16 @@ static int cirrus_bitblt_common_patterncopy(CirrusVGAState * s,
     int patternbytes = s->cirrus_blt_pixelwidth * 8;
 
     if (s->cirrus_blt_mode & CIRRUS_BLTMODE_COLOREXPAND) {
-	cirrus_colorexpand(s, work_colorexp, src, 8 * 8);
+        cirrus_bitblt_rop_t rop_func;
+        cirrus_bitblt_fgcol(s);
+        cirrus_bitblt_bgcol(s);
+        rop_func = cirrus_colorexpand[CIRRUS_ROP_SRC_INDEX][s->cirrus_blt_pixelwidth - 1];
+        rop_func(s, work_colorexp, src, patternbytes, 1, patternbytes, 8);
 	src = work_colorexp;
 	s->cirrus_blt_mode &= ~CIRRUS_BLTMODE_COLOREXPAND;
     }
     if (s->cirrus_blt_mode & ~CIRRUS_BLTMODE_PATTERNCOPY) {
-#ifdef DEBUG_CIRRUS
+#ifdef DEBUG_BITBLT
 	printf("cirrus: blt mode %02x (pattercopy) - unimplemented\n",
 	       s->cirrus_blt_mode);
 #endif
@@ -657,7 +574,7 @@ static int cirrus_bitblt_common_patterncopy(CirrusVGAState * s,
 	tileheight = qemu_MIN(8, s->cirrus_blt_height - y);
 	for (x = 0; x < s->cirrus_blt_width; x += patternbytes) {
 	    tilewidth = qemu_MIN(patternbytes, s->cirrus_blt_width - x);
-	    (*s->cirrus_rop) (dstc, src,
+	    (*s->cirrus_rop) (s, dstc, src,
 			      s->cirrus_blt_dstpitch, patternbytes,
 			      tilewidth, tileheight);
 	    dstc += patternbytes;
@@ -672,111 +589,14 @@ static int cirrus_bitblt_common_patterncopy(CirrusVGAState * s,
 
 /* fill */
 
-static void cirrus_fill_8(CirrusVGAState *s,
-                          uint8_t *dst, int dst_pitch, int width, int height)
+static int cirrus_bitblt_solidfill(CirrusVGAState *s, int blt_rop)
 {
-    uint8_t *d, *d1;
-    uint32_t val;
-    int x, y;
+    cirrus_fill_t rop_func;
 
-    val = s->cirrus_shadow_gr1;
-
-    d1 = dst;
-    for(y = 0; y < height; y++) {
-        d = d1;
-        for(x = 0; x < width; x++) {
-            *d++ = val;
-        }
-        d1 += dst_pitch;
-    }
-}
-
-static void cirrus_fill_16(CirrusVGAState *s,
-                           uint8_t *dst, int dst_pitch, int width, int height)
-{
-    uint8_t *d, *d1;
-    uint32_t val;
-    int x, y;
-
-    val = s->cirrus_shadow_gr1 | (s->gr[0x11] << 8);
-    val = le16_to_cpu(val);
-    width >>= 1;
-
-    d1 = dst;
-    for(y = 0; y < height; y++) {
-        d = d1;
-        for(x = 0; x < width; x++) {
-            ((uint16_t *)d)[0] = val;
-            d += 2;
-        }
-        d1 += dst_pitch;
-    }
-}
-
-static void cirrus_fill_24(CirrusVGAState *s,
-                           uint8_t *dst, int dst_pitch, int width, int height)
-{
-    uint8_t *d, *d1;
-    int x, y;
-
-    d1 = dst;
-    for(y = 0; y < height; y++) {
-        d = d1;
-        for(x = 0; x < width; x += 3) {
-            *d++ = s->cirrus_shadow_gr1;
-            *d++ = s->gr[0x11];
-            *d++ = s->gr[0x13];
-        }
-        d1 += dst_pitch;
-    }
-}
-
-static void cirrus_fill_32(CirrusVGAState *s,
-                           uint8_t *dst, int dst_pitch, int width, int height)
-{
-    uint8_t *d, *d1;
-    uint32_t val;
-    int x, y;
-
-    val = s->cirrus_shadow_gr1 | (s->gr[0x11] << 8) | 
-        (s->gr[0x13] << 8) | (s->gr[0x15] << 8);
-    val = le32_to_cpu(val);
-    width >>= 2;
-
-    d1 = dst;
-    for(y = 0; y < height; y++) {
-        d = d1;
-        for(x = 0; x < width; x++) {
-            ((uint32_t *)d)[0] = val;
-            d += 4;
-        }
-        d1 += dst_pitch;
-    }
-}
-
-static int cirrus_bitblt_solidfill(CirrusVGAState *s)
-{
-    uint8_t *dst;
-    dst = s->vram_ptr + s->cirrus_blt_dstaddr;
-    switch (s->cirrus_blt_pixelwidth) {
-    case 1:
-	cirrus_fill_8(s, dst, s->cirrus_blt_dstpitch,
-                      s->cirrus_blt_width, s->cirrus_blt_height);
-	break;
-    case 2:
-	cirrus_fill_16(s, dst, s->cirrus_blt_dstpitch,
-                       s->cirrus_blt_width, s->cirrus_blt_height);
-	break;
-    case 3:
-	cirrus_fill_24(s, dst, s->cirrus_blt_dstpitch,
-                       s->cirrus_blt_width, s->cirrus_blt_height);
-	break;
-    default:
-    case 4:
-	cirrus_fill_32(s, dst, s->cirrus_blt_dstpitch,
-                       s->cirrus_blt_width, s->cirrus_blt_height);
-	break;
-    }
+    rop_func = cirrus_fill[rop_to_index[blt_rop]][s->cirrus_blt_pixelwidth - 1];
+    rop_func(s, s->vram_ptr + s->cirrus_blt_dstaddr, 
+             s->cirrus_blt_dstpitch,
+             s->cirrus_blt_width, s->cirrus_blt_height);
     cirrus_invalidate_region(s, s->cirrus_blt_dstaddr,
 			     s->cirrus_blt_dstpitch, s->cirrus_blt_width,
 			     s->cirrus_blt_height);
@@ -799,21 +619,7 @@ static int cirrus_bitblt_videotovideo_patterncopy(CirrusVGAState * s)
 
 static int cirrus_bitblt_videotovideo_copy(CirrusVGAState * s)
 {
-    if ((s->cirrus_blt_mode & CIRRUS_BLTMODE_COLOREXPAND) != 0) {
-#ifdef DEBUG_CIRRUS
-	printf("cirrus: CIRRUS_BLTMODE_COLOREXPAND - unimplemented\n");
-#endif
-	return 0;
-    }
-    if ((s->cirrus_blt_mode & (~CIRRUS_BLTMODE_BACKWARDS)) != 0) {
-#ifdef DEBUG_CIRRUS
-	printf("cirrus: blt mode %02x - unimplemented\n",
-	       s->cirrus_blt_mode);
-#endif
-	return 0;
-    }
-
-    (*s->cirrus_rop) (s->vram_ptr + s->cirrus_blt_dstaddr,
+    (*s->cirrus_rop) (s, s->vram_ptr + s->cirrus_blt_dstaddr,
 		      s->vram_ptr + s->cirrus_blt_srcaddr,
 		      s->cirrus_blt_dstpitch, s->cirrus_blt_srcpitch,
 		      s->cirrus_blt_width, s->cirrus_blt_height);
@@ -829,130 +635,38 @@ static int cirrus_bitblt_videotovideo_copy(CirrusVGAState * s)
  *
  ***************************************/
 
-static void cirrus_bitblt_cputovideo_patterncopy(void *opaque)
-{
-    CirrusVGAState *s = (CirrusVGAState *) opaque;
-    int data_count;
-
-    data_count = s->cirrus_srcptr - &s->cirrus_bltbuf[0];
-
-    if (data_count > 0) {
-	if (data_count != s->cirrus_srccounter) {
-#ifdef DEBUG_CIRRUS
-	    printf("cirrus: internal error\n");
-#endif
-	} else {
-	    cirrus_bitblt_common_patterncopy(s, &s->cirrus_bltbuf[0]);
-	}
-	cirrus_bitblt_reset(s);
-    }
-}
-
-static void cirrus_bitblt_cputovideo_copy(void *opaque)
-{
-    CirrusVGAState *s = (CirrusVGAState *) opaque;
-    int data_count;
-    int data_avail;
-    uint8_t work_colorexp[256];
-    uint8_t *src_ptr = NULL;
-    int src_avail = 0;
-    int src_processing;
-    int src_linepad = 0;
-
-    if (s->cirrus_blt_height <= 0) {
-	s->cirrus_srcptr = s->cirrus_srcptr_end;
-	return;
-    }
-
-    s->cirrus_srcptr = &s->cirrus_bltbuf[0];
-    while (1) {
-	/* get BLT source. */
-	if (src_avail <= 0) {
-	    data_count = s->cirrus_srcptr_end - s->cirrus_srcptr;
-	    if (data_count <= 0)
-		break;
-
-	    if (s->cirrus_blt_mode & CIRRUS_BLTMODE_COLOREXPAND) {
-		if (s->cirrus_blt_mode & ~CIRRUS_BLTMODE_COLOREXPAND) {
-#ifdef DEBUG_CIRRUS
-		    printf("cirrus: unsupported\n");
-#endif
-		    cirrus_bitblt_reset(s);
-		    return;
-		}
-		data_avail = qemu_MIN(data_count, 256 / 32);
-		cirrus_colorexpand(s, work_colorexp, s->cirrus_srcptr,
-				   data_avail * 8);
-		src_ptr = &work_colorexp[0];
-		src_avail = data_avail * 8 * s->cirrus_blt_pixelwidth;
-		s->cirrus_srcptr += data_avail;
-		src_linepad =
-		    ((s->cirrus_blt_width + 7) / 8) * 8 -
-		    s->cirrus_blt_width;
-		src_linepad *= s->cirrus_blt_pixelwidth;
-	    } else {
-		if (s->cirrus_blt_mode != 0) {
-#ifdef DEBUG_CIRRUS
-		    printf("cirrus: unsupported\n");
-#endif
-		    cirrus_bitblt_reset(s);
-		    return;
-		}
-		src_ptr = s->cirrus_srcptr;
-		src_avail =
-		    data_count / s->cirrus_blt_pixelwidth *
-		    s->cirrus_blt_pixelwidth;
-		s->cirrus_srcptr += src_avail;
-	    }
-	    if (src_avail <= 0)
-		break;
-	}
-
-	/* 1-line BLT */
-	src_processing =
-	    s->cirrus_blt_srcpitch - s->cirrus_blt_horz_counter;
-	src_processing = qemu_MIN(src_avail, src_processing);
-	(*s->cirrus_rop) (s->vram_ptr + s->cirrus_blt_dstaddr,
-			  src_ptr, 0, 0, src_processing, 1);
-	cirrus_invalidate_region(s, s->cirrus_blt_dstaddr, 0,
-				 src_processing, 1);
-
-	s->cirrus_blt_dstaddr += src_processing;
-	src_ptr += src_processing;
-	src_avail -= src_processing;
-	s->cirrus_blt_horz_counter += src_processing;
-	if (s->cirrus_blt_horz_counter >= s->cirrus_blt_srcpitch) {
-	    src_ptr += src_linepad;
-	    src_avail -= src_linepad;
-	    s->cirrus_blt_dstaddr +=
-		s->cirrus_blt_dstpitch - s->cirrus_blt_srcpitch;
-	    s->cirrus_blt_horz_counter = 0;
-	    s->cirrus_blt_height--;
-	    if (s->cirrus_blt_height <= 0) {
-		s->cirrus_srcptr = s->cirrus_srcptr_end;
-		return;
-	    }
-	}
-    }
-}
-
 static void cirrus_bitblt_cputovideo_next(CirrusVGAState * s)
 {
     int copy_count;
-    int avail_count;
-
-    s->cirrus_blt_handler(s);
-
+    uint8_t *end_ptr;
+    
     if (s->cirrus_srccounter > 0) {
-	s->cirrus_srccounter -= s->cirrus_srcptr - &s->cirrus_bltbuf[0];
-	copy_count = s->cirrus_srcptr_end - s->cirrus_srcptr;
-	memmove(&s->cirrus_bltbuf[0], s->cirrus_srcptr, copy_count);
-	avail_count = qemu_MIN(CIRRUS_BLTBUFSIZE, s->cirrus_srccounter);
-	s->cirrus_srcptr = &s->cirrus_bltbuf[0];
-	s->cirrus_srcptr_end = s->cirrus_srcptr + avail_count;
-	if (s->cirrus_srccounter <= 0) {
-	    cirrus_bitblt_reset(s);
-	}
+        if (s->cirrus_blt_mode & CIRRUS_BLTMODE_PATTERNCOPY) {
+            cirrus_bitblt_common_patterncopy(s, s->cirrus_bltbuf);
+        the_end:
+            s->cirrus_srccounter = 0;
+            cirrus_bitblt_reset(s);
+        } else {
+            /* at least one scan line */
+            do {
+                (*s->cirrus_rop)(s, s->vram_ptr + s->cirrus_blt_dstaddr,
+                                 s->cirrus_bltbuf, 0, 0, s->cirrus_blt_width, 1);
+                cirrus_invalidate_region(s, s->cirrus_blt_dstaddr, 0,
+                                         s->cirrus_blt_width, 1);
+                s->cirrus_blt_dstaddr += s->cirrus_blt_dstpitch;
+                s->cirrus_srccounter -= s->cirrus_blt_srcpitch;
+                if (s->cirrus_srccounter <= 0)
+                    goto the_end;
+                /* more bytes than needed can be transfered because of
+                   word alignment, so we keep them for the next line */
+                /* XXX: keep alignment to speed up transfer */
+                end_ptr = s->cirrus_bltbuf + s->cirrus_blt_srcpitch;
+                copy_count = s->cirrus_srcptr_end - end_ptr;
+                memmove(s->cirrus_bltbuf, end_ptr, copy_count);
+                s->cirrus_srcptr = s->cirrus_bltbuf + copy_count;
+                s->cirrus_srcptr_end = s->cirrus_bltbuf + s->cirrus_blt_srcpitch;
+            } while (s->cirrus_srcptr >= s->cirrus_srcptr_end);
+        }
     }
 }
 
@@ -972,49 +686,44 @@ static void cirrus_bitblt_reset(CirrusVGAState * s)
     s->cirrus_dstptr = &s->cirrus_bltbuf[0];
     s->cirrus_dstptr_end = &s->cirrus_bltbuf[0];
     s->cirrus_dstcounter = 0;
-    s->cirrus_blt_handler = NULL;
 }
 
 static int cirrus_bitblt_cputovideo(CirrusVGAState * s)
 {
+    int w;
+
     s->cirrus_blt_mode &= ~CIRRUS_BLTMODE_MEMSYSSRC;
     s->cirrus_srcptr = &s->cirrus_bltbuf[0];
     s->cirrus_srcptr_end = &s->cirrus_bltbuf[0];
 
     if (s->cirrus_blt_mode & CIRRUS_BLTMODE_PATTERNCOPY) {
 	if (s->cirrus_blt_mode & CIRRUS_BLTMODE_COLOREXPAND) {
-	    s->cirrus_srccounter = 8;
+	    s->cirrus_blt_srcpitch = 8;
 	} else {
-	    s->cirrus_srccounter = 8 * 8 * s->cirrus_blt_pixelwidth;
+	    s->cirrus_blt_srcpitch = 8 * 8 * s->cirrus_blt_pixelwidth;
 	}
-	s->cirrus_blt_srcpitch = 0;
-	s->cirrus_blt_handler = cirrus_bitblt_cputovideo_patterncopy;
+	s->cirrus_srccounter = s->cirrus_blt_srcpitch;
     } else {
 	if (s->cirrus_blt_mode & CIRRUS_BLTMODE_COLOREXPAND) {
-	    s->cirrus_srccounter =
-		((s->cirrus_blt_width + 7) / 8) * s->cirrus_blt_height;
-	    s->cirrus_blt_srcpitch =
-		s->cirrus_blt_width * s->cirrus_blt_pixelwidth;
+            w = s->cirrus_blt_width / s->cirrus_blt_pixelwidth;
+            if (s->cirrus_blt_modeext & CIRRUS_BLTMODEEXT_DWORDGRANULARITY) 
+                s->cirrus_blt_srcpitch = ((w + 31) >> 5);
+            else
+                s->cirrus_blt_srcpitch = ((w + 7) >> 3);
 	} else {
-	    s->cirrus_srccounter =
-		s->cirrus_blt_width * s->cirrus_blt_height;
 	    s->cirrus_blt_srcpitch = s->cirrus_blt_width;
 	}
-	/* 4-byte alignment */
-	s->cirrus_srccounter = (s->cirrus_srccounter + 3) & (~3);
-
-	s->cirrus_blt_handler = cirrus_bitblt_cputovideo_copy;
-	s->cirrus_blt_horz_counter = 0;
+        s->cirrus_srccounter = s->cirrus_blt_srcpitch * s->cirrus_blt_height;
     }
-
-    cirrus_bitblt_cputovideo_next(s);
+    s->cirrus_srcptr = s->cirrus_bltbuf;
+    s->cirrus_srcptr_end = s->cirrus_bltbuf + s->cirrus_blt_srcpitch;
     return 1;
 }
 
 static int cirrus_bitblt_videotocpu(CirrusVGAState * s)
 {
     /* XXX */
-#ifdef DEBUG_CIRRUS
+#ifdef DEBUG_BITBLT
     printf("cirrus: bitblt (video to cpu) is not implemented yet\n");
 #endif
     return 0;
@@ -1029,7 +738,6 @@ static int cirrus_bitblt_videotovideo(CirrusVGAState * s)
     } else {
 	ret = cirrus_bitblt_videotovideo_copy(s);
     }
-
     if (ret)
 	cirrus_bitblt_reset(s);
     return ret;
@@ -1038,6 +746,8 @@ static int cirrus_bitblt_videotovideo(CirrusVGAState * s)
 static void cirrus_bitblt_start(CirrusVGAState * s)
 {
     uint8_t blt_rop;
+
+    s->gr[0x31] |= CIRRUS_BLT_BUSY;
 
     s->cirrus_blt_width = (s->gr[0x20] | (s->gr[0x21] << 8)) + 1;
     s->cirrus_blt_height = (s->gr[0x22] | (s->gr[0x23] << 8)) + 1;
@@ -1048,19 +758,21 @@ static void cirrus_bitblt_start(CirrusVGAState * s)
     s->cirrus_blt_srcaddr =
 	(s->gr[0x2c] | (s->gr[0x2d] << 8) | (s->gr[0x2e] << 16));
     s->cirrus_blt_mode = s->gr[0x30];
+    s->cirrus_blt_modeext = s->gr[0x33];
     blt_rop = s->gr[0x32];
 
 #ifdef DEBUG_BITBLT
-    printf("rop=%02x mode=%02x modeext=%02x w=%d h=%d dpitch=%d spicth=%d daddr=%08x saddr=%08x\n",
+    printf("rop=0x%02x mode=0x%02x modeext=0x%02x w=%d h=%d dpitch=%d spicth=%d daddr=0x%08x saddr=0x%08x writemask=0x%02x\n",
            blt_rop, 
            s->cirrus_blt_mode,
-           s->gr[0x33],
+           s->cirrus_blt_modeext,
            s->cirrus_blt_width,
            s->cirrus_blt_height,
            s->cirrus_blt_dstpitch,
            s->cirrus_blt_srcpitch,
            s->cirrus_blt_dstaddr,
-           s->cirrus_blt_srcaddr);
+           s->cirrus_blt_srcaddr,
+           s->sr[0x2f]);
 #endif
 
     switch (s->cirrus_blt_mode & CIRRUS_BLTMODE_PIXELWIDTHMASK) {
@@ -1077,7 +789,7 @@ static void cirrus_bitblt_start(CirrusVGAState * s)
 	s->cirrus_blt_pixelwidth = 4;
 	break;
     default:
-#ifdef DEBUG_CIRRUS
+#ifdef DEBUG_BITBLT
 	printf("cirrus: bitblt - pixel width is unknown\n");
 #endif
 	goto bitblt_ignore;
@@ -1088,26 +800,41 @@ static void cirrus_bitblt_start(CirrusVGAState * s)
 	 cirrus_blt_mode & (CIRRUS_BLTMODE_MEMSYSSRC |
 			    CIRRUS_BLTMODE_MEMSYSDEST))
 	== (CIRRUS_BLTMODE_MEMSYSSRC | CIRRUS_BLTMODE_MEMSYSDEST)) {
-#ifdef DEBUG_CIRRUS
+#ifdef DEBUG_BITBLT
 	printf("cirrus: bitblt - memory-to-memory copy is requested\n");
 #endif
 	goto bitblt_ignore;
     }
 
-    if ((s->gr[0x33] & CIRRUS_BLTMODEEXT_SOLIDFILL) &&
+    if ((s->cirrus_blt_modeext & CIRRUS_BLTMODEEXT_SOLIDFILL) &&
         (s->cirrus_blt_mode & (CIRRUS_BLTMODE_MEMSYSDEST | 
                                CIRRUS_BLTMODE_TRANSPARENTCOMP |
                                CIRRUS_BLTMODE_PATTERNCOPY | 
                                CIRRUS_BLTMODE_COLOREXPAND)) == 
          (CIRRUS_BLTMODE_PATTERNCOPY | CIRRUS_BLTMODE_COLOREXPAND)) {
-        cirrus_bitblt_solidfill(s);
+        cirrus_bitblt_fgcol(s);
+        cirrus_bitblt_solidfill(s, blt_rop);
     } else {
-        if (s->cirrus_blt_mode & CIRRUS_BLTMODE_BACKWARDS) {
-            s->cirrus_blt_dstpitch = -s->cirrus_blt_dstpitch;
-            s->cirrus_blt_srcpitch = -s->cirrus_blt_srcpitch;
-            s->cirrus_rop = cirrus_get_bkwd_rop_handler(blt_rop);
+        if ((s->cirrus_blt_mode & (CIRRUS_BLTMODE_COLOREXPAND | 
+                                   CIRRUS_BLTMODE_PATTERNCOPY)) == 
+            CIRRUS_BLTMODE_COLOREXPAND) {
+
+            if (s->cirrus_blt_mode & CIRRUS_BLTMODE_TRANSPARENTCOMP) {
+                cirrus_bitblt_fgcol(s);
+                s->cirrus_rop = cirrus_colorexpand_transp[rop_to_index[blt_rop]][s->cirrus_blt_pixelwidth - 1];
+            } else {
+                cirrus_bitblt_fgcol(s);
+                cirrus_bitblt_bgcol(s);
+                s->cirrus_rop = cirrus_colorexpand[rop_to_index[blt_rop]][s->cirrus_blt_pixelwidth - 1];
+            }
         } else {
-            s->cirrus_rop = cirrus_get_fwd_rop_handler(blt_rop);
+            if (s->cirrus_blt_mode & CIRRUS_BLTMODE_BACKWARDS) {
+                s->cirrus_blt_dstpitch = -s->cirrus_blt_dstpitch;
+                s->cirrus_blt_srcpitch = -s->cirrus_blt_srcpitch;
+                s->cirrus_rop = cirrus_bkwd_rop[rop_to_index[blt_rop]];
+            } else {
+                s->cirrus_rop = cirrus_fwd_rop[rop_to_index[blt_rop]];
+            }
         }
         
         // setup bitblt engine.
@@ -1139,7 +866,6 @@ static void cirrus_write_bitblt(CirrusVGAState * s, unsigned reg_value)
 	cirrus_bitblt_reset(s);
     } else if (((old_value & CIRRUS_BLT_START) == 0) &&
 	       ((reg_value & CIRRUS_BLT_START) != 0)) {
-	s->gr[0x31] |= CIRRUS_BLT_BUSY;
 	cirrus_bitblt_start(s);
     }
 }
@@ -1312,6 +1038,7 @@ cirrus_hook_read_sr(CirrusVGAState * s, unsigned reg_index, int *reg_value)
     case 0x91:
     case 0xb1:
     case 0xd1:
+    case 0xf1:			// Graphics Cursor Y
 	*reg_value = s->sr[0x11];
 	break;
     case 0x05:			// ???
@@ -1324,7 +1051,6 @@ cirrus_hook_read_sr(CirrusVGAState * s, unsigned reg_index, int *reg_value)
     case 0x0d:			// VCLK 2
     case 0x0e:			// VCLK 3
     case 0x0f:			// DRAM Control
-    case 0xf1:			// Graphics Cursor Y
     case 0x12:			// Graphics Cursor Attribute
     case 0x13:			// Graphics Cursor Pattern Address
     case 0x14:			// Scratch Register 2
@@ -1382,7 +1108,7 @@ cirrus_hook_write_sr(CirrusVGAState * s, unsigned reg_index, int reg_value)
     case 0xd0:
     case 0xf0:			// Graphics Cursor X
 	s->sr[0x10] = reg_value;
-	s->cirrus_hw_cursor_x = ((reg_index << 3) & 0x700) | reg_value;
+	s->hw_cursor_x = (reg_value << 3) | (reg_index >> 5);
 	break;
     case 0x11:
     case 0x31:
@@ -1393,7 +1119,7 @@ cirrus_hook_write_sr(CirrusVGAState * s, unsigned reg_index, int reg_value)
     case 0xd1:
     case 0xf1:			// Graphics Cursor Y
 	s->sr[0x11] = reg_value;
-	s->cirrus_hw_cursor_y = ((reg_index << 3) & 0x700) | reg_value;
+	s->hw_cursor_y = (reg_value << 3) | (reg_index >> 5);
 	break;
     case 0x07:			// Extended Sequencer Mode
     case 0x08:			// EEPROM Control
@@ -1471,13 +1197,9 @@ static int cirrus_hook_read_palette(CirrusVGAState * s, int *reg_value)
 {
     if (!(s->sr[0x12] & CIRRUS_CURSOR_HIDDENPEL))
 	return CIRRUS_HOOK_NOT_HANDLED;
-    if (s->dac_read_index < 0x10) {
-	*reg_value =
-	    s->cirrus_hidden_palette[s->dac_read_index * 3 +
-				     s->dac_sub_index];
-    } else {
-	*reg_value = 0xff;	/* XXX */
-    }
+    *reg_value =
+        s->cirrus_hidden_palette[(s->dac_read_index & 0x0f) * 3 +
+                                 s->dac_sub_index];
     if (++s->dac_sub_index == 3) {
 	s->dac_sub_index = 0;
 	s->dac_read_index++;
@@ -1491,11 +1213,9 @@ static int cirrus_hook_write_palette(CirrusVGAState * s, int reg_value)
 	return CIRRUS_HOOK_NOT_HANDLED;
     s->dac_cache[s->dac_sub_index] = reg_value;
     if (++s->dac_sub_index == 3) {
-	if (s->dac_read_index < 0x10) {
-	    memcpy(&s->cirrus_hidden_palette[s->dac_write_index * 3],
-		   s->dac_cache, 3);
-	    /* XXX update cursor */
-	}
+        memcpy(&s->cirrus_hidden_palette[(s->dac_write_index & 0x0f) * 3],
+               s->dac_cache, 3);
+        /* XXX update cursor */
 	s->dac_sub_index = 0;
 	s->dac_write_index++;
     }
@@ -1545,6 +1265,9 @@ cirrus_hook_read_gr(CirrusVGAState * s, unsigned reg_index, int *reg_value)
 static int
 cirrus_hook_write_gr(CirrusVGAState * s, unsigned reg_index, int reg_value)
 {
+#if defined(DEBUG_BITBLT) && 0
+    printf("gr%02x: %02x\n", reg_index, reg_value);
+#endif
     switch (reg_index) {
     case 0x00:			// Standard VGA, BGCOLOR 0x000000ff
 	s->cirrus_shadow_gr0 = reg_value;
@@ -1583,6 +1306,7 @@ cirrus_hook_write_gr(CirrusVGAState * s, unsigned reg_index, int reg_value)
     case 0x29:			// BLT DEST ADDR 0x00ff00
     case 0x2c:			// BLT SRC ADDR 0x0000ff
     case 0x2d:			// BLT SRC ADDR 0x00ff00
+    case 0x2f:                  // BLT WRITEMASK
     case 0x30:			// BLT MODE
     case 0x32:			// RASTER OP
     case 0x33:			// BLT MODEEXT
@@ -1599,6 +1323,12 @@ cirrus_hook_write_gr(CirrusVGAState * s, unsigned reg_index, int reg_value)
 	s->gr[reg_index] = reg_value & 0x1f;
 	break;
     case 0x2a:			// BLT DEST ADDR 0x3f0000
+	s->gr[reg_index] = reg_value & 0x3f;
+        /* if auto start mode, starts bit blt now */
+        if (s->gr[0x31] & CIRRUS_BLT_AUTOSTART) {
+            cirrus_bitblt_start(s);
+        }
+	break;
     case 0x2e:			// BLT SRC ADDR 0x3f0000
 	s->gr[reg_index] = reg_value & 0x3f;
 	break;
@@ -2111,7 +1841,7 @@ static void cirrus_vga_mem_writeb(void *opaque, target_phys_addr_t addr,
 	if (s->cirrus_srcptr != s->cirrus_srcptr_end) {
 	    /* bitblt */
 	    *s->cirrus_srcptr++ = (uint8_t) mem_value;
-	    if (s->cirrus_srcptr == s->cirrus_srcptr_end) {
+	    if (s->cirrus_srcptr >= s->cirrus_srcptr_end) {
 		cirrus_bitblt_cputovideo_next(s);
 	    }
 	} else {
@@ -2196,6 +1926,176 @@ static CPUWriteMemoryFunc *cirrus_vga_mem_write[3] = {
 
 /***************************************
  *
+ *  hardware cursor
+ *
+ ***************************************/
+
+static inline void invalidate_cursor1(CirrusVGAState *s)
+{
+    if (s->last_hw_cursor_size) {
+        vga_invalidate_scanlines((VGAState *)s, 
+                                 s->last_hw_cursor_y + s->last_hw_cursor_y_start,
+                                 s->last_hw_cursor_y + s->last_hw_cursor_y_end);
+    }
+}
+
+static inline void cirrus_cursor_compute_yrange(CirrusVGAState *s)
+{
+    const uint8_t *src;
+    uint32_t content;
+    int y, y_min, y_max;
+
+    src = s->vram_ptr + 0x200000 - 16 * 1024;
+    if (s->sr[0x12] & CIRRUS_CURSOR_LARGE) {
+        src += (s->sr[0x13] & 0x3c) * 256;
+        y_min = 64;
+        y_max = -1;
+        for(y = 0; y < 64; y++) {
+            content = ((uint32_t *)src)[0] |
+                ((uint32_t *)src)[1] |
+                ((uint32_t *)src)[2] |
+                ((uint32_t *)src)[3];
+            if (content) {
+                if (y < y_min)
+                    y_min = y;
+                if (y > y_max)
+                    y_max = y;
+            }
+            src += 16;
+        }
+    } else {
+        src += (s->sr[0x13] & 0x3f) * 256;
+        y_min = 32;
+        y_max = -1;
+        for(y = 0; y < 32; y++) {
+            content = ((uint32_t *)src)[0] |
+                ((uint32_t *)(src + 128))[0];
+            if (content) {
+                if (y < y_min)
+                    y_min = y;
+                if (y > y_max)
+                    y_max = y;
+            }
+            src += 4;
+        }
+    }
+    if (y_min > y_max) {
+        s->last_hw_cursor_y_start = 0;
+        s->last_hw_cursor_y_end = 0;
+    } else {
+        s->last_hw_cursor_y_start = y_min;
+        s->last_hw_cursor_y_end = y_max + 1;
+    }
+}
+
+/* NOTE: we do not currently handle the cursor bitmap change, so we
+   update the cursor only if it moves. */
+static void cirrus_cursor_invalidate(VGAState *s1)
+{
+    CirrusVGAState *s = (CirrusVGAState *)s1;
+    int size;
+
+    if (!s->sr[0x12] & CIRRUS_CURSOR_SHOW) {
+        size = 0;
+    } else {
+        if (s->sr[0x12] & CIRRUS_CURSOR_LARGE)
+            size = 64;
+        else
+            size = 32;
+    }
+    /* invalidate last cursor and new cursor if any change */
+    if (s->last_hw_cursor_size != size ||
+        s->last_hw_cursor_x != s->hw_cursor_x ||
+        s->last_hw_cursor_y != s->hw_cursor_y) {
+
+        invalidate_cursor1(s);
+        
+        s->last_hw_cursor_size = size;
+        s->last_hw_cursor_x = s->hw_cursor_x;
+        s->last_hw_cursor_y = s->hw_cursor_y;
+        /* compute the real cursor min and max y */
+        cirrus_cursor_compute_yrange(s);
+        invalidate_cursor1(s);
+    }
+}
+
+static void cirrus_cursor_draw_line(VGAState *s1, uint8_t *d1, int scr_y)
+{
+    CirrusVGAState *s = (CirrusVGAState *)s1;
+    int w, h, bpp, x1, x2, poffset;
+    unsigned int color0, color1;
+    const uint8_t *palette, *src;
+    uint32_t content;
+    
+    if (!(s->sr[0x12] & CIRRUS_CURSOR_SHOW)) 
+        return;
+    /* fast test to see if the cursor intersects with the scan line */
+    if (s->sr[0x12] & CIRRUS_CURSOR_LARGE) {
+        h = 64;
+    } else {
+        h = 32;
+    }
+    if (scr_y < s->hw_cursor_y ||
+        scr_y >= (s->hw_cursor_y + h))
+        return;
+    
+    src = s->vram_ptr + 0x200000 - 16 * 1024;
+    if (s->sr[0x12] & CIRRUS_CURSOR_LARGE) {
+        src += (s->sr[0x13] & 0x3c) * 256;
+        src += (scr_y - s->hw_cursor_y) * 16;
+        poffset = 8;
+        content = ((uint32_t *)src)[0] |
+            ((uint32_t *)src)[1] |
+            ((uint32_t *)src)[2] |
+            ((uint32_t *)src)[3];
+    } else {
+        src += (s->sr[0x13] & 0x3f) * 256;
+        src += (scr_y - s->hw_cursor_y) * 4;
+        poffset = 128;
+        content = ((uint32_t *)src)[0] |
+            ((uint32_t *)(src + 128))[0];
+    }
+    /* if nothing to draw, no need to continue */
+    if (!content)
+        return;
+    w = h;
+
+    x1 = s->hw_cursor_x;
+    if (x1 >= s->last_scr_width)
+        return;
+    x2 = s->hw_cursor_x + w;
+    if (x2 > s->last_scr_width)
+        x2 = s->last_scr_width;
+    w = x2 - x1;
+    palette = s->cirrus_hidden_palette;
+    color0 = s->rgb_to_pixel(c6_to_8(palette[0x0 * 3]), 
+                             c6_to_8(palette[0x0 * 3 + 1]), 
+                             c6_to_8(palette[0x0 * 3 + 2]));
+    color1 = s->rgb_to_pixel(c6_to_8(palette[0xf * 3]), 
+                             c6_to_8(palette[0xf * 3 + 1]), 
+                             c6_to_8(palette[0xf * 3 + 2]));
+    bpp = ((s->ds->depth + 7) >> 3);
+    d1 += x1 * bpp;
+    switch(s->ds->depth) {
+    default:
+        break;
+    case 8:
+        vga_draw_cursor_line_8(d1, src, poffset, w, color0, color1, 0xff);
+        break;
+    case 15:
+        vga_draw_cursor_line_16(d1, src, poffset, w, color0, color1, 0x7fff);
+        break;
+    case 16:
+        vga_draw_cursor_line_16(d1, src, poffset, w, color0, color1, 0xffff);
+        break;
+    case 32:
+        vga_draw_cursor_line_32(d1, src, poffset, w, color0, color1, 0xffffff);
+        break;
+    }
+}
+
+/***************************************
+ *
  *  LFB memory access
  *
  ***************************************/
@@ -2272,7 +2172,7 @@ static void cirrus_linear_writeb(void *opaque, target_phys_addr_t addr,
     } else if (s->cirrus_srcptr != s->cirrus_srcptr_end) {
 	/* bitblt */
 	*s->cirrus_srcptr++ = (uint8_t) val;
-	if (s->cirrus_srcptr == s->cirrus_srcptr_end) {
+	if (s->cirrus_srcptr >= s->cirrus_srcptr_end) {
 	    cirrus_bitblt_cputovideo_next(s);
 	}
     } else {
@@ -2337,6 +2237,107 @@ static CPUWriteMemoryFunc *cirrus_linear_write[3] = {
     cirrus_linear_writeb,
     cirrus_linear_writew,
     cirrus_linear_writel,
+};
+
+/***************************************
+ *
+ *  system to screen memory access
+ *
+ ***************************************/
+
+
+static uint32_t cirrus_linear_bitblt_readb(void *opaque, target_phys_addr_t addr)
+{
+    uint32_t ret;
+
+    /* XXX handle bitblt */
+    ret = 0xff;
+    return ret;
+}
+
+static uint32_t cirrus_linear_bitblt_readw(void *opaque, target_phys_addr_t addr)
+{
+    uint32_t v;
+#ifdef TARGET_WORDS_BIGENDIAN
+    v = cirrus_linear_bitblt_readb(opaque, addr) << 8;
+    v |= cirrus_linear_bitblt_readb(opaque, addr + 1);
+#else
+    v = cirrus_linear_bitblt_readb(opaque, addr);
+    v |= cirrus_linear_bitblt_readb(opaque, addr + 1) << 8;
+#endif
+    return v;
+}
+
+static uint32_t cirrus_linear_bitblt_readl(void *opaque, target_phys_addr_t addr)
+{
+    uint32_t v;
+#ifdef TARGET_WORDS_BIGENDIAN
+    v = cirrus_linear_bitblt_readb(opaque, addr) << 24;
+    v |= cirrus_linear_bitblt_readb(opaque, addr + 1) << 16;
+    v |= cirrus_linear_bitblt_readb(opaque, addr + 2) << 8;
+    v |= cirrus_linear_bitblt_readb(opaque, addr + 3);
+#else
+    v = cirrus_linear_bitblt_readb(opaque, addr);
+    v |= cirrus_linear_bitblt_readb(opaque, addr + 1) << 8;
+    v |= cirrus_linear_bitblt_readb(opaque, addr + 2) << 16;
+    v |= cirrus_linear_bitblt_readb(opaque, addr + 3) << 24;
+#endif
+    return v;
+}
+
+static void cirrus_linear_bitblt_writeb(void *opaque, target_phys_addr_t addr,
+				 uint32_t val)
+{
+    CirrusVGAState *s = (CirrusVGAState *) opaque;
+
+    if (s->cirrus_srcptr != s->cirrus_srcptr_end) {
+	/* bitblt */
+	*s->cirrus_srcptr++ = (uint8_t) val;
+	if (s->cirrus_srcptr >= s->cirrus_srcptr_end) {
+	    cirrus_bitblt_cputovideo_next(s);
+	}
+    }
+}
+
+static void cirrus_linear_bitblt_writew(void *opaque, target_phys_addr_t addr,
+				 uint32_t val)
+{
+#ifdef TARGET_WORDS_BIGENDIAN
+    cirrus_linear_bitblt_writeb(opaque, addr, (val >> 8) & 0xff);
+    cirrus_linear_bitblt_writeb(opaque, addr + 1, val & 0xff);
+#else
+    cirrus_linear_bitblt_writeb(opaque, addr, val & 0xff);
+    cirrus_linear_bitblt_writeb(opaque, addr + 1, (val >> 8) & 0xff);
+#endif
+}
+
+static void cirrus_linear_bitblt_writel(void *opaque, target_phys_addr_t addr,
+				 uint32_t val)
+{
+#ifdef TARGET_WORDS_BIGENDIAN
+    cirrus_linear_bitblt_writeb(opaque, addr, (val >> 24) & 0xff);
+    cirrus_linear_bitblt_writeb(opaque, addr + 1, (val >> 16) & 0xff);
+    cirrus_linear_bitblt_writeb(opaque, addr + 2, (val >> 8) & 0xff);
+    cirrus_linear_bitblt_writeb(opaque, addr + 3, val & 0xff);
+#else
+    cirrus_linear_bitblt_writeb(opaque, addr, val & 0xff);
+    cirrus_linear_bitblt_writeb(opaque, addr + 1, (val >> 8) & 0xff);
+    cirrus_linear_bitblt_writeb(opaque, addr + 2, (val >> 16) & 0xff);
+    cirrus_linear_bitblt_writeb(opaque, addr + 3, (val >> 24) & 0xff);
+#endif
+}
+
+
+static CPUReadMemoryFunc *cirrus_linear_bitblt_read[3] = {
+    cirrus_linear_bitblt_readb,
+    cirrus_linear_bitblt_readw,
+    cirrus_linear_bitblt_readl,
+};
+
+static CPUWriteMemoryFunc *cirrus_linear_bitblt_write[3] = {
+    cirrus_linear_bitblt_writeb,
+    cirrus_linear_bitblt_writew,
+    cirrus_linear_bitblt_writel,
 };
 
 /* I/O ports */
@@ -2691,7 +2692,30 @@ static CPUWriteMemoryFunc *cirrus_mmio_write[3] = {
 
 static void cirrus_init_common(CirrusVGAState * s, int device_id)
 {
-    int vga_io_memory;
+    int vga_io_memory, i;
+    static int inited;
+
+    if (!inited) {
+        inited = 1;
+        for(i = 0;i < 256; i++)
+            rop_to_index[i] = CIRRUS_ROP_NOP_INDEX; /* nop rop */
+        rop_to_index[CIRRUS_ROP_0] = 0;
+        rop_to_index[CIRRUS_ROP_SRC_AND_DST] = 1;
+        rop_to_index[CIRRUS_ROP_NOP] = 2;
+        rop_to_index[CIRRUS_ROP_SRC_AND_NOTDST] = 3;
+        rop_to_index[CIRRUS_ROP_NOTDST] = 4;
+        rop_to_index[CIRRUS_ROP_SRC] = 5;
+        rop_to_index[CIRRUS_ROP_1] = 6;
+        rop_to_index[CIRRUS_ROP_NOTSRC_AND_DST] = 7;
+        rop_to_index[CIRRUS_ROP_SRC_XOR_DST] = 8;
+        rop_to_index[CIRRUS_ROP_SRC_OR_DST] = 9;
+        rop_to_index[CIRRUS_ROP_NOTSRC_OR_NOTDST] = 10;
+        rop_to_index[CIRRUS_ROP_SRC_NOTXOR_DST] = 11;
+        rop_to_index[CIRRUS_ROP_SRC_OR_NOTDST] = 12;
+        rop_to_index[CIRRUS_ROP_NOTSRC] = 13;
+        rop_to_index[CIRRUS_ROP_NOTSRC_OR_DST] = 14;
+        rop_to_index[CIRRUS_ROP_NOTSRC_AND_NOTDST] = 15;
+    }
 
     register_ioport_write(0x3c0, 16, 1, vga_ioport_write, s);
 
@@ -2725,6 +2749,11 @@ static void cirrus_init_common(CirrusVGAState * s, int device_id)
     s->cirrus_linear_io_addr =
 	cpu_register_io_memory(0, cirrus_linear_read, cirrus_linear_write,
 			       s);
+    /* I/O handler for LFB */
+    s->cirrus_linear_bitblt_io_addr =
+	cpu_register_io_memory(0, cirrus_linear_bitblt_read, cirrus_linear_bitblt_write,
+			       s);
+
     /* I/O handler for memory-mapped I/O */
     s->cirrus_mmio_io_addr =
 	cpu_register_io_memory(0, cirrus_mmio_read, cirrus_mmio_write, s);
@@ -2734,6 +2763,8 @@ static void cirrus_init_common(CirrusVGAState * s, int device_id)
 
     s->get_bpp = cirrus_get_bpp;
     s->get_offsets = cirrus_get_offsets;
+    s->cursor_invalidate = cirrus_cursor_invalidate;
+    s->cursor_draw_line = cirrus_cursor_draw_line;
 }
 
 /***************************************
@@ -2767,8 +2798,11 @@ static void cirrus_pci_lfb_map(PCIDevice *d, int region_num,
 {
     CirrusVGAState *s = &((PCICirrusVGAState *)d)->cirrus_vga;
 
+    /* XXX: add byte swapping apertures */
     cpu_register_physical_memory(addr, s->vram_size,
 				 s->cirrus_linear_io_addr);
+    cpu_register_physical_memory(addr + 0x1000000, 0x400000,
+				 s->cirrus_linear_bitblt_io_addr);
 }
 
 static void cirrus_pci_mmio_map(PCIDevice *d, int region_num,
@@ -2815,7 +2849,7 @@ void pci_cirrus_vga_init(DisplayState *ds, uint8_t *vga_ram_base,
     /* memory #0 LFB */
     /* memory #1 memory-mapped I/O */
     /* XXX: s->vram_size must be a power of two */
-    pci_register_io_region((PCIDevice *)d, 0, s->vram_size,
+    pci_register_io_region((PCIDevice *)d, 0, 0x2000000,
 			   PCI_ADDRESS_SPACE_MEM_PREFETCH, cirrus_pci_lfb_map);
     if (device_id == CIRRUS_ID_CLGD5446) {
         pci_register_io_region((PCIDevice *)d, 1, CIRRUS_PNPMMIO_SIZE,
