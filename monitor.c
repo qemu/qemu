@@ -850,12 +850,13 @@ static MonitorDef monitor_defs[] = {
     { "esp|sp", offsetof(CPUState, regs[4]) },
     { "ebp|fp", offsetof(CPUState, regs[5]) },
     { "esi", offsetof(CPUState, regs[6]) },
-    { "esi", offsetof(CPUState, regs[7]) },
+    { "edi", offsetof(CPUState, regs[7]) },
     { "eflags", offsetof(CPUState, eflags) },
     { "eip", offsetof(CPUState, eip) },
     SEG("cs", R_CS)
     SEG("ds", R_DS)
     SEG("es", R_ES)
+    SEG("ss", R_SS)
     SEG("fs", R_FS)
     SEG("gs", R_GS)
     { "pc", 0, monitor_get_pc, },
