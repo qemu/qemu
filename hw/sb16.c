@@ -50,9 +50,9 @@
 #endif
 
 #define IO_READ_PROTO(name) \
-    uint32_t name (struct CPUState *env, uint32_t nport)
+    uint32_t name (void *opaque, uint32_t nport)
 #define IO_WRITE_PROTO(name) \
-    void name (struct CPUState *env, uint32_t nport, uint32_t val)
+    void name (void *opaque, uint32_t nport, uint32_t val)
 
 static struct {
     int ver_lo;
@@ -550,8 +550,8 @@ static IO_WRITE_PROTO(mixer_write_datab)
 
 static IO_WRITE_PROTO(mixer_write_indexw)
 {
-    mixer_write_indexb (env, nport, val & 0xff);
-    mixer_write_datab (env, nport, (val >> 8) & 0xff);
+    mixer_write_indexb (opaque, nport, val & 0xff);
+    mixer_write_datab (opaque, nport, (val >> 8) & 0xff);
 }
 
 static IO_READ_PROTO(mixer_read)
@@ -718,17 +718,17 @@ void SB16_init (void)
     }
 
     for (i = 0; i < LENOFA (dsp_write_ports); i++) {
-        register_ioport_write (sb.port + dsp_write_ports[i], 1, dsp_write, 1);
+        register_ioport_write (sb.port + dsp_write_ports[i], 1, 1, dsp_write, NULL);
     }
 
     for (i = 0; i < LENOFA (dsp_read_ports); i++) {
-        register_ioport_read (sb.port + dsp_read_ports[i], 1, dsp_read, 1);
+        register_ioport_read (sb.port + dsp_read_ports[i], 1, 1, dsp_read, NULL);
     }
 
-    register_ioport_write (sb.port + 0x4, 1, mixer_write_indexb, 1);
-    register_ioport_write (sb.port + 0x4, 1, mixer_write_indexw, 2);
-    register_ioport_read (sb.port + 0x5, 1, mixer_read, 1);
-    register_ioport_write (sb.port + 0x5, 1, mixer_write_datab, 1);
+    register_ioport_write (sb.port + 0x4, 1, 1, mixer_write_indexb, NULL);
+    register_ioport_write (sb.port + 0x4, 1, 2, mixer_write_indexw, NULL);
+    register_ioport_read (sb.port + 0x5, 1, 1, mixer_read, NULL);
+    register_ioport_write (sb.port + 0x5, 1, 1, mixer_write_datab, NULL);
 
     DMA_register_channel (sb.hdma, SB_read_DMA, NULL);
     DMA_register_channel (sb.dma, SB_read_DMA, NULL);

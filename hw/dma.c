@@ -78,7 +78,7 @@ enum {
 
 };
 
-static void write_page (CPUState *env, uint32_t nport, uint32_t data)
+static void write_page (void *opaque, uint32_t nport, uint32_t data)
 {
     int ichan;
     int ncont;
@@ -113,7 +113,7 @@ static inline int getff (int ncont)
     return ff;
 }
 
-static uint32_t read_chan (CPUState *env, uint32_t nport)
+static uint32_t read_chan (void *opaque, uint32_t nport)
 {
     int ff;
     int ncont, ichan, nreg;
@@ -135,7 +135,7 @@ static uint32_t read_chan (CPUState *env, uint32_t nport)
     return (val >> (ncont + (ff << 3))) & 0xff;
 }
 
-static void write_chan (CPUState *env, uint32_t nport, uint32_t data)
+static void write_chan (void *opaque, uint32_t nport, uint32_t data)
 {
     int ncont, ichan, nreg;
     struct dma_regs *r;
@@ -153,7 +153,7 @@ static void write_chan (CPUState *env, uint32_t nport, uint32_t data)
     }
 }
 
-static void write_cont (CPUState *env, uint32_t nport, uint32_t data)
+static void write_cont (void *opaque, uint32_t nport, uint32_t data)
 {
     int iport, ichan, ncont;
     struct dma_cont *d;
@@ -345,22 +345,22 @@ void DMA_init (void)
     int page_port_list[] = { 0x1, 0x2, 0x3, 0x7 };
 
     for (i = 0; i < 8; i++) {
-        register_ioport_write (i, 1, write_chan, 1);
+        register_ioport_write (i, 1, 1, write_chan, NULL);
 
-        register_ioport_write (0xc0 + (i << 1), 1, write_chan, 1);
+        register_ioport_write (0xc0 + (i << 1), 1, 1, write_chan, NULL);
 
-        register_ioport_read (i, 1, read_chan, 1);
-        register_ioport_read (0xc0 + (i << 1), 1, read_chan, 1);
+        register_ioport_read (i, 1, 1, read_chan, NULL);
+        register_ioport_read (0xc0 + (i << 1), 1, 1, read_chan, NULL);
     }
 
     for (i = 0; i < LENOFA (page_port_list); i++) {
-        register_ioport_write (page_port_list[i] + 0x80, 1, write_page, 1);
-        register_ioport_write (page_port_list[i] + 0x88, 1, write_page, 1);
+        register_ioport_write (page_port_list[i] + 0x80, 1, 1, write_page, NULL);
+        register_ioport_write (page_port_list[i] + 0x88, 1, 1, write_page, NULL);
     }
 
     for (i = 0; i < 8; i++) {
-        register_ioport_write (i + 8, 1, write_cont, 1);
-        register_ioport_write (0xd0 + (i << 1), 1, write_cont, 1);
+        register_ioport_write (i + 8, 1, 1, write_cont, NULL);
+        register_ioport_write (0xd0 + (i << 1), 1, 1, write_cont, NULL);
     }
 
     write_cont (NULL, 0x0d, 0);
