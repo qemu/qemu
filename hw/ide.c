@@ -1269,7 +1269,7 @@ static uint32_t ide_ioport_read(void *opaque, uint32_t addr1)
         if (!s->bs)
             ret = 0;
         else
-            ret = s->select;
+            ret = s->select | 0xa0;
         break;
     default:
     case 7:
