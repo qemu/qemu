@@ -26,6 +26,7 @@ host_cc="gcc"
 ar="ar"
 make="make"
 strip="strip"
+target_cpu="x86"
 cpu=`uname -m`
 case "$cpu" in
   i386|i486|i586|i686|i86pc|BePC)
@@ -178,8 +179,9 @@ echo "Install prefix   $prefix"
 echo "Source path      $source_path"
 echo "C compiler       $cc"
 echo "make             $make"
-echo "CPU              $cpu"
+echo "host CPU         $cpu"
 echo "Big Endian       $bigendian"
+echo "target CPU       $target_cpu"
 echo "gprof enabled    $gprof"
 
 echo "Creating config.mak and config.h"
