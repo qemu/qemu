@@ -1,7 +1,11 @@
 #ifndef _LIBSLIRP_H
 #define _LIBSLIRP_H
 
+#ifdef _WIN32
+#include <winsock2.h>
+#else
 #include <sys/select.h>
+#endif
 
 void slirp_init(void);
 

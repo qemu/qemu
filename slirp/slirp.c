@@ -28,8 +28,50 @@ fd_set *global_readfds, *global_writefds, *global_xfds;
 
 static int get_dns_addr(struct in_addr *pdns_addr)
 {
-    /* XXX: add it */
-    return -1;
+    FIXED_INFO *FixedInfo=NULL;
+    ULONG    BufLen;
+    DWORD    ret;
+    IP_ADDR_STRING *pIPAddr;
+    struct in_addr tmp_addr;
+    
+    FixedInfo = (FIXED_INFO *)GlobalAlloc(GPTR, sizeof(FIXED_INFO));
+    BufLen = sizeof(FIXED_INFO);
+   
+    if (ERROR_BUFFER_OVERFLOW == GetNetworkParams(FixedInfo, &BufLen)) {
+        if (FixedInfo) {
+            GlobalFree(FixedInfo);
+            FixedInfo = NULL;
+        }
+        FixedInfo = GlobalAlloc(GPTR, BufLen);
+    }
+	
+    if ((ret = GetNetworkParams(FixedInfo, &BufLen)) != ERROR_SUCCESS) {
+        printf("GetNetworkParams failed. ret = %08x\n", (u_int)ret );
+        if (FixedInfo) {
+            GlobalFree(FixedInfo);
+            FixedInfo = NULL;
+        }
+        return -1;
+    }
+     
+    pIPAddr = &(FixedInfo->DnsServerList);
+    inet_aton(pIPAddr->IpAddress.String, &tmp_addr);
+    *pdns_addr = tmp_addr;
+#if 0
+    printf( "DNS Servers:\n" );
+    printf( "DNS Addr:%s\n", pIPAddr->IpAddress.String );
+    
+    pIPAddr = FixedInfo -> DnsServerList.Next;
+    while ( pIPAddr ) {
+            printf( "DNS Addr:%s\n", pIPAddr ->IpAddress.String );
+            pIPAddr = pIPAddr ->Next;
+    }
+#endif
+    if (FixedInfo) {
+        GlobalFree(FixedInfo);
+        FixedInfo = NULL;
+    }
+    return 0;
 }
 
 #else
@@ -73,10 +115,25 @@ static int get_dns_addr(struct in_addr *pdns_addr)
 
 #endif
 
+#ifdef _WIN32
+void slirp_cleanup(void)
+{
+    WSACleanup();
+}
+#endif
+
 void slirp_init(void)
 {
     //    debug_init("/tmp/slirp.log", DEBUG_DEFAULT);
     
+#ifdef _WIN32
+    {
+        WSADATA Data;
+        WSAStartup(MAKEWORD(2,0), &Data);
+	atexit(slirp_cleanup);
+    }
+#endif
+
     link_up = 1;
 
     if_init();
@@ -104,6 +161,16 @@ void slirp_init(void)
 /*
  * curtime kept to an accuracy of 1ms
  */
+#ifdef _WIN32
+static void updtime(void)
+{
+    struct _timeb tb;
+
+    _ftime(&tb);
+    curtime = (u_int)tb.time * (u_int)1000;
+    curtime += (u_int)tb.millitm;
+}
+#else
 static void updtime(void)
 {
 	gettimeofday(&tt, 0);
@@ -114,6 +181,7 @@ static void updtime(void)
 	if ((tt.tv_usec % 1000) >= 500)
 	   curtime++;
 }
+#endif
 
 void slirp_select_fill(int *pnfds, 
                        fd_set *readfds, fd_set *writefds, fd_set *xfds)

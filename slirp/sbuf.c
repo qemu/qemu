@@ -106,7 +106,7 @@ sbappend(so, m)
 	 * ottherwise it'll arrive out of order, and hence corrupt
 	 */
 	if (!so->so_rcv.sb_cc)
-	   ret = write(so->s, m->m_data, m->m_len);
+	   ret = send(so->s, m->m_data, m->m_len, 0);
 	
 	if (ret <= 0) {
 		/* 

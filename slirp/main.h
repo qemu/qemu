@@ -10,7 +10,6 @@
 #endif
 
 #define TOWRITEMAX 512
-#define min(x,y) ((x) < (y) ? (x) : (y))
 
 extern struct timeval tt;
 extern int link_up;

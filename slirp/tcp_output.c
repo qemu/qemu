@@ -44,9 +44,6 @@
 
 #include <slirp.h>
 
-#define max(x,y) ((x) > (y) ? (x) : (y))
-#define min(x,y) ((x) < (y) ? (x) : (y))
-
 /*
  * Since this is only used in "stats socket", we give meaning
  * names instead of the REAL names

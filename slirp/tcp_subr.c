@@ -301,7 +301,7 @@ tcp_close(tp)
 	/* clobber input socket cache if we're closing the cached connection */
 	if (so == tcp_last_so)
 		tcp_last_so = &tcb;
-	close(so->s);
+	closesocket(so->s);
 	sbfree(&so->so_rcv);
 	sbfree(&so->so_snd);
 	sofree(so);
@@ -477,7 +477,7 @@ tcp_connect(inso)
 	} else {
 		if ((so = socreate()) == NULL) {
 			/* If it failed, get rid of the pending connection */
-			close(accept(inso->s,(struct sockaddr *)&addr,&addrlen));
+			closesocket(accept(inso->s,(struct sockaddr *)&addr,&addrlen));
 			return;
 		}
 		if (tcp_attach(so) < 0) {
@@ -508,7 +508,7 @@ tcp_connect(inso)
 	
 	/* Close the accept() socket, set right state */
 	if (inso->so_state & SS_FACCEPTONCE) {
-		close(so->s); /* If we only accept once, close the accept() socket */
+		closesocket(so->s); /* If we only accept once, close the accept() socket */
 		so->so_state = SS_NOFDREF; /* Don't select it yet, even though we have an FD */
 					   /* if it's not FACCEPTONCE, it's already NOFDREF */
 	}

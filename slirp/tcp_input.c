@@ -47,9 +47,6 @@
 
 struct socket tcb;
 
-#define min(x,y) ((x) < (y) ? (x) : (y))
-#define max(x,y) ((x) > (y) ? (x) : (y))
-
 int	tcprexmtthresh = 3;
 struct	socket *tcp_last_so = &tcb;
 
