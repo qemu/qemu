@@ -394,26 +394,29 @@ TranslationBlock *tb_alloc(unsigned long pc,
    page. Return TRUE if the fault was succesfully handled. */
 int page_unprotect(unsigned long address)
 {
-    unsigned int page_index, prot;
-    PageDesc *p;
+    unsigned int page_index, prot, pindex;
+    PageDesc *p, *p1;
     unsigned long host_start, host_end, addr;
 
-    page_index = address >> TARGET_PAGE_BITS;
-    p = page_find(page_index);
-    if (!p)
+    host_start = address & host_page_mask;
+    page_index = host_start >> TARGET_PAGE_BITS;
+    p1 = page_find(page_index);
+    if (!p1)
         return 0;
-    if ((p->flags & (PAGE_WRITE_ORG | PAGE_WRITE)) == PAGE_WRITE_ORG) {
-        /* if the page was really writable, then we change its
-           protection back to writable */
-        host_start = address & host_page_mask;
-        host_end = host_start + host_page_size;
-        prot = 0;
-        for(addr = host_start; addr < host_end; addr += TARGET_PAGE_SIZE)
-            prot |= page_get_flags(addr);
+    host_end = host_start + host_page_size;
+    p = p1;
+    prot = 0;
+    for(addr = host_start;addr < host_end; addr += TARGET_PAGE_SIZE) {
+        prot |= p->flags;
+        p++;
+    }
+    /* if the page was really writable, then we change its
+       protection back to writable */
+    if (prot & PAGE_WRITE_ORG) {
         mprotect((void *)host_start, host_page_size, 
                  (prot & PAGE_BITS) | PAGE_WRITE);
-        p->flags |= PAGE_WRITE;
-
+        pindex = (address - host_start) >> TARGET_PAGE_BITS;
+        p1[pindex].flags |= PAGE_WRITE;
         /* and since the content will be modified, we must invalidate
            the corresponding translated code. */
         tb_invalidate_page(address);
