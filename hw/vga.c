@@ -50,6 +50,10 @@
 
 //#define DEBUG_VGA
 //#define DEBUG_VGA_MEM
+//#define DEBUG_VGA_REG
+
+//#define DEBUG_S3
+#define CONFIG_S3VGA
 
 #define MSR_COLOR_EMULATION 0x01
 #define MSR_PAGE_SELECT     0x20
@@ -252,6 +256,9 @@ static uint32_t vga_ioport_read(CPUX86State *env, uint32_t addr)
             break;
         case 0x3c5:
             val = s->sr[s->sr_index];
+#ifdef DEBUG_VGA_REG
+            printf("vga: read SR%x = 0x%02x\n", s->sr_index, val);
+#endif
             break;
         case 0x3c7:
             val = s->dac_state;
@@ -274,6 +281,9 @@ static uint32_t vga_ioport_read(CPUX86State *env, uint32_t addr)
             break;
         case 0x3cf:
             val = s->gr[s->gr_index];
+#ifdef DEBUG_VGA_REG
+            printf("vga: read GR%x = 0x%02x\n", s->gr_index, val);
+#endif
             break;
         case 0x3b4:
         case 0x3d4:
@@ -282,6 +292,14 @@ static uint32_t vga_ioport_read(CPUX86State *env, uint32_t addr)
         case 0x3b5:
         case 0x3d5:
             val = s->cr[s->cr_index];
+#ifdef DEBUG_VGA_REG
+            printf("vga: read CR%x = 0x%02x\n", s->cr_index, val);
+#endif
+#ifdef DEBUG_S3
+            if (s->cr_index >= 0x20)
+                printf("S3: CR read index=0x%x val=0x%x\n",
+                       s->cr_index, val);
+#endif
             break;
         case 0x3ba:
         case 0x3da:
@@ -354,6 +372,9 @@ static void vga_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
         s->sr_index = val & 7;
         break;
     case 0x3c5:
+#ifdef DEBUG_VGA_REG
+        printf("vga: write SR%x = 0x%02x\n", s->sr_index, val);
+#endif
         s->sr[s->sr_index] = val & sr_mask[s->sr_index];
         break;
     case 0x3c7:
@@ -378,6 +399,9 @@ static void vga_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
         s->gr_index = val & 0x0f;
         break;
     case 0x3cf:
+#ifdef DEBUG_VGA_REG
+        printf("vga: write GR%x = 0x%02x\n", s->gr_index, val);
+#endif
         s->gr[s->gr_index] = val & gr_mask[s->gr_index];
         break;
     case 0x3b4:
@@ -386,6 +410,9 @@ static void vga_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
         break;
     case 0x3b5:
     case 0x3d5:
+#ifdef DEBUG_VGA_REG
+        printf("vga: write CR%x = 0x%02x\n", s->cr_index, val);
+#endif
         /* handle CR0-7 protection */
         if ((s->cr[11] & 0x80) && s->cr_index <= 7) {
             /* can always write bit 4 of CR7 */
@@ -403,6 +430,7 @@ static void vga_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
             s->cr[s->cr_index] = val;
             break;
 
+#ifdef CONFIG_S3VGA
             /* S3 registers */
         case 0x2d:
         case 0x2e:
@@ -422,10 +450,16 @@ static void vga_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
             v = val & 3;
             s->cr[0x69] = (s->cr[69] & ~0x0c) | (v << 2);
             break;
+#endif
         default:
             s->cr[s->cr_index] = val;
             break;
         }
+#ifdef DEBUG_S3
+        if (s->cr_index >= 0x20)
+            printf("S3: CR write index=0x%x val=0x%x\n",
+                   s->cr_index, val);
+#endif
         break;
     case 0x3ba:
     case 0x3da:
@@ -507,7 +541,6 @@ static uint32_t vga_mem_readl(uint32_t addr)
     return v;
 }
 
-
 /* called for accesses between 0xa0000 and 0xc0000 */
 void vga_mem_writeb(uint32_t addr, uint32_t val)
 {
@@ -588,7 +621,7 @@ void vga_mem_writeb(uint32_t addr, uint32_t val)
         case 3:
             /* rotate */
             b = s->gr[3] & 7;
-            val = ((val >> b) | (val << (8 - b)));
+            val = (val >> b) | (val << (8 - b));
 
             bit_mask = s->gr[8] & val;
             val = mask16[s->gr[0]];
@@ -787,15 +820,20 @@ static int update_basic_params(VGAState *s)
     
     full_update = 0;
     /* compute line_offset in bytes */
+    line_offset = s->cr[0x13];
+#ifdef CONFIG_S3VGA
     v = (s->cr[0x51] >> 4) & 3; /* S3 extension */
     if (v == 0)
         v = (s->cr[0x43] >> 2) & 1; /* S3 extension */
-    line_offset = s->cr[0x13] | (v << 8);
+    line_offset |= (v << 8);
+#endif
     line_offset <<= 3;
 
     /* starting address */
     start_addr = s->cr[0x0d] | (s->cr[0x0c] << 8);
+#ifdef CONFIG_S3VGA
     start_addr |= (s->cr[0x69] & 0x1f) << 16; /* S3 extension */
+#endif
 
     /* line compare */
     line_compare = s->cr[0x18] | 
@@ -1290,11 +1328,13 @@ void vga_update_display(void)
 void vga_reset(VGAState *s)
 {
     memset(s, 0, sizeof(VGAState));
+#ifdef CONFIG_S3VGA
     /* chip ID for 8c968 */
     s->cr[0x2d] = 0x88;
     s->cr[0x2e] = 0xb0;
     s->cr[0x2f] = 0x01; /* XXX: check revision code */
     s->cr[0x30] = 0xe1;
+#endif
     s->graphic_mode = -1; /* force full update */
 }
 
