@@ -1002,6 +1002,10 @@ static int pit_get_count(PITChannelState *s)
     case 5:
         counter = (s->count - d) & 0xffff;
         break;
+    case 3:
+        /* XXX: may be incorrect for odd counts */
+        counter = s->count - ((2 * d) % s->count);
+        break;
     default:
         counter = s->count - (d % s->count);
         break;
@@ -1031,7 +1035,7 @@ static int pit_get_out(PITChannelState *s)
             out = 0;
         break;
     case 3:
-        out = (d % s->count) < (s->count >> 1);
+        out = (d % s->count) < ((s->count + 1) >> 1);
         break;
     case 4:
     case 5:
@@ -1074,7 +1078,7 @@ static int pit_get_out_edges(PITChannelState *s)
         ret = d2 - d1;
         break;
     case 3:
-        v = s->count - (s->count >> 1);
+        v = s->count - ((s->count + 1) >> 1);
         d1 = (d1 + v) / s->count;
         d2 = (d2 + v) / s->count;
         ret = d2 - d1;
@@ -1088,6 +1092,36 @@ static int pit_get_out_edges(PITChannelState *s)
         break;
     }
     return ret;
+}
+
+/* val must be 0 or 1 */
+static inline void pit_set_gate(PITChannelState *s, int val)
+{
+    switch(s->mode) {
+    default:
+    case 0:
+    case 4:
+        /* XXX: just disable/enable counting */
+        break;
+    case 1:
+    case 5:
+        if (s->gate < val) {
+            /* restart counting on rising edge */
+            s->count_load_time = cpu_get_ticks();
+            s->count_last_edge_check_time = s->count_load_time;
+        }
+        break;
+    case 2:
+    case 3:
+        if (s->gate < val) {
+            /* restart counting on rising edge */
+            s->count_load_time = cpu_get_ticks();
+            s->count_last_edge_check_time = s->count_load_time;
+        }
+        /* XXX: disable/enable counting */
+        break;
+    }
+    s->gate = val;
 }
 
 static inline void pit_load_count(PITChannelState *s, int val)
@@ -1185,7 +1219,7 @@ uint32_t pit_ioport_read(CPUX86State *env, uint32_t addr)
 void speaker_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
 {
     speaker_data_on = (val >> 1) & 1;
-    pit_channels[2].gate = val & 1;
+    pit_set_gate(&pit_channels[2], val & 1);
 }
 
 uint32_t speaker_ioport_read(CPUX86State *env, uint32_t addr)
@@ -1463,7 +1497,6 @@ void serial_received_byte(SerialState *s, int ch)
             serial_update_irq();
             break;
         case 'd':
-            //            tb_flush();
             cpu_set_log(CPU_LOG_ALL);
             break;
         case TERM_ESCAPE:
@@ -2128,7 +2161,7 @@ uint32_t kbd_read_status(CPUX86State *env, uint32_t addr)
     KBDState *s = &kbd_state;
     int val;
     val = s->status;
-#if defined(DEBUG_KBD)
+#if defined(DEBUG_KBD) && 0
     printf("kbd: read status=0x%02x\n", val);
 #endif
     return val;
