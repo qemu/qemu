@@ -564,8 +564,8 @@ static inline void cpu_x86_load_seg_cache(CPUX86State *env,
         if (env->hflags & HF_CS64_MASK) {
             /* zero base assumed for DS, ES and SS in long mode */
         } else if (!(env->cr[0] & CR0_PE_MASK) || 
-            (env->eflags & VM_MASK) ||
-            !(new_hflags & HF_CS32_MASK)) {
+                   (env->eflags & VM_MASK) ||
+                   !(env->hflags & HF_CS32_MASK)) {
             /* XXX: try to avoid this test. The problem comes from the
                fact that is real mode or vm86 mode we only modify the
                'base' and 'selector' fields of the segment cache to go
@@ -573,9 +573,9 @@ static inline void cpu_x86_load_seg_cache(CPUX86State *env,
                translate-i386.c. */
             new_hflags |= HF_ADDSEG_MASK;
         } else {
-            new_hflags |= (((unsigned long)env->segs[R_DS].base | 
-                            (unsigned long)env->segs[R_ES].base |
-                            (unsigned long)env->segs[R_SS].base) != 0) << 
+            new_hflags |= ((env->segs[R_DS].base | 
+                            env->segs[R_ES].base |
+                            env->segs[R_SS].base) != 0) << 
                 HF_ADDSEG_SHIFT;
         }
         env->hflags = (env->hflags & 
