@@ -46,8 +46,8 @@ typedef struct PicState {
 } PicState;
 
 /* 0 is master pic, 1 is slave pic */
-PicState pics[2];
-int pic_irq_requested;
+static PicState pics[2];
+static int pic_irq_requested;
 
 /* set irq level. If an edge is detected, then the IRR is set to 1 */
 static inline void pic_set_irq1(PicState *s, int irq, int level)
@@ -198,6 +198,7 @@ int cpu_get_pic_interrupt(CPUState *env)
         intno = pics[0].irq_base + irq;
     }
     pic_intack(&pics[0], irq);
+    pic_update_irq();
     return intno;
 }
 
@@ -407,6 +408,19 @@ static void pic_init1(int io_addr, PicState *s)
 
     register_savevm("i8259", io_addr, 1, pic_save, pic_load, s);
 }
+
+void pic_info(void)
+{
+    int i;
+    PicState *s;
+
+    for(i=0;i<2;i++) {
+        s = &pics[i];
+        term_printf("pic%d: irr=%02x imr=%02x isr=%02x hprio=%d irq_base=%02x rr_sel=%d\n",
+                    i, s->irr, s->imr, s->isr, s->priority_add, s->irq_base, s->read_reg_select);
+    }
+}
+
 
 void pic_init(void)
 {
