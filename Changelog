@@ -1,3 +1,8 @@
+version 0.3:
+ - added fnsave, frstor, fnstenv, fldenv FPU instructions
+ - added FPU register save in signal emulation
+ - ARM port
+
 version 0.2:
 
  - PowerPC disassembly and ELF symbols output (Rusty Russel)

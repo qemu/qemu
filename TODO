@@ -1,15 +1,18 @@
 
-- fix iret/lret/fpush not before mem load restarting
+- fix arm fpu rounding (at least for float->integer conversions)
+- fix CCOP optimisation
+- optimize FPU operations (evaluate x87 stack pointer statically) 
+- fpush not before mem load restarting
 - fix all remaining thread lock issues (must put TBs in a specific invalid
   state, find a solution for tb_flush()).
-- handle fp87 state in signals
 - add gcc 2.96 test configure (some gcc3 flags are needed)
-- optimize FPU operations (evaluate x87 stack pointer statically)
 - add IPC syscalls
 - submit a patch to fix DOSEMU coopthreads
 
 lower priority:
 --------------
+- use -msoft-float on ARM
+- use kernel traps for unaligned accesses on ARM ?
 - handle rare page fault cases (in particular if page fault in heplers or
   in syscall emulation code).
 - fix thread stack freeing (use kernel 2.5.x CLONE_CHILD_CLEARTID)
