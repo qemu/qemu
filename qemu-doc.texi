@@ -875,6 +875,44 @@ Use @code{set architecture i8086} to dump 16 bit code. Then use
 @code{x/10i $cs*16+*eip} to dump the code at the PC position.
 @end enumerate
 
+@section Target OS specific information
+
+@subsection Linux
+
+To have access to SVGA graphic modes under X11, use the @code{vesa}
+X11 driver. For optimal performances, use the same depth as your
+native display.
+
+@subsection Windows
+
+If you have a slow host, using Windows 95 is better as it gives the
+best speed. Windows 2000 is also a good choice.
+
+SVGA graphic modes support: QEMU currently supports the Bochs VESA VBE
+extensions. It supports color depths of 8, 15, 16 and 32 bits per
+pixel in 640x480, 800x600 and 1024x768. For optimal performances, use
+the same depth as your native display.
+
+@itemize
+
+@item Windows XP: it should be automatically detected.
+
+@item Windows NT4 or 2000: use the driver
+@url{http://www.volny.cz/xnavara/qemuvid_bin.zip} by Filip Navara.
+
+@item Windows 95/98/Me: no clean solution yet (but it will change
+soon). You can however use the shareware driver from SciTech. Here are
+the steps recommended by Christophe Bothamy on the Bochs mailing list:
+
+@itemize
+@item install win95 with the VGA driver.
+@item download sdd 7 beta from @url{http://www.majorgeeks.com/download382.html}
+@item download pmhelp.vxd from @url{http://unununium.org/viewcvs/snap/redist/release/pmhelp.vxd}
+@item copy pmhelp.vxd to the win95 system directory
+@item install sdd7
+@end itemize
+@end itemize
+
 @chapter QEMU PREP PowerPC System emulator invocation
 
 Use the executable @file{qemu-system-ppc} to simulate a complete PREP
