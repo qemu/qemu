@@ -1517,21 +1517,6 @@ typedef struct PCIIDEState {
     IDEState ide_if[4];
 } PCIIDEState;
 
-static uint32_t ide_read_config(PCIDevice *d, 
-                                 uint32_t address, int len)
-{
-    uint32_t val;
-    val = 0;
-    memcpy(&val, d->config + address, len);
-    return val;
-}
-
-static void ide_write_config(PCIDevice *d, 
-                              uint32_t address, uint32_t val, int len)
-{
-    memcpy(d->config + address, &val, len);
-}
-
 static void ide_map(PCIDevice *pci_dev, int region_num, 
                     uint32_t addr, uint32_t size, int type)
 {
@@ -1564,8 +1549,7 @@ void pci_ide_init(BlockDriverState **hd_table)
     
     d = (PCIIDEState *)pci_register_device("IDE", sizeof(PCIIDEState),
                                            0, -1, 
-                                           ide_read_config, 
-                                           ide_write_config);
+                                           NULL, NULL);
     pci_conf = d->dev.config;
     pci_conf[0x00] = 0x86; // Intel
     pci_conf[0x01] = 0x80;
