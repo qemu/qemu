@@ -154,7 +154,7 @@ ar="${cross_prefix}${ar}"
 strip="${cross_prefix}${strip}"
 
 if test "$mingw32" = "yes" ; then
-    target_list="i386-softmmu"
+    target_list="i386-softmmu ppc-softmmu"
     EXESUF=".exe"
     gdbstub="no"
 fi
@@ -417,6 +417,10 @@ echo "SRC_PATH=$source_path" >> $config_mak
 echo "TARGET_DIRS=$target_list" >> $config_mak
 
 if [ "$bsd" = "yes" ] ; then
+  echo "#define O_LARGEFILE 0" >> $config_h
+  echo "#define lseek64 lseek" >> $config_h
+  echo "#define ftruncate64 ftruncate" >> $config_h
+  echo "#define MAP_ANONYMOUS MAP_ANON" >> $config_h
   echo "#define _BSD 1" >> $config_h
 fi
 
