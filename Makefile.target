@@ -1,0 +1,201 @@
+include config.mak
+
+VPATH=$(SRC_PATH)
+CFLAGS=-Wall -O2 -g
+LDFLAGS=-g
+LIBS=
+DEFINES=-I.
+HELPER_CFLAGS=$(CFLAGS)
+DYNGEN=../dyngen
+ifndef CONFIG_SOFTMMU
+PROGS=qemu
+endif
+
+ifdef CONFIG_STATIC
+LDFLAGS+=-static
+endif
+
+ifeq ($(ARCH),i386)
+CFLAGS+=-fomit-frame-pointer
+OP_CFLAGS=$(CFLAGS) -mpreferred-stack-boundary=2
+ifeq ($(HAVE_GCC3_OPTIONS),yes)
+OP_CFLAGS+= -falign-functions=0
+else
+OP_CFLAGS+= -malign-functions=0
+endif
+ifdef TARGET_GPROF
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/i386.ld
+else
+# WARNING: this LDFLAGS is _very_ tricky : qemu is an ELF shared object
+# that the kernel ELF loader considers as an executable. I think this
+# is the simplest way to make it self virtualizable!
+LDFLAGS+=-Wl,-shared
+endif
+ifeq ($(TARGET_ARCH), i386)
+PROGS+=vl
+endif
+endif
+
+ifeq ($(ARCH),ppc)
+OP_CFLAGS=$(CFLAGS)
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/ppc.ld
+endif
+
+ifeq ($(ARCH),s390)
+OP_CFLAGS=$(CFLAGS)
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/s390.ld
+endif
+
+ifeq ($(ARCH),sparc)
+CFLAGS+=-m32 -ffixed-g1 -ffixed-g2 -ffixed-g3 -ffixed-g6
+LDFLAGS+=-m32
+OP_CFLAGS=$(CFLAGS) -fno-delayed-branch -ffixed-i0
+HELPER_CFLAGS=$(CFLAGS) -ffixed-i0 -mflat
+# -static is used to avoid g1/g3 usage by the dynamic linker
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/sparc.ld -static
+endif
+
+ifeq ($(ARCH),sparc64)
+CFLAGS+=-m64 -ffixed-g1 -ffixed-g2 -ffixed-g3 -ffixed-g6
+LDFLAGS+=-m64
+OP_CFLAGS=$(CFLAGS) -fno-delayed-branch -ffixed-i0
+endif
+
+ifeq ($(ARCH),alpha)
+# -msmall-data is not used because we want two-instruction relocations
+# for the constant constructions
+OP_CFLAGS=-Wall -O2 -g
+# Ensure there's only a single GP
+CFLAGS += -msmall-data
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/alpha.ld
+endif
+
+ifeq ($(ARCH),ia64)
+OP_CFLAGS=$(CFLAGS)
+endif
+
+ifeq ($(ARCH),arm)
+OP_CFLAGS=$(CFLAGS) -mno-sched-prolog
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/arm.ld
+endif
+
+ifeq ($(HAVE_GCC3_OPTIONS),yes)
+# very important to generate a return at the end of every operation
+OP_CFLAGS+=-fno-reorder-blocks -fno-optimize-sibling-calls
+endif
+
+#########################################################
+
+DEFINES+=-D_GNU_SOURCE
+LIBS+=-lm
+
+# profiling code
+ifdef TARGET_GPROF
+LDFLAGS+=-p
+main.o: CFLAGS+=-p
+endif
+
+OBJS= elfload.o main.o syscall.o mmap.o signal.o path.o
+ifeq ($(TARGET_ARCH), i386)
+OBJS+= vm86.o
+endif
+SRCS:= $(OBJS:.o=.c)
+OBJS+= libqemu.a
+
+# cpu emulator library
+LIBOBJS=thunk.o exec.o translate.o cpu-exec.o gdbstub.o
+
+ifeq ($(TARGET_ARCH), i386)
+LIBOBJS+=translate-i386.o op-i386.o helper-i386.o helper2-i386.o
+endif
+ifeq ($(TARGET_ARCH), arm)
+LIBOBJS+=translate-arm.o op-arm.o
+endif
+
+# NOTE: the disassembler code is only needed for debugging
+LIBOBJS+=disas.o 
+ifeq ($(findstring i386, $(TARGET_ARCH) $(ARCH)),i386)
+LIBOBJS+=i386-dis.o
+endif
+ifeq ($(findstring alpha, $(TARGET_ARCH) $(ARCH)),alpha)
+LIBOBJS+=alpha-dis.o
+endif
+ifeq ($(findstring ppc, $(TARGET_ARCH) $(ARCH)),ppc)
+LIBOBJS+=ppc-dis.o
+endif
+ifeq ($(findstring sparc, $(TARGET_ARCH) $(ARCH)),sparc)
+LIBOBJS+=sparc-dis.o
+endif
+ifeq ($(findstring arm, $(TARGET_ARCH) $(ARCH)),arm)
+LIBOBJS+=arm-dis.o
+endif
+
+ifeq ($(ARCH),ia64)
+OBJS += ia64-syscall.o
+endif
+
+all: $(PROGS) qemu-doc.html
+
+qemu: $(OBJS)
+	$(CC) $(LDFLAGS) -o $@ $^  $(LIBS)
+ifeq ($(ARCH),alpha)
+# Mark as 32 bit binary, i. e. it will be mapped into the low 31 bit of
+# the address space (31 bit so sign extending doesn't matter)
+	echo -ne '\001\000\000\000' | dd of=qemu bs=1 seek=48 count=4 conv=notrunc
+endif
+
+# must use static linking to avoid leaving stuff in virtual address space
+VL_OBJS=vl.o block.o vga.o
+ifdef CONFIG_SDL
+VL_OBJS+=sdl.o
+SDL_LIBS+=-L/usr/X11R6/lib -lX11 -lXext -lXv -ldl
+endif
+
+vl: $(VL_OBJS) libqemu.a
+	$(CC) -static -Wl,-T,$(SRC_PATH)/i386-vl.ld -o $@ $^ $(LIBS) $(SDL_LIBS)
+
+sdl.o: sdl.c
+	$(CC) $(CFLAGS) $(DEFINES) $(SDL_CFLAGS) -c -o $@ $<
+
+depend: $(SRCS)
+	$(CC) -MM $(CFLAGS) $^ 1>.depend
+
+# libqemu 
+
+libqemu.a: $(LIBOBJS)
+	rm -f $@
+	$(AR) rcs $@ $(LIBOBJS)
+
+translate-$(TARGET_ARCH).o: translate-$(TARGET_ARCH).c gen-op-$(TARGET_ARCH).h opc-$(TARGET_ARCH).h cpu-$(TARGET_ARCH).h
+
+translate.o: translate.c op-$(TARGET_ARCH).h opc-$(TARGET_ARCH).h cpu-$(TARGET_ARCH).h
+
+op-$(TARGET_ARCH).h: op-$(TARGET_ARCH).o $(DYNGEN)
+	$(DYNGEN) -o $@ $<
+
+opc-$(TARGET_ARCH).h: op-$(TARGET_ARCH).o $(DYNGEN)
+	$(DYNGEN) -c -o $@ $<
+
+gen-op-$(TARGET_ARCH).h: op-$(TARGET_ARCH).o $(DYNGEN)
+	$(DYNGEN) -g -o $@ $<
+
+op-$(TARGET_ARCH).o: op-$(TARGET_ARCH).c
+	$(CC) $(OP_CFLAGS) $(DEFINES) -c -o $@ $<
+
+helper-$(TARGET_ARCH).o: helper-$(TARGET_ARCH).c
+	$(CC) $(HELPER_CFLAGS) $(DEFINES) -c -o $@ $<
+
+op-i386.o: op-i386.c opreg_template.h ops_template.h ops_template_mem.h ops_mem.h
+
+op-arm.o: op-arm.c op-arm-template.h
+
+%.o: %.c
+	$(CC) $(CFLAGS) $(DEFINES) -c -o $@ $<
+
+clean:
+	rm -f *.o  *.a *~ $(PROGS) \
+           gen-op-$(TARGET_ARCH).h opc-$(TARGET_ARCH).h op-$(TARGET_ARCH).h
+
+ifneq ($(wildcard .depend),)
+include .depend
+endif

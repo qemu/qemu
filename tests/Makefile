@@ -1,4 +1,4 @@
-include ../config.mak
+include ../config-host.mak
 
 CFLAGS=-Wall -O2 -g
 LDFLAGS=
@@ -8,7 +8,7 @@ TESTS=testclone testsig testthread sha1-i386 test-i386 runcom
 endif
 TESTS+=sha1 test_path
 
-QEMU=../qemu
+QEMU=../i386/qemu
 
 all: $(TESTS)
 
