@@ -179,6 +179,11 @@ static void gen_##name (DisasContext *ctx)
 
 typedef struct opcode_t {
     unsigned char opc1, opc2, opc3;
+#if HOST_LONG_BITS == 64 /* Explicitely align to 64 bits */
+    unsigned char pad[5];
+#else
+    unsigned char pad[1];
+#endif
     opc_handler_t handler;
 } opcode_t;
 
@@ -192,7 +197,7 @@ static inline uint32_t name (uint32_t opcode)                                 \
 #define EXTRACT_SHELPER(name, shift, nb)                                      \
 static inline int32_t name (uint32_t opcode)                                  \
 {                                                                             \
-    return s_ext16((opcode >> (shift)) & ((1 << (nb)) - 1));                  \
+    return (int16_t)((opcode >> (shift)) & ((1 << (nb)) - 1));                \
 }
 
 /* Opcode part 1 */
@@ -285,10 +290,11 @@ static inline uint32_t MASK (uint32_t start, uint32_t end)
 #endif
 
 #define GEN_OPCODE(name, op1, op2, op3, invl, _typ)                           \
-OPCODES_SECTION static opcode_t opc_##name = {                                \
+OPCODES_SECTION opcode_t opc_##name = {                                       \
     .opc1 = op1,                                                              \
     .opc2 = op2,                                                              \
     .opc3 = op3,                                                              \
+    .pad  = { 0, },                                                           \
     .handler = {                                                              \
         .inval   = invl,                                                      \
         .type = _typ,                                                         \
@@ -297,10 +303,11 @@ OPCODES_SECTION static opcode_t opc_##name = {                                \
 }
 
 #define GEN_OPCODE_MARK(name)                                                 \
-OPCODES_SECTION static opcode_t opc_##name = {                                \
+OPCODES_SECTION opcode_t opc_##name = {                                       \
     .opc1 = 0xFF,                                                             \
     .opc2 = 0xFF,                                                             \
     .opc3 = 0xFF,                                                             \
+    .pad  = { 0, },                                                           \
     .handler = {                                                              \
         .inval   = 0x00000000,                                                \
         .type = 0x00,                                                         \
@@ -361,7 +368,7 @@ GEN_HANDLER(name, opc1, opc2, opc3, inval, PPC_INTEGER)                       \
     gen_op_load_gpr_T1(rB(ctx->opcode));                                      \
     gen_op_##name();                                                          \
     if (Rc(ctx->opcode) != 0)                                                 \
-        gen_op_set_Rc0_ov();                                                  \
+        gen_op_set_Rc0();                                                     \
     gen_op_store_T0_gpr(rD(ctx->opcode));                                     \
 }
 
@@ -380,7 +387,7 @@ GEN_HANDLER(name, opc1, opc2, opc3, 0x0000F800, PPC_INTEGER)                  \
     gen_op_load_gpr_T0(rA(ctx->opcode));                                      \
     gen_op_##name();                                                          \
     if (Rc(ctx->opcode) != 0)                                                 \
-        gen_op_set_Rc0_ov();                                                  \
+        gen_op_set_Rc0();                                                     \
     gen_op_store_T0_gpr(rD(ctx->opcode));                                     \
 }
 
@@ -1558,7 +1565,7 @@ static inline void gen_bcond(DisasContext *ctx, int type)
         gen_op_dec_ctr();                                                     
     switch(type) {
     case BCOND_IM:
-        li = s_ext16(BD(ctx->opcode));
+        li = (int32_t)((int16_t)(BD(ctx->opcode)));
         if (AA(ctx->opcode) == 0) {
             target = ctx->nip + li - 4;
         } else {
@@ -2160,11 +2167,6 @@ GEN_HANDLER(mtspr, 0x1F, 0x13, 0x0E, 0x00000001, PPC_MISC)
     case DECR:
         gen_op_store_decr();
         break;
-#if 0
-    case HID0:
-        gen_op_store_hid0();
-        break;
-#endif
     default:
         gen_op_store_spr(sprn);
         break;
@@ -2894,7 +2896,7 @@ static ppc_def_t ppc_defs[] =
 
 static int create_ppc_proc (opc_handler_t **ppc_opcodes, unsigned long pvr)
 {
-    opcode_t *opc;
+    opcode_t *opc, *start, *end;
     int i, flags;
 
     fill_new_table(ppc_opcodes, 0x40);
@@ -2906,7 +2908,14 @@ static int create_ppc_proc (opc_handler_t **ppc_opcodes, unsigned long pvr)
         }
     }
     
-    for (opc = &opc_start + 1; opc != &opc_end; opc++) {
+    if (&opc_start < &opc_end) {
+	start = &opc_start;
+	end = &opc_end;
+    } else {
+	start = &opc_end;
+	end = &opc_start;
+    }
+    for (opc = start + 1; opc != end; opc++) {
         if ((opc->handler.type & flags) != 0)
             if (register_insn(ppc_opcodes, opc) < 0) {
                 printf("*** ERROR initializing PPC instruction "

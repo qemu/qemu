@@ -377,7 +377,7 @@ void do_fnabs (void)
 
 void do_check_reservation (void)
 {
-    if ((env->reserve & ~(ICACHE_LINE_SIZE - 1)) == T0)
+    if ((env->reserve & ~0x03) == T0)
         env->reserve = -1;
 }
 

@@ -26,23 +26,6 @@
 
 //#define USE_OPEN_FIRMWARE
 
-/***                          Sign extend constants                        ***/
-/* 8 to 32 bits */
-static inline int32_t s_ext8 (uint8_t value)
-{
-    int8_t *tmp = &value;
-
-    return *tmp;
-}
-
-/* 16 to 32 bits */
-static inline int32_t s_ext16 (uint16_t value)
-{
-    int16_t *tmp = &value;
-
-    return *tmp;
-}
-
 #include "config.h"
 #include <setjmp.h>
 

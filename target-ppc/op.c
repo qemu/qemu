@@ -147,21 +147,6 @@ PPC_OP(set_Rc0)
     } else {
         tmp = 0x02;
     }
-    env->crf[0] = tmp;
-    RETURN();
-}
-
-PPC_OP(set_Rc0_ov)
-{
-    uint32_t tmp;
-
-    if (Ts0 < 0) {
-        tmp = 0x08;
-    } else if (Ts0 > 0) {
-        tmp = 0x04;
-    } else {
-        tmp = 0x02;
-    }
     tmp |= xer_ov;
     env->crf[0] = tmp;
     RETURN();
@@ -1062,14 +1047,14 @@ PPC_OP(eqv)
 /* extend sign byte */
 PPC_OP(extsb)
 {
-    Ts0 = s_ext8(Ts0);
+    Ts0 = (int8_t)(Ts0);
     RETURN();
 }
 
 /* extend sign half word */
 PPC_OP(extsh)
 {
-    Ts0 = s_ext16(Ts0);
+    Ts0 = (int16_t)(Ts0);
     RETURN();
 }
 

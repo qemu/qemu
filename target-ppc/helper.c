@@ -655,16 +655,21 @@ void _store_msr (CPUState *env, uint32_t value)
     msr_dr = (value >> MSR_DR) & 0x01;
     msr_ri = (value >> MSR_RI) & 0x01;
     msr_le = (value >> MSR_LE) & 0x01;
+    /* XXX: should enter PM state if msr_pow has been set */
 }
 
+#if defined (CONFIG_USER_ONLY)
 void do_interrupt (CPUState *env)
 {
-#if defined (CONFIG_USER_ONLY)
-    env->exception_index |= 0x100;
+    env->exception_index = -1;
+}
 #else
+void do_interrupt (CPUState *env)
+{
     uint32_t msr;
-    int excp = env->exception_index;
+    int excp;
 
+    excp = env->exception_index;
     msr = _load_msr(env);
 #if defined (DEBUG_EXCEPTIONS)
     if ((excp == EXCP_PROGRAM || excp == EXCP_DSI) && msr_pr == 1) 
@@ -906,6 +911,6 @@ void do_interrupt (CPUState *env)
 #else
     T0 = 0;
 #endif
-#endif
     env->exception_index = -1;
 }
+#endif /* !CONFIG_USER_ONLY */
