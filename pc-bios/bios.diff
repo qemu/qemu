@@ -4,7 +4,7 @@ RCS file: /cvsroot/bochs/bochs/bios/rombios.c,v
 retrieving revision 1.108
 diff -u -w -r1.108 rombios.c
 --- rombios.c	9 Feb 2004 16:48:50 -0000	1.108
-+++ rombios.c	16 May 2004 15:16:57 -0000
++++ rombios.c	22 May 2004 15:47:51 -0000
 @@ -2254,6 +2254,7 @@
        type      = read_byte(get_SS(),buffer+1) & 0x1f;
        removable = (read_byte(get_SS(),buffer+0) & 0x80) ? 1 : 0;
@@ -58,3 +58,175 @@ diff -u -w -r1.108 rombios.c
      }
  
    package_count = mouse_flags_2 & 0x07;
+@@ -8401,57 +8416,69 @@
+   cmp al, #0x08
+   jne pci_pro_f09
+   call pci_pro_select_reg
++  push edx
+   mov dx, di
+   and dx, #0x03
+   add dx, #0x0cfc
+   in  al, dx
++  pop edx
+   mov cl, al
+   jmp pci_pro_ok
+ pci_pro_f09: ;; read configuration word
+   cmp al, #0x09
+   jne pci_pro_f0a
+   call pci_pro_select_reg
++  push edx
+   mov dx, di
+   and dx, #0x02
+   add dx, #0x0cfc
+   in  ax, dx
++  pop edx
+   mov cx, ax
+   jmp pci_pro_ok
+ pci_pro_f0a: ;; read configuration dword
+   cmp al, #0x0a
+   jne pci_pro_f0b
+   call pci_pro_select_reg
++  push edx
+   mov dx, #0x0cfc
+   in  eax, dx
++  pop edx
+   mov ecx, eax
+   jmp pci_pro_ok
+ pci_pro_f0b: ;; write configuration byte
+   cmp al, #0x0b
+   jne pci_pro_f0c
+   call pci_pro_select_reg
++  push edx
+   mov dx, di
+   and dx, #0x03
+   add dx, #0x0cfc
+   mov al, cl
+   out dx, al
++  pop edx
+   jmp pci_pro_ok
+ pci_pro_f0c: ;; write configuration word
+   cmp al, #0x0c
+   jne pci_pro_f0d
+   call pci_pro_select_reg
++  push edx
+   mov dx, di
+   and dx, #0x02
+   add dx, #0x0cfc
+   mov ax, cx
+   out dx, ax
++  pop edx
+   jmp pci_pro_ok
+ pci_pro_f0d: ;; write configuration dword
+   cmp al, #0x0d
+   jne pci_pro_unknown
+   call pci_pro_select_reg
++  push edx
+   mov dx, #0x0cfc
+   mov eax, ecx
+   out dx, eax
++  pop edx
+   jmp pci_pro_ok
+ pci_pro_unknown:
+   mov ah, #0x81
+@@ -8468,6 +8495,7 @@
+   retf
+ 
+ pci_pro_select_reg:
++  push edx
+   mov eax, #0x800000
+   mov ax,  bx
+   shl eax, #8
+@@ -8476,6 +8504,7 @@
+   and al,  #0xfc
+   mov dx, #0x0cf8
+   out dx,  eax
++  pop edx
+   ret
+ 
+ use16 386
+@@ -8536,57 +8565,69 @@
+   cmp al, #0x08
+   jne pci_real_f09
+   call pci_real_select_reg
++  push dx
+   mov dx, di
+   and dx, #0x03
+   add dx, #0x0cfc
+   in  al, dx
++  pop dx
+   mov cl, al
+   jmp pci_real_ok
+ pci_real_f09: ;; read configuration word
+   cmp al, #0x09
+   jne pci_real_f0a
+   call pci_real_select_reg
++  push dx
+   mov dx, di
+   and dx, #0x02
+   add dx, #0x0cfc
+   in  ax, dx
++  pop dx
+   mov cx, ax
+   jmp pci_real_ok
+ pci_real_f0a: ;; read configuration dword
+   cmp al, #0x0a
+   jne pci_real_f0b
+   call pci_real_select_reg
++  push dx
+   mov dx, #0x0cfc
+   in  eax, dx
++  pop dx
+   mov ecx, eax
+   jmp pci_real_ok
+ pci_real_f0b: ;; write configuration byte
+   cmp al, #0x0b
+   jne pci_real_f0c
+   call pci_real_select_reg
++  push dx
+   mov dx, di
+   and dx, #0x03
+   add dx, #0x0cfc
+   mov al, cl
+   out dx, al
++  pop dx
+   jmp pci_real_ok
+ pci_real_f0c: ;; write configuration word
+   cmp al, #0x0c
+   jne pci_real_f0d
+   call pci_real_select_reg
++  push dx
+   mov dx, di
+   and dx, #0x02
+   add dx, #0x0cfc
+   mov ax, cx
+   out dx, ax
++  pop dx
+   jmp pci_real_ok
+ pci_real_f0d: ;; write configuration dword
+   cmp al, #0x0d
+   jne pci_real_unknown
+   call pci_real_select_reg
++  push dx
+   mov dx, #0x0cfc
+   mov eax, ecx
+   out dx, eax
++  pop dx
+   jmp pci_real_ok
+ pci_real_unknown:
+   mov ah, #0x81
+@@ -8599,6 +8640,7 @@
+   ret
+ 
+ pci_real_select_reg:
++  push dx
+   mov eax, #0x800000
+   mov ax,  bx
+   shl eax, #8
+@@ -8607,6 +8649,7 @@
+   and al,  #0xfc
+   mov dx, #0x0cf8
+   out dx,  eax
++  pop dx
+   ret
+   
+ .align 16
