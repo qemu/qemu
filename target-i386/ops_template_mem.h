@@ -20,12 +20,40 @@
  */
 #ifdef MEM_WRITE
 
+#if MEM_WRITE == 0
+
 #if DATA_BITS == 8
-#define MEM_SUFFIX b_mem
+#define MEM_SUFFIX b_raw
 #elif DATA_BITS == 16
-#define MEM_SUFFIX w_mem
+#define MEM_SUFFIX w_raw
 #elif DATA_BITS == 32
-#define MEM_SUFFIX l_mem
+#define MEM_SUFFIX l_raw
+#endif
+
+#elif MEM_WRITE == 1
+
+#if DATA_BITS == 8
+#define MEM_SUFFIX b_kernel
+#elif DATA_BITS == 16
+#define MEM_SUFFIX w_kernel
+#elif DATA_BITS == 32
+#define MEM_SUFFIX l_kernel
+#endif
+
+#elif MEM_WRITE == 2
+
+#if DATA_BITS == 8
+#define MEM_SUFFIX b_user
+#elif DATA_BITS == 16
+#define MEM_SUFFIX w_user
+#elif DATA_BITS == 32
+#define MEM_SUFFIX l_user
+#endif
+
+#else
+
+#error invalid MEM_WRITE
+
 #endif
 
 #else
@@ -43,7 +71,7 @@ void OPPROTO glue(glue(op_rol, MEM_SUFFIX), _T0_T1_cc)(void)
         T0 &= DATA_MASK;
         T0 = (T0 << count) | (T0 >> (DATA_BITS - count));
 #ifdef MEM_WRITE
-        glue(st, SUFFIX)((uint8_t *)A0, T0);
+        glue(st, MEM_SUFFIX)((uint8_t *)A0, T0);
 #else
         /* gcc 3.2 workaround. This is really a bug in gcc. */
         asm volatile("" : : "r" (T0));
@@ -65,7 +93,7 @@ void OPPROTO glue(glue(op_ror, MEM_SUFFIX), _T0_T1_cc)(void)
         T0 &= DATA_MASK;
         T0 = (T0 >> count) | (T0 << (DATA_BITS - count));
 #ifdef MEM_WRITE
-        glue(st, SUFFIX)((uint8_t *)A0, T0);
+        glue(st, MEM_SUFFIX)((uint8_t *)A0, T0);
 #else
         /* gcc 3.2 workaround. This is really a bug in gcc. */
         asm volatile("" : : "r" (T0));
@@ -86,7 +114,7 @@ void OPPROTO glue(glue(op_rol, MEM_SUFFIX), _T0_T1)(void)
         T0 &= DATA_MASK;
         T0 = (T0 << count) | (T0 >> (DATA_BITS - count));
 #ifdef MEM_WRITE
-        glue(st, SUFFIX)((uint8_t *)A0, T0);
+        glue(st, MEM_SUFFIX)((uint8_t *)A0, T0);
 #endif
     }
     FORCE_RET();
@@ -100,7 +128,7 @@ void OPPROTO glue(glue(op_ror, MEM_SUFFIX), _T0_T1)(void)
         T0 &= DATA_MASK;
         T0 = (T0 >> count) | (T0 << (DATA_BITS - count));
 #ifdef MEM_WRITE
-        glue(st, SUFFIX)((uint8_t *)A0, T0);
+        glue(st, MEM_SUFFIX)((uint8_t *)A0, T0);
 #endif
     }
     FORCE_RET();
@@ -126,7 +154,7 @@ void OPPROTO glue(glue(op_rcl, MEM_SUFFIX), _T0_T1_cc)(void)
             res |= T0 >> (DATA_BITS + 1 - count);
         T0 = res;
 #ifdef MEM_WRITE
-        glue(st, SUFFIX)((uint8_t *)A0, T0);
+        glue(st, MEM_SUFFIX)((uint8_t *)A0, T0);
 #endif
         CC_SRC = (eflags & ~(CC_C | CC_O)) |
             (lshift(src ^ T0, 11 - (DATA_BITS - 1)) & CC_O) | 
@@ -156,7 +184,7 @@ void OPPROTO glue(glue(op_rcr, MEM_SUFFIX), _T0_T1_cc)(void)
             res |= T0 << (DATA_BITS + 1 - count);
         T0 = res;
 #ifdef MEM_WRITE
-        glue(st, SUFFIX)((uint8_t *)A0, T0);
+        glue(st, MEM_SUFFIX)((uint8_t *)A0, T0);
 #endif
         CC_SRC = (eflags & ~(CC_C | CC_O)) |
             (lshift(src ^ T0, 11 - (DATA_BITS - 1)) & CC_O) | 
@@ -174,7 +202,7 @@ void OPPROTO glue(glue(op_shl, MEM_SUFFIX), _T0_T1_cc)(void)
         src = (DATA_TYPE)T0 << (count - 1);
         T0 = T0 << count;
 #ifdef MEM_WRITE
-        glue(st, SUFFIX)((uint8_t *)A0, T0);
+        glue(st, MEM_SUFFIX)((uint8_t *)A0, T0);
 #endif
         CC_SRC = src;
         CC_DST = T0;
@@ -192,7 +220,7 @@ void OPPROTO glue(glue(op_shr, MEM_SUFFIX), _T0_T1_cc)(void)
         src = T0 >> (count - 1);
         T0 = T0 >> count;
 #ifdef MEM_WRITE
-        glue(st, SUFFIX)((uint8_t *)A0, T0);
+        glue(st, MEM_SUFFIX)((uint8_t *)A0, T0);
 #endif
         CC_SRC = src;
         CC_DST = T0;
@@ -210,7 +238,7 @@ void OPPROTO glue(glue(op_sar, MEM_SUFFIX), _T0_T1_cc)(void)
         T0 = src >> count;
         src = src >> (count - 1);
 #ifdef MEM_WRITE
-        glue(st, SUFFIX)((uint8_t *)A0, T0);
+        glue(st, MEM_SUFFIX)((uint8_t *)A0, T0);
 #endif
         CC_SRC = src;
         CC_DST = T0;
@@ -234,7 +262,7 @@ void OPPROTO glue(glue(op_shld, MEM_SUFFIX), _T0_T1_im_cc)(void)
         res |= T1 << (count - 16);
     T0 = res >> 16;
 #ifdef MEM_WRITE
-    glue(st, SUFFIX)((uint8_t *)A0, T0);
+    glue(st, MEM_SUFFIX)((uint8_t *)A0, T0);
 #endif
     CC_SRC = tmp;
     CC_DST = T0;
@@ -254,7 +282,7 @@ void OPPROTO glue(glue(op_shld, MEM_SUFFIX), _T0_T1_ECX_cc)(void)
           res |= T1 << (count - 16);
         T0 = res >> 16;
 #ifdef MEM_WRITE
-        glue(st, SUFFIX)((uint8_t *)A0, T0);
+        glue(st, MEM_SUFFIX)((uint8_t *)A0, T0);
 #endif
         CC_SRC = tmp;
         CC_DST = T0;
@@ -276,7 +304,7 @@ void OPPROTO glue(glue(op_shrd, MEM_SUFFIX), _T0_T1_im_cc)(void)
         res |= T1 << (32 - count);
     T0 = res;
 #ifdef MEM_WRITE
-    glue(st, SUFFIX)((uint8_t *)A0, T0);
+    glue(st, MEM_SUFFIX)((uint8_t *)A0, T0);
 #endif
     CC_SRC = tmp;
     CC_DST = T0;
@@ -297,7 +325,7 @@ void OPPROTO glue(glue(op_shrd, MEM_SUFFIX), _T0_T1_ECX_cc)(void)
             res |= T1 << (32 - count);
         T0 = res;
 #ifdef MEM_WRITE
-        glue(st, SUFFIX)((uint8_t *)A0, T0);
+        glue(st, MEM_SUFFIX)((uint8_t *)A0, T0);
 #endif
         CC_SRC = tmp;
         CC_DST = T0;
@@ -317,7 +345,7 @@ void OPPROTO glue(glue(op_shld, MEM_SUFFIX), _T0_T1_im_cc)(void)
     tmp = T0 << (count - 1);
     T0 = (T0 << count) | (T1 >> (DATA_BITS - count));
 #ifdef MEM_WRITE
-    glue(st, SUFFIX)((uint8_t *)A0, T0);
+    glue(st, MEM_SUFFIX)((uint8_t *)A0, T0);
 #endif
     CC_SRC = tmp;
     CC_DST = T0;
@@ -333,7 +361,7 @@ void OPPROTO glue(glue(op_shld, MEM_SUFFIX), _T0_T1_ECX_cc)(void)
         tmp = T0 << (count - 1);
         T0 = (T0 << count) | (T1 >> (DATA_BITS - count));
 #ifdef MEM_WRITE
-        glue(st, SUFFIX)((uint8_t *)A0, T0);
+        glue(st, MEM_SUFFIX)((uint8_t *)A0, T0);
 #endif
         CC_SRC = tmp;
         CC_DST = T0;
@@ -351,7 +379,7 @@ void OPPROTO glue(glue(op_shrd, MEM_SUFFIX), _T0_T1_im_cc)(void)
     tmp = T0 >> (count - 1);
     T0 = (T0 >> count) | (T1 << (DATA_BITS - count));
 #ifdef MEM_WRITE
-    glue(st, SUFFIX)((uint8_t *)A0, T0);
+    glue(st, MEM_SUFFIX)((uint8_t *)A0, T0);
 #endif
     CC_SRC = tmp;
     CC_DST = T0;
@@ -368,7 +396,7 @@ void OPPROTO glue(glue(op_shrd, MEM_SUFFIX), _T0_T1_ECX_cc)(void)
         tmp = T0 >> (count - 1);
         T0 = (T0 >> count) | (T1 << (DATA_BITS - count));
 #ifdef MEM_WRITE
-        glue(st, SUFFIX)((uint8_t *)A0, T0);
+        glue(st, MEM_SUFFIX)((uint8_t *)A0, T0);
 #endif
         CC_SRC = tmp;
         CC_DST = T0;
@@ -386,7 +414,7 @@ void OPPROTO glue(glue(op_adc, MEM_SUFFIX), _T0_T1_cc)(void)
     cf = cc_table[CC_OP].compute_c();
     T0 = T0 + T1 + cf;
 #ifdef MEM_WRITE
-    glue(st, SUFFIX)((uint8_t *)A0, T0);
+    glue(st, MEM_SUFFIX)((uint8_t *)A0, T0);
 #endif
     CC_SRC = T1;
     CC_DST = T0;
@@ -399,7 +427,7 @@ void OPPROTO glue(glue(op_sbb, MEM_SUFFIX), _T0_T1_cc)(void)
     cf = cc_table[CC_OP].compute_c();
     T0 = T0 - T1 - cf;
 #ifdef MEM_WRITE
-    glue(st, SUFFIX)((uint8_t *)A0, T0);
+    glue(st, MEM_SUFFIX)((uint8_t *)A0, T0);
 #endif
     CC_SRC = T1;
     CC_DST = T0;
@@ -418,7 +446,7 @@ void OPPROTO glue(glue(op_cmpxchg, MEM_SUFFIX), _T0_T1_EAX_cc)(void)
         EAX = (EAX & ~DATA_MASK) | (T0 & DATA_MASK);
     }
 #ifdef MEM_WRITE
-    glue(st, SUFFIX)((uint8_t *)A0, T0);
+    glue(st, MEM_SUFFIX)((uint8_t *)A0, T0);
 #endif
     CC_SRC = src;
     CC_DST = dst;
