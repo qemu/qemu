@@ -131,6 +131,9 @@ int pci_enabled = 1;
 int prep_enabled = 0;
 int rtc_utc = 1;
 int cirrus_vga_enabled = 0;
+int graphic_width = 640;
+int graphic_height = 480;
+int graphic_depth = 15;
 
 /***********************************************************/
 /* x86 ISA bus support */
@@ -2042,6 +2045,7 @@ void help(void)
            "-localtime      set the real time clock to local time [default=utc]\n"
 #ifdef TARGET_PPC
            "-prep           Simulate a PREP system (default is PowerMAC)\n"
+           "-g WxH[xDEPTH]  Set the initial VGA graphic mode\n"
 #endif
            "\n"
            "Network options:\n"
@@ -2134,6 +2138,7 @@ enum {
     QEMU_OPTION_prep,
     QEMU_OPTION_localtime,
     QEMU_OPTION_cirrusvga,
+    QEMU_OPTION_g,
 };
 
 typedef struct QEMUOption {
@@ -2180,6 +2185,7 @@ const QEMUOption qemu_options[] = {
     { "no-code-copy", 0, QEMU_OPTION_no_code_copy },
 #ifdef TARGET_PPC
     { "prep", 0, QEMU_OPTION_prep },
+    { "g", 1, QEMU_OPTION_g },
 #endif
     { "localtime", 0, QEMU_OPTION_localtime },
     { "isa", 0, QEMU_OPTION_isa },
@@ -2471,6 +2477,40 @@ int main(int argc, char **argv)
                 break;
             case QEMU_OPTION_cirrusvga:
                 cirrus_vga_enabled = 1;
+                break;
+            case QEMU_OPTION_g:
+                {
+                    const char *p;
+                    int w, h, depth;
+                    p = optarg;
+                    w = strtol(p, (char **)&p, 10);
+                    if (w <= 0) {
+                    graphic_error:
+                        fprintf(stderr, "qemu: invalid resolution or depth\n");
+                        exit(1);
+                    }
+                    if (*p != 'x')
+                        goto graphic_error;
+                    p++;
+                    h = strtol(p, (char **)&p, 10);
+                    if (h <= 0)
+                        goto graphic_error;
+                    if (*p == 'x') {
+                        p++;
+                        depth = strtol(p, (char **)&p, 10);
+                        if (depth != 8 && depth != 15 && depth != 16 && 
+                            depth != 24 && depth != 32)
+                            goto graphic_error;
+                    } else if (*p == '\0') {
+                        depth = graphic_depth;
+                    } else {
+                        goto graphic_error;
+                    }
+                    
+                    graphic_width = w;
+                    graphic_height = h;
+                    graphic_depth = depth;
+                }
                 break;
             }
         }
