@@ -259,10 +259,10 @@ void OPPROTO op_smul_T1_T0(void)
 
 void OPPROTO op_mulscc_T1_T0(void)
 {
-    unsigned int b1, C, V, b2, src1;
-    C = FLAG_SET(PSR_CARRY);
+    unsigned int b1, N, V, b2, src1;
+    N = FLAG_SET(PSR_NEG);
     V = FLAG_SET(PSR_OVF);
-    b1 = C ^ V;
+    b1 = N ^ V;
     b2 = T0 & 1;
     T0 = (b1 << 31) | (T0 >> 1);
     if (!(env->y & 1))
