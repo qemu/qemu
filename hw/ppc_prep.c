@@ -26,8 +26,9 @@
 //#define HARD_DEBUG_PPC_IO
 //#define DEBUG_PPC_IO
 
-#define KERNEL_LOAD_ADDR 0x01000000;
-#define INITRD_LOAD_ADDR 0x01800000;
+#define BIOS_FILENAME "ppc_rom.bin"
+#define KERNEL_LOAD_ADDR 0x01000000
+#define INITRD_LOAD_ADDR 0x01800000
 
 extern int loglevel;
 extern FILE *logfile;
@@ -39,7 +40,7 @@ extern FILE *logfile;
 #if defined (HARD_DEBUG_PPC_IO)
 #define PPC_IO_DPRINTF(fmt, args...)                     \
 do {                                                     \
-    if (loglevel > 0) {                                  \
+    if (loglevel & CPU_LOG_IOPORT) {                     \
         fprintf(logfile, "%s: " fmt, __func__ , ##args); \
     } else {                                             \
         printf("%s : " fmt, __func__ , ##args);          \
@@ -48,7 +49,7 @@ do {                                                     \
 #elif defined (DEBUG_PPC_IO)
 #define PPC_IO_DPRINTF(fmt, args...)                     \
 do {                                                     \
-    if (loglevel > 0) {                                  \
+    if (loglevel & CPU_LOG_IOPORT) {                     \
         fprintf(logfile, "%s: " fmt, __func__ , ##args); \
     }                                                    \
 } while (0)
@@ -56,7 +57,6 @@ do {                                                     \
 #define PPC_IO_DPRINTF(fmt, args...) do { } while (0)
 #endif
 
-#define BIOS_FILENAME "ppc_rom.bin"
 /* Constants for devices init */
 static const int ide_iobase[2] = { 0x1f0, 0x170 };
 static const int ide_iobase2[2] = { 0x3f6, 0x376 };
@@ -175,7 +175,6 @@ static struct {
     uint32_t eemck1;
     /* Error diagnostic */
 } XCSR;
-#endif
 
 static void PPC_XCSR_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
@@ -242,6 +241,7 @@ static CPUReadMemoryFunc *PPC_XCSR_read[] = {
     &PPC_XCSR_readw,
     &PPC_XCSR_readl,
 };
+#endif
 
 /* Fake super-io ports for PREP platform (Intel 82378ZB) */
 typedef struct sysctrl_t {
@@ -413,7 +413,6 @@ void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
 		   const char *initrd_filename)
 {
     char buf[1024];
-    //    void *openpic;
     m48t59_t *nvram;
     int PPC_io_memory;
     int ret, linux_boot, i, nb_nics1, fd;
@@ -506,7 +505,7 @@ void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
                      bs_table[2 * i], bs_table[2 * i + 1]);
     }
     kbd_init();
-    DMA_init();
+    DMA_init(1);
     //    AUD_init();
     //    SB16_init();
 
@@ -528,10 +527,12 @@ void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
                                            PPC_intack_write, NULL);
     cpu_register_physical_memory(0xBFFFFFF0, 0x4, PPC_io_memory);
     /* PowerPC control and status register group */
+#if 0
     PPC_io_memory = cpu_register_io_memory(0, PPC_XCSR_read, PPC_XCSR_write, NULL);
     cpu_register_physical_memory(0xFEFF0000, 0x1000, PPC_io_memory);
+#endif
 
-    nvram = m48t59_init(8, 0x0074, NVRAM_SIZE);
+    nvram = m48t59_init(8, 0, 0x0074, NVRAM_SIZE);
     if (nvram == NULL)
         return;
     sysctrl->nvram = nvram;
@@ -539,16 +540,11 @@ void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
     /* Initialise NVRAM */
     PPC_NVRAM_set_params(nvram, NVRAM_SIZE, "PREP", ram_size, boot_device,
                          kernel_base, kernel_size,
-                         (uint32_t)(long)kernel_cmdline,
-                         strlen(kernel_cmdline),
+                         kernel_cmdline,
                          initrd_base, initrd_size,
                          /* XXX: need an option to load a NVRAM image */
-                         0
-                         );
-
-    /* Special port to get debug messages from Open-Firmware */
-    register_ioport_write(0xFF00, 0x04, 1, &PREP_debug_write, NULL);
-    register_ioport_write(0xFF00, 0x04, 2, &PREP_debug_write, NULL);
+                         0,
+                         graphic_width, graphic_height, graphic_depth);
 
     pci_ppc_bios_init();
 }

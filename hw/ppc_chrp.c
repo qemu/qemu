@@ -26,16 +26,22 @@
 #define BIOS_FILENAME "ppc_rom.bin"
 #define NVRAM_SIZE        0x2000
 
+#define KERNEL_LOAD_ADDR 0x01000000
+#define INITRD_LOAD_ADDR 0x01800000
+
 /* MacIO devices (mapped inside the MacIO address space): CUDA, DBDMA,
    NVRAM (not implemented).  */
 
 static int dbdma_mem_index;
 static int cuda_mem_index;
+static int ide0_mem_index;
+static int ide1_mem_index;
 
 /* DBDMA: currently no op - should suffice right now */
 
 static void dbdma_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
+    printf("%s: 0x%08x <= 0x%08x\n", __func__, addr, value);
 }
 
 static void dbdma_writew (void *opaque, target_phys_addr_t addr, uint32_t value)
@@ -48,6 +54,7 @@ static void dbdma_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 
 static uint32_t dbdma_readb (void *opaque, target_phys_addr_t addr)
 {
+    printf("%s: 0x%08x => 0x00000000\n", __func__, addr);
     return 0;
 }
 
@@ -78,6 +85,8 @@ static void macio_map(PCIDevice *pci_dev, int region_num,
 {
     cpu_register_physical_memory(addr + 0x08000, 0x1000, dbdma_mem_index);
     cpu_register_physical_memory(addr + 0x16000, 0x2000, cuda_mem_index);
+    cpu_register_physical_memory(addr + 0x1f000, 0x1000, ide0_mem_index);
+    cpu_register_physical_memory(addr + 0x20000, 0x1000, ide1_mem_index);
 }
 
 static void macio_init(void)
@@ -91,7 +100,7 @@ static void macio_init(void)
        in PearPC */
     d->config[0x00] = 0x6b; // vendor_id
     d->config[0x01] = 0x10;
-    d->config[0x02] = 0x17;
+    d->config[0x02] = 0x22;
     d->config[0x03] = 0x00;
 
     d->config[0x0a] = 0x00; // class_sub = pci2pci
@@ -113,10 +122,12 @@ void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
 		   const char *initrd_filename)
 {
     char buf[1024];
+    openpic_t *openpic;
     m48t59_t *nvram;
     int PPC_io_memory;
     int ret, linux_boot, i, fd;
     unsigned long bios_offset;
+    uint32_t kernel_base, kernel_size, initrd_base, initrd_size;
     
     linux_boot = (kernel_filename != NULL);
 
@@ -135,26 +146,55 @@ void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
                                  BIOS_SIZE, bios_offset | IO_MEM_ROM);
     cpu_single_env->nip = 0xfffffffc;
 
+    if (linux_boot) {
+        kernel_base = KERNEL_LOAD_ADDR;
+        /* now we can load the kernel */
+        kernel_size = load_image(kernel_filename, phys_ram_base + kernel_base);
+        if (kernel_size < 0) {
+            fprintf(stderr, "qemu: could not load kernel '%s'\n", 
+                    kernel_filename);
+            exit(1);
+        }
+        /* load initrd */
+        if (initrd_filename) {
+            initrd_base = INITRD_LOAD_ADDR;
+            initrd_size = load_image(initrd_filename,
+                                     phys_ram_base + initrd_base);
+            if (initrd_size < 0) {
+                fprintf(stderr, "qemu: could not load initial ram disk '%s'\n", 
+                        initrd_filename);
+                exit(1);
+            }
+        } else {
+            initrd_base = 0;
+            initrd_size = 0;
+        }
+        boot_device = 'm';
+    } else {
+        kernel_base = 0;
+        kernel_size = 0;
+        initrd_base = 0;
+        initrd_size = 0;
+    }
     /* Register CPU as a 74x/75x */
     cpu_ppc_register(cpu_single_env, 0x00080000);
     /* Set time-base frequency to 100 Mhz */
     cpu_ppc_tb_init(cpu_single_env, 100UL * 1000UL * 1000UL);
 
-    isa_mem_base = 0xc0000000;
+    isa_mem_base = 0x80000000;
     pci_pmac_init();
 
-    /* Register 64 KB of ISA IO space */
+    /* Register 8 MB of ISA IO space */
     PPC_io_memory = cpu_register_io_memory(0, PPC_io_read, PPC_io_write, NULL);
-    cpu_register_physical_memory(0x80000000, 0x10000, PPC_io_memory);
-    //    cpu_register_physical_memory(0xfe000000, 0xfe010000, PPC_io_memory);
+    cpu_register_physical_memory(0xF2000000, 0x00800000, PPC_io_memory);
 
     /* init basic PC hardware */
     vga_initialize(ds, phys_ram_base + ram_size, ram_size, 
                    vga_ram_size, 1);
-    //    openpic = openpic_init(0x00000000, 0xF0000000, 1);
-    //    pic_init(openpic);
+    openpic = openpic_init(0x00000000, 0xF0000000, 1);
+
+    /* XXX: suppress that */
     pic_init();
-    //    pit = pit_init(0x40, 0);
 
     /* XXX: use Mac Serial port */
     fd = serial_open_device();
@@ -164,30 +204,28 @@ void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
         pci_ne2000_init(&nd_table[i]);
     }
 
-    pci_ide_init(bs_table);
+    ide0_mem_index = pmac_ide_init(&bs_table[0], openpic, 0x13);
+    ide1_mem_index = pmac_ide_init(&bs_table[2], openpic, 0x13);
 
     /* cuda also initialize ADB */
-    cuda_mem_index = cuda_init();
+    cuda_mem_index = cuda_init(openpic, 0x19);
 
     adb_kbd_init(&adb_bus);
     adb_mouse_init(&adb_bus);
     
     macio_init();
 
-    nvram = m48t59_init(8, 0x0074, NVRAM_SIZE);
-
-    PPC_NVRAM_set_params(nvram, NVRAM_SIZE, "PREP", ram_size, boot_device,
-                         0, 0,
-                         0,
-                         0,
-                         0, 0,
-                         /* XXX: need an option to load a NVRAM image */
-                         0
-                         );
-
-    /* Special port to get debug messages from Open-Firmware */
-    register_ioport_write(0xFF00, 0x04, 1, &PREP_debug_write, NULL);
-    register_ioport_write(0xFF00, 0x04, 2, &PREP_debug_write, NULL);
+    nvram = m48t59_init(8, 0xFFF04000, 0x0074, NVRAM_SIZE);
     
-    pci_ppc_bios_init();
+    if (graphic_depth != 15 && graphic_depth != 32 && graphic_depth != 8)
+        graphic_depth = 15;
+
+    PPC_NVRAM_set_params(nvram, NVRAM_SIZE, "CHRP", ram_size, boot_device,
+                         kernel_base, kernel_size,
+                         kernel_cmdline,
+                         initrd_base, initrd_size,
+                         /* XXX: need an option to load a NVRAM image */
+                         0,
+                         graphic_width, graphic_height, graphic_depth);
+    /* No PCI init: the BIOS will do it */
 }
