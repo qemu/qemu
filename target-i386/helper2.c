@@ -265,7 +265,7 @@ void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0)
         (env->cr[0] & (CR0_PG_MASK | CR0_WP_MASK | CR0_PE_MASK))) {
         tlb_flush(env, 1);
     }
-    env->cr[0] = new_cr0;
+    env->cr[0] = new_cr0 | CR0_ET_MASK;
     
     /* update PE flag in hidden flags */
     pe_state = (env->cr[0] & CR0_PE_MASK);
