@@ -13,6 +13,7 @@
 
 #define TEST_CMOV  0
 #define TEST_FCOMI 0
+//#define LINUX_VM86_IOPL_FIX
 
 #define xglue(x, y) x ## y
 #define glue(x, y) xglue(x, y)
@@ -1106,7 +1107,7 @@ void test_vm86(void)
         switch(VM86_TYPE(ret)) {
         case VM86_INTx:
             {
-                int int_num, ah;
+                int int_num, ah, v;
                 
                 int_num = VM86_ARG(ret);
                 if (int_num != 0x21)
@@ -1134,8 +1135,12 @@ void test_vm86(void)
                         r->eax = (r->eax & ~0xff) | '$';
                     }
                     break;
-                case 0xff: /* extension: write hex number in edx */
-                    printf("%08x\n", (int)r->edx);
+                case 0xff: /* extension: write eflags number in edx */
+                    v = (int)r->edx;
+#ifndef LINUX_VM86_IOPL_FIX
+                    v &= ~0x3000;
+#endif
+                    printf("%08x\n", v);
                     break;
                 default:
                 unknown_int:
@@ -1356,6 +1361,90 @@ void test_exceptions(void)
     printf("val=0x%x\n", val);
 }
 
+/* specific precise single step test */
+void sig_trap_handler(int sig, siginfo_t *info, void *puc)
+{
+    struct ucontext *uc = puc;
+    printf("EIP=0x%08x\n", uc->uc_mcontext.gregs[REG_EIP]);
+}
+
+const uint8_t sstep_buf1[4] = { 1, 2, 3, 4};
+uint8_t sstep_buf2[4];
+
+void test_single_step(void)
+{
+    struct sigaction act;
+    volatile int val;
+    int i;
+
+    val = 0;
+    act.sa_sigaction = sig_trap_handler;
+    sigemptyset(&act.sa_mask);
+    act.sa_flags = SA_SIGINFO;
+    sigaction(SIGTRAP, &act, NULL);
+    asm volatile ("pushf\n"
+                  "orl $0x00100, (%%esp)\n"
+                  "popf\n"
+                  "movl $0xabcd, %0\n" 
+
+                  /* jmp test */
+                  "movl $3, %%ecx\n"
+                  "1:\n"
+                  "addl $1, %0\n"
+                  "decl %%ecx\n"
+                  "jnz 1b\n"
+
+                  /* movsb: the single step should stop at each movsb iteration */
+                  "movl $sstep_buf1, %%esi\n"
+                  "movl $sstep_buf2, %%edi\n"
+                  "movl $0, %%ecx\n"
+                  "rep movsb\n"
+                  "movl $3, %%ecx\n"
+                  "rep movsb\n"
+                  "movl $1, %%ecx\n"
+                  "rep movsb\n"
+
+                  /* cmpsb: the single step should stop at each cmpsb iteration */
+                  "movl $sstep_buf1, %%esi\n"
+                  "movl $sstep_buf2, %%edi\n"
+                  "movl $0, %%ecx\n"
+                  "rep cmpsb\n"
+                  "movl $4, %%ecx\n"
+                  "rep cmpsb\n"
+                  
+                  /* getpid() syscall: single step should skip one
+                     instruction */
+                  "movl $20, %%eax\n"
+                  "int $0x80\n"
+                  "movl $0, %%eax\n"
+                  
+                  /* when modifying SS, trace is not done on the next
+                     instruction */
+                  "movl %%ss, %%ecx\n"
+                  "movl %%ecx, %%ss\n"
+                  "addl $1, %0\n"
+                  "movl $1, %%eax\n"
+                  "movl %%ecx, %%ss\n"
+                  "jmp 1f\n"
+                  "addl $1, %0\n"
+                  "1:\n"
+                  "movl $1, %%eax\n"
+                  "pushl %%ecx\n"
+                  "popl %%ss\n"
+                  "addl $1, %0\n"
+                  "movl $1, %%eax\n"
+                  
+                  "pushf\n"
+                  "andl $~0x00100, (%%esp)\n"
+                  "popf\n"
+                  : "=m" (val) 
+                  : 
+                  : "cc", "memory", "eax", "ecx", "esi", "edi");
+    printf("val=%d\n", val);
+    for(i = 0; i < 4; i++)
+        printf("sstep_buf2[%d] = %d\n", i, sstep_buf2[i]);
+}
+
 /* self modifying code test */
 uint8_t code[] = {
     0xb8, 0x1, 0x00, 0x00, 0x00, /* movl $1, %eax */
@@ -1402,5 +1491,6 @@ int main(int argc, char **argv)
     test_vm86();
     test_exceptions();
     test_self_modifying_code();
+    test_single_step();
     return 0;
 }
