@@ -62,6 +62,11 @@ speed: sha1 sha1-i386
 runcom: runcom.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 
+# NOTE: -fomit-frame-pointer is currently needed : this is a bug in libqemu
+qruncom: qruncom.c ../i386-user/libqemu.a
+	$(CC) $(CFLAGS) -fomit-frame-pointer $(LDFLAGS) -I../target-i386 -I.. -I../i386-user \
+              -o $@ $< -L../i386-user -lqemu -lm
+
 # arm test
 hello-arm: hello-arm.o
 	arm-linux-ld -o $@ $<
