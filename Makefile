@@ -13,14 +13,20 @@ OP_CFLAGS+= -falign-functions=0
 else
 OP_CFLAGS+= -malign-functions=0
 endif
+# WARNING: this LDFLAGS is _very_ tricky : qemu is an ELF shared object
+# that the kernel ELF loader considers as an executable. I think this
+# is the simplest way to make it self virtualizable!
+LDFLAGS+=-Wl,-shared
 endif
 
 ifeq ($(ARCH),ppc)
 OP_CFLAGS=$(CFLAGS)
+LDFLAGS+=-Wl,-T,ppc.ld
 endif
 
 ifeq ($(ARCH),s390)
 OP_CFLAGS=$(CFLAGS)
+LDFLAGS+=-Wl,-T,s390.ld
 endif
 
 ifeq ($(GCC_MAJOR),3)
@@ -31,7 +37,6 @@ endif
 #########################################################
 
 DEFINES+=-D_GNU_SOURCE
-LDSCRIPT=$(ARCH).ld
 LIBS+=-lm
 
 # profiling code
@@ -51,7 +56,7 @@ LIBOBJS+=i386-dis.o dis-buf.o
 all: qemu qemu-doc.html
 
 qemu: $(OBJS)
-	$(CC) -Wl,-T,$(LDSCRIPT) $(LDFLAGS) -o $@ $^  $(LIBS)
+	$(CC) $(LDFLAGS) -o $@ $^  $(LIBS)
 
 depend: $(SRCS)
 	$(CC) -MM $(CFLAGS) $^ 1>.depend
@@ -103,9 +108,9 @@ dyngen.c ioctls.h ops_template.h op_string.h  syscall_types.h\
 Makefile     elf.h       linux_bin.h       segment.h       thunk.c\
 elfload.c   main.c            signal.c        thunk.h\
 cpu-i386.h qemu.h op-i386.c opc-i386.h syscall-i386.h  translate-i386.c\
-dis-asm.h    gen-i386.h  op-i386.h         syscall.c\
+dis-asm.h    gen-i386.h  syscall.c\
 dis-buf.c    i386-dis.c  opreg_template.h  syscall_defs.h\
-i386.ld ppc.ld s390.ld exec-i386.h exec-i386.c configure \
+ppc.ld s390.ld exec-i386.h exec-i386.c configure \
 tests/Makefile\
 tests/test-i386.c tests/test-i386-shift.h tests/test-i386.h\
 tests/test-i386-muldiv.h tests/test-i386-code16.S\

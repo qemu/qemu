@@ -1,9 +1,18 @@
+version 0.1.5:
+
+ - ppc64 support + personality() patch (Rusty Russell)
+ - first Alpha CPU patches (Falk Hueffner)
+ - removed bfd.h dependancy
+ - fixed shrd, shld, idivl and divl on PowerPC.
+ - fixed buggy glibc PowerPC rint() function (test-i386 passes now on PowerPC).
+
 version 0.1.4:
 
  - more accurate VM86 emulation (can launch small DOS 16 bit
    executables in wine).
  - fixed push/pop fs/gs
  - added iret instruction.
+ - added times() syscall and SIOCATMARK ioctl.
 
 version 0.1.3:
 
