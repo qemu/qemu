@@ -73,7 +73,9 @@ void cpu_x86_close(CPUX86State *env)
 static const char *cc_op_str[] = {
     "DYNAMIC",
     "EFLAGS",
-    "MUL",
+    "MULB",
+    "MULW",
+    "MULL",
     "ADDB",
     "ADDW",
     "ADDL",
@@ -191,13 +193,15 @@ void cpu_x86_set_a20(CPUX86State *env, int a20_state)
 {
     a20_state = (a20_state != 0);
     if (a20_state != a20_enabled) {
+#if defined(DEBUG_MMU)
+        printf("A20 update: a20=%d\n", a20_state);
+#endif
         /* if the cpu is currently executing code, we must unlink it and
            all the potentially executing TB */
         cpu_interrupt(env, 0);
 
         /* when a20 is changed, all the MMU mappings are invalid, so
            we must flush everything */
-        page_unmap();
         tlb_flush(env);
         a20_enabled = a20_state;
         if (a20_enabled)
@@ -211,18 +215,17 @@ void cpu_x86_update_cr0(CPUX86State *env)
 {
     int pg_state, pe_state;
 
-#ifdef DEBUG_MMU
+#if defined(DEBUG_MMU)
     printf("CR0 update: CR0=0x%08x\n", env->cr[0]);
 #endif
     pg_state = env->cr[0] & CR0_PG_MASK;
     if (pg_state != last_pg_state) {
-        page_unmap();
         tlb_flush(env);
         last_pg_state = pg_state;
     }
     pe_state = env->cr[0] & CR0_PE_MASK;
     if (last_pe_state != pe_state) {
-        tb_flush();
+        tb_flush(env);
         last_pe_state = pe_state;
     }
 }
@@ -233,7 +236,6 @@ void cpu_x86_update_cr3(CPUX86State *env)
 #if defined(DEBUG_MMU)
         printf("CR3 update: CR3=%08x\n", env->cr[3]);
 #endif
-        page_unmap();
         tlb_flush(env);
     }
 }
@@ -250,19 +252,7 @@ void cpu_x86_init_mmu(CPUX86State *env)
 /* XXX: also flush 4MB pages */
 void cpu_x86_flush_tlb(CPUX86State *env, uint32_t addr)
 {
-    int flags;
-    unsigned long virt_addr;
-
     tlb_flush_page(env, addr);
-
-    flags = page_get_flags(addr);
-    if (flags & PAGE_VALID) {
-        virt_addr = addr & ~0xfff;
-#if !defined(CONFIG_SOFTMMU)
-        munmap((void *)virt_addr, 4096);
-#endif
-        page_set_flags(virt_addr, virt_addr + 4096, 0);
-    }
 }
 
 /* return value:
