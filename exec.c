@@ -18,6 +18,11 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include "config.h"
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <sys/mman.h>
+#endif
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -25,9 +30,6 @@
 #include <errno.h>
 #include <unistd.h>
 #include <inttypes.h>
-#if !defined(CONFIG_SOFTMMU)
-#include <sys/mman.h>
-#endif
 
 #include "cpu.h"
 #include "exec-all.h"
@@ -130,10 +132,33 @@ static void page_init(void)
     /* NOTE: we can always suppose that qemu_host_page_size >=
        TARGET_PAGE_SIZE */
 #ifdef _WIN32
-    qemu_real_host_page_size = 4096;
+    {
+        SYSTEM_INFO system_info;
+        DWORD old_protect;
+        
+        GetSystemInfo(&system_info);
+        qemu_real_host_page_size = system_info.dwPageSize;
+        
+        VirtualProtect(code_gen_buffer, sizeof(code_gen_buffer),
+                       PAGE_EXECUTE_READWRITE, &old_protect);
+    }
 #else
     qemu_real_host_page_size = getpagesize();
+    {
+        unsigned long start, end;
+
+        start = (unsigned long)code_gen_buffer;
+        start &= ~(qemu_real_host_page_size - 1);
+        
+        end = (unsigned long)code_gen_buffer + sizeof(code_gen_buffer);
+        end += qemu_real_host_page_size - 1;
+        end &= ~(qemu_real_host_page_size - 1);
+        
+        mprotect((void *)start, end - start, 
+                 PROT_READ | PROT_WRITE | PROT_EXEC);
+    }
 #endif
+
     if (qemu_host_page_size == 0)
         qemu_host_page_size = qemu_real_host_page_size;
     if (qemu_host_page_size < TARGET_PAGE_SIZE)
