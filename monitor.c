@@ -23,8 +23,10 @@
  */
 #include "vl.h"
 #include "disas.h"
+#include <dirent.h>
 
 //#define DEBUG
+//#define DEBUG_COMPLETION
 
 #ifndef offsetof
 #define offsetof(type, field) ((size_t) &((type *)0)->field)
@@ -32,6 +34,7 @@
 
 #define TERM_CMD_BUF_SIZE 4095
 #define TERM_MAX_CMDS 64
+#define NB_COMPLETIONS_MAX 256
 
 #define IS_NORM 0
 #define IS_ESC  1
@@ -42,16 +45,28 @@
 static char term_cmd_buf[TERM_CMD_BUF_SIZE + 1];
 static int term_cmd_buf_index;
 static int term_cmd_buf_size;
+
+static char term_last_cmd_buf[TERM_CMD_BUF_SIZE + 1];
+static int term_last_cmd_buf_index;
+static int term_last_cmd_buf_size;
+
 static int term_esc_state;
 static int term_esc_param;
 
 static char *term_history[TERM_MAX_CMDS];
 static int term_hist_entry;
+static CharDriverState *monitor_hd;
+
+static int nb_completions;
+static int completion_index;
+static char *completions[NB_COMPLETIONS_MAX];
+
 
 /*
  * Supported types:
  * 
  * 'F'          filename
+ * 'B'          block device name
  * 's'          string (accept optional quote)
  * 'i'          integer
  * '/'          optional gdb-like print format (like "/10x")
@@ -71,17 +86,20 @@ typedef struct term_cmd_t {
 static term_cmd_t term_cmds[];
 static term_cmd_t info_cmds[];
 
+static void add_completion(const char *str);
+
 void term_printf(const char *fmt, ...)
 {
+    char buf[4096];
     va_list ap;
     va_start(ap, fmt);
-    vprintf(fmt, ap);
+    vsnprintf(buf, sizeof(buf), fmt, ap);
+    qemu_chr_write(monitor_hd, buf, strlen(buf));
     va_end(ap);
 }
 
 void term_flush(void)
 {
-    fflush(stdout);
 }
 
 static int compare_cmd(const char *name, const char *list)
@@ -231,8 +249,6 @@ static int eject_device(BlockDriverState *bs, int force)
 static void do_eject(int force, const char *filename)
 {
     BlockDriverState *bs;
-
-    term_printf("%d %s\n", force, filename);
 
     bs = bdrv_find(filename);
     if (!bs) {
@@ -674,9 +690,9 @@ static term_cmd_t term_cmds[] = {
       "subcommand", "show various information about the system state" },
     { "q|quit", "", do_quit,
       "", "quit the emulator" },
-    { "eject", "-fs", do_eject,
+    { "eject", "-fB", do_eject,
       "[-f] device", "eject a removable media (use -f to force it)" },
-    { "change", "sF", do_change,
+    { "change", "BF", do_change,
       "device filename", "change a removable media" },
     { "screendump", "F", do_screen_dump, 
       "filename", "save screen into PPM image 'filename'" },
@@ -953,6 +969,16 @@ static int expr_unary(void)
         }
         next();
         break;
+    case '\'':
+        pch++;
+        if (*pch == '\0')
+            expr_error("character constant expected");
+        n = *pch;
+        pch++;
+        if (*pch != '\'')
+            expr_error("missing terminating \' character");
+        next();
+        break;
     case '$':
         {
             char buf[128], *q;
@@ -1088,15 +1114,16 @@ static int get_str(char *buf, int buf_size, const char **pp)
     char *q;
     int c;
 
+    q = buf;
     p = *pp;
     while (isspace(*p))
         p++;
     if (*p == '\0') {
     fail:
+        *q = '\0';
         *pp = p;
         return -1;
     }
-    q = buf;
     if (*p == '\"') {
         p++;
         while (*p != '\0' && *p != '\"') {
@@ -1140,8 +1167,8 @@ static int get_str(char *buf, int buf_size, const char **pp)
             }
             p++;
         }
-        *q = '\0';
     }
+    *q = '\0';
     *pp = p;
     return 0;
 }
@@ -1204,6 +1231,7 @@ static void term_handle_command(const char *cmdline)
         typestr++;
         switch(c) {
         case 'F':
+        case 'B':
         case 's':
             {
                 int ret;
@@ -1221,10 +1249,17 @@ static void term_handle_command(const char *cmdline)
                 }
                 ret = get_str(buf, sizeof(buf), &p);
                 if (ret < 0) {
-                    if (c == 'F')
+                    switch(c) {
+                    case 'F':
                         term_printf("%s: filename expected\n", cmdname);
-                    else
+                        break;
+                    case 'B':
+                        term_printf("%s: block device name expected\n", cmdname);
+                        break;
+                    default:
                         term_printf("%s: string expected\n", cmdname);
+                        break;
+                    }
                     goto fail;
                 }
                 str = qemu_malloc(strlen(buf) + 1);
@@ -1432,19 +1467,232 @@ static void term_handle_command(const char *cmdline)
     return;
 }
 
-static void term_show_prompt(void)
+static void cmd_completion(const char *name, const char *list)
+{
+    const char *p, *pstart;
+    char cmd[128];
+    int len;
+
+    p = list;
+    for(;;) {
+        pstart = p;
+        p = strchr(p, '|');
+        if (!p)
+            p = pstart + strlen(pstart);
+        len = p - pstart;
+        if (len > sizeof(cmd) - 2)
+            len = sizeof(cmd) - 2;
+        memcpy(cmd, pstart, len);
+        cmd[len] = '\0';
+        if (name[0] == '\0' || !strncmp(name, cmd, strlen(name))) {
+            add_completion(cmd);
+        }
+        if (*p == '\0')
+            break;
+        p++;
+    }
+}
+
+static void file_completion(const char *input)
+{
+    DIR *ffs;
+    struct dirent *d;
+    char path[1024];
+    char file[1024], file_prefix[1024];
+    int input_path_len;
+    const char *p;
+
+    p = strrchr(input, '/'); 
+    if (!p) {
+        input_path_len = 0;
+        pstrcpy(file_prefix, sizeof(file_prefix), input);
+        strcpy(path, ".");
+    } else {
+        input_path_len = p - input + 1;
+        memcpy(path, input, input_path_len);
+        if (input_path_len > sizeof(path) - 1)
+            input_path_len = sizeof(path) - 1;
+        path[input_path_len] = '\0';
+        pstrcpy(file_prefix, sizeof(file_prefix), p + 1);
+    }
+#ifdef DEBUG_COMPLETION
+    term_printf("input='%s' path='%s' prefix='%s'\n", input, path, file_prefix);
+#endif
+    ffs = opendir(path);
+    if (!ffs)
+        return;
+    for(;;) {
+        struct stat sb;
+        d = readdir(ffs);
+        if (!d)
+            break;
+        if (strstart(d->d_name, file_prefix, NULL)) {
+            memcpy(file, input, input_path_len);
+            strcpy(file + input_path_len, d->d_name);
+            /* stat the file to find out if it's a directory.
+             * In that case add a slash to speed up typing long paths
+             */
+            stat(file, &sb);
+            if(S_ISDIR(sb.st_mode))
+                strcat(file, "/");
+            add_completion(file);
+        }
+    }
+    closedir(ffs);
+}
+
+static void block_completion_it(void *opaque, const char *name)
+{
+    const char *input = opaque;
+
+    if (input[0] == '\0' ||
+        !strncmp(name, (char *)input, strlen(input))) {
+        add_completion(name);
+    }
+}
+
+/* NOTE: this parser is an approximate form of the real command parser */
+static void parse_cmdline(const char *cmdline,
+                         int *pnb_args, char **args)
+{
+    const char *p;
+    int nb_args, ret;
+    char buf[1024];
+
+    p = cmdline;
+    nb_args = 0;
+    for(;;) {
+        while (isspace(*p))
+            p++;
+        if (*p == '\0')
+            break;
+        if (nb_args >= MAX_ARGS)
+            break;
+        ret = get_str(buf, sizeof(buf), &p);
+        args[nb_args] = qemu_strdup(buf);
+        nb_args++;
+        if (ret < 0)
+            break;
+    }
+    *pnb_args = nb_args;
+}
+
+static void find_completion(const char *cmdline)
+{
+    const char *cmdname;
+    char *args[MAX_ARGS];
+    int nb_args, i, len;
+    const char *ptype, *str;
+    term_cmd_t *cmd;
+
+    parse_cmdline(cmdline, &nb_args, args);
+#ifdef DEBUG_COMPLETION
+    for(i = 0; i < nb_args; i++) {
+        term_printf("arg%d = '%s'\n", i, (char *)args[i]);
+    }
+#endif
+
+    /* if the line ends with a space, it means we want to complete the
+       next arg */
+    len = strlen(cmdline);
+    if (len > 0 && isspace(cmdline[len - 1])) {
+        if (nb_args >= MAX_ARGS)
+            return;
+        args[nb_args++] = qemu_strdup("");
+    }
+    if (nb_args <= 1) {
+        /* command completion */
+        if (nb_args == 0)
+            cmdname = "";
+        else
+            cmdname = args[0];
+        completion_index = strlen(cmdname);
+        for(cmd = term_cmds; cmd->name != NULL; cmd++) {
+            cmd_completion(cmdname, cmd->name);
+        }
+    } else {
+        /* find the command */
+        for(cmd = term_cmds; cmd->name != NULL; cmd++) {
+            if (compare_cmd(args[0], cmd->name))
+                goto found;
+        }
+        return;
+    found:
+        ptype = cmd->args_type;
+        for(i = 0; i < nb_args - 2; i++) {
+            if (*ptype != '\0') {
+                ptype++;
+                while (*ptype == '?')
+                    ptype++;
+            }
+        }
+        str = args[nb_args - 1];
+        switch(*ptype) {
+        case 'F':
+            /* file completion */
+            completion_index = strlen(str);
+            file_completion(str);
+            break;
+        case 'B':
+            /* block device name completion */
+            completion_index = strlen(str);
+            bdrv_iterate(block_completion_it, (void *)str);
+            break;
+        default:
+            break;
+        }
+    }
+    for(i = 0; i < nb_args; i++)
+        qemu_free(args[i]);
+}
+
+static void term_show_prompt2(void)
 {
     term_printf("(qemu) ");
     fflush(stdout);
-    term_cmd_buf_index = 0;
-    term_cmd_buf_size = 0;
+    term_last_cmd_buf_index = 0;
+    term_last_cmd_buf_size = 0;
     term_esc_state = IS_NORM;
 }
 
-static void term_print_cmdline (const char *cmdline)
+static void term_show_prompt(void)
 {
-    term_show_prompt();
-    term_printf("%s", cmdline);
+    term_show_prompt2();
+    term_cmd_buf_index = 0;
+    term_cmd_buf_size = 0;
+}
+
+/* update the displayed command line */
+static void term_update(void)
+{
+    int i, delta;
+
+    if (term_cmd_buf_size != term_last_cmd_buf_size ||
+        memcmp(term_cmd_buf, term_last_cmd_buf, term_cmd_buf_size) != 0) {
+        for(i = 0; i < term_last_cmd_buf_index; i++) {
+            term_printf("\033[D");
+        }
+        term_cmd_buf[term_cmd_buf_size] = '\0';
+        term_printf("%s", term_cmd_buf);
+        term_printf("\033[K");
+        memcpy(term_last_cmd_buf, term_cmd_buf, term_cmd_buf_size);
+        term_last_cmd_buf_size = term_cmd_buf_size;
+        term_last_cmd_buf_index = term_cmd_buf_size;
+    }
+    if (term_cmd_buf_index != term_last_cmd_buf_index) {
+        delta = term_cmd_buf_index - term_last_cmd_buf_index;
+        if (delta > 0) {
+            for(i = 0;i < delta; i++) {
+                term_printf("\033[C");
+            }
+        } else {
+            delta = -delta;
+            for(i = 0;i < delta; i++) {
+                term_printf("\033[D");
+            }
+        }
+        term_last_cmd_buf_index = term_cmd_buf_index;
+    }
     term_flush();
 }
 
@@ -1456,9 +1704,7 @@ static void term_insert_char(int ch)
                 term_cmd_buf_size - term_cmd_buf_index);
         term_cmd_buf[term_cmd_buf_index] = ch;
         term_cmd_buf_size++;
-        term_printf("\033[@%c", ch);
         term_cmd_buf_index++;
-        term_flush();
     }
 }
 
@@ -1466,8 +1712,6 @@ static void term_backward_char(void)
 {
     if (term_cmd_buf_index > 0) {
         term_cmd_buf_index--;
-        term_printf("\033[D");
-        term_flush();
     }
 }
 
@@ -1475,8 +1719,6 @@ static void term_forward_char(void)
 {
     if (term_cmd_buf_index < term_cmd_buf_size) {
         term_cmd_buf_index++;
-        term_printf("\033[C");
-        term_flush();
     }
 }
 
@@ -1486,9 +1728,7 @@ static void term_delete_char(void)
         memmove(term_cmd_buf + term_cmd_buf_index,
                 term_cmd_buf + term_cmd_buf_index + 1,
                 term_cmd_buf_size - term_cmd_buf_index - 1);
-        term_printf("\033[P");
         term_cmd_buf_size--;
-        term_flush();
     }
 }
 
@@ -1502,14 +1742,12 @@ static void term_backspace(void)
 
 static void term_bol(void)
 {
-    while (term_cmd_buf_index > 0)
-        term_backward_char();
+    term_cmd_buf_index = 0;
 }
 
 static void term_eol(void)
 {
-    while (term_cmd_buf_index < term_cmd_buf_size)
-        term_forward_char();
+    term_cmd_buf_index = term_cmd_buf_size;
 }
 
 static void term_up_char(void)
@@ -1530,8 +1768,6 @@ static void term_up_char(void)
     if (term_hist_entry >= 0) {
 	pstrcpy(term_cmd_buf, sizeof(term_cmd_buf), 
                 term_history[term_hist_entry]);
-	term_printf("\n");
-	term_print_cmdline(term_cmd_buf);
 	term_cmd_buf_index = term_cmd_buf_size = strlen(term_cmd_buf);
     }
 }
@@ -1546,8 +1782,6 @@ static void term_down_char(void)
     } else {
 	term_hist_entry = -1;
     }
-    term_printf("\n");
-    term_print_cmdline(term_cmd_buf);
     term_cmd_buf_index = term_cmd_buf_size = strlen(term_cmd_buf);
 }
 
@@ -1600,6 +1834,67 @@ static void term_hist_add(const char *cmdline)
     term_hist_entry = -1;
 }
 
+/* completion support */
+
+static void add_completion(const char *str)
+{
+    if (nb_completions < NB_COMPLETIONS_MAX) {
+        completions[nb_completions++] = qemu_strdup(str);
+    }
+}
+
+static void term_completion(void)
+{
+    int len, i, j, max_width, nb_cols;
+    char *cmdline;
+
+    nb_completions = 0;
+    
+    cmdline = qemu_malloc(term_cmd_buf_index + 1);
+    if (!cmdline)
+        return;
+    memcpy(cmdline, term_cmd_buf, term_cmd_buf_index);
+    cmdline[term_cmd_buf_index] = '\0';
+    find_completion(cmdline);
+    qemu_free(cmdline);
+
+    /* no completion found */
+    if (nb_completions <= 0)
+        return;
+    if (nb_completions == 1) {
+        len = strlen(completions[0]);
+        for(i = completion_index; i < len; i++) {
+            term_insert_char(completions[0][i]);
+        }
+        /* extra space for next argument. XXX: make it more generic */
+        if (len > 0 && completions[0][len - 1] != '/')
+            term_insert_char(' ');
+    } else {
+        term_printf("\n");
+        max_width = 0;
+        for(i = 0; i < nb_completions; i++) {
+            len = strlen(completions[i]);
+            if (len > max_width)
+                max_width = len;
+        }
+        max_width += 2;
+        if (max_width < 10)
+            max_width = 10;
+        else if (max_width > 80)
+            max_width = 80;
+        nb_cols = 80 / max_width;
+        j = 0;
+        for(i = 0; i < nb_completions; i++) {
+            term_printf("%-*s", max_width, completions[i]);
+            if (++j == nb_cols || i == (nb_completions - 1)) {
+                term_printf("\n");
+                j = 0;
+            }
+        }
+        term_show_prompt2();
+    }
+}
+
 /* return true if command handled */
 static void term_handle_byte(int ch)
 {
@@ -1609,8 +1904,14 @@ static void term_handle_byte(int ch)
         case 1:
             term_bol();
             break;
+        case 4:
+            term_delete_char();
+            break;
         case 5:
             term_eol();
+            break;
+        case 9:
+            term_completion();
             break;
         case 10:
         case 13:
@@ -1684,104 +1985,29 @@ static void term_handle_byte(int ch)
     the_end:
         break;
     }
-}
-
-/*************************************************************/
-/* serial console support */
-
-#define TERM_ESCAPE 0x01 /* ctrl-a is used for escape */
-
-static int term_got_escape, term_command;
-
-void term_print_help(void)
-{
-    term_printf("\n"
-                "C-a h    print this help\n"
-                "C-a x    exit emulatior\n"
-                "C-a s    save disk data back to file (if -snapshot)\n"
-                "C-a b    send break (magic sysrq)\n"
-                "C-a c    switch between console and monitor\n"
-                "C-a C-a  send C-a\n"
-                );
-}
-
-/* called when a char is received */
-static void term_received_byte(int ch)
-{
-    if (!serial_console) {
-        /* if no serial console, handle every command */
-        term_handle_byte(ch);
-    } else {
-        if (term_got_escape) {
-            term_got_escape = 0;
-            switch(ch) {
-            case 'h':
-                term_print_help();
-                break;
-            case 'x':
-                exit(0);
-                break;
-            case 's': 
-                {
-                    int i;
-                    for (i = 0; i < MAX_DISKS; i++) {
-                        if (bs_table[i])
-                            bdrv_commit(bs_table[i]);
-                    }
-                }
-                break;
-            case 'b':
-                if (serial_console)
-                    serial_receive_break(serial_console);
-                break;
-            case 'c':
-                if (!term_command) {
-                    term_show_prompt();
-                    term_command = 1;
-                } else {
-                    term_command = 0;
-                }
-                break;
-            case TERM_ESCAPE:
-                goto send_char;
-            }
-        } else if (ch == TERM_ESCAPE) {
-            term_got_escape = 1;
-        } else {
-        send_char:
-            if (term_command) {
-                term_handle_byte(ch);
-            } else {
-                if (serial_console)
-                    serial_receive_byte(serial_console, ch);
-            }
-        }
-    }
+    term_update();
 }
 
 static int term_can_read(void *opaque)
 {
-    if (serial_console) {
-        return serial_can_receive(serial_console);
-    } else {
-        return 128;
-    }
+    return 128;
 }
 
 static void term_read(void *opaque, const uint8_t *buf, int size)
 {
     int i;
     for(i = 0; i < size; i++)
-        term_received_byte(buf[i]);
+        term_handle_byte(buf[i]);
 }
 
-void monitor_init(void)
+void monitor_init(CharDriverState *hd, int show_banner)
 {
-    if (!serial_console) {
+    monitor_hd = hd;
+    if (show_banner) {
         term_printf("QEMU %s monitor - type 'help' for more information\n",
                     QEMU_VERSION);
         term_show_prompt();
     }
     term_hist_entry = -1;
-    qemu_add_fd_read_handler(0, term_can_read, term_read, NULL);
+    qemu_chr_add_read_handler(hd, term_can_read, term_read, NULL);
 }
