@@ -377,7 +377,7 @@ void OPPROTO op_mull_T0_T1(void)
 void OPPROTO op_imull_T0_T1(void)
 {
     uint64_t res;
-    res = (int64_t)T0 * (int64_t)T1;
+    res = (int64_t)((int32_t)T0) * (int64_t)((int32_t)T1);
     T1 = res >> 32;
     T0 = res;
 }
