@@ -55,7 +55,6 @@ do {                                                     \
 #endif
 
 #define BIOS_FILENAME "ppc_rom.bin"
-#define LINUX_BOOT_FILENAME "linux_boot.bin"
 
 #define KERNEL_LOAD_ADDR    0x00000000
 #define KERNEL_STACK_ADDR   0x00400000
@@ -677,13 +676,18 @@ static void VGA_init (void)
 
 extern CPUPPCState *global_env;
 
+static uint32_t get_le32 (void *addr)
+{
+    return le32_to_cpu(*((uint32_t *)addr));
+}
+
 void PPC_init_hw (/*CPUPPCState *env,*/ uint32_t mem_size,
                   uint32_t kernel_addr, uint32_t kernel_size,
                   uint32_t stack_addr, int boot_device,
 		  const unsigned char *initrd_file)
 {
     CPUPPCState *env = global_env;
-    char *p;
+    uint8_t *p;
 #if !defined (USE_OPEN_FIRMWARE)
     char *tmp;
     uint32_t tmpi[2];
@@ -697,8 +701,7 @@ void PPC_init_hw (/*CPUPPCState *env,*/ uint32_t mem_size,
     /* Fake bootloader */
     {
 #if 1
-        uint32_t offset = 
-            *((uint32_t *)(phys_ram_base + kernel_addr));
+        uint32_t offset = get_le32(phys_ram_base + kernel_addr);
 #else
         uint32_t offset = 12;
 #endif
@@ -723,7 +726,7 @@ void PPC_init_hw (/*CPUPPCState *env,*/ uint32_t mem_size,
      * it's not ready to handle it...
      */
     env->decr = 0xFFFFFFFF;
-    p = (void *)(phys_ram_base + kernel_addr);
+    p = phys_ram_base + kernel_addr;
 #if !defined (USE_OPEN_FIRMWARE)
     /* Let's register the whole memory available only in supervisor mode */
     setup_BAT(env, 0, 0x00000000, 0x00000000, mem_size, 1, 0, 2);
@@ -732,7 +735,7 @@ void PPC_init_hw (/*CPUPPCState *env,*/ uint32_t mem_size,
      */
     put_long(p, 0xdeadc0de);
     /* Build a real stack room */
-    p = (void *)(phys_ram_base + stack_addr);
+    p = phys_ram_base + stack_addr;
     put_long(p, stack_addr);
     p -= 32;
     env->gpr[1] -= 32;
@@ -742,7 +745,7 @@ void PPC_init_hw (/*CPUPPCState *env,*/ uint32_t mem_size,
         int size;
         env->gpr[4] = (kernel_addr + kernel_size + 4095) & ~4095;
         size = load_initrd(initrd_file,
-                           (void *)((uint32_t)phys_ram_base + env->gpr[4]));
+                           phys_ram_base + env->gpr[4]);
         if (size < 0) {
             /* No initrd */
             env->gpr[4] = env->gpr[5] = 0;
@@ -759,17 +762,17 @@ void PPC_init_hw (/*CPUPPCState *env,*/ uint32_t mem_size,
      * The BSS starts after the kernel end.
      */
 #if 0
-    p = (void *)(((uint32_t)phys_ram_base + kernel_addr +
-                  kernel_size + (1 << 20) - 1) & ~((1 << 20) - 1));
+    p = phys_ram_base + kernel_addr +
+        kernel_size + (1 << 20) - 1) & ~((1 << 20) - 1);
 #else
-    p = (void *)((uint32_t)phys_ram_base + kernel_addr + 0x400000);
+    p = phys_ram_base + kernel_addr + 0x400000;
 #endif
     if (loglevel > 0) {
         fprintf(logfile, "bootinfos: %p 0x%08x\n",
-                p, (uint32_t)p - (uint32_t)phys_ram_base);
+                p, (int)(p - phys_ram_base));
     } else {
         printf("bootinfos: %p 0x%08x\n",
-               p, (uint32_t)p - (uint32_t)phys_ram_base);
+               p, (int)(p - phys_ram_base));
     }
     /* Command line: let's put it after bootinfos */
 #if 0
@@ -782,7 +785,7 @@ void PPC_init_hw (/*CPUPPCState *env,*/ uint32_t mem_size,
             boot_devs[boot_device - 'a'].name,
             mem_size >> 20);
 #endif
-    env->gpr[6] = (uint32_t)p + 0x1000 - (uint32_t)phys_ram_base;
+    env->gpr[6] = p + 0x1000 - phys_ram_base;
     env->gpr[7] = env->gpr[6] + strlen(p + 0x1000);
     if (loglevel > 0) {
         fprintf(logfile, "cmdline: %p 0x%08x [%s]\n",
@@ -795,7 +798,7 @@ void PPC_init_hw (/*CPUPPCState *env,*/ uint32_t mem_size,
     p = set_bootinfo_tag(p, 0x1010, 0, 0);
     /* BI_CMD_LINE */
     p = set_bootinfo_tag(p, 0x1012, env->gpr[7] - env->gpr[6],
-                         (void *)(env->gpr[6] + (uint32_t)phys_ram_base));
+                         env->gpr[6] + phys_ram_base);
     /* BI_MEM_SIZE */
     tmp = (void *)tmpi;
     tmp[0] = (mem_size >> 24) & 0xFF;
@@ -823,8 +826,7 @@ void PPC_init_hw (/*CPUPPCState *env,*/ uint32_t mem_size,
     setup_BAT(env, 0, 0x01000000, kernel_addr, 0x00400000, 1, 0, 2);
     {
 #if 0
-        uint32_t offset = 
-            *((uint32_t *)(phys_ram_base + kernel_addr));
+        uint32_t offset = get_le32(phys_ram_base + kernel_addr);
 #else
         uint32_t offset = 12;
 #endif
@@ -832,7 +834,7 @@ void PPC_init_hw (/*CPUPPCState *env,*/ uint32_t mem_size,
         printf("Start address: 0x%08x\n", env->nip);
     }
     env->gpr[1] = env->nip + (1 << 22);
-    p = (void *)(phys_ram_base + stack_addr);
+    p = phys_ram_base + stack_addr;
     put_long(p - 32, stack_addr);
     env->gpr[1] -= 32;
     printf("Kernel starts at 0x%08x stack 0x%08x\n", env->nip, env->gpr[1]);
@@ -869,10 +871,10 @@ void PPC_init_hw (/*CPUPPCState *env,*/ uint32_t mem_size,
     /* Command line: let's put it just over the stack */
 #if 0
 #if 0
-    p = (void *)(((uint32_t)phys_ram_base + kernel_addr +
-                  kernel_size + (1 << 20) - 1) & ~((1 << 20) - 1));
+    p = phys_ram_base + kernel_addr +
+    kernel_size + (1 << 20) - 1) & ~((1 << 20) - 1);
 #else
-    p = (void *)((uint32_t)phys_ram_base + kernel_addr + 0x400000);
+    p = phys_ram_base + kernel_addr + 0x400000;
 #endif
 #if 1
     sprintf(p, "console=ttyS0,9600 root=%02x%02x mem=%dM",
