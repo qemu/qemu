@@ -1215,6 +1215,19 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                         error("unsupported i386 relocation (%d)", type);
                     }
 #elif defined(CONFIG_FORMAT_COFF)
+                    {
+                        char *temp_name;
+                        int j;
+                        EXE_SYM *sym;
+                        temp_name = get_sym_name(symtab + *(uint32_t *)(rel->r_reloc->r_symndx));
+                        if (!strcmp(temp_name, ".data")) {
+                            for (j = 0, sym = symtab; j < nb_syms; j++, sym++) {
+                                if (strstart(sym->st_name, sym_name, NULL)) {
+                                    addend -= sym->st_value;
+                                }
+                            }
+                        }
+                    }
                     type = rel->r_type;
                     switch(type) {
                     case DIR32:

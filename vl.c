@@ -238,7 +238,7 @@ char *pstrcat(char *buf, int buf_size, const char *s)
 int load_image(const char *filename, uint8_t *addr)
 {
     int fd, size;
-    fd = open(filename, O_RDONLY);
+    fd = open(filename, O_RDONLY | O_BINARY);
     if (fd < 0)
         return -1;
     size = lseek(fd, 0, SEEK_END);
@@ -453,7 +453,9 @@ QEMUClock *rt_clock;
 QEMUClock *vm_clock;
 
 static QEMUTimer *active_timers[2];
-#ifndef _WIN32
+#ifdef _WIN32
+static MMRESULT timerID;
+#else
 /* frequency of the times() clock tick */
 static int timer_freq;
 #endif
@@ -653,11 +655,11 @@ static void init_timers(void)
 #ifdef _WIN32
     {
         int count=0;
-        MMRESULT timerID = timeSetEvent(10,    // interval (ms)
-                                        0,     // resolution
-                                        host_alarm_handler, // function
-                                        (DWORD)&count,  // user parameter
-                                        TIME_PERIODIC | TIME_CALLBACK_FUNCTION);
+        timerID = timeSetEvent(10,    // interval (ms)
+                               0,     // resolution
+                               host_alarm_handler, // function
+                               (DWORD)&count,  // user parameter
+                               TIME_PERIODIC | TIME_CALLBACK_FUNCTION);
  	if( !timerID ) {
             perror("failed timer alarm");
             exit(1);
@@ -692,6 +694,13 @@ static void init_timers(void)
         pit_min_timer_count = ((uint64_t)itv.it_interval.tv_usec * PIT_FREQ) / 
             1000000;
     }
+#endif
+}
+
+void quit_timers(void)
+{
+#ifdef _WIN32
+    timeKillEvent(timerID);
 #endif
 }
 
@@ -2136,5 +2145,6 @@ int main(int argc, char **argv)
     }
     term_init();
     main_loop();
+    quit_timers();
     return 0;
 }

@@ -39,6 +39,9 @@
 #ifndef O_LARGEFILE
 #define O_LARGEFILE 0
 #endif
+#ifndef O_BINARY
+#define O_BINARY 0
+#endif
 
 #ifdef _WIN32
 #define lseek64 lseek
@@ -447,7 +450,7 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
 
 /* monitor.c */
 void monitor_init(void);
-void term_printf(const char *fmt, ...);
+void term_printf(const char *fmt, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
 void term_flush(void);
 void term_print_help(void);
 
