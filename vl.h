@@ -141,6 +141,68 @@ static inline uint16_t cpu_to_le16(uint16_t v)
 }
 #endif
 
+static inline void cpu_to_le16w(uint16_t *p, uint16_t v)
+{
+    *p = cpu_to_le16(v);
+}
+
+static inline void cpu_to_le32w(uint32_t *p, uint32_t v)
+{
+    *p = cpu_to_le32(v);
+}
+
+static inline uint16_t le16_to_cpup(const uint16_t *p)
+{
+    return le16_to_cpu(*p);
+}
+
+static inline uint32_t le32_to_cpup(const uint32_t *p)
+{
+    return le32_to_cpu(*p);
+}
+
+/* unaligned versions (optimized for frequent unaligned accesses)*/
+
+#if defined(__i386__) || defined(__powerpc__)
+
+#define cpu_to_le16wu(p, v) cpu_to_le16w(p, v)
+#define cpu_to_le32wu(p, v) cpu_to_le32w(p, v)
+#define le16_to_cpupu(p) le16_to_cpup(p)
+#define le32_to_cpupu(p) le32_to_cpup(p)
+
+#else
+
+static inline void cpu_to_le16wu(uint16_t *p, uint16_t v)
+{
+    uint8_t *p1 = (uint8_t *)p;
+
+    p1[0] = v;
+    p1[1] = v >> 8;
+}
+
+static inline void cpu_to_le32wu(uint32_t *p, uint32_t v)
+{
+    uint8_t *p1 = (uint8_t *)p;
+
+    p1[0] = v;
+    p1[1] = v >> 8;
+    p1[2] = v >> 16;
+    p1[3] = v >> 24;
+}
+
+static inline uint16_t le16_to_cpupu(const uint16_t *p)
+{
+    const uint8_t *p1 = (const uint8_t *)p;
+    return p1[0] | (p1[1] << 8);
+}
+
+static inline uint32_t le32_to_cpupu(const uint32_t *p)
+{
+    const uint8_t *p1 = (const uint8_t *)p;
+    return p1[0] | (p1[1] << 8) | (p1[2] << 16) | (p1[3] << 24);
+}
+
+#endif
 
 /* vl.c */
 extern int reset_requested;
