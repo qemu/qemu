@@ -218,7 +218,7 @@ const argtype *thunk_convert(void *dst, const void *src,
     case TYPE_LONG:
     case TYPE_ULONG:
     case TYPE_PTRVOID:
-        if (target_to_host) {
+        if (to_host) {
             *(uint64_t *)dst = tswap32(*(uint32_t *)src);
         } else {
             *(uint32_t *)dst = tswap32(*(uint64_t *)src & 0xffffffff);
