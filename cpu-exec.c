@@ -903,7 +903,7 @@ typedef struct ucontext SIGCONTEXT;
 # define TRAP_sig(context)			EXCEPREG_sig(exception, context) /* number of powerpc exception taken */
 #endif /* __APPLE__ */
 
-int cpu_signal_handler(int host_signum, siginfo *info, 
+int cpu_signal_handler(int host_signum, struct siginfo *info, 
                        void *puc)
 {
     struct ucontext *uc = puc;
