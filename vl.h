@@ -67,6 +67,16 @@ static inline uint16_t be16_to_cpu(uint16_t v)
     return v;
 }
 
+static inline uint32_t cpu_to_be32(uint32_t v)
+{
+    return v;
+}
+
+static inline uint16_t cpu_to_be16(uint16_t v)
+{
+    return v;
+}
+
 static inline uint32_t le32_to_cpu(uint32_t v)
 {
     return bswap32(v);
@@ -77,7 +87,18 @@ static inline uint16_t le16_to_cpu(uint16_t v)
     return bswap16(v);
 }
 
+static inline uint32_t cpu_to_le32(uint32_t v)
+{
+    return bswap32(v);
+}
+
+static inline uint16_t cpu_to_le16(uint16_t v)
+{
+    return bswap16(v);
+}
+
 #else
+
 static inline uint32_t be32_to_cpu(uint32_t v)
 {
     return bswap32(v);
@@ -88,12 +109,32 @@ static inline uint16_t be16_to_cpu(uint16_t v)
     return bswap16(v);
 }
 
+static inline uint32_t cpu_to_be32(uint32_t v)
+{
+    return bswap32(v);
+}
+
+static inline uint16_t cpu_to_be16(uint16_t v)
+{
+    return bswap16(v);
+}
+
 static inline uint32_t le32_to_cpu(uint32_t v)
 {
     return v;
 }
 
 static inline uint16_t le16_to_cpu(uint16_t v)
+{
+    return v;
+}
+
+static inline uint32_t cpu_to_le32(uint32_t v)
+{
+    return v;
+}
+
+static inline uint16_t cpu_to_le16(uint16_t v)
 {
     return v;
 }
