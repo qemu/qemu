@@ -104,7 +104,7 @@ static int ne2000_irq[NE2000_NB_MAX] = { 9, 10, 11, 3, 4, 5 };
 /* IO ports emulation */
 #define PPC_IO_BASE 0x80000000
 
-static void PPC_io_writeb (uint32_t addr, uint32_t value, uint32_t vaddr)
+static void PPC_io_writeb (target_phys_addr_t addr, uint32_t value)
 {
     /* Don't polute serial port output */
 #if 0
@@ -121,7 +121,7 @@ static void PPC_io_writeb (uint32_t addr, uint32_t value, uint32_t vaddr)
     cpu_outb(NULL, addr - PPC_IO_BASE, value);
 }
 
-static uint32_t PPC_io_readb (uint32_t addr)
+static uint32_t PPC_io_readb (target_phys_addr_t addr)
 {
     uint32_t ret = cpu_inb(NULL, addr - PPC_IO_BASE);
 
@@ -141,7 +141,7 @@ static uint32_t PPC_io_readb (uint32_t addr)
     return ret;
 }
 
-static void PPC_io_writew (uint32_t addr, uint32_t value, uint32_t vaddr)
+static void PPC_io_writew (target_phys_addr_t addr, uint32_t value)
 {
     if ((addr < 0x800001f0 || addr > 0x800001f7) &&
         (addr < 0x80000170 || addr > 0x80000177)) {
@@ -150,7 +150,7 @@ static void PPC_io_writew (uint32_t addr, uint32_t value, uint32_t vaddr)
     cpu_outw(NULL, addr - PPC_IO_BASE, value);
 }
 
-static uint32_t PPC_io_readw (uint32_t addr)
+static uint32_t PPC_io_readw (target_phys_addr_t addr)
 {
     uint32_t ret = cpu_inw(NULL, addr - PPC_IO_BASE);
 
@@ -162,13 +162,13 @@ static uint32_t PPC_io_readw (uint32_t addr)
     return ret;
 }
 
-static void PPC_io_writel (uint32_t addr, uint32_t value, uint32_t vaddr)
+static void PPC_io_writel (target_phys_addr_t addr, uint32_t value)
 {
     PPC_IO_DPRINTF("0x%08x => 0x%08x\n", addr - PPC_IO_BASE, value);
     cpu_outl(NULL, addr - PPC_IO_BASE, value);
 }
 
-static uint32_t PPC_io_readl (uint32_t addr)
+static uint32_t PPC_io_readl (target_phys_addr_t addr)
 {
     uint32_t ret = cpu_inl(NULL, addr - PPC_IO_BASE);
 
@@ -190,12 +190,12 @@ static CPUReadMemoryFunc *PPC_io_read[] = {
 };
 
 /* Read-only register (?) */
-static void _PPC_ioB_write (uint32_t addr, uint32_t value, uint32_t vaddr)
+static void _PPC_ioB_write (target_phys_addr_t addr, uint32_t value)
 {
     //    printf("%s: 0x%08x => 0x%08x\n", __func__, addr, value);
 }
 
-static uint32_t _PPC_ioB_read (uint32_t addr)
+static uint32_t _PPC_ioB_read (target_phys_addr_t addr)
 {
     uint32_t retval = 0;
 
@@ -636,9 +636,9 @@ static void VGA_printf (uint8_t *s)
                 for (i = 0; i < format_width; i++) {
                     nibble = (arg >> (4 * digit)) & 0x000f;
                     if (nibble <= 9)
-                        PPC_io_writeb(PPC_IO_BASE + 0x500, nibble + '0', 0);
+                        PPC_io_writeb(PPC_IO_BASE + 0x500, nibble + '0');
                     else
-                        PPC_io_writeb(PPC_IO_BASE + 0x500, nibble + 'A', 0);
+                        PPC_io_writeb(PPC_IO_BASE + 0x500, nibble + 'A');
                     digit--;
                 }
                 in_format = 0;
@@ -647,7 +647,7 @@ static void VGA_printf (uint8_t *s)
             //  in_format = 0;
             //  }
         } else {
-            PPC_io_writeb(PPC_IO_BASE + 0x500, c, 0);
+            PPC_io_writeb(PPC_IO_BASE + 0x500, c);
         }
         s++;
     }
@@ -659,10 +659,10 @@ static void VGA_init (void)
     printf("Init VGA...\n");
 #if 1
     /* switch to color mode and enable CPU access 480 lines */
-    PPC_io_writeb(PPC_IO_BASE + 0x3C2, 0xC3, 0);
+    PPC_io_writeb(PPC_IO_BASE + 0x3C2, 0xC3);
     /* more than 64k 3C4/04 */
-    PPC_io_writeb(PPC_IO_BASE + 0x3C4, 0x04, 0);
-    PPC_io_writeb(PPC_IO_BASE + 0x3C5, 0x02, 0);
+    PPC_io_writeb(PPC_IO_BASE + 0x3C4, 0x04);
+    PPC_io_writeb(PPC_IO_BASE + 0x3C5, 0x02);
 #endif
     VGA_printf("PPC VGA BIOS...\n");
 }
@@ -690,7 +690,7 @@ void PPC_init_hw (/*CPUPPCState *env,*/ uint32_t mem_size,
     {
 #if 1
         uint32_t offset = 
-            *((uint32_t *)((uint32_t)phys_ram_base + kernel_addr));
+            *((uint32_t *)(phys_ram_base + kernel_addr));
 #else
         uint32_t offset = 12;
 #endif
@@ -816,7 +816,7 @@ void PPC_init_hw (/*CPUPPCState *env,*/ uint32_t mem_size,
     {
 #if 0
         uint32_t offset = 
-            *((uint32_t *)((uint32_t)phys_ram_base + kernel_addr));
+            *((uint32_t *)(phys_ram_base + kernel_addr));
 #else
         uint32_t offset = 12;
 #endif

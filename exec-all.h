@@ -86,13 +86,16 @@ int cpu_gen_code_copy(CPUState *env, struct TranslationBlock *tb,
 int cpu_restore_state_copy(struct TranslationBlock *tb, 
                            CPUState *env, unsigned long searched_pc,
                            void *puc);
+void cpu_resume_from_signal(CPUState *env1, void *puc);
 void cpu_exec_init(void);
-int page_unprotect(unsigned long address);
+int page_unprotect(unsigned long address, unsigned long pc, void *puc);
+void tb_invalidate_phys_page_range(target_ulong start, target_ulong end, 
+                                   int is_cpu_write_access);
 void tb_invalidate_page_range(target_ulong start, target_ulong end);
-void tlb_flush_page(CPUState *env, uint32_t addr);
-void tlb_flush_page_write(CPUState *env, uint32_t addr);
+void tlb_flush_page(CPUState *env, target_ulong addr);
 void tlb_flush(CPUState *env, int flush_global);
-int tlb_set_page(CPUState *env, uint32_t vaddr, uint32_t paddr, int prot, 
+int tlb_set_page(CPUState *env, target_ulong vaddr, 
+                 target_phys_addr_t paddr, int prot, 
                  int is_user, int is_softmmu);
 
 #define CODE_GEN_MAX_SIZE        65536
@@ -146,8 +149,8 @@ int tlb_set_page(CPUState *env, uint32_t vaddr, uint32_t paddr, int prot,
 #endif
 
 typedef struct TranslationBlock {
-    unsigned long pc;   /* simulated PC corresponding to this block (EIP + CS base) */
-    unsigned long cs_base; /* CS base for this block */
+    target_ulong pc;   /* simulated PC corresponding to this block (EIP + CS base) */
+    target_ulong cs_base; /* CS base for this block */
     unsigned int flags; /* flags defining in which context the code was generated */
     uint16_t size;      /* size of target code for this block (1 <=
                            size <= TARGET_PAGE_SIZE) */
@@ -155,6 +158,7 @@ typedef struct TranslationBlock {
 #define CF_CODE_COPY   0x0001 /* block was generated in code copy mode */
 #define CF_TB_FP_USED  0x0002 /* fp ops are used in the TB */
 #define CF_FP_USED     0x0004 /* fp ops are used in the TB or in a chained TB */
+#define CF_SINGLE_INSN 0x0008 /* compile only a single instruction */
 
     uint8_t *tc_ptr;    /* pointer to the translated code */
     struct TranslationBlock *hash_next; /* next matching tb for virtual address */
@@ -206,8 +210,8 @@ extern uint8_t *code_gen_ptr;
 /* find a translation block in the translation cache. If not found,
    return NULL and the pointer to the last element of the list in pptb */
 static inline TranslationBlock *tb_find(TranslationBlock ***pptb,
-                                        unsigned long pc, 
-                                        unsigned long cs_base,
+                                        target_ulong pc, 
+                                        target_ulong cs_base,
                                         unsigned int flags)
 {
     TranslationBlock **ptb, *tb;

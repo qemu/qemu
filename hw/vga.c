@@ -648,7 +648,7 @@ static void vbe_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 #endif
 
 /* called for accesses between 0xa0000 and 0xc0000 */
-static uint32_t vga_mem_readb(uint32_t addr)
+static uint32_t vga_mem_readb(target_phys_addr_t addr)
 {
     VGAState *s = &vga_state;
     int memory_map_mode, plane;
@@ -704,7 +704,7 @@ static uint32_t vga_mem_readb(uint32_t addr)
     return ret;
 }
 
-static uint32_t vga_mem_readw(uint32_t addr)
+static uint32_t vga_mem_readw(target_phys_addr_t addr)
 {
     uint32_t v;
     v = vga_mem_readb(addr);
@@ -712,7 +712,7 @@ static uint32_t vga_mem_readw(uint32_t addr)
     return v;
 }
 
-static uint32_t vga_mem_readl(uint32_t addr)
+static uint32_t vga_mem_readl(target_phys_addr_t addr)
 {
     uint32_t v;
     v = vga_mem_readb(addr);
@@ -723,7 +723,7 @@ static uint32_t vga_mem_readl(uint32_t addr)
 }
 
 /* called for accesses between 0xa0000 and 0xc0000 */
-static void vga_mem_writeb(uint32_t addr, uint32_t val)
+static void vga_mem_writeb(target_phys_addr_t addr, uint32_t val)
 {
     VGAState *s = &vga_state;
     int memory_map_mode, plane, write_mode, b, func_select;
@@ -851,13 +851,13 @@ static void vga_mem_writeb(uint32_t addr, uint32_t val)
     }
 }
 
-static void vga_mem_writew(uint32_t addr, uint32_t val)
+static void vga_mem_writew(target_phys_addr_t addr, uint32_t val)
 {
     vga_mem_writeb(addr, val & 0xff);
     vga_mem_writeb(addr + 1, (val >> 8) & 0xff);
 }
 
-static void vga_mem_writel(uint32_t addr, uint32_t val)
+static void vga_mem_writel(target_phys_addr_t addr, uint32_t val)
 {
     vga_mem_writeb(addr, val & 0xff);
     vga_mem_writeb(addr + 1, (val >> 8) & 0xff);

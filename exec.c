@@ -64,7 +64,7 @@ uint8_t *phys_ram_base;
 uint8_t *phys_ram_dirty;
 
 typedef struct PageDesc {
-    /* offset in memory of the page + io_index in the low 12 bits */
+    /* offset in host memory of the page + io_index in the low 12 bits */
     unsigned long phys_offset;
     /* list of TBs intersecting this physical page */
     TranslationBlock *first_tb;
@@ -1011,7 +1011,7 @@ static void breakpoint_invalidate(CPUState *env, target_ulong pc)
 
 /* add a breakpoint. EXCP_DEBUG is returned by the CPU loop if a
    breakpoint is reached */
-int cpu_breakpoint_insert(CPUState *env, uint32_t pc)
+int cpu_breakpoint_insert(CPUState *env, target_ulong pc)
 {
 #if defined(TARGET_I386) || defined(TARGET_PPC)
     int i;
@@ -1033,7 +1033,7 @@ int cpu_breakpoint_insert(CPUState *env, uint32_t pc)
 }
 
 /* remove a breakpoint */
-int cpu_breakpoint_remove(CPUState *env, uint32_t pc)
+int cpu_breakpoint_remove(CPUState *env, target_ulong pc)
 {
 #if defined(TARGET_I386) || defined(TARGET_PPC)
     int i;
@@ -1221,7 +1221,7 @@ static inline void tlb_flush_entry(CPUTLBEntry *tlb_entry, uint32_t addr)
         tlb_entry->address = -1;
 }
 
-void tlb_flush_page(CPUState *env, uint32_t addr)
+void tlb_flush_page(CPUState *env, target_ulong addr)
 {
     int i, n;
     VirtPageDesc *vp;
@@ -1415,7 +1415,8 @@ static inline void tlb_set_dirty(unsigned long addr, target_ulong vaddr)
    is permitted. Return 0 if OK or 2 if the page could not be mapped
    (can only happen in non SOFTMMU mode for I/O pages or pages
    conflicting with the host address space). */
-int tlb_set_page(CPUState *env, uint32_t vaddr, uint32_t paddr, int prot, 
+int tlb_set_page(CPUState *env, target_ulong vaddr, 
+                 target_phys_addr_t paddr, int prot, 
                  int is_user, int is_softmmu)
 {
     PageDesc *p;
@@ -1583,15 +1584,12 @@ void tlb_flush(CPUState *env, int flush_global)
 {
 }
 
-void tlb_flush_page(CPUState *env, uint32_t addr)
+void tlb_flush_page(CPUState *env, target_ulong addr)
 {
 }
 
-void tlb_flush_page_write(CPUState *env, uint32_t addr)
-{
-}
-
-int tlb_set_page(CPUState *env, uint32_t vaddr, uint32_t paddr, int prot, 
+int tlb_set_page(CPUState *env, target_ulong vaddr, 
+                 target_phys_addr_t paddr, int prot, 
                  int is_user, int is_softmmu)
 {
     return 0;
@@ -1739,8 +1737,9 @@ static inline void tlb_set_dirty(unsigned long addr, target_ulong vaddr)
 /* register physical memory. 'size' must be a multiple of the target
    page size. If (phys_offset & ~TARGET_PAGE_MASK) != 0, then it is an
    io memory page */
-void cpu_register_physical_memory(unsigned long start_addr, unsigned long size,
-                                  long phys_offset)
+void cpu_register_physical_memory(target_phys_addr_t start_addr, 
+                                  unsigned long size,
+                                  unsigned long phys_offset)
 {
     unsigned long addr, end_addr;
     PageDesc *p;
@@ -1754,12 +1753,12 @@ void cpu_register_physical_memory(unsigned long start_addr, unsigned long size,
     }
 }
 
-static uint32_t unassigned_mem_readb(uint32_t addr)
+static uint32_t unassigned_mem_readb(target_phys_addr_t addr)
 {
     return 0;
 }
 
-static void unassigned_mem_writeb(uint32_t addr, uint32_t val)
+static void unassigned_mem_writeb(target_phys_addr_t addr, uint32_t val)
 {
 }
 
@@ -1778,7 +1777,7 @@ static CPUWriteMemoryFunc *unassigned_mem_write[3] = {
 /* self modifying code support in soft mmu mode : writing to a page
    containing code comes to these functions */
 
-static void code_mem_writeb(uint32_t addr, uint32_t val)
+static void code_mem_writeb(target_phys_addr_t addr, uint32_t val)
 {
     unsigned long phys_addr;
 
@@ -1790,7 +1789,7 @@ static void code_mem_writeb(uint32_t addr, uint32_t val)
     phys_ram_dirty[phys_addr >> TARGET_PAGE_BITS] = 1;
 }
 
-static void code_mem_writew(uint32_t addr, uint32_t val)
+static void code_mem_writew(target_phys_addr_t addr, uint32_t val)
 {
     unsigned long phys_addr;
 
@@ -1802,7 +1801,7 @@ static void code_mem_writew(uint32_t addr, uint32_t val)
     phys_ram_dirty[phys_addr >> TARGET_PAGE_BITS] = 1;
 }
 
-static void code_mem_writel(uint32_t addr, uint32_t val)
+static void code_mem_writel(target_phys_addr_t addr, uint32_t val)
 {
     unsigned long phys_addr;
 
@@ -1892,7 +1891,7 @@ int cpu_register_io_memory(int io_index,
 
 /* physical memory access (slow version, mainly for debug) */
 #if defined(CONFIG_USER_ONLY)
-void cpu_physical_memory_rw(target_ulong addr, uint8_t *buf, 
+void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf, 
                             int len, int is_write)
 {
     int l, flags;
@@ -1921,13 +1920,14 @@ void cpu_physical_memory_rw(target_ulong addr, uint8_t *buf,
     }
 }
 #else
-void cpu_physical_memory_rw(target_ulong addr, uint8_t *buf, 
+void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf, 
                             int len, int is_write)
 {
     int l, io_index;
     uint8_t *ptr;
     uint32_t val;
-    target_ulong page, pd;
+    target_phys_addr_t page;
+    unsigned long pd;
     PageDesc *p;
     
     while (len > 0) {

@@ -620,8 +620,8 @@ extern int code_copy_enabled;
 #define CPU_INTERRUPT_EXITTB 0x04 /* exit the current TB (use for x86 a20 case) */
 void cpu_interrupt(CPUState *s, int mask);
 
-int cpu_breakpoint_insert(CPUState *env, uint32_t pc);
-int cpu_breakpoint_remove(CPUState *env, uint32_t pc);
+int cpu_breakpoint_insert(CPUState *env, target_ulong pc);
+int cpu_breakpoint_remove(CPUState *env, target_ulong pc);
 void cpu_single_step(CPUState *env, int enabled);
 
 /* Return the physical page corresponding to a virtual one. Use it
@@ -681,24 +681,25 @@ extern uint8_t *phys_ram_dirty;
 #define IO_MEM_CODE        (3 << IO_MEM_SHIFT) /* used internally, never use directly */
 #define IO_MEM_NOTDIRTY    (4 << IO_MEM_SHIFT) /* used internally, never use directly */
 
-typedef void CPUWriteMemoryFunc(uint32_t addr, uint32_t value);
-typedef uint32_t CPUReadMemoryFunc(uint32_t addr);
+typedef void CPUWriteMemoryFunc(target_phys_addr_t addr, uint32_t value);
+typedef uint32_t CPUReadMemoryFunc(target_phys_addr_t addr);
 
-void cpu_register_physical_memory(unsigned long start_addr, unsigned long size,
-                                  long phys_offset);
+void cpu_register_physical_memory(target_phys_addr_t start_addr, 
+                                  unsigned long size,
+                                  unsigned long phys_offset);
 int cpu_register_io_memory(int io_index,
                            CPUReadMemoryFunc **mem_read,
                            CPUWriteMemoryFunc **mem_write);
 
-void cpu_physical_memory_rw(target_ulong addr, uint8_t *buf,
+void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
                             int len, int is_write);
-static inline void cpu_physical_memory_read(target_ulong addr, uint8_t *buf,
-                                            int len)
+static inline void cpu_physical_memory_read(target_phys_addr_t addr, 
+                                            uint8_t *buf, int len)
 {
     cpu_physical_memory_rw(addr, buf, len, 0);
 }
-static inline void cpu_physical_memory_write(target_ulong addr, const uint8_t *buf,
-                                            int len)
+static inline void cpu_physical_memory_write(target_phys_addr_t addr, 
+                                             const uint8_t *buf, int len)
 {
     cpu_physical_memory_rw(addr, (uint8_t *)buf, len, 1);
 }
