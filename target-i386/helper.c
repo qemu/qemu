@@ -1264,6 +1264,9 @@ void helper_ljmp_protected_T0_T1(int next_eip)
             if (!(e2 & DESC_P_MASK))
                 raise_exception_err(EXCP0B_NOSEG, new_cs & 0xfffc);
             gate_cs = e1 >> 16;
+            new_eip = (e1 & 0xffff);
+            if (type == 12)
+                new_eip |= (e2 & 0xffff0000);
             if (load_segment(&e1, &e2, gate_cs) != 0)
                 raise_exception_err(EXCP0D_GPF, gate_cs & 0xfffc);
             dpl = (e2 >> DESC_DPL_SHIFT) & 3;
@@ -1276,9 +1279,6 @@ void helper_ljmp_protected_T0_T1(int next_eip)
                 raise_exception_err(EXCP0D_GPF, gate_cs & 0xfffc);
             if (!(e2 & DESC_P_MASK))
                 raise_exception_err(EXCP0D_GPF, gate_cs & 0xfffc);
-            new_eip = (e1 & 0xffff);
-            if (type == 12)
-                new_eip |= (e2 & 0xffff0000);
             limit = get_seg_limit(e1, e2);
             if (new_eip > limit)
                 raise_exception_err(EXCP0D_GPF, 0);
