@@ -414,6 +414,22 @@ int get_physical_address (CPUState *env, uint32_t *physical, int *prot,
     return ret;
 }
 
+#if defined(CONFIG_USER_ONLY) 
+target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+{
+    return addr;
+}
+#else
+target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+{
+    uint32_t phys_addr;
+    int prot;
+
+    if (get_physical_address(env, &phys_addr, &prot, addr, 0, ACCESS_INT) != 0)
+        return -1;
+    return phys_addr;
+}
+#endif
 
 #if !defined(CONFIG_USER_ONLY) 
 

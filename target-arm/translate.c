@@ -897,3 +897,8 @@ void cpu_arm_dump_state(CPUARMState *env, FILE *f, int flags)
             env->cpsr & (1 << 29) ? 'C' : '-',
             env->cpsr & (1 << 28) ? 'V' : '-');
 }
+
+target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+{
+    return addr;
+}
