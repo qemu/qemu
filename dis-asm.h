@@ -9,6 +9,7 @@
 #ifndef DIS_ASM_H
 #define DIS_ASM_H
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
@@ -19,6 +20,8 @@ typedef uint64_t bfd_vma;
 typedef int64_t bfd_signed_vma;
 typedef uint8_t bfd_byte;
 #define sprintf_vma(s,x) sprintf (s, "%0" PRIx64, x)
+
+#define BFD64
 
 enum bfd_flavour {
   bfd_target_unknown_flavour,

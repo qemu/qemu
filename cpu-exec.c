@@ -106,15 +106,16 @@ int cpu_exec(CPUState *env1)
     int code_gen_size, ret, interrupt_request;
     void (*gen_func)(void);
     TranslationBlock *tb, **ptb;
-    uint8_t *tc_ptr, *cs_base, *pc;
+    target_ulong cs_base, pc;
+    uint8_t *tc_ptr;
     unsigned int flags;
 
     /* first we save global registers */
+    saved_env = env;
+    env = env1;
     saved_T0 = T0;
     saved_T1 = T1;
     saved_T2 = T2;
-    saved_env = env;
-    env = env1;
 #ifdef __sparc__
     /* we also save i7 because longjmp may not restore it */
     asm volatile ("mov %%i7, %0" : "=r" (saved_i7));
@@ -285,7 +286,7 @@ int cpu_exec(CPUState *env1)
                     }
                 }
 #ifdef DEBUG_EXEC
-                if (loglevel & CPU_LOG_EXEC) {
+                if ((loglevel & CPU_LOG_EXEC)) {
 #if defined(TARGET_I386)
                     /* restore flags in standard format */
                     env->regs[R_EAX] = EAX;
@@ -323,19 +324,19 @@ int cpu_exec(CPUState *env1)
 #elif defined(TARGET_ARM)
                 flags = 0;
                 cs_base = 0;
-                pc = (uint8_t *)env->regs[15];
+                pc = env->regs[15];
 #elif defined(TARGET_SPARC)
                 flags = 0;
-                cs_base = (uint8_t *)env->npc;
-                pc = (uint8_t *) env->pc;
+                cs_base = env->npc;
+                pc = env->pc;
 #elif defined(TARGET_PPC)
                 flags = 0;
                 cs_base = 0;
-                pc = (uint8_t *)env->nip;
+                pc = env->nip;
 #else
 #error unsupported CPU
 #endif
-                tb = tb_find(&ptb, (unsigned long)pc, (unsigned long)cs_base, 
+                tb = tb_find(&ptb, pc, cs_base, 
                              flags);
                 if (!tb) {
                     TranslationBlock **ptb1;
@@ -350,7 +351,7 @@ int cpu_exec(CPUState *env1)
                     regs_to_env(); /* XXX: do it just before cpu_gen_code() */
 
                     /* find translated block using physical mappings */
-                    phys_pc = get_phys_addr_code(env, (unsigned long)pc);
+                    phys_pc = get_phys_addr_code(env, pc);
                     phys_page1 = phys_pc & TARGET_PAGE_MASK;
                     phys_page2 = -1;
                     h = tb_phys_hash_func(phys_pc);
@@ -359,13 +360,13 @@ int cpu_exec(CPUState *env1)
                         tb = *ptb1;
                         if (!tb)
                             goto not_found;
-                        if (tb->pc == (unsigned long)pc && 
+                        if (tb->pc == pc && 
                             tb->page_addr[0] == phys_page1 &&
-                            tb->cs_base == (unsigned long)cs_base && 
+                            tb->cs_base == cs_base && 
                             tb->flags == flags) {
                             /* check next page if needed */
                             if (tb->page_addr[1] != -1) {
-                                virt_page2 = ((unsigned long)pc & TARGET_PAGE_MASK) + 
+                                virt_page2 = (pc & TARGET_PAGE_MASK) + 
                                     TARGET_PAGE_SIZE;
                                 phys_page2 = get_phys_addr_code(env, virt_page2);
                                 if (tb->page_addr[1] == phys_page2)
@@ -378,27 +379,27 @@ int cpu_exec(CPUState *env1)
                     }
                 not_found:
                     /* if no translated code available, then translate it now */
-                    tb = tb_alloc((unsigned long)pc);
+                    tb = tb_alloc(pc);
                     if (!tb) {
                         /* flush must be done */
                         tb_flush(env);
                         /* cannot fail at this point */
-                        tb = tb_alloc((unsigned long)pc);
+                        tb = tb_alloc(pc);
                         /* don't forget to invalidate previous TB info */
-                        ptb = &tb_hash[tb_hash_func((unsigned long)pc)];
+                        ptb = &tb_hash[tb_hash_func(pc)];
                         T0 = 0;
                     }
                     tc_ptr = code_gen_ptr;
                     tb->tc_ptr = tc_ptr;
-                    tb->cs_base = (unsigned long)cs_base;
+                    tb->cs_base = cs_base;
                     tb->flags = flags;
                     cpu_gen_code(env, tb, CODE_GEN_MAX_SIZE, &code_gen_size);
                     code_gen_ptr = (void *)(((unsigned long)code_gen_ptr + code_gen_size + CODE_GEN_ALIGN - 1) & ~(CODE_GEN_ALIGN - 1));
                     
                     /* check next page if needed */
-                    virt_page2 = ((unsigned long)pc + tb->size - 1) & TARGET_PAGE_MASK;
+                    virt_page2 = (pc + tb->size - 1) & TARGET_PAGE_MASK;
                     phys_page2 = -1;
-                    if (((unsigned long)pc & TARGET_PAGE_MASK) != virt_page2) {
+                    if ((pc & TARGET_PAGE_MASK) != virt_page2) {
                         phys_page2 = get_phys_addr_code(env, virt_page2);
                     }
                     tb_link_phys(tb, phys_pc, phys_page2);
@@ -408,7 +409,7 @@ int cpu_exec(CPUState *env1)
                         /* as some TB could have been invalidated because
                            of memory exceptions while generating the code, we
                            must recompute the hash index here */
-                        ptb = &tb_hash[tb_hash_func((unsigned long)pc)];
+                        ptb = &tb_hash[tb_hash_func(pc)];
                         while (*ptb != NULL)
                             ptb = &(*ptb)->hash_next;
                         T0 = 0;
@@ -420,30 +421,32 @@ int cpu_exec(CPUState *env1)
                     spin_unlock(&tb_lock);
                 }
 #ifdef DEBUG_EXEC
-                if (loglevel & CPU_LOG_EXEC) {
-                    fprintf(logfile, "Trace 0x%08lx [0x%08lx] %s\n",
-                            (long)tb->tc_ptr, (long)tb->pc,
-                            lookup_symbol((void *)tb->pc));
+                if ((loglevel & CPU_LOG_EXEC) && (env->hflags & HF_LMA_MASK)) {
+                    fprintf(logfile, "Trace 0x%08lx [" TARGET_FMT_lx "] %s\n",
+                            (long)tb->tc_ptr, tb->pc,
+                            lookup_symbol(tb->pc));
                 }
 #endif
 #ifdef __sparc__
                 T0 = tmp_T0;
 #endif	    
                 /* see if we can patch the calling TB. */
-                if (T0 != 0
+                {
+                    if (T0 != 0
 #if defined(TARGET_I386) && defined(USE_CODE_COPY)
                     && (tb->cflags & CF_CODE_COPY) == 
                     (((TranslationBlock *)(T0 & ~3))->cflags & CF_CODE_COPY)
 #endif
                     ) {
                     spin_lock(&tb_lock);
-                    tb_add_jump((TranslationBlock *)(T0 & ~3), T0 & 3, tb);
+                    tb_add_jump((TranslationBlock *)(long)(T0 & ~3), T0 & 3, tb);
 #if defined(USE_CODE_COPY)
                     /* propagates the FP use info */
                     ((TranslationBlock *)(T0 & ~3))->cflags |= 
                         (tb->cflags & CF_FP_USED);
 #endif
                     spin_unlock(&tb_lock);
+                }
                 }
                 tc_ptr = tb->tc_ptr;
                 env->current_tb = tb;
@@ -631,7 +634,7 @@ void cpu_x86_load_seg(CPUX86State *s, int seg_reg, int selector)
     if (!(env->cr[0] & CR0_PE_MASK) || (env->eflags & VM_MASK)) {
         selector &= 0xffff;
         cpu_x86_load_seg_cache(env, seg_reg, selector, 
-                               (uint8_t *)(selector << 4), 0xffff, 0);
+                               (selector << 4), 0xffff, 0);
     } else {
         load_seg(seg_reg, selector);
     }
@@ -645,7 +648,7 @@ void cpu_x86_fsave(CPUX86State *s, uint8_t *ptr, int data32)
     saved_env = env;
     env = s;
     
-    helper_fsave(ptr, data32);
+    helper_fsave((target_ulong)ptr, data32);
 
     env = saved_env;
 }
@@ -657,7 +660,7 @@ void cpu_x86_frstor(CPUX86State *s, uint8_t *ptr, int data32)
     saved_env = env;
     env = s;
     
-    helper_frstor(ptr, data32);
+    helper_frstor((target_ulong)ptr, data32);
 
     env = saved_env;
 }

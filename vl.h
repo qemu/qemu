@@ -335,6 +335,18 @@ static inline void qemu_get_8s(QEMUFile *f, uint8_t *pv)
     *pv = qemu_get_byte(f);
 }
 
+#if TARGET_LONG_BITS == 64
+#define qemu_put_betl qemu_put_be64
+#define qemu_get_betl qemu_get_be64
+#define qemu_put_betls qemu_put_be64s
+#define qemu_get_betls qemu_get_be64s
+#else
+#define qemu_put_betl qemu_put_be32
+#define qemu_get_betl qemu_get_be32
+#define qemu_put_betls qemu_put_be32s
+#define qemu_get_betls qemu_get_be32s
+#endif
+
 int64_t qemu_ftell(QEMUFile *f);
 int64_t qemu_fseek(QEMUFile *f, int64_t pos, int whence);
 
@@ -627,6 +639,10 @@ void pic_init(void);
 uint32_t pic_intack_read(CPUState *env);
 void pic_info(void);
 void irq_info(void);
+
+/* APIC */
+int apic_init(CPUState *env);
+int apic_get_interrupt(CPUState *env);
 
 /* i8254.c */
 

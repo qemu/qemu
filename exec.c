@@ -231,6 +231,10 @@ static inline VirtPageDesc *virt_page_find_alloc(unsigned int index)
 {
     VirtPageDesc **lp, *p;
 
+    /* XXX: should not truncate for 64 bit addresses */
+#if TARGET_LONG_BITS > 32
+    index &= (L1_SIZE - 1);
+#endif
     lp = &l1_virt_map[index >> L2_BITS];
     p = *lp;
     if (!p) {
@@ -597,13 +601,13 @@ static void tb_gen_code(CPUState *env,
     target_ulong phys_pc, phys_page2, virt_page2;
     int code_gen_size;
 
-    phys_pc = get_phys_addr_code(env, (unsigned long)pc);
-    tb = tb_alloc((unsigned long)pc);
+    phys_pc = get_phys_addr_code(env, pc);
+    tb = tb_alloc(pc);
     if (!tb) {
         /* flush must be done */
         tb_flush(env);
         /* cannot fail at this point */
-        tb = tb_alloc((unsigned long)pc);
+        tb = tb_alloc(pc);
     }
     tc_ptr = code_gen_ptr;
     tb->tc_ptr = tc_ptr;
@@ -614,9 +618,9 @@ static void tb_gen_code(CPUState *env,
     code_gen_ptr = (void *)(((unsigned long)code_gen_ptr + code_gen_size + CODE_GEN_ALIGN - 1) & ~(CODE_GEN_ALIGN - 1));
     
     /* check next page if needed */
-    virt_page2 = ((unsigned long)pc + tb->size - 1) & TARGET_PAGE_MASK;
+    virt_page2 = (pc + tb->size - 1) & TARGET_PAGE_MASK;
     phys_page2 = -1;
-    if (((unsigned long)pc & TARGET_PAGE_MASK) != virt_page2) {
+    if ((pc & TARGET_PAGE_MASK) != virt_page2) {
         phys_page2 = get_phys_addr_code(env, virt_page2);
     }
     tb_link_phys(tb, phys_pc, phys_page2);
@@ -884,7 +888,7 @@ static inline void tb_alloc_page(TranslationBlock *tb,
 
 /* Allocate a new translation block. Flush the translation buffer if
    too many translation blocks or too much generated code. */
-TranslationBlock *tb_alloc(unsigned long pc)
+TranslationBlock *tb_alloc(target_ulong pc)
 {
     TranslationBlock *tb;
 
@@ -1063,6 +1067,7 @@ static void tb_reset_jump_recursive(TranslationBlock *tb)
     tb_reset_jump_recursive2(tb, 1);
 }
 
+#if defined(TARGET_I386) || defined(TARGET_PPC) || defined(TARGET_SPARC)
 static void breakpoint_invalidate(CPUState *env, target_ulong pc)
 {
     target_ulong phys_addr;
@@ -1070,6 +1075,7 @@ static void breakpoint_invalidate(CPUState *env, target_ulong pc)
     phys_addr = cpu_get_phys_page_debug(env, pc);
     tb_invalidate_phys_page_range(phys_addr, phys_addr + 1, 0);
 }
+#endif
 
 /* add a breakpoint. EXCP_DEBUG is returned by the CPU loop if a
    breakpoint is reached */
@@ -1872,7 +1878,7 @@ static void code_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 #if !defined(CONFIG_USER_ONLY)
     tb_invalidate_phys_page_fast(phys_addr, 1);
 #endif
-    stb_raw((uint8_t *)addr, val);
+    stb_p((uint8_t *)(long)addr, val);
     phys_ram_dirty[phys_addr >> TARGET_PAGE_BITS] = 1;
 }
 
@@ -1884,7 +1890,7 @@ static void code_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
 #if !defined(CONFIG_USER_ONLY)
     tb_invalidate_phys_page_fast(phys_addr, 2);
 #endif
-    stw_raw((uint8_t *)addr, val);
+    stw_p((uint8_t *)(long)addr, val);
     phys_ram_dirty[phys_addr >> TARGET_PAGE_BITS] = 1;
 }
 
@@ -1896,7 +1902,7 @@ static void code_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 #if !defined(CONFIG_USER_ONLY)
     tb_invalidate_phys_page_fast(phys_addr, 4);
 #endif
-    stl_raw((uint8_t *)addr, val);
+    stl_p((uint8_t *)(long)addr, val);
     phys_ram_dirty[phys_addr >> TARGET_PAGE_BITS] = 1;
 }
 
@@ -1914,19 +1920,19 @@ static CPUWriteMemoryFunc *code_mem_write[3] = {
 
 static void notdirty_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
-    stb_raw((uint8_t *)addr, val);
+    stb_p((uint8_t *)(long)addr, val);
     tlb_set_dirty(addr, cpu_single_env->mem_write_vaddr);
 }
 
 static void notdirty_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
-    stw_raw((uint8_t *)addr, val);
+    stw_p((uint8_t *)(long)addr, val);
     tlb_set_dirty(addr, cpu_single_env->mem_write_vaddr);
 }
 
 static void notdirty_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
-    stl_raw((uint8_t *)addr, val);
+    stl_p((uint8_t *)(long)addr, val);
     tlb_set_dirty(addr, cpu_single_env->mem_write_vaddr);
 }
 
@@ -2046,17 +2052,17 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
                 io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
                 if (l >= 4 && ((addr & 3) == 0)) {
                     /* 32 bit read access */
-                    val = ldl_raw(buf);
+                    val = ldl_p(buf);
                     io_mem_write[io_index][2](io_mem_opaque[io_index], addr, val);
                     l = 4;
                 } else if (l >= 2 && ((addr & 1) == 0)) {
                     /* 16 bit read access */
-                    val = lduw_raw(buf);
+                    val = lduw_p(buf);
                     io_mem_write[io_index][1](io_mem_opaque[io_index], addr, val);
                     l = 2;
                 } else {
                     /* 8 bit access */
-                    val = ldub_raw(buf);
+                    val = ldub_p(buf);
                     io_mem_write[io_index][0](io_mem_opaque[io_index], addr, val);
                     l = 1;
                 }
@@ -2079,17 +2085,17 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
                 if (l >= 4 && ((addr & 3) == 0)) {
                     /* 32 bit read access */
                     val = io_mem_read[io_index][2](io_mem_opaque[io_index], addr);
-                    stl_raw(buf, val);
+                    stl_p(buf, val);
                     l = 4;
                 } else if (l >= 2 && ((addr & 1) == 0)) {
                     /* 16 bit read access */
                     val = io_mem_read[io_index][1](io_mem_opaque[io_index], addr);
-                    stw_raw(buf, val);
+                    stw_p(buf, val);
                     l = 2;
                 } else {
                     /* 8 bit access */
                     val = io_mem_read[io_index][0](io_mem_opaque[io_index], addr);
-                    stb_raw(buf, val);
+                    stb_p(buf, val);
                     l = 1;
                 }
             } else {

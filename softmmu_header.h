@@ -82,13 +82,14 @@
 #endif
 
 
-DATA_TYPE REGPARM(1) glue(glue(__ld, SUFFIX), MMUSUFFIX)(unsigned long addr,
+DATA_TYPE REGPARM(1) glue(glue(__ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
                                                          int is_user);
-void REGPARM(2) glue(glue(__st, SUFFIX), MMUSUFFIX)(unsigned long addr, DATA_TYPE v, int is_user);
+void REGPARM(2) glue(glue(__st, SUFFIX), MMUSUFFIX)(target_ulong addr, DATA_TYPE v, int is_user);
 
-#if (DATA_SIZE <= 4) && defined(__i386__) && (ACCESS_TYPE <= 1) && defined(ASM_SOFTMMU)
+#if (DATA_SIZE <= 4) && (TARGET_LONG_BITS == 32) && defined(__i386__) && \
+    (ACCESS_TYPE <= 1) && defined(ASM_SOFTMMU)
 
-static inline RES_TYPE glue(glue(ld, USUFFIX), MEMSUFFIX)(void *ptr)
+static inline RES_TYPE glue(glue(ld, USUFFIX), MEMSUFFIX)(target_ulong ptr)
 {
     int res;
 
@@ -131,7 +132,7 @@ static inline RES_TYPE glue(glue(ld, USUFFIX), MEMSUFFIX)(void *ptr)
 }
 
 #if DATA_SIZE <= 2
-static inline int glue(glue(lds, SUFFIX), MEMSUFFIX)(void *ptr)
+static inline int glue(glue(lds, SUFFIX), MEMSUFFIX)(target_ulong ptr)
 {
     int res;
 
@@ -178,7 +179,7 @@ static inline int glue(glue(lds, SUFFIX), MEMSUFFIX)(void *ptr)
 }
 #endif
 
-static inline void glue(glue(st, SUFFIX), MEMSUFFIX)(void *ptr, RES_TYPE v)
+static inline void glue(glue(st, SUFFIX), MEMSUFFIX)(target_ulong ptr, RES_TYPE v)
 {
     asm volatile ("movl %0, %%edx\n"
                   "movl %0, %%eax\n"
@@ -232,14 +233,15 @@ static inline void glue(glue(st, SUFFIX), MEMSUFFIX)(void *ptr, RES_TYPE v)
 
 /* generic load/store macros */
 
-static inline RES_TYPE glue(glue(ld, USUFFIX), MEMSUFFIX)(void *ptr)
+static inline RES_TYPE glue(glue(ld, USUFFIX), MEMSUFFIX)(target_ulong ptr)
 {
     int index;
     RES_TYPE res;
-    unsigned long addr, physaddr;
+    target_ulong addr;
+    unsigned long physaddr;
     int is_user;
 
-    addr = (unsigned long)ptr;
+    addr = ptr;
     index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     is_user = CPU_MEM_INDEX;
     if (__builtin_expect(env->tlb_read[is_user][index].address != 
@@ -253,13 +255,14 @@ static inline RES_TYPE glue(glue(ld, USUFFIX), MEMSUFFIX)(void *ptr)
 }
 
 #if DATA_SIZE <= 2
-static inline int glue(glue(lds, SUFFIX), MEMSUFFIX)(void *ptr)
+static inline int glue(glue(lds, SUFFIX), MEMSUFFIX)(target_ulong ptr)
 {
     int res, index;
-    unsigned long addr, physaddr;
+    target_ulong addr;
+    unsigned long physaddr;
     int is_user;
 
-    addr = (unsigned long)ptr;
+    addr = ptr;
     index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     is_user = CPU_MEM_INDEX;
     if (__builtin_expect(env->tlb_read[is_user][index].address != 
@@ -275,13 +278,14 @@ static inline int glue(glue(lds, SUFFIX), MEMSUFFIX)(void *ptr)
 
 /* generic store macro */
 
-static inline void glue(glue(st, SUFFIX), MEMSUFFIX)(void *ptr, RES_TYPE v)
+static inline void glue(glue(st, SUFFIX), MEMSUFFIX)(target_ulong ptr, RES_TYPE v)
 {
     int index;
-    unsigned long addr, physaddr;
+    target_ulong addr;
+    unsigned long physaddr;
     int is_user;
 
-    addr = (unsigned long)ptr;
+    addr = ptr;
     index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     is_user = CPU_MEM_INDEX;
     if (__builtin_expect(env->tlb_write[is_user][index].address != 
@@ -296,7 +300,7 @@ static inline void glue(glue(st, SUFFIX), MEMSUFFIX)(void *ptr, RES_TYPE v)
 #endif
 
 #if DATA_SIZE == 8
-static inline double glue(ldfq, MEMSUFFIX)(void *ptr)
+static inline double glue(ldfq, MEMSUFFIX)(target_ulong ptr)
 {
     union {
         double d;
@@ -306,7 +310,7 @@ static inline double glue(ldfq, MEMSUFFIX)(void *ptr)
     return u.d;
 }
 
-static inline void glue(stfq, MEMSUFFIX)(void *ptr, double v)
+static inline void glue(stfq, MEMSUFFIX)(target_ulong ptr, double v)
 {
     union {
         double d;
@@ -318,7 +322,7 @@ static inline void glue(stfq, MEMSUFFIX)(void *ptr, double v)
 #endif /* DATA_SIZE == 8 */
 
 #if DATA_SIZE == 4
-static inline float glue(ldfl, MEMSUFFIX)(void *ptr)
+static inline float glue(ldfl, MEMSUFFIX)(target_ulong ptr)
 {
     union {
         float f;
@@ -328,7 +332,7 @@ static inline float glue(ldfl, MEMSUFFIX)(void *ptr)
     return u.f;
 }
 
-static inline void glue(stfl, MEMSUFFIX)(void *ptr, float v)
+static inline void glue(stfl, MEMSUFFIX)(target_ulong ptr, float v)
 {
     union {
         float f;

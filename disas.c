@@ -28,23 +28,20 @@ buffer_read_memory (memaddr, myaddr, length, info)
     return 0;
 }
 
-#if !defined(CONFIG_USER_ONLY)
 /* Get LENGTH bytes from info's buffer, at target address memaddr.
    Transfer them to myaddr.  */
 static int
-target_read_memory (memaddr, myaddr, length, info)
-     bfd_vma memaddr;
-     bfd_byte *myaddr;
-     int length;
-     struct disassemble_info *info;
+target_read_memory (bfd_vma memaddr,
+                    bfd_byte *myaddr,
+                    int length,
+                    struct disassemble_info *info)
 {
     int i;
     for(i = 0; i < length; i++) {
-        myaddr[i] = ldub_code((void *)((long)memaddr + i));
+        myaddr[i] = ldub_code(memaddr + i);
     }
     return 0;
 }
-#endif
 
 /* Print an error message.  We can assume that this is in response to
    an error return from buffer_read_memory.  */
@@ -113,75 +110,107 @@ bfd_vma bfd_getb32 (const bfd_byte *addr)
 
 /* Disassemble this for me please... (debugging). 'flags' is only used
    for i386: non zero means 16 bit code */
-void disas(FILE *out, void *code, unsigned long size, int is_host, int flags)
+void target_disas(FILE *out, target_ulong code, unsigned long size, int flags)
 {
-    uint8_t *pc;
+    target_ulong pc;
     int count;
     struct disassemble_info disasm_info;
     int (*print_insn)(bfd_vma pc, disassemble_info *info);
 
     INIT_DISASSEMBLE_INFO(disasm_info, out, fprintf);
 
-#if !defined(CONFIG_USER_ONLY)
-    if (!is_host) {
-        disasm_info.read_memory_func = target_read_memory;
-    }
+    disasm_info.read_memory_func = target_read_memory;
+    disasm_info.buffer_vma = code;
+    disasm_info.buffer_length = size;
+
+#ifdef TARGET_WORDS_BIGENDIAN
+    disasm_info.endian = BFD_ENDIAN_BIG;
+#else
+    disasm_info.endian = BFD_ENDIAN_LITTLE;
 #endif
+#if defined(TARGET_I386)
+    if (flags == 2)
+        disasm_info.mach = bfd_mach_x86_64;
+    else if (flags == 1) 
+        disasm_info.mach = bfd_mach_i386_i8086;
+    else
+        disasm_info.mach = bfd_mach_i386_i386;
+    print_insn = print_insn_i386;
+#elif defined(TARGET_ARM)
+    print_insn = print_insn_arm;
+#elif defined(TARGET_SPARC)
+    print_insn = print_insn_sparc;
+#elif defined(TARGET_PPC)
+    print_insn = print_insn_ppc;
+#else
+    fprintf(out, "Asm output not supported on this arch\n");
+    return;
+#endif
+
+    for (pc = code; pc < code + size; pc += count) {
+#if TARGET_LONG_BITS == 64        
+	fprintf(out, "0x%016llx:  ", pc);
+#else
+	fprintf(out, "0x%08x:  ", pc);
+#endif
+	count = print_insn(pc, &disasm_info);
+#if 0
+        {
+            int i;
+            uint8_t b;
+            fprintf(out, " {");
+            for(i = 0; i < count; i++) {
+                target_read_memory(pc + i, &b, 1, &disasm_info);
+                fprintf(out, " %02x", b);
+            }
+            fprintf(out, " }");
+        }
+#endif
+	fprintf(out, "\n");
+	if (count < 0)
+	    break;
+    }
+}
+
+/* Disassemble this for me please... (debugging). */
+void disas(FILE *out, void *code, unsigned long size)
+{
+    unsigned long pc;
+    int count;
+    struct disassemble_info disasm_info;
+    int (*print_insn)(bfd_vma pc, disassemble_info *info);
+
+    INIT_DISASSEMBLE_INFO(disasm_info, out, fprintf);
 
     disasm_info.buffer = code;
     disasm_info.buffer_vma = (unsigned long)code;
     disasm_info.buffer_length = size;
 
-    if (is_host) {
 #ifdef WORDS_BIGENDIAN
-	disasm_info.endian = BFD_ENDIAN_BIG;
+    disasm_info.endian = BFD_ENDIAN_BIG;
 #else
-	disasm_info.endian = BFD_ENDIAN_LITTLE;
+    disasm_info.endian = BFD_ENDIAN_LITTLE;
 #endif
 #if defined(__i386__)
-	disasm_info.mach = bfd_mach_i386_i386;
-	print_insn = print_insn_i386;
+    disasm_info.mach = bfd_mach_i386_i386;
+    print_insn = print_insn_i386;
 #elif defined(__x86_64__)
-	disasm_info.mach = bfd_mach_x86_64;
-	print_insn = print_insn_i386;
+    disasm_info.mach = bfd_mach_x86_64;
+    print_insn = print_insn_i386;
 #elif defined(__powerpc__)
-	print_insn = print_insn_ppc;
+    print_insn = print_insn_ppc;
 #elif defined(__alpha__)
-	print_insn = print_insn_alpha;
+    print_insn = print_insn_alpha;
 #elif defined(__sparc__)
-	print_insn = print_insn_sparc;
+    print_insn = print_insn_sparc;
 #elif defined(__arm__) 
-        print_insn = print_insn_arm;
+    print_insn = print_insn_arm;
 #else
-	fprintf(out, "Asm output not supported on this arch\n");
-	return;
+    fprintf(out, "Asm output not supported on this arch\n");
+    return;
 #endif
-    } else {
-#ifdef TARGET_WORDS_BIGENDIAN
-	disasm_info.endian = BFD_ENDIAN_BIG;
-#else
-	disasm_info.endian = BFD_ENDIAN_LITTLE;
-#endif
-#if defined(TARGET_I386)
-        if (!flags)
-	    disasm_info.mach = bfd_mach_i386_i386;
-	else
-	    disasm_info.mach = bfd_mach_i386_i8086;
-	print_insn = print_insn_i386;
-#elif defined(TARGET_ARM)
-	print_insn = print_insn_arm;
-#elif defined(TARGET_SPARC)
-	print_insn = print_insn_sparc;
-#elif defined(TARGET_PPC)
-	print_insn = print_insn_ppc;
-#else
-	fprintf(out, "Asm output not supported on this arch\n");
-	return;
-#endif
-    }
-
-    for (pc = code; pc < (uint8_t *)code + size; pc += count) {
-	fprintf(out, "0x%08lx:  ", (long)pc);
+    for (pc = (unsigned long)code; pc < (unsigned long)code + size; pc += count) {
+	fprintf(out, "0x%08lx:  ", pc);
 #ifdef __arm__
         /* since data are included in the code, it is better to
            display code data too */
@@ -189,7 +218,7 @@ void disas(FILE *out, void *code, unsigned long size, int is_host, int flags)
             fprintf(out, "%08x  ", (int)bfd_getl32((const bfd_byte *)pc));
         }
 #endif
-	count = print_insn((unsigned long)pc, &disasm_info);
+	count = print_insn(pc, &disasm_info);
 	fprintf(out, "\n");
 	if (count < 0)
 	    break;
@@ -197,7 +226,7 @@ void disas(FILE *out, void *code, unsigned long size, int is_host, int flags)
 }
 
 /* Look up symbol for debugging purpose.  Returns "" if unknown. */
-const char *lookup_symbol(void *orig_addr)
+const char *lookup_symbol(target_ulong orig_addr)
 {
     unsigned int i;
     /* Hack, because we know this is x86. */
@@ -214,8 +243,8 @@ const char *lookup_symbol(void *orig_addr)
 	    if (ELF_ST_TYPE(sym[i].st_info) != STT_FUNC)
 		continue;
 
-	    if ((long)orig_addr >= sym[i].st_value
-		&& (long)orig_addr < sym[i].st_value + sym[i].st_size)
+	    if (orig_addr >= sym[i].st_value
+		&& orig_addr < sym[i].st_value + sym[i].st_size)
 		return s->disas_strtab + sym[i].st_name;
 	}
     }

@@ -55,8 +55,10 @@ struct TranslationBlock;
 
 extern uint16_t gen_opc_buf[OPC_BUF_SIZE];
 extern uint32_t gen_opparam_buf[OPPARAM_BUF_SIZE];
-extern uint32_t gen_opc_pc[OPC_BUF_SIZE];
-extern uint32_t gen_opc_npc[OPC_BUF_SIZE];
+extern long gen_labels[OPC_BUF_SIZE];
+extern int nb_gen_labels;
+extern target_ulong gen_opc_pc[OPC_BUF_SIZE];
+extern target_ulong gen_opc_npc[OPC_BUF_SIZE];
 extern uint8_t gen_opc_cc_op[OPC_BUF_SIZE];
 extern uint8_t gen_opc_instr_start[OPC_BUF_SIZE];
 
@@ -186,7 +188,7 @@ typedef struct TranslationBlock {
     struct TranslationBlock *jmp_first;
 } TranslationBlock;
 
-static inline unsigned int tb_hash_func(unsigned long pc)
+static inline unsigned int tb_hash_func(target_ulong pc)
 {
     return pc & (CODE_GEN_HASH_SIZE - 1);
 }
@@ -196,7 +198,7 @@ static inline unsigned int tb_phys_hash_func(unsigned long pc)
     return pc & (CODE_GEN_PHYS_HASH_SIZE - 1);
 }
 
-TranslationBlock *tb_alloc(unsigned long pc);
+TranslationBlock *tb_alloc(target_ulong pc);
 void tb_flush(CPUState *env);
 void tb_link(TranslationBlock *tb);
 void tb_link_phys(TranslationBlock *tb, 
@@ -329,7 +331,7 @@ do {\
                   "b " ASM_NAME(__op_jmp) #n "\n"\
 		  "1:\n");\
     T0 = (long)(tbparam) + (n);\
-    EIP = eip;\
+    EIP = (int32_t)eip;\
     EXIT_TB();\
 } while (0)
 
@@ -341,6 +343,16 @@ do {\
 #elif defined(__i386__) && defined(USE_DIRECT_JUMP)
 
 /* we patch the jump instruction directly */
+#define GOTO_TB(opname, n)\
+do {\
+    asm volatile (".section .data\n"\
+		  ASM_NAME(__op_label) #n "." ASM_NAME(opname) ":\n"\
+		  ".long 1f\n"\
+		  ASM_PREVIOUS_SECTION \
+                  "jmp " ASM_NAME(__op_jmp) #n "\n"\
+		  "1:\n");\
+} while (0)
+
 #define JUMP_TB(opname, tbparam, n, eip)\
 do {\
     asm volatile (".section .data\n"\
@@ -350,7 +362,7 @@ do {\
                   "jmp " ASM_NAME(__op_jmp) #n "\n"\
 		  "1:\n");\
     T0 = (long)(tbparam) + (n);\
-    EIP = eip;\
+    EIP = (int32_t)eip;\
     EXIT_TB();\
 } while (0)
 
@@ -370,7 +382,7 @@ do {\
     goto *(void *)(((TranslationBlock *)tbparam)->tb_next[n]);\
 label ## n:\
     T0 = (long)(tbparam) + (n);\
-    EIP = eip;\
+    EIP = (int32_t)eip;\
 dummy_label ## n:\
     EXIT_TB();\
 } while (0)
@@ -544,7 +556,7 @@ extern int tb_invalidated_flag;
 
 #if !defined(CONFIG_USER_ONLY)
 
-void tlb_fill(unsigned long addr, int is_write, int is_user, 
+void tlb_fill(target_ulong addr, int is_write, int is_user, 
               void *retaddr);
 
 #define ACCESS_TYPE 3
@@ -558,6 +570,9 @@ void tlb_fill(unsigned long addr, int is_write, int is_user,
 #include "softmmu_header.h"
 
 #define DATA_SIZE 4
+#include "softmmu_header.h"
+
+#define DATA_SIZE 8
 #include "softmmu_header.h"
 
 #undef ACCESS_TYPE
@@ -578,7 +593,7 @@ static inline target_ulong get_phys_addr_code(CPUState *env, target_ulong addr)
 /* XXX: i386 target specific */
 static inline target_ulong get_phys_addr_code(CPUState *env, target_ulong addr)
 {
-    int is_user, index;
+    int is_user, index, pd;
 
     index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
 #if defined(TARGET_I386)
@@ -592,7 +607,11 @@ static inline target_ulong get_phys_addr_code(CPUState *env, target_ulong addr)
 #endif
     if (__builtin_expect(env->tlb_read[is_user][index].address != 
                          (addr & TARGET_PAGE_MASK), 0)) {
-        ldub_code((void *)addr);
+        ldub_code(addr);
+    }
+    pd = env->tlb_read[is_user][index].address & ~TARGET_PAGE_MASK;
+    if (pd > IO_MEM_ROM) {
+        cpu_abort(env, "Trying to execute code outside RAM or ROM at 0x%08lx\n", addr);
     }
     return addr + env->tlb_read[is_user][index].addend - (unsigned long)phys_ram_base;
 }

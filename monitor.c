@@ -438,7 +438,7 @@ static void memory_dump(int count, int format, int wsize,
     }
 
     while (len > 0) {
-        term_printf("0x%08x:", addr);
+        term_printf(TARGET_FMT_lx ":", addr);
         l = len;
         if (l > line_size)
             l = line_size;

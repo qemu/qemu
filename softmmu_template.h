@@ -45,11 +45,11 @@
 #define READ_ACCESS_TYPE 0
 #endif
 
-static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(unsigned long addr, 
+static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(target_ulong addr, 
                                                         int is_user,
                                                         void *retaddr);
 static inline DATA_TYPE glue(io_read, SUFFIX)(unsigned long physaddr, 
-                                              unsigned long tlb_addr)
+                                              target_ulong tlb_addr)
 {
     DATA_TYPE res;
     int index;
@@ -70,12 +70,13 @@ static inline DATA_TYPE glue(io_read, SUFFIX)(unsigned long physaddr,
 }
 
 /* handle all cases except unaligned access which span two pages */
-DATA_TYPE REGPARM(1) glue(glue(__ld, SUFFIX), MMUSUFFIX)(unsigned long addr,
+DATA_TYPE REGPARM(1) glue(glue(__ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
                                                          int is_user)
 {
     DATA_TYPE res;
     int index;
-    unsigned long physaddr, tlb_addr;
+    target_ulong tlb_addr;
+    unsigned long physaddr;
     void *retaddr;
     
     /* test if there is match for unaligned or IO access */
@@ -110,13 +111,14 @@ DATA_TYPE REGPARM(1) glue(glue(__ld, SUFFIX), MMUSUFFIX)(unsigned long addr,
 }
 
 /* handle all unaligned cases */
-static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(unsigned long addr, 
+static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(target_ulong addr, 
                                                         int is_user,
                                                         void *retaddr)
 {
     DATA_TYPE res, res1, res2;
     int index, shift;
-    unsigned long physaddr, tlb_addr, addr1, addr2;
+    unsigned long physaddr;
+    target_ulong tlb_addr, addr1, addr2;
 
     index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
  redo:
@@ -158,14 +160,14 @@ static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(unsigned long addr,
 
 #ifndef SOFTMMU_CODE_ACCESS
 
-static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(unsigned long addr, 
+static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(target_ulong addr, 
                                                    DATA_TYPE val, 
                                                    int is_user,
                                                    void *retaddr);
 
 static inline void glue(io_write, SUFFIX)(unsigned long physaddr, 
                                           DATA_TYPE val,
-                                          unsigned long tlb_addr,
+                                          target_ulong tlb_addr,
                                           void *retaddr)
 {
     int index;
@@ -186,11 +188,12 @@ static inline void glue(io_write, SUFFIX)(unsigned long physaddr,
 #endif /* SHIFT > 2 */
 }
 
-void REGPARM(2) glue(glue(__st, SUFFIX), MMUSUFFIX)(unsigned long addr, 
+void REGPARM(2) glue(glue(__st, SUFFIX), MMUSUFFIX)(target_ulong addr, 
                                                     DATA_TYPE val,
                                                     int is_user)
 {
-    unsigned long physaddr, tlb_addr;
+    unsigned long physaddr;
+    target_ulong tlb_addr;
     void *retaddr;
     int index;
     
@@ -223,12 +226,13 @@ void REGPARM(2) glue(glue(__st, SUFFIX), MMUSUFFIX)(unsigned long addr,
 }
 
 /* handles all unaligned cases */
-static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(unsigned long addr, 
+static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(target_ulong addr, 
                                                    DATA_TYPE val,
                                                    int is_user,
                                                    void *retaddr)
 {
-    unsigned long physaddr, tlb_addr;
+    unsigned long physaddr;
+    target_ulong tlb_addr;
     int index, i;
 
     index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
