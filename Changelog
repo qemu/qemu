@@ -3,6 +3,7 @@ version 0.6.2:
   - better BIOS translation and HDD geometry auto-detection
   - user mode networking bug fix
   - undocumented FPU ops support
+  - Cirrus VGA: support for 1280x1024x[8,15,16] modes
 
 version 0.6.1:
 
