@@ -64,9 +64,7 @@ uint8_t *phys_ram_base;
 uint8_t *phys_ram_dirty;
 
 typedef struct PageDesc {
-    /* offset in host memory of the page + io_index in the low 12 bits */
-    unsigned long phys_offset;
-    /* list of TBs intersecting this physical page */
+    /* list of TBs intersecting this ram page */
     TranslationBlock *first_tb;
     /* in order to optimize self modifying code, we count the number
        of lookups we do to a given page to use a bitmap */
@@ -76,6 +74,11 @@ typedef struct PageDesc {
     unsigned long flags;
 #endif
 } PageDesc;
+
+typedef struct PhysPageDesc {
+    /* offset in host memory of the page + io_index in the low 12 bits */
+    unsigned long phys_offset;
+} PhysPageDesc;
 
 typedef struct VirtPageDesc {
     /* physical address of code page. It is valid only if 'valid_tag'
@@ -102,7 +105,9 @@ unsigned long host_page_bits;
 unsigned long host_page_size;
 unsigned long host_page_mask;
 
+/* XXX: for system emulation, it could just be an array */
 static PageDesc *l1_map[L1_SIZE];
+static PhysPageDesc *l1_phys_map[L1_SIZE];
 
 #if !defined(CONFIG_USER_ONLY)
 static VirtPageDesc *l1_virt_map[L1_SIZE];
@@ -161,6 +166,31 @@ static inline PageDesc *page_find(unsigned int index)
     PageDesc *p;
 
     p = l1_map[index >> L2_BITS];
+    if (!p)
+        return 0;
+    return p + (index & (L2_SIZE - 1));
+}
+
+static inline PhysPageDesc *phys_page_find_alloc(unsigned int index)
+{
+    PhysPageDesc **lp, *p;
+
+    lp = &l1_phys_map[index >> L2_BITS];
+    p = *lp;
+    if (!p) {
+        /* allocate if not found */
+        p = qemu_malloc(sizeof(PhysPageDesc) * L2_SIZE);
+        memset(p, 0, sizeof(PhysPageDesc) * L2_SIZE);
+        *lp = p;
+    }
+    return p + (index & (L2_SIZE - 1));
+}
+
+static inline PhysPageDesc *phys_page_find(unsigned int index)
+{
+    PhysPageDesc *p;
+
+    p = l1_phys_map[index >> L2_BITS];
     if (!p)
         return 0;
     return p + (index & (L2_SIZE - 1));
@@ -1428,7 +1458,7 @@ int tlb_set_page(CPUState *env, target_ulong vaddr,
                  target_phys_addr_t paddr, int prot, 
                  int is_user, int is_softmmu)
 {
-    PageDesc *p;
+    PhysPageDesc *p;
     unsigned long pd;
     TranslationBlock *first_tb;
     unsigned int index;
@@ -1436,13 +1466,18 @@ int tlb_set_page(CPUState *env, target_ulong vaddr,
     unsigned long addend;
     int ret;
 
-    p = page_find(paddr >> TARGET_PAGE_BITS);
+    p = phys_page_find(paddr >> TARGET_PAGE_BITS);
+    first_tb = NULL;
     if (!p) {
         pd = IO_MEM_UNASSIGNED;
-        first_tb = NULL;
     } else {
+        PageDesc *p1;
         pd = p->phys_offset;
-        first_tb = p->first_tb;
+        if ((pd & ~TARGET_PAGE_MASK) <= IO_MEM_ROM) {
+            /* NOTE: we also allocate the page at this stage */
+            p1 = page_find_alloc(pd >> TARGET_PAGE_BITS);
+            first_tb = p1->first_tb;
+        }
     }
 #if defined(DEBUG_TLB)
     printf("tlb_set_page: vaddr=0x%08x paddr=0x%08x prot=%x u=%d c=%d smmu=%d pd=0x%08x\n",
@@ -1752,11 +1787,11 @@ void cpu_register_physical_memory(target_phys_addr_t start_addr,
                                   unsigned long phys_offset)
 {
     unsigned long addr, end_addr;
-    PageDesc *p;
+    PhysPageDesc *p;
 
     end_addr = start_addr + size;
     for(addr = start_addr; addr < end_addr; addr += TARGET_PAGE_SIZE) {
-        p = page_find_alloc(addr >> TARGET_PAGE_BITS);
+        p = phys_page_find_alloc(addr >> TARGET_PAGE_BITS);
         p->phys_offset = phys_offset;
         if ((phys_offset & ~TARGET_PAGE_MASK) <= IO_MEM_ROM)
             phys_offset += TARGET_PAGE_SIZE;
@@ -1938,14 +1973,14 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
     uint32_t val;
     target_phys_addr_t page;
     unsigned long pd;
-    PageDesc *p;
+    PhysPageDesc *p;
     
     while (len > 0) {
         page = addr & TARGET_PAGE_MASK;
         l = (page + TARGET_PAGE_SIZE) - addr;
         if (l > len)
             l = len;
-        p = page_find(page >> TARGET_PAGE_BITS);
+        p = phys_page_find(page >> TARGET_PAGE_BITS);
         if (!p) {
             pd = IO_MEM_UNASSIGNED;
         } else {
