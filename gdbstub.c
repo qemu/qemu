@@ -218,13 +218,6 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
 }
 
 #elif defined (TARGET_PPC)
-static uint32_t from_le32 (uint32_t *buf)
-{
-    uint8_t *p = (uint8_t *)buf;
-
-    return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
-}
-
 static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
 {
     uint32_t *registers = (uint32_t *)mem_buf, tmp;
@@ -476,6 +469,8 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
     }
     return RS_IDLE;
 }
+
+extern void tb_flush(CPUState *env);
 
 static void gdb_vm_stopped(void *opaque, int reason)
 {
