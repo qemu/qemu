@@ -1,7 +1,7 @@
 /*
  * QEMU System Emulator
  * 
- * Copyright (c) 2003-2004 Fabrice Bellard
+ * Copyright (c) 2003-2005 Fabrice Bellard
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -135,8 +135,13 @@ int pci_enabled = 1;
 int prep_enabled = 0;
 int rtc_utc = 1;
 int cirrus_vga_enabled = 1;
+#ifdef TARGET_SPARC
+int graphic_width = 1024;
+int graphic_height = 768;
+#else
 int graphic_width = 800;
 int graphic_height = 600;
+#endif
 int graphic_depth = 15;
 int full_screen = 0;
 TextConsole *vga_console;
