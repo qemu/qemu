@@ -60,10 +60,14 @@ typedef struct DisasContext {
     int cpl;
     int iopl;
     int tf;     /* TF cpu flag */
+    int jmp_opt; /* use direct block chaining for direct jumps */
     int mem_index; /* select memory access functions */
     struct TranslationBlock *tb;
     int popl_esp_hack; /* for correct popl with esp base handling */
 } DisasContext;
+
+static void gen_eob(DisasContext *s);
+static void gen_jmp(DisasContext *s, unsigned int eip);
 
 /* i386 arith/logic operations */
 enum {
@@ -635,31 +639,6 @@ static GenOpFunc *gen_op_st_T0_A0[3 * 3] = {
     gen_op_stl_user_T0_A0,
 };
 
-/* the _a32 and _a16 string operations use A0 as the base register. */
-
-#define STRINGOP_NB 9
-
-#define STRINGOP(x) \
-    gen_op_ ## x ## b_fast, \
-    gen_op_ ## x ## w_fast, \
-    gen_op_ ## x ## l_fast, \
-    gen_op_ ## x ## b_a32, \
-    gen_op_ ## x ## w_a32, \
-    gen_op_ ## x ## l_a32, \
-    gen_op_ ## x ## b_a16, \
-    gen_op_ ## x ## w_a16, \
-    gen_op_ ## x ## l_a16,
-     
-static GenOpFunc *gen_op_scas[STRINGOP_NB * 3] = {
-    STRINGOP(repz_scas)
-    STRINGOP(repnz_scas)
-};
-
-static GenOpFunc *gen_op_cmps[STRINGOP_NB * 3] = {
-    STRINGOP(repz_cmps)
-    STRINGOP(repnz_cmps)
-};
-
 static inline void gen_string_movl_A0_ESI(DisasContext *s)
 {
     int override;
@@ -712,12 +691,17 @@ static GenOpFunc2 *gen_op_jz_ecx[2] = {
     gen_op_jz_ecxl,
 };
     
+static GenOpFunc1 *gen_op_jz_ecx_im[2] = {
+    gen_op_jz_ecxw_im,
+    gen_op_jz_ecxl_im,
+};
+
 static GenOpFunc *gen_op_dec_ECX[2] = {
     gen_op_decw_ECX,
     gen_op_decl_ECX,
 };
 
-static GenOpFunc2 *gen_op_string_jnz_sub[2][3] = {
+static GenOpFunc1 *gen_op_string_jnz_sub[2][3] = {
     {
         gen_op_string_jnz_subb,
         gen_op_string_jnz_subw,
@@ -727,6 +711,19 @@ static GenOpFunc2 *gen_op_string_jnz_sub[2][3] = {
         gen_op_string_jz_subb,
         gen_op_string_jz_subw,
         gen_op_string_jz_subl,
+    },
+};
+
+static GenOpFunc1 *gen_op_string_jnz_sub_im[2][3] = {
+    {
+        gen_op_string_jnz_subb_im,
+        gen_op_string_jnz_subw_im,
+        gen_op_string_jnz_subl_im,
+    },
+    {
+        gen_op_string_jz_subb_im,
+        gen_op_string_jz_subw_im,
+        gen_op_string_jz_subl_im,
     },
 };
 
@@ -758,18 +755,23 @@ static inline void gen_movs(DisasContext *s, int ot)
     }
 }
 
-/* same method as Valgrind : we generate jumps to current or next
-   instruction */
-static inline void gen_repz_movs(DisasContext *s, int ot, 
-                                 unsigned int cur_eip, unsigned int next_eip)
+static inline void gen_update_cc_op(DisasContext *s)
 {
-    if (s->cc_op != CC_OP_DYNAMIC)
+    if (s->cc_op != CC_OP_DYNAMIC) {
         gen_op_set_cc_op(s->cc_op);
-    gen_op_jz_ecx[s->aflag]((long)s->tb, next_eip);
-    gen_movs(s, ot);
-    gen_op_dec_ECX[s->aflag]();
-    gen_op_jmp_tb_next((long)s->tb, cur_eip);
-    s->is_jmp = 3;
+        s->cc_op = CC_OP_DYNAMIC;
+    }
+}
+
+static inline void gen_jz_ecx_string(DisasContext *s, unsigned int next_eip)
+{
+    if (s->jmp_opt) {
+        gen_op_jz_ecx[s->aflag]((long)s->tb, next_eip);
+    } else {
+        /* XXX: does not work with gdbstub "ice" single step - not a
+           serious problem */
+        gen_op_jz_ecx_im[s->aflag](next_eip);
+    }
 }
 
 static inline void gen_stos(DisasContext *s, int ot)
@@ -785,18 +787,6 @@ static inline void gen_stos(DisasContext *s, int ot)
     }
 }
 
-static inline void gen_repz_stos(DisasContext *s, int ot, 
-                                 unsigned int cur_eip, unsigned int next_eip)
-{
-    if (s->cc_op != CC_OP_DYNAMIC)
-        gen_op_set_cc_op(s->cc_op);
-    gen_op_jz_ecx[s->aflag]((long)s->tb, next_eip);
-    gen_stos(s, ot);
-    gen_op_dec_ECX[s->aflag]();
-    gen_op_jmp_tb_next((long)s->tb, cur_eip);
-    s->is_jmp = 3;
-}
-
 static inline void gen_lods(DisasContext *s, int ot)
 {
     gen_string_movl_A0_ESI(s);
@@ -808,18 +798,6 @@ static inline void gen_lods(DisasContext *s, int ot)
     } else {
         gen_op_addw_ESI_T0();
     }
-}
-
-static inline void gen_repz_lods(DisasContext *s, int ot, 
-                                 unsigned int cur_eip, unsigned int next_eip)
-{
-    if (s->cc_op != CC_OP_DYNAMIC)
-        gen_op_set_cc_op(s->cc_op);
-    gen_op_jz_ecx[s->aflag]((long)s->tb, next_eip);
-    gen_lods(s, ot);
-    gen_op_dec_ECX[s->aflag]();
-    gen_op_jmp_tb_next((long)s->tb, cur_eip);
-    s->is_jmp = 3;
 }
 
 static inline void gen_scas(DisasContext *s, int ot)
@@ -835,23 +813,6 @@ static inline void gen_scas(DisasContext *s, int ot)
         gen_op_addw_EDI_T0();
     }
 }
-
-#if 0
-static inline void gen_repz_scas(DisasContext *s, int ot, 
-                                 unsigned int cur_eip, unsigned int next_eip,
-                                 int nz)
-{
-    if (s->cc_op != CC_OP_DYNAMIC)
-        gen_op_set_cc_op(s->cc_op);
-    gen_op_jz_ecx[s->aflag]((long)s->tb, next_eip);
-    gen_scas(s, ot);
-    gen_op_set_cc_op(CC_OP_SUBB + ot);
-    gen_op_string_jnz_sub[nz][ot]((long)s->tb, next_eip);
-    gen_op_dec_ECX[s->aflag]();
-    gen_op_jmp_tb_next((long)s->tb, cur_eip);
-    s->is_jmp = 3;
-}
-#endif
 
 static inline void gen_cmps(DisasContext *s, int ot)
 {
@@ -883,18 +844,6 @@ static inline void gen_ins(DisasContext *s, int ot)
     }
 }
 
-static inline void gen_repz_ins(DisasContext *s, int ot, 
-                                 unsigned int cur_eip, unsigned int next_eip)
-{
-    if (s->cc_op != CC_OP_DYNAMIC)
-        gen_op_set_cc_op(s->cc_op);
-    gen_op_jz_ecx[s->aflag]((long)s->tb, next_eip);
-    gen_ins(s, ot);
-    gen_op_dec_ECX[s->aflag]();
-    gen_op_jmp_tb_next((long)s->tb, cur_eip);
-    s->is_jmp = 3;
-}
-
 static inline void gen_outs(DisasContext *s, int ot)
 {
     gen_string_movl_A0_ESI(s);
@@ -908,59 +857,50 @@ static inline void gen_outs(DisasContext *s, int ot)
     }
 }
 
-static inline void gen_repz_outs(DisasContext *s, int ot, 
-                                 unsigned int cur_eip, unsigned int next_eip)
-{
-    if (s->cc_op != CC_OP_DYNAMIC)
-        gen_op_set_cc_op(s->cc_op);
-    gen_op_jz_ecx[s->aflag]((long)s->tb, next_eip);
-    gen_outs(s, ot);
-    gen_op_dec_ECX[s->aflag]();
-    gen_op_jmp_tb_next((long)s->tb, cur_eip);
-    s->is_jmp = 3;
+/* same method as Valgrind : we generate jumps to current or next
+   instruction */
+#define GEN_REPZ(op)                                                          \
+static inline void gen_repz_ ## op(DisasContext *s, int ot,                   \
+                                 unsigned int cur_eip, unsigned int next_eip) \
+{                                                                             \
+    gen_update_cc_op(s);                                                      \
+    gen_jz_ecx_string(s, next_eip);                                           \
+    gen_ ## op(s, ot);                                                        \
+    gen_op_dec_ECX[s->aflag]();                                               \
+    /* a loop would cause two single step exceptions if ECX = 1               \
+       before rep string_insn */                                              \
+    if (!s->jmp_opt)                                                          \
+        gen_op_jz_ecx_im[s->aflag](next_eip);                                 \
+    gen_jmp(s, cur_eip);                                                      \
 }
 
-static inline void gen_string_ds(DisasContext *s, int ot, GenOpFunc **func)
-{
-    int index, override;
-
-    override = s->override;
-    if (s->aflag) {
-        /* 32 bit address */
-        if (s->addseg && override < 0)
-            override = R_DS;
-        if (override >= 0) {
-            gen_op_movl_A0_seg(offsetof(CPUX86State,segs[override].base));
-            index = 3 + ot;
-        } else {
-            index = ot;
-        }
-    } else {
-        if (override < 0)
-            override = R_DS;
-        gen_op_movl_A0_seg(offsetof(CPUX86State,segs[override].base));
-        /* 16 address, always override */
-        index = 6 + ot;
-    }
-    func[index]();
+#define GEN_REPZ2(op)                                                         \
+static inline void gen_repz_ ## op(DisasContext *s, int ot,                   \
+                                   unsigned int cur_eip,                      \
+                                   unsigned int next_eip,                     \
+                                   int nz)                                    \
+{                                                                             \
+    gen_update_cc_op(s);                                                      \
+    gen_jz_ecx_string(s, next_eip);                                           \
+    gen_ ## op(s, ot);                                                        \
+    gen_op_dec_ECX[s->aflag]();                                               \
+    gen_op_set_cc_op(CC_OP_SUBB + ot);                                        \
+    if (!s->jmp_opt)                                                          \
+        gen_op_string_jnz_sub_im[nz][ot](next_eip);                           \
+    else                                                                      \
+        gen_op_string_jnz_sub[nz][ot]((long)s->tb);                           \
+    if (!s->jmp_opt)                                                          \
+        gen_op_jz_ecx_im[s->aflag](next_eip);                                 \
+    gen_jmp(s, cur_eip);                                                      \
 }
 
-static inline void gen_string_es(DisasContext *s, int ot, GenOpFunc **func)
-{
-    int index;
-            
-    if (s->aflag) {
-        if (s->addseg) {
-            index = 3 + ot;
-        } else {
-            index = ot;
-        }
-    } else {
-        index = 6 + ot;
-    }
-    func[index]();
-}
-
+GEN_REPZ(movs)
+GEN_REPZ(stos)
+GEN_REPZ(lods)
+GEN_REPZ(ins)
+GEN_REPZ(outs)
+GEN_REPZ2(scas)
+GEN_REPZ2(cmps)
 
 static GenOpFunc *gen_op_in[3] = {
     gen_op_inb_T0_T1,
@@ -1420,71 +1360,86 @@ static inline void gen_jcc(DisasContext *s, int b, int val, int next_eip)
 
     inv = b & 1;
     jcc_op = (b >> 1) & 7;
-    switch(s->cc_op) {
-        /* we optimize the cmp/jcc case */
-    case CC_OP_SUBB:
-    case CC_OP_SUBW:
-    case CC_OP_SUBL:
-        func = gen_jcc_sub[s->cc_op - CC_OP_SUBB][jcc_op];
-        break;
-        
-        /* some jumps are easy to compute */
-    case CC_OP_ADDB:
-    case CC_OP_ADDW:
-    case CC_OP_ADDL:
-    case CC_OP_ADCB:
-    case CC_OP_ADCW:
-    case CC_OP_ADCL:
-    case CC_OP_SBBB:
-    case CC_OP_SBBW:
-    case CC_OP_SBBL:
-    case CC_OP_LOGICB:
-    case CC_OP_LOGICW:
-    case CC_OP_LOGICL:
-    case CC_OP_INCB:
-    case CC_OP_INCW:
-    case CC_OP_INCL:
-    case CC_OP_DECB:
-    case CC_OP_DECW:
-    case CC_OP_DECL:
-    case CC_OP_SHLB:
-    case CC_OP_SHLW:
-    case CC_OP_SHLL:
-    case CC_OP_SARB:
-    case CC_OP_SARW:
-    case CC_OP_SARL:
-        switch(jcc_op) {
-        case JCC_Z:
-            func = gen_jcc_sub[(s->cc_op - CC_OP_ADDB) % 3][jcc_op];
+    
+    if (s->jmp_opt) {
+        switch(s->cc_op) {
+            /* we optimize the cmp/jcc case */
+        case CC_OP_SUBB:
+        case CC_OP_SUBW:
+        case CC_OP_SUBL:
+            func = gen_jcc_sub[s->cc_op - CC_OP_SUBB][jcc_op];
             break;
-        case JCC_S:
-            func = gen_jcc_sub[(s->cc_op - CC_OP_ADDB) % 3][jcc_op];
+            
+            /* some jumps are easy to compute */
+        case CC_OP_ADDB:
+        case CC_OP_ADDW:
+        case CC_OP_ADDL:
+        case CC_OP_ADCB:
+        case CC_OP_ADCW:
+        case CC_OP_ADCL:
+        case CC_OP_SBBB:
+        case CC_OP_SBBW:
+        case CC_OP_SBBL:
+        case CC_OP_LOGICB:
+        case CC_OP_LOGICW:
+        case CC_OP_LOGICL:
+        case CC_OP_INCB:
+        case CC_OP_INCW:
+        case CC_OP_INCL:
+        case CC_OP_DECB:
+        case CC_OP_DECW:
+        case CC_OP_DECL:
+        case CC_OP_SHLB:
+        case CC_OP_SHLW:
+        case CC_OP_SHLL:
+        case CC_OP_SARB:
+        case CC_OP_SARW:
+        case CC_OP_SARL:
+            switch(jcc_op) {
+            case JCC_Z:
+                func = gen_jcc_sub[(s->cc_op - CC_OP_ADDB) % 3][jcc_op];
+                break;
+            case JCC_S:
+                func = gen_jcc_sub[(s->cc_op - CC_OP_ADDB) % 3][jcc_op];
+                break;
+            default:
+                func = NULL;
+                break;
+            }
             break;
         default:
             func = NULL;
             break;
         }
-        break;
-    default:
-        func = NULL;
-        break;
-    }
 
-    if (s->cc_op != CC_OP_DYNAMIC)
-        gen_op_set_cc_op(s->cc_op);
+        if (s->cc_op != CC_OP_DYNAMIC)
+            gen_op_set_cc_op(s->cc_op);
 
-    if (!func) {
-        gen_setcc_slow[jcc_op]();
-        func = gen_op_jcc;
-    }
+        if (!func) {
+            gen_setcc_slow[jcc_op]();
+            func = gen_op_jcc;
+        }
     
-    tb = s->tb;
-    if (!inv) {
-        func((long)tb, val, next_eip);
+        tb = s->tb;
+        if (!inv) {
+            func((long)tb, val, next_eip);
+        } else {
+            func((long)tb, next_eip, val);
+        }
+        s->is_jmp = 3;
     } else {
-        func((long)tb, next_eip, val);
+        if (s->cc_op != CC_OP_DYNAMIC) {
+            gen_op_set_cc_op(s->cc_op);
+            s->cc_op = CC_OP_DYNAMIC;
+        }
+        gen_setcc_slow[jcc_op]();
+        if (!inv) {
+            gen_op_jcc_im(val, next_eip);
+        } else {
+            gen_op_jcc_im(next_eip, val);
+        }
+        gen_eob(s);
     }
-    s->is_jmp = 3;
 }
 
 static void gen_setcc(DisasContext *s, int b)
@@ -1557,7 +1512,7 @@ static void gen_movl_seg_T0(DisasContext *s, int seg_reg, unsigned int cur_eip)
        stop as a special handling must be done to disable hardware
        interrupts for the next instruction */
     if (seg_reg == R_SS || (!s->addseg && seg_reg < R_FS))
-        s->is_jmp = 2; 
+        s->is_jmp = 3;
 }
 
 /* generate a push. It depends on ss32, addseg and dflag */
@@ -1727,7 +1682,7 @@ static void gen_exception(DisasContext *s, int trapno, unsigned int cur_eip)
         gen_op_set_cc_op(s->cc_op);
     gen_op_jmp_im(cur_eip);
     gen_op_raise_exception(trapno);
-    s->is_jmp = 1;
+    s->is_jmp = 3;
 }
 
 /* an interrupt is different from an exception because of the
@@ -1739,7 +1694,7 @@ static void gen_interrupt(DisasContext *s, int intno,
         gen_op_set_cc_op(s->cc_op);
     gen_op_jmp_im(cur_eip);
     gen_op_raise_interrupt(intno, next_eip);
-    s->is_jmp = 1;
+    s->is_jmp = 3;
 }
 
 static void gen_debug(DisasContext *s, unsigned int cur_eip)
@@ -1748,7 +1703,22 @@ static void gen_debug(DisasContext *s, unsigned int cur_eip)
         gen_op_set_cc_op(s->cc_op);
     gen_op_jmp_im(cur_eip);
     gen_op_debug();
-    s->is_jmp = 1;
+    s->is_jmp = 3;
+}
+
+/* generate a generic end of block. Trace exception is also generated
+   if needed */
+static void gen_eob(DisasContext *s)
+{
+    if (s->cc_op != CC_OP_DYNAMIC)
+        gen_op_set_cc_op(s->cc_op);
+    if (s->tf) {
+        gen_op_raise_exception(EXCP01_SSTP);
+    } else {
+        gen_op_movl_T0_0();
+        gen_op_exit_tb();
+    }
+    s->is_jmp = 3;
 }
 
 /* generate a jump to eip. No segment change must happen before as a
@@ -1757,16 +1727,20 @@ static void gen_jmp(DisasContext *s, unsigned int eip)
 {
     TranslationBlock *tb = s->tb;
 
-    if (s->cc_op != CC_OP_DYNAMIC)
-        gen_op_set_cc_op(s->cc_op);
-    gen_op_jmp_tb_next((long)tb, eip);
-    s->is_jmp = 3;
+    if (s->jmp_opt) {
+        if (s->cc_op != CC_OP_DYNAMIC)
+            gen_op_set_cc_op(s->cc_op);
+        gen_op_jmp((long)tb, eip);
+        s->is_jmp = 3;
+    } else {
+        gen_op_jmp_im(eip);
+        gen_eob(s);
+    }
 }
 
-/* return the next pc address. Return -1 if no insn found. *is_jmp_ptr
-   is set to true if the instruction sets the PC (last instruction of
-   a basic block) */
-long disas_insn(DisasContext *s, uint8_t *pc_start)
+/* convert one instruction. s->is_jmp is set if the translation must
+   be stopped. Return the next pc value */
+static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
 {
     int b, prefixes, aflag, dflag;
     int shift, ot;
@@ -2106,9 +2080,9 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             next_eip = s->pc - s->cs_base;
             gen_op_movl_T0_im(next_eip);
             gen_push_T0(s);
-            s->is_jmp = 1;
+            gen_eob(s);
             break;
-        case 3: /* lcall Ev */
+        case 3: /*< lcall Ev */
             gen_op_ld_T1_A0[ot + s->mem_index]();
             gen_op_addl_A0_im(1 << (ot - OT_WORD + 1));
             gen_op_ld_T0_A0[OT_WORD + s->mem_index]();
@@ -2121,13 +2095,13 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             } else {
                 gen_op_lcall_real_T0_T1(dflag, s->pc - s->cs_base);
             }
-            s->is_jmp = 1;
+            gen_eob(s);
             break;
         case 4: /* jmp Ev */
             if (s->dflag == 0)
                 gen_op_andl_T0_ffff();
             gen_op_jmp_T0();
-            s->is_jmp = 1;
+            gen_eob(s);
             break;
         case 5: /* ljmp Ev */
             gen_op_ld_T1_A0[ot + s->mem_index]();
@@ -2144,7 +2118,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
                 gen_op_movl_T0_T1();
                 gen_op_jmp_T0();
             }
-            s->is_jmp = 1;
+            gen_eob(s);
             break;
         case 6: /* push Ev */
             gen_push_T0(s);
@@ -2366,6 +2340,11 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         if (reg == R_SS) {
             /* if reg == SS, inhibit interrupts/trace */
             gen_op_set_inhibit_irq();
+            s->tf = 0;
+        }
+        if (s->is_jmp) {
+            gen_op_jmp_im(s->pc - s->cs_base);
+            gen_eob(s);
         }
         break;
     case 0x1a1: /* pop fs */
@@ -2373,6 +2352,10 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         gen_pop_T0(s);
         gen_movl_seg_T0(s, (b >> 3) & 7, pc_start - s->cs_base);
         gen_pop_update(s);
+        if (s->is_jmp) {
+            gen_op_jmp_im(s->pc - s->cs_base);
+            gen_eob(s);
+        }
         break;
 
         /**************************/
@@ -2428,6 +2411,11 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         if (reg == R_SS) {
             /* if reg == SS, inhibit interrupts/trace */
             gen_op_set_inhibit_irq();
+            s->tf = 0;
+        }
+        if (s->is_jmp) {
+            gen_op_jmp_im(s->pc - s->cs_base);
+            gen_eob(s);
         }
         break;
     case 0x8c: /* mov Gv, seg */
@@ -2635,6 +2623,10 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         gen_movl_seg_T0(s, op, pc_start - s->cs_base);
         /* then put the data */
         gen_op_mov_reg_T1[ot][reg]();
+        if (s->is_jmp) {
+            gen_op_jmp_im(s->pc - s->cs_base);
+            gen_eob(s);
+        }
         break;
         
         /************************/
@@ -3191,15 +3183,9 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         else
                 ot = dflag ? OT_LONG : OT_WORD;
         if (prefixes & PREFIX_REPNZ) {
-            if (s->cc_op != CC_OP_DYNAMIC)
-                gen_op_set_cc_op(s->cc_op);
-            gen_string_es(s, ot, gen_op_scas + STRINGOP_NB);
-            s->cc_op = CC_OP_DYNAMIC; /* cannot predict flags after */
+            gen_repz_scas(s, ot, pc_start - s->cs_base, s->pc - s->cs_base, 1);
         } else if (prefixes & PREFIX_REPZ) {
-            if (s->cc_op != CC_OP_DYNAMIC)
-                gen_op_set_cc_op(s->cc_op);
-            gen_string_es(s, ot, gen_op_scas);
-            s->cc_op = CC_OP_DYNAMIC; /* cannot predict flags after */
+            gen_repz_scas(s, ot, pc_start - s->cs_base, s->pc - s->cs_base, 0);
         } else {
             gen_scas(s, ot);
             s->cc_op = CC_OP_SUBB + ot;
@@ -3213,15 +3199,9 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         else
             ot = dflag ? OT_LONG : OT_WORD;
         if (prefixes & PREFIX_REPNZ) {
-            if (s->cc_op != CC_OP_DYNAMIC)
-                gen_op_set_cc_op(s->cc_op);
-            gen_string_ds(s, ot, gen_op_cmps + STRINGOP_NB);
-            s->cc_op = CC_OP_DYNAMIC; /* cannot predict flags after */
+            gen_repz_cmps(s, ot, pc_start - s->cs_base, s->pc - s->cs_base, 1);
         } else if (prefixes & PREFIX_REPZ) {
-            if (s->cc_op != CC_OP_DYNAMIC)
-                gen_op_set_cc_op(s->cc_op);
-            gen_string_ds(s, ot, gen_op_cmps);
-            s->cc_op = CC_OP_DYNAMIC; /* cannot predict flags after */
+            gen_repz_cmps(s, ot, pc_start - s->cs_base, s->pc - s->cs_base, 0);
         } else {
             gen_cmps(s, ot);
             s->cc_op = CC_OP_SUBB + ot;
@@ -3333,7 +3313,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         if (s->dflag == 0)
             gen_op_andl_T0_ffff();
         gen_op_jmp_T0();
-        s->is_jmp = 1;
+        gen_eob(s);
         break;
     case 0xc3: /* ret */
         gen_pop_T0(s);
@@ -3341,7 +3321,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         if (s->dflag == 0)
             gen_op_andl_T0_ffff();
         gen_op_jmp_T0();
-        s->is_jmp = 1;
+        gen_eob(s);
         break;
     case 0xca: /* lret im */
         val = ldsw(s->pc);
@@ -3368,7 +3348,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             /* add stack offset */
             gen_stack_update(s, val + (4 << s->dflag));
         }
-        s->is_jmp = 1;
+        gen_eob(s);
         break;
     case 0xcb: /* lret */
         val = 0;
@@ -3387,7 +3367,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             gen_op_iret_protected(s->dflag);
             s->cc_op = CC_OP_EFLAGS;
         }
-        s->is_jmp = 1;
+        gen_eob(s);
         break;
     case 0xe8: /* call im */
         {
@@ -3512,7 +3492,9 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             }
             gen_pop_update(s);
             s->cc_op = CC_OP_EFLAGS;
-            s->is_jmp = 2; /* abort translation because TF flag may change */
+            /* abort translation because TF flag may change */
+            gen_op_jmp_im(s->pc - s->cs_base);
+            gen_eob(s);
         }
         break;
     case 0x9e: /* sahf */
@@ -3713,19 +3695,19 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
     case 0xfb: /* sti */
         if (!s->vm86) {
             if (s->cpl <= s->iopl) {
+            gen_sti:
                 gen_op_sti();
                 /* interruptions are enabled only the first insn after sti */
                 gen_op_set_inhibit_irq();
-                s->is_jmp = 2; /* give a chance to handle pending irqs */
+                /* give a chance to handle pending irqs */
+                gen_op_jmp_im(s->pc - s->cs_base);
+                gen_eob(s);
             } else {
                 gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
             }
         } else {
             if (s->iopl == 3) {
-                gen_op_sti();
-                /* interruptions are enabled only the first insn after sti */
-                gen_op_set_inhibit_irq();
-                s->is_jmp = 2; /* give a chance to handle pending irqs */
+                goto gen_sti;
             } else {
                 gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
             }
@@ -3769,7 +3751,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         if (s->dflag == 0)
             val &= 0xffff;
         gen_op_loop[s->aflag][b & 3](val, next_eip);
-        s->is_jmp = 1;
+        gen_eob(s);
         break;
     case 0x130: /* wrmsr */
     case 0x132: /* rdmsr */
@@ -3796,7 +3778,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
                 gen_op_set_cc_op(s->cc_op);
             gen_op_jmp_im(s->pc - s->cs_base);
             gen_op_hlt();
-            s->is_jmp = 1;
+            s->is_jmp = 3;
         }
         break;
     case 0x100:
@@ -3968,7 +3950,8 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
                 if (b & 2) {
                     gen_op_mov_TN_reg[OT_LONG][0][rm]();
                     gen_op_movl_crN_T0(reg);
-                    s->is_jmp = 2;
+                    gen_op_jmp_im(s->pc - s->cs_base);
+                    gen_eob(s);
                 } else {
                     gen_op_movl_T0_env(offsetof(CPUX86State,cr[reg]));
                     gen_op_mov_reg_T0[OT_LONG][rm]();
@@ -3995,7 +3978,8 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             if (b & 2) {
                 gen_op_mov_TN_reg[OT_LONG][0][rm]();
                 gen_op_movl_drN_T0(reg);
-                s->is_jmp = 2;
+                gen_op_jmp_im(s->pc - s->cs_base);
+                gen_eob(s);
             } else {
                 gen_op_movl_T0_env(offsetof(CPUX86State,dr[reg]));
                 gen_op_mov_reg_T0[OT_LONG][rm]();
@@ -4015,10 +3999,11 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
     /* lock generation */
     if (s->prefix & PREFIX_LOCK)
         gen_op_unlock();
-    return (long)s->pc;
+    return s->pc;
  illegal_op:
     /* XXX: ensure that no lock was generated */
-    return -1;
+    gen_exception(s, EXCP06_ILLOP, pc_start - s->cs_base);
+    return s->pc;
 }
 
 #define CC_OSZAPC (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C)
@@ -4265,23 +4250,6 @@ static uint16_t opc_write_flags[NB_OPS] = {
     [INDEX_op_bsrw_T0_cc] = CC_OSZAPC,
     [INDEX_op_bsrl_T0_cc] = CC_OSZAPC,
 
-#undef STRINGOP
-#define STRINGOP(x) \
-    [INDEX_op_ ## x ## b_fast] = CC_OSZAPC, \
-    [INDEX_op_ ## x ## w_fast] = CC_OSZAPC, \
-    [INDEX_op_ ## x ## l_fast] = CC_OSZAPC, \
-    [INDEX_op_ ## x ## b_a32] = CC_OSZAPC, \
-    [INDEX_op_ ## x ## w_a32] = CC_OSZAPC, \
-    [INDEX_op_ ## x ## l_a32] = CC_OSZAPC, \
-    [INDEX_op_ ## x ## b_a16] = CC_OSZAPC, \
-    [INDEX_op_ ## x ## w_a16] = CC_OSZAPC, \
-    [INDEX_op_ ## x ## l_a16] = CC_OSZAPC,
-
-    STRINGOP(repz_scas)
-    STRINGOP(repnz_scas)
-    STRINGOP(repz_cmps)
-    STRINGOP(repnz_cmps)
-
     [INDEX_op_cmpxchgb_T0_T1_EAX_cc] = CC_OSZAPC,
     [INDEX_op_cmpxchgw_T0_T1_EAX_cc] = CC_OSZAPC,
     [INDEX_op_cmpxchgl_T0_T1_EAX_cc] = CC_OSZAPC,
@@ -4383,7 +4351,6 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     uint8_t *pc_ptr;
     uint16_t *gen_opc_end;
     int flags, j, lj;
-    long ret;
     uint8_t *pc_start;
     uint8_t *cs_base;
     
@@ -4413,7 +4380,11 @@ static inline int gen_intermediate_code_internal(CPUState *env,
         else
             dc->mem_index = 3;
     }
-
+    dc->jmp_opt = !(dc->tf || env->singlestep_enabled
+#ifndef CONFIG_SOFT_MMU
+                    || (flags & HF_SOFTMMU_MASK)
+#endif
+                    );
     gen_opc_ptr = gen_opc_buf;
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
     gen_opparam_ptr = gen_opparam_buf;
@@ -4428,12 +4399,12 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     if (flags & HF_INHIBIT_IRQ_MASK) {
         gen_op_reset_inhibit_irq();
     }
-    do {
+    for(;;) {
         if (env->nb_breakpoints > 0) {
             for(j = 0; j < env->nb_breakpoints; j++) {
                 if (env->breakpoints[j] == (unsigned long)pc_ptr) {
                     gen_debug(dc, pc_ptr - dc->cs_base);
-                    goto the_end;
+                    break;
                 }
             }
         }
@@ -4448,44 +4419,24 @@ static inline int gen_intermediate_code_internal(CPUState *env,
             gen_opc_cc_op[lj] = dc->cc_op;
             gen_opc_instr_start[lj] = 1;
         }
-        ret = disas_insn(dc, pc_ptr);
-        if (ret == -1) {
-            /* we trigger an illegal instruction operation only if it
-               is the first instruction. Otherwise, we simply stop
-               generating the code just before it */
-            if (pc_ptr == pc_start)
-                return -1;
-            else
-                break;
-        }
-        pc_ptr = (void *)ret;
+        pc_ptr = disas_insn(dc, pc_ptr);
+        /* stop translation if indicated */
+        if (dc->is_jmp)
+            break;
         /* if single step mode, we generate only one instruction and
            generate an exception */
-        if (dc->tf)
+        if (dc->tf) {
+            gen_op_jmp_im(pc_ptr - dc->cs_base);
+            gen_eob(dc);
             break;
-    } while (!dc->is_jmp && gen_opc_ptr < gen_opc_end && 
-             (pc_ptr - pc_start) < (TARGET_PAGE_SIZE - 32));
-    if (!dc->tf && dc->is_jmp == DISAS_NEXT) {
-        gen_jmp(dc, ret - (unsigned long)dc->cs_base);
-    }
-
-    /* we must store the eflags state if it is not already done */
-    if (dc->is_jmp != DISAS_TB_JUMP) {
-        if (dc->cc_op != CC_OP_DYNAMIC)
-            gen_op_set_cc_op(dc->cc_op);
-        if (dc->is_jmp != DISAS_JUMP) {
-            /* we add an additionnal jmp to update the simulated PC */
-            gen_op_jmp_im(ret - (unsigned long)dc->cs_base);
         }
-    }
-    if (dc->tf) {
-        gen_op_raise_exception(EXCP01_SSTP);
-    }
- the_end:
-    if (dc->is_jmp != DISAS_TB_JUMP) {
-        /* indicate that the hash table must be used to find the next TB */
-        gen_op_movl_T0_0();
-        gen_op_exit_tb();
+        /* if too long translation, stop generation too */
+        if (gen_opc_ptr >= gen_opc_end ||
+            (pc_ptr - pc_start) >= (TARGET_PAGE_SIZE - 32)) {
+            gen_op_jmp_im(pc_ptr - dc->cs_base);
+            gen_eob(dc);
+            break;
+        }
     }
     *gen_opc_ptr = INDEX_op_end;
     /* we don't forget to fill the last values */
