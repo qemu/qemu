@@ -1,6 +1,6 @@
-diff -ruN proll_18.orig/Makefile proll-patch4/Makefile
+diff -ruN proll_18.orig/Makefile proll-patch7/Makefile
 --- proll_18.orig/Makefile	2002-09-13 14:16:59.000000000 +0000
-+++ proll-patch4/Makefile	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch7/Makefile	2004-11-13 15:50:49.000000000 +0000
 @@ -4,6 +4,7 @@
  	make -C krups-ser    all
  	make -C espresso     all
@@ -14,17 +14,143 @@ diff -ruN proll_18.orig/Makefile proll-patch4/Makefile
  	make -C espresso     clean
  	make -C espresso-ser clean
 +	make -C qemu clean
-diff -ruN proll_18.orig/qemu/head.S proll-patch4/qemu/head.S
+diff -ruN proll_18.orig/qemu/Makefile proll-patch7/qemu/Makefile
+--- proll_18.orig/qemu/Makefile	1970-01-01 00:00:00.000000000 +0000
++++ proll-patch7/qemu/Makefile	2005-03-02 16:41:50.000000000 +0000
+@@ -0,0 +1,122 @@
++#
++# proll:
++# qemu/Makefile - make PROLL for QEMU
++# $Id: proll.patch,v 1.3 2005-03-13 09:43:36 bellard Exp $
++#
++# Copyright 1999 Pete Zaitcev
++# This is Free Software is licensed under terms of GNU General Public License.
++#
++
++CC = gcc
++
++#CROSS = /usr/local/sparc/bin/sparc-sun-linux-
++CROSS = sparc-unknown-linux-gnu-
++
++CROSSCC = $(CROSS)gcc
++CROSSLD = $(CROSS)ld
++CROSSNM = $(CROSS)nm
++
++RM = /bin/rm -f
++ELFTOAOUT = elftoaout
++
++#
++SRC = ../src
++
++# Due to remapping algorithm PROLBASE should be algned on PMD.
++# We make PROLBASE a define instead of using _start because we
++# want to shift it to form a PGD entry. A relocatable label will not work.
++# Linux kernel expects us to be at LINUX_OPPROM_BEGVM <asm-sparc/openprom.h>.
++PROLBASE =   0xffd00000
++PROLRODATA = 0xffd07000
++PROLDATA =   0xffd09000
++PROLSIZE = 240*1024
++
++# Linux
++# Fixed %g6 is for arch/sparc/kernel/head.S, it seems ok w/o -ffixed-g6.
++# Kernel uses -fcall-used-g5 -fcall-used-g7, we probably do not need them.
++# __ANSI__ is supposed to be on by default but it is not.
++CFLAGS = -O2 -Wall -DPROLBASE=$(PROLBASE) -DPROLDATA=$(PROLDATA) -DPROLRODATA=$(PROLRODATA) -D__ANSI__=1 -I$(SRC) -mcpu=hypersparc -g -DQEMU
++ASFLAGS = -D__ASSEMBLY__ -I$(SRC) -DPROLRODATA=$(PROLRODATA) -DPROLDATA=$(PROLDATA) -DPROLSIZE=$(PROLSIZE) -g
++# Solaris or Linux/i386 cross compilation
++#CFLAGS = -Iinclude -O
++
++LDFLAGS = -N -Ttext $(PROLBASE) --section-start .rodata=$(PROLRODATA) -Tdata $(PROLDATA) -Tbss $(PROLDATA)
++
++ALL = proll.aout
++PROLLEXE = proll.elf
++
++OBJS = head.o wuf.o wof.o main.o $(CONSOLE) \
++ printf.o le.o system_qemu.o iommu.o \
++ arp.o netinit.o bootp.o packet.o tftp.o udp.o sched_4m.o openprom.o \
++ vconsole.o hconsole.o rconsole.o vcons_zs.o
++
++all:           $(ALL)
++
++$(PROLLEXE):   $(OBJS)
++	$(CROSSLD) $(LDFLAGS) -o $(PROLLEXE) $(OBJS)
++
++head.o:         head.S $(SRC)/phys_jj.h \
++  $(SRC)/asi.h $(SRC)/psr.h $(SRC)/crs.h
++	$(CROSSCC) $(ASFLAGS) -DPROLBASE=$(PROLBASE) -o $*.o -c $*.S
++
++main.o:         main.c $(SRC)/asi.h $(SRC)/pgtsrmmu.h $(SRC)/iommu.h \
++  $(SRC)/phys_jj.h $(SRC)/vconsole.h $(SRC)/version.h $(SRC)/general.h \
++  $(SRC)/net.h $(SRC)/romlib.h $(SRC)/netpriv.h $(SRC)/arpa.h $(SRC)/system.h
++	$(CROSSCC) $(CFLAGS) -c $*.c
++openprom.o:	openprom.c $(SRC)/openprom.h $(SRC)/general.h $(SRC)/romlib.h \
++  $(SRC)/vconsole.h $(SRC)/system.h $(SRC)/phys_jj.h
++	$(CROSSCC) $(CFLAGS) -c $*.c
++
++system_qemu.o:       system_qemu.c $(SRC)/vconsole.h $(SRC)/pgtsrmmu.h \
++  $(SRC)/timer.h $(SRC)/general.h $(SRC)/net.h $(SRC)/romlib.h $(SRC)/asi.h \
++  $(SRC)/netpriv.h $(SRC)/arpa.h $(SRC)/system.h $(SRC)/crs.h
++	$(CROSSCC) $(CFLAGS) -c $*.c
++iommu.o:        $(SRC)/iommu.c $(SRC)/pgtsrmmu.h $(SRC)/phys_jj.h $(SRC)/iommu.h \
++ $(SRC)/vconsole.h $(SRC)/general.h $(SRC)/romlib.h $(SRC)/system.h $(SRC)/asi.h
++	$(CROSSCC) $(CFLAGS) -c $(SRC)/$*.c
++vconsole.o:	$(SRC)/vconsole.c $(SRC)/vconsole.h $(SRC)/hconsole.h
++	$(CROSSCC) $(CFLAGS) -c $(SRC)/$*.c
++vcons_zs.o:	$(SRC)/vcons_zs.c $(SRC)/vconsole.h $(SRC)/system.h
++	$(CROSSCC) $(CFLAGS) -c $(SRC)/$*.c
++hconsole.o:	$(SRC)/hconsole.c $(SRC)/hconsole.h $(SRC)/rconsole.h $(SRC)/phys_jj.h
++	$(CROSSCC) $(CFLAGS) -c $(SRC)/$*.c
++rconsole.o:	$(SRC)/rconsole.c $(SRC)/rconsole.h
++	$(CROSSCC) $(CFLAGS) -c $(SRC)/$*.c
++printf.o:       $(SRC)/printf.c
++	$(CROSSCC) $(CFLAGS) -c $(SRC)/$*.c
++le.o:		$(SRC)/le.c $(SRC)/dma.h $(SRC)/system.h $(SRC)/netpriv.h $(SRC)/romlib.h $(SRC)/general.h $(SRC)/net.h $(SRC)/phys_jj.h
++	$(CROSSCC) $(CFLAGS) -c $(SRC)/$*.c
++
++arp.o:		$(SRC)/arp.c $(SRC)/general.h $(SRC)/net.h $(SRC)/romlib.h $(SRC)/netpriv.h $(SRC)/arp.h
++	$(CROSSCC) $(CFLAGS) -c $(SRC)/$*.c
++netinit.o:	$(SRC)/netinit.c $(SRC)/general.h $(SRC)/net.h $(SRC)/romlib.h $(SRC)/netpriv.h $(SRC)/arp.h $(SRC)/ip.h $(SRC)/udp.h
++	$(CROSSCC) $(CFLAGS) -c $(SRC)/$*.c
++tftp.o:		$(SRC)/tftp.c $(SRC)/general.h $(SRC)/net.h $(SRC)/arpa.h $(SRC)/romlib.h $(SRC)/tftp.h
++	$(CROSSCC) $(CFLAGS) -c $(SRC)/$*.c
++udp.o:		$(SRC)/udp.c $(SRC)/general.h $(SRC)/net.h $(SRC)/romlib.h $(SRC)/netpriv.h $(SRC)/arp.h $(SRC)/ip.h $(SRC)/udp.h
++	$(CROSSCC) $(CFLAGS) -c $(SRC)/$*.c
++packet.o:	$(SRC)/packet.c $(SRC)/general.h $(SRC)/net.h $(SRC)/romlib.h $(SRC)/netpriv.h
++	$(CROSSCC) $(CFLAGS) -c $(SRC)/$*.c
++sched_4m.o:	$(SRC)/sched_4m.c $(SRC)/system.h $(SRC)/general.h $(SRC)/romlib.h $(SRC)/phys_jj.h
++	$(CROSSCC) $(CFLAGS) -c $(SRC)/$*.c
++bootp.o:	$(SRC)/bootp.c $(SRC)/general.h $(SRC)/net.h \
++  $(SRC)/arpa.h $(SRC)/romlib.h $(SRC)/system.h $(SRC)/bootp.h
++	$(CROSSCC) $(CFLAGS) -DNOBPEXT=1 -c $(SRC)/$*.c
++
++wuf.o:		$(SRC)/wuf.S
++	$(CROSSCC) $(ASFLAGS) -o $*.o -c $(SRC)/$*.S
++wof.o:		$(SRC)/wof.S
++	$(CROSSCC) $(ASFLAGS) -o $*.o -c $(SRC)/$*.S
++
++#genlab.o:      genlab.c
++#	$(CC) -c $*.c
++#
++#genlab:        genlab.o
++#	$(CC) -o genlab genlab.o
++
++clean:
++	$(RM) $(OBJS)
++	$(RM) $(PROLLEXE) proll.aout
++
++proll.aout:	$(PROLLEXE)
++	$(ELFTOAOUT) -o proll.aout $(PROLLEXE)
+diff -ruN proll_18.orig/qemu/head.S proll-patch7/qemu/head.S
 --- proll_18.orig/qemu/head.S	1970-01-01 00:00:00.000000000 +0000
-+++ proll-patch4/qemu/head.S	2004-11-13 15:50:49.000000000 +0000
-@@ -0,0 +1,515 @@
++++ proll-patch7/qemu/head.S	2005-03-02 15:30:47.000000000 +0000
+@@ -0,0 +1,539 @@
 +/**
 + ** Standalone startup code for Linux PROM emulator.
 + ** Copyright 1999 Pete A. Zaitcev
 + ** This code is licensed under GNU General Public License.
 + **/
 +/*
-+ * $Id: proll.patch,v 1.2 2004-12-19 23:18:01 bellard Exp $
++ * $Id: proll.patch,v 1.3 2005-03-13 09:43:36 bellard Exp $
 + */
 +
 +#include <psr.h>
@@ -167,6 +293,31 @@ diff -ruN proll_18.orig/qemu/head.S proll-patch4/qemu/head.S
 +_start:
 +start:
 +	.globl spill_window_entry, fill_window_entry
++
++#define	EXPORT_TRAP(trap) \
++	.globl trap; \
++	.type trap,function; \
++	.size trap, 16
++
++EXPORT_TRAP(t_zero)
++EXPORT_TRAP(t_wovf)
++EXPORT_TRAP(t_wunf)
++EXPORT_TRAP(t_irq1)
++EXPORT_TRAP(t_irq2)
++EXPORT_TRAP(t_irq3)
++EXPORT_TRAP(t_irq4)
++EXPORT_TRAP(t_irq5)
++EXPORT_TRAP(t_irq6)
++EXPORT_TRAP(t_irq7)
++EXPORT_TRAP(t_irq8)
++EXPORT_TRAP(t_irq9)
++EXPORT_TRAP(t_irq10)
++EXPORT_TRAP(t_irq11)
++EXPORT_TRAP(t_irq12)
++EXPORT_TRAP(t_irq13)
++EXPORT_TRAP(t_irq14)
++EXPORT_TRAP(t_irq15)
++
 +C_LABEL(trapbase):
 +t_zero:	b goprol; nop; nop; nop;
 +t_tflt:	SRMMU_TFAULT                        /* Inst. Access Exception        */
@@ -294,6 +445,8 @@ diff -ruN proll_18.orig/qemu/head.S proll-patch4/qemu/head.S
 +
 +goprol:
 +	! %g1 contains end of memory
++	set	PHYS_JJ_EEPROM + 0x30, %g1
++	lda	[%g1] ASI_M_BYPASS, %g1
 +	! map PROLDATA to PROLBASE+PROLSIZE to end of ram
 +	set	PROLSIZE+0x1000-PROLDATA+PROLBASE, %g2	! add 0x1000 for temp tables
 +	sub	%g1, %g2, %g2			! start of private memory
@@ -396,9 +549,6 @@ diff -ruN proll_18.orig/qemu/head.S proll-patch4/qemu/head.S
 +	subcc	%o0, %o1, %g0
 +	bl	1b
 +	 add	%o0, 0x4, %o0
-+
-+	sethi	%hi( C_LABEL(ram_size) ), %o0
-+	st	%g3, [%o0 + %lo( C_LABEL(ram_size) )]
 +
 +	mov	2, %g1
 +	wr	%g1, 0x0, %wim			! make window 1 invalid
@@ -533,10 +683,10 @@ diff -ruN proll_18.orig/qemu/head.S proll-patch4/qemu/head.S
 +C_LABEL(ldb_bypass):
 +	retl
 +	 lduba [%o0] ASI_M_BYPASS, %o0
-diff -ruN proll_18.orig/qemu/main.c proll-patch4/qemu/main.c
+diff -ruN proll_18.orig/qemu/main.c proll-patch7/qemu/main.c
 --- proll_18.orig/qemu/main.c	1970-01-01 00:00:00.000000000 +0000
-+++ proll-patch4/qemu/main.c	2004-11-23 19:05:34.000000000 +0000
-@@ -0,0 +1,178 @@
++++ proll-patch7/qemu/main.c	2005-03-02 20:08:23.000000000 +0000
+@@ -0,0 +1,173 @@
 +/**
 + ** Proll (PROM replacement)
 + ** Copyright 1999 Pete Zaitcev
@@ -558,8 +708,11 @@ diff -ruN proll_18.orig/qemu/main.c proll-patch4/qemu/main.c
 +#include <arpa.h>
 +#include <system.h>		/* our own prototypes */
 +
++void *init_openprom_qemu(int bankc, struct bank *bankv, unsigned hiphybas, const char *cmdline, char boot_device, int nographic);
++int vcon_zs_init(struct vconterm *t, unsigned int a0);
++int vcon_zs_write(struct vconterm *t, char *data, int leng);
++
 +static void init_idprom(void);
-+static void makepages_q(struct phym *t, unsigned int highbase);
 +
 +struct vconterm dp0;
 +struct mem cmem;		/* Current memory, virtual */
@@ -567,20 +720,48 @@ diff -ruN proll_18.orig/qemu/main.c proll-patch4/qemu/main.c
 +struct phym pmem;		/* Current phys. mem. */
 +struct iommu ciommu;		/* Our IOMMU on sun4m */
 +
-+static char *hw_idprom;
-+int ignore_fault, fault_ignored, ram_size;
++static struct {
++    const char id[16];
++    unsigned int version;
++    char pad1[0x1c]; // Pad to 0x30
++    unsigned int ram_size;
++    char boot_device;
++    unsigned int load_addr, kernel_size;
++    unsigned int cmdline, cmdline_len;
++    char pad2[0x0c]; // Pad to 0x54
++    unsigned short width, height, depth;
++} *hw_idprom;
++
++int ignore_fault, fault_ignored;
++void *printk_fn;
++unsigned int q_height, q_width;
 +
 +/*
 + */
 +void prolmain()
 +{
-+	//static const char fname[14] = "00000000.PROL";
++	static char fname[14];
 +	static struct banks bb;
 +	unsigned int hiphybas;
 +	const void *romvec;
++	unsigned int ram_size;
++	char nographic;
 +
-+	vcon_init(&dp0, PHYS_JJ_TCX_FB);
++	nographic = ldb_bypass(PHYS_JJ_EEPROM + 0x2F);
++	if (!nographic) {
++	    q_width = ldh_bypass(PHYS_JJ_EEPROM + 0x54);
++	    q_height = ldh_bypass(PHYS_JJ_EEPROM + 0x56);
++	    vcon_init(&dp0, PHYS_JJ_TCX_FB);
++	    printk_fn = vcon_write;
++	}
++	else {
++	    vcon_zs_init(&dp0, 0x71100000);
++	    printk_fn = vcon_zs_write;
++	}
++
++
 +	printk("PROLL %s QEMU\n", PROLL_VERSION_STRING);
++	ram_size = ld_bypass(PHYS_JJ_EEPROM + 0x30);
 +	printk("%d MB total\n", ram_size/(1024*1024));
 +
 +	bb.nbanks = 1;
@@ -590,7 +771,7 @@ diff -ruN proll_18.orig/qemu/main.c proll-patch4/qemu/main.c
 +	hiphybas = ram_size - PROLSIZE;
 +
 +	mem_init(&cmem, (char *) &_end, (char *)(PROLBASE+PROLSIZE));
-+	makepages_q(&pmem, hiphybas);
++	makepages(&pmem, hiphybas);
 +	init_mmu_swift((unsigned int)pmem.pctp - PROLBASE + hiphybas);
 +
 +	mem_init(&cio, (char *)(PROLBASE+PROLSIZE),
@@ -601,38 +782,46 @@ diff -ruN proll_18.orig/qemu/main.c proll-patch4/qemu/main.c
 +	/*
 +	 */
 +	init_idprom();
++	printk("NVRAM: id %s version %d\n", hw_idprom->id, hw_idprom->version);
++	if (!nographic)
++	    printk("Prom console: TCX %dx%d\n", q_width, q_height);
++	else
++	    printk("Prom console: serial\n");
 +	sched_init();
 +	le_probe();
 +	init_net();
 +
-+#if 0
-+#if 0 /* RARP */
-+	if (rarp() != 0) fatal();
-+	/* printrarp(); */
-+	xtoa(myipaddr, fname, 8);
-+	if (load(servaddr, fname) != 0) fatal();
-+#else
-+	if (bootp() != 0) fatal();
-+	/*
-+	 * boot_rec.bp_file cannot be used because system PROM
-+	 * uses it to locate ourselves. If we load from boot_rec.bp_file,
-+	 * we will loop reloading PROLL over and over again.
-+	 * Thus we use traditional PROLL scheme HEXIPADDR.PROL (single L).
-+	 */
-+	xtoa(myipaddr, fname, 8);
-+	if (load(boot_rec.bp_siaddr, fname) != 0) fatal();
-+#endif
-+#endif
++	printk("Boot device: %c\n", hw_idprom->boot_device);
++	if (hw_idprom->boot_device == 'n') {
++	    if (bootp() != 0) fatal();
++	    /*
++	     * boot_rec.bp_file cannot be used because system PROM
++	     * uses it to locate ourselves. If we load from boot_rec.bp_file,
++	     * we will loop reloading PROLL over and over again.
++	     * Thus we use traditional PROLL scheme HEXIPADDR.PROL (single L).
++	     */
++	    xtoa(myipaddr, fname, 8);
++	    fname[9] = '.';
++	    fname[10] = 'P';
++	    fname[11] = 'R';
++	    fname[12] = 'O';
++	    fname[13] = 'L';
++	    fname[14] = 0;
++	    
++	    if (load(boot_rec.bp_siaddr, fname) != 0) fatal();
++	}
 +
-+	romvec = init_openprom(bb.nbanks, bb.bankv, hiphybas);
++	romvec = init_openprom_qemu(bb.nbanks, bb.bankv, hiphybas,
++				    (void *)hw_idprom->cmdline, hw_idprom->boot_device, nographic);
 +
 +	printk("Memory used: virt 0x%x:0x%x[%dK] iomap 0x%x:0x%x\n",
 +	    PROLBASE, (int)cmem.curp, ((unsigned) cmem.curp - PROLBASE)/1024,
 +	    (int)cio.start, (int)cio.curp);
-+	//set_timeout(5);  while (!chk_timeout()) { }  /* P3: let me read */
 +
 +	{
-+	        void (*entry)(const void *, int, int, int, int) = (void (*)(const void*, int, int, int, int)) LOADBASE;
++	    void (*entry)(const void *, int, int, int, int) = (void *) hw_idprom->load_addr;
++		printk("Kernel loaded at 0x%x, size %dK, command line = '%s'\n",
++		       *entry, hw_idprom->kernel_size/1024, hw_idprom->cmdline);
 +		entry(romvec, 0, 0, 0, 0);
 +	}
 +
@@ -652,14 +841,12 @@ diff -ruN proll_18.orig/qemu/main.c proll-patch4/qemu/main.c
 + */
 +void udelay(unsigned long usecs)
 +{
-+	int i, n;
-+	n = usecs*50;
-+	for (i = 0; i < n; i++) { }
++    // Qemu hardware is perfect and does not need any delays!
 +}
 +
 +static void init_idprom()
 +{
-+	char *va_prom;
++	void *va_prom;
 +
 +	if ((va_prom = map_io(PHYS_JJ_EEPROM, PHYS_JJ_EEPROM_SIZE)) == NULL) {
 +		printk("init_idprom: cannot map eeprom\n");
@@ -673,175 +860,10 @@ diff -ruN proll_18.orig/qemu/main.c proll-patch4/qemu/main.c
 +	hw_idprom = va_prom; 
 +}
 +
-+/*
-+ * Make CPU page tables.
-+ * Returns pointer to context table.
-+ * Here we ignore memory allocation errors which "should not happen"
-+ * because we cannot print anything anyways if memory initialization fails.
-+ */
-+void makepages_q(struct phym *t, unsigned int highbase)
-+{
-+	unsigned int *ctp, *l1, pte;
-+	int i;
-+	unsigned int pa, va;
-+
-+	ctp = mem_zalloc(&cmem, NCTX_SWIFT*sizeof(int), NCTX_SWIFT*sizeof(int));
-+	l1 = mem_zalloc(&cmem, 256*sizeof(int), 256*sizeof(int));
-+
-+	pte = SRMMU_ET_PTD | (((unsigned int)l1 - PROLBASE + highbase) >> 4);
-+	for (i = 0; i < NCTX_SWIFT; i++) {
-+		ctp[i] = pte;
-+	}
-+
-+	pa = PROLBASE;
-+	for (va = PROLBASE; va < PROLDATA; va += PAGE_SIZE) {
-+	        map_page(l1, va, pa, 0, highbase);
-+		pa += PAGE_SIZE;
-+	}
-+	pa = highbase + PROLDATA - PROLBASE;
-+	for (va = PROLDATA; va < PROLBASE + PROLSIZE; va += PAGE_SIZE) {
-+		map_page(l1, va, pa, 0, highbase);
-+		pa += PAGE_SIZE;
-+	}
-+
-+	/* We need to start from LOADBASE, but kernel wants PAGE_SIZE. */
-+	pa = 0;
-+	for (va = 0; va < LOWMEMSZ; va += PAGE_SIZE) {
-+		map_page(l1, va, pa, 0, highbase);
-+		pa += PAGE_SIZE;
-+	}
-+
-+	t->pctp = ctp;
-+	t->pl1 = l1;
-+	t->pbas = highbase;
-+}
-diff -ruN proll_18.orig/qemu/Makefile proll-patch4/qemu/Makefile
---- proll_18.orig/qemu/Makefile	1970-01-01 00:00:00.000000000 +0000
-+++ proll-patch4/qemu/Makefile	2004-11-13 15:50:49.000000000 +0000
-@@ -0,0 +1,119 @@
-+#
-+# proll:
-+# qemu/Makefile - make PROLL for QEMU
-+# $Id: proll.patch,v 1.2 2004-12-19 23:18:01 bellard Exp $
-+#
-+# Copyright 1999 Pete Zaitcev
-+# This is Free Software is licensed under terms of GNU General Public License.
-+#
-+
-+CC = gcc
-+
-+#CROSS = /usr/local/sparc/bin/sparc-sun-linux-
-+CROSS = sparc-unknown-linux-gnu-
-+
-+CROSSCC = $(CROSS)gcc
-+CROSSLD = $(CROSS)ld
-+CROSSNM = $(CROSS)nm
-+
-+RM = /bin/rm -f
-+ELFTOAOUT = elftoaout
-+
-+#
-+SRC = ../src
-+
-+# Due to remapping algorithm PROLBASE should be algned on PMD.
-+# We make PROLBASE a define instead of using _start because we
-+# want to shift it to form a PGD entry. A relocatable label will not work.
-+# Linux kernel expects us to be at LINUX_OPPROM_BEGVM <asm-sparc/openprom.h>.
-+PROLBASE =   0xffd00000
-+PROLRODATA = 0xffd07000
-+PROLDATA =   0xffd09000
-+PROLSIZE = (240*1024)
-+
-+# Linux
-+# Fixed %g6 is for arch/sparc/kernel/head.S, it seems ok w/o -ffixed-g6.
-+# Kernel uses -fcall-used-g5 -fcall-used-g7, we probably do not need them.
-+# __ANSI__ is supposed to be on by default but it is not.
-+CFLAGS = -O2 -Wall -DPROLBASE=$(PROLBASE) -DPROLDATA=$(PROLDATA) -DPROLRODATA=$(PROLRODATA) -D__ANSI__=1 -I$(SRC) -mcpu=hypersparc -g
-+ASFLAGS = -D__ASSEMBLY__ -I$(SRC) -DPROLRODATA=$(PROLRODATA) -DPROLDATA=$(PROLDATA) -DPROLSIZE=$(PROLSIZE) -g
-+# Solaris or Linux/i386 cross compilation
-+#CFLAGS = -Iinclude -O
-+
-+LDFLAGS = -N -Ttext $(PROLBASE) --section-start .rodata=$(PROLRODATA) -Tdata $(PROLDATA) -Tbss $(PROLDATA)
-+
-+ALL = proll.aout
-+PROLLEXE = proll.elf
-+
-+OBJS = head.o wuf.o wof.o main.o vconsole.o hconsole.o rconsole.o \
-+ printf.o le.o system.o iommu.o \
-+ arp.o netinit.o bootp.o packet.o tftp.o udp.o sched_4m.o openprom.o
-+
-+all:           $(ALL)
-+
-+$(PROLLEXE):   $(OBJS)
-+	$(CROSSLD) $(LDFLAGS) -o $(PROLLEXE) $(OBJS)
-+
-+head.o:         head.S $(SRC)/phys_jj.h \
-+  $(SRC)/asi.h $(SRC)/psr.h $(SRC)/crs.h
-+	$(CROSSCC) $(ASFLAGS) -DPROLBASE=$(PROLBASE) -o $*.o -c $*.S
-+
-+main.o:         main.c $(SRC)/asi.h $(SRC)/pgtsrmmu.h $(SRC)/iommu.h \
-+  $(SRC)/phys_jj.h $(SRC)/vconsole.h $(SRC)/version.h $(SRC)/general.h \
-+  $(SRC)/net.h $(SRC)/romlib.h $(SRC)/netpriv.h $(SRC)/arpa.h $(SRC)/system.h
-+	$(CROSSCC) $(CFLAGS) -c $*.c
-+openprom.o:	openprom.c $(SRC)/openprom.h $(SRC)/general.h $(SRC)/romlib.h \
-+  $(SRC)/vconsole.h $(SRC)/system.h $(SRC)/phys_jj.h
-+	$(CROSSCC) $(CFLAGS) -c $*.c
-+
-+system.o:       $(SRC)/system.c $(SRC)/vconsole.h $(SRC)/pgtsrmmu.h \
-+  $(SRC)/timer.h $(SRC)/general.h $(SRC)/net.h $(SRC)/romlib.h $(SRC)/asi.h \
-+  $(SRC)/netpriv.h $(SRC)/arpa.h $(SRC)/system.h $(SRC)/crs.h
-+	$(CROSSCC) $(CFLAGS) -c $(SRC)/$*.c
-+iommu.o:        $(SRC)/iommu.c $(SRC)/pgtsrmmu.h $(SRC)/phys_jj.h $(SRC)/iommu.h \
-+ $(SRC)/vconsole.h $(SRC)/general.h $(SRC)/romlib.h $(SRC)/system.h $(SRC)/asi.h
-+	$(CROSSCC) $(CFLAGS) -c $(SRC)/$*.c
-+vconsole.o:	$(SRC)/vconsole.c $(SRC)/vconsole.h $(SRC)/hconsole.h
-+	$(CROSSCC) $(CFLAGS) -c $(SRC)/$*.c
-+hconsole.o:	$(SRC)/hconsole.c $(SRC)/hconsole.h $(SRC)/rconsole.h $(SRC)/phys_jj.h
-+	$(CROSSCC) $(CFLAGS) -c $(SRC)/$*.c
-+rconsole.o:	$(SRC)/rconsole.c $(SRC)/rconsole.h
-+	$(CROSSCC) $(CFLAGS) -c $(SRC)/$*.c
-+printf.o:       $(SRC)/printf.c
-+	$(CROSSCC) $(CFLAGS) -c $(SRC)/$*.c
-+le.o:		$(SRC)/le.c $(SRC)/dma.h $(SRC)/system.h $(SRC)/netpriv.h $(SRC)/romlib.h $(SRC)/general.h $(SRC)/net.h $(SRC)/phys_jj.h
-+	$(CROSSCC) $(CFLAGS) -c $(SRC)/$*.c
-+
-+arp.o:		$(SRC)/arp.c $(SRC)/general.h $(SRC)/net.h $(SRC)/romlib.h $(SRC)/netpriv.h $(SRC)/arp.h
-+	$(CROSSCC) $(CFLAGS) -c $(SRC)/$*.c
-+netinit.o:	$(SRC)/netinit.c $(SRC)/general.h $(SRC)/net.h $(SRC)/romlib.h $(SRC)/netpriv.h $(SRC)/arp.h $(SRC)/ip.h $(SRC)/udp.h
-+	$(CROSSCC) $(CFLAGS) -c $(SRC)/$*.c
-+tftp.o:		$(SRC)/tftp.c $(SRC)/general.h $(SRC)/net.h $(SRC)/arpa.h $(SRC)/romlib.h $(SRC)/tftp.h
-+	$(CROSSCC) $(CFLAGS) -c $(SRC)/$*.c
-+udp.o:		$(SRC)/udp.c $(SRC)/general.h $(SRC)/net.h $(SRC)/romlib.h $(SRC)/netpriv.h $(SRC)/arp.h $(SRC)/ip.h $(SRC)/udp.h
-+	$(CROSSCC) $(CFLAGS) -c $(SRC)/$*.c
-+packet.o:	$(SRC)/packet.c $(SRC)/general.h $(SRC)/net.h $(SRC)/romlib.h $(SRC)/netpriv.h
-+	$(CROSSCC) $(CFLAGS) -c $(SRC)/$*.c
-+sched_4m.o:	$(SRC)/sched_4m.c $(SRC)/system.h $(SRC)/general.h $(SRC)/romlib.h $(SRC)/phys_jj.h
-+	$(CROSSCC) $(CFLAGS) -c $(SRC)/$*.c
-+bootp.o:	$(SRC)/bootp.c $(SRC)/general.h $(SRC)/net.h \
-+  $(SRC)/arpa.h $(SRC)/romlib.h $(SRC)/system.h $(SRC)/bootp.h
-+	$(CROSSCC) $(CFLAGS) -DNOBPEXT=1 -c $(SRC)/$*.c
-+
-+wuf.o:		$(SRC)/wuf.S
-+	$(CROSSCC) $(ASFLAGS) -o $*.o -c $(SRC)/$*.S
-+wof.o:		$(SRC)/wof.S
-+	$(CROSSCC) $(ASFLAGS) -o $*.o -c $(SRC)/$*.S
-+
-+#genlab.o:      genlab.c
-+#	$(CC) -c $*.c
-+#
-+#genlab:        genlab.o
-+#	$(CC) -o genlab genlab.o
-+
-+clean:
-+	$(RM) $(OBJS)
-+	$(RM) $(PROLLEXE) proll.aout
-+
-+proll.aout:	$(PROLLEXE)
-+	$(ELFTOAOUT) -o proll.aout $(PROLLEXE)
-diff -ruN proll_18.orig/qemu/openprom.c proll-patch4/qemu/openprom.c
+diff -ruN proll_18.orig/qemu/openprom.c proll-patch7/qemu/openprom.c
 --- proll_18.orig/qemu/openprom.c	1970-01-01 00:00:00.000000000 +0000
-+++ proll-patch4/qemu/openprom.c	2004-11-23 19:14:05.000000000 +0000
-@@ -0,0 +1,596 @@
++++ proll-patch7/qemu/openprom.c	2005-03-02 20:09:57.000000000 +0000
+@@ -0,0 +1,646 @@
 +/*
 + * PROM interface support
 + * Copyright 1996 The Australian National University.
@@ -857,6 +879,8 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch4/qemu/openprom.c
 +#include <system.h>
 +#include <vconsole.h>
 +#include "phys_jj.h"
++
++//#define DEBUG_OBP
 +
 +struct property {
 +	const char *name;
@@ -908,6 +932,7 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch4/qemu/openprom.c
 +static const struct property propv_sbus[] = {
 +	{"name",	"sbus", 5},
 +	{"ranges",	(char*)&prop_sbus_ranges[0], sizeof(prop_sbus_ranges)},
++	{"device_type",	"hierarchical", sizeof("hierarchical") },
 +	{NULL, NULL, -1}
 +};
 +
@@ -1005,6 +1030,7 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch4/qemu/openprom.c
 +static const struct property propv_obio[] = {
 +	{"name",	"obio", 5 },
 +	{"ranges",	(char*)&prop_obio_ranges[0], sizeof(prop_obio_ranges) },
++	{"device_type",	"hierarchical", sizeof("hierarchical") },
 +	{NULL, NULL, -1}
 +};
 +
@@ -1056,29 +1082,35 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch4/qemu/openprom.c
 +	{NULL, NULL, -1}
 +};
 +
-+static const int prop_zs_intr[] = { 0x26, 0x0 };
++static const int prop_zs_intr[] = { 12, 0x0 };
 +static const int prop_zs_reg[] = {
-+	0x4, 0x00000000, 0x0000000f,
++	0x0, 0x00000000, 0x00000008,
 +};
-+static const int prop_zs_slave[] = { 0x1 };
++static const int prop_zs_addr = { 0x70000000 };
++static const int prop_zs_slave[] = { 1 };
 +static const struct property propv_obio_zs[] = {
 +	{"name",	"zs", sizeof("zs")},
 +	{"reg",		(char*)&prop_zs_reg[0], sizeof(prop_zs_reg) },
-+	{"reg",		(char*)&prop_zs_slave[0], sizeof(prop_zs_slave) },
++	{"slave",	(char*)&prop_zs_slave[0], sizeof(prop_zs_slave) },
 +	{"device_type", "serial", sizeof("serial") },
++	{"intr",	(char*)&prop_zs_intr[0], sizeof(prop_zs_intr) },
++	//	{"address",	(char*)&prop_zs_addr, sizeof(prop_zs_addr) },
 +	{NULL, NULL, -1}
 +};
 +
-+static const int prop_zs1_intr[] = { 0x26, 0x0 };
++static const int prop_zs1_intr[] = { 12, 0x0 };
 +static const int prop_zs1_reg[] = {
-+	0x4, 0x00100000, 0x0000000f,
++	0x0, 0x00100000, 0x00000008,
 +};
-+static const int prop_zs1_slave[] = { 0x0 };
++static const int prop_zs1_addr = { 0x70100000 };
++static const int prop_zs1_slave[] = { 0 };
 +static const struct property propv_obio_zs1[] = {
 +	{"name",	"zs", sizeof("zs")},
 +	{"reg",		(char*)&prop_zs1_reg[0], sizeof(prop_zs1_reg) },
-+	{"reg",		(char*)&prop_zs1_slave[0], sizeof(prop_zs1_slave) },
++	{"slave",	(char*)&prop_zs1_slave[0], sizeof(prop_zs1_slave) },
 +	{"device_type", "serial", sizeof("serial") },
++	{"intr",	(char*)&prop_zs1_intr[0], sizeof(prop_zs1_intr) },
++	//	{"address",	(char*)&prop_zs1_addr, sizeof(prop_zs1_addr) },
 +	{NULL, NULL, -1}
 +};
 +
@@ -1106,24 +1138,110 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch4/qemu/openprom.c
 +	{NULL, NULL, -1}
 +};
 +
++static const int prop_espdma_reg[] = {
++	0x4, 0x08400000, 0x00000010,
++};
++// Disabled, not implemented yet
++static const struct property propv_sbus_espdma[] = {
++	{"name",	"xxxespdma", sizeof("xxxespdma")}, 
++	{"reg",		(char*)&prop_espdma_reg[0], sizeof(prop_espdma_reg) },
++	{NULL, NULL, -1}
++};
++
++static const int prop_esp_reg[] = {
++	0x4, 0x08800000, 0x00000040,
++};
++static const int prop_esp_intr[] = { 0x24, 0x0 };
++static const struct property propv_sbus_espdma_esp[] = {
++	{"name",	"esp", sizeof("esp")},
++	{"reg",		(char*)&prop_esp_reg[0], sizeof(prop_esp_reg) },
++	{"intr",	(char*)&prop_esp_intr[0], sizeof(prop_esp_intr) },
++	{NULL, NULL, -1}
++};
++
++static const int prop_bpp_reg[] = {
++	0x4, 0x0c800000, 0x0000001c,
++};
++static const int prop_bpp_intr[] = { 0x33, 0x0 };
++static const struct property propv_sbus_bpp[] = {
++	{"name",	"SUNW,bpp", sizeof("SUNW,bpp")},
++	{"reg",		(char*)&prop_bpp_reg[0], sizeof(prop_bpp_reg) },
++	{"intr",	(char*)&prop_bpp_intr[0], sizeof(prop_bpp_intr) },
++	{NULL, NULL, -1}
++};
++
++static const int prop_fd_intr[] = { 0x2b, 0x0 };
++static const int prop_fd_reg[] = {
++	0x0, 0x00400000, 0x0000000f,
++};
++static const struct property propv_obio_fd[] = {
++	{"name",	"SUNW,fdtwo", sizeof("SUNW,fdtwo")},
++	{"reg",		(char*)&prop_fd_reg[0], sizeof(prop_fd_reg) },
++	{"device_type", "block", sizeof("block") },
++	{"intr",	(char*)&prop_fd_intr[0], sizeof(prop_fd_intr) },
++	{NULL, NULL, -1}
++};
++
++static const int prop_pw_intr[] = { 0x22, 0x0 };
++static const int prop_pw_reg[] = {
++	0x0, 0x00910000, 0x00000001,
++};
++static const struct property propv_obio_pw[] = {
++	{"name",	"power", sizeof("power")},
++	{"reg",		(char*)&prop_pw_reg[0], sizeof(prop_pw_reg) },
++	{"intr",	(char*)&prop_pw_intr[0], sizeof(prop_pw_intr) },
++	{NULL, NULL, -1}
++};
++
++static const int prop_cf_reg[] = {
++	0x0, 0x00800000, 0x00000001,
++};
++static const struct property propv_obio_cf[] = {
++	{"name",	"slavioconfig", sizeof("slavioconfig")},
++	{"reg",		(char*)&prop_cf_reg[0], sizeof(prop_cf_reg) },
++	{NULL, NULL, -1}
++};
++
 +static const struct node nodes[] = {
 +	{ &null_properties,	 1,  0 }, /* 0 = big brother of root */
 +	{ propv_root,		 0,  2 }, /*  1 "/" */
-+	{ propv_iommu,		 8,  3 }, /*  2 "/iommu" */
++	{ propv_iommu,		11,  3 }, /*  2 "/iommu" */
 +	{ propv_sbus,		 0,  4 }, /*  3 "/iommu/sbus" */
 +	{ propv_sbus_tcx,	 5,  0 }, /*  4 "/iommu/sbus/SUNW,tcx" */
 +	{ propv_sbus_ledma,	 7,  6 }, /*  5 "/iommu/sbus/ledma" */
 +	{ propv_sbus_ledma_le,	 0,  0 }, /*  6 "/iommu/sbus/ledma/le" */
-+	{ propv_sbus_cs4231,	 0,  0 }, /*  7 "/iommu/sbus/SUNW,CS4231 */
-+	{ propv_cpu,		 9,  0 }, /*  8 "/STP1012PGA" */
-+	{ propv_obio,		 0, 10 }, /*  9 "/obio" */
-+	{ propv_obio_int,	11,  0 }, /* 10 "/obio/interrupt" */
-+	{ propv_obio_cnt,	12,  0 }, /* 11 "/obio/counter" */
-+	{ propv_obio_eep,	13,  0 }, /* 12 "/obio/eeprom" */
++	{ propv_sbus_cs4231,	 8,  0 }, /*  7 "/iommu/sbus/SUNW,CS4231 */
++	{ propv_sbus_bpp,	 9,  0 }, /*  8 "/iommu/sbus/SUNW,bpp */
++	{ propv_sbus_espdma,	 0, 10 }, /*  9 "/iommu/sbus/espdma" */
++	{ propv_sbus_espdma_esp, 0,  0 }, /* 10 "/iommu/sbus/espdma/esp" */
++	{ propv_cpu,		12,  0 }, /* 11 "/STP1012PGA" */
++	{ propv_obio,		 0, 13 }, /* 12 "/obio" */
++	{ propv_obio_int,	14,  0 }, /* 13 "/obio/interrupt" */
++	{ propv_obio_cnt,	15,  0 }, /* 14 "/obio/counter" */
++	{ propv_obio_eep,	16,  0 }, /* 15 "/obio/eeprom" */
++	{ propv_obio_auxio,	17,  0 }, /* 16 "/obio/auxio" */
++	{ propv_obio_zs,	18,  0 }, /* 17 "/obio/zs@0,0" */
++	{ propv_obio_zs1,	19,  0 }, /* 18 "/obio/zs@0,100000" */
++	{ propv_obio_fd,	20,  0 }, /* 19 "/obio/SUNW,fdtwo" */
++	{ propv_obio_pw,	21,  0 }, /* 20 "/obio/power" */
++	{ propv_obio_cf,	 0,  0 }, /* 21 "/obio/slavioconfig@0,800000" */
++#if 0
 +	{ propv_obio_su,	14,  0 }, /* 13 "/obio/su" */
-+	{ propv_obio_auxio,	 0,  0 }, /* 14 "/obio/auxio" */
-+	{ propv_obio_zs,	 0,  0 }, /* 14 "/obio/zs@0,0" */
-+	{ propv_obio_zs1,	 0,  0 }, /* 14 "/obio/zs@0,100000" */
++	{ propv_cpu,		18,  0 }, /* 17 "/STP1012PGA" */
++	{ propv_cpu,		19,  0 }, /* 18 "/STP1012PGA" */
++
++	{ propv_cpu,		20,  0 }, /* 19 "/STP1012PGA" */
++	{ propv_cpu,		21,  0 }, /* 20 "/STP1012PGA" */
++	{ propv_cpu,		22,  0 }, /* 21 "/STP1012PGA" */
++	{ propv_cpu,		23,  0 }, /* 22 "/STP1012PGA" */
++	{ propv_cpu,		24,  0 }, /* 23 "/STP1012PGA" */
++	{ propv_cpu,		25,  0 }, /* 24 "/STP1012PGA" */
++	{ propv_cpu,		26,  0 }, /* 25 "/STP1012PGA" */
++	{ propv_cpu,		27,  0 }, /* 26 "/STP1012PGA" */
++	{ propv_cpu,		28,  0 }, /* 27 "/STP1012PGA" */
++	{ propv_cpu,		29,  0 }, /* 28 "/STP1012PGA" */
++	{ propv_cpu,		30,  0 }, /* 29 "/STP1012PGA" */
++#endif
 +};
 +
 +static struct linux_mlist_v0 totphys[MAX_BANKS];
@@ -1144,24 +1262,11 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch4/qemu/openprom.c
 +        obp_nextprop	/* char * (*no_nextprop)(int node, char *name); */
 +};
 +
-+static const char arg_nfsroot[] = "console=ttyS0 ip=bootp root=nfs";
-+
-+static const struct linux_arguments_v0 obp_arg = {
-+	{ "le()", arg_nfsroot, NULL, NULL, NULL, NULL, NULL, NULL },
-+	{ "" },
-+	{ 'l', 'e' },  0, 0, 0, NULL,
-+	NULL
-+};
++static struct linux_arguments_v0 obp_arg;
 +static const struct linux_arguments_v0 * const obp_argp = &obp_arg;
 +
-+static const void * const synch_hook = NULL;
-+#if 0
-+static const char obp_stdin = PROMDEV_KBD;
-+static const char obp_stdout = PROMDEV_SCREEN;
-+#else
-+static const char obp_stdin = PROMDEV_TTYA;
-+static const char obp_stdout = PROMDEV_TTYA;
-+#endif
++static void (*synch_hook)(void);
++static char obp_stdin, obp_stdout;
 +
 +static int obp_nbgetchar(void);
 +static int obp_nbputchar(int ch);
@@ -1181,88 +1286,11 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch4/qemu/openprom.c
 +	if (ptab1 != 0) mem_tablewalk(ptab1, va);
 +}
 +
-+#ifdef ORIG
-+static const struct linux_romvec romvec0 = {
-+	LINUX_OPPROM_MAGIC,		/* pv_magic_cookie */
-+	0,				/* pv_romvers - Format selector! */
-+	77,				/* pv_plugin_revision */
-+	0x10203,			/* pv_printrev */
-+	{				/* pv_v0mem */
-+		&ptphys,		/* v0_totphys */
-+		&ptmap,			/* v0_prommap */
-+		&ptavail		/* v0_available */
-+	},
-+        &nodeops0,			/* struct linux_nodeops *pv_nodeops; */
-+        (void*)doublewalk, /* P3 */	/* char **pv_bootstr; */
-+	{				/* struct linux_dev_v0_funcs pv_v0devops; */
-+		&obp_devopen,		/* v0_devopen */
-+		&obp_devclose,		/* v0_devclose */
-+		&obp_rdblkdev,		/* v0_rdblkdev */
-+		NULL,			/* v0_wrblkdev */
-+		NULL,			/* v0_wrnetdev */
-+		NULL,			/* v0_rdnetdev */
-+		NULL,			/* v0_rdchardev */
-+		NULL,			/* v0_wrchardev */
-+		NULL			/* v0_seekdev */
-+	},
-+        &obp_stdin,			/* char *pv_stdin */
-+        &obp_stdout,			/* char *pv_stdout; */
-+        obp_nbgetchar,			/* int (*pv_getchar)(void); */
-+        obp_nbputchar,			/* void (*pv_putchar)(int ch); */
-+        obp_nbgetchar,			/* int (*pv_nbgetchar)(void); */
-+        obp_nbputchar,			/* int (*pv_nbputchar)(int ch); */
-+        NULL,			/* void (*pv_putstr)(char *str, int len); */
-+        obp_reboot,			/* void (*pv_reboot)(char *bootstr); */
-+        NULL,		/* void (*pv_printf)(__const__ char *fmt, ...); */
-+        obp_abort,			/* void (*pv_abort)(void); */
-+        NULL,				/* __volatile__ int *pv_ticks; */
-+        obp_halt,			/* void (*pv_halt)(void); */
-+        (void *)&synch_hook,		/* void (**pv_synchook)(void); */
-+
-+#if 0
-+        /* Evaluate a forth string, not different proto for V0 and V2->up. */
-+        union {
-+                void (*v0_eval)(int len, char *str);
-+                void (*v2_eval)(char *str);
-+        } pv_fortheval;
-+#endif
-+	{ 0 },			/* pv_fortheval */
-+
-+        &obp_argp,		/* struct linux_arguments_v0 **pv_v0bootargs; */
-+	NULL,			/* pv_enaddr */
-+	{			/* pv_v2bootargs */
-+        	NULL,		/* char **bootpath; */
-+		NULL,		/* char **bootargs; */
-+		NULL,		/* fd_stdin; */
-+		NULL,		/* fd_stdout */
-+	},
-+	{			/* pv_v2devops */
-+        	NULL,		/* v2_inst2pkg */
-+        	NULL,		/* v2_dumb_mem_alloc */
-+        	NULL,		/* v2_dumb_mem_free */
-+        	NULL,		/* v2_dumb_mmap */
-+        	NULL,		/* v2_dumb_munmap */
-+        	NULL,		/* v2_dev_open */
-+        	NULL,		/* v2_dev_close */
-+        	NULL,		/* v2_dev_read */
-+        	NULL,		/* v2_dev_write */
-+        	NULL,		/* v2_dev_seek */
-+        	NULL,		/* v2_wheee2 */
-+        	NULL,		/* v2_wheee3 */
-+	},
-+	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },	/* filler[15] */
-+        NULL,			/* pv_setctxt */
-+        NULL,			/* v3_cpustart */
-+        NULL,			/* v3_cpustop */
-+        NULL,			/* v3_cpuidle */
-+        NULL			/* v3_cpuresume */
-+};
-+#endif
-+
 +static struct linux_romvec romvec0;
 +
 +void *
-+init_openprom(int bankc, struct bank *bankv, unsigned hiphybas)
++init_openprom_qemu(int bankc, struct bank *bankv, unsigned hiphybas,
++		   const char *cmdline, char boot_device, int nographic)
 +{
 +	int i;
 +
@@ -1316,10 +1344,13 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch4/qemu/openprom.c
 +	romvec0.pv_v0mem.v0_available = &ptavail;
 +	romvec0.pv_nodeops = &nodeops0;
 +	romvec0.pv_bootstr = (void *)doublewalk;
++	romvec0.pv_v0devops.v0_devopen = &obp_devopen;
++	romvec0.pv_v0devops.v0_devclose = &obp_devclose;
++	romvec0.pv_v0devops.v0_rdblkdev = &obp_rdblkdev;
 +	romvec0.pv_stdin = &obp_stdin;
 +	romvec0.pv_stdout = &obp_stdout;
 +	romvec0.pv_getchar = obp_nbgetchar;
-+	romvec0.pv_putchar = obp_nbputchar;
++	romvec0.pv_putchar = (void (*)(int))obp_nbputchar;
 +	romvec0.pv_nbgetchar = obp_nbgetchar;
 +	romvec0.pv_nbputchar = obp_nbputchar;
 +	romvec0.pv_reboot = obp_reboot;
@@ -1327,6 +1358,27 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch4/qemu/openprom.c
 +	romvec0.pv_halt = obp_halt;
 +	romvec0.pv_synchook = &synch_hook;
 +	romvec0.pv_v0bootargs = &obp_argp;
++	switch(boot_device) {
++	default:
++	case 'a':
++	    obp_arg.argv[0] = "fd()";
++	    break;
++	case 'c':
++	    obp_arg.argv[0] = "sd()";
++	    break;
++	case 'n':
++	    obp_arg.argv[0] = "le()";
++	    break;
++	}
++	obp_arg.argv[1] = cmdline;
++
++	if (nographic) {
++	    obp_stdin = PROMDEV_TTYA;
++	    obp_stdout = PROMDEV_TTYA;
++	} else {
++	    obp_stdin = PROMDEV_KBD;
++	    obp_stdout = PROMDEV_SCREEN;
++	}
 +	return &romvec0;
 +}
 +
@@ -1342,18 +1394,32 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch4/qemu/openprom.c
 +
 +static int obp_nextnode(int node)
 +{
++#ifdef DEBUG_OBP
++        printk("obp_nextnode(%d) = %d\n", node, nodes[node].sibling);
++#endif
 +	return nodes[node].sibling;
 +}
 +
 +static int obp_child(int node)
 +{
++#ifdef DEBUG_OBP
++        printk("obp_child(%d) = %d\n", node, nodes[node].child);
++#endif
 +	return nodes[node].child;
 +}
 +
 +static int obp_proplen(int node, char *name)
 +{
 +	const struct property *prop = find_property(node,name);
-+	if (prop) return prop->length;
++	if (prop) {
++#ifdef DEBUG_OBP
++	    printk("obp_proplen(%d, %s) = %d\n", node, name, prop->length);
++#endif
++	    return prop->length;
++	}
++#ifdef DEBUG_OBP
++	printk("obp_proplen(%d, %s) (no prop)\n", node, name);
++#endif
 +	return -1;
 +}
 +
@@ -1364,47 +1430,47 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch4/qemu/openprom.c
 +	prop = find_property(node,name);
 +	if (prop) {
 +		memcpy(value,prop->value,prop->length);
-+		//printk("obp_getprop '%s'= %s\n", name, value);
++#ifdef DEBUG_OBP
++		printk("obp_getprop(%d, %s) = %s\n", node, name, value);
++#endif
 +		return prop->length;
 +	}
-+        //printk("obp_getprop: not found\n");
++#ifdef DEBUG_OBP
++        printk("obp_getprop(%d, %s): not found\n", node, name);
++#endif
 +	return -1;
 +}
 +
 +static int obp_setprop(int node, char *name, char *value, int len)
 +{
++#ifdef DEBUG_OBP
++        printk("obp_setprop(%d, %s) = %s (%d)\n", node, name, value, len);
++#endif
 +	return -1;
 +}
 +
 +static const char *obp_nextprop(int node,char *name)
 +{
 +	const struct property *prop = find_property(node,name);
-+	if (prop) return prop[1].name;
++	if (prop) {
++#ifdef DEBUG_OBP
++	    printk("obp_nextprop(%d, %s) = %s\n", node, name, prop[1].name);
++#endif
++	    return prop[1].name;
++	}
++#ifdef DEBUG_OBP
++        printk("obp_nextprop(%d, %s): not found\n", node, name);
++#endif
 +	return NULL;
 +}
 +
-+#if 0
-+static unsigned char calc_idprom_cksum(struct idprom *idprom)
-+{
-+        unsigned char cksum, i, *ptr = (unsigned char *)idprom;
-+
-+        for (i = cksum = 0; i <= 0x0E; i++)
-+                cksum ^= *ptr++;
-+
-+        return cksum;
-+}
-+#endif
-+
 +static int obp_nbgetchar(void) {
-+	return -1;
++	extern struct vconterm dp0;
++	return vcon_getch(&dp0);
 +}
 +
 +static int obp_nbputchar(int ch) {
-+	extern struct vconterm dp0;
-+	char buf = ch;
-+
-+	/* We do not use printk() in order to reduce stack depth. */
-+	vcon_write(&dp0, &buf, 1);
++	printk("%c", ch);
 +	return 0;
 +}
 +
@@ -1424,23 +1490,449 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch4/qemu/openprom.c
 +}
 +
 +static int obp_devopen(char *str) {
-+        //printk("open %s\n", str);
++#ifdef DEBUG_OBP
++        printk("open %s\n", str);
++#endif
 +	return 0;
 +}
 +
 +static int obp_devclose(int dev_desc) {
-+        //printk("close %d\n", dev_desc);
++#ifdef DEBUG_OBP
++        printk("close %d\n", dev_desc);
++#endif
 +	return 0;
 +}
 +
 +static int obp_rdblkdev(int dev_desc, int num_blks, int blk_st, char *buf) {
-+    //printk("rdblkdev: fd %d, num_blks %d, blk_st %d, buf 0x%x\n", dev_desc, num_blks, blk_st, buf);
++#ifdef DEBUG_OBP
++    printk("rdblkdev: fd %d, num_blks %d, blk_st %d, buf 0x%x\n", dev_desc, num_blks, blk_st, buf);
++#endif
 +    //buf[8] = 'L';
 +    return num_blks;
 +}
-diff -ruN proll_18.orig/src/arp.c proll-patch4/src/arp.c
+diff -ruN proll_18.orig/qemu/system_qemu.c proll-patch7/qemu/system_qemu.c
+--- proll_18.orig/qemu/system_qemu.c	1970-01-01 00:00:00.000000000 +0000
++++ proll-patch7/qemu/system_qemu.c	2005-03-02 16:10:20.000000000 +0000
+@@ -0,0 +1,416 @@
++/**
++ ** Proll (PROM replacement)
++ ** system.c: shared miscallenea.
++ ** Copyright 1999 Pete Zaitcev
++ ** This code is licensed under GNU General Public License.
++ **/
++#include <stdarg.h>
++#include <asi.h>
++#include <crs.h>
++#ifndef NULL
++#define	NULL ((void*)0)
++#endif
++
++#include "pgtsrmmu.h"
++
++#include "vconsole.h"
++#include <timer.h>		/* Local copy of 2.2 style include */
++#include <general.h>		/* __P() */
++#include <net.h>		/* init_net() */
++#include <romlib.h>		/* we are a provider for part of this. */
++#include <netpriv.h>		/* myipaddr */
++#include <arpa.h>
++#include <system.h>		/* our own prototypes */
++
++/*
++ * We export this.
++ */
++char idprom[IDPROM_SIZE];
++
++
++/*
++ * Create an I/O mapping to pa[size].
++ * Returns va of the mapping or 0 if unsuccessful.
++ */
++void *
++map_io(unsigned pa, int size)
++{
++	void *va;
++	unsigned int npages;
++	unsigned int off;
++	unsigned int mva;
++
++	off = pa & (PAGE_SIZE-1);
++	npages = (off + size + (PAGE_SIZE-1)) / PAGE_SIZE;
++	pa &= ~(PAGE_SIZE-1);
++
++	va = mem_alloc(&cio, npages*PAGE_SIZE, PAGE_SIZE);
++	if (va == 0) return va;
++
++	mva = (unsigned int) va;
++    /* printk("map_io: va 0x%x pa 0x%x off 0x%x npages %d\n", va, pa, off, npages); */ /* P3 */
++	while (npages-- != 0) {
++		map_page(pmem.pl1, mva, pa, 1, pmem.pbas);
++		mva += PAGE_SIZE;
++		pa += PAGE_SIZE;
++	}
++
++	return (void *)((unsigned int)va + off);
++}
++
++/*
++ * Tablewalk routine used for testing.
++ * Returns PTP/PTE.
++ */
++unsigned int
++proc_tablewalk(int ctx, unsigned int va)
++{
++	unsigned int pa1;
++
++	__asm__ __volatile__ ("lda [%1] %2, %0" :
++				"=r" (pa1) :
++				"r" (AC_M_CTPR), "i" (ASI_M_MMUREGS));
++	/* printk(" ctpr %x ctx %x\n", pa1, ctx); */ /* P3 */
++	pa1 <<= 4;
++	pa1 = ld_bypass(pa1 + (ctx << 2));
++	if ((pa1 & 0x03) == 0) goto invalid;
++	return mem_tablewalk((pa1 & 0xFFFFFFF0) << 4, va);
++
++invalid:
++	printk(" invalid %x\n", pa1);
++	return 0;
++}
++
++/*
++ * Walk the tables in memory, starting at physical address pa.
++ */
++unsigned int
++mem_tablewalk(unsigned int pa, unsigned int va)
++{
++	unsigned int pa1;
++
++	printk("pa %x va %x", pa, va);
++	pa1 = ld_bypass(pa + (((va&0xFF000000)>>24) << 2));
++	if ((pa1 & 0x03) == 0) goto invalid;
++	printk(" l1 %x", pa1);
++	pa1 <<= 4;    pa1 &= 0xFFFFFF00;
++	pa1 = ld_bypass(pa1 + (((va&0x00FC0000)>>18) << 2));
++	if ((pa1 & 0x03) == 0) goto invalid;
++	printk(" l2 %x", pa1);
++	pa1 <<= 4;    pa1 &= 0xFFFFFF00;
++	pa1 = ld_bypass(pa1 + (((va&0x0003F000)>>12) << 2));
++	if ((pa1 & 0x03) == 0) goto invalid;
++	printk(" l3 %x", pa1);
++	printk(" off %x\n", va&0x00000FFF);
++	return pa1;
++invalid:
++	printk(" invalid %x\n", pa1);
++	return 0;
++}
++
++/*
++ * Make CPU page tables.
++ * Returns pointer to context table.
++ * Here we ignore memory allocation errors which "should not happen"
++ * because we cannot print anything anyways if memory initialization fails.
++ */
++void makepages(struct phym *t, unsigned int highbase)
++{
++	unsigned int *ctp, *l1, pte;
++	int i;
++	unsigned int pa, va;
++
++	ctp = mem_zalloc(&cmem, NCTX_SWIFT*sizeof(int), NCTX_SWIFT*sizeof(int));
++	l1 = mem_zalloc(&cmem, 256*sizeof(int), 256*sizeof(int));
++
++	pte = SRMMU_ET_PTD | (((unsigned int)l1 - PROLBASE + highbase) >> 4);
++	for (i = 0; i < NCTX_SWIFT; i++) {
++		ctp[i] = pte;
++	}
++
++	pa = PROLBASE;
++	for (va = PROLBASE; va < PROLDATA; va += PAGE_SIZE) {
++	        map_page(l1, va, pa, 0, highbase);
++		pa += PAGE_SIZE;
++	}
++	pa = highbase + PROLDATA - PROLBASE;
++	for (va = PROLDATA; va < PROLBASE + PROLSIZE; va += PAGE_SIZE) {
++		map_page(l1, va, pa, 0, highbase);
++		pa += PAGE_SIZE;
++	}
++
++	/* We need to start from LOADBASE, but kernel wants PAGE_SIZE. */
++	pa = 0;
++	for (va = 0; va < LOWMEMSZ; va += PAGE_SIZE) {
++		map_page(l1, va, pa, 0, highbase);
++		pa += PAGE_SIZE;
++	}
++
++	t->pctp = ctp;
++	t->pl1 = l1;
++	t->pbas = highbase;
++}
++
++/*
++ * Create a memory mapping from va to epa in page table pgd.
++ * highbase is used for v2p translation.
++ */
++int
++map_page(unsigned int *pgd, unsigned int va,
++    unsigned int epa, int type, unsigned int highbase)
++{
++	unsigned int pte;
++	unsigned int *p;
++	unsigned int pa;
++
++	pte = pgd[((va)>>SRMMU_PGDIR_SHIFT) & (SRMMU_PTRS_PER_PGD-1)];
++	if ((pte & SRMMU_ET_MASK) == SRMMU_ET_INVALID) {
++		p = mem_zalloc(&cmem, SRMMU_PTRS_PER_PMD*sizeof(int),
++		    SRMMU_PTRS_PER_PMD*sizeof(int));
++		if (p == 0) goto drop;
++		pte = SRMMU_ET_PTD |
++		    (((unsigned int)p - PROLBASE + highbase) >> 4);
++		pgd[((va)>>SRMMU_PGDIR_SHIFT) & (SRMMU_PTRS_PER_PGD-1)] = pte;
++		/* barrier() */
++	}
++
++	pa = ((pte & 0xFFFFFFF0) << 4);
++	pa += (((va)>>SRMMU_PMD_SHIFT & (SRMMU_PTRS_PER_PMD-1)) << 2);
++	pte = ld_bypass(pa);
++	if ((pte & SRMMU_ET_MASK) == SRMMU_ET_INVALID) {
++		p = mem_zalloc(&cmem, SRMMU_PTRS_PER_PTE*sizeof(int),
++		    SRMMU_PTRS_PER_PTE*sizeof(int));
++		if (p == 0) goto drop;
++		pte = SRMMU_ET_PTD |
++		    (((unsigned int)p - PROLBASE + highbase) >> 4);
++		st_bypass(pa, pte);
++	}
++
++	pa = ((pte & 0xFFFFFFF0) << 4);
++	pa += (((va)>>PAGE_SHIFT & (SRMMU_PTRS_PER_PTE-1)) << 2);
++
++	pte = SRMMU_ET_PTE | ((epa & PAGE_MASK) >> 4);
++	if (type) {		/* I/O */
++		pte |= SRMMU_REF;
++		/* SRMMU cannot make Supervisor-only, but not exectutable */
++		pte |= SRMMU_PRIV;
++	} else {		/* memory */
++		pte |= SRMMU_REF|SRMMU_CACHE;
++		pte |= SRMMU_PRIV;		/* Supervisor only access */
++	}
++	st_bypass(pa, pte);
++	return 0;
++
++drop:
++	return -1;
++}
++
++/*
++ * Switch page tables.
++ */
++void
++init_mmu_swift(unsigned int ctp_phy)
++{
++	unsigned int addr;
++
++	/*
++	 * Flush cache
++	 */
++	for (addr = 0; addr < 0x2000; addr += 0x10) {
++		__asm__ __volatile__ ("sta %%g0, [%0] %1\n\t" : :
++		    "r" (addr), "i" (ASI_M_DATAC_TAG));
++		__asm__ __volatile__ ("sta %%g0, [%0] %1\n\t" : :
++		    "r" (addr<<1), "i" (ASI_M_TXTC_TAG));
++	}
++
++	/*
++	 * Switch ctx table
++	 */
++	ctp_phy >>= 4;
++	/* printk("done flushing, switching to %x\n", ctp_phy); */
++	__asm__ __volatile__ ("sta %0, [%1] %2\n\t" : :
++	    "r" (ctp_phy), "r" (AC_M_CTPR), "i" (ASI_M_MMUREGS));
++
++	/*
++	 * Flush old page table references
++	 */
++	__asm__ __volatile__ ("sta %%g0, [%0] %1\n\t" : :
++	    "r" (0x400), "i" (ASI_M_FLUSH_PROBE) : "memory");
++}
++
++/*
++ * add_timer, del_timer
++ * This should go into sched.c, but we have it split for different archs.
++ */
++struct timer_list_head {
++	struct timer_list *head, *tail;
++};
++
++static struct timer_list_head timers;		/* Anonymous heap of timers */
++
++void add_timer(struct timer_list *timer) {
++	struct timer_list *p;
++	if (timer->prev != NULL || timer->next != NULL) {
++		printk("bug: kernel timer added twice at 0x%x.\n",
++		    __builtin_return_address(0));
++		return;
++	}
++	if ((p = timers.tail) != NULL) {
++		timer->prev = p;
++		p->next = timer;
++		timers.tail = timer;
++	} else {
++		timers.head = timer;
++		timers.tail = timer;
++	}
++	return;
++}
++
++int del_timer(struct timer_list *timer) {
++	struct timer_list *p;
++	int ret;
++
++	if (timers.head == timer) timers.head = timer->next;
++	if (timers.tail == timer) timers.tail = timer->prev;
++	if ((p = timer->prev) != NULL) p->next = timer->next;
++	if ((p = timer->next) != NULL) p->prev = timer->prev;
++	ret = timer->next != 0 || timer->prev != 0;
++	timer->next = NULL;
++	timer->prev = NULL;
++	return ret;
++}
++
++void run_timers() {
++	struct timer_list *p;
++
++	p = timers.head;
++	while (p != NULL) {
++		if (p->expires < jiffies) {
++			del_timer(p);		/* XXX make nonstatic member */
++			(*p->function)(p->data);
++			p = timers.head;
++		} else {
++			p = p->next;
++		}
++	}
++}
++
++/*
++ * Allocate memory. This is reusable.
++ */
++void mem_init(struct mem *t, char *begin, char *limit)
++{
++	t->start = begin;
++	t->uplim = limit;
++	t->curp = begin;
++}
++
++void mem_fini(struct mem *t)
++{
++	t->curp = 0;
++}
++
++void *mem_alloc(struct mem *t, int size, int align)
++{
++	char *p;
++
++	p = (char *)((((unsigned int)t->curp) + (align-1)) & ~(align-1));
++	if (p >= t->uplim || p + size > t->uplim) return 0;
++	t->curp = p + size;
++	return p;
++}
++
++void *mem_zalloc(struct mem *t, int size, int align)
++{
++	char *p;
++
++	if ((p = mem_alloc(t, size, align)) != 0) bzero(p, size);
++	return p;
++}
++
++/*
++ * Library functions
++ */
++void bzero(void *s, int len) {
++	while (len--) *((char *)s)++ = 0;
++}
++
++void bcopy(const void *f, void *t, int len) {
++	while (len--) *((char *)t)++ = *((char *)f)++;
++}
++
++/* Comparison is 7-bit */
++int bcmp(const void *s1, const void *s2, int len)
++{
++	int i;
++	char ch;
++
++	while (len--) {
++		ch = *((char *)s1)++;
++		if ((i = ch - *((char *)s2)++) != 0)
++			return i;
++		if (ch == 0)
++			return 0;
++	}
++	return 0;
++}
++
++int strlen(const char *s) {
++	const char *p;
++	for (p = s; *p != 0; p++) { }
++	return p - s;
++}
++
++extern void *printk_fn;
++
++void printk(char *fmt, ...)
++{
++	struct prf_fp {
++		void *xfp;
++		void (*write)(void *, char *, int);
++	} prfa;
++	extern void prf(struct prf_fp *, char *fmt, va_list adx);
++	va_list x1;
++
++	va_start(x1, fmt);
++	prfa.xfp = &dp0;
++	prfa.write = printk_fn;
++	prf(&prfa, fmt, x1);
++	va_end(x1);
++}
++
++void fatal()
++{
++	printk("fatal.");
++loop: goto loop;
++}
++
++/*
++ * Get the highest bit number from the mask.
++ */
++int highc(int mask, int size)
++{
++	int m1;
++
++	m1 = 1 << size;
++	while (size != 0) {
++		size--;
++		m1 >>= 1;
++		if (m1 & mask) break;
++	}
++	return size;
++}
++
++/*
++ */
++unsigned int ld_bp_swap(unsigned int ptr) {
++	unsigned int n;
++	n = ld_bypass(ptr);
++	n = (n>>24 & 0xFF) | (n>>8 & 0xFF00) | ((n&0xFF00) << 8) | (n<<24);
++	return n;
++}
++
++void st_bp_swap(unsigned int ptr, unsigned int n) {
++	n = (n>>24 & 0xFF) | (n>>8 & 0xFF00) | ((n&0xFF00) << 8) | (n<<24);
++	st_bypass(ptr, n);
++};
+diff -ruN proll_18.orig/src/arp.c proll-patch7/src/arp.c
 --- proll_18.orig/src/arp.c	2001-12-24 05:12:31.000000000 +0000
-+++ proll-patch4/src/arp.c	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch7/src/arp.c	2004-11-13 15:50:49.000000000 +0000
 @@ -45,7 +45,7 @@
  #endif
  static struct arp_cache arp_list[ARPNUM];	/* ARP address cache	*/
@@ -1475,9 +1967,9 @@ diff -ruN proll_18.orig/src/arp.c proll-patch4/src/arp.c
 +  def_gw = IP_ANY;
    return(TRUE);
  }
-diff -ruN proll_18.orig/src/arp.h proll-patch4/src/arp.h
+diff -ruN proll_18.orig/src/arp.h proll-patch7/src/arp.h
 --- proll_18.orig/src/arp.h	1999-03-18 03:39:43.000000000 +0000
-+++ proll-patch4/src/arp.h	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch7/src/arp.h	2004-11-13 15:50:49.000000000 +0000
 @@ -104,7 +104,7 @@
  extern int init_arp __P((void));
  
@@ -1487,24 +1979,35 @@ diff -ruN proll_18.orig/src/arp.h proll-patch4/src/arp.h
  
  /* Add a new antry to the ARP cache */
  extern void addcache __P((unsigned char *ha, t_ipaddr ip));
-diff -ruN proll_18.orig/src/hconsole.c proll-patch4/src/hconsole.c
+diff -ruN proll_18.orig/src/hconsole.c proll-patch7/src/hconsole.c
 --- proll_18.orig/src/hconsole.c	2002-07-23 05:52:48.000000000 +0000
-+++ proll-patch4/src/hconsole.c	2004-11-13 15:50:49.000000000 +0000
-@@ -42,7 +42,11 @@
++++ proll-patch7/src/hconsole.c	2005-03-02 17:03:09.000000000 +0000
+@@ -29,6 +29,10 @@
+        struct raster r_master;	/* For a case of resize, whole fb */
+        struct raster r_0;	/* malloc() erzatz */
+ 
++#ifdef QEMU
++extern unsigned int q_height, q_width;
++#endif
++
+ int hcon_init(struct hconsole *t, unsigned int a0)
+ {
+ 	struct raster *q, *r;
+@@ -42,7 +46,11 @@
   	 * No probing sequence or argument passing, hardcode everything. XXX
  	 */
  	raster8_cons_a(q, 768, 1024, (char *)a0);
-+#if 1
++#ifndef QEMU
  	raster_cons_2(r, q, 768-(24*11)-1, 1024-(8*80)-1, (24*11), (8*80));
 +#else
-+	raster_cons_2(r, q, 0, 0, 768, 1024);
++	raster_cons_2(r, q, 0, 0, q_height, q_width);
 +#endif
  	t->r_ = r;
  	t->r0_ = q;
  	t->f_ = &f_master;
-diff -ruN proll_18.orig/src/lat7_2.bm proll-patch4/src/lat7_2.bm
+diff -ruN proll_18.orig/src/lat7_2.bm proll-patch7/src/lat7_2.bm
 --- proll_18.orig/src/lat7_2.bm	1999-02-27 05:48:54.000000000 +0000
-+++ proll-patch4/src/lat7_2.bm	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch7/src/lat7_2.bm	2004-11-13 15:50:49.000000000 +0000
 @@ -1,6 +1,6 @@
  #define lat7_2_width 128
  #define lat7_2_height 88
@@ -1513,9 +2016,9 @@ diff -ruN proll_18.orig/src/lat7_2.bm proll-patch4/src/lat7_2.bm
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0xaa, 0x12, 0x1e, 0x0c, 0x02, 0x70, 0x18,
     0x22, 0x22, 0x18, 0x00, 0x00, 0x18, 0x18, 0xff, 0x18, 0x00, 0x12, 0x02,
-diff -ruN proll_18.orig/src/lat7_2_swapped.bm proll-patch4/src/lat7_2_swapped.bm
+diff -ruN proll_18.orig/src/lat7_2_swapped.bm proll-patch7/src/lat7_2_swapped.bm
 --- proll_18.orig/src/lat7_2_swapped.bm	1970-01-01 00:00:00.000000000 +0000
-+++ proll-patch4/src/lat7_2_swapped.bm	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch7/src/lat7_2_swapped.bm	2004-11-13 15:50:49.000000000 +0000
 @@ -0,0 +1,121 @@
 +#define lat7_2_width 128
 +#define lat7_2_height 88
@@ -1638,9 +2141,9 @@ diff -ruN proll_18.orig/src/lat7_2_swapped.bm proll-patch4/src/lat7_2_swapped.bm
 +   0x18, 0x18, 0x30, 0x00, 0x00, 0x00, 0x00, 0x36, 0x6c, 0x00, 0x00, 0x00, 
 +   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7e, 0x42, 0x00, 0x00, 0x00, 0x00, 
 +   0x00, 0x00, 0x00, 0x00};
-diff -ruN proll_18.orig/src/le.c proll-patch4/src/le.c
+diff -ruN proll_18.orig/src/le.c proll-patch7/src/le.c
 --- proll_18.orig/src/le.c	2002-07-23 05:52:49.000000000 +0000
-+++ proll-patch4/src/le.c	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch7/src/le.c	2004-11-13 15:50:49.000000000 +0000
 @@ -185,8 +185,6 @@
  	unsigned short rap;			/* register address port */
  };
@@ -1650,9 +2153,9 @@ diff -ruN proll_18.orig/src/le.c proll-patch4/src/le.c
  /* The Lance uses 24 bit addresses */
  /* On the Sun4c the DVMA will provide the remaining bytes for us */
  /* On the Sun4m we have to instruct the ledma to provide them    */
-diff -ruN proll_18.orig/src/netinit.c proll-patch4/src/netinit.c
+diff -ruN proll_18.orig/src/netinit.c proll-patch7/src/netinit.c
 --- proll_18.orig/src/netinit.c	2002-09-13 21:53:33.000000000 +0000
-+++ proll-patch4/src/netinit.c	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch7/src/netinit.c	2004-11-13 15:50:49.000000000 +0000
 @@ -49,13 +49,20 @@
  unsigned char     myhwaddr[ETH_ALEN];		/* my own hardware addr	*/
           t_ipaddr myipaddr;			/* my own IP address	*/
@@ -1696,9 +2199,9 @@ diff -ruN proll_18.orig/src/netinit.c proll-patch4/src/netinit.c
  	fatal();
    }
  }
-diff -ruN proll_18.orig/src/netpriv.h proll-patch4/src/netpriv.h
+diff -ruN proll_18.orig/src/netpriv.h proll-patch7/src/netpriv.h
 --- proll_18.orig/src/netpriv.h	1999-04-27 05:39:37.000000000 +0000
-+++ proll-patch4/src/netpriv.h	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch7/src/netpriv.h	2004-11-13 15:50:49.000000000 +0000
 @@ -130,10 +130,9 @@
   *
   */
@@ -1720,9 +2223,9 @@ diff -ruN proll_18.orig/src/netpriv.h proll-patch4/src/netpriv.h
  
  /* Empty read buffer */
  extern void empty_buf __P((void));
-diff -ruN proll_18.orig/src/openprom.h proll-patch4/src/openprom.h
+diff -ruN proll_18.orig/src/openprom.h proll-patch7/src/openprom.h
 --- proll_18.orig/src/openprom.h	2002-07-14 02:26:30.000000000 +0000
-+++ proll-patch4/src/openprom.h	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch7/src/openprom.h	2004-11-13 15:50:49.000000000 +0000
 @@ -54,20 +54,20 @@
  };
  
@@ -1784,9 +2287,9 @@ diff -ruN proll_18.orig/src/openprom.h proll-patch4/src/openprom.h
  };
  
  /* More fun PROM structures for device probing. */
-diff -ruN proll_18.orig/src/packet.c proll-patch4/src/packet.c
+diff -ruN proll_18.orig/src/packet.c proll-patch7/src/packet.c
 --- proll_18.orig/src/packet.c	2000-02-11 04:56:45.000000000 +0000
-+++ proll-patch4/src/packet.c	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch7/src/packet.c	2004-11-13 15:50:49.000000000 +0000
 @@ -41,7 +41,7 @@
  	int aligner;
  } wbuf;
@@ -1814,9 +2317,9 @@ diff -ruN proll_18.orig/src/packet.c proll-patch4/src/packet.c
  {
  	struct sk_buff *skb;
  	unsigned char *s;
-diff -ruN proll_18.orig/src/printf.c proll-patch4/src/printf.c
+diff -ruN proll_18.orig/src/printf.c proll-patch7/src/printf.c
 --- proll_18.orig/src/printf.c	1999-03-19 07:03:59.000000000 +0000
-+++ proll-patch4/src/printf.c	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch7/src/printf.c	2004-11-13 15:50:49.000000000 +0000
 @@ -19,7 +19,7 @@
  static void printn(struct prf_fp *, unsigned long, unsigned int);
  static void putchar(char, struct prf_fp *);
@@ -1844,9 +2347,9 @@ diff -ruN proll_18.orig/src/printf.c proll-patch4/src/printf.c
                          	putchar(c,filog);
         		} else if (c == 'l' || c == 'O') {
          	        printn(filog, (long)va_arg(adx,long), c=='l'?10:8);
-diff -ruN proll_18.orig/src/rconsole.c proll-patch4/src/rconsole.c
+diff -ruN proll_18.orig/src/rconsole.c proll-patch7/src/rconsole.c
 --- proll_18.orig/src/rconsole.c	1999-01-16 07:16:55.000000000 +0000
-+++ proll-patch4/src/rconsole.c	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch7/src/rconsole.c	2004-11-13 15:50:49.000000000 +0000
 @@ -28,12 +28,18 @@
   * move to California. Only plain lat7 survived. 
   * I recreated lat7-1 changes in lat7-2.  --zaitcev
@@ -1901,9 +2404,9 @@ diff -ruN proll_18.orig/src/rconsole.c proll-patch4/src/rconsole.c
    p->nchars_ = LAT7_NCHARS;
    p->width_ = LAT7_WIDTH;
    p->height_ = LAT7_HEIGHT;
-diff -ruN proll_18.orig/src/rconsole.h proll-patch4/src/rconsole.h
+diff -ruN proll_18.orig/src/rconsole.h proll-patch7/src/rconsole.h
 --- proll_18.orig/src/rconsole.h	1999-01-16 05:00:59.000000000 +0000
-+++ proll-patch4/src/rconsole.h	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch7/src/rconsole.h	2004-11-13 15:50:49.000000000 +0000
 @@ -13,10 +13,10 @@
   */
  
@@ -1917,9 +2420,9 @@ diff -ruN proll_18.orig/src/rconsole.h proll-patch4/src/rconsole.h
    int nchars_;                 /* 128 for ASCII ...  65536 for Unicode   */
    int width_;                  /* [Pixels]. Maximum size is 16.          */
    int height_;                 /* [Pixels == scan lines].                */
-diff -ruN proll_18.orig/src/romlib.h proll-patch4/src/romlib.h
+diff -ruN proll_18.orig/src/romlib.h proll-patch7/src/romlib.h
 --- proll_18.orig/src/romlib.h	1999-04-20 04:26:45.000000000 +0000
-+++ proll-patch4/src/romlib.h	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch7/src/romlib.h	2004-11-13 15:50:49.000000000 +0000
 @@ -73,12 +73,12 @@
  #define memcpy(dst, src, len)	bcopy(src, dst, len)
  #define memcmp(x1, x2, len)	bcmp(x1, x2, len)
@@ -1936,9 +2439,9 @@ diff -ruN proll_18.orig/src/romlib.h proll-patch4/src/romlib.h
  
  
  /*
-diff -ruN proll_18.orig/src/sched_4m.c proll-patch4/src/sched_4m.c
+diff -ruN proll_18.orig/src/sched_4m.c proll-patch7/src/sched_4m.c
 --- proll_18.orig/src/sched_4m.c	1999-04-27 05:48:51.000000000 +0000
-+++ proll-patch4/src/sched_4m.c	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch7/src/sched_4m.c	2004-11-13 15:50:49.000000000 +0000
 @@ -108,7 +108,7 @@
  static int set_bolt;			/* Tick counter limit */
  static struct handsc hndv[16];
@@ -1948,9 +2451,9 @@ diff -ruN proll_18.orig/src/sched_4m.c proll-patch4/src/sched_4m.c
  	0,	0,	0,	0,	0,	0, SUN4M_INT_ETHERNET,	0,
  	0,	0,	0,	0,	0,	0,	0,	0,
  };
-diff -ruN proll_18.orig/src/swap.c proll-patch4/src/swap.c
+diff -ruN proll_18.orig/src/swap.c proll-patch7/src/swap.c
 --- proll_18.orig/src/swap.c	1970-01-01 00:00:00.000000000 +0000
-+++ proll-patch4/src/swap.c	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch7/src/swap.c	2004-11-13 15:50:49.000000000 +0000
 @@ -0,0 +1,21 @@
 +// Convert the lat7 font so that no conversion is needed at runtime.
 +#define ORIG
@@ -1973,9 +2476,9 @@ diff -ruN proll_18.orig/src/swap.c proll-patch4/src/swap.c
 +    }
 +    printf("\n");
 +}
-diff -ruN proll_18.orig/src/system.c proll-patch4/src/system.c
+diff -ruN proll_18.orig/src/system.c proll-patch7/src/system.c
 --- proll_18.orig/src/system.c	2002-07-23 05:52:49.000000000 +0000
-+++ proll-patch4/src/system.c	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch7/src/system.c	2004-11-13 15:50:49.000000000 +0000
 @@ -298,8 +298,8 @@
  	}
  
@@ -2028,9 +2531,9 @@ diff -ruN proll_18.orig/src/system.c proll-patch4/src/system.c
  void fatal()
  {
  	printk("fatal.");
-diff -ruN proll_18.orig/src/system.h proll-patch4/src/system.h
+diff -ruN proll_18.orig/src/system.h proll-patch7/src/system.h
 --- proll_18.orig/src/system.h	2002-09-13 21:53:32.000000000 +0000
-+++ proll-patch4/src/system.h	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch7/src/system.h	2004-11-13 15:50:49.000000000 +0000
 @@ -16,7 +16,7 @@
  #define IOMAPSIZE (1*1024*1024) /* 1 Meg maximum: we do not map framebuffer. */
  #define NCTX_SWIFT  0x100
@@ -2040,9 +2543,9 @@ diff -ruN proll_18.orig/src/system.h proll-patch4/src/system.h
  
  #ifndef __ASSEMBLY__
  struct bank {
-diff -ruN proll_18.orig/src/udp.c proll-patch4/src/udp.c
+diff -ruN proll_18.orig/src/udp.c proll-patch7/src/udp.c
 --- proll_18.orig/src/udp.c	2001-12-24 05:12:53.000000000 +0000
-+++ proll-patch4/src/udp.c	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch7/src/udp.c	2004-11-13 15:50:49.000000000 +0000
 @@ -81,7 +81,7 @@
  int      source;
  int      dest;
@@ -2062,3 +2565,263 @@ diff -ruN proll_18.orig/src/udp.c proll-patch4/src/udp.c
    /* Register IP packet type and set write buffer pointer */
    if ((writebuf = reg_type(htons(ETH_P_IP), ip_recv)) == NULL)
  	return(FALSE);
+diff -ruN proll_18.orig/src/vcons_zs.c proll-patch7/src/vcons_zs.c
+--- proll_18.orig/src/vcons_zs.c	1970-01-01 00:00:00.000000000 +0000
++++ proll-patch7/src/vcons_zs.c	2005-03-02 12:07:41.000000000 +0000
+@@ -0,0 +1,68 @@
++/**
++ ** Console over 'zs' (Zilog serial port)
++ ** Copyright 1999 Pete Zaitcev
++ ** This code is licensed under GNU General Public License.
++ **/
++
++#include "vconsole.h"
++#include <system.h>
++
++#define ZS_DATA 0x02
++
++int vcon_zs_init(struct vconterm *t, unsigned int a0)
++{
++
++	t->impl = (void *) a0;
++
++	t->vc_x = 0;    t->vc_y = 0;
++	t->backp = 0;    t->backc = 0;
++
++	stb_bypass(a0, 3); // reg 3
++	stb_bypass(a0, 1); // enable rx
++
++	stb_bypass(a0, 5); // reg 5
++	stb_bypass(a0, 8); // enable tx
++
++	return 0;
++}
++
++int vcon_zs_putch(struct vconterm *t, char c)
++{
++	unsigned zs_ptr = (unsigned) t->impl;
++
++	//while ((ldb_bypass(zs_ptr + ZS_LSR) & 0x60) != 0x60) { }
++	stb_bypass(zs_ptr + ZS_DATA, c);
++	return 0;
++}
++
++int vcon_zs_write(struct vconterm *t, char *data, int leng)
++{
++	while (leng != 0) {
++		leng--;
++		vcon_zs_putch(t, *data++);
++	}
++	return leng;
++}
++
++int vcon_zs_read(struct vconterm *t, char *data, int leng)
++{
++	unsigned zs_ptr = (unsigned) t->impl;
++
++	while ((ldb_bypass(zs_ptr) & 1) != 1) { }
++	*data = ldb_bypass(zs_ptr + ZS_DATA);
++	return 0;
++}
++
++int vcon_zs_getch(struct vconterm *t)
++{
++	unsigned zs_ptr = (unsigned) t->impl;
++
++	while ((ldb_bypass(zs_ptr) & 1) != 1) { }
++	return ldb_bypass(zs_ptr + ZS_DATA);
++}
++
++void vcon_zs_fini(struct vconterm *t)
++{
++	/* violent crash in the end */
++	;
++}
+diff -ruN proll_18.orig/src/vconsole.c proll-patch7/src/vconsole.c
+--- proll_18.orig/src/vconsole.c	1999-11-08 03:10:28.000000000 +0000
++++ proll-patch7/src/vconsole.c	2005-03-02 14:29:05.000000000 +0000
+@@ -13,6 +13,10 @@
+ 
+ struct hconsole hcons0;
+ 
++enum { ESnormal, ESesc, ESsquare, ESgetpars, ESgotpars, ESfunckey,
++	EShash, ESsetG0, ESsetG1, ESpercent, ESignore, ESnonstd,
++	ESpalette };
++
+ int vcon_init(struct vconterm *t, unsigned int a0)
+ {
+ 	struct hconsole *hconp;
+@@ -25,11 +29,49 @@
+ 
+ 	t->vc_x = 0;    t->vc_y = 0;
+ 	t->backp = 0;    t->backc = 0;
++	t->vc_state = ESnormal;
+ 
+ 	hcon_clear(hconp, 0, 0, hconp->ydim_, hconp->xdim_);
+ 	return 0;
+ }
+ 
++/*
++ * gotoxy() must verify all boundaries, because the arguments
++ * might also be negative. If the given position is out of
++ * bounds, the cursor is placed at the nearest margin.
++ */
++static void gotoxy(struct vconterm *vc, int new_x, int new_y)
++{
++	int max_x, max_y;
++	struct hconsole *hconp = vc->impl;
++
++	max_x = hcon_qxdim(hconp);
++	max_y = hcon_qydim(hconp);
++
++	if (new_x < 0)
++		vc->vc_x = 0;
++	else {
++		if (new_x >= max_x)
++			vc->vc_x = max_x - 1;
++		else
++			vc->vc_x = new_x;
++	}
++
++	if (new_y < 0)
++		vc->vc_y = 0;
++	else if (new_y >= max_y)
++		vc->vc_y = max_y - 1;
++	else
++		vc->vc_y = new_y;
++
++}
++
++/* for absolute user moves, when decom is set */
++static void gotoxay(struct vconterm *t, int new_x, int new_y)
++{
++	gotoxy(t, new_x, new_y);
++}
++
+ int vcon_write(struct vconterm *t, char *data, int leng)
+ {
+ 	int l = leng;
+@@ -40,29 +82,84 @@
+ 		if (l <= 0) break;
+ 		c = *data++;    --l;
+ 
+-		switch (c) {
+-		case 0x07:		/* Bell */
+-			vcon_i_backflush(t);
+-			break;
+-		case 0x0A:		/* Linefeed */
+-			vcon_i_backflush(t);
+-			vcon_i_cursfeed(t);
++		switch(t->vc_state) {
++		case ESesc:
++			t->vc_state = ESnormal;
++			switch (c) {
++			case '[':
++				t->vc_state = ESsquare;
++				break;
++			case 'M':
++				hcon_scroll(hconp, 0, hcon_qydim(hconp), SM_UP, 1);
++				break;
++			}
+ 			break;
+-		case 0x0D:		/* Return */
+-			vcon_i_backflush(t);
+-			t->vc_x = 0;
++		case ESsquare:
++			for(t->vc_npar = 0 ; t->vc_npar < NPAR ; t->vc_npar++)
++				t->vc_par[t->vc_npar] = 0;
++			t->vc_npar = 0;
++			t->vc_state = ESgetpars;
++		case ESgetpars:
++			if (c==';' && t->vc_npar<NPAR-1) {
++				t->vc_npar++;
++				break;
++			} else if (c>='0' && c<='9') {
++				t->vc_par[t->vc_npar] *= 10;
++				t->vc_par[t->vc_npar] += c-'0';
++				break;
++			} else t->vc_state=ESgotpars;
++		case ESgotpars:
++			t->vc_state = ESnormal;
++			switch(c) {
++			case 'H': case 'f':
++				if (t->vc_par[0]) t->vc_par[0]--;
++				if (t->vc_par[1]) t->vc_par[1]--;
++				gotoxay(t, t->vc_par[1], t->vc_par[0]);
++				break;
++			case 'M':
++				hcon_scroll(hconp, 0, hcon_qydim(hconp), SM_UP, 1);
++				break;
++			}
+ 			break;
+ 		default:
+-			if (t->backp == 0) {
+-				t->backc = 1;
+-				t->backp = data-1;
+-			} else {
+-				t->backc++;
+-			}
+-			if (t->vc_x + t->backc >= hcon_qxdim(hconp)) {
++			t->vc_state = ESnormal;
++			switch (c) {
++			case 0x07:		/* Bell */
++				vcon_i_backflush(t);
++				break;
++			case 0x08:		/* BS */
++				vcon_i_backflush(t);
++				if (t->vc_x > 0)
++					t->vc_x--;
++				break;
++			case 0x0A:		/* Linefeed */
+ 				vcon_i_backflush(t);
+-				t->vc_x = 0;
+ 				vcon_i_cursfeed(t);
++				break;
++			case 0x0D:		/* Return */
++				vcon_i_backflush(t);
++				t->vc_x = 0;
++				break;
++			case 24: case 26:
++				vcon_i_backflush(t);
++				t->vc_state = ESnormal;
++				break;
++			case 27:
++				vcon_i_backflush(t);
++				t->vc_state = ESesc;
++				break;
++			default:
++				if (t->backp == 0) {
++					t->backc = 1;
++					t->backp = data-1;
++				} else {
++					t->backc++;
++				}
++				if (t->vc_x + t->backc >= hcon_qxdim(hconp)) {
++					vcon_i_backflush(t);
++					t->vc_x = 0;
++					vcon_i_cursfeed(t);
++				}
+ 			}
+ 		}
+ 	}
+diff -ruN proll_18.orig/src/vconsole.h proll-patch7/src/vconsole.h
+--- proll_18.orig/src/vconsole.h	1999-11-08 00:58:13.000000000 +0000
++++ proll-patch7/src/vconsole.h	2005-03-02 12:40:12.000000000 +0000
+@@ -6,6 +6,8 @@
+ #ifndef VCONSOLE_H
+ #define VCONSOLE_H
+ 
++#define NPAR 16
++
+ struct vconterm {
+ 	void *impl;
+ 
+@@ -13,6 +15,8 @@
+ 	int backc;		/* Same, count */
+ 
+ 	int vc_x, vc_y;		/* XXX Make vcon_xxx() to use cellmap->xpos_ */
++	int vc_state;
++	unsigned int	vc_npar,vc_par[NPAR];	/* Parameters of current escape sequence */
+ };
+ 
+ int vcon_init(struct vconterm *t, unsigned int a0);

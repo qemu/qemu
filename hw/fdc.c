@@ -94,21 +94,6 @@ typedef struct fdrive_t {
     uint8_t ro;               /* Is read-only           */
 } fdrive_t;
 
-#ifdef TARGET_SPARC
-/* XXX: suppress those hacks */
-#define DMA_read_memory(a,b,c,d)
-#define DMA_write_memory(a,b,c,d)
-void DMA_register_channel (int nchan,
-                           DMA_transfer_handler transfer_handler,
-                           void *opaque)
-{
-}
-#define DMA_hold_DREQ(a)
-#define DMA_release_DREQ(a)
-#define DMA_get_channel_mode(a) (0)
-#define DMA_schedule(a)
-#endif
-
 static void fd_init (fdrive_t *drv, BlockDriverState *bs)
 {
     /* Drive */
@@ -423,6 +408,12 @@ static uint32_t fdctrl_read (void *opaque, uint32_t reg)
     uint32_t retval;
 
     switch (reg & 0x07) {
+#ifdef TARGET_SPARC
+    case 0x00:
+	// Identify to Linux as S82078B
+	retval = fdctrl_read_statusB(fdctrl);
+	break;
+#endif
     case 0x01:
 	retval = fdctrl_read_statusB(fdctrl);
 	break;
@@ -577,6 +568,14 @@ static void fdctrl_reset_irq (fdctrl_t *fdctrl)
 
 static void fdctrl_raise_irq (fdctrl_t *fdctrl, uint8_t status)
 {
+#ifdef TARGET_SPARC
+    // Sparc mutation
+    if (!fdctrl->dma_en) {
+	fdctrl->state &= ~FD_CTRL_BUSY;
+	fdctrl->int_status = status;
+	return;
+    }
+#endif
     if (~(fdctrl->state & FD_CTRL_INTR)) {
         pic_set_irq(fdctrl->irq_lvl, 1);
         fdctrl->state |= FD_CTRL_INTR;
@@ -980,11 +979,11 @@ static int fdctrl_transfer_handler (void *opaque, int nchan,
         len = dma_len - fdctrl->data_pos;
         if (len + rel_pos > FD_SECTOR_LEN)
             len = FD_SECTOR_LEN - rel_pos;
-        FLOPPY_DPRINTF("copy %d bytes (%d %d %d) %d pos %d %02x %02x "
-                       "(%d-0x%08x 0x%08x)\n", len, size, fdctrl->data_pos,
+        FLOPPY_DPRINTF("copy %d bytes (%d %d %d) %d pos %d %02x "
+                       "(%d-0x%08x 0x%08x)\n", len, dma_len, fdctrl->data_pos,
                        fdctrl->data_len, fdctrl->cur_drv, cur_drv->head,
                        cur_drv->track, cur_drv->sect, fd_sector(cur_drv),
-                       fd_sector(cur_drv) * 512, addr);
+                       fd_sector(cur_drv) * 512);
         if (fdctrl->data_dir != FD_DIR_WRITE ||
 	    len < FD_SECTOR_LEN || rel_pos != 0) {
             /* READ & SCAN commands and realign to a sector for WRITE */
@@ -1045,7 +1044,7 @@ static int fdctrl_transfer_handler (void *opaque, int nchan,
 	    FLOPPY_DPRINTF("seek to next sector (%d %02x %02x => %d) (%d)\n",
 			   cur_drv->head, cur_drv->track, cur_drv->sect,
 			   fd_sector(cur_drv),
-			   fdctrl->data_pos - size);
+			   fdctrl->data_pos - len);
             /* XXX: cur_drv->sect >= cur_drv->last_sect should be an
                error in fact */
             if (cur_drv->sect >= cur_drv->last_sect ||

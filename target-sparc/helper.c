@@ -138,6 +138,7 @@ int get_physical_address (CPUState *env, target_phys_addr_t *physical, int *prot
     }
 
     *access_index = ((rw & 1) << 2) | (rw & 2) | (is_user? 0 : 1);
+    *physical = 0xfffff000;
 
     /* SPARC reference MMU table walk: Context table->L1->L2->PTE */
     /* Context base + context number */
@@ -210,7 +211,7 @@ int get_physical_address (CPUState *env, target_phys_addr_t *physical, int *prot
     /* check access */
     access_perms = (pde & PTE_ACCESS_MASK) >> PTE_ACCESS_SHIFT;
     error_code = access_table[*access_index][access_perms];
-    if (error_code)
+    if (error_code && !(env->mmuregs[0] & MMU_NF))
 	return error_code;
 
     /* the page can be put in the TLB */
@@ -225,7 +226,7 @@ int get_physical_address (CPUState *env, target_phys_addr_t *physical, int *prot
     /* Even if large ptes, we map only one 4KB page in the cache to
        avoid filling it too fast */
     *physical = ((pde & PTE_ADDR_MASK) << 4) + page_offset;
-    return 0;
+    return error_code;
 }
 
 /* Perform address translation */
@@ -251,17 +252,14 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
     env->mmuregs[4] = address; /* Fault address register */
 
     if ((env->mmuregs[0] & MMU_NF) || env->psret == 0)  {
-#if 0
-        // No fault
+        // No fault mode: if a mapping is available, just override
+        // permissions. If no mapping is available, redirect accesses to
+        // neverland. Fake/overridden mappings will be flushed when
+        // switching to normal mode.
 	vaddr = address & TARGET_PAGE_MASK;
-        paddr = 0xfffff000;
         prot = PAGE_READ | PAGE_WRITE;
         ret = tlb_set_page(env, vaddr, paddr, prot, is_user, is_softmmu);
 	return ret;
-#else
-        cpu_abort(env, "MMU no fault case no handled");
-        return 0;
-#endif
     } else {
         if (rw & 2)
             env->exception_index = TT_TFAULT;
@@ -316,8 +314,8 @@ void do_interrupt(int intno)
                 count, intno,
                 env->pc,
                 env->npc, env->regwptr[6]);
-#if 1
 	cpu_dump_state(env, logfile, fprintf, 0);
+#if 0
 	{
 	    int i;
 	    uint8_t *ptr;

@@ -1,7 +1,7 @@
 /*
- * QEMU Sun4m System Emulator
+ * QEMU TCX Frame buffer
  * 
- * Copyright (c) 2003-2004 Fabrice Bellard
+ * Copyright (c) 2003-2005 Fabrice Bellard
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,29 +25,16 @@
 
 #define MAXX 1024
 #define MAXY 768
-/*
- * Proll uses only small part of display, we need to switch to full
- * display when we get linux framebuffer console or X11 running. For
- * now it's just slower and awkward.
-*/
-#if 1
-#define XSZ (8*80)
-#define YSZ (24*11)
-#define XOFF (MAXX-XSZ)
-#define YOFF (MAXY-YSZ)
-#else
-#define XSZ MAXX
-#define YSZ MAXY
-#define XOFF 0
-#define YOFF 0
-#endif
+#define TCX_DAC_NREGS 16
 
 typedef struct TCXState {
     uint32_t addr;
     DisplayState *ds;
     uint8_t *vram;
     unsigned long vram_offset;
+    uint16_t width, height;
     uint8_t r[256], g[256], b[256];
+    uint8_t dac_index, dac_state;
 } TCXState;
 
 static void tcx_draw_line32(TCXState *s1, uint8_t *d, 
@@ -58,9 +45,9 @@ static void tcx_draw_line32(TCXState *s1, uint8_t *d,
 
     for(x = 0; x < width; x++) {
 	val = *s++;
-	*d++ = s1->r[val];
-	*d++ = s1->g[val];
 	*d++ = s1->b[val];
+	*d++ = s1->g[val];
+	*d++ = s1->r[val];
 	d++;
     }
 }
@@ -73,9 +60,9 @@ static void tcx_draw_line24(TCXState *s1, uint8_t *d,
 
     for(x = 0; x < width; x++) {
 	val = *s++;
-	*d++ = s1->r[val];
-	*d++ = s1->g[val];
 	*d++ = s1->b[val];
+	*d++ = s1->g[val];
+	*d++ = s1->r[val];
     }
 }
 
@@ -104,12 +91,12 @@ void tcx_update_display(void *opaque)
 
     if (ts->ds->depth == 0)
 	return;
-    page = ts->vram_offset + YOFF*MAXX;
+    page = ts->vram_offset;
     y_start = -1;
     page_min = 0x7fffffff;
     page_max = -1;
     d = ts->ds->data;
-    s = ts->vram + YOFF*MAXX + XOFF;
+    s = ts->vram;
     dd = ts->ds->linesize;
     ds = 1024;
 
@@ -128,7 +115,7 @@ void tcx_update_display(void *opaque)
 	return;
     }
     
-    for(y = 0; y < YSZ; y += 4, page += TARGET_PAGE_SIZE) {
+    for(y = 0; y < ts->height; y += 4, page += TARGET_PAGE_SIZE) {
 	if (cpu_physical_memory_get_dirty(page, VGA_DIRTY_FLAG)) {
 	    if (y_start < 0)
                 y_start = y;
@@ -136,23 +123,23 @@ void tcx_update_display(void *opaque)
                 page_min = page;
             if (page > page_max)
                 page_max = page;
-	    f(ts, d, s, XSZ);
+	    f(ts, d, s, ts->width);
 	    d += dd;
 	    s += ds;
-	    f(ts, d, s, XSZ);
+	    f(ts, d, s, ts->width);
 	    d += dd;
 	    s += ds;
-	    f(ts, d, s, XSZ);
+	    f(ts, d, s, ts->width);
 	    d += dd;
 	    s += ds;
-	    f(ts, d, s, XSZ);
+	    f(ts, d, s, ts->width);
 	    d += dd;
 	    s += ds;
 	} else {
             if (y_start >= 0) {
                 /* flush to display */
                 dpy_update(ts->ds, 0, y_start, 
-                           XSZ, y - y_start);
+                           ts->width, y - y_start);
                 y_start = -1;
             }
 	    d += dd * 4;
@@ -162,7 +149,7 @@ void tcx_update_display(void *opaque)
     if (y_start >= 0) {
 	/* flush to display */
 	dpy_update(ts->ds, 0, y_start, 
-		   XSZ, y - y_start);
+		   ts->width, y - y_start);
     }
     /* reset modified pages */
     if (page_max != -1) {
@@ -187,9 +174,13 @@ static void tcx_save(QEMUFile *f, void *opaque)
     
     qemu_put_be32s(f, (uint32_t *)&s->addr);
     qemu_put_be32s(f, (uint32_t *)&s->vram);
+    qemu_put_be16s(f, (uint16_t *)&s->height);
+    qemu_put_be16s(f, (uint16_t *)&s->width);
     qemu_put_buffer(f, s->r, 256);
     qemu_put_buffer(f, s->g, 256);
     qemu_put_buffer(f, s->b, 256);
+    qemu_put_8s(f, &s->dac_index);
+    qemu_put_8s(f, &s->dac_state);
 }
 
 static int tcx_load(QEMUFile *f, void *opaque, int version_id)
@@ -201,9 +192,13 @@ static int tcx_load(QEMUFile *f, void *opaque, int version_id)
 
     qemu_get_be32s(f, (uint32_t *)&s->addr);
     qemu_get_be32s(f, (uint32_t *)&s->vram);
+    qemu_get_be16s(f, (uint16_t *)&s->height);
+    qemu_get_be16s(f, (uint16_t *)&s->width);
     qemu_get_buffer(f, s->r, 256);
     qemu_get_buffer(f, s->g, 256);
     qemu_get_buffer(f, s->b, 256);
+    qemu_get_8s(f, &s->dac_index);
+    qemu_get_8s(f, &s->dac_state);
     return 0;
 }
 
@@ -219,12 +214,66 @@ static void tcx_reset(void *opaque)
     memset(s->vram, 0, MAXX*MAXY);
     cpu_physical_memory_reset_dirty(s->vram_offset, s->vram_offset + MAXX*MAXY,
                                     VGA_DIRTY_FLAG);
+    s->dac_index = 0;
+    s->dac_state = 0;
 }
 
+static uint32_t tcx_dac_readl(void *opaque, target_phys_addr_t addr)
+{
+    return 0;
+}
+
+static void tcx_dac_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
+{
+    TCXState *s = opaque;
+    uint32_t saddr;
+
+    saddr = (addr & (TCX_DAC_NREGS - 1)) >> 2;
+    switch (saddr) {
+    case 0:
+	s->dac_index = val >> 24;
+	s->dac_state = 0;
+	break;
+    case 1:
+	switch (s->dac_state) {
+	case 0:
+	    s->r[s->dac_index] = val >> 24;
+	    s->dac_state++;
+	    break;
+	case 1:
+	    s->g[s->dac_index] = val >> 24;
+	    s->dac_state++;
+	    break;
+	case 2:
+	    s->b[s->dac_index] = val >> 24;
+	default:
+	    s->dac_state = 0;
+	    break;
+	}
+	break;
+    default:
+	break;
+    }
+    return;
+}
+
+static CPUReadMemoryFunc *tcx_dac_read[3] = {
+    tcx_dac_readl,
+    tcx_dac_readl,
+    tcx_dac_readl,
+};
+
+static CPUWriteMemoryFunc *tcx_dac_write[3] = {
+    tcx_dac_writel,
+    tcx_dac_writel,
+    tcx_dac_writel,
+};
+
 void *tcx_init(DisplayState *ds, uint32_t addr, uint8_t *vram_base,
-	      unsigned long vram_offset, int vram_size)
+	       unsigned long vram_offset, int vram_size, int width, int height)
 {
     TCXState *s;
+    int io_memory;
 
     s = qemu_mallocz(sizeof(TCXState));
     if (!s)
@@ -233,13 +282,17 @@ void *tcx_init(DisplayState *ds, uint32_t addr, uint8_t *vram_base,
     s->addr = addr;
     s->vram = vram_base;
     s->vram_offset = vram_offset;
+    s->width = width;
+    s->height = height;
 
-    cpu_register_physical_memory(addr, vram_size, vram_offset);
+    cpu_register_physical_memory(addr + 0x800000, vram_size, vram_offset);
+    io_memory = cpu_register_io_memory(0, tcx_dac_read, tcx_dac_write, s);
+    cpu_register_physical_memory(addr + 0x200000, TCX_DAC_NREGS, io_memory);
 
     register_savevm("tcx", addr, 1, tcx_save, tcx_load, s);
     qemu_register_reset(tcx_reset, s);
     tcx_reset(s);
-    dpy_resize(s->ds, XSZ, YSZ);
+    dpy_resize(s->ds, width, height);
     return s;
 }
 
@@ -253,11 +306,11 @@ void tcx_screen_dump(void *opaque, const char *filename)
     f = fopen(filename, "wb");
     if (!f)
         return;
-    fprintf(f, "P6\n%d %d\n%d\n", XSZ, YSZ, 255);
-    d1 = s->vram + YOFF*MAXX + XOFF;
-    for(y = 0; y < YSZ; y++) {
+    fprintf(f, "P6\n%d %d\n%d\n", s->width, s->height, 255);
+    d1 = s->vram;
+    for(y = 0; y < s->height; y++) {
         d = d1;
-        for(x = 0; x < XSZ; x++) {
+        for(x = 0; x < s->width; x++) {
             v = *d;
             fputc(s->r[v], f);
             fputc(s->g[v], f);

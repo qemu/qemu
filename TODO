@@ -3,7 +3,6 @@ short term:
 - debug option in 'configure' script + disable -fomit-frame-pointer
 - Precise VGA timings for old games/demos (malc patch)
 - merge PIC spurious interrupt patch
-- merge VNC keyboard patch
 - merge Solaris patch
 - warning for OS/2: must not use 128 MB memory (merge bochs cmos patch ?)
 - config file (at least for windows/Mac OS X)

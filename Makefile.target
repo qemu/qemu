@@ -338,7 +338,7 @@ VL_OBJS+= mc146818rtc.o serial.o i8259.o i8254.o fdc.o m48t59.o
 VL_OBJS+= ppc_prep.o ppc_chrp.o cuda.o adb.o openpic.o mixeng.o
 endif
 ifeq ($(TARGET_BASE_ARCH), sparc)
-VL_OBJS+= sun4m.o tcx.o lance.o iommu.o m48t08.o magic-load.o slavio_intctl.o slavio_timer.o slavio_serial.o fdc.o
+VL_OBJS+= sun4m.o tcx.o lance.o iommu.o m48t08.o magic-load.o slavio_intctl.o slavio_timer.o slavio_serial.o fdc.o esp.o
 endif
 ifdef CONFIG_GDBSTUB
 VL_OBJS+=gdbstub.o 

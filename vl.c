@@ -2733,7 +2733,9 @@ void help(void)
            "-full-screen    start in full screen\n"
 #ifdef TARGET_PPC
            "-prep           Simulate a PREP system (default is PowerMAC)\n"
-           "-g WxH[xDEPTH]  Set the initial VGA graphic mode\n"
+#endif
+#if defined(TARGET_PPC) || defined(TARGET_SPARC)
+           "-g WxH[xDEPTH]  Set the initial graphical resolution and depth\n"
 #endif
            "\n"
            "Network options:\n"
@@ -2916,6 +2918,8 @@ const QEMUOption qemu_options[] = {
 #endif
 #ifdef TARGET_PPC
     { "prep", 0, QEMU_OPTION_prep },
+#endif
+#if defined(TARGET_PPC) || defined(TARGET_SPARC)
     { "g", 1, QEMU_OPTION_g },
 #endif
     { "localtime", 0, QEMU_OPTION_localtime },
@@ -3179,6 +3183,10 @@ int main(int argc, char **argv)
             case QEMU_OPTION_boot:
                 boot_device = optarg[0];
                 if (boot_device != 'a' && 
+#ifdef TARGET_SPARC
+		    // Network boot
+		    boot_device != 'n' &&
+#endif
                     boot_device != 'c' && boot_device != 'd') {
                     fprintf(stderr, "qemu: invalid boot device '%c'\n", boot_device);
                     exit(1);

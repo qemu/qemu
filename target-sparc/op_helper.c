@@ -164,7 +164,9 @@ void helper_st_asi(int asi, int size, int sign)
             case 0:
 		env->mmuregs[reg] &= ~(MMU_E | MMU_NF);
 		env->mmuregs[reg] |= T1 & (MMU_E | MMU_NF);
-                if ((oldreg & MMU_E) != (env->mmuregs[reg] & MMU_E))
+		// Mappings generated during no-fault mode or MMU
+		// disabled mode are invalid in normal mode
+                if (oldreg != env->mmuregs[reg])
                     tlb_flush(env, 1);
                 break;
             case 2:

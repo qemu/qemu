@@ -36,7 +36,10 @@
 // IRQs are not PIL ones, but master interrupt controller register
 // bits
 #define PHYS_JJ_IOMMU	0x10000000	/* I/O MMU */
-#define PHYS_JJ_TCX_FB	0x50800000	/* Start address, frame buffer body */
+#define PHYS_JJ_TCX_FB	0x50000000	/* TCX frame buffer */
+#define PHYS_JJ_ESPDMA  0x78400000      /* ESP DMA controller */
+#define PHYS_JJ_ESP     0x78800000      /* ESP SCSI */
+#define PHYS_JJ_ESP_IRQ    18
 #define PHYS_JJ_LEDMA   0x78400010      /* Lance DMA controller */
 #define PHYS_JJ_LE      0x78C00000      /* Lance ethernet */
 #define PHYS_JJ_LE_IRQ     16
@@ -50,7 +53,6 @@
 #define PHYS_JJ_MS_KBD_IRQ    14
 #define PHYS_JJ_SER	0x71100000	/* Serial */
 #define PHYS_JJ_SER_IRQ    15
-#define PHYS_JJ_SCSI_IRQ   18
 #define PHYS_JJ_FDC	0x71400000	/* Floppy */
 #define PHYS_JJ_FLOPPY_IRQ 22
 
@@ -61,32 +63,86 @@ uint64_t cpu_get_tsc()
     return qemu_get_clock(vm_clock);
 }
 
-void DMA_run() {}
+int DMA_get_channel_mode (int nchan)
+{
+    return 0;
+}
+int DMA_read_memory (int nchan, void *buf, int pos, int size)
+{
+    return 0;
+}
+int DMA_write_memory (int nchan, void *buf, int pos, int size)
+{
+    return 0;
+}
+void DMA_hold_DREQ (int nchan) {}
+void DMA_release_DREQ (int nchan) {}
+void DMA_schedule(int nchan) {}
+void DMA_run (void) {}
+void DMA_init (int high_page_enable) {}
+void DMA_register_channel (int nchan,
+                           DMA_transfer_handler transfer_handler,
+                           void *opaque)
+{
+}
+
+static void nvram_set_word (m48t08_t *nvram, uint32_t addr, uint16_t value)
+{
+    m48t08_write(nvram, addr++, (value >> 8) & 0xff);
+    m48t08_write(nvram, addr++, value & 0xff);
+}
+
+static void nvram_set_lword (m48t08_t *nvram, uint32_t addr, uint32_t value)
+{
+    m48t08_write(nvram, addr++, value >> 24);
+    m48t08_write(nvram, addr++, (value >> 16) & 0xff);
+    m48t08_write(nvram, addr++, (value >> 8) & 0xff);
+    m48t08_write(nvram, addr++, value & 0xff);
+}
+
+static void nvram_set_string (m48t08_t *nvram, uint32_t addr,
+                       const unsigned char *str, uint32_t max)
+{
+    unsigned int i;
+
+    for (i = 0; i < max && str[i] != '\0'; i++) {
+        m48t08_write(nvram, addr + i, str[i]);
+    }
+    m48t08_write(nvram, addr + max - 1, '\0');
+}
 
 static m48t08_t *nvram;
 
-static void nvram_init(m48t08_t *nvram, uint8_t *macaddr, const char *cmdline)
+extern int nographic;
+
+static void nvram_init(m48t08_t *nvram, uint8_t *macaddr, const char *cmdline,
+		       int boot_device, uint32_t RAM_size,
+		       uint32_t kernel_size,
+		       int width, int height, int depth)
 {
     unsigned char tmp = 0;
     int i, j;
 
-    i = 0x40;
+    // Try to match PPC NVRAM
+    nvram_set_string(nvram, 0x00, "QEMU_BIOS", 16);
+    nvram_set_lword(nvram,  0x10, 0x00000001); /* structure v1 */
+    // NVRAM_size, arch not applicable
+    m48t08_write(nvram, 0x2F, nographic & 0xff);
+    nvram_set_lword(nvram,  0x30, RAM_size);
+    m48t08_write(nvram, 0x34, boot_device & 0xff);
+    nvram_set_lword(nvram,  0x38, KERNEL_LOAD_ADDR);
+    nvram_set_lword(nvram,  0x3C, kernel_size);
     if (cmdline) {
-	uint32_t cmdline_len;
-
 	strcpy(phys_ram_base + CMDLINE_ADDR, cmdline);
-	m48t08_write(nvram, i++, CMDLINE_ADDR >> 24);
-	m48t08_write(nvram, i++, (CMDLINE_ADDR >> 16) & 0xff);
-	m48t08_write(nvram, i++, (CMDLINE_ADDR >> 8) & 0xff);
-	m48t08_write(nvram, i++, CMDLINE_ADDR & 0xff);
-
-	cmdline_len = strlen(cmdline);
-	m48t08_write(nvram, i++, cmdline_len >> 24);
-	m48t08_write(nvram, i++, (cmdline_len >> 16) & 0xff);
-	m48t08_write(nvram, i++, (cmdline_len >> 8) & 0xff);
-	m48t08_write(nvram, i++, cmdline_len & 0xff);
+	nvram_set_lword(nvram,  0x40, CMDLINE_ADDR);
+        nvram_set_lword(nvram,  0x44, strlen(cmdline));
     }
+    // initrd_image, initrd_size passed differently
+    nvram_set_word(nvram,   0x54, width);
+    nvram_set_word(nvram,   0x56, height);
+    nvram_set_word(nvram,   0x58, depth);
 
+    // Sun4m specific use
     i = 0x1fd8;
     m48t08_write(nvram, i++, 0x01);
     m48t08_write(nvram, i++, 0x80); /* Sun4m OBP */
@@ -155,7 +211,7 @@ void sun4m_init(int ram_size, int vga_ram_size, int boot_device,
     char buf[1024];
     int ret, linux_boot;
     unsigned int i;
-    unsigned long vram_size = 0x100000, prom_offset, initrd_size;
+    long vram_size = 0x100000, prom_offset, initrd_size, kernel_size;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -164,14 +220,14 @@ void sun4m_init(int ram_size, int vga_ram_size, int boot_device,
 
     iommu = iommu_init(PHYS_JJ_IOMMU);
     slavio_intctl = slavio_intctl_init(PHYS_JJ_INTR0, PHYS_JJ_INTR_G);
-    tcx = tcx_init(ds, PHYS_JJ_TCX_FB, phys_ram_base + ram_size, ram_size, vram_size);
+    tcx = tcx_init(ds, PHYS_JJ_TCX_FB, phys_ram_base + ram_size, ram_size, vram_size, graphic_width, graphic_height);
     lance_init(&nd_table[0], PHYS_JJ_LE_IRQ, PHYS_JJ_LE, PHYS_JJ_LEDMA);
     nvram = m48t08_init(PHYS_JJ_EEPROM, PHYS_JJ_EEPROM_SIZE);
-    nvram_init(nvram, (uint8_t *)&nd_table[0].macaddr, kernel_cmdline);
     slavio_timer_init(PHYS_JJ_CLOCK, PHYS_JJ_CLOCK_IRQ, PHYS_JJ_CLOCK1, PHYS_JJ_CLOCK1_IRQ);
     slavio_serial_ms_kbd_init(PHYS_JJ_MS_KBD, PHYS_JJ_MS_KBD_IRQ);
     slavio_serial_init(PHYS_JJ_SER, PHYS_JJ_SER_IRQ, serial_hds[0], serial_hds[1]);
     fdctrl_init(PHYS_JJ_FLOPPY_IRQ, 0, 1, PHYS_JJ_FDC, fd_table);
+    esp_init(bs_table, PHYS_JJ_ESP_IRQ, PHYS_JJ_ESP, PHYS_JJ_ESPDMA);
 
     prom_offset = ram_size + vram_size;
 
@@ -189,13 +245,14 @@ void sun4m_init(int ram_size, int vga_ram_size, int boot_device,
     cpu_register_physical_memory(PROM_ADDR, (ret + TARGET_PAGE_SIZE) & TARGET_PAGE_MASK, 
                                  prom_offset | IO_MEM_ROM);
 
+    kernel_size = 0;
     if (linux_boot) {
-        ret = load_elf(kernel_filename, phys_ram_base + KERNEL_LOAD_ADDR);
-        if (ret < 0)
-	    ret = load_aout(kernel_filename, phys_ram_base + KERNEL_LOAD_ADDR);
-	if (ret < 0)
-	    ret = load_image(kernel_filename, phys_ram_base + KERNEL_LOAD_ADDR);
-        if (ret < 0) {
+        kernel_size = load_elf(kernel_filename, phys_ram_base + KERNEL_LOAD_ADDR);
+        if (kernel_size < 0)
+	    kernel_size = load_aout(kernel_filename, phys_ram_base + KERNEL_LOAD_ADDR);
+	if (kernel_size < 0)
+	    kernel_size = load_image(kernel_filename, phys_ram_base + KERNEL_LOAD_ADDR);
+        if (kernel_size < 0) {
             fprintf(stderr, "qemu: could not load kernel '%s'\n", 
                     kernel_filename);
 	    exit(1);
@@ -222,4 +279,5 @@ void sun4m_init(int ram_size, int vga_ram_size, int boot_device,
 	    }
         }
     }
+    nvram_init(nvram, (uint8_t *)&nd_table[0].macaddr, kernel_cmdline, boot_device, ram_size, kernel_size, graphic_width, graphic_height, graphic_depth);
 }

@@ -714,7 +714,7 @@ void lance_init(NetDriverState *nd, int irq, uint32_t leaddr, uint32_t ledaddr);
 
 /* tcx.c */
 void *tcx_init(DisplayState *ds, uint32_t addr, uint8_t *vram_base,
-	      unsigned long vram_offset, int vram_size);
+	       unsigned long vram_offset, int vram_size, int width, int height);
 void tcx_update_display(void *opaque);
 void tcx_invalidate_display(void *opaque);
 void tcx_screen_dump(void *opaque, const char *filename);
@@ -735,6 +735,9 @@ void slavio_timer_init(uint32_t addr1, int irq1, uint32_t addr2, int irq2);
 /* slavio_serial.c */
 SerialState *slavio_serial_init(int base, int irq, CharDriverState *chr1, CharDriverState *chr2);
 void slavio_serial_ms_kbd_init(int base, int irq);
+
+/* esp.c */
+void esp_init(BlockDriverState **bd, int irq, uint32_t espaddr, uint32_t espdaddr);
 
 /* NVRAM helpers */
 #include "hw/m48t59.h"
