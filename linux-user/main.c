@@ -104,35 +104,99 @@ void write_dt(void *ptr, unsigned long addr, unsigned long limit,
 
 uint64_t gdt_table[6];
 
+//#define DEBUG_VM86
+
 void cpu_loop(struct CPUX86State *env)
 {
     int err;
     uint8_t *pc;
     target_siginfo_t info;
-    
+
     for(;;) {
         err = cpu_x86_exec(env);
         pc = env->seg_cache[R_CS].base + env->eip;
         switch(err) {
         case EXCP0D_GPF:
-            if (pc[0] == 0xcd && pc[1] == 0x80) {
-                /* syscall */
-                env->eip += 2;
-                env->regs[R_EAX] = do_syscall(env, 
-                                              env->regs[R_EAX], 
-                                              env->regs[R_EBX],
-                                              env->regs[R_ECX],
-                                              env->regs[R_EDX],
-                                              env->regs[R_ESI],
-                                              env->regs[R_EDI],
-                                              env->regs[R_EBP]);
+            if (env->eflags & VM_MASK) {
+                TaskState *ts;
+                int ret;
+#ifdef DEBUG_VM86
+                printf("VM86 exception %04x:%08x %02x\n",
+                       env->segs[R_CS], env->eip, pc[0]);
+#endif
+                /* VM86 mode */
+                ts = env->opaque;
+
+                /* XXX: add all cases */
+                switch(pc[0]) {
+                case 0xcd: /* int */
+                    env->eip += 2;
+                    ret = TARGET_VM86_INTx | (pc[1] << 8);
+                    break;
+                default:
+                    /* real VM86 GPF exception */
+                    ret = TARGET_VM86_UNKNOWN;
+                    break;
+                }
+#ifdef DEBUG_VM86
+                printf("ret=0x%x\n", ret);
+#endif
+                /* put the VM86 registers in the userspace register structure */
+                ts->target_v86->regs.eax = tswap32(env->regs[R_EAX]);
+                ts->target_v86->regs.ebx = tswap32(env->regs[R_EBX]);
+                ts->target_v86->regs.ecx = tswap32(env->regs[R_ECX]);
+                ts->target_v86->regs.edx = tswap32(env->regs[R_EDX]);
+                ts->target_v86->regs.esi = tswap32(env->regs[R_ESI]);
+                ts->target_v86->regs.edi = tswap32(env->regs[R_EDI]);
+                ts->target_v86->regs.ebp = tswap32(env->regs[R_EBP]);
+                ts->target_v86->regs.esp = tswap32(env->regs[R_ESP]);
+                ts->target_v86->regs.eip = tswap32(env->eip);
+                ts->target_v86->regs.cs = tswap16(env->segs[R_CS]);
+                ts->target_v86->regs.ss = tswap16(env->segs[R_SS]);
+                ts->target_v86->regs.ds = tswap16(env->segs[R_DS]);
+                ts->target_v86->regs.es = tswap16(env->segs[R_ES]);
+                ts->target_v86->regs.fs = tswap16(env->segs[R_FS]);
+                ts->target_v86->regs.gs = tswap16(env->segs[R_GS]);
+
+                /* restore 32 bit registers */
+                env->regs[R_EBX] = ts->vm86_saved_regs.ebx;
+                env->regs[R_ECX] = ts->vm86_saved_regs.ecx;
+                env->regs[R_EDX] = ts->vm86_saved_regs.edx;
+                env->regs[R_ESI] = ts->vm86_saved_regs.esi;
+                env->regs[R_EDI] = ts->vm86_saved_regs.edi;
+                env->regs[R_EBP] = ts->vm86_saved_regs.ebp;
+                env->regs[R_ESP] = ts->vm86_saved_regs.esp;
+                env->eflags = ts->vm86_saved_regs.eflags;
+                env->eip = ts->vm86_saved_regs.eip;
+
+                cpu_x86_load_seg(env, R_CS, ts->vm86_saved_regs.cs);
+                cpu_x86_load_seg(env, R_SS, ts->vm86_saved_regs.ss);
+                cpu_x86_load_seg(env, R_DS, ts->vm86_saved_regs.ds);
+                cpu_x86_load_seg(env, R_ES, ts->vm86_saved_regs.es);
+                cpu_x86_load_seg(env, R_FS, ts->vm86_saved_regs.fs);
+                cpu_x86_load_seg(env, R_GS, ts->vm86_saved_regs.gs);
+
+                env->regs[R_EAX] = ret;
             } else {
-                /* XXX: more precise info */
-                info.si_signo = SIGSEGV;
-                info.si_errno = 0;
-                info.si_code = 0;
-                info._sifields._sigfault._addr = 0;
-                queue_signal(info.si_signo, &info);
+                if (pc[0] == 0xcd && pc[1] == 0x80) {
+                    /* syscall */
+                    env->eip += 2;
+                    env->regs[R_EAX] = do_syscall(env, 
+                                                  env->regs[R_EAX], 
+                                                  env->regs[R_EBX],
+                                                  env->regs[R_ECX],
+                                                  env->regs[R_EDX],
+                                                  env->regs[R_ESI],
+                                                  env->regs[R_EDI],
+                                                  env->regs[R_EBP]);
+                } else {
+                    /* XXX: more precise info */
+                    info.si_signo = SIGSEGV;
+                    info.si_errno = 0;
+                    info.si_code = 0;
+                    info._sifields._sigfault._addr = 0;
+                    queue_signal(info.si_signo, &info);
+                }
             }
             break;
         case EXCP00_DIVZ:
@@ -188,12 +252,15 @@ void usage(void)
 
 /* XXX: currently only used for async signals (see signal.c) */
 CPUX86State *global_env;
+/* used to free thread contexts */
+TaskState *first_task_state;
 
 int main(int argc, char **argv)
 {
     const char *filename;
     struct target_pt_regs regs1, *regs = &regs1;
     struct image_info info1, *info = &info1;
+    TaskState ts1, *ts = &ts1;
     CPUX86State *env;
     int optind;
     const char *r;
@@ -272,6 +339,11 @@ int main(int argc, char **argv)
     env = cpu_x86_init();
     global_env = env;
 
+    /* build Task State */
+    memset(ts, 0, sizeof(TaskState));
+    env->opaque = ts;
+    ts->used = 1;
+    
     /* linux register setup */
     env->regs[R_EAX] = regs->eax;
     env->regs[R_EBX] = regs->ebx;

@@ -33,6 +33,33 @@ struct image_info {
 	int		personality;
 };
 
+/* Information about the current linux thread */
+struct vm86_saved_state {
+    uint32_t eax; /* return code */
+    uint32_t ebx;
+    uint32_t ecx;
+    uint32_t edx;
+    uint32_t esi;
+    uint32_t edi;
+    uint32_t ebp;
+    uint32_t esp;
+    uint32_t eflags;
+    uint32_t eip;
+    uint16_t cs, ss, ds, es, fs, gs;
+};
+
+/* NOTE: we force a big alignment so that the stack stored after is
+   aligned too */
+typedef struct TaskState {
+    struct TaskState *next;
+    struct target_vm86plus_struct *target_v86;
+    struct vm86_saved_state vm86_saved_regs;
+    int used; /* non zero if used */
+    uint8_t stack[0];
+} __attribute__((aligned(16))) TaskState;
+
+extern TaskState *first_task_state;
+
 int elf_exec(const char *interp_prefix, 
              const char * filename, char ** argv, char ** envp, 
              struct target_pt_regs * regs, struct image_info *infop);
