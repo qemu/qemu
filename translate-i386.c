@@ -1277,9 +1277,10 @@ static void gen_movl_seg_T0(DisasContext *s, int seg_reg, unsigned int cur_eip)
         gen_op_movl_seg_T0(seg_reg, cur_eip);
     else
         gen_op_movl_seg_T0_vm(offsetof(CPUX86State,segs[seg_reg]));
-    if (!s->addseg && seg_reg < R_FS)
-        s->is_jmp = 2; /* abort translation because the register may
-                          have a non zero base */
+    /* abort translation because the register may have a non zero base
+       or because ss32 may change */
+    if (seg_reg == R_SS || (!s->addseg && seg_reg < R_FS))
+        s->is_jmp = 2; 
 }
 
 /* generate a push. It depends on ss32, addseg and dflag */
@@ -3419,6 +3420,9 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         if (s->cc_op != CC_OP_DYNAMIC)
             gen_op_set_cc_op(s->cc_op);
         gen_op_into(s->pc - s->cs_base);
+        break;
+    case 0xf1: /* icebp (undocumented, exits to external debugger) */
+        gen_debug(s, pc_start - s->cs_base);
         break;
     case 0xfa: /* cli */
         if (!s->vm86) {
