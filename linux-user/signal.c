@@ -527,8 +527,8 @@ setup_sigcontext(struct target_sigcontext *sc, struct target_fpstate *fpstate,
 	err |= __put_user(env->regs[R_EDX], &sc->edx);
 	err |= __put_user(env->regs[R_ECX], &sc->ecx);
 	err |= __put_user(env->regs[R_EAX], &sc->eax);
-	err |= __put_user(/*current->thread.trap_no*/ 0, &sc->trapno);
-	err |= __put_user(/*current->thread.error_code*/ 0, &sc->err);
+	err |= __put_user(env->exception_index, &sc->trapno);
+	err |= __put_user(env->error_code, &sc->err);
 	err |= __put_user(env->eip, &sc->eip);
 	err |= __put_user(env->segs[R_CS], (unsigned int *)&sc->cs);
 	err |= __put_user(env->eflags, &sc->eflags);
