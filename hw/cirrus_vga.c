@@ -31,6 +31,7 @@
 
 /*
  * TODO:
+ *    - fix 24 bpp pattern fills (source is 32 bpp in that case)
  *    - add support for WRITEMASK (GR2F)
  *    - add support for scanline modulo in pattern fill
  *    - optimize linear mappings
@@ -233,6 +234,7 @@ typedef struct CirrusVGAState {
     int cirrus_linear_bitblt_io_addr;
     int cirrus_mmio_io_addr;
     uint32_t cirrus_addr_mask;
+    uint32_t linear_mmio_mask;
     uint8_t cirrus_shadow_gr0;
     uint8_t cirrus_shadow_gr1;
     uint8_t cirrus_hidden_dac_lockindex;
@@ -268,6 +270,7 @@ typedef struct CirrusVGAState {
     int last_hw_cursor_y;
     int last_hw_cursor_y_start;
     int last_hw_cursor_y_end;
+    int real_vram_size; /* XXX: suppress that */
 } CirrusVGAState;
 
 typedef struct PCICirrusVGAState {
@@ -981,6 +984,22 @@ static int cirrus_get_bpp(VGAState *s1)
     }
 
     return ret;
+}
+
+static void cirrus_get_resolution(VGAState *s, int *pwidth, int *pheight)
+{
+    int width, height;
+    
+    width = (s->cr[0x01] + 1) * 8;
+    height = s->cr[0x12] | 
+        ((s->cr[0x07] & 0x02) << 7) | 
+        ((s->cr[0x07] & 0x40) << 3);
+    height = (height + 1);
+    /* interlace support */
+    if (s->cr[0x1a] & 0x01)
+        height = height * 2;
+    *pwidth = width;
+    *pheight = height;
 }
 
 /***************************************
@@ -1970,7 +1989,7 @@ static inline void cirrus_cursor_compute_yrange(CirrusVGAState *s)
     uint32_t content;
     int y, y_min, y_max;
 
-    src = s->vram_ptr + 0x200000 - 16 * 1024;
+    src = s->vram_ptr + s->real_vram_size - 16 * 1024;
     if (s->sr[0x12] & CIRRUS_CURSOR_LARGE) {
         src += (s->sr[0x13] & 0x3c) * 256;
         y_min = 64;
@@ -2064,7 +2083,7 @@ static void cirrus_cursor_draw_line(VGAState *s1, uint8_t *d1, int scr_y)
         scr_y >= (s->hw_cursor_y + h))
         return;
     
-    src = s->vram_ptr + 0x200000 - 16 * 1024;
+    src = s->vram_ptr + s->real_vram_size - 16 * 1024;
     if (s->sr[0x12] & CIRRUS_CURSOR_LARGE) {
         src += (s->sr[0x13] & 0x3c) * 256;
         src += (scr_y - s->hw_cursor_y) * 16;
@@ -2130,10 +2149,10 @@ static uint32_t cirrus_linear_readb(void *opaque, target_phys_addr_t addr)
     CirrusVGAState *s = (CirrusVGAState *) opaque;
     uint32_t ret;
 
-    /* XXX: s->vram_size must be a power of two */
     addr &= s->cirrus_addr_mask;
 
-    if (((s->sr[0x17] & 0x44) == 0x44) && ((addr & 0x1fff00) == 0x1fff00)) {
+    if (((s->sr[0x17] & 0x44) == 0x44) && 
+        ((addr & s->linear_mmio_mask) == s->linear_mmio_mask)) {
 	/* memory-mapped I/O */
 	ret = cirrus_mmio_blt_read(s, addr & 0xff);
     } else if (0) {
@@ -2190,8 +2209,9 @@ static void cirrus_linear_writeb(void *opaque, target_phys_addr_t addr,
     unsigned mode;
 
     addr &= s->cirrus_addr_mask;
-
-    if (((s->sr[0x17] & 0x44) == 0x44) && ((addr & 0x1fff00) == 0x1fff00)) {
+        
+    if (((s->sr[0x17] & 0x44) == 0x44) && 
+        ((addr & s->linear_mmio_mask) ==  s->linear_mmio_mask)) {
 	/* memory-mapped I/O */
 	cirrus_mmio_blt_write(s, addr & 0xff, val);
     } else if (s->cirrus_srcptr != s->cirrus_srcptr_end) {
@@ -2715,7 +2735,7 @@ static CPUWriteMemoryFunc *cirrus_mmio_write[3] = {
  *
  ***************************************/
 
-static void cirrus_init_common(CirrusVGAState * s, int device_id)
+static void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci)
 {
     int vga_io_memory, i;
     static int inited;
@@ -2762,10 +2782,34 @@ static void cirrus_init_common(CirrusVGAState * s, int device_id)
                                  vga_io_memory);
 
     s->sr[0x06] = 0x0f;
-    s->sr[0x0F] = CIRRUS_MEMSIZE_2M;
     s->sr[0x1F] = 0x22;		// MemClock
-
+    if (device_id == CIRRUS_ID_CLGD5446) {
+        /* 4MB 64 bit memory config, always PCI */
+#if 1
+        s->sr[0x0f] = 0x98;
+        s->sr[0x17] = 0x20;
+        s->sr[0x15] = 0x04; /* memory size, 3=2MB, 4=4MB */
+        s->real_vram_size = 4096 * 1024;
+#else
+        s->sr[0x0f] = 0x18;
+        s->sr[0x17] = 0x20;
+        s->sr[0x15] = 0x03; /* memory size, 3=2MB, 4=4MB */
+        s->real_vram_size = 2048 * 1024;
+#endif
+    } else {
+        s->sr[0x0F] = CIRRUS_MEMSIZE_2M;
+        if (is_pci) 
+            s->sr[0x17] = CIRRUS_BUSTYPE_PCI;
+        else
+            s->sr[0x17] = CIRRUS_BUSTYPE_ISA;
+        s->real_vram_size = 2048 * 1024;
+        s->sr[0x15] = 0x03; /* memory size, 3=2MB, 4=4MB */
+    }
     s->cr[0x27] = device_id;
+
+    /* Win2K seems to assume that the pattern buffer is at 0xff
+       initially ! */
+    memset(s->vram_ptr, 0xff, s->real_vram_size);
 
     s->cirrus_hidden_dac_lockindex = 5;
     s->cirrus_hidden_dac_data = 0;
@@ -2784,10 +2828,12 @@ static void cirrus_init_common(CirrusVGAState * s, int device_id)
 	cpu_register_io_memory(0, cirrus_mmio_read, cirrus_mmio_write, s);
 
     /* XXX: s->vram_size must be a power of two */
-    s->cirrus_addr_mask = s->vram_size - 1;
+    s->cirrus_addr_mask = s->real_vram_size - 1;
+    s->linear_mmio_mask = s->real_vram_size - 256;
 
     s->get_bpp = cirrus_get_bpp;
     s->get_offsets = cirrus_get_offsets;
+    s->get_resolution = cirrus_get_resolution;
     s->cursor_invalidate = cirrus_cursor_invalidate;
     s->cursor_draw_line = cirrus_cursor_draw_line;
 }
@@ -2807,8 +2853,7 @@ void isa_cirrus_vga_init(DisplayState *ds, uint8_t *vga_ram_base,
     
     vga_common_init((VGAState *)s, 
                     ds, vga_ram_base, vga_ram_offset, vga_ram_size);
-    cirrus_init_common(s, CIRRUS_ID_CLGD5430);
-    s->sr[0x17] = CIRRUS_BUSTYPE_ISA;
+    cirrus_init_common(s, CIRRUS_ID_CLGD5430, 0);
     /* XXX ISA-LFB support */
 }
 
@@ -2867,8 +2912,7 @@ void pci_cirrus_vga_init(DisplayState *ds, uint8_t *vga_ram_base,
     s = &d->cirrus_vga;
     vga_common_init((VGAState *)s, 
                     ds, vga_ram_base, vga_ram_offset, vga_ram_size);
-    cirrus_init_common(s, device_id);
-    s->sr[0x17] = CIRRUS_BUSTYPE_PCI;
+    cirrus_init_common(s, device_id, 1);
 
     /* setup memory space */
     /* memory #0 LFB */
