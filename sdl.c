@@ -63,25 +63,24 @@ static void sdl_resize(DisplayState *ds, int w, int h)
     ds->depth = screen->format->BitsPerPixel;
 }
 
-static const uint32_t x_keycode_to_pc_keycode[61] = {
-   0x47e0,      /*  97  Home   */
-   0x48e0,      /*  98  Up     */
-   0x49e0,      /*  99  PgUp   */
-   0x4be0,      /* 100  Left   */
+static const uint8_t x_keycode_to_pc_keycode[61] = {
+   0xc7,      /*  97  Home   */
+   0xc8,      /*  98  Up     */
+   0xc9,      /*  99  PgUp   */
+   0xcb,      /* 100  Left   */
    0x4c,        /* 101  KP-5   */
-   0x4de0,      /* 102  Right  */
-   0x4fe0,      /* 103  End    */
-   0x50e0,      /* 104  Down   */
-   0x51e0,      /* 105  PgDn   */
-   0x52e0,      /* 106  Ins    */
-   0x53e0,      /* 107  Del    */
-   0x1ce0,      /* 108  Enter  */
-   0x1de0,      /* 109  Ctrl-R */
-   0x451de1,    /* 110  Pause  */
-   0x37e0,      /* 111  Print  */
-   0x35e0,      /* 112  Divide */
-   0x38e0,      /* 113  Alt-R  */
-   0x46e0,      /* 114  Break  */   
+   0xcd,      /* 102  Right  */
+   0xcf,      /* 103  End    */
+   0xd0,      /* 104  Down   */
+   0xd1,      /* 105  PgDn   */
+   0xd2,      /* 106  Ins    */
+   0xd3,      /* 107  Del    */
+   0x9c,      /* 108  Enter  */
+   0x9d,      /* 109  Ctrl-R */
+   0xb7,      /* 111  Print  */
+   0xb5,      /* 112  Divide */
+   0xb8,      /* 113  Alt-R  */
+   0xc6,      /* 114  Break  */   
    0x0,         /* 115 */
    0x0,         /* 116 */
    0x0,         /* 117 */
@@ -129,11 +128,25 @@ static const uint32_t x_keycode_to_pc_keycode[61] = {
 
 static void sdl_process_key(SDL_KeyboardEvent *ev)
 {
-    int keycode, v;
-    
+    int keycode, v, i;
+    static uint8_t modifiers_state[256];
+
+    if (ev->keysym.sym == SDLK_PAUSE) {
+        /* specific case */
+        v = 0;
+        if (ev->type == SDL_KEYUP)
+            v |= 0x80;
+        kbd_put_keycode(0xe1);
+        kbd_put_keycode(0x1d | v);
+        kbd_put_keycode(0x45 | v);
+        return;
+    }
+
     /* XXX: not portable, but avoids complicated mappings */
     keycode = ev->keysym.scancode;
 
+    /* XXX: windows version may not work: 0xe0/0xe1 should be trapped
+       ? */
 #ifndef _WIN32
     if (keycode < 9) {
         keycode = 0;
@@ -146,15 +159,44 @@ static void sdl_process_key(SDL_KeyboardEvent *ev)
         keycode = 0;
     }
 #endif
-    
-    /* now send the key code */
-    while (keycode != 0) {
-        v = keycode & 0xff;
+
+    switch(keycode) {
+    case 0x00:
+        /* sent when leaving window: reset the modifiers state */
+        for(i = 0; i < 256; i++) {
+            if (modifiers_state[i]) {
+                if (i & 0x80)
+                    kbd_put_keycode(0xe0);
+                kbd_put_keycode(i | 0x80);
+            }
+        }
+        return;
+    case 0x2a:                          /* Left Shift */
+    case 0x36:                          /* Right Shift */
+    case 0x1d:                          /* Left CTRL */
+    case 0x9d:                          /* Right CTRL */
+    case 0x38:                          /* Left ALT */
+    case 0xb8:                         /* Right ALT */
         if (ev->type == SDL_KEYUP)
-            v |= 0x80;
-        kbd_put_keycode(v);
-        keycode >>= 8;
+            modifiers_state[keycode] = 0;
+        else
+            modifiers_state[keycode] = 1;
+        break;
+    case 0x45: /* num lock */
+    case 0x3a: /* caps lock */
+        /* SDL does not send the key up event, so we generate it */
+        kbd_put_keycode(keycode);
+        kbd_put_keycode(keycode | 0x80);
+        return;
     }
+
+    /* now send the key code */
+    if (keycode & 0x80)
+        kbd_put_keycode(0xe0);
+    if (ev->type == SDL_KEYUP)
+        kbd_put_keycode(keycode | 0x80);
+    else
+        kbd_put_keycode(keycode & 0x7f);
 }
 
 static void sdl_update_caption(void)
