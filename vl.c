@@ -536,6 +536,8 @@ void cmos_init(void)
 /***********************************************************/
 /* 8259 pic emulation */
 
+//#define DEBUG_PIC
+
 typedef struct PicState {
     uint8_t last_irr; /* edge detection */
     uint8_t irr; /* interrupt request register */
@@ -630,9 +632,18 @@ static void pic_update_irq(void)
 int64_t irq_time[16];
 int64_t cpu_get_ticks(void);
 #endif
+#ifdef DEBUG_PIC
+int irq_level[16];
+#endif
 
 void pic_set_irq(int irq, int level)
 {
+#ifdef DEBUG_PIC
+    if (level != irq_level[irq]) {
+        printf("pic_set_irq: irq=%d level=%d\n", irq, level);
+        irq_level[irq] = level;
+    }
+#endif
 #ifdef DEBUG_IRQ_LATENCY
     if (level) {
         irq_time[irq] = cpu_get_ticks();
@@ -650,6 +661,9 @@ int cpu_x86_get_pic_interrupt(CPUX86State *env)
     irq = pic_irq_requested;
 #ifdef DEBUG_IRQ_LATENCY
     printf("IRQ%d latency=%Ld\n", irq, cpu_get_ticks() - irq_time[irq]);
+#endif
+#ifdef DEBUG_PIC
+    printf("pic_interrupt: irq=%d\n", irq);
 #endif
 
     if (irq >= 8) {
@@ -671,6 +685,9 @@ void pic_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
     PicState *s;
     int priority;
 
+#ifdef DEBUG_PIC
+    printf("pic_write: addr=0x%02x val=0x%02x\n", addr, val);
+#endif
     s = &pics[addr >> 7];
     addr &= 1;
     if (addr == 0) {
@@ -743,19 +760,27 @@ void pic_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
     }
 }
 
-uint32_t pic_ioport_read(CPUX86State *env, uint32_t addr)
+uint32_t pic_ioport_read(CPUX86State *env, uint32_t addr1)
 {
     PicState *s;
+    unsigned int addr;
+    int ret;
+
+    addr = addr1;
     s = &pics[addr >> 7];
     addr &= 1;
     if (addr == 0) {
         if (s->read_reg_select)
-            return s->isr;
+            ret = s->isr;
         else
-            return s->irr;
+            ret = s->irr;
     } else {
-        return s->imr;
+        ret = s->imr;
     }
+#ifdef DEBUG_PIC
+    printf("pic_read: addr=0x%02x val=0x%02x\n", addr1, ret);
+#endif
+    return ret;
 }
 
 void pic_init(void)
@@ -2634,6 +2659,7 @@ int main(int argc, char **argv)
         help();
 
     /* init debug */
+    setvbuf(stdout, NULL, _IOLBF, 0);
     if (loglevel) {
         logfile = fopen(DEBUG_LOGFILE, "w");
         if (!logfile) {
