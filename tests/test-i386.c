@@ -714,6 +714,10 @@ void test_segs(void)
     long long ldt_table[3];
     int res, res2;
     char tmp;
+    struct {
+        uint32_t offset;
+        uint16_t seg;
+    } __attribute__((packed)) segoff;
 
     ldt.entry_number = 1;
     ldt.base_addr = (unsigned long)&seg_data1;
@@ -772,6 +776,14 @@ void test_segs(void)
                   : "r" (MK_SEL(1)), "r" (&tmp));
     printf("DS[1] = %02x\n", res);
     printf("SS[tmp] = %02x\n", res2);
+
+    segoff.seg = MK_SEL(2);
+    segoff.offset = 0xabcdef12;
+    asm volatile("lfs %2, %0\n\t" 
+                 "movl %%fs, %1\n\t"
+                 : "=r" (res), "=g" (res2) 
+                 : "m" (segoff));
+    printf("FS:reg = %04x:%08x\n", res2, res);
 }
 
 /* 16 bit code test */
@@ -812,6 +824,71 @@ void test_code16(void)
     printf("func3() = 0x%08x\n", res);
 }
 
+void test_misc(void)
+{
+    char table[256];
+    int res, i;
+
+    for(i=0;i<256;i++) table[i] = 256 - i;
+    res = 0x12345678;
+    asm ("xlat" : "=a" (res) : "b" (table), "0" (res));
+    printf("xlat: EAX=%08x\n", res);
+}
+
+uint8_t str_buffer[4096];
+
+#define TEST_STRING1(OP, size, DF, REP)\
+{\
+    int esi, edi, eax, ecx, eflags;\
+\
+    esi = (long)(str_buffer + sizeof(str_buffer) / 2);\
+    edi = (long)(str_buffer + sizeof(str_buffer) / 2) + 16;\
+    eax = 0x12345678;\
+    ecx = 17;\
+\
+    asm volatile ("pushl $0\n\t"\
+                  "popf\n\t"\
+                  DF "\n\t"\
+                  REP #OP size "\n\t"\
+                  "cld\n\t"\
+                  "pushf\n\t"\
+                  "popl %4\n\t"\
+                  : "=S" (esi), "=D" (edi), "=a" (eax), "=c" (ecx), "=g" (eflags)\
+                  : "0" (esi), "1" (edi), "2" (eax), "3" (ecx));\
+    printf("%-10s ESI=%08x EDI=%08x EAX=%08x ECX=%08x EFL=%04x\n",\
+           REP #OP size, esi, edi, eax, ecx,\
+           eflags & (CC_C | CC_P | CC_Z | CC_S | CC_O | CC_A));\
+}
+
+#define TEST_STRING(OP, REP)\
+    TEST_STRING1(OP, "b", "", REP);\
+    TEST_STRING1(OP, "w", "", REP);\
+    TEST_STRING1(OP, "l", "", REP);\
+    TEST_STRING1(OP, "b", "std", REP);\
+    TEST_STRING1(OP, "w", "std", REP);\
+    TEST_STRING1(OP, "l", "std", REP)
+
+void test_string(void)
+{
+    int i;
+    for(i = 0;i < sizeof(str_buffer); i++)
+        str_buffer[i] = i + 0x56;
+   TEST_STRING(stos, "");
+   TEST_STRING(stos, "rep ");
+   TEST_STRING(lods, ""); /* to verify stos */
+   TEST_STRING(lods, "rep "); 
+   TEST_STRING(movs, "");
+   TEST_STRING(movs, "rep ");
+   TEST_STRING(lods, ""); /* to verify stos */
+
+   /* XXX: better tests */
+   TEST_STRING(scas, "");
+   TEST_STRING(scas, "repz ");
+   TEST_STRING(scas, "repnz ");
+   TEST_STRING(cmps, "");
+   TEST_STRING(cmps, "repz ");
+   TEST_STRING(cmps, "repnz ");
+}
 
 static void *call_end __init_call = NULL;
 
@@ -831,6 +908,8 @@ int main(int argc, char **argv)
     test_floats();
     test_bcd();
     test_xchg();
+    test_string();
+    test_misc();
     test_lea();
     test_segs();
     test_code16();
