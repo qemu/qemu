@@ -48,6 +48,23 @@
 #define R_FS 4
 #define R_GS 5
 
+/* segment descriptor fields */
+#define DESC_G_MASK     (1 << 23)
+#define DESC_B_MASK     (1 << 22)
+#define DESC_AVL_MASK   (1 << 20)
+#define DESC_P_MASK     (1 << 15)
+#define DESC_DPL_SHIFT  13
+#define DESC_S_MASK     (1 << 12)
+#define DESC_TYPE_SHIFT 8
+#define DESC_A_MASK     (1 << 8)
+
+#define DESC_CS_MASK    (1 << 11)
+#define DESC_C_MASK     (1 << 10)
+#define DESC_R_MASK     (1 << 9)
+
+#define DESC_E_MASK     (1 << 10)
+#define DESC_W_MASK     (1 << 9)
+
 /* eflags masks */
 #define CC_C   	0x0001
 #define CC_P 	0x0004
