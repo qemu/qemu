@@ -426,6 +426,11 @@ struct siginfo;
 int cpu_x86_signal_handler(int host_signum, struct siginfo *info, 
                            void *puc);
 
+/* used to debug */
+#define X86_DUMP_FPU  0x0001 /* dump FPU state too */
+#define X86_DUMP_CCOP 0x0002 /* dump qemu flag cache */
+void cpu_x86_dump_state(CPUX86State *env, FILE *f, int flags);
+
 /* internal functions */
 
 #define GEN_FLAG_CODE32_SHIFT 0
