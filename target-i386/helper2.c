@@ -212,7 +212,7 @@ void cpu_x86_dump_state(CPUX86State *env, FILE *f, int flags)
     
     if (flags & X86_DUMP_CCOP) {
         if ((unsigned)env->cc_op < CC_OP_NB)
-            strcpy(cc_op_name, cc_op_str[env->cc_op]);
+            snprintf(cc_op_name, sizeof(cc_op_name), "%s", cc_op_str[env->cc_op]);
         else
             snprintf(cc_op_name, sizeof(cc_op_name), "[%d]", env->cc_op);
         fprintf(f, "CCS=%08x CCD=%08x CCO=%-8s\n",

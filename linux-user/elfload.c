@@ -1067,7 +1067,7 @@ static int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * r
 	char * passed_p;
 
 	if (interpreter_type == INTERPRETER_AOUT) {
-	    sprintf(passed_fileno, "%d", bprm->fd);
+	    snprintf(passed_fileno, sizeof(passed_fileno), "%d", bprm->fd);
 	    passed_p = passed_fileno;
 
 	    if (elf_interpreter) {

@@ -92,7 +92,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int snapshot)
     bs->fd = -1;
     bs->cow_fd = -1;
     bs->cow_bitmap = NULL;
-    strcpy(bs->filename, filename);
+    pstrcpy(bs->filename, sizeof(bs->filename), filename);
 
     /* open standard HD image */
 #ifdef _WIN32
