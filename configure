@@ -13,6 +13,7 @@ fi
 
 TMPC="${TMPDIR1}/qemacs-conf-${RANDOM}-$$-${RANDOM}.c"
 TMPO="${TMPDIR1}/qemacs-conf-${RANDOM}-$$-${RANDOM}.o"
+TMPE="${TMPDIR1}/qemacs-conf-${RANDOM}-$$-${RANDOM}"
 TMPS="${TMPDIR1}/qemacs-conf-${RANDOM}-$$-${RANDOM}.S"
 TMPH="${TMPDIR1}/qemacs-conf-${RANDOM}-$$-${RANDOM}.h"
 
@@ -142,6 +143,14 @@ fi
 
 fi
 
+# check gcc version
+gcc_major="2"
+gcc_version="$($cc -v 2>&1 | grep version | cut -d ' ' -f3-)"
+case "$gcc_version" in
+3.*) gcc_major="3";
+;;
+esac
+
 if test x"$1" = x"-h" -o x"$1" = x"--help" ; then
 cat << EOF
 
@@ -181,6 +190,7 @@ echo "prefix=$prefix" >> config.mak
 echo "#define CONFIG_GEMU_PREFIX \"$prefix\"" >> $TMPH
 echo "MAKE=$make" >> config.mak
 echo "CC=$cc" >> config.mak
+echo "GCC_MAJOR=$gcc_major" >> config.mak
 echo "HOST_CC=$host_cc" >> config.mak
 echo "AR=$ar" >> config.mak
 echo "STRIP=$strip -s -R .comment -R .note" >> config.mak

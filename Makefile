@@ -7,11 +7,21 @@ DEFINES=-DHAVE_BYTESWAP_H
 
 ifeq ($(ARCH),i386)
 CFLAGS+=-fomit-frame-pointer
-OP_CFLAGS=$(CFLAGS) -malign-functions=0 -mpreferred-stack-boundary=2
+OP_CFLAGS=$(CFLAGS) -mpreferred-stack-boundary=2
+ifeq ($(GCC_MAJOR),3)
+OP_CFLAGS+= -falign-functions=0
+else
+OP_CFLAGS+= -malign-functions=0
+endif
 endif
 
 ifeq ($(ARCH),ppc)
 OP_CFLAGS=$(CFLAGS)
+endif
+
+ifeq ($(GCC_MAJOR),3)
+# very important to generate a return at the end of every operation
+OP_CFLAGS+=-fno-reorder-blocks -fno-optimize-sibling-calls
 endif
 
 #########################################################
