@@ -67,6 +67,30 @@ static void *call_start __init_call = NULL;
 #define OP1
 #include "test-i386.h"
 
+#define OP shl
+#include "test-i386-shift.h"
+
+#define OP shr
+#include "test-i386-shift.h"
+
+#define OP sar
+#include "test-i386-shift.h"
+
+#define OP rol
+#include "test-i386-shift.h"
+
+#define OP ror
+#include "test-i386-shift.h"
+
+#define OP rcr
+#define OP_CC
+#include "test-i386-shift.h"
+
+#define OP rcl
+#define OP_CC
+#include "test-i386-shift.h"
+
+
 /* lea test (modrm support) */
 #define TEST_LEA(STR)\
 {\
