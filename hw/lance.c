@@ -1,7 +1,7 @@
 /*
  * QEMU Lance emulation
  * 
- * Copyright (c) 2003-2004 Fabrice Bellard
+ * Copyright (c) 2003-2005 Fabrice Bellard
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,20 +26,24 @@
 /* debug LANCE card */
 //#define DEBUG_LANCE
 
+#ifdef DEBUG_LANCE
+#define DPRINTF(fmt, args...) \
+do { printf("LANCE: " fmt , ##args); } while (0)
+#else
+#define DPRINTF(fmt, args...)
+#endif
+
 #ifndef LANCE_LOG_TX_BUFFERS
 #define LANCE_LOG_TX_BUFFERS 4
 #define LANCE_LOG_RX_BUFFERS 4
 #endif
 
-#define CRC_POLYNOMIAL_BE 0x04c11db7UL  /* Ethernet CRC, big endian */
-#define CRC_POLYNOMIAL_LE 0xedb88320UL  /* Ethernet CRC, little endian */
-
-
 #define LE_CSR0 0
 #define LE_CSR1 1
 #define LE_CSR2 2
 #define LE_CSR3 3
-#define LE_MAXREG (LE_CSR3 + 1)
+#define LE_NREGS (LE_CSR3 + 1)
+#define LE_MAXREG LE_CSR3
 
 #define LE_RDP  0
 #define LE_RAP  1
@@ -148,21 +152,12 @@ struct lance_init_block {
 
 #define LEDMA_REGS 4
 #define LEDMA_MAXADDR (LEDMA_REGS * 4 - 1)
-#if 0
-/* Structure to describe the current status of DMA registers on the Sparc */
-struct sparc_dma_registers {
-    uint32_t cond_reg;	/* DMA condition register */
-    uint32_t st_addr;	/* Start address of this transfer */
-    uint32_t cnt;	/* How many bytes to transfer */
-    uint32_t dma_test;	/* DMA test register */
-};
-#endif
 
 typedef struct LANCEState {
     NetDriverState *nd;
     uint32_t leptr;
     uint16_t addr;
-    uint16_t regs[LE_MAXREG];
+    uint16_t regs[LE_NREGS];
     uint8_t phys[6]; /* mac address */
     int irq;
     unsigned int rxptr, txptr;
@@ -177,7 +172,7 @@ static void lance_reset(void *opaque)
     memcpy(s->phys, s->nd->macaddr, 6);
     s->rxptr = 0;
     s->txptr = 0;
-    memset(s->regs, 0, LE_MAXREG * 2);
+    memset(s->regs, 0, LE_NREGS * 2);
     s->regs[LE_CSR0] = LE_C0_STOP;
     memset(s->ledmaregs, 0, LEDMA_REGS * 4);
 }
@@ -190,10 +185,13 @@ static uint32_t lance_mem_readw(void *opaque, target_phys_addr_t addr)
     saddr = addr & LE_MAXREG;
     switch (saddr >> 1) {
     case LE_RDP:
+	DPRINTF("read dreg[%d] = %4.4x\n", s->addr, s->regs[s->addr]);
 	return s->regs[s->addr];
     case LE_RAP:
+	DPRINTF("read areg = %4.4x\n", s->addr);
 	return s->addr;
     default:
+	DPRINTF("read unknown(%d)\n", saddr>>1);
 	break;
     }
     return 0;
@@ -208,6 +206,7 @@ static void lance_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val
     saddr = addr & LE_MAXREG;
     switch (saddr >> 1) {
     case LE_RDP:
+	DPRINTF("write dreg[%d] = %4.4x\n", s->addr, val);
 	switch(s->addr) {
 	case LE_CSR0:
 	    if (val & LE_C0_STOP) {
@@ -242,12 +241,6 @@ static void lance_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val
 	    }
 
 	    s->regs[LE_CSR0] = reg;
-
-	    // trigger bits
-	    //if (val & LE_C0_TDMD)
-
-	    if ((s->regs[LE_CSR0] & LE_C0_INTR) && (s->regs[LE_CSR0] & LE_C0_INEA))
-		pic_set_irq(s->irq, 1);
 	    break;
 	case LE_CSR1:
 	    s->leptr = (s->leptr & 0xffff0000) | (val & 0xffff);
@@ -263,10 +256,12 @@ static void lance_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val
 	}
 	break;
     case LE_RAP:
-	if (val < LE_MAXREG)
+	DPRINTF("write areg = %4.4x\n", val);
+	if (val < LE_NREGS)
 	    s->addr = val;
 	break;
     default:
+	DPRINTF("write unknown(%d) = %4.4x\n", saddr>>1, val);
 	break;
     }
     lance_send(s);
@@ -292,7 +287,7 @@ static int lance_can_receive(void *opaque)
     uint32_t dmaptr = s->leptr + s->ledmaregs[3];
     struct lance_init_block *ib;
     int i;
-    uint16_t temp;
+    uint8_t temp8;
 
     if ((s->regs[LE_CSR0] & LE_C0_STOP) == LE_C0_STOP)
 	return 0;
@@ -300,18 +295,13 @@ static int lance_can_receive(void *opaque)
     ib = (void *) iommu_translate(dmaptr);
 
     for (i = 0; i < RX_RING_SIZE; i++) {
-	cpu_physical_memory_read((uint32_t)&ib->brx_ring[i].rmd1_bits, (void *) &temp, 1);
-	temp &= 0xff;
-	if (temp == (LE_R1_OWN)) {
-#ifdef DEBUG_LANCE
-	    fprintf(stderr, "lance: can receive %d\n", RX_BUFF_SIZE);
-#endif
+	cpu_physical_memory_read((uint32_t)&ib->brx_ring[i].rmd1_bits, (void *) &temp8, 1);
+	if (temp8 == (LE_R1_OWN)) {
+	    DPRINTF("can receive %d\n", RX_BUFF_SIZE);
 	    return RX_BUFF_SIZE;
 	}
     }
-#ifdef DEBUG_LANCE
-    fprintf(stderr, "lance: cannot receive\n");
-#endif
+    DPRINTF("cannot receive\n");
     return 0;
 }
 
@@ -322,9 +312,11 @@ static void lance_receive(void *opaque, const uint8_t *buf, int size)
     LANCEState *s = opaque;
     uint32_t dmaptr = s->leptr + s->ledmaregs[3];
     struct lance_init_block *ib;
-    unsigned int i, old_rxptr, j;
-    uint16_t temp;
+    unsigned int i, old_rxptr;
+    uint16_t temp16;
+    uint8_t temp8;
 
+    DPRINTF("receive size %d\n", size);
     if ((s->regs[LE_CSR0] & LE_C0_STOP) == LE_C0_STOP)
 	return;
 
@@ -332,27 +324,19 @@ static void lance_receive(void *opaque, const uint8_t *buf, int size)
 
     old_rxptr = s->rxptr;
     for (i = s->rxptr; i != ((old_rxptr - 1) & RX_RING_MOD_MASK); i = (i + 1) & RX_RING_MOD_MASK) {
-	cpu_physical_memory_read((uint32_t)&ib->brx_ring[i].rmd1_bits, (void *) &temp, 1);
-	if (temp == (LE_R1_OWN)) {
+	cpu_physical_memory_read((uint32_t)&ib->brx_ring[i].rmd1_bits, (void *) &temp8, 1);
+	if (temp8 == (LE_R1_OWN)) {
 	    s->rxptr = (s->rxptr + 1) & RX_RING_MOD_MASK;
-	    temp = size;
-	    bswap16s(&temp);
-	    cpu_physical_memory_write((uint32_t)&ib->brx_ring[i].mblength, (void *) &temp, 2);
-#if 0
+	    temp16 = size + 4;
+	    bswap16s(&temp16);
+	    cpu_physical_memory_write((uint32_t)&ib->brx_ring[i].mblength, (void *) &temp16, 2);
 	    cpu_physical_memory_write((uint32_t)&ib->rx_buf[i], buf, size);
-#else
-	    for (j = 0; j < size; j++) {
-		cpu_physical_memory_write(((uint32_t)&ib->rx_buf[i]) + j, &buf[j], 1);
-	    }
-#endif
-	    temp = LE_R1_POK;
-	    cpu_physical_memory_write((uint32_t)&ib->brx_ring[i].rmd1_bits, (void *) &temp, 1);
+	    temp8 = LE_R1_POK;
+	    cpu_physical_memory_write((uint32_t)&ib->brx_ring[i].rmd1_bits, (void *) &temp8, 1);
 	    s->regs[LE_CSR0] |= LE_C0_RINT | LE_C0_INTR;
-	    if ((s->regs[LE_CSR0] & LE_C0_INTR) && (s->regs[LE_CSR0] & LE_C0_INEA))
+	    if (s->regs[LE_CSR0] & LE_C0_INEA)
 		pic_set_irq(s->irq, 1);
-#ifdef DEBUG_LANCE
-	    fprintf(stderr, "lance: got packet, len %d\n", size);
-#endif
+	    DPRINTF("got packet, len %d\n", size);
 	    return;
 	}
     }
@@ -363,40 +347,36 @@ static void lance_send(void *opaque)
     LANCEState *s = opaque;
     uint32_t dmaptr = s->leptr + s->ledmaregs[3];
     struct lance_init_block *ib;
-    unsigned int i, old_txptr, j;
-    uint16_t temp;
+    unsigned int i, old_txptr;
+    uint16_t temp16;
+    uint8_t temp8;
     char pkt_buf[PKT_BUF_SZ];
 
+    DPRINTF("sending packet? (csr0 %4.4x)\n", s->regs[LE_CSR0]);
     if ((s->regs[LE_CSR0] & LE_C0_STOP) == LE_C0_STOP)
 	return;
 
     ib = (void *) iommu_translate(dmaptr);
 
+    DPRINTF("sending packet? (dmaptr %8.8x) (ib %p) (btx_ring %p)\n", dmaptr, ib, &ib->btx_ring);
     old_txptr = s->txptr;
     for (i = s->txptr; i != ((old_txptr - 1) & TX_RING_MOD_MASK); i = (i + 1) & TX_RING_MOD_MASK) {
-	cpu_physical_memory_read((uint32_t)&ib->btx_ring[i].tmd1_bits, (void *) &temp, 1);
-	if (temp == (LE_T1_POK|LE_T1_OWN)) {
-	    cpu_physical_memory_read((uint32_t)&ib->btx_ring[i].length, (void *) &temp, 2);
-	    bswap16s(&temp);
-	    temp = (~temp) + 1;
-#if 0
-	    cpu_physical_memory_read((uint32_t)&ib->tx_buf[i], pkt_buf, temp);
-#else
-	    for (j = 0; j < temp; j++) {
-		cpu_physical_memory_read((uint32_t)&ib->tx_buf[i] + j, &pkt_buf[j], 1);
-	    }
-#endif
-
-#ifdef DEBUG_LANCE
-	    fprintf(stderr, "lance: sending packet, len %d\n", temp);
-#endif
-	    qemu_send_packet(s->nd, pkt_buf, temp);
-	    temp = LE_T1_POK;
-	    cpu_physical_memory_write((uint32_t)&ib->btx_ring[i].tmd1_bits, (void *) &temp, 1);
+	cpu_physical_memory_read((uint32_t)&ib->btx_ring[i].tmd1_bits, (void *) &temp8, 1);
+	if (temp8 == (LE_T1_POK|LE_T1_OWN)) {
+	    cpu_physical_memory_read((uint32_t)&ib->btx_ring[i].length, (void *) &temp16, 2);
+	    bswap16s(&temp16);
+	    temp16 = (~temp16) + 1;
+	    cpu_physical_memory_read((uint32_t)&ib->tx_buf[i], pkt_buf, temp16);
+	    DPRINTF("sending packet, len %d\n", temp16);
+	    qemu_send_packet(s->nd, pkt_buf, temp16);
+	    temp8 = LE_T1_POK;
+	    cpu_physical_memory_write((uint32_t)&ib->btx_ring[i].tmd1_bits, (void *) &temp8, 1);
 	    s->txptr = (s->txptr + 1) & TX_RING_MOD_MASK;
 	    s->regs[LE_CSR0] |= LE_C0_TINT | LE_C0_INTR;
 	}
     }
+    if ((s->regs[LE_CSR0] & LE_C0_INTR) && (s->regs[LE_CSR0] & LE_C0_INEA))
+	pic_set_irq(s->irq, 1);
 }
 
 static uint32_t ledma_mem_readl(void *opaque, target_phys_addr_t addr)
@@ -436,7 +416,7 @@ static void lance_save(QEMUFile *f, void *opaque)
     
     qemu_put_be32s(f, &s->leptr);
     qemu_put_be16s(f, &s->addr);
-    for (i = 0; i < LE_MAXREG; i ++)
+    for (i = 0; i < LE_NREGS; i ++)
 	qemu_put_be16s(f, &s->regs[i]);
     qemu_put_buffer(f, s->phys, 6);
     qemu_put_be32s(f, &s->irq);
@@ -454,7 +434,7 @@ static int lance_load(QEMUFile *f, void *opaque, int version_id)
 
     qemu_get_be32s(f, &s->leptr);
     qemu_get_be16s(f, &s->addr);
-    for (i = 0; i < LE_MAXREG; i ++)
+    for (i = 0; i < LE_NREGS; i ++)
 	qemu_get_be16s(f, &s->regs[i]);
     qemu_get_buffer(f, s->phys, 6);
     qemu_get_be32s(f, &s->irq);
@@ -476,7 +456,7 @@ void lance_init(NetDriverState *nd, int irq, uint32_t leaddr, uint32_t ledaddr)
     s->irq = irq;
 
     lance_io_memory = cpu_register_io_memory(0, lance_mem_read, lance_mem_write, s);
-    cpu_register_physical_memory(leaddr, 8, lance_io_memory);
+    cpu_register_physical_memory(leaddr, 4, lance_io_memory);
 
     ledma_io_memory = cpu_register_io_memory(0, ledma_mem_read, ledma_mem_write, s);
     cpu_register_physical_memory(ledaddr, 16, ledma_io_memory);

@@ -1,7 +1,7 @@
 /*
  * QEMU Sparc SLAVIO timer controller emulation
  *
- * Copyright (c) 2003-2004 Fabrice Bellard
+ * Copyright (c) 2003-2005 Fabrice Bellard
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,6 +24,13 @@
 #include "vl.h"
 
 //#define DEBUG_TIMER
+
+#ifdef DEBUG_TIMER
+#define DPRINTF(fmt, args...) \
+do { printf("TIMER: " fmt , ##args); } while (0)
+#else
+#define DPRINTF(fmt, args...)
+#endif
 
 /*
  * Registers of hardware timer in sun4m.
@@ -90,9 +97,8 @@ static void slavio_timer_get_out(SLAVIO_TIMERState *s)
     // Convert remaining counter ticks to CPU ticks
     s->expire_time = ticks + muldiv64(limit - count, ticks_per_sec, CNT_FREQ);
 
-#ifdef DEBUG_TIMER
-    term_printf("timer: irq %d limit %d reached %d d %lld count %d s->c %x diff %lld stopped %d mode %d\n", s->irq, limit, s->reached?1:0, (ticks-s->count_load_time), count, s->count, s->expire_time - ticks, s->stopped, s->mode);
-#endif
+    DPRINTF("irq %d limit %d reached %d d %lld count %d s->c %x diff %lld stopped %d mode %d\n", s->irq, limit, s->reached?1:0, (ticks-s->count_load_time), count, s->count, s->expire_time - ticks, s->stopped, s->mode);
+
     if (s->mode != 1)
 	pic_set_irq(s->irq, out);
 }

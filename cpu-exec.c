@@ -1,7 +1,7 @@
 /*
  *  i386 emulator main execution loop
  * 
- *  Copyright (c) 2003 Fabrice Bellard
+ *  Copyright (c) 2003-2005 Fabrice Bellard
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -285,9 +285,18 @@ int cpu_exec(CPUState *env1)
 			}
                     }
 #elif defined(TARGET_SPARC)
-                    if (interrupt_request & CPU_INTERRUPT_HARD) {
-			do_interrupt(env->interrupt_index);
-                        env->interrupt_request &= ~CPU_INTERRUPT_HARD;
+                    if ((interrupt_request & CPU_INTERRUPT_HARD) &&
+			(env->psret != 0)) {
+			int pil = env->interrupt_index & 15;
+			int type = env->interrupt_index & 0xf0;
+
+			if (((type == TT_EXTINT) &&
+			     (pil == 15 || pil > env->psrpil)) ||
+			    type != TT_EXTINT) {
+			    env->interrupt_request &= ~CPU_INTERRUPT_HARD;
+			    do_interrupt(env->interrupt_index);
+			    env->interrupt_index = 0;
+			}
 		    } else if (interrupt_request & CPU_INTERRUPT_TIMER) {
 			//do_interrupt(0, 0, 0, 0, 0);
 			env->interrupt_request &= ~CPU_INTERRUPT_TIMER;

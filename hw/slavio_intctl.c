@@ -1,7 +1,7 @@
 /*
  * QEMU Sparc SLAVIO interrupt controller emulation
  * 
- * Copyright (c) 2003-2004 Fabrice Bellard
+ * Copyright (c) 2003-2005 Fabrice Bellard
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,6 +23,14 @@
  */
 #include "vl.h"
 //#define DEBUG_IRQ_COUNT
+//#define DEBUG_IRQ
+
+#ifdef DEBUG_IRQ
+#define DPRINTF(fmt, args...) \
+do { printf("IRQ: " fmt , ##args); } while (0)
+#else
+#define DPRINTF(fmt, args...)
+#endif
 
 /*
  * Registers of interrupt controller in sun4m.
@@ -49,6 +57,7 @@ typedef struct SLAVIO_INTCTLState {
 
 #define INTCTL_MAXADDR 0xf
 #define INTCTLM_MAXADDR 0xf
+static void slavio_check_interrupts(void *opaque);
 
 // per-cpu interrupt controller
 static uint32_t slavio_intctl_mem_readl(void *opaque, target_phys_addr_t addr)
@@ -82,10 +91,12 @@ static void slavio_intctl_mem_writel(void *opaque, target_phys_addr_t addr, uint
 	    val |= 80000000;
 	val &= 0xfffe0000;
 	s->intreg_pending[cpu] &= ~val;
+	DPRINTF("Cleared cpu %d irq mask %x, curmask %x\n", cpu, val, s->intreg_pending[cpu]);
 	break;
     case 2: // set softint
 	val &= 0xfffe0000;
 	s->intreg_pending[cpu] |= val;
+	DPRINTF("Set cpu %d irq mask %x, curmask %x\n", cpu, val, s->intreg_pending[cpu]);
 	break;
     default:
 	break;
@@ -135,15 +146,19 @@ static void slavio_intctlm_mem_writel(void *opaque, target_phys_addr_t addr, uin
 	// Force clear unused bits
 	val &= ~0x7fb2007f;
 	s->intregm_disabled &= ~val;
+	DPRINTF("Enabled master irq mask %x, curmask %x\n", val, s->intregm_disabled);
+	slavio_check_interrupts(s);
 	break;
     case 3: // set (disable, clear pending)
 	// Force clear unused bits
 	val &= ~0x7fb2007f;
 	s->intregm_disabled |= val;
 	s->intregm_pending &= ~val;
+	DPRINTF("Disabled master irq mask %x, curmask %x\n", val, s->intregm_disabled);
 	break;
     case 4:
 	s->target_cpu = val & (MAX_CPUS - 1);
+	DPRINTF("Set master irq cpu %d\n", s->target_cpu);
 	break;
     default:
 	break;
@@ -196,6 +211,36 @@ static const uint32_t intbit_to_level[32] = {
     6, 0, 4, 10, 8, 0, 11, 0,	0, 0, 0, 0, 15, 0, 0, 0,
 };
 
+static void slavio_check_interrupts(void *opaque)
+{
+    SLAVIO_INTCTLState *s = opaque;
+    uint32_t pending = s->intregm_pending;
+    unsigned int i, max = 0;
+
+    pending &= ~s->intregm_disabled;
+
+    if (pending && !(s->intregm_disabled & 0x80000000)) {
+	for (i = 0; i < 32; i++) {
+	    if (pending & (1 << i)) {
+		if (max < intbit_to_level[i])
+		    max = intbit_to_level[i];
+	    }
+	}
+	if (cpu_single_env->interrupt_index == 0) {
+	    DPRINTF("Triggered pil %d\n", max);
+#ifdef DEBUG_IRQ_COUNT
+	    s->irq_count[max]++;
+#endif
+	    cpu_single_env->interrupt_index = TT_EXTINT | max;
+	    cpu_interrupt(cpu_single_env, CPU_INTERRUPT_HARD);
+	}
+	else
+	    DPRINTF("Not triggered (pending %x), pending exception %x\n", pending, cpu_single_env->interrupt_index);
+    }
+    else
+	DPRINTF("Not triggered (pending %x), disabled %x\n", pending, s->intregm_disabled);
+}
+
 /*
  * "irq" here is the bit number in the system interrupt register to
  * separate serial and keyboard interrupts sharing a level.
@@ -204,6 +249,7 @@ void slavio_pic_set_irq(void *opaque, int irq, int level)
 {
     SLAVIO_INTCTLState *s = opaque;
 
+    DPRINTF("Set irq %d level %d\n", irq, level);
     if (irq < 32) {
 	uint32_t mask = 1 << irq;
 	uint32_t pil = intbit_to_level[irq];
@@ -216,19 +262,9 @@ void slavio_pic_set_irq(void *opaque, int irq, int level)
 		s->intregm_pending &= ~mask;
 		s->intreg_pending[s->target_cpu] &= ~(1 << pil);
 	    }
-	    if (level &&
-		!(s->intregm_disabled & mask) &&
-		!(s->intregm_disabled & 0x80000000) &&
-		(pil == 15 || (pil > cpu_single_env->psrpil && cpu_single_env->psret == 1))) {
-#ifdef DEBUG_IRQ_COUNT
-		if (level == 1)
-		    s->irq_count[pil]++;
-#endif
-		cpu_single_env->interrupt_index = TT_EXTINT | pil;
-		cpu_interrupt(cpu_single_env, CPU_INTERRUPT_HARD);
-	    }
 	}
     }
+    slavio_check_interrupts(s);
 }
 
 static void slavio_intctl_save(QEMUFile *f, void *opaque)
