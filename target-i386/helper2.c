@@ -304,7 +304,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr,
     /* if PSE bit is set, then we use a 4MB page */
     if ((pde & PG_PSE_MASK) && (env->cr[4] & CR4_PSE_MASK)) {
         is_dirty = is_write && !(pde & PG_DIRTY_MASK);
-        if (!(pde & PG_ACCESSED_MASK)) {
+        if (!(pde & PG_ACCESSED_MASK) || is_dirty) {
             pde |= PG_ACCESSED_MASK;
             if (is_dirty)
                 pde |= PG_DIRTY_MASK;
@@ -363,7 +363,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr,
                 prot |= PROT_WRITE;
         }
     }
-    
+
  do_mapping:
     pte = pte & a20_mask;
 
