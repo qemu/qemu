@@ -248,53 +248,6 @@ static int put_packet(char *buf)
     return 0;
 }
 
-/* better than nothing for SOFTMMU : we use physical addresses */
-#if !defined(CONFIG_USER_ONLY)
-static int memory_rw(uint8_t *buf, uint32_t addr, int len, int is_write)
-{
-    uint8_t *ptr;
-
-    if (addr >= phys_ram_size ||
-        ((int64_t)addr + len > phys_ram_size))
-        return -1;
-    ptr = phys_ram_base + addr;
-    if (is_write)
-        memcpy(ptr, buf, len);
-    else
-        memcpy(buf, ptr, len);
-    return 0;
-}
-#else
-static int memory_rw(uint8_t *buf, uint32_t addr, int len, int is_write)
-{
-    int l, flags;
-    uint32_t page;
-
-    while (len > 0) {
-        page = addr & TARGET_PAGE_MASK;
-        l = (page + TARGET_PAGE_SIZE) - addr;
-        if (l > len)
-            l = len;
-        flags = page_get_flags(page);
-        if (!(flags & PAGE_VALID))
-            return -1;
-        if (is_write) {
-            if (!(flags & PAGE_WRITE))
-                return -1;
-            memcpy((uint8_t *)addr, buf, l);
-        } else {
-            if (!(flags & PAGE_READ))
-                return -1;
-            memcpy(buf, (uint8_t *)addr, l);
-        }
-        len -= l;
-        buf += l;
-        addr += l;
-    }
-    return 0;
-}
-#endif
-
 #if defined(TARGET_I386)
 
 static void to_le32(uint8_t *p, int v)
@@ -514,16 +467,18 @@ int cpu_gdbstub(void *opaque, int (*main_loop)(void *opaque), int port)
             put_packet("OK");
             break;
         case 'm':
+            env = cpu_gdbstub_get_env(opaque);
             addr = strtoul(p, (char **)&p, 16);
             if (*p == ',')
                 p++;
             len = strtoul(p, NULL, 16);
-            if (memory_rw(mem_buf, addr, len, 0) != 0)
+            if (cpu_memory_rw_debug(env, mem_buf, addr, len, 0) != 0)
                 memset(mem_buf, 0, len);
             memtohex(buf, mem_buf, len);
             put_packet(buf);
             break;
         case 'M':
+            env = cpu_gdbstub_get_env(opaque);
             addr = strtoul(p, (char **)&p, 16);
             if (*p == ',')
                 p++;
@@ -531,7 +486,7 @@ int cpu_gdbstub(void *opaque, int (*main_loop)(void *opaque), int port)
             if (*p == ',')
                 p++;
             hextomem(mem_buf, p, len);
-            if (memory_rw(mem_buf, addr, len, 1) != 0)
+            if (cpu_memory_rw_debug(env, mem_buf, addr, len, 1) != 0)
                 put_packet("ENN");
             else
                 put_packet("OK");

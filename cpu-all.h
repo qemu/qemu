@@ -473,6 +473,11 @@ int cpu_breakpoint_insert(CPUState *env, uint32_t pc);
 int cpu_breakpoint_remove(CPUState *env, uint32_t pc);
 void cpu_single_step(CPUState *env, int enabled);
 
+/* Return the physical page corresponding to a virtual one. Use it
+   only for debugging because no protection checks are done. Return -1
+   if no page found. */
+target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr);
+
 #define CPU_LOG_ALL 1
 void cpu_set_log(int log_flags);
 void cpu_set_log_filename(const char *filename);
@@ -514,6 +519,11 @@ void cpu_register_physical_memory(unsigned long start_addr, unsigned long size,
 int cpu_register_io_memory(int io_index,
                            CPUReadMemoryFunc **mem_read,
                            CPUWriteMemoryFunc **mem_write);
+
+void cpu_physical_memory_rw(CPUState *env, uint8_t *buf, target_ulong addr, 
+                            int len, int is_write);
+int cpu_memory_rw_debug(CPUState *env, 
+                        uint8_t *buf, target_ulong addr, int len, int is_write);
 
 /* gdb stub API */
 extern int gdbstub_fd;

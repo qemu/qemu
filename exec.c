@@ -1561,6 +1561,144 @@ int cpu_register_io_memory(int io_index,
     return io_index << IO_MEM_SHIFT;
 }
 
+/* physical memory access (slow version, mainly for debug) */
+#if defined(CONFIG_USER_ONLY)
+void cpu_physical_memory_rw(CPUState *env, uint8_t *buf, target_ulong addr, 
+                            int len, int is_write)
+{
+    int l, flags;
+    target_ulong page;
+
+    while (len > 0) {
+        page = addr & TARGET_PAGE_MASK;
+        l = (page + TARGET_PAGE_SIZE) - addr;
+        if (l > len)
+            l = len;
+        flags = page_get_flags(page);
+        if (!(flags & PAGE_VALID))
+            return;
+        if (is_write) {
+            if (!(flags & PAGE_WRITE))
+                return;
+            memcpy((uint8_t *)addr, buf, len);
+        } else {
+            if (!(flags & PAGE_READ))
+                return;
+            memcpy(buf, (uint8_t *)addr, len);
+        }
+        len -= l;
+        buf += l;
+        addr += l;
+    }
+}
+#else
+void cpu_physical_memory_rw(CPUState *env, uint8_t *buf, target_ulong addr, 
+                            int len, int is_write)
+{
+    int l, io_index;
+    uint8_t *ptr;
+    uint32_t val;
+    target_ulong page, pd;
+    PageDesc *p;
+    
+    while (len > 0) {
+        page = addr & TARGET_PAGE_MASK;
+        l = (page + TARGET_PAGE_SIZE) - addr;
+        if (l > len)
+            l = len;
+        p = page_find(page >> TARGET_PAGE_BITS);
+        if (!p) {
+            pd = IO_MEM_UNASSIGNED;
+        } else {
+            pd = p->phys_offset;
+        }
+        
+        if (is_write) {
+            if ((pd & ~TARGET_PAGE_MASK) != 0) {
+                io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
+                if (l >= 4 && ((addr & 3) == 0)) {
+                    /* 32 bit read access */
+                    val = ldl_raw(buf);
+                    io_mem_write[io_index][2](addr, val);
+                    l = 4;
+                } else if (l >= 2 && ((addr & 1) == 0)) {
+                    /* 16 bit read access */
+                    val = lduw_raw(buf);
+                    io_mem_write[io_index][1](addr, val);
+                    l = 2;
+                } else {
+                    /* 8 bit access */
+                    val = ldub_raw(buf);
+                    io_mem_write[io_index][0](addr, val);
+                    l = 1;
+                }
+            } else {
+                /* RAM case */
+                ptr = phys_ram_base + (pd & TARGET_PAGE_MASK) + 
+                    (addr & ~TARGET_PAGE_MASK);
+                memcpy(ptr, buf, l);
+            }
+        } else {
+            if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM &&
+                (pd & ~TARGET_PAGE_MASK) != IO_MEM_CODE) {
+                /* I/O case */
+                io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
+                if (l >= 4 && ((addr & 3) == 0)) {
+                    /* 32 bit read access */
+                    val = io_mem_read[io_index][2](addr);
+                    stl_raw(buf, val);
+                    l = 4;
+                } else if (l >= 2 && ((addr & 1) == 0)) {
+                    /* 16 bit read access */
+                    val = io_mem_read[io_index][1](addr);
+                    stw_raw(buf, val);
+                    l = 2;
+                } else {
+                    /* 8 bit access */
+                    val = io_mem_read[io_index][0](addr);
+                    stb_raw(buf, val);
+                    l = 1;
+                }
+            } else {
+                /* RAM case */
+                ptr = phys_ram_base + (pd & TARGET_PAGE_MASK) + 
+                    (addr & ~TARGET_PAGE_MASK);
+                memcpy(buf, ptr, l);
+            }
+        }
+        len -= l;
+        buf += l;
+        addr += l;
+    }
+}
+#endif
+
+/* virtual memory access for debug */
+int cpu_memory_rw_debug(CPUState *env, 
+                        uint8_t *buf, target_ulong addr, int len, int is_write)
+{
+    int l;
+    target_ulong page, phys_addr;
+
+    while (len > 0) {
+        page = addr & TARGET_PAGE_MASK;
+        phys_addr = cpu_get_phys_page_debug(env, page);
+        /* if no physical page mapped, return an error */
+        if (phys_addr == -1)
+            return -1;
+        l = (page + TARGET_PAGE_SIZE) - addr;
+        if (l > len)
+            l = len;
+        cpu_physical_memory_rw(env, buf, 
+                               phys_addr + (addr & ~TARGET_PAGE_MASK), l, 
+                               is_write);
+        len -= l;
+        buf += l;
+        addr += l;
+    }
+    return 0;
+}
+
 #if !defined(CONFIG_USER_ONLY) 
 
 #define MMUSUFFIX _cmmu
