@@ -5,6 +5,9 @@ version 0.5.4:
   - keyboard/mouse fix (Mike Nordell)
   - IDE fixes (Linux did not recognized slave drivers)
   - VM86 EIP masking fix (aka NT5 install fix) (Mike Nordell)
+  - QEMU can now boot a PowerPC Linux kernel (Jocelyn Mayer)
+  - User mode network stack
+  - imul imm8 fix + 0x82 opcode support (Hidemi KAWAI)
 
 version 0.5.3:
 
