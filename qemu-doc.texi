@@ -233,6 +233,24 @@ guest must be configured in binary mode (use the command @code{bin} of
 the Unix TFTP client). The host IP address on the guest is as usual
 10.0.2.2.
 
+@item -smb dir
+When using the user mode network stack, activate a built-in SMB
+server so that Windows OSes can access to the host files in @file{dir}
+transparently.
+
+In the guest Windows OS, the line:
+@example
+10.0.2.4 smbserver
+@end example
+must be added in the file @file{C:\WINDOWS\LMHOSTS} (for windows 9x/Me)
+or @file{C:\WINNT\SYSTEM32\DRIVERS\ETC\LMHOSTS} (Windows NT/2000).
+
+Then @file{dir} can be accessed in @file{\\smbserver\qemu}.
+
+Note that a SAMBA server must be installed on the host OS in
+@file{/usr/sbin/smbd}. QEMU was tested succesfully with smbd version
+2.2.7a from the Red Hat 9.
+
 @item -redir [tcp|udp]:host-port:[guest-host]:guest-port
 
 When using the user mode network stack, redirect incoming TCP or UDP
@@ -671,8 +689,9 @@ configuration is the following:
 QEMU Virtual Machine    <------>  Firewall/DHCP server <-----> Internet
      (10.0.2.x)            |          (10.0.2.2)
                            |
-                           ---->  DNS 
-                              (10.0.2.3)
+                           ---->  DNS server (10.0.2.3)
+                           |     
+                           ---->  SMB server (10.0.2.4)
 @end example
 
 The QEMU VM behaves as if it was behind a firewall which blocks all
