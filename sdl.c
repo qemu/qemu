@@ -52,6 +52,7 @@ static int gui_grab; /* if true, all keyboard/mouse events are grabbed */
 
 static void sdl_update(DisplayState *ds, int x, int y, int w, int h)
 {
+    //    printf("updating x=%d y=%d w=%d h=%d\n", x, y, w, h);
     SDL_UpdateRect(screen, x, y, w, h);
 }
 
@@ -257,6 +258,11 @@ static void sdl_refresh(DisplayState *ds)
     }
 }
 
+static void sdl_cleanup(void) 
+{
+    SDL_Quit();
+}
+
 void sdl_display_init(DisplayState *ds)
 {
     int flags;
@@ -278,4 +284,6 @@ void sdl_display_init(DisplayState *ds)
     SDL_WM_SetCaption("QEMU", "QEMU");
     SDL_EnableKeyRepeat(250, 50);
     gui_grab = 0;
+
+    atexit(sdl_cleanup);
 }
