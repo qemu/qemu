@@ -378,7 +378,7 @@ int cpu_exec(CPUState *env1)
     return ret;
 }
 
-#if defined(TARGET_I386)
+#if defined(TARGET_I386) && defined(CONFIG_USER_ONLY)
 
 void cpu_x86_load_seg(CPUX86State *s, int seg_reg, int selector)
 {
