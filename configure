@@ -190,10 +190,10 @@ fi
 
 if test -z "$target_list" ; then
 # these targets are portable
-    target_list="i386-softmmu ppc-softmmu sparc-softmmu x86_64-softmmu"
+    target_list="i386-softmmu ppc-softmmu sparc-softmmu x86_64-softmmu sparc64-softmmu"
 # the following are Linux specific
     if [ "$linux" = "yes" ] ; then
-        target_list="i386-user i386 arm-user armeb-user sparc-user ppc-user $target_list"
+        target_list="i386-user i386 arm-user armeb-user sparc-user ppc-user sparc64-user $target_list"
     fi
 fi
 
@@ -500,6 +500,7 @@ target_cpu=`echo $target | cut -d '-' -f 1`
 target_bigendian="no"
 [ "$target_cpu" = "armeb" ] && target_bigendian=yes
 [ "$target_cpu" = "sparc" ] && target_bigendian=yes
+[ "$target_cpu" = "sparc64" ] && target_bigendian=yes
 [ "$target_cpu" = "ppc" ] && target_bigendian=yes
 target_softmmu="no"
 if expr $target : '.*-softmmu' > /dev/null ; then
@@ -544,6 +545,11 @@ elif test "$target_cpu" = "sparc" ; then
   echo "TARGET_ARCH=sparc" >> $config_mak
   echo "#define TARGET_ARCH \"sparc\"" >> $config_h
   echo "#define TARGET_SPARC 1" >> $config_h
+elif test "$target_cpu" = "sparc64" ; then
+  echo "TARGET_ARCH=sparc64" >> $config_mak
+  echo "#define TARGET_ARCH \"sparc64\"" >> $config_h
+  echo "#define TARGET_SPARC 1" >> $config_h
+  echo "#define TARGET_SPARC64 1" >> $config_h
 elif test "$target_cpu" = "ppc" ; then
   echo "TARGET_ARCH=ppc" >> $config_mak
   echo "#define TARGET_ARCH \"ppc\"" >> $config_h

@@ -4,6 +4,9 @@ TARGET_BASE_ARCH:=$(TARGET_ARCH)
 ifeq ($(TARGET_ARCH), x86_64)
 TARGET_BASE_ARCH:=i386
 endif
+ifeq ($(TARGET_ARCH), sparc64)
+TARGET_BASE_ARCH:=sparc
+endif
 TARGET_PATH=$(SRC_PATH)/target-$(TARGET_BASE_ARCH)
 VPATH=$(SRC_PATH):$(TARGET_PATH):$(SRC_PATH)/hw:$(SRC_PATH)/audio
 DEFINES=-I. -I$(TARGET_PATH) -I$(SRC_PATH)
@@ -102,6 +105,13 @@ endif
 endif # ARCH = x86_64
 
 endif # TARGET_ARCH = sparc
+
+ifeq ($(TARGET_ARCH), sparc64)
+ifdef CONFIG_SOFTMMU
+PROGS+=$(QEMU_SYSTEM)
+endif
+endif # TARGET_ARCH = sparc64
+
 endif # !CONFIG_USER_ONLY
 
 ifdef CONFIG_STATIC
@@ -245,7 +255,7 @@ ifeq ($(TARGET_ARCH), ppc)
 LIBOBJS+= op_helper.o helper.o
 endif
 
-ifeq ($(TARGET_ARCH), sparc)
+ifeq ($(TARGET_BASE_ARCH), sparc)
 LIBOBJS+= op_helper.o helper.o
 endif
 
@@ -266,7 +276,7 @@ endif
 ifeq ($(findstring ppc, $(TARGET_ARCH) $(ARCH)),ppc)
 LIBOBJS+=ppc-dis.o
 endif
-ifeq ($(findstring sparc, $(TARGET_ARCH) $(ARCH)),sparc)
+ifeq ($(findstring sparc, $(TARGET_BASE_ARCH) $(ARCH)),sparc)
 LIBOBJS+=sparc-dis.o
 endif
 ifeq ($(findstring arm, $(TARGET_ARCH) $(ARCH)),arm)
@@ -323,7 +333,7 @@ VL_OBJS+= ppc.o ide.o ne2000.o pckbd.o vga.o $(SOUND_HW) dma.o $(AUDIODRV)
 VL_OBJS+= mc146818rtc.o serial.o i8259.o i8254.o fdc.o m48t59.o
 VL_OBJS+= ppc_prep.o ppc_chrp.o cuda.o adb.o openpic.o mixeng.o
 endif
-ifeq ($(TARGET_ARCH), sparc)
+ifeq ($(TARGET_BASE_ARCH), sparc)
 VL_OBJS+= sun4m.o tcx.o lance.o iommu.o m48t08.o magic-load.o slavio_intctl.o slavio_timer.o slavio_serial.o fdc.o
 endif
 ifdef CONFIG_GDBSTUB
@@ -399,7 +409,7 @@ ifeq ($(TARGET_ARCH), arm)
 op.o: op.c op_template.h
 endif
 
-ifeq ($(TARGET_ARCH), sparc)
+ifeq ($(TARGET_BASE_ARCH), sparc)
 op.o: op.c op_template.h op_mem.h
 endif
 

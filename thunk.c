@@ -153,7 +153,7 @@ const argtype *thunk_convert(void *dst, const void *src,
         }
         break;
 #else
-#error unsupported conversion
+#warning unsupported conversion
 #endif
     case TYPE_ARRAY:
         {
