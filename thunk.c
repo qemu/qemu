@@ -236,7 +236,7 @@ unsigned int host_to_target_bitmask(unsigned int alpha_mask,
 
     for(btp = trans_tbl; btp->x86_mask && btp->alpha_mask; btp++) {
 	if((alpha_mask & btp->alpha_mask) == btp->alpha_bits) {
-	    x86_mask |= btp->x86_mask;
+	    x86_mask |= btp->x86_bits;
 	}
     }
     return(x86_mask);
