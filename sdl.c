@@ -65,6 +65,8 @@ static void sdl_resize(DisplayState *ds, int w, int h)
     ds->data = screen->pixels;
     ds->linesize = screen->pitch;
     ds->depth = screen->format->BitsPerPixel;
+    ds->width = w;
+    ds->height = h;
 }
 
 #ifdef CONFIG_SDL_GENERIC_KBD
@@ -408,7 +410,9 @@ static void sdl_refresh(DisplayState *ds)
         sdl_update_caption();
     }
 
-    vga_update_display();
+    if (is_active_console(vga_console)) 
+        vga_update_display();
+
     while (SDL_PollEvent(ev)) {
         switch (ev->type) {
         case SDL_VIDEOEXPOSE:
@@ -420,19 +424,68 @@ static void sdl_refresh(DisplayState *ds)
                 mod_state = (SDL_GetModState() & (KMOD_LSHIFT | KMOD_LCTRL)) ==
                     (KMOD_LSHIFT | KMOD_LCTRL);
                 gui_key_modifier_pressed = mod_state;
-                if (gui_key_modifier_pressed && 
-                    ev->key.keysym.sym == SDLK_f) {
-                    gui_keysym = ev->key.keysym.sym;
+                if (gui_key_modifier_pressed) {
+                    switch(ev->key.keysym.sym) {
+                    case SDLK_f:
+                        toggle_full_screen(ds);
+                        gui_keysym = 1;
+                        break;
+                    case SDLK_F1 ... SDLK_F12:
+                        console_select(ev->key.keysym.sym - SDLK_F1);
+                        if (is_active_console(vga_console)) {
+                            /* tell the vga console to redisplay itself */
+                            vga_invalidate_display();
+                        } else {
+                            /* display grab if going to a text console */
+                            if (gui_grab)
+                                sdl_grab_end();
+                        }
+                        gui_keysym = 1;
+                        break;
+                    default:
+                        break;
+                    }
+                }
+                if (!is_active_console(vga_console)) {
+                    int keysym;
+                    keysym = 0;
+                    if (ev->key.keysym.mod & (KMOD_LCTRL | KMOD_RCTRL)) {
+                        switch(ev->key.keysym.sym) {
+                        case SDLK_UP: keysym = QEMU_KEY_CTRL_UP; break;
+                        case SDLK_DOWN: keysym = QEMU_KEY_CTRL_DOWN; break;
+                        case SDLK_LEFT: keysym = QEMU_KEY_CTRL_LEFT; break;
+                        case SDLK_RIGHT: keysym = QEMU_KEY_CTRL_RIGHT; break;
+                        case SDLK_HOME: keysym = QEMU_KEY_CTRL_HOME; break;
+                        case SDLK_END: keysym = QEMU_KEY_CTRL_END; break;
+                        case SDLK_PAGEUP: keysym = QEMU_KEY_CTRL_PAGEUP; break;
+                        case SDLK_PAGEDOWN: keysym = QEMU_KEY_CTRL_PAGEDOWN; break;
+                        default: break;
+                        }
+                    } else {
+                        switch(ev->key.keysym.sym) {
+                        case SDLK_UP: keysym = QEMU_KEY_UP; break;
+                        case SDLK_DOWN: keysym = QEMU_KEY_DOWN; break;
+                        case SDLK_LEFT: keysym = QEMU_KEY_LEFT; break;
+                        case SDLK_RIGHT: keysym = QEMU_KEY_RIGHT; break;
+                        case SDLK_HOME: keysym = QEMU_KEY_HOME; break;
+                        case SDLK_END: keysym = QEMU_KEY_END; break;
+                        case SDLK_PAGEUP: keysym = QEMU_KEY_PAGEUP; break;
+                        case SDLK_PAGEDOWN: keysym = QEMU_KEY_PAGEDOWN; break;
+                        case SDLK_BACKSPACE: keysym = QEMU_KEY_BACKSPACE; break;                        case SDLK_DELETE: keysym = QEMU_KEY_DELETE; break;
+                        default: break;
+                        }
+                    }
+                    if (keysym) {
+                        kbd_put_keysym(keysym);
+                    } else if (ev->key.keysym.unicode != 0) {
+                        kbd_put_keysym(ev->key.keysym.unicode);
+                    }
                 }
             } else if (ev->type == SDL_KEYUP) {
                 mod_state = (SDL_GetModState() & (KMOD_LSHIFT | KMOD_LCTRL));
                 if (!mod_state) {
                     if (gui_key_modifier_pressed) {
-                        switch(gui_keysym) {
-                        case SDLK_f:
-                            toggle_full_screen(ds);
-                            break;
-                        case 0:
+                        if (gui_keysym == 0) {
                             /* exit/enter grab if pressing Ctrl-Shift */
                             if (!gui_grab)
                                 sdl_grab_start();
@@ -445,7 +498,8 @@ static void sdl_refresh(DisplayState *ds)
                     }
                 }
             }
-            sdl_process_key(&ev->key);
+            if (is_active_console(vga_console)) 
+                sdl_process_key(&ev->key);
             break;
         case SDL_QUIT:
             qemu_system_shutdown_request();
@@ -495,7 +549,6 @@ void sdl_display_init(DisplayState *ds)
         fprintf(stderr, "Could not initialize SDL - exiting\n");
         exit(1);
     }
-
 #ifndef _WIN32
     /* NOTE: we still want Ctrl-C to work, so we undo the SDL redirections */
     signal(SIGINT, SIG_DFL);
@@ -509,6 +562,7 @@ void sdl_display_init(DisplayState *ds)
     sdl_resize(ds, 640, 400);
     sdl_update_caption();
     SDL_EnableKeyRepeat(250, 50);
+    SDL_EnableUNICODE(1);
     gui_grab = 0;
 
     atexit(sdl_cleanup);
