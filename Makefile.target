@@ -17,8 +17,14 @@ else
 QEMU_SYSTEM=qemu
 endif
 
-ifndef CONFIG_SOFTMMU
+ifdef CONFIG_USER_ONLY
 PROGS=$(QEMU_USER)
+else
+ifeq ($(ARCH),i386)
+ifeq ($(TARGET_ARCH), i386)
+PROGS+=$(QEMU_SYSTEM)
+endif
+endif
 endif
 
 ifdef CONFIG_STATIC
@@ -40,9 +46,6 @@ else
 # that the kernel ELF loader considers as an executable. I think this
 # is the simplest way to make it self virtualizable!
 LDFLAGS+=-Wl,-shared
-endif
-ifeq ($(TARGET_ARCH), i386)
-PROGS+=$(QEMU_SYSTEM)
 endif
 endif
 
@@ -171,7 +174,7 @@ sdl.o: sdl.c
 	$(CC) $(CFLAGS) $(DEFINES) $(SDL_CFLAGS) -c -o $@ $<
 
 depend: $(SRCS)
-	$(CC) -MM $(CFLAGS) $^ 1>.depend
+	$(CC) -MM $(CFLAGS) $(DEFINES) $^ 1>.depend
 
 # libqemu 
 
