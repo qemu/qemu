@@ -1520,7 +1520,10 @@ GEN_HANDLER(stfiwx, 0x1F, 0x17, 0x1E, 0x00000001, PPC_FLOAT)
 /* b ba bl bla */
 GEN_HANDLER(b, 0x12, 0xFF, 0xFF, 0x00000000, PPC_FLOW)
 {
-    uint32_t li = s_ext24(LI(ctx->opcode)), target;
+    uint32_t li, target;
+
+    /* sign extend LI */
+    li = ((int32_t)LI(ctx->opcode) << 6) >> 6;
 
     if (AA(ctx->opcode) == 0)
         target = ctx->nip + li - 4;
