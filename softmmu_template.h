@@ -187,7 +187,7 @@ void REGPARM(2) glue(glue(__st, SUFFIX), MMUSUFFIX)(unsigned long addr,
  redo:
     tlb_addr = env->tlb_write[is_user][index].address;
     if ((addr & TARGET_PAGE_MASK) == (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
-        physaddr = addr + env->tlb_read[is_user][index].addend;
+        physaddr = addr + env->tlb_write[is_user][index].addend;
         if (tlb_addr & ~TARGET_PAGE_MASK) {
             /* IO access */
             if ((addr & (DATA_SIZE - 1)) != 0)
@@ -223,7 +223,7 @@ static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(unsigned long addr,
  redo:
     tlb_addr = env->tlb_write[is_user][index].address;
     if ((addr & TARGET_PAGE_MASK) == (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
-        physaddr = addr + env->tlb_read[is_user][index].addend;
+        physaddr = addr + env->tlb_write[is_user][index].addend;
         if (tlb_addr & ~TARGET_PAGE_MASK) {
             /* IO access */
             if ((addr & (DATA_SIZE - 1)) != 0)
