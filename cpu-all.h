@@ -377,6 +377,10 @@ int cpu_breakpoint_insert(CPUState *env, uint32_t pc);
 int cpu_breakpoint_remove(CPUState *env, uint32_t pc);
 void cpu_single_step(CPUState *env, int enabled);
 
+#define CPU_LOG_ALL 1
+void cpu_set_log(int log_flags);
+void cpu_set_log_filename(const char *filename);
+
 /* memory API */
 
 typedef void CPUWriteMemoryFunc(uint32_t addr, uint32_t value);

@@ -50,7 +50,6 @@
 
 #include "vl.h"
 
-#define DEBUG_LOGFILE "/tmp/vl.log"
 #define DEFAULT_NETWORK_SCRIPT "/etc/qemu-ifup"
 #define BIOS_FILENAME "bios.bin"
 #define VGABIOS_FILENAME "vgabios.bin"
@@ -209,8 +208,6 @@ static const char *bios_dir = CONFIG_QEMU_SHAREDIR;
 char phys_ram_file[1024];
 CPUX86State *global_env;
 CPUX86State *cpu_single_env;
-FILE *logfile = NULL;
-int loglevel;
 IOPortReadFunc *ioport_read_table[3][MAX_IOPORTS];
 IOPortWriteFunc *ioport_write_table[3][MAX_IOPORTS];
 BlockDriverState *bs_table[MAX_DISKS];
@@ -832,18 +829,74 @@ int speaker_data_on;
 int dummy_refresh_clock;
 int pit_min_timer_count = 0;
 
+
+#if defined(__powerpc__)
+
+static inline uint32_t get_tbl(void) 
+{
+    uint32_t tbl;
+    asm volatile("mftb %0" : "=r" (tbl));
+    return tbl;
+}
+
+static inline uint32_t get_tbu(void) 
+{
+	uint32_t tbl;
+	asm volatile("mftbu %0" : "=r" (tbl));
+	return tbl;
+}
+
+int64_t cpu_get_real_ticks(void)
+{
+    uint32_t l, h, h1;
+    /* NOTE: we test if wrapping has occurred */
+    do {
+        h = get_tbu();
+        l = get_tbl();
+        h1 = get_tbu();
+    } while (h != h1);
+    return ((int64_t)h << 32) | l;
+}
+
+#elif defined(__i386__)
+
+int64_t cpu_get_real_ticks(void)
+{
+    int64_t val;
+    asm("rdtsc" : "=A" (val));
+    return val;
+}
+
+#else
+#error unsupported CPU
+#endif
+
+static int64_t cpu_ticks_offset;
+static int64_t cpu_ticks_last;
+
+int64_t cpu_get_ticks(void)
+{
+    return cpu_get_real_ticks() + cpu_ticks_offset;
+}
+
+/* enable cpu_get_ticks() */
+void cpu_enable_ticks(void)
+{
+    cpu_ticks_offset = cpu_ticks_last - cpu_get_real_ticks();
+}
+
+/* disable cpu_get_ticks() : the clock is stopped. You must not call
+   cpu_get_ticks() after that.  */
+void cpu_disable_ticks(void)
+{
+    cpu_ticks_last = cpu_get_ticks();
+}
+
 int64_t get_clock(void)
 {
     struct timeval tv;
     gettimeofday(&tv, NULL);
     return tv.tv_sec * 1000000LL + tv.tv_usec;
-}
-
-int64_t cpu_get_ticks(void)
-{
-    int64_t val;
-    asm("rdtsc" : "=A" (val));
-    return val;
 }
 
 void cpu_calibrate_ticks(void)
@@ -3297,12 +3350,17 @@ int main_loop(void *opaque)
     }
 
     serial_ok = 1;
+    cpu_enable_ticks();
     for(;;) {
         ret = cpu_x86_exec(env);
-        if (reset_requested)
+        if (reset_requested) {
+            ret = EXCP_INTERRUPT; 
             break;
-        if (ret == EXCP_DEBUG)
-            return EXCP_DEBUG;
+        }
+        if (ret == EXCP_DEBUG) {
+            ret = EXCP_DEBUG;
+            break;
+        }
         /* if hlt instruction, we wait until the next IRQ */
         if (ret == EXCP_HLT) 
             timeout = 10;
@@ -3359,8 +3417,10 @@ int main_loop(void *opaque)
                 uint8_t buf[1];
                 /* stop emulation if requested by gdb */
                 n = read(gdbstub_fd, buf, 1);
-                if (n == 1)
+                if (n == 1) {
+                    ret = EXCP_INTERRUPT; 
                     break;
+                }
             }
         }
 
@@ -3377,7 +3437,8 @@ int main_loop(void *opaque)
             gui_refresh_pending = 0;
         }
     }
-    return EXCP_INTERRUPT;
+    cpu_disable_ticks();
+    return ret;
 }
 
 void help(void)
@@ -3535,7 +3596,7 @@ int main(int argc, char **argv)
             }
             break;
         case 'd':
-            loglevel = 1;
+            cpu_set_log(CPU_LOG_ALL);
             break;
         case 'n':
             pstrcpy(network_script, sizeof(network_script), optarg);
@@ -3563,14 +3624,6 @@ int main(int argc, char **argv)
 
     /* init debug */
     setvbuf(stdout, NULL, _IOLBF, 0);
-    if (loglevel) {
-        logfile = fopen(DEBUG_LOGFILE, "w");
-        if (!logfile) {
-            perror(DEBUG_LOGFILE);
-            _exit(1);
-        }
-        setvbuf(logfile, NULL, _IOLBF, 0);
-    }
 
     /* init network tun interface */
     if (net_fd < 0)

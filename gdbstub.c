@@ -437,7 +437,24 @@ int cpu_gdbstub(void *opaque, int (*main_loop)(void *opaque), int port)
                 goto breakpoint_error;
             }
             break;
+        case 'Q':
+            if (!strncmp(p, "Tinit", 5)) {
+                /* init traces */
+                put_packet("OK");
+            } else if (!strncmp(p, "TStart", 6)) {
+                /* start log (gdb 'tstart' command) */
+                cpu_set_log(CPU_LOG_ALL);
+                put_packet("OK");
+            } else if (!strncmp(p, "TStop", 5)) {
+                /* stop log (gdb 'tstop' command) */
+                cpu_set_log(0);
+                put_packet("OK");
+            } else {
+                goto unknown_command;
+            }
+            break;
         default:
+        unknown_command:
             /* put empty packet */
             buf[0] = '\0';
             put_packet(buf);

@@ -60,6 +60,7 @@ typedef struct DisasContext {
     int cpl;
     int iopl;
     int tf;     /* TF cpu flag */
+    int singlestep_enabled; /* "hardware" single step enabled */
     int jmp_opt; /* use direct block chaining for direct jumps */
     int mem_index; /* select memory access functions */
     struct TranslationBlock *tb;
@@ -1712,7 +1713,9 @@ static void gen_eob(DisasContext *s)
 {
     if (s->cc_op != CC_OP_DYNAMIC)
         gen_op_set_cc_op(s->cc_op);
-    if (s->tf) {
+    if (s->singlestep_enabled) {
+        gen_op_debug();
+    } else if (s->tf) {
         gen_op_raise_exception(EXCP01_SSTP);
     } else {
         gen_op_movl_T0_0();
@@ -4368,6 +4371,7 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     dc->cpl = (flags >> HF_CPL_SHIFT) & 3;
     dc->iopl = (flags >> IOPL_SHIFT) & 3;
     dc->tf = (flags >> TF_SHIFT) & 1;
+    dc->singlestep_enabled = env->singlestep_enabled;
     dc->cc_op = CC_OP_DYNAMIC;
     dc->cs_base = cs_base;
     dc->tb = tb;
@@ -4425,7 +4429,7 @@ static inline int gen_intermediate_code_internal(CPUState *env,
             break;
         /* if single step mode, we generate only one instruction and
            generate an exception */
-        if (dc->tf) {
+        if (dc->tf || dc->singlestep_enabled) {
             gen_op_jmp_im(pc_ptr - dc->cs_base);
             gen_eob(dc);
             break;

@@ -78,6 +78,11 @@ CPUWriteMemoryFunc *io_mem_write[IO_MEM_NB_ENTRIES][4];
 CPUReadMemoryFunc *io_mem_read[IO_MEM_NB_ENTRIES][4];
 static int io_mem_nb;
 
+/* log support */
+char *logfilename = "/tmp/qemu.log";
+FILE *logfile;
+int loglevel;
+
 static void page_init(void)
 {
     /* NOTE: we can always suppose that host_page_size >=
@@ -676,6 +681,24 @@ void cpu_single_step(CPUState *env, int enabled)
 #endif
 }
 
+/* enable or disable low levels log */
+void cpu_set_log(int log_flags)
+{
+    loglevel = log_flags;
+    if (loglevel && !logfile) {
+        logfile = fopen(logfilename, "w");
+        if (!logfile) {
+            perror(logfilename);
+            _exit(1);
+        }
+        setvbuf(logfile, NULL, _IOLBF, 0);
+    }
+}
+
+void cpu_set_log_filename(const char *filename)
+{
+    logfilename = strdup(filename);
+}
 
 /* mask must never be zero */
 void cpu_interrupt(CPUState *env, int mask)
