@@ -2083,7 +2083,7 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
                 /* invalidate code */
                 tb_invalidate_phys_page_range(addr1, addr1 + l, 0);
                 /* set dirty bit */
-                phys_ram_dirty[page >> TARGET_PAGE_BITS] = 1;                
+                phys_ram_dirty[addr1 >> TARGET_PAGE_BITS] = 1;                
             }
         } else {
             if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM &&
