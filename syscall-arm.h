@@ -25,3 +25,4 @@ struct target_pt_regs {
 #define ARM_r0		uregs[0]
 #define ARM_ORIG_r0	uregs[17]
 
+#define ARM_SYSCALL_BASE	0x900000

@@ -246,8 +246,6 @@ void cpu_loop(CPUX86State *env)
 
 #ifdef TARGET_ARM
 
-#define ARM_SYSCALL_BASE	0x900000
-
 void cpu_loop(CPUARMState *env)
 {
     int trapnr;
@@ -284,6 +282,9 @@ void cpu_loop(CPUARMState *env)
                     goto error;
                 }
             }
+            break;
+        case EXCP_INTERRUPT:
+            /* just indicate that signals should be handled asap */
             break;
         default:
         error:
