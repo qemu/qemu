@@ -549,7 +549,6 @@ static void kbd_write_mouse(KBDState *s, int val)
         break;
     case AUX_SET_SAMPLE:
         s->mouse_sample_rate = val;
-#if 0
         /* detect IMPS/2 or IMEX */
         switch(s->mouse_detect_state) {
         default:
@@ -576,7 +575,6 @@ static void kbd_write_mouse(KBDState *s, int val)
             s->mouse_detect_state = 0;
             break;
         }
-#endif
         kbd_queue(s, AUX_ACK, 1);
         s->mouse_write_cmd = -1;
         break;
