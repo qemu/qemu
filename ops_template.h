@@ -806,237 +806,36 @@ void OPPROTO glue(glue(op_bsr, SUFFIX), _T0_cc)(void)
 #endif
 
 /* string operations */
-/* XXX: maybe use lower level instructions to ease exception handling */
+/* XXX: maybe use lower level instructions to ease 16 bit / segment handling */
 
-void OPPROTO glue(op_movs, SUFFIX)(void)
-{
-    int v;
-    v = glue(ldu, SUFFIX)((void *)ESI);
-    glue(st, SUFFIX)((void *)EDI, v);
-    ESI += (DF << SHIFT);
-    EDI += (DF << SHIFT);
-}
+#define STRING_SUFFIX _fast
+#define SI_ADDR (void *)ESI
+#define DI_ADDR (void *)EDI
+#define INC_SI() ESI += inc
+#define INC_DI() EDI += inc
+#define CX ECX
+#define DEC_CX() ECX--
+#include "op_string.h"
 
-void OPPROTO glue(op_rep_movs, SUFFIX)(void)
-{
-    int v, inc;
-    inc = (DF << SHIFT);
-    while (ECX != 0) {
-        v = glue(ldu, SUFFIX)((void *)ESI);
-        glue(st, SUFFIX)((void *)EDI, v);
-        ESI += inc;
-        EDI += inc;
-        ECX--;
-    }
-    FORCE_RET();
-}
+#define STRING_SUFFIX _a32
+#define SI_ADDR (uint8_t *)A0 + ESI
+#define DI_ADDR env->seg_cache[R_ES].base + EDI
+#define INC_SI() ESI += inc
+#define INC_DI() EDI += inc
+#define CX ECX
+#define DEC_CX() ECX--
+#include "op_string.h"
 
-void OPPROTO glue(op_stos, SUFFIX)(void)
-{
-    glue(st, SUFFIX)((void *)EDI, EAX);
-    EDI += (DF << SHIFT);
-}
-
-void OPPROTO glue(op_rep_stos, SUFFIX)(void)
-{
-    int inc;
-    inc = (DF << SHIFT);
-    while (ECX != 0) {
-        glue(st, SUFFIX)((void *)EDI, EAX);
-        EDI += inc;
-        ECX--;
-    }
-    FORCE_RET();
-}
-
-void OPPROTO glue(op_lods, SUFFIX)(void)
-{
-    int v;
-    v = glue(ldu, SUFFIX)((void *)ESI);
-#if SHIFT == 0
-    EAX = (EAX & ~0xff) | v;
-#elif SHIFT == 1
-    EAX = (EAX & ~0xffff) | v;
-#else
-    EAX = v;
-#endif
-    ESI += (DF << SHIFT);
-}
-
-/* don't know if it is used */
-void OPPROTO glue(op_rep_lods, SUFFIX)(void)
-{
-    int v, inc;
-    inc = (DF << SHIFT);
-    while (ECX != 0) {
-        v = glue(ldu, SUFFIX)((void *)ESI);
-#if SHIFT == 0
-        EAX = (EAX & ~0xff) | v;
-#elif SHIFT == 1
-        EAX = (EAX & ~0xffff) | v;
-#else
-        EAX = v;
-#endif
-        ESI += inc;
-        ECX--;
-    }
-    FORCE_RET();
-}
-
-void OPPROTO glue(op_scas, SUFFIX)(void)
-{
-    int v;
-
-    v = glue(ldu, SUFFIX)((void *)EDI);
-    EDI += (DF << SHIFT);
-    CC_SRC = EAX;
-    CC_DST = EAX - v;
-}
-
-void OPPROTO glue(op_repz_scas, SUFFIX)(void)
-{
-    int v1, v2, inc;
-
-    if (ECX != 0) {
-        /* NOTE: the flags are not modified if ECX == 0 */
-        v1 = EAX & DATA_MASK;
-        inc = (DF << SHIFT);
-        do {
-            v2 = glue(ldu, SUFFIX)((void *)EDI);
-            EDI += inc;
-            ECX--;
-            if (v1 != v2)
-                break;
-        } while (ECX != 0);
-        CC_SRC = v1;
-        CC_DST = v1 - v2;
-        CC_OP = CC_OP_SUBB + SHIFT;
-    }
-    FORCE_RET();
-}
-
-void OPPROTO glue(op_repnz_scas, SUFFIX)(void)
-{
-    int v1, v2, inc;
-
-    if (ECX != 0) {
-        /* NOTE: the flags are not modified if ECX == 0 */
-        v1 = EAX & DATA_MASK;
-        inc = (DF << SHIFT);
-        do {
-            v2 = glue(ldu, SUFFIX)((void *)EDI);
-            EDI += inc;
-            ECX--;
-            if (v1 == v2)
-                break;
-        } while (ECX != 0);
-        CC_SRC = v1;
-        CC_DST = v1 - v2;
-        CC_OP = CC_OP_SUBB + SHIFT;
-    }
-    FORCE_RET();
-}
-
-void OPPROTO glue(op_cmps, SUFFIX)(void)
-{
-    int v1, v2;
-    v1 = glue(ldu, SUFFIX)((void *)ESI);
-    v2 = glue(ldu, SUFFIX)((void *)EDI);
-    ESI += (DF << SHIFT);
-    EDI += (DF << SHIFT);
-    CC_SRC = v1;
-    CC_DST = v1 - v2;
-}
-
-void OPPROTO glue(op_repz_cmps, SUFFIX)(void)
-{
-    int v1, v2, inc;
-    if (ECX != 0) {
-        inc = (DF << SHIFT);
-        do {
-            v1 = glue(ldu, SUFFIX)((void *)ESI);
-            v2 = glue(ldu, SUFFIX)((void *)EDI);
-            ESI += inc;
-            EDI += inc;
-            ECX--;
-            if (v1 != v2)
-                break;
-        } while (ECX != 0);
-        CC_SRC = v1;
-        CC_DST = v1 - v2;
-        CC_OP = CC_OP_SUBB + SHIFT;
-    }
-    FORCE_RET();
-}
-
-void OPPROTO glue(op_repnz_cmps, SUFFIX)(void)
-{
-    int v1, v2, inc;
-    if (ECX != 0) {
-        inc = (DF << SHIFT);
-        do {
-            v1 = glue(ldu, SUFFIX)((void *)ESI);
-            v2 = glue(ldu, SUFFIX)((void *)EDI);
-            ESI += inc;
-            EDI += inc;
-            ECX--;
-            if (v1 == v2)
-                break;
-        } while (ECX != 0);
-        CC_SRC = v1;
-        CC_DST = v1 - v2;
-        CC_OP = CC_OP_SUBB + SHIFT;
-    }
-    FORCE_RET();
-}
+#define STRING_SUFFIX _a16
+#define SI_ADDR (uint8_t *)A0 + (ESI & 0xffff)
+#define DI_ADDR env->seg_cache[R_ES].base + (EDI & 0xffff)
+#define INC_SI() ESI = (ESI & ~0xffff) | ((ESI + inc) & 0xffff)
+#define INC_DI() EDI = (EDI & ~0xffff) | ((EDI + inc) & 0xffff)
+#define CX (ECX & 0xffff)
+#define DEC_CX() ECX = (ECX & ~0xffff) | ((ECX - 1) & 0xffff)
+#include "op_string.h"
 
 /* port I/O */
-
-void OPPROTO glue(op_outs, SUFFIX)(void)
-{
-    int v, dx;
-    dx = EDX & 0xffff;
-    v = glue(ldu, SUFFIX)((void *)ESI);
-    glue(cpu_x86_out, SUFFIX)(dx, v);
-    ESI += (DF << SHIFT);
-}
-
-void OPPROTO glue(op_rep_outs, SUFFIX)(void)
-{
-    int v, dx, inc;
-    inc = (DF << SHIFT);
-    dx = EDX & 0xffff;
-    while (ECX != 0) {
-        v = glue(ldu, SUFFIX)((void *)ESI);
-        glue(cpu_x86_out, SUFFIX)(dx, v);
-        ESI += inc;
-        ECX--;
-    }
-    FORCE_RET();
-}
-
-void OPPROTO glue(op_ins, SUFFIX)(void)
-{
-    int v, dx;
-    dx = EDX & 0xffff;
-    v = glue(cpu_x86_in, SUFFIX)(dx);
-    glue(st, SUFFIX)((void *)EDI, v);
-    EDI += (DF << SHIFT);
-}
-
-void OPPROTO glue(op_rep_ins, SUFFIX)(void)
-{
-    int v, dx, inc;
-    inc = (DF << SHIFT);
-    dx = EDX & 0xffff;
-    while (ECX != 0) {
-        v = glue(cpu_x86_in, SUFFIX)(dx);
-        glue(st, SUFFIX)((void *)EDI, v);
-        EDI += (DF << SHIFT);
-        ECX--;
-    }
-    FORCE_RET();
-}
 
 void OPPROTO glue(glue(op_out, SUFFIX), _T0_T1)(void)
 {
