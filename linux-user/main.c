@@ -246,6 +246,27 @@ void cpu_loop(CPUX86State *env)
 
 #ifdef TARGET_ARM
 
+/* XXX: find a better solution */
+extern void tb_invalidate_page_range(target_ulong start, target_ulong end);
+
+static void arm_cache_flush(target_ulong start, target_ulong last)
+{
+    target_ulong addr, last1;
+
+    if (last < start)
+        return;
+    addr = start;
+    for(;;) {
+        last1 = ((addr + TARGET_PAGE_SIZE) & TARGET_PAGE_MASK) - 1;
+        if (last1 > last)
+            last1 = last;
+        tb_invalidate_page_range(addr, last1 + 1);
+        if (last1 == last)
+            break;
+        addr = last1 + 1;
+    }
+}
+
 void cpu_loop(CPUARMState *env)
 {
     int trapnr;
@@ -281,7 +302,9 @@ void cpu_loop(CPUARMState *env)
                 /* system call */
                 insn = ldl((void *)(env->regs[15] - 4));
                 n = insn & 0xffffff;
-                if (n >= ARM_SYSCALL_BASE) {
+                if (n == ARM_NR_cacheflush) {
+                    arm_cache_flush(env->regs[0], env->regs[1]);
+                } else if (n >= ARM_SYSCALL_BASE) {
                     /* linux syscall */
                     n -= ARM_SYSCALL_BASE;
                     env->regs[0] = do_syscall(env, 
@@ -792,7 +815,7 @@ void cpu_loop(CPUPPCState *env)
 void usage(void)
 {
     printf("qemu-" TARGET_ARCH " version " QEMU_VERSION ", Copyright (c) 2003 Fabrice Bellard\n"
-           "usage: qemu-" TARGET_ARCH " [-h] [-d] [-L path] [-s size] program [arguments...]\n"
+           "usage: qemu-" TARGET_ARCH " [-h] [-d opts] [-L path] [-s size] program [arguments...]\n"
            "Linux CPU emulator (compiled for %s emulation)\n"
            "\n"
            "-h           print this help\n"
@@ -803,7 +826,7 @@ void usage(void)
 #ifdef USE_CODE_COPY
            "-no-code-copy   disable code copy acceleration\n"
 #endif
-           "-d           activate log (logfile=%s)\n"
+           "-d options   activate log (logfile=%s)\n"
            "-p pagesize  set the host page size to 'pagesize'\n",
            TARGET_ARCH,
            interp_prefix, 
@@ -850,8 +873,12 @@ int main(int argc, char **argv)
         } else if (!strcmp(r, "d")) {
             int mask;
             CPULogItem *item;
+
+	    if (optind >= argc)
+		break;
             
-            mask = cpu_str_to_log_mask(optarg);
+	    r = argv[optind++];
+            mask = cpu_str_to_log_mask(r);
             if (!mask) {
                 printf("Log items (comma separated):\n");
                 for(item = cpu_log_items; item->mask != 0; item++) {
