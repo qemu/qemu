@@ -299,6 +299,7 @@
 #define ATAPI_INT_REASON_TAG            0xf8
 
 /* same constants as bochs */
+#define ASC_ILLEGAL_OPCODE                   0x20
 #define ASC_LOGICAL_BLOCK_OOR                0x21
 #define ASC_INV_FIELD_IN_CMD_PACKET          0x24
 #define ASC_MEDIUM_NOT_PRESENT               0x3a
@@ -1009,7 +1010,10 @@ static void ide_atapi_cmd(IDEState *s)
                 ide_atapi_cmd_reply(s, 12, max_len);
                 break;
             default:
-                goto error_cmd;
+            error_cmd:
+                ide_atapi_cmd_error(s, SENSE_ILLEGAL_REQUEST, 
+                                    ASC_INV_FIELD_IN_CMD_PACKET);
+                break;
             }
         }
         break;
@@ -1040,9 +1044,8 @@ static void ide_atapi_cmd(IDEState *s)
         ide_atapi_cmd_reply(s, 36, max_len);
         break;
     default:
-        error_cmd:
         ide_atapi_cmd_error(s, SENSE_ILLEGAL_REQUEST, 
-                            ASC_INV_FIELD_IN_CMD_PACKET);
+                            ASC_ILLEGAL_OPCODE);
         break;
     }
 }
