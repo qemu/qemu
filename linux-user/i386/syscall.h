@@ -218,3 +218,4 @@ union target_semun {
     unsigned int __pad;	/* really void* */
 };
 
+#define UNAME_MACHINE "i686"

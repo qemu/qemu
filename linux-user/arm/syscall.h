@@ -28,3 +28,9 @@ struct target_pt_regs {
 #define ARM_SYSCALL_BASE	0x900000
 
 #define ARM_NR_cacheflush (ARM_SYSCALL_BASE + 0xf0000 + 2)
+
+#if defined(TARGET_WORDS_BIGENDIAN)
+#define UNAME_MACHINE "armv4b"
+#else
+#define UNAME_MACHINE "armv4l"
+#endif
