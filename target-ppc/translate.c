@@ -2004,7 +2004,6 @@ GEN_HANDLER(mtspr, 0x1F, 0x13, 0x0E, 0x00000001, PPC_MISC)
         gen_op_store_xer();
         break;
     case LR:
-        gen_op_andi_(~0x03);
         gen_op_store_lr();
         break;
     case CTR:
@@ -2296,7 +2295,7 @@ GEN_HANDLER(mfsrin, 0x1F, 0x13, 0x14, 0x001F0001, PPC_SEGMENT)
 }
 
 /* mtsr */
-GEN_HANDLER(mtsr, 0x1F, 0x12, 0x02, 0x0010F801, PPC_SEGMENT)
+GEN_HANDLER(mtsr, 0x1F, 0x12, 0x06, 0x0010F801, PPC_SEGMENT)
 {
 #if defined(CONFIG_USER_ONLY)
     RET_PRIVREG();
@@ -2356,7 +2355,7 @@ GEN_HANDLER(tlbie, 0x1F, 0x12, 0x09, 0x03FF0001, PPC_MEM)
 }
 
 /* tlbsync */
-GEN_HANDLER(tlbsync, 0x1F, 0x16, 0x11, 0x03FFFC01, PPC_MEM)
+GEN_HANDLER(tlbsync, 0x1F, 0x16, 0x11, 0x03FFF801, PPC_MEM)
 {
 #if defined(CONFIG_USER_ONLY)
     RET_PRIVOPC();
