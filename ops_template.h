@@ -843,12 +843,12 @@ void OPPROTO glue(glue(op_bsr, SUFFIX), _T0_cc)(void)
 
 void OPPROTO glue(glue(op_out, SUFFIX), _T0_T1)(void)
 {
-    glue(cpu_x86_out, SUFFIX)(T0 & 0xffff, T1 & DATA_MASK);
+    glue(cpu_x86_out, SUFFIX)(env, T0 & 0xffff, T1 & DATA_MASK);
 }
 
 void OPPROTO glue(glue(op_in, SUFFIX), _T0_T1)(void)
 {
-    T1 = glue(cpu_x86_in, SUFFIX)(T0 & 0xffff);
+    T1 = glue(cpu_x86_in, SUFFIX)(env, T0 & 0xffff);
 }
 
 #undef DATA_BITS

@@ -193,7 +193,7 @@ void OPPROTO glue(glue(op_outs, SUFFIX), STRING_SUFFIX)(void)
     int v, dx, inc;
     dx = EDX & 0xffff;
     v = glue(ldu, SUFFIX)(SI_ADDR);
-    glue(cpu_x86_out, SUFFIX)(dx, v);
+    glue(cpu_x86_out, SUFFIX)(env, dx, v);
     inc = (DF << SHIFT);
     INC_SI();
 }
@@ -205,7 +205,7 @@ void OPPROTO glue(glue(op_rep_outs, SUFFIX), STRING_SUFFIX)(void)
     dx = EDX & 0xffff;
     while (CX != 0) {
         v = glue(ldu, SUFFIX)(SI_ADDR);
-        glue(cpu_x86_out, SUFFIX)(dx, v);
+        glue(cpu_x86_out, SUFFIX)(env, dx, v);
         INC_SI();
         DEC_CX();
     }
@@ -216,7 +216,7 @@ void OPPROTO glue(glue(op_ins, SUFFIX), STRING_SUFFIX)(void)
 {
     int v, dx, inc;
     dx = EDX & 0xffff;
-    v = glue(cpu_x86_in, SUFFIX)(dx);
+    v = glue(cpu_x86_in, SUFFIX)(env, dx);
     glue(st, SUFFIX)(DI_ADDR, v);
     inc = (DF << SHIFT);
     INC_DI();
@@ -228,7 +228,7 @@ void OPPROTO glue(glue(op_rep_ins, SUFFIX), STRING_SUFFIX)(void)
     inc = (DF << SHIFT);
     dx = EDX & 0xffff;
     while (CX != 0) {
-        v = glue(cpu_x86_in, SUFFIX)(dx);
+        v = glue(cpu_x86_in, SUFFIX)(env, dx);
         glue(st, SUFFIX)(DI_ADDR, v);
         INC_DI();
         DEC_CX();
