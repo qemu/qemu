@@ -37,7 +37,7 @@ clean:
         done
 
 distclean: clean
-	rm -f config-host.mak config-host.h $(DOCS)
+	rm -f config-host.mak config-host.h
 	for d in $(TARGET_DIRS); do \
 	rm -rf $$d || exit 1 ; \
         done
