@@ -525,44 +525,15 @@ void cmos_ioport_write(CPUState *env, uint32_t addr, uint32_t data)
     }
 }
 
-uint32_t cmos_ioport_read(CPUState *env, uint32_t addr)
-{
-    int ret;
-
-    if (addr == 0x70) {
-        return 0xff;
-    } else {
-        ret = cmos_data[cmos_index];
-        switch(cmos_index) {
-        case RTC_REG_A:
-            /* toggle update-in-progress bit for Linux (same hack as
-               plex86) */
-            cmos_data[RTC_REG_A] ^= 0x80; 
-            break;
-        case RTC_REG_C:
-            pic_set_irq(8, 0);
-            cmos_data[RTC_REG_C] = 0x00; 
-            break;
-        }
-#ifdef DEBUG_CMOS
-        printf("cmos: read index=0x%02x val=0x%02x\n",
-               cmos_index, ret);
-#endif
-        return ret;
-    }
-}
-
-
 static inline int to_bcd(int a)
 {
     return ((a / 10) << 4) | (a % 10);
 }
 
-void cmos_init(void)
+static void cmos_update_time(void)
 {
     struct tm *tm;
     time_t ti;
-    int val;
 
     ti = time(NULL);
     tm = gmtime(&ti);
@@ -573,6 +544,56 @@ void cmos_init(void)
     cmos_data[RTC_DAY_OF_MONTH] = to_bcd(tm->tm_mday);
     cmos_data[RTC_MONTH] = to_bcd(tm->tm_mon + 1);
     cmos_data[RTC_YEAR] = to_bcd(tm->tm_year % 100);
+    cmos_data[REG_IBM_CENTURY_BYTE] = to_bcd((tm->tm_year / 100) + 19);
+}
+
+uint32_t cmos_ioport_read(CPUState *env, uint32_t addr)
+{
+    int ret;
+
+    if (addr == 0x70) {
+        return 0xff;
+    } else {
+        switch(cmos_index) {
+        case RTC_SECONDS:
+        case RTC_MINUTES:
+        case RTC_HOURS:
+        case RTC_DAY_OF_WEEK:
+        case RTC_DAY_OF_MONTH:
+        case RTC_MONTH:
+        case RTC_YEAR:
+        case REG_IBM_CENTURY_BYTE:
+            cmos_update_time();
+            ret = cmos_data[cmos_index];
+            break;
+        case RTC_REG_A:
+            ret = cmos_data[cmos_index];
+            /* toggle update-in-progress bit for Linux (same hack as
+               plex86) */
+            cmos_data[RTC_REG_A] ^= 0x80; 
+            break;
+        case RTC_REG_C:
+            ret = cmos_data[cmos_index];
+            pic_set_irq(8, 0);
+            cmos_data[RTC_REG_C] = 0x00; 
+            break;
+        default:
+            ret = cmos_data[cmos_index];
+            break;
+        }
+#ifdef DEBUG_CMOS
+        printf("cmos: read index=0x%02x val=0x%02x\n",
+               cmos_index, ret);
+#endif
+        return ret;
+    }
+}
+
+void cmos_init(void)
+{
+    int val;
+
+    cmos_update_time();
 
     cmos_data[RTC_REG_A] = 0x26;
     cmos_data[RTC_REG_B] = 0x02;
@@ -580,7 +601,6 @@ void cmos_init(void)
     cmos_data[RTC_REG_D] = 0x80;
 
     /* various important CMOS locations needed by PC/Bochs bios */
-    cmos_data[REG_IBM_CENTURY_BYTE] = to_bcd((tm->tm_year / 100) + 19);
 
     cmos_data[REG_EQUIPMENT_BYTE] = 0x02; /* FPU is there */
     cmos_data[REG_EQUIPMENT_BYTE] |= 0x04; /* PS/2 mouse installed */
@@ -676,14 +696,15 @@ typedef struct PicState {
     uint8_t irr; /* interrupt request register */
     uint8_t imr; /* interrupt mask register */
     uint8_t isr; /* interrupt service register */
-    uint8_t priority_add; /* used to compute irq priority */
+    uint8_t priority_add; /* highest irq priority */
     uint8_t irq_base;
     uint8_t read_reg_select;
     uint8_t poll;
     uint8_t special_mask;
     uint8_t init_state;
     uint8_t auto_eoi;
-    uint8_t rotate_on_autoeoi;
+    uint8_t rotate_on_auto_eoi;
+    uint8_t special_fully_nested_mode;
     uint8_t init4; /* true if 4 byte init */
 } PicState;
 
@@ -705,14 +726,16 @@ static inline void pic_set_irq1(PicState *s, int irq, int level)
     }
 }
 
+/* return the highest priority found in mask (highest = smallest
+   number). Return 8 if no irq */
 static inline int get_priority(PicState *s, int mask)
 {
     int priority;
     if (mask == 0)
-        return -1;
-    priority = 7;
+        return 8;
+    priority = 0;
     while ((mask & (1 << ((priority + s->priority_add) & 7))) == 0)
-        priority--;
+        priority++;
     return priority;
 }
 
@@ -723,13 +746,18 @@ static int pic_get_irq(PicState *s)
 
     mask = s->irr & ~s->imr;
     priority = get_priority(s, mask);
-    if (priority < 0)
+    if (priority == 8)
         return -1;
-    /* compute current priority */
-    cur_priority = get_priority(s, s->isr);
-    if (priority > cur_priority) {
+    /* compute current priority. If special fully nested mode on the
+       master, the IRQ coming from the slave is not taken into account
+       for the priority computation. */
+    mask = s->isr;
+    if (s->special_fully_nested_mode && s == &pics[0])
+        mask &= ~(1 << 2);
+    cur_priority = get_priority(s, mask);
+    if (priority < cur_priority) {
         /* higher priority found: an irq should be generated */
-        return priority;
+        return (priority + s->priority_add) & 7;
     } else {
         return -1;
     }
@@ -758,6 +786,17 @@ void pic_update_irq(void)
             /* from master pic */
             pic_irq_requested = irq;
         }
+#if defined(DEBUG_PIC)
+        {
+            int i;
+            for(i = 0; i < 2; i++) {
+                printf("pic%d: imr=%x irr=%x padd=%d\n", 
+                       i, pics[i].imr, pics[i].irr, pics[i].priority_add);
+                
+            }
+        }
+        printf("pic: cpu_interrupt req=%d\n", pic_irq_requested);
+#endif
         cpu_interrupt(global_env, CPU_INTERRUPT_HARD);
     }
 }
@@ -787,6 +826,18 @@ void pic_set_irq(int irq, int level)
     pic_update_irq();
 }
 
+/* acknowledge interrupt 'irq' */
+static inline void pic_intack(PicState *s, int irq)
+{
+    if (s->auto_eoi) {
+        if (s->rotate_on_auto_eoi)
+            s->priority_add = (irq + 1) & 7;
+    } else {
+        s->isr |= (1 << irq);
+    }
+    s->irr &= ~(1 << irq);
+}
+
 int cpu_x86_get_pic_interrupt(CPUState *env)
 {
     int irq, irq2, intno;
@@ -804,22 +855,20 @@ int cpu_x86_get_pic_interrupt(CPUState *env)
 
     if (irq >= 8) {
         irq2 = irq & 7;
-        pics[1].isr |= (1 << irq2);
-        pics[1].irr &= ~(1 << irq2);
+        pic_intack(&pics[1], irq2);
         irq = 2;
         intno = pics[1].irq_base + irq2;
     } else {
         intno = pics[0].irq_base + irq;
     }
-    pics[0].isr |= (1 << irq);
-    pics[0].irr &= ~(1 << irq);
+    pic_intack(&pics[0], irq);
     return intno;
 }
 
 void pic_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
 {
     PicState *s;
-    int priority;
+    int priority, cmd, irq;
 
 #ifdef DEBUG_PIC
     printf("pic_write: addr=0x%02x val=0x%02x\n", addr, val);
@@ -837,44 +886,47 @@ void pic_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
             if (val & 0x08)
                 hw_error("level sensitive irq not supported");
         } else if (val & 0x08) {
-            if (val & 0x04) {
+            if (val & 0x04)
                 s->poll = 1;
-            } else {
             if (val & 0x02)
                 s->read_reg_select = val & 1;
             if (val & 0x40)
                 s->special_mask = (val >> 5) & 1;
-            }
         } else {
-            switch(val) {
-            case 0x00:
-            case 0x80:
-                s->rotate_on_autoeoi = val >> 7;
+            cmd = val >> 5;
+            switch(cmd) {
+            case 0:
+            case 4:
+                s->rotate_on_auto_eoi = cmd >> 2;
                 break;
-            case 0x20: /* end of interrupt */
-            case 0xa0:
+            case 1: /* end of interrupt */
+            case 5:
                 priority = get_priority(s, s->isr);
-                if (priority >= 0) {
-                    s->isr &= ~(1 << ((priority + s->priority_add) & 7));
+                if (priority != 8) {
+                    irq = (priority + s->priority_add) & 7;
+                    s->isr &= ~(1 << irq);
+                    if (cmd == 5)
+                        s->priority_add = (irq + 1) & 7;
+                    pic_update_irq();
                 }
-                if (val == 0xa0)
-                    s->priority_add = (s->priority_add + 1) & 7;
+                break;
+            case 3:
+                irq = val & 7;
+                s->isr &= ~(1 << irq);
                 pic_update_irq();
                 break;
-            case 0x60 ... 0x67:
-                priority = val & 7;
-                s->isr &= ~(1 << priority);
-                pic_update_irq();
-                break;
-            case 0xc0 ... 0xc7:
+            case 6:
                 s->priority_add = (val + 1) & 7;
                 pic_update_irq();
                 break;
-            case 0xe0 ... 0xe7:
-                priority = val & 7;
-                s->isr &= ~(1 << priority);
-                s->priority_add = (priority + 1) & 7;
+            case 7:
+                irq = val & 7;
+                s->isr &= ~(1 << irq);
+                s->priority_add = (irq + 1) & 7;
                 pic_update_irq();
+                break;
+            default:
+                /* no operation */
                 break;
             }
         }
@@ -897,6 +949,7 @@ void pic_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
             }
             break;
         case 3:
+            s->special_fully_nested_mode = (val >> 4) & 1;
             s->auto_eoi = (val >> 1) & 1;
             s->init_state = 0;
             break;
@@ -935,18 +988,18 @@ uint32_t pic_ioport_read(CPUState *env, uint32_t addr1)
     addr = addr1;
     s = &pics[addr >> 7];
     addr &= 1;
-    if (s->poll == 1) {
+    if (s->poll) {
         ret = pic_poll_read(s, addr1);
         s->poll = 0;
     } else {
-    if (addr == 0) {
-        if (s->read_reg_select)
-            ret = s->isr;
-        else
-            ret = s->irr;
-    } else {
-        ret = s->imr;
-    }
+        if (addr == 0) {
+            if (s->read_reg_select)
+                ret = s->isr;
+            else
+                ret = s->irr;
+        } else {
+            ret = s->imr;
+        }
     }
 #ifdef DEBUG_PIC
     printf("pic_read: addr=0x%02x val=0x%02x\n", addr1, ret);
@@ -1728,6 +1781,9 @@ void serial_received_byte(SerialState *s, int ch)
             printf("> ");
             fflush(stdout);
             term_command = 1;
+            break;
+        case 'd':
+            cpu_set_log(CPU_LOG_ALL);
             break;
         case TERM_ESCAPE:
             goto send_char;
@@ -3180,7 +3236,7 @@ void help(void)
            "-hda/-hdb file  use 'file' as IDE hard disk 0/1 image\n"
            "-hdc/-hdd file  use 'file' as IDE hard disk 2/3 image\n"
            "-cdrom file     use 'file' as IDE cdrom 2 image\n"
-           "-boot [c|d]     boot on hard disk (c) or CD-ROM (d)\n"
+           "-boot [a|b|c|d] boot on floppy (a, b), hard disk (c) or CD-ROM (d)\n"
 	   "-snapshot       write to temporary files instead of disk image files\n"
            "-m megs         set virtual RAM size to megs MB\n"
            "-n script       set network init script [default=%s]\n"
@@ -3195,7 +3251,7 @@ void help(void)
            "Debug/Expert options:\n"
            "-s              wait gdb connection to port %d\n"
            "-p port         change gdb connection port\n"
-           "-d              output log in /tmp/vl.log\n"
+           "-d              output log to %s\n"
            "-hdachs c,h,s   force hard disk 0 geometry (usually qemu can guess it)\n"
            "-L path         set the directory for the BIOS and VGA BIOS\n"
            "\n"
@@ -3206,7 +3262,8 @@ void help(void)
            "qemu-fast",
 #endif
            DEFAULT_NETWORK_SCRIPT, 
-           DEFAULT_GDBSTUB_PORT);
+           DEFAULT_GDBSTUB_PORT,
+           "/tmp/qemu.log");
     term_print_help();
 #ifndef CONFIG_SOFTMMU
     printf("\n"
