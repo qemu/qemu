@@ -46,6 +46,9 @@
 
 #include "cpu-i386.h"
 #include "disas.h"
+#include "thunk.h"
+
+#include "vl.h"
 
 #define DEBUG_LOGFILE "/tmp/vl.log"
 #define DEFAULT_NETWORK_SCRIPT "/etc/vl-ifup"
@@ -175,17 +178,15 @@ struct  __attribute__ ((packed)) linux_params {
 typedef void (IOPortWriteFunc)(CPUX86State *env, uint32_t address, uint32_t data);
 typedef uint32_t (IOPortReadFunc)(CPUX86State *env, uint32_t address);
 
-#define MAX_IOPORTS 1024
+#define MAX_IOPORTS 4096
 
 char phys_ram_file[1024];
 CPUX86State *global_env;
 CPUX86State *cpu_single_env;
 FILE *logfile = NULL;
 int loglevel;
-IOPortReadFunc *ioport_readb_table[MAX_IOPORTS];
-IOPortWriteFunc *ioport_writeb_table[MAX_IOPORTS];
-IOPortReadFunc *ioport_readw_table[MAX_IOPORTS];
-IOPortWriteFunc *ioport_writew_table[MAX_IOPORTS];
+IOPortReadFunc *ioport_read_table[3][MAX_IOPORTS];
+IOPortWriteFunc *ioport_write_table[3][MAX_IOPORTS];
 
 /***********************************************************/
 /* x86 io ports */
@@ -195,7 +196,7 @@ uint32_t default_ioport_readb(CPUX86State *env, uint32_t address)
 #ifdef DEBUG_UNUSED_IOPORT
     fprintf(stderr, "inb: port=0x%04x\n", address);
 #endif
-    return 0;
+    return 0xff;
 }
 
 void default_ioport_writeb(CPUX86State *env, uint32_t address, uint32_t data)
@@ -209,15 +210,30 @@ void default_ioport_writeb(CPUX86State *env, uint32_t address, uint32_t data)
 uint32_t default_ioport_readw(CPUX86State *env, uint32_t address)
 {
     uint32_t data;
-    data = ioport_readb_table[address](env, address);
-    data |= ioport_readb_table[address + 1](env, address + 1) << 8;
+    data = ioport_read_table[0][address](env, address);
+    data |= ioport_read_table[0][address + 1](env, address + 1) << 8;
     return data;
 }
 
 void default_ioport_writew(CPUX86State *env, uint32_t address, uint32_t data)
 {
-    ioport_writeb_table[address](env, address, data & 0xff);
-    ioport_writeb_table[address + 1](env, address + 1, (data >> 8) & 0xff);
+    ioport_write_table[0][address](env, address, data & 0xff);
+    ioport_write_table[0][address + 1](env, address + 1, (data >> 8) & 0xff);
+}
+
+uint32_t default_ioport_readl(CPUX86State *env, uint32_t address)
+{
+#ifdef DEBUG_UNUSED_IOPORT
+    fprintf(stderr, "inl: port=0x%04x\n", address);
+#endif
+    return 0xffffffff;
+}
+
+void default_ioport_writel(CPUX86State *env, uint32_t address, uint32_t data)
+{
+#ifdef DEBUG_UNUSED_IOPORT
+    fprintf(stderr, "outl: port=0x%04x data=0x%02x\n", address, data);
+#endif
 }
 
 void init_ioports(void)
@@ -225,46 +241,48 @@ void init_ioports(void)
     int i;
 
     for(i = 0; i < MAX_IOPORTS; i++) {
-        ioport_readb_table[i] = default_ioport_readb;
-        ioport_writeb_table[i] = default_ioport_writeb;
-        ioport_readw_table[i] = default_ioport_readw;
-        ioport_writew_table[i] = default_ioport_writew;
+        ioport_read_table[0][i] = default_ioport_readb;
+        ioport_write_table[0][i] = default_ioport_writeb;
+        ioport_read_table[1][i] = default_ioport_readw;
+        ioport_write_table[1][i] = default_ioport_writew;
+        ioport_read_table[2][i] = default_ioport_readl;
+        ioport_write_table[2][i] = default_ioport_writel;
     }
 }
 
-int register_ioport_readb(int start, int length, IOPortReadFunc *func)
+/* size is the word size in byte */
+int register_ioport_read(int start, int length, IOPortReadFunc *func, int size)
 {
-    int i;
+    int i, bsize;
 
-    for(i = start; i < start + length; i++)
-        ioport_readb_table[i] = func;
+    if (size == 1)
+        bsize = 0;
+    else if (size == 2)
+        bsize = 1;
+    else if (size == 4)
+        bsize = 2;
+    else
+        return -1;
+    for(i = start; i < start + length; i += size)
+        ioport_read_table[bsize][i] = func;
     return 0;
 }
 
-int register_ioport_writeb(int start, int length, IOPortWriteFunc *func)
+/* size is the word size in byte */
+int register_ioport_write(int start, int length, IOPortWriteFunc *func, int size)
 {
-    int i;
+    int i, bsize;
 
-    for(i = start; i < start + length; i++)
-        ioport_writeb_table[i] = func;
-    return 0;
-}
-
-int register_ioport_readw(int start, int length, IOPortReadFunc *func)
-{
-    int i;
-
-    for(i = start; i < start + length; i += 2)
-        ioport_readw_table[i] = func;
-    return 0;
-}
-
-int register_ioport_writew(int start, int length, IOPortWriteFunc *func)
-{
-    int i;
-
-    for(i = start; i < start + length; i += 2)
-        ioport_writew_table[i] = func;
+    if (size == 1)
+        bsize = 0;
+    else if (size == 2)
+        bsize = 1;
+    else if (size == 4)
+        bsize = 2;
+    else
+        return -1;
+    for(i = start; i < start + length; i += size)
+        ioport_write_table[bsize][i] = func;
     return 0;
 }
 
@@ -339,33 +357,32 @@ int load_image(const char *filename, uint8_t *addr)
 
 void cpu_x86_outb(CPUX86State *env, int addr, int val)
 {
-    ioport_writeb_table[addr & (MAX_IOPORTS - 1)](env, addr, val);
+    ioport_write_table[0][addr & (MAX_IOPORTS - 1)](env, addr, val);
 }
 
 void cpu_x86_outw(CPUX86State *env, int addr, int val)
 {
-    ioport_writew_table[addr & (MAX_IOPORTS - 1)](env, addr, val);
+    ioport_write_table[1][addr & (MAX_IOPORTS - 1)](env, addr, val);
 }
 
 void cpu_x86_outl(CPUX86State *env, int addr, int val)
 {
-    fprintf(stderr, "outl: port=0x%04x, data=%08x\n", addr, val);
+    ioport_write_table[2][addr & (MAX_IOPORTS - 1)](env, addr, val);
 }
 
 int cpu_x86_inb(CPUX86State *env, int addr)
 {
-    return ioport_readb_table[addr & (MAX_IOPORTS - 1)](env, addr);
+    return ioport_read_table[0][addr & (MAX_IOPORTS - 1)](env, addr);
 }
 
 int cpu_x86_inw(CPUX86State *env, int addr)
 {
-    return ioport_readw_table[addr & (MAX_IOPORTS - 1)](env, addr);
+    return ioport_read_table[1][addr & (MAX_IOPORTS - 1)](env, addr);
 }
 
 int cpu_x86_inl(CPUX86State *env, int addr)
 {
-    fprintf(stderr, "inl: port=0x%04x\n", addr);
-    return 0;
+    return ioport_read_table[2][addr & (MAX_IOPORTS - 1)](env, addr);
 }
 
 /***********************************************************/
@@ -511,8 +528,8 @@ void cmos_init(void)
 
     cmos_data[REG_EQUIPMENT_BYTE] = 0x02; /* FPU is there */
 
-    register_ioport_writeb(0x70, 2, cmos_ioport_write);
-    register_ioport_readb(0x70, 2, cmos_ioport_read);
+    register_ioport_write(0x70, 2, cmos_ioport_write, 1);
+    register_ioport_read(0x70, 2, cmos_ioport_read, 1);
 }
 
 /***********************************************************/
@@ -726,10 +743,10 @@ uint32_t pic_ioport_read(CPUX86State *env, uint32_t addr)
 
 void pic_init(void)
 {
-    register_ioport_writeb(0x20, 2, pic_ioport_write);
-    register_ioport_readb(0x20, 2, pic_ioport_read);
-    register_ioport_writeb(0xa0, 2, pic_ioport_write);
-    register_ioport_readb(0xa0, 2, pic_ioport_read);
+    register_ioport_write(0x20, 2, pic_ioport_write, 1);
+    register_ioport_read(0x20, 2, pic_ioport_read, 1);
+    register_ioport_write(0xa0, 2, pic_ioport_write, 1);
+    register_ioport_read(0xa0, 2, pic_ioport_read, 1);
 }
 
 /***********************************************************/
@@ -1031,11 +1048,11 @@ void pit_init(void)
         pit_load_count(s, 0);
     }
 
-    register_ioport_writeb(0x40, 4, pit_ioport_write);
-    register_ioport_readb(0x40, 3, pit_ioport_read);
+    register_ioport_write(0x40, 4, pit_ioport_write, 1);
+    register_ioport_read(0x40, 3, pit_ioport_read, 1);
 
-    register_ioport_readb(0x61, 1, speaker_ioport_read);
-    register_ioport_writeb(0x61, 1, speaker_ioport_write);
+    register_ioport_read(0x61, 1, speaker_ioport_read, 1);
+    register_ioport_write(0x61, 1, speaker_ioport_write, 1);
 }
 
 /***********************************************************/
@@ -1277,8 +1294,8 @@ void serial_init(void)
 
     s->lsr = UART_LSR_TEMT | UART_LSR_THRE;
 
-    register_ioport_writeb(0x3f8, 8, serial_ioport_write);
-    register_ioport_readb(0x3f8, 8, serial_ioport_read);
+    register_ioport_write(0x3f8, 8, serial_ioport_write, 1);
+    register_ioport_read(0x3f8, 8, serial_ioport_read, 1);
 
     term_init();
 }
@@ -1444,7 +1461,7 @@ int net_init(void)
         close(fd);
         return -1;
     }
-    printf("connected to host network interface: %s\n", ifr.ifr_name);
+    printf("Connected to host network interface: %s\n", ifr.ifr_name);
     fcntl(fd, F_SETFL, O_NONBLOCK);
     net_fd = fd;
 
@@ -1739,17 +1756,622 @@ uint32_t ne2000_reset_ioport_read(CPUX86State *env, uint32_t addr)
 
 void ne2000_init(void)
 {
-    register_ioport_writeb(NE2000_IOPORT, 16, ne2000_ioport_write);
-    register_ioport_readb(NE2000_IOPORT, 16, ne2000_ioport_read);
+    register_ioport_write(NE2000_IOPORT, 16, ne2000_ioport_write, 1);
+    register_ioport_read(NE2000_IOPORT, 16, ne2000_ioport_read, 1);
 
-    register_ioport_writeb(NE2000_IOPORT + 0x10, 1, ne2000_asic_ioport_write);
-    register_ioport_readb(NE2000_IOPORT + 0x10, 1, ne2000_asic_ioport_read);
-    register_ioport_writew(NE2000_IOPORT + 0x10, 2, ne2000_asic_ioport_write);
-    register_ioport_readw(NE2000_IOPORT + 0x10, 2, ne2000_asic_ioport_read);
+    register_ioport_write(NE2000_IOPORT + 0x10, 1, ne2000_asic_ioport_write, 1);
+    register_ioport_read(NE2000_IOPORT + 0x10, 1, ne2000_asic_ioport_read, 1);
+    register_ioport_write(NE2000_IOPORT + 0x10, 2, ne2000_asic_ioport_write, 2);
+    register_ioport_read(NE2000_IOPORT + 0x10, 2, ne2000_asic_ioport_read, 2);
 
-    register_ioport_writeb(NE2000_IOPORT + 0x1f, 1, ne2000_reset_ioport_write);
-    register_ioport_readb(NE2000_IOPORT + 0x1f, 1, ne2000_reset_ioport_read);
+    register_ioport_write(NE2000_IOPORT + 0x1f, 1, ne2000_reset_ioport_write, 1);
+    register_ioport_read(NE2000_IOPORT + 0x1f, 1, ne2000_reset_ioport_read, 1);
     ne2000_reset();
+}
+
+/***********************************************************/
+/* ide emulation */
+
+//#define DEBUG_IDE
+
+/* Bits of HD_STATUS */
+#define ERR_STAT		0x01
+#define INDEX_STAT		0x02
+#define ECC_STAT		0x04	/* Corrected error */
+#define DRQ_STAT		0x08
+#define SEEK_STAT		0x10
+#define SRV_STAT		0x10
+#define WRERR_STAT		0x20
+#define READY_STAT		0x40
+#define BUSY_STAT		0x80
+
+/* Bits for HD_ERROR */
+#define MARK_ERR		0x01	/* Bad address mark */
+#define TRK0_ERR		0x02	/* couldn't find track 0 */
+#define ABRT_ERR		0x04	/* Command aborted */
+#define MCR_ERR			0x08	/* media change request */
+#define ID_ERR			0x10	/* ID field not found */
+#define MC_ERR			0x20	/* media changed */
+#define ECC_ERR			0x40	/* Uncorrectable ECC error */
+#define BBD_ERR			0x80	/* pre-EIDE meaning:  block marked bad */
+#define ICRC_ERR		0x80	/* new meaning:  CRC error during transfer */
+
+/* Bits of HD_NSECTOR */
+#define CD			0x01
+#define IO			0x02
+#define REL			0x04
+#define TAG_MASK		0xf8
+
+#define IDE_CMD_RESET           0x04
+#define IDE_CMD_DISABLE_IRQ     0x02
+
+/* ATA/ATAPI Commands pre T13 Spec */
+#define WIN_NOP				0x00
+/*
+ *	0x01->0x02 Reserved
+ */
+#define CFA_REQ_EXT_ERROR_CODE		0x03 /* CFA Request Extended Error Code */
+/*
+ *	0x04->0x07 Reserved
+ */
+#define WIN_SRST			0x08 /* ATAPI soft reset command */
+#define WIN_DEVICE_RESET		0x08
+/*
+ *	0x09->0x0F Reserved
+ */
+#define WIN_RECAL			0x10
+#define WIN_RESTORE			WIN_RECAL
+/*
+ *	0x10->0x1F Reserved
+ */
+#define WIN_READ			0x20 /* 28-Bit */
+#define WIN_READ_ONCE			0x21 /* 28-Bit without retries */
+#define WIN_READ_LONG			0x22 /* 28-Bit */
+#define WIN_READ_LONG_ONCE		0x23 /* 28-Bit without retries */
+#define WIN_READ_EXT			0x24 /* 48-Bit */
+#define WIN_READDMA_EXT			0x25 /* 48-Bit */
+#define WIN_READDMA_QUEUED_EXT		0x26 /* 48-Bit */
+#define WIN_READ_NATIVE_MAX_EXT		0x27 /* 48-Bit */
+/*
+ *	0x28
+ */
+#define WIN_MULTREAD_EXT		0x29 /* 48-Bit */
+/*
+ *	0x2A->0x2F Reserved
+ */
+#define WIN_WRITE			0x30 /* 28-Bit */
+#define WIN_WRITE_ONCE			0x31 /* 28-Bit without retries */
+#define WIN_WRITE_LONG			0x32 /* 28-Bit */
+#define WIN_WRITE_LONG_ONCE		0x33 /* 28-Bit without retries */
+#define WIN_WRITE_EXT			0x34 /* 48-Bit */
+#define WIN_WRITEDMA_EXT		0x35 /* 48-Bit */
+#define WIN_WRITEDMA_QUEUED_EXT		0x36 /* 48-Bit */
+#define WIN_SET_MAX_EXT			0x37 /* 48-Bit */
+#define CFA_WRITE_SECT_WO_ERASE		0x38 /* CFA Write Sectors without erase */
+#define WIN_MULTWRITE_EXT		0x39 /* 48-Bit */
+/*
+ *	0x3A->0x3B Reserved
+ */
+#define WIN_WRITE_VERIFY		0x3C /* 28-Bit */
+/*
+ *	0x3D->0x3F Reserved
+ */
+#define WIN_VERIFY			0x40 /* 28-Bit - Read Verify Sectors */
+#define WIN_VERIFY_ONCE			0x41 /* 28-Bit - without retries */
+#define WIN_VERIFY_EXT			0x42 /* 48-Bit */
+/*
+ *	0x43->0x4F Reserved
+ */
+#define WIN_FORMAT			0x50
+/*
+ *	0x51->0x5F Reserved
+ */
+#define WIN_INIT			0x60
+/*
+ *	0x61->0x5F Reserved
+ */
+#define WIN_SEEK			0x70 /* 0x70-0x7F Reserved */
+#define CFA_TRANSLATE_SECTOR		0x87 /* CFA Translate Sector */
+#define WIN_DIAGNOSE			0x90
+#define WIN_SPECIFY			0x91 /* set drive geometry translation */
+#define WIN_DOWNLOAD_MICROCODE		0x92
+#define WIN_STANDBYNOW2			0x94
+#define WIN_STANDBY2			0x96
+#define WIN_SETIDLE2			0x97
+#define WIN_CHECKPOWERMODE2		0x98
+#define WIN_SLEEPNOW2			0x99
+/*
+ *	0x9A VENDOR
+ */
+#define WIN_PACKETCMD			0xA0 /* Send a packet command. */
+#define WIN_PIDENTIFY			0xA1 /* identify ATAPI device	*/
+#define WIN_QUEUED_SERVICE		0xA2
+#define WIN_SMART			0xB0 /* self-monitoring and reporting */
+#define CFA_ERASE_SECTORS       	0xC0
+#define WIN_MULTREAD			0xC4 /* read sectors using multiple mode*/
+#define WIN_MULTWRITE			0xC5 /* write sectors using multiple mode */
+#define WIN_SETMULT			0xC6 /* enable/disable multiple mode */
+#define WIN_READDMA_QUEUED		0xC7 /* read sectors using Queued DMA transfers */
+#define WIN_READDMA			0xC8 /* read sectors using DMA transfers */
+#define WIN_READDMA_ONCE		0xC9 /* 28-Bit - without retries */
+#define WIN_WRITEDMA			0xCA /* write sectors using DMA transfers */
+#define WIN_WRITEDMA_ONCE		0xCB /* 28-Bit - without retries */
+#define WIN_WRITEDMA_QUEUED		0xCC /* write sectors using Queued DMA transfers */
+#define CFA_WRITE_MULTI_WO_ERASE	0xCD /* CFA Write multiple without erase */
+#define WIN_GETMEDIASTATUS		0xDA	
+#define WIN_ACKMEDIACHANGE		0xDB /* ATA-1, ATA-2 vendor */
+#define WIN_POSTBOOT			0xDC
+#define WIN_PREBOOT			0xDD
+#define WIN_DOORLOCK			0xDE /* lock door on removable drives */
+#define WIN_DOORUNLOCK			0xDF /* unlock door on removable drives */
+#define WIN_STANDBYNOW1			0xE0
+#define WIN_IDLEIMMEDIATE		0xE1 /* force drive to become "ready" */
+#define WIN_STANDBY             	0xE2 /* Set device in Standby Mode */
+#define WIN_SETIDLE1			0xE3
+#define WIN_READ_BUFFER			0xE4 /* force read only 1 sector */
+#define WIN_CHECKPOWERMODE1		0xE5
+#define WIN_SLEEPNOW1			0xE6
+#define WIN_FLUSH_CACHE			0xE7
+#define WIN_WRITE_BUFFER		0xE8 /* force write only 1 sector */
+#define WIN_WRITE_SAME			0xE9 /* read ata-2 to use */
+	/* SET_FEATURES 0x22 or 0xDD */
+#define WIN_FLUSH_CACHE_EXT		0xEA /* 48-Bit */
+#define WIN_IDENTIFY			0xEC /* ask drive to identify itself	*/
+#define WIN_MEDIAEJECT			0xED
+#define WIN_IDENTIFY_DMA		0xEE /* same as WIN_IDENTIFY, but DMA */
+#define WIN_SETFEATURES			0xEF /* set special drive features */
+#define EXABYTE_ENABLE_NEST		0xF0
+#define WIN_SECURITY_SET_PASS		0xF1
+#define WIN_SECURITY_UNLOCK		0xF2
+#define WIN_SECURITY_ERASE_PREPARE	0xF3
+#define WIN_SECURITY_ERASE_UNIT		0xF4
+#define WIN_SECURITY_FREEZE_LOCK	0xF5
+#define WIN_SECURITY_DISABLE		0xF6
+#define WIN_READ_NATIVE_MAX		0xF8 /* return the native maximum address */
+#define WIN_SET_MAX			0xF9
+#define DISABLE_SEAGATE			0xFB
+
+#define MAX_MULT_SECTORS 16
+
+#define MAX_DISKS 2
+
+struct IDEState;
+
+typedef void EndTransferFunc(struct IDEState *);
+
+typedef struct IDEState {
+    /* ide config */
+    int cylinders, heads, sectors;
+    int64_t nb_sectors;
+    int mult_sectors;
+    int irq;
+    /* ide regs */
+    uint8_t feature;
+    uint8_t error;
+    uint8_t nsector;
+    uint8_t sector;
+    uint8_t lcyl;
+    uint8_t hcyl;
+    uint8_t select;
+    uint8_t status;
+    /* 0x3f6 command, only meaningful for drive 0 */
+    uint8_t cmd;
+    /* depends on bit 4 in select, only meaningful for drive 0 */
+    struct IDEState *cur_drive; 
+    BlockDriverState *bs;
+    EndTransferFunc *end_transfer_func;
+    uint8_t *data_ptr;
+    uint8_t *data_end;
+    uint8_t io_buffer[MAX_MULT_SECTORS*512 + 4];
+} IDEState;
+
+BlockDriverState *bs_table[MAX_DISKS];
+IDEState ide_state[MAX_DISKS];
+
+static void padstr(char *str, const char *src, int len)
+{
+    int i, v;
+    for(i = 0; i < len; i++) {
+        if (*src)
+            v = *src++;
+        else
+            v = ' ';
+        *(char *)((long)str ^ 1) = v;
+        str++;
+    }
+}
+
+static void ide_identify(IDEState *s)
+{
+    uint16_t *p;
+    unsigned int oldsize;
+
+    memset(s->io_buffer, 0, 512);
+    p = (uint16_t *)s->io_buffer;
+    stw(p + 0, 0x0040);
+    stw(p + 1, s->cylinders); 
+    stw(p + 3, s->heads);
+    stw(p + 4, 512 * s->sectors); /* sectors */
+    stw(p + 5, 512); /* sector size */
+    stw(p + 6, s->sectors); 
+    stw(p + 20, 3); /* buffer type */
+    stw(p + 21, 512); /* cache size in sectors */
+    stw(p + 22, 4); /* ecc bytes */
+    padstr((uint8_t *)(p + 27), "QEMU HARDDISK", 40);
+    //    stw(p + 47, MAX_MULT_SECTORS);
+    stw(p + 48, 1); /* dword I/O */
+    stw(p + 49, 1 << 9); /* LBA supported, no DMA */
+    stw(p + 51, 0x200); /* PIO transfer cycle */
+    stw(p + 52, 0x200); /* DMA transfer cycle */
+    stw(p + 54, s->cylinders);
+    stw(p + 55, s->heads);
+    stw(p + 56, s->sectors);
+    oldsize = s->cylinders * s->heads * s->sectors;
+    stw(p + 57, oldsize);
+    stw(p + 58, oldsize >> 16);
+    if (s->mult_sectors)
+        stw(p + 59, 0x100 | s->mult_sectors);
+    stw(p + 60, s->nb_sectors);
+    stw(p + 61, s->nb_sectors >> 16);
+    stw(p + 80, (1 << 1) | (1 << 2));
+    stw(p + 82, (1 << 14));
+    stw(p + 83, (1 << 14));
+    stw(p + 84, (1 << 14));
+    stw(p + 85, (1 << 14));
+    stw(p + 86, 0);
+    stw(p + 87, (1 << 14));
+}
+
+static inline void ide_abort_command(IDEState *s)
+{
+    s->status = READY_STAT | ERR_STAT;
+    s->error = ABRT_ERR;
+}
+
+static inline void ide_set_irq(IDEState *s)
+{
+    if (!(ide_state[0].cmd & IDE_CMD_DISABLE_IRQ)) {
+        pic_set_irq(s->irq, 1);
+        cpu_x86_interrupt(global_env);
+    }
+}
+
+/* prepare data transfer and tell what to do after */
+static void ide_transfer_start(IDEState *s, int size, 
+                               EndTransferFunc *end_transfer_func)
+{
+    s->end_transfer_func = end_transfer_func;
+    s->data_ptr = s->io_buffer;
+    s->data_end = s->io_buffer + size;
+    s->status |= DRQ_STAT;
+}
+
+static void ide_transfer_stop(IDEState *s)
+{
+    s->end_transfer_func = ide_transfer_stop;
+    s->data_ptr = s->io_buffer;
+    s->data_end = s->io_buffer;
+    s->status &= ~DRQ_STAT;
+}
+
+static int64_t ide_get_sector(IDEState *s)
+{
+    int64_t sector_num;
+    if (s->select & 0x40) {
+        /* lba */
+        sector_num = ((s->select & 0x0f) << 24) | (s->hcyl << 16) | 
+            (s->lcyl << 8) | s->sector;
+    } else {
+        sector_num = ((s->hcyl << 8) | s->lcyl) * s->heads * s->sectors +
+            (s->select & 0x0f) * s->sectors + 
+            (s->sector - 1);
+    }
+    return sector_num;
+}
+
+static void ide_set_sector(IDEState *s, int64_t sector_num)
+{
+    unsigned int cyl, r;
+    if (s->select & 0x40) {
+        s->select = (s->select & 0xf0) | (sector_num >> 24);
+        s->hcyl = (sector_num >> 16);
+        s->lcyl = (sector_num >> 8);
+        s->sector = (sector_num);
+    } else {
+        cyl = sector_num / (s->heads * s->sectors);
+        r = sector_num % (s->heads * s->sectors);
+        s->hcyl = cyl >> 8;
+        s->lcyl = cyl;
+        s->select = (s->select & 0xf0) | (r / s->sectors);
+        s->sector = (r % s->sectors) + 1;
+    }
+}
+
+static void ide_sector_read(IDEState *s)
+{
+    int64_t sector_num;
+    int ret;
+
+    s->status = READY_STAT | SEEK_STAT;
+    sector_num = ide_get_sector(s);
+    s->nsector--;
+    if (s->nsector == 0xff) {
+        /* no more sector to read from disk */
+        ide_transfer_stop(s);
+    } else {
+#if defined(DEBUG_IDE)
+        printf("read sector=%Ld\n", sector_num);
+#endif
+        ret = bdrv_read(s->bs, sector_num, s->io_buffer, 1);
+        ide_transfer_start(s, 512, ide_sector_read);
+        ide_set_irq(s);
+    }
+    ide_set_sector(s, sector_num + 1);
+}
+
+static void ide_sector_write(IDEState *s)
+{
+    int64_t sector_num;
+    int ret;
+
+    s->status = READY_STAT | SEEK_STAT;
+    sector_num = ide_get_sector(s);
+#if defined(DEBUG_IDE)
+    printf("write sector=%Ld\n", sector_num);
+#endif
+    ret = bdrv_write(s->bs, sector_num, s->io_buffer, 1);
+    s->nsector--;
+    if (s->nsector == 0) {
+        /* no more sector to write */
+        ide_transfer_stop(s);
+    } else {
+        ide_transfer_start(s, 512, ide_sector_write);
+    }
+    ide_set_sector(s, sector_num + 1);
+    ide_set_irq(s);
+}
+
+void ide_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
+{
+    IDEState *s = ide_state[0].cur_drive;
+    int unit;
+
+    addr &= 7;
+#ifdef DEBUG_IDE
+    printf("IDE: write addr=0x%x val=0x%02x\n", addr, val);
+#endif
+    switch(addr) {
+    case 0:
+        break;
+    case 1:
+        s->feature = val;
+        break;
+    case 2:
+        s->nsector = val;
+        break;
+    case 3:
+        s->sector = val;
+        break;
+    case 4:
+        s->lcyl = val;
+        break;
+    case 5:
+        s->hcyl = val;
+        break;
+    case 6:
+        /* select drive */
+        unit = (val >> 4) & 1;
+        s = &ide_state[unit];
+        ide_state[0].cur_drive = s;
+        s->select = val;
+        break;
+    default:
+    case 7:
+        /* command */
+#if defined(DEBUG_IDE)
+        printf("ide: CMD=%02x\n", val);
+#endif
+        switch(val) {
+        case WIN_PIDENTIFY:
+        case WIN_IDENTIFY:
+            if (s->bs) {
+                ide_identify(s);
+                s->status = READY_STAT;
+                ide_transfer_start(s, 512, ide_transfer_stop);
+            } else {
+                ide_abort_command(s);
+            }
+            ide_set_irq(s);
+            break;
+        case WIN_SPECIFY:
+        case WIN_RECAL:
+            s->status = READY_STAT;
+            ide_set_irq(s);
+            break;
+        case WIN_SETMULT:
+            if (s->nsector > MAX_MULT_SECTORS || 
+                s->nsector == 0 ||
+                (s->nsector & (s->nsector - 1)) != 0) {
+                ide_abort_command(s);
+            } else {
+                s->mult_sectors = s->nsector;
+                s->status = READY_STAT;
+            }
+            ide_set_irq(s);
+            break;
+        case WIN_READ:
+        case WIN_READ_ONCE:
+            ide_sector_read(s);
+            break;
+        case WIN_WRITE:
+        case WIN_WRITE_ONCE:
+            s->status = SEEK_STAT;
+            ide_transfer_start(s, 512, ide_sector_write);
+            break;
+        default:
+            ide_abort_command(s);
+            ide_set_irq(s);
+            break;
+        }
+    }
+}
+
+uint32_t ide_ioport_read(CPUX86State *env, uint32_t addr)
+{
+    IDEState *s = ide_state[0].cur_drive;
+    int ret;
+
+    addr &= 7;
+    switch(addr) {
+    case 0:
+        ret = 0xff;
+        break;
+    case 1:
+        ret = s->error;
+        break;
+    case 2:
+        ret = s->nsector;
+        break;
+    case 3:
+        ret = s->sector;
+        break;
+    case 4:
+        ret = s->lcyl;
+        break;
+    case 5:
+        ret = s->hcyl;
+        break;
+    case 6:
+        ret = s->select;
+        break;
+    default:
+    case 7:
+        ret = s->status;
+        pic_set_irq(s->irq, 0);
+        break;
+    }
+#ifdef DEBUG_IDE
+    printf("ide: read addr=0x%x val=%02x\n", addr, ret);
+#endif
+    return ret;
+}
+
+uint32_t ide_status_read(CPUX86State *env, uint32_t addr)
+{
+    IDEState *s = ide_state[0].cur_drive;
+    int ret;
+    ret = s->status;
+#ifdef DEBUG_IDE
+    printf("ide: read addr=0x%x val=%02x\n", addr, ret);
+#endif
+    return ret;
+}
+
+void ide_cmd_write(CPUX86State *env, uint32_t addr, uint32_t val)
+{
+    IDEState *s = &ide_state[0];
+    /* common for both drives */
+    s->cmd = val;
+}
+
+void ide_data_writew(CPUX86State *env, uint32_t addr, uint32_t val)
+{
+    IDEState *s = ide_state[0].cur_drive;
+    uint8_t *p;
+
+    p = s->data_ptr;
+    *(uint16_t *)p = tswap16(val);
+    p += 2;
+    s->data_ptr = p;
+    if (p >= s->data_end)
+        s->end_transfer_func(s);
+}
+
+uint32_t ide_data_readw(CPUX86State *env, uint32_t addr)
+{
+    IDEState *s = ide_state[0].cur_drive;
+    uint8_t *p;
+    int ret;
+    
+    p = s->data_ptr;
+    ret = tswap16(*(uint16_t *)p);
+    p += 2;
+    s->data_ptr = p;
+    if (p >= s->data_end)
+        s->end_transfer_func(s);
+    return ret;
+}
+
+void ide_data_writel(CPUX86State *env, uint32_t addr, uint32_t val)
+{
+    IDEState *s = ide_state[0].cur_drive;
+    uint8_t *p;
+
+    p = s->data_ptr;
+    *(uint32_t *)p = tswap32(val);
+    p += 4;
+    s->data_ptr = p;
+    if (p >= s->data_end)
+        s->end_transfer_func(s);
+}
+
+uint32_t ide_data_readl(CPUX86State *env, uint32_t addr)
+{
+    IDEState *s = ide_state[0].cur_drive;
+    uint8_t *p;
+    int ret;
+    
+    p = s->data_ptr;
+    ret = tswap32(*(uint32_t *)p);
+    p += 4;
+    s->data_ptr = p;
+    if (p >= s->data_end)
+        s->end_transfer_func(s);
+    return ret;
+}
+
+void ide_reset(IDEState *s)
+{
+    s->mult_sectors = MAX_MULT_SECTORS;
+    s->status = READY_STAT;
+    s->cur_drive = s;
+    s->select = 0xa0;
+}
+
+void ide_init(void)
+{
+    IDEState *s;
+    int i, cylinders;
+    int64_t nb_sectors;
+
+    for(i = 0; i < MAX_DISKS; i++) {
+        s = &ide_state[i];
+        s->bs = bs_table[i];
+        if (s->bs) {
+            bdrv_get_geometry(s->bs, &nb_sectors);
+            cylinders = nb_sectors / (16 * 63);
+            if (cylinders > 16383)
+                cylinders = 16383;
+            else if (cylinders < 2)
+                cylinders = 2;
+            s->cylinders = cylinders;
+            s->heads = 16;
+            s->sectors = 63;
+            s->nb_sectors = nb_sectors;
+        }
+        s->irq = 14;
+        ide_reset(s);
+    }
+    register_ioport_write(0x1f0, 8, ide_ioport_write, 1);
+    register_ioport_read(0x1f0, 8, ide_ioport_read, 1);
+    register_ioport_read(0x3f6, 1, ide_status_read, 1);
+    register_ioport_write(0x3f6, 1, ide_cmd_write, 1);
+
+    /* data ports */
+    register_ioport_write(0x1f0, 2, ide_data_writew, 2);
+    register_ioport_read(0x1f0, 2, ide_data_readw, 2);
+    register_ioport_write(0x1f0, 4, ide_data_writel, 4);
+    register_ioport_read(0x1f0, 4, ide_data_readl, 4);
 }
 
 /***********************************************************/
@@ -1873,16 +2495,22 @@ void main_loop(void *opaque)
 void help(void)
 {
     printf("Virtual Linux version " QEMU_VERSION ", Copyright (c) 2003 Fabrice Bellard\n"
-           "usage: vl [options] bzImage initrd [kernel parameters...]\n"
+           "usage: vl [options] bzImage [kernel parameters...]\n"
            "\n"
            "'bzImage' is a Linux kernel image (PAGE_OFFSET must be defined\n"
            "to 0x90000000 in asm/page.h and arch/i386/vmlinux.lds)\n"
-           "'initrd' is an initrd image\n"
-           "-m megs   set virtual RAM size to megs MB\n"
-           "-n script set network init script [default=%s]\n"
-           "-s        wait gdb connection to port %d\n"
-           "-p port   change gdb connection port\n"
-           "-d        output log in /tmp/vl.log\n"
+           "\n"
+           "General options:\n"
+           "-initrd file   use 'file' as initial ram disk\n"
+           "-hda file      use 'file' as hard disk 0 image\n"
+           "-hdb file      use 'file' as hard disk 1 image\n"
+           "-m megs        set virtual RAM size to megs MB\n"
+           "-n script      set network init script [default=%s]\n"
+           "\n"
+           "Debug options:\n"
+           "-s             wait gdb connection to port %d\n"
+           "-p port        change gdb connection port\n"
+           "-d             output log in /tmp/vl.log\n"
            "\n"
            "During emulation, use C-a h to get terminal commands:\n",
            DEFAULT_NETWORK_SCRIPT, DEFAULT_GDBSTUB_PORT);
@@ -1890,27 +2518,50 @@ void help(void)
     exit(1);
 }
 
+struct option long_options[] = {
+    { "initrd", 1, NULL, 0, },
+    { "hda", 1, NULL, 0, },
+    { "hdb", 1, NULL, 0, },
+    { NULL, 0, NULL, 0 },
+};
+
 int main(int argc, char **argv)
 {
-    int c, ret, initrd_size, i, use_gdbstub, gdbstub_port;
+    int c, ret, initrd_size, i, use_gdbstub, gdbstub_port, long_index;
     struct linux_params *params;
     struct sigaction act;
     struct itimerval itv;
     CPUX86State *env;
-    const char *tmpdir;
+    const char *tmpdir, *initrd_filename;
+    const char *hd_filename[MAX_DISKS];
     
     /* we never want that malloc() uses mmap() */
     mallopt(M_MMAP_THRESHOLD, 4096 * 1024);
-    
+    initrd_filename = NULL;
+    for(i = 0; i < MAX_DISKS; i++)
+        hd_filename[i] = NULL;
     phys_ram_size = 32 * 1024 * 1024;
     pstrcpy(network_script, sizeof(network_script), DEFAULT_NETWORK_SCRIPT);
     use_gdbstub = 0;
     gdbstub_port = DEFAULT_GDBSTUB_PORT;
     for(;;) {
-        c = getopt(argc, argv, "hm:dn:sp:");
+        c = getopt_long_only(argc, argv, "hm:dn:sp:", long_options, &long_index);
         if (c == -1)
             break;
         switch(c) {
+        case 0:
+            switch(long_index) {
+            case 0:
+                initrd_filename = optarg;
+                break;
+            case 1:
+                hd_filename[0] = optarg;
+                break;
+            case 2:
+                hd_filename[1] = optarg;
+                break;
+            }
+            break;
         case 'h':
             help();
             break;
@@ -1933,7 +2584,7 @@ int main(int argc, char **argv)
             break;
         }
     }
-    if (optind + 1 >= argc)
+    if (optind >= argc)
         help();
 
     /* init debug */
@@ -1944,6 +2595,18 @@ int main(int argc, char **argv)
             _exit(1);
         }
         setvbuf(logfile, NULL, _IOLBF, 0);
+    }
+
+    /* open the virtual block devices */
+    for(i = 0; i < MAX_DISKS; i++) {
+        if (hd_filename[i]) {
+            bs_table[i] = bdrv_open(hd_filename[i]);
+            if (!bs_table[i]) {
+                fprintf(stderr, "vl: could not open hard disk image '%s\n",
+                        hd_filename[i]);
+                exit(1);
+            }
+        }
     }
 
     /* init network tun interface */
@@ -1978,15 +2641,19 @@ int main(int argc, char **argv)
     /* now we can load the kernel */
     ret = load_kernel(argv[optind], phys_ram_base + KERNEL_LOAD_ADDR);
     if (ret < 0) {
-        fprintf(stderr, "%s: could not load kernel\n", argv[optind]);
+        fprintf(stderr, "vl: could not load kernel '%s'\n", argv[optind]);
         exit(1);
     }
 
     /* load initrd */
-    initrd_size = load_image(argv[optind + 1], phys_ram_base + INITRD_LOAD_ADDR);
-    if (initrd_size < 0) {
-        fprintf(stderr, "%s: could not load initrd\n", argv[optind + 1]);
-        exit(1);
+    initrd_size = 0;
+    if (initrd_filename) {
+        initrd_size = load_image(initrd_filename, phys_ram_base + INITRD_LOAD_ADDR);
+        if (initrd_size < 0) {
+            fprintf(stderr, "vl: could not load initial ram disk '%s'\n", 
+                    initrd_filename);
+            exit(1);
+        }
     }
 
     /* init kernel params */
@@ -1996,8 +2663,8 @@ int main(int argc, char **argv)
     params->cl_magic = 0xA33F;
     params->cl_offset = params->commandline - (uint8_t *)params;
     params->ext_mem_k = (phys_ram_size / 1024) - 1024;
-    for(i = optind + 2; i < argc; i++) {
-        if (i != optind + 2)
+    for(i = optind + 1; i < argc; i++) {
+        if (i != optind + 1)
             pstrcat(params->commandline, sizeof(params->commandline), " ");
         pstrcat(params->commandline, sizeof(params->commandline), argv[i]);
     }
@@ -2011,15 +2678,16 @@ int main(int argc, char **argv)
 
     /* init basic PC hardware */
     init_ioports();
-    register_ioport_writeb(0x80, 1, ioport80_write);
+    register_ioport_write(0x80, 1, ioport80_write, 1);
 
-    register_ioport_writeb(0x3d4, 2, vga_ioport_write);
+    register_ioport_write(0x3d4, 2, vga_ioport_write, 1);
 
     cmos_init();
     pic_init();
     pit_init();
     serial_init();
     ne2000_init();
+    ide_init();
 
     /* setup cpu signal handlers for MMU / self modifying code handling */
     sigfillset(&act.sa_mask);
