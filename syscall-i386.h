@@ -936,6 +936,22 @@ union target_semun {
     unsigned int __pad;	/* really void* */
 };
 
+struct target_flock {
+	short l_type;
+	short l_whence;
+	target_ulong l_start;
+	target_ulong l_len;
+	int l_pid;
+};
+
+struct target_flock64 {
+	short  l_type;
+	short  l_whence;
+	unsigned long long l_start;
+	unsigned long long l_len;
+	int  l_pid;
+};
+
 /* soundcard defines (XXX: move them to generic file syscall_defs.h) */
 
 #define TARGET_SNDCTL_COPR_HALT           0xc0144307
