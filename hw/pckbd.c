@@ -642,11 +642,59 @@ static void kbd_reset(void *opaque)
     q->count = 0;
 }
 
+static void kbd_save(QEMUFile* f, void* opaque)
+{
+    KBDState *s = (KBDState*)opaque;
+    
+    qemu_put_8s(f, &s->write_cmd);
+    qemu_put_8s(f, &s->status);
+    qemu_put_8s(f, &s->mode);
+    qemu_put_be32s(f, &s->kbd_write_cmd);
+    qemu_put_be32s(f, &s->scan_enabled);
+    qemu_put_be32s(f, &s->mouse_write_cmd);
+    qemu_put_8s(f, &s->mouse_status);
+    qemu_put_8s(f, &s->mouse_resolution);
+    qemu_put_8s(f, &s->mouse_sample_rate);
+    qemu_put_8s(f, &s->mouse_wrap);
+    qemu_put_8s(f, &s->mouse_type);
+    qemu_put_8s(f, &s->mouse_detect_state);
+    qemu_put_be32s(f, &s->mouse_dx);
+    qemu_put_be32s(f, &s->mouse_dy);
+    qemu_put_be32s(f, &s->mouse_dz);
+    qemu_put_8s(f, &s->mouse_buttons);
+}
+
+static int kbd_load(QEMUFile* f, void* opaque, int version_id)
+{
+    KBDState *s = (KBDState*)opaque;
+    
+    if (version_id != 1)
+        return -EINVAL;
+    qemu_get_8s(f, &s->write_cmd);
+    qemu_get_8s(f, &s->status);
+    qemu_get_8s(f, &s->mode);
+    qemu_get_be32s(f, &s->kbd_write_cmd);
+    qemu_get_be32s(f, &s->scan_enabled);
+    qemu_get_be32s(f, &s->mouse_write_cmd);
+    qemu_get_8s(f, &s->mouse_status);
+    qemu_get_8s(f, &s->mouse_resolution);
+    qemu_get_8s(f, &s->mouse_sample_rate);
+    qemu_get_8s(f, &s->mouse_wrap);
+    qemu_get_8s(f, &s->mouse_type);
+    qemu_get_8s(f, &s->mouse_detect_state);
+    qemu_get_be32s(f, &s->mouse_dx);
+    qemu_get_be32s(f, &s->mouse_dy);
+    qemu_get_be32s(f, &s->mouse_dz);
+    qemu_get_8s(f, &s->mouse_buttons);
+    return 0;
+}
+
 void kbd_init(void)
 {
     KBDState *s = &kbd_state;
     
     kbd_reset(s);
+    register_savevm("pckbd", 0, 1, kbd_save, kbd_load, s);
     register_ioport_read(0x60, 1, 1, kbd_read_data, s);
     register_ioport_write(0x60, 1, 1, kbd_write_data, s);
     register_ioport_read(0x64, 1, 1, kbd_read_status, s);
