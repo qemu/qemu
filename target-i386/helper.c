@@ -1574,6 +1574,7 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
     sp_mask = get_sp_mask(env->segs[R_SS].flags);
     sp = ESP;
     ssp = env->segs[R_SS].base;
+    new_eflags = 0; /* avoid warning */
     if (shift == 1) {
         /* 32 bits */
         POPL(ssp, sp, sp_mask, new_eip);
