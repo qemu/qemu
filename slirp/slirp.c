@@ -65,6 +65,7 @@ static int get_dns_addr(struct in_addr *pdns_addr)
                 lprint("%s", inet_ntoa(tmp_addr));
         }
     }
+    fclose(f);
     if (!found)
         return -1;
     return 0;
@@ -75,7 +76,7 @@ static int get_dns_addr(struct in_addr *pdns_addr)
 void slirp_init(void)
 {
     //    debug_init("/tmp/slirp.log", DEBUG_DEFAULT);
-
+    
     link_up = 1;
 
     if_init();
