@@ -16,3 +16,4 @@ qemu-img.pod
 sparc-user
 qemu-img
 sparc-softmmu
+x86_64-softmmu
