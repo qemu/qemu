@@ -285,13 +285,13 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
 
     /* XXX: check that enough room is available */
     if (new_stack) {
-        old_esp = env->regs[R_ESP];
+        old_esp = ESP;
         old_ss = env->segs[R_SS].selector;
         load_seg(R_SS, ss, env->eip);
     } else {
         old_esp = 0;
         old_ss = 0;
-        esp = env->regs[R_ESP];
+        esp = ESP;
     }
     if (is_int)
         old_eip = next_eip;
@@ -300,7 +300,7 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
     old_cs = env->segs[R_CS].selector;
     load_seg(R_CS, selector, env->eip);
     env->eip = offset;
-    env->regs[R_ESP] = esp - push_size;
+    ESP = esp - push_size;
     ssp = env->segs[R_SS].base + esp;
     if (shift == 1) {
         int old_eflags;
@@ -374,7 +374,7 @@ static void do_interrupt_real(int intno, int is_int, int error_code,
     ptr = dt->base + intno * 4;
     offset = lduw(ptr);
     selector = lduw(ptr + 2);
-    esp = env->regs[R_ESP];
+    esp = ESP;
     ssp = env->segs[R_SS].base;
     if (is_int)
         old_eip = next_eip;
@@ -389,7 +389,7 @@ static void do_interrupt_real(int intno, int is_int, int error_code,
     stw(ssp + (esp & 0xffff), old_eip);
     
     /* update processor state */
-    env->regs[R_ESP] = (env->regs[R_ESP] & ~0xffff) | (esp & 0xffff);
+    ESP = (ESP & ~0xffff) | (esp & 0xffff);
     env->eip = offset;
     env->segs[R_CS].selector = selector;
     env->segs[R_CS].base = (uint8_t *)(selector << 4);
@@ -784,7 +784,7 @@ void helper_lcall_real_T0_T1(int shift, int next_eip)
 
     new_cs = T0;
     new_eip = T1;
-    esp = env->regs[R_ESP];
+    esp = ESP;
     esp_mask = 0xffffffff;
     if (!(env->segs[R_SS].flags & DESC_B_MASK))
         esp_mask = 0xffff;
@@ -802,9 +802,9 @@ void helper_lcall_real_T0_T1(int shift, int next_eip)
     }
 
     if (!(env->segs[R_SS].flags & DESC_B_MASK))
-        env->regs[R_ESP] = (env->regs[R_ESP] & ~0xffff) | (esp & 0xffff);
+        ESP = (ESP & ~0xffff) | (esp & 0xffff);
     else
-        env->regs[R_ESP] = esp;
+        ESP = esp;
     env->eip = new_eip;
     env->segs[R_CS].selector = new_cs;
     env->segs[R_CS].base = (uint8_t *)(new_cs << 4);
@@ -846,7 +846,7 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip)
         if (!(e2 & DESC_P_MASK))
             raise_exception_err(EXCP0B_NOSEG, new_cs & 0xfffc);
 
-        sp = env->regs[R_ESP];
+        sp = ESP;
         if (!(env->segs[R_SS].flags & DESC_B_MASK))
             sp &= 0xffff;
         ssp = env->segs[R_SS].base + sp;
@@ -868,9 +868,9 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip)
             raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
         /* from this point, not restartable */
         if (!(env->segs[R_SS].flags & DESC_B_MASK))
-            env->regs[R_ESP] = (env->regs[R_ESP] & 0xffff0000) | (sp & 0xffff);
+            ESP = (ESP & 0xffff0000) | (sp & 0xffff);
         else
-            env->regs[R_ESP] = sp;
+            ESP = sp;
         env->segs[R_CS].base = sc1.base;
         env->segs[R_CS].limit = sc1.limit;
         env->segs[R_CS].flags = sc1.flags;
@@ -938,7 +938,7 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip)
             param_count = e2 & 0x1f;
             push_size = ((param_count * 2) + 8) << shift;
 
-            old_esp = env->regs[R_ESP];
+            old_esp = ESP;
             old_ss = env->segs[R_SS].selector;
             if (!(env->segs[R_SS].flags & DESC_B_MASK))
                 old_esp &= 0xffff;
@@ -995,9 +995,9 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip)
         load_seg(R_CS, selector, env->eip);
         /* from this point, not restartable if same priviledge */
         if (!(env->segs[R_SS].flags & DESC_B_MASK))
-            env->regs[R_ESP] = (env->regs[R_ESP] & 0xffff0000) | (sp & 0xffff);
+            ESP = (ESP & 0xffff0000) | (sp & 0xffff);
         else
-            env->regs[R_ESP] = sp;
+            ESP = sp;
         EIP = offset;
     }
 }
@@ -1020,7 +1020,7 @@ void helper_iret_real(int shift)
     uint8_t *ssp;
     int eflags_mask;
     
-    sp = env->regs[R_ESP] & 0xffff;
+    sp = ESP & 0xffff;
     ssp = env->segs[R_SS].base + sp;
     if (shift == 1) {
         /* 32 bits */
@@ -1034,7 +1034,7 @@ void helper_iret_real(int shift)
         new_eip = lduw(ssp);
     }
     new_esp = sp + (6 << shift);
-    env->regs[R_ESP] = (env->regs[R_ESP] & 0xffff0000) | 
+    ESP = (ESP & 0xffff0000) | 
         (new_esp & 0xffff);
     load_seg_vm(R_CS, new_cs);
     env->eip = new_eip;
@@ -1053,7 +1053,7 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
     int cpl, dpl, rpl, eflags_mask;
     uint8_t *ssp;
     
-    sp = env->regs[R_ESP];
+    sp = ESP;
     if (!(env->segs[R_SS].flags & DESC_B_MASK))
         sp &= 0xffff;
     ssp = env->segs[R_SS].base + sp;
@@ -1129,9 +1129,9 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
         load_seg(R_SS, new_ss, env->eip);
     }
     if (env->segs[R_SS].flags & DESC_B_MASK)
-        env->regs[R_ESP] = new_esp;
+        ESP = new_esp;
     else
-        env->regs[R_ESP] = (env->regs[R_ESP] & 0xffff0000) | 
+        ESP = (ESP & 0xffff0000) | 
             (new_esp & 0xffff);
     env->eip = new_eip;
     if (is_iret) {
@@ -1164,7 +1164,7 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
     load_seg_vm(R_GS, new_gs);
 
     env->eip = new_eip;
-    env->regs[R_ESP] = new_esp;
+    ESP = new_esp;
 }
 
 void helper_iret_protected(int shift)
