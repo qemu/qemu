@@ -48,6 +48,7 @@
 #define R_FS 4
 #define R_GS 5
 
+/* eflags masks */
 #define CC_C   	0x0001
 #define CC_P 	0x0004
 #define CC_A	0x0010
@@ -55,15 +56,17 @@
 #define CC_S    0x0080
 #define CC_O    0x0800
 
-#define TRAP_FLAG		0x0100
-#define INTERRUPT_FLAG		0x0200
-#define DIRECTION_FLAG		0x0400
-#define IOPL_FLAG_MASK		0x3000
-#define NESTED_FLAG		0x4000
-#define BYTE_FL			0x8000	/* Intel reserved! */
-#define RF_FLAG			0x10000
-#define VM_FLAG			0x20000
-/* AC				0x40000 */
+#define TF_MASK 		0x00000100
+#define IF_MASK 		0x00000200
+#define DF_MASK 		0x00000400
+#define IOPL_MASK		0x00003000
+#define NT_MASK	         	0x00004000
+#define RF_MASK			0x00010000
+#define VM_MASK			0x00020000
+#define AC_MASK			0x00040000 
+#define VIF_MASK                0x00080000
+#define VIP_MASK                0x00100000
+#define ID_MASK                 0x00200000
 
 #define EXCP00_DIVZ	1
 #define EXCP01_SSTP	2
@@ -158,7 +161,9 @@ typedef struct CPUX86State {
     /* standard registers */
     uint32_t regs[8];
     uint32_t eip;
-    uint32_t eflags;
+    uint32_t eflags; /* eflags register. During CPU emulation, CC
+                        flags and DF are set to zero because they are
+                        store elsewhere */
 
     /* emulator internal eflags handling */
     uint32_t cc_src;
@@ -183,13 +188,13 @@ typedef struct CPUX86State {
     SegmentDescriptorTable ldt;
     SegmentDescriptorTable idt;
     
-    /* various CPU modes */
-    int vm86;
-
     /* exception/interrupt handling */
     jmp_buf jmp_env;
     int exception_index;
     int interrupt_request;
+
+    /* user data */
+    void *opaque;
 } CPUX86State;
 
 /* all CPU memory access use these macros */
@@ -418,7 +423,8 @@ int cpu_x86_signal_handler(int host_signum, struct siginfo *info,
 #define GEN_FLAG_CODE32_SHIFT 0
 #define GEN_FLAG_ADDSEG_SHIFT 1
 #define GEN_FLAG_SS32_SHIFT   2
-#define GEN_FLAG_ST_SHIFT     3
+#define GEN_FLAG_VM_SHIFT     3
+#define GEN_FLAG_ST_SHIFT     4
 
 int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size, 
                      int *gen_code_size_ptr,

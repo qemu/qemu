@@ -330,9 +330,10 @@ int cpu_x86_exec(CPUX86State *env1)
 #endif
     
     /* put eflags in CPU temporary format */
-    T0 = env->eflags;
-    op_movl_eflags_T0();
+    CC_SRC = env->eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
+    DF = 1 - (2 * ((env->eflags >> 10) & 1));
     CC_OP = CC_OP_EFLAGS;
+    env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
     env->interrupt_request = 0;
     
     /* prepare setjmp context for exception handling */
@@ -354,6 +355,7 @@ int cpu_x86_exec(CPUX86State *env1)
                        (unsigned long)env->seg_cache[R_ES].base |
                        (unsigned long)env->seg_cache[R_SS].base) != 0) << 
                 GEN_FLAG_ADDSEG_SHIFT;
+            flags |= (env->eflags & VM_MASK) >> (17 - GEN_FLAG_VM_SHIFT);
             cs_base = env->seg_cache[R_CS].base;
             pc = cs_base + env->eip;
             tb = tb_find(&ptb, (unsigned long)pc, (unsigned long)cs_base, 
@@ -390,8 +392,7 @@ int cpu_x86_exec(CPUX86State *env1)
     ret = env->exception_index;
 
     /* restore flags in standard format */
-    op_movl_T0_eflags();
-    env->eflags = T0;
+    env->eflags = env->eflags | cc_table[CC_OP].compute_all() | (DF & DF_MASK);
 
     /* restore global registers */
 #ifdef reg_EAX
@@ -489,7 +490,7 @@ int cpu_x86_signal_handler(int host_signum, struct siginfo *info,
 /* for glibc 2.1 */
 #define REG_EIP EIP
 #endif
-    pc = uc->uc_mcontext.gregs[EIP];
+    pc = uc->uc_mcontext.gregs[REG_EIP];
     pold_set = &uc->uc_sigmask;
     return handle_cpu_signal(pc, pold_set);
 #else
