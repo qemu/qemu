@@ -419,7 +419,8 @@ static void switch_tss(int tss_selector,
     /* load all registers without an exception, then reload them with
        possible exception */
     env->eip = new_eip;
-    eflags_mask = FL_UPDATE_CPL0_MASK;
+    eflags_mask = TF_MASK | AC_MASK | ID_MASK | 
+        IF_MASK | IOPL_MASK | VM_MASK | RF_MASK;
     if (!(type & 8))
         eflags_mask &= 0xffff;
     load_eflags(new_eflags, eflags_mask);
@@ -574,27 +575,6 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
     int has_error_code, new_stack, shift;
     uint32_t e1, e2, offset, ss, esp, ss_e1, ss_e2;
     uint32_t old_eip;
-
-#ifdef DEBUG_PCALL
-    if (loglevel) {
-        static int count;
-        fprintf(logfile, "%d: interrupt: vector=%02x error_code=%04x int=%d CS:IP=%04x:%08x CPL=%d\n",
-                count, intno, error_code, is_int, env->segs[R_CS].selector, env->eip, env->hflags & 3);
-#if 0
-        {
-            int i;
-            uint8_t *ptr;
-            printf("       code=");
-            ptr = env->segs[R_CS].base + env->eip;
-            for(i = 0; i < 16; i++) {
-                printf(" %02x", ldub(ptr + i));
-            }
-            printf("\n");
-        }
-#endif
-        count++;
-    }
-#endif
 
     has_error_code = 0;
     if (!is_int && !is_hw) {
@@ -775,7 +755,7 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
 
 /* real mode interrupt */
 static void do_interrupt_real(int intno, int is_int, int error_code,
-                                 unsigned int next_eip)
+                              unsigned int next_eip)
 {
     SegmentCache *dt;
     uint8_t *ptr, *ssp;
@@ -844,6 +824,27 @@ void do_interrupt_user(int intno, int is_int, int error_code,
 void do_interrupt(int intno, int is_int, int error_code, 
                   unsigned int next_eip, int is_hw)
 {
+#ifdef DEBUG_PCALL
+    if (loglevel) {
+        static int count;
+        fprintf(logfile, "%d: interrupt: vector=%02x error_code=%04x int=%d\n",
+                count, intno, error_code, is_int);
+        cpu_x86_dump_state(env, logfile, X86_DUMP_CCOP);
+#if 0
+        {
+            int i;
+            uint8_t *ptr;
+            printf("       code=");
+            ptr = env->segs[R_CS].base + env->eip;
+            for(i = 0; i < 16; i++) {
+                printf(" %02x", ldub(ptr + i));
+            }
+            printf("\n");
+        }
+#endif
+        count++;
+    }
+#endif
     if (env->cr[0] & CR0_PE_MASK) {
         do_interrupt_protected(intno, is_int, error_code, next_eip, is_hw);
     } else {
@@ -1293,6 +1294,7 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip)
     if (loglevel) {
         fprintf(logfile, "lcall %04x:%08x\n",
                 new_cs, new_eip);
+        cpu_x86_dump_state(env, logfile, X86_DUMP_CCOP);
     }
 #endif
     if ((new_cs & 0xfffc) == 0)
@@ -1493,13 +1495,13 @@ void helper_iret_real(int shift)
         POPW(ssp, sp, sp_mask, new_cs);
         POPW(ssp, sp, sp_mask, new_eflags);
     }
-    ESP = (ESP & ~sp_mask) | (sp & 0xffff);
+    ESP = (ESP & ~sp_mask) | (sp & sp_mask);
     load_seg_vm(R_CS, new_cs);
     env->eip = new_eip;
     if (env->eflags & VM_MASK)
-        eflags_mask = FL_UPDATE_MASK32 | IF_MASK | RF_MASK;
+        eflags_mask = TF_MASK | AC_MASK | ID_MASK | IF_MASK | RF_MASK;
     else
-        eflags_mask = FL_UPDATE_CPL0_MASK;
+        eflags_mask = TF_MASK | AC_MASK | ID_MASK | IF_MASK | IOPL_MASK | RF_MASK;
     if (shift == 0)
         eflags_mask &= 0xffff;
     load_eflags(new_eflags, eflags_mask);
@@ -1511,7 +1513,7 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
     uint32_t sp, new_cs, new_eip, new_eflags, new_esp, new_ss, sp_mask;
     uint32_t new_es, new_ds, new_fs, new_gs;
     uint32_t e1, e2, ss_e1, ss_e2;
-    int cpl, dpl, rpl, eflags_mask;
+    int cpl, dpl, rpl, eflags_mask, iopl;
     uint8_t *ssp;
     
     sp_mask = get_sp_mask(env->segs[R_SS].flags);
@@ -1536,8 +1538,9 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
     }
 #ifdef DEBUG_PCALL
     if (loglevel) {
-        fprintf(logfile, "lret new %04x:%08x\n",
-                new_cs, new_eip);
+        fprintf(logfile, "lret new %04x:%08x addend=0x%x\n",
+                new_cs, new_eip, addend);
+        cpu_x86_dump_state(env, logfile, X86_DUMP_CCOP);
     }
 #endif
     if ((new_cs & 0xfffc) == 0)
@@ -1611,11 +1614,13 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
     ESP = (ESP & ~sp_mask) | (sp & sp_mask);
     env->eip = new_eip;
     if (is_iret) {
-        /* NOTE: 'cpl' can be different from the current CPL */
+        /* NOTE: 'cpl' is the _old_ CPL */
+        eflags_mask = TF_MASK | AC_MASK | ID_MASK | RF_MASK;
         if (cpl == 0)
-            eflags_mask = FL_UPDATE_CPL0_MASK;
-        else
-            eflags_mask = FL_UPDATE_MASK32;
+            eflags_mask |= IOPL_MASK;
+        iopl = (env->eflags >> IOPL_SHIFT) & 3;
+        if (cpl <= iopl)
+            eflags_mask |= IF_MASK;
         if (shift == 0)
             eflags_mask &= 0xffff;
         load_eflags(new_eflags, eflags_mask);
@@ -1631,7 +1636,8 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
     POPL(ssp, sp, sp_mask, new_gs);
     
     /* modify processor state */
-    load_eflags(new_eflags, FL_UPDATE_CPL0_MASK | VM_MASK | VIF_MASK | VIP_MASK);
+    load_eflags(new_eflags, TF_MASK | AC_MASK | ID_MASK | 
+                IF_MASK | IOPL_MASK | VM_MASK | VIF_MASK | VIP_MASK);
     load_seg_vm(R_CS, new_cs & 0xffff);
     cpu_x86_set_cpl(env, 3);
     load_seg_vm(R_SS, new_ss & 0xffff);

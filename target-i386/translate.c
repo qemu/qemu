@@ -3540,10 +3540,18 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
                     gen_op_movw_eflags_T0_cpl0();
                 }
             } else {
-                if (s->dflag) {
-                    gen_op_movl_eflags_T0();
+                if (s->cpl <= s->iopl) {
+                    if (s->dflag) {
+                        gen_op_movl_eflags_T0_io();
+                    } else {
+                        gen_op_movw_eflags_T0_io();
+                    }
                 } else {
-                    gen_op_movw_eflags_T0();
+                    if (s->dflag) {
+                        gen_op_movl_eflags_T0();
+                    } else {
+                        gen_op_movw_eflags_T0();
+                    }
                 }
             }
             gen_pop_update(s);
@@ -4265,6 +4273,10 @@ static uint16_t opc_write_flags[NB_OPS] = {
     [INDEX_op_movb_eflags_T0] = CC_S | CC_Z | CC_A | CC_P | CC_C,
     [INDEX_op_movw_eflags_T0] = CC_OSZAPC,
     [INDEX_op_movl_eflags_T0] = CC_OSZAPC,
+    [INDEX_op_movw_eflags_T0_io] = CC_OSZAPC,
+    [INDEX_op_movl_eflags_T0_io] = CC_OSZAPC,
+    [INDEX_op_movw_eflags_T0_cpl0] = CC_OSZAPC,
+    [INDEX_op_movl_eflags_T0_cpl0] = CC_OSZAPC,
     [INDEX_op_clc] = CC_C,
     [INDEX_op_stc] = CC_C,
     [INDEX_op_cmc] = CC_C,

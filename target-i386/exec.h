@@ -512,11 +512,6 @@ static inline uint32_t compute_eflags(void)
     return env->eflags | cc_table[CC_OP].compute_all() | (DF & DF_MASK);
 }
 
-#define FL_UPDATE_MASK32 (TF_MASK | AC_MASK | ID_MASK)
-
-#define FL_UPDATE_CPL0_MASK (TF_MASK | IF_MASK | IOPL_MASK | NT_MASK | \
-                             RF_MASK | AC_MASK | ID_MASK)
-
 /* NOTE: CC_OP must be modified manually to CC_OP_EFLAGS */
 static inline void load_eflags(int eflags, int update_mask)
 {

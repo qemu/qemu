@@ -1138,38 +1138,36 @@ void OPPROTO op_set_cc_op(void)
     CC_OP = PARAM1;
 }
 
-#define FL_UPDATE_MASK16 (FL_UPDATE_MASK32 & 0xffff)
+/* XXX: clear VIF/VIP in all ops ? */
 
 void OPPROTO op_movl_eflags_T0(void)
 {
-    int eflags;
-    eflags = T0;
-    CC_SRC = eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
-    DF = 1 - (2 * ((eflags >> 10) & 1));
-    /* we also update some system flags as in user mode */
-    env->eflags = (env->eflags & ~FL_UPDATE_MASK32) | 
-        (eflags & FL_UPDATE_MASK32);
+    load_eflags(T0, (TF_MASK | AC_MASK | ID_MASK));
 }
 
 void OPPROTO op_movw_eflags_T0(void)
 {
-    int eflags;
-    eflags = T0;
-    CC_SRC = eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
-    DF = 1 - (2 * ((eflags >> 10) & 1));
-    /* we also update some system flags as in user mode */
-    env->eflags = (env->eflags & ~FL_UPDATE_MASK16) | 
-        (eflags & FL_UPDATE_MASK16);
+    load_eflags(T0, (TF_MASK | AC_MASK | ID_MASK) & 0xffff);
+}
+
+void OPPROTO op_movl_eflags_T0_io(void)
+{
+    load_eflags(T0, (TF_MASK | AC_MASK | ID_MASK | IF_MASK));
+}
+
+void OPPROTO op_movw_eflags_T0_io(void)
+{
+    load_eflags(T0, (TF_MASK | AC_MASK | ID_MASK | IF_MASK) & 0xffff);
 }
 
 void OPPROTO op_movl_eflags_T0_cpl0(void)
 {
-    load_eflags(T0, FL_UPDATE_CPL0_MASK);
+    load_eflags(T0, (TF_MASK | AC_MASK | ID_MASK | IF_MASK | IOPL_MASK));
 }
 
 void OPPROTO op_movw_eflags_T0_cpl0(void)
 {
-    load_eflags(T0, FL_UPDATE_CPL0_MASK & 0xffff);
+    load_eflags(T0, (TF_MASK | AC_MASK | ID_MASK | IF_MASK | IOPL_MASK) & 0xffff);
 }
 
 #if 0
