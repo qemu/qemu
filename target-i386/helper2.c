@@ -98,7 +98,7 @@ CPUX86State *cpu_x86_init(void)
 #else
         /* pentium pro */
         family = 6;
-        model = 1;
+        model = 3;
         stepping = 3;
 #endif
 #endif
@@ -106,14 +106,18 @@ CPUX86State *cpu_x86_init(void)
         env->cpuid_features = (CPUID_FP87 | CPUID_DE | CPUID_PSE |
                                CPUID_TSC | CPUID_MSR | CPUID_MCE |
                                CPUID_CX8 | CPUID_PGE | CPUID_CMOV);
+        env->cpuid_ext_features = 0;
+        env->cpuid_features |= CPUID_FXSR | CPUID_MMX | CPUID_SSE | CPUID_SSE2 | CPUID_PAE | CPUID_SEP;
 #ifdef TARGET_X86_64
         /* currently not enabled for std i386 because not fully tested */
-        env->cpuid_features |= CPUID_FXSR | CPUID_MMX | CPUID_SSE | CPUID_SSE2;
-        env->cpuid_features |= CPUID_APIC | CPUID_PAE;
+        env->cpuid_features |= CPUID_APIC;
 #endif
     }
     cpu_single_env = env;
     cpu_reset(env);
+#ifdef USE_KQEMU
+    kqemu_init(env);
+#endif
     return env;
 }
 
@@ -453,6 +457,8 @@ void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0)
         ((new_cr0 << (HF_MP_SHIFT - 1)) & (HF_MP_MASK | HF_EM_MASK | HF_TS_MASK));
 }
 
+/* XXX: in legacy PAE mode, generate a GPF if reserved bits are set in
+   the PDPT */
 void cpu_x86_update_cr3(CPUX86State *env, target_ulong new_cr3)
 {
     env->cr[3] = new_cr3;
