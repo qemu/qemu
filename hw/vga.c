@@ -494,6 +494,8 @@ static uint32_t vga_mem_readb(uint32_t addr)
     default:
     case 3:
         addr -= 0xb8000;
+        if (addr >= 0x8000)
+            return 0xff;
         break;
     }
     
@@ -570,6 +572,8 @@ void vga_mem_writeb(uint32_t addr, uint32_t val)
     default:
     case 3:
         addr -= 0xb8000;
+        if (addr >= 0x8000)
+            return;
         break;
     }
     
