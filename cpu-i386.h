@@ -163,7 +163,7 @@ typedef struct CPUX86State {
     uint32_t eip;
     uint32_t eflags; /* eflags register. During CPU emulation, CC
                         flags and DF are set to zero because they are
-                        store elsewhere */
+                        stored elsewhere */
 
     /* emulator internal eflags handling */
     uint32_t cc_src;
