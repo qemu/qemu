@@ -1137,6 +1137,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         ret = 0; /* avoid warning */
         break;
     case TARGET_NR_read:
+        page_unprotect_range((void *)arg2, arg3);
         ret = get_errno(read(arg1, (void *)arg2, arg3));
         break;
     case TARGET_NR_write:
@@ -2191,9 +2192,12 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_prctl:
         goto unimplemented;
     case TARGET_NR_pread:
-        goto unimplemented;
+        page_unprotect_range((void *)arg2, arg3);
+        ret = get_errno(pread(arg1, (void *)arg2, arg3, arg4));
+        break;
     case TARGET_NR_pwrite:
-        goto unimplemented;
+        ret = get_errno(pwrite(arg1, (void *)arg2, arg3, arg4));
+        break;
     case TARGET_NR_chown:
         ret = get_errno(chown((const char *)arg1, arg2, arg3));
         break;
