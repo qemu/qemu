@@ -476,6 +476,161 @@ static void do_print(int count, int format, int size, int val)
     term_printf("\n");
 }
 
+typedef struct {
+    int keycode;
+    const char *name;
+} KeyDef;
+
+static const KeyDef key_defs[] = {
+    { 0x2a, "shift" },
+    { 0x36, "shift_r" },
+    
+    { 0x38, "alt" },
+    { 0xb8, "alt_r" },
+    { 0x1d, "ctrl" },
+    { 0x9d, "ctrl_r" },
+
+    { 0xdd, "menu" },
+
+    { 0x01, "esc" },
+
+    { 0x02, "1" },
+    { 0x03, "2" },
+    { 0x04, "3" },
+    { 0x05, "4" },
+    { 0x06, "5" },
+    { 0x07, "6" },
+    { 0x08, "7" },
+    { 0x09, "8" },
+    { 0x0a, "9" },
+    { 0x0b, "0" },
+    { 0x0e, "backspace" },
+
+    { 0x0f, "tab" },
+    { 0x10, "q" },
+    { 0x11, "w" },
+    { 0x12, "e" },
+    { 0x13, "r" },
+    { 0x14, "t" },
+    { 0x15, "y" },
+    { 0x16, "u" },
+    { 0x17, "i" },
+    { 0x18, "o" },
+    { 0x19, "p" },
+
+    { 0x1c, "ret" },
+
+    { 0x1e, "a" },
+    { 0x1f, "s" },
+    { 0x20, "d" },
+    { 0x21, "f" },
+    { 0x22, "g" },
+    { 0x23, "h" },
+    { 0x24, "j" },
+    { 0x25, "k" },
+    { 0x26, "l" },
+
+    { 0x2c, "z" },
+    { 0x2d, "x" },
+    { 0x2e, "c" },
+    { 0x2f, "v" },
+    { 0x30, "b" },
+    { 0x31, "n" },
+    { 0x32, "m" },
+    
+    { 0x39, "spc" },
+
+    { 0x3b, "f1" },
+    { 0x3c, "f2" },
+    { 0x3d, "f3" },
+    { 0x3e, "f4" },
+    { 0x3f, "f5" },
+    { 0x40, "f6" },
+    { 0x41, "f7" },
+    { 0x42, "f8" },
+    { 0x43, "f9" },
+    { 0x44, "f10" },
+
+    { 0x46, "scroll_lock" },
+
+    { 0x56, "<" },
+
+    { 0x57, "f11" },
+    { 0x58, "f12" },
+
+    { 0xb7, "print" },
+
+    { 0xc7, "home" },
+    { 0xc9, "pgup" },
+    { 0xd1, "pgdn" },
+    { 0xcf, "end" },
+
+    { 0xcb, "left" },
+    { 0xc8, "up" },
+    { 0xd0, "down" },
+    { 0xcd, "right" },
+
+    { 0xd2, "insert" },
+    { 0xd3, "delete" },
+    { 0, NULL },
+};
+
+static int get_keycode(const char *key)
+{
+    const KeyDef *p;
+
+    for(p = key_defs; p->name != NULL; p++) {
+        if (!strcmp(key, p->name))
+            return p->keycode;
+    }
+    return -1;
+}
+
+static void do_send_key(const char *string)
+{
+    char keybuf[16], *q;
+    uint8_t keycodes[16];
+    const char *p;
+    int nb_keycodes, keycode, i;
+    
+    nb_keycodes = 0;
+    p = string;
+    while (*p != '\0') {
+        q = keybuf;
+        while (*p != '\0' && *p != '-') {
+            if ((q - keybuf) < sizeof(keybuf) - 1) {
+                *q++ = *p;
+            }
+            p++;
+        }
+        *q = '\0';
+        keycode = get_keycode(keybuf);
+        if (keycode < 0) {
+            term_printf("unknown key: '%s'\n", keybuf);
+            return;
+        }
+        keycodes[nb_keycodes++] = keycode;
+        if (*p == '\0')
+            break;
+        p++;
+    }
+    /* key down events */
+    for(i = 0; i < nb_keycodes; i++) {
+        keycode = keycodes[i];
+        if (keycode & 0x80)
+            kbd_put_keycode(0xe0);
+        kbd_put_keycode(keycode & 0x7f);
+    }
+    /* key up events */
+    for(i = nb_keycodes - 1; i >= 0; i--) {
+        keycode = keycodes[i];
+        if (keycode & 0x80)
+            kbd_put_keycode(0xe0);
+        kbd_put_keycode(keycode | 0x80);
+    }
+}
+
+
 static term_cmd_t term_cmds[] = {
     { "help|?", "s?", do_help, 
       "[cmd]", "show the help" },
@@ -511,6 +666,8 @@ static term_cmd_t term_cmds[] = {
       "/fmt addr", "physical memory dump starting at 'addr'", },
     { "p|print", "/i", do_print, 
       "/fmt expr", "print expression value (use $reg for CPU register access)", },
+    { "sendkey", "s", do_send_key, 
+      "keys", "send keys to the VM (e.g. 'sendkey ctrl-alt-f1')" },
     { NULL, NULL, }, 
 };
 
