@@ -75,8 +75,15 @@ SRCS:= $(OBJS:.o=.c)
 OBJS+= libqemu.a
 
 LIBOBJS+=thunk.o translate-i386.o op-i386.o exec-i386.o exec.o
+
 # NOTE: the disassembler code is only needed for debugging
-LIBOBJS+=disas.o ppc-dis.o i386-dis.o alpha-dis.o dis-buf.o
+LIBOBJS+=disas.o i386-dis.o dis-buf.o
+ifeq ($(ARCH),alpha)
+LIBOBJS+=alpha-dis.o
+endif
+ifeq ($(ARCH),ppc)
+LIBOBJS+=ppc-dis.o
+endif
 
 ifeq ($(ARCH),ia64)
 OBJS += ia64-syscall.o
@@ -140,7 +147,7 @@ FILES= \
 README README.distrib COPYING COPYING.LIB TODO Changelog VERSION \
 dyngen.c ioctls.h ops_template.h op_string.h  syscall_types.h\
 Makefile     elf.h       thunk.c\
-elfload.c   main.c            signal.c        thunk.h\
+elfload.c   main.c            signal.c        thunk.h exec.h\
 cpu-i386.h qemu.h op-i386.c opc-i386.h syscall-i386.h  translate-i386.c\
 syscall.c opreg_template.h  syscall_defs.h vm86.c\
 dis-asm.h dis-buf.c disas.c disas.h alpha-dis.c ppc-dis.c i386-dis.c\
