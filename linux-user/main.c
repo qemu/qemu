@@ -23,6 +23,9 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 3)
+#include <sys/personality.h>
+#endif
 
 #include "qemu.h"
 
@@ -33,6 +36,12 @@
 FILE *logfile = NULL;
 int loglevel;
 const char *interp_prefix = CONFIG_QEMU_PREFIX "/qemu-i386";
+
+#ifdef __i386__
+/* Force usage of an ELF interpreter even if it is an ELF shared
+   object ! */
+const char interp[] __attribute__((section(".interp"))) = "/lib/ld-linux.so.2";
+#endif
 
 /* XXX: on x86 MAP_GROWSDOWN only works if ESP <= address + 32, so
    we allocate a bigger stack. Need a better solution, for example
@@ -370,6 +379,13 @@ int main(int argc, char **argv)
     
     if (argc <= 1)
         usage();
+
+    /* Set personality to X86_LINUX.  May fail on unpatched kernels:
+       if so, they need to have munged paths themselves (eg. chroot,
+       hacked ld.so, whatever). */
+    if (personality(0x11) >= 0)
+	    interp_prefix = "";
+
     loglevel = 0;
     optind = 1;
     for(;;) {
