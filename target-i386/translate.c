@@ -2216,6 +2216,19 @@ static void gen_movtl_T0_im(target_ulong val)
 #endif
 }
 
+static void gen_movtl_T1_im(target_ulong val)
+{
+#ifdef TARGET_X86_64    
+    if ((int32_t)val == val) {
+        gen_op_movl_T1_im(val);
+    } else {
+        gen_op_movq_T1_im64(val >> 32, val);
+    }
+#else
+    gen_op_movl_T1_im(val);
+#endif
+}
+
 static GenOpFunc1 *gen_ldq_env_A0[3] = {
     gen_op_ldq_raw_env_A0,
 #ifndef CONFIG_USER_ONLY
@@ -3391,7 +3404,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             if (s->dflag == 0)
                 gen_op_andl_T0_ffff();
             next_eip = s->pc - s->cs_base;
-            gen_op_movl_T1_im(next_eip);
+            gen_movtl_T1_im(next_eip);
             gen_push_T1(s);
             gen_op_jmp_T0();
             gen_eob(s);

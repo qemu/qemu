@@ -517,6 +517,11 @@ void OPPROTO op_movq_T0_im64(void)
     T0 = PARAMQ1;
 }
 
+void OPPROTO op_movq_T1_im64(void)
+{
+    T1 = PARAMQ1;
+}
+
 void OPPROTO op_movq_A0_im(void)
 {
     A0 = (int32_t)PARAM1;
