@@ -45,7 +45,6 @@
 #include <linux/if.h>
 #include <linux/if_tun.h>
 
-#include "cpu.h"
 #include "disas.h"
 #include "thunk.h"
 
@@ -2961,10 +2960,6 @@ static void host_alarm_handler(int host_signum, siginfo_t *info,
         gui_refresh_pending = 1;
     }
 
-    /* XXX: seems dangerous to run that here. */
-    DMA_run();
-    SB16_run();
-
     if (gui_refresh_pending || timer_irq_pending) {
         /* just exit from the cpu to have a chance to handle timers */
         cpu_interrupt(global_env, CPU_INTERRUPT_EXIT);
@@ -3090,6 +3085,11 @@ int main_loop(void *opaque)
             }
 #endif
         }
+        /* XXX: add explicit timer */
+        SB16_run();
+
+        /* run dma transfers, if any */
+        DMA_run();
 
         /* VGA */
         if (gui_refresh_pending) {
