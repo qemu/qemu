@@ -83,6 +83,27 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 
 #endif
 
+#ifdef TARGET_SPARC
+
+#define ELF_START_MMAP 0x80000000
+
+#define elf_check_arch(x) ( (x) == EM_SPARC )
+
+#define ELF_CLASS   ELFCLASS32
+#define ELF_DATA    ELFDATA2MSB
+#define ELF_ARCH    EM_SPARC
+
+/*XXX*/
+#define ELF_PLAT_INIT(_r)
+
+static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
+{
+	regs->u_regs[0] = infop->entry;
+	regs->u_regs[1] = infop->start_stack;
+}
+
+#endif
+
 #include "elf.h"
 
 /*
@@ -456,18 +477,32 @@ static void set_brk(unsigned long start, unsigned long end)
 }
 
 
-/* We need to explicitly zero any fractional pages
-   after the data section (i.e. bss).  This would
-   contain the junk from the file that should not
-   be in memory */
-
-
+/* We need to explicitly zero any fractional pages after the data
+   section (i.e. bss).  This would contain the junk from the file that
+   should not be in memory. */
 static void padzero(unsigned long elf_bss)
 {
         unsigned long nbyte;
         char * fpnt;
 
-        nbyte = elf_bss & (host_page_size-1);	/* was TARGET_PAGE_SIZE - JRP */
+        /* XXX: this is really a hack : if the real host page size is
+           smaller than the target page size, some pages after the end
+           of the file may not be mapped. A better fix would be to
+           patch target_mmap(), but it is more complicated as the file
+           size must be known */
+        if (real_host_page_size < host_page_size) {
+            unsigned long end_addr, end_addr1;
+            end_addr1 = (elf_bss + real_host_page_size - 1) & 
+                ~(real_host_page_size - 1);
+            end_addr = HOST_PAGE_ALIGN(elf_bss);
+            if (end_addr1 < end_addr) {
+                mmap((void *)end_addr1, end_addr - end_addr1,
+                     PROT_READ|PROT_WRITE|PROT_EXEC,
+                     MAP_FIXED|MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+            }
+        }
+
+        nbyte = elf_bss & (host_page_size-1);
         if (nbyte) {
 	    nbyte = host_page_size - nbyte;
 	    fpnt = (char *) elf_bss;
