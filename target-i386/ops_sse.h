@@ -528,7 +528,7 @@ void OPPROTO glue(op_maskmov, SUFFIX) (void)
     s = (Reg *)((char *)env + PARAM2);
     for(i = 0; i < (8 << SHIFT); i++) {
         if (s->B(i) & 0x80)
-            stb(A0, d->B(i));
+            stb(A0 + i, d->B(i));
     }
 }
 
@@ -565,6 +565,20 @@ void OPPROTO glue(op_pshufw, SUFFIX) (void)
     *d = r;
 }
 #else
+void OPPROTO op_shufps(void)
+{
+    Reg r, *d, *s;
+    int order;
+    d = (Reg *)((char *)env + PARAM1);
+    s = (Reg *)((char *)env + PARAM2);
+    order = PARAM3;
+    r.L(0) = d->L(order & 3);
+    r.L(1) = d->L((order >> 2) & 3);
+    r.L(2) = s->L((order >> 4) & 3);
+    r.L(3) = s->L((order >> 6) & 3);
+    *d = r;
+}
+
 void OPPROTO op_shufpd(void)
 {
     Reg r, *d, *s;
@@ -572,7 +586,7 @@ void OPPROTO op_shufpd(void)
     d = (Reg *)((char *)env + PARAM1);
     s = (Reg *)((char *)env + PARAM2);
     order = PARAM3;
-    r.Q(0) = s->Q(order & 1);
+    r.Q(0) = d->Q(order & 1);
     r.Q(1) = s->Q((order >> 1) & 1);
     *d = r;
 }

@@ -2292,7 +2292,7 @@ static GenOpFunc2 *sse_op_table1[256][4] = {
     [0x5f] = SSE_FOP(max),
 
     [0xc2] = SSE_FOP(cmpeq),
-    [0xc6] = { (GenOpFunc2 *)gen_op_pshufd_xmm, (GenOpFunc2 *)gen_op_shufpd },
+    [0xc6] = { (GenOpFunc2 *)gen_op_shufps, (GenOpFunc2 *)gen_op_shufpd },
 
     /* MMX ops and their SSE extensions */
     [0x60] = MMX_OP2(punpcklbw),
