@@ -2364,10 +2364,10 @@ void helper_fstenv(uint8_t *ptr, int data32)
         stl(ptr, env->fpuc);
         stl(ptr + 4, fpus);
         stl(ptr + 8, fptag);
-        stl(ptr + 12, 0);
-        stl(ptr + 16, 0);
-        stl(ptr + 20, 0);
-        stl(ptr + 24, 0);
+        stl(ptr + 12, 0); /* fpip */
+        stl(ptr + 16, 0); /* fpcs */
+        stl(ptr + 20, 0); /* fpoo */
+        stl(ptr + 24, 0); /* fpos */
     } else {
         /* 16 bit */
         stw(ptr, env->fpuc);
@@ -2396,7 +2396,7 @@ void helper_fldenv(uint8_t *ptr, int data32)
     }
     env->fpstt = (fpus >> 11) & 7;
     env->fpus = fpus & ~0x3800;
-    for(i = 0;i < 7; i++) {
+    for(i = 0;i < 8; i++) {
         env->fptags[i] = ((fptag & 3) == 3);
         fptag >>= 2;
     }
