@@ -1,6 +1,5 @@
-- daa/das
-- optimize translated cache chaining (DLL PLT like system)
 - segment ops (minimal LDT/GDT support for wine)
+- optimize translated cache chaining (DLL PLT like system)
 - improved 16 bit support 
 - optimize inverse flags propagation (easy by generating intermediate
   micro operation array).

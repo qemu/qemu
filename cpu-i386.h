@@ -123,6 +123,20 @@ typedef long double CPU86_LDouble;
 typedef double CPU86_LDouble;
 #endif
 
+typedef struct SegmentCache {
+    uint8_t *base;
+    unsigned long limit;
+    uint8_t seg_32bit;
+} SegmentCache;
+
+typedef struct SegmentDescriptorTable {
+    uint8_t *base;
+    unsigned long limit;
+    /* this is the returned base when reading the register, just to
+    avoid that the emulated program modifies it */
+    unsigned long emu_base;
+} SegmentDescriptorTable;
+
 typedef struct CPUX86State {
     /* standard registers */
     uint32_t regs[8];
@@ -135,9 +149,6 @@ typedef struct CPUX86State {
     uint32_t cc_op;
     int32_t df; /* D flag : 1 if D = 0, -1 if D = 1 */
 
-    /* segments */
-    uint8_t *segs_base[6];
-
     /* FPU state */
     unsigned int fpstt; /* top of stack index */
     unsigned int fpus;
@@ -145,12 +156,19 @@ typedef struct CPUX86State {
     uint8_t fptags[8];   /* 0 = valid, 1 = empty */
     CPU86_LDouble fpregs[8];    
 
-    /* segments */
-    uint32_t segs[6];
-
     /* emulator internal variables */
     CPU86_LDouble ft0;
     
+    /* segments */
+    uint32_t segs[6]; /* selector values */
+    SegmentCache seg_cache[6]; /* info taken from LDT/GDT */
+    SegmentDescriptorTable gdt;
+    SegmentDescriptorTable ldt;
+    SegmentDescriptorTable idt;
+    
+    /* various CPU modes */
+    int vm86;
+
     /* exception handling */
     jmp_buf jmp_env;
     int exception_index;
@@ -241,9 +259,17 @@ CPUX86State *cpu_x86_init(void);
 int cpu_x86_exec(CPUX86State *s);
 void cpu_x86_close(CPUX86State *s);
 
+/* needed to load some predefinied segment registers */
+void cpu_x86_load_seg(CPUX86State *s, int seg_reg, int selector);
+
 /* internal functions */
+
+#define GEN_FLAG_CODE32_SHIFT 0
+#define GEN_FLAG_ADDSEG_SHIFT 1
+#define GEN_FLAG_ST_SHIFT     2
 int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size, 
-                     int *gen_code_size_ptr, uint8_t *pc_start);
+                     int *gen_code_size_ptr, uint8_t *pc_start, 
+                     int flags);
 void cpu_x86_tblocks_init(void);
 
 #endif /* CPU_I386_H */

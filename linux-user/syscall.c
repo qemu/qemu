@@ -69,6 +69,7 @@ struct dirent {
 #include "syscall_defs.h"
 
 #ifdef TARGET_I386
+#include "cpu-i386.h"
 #include "syscall-i386.h"
 #endif
 
@@ -607,6 +608,124 @@ StructEntry struct_termios_def = {
     .align = { __alignof__(struct target_termios), __alignof__(struct host_termios) },
 };
 
+#ifdef TARGET_I386
+
+/* NOTE: there is really one LDT for all the threads */
+uint8_t *ldt_table;
+
+static int read_ldt(void *ptr, unsigned long bytecount)
+{
+    int size;
+
+    if (!ldt_table)
+        return 0;
+    size = TARGET_LDT_ENTRIES * TARGET_LDT_ENTRY_SIZE;
+    if (size > bytecount)
+        size = bytecount;
+    memcpy(ptr, ldt_table, size);
+    return size;
+}
+
+/* XXX: add locking support */
+static int write_ldt(CPUX86State *env, 
+                     void *ptr, unsigned long bytecount, int oldmode)
+{
+    struct target_modify_ldt_ldt_s ldt_info;
+    int seg_32bit, contents, read_exec_only, limit_in_pages;
+    int seg_not_present, useable;
+    uint32_t *lp, entry_1, entry_2;
+
+    if (bytecount != sizeof(ldt_info))
+        return -EINVAL;
+    memcpy(&ldt_info, ptr, sizeof(ldt_info));
+    tswap32s(&ldt_info.entry_number);
+    tswapls((long *)&ldt_info.base_addr);
+    tswap32s(&ldt_info.limit);
+    tswap32s(&ldt_info.flags);
+    
+    if (ldt_info.entry_number >= TARGET_LDT_ENTRIES)
+        return -EINVAL;
+    seg_32bit = ldt_info.flags & 1;
+    contents = (ldt_info.flags >> 1) & 3;
+    read_exec_only = (ldt_info.flags >> 3) & 1;
+    limit_in_pages = (ldt_info.flags >> 4) & 1;
+    seg_not_present = (ldt_info.flags >> 5) & 1;
+    useable = (ldt_info.flags >> 6) & 1;
+
+    if (contents == 3) {
+        if (oldmode)
+            return -EINVAL;
+        if (seg_not_present == 0)
+            return -EINVAL;
+    }
+    /* allocate the LDT */
+    if (!ldt_table) {
+        ldt_table = malloc(TARGET_LDT_ENTRIES * TARGET_LDT_ENTRY_SIZE);
+        if (!ldt_table)
+            return -ENOMEM;
+        memset(ldt_table, 0, TARGET_LDT_ENTRIES * TARGET_LDT_ENTRY_SIZE);
+        env->ldt.base = ldt_table;
+        env->ldt.limit = 0xffff;
+    }
+
+    /* NOTE: same code as Linux kernel */
+    /* Allow LDTs to be cleared by the user. */
+    if (ldt_info.base_addr == 0 && ldt_info.limit == 0) {
+        if (oldmode ||
+            (contents == 0		&&
+             read_exec_only == 1	&&
+             seg_32bit == 0		&&
+             limit_in_pages == 0	&&
+             seg_not_present == 1	&&
+             useable == 0 )) {
+            entry_1 = 0;
+            entry_2 = 0;
+            goto install;
+        }
+    }
+    
+    entry_1 = ((ldt_info.base_addr & 0x0000ffff) << 16) |
+        (ldt_info.limit & 0x0ffff);
+    entry_2 = (ldt_info.base_addr & 0xff000000) |
+        ((ldt_info.base_addr & 0x00ff0000) >> 16) |
+        (ldt_info.limit & 0xf0000) |
+        ((read_exec_only ^ 1) << 9) |
+        (contents << 10) |
+        ((seg_not_present ^ 1) << 15) |
+        (seg_32bit << 22) |
+        (limit_in_pages << 23) |
+        0x7000;
+    if (!oldmode)
+        entry_2 |= (useable << 20);
+    
+    /* Install the new entry ...  */
+install:
+    lp = (uint32_t *)(ldt_table + (ldt_info.entry_number << 3));
+    lp[0] = tswap32(entry_1);
+    lp[1] = tswap32(entry_2);
+    return 0;
+}
+
+/* specific and weird i386 syscalls */
+int gemu_modify_ldt(CPUX86State *env, int func, void *ptr, unsigned long bytecount)
+{
+    int ret = -ENOSYS;
+    
+    switch (func) {
+    case 0:
+        ret = read_ldt(ptr, bytecount);
+        break;
+    case 1:
+        ret = write_ldt(env, ptr, bytecount, 1);
+        break;
+    case 0x11:
+        ret = write_ldt(env, ptr, bytecount, 0);
+        break;
+    }
+    return ret;
+}
+#endif
+
 void syscall_init(void)
 {
 #define STRUCT(name, list...) thunk_register_struct(STRUCT_ ## name, #name, struct_ ## name ## _def); 
@@ -616,7 +735,7 @@ void syscall_init(void)
 #undef STRUCT_SPECIAL
 }
                                  
-long do_syscall(int num, long arg1, long arg2, long arg3, 
+long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3, 
                 long arg4, long arg5, long arg6)
 {
     long ret;
@@ -1095,8 +1214,11 @@ long do_syscall(int num, long arg1, long arg2, long arg3,
         /* no need to transcode because we use the linux syscall */
         ret = get_errno(sys_uname((struct new_utsname *)arg1));
         break;
+#ifdef TARGET_I386
     case TARGET_NR_modify_ldt:
-        goto unimplemented;
+        ret = get_errno(gemu_modify_ldt(cpu_env, arg1, (void *)arg2, arg3));
+        break;
+#endif
     case TARGET_NR_adjtimex:
         goto unimplemented;
     case TARGET_NR_mprotect:

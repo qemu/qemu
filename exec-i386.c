@@ -36,8 +36,10 @@
 #define CODE_GEN_MAX_BLOCKS    (CODE_GEN_BUFFER_SIZE / 64)
 #define CODE_GEN_HASH_BITS     15
 #define CODE_GEN_HASH_SIZE     (1 << CODE_GEN_HASH_BITS)
+
 typedef struct TranslationBlock {
     unsigned long pc;   /* simulated PC corresponding to this block */
+    unsigned int flags; /* flags defining in which context the code was generated */
     uint8_t *tc_ptr;    /* pointer to the translated code */
     struct TranslationBlock *hash_next; /* next matching block */
 } TranslationBlock;
@@ -137,7 +139,8 @@ static void tb_flush(void)
 
 /* find a translation block in the translation cache. If not found,
    allocate a new one */
-static inline TranslationBlock *tb_find_and_alloc(unsigned long pc)
+static inline TranslationBlock *tb_find_and_alloc(unsigned long pc, 
+                                                  unsigned int flags)
 {
     TranslationBlock **ptb, *tb;
     unsigned int h;
@@ -148,7 +151,7 @@ static inline TranslationBlock *tb_find_and_alloc(unsigned long pc)
         tb = *ptb;
         if (!tb)
             break;
-        if (tb->pc == pc)
+        if (tb->pc == pc && tb->flags == flags)
             return tb;
         ptb = &tb->hash_next;
     }
@@ -158,6 +161,7 @@ static inline TranslationBlock *tb_find_and_alloc(unsigned long pc)
     tb = &tbs[nb_tbs++];
     *ptb = tb;
     tb->pc = pc;
+    tb->flags = flags;
     tb->tc_ptr = NULL;
     tb->hash_next = NULL;
     return tb;
@@ -171,7 +175,8 @@ int cpu_x86_exec(CPUX86State *env1)
     void (*gen_func)(void);
     TranslationBlock *tb;
     uint8_t *tc_ptr;
-    
+    unsigned int flags;
+
     /* first we save global registers */
     saved_T0 = T0;
     saved_T1 = T1;
@@ -187,13 +192,20 @@ int cpu_x86_exec(CPUX86State *env1)
                 cpu_x86_dump_state();
             }
 #endif
-            tb = tb_find_and_alloc((unsigned long)env->pc);
+            /* we compute the CPU state. We assume it will not
+               change during the whole generated block. */
+            flags = env->seg_cache[R_CS].seg_32bit << GEN_FLAG_CODE32_SHIFT;
+            flags |= (((unsigned long)env->seg_cache[R_DS].base | 
+                       (unsigned long)env->seg_cache[R_ES].base |
+                       (unsigned long)env->seg_cache[R_SS].base) != 0) << 
+                GEN_FLAG_ADDSEG_SHIFT;
+            tb = tb_find_and_alloc((unsigned long)env->pc, flags);
             tc_ptr = tb->tc_ptr;
             if (!tb->tc_ptr) {
                 /* if no translated code available, then translate it now */
                 tc_ptr = code_gen_ptr;
                 cpu_x86_gen_code(code_gen_ptr, CODE_GEN_MAX_SIZE, 
-                                 &code_gen_size, (uint8_t *)env->pc);
+                                 &code_gen_size, (uint8_t *)env->pc, flags);
                 tb->tc_ptr = tc_ptr;
                 code_gen_ptr = (void *)(((unsigned long)code_gen_ptr + code_gen_size + CODE_GEN_ALIGN - 1) & ~(CODE_GEN_ALIGN - 1));
             }
@@ -210,4 +222,14 @@ int cpu_x86_exec(CPUX86State *env1)
     A0 = saved_A0;
     env = saved_env;
     return ret;
+}
+
+void cpu_x86_load_seg(CPUX86State *s, int seg_reg, int selector)
+{
+    CPUX86State *saved_env;
+
+    saved_env = env;
+    env = s;
+    load_seg(seg_reg, selector);
+    env = saved_env;
 }

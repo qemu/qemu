@@ -27,6 +27,7 @@ typedef struct FILE FILE;
 extern FILE *logfile;
 extern int loglevel;
 extern int fprintf(FILE *, const char *, ...);
+extern int printf(const char *, ...);
 
 #ifdef __i386__
 register unsigned int T0 asm("ebx");
@@ -103,3 +104,5 @@ typedef struct CCTable {
 } CCTable;
 
 extern CCTable cc_table[];
+
+void load_seg(int seg_reg, int selector);

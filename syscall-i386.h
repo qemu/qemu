@@ -758,3 +758,14 @@ struct target_termios {
 #define TARGET_SOUND_MIXER_WRITE_ENHANCE  0xc0044d1f
 #define TARGET_SOUND_MIXER_WRITE_LOUD     0xc0044d1f
 #define TARGET_SOUND_MIXER_WRITE_RECSRC   0xc0044dff
+
+#define TARGET_LDT_ENTRIES      8192
+#define TARGET_LDT_ENTRY_SIZE	8
+
+struct target_modify_ldt_ldt_s {
+    unsigned int  entry_number;
+    target_ulong base_addr;
+    unsigned int limit;
+    unsigned int flags;
+};
+

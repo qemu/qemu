@@ -34,6 +34,10 @@
 #include "dis-asm.h"
 #endif
 
+#ifndef offsetof
+#define offsetof(type, field) ((size_t) &((type *)0)->field)
+#endif
+
 static uint8_t *gen_code_ptr;
 int __op_param1, __op_param2, __op_param3;
 
@@ -71,8 +75,13 @@ typedef struct DisasContext {
     int prefix;
     int aflag, dflag;
     uint8_t *pc; /* current pc */
-    int cc_op; /* current CC operation */
-    int f_st;
+    int is_jmp; /* 1 = means jump (stop translation), 2 means CPU
+                   static state change (stop translation) */
+    /* current block context */
+    int code32; /* 32 bit code segment */
+    int cc_op;  /* current CC operation */
+    int addseg; /* non zero if either DS/ES/SS have a non zero base */
+    int f_st;   /* currently unused */
 } DisasContext;
 
 /* i386 arith/logic operations */
@@ -763,12 +772,32 @@ static void gen_shifti(DisasContext *s1, int op, int ot, int d, int c)
 static void gen_lea_modrm(DisasContext *s, int modrm, int *reg_ptr, int *offset_ptr)
 {
     int havesib;
-    int havebase;
     int base, disp;
-    int index = 0;
-    int scale = 0;
-    int reg1, reg2, opreg;
-    int mod, rm, code;
+    int index;
+    int scale;
+    int opreg;
+    int mod, rm, code, override, must_add_seg;
+
+    /* XXX: add a generation time variable to tell if base == 0 in DS/ES/SS */
+    /* XXX: fix lea case */
+    override = -1;
+    must_add_seg = s->addseg;
+    if (s->prefix & (PREFIX_CS | PREFIX_SS | PREFIX_DS | 
+                     PREFIX_ES | PREFIX_FS | PREFIX_GS)) {
+        if (s->prefix & PREFIX_ES)
+            override = R_ES;
+        else if (s->prefix & PREFIX_CS)
+            override = R_CS;
+        else if (s->prefix & PREFIX_SS)
+            override = R_SS;
+        else if (s->prefix & PREFIX_DS)
+            override = R_DS;
+        else if (s->prefix & PREFIX_FS)
+            override = R_FS;
+        else
+            override = R_GS;
+        must_add_seg = 1;
+    }
 
     mod = (modrm >> 6) & 3;
     rm = modrm & 7;
@@ -776,8 +805,9 @@ static void gen_lea_modrm(DisasContext *s, int modrm, int *reg_ptr, int *offset_
     if (s->aflag) {
 
         havesib = 0;
-        havebase = 1;
         base = rm;
+        index = 0;
+        scale = 0;
         
         if (base == 4) {
             havesib = 1;
@@ -790,7 +820,7 @@ static void gen_lea_modrm(DisasContext *s, int modrm, int *reg_ptr, int *offset_
         switch (mod) {
         case 0:
             if (base == 5) {
-                havebase = 0;
+                base = -1;
                 disp = ldl(s->pc);
                 s->pc += 4;
             } else {
@@ -806,40 +836,25 @@ static void gen_lea_modrm(DisasContext *s, int modrm, int *reg_ptr, int *offset_
             s->pc += 4;
             break;
         }
-
-        reg1 = OR_ZERO;
-        reg2 = OR_ZERO;
-          
-        if (havebase || (havesib && (index != 4 || scale != 0))) {
-            if (havebase)
-                reg1 = OR_EAX + base;
-            if (havesib && index != 4) {
-                if (havebase)
-                    reg2 = index + OR_EAX;
-                else
-                    reg1 = index + OR_EAX;
-            }
-        }
-        /* XXX: disp only ? */
-        if (reg2 == OR_ZERO) {
-            /* op: disp + (reg1 << scale) */
-            if (reg1 == OR_ZERO) {
-                gen_op_movl_A0_im(disp);
-            } else if (scale == 0 && disp == 0) {
-                gen_op_movl_A0_reg[reg1]();
-            } else {
-                gen_op_movl_A0_im(disp);
-                gen_op_addl_A0_reg_sN[scale][reg1]();
-            }
+        
+        if (base >= 0) {
+            gen_op_movl_A0_reg[base]();
+            if (disp != 0)
+                gen_op_addl_A0_im(disp);
         } else {
-            /* op: disp + reg1 + (reg2 << scale) */
-            if (disp != 0) {
-                gen_op_movl_A0_im(disp);
-                gen_op_addl_A0_reg_sN[0][reg1]();
-            } else {
-                gen_op_movl_A0_reg[reg1]();
+            gen_op_movl_A0_im(disp);
+        }
+        if (havesib && (index != 4 || scale != 0)) {
+            gen_op_addl_A0_reg_sN[scale][index]();
+        }
+        if (must_add_seg) {
+            if (override < 0) {
+                if (base == R_EBP || base == R_ESP)
+                    override = R_SS;
+                else
+                    override = R_DS;
             }
-            gen_op_addl_A0_reg_sN[scale][reg2]();
+            gen_op_addl_A0_seg(offsetof(CPUX86State,seg_cache[override].base));
         }
     } else {
         switch (mod) {
@@ -848,6 +863,7 @@ static void gen_lea_modrm(DisasContext *s, int modrm, int *reg_ptr, int *offset_
                 disp = lduw(s->pc);
                 s->pc += 2;
                 gen_op_movl_A0_im(disp);
+                rm = 0; /* avoid SS override */
                 goto no_rm;
             } else {
                 disp = 0;
@@ -896,8 +912,18 @@ static void gen_lea_modrm(DisasContext *s, int modrm, int *reg_ptr, int *offset_
         if (disp != 0)
             gen_op_addl_A0_im(disp);
         gen_op_andl_A0_ffff();
-    no_rm: ;
+    no_rm:
+        if (must_add_seg) {
+            if (override < 0) {
+                if (rm == 2 || rm == 3 || rm == 6)
+                    override = R_SS;
+                else
+                    override = R_DS;
+            }
+            gen_op_addl_A0_seg(offsetof(CPUX86State,seg_cache[override].base));
+        }
     }
+
     opreg = OR_A0;
     disp = 0;
     *reg_ptr = opreg;
@@ -1082,10 +1108,19 @@ static void gen_setcc(DisasContext *s, int b)
     }
 }
 
+/* move T0 to seg_reg and compute if the CPU state may change */
+void gen_movl_seg_T0(DisasContext *s, int seg_reg)
+{
+    gen_op_movl_seg_T0(seg_reg);
+    if (!s->addseg && seg_reg < R_FS)
+        s->is_jmp = 2; /* abort translation because the register may
+                          have a non zero base */
+}
+
 /* return the next pc address. Return -1 if no insn found. *is_jmp_ptr
    is set to true if the instruction sets the PC (last instruction of
    a basic block) */
-long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
+long disas_insn(DisasContext *s, uint8_t *pc_start)
 {
     int b, prefixes, aflag, dflag;
     int shift, ot;
@@ -1093,8 +1128,8 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
 
     s->pc = pc_start;
     prefixes = 0;
-    aflag = 1;
-    dflag = 1;
+    aflag = s->code32;
+    dflag = s->code32;
     //    cur_pc = s->pc; /* for insn generation */
  next_byte:
     b = ldub(s->pc);
@@ -1416,11 +1451,11 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
             gen_op_movl_T1_im((long)s->pc);
             gen_op_pushl_T1();
             gen_op_jmp_T0();
-            *is_jmp_ptr = 1;
+            s->is_jmp = 1;
             break;
         case 4: /* jmp Ev */
             gen_op_jmp_T0();
-            *is_jmp_ptr = 1;
+            s->is_jmp = 1;
             break;
         case 6: /* push Ev */
             gen_op_pushl_T0();
@@ -1555,6 +1590,30 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
         gen_op_popl_T0();
         gen_op_mov_reg_T0[OT_LONG][R_EBP]();
         break;
+    case 0x06: /* push es */
+    case 0x0e: /* push cs */
+    case 0x16: /* push ss */
+    case 0x1e: /* push ds */
+        gen_op_movl_T0_seg(b >> 3);
+        gen_op_pushl_T0();
+        break;
+    case 0x1a0: /* push fs */
+    case 0x1a8: /* push gs */
+        gen_op_movl_T0_seg(((b >> 3) & 7) + R_FS);
+        gen_op_pushl_T0();
+        break;
+    case 0x07: /* pop es */
+    case 0x17: /* pop ss */
+    case 0x1f: /* pop ds */
+        gen_op_popl_T0();
+        gen_movl_seg_T0(s, b >> 3);
+        break;
+    case 0x1a1: /* pop fs */
+    case 0x1a9: /* pop gs */
+        gen_op_popl_T0();
+        gen_movl_seg_T0(s, ((b >> 3) & 7) + R_FS);
+        break;
+
         /**************************/
         /* mov */
     case 0x88:
@@ -1597,6 +1656,24 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
         
         gen_ldst_modrm(s, modrm, ot, OR_TMP0, 0);
         gen_op_mov_reg_T0[ot][reg]();
+        break;
+    case 0x8e: /* mov seg, Gv */
+        ot = dflag ? OT_LONG : OT_WORD;
+        modrm = ldub(s->pc++);
+        reg = (modrm >> 3) & 7;
+        gen_ldst_modrm(s, modrm, ot, OR_TMP0, 0);
+        if (reg >= 6)
+            goto illegal_op;
+        gen_movl_seg_T0(s, reg);
+        break;
+    case 0x8c: /* mov Gv, seg */
+        ot = dflag ? OT_LONG : OT_WORD;
+        modrm = ldub(s->pc++);
+        reg = (modrm >> 3) & 7;
+        if (reg >= 6)
+            goto illegal_op;
+        gen_op_movl_T0_seg(reg);
+        gen_ldst_modrm(s, modrm, ot, OR_TMP0, 1);
         break;
 
     case 0x1b6: /* movzbS Gv, Eb */
@@ -1648,8 +1725,13 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
         ot = dflag ? OT_LONG : OT_WORD;
         modrm = ldub(s->pc++);
         reg = (modrm >> 3) & 7;
-
+        /* we must ensure that no segment is added */
+        s->prefix &= ~(PREFIX_CS | PREFIX_SS | PREFIX_DS | 
+                       PREFIX_ES | PREFIX_FS | PREFIX_GS);
+        val = s->addseg;
+        s->addseg = 0;
         gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+        s->addseg = val;
         gen_op_mov_reg_A0[ot - OT_WORD][reg]();
         break;
         
@@ -1709,6 +1791,35 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
         gen_op_mov_TN_reg[ot][0][reg]();
         gen_op_ld_T1_A0[ot]();
         gen_op_st_T0_A0[ot]();
+        gen_op_mov_reg_T1[ot][reg]();
+        break;
+    case 0xc4: /* les Gv */
+        op = R_ES;
+        goto do_lxx;
+    case 0xc5: /* lds Gv */
+        op = R_DS;
+        goto do_lxx;
+    case 0x1b2: /* lss Gv */
+        op = R_SS;
+        goto do_lxx;
+    case 0x1b4: /* lfs Gv */
+        op = R_FS;
+        goto do_lxx;
+    case 0x1b5: /* lgs Gv */
+        op = R_GS;
+    do_lxx:
+        ot = dflag ? OT_LONG : OT_WORD;
+        modrm = ldub(s->pc++);
+        reg = (modrm >> 3) & 7;
+        mod = (modrm >> 6) & 3;
+        if (mod == 3)
+            goto illegal_op;
+        gen_op_ld_T1_A0[ot]();
+        op_addl_A0_im(1 << (ot - OT_WORD + 1));
+        /* load the segment first to handle exceptions properly */
+        gen_op_lduw_T0_A0();
+        gen_movl_seg_T0(s, op);
+        /* then put the data */
         gen_op_mov_reg_T1[ot][reg]();
         break;
         
@@ -2327,12 +2438,12 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
         gen_op_popl_T0();
         gen_op_addl_ESP_im(val);
         gen_op_jmp_T0();
-        *is_jmp_ptr = 1;
+        s->is_jmp = 1;
         break;
     case 0xc3: /* ret */
         gen_op_popl_T0();
         gen_op_jmp_T0();
-        *is_jmp_ptr = 1;
+        s->is_jmp = 1;
         break;
     case 0xe8: /* call */
         val = insn_get(s, OT_LONG);
@@ -2340,19 +2451,19 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
         gen_op_movl_T1_im((long)s->pc);
         gen_op_pushl_T1();
         gen_op_jmp_im(val);
-        *is_jmp_ptr = 1;
+        s->is_jmp = 1;
         break;
     case 0xe9: /* jmp */
         val = insn_get(s, OT_LONG);
         val += (long)s->pc;
         gen_op_jmp_im(val);
-        *is_jmp_ptr = 1;
+        s->is_jmp = 1;
         break;
     case 0xeb: /* jmp Jb */
         val = (int8_t)insn_get(s, OT_BYTE);
         val += (long)s->pc;
         gen_op_jmp_im(val);
-        *is_jmp_ptr = 1;
+        s->is_jmp = 1;
         break;
     case 0x70 ... 0x7f: /* jcc Jb */
         val = (int8_t)insn_get(s, OT_BYTE);
@@ -2367,7 +2478,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
         val += (long)s->pc; /* XXX: fix 16 bit wrap */
     do_jcc:
         gen_jcc(s, b, val);
-        *is_jmp_ptr = 1;
+        s->is_jmp = 1;
         break;
 
     case 0x190 ... 0x19f:
@@ -2548,19 +2659,19 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
         break;
     case 0xcc: /* int3 */
         gen_op_int3((long)pc_start);
-        *is_jmp_ptr = 1;
+        s->is_jmp = 1;
         break;
     case 0xcd: /* int N */
         val = ldub(s->pc++);
         /* XXX: currently we ignore the interrupt number */
         gen_op_int_im((long)pc_start);
-        *is_jmp_ptr = 1;
+        s->is_jmp = 1;
         break;
     case 0xce: /* into */
         if (s->cc_op != CC_OP_DYNAMIC)
             gen_op_set_cc_op(s->cc_op);
         gen_op_into((long)pc_start, (long)s->pc);
-        *is_jmp_ptr = 1;
+        s->is_jmp = 1;
         break;
     case 0x1c8 ... 0x1cf: /* bswap reg */
         reg = b & 7;
@@ -2586,38 +2697,43 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
         return -1;
     }
     return (long)s->pc;
+ illegal_op:
+    error("illegal opcode pc=0x%08Lx", (long)pc_start);
+    return -1;
 }
 
 /* return the next pc */
 int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size, 
-                     int *gen_code_size_ptr, uint8_t *pc_start)
+                     int *gen_code_size_ptr, uint8_t *pc_start, 
+                     int flags)
 {
     DisasContext dc1, *dc = &dc1;
     uint8_t *gen_code_end, *pc_ptr;
-    int is_jmp;
     long ret;
 #ifdef DEBUG_DISAS
     struct disassemble_info disasm_info;
 #endif
-
+    dc->code32 = (flags >> GEN_FLAG_CODE32_SHIFT) & 1;
+    dc->addseg = (flags >> GEN_FLAG_ADDSEG_SHIFT) & 1;
+    dc->f_st = (flags >> GEN_FLAG_ST_SHIFT) & 7;
     dc->cc_op = CC_OP_DYNAMIC;
     gen_code_ptr = gen_code_buf;
     gen_code_end = gen_code_buf + max_code_size - 4096;
     gen_start();
 
-    is_jmp = 0;
+    dc->is_jmp = 0;
     pc_ptr = pc_start;
     do {
-        ret = disas_insn(dc, pc_ptr, &is_jmp);
+        ret = disas_insn(dc, pc_ptr);
         if (ret == -1) 
             error("unknown instruction at PC=0x%x B=%02x %02x", 
                   pc_ptr, pc_ptr[0], pc_ptr[1]);
         pc_ptr = (void *)ret;
-    } while (!is_jmp && gen_code_ptr < gen_code_end);
+    } while (!dc->is_jmp && gen_code_ptr < gen_code_end);
     /* we must store the eflags state if it is not already done */
     if (dc->cc_op != CC_OP_DYNAMIC)
         gen_op_set_cc_op(dc->cc_op);
-    if (!is_jmp) {
+    if (dc->is_jmp != 1) {
         /* we add an additionnal jmp to update the simulated PC */
         gen_op_jmp_im(ret);
     }

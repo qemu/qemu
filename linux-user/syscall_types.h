@@ -61,4 +61,3 @@ STRUCT(cdrom_read_audio,
 
 STRUCT(hd_geometry,
        TYPE_CHAR, TYPE_CHAR, TYPE_SHORT, TYPE_ULONG)
-

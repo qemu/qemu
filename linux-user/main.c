@@ -1,5 +1,5 @@
 /*
- *  emu main
+ *  gemu main
  * 
  *  Copyright (c) 2003 Fabrice Bellard
  *
@@ -80,10 +80,28 @@ int cpu_x86_inl(int addr)
     return 0;
 }
 
+/* default linux values for the selectors */
+#define __USER_CS	(0x23)
+#define __USER_DS	(0x2B)
 
-/* XXX: currently we use LDT entries */
-#define __USER_CS	(0x23|4)
-#define __USER_DS	(0x2B|4)
+void write_dt(void *ptr, unsigned long addr, unsigned long limit, 
+              int seg32_bit)
+{
+    unsigned int e1, e2, limit_in_pages;
+    limit_in_pages = 0;
+    if (limit > 0xffff) {
+        limit = limit >> 12;
+        limit_in_pages = 1;
+    }
+    e1 = (addr << 16) | (limit & 0xffff);
+    e2 = ((addr >> 16) & 0xff) | (addr & 0xff000000) | (limit & 0x000f0000);
+    e2 |= limit_in_pages << 23; /* byte granularity */
+    e2 |= seg32_bit << 22; /* 32 bit segment */
+    stl((uint8_t *)ptr, e1);
+    stl((uint8_t *)ptr + 4, e2);
+}
+
+uint64_t gdt_table[6];
 
 void usage(void)
 {
@@ -93,6 +111,8 @@ void usage(void)
            );
     exit(1);
 }
+
+
 
 int main(int argc, char **argv)
 {
@@ -149,6 +169,7 @@ int main(int argc, char **argv)
 
     env = cpu_x86_init();
 
+    /* linux register setup */
     env->regs[R_EAX] = regs->eax;
     env->regs[R_EBX] = regs->ebx;
     env->regs[R_ECX] = regs->ecx;
@@ -157,23 +178,19 @@ int main(int argc, char **argv)
     env->regs[R_EDI] = regs->edi;
     env->regs[R_EBP] = regs->ebp;
     env->regs[R_ESP] = regs->esp;
-    env->segs[R_CS] = __USER_CS;
-    env->segs[R_DS] = __USER_DS;
-    env->segs[R_ES] = __USER_DS;
-    env->segs[R_SS] = __USER_DS;
-    env->segs[R_FS] = __USER_DS;
-    env->segs[R_GS] = __USER_DS;
     env->pc = regs->eip;
 
-#if 0
-    LDT[__USER_CS >> 3].w86Flags = DF_PRESENT | DF_PAGES | DF_32;
-    LDT[__USER_CS >> 3].dwSelLimit = 0xfffff;
-    LDT[__USER_CS >> 3].lpSelBase = NULL;
-
-    LDT[__USER_DS >> 3].w86Flags = DF_PRESENT | DF_PAGES | DF_32;
-    LDT[__USER_DS >> 3].dwSelLimit = 0xfffff;
-    LDT[__USER_DS >> 3].lpSelBase = NULL;
-#endif
+    /* linux segment setup */
+    env->gdt.base = (void *)gdt_table;
+    env->gdt.limit = sizeof(gdt_table) - 1;
+    write_dt(&gdt_table[__USER_CS >> 3], 0, 0xffffffff, 1);
+    write_dt(&gdt_table[__USER_DS >> 3], 0, 0xffffffff, 1);
+    cpu_x86_load_seg(env, R_CS, __USER_CS);
+    cpu_x86_load_seg(env, R_DS, __USER_DS);
+    cpu_x86_load_seg(env, R_ES, __USER_DS);
+    cpu_x86_load_seg(env, R_SS, __USER_DS);
+    cpu_x86_load_seg(env, R_FS, __USER_DS);
+    cpu_x86_load_seg(env, R_GS, __USER_DS);
 
     for(;;) {
         int err;
@@ -186,7 +203,8 @@ int main(int argc, char **argv)
             if (pc[0] == 0xcd && pc[1] == 0x80) {
                 /* syscall */
                 env->pc += 2;
-                env->regs[R_EAX] = do_syscall(env->regs[R_EAX], 
+                env->regs[R_EAX] = do_syscall(env, 
+                                              env->regs[R_EAX], 
                                               env->regs[R_EBX],
                                               env->regs[R_ECX],
                                               env->regs[R_EDX],

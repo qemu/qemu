@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <inttypes.h>
 #include <math.h>
 
 #define xglue(x, y) x ## y
@@ -612,6 +613,81 @@ void test_bcd(void)
     TEST_BCD(aad, 0x12340407, CC_A, (CC_C | CC_P | CC_Z | CC_S | CC_O | CC_A));
 }
 
+/**********************************************/
+/* segmentation tests */
+
+#include <asm/ldt.h>
+#include <linux/unistd.h>
+
+_syscall3(int, modify_ldt, int, func, void *, ptr, unsigned long, bytecount)
+
+uint8_t seg_data1[4096];
+uint8_t seg_data2[4096];
+
+#define MK_SEL(n) (((n) << 3) | 4)
+
+/* NOTE: we use Linux modify_ldt syscall */
+void test_segs(void)
+{
+    struct modify_ldt_ldt_s ldt;
+    long long ldt_table[3];
+    int i, res, res2;
+    char tmp;
+
+    ldt.entry_number = 1;
+    ldt.base_addr = (unsigned long)&seg_data1;
+    ldt.limit = (sizeof(seg_data1) + 0xfff) >> 12;
+    ldt.seg_32bit = 1;
+    ldt.contents = MODIFY_LDT_CONTENTS_DATA;
+    ldt.read_exec_only = 0;
+    ldt.limit_in_pages = 1;
+    ldt.seg_not_present = 0;
+    ldt.useable = 1;
+    modify_ldt(1, &ldt, sizeof(ldt)); /* write ldt entry */
+
+    ldt.entry_number = 2;
+    ldt.base_addr = (unsigned long)&seg_data2;
+    ldt.limit = (sizeof(seg_data2) + 0xfff) >> 12;
+    ldt.seg_32bit = 1;
+    ldt.contents = MODIFY_LDT_CONTENTS_DATA;
+    ldt.read_exec_only = 0;
+    ldt.limit_in_pages = 1;
+    ldt.seg_not_present = 0;
+    ldt.useable = 1;
+    modify_ldt(1, &ldt, sizeof(ldt)); /* write ldt entry */
+
+    modify_ldt(0, &ldt_table, sizeof(ldt_table)); /* read ldt entries */
+    for(i=0;i<3;i++)
+        printf("%d: %016Lx\n", i, ldt_table[i]);
+
+    /* do some tests with fs or gs */
+    asm volatile ("movl %0, %%fs" : : "r" (MK_SEL(1)));
+    asm volatile ("movl %0, %%gs" : : "r" (MK_SEL(2)));
+
+    seg_data1[1] = 0xaa;
+    seg_data2[1] = 0x55;
+
+    asm volatile ("fs movzbl 0x1, %0" : "=r" (res));
+    printf("FS[1] = %02x\n", res);
+
+    asm volatile ("gs movzbl 0x1, %0" : "=r" (res));
+    printf("GS[1] = %02x\n", res);
+
+    /* tests with ds/ss (implicit segment case) */
+    tmp = 0xa5;
+    asm volatile ("pushl %%ebp\n\t"
+                  "pushl %%ds\n\t"
+                  "movl %2, %%ds\n\t"
+                  "movl %3, %%ebp\n\t"
+                  "movzbl 0x1, %0\n\t"
+                  "movzbl (%%ebp), %1\n\t"
+                  "popl %%ds\n\t"
+                  "popl %%ebp\n\t"
+                  : "=r" (res), "=r" (res2)
+                  : "r" (MK_SEL(1)), "r" (&tmp));
+    printf("DS[1] = %02x\n", res);
+    printf("SS[tmp] = %02x\n", res2);
+}
 
 static void *call_end __init_call = NULL;
 
@@ -628,8 +704,9 @@ int main(int argc, char **argv)
     test_bsx();
     test_mul();
     test_jcc();
-    test_lea();
     test_floats();
     test_bcd();
+    test_lea();
+    test_segs();
     return 0;
 }
