@@ -391,6 +391,8 @@ typedef struct PCIIORegion {
     PCIMapIORegionFunc *map_func;
 } PCIIORegion;
 
+#define PCI_ROM_SLOT 6
+#define PCI_NUM_REGIONS 7
 struct PCIDevice {
     /* PCI config space */
     uint8_t config[256];
@@ -399,7 +401,7 @@ struct PCIDevice {
     int bus_num;
     int devfn;
     char name[64];
-    PCIIORegion io_regions[6];
+    PCIIORegion io_regions[PCI_NUM_REGIONS];
     
     /* do not access the following fields */
     PCIConfigReadFunc *config_read;

@@ -100,7 +100,7 @@ void pci_register_io_region(PCIDevice *pci_dev, int region_num,
 {
     PCIIORegion *r;
 
-    if ((unsigned int)region_num >= 6)
+    if ((unsigned int)region_num >= PCI_NUM_REGIONS)
         return;
     r = &pci_dev->io_regions[region_num];
     r->addr = -1;
@@ -125,16 +125,21 @@ static void pci_update_mappings(PCIDevice *d)
 {
     PCIIORegion *r;
     int cmd, i;
-    uint32_t last_addr, new_addr;
+    uint32_t last_addr, new_addr, config_ofs;
     
     cmd = le16_to_cpu(*(uint16_t *)(d->config + PCI_COMMAND));
-    for(i = 0; i < 6; i++) {
+    for(i = 0; i < PCI_NUM_REGIONS; i++) {
         r = &d->io_regions[i];
+        if (i == PCI_ROM_SLOT) {
+            config_ofs = 0x30;
+        } else {
+            config_ofs = 0x10 + i * 4;
+        }
         if (r->size != 0) {
             if (r->type & PCI_ADDRESS_SPACE_IO) {
                 if (cmd & PCI_COMMAND_IO) {
                     new_addr = le32_to_cpu(*(uint32_t *)(d->config + 
-                                                         0x10 + i * 4));
+                                                         config_ofs));
                     new_addr = new_addr & ~(r->size - 1);
                     last_addr = new_addr + r->size - 1;
                     /* NOTE: we have only 64K ioports on PC */
@@ -148,7 +153,10 @@ static void pci_update_mappings(PCIDevice *d)
             } else {
                 if (cmd & PCI_COMMAND_MEMORY) {
                     new_addr = le32_to_cpu(*(uint32_t *)(d->config + 
-                                                         0x10 + i * 4));
+                                                         config_ofs));
+                    /* the ROM slot has a specific enable bit */
+                    if (i == PCI_ROM_SLOT && !(new_addr & 1))
+                        goto no_mem_map;
                     new_addr = new_addr & ~(r->size - 1);
                     last_addr = new_addr + r->size - 1;
                     /* NOTE: we do not support wrapping */
@@ -160,6 +168,7 @@ static void pci_update_mappings(PCIDevice *d)
                         new_addr = -1;
                     }
                 } else {
+                no_mem_map:
                     new_addr = -1;
                 }
             }
@@ -216,18 +225,28 @@ void pci_default_write_config(PCIDevice *d,
     int can_write, i;
     uint32_t end, addr;
 
-    if (len == 4 && (address >= 0x10 && address < 0x10 + 4 * 6)) {
+    if (len == 4 && ((address >= 0x10 && address < 0x10 + 4 * 6) || 
+                     (address >= 0x30 && address < 0x34))) {
         PCIIORegion *r;
         int reg;
 
-        reg = (address - 0x10) >> 2;
+        if ( address >= 0x30 ) {
+            reg = PCI_ROM_SLOT;
+        }else{
+            reg = (address - 0x10) >> 2;
+        }
         r = &d->io_regions[reg];
         if (r->size == 0)
             goto default_config;
         /* compute the stored value */
-        val &= ~(r->size - 1);
-        val |= r->type;
-        *(uint32_t *)(d->config + 0x10 + reg * 4) = cpu_to_le32(val);
+        if (reg == PCI_ROM_SLOT) {
+            /* keep ROM enable bit */
+            val &= (~(r->size - 1)) | 1;
+        } else {
+            val &= ~(r->size - 1);
+            val |= r->type;
+        }
+        *(uint32_t *)(d->config + address) = cpu_to_le32(val);
         pci_update_mappings(d);
         return;
     }
@@ -484,16 +503,16 @@ static inline void set_config(PCIBridge *s, target_phys_addr_t addr)
     s->config_reg = 0x80000000 | (addr & 0xfc) | (devfn << 8);
 }
 
-static void PPC_PCIIO_writeb (target_phys_addr_t addr, uint32_t val)
+static void PPC_PCIIO_writeb (void *opaque, target_phys_addr_t addr, uint32_t val)
 {
-    PCIBridge *s = &pci_bridge;
+    PCIBridge *s = opaque;
     set_config(s, addr);
     pci_data_write(s, addr, val, 1);
 }
 
-static void PPC_PCIIO_writew (target_phys_addr_t addr, uint32_t val)
+static void PPC_PCIIO_writew (void *opaque, target_phys_addr_t addr, uint32_t val)
 {
-    PCIBridge *s = &pci_bridge;
+    PCIBridge *s = opaque;
     set_config(s, addr);
 #ifdef TARGET_WORDS_BIGENDIAN
     val = bswap16(val);
@@ -501,9 +520,9 @@ static void PPC_PCIIO_writew (target_phys_addr_t addr, uint32_t val)
     pci_data_write(s, addr, val, 2);
 }
 
-static void PPC_PCIIO_writel (target_phys_addr_t addr, uint32_t val)
+static void PPC_PCIIO_writel (void *opaque, target_phys_addr_t addr, uint32_t val)
 {
-    PCIBridge *s = &pci_bridge;
+    PCIBridge *s = opaque;
     set_config(s, addr);
 #ifdef TARGET_WORDS_BIGENDIAN
     val = bswap32(val);
@@ -511,18 +530,18 @@ static void PPC_PCIIO_writel (target_phys_addr_t addr, uint32_t val)
     pci_data_write(s, addr, val, 4);
 }
 
-static uint32_t PPC_PCIIO_readb (target_phys_addr_t addr)
+static uint32_t PPC_PCIIO_readb (void *opaque, target_phys_addr_t addr)
 {
-    PCIBridge *s = &pci_bridge;
+    PCIBridge *s = opaque;
     uint32_t val;
     set_config(s, addr);
     val = pci_data_read(s, addr, 1);
     return val;
 }
 
-static uint32_t PPC_PCIIO_readw (target_phys_addr_t addr)
+static uint32_t PPC_PCIIO_readw (void *opaque, target_phys_addr_t addr)
 {
-    PCIBridge *s = &pci_bridge;
+    PCIBridge *s = opaque;
     uint32_t val;
     set_config(s, addr);
     val = pci_data_read(s, addr, 2);
@@ -532,9 +551,9 @@ static uint32_t PPC_PCIIO_readw (target_phys_addr_t addr)
     return val;
 }
 
-static uint32_t PPC_PCIIO_readl (target_phys_addr_t addr)
+static uint32_t PPC_PCIIO_readl (void *opaque, target_phys_addr_t addr)
 {
-    PCIBridge *s = &pci_bridge;
+    PCIBridge *s = opaque;
     uint32_t val;
     set_config(s, addr);
     val = pci_data_read(s, addr, 4);
@@ -558,10 +577,12 @@ static CPUReadMemoryFunc *PPC_PCIIO_read[] = {
 
 void pci_prep_init(void)
 {
+    PCIBridge *s = &pci_bridge;
     PCIDevice *d;
     int PPC_io_memory;
 
-    PPC_io_memory = cpu_register_io_memory(0, PPC_PCIIO_read, PPC_PCIIO_write);
+    PPC_io_memory = cpu_register_io_memory(0, PPC_PCIIO_read, 
+                                           PPC_PCIIO_write, s);
     cpu_register_physical_memory(0x80800000, 0x00400000, PPC_io_memory);
 
     d = pci_register_device("PREP PCI Bridge", sizeof(PCIDevice), 0, 0, 
@@ -581,18 +602,18 @@ void pci_prep_init(void)
 
 /* pmac pci init */
 
-static void pci_pmac_config_writel (target_phys_addr_t addr, uint32_t val)
+static void pci_pmac_config_writel (void *opaque, target_phys_addr_t addr, uint32_t val)
 {
-    PCIBridge *s = &pci_bridge;
+    PCIBridge *s = opaque;
 #ifdef TARGET_WORDS_BIGENDIAN
     val = bswap32(val);
 #endif
     s->config_reg = val;
 }
 
-static uint32_t pci_pmac_config_readl (target_phys_addr_t addr)
+static uint32_t pci_pmac_config_readl (void *opaque, target_phys_addr_t addr)
 {
-    PCIBridge *s = &pci_bridge;
+    PCIBridge *s = opaque;
     uint32_t val;
 
     val = s->config_reg;
@@ -614,41 +635,41 @@ static CPUReadMemoryFunc *pci_pmac_config_read[] = {
     &pci_pmac_config_readl,
 };
 
-static void pci_pmac_writeb (target_phys_addr_t addr, uint32_t val)
+static void pci_pmac_writeb (void *opaque, target_phys_addr_t addr, uint32_t val)
 {
-    PCIBridge *s = &pci_bridge;
+    PCIBridge *s = opaque;
     pci_data_write(s, addr, val, 1);
 }
 
-static void pci_pmac_writew (target_phys_addr_t addr, uint32_t val)
+static void pci_pmac_writew (void *opaque, target_phys_addr_t addr, uint32_t val)
 {
-    PCIBridge *s = &pci_bridge;
+    PCIBridge *s = opaque;
 #ifdef TARGET_WORDS_BIGENDIAN
     val = bswap16(val);
 #endif
     pci_data_write(s, addr, val, 2);
 }
 
-static void pci_pmac_writel (target_phys_addr_t addr, uint32_t val)
+static void pci_pmac_writel (void *opaque, target_phys_addr_t addr, uint32_t val)
 {
-    PCIBridge *s = &pci_bridge;
+    PCIBridge *s = opaque;
 #ifdef TARGET_WORDS_BIGENDIAN
     val = bswap32(val);
 #endif
     pci_data_write(s, addr, val, 4);
 }
 
-static uint32_t pci_pmac_readb (target_phys_addr_t addr)
+static uint32_t pci_pmac_readb (void *opaque, target_phys_addr_t addr)
 {
-    PCIBridge *s = &pci_bridge;
+    PCIBridge *s = opaque;
     uint32_t val;
     val = pci_data_read(s, addr, 1);
     return val;
 }
 
-static uint32_t pci_pmac_readw (target_phys_addr_t addr)
+static uint32_t pci_pmac_readw (void *opaque, target_phys_addr_t addr)
 {
-    PCIBridge *s = &pci_bridge;
+    PCIBridge *s = opaque;
     uint32_t val;
     val = pci_data_read(s, addr, 2);
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -657,9 +678,9 @@ static uint32_t pci_pmac_readw (target_phys_addr_t addr)
     return val;
 }
 
-static uint32_t pci_pmac_readl (target_phys_addr_t addr)
+static uint32_t pci_pmac_readl (void *opaque, target_phys_addr_t addr)
 {
-    PCIBridge *s = &pci_bridge;
+    PCIBridge *s = opaque;
     uint32_t val;
 
     val = pci_data_read(s, addr, 4);
@@ -683,12 +704,13 @@ static CPUReadMemoryFunc *pci_pmac_read[] = {
 
 void pci_pmac_init(void)
 {
+    PCIBridge *s = &pci_bridge;
     PCIDevice *d;
     int pci_mem_config, pci_mem_data;
 
     pci_mem_config = cpu_register_io_memory(0, pci_pmac_config_read, 
-                                            pci_pmac_config_write);
-    pci_mem_data = cpu_register_io_memory(0, pci_pmac_read, pci_pmac_write);
+                                            pci_pmac_config_write, s);
+    pci_mem_data = cpu_register_io_memory(0, pci_pmac_read, pci_pmac_write, s);
 
     cpu_register_physical_memory(0xfec00000, 0x1000, pci_mem_config);
     cpu_register_physical_memory(0xfee00000, 0x1000, pci_mem_data);
@@ -812,7 +834,7 @@ static void pci_info_device(PCIDevice *d)
     if (d->config[PCI_INTERRUPT_PIN] != 0) {
         printf("      IRQ %d.\n", d->config[PCI_INTERRUPT_LINE]);
     }
-    for(i = 0;i < 6; i++) {
+    for(i = 0;i < PCI_NUM_REGIONS; i++) {
         r = &d->io_regions[i];
         if (r->size != 0) {
             printf("      BAR%d: ", i);
@@ -934,13 +956,22 @@ static void pci_set_io_region_addr(PCIDevice *d, int region_num, uint32_t addr)
 {
     PCIIORegion *r;
     uint16_t cmd;
+    uint32_t ofs;
 
-    pci_config_writel(d, 0x10 + region_num * 4, addr);
+    if ( region_num == PCI_ROM_SLOT ) {
+        ofs = 0x30;
+    }else{
+        ofs = 0x10 + region_num * 4;
+    }
+
+    pci_config_writel(d, ofs, addr);
     r = &d->io_regions[region_num];
 
     /* enable memory mappings */
     cmd = pci_config_readw(d, PCI_COMMAND);
-    if (r->type & PCI_ADDRESS_SPACE_IO)
+    if ( region_num == PCI_ROM_SLOT )
+        cmd |= 2;
+    else if (r->type & PCI_ADDRESS_SPACE_IO)
         cmd |= 1;
     else
         cmd |= 2;
@@ -977,7 +1008,7 @@ static void pci_bios_init_device(PCIDevice *d)
         break;
     default:
         /* default memory mappings */
-        for(i = 0; i < 6; i++) {
+        for(i = 0; i < PCI_NUM_REGIONS; i++) {
             r = &d->io_regions[i];
             if (r->size) {
                 if (r->type & PCI_ADDRESS_SPACE_IO)
