@@ -23,6 +23,8 @@
 #include <endian.h>
 #include <asm/byteorder.h>
 
+#define TARGET_LONG_BITS 32
+
 #include "cpu-defs.h"
 
 //#define USE_OPEN_FIRMWARE

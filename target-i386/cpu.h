@@ -20,6 +20,8 @@
 #ifndef CPU_I386_H
 #define CPU_I386_H
 
+#define TARGET_LONG_BITS 32
+
 #include "cpu-defs.h"
 
 #define R_EAX 0

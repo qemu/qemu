@@ -1,8 +1,8 @@
 #ifndef CPU_SPARC_H
 #define CPU_SPARC_H
 
-#include <setjmp.h>
-#include "config.h"
+#define TARGET_LONG_BITS 32
+
 #include "cpu-defs.h"
 
 /*#define EXCP_INTERRUPT 0x100*/

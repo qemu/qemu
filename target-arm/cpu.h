@@ -20,6 +20,8 @@
 #ifndef CPU_ARM_H
 #define CPU_ARM_H
 
+#define TARGET_LONG_BITS 32
+
 #include "cpu-defs.h"
 
 #define EXCP_UDEF       1   /* undefined instruction */
