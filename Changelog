@@ -6,10 +6,18 @@ version 0.5.3:
   - CPU interrupt fixes
   - fixed various TLB invalidation cases (NT install)
   - fixed cr0.WP semantics (XP install)
-  - direct chaining support for SPARC (3x faster)
+  - direct chaining support for SPARC and PowerPC (faster)
   - ARM NWFPE support (initial patch by Ulrich Hecht)
   - added specific x86 to x86 translator (close to native performance
     in qemu-i386 and qemu-fast)
+  - shm syscalls support (Paul McKerras)
+  - added accurate CR0.MP/ME/TS emulation
+  - fixed DMA memory write access (Win95 boot floppy fix)
+  - graphical x86 linux loader
+  - command line monitor 
+  - generic removable device support
+  - support of CD-ROM change
+  - multiple network interface support
   
 version 0.5.2:
 
