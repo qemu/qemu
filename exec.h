@@ -225,11 +225,14 @@ TranslationBlock *tb_find_pc(unsigned long pc_ptr);
 #if defined(__powerpc__)
 
 /* on PowerPC we patch the jump instruction directly */
-#define JUMP_TB(tbparam, n, eip)\
+#define JUMP_TB(opname, tbparam, n, eip)\
 do {\
-    static void __attribute__((unused)) *__op_label ## n = &&label ## n;\
-    asm volatile ("b %0" : : "i" (&__op_jmp ## n));\
-label ## n:\
+    asm volatile (".section \".data\"\n"\
+		  "__op_label" #n "." stringify(opname) ":\n"\
+		  ".long 1f\n"\
+		  ".previous\n"\
+                  "b __op_jmp" #n "\n"\
+		  "1:\n");\
     T0 = (long)(tbparam) + (n);\
     EIP = eip;\
     EXIT_TB();\
@@ -239,7 +242,7 @@ label ## n:\
 
 /* jump to next block operations (more portable code, does not need
    cache flushing, but slower because of indirect jump) */
-#define JUMP_TB(tbparam, n, eip)\
+#define JUMP_TB(opname, tbparam, n, eip)\
 do {\
     static void __attribute__((unused)) *__op_label ## n = &&label ## n;\
     static void __attribute__((unused)) *dummy ## n = &&dummy_label ## n;\
