@@ -286,6 +286,12 @@ Cirrus Logic GD5446 PCI VGA)
 
 @end table
 
+@c man end
+
+@section Keys
+
+@c man begin OPTIONS
+
 During the graphical emulation, you can use the following keys:
 @table @key
 @item Ctrl-Shift-f
@@ -305,6 +311,9 @@ Serial port
 @item Ctrl-Shift
 Toggle mouse and keyboard grab.
 @end table
+
+In the virtual consoles, you can use @key{Ctrl-Up}, @key{Ctrl-Down},
+@key{Ctrl-PageUp} and @key{Ctrl-PageDown} to move in the back log.
 
 During emulation, if you are using the @option{-nographic} option, use
 @key{Ctrl-a h} to get terminal commands:
