@@ -54,6 +54,7 @@
 #define DEFAULT_NETWORK_SCRIPT "/etc/vl-ifup"
 
 //#define DEBUG_UNUSED_IOPORT
+//#define DEBUG_IRQ_LATENCY
 
 #define PHYS_RAM_BASE 0xa8000000
 #define KERNEL_LOAD_ADDR   0x00100000
@@ -598,14 +599,9 @@ static int pic_get_irq(PicState *s)
     }
 }
 
-void pic_set_irq(int irq, int level)
-{
-    pic_set_irq1(&pics[irq >> 3], irq & 7, level);
-}
-
-/* can be called at any time outside cpu_exec() to raise irqs if
-   necessary */
-void pic_handle_irq(void)
+/* raise irq to CPU if necessary. must be called every time the active
+   irq may change */
+static void pic_update_irq(void)
 {
     int irq2, irq;
 
@@ -626,8 +622,24 @@ void pic_handle_irq(void)
             /* from master pic */
             pic_irq_requested = irq;
         }
-        global_env->hard_interrupt_request = 1;
+        cpu_x86_interrupt(global_env, CPU_INTERRUPT_HARD);
     }
+}
+
+#ifdef DEBUG_IRQ_LATENCY
+int64_t irq_time[16];
+int64_t cpu_get_ticks(void);
+#endif
+
+void pic_set_irq(int irq, int level)
+{
+#ifdef DEBUG_IRQ_LATENCY
+    if (level) {
+        irq_time[irq] = cpu_get_ticks();
+    }
+#endif
+    pic_set_irq1(&pics[irq >> 3], irq & 7, level);
+    pic_update_irq();
 }
 
 int cpu_x86_get_pic_interrupt(CPUX86State *env)
@@ -636,6 +648,10 @@ int cpu_x86_get_pic_interrupt(CPUX86State *env)
 
     /* signal the pic that the irq was acked by the CPU */
     irq = pic_irq_requested;
+#ifdef DEBUG_IRQ_LATENCY
+    printf("IRQ%d latency=%Ld\n", irq, cpu_get_ticks() - irq_time[irq]);
+#endif
+
     if (irq >= 8) {
         irq2 = irq & 7;
         pics[1].isr |= (1 << irq2);
@@ -706,6 +722,7 @@ void pic_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
         case 0:
             /* normal mode */
             s->imr = val;
+            pic_update_irq();
             break;
         case 1:
             s->irq_base = val & 0xf8;
@@ -1570,8 +1587,6 @@ void ne2000_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
                 s->rcnt == 0) {
                 s->isr |= ENISR_RDC;
                 ne2000_update_irq(s);
-                /* XXX: find a better solution for irqs */
-                cpu_x86_interrupt(global_env);
             }
             if (val & E8390_TRANS) {
                 net_send_packet(s, s->mem + (s->tpsr << 8), s->tcnt);
@@ -1931,7 +1946,8 @@ void ne2000_init(void)
 #define WIN_SET_MAX			0xF9
 #define DISABLE_SEAGATE			0xFB
 
-#define MAX_MULT_SECTORS 16
+/* set to 1 set disable mult support */
+#define MAX_MULT_SECTORS 8
 
 #define MAX_DISKS 2
 
@@ -1948,7 +1964,7 @@ typedef struct IDEState {
     /* ide regs */
     uint8_t feature;
     uint8_t error;
-    uint8_t nsector;
+    uint16_t nsector; /* 0 is 256 to ease computations */
     uint8_t sector;
     uint8_t lcyl;
     uint8_t hcyl;
@@ -1959,6 +1975,7 @@ typedef struct IDEState {
     /* depends on bit 4 in select, only meaningful for drive 0 */
     struct IDEState *cur_drive; 
     BlockDriverState *bs;
+    int req_nb_sectors; /* number of sectors per interrupt */
     EndTransferFunc *end_transfer_func;
     uint8_t *data_ptr;
     uint8_t *data_end;
@@ -1998,7 +2015,9 @@ static void ide_identify(IDEState *s)
     stw(p + 21, 512); /* cache size in sectors */
     stw(p + 22, 4); /* ecc bytes */
     padstr((uint8_t *)(p + 27), "QEMU HARDDISK", 40);
-    //    stw(p + 47, MAX_MULT_SECTORS);
+#if MAX_MULT_SECTORS > 1    
+    stw(p + 47, MAX_MULT_SECTORS);
+#endif
     stw(p + 48, 1); /* dword I/O */
     stw(p + 49, 1 << 9); /* LBA supported, no DMA */
     stw(p + 51, 0x200); /* PIO transfer cycle */
@@ -2032,7 +2051,6 @@ static inline void ide_set_irq(IDEState *s)
 {
     if (!(ide_state[0].cmd & IDE_CMD_DISABLE_IRQ)) {
         pic_set_irq(s->irq, 1);
-        cpu_x86_interrupt(global_env);
     }
 }
 
@@ -2090,51 +2108,60 @@ static void ide_set_sector(IDEState *s, int64_t sector_num)
 static void ide_sector_read(IDEState *s)
 {
     int64_t sector_num;
-    int ret;
+    int ret, n;
 
     s->status = READY_STAT | SEEK_STAT;
     sector_num = ide_get_sector(s);
-    s->nsector--;
-    if (s->nsector == 0xff) {
+    n = s->nsector;
+    if (n == 0) {
         /* no more sector to read from disk */
         ide_transfer_stop(s);
     } else {
 #if defined(DEBUG_IDE)
         printf("read sector=%Ld\n", sector_num);
 #endif
-        ret = bdrv_read(s->bs, sector_num, s->io_buffer, 1);
-        ide_transfer_start(s, 512, ide_sector_read);
+        if (n > s->req_nb_sectors)
+            n = s->req_nb_sectors;
+        ret = bdrv_read(s->bs, sector_num, s->io_buffer, n);
+        ide_transfer_start(s, 512 * n, ide_sector_read);
         ide_set_irq(s);
+        ide_set_sector(s, sector_num + n);
+        s->nsector -= n;
     }
-    ide_set_sector(s, sector_num + 1);
 }
 
 static void ide_sector_write(IDEState *s)
 {
     int64_t sector_num;
-    int ret;
+    int ret, n, n1;
 
     s->status = READY_STAT | SEEK_STAT;
     sector_num = ide_get_sector(s);
 #if defined(DEBUG_IDE)
     printf("write sector=%Ld\n", sector_num);
 #endif
-    ret = bdrv_write(s->bs, sector_num, s->io_buffer, 1);
-    s->nsector--;
+    n = s->nsector;
+    if (n > s->req_nb_sectors)
+        n = s->req_nb_sectors;
+    ret = bdrv_write(s->bs, sector_num, s->io_buffer, n);
+    s->nsector -= n;
     if (s->nsector == 0) {
         /* no more sector to write */
         ide_transfer_stop(s);
     } else {
-        ide_transfer_start(s, 512, ide_sector_write);
+        n1 = s->nsector;
+        if (n1 > s->req_nb_sectors)
+            n1 = s->req_nb_sectors;
+        ide_transfer_start(s, 512 * n1, ide_sector_write);
     }
-    ide_set_sector(s, sector_num + 1);
+    ide_set_sector(s, sector_num + n);
     ide_set_irq(s);
 }
 
 void ide_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
 {
     IDEState *s = ide_state[0].cur_drive;
-    int unit;
+    int unit, n;
 
     addr &= 7;
 #ifdef DEBUG_IDE
@@ -2147,6 +2174,8 @@ void ide_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
         s->feature = val;
         break;
     case 2:
+        if (val == 0)
+            val = 256;
         s->nsector = val;
         break;
     case 3:
@@ -2201,14 +2230,33 @@ void ide_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
             break;
         case WIN_READ:
         case WIN_READ_ONCE:
+            s->req_nb_sectors = 1;
             ide_sector_read(s);
             break;
         case WIN_WRITE:
         case WIN_WRITE_ONCE:
             s->status = SEEK_STAT;
+            s->req_nb_sectors = 1;
             ide_transfer_start(s, 512, ide_sector_write);
             break;
+        case WIN_MULTREAD:
+            if (!s->mult_sectors)
+                goto abort_cmd;
+            s->req_nb_sectors = s->mult_sectors;
+            ide_sector_read(s);
+            break;
+        case WIN_MULTWRITE:
+            if (!s->mult_sectors)
+                goto abort_cmd;
+            s->status = SEEK_STAT;
+            s->req_nb_sectors = s->mult_sectors;
+            n = s->nsector;
+            if (n > s->req_nb_sectors)
+                n = s->req_nb_sectors;
+            ide_transfer_start(s, 512 * n, ide_sector_write);
+            break;
         default:
+        abort_cmd:
             ide_abort_command(s);
             ide_set_irq(s);
             break;
@@ -2230,7 +2278,7 @@ uint32_t ide_ioport_read(CPUX86State *env, uint32_t addr)
         ret = s->error;
         break;
     case 2:
-        ret = s->nsector;
+        ret = s->nsector & 0xff;
         break;
     case 3:
         ret = s->sector;
@@ -2400,7 +2448,7 @@ static void host_alarm_handler(int host_signum, siginfo_t *info,
             timer_irq_count = 2;
         timer_irq_count--;
         /* just exit from the cpu to have a chance to handle timers */
-        cpu_x86_interrupt(global_env);
+        cpu_x86_interrupt(global_env, CPU_INTERRUPT_EXIT);
         timer_irq_pending = 1;
     }
 }
@@ -2487,8 +2535,6 @@ void main_loop(void *opaque)
             pic_set_irq(0, 0);
             timer_irq_pending = 0;
         }
-
-        pic_handle_irq();
     }
 }
 
