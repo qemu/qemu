@@ -1060,7 +1060,7 @@ static void cdrom_change_cb(void *opaque)
 static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
     IDEState *ide_if = opaque;
-    IDEState *s = ide_if->cur_drive;
+    IDEState *s;
     int unit, n;
 
 #ifdef DEBUG_IDE
@@ -1071,28 +1071,35 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     case 0:
         break;
     case 1:
-        s->feature = val;
+        /* NOTE: data is written to the two drives */
+        ide_if[0].feature = val;
+        ide_if[1].feature = val;
         break;
     case 2:
         if (val == 0)
             val = 256;
-        s->nsector = val;
+        ide_if[0].nsector = val;
+        ide_if[1].nsector = val;
         break;
     case 3:
-        s->sector = val;
+        ide_if[0].sector = val;
+        ide_if[1].sector = val;
         break;
     case 4:
-        s->lcyl = val;
+        ide_if[0].lcyl = val;
+        ide_if[1].lcyl = val;
         break;
     case 5:
-        s->hcyl = val;
+        ide_if[0].hcyl = val;
+        ide_if[1].hcyl = val;
         break;
     case 6:
+        ide_if[0].select = val & 0x4f;
+        ide_if[1].select = val & 0x4f;
         /* select drive */
         unit = (val >> 4) & 1;
         s = ide_if + unit;
         ide_if->cur_drive = s;
-        s->select = val;
         break;
     default:
     case 7:
@@ -1100,6 +1107,7 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 #if defined(DEBUG_IDE)
         printf("ide: CMD=%02x\n", val);
 #endif
+        s = ide_if->cur_drive;
         switch(val) {
         case WIN_IDENTIFY:
             if (s->bs && !s->is_cdrom) {
@@ -1228,26 +1236,47 @@ static uint32_t ide_ioport_read(void *opaque, uint32_t addr1)
         ret = 0xff;
         break;
     case 1:
-        ret = s->error;
+        if (!s->bs)
+            ret = 0;
+        else
+            ret = s->error;
         break;
     case 2:
-        ret = s->nsector & 0xff;
+        if (!s->bs)
+            ret = 0;
+        else
+            ret = s->nsector & 0xff;
         break;
     case 3:
-        ret = s->sector;
+        if (!s->bs)
+            ret = 0;
+        else
+            ret = s->sector;
         break;
     case 4:
-        ret = s->lcyl;
+        if (!s->bs)
+            ret = 0;
+        else
+            ret = s->lcyl;
         break;
     case 5:
-        ret = s->hcyl;
+        if (!s->bs)
+            ret = 0;
+        else
+            ret = s->hcyl;
         break;
     case 6:
-        ret = s->select;
+        if (!s->bs)
+            ret = 0;
+        else
+            ret = s->select;
         break;
     default:
     case 7:
-        ret = s->status;
+        if (!s->bs)
+            ret = 0;
+        else
+            ret = s->status;
         pic_set_irq(s->irq, 0);
         break;
     }
