@@ -19,6 +19,8 @@ version 0.5.2:
   - fixed PTE dirty bit handling
   - fixed xadd same reg bug
   - fixed cmpxchg exception safeness
+  - access to virtual memory in gdb stub
+  - task gate and NT flag fixes
 
 version 0.5.1:
   

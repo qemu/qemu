@@ -1,6 +1,7 @@
 short term:
 ----------
 - XP install bug fix
+- handle Self Modifying Code even if modifying current TB (BE OS 5 install)
 - L4 Pistachio kernel boot fix
 - TLB code protection support for PPC
 - add sysenter/sysexit and fxsr for L4 pistachio 686
@@ -10,7 +11,7 @@ short term:
 - user/kernel PUSHL/POPL in helper.c
 - keyboard output buffer filling timing emulation
 - verify tb_flush() with a20 and TLBs
-
+- return UD exception if LOCK prefix incorrectly used
 - cmos clock update and timers
 - test ldt limit < 7 ?
 - tests for each target CPU
