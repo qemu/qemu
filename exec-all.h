@@ -79,7 +79,13 @@ void dump_ops(const uint16_t *opc_buf, const uint32_t *opparam_buf);
 int cpu_gen_code(CPUState *env, struct TranslationBlock *tb,
                  int max_code_size, int *gen_code_size_ptr);
 int cpu_restore_state(struct TranslationBlock *tb, 
-                      CPUState *env, unsigned long searched_pc);
+                      CPUState *env, unsigned long searched_pc,
+                      void *puc);
+int cpu_gen_code_copy(CPUState *env, struct TranslationBlock *tb,
+                      int max_code_size, int *gen_code_size_ptr);
+int cpu_restore_state_copy(struct TranslationBlock *tb, 
+                           CPUState *env, unsigned long searched_pc,
+                           void *puc);
 void cpu_exec_init(void);
 int page_unprotect(unsigned long address);
 void tb_invalidate_page_range(target_ulong start, target_ulong end);
@@ -145,6 +151,9 @@ typedef struct TranslationBlock {
     unsigned int flags; /* flags defining in which context the code was generated */
     uint16_t size;      /* size of target code for this block (1 <=
                            size <= TARGET_PAGE_SIZE) */
+    uint16_t cflags;    /* compile flags */
+#define CF_CODE_COPY  0x0001 /* block was generated in code copy mode */
+
     uint8_t *tc_ptr;    /* pointer to the translated code */
     struct TranslationBlock *hash_next; /* next matching tb for virtual address */
     /* next matching tb for physical address. */
@@ -552,4 +561,3 @@ static inline target_ulong get_phys_addr_code(CPUState *env, target_ulong addr)
     return addr + env->tlb_read[is_user][index].addend - (unsigned long)phys_ram_base;
 }
 #endif
-

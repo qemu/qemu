@@ -24,6 +24,10 @@
 
 #include "cpu-defs.h"
 
+#if defined(__i386__) && !defined(CONFIG_SOFTMMU)
+#define USE_CODE_COPY
+#endif
+
 #define R_EAX 0
 #define R_ECX 1
 #define R_EDX 2
@@ -121,6 +125,7 @@
 #define HF_SS32_MASK         (1 << HF_SS32_SHIFT)
 #define HF_ADDSEG_MASK       (1 << HF_ADDSEG_SHIFT)
 #define HF_PE_MASK           (1 << HF_PE_SHIFT)
+#define HF_TF_MASK           (1 << HF_TF_SHIFT)
 
 #define CR0_PE_MASK  (1 << 0)
 #define CR0_TS_MASK  (1 << 3)
@@ -297,6 +302,10 @@ typedef struct CPUX86State {
     uint32_t sysenter_cs;
     uint32_t sysenter_esp;
     uint32_t sysenter_eip;
+
+    /* temporary data for USE_CODE_COPY mode */
+    uint32_t tmp0;
+    uint32_t saved_esp;
     
     /* exception/interrupt handling */
     jmp_buf jmp_env;

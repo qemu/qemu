@@ -48,6 +48,8 @@ uint8_t gen_opc_instr_start[OPC_BUF_SIZE];
 uint8_t gen_opc_cc_op[OPC_BUF_SIZE];
 #endif
 
+int code_copy_enabled = 1;
+
 #ifdef DEBUG_DISAS
 static const char *op_str[] = {
 #define DEF(s, n, copy_size) #s,
@@ -98,30 +100,38 @@ int cpu_gen_code(CPUState *env, TranslationBlock *tb,
     uint8_t *gen_code_buf;
     int gen_code_size;
 
-    if (gen_intermediate_code(env, tb) < 0)
-        return -1;
+#ifdef USE_CODE_COPY
+    if (code_copy_enabled &&
+        cpu_gen_code_copy(env, tb, max_code_size, &gen_code_size) == 0) {
+        /* nothing more to do */
+    } else
+#endif
+    {
+        if (gen_intermediate_code(env, tb) < 0)
+            return -1;
 
-    /* generate machine code */
-    tb->tb_next_offset[0] = 0xffff;
-    tb->tb_next_offset[1] = 0xffff;
-    gen_code_buf = tb->tc_ptr;
+        /* generate machine code */
+        tb->tb_next_offset[0] = 0xffff;
+        tb->tb_next_offset[1] = 0xffff;
+        gen_code_buf = tb->tc_ptr;
 #ifdef USE_DIRECT_JUMP
-    /* the following two entries are optional (only used for string ops) */
-    tb->tb_jmp_offset[2] = 0xffff;
-    tb->tb_jmp_offset[3] = 0xffff;
+        /* the following two entries are optional (only used for string ops) */
+        tb->tb_jmp_offset[2] = 0xffff;
+        tb->tb_jmp_offset[3] = 0xffff;
 #endif
-    gen_code_size = dyngen_code(gen_code_buf, tb->tb_next_offset,
+        gen_code_size = dyngen_code(gen_code_buf, tb->tb_next_offset,
 #ifdef USE_DIRECT_JUMP
-                                tb->tb_jmp_offset,
+                                    tb->tb_jmp_offset,
 #else
-                                NULL,
+                                    NULL,
 #endif
-                                gen_opc_buf, gen_opparam_buf);
+                                    gen_opc_buf, gen_opparam_buf);
+    }
     *gen_code_size_ptr = gen_code_size;
 #ifdef DEBUG_DISAS
-    if (loglevel && 0) {
+    if (loglevel) {
         fprintf(logfile, "OUT: [size=%d]\n", *gen_code_size_ptr);
-        disas(logfile, gen_code_buf, *gen_code_size_ptr, 1, 0);
+        disas(logfile, tb->tc_ptr, *gen_code_size_ptr, 1, 0);
         fprintf(logfile, "\n");
         fflush(logfile);
     }
@@ -138,12 +148,18 @@ static const unsigned short opc_copy_size[] = {
 /* The cpu state corresponding to 'searched_pc' is restored. 
  */
 int cpu_restore_state(TranslationBlock *tb, 
-                      CPUState *env, unsigned long searched_pc)
+                      CPUState *env, unsigned long searched_pc,
+                      void *puc)
 {
     int j, c;
     unsigned long tc_ptr;
     uint16_t *opc_ptr;
 
+#ifdef USE_CODE_COPY
+    if (tb->cflags & CF_CODE_COPY) {
+        return cpu_restore_state_copy(tb, env, searched_pc, puc);
+    }
+#endif
     if (gen_intermediate_code_pc(env, tb) < 0)
         return -1;
     
@@ -190,6 +206,7 @@ int cpu_restore_state(TranslationBlock *tb,
 #elif defined(TARGET_ARM)
     env->regs[15] = gen_opc_pc[j];
 #elif defined(TARGET_SPARC)
+    /* XXX: restore npc too */
     env->pc = gen_opc_pc[j];
 #elif defined(TARGET_PPC)
     {

@@ -869,7 +869,7 @@ void do_interrupt(int intno, int is_int, int error_code,
     {
         extern FILE *stdout;
         static int count;
-        if (env->cr[0] & CR0_PE_MASK) {
+        if (env->cr[0] & CR0_PE_MASK)  {
             fprintf(stdout, "%d: v=%02x e=%04x i=%d CPL=%d CS:EIP=%04x:%08x SS:ESP=%04x:%08x",
                     count, intno, error_code, is_int,
                     env->hflags & HF_CPL_MASK,
@@ -2489,7 +2489,7 @@ void tlb_fill(unsigned long addr, int is_write, int is_user, void *retaddr)
             if (tb) {
                 /* the PC is inside the translated code. It means that we have
                    a virtual CPU fault */
-                cpu_restore_state(tb, env, pc);
+                cpu_restore_state(tb, env, pc, NULL);
             }
         }
         raise_exception_err(EXCP0E_PAGE, env->error_code);
