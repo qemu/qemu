@@ -45,9 +45,9 @@ install: all
 ifndef CONFIG_WIN32
 	install -m 755 -s $(TOOLS) "$(bindir)"
 endif
-	mkdir -p "$(sharedir)"
+	mkdir -p "$(datadir)"
 	install -m 644 pc-bios/bios.bin pc-bios/vgabios.bin \
-                       pc-bios/linux_boot.bin "$(sharedir)"
+                       pc-bios/linux_boot.bin "$(datadir)"
 	mkdir -p "$(docdir)"
 	install -m 644 qemu-doc.html  qemu-tech.html "$(docdir)"
 ifndef CONFIG_WIN32
@@ -85,16 +85,16 @@ tar:
 # generate a binary distribution
 tarbin:
 	( cd / ; tar zcvf ~/qemu-$(VERSION)-i386.tar.gz \
-	$(prefix)/bin/qemu $(prefix)/bin/qemu-fast \
-	$(prefix)/bin/qemu-system-ppc \
-	$(prefix)/bin/qemu-i386 \
-        $(prefix)/bin/qemu-arm \
-        $(prefix)/bin/qemu-sparc \
-        $(prefix)/bin/qemu-ppc \
-        $(prefix)/bin/qemu-mkcow \
-	$(sharedir)/bios.bin \
-	$(sharedir)/vgabios.bin \
-	$(sharedir)/linux_boot.bin \
+	$(bindir)/qemu $(bindir)/qemu-fast \
+	$(bindir)/qemu-system-ppc \
+	$(bindir)/qemu-i386 \
+        $(bindir)/qemu-arm \
+        $(bindir)/qemu-sparc \
+        $(bindir)/qemu-ppc \
+        $(bindir)/qemu-mkcow \
+	$(datadir)/bios.bin \
+	$(datadir)/vgabios.bin \
+	$(datadir)/linux_boot.bin \
 	$(docdir)/qemu-doc.html \
 	$(docdir)/qemu-tech.html \
 	$(mandir)/man1/qemu.1 $(mandir)/man1/qemu-mkcow.1 )
