@@ -267,6 +267,9 @@ void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0)
     env->hflags = (env->hflags & ~HF_PE_MASK) | (pe_state << HF_PE_SHIFT);
     /* ensure that ADDSEG is always set in real mode */
     env->hflags |= ((pe_state ^ 1) << HF_ADDSEG_SHIFT);
+    /* update FPU flags */
+    env->hflags = (env->hflags & ~(HF_MP_MASK | HF_EM_MASK | HF_TS_MASK)) |
+        ((new_cr0 << (HF_MP_SHIFT - 1)) & (HF_MP_MASK | HF_EM_MASK | HF_TS_MASK));
 }
 
 void cpu_x86_update_cr3(CPUX86State *env, uint32_t new_cr3)
@@ -474,5 +477,75 @@ target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
     page_offset = (addr & TARGET_PAGE_MASK) & (page_size - 1);
     paddr = (pte & TARGET_PAGE_MASK) + page_offset;
     return paddr;
+}
+#endif
+
+#if defined(USE_CODE_COPY)
+struct fpstate {
+    uint16_t fpuc;
+    uint16_t dummy1;
+    uint16_t fpus;
+    uint16_t dummy2;
+    uint16_t fptag;
+    uint16_t dummy3;
+
+    uint32_t fpip;
+    uint32_t fpcs;
+    uint32_t fpoo;
+    uint32_t fpos;
+    uint8_t fpregs1[8 * 10];
+};
+
+void restore_native_fp_state(CPUState *env)
+{
+    int fptag, i, j;
+    struct fpstate fp1, *fp = &fp1;
+    
+    fp->fpuc = env->fpuc;
+    fp->fpus = (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
+    fptag = 0;
+    for (i=7; i>=0; i--) {
+	fptag <<= 2;
+	if (env->fptags[i]) {
+            fptag |= 3;
+        } else {
+            /* the FPU automatically computes it */
+        }
+    }
+    fp->fptag = fptag;
+    j = env->fpstt;
+    for(i = 0;i < 8; i++) {
+        memcpy(&fp->fpregs1[i * 10], &env->fpregs[j], 10);
+        j = (j + 1) & 7;
+    }
+    asm volatile ("frstor %0" : "=m" (*fp));
+    env->native_fp_regs = 1;
+}
+ 
+void save_native_fp_state(CPUState *env)
+{
+    int fptag, i, j;
+    uint16_t fpuc;
+    struct fpstate fp1, *fp = &fp1;
+
+    asm volatile ("fsave %0" : : "m" (*fp));
+    env->fpuc = fp->fpuc;
+    env->fpstt = (fp->fpus >> 11) & 7;
+    env->fpus = fp->fpus & ~0x3800;
+    fptag = fp->fptag;
+    for(i = 0;i < 8; i++) {
+        env->fptags[i] = ((fptag & 3) == 3);
+        fptag >>= 2;
+    }
+    j = env->fpstt;
+    for(i = 0;i < 8; i++) {
+        memcpy(&env->fpregs[j], &fp->fpregs1[i * 10], 10);
+        j = (j + 1) & 7;
+    }
+    /* we must restore the default rounding state */
+    /* XXX: we do not restore the exception state */
+    fpuc = 0x037f | (env->fpuc & (3 << 10));
+    asm volatile("fldcw %0" : : "m" (fpuc));
+    env->native_fp_regs = 0;
 }
 #endif
