@@ -574,6 +574,14 @@ Since holes are used, the displayed size of the COW disk image is not
 the real one. To know it, use the @code{ls -ls} command.
 @end enumerate
 
+@subsection Convert VMware disk images to raw disk images
+
+You can use the tool @file{vmdk2raw} to convert VMware disk images to
+raw disk images directly usable by QEMU. The syntax is:
+@example
+vmdk2raw vmware_image output_image
+@end example
+
 @section Network emulation
 
 QEMU simulates up to 6 networks cards (NE2000 boards). Each card can
