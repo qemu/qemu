@@ -556,12 +556,6 @@ void OPPROTO op_rett(void)
     FORCE_RET();
 }
 
-void raise_exception(int tt)
-{
-    env->exception_index = tt;
-    cpu_loop_exit();
-}   
-
 /* XXX: use another pointer for %iN registers to avoid slow wrapping
    handling ? */
 void OPPROTO op_save(void)

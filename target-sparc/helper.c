@@ -23,8 +23,6 @@
 //#define DEBUG_MMU
 
 /* Sparc MMU emulation */
-int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
-                              int is_user, int is_softmmu);
 
 /* thread support */
 
@@ -40,7 +38,18 @@ void cpu_unlock(void)
     spin_unlock(&global_cpu_lock);
 }
 
-#if !defined(CONFIG_USER_ONLY) 
+#if defined(CONFIG_USER_ONLY) 
+
+int cpu_sparc_handle_mmu_fault(CPUState *env, target_ulong address, int rw,
+                               int is_user, int is_softmmu)
+{
+    env->mmuregs[4] = address;
+    env->exception_index = 0; /* XXX: must be incorrect */
+    env->error_code = -2; /* XXX: is it really used ! */
+    return 1;
+}
+
+#else
 
 #define MMUSUFFIX _mmu
 #define GETPC() (__builtin_return_address(0))
@@ -86,11 +95,10 @@ void tlb_fill(target_ulong addr, int is_write, int is_user, void *retaddr)
                 cpu_restore_state(tb, env, pc, NULL);
             }
         }
-        raise_exception_err(ret, env->error_code);
+        raise_exception(ret);
     }
     env = saved_env;
 }
-#endif
 
 static const int access_table[8][8] = {
     { 0, 0, 0, 0, 2, 0, 3, 3 },
@@ -227,12 +235,6 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
     unsigned long vaddr;
     int error_code = 0, prot, ret = 0, access_index;
 
-    if (env->user_mode_only) {
-        /* user mode only emulation */
-        error_code = -2;
-	goto do_fault_user;
-    }
-
     error_code = get_physical_address(env, &paddr, &prot, &access_index, address, rw, is_user);
     if (error_code == 0) {
 	virt_addr = address & TARGET_PAGE_MASK;
@@ -248,11 +250,11 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 
     if (env->mmuregs[0] & MMU_NF || env->psret == 0) // No fault
 	return 0;
- do_fault_user:
     env->exception_index = exception;
     env->error_code = error_code;
     return error_code;
 }
+#endif
 
 void memcpy32(target_ulong *dst, const target_ulong *src)
 {
@@ -287,23 +289,17 @@ void cpu_set_cwp(CPUState *env1, int new_cwp)
     env = saved_env;
 }
 
-/*
- * Begin execution of an interruption. is_int is TRUE if coming from
- * the int instruction. next_eip is the EIP value AFTER the interrupt
- * instruction. It is only relevant if is_int is TRUE.  
- */
-void do_interrupt(int intno, int is_int, int error_code, 
-                  unsigned int next_eip, int is_hw)
+void do_interrupt(int intno, int error_code)
 {
     int cwp;
 
 #ifdef DEBUG_PCALL
     if (loglevel & CPU_LOG_INT) {
 	static int count;
-	fprintf(logfile, "%6d: v=%02x e=%04x i=%d pc=%08x npc=%08x SP=%08x\n",
-                    count, intno, error_code, is_int,
-                    env->pc,
-                    env->npc, env->regwptr[6]);
+	fprintf(logfile, "%6d: v=%02x e=%04x pc=%08x npc=%08x SP=%08x\n",
+                count, intno, error_code,
+                env->pc,
+                env->npc, env->regwptr[6]);
 #if 1
 	cpu_dump_state(env, logfile, fprintf, 0);
 	{
@@ -334,6 +330,8 @@ void do_interrupt(int intno, int is_int, int error_code,
 	env->regwptr[9] = env->pc;
 	env->regwptr[10] = env->npc;
     } else {
+        /* XXX: this code is clearly incorrect - npc should have the
+           incorrect value */
 	env->regwptr[9] = env->pc - 4; // XXX?
 	env->regwptr[10] = env->pc;
     }
@@ -343,11 +341,6 @@ void do_interrupt(int intno, int is_int, int error_code,
     env->pc = env->tbr;
     env->npc = env->pc + 4;
     env->exception_index = 0;
-}
-
-void raise_exception_err(int exception_index, int error_code)
-{
-    raise_exception(exception_index);
 }
 
 target_ulong mmu_probe(target_ulong address, int mmulev)

@@ -4,6 +4,12 @@
 
 //#define DEBUG_MMU
 
+void raise_exception(int tt)
+{
+    env->exception_index = tt;
+    cpu_loop_exit();
+}   
+
 #ifdef USE_INT_TO_FLOAT_HELPERS
 void do_fitos(void)
 {

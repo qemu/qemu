@@ -41,9 +41,7 @@ void do_fcmpd(void);
 void do_ldd_kernel(target_ulong addr);
 void do_ldd_user(target_ulong addr);
 void do_ldd_raw(target_ulong addr);
-void do_interrupt(int intno, int is_int, int error_code, 
-                  unsigned int next_eip, int is_hw);
-void raise_exception_err(int exception_index, int error_code);
+void do_interrupt(int intno, int error_code);
 void raise_exception(int tt);
 void memcpy32(target_ulong *dst, const target_ulong *src);
 target_ulong mmu_probe(target_ulong address, int mmulev);
@@ -128,5 +126,8 @@ static inline void env_to_regs(void)
 static inline void regs_to_env(void)
 {
 }
+
+int cpu_sparc_handle_mmu_fault(CPUState *env, target_ulong address, int rw,
+                               int is_user, int is_softmmu);
 
 #endif

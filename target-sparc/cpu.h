@@ -127,7 +127,6 @@ typedef struct CPUSPARCState {
     int exception_index;
     int interrupt_index;
     int interrupt_request;
-    target_ulong exception_next_pc;
     struct TranslationBlock *current_tb;
     void *opaque;
     /* NOTE: we allow 8 more registers to handle wrapping */
