@@ -178,21 +178,21 @@ int cpu_exec(CPUState *env1)
             /* we compute the CPU state. We assume it will not
                change during the whole generated block. */
 #if defined(TARGET_I386)
-            flags = env->seg_cache[R_CS].seg_32bit << GEN_FLAG_CODE32_SHIFT;
-            flags |= env->seg_cache[R_SS].seg_32bit << GEN_FLAG_SS32_SHIFT;
-            flags |= (((unsigned long)env->seg_cache[R_DS].base | 
-                       (unsigned long)env->seg_cache[R_ES].base |
-                       (unsigned long)env->seg_cache[R_SS].base) != 0) << 
+            flags = env->segs[R_CS].seg_32bit << GEN_FLAG_CODE32_SHIFT;
+            flags |= env->segs[R_SS].seg_32bit << GEN_FLAG_SS32_SHIFT;
+            flags |= (((unsigned long)env->segs[R_DS].base | 
+                       (unsigned long)env->segs[R_ES].base |
+                       (unsigned long)env->segs[R_SS].base) != 0) << 
                 GEN_FLAG_ADDSEG_SHIFT;
             if (!(env->eflags & VM_MASK)) {
-                flags |= (env->segs[R_CS] & 3) << GEN_FLAG_CPL_SHIFT;
+                flags |= (env->segs[R_CS].selector & 3) << GEN_FLAG_CPL_SHIFT;
             } else {
                 /* NOTE: a dummy CPL is kept */
                 flags |= (1 << GEN_FLAG_VM_SHIFT);
                 flags |= (3 << GEN_FLAG_CPL_SHIFT);
             }
             flags |= (env->eflags & (IOPL_MASK | TF_MASK));
-            cs_base = env->seg_cache[R_CS].base;
+            cs_base = env->segs[R_CS].base;
             pc = cs_base + env->eip;
 #elif defined(TARGET_ARM)
             flags = 0;
@@ -347,13 +347,13 @@ void cpu_x86_load_seg(CPUX86State *s, int seg_reg, int selector)
     if (env->eflags & VM_MASK) {
         SegmentCache *sc;
         selector &= 0xffff;
-        sc = &env->seg_cache[seg_reg];
+        sc = &env->segs[seg_reg];
         /* NOTE: in VM86 mode, limit and seg_32bit are never reloaded,
            so we must load them here */
         sc->base = (void *)(selector << 4);
         sc->limit = 0xffff;
         sc->seg_32bit = 0;
-        env->segs[seg_reg] = selector;
+        sc->selector = selector;
     } else {
         load_seg(seg_reg, selector, 0);
     }
@@ -426,7 +426,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
             return 0;
 #if defined(TARGET_I386)
         env->eip = found_pc - tb->cs_base;
-        env->cr2 = address;
+        env->cr[2] = address;
         /* we restore the process signal mask as the sigreturn should
            do it (XXX: use sigsetjmp) */
         sigprocmask(SIG_SETMASK, old_set, NULL);

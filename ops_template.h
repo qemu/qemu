@@ -828,7 +828,7 @@ void OPPROTO glue(glue(op_bsr, SUFFIX), _T0_cc)(void)
 
 #define STRING_SUFFIX _a32
 #define SI_ADDR (uint8_t *)A0 + ESI
-#define DI_ADDR env->seg_cache[R_ES].base + EDI
+#define DI_ADDR env->segs[R_ES].base + EDI
 #define INC_SI() ESI += inc
 #define INC_DI() EDI += inc
 #define CX ECX
@@ -837,7 +837,7 @@ void OPPROTO glue(glue(op_bsr, SUFFIX), _T0_cc)(void)
 
 #define STRING_SUFFIX _a16
 #define SI_ADDR (uint8_t *)A0 + (ESI & 0xffff)
-#define DI_ADDR env->seg_cache[R_ES].base + (EDI & 0xffff)
+#define DI_ADDR env->segs[R_ES].base + (EDI & 0xffff)
 #define INC_SI() ESI = (ESI & ~0xffff) | ((ESI + inc) & 0xffff)
 #define INC_DI() EDI = (EDI & ~0xffff) | ((EDI + inc) & 0xffff)
 #define CX (ECX & 0xffff)

@@ -176,7 +176,7 @@ void cpu_loop(CPUX86State *env)
                 info.si_code = TARGET_SEGV_MAPERR;
             else
                 info.si_code = TARGET_SEGV_ACCERR;
-            info._sifields._sigfault._addr = env->cr2;
+            info._sifields._sigfault._addr = env->cr[2];
             queue_signal(info.si_signo, &info);
             break;
         case EXCP00_DIVZ:
@@ -231,7 +231,7 @@ void cpu_loop(CPUX86State *env)
             /* just indicate that signals should be handled asap */
             break;
         default:
-            pc = env->seg_cache[R_CS].base + env->eip;
+            pc = env->segs[R_CS].base + env->eip;
             fprintf(stderr, "qemu: 0x%08lx: unhandled CPU exception 0x%x - aborting\n", 
                     (long)pc, trapnr);
             abort();
