@@ -1728,6 +1728,9 @@ int main(int argc, char **argv)
     macaddr[4] = 0x34;
     macaddr[5] = 0x56;
     
+    for(i = 0; i < MAX_NICS; i++) 
+        nd_table[i].fd = -1;
+    
     for(;;) {
         c = getopt_long_only(argc, argv, "hm:d:n:sp:L:", long_options, &long_index);
         if (c == -1)
@@ -1934,7 +1937,6 @@ int main(int argc, char **argv)
     /* init host network redirectors */
     for(i = 0; i < MAX_NICS; i++) {
         NetDriverState *nd = &nd_table[i];
-        nd->fd = -1;
         /* init virtual mac address */
         nd->macaddr[0] = macaddr[0];
         nd->macaddr[1] = macaddr[1];
