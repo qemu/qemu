@@ -2753,6 +2753,95 @@ static CPUWriteMemoryFunc *cirrus_mmio_write[3] = {
     cirrus_mmio_writel,
 };
 
+/* load/save state */
+
+static void cirrus_vga_save(QEMUFile *f, void *opaque)
+{
+    CirrusVGAState *s = opaque;
+
+    qemu_put_be32s(f, &s->latch);
+    qemu_put_8s(f, &s->sr_index);
+    qemu_put_buffer(f, s->sr, 256);
+    qemu_put_8s(f, &s->gr_index);
+    qemu_put_8s(f, &s->cirrus_shadow_gr0);
+    qemu_put_8s(f, &s->cirrus_shadow_gr1);
+    qemu_put_buffer(f, s->gr + 2, 254);
+    qemu_put_8s(f, &s->ar_index);
+    qemu_put_buffer(f, s->ar, 21);
+    qemu_put_be32s(f, &s->ar_flip_flop);
+    qemu_put_8s(f, &s->cr_index);
+    qemu_put_buffer(f, s->cr, 256);
+    qemu_put_8s(f, &s->msr);
+    qemu_put_8s(f, &s->fcr);
+    qemu_put_8s(f, &s->st00);
+    qemu_put_8s(f, &s->st01);
+
+    qemu_put_8s(f, &s->dac_state);
+    qemu_put_8s(f, &s->dac_sub_index);
+    qemu_put_8s(f, &s->dac_read_index);
+    qemu_put_8s(f, &s->dac_write_index);
+    qemu_put_buffer(f, s->dac_cache, 3);
+    qemu_put_buffer(f, s->palette, 768);
+
+    qemu_put_be32s(f, &s->bank_offset);
+
+    qemu_put_8s(f, &s->cirrus_hidden_dac_lockindex);
+    qemu_put_8s(f, &s->cirrus_hidden_dac_data);
+
+    qemu_put_be32s(f, &s->hw_cursor_x);
+    qemu_put_be32s(f, &s->hw_cursor_y);
+    /* XXX: we do not save the bitblt state - we assume we do not save
+       the state when the blitter is active */
+}
+
+static int cirrus_vga_load(QEMUFile *f, void *opaque, int version_id)
+{
+    CirrusVGAState *s = opaque;
+
+    if (version_id != 1)
+        return -EINVAL;
+
+    qemu_get_be32s(f, &s->latch);
+    qemu_get_8s(f, &s->sr_index);
+    qemu_get_buffer(f, s->sr, 256);
+    qemu_get_8s(f, &s->gr_index);
+    qemu_get_8s(f, &s->cirrus_shadow_gr0);
+    qemu_get_8s(f, &s->cirrus_shadow_gr1);
+    s->gr[0x00] = s->cirrus_shadow_gr0 & 0x0f;
+    s->gr[0x01] = s->cirrus_shadow_gr1 & 0x0f;
+    qemu_get_buffer(f, s->gr + 2, 254);
+    qemu_get_8s(f, &s->ar_index);
+    qemu_get_buffer(f, s->ar, 21);
+    qemu_get_be32s(f, &s->ar_flip_flop);
+    qemu_get_8s(f, &s->cr_index);
+    qemu_get_buffer(f, s->cr, 256);
+    qemu_get_8s(f, &s->msr);
+    qemu_get_8s(f, &s->fcr);
+    qemu_get_8s(f, &s->st00);
+    qemu_get_8s(f, &s->st01);
+
+    qemu_get_8s(f, &s->dac_state);
+    qemu_get_8s(f, &s->dac_sub_index);
+    qemu_get_8s(f, &s->dac_read_index);
+    qemu_get_8s(f, &s->dac_write_index);
+    qemu_get_buffer(f, s->dac_cache, 3);
+    qemu_get_buffer(f, s->palette, 768);
+
+    qemu_get_be32s(f, &s->bank_offset);
+
+    qemu_get_8s(f, &s->cirrus_hidden_dac_lockindex);
+    qemu_get_8s(f, &s->cirrus_hidden_dac_data);
+
+    qemu_get_be32s(f, &s->hw_cursor_x);
+    qemu_get_be32s(f, &s->hw_cursor_y);
+
+    /* force refresh */
+    s->graphic_mode = -1;
+    cirrus_update_bank_ptr(s, 0);
+    cirrus_update_bank_ptr(s, 1);
+    return 0;
+}
+
 /***************************************
  *
  *  initialize
@@ -2862,6 +2951,8 @@ static void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci)
     s->get_resolution = cirrus_get_resolution;
     s->cursor_invalidate = cirrus_cursor_invalidate;
     s->cursor_draw_line = cirrus_cursor_draw_line;
+
+    register_savevm("cirrus_vga", 0, 1, cirrus_vga_save, cirrus_vga_load, s);
 }
 
 /***************************************
