@@ -404,6 +404,8 @@ int cpu_gdbstub(void *opaque, int (*main_loop)(void *opaque), int port)
                 env = cpu_gdbstub_get_env(opaque);
 #if defined(TARGET_I386)
                 env->eip = addr;
+#elif defined (TARGET_PPC)
+                env->nip = addr;
 #endif
             }
             ret = main_loop(opaque);
@@ -420,6 +422,8 @@ int cpu_gdbstub(void *opaque, int (*main_loop)(void *opaque), int port)
                 addr = strtoul(p, (char **)&p, 16);
 #if defined(TARGET_I386)
                 env->eip = addr;
+#elif defined (TARGET_PPC)
+                env->nip = addr;
 #endif
             }
             cpu_single_step(env, 1);
