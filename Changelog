@@ -1,3 +1,11 @@
+version 0.5.4:
+  
+  - qemu-fast fixes
+  - BIOS area protection fix (aka EMM386.EXE fix) (Mike Nordell)
+  - keyboard/mouse fix (Mike Nordell)
+  - IDE fixes (Linux did not recognized slave drivers)
+  - VM86 EIP masking fix (aka NT5 install fix) (Mike Nordell)
+
 version 0.5.3:
 
   - added Bochs VESA VBE support
