@@ -932,19 +932,31 @@ void OPPROTO op_fcmpd(void)
     do_fcmpd();
 }
 
+#ifdef USE_INT_TO_FLOAT_HELPERS
+void OPPROTO op_fitos(void)
+{
+    do_fitos();
+}
+
+void OPPROTO op_fitod(void)
+{
+    do_fitod();
+}
+#else
 void OPPROTO op_fitos(void)
 {
     FT0 = (float) *((int32_t *)&FT1);
 }
 
-void OPPROTO op_fdtos(void)
-{
-    FT0 = (float) DT1;
-}
-
 void OPPROTO op_fitod(void)
 {
     DT0 = (double) *((int32_t *)&FT1);
+}
+#endif
+
+void OPPROTO op_fdtos(void)
+{
+    FT0 = (float) DT1;
 }
 
 void OPPROTO op_fstod(void)

@@ -25,6 +25,8 @@ void helper_st_asi(int asi, int size, int sign);
 void helper_rett(void);
 void helper_ldfsr(void);
 void set_cwp(int new_cwp);
+void do_fitos(void);
+void do_fitod(void);
 void do_fabss(void);
 void do_fsqrts(void);
 void do_fsqrtd(void);

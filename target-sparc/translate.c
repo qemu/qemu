@@ -291,7 +291,10 @@ GEN32(gen_op_store_DT2_fpr, gen_op_store_DT2_fpr_fprf);
 
 #if defined(CONFIG_USER_ONLY)
 #define gen_op_ldst(name)        gen_op_##name##_raw()
-#define OP_LD_TABLE(width)
+#define OP_LD_TABLE(width)						      \
+static void gen_op_##width##a(int insn, int is_ld, int size, int sign)        \
+{                                                                             \
+}
 #define supervisor(dc) 0
 #else
 #define gen_op_ldst(name)        (*gen_op_##name[dc->mem_idx])()

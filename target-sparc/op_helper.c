@@ -2,22 +2,34 @@
 #include <fenv.h>
 #include "exec.h"
 
-void OPPROTO do_fabss(void)
+#ifdef USE_INT_TO_FLOAT_HELPERS
+void do_fitos(void)
+{
+    FT0 = (float) *((int32_t *)&FT1);
+}
+
+void do_fitod(void)
+{
+    DT0 = (double) *((int32_t *)&FT1);
+}
+#endif
+
+void do_fabss(void)
 {
     FT0 = fabsf(FT1);
 }
 
-void OPPROTO do_fsqrts(void)
+void do_fsqrts(void)
 {
     FT0 = sqrtf(FT1);
 }
 
-void OPPROTO do_fsqrtd(void)
+void do_fsqrtd(void)
 {
     DT0 = sqrt(DT1);
 }
 
-void OPPROTO do_fcmps (void)
+void do_fcmps (void)
 {
     if (isnan(FT0) || isnan(FT1)) {
         T0 = FSR_FCC1 | FSR_FCC0;
@@ -31,7 +43,7 @@ void OPPROTO do_fcmps (void)
     env->fsr = T0;
 }
 
-void OPPROTO do_fcmpd (void)
+void do_fcmpd (void)
 {
     if (isnan(DT0) || isnan(DT1)) {
         T0 = FSR_FCC1 | FSR_FCC0;
@@ -45,7 +57,7 @@ void OPPROTO do_fcmpd (void)
     env->fsr = T0;
 }
 
-void OPPROTO helper_ld_asi(int asi, int size, int sign)
+void helper_ld_asi(int asi, int size, int sign)
 {
     switch(asi) {
     case 3: /* MMU probe */
@@ -76,7 +88,7 @@ void OPPROTO helper_ld_asi(int asi, int size, int sign)
     }
 }
 
-void OPPROTO helper_st_asi(int asi, int size, int sign)
+void helper_st_asi(int asi, int size, int sign)
 {
     switch(asi) {
     case 3: /* MMU flush */
@@ -125,7 +137,7 @@ void do_ldd_kernel(uint32_t addr)
 #endif
 #endif
 
-void OPPROTO helper_rett()
+void helper_rett()
 {
     int cwp;
     env->psret = 1;
