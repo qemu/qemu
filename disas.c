@@ -33,6 +33,8 @@ void disas(FILE *out, void *code, unsigned long size, enum disas_type type)
 	print_insn = print_insn_i386;
 #elif defined(__powerpc__)
 	print_insn = print_insn_ppc;
+#elif defined(__alpha__)
+	print_insn = print_insn_alpha;
 #else
 	fprintf(out, "Asm output not supported on this arch\n");
 	return;

@@ -30,10 +30,11 @@ LDFLAGS+=-Wl,-T,s390.ld
 endif
 
 ifeq ($(ARCH),alpha)
+# -msmall-data is not used because we want two-instruction relocations
+# for the constant constructions
+OP_CFLAGS=-Wall -O2 -g
 # Ensure there's only a single GP
 CFLAGS += -msmall-data -msmall-text
-# FIXME Too lazy to deal with gprelhigh/gprellow for now, inhibit them
-OP_CFLAGS=$(CFLAGS) -mno-explicit-relocs
 LDFLAGS+=-Wl,-T,alpha.ld
 endif
 
@@ -63,7 +64,7 @@ OBJS+= libqemu.a
 
 LIBOBJS+=thunk.o translate-i386.o op-i386.o exec-i386.o
 # NOTE: the disassembler code is only needed for debugging
-LIBOBJS+=disas.o ppc-dis.o i386-dis.o dis-buf.o
+LIBOBJS+=disas.o ppc-dis.o i386-dis.o alpha-dis.o dis-buf.o
 
 ifeq ($(ARCH),ia64)
 OBJS += ia64-syscall.o
@@ -73,6 +74,11 @@ all: qemu qemu-doc.html
 
 qemu: $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^  $(LIBS)
+ifeq ($(ARCH),alpha)
+# Mark as 32 bit binary, i. e. it will be mapped into the low 31 bit of
+# the address space (31 bit so sign extending doesn't matter)
+	echo -ne '\001\000\000\000' | dd of=qemu bs=1 seek=48 count=4 conv=notrunc
+endif
 
 depend: $(SRCS)
 	$(CC) -MM $(CFLAGS) $^ 1>.depend
