@@ -89,11 +89,27 @@ register unsigned int A0 asm("s2");
 register struct CPUX86State *env asm("s3");
 #endif
 #ifdef __sparc__
-register unsigned int T0 asm("l0");
-register unsigned int T1 asm("l1");
-register unsigned int A0 asm("l2");
-register struct CPUX86State *env asm("l3");
+register unsigned int EAX asm("l0");
+register unsigned int ECX asm("l1");
+register unsigned int EDX asm("l2");
+register unsigned int EBX asm("l3");
+register unsigned int ESP asm("l4");
+register unsigned int EBP asm("l5");
+register unsigned int ESI asm("l6");
+register unsigned int EDI asm("l7");
+register unsigned int T0 asm("g1");
+register unsigned int T1 asm("g2");
+register unsigned int A0 asm("g3");
+register struct CPUX86State *env asm("g6");
 #define USE_FP_CONVERT
+#define reg_EAX
+#define reg_ECX
+#define reg_EDX
+#define reg_EBX
+#define reg_ESP
+#define reg_EBP
+#define reg_ESI
+#define reg_EDI
 #endif
 #ifdef __s390__
 register unsigned int T0 asm("r7");

@@ -29,6 +29,18 @@ OP_CFLAGS=$(CFLAGS)
 LDFLAGS+=-Wl,-T,s390.ld
 endif
 
+ifeq ($(ARCH),sparc)
+CFLAGS+=-m32 -ffixed-g1 -ffixed-g2 -ffixed-g3 -ffixed-g6
+LDFLAGS+=-m32
+OP_CFLAGS=$(CFLAGS) -fno-delayed-branch -ffixed-i0
+endif
+
+ifeq ($(ARCH),sparc64)
+CFLAGS+=-m64 -ffixed-g1 -ffixed-g2 -ffixed-g3 -ffixed-g6
+LDFLAGS+=-m64
+OP_CFLAGS=$(CFLAGS) -fno-delayed-branch -ffixed-i0
+endif
+
 ifeq ($(ARCH),alpha)
 # -msmall-data is not used because we want two-instruction relocations
 # for the constant constructions

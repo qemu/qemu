@@ -274,14 +274,20 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 {
     int copy_size = 0;
     uint8_t *p_start, *p_end;
+    host_ulong start_offset;
     int nb_args, i, n;
     uint8_t args_present[MAX_ARGS];
     const char *sym_name, *p;
     ELF_RELOC *rel;
 
-    /* compute exact size excluding return instruction */
+    /* Compute exact size excluding prologue and epilogue instructions.
+     * Increment start_offset to skip epilogue instructions, then compute
+     * copy_size the indicate the size of the remaining instructions (in
+     * bytes).
+     */
     p_start = text + offset;
     p_end = p_start + size;
+    start_offset = offset;
     switch(ELF_ARCH) {
     case EM_386:
         {
@@ -343,41 +349,63 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
     case EM_SPARC:
     case EM_SPARC32PLUS:
 	{
+	    uint32_t start_insn, end_insn1, end_insn2, skip_insn;
             uint8_t *p;
             p = (void *)(p_end - 8);
             if (p <= p_start)
                 error("empty code for %s", name);
-	    if (get32((uint32_t *)(p_start + 0x0)) != 0x9de3bf98)
-                error("save %%sp,-104,%%sp expected at the start of %s "
-		      "found [%08x]",
-		      name, get32((uint32_t *)(p_start + 0x0)));
-            if (get32((uint32_t *)(p + 0x0)) != 0x81c7e008 ||
-		get32((uint32_t *)(p + 0x4)) != 0x81e80000)
-                error("ret; restore; expected at the end of %s found [%08x:%08x]",
-		      name,
-		      get32((uint32_t *)(p + 0x0)),
-		      get32((uint32_t *)(p + 0x4)));
+	    start_insn = get32((uint32_t *)(p_start + 0x0));
+	    end_insn1 = get32((uint32_t *)(p + 0x0));
+	    end_insn2 = get32((uint32_t *)(p + 0x4));
+	    if ((start_insn & ~0x1fff) == 0x9de3a000) {
+		p_start += 0x4;
+		start_offset += 0x4;
+		if ((int)(start_insn | ~0x1fff) < -128)
+		    error("Found bogus save at the start of %s", name);
+		if (end_insn1 != 0x81c7e008 || end_insn2 != 0x81e80000)
+		    error("ret; restore; not found at end of %s", name);
+	    } else {
+		error("No save at the beginning of %s", name);
+	    }
+
+	    /* Skip a preceeding nop, if present.  */
+	    if (p > p_start) {
+		skip_insn = get32((uint32_t *)(p - 0x4));
+		if (skip_insn == 0x01000000)
+		    p -= 4;
+	    }
 
             copy_size = p - p_start;
 	}
 	break;
     case EM_SPARCV9:
 	{
+	    uint32_t start_insn, end_insn1, end_insn2, skip_insn;
             uint8_t *p;
             p = (void *)(p_end - 8);
             if (p <= p_start)
                 error("empty code for %s", name);
-	    if (get32((uint32_t *)(p_start + 0x0)) != 0x9de3bf40)
-                error("save %%sp,-192,%%sp expected at the start of %s "
-		      "found [%08x]",
-		      name, get32((uint32_t *)(p_start + 0x0)));
-            if (get32((uint32_t *)(p + 0x0)) != 0x81cfe008 ||
-		get32((uint32_t *)(p + 0x4)) != 0x01000000)
-                error("rett %%i7+8; nop; expected at the end of %s "
-		      "found [%08x:%08x]",
-		      name,
-		      get32((uint32_t *)(p + 0x0)),
-		      get32((uint32_t *)(p + 0x4)));
+	    start_insn = get32((uint32_t *)(p_start + 0x0));
+	    end_insn1 = get32((uint32_t *)(p + 0x0));
+	    end_insn2 = get32((uint32_t *)(p + 0x4));
+	    if ((start_insn & ~0x1fff) == 0x9de3a000) {
+		p_start += 0x4;
+		start_offset += 0x4;
+		if ((int)(start_insn | ~0x1fff) < -256)
+		    error("Found bogus save at the start of %s", name);
+		if (end_insn1 != 0x81c7e008 || end_insn2 != 0x81e80000)
+		    error("ret; restore; not found at end of %s", name);
+	    } else {
+		error("No save at the beginning of %s", name);
+	    }
+
+	    /* Skip a preceeding nop, if present.  */
+	    if (p > p_start) {
+		skip_insn = get32((uint32_t *)(p - 0x4));
+		if (skip_insn == 0x01000000)
+		    p -= 4;
+	    }
+
             copy_size = p - p_start;
 	}
 	break;
@@ -390,7 +418,8 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
         args_present[i] = 0;
 
     for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
-        if (rel->r_offset >= offset && rel->r_offset < offset + copy_size) {
+        if (rel->r_offset >= start_offset &&
+	    rel->r_offset < start_offset + copy_size) {
             sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
             if (strstart(sym_name, "__op_param", &p)) {
                 n = strtoul(p, NULL, 10);
@@ -427,7 +456,8 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
         fprintf(outfile, "    extern void %s();\n", name);
 
         for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
-            if (rel->r_offset >= offset && rel->r_offset < offset + copy_size) {
+            if (rel->r_offset >= start_offset &&
+		rel->r_offset < start_offset + copy_size) {
                 sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
                 if (*sym_name && !strstart(sym_name, "__op_param", &p)) {
 #if defined(HOST_SPARC)
@@ -443,7 +473,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
             }
         }
 
-        fprintf(outfile, "    memcpy(gen_code_ptr, &%s, %d);\n", name, copy_size);
+        fprintf(outfile, "    memcpy(gen_code_ptr, (void *)((char *)&%s+%d), %d);\n", name, start_offset - offset, copy_size);
         for(i = 0; i < nb_args; i++) {
             fprintf(outfile, "    param%d = *opparam_ptr++;\n", i + 1);
         }
@@ -455,7 +485,8 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                 int type;
                 int addend;
                 for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
-                if (rel->r_offset >= offset && rel->r_offset < offset + copy_size) {
+                if (rel->r_offset >= start_offset &&
+		    rel->r_offset < start_offset + copy_size) {
                     sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
                     if (strstart(sym_name, "__op_param", &p)) {
                         snprintf(name, sizeof(name), "param%s", p);
@@ -467,11 +498,11 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                     switch(type) {
                     case R_386_32:
                         fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s + %d;\n", 
-                                rel->r_offset - offset, name, addend);
+                                rel->r_offset - start_offset, name, addend);
                         break;
                     case R_386_PC32:
                         fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s - (long)(gen_code_ptr + %d) + %d;\n", 
-                                rel->r_offset - offset, name, rel->r_offset - offset, addend);
+                                rel->r_offset - start_offset, name, rel->r_offset - start_offset, addend);
                         break;
                     default:
                         error("unsupported i386 relocation (%d)", type);
@@ -485,7 +516,8 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                 int type;
                 int addend;
                 for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
-                    if (rel->r_offset >= offset && rel->r_offset < offset + copy_size) {
+                    if (rel->r_offset >= start_offset &&
+			rel->r_offset < start_offset + copy_size) {
                         sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
                         if (strstart(sym_name, "__op_param", &p)) {
                             snprintf(name, sizeof(name), "param%s", p);
@@ -497,24 +529,24 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                         switch(type) {
                         case R_PPC_ADDR32:
                             fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s + %d;\n", 
-                                    rel->r_offset - offset, name, addend);
+                                    rel->r_offset - start_offset, name, addend);
                             break;
                         case R_PPC_ADDR16_LO:
                             fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d) = (%s + %d);\n", 
-                                    rel->r_offset - offset, name, addend);
+                                    rel->r_offset - start_offset, name, addend);
                             break;
                         case R_PPC_ADDR16_HI:
                             fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d) = (%s + %d) >> 16;\n", 
-                                    rel->r_offset - offset, name, addend);
+                                    rel->r_offset - start_offset, name, addend);
                             break;
                         case R_PPC_ADDR16_HA:
                             fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d) = (%s + %d + 0x8000) >> 16;\n", 
-                                    rel->r_offset - offset, name, addend);
+                                    rel->r_offset - start_offset, name, addend);
                             break;
                         case R_PPC_REL24:
                             /* warning: must be at 32 MB distancy */
                             fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = (*(uint32_t *)(gen_code_ptr + %d) & ~0x03fffffc) | ((%s - (long)(gen_code_ptr + %d) + %d) & 0x03fffffc);\n", 
-                                    rel->r_offset - offset, rel->r_offset - offset, name, rel->r_offset - offset, addend);
+                                    rel->r_offset - start_offset, rel->r_offset - start_offset, name, rel->r_offset - start_offset, addend);
                             break;
                         default:
                             error("unsupported powerpc relocation (%d)", type);
@@ -528,7 +560,8 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                 int type;
                 int addend;
                 for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
-                    if (rel->r_offset >= offset && rel->r_offset < offset + copy_size) {
+                    if (rel->r_offset >= start_offset &&
+			rel->r_offset < start_offset + copy_size) {
                         sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
                         if (strstart(sym_name, "__op_param", &p)) {
                             snprintf(name, sizeof(name), "param%s", p);
@@ -540,15 +573,15 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                         switch(type) {
                         case R_390_32:
                             fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s + %d;\n", 
-                                    rel->r_offset - offset, name, addend);
+                                    rel->r_offset - start_offset, name, addend);
                             break;
                         case R_390_16:
                             fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d) = %s + %d;\n", 
-                                    rel->r_offset - offset, name, addend);
+                                    rel->r_offset - start_offset, name, addend);
                             break;
                         case R_390_8:
                             fprintf(outfile, "    *(uint8_t *)(gen_code_ptr + %d) = %s + %d;\n", 
-                                    rel->r_offset - offset, name, addend);
+                                    rel->r_offset - start_offset, name, addend);
                             break;
                         default:
                             error("unsupported s390 relocation (%d)", type);
@@ -559,7 +592,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 #elif defined(HOST_ALPHA)
             {
                 for (i = 0, rel = relocs; i < nb_relocs; i++, rel++) {
-		    if (rel->r_offset >= offset && rel->r_offset < offset + copy_size) {
+		    if (rel->r_offset >= start_offset && rel->r_offset < start_offset + copy_size) {
 			int type;
 
 			type = ELF64_R_TYPE(rel->r_info);
@@ -569,9 +602,9 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 			    /* The gp is just 32 bit, and never changes, so it's easiest to emit it
 			       as an immediate instead of constructing it from the pv or ra.  */
 			    fprintf(outfile, "    immediate_ldah(gen_code_ptr + %ld, gp);\n",
-				    rel->r_offset - offset);
+				    rel->r_offset - start_offset);
 			    fprintf(outfile, "    immediate_lda(gen_code_ptr + %ld, gp);\n",
-				    rel->r_offset - offset + rel->r_addend);
+				    rel->r_offset - start_offset + rel->r_addend);
 			    break;
 			case R_ALPHA_LITUSE:
 			    /* jsr to literal hint. Could be used to optimize to bsr. Ignore for
@@ -591,18 +624,18 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 			       special treatment.  */
 			    if (strstart(sym_name, "__op_param", &p))
 				fprintf(outfile, "    immediate_ldah(gen_code_ptr + %ld, param%s);\n",
-					rel->r_offset - offset, p);
+					rel->r_offset - start_offset, p);
 			    break;
 			case R_ALPHA_GPRELLOW:
 			    if (strstart(sym_name, "__op_param", &p))
 				fprintf(outfile, "    immediate_lda(gen_code_ptr + %ld, param%s);\n",
-					rel->r_offset - offset, p);
+					rel->r_offset - start_offset, p);
 			    break;
 			case R_ALPHA_BRSGP:
 			    /* PC-relative jump. Tweak offset to skip the two instructions that try to
 			       set up the gp from the pv.  */
 			    fprintf(outfile, "    fix_bsr(gen_code_ptr + %ld, (uint8_t *) &%s - (gen_code_ptr + %ld) + 4);\n",
-				    rel->r_offset - offset, sym_name, rel->r_offset - offset);
+				    rel->r_offset - start_offset, sym_name, rel->r_offset - start_offset);
 			    break;
 			default:
 			    error("unsupported Alpha relocation (%d)", type);
@@ -616,7 +649,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                 int type;
                 int addend;
                 for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
-                    if (rel->r_offset >= offset && rel->r_offset < offset + copy_size) {
+                    if (rel->r_offset >= start_offset && rel->r_offset < start_offset + copy_size) {
                         sym_name = strtab + symtab[ELF64_R_SYM(rel->r_info)].st_name;
                         if (strstart(sym_name, "__op_param", &p)) {
                             snprintf(name, sizeof(name), "param%s", p);
@@ -642,7 +675,8 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                 int type;
                 int addend;
                 for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
-                    if (rel->r_offset >= offset && rel->r_offset < offset + copy_size) {
+                    if (rel->r_offset >= start_offset &&
+			rel->r_offset < start_offset + copy_size) {
                         sym_name = strtab + symtab[ELF32_R_SYM(rel->r_info)].st_name;
                         if (strstart(sym_name, "__op_param", &p)) {
                             snprintf(name, sizeof(name), "param%s", p);
@@ -660,16 +694,16 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                         switch(type) {
                         case R_SPARC_32:
                             fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s + %d;\n", 
-                                    rel->r_offset - offset, name, addend);
+                                    rel->r_offset - start_offset, name, addend);
 			    break;
 			case R_SPARC_HI22:
                             fprintf(outfile,
 				    "    *(uint32_t *)(gen_code_ptr + %d) = "
 				    "((*(uint32_t *)(gen_code_ptr + %d)) "
 				    " & ~0x3fffff) "
-				    " | ((%s + %d) & 0x3fffff);\n",
-                                    rel->r_offset - offset,
-				    rel->r_offset - offset,
+				    " | (((%s + %d) >> 10) & 0x3fffff);\n",
+                                    rel->r_offset - start_offset,
+				    rel->r_offset - start_offset,
 				    name, addend);
 			    break;
 			case R_SPARC_LO10:
@@ -678,8 +712,8 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 				    "((*(uint32_t *)(gen_code_ptr + %d)) "
 				    " & ~0x3ff) "
 				    " | ((%s + %d) & 0x3ff);\n",
-                                    rel->r_offset - offset,
-				    rel->r_offset - offset,
+                                    rel->r_offset - start_offset,
+				    rel->r_offset - start_offset,
 				    name, addend);
 			    break;
 			case R_SPARC_WDISP30:
@@ -687,11 +721,12 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 				    "    *(uint32_t *)(gen_code_ptr + %d) = "
 				    "((*(uint32_t *)(gen_code_ptr + %d)) "
 				    " & ~0x3fffffff) "
-				    " | ((((%s + %d) - (long)gen_code_ptr)>>2) "
+				    " | ((((%s + %d) - (long)(gen_code_ptr + %d))>>2) "
 				    "    & 0x3fffffff);\n",
-				    rel->r_offset - offset,
-				    rel->r_offset - offset,
-				    name, addend);
+				    rel->r_offset - start_offset,
+				    rel->r_offset - start_offset,
+				    name, addend,
+				    rel->r_offset - start_offset);
 			    break;
                         default:
                             error("unsupported sparc relocation (%d)", type);
@@ -705,7 +740,8 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                 int type;
                 int addend;
                 for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
-                    if (rel->r_offset >= offset && rel->r_offset < offset + copy_size) {
+                    if (rel->r_offset >= start_offset &&
+			rel->r_offset < start_offset + copy_size) {
                         sym_name = strtab + symtab[ELF64_R_SYM(rel->r_info)].st_name;
                         if (strstart(sym_name, "__op_param", &p)) {
                             snprintf(name, sizeof(name), "param%s", p);
@@ -717,16 +753,16 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                         switch(type) {
                         case R_SPARC_32:
                             fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s + %d;\n",
-                                    rel->r_offset - offset, name, addend);
+                                    rel->r_offset - start_offset, name, addend);
 			    break;
 			case R_SPARC_HI22:
                             fprintf(outfile,
 				    "    *(uint32_t *)(gen_code_ptr + %d) = "
 				    "((*(uint32_t *)(gen_code_ptr + %d)) "
 				    " & ~0x3fffff) "
-				    " | ((%s + %d) & 0x3fffff);\n",
-                                    rel->r_offset - offset,
-				    rel->r_offset - offset,
+				    " | (((%s + %d) >> 10) & 0x3fffff);\n",
+                                    rel->r_offset - start_offset,
+				    rel->r_offset - start_offset,
 				    name, addend);
 			    break;
 			case R_SPARC_LO10:
@@ -735,8 +771,8 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 				    "((*(uint32_t *)(gen_code_ptr + %d)) "
 				    " & ~0x3ff) "
 				    " | ((%s + %d) & 0x3ff);\n",
-                                    rel->r_offset - offset,
-				    rel->r_offset - offset,
+                                    rel->r_offset - start_offset,
+				    rel->r_offset - start_offset,
 				    name, addend);
 			    break;
 			case R_SPARC_WDISP30:
@@ -744,11 +780,12 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 				    "    *(uint32_t *)(gen_code_ptr + %d) = "
 				    "((*(uint32_t *)(gen_code_ptr + %d)) "
 				    " & ~0x3fffffff) "
-				    " | ((((%s + %d) - (long)gen_code_ptr)>>2) "
+				    " | ((((%s + %d) - (long)(gen_code_ptr + %d))>>2) "
 				    "    & 0x3fffffff);\n",
-				    rel->r_offset - offset,
-				    rel->r_offset - offset,
-				    name, addend);
+				    rel->r_offset - start_offset,
+				    rel->r_offset - start_offset,
+				    name, addend,
+				    rel->r_offset - start_offset);
 			    break;
                         default:
 			    error("unsupported sparc64 relocation (%d)", type);
@@ -933,7 +970,22 @@ fprintf(outfile,
 "    const uint32_t *opparam_ptr;\n"
 "    gen_code_ptr = gen_code_buf;\n"
 "    opc_ptr = opc_buf;\n"
-"    opparam_ptr = opparam_buf;\n"
+"    opparam_ptr = opparam_buf;\n");
+
+	/* Generate prologue, if needed. */ 
+	switch(ELF_ARCH) {
+	case EM_SPARC:
+		fprintf(outfile, "*((uint32_t *)gen_code_ptr)++ = 0x9c23a080; /* sub %%sp, 128, %%sp */\n");
+		fprintf(outfile, "*((uint32_t *)gen_code_ptr)++ = 0xbc27a080; /* sub %%fp, 128, %%fp */\n");
+		break;
+
+	case EM_SPARCV9:
+		fprintf(outfile, "*((uint32_t *)gen_code_ptr)++ = 0x9c23a100; /* sub %%sp, 256, %%sp */\n");
+		fprintf(outfile, "*((uint32_t *)gen_code_ptr)++ = 0xbc27a100; /* sub %%fp, 256, %%fp */\n");
+		break;
+	};
+
+fprintf(outfile,
 "    for(;;) {\n"
 "        switch(*opc_ptr++) {\n"
 );
@@ -961,7 +1013,7 @@ fprintf(outfile,
 " the_end:\n"
 );
 
-/* generate a return */ 
+/* generate epilogue */ 
     switch(ELF_ARCH) {
     case EM_386:
         fprintf(outfile, "*gen_code_ptr++ = 0xc3; /* ret */\n");
@@ -980,11 +1032,13 @@ fprintf(outfile,
         break;
     case EM_SPARC:
     case EM_SPARC32PLUS:
+	fprintf(outfile, "*((uint32_t *)gen_code_ptr)++ = 0xbc07a080; /* add %%fp, 256, %%fp */\n");
+	fprintf(outfile, "*((uint32_t *)gen_code_ptr)++ = 0x81c62008; /* jmpl %%i0 + 8, %%g0 */\n");
+	fprintf(outfile, "*((uint32_t *)gen_code_ptr)++ = 0x9c03a080; /* add %%sp, 256, %%sp */\n");
+        break;
     case EM_SPARCV9:
-	/* Fill the delay slot. */
-	fprintf(outfile, "*((uint32_t *)gen_code_ptr) = *((uint32_t *)gen_code_ptr - 1); /* delay slot */\n");
-	fprintf(outfile, "*((uint32_t *)gen_code_ptr - 1) = 0x81c3e008; /* retl */\n");
-	fprintf(outfile, "gen_code_ptr++;\n");
+	fprintf(outfile, "*((uint32_t *)gen_code_ptr)++ = 0x81c7e008; /* ret */\n");
+	fprintf(outfile, "*((uint32_t *)gen_code_ptr)++ = 0x81e80000; /* restore */\n");
         break;
     default:
 	error("unknown ELF architecture");

@@ -47,6 +47,12 @@ case "$cpu" in
   s390)
     cpu="s390"
   ;;
+  sparc)
+    cpu="sparc"
+  ;;
+  sparc64)
+    cpu="sparc64"
+  ;;
   ia64)
     cpu="ia64"
   ;;
@@ -131,7 +137,7 @@ fi
 else
 
 # if cross compiling, cannot launch a program, so make a static guess
-if test "$cpu" = "powerpc" -o "$cpu" = "mips" -o "$cpu" = "s390" ; then
+if test "$cpu" = "powerpc" -o "$cpu" = "mips" -o "$cpu" = "s390" -o "$cpu" = "sparc" -o "$cpu" = "sparc64"; then
     bigendian="yes"
 fi
 
@@ -217,6 +223,12 @@ elif test "$cpu" = "s390" ; then
 elif test "$cpu" = "alpha" ; then
   echo "ARCH=alpha" >> config.mak
   echo "#define HOST_ALPHA 1" >> $TMPH
+elif test "$cpu" = "sparc" ; then
+  echo "ARCH=sparc" >> config.mak
+  echo "#define HOST_SPARC 1" >> $TMPH
+elif test "$cpu" = "sparc64" ; then
+  echo "ARCH=sparc64" >> config.mak
+  echo "#define HOST_SPARC64 1" >> $TMPH
 elif test "$cpu" = "ia64" ; then
   echo "ARCH=ia64" >> config.mak
   echo "#define HOST_IA64 1" >> $TMPH

@@ -153,6 +153,13 @@ void raise_exception_err(int exception_index, int error_code)
 {
     /* NOTE: the register at this point must be saved by hand because
        longjmp restore them */
+#ifdef __sparc__
+	/* We have to stay in the same register window as our caller,
+	 * thus this trick.
+	 */
+	__asm__ __volatile__("restore\n\t"
+			     "mov\t%o0, %i0");
+#endif
 #ifdef reg_EAX
     env->regs[R_EAX] = EAX;
 #endif
@@ -409,7 +416,15 @@ int cpu_x86_exec(CPUX86State *env1)
             /* execute the generated code */
             tc_ptr = tb->tc_ptr;
             gen_func = (void *)tc_ptr;
+#ifdef __sparc__
+	    __asm__ __volatile__("call	%0\n\t"
+				 " mov	%%o7,%%i0"
+				 : /* no outputs */
+				 : "r" (gen_func)
+				 : "i0", "i1", "i2", "i3", "i4", "i5");
+#else
             gen_func();
+#endif
         }
     }
     ret = env->exception_index;
