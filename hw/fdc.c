@@ -309,7 +309,7 @@ static void fd_reset (fdrive_t *drv)
 }
 
 /********************************************************/
-/* Intel 82078 floppy disk controler emulation          */
+/* Intel 82078 floppy disk controller emulation          */
 
 static void fdctrl_reset (fdctrl_t *fdctrl, int do_irq);
 static void fdctrl_reset_fifo (fdctrl_t *fdctrl);
@@ -363,13 +363,13 @@ do { (state) = ((state) & ~FD_STATE_STATE) | (new_state); } while (0)
 
 struct fdctrl_t {
     fdctrl_t *fdctrl;
-    /* Controler's identification */
+    /* Controller's identification */
     uint8_t version;
     /* HW */
     int irq_lvl;
     int dma_chann;
     uint32_t io_base;
-    /* Controler state */
+    /* Controller state */
     QEMUTimer *result_timer;
     uint8_t state;
     uint8_t dma_en;
@@ -475,14 +475,14 @@ fdctrl_t *fdctrl_init (int irq_lvl, int dma_chann, int mem_mapped,
 //    int io_mem;
     int i;
 
-    FLOPPY_DPRINTF("init controler\n");
+    FLOPPY_DPRINTF("init controller\n");
     fdctrl = qemu_mallocz(sizeof(fdctrl_t));
     if (!fdctrl)
         return NULL;
     fdctrl->result_timer = qemu_new_timer(vm_clock, 
                                           fdctrl_result_timer, fdctrl);
 
-    fdctrl->version = 0x90; /* Intel 82078 controler */
+    fdctrl->version = 0x90; /* Intel 82078 controller */
     fdctrl->irq_lvl = irq_lvl;
     fdctrl->dma_chann = dma_chann;
     fdctrl->io_base = io_base;
@@ -545,14 +545,14 @@ static void fdctrl_raise_irq (fdctrl_t *fdctrl, uint8_t status)
     fdctrl->int_status = status;
 }
 
-/* Reset controler */
+/* Reset controller */
 static void fdctrl_reset (fdctrl_t *fdctrl, int do_irq)
 {
     int i;
 
-    FLOPPY_DPRINTF("reset controler\n");
+    FLOPPY_DPRINTF("reset controller\n");
     fdctrl_reset_irq(fdctrl);
-    /* Initialise controler */
+    /* Initialise controller */
     fdctrl->cur_drv = 0;
     /* FIFO state */
     fdctrl->data_pos = 0;
@@ -614,7 +614,7 @@ static void fdctrl_write_dor (fdctrl_t *fdctrl, uint32_t value)
     /* Reset mode */
     if (fdctrl->state & FD_CTRL_RESET) {
         if (!(value & 0x04)) {
-            FLOPPY_DPRINTF("Floppy controler in RESET state !\n");
+            FLOPPY_DPRINTF("Floppy controller in RESET state !\n");
             return;
         }
     }
@@ -636,12 +636,12 @@ static void fdctrl_write_dor (fdctrl_t *fdctrl, uint32_t value)
     /* Reset */
     if (!(value & 0x04)) {
         if (!(fdctrl->state & FD_CTRL_RESET)) {
-            FLOPPY_DPRINTF("controler enter RESET state\n");
+            FLOPPY_DPRINTF("controller enter RESET state\n");
             fdctrl->state |= FD_CTRL_RESET;
         }
     } else {
         if (fdctrl->state & FD_CTRL_RESET) {
-            FLOPPY_DPRINTF("controler out of RESET state\n");
+            FLOPPY_DPRINTF("controller out of RESET state\n");
             fdctrl_reset(fdctrl, 1);
             fdctrl->state &= ~(FD_CTRL_RESET | FD_CTRL_SLEEP);
         }
@@ -667,7 +667,7 @@ static void fdctrl_write_tape (fdctrl_t *fdctrl, uint32_t value)
 {
     /* Reset mode */
     if (fdctrl->state & FD_CTRL_RESET) {
-        FLOPPY_DPRINTF("Floppy controler in RESET state !\n");
+        FLOPPY_DPRINTF("Floppy controller in RESET state !\n");
         return;
     }
     FLOPPY_DPRINTF("tape drive register set to 0x%02x\n", value);
@@ -704,7 +704,7 @@ static void fdctrl_write_rate (fdctrl_t *fdctrl, uint32_t value)
 {
     /* Reset mode */
     if (fdctrl->state & FD_CTRL_RESET) {
-            FLOPPY_DPRINTF("Floppy controler in RESET state !\n");
+            FLOPPY_DPRINTF("Floppy controller in RESET state !\n");
             return;
         }
     FLOPPY_DPRINTF("select rate register set to 0x%02x\n", value);
@@ -811,7 +811,7 @@ static void fdctrl_start_transfer (fdctrl_t *fdctrl, int direction)
     kt = fdctrl->fifo[2];
     kh = fdctrl->fifo[3];
     ks = fdctrl->fifo[4];
-    FLOPPY_DPRINTF("Start tranfer at %d %d %02x %02x (%d)\n",
+    FLOPPY_DPRINTF("Start transfer at %d %d %02x %02x (%d)\n",
                    fdctrl->cur_drv, kh, kt, ks,
                    _fd_sector(kh, kt, ks, cur_drv->last_sect));
     did_seek = 0;
@@ -881,7 +881,7 @@ static void fdctrl_start_transfer (fdctrl_t *fdctrl, int direction)
             (direction == FD_DIR_READ && dma_mode == 1)) {
             /* No access is allowed until DMA transfer has completed */
             fdctrl->state |= FD_CTRL_BUSY;
-            /* Now, we just have to wait for the DMA controler to
+            /* Now, we just have to wait for the DMA controller to
              * recall us...
              */
             DMA_hold_DREQ(fdctrl->dma_chann);
@@ -1159,7 +1159,7 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
     cur_drv = get_cur_drv(fdctrl);
     /* Reset mode */
     if (fdctrl->state & FD_CTRL_RESET) {
-        FLOPPY_DPRINTF("Floppy controler in RESET state !\n");
+        FLOPPY_DPRINTF("Floppy controller in RESET state !\n");
         return;
     }
     fdctrl->state &= ~FD_CTRL_SLEEP;
@@ -1300,7 +1300,7 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
             /* VERSION */
             FLOPPY_DPRINTF("VERSION command\n");
             /* No parameters cmd */
-            /* Controler's version */
+            /* Controller's version */
             fdctrl->fifo[0] = fdctrl->version;
             fdctrl_set_fifo(fdctrl, 1, 1);
             return;
