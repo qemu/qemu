@@ -841,6 +841,7 @@ static void load_symbols(struct elfhdr *hdr, int fd)
     unsigned int i;
     struct elf_shdr sechdr, symtab, strtab;
     char *strings;
+    struct syminfo *s;
 
     lseek(fd, hdr->e_shoff, SEEK_SET);
     for (i = 0; i < hdr->e_shnum; i++) {
@@ -866,24 +867,27 @@ static void load_symbols(struct elfhdr *hdr, int fd)
 
  found:
     /* Now know where the strtab and symtab are.  Snarf them. */
-    disas_symtab = malloc(symtab.sh_size);
-    disas_strtab = strings = malloc(strtab.sh_size);
-    if (!disas_symtab || !disas_strtab)
+    s = malloc(sizeof(*s));
+    s->disas_symtab = malloc(symtab.sh_size);
+    s->disas_strtab = strings = malloc(strtab.sh_size);
+    if (!s->disas_symtab || !s->disas_strtab)
 	return;
 	
     lseek(fd, symtab.sh_offset, SEEK_SET);
-    if (read(fd, disas_symtab, symtab.sh_size) != symtab.sh_size)
+    if (read(fd, s->disas_symtab, symtab.sh_size) != symtab.sh_size)
 	return;
 
 #ifdef BSWAP_NEEDED
     for (i = 0; i < symtab.sh_size / sizeof(struct elf_sym); i++)
-	bswap_sym(disas_symtab + sizeof(struct elf_sym)*i);
+	bswap_sym(s->disas_symtab + sizeof(struct elf_sym)*i);
 #endif
 
     lseek(fd, strtab.sh_offset, SEEK_SET);
     if (read(fd, strings, strtab.sh_size) != strtab.sh_size)
 	return;
-    disas_num_syms = symtab.sh_size / sizeof(struct elf_sym);
+    s->disas_num_syms = symtab.sh_size / sizeof(struct elf_sym);
+    s->next = syminfos;
+    syminfos = s;
 }
 
 static int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,

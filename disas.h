@@ -9,7 +9,11 @@ void monitor_disas(target_ulong pc, int nb_insn, int is_physical, int flags);
 const char *lookup_symbol(void *orig_addr);
 
 /* Filled in by elfload.c.  Simplistic, but will do for now. */
-extern unsigned int disas_num_syms;
-extern void *disas_symtab;  /* FIXME: includes are a mess --RR */
-extern const char *disas_strtab;
+extern struct syminfo {
+    unsigned int disas_num_syms;
+    void *disas_symtab;
+    const char *disas_strtab;
+    struct syminfo *next;
+} *syminfos;
+
 #endif /* _QEMU_DISAS_H */

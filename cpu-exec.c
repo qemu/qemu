@@ -261,7 +261,7 @@ int cpu_exec(CPUState *env1)
                     }
 #elif defined(TARGET_SPARC)
                     if (interrupt_request & CPU_INTERRUPT_HARD) {
-			do_interrupt(0, 0, 0, 0, 0);
+			do_interrupt(env->interrupt_index, 0, 0, 0, 0);
                         env->interrupt_request &= ~CPU_INTERRUPT_HARD;
 		    } else if (interrupt_request & CPU_INTERRUPT_TIMER) {
 			//do_interrupt(0, 0, 0, 0, 0);

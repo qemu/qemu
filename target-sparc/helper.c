@@ -19,7 +19,8 @@
  */
 #include "exec.h"
 
-#define DEBUG_PCALL
+//#define DEBUG_PCALL
+//#define DEBUG_MMU
 
 /* Sparc MMU emulation */
 int cpu_sparc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
@@ -108,80 +109,71 @@ static const int rw_table[2][8] = {
     { 0, 1, 0, 1, 0, 0, 0, 0 }
 };
 
-
-/* Perform address translation */
-int cpu_sparc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
-                              int is_user, int is_softmmu)
+int get_physical_address (CPUState *env, uint32_t *physical, int *prot,
+			  int *access_index, uint32_t address, int rw,
+			  int is_user)
 {
-    int exception = 0;
-    int access_perms = 0, access_index = 0;
-    uint8_t *pde_ptr;
+    int access_perms = 0;
+    target_phys_addr_t pde_ptr;
     uint32_t pde, virt_addr;
-    int error_code = 0, is_dirty, prot, ret = 0;
-    unsigned long paddr, vaddr, page_offset;
-
-    if (env->user_mode_only) {
-        /* user mode only emulation */
-        ret = -2;
-        goto do_fault;
-    }
+    int error_code = 0, is_dirty;
+    unsigned long page_offset;
 
     virt_addr = address & TARGET_PAGE_MASK;
     if ((env->mmuregs[0] & MMU_E) == 0) { /* MMU disabled */
-	paddr = address;
-	page_offset = address & (TARGET_PAGE_SIZE - 1);
-        prot = PAGE_READ | PAGE_WRITE;
-        goto do_mapping;
+	*physical = address;
+        *prot = PAGE_READ | PAGE_WRITE;
+        return 0;
     }
 
     /* SPARC reference MMU table walk: Context table->L1->L2->PTE */
     /* Context base + context number */
-    pde_ptr = phys_ram_base + (env->mmuregs[1] << 4) + (env->mmuregs[2] << 4);
-    pde = ldl_raw(pde_ptr);
+    pde_ptr = (env->mmuregs[1] << 4) + (env->mmuregs[2] << 4);
+    cpu_physical_memory_read(pde_ptr, (uint8_t *)&pde, 4);
+    bswap32s(&pde);
 
     /* Ctx pde */
     switch (pde & PTE_ENTRYTYPE_MASK) {
+    default:
     case 0: /* Invalid */
-        error_code = 1;
-        goto do_fault;
-    case 2: /* PTE, maybe should not happen? */
+	return 1;
+    case 2: /* L0 PTE, maybe should not happen? */
     case 3: /* Reserved */
-        error_code = 4;
-        goto do_fault;
-    case 1: /* L1 PDE */
-	pde_ptr = phys_ram_base + ((address >> 22) & ~3) + ((pde & ~3) << 4);
-	pde = ldl_raw(pde_ptr);
+        return 4;
+    case 1: /* L0 PDE */
+	pde_ptr = ((address >> 22) & ~3) + ((pde & ~3) << 4);
+	cpu_physical_memory_read(pde_ptr, (uint8_t *)&pde, 4);
+	bswap32s(&pde);
 
 	switch (pde & PTE_ENTRYTYPE_MASK) {
+	default:
 	case 0: /* Invalid */
-	    error_code = 1;
-	    goto do_fault;
+	    return 1;
 	case 3: /* Reserved */
-	    error_code = 4;
-	    goto do_fault;
-	case 1: /* L2 PDE */
-	    pde_ptr = phys_ram_base + ((address & 0xfc0000) >> 16) + ((pde & ~3) << 4);
-	    pde = ldl_raw(pde_ptr);
+	    return 4;
+	case 1: /* L1 PDE */
+	    pde_ptr = ((address & 0xfc0000) >> 16) + ((pde & ~3) << 4);
+	    cpu_physical_memory_read(pde_ptr, (uint8_t *)&pde, 4);
+	    bswap32s(&pde);
 
 	    switch (pde & PTE_ENTRYTYPE_MASK) {
+	    default:
 	    case 0: /* Invalid */
-		error_code = 1;
-		goto do_fault;
+		return 1;
 	    case 3: /* Reserved */
-		error_code = 4;
-		goto do_fault;
-	    case 1: /* L3 PDE */
-		pde_ptr = phys_ram_base + ((address & 0x3f000) >> 10) + ((pde & ~3) << 4);
-		pde = ldl_raw(pde_ptr);
+		return 4;
+	    case 1: /* L2 PDE */
+		pde_ptr = ((address & 0x3f000) >> 10) + ((pde & ~3) << 4);
+		cpu_physical_memory_read(pde_ptr, (uint8_t *)&pde, 4);
+		bswap32s(&pde);
 
 		switch (pde & PTE_ENTRYTYPE_MASK) {
+		default:
 		case 0: /* Invalid */
-		    error_code = 1;
-		    goto do_fault;
+		    return 1;
 		case 1: /* PDE, should not happen */
 		case 3: /* Reserved */
-		    error_code = 4;
-		    goto do_fault;
+		    return 4;
 		case 2: /* L3 PTE */
 		    virt_addr = address & TARGET_PAGE_MASK;
 		    page_offset = (address & TARGET_PAGE_MASK) & (TARGET_PAGE_SIZE - 1);
@@ -201,40 +193,58 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
     /* update page modified and dirty bits */
     is_dirty = (rw & 1) && !(pde & PG_MODIFIED_MASK);
     if (!(pde & PG_ACCESSED_MASK) || is_dirty) {
+	uint32_t tmppde;
 	pde |= PG_ACCESSED_MASK;
 	if (is_dirty)
 	    pde |= PG_MODIFIED_MASK;
-	stl_raw(pde_ptr, pde);
+	tmppde = bswap32(pde);
+	cpu_physical_memory_write(pde_ptr, (uint8_t *)&tmppde, 4);
     }
-
     /* check access */
-    access_index = ((rw & 1) << 2) | (rw & 2) | (is_user? 0 : 1);
+    *access_index = ((rw & 1) << 2) | (rw & 2) | (is_user? 0 : 1);
     access_perms = (pde & PTE_ACCESS_MASK) >> PTE_ACCESS_SHIFT;
-    error_code = access_table[access_index][access_perms];
+    error_code = access_table[*access_index][access_perms];
     if (error_code)
-	goto do_fault;
+	return error_code;
 
     /* the page can be put in the TLB */
-    prot = PAGE_READ;
+    *prot = PAGE_READ;
     if (pde & PG_MODIFIED_MASK) {
         /* only set write access if already dirty... otherwise wait
            for dirty access */
 	if (rw_table[is_user][access_perms])
-	        prot |= PAGE_WRITE;
+	        *prot |= PAGE_WRITE;
     }
 
     /* Even if large ptes, we map only one 4KB page in the cache to
        avoid filling it too fast */
-    virt_addr = address & TARGET_PAGE_MASK;
-    paddr = ((pde & PTE_ADDR_MASK) << 4) + page_offset;
+    *physical = ((pde & PTE_ADDR_MASK) << 4) + page_offset;
+    return 0;
+}
 
- do_mapping:
-    vaddr = virt_addr + ((address & TARGET_PAGE_MASK) & (TARGET_PAGE_SIZE - 1));
+/* Perform address translation */
+int cpu_sparc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
+                              int is_user, int is_softmmu)
+{
+    int exception = 0;
+    uint32_t virt_addr, paddr;
+    unsigned long vaddr;
+    int error_code = 0, prot, ret = 0, access_index;
 
-    ret = tlb_set_page(env, vaddr, paddr, prot, is_user, is_softmmu);
-    return ret;
+    if (env->user_mode_only) {
+        /* user mode only emulation */
+        error_code = -2;
+	goto do_fault_user;
+    }
 
- do_fault:
+    error_code = get_physical_address(env, &paddr, &prot, &access_index, address, rw, is_user);
+    if (error_code == 0) {
+	virt_addr = address & TARGET_PAGE_MASK;
+	vaddr = virt_addr + ((address & TARGET_PAGE_MASK) & (TARGET_PAGE_SIZE - 1));
+	ret = tlb_set_page(env, vaddr, paddr, prot, is_user, is_softmmu);
+	return ret;
+    }
+
     if (env->mmuregs[3]) /* Fault status register */
 	env->mmuregs[3] = 1; /* overflow (not read before another fault) */
     env->mmuregs[3] |= (access_index << 5) | (error_code << 2) | 2;
@@ -242,7 +252,7 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
 
     if (env->mmuregs[0] & MMU_NF || env->psret == 0) // No fault
 	return 0;
-
+ do_fault_user:
     env->exception_index = exception;
     env->error_code = error_code;
     return error_code;
@@ -289,13 +299,14 @@ void do_interrupt(int intno, int is_int, int error_code,
                     count, intno, error_code, is_int,
                     env->pc,
                     env->npc, env->regwptr[6]);
-#if 0
+#if 1
 	cpu_dump_state(env, logfile, fprintf, 0);
 	{
 	    int i;
 	    uint8_t *ptr;
+
 	    fprintf(logfile, "       code=");
-	    ptr = env->pc;
+	    ptr = (uint8_t *)env->pc;
 	    for(i = 0; i < 16; i++) {
 		fprintf(logfile, " %02x", ldub(ptr + i));
 	    }
@@ -305,11 +316,18 @@ void do_interrupt(int intno, int is_int, int error_code,
 	count++;
     }
 #endif
+#if !defined(CONFIG_USER_ONLY) 
+    if (env->psret == 0) {
+	fprintf(logfile, "Trap while interrupts disabled, Error state!\n");
+	qemu_system_shutdown_request();
+	return;
+    }
+#endif
     env->psret = 0;
     cwp = (env->cwp - 1) & (NWINDOWS - 1); 
     set_cwp(cwp);
-    env->regwptr[9] = env->pc;
-    env->regwptr[10] = env->npc;
+    env->regwptr[9] = env->pc - 4; // XXX?
+    env->regwptr[10] = env->pc;
     env->psrps = env->psrs;
     env->psrs = 1;
     env->tbr = (env->tbr & TBR_BASE_MASK) | (intno << 4);
@@ -321,4 +339,107 @@ void do_interrupt(int intno, int is_int, int error_code,
 void raise_exception_err(int exception_index, int error_code)
 {
     raise_exception(exception_index);
+}
+
+uint32_t mmu_probe(uint32_t address, int mmulev)
+{
+    target_phys_addr_t pde_ptr;
+    uint32_t pde;
+
+    /* Context base + context number */
+    pde_ptr = (env->mmuregs[1] << 4) + (env->mmuregs[2] << 4);
+    cpu_physical_memory_read(pde_ptr, (uint8_t *)&pde, 4);
+    bswap32s(&pde);
+    switch (pde & PTE_ENTRYTYPE_MASK) {
+    default:
+    case 0: /* Invalid */
+    case 2: /* PTE, maybe should not happen? */
+    case 3: /* Reserved */
+	return 0;
+    case 1: /* L1 PDE */
+	if (mmulev == 3)
+	    return pde;
+	pde_ptr = ((address >> 22) & ~3) + ((pde & ~3) << 4);
+	cpu_physical_memory_read(pde_ptr, (uint8_t *)&pde, 4);
+	bswap32s(&pde);
+
+	switch (pde & PTE_ENTRYTYPE_MASK) {
+	default:
+	case 0: /* Invalid */
+	case 3: /* Reserved */
+	    return 0;
+	case 2: /* L1 PTE */
+	    return pde;
+	case 1: /* L2 PDE */
+	    if (mmulev == 2)
+		return pde;
+	    pde_ptr = ((address & 0xfc0000) >> 16) + ((pde & ~3) << 4);
+	    cpu_physical_memory_read(pde_ptr, (uint8_t *)&pde, 4);
+	    bswap32s(&pde);
+
+	    switch (pde & PTE_ENTRYTYPE_MASK) {
+	    default:
+	    case 0: /* Invalid */
+	    case 3: /* Reserved */
+		return 0;
+	    case 2: /* L2 PTE */
+		return pde;
+	    case 1: /* L3 PDE */
+		if (mmulev == 1)
+		    return pde;
+		pde_ptr = ((address & 0x3f000) >> 10) + ((pde & ~3) << 4);
+		cpu_physical_memory_read(pde_ptr, (uint8_t *)&pde, 4);
+		bswap32s(&pde);
+
+		switch (pde & PTE_ENTRYTYPE_MASK) {
+		default:
+		case 0: /* Invalid */
+		case 1: /* PDE, should not happen */
+		case 3: /* Reserved */
+		    return 0;
+		case 2: /* L3 PTE */
+		    return pde;
+		}
+	    }
+	}
+    }
+    return 0;
+}
+
+void dump_mmu(void)
+{
+#ifdef DEBUG_MMU
+    uint32_t pa, va, va1, va2;
+    int n, m, o;
+    target_phys_addr_t pde_ptr;
+    uint32_t pde;
+
+    printf("MMU dump:\n");
+    pde_ptr = (env->mmuregs[1] << 4) + (env->mmuregs[2] << 4);
+    cpu_physical_memory_read(pde_ptr, (uint8_t *)&pde, 4);
+    bswap32s(&pde);
+    printf("Root ptr: 0x%08x, ctx: %d\n", env->mmuregs[1] << 4, env->mmuregs[2]);
+    for (n = 0, va = 0; n < 256; n++, va += 16 * 1024 * 1024) {
+	pde_ptr = mmu_probe(va, 2);
+	if (pde_ptr) {
+	    pa = cpu_get_phys_page_debug(env, va);
+	    printf("VA: 0x%08x, PA: 0x%08x PDE: 0x%08x\n", va, pa, pde_ptr);
+	    for (m = 0, va1 = va; m < 64; m++, va1 += 256 * 1024) {
+		pde_ptr = mmu_probe(va1, 1);
+		if (pde_ptr) {
+		    pa = cpu_get_phys_page_debug(env, va1);
+		    printf(" VA: 0x%08x, PA: 0x%08x PDE: 0x%08x\n", va1, pa, pde_ptr);
+		    for (o = 0, va2 = va1; o < 64; o++, va2 += 4 * 1024) {
+			pde_ptr = mmu_probe(va2, 0);
+			if (pde_ptr) {
+			    pa = cpu_get_phys_page_debug(env, va2);
+			    printf("  VA: 0x%08x, PA: 0x%08x PTE: 0x%08x\n", va2, pa, pde_ptr);
+			}
+		    }
+		}
+	    }
+	}
+    }
+    printf("MMU dump ends\n");
+#endif
 }

@@ -524,13 +524,7 @@ void OPPROTO op_rdpsr(void)
 
 void OPPROTO op_wrpsr(void)
 {
-    int cwp;
-    env->psr = T0 & ~PSR_ICC;
-    env->psrs = (T0 & PSR_S)? 1 : 0;
-    env->psrps = (T0 & PSR_PS)? 1 : 0;
-    env->psret = (T0 & PSR_ET)? 1 : 0;
-    cwp = (T0 & PSR_CWP) & (NWINDOWS - 1);
-    set_cwp(cwp);
+    PUT_PSR(env,T0);
     FORCE_RET();
 }
 
@@ -602,10 +596,27 @@ void OPPROTO op_trapcc_T0(void)
     FORCE_RET();
 }
 
+void OPPROTO op_trap_ifnofpu(void)
+{
+    if (!env->psref) {
+        env->exception_index = TT_NFPU_INSN;
+        cpu_loop_exit();
+    }
+    FORCE_RET();
+}
+
+void OPPROTO op_fpexception_im(void)
+{
+    env->exception_index = TT_FP_EXCP;
+    env->fsr &= ~FSR_FTT_MASK;
+    env->fsr |= PARAM1;
+    cpu_loop_exit();
+    FORCE_RET();
+}
+
 void OPPROTO op_debug(void)
 {
-    env->exception_index = EXCP_DEBUG;
-    cpu_loop_exit();
+    helper_debug();
 }
 
 void OPPROTO op_exit_tb(void)

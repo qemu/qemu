@@ -497,6 +497,8 @@ void cpu_loop (CPUSPARCState *env)
         case TT_WIN_UNF: /* window underflow */
             restore_window(env);
             break;
+	case 0x100: // XXX, why do we get these?
+	    break;
         default:
             printf ("Unhandled trap: 0x%x\n", trapnr);
             cpu_dump_state(env, stderr, fprintf, 0);

@@ -126,7 +126,7 @@ maximum performances.
 
 @itemize
 
-@item Full PowerPC 32 bit emulation, including priviledged instructions, 
+@item Full PowerPC 32 bit emulation, including privileged instructions, 
 FPU and MMU.
 
 @item Can run most PowerPC Linux binaries.
@@ -137,7 +137,8 @@ FPU and MMU.
 
 @itemize
 
-@item SPARC V8 user support, except FPU instructions.
+@item Somewhat complete SPARC V8 emulation, including privileged
+instructions, FPU and MMU.
 
 @item Can run some SPARC Linux binaries.
 

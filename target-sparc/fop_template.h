@@ -51,18 +51,6 @@ void OPPROTO glue(op_store_FT2_fpr_fpr, REGNAME)(void)
 }
 
 /* double floating point registers moves */
-#if 0
-#define CPU_DOUBLE_U_DEF
-typedef union {
-    double d;
-    struct {
-        uint32_t lower;
-        uint32_t upper;
-    } l;
-    uint64_t ll;
-} CPU_DoubleU;
-#endif /* CPU_DOUBLE_U_DEF */
-
 void OPPROTO glue(op_load_fpr_DT0_fpr, REGNAME)(void)
 {
     CPU_DoubleU u;

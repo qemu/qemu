@@ -43,12 +43,8 @@ void OPPROTO glue(op_swap, MEMSUFFIX)(void)
 
 void OPPROTO glue(op_ldd, MEMSUFFIX)(void)
 {
-#if 1
     T1 = glue(ldl, MEMSUFFIX)((void *) T0);
     T0 = glue(ldl, MEMSUFFIX)((void *) (T0 + 4));
-#else
-    glue(do_ldd, MEMSUFFIX)(T0);
-#endif
 }
 
 /***                         Floating-point store                          ***/

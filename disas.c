@@ -9,9 +9,7 @@
 #include "disas.h"
 
 /* Filled in by elfload.c.  Simplistic, but will do for now. */
-unsigned int disas_num_syms;
-void *disas_symtab;
-const char *disas_strtab;
+struct syminfo *syminfos = NULL;
 
 /* Get LENGTH bytes from info's buffer, at target address memaddr.
    Transfer them to myaddr.  */
@@ -203,19 +201,23 @@ const char *lookup_symbol(void *orig_addr)
 {
     unsigned int i;
     /* Hack, because we know this is x86. */
-    Elf32_Sym *sym = disas_symtab;
+    Elf32_Sym *sym;
+    struct syminfo *s;
+    
+    for (s = syminfos; s; s = s->next) {
+	sym = s->disas_symtab;
+	for (i = 0; i < s->disas_num_syms; i++) {
+	    if (sym[i].st_shndx == SHN_UNDEF
+		|| sym[i].st_shndx >= SHN_LORESERVE)
+		continue;
 
-    for (i = 0; i < disas_num_syms; i++) {
-	if (sym[i].st_shndx == SHN_UNDEF
-	    || sym[i].st_shndx >= SHN_LORESERVE)
-	    continue;
+	    if (ELF_ST_TYPE(sym[i].st_info) != STT_FUNC)
+		continue;
 
-	if (ELF_ST_TYPE(sym[i].st_info) != STT_FUNC)
-	    continue;
-
-	if ((long)orig_addr >= sym[i].st_value
-	    && (long)orig_addr < sym[i].st_value + sym[i].st_size)
-	    return disas_strtab + sym[i].st_name;
+	    if ((long)orig_addr >= sym[i].st_value
+		&& (long)orig_addr < sym[i].st_value + sym[i].st_size)
+		return s->disas_strtab + sym[i].st_name;
+	}
     }
     return "";
 }

@@ -261,7 +261,7 @@ typedef void QEMUTimerCB(void *opaque);
    Hz. */
 extern QEMUClock *rt_clock;
 
-/* Rge virtual clock is only run during the emulation. It is stopped
+/* The virtual clock is only run during the emulation. It is stopped
    when the virtual machine is stopped. Virtual timers use a high
    precision clock, usually cpu cycles (use ticks_per_sec). */
 extern QEMUClock *vm_clock;
@@ -672,25 +672,38 @@ void sun4m_init(int ram_size, int vga_ram_size, int boot_device,
              DisplayState *ds, const char **fd_filename, int snapshot,
              const char *kernel_filename, const char *kernel_cmdline,
              const char *initrd_filename);
+uint32_t iommu_translate(uint32_t addr);
 
 /* iommu.c */
-void iommu_init(uint32_t addr);
-uint32_t iommu_translate(uint32_t addr);
+void *iommu_init(uint32_t addr);
+uint32_t iommu_translate_local(void *opaque, uint32_t addr);
 
 /* lance.c */
 void lance_init(NetDriverState *nd, int irq, uint32_t leaddr, uint32_t ledaddr);
 
 /* tcx.c */
-void tcx_init(DisplayState *ds, uint32_t addr);
+void *tcx_init(DisplayState *ds, uint32_t addr, uint8_t *vram_base,
+	      unsigned long vram_offset, int vram_size);
+void tcx_update_display(void *opaque);
+void tcx_invalidate_display(void *opaque);
+void tcx_screen_dump(void *opaque, const char *filename);
 
-/* sched.c */
-void sched_init();
+/* slavio_intctl.c */
+void *slavio_intctl_init();
+void slavio_pic_info(void *opaque);
+void slavio_irq_info(void *opaque);
+void slavio_pic_set_irq(void *opaque, int irq, int level);
 
 /* magic-load.c */
-void magic_init(const char *kfn, int kloadaddr, uint32_t addr);
+int load_elf(const char *filename, uint8_t *addr);
+int load_aout(const char *filename, uint8_t *addr);
 
-/* timer.c */
-void timer_init(uint32_t addr, int irq);
+/* slavio_timer.c */
+void slavio_timer_init(uint32_t addr1, int irq1, uint32_t addr2, int irq2);
+
+/* slavio_serial.c */
+SerialState *slavio_serial_init(int base, int irq, CharDriverState *chr1, CharDriverState *chr2);
+void slavio_serial_ms_kbd_init(int base, int irq);
 
 /* NVRAM helpers */
 #include "hw/m48t59.h"

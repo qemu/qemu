@@ -21,6 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+/*
+ * The controller is used in Sun4m systems in a slightly different
+ * way. There are changes in DOR register and DMA is not available.
+ */
 #include "vl.h"
 
 /********************************************************/
@@ -89,6 +93,16 @@ typedef struct fdrive_t {
     uint16_t bps;             /* Bytes per sector       */
     uint8_t ro;               /* Is read-only           */
 } fdrive_t;
+
+#ifdef TARGET_SPARC
+#define DMA_read_memory(a,b,c,d)
+#define DMA_write_memory(a,b,c,d)
+#define DMA_register_channel(a,b,c)
+#define DMA_hold_DREQ(a)
+#define DMA_release_DREQ(a)
+#define DMA_get_channel_mode(a) (0)
+#define DMA_schedule(a)
+#endif
 
 static void fd_init (fdrive_t *drv, BlockDriverState *bs)
 {
@@ -455,6 +469,18 @@ static void fdctrl_write (void *opaque, uint32_t reg, uint32_t value)
     }
 }
 
+static CPUReadMemoryFunc *fdctrl_mem_read[3] = {
+    fdctrl_read,
+    fdctrl_read,
+    fdctrl_read,
+};
+
+static CPUWriteMemoryFunc *fdctrl_mem_write[3] = {
+    fdctrl_write,
+    fdctrl_write,
+    fdctrl_write,
+};
+
 static void fd_change_cb (void *opaque)
 {
     fdrive_t *drv = opaque;
@@ -473,7 +499,7 @@ fdctrl_t *fdctrl_init (int irq_lvl, int dma_chann, int mem_mapped,
                        BlockDriverState **fds)
 {
     fdctrl_t *fdctrl;
-//    int io_mem;
+    int io_mem;
     int i;
 
     FLOPPY_DPRINTF("init controller\n");
@@ -504,11 +530,8 @@ fdctrl_t *fdctrl_init (int irq_lvl, int dma_chann, int mem_mapped,
     fdctrl_reset(fdctrl, 0);
     fdctrl->state = FD_CTRL_ACTIVE;
     if (mem_mapped) {
-        FLOPPY_ERROR("memory mapped floppy not supported by now !\n");
-#if 0
-        io_mem = cpu_register_io_memory(0, fdctrl_mem_read, fdctrl_mem_write);
-        cpu_register_physical_memory(base, 0x08, io_mem);
-#endif
+        io_mem = cpu_register_io_memory(0, fdctrl_mem_read, fdctrl_mem_write, fdctrl);
+        cpu_register_physical_memory(io_base, 0x08, io_mem);
     } else {
         register_ioport_read(io_base + 0x01, 5, 1, &fdctrl_read, fdctrl);
         register_ioport_read(io_base + 0x07, 1, 1, &fdctrl_read, fdctrl);

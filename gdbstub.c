@@ -298,11 +298,7 @@ static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
     }
     /* Y, PSR, WIM, TBR, PC, NPC, FPSR, CPSR */
     registers[64] = tswapl(env->y);
-    tmp = (0<<28) | (4<<24) | env->psr		\
-	| (env->psrs? PSR_S : 0)		\
-	| (env->psrs? PSR_PS : 0)		\
-	| (env->psret? PSR_ET : 0)		\
-	| env->cwp;
+    tmp = GET_PSR(env);
     registers[65] = tswapl(tmp);
     registers[66] = tswapl(env->wim);
     registers[67] = tswapl(env->tbr);
@@ -317,7 +313,7 @@ static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
 
 static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
 {
-    uint32_t *registers = (uint32_t *)mem_buf, tmp;
+    uint32_t *registers = (uint32_t *)mem_buf;
     int i;
 
     /* fill in g0..g7 */
@@ -334,12 +330,7 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
     }
     /* Y, PSR, WIM, TBR, PC, NPC, FPSR, CPSR */
     env->y = tswapl(registers[64]);
-    tmp = tswapl(registers[65]);
-    env->psr = tmp & ~PSR_ICC;
-    env->psrs = (tmp & PSR_S)? 1 : 0;
-    env->psrps = (tmp & PSR_PS)? 1 : 0;
-    env->psret = (tmp & PSR_ET)? 1 : 0;
-    env->cwp = (tmp & PSR_CWP);
+    PUT_PSR(env, tswapl(registers[65]));
     env->wim = tswapl(registers[66]);
     env->tbr = tswapl(registers[67]);
     env->pc = tswapl(registers[68]);
@@ -495,8 +486,10 @@ static void gdb_vm_stopped(void *opaque, int reason)
     /* disable single step if it was enable */
     cpu_single_step(cpu_single_env, 0);
 
-    if (reason == EXCP_DEBUG)
+    if (reason == EXCP_DEBUG) {
+	tb_flush(cpu_single_env);
         ret = SIGTRAP;
+    }
     else
         ret = 0;
     snprintf(buf, sizeof(buf), "S%02x", ret);

@@ -117,8 +117,6 @@ typedef struct IOMMUState {
     uint32_t iostart;
 } IOMMUState;
 
-static IOMMUState *ps;
-
 static uint32_t iommu_mem_readw(void *opaque, target_phys_addr_t addr)
 {
     IOMMUState *s = opaque;
@@ -187,25 +185,61 @@ static CPUWriteMemoryFunc *iommu_mem_write[3] = {
     iommu_mem_writew,
 };
 
-uint32_t iommu_translate(uint32_t addr)
+uint32_t iommu_translate_local(void *opaque, uint32_t addr)
 {
-    uint32_t *iopte = (void *)(ps->regs[1] << 4), pa;
+    IOMMUState *s = opaque;
+    uint32_t *iopte = (void *)(s->regs[1] << 4), pa;
 
-    iopte += ((addr - ps->iostart) >> PAGE_SHIFT);
-    cpu_physical_memory_rw((uint32_t)iopte, (void *) &pa, 4, 0);
+    iopte += ((addr - s->iostart) >> PAGE_SHIFT);
+    cpu_physical_memory_read((uint32_t)iopte, (void *) &pa, 4);
     bswap32s(&pa);
     pa = (pa & IOPTE_PAGE) << 4;		/* Loose higher bits of 36 */
     return pa + (addr & PAGE_MASK);
 }
 
-void iommu_init(uint32_t addr)
+static void iommu_save(QEMUFile *f, void *opaque)
+{
+    IOMMUState *s = opaque;
+    int i;
+    
+    qemu_put_be32s(f, &s->addr);
+    for (i = 0; i < sizeof(struct iommu_regs); i += 4)
+	qemu_put_be32s(f, &s->regs[i]);
+    qemu_put_be32s(f, &s->iostart);
+}
+
+static int iommu_load(QEMUFile *f, void *opaque, int version_id)
+{
+    IOMMUState *s = opaque;
+    int i;
+    
+    if (version_id != 1)
+        return -EINVAL;
+
+    qemu_get_be32s(f, &s->addr);
+    for (i = 0; i < sizeof(struct iommu_regs); i += 4)
+	qemu_put_be32s(f, &s->regs[i]);
+    qemu_get_be32s(f, &s->iostart);
+
+    return 0;
+}
+
+static void iommu_reset(void *opaque)
+{
+    IOMMUState *s = opaque;
+
+    memset(s->regs, 0, sizeof(struct iommu_regs));
+    s->iostart = 0;
+}
+
+void *iommu_init(uint32_t addr)
 {
     IOMMUState *s;
     int iommu_io_memory;
 
     s = qemu_mallocz(sizeof(IOMMUState));
     if (!s)
-        return;
+        return NULL;
 
     s->addr = addr;
 
@@ -213,6 +247,8 @@ void iommu_init(uint32_t addr)
     cpu_register_physical_memory(addr, sizeof(struct iommu_regs),
                                  iommu_io_memory);
     
-    ps = s;
+    register_savevm("iommu", addr, 1, iommu_save, iommu_load, s);
+    qemu_register_reset(iommu_reset, s);
+    return s;
 }
 

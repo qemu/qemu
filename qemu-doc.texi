@@ -1099,6 +1099,29 @@ Set the initial VGA graphic mode. The default is 800x600x15.
 More information is available at
 @url{http://jocelyn.mayer.free.fr/qemu-ppc/}.
 
+@chapter Sparc System emulator invocation
+
+Use the executable @file{qemu-system-sparc} to simulate a JavaStation
+(sun4m architecture). The emulation is far from complete.
+
+QEMU emulates the following sun4m peripherials:
+
+@itemize @minus
+@item 
+IOMMU
+@item
+TCX Frame buffer
+@item 
+Lance (Am7990) Ethernet
+@item
+Non Volatile RAM M48T08
+@item
+Slave I/O: timers, interrupt controllers, Zilog serial ports
+@end itemize
+
+QEMU uses the Proll, a PROM replacement available at
+@url{http://people.redhat.com/zaitcev/linux/}.
+
 @chapter QEMU User space emulator invocation
 
 @section Quick Start

@@ -32,19 +32,14 @@
 #define NVRAM_PRINTF(fmt, args...) do { } while (0)
 #endif
 
-#define NVRAM_MAX_MEM 0xfff0
+#define NVRAM_MAX_MEM 0x1ff0
+#define NVRAM_MAXADDR 0x1fff
 
 struct m48t08_t {
-    /* Hardware parameters */
-    int mem_index;
-    uint32_t mem_base;
-    uint16_t size;
     /* RTC management */
     time_t   time_offset;
     time_t   stop_time;
     /* NVRAM storage */
-    uint8_t  lock;
-    uint16_t addr;
     uint8_t *buffer;
 };
 
@@ -83,14 +78,13 @@ static void set_time (m48t08_t *NVRAM, struct tm *tm)
 }
 
 /* Direct access to NVRAM */
-void m48t08_write (m48t08_t *NVRAM, uint32_t val)
+void m48t08_write (m48t08_t *NVRAM, uint32_t addr, uint8_t val)
 {
     struct tm tm;
     int tmp;
 
-    if (NVRAM->addr > NVRAM_MAX_MEM && NVRAM->addr < 0x2000)
-	NVRAM_PRINTF("%s: 0x%08x => 0x%08x\n", __func__, NVRAM->addr, val);
-    switch (NVRAM->addr) {
+    addr &= NVRAM_MAXADDR;
+    switch (addr) {
     case 0x1FF8:
         /* control */
 	NVRAM->buffer[0x1FF8] = (val & ~0xA0) | 0x90;
@@ -167,25 +161,18 @@ void m48t08_write (m48t08_t *NVRAM, uint32_t val)
 	}
         break;
     default:
-        /* Check lock registers state */
-        if (NVRAM->addr >= 0x20 && NVRAM->addr <= 0x2F && (NVRAM->lock & 1))
-            break;
-        if (NVRAM->addr >= 0x30 && NVRAM->addr <= 0x3F && (NVRAM->lock & 2))
-            break;
-        if (NVRAM->addr < NVRAM_MAX_MEM ||
-	    (NVRAM->addr > 0x1FFF && NVRAM->addr < NVRAM->size)) {
-            NVRAM->buffer[NVRAM->addr] = val & 0xFF;
-	}
+	NVRAM->buffer[addr] = val & 0xFF;
         break;
     }
 }
 
-uint32_t m48t08_read (m48t08_t *NVRAM)
+uint8_t m48t08_read (m48t08_t *NVRAM, uint32_t addr)
 {
     struct tm tm;
-    uint32_t retval = 0xFF;
+    uint8_t retval = 0xFF;
 
-    switch (NVRAM->addr) {
+    addr &= NVRAM_MAXADDR;
+    switch (addr) {
     case 0x1FF8:
         /* control */
 	goto do_read;
@@ -225,65 +212,36 @@ uint32_t m48t08_read (m48t08_t *NVRAM)
         retval = toBCD(tm.tm_year);
         break;
     default:
-        /* Check lock registers state */
-        if (NVRAM->addr >= 0x20 && NVRAM->addr <= 0x2F && (NVRAM->lock & 1))
-            break;
-        if (NVRAM->addr >= 0x30 && NVRAM->addr <= 0x3F && (NVRAM->lock & 2))
-            break;
-        if (NVRAM->addr < NVRAM_MAX_MEM ||
-	    (NVRAM->addr > 0x1FFF && NVRAM->addr < NVRAM->size)) {
-	do_read:
-            retval = NVRAM->buffer[NVRAM->addr];
-	}
+    do_read:
+	retval = NVRAM->buffer[addr];
         break;
     }
-    if (NVRAM->addr > NVRAM_MAX_MEM + 1 && NVRAM->addr < 0x2000)
-	NVRAM_PRINTF("0x%08x <= 0x%08x\n", NVRAM->addr, retval);
-
     return retval;
-}
-
-void m48t08_set_addr (m48t08_t *NVRAM, uint32_t addr)
-{
-    NVRAM->addr = addr;
-}
-
-void m48t08_toggle_lock (m48t08_t *NVRAM, int lock)
-{
-    NVRAM->lock ^= 1 << lock;
 }
 
 static void nvram_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
     m48t08_t *NVRAM = opaque;
     
-    addr -= NVRAM->mem_base;
-    if (addr < NVRAM_MAX_MEM)
-        NVRAM->buffer[addr] = value;
+    m48t08_write(NVRAM, addr, value);
 }
 
 static void nvram_writew (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
     m48t08_t *NVRAM = opaque;
     
-    addr -= NVRAM->mem_base;
-    if (addr < NVRAM_MAX_MEM) {
-        NVRAM->buffer[addr] = value >> 8;
-        NVRAM->buffer[addr + 1] = value;
-    }
+    m48t08_write(NVRAM, addr, value);
+    m48t08_write(NVRAM, addr + 1, value >> 8);
 }
 
 static void nvram_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
     m48t08_t *NVRAM = opaque;
     
-    addr -= NVRAM->mem_base;
-    if (addr < NVRAM_MAX_MEM) {
-        NVRAM->buffer[addr] = value >> 24;
-        NVRAM->buffer[addr + 1] = value >> 16;
-        NVRAM->buffer[addr + 2] = value >> 8;
-        NVRAM->buffer[addr + 3] = value;
-    }
+    m48t08_write(NVRAM, addr, value);
+    m48t08_write(NVRAM, addr + 1, value >> 8);
+    m48t08_write(NVRAM, addr + 2, value >> 16);
+    m48t08_write(NVRAM, addr + 3, value >> 24);
 }
 
 static uint32_t nvram_readb (void *opaque, target_phys_addr_t addr)
@@ -291,10 +249,7 @@ static uint32_t nvram_readb (void *opaque, target_phys_addr_t addr)
     m48t08_t *NVRAM = opaque;
     uint32_t retval = 0;
     
-    addr -= NVRAM->mem_base;
-    if (addr < NVRAM_MAX_MEM)
-        retval = NVRAM->buffer[addr];
-
+    retval = m48t08_read(NVRAM, addr);
     return retval;
 }
 
@@ -303,12 +258,8 @@ static uint32_t nvram_readw (void *opaque, target_phys_addr_t addr)
     m48t08_t *NVRAM = opaque;
     uint32_t retval = 0;
     
-    addr -= NVRAM->mem_base;
-    if (addr < NVRAM_MAX_MEM) {
-        retval = NVRAM->buffer[addr] << 8;
-        retval |= NVRAM->buffer[addr + 1];
-    }
-
+    retval = m48t08_read(NVRAM, addr) << 8;
+    retval |= m48t08_read(NVRAM, addr + 1);
     return retval;
 }
 
@@ -317,14 +268,10 @@ static uint32_t nvram_readl (void *opaque, target_phys_addr_t addr)
     m48t08_t *NVRAM = opaque;
     uint32_t retval = 0;
     
-    addr -= NVRAM->mem_base;
-    if (addr < NVRAM_MAX_MEM) {
-        retval = NVRAM->buffer[addr] << 24;
-        retval |= NVRAM->buffer[addr + 1] << 16;
-        retval |= NVRAM->buffer[addr + 2] << 8;
-        retval |= NVRAM->buffer[addr + 3];
-    }
-
+    retval = m48t08_read(NVRAM, addr) << 24;
+    retval |= m48t08_read(NVRAM, addr + 1) << 16;
+    retval |= m48t08_read(NVRAM, addr + 2) << 8;
+    retval |= m48t08_read(NVRAM, addr + 3);
     return retval;
 }
 
@@ -340,12 +287,42 @@ static CPUReadMemoryFunc *nvram_read[] = {
     &nvram_readl,
 };
 
+static void nvram_save(QEMUFile *f, void *opaque)
+{
+    m48t08_t *s = opaque;
+    
+    qemu_put_be32s(f, (uint32_t *)&s->time_offset);
+    qemu_put_be32s(f, (uint32_t *)&s->stop_time);
+    qemu_put_buffer(f, s->buffer, 0x2000);
+}
+
+static int nvram_load(QEMUFile *f, void *opaque, int version_id)
+{
+    m48t08_t *s = opaque;
+    
+    if (version_id != 1)
+        return -EINVAL;
+
+    qemu_get_be32s(f, (uint32_t *)&s->time_offset);
+    qemu_get_be32s(f, (uint32_t *)&s->stop_time);
+    qemu_get_buffer(f, s->buffer, 0x2000);
+    return 0;
+}
+
+static void m48t08_reset(void *opaque)
+{
+    m48t08_t *s = opaque;
+
+    s->time_offset = 0;
+    s->stop_time = 0;
+}
+
+
 /* Initialisation routine */
-m48t08_t *m48t08_init(uint32_t mem_base, uint16_t size, uint8_t *macaddr)
+m48t08_t *m48t08_init(uint32_t mem_base, uint16_t size)
 {
     m48t08_t *s;
-    int i;
-    unsigned char tmp = 0;
+    int mem_index;
 
     s = qemu_mallocz(sizeof(m48t08_t));
     if (!s)
@@ -355,25 +332,13 @@ m48t08_t *m48t08_init(uint32_t mem_base, uint16_t size, uint8_t *macaddr)
         qemu_free(s);
         return NULL;
     }
-    s->size = size;
-    s->mem_base = mem_base;
-    s->addr = 0;
     if (mem_base != 0) {
-        s->mem_index = cpu_register_io_memory(0, nvram_read, nvram_write, s);
-        cpu_register_physical_memory(mem_base, 0x4000, s->mem_index);
+        mem_index = cpu_register_io_memory(0, nvram_read, nvram_write, s);
+        cpu_register_physical_memory(mem_base, 0x2000, mem_index);
     }
-    s->lock = 0;
 
-    i = 0x1fd8;
-    s->buffer[i++] = 0x01;
-    s->buffer[i++] = 0x80; /* Sun4m OBP */
-    memcpy(&s->buffer[i], macaddr, 6);
-
-    /* Calculate checksum */
-    for (i = 0x1fd8; i < 0x1fe7; i++) {
-	tmp ^= s->buffer[i];
-    }
-    s->buffer[0x1fe7] = tmp;
+    register_savevm("nvram", mem_base, 1, nvram_save, nvram_load, s);
+    qemu_register_reset(m48t08_reset, s);
     return s;
 }
 

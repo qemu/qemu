@@ -10,23 +10,42 @@
 /* trap definitions */
 #define TT_ILL_INSN 0x02
 #define TT_PRIV_INSN 0x03
+#define TT_NFPU_INSN 0x04
 #define TT_WIN_OVF  0x05
 #define TT_WIN_UNF  0x06 
 #define TT_FP_EXCP  0x08
 #define TT_DIV_ZERO 0x2a
 #define TT_TRAP     0x80
+#define TT_EXTINT   0x10
 
 #define PSR_NEG   (1<<23)
 #define PSR_ZERO  (1<<22)
 #define PSR_OVF   (1<<21)
 #define PSR_CARRY (1<<20)
 #define PSR_ICC   (PSR_NEG|PSR_ZERO|PSR_OVF|PSR_CARRY)
+#define PSR_EF    (1<<12)
+#define PSR_PIL   0xf00
 #define PSR_S     (1<<7)
 #define PSR_PS    (1<<6)
 #define PSR_ET    (1<<5)
 #define PSR_CWP   0x1f
 /* Fake impl 0, version 4 */
-#define GET_PSR(env) ((0<<28) | (4<<24) | env->psr | (env->psrs? PSR_S : 0) | (env->psrs? PSR_PS : 0) |(env->psret? PSR_ET : 0) | env->cwp)
+#define GET_PSR(env) ((0 << 28) | (4 << 24) | env->psr |		\
+		      (env->psref? PSR_EF : 0) |			\
+		      (env->psrpil << 8) |				\
+		      (env->psrs? PSR_S : 0) |				\
+		      (env->psrs? PSR_PS : 0) |				\
+		      (env->psret? PSR_ET : 0) | env->cwp)
+
+#define PUT_PSR(env, val) do { int _tmp = val;				\
+	env->psr = _tmp & ~PSR_ICC;					\
+	env->psref = (_tmp & PSR_EF)? 1 : 0;				\
+	env->psrpil = (_tmp & PSR_PIL) >> 8;				\
+	env->psrs = (_tmp & PSR_S)? 1 : 0;				\
+	env->psrps = (_tmp & PSR_PS)? 1 : 0;				\
+	env->psret = (_tmp & PSR_ET)? 1 : 0;				\
+	set_cwp(_tmp & PSR_CWP & (NWINDOWS - 1));			\
+    } while (0)
 
 /* Trap base register */
 #define TBR_BASE_MASK 0xfffff000
@@ -65,6 +84,9 @@
 #define FSR_FTT1   (1<<15)
 #define FSR_FTT0   (1<<14)
 #define FSR_FTT_MASK (FSR_FTT2 | FSR_FTT1 | FSR_FTT0)
+#define FSR_FTT_IEEE_EXCP (1 << 14)
+#define FSR_FTT_UNIMPFPOP (3 << 14)
+#define FSR_FTT_INVAL_FPR (6 << 14)
 
 #define FSR_FCC1  (1<<11)
 #define FSR_FCC0  (1<<10)
@@ -106,6 +128,8 @@ typedef struct CPUSPARCState {
     int      psrs;     /* supervisor mode (extracted from PSR) */
     int      psrps;    /* previous supervisor mode */
     int      psret;    /* enable traps */
+    int      psrpil;   /* interrupt level */
+    int      psref;    /* enable fpu */
     jmp_buf  jmp_env;
     int user_mode_only;
     int exception_index;
@@ -144,6 +168,8 @@ typedef struct CPUSPARCState {
 CPUSPARCState *cpu_sparc_init(void);
 int cpu_sparc_exec(CPUSPARCState *s);
 int cpu_sparc_close(CPUSPARCState *s);
+void cpu_get_fp64(uint64_t *pmant, uint16_t *pexp, double f);
+double cpu_put_fp64(uint64_t mant, uint16_t exp);
 
 struct siginfo;
 int cpu_sparc_signal_handler(int hostsignum, struct siginfo *info, void *puc);

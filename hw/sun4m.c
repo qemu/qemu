@@ -25,29 +25,32 @@
 #include "m48t08.h"
 
 #define KERNEL_LOAD_ADDR     0x00004000
-#define MMU_CONTEXT_TBL      0x00003000
-#define MMU_L1PTP            (MMU_CONTEXT_TBL + 0x0400)
-#define MMU_L2PTP            (MMU_CONTEXT_TBL + 0x0800)
-#define PROM_ADDR	     0xffd04000
+#define PROM_ADDR	     0xffd00000
 #define PROM_FILENAMEB	     "proll.bin"
 #define PROM_FILENAMEE	     "proll.elf"
-#define PROLL_MAGIC_ADDR 0x20000000
-#define PHYS_JJ_EEPROM	0x71200000	/* [2000] MK48T08 */
+#define PHYS_JJ_EEPROM	0x71200000	/* m48t08 */
 #define PHYS_JJ_IDPROM_OFF	0x1FD8
 #define PHYS_JJ_EEPROM_SIZE	0x2000
-#define PHYS_JJ_IOMMU	0x10000000	/* First page of sun4m IOMMU */
+// IRQs are not PIL ones, but master interrupt controller register
+// bits
+#define PHYS_JJ_IOMMU	0x10000000	/* I/O MMU */
 #define PHYS_JJ_TCX_FB	0x50800000	/* Start address, frame buffer body */
-#define PHYS_JJ_TCX_0E	0x5E000000	/* Top address, one byte used. */
-#define PHYS_JJ_IOMMU	0x10000000	/* First page of sun4m IOMMU */
-#define PHYS_JJ_LEDMA   0x78400010      /* ledma, off by 10 from unused SCSI */
-#define PHYS_JJ_LE      0x78C00000      /* LANCE, typical sun4m */
-#define PHYS_JJ_LE_IRQ  6
-#define PHYS_JJ_CLOCK	0x71D00000
-#define PHYS_JJ_CLOCK_IRQ  10
-#define PHYS_JJ_CLOCK1	0x71D10000
-#define PHYS_JJ_CLOCK1_IRQ  14
-#define PHYS_JJ_INTR0	0x71E00000	/* CPU0 interrupt control registers */
+#define PHYS_JJ_LEDMA   0x78400010      /* Lance DMA controller */
+#define PHYS_JJ_LE      0x78C00000      /* Lance ethernet */
+#define PHYS_JJ_LE_IRQ     16
+#define PHYS_JJ_CLOCK	0x71D00000      /* Per-CPU timer/counter, L14 */
+#define PHYS_JJ_CLOCK_IRQ  7
+#define PHYS_JJ_CLOCK1	0x71D10000      /* System timer/counter, L10 */
+#define PHYS_JJ_CLOCK1_IRQ 19
+#define PHYS_JJ_INTR0	0x71E00000	/* Per-CPU interrupt control registers */
 #define PHYS_JJ_INTR_G	0x71E10000	/* Master interrupt control registers */
+#define PHYS_JJ_MS_KBD	0x71000000	/* Mouse and keyboard */
+#define PHYS_JJ_MS_KBD_IRQ    14
+#define PHYS_JJ_SER	0x71100000	/* Serial */
+#define PHYS_JJ_SER_IRQ    15
+#define PHYS_JJ_SCSI_IRQ   18
+#define PHYS_JJ_FDC	0x71400000	/* Floppy */
+#define PHYS_JJ_FLOPPY_IRQ 22
 
 /* TSC handling */
 
@@ -57,12 +60,72 @@ uint64_t cpu_get_tsc()
 }
 
 void DMA_run() {}
-void SB16_run() {}
-int serial_can_receive(SerialState *s) { return 0; }
-void serial_receive_byte(SerialState *s, int ch) {}
-void serial_receive_break(SerialState *s) {}
 
 static m48t08_t *nvram;
+
+static void nvram_init(m48t08_t *nvram, uint8_t *macaddr)
+{
+    unsigned char tmp = 0;
+    int i, j;
+
+    i = 0x1fd8;
+    m48t08_write(nvram, i++, 0x01);
+    m48t08_write(nvram, i++, 0x80); /* Sun4m OBP */
+    j = 0;
+    m48t08_write(nvram, i++, macaddr[j++]);
+    m48t08_write(nvram, i++, macaddr[j++]);
+    m48t08_write(nvram, i++, macaddr[j++]);
+    m48t08_write(nvram, i++, macaddr[j++]);
+    m48t08_write(nvram, i++, macaddr[j++]);
+    m48t08_write(nvram, i, macaddr[j]);
+
+    /* Calculate checksum */
+    for (i = 0x1fd8; i < 0x1fe7; i++) {
+	tmp ^= m48t08_read(nvram, i);
+    }
+    m48t08_write(nvram, 0x1fe7, tmp);
+}
+
+static void *slavio_intctl;
+
+void pic_info()
+{
+    slavio_pic_info(slavio_intctl);
+}
+
+void irq_info()
+{
+    slavio_irq_info(slavio_intctl);
+}
+
+void pic_set_irq(int irq, int level)
+{
+    slavio_pic_set_irq(slavio_intctl, irq, level);
+}
+
+static void *tcx;
+
+void vga_update_display()
+{
+    tcx_update_display(tcx);
+}
+
+void vga_invalidate_display()
+{
+    tcx_invalidate_display(tcx);
+}
+
+void vga_screen_dump(const char *filename)
+{
+    tcx_screen_dump(tcx, filename);
+}
+
+static void *iommu;
+
+uint32_t iommu_translate(uint32_t addr)
+{
+    return iommu_translate_local(iommu, addr);
+}
 
 /* Sun4m hardware initialisation */
 void sun4m_init(int ram_size, int vga_ram_size, int boot_device,
@@ -72,42 +135,50 @@ void sun4m_init(int ram_size, int vga_ram_size, int boot_device,
 {
     char buf[1024];
     int ret, linux_boot;
-    unsigned long bios_offset;
+    unsigned long vram_size = 0x100000, prom_offset;
 
     linux_boot = (kernel_filename != NULL);
 
     /* allocate RAM */
     cpu_register_physical_memory(0, ram_size, 0);
-    bios_offset = ram_size;
 
-    iommu_init(PHYS_JJ_IOMMU);
-    sched_init(PHYS_JJ_INTR0, PHYS_JJ_INTR_G);
-    tcx_init(ds, PHYS_JJ_TCX_FB);
+    iommu = iommu_init(PHYS_JJ_IOMMU);
+    slavio_intctl = slavio_intctl_init(PHYS_JJ_INTR0, PHYS_JJ_INTR_G);
+    tcx = tcx_init(ds, PHYS_JJ_TCX_FB, phys_ram_base + ram_size, ram_size, vram_size);
     lance_init(&nd_table[0], PHYS_JJ_LE_IRQ, PHYS_JJ_LE, PHYS_JJ_LEDMA);
-    nvram = m48t08_init(PHYS_JJ_EEPROM, PHYS_JJ_EEPROM_SIZE, &nd_table[0].macaddr);
-    timer_init(PHYS_JJ_CLOCK, PHYS_JJ_CLOCK_IRQ);
-    timer_init(PHYS_JJ_CLOCK1, PHYS_JJ_CLOCK1_IRQ);
-    magic_init(kernel_filename, phys_ram_base + KERNEL_LOAD_ADDR, PROLL_MAGIC_ADDR);
+    nvram = m48t08_init(PHYS_JJ_EEPROM, PHYS_JJ_EEPROM_SIZE);
+    nvram_init(nvram, (uint8_t *)&nd_table[0].macaddr);
+    slavio_timer_init(PHYS_JJ_CLOCK, PHYS_JJ_CLOCK_IRQ, PHYS_JJ_CLOCK1, PHYS_JJ_CLOCK1_IRQ);
+    slavio_serial_ms_kbd_init(PHYS_JJ_MS_KBD, PHYS_JJ_MS_KBD_IRQ);
+    slavio_serial_init(PHYS_JJ_SER, PHYS_JJ_SER_IRQ, serial_hds[0], serial_hds[1]);
+    fdctrl_init(PHYS_JJ_FLOPPY_IRQ, 0, 1, PHYS_JJ_FDC, fd_table);
 
-    /* We load Proll as the kernel and start it. It will issue a magic
-       IO to load the real kernel */
-    if (linux_boot) {
+    prom_offset = ram_size + vram_size;
+
+    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, PROM_FILENAMEE);
+    ret = load_elf(buf, phys_ram_base + prom_offset);
+    if (ret < 0) {
 	snprintf(buf, sizeof(buf), "%s/%s", bios_dir, PROM_FILENAMEB);
-        ret = load_kernel(buf, 
-		       phys_ram_base + KERNEL_LOAD_ADDR);
+	ret = load_image(buf, phys_ram_base + prom_offset);
+    }
+    if (ret < 0) {
+	fprintf(stderr, "qemu: could not load prom '%s'\n", 
+		buf);
+	exit(1);
+    }
+    cpu_register_physical_memory(PROM_ADDR, (ret + TARGET_PAGE_SIZE) & TARGET_PAGE_MASK, 
+                                 prom_offset | IO_MEM_ROM);
+
+    if (linux_boot) {
+        ret = load_elf(kernel_filename, phys_ram_base + KERNEL_LOAD_ADDR);
+        if (ret < 0)
+	    ret = load_aout(kernel_filename, phys_ram_base + KERNEL_LOAD_ADDR);
+	if (ret < 0)
+	    ret = load_image(kernel_filename, phys_ram_base + KERNEL_LOAD_ADDR);
         if (ret < 0) {
             fprintf(stderr, "qemu: could not load kernel '%s'\n", 
-                    buf);
-            exit(1);
+                    kernel_filename);
+	    exit(1);
         }
     }
-    /* Setup a MMU entry for entire address space */
-    stl_raw(phys_ram_base + MMU_CONTEXT_TBL, (MMU_L1PTP >> 4) | 1);
-    stl_raw(phys_ram_base + MMU_L1PTP, (MMU_L2PTP >> 4) | 1);
-    stl_raw(phys_ram_base + MMU_L1PTP + (0x01 << 2), (MMU_L2PTP >> 4) | 1); // 01.. == 00..
-    stl_raw(phys_ram_base + MMU_L1PTP + (0xff << 2), (MMU_L2PTP >> 4) | 1); // ff.. == 00..
-    stl_raw(phys_ram_base + MMU_L1PTP + (0xf0 << 2), (MMU_L2PTP >> 4) | 1); // f0.. == 00..
-    /* 3 = U:RWX S:RWX */
-    stl_raw(phys_ram_base + MMU_L2PTP, (3 << PTE_ACCESS_SHIFT) | 2);
-    stl_raw(phys_ram_base + MMU_L2PTP, ((0x01 << PTE_PPN_SHIFT) >> 4 ) | (3 << PTE_ACCESS_SHIFT) | 2);
 }

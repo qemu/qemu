@@ -40,6 +40,9 @@ void do_interrupt(int intno, int is_int, int error_code,
 void raise_exception_err(int exception_index, int error_code);
 void raise_exception(int tt);
 void memcpy32(uint32_t *dst, const uint32_t *src);
+uint32_t mmu_probe(uint32_t address, int mmulev);
+void dump_mmu(void);
+void helper_debug();
 
 /* XXX: move that to a generic header */
 #if !defined(CONFIG_USER_ONLY)

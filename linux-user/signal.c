@@ -1354,13 +1354,14 @@ struct target_rt_signal_frame {
 	__siginfo_fpu_t		fpu_state;
 };
 
-#define UREG_O0        0
-#define UREG_O6        6
-#define UREG_I0        16
-#define UREG_I1        17
-#define UREG_I2        18
-#define UREG_I6        22
-#define UREG_I7        23
+#define UREG_O0        16
+#define UREG_O6        22
+#define UREG_I0        0
+#define UREG_I1        1
+#define UREG_I2        2
+#define UREG_I6        6
+#define UREG_I7        7
+#define UREG_L0	       8
 #define UREG_FP        UREG_I6
 #define UREG_SP        UREG_O6
 
@@ -1385,23 +1386,20 @@ setup___siginfo(__siginfo_t *si, CPUState *env, target_ulong mask)
 {
 	int err = 0, i;
 
-	fprintf(stderr, "2.a %lx psr: %lx regs: %lx\n", si, env->psr, si->si_regs.psr);
 	err |= __put_user(env->psr, &si->si_regs.psr);
-	fprintf(stderr, "2.a1 pc:%lx\n", si->si_regs.pc);
 	err |= __put_user(env->pc, &si->si_regs.pc);
 	err |= __put_user(env->npc, &si->si_regs.npc);
 	err |= __put_user(env->y, &si->si_regs.y);
-	fprintf(stderr, "2.b\n");
 	for (i=0; i < 7; i++) {
 		err |= __put_user(env->gregs[i], &si->si_regs.u_regs[i]);
 	}
 	for (i=0; i < 7; i++) {
-		err |= __put_user(env->regwptr[i+16], &si->si_regs.u_regs[i+8]);
+		err |= __put_user(env->regwptr[UREG_I0 + i], &si->si_regs.u_regs[i+8]);
 	}
-	fprintf(stderr, "2.c\n");
 	err |= __put_user(mask, &si->si_mask);
 	return err;
 }
+
 static int
 setup_sigcontext(struct target_sigcontext *sc, /*struct _fpstate *fpstate,*/
 		 CPUState *env, unsigned long mask)
@@ -1434,6 +1432,7 @@ static void setup_frame(int sig, struct emulated_sigaction *ka,
 	sf = (struct target_signal_frame *)
 		get_sigframe(ka, env, sigframe_size);
 
+	//fprintf(stderr, "sf: %x pc %x fp %x sp %x\n", sf, env->pc, env->regwptr[UREG_FP], env->regwptr[UREG_SP]);
 #if 0
 	if (invalid_frame_pointer(sf, sigframe_size))
 		goto sigill_and_return;
@@ -1451,13 +1450,11 @@ static void setup_frame(int sig, struct emulated_sigaction *ka,
 	}
 
 	for (i = 0; i < 7; i++) {
-	  	err |= __put_user(env->regwptr[i + 8], &sf->ss.locals[i]);
+	  	err |= __put_user(env->regwptr[i + UREG_L0], &sf->ss.locals[i]);
 	}
 	for (i = 0; i < 7; i++) {
-	  	err |= __put_user(env->regwptr[i + 16], &sf->ss.ins[i]);
+	  	err |= __put_user(env->regwptr[i + UREG_I0], &sf->ss.ins[i]);
 	}
-	//err |= __copy_to_user(sf, (char *) regs->u_regs[UREG_FP],
-	//		      sizeof(struct reg_window));
 	if (err)
 		goto sigsegv;
 
@@ -1486,13 +1483,15 @@ static void setup_frame(int sig, struct emulated_sigaction *ka,
 
 		/* Flush instruction space. */
 		//flush_sig_insns(current->mm, (unsigned long) &(sf->insns[0]));
-		//tb_flush(env);
+		tb_flush(env);
 	}
+	//cpu_dump_state(env, stderr, fprintf, 0);
 	return;
 
 sigill_and_return:
 	force_sig(TARGET_SIGILL);
 sigsegv:
+	//fprintf(stderr, "force_sig\n");
 	force_sig(TARGET_SIGSEGV);
 }
 static inline int
@@ -1542,13 +1541,16 @@ static void setup_rt_frame(int sig, struct emulated_sigaction *ka,
 long do_sigreturn(CPUState *env)
 {
         struct target_signal_frame *sf;
-        unsigned long up_psr, pc, npc;
+        uint32_t up_psr, pc, npc;
         target_sigset_t set;
+        sigset_t host_set;
         __siginfo_fpu_t *fpu_save;
-        int err;
+        int err, i;
 
-        sf = (struct new_signal_frame *) env->regwptr[UREG_FP];
-	fprintf(stderr, "sigreturn sf: %lx\n", &sf);
+        sf = (struct target_signal_frame *) env->regwptr[UREG_FP];
+	fprintf(stderr, "sigreturn\n");
+	fprintf(stderr, "sf: %x pc %x fp %x sp %x\n", sf, env->pc, env->regwptr[UREG_FP], env->regwptr[UREG_SP]);
+	//cpu_dump_state(env, stderr, fprintf, 0);
 
         /* 1. Make sure we are not getting garbage from the user */
 #if 0
@@ -1567,36 +1569,41 @@ long do_sigreturn(CPUState *env)
                 goto segv_and_exit;
 
         /* 2. Restore the state */
-        up_psr = env->psr;
-        //err |= __copy_from_user(regs, &sf->info.si_regs, sizeof (struct pt_regs)
-	//);
+        err |= __get_user(up_psr, &sf->info.si_regs.psr);
+
         /* User can only change condition codes and FPU enabling in %psr. */
         env->psr = (up_psr & ~(PSR_ICC /* | PSR_EF */))
                   | (env->psr & (PSR_ICC /* | PSR_EF */));
-	fprintf(stderr, "psr: %lx\n", env->psr);
+	fprintf(stderr, "psr: %x\n", env->psr);
+	env->pc = pc-4;
+	env->npc = pc;
+        err |= __get_user(env->y, &sf->info.si_regs.y);
+	for (i=0; i < 7; i++) {
+		err |= __get_user(env->gregs[i], &sf->info.si_regs.u_regs[i]);
+	}
+	for (i=0; i < 7; i++) {
+		err |= __get_user(env->regwptr[i + UREG_I0], &sf->info.si_regs.u_regs[i+8]);
+	}
 
         err |= __get_user(fpu_save, &sf->fpu_save);
 
-        if (fpu_save)
-                err |= restore_fpu_state(env, fpu_save);
+        //if (fpu_save)
+        //        err |= restore_fpu_state(env, fpu_save);
 
         /* This is pretty much atomic, no amount locking would prevent
          * the races which exist anyways.
          */
         err |= __get_user(set.sig[0], &sf->info.si_mask);
-        //err |= __copy_from_user(&set.sig[1], &sf->extramask,
-        //                        (_NSIG_WORDS-1) * sizeof(unsigned int));
+        for(i = 1; i < TARGET_NSIG_WORDS; i++) {
+            err |= (__get_user(set.sig[i], &sf->extramask[i - 1]));
+        }
+
+        target_to_host_sigset_internal(&host_set, &set);
+        sigprocmask(SIG_SETMASK, &host_set, NULL);
 
         if (err)
                 goto segv_and_exit;
 
-#if 0
-        sigdelsetmask(&set, ~_BLOCKABLE);
-        spin_lock_irq(&current->sigmask_lock);
-        current->blocked = set;
-        recalc_sigpending(current);
-        spin_unlock_irq(&current->sigmask_lock);
-#endif
 	fprintf(stderr, "returning %lx\n", env->regwptr[0]);
         return env->regwptr[0];
 

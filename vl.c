@@ -2214,10 +2214,74 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
 #elif defined(TARGET_SPARC)
 void cpu_save(QEMUFile *f, void *opaque)
 {
+    CPUState *env = opaque;
+    int i;
+    uint32_t tmp;
+
+    for(i = 1; i < 8; i++)
+        qemu_put_be32s(f, &env->gregs[i]);
+    tmp = env->regwptr - env->regbase;
+    qemu_put_be32s(f, &tmp);
+    for(i = 1; i < NWINDOWS * 16 + 8; i++)
+        qemu_put_be32s(f, &env->regbase[i]);
+
+    /* FPU */
+    for(i = 0; i < 32; i++) {
+        uint64_t mant;
+        uint16_t exp;
+	cpu_get_fp64(&mant, &exp, env->fpr[i]);
+        qemu_put_be64(f, mant);
+        qemu_put_be16(f, exp);
+    }
+    qemu_put_be32s(f, &env->pc);
+    qemu_put_be32s(f, &env->npc);
+    qemu_put_be32s(f, &env->y);
+    tmp = GET_PSR(env);
+    qemu_put_be32s(f, &tmp);
+    qemu_put_be32s(f, &env->fsr);
+    qemu_put_be32s(f, &env->cwp);
+    qemu_put_be32s(f, &env->wim);
+    qemu_put_be32s(f, &env->tbr);
+    /* MMU */
+    for(i = 0; i < 16; i++)
+        qemu_put_be32s(f, &env->mmuregs[i]);
 }
 
 int cpu_load(QEMUFile *f, void *opaque, int version_id)
 {
+    CPUState *env = opaque;
+    int i;
+    uint32_t tmp;
+
+    for(i = 1; i < 8; i++)
+        qemu_get_be32s(f, &env->gregs[i]);
+    qemu_get_be32s(f, &tmp);
+    env->regwptr = env->regbase + tmp;
+    for(i = 1; i < NWINDOWS * 16 + 8; i++)
+        qemu_get_be32s(f, &env->regbase[i]);
+
+    /* FPU */
+    for(i = 0; i < 32; i++) {
+        uint64_t mant;
+        uint16_t exp;
+
+        qemu_get_be64s(f, &mant);
+        qemu_get_be16s(f, &exp);
+	env->fpr[i] = cpu_put_fp64(mant, exp);
+    }
+    qemu_get_be32s(f, &env->pc);
+    qemu_get_be32s(f, &env->npc);
+    qemu_get_be32s(f, &env->y);
+    qemu_get_be32s(f, &tmp);
+    PUT_PSR(env, tmp);
+    qemu_get_be32s(f, &env->fsr);
+    qemu_get_be32s(f, &env->cwp);
+    qemu_get_be32s(f, &env->wim);
+    qemu_get_be32s(f, &env->tbr);
+    /* MMU */
+    for(i = 0; i < 16; i++)
+        qemu_get_be32s(f, &env->mmuregs[i]);
+    tlb_flush(env, 1);
     return 0;
 }
 #else
@@ -2388,7 +2452,7 @@ void qemu_system_shutdown_request(void)
 
 static void main_cpu_reset(void *opaque)
 {
-#ifdef TARGET_I386
+#if defined(TARGET_I386) || defined(TARGET_SPARC)
     CPUState *env = opaque;
     cpu_reset(env);
 #endif
