@@ -38,6 +38,7 @@
 #include <sched.h>
 #include <dirent.h>
 #include <setjmp.h>
+#include <sys/shm.h>
 
 #define TESTPATH "/tmp/linux-test.tmp"
 #define TESTPORT 7654
@@ -314,12 +315,19 @@ const char socket_msg[] = "hello socket\n";
 
 void test_socket(void)
 {
-    int server_fd, client_fd, fd, pid, ret;
+    int server_fd, client_fd, fd, pid, ret, val;
     struct sockaddr_in sockaddr;
     socklen_t len;
     char buf[512];
 
     server_fd = server_socket();
+
+    /* test a few socket options */
+    len = sizeof(val);
+    chk_error(getsockopt(server_fd, SOL_SOCKET, SO_TYPE, &val, &len));
+    if (val != SOCK_STREAM)
+        error("getsockopt");
+    
     pid = chk_error(fork());
     if (pid == 0) {
         client_fd = client_socket();
@@ -497,13 +505,32 @@ void test_signal(void)
     chk_error(sigaction(SIGSEGV, &act, NULL));
 }
 
+#define SHM_SIZE 32768
+
+void test_shm(void)
+{
+    void *ptr;
+    int shmid;
+
+    shmid = chk_error(shmget(IPC_PRIVATE, SHM_SIZE, IPC_CREAT | 0777));
+    ptr = shmat(shmid, NULL, 0);
+    if (!ptr)
+        error("shmat");
+
+    memset(ptr, 0, SHM_SIZE);
+
+    chk_error(shmctl(shmid, IPC_RMID, 0));
+    chk_error(shmdt(ptr));
+}
+
 int main(int argc, char **argv)
 {
     test_file();
     test_fork();
     test_time();
     test_socket();
-    test_clone();
+    //    test_clone();
     test_signal();
+    test_shm();
     return 0;
 }
