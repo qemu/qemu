@@ -81,6 +81,7 @@ tar:
 tarbin:
 	( cd / ; tar zcvf ~/qemu-$(VERSION)-i386.tar.gz \
 	$(prefix)/bin/qemu $(prefix)/bin/qemu-fast \
+	$(prefix)/bin/qemu-system-ppc \
 	$(prefix)/bin/qemu-i386 \
         $(prefix)/bin/qemu-arm \
         $(prefix)/bin/qemu-sparc \
