@@ -2016,31 +2016,35 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
             switch(ot) {
             case OT_BYTE:
                 gen_op_mulb_AL_T0();
+                s->cc_op = CC_OP_MULB;
                 break;
             case OT_WORD:
                 gen_op_mulw_AX_T0();
+                s->cc_op = CC_OP_MULW;
                 break;
             default:
             case OT_LONG:
                 gen_op_mull_EAX_T0();
+                s->cc_op = CC_OP_MULL;
                 break;
             }
-            s->cc_op = CC_OP_MUL;
             break;
         case 5: /* imul */
             switch(ot) {
             case OT_BYTE:
                 gen_op_imulb_AL_T0();
+                s->cc_op = CC_OP_MULB;
                 break;
             case OT_WORD:
                 gen_op_imulw_AX_T0();
+                s->cc_op = CC_OP_MULW;
                 break;
             default:
             case OT_LONG:
                 gen_op_imull_EAX_T0();
+                s->cc_op = CC_OP_MULL;
                 break;
             }
-            s->cc_op = CC_OP_MUL;
             break;
         case 6: /* div */
             switch(ot) {
@@ -2235,7 +2239,7 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
             gen_op_imulw_T0_T1();
         }
         gen_op_mov_reg_T0[ot][reg]();
-        s->cc_op = CC_OP_MUL;
+        s->cc_op = CC_OP_MULB + ot;
         break;
     case 0x1c0:
     case 0x1c1: /* xadd Ev, Gv */

@@ -169,11 +169,16 @@ void OPPROTO op_bswapl_T0(void)
 }
 
 /* multiply/divide */
+
+/* XXX: add eflags optimizations */
+/* XXX: add non P4 style flags */
+
 void OPPROTO op_mulb_AL_T0(void)
 {
     unsigned int res;
     res = (uint8_t)EAX * (uint8_t)T0;
     EAX = (EAX & 0xffff0000) | res;
+    CC_DST = res;
     CC_SRC = (res & 0xff00);
 }
 
@@ -182,6 +187,7 @@ void OPPROTO op_imulb_AL_T0(void)
     int res;
     res = (int8_t)EAX * (int8_t)T0;
     EAX = (EAX & 0xffff0000) | (res & 0xffff);
+    CC_DST = res;
     CC_SRC = (res != (int8_t)res);
 }
 
@@ -191,6 +197,7 @@ void OPPROTO op_mulw_AX_T0(void)
     res = (uint16_t)EAX * (uint16_t)T0;
     EAX = (EAX & 0xffff0000) | (res & 0xffff);
     EDX = (EDX & 0xffff0000) | ((res >> 16) & 0xffff);
+    CC_DST = res;
     CC_SRC = res >> 16;
 }
 
@@ -200,6 +207,7 @@ void OPPROTO op_imulw_AX_T0(void)
     res = (int16_t)EAX * (int16_t)T0;
     EAX = (EAX & 0xffff0000) | (res & 0xffff);
     EDX = (EDX & 0xffff0000) | ((res >> 16) & 0xffff);
+    CC_DST = res;
     CC_SRC = (res != (int16_t)res);
 }
 
@@ -209,6 +217,7 @@ void OPPROTO op_mull_EAX_T0(void)
     res = (uint64_t)((uint32_t)EAX) * (uint64_t)((uint32_t)T0);
     EAX = res;
     EDX = res >> 32;
+    CC_DST = res;
     CC_SRC = res >> 32;
 }
 
@@ -218,6 +227,7 @@ void OPPROTO op_imull_EAX_T0(void)
     res = (int64_t)((int32_t)EAX) * (int64_t)((int32_t)T0);
     EAX = res;
     EDX = res >> 32;
+    CC_DST = res;
     CC_SRC = (res != (int32_t)res);
 }
 
@@ -226,6 +236,7 @@ void OPPROTO op_imulw_T0_T1(void)
     int res;
     res = (int16_t)T0 * (int16_t)T1;
     T0 = res;
+    CC_DST = res;
     CC_SRC = (res != (int16_t)res);
 }
 
@@ -234,6 +245,7 @@ void OPPROTO op_imull_T0_T1(void)
     int64_t res;
     res = (int64_t)((int32_t)T0) * (int64_t)((int32_t)T1);
     T0 = res;
+    CC_DST = res;
     CC_SRC = (res != (int32_t)res);
 }
 
@@ -1293,31 +1305,14 @@ static int compute_c_eflags(void)
     return CC_SRC & CC_C;
 }
 
-static int compute_c_mul(void)
-{
-    int cf;
-    cf = (CC_SRC != 0);
-    return cf;
-}
-
-static int compute_all_mul(void)
-{
-    int cf, pf, af, zf, sf, of;
-    cf = (CC_SRC != 0);
-    pf = 0; /* undefined */
-    af = 0; /* undefined */
-    zf = 0; /* undefined */
-    sf = 0; /* undefined */
-    of = cf << 11;
-    return cf | pf | af | zf | sf | of;
-}
-    
 CCTable cc_table[CC_OP_NB] = {
     [CC_OP_DYNAMIC] = { /* should never happen */ },
 
     [CC_OP_EFLAGS] = { compute_all_eflags, compute_c_eflags },
 
-    [CC_OP_MUL] = { compute_all_mul, compute_c_mul },
+    [CC_OP_MULB] = { compute_all_mulb, compute_c_mull },
+    [CC_OP_MULW] = { compute_all_mulw, compute_c_mull },
+    [CC_OP_MULL] = { compute_all_mull, compute_c_mull },
 
     [CC_OP_ADDB] = { compute_all_addb, compute_c_addb },
     [CC_OP_ADDW] = { compute_all_addw, compute_c_addw  },

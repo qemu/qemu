@@ -229,6 +229,29 @@ static int glue(compute_all_sar, SUFFIX)(void)
     return cf | pf | af | zf | sf | of;
 }
 
+#if DATA_BITS == 32
+static int glue(compute_c_mul, SUFFIX)(void)
+{
+    int cf;
+    cf = (CC_SRC != 0);
+    return cf;
+}
+#endif
+
+/* NOTE: we compute the flags like the P4. On olders CPUs, only OF and
+   CF are modified and it is slower to do that. */
+static int glue(compute_all_mul, SUFFIX)(void)
+{
+    int cf, pf, af, zf, sf, of;
+    cf = (CC_SRC != 0);
+    pf = parity_table[(uint8_t)CC_DST];
+    af = 0; /* undefined */
+    zf = ((DATA_TYPE)CC_DST == 0) << 6;
+    sf = lshift(CC_DST, 8 - DATA_BITS) & 0x80;
+    of = cf << 11;
+    return cf | pf | af | zf | sf | of;
+}
+
 /* various optimized jumps cases */
 
 void OPPROTO glue(op_jb_sub, SUFFIX)(void)
