@@ -2807,7 +2807,6 @@ void helper_fstenv(target_ulong ptr, int data32)
             tmp.d = env->fpregs[i].d;
             exp = EXPD(tmp);
             mant = MANTD(tmp);
-            printf("mant=%llx exp=%x\n", mant, exp);
             if (exp == 0 && mant == 0) {
                 /* zero */
 	        fptag |= 1;
