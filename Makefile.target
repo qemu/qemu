@@ -343,6 +343,9 @@ $(QEMU_SYSTEM): $(VL_OBJS) libqemu.a
 sdl.o: sdl.c
 	$(CC) $(CFLAGS) $(DEFINES) $(SDL_CFLAGS) -c -o $@ $<
 
+sdlaudio.o: sdlaudio.c
+	$(CC) $(CFLAGS) $(DEFINES) $(SDL_CFLAGS) -c -o $@ $<
+
 depend: $(SRCS)
 	$(CC) -MM $(CFLAGS) $(DEFINES) $^ 1>.depend
 

@@ -172,6 +172,7 @@ if test "$mingw32" = "yes" ; then
     target_list="i386-softmmu ppc-softmmu sparc-softmmu"
     EXESUF=".exe"
     gdbstub="no"
+    oss="no"
 fi
 
 if test -z "$cross_prefix" ; then
