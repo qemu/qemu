@@ -745,17 +745,19 @@ void pic_init(void)
 #define RW_STATE_LATCHED_WORD1 5
 
 typedef struct PITChannelState {
-    uint16_t count;
+    int count; /* can be 65536 */
     uint16_t latched_count;
     uint8_t rw_state;
     uint8_t mode;
     uint8_t bcd; /* not supported */
     uint8_t gate; /* timer start */
     int64_t count_load_time;
+    int64_t count_last_edge_check_time;
 } PITChannelState;
 
 PITChannelState pit_channels[3];
 int speaker_data_on;
+int pit_min_timer_count = 0;
 
 int64_t ticks_per_sec;
 
@@ -785,13 +787,36 @@ void cpu_calibrate_ticks(void)
     ticks_per_sec = (ticks * 1000000LL + (usec >> 1)) / usec;
 }
 
+/* compute with 96 bit intermediate result: (a*b)/c */
+static uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c)
+{
+    union {
+        uint64_t ll;
+        struct {
+#ifdef WORDS_BIGENDIAN
+            uint32_t high, low;
+#else
+            uint32_t low, high;
+#endif            
+        } l;
+    } u, res;
+    uint64_t rl, rh;
+
+    u.ll = a;
+    rl = (uint64_t)u.l.low * (uint64_t)b;
+    rh = (uint64_t)u.l.high * (uint64_t)b;
+    rh += (rl >> 32);
+    res.l.high = rh / c;
+    res.l.low = (((rh % c) << 32) + (rl & 0xffffffff)) / c;
+    return res.ll;
+}
+
 static int pit_get_count(PITChannelState *s)
 {
-    int64_t d;
+    uint64_t d;
     int counter;
 
-    d = ((cpu_get_ticks() - s->count_load_time) * PIT_FREQ) / 
-        ticks_per_sec;
+    d = muldiv64(cpu_get_ticks() - s->count_load_time, PIT_FREQ, ticks_per_sec);
     switch(s->mode) {
     case 0:
     case 1:
@@ -809,11 +834,10 @@ static int pit_get_count(PITChannelState *s)
 /* get pit output bit */
 static int pit_get_out(PITChannelState *s)
 {
-    int64_t d;
+    uint64_t d;
     int out;
 
-    d = ((cpu_get_ticks() - s->count_load_time) * PIT_FREQ) / 
-        ticks_per_sec;
+    d = muldiv64(cpu_get_ticks() - s->count_load_time, PIT_FREQ, ticks_per_sec);
     switch(s->mode) {
     default:
     case 0:
@@ -839,11 +863,74 @@ static int pit_get_out(PITChannelState *s)
     return out;
 }
 
+/* get the number of 0 to 1 transitions we had since we call this
+   function */
+/* XXX: maybe better to use ticks precision to avoid getting edges
+   twice if checks are done at very small intervals */
+static int pit_get_out_edges(PITChannelState *s)
+{
+    uint64_t d1, d2;
+    int64_t ticks;
+    int ret, v;
+
+    ticks = cpu_get_ticks();
+    d1 = muldiv64(s->count_last_edge_check_time - s->count_load_time, 
+                 PIT_FREQ, ticks_per_sec);
+    d2 = muldiv64(ticks - s->count_load_time, 
+                  PIT_FREQ, ticks_per_sec);
+    s->count_last_edge_check_time = ticks;
+    switch(s->mode) {
+    default:
+    case 0:
+        if (d1 < s->count && d2 >= s->count)
+            ret = 1;
+        else
+            ret = 0;
+        break;
+    case 1:
+        ret = 0;
+        break;
+    case 2:
+        d1 /= s->count;
+        d2 /= s->count;
+        ret = d2 - d1;
+        break;
+    case 3:
+        v = s->count - (s->count >> 1);
+        d1 = (d1 + v) / s->count;
+        d2 = (d2 + v) / s->count;
+        ret = d2 - d1;
+        break;
+    case 4:
+    case 5:
+        if (d1 < s->count && d2 >= s->count)
+            ret = 1;
+        else
+            ret = 0;
+        break;
+    }
+    return ret;
+}
+
+static inline void pit_load_count(PITChannelState *s, int val)
+{
+    if (val == 0)
+        val = 0x10000;
+    s->count_load_time = cpu_get_ticks();
+    s->count_last_edge_check_time = s->count_load_time;
+    s->count = val;
+    if (s == &pit_channels[0] && val <= pit_min_timer_count) {
+        fprintf(stderr, 
+                "\nWARNING: vl: on your system, accurate timer emulation is impossible if its frequency is more than %d Hz. If using a 2.5.xx Linux kernel, you must patch asm/param.h to change HZ from 1000 to 100.\n\n", 
+                PIT_FREQ / pit_min_timer_count);
+    }
+}
+
 void pit_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
 {
     int channel, access;
     PITChannelState *s;
-    
+
     addr &= 3;
     if (addr == 3) {
         channel = val >> 6;
@@ -857,27 +944,24 @@ void pit_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
             s->rw_state = RW_STATE_LATCHED_WORD0;
             break;
         default:
+            s->mode = (val >> 1) & 7;
+            s->bcd = val & 1;
             s->rw_state = access - 1 +  RW_STATE_LSB;
             break;
         }
-        s->mode = (val >> 1) & 7;
-        s->bcd = val & 1;
     } else {
         s = &pit_channels[addr];
         switch(s->rw_state) {
         case RW_STATE_LSB:
-            s->count_load_time = cpu_get_ticks();
-            s->count = val;
+            pit_load_count(s, val);
             break;
         case RW_STATE_MSB:
-            s->count_load_time = cpu_get_ticks();
-            s->count = (val << 8);
+            pit_load_count(s, val << 8);
             break;
         case RW_STATE_WORD0:
         case RW_STATE_WORD1:
             if (s->rw_state & 1) {
-                s->count_load_time = cpu_get_ticks();
-                s->count = (s->latched_count & 0xff) | (val << 8);
+                pit_load_count(s, (s->latched_count & 0xff) | (val << 8));
             } else {
                 s->latched_count = val;
             }
@@ -935,16 +1019,23 @@ uint32_t speaker_ioport_read(CPUX86State *env, uint32_t addr)
 
 void pit_init(void)
 {
-    pit_channels[0].gate = 1;
-    pit_channels[1].gate = 1;
-    pit_channels[2].gate = 0;
-    
+    PITChannelState *s;
+    int i;
+
+    cpu_calibrate_ticks();
+
+    for(i = 0;i < 3; i++) {
+        s = &pit_channels[i];
+        s->mode = 3;
+        s->gate = (i != 2);
+        pit_load_count(s, 0);
+    }
+
     register_ioport_writeb(0x40, 4, pit_ioport_write);
     register_ioport_readb(0x40, 3, pit_ioport_read);
 
     register_ioport_readb(0x61, 1, speaker_ioport_read);
     register_ioport_writeb(0x61, 1, speaker_ioport_write);
-    cpu_calibrate_ticks();
 }
 
 /***********************************************************/
@@ -1462,6 +1553,8 @@ void ne2000_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
                 s->rcnt == 0) {
                 s->isr |= ENISR_RDC;
                 ne2000_update_irq(s);
+                /* XXX: find a better solution for irqs */
+                cpu_x86_interrupt(global_env);
             }
             if (val & E8390_TRANS) {
                 net_send_packet(s, s->mem + (s->tpsr << 8), s->tcnt);
@@ -1671,13 +1764,23 @@ static void host_segv_handler(int host_signum, siginfo_t *info,
 }
 
 static int timer_irq_pending;
+static int timer_irq_count;
 
 static void host_alarm_handler(int host_signum, siginfo_t *info, 
                                void *puc)
 {
-    /* just exit from the cpu to have a chance to handle timers */
-    cpu_x86_interrupt(global_env);
-    timer_irq_pending = 1;
+    /* NOTE: since usually the OS asks a 100 Hz clock, there can be
+       some drift between cpu_get_ticks() and the interrupt time. So
+       we queue some interrupts to avoid missing some */
+    timer_irq_count += pit_get_out_edges(&pit_channels[0]);
+    if (timer_irq_count) {
+        if (timer_irq_count > 2)
+            timer_irq_count = 2;
+        timer_irq_count--;
+        /* just exit from the cpu to have a chance to handle timers */
+        cpu_x86_interrupt(global_env);
+        timer_irq_pending = 1;
+    }
 }
 
 void help(void)
@@ -1705,7 +1808,8 @@ int main(int argc, char **argv)
     struct sigaction act;
     struct itimerval itv;
     CPUX86State *env;
-
+    const char *tmpdir;
+    
     /* we never want that malloc() uses mmap() */
     mallopt(M_MMAP_THRESHOLD, 4096 * 1024);
     
@@ -1749,14 +1853,19 @@ int main(int argc, char **argv)
     net_init();
 
     /* init the memory */
-    strcpy(phys_ram_file, "/tmp/vlXXXXXX");
+    tmpdir = getenv("VLTMPDIR");
+    if (!tmpdir)
+        tmpdir = "/tmp";
+    snprintf(phys_ram_file, sizeof(phys_ram_file), "%s/vlXXXXXX", tmpdir);
     if (mkstemp(phys_ram_file) < 0) {
-        fprintf(stderr, "Could not create temporary memory file\n");
+        fprintf(stderr, "Could not create temporary memory file '%s'\n", 
+                phys_ram_file);
         exit(1);
     }
     phys_ram_fd = open(phys_ram_file, O_CREAT | O_TRUNC | O_RDWR, 0600);
     if (phys_ram_fd < 0) {
-        fprintf(stderr, "Could not open temporary memory file\n");
+        fprintf(stderr, "Could not open temporary memory file '%s'\n", 
+                phys_ram_file);
         exit(1);
     }
     ftruncate(phys_ram_fd, phys_ram_size);
@@ -1856,10 +1965,15 @@ int main(int argc, char **argv)
     env->eflags = 0x2;
 
     itv.it_interval.tv_sec = 0;
-    itv.it_interval.tv_usec = 10 * 1000;
+    itv.it_interval.tv_usec = 1000;
     itv.it_value.tv_sec = 0;
     itv.it_value.tv_usec = 10 * 1000;
     setitimer(ITIMER_REAL, &itv, NULL);
+    /* we probe the tick duration of the kernel to inform the user if
+       the emulated kernel requested a too high timer frequency */
+    getitimer(ITIMER_REAL, &itv);
+    pit_min_timer_count = ((uint64_t)itv.it_interval.tv_usec * PIT_FREQ) / 
+        1000000;
 
     for(;;) {
         struct pollfd ufds[2], *pf, *serial_ufd, *net_ufd;
