@@ -85,6 +85,10 @@ long do_rt_sigreturn(CPUX86State *env);
 #define __NR_sys_getdents64 __NR_getdents64
 #define __NR_sys_rt_sigqueueinfo __NR_rt_sigqueueinfo
 
+#ifdef __alpha__
+#define __NR__llseek __NR_lseek
+#endif
+
 #ifdef __NR_gettid
 _syscall0(int, gettid)
 #else
@@ -1853,7 +1857,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                 struct target_stat *target_st = (void *)arg2;
                 target_st->st_dev = tswap16(st.st_dev);
                 target_st->st_ino = tswapl(st.st_ino);
-                target_st->st_mode = tswap16(st.st_mode);
+                target_st->st_mode = tswap32(st.st_mode);
                 target_st->st_nlink = tswap16(st.st_nlink);
                 target_st->st_uid = tswap16(st.st_uid);
                 target_st->st_gid = tswap16(st.st_gid);
@@ -2244,7 +2248,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                 struct target_stat64 *target_st = (void *)arg2;
                 target_st->st_dev = tswap16(st.st_dev);
                 target_st->st_ino = tswapl(st.st_ino);
-                target_st->st_mode = tswap16(st.st_mode);
+                target_st->st_mode = tswap32(st.st_mode);
                 target_st->st_nlink = tswap16(st.st_nlink);
                 target_st->st_uid = tswap16(st.st_uid);
                 target_st->st_gid = tswap16(st.st_gid);
