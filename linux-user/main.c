@@ -476,6 +476,7 @@ static void flush_windows(CPUSPARCState *env)
 void cpu_loop (CPUSPARCState *env)
 {
     int trapnr, ret;
+    target_siginfo_t info;
     
     while (1) {
         trapnr = cpu_sparc_exec (env);
@@ -509,6 +510,17 @@ void cpu_loop (CPUSPARCState *env)
             break;
         case TT_WIN_UNF: /* window underflow */
             restore_window(env);
+            break;
+        case TT_TFAULT:
+        case TT_DFAULT:
+            {
+                info.si_signo = SIGSEGV;
+                info.si_errno = 0;
+                /* XXX: check env->error_code */
+                info.si_code = TARGET_SEGV_MAPERR;
+                info._sifields._sigfault._addr = env->mmuregs[4];
+                queue_signal(info.si_signo, &info);
+            }
             break;
 	case 0x100: // XXX, why do we get these?
 	    break;
