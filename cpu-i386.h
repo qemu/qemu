@@ -542,4 +542,104 @@ static inline TranslationBlock *tb_find(TranslationBlock ***pptb,
 #define offsetof(type, field) ((size_t) &((type *)0)->field)
 #endif
 
+#ifdef __powerpc__
+static inline int testandset (int *p)
+{
+    int ret;
+    __asm__ __volatile__ (
+                          "0:    lwarx %0,0,%1 ;"
+                          "      xor. %0,%3,%0;"
+                          "      bne 1f;"
+                          "      stwcx. %2,0,%1;"
+                          "      bne- 0b;"
+                          "1:    "
+                          : "=&r" (ret)
+                          : "r" (p), "r" (1), "r" (0)
+                          : "cr0", "memory");
+    return ret;
+}
+#endif
+
+#ifdef __i386__
+static inline int testandset (int *p)
+{
+    char ret;
+    long int readval;
+    
+    __asm__ __volatile__ ("lock; cmpxchgl %3, %1; sete %0"
+                          : "=q" (ret), "=m" (*p), "=a" (readval)
+                          : "r" (1), "m" (*p), "a" (0)
+                          : "memory");
+    return ret;
+}
+#endif
+
+#ifdef __s390__
+static inline int testandset (int *p)
+{
+    int ret;
+
+    __asm__ __volatile__ ("0: cs    %0,%1,0(%2)\n"
+			  "   jl    0b"
+			  : "=&d" (ret)
+			  : "r" (1), "a" (p), "0" (*p) 
+			  : "cc", "memory" );
+    return ret;
+}
+#endif
+
+#ifdef __alpha__
+int testandset (int *p)
+{
+    int ret;
+    unsigned long one;
+
+    __asm__ __volatile__ ("0:	mov 1,%2\n"
+			  "	ldl_l %0,%1\n"
+			  "	stl_c %2,%1\n"
+			  "	beq %2,1f\n"
+			  ".subsection 2\n"
+			  "1:	br 0b\n"
+			  ".previous"
+			  : "=r" (ret), "=m" (*p), "=r" (one)
+			  : "m" (*p));
+    return ret;
+}
+#endif
+
+#ifdef __sparc__
+static inline int testandset (int *p)
+{
+	int ret;
+
+	__asm__ __volatile__("ldstub	[%1], %0"
+			     : "=r" (ret)
+			     : "r" (p)
+			     : "memory");
+
+	return (ret ? 1 : 0);
+}
+#endif
+
+typedef int spinlock_t;
+
+#define SPIN_LOCK_UNLOCKED 0
+
+static inline void spin_lock(spinlock_t *lock)
+{
+    while (testandset(lock));
+}
+
+static inline void spin_unlock(spinlock_t *lock)
+{
+    *lock = 0;
+}
+
+static inline int spin_trylock(spinlock_t *lock)
+{
+    return !testandset(lock);
+}
+
+extern spinlock_t tb_lock;
+
 #endif /* CPU_I386_H */

@@ -42,6 +42,8 @@
 TranslationBlock tbs[CODE_GEN_MAX_BLOCKS];
 TranslationBlock *tb_hash[CODE_GEN_HASH_SIZE];
 int nb_tbs;
+/* any access to the tbs or the page table must use this lock */
+spinlock_t tb_lock = SPIN_LOCK_UNLOCKED;
 
 uint8_t code_gen_buffer[CODE_GEN_BUFFER_SIZE];
 uint8_t *code_gen_ptr;
@@ -172,6 +174,7 @@ void page_set_flags(unsigned long start, unsigned long end, int flags)
     end = TARGET_PAGE_ALIGN(end);
     if (flags & PAGE_WRITE)
         flags |= PAGE_WRITE_ORG;
+    spin_lock(&tb_lock);
     for(addr = start; addr < end; addr += TARGET_PAGE_SIZE) {
         p = page_find_alloc(addr >> TARGET_PAGE_BITS);
         /* if the write protection is set, then we invalidate the code
@@ -183,6 +186,7 @@ void page_set_flags(unsigned long start, unsigned long end, int flags)
         }
         p->flags = flags;
     }
+    spin_unlock(&tb_lock);
 }
 
 void cpu_x86_tblocks_init(void)
