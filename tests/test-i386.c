@@ -707,6 +707,19 @@ uint8_t seg_data2[4096];
 
 #define MK_SEL(n) (((n) << 3) | 7)
 
+#define TEST_LR(op, size, seg, mask)\
+{\
+    int res, res2;\
+    res = 0x12345678;\
+    asm (op " %" size "2, %" size "0\n" \
+         "movl $0, %1\n"\
+         "jnz 1f\n"\
+         "movl $1, %1\n"\
+         "1:\n"\
+         : "=r" (res), "=r" (res2) : "m" (seg), "0" (res));\
+    printf(op ": Z=%d %08x\n", res2, res & ~(mask));\
+}
+
 /* NOTE: we use Linux modify_ldt syscall */
 void test_segs(void)
 {
@@ -784,6 +797,16 @@ void test_segs(void)
                  : "=r" (res), "=g" (res2) 
                  : "m" (segoff));
     printf("FS:reg = %04x:%08x\n", res2, res);
+
+    TEST_LR("larw", "w", MK_SEL(2), 0x0100);
+    TEST_LR("larl", "", MK_SEL(2), 0x0100);
+    TEST_LR("lslw", "w", MK_SEL(2), 0);
+    TEST_LR("lsll", "", MK_SEL(2), 0);
+
+    TEST_LR("larw", "w", 0xfff8, 0);
+    TEST_LR("larl", "", 0xfff8, 0);
+    TEST_LR("lslw", "w", 0xfff8, 0);
+    TEST_LR("lsll", "", 0xfff8, 0);
 }
 
 /* 16 bit code test */
