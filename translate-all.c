@@ -190,9 +190,9 @@ int cpu_restore_state(TranslationBlock *tb,
 #elif defined(TARGET_ARM)
     env->regs[15] = gen_opc_pc[j];
 #elif defined(TARGET_SPARC)
-	env->pc = gen_opc_pc[j];
+    env->pc = gen_opc_pc[j];
+#elif defined(TARGET_PPC)
+    env->nip = gen_opc_pc[j];
 #endif
     return 0;
 }
-
-
