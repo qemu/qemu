@@ -3074,7 +3074,8 @@ static int print_insn_powerpc(FILE *, unsigned long insn, unsigned memaddr, int 
 
 int print_insn_ppc (bfd_vma pc, disassemble_info *info)
 {
-	return print_insn_powerpc (info->stream, *(unsigned *)(long)pc, pc,
+	return print_insn_powerpc (info->stream, 
+                                   (unsigned int)bfd_getb32((bfd_byte *)pc), pc,
 				   PPC_OPCODE_PPC | PPC_OPCODE_601);
 }
 
