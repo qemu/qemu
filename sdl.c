@@ -87,20 +87,20 @@ static const uint32_t x_keycode_to_pc_keycode[61] = {
    0x0,         /* 117 */
    0x0,         /* 118 */
    0x0,         /* 119 */
-   0x0,         /* 120 */
+   0x70,         /* 120 Hiragana_Katakana */
    0x0,         /* 121 */
    0x0,         /* 122 */
-   0x0,         /* 123 */
+   0x73,         /* 123 backslash */
    0x0,         /* 124 */
    0x0,         /* 125 */
    0x0,         /* 126 */
    0x0,         /* 127 */
    0x0,         /* 128 */
-   0x0,         /* 129 */
+   0x79,         /* 129 Henkan */
    0x0,         /* 130 */
-   0x0,         /* 131 */
+   0x7b,         /* 131 Muhenkan */
    0x0,         /* 132 */
-   0x0,         /* 133 */
+   0x7d,         /* 133 Yen */
    0x0,         /* 134 */
    0x0,         /* 135 */
    0x47,         /* 136 KP_7 */
@@ -133,23 +133,19 @@ static void sdl_process_key(SDL_KeyboardEvent *ev)
     
     /* XXX: not portable, but avoids complicated mappings */
     keycode = ev->keysym.scancode;
-#ifdef _WIN32
-    if (keycode < 97) {
-        /* nothing to do */
-    } else 
-#else
+
+#ifndef _WIN32
     if (keycode < 9) {
         keycode = 0;
     } else if (keycode < 97) {
         keycode -= 8; /* just an offset */
-    } else 
-#endif
-    if (keycode < 158) {
+    } else if (keycode < 158) {
         /* use conversion table */
         keycode = x_keycode_to_pc_keycode[keycode - 97];
     } else {
         keycode = 0;
     }
+#endif
     
     /* now send the key code */
     while (keycode != 0) {
