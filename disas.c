@@ -148,11 +148,7 @@ void target_disas(FILE *out, target_ulong code, target_ulong size, int flags)
 #endif
 
     for (pc = code; pc < code + size; pc += count) {
-#if TARGET_LONG_BITS == 64        
-	fprintf(out, "0x%016llx:  ", pc);
-#else
-	fprintf(out, "0x%08x:  ", pc);
-#endif
+	fprintf(out, "0x" TARGET_FMT_lx ":  ", pc);
 	count = print_insn(pc, &disasm_info);
 #if 0
         {
@@ -301,10 +297,12 @@ void monitor_disas(target_ulong pc, int nb_insn, int is_physical, int flags)
     disasm_info.endian = BFD_ENDIAN_LITTLE;
 #endif
 #if defined(TARGET_I386)
-    if (!flags)
-        disasm_info.mach = bfd_mach_i386_i386;
-    else
+    if (flags == 2)
+        disasm_info.mach = bfd_mach_x86_64;
+    else if (flags == 1) 
         disasm_info.mach = bfd_mach_i386_i8086;
+    else
+        disasm_info.mach = bfd_mach_i386_i386;
     print_insn = print_insn_i386;
 #elif defined(TARGET_ARM)
     print_insn = print_insn_arm;
@@ -318,7 +316,7 @@ void monitor_disas(target_ulong pc, int nb_insn, int is_physical, int flags)
 #endif
 
     for(i = 0; i < nb_insn; i++) {
-	term_printf("0x%08lx:  ", (unsigned long)pc);
+	term_printf("0x" TARGET_FMT_lx ":  ", pc);
 	count = print_insn(pc, &disasm_info);
 	term_printf("\n");
 	if (count < 0)
