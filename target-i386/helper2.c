@@ -260,7 +260,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr,
                              int is_write, int is_user, int is_softmmu)
 {
     uint8_t *pde_ptr, *pte_ptr;
-    uint32_t pde, pte, virt_addr;
+    uint32_t pde, pte, virt_addr, ptep;
     int error_code, is_dirty, prot, page_size, ret;
     unsigned long paddr, vaddr, page_offset;
     
@@ -291,18 +291,18 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr,
         error_code = 0;
         goto do_fault;
     }
-    if (is_user) {
-        if (!(pde & PG_USER_MASK))
-            goto do_fault_protect;
-        if (is_write && !(pde & PG_RW_MASK))
-            goto do_fault_protect;
-    } else {
-        if ((env->cr[0] & CR0_WP_MASK) && (pde & PG_USER_MASK) &&
-            is_write && !(pde & PG_RW_MASK)) 
-            goto do_fault_protect;
-    }
     /* if PSE bit is set, then we use a 4MB page */
     if ((pde & PG_PSE_MASK) && (env->cr[4] & CR4_PSE_MASK)) {
+        if (is_user) {
+            if (!(pde & PG_USER_MASK))
+                goto do_fault_protect;
+            if (is_write && !(pde & PG_RW_MASK))
+                goto do_fault_protect;
+        } else {
+            if ((env->cr[0] & CR0_WP_MASK) && (pde & PG_USER_MASK) &&
+                is_write && !(pde & PG_RW_MASK)) 
+                goto do_fault_protect;
+        }
         is_dirty = is_write && !(pde & PG_DIRTY_MASK);
         if (!(pde & PG_ACCESSED_MASK) || is_dirty) {
             pde |= PG_ACCESSED_MASK;
@@ -312,6 +312,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr,
         }
         
         pte = pde & ~0x003ff000; /* align to 4MB */
+        ptep = pte;
         page_size = 4096 * 1024;
         virt_addr = addr & ~0x003fffff;
     } else {
@@ -328,14 +329,16 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr,
             error_code = 0;
             goto do_fault;
         }
+        /* combine pde and pte user and rw protections */
+        ptep = pte & pde;
         if (is_user) {
-            if (!(pte & PG_USER_MASK))
+            if (!(ptep & PG_USER_MASK))
                 goto do_fault_protect;
-            if (is_write && !(pte & PG_RW_MASK))
+            if (is_write && !(ptep & PG_RW_MASK))
                 goto do_fault_protect;
         } else {
-            if ((env->cr[0] & CR0_WP_MASK) && (pte & PG_USER_MASK) &&
-                is_write && !(pte & PG_RW_MASK)) 
+            if ((env->cr[0] & CR0_WP_MASK) && (ptep & PG_USER_MASK) &&
+                is_write && !(ptep & PG_RW_MASK)) 
                 goto do_fault_protect;
         }
         is_dirty = is_write && !(pte & PG_DIRTY_MASK);
@@ -355,11 +358,11 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr,
         /* only set write access if already dirty... otherwise wait
            for dirty access */
         if (is_user) {
-            if (pte & PG_RW_MASK)
+            if (ptep & PG_RW_MASK)
                 prot |= PROT_WRITE;
         } else {
-            if (!(env->cr[0] & CR0_WP_MASK) || !(pte & PG_USER_MASK) ||
-                (pte & PG_RW_MASK))
+            if (!(env->cr[0] & CR0_WP_MASK) || !(ptep & PG_USER_MASK) ||
+                (ptep & PG_RW_MASK))
                 prot |= PROT_WRITE;
         }
     }
@@ -384,3 +387,44 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr,
         env->error_code |= PG_ERROR_U_MASK;
     return 1;
 }
+
+#if defined(CONFIG_USER_ONLY) 
+target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+{
+    return addr;
+}
+#else
+target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+{
+    uint8_t *pde_ptr, *pte_ptr;
+    uint32_t pde, pte, paddr, page_offset, page_size;
+
+    if (!(env->cr[0] & CR0_PG_MASK)) {
+        pte = addr;
+        page_size = 4096;
+    } else {
+        /* page directory entry */
+        pde_ptr = phys_ram_base + 
+            (((env->cr[3] & ~0xfff) + ((addr >> 20) & ~3)) & a20_mask);
+        pde = ldl_raw(pde_ptr);
+        if (!(pde & PG_PRESENT_MASK)) 
+            return -1;
+        if ((pde & PG_PSE_MASK) && (env->cr[4] & CR4_PSE_MASK)) {
+            pte = pde & ~0x003ff000; /* align to 4MB */
+            page_size = 4096 * 1024;
+        } else {
+            /* page directory entry */
+            pte_ptr = phys_ram_base + 
+                (((pde & ~0xfff) + ((addr >> 10) & 0xffc)) & a20_mask);
+            pte = ldl_raw(pte_ptr);
+            if (!(pte & PG_PRESENT_MASK))
+                return -1;
+            page_size = 4096;
+        }
+    }
+    pte = pte & a20_mask;
+    page_offset = (addr & TARGET_PAGE_MASK) & (page_size - 1);
+    paddr = (pte & TARGET_PAGE_MASK) + page_offset;
+    return paddr;
+}
+#endif
