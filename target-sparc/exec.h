@@ -3,9 +3,15 @@
 #include "dyngen-exec.h"
 
 register struct CPUSPARCState *env asm(AREG0);
+#ifdef TARGET_SPARC64
+#define T0 (env->t0)
+#define T1 (env->t1)
+#define T2 (env->t2)
+#else
 register uint32_t T0 asm(AREG1);
 register uint32_t T1 asm(AREG2);
 register uint32_t T2 asm(AREG3);
+#endif
 #define FT0 (env->ft0)
 #define FT1 (env->ft1)
 #define FT2 (env->ft2)
@@ -32,17 +38,19 @@ void do_fsqrts(void);
 void do_fsqrtd(void);
 void do_fcmps(void);
 void do_fcmpd(void);
-void do_ldd_kernel(uint32_t addr);
-void do_ldd_user(uint32_t addr);
-void do_ldd_raw(uint32_t addr);
+void do_ldd_kernel(target_ulong addr);
+void do_ldd_user(target_ulong addr);
+void do_ldd_raw(target_ulong addr);
 void do_interrupt(int intno, int is_int, int error_code, 
                   unsigned int next_eip, int is_hw);
 void raise_exception_err(int exception_index, int error_code);
 void raise_exception(int tt);
-void memcpy32(uint32_t *dst, const uint32_t *src);
-uint32_t mmu_probe(uint32_t address, int mmulev);
+void memcpy32(target_ulong *dst, const target_ulong *src);
+target_ulong mmu_probe(target_ulong address, int mmulev);
 void dump_mmu(void);
 void helper_debug();
+void do_wrpsr();
+void do_rdpsr();
 
 /* XXX: move that to a generic header */
 #if !defined(CONFIG_USER_ONLY)

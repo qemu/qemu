@@ -209,7 +209,8 @@ void helper_st_asi(int asi, int size, int sign)
 
 void helper_rett()
 {
-    int cwp;
+    unsigned int cwp;
+
     env->psret = 1;
     cwp = (env->cwp + 1) & (NWINDOWS - 1); 
     if (env->wim & (1 << cwp)) {
@@ -254,4 +255,14 @@ void helper_debug()
 {
     env->exception_index = EXCP_DEBUG;
     cpu_loop_exit();
+}
+
+void do_wrpsr()
+{
+    PUT_PSR(env, T0);
+}
+
+void do_rdpsr()
+{
+    T0 = GET_PSR(env);
 }

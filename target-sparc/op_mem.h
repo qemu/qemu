@@ -36,7 +36,7 @@ void OPPROTO glue(op_ldstub, MEMSUFFIX)(void)
 
 void OPPROTO glue(op_swap, MEMSUFFIX)(void)
 {
-    unsigned int tmp = glue(ldl, MEMSUFFIX)(T0);
+    target_ulong tmp = glue(ldl, MEMSUFFIX)(T0);
     glue(stl, MEMSUFFIX)(T0, T1);       /* XXX: Should be Atomically */
     T1 = tmp;
 }

@@ -423,16 +423,13 @@ static inline void save_npc(DisasContext * dc)
 
 static inline void save_state(DisasContext * dc)
 {
-    gen_op_jmp_im((uint32_t)dc->pc);
+    gen_op_jmp_im(dc->pc);
     save_npc(dc);
 }
 
 static void gen_cond(int cond)
 {
 	switch (cond) {
-        case 0x0:
-            gen_op_movl_T2_0();
-            break;
 	case 0x1:
 	    gen_op_eval_be();
 	    break;
@@ -454,9 +451,6 @@ static void gen_cond(int cond)
 	case 0x7:
 	    gen_op_eval_bvs();
 	    break;
-        case 0x8:
-            gen_op_movl_T2_1();
-            break;
 	case 0x9:
 	    gen_op_eval_bne();
 	    break;
@@ -485,9 +479,6 @@ static void gen_cond(int cond)
 static void gen_fcond(int cond)
 {
 	switch (cond) {
-        case 0x0:
-            gen_op_movl_T2_0();
-            break;
 	case 0x1:
 	    gen_op_eval_fbne();
 	    break;
@@ -509,9 +500,6 @@ static void gen_fcond(int cond)
 	case 0x7:
 	    gen_op_eval_fbu();
 	    break;
-        case 0x8:
-            gen_op_movl_T2_1();
-            break;
 	case 0x9:
 	    gen_op_eval_fbe();
 	    break;
@@ -537,10 +525,11 @@ static void gen_fcond(int cond)
 	}
 }
 
-static void do_branch(DisasContext * dc, uint32_t target, uint32_t insn)
+static void do_branch(DisasContext * dc, int32_t offset, uint32_t insn)
 {
     unsigned int cond = GET_FIELD(insn, 3, 6), a = (insn & (1 << 29));
-    target += (uint32_t) dc->pc;
+    target_ulong target = dc->pc + offset;
+
     if (cond == 0x0) {
 	/* unconditional not taken */
 	if (a) {
@@ -574,10 +563,11 @@ static void do_branch(DisasContext * dc, uint32_t target, uint32_t insn)
     }
 }
 
-static void do_fbranch(DisasContext * dc, uint32_t target, uint32_t insn)
+static void do_fbranch(DisasContext * dc, int32_t offset, uint32_t insn)
 {
     unsigned int cond = GET_FIELD(insn, 3, 6), a = (insn & (1 << 29));
-    target += (uint32_t) dc->pc;
+    target_ulong target = dc->pc + offset;
+
     if (cond == 0x0) {
 	/* unconditional not taken */
 	if (a) {
@@ -611,15 +601,6 @@ static void do_fbranch(DisasContext * dc, uint32_t target, uint32_t insn)
     }
 }
 
-#if 0
-static void gen_debug(DisasContext *s, uint32_t pc)
-{
-    gen_op_jmp_im(pc);
-    gen_op_debug();
-    s->is_br = 1;
-}
-#endif
-
 #define GET_FIELDs(x,a,b) sign_extend (GET_FIELD(x,a,b), (b) - (a) + 1)
 
 static int sign_extend(int x, int len)
@@ -640,12 +621,13 @@ static void disas_sparc_insn(DisasContext * dc)
     case 0:			/* branches/sethi */
 	{
 	    unsigned int xop = GET_FIELD(insn, 7, 9);
-	    int target;
+	    int32_t target;
 	    target = GET_FIELD(insn, 10, 31);
 	    switch (xop) {
-	    case 0x0:
-	    case 0x1:		/* UNIMPL */
-	    case 0x5:		/*CBN+x */
+	    case 0x0:		/* UNIMPL */
+	    case 0x1:		/* V9 BPcc */
+	    case 0x3:		/* V9 BPr */
+	    case 0x5:		/* V9 FBPcc */
 	    default:
                 goto illegal_insn;
 	    case 0x2:		/* BN+x */
@@ -679,13 +661,14 @@ static void disas_sparc_insn(DisasContext * dc)
 	    }
 	    break;
 	}
+	break;
     case 1:
 	/*CALL*/ {
-	    unsigned int target = GET_FIELDs(insn, 2, 31) << 2;
+	    target_long target = GET_FIELDs(insn, 2, 31) << 2;
 
-	    gen_op_movl_T0_im((long) (dc->pc));
+	    gen_op_movl_T0_im(dc->pc);
 	    gen_movl_T0_reg(15);
-	    target = dc->pc + target;
+	    target += dc->pc;
 	    dc->pc = dc->npc;
 	    dc->npc = target;
 	}
@@ -719,12 +702,13 @@ static void disas_sparc_insn(DisasContext * dc)
 #endif
                 }
                 save_state(dc);
+		/* V9 icc/xcc */
                 cond = GET_FIELD(insn, 3, 6);
                 if (cond == 0x8) {
                     gen_op_trap_T0();
                     dc->is_br = 1;
                     goto jmp_insn;
-                } else {
+                } else if (cond != 0) {
 		    gen_cond(cond);
                     gen_op_trapcc_T0();
                 }
@@ -735,9 +719,14 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_op_rdy();
                     gen_movl_T0_reg(rd);
                     break;
-                case 15: /* stbar */
+                case 15: /* stbar / V9 membar */
 		    break; /* no effect? */
                 default:
+		case 0x2: /* V9 rdccr */
+		case 0x3: /* V9 rdasi */
+		case 0x4: /* V9 rdtick */
+		case 0x5: /* V9 rdpc */
+		case 0x6: /* V9 rdfprs */
                     goto illegal_insn;
                 }
 #if !defined(CONFIG_USER_ONLY)
@@ -901,6 +890,19 @@ static void disas_sparc_insn(DisasContext * dc)
 		    case 0xd3: /* fqtoi */
 		        goto nfpu_insn;
 		    default:
+		    case 0x2: /* V9 fmovd */
+		    case 0x6: /* V9 fnegd */
+		    case 0xa: /* V9 fabsd */
+		    case 0x81: /* V9 fstox */
+		    case 0x82: /* V9 fdtox */
+		    case 0x84: /* V9 fxtos */
+		    case 0x88: /* V9 fxtod */
+
+		    case 0x3: /* V9 fmovq */
+		    case 0x7: /* V9 fnegq */
+		    case 0xb: /* V9 fabsq */
+		    case 0x83: /* V9 fqtox */
+		    case 0x8c: /* V9 fxtoq */
                 	goto illegal_insn;
 		}
 	    } else if (xop == 0x35) {	/* FPU Operations */
@@ -910,6 +912,10 @@ static void disas_sparc_insn(DisasContext * dc)
                 rs1 = GET_FIELD(insn, 13, 17);
 	        rs2 = GET_FIELD(insn, 27, 31);
 	        xop = GET_FIELD(insn, 18, 26);
+		/* V9 fmovscc: x5, cond = x >> 1 */
+		/* V9 fmovdcc: x6, cond = x >> 1 */
+
+		/* V9 fmovqcc: x7, cond = x >> 1 */
 		switch (xop) {
 		    case 0x51:
                 	gen_op_load_fpr_FT0(rs1);
@@ -1028,9 +1034,10 @@ static void disas_sparc_insn(DisasContext * dc)
                             gen_op_logic_T0_cc();
                         break;
                     case 0x8:
-                        gen_op_addx_T1_T0();
                         if (xop & 0x10)
-                            gen_op_set_flags();
+                            gen_op_addx_T1_T0_cc();
+                        else
+                            gen_op_addx_T1_T0();
                         break;
                     case 0xa:
                         gen_op_umul_T1_T0();
@@ -1043,9 +1050,10 @@ static void disas_sparc_insn(DisasContext * dc)
                             gen_op_logic_T0_cc();
                         break;
                     case 0xc:
-                        gen_op_subx_T1_T0();
                         if (xop & 0x10)
-                            gen_op_set_flags();
+                            gen_op_subx_T1_T0_cc();
+                        else
+                            gen_op_subx_T1_T0();
                         break;
                     case 0xe:
                         gen_op_udiv_T1_T0();
@@ -1058,6 +1066,8 @@ static void disas_sparc_insn(DisasContext * dc)
                             gen_op_div_cc();
                         break;
                     default:
+		    case 0x9: /* V9 mulx */
+		    case 0xd: /* V9 udivx */
                         goto illegal_insn;
                     }
 		    gen_movl_T0_reg(rd);
@@ -1072,15 +1082,15 @@ static void disas_sparc_insn(DisasContext * dc)
                         gen_op_mulscc_T1_T0();
                         gen_movl_T0_reg(rd);
                         break;
-                    case 0x25:	/* SLL */
+                    case 0x25:	/* sll, V9 sllx */
                         gen_op_sll();
                         gen_movl_T0_reg(rd);
                         break;
-                    case 0x26:
+                    case 0x26:  /* srl, V9 srlx */
                         gen_op_srl();
                         gen_movl_T0_reg(rd);
                         break;
-                    case 0x27:
+                    case 0x27:  /* sra, V9 srax */
                         gen_op_sra();
                         gen_movl_T0_reg(rd);
                         break;
@@ -1092,12 +1102,16 @@ static void disas_sparc_insn(DisasContext * dc)
                                 gen_op_wry();
                                 break;
                             default:
+			    case 0x2: /* V9 wrccr */
+			    case 0x3: /* V9 wrasi */
+			    case 0x6: /* V9 wrfprs */
+			    case 0xf: /* V9 sir */
                                 goto illegal_insn;
                             }
                         }
                         break;
 #if !defined(CONFIG_USER_ONLY)
-                    case 0x31:
+                    case 0x31: /* wrpsr, V9 saved, restored */
                         {
 			    if (!supervisor(dc))
 				goto priv_insn;
@@ -1105,7 +1119,7 @@ static void disas_sparc_insn(DisasContext * dc)
                             gen_op_wrpsr();
                         }
                         break;
-                    case 0x32:
+                    case 0x32: /* wrwim, V9 wrpr */
                         {
 			    if (!supervisor(dc))
 				goto priv_insn;
@@ -1123,6 +1137,12 @@ static void disas_sparc_insn(DisasContext * dc)
                         break;
 #endif
 		    default:
+		    case 0x2a: /* V9 rdpr */
+		    case 0x2b: /* V9 flushw */
+		    case 0x2c: /* V9 movcc */
+		    case 0x2d: /* V9 sdivx */
+		    case 0x2e: /* V9 popc */
+		    case 0x2f: /* V9 movr */
 			goto illegal_insn;
 		    }
 		}
@@ -1155,7 +1175,7 @@ static void disas_sparc_insn(DisasContext * dc)
 		    {
 			gen_op_movl_npc_T0();
 			if (rd != 0) {
-			    gen_op_movl_T0_im((long) (dc->pc));
+			    gen_op_movl_T0_im(dc->pc);
 			    gen_movl_T0_reg(rd);
 			}
 			dc->pc = dc->npc;
@@ -1163,7 +1183,7 @@ static void disas_sparc_insn(DisasContext * dc)
 		    }
 		    goto jmp_insn;
 #if !defined(CONFIG_USER_ONLY)
-		case 0x39:	/* rett */
+		case 0x39:	/* rett, V9 return */
 		    {
 			if (!supervisor(dc))
 			    goto priv_insn;
@@ -1186,11 +1206,13 @@ static void disas_sparc_insn(DisasContext * dc)
 		    gen_movl_T0_reg(rd);
 		    break;
 		default:
+		case 0x3e:      /* V9 done/retry */
 		    goto illegal_insn;
 		}
             }
 	    break;
 	}
+	break;
     case 3:			/* load/store instructions */
 	{
 	    unsigned int xop = GET_FIELD(insn, 7, 12);
@@ -1297,6 +1319,16 @@ static void disas_sparc_insn(DisasContext * dc)
                     (void) &gen_op_lddfa;
 #endif
 		default:
+		case 0x08: /* V9 ldsw */
+		case 0x0b: /* V9 ldx */
+		case 0x18: /* V9 ldswa */
+		case 0x1b: /* V9 ldxa */
+		case 0x2d: /* V9 prefetch */
+		case 0x30: /* V9 ldfa */
+		case 0x33: /* V9 lddfa */
+		case 0x3d: /* V9 prefetcha */
+
+		case 0x32: /* V9 ldqfa */
 		    goto illegal_insn;
 		}
 		gen_movl_T1_reg(rd);
@@ -1313,6 +1345,8 @@ static void disas_sparc_insn(DisasContext * dc)
 		    gen_op_ldfsr();
 		    gen_op_store_FT0_fpr(rd);
 		    break;
+		case 0x22:      /* load quad fpreg */
+		    goto nfpu_insn;
 		case 0x23:	/* load double fpreg */
 		    gen_op_ldst(lddf);
 		    gen_op_store_DT0_fpr(rd);
@@ -1362,6 +1396,8 @@ static void disas_sparc_insn(DisasContext * dc)
 		    break;
 #endif
 		default:
+		case 0x0e: /* V9 stx */
+		case 0x1e: /* V9 stxa */
 		    goto illegal_insn;
 		}
 	    } else if (xop > 0x23 && xop < 0x28) {
@@ -1373,16 +1409,23 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_op_load_fpr_FT0(rd);
 		    gen_op_ldst(stf);
 		    break;
-		case 0x25:
+		case 0x25: /* stfsr, V9 stxfsr */
                     gen_op_load_fpr_FT0(rd);
 		    gen_op_stfsr();
 		    break;
+		case 0x26: /* stdfq */
+		    goto nfpu_insn;
 		case 0x27:
                     gen_op_load_fpr_DT0(rd);
 		    gen_op_ldst(stdf);
 		    break;
-		case 0x26: /* stdfq */
 		default:
+		case 0x34: /* V9 stfa */
+		case 0x37: /* V9 stdfa */
+		case 0x3c: /* V9 casa */
+		case 0x3e: /* V9 casxa */
+
+		case 0x36: /* V9 stqfa */
 		    goto illegal_insn;
 		}
 	    } else if (xop > 0x33 && xop < 0x38) {
@@ -1392,6 +1435,7 @@ static void disas_sparc_insn(DisasContext * dc)
 	    else
 		goto illegal_insn;
 	}
+	break;
     }
     /* default case for non jump instructions */
     if (dc->npc == DYNAMIC_PC) {
@@ -1589,22 +1633,22 @@ void cpu_dump_state(CPUState *env, FILE *f,
 {
     int i, x;
 
-    cpu_fprintf(f, "pc: 0x%08x  npc: 0x%08x\n", (int) env->pc, (int) env->npc);
+    cpu_fprintf(f, "pc: " TARGET_FMT_lx "  npc: " TARGET_FMT_lx "\n", env->pc, env->npc);
     cpu_fprintf(f, "General Registers:\n");
     for (i = 0; i < 4; i++)
-	cpu_fprintf(f, "%%g%c: 0x%08x\t", i + '0', env->gregs[i]);
+	cpu_fprintf(f, "%%g%c: " TARGET_FMT_lx "\t", i + '0', env->gregs[i]);
     cpu_fprintf(f, "\n");
     for (; i < 8; i++)
-	cpu_fprintf(f, "%%g%c: 0x%08x\t", i + '0', env->gregs[i]);
+	cpu_fprintf(f, "%%g%c: " TARGET_FMT_lx "\t", i + '0', env->gregs[i]);
     cpu_fprintf(f, "\nCurrent Register Window:\n");
     for (x = 0; x < 3; x++) {
 	for (i = 0; i < 4; i++)
-	    cpu_fprintf(f, "%%%c%d: 0x%08x\t",
+	    cpu_fprintf(f, "%%%c%d: " TARGET_FMT_lx "\t",
 		    (x == 0 ? 'o' : (x == 1 ? 'l' : 'i')), i,
 		    env->regwptr[i + x * 8]);
 	cpu_fprintf(f, "\n");
 	for (; i < 8; i++)
-	    cpu_fprintf(f, "%%%c%d: 0x%08x\t",
+	    cpu_fprintf(f, "%%%c%d: " TARGET_FMT_lx "\t",
 		    (x == 0 ? 'o' : x == 1 ? 'l' : 'i'), i,
 		    env->regwptr[i + x * 8]);
 	cpu_fprintf(f, "\n");
@@ -1626,19 +1670,19 @@ void cpu_dump_state(CPUState *env, FILE *f,
 }
 
 #if defined(CONFIG_USER_ONLY)
-target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {
     return addr;
 }
 
 #else
-extern int get_physical_address (CPUState *env, uint32_t *physical, int *prot,
-                                 int *access_index, uint32_t address, int rw,
+extern int get_physical_address (CPUState *env, target_phys_addr_t *physical, int *prot,
+                                 int *access_index, target_ulong address, int rw,
                                  int is_user);
 
-target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {
-    uint32_t phys_addr;
+    target_phys_addr_t phys_addr;
     int prot, access_index;
 
     if (get_physical_address(env, &phys_addr, &prot, &access_index, addr, 2, 0) != 0)

@@ -217,17 +217,12 @@
 
 #define EIP (env->pc)
 
-#define FLAG_SET(x) (env->psr&x)?1:0
+#define FLAG_SET(x) ((env->psr&x)?1:0)
 #define FFLAG_SET(x) ((env->fsr&x)?1:0)
 
 void OPPROTO op_movl_T0_0(void)
 {
     T0 = 0;
-}
-
-void OPPROTO op_movl_T0_1(void)
-{
-    T0 = 1;
 }
 
 void OPPROTO op_movl_T0_im(void)
@@ -245,21 +240,6 @@ void OPPROTO op_movl_T2_im(void)
     T2 = PARAM1;
 }
 
-void OPPROTO op_addl_T1_im(void)
-{
-    T1 += PARAM1;
-}
-
-void OPPROTO op_addl_T1_T2(void)
-{
-    T1 += T2;
-}
-
-void OPPROTO op_subl_T1_T2(void)
-{
-    T1 -= T2;
-}
-
 void OPPROTO op_add_T1_T0(void)
 {
     T0 += T1;
@@ -267,18 +247,44 @@ void OPPROTO op_add_T1_T0(void)
 
 void OPPROTO op_add_T1_T0_cc(void)
 {
-    unsigned int src1;
+    target_ulong src1;
+
     src1 = T0;
     T0 += T1;
     env->psr = 0;
     if (!T0)
 	env->psr |= PSR_ZERO;
-    if ((int) T0 < 0)
+    if ((int32_t) T0 < 0)
 	env->psr |= PSR_NEG;
     if (T0 < src1)
 	env->psr |= PSR_CARRY;
     if (((src1 ^ T1 ^ -1) & (src1 ^ T0)) & (1 << 31))
 	env->psr |= PSR_OVF;
+    /* V9 xcc */
+    FORCE_RET();
+}
+
+void OPPROTO op_addx_T1_T0(void)
+{
+    T0 += T1 + FLAG_SET(PSR_CARRY);
+}
+
+void OPPROTO op_addx_T1_T0_cc(void)
+{
+    target_ulong src1;
+
+    src1 = T0;
+    T0 += T1 + FLAG_SET(PSR_CARRY);
+    env->psr = 0;
+    if (!T0)
+	env->psr |= PSR_ZERO;
+    if ((int32_t) T0 < 0)
+	env->psr |= PSR_NEG;
+    if (T0 < src1)
+	env->psr |= PSR_CARRY;
+    if (((src1 ^ T1 ^ -1) & (src1 ^ T0)) & (1 << 31))
+	env->psr |= PSR_OVF;
+    /* V9 xcc */
     FORCE_RET();
 }
 
@@ -289,19 +295,44 @@ void OPPROTO op_sub_T1_T0(void)
 
 void OPPROTO op_sub_T1_T0_cc(void)
 {
-    unsigned int src1;
+    target_ulong src1;
 
     src1 = T0;
     T0 -= T1;
     env->psr = 0;
     if (!T0)
 	env->psr |= PSR_ZERO;
-    if ((int) T0 < 0)
+    if ((int32_t) T0 < 0)
 	env->psr |= PSR_NEG;
     if (src1 < T1)
 	env->psr |= PSR_CARRY;
     if (((src1 ^ T1) & (src1 ^ T0)) & (1 << 31))
 	env->psr |= PSR_OVF;
+    /* V9 xcc */
+    FORCE_RET();
+}
+
+void OPPROTO op_subx_T1_T0(void)
+{
+    T0 -= T1 + FLAG_SET(PSR_CARRY);
+}
+
+void OPPROTO op_subx_T1_T0_cc(void)
+{
+    target_ulong src1;
+
+    src1 = T0;
+    T0 -= T1 + FLAG_SET(PSR_CARRY);
+    env->psr = 0;
+    if (!T0)
+	env->psr |= PSR_ZERO;
+    if ((int32_t) T0 < 0)
+	env->psr |= PSR_NEG;
+    if (src1 < T1)
+	env->psr |= PSR_CARRY;
+    if (((src1 ^ T1) & (src1 ^ T0)) & (1 << 31))
+	env->psr |= PSR_OVF;
+    /* V9 xcc */
     FORCE_RET();
 }
 
@@ -335,15 +366,10 @@ void OPPROTO op_xnor_T1_T0(void)
     T0 ^= ~T1;
 }
 
-void OPPROTO op_addx_T1_T0(void)
-{
-    T0 += T1 + ((env->psr & PSR_CARRY) ? 1 : 0);
-}
-
 void OPPROTO op_umul_T1_T0(void)
 {
     uint64_t res;
-    res = (uint64_t) T0 *(uint64_t) T1;
+    res = (uint64_t) T0 * (uint64_t) T1;
     T0 = res & 0xffffffff;
     env->y = res >> 32;
 }
@@ -358,7 +384,9 @@ void OPPROTO op_smul_T1_T0(void)
 
 void OPPROTO op_mulscc_T1_T0(void)
 {
-    unsigned int b1, N, V, b2, src1;
+    unsigned int b1, N, V, b2;
+    target_ulong src1;
+
     N = FLAG_SET(PSR_NEG);
     V = FLAG_SET(PSR_OVF);
     b1 = N ^ V;
@@ -372,7 +400,7 @@ void OPPROTO op_mulscc_T1_T0(void)
     env->psr = 0;
     if (!T0)
 	env->psr |= PSR_ZERO;
-    if ((int) T0 < 0)
+    if ((int32_t) T0 < 0)
 	env->psr |= PSR_NEG;
     if (T0 < src1)
 	env->psr |= PSR_CARRY;
@@ -405,11 +433,11 @@ void OPPROTO op_sdiv_T1_T0(void)
     int64_t x0;
     int32_t x1;
 
-    x0 = T0 | ((uint64_t) (env->y) << 32);
+    x0 = T0 | ((int64_t) (env->y) << 32);
     x1 = T1;
     x0 = x0 / x1;
     if ((int32_t) x0 != x0) {
-	T0 = x0 >> 63;
+	T0 = x0 < 0? 0x80000000: 0x7fffffff;
 	T1 = 1;
     } else {
 	T0 = x0;
@@ -423,16 +451,12 @@ void OPPROTO op_div_cc(void)
     env->psr = 0;
     if (!T0)
 	env->psr |= PSR_ZERO;
-    if ((int) T0 < 0)
+    if ((int32_t) T0 < 0)
 	env->psr |= PSR_NEG;
     if (T1)
 	env->psr |= PSR_OVF;
+    /* V9 xcc */
     FORCE_RET();
-}
-
-void OPPROTO op_subx_T1_T0(void)
-{
-    T0 -= T1 + ((env->psr & PSR_CARRY) ? 1 : 0);
 }
 
 void OPPROTO op_logic_T0_cc(void)
@@ -440,22 +464,9 @@ void OPPROTO op_logic_T0_cc(void)
     env->psr = 0;
     if (!T0)
 	env->psr |= PSR_ZERO;
-    if ((int) T0 < 0)
+    if ((int32_t) T0 < 0)
 	env->psr |= PSR_NEG;
-    FORCE_RET();
-}
-
-void OPPROTO op_set_flags(void)
-{
-    env->psr = 0;
-    if (!T0)
-	env->psr |= PSR_ZERO;
-    if ((unsigned int) T0 < (unsigned int) T1)
-	env->psr |= PSR_CARRY;
-    if ((int) T0 < (int) T1)
-	env->psr |= PSR_OVF;
-    if ((int) T0 < 0)
-	env->psr |= PSR_NEG;
+    /* V9 xcc */
     FORCE_RET();
 }
 
@@ -519,12 +530,12 @@ void OPPROTO op_wrwim(void)
 
 void OPPROTO op_rdpsr(void)
 {
-    T0 = GET_PSR(env);
+    do_rdpsr();
 }
 
 void OPPROTO op_wrpsr(void)
 {
-    PUT_PSR(env,T0);
+    do_wrpsr();
     FORCE_RET();
 }
 
@@ -555,7 +566,7 @@ void raise_exception(int tt)
    handling ? */
 void OPPROTO op_save(void)
 {
-    int cwp;
+    uint32_t cwp;
     cwp = (env->cwp - 1) & (NWINDOWS - 1); 
     if (env->wim & (1 << cwp)) {
         raise_exception(TT_WIN_OVF);
@@ -566,7 +577,7 @@ void OPPROTO op_save(void)
 
 void OPPROTO op_restore(void)
 {
-    int cwp;
+    uint32_t cwp;
     cwp = (env->cwp + 1) & (NWINDOWS - 1); 
     if (env->wim & (1 << cwp)) {
         raise_exception(TT_WIN_UNF);
@@ -626,84 +637,84 @@ void OPPROTO op_exit_tb(void)
 
 void OPPROTO op_eval_be(void)
 {
-    T2 = (env->psr & PSR_ZERO);
+    T2 = FLAG_SET(PSR_ZERO);
 }
 
 void OPPROTO op_eval_ble(void)
 {
-    unsigned int Z = FLAG_SET(PSR_ZERO), N = FLAG_SET(PSR_NEG), V = FLAG_SET(PSR_OVF);
+    target_ulong Z = FLAG_SET(PSR_ZERO), N = FLAG_SET(PSR_NEG), V = FLAG_SET(PSR_OVF);
     
     T2 = Z | (N ^ V);
 }
 
 void OPPROTO op_eval_bl(void)
 {
-    unsigned int N = FLAG_SET(PSR_NEG), V = FLAG_SET(PSR_OVF);
+    target_ulong N = FLAG_SET(PSR_NEG), V = FLAG_SET(PSR_OVF);
 
     T2 = N ^ V;
 }
 
 void OPPROTO op_eval_bleu(void)
 {
-    unsigned int Z = FLAG_SET(PSR_ZERO), C = FLAG_SET(PSR_CARRY);
+    target_ulong Z = FLAG_SET(PSR_ZERO), C = FLAG_SET(PSR_CARRY);
 
     T2 = C | Z;
 }
 
 void OPPROTO op_eval_bcs(void)
 {
-    T2 = (env->psr & PSR_CARRY);
+    T2 = FLAG_SET(PSR_CARRY);
 }
 
 void OPPROTO op_eval_bvs(void)
 {
-    T2 = (env->psr & PSR_OVF);
+    T2 = FLAG_SET(PSR_OVF);
 }
 
 void OPPROTO op_eval_bneg(void)
 {
-    T2 = (env->psr & PSR_NEG);
+    T2 = FLAG_SET(PSR_NEG);
 }
 
 void OPPROTO op_eval_bne(void)
 {
-    T2 = !(env->psr & PSR_ZERO);
+    T2 = !FLAG_SET(PSR_ZERO);
 }
 
 void OPPROTO op_eval_bg(void)
 {
-    unsigned int Z = FLAG_SET(PSR_ZERO), N = FLAG_SET(PSR_NEG), V = FLAG_SET(PSR_OVF);
+    target_ulong Z = FLAG_SET(PSR_ZERO), N = FLAG_SET(PSR_NEG), V = FLAG_SET(PSR_OVF);
 
     T2 = !(Z | (N ^ V));
 }
 
 void OPPROTO op_eval_bge(void)
 {
-    unsigned int N = FLAG_SET(PSR_NEG), V = FLAG_SET(PSR_OVF);
+    target_ulong N = FLAG_SET(PSR_NEG), V = FLAG_SET(PSR_OVF);
 
     T2 = !(N ^ V);
 }
 
 void OPPROTO op_eval_bgu(void)
 {
-    unsigned int Z = FLAG_SET(PSR_ZERO), C = FLAG_SET(PSR_CARRY);
+    target_ulong Z = FLAG_SET(PSR_ZERO), C = FLAG_SET(PSR_CARRY);
 
     T2 = !(C | Z);
 }
 
 void OPPROTO op_eval_bcc(void)
 {
-    T2 = !(env->psr & PSR_CARRY);
+    T2 = !FLAG_SET(PSR_CARRY);
 }
 
 void OPPROTO op_eval_bpos(void)
 {
-    T2 = !(env->psr & PSR_NEG);
+    T2 = !FLAG_SET(PSR_NEG);
 }
 
 void OPPROTO op_eval_bvc(void)
 {
-    T2 = !(env->psr & PSR_OVF);
+    T2 = !FLAG_SET(PSR_OVF);
 }
 
 /* FCC1:FCC0: 0 =, 1 <, 2 >, 3 u */
@@ -792,16 +803,6 @@ void OPPROTO op_eval_fbo(void)
     T2 = !(FFLAG_SET(FSR_FCC0) & FFLAG_SET(FSR_FCC1));
 }
 
-void OPPROTO op_movl_T2_0(void)
-{
-    T2 = 0;
-}
-
-void OPPROTO op_movl_T2_1(void)
-{
-    T2 = 1;
-}
-
 void OPPROTO op_jmp_im(void)
 {
     env->pc = PARAM1;
@@ -845,10 +846,10 @@ void OPPROTO op_branch_a(void)
 {
     if (T2) {
 	env->npc = PARAM2; /* XXX: optimize */
-        JUMP_TB(op_generic_branch_a, PARAM1, 0, PARAM3);
+        JUMP_TB(op_branch_a, PARAM1, 0, PARAM3);
     } else {
 	env->npc = PARAM3 + 8; /* XXX: optimize */
-        JUMP_TB(op_generic_branch_a, PARAM1, 1, PARAM3 + 4);
+        JUMP_TB(op_branch_a, PARAM1, 1, PARAM3 + 4);
     }
     FORCE_RET();
 }

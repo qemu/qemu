@@ -1,7 +1,17 @@
 #ifndef CPU_SPARC_H
 #define CPU_SPARC_H
 
+#include "config.h"
+
+#if !defined(TARGET_SPARC64)
 #define TARGET_LONG_BITS 32
+#define TARGET_FPREGS 32
+#define TARGET_FPREG_T float
+#else
+#define TARGET_LONG_BITS 64
+#define TARGET_FPREGS 64
+#define TARGET_FPREG_T double
+#endif
 
 #include "cpu-defs.h"
 
@@ -95,15 +105,14 @@
 #define NWINDOWS  32
 
 typedef struct CPUSPARCState {
-    uint32_t gregs[8]; /* general registers */
-    uint32_t *regwptr; /* pointer to current register window */
-    float    fpr[32];  /* floating point registers */
-    uint32_t pc;       /* program counter */
-    uint32_t npc;      /* next program counter */
-    uint32_t y;        /* multiply/divide register */
+    target_ulong gregs[8]; /* general registers */
+    target_ulong *regwptr; /* pointer to current register window */
+    TARGET_FPREG_T    fpr[TARGET_FPREGS];  /* floating point registers */
+    target_ulong pc;       /* program counter */
+    target_ulong npc;      /* next program counter */
+    target_ulong y;        /* multiply/divide register */
     uint32_t psr;      /* processor state register */
     uint32_t fsr;      /* FPU state register */
-    uint32_t T2;
     uint32_t cwp;      /* index of current register window (extracted
                           from PSR) */
     uint32_t wim;      /* window invalid mask */
@@ -118,11 +127,11 @@ typedef struct CPUSPARCState {
     int exception_index;
     int interrupt_index;
     int interrupt_request;
-    uint32_t exception_next_pc;
+    target_ulong exception_next_pc;
     struct TranslationBlock *current_tb;
     void *opaque;
     /* NOTE: we allow 8 more registers to handle wrapping */
-    uint32_t regbase[NWINDOWS * 16 + 8];
+    target_ulong regbase[NWINDOWS * 16 + 8];
 
     /* in order to avoid passing too many arguments to the memory
        write helpers, we store some rarely used information in the CPU
@@ -140,9 +149,12 @@ typedef struct CPUSPARCState {
     /* temporary float registers */
     float ft0, ft1, ft2;
     double dt0, dt1, dt2;
+#if defined(TARGET_SPARC64)
+    target_ulong t0, t1, t2;
+#endif
 
     /* ice debug support */
-    uint32_t breakpoints[MAX_BREAKPOINTS];
+    target_ulong breakpoints[MAX_BREAKPOINTS];
     int nb_breakpoints;
     int singlestep_enabled; /* XXX: should use CPU single step mode instead */
 
@@ -155,7 +167,7 @@ void cpu_get_fp64(uint64_t *pmant, uint16_t *pexp, double f);
 double cpu_put_fp64(uint64_t mant, uint16_t exp);
 
 /* Fake impl 0, version 4 */
-#define GET_PSR(env) ((0 << 28) | (4 << 24) | env->psr |		\
+#define GET_PSR(env) ((0 << 28) | (4 << 24) | (env->psr & PSR_ICC) |	\
 		      (env->psref? PSR_EF : 0) |			\
 		      (env->psrpil << 8) |				\
 		      (env->psrs? PSR_S : 0) |				\
@@ -167,7 +179,7 @@ void cpu_set_cwp(CPUSPARCState *env1, int new_cwp);
 #endif
 
 #define PUT_PSR(env, val) do { int _tmp = val;				\
-	env->psr = _tmp & ~PSR_ICC;					\
+	env->psr = _tmp & PSR_ICC;					\
 	env->psref = (_tmp & PSR_EF)? 1 : 0;				\
 	env->psrpil = (_tmp & PSR_PIL) >> 8;				\
 	env->psrs = (_tmp & PSR_S)? 1 : 0;				\

@@ -23,7 +23,7 @@
 //#define DEBUG_MMU
 
 /* Sparc MMU emulation */
-int cpu_sparc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
+int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                               int is_user, int is_softmmu);
 
 /* thread support */
@@ -109,13 +109,14 @@ static const int rw_table[2][8] = {
     { 0, 1, 0, 1, 0, 0, 0, 0 }
 };
 
-int get_physical_address (CPUState *env, uint32_t *physical, int *prot,
-			  int *access_index, uint32_t address, int rw,
+int get_physical_address (CPUState *env, target_phys_addr_t *physical, int *prot,
+			  int *access_index, target_ulong address, int rw,
 			  int is_user)
 {
     int access_perms = 0;
     target_phys_addr_t pde_ptr;
-    uint32_t pde, virt_addr;
+    uint32_t pde;
+    target_ulong virt_addr;
     int error_code = 0, is_dirty;
     unsigned long page_offset;
 
@@ -217,11 +218,12 @@ int get_physical_address (CPUState *env, uint32_t *physical, int *prot,
 }
 
 /* Perform address translation */
-int cpu_sparc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
+int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                               int is_user, int is_softmmu)
 {
     int exception = 0;
-    uint32_t virt_addr, paddr;
+    target_ulong virt_addr;
+    target_phys_addr_t paddr;
     unsigned long vaddr;
     int error_code = 0, prot, ret = 0, access_index;
 
@@ -252,7 +254,7 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
     return error_code;
 }
 
-void memcpy32(uint32_t *dst, const uint32_t *src)
+void memcpy32(target_ulong *dst, const target_ulong *src)
 {
     dst[0] = src[0];
     dst[1] = src[1];
@@ -328,8 +330,13 @@ void do_interrupt(int intno, int is_int, int error_code,
     env->psret = 0;
     cwp = (env->cwp - 1) & (NWINDOWS - 1); 
     set_cwp(cwp);
-    env->regwptr[9] = env->pc - 4; // XXX?
-    env->regwptr[10] = env->pc;
+    if (intno & 0x80) {
+	env->regwptr[9] = env->pc;
+	env->regwptr[10] = env->npc;
+    } else {
+	env->regwptr[9] = env->pc - 4; // XXX?
+	env->regwptr[10] = env->pc;
+    }
     env->psrps = env->psrs;
     env->psrs = 1;
     env->tbr = (env->tbr & TBR_BASE_MASK) | (intno << 4);
@@ -343,7 +350,7 @@ void raise_exception_err(int exception_index, int error_code)
     raise_exception(exception_index);
 }
 
-uint32_t mmu_probe(uint32_t address, int mmulev)
+target_ulong mmu_probe(target_ulong address, int mmulev)
 {
     target_phys_addr_t pde_ptr;
     uint32_t pde;
@@ -408,30 +415,30 @@ uint32_t mmu_probe(uint32_t address, int mmulev)
 void dump_mmu(void)
 {
 #ifdef DEBUG_MMU
-    uint32_t pa, va, va1, va2;
-    int n, m, o;
-    target_phys_addr_t pde_ptr;
+     target_ulong va, va1, va2;
+     unsigned int n, m, o;
+     target_phys_addr_t pde_ptr, pa;
     uint32_t pde;
 
     printf("MMU dump:\n");
     pde_ptr = (env->mmuregs[1] << 4) + (env->mmuregs[2] << 4);
     pde = ldl_phys(pde_ptr);
-    printf("Root ptr: 0x%08x, ctx: %d\n", env->mmuregs[1] << 4, env->mmuregs[2]);
+    printf("Root ptr: " TARGET_FMT_lx ", ctx: %d\n", env->mmuregs[1] << 4, env->mmuregs[2]);
     for (n = 0, va = 0; n < 256; n++, va += 16 * 1024 * 1024) {
 	pde_ptr = mmu_probe(va, 2);
 	if (pde_ptr) {
 	    pa = cpu_get_phys_page_debug(env, va);
-	    printf("VA: 0x%08x, PA: 0x%08x PDE: 0x%08x\n", va, pa, pde_ptr);
+ 	    printf("VA: " TARGET_FMT_lx ", PA: " TARGET_FMT_lx " PDE: " TARGET_FMT_lx "\n", va, pa, pde_ptr);
 	    for (m = 0, va1 = va; m < 64; m++, va1 += 256 * 1024) {
 		pde_ptr = mmu_probe(va1, 1);
 		if (pde_ptr) {
 		    pa = cpu_get_phys_page_debug(env, va1);
-		    printf(" VA: 0x%08x, PA: 0x%08x PDE: 0x%08x\n", va1, pa, pde_ptr);
+ 		    printf(" VA: " TARGET_FMT_lx ", PA: " TARGET_FMT_lx " PDE: " TARGET_FMT_lx "\n", va1, pa, pde_ptr);
 		    for (o = 0, va2 = va1; o < 64; o++, va2 += 4 * 1024) {
 			pde_ptr = mmu_probe(va2, 0);
 			if (pde_ptr) {
 			    pa = cpu_get_phys_page_debug(env, va2);
-			    printf("  VA: 0x%08x, PA: 0x%08x PTE: 0x%08x\n", va2, pa, pde_ptr);
+ 			    printf("  VA: " TARGET_FMT_lx ", PA: " TARGET_FMT_lx " PTE: " TARGET_FMT_lx "\n", va2, pa, pde_ptr);
 			}
 		    }
 		}
