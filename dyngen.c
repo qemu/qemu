@@ -170,7 +170,16 @@ void elf_swap_phdr(struct elf_phdr *h)
     swabls(&h->p_align);		/* Segment alignment */
 }
 
+/* ELF file info */
 int do_swap;
+struct elf_shdr *shdr;
+struct elfhdr ehdr;
+ElfW(Sym) *symtab;
+int nb_syms;
+char *strtab;
+/* data section */
+uint8_t *data_data;
+int data_shndx;
 
 uint16_t get16(uint16_t *p)
 {
@@ -270,7 +279,7 @@ int strstart(const char *str, const char *val, const char **ptr)
 /* generate op code */
 void gen_code(const char *name, host_ulong offset, host_ulong size, 
               FILE *outfile, uint8_t *text, ELF_RELOC *relocs, int nb_relocs, int reloc_sh_type,
-              ElfW(Sym) *symtab, char *strtab, int gen_switch)
+              int gen_switch)
 {
     int copy_size = 0;
     uint8_t *p_start, *p_end;
@@ -291,13 +300,16 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
     switch(ELF_ARCH) {
     case EM_386:
         {
-            uint8_t *p;
-            p = p_end - 1;
-            if (p == p_start)
+            int len;
+            len = p_end - p_start;
+            if (len == 0)
                 error("empty code for %s", name);
-            if (p[0] != 0xc3)
-                error("ret expected at the end of %s", name);
-            copy_size = p - p_start;
+            if (p_end[-1] == 0xc3) {
+                len--;
+            } else {
+                error("ret or jmp expected at the end of %s", name);
+            }
+            copy_size = len;
         }
         break;
     case EM_PPC:
@@ -423,7 +435,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
             sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
             if (strstart(sym_name, "__op_param", &p)) {
                 n = strtoul(p, NULL, 10);
-                if (n >= MAX_ARGS)
+                if (n > MAX_ARGS)
                     error("too many arguments in %s", name);
                 args_present[n - 1] = 1;
             }
@@ -459,7 +471,9 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
             if (rel->r_offset >= start_offset &&
 		rel->r_offset < start_offset + copy_size) {
                 sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
-                if (*sym_name && !strstart(sym_name, "__op_param", &p)) {
+                if (*sym_name && 
+                    !strstart(sym_name, "__op_param", NULL) &&
+                    !strstart(sym_name, "__op_jmp", NULL)) {
 #if defined(HOST_SPARC)
 		    if (sym_name[0] == '.') {
 			fprintf(outfile,
@@ -474,6 +488,31 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
         }
 
         fprintf(outfile, "    memcpy(gen_code_ptr, (void *)((char *)&%s+%d), %d);\n", name, start_offset - offset, copy_size);
+
+        /* emit code offset information */
+        {
+            ElfW(Sym) *sym;
+            const char *sym_name, *p;
+            target_ulong val;
+            int n;
+
+            for(i = 0, sym = symtab; i < nb_syms; i++, sym++) {
+                sym_name = strtab + sym->st_name;
+                if (strstart(sym_name, "__op_label", &p)) {
+                    /* test if the variable refers to a label inside
+                       the code we are generating */
+                    if (sym->st_shndx != data_shndx)
+                        error("__op_labelN symbols must be in .data or .sdata section");
+                    val = *(target_ulong *)(data_data + sym->st_value);
+                    if (val >= start_offset && val < start_offset + copy_size) {
+                        n = strtol(p, NULL, 10);
+                        fprintf(outfile, "    label_offsets[%d] = %d + (gen_code_ptr - gen_code_buf);\n", n, val - start_offset);
+                    }
+                }
+            }
+        }
+
+        /* load parameres in variables */
         for(i = 0; i < nb_args; i++) {
             fprintf(outfile, "    param%d = *opparam_ptr++;\n", i + 1);
         }
@@ -519,6 +558,18 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                     if (rel->r_offset >= start_offset &&
 			rel->r_offset < start_offset + copy_size) {
                         sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
+                        if (strstart(sym_name, "__op_jmp", &p)) {
+                            int n;
+                            n = strtol(p, NULL, 10);
+                            /* __op_jmp relocations are done at
+                               runtime to do translated block
+                               chaining: the offset of the instruction
+                               needs to be stored */
+                            fprintf(outfile, "    jmp_offsets[%d] = %d + (gen_code_ptr - gen_code_buf);\n",
+                                    n, rel->r_offset - start_offset);
+                            continue;
+                        }
+                        
                         if (strstart(sym_name, "__op_param", &p)) {
                             snprintf(name, sizeof(name), "param%s", p);
                         } else {
@@ -824,11 +875,10 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 int load_elf(const char *filename, FILE *outfile, int do_print_enum)
 {
     int fd;
-    struct elfhdr ehdr;
-    struct elf_shdr *sec, *shdr, *symtab_sec, *strtab_sec, *text_sec;
-    int i, j, nb_syms;
-    ElfW(Sym) *symtab, *sym;
-    char *shstr, *strtab;
+    struct elf_shdr *sec, *symtab_sec, *strtab_sec, *text_sec;
+    int i, j;
+    ElfW(Sym) *sym;
+    char *shstr, *data_name;
     uint8_t *text;
     void *relocs;
     int nb_relocs, reloc_sh_type;
@@ -880,6 +930,17 @@ int load_elf(const char *filename, FILE *outfile, int do_print_enum)
         error("could not find .text section");
     text = load_data(fd, text_sec->sh_offset, text_sec->sh_size);
 
+#if defined(HOST_PPC)
+    data_name = ".sdata";
+#else
+    data_name = ".data";
+#endif
+    sec = find_elf_section(shdr, ehdr.e_shnum, shstr, data_name);
+    if (!sec)
+        error("could not find %s section", data_name);
+    data_shndx = sec - shdr;
+    data_data = load_data(fd, sec->sh_offset, sec->sh_size);
+    
     /* find text relocations, if any */
     nb_relocs = 0;
     relocs = NULL;
@@ -936,7 +997,7 @@ int load_elf(const char *filename, FILE *outfile, int do_print_enum)
             name = strtab + sym->st_name;
             if (strstart(name, OP_PREFIX, &p)) {
                 gen_code(name, sym->st_value, sym->st_size, outfile, 
-                         text, relocs, nb_relocs, reloc_sh_type, symtab, strtab, 2);
+                         text, relocs, nb_relocs, reloc_sh_type, 2);
             }
         }
     } else {
@@ -963,6 +1024,7 @@ fprintf(outfile,
 #endif
 fprintf(outfile,
 "int dyngen_code(uint8_t *gen_code_buf,\n"
+"                uint16_t *label_offsets, uint16_t *jmp_offsets,\n"
 "                const uint16_t *opc_buf, const uint32_t *opparam_buf)\n"
 "{\n"
 "    uint8_t *gen_code_ptr;\n"
@@ -1001,7 +1063,7 @@ fprintf(outfile,
                 if (sym->st_shndx != (text_sec - shdr))
                     error("invalid section for opcode (0x%x)", sym->st_shndx);
                 gen_code(name, sym->st_value, sym->st_size, outfile, 
-                         text, relocs, nb_relocs, reloc_sh_type, symtab, strtab, 1);
+                         text, relocs, nb_relocs, reloc_sh_type, 1);
             }
         }
 
@@ -1056,7 +1118,7 @@ fprintf(outfile,
                 if (sym->st_shndx != (text_sec - shdr))
                     error("invalid section for opcode (0x%x)", sym->st_shndx);
                 gen_code(name, sym->st_value, sym->st_size, outfile, 
-                         text, relocs, nb_relocs, reloc_sh_type, symtab, strtab, 0);
+                         text, relocs, nb_relocs, reloc_sh_type, 0);
             }
         }
     }

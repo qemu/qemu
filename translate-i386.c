@@ -31,11 +31,15 @@
 
 #define IN_OP_I386
 #include "cpu-i386.h"
+#include "exec.h"
 
 /* XXX: move that elsewhere */
 static uint16_t *gen_opc_ptr;
 static uint32_t *gen_opparam_ptr;
 int __op_param1, __op_param2, __op_param3;
+#ifdef USE_DIRECT_JUMP
+int __op_jmp0, __op_jmp1;
+#endif
 
 #ifdef __i386__
 static inline void flush_icache_range(unsigned long start, unsigned long stop)
@@ -67,14 +71,14 @@ static void inline flush_icache_range(unsigned long start, unsigned long stop)
     stop = (stop + MIN_CACHE_LINE_SIZE - 1) & ~(MIN_CACHE_LINE_SIZE - 1);
     
     for (p = start; p < stop; p += MIN_CACHE_LINE_SIZE) {
-        asm ("dcbst 0,%0;" : : "r"(p) : "memory");
+        asm volatile ("dcbst 0,%0" : : "r"(p) : "memory");
     }
-    asm ("sync");
+    asm volatile ("sync" : : : "memory");
     for (p = start; p < stop; p += MIN_CACHE_LINE_SIZE) {
-        asm ("icbi 0,%0; sync;" : : "r"(p) : "memory");
+        asm volatile ("icbi 0,%0" : : "r"(p) : "memory");
     }
-    asm ("sync");
-    asm ("isync");
+    asm volatile ("sync" : : : "memory");
+    asm volatile ("isync" : : : "memory");
 }
 #endif
 
@@ -129,6 +133,7 @@ typedef struct DisasContext {
     int cpl;
     int iopl;
     int tf;     /* TF cpu flag */
+    TranslationBlock *tb;
 } DisasContext;
 
 /* i386 arith/logic operations */
@@ -192,6 +197,7 @@ enum {
 typedef void (GenOpFunc)(void);
 typedef void (GenOpFunc1)(long);
 typedef void (GenOpFunc2)(long, long);
+typedef void (GenOpFunc3)(long, long, long);
                     
 static GenOpFunc *gen_op_mov_reg_T0[3][8] = {
     [OT_BYTE] = {
@@ -699,18 +705,7 @@ enum {
     JCC_LE,
 };
 
-static GenOpFunc2 *gen_jcc_slow[8] = {
-    gen_op_jo_cc,
-    gen_op_jb_cc,
-    gen_op_jz_cc,
-    gen_op_jbe_cc,
-    gen_op_js_cc,
-    gen_op_jp_cc,
-    gen_op_jl_cc,
-    gen_op_jle_cc,
-};
-    
-static GenOpFunc2 *gen_jcc_sub[3][8] = {
+static GenOpFunc3 *gen_jcc_sub[3][8] = {
     [OT_BYTE] = {
         NULL,
         gen_op_jb_subb,
@@ -1090,8 +1085,9 @@ static inline uint32_t insn_get(DisasContext *s, int ot)
 
 static inline void gen_jcc(DisasContext *s, int b, int val, int next_eip)
 {
+    TranslationBlock *tb;
     int inv, jcc_op;
-    GenOpFunc2 *func;
+    GenOpFunc3 *func;
 
     inv = b & 1;
     jcc_op = (b >> 1) & 7;
@@ -1101,8 +1097,6 @@ static inline void gen_jcc(DisasContext *s, int b, int val, int next_eip)
     case CC_OP_SUBW:
     case CC_OP_SUBL:
         func = gen_jcc_sub[s->cc_op - CC_OP_SUBB][jcc_op];
-        if (!func)
-            goto slow_jcc;
         break;
         
         /* some jumps are easy to compute */
@@ -1138,21 +1132,30 @@ static inline void gen_jcc(DisasContext *s, int b, int val, int next_eip)
             func = gen_jcc_sub[(s->cc_op - CC_OP_ADDB) % 3][jcc_op];
             break;
         default:
-            goto slow_jcc;
+            func = NULL;
+            break;
         }
         break;
     default:
-    slow_jcc:
-        if (s->cc_op != CC_OP_DYNAMIC)
-            gen_op_set_cc_op(s->cc_op);
-        func = gen_jcc_slow[jcc_op];
+        func = NULL;
         break;
     }
-    if (!inv) {
-        func(val, next_eip);
-    } else {
-        func(next_eip, val);
+
+    if (s->cc_op != CC_OP_DYNAMIC)
+        gen_op_set_cc_op(s->cc_op);
+
+    if (!func) {
+        gen_setcc_slow[jcc_op]();
+        func = gen_op_jcc;
     }
+    
+    tb = s->tb;
+    if (!inv) {
+        func((long)tb, val, next_eip);
+    } else {
+        func((long)tb, next_eip, val);
+    }
+    s->is_jmp = 3;
 }
 
 static void gen_setcc(DisasContext *s, int b)
@@ -1370,6 +1373,18 @@ static void gen_exception(DisasContext *s, int trapno, unsigned int cur_eip)
     gen_op_jmp_im(cur_eip);
     gen_op_raise_exception(trapno);
     s->is_jmp = 1;
+}
+
+/* generate a jump to eip. No segment change must happen before as a
+   direct call to the next block may occur */
+static void gen_jmp(DisasContext *s, unsigned int eip)
+{
+    TranslationBlock *tb = s->tb;
+
+    if (s->cc_op != CC_OP_DYNAMIC)
+        gen_op_set_cc_op(s->cc_op);
+    gen_op_jmp_tb_next((long)tb, eip);
+    s->is_jmp = 3;
 }
 
 /* return the next pc address. Return -1 if no insn found. *is_jmp_ptr
@@ -2964,8 +2979,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
                 val &= 0xffff;
             gen_op_movl_T0_im(next_eip);
             gen_push_T0(s);
-            gen_op_jmp_im(val);
-            s->is_jmp = 1;
+            gen_jmp(s, val);
         }
         break;
     case 0x9a: /* lcall im */
@@ -2996,8 +3010,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         val += s->pc - s->cs_base;
         if (s->dflag == 0)
             val = val & 0xffff;
-        gen_op_jmp_im(val);
-        s->is_jmp = 1;
+        gen_jmp(s, val);
         break;
     case 0xea: /* ljmp im */
         {
@@ -3019,8 +3032,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         val += s->pc - s->cs_base;
         if (s->dflag == 0)
             val = val & 0xffff;
-        gen_op_jmp_im(val);
-        s->is_jmp = 1;
+        gen_jmp(s, val);
         break;
     case 0x70 ... 0x7f: /* jcc Jb */
         val = (int8_t)insn_get(s, OT_BYTE);
@@ -3037,7 +3049,6 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         if (s->dflag == 0)
             val &= 0xffff;
         gen_jcc(s, b, val, next_eip);
-        s->is_jmp = 1;
         break;
 
     case 0x190 ... 0x19f: /* setcc Gv */
@@ -3393,15 +3404,6 @@ static uint16_t opc_read_flags[NB_OPS] = {
 
     [INDEX_op_into] = CC_O,
 
-    [INDEX_op_jo_cc] = CC_O,
-    [INDEX_op_jb_cc] = CC_C,
-    [INDEX_op_jz_cc] = CC_Z,
-    [INDEX_op_jbe_cc] = CC_Z | CC_C,
-    [INDEX_op_js_cc] = CC_S,
-    [INDEX_op_jp_cc] = CC_P,
-    [INDEX_op_jl_cc] = CC_O | CC_S,
-    [INDEX_op_jle_cc] = CC_O | CC_S | CC_Z,
-
     [INDEX_op_jb_subb] = CC_C,
     [INDEX_op_jb_subw] = CC_C,
     [INDEX_op_jb_subl] = CC_C,
@@ -3730,7 +3732,7 @@ static uint32_t gen_opparam_buf[OPPARAM_BUF_SIZE];
 int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size, 
                      int *gen_code_size_ptr,
                      uint8_t *pc_start,  uint8_t *cs_base, int flags,
-                     int *code_size_ptr)
+                     int *code_size_ptr, TranslationBlock *tb)
 {
     DisasContext dc1, *dc = &dc1;
     uint8_t *pc_ptr;
@@ -3750,6 +3752,7 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size,
     dc->tf = (flags >> GEN_FLAG_TF_SHIFT) & 1;
     dc->cc_op = CC_OP_DYNAMIC;
     dc->cs_base = cs_base;
+    dc->tb = tb;
 
     gen_opc_ptr = gen_opc_buf;
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
@@ -3776,14 +3779,20 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size,
     } while (!dc->is_jmp && gen_opc_ptr < gen_opc_end && 
              (pc_ptr - pc_start) < (TARGET_PAGE_SIZE - 32));
     /* we must store the eflags state if it is not already done */
-    if (dc->cc_op != CC_OP_DYNAMIC)
-        gen_op_set_cc_op(dc->cc_op);
-    if (dc->is_jmp != 1) {
-        /* we add an additionnal jmp to update the simulated PC */
-        gen_op_jmp_im(ret - (unsigned long)dc->cs_base);
+    if (dc->is_jmp != 3) {
+        if (dc->cc_op != CC_OP_DYNAMIC)
+            gen_op_set_cc_op(dc->cc_op);
+        if (dc->is_jmp != 1) {
+            /* we add an additionnal jmp to update the simulated PC */
+            gen_op_jmp_im(ret - (unsigned long)dc->cs_base);
+        }
     }
     if (dc->tf) {
         gen_op_raise_exception(EXCP01_SSTP);
+    }
+    if (dc->is_jmp != 3) {
+        /* indicate that the hash table must be used to find the next TB */
+        gen_op_movl_T0_0();
     }
 
     *gen_opc_ptr = INDEX_op_end;
@@ -3814,8 +3823,17 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size,
 #endif
 
     /* generate machine code */
-    gen_code_size = dyngen_code(gen_code_buf, gen_opc_buf, gen_opparam_buf);
+    tb->tb_next_offset[0] = 0xffff;
+    tb->tb_next_offset[1] = 0xffff;
+    gen_code_size = dyngen_code(gen_code_buf, tb->tb_next_offset,
+#ifdef USE_DIRECT_JUMP
+                                tb->tb_jmp_offset,
+#else
+                                NULL,
+#endif
+                                gen_opc_buf, gen_opparam_buf);
     flush_icache_range((unsigned long)gen_code_buf, (unsigned long)(gen_code_buf + gen_code_size));
+
     *gen_code_size_ptr = gen_code_size;
     *code_size_ptr = pc_ptr - pc_start;
 #ifdef DEBUG_DISAS

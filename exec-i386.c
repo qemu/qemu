@@ -120,7 +120,7 @@ int cpu_x86_exec(CPUX86State *env1)
     TranslationBlock *tb, **ptb;
     uint8_t *tc_ptr, *cs_base, *pc;
     unsigned int flags;
-
+    
     /* first we save global registers */
     saved_T0 = T0;
     saved_T1 = T1;
@@ -169,6 +169,7 @@ int cpu_x86_exec(CPUX86State *env1)
 
     /* prepare setjmp context for exception handling */
     if (setjmp(env->jmp_env) == 0) {
+        T0 = 0; /* force lookup of first TB */
         for(;;) {
             if (env->interrupt_request) {
                 raise_exception(EXCP_INTERRUPT);
@@ -209,30 +210,40 @@ int cpu_x86_exec(CPUX86State *env1)
             flags |= (env->eflags & TF_MASK) << (GEN_FLAG_TF_SHIFT - 8);
             cs_base = env->seg_cache[R_CS].base;
             pc = cs_base + env->eip;
+            spin_lock(&tb_lock);
             tb = tb_find(&ptb, (unsigned long)pc, (unsigned long)cs_base, 
                          flags);
             if (!tb) {
                 /* if no translated code available, then translate it now */
-                /* very inefficient but safe: we lock all the cpus
-                   when generating code */
-                spin_lock(&tb_lock);
+                tb = tb_alloc((unsigned long)pc);
+                if (!tb) {
+                    /* flush must be done */
+                    tb_flush();
+                    /* cannot fail at this point */
+                    tb = tb_alloc((unsigned long)pc);
+                    /* don't forget to invalidate previous TB info */
+                    ptb = &tb_hash[tb_hash_func((unsigned long)pc)];
+                    T0 = 0;
+                }
                 tc_ptr = code_gen_ptr;
+                tb->tc_ptr = tc_ptr;
                 ret = cpu_x86_gen_code(code_gen_ptr, CODE_GEN_MAX_SIZE, 
                                        &code_gen_size, pc, cs_base, flags,
-                                       &code_size);
+                                       &code_size, tb);
                 /* if invalid instruction, signal it */
                 if (ret != 0) {
+                    /* NOTE: the tb is allocated but not linked, so we
+                       can leave it */
                     spin_unlock(&tb_lock);
                     raise_exception(EXCP06_ILLOP);
                 }
-                tb = tb_alloc((unsigned long)pc, code_size);
                 *ptb = tb;
+                tb->size = code_size;
                 tb->cs_base = (unsigned long)cs_base;
                 tb->flags = flags;
-                tb->tc_ptr = tc_ptr;
                 tb->hash_next = NULL;
+                tb_link(tb);
                 code_gen_ptr = (void *)(((unsigned long)code_gen_ptr + code_gen_size + CODE_GEN_ALIGN - 1) & ~(CODE_GEN_ALIGN - 1));
-                spin_unlock(&tb_lock);
             }
 #ifdef DEBUG_EXEC
 	    if (loglevel) {
@@ -241,14 +252,21 @@ int cpu_x86_exec(CPUX86State *env1)
 			lookup_symbol((void *)tb->pc));
 	    }
 #endif
-            /* execute the generated code */
+
+            /* see if we can patch the calling TB */
+            if (T0 != 0 && !(env->eflags & TF_MASK)) {
+                tb_add_jump((TranslationBlock *)(T0 & ~3), T0 & 3, tb);
+            }
             tc_ptr = tb->tc_ptr;
+            spin_unlock(&tb_lock);
+
+            /* execute the generated code */
             gen_func = (void *)tc_ptr;
 #ifdef __sparc__
 	    __asm__ __volatile__("call	%0\n\t"
 				 " mov	%%o7,%%i0"
 				 : /* no outputs */
-				 : "r" (gen_func)
+				 : "r" (gen_func) 
 				 : "i0", "i1", "i2", "i3", "i4", "i5");
 #else
             gen_func();

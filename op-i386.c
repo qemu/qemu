@@ -709,7 +709,44 @@ void OPPROTO op_cmpxchg8b(void)
     FORCE_RET();
 }
 
-/* string ops */
+#if defined(__powerpc__)
+
+/* on PowerPC we patch the jump instruction directly */
+#define JUMP_TB(tbparam, n, eip)\
+do {\
+    static void __attribute__((unused)) *__op_label ## n = &&label ## n;\
+    asm volatile ("b %0" : : "i" (&__op_jmp ## n));\
+label ## n:\
+    T0 = (long)(tbparam) + (n);\
+    EIP = eip;\
+} while (0)
+
+#else
+
+/* jump to next block operations (more portable code, does not need
+   cache flushing, but slower because of indirect jump) */
+#define JUMP_TB(tbparam, n, eip)\
+do {\
+    static void __attribute__((unused)) *__op_label ## n = &&label ## n;\
+    goto *((TranslationBlock *)tbparam)->tb_next[n];\
+label ## n:\
+    T0 = (long)(tbparam) + (n);\
+    EIP = eip;\
+} while (0)
+
+#endif
+
+void OPPROTO op_jmp_tb_next(void)
+{
+    JUMP_TB(PARAM1, 0, PARAM2);
+}
+
+void OPPROTO op_movl_T0_0(void)
+{
+    T0 = 0;
+}
+
+/* multiple size ops */
 
 #define ldul ldl
 
@@ -1199,90 +1236,15 @@ void OPPROTO op_lar(void)
 
 /* flags handling */
 
-/* slow jumps cases (compute x86 flags) */
-void OPPROTO op_jo_cc(void)
+/* slow jumps cases : in order to avoid calling a function with a
+   pointer (which can generate a stack frame on PowerPC), we use
+   op_setcc to set T0 and then call op_jcc. */
+void OPPROTO op_jcc(void)
 {
-    int eflags;
-    eflags = cc_table[CC_OP].compute_all();
-    if (eflags & CC_O)
-        EIP = PARAM1;
+    if (T0)
+        JUMP_TB(PARAM1, 0, PARAM2);
     else
-        EIP = PARAM2;
-    FORCE_RET();
-}
-
-void OPPROTO op_jb_cc(void)
-{
-    if (cc_table[CC_OP].compute_c())
-        EIP = PARAM1;
-    else
-        EIP = PARAM2;
-    FORCE_RET();
-}
-
-void OPPROTO op_jz_cc(void)
-{
-    int eflags;
-    eflags = cc_table[CC_OP].compute_all();
-    if (eflags & CC_Z)
-        EIP = PARAM1;
-    else
-        EIP = PARAM2;
-    FORCE_RET();
-}
-
-void OPPROTO op_jbe_cc(void)
-{
-    int eflags;
-    eflags = cc_table[CC_OP].compute_all();
-    if (eflags & (CC_Z | CC_C))
-        EIP = PARAM1;
-    else
-        EIP = PARAM2;
-    FORCE_RET();
-}
-
-void OPPROTO op_js_cc(void)
-{
-    int eflags;
-    eflags = cc_table[CC_OP].compute_all();
-    if (eflags & CC_S)
-        EIP = PARAM1;
-    else
-        EIP = PARAM2;
-    FORCE_RET();
-}
-
-void OPPROTO op_jp_cc(void)
-{
-    int eflags;
-    eflags = cc_table[CC_OP].compute_all();
-    if (eflags & CC_P)
-        EIP = PARAM1;
-    else
-        EIP = PARAM2;
-    FORCE_RET();
-}
-
-void OPPROTO op_jl_cc(void)
-{
-    int eflags;
-    eflags = cc_table[CC_OP].compute_all();
-    if ((eflags ^ (eflags >> 4)) & 0x80)
-        EIP = PARAM1;
-    else
-        EIP = PARAM2;
-    FORCE_RET();
-}
-
-void OPPROTO op_jle_cc(void)
-{
-    int eflags;
-    eflags = cc_table[CC_OP].compute_all();
-    if (((eflags ^ (eflags >> 4)) & 0x80) || (eflags & CC_Z))
-        EIP = PARAM1;
-    else
-        EIP = PARAM2;
+        JUMP_TB(PARAM1, 1, PARAM3);
     FORCE_RET();
 }
 

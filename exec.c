@@ -27,6 +27,7 @@
 #include <sys/mman.h>
 
 #include "cpu-i386.h"
+#include "exec.h"
 
 //#define DEBUG_TB_INVALIDATE
 #define DEBUG_FLUSH
@@ -212,6 +213,7 @@ static void page_flush_tb(void)
 }
 
 /* flush all the translation blocks */
+/* XXX: tb_flush is currently not thread safe */
 void tb_flush(void)
 {
     int i;
@@ -226,7 +228,8 @@ void tb_flush(void)
         tb_hash[i] = NULL;
     page_flush_tb();
     code_gen_ptr = code_gen_buffer;
-    /* XXX: flush processor icache at this point */
+    /* XXX: flush processor icache at this point if cache flush is
+       expensive */
 }
 
 #ifdef DEBUG_TB_CHECK
@@ -265,6 +268,26 @@ static void tb_page_check(void)
     }
 }
 
+void tb_jmp_check(TranslationBlock *tb)
+{
+    TranslationBlock *tb1;
+    unsigned int n1;
+
+    /* suppress any remaining jumps to this TB */
+    tb1 = tb->jmp_first;
+    for(;;) {
+        n1 = (long)tb1 & 3;
+        tb1 = (TranslationBlock *)((long)tb1 & ~3);
+        if (n1 == 2)
+            break;
+        tb1 = tb1->jmp_next[n1];
+    }
+    /* check end of list */
+    if (tb1 != tb) {
+        printf("ERROR: jmp_list from 0x%08lx\n", (long)tb);
+    }
+}
+
 #endif
 
 /* invalidate one TB */
@@ -282,12 +305,48 @@ static inline void tb_remove(TranslationBlock **ptb, TranslationBlock *tb,
     }
 }
 
+static inline void tb_jmp_remove(TranslationBlock *tb, int n)
+{
+    TranslationBlock *tb1, **ptb;
+    unsigned int n1;
+
+    ptb = &tb->jmp_next[n];
+    tb1 = *ptb;
+    if (tb1) {
+        /* find tb(n) in circular list */
+        for(;;) {
+            tb1 = *ptb;
+            n1 = (long)tb1 & 3;
+            tb1 = (TranslationBlock *)((long)tb1 & ~3);
+            if (n1 == n && tb1 == tb)
+                break;
+            if (n1 == 2) {
+                ptb = &tb1->jmp_first;
+            } else {
+                ptb = &tb1->jmp_next[n1];
+            }
+        }
+        /* now we can suppress tb(n) from the list */
+        *ptb = tb->jmp_next[n];
+
+        tb->jmp_next[n] = NULL;
+    }
+}
+
+/* reset the jump entry 'n' of a TB so that it is not chained to
+   another TB */
+static inline void tb_reset_jump(TranslationBlock *tb, int n)
+{
+    tb_set_jmp_target(tb, n, (unsigned long)(tb->tc_ptr + tb->tb_next_offset[n]));
+}
+
 static inline void tb_invalidate(TranslationBlock *tb, int parity)
 {
     PageDesc *p;
     unsigned int page_index1, page_index2;
-    unsigned int h;
-
+    unsigned int h, n1;
+    TranslationBlock *tb1, *tb2;
+    
     /* remove the TB from the hash list */
     h = tb_hash_func(tb->pc);
     tb_remove(&tb_hash[h], tb, 
@@ -305,6 +364,24 @@ static inline void tb_invalidate(TranslationBlock *tb, int parity)
         tb_remove(&p->first_tb, tb, 
                   offsetof(TranslationBlock, page_next[page_index2 & 1]));
     }
+
+    /* suppress this TB from the two jump lists */
+    tb_jmp_remove(tb, 0);
+    tb_jmp_remove(tb, 1);
+
+    /* suppress any remaining jumps to this TB */
+    tb1 = tb->jmp_first;
+    for(;;) {
+        n1 = (long)tb1 & 3;
+        if (n1 == 2)
+            break;
+        tb1 = (TranslationBlock *)((long)tb1 & ~3);
+        tb2 = tb1->jmp_next[n1];
+        tb_reset_jump(tb1, n1);
+        tb1->jmp_next[n1] = NULL;
+        tb1 = tb2;
+    }
+    tb->jmp_first = (TranslationBlock *)((long)tb | 2); /* fail safe */
 }
 
 /* invalidate all TBs which intersect with the target page starting at addr */
@@ -367,27 +444,39 @@ static inline void tb_alloc_page(TranslationBlock *tb, unsigned int page_index)
 
 /* Allocate a new translation block. Flush the translation buffer if
    too many translation blocks or too much generated code. */
-TranslationBlock *tb_alloc(unsigned long pc, 
-                           unsigned long size)
+TranslationBlock *tb_alloc(unsigned long pc)
 {
     TranslationBlock *tb;
-    unsigned int page_index1, page_index2;
 
     if (nb_tbs >= CODE_GEN_MAX_BLOCKS || 
         (code_gen_ptr - code_gen_buffer) >= CODE_GEN_BUFFER_MAX_SIZE)
-        tb_flush();
+        return NULL;
     tb = &tbs[nb_tbs++];
     tb->pc = pc;
-    tb->size = size;
+    return tb;
+}
+
+/* link the tb with the other TBs */
+void tb_link(TranslationBlock *tb)
+{
+    unsigned int page_index1, page_index2;
 
     /* add in the page list */
-    page_index1 = pc >> TARGET_PAGE_BITS;
+    page_index1 = tb->pc >> TARGET_PAGE_BITS;
     tb_alloc_page(tb, page_index1);
-    page_index2 = (pc + size - 1) >> TARGET_PAGE_BITS;
+    page_index2 = (tb->pc + tb->size - 1) >> TARGET_PAGE_BITS;
     if (page_index2 != page_index1) {
         tb_alloc_page(tb, page_index2);
     }
-    return tb;
+    tb->jmp_first = (TranslationBlock *)((long)tb | 2);
+    tb->jmp_next[0] = NULL;
+    tb->jmp_next[1] = NULL;
+
+    /* init original jump addresses */
+    if (tb->tb_next_offset[0] != 0xffff)
+        tb_reset_jump(tb, 0);
+    if (tb->tb_next_offset[1] != 0xffff)
+        tb_reset_jump(tb, 1);
 }
 
 /* called from signal handler: invalidate the code and unprotect the
