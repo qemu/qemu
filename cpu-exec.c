@@ -225,7 +225,7 @@ int cpu_exec(CPUState *env1)
                     cpu_arm_dump_state(env, logfile, 0);
                     env->cpsr &= ~0xf0000000;
 #elif defined(TARGET_SPARC)
-					cpu_sparc_dump_state (env, logfile, 0);
+                    cpu_sparc_dump_state (env, logfile, 0);
 #else
 #error unsupported target CPU 
 #endif
@@ -273,6 +273,7 @@ int cpu_exec(CPUState *env1)
                     tb->tc_ptr = tc_ptr;
                     tb->cs_base = (unsigned long)cs_base;
                     tb->flags = flags;
+                    /* XXX: an MMU exception can occur here */
                     cpu_gen_code(env, tb, CODE_GEN_MAX_SIZE, &code_gen_size);
                     *ptb = tb;
                     tb->hash_next = NULL;
@@ -456,7 +457,8 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
         return 1;
     }
     /* see if it is an MMU fault */
-    ret = cpu_x86_handle_mmu_fault(env, address, is_write);
+    ret = cpu_x86_handle_mmu_fault(env, address, is_write, 
+                                   ((env->hflags & HF_CPL_MASK) == 3), 0);
     if (ret < 0)
         return 0; /* not an MMU fault */
     if (ret == 0)
