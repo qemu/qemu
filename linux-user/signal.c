@@ -175,7 +175,7 @@ void signal_init(void)
     act.sa_flags = SA_SIGINFO;
     act.sa_sigaction = host_signal_handler;
     for(i = 1; i < NSIG; i++) {
-	sigaction(i, &act, NULL);
+        sigaction(i, &act, NULL);
     }
     
     memset(sigact_table, 0, sizeof(sigact_table));
@@ -547,7 +547,7 @@ setup_sigcontext(struct target_sigcontext *sc, struct target_fpstate *fpstate,
 #endif
 	/* non-iBCS2 extensions.. */
 	err |= __put_user(mask, &sc->oldmask);
-	err |= __put_user(/*current->thread.cr2*/ 0, &sc->cr2);
+	err |= __put_user(env->cr2, &sc->cr2);
 	return err;
 }
 
