@@ -1,11 +1,13 @@
 \input texinfo @c -*- texinfo -*-
 
+@iftex
 @settitle QEMU CPU Emulator Reference Documentation
 @titlepage
 @sp 7
 @center @titlefont{QEMU CPU Emulator Reference Documentation}
 @sp 3
 @end titlepage
+@end iftex
 
 @chapter Introduction
 
@@ -16,14 +18,18 @@ achieves a reasonnable speed while being easy to port on new host
 CPUs.
 
 QEMU has two operating modes:
-@itemize
-@item User mode emulation. In this mode, QEMU can launch Linux processes
+
+@itemize @minus
+
+@item 
+User mode emulation. In this mode, QEMU can launch Linux processes
 compiled for one CPU on another CPU. Linux system calls are converted
 because of endianness and 32/64 bit mismatches. The Wine Windows API
 emulator (@url{http://www.winehq.org}) and the DOSEMU DOS emulator
 (@url{www.dosemu.org}) are the main targets for QEMU.
 
-@item Full system emulation. In this mode, QEMU emulates a full
+@item 
+Full system emulation. In this mode, QEMU emulates a full
 system, including a processor and various peripherials. Currently, it
 is only used to launch an x86 Linux kernel on an x86 Linux system. It
 enables easier testing and debugging of system code. It can also be
@@ -128,6 +134,10 @@ generic dynamic code generation architecture of QEMU.
 
 @end itemize
 
+@section SPARC emulation
+
+The SPARC emulation is currently in development.
+
 @chapter QEMU User space emulator invocation
 
 @section Quick Start
@@ -144,7 +154,7 @@ itself and all the target (x86) dynamic libraries used by it.
 libraries:
 
 @example 
-qemu -L / /bin/ls
+qemu-i386 -L / /bin/ls
 @end example
 
 @code{-L /} tells that the x86 dynamic linker must be searched with a
@@ -153,7 +163,7 @@ qemu -L / /bin/ls
 @item Since QEMU is also a linux process, you can launch qemu with qemu:
 
 @example 
-qemu -L / qemu -L / /bin/ls
+qemu-i386 -L / qemu-i386 -L / /bin/ls
 @end example
 
 @item On non x86 CPUs, you need first to download at least an x86 glibc
@@ -167,7 +177,7 @@ unset LD_LIBRARY_PATH
 Then you can launch the precompiled @file{ls} x86 executable:
 
 @example
-qemu /usr/local/qemu-i386/bin/ls-i386
+qemu-i386 /usr/local/qemu-i386/bin/ls-i386
 @end example
 You can look at @file{/usr/local/qemu-i386/bin/qemu-conf.sh} so that
 QEMU is automatically launched by the Linux kernel when you try to
@@ -176,7 +186,7 @@ Linux kernel.
 
 @item The x86 version of QEMU is also included. You can try weird things such as:
 @example
-qemu /usr/local/qemu-i386/bin/qemu-i386 /usr/local/qemu-i386/bin/ls-i386
+qemu-i386 /usr/local/qemu-i386/bin/qemu-i386 /usr/local/qemu-i386/bin/ls-i386
 @end example
 
 @end itemize
@@ -190,7 +200,7 @@ distribution (see previous section). In order to verify it, you must be
 able to do:
 
 @example
-qemu /usr/local/qemu-i386/bin/ls-i386
+qemu-i386 /usr/local/qemu-i386/bin/ls-i386
 @end example
 
 @item Download the binary x86 Wine install
@@ -203,7 +213,7 @@ qemu /usr/local/qemu-i386/bin/ls-i386
 @item Then you can try the example @file{putty.exe}:
 
 @example
-qemu /usr/local/qemu-i386/wine/bin/wine /usr/local/qemu-i386/wine/c/Program\ Files/putty.exe
+qemu-i386 /usr/local/qemu-i386/wine/bin/wine /usr/local/qemu-i386/wine/c/Program\ Files/putty.exe
 @end example
 
 @end itemize
@@ -211,7 +221,7 @@ qemu /usr/local/qemu-i386/wine/bin/wine /usr/local/qemu-i386/wine/c/Program\ Fil
 @section Command line options
 
 @example
-usage: qemu [-h] [-d] [-L path] [-s size] program [arguments...]
+usage: qemu-i386 [-h] [-d] [-L path] [-s size] program [arguments...]
 @end example
 
 @table @option
@@ -234,20 +244,81 @@ Act as if the host page size was 'pagesize' bytes
 
 @chapter QEMU System emulator invocation
 
+@section Introduction
+
+@c man begin DESCRIPTION
+
+The QEMU System emulator simulates a complete PC. It can either boot
+directly a Linux kernel (without any BIOS or boot loader) or boot like a
+real PC with the included BIOS.
+
+In order to meet specific user needs, two versions of QEMU are
+available:
+
+@enumerate
+
+@item 
+@code{qemu} uses the host Memory Management Unit (MMU) to simulate 
+the x86 MMU. It is @emph{fast} but has limitations because the whole 4 GB
+address space cannot be used and some memory mapped peripherials
+cannot be emulated accurately yet. Therefore, a specific Linux kernel
+must be used (@xref{linux_compile}).
+
+@item 
+@code{qemu-softmmu} uses a software MMU. It is about @emph{two times 
+slower} but gives a more accurate emulation. (XXX: Linux cannot be ran
+unpatched yet).
+
+@end enumerate
+
+QEMU emulates the following PC peripherials:
+
+@itemize @minus
+@item
+VGA (hardware level, including all non standard modes)
+@item
+PS/2 mouse and keyboard
+@item 
+IDE disk interface (port=0x1f0, irq=14)
+@item 
+NE2000 network adapter (port=0x300, irq=9)
+@item
+Serial port (port=0x3f8, irq=4)
+@item
+PIC (interrupt controler)
+@item
+PIT (timers)
+@item 
+CMOS memory
+@end itemize
+
+@c man end
+
 @section Quick Start
 
-This section explains how to launch a Linux kernel inside QEMU.
+Download the linux image (@file{linux.img}) and type:
+
+@example
+qemu-softmmu linux.img
+@end example
+
+Linux should boot and give you a prompt.
+
+@section Direct Linux Boot and Network emulation
+
+This section explains how to launch a Linux kernel inside QEMU without
+having to make a full bootable image. It is very useful for fast Linux
+kernel testing. The QEMU network configuration is also explained.
 
 @enumerate
 @item
-Download the archive @file{vl-test-xxx.tar.gz} containing a Linux
-kernel and a disk image. The archive also contains a precompiled
-version of @file{vl}, the QEMU System emulator.
+Download the archive @file{linux-test-xxx.tar.gz} containing a Linux
+kernel and a disk image. 
 
 @item Optional: If you want network support (for example to launch X11 examples), you
-must copy the script @file{vl-ifup} in @file{/etc} and configure
+must copy the script @file{qemu-ifup} in @file{/etc} and configure
 properly @code{sudo} so that the command @code{ifconfig} contained in
-@file{vl-ifup} can be executed as root. You must verify that your host
+@file{qemu-ifup} can be executed as root. You must verify that your host
 kernel supports the TUN/TAP network interfaces: the device
 @file{/dev/net/tun} must be present.
 
@@ -256,10 +327,10 @@ the host kernel and the emulated kernel. The emulated kernel is seen
 from the host kernel at IP address 172.20.0.2 and the host kernel is
 seen from the emulated kernel at IP address 172.20.0.1.
 
-@item Launch @code{vl.sh}. You should have the following output:
+@item Launch @code{qemu.sh}. You should have the following output:
 
 @example
-> ./vl.sh 
+> ./qemu.sh 
 connected to host network interface: tun0
 Uncompressing Linux... Ok, booting the kernel.
 Linux version 2.4.20 (fabrice@localhost.localdomain) (gcc version 2.96 20000731 (Red Hat Linux 7.3 2.96-110)) #22 lun jui 7 13:37:41 CEST 2003
@@ -349,11 +420,11 @@ a real Virtual Linux system !
 NOTES:
 @enumerate
 @item 
-A 2.5.74 kernel is also included in the vl-test archive. Just
-replace the bzImage in vl.sh to try it.
+A 2.5.74 kernel is also included in the archive. Just
+replace the bzImage in qemu.sh to try it.
 
 @item 
-vl creates a temporary file in @var{$VLTMPDIR} (@file{/tmp} is the
+vl creates a temporary file in @var{$QEMU_TMPDIR} (@file{/tmp} is the
 default) containing all the simulated PC memory. If possible, try to use
 a temporary directory using the tmpfs filesystem to avoid too many
 unnecessary disk accesses.
@@ -379,16 +450,19 @@ Lawton for the plex86 Project (@url{www.plex86.org}).
 @section Invocation
 
 @example
-usage: vl [options] bzImage [kernel parameters...]
+@c man begin SYNOPSIS
+usage: qemu [options] [disk_image]
+@c man end
 @end example
 
-@file{bzImage} is a Linux kernel image.
+@c man begin OPTIONS
+@var{disk_image} is a raw hard image image for IDE hard disk 0.
 
 General options:
 @table @option
 @item -hda file
 @item -hdb file
-Use 'file' as hard disk 0 or 1 image (@xref{disk_images}). 
+Use @var{file} as hard disk 0 or 1 image (@xref{disk_images}). 
 
 @item -snapshot
 
@@ -405,13 +479,41 @@ launched to configure the host network interface (usually tun0)
 corresponding to the virtual NE2000 card.
 
 @item -initrd file
-Use 'file' as initial ram disk.
+Use @var{file} as initial ram disk.
+
+@item -tun-fd fd      
+Assumes @var{fd} talks to tap/tun and use it. Read
+@url{http://bellard.org/qemu/tetrinet.html} to have an example of its
+use.
+
+@item -nographic
+
+Normally, QEMU uses SDL to display the VGA output. With this option,
+you can totally disable graphical output so that QEMU is a simple
+command line application. The emulated serial port is redirected on
+the console. Therefore, you can still use QEMU to debug a Linux kernel
+with a serial console.
+
+@end table
+
+Linux boot specific (does not require a full PC boot with a BIOS):
+@table @option
+
+@item -kernel bzImage 
+Use @var{bzImage} as kernel image.
+
+@item -append cmdline 
+Use @var{cmdline} as kernel command line
+
+@item -initrd file
+Use @var{file} as initial ram disk.
+
 @end table
 
 Debug options:
 @table @option
 @item -s
-Wait gdb connection to port 1234.
+Wait gdb connection to port 1234 (@xref{gdb_usage}). 
 @item -p port
 Change gdb connection port.
 @item -d             
@@ -432,7 +534,25 @@ Send break (magic sysrq)
 @item C-a C-a
 Send C-a
 @end table
+@c man end
 
+@ignore
+
+@setfilename qemu 
+@settitle QEMU System Emulator
+
+@c man begin SEEALSO
+The HTML documentation of QEMU for more precise information and Linux
+user mode emulator invocation.
+@c man end
+
+@c man begin AUTHOR
+Fabrice Bellard
+@c man end
+
+@end ignore
+
+@end ignore
 @node disk_images
 @section Disk Images
 
@@ -466,14 +586,14 @@ same disk image template for many users.
 To create a COW disk images, use the command:
 
 @example
-vlmkcow -f myrawimage.bin mycowimage.cow
+qemu-mkcow -f myrawimage.bin mycowimage.cow
 @end example
 
 @file{myrawimage.bin} is a raw image you want to use as original disk
 image. It will never be written to.
 
 @file{mycowimage.cow} is the COW disk image which is created by
-@code{vlmkcow}. You can use it directly with the @option{-hdx}
+@code{qemu-mkcow}. You can use it directly with the @option{-hdx}
 options. You must not modify the original raw disk image if you use
 COW images, as COW images only store the modified sectors from the raw
 disk image. QEMU stores the original raw disk image name and its
@@ -489,7 +609,7 @@ image. It is useful to have a big initial virtual disk image without
 using much disk space. Use:
 
 @example
-vlmkcow mycowimage.cow 1024
+qemu-mkcow mycowimage.cow 1024
 @end example
 
 to create a 1 gigabyte empty COW disk image.
@@ -504,6 +624,7 @@ Since holes are used, the displayed size of the COW disk image is not
 the real one. To know it, use the @code{ls -ls} command.
 @end enumerate
 
+@node linux_compile
 @section Linux Kernel Compilation
 
 You should be able to use any kernel with QEMU provided you make the
@@ -573,31 +694,11 @@ As you would do to make a real kernel. Then you can use with QEMU
 exactly the same kernel as you would boot on your PC (in
 @file{arch/i386/boot/bzImage}).
 
-@section PC Emulation
-
-QEMU emulates the following PC peripherials:
-
-@itemize
-@item
-PIC (interrupt controler)
-@item
-PIT (timers)
-@item 
-CMOS memory
-@item
-Dumb VGA (to print the @code{Uncompressing Linux} message)
-@item
-Serial port (port=0x3f8, irq=4)
-@item 
-NE2000 network adapter (port=0x300, irq=9)
-@item 
-IDE disk interface (port=0x1f0, irq=14)
-@end itemize
-
+@node gdb_usage
 @section GDB usage
 
 QEMU has a primitive support to work with gdb, so that you can do
-'Ctrl-C' while the kernel is running and inspect its state.
+'Ctrl-C' while the virtual machine is running and inspect its state.
 
 In order to use gdb, launch vl with the '-s' option. It will wait for a
 gdb connection:
@@ -623,6 +724,18 @@ Then you can use gdb normally. For example, type 'c' to launch the kernel:
 @end example
 
 WARNING: breakpoints and single stepping are not yet supported.
+
+Here are some useful tips in order to use gdb on system code:
+
+@enumerate
+@item
+Use @code{info reg} to display all the CPU registers.
+@item
+Use @code{x/10i $eip} to display the code at the PC position.
+@item
+Use @code{set architecture i8086} to dump 16 bit code. Then use
+@code{x/10i $cs*16+*eip} to dump the code at the PC position.
+@end enumerate
 
 @chapter QEMU Internals
 
