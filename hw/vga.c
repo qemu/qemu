@@ -489,34 +489,40 @@ static void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 }
 
 #ifdef CONFIG_BOCHS_VBE
-static uint32_t vbe_ioport_read(void *opaque, uint32_t addr)
+static uint32_t vbe_ioport_read_index(void *opaque, uint32_t addr)
+{
+    VGAState *s = opaque;
+    uint32_t val;
+    val = s->vbe_index;
+    return val;
+}
+
+static uint32_t vbe_ioport_read_data(void *opaque, uint32_t addr)
 {
     VGAState *s = opaque;
     uint32_t val;
 
-    addr &= 1;
-    if (addr == 0) {
-        val = s->vbe_index;
-    } else {
-        if (s->vbe_index <= VBE_DISPI_INDEX_NB)
-            val = s->vbe_regs[s->vbe_index];
-        else
-            val = 0;
+    if (s->vbe_index <= VBE_DISPI_INDEX_NB)
+        val = s->vbe_regs[s->vbe_index];
+    else
+        val = 0;
 #ifdef DEBUG_BOCHS_VBE
-        printf("VBE: read index=0x%x val=0x%x\n", s->vbe_index, val);
+    printf("VBE: read index=0x%x val=0x%x\n", s->vbe_index, val);
 #endif
-    }
     return val;
 }
 
-static void vbe_ioport_write(void *opaque, uint32_t addr, uint32_t val)
+static void vbe_ioport_write_index(void *opaque, uint32_t addr, uint32_t val)
+{
+    VGAState *s = opaque;
+    s->vbe_index = val;
+}
+
+static void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val)
 {
     VGAState *s = opaque;
 
-    addr &= 1;
-    if (addr == 0) {
-        s->vbe_index = val;
-    } else if (s->vbe_index <= VBE_DISPI_INDEX_NB) {
+    if (s->vbe_index <= VBE_DISPI_INDEX_NB) {
 #ifdef DEBUG_BOCHS_VBE
         printf("VBE: write index=0x%x val=0x%x\n", s->vbe_index, val);
 #endif
@@ -709,18 +715,30 @@ static uint32_t vga_mem_readb(target_phys_addr_t addr)
 static uint32_t vga_mem_readw(target_phys_addr_t addr)
 {
     uint32_t v;
+#ifdef TARGET_WORDS_BIGENDIAN
+    v = vga_mem_readb(addr) << 8;
+    v |= vga_mem_readb(addr + 1);
+#else
     v = vga_mem_readb(addr);
     v |= vga_mem_readb(addr + 1) << 8;
+#endif
     return v;
 }
 
 static uint32_t vga_mem_readl(target_phys_addr_t addr)
 {
     uint32_t v;
+#ifdef TARGET_WORDS_BIGENDIAN
+    v = vga_mem_readb(addr) << 24;
+    v |= vga_mem_readb(addr + 1) << 16;
+    v |= vga_mem_readb(addr + 2) << 8;
+    v |= vga_mem_readb(addr + 3);
+#else
     v = vga_mem_readb(addr);
     v |= vga_mem_readb(addr + 1) << 8;
     v |= vga_mem_readb(addr + 2) << 16;
     v |= vga_mem_readb(addr + 3) << 24;
+#endif
     return v;
 }
 
@@ -855,16 +873,28 @@ static void vga_mem_writeb(target_phys_addr_t addr, uint32_t val)
 
 static void vga_mem_writew(target_phys_addr_t addr, uint32_t val)
 {
+#ifdef TARGET_WORDS_BIGENDIAN
+    vga_mem_writeb(addr, (val >> 8) & 0xff);
+    vga_mem_writeb(addr + 1, val & 0xff);
+#else
     vga_mem_writeb(addr, val & 0xff);
     vga_mem_writeb(addr + 1, (val >> 8) & 0xff);
+#endif
 }
 
 static void vga_mem_writel(target_phys_addr_t addr, uint32_t val)
 {
+#ifdef TARGET_WORDS_BIGENDIAN
+    vga_mem_writeb(addr, (val >> 24) & 0xff);
+    vga_mem_writeb(addr + 1, (val >> 16) & 0xff);
+    vga_mem_writeb(addr + 2, (val >> 8) & 0xff);
+    vga_mem_writeb(addr + 3, val & 0xff);
+#else
     vga_mem_writeb(addr, val & 0xff);
     vga_mem_writeb(addr + 1, (val >> 8) & 0xff);
     vga_mem_writeb(addr + 2, (val >> 16) & 0xff);
     vga_mem_writeb(addr + 3, (val >> 24) & 0xff);
+#endif
 }
 
 typedef void vga_draw_glyph8_func(uint8_t *d, int linesize,
@@ -1366,7 +1396,7 @@ static void vga_draw_graphic(VGAState *s, int full_update)
         ((s->cr[0x07] & 0x40) << 3);
     height = (height + 1);
     disp_width = width;
-    
+
     shift_control = (s->gr[0x05] >> 5) & 3;
     double_scan = (s->cr[0x09] & 0x80);
     if (shift_control > 1) {
@@ -1774,19 +1804,27 @@ int vga_initialize(DisplayState *ds, uint8_t *vga_ram_base,
 #ifdef CONFIG_BOCHS_VBE
     s->vbe_regs[VBE_DISPI_INDEX_ID] = VBE_DISPI_ID0;
     s->vbe_bank_mask = ((s->vram_size >> 16) - 1);
-    register_ioport_read(0x1ce, 1, 2, vbe_ioport_read, s);
-    register_ioport_read(0x1cf, 1, 2, vbe_ioport_read, s);
+#if defined (TARGET_I386)
+    register_ioport_read(0x1ce, 1, 2, vbe_ioport_read_index, s);
+    register_ioport_read(0x1cf, 1, 2, vbe_ioport_read_data, s);
 
-    register_ioport_write(0x1ce, 1, 2, vbe_ioport_write, s);
-    register_ioport_write(0x1cf, 1, 2, vbe_ioport_write, s);
+    register_ioport_write(0x1ce, 1, 2, vbe_ioport_write_index, s);
+    register_ioport_write(0x1cf, 1, 2, vbe_ioport_write_data, s);
 
     /* old Bochs IO ports */
-    register_ioport_read(0xff80, 1, 2, vbe_ioport_read, s);
-    register_ioport_read(0xff81, 1, 2, vbe_ioport_read, s);
+    register_ioport_read(0xff80, 1, 2, vbe_ioport_read_index, s);
+    register_ioport_read(0xff81, 1, 2, vbe_ioport_read_data, s);
 
-    register_ioport_write(0xff80, 1, 2, vbe_ioport_write, s);
-    register_ioport_write(0xff81, 1, 2, vbe_ioport_write, s); 
+    register_ioport_write(0xff80, 1, 2, vbe_ioport_write_index, s);
+    register_ioport_write(0xff81, 1, 2, vbe_ioport_write_data, s); 
+#else
+    register_ioport_read(0x1ce, 1, 2, vbe_ioport_read_index, s);
+    register_ioport_read(0x1d0, 1, 2, vbe_ioport_read_data, s);
+
+    register_ioport_write(0x1ce, 1, 2, vbe_ioport_write_index, s);
+    register_ioport_write(0x1d0, 1, 2, vbe_ioport_write_data, s);
 #endif
+#endif /* CONFIG_BOCHS_VBE */
 
     vga_io_memory = cpu_register_io_memory(0, vga_mem_read, vga_mem_write);
     cpu_register_physical_memory(isa_mem_base + 0x000a0000, 0x20000, 
@@ -1814,11 +1852,9 @@ int vga_initialize(DisplayState *ds, uint8_t *vga_ram_base,
                                PCI_ADDRESS_SPACE_MEM_PREFETCH, vga_map);
     } else {
 #ifdef CONFIG_BOCHS_VBE
-#if defined (TARGET_I386)
         /* XXX: use optimized standard vga accesses */
         cpu_register_physical_memory(VBE_DISPI_LFB_PHYSICAL_ADDRESS, 
                                      vga_ram_size, vga_ram_offset);
-#endif
 #endif
     }
     return 0;
