@@ -290,9 +290,9 @@ static uint32_t kbd_read_data(void *opaque, uint32_t addr)
     KBDQueue *q;
     int val, index;
     
-    q = &s->queues[0]; /* first check KBD data */
+    q = &s->queues[1]; /* first check AUX data */
     if (q->count == 0)
-        q = &s->queues[1]; /* then check AUX data */
+        q = &s->queues[0]; /* then check KBD data */
     if (q->count == 0) {
         /* NOTE: if no data left, we return the last keyboard one
            (needed for EMM386) */
