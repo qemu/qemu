@@ -1326,7 +1326,7 @@ static int write_ldt(CPUX86State *env,
         if (!ldt_table)
             return -ENOMEM;
         memset(ldt_table, 0, TARGET_LDT_ENTRIES * TARGET_LDT_ENTRY_SIZE);
-        env->ldt.base = ldt_table;
+        env->ldt.base = (long)ldt_table;
         env->ldt.limit = 0xffff;
     }
 
@@ -2502,6 +2502,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 		    tnamelen = treclen - (2 * sizeof(target_long) + 2);
 		    if (tnamelen > 256)
                         tnamelen = 256;
+                    /* XXX: may not be correct */
 		    strncpy(tde->d_name, de->d_name, tnamelen);
                     de = (struct dirent *)((char *)de + reclen);
                     len -= reclen;
@@ -3046,7 +3047,9 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     default:
     unimplemented:
         gemu_log("qemu: Unsupported syscall: %d\n", num);
+#if defined(TARGET_NR_setxattr) || defined(TARGET_NR_set_thread_area)
     unimplemented_nowarn:
+#endif
         ret = -ENOSYS;
         break;
     }

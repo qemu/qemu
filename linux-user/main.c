@@ -181,7 +181,7 @@ static void set_idt(int n, unsigned int dpl)
 void cpu_loop(CPUX86State *env)
 {
     int trapnr;
-    uint8_t *pc;
+    target_ulong pc;
     target_siginfo_t info;
 
     for(;;) {
@@ -440,6 +440,7 @@ static void restore_window(CPUSPARCState *env)
     env->wim = new_wim;
 }
 
+#if 0
 static void flush_windows(CPUSPARCState *env)
 {
     int offset, cwp1;
@@ -459,6 +460,7 @@ static void flush_windows(CPUSPARCState *env)
         offset++;
     }
 }
+#endif
 
 void cpu_loop (CPUSPARCState *env)
 {
@@ -1067,7 +1069,7 @@ int main(int argc, char **argv)
     env->eip = regs->eip;
 
     /* linux interrupt setup */
-    env->idt.base = (void *)idt_table;
+    env->idt.base = (long)idt_table;
     env->idt.limit = sizeof(idt_table) - 1;
     set_idt(0, 0);
     set_idt(1, 0);
@@ -1092,7 +1094,7 @@ int main(int argc, char **argv)
     set_idt(0x80, 3);
 
     /* linux segment setup */
-    env->gdt.base = (void *)gdt_table;
+    env->gdt.base = (long)gdt_table;
     env->gdt.limit = sizeof(gdt_table) - 1;
     write_dt(&gdt_table[__USER_CS >> 3], 0, 0xfffff,
              DESC_G_MASK | DESC_B_MASK | DESC_P_MASK | DESC_S_MASK | 

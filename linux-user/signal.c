@@ -1272,6 +1272,7 @@ badframe:
 }
 
 #elif defined(TARGET_SPARC)
+
 #define __SUNOS_MAXWIN   31
 
 /* This is what SunOS does, so shall I. */
@@ -1400,6 +1401,7 @@ setup___siginfo(__siginfo_t *si, CPUState *env, target_ulong mask)
 	return err;
 }
 
+#if 0
 static int
 setup_sigcontext(struct target_sigcontext *sc, /*struct _fpstate *fpstate,*/
 		 CPUState *env, unsigned long mask)
@@ -1416,6 +1418,7 @@ setup_sigcontext(struct target_sigcontext *sc, /*struct _fpstate *fpstate,*/
 
 	return err;
 }
+#endif
 #define NF_ALIGNEDSZ  (((sizeof(struct target_signal_frame) + 7) & (~7)))
 
 static void setup_frame(int sig, struct emulated_sigaction *ka,
@@ -1483,12 +1486,12 @@ static void setup_frame(int sig, struct emulated_sigaction *ka,
 
 		/* Flush instruction space. */
 		//flush_sig_insns(current->mm, (unsigned long) &(sf->insns[0]));
-		tb_flush(env);
+                //		tb_flush(env);
 	}
 	//cpu_dump_state(env, stderr, fprintf, 0);
 	return;
 
-sigill_and_return:
+        //sigill_and_return:
 	force_sig(TARGET_SIGILL);
 sigsegv:
 	//fprintf(stderr, "force_sig\n");
@@ -1544,12 +1547,14 @@ long do_sigreturn(CPUState *env)
         uint32_t up_psr, pc, npc;
         target_sigset_t set;
         sigset_t host_set;
-        __siginfo_fpu_t *fpu_save;
+        target_ulong fpu_save;
         int err, i;
 
         sf = (struct target_signal_frame *) env->regwptr[UREG_FP];
+#if 0
 	fprintf(stderr, "sigreturn\n");
 	fprintf(stderr, "sf: %x pc %x fp %x sp %x\n", sf, env->pc, env->regwptr[UREG_FP], env->regwptr[UREG_SP]);
+#endif
 	//cpu_dump_state(env, stderr, fprintf, 0);
 
         /* 1. Make sure we are not getting garbage from the user */
@@ -1564,7 +1569,7 @@ long do_sigreturn(CPUState *env)
         err = __get_user(pc,  &sf->info.si_regs.pc);
         err |= __get_user(npc, &sf->info.si_regs.npc);
 
-	fprintf(stderr, "pc: %lx npc %lx\n", pc, npc);
+        //	fprintf(stderr, "pc: %lx npc %lx\n", pc, npc);
         if ((pc | npc) & 3)
                 goto segv_and_exit;
 
@@ -1585,7 +1590,7 @@ long do_sigreturn(CPUState *env)
 		err |= __get_user(env->regwptr[i + UREG_I0], &sf->info.si_regs.u_regs[i+8]);
 	}
 
-        err |= __get_user(fpu_save, &sf->fpu_save);
+        err |= __get_user(fpu_save, (target_ulong *)&sf->fpu_save);
 
         //if (fpu_save)
         //        err |= restore_fpu_state(env, fpu_save);
@@ -1604,7 +1609,7 @@ long do_sigreturn(CPUState *env)
         if (err)
                 goto segv_and_exit;
 
-	fprintf(stderr, "returning %lx\n", env->regwptr[0]);
+        //	fprintf(stderr, "returning %lx\n", env->regwptr[0]);
         return env->regwptr[0];
 
 segv_and_exit:
