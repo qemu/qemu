@@ -1379,6 +1379,11 @@ void test_exceptions(void)
         /* now execute an invalid instruction */
         asm volatile("ud2");
     }
+    printf("lock nop exception:\n");
+    if (setjmp(jmp_env) == 0) {
+        /* now execute an invalid instruction */
+        asm volatile("lock nop");
+    }
     
     printf("INT exception:\n");
     if (setjmp(jmp_env) == 0) {
