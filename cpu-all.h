@@ -681,15 +681,16 @@ extern uint8_t *phys_ram_dirty;
 #define IO_MEM_CODE        (3 << IO_MEM_SHIFT) /* used internally, never use directly */
 #define IO_MEM_NOTDIRTY    (4 << IO_MEM_SHIFT) /* used internally, never use directly */
 
-typedef void CPUWriteMemoryFunc(target_phys_addr_t addr, uint32_t value);
-typedef uint32_t CPUReadMemoryFunc(target_phys_addr_t addr);
+typedef void CPUWriteMemoryFunc(void *opaque, target_phys_addr_t addr, uint32_t value);
+typedef uint32_t CPUReadMemoryFunc(void *opaque, target_phys_addr_t addr);
 
 void cpu_register_physical_memory(target_phys_addr_t start_addr, 
                                   unsigned long size,
                                   unsigned long phys_offset);
 int cpu_register_io_memory(int io_index,
                            CPUReadMemoryFunc **mem_read,
-                           CPUWriteMemoryFunc **mem_write);
+                           CPUWriteMemoryFunc **mem_write,
+                           void *opaque);
 
 void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
                             int len, int is_write);
