@@ -105,13 +105,14 @@ static const char *cc_op_str[] = {
 
 void cpu_x86_dump_state(CPUX86State *env, FILE *f, int flags)
 {
-    int eflags;
+    int eflags, i;
     char cc_op_name[32];
+    static const char *seg_name[6] = { "ES", "CS", "SS", "DS", "FS", "GS" };
 
     eflags = env->eflags;
     fprintf(f, "EAX=%08x EBX=%08x ECX=%08x EDX=%08x\n"
             "ESI=%08x EDI=%08x EBP=%08x ESP=%08x\n"
-            "EIP=%08x EFL=%08x [%c%c%c%c%c%c%c]\n",
+            "EIP=%08x EFL=%08x [%c%c%c%c%c%c%c]    CPL=%d\n",
             env->regs[R_EAX], env->regs[R_EBX], env->regs[R_ECX], env->regs[R_EDX], 
             env->regs[R_ESI], env->regs[R_EDI], env->regs[R_EBP], env->regs[R_ESP], 
             env->eip, eflags,
@@ -121,14 +122,34 @@ void cpu_x86_dump_state(CPUX86State *env, FILE *f, int flags)
             eflags & CC_Z ? 'Z' : '-',
             eflags & CC_A ? 'A' : '-',
             eflags & CC_P ? 'P' : '-',
-            eflags & CC_C ? 'C' : '-');
-    fprintf(f, "CS=%04x SS=%04x DS=%04x ES=%04x FS=%04x GS=%04x\n",
-            env->segs[R_CS].selector,
-            env->segs[R_SS].selector,
-            env->segs[R_DS].selector,
-            env->segs[R_ES].selector,
-            env->segs[R_FS].selector,
-            env->segs[R_GS].selector);
+            eflags & CC_C ? 'C' : '-',
+            env->hflags & HF_CPL_MASK);
+    for(i = 0; i < 6; i++) {
+        SegmentCache *sc = &env->segs[i];
+        fprintf(f, "%s =%04x %08x %08x %08x\n",
+                seg_name[i],
+                sc->selector,
+                (int)sc->base,
+                sc->limit,
+                sc->flags);
+    }
+    fprintf(f, "LDT=%04x %08x %08x %08x\n",
+            env->ldt.selector,
+            (int)env->ldt.base,
+            env->ldt.limit,
+            env->ldt.flags);
+    fprintf(f, "TR =%04x %08x %08x %08x\n",
+            env->tr.selector,
+            (int)env->tr.base,
+            env->tr.limit,
+            env->tr.flags);
+    fprintf(f, "GDT=     %08x %08x\n",
+            (int)env->gdt.base, env->gdt.limit);
+    fprintf(f, "IDT=     %08x %08x\n",
+            (int)env->idt.base, env->idt.limit);
+    fprintf(f, "CR0=%08x CR2=%08x CR3=%08x CR4=%08x\n",
+            env->cr[0], env->cr[2], env->cr[3], env->cr[4]);
+    
     if (flags & X86_DUMP_CCOP) {
         if ((unsigned)env->cc_op < CC_OP_NB)
             strcpy(cc_op_name, cc_op_str[env->cc_op]);
