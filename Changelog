@@ -14,7 +14,11 @@ version 0.2:
  - SHL instruction C flag fix.
  - mmap emulation for host page size > 4KB
  - self-modifying code support
- - better VM86 support (dosemu begins to work)
+ - better VM86 support (dosemu works on non trivial programs)
+ - precise exception support (EIP is computed correctly in most cases)
+ - more precise LDT/GDT/IDT emulation
+ - faster segment load in vm86 mode
+ - direct chaining of basic blocks (faster emulation)
 
 version 0.1.6:
 

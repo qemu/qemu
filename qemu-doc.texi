@@ -10,11 +10,11 @@
 @chapter Introduction
 
 QEMU is an x86 processor emulator. Its purpose is to run x86 Linux
-processes on non-x86 Linux architectures such as PowerPC or ARM. By
-using dynamic translation it achieves a reasonnable speed while being
-easy to port on new host CPUs. Its main goal is to be able to launch the
-@code{Wine} Windows API emulator (@url{http://www.winehq.org}) on
-non-x86 CPUs.
+processes on non-x86 Linux architectures such as PowerPC. By using
+dynamic translation it achieves a reasonnable speed while being easy to
+port on new host CPUs. Its main goal is to be able to launch the
+@code{Wine} Windows API emulator (@url{http://www.winehq.org}) or
+@code{DOSEMU} (@url{http://www.dosemu.org}) on non-x86 CPUs.
 
 QEMU features:
 
@@ -22,21 +22,26 @@ QEMU features:
 
 @item User space only x86 emulator.
 
-@item Currently ported on i386, PowerPC and S390.
+@item Currently ported on i386, PowerPC. Work in progress for S390, Alpha and Sparc.
 
 @item Using dynamic translation to native code for reasonnable speed.
 
 @item The virtual x86 CPU supports 16 bit and 32 bit addressing with segmentation. 
-User space LDT and GDT are emulated. VM86 mode is also supported
-(experimental).
+User space LDT and GDT are emulated. VM86 mode is also supported.
 
 @item Generic Linux system call converter, including most ioctls.
 
 @item clone() emulation using native CPU clone() to use Linux scheduler for threads.
 
-@item Accurate signal handling by remapping host signals to virtual x86 signals.
+@item Accurate signal handling by remapping host signals to virtual x86 signals. 
 
-@item QEMU can emulate itself on x86 (experimental).
+@item Precise user space x86 exceptions.
+
+@item Self-modifying code support.
+
+@item Support of host page sizes bigger than 4KB.
+
+@item QEMU can emulate itself on x86.
 
 @item The virtual x86 CPU is a library (@code{libqemu}) which can be used 
 in other projects.
@@ -46,19 +51,15 @@ It can be used to test other x86 virtual CPUs.
 
 @end itemize
 
-Current QEMU Limitations:
+Current QEMU limitations:
 
 @itemize 
-
-@item Not all x86 exceptions are precise (yet). [Very few programs need that].
-
-@item No support for self-modifying code (yet). [Very few programs need that, a notable exception is QEMU itself !].
 
 @item No SSE/MMX support (yet).
 
 @item No x86-64 support.
 
-@item Some Linux syscalls are missing.
+@item IPC syscalls are missing.
 
 @item The x86 segment limits and access rights are not tested at every 
 memory access (and will never be to have good performances).
@@ -119,7 +120,7 @@ qemu /usr/local/qemu-i386/bin/qemu-i386 /usr/local/qemu-i386/bin/ls-i386
 
 @end itemize
 
-@section Wine launch (Currently only tested when emulating x86 on x86)
+@section Wine launch
 
 @itemize
 
@@ -152,15 +153,22 @@ qemu /usr/local/qemu-i386/wine/bin/wine /usr/local/qemu-i386/wine/c/Program\ Fil
 usage: qemu [-h] [-d] [-L path] [-s size] program [arguments...]
 @end example
 
-@table @samp
+@table @option
 @item -h
 Print the help
-@item -d
-Activate log (logfile=/tmp/qemu.log)
 @item -L path   
 Set the x86 elf interpreter prefix (default=/usr/local/qemu-i386)
 @item -s size
 Set the x86 stack size in bytes (default=524288)
+@end table
+
+Debug options:
+
+@table @option
+@item -d
+Activate log (logfile=/tmp/qemu.log)
+@item -p pagesize
+Act as if the host page size was 'pagesize' bytes
 @end table
 
 @chapter QEMU Internals
@@ -265,17 +273,59 @@ contains just a single basic block (a block of x86 instructions
 terminated by a jump or by a virtual CPU state change which the
 translator cannot deduce statically).
 
-[Currently, the translated code is not patched if it jumps to another
-translated code].
+@section Direct block chaining
+
+After each translated basic block is executed, QEMU uses the simulated
+Program Counter (PC) and other cpu state informations (such as the CS
+segment base value) to find the next basic block.
+
+In order to accelerate the most common cases where the new simulated PC
+is known, QEMU can patch a basic block so that it jumps directly to the
+next one.
+
+The most portable code uses an indirect jump. An indirect jump makes it
+easier to make the jump target modification atomic. On some
+architectures (such as PowerPC), the @code{JUMP} opcode is directly
+patched so that the block chaining has no overhead.
+
+@section Self-modifying code and translated code invalidation
+
+Self-modifying code is a special challenge in x86 emulation because no
+instruction cache invalidation is signaled by the application when code
+is modified.
+
+When translated code is generated for a basic block, the corresponding
+host page is write protected if it is not already read-only (with the
+system call @code{mprotect()}). Then, if a write access is done to the
+page, Linux raises a SEGV signal. QEMU then invalidates all the
+translated code in the page and enables write accesses to the page.
+
+Correct translated code invalidation is done efficiently by maintaining
+a linked list of every translated block contained in a given page. Other
+linked lists are also maintained to undo direct block chaining. 
+
+Althought the overhead of doing @code{mprotect()} calls is important,
+most MSDOS programs can be emulated at reasonnable speed with QEMU and
+DOSEMU.
+
+Note that QEMU also invalidates pages of translated code when it detects
+that memory mappings are modified with @code{mmap()} or @code{munmap()}.
 
 @section Exception support
 
 longjmp() is used when an exception such as division by zero is
-encountered. The host SIGSEGV and SIGBUS signal handlers are used to get
-invalid memory accesses. 
+encountered. 
 
-[Currently, the virtual CPU cannot retrieve the exact CPU state in some
-exceptions, although it could except for the @code{EFLAGS} register].
+The host SIGSEGV and SIGBUS signal handlers are used to get invalid
+memory accesses. The exact CPU state can be retrieved because all the
+x86 registers are stored in fixed host registers. The simulated program
+counter is found by retranslating the corresponding basic block and by
+looking where the host program counter was at the exception point.
+
+The virtual CPU cannot retrieve the exact @code{EFLAGS} register because
+in some cases it is not computed because of condition code
+optimisations. It is not a big concern because the emulated code can
+still be restarted in any cases.
 
 @section Linux system call translation
 
@@ -283,6 +333,11 @@ QEMU includes a generic system call translator for Linux. It means that
 the parameters of the system calls can be converted to fix the
 endianness and 32/64 bit issues. The IOCTLs are converted with a generic
 type description system (see @file{ioctls.h} and @file{thunk.c}).
+
+QEMU supports host CPUs which have pages bigger than 4KB. It records all
+the mappings the process does and try to emulated the @code{mmap()}
+system calls in cases where the host @code{mmap()} call would fail
+because of bad page alignment.
 
 @section Linux signals
 
@@ -312,6 +367,10 @@ thread.
 The virtual x86 CPU atomic operations are emulated with a global lock so
 that their semantic is preserved.
 
+Note that currently there are still some locking issues in QEMU. In
+particular, the translated cache flush is not protected yet against
+reentrancy.
+
 @section Self-virtualization
 
 QEMU was conceived so that ultimately it can emulate itself. Althought
@@ -322,10 +381,6 @@ Achieving self-virtualization is not easy because there may be address
 space conflicts. QEMU solves this problem by being an executable ELF
 shared object as the ld-linux.so ELF interpreter. That way, it can be
 relocated at load time.
-
-Since self-modifying code is not supported yet, QEMU cannot emulate
-itself in case of translation cache flush. This limitation will be
-suppressed soon.
 
 @section Bibliography
 
@@ -379,19 +434,10 @@ program and a @code{diff} on the generated output.
 The Linux system call @code{modify_ldt()} is used to create x86 selectors
 to test some 16 bit addressing and 32 bit with segmentation cases.
 
-@section @file{testsig}
+The Linux system call @code{vm86()} is used to test vm86 emulation.
 
-This program tests various signal cases, including SIGFPE, SIGSEGV and
-SIGILL.
-
-@section @file{testclone}
-
-Tests the @code{clone()} system call (basic test).
-
-@section @file{testthread}
-
-Tests the glibc threads (more complicated than @code{clone()} because signals
-are also used).
+Various exceptions are raised to test most of the x86 user space
+exception reporting.
 
 @section @file{sha1}
 
@@ -399,9 +445,3 @@ It is a simple benchmark. Care must be taken to interpret the results
 because it mostly tests the ability of the virtual CPU to optimize the
 @code{rol} x86 instruction and the condition code computations.
 
-@section @file{runcom}
-
-A very simple MSDOS emulator to test the Linux vm86() system call
-emulation. The excellent 54 byte @file{pi_10.com} PI number calculator
-can be launched with it. @file{pi_10.com} was written by Bertram
-Felgenhauer (more information at @url{http://www.boo.net/~jasonp/pipage.html}).
