@@ -98,8 +98,11 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 
 static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
 {
-	regs->u_regs[0] = infop->entry;
-	regs->u_regs[1] = infop->start_stack;
+    regs->psr = 0;
+    regs->pc = infop->entry;
+    regs->npc = regs->pc + 4;
+    regs->y = 0;
+    regs->u_regs[14] = infop->start_stack - 16 * 4;
 }
 
 #endif
@@ -129,8 +132,41 @@ do {                                                       \
     _r->gpr[4] = (unsigned long)++pos;                     \
     for (; tmp != 0; pos++)                                \
         tmp = *pos;                                        \
-     _r->gpr[5] = (unsigned long)pos;                      \
+    _r->gpr[5] = (unsigned long)pos;                       \
 } while (0)
+
+/*
+ * We need to put in some extra aux table entries to tell glibc what
+ * the cache block size is, so it can use the dcbz instruction safely.
+ */
+#define AT_DCACHEBSIZE          19
+#define AT_ICACHEBSIZE          20
+#define AT_UCACHEBSIZE          21
+/* A special ignored type value for PPC, for glibc compatibility.  */
+#define AT_IGNOREPPC            22
+/*
+ * The requirements here are:
+ * - keep the final alignment of sp (sp & 0xf)
+ * - make sure the 32-bit value at the first 16 byte aligned position of
+ *   AUXV is greater than 16 for glibc compatibility.
+ *   AT_IGNOREPPC is used for that.
+ * - for compatibility with glibc ARCH_DLINFO must always be defined on PPC,
+ *   even if DLINFO_ARCH_ITEMS goes to zero or is undefined.
+ */
+#define DLINFO_ARCH_ITEMS       3
+#define ARCH_DLINFO                                                     \
+do {                                                                    \
+	sp -= DLINFO_ARCH_ITEMS * 2;					\
+        NEW_AUX_ENT(0, AT_DCACHEBSIZE, 0x20);                           \
+        NEW_AUX_ENT(1, AT_ICACHEBSIZE, 0x20);                           \
+        NEW_AUX_ENT(2, AT_UCACHEBSIZE, 0);                              \
+        /*                                                              \
+         * Now handle glibc compatibility.                              \
+         */                                                             \
+	sp -= 2*2;							\
+	NEW_AUX_ENT(0, AT_IGNOREPPC, AT_IGNOREPPC);			\
+	NEW_AUX_ENT(1, AT_IGNOREPPC, AT_IGNOREPPC);			\
+ } while (0)
 
 static inline void init_thread(struct target_pt_regs *_regs, struct image_info *infop)
 {
@@ -225,7 +261,7 @@ struct exec
 #define INTERPRETER_AOUT 1
 #define INTERPRETER_ELF 2
 
-#define DLINFO_ITEMS 12
+#define DLINFO_ITEMS 11
 
 #define put_user(x,ptr) (void)(*(ptr) = (typeof(*ptr))(x))
 #define get_user(ptr) (typeof(*ptr))(*(ptr))
@@ -559,15 +595,51 @@ static unsigned int * create_elf_tables(char *p, int argc, int envc,
                                         unsigned long interp_load_addr, int ibcs,
                                         struct image_info *info)
 {
-        target_ulong *argv, *envp, *dlinfo;
-        target_ulong *sp;
-
-        /*
-         * Force 16 byte alignment here for generality.
-         */
+        target_ulong *argv, *envp;
+        target_ulong *sp, *csp;
+        
+	/*
+	 * Force 16 byte _final_ alignment here for generality.
+	 */
         sp = (unsigned int *) (~15UL & (unsigned long) p);
-        sp -= DLINFO_ITEMS*2;
-        dlinfo = sp;
+        csp = sp;
+        csp -= (DLINFO_ITEMS + 1) * 2;
+#ifdef DLINFO_ARCH_ITEMS
+	csp -= DLINFO_ARCH_ITEMS*2;
+#endif
+        csp -= envc+1;
+        csp -= argc+1;
+	csp -= (!ibcs ? 3 : 1);	/* argc itself */
+        if ((unsigned long)csp & 15UL)
+            sp -= ((unsigned long)csp & 15UL) / sizeof(*sp);
+        
+#define NEW_AUX_ENT(nr, id, val) \
+          put_user (tswapl(id), sp + (nr * 2)); \
+          put_user (tswapl(val), sp + (nr * 2 + 1))
+        sp -= 2;
+        NEW_AUX_ENT (0, AT_NULL, 0);
+
+	sp -= DLINFO_ITEMS*2;
+        NEW_AUX_ENT( 0, AT_PHDR, (target_ulong)(load_addr + exec->e_phoff));
+        NEW_AUX_ENT( 1, AT_PHENT, (target_ulong)(sizeof (struct elf_phdr)));
+        NEW_AUX_ENT( 2, AT_PHNUM, (target_ulong)(exec->e_phnum));
+        NEW_AUX_ENT( 3, AT_PAGESZ, (target_ulong)(TARGET_PAGE_SIZE));
+        NEW_AUX_ENT( 4, AT_BASE, (target_ulong)(interp_load_addr));
+        NEW_AUX_ENT( 5, AT_FLAGS, (target_ulong)0);
+        NEW_AUX_ENT( 6, AT_ENTRY, load_bias + exec->e_entry);
+        NEW_AUX_ENT( 7, AT_UID, (target_ulong) getuid());
+        NEW_AUX_ENT( 8, AT_EUID, (target_ulong) geteuid());
+        NEW_AUX_ENT( 9, AT_GID, (target_ulong) getgid());
+        NEW_AUX_ENT(11, AT_EGID, (target_ulong) getegid());
+#ifdef ARCH_DLINFO
+	/* 
+	 * ARCH_DLINFO must come last so platform specific code can enforce
+	 * special alignment requirements on the AUXV if necessary (eg. PPC).
+	 */
+        ARCH_DLINFO;
+#endif
+#undef NEW_AUX_ENT
+
         sp -= envc+1;
         envp = sp;
         sp -= argc+1;
@@ -576,25 +648,6 @@ static unsigned int * create_elf_tables(char *p, int argc, int envc,
                 put_user(tswapl((target_ulong)envp),--sp);
                 put_user(tswapl((target_ulong)argv),--sp);
         }
-
-#define NEW_AUX_ENT(id, val) \
-          put_user (tswapl(id), dlinfo++); \
-          put_user (tswapl(val), dlinfo++)
-
-        NEW_AUX_ENT (AT_PHDR, (target_ulong)(load_addr + exec->e_phoff));
-        NEW_AUX_ENT (AT_PHENT, (target_ulong)(sizeof (struct elf_phdr)));
-        NEW_AUX_ENT (AT_PHNUM, (target_ulong)(exec->e_phnum));
-        NEW_AUX_ENT (AT_PAGESZ, (target_ulong)(TARGET_PAGE_SIZE));
-        NEW_AUX_ENT (AT_BASE, (target_ulong)(interp_load_addr));
-        NEW_AUX_ENT (AT_FLAGS, (target_ulong)0);
-        NEW_AUX_ENT (AT_ENTRY, load_bias + exec->e_entry);
-        NEW_AUX_ENT (AT_UID, (target_ulong) getuid());
-        NEW_AUX_ENT (AT_EUID, (target_ulong) geteuid());
-        NEW_AUX_ENT (AT_GID, (target_ulong) getgid());
-        NEW_AUX_ENT (AT_EGID, (target_ulong) getegid());
-        NEW_AUX_ENT (AT_NULL, 0);
-#undef NEW_AUX_ENT
-
         put_user(tswapl(argc),--sp);
         info->arg_start = (unsigned int)((unsigned long)p & 0xffffffff);
         while (argc-->0) {
