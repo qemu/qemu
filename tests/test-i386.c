@@ -1063,8 +1063,6 @@ void test_vm86(void)
 #endif
 
 jmp_buf jmp_env;
-int dump_eip;
-int dump_si_addr;
 int v1;
 int tab[2];
 
@@ -1074,23 +1072,21 @@ void sig_handler(int sig, siginfo_t *info, void *puc)
 
     printf("si_signo=%d si_errno=%d si_code=%d",
            info->si_signo, info->si_errno, info->si_code);
-    if (dump_si_addr) {
-        printf(" si_addr=0x%08lx",
-               (unsigned long)info->si_addr);
-    }
+    printf(" si_addr=0x%08lx",
+           (unsigned long)info->si_addr);
     printf("\n");
 
     printf("trapno=0x%02x err=0x%08x",
            uc->uc_mcontext.gregs[REG_TRAPNO],
            uc->uc_mcontext.gregs[REG_ERR]);
-    if (dump_eip)
-        printf(" EIP=0x%08x", uc->uc_mcontext.gregs[REG_EIP]);
+    printf(" EIP=0x%08x", uc->uc_mcontext.gregs[REG_EIP]);
     printf("\n");
     longjmp(jmp_env, 1);
 }
 
 void test_exceptions(void)
 {
+    struct modify_ldt_ldt_s ldt;
     struct sigaction act;
     volatile int val;
     
@@ -1100,20 +1096,18 @@ void test_exceptions(void)
     sigaction(SIGFPE, &act, NULL);
     sigaction(SIGILL, &act, NULL);
     sigaction(SIGSEGV, &act, NULL);
+    sigaction(SIGBUS, &act, NULL);
     sigaction(SIGTRAP, &act, NULL);
 
     /* test division by zero reporting */
-    dump_eip = 0;
-    dump_si_addr = 0;
-    printf("DIVZ exception (currently imprecise):\n");
+    printf("DIVZ exception:\n");
     if (setjmp(jmp_env) == 0) {
         /* now divide by zero */
         v1 = 0;
         v1 = 2 / v1;
     }
 
-    dump_si_addr = 1;
-    printf("BOUND exception (currently imprecise):\n");
+    printf("BOUND exception:\n");
     if (setjmp(jmp_env) == 0) {
         /* bound exception */
         tab[0] = 1;
@@ -1121,27 +1115,50 @@ void test_exceptions(void)
         asm volatile ("bound %0, %1" : : "r" (11), "m" (tab));
     }
 
-    /* test SEGV reporting */
-    printf("PF exception (currently imprecise):\n");
+    printf("segment exceptions:\n");
     if (setjmp(jmp_env) == 0) {
+        /* load an invalid segment */
+        asm volatile ("movl %0, %%fs" : : "r" ((0x1234 << 3) | 1));
+    }
+    if (setjmp(jmp_env) == 0) {
+        /* null data segment is valid */
+        asm volatile ("movl %0, %%fs" : : "r" (3));
+        /* null stack segment */
+        asm volatile ("movl %0, %%ss" : : "r" (3));
+    }
+
+    ldt.entry_number = 1;
+    ldt.base_addr = (unsigned long)&seg_data1;
+    ldt.limit = (sizeof(seg_data1) + 0xfff) >> 12;
+    ldt.seg_32bit = 1;
+    ldt.contents = MODIFY_LDT_CONTENTS_DATA;
+    ldt.read_exec_only = 0;
+    ldt.limit_in_pages = 1;
+    ldt.seg_not_present = 1;
+    ldt.useable = 1;
+    modify_ldt(1, &ldt, sizeof(ldt)); /* write ldt entry */
+
+    if (setjmp(jmp_env) == 0) {
+        /* segment not present */
+        asm volatile ("movl %0, %%fs" : : "r" (MK_SEL(1)));
+    }
+
+    /* test SEGV reporting */
+    printf("PF exception:\n");
+    if (setjmp(jmp_env) == 0) {
+        val = 1;
         /* now store in an invalid address */
         *(char *)0x1234 = 1;
     }
 
     /* test SEGV reporting */
-    printf("PF exception (currently imprecise):\n");
+    printf("PF exception:\n");
     if (setjmp(jmp_env) == 0) {
+        val = 1;
         /* read from an invalid address */
         v1 = *(char *)0x1234;
     }
     
-    printf("segment GPF exception (currently imprecise):\n");
-    if (setjmp(jmp_env) == 0) {
-        /* load an invalid segment */
-        asm volatile ("movl %0, %%fs" : : "r" ((0x1234 << 3) | 0));
-    }
-
-    dump_eip = 1;
     /* test illegal instruction reporting */
     printf("UD2 exception:\n");
     if (setjmp(jmp_env) == 0) {
@@ -1152,6 +1169,18 @@ void test_exceptions(void)
     printf("INT exception:\n");
     if (setjmp(jmp_env) == 0) {
         asm volatile ("int $0xfd");
+    }
+    if (setjmp(jmp_env) == 0) {
+        asm volatile ("int $0x01");
+    }
+    if (setjmp(jmp_env) == 0) {
+        asm volatile (".byte 0xcd, 0x03");
+    }
+    if (setjmp(jmp_env) == 0) {
+        asm volatile ("int $0x04");
+    }
+    if (setjmp(jmp_env) == 0) {
+        asm volatile ("int $0x05");
     }
 
     printf("INT3 exception:\n");
