@@ -315,6 +315,8 @@ if_start(void)
 	/* Encapsulate the packet for sending */
         if_encap(ifm->m_data, ifm->m_len);
 
+        m_free(ifm);
+
 	if (if_queued)
 	   goto again;
 }
