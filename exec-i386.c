@@ -149,7 +149,7 @@ void cpu_unlock(void)
 
 /* exception support */
 /* NOTE: not static to force relocation generation by GCC */
-void raise_exception(int exception_index)
+void raise_exception_err(int exception_index, int error_code)
 {
     /* NOTE: the register at this point must be saved by hand because
        longjmp restore them */
@@ -178,7 +178,14 @@ void raise_exception(int exception_index)
     env->regs[R_EDI] = EDI;
 #endif
     env->exception_index = exception_index;
+    env->error_code = error_code;
     longjmp(env->jmp_env, 1);
+}
+
+/* short cut if error_code is 0 or not present */
+void raise_exception(int exception_index)
+{
+    raise_exception_err(exception_index, 0);
 }
 
 #if defined(DEBUG_EXEC)
@@ -218,8 +225,13 @@ static const char *cc_op_str[] = {
 static void cpu_x86_dump_state(FILE *f)
 {
     int eflags;
+    char cc_op_name[32];
     eflags = cc_table[CC_OP].compute_all();
     eflags |= (DF & DF_MASK);
+    if ((unsigned)env->cc_op < CC_OP_NB)
+        strcpy(cc_op_name, cc_op_str[env->cc_op]);
+    else
+        snprintf(cc_op_name, sizeof(cc_op_name), "[%d]", env->cc_op);
     fprintf(f, 
             "EAX=%08x EBX=%08X ECX=%08x EDX=%08x\n"
             "ESI=%08x EDI=%08X EBP=%08x ESP=%08x\n"
@@ -227,7 +239,7 @@ static void cpu_x86_dump_state(FILE *f)
             "EIP=%08x\n",
             env->regs[R_EAX], env->regs[R_EBX], env->regs[R_ECX], env->regs[R_EDX], 
             env->regs[R_ESI], env->regs[R_EDI], env->regs[R_EBP], env->regs[R_ESP], 
-            env->cc_src, env->cc_dst, cc_op_str[env->cc_op],
+            env->cc_src, env->cc_dst, cc_op_name,
             eflags & DF_MASK ? 'D' : '-',
             eflags & CC_O ? 'O' : '-',
             eflags & CC_S ? 'S' : '-',
@@ -280,14 +292,18 @@ static inline TranslationBlock *tb_find(TranslationBlock ***pptb,
  
     h = pc & (CODE_GEN_HASH_SIZE - 1);
     ptb = &tb_hash[h];
-    for(;;) {
-        tb = *ptb;
-        if (!tb)
-            break;
-        if (tb->pc == pc && tb->cs_base == cs_base && tb->flags == flags)
+#if 0
+    /* XXX: hack to handle 16 bit modyfing code */
+    if (flags & (1 << GEN_FLAG_CODE32_SHIFT))
+#endif
+        for(;;) {
+            tb = *ptb;
+            if (!tb)
+                break;
+            if (tb->pc == pc && tb->cs_base == cs_base && tb->flags == flags)
             return tb;
-        ptb = &tb->hash_next;
-    }
+            ptb = &tb->hash_next;
+        }
     *pptb = ptb;
     return NULL;
 }
@@ -404,6 +420,8 @@ int cpu_x86_exec(CPUX86State *env1)
                        (unsigned long)env->seg_cache[R_SS].base) != 0) << 
                 GEN_FLAG_ADDSEG_SHIFT;
             flags |= (env->eflags & VM_MASK) >> (17 - GEN_FLAG_VM_SHIFT);
+            flags |= (env->eflags & IOPL_MASK) >> (12 - GEN_FLAG_IOPL_SHIFT);
+            flags |= (env->segs[R_CS] & 3) << GEN_FLAG_CPL_SHIFT;
             cs_base = env->seg_cache[R_CS].base;
             pc = cs_base + env->eip;
             tb = tb_find(&ptb, (unsigned long)pc, (unsigned long)cs_base, 
@@ -508,7 +526,10 @@ void cpu_x86_load_seg(CPUX86State *s, int seg_reg, int selector)
 #include <signal.h>
 #include <sys/ucontext.h>
 
+/* 'pc' is the host PC at which the exception was raised. 'address' is
+   the effective address of the memory exception */
 static inline int handle_cpu_signal(unsigned long pc,
+                                    unsigned long address,
                                     sigset_t *old_set)
 {
 #ifdef DEBUG_SIGNAL
@@ -524,7 +545,9 @@ static inline int handle_cpu_signal(unsigned long pc,
         sigprocmask(SIG_SETMASK, old_set, NULL);
         /* XXX: need to compute virtual pc position by retranslating
            code. The rest of the CPU state should be correct. */
-        raise_exception(EXCP0D_GPF);
+        env->cr2 = address;
+        /* XXX: more precise exception code */
+        raise_exception_err(EXCP0E_PAGE, 4);
         /* never comes here */
         return 1;
     } else {
@@ -546,7 +569,7 @@ int cpu_x86_signal_handler(int host_signum, struct siginfo *info,
 #endif
     pc = uc->uc_mcontext.gregs[REG_EIP];
     pold_set = &uc->uc_sigmask;
-    return handle_cpu_signal(pc, pold_set);
+    return handle_cpu_signal(pc, (unsigned long)info->si_addr, pold_set);
 #else
 #warning No CPU specific signal handler: cannot handle target SIGSEGV events
     return 0;
