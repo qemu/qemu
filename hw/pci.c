@@ -446,10 +446,9 @@ void i440fx_init(void)
     d->config[0x02] = 0x37; // device_id
     d->config[0x03] = 0x12;
     d->config[0x08] = 0x02; // revision
-    d->config[0x0a] = 0x04; // class_sub = pci2pci
+    d->config[0x0a] = 0x00; // class_sub = host2pci
     d->config[0x0b] = 0x06; // class_base = PCI_bridge
-    d->config[0x0c] = 0x01; // line_size in 32 bit words
-    d->config[0x0e] = 0x01; // header_type
+    d->config[0x0e] = 0x00; // header_type
 }
 
 /* PIIX3 PCI to ISA bridge */
