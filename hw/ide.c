@@ -1433,17 +1433,13 @@ static void ide_guess_geometry(IDEState *s)
     }
 }
 
-void ide_init(int iobase, int iobase2, int irq,
-              BlockDriverState *hd0, BlockDriverState *hd1)
+static void ide_init2(IDEState *ide_state, int irq,
+                      BlockDriverState *hd0, BlockDriverState *hd1)
 {
-    IDEState *s, *ide_state;
+    IDEState *s;
     static int drive_serial = 1;
     int i, cylinders, heads, secs;
     int64_t nb_sectors;
-
-    ide_state = qemu_mallocz(sizeof(IDEState) * 2);
-    if (!ide_state)
-        return;
 
     for(i = 0; i < 2; i++) {
         s = ide_state + i;
@@ -1483,6 +1479,22 @@ void ide_init(int iobase, int iobase2, int irq,
         s->irq = irq;
         ide_reset(s);
     }
+}
+
+/***********************************************************/
+/* ISA IDE definitions */
+
+void isa_ide_init(int iobase, int iobase2, int irq,
+                  BlockDriverState *hd0, BlockDriverState *hd1)
+{
+    IDEState *ide_state;
+
+    ide_state = qemu_mallocz(sizeof(IDEState) * 2);
+    if (!ide_state)
+        return;
+    
+    ide_init2(ide_state, irq, hd0, hd1);
+
     register_ioport_write(iobase, 8, 1, ide_ioport_write, ide_state);
     register_ioport_read(iobase, 8, 1, ide_ioport_read, ide_state);
     if (iobase2) {
@@ -1495,4 +1507,88 @@ void ide_init(int iobase, int iobase2, int irq,
     register_ioport_read(iobase, 2, 2, ide_data_readw, ide_state);
     register_ioport_write(iobase, 4, 4, ide_data_writel, ide_state);
     register_ioport_read(iobase, 4, 4, ide_data_readl, ide_state);
+}
+
+/***********************************************************/
+/* PCI IDE definitions */
+
+typedef struct PCIIDEState {
+    PCIDevice dev;
+    IDEState ide_if[4];
+} PCIIDEState;
+
+static uint32_t ide_read_config(PCIDevice *d, 
+                                 uint32_t address, int len)
+{
+    uint32_t val;
+    val = 0;
+    memcpy(&val, d->config + address, len);
+    return val;
+}
+
+static void ide_write_config(PCIDevice *d, 
+                              uint32_t address, uint32_t val, int len)
+{
+    memcpy(d->config + address, &val, len);
+}
+
+static void ide_map(PCIDevice *pci_dev, int region_num, 
+                    uint32_t addr, uint32_t size, int type)
+{
+    PCIIDEState *d = (PCIIDEState *)pci_dev;
+    IDEState *ide_state;
+
+    if (region_num <= 3) {
+        ide_state = &d->ide_if[(region_num >> 1) * 2];
+        if (region_num & 1) {
+            register_ioport_read(addr + 2, 1, 1, ide_status_read, ide_state);
+            register_ioport_write(addr + 2, 1, 1, ide_cmd_write, ide_state);
+        } else {
+            register_ioport_write(addr, 8, 1, ide_ioport_write, ide_state);
+            register_ioport_read(addr, 8, 1, ide_ioport_read, ide_state);
+
+            /* data ports */
+            register_ioport_write(addr, 2, 2, ide_data_writew, ide_state);
+            register_ioport_read(addr, 2, 2, ide_data_readw, ide_state);
+            register_ioport_write(addr, 4, 4, ide_data_writel, ide_state);
+            register_ioport_read(addr, 4, 4, ide_data_readl, ide_state);
+        }
+    }
+}
+
+/* hd_table must contain 4 block drivers */
+void pci_ide_init(BlockDriverState **hd_table)
+{
+    PCIIDEState *d;
+    uint8_t *pci_conf;
+    
+    d = (PCIIDEState *)pci_register_device("IDE", sizeof(PCIIDEState),
+                                           0, -1, 
+                                           ide_read_config, 
+                                           ide_write_config);
+    pci_conf = d->dev.config;
+    pci_conf[0x00] = 0x86; // Intel
+    pci_conf[0x01] = 0x80;
+    pci_conf[0x02] = 0x00; // fake
+    pci_conf[0x03] = 0x01; // fake
+    pci_conf[0x0a] = 0x01; // class_sub = PCI_IDE
+    pci_conf[0x0b] = 0x01; // class_base = PCI_mass_storage
+    pci_conf[0x0e] = 0x80; // header_type = PCI_multifunction, generic
+
+    pci_conf[0x2c] = 0x86; // subsys vendor
+    pci_conf[0x2d] = 0x80; // subsys vendor
+    pci_conf[0x2e] = 0x00; // fake
+    pci_conf[0x2f] = 0x01; // fake
+
+    pci_register_io_region((PCIDevice *)d, 0, 0x8, 
+                           PCI_ADDRESS_SPACE_IO, ide_map);
+    pci_register_io_region((PCIDevice *)d, 1, 0x4, 
+                           PCI_ADDRESS_SPACE_IO, ide_map);
+    pci_register_io_region((PCIDevice *)d, 2, 0x8, 
+                           PCI_ADDRESS_SPACE_IO, ide_map);
+    pci_register_io_region((PCIDevice *)d, 3, 0x4, 
+                           PCI_ADDRESS_SPACE_IO, ide_map);
+
+    ide_init2(&d->ide_if[0], 14, hd_table[0], hd_table[1]);
+    ide_init2(&d->ide_if[2], 15, hd_table[2], hd_table[3]);
 }

@@ -368,7 +368,7 @@ static uint32_t ne2000_ioport_read(void *opaque, uint32_t addr)
 }
 
 static inline void ne2000_mem_writeb(NE2000State *s, uint32_t addr, 
-                                    uint32_t val)
+                                     uint32_t val)
 {
     if (addr < 32 || 
         (addr >= NE2000_PMEM_START && addr < NE2000_MEM_SIZE)) {
@@ -382,8 +382,17 @@ static inline void ne2000_mem_writew(NE2000State *s, uint32_t addr,
     addr &= ~1; /* XXX: check exact behaviour if not even */
     if (addr < 32 || 
         (addr >= NE2000_PMEM_START && addr < NE2000_MEM_SIZE)) {
-        s->mem[addr] = val;
-        s->mem[addr + 1] = val >> 8;
+        *(uint16_t *)(s->mem + addr) = cpu_to_le16(val);
+    }
+}
+
+static inline void ne2000_mem_writel(NE2000State *s, uint32_t addr, 
+                                     uint32_t val)
+{
+    addr &= ~3; /* XXX: check exact behaviour if not even */
+    if (addr < 32 || 
+        (addr >= NE2000_PMEM_START && addr < NE2000_MEM_SIZE)) {
+        *(uint32_t *)(s->mem + addr) = cpu_to_le32(val);
     }
 }
 
@@ -402,9 +411,20 @@ static inline uint32_t ne2000_mem_readw(NE2000State *s, uint32_t addr)
     addr &= ~1; /* XXX: check exact behaviour if not even */
     if (addr < 32 || 
         (addr >= NE2000_PMEM_START && addr < NE2000_MEM_SIZE)) {
-        return s->mem[addr] | (s->mem[addr + 1] << 8);
+        return le16_to_cpu(*(uint16_t *)(s->mem + addr));
     } else {
         return 0xffff;
+    }
+}
+
+static inline uint32_t ne2000_mem_readl(NE2000State *s, uint32_t addr)
+{
+    addr &= ~3; /* XXX: check exact behaviour if not even */
+    if (addr < 32 || 
+        (addr >= NE2000_PMEM_START && addr < NE2000_MEM_SIZE)) {
+        return le32_to_cpu(*(uint32_t *)(s->mem + addr));
+    } else {
+        return 0xffffffff;
     }
 }
 
@@ -468,6 +488,53 @@ static uint32_t ne2000_asic_ioport_read(void *opaque, uint32_t addr)
     return ret;
 }
 
+static void ne2000_asic_ioport_writel(void *opaque, uint32_t addr, uint32_t val)
+{
+    NE2000State *s = opaque;
+
+#ifdef DEBUG_NE2000
+    printf("NE2000: asic writel val=0x%04x\n", val);
+#endif
+    if (s->rcnt == 0)
+	    return;
+    /* 32 bit access */
+    ne2000_mem_writel(s, s->rsar, val);
+    s->rsar += 4;
+    s->rcnt -= 4;
+    /* wrap */
+    if (s->rsar == s->stop)
+        s->rsar = s->start;
+    if (s->rcnt == 0) {
+        /* signal end of transfert */
+        s->isr |= ENISR_RDC;
+        ne2000_update_irq(s);
+    }
+}
+
+static uint32_t ne2000_asic_ioport_readl(void *opaque, uint32_t addr)
+{
+    NE2000State *s = opaque;
+    int ret;
+
+    /* 32 bit access */
+    ret = ne2000_mem_readl(s, s->rsar);
+    s->rsar += 4;
+    s->rcnt -= 4;
+
+    /* wrap */
+    if (s->rsar == s->stop)
+        s->rsar = s->start;
+    if (s->rcnt == 0) {
+        /* signal end of transfert */
+        s->isr |= ENISR_RDC;
+        ne2000_update_irq(s);
+    }
+#ifdef DEBUG_NE2000
+    printf("NE2000: asic readl val=0x%04x\n", ret);
+#endif
+    return ret;
+}
+
 static void ne2000_reset_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
     /* nothing to do (end of reset pulse) */
@@ -480,7 +547,7 @@ static uint32_t ne2000_reset_ioport_read(void *opaque, uint32_t addr)
     return 0;
 }
 
-void ne2000_init(int base, int irq, NetDriverState *nd)
+void isa_ne2000_init(int base, int irq, NetDriverState *nd)
 {
     NE2000State *s;
 
@@ -503,5 +570,80 @@ void ne2000_init(int base, int irq, NetDriverState *nd)
 
     ne2000_reset(s);
 
+    qemu_add_read_packet(nd, ne2000_can_receive, ne2000_receive, s);
+}
+
+/***********************************************************/
+/* PCI NE2000 definitions */
+
+typedef struct PCINE2000State {
+    PCIDevice dev;
+    NE2000State ne2000;
+} PCINE2000State;
+
+static uint32_t ne2000_read_config(PCIDevice *d, 
+                                 uint32_t address, int len)
+{
+    uint32_t val;
+    val = 0;
+    memcpy(&val, d->config + address, len);
+    return val;
+}
+
+static void ne2000_write_config(PCIDevice *d, 
+                              uint32_t address, uint32_t val, int len)
+{
+    memcpy(d->config + address, &val, len);
+}
+
+static void ne2000_map(PCIDevice *pci_dev, int region_num, 
+                       uint32_t addr, uint32_t size, int type)
+{
+    PCINE2000State *d = (PCINE2000State *)pci_dev;
+    NE2000State *s = &d->ne2000;
+
+    register_ioport_write(addr, 16, 1, ne2000_ioport_write, s);
+    register_ioport_read(addr, 16, 1, ne2000_ioport_read, s);
+
+    register_ioport_write(addr + 0x10, 1, 1, ne2000_asic_ioport_write, s);
+    register_ioport_read(addr + 0x10, 1, 1, ne2000_asic_ioport_read, s);
+    register_ioport_write(addr + 0x10, 2, 2, ne2000_asic_ioport_write, s);
+    register_ioport_read(addr + 0x10, 2, 2, ne2000_asic_ioport_read, s);
+    register_ioport_write(addr + 0x10, 4, 4, ne2000_asic_ioport_writel, s);
+    register_ioport_read(addr + 0x10, 4, 4, ne2000_asic_ioport_readl, s);
+
+    register_ioport_write(addr + 0x1f, 1, 1, ne2000_reset_ioport_write, s);
+    register_ioport_read(addr + 0x1f, 1, 1, ne2000_reset_ioport_read, s);
+}
+
+void pci_ne2000_init(NetDriverState *nd)
+{
+    PCINE2000State *d;
+    NE2000State *s;
+    uint8_t *pci_conf;
+    
+    d = (PCINE2000State *)pci_register_device("NE2000", sizeof(PCINE2000State),
+                                              0, -1, 
+                                              ne2000_read_config, 
+                                              ne2000_write_config);
+    pci_conf = d->dev.config;
+    pci_conf[0x00] = 0xec; // Realtek 8029
+    pci_conf[0x01] = 0x10;
+    pci_conf[0x02] = 0x29;
+    pci_conf[0x03] = 0x80;
+    pci_conf[0x0a] = 0x00; // ethernet network controller 
+    pci_conf[0x0b] = 0x02;
+    pci_conf[0x0e] = 0x00; // header_type
+
+    /* XXX: do that in the BIOS */
+    pci_conf[0x3c] = 11; // interrupt line
+    pci_conf[0x3d] = 1; // interrupt pin
+    
+    pci_register_io_region((PCIDevice *)d, 0, 0x100, 
+                           PCI_ADDRESS_SPACE_IO, ne2000_map);
+    s = &d->ne2000;
+    s->irq = 11;
+    s->nd = nd;
+    ne2000_reset(s);
     qemu_add_read_packet(nd, ne2000_can_receive, ne2000_receive, s);
 }

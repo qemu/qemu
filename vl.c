@@ -121,6 +121,7 @@ SerialState *serial_console;
 QEMUTimer *gui_timer;
 int vm_running;
 int audio_enabled = 0;
+int pci_enabled = 0;
 
 /***********************************************************/
 /* x86 ISA bus support */
@@ -236,6 +237,21 @@ int register_ioport_write(int start, int length, int size,
         ioport_opaque[i] = opaque;
     }
     return 0;
+}
+
+void isa_unassign_ioport(int start, int length)
+{
+    int i;
+
+    for(i = start; i < start + length; i++) {
+        ioport_read_table[0][i] = default_ioport_readb;
+        ioport_read_table[1][i] = default_ioport_readw;
+        ioport_read_table[2][i] = default_ioport_readl;
+
+        ioport_write_table[0][i] = default_ioport_writeb;
+        ioport_write_table[1][i] = default_ioport_writew;
+        ioport_write_table[2][i] = default_ioport_writel;
+    }
 }
 
 void pstrcpy(char *buf, int buf_size, const char *str)
@@ -1973,6 +1989,7 @@ enum {
     QEMU_OPTION_hdachs,
     QEMU_OPTION_L,
     QEMU_OPTION_no_code_copy,
+    QEMU_OPTION_pci,
 };
 
 typedef struct QEMUOption {
@@ -1999,7 +2016,7 @@ const QEMUOption qemu_options[] = {
 
     { "nics", HAS_ARG, QEMU_OPTION_nics},
     { "macaddr", HAS_ARG, QEMU_OPTION_macaddr},
-    { "n", HAS_ARG, QEMU_OPTION_d },
+    { "n", HAS_ARG, QEMU_OPTION_n },
     { "tun-fd", HAS_ARG, QEMU_OPTION_tun_fd },
 #ifdef CONFIG_SLIRP
     { "user-net", 0, QEMU_OPTION_user_net },
@@ -2017,6 +2034,7 @@ const QEMUOption qemu_options[] = {
     { "hdachs", HAS_ARG, QEMU_OPTION_hdachs },
     { "L", HAS_ARG, QEMU_OPTION_L },
     { "no-code-copy", 0, QEMU_OPTION_no_code_copy },
+    { "pci", 0, QEMU_OPTION_pci },
     { NULL },
 };
 
@@ -2285,6 +2303,9 @@ int main(int argc, char **argv)
                 break;
             case QEMU_OPTION_S:
                 start_emulation = 0;
+                break;
+            case QEMU_OPTION_pci:
+                pci_enabled = 1;
                 break;
             }
         }

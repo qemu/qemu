@@ -8,6 +8,9 @@ version 0.5.6:
   - int13 CDROM BIOS fix (aka Solaris x86 install CD fix)
   - int15, ah=86 BIOS fix (aka Solaris x86 hardware probe hang up fix)
   - BSR/BSF "undefined behaviour" fix
+  - vmdk2raw: convert VMware disk images to raw images
+  - PCI support
+  - NE2K PCI support
 
 version 0.5.5:
 

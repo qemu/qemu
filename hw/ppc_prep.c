@@ -962,13 +962,13 @@ void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
     if (nb_nics1 > NE2000_NB_MAX)
         nb_nics1 = NE2000_NB_MAX;
     for(i = 0; i < nb_nics1; i++) {
-        ne2000_init(ne2000_io[i], ne2000_irq[i], &nd_table[i]);
+        isa_ne2000_init(ne2000_io[i], ne2000_irq[i], &nd_table[i]);
     }
 #endif
 
     for(i = 0; i < 2; i++) {
-        ide_init(ide_iobase[i], ide_iobase2[i], ide_irq[i],
-                 bs_table[2 * i], bs_table[2 * i + 1]);
+        isa_ide_init(ide_iobase[i], ide_iobase2[i], ide_irq[i],
+                     bs_table[2 * i], bs_table[2 * i + 1]);
     }
     kbd_init();
     AUD_init();

@@ -218,7 +218,7 @@ typedef void QEMUTimerCB(void *opaque);
 
 /* The real time clock should be used only for stuff which does not
    change the virtual machine state, as it is run even if the virtual
-   machine is stopped. The real time clock has a frequency or 1000
+   machine is stopped. The real time clock has a frequency of 1000
    Hz. */
 extern QEMUClock *rt_clock;
 
@@ -360,6 +360,61 @@ int register_ioport_read(int start, int length, int size,
                          IOPortReadFunc *func, void *opaque);
 int register_ioport_write(int start, int length, int size, 
                           IOPortWriteFunc *func, void *opaque);
+void isa_unassign_ioport(int start, int length);
+
+/* PCI bus */
+
+extern int pci_enabled;
+
+extern target_phys_addr_t pci_mem_base;
+
+typedef struct PCIDevice PCIDevice;
+
+typedef void PCIConfigWriteFunc(PCIDevice *pci_dev, 
+                                uint32_t address, uint32_t data, int len);
+typedef uint32_t PCIConfigReadFunc(PCIDevice *pci_dev, 
+                                   uint32_t address, int len);
+typedef void PCIMapIORegionFunc(PCIDevice *pci_dev, int region_num, 
+                                uint32_t addr, uint32_t size, int type);
+
+#define PCI_ADDRESS_SPACE_MEM		0x00
+#define PCI_ADDRESS_SPACE_IO		0x01
+#define PCI_ADDRESS_SPACE_MEM_PREFETCH	0x08
+
+typedef struct PCIIORegion {
+    uint32_t addr;
+    uint32_t size;
+    uint8_t type;
+    PCIMapIORegionFunc *map_func;
+} PCIIORegion;
+
+struct PCIDevice {
+    /* PCI config space */
+    uint8_t config[256];
+
+    /* the following fields are read only */
+    int bus_num;
+    int devfn;
+    char name[64];
+    PCIIORegion io_regions[6];
+    
+    /* do not access the following fields */
+    PCIConfigReadFunc *config_read;
+    PCIConfigWriteFunc *config_write;
+};
+
+PCIDevice *pci_register_device(const char *name, int instance_size,
+                               int bus_num, int devfn,
+                               PCIConfigReadFunc *config_read, 
+                               PCIConfigWriteFunc *config_write);
+
+void pci_register_io_region(PCIDevice *pci_dev, int region_num, 
+                            uint32_t size, int type, 
+                            PCIMapIORegionFunc *map_func);
+
+void i440fx_init(void);
+void piix3_init(void);
+void pci_bios_init(void);
 
 /* vga.c */
 
@@ -397,8 +452,9 @@ void sdl_display_init(DisplayState *ds);
 
 extern BlockDriverState *bs_table[MAX_DISKS];
 
-void ide_init(int iobase, int iobase2, int irq,
-              BlockDriverState *hd0, BlockDriverState *hd1);
+void isa_ide_init(int iobase, int iobase2, int irq,
+                  BlockDriverState *hd0, BlockDriverState *hd1);
+void pci_ide_init(BlockDriverState **hd_table);
 
 /* oss.c */
 typedef enum {
@@ -446,7 +502,8 @@ int fdctrl_get_drive_type(fdctrl_t *fdctrl, int drive_num);
 
 /* ne2000.c */
 
-void ne2000_init(int base, int irq, NetDriverState *nd);
+void isa_ne2000_init(int base, int irq, NetDriverState *nd);
+void pci_ne2000_init(NetDriverState *nd);
 
 /* pckbd.c */
 

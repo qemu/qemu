@@ -380,6 +380,11 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
         stw_raw(phys_ram_base + KERNEL_PARAMS_ADDR + 0x210, 0x01);
     }
 
+    if (pci_enabled) {
+        i440fx_init();
+        piix3_init();
+    }
+
     /* init basic PC hardware */
     register_ioport_write(0x80, 1, 1, ioport80_write, NULL);
 
@@ -401,17 +406,25 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
     fd = serial_open_device();
     serial_init(0x3f8, 4, fd);
 
-    nb_nics1 = nb_nics;
-    if (nb_nics1 > NE2000_NB_MAX)
-        nb_nics1 = NE2000_NB_MAX;
-    for(i = 0; i < nb_nics1; i++) {
-        ne2000_init(ne2000_io[i], ne2000_irq[i], &nd_table[i]);
+    if (pci_enabled) {
+        for(i = 0; i < nb_nics; i++) {
+            pci_ne2000_init(&nd_table[i]);
+        }
+        pci_ide_init(bs_table);
+    } else {
+        nb_nics1 = nb_nics;
+        if (nb_nics1 > NE2000_NB_MAX)
+            nb_nics1 = NE2000_NB_MAX;
+        for(i = 0; i < nb_nics1; i++) {
+            isa_ne2000_init(ne2000_io[i], ne2000_irq[i], &nd_table[i]);
+        }
+
+        for(i = 0; i < 2; i++) {
+            isa_ide_init(ide_iobase[i], ide_iobase2[i], ide_irq[i],
+                         bs_table[2 * i], bs_table[2 * i + 1]);
+        }
     }
 
-    for(i = 0; i < 2; i++) {
-        ide_init(ide_iobase[i], ide_iobase2[i], ide_irq[i],
-                 bs_table[2 * i], bs_table[2 * i + 1]);
-    }
     kbd_init();
     DMA_init();
 
@@ -426,4 +439,10 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
     floppy_controller = fdctrl_init(6, 2, 0, 0x3f0, fd_table);
 
     cmos_init(ram_size, boot_device);
+
+    /* must be done after all PCI devices are instanciated */
+    /* XXX: should be done in the Bochs BIOS */
+    if (pci_enabled) {
+        pci_bios_init();
+    }
 }
