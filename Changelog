@@ -8,6 +8,9 @@ version 0.6.2:
   - .dmg disk image format support (Johannes Schindelin)
   - keymaps support (initial patch by Johannes Schindelin)
   - big endian ARM support (Lennert Buytenhek)
+  - added generic 64 bit target support
+  - initial x86_64 target support
+  - initial APIC support
 
 version 0.6.1:
 
