@@ -41,6 +41,7 @@
 #include <sys/uio.h>
 #include <sys/poll.h>
 #include <sys/times.h>
+#include <utime.h>
 //#include <sys/user.h>
 #include <netinet/tcp.h>
 
@@ -1262,6 +1263,8 @@ int do_fork(CPUState *env, unsigned int flags, unsigned long newsp)
             newsp = env->regs[13];
         new_env->regs[13] = newsp;
         new_env->regs[0] = 0;
+#elif defined(TARGET_SPARC)
+		printf ("HELPME: %s:%d\n", __FILE__, __LINE__);
 #else
 #error unsupported target CPU
 #endif
@@ -1472,10 +1475,14 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_lchown:
         ret = get_errno(chown((const char *)arg1, arg2, arg3));
         break;
+#ifdef TARGET_NR_break
     case TARGET_NR_break:
         goto unimplemented;
+#endif
+#ifdef TARGET_NR_oldstat
     case TARGET_NR_oldstat:
         goto unimplemented;
+#endif
     case TARGET_NR_lseek:
         ret = get_errno(lseek(arg1, arg2, arg3));
         break;
@@ -1507,25 +1514,40 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_alarm:
         ret = alarm(arg1);
         break;
+#ifdef TARGET_NR_oldfstat
     case TARGET_NR_oldfstat:
         goto unimplemented;
+#endif
     case TARGET_NR_pause:
         ret = get_errno(pause());
         break;
     case TARGET_NR_utime:
-        goto unimplemented;
+        {
+            struct utimbuf tbuf;
+            struct target_utimbuf *target_tbuf = (void *)arg2;
+            tbuf.actime = tswapl(target_tbuf->actime);
+            tbuf.modtime = tswapl(target_tbuf->modtime);
+            ret = get_errno(utime((const char *)arg1, &tbuf));
+        }
+        break;
+#ifdef TARGET_NR_stty
     case TARGET_NR_stty:
         goto unimplemented;
+#endif
+#ifdef TARGET_NR_gtty
     case TARGET_NR_gtty:
         goto unimplemented;
+#endif
     case TARGET_NR_access:
         ret = get_errno(access((const char *)arg1, arg2));
         break;
     case TARGET_NR_nice:
         ret = get_errno(nice(arg1));
         break;
+#ifdef TARGET_NR_ftime
     case TARGET_NR_ftime:
         goto unimplemented;
+#endif
     case TARGET_NR_sync:
         sync();
         ret = 0;
@@ -1570,8 +1592,10 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                 ret = host_to_target_clock_t(ret);
         }
         break;
+#ifdef TARGET_NR_prof
     case TARGET_NR_prof:
         goto unimplemented;
+#endif
     case TARGET_NR_setgid:
         ret = get_errno(setgid(low2highgid(arg1)));
         break;
@@ -1591,23 +1615,31 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_umount2:
         ret = get_errno(umount2((const char *)arg1, arg2));
         break;
+#ifdef TARGET_NR_lock
     case TARGET_NR_lock:
         goto unimplemented;
+#endif
     case TARGET_NR_ioctl:
         ret = do_ioctl(arg1, arg2, arg3);
         break;
     case TARGET_NR_fcntl:
         ret = get_errno(do_fcntl(arg1, arg2, arg3));
         break;
+#ifdef TARGET_NR_mpx
     case TARGET_NR_mpx:
         goto unimplemented;
+#endif
     case TARGET_NR_setpgid:
         ret = get_errno(setpgid(arg1, arg2));
         break;
+#ifdef TARGET_NR_ulimit
     case TARGET_NR_ulimit:
         goto unimplemented;
+#endif
+#ifdef TARGET_NR_oldolduname
     case TARGET_NR_oldolduname:
         goto unimplemented;
+#endif
     case TARGET_NR_umask:
         ret = get_errno(umask(arg1));
         break;
@@ -1917,8 +1949,10 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_symlink:
         ret = get_errno(symlink((const char *)arg1, (const char *)arg2));
         break;
+#ifdef TARGET_NR_oldlstat
     case TARGET_NR_oldlstat:
         goto unimplemented;
+#endif
     case TARGET_NR_readlink:
         ret = get_errno(readlink(path((const char *)arg1), (char *)arg2, arg3));
         break;
@@ -2001,8 +2035,10 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_setpriority:
         ret = get_errno(setpriority(arg1, arg2, arg3));
         break;
+#ifdef TARGET_NR_profil
     case TARGET_NR_profil:
         goto unimplemented;
+#endif
     case TARGET_NR_statfs:
         stfs = (void *)arg2;
         ret = get_errno(sys_statfs(path((const char *)arg1), stfs));
@@ -2024,8 +2060,10 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         stfs = (void *)arg2;
         ret = get_errno(sys_fstatfs(arg1, stfs));
         goto convert_statfs;
+#ifdef TARGET_NR_ioperm
     case TARGET_NR_ioperm:
         goto unimplemented;
+#endif
     case TARGET_NR_socketcall:
         ret = do_socketcall(arg1, (int32_t *)arg2);
         break;
@@ -2097,15 +2135,21 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             }
         }
         break;
+#ifdef TARGET_NR_olduname
     case TARGET_NR_olduname:
         goto unimplemented;
+#endif
+#ifdef TARGET_NR_iopl
     case TARGET_NR_iopl:
         goto unimplemented;
+#endif
     case TARGET_NR_vhangup:
         ret = get_errno(vhangup());
         break;
+#ifdef TARGET_NR_idle
     case TARGET_NR_idle:
         goto unimplemented;
+#endif
     case TARGET_NR_wait4:
         {
             int status;
@@ -2415,17 +2459,20 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             req.tv_sec = tswapl(target_req->tv_sec);
             req.tv_nsec = tswapl(target_req->tv_nsec);
             ret = get_errno(nanosleep(&req, &rem));
-            if (target_rem) {
+            if (is_error(ret) && target_rem) {
                 target_rem->tv_sec = tswapl(rem.tv_sec);
                 target_rem->tv_nsec = tswapl(rem.tv_nsec);
             }
         }
         break;
+#ifdef TARGET_NR_setresuid
     case TARGET_NR_setresuid:
         ret = get_errno(setresuid(low2highuid(arg1), 
                                   low2highuid(arg2), 
                                   low2highuid(arg3)));
         break;
+#endif
+#ifdef TARGET_NR_getresuid
     case TARGET_NR_getresuid:
         {
             int ruid, euid, suid;
@@ -2437,11 +2484,15 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             }
         }
         break;
+#endif
+#ifdef TARGET_NR_getresgid
     case TARGET_NR_setresgid:
         ret = get_errno(setresgid(low2highgid(arg1), 
                                   low2highgid(arg2), 
                                   low2highgid(arg3)));
         break;
+#endif
+#ifdef TARGET_NR_getresgid
     case TARGET_NR_getresgid:
         {
             int rgid, egid, sgid;
@@ -2453,6 +2504,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             }
         }
         break;
+#endif
     case TARGET_NR_query_module:
         goto unimplemented;
     case TARGET_NR_nfsservctl:
@@ -2480,13 +2532,18 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         goto unimplemented;
     case TARGET_NR_sendfile:
         goto unimplemented;
+#ifdef TARGET_NR_getpmsg
     case TARGET_NR_getpmsg:
         goto unimplemented;
+#endif
+#ifdef TARGET_NR_putpmsg
     case TARGET_NR_putpmsg:
         goto unimplemented;
+#endif
     case TARGET_NR_vfork:
         ret = get_errno(do_fork(cpu_env, CLONE_VFORK | CLONE_VM | SIGCHLD, 0));
         break;
+#ifdef TARGET_NR_ugetrlimit
     case TARGET_NR_ugetrlimit:
     {
 	struct rlimit rlim;
@@ -2498,6 +2555,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 	}
 	break;
     }
+#endif
     case TARGET_NR_truncate64:
         goto unimplemented;
     case TARGET_NR_ftruncate64:
@@ -2647,13 +2705,16 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 	break;
     }
 #endif
+#ifdef TARGET_NR_security
     case TARGET_NR_security:
         goto unimplemented;
+#endif
     case TARGET_NR_gettid:
         ret = get_errno(gettid());
         break;
     case TARGET_NR_readahead:
         goto unimplemented;
+#ifdef TARGET_NR_setxattr
     case TARGET_NR_setxattr:
     case TARGET_NR_lsetxattr:
     case TARGET_NR_fsetxattr:
@@ -2667,9 +2728,12 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_lremovexattr:
     case TARGET_NR_fremovexattr:
         goto unimplemented_nowarn;
+#endif
+#ifdef TARGET_NR_set_thread_area
     case TARGET_NR_set_thread_area:
     case TARGET_NR_get_thread_area:
         goto unimplemented_nowarn;
+#endif
     default:
     unimplemented:
         gemu_log("qemu: Unsupported syscall: %d\n", num);
