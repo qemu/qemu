@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <ctype.h>
 #include <getopt.h>
 #include <inttypes.h>
 #include <unistd.h>
@@ -80,7 +81,18 @@
 #define PHYS_RAM_BASE     0xac000000
 #define PHYS_RAM_MAX_SIZE (256 * 1024 * 1024)
 
+#if defined (TARGET_I386)
 #define KERNEL_LOAD_ADDR   0x00100000
+#elif defined (TARGET_PPC)
+//#define USE_OPEN_FIRMWARE
+#if defined (USE_OPEN_FIRMWARE)
+#define KERNEL_LOAD_ADDR    0x01000000
+#define KERNEL_STACK_ADDR   0x01200000
+#else
+#define KERNEL_LOAD_ADDR    0x00000000
+#define KERNEL_STACK_ADDR   0x00400000
+#endif
+#endif
 #define INITRD_LOAD_ADDR   0x00400000
 #define KERNEL_PARAMS_ADDR 0x00090000
 
@@ -206,11 +218,11 @@ struct  __attribute__ ((packed)) linux_params {
 
 static const char *bios_dir = CONFIG_QEMU_SHAREDIR;
 char phys_ram_file[1024];
-CPUX86State *global_env;
-CPUX86State *cpu_single_env;
+CPUState *global_env;
+CPUState *cpu_single_env;
 IOPortReadFunc *ioport_read_table[3][MAX_IOPORTS];
 IOPortWriteFunc *ioport_write_table[3][MAX_IOPORTS];
-BlockDriverState *bs_table[MAX_DISKS];
+BlockDriverState *bs_table[MAX_DISKS], *fd_table[MAX_FD];
 int vga_ram_size;
 static DisplayState display_state;
 int nographic;
@@ -221,7 +233,7 @@ int boot_device = 'c';
 /***********************************************************/
 /* x86 io ports */
 
-uint32_t default_ioport_readb(CPUX86State *env, uint32_t address)
+uint32_t default_ioport_readb(CPUState *env, uint32_t address)
 {
 #ifdef DEBUG_UNUSED_IOPORT
     fprintf(stderr, "inb: port=0x%04x\n", address);
@@ -229,7 +241,7 @@ uint32_t default_ioport_readb(CPUX86State *env, uint32_t address)
     return 0xff;
 }
 
-void default_ioport_writeb(CPUX86State *env, uint32_t address, uint32_t data)
+void default_ioport_writeb(CPUState *env, uint32_t address, uint32_t data)
 {
 #ifdef DEBUG_UNUSED_IOPORT
     fprintf(stderr, "outb: port=0x%04x data=0x%02x\n", address, data);
@@ -237,7 +249,7 @@ void default_ioport_writeb(CPUX86State *env, uint32_t address, uint32_t data)
 }
 
 /* default is to make two byte accesses */
-uint32_t default_ioport_readw(CPUX86State *env, uint32_t address)
+uint32_t default_ioport_readw(CPUState *env, uint32_t address)
 {
     uint32_t data;
     data = ioport_read_table[0][address & (MAX_IOPORTS - 1)](env, address);
@@ -245,13 +257,13 @@ uint32_t default_ioport_readw(CPUX86State *env, uint32_t address)
     return data;
 }
 
-void default_ioport_writew(CPUX86State *env, uint32_t address, uint32_t data)
+void default_ioport_writew(CPUState *env, uint32_t address, uint32_t data)
 {
     ioport_write_table[0][address & (MAX_IOPORTS - 1)](env, address, data & 0xff);
     ioport_write_table[0][(address + 1) & (MAX_IOPORTS - 1)](env, address + 1, (data >> 8) & 0xff);
 }
 
-uint32_t default_ioport_readl(CPUX86State *env, uint32_t address)
+uint32_t default_ioport_readl(CPUState *env, uint32_t address)
 {
 #ifdef DEBUG_UNUSED_IOPORT
     fprintf(stderr, "inl: port=0x%04x\n", address);
@@ -259,7 +271,7 @@ uint32_t default_ioport_readl(CPUX86State *env, uint32_t address)
     return 0xffffffff;
 }
 
-void default_ioport_writel(CPUX86State *env, uint32_t address, uint32_t data)
+void default_ioport_writel(CPUState *env, uint32_t address, uint32_t data)
 {
 #ifdef DEBUG_UNUSED_IOPORT
     fprintf(stderr, "outl: port=0x%04x data=0x%02x\n", address, data);
@@ -345,12 +357,18 @@ char *pstrcat(char *buf, int buf_size, const char *s)
 
 int load_kernel(const char *filename, uint8_t *addr)
 {
-    int fd, size, setup_sects;
+    int fd, size;
+#if defined (TARGET_I386)
+    int setup_sects;
     uint8_t bootsect[512];
+#endif
 
+    printf("Load kernel at %p (0x%08x)\n", addr,
+           (uint32_t)addr - (uint32_t)phys_ram_base);
     fd = open(filename, O_RDONLY);
     if (fd < 0)
         return -1;
+#if defined (TARGET_I386)
     if (read(fd, bootsect, 512) != 512)
         goto fail;
     setup_sects = bootsect[0x1F1];
@@ -358,6 +376,7 @@ int load_kernel(const char *filename, uint8_t *addr)
         setup_sects = 4;
     /* skip 16 bit setup code */
     lseek(fd, (setup_sects + 1) * 512, SEEK_SET);
+#endif
     size = read(fd, addr, 16 * 1024 * 1024);
     if (size < 0)
         goto fail;
@@ -385,38 +404,38 @@ int load_image(const char *filename, uint8_t *addr)
     return size;
 }
 
-void cpu_x86_outb(CPUX86State *env, int addr, int val)
+void cpu_outb(CPUState *env, int addr, int val)
 {
     ioport_write_table[0][addr & (MAX_IOPORTS - 1)](env, addr, val);
 }
 
-void cpu_x86_outw(CPUX86State *env, int addr, int val)
+void cpu_outw(CPUState *env, int addr, int val)
 {
     ioport_write_table[1][addr & (MAX_IOPORTS - 1)](env, addr, val);
 }
 
-void cpu_x86_outl(CPUX86State *env, int addr, int val)
+void cpu_outl(CPUState *env, int addr, int val)
 {
     ioport_write_table[2][addr & (MAX_IOPORTS - 1)](env, addr, val);
 }
 
-int cpu_x86_inb(CPUX86State *env, int addr)
+int cpu_inb(CPUState *env, int addr)
 {
     return ioport_read_table[0][addr & (MAX_IOPORTS - 1)](env, addr);
 }
 
-int cpu_x86_inw(CPUX86State *env, int addr)
+int cpu_inw(CPUState *env, int addr)
 {
     return ioport_read_table[1][addr & (MAX_IOPORTS - 1)](env, addr);
 }
 
-int cpu_x86_inl(CPUX86State *env, int addr)
+int cpu_inl(CPUState *env, int addr)
 {
     return ioport_read_table[2][addr & (MAX_IOPORTS - 1)](env, addr);
 }
 
 /***********************************************************/
-void ioport80_write(CPUX86State *env, uint32_t addr, uint32_t data)
+void ioport80_write(CPUState *env, uint32_t addr, uint32_t data)
 {
 }
 
@@ -430,6 +449,8 @@ void hw_error(const char *fmt, ...)
     fprintf(stderr, "\n");
 #ifdef TARGET_I386
     cpu_x86_dump_state(global_env, stderr, X86_DUMP_FPU | X86_DUMP_CCOP);
+#else
+    cpu_dump_state(global_env, stderr, 0);
 #endif
     va_end(ap);
     abort();
@@ -438,6 +459,7 @@ void hw_error(const char *fmt, ...)
 /***********************************************************/
 /* cmos emulation */
 
+#if defined (TARGET_I386)
 #define RTC_SECONDS             0
 #define RTC_SECONDS_ALARM       1
 #define RTC_MINUTES             2
@@ -463,7 +485,7 @@ void hw_error(const char *fmt, ...)
 uint8_t cmos_data[128];
 uint8_t cmos_index;
 
-void cmos_ioport_write(CPUX86State *env, uint32_t addr, uint32_t data)
+void cmos_ioport_write(CPUState *env, uint32_t addr, uint32_t data)
 {
     if (addr == 0x70) {
         cmos_index = data & 0x7f;
@@ -503,7 +525,7 @@ void cmos_ioport_write(CPUX86State *env, uint32_t addr, uint32_t data)
     }
 }
 
-uint32_t cmos_ioport_read(CPUX86State *env, uint32_t addr)
+uint32_t cmos_ioport_read(CPUState *env, uint32_t addr)
 {
     int ret;
 
@@ -580,6 +602,7 @@ void cmos_init(void)
     
     switch(boot_device) {
     case 'a':
+    case 'b':
         cmos_data[0x3d] = 0x01; /* floppy boot */
         break;
     default:
@@ -595,6 +618,56 @@ void cmos_init(void)
     register_ioport_read(0x70, 2, cmos_ioport_read, 1);
 }
 
+void cmos_register_fd (uint8_t fd0, uint8_t fd1)
+{
+    int nb = 0;
+
+    cmos_data[0x10] = 0;
+    switch (fd0) {
+    case 0:
+        /* 1.44 Mb 3"5 drive */
+        cmos_data[0x10] |= 0x40;
+        break;
+    case 1:
+        /* 2.88 Mb 3"5 drive */
+        cmos_data[0x10] |= 0x60;
+        break;
+    case 2:
+        /* 1.2 Mb 5"5 drive */
+        cmos_data[0x10] |= 0x20;
+        break;
+    }
+    switch (fd1) {
+    case 0:
+        /* 1.44 Mb 3"5 drive */
+        cmos_data[0x10] |= 0x04;
+        break;
+    case 1:
+        /* 2.88 Mb 3"5 drive */
+        cmos_data[0x10] |= 0x06;
+        break;
+    case 2:
+        /* 1.2 Mb 5"5 drive */
+        cmos_data[0x10] |= 0x02;
+        break;
+    }
+    if (fd0 < 3)
+        nb++;
+    if (fd1 < 3)
+        nb++;
+    switch (nb) {
+    case 0:
+        break;
+    case 1:
+        cmos_data[REG_EQUIPMENT_BYTE] |= 0x01; /* 1 drive, ready for boot */
+        break;
+    case 2:
+        cmos_data[REG_EQUIPMENT_BYTE] |= 0x41; /* 2 drives, ready for boot */
+        break;
+    }
+}
+#endif /* TARGET_I386 */
+
 /***********************************************************/
 /* 8259 pic emulation */
 
@@ -606,6 +679,7 @@ typedef struct PicState {
     uint8_t priority_add; /* used to compute irq priority */
     uint8_t irq_base;
     uint8_t read_reg_select;
+    uint8_t poll;
     uint8_t special_mask;
     uint8_t init_state;
     uint8_t auto_eoi;
@@ -663,7 +737,7 @@ static int pic_get_irq(PicState *s)
 
 /* raise irq to CPU if necessary. must be called every time the active
    irq may change */
-static void pic_update_irq(void)
+void pic_update_irq(void)
 {
     int irq2, irq;
 
@@ -684,7 +758,7 @@ static void pic_update_irq(void)
             /* from master pic */
             pic_irq_requested = irq;
         }
-        cpu_x86_interrupt(global_env, CPU_INTERRUPT_HARD);
+        cpu_interrupt(global_env, CPU_INTERRUPT_HARD);
     }
 }
 
@@ -713,7 +787,7 @@ void pic_set_irq(int irq, int level)
     pic_update_irq();
 }
 
-int cpu_x86_get_pic_interrupt(CPUX86State *env)
+int cpu_x86_get_pic_interrupt(CPUState *env)
 {
     int irq, irq2, intno;
 
@@ -742,7 +816,7 @@ int cpu_x86_get_pic_interrupt(CPUX86State *env)
     return intno;
 }
 
-void pic_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
+void pic_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
 {
     PicState *s;
     int priority;
@@ -763,10 +837,14 @@ void pic_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
             if (val & 0x08)
                 hw_error("level sensitive irq not supported");
         } else if (val & 0x08) {
+            if (val & 0x04) {
+                s->poll = 1;
+            } else {
             if (val & 0x02)
                 s->read_reg_select = val & 1;
             if (val & 0x40)
                 s->special_mask = (val >> 5) & 1;
+            }
         } else {
             switch(val) {
             case 0x00:
@@ -826,7 +904,29 @@ void pic_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
     }
 }
 
-uint32_t pic_ioport_read(CPUX86State *env, uint32_t addr1)
+static uint32_t pic_poll_read (PicState *s, uint32_t addr1)
+{
+    int ret;
+
+    ret = pic_get_irq(s);
+    if (ret >= 0) {
+        if (addr1 >> 7) {
+            pics[0].isr &= ~(1 << 2);
+            pics[0].irr &= ~(1 << 2);
+        }
+        s->irr &= ~(1 << ret);
+        s->isr &= ~(1 << ret);
+        if (addr1 >> 7 || ret != 2)
+            pic_update_irq();
+    } else {
+        ret = 0x07;
+        pic_update_irq();
+    }
+
+    return ret;
+}
+
+uint32_t pic_ioport_read(CPUState *env, uint32_t addr1)
 {
     PicState *s;
     unsigned int addr;
@@ -835,6 +935,10 @@ uint32_t pic_ioport_read(CPUX86State *env, uint32_t addr1)
     addr = addr1;
     s = &pics[addr >> 7];
     addr &= 1;
+    if (s->poll == 1) {
+        ret = pic_poll_read(s, addr1);
+        s->poll = 0;
+    } else {
     if (addr == 0) {
         if (s->read_reg_select)
             ret = s->isr;
@@ -843,18 +947,35 @@ uint32_t pic_ioport_read(CPUX86State *env, uint32_t addr1)
     } else {
         ret = s->imr;
     }
+    }
 #ifdef DEBUG_PIC
     printf("pic_read: addr=0x%02x val=0x%02x\n", addr1, ret);
 #endif
     return ret;
 }
 
+/* memory mapped interrupt status */
+uint32_t pic_intack_read(CPUState *env)
+{
+    int ret;
+
+    ret = pic_poll_read(&pics[0], 0x00);
+    if (ret == 2)
+        ret = pic_poll_read(&pics[1], 0x80) + 8;
+    /* Prepare for ISR read */
+    pics[0].read_reg_select = 1;
+    
+    return ret;
+}
+
 void pic_init(void)
 {
+#if defined (TARGET_I386) || defined (TARGET_PPC)
     register_ioport_write(0x20, 2, pic_ioport_write, 1);
     register_ioport_read(0x20, 2, pic_ioport_read, 1);
     register_ioport_write(0xa0, 2, pic_ioport_write, 1);
     register_ioport_read(0xa0, 2, pic_ioport_read, 1);
+#endif
 }
 
 /***********************************************************/
@@ -1140,7 +1261,7 @@ static inline void pit_load_count(PITChannelState *s, int val)
     }
 }
 
-void pit_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
+void pit_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
 {
     int channel, access;
     PITChannelState *s;
@@ -1185,7 +1306,7 @@ void pit_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
     }
 }
 
-uint32_t pit_ioport_read(CPUX86State *env, uint32_t addr)
+uint32_t pit_ioport_read(CPUState *env, uint32_t addr)
 {
     int ret, count;
     PITChannelState *s;
@@ -1218,13 +1339,14 @@ uint32_t pit_ioport_read(CPUX86State *env, uint32_t addr)
     return ret;
 }
 
-void speaker_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
+#if defined (TARGET_I386)
+void speaker_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
 {
     speaker_data_on = (val >> 1) & 1;
     pit_set_gate(&pit_channels[2], val & 1);
 }
 
-uint32_t speaker_ioport_read(CPUX86State *env, uint32_t addr)
+uint32_t speaker_ioport_read(CPUState *env, uint32_t addr)
 {
     int out;
     out = pit_get_out(&pit_channels[2]);
@@ -1232,6 +1354,7 @@ uint32_t speaker_ioport_read(CPUX86State *env, uint32_t addr)
     return (speaker_data_on << 1) | pit_channels[2].gate | (out << 5) |
       (dummy_refresh_clock << 4);
 }
+#endif
 
 void pit_init(void)
 {
@@ -1250,8 +1373,10 @@ void pit_init(void)
     register_ioport_write(0x40, 4, pit_ioport_write, 1);
     register_ioport_read(0x40, 3, pit_ioport_read, 1);
 
+#if defined (TARGET_I386)
     register_ioport_read(0x61, 1, speaker_ioport_read, 1);
     register_ioport_write(0x61, 1, speaker_ioport_write, 1);
+#endif
 }
 
 /***********************************************************/
@@ -1339,7 +1464,7 @@ void serial_update_irq(void)
     }
 }
 
-void serial_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
+void serial_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
 {
     SerialState *s = &serial_ports[0];
     unsigned char ch;
@@ -1396,7 +1521,7 @@ void serial_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
     }
 }
 
-uint32_t serial_ioport_read(CPUX86State *env, uint32_t addr)
+uint32_t serial_ioport_read(CPUState *env, uint32_t addr)
 {
     SerialState *s = &serial_ports[0];
     uint32_t ret;
@@ -1458,23 +1583,124 @@ uint32_t serial_ioport_read(CPUX86State *env, uint32_t addr)
 }
 
 #define TERM_ESCAPE 0x01 /* ctrl-a is used for escape */
-static int term_got_escape;
+static int term_got_escape, term_command;
+static unsigned char term_cmd_buf[128];
+
+typedef struct term_cmd_t {
+    const unsigned char *name;
+    void (*handler)(unsigned char *params);
+} term_cmd_t;
+
+static void do_change_cdrom (unsigned char *params);
+static void do_change_fd0 (unsigned char *params);
+static void do_change_fd1 (unsigned char *params);
+
+static term_cmd_t term_cmds[] = {
+    { "changecd", &do_change_cdrom, },
+    { "changefd0", &do_change_fd0, },
+    { "changefd1", &do_change_fd1, },
+    { NULL, NULL, },
+};
 
 void term_print_help(void)
 {
     printf("\n"
            "C-a h    print this help\n"
            "C-a x    exit emulatior\n"
+           "C-a d    switch on/off debug log\n"
 	   "C-a s    save disk data back to file (if -snapshot)\n"
            "C-a b    send break (magic sysrq)\n"
+           "C-a c    send qemu internal command\n"
            "C-a C-a  send C-a\n"
            );
 }
 
+static void do_change_cdrom (unsigned char *params)
+{
+    /* Dunno how to do it... */
+}
+
+static void do_change_fd (int fd, unsigned char *params)
+{
+    unsigned char *name_start, *name_end, *ros;
+    int ro;
+
+    for (name_start = params;
+         isspace(*name_start); name_start++)
+        continue;
+    if (*name_start == '\0')
+        return;
+    for (name_end = name_start;
+         !isspace(*name_end) && *name_end != '\0'; name_end++)
+        continue;
+    for (ros = name_end + 1; isspace(*ros); ros++)
+        continue;
+    if (ros[0] == 'r' && ros[1] == 'o')
+        ro = 1;
+    else
+        ro = 0;
+    *name_end = '\0';
+    printf("Change fd %d to %s (%s)\n", fd, name_start, params);
+    fdctrl_disk_change(fd, name_start, ro);
+}
+
+static void do_change_fd0 (unsigned char *params)
+{
+    do_change_fd(0, params);
+}
+
+static void do_change_fd1 (unsigned char *params)
+{
+    do_change_fd(1, params);
+}
+
+static void serial_treat_command ()
+{
+    unsigned char *cmd_start, *cmd_end;
+    int i;
+
+    for (cmd_start = term_cmd_buf; isspace(*cmd_start); cmd_start++)
+        continue;
+    for (cmd_end = cmd_start;
+         !isspace(*cmd_end) && *cmd_end != '\0'; cmd_end++)
+        continue;
+    for (i = 0; term_cmds[i].name != NULL; i++) {
+        if (strlen(term_cmds[i].name) == (cmd_end - cmd_start) &&
+            memcmp(term_cmds[i].name, cmd_start, cmd_end - cmd_start) == 0) {
+            (*term_cmds[i].handler)(cmd_end + 1);
+            return;
+        }
+    }
+    *cmd_end = '\0';
+    printf("Unknown term command: %s\n", cmd_start);
+}
+
+extern FILE *logfile;
+
 /* called when a char is received */
 void serial_received_byte(SerialState *s, int ch)
 {
-    if (term_got_escape) {
+    if (term_command) {
+        if (ch == '\n' || ch == '\r' || term_command == 127) {
+            printf("\n");
+            serial_treat_command();
+            term_command = 0;
+        } else {
+            if (ch == 0x7F || ch == 0x08) {
+                if (term_command > 1) {
+                    term_cmd_buf[--term_command - 1] = '\0';
+                    printf("\r                                               "
+                           "                               ");
+                    printf("\r> %s", term_cmd_buf);
+                }
+            } else if (ch > 0x1f) {
+                term_cmd_buf[term_command++ - 1] = ch;
+                term_cmd_buf[term_command - 1] = '\0';
+                printf("\r> %s", term_cmd_buf);
+            }
+            fflush(stdout);
+        }
+    } else if (term_got_escape) {
         term_got_escape = 0;
         switch(ch) {
         case 'h':
@@ -1498,8 +1724,10 @@ void serial_received_byte(SerialState *s, int ch)
             s->lsr |= UART_LSR_BI | UART_LSR_DR;
             serial_update_irq();
             break;
-        case 'd':
-            cpu_set_log(CPU_LOG_ALL);
+        case 'c':
+            printf("> ");
+            fflush(stdout);
+            term_command = 1;
             break;
         case TERM_ESCAPE:
             goto send_char;
@@ -1521,13 +1749,16 @@ void serial_init(void)
     s->lsr = UART_LSR_TEMT | UART_LSR_THRE;
     s->iir = UART_IIR_NO_INT;
     
+#if defined(TARGET_I386) || defined (TARGET_PPC)
     register_ioport_write(0x3f8, 8, serial_ioport_write, 1);
     register_ioport_read(0x3f8, 8, serial_ioport_read, 1);
+#endif
 }
 
 /***********************************************************/
 /* ne2000 emulation */
 
+#if defined (TARGET_I386)
 #define NE2000_IOPORT   0x300
 #define NE2000_IRQ      9
 
@@ -1775,7 +2006,7 @@ void ne2000_receive(NE2000State *s, uint8_t *buf, int size)
     ne2000_update_irq(s);
 }
 
-void ne2000_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
+void ne2000_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
 {
     NE2000State *s = &ne2000_state;
     int offset, page;
@@ -1860,7 +2091,7 @@ void ne2000_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
     }
 }
 
-uint32_t ne2000_ioport_read(CPUX86State *env, uint32_t addr)
+uint32_t ne2000_ioport_read(CPUState *env, uint32_t addr)
 {
     NE2000State *s = &ne2000_state;
     int offset, page, ret;
@@ -1901,7 +2132,7 @@ uint32_t ne2000_ioport_read(CPUX86State *env, uint32_t addr)
     return ret;
 }
 
-void ne2000_asic_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
+void ne2000_asic_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
 {
     NE2000State *s = &ne2000_state;
     uint8_t *p;
@@ -1932,7 +2163,7 @@ void ne2000_asic_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
     }
 }
 
-uint32_t ne2000_asic_ioport_read(CPUX86State *env, uint32_t addr)
+uint32_t ne2000_asic_ioport_read(CPUState *env, uint32_t addr)
 {
     NE2000State *s = &ne2000_state;
     uint8_t *p;
@@ -1964,12 +2195,12 @@ uint32_t ne2000_asic_ioport_read(CPUX86State *env, uint32_t addr)
     return ret;
 }
 
-void ne2000_reset_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
+void ne2000_reset_ioport_write(CPUState *env, uint32_t addr, uint32_t val)
 {
     /* nothing to do (end of reset pulse) */
 }
 
-uint32_t ne2000_reset_ioport_read(CPUX86State *env, uint32_t addr)
+uint32_t ne2000_reset_ioport_read(CPUState *env, uint32_t addr)
 {
     ne2000_reset();
     return 0;
@@ -1988,6 +2219,25 @@ void ne2000_init(void)
     register_ioport_write(NE2000_IOPORT + 0x1f, 1, ne2000_reset_ioport_write, 1);
     register_ioport_read(NE2000_IOPORT + 0x1f, 1, ne2000_reset_ioport_read, 1);
     ne2000_reset();
+}
+#endif
+
+/***********************************************************/
+/* PC floppy disk controler emulation glue */
+#define PC_FDC_DMA  0x2
+#define PC_FDC_IRQ  0x6
+#define PC_FDC_BASE 0x3F0
+
+static void fdctrl_register (unsigned char **disknames, int ro,
+                             char boot_device)
+{
+    int i;
+
+    fdctrl_init(PC_FDC_IRQ, PC_FDC_DMA, 0, PC_FDC_BASE, boot_device);
+    for (i = 0; i < MAX_FD; i++) {
+        if (disknames[i] != NULL)
+            fdctrl_disk_change(i, disknames[i], ro);
+    }
 }
 
 /***********************************************************/
@@ -2158,18 +2408,18 @@ void kbd_put_keycode(int keycode)
     kbd_queue(s, keycode, 0);
 }
 
-uint32_t kbd_read_status(CPUX86State *env, uint32_t addr)
+uint32_t kbd_read_status(CPUState *env, uint32_t addr)
 {
     KBDState *s = &kbd_state;
     int val;
     val = s->status;
-#if defined(DEBUG_KBD) && 0
+#if defined(DEBUG_KBD)
     printf("kbd: read status=0x%02x\n", val);
 #endif
     return val;
 }
 
-void kbd_write_command(CPUX86State *env, uint32_t addr, uint32_t val)
+void kbd_write_command(CPUState *env, uint32_t addr, uint32_t val)
 {
     KBDState *s = &kbd_state;
 
@@ -2216,22 +2466,28 @@ void kbd_write_command(CPUX86State *env, uint32_t addr, uint32_t val)
         break;
     case KBD_CCMD_READ_OUTPORT:
         /* XXX: check that */
+#ifdef TARGET_I386
         val = 0x01 | (a20_enabled << 1);
+#else
+        val = 0x01;
+#endif
         if (s->status & KBD_STAT_OBF)
             val |= 0x10;
         if (s->status & KBD_STAT_MOUSE_OBF)
             val |= 0x20;
         kbd_queue(s, val, 0);
         break;
+#ifdef TARGET_I386
     case KBD_CCMD_ENABLE_A20:
         cpu_x86_set_a20(env, 1);
         break;
     case KBD_CCMD_DISABLE_A20:
         cpu_x86_set_a20(env, 0);
         break;
+#endif
     case KBD_CCMD_RESET:
         reset_requested = 1;
-        cpu_x86_interrupt(global_env, CPU_INTERRUPT_EXIT);
+        cpu_interrupt(global_env, CPU_INTERRUPT_EXIT);
         break;
     case 0xff:
         /* ignore that - I don't know what is its use */
@@ -2242,7 +2498,7 @@ void kbd_write_command(CPUX86State *env, uint32_t addr, uint32_t val)
     }
 }
 
-uint32_t kbd_read_data(CPUX86State *env, uint32_t addr)
+uint32_t kbd_read_data(CPUState *env, uint32_t addr)
 {
     KBDState *s = &kbd_state;
     KBDQueue *q;
@@ -2543,7 +2799,7 @@ static void kbd_write_mouse(KBDState *s, int val)
     }
 }
 
-void kbd_write_data(CPUX86State *env, uint32_t addr, uint32_t val)
+void kbd_write_data(CPUState *env, uint32_t addr, uint32_t val)
 {
     KBDState *s = &kbd_state;
 
@@ -2566,10 +2822,12 @@ void kbd_write_data(CPUX86State *env, uint32_t addr, uint32_t val)
         kbd_queue(s, val, 1);
         break;
     case KBD_CCMD_WRITE_OUTPORT:
+#ifdef TARGET_I386
         cpu_x86_set_a20(env, (val >> 1) & 1);
+#endif
         if (!(val & 1)) {
             reset_requested = 1;
-            cpu_x86_interrupt(global_env, CPU_INTERRUPT_EXIT);
+            cpu_interrupt(global_env, CPU_INTERRUPT_EXIT);
         }
         break;
     case KBD_CCMD_WRITE_MOUSE:
@@ -2601,15 +2859,17 @@ void kbd_reset(KBDState *s)
 void kbd_init(void)
 {
     kbd_reset(&kbd_state);
+#if defined (TARGET_I386) || defined (TARGET_PPC)
     register_ioport_read(0x60, 1, kbd_read_data, 1);
     register_ioport_write(0x60, 1, kbd_write_data, 1);
     register_ioport_read(0x64, 1, kbd_read_status, 1);
     register_ioport_write(0x64, 1, kbd_write_command, 1);
+#endif
 }
 
 /***********************************************************/
 /* Bochs BIOS debug ports */
-
+#ifdef TARGET_I386
 void bochs_bios_write(CPUX86State *env, uint32_t addr, uint32_t val)
 {
     switch(addr) {
@@ -2651,6 +2911,7 @@ void bochs_bios_init(void)
     register_ioport_write(0x500, 1, bochs_bios_write, 1);
     register_ioport_write(0x503, 1, bochs_bios_write, 1);
 }
+#endif
 
 /***********************************************************/
 /* dumb display */
@@ -2756,7 +3017,7 @@ static void host_alarm_handler(int host_signum, siginfo_t *info,
 
     if (gui_refresh_pending || timer_irq_pending) {
         /* just exit from the cpu to have a chance to handle timers */
-        cpu_x86_interrupt(global_env, CPU_INTERRUPT_EXIT);
+        cpu_interrupt(global_env, CPU_INTERRUPT_EXIT);
     }
 }
 
@@ -2786,7 +3047,10 @@ CPUState *cpu_gdbstub_get_env(void *opaque)
 
 int main_loop(void *opaque)
 {
-    struct pollfd ufds[3], *pf, *serial_ufd, *net_ufd, *gdb_ufd;
+    struct pollfd ufds[3], *pf, *serial_ufd, *gdb_ufd;
+#if defined (TARGET_I386)
+    struct pollfd *net_ufd;
+#endif
     int ret, n, timeout, serial_ok;
     uint8_t ch;
     CPUState *env = global_env;
@@ -2802,7 +3066,10 @@ int main_loop(void *opaque)
     serial_ok = 1;
     cpu_enable_ticks();
     for(;;) {
-        ret = cpu_x86_exec(env);
+#if defined (DO_TB_FLUSH)
+        tb_flush();
+#endif
+        ret = cpu_exec(env);
         if (reset_requested) {
             ret = EXCP_INTERRUPT; 
             break;
@@ -2825,6 +3092,7 @@ int main_loop(void *opaque)
             pf->events = POLLIN;
             pf++;
         }
+#if defined (TARGET_I386)
         net_ufd = NULL;
         if (net_fd > 0 && ne2000_can_receive(&ne2000_state)) {
             net_ufd = pf;
@@ -2832,6 +3100,7 @@ int main_loop(void *opaque)
             pf->events = POLLIN;
             pf++;
         }
+#endif
         gdb_ufd = NULL;
         if (gdbstub_fd > 0) {
             gdb_ufd = pf;
@@ -2851,6 +3120,7 @@ int main_loop(void *opaque)
                     serial_ok = 0;
                 }
             }
+#if defined (TARGET_I386)
             if (net_ufd && (net_ufd->revents & POLLIN)) {
                 uint8_t buf[MAX_ETH_FRAME_SIZE];
 
@@ -2863,6 +3133,7 @@ int main_loop(void *opaque)
                     ne2000_receive(&ne2000_state, buf, n);
                 }
             }
+#endif
             if (gdb_ufd && (gdb_ufd->revents & POLLIN)) {
                 uint8_t buf[1];
                 /* stop emulation if requested by gdb */
@@ -2876,6 +3147,7 @@ int main_loop(void *opaque)
 
         /* timer IRQ */
         if (timer_irq_pending) {
+#if defined (TARGET_I386)
             pic_set_irq(0, 1);
             pic_set_irq(0, 0);
             timer_irq_pending = 0;
@@ -2883,6 +3155,7 @@ int main_loop(void *opaque)
             if (cmos_data[RTC_REG_B] & 0x50) {
                 pic_set_irq(8, 1);
             }
+#endif
         }
 
         /* VGA */
@@ -2903,6 +3176,7 @@ void help(void)
            "'disk_image' is a raw hard image image for IDE hard disk 0\n"
            "\n"
            "Standard options:\n"
+           "-fda/-fdb file  use 'file' as floppy disk 0/1 image\n"
            "-hda/-hdb file  use 'file' as IDE hard disk 0/1 image\n"
            "-hdc/-hdd file  use 'file' as IDE hard disk 2/3 image\n"
            "-cdrom file     use 'file' as IDE cdrom 2 image\n"
@@ -2957,6 +3231,8 @@ struct option long_options[] = {
     { "hdd", 1, NULL, 0, },
     { "cdrom", 1, NULL, 0, },
     { "boot", 1, NULL, 0, },
+    { "fda", 1, NULL, 0, },
+    { "fdb", 1, NULL, 0, },
     { NULL, 0, NULL, 0 },
 };
 
@@ -2976,23 +3252,29 @@ int main(int argc, char **argv)
 {
     int c, ret, initrd_size, i, use_gdbstub, gdbstub_port, long_index;
     int snapshot, linux_boot, total_ram_size;
+#if defined (TARGET_I386)
     struct linux_params *params;
+#endif
     struct sigaction act;
     struct itimerval itv;
-    CPUX86State *env;
+    CPUState *env;
     const char *initrd_filename;
-    const char *hd_filename[MAX_DISKS];
+    const char *hd_filename[MAX_DISKS], *fd_filename[MAX_FD];
     const char *kernel_filename, *kernel_cmdline;
     DisplayState *ds = &display_state;
 
     /* we never want that malloc() uses mmap() */
     mallopt(M_MMAP_THRESHOLD, 4096 * 1024);
     initrd_filename = NULL;
+    for(i = 0; i < MAX_FD; i++)
+        fd_filename[i] = NULL;
     for(i = 0; i < MAX_DISKS; i++)
         hd_filename[i] = NULL;
     phys_ram_size = 32 * 1024 * 1024;
     vga_ram_size = VGA_RAM_SIZE;
+#if defined (TARGET_I386)
     pstrcpy(network_script, sizeof(network_script), DEFAULT_NETWORK_SCRIPT);
+#endif
     use_gdbstub = 0;
     gdbstub_port = DEFAULT_GDBSTUB_PORT;
     snapshot = 0;
@@ -3047,9 +3329,11 @@ int main(int argc, char **argv)
             case 7:
                 kernel_cmdline = optarg;
                 break;
+#if defined (TARGET_I386)
 	    case 8:
 		net_fd = atoi(optarg);
 		break;
+#endif
             case 9:
                 hd_filename[2] = optarg;
                 break;
@@ -3062,10 +3346,17 @@ int main(int argc, char **argv)
                 break;
             case 12:
                 boot_device = optarg[0];
-                if (boot_device != 'c' && boot_device != 'd') {
+                if (boot_device != 'a' && boot_device != 'b' &&
+                    boot_device != 'c' && boot_device != 'd') {
                     fprintf(stderr, "qemu: invalid boot device '%c'\n", boot_device);
                     exit(1);
                 }
+                break;
+            case 13:
+                fd_filename[0] = optarg;
+                break;
+            case 14:
+                fd_filename[1] = optarg;
                 break;
             }
             break;
@@ -3085,9 +3376,11 @@ int main(int argc, char **argv)
         case 'd':
             cpu_set_log(CPU_LOG_ALL);
             break;
+#if defined (TARGET_I386)
         case 'n':
             pstrcpy(network_script, sizeof(network_script), optarg);
             break;
+#endif
         case 's':
             use_gdbstub = 1;
             break;
@@ -3106,7 +3399,8 @@ int main(int argc, char **argv)
 
     linux_boot = (kernel_filename != NULL);
         
-    if (!linux_boot && hd_filename[0] == '\0' && hd_filename[2] == '\0')
+    if (!linux_boot && hd_filename[0] == '\0' && hd_filename[2] == '\0' &&
+        fd_filename[0] == '\0')
         help();
     
     /* boot to cd by default if no hard disk */
@@ -3124,8 +3418,10 @@ int main(int argc, char **argv)
 #endif
 
     /* init network tun interface */
+#if defined (TARGET_I386)
     if (net_fd < 0)
 	net_init();
+#endif
 
     /* init the memory */
     total_ram_size = phys_ram_size + vga_ram_size;
@@ -3213,6 +3509,7 @@ int main(int argc, char **argv)
         }
         
         /* init kernel params */
+#ifdef TARGET_I386
         params = (void *)(phys_ram_base + KERNEL_PARAMS_ADDR);
         memset(params, 0, sizeof(struct linux_params));
         params->mount_root_rdonly = 0;
@@ -3256,12 +3553,16 @@ int main(int argc, char **argv)
         env->eip = KERNEL_LOAD_ADDR;
         env->regs[R_ESI] = KERNEL_PARAMS_ADDR;
         env->eflags = 0x2;
-
+#elif defined (TARGET_PPC)
+        cpu_x86_init_mmu(env);
+        PPC_init_hw(env, phys_ram_size, KERNEL_LOAD_ADDR, ret,
+                    KERNEL_STACK_ADDR, boot_device);
+#endif
     } else {
         char buf[1024];
 
         /* RAW PC boot */
-
+#if defined(TARGET_I386)
         /* BIOS load */
         snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
         ret = load_image(buf, phys_ram_base + 0x000f0000);
@@ -3302,6 +3603,19 @@ int main(int argc, char **argv)
         env->eflags = 0x2;
 
         bochs_bios_init();
+#elif defined(TARGET_PPC)
+        cpu_x86_init_mmu(env);
+        /* allocate ROM */
+        //        snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
+        snprintf(buf, sizeof(buf), "%s", BIOS_FILENAME);
+        printf("load BIOS at %p\n", phys_ram_base + 0x000f0000);
+        ret = load_image(buf, phys_ram_base + 0x000f0000);
+        if (ret != 0x10000) {
+            fprintf(stderr, "qemu: could not load PPC bios '%s' (%d)\n%m\n",
+                    buf, ret);
+            exit(1);
+        }
+#endif
     }
 
     /* terminal init */
@@ -3317,19 +3631,28 @@ int main(int argc, char **argv)
     /* init basic PC hardware */
     register_ioport_write(0x80, 1, ioport80_write, 1);
 
-    vga_init(ds, phys_ram_base + phys_ram_size, phys_ram_size, 
+    vga_initialize(ds, phys_ram_base + phys_ram_size, phys_ram_size, 
              vga_ram_size);
+#if defined (TARGET_I386)
     cmos_init();
+#endif
     pic_init();
     pit_init();
     serial_init();
+#if defined (TARGET_I386)
     ne2000_init();
+#endif
     ide_init();
     kbd_init();
     AUD_init();
     DMA_init();
+#if defined (TARGET_I386)
     SB16_init();
-    
+#endif
+#if defined (TARGET_PPC)
+    PPC_end_init();
+#endif
+    fdctrl_register((unsigned char **)fd_filename, snapshot, boot_device);
     /* setup cpu signal handlers for MMU / self modifying code handling */
     sigfillset(&act.sa_mask);
     act.sa_flags = SA_SIGINFO;
