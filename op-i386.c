@@ -19,8 +19,6 @@
  */
 #include "exec-i386.h"
 
-/* NOTE: data are not static to force relocation generation by GCC */
-
 uint8_t parity_table[256] = {
     CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
     0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
@@ -72,44 +70,6 @@ const uint8_t rclb_table[32] = {
     6, 7, 8, 0, 1, 2, 3, 4,
 };
 
-#ifdef USE_X86LDOUBLE
-/* an array of Intel 80-bit FP constants, to be loaded via integer ops */
-typedef unsigned short f15ld[5];
-const f15ld f15rk[] =
-{
-/*0*/	{0x0000,0x0000,0x0000,0x0000,0x0000},
-/*1*/	{0x0000,0x0000,0x0000,0x8000,0x3fff},
-/*pi*/	{0xc235,0x2168,0xdaa2,0xc90f,0x4000},
-/*lg2*/	{0xf799,0xfbcf,0x9a84,0x9a20,0x3ffd},
-/*ln2*/	{0x79ac,0xd1cf,0x17f7,0xb172,0x3ffe},
-/*l2e*/	{0xf0bc,0x5c17,0x3b29,0xb8aa,0x3fff},
-/*l2t*/	{0x8afe,0xcd1b,0x784b,0xd49a,0x4000}
-};
-#else
-/* the same, 64-bit version */
-typedef unsigned short f15ld[4];
-const f15ld f15rk[] =
-{
-#ifndef WORDS_BIGENDIAN
-/*0*/	{0x0000,0x0000,0x0000,0x0000},
-/*1*/	{0x0000,0x0000,0x0000,0x3ff0},
-/*pi*/	{0x2d18,0x5444,0x21fb,0x4009},
-/*lg2*/	{0x79ff,0x509f,0x4413,0x3fd3},
-/*ln2*/	{0x39ef,0xfefa,0x2e42,0x3fe6},
-/*l2e*/	{0x82fe,0x652b,0x1547,0x3ff7},
-/*l2t*/	{0xa371,0x0979,0x934f,0x400a}
-#else
-/*0*/   {0x0000,0x0000,0x0000,0x0000},
-/*1*/   {0x3ff0,0x0000,0x0000,0x0000},
-/*pi*/  {0x4009,0x21fb,0x5444,0x2d18},
-/*lg2*/	{0x3fd3,0x4413,0x509f,0x79ff},
-/*ln2*/	{0x3fe6,0x2e42,0xfefa,0x39ef},
-/*l2e*/	{0x3ff7,0x1547,0x652b,0x82fe},
-/*l2t*/	{0x400a,0x934f,0x0979,0xa371}
-#endif
-};
-#endif
-    
 /* n must be a constant to be efficient */
 static inline int lshift(int x, int n)
 {
@@ -358,6 +318,7 @@ void OPPROTO op_imull_T0_T1(void)
 
 /* division, flags are undefined */
 /* XXX: add exceptions for overflow */
+
 void OPPROTO op_divb_AL_T0(void)
 {
     unsigned int num, den, q, r;
@@ -420,62 +381,14 @@ void OPPROTO op_idivw_AX_T0(void)
     EDX = (EDX & 0xffff0000) | r;
 }
 
-#ifdef BUGGY_GCC_DIV64
-/* gcc 2.95.4 on PowerPC does not seem to like using __udivdi3, so we
-   call it from another function */
-uint32_t div64(uint32_t *q_ptr, uint64_t num, uint32_t den)
-{
-    *q_ptr = num / den;
-    return num % den;
-}
-
-int32_t idiv64(int32_t *q_ptr, int64_t num, int32_t den)
-{
-    *q_ptr = num / den;
-    return num % den;
-}
-#endif
-
 void OPPROTO op_divl_EAX_T0(void)
 {
-    unsigned int den, q, r;
-    uint64_t num;
-    
-    num = EAX | ((uint64_t)EDX << 32);
-    den = T0;
-    if (den == 0) {
-        EIP = PARAM1;
-        raise_exception(EXCP00_DIVZ);
-    }
-#ifdef BUGGY_GCC_DIV64
-    r = div64(&q, num, den);
-#else
-    q = (num / den);
-    r = (num % den);
-#endif
-    EAX = q;
-    EDX = r;
+    helper_divl_EAX_T0(PARAM1);
 }
 
 void OPPROTO op_idivl_EAX_T0(void)
 {
-    int den, q, r;
-    int64_t num;
-    
-    num = EAX | ((uint64_t)EDX << 32);
-    den = T0;
-    if (den == 0) {
-        EIP = PARAM1;
-        raise_exception(EXCP00_DIVZ);
-    }
-#ifdef BUGGY_GCC_DIV64
-    r = idiv64(&q, num, den);
-#else
-    q = (num / den);
-    r = (num % den);
-#endif
-    EAX = q;
-    EDX = r;
+    helper_idivl_EAX_T0(PARAM1);
 }
 
 /* constant load & misc op */
@@ -708,21 +621,7 @@ void OPPROTO op_boundl(void)
 
 void OPPROTO op_cmpxchg8b(void)
 {
-    uint64_t d;
-    int eflags;
-
-    eflags = cc_table[CC_OP].compute_all();
-    d = ldq((uint8_t *)A0);
-    if (d == (((uint64_t)EDX << 32) | EAX)) {
-        stq((uint8_t *)A0, ((uint64_t)ECX << 32) | EBX);
-        eflags |= CC_Z;
-    } else {
-        EDX = d >> 32;
-        EAX = d;
-        eflags &= ~CC_Z;
-    }
-    CC_SRC = eflags;
-    FORCE_RET();
+    helper_cmpxchg8b();
 }
 
 #if defined(__powerpc__)
@@ -937,22 +836,9 @@ void op_addw_ESP_im(void)
     ESP = (ESP & ~0xffff) | ((ESP + PARAM1) & 0xffff);
 }
 
-/* rdtsc */
-#ifndef __i386__
-uint64_t emu_time;
-#endif
-
 void OPPROTO op_rdtsc(void)
 {
-    uint64_t val;
-#ifdef __i386__
-    asm("rdtsc" : "=A" (val));
-#else
-    /* better than nothing: the time increases */
-    val = emu_time++;
-#endif
-    EAX = val;
-    EDX = val >> 32;
+    helper_rdtsc();
 }
 
 void OPPROTO op_cpuid(void)
@@ -1640,7 +1526,7 @@ void OPPROTO op_fildll_ST0_A0(void)
 void OPPROTO op_fsts_ST0_A0(void)
 {
 #ifdef USE_FP_CONVERT
-    FP_CONVERT.d = ST0;
+    FP_CONVERT.f = (float)ST0;
     stfl((void *)A0, FP_CONVERT.f);
 #else
     stfl((void *)A0, (float)ST0);
@@ -1904,42 +1790,42 @@ void OPPROTO op_fxam_ST0(void)
 
 void OPPROTO op_fld1_ST0(void)
 {
-    ST0 = *(CPU86_LDouble *)&f15rk[1];
+    ST0 = f15rk[1];
 }
 
 void OPPROTO op_fldl2t_ST0(void)
 {
-    ST0 = *(CPU86_LDouble *)&f15rk[6];
+    ST0 = f15rk[6];
 }
 
 void OPPROTO op_fldl2e_ST0(void)
 {
-    ST0 = *(CPU86_LDouble *)&f15rk[5];
+    ST0 = f15rk[5];
 }
 
 void OPPROTO op_fldpi_ST0(void)
 {
-    ST0 = *(CPU86_LDouble *)&f15rk[2];
+    ST0 = f15rk[2];
 }
 
 void OPPROTO op_fldlg2_ST0(void)
 {
-    ST0 = *(CPU86_LDouble *)&f15rk[3];
+    ST0 = f15rk[3];
 }
 
 void OPPROTO op_fldln2_ST0(void)
 {
-    ST0 = *(CPU86_LDouble *)&f15rk[4];
+    ST0 = f15rk[4];
 }
 
 void OPPROTO op_fldz_ST0(void)
 {
-    ST0 = *(CPU86_LDouble *)&f15rk[0];
+    ST0 = f15rk[0];
 }
 
 void OPPROTO op_fldz_FT0(void)
 {
-    ST0 = *(CPU86_LDouble *)&f15rk[0];
+    ST0 = f15rk[0];
 }
 
 /* associated heplers to reduce generated code length and to simplify
