@@ -238,104 +238,104 @@ void OPPROTO op_logic_T1_cc(void)
 void OPPROTO op_test_eq(void)
 {
     if (env->NZF == 0)
-        JUMP_TB(PARAM1, 0, PARAM2);
+        JUMP_TB(op_test_eq, PARAM1, 0, PARAM2);
     FORCE_RET();
 }
 
 void OPPROTO op_test_ne(void)
 {
     if (env->NZF != 0)
-        JUMP_TB(PARAM1, 0, PARAM2);
+        JUMP_TB(op_test_ne, PARAM1, 0, PARAM2);
     FORCE_RET();
 }
 
 void OPPROTO op_test_cs(void)
 {
     if (env->CF != 0)
-        JUMP_TB(PARAM1, 0, PARAM2);
+        JUMP_TB(op_test_cs, PARAM1, 0, PARAM2);
     FORCE_RET();
 }
 
 void OPPROTO op_test_cc(void)
 {
     if (env->CF == 0)
-        JUMP_TB(PARAM1, 0, PARAM2);
+        JUMP_TB(op_test_cc, PARAM1, 0, PARAM2);
     FORCE_RET();
 }
 
 void OPPROTO op_test_mi(void)
 {
     if ((env->NZF & 0x80000000) != 0)
-        JUMP_TB(PARAM1, 0, PARAM2);
+        JUMP_TB(op_test_mi, PARAM1, 0, PARAM2);
     FORCE_RET();
 }
 
 void OPPROTO op_test_pl(void)
 {
     if ((env->NZF & 0x80000000) == 0)
-        JUMP_TB(PARAM1, 0, PARAM2);
+        JUMP_TB(op_test_pl, PARAM1, 0, PARAM2);
     FORCE_RET();
 }
 
 void OPPROTO op_test_vs(void)
 {
     if ((env->VF & 0x80000000) != 0)
-        JUMP_TB(PARAM1, 0, PARAM2);
+        JUMP_TB(op_test_vs, PARAM1, 0, PARAM2);
     FORCE_RET();
 }
 
 void OPPROTO op_test_vc(void)
 {
     if ((env->VF & 0x80000000) == 0)
-        JUMP_TB(PARAM1, 0, PARAM2);
+        JUMP_TB(op_test_vc, PARAM1, 0, PARAM2);
     FORCE_RET();
 }
 
 void OPPROTO op_test_hi(void)
 {
     if (env->CF != 0 && env->NZF != 0)
-        JUMP_TB(PARAM1, 0, PARAM2);
+        JUMP_TB(op_test_hi, PARAM1, 0, PARAM2);
     FORCE_RET();
 }
 
 void OPPROTO op_test_ls(void)
 {
     if (env->CF == 0 || env->NZF == 0)
-        JUMP_TB(PARAM1, 0, PARAM2);
+        JUMP_TB(op_test_ls, PARAM1, 0, PARAM2);
     FORCE_RET();
 }
 
 void OPPROTO op_test_ge(void)
 {
     if (((env->VF ^ env->NZF) & 0x80000000) == 0)
-        JUMP_TB(PARAM1, 0, PARAM2);
+        JUMP_TB(op_test_ge, PARAM1, 0, PARAM2);
     FORCE_RET();
 }
 
 void OPPROTO op_test_lt(void)
 {
     if (((env->VF ^ env->NZF) & 0x80000000) != 0)
-        JUMP_TB(PARAM1, 0, PARAM2);
+        JUMP_TB(op_test_lt, PARAM1, 0, PARAM2);
     FORCE_RET();
 }
 
 void OPPROTO op_test_gt(void)
 {
     if (env->NZF != 0 && ((env->VF ^ env->NZF) & 0x80000000) == 0)
-        JUMP_TB(PARAM1, 0, PARAM2);
+        JUMP_TB(op_test_gt, PARAM1, 0, PARAM2);
     FORCE_RET();
 }
 
 void OPPROTO op_test_le(void)
 {
     if (env->NZF == 0 || ((env->VF ^ env->NZF) & 0x80000000) != 0)
-        JUMP_TB(PARAM1, 0, PARAM2);
+        JUMP_TB(op_test_le, PARAM1, 0, PARAM2);
     FORCE_RET();
 }
 
 void OPPROTO op_jmp(void)
 {
-    JUMP_TB(PARAM1, 1, PARAM2);
+    JUMP_TB(op_jmp, PARAM1, 1, PARAM2);
 }
 
 void OPPROTO op_exit_tb(void)

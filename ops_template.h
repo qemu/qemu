@@ -238,18 +238,18 @@ void OPPROTO glue(op_jb_sub, SUFFIX)(void)
     src2 = CC_SRC;
 
     if ((DATA_TYPE)src1 < (DATA_TYPE)src2)
-        JUMP_TB(PARAM1, 0, PARAM2);
+        JUMP_TB(glue(op_jb_sub, SUFFIX), PARAM1, 0, PARAM2);
     else
-        JUMP_TB(PARAM1, 1, PARAM3);
+        JUMP_TB(glue(op_jb_sub, SUFFIX), PARAM1, 1, PARAM3);
     FORCE_RET();
 }
 
 void OPPROTO glue(op_jz_sub, SUFFIX)(void)
 {
     if ((DATA_TYPE)CC_DST == 0)
-        JUMP_TB(PARAM1, 0, PARAM2);
+        JUMP_TB(glue(op_jz_sub, SUFFIX), PARAM1, 0, PARAM2);
     else
-        JUMP_TB(PARAM1, 1, PARAM3);
+        JUMP_TB(glue(op_jz_sub, SUFFIX), PARAM1, 1, PARAM3);
     FORCE_RET();
 }
 
@@ -260,18 +260,18 @@ void OPPROTO glue(op_jbe_sub, SUFFIX)(void)
     src2 = CC_SRC;
 
     if ((DATA_TYPE)src1 <= (DATA_TYPE)src2)
-        JUMP_TB(PARAM1, 0, PARAM2);
+        JUMP_TB(glue(op_jbe_sub, SUFFIX), PARAM1, 0, PARAM2);
     else
-        JUMP_TB(PARAM1, 1, PARAM3);
+        JUMP_TB(glue(op_jbe_sub, SUFFIX), PARAM1, 1, PARAM3);
     FORCE_RET();
 }
 
 void OPPROTO glue(op_js_sub, SUFFIX)(void)
 {
     if (CC_DST & SIGN_MASK)
-        JUMP_TB(PARAM1, 0, PARAM2);
+        JUMP_TB(glue(op_js_sub, SUFFIX), PARAM1, 0, PARAM2);
     else
-        JUMP_TB(PARAM1, 1, PARAM3);
+        JUMP_TB(glue(op_js_sub, SUFFIX), PARAM1, 1, PARAM3);
     FORCE_RET();
 }
 
@@ -282,9 +282,9 @@ void OPPROTO glue(op_jl_sub, SUFFIX)(void)
     src2 = CC_SRC;
 
     if ((DATA_STYPE)src1 < (DATA_STYPE)src2)
-        JUMP_TB(PARAM1, 0, PARAM2);
+        JUMP_TB(glue(op_jl_sub, SUFFIX), PARAM1, 0, PARAM2);
     else
-        JUMP_TB(PARAM1, 1, PARAM3);
+        JUMP_TB(glue(op_jl_sub, SUFFIX), PARAM1, 1, PARAM3);
     FORCE_RET();
 }
 
@@ -295,9 +295,9 @@ void OPPROTO glue(op_jle_sub, SUFFIX)(void)
     src2 = CC_SRC;
 
     if ((DATA_STYPE)src1 <= (DATA_STYPE)src2)
-        JUMP_TB(PARAM1, 0, PARAM2);
+        JUMP_TB(glue(op_jle_sub, SUFFIX), PARAM1, 0, PARAM2);
     else
-        JUMP_TB(PARAM1, 1, PARAM3);
+        JUMP_TB(glue(op_jle_sub, SUFFIX), PARAM1, 1, PARAM3);
     FORCE_RET();
 }
 
@@ -555,14 +555,14 @@ void OPPROTO glue(op_movl_T0_Dshift, SUFFIX)(void)
 void OPPROTO glue(op_string_jz_sub, SUFFIX)(void)
 {
     if ((DATA_TYPE)CC_DST == 0)
-        JUMP_TB(PARAM1, 1, PARAM2);
+        JUMP_TB(glue(op_string_jz_sub, SUFFIX), PARAM1, 1, PARAM2);
     FORCE_RET();
 }
 
 void OPPROTO glue(op_string_jnz_sub, SUFFIX)(void)
 {
     if ((DATA_TYPE)CC_DST != 0)
-        JUMP_TB(PARAM1, 1, PARAM2);
+        JUMP_TB(glue(op_string_jnz_sub, SUFFIX), PARAM1, 1, PARAM2);
     FORCE_RET();
 }
 
@@ -570,7 +570,7 @@ void OPPROTO glue(op_string_jnz_sub, SUFFIX)(void)
 void OPPROTO glue(op_jz_ecx, SUFFIX)(void)
 {
     if ((DATA_TYPE)ECX == 0)
-        JUMP_TB(PARAM1, 1, PARAM2);
+        JUMP_TB(glue(op_jz_ecx, SUFFIX), PARAM1, 1, PARAM2);
     FORCE_RET();
 }
 #endif

@@ -508,7 +508,7 @@ void OPPROTO op_cmpxchg8b(void)
 
 void OPPROTO op_jmp_tb_next(void)
 {
-    JUMP_TB(PARAM1, 0, PARAM2);
+    JUMP_TB(op_jmp_tb_next, PARAM1, 0, PARAM2);
 }
 
 void OPPROTO op_movl_T0_0(void)
@@ -1016,9 +1016,9 @@ void OPPROTO op_clts(void)
 void OPPROTO op_jcc(void)
 {
     if (T0)
-        JUMP_TB(PARAM1, 0, PARAM2);
+        JUMP_TB(op_jcc, PARAM1, 0, PARAM2);
     else
-        JUMP_TB(PARAM1, 1, PARAM3);
+        JUMP_TB(op_jcc, PARAM1, 1, PARAM3);
     FORCE_RET();
 }
 
