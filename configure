@@ -431,11 +431,11 @@ fi
 fi
 
 if test $sdl_too_old = "yes"; then
-echo "-> Your SDL version is too old - please upgrade to have FFplay/SDL support"
+echo "-> Your SDL version is too old - please upgrade to have SDL support"
 fi
-if test "$sdl_static" = "no"; then
-  echo "WARNING: cannot compile statically with SDL - qemu-fast won't have a graphical output"
-fi
+#if test "$sdl_static" = "no"; then
+#  echo "WARNING: cannot compile statically with SDL - qemu-fast won't have a graphical output"
+#fi
 
 config_mak="config-host.mak"
 config_h="config-host.h"
