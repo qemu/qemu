@@ -1454,7 +1454,11 @@ void load_seg(int seg_reg, int selector)
     selector &= 0xffff;
     if ((selector & 0xfffc) == 0) {
         /* null selector case */
-        if (seg_reg == R_SS)
+        if (seg_reg == R_SS
+#ifdef TARGET_X86_64
+            && !(env->hflags & HF_CS64_MASK)
+#endif
+            )
             raise_exception_err(EXCP0D_GPF, 0);
         cpu_x86_load_seg_cache(env, seg_reg, selector, 0, 0, 0);
     } else {
@@ -2146,6 +2150,7 @@ void helper_sysexit(void)
 
 void helper_movl_crN_T0(int reg)
 {
+#if !defined(CONFIG_USER_ONLY) 
     switch(reg) {
     case 0:
         cpu_x86_update_cr0(env, T0);
@@ -2156,10 +2161,14 @@ void helper_movl_crN_T0(int reg)
     case 4:
         cpu_x86_update_cr4(env, T0);
         break;
+    case 8:
+        cpu_set_apic_tpr(env, T0);
+        break;
     default:
         env->cr[reg] = T0;
         break;
     }
+#endif
 }
 
 /* XXX: do more */
@@ -3227,6 +3236,25 @@ float approx_rcp(float a)
     return 1.0 / a;
 }
 
+/* XXX: find a better solution */
+double helper_sqrt(double a)
+{
+    return sqrt(a);
+}
+
+/* XXX: move that to another file */
+#if defined(__powerpc__)
+/* better to call an helper on ppc */
+float int32_to_float32(int32_t a)
+{
+    return (float)a;
+}
+
+double int32_to_float64(int32_t a)
+{
+    return (double)a;
+}
+#endif
 
 #if !defined(CONFIG_USER_ONLY) 
 
