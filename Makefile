@@ -17,6 +17,9 @@ all: dyngen$(EXESUF) $(TOOLS) $(DOCS)
 	for d in $(TARGET_DIRS); do \
 	$(MAKE) -C $$d $@ || exit 1 ; \
         done
+ifdef CONFIG_KQEMU
+	$(MAKE) -C kqemu
+endif
 
 qemu-img$(EXESUF): qemu-img.c block.c block-cow.c block-qcow.c aes.c block-vmdk.c block-cloop.c block-dmg.c
 	$(CC) -DQEMU_TOOL $(CFLAGS) $(LDFLAGS) $(DEFINES) -o $@ $^ -lz $(LIBS)
@@ -32,6 +35,9 @@ clean:
 	for d in $(TARGET_DIRS); do \
 	$(MAKE) -C $$d $@ || exit 1 ; \
         done
+ifdef CONFIG_KQEMU
+	$(MAKE) -C kqemu clean
+endif
 
 distclean: clean
 	rm -f config-host.mak config-host.h
@@ -63,6 +69,9 @@ endif
 	for d in $(TARGET_DIRS); do \
 	$(MAKE) -C $$d $@ || exit 1 ; \
         done
+ifdef CONFIG_KQEMU
+	cd kqemu ; ./install.sh
+endif
 
 # various test targets
 test speed test2: all

@@ -237,8 +237,8 @@ SRCS:= $(OBJS:.o=.c)
 OBJS+= libqemu.a
 
 # cpu emulator library
-LIBOBJS=exec.o translate-all.o cpu-exec.o\
-        translate.o op.o
+LIBOBJS=exec.o kqemu.o translate-all.o cpu-exec.o\
+        translate.o op.o 
 
 ifeq ($(TARGET_ARCH), i386)
 LIBOBJS+=helper.o helper2.o
@@ -362,6 +362,10 @@ ifndef CONFIG_DARWIN
 ifndef CONFIG_WIN32
 VL_LIBS=-lutil
 endif
+endif
+ifdef TARGET_GPROF
+vl.o: CFLAGS+=-p
+VL_LDFLAGS+=-p
 endif
 
 $(QEMU_SYSTEM): $(VL_OBJS) libqemu.a
