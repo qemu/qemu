@@ -1729,11 +1729,16 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         break;
     case TARGET_NR_utime:
         {
-            struct utimbuf tbuf;
+            struct utimbuf tbuf, *tbuf1;
             struct target_utimbuf *target_tbuf = (void *)arg2;
-            tbuf.actime = tswapl(target_tbuf->actime);
-            tbuf.modtime = tswapl(target_tbuf->modtime);
-            ret = get_errno(utime((const char *)arg1, &tbuf));
+            if (target_tbuf) {
+                get_user(tbuf.actime, &target_tbuf->actime);
+                get_user(tbuf.modtime, &target_tbuf->modtime);
+                tbuf1 = &tbuf;
+            } else {
+                tbuf1 = NULL;
+            }
+            ret = get_errno(utime((const char *)arg1, tbuf1));
         }
         break;
 #ifdef TARGET_NR_stty
