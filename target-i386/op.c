@@ -938,7 +938,7 @@ void OPPROTO op_sysexit(void)
 #ifdef TARGET_X86_64
 void OPPROTO op_syscall(void)
 {
-    helper_syscall();
+    helper_syscall(PARAM1);
 }
 
 void OPPROTO op_sysret(void)

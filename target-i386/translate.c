@@ -4626,7 +4626,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             s->cc_op = CC_OP_DYNAMIC;
         }
         gen_jmp_im(pc_start - s->cs_base);
-        gen_op_syscall();
+        gen_op_syscall(s->pc - pc_start);
         gen_eob(s);
         break;
     case 0x107: /* sysret */

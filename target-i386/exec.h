@@ -199,7 +199,7 @@ void helper_cpuid(void);
 void helper_enter_level(int level, int data32);
 void helper_sysenter(void);
 void helper_sysexit(void);
-void helper_syscall(void);
+void helper_syscall(int next_eip_addend);
 void helper_sysret(int dflag);
 void helper_rdtsc(void);
 void helper_rdmsr(void);

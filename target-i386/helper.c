@@ -934,7 +934,7 @@ static void do_interrupt64(int intno, int is_int, int error_code,
     env->eflags &= ~(TF_MASK | VM_MASK | RF_MASK | NT_MASK);
 }
 
-void helper_syscall(void)
+void helper_syscall(int next_eip_addend)
 {
     int selector;
 
@@ -943,7 +943,7 @@ void helper_syscall(void)
     }
     selector = (env->star >> 32) & 0xffff;
     if (env->hflags & HF_LMA_MASK) {
-        ECX = env->eip;
+        ECX = env->eip + next_eip_addend;
         env->regs[11] = compute_eflags();
 
         cpu_x86_set_cpl(env, 0);
@@ -963,7 +963,7 @@ void helper_syscall(void)
         else
             env->eip = env->cstar;
     } else {
-        ECX = (uint32_t)env->eip;
+        ECX = (uint32_t)(env->eip + next_eip_addend);
         
         cpu_x86_set_cpl(env, 0);
         cpu_x86_load_seg_cache(env, R_CS, selector & 0xfffc, 
@@ -1119,8 +1119,8 @@ void do_interrupt(int intno, int is_int, int error_code,
                 fprintf(logfile, " EAX=" TARGET_FMT_lx, EAX);
             }
             fprintf(logfile, "\n");
-            cpu_dump_state(env, logfile, fprintf, X86_DUMP_CCOP);
 #if 0
+            cpu_dump_state(env, logfile, fprintf, X86_DUMP_CCOP);
             {
                 int i;
                 uint8_t *ptr;
