@@ -97,7 +97,7 @@ static void slavio_serial_reset(void *opaque)
     slavio_serial_reset_chn(&s->chn[1]);
 }
 
-static void slavio_serial_mem_writeb(void *opaque, uint32_t addr, uint32_t val)
+static void slavio_serial_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     SerialState *ser = opaque;
     ChannelState *s;
@@ -170,7 +170,7 @@ static void slavio_serial_mem_writeb(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
-static uint32_t slavio_serial_mem_readb(void *opaque, uint32_t addr)
+static uint32_t slavio_serial_mem_readb(void *opaque, target_phys_addr_t addr)
 {
     SerialState *ser = opaque;
     ChannelState *s;
