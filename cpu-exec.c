@@ -17,18 +17,33 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+#include "config.h"
+#ifdef TARGET_I386
 #include "exec-i386.h"
+#endif
+#ifdef TARGET_ARM
+#include "exec-arm.h"
+#endif
+
 #include "disas.h"
 
 //#define DEBUG_EXEC
 //#define DEBUG_SIGNAL
 
+#if defined(TARGET_ARM)
+/* XXX: unify with i386 target */
+void cpu_loop_exit(void)
+{
+    longjmp(env->jmp_env, 1);
+}
+#endif
+
 /* main execution loop */
 
-int cpu_x86_exec(CPUX86State *env1)
+int cpu_exec(CPUState *env1)
 {
-    int saved_T0, saved_T1, saved_A0;
-    CPUX86State *saved_env;
+    int saved_T0, saved_T1, saved_T2;
+    CPUState *saved_env;
 #ifdef reg_EAX
     int saved_EAX;
 #endif
@@ -65,9 +80,15 @@ int cpu_x86_exec(CPUX86State *env1)
     /* first we save global registers */
     saved_T0 = T0;
     saved_T1 = T1;
-    saved_A0 = A0;
+    saved_T2 = T2;
     saved_env = env;
     env = env1;
+#ifdef __sparc__
+    /* we also save i7 because longjmp may not restore it */
+    asm volatile ("mov %%i7, %0" : "=r" (saved_i7));
+#endif
+
+#if defined(TARGET_I386)
 #ifdef reg_EAX
     saved_EAX = EAX;
     EAX = env->regs[R_EAX];
@@ -100,16 +121,24 @@ int cpu_x86_exec(CPUX86State *env1)
     saved_EDI = EDI;
     EDI = env->regs[R_EDI];
 #endif
-#ifdef __sparc__
-    /* we also save i7 because longjmp may not restore it */
-    asm volatile ("mov %%i7, %0" : "=r" (saved_i7));
-#endif
     
     /* put eflags in CPU temporary format */
     CC_SRC = env->eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
     DF = 1 - (2 * ((env->eflags >> 10) & 1));
     CC_OP = CC_OP_EFLAGS;
     env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
+#elif defined(TARGET_ARM)
+    {
+        unsigned int psr;
+        psr = env->cpsr;
+        env->CF = (psr >> 29) & 1;
+        env->NZF = (psr & 0xc0000000) ^ 0x40000000;
+        env->VF = (psr << 3) & 0x80000000;
+        env->cpsr = psr & ~0xf0000000;
+    }
+#else
+#error unsupported target CPU
+#endif
     env->interrupt_request = 0;
 
     /* prepare setjmp context for exception handling */
@@ -126,7 +155,7 @@ int cpu_x86_exec(CPUX86State *env1)
             }
 #ifdef DEBUG_EXEC
             if (loglevel) {
-                /* XXX: save all volatile state in cpu state */
+#if defined(TARGET_I386)
                 /* restore flags in standard format */
                 env->regs[R_EAX] = EAX;
                 env->regs[R_EBX] = EBX;
@@ -139,10 +168,16 @@ int cpu_x86_exec(CPUX86State *env1)
                 env->eflags = env->eflags | cc_table[CC_OP].compute_all() | (DF & DF_MASK);
                 cpu_x86_dump_state(env, logfile, 0);
                 env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
+#elif defined(TARGET_ARM)
+                cpu_arm_dump_state(env, logfile, 0);
+#else
+#error unsupported target CPU 
+#endif
             }
 #endif
             /* we compute the CPU state. We assume it will not
                change during the whole generated block. */
+#if defined(TARGET_I386)
             flags = env->seg_cache[R_CS].seg_32bit << GEN_FLAG_CODE32_SHIFT;
             flags |= env->seg_cache[R_SS].seg_32bit << GEN_FLAG_SS32_SHIFT;
             flags |= (((unsigned long)env->seg_cache[R_DS].base | 
@@ -159,6 +194,13 @@ int cpu_x86_exec(CPUX86State *env1)
             flags |= (env->eflags & (IOPL_MASK | TF_MASK));
             cs_base = env->seg_cache[R_CS].base;
             pc = cs_base + env->eip;
+#elif defined(TARGET_ARM)
+            flags = 0;
+            cs_base = 0;
+            pc = (uint8_t *)env->regs[15];
+#else
+#error unsupported CPU
+#endif
             tb = tb_find(&ptb, (unsigned long)pc, (unsigned long)cs_base, 
                          flags);
             if (!tb) {
@@ -178,7 +220,9 @@ int cpu_x86_exec(CPUX86State *env1)
                 tb->tc_ptr = tc_ptr;
                 tb->cs_base = (unsigned long)cs_base;
                 tb->flags = flags;
-                ret = cpu_x86_gen_code(tb, CODE_GEN_MAX_SIZE, &code_gen_size);
+                ret = cpu_gen_code(tb, CODE_GEN_MAX_SIZE, &code_gen_size);
+#if defined(TARGET_I386)
+                /* XXX: suppress that, this is incorrect */
                 /* if invalid instruction, signal it */
                 if (ret != 0) {
                     /* NOTE: the tb is allocated but not linked, so we
@@ -186,6 +230,7 @@ int cpu_x86_exec(CPUX86State *env1)
                     spin_unlock(&tb_lock);
                     raise_exception(EXCP06_ILLOP);
                 }
+#endif
                 *ptb = tb;
                 tb->hash_next = NULL;
                 tb_link(tb);
@@ -202,8 +247,12 @@ int cpu_x86_exec(CPUX86State *env1)
 #ifdef __sparc__
 	    T0 = tmp_T0;
 #endif	    
-            /* see if we can patch the calling TB */
-            if (T0 != 0 && !(env->eflags & TF_MASK)) {
+            /* see if we can patch the calling TB. XXX: remove TF test */
+            if (T0 != 0 
+#if defined(TARGET_I386)
+                && !(env->eflags & TF_MASK)
+#endif
+                ) {
                 spin_lock(&tb_lock);
                 tb_add_jump((TranslationBlock *)(T0 & ~3), T0 & 3, tb);
                 spin_unlock(&tb_lock);
@@ -232,6 +281,7 @@ int cpu_x86_exec(CPUX86State *env1)
     }
     ret = env->exception_index;
 
+#if defined(TARGET_I386)
     /* restore flags in standard format */
     env->eflags = env->eflags | cc_table[CC_OP].compute_all() | (DF & DF_MASK);
 
@@ -260,21 +310,33 @@ int cpu_x86_exec(CPUX86State *env1)
 #ifdef reg_EDI
     EDI = saved_EDI;
 #endif
+#elif defined(TARGET_ARM)
+    {
+        int ZF;
+        ZF = (env->NZF == 0);
+        env->cpsr = env->cpsr | (env->NZF & 0x80000000) | (ZF << 30) | 
+            (env->CF << 29) | ((env->VF & 0x80000000) >> 3);
+    }
+#else
+#error unsupported target CPU
+#endif
 #ifdef __sparc__
     asm volatile ("mov %0, %%i7" : : "r" (saved_i7));
 #endif
     T0 = saved_T0;
     T1 = saved_T1;
-    A0 = saved_A0;
+    T2 = saved_T2;
     env = saved_env;
     return ret;
 }
 
-void cpu_x86_interrupt(CPUX86State *s)
+void cpu_interrupt(CPUState *s)
 {
     s->interrupt_request = 1;
 }
 
+
+#if defined(TARGET_I386)
 
 void cpu_x86_load_seg(CPUX86State *s, int seg_reg, int selector)
 {
@@ -322,6 +384,8 @@ void cpu_x86_frstor(CPUX86State *s, uint8_t *ptr, int data32)
     env = saved_env;
 }
 
+#endif /* TARGET_I386 */
+
 #undef EAX
 #undef ECX
 #undef EDX
@@ -357,15 +421,22 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
     if (tb) {
         /* the PC is inside the translated code. It means that we have
            a virtual CPU fault */
-        ret = cpu_x86_search_pc(tb, &found_pc, pc);
+        ret = cpu_search_pc(tb, &found_pc, pc);
         if (ret < 0)
             return 0;
+#if defined(TARGET_I386)
         env->eip = found_pc - tb->cs_base;
         env->cr2 = address;
         /* we restore the process signal mask as the sigreturn should
            do it (XXX: use sigsetjmp) */
         sigprocmask(SIG_SETMASK, old_set, NULL);
         raise_exception_err(EXCP0E_PAGE, 4 | (is_write << 1));
+#elif defined(TARGET_ARM)
+        env->regs[15] = found_pc;
+        /* XXX: do more */
+#else
+#error unsupported target CPU
+#endif
         /* never comes here */
         return 1;
     } else {
@@ -375,8 +446,8 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
 
 #if defined(__i386__)
 
-int cpu_x86_signal_handler(int host_signum, struct siginfo *info, 
-                           void *puc)
+int cpu_signal_handler(int host_signum, struct siginfo *info, 
+                       void *puc)
 {
     struct ucontext *uc = puc;
     unsigned long pc;
@@ -396,8 +467,8 @@ int cpu_x86_signal_handler(int host_signum, struct siginfo *info,
 
 #elif defined(__powerpc)
 
-int cpu_x86_signal_handler(int host_signum, struct siginfo *info, 
-                           void *puc)
+int cpu_signal_handler(int host_signum, struct siginfo *info, 
+                       void *puc)
 {
     struct ucontext *uc = puc;
     struct pt_regs *regs = uc->uc_mcontext.regs;
@@ -420,7 +491,7 @@ int cpu_x86_signal_handler(int host_signum, struct siginfo *info,
 
 #elif defined(__alpha__)
 
-int cpu_x86_signal_handler(int host_signum, struct siginfo *info, 
+int cpu_signal_handler(int host_signum, struct siginfo *info, 
                            void *puc)
 {
     struct ucontext *uc = puc;
@@ -449,8 +520,8 @@ int cpu_x86_signal_handler(int host_signum, struct siginfo *info,
 }
 #elif defined(__sparc__)
 
-int cpu_x86_signal_handler(int host_signum, struct siginfo *info, 
-                           void *puc)
+int cpu_signal_handler(int host_signum, struct siginfo *info, 
+                       void *puc)
 {
     uint32_t *regs = (uint32_t *)(info + 1);
     void *sigmask = (regs + 20);
@@ -482,8 +553,8 @@ int cpu_x86_signal_handler(int host_signum, struct siginfo *info,
 
 #elif defined(__arm__)
 
-int cpu_x86_signal_handler(int host_signum, struct siginfo *info, 
-                           void *puc)
+int cpu_signal_handler(int host_signum, struct siginfo *info, 
+                       void *puc)
 {
     struct ucontext *uc = puc;
     unsigned long pc;
