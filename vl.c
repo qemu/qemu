@@ -1462,6 +1462,10 @@ void serial_received_byte(SerialState *s, int ch)
             s->lsr |= UART_LSR_BI | UART_LSR_DR;
             serial_update_irq();
             break;
+        case 'd':
+            //            tb_flush();
+            cpu_set_log(CPU_LOG_ALL);
+            break;
         case TERM_ESCAPE:
             goto send_char;
         }
@@ -1979,6 +1983,7 @@ void ne2000_init(void)
 /* Keyboard Commands */
 #define KBD_CMD_SET_LEDS	0xED	/* Set keyboard leds */
 #define KBD_CMD_ECHO     	0xEE
+#define KBD_CMD_GET_ID 	        0xF2	/* get keyboard ID */
 #define KBD_CMD_SET_RATE	0xF3	/* Set typematic rate */
 #define KBD_CMD_ENABLE		0xF4	/* Enable scanning */
 #define KBD_CMD_RESET_DISABLE	0xF5	/* reset and disable scanning */
@@ -2065,6 +2070,8 @@ KBDState kbd_state;
 int reset_requested;
 
 /* update irq and KBD_STAT_[MOUSE_]OBF */
+/* XXX: not generating the irqs if KBD_MODE_DISABLE_KBD is set may be
+   incorrect, but it avoids having to simulate exact delays */
 static void kbd_update_irq(KBDState *s)
 {
     int irq12_level, irq1_level;
@@ -2080,7 +2087,8 @@ static void kbd_update_irq(KBDState *s)
             if (s->mode & KBD_MODE_MOUSE_INT)
                 irq12_level = 1;
         } else {
-            if (s->mode & KBD_MODE_KBD_INT)
+            if ((s->mode & KBD_MODE_KBD_INT) && 
+                !(s->mode & KBD_MODE_DISABLE_KBD))
                 irq1_level = 1;
         }
     }
@@ -2120,7 +2128,7 @@ uint32_t kbd_read_status(CPUX86State *env, uint32_t addr)
     KBDState *s = &kbd_state;
     int val;
     val = s->status;
-#if defined(DEBUG_KBD) && 0
+#if defined(DEBUG_KBD)
     printf("kbd: read status=0x%02x\n", val);
 #endif
     return val;
@@ -2162,9 +2170,11 @@ void kbd_write_command(CPUX86State *env, uint32_t addr, uint32_t val)
         break;
     case KBD_CCMD_KBD_DISABLE:
         s->mode |= KBD_MODE_DISABLE_KBD;
+        kbd_update_irq(s);
         break;
     case KBD_CCMD_KBD_ENABLE:
         s->mode &= ~KBD_MODE_DISABLE_KBD;
+        kbd_update_irq(s);
         break;
     case KBD_CCMD_READ_INPORT:
         kbd_queue(s, 0x00, 0);
@@ -2250,6 +2260,11 @@ static void kbd_write_keyboard(KBDState *s, int val)
             break;
         case 0x05:
             kbd_queue(s, KBD_REPLY_RESEND, 0);
+            break;
+        case KBD_CMD_GET_ID:
+            kbd_queue(s, KBD_REPLY_ACK, 0);
+            kbd_queue(s, 0xab, 0);
+            kbd_queue(s, 0x83, 0);
             break;
         case KBD_CMD_ECHO:
             kbd_queue(s, KBD_CMD_ECHO, 0);
