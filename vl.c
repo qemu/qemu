@@ -1476,6 +1476,7 @@ static void smb_exit(void)
             unlink(filename);
         }
     }
+    closedir(d);
     rmdir(smb_dir);
 }
 
@@ -1510,6 +1511,7 @@ void net_slirp_smb(const char *exported_dir)
             "lock directory=%s\n"
             "log file=%s/log.smbd\n"
             "smb passwd file=%s/smbpasswd\n"
+            "security = share\n"
             "[qemu]\n"
             "path=%s\n"
             "read only=no\n"
