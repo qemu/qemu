@@ -63,17 +63,17 @@ static struct dma_cont {
 } dma_controllers[2];
 
 enum {
-  CMD_MEMORY_TO_MEMORY = 0x01,
-  CMD_FIXED_ADDRESS    = 0x02,
-  CMD_BLOCK_CONTROLLER = 0x04,
-  CMD_COMPRESSED_TIME  = 0x08,
-  CMD_CYCLIC_PRIORITY  = 0x10,
-  CMD_EXTENDED_WRITE   = 0x20,
-  CMD_LOW_DREQ         = 0x40,
-  CMD_LOW_DACK         = 0x80,
-  CMD_NOT_SUPPORTED    = CMD_MEMORY_TO_MEMORY | CMD_FIXED_ADDRESS
-  | CMD_COMPRESSED_TIME | CMD_CYCLIC_PRIORITY | CMD_EXTENDED_WRITE
-  | CMD_LOW_DREQ | CMD_LOW_DACK
+    CMD_MEMORY_TO_MEMORY = 0x01,
+    CMD_FIXED_ADDRESS    = 0x02,
+    CMD_BLOCK_CONTROLLER = 0x04,
+    CMD_COMPRESSED_TIME  = 0x08,
+    CMD_CYCLIC_PRIORITY  = 0x10,
+    CMD_EXTENDED_WRITE   = 0x20,
+    CMD_LOW_DREQ         = 0x40,
+    CMD_LOW_DACK         = 0x80,
+    CMD_NOT_SUPPORTED    = CMD_MEMORY_TO_MEMORY | CMD_FIXED_ADDRESS
+    | CMD_COMPRESSED_TIME | CMD_CYCLIC_PRIORITY | CMD_EXTENDED_WRITE
+    | CMD_LOW_DREQ | CMD_LOW_DACK
 
 };
 
@@ -228,13 +228,13 @@ static void write_cont (void *opaque, uint32_t nport, uint32_t data)
 #ifdef DEBUG_DMA
             {
                 int op, ai, dir, opmode;
-            op = (data >> 2) & 3;
-            ai = (data >> 4) & 1;
-            dir = (data >> 5) & 1;
-            opmode = (data >> 6) & 3;
+                op = (data >> 2) & 3;
+                ai = (data >> 4) & 1;
+                dir = (data >> 5) & 1;
+                opmode = (data >> 6) & 3;
 
-            linfo ("ichan %d, op %d, ai %d, dir %d, opmode %d\n",
-                   ichan, op, ai, dir, opmode);
+                linfo ("ichan %d, op %d, ai %d, dir %d, opmode %d\n",
+                       ichan, op, ai, dir, opmode);
             }
 #endif
             d->regs[ichan].mode = data;
