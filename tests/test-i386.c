@@ -32,6 +32,7 @@
 
 #define TEST_CMOV  0
 #define TEST_FCOMI 0
+#define TEST_VM86
 //#define LINUX_VM86_IOPL_FIX
 //#define TEST_P4_FLAGS
 
@@ -372,7 +373,7 @@ void test_imulw2(int op0, int op1)
     s1 = op1;
     res = s0;
     flags = 0;
-    asm ("push %4\n\t"
+    asm volatile ("push %4\n\t"
          "popf\n\t"
          "imulw %w2, %w0\n\t" 
          "pushf\n\t"
@@ -390,7 +391,7 @@ void test_imull2(int op0, int op1)
     s1 = op1;
     res = s0;
     flags = 0;
-    asm ("push %4\n\t"
+    asm volatile ("push %4\n\t"
          "popf\n\t"
          "imull %2, %0\n\t" 
          "pushf\n\t"
@@ -406,7 +407,7 @@ void test_imull2(int op0, int op1)
     int res, flags;\
     flags = 0;\
     res = 0;\
-    asm ("push %3\n\t"\
+    asm volatile ("push %3\n\t"\
          "popf\n\t"\
          "imul" size " $" #op0 ", %" size1 "2, %" size1 "0\n\t" \
          "pushf\n\t"\
@@ -414,7 +415,7 @@ void test_imull2(int op0, int op1)
          : "=r" (res), "=g" (flags)\
          : "r" (op1), "1" (flags), "0" (res));\
     printf("%-10s A=%08x B=%08x R=%08x CC=%04x\n",\
-           "imul" size, op0, op1, res, flags & CC_MASK);\
+           "imul" size " im", op0, op1, res, flags & CC_MASK);\
 }
 
 
@@ -1673,7 +1674,6 @@ static void test_enter(void)
     TEST_ENTER("w", uint16_t, 31);
 }
 
-
 static void *call_end __init_call = NULL;
 
 int main(int argc, char **argv)
@@ -1697,7 +1697,9 @@ int main(int argc, char **argv)
     test_lea();
     test_segs();
     test_code16();
+#ifdef TEST_VM86
     test_vm86();
+#endif
     test_exceptions();
     test_self_modifying_code();
     test_single_step();
