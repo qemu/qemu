@@ -188,74 +188,6 @@ void raise_exception(int exception_index)
     raise_exception_err(exception_index, 0);
 }
 
-#if defined(DEBUG_EXEC)
-static const char *cc_op_str[] = {
-    "DYNAMIC",
-    "EFLAGS",
-    "MUL",
-    "ADDB",
-    "ADDW",
-    "ADDL",
-    "ADCB",
-    "ADCW",
-    "ADCL",
-    "SUBB",
-    "SUBW",
-    "SUBL",
-    "SBBB",
-    "SBBW",
-    "SBBL",
-    "LOGICB",
-    "LOGICW",
-    "LOGICL",
-    "INCB",
-    "INCW",
-    "INCL",
-    "DECB",
-    "DECW",
-    "DECL",
-    "SHLB",
-    "SHLW",
-    "SHLL",
-    "SARB",
-    "SARW",
-    "SARL",
-};
-
-static void cpu_x86_dump_state(FILE *f)
-{
-    int eflags;
-    char cc_op_name[32];
-    eflags = cc_table[CC_OP].compute_all();
-    eflags |= (DF & DF_MASK);
-    if ((unsigned)env->cc_op < CC_OP_NB)
-        strcpy(cc_op_name, cc_op_str[env->cc_op]);
-    else
-        snprintf(cc_op_name, sizeof(cc_op_name), "[%d]", env->cc_op);
-    fprintf(f, 
-            "EAX=%08x EBX=%08X ECX=%08x EDX=%08x\n"
-            "ESI=%08x EDI=%08X EBP=%08x ESP=%08x\n"
-            "CCS=%08x CCD=%08x CCO=%-8s EFL=%c%c%c%c%c%c%c\n"
-            "EIP=%08x\n",
-            env->regs[R_EAX], env->regs[R_EBX], env->regs[R_ECX], env->regs[R_EDX], 
-            env->regs[R_ESI], env->regs[R_EDI], env->regs[R_EBP], env->regs[R_ESP], 
-            env->cc_src, env->cc_dst, cc_op_name,
-            eflags & DF_MASK ? 'D' : '-',
-            eflags & CC_O ? 'O' : '-',
-            eflags & CC_S ? 'S' : '-',
-            eflags & CC_Z ? 'Z' : '-',
-            eflags & CC_A ? 'A' : '-',
-            eflags & CC_P ? 'P' : '-',
-            eflags & CC_C ? 'C' : '-',
-            env->eip);
-#if 1
-    fprintf(f, "ST0=%f ST1=%f ST2=%f ST3=%f\n", 
-            (double)ST0, (double)ST1, (double)ST(2), (double)ST(3));
-#endif
-}
-
-#endif
-
 void cpu_x86_tblocks_init(void)
 {
     if (!code_gen_ptr) {
@@ -399,7 +331,7 @@ int cpu_x86_exec(CPUX86State *env1)
     CC_OP = CC_OP_EFLAGS;
     env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
     env->interrupt_request = 0;
-    
+
     /* prepare setjmp context for exception handling */
     if (setjmp(env->jmp_env) == 0) {
         for(;;) {
@@ -408,7 +340,19 @@ int cpu_x86_exec(CPUX86State *env1)
             }
 #ifdef DEBUG_EXEC
             if (loglevel) {
-                cpu_x86_dump_state(logfile);
+                /* XXX: save all volatile state in cpu state */
+                /* restore flags in standard format */
+                env->regs[R_EAX] = EAX;
+                env->regs[R_EBX] = EBX;
+                env->regs[R_ECX] = ECX;
+                env->regs[R_EDX] = EDX;
+                env->regs[R_ESI] = ESI;
+                env->regs[R_EDI] = EDI;
+                env->regs[R_EBP] = EBP;
+                env->regs[R_ESP] = ESP;
+                env->eflags = env->eflags | cc_table[CC_OP].compute_all() | (DF & DF_MASK);
+                cpu_x86_dump_state(env, logfile, 0);
+                env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
             }
 #endif
             /* we compute the CPU state. We assume it will not
@@ -419,9 +363,14 @@ int cpu_x86_exec(CPUX86State *env1)
                        (unsigned long)env->seg_cache[R_ES].base |
                        (unsigned long)env->seg_cache[R_SS].base) != 0) << 
                 GEN_FLAG_ADDSEG_SHIFT;
-            flags |= (env->eflags & VM_MASK) >> (17 - GEN_FLAG_VM_SHIFT);
+            if (!(env->eflags & VM_MASK)) {
+                flags |= (env->segs[R_CS] & 3) << GEN_FLAG_CPL_SHIFT;
+            } else {
+                /* NOTE: a dummy CPL is kept */
+                flags |= (1 << GEN_FLAG_VM_SHIFT);
+                flags |= (3 << GEN_FLAG_CPL_SHIFT);
+            }
             flags |= (env->eflags & IOPL_MASK) >> (12 - GEN_FLAG_IOPL_SHIFT);
-            flags |= (env->segs[R_CS] & 3) << GEN_FLAG_CPL_SHIFT;
             cs_base = env->seg_cache[R_CS].base;
             pc = cs_base + env->eip;
             tb = tb_find(&ptb, (unsigned long)pc, (unsigned long)cs_base, 
@@ -449,12 +398,13 @@ int cpu_x86_exec(CPUX86State *env1)
                 code_gen_ptr = (void *)(((unsigned long)code_gen_ptr + code_gen_size + CODE_GEN_ALIGN - 1) & ~(CODE_GEN_ALIGN - 1));
                 cpu_unlock();
             }
+#ifdef DEBUG_EXEC
 	    if (loglevel) {
 		fprintf(logfile, "Trace 0x%08lx [0x%08lx] %s\n",
 			(long)tb->tc_ptr, (long)tb->pc,
 			lookup_symbol((void *)tb->pc));
-		fflush(logfile);
 	    }
+#endif
             /* execute the generated code */
             tc_ptr = tb->tc_ptr;
             gen_func = (void *)tc_ptr;
