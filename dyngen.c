@@ -654,7 +654,6 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                 sym_name = strtab + sym->st_name;
                 if (strstart(sym_name, "__op_label", &p)) {
                     uint8_t *ptr;
-                    int addend;
                     unsigned long offset;
                     
                     /* test if the variable refers to a label inside
@@ -663,7 +662,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                     if (!ptr)
                         error("__op_labelN in invalid section");
                     offset = sym->st_value;
-                    addend = 0;
+                    val = *(target_ulong *)(ptr + offset);
 #ifdef ELF_USES_RELOCA
                     {
                         int reloc_shndx, nb_relocs1, j;
@@ -676,7 +675,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                             rel = (ELF_RELOC *)sdata[reloc_shndx];
                             for(j = 0; j < nb_relocs1; j++) {
                                 if (rel->r_offset == offset) {
-                                    addend = rel->r_addend;
+				    val = rel->r_addend;
                                     break;
                                 }
 				rel++;
@@ -684,8 +683,6 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                         }
                     }
 #endif                    
-                    val = *(target_ulong *)(ptr + offset);
-                    val += addend;
 
                     if (val >= start_offset && val < start_offset + copy_size) {
                         n = strtol(p, NULL, 10);
