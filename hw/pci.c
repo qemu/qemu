@@ -45,7 +45,7 @@ typedef struct PCIBridge {
     PCIDevice **pci_bus[256];
 } PCIBridge;
 
-static PCIBridge pci_bridge;
+static PCIBridge pci_bridge[3];
 target_phys_addr_t pci_mem_base;
 static int pci_irq_index;
 static uint32_t pci_irq_levels[4][PCI_IRQ_WORDS];
@@ -56,7 +56,7 @@ PCIDevice *pci_register_device(const char *name, int instance_size,
                                PCIConfigReadFunc *config_read, 
                                PCIConfigWriteFunc *config_write)
 {
-    PCIBridge *s = &pci_bridge;
+    PCIBridge *s = &pci_bridge[0];
     PCIDevice *pci_dev, **bus;
 
     if (pci_irq_index >= PCI_DEVICES_MAX)
@@ -70,6 +70,10 @@ PCIDevice *pci_register_device(const char *name, int instance_size,
     bus = s->pci_bus[bus_num];
     if (devfn < 0) {
         for(devfn = 0 ; devfn < 256; devfn += 8) {
+#ifdef TARGET_PPC
+            if ((devfn >> 3) < 11)
+                continue;
+#endif
             if (!bus[devfn])
                 goto found;
         }
@@ -425,7 +429,7 @@ static uint32_t pci_data_readl(void* opaque, uint32_t addr)
 
 void i440fx_init(void)
 {
-    PCIBridge *s = &pci_bridge;
+    PCIBridge *s = &pci_bridge[0];
     PCIDevice *d;
 
     register_ioport_write(0xcf8, 4, 4, pci_addr_writel, s);
@@ -604,7 +608,7 @@ static CPUReadMemoryFunc *PPC_PCIIO_read[] = {
 
 void pci_prep_init(void)
 {
-    PCIBridge *s = &pci_bridge;
+    PCIBridge *s = &pci_bridge[0];
     PCIDevice *d;
     int PPC_io_memory;
 
@@ -629,7 +633,9 @@ void pci_prep_init(void)
 
 /* pmac pci init */
 
-static void pci_pmac_config_writel (void *opaque, target_phys_addr_t addr, uint32_t val)
+/* Grackle PCI host */
+static void pci_grackle_config_writel (void *opaque, target_phys_addr_t addr,
+                                       uint32_t val)
 {
     PCIBridge *s = opaque;
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -638,7 +644,7 @@ static void pci_pmac_config_writel (void *opaque, target_phys_addr_t addr, uint3
     s->config_reg = val;
 }
 
-static uint32_t pci_pmac_config_readl (void *opaque, target_phys_addr_t addr)
+static uint32_t pci_grackle_config_readl (void *opaque, target_phys_addr_t addr)
 {
     PCIBridge *s = opaque;
     uint32_t val;
@@ -650,25 +656,27 @@ static uint32_t pci_pmac_config_readl (void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-static CPUWriteMemoryFunc *pci_pmac_config_write[] = {
-    &pci_pmac_config_writel,
-    &pci_pmac_config_writel,
-    &pci_pmac_config_writel,
+static CPUWriteMemoryFunc *pci_grackle_config_write[] = {
+    &pci_grackle_config_writel,
+    &pci_grackle_config_writel,
+    &pci_grackle_config_writel,
 };
 
-static CPUReadMemoryFunc *pci_pmac_config_read[] = {
-    &pci_pmac_config_readl,
-    &pci_pmac_config_readl,
-    &pci_pmac_config_readl,
+static CPUReadMemoryFunc *pci_grackle_config_read[] = {
+    &pci_grackle_config_readl,
+    &pci_grackle_config_readl,
+    &pci_grackle_config_readl,
 };
 
-static void pci_pmac_writeb (void *opaque, target_phys_addr_t addr, uint32_t val)
+static void pci_grackle_writeb (void *opaque, target_phys_addr_t addr,
+                                uint32_t val)
 {
     PCIBridge *s = opaque;
     pci_data_write(s, addr, val, 1);
 }
 
-static void pci_pmac_writew (void *opaque, target_phys_addr_t addr, uint32_t val)
+static void pci_grackle_writew (void *opaque, target_phys_addr_t addr,
+                                uint32_t val)
 {
     PCIBridge *s = opaque;
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -677,7 +685,8 @@ static void pci_pmac_writew (void *opaque, target_phys_addr_t addr, uint32_t val
     pci_data_write(s, addr, val, 2);
 }
 
-static void pci_pmac_writel (void *opaque, target_phys_addr_t addr, uint32_t val)
+static void pci_grackle_writel (void *opaque, target_phys_addr_t addr,
+                                uint32_t val)
 {
     PCIBridge *s = opaque;
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -686,7 +695,7 @@ static void pci_pmac_writel (void *opaque, target_phys_addr_t addr, uint32_t val
     pci_data_write(s, addr, val, 4);
 }
 
-static uint32_t pci_pmac_readb (void *opaque, target_phys_addr_t addr)
+static uint32_t pci_grackle_readb (void *opaque, target_phys_addr_t addr)
 {
     PCIBridge *s = opaque;
     uint32_t val;
@@ -694,7 +703,7 @@ static uint32_t pci_pmac_readb (void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-static uint32_t pci_pmac_readw (void *opaque, target_phys_addr_t addr)
+static uint32_t pci_grackle_readw (void *opaque, target_phys_addr_t addr)
 {
     PCIBridge *s = opaque;
     uint32_t val;
@@ -705,7 +714,7 @@ static uint32_t pci_pmac_readw (void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-static uint32_t pci_pmac_readl (void *opaque, target_phys_addr_t addr)
+static uint32_t pci_grackle_readl (void *opaque, target_phys_addr_t addr)
 {
     PCIBridge *s = opaque;
     uint32_t val;
@@ -717,34 +726,367 @@ static uint32_t pci_pmac_readl (void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-static CPUWriteMemoryFunc *pci_pmac_write[] = {
-    &pci_pmac_writeb,
-    &pci_pmac_writew,
-    &pci_pmac_writel,
+static CPUWriteMemoryFunc *pci_grackle_write[] = {
+    &pci_grackle_writeb,
+    &pci_grackle_writew,
+    &pci_grackle_writel,
 };
 
-static CPUReadMemoryFunc *pci_pmac_read[] = {
-    &pci_pmac_readb,
-    &pci_pmac_readw,
-    &pci_pmac_readl,
+static CPUReadMemoryFunc *pci_grackle_read[] = {
+    &pci_grackle_readb,
+    &pci_grackle_readw,
+    &pci_grackle_readl,
+};
+
+/* Uninorth PCI host (for all Mac99 and newer machines */
+static void pci_unin_main_config_writel (void *opaque, target_phys_addr_t addr,
+                                         uint32_t val)
+{
+    PCIBridge *s = opaque;
+    int i;
+
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap32(val);
+#endif
+
+    for (i = 11; i < 32; i++) {
+        if ((val & (1 << i)) != 0)
+            break;
+    }
+#if 0
+    s->config_reg = 0x80000000 | (1 << 16) | (val & 0x7FC) | (i << 11);
+#else
+    s->config_reg = 0x80000000 | (0 << 16) | (val & 0x7FC) | (i << 11);
+#endif
+}
+
+static uint32_t pci_unin_main_config_readl (void *opaque,
+                                            target_phys_addr_t addr)
+{
+    PCIBridge *s = opaque;
+    uint32_t val;
+    int devfn;
+
+    devfn = (s->config_reg >> 8) & 0xFF;
+    val = (1 << (devfn >> 3)) | ((devfn & 0x07) << 8) | (s->config_reg & 0xFC);
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap32(val);
+#endif
+
+    return val;
+}
+
+static CPUWriteMemoryFunc *pci_unin_main_config_write[] = {
+    &pci_unin_main_config_writel,
+    &pci_unin_main_config_writel,
+    &pci_unin_main_config_writel,
+};
+
+static CPUReadMemoryFunc *pci_unin_main_config_read[] = {
+    &pci_unin_main_config_readl,
+    &pci_unin_main_config_readl,
+    &pci_unin_main_config_readl,
+};
+
+static void pci_unin_main_writeb (void *opaque, target_phys_addr_t addr,
+                                  uint32_t val)
+{
+    PCIBridge *s = opaque;
+    pci_data_write(s, addr & 7, val, 1);
+}
+
+static void pci_unin_main_writew (void *opaque, target_phys_addr_t addr,
+                                  uint32_t val)
+{
+    PCIBridge *s = opaque;
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap16(val);
+#endif
+    pci_data_write(s, addr & 7, val, 2);
+}
+
+static void pci_unin_main_writel (void *opaque, target_phys_addr_t addr,
+                                uint32_t val)
+{
+    PCIBridge *s = opaque;
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap32(val);
+#endif
+    pci_data_write(s, addr & 7, val, 4);
+}
+
+static uint32_t pci_unin_main_readb (void *opaque, target_phys_addr_t addr)
+{
+    PCIBridge *s = opaque;
+    uint32_t val;
+
+    val = pci_data_read(s, addr & 7, 1);
+
+    return val;
+}
+
+static uint32_t pci_unin_main_readw (void *opaque, target_phys_addr_t addr)
+{
+    PCIBridge *s = opaque;
+    uint32_t val;
+
+    val = pci_data_read(s, addr & 7, 2);
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap16(val);
+#endif
+
+    return val;
+}
+
+static uint32_t pci_unin_main_readl (void *opaque, target_phys_addr_t addr)
+{
+    PCIBridge *s = opaque;
+    uint32_t val;
+
+    val = pci_data_read(s, addr, 4);
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap32(val);
+#endif
+
+    return val;
+}
+
+static CPUWriteMemoryFunc *pci_unin_main_write[] = {
+    &pci_unin_main_writeb,
+    &pci_unin_main_writew,
+    &pci_unin_main_writel,
+};
+
+static CPUReadMemoryFunc *pci_unin_main_read[] = {
+    &pci_unin_main_readb,
+    &pci_unin_main_readw,
+    &pci_unin_main_readl,
+};
+
+static void pci_unin_config_writel (void *opaque, target_phys_addr_t addr,
+                                    uint32_t val)
+{
+    PCIBridge *s = opaque;
+
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap32(val);
+#endif
+    s->config_reg = 0x80000000 | (val & ~0x00000001);
+}
+
+static uint32_t pci_unin_config_readl (void *opaque,
+                                       target_phys_addr_t addr)
+{
+    PCIBridge *s = opaque;
+    uint32_t val;
+
+    val = (s->config_reg | 0x00000001) & ~0x80000000;
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap32(val);
+#endif
+
+    return val;
+}
+
+static CPUWriteMemoryFunc *pci_unin_config_write[] = {
+    &pci_unin_config_writel,
+    &pci_unin_config_writel,
+    &pci_unin_config_writel,
+};
+
+static CPUReadMemoryFunc *pci_unin_config_read[] = {
+    &pci_unin_config_readl,
+    &pci_unin_config_readl,
+    &pci_unin_config_readl,
+};
+
+static void pci_unin_writeb (void *opaque, target_phys_addr_t addr,
+                             uint32_t val)
+{
+    PCIBridge *s = opaque;
+    pci_data_write(s, addr & 3, val, 1);
+}
+
+static void pci_unin_writew (void *opaque, target_phys_addr_t addr,
+                             uint32_t val)
+{
+    PCIBridge *s = opaque;
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap16(val);
+#endif
+    pci_data_write(s, addr & 3, val, 2);
+}
+
+static void pci_unin_writel (void *opaque, target_phys_addr_t addr,
+                             uint32_t val)
+{
+    PCIBridge *s = opaque;
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap32(val);
+#endif
+    pci_data_write(s, addr & 3, val, 4);
+}
+
+static uint32_t pci_unin_readb (void *opaque, target_phys_addr_t addr)
+{
+    PCIBridge *s = opaque;
+    uint32_t val;
+
+    val = pci_data_read(s, addr & 3, 1);
+
+    return val;
+}
+
+static uint32_t pci_unin_readw (void *opaque, target_phys_addr_t addr)
+{
+    PCIBridge *s = opaque;
+    uint32_t val;
+
+    val = pci_data_read(s, addr & 3, 2);
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap16(val);
+#endif
+
+    return val;
+}
+
+static uint32_t pci_unin_readl (void *opaque, target_phys_addr_t addr)
+{
+    PCIBridge *s = opaque;
+    uint32_t val;
+
+    val = pci_data_read(s, addr & 3, 4);
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap32(val);
+#endif
+
+    return val;
+}
+
+static CPUWriteMemoryFunc *pci_unin_write[] = {
+    &pci_unin_writeb,
+    &pci_unin_writew,
+    &pci_unin_writel,
+};
+
+static CPUReadMemoryFunc *pci_unin_read[] = {
+    &pci_unin_readb,
+    &pci_unin_readw,
+    &pci_unin_readl,
 };
 
 void pci_pmac_init(void)
 {
-    PCIBridge *s = &pci_bridge;
+    PCIBridge *s;
     PCIDevice *d;
     int pci_mem_config, pci_mem_data;
 
-    pci_mem_config = cpu_register_io_memory(0, pci_pmac_config_read, 
-                                            pci_pmac_config_write, s);
-    pci_mem_data = cpu_register_io_memory(0, pci_pmac_read, pci_pmac_write, s);
+    /* Use values found on a real PowerMac */
+    /* Uninorth main bus */
+    s = &pci_bridge[0];
+    pci_mem_config = cpu_register_io_memory(0, pci_unin_main_config_read, 
+                                            pci_unin_main_config_write, s);
+    pci_mem_data = cpu_register_io_memory(0, pci_unin_main_read,
+                                          pci_unin_main_write, s);
+    cpu_register_physical_memory(0xf2800000, 0x1000, pci_mem_config);
+    cpu_register_physical_memory(0xf2c00000, 0x1000, pci_mem_data);
 
-    cpu_register_physical_memory(0xfec00000, 0x1000, pci_mem_config);
-    cpu_register_physical_memory(0xfee00000, 0x1000, pci_mem_data);
-
-    d = pci_register_device("MPC106", sizeof(PCIDevice), 0, 0, 
+    d = pci_register_device("Uni-north main", sizeof(PCIDevice), 0, 11 << 3,
                             NULL, NULL);
+    d->config[0x00] = 0x6b; // vendor_id : Apple
+    d->config[0x01] = 0x10;
+    d->config[0x02] = 0x1F; // device_id
+    d->config[0x03] = 0x00;
+    d->config[0x08] = 0x00; // revision
+    d->config[0x0A] = 0x00; // class_sub = pci host
+    d->config[0x0B] = 0x06; // class_base = PCI_bridge
+    d->config[0x0C] = 0x08; // cache_line_size
+    d->config[0x0D] = 0x10; // latency_timer
+    d->config[0x0E] = 0x00; // header_type
+    d->config[0x34] = 0x00; // capabilities_pointer
 
+#if 0 // XXX: not activated as PPC BIOS doesn't handle mutiple buses properly
+    /* pci-to-pci bridge */
+    d = pci_register_device("Uni-north bridge", sizeof(PCIDevice), 0, 13 << 3,
+                            NULL, NULL);
+    d->config[0x00] = 0x11; // vendor_id : TI
+    d->config[0x01] = 0x10;
+    d->config[0x02] = 0x26; // device_id
+    d->config[0x03] = 0x00;
+    d->config[0x08] = 0x05; // revision
+    d->config[0x0A] = 0x04; // class_sub = pci2pci
+    d->config[0x0B] = 0x06; // class_base = PCI_bridge
+    d->config[0x0C] = 0x08; // cache_line_size
+    d->config[0x0D] = 0x20; // latency_timer
+    d->config[0x0E] = 0x01; // header_type
+
+    d->config[0x18] = 0x01; // primary_bus
+    d->config[0x19] = 0x02; // secondary_bus
+    d->config[0x1A] = 0x02; // subordinate_bus
+    d->config[0x1B] = 0x20; // secondary_latency_timer
+    d->config[0x1C] = 0x11; // io_base
+    d->config[0x1D] = 0x01; // io_limit
+    d->config[0x20] = 0x00; // memory_base
+    d->config[0x21] = 0x80;
+    d->config[0x22] = 0x00; // memory_limit
+    d->config[0x23] = 0x80;
+    d->config[0x24] = 0x01; // prefetchable_memory_base
+    d->config[0x25] = 0x80;
+    d->config[0x26] = 0xF1; // prefectchable_memory_limit
+    d->config[0x27] = 0x7F;
+    // d->config[0x34] = 0xdc // capabilities_pointer
+#endif
+#if 0 // XXX: not needed for now
+    /* Uninorth AGP bus */
+    s = &pci_bridge[1];
+    pci_mem_config = cpu_register_io_memory(0, pci_unin_config_read, 
+                                            pci_unin_config_write, s);
+    pci_mem_data = cpu_register_io_memory(0, pci_unin_read,
+                                          pci_unin_write, s);
+    cpu_register_physical_memory(0xf0800000, 0x1000, pci_mem_config);
+    cpu_register_physical_memory(0xf0c00000, 0x1000, pci_mem_data);
+
+    d = pci_register_device("Uni-north AGP", sizeof(PCIDevice), 0, 11 << 3,
+                            NULL, NULL);
+    d->config[0x00] = 0x6b; // vendor_id : Apple
+    d->config[0x01] = 0x10;
+    d->config[0x02] = 0x20; // device_id
+    d->config[0x03] = 0x00;
+    d->config[0x08] = 0x00; // revision
+    d->config[0x0A] = 0x00; // class_sub = pci host
+    d->config[0x0B] = 0x06; // class_base = PCI_bridge
+    d->config[0x0C] = 0x08; // cache_line_size
+    d->config[0x0D] = 0x10; // latency_timer
+    d->config[0x0E] = 0x00; // header_type
+    //    d->config[0x34] = 0x80; // capabilities_pointer
+#endif
+
+#if 0 // XXX: not needed for now
+    /* Uninorth internal bus */
+    s = &pci_bridge[2];
+    pci_mem_config = cpu_register_io_memory(0, pci_unin_config_read, 
+                                            pci_unin_config_write, s);
+    pci_mem_data = cpu_register_io_memory(0, pci_unin_read,
+                                          pci_unin_write, s);
+    cpu_register_physical_memory(0xf4800000, 0x1000, pci_mem_config);
+    cpu_register_physical_memory(0xf4c00000, 0x1000, pci_mem_data);
+
+    d = pci_register_device("Uni-north internal", sizeof(PCIDevice),
+                            3, 11 << 3, NULL, NULL);
+    d->config[0x00] = 0x6b; // vendor_id : Apple
+    d->config[0x01] = 0x10;
+    d->config[0x02] = 0x1E; // device_id
+    d->config[0x03] = 0x00;
+    d->config[0x08] = 0x00; // revision
+    d->config[0x0A] = 0x00; // class_sub = pci host
+    d->config[0x0B] = 0x06; // class_base = PCI_bridge
+    d->config[0x0C] = 0x08; // cache_line_size
+    d->config[0x0D] = 0x10; // latency_timer
+    d->config[0x0E] = 0x00; // header_type
+    d->config[0x34] = 0x00; // capabilities_pointer
+#endif
+
+#if 0 // Grackle ?
     /* same values as PearPC - check this */
     d->config[0x00] = 0x11; // vendor_id
     d->config[0x01] = 0x10;
@@ -770,6 +1112,7 @@ void pci_pmac_init(void)
     d->config[0x25] = 0x84;
     d->config[0x26] = 0x00; // prefetchable_memory_limit
     d->config[0x27] = 0x85;
+#endif
 }
 
 /***********************************************************/
@@ -878,7 +1221,7 @@ static void pci_info_device(PCIDevice *d)
 
 void pci_info(void)
 {
-    PCIBridge *s = &pci_bridge;
+    PCIBridge *s = &pci_bridge[0];
     PCIDevice **bus;
     int bus_num, devfn;
     
@@ -928,7 +1271,7 @@ static void isa_outl(uint32_t val, uint32_t addr)
 
 static void pci_config_writel(PCIDevice *d, uint32_t addr, uint32_t val)
 {
-    PCIBridge *s = &pci_bridge;
+    PCIBridge *s = &pci_bridge[0];
     s->config_reg = 0x80000000 | (d->bus_num << 16) | 
         (d->devfn << 8) | addr;
     pci_data_write(s, 0, val, 4);
@@ -936,7 +1279,7 @@ static void pci_config_writel(PCIDevice *d, uint32_t addr, uint32_t val)
 
 static void pci_config_writew(PCIDevice *d, uint32_t addr, uint32_t val)
 {
-    PCIBridge *s = &pci_bridge;
+    PCIBridge *s = &pci_bridge[0];
     s->config_reg = 0x80000000 | (d->bus_num << 16) | 
         (d->devfn << 8) | (addr & ~3);
     pci_data_write(s, addr & 3, val, 2);
@@ -944,7 +1287,7 @@ static void pci_config_writew(PCIDevice *d, uint32_t addr, uint32_t val)
 
 static void pci_config_writeb(PCIDevice *d, uint32_t addr, uint32_t val)
 {
-    PCIBridge *s = &pci_bridge;
+    PCIBridge *s = &pci_bridge[0];
     s->config_reg = 0x80000000 | (d->bus_num << 16) | 
         (d->devfn << 8) | (addr & ~3);
     pci_data_write(s, addr & 3, val, 1);
@@ -952,7 +1295,7 @@ static void pci_config_writeb(PCIDevice *d, uint32_t addr, uint32_t val)
 
 static uint32_t pci_config_readl(PCIDevice *d, uint32_t addr)
 {
-    PCIBridge *s = &pci_bridge;
+    PCIBridge *s = &pci_bridge[0];
     s->config_reg = 0x80000000 | (d->bus_num << 16) | 
         (d->devfn << 8) | addr;
     return pci_data_read(s, 0, 4);
@@ -960,7 +1303,7 @@ static uint32_t pci_config_readl(PCIDevice *d, uint32_t addr)
 
 static uint32_t pci_config_readw(PCIDevice *d, uint32_t addr)
 {
-    PCIBridge *s = &pci_bridge;
+    PCIBridge *s = &pci_bridge[0];
     s->config_reg = 0x80000000 | (d->bus_num << 16) | 
         (d->devfn << 8) | (addr & ~3);
     return pci_data_read(s, addr & 3, 2);
@@ -968,7 +1311,7 @@ static uint32_t pci_config_readw(PCIDevice *d, uint32_t addr)
 
 static uint32_t pci_config_readb(PCIDevice *d, uint32_t addr)
 {
-    PCIBridge *s = &pci_bridge;
+    PCIBridge *s = &pci_bridge[0];
     s->config_reg = 0x80000000 | (d->bus_num << 16) | 
         (d->devfn << 8) | (addr & ~3);
     return pci_data_read(s, addr & 3, 1);
@@ -1036,8 +1379,21 @@ static void pci_bios_init_device(PCIDevice *d)
         /* VGA: map frame buffer to default Bochs VBE address */
         pci_set_io_region_addr(d, 0, 0xE0000000);
         break;
+    case 0x0800:
+        /* PIC */
+        vendor_id = pci_config_readw(d, PCI_VENDOR_ID);
+        device_id = pci_config_readw(d, PCI_DEVICE_ID);
+        if (vendor_id == 0x1014) {
+            /* IBM */
+            if (device_id == 0x0046 || device_id == 0xFFFF) {
+                /* MPIC & MPIC2 */
+                pci_set_io_region_addr(d, 0, 0x80800000 + 0x00040000);
+            }
+        }
+        break;
     case 0xff00:
-        if (vendor_id == 0x0106b && device_id == 0x0017) {
+        if (vendor_id == 0x0106b &&
+            (device_id == 0x0017 || device_id == 0x0022)) {
             /* macio bridge */
             pci_set_io_region_addr(d, 0, 0x80800000);
         }
@@ -1076,7 +1432,7 @@ static void pci_bios_init_device(PCIDevice *d)
  */
 void pci_bios_init(void)
 {
-    PCIBridge *s = &pci_bridge;
+    PCIBridge *s = &pci_bridge[0];
     PCIDevice **bus;
     int bus_num, devfn, i, irq;
     uint8_t elcr[2];
@@ -1115,10 +1471,13 @@ void pci_bios_init(void)
  */
 void pci_ppc_bios_init(void)
 {
-    PCIBridge *s = &pci_bridge;
+    PCIBridge *s = &pci_bridge[0];
     PCIDevice **bus;
-    int bus_num, devfn, i, irq;
+    int bus_num, devfn;
+#if 0
+    int i, irq;
     uint8_t elcr[2];
+#endif
 
     pci_bios_io_addr = 0xc000;
     pci_bios_mem_addr = 0xc0000000;
