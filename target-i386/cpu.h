@@ -58,12 +58,14 @@
 #define DESC_TYPE_SHIFT 8
 #define DESC_A_MASK     (1 << 8)
 
-#define DESC_CS_MASK    (1 << 11)
-#define DESC_C_MASK     (1 << 10)
-#define DESC_R_MASK     (1 << 9)
+#define DESC_CS_MASK    (1 << 11) /* 1=code segment 0=data segment */
+#define DESC_C_MASK     (1 << 10) /* code: conforming */
+#define DESC_R_MASK     (1 << 9)  /* code: readable */
 
-#define DESC_E_MASK     (1 << 10)
-#define DESC_W_MASK     (1 << 9)
+#define DESC_E_MASK     (1 << 10) /* data: expansion direction */
+#define DESC_W_MASK     (1 << 9)  /* data: writable */
+
+#define DESC_TSS_BUSY_MASK (1 << 9)
 
 /* eflags masks */
 #define CC_C   	0x0001
