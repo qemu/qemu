@@ -516,9 +516,9 @@ static void disas_arm_insn(DisasContext *s)
                         gen_movl_T0_reg(s, rs);
                         gen_movl_T1_reg(s, rm);
                         if (insn & (1 << 22)) 
-                            gen_op_mull_T0_T1();
-                        else
                             gen_op_imull_T0_T1();
+                        else
+                            gen_op_mull_T0_T1();
                         if (insn & (1 << 21)) 
                             gen_op_addq_T0_T1(rn, rd);
                         if (insn & (1 << 20)) 
