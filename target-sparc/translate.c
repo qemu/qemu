@@ -1582,6 +1582,8 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
             page_dump(logfile);
         }
 #endif
+        gen_opc_jump_pc[0] = dc->jump_pc[0];
+        gen_opc_jump_pc[1] = dc->jump_pc[1];
     } else {
         tb->size = last_pc + 4 - pc_start;
     }

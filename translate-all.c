@@ -52,6 +52,7 @@ uint8_t gen_opc_instr_start[OPC_BUF_SIZE];
 uint8_t gen_opc_cc_op[OPC_BUF_SIZE];
 #elif defined(TARGET_SPARC)
 target_ulong gen_opc_npc[OPC_BUF_SIZE];
+target_ulong gen_opc_jump_pc[2];
 #endif
 
 int code_copy_enabled = 1;
@@ -244,9 +245,23 @@ int cpu_restore_state(TranslationBlock *tb,
 #elif defined(TARGET_ARM)
     env->regs[15] = gen_opc_pc[j];
 #elif defined(TARGET_SPARC)
-    /* XXX: restore npc too */
-    env->pc = gen_opc_pc[j];
-    env->npc = gen_opc_npc[j];
+    {
+        target_ulong npc;
+        env->pc = gen_opc_pc[j];
+        npc = gen_opc_npc[j];
+        if (npc == 1) {
+            /* dynamic NPC: already stored */
+        } else if (npc == 2) {
+            target_ulong t2 = (target_ulong)puc;
+            /* jump PC: use T2 and the jump targets of the translation */
+            if (t2) 
+                env->npc = gen_opc_jump_pc[0];
+            else
+                env->npc = gen_opc_jump_pc[1];
+        } else {
+            env->npc = npc;
+        }
+    }
 #elif defined(TARGET_PPC)
     {
         int type;
