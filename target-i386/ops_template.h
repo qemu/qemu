@@ -46,7 +46,7 @@
 #define SUFFIX q
 #define DATA_TYPE uint64_t
 #define DATA_STYPE int64_t
-#define DATA_MASK 0xffffffffffffffff
+#define DATA_MASK 0xffffffffffffffffULL
 #else
 #error unhandled operand size
 #endif
