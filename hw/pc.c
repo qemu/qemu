@@ -527,6 +527,8 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
     register_ioport_read(0x92, 1, 1, ioport92_read, NULL);
     register_ioport_write(0x92, 1, 1, ioport92_write, NULL);
 
+    if (pci_enabled)
+        apic_init(cpu_single_env);
     pic_init();
     pit = pit_init(0x40, 0);
 
