@@ -31,6 +31,8 @@
 #include "exec-all.h"
 #include "disas.h"
 
+#ifdef USE_CODE_COPY
+
 extern char exec_loop;
 
 /* operand size */
@@ -67,6 +69,7 @@ typedef struct DisasContext {
     int vm86;   /* vm86 mode */
     int cpl;
     int iopl;
+    int flags;
     struct TranslationBlock *tb;
 } DisasContext;
 
@@ -274,7 +277,7 @@ static int disas_insn(DisasContext *s)
     uint8_t *pc_start, *pc_tmp, *pc_start_insn;
     int b, prefixes, aflag, dflag, next_eip, val;
     int ot;
-    int modrm, mod, op;
+    int modrm, mod, op, rm;
 
     pc_start = s->pc;
     prefixes = 0;
@@ -644,48 +647,37 @@ static int disas_insn(DisasContext *s)
         op = R_GS;
     do_lxx:
         goto unsupported_op;
-#if 0
         /************************/
         /* floats */
     case 0xd8 ... 0xdf: 
+#if 1
+        /* currently not stable enough */
+        goto unsupported_op;
+#else
+        if (s->flags & (HF_EM_MASK | HF_TS_MASK))
+            goto unsupported_op;
+#endif
+#if 0
+        /* for testing FPU context switch */
+        {
+            static int count;
+            count = (count + 1) % 3;
+            if (count != 0)
+                goto unsupported_op;
+        }
+#endif
         modrm = ldub_code(s->pc++);
         mod = (modrm >> 6) & 3;
         rm = modrm & 7;
         op = ((b & 7) << 3) | ((modrm >> 3) & 7);
         if (mod != 3) {
             /* memory op */
-            gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+            parse_modrm(s, modrm);
             switch(op) {
             case 0x00 ... 0x07: /* fxxxs */
             case 0x10 ... 0x17: /* fixxxl */
             case 0x20 ... 0x27: /* fxxxl */
             case 0x30 ... 0x37: /* fixxx */
-                {
-                    int op1;
-                    op1 = op & 7;
-
-                    switch(op >> 4) {
-                    case 0:
-                        gen_op_flds_FT0_A0();
-                        break;
-                    case 1:
-                        gen_op_fildl_FT0_A0();
-                        break;
-                    case 2:
-                        gen_op_fldl_FT0_A0();
-                        break;
-                    case 3:
-                    default:
-                        gen_op_fild_FT0_A0();
-                        break;
-                    }
-                    
-                    gen_op_fp_arith_ST0_FT0[op1]();
-                    if (op1 == 3) {
-                        /* fcomp needs pop */
-                        gen_op_fpop();
-                    }
-                }
                 break;
             case 0x08: /* flds */
             case 0x0a: /* fsts */
@@ -699,102 +691,28 @@ static int disas_insn(DisasContext *s)
             case 0x38: /* filds */
             case 0x3a: /* fists */
             case 0x3b: /* fistps */
-                
-                switch(op & 7) {
-                case 0:
-                    switch(op >> 4) {
-                    case 0:
-                        gen_op_flds_ST0_A0();
-                        break;
-                    case 1:
-                        gen_op_fildl_ST0_A0();
-                        break;
-                    case 2:
-                        gen_op_fldl_ST0_A0();
-                        break;
-                    case 3:
-                    default:
-                        gen_op_fild_ST0_A0();
-                        break;
-                    }
-                    break;
-                default:
-                    switch(op >> 4) {
-                    case 0:
-                        gen_op_fsts_ST0_A0();
-                        break;
-                    case 1:
-                        gen_op_fistl_ST0_A0();
-                        break;
-                    case 2:
-                        gen_op_fstl_ST0_A0();
-                        break;
-                    case 3:
-                    default:
-                        gen_op_fist_ST0_A0();
-                        break;
-                    }
-                    if ((op & 7) == 3)
-                        gen_op_fpop();
-                    break;
-                }
-                break;
             case 0x0c: /* fldenv mem */
-                gen_op_fldenv_A0(s->dflag);
-                break;
             case 0x0d: /* fldcw mem */
-                gen_op_fldcw_A0();
-                break;
             case 0x0e: /* fnstenv mem */
-                gen_op_fnstenv_A0(s->dflag);
-                break;
             case 0x0f: /* fnstcw mem */
-                gen_op_fnstcw_A0();
-                break;
             case 0x1d: /* fldt mem */
-                gen_op_fldt_ST0_A0();
-                break;
             case 0x1f: /* fstpt mem */
-                gen_op_fstt_ST0_A0();
-                gen_op_fpop();
-                break;
             case 0x2c: /* frstor mem */
-                gen_op_frstor_A0(s->dflag);
-                break;
             case 0x2e: /* fnsave mem */
-                gen_op_fnsave_A0(s->dflag);
-                break;
             case 0x2f: /* fnstsw mem */
-                gen_op_fnstsw_A0();
-                break;
             case 0x3c: /* fbld */
-                gen_op_fbld_ST0_A0();
-                break;
             case 0x3e: /* fbstp */
-                gen_op_fbst_ST0_A0();
-                gen_op_fpop();
-                break;
             case 0x3d: /* fildll */
-                gen_op_fildll_ST0_A0();
-                break;
             case 0x3f: /* fistpll */
-                gen_op_fistll_ST0_A0();
-                gen_op_fpop();
                 break;
             default:
                 goto illegal_op;
             }
         } else {
             /* register float ops */
-            opreg = rm;
-
             switch(op) {
             case 0x08: /* fld sti */
-                gen_op_fpush();
-                gen_op_fmov_ST0_STN((opreg + 1) & 7);
-                break;
             case 0x09: /* fxchg sti */
-                gen_op_fxchg_ST0_STN(opreg);
                 break;
             case 0x0a: /* grp d9/2 */
                 switch(rm) {
@@ -807,149 +725,43 @@ static int disas_insn(DisasContext *s)
             case 0x0c: /* grp d9/4 */
                 switch(rm) {
                 case 0: /* fchs */
-                    gen_op_fchs_ST0();
-                    break;
                 case 1: /* fabs */
-                    gen_op_fabs_ST0();
-                    break;
                 case 4: /* ftst */
-                    gen_op_fldz_FT0();
-                    gen_op_fcom_ST0_FT0();
-                    break;
                 case 5: /* fxam */
-                    gen_op_fxam_ST0();
                     break;
                 default:
                     goto illegal_op;
                 }
                 break;
             case 0x0d: /* grp d9/5 */
-                {
-                    switch(rm) {
-                    case 0:
-                        gen_op_fpush();
-                        gen_op_fld1_ST0();
-                        break;
-                    case 1:
-                        gen_op_fpush();
-                        gen_op_fldl2t_ST0();
-                        break;
-                    case 2:
-                        gen_op_fpush();
-                        gen_op_fldl2e_ST0();
-                        break;
-                    case 3:
-                        gen_op_fpush();
-                        gen_op_fldpi_ST0();
-                        break;
-                    case 4:
-                        gen_op_fpush();
-                        gen_op_fldlg2_ST0();
-                        break;
-                    case 5:
-                        gen_op_fpush();
-                        gen_op_fldln2_ST0();
-                        break;
-                    case 6:
-                        gen_op_fpush();
-                        gen_op_fldz_ST0();
-                        break;
-                    default:
-                        goto illegal_op;
-                    }
+                switch(rm) {
+                case 0:
+                case 1:
+                case 2:
+                case 3:
+                case 4:
+                case 5:
+                case 6:
+                    break;
+                default:
+                    goto illegal_op;
                 }
                 break;
             case 0x0e: /* grp d9/6 */
-                switch(rm) {
-                case 0: /* f2xm1 */
-                    gen_op_f2xm1();
-                    break;
-                case 1: /* fyl2x */
-                    gen_op_fyl2x();
-                    break;
-                case 2: /* fptan */
-                    gen_op_fptan();
-                    break;
-                case 3: /* fpatan */
-                    gen_op_fpatan();
-                    break;
-                case 4: /* fxtract */
-                    gen_op_fxtract();
-                    break;
-                case 5: /* fprem1 */
-                    gen_op_fprem1();
-                    break;
-                case 6: /* fdecstp */
-                    gen_op_fdecstp();
-                    break;
-                default:
-                case 7: /* fincstp */
-                    gen_op_fincstp();
-                    break;
-                }
                 break;
             case 0x0f: /* grp d9/7 */
-                switch(rm) {
-                case 0: /* fprem */
-                    gen_op_fprem();
-                    break;
-                case 1: /* fyl2xp1 */
-                    gen_op_fyl2xp1();
-                    break;
-                case 2: /* fsqrt */
-                    gen_op_fsqrt();
-                    break;
-                case 3: /* fsincos */
-                    gen_op_fsincos();
-                    break;
-                case 5: /* fscale */
-                    gen_op_fscale();
-                    break;
-                case 4: /* frndint */
-                    gen_op_frndint();
-                    break;
-                case 6: /* fsin */
-                    gen_op_fsin();
-                    break;
-                default:
-                case 7: /* fcos */
-                    gen_op_fcos();
-                    break;
-                }
                 break;
             case 0x00: case 0x01: case 0x04 ... 0x07: /* fxxx st, sti */
             case 0x20: case 0x21: case 0x24 ... 0x27: /* fxxx sti, st */
             case 0x30: case 0x31: case 0x34 ... 0x37: /* fxxxp sti, st */
-                {
-                    int op1;
-                    
-                    op1 = op & 7;
-                    if (op >= 0x20) {
-                        gen_op_fp_arith_STN_ST0[op1](opreg);
-                        if (op >= 0x30)
-                            gen_op_fpop();
-                    } else {
-                        gen_op_fmov_FT0_STN(opreg);
-                        gen_op_fp_arith_ST0_FT0[op1]();
-                    }
-                }
                 break;
             case 0x02: /* fcom */
-                gen_op_fmov_FT0_STN(opreg);
-                gen_op_fcom_ST0_FT0();
                 break;
             case 0x03: /* fcomp */
-                gen_op_fmov_FT0_STN(opreg);
-                gen_op_fcom_ST0_FT0();
-                gen_op_fpop();
                 break;
             case 0x15: /* da/5 */
                 switch(rm) {
                 case 1: /* fucompp */
-                    gen_op_fmov_FT0_STN(1);
-                    gen_op_fucom_ST0_FT0();
-                    gen_op_fpop();
-                    gen_op_fpop();
                     break;
                 default:
                     goto illegal_op;
@@ -958,15 +770,10 @@ static int disas_insn(DisasContext *s)
             case 0x1c:
                 switch(rm) {
                 case 0: /* feni (287 only, just do nop here) */
-                    break;
                 case 1: /* fdisi (287 only, just do nop here) */
-                    break;
+                    goto unsupported_op;
                 case 2: /* fclex */
-                    gen_op_fclex();
-                    break;
                 case 3: /* fninit */
-                    gen_op_fninit();
-                    break;
                 case 4: /* fsetpm (287 only, just do nop here) */
                     break;
                 default:
@@ -974,42 +781,20 @@ static int disas_insn(DisasContext *s)
                 }
                 break;
             case 0x1d: /* fucomi */
-                if (s->cc_op != CC_OP_DYNAMIC)
-                    gen_op_set_cc_op(s->cc_op);
-                gen_op_fmov_FT0_STN(opreg);
-                gen_op_fucomi_ST0_FT0();
-                s->cc_op = CC_OP_EFLAGS;
                 break;
             case 0x1e: /* fcomi */
-                if (s->cc_op != CC_OP_DYNAMIC)
-                    gen_op_set_cc_op(s->cc_op);
-                gen_op_fmov_FT0_STN(opreg);
-                gen_op_fcomi_ST0_FT0();
-                s->cc_op = CC_OP_EFLAGS;
                 break;
             case 0x2a: /* fst sti */
-                gen_op_fmov_STN_ST0(opreg);
                 break;
             case 0x2b: /* fstp sti */
-                gen_op_fmov_STN_ST0(opreg);
-                gen_op_fpop();
                 break;
             case 0x2c: /* fucom st(i) */
-                gen_op_fmov_FT0_STN(opreg);
-                gen_op_fucom_ST0_FT0();
                 break;
             case 0x2d: /* fucomp st(i) */
-                gen_op_fmov_FT0_STN(opreg);
-                gen_op_fucom_ST0_FT0();
-                gen_op_fpop();
                 break;
             case 0x33: /* de/3 */
                 switch(rm) {
                 case 1: /* fcompp */
-                    gen_op_fmov_FT0_STN(1);
-                    gen_op_fcom_ST0_FT0();
-                    gen_op_fpop();
-                    gen_op_fpop();
                     break;
                 default:
                     goto illegal_op;
@@ -1018,49 +803,25 @@ static int disas_insn(DisasContext *s)
             case 0x3c: /* df/4 */
                 switch(rm) {
                 case 0:
-                    gen_op_fnstsw_EAX();
                     break;
                 default:
                     goto illegal_op;
                 }
                 break;
             case 0x3d: /* fucomip */
-                if (s->cc_op != CC_OP_DYNAMIC)
-                    gen_op_set_cc_op(s->cc_op);
-                gen_op_fmov_FT0_STN(opreg);
-                gen_op_fucomi_ST0_FT0();
-                gen_op_fpop();
-                s->cc_op = CC_OP_EFLAGS;
                 break;
             case 0x3e: /* fcomip */
-                if (s->cc_op != CC_OP_DYNAMIC)
-                    gen_op_set_cc_op(s->cc_op);
-                gen_op_fmov_FT0_STN(opreg);
-                gen_op_fcomi_ST0_FT0();
-                gen_op_fpop();
-                s->cc_op = CC_OP_EFLAGS;
                 break;
             case 0x10 ... 0x13: /* fcmovxx */
             case 0x18 ... 0x1b:
-                {
-                    int op1;
-                    const static uint8_t fcmov_cc[8] = {
-                        (JCC_B << 1),
-                        (JCC_Z << 1),
-                        (JCC_BE << 1),
-                        (JCC_P << 1),
-                    };
-                    op1 = fcmov_cc[op & 3] | ((op >> 3) & 1);
-                    gen_setcc(s, op1);
-                    gen_op_fcmov_ST0_STN_T0(opreg);
-                }
                 break;
             default:
                 goto illegal_op;
             }
         }
+        s->tb->cflags |= CF_TB_FP_USED;
         break;
-#endif
+
         /**************************/
         /* mov */
     case 0xc6:
@@ -1303,6 +1064,10 @@ static int disas_insn(DisasContext *s)
     case 0x90: /* nop */
         break;
     case 0x9b: /* fwait */
+        if ((s->flags & (HF_MP_MASK | HF_TS_MASK)) == 
+            (HF_MP_MASK | HF_TS_MASK)) {
+            goto unsupported_op;
+        }
         break;
     case 0xcc: /* int3 */
         goto unsupported_op;
@@ -1436,7 +1201,8 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     dc->cpl = (flags >> HF_CPL_SHIFT) & 3;
     dc->iopl = (flags >> IOPL_SHIFT) & 3;
     dc->tb = tb;
-    
+    dc->flags = flags;
+
     dc->is_jmp = 0;
 
     for(;;) {
@@ -1473,7 +1239,9 @@ static inline int gen_intermediate_code_internal(CPUState *env,
 #ifdef DEBUG_DISAS
     if (loglevel) {
         fprintf(logfile, "----------------\n");
-        fprintf(logfile, "IN: COPY: %s\n", lookup_symbol(pc_start));
+        fprintf(logfile, "IN: COPY: %s fpu=%d\n", 
+                lookup_symbol(pc_start),
+                tb->cflags & CF_TB_FP_USED ? 1 : 0);
 	disas(logfile, pc_start, dc->pc - pc_start, 0, !dc->code32);
         fprintf(logfile, "\n");
     }
@@ -1482,7 +1250,7 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     if (!search_pc) {
         *gen_code_size_ptr = dc->gen_code_ptr - dc->gen_code_start;
         tb->size = dc->pc - pc_start;
-        tb->cflags = CF_CODE_COPY;
+        tb->cflags |= CF_CODE_COPY;
         return 0;
     } else {
         return -1;
@@ -1526,7 +1294,7 @@ int cpu_restore_state_copy(TranslationBlock *tb,
     if (ret < 0)
         return ret;
     /* restore all the CPU state from the CPU context from the
-       signal */
+       signal. The FPU context stays in the host CPU. */
     
     env->regs[R_EAX] = uc->uc_mcontext.gregs[REG_EAX];
     env->regs[R_ECX] = uc->uc_mcontext.gregs[REG_ECX];
@@ -1542,3 +1310,5 @@ int cpu_restore_state_copy(TranslationBlock *tb,
     env->cc_op = CC_OP_EFLAGS;
     return 0;
 }
+
+#endif /* USE_CODE_COPY */
