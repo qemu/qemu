@@ -122,7 +122,7 @@ typedef struct CCTable {
 
 extern CCTable cc_table[];
 
-void load_seg(int seg_reg, int selector, unsigned cur_eip);
+void load_seg(int seg_reg, int selector);
 void helper_ljmp_protected_T0_T1(void);
 void helper_lcall_real_T0_T1(int shift, int next_eip);
 void helper_lcall_protected_T0_T1(int shift, int next_eip);

@@ -676,6 +676,8 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
         ssp = get_seg_base(ss_e1, ss_e2);
     } else if ((e2 & DESC_C_MASK) || dpl == cpl) {
         /* to same priviledge */
+        if (env->eflags & VM_MASK)
+            raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
         new_stack = 0;
         sp_mask = get_sp_mask(env->segs[R_SS].flags);
         ssp = env->segs[R_SS].base;
@@ -702,13 +704,13 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
     else
         old_eip = env->eip;
     if (shift == 1) {
-        if (env->eflags & VM_MASK) {
-            PUSHL(ssp, esp, sp_mask, env->segs[R_GS].selector);
-            PUSHL(ssp, esp, sp_mask, env->segs[R_FS].selector);
-            PUSHL(ssp, esp, sp_mask, env->segs[R_DS].selector);
-            PUSHL(ssp, esp, sp_mask, env->segs[R_ES].selector);
-        }
         if (new_stack) {
+            if (env->eflags & VM_MASK) {
+                PUSHL(ssp, esp, sp_mask, env->segs[R_GS].selector);
+                PUSHL(ssp, esp, sp_mask, env->segs[R_FS].selector);
+                PUSHL(ssp, esp, sp_mask, env->segs[R_DS].selector);
+                PUSHL(ssp, esp, sp_mask, env->segs[R_ES].selector);
+            }
             PUSHL(ssp, esp, sp_mask, env->segs[R_SS].selector);
             PUSHL(ssp, esp, sp_mask, ESP);
         }
@@ -720,6 +722,12 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
         }
     } else {
         if (new_stack) {
+            if (env->eflags & VM_MASK) {
+                PUSHW(ssp, esp, sp_mask, env->segs[R_GS].selector);
+                PUSHW(ssp, esp, sp_mask, env->segs[R_FS].selector);
+                PUSHW(ssp, esp, sp_mask, env->segs[R_DS].selector);
+                PUSHW(ssp, esp, sp_mask, env->segs[R_ES].selector);
+            }
             PUSHW(ssp, esp, sp_mask, env->segs[R_SS].selector);
             PUSHW(ssp, esp, sp_mask, ESP);
         }
@@ -732,6 +740,18 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
     }
     
     if (new_stack) {
+        if (env->eflags & VM_MASK) {
+            /* XXX: explain me why W2K hangs if the whole segment cache is
+               reset ? */
+            env->segs[R_ES].selector = 0;
+            env->segs[R_ES].flags = 0;
+            env->segs[R_DS].selector = 0;
+            env->segs[R_DS].flags = 0;
+            env->segs[R_FS].selector = 0;
+            env->segs[R_FS].flags = 0;
+            env->segs[R_GS].selector = 0;
+            env->segs[R_GS].flags = 0;
+        }
         ss = (ss & ~3) | dpl;
         cpu_x86_load_seg_cache(env, R_SS, ss, 
                                ssp, get_seg_limit(ss_e1, ss_e2), ss_e2);
@@ -824,22 +844,37 @@ void do_interrupt_user(int intno, int is_int, int error_code,
 void do_interrupt(int intno, int is_int, int error_code, 
                   unsigned int next_eip, int is_hw)
 {
+#if 0
+    {
+        extern FILE *stdout;
+        static int count;
+        if (env->cr[0] & CR0_PE_MASK) {
+            fprintf(stdout, "%d: interrupt: vector=%02x error_code=%04x int=%d\n",
+                    count, intno, error_code, is_int);
+            count++;
+        }
+    }
+    if ((env->cr[0] & CR0_PE_MASK) && intno == 0x10) {
+        tb_flush(env);
+        cpu_set_log(CPU_LOG_ALL);
+    }
+#endif
 #ifdef DEBUG_PCALL
     if (loglevel) {
         static int count;
         fprintf(logfile, "%d: interrupt: vector=%02x error_code=%04x int=%d\n",
                 count, intno, error_code, is_int);
         cpu_x86_dump_state(env, logfile, X86_DUMP_CCOP);
-#if 0
+#if 1
         {
             int i;
             uint8_t *ptr;
-            printf("       code=");
+            fprintf(logfile, "       code=");
             ptr = env->segs[R_CS].base + env->eip;
             for(i = 0; i < 16; i++) {
-                printf(" %02x", ldub(ptr + i));
+                fprintf(logfile, " %02x", ldub(ptr + i));
             }
-            printf("\n");
+            fprintf(logfile, "\n");
         }
 #endif
         count++;
@@ -955,7 +990,6 @@ void helper_cmpxchg8b(void)
     CC_SRC = eflags;
 }
 
-/* We simulate a pre-MMX pentium as in valgrind */
 #define CPUID_FP87 (1 << 0)
 #define CPUID_VME  (1 << 1)
 #define CPUID_DE   (1 << 2)
@@ -979,31 +1013,43 @@ void helper_cmpxchg8b(void)
 
 void helper_cpuid(void)
 {
-    if (EAX == 0) {
-        EAX = 1; /* max EAX index supported */
+    switch(EAX) {
+    case 0:
+        EAX = 2; /* max EAX index supported */
         EBX = 0x756e6547;
         ECX = 0x6c65746e;
         EDX = 0x49656e69;
-    } else if (EAX == 1) {
-        int family, model, stepping;
-        /* EAX = 1 info */
+        break;
+    case 1:
+        {
+            int family, model, stepping;
+            /* EAX = 1 info */
 #if 0
-        /* pentium 75-200 */
-        family = 5;
-        model = 2;
-        stepping = 11;
+            /* pentium 75-200 */
+            family = 5;
+            model = 2;
+            stepping = 11;
 #else
-        /* pentium pro */
-        family = 6;
-        model = 1;
-        stepping = 3;
+            /* pentium pro */
+            family = 6;
+            model = 1;
+            stepping = 3;
 #endif
-        EAX = (family << 8) | (model << 4) | stepping;
+            EAX = (family << 8) | (model << 4) | stepping;
+            EBX = 0;
+            ECX = 0;
+            EDX = CPUID_FP87 | CPUID_DE | CPUID_PSE |
+                CPUID_TSC | CPUID_MSR | CPUID_MCE |
+                CPUID_CX8 | CPUID_PGE | CPUID_CMOV;
+        }
+        break;
+    default:
+        /* cache info: needed for Pentium Pro compatibility */
+        EAX = 0x410601;
         EBX = 0;
         ECX = 0;
-        EDX = CPUID_FP87 | CPUID_DE | CPUID_PSE |
-            CPUID_TSC | CPUID_MSR | CPUID_MCE |
-            CPUID_CX8 | CPUID_PGE | CPUID_CMOV;
+        EDX = 0;
+        break;
     }
 }
 
@@ -1070,14 +1116,14 @@ void helper_ltr_T0(void)
         if (!(e2 & DESC_P_MASK))
             raise_exception_err(EXCP0B_NOSEG, selector & 0xfffc);
         load_seg_cache_raw_dt(&env->tr, e1, e2);
-        e2 |= 0x00000200; /* set the busy bit */
+        e2 |= DESC_TSS_BUSY_MASK;
         stl_kernel(ptr + 4, e2);
     }
     env->tr.selector = selector;
 }
 
 /* only works if protected mode and not VM86. seg_reg must be != R_CS */
-void load_seg(int seg_reg, int selector, unsigned int cur_eip)
+void load_seg(int seg_reg, int selector)
 {
     uint32_t e1, e2;
     int cpl, dpl, rpl;
@@ -1085,14 +1131,12 @@ void load_seg(int seg_reg, int selector, unsigned int cur_eip)
     int index;
     uint8_t *ptr;
 
+    selector &= 0xffff;
     if ((selector & 0xfffc) == 0) {
         /* null selector case */
-        if (seg_reg == R_SS) {
-            EIP = cur_eip;
+        if (seg_reg == R_SS)
             raise_exception_err(EXCP0D_GPF, 0);
-        } else {
-            cpu_x86_load_seg_cache(env, seg_reg, selector, NULL, 0, 0);
-        }
+        cpu_x86_load_seg_cache(env, seg_reg, selector, NULL, 0, 0);
     } else {
         
         if (selector & 0x4)
@@ -1100,49 +1144,36 @@ void load_seg(int seg_reg, int selector, unsigned int cur_eip)
         else
             dt = &env->gdt;
         index = selector & ~7;
-        if ((index + 7) > dt->limit) {
-            EIP = cur_eip;
+        if ((index + 7) > dt->limit)
             raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
-        }
         ptr = dt->base + index;
         e1 = ldl_kernel(ptr);
         e2 = ldl_kernel(ptr + 4);
 
-        if (!(e2 & DESC_S_MASK)) {
-            EIP = cur_eip;
+        if (!(e2 & DESC_S_MASK))
             raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
-        }
         rpl = selector & 3;
         dpl = (e2 >> DESC_DPL_SHIFT) & 3;
         cpl = env->hflags & HF_CPL_MASK;
         if (seg_reg == R_SS) {
             /* must be writable segment */
-            if ((e2 & DESC_CS_MASK) || !(e2 & DESC_W_MASK)) {
-                EIP = cur_eip;
+            if ((e2 & DESC_CS_MASK) || !(e2 & DESC_W_MASK))
                 raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
-            }
-            if (rpl != cpl || dpl != cpl) {
-                EIP = cur_eip;
+            if (rpl != cpl || dpl != cpl)
                 raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
-            }
         } else {
             /* must be readable segment */
-            if ((e2 & (DESC_CS_MASK | DESC_R_MASK)) == DESC_CS_MASK) {
-                EIP = cur_eip;
+            if ((e2 & (DESC_CS_MASK | DESC_R_MASK)) == DESC_CS_MASK)
                 raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
-            }
             
             if (!(e2 & DESC_CS_MASK) || !(e2 & DESC_C_MASK)) {
                 /* if not conforming code, test rights */
-                if (dpl < cpl || dpl < rpl) {
-                    EIP = cur_eip;
+                if (dpl < cpl || dpl < rpl)
                     raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
-                }
             }
         }
 
         if (!(e2 & DESC_P_MASK)) {
-            EIP = cur_eip;
             if (seg_reg == R_SS)
                 raise_exception_err(EXCP0C_STACK, selector & 0xfffc);
             else
@@ -1507,6 +1538,21 @@ void helper_iret_real(int shift)
     load_eflags(new_eflags, eflags_mask);
 }
 
+static inline void validate_seg(int seg_reg, int cpl)
+{
+    int dpl;
+    uint32_t e2;
+    
+    e2 = env->segs[seg_reg].flags;
+    dpl = (e2 >> DESC_DPL_SHIFT) & 3;
+    if (!(e2 & DESC_CS_MASK) || !(e2 & DESC_C_MASK)) {
+        /* data or non conforming code segment */
+        if (dpl < cpl) {
+            cpu_x86_load_seg_cache(env, seg_reg, 0, NULL, 0, 0);
+        }
+    }
+}
+
 /* protected mode iret */
 static inline void helper_ret_protected(int shift, int is_iret, int addend)
 {
@@ -1610,6 +1656,12 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
         cpu_x86_set_cpl(env, rpl);
         sp = new_esp;
         /* XXX: change sp_mask according to old segment ? */
+
+        /* validate data segments */
+        validate_seg(R_ES, cpl);
+        validate_seg(R_DS, cpl);
+        validate_seg(R_FS, cpl);
+        validate_seg(R_GS, cpl);
     }
     ESP = (ESP & ~sp_mask) | (sp & sp_mask);
     env->eip = new_eip;
