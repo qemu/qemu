@@ -1603,10 +1603,10 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                 int reclen;
                 de = dirp;
                 while (len > 0) {
-                    reclen = tswap16(de->d_reclen);
+                    reclen = de->d_reclen;
                     if (reclen > len)
                         break;
-                    de->d_reclen = reclen;
+                    de->d_reclen = tswap16(reclen);
                     tswapls(&de->d_ino);
                     tswapls(&de->d_off);
                     de = (struct dirent *)((char *)de + reclen);
@@ -1626,10 +1626,10 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                 int reclen;
                 de = dirp;
                 while (len > 0) {
-                    reclen = tswap16(de->d_reclen);
+                    reclen = de->d_reclen;
                     if (reclen > len)
                         break;
-                    de->d_reclen = reclen;
+                    de->d_reclen = tswap16(reclen);
                     tswap64s(&de->d_ino);
                     tswap64s(&de->d_off);
                     de = (struct dirent64 *)((char *)de + reclen);
