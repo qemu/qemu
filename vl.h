@@ -673,20 +673,23 @@ void sun4m_init(int ram_size, int vga_ram_size, int boot_device,
              const char *initrd_filename);
 
 /* iommu.c */
-void iommu_init();
+void iommu_init(uint32_t addr);
 uint32_t iommu_translate(uint32_t addr);
 
 /* lance.c */
-void lance_init(NetDriverState *nd, int irq);
+void lance_init(NetDriverState *nd, int irq, uint32_t leaddr, uint32_t ledaddr);
 
 /* tcx.c */
-void tcx_init(DisplayState *ds);
+void tcx_init(DisplayState *ds, uint32_t addr);
 
 /* sched.c */
 void sched_init();
 
 /* magic-load.c */
-void magic_init(const char *kfn, int kloadaddr);
+void magic_init(const char *kfn, int kloadaddr, uint32_t addr);
+
+/* timer.c */
+void timer_init(uint32_t addr, int irq);
 
 /* NVRAM helpers */
 #include "hw/m48t59.h"

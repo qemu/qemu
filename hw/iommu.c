@@ -107,29 +107,24 @@ struct iommu_regs {
 #define IOPTE_VALID         0x00000002 /* IOPTE is valid */
 #define IOPTE_WAZ           0x00000001 /* Write as zeros */
 
-#define PHYS_JJ_IOMMU	0x10000000	/* First page of sun4m IOMMU */
 #define PAGE_SHIFT      12
 #define PAGE_SIZE       (1 << PAGE_SHIFT)
 #define PAGE_MASK	(PAGE_SIZE - 1)
 
 typedef struct IOMMUState {
+    uint32_t addr;
     uint32_t regs[sizeof(struct iommu_regs)];
+    uint32_t iostart;
 } IOMMUState;
 
 static IOMMUState *ps;
-
-static int iommu_io_memory;
-
-static void iommu_reset(IOMMUState *s)
-{
-}
 
 static uint32_t iommu_mem_readw(void *opaque, target_phys_addr_t addr)
 {
     IOMMUState *s = opaque;
     uint32_t saddr;
 
-    saddr = (addr - PHYS_JJ_IOMMU) >> 2;
+    saddr = (addr - s->addr) >> 2;
     switch (saddr) {
     default:
 	return s->regs[saddr];
@@ -143,8 +138,37 @@ static void iommu_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val
     IOMMUState *s = opaque;
     uint32_t saddr;
 
-    saddr = (addr - PHYS_JJ_IOMMU) >> 2;
+    saddr = (addr - s->addr) >> 2;
     switch (saddr) {
+    case 0:
+	switch (val & IOMMU_CTRL_RNGE) {
+	case IOMMU_RNGE_16MB:
+	    s->iostart = 0xff000000;
+	    break;
+	case IOMMU_RNGE_32MB:
+	    s->iostart = 0xfe000000;
+	    break;
+	case IOMMU_RNGE_64MB:
+	    s->iostart = 0xfc000000;
+	    break;
+	case IOMMU_RNGE_128MB:
+	    s->iostart = 0xf8000000;
+	    break;
+	case IOMMU_RNGE_256MB:
+	    s->iostart = 0xf0000000;
+	    break;
+	case IOMMU_RNGE_512MB:
+	    s->iostart = 0xe0000000;
+	    break;
+	case IOMMU_RNGE_1GB:
+	    s->iostart = 0xc0000000;
+	    break;
+	default:
+	case IOMMU_RNGE_2GB:
+	    s->iostart = 0x80000000;
+	    break;
+	}
+	/* Fall through */
     default:
 	s->regs[saddr] = val;
 	break;
@@ -165,57 +189,30 @@ static CPUWriteMemoryFunc *iommu_mem_write[3] = {
 
 uint32_t iommu_translate(uint32_t addr)
 {
-    uint32_t *iopte = (void *)(ps->regs[1] << 4), pa, iostart;
+    uint32_t *iopte = (void *)(ps->regs[1] << 4), pa;
 
-    switch (ps->regs[0] & IOMMU_CTRL_RNGE) {
-    case IOMMU_RNGE_16MB:
-	iostart = 0xff000000;
-	break;
-    case IOMMU_RNGE_32MB:
-	iostart = 0xfe000000;
-	break;
-    case IOMMU_RNGE_64MB:
-	iostart = 0xfc000000;
-	break;
-    case IOMMU_RNGE_128MB:
-	iostart = 0xf8000000;
-	break;
-    case IOMMU_RNGE_256MB:
-	iostart = 0xf0000000;
-	break;
-    case IOMMU_RNGE_512MB:
-	iostart = 0xe0000000;
-	break;
-    case IOMMU_RNGE_1GB:
-	iostart = 0xc0000000;
-	break;
-    default:
-    case IOMMU_RNGE_2GB:
-	iostart = 0x80000000;
-	break;
-    }
-
-    iopte += ((addr - iostart) >> PAGE_SHIFT);
+    iopte += ((addr - ps->iostart) >> PAGE_SHIFT);
     cpu_physical_memory_rw((uint32_t)iopte, (void *) &pa, 4, 0);
     bswap32s(&pa);
     pa = (pa & IOPTE_PAGE) << 4;		/* Loose higher bits of 36 */
-    //return pa + PAGE_SIZE;
     return pa + (addr & PAGE_MASK);
 }
 
-void iommu_init()
+void iommu_init(uint32_t addr)
 {
     IOMMUState *s;
+    int iommu_io_memory;
 
     s = qemu_mallocz(sizeof(IOMMUState));
     if (!s)
         return;
 
+    s->addr = addr;
+
     iommu_io_memory = cpu_register_io_memory(0, iommu_mem_read, iommu_mem_write, s);
-    cpu_register_physical_memory(PHYS_JJ_IOMMU, sizeof(struct iommu_regs),
+    cpu_register_physical_memory(addr, sizeof(struct iommu_regs),
                                  iommu_io_memory);
     
-    iommu_reset(s);
     ps = s;
 }
 

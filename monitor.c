@@ -952,11 +952,7 @@ static int monitor_get_tbl (struct MonitorDef *md, int val)
 #if defined(TARGET_SPARC)
 static int monitor_get_psr (struct MonitorDef *md, int val)
 {
-    return (0<<28) | (4<<24) | cpu_single_env->psr	\
-	| (cpu_single_env->psrs? PSR_S : 0)		\
-	| (cpu_single_env->psrs? PSR_PS : 0)		\
-	| (cpu_single_env->psret? PSR_ET : 0)		\
-	| cpu_single_env->cwp;
+    return GET_PSR(cpu_single_env);
 }
 
 static int monitor_get_reg(struct MonitorDef *md, int val)

@@ -1,5 +1,5 @@
 /*
- * QEMU interrupt controller & timer emulation
+ * QEMU interrupt controller emulation
  * 
  * Copyright (c) 2003-2004 Fabrice Bellard
  * 
@@ -22,11 +22,7 @@
  * THE SOFTWARE.
  */
 #include "vl.h"
-
-#define PHYS_JJ_CLOCK	0x71D00000
-#define PHYS_JJ_CLOCK1	0x71D10000
-#define PHYS_JJ_INTR0	0x71E00000	/* CPU0 interrupt control registers */
-#define PHYS_JJ_INTR_G	0x71E10000	/* Master interrupt control registers */
+//#define DEBUG_IRQ_COUNT
 
 /* These registers are used for sending/receiving irqs from/to
  * different cpu's.
@@ -63,18 +59,6 @@ struct sun4m_intreg_master {
 	/* This register is both READ and WRITE. */
 	unsigned int undirected_target;  /* Which cpu gets undirected irqs. */
 };
-/*
- * Registers of hardware timer in sun4m.
- */
-struct sun4m_timer_percpu {
-	volatile unsigned int l14_timer_limit; /* Initial value is 0x009c4000 */
-	volatile unsigned int l14_cur_count;
-};
-
-struct sun4m_timer_global {
-        volatile unsigned int l10_timer_limit;
-        volatile unsigned int l10_cur_count;
-};
 
 #define SUN4M_INT_ENABLE        0x80000000
 #define SUN4M_INT_E14           0x00000080
@@ -101,29 +85,25 @@ struct sun4m_timer_global {
 #define SUN4M_INT_VME(x)        (1 << (x))
 
 typedef struct SCHEDState {
+    uint32_t addr, addrg;
     uint32_t intreg_pending;
     uint32_t intreg_enabled;
     uint32_t intregm_pending;
     uint32_t intregm_enabled;
-    uint32_t timer_regs[2];
-    uint32_t timerm_regs[2];
 } SCHEDState;
 
 static SCHEDState *ps;
 
-static int intreg_io_memory, intregm_io_memory,
-    timer_io_memory, timerm_io_memory;
-
-static void sched_reset(SCHEDState *s)
-{
-}
+#ifdef DEBUG_IRQ_COUNT
+static uint64_t irq_count[32];
+#endif
 
 static uint32_t intreg_mem_readl(void *opaque, target_phys_addr_t addr)
 {
     SCHEDState *s = opaque;
     uint32_t saddr;
 
-    saddr = (addr - PHYS_JJ_INTR0) >> 2;
+    saddr = (addr - s->addr) >> 2;
     switch (saddr) {
     case 0:
 	return s->intreg_pending;
@@ -139,7 +119,7 @@ static void intreg_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t va
     SCHEDState *s = opaque;
     uint32_t saddr;
 
-    saddr = (addr - PHYS_JJ_INTR0) >> 2;
+    saddr = (addr - s->addr) >> 2;
     switch (saddr) {
     case 0:
 	s->intreg_pending = val;
@@ -172,7 +152,7 @@ static uint32_t intregm_mem_readl(void *opaque, target_phys_addr_t addr)
     SCHEDState *s = opaque;
     uint32_t saddr;
 
-    saddr = (addr - PHYS_JJ_INTR_G) >> 2;
+    saddr = (addr - s->addrg) >> 2;
     switch (saddr) {
     case 0:
 	return s->intregm_pending;
@@ -191,7 +171,7 @@ static void intregm_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t v
     SCHEDState *s = opaque;
     uint32_t saddr;
 
-    saddr = (addr - PHYS_JJ_INTR_G) >> 2;
+    saddr = (addr - s->addrg) >> 2;
     switch (saddr) {
     case 0:
 	s->intregm_pending = val;
@@ -222,86 +202,28 @@ static CPUWriteMemoryFunc *intregm_mem_write[3] = {
     intregm_mem_writel,
 };
 
-static uint32_t timer_mem_readl(void *opaque, target_phys_addr_t addr)
+void pic_info(void)
 {
-    SCHEDState *s = opaque;
-    uint32_t saddr;
-
-    saddr = (addr - PHYS_JJ_CLOCK) >> 2;
-    switch (saddr) {
-    default:
-	return s->timer_regs[saddr];
-	break;
-    }
-    return 0;
+    term_printf("per-cpu: pending 0x%08x, enabled 0x%08x\n", ps->intreg_pending, ps->intreg_enabled);
+    term_printf("master: pending 0x%08x, enabled 0x%08x\n", ps->intregm_pending, ps->intregm_enabled);
 }
 
-static void timer_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
+void irq_info(void)
 {
-    SCHEDState *s = opaque;
-    uint32_t saddr;
+#ifndef DEBUG_IRQ_COUNT
+    term_printf("irq statistic code not compiled.\n");
+#else
+    int i;
+    int64_t count;
 
-    saddr = (addr - PHYS_JJ_CLOCK) >> 2;
-    switch (saddr) {
-    default:
-	s->timer_regs[saddr] = val;
-	break;
+    term_printf("IRQ statistics:\n");
+    for (i = 0; i < 32; i++) {
+        count = irq_count[i];
+        if (count > 0)
+            term_printf("%2d: %lld\n", i, count);
     }
+#endif
 }
-
-static CPUReadMemoryFunc *timer_mem_read[3] = {
-    timer_mem_readl,
-    timer_mem_readl,
-    timer_mem_readl,
-};
-
-static CPUWriteMemoryFunc *timer_mem_write[3] = {
-    timer_mem_writel,
-    timer_mem_writel,
-    timer_mem_writel,
-};
-
-static uint32_t timerm_mem_readl(void *opaque, target_phys_addr_t addr)
-{
-    SCHEDState *s = opaque;
-    uint32_t saddr;
-
-    saddr = (addr - PHYS_JJ_CLOCK1) >> 2;
-    switch (saddr) {
-    default:
-	return s->timerm_regs[saddr];
-	break;
-    }
-    return 0;
-}
-
-static void timerm_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
-{
-    SCHEDState *s = opaque;
-    uint32_t saddr;
-
-    saddr = (addr - PHYS_JJ_CLOCK1) >> 2;
-    switch (saddr) {
-    default:
-	s->timerm_regs[saddr] = val;
-	break;
-    }
-}
-
-static CPUReadMemoryFunc *timerm_mem_read[3] = {
-    timerm_mem_readl,
-    timerm_mem_readl,
-    timerm_mem_readl,
-};
-
-static CPUWriteMemoryFunc *timerm_mem_write[3] = {
-    timerm_mem_writel,
-    timerm_mem_writel,
-    timerm_mem_writel,
-};
-
-void pic_info() {}
-void irq_info() {}
 
 static const unsigned int intr_to_mask[16] = {
 	0,	0,	0,	0,	0,	0, SUN4M_INT_ETHERNET,	0,
@@ -318,29 +240,29 @@ void pic_set_irq(int irq, int level)
 	    cpu_interrupt(cpu_single_env, CPU_INTERRUPT_HARD);
 	}
     }
+#ifdef DEBUG_IRQ_COUNT
+    if (level == 1)
+	irq_count[irq]++;
+#endif
 }
 
-void sched_init()
+void sched_init(uint32_t addr, uint32_t addrg)
 {
+    int intreg_io_memory, intregm_io_memory;
     SCHEDState *s;
 
     s = qemu_mallocz(sizeof(SCHEDState));
     if (!s)
         return;
+    s->addr = addr;
+    s->addrg = addrg;
 
     intreg_io_memory = cpu_register_io_memory(0, intreg_mem_read, intreg_mem_write, s);
-    cpu_register_physical_memory(PHYS_JJ_INTR0, 3, intreg_io_memory);
+    cpu_register_physical_memory(addr, 3, intreg_io_memory);
 
     intregm_io_memory = cpu_register_io_memory(0, intregm_mem_read, intregm_mem_write, s);
-    cpu_register_physical_memory(PHYS_JJ_INTR_G, 5, intregm_io_memory);
+    cpu_register_physical_memory(addrg, 5, intregm_io_memory);
 
-    timer_io_memory = cpu_register_io_memory(0, timer_mem_read, timer_mem_write, s);
-    cpu_register_physical_memory(PHYS_JJ_CLOCK, 2, timer_io_memory);
-
-    timerm_io_memory = cpu_register_io_memory(0, timerm_mem_read, timerm_mem_write, s);
-    cpu_register_physical_memory(PHYS_JJ_CLOCK1, 2, timerm_io_memory);
-
-    sched_reset(s);
     ps = s;
 }
 

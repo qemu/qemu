@@ -1,0 +1,50 @@
+diff -ru proll_18.orig/mrcoffee/main.c proll_18/mrcoffee/main.c
+--- proll_18.orig/mrcoffee/main.c	2002-09-13 16:16:59.000000000 +0200
++++ proll_18/mrcoffee/main.c	2004-09-26 11:52:23.000000000 +0200
+@@ -101,6 +101,7 @@
+ 	le_probe();
+ 	init_net();
+ 
++#ifdef ORIG
+ #if 0 /* RARP */
+ 	if (rarp() != 0) fatal();
+ 	/* printrarp(); */
+@@ -117,13 +118,20 @@
+ 	xtoa(myipaddr, fname, 8);
+ 	if (load(boot_rec.bp_siaddr, fname) != 0) fatal();
+ #endif
++#endif
+ 
+ 	romvec = init_openprom(bb.nbanks, bb.bankv, hiphybas);
+ 
+ 	printk("Memory used: virt 0x%x:0x%x[%dK] iomap 0x%x:0x%x\n",
+ 	    PROLBASE, (int)cmem.curp, ((unsigned) cmem.curp - PROLBASE)/1024,
+ 	    (int)cio.start, (int)cio.curp);
++#ifdef ORIG
+ 	set_timeout(5);  while (!chk_timeout()) { }  /* P3: let me read */
++#else
++	printk("loading kernel:");
++	i = ld_bypass(0x20000000);
++	printk(" done, size %d\n", i);
++#endif
+ 
+ 	{
+ 		void (*entry)(void *, int) = (void (*)(void*, int)) LOADBASE;
+diff -ru proll_18.orig/mrcoffee/openprom.c proll_18/mrcoffee/openprom.c
+--- proll_18.orig/mrcoffee/openprom.c	2002-09-13 16:17:03.000000000 +0200
++++ proll_18/mrcoffee/openprom.c	2004-09-21 21:27:16.000000000 +0200
+@@ -144,10 +144,14 @@
+ };
+ 
+ static int cpu_nctx = NCTX_SWIFT;
++static int cpu_cache_line_size = 0x20;
++static int cpu_cache_nlines = 0x200;
+ static struct property propv_cpu[] = {
+ 	{"name",	"STP1012PGA", sizeof("STP1012PGA") },
+ 	{"device_type",	"cpu", 4 },
+ 	{"mmu-nctx",	(char*)&cpu_nctx, sizeof(int)},
++	{"cache-line-size",	(char*)&cpu_cache_line_size, sizeof(int)},
++	{"cache-nlines",	(char*)&cpu_cache_nlines, sizeof(int)},
+ 	{NULL, NULL, -1}
+ };
+ 

@@ -474,92 +474,6 @@ void OPPROTO op_sra(void)
     T0 = ((int32_t) T0) >> T1;
 }
 
-#if 0
-void OPPROTO op_st(void)
-{
-    stl((void *) T0, T1);
-}
-
-void OPPROTO op_stb(void)
-{
-    stb((void *) T0, T1);
-}
-
-void OPPROTO op_sth(void)
-{
-    stw((void *) T0, T1);
-}
-
-void OPPROTO op_std(void)
-{
-    stl((void *) T0, T1);
-    stl((void *) (T0 + 4), T2);
-}
-
-void OPPROTO op_ld(void)
-{
-    T1 = ldl((void *) T0);
-}
-
-void OPPROTO op_ldub(void)
-{
-    T1 = ldub((void *) T0);
-}
-
-void OPPROTO op_lduh(void)
-{
-    T1 = lduw((void *) T0);
-}
-
-void OPPROTO op_ldsb(void)
-{
-    T1 = ldsb((void *) T0);
-}
-
-void OPPROTO op_ldsh(void)
-{
-    T1 = ldsw((void *) T0);
-}
-
-void OPPROTO op_ldstub(void)
-{
-    T1 = ldub((void *) T0);
-    stb((void *) T0, 0xff);	/* XXX: Should be Atomically */
-}
-
-void OPPROTO op_swap(void)
-{
-    unsigned int tmp = ldl((void *) T0);
-    stl((void *) T0, T1);	/* XXX: Should be Atomically */
-    T1 = tmp;
-}
-
-void OPPROTO op_ldd(void)
-{
-    T1 = ldl((void *) T0);
-    T0 = ldl((void *) (T0 + 4));
-}
-
-void OPPROTO op_stf(void)
-{
-    stfl((void *) T0, FT0);
-}
-
-void OPPROTO op_stdf(void)
-{
-    stfq((void *) T0, DT0);
-}
-
-void OPPROTO op_ldf(void)
-{
-    FT0 = ldfl((void *) T0);
-}
-
-void OPPROTO op_lddf(void)
-{
-    DT0 = ldfq((void *) T0);
-}
-#else
 /* Load and store */
 #define MEMSUFFIX _raw
 #include "op_mem.h"
@@ -570,19 +484,16 @@ void OPPROTO op_lddf(void)
 #define MEMSUFFIX _kernel
 #include "op_mem.h"
 #endif
-#endif
 
 void OPPROTO op_ldfsr(void)
 {
     env->fsr = *((uint32_t *) &FT0);
-    FORCE_RET();
+    helper_ldfsr();
 }
 
 void OPPROTO op_stfsr(void)
 {
     *((uint32_t *) &FT0) = env->fsr;
-    helper_stfsr();
-    FORCE_RET();
 }
 
 void OPPROTO op_wry(void)
@@ -609,16 +520,17 @@ void OPPROTO op_wrwim(void)
 void OPPROTO op_rdpsr(void)
 {
     T0 = GET_PSR(env);
-    FORCE_RET();
 }
 
 void OPPROTO op_wrpsr(void)
 {
+    int cwp;
     env->psr = T0 & ~PSR_ICC;
     env->psrs = (T0 & PSR_S)? 1 : 0;
     env->psrps = (T0 & PSR_PS)? 1 : 0;
     env->psret = (T0 & PSR_ET)? 1 : 0;
-    env->cwp = (T0 & PSR_CWP);
+    cwp = (T0 & PSR_CWP) & (NWINDOWS - 1);
+    set_cwp(cwp);
     FORCE_RET();
 }
 

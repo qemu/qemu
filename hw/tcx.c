@@ -23,9 +23,6 @@
  */
 #include "vl.h"
 
-#define PHYS_JJ_TCX_FB	0x50800000	/* Start address, frame buffer body */
-#define PHYS_JJ_TCX_0E	0x5E000000	/* Top address, one byte used. */
-
 #define MAXX 1024
 #define MAXY 768
 #define XSZ (8*80)
@@ -33,38 +30,32 @@
 #define XOFF (MAXX-XSZ)
 #define YOFF (MAXY-YSZ)
 
-#define DEBUG_VGA_MEM
-
 typedef struct TCXState {
-    uint8_t *vram_ptr;
-    unsigned long vram_offset;
-    unsigned int vram_size;
+    uint32_t addr;
     DisplayState *ds;
+    uint8_t *vram;
 } TCXState;
 
 static TCXState *ts;
-
-static int tcx_io_memory;
 
 void vga_update_display()
 {
     dpy_update(ts->ds, 0, 0, XSZ, YSZ);
 }
 
+void vga_invalidate_display() {}
+
 static uint32_t tcx_mem_readb(void *opaque, target_phys_addr_t addr)
 {
     TCXState *s = opaque;
     uint32_t saddr;
     unsigned int x, y;
-    char *sptr;
 
-    saddr = addr - PHYS_JJ_TCX_FB - YOFF*MAXX - XOFF;
+    saddr = addr - s->addr - YOFF*MAXX - XOFF;
     y = saddr / MAXX;
     x = saddr - y * MAXX;
-    if (x < MAXX && y < MAXY) {
-	sptr = 	s->ds->data;
-	if (sptr)
-	    return sptr[y * s->ds->linesize + x*4];
+    if (x < XSZ && y < YSZ) {
+	return s->vram[y * XSZ + x];
     }
     return 0;
 }
@@ -99,7 +90,6 @@ static uint32_t tcx_mem_readl(void *opaque, target_phys_addr_t addr)
     return v;
 }
 
-/* called for accesses between 0xa0000 and 0xc0000 */
 static void tcx_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     TCXState *s = opaque;
@@ -107,17 +97,24 @@ static void tcx_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
     unsigned int x, y;
     char *sptr;
 
-    saddr = addr - PHYS_JJ_TCX_FB - YOFF*MAXX - XOFF;
+    saddr = addr - s->addr - YOFF*MAXX - XOFF;
     y = saddr / MAXX;
     x = saddr - y * MAXX;
-    if (x < MAXX && y < MAXY) {
+    if (x < XSZ && y < YSZ) {
 	sptr = 	s->ds->data;
 	if (sptr) {
-	    sptr[y * s->ds->linesize + x*4] = val;
-	    sptr[y * s->ds->linesize + x*4+1] = val;
-	    sptr[y * s->ds->linesize + x*4+2] = val;
-	    cpu_physical_memory_set_dirty(addr);
+	    if (s->ds->depth == 24 || s->ds->depth == 32) {
+		/* XXX need to do CLUT translation */
+		sptr[y * s->ds->linesize + x*4] = val & 0xff;
+		sptr[y * s->ds->linesize + x*4+1] = val & 0xff;
+		sptr[y * s->ds->linesize + x*4+2] = val & 0xff;
+	    }
+	    else if (s->ds->depth == 8) {
+		sptr[y * s->ds->linesize + x] = val & 0xff;
+	    }
 	}
+	cpu_physical_memory_set_dirty(addr);
+	s->vram[y * XSZ + x] = val & 0xff;
     }
 }
 
@@ -159,18 +156,52 @@ static CPUWriteMemoryFunc *tcx_mem_write[3] = {
     tcx_mem_writel,
 };
 
-void tcx_init(DisplayState *ds)
+void tcx_init(DisplayState *ds, uint32_t addr)
 {
     TCXState *s;
+    int tcx_io_memory;
 
     s = qemu_mallocz(sizeof(TCXState));
     if (!s)
         return;
     s->ds = ds;
+    s->addr = addr;
     ts = s;
     tcx_io_memory = cpu_register_io_memory(0, tcx_mem_read, tcx_mem_write, s);
-    cpu_register_physical_memory(PHYS_JJ_TCX_FB, 0x100000, 
+    cpu_register_physical_memory(addr, 0x100000, 
                                  tcx_io_memory);
+    s->vram = qemu_mallocz(XSZ*YSZ);
     dpy_resize(s->ds, XSZ, YSZ);
 }
+
+void vga_screen_dump(const char *filename)
+{
+    TCXState *s = ts;
+    FILE *f;
+    uint8_t *d, *d1;
+    unsigned int v;
+    int y, x;
+
+    f = fopen(filename, "wb");
+    if (!f)
+        return -1;
+    fprintf(f, "P6\n%d %d\n%d\n",
+            XSZ, YSZ, 255);
+    d1 = s->vram;
+    for(y = 0; y < YSZ; y++) {
+        d = d1;
+        for(x = 0; x < XSZ; x++) {
+            v = *d;
+            fputc((v) & 0xff, f);
+            fputc((v) & 0xff, f);
+            fputc((v) & 0xff, f);
+            d++;
+        }
+        d1 += XSZ;
+    }
+    fclose(f);
+    return;
+}
+
+
 

@@ -23,13 +23,16 @@ void helper_flush(target_ulong addr);
 void helper_ld_asi(int asi, int size, int sign);
 void helper_st_asi(int asi, int size, int sign);
 void helper_rett(void);
-void helper_stfsr(void);
+void helper_ldfsr(void);
 void set_cwp(int new_cwp);
 void do_fabss(void);
 void do_fsqrts(void);
 void do_fsqrtd(void);
 void do_fcmps(void);
 void do_fcmpd(void);
+void do_ldd_kernel(uint32_t addr);
+void do_ldd_user(uint32_t addr);
+void do_ldd_raw(uint32_t addr);
 void do_interrupt(int intno, int is_int, int error_code, 
                   unsigned int next_eip, int is_hw);
 void raise_exception_err(int exception_index, int error_code);

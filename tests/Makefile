@@ -1,4 +1,4 @@
-include ../config-host.mak
+-include ../config-host.mak
 
 CFLAGS=-Wall -O2 -g
 LDFLAGS=

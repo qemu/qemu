@@ -1,40 +1,11 @@
-/* This is the Linux kernel elf-loading code, ported into user space */
 #include "vl.h"
 #include "disas.h"
-
-/* XXX: this code is not used as it is under the GPL license. Please
-   remove or recode it */
-//#define USE_ELF_LOADER
-
-#ifdef USE_ELF_LOADER
-/* should probably go in elf.h */
-#ifndef ELIBBAD
-#define ELIBBAD 80
-#endif
-
-
-#define ELF_START_MMAP 0x80000000
-
-#define elf_check_arch(x) ( (x) == EM_SPARC )
 
 #define ELF_CLASS   ELFCLASS32
 #define ELF_DATA    ELFDATA2MSB
 #define ELF_ARCH    EM_SPARC
 
 #include "elf.h"
-
-/*
- * This structure is used to hold the arguments that are 
- * used when loading binaries.
- */
-struct linux_binprm {
-        char buf[128];
-	int fd;
-};
-
-#define TARGET_ELF_EXEC_PAGESIZE TARGET_PAGE_SIZE
-#define TARGET_ELF_PAGESTART(_v) ((_v) & ~(unsigned long)(TARGET_ELF_EXEC_PAGESIZE-1))
-#define TARGET_ELF_PAGEOFFSET(_v) ((_v) & (TARGET_ELF_EXEC_PAGESIZE-1))
 
 #ifdef BSWAP_NEEDED
 static void bswap_ehdr(Elf32_Ehdr *ehdr)
@@ -87,186 +58,192 @@ static void bswap_sym(Elf32_Sym *sym)
     bswap32s(&sym->st_size);
     bswap16s(&sym->st_shndx);
 }
+#else
+#define bswap_ehdr(e) do { } while (0)
+#define bswap_phdr(e) do { } while (0)
+#define bswap_shdr(e) do { } while (0)
+#define bswap_sym(e) do { } while (0)
 #endif
 
-static int prepare_binprm(struct linux_binprm *bprm)
+static int find_phdr(struct elfhdr *ehdr, int fd, struct elf_phdr *phdr, uint32_t type)
+{
+    int i, retval;
+
+    retval = lseek(fd, ehdr->e_phoff, SEEK_SET);
+    if (retval < 0)
+	return -1;
+
+    for (i = 0; i < ehdr->e_phnum; i++) {
+	retval = read(fd, phdr, sizeof(*phdr));
+	if (retval < 0)
+	    return -1;
+	bswap_phdr(phdr);
+	if (phdr->p_type == type)
+	    return 0;
+    }
+    return -1;
+}
+
+static void *find_shdr(struct elfhdr *ehdr, int fd, struct elf_shdr *shdr, uint32_t type)
+{
+    int i, retval;
+
+    retval = lseek(fd, ehdr->e_shoff, SEEK_SET);
+    if (retval < 0)
+	return NULL;
+
+    for (i = 0; i < ehdr->e_shnum; i++) {
+	retval = read(fd, shdr, sizeof(*shdr));
+	if (retval < 0)
+	    return NULL;
+	bswap_shdr(shdr);
+	if (shdr->sh_type == type)
+	    return qemu_malloc(shdr->sh_size);
+    }
+    return NULL;
+}
+
+static int find_strtab(struct elfhdr *ehdr, int fd, struct elf_shdr *shdr, struct elf_shdr *symtab)
 {
     int retval;
 
-    memset(bprm->buf, 0, sizeof(bprm->buf));
-    retval = lseek(bprm->fd, 0L, SEEK_SET);
-    if(retval >= 0) {
-        retval = read(bprm->fd, bprm->buf, 128);
-    }
-    if(retval < 0) {
-	perror("prepare_binprm");
-	exit(-1);
-	/* return(-errno); */
-    }
-    else {
-	return(retval);
-    }
+    retval = lseek(fd, ehdr->e_shoff + sizeof(struct elf_shdr) * symtab->sh_link, SEEK_SET);
+    if (retval < 0)
+	return -1;
+
+    retval = read(fd, shdr, sizeof(*shdr));
+    if (retval < 0)
+	return -1;
+    bswap_shdr(shdr);
+    if (shdr->sh_type == SHT_STRTAB)
+	return qemu_malloc(shdr->sh_size);;
+    return 0;
 }
 
-/* Best attempt to load symbols from this ELF object. */
-static void load_symbols(struct elfhdr *hdr, int fd)
+static int read_program(int fd, struct elf_phdr *phdr, void *dst)
 {
-    unsigned int i;
-    struct elf_shdr sechdr, symtab, strtab;
-    char *strings;
-
-    lseek(fd, hdr->e_shoff, SEEK_SET);
-    for (i = 0; i < hdr->e_shnum; i++) {
-	if (read(fd, &sechdr, sizeof(sechdr)) != sizeof(sechdr))
-	    return;
-#ifdef BSWAP_NEEDED
-	bswap_shdr(&sechdr);
-#endif
-	if (sechdr.sh_type == SHT_SYMTAB) {
-	    symtab = sechdr;
-	    lseek(fd, hdr->e_shoff
-		  + sizeof(sechdr) * sechdr.sh_link, SEEK_SET);
-	    if (read(fd, &strtab, sizeof(strtab))
-		!= sizeof(strtab))
-		return;
-#ifdef BSWAP_NEEDED
-	    bswap_shdr(&strtab);
-#endif
-	    goto found;
-	}
-    }
-    return; /* Shouldn't happen... */
-
- found:
-    /* Now know where the strtab and symtab are.  Snarf them. */
-    disas_symtab = qemu_malloc(symtab.sh_size);
-    disas_strtab = strings = qemu_malloc(strtab.sh_size);
-    if (!disas_symtab || !disas_strtab)
-	return;
-	
-    lseek(fd, symtab.sh_offset, SEEK_SET);
-    if (read(fd, disas_symtab, symtab.sh_size) != symtab.sh_size)
-	return;
-
-#ifdef BSWAP_NEEDED
-    for (i = 0; i < symtab.sh_size / sizeof(struct elf_sym); i++)
-	bswap_sym(disas_symtab + sizeof(struct elf_sym)*i);
-#endif
-
-    lseek(fd, strtab.sh_offset, SEEK_SET);
-    if (read(fd, strings, strtab.sh_size) != strtab.sh_size)
-	return;
-    disas_num_syms = symtab.sh_size / sizeof(struct elf_sym);
+    int retval;
+    retval = lseek(fd, 0x4000, SEEK_SET);
+    if (retval < 0)
+	return -1;
+    return read(fd, dst, phdr->p_filesz);
 }
 
-static int load_elf_binary(struct linux_binprm * bprm, uint8_t *addr)
+static int read_section(int fd, struct elf_shdr *s, void *dst)
 {
-    struct elfhdr elf_ex;
-    unsigned long startaddr = addr;
-    int i;
-    struct elf_phdr * elf_ppnt;
-    struct elf_phdr *elf_phdata;
     int retval;
 
-    elf_ex = *((struct elfhdr *) bprm->buf);          /* exec-header */
-#ifdef BSWAP_NEEDED
-    bswap_ehdr(&elf_ex);
-#endif
-
-    if (elf_ex.e_ident[0] != 0x7f ||
-	strncmp(&elf_ex.e_ident[1], "ELF",3) != 0) {
-	return  -ENOEXEC;
-    }
-
-    /* First of all, some simple consistency checks */
-    if (! elf_check_arch(elf_ex.e_machine)) {
-	return -ENOEXEC;
-    }
-
-    /* Now read in all of the header information */
-    elf_phdata = (struct elf_phdr *)qemu_malloc(elf_ex.e_phentsize*elf_ex.e_phnum);
-    if (elf_phdata == NULL) {
-	return -ENOMEM;
-    }
-
-    retval = lseek(bprm->fd, elf_ex.e_phoff, SEEK_SET);
-    if(retval > 0) {
-	retval = read(bprm->fd, (char *) elf_phdata, 
-				elf_ex.e_phentsize * elf_ex.e_phnum);
-    }
-
-    if (retval < 0) {
-	perror("load_elf_binary");
-	exit(-1);
-	qemu_free (elf_phdata);
-	return -errno;
-    }
-
-#ifdef BSWAP_NEEDED
-    elf_ppnt = elf_phdata;
-    for (i=0; i<elf_ex.e_phnum; i++, elf_ppnt++) {
-        bswap_phdr(elf_ppnt);
-    }
-#endif
-    elf_ppnt = elf_phdata;
-
-    /* Now we do a little grungy work by mmaping the ELF image into
-     * the correct location in memory.  At this point, we assume that
-     * the image should be loaded at fixed address, not at a variable
-     * address.
-     */
-
-    for(i = 0, elf_ppnt = elf_phdata; i < elf_ex.e_phnum; i++, elf_ppnt++) {
-        unsigned long error, offset, len;
-        
-	if (elf_ppnt->p_type != PT_LOAD)
-            continue;
-#if 0        
-        error = target_mmap(TARGET_ELF_PAGESTART(load_bias + elf_ppnt->p_vaddr),
-                            elf_prot,
-                            (MAP_FIXED | MAP_PRIVATE | MAP_DENYWRITE),
-                            bprm->fd,
-                            (elf_ppnt->p_offset - 
-                             TARGET_ELF_PAGEOFFSET(elf_ppnt->p_vaddr)));
-#endif
-	//offset = elf_ppnt->p_offset - TARGET_ELF_PAGEOFFSET(elf_ppnt->p_vaddr);
-	offset = 0x4000;
-	lseek(bprm->fd, offset, SEEK_SET);
-	len = elf_ppnt->p_filesz + TARGET_ELF_PAGEOFFSET(elf_ppnt->p_vaddr);
-	error = read(bprm->fd, addr, len); 
-
-        if (error == -1) {
-            perror("mmap");
-            exit(-1);
-        }
-	addr += len;
-    }
-
-    qemu_free(elf_phdata);
-
-    load_symbols(&elf_ex, bprm->fd);
-
-    return addr-startaddr;
+    retval = lseek(fd, s->sh_offset, SEEK_SET);
+    if (retval < 0)
+	return -1;
+    retval = read(fd, dst, s->sh_size);
+    if (retval < 0)
+	return -1;
+    return 0;
 }
 
-int elf_exec(const char * filename, uint8_t *addr)
+static void *process_section(struct elfhdr *ehdr, int fd, struct elf_shdr *shdr, uint32_t type)
 {
-        struct linux_binprm bprm;
-        int retval;
+    void *dst;
 
-        retval = open(filename, O_RDONLY);
-        if (retval < 0)
-            return retval;
-        bprm.fd = retval;
+    dst = find_shdr(ehdr, fd, shdr, type);
+    if (!dst)
+	goto error;
 
-        retval = prepare_binprm(&bprm);
-
-        if(retval>=0) {
-	    retval = load_elf_binary(&bprm, addr);
-	}
-	return retval;
+    if (read_section(fd, shdr, dst))
+	goto error;
+    return dst;
+ error:
+    qemu_free(dst);
+    return NULL;
 }
-#endif
+
+static void *process_strtab(struct elfhdr *ehdr, int fd, struct elf_shdr *shdr, struct elf_shdr *symtab)
+{
+    void *dst;
+
+    dst = find_strtab(ehdr, fd, shdr, symtab);
+    if (!dst)
+	goto error;
+
+    if (read_section(fd, shdr, dst))
+	goto error;
+    return dst;
+ error:
+    qemu_free(dst);
+    return NULL;
+}
+
+static void load_symbols(struct elfhdr *ehdr, int fd)
+{
+    struct elf_shdr symtab, strtab;
+    struct elf_sym *syms;
+    int nsyms, i;
+    char *str;
+
+    /* Symbol table */
+    syms = process_section(ehdr, fd, &symtab, SHT_SYMTAB);
+    if (!syms)
+	return;
+
+    nsyms = symtab.sh_size / sizeof(struct elf_sym);
+    for (i = 0; i < nsyms; i++)
+	bswap_sym(&syms[i]);
+
+    /* String table */
+    str = process_strtab(ehdr, fd, &strtab, &symtab);
+    if (!str)
+	goto error_freesyms;
+
+    /* Commit */
+    if (disas_symtab)
+	qemu_free(disas_symtab); /* XXX Merge with old symbols? */
+    if (disas_strtab)
+	qemu_free(disas_strtab);
+    disas_symtab = syms;
+    disas_num_syms = nsyms;
+    disas_strtab = str;
+    return;
+ error_freesyms:
+    qemu_free(syms);
+    return;
+}
+
+int load_elf(const char * filename, uint8_t *addr)
+{
+    struct elfhdr ehdr;
+    struct elf_phdr phdr;
+    int retval, fd;
+
+    fd = open(filename, O_RDONLY | O_BINARY);
+    if (fd < 0)
+	goto error;
+
+    retval = read(fd, &ehdr, sizeof(ehdr));
+    if (retval < 0)
+	goto error;
+
+    bswap_ehdr(&ehdr);
+
+    if (ehdr.e_ident[0] != 0x7f || ehdr.e_ident[1] != 'E'
+	|| ehdr.e_ident[2] != 'L' || ehdr.e_ident[3] != 'F'
+	|| ehdr.e_machine != EM_SPARC)
+	goto error;
+
+    if (find_phdr(&ehdr, fd, &phdr, PT_LOAD))
+	goto error;
+    retval = read_program(fd, &phdr, addr);
+    if (retval < 0)
+	goto error;
+
+    load_symbols(&ehdr, fd);
+
+    close(fd);
+    return retval;
+ error:
+    close(fd);
+    return -1;
+}
 
 int load_kernel(const char *filename, uint8_t *addr)
 {
@@ -286,28 +263,31 @@ int load_kernel(const char *filename, uint8_t *addr)
     return -1;
 }
 
-static char saved_kfn[1024];
-static uint32_t saved_addr;
-static int magic_state;
+typedef struct MAGICState {
+    uint32_t addr;
+    uint32_t saved_addr;
+    int magic_state;
+    char saved_kfn[1024];
+} MAGICState;
 
 static uint32_t magic_mem_readl(void *opaque, target_phys_addr_t addr)
 {
     int ret;
+    MAGICState *s = opaque;
 
-    if (magic_state == 0) {
-#ifdef USE_ELF_LOADER
-        ret = elf_exec(saved_kfn, saved_addr);
-#else
-        ret = load_kernel(saved_kfn, (uint8_t *)saved_addr);
-#endif
+    if (s->magic_state == 0) {
+        ret = load_elf(s->saved_kfn, (uint8_t *)s->saved_addr);
+	if (ret < 0)
+	    ret = load_kernel(s->saved_kfn, (uint8_t *)s->saved_addr);
         if (ret < 0) {
             fprintf(stderr, "qemu: could not load kernel '%s'\n", 
-                    saved_kfn);
+                    s->saved_kfn);
         }
-	magic_state = 1; /* No more magic */
+	s->magic_state = 1; /* No more magic */
 	tb_flush();
+	return bswap32(ret);
     }
-    return ret;
+    return 0;
 }
 
 static void magic_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
@@ -327,15 +307,20 @@ static CPUWriteMemoryFunc *magic_mem_write[3] = {
     magic_mem_writel,
 };
 
-void magic_init(const char *kfn, int kloadaddr)
+void magic_init(const char *kfn, int kloadaddr, uint32_t addr)
 {
     int magic_io_memory;
+    MAGICState *s;
 
-    strcpy(saved_kfn, kfn);
-    saved_addr = kloadaddr;
-    magic_state = 0;
-    magic_io_memory = cpu_register_io_memory(0, magic_mem_read, magic_mem_write, 0);
-    cpu_register_physical_memory(0x20000000, 4,
-                                 magic_io_memory);
+    s = qemu_mallocz(sizeof(MAGICState));
+    if (!s)
+        return;
+
+    strcpy(s->saved_kfn, kfn);
+    s->saved_addr = kloadaddr;
+    s->magic_state = 0;
+    s->addr = addr;
+    magic_io_memory = cpu_register_io_memory(0, magic_mem_read, magic_mem_write, s);
+    cpu_register_physical_memory(addr, 4, magic_io_memory);
 }
 

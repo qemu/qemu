@@ -76,6 +76,7 @@
 #define PTE_ENTRYTYPE_MASK 3
 #define PTE_ACCESS_MASK    0x1c
 #define PTE_ACCESS_SHIFT   2
+#define PTE_PPN_SHIFT      7
 #define PTE_ADDR_MASK      0xffffff00
 
 #define PG_ACCESSED_BIT	5

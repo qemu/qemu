@@ -1,4 +1,4 @@
-include config-host.mak
+-include config-host.mak
 
 CFLAGS=-Wall -O2 -g -fno-strict-aliasing 
 ifdef CONFIG_DARWIN
@@ -14,8 +14,9 @@ TOOLS=qemu-img
 ifdef CONFIG_STATIC
 LDFLAGS+=-static
 endif
+DOCS=qemu-doc.html qemu-tech.html qemu.1
 
-all: dyngen$(EXESUF) $(TOOLS) qemu-doc.html qemu-tech.html qemu.1
+all: dyngen$(EXESUF) $(TOOLS) $(DOCS)
 	for d in $(TARGET_DIRS); do \
 	$(MAKE) -C $$d $@ || exit 1 ; \
         done
@@ -29,14 +30,14 @@ dyngen$(EXESUF): dyngen.c
 clean:
 # avoid old build problems by removing potentially incorrect old files
 	rm -f config.mak config.h op-i386.h opc-i386.h gen-op-i386.h op-arm.h opc-arm.h gen-op-arm.h 
-	rm -f *.o *.a $(TOOLS) dyngen$(EXESUF) TAGS qemu.pod
+	rm -f *.o *.a $(TOOLS) dyngen$(EXESUF) TAGS qemu.pod *~ */*~
 	$(MAKE) -C tests clean
 	for d in $(TARGET_DIRS); do \
 	$(MAKE) -C $$d $@ || exit 1 ; \
         done
 
 distclean: clean
-	rm -f config-host.mak config-host.h
+	rm -f config-host.mak config-host.h $(DOCS)
 	for d in $(TARGET_DIRS); do \
 	rm -rf $$d || exit 1 ; \
         done
@@ -50,6 +51,7 @@ endif
 	install -m 644 pc-bios/bios.bin pc-bios/vgabios.bin \
                        pc-bios/vgabios-cirrus.bin \
                        pc-bios/ppc_rom.bin \
+                       pc-bios/proll.bin \
                        pc-bios/linux_boot.bin "$(datadir)"
 	mkdir -p "$(docdir)"
 	install -m 644 qemu-doc.html  qemu-tech.html "$(docdir)"
@@ -99,6 +101,7 @@ tarbin:
 	$(datadir)/vgabios.bin \
 	$(datadir)/vgabios-cirrus.bin \
 	$(datadir)/ppc_rom.bin \
+	$(datadir)/proll.bin \
 	$(datadir)/linux_boot.bin \
 	$(docdir)/qemu-doc.html \
 	$(docdir)/qemu-tech.html \

@@ -24,11 +24,7 @@
 #include "vl.h"
 
 /* debug LANCE card */
-#define DEBUG_LANCE
-
-#define PHYS_JJ_IOMMU	0x10000000	/* First page of sun4m IOMMU */
-#define PHYS_JJ_LEDMA   0x78400010      /* ledma, off by 10 from unused SCSI */
-#define PHYS_JJ_LE      0x78C00000      /* LANCE, typical sun4m */
+//#define DEBUG_LANCE
 
 #ifndef LANCE_LOG_TX_BUFFERS
 #define LANCE_LOG_TX_BUFFERS 4
@@ -162,10 +158,12 @@ struct sparc_dma_registers {
 #endif
 
 typedef struct LEDMAState {
+    uint32_t addr;
     uint32_t regs[LEDMA_REGS];
 } LEDMAState;
 
 typedef struct LANCEState {
+    uint32_t paddr;
     NetDriverState *nd;
     uint32_t leptr;
     uint16_t addr;
@@ -174,8 +172,6 @@ typedef struct LANCEState {
     int irq;
     LEDMAState *ledma;
 } LANCEState;
-
-static int lance_io_memory;
 
 static unsigned int rxptr, txptr;
 
@@ -194,7 +190,7 @@ static uint32_t lance_mem_readw(void *opaque, target_phys_addr_t addr)
     LANCEState *s = opaque;
     uint32_t saddr;
 
-    saddr = addr - PHYS_JJ_LE;
+    saddr = addr - s->paddr;
     switch (saddr >> 1) {
     case LE_RDP:
 	return s->regs[s->addr];
@@ -210,9 +206,9 @@ static void lance_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val
 {
     LANCEState *s = opaque;
     uint32_t saddr;
-    uint16_t clear, reg;
+    uint16_t reg;
 
-    saddr = addr - PHYS_JJ_LE;
+    saddr = addr - s->paddr;
     switch (saddr >> 1) {
     case LE_RDP:
 	switch(s->addr) {
@@ -406,14 +402,12 @@ static void lance_send(void *opaque)
     }
 }
 
-static int ledma_io_memory;
-
 static uint32_t ledma_mem_readl(void *opaque, target_phys_addr_t addr)
 {
     LEDMAState *s = opaque;
     uint32_t saddr;
 
-    saddr = (addr - PHYS_JJ_LEDMA) >> 2;
+    saddr = (addr - s->addr) >> 2;
     if (saddr < LEDMA_REGS)
 	return s->regs[saddr];
     else
@@ -425,7 +419,7 @@ static void ledma_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val
     LEDMAState *s = opaque;
     uint32_t saddr;
 
-    saddr = (addr - PHYS_JJ_LEDMA) >> 2;
+    saddr = (addr - s->addr) >> 2;
     if (saddr < LEDMA_REGS)
 	s->regs[saddr] = val;
 }
@@ -442,29 +436,31 @@ static CPUWriteMemoryFunc *ledma_mem_write[3] = {
     ledma_mem_writel,
 };
 
-void lance_init(NetDriverState *nd, int irq)
+void lance_init(NetDriverState *nd, int irq, uint32_t leaddr, uint32_t ledaddr)
 {
     LANCEState *s;
     LEDMAState *led;
+    int lance_io_memory, ledma_io_memory;
 
     s = qemu_mallocz(sizeof(LANCEState));
     if (!s)
         return;
 
+    s->paddr = leaddr;
+    s->nd = nd;
+    s->irq = irq;
+
     lance_io_memory = cpu_register_io_memory(0, lance_mem_read, lance_mem_write, s);
-    cpu_register_physical_memory(PHYS_JJ_LE, 8,
-                                 lance_io_memory);
+    cpu_register_physical_memory(leaddr, 8, lance_io_memory);
+
     led = qemu_mallocz(sizeof(LEDMAState));
     if (!led)
         return;
 
-    ledma_io_memory = cpu_register_io_memory(0, ledma_mem_read, ledma_mem_write, led);
-    cpu_register_physical_memory(PHYS_JJ_LEDMA, 16,
-                                 ledma_io_memory);
-
-    s->nd = nd;
     s->ledma = led;
-    s->irq = irq;
+    led->addr = ledaddr;
+    ledma_io_memory = cpu_register_io_memory(0, ledma_mem_read, ledma_mem_write, led);
+    cpu_register_physical_memory(ledaddr, 16, ledma_io_memory);
 
     lance_reset(s);
     qemu_add_read_packet(nd, lance_can_receive, lance_receive, s);

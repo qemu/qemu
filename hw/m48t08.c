@@ -341,7 +341,7 @@ static CPUReadMemoryFunc *nvram_read[] = {
 };
 
 /* Initialisation routine */
-m48t08_t *m48t08_init(uint32_t mem_base, uint16_t size)
+m48t08_t *m48t08_init(uint32_t mem_base, uint16_t size, uint8_t *macaddr)
 {
     m48t08_t *s;
     int i;
@@ -367,7 +367,7 @@ m48t08_t *m48t08_init(uint32_t mem_base, uint16_t size)
     i = 0x1fd8;
     s->buffer[i++] = 0x01;
     s->buffer[i++] = 0x80; /* Sun4m OBP */
-    /* XXX: Ethernet address, etc */
+    memcpy(&s->buffer[i], macaddr, 6);
 
     /* Calculate checksum */
     for (i = 0x1fd8; i < 0x1fe7; i++) {

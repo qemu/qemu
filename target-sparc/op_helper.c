@@ -104,6 +104,27 @@ void OPPROTO helper_st_asi(int asi, int size, int sign)
     }
 }
 
+#if 0
+void do_ldd_raw(uint32_t addr)
+{
+    T1 = ldl_raw((void *) addr);
+    T0 = ldl_raw((void *) (addr + 4));
+}
+
+#if !defined(CONFIG_USER_ONLY)
+void do_ldd_user(uint32_t addr)
+{
+    T1 = ldl_user((void *) addr);
+    T0 = ldl_user((void *) (addr + 4));
+}
+void do_ldd_kernel(uint32_t addr)
+{
+    T1 = ldl_kernel((void *) addr);
+    T0 = ldl_kernel((void *) (addr + 4));
+}
+#endif
+#endif
+
 void OPPROTO helper_rett()
 {
     int cwp;
@@ -116,7 +137,7 @@ void OPPROTO helper_rett()
     env->psrs = env->psrps;
 }
 
-void helper_stfsr(void)
+void helper_ldfsr(void)
 {
     switch (env->fsr & FSR_RD_MASK) {
     case FSR_RD_NEAREST:

@@ -21,18 +21,9 @@
 
 #define DEBUG_PCALL
 
-#if 0
-#define raise_exception_err(a, b)\
-do {\
-    fprintf(logfile, "raise_exception line=%d\n", __LINE__);\
-    (raise_exception_err)(a, b);\
-} while (0)
-#endif
-
 /* Sparc MMU emulation */
 int cpu_sparc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
                               int is_user, int is_softmmu);
-
 
 /* thread support */
 
@@ -47,15 +38,6 @@ void cpu_unlock(void)
 {
     spin_unlock(&global_cpu_lock);
 }
-
-#if 0
-void cpu_loop_exit(void)
-{
-    /* NOTE: the register at this point must be saved by hand because
-       longjmp restore them */
-    longjmp(env->jmp_env, 1);
-}
-#endif
 
 #if !defined(CONFIG_USER_ONLY) 
 
@@ -258,7 +240,7 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
     env->mmuregs[3] |= (access_index << 5) | (error_code << 2) | 2;
     env->mmuregs[4] = address; /* Fault address register */
 
-    if (env->mmuregs[0] & MMU_NF) // No fault
+    if (env->mmuregs[0] & MMU_NF || env->psret == 0) // No fault
 	return 0;
 
     env->exception_index = exception;
@@ -306,7 +288,7 @@ void do_interrupt(int intno, int is_int, int error_code,
 	fprintf(logfile, "%6d: v=%02x e=%04x i=%d pc=%08x npc=%08x SP=%08x\n",
                     count, intno, error_code, is_int,
                     env->pc,
-                    env->npc, env->gregs[7]);
+                    env->npc, env->regwptr[6]);
 #if 0
 	cpu_sparc_dump_state(env, logfile, 0);
 	{

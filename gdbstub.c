@@ -387,6 +387,9 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             env->eip = addr;
 #elif defined (TARGET_PPC)
             env->nip = addr;
+#elif defined (TARGET_SPARC)
+            env->pc = addr;
+            env->npc = addr + 4;
 #endif
         }
         vm_start();
@@ -398,6 +401,9 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             env->eip = addr;
 #elif defined (TARGET_PPC)
             env->nip = addr;
+#elif defined (TARGET_SPARC)
+            env->pc = addr;
+            env->npc = addr + 4;
 #endif
         }
         cpu_single_step(env, 1);
