@@ -31,7 +31,7 @@ clean:
 distclean: clean
 	rm -f config-host.mak config-host.h
 	for d in $(TARGET_DIRS); do \
-	rm -f $$d/config.h $$d/config.mak || exit 1 ; \
+	rm -rf $$d || exit 1 ; \
         done
 
 install: all 
