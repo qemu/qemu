@@ -79,6 +79,13 @@
 #define elf_check_arch(x) ((x) == EM_SPARCV9)
 #define ELF_USES_RELOCA
 
+#elif defined(HOST_ARM)
+
+#define ELF_CLASS	ELFCLASS32
+#define ELF_ARCH	EM_ARM
+#define elf_check_arch(x) ((x) == EM_ARM)
+#define ELF_USES_RELOC
+
 #else
 #error unsupported CPU - please update the code
 #endif
@@ -301,6 +308,106 @@ int strstart(const char *str, const char *val, const char **ptr)
     return 1;
 }
 
+#ifdef HOST_ARM
+
+int arm_emit_ldr_info(const char *name, unsigned long start_offset,
+                      FILE *outfile, uint8_t *p_start, uint8_t *p_end,
+                      ELF_RELOC *relocs, int nb_relocs)
+{
+    uint8_t *p;
+    uint32_t insn;
+    int offset, min_offset, pc_offset, data_size;
+    uint8_t data_allocated[1024];
+    unsigned int data_index;
+    
+    memset(data_allocated, 0, sizeof(data_allocated));
+    
+    p = p_start;
+    min_offset = p_end - p_start;
+    while (p < p_start + min_offset) {
+        insn = get32((uint32_t *)p);
+        if ((insn & 0x0d5f0000) == 0x051f0000) {
+            /* ldr reg, [pc, #im] */
+            offset = insn & 0xfff;
+            if (!(insn & 0x00800000))
+                        offset = -offset;
+            if ((offset & 3) !=0)
+                error("%s:%04x: ldr pc offset must be 32 bit aligned", 
+                      name, start_offset + p - p_start);
+            pc_offset = p - p_start + offset + 8;
+            if (pc_offset <= (p - p_start) || 
+                pc_offset >= (p_end - p_start))
+                error("%s:%04x: ldr pc offset must point inside the function code", 
+                      name, start_offset + p - p_start);
+            if (pc_offset < min_offset)
+                min_offset = pc_offset;
+            if (outfile) {
+                /* ldr position */
+                fprintf(outfile, "    arm_ldr_ptr->ptr = gen_code_ptr + %d;\n", 
+                        p - p_start);
+                /* ldr data index */
+                data_index = ((p_end - p_start) - pc_offset - 4) >> 2;
+                fprintf(outfile, "    arm_ldr_ptr->data_ptr = arm_data_ptr + %d;\n", 
+                        data_index);
+                fprintf(outfile, "    arm_ldr_ptr++;\n");
+                if (data_index >= sizeof(data_allocated))
+                    error("%s: too many data", name);
+                if (!data_allocated[data_index]) {
+                    ELF_RELOC *rel;
+                    int i, addend, type;
+                    const char *sym_name, *p;
+                    char relname[1024];
+
+                    data_allocated[data_index] = 1;
+
+                    /* data value */
+                    addend = get32((uint32_t *)(p_start + pc_offset));
+                    relname[0] = '\0';
+                    for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
+                        if (rel->r_offset == (pc_offset + start_offset)) {
+                            sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
+                            /* the compiler leave some unnecessary references to the code */
+                            if (strstart(sym_name, "__op_param", &p)) {
+                                snprintf(relname, sizeof(relname), "param%s", p);
+                            } else {
+                                snprintf(relname, sizeof(relname), "(long)(&%s)", sym_name);
+                            }
+                            type = ELF32_R_TYPE(rel->r_info);
+                            if (type != R_ARM_ABS32)
+                                error("%s: unsupported data relocation", name);
+                            break;
+                        }
+                    }
+                    fprintf(outfile, "    arm_data_ptr[%d] = 0x%x",
+                            data_index, addend);
+                    if (relname[0] != '\0')
+                        fprintf(outfile, " + %s", relname);
+                    fprintf(outfile, ";\n");
+                }
+            }
+        }
+        p += 4;
+    }
+    data_size = (p_end - p_start) - min_offset;
+    if (data_size > 0 && outfile) {
+        fprintf(outfile, "    arm_data_ptr += %d;\n", data_size >> 2);
+    }
+
+    /* the last instruction must be a mov pc, lr */
+    if (p == p_start)
+        goto arm_ret_error;
+    p -= 4;
+    insn = get32((uint32_t *)p);
+    if ((insn & 0xffff0000) != 0xe91b0000) {
+    arm_ret_error:
+        if (!outfile)
+            printf("%s: invalid epilog\n", name);
+    }
+    return p - p_start;	    
+}
+#endif
+
+
 #define MAX_ARGS 3
 
 /* generate op code */
@@ -388,7 +495,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
     case EM_SPARC:
     case EM_SPARC32PLUS:
 	{
-	    uint32_t start_insn, end_insn1, end_insn2, skip_insn;
+	    uint32_t start_insn, end_insn1, end_insn2;
             uint8_t *p;
             p = (void *)(p_end - 8);
             if (p <= p_start)
@@ -406,14 +513,14 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 	    } else {
 		error("No save at the beginning of %s", name);
 	    }
-
+#if 0
 	    /* Skip a preceeding nop, if present.  */
 	    if (p > p_start) {
 		skip_insn = get32((uint32_t *)(p - 0x4));
 		if (skip_insn == 0x01000000)
 		    p -= 4;
 	    }
-
+#endif
             copy_size = p - p_start;
 	}
 	break;
@@ -448,6 +555,20 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
             copy_size = p - p_start;
 	}
 	break;
+#ifdef HOST_ARM
+    case EM_ARM:
+        if ((p_end - p_start) <= 16)
+            error("%s: function too small", name);
+        if (get32((uint32_t *)p_start) != 0xe1a0c00d ||
+            (get32((uint32_t *)(p_start + 4)) & 0xffff0000) != 0xe92d0000 ||
+            get32((uint32_t *)(p_start + 8)) != 0xe24cb004)
+            error("%s: invalid prolog", name);
+        p_start += 12;
+        start_offset += 12;
+        copy_size = arm_emit_ldr_info(name, start_offset, NULL, p_start, p_end, 
+                                      relocs, nb_relocs);
+        break;
+#endif
     default:
 	error("unknown ELF architecture");
     }
@@ -458,7 +579,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 
     for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
         if (rel->r_offset >= start_offset &&
-	    rel->r_offset < start_offset + copy_size) {
+	    rel->r_offset < start_offset + (p_end - p_start)) {
             sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
             if (strstart(sym_name, "__op_param", &p)) {
                 n = strtoul(p, NULL, 10);
@@ -496,7 +617,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 
         for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
             if (rel->r_offset >= start_offset &&
-		rel->r_offset < start_offset + copy_size) {
+		rel->r_offset < start_offset + (p_end - p_start)) {
                 sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
                 if (*sym_name && 
                     !strstart(sym_name, "__op_param", NULL) &&
@@ -900,6 +1021,44 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                     }
                 }
             }
+#elif defined(HOST_ARM)
+            {
+                char name[256];
+                int type;
+                int addend;
+
+                arm_emit_ldr_info(name, start_offset, outfile, p_start, p_end,
+                                  relocs, nb_relocs);
+
+                for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
+                if (rel->r_offset >= start_offset &&
+		    rel->r_offset < start_offset + copy_size) {
+                    sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
+                    /* the compiler leave some unnecessary references to the code */
+                    if (sym_name[0] == '\0')
+                        continue;
+                    if (strstart(sym_name, "__op_param", &p)) {
+                        snprintf(name, sizeof(name), "param%s", p);
+                    } else {
+                        snprintf(name, sizeof(name), "(long)(&%s)", sym_name);
+                    }
+                    type = ELF32_R_TYPE(rel->r_info);
+                    addend = get32((uint32_t *)(text + rel->r_offset));
+                    switch(type) {
+                    case R_ARM_ABS32:
+                        fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s + %d;\n", 
+                                rel->r_offset - start_offset, name, addend);
+                        break;
+                    case R_ARM_PC24:
+                        fprintf(outfile, "    arm_reloc_pc24((uint32_t *)(gen_code_ptr + %d), 0x%x, %s);\n", 
+                                rel->r_offset - start_offset, addend, name);
+                        break;
+                    default:
+                        error("unsupported arm relocation (%d)", type);
+                    }
+                }
+                }
+            }
 #else
 #error unsupported CPU
 #endif
@@ -1075,23 +1234,22 @@ fprintf(outfile,
 "{\n"
 "    uint8_t *gen_code_ptr;\n"
 "    const uint16_t *opc_ptr;\n"
-"    const uint32_t *opparam_ptr;\n"
+"    const uint32_t *opparam_ptr;\n");
+
+#ifdef HOST_ARM
+fprintf(outfile,
+"    uint8_t *last_gen_code_ptr = gen_code_buf;\n"
+"    LDREntry *arm_ldr_ptr = arm_ldr_table;\n"
+"    uint32_t *arm_data_ptr = arm_data_table;\n");
+#endif
+
+fprintf(outfile,
+"\n"
 "    gen_code_ptr = gen_code_buf;\n"
 "    opc_ptr = opc_buf;\n"
 "    opparam_ptr = opparam_buf;\n");
 
 	/* Generate prologue, if needed. */ 
-	switch(ELF_ARCH) {
-	case EM_SPARC:
-		fprintf(outfile, "*((uint32_t *)gen_code_ptr)++ = 0x9c23a080; /* sub %%sp, 128, %%sp */\n");
-		fprintf(outfile, "*((uint32_t *)gen_code_ptr)++ = 0xbc27a080; /* sub %%fp, 128, %%fp */\n");
-		break;
-
-	case EM_SPARCV9:
-		fprintf(outfile, "*((uint32_t *)gen_code_ptr)++ = 0x9c23a100; /* sub %%sp, 256, %%sp */\n");
-		fprintf(outfile, "*((uint32_t *)gen_code_ptr)++ = 0xbc27a100; /* sub %%fp, 256, %%fp */\n");
-		break;
-	};
 
 fprintf(outfile,
 "    for(;;) {\n"
@@ -1116,7 +1274,21 @@ fprintf(outfile,
 fprintf(outfile,
 "        default:\n"
 "            goto the_end;\n"
-"        }\n"
+"        }\n");
+
+#ifdef HOST_ARM
+/* generate constant table if needed */
+fprintf(outfile,
+"        if ((gen_code_ptr - last_gen_code_ptr) >= (MAX_FRAG_SIZE - MAX_OP_SIZE)) {\n"
+"            gen_code_ptr = arm_flush_ldr(gen_code_ptr, arm_ldr_table, arm_ldr_ptr, arm_data_table, arm_data_ptr, 1);\n"
+"            last_gen_code_ptr = gen_code_ptr;\n"
+"            arm_ldr_ptr = arm_ldr_table;\n"
+"            arm_data_ptr = arm_data_table;\n"
+"        }\n");         
+#endif
+
+
+fprintf(outfile,
 "    }\n"
 " the_end:\n"
 );
@@ -1140,13 +1312,15 @@ fprintf(outfile,
         break;
     case EM_SPARC:
     case EM_SPARC32PLUS:
-	fprintf(outfile, "*((uint32_t *)gen_code_ptr)++ = 0xbc07a080; /* add %%fp, 256, %%fp */\n");
 	fprintf(outfile, "*((uint32_t *)gen_code_ptr)++ = 0x81c62008; /* jmpl %%i0 + 8, %%g0 */\n");
-	fprintf(outfile, "*((uint32_t *)gen_code_ptr)++ = 0x9c03a080; /* add %%sp, 256, %%sp */\n");
+	fprintf(outfile, "*((uint32_t *)gen_code_ptr)++ = 0x01000000; /* nop */\n");
         break;
     case EM_SPARCV9:
 	fprintf(outfile, "*((uint32_t *)gen_code_ptr)++ = 0x81c7e008; /* ret */\n");
 	fprintf(outfile, "*((uint32_t *)gen_code_ptr)++ = 0x81e80000; /* restore */\n");
+        break;
+    case EM_ARM:
+	fprintf(outfile, "gen_code_ptr = arm_flush_ldr(gen_code_ptr, arm_ldr_table, arm_ldr_ptr, arm_data_table, arm_data_ptr, 0);\n");
         break;
     default:
 	error("unknown ELF architecture");
