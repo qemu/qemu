@@ -19,6 +19,8 @@
  */
 #include "exec.h"
 
+//#define DEBUG_PCALL
+
 const uint8_t parity_table[256] = {
     CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
     0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
@@ -539,6 +541,27 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
     int has_error_code, new_stack, shift;
     uint32_t e1, e2, offset, ss, esp, ss_e1, ss_e2, push_size;
     uint32_t old_cs, old_ss, old_esp, old_eip;
+
+#ifdef DEBUG_PCALL
+    if (loglevel) {
+        static int count;
+        fprintf(logfile, "%d: interrupt: vector=%02x error_code=%04x int=%d CS:IP=%04x:%08x CPL=%d\n",
+                count, intno, error_code, is_int, env->segs[R_CS].selector, env->eip, env->hflags & 3);
+#if 0
+        {
+            int i;
+            uint8_t *ptr;
+            printf("       code=");
+            ptr = env->segs[R_CS].base + env->eip;
+            for(i = 0; i < 16; i++) {
+                printf(" %02x", ldub(ptr + i));
+            }
+            printf("\n");
+        }
+#endif
+        count++;
+    }
+#endif
 
     has_error_code = 0;
     if (!is_int && !is_hw) {
@@ -1260,11 +1283,22 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip)
     
     new_cs = T0;
     new_eip = T1;
+#ifdef DEBUG_PCALL
+    if (loglevel) {
+        fprintf(logfile, "lcall %04x:%08x\n",
+                new_cs, new_eip);
+    }
+#endif
     if ((new_cs & 0xfffc) == 0)
         raise_exception_err(EXCP0D_GPF, 0);
     if (load_segment(&e1, &e2, new_cs) != 0)
         raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
     cpl = env->hflags & HF_CPL_MASK;
+#ifdef DEBUG_PCALL
+    if (loglevel) {
+        fprintf(logfile, "desc=%08x:%08x\n", e1, e2);
+    }
+#endif
     if (e2 & DESC_S_MASK) {
         if (!(e2 & DESC_CS_MASK))
             raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
@@ -1341,6 +1375,7 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip)
             raise_exception_err(EXCP0B_NOSEG,  new_cs & 0xfffc);
         selector = e1 >> 16;
         offset = (e2 & 0xffff0000) | (e1 & 0x0000ffff);
+        param_count = e2 & 0x1f;
         if ((selector & 0xfffc) == 0)
             raise_exception_err(EXCP0D_GPF, 0);
 
@@ -1357,6 +1392,11 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip)
         if (!(e2 & DESC_C_MASK) && dpl < cpl) {
             /* to inner priviledge */
             get_ss_esp_from_tss(&ss, &sp, dpl);
+#ifdef DEBUG_PCALL
+            if (loglevel)
+                fprintf(logfile, "ss=%04x sp=%04x param_count=%d ESP=%x\n", 
+                        ss, sp, param_count, ESP);
+#endif
             if ((ss & 0xfffc) == 0)
                 raise_exception_err(EXCP0A_TSS, ss & 0xfffc);
             if ((ss & 3) != dpl)
@@ -1373,7 +1413,6 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip)
             if (!(ss_e2 & DESC_P_MASK))
                 raise_exception_err(EXCP0A_TSS, ss & 0xfffc);
             
-            param_count = e2 & 0x1f;
             push_size = ((param_count * 2) + 8) << shift;
 
             old_esp = ESP;
@@ -1389,7 +1428,7 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip)
                            get_seg_limit(ss_e1, ss_e2),
                            ss_e2);
 
-            if (!(env->segs[R_SS].flags & DESC_B_MASK))
+            if (!(ss_e2 & DESC_B_MASK))
                 sp &= 0xffff;
             ssp = env->segs[R_SS].base + sp;
             if (shift) {
@@ -1441,7 +1480,6 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip)
                        e2);
         cpu_x86_set_cpl(env, dpl);
         
-        /* from this point, not restartable if same priviledge */
         if (!(env->segs[R_SS].flags & DESC_B_MASK))
             ESP = (ESP & 0xffff0000) | (sp & 0xffff);
         else
@@ -1838,7 +1876,7 @@ void helper_verr(void)
         if (dpl < cpl || dpl < rpl)
             return;
     }
-    /* ok */
+    CC_SRC |= CC_Z;
 }
 
 void helper_verw(void)
@@ -1866,7 +1904,7 @@ void helper_verw(void)
         if (!(e2 & DESC_W_MASK))
             return;
     }
-    /* ok */
+    CC_SRC |= CC_Z;
 }
 
 /* FPU helpers */
