@@ -89,6 +89,21 @@ static inline void flush_icache_range(unsigned long start, unsigned long stop)
 }
 #endif
 
+#ifdef __sparc__
+
+static void inline flush_icache_range(unsigned long start, unsigned long stop)
+{
+	unsigned long p;
+
+	p = start & ~(8UL - 1UL);
+	stop = (stop + (8UL - 1UL)) & ~(8UL - 1UL);
+
+	for (; p < stop; p += 8)
+		__asm__ __volatile__("flush\t%0" : : "r" (p));
+}
+
+#endif
+
 extern FILE *logfile;
 extern int loglevel;
 

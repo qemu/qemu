@@ -1605,12 +1605,22 @@ typedef union {
 
 void OPPROTO op_flds_FT0_A0(void)
 {
+#ifdef USE_FP_CONVERT
+    FP_CONVERT.i32 = ldl((void *)A0);
+    FT0 = FP_CONVERT.f;
+#else
     FT0 = ldfl((void *)A0);
+#endif
 }
 
 void OPPROTO op_fldl_FT0_A0(void)
 {
+#ifdef USE_FP_CONVERT
+    FP_CONVERT.i64 = ldq((void *)A0);
+    FT0 = FP_CONVERT.d;
+#else
     FT0 = ldfq((void *)A0);
+#endif
 }
 
 /* helpers are needed to avoid static constant reference. XXX: find a better way */
@@ -1650,17 +1660,32 @@ void OPPROTO op_fildll_FT0_A0(void)
 
 void OPPROTO op_fild_FT0_A0(void)
 {
+#ifdef USE_FP_CONVERT
+    FP_CONVERT.i32 = ldsw((void *)A0);
+    FT0 = (CPU86_LDouble)FP_CONVERT.i32;
+#else
     FT0 = (CPU86_LDouble)ldsw((void *)A0);
+#endif
 }
 
 void OPPROTO op_fildl_FT0_A0(void)
 {
+#ifdef USE_FP_CONVERT
+    FP_CONVERT.i32 = (int32_t) ldl((void *)A0);
+    FT0 = (CPU86_LDouble)FP_CONVERT.i32;
+#else
     FT0 = (CPU86_LDouble)((int32_t)ldl((void *)A0));
+#endif
 }
 
 void OPPROTO op_fildll_FT0_A0(void)
 {
+#ifdef USE_FP_CONVERT
+    FP_CONVERT.i64 = (int64_t) ldq((void *)A0);
+    FT0 = (CPU86_LDouble)FP_CONVERT.i64;
+#else
     FT0 = (CPU86_LDouble)((int64_t)ldq((void *)A0));
+#endif
 }
 #endif
 
@@ -1668,12 +1693,22 @@ void OPPROTO op_fildll_FT0_A0(void)
 
 void OPPROTO op_flds_ST0_A0(void)
 {
+#ifdef USE_FP_CONVERT
+    FP_CONVERT.i32 = ldl((void *)A0);
+    ST0 = FP_CONVERT.f;
+#else
     ST0 = ldfl((void *)A0);
+#endif
 }
 
 void OPPROTO op_fldl_ST0_A0(void)
 {
+#ifdef USE_FP_CONVERT
+    FP_CONVERT.i64 = ldq((void *)A0);
+    ST0 = FP_CONVERT.d;
+#else
     ST0 = ldfq((void *)A0);
+#endif
 }
 
 #ifdef USE_X86LDOUBLE
@@ -1738,17 +1773,32 @@ void OPPROTO op_fildll_ST0_A0(void)
 
 void OPPROTO op_fild_ST0_A0(void)
 {
+#ifdef USE_FP_CONVERT
+    FP_CONVERT.i32 = ldsw((void *)A0);
+    ST0 = (CPU86_LDouble)FP_CONVERT.i32;
+#else
     ST0 = (CPU86_LDouble)ldsw((void *)A0);
+#endif
 }
 
 void OPPROTO op_fildl_ST0_A0(void)
 {
+#ifdef USE_FP_CONVERT
+    FP_CONVERT.i32 = (int32_t) ldl((void *)A0);
+    ST0 = (CPU86_LDouble)FP_CONVERT.i32;
+#else
     ST0 = (CPU86_LDouble)((int32_t)ldl((void *)A0));
+#endif
 }
 
 void OPPROTO op_fildll_ST0_A0(void)
 {
+#ifdef USE_FP_CONVERT
+    FP_CONVERT.i64 = (int64_t) ldq((void *)A0);
+    ST0 = (CPU86_LDouble)FP_CONVERT.i64;
+#else
     ST0 = (CPU86_LDouble)((int64_t)ldq((void *)A0));
+#endif
 }
 
 #endif
@@ -1757,7 +1807,12 @@ void OPPROTO op_fildll_ST0_A0(void)
 
 void OPPROTO op_fsts_ST0_A0(void)
 {
+#ifdef USE_FP_CONVERT
+    FP_CONVERT.d = ST0;
+    stfl((void *)A0, FP_CONVERT.f);
+#else
     stfl((void *)A0, (float)ST0);
+#endif
 }
 
 void OPPROTO op_fstl_ST0_A0(void)
@@ -1792,22 +1847,43 @@ void OPPROTO op_fstt_ST0_A0(void)
 
 void OPPROTO op_fist_ST0_A0(void)
 {
+#if defined(__sparc__) && !defined(__sparc_v9__)
+    register CPU86_LDouble d asm("o0");
+#else
+    CPU86_LDouble d;
+#endif
     int val;
-    val = lrint(ST0);
+
+    d = ST0;
+    val = lrint(d);
     stw((void *)A0, val);
 }
 
 void OPPROTO op_fistl_ST0_A0(void)
 {
+#if defined(__sparc__) && !defined(__sparc_v9__)
+    register CPU86_LDouble d asm("o0");
+#else
+    CPU86_LDouble d;
+#endif
     int val;
-    val = lrint(ST0);
+
+    d = ST0;
+    val = lrint(d);
     stl((void *)A0, val);
 }
 
 void OPPROTO op_fistll_ST0_A0(void)
 {
+#if defined(__sparc__) && !defined(__sparc_v9__)
+    register CPU86_LDouble d asm("o0");
+#else
+    CPU86_LDouble d;
+#endif
     int64_t val;
-    val = llrint(ST0);
+
+    d = ST0;
+    val = llrint(d);
     stq((void *)A0, val);
 }
 

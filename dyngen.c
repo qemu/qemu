@@ -65,6 +65,20 @@
 #define elf_check_arch(x) ((x) == EM_IA_64)
 #define ELF_USES_RELOCA
 
+#elif defined(HOST_SPARC)
+
+#define ELF_CLASS	ELFCLASS32
+#define ELF_ARCH	EM_SPARC
+#define elf_check_arch(x) ((x) == EM_SPARC || (x) == EM_SPARC32PLUS)
+#define ELF_USES_RELOCA
+
+#elif defined(HOST_SPARC64)
+
+#define ELF_CLASS	ELFCLASS64
+#define ELF_ARCH	EM_SPARCV9
+#define elf_check_arch(x) ((x) == EM_SPARCV9)
+#define ELF_USES_RELOCA
+
 #else
 #error unsupported CPU - please update the code
 #endif
@@ -326,6 +340,47 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
             copy_size = p - p_start;
 	}
         break;
+    case EM_SPARC:
+    case EM_SPARC32PLUS:
+	{
+            uint8_t *p;
+            p = (void *)(p_end - 8);
+            if (p <= p_start)
+                error("empty code for %s", name);
+	    if (get32((uint32_t *)(p_start + 0x0)) != 0x9de3bf98)
+                error("save %%sp,-104,%%sp expected at the start of %s "
+		      "found [%08x]",
+		      name, get32((uint32_t *)(p_start + 0x0)));
+            if (get32((uint32_t *)(p + 0x0)) != 0x81c7e008 ||
+		get32((uint32_t *)(p + 0x4)) != 0x81e80000)
+                error("ret; restore; expected at the end of %s found [%08x:%08x]",
+		      name,
+		      get32((uint32_t *)(p + 0x0)),
+		      get32((uint32_t *)(p + 0x4)));
+
+            copy_size = p - p_start;
+	}
+	break;
+    case EM_SPARCV9:
+	{
+            uint8_t *p;
+            p = (void *)(p_end - 8);
+            if (p <= p_start)
+                error("empty code for %s", name);
+	    if (get32((uint32_t *)(p_start + 0x0)) != 0x9de3bf40)
+                error("save %%sp,-192,%%sp expected at the start of %s "
+		      "found [%08x]",
+		      name, get32((uint32_t *)(p_start + 0x0)));
+            if (get32((uint32_t *)(p + 0x0)) != 0x81cfe008 ||
+		get32((uint32_t *)(p + 0x4)) != 0x01000000)
+                error("rett %%i7+8; nop; expected at the end of %s "
+		      "found [%08x:%08x]",
+		      name,
+		      get32((uint32_t *)(p + 0x0)),
+		      get32((uint32_t *)(p + 0x4)));
+            copy_size = p - p_start;
+	}
+	break;
     default:
 	error("unknown ELF architecture");
     }
@@ -375,6 +430,14 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
             if (rel->r_offset >= offset && rel->r_offset < offset + copy_size) {
                 sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
                 if (!strstart(sym_name, "__op_param", &p)) {
+#if defined(HOST_SPARC)
+		    if (sym_name[0] == '.') {
+			fprintf(outfile,
+				"extern char __dot_%s __asm__(\"%s\");\n",
+				sym_name+1, sym_name);
+			continue;
+		    }
+#endif
                     fprintf(outfile, "extern char %s;\n", sym_name);
                 }
             }
@@ -550,6 +613,126 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 			    error("must implemnt R_IA64_PCREL21B relocation");
                         default:
                             error("unsupported ia64 relocation (%d)", type);
+                        }
+                    }
+                }
+            }
+#elif defined(HOST_SPARC)
+            {
+                char name[256];
+                int type;
+                int addend;
+                for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
+                    if (rel->r_offset >= offset && rel->r_offset < offset + copy_size) {
+                        sym_name = strtab + symtab[ELF32_R_SYM(rel->r_info)].st_name;
+                        if (strstart(sym_name, "__op_param", &p)) {
+                            snprintf(name, sizeof(name), "param%s", p);
+                        } else {
+				if (sym_name[0] == '.')
+					snprintf(name, sizeof(name),
+						 "(long)(&__dot_%s)",
+						 sym_name + 1);
+				else
+					snprintf(name, sizeof(name),
+						 "(long)(&%s)", sym_name);
+                        }
+                        type = ELF32_R_TYPE(rel->r_info);
+                        addend = rel->r_addend;
+                        switch(type) {
+                        case R_SPARC_32:
+                            fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s + %d;\n", 
+                                    rel->r_offset - offset, name, addend);
+			    break;
+			case R_SPARC_HI22:
+                            fprintf(outfile,
+				    "    *(uint32_t *)(gen_code_ptr + %d) = "
+				    "((*(uint32_t *)(gen_code_ptr + %d)) "
+				    " & ~0x3fffff) "
+				    " | ((%s + %d) & 0x3fffff);\n",
+                                    rel->r_offset - offset,
+				    rel->r_offset - offset,
+				    name, addend);
+			    break;
+			case R_SPARC_LO10:
+                            fprintf(outfile,
+				    "    *(uint32_t *)(gen_code_ptr + %d) = "
+				    "((*(uint32_t *)(gen_code_ptr + %d)) "
+				    " & ~0x3ff) "
+				    " | ((%s + %d) & 0x3ff);\n",
+                                    rel->r_offset - offset,
+				    rel->r_offset - offset,
+				    name, addend);
+			    break;
+			case R_SPARC_WDISP30:
+			    fprintf(outfile,
+				    "    *(uint32_t *)(gen_code_ptr + %d) = "
+				    "((*(uint32_t *)(gen_code_ptr + %d)) "
+				    " & ~0x3fffffff) "
+				    " | ((((%s + %d) - (long)gen_code_ptr)>>2) "
+				    "    & 0x3fffffff);\n",
+				    rel->r_offset - offset,
+				    rel->r_offset - offset,
+				    name, addend);
+			    break;
+                        default:
+                            error("unsupported sparc relocation (%d)", type);
+                        }
+                    }
+                }
+            }
+#elif defined(HOST_SPARC64)
+            {
+                char name[256];
+                int type;
+                int addend;
+                for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
+                    if (rel->r_offset >= offset && rel->r_offset < offset + copy_size) {
+                        sym_name = strtab + symtab[ELF64_R_SYM(rel->r_info)].st_name;
+                        if (strstart(sym_name, "__op_param", &p)) {
+                            snprintf(name, sizeof(name), "param%s", p);
+                        } else {
+                            snprintf(name, sizeof(name), "(long)(&%s)", sym_name);
+                        }
+                        type = ELF64_R_TYPE(rel->r_info);
+                        addend = rel->r_addend;
+                        switch(type) {
+                        case R_SPARC_32:
+                            fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s + %d;\n",
+                                    rel->r_offset - offset, name, addend);
+			    break;
+			case R_SPARC_HI22:
+                            fprintf(outfile,
+				    "    *(uint32_t *)(gen_code_ptr + %d) = "
+				    "((*(uint32_t *)(gen_code_ptr + %d)) "
+				    " & ~0x3fffff) "
+				    " | ((%s + %d) & 0x3fffff);\n",
+                                    rel->r_offset - offset,
+				    rel->r_offset - offset,
+				    name, addend);
+			    break;
+			case R_SPARC_LO10:
+                            fprintf(outfile,
+				    "    *(uint32_t *)(gen_code_ptr + %d) = "
+				    "((*(uint32_t *)(gen_code_ptr + %d)) "
+				    " & ~0x3ff) "
+				    " | ((%s + %d) & 0x3ff);\n",
+                                    rel->r_offset - offset,
+				    rel->r_offset - offset,
+				    name, addend);
+			    break;
+			case R_SPARC_WDISP30:
+			    fprintf(outfile,
+				    "    *(uint32_t *)(gen_code_ptr + %d) = "
+				    "((*(uint32_t *)(gen_code_ptr + %d)) "
+				    " & ~0x3fffffff) "
+				    " | ((((%s + %d) - (long)gen_code_ptr)>>2) "
+				    "    & 0x3fffffff);\n",
+				    rel->r_offset - offset,
+				    rel->r_offset - offset,
+				    name, addend);
+			    break;
+                        default:
+			    error("unsupported sparc64 relocation (%d)", type);
                         }
                     }
                 }
@@ -758,6 +941,14 @@ fprintf(outfile,
         break;
     case EM_IA_64:
         fprintf(outfile, "*((uint32_t *)gen_code_ptr)++ = 0x00840008; /* br.ret.sptk.many b0;; */\n");
+        break;
+    case EM_SPARC:
+    case EM_SPARC32PLUS:
+    case EM_SPARCV9:
+	/* Fill the delay slot. */
+	fprintf(outfile, "*((uint32_t *)gen_code_ptr) = *((uint32_t *)gen_code_ptr - 1); /* delay slot */\n");
+	fprintf(outfile, "*((uint32_t *)gen_code_ptr - 1) = 0x81c3e008; /* retl */\n");
+	fprintf(outfile, "gen_code_ptr++;\n");
         break;
     default:
 	error("unknown ELF architecture");

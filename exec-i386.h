@@ -93,6 +93,7 @@ register unsigned int T0 asm("l0");
 register unsigned int T1 asm("l1");
 register unsigned int A0 asm("l2");
 register struct CPUX86State *env asm("l3");
+#define USE_FP_CONVERT
 #endif
 #ifdef __s390__
 register unsigned int T0 asm("r7");
@@ -159,6 +160,10 @@ register struct CPUX86State *env asm("r27");
 #define ST0    (env->fpregs[env->fpstt])
 #define ST(n)  (env->fpregs[(env->fpstt + (n)) & 7])
 #define ST1    ST(1)
+
+#ifdef USE_FP_CONVERT
+#define FP_CONVERT  (env->fp_convert)
+#endif
 
 extern int __op_param1, __op_param2, __op_param3;
 #define PARAM1 ((long)(&__op_param1))

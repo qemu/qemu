@@ -180,6 +180,12 @@ typedef struct CPUX86State {
 
     /* emulator internal variables */
     CPU86_LDouble ft0;
+    union {
+	float f;
+        double d;
+	int i32;
+        int64_t i64;
+    } fp_convert;
     
     /* segments */
     uint32_t segs[6]; /* selector values */

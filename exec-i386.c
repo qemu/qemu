@@ -121,6 +121,20 @@ int testandset (int *p)
 }
 #endif
 
+#ifdef __sparc__
+static inline int testandset (int *p)
+{
+	int ret;
+
+	__asm__ __volatile__("ldstub	[%1], %0"
+			     : "=r" (ret)
+			     : "r" (p)
+			     : "memory");
+
+	return (ret ? 1 : 0);
+}
+#endif
+
 int global_cpu_lock = 0;
 
 void cpu_lock(void)
