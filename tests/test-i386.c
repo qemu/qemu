@@ -446,6 +446,8 @@ void test_bsx(void)
     TEST_BSX(bsfl, "", 0x00340128);
 }
 
+/**********************************************/
+
 void test_fops(double a, double b)
 {
     printf("a=%f b=%f a+b=%f\n", a, b, a + b);
@@ -540,6 +542,77 @@ void test_floats(void)
     test_fbcd(-123451234567890);
 }
 
+/**********************************************/
+
+#define TEST_BCD(op, op0, cc_in, cc_mask)\
+{\
+    int res, flags;\
+    res = op0;\
+    flags = cc_in;\
+    asm ("push %3\n\t"\
+         "popf\n\t"\
+         #op "\n\t"\
+         "pushf\n\t"\
+         "popl %1\n\t"\
+        : "=a" (res), "=g" (flags)\
+        : "0" (res), "1" (flags));\
+    printf("%-10s A=%08x R=%08x CCIN=%04x CC=%04x\n",\
+           #op, op0, res, cc_in, flags & cc_mask);\
+}
+
+void test_bcd(void)
+{
+    TEST_BCD(daa, 0x12340503, CC_A, (CC_C | CC_P | CC_Z | CC_S | CC_A));
+    TEST_BCD(daa, 0x12340506, CC_A, (CC_C | CC_P | CC_Z | CC_S | CC_A));
+    TEST_BCD(daa, 0x12340507, CC_A, (CC_C | CC_P | CC_Z | CC_S | CC_A));
+    TEST_BCD(daa, 0x12340559, CC_A, (CC_C | CC_P | CC_Z | CC_S | CC_A));
+    TEST_BCD(daa, 0x12340560, CC_A, (CC_C | CC_P | CC_Z | CC_S | CC_A));
+    TEST_BCD(daa, 0x1234059f, CC_A, (CC_C | CC_P | CC_Z | CC_S | CC_A));
+    TEST_BCD(daa, 0x123405a0, CC_A, (CC_C | CC_P | CC_Z | CC_S | CC_A));
+    TEST_BCD(daa, 0x12340503, 0, (CC_C | CC_P | CC_Z | CC_S | CC_A));
+    TEST_BCD(daa, 0x12340506, 0, (CC_C | CC_P | CC_Z | CC_S | CC_A));
+    TEST_BCD(daa, 0x12340503, CC_C, (CC_C | CC_P | CC_Z | CC_S | CC_A));
+    TEST_BCD(daa, 0x12340506, CC_C, (CC_C | CC_P | CC_Z | CC_S | CC_A));
+    TEST_BCD(daa, 0x12340503, CC_C | CC_A, (CC_C | CC_P | CC_Z | CC_S | CC_A));
+    TEST_BCD(daa, 0x12340506, CC_C | CC_A, (CC_C | CC_P | CC_Z | CC_S | CC_A));
+
+    TEST_BCD(das, 0x12340503, CC_A, (CC_C | CC_P | CC_Z | CC_S | CC_A));
+    TEST_BCD(das, 0x12340506, CC_A, (CC_C | CC_P | CC_Z | CC_S | CC_A));
+    TEST_BCD(das, 0x12340507, CC_A, (CC_C | CC_P | CC_Z | CC_S | CC_A));
+    TEST_BCD(das, 0x12340559, CC_A, (CC_C | CC_P | CC_Z | CC_S | CC_A));
+    TEST_BCD(das, 0x12340560, CC_A, (CC_C | CC_P | CC_Z | CC_S | CC_A));
+    TEST_BCD(das, 0x1234059f, CC_A, (CC_C | CC_P | CC_Z | CC_S | CC_A));
+    TEST_BCD(das, 0x123405a0, CC_A, (CC_C | CC_P | CC_Z | CC_S | CC_A));
+    TEST_BCD(das, 0x12340503, 0, (CC_C | CC_P | CC_Z | CC_S | CC_A));
+    TEST_BCD(das, 0x12340506, 0, (CC_C | CC_P | CC_Z | CC_S | CC_A));
+    TEST_BCD(das, 0x12340503, CC_C, (CC_C | CC_P | CC_Z | CC_S | CC_A));
+    TEST_BCD(das, 0x12340506, CC_C, (CC_C | CC_P | CC_Z | CC_S | CC_A));
+    TEST_BCD(das, 0x12340503, CC_C | CC_A, (CC_C | CC_P | CC_Z | CC_S | CC_A));
+    TEST_BCD(das, 0x12340506, CC_C | CC_A, (CC_C | CC_P | CC_Z | CC_S | CC_A));
+
+    TEST_BCD(aaa, 0x12340205, CC_A, (CC_C | CC_A));
+    TEST_BCD(aaa, 0x12340306, CC_A, (CC_C | CC_A));
+    TEST_BCD(aaa, 0x1234040a, CC_A, (CC_C | CC_A));
+    TEST_BCD(aaa, 0x123405fa, CC_A, (CC_C | CC_A));
+    TEST_BCD(aaa, 0x12340205, 0, (CC_C | CC_A));
+    TEST_BCD(aaa, 0x12340306, 0, (CC_C | CC_A));
+    TEST_BCD(aaa, 0x1234040a, 0, (CC_C | CC_A));
+    TEST_BCD(aaa, 0x123405fa, 0, (CC_C | CC_A));
+    
+    TEST_BCD(aas, 0x12340205, CC_A, (CC_C | CC_A));
+    TEST_BCD(aas, 0x12340306, CC_A, (CC_C | CC_A));
+    TEST_BCD(aas, 0x1234040a, CC_A, (CC_C | CC_A));
+    TEST_BCD(aas, 0x123405fa, CC_A, (CC_C | CC_A));
+    TEST_BCD(aas, 0x12340205, 0, (CC_C | CC_A));
+    TEST_BCD(aas, 0x12340306, 0, (CC_C | CC_A));
+    TEST_BCD(aas, 0x1234040a, 0, (CC_C | CC_A));
+    TEST_BCD(aas, 0x123405fa, 0, (CC_C | CC_A));
+
+    TEST_BCD(aam, 0x12340547, CC_A, (CC_C | CC_P | CC_Z | CC_S | CC_O | CC_A));
+    TEST_BCD(aad, 0x12340407, CC_A, (CC_C | CC_P | CC_Z | CC_S | CC_O | CC_A));
+}
+
+
 static void *call_end __init_call = NULL;
 
 int main(int argc, char **argv)
@@ -557,5 +630,6 @@ int main(int argc, char **argv)
     test_jcc();
     test_lea();
     test_floats();
+    test_bcd();
     return 0;
 }
