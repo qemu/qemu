@@ -38,7 +38,6 @@ short term:
 ppc specific:
 ------------
 - TLB invalidate not needed if msr_pr changes
-- endianness bugs in do_load_fpscr and do_store_fpscr
 - SPR_ENCODE() not useful
 - enable shift optimizations ?
 
