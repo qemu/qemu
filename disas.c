@@ -51,7 +51,7 @@ void disas(FILE *out, void *code, unsigned long size, enum disas_type type)
 
     for (pc = code; pc < (uint8_t *)code + size; pc += count) {
 	fprintf(out, "0x%08lx:  ", (long)pc);
-	count = print_insn((long)pc, &disasm_info);
+	count = print_insn((unsigned long)pc, &disasm_info);
 	fprintf(out, "\n");
 	if (count < 0)
 	    break;
