@@ -1570,6 +1570,7 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             }
             break;
 	case WIN_STANDBYNOW1:
+        case WIN_IDLEIMMEDIATE:
 	    s->status = READY_STAT;
             ide_set_irq(s);
             break;
@@ -1583,6 +1584,11 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
                 ide_abort_command(s);
             }
             ide_set_irq(s);
+            break;
+        case WIN_DIAGNOSE:
+            ide_set_signature(s);
+            s->status = 0x00; /* NOTE: READY is _not_ set */
+            s->error = 0x01;
             break;
         case WIN_SRST:
             if (!s->is_cdrom)
