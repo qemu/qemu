@@ -3,3 +3,7 @@
 
 - The VGA BIOS comes from the LGPL VGA bios project
   (http://www.nongnu.org/vgabios/).
+
+- The Cirrus VGA BIOS comes from the LGPL VGA bios project with
+  patches from http://ebisa.hp.infoseek.co.jp/bochs/index.shtml.
+  

@@ -28,6 +28,7 @@
 
 #define BIOS_FILENAME "bios.bin"
 #define VGABIOS_FILENAME "vgabios.bin"
+#define VGABIOS_CIRRUS_FILENAME "vgabios-cirrus.bin"
 #define LINUX_BOOT_FILENAME "linux_boot.bin"
 
 #define KERNEL_LOAD_ADDR     0x00100000
@@ -320,7 +321,11 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
     }
     
     /* VGA BIOS load */
-    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, VGABIOS_FILENAME);
+    if (cirrus_vga_enabled) {
+        snprintf(buf, sizeof(buf), "%s/%s", bios_dir, VGABIOS_CIRRUS_FILENAME);
+    } else {
+        snprintf(buf, sizeof(buf), "%s/%s", bios_dir, VGABIOS_FILENAME);
+    }
     ret = load_image(buf, phys_ram_base + 0x000c0000);
     
     /* setup basic memory access */
