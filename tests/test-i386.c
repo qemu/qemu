@@ -424,6 +424,105 @@ void test_mul(void)
     test_divl(0x12343, 0x12345678, 0x81234567);
 }
 
+#define TEST_BSX(op, size, op0)\
+{\
+    int res, val, resz;\
+    val = op0;\
+    asm("xorl %1, %1 ; " #op " %" size "2, %" size "0 ; setz %b1" \
+        : "=r" (res), "=q" (resz)\
+        : "g" (val));\
+    printf("%-10s A=%08x R=%08x %d\n", #op, val, resz ? 0 : res, resz);\
+}
+
+void test_bsx(void)
+{
+    TEST_BSX(bsrw, "w", 0);
+    TEST_BSX(bsrw, "w", 0x12340128);
+    TEST_BSX(bsrl, "", 0);
+    TEST_BSX(bsrl, "", 0x00340128);
+    TEST_BSX(bsfw, "w", 0);
+    TEST_BSX(bsfw, "w", 0x12340128);
+    TEST_BSX(bsfl, "", 0);
+    TEST_BSX(bsfl, "", 0x00340128);
+}
+
+void test_fops(double a, double b)
+{
+    printf("a=%f b=%f a+b=%f\n", a, b, a + b);
+    printf("a=%f b=%f a-b=%f\n", a, b, a - b);
+    printf("a=%f b=%f a*b=%f\n", a, b, a * b);
+    printf("a=%f b=%f a/b=%f\n", a, b, a / b);
+    printf("a=%f b=%f fmod(a, b)=%f\n", a, b, fmod(a, b));
+    printf("a=%f sqrt(a)=%f\n", a, sqrt(a));
+    printf("a=%f sin(a)=%f\n", a, sin(a));
+    printf("a=%f cos(a)=%f\n", a, cos(a));
+    printf("a=%f tan(a)=%f\n", a, tan(a));
+    printf("a=%f log(a)=%f\n", a, log(a));
+    printf("a=%f exp(a)=%f\n", a, exp(a));
+    printf("a=%f b=%f atan2(a, b)=%f\n", a, b, atan2(a, b));
+    /* just to test some op combining */
+    printf("a=%f asin(sin(a))=%f\n", a, asin(sin(a)));
+    printf("a=%f acos(cos(a))=%f\n", a, acos(cos(a)));
+    printf("a=%f atan(tan(a))=%f\n", a, atan(tan(a)));
+
+}
+
+void test_fcmp(double a, double b)
+{
+    printf("(%f<%f)=%d\n",
+           a, b, a < b);
+    printf("(%f<=%f)=%d\n",
+           a, b, a <= b);
+    printf("(%f==%f)=%d\n",
+           a, b, a == b);
+    printf("(%f>%f)=%d\n",
+           a, b, a > b);
+    printf("(%f<=%f)=%d\n",
+           a, b, a >= b);
+}
+
+void test_fcvt(double a)
+{
+    float fa;
+    long double la;
+
+    fa = a;
+    la = a;
+    printf("(float)%f = %f\n", a, fa);
+    printf("(long double)%f = %Lf\n", a, la);
+    printf("a=%f floor(a)=%f\n", a, floor(a));
+    printf("a=%f ceil(a)=%f\n", a, ceil(a));
+    printf("a=%f rint(a)=%f\n", a, rint(a));
+}
+
+#define TEST(N) \
+    asm("fld" #N : "=t" (a)); \
+    printf("fld" #N "= %f\n", a);
+
+void test_fconst(void)
+{
+    double a;
+    TEST(1);
+    TEST(l2t);
+    TEST(l2e);
+    TEST(pi);
+    TEST(lg2);
+    TEST(ln2);
+    TEST(z);
+}
+
+void test_floats(void)
+{
+    test_fops(2, 3);
+    test_fops(1.4, -5);
+    test_fcmp(2, -1);
+    test_fcmp(2, 2);
+    test_fcmp(2, 3);
+    test_fcvt(1.0/7.0);
+    test_fcvt(-1.0/9.0);
+    test_fcvt(1e30);
+    test_fconst();
+}
 
 static void *call_end __init_call = NULL;
 
@@ -437,8 +536,10 @@ int main(int argc, char **argv)
         func = *ptr++;
         func();
     }
+    test_bsx();
     test_mul();
     test_jcc();
     test_lea();
+    test_floats();
     return 0;
 }

@@ -13,14 +13,14 @@ hello: hello.c
 	$(CC) -nostdlib $(CFLAGS) -static $(LDFLAGS) -o $@ $<
 
 test1: test1.c
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
+	$(CC) $(CFLAGS) -static $(LDFLAGS) -o $@ $<
 
 test2: test2.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 
 # i386 emulation test (dump various opcodes) */
 test-i386: test-i386.c test-i386.h test-i386-shift.h test-i386-muldiv.h
-	$(CC) $(CFLAGS) $(LDFLAGS) -static -o $@ $<
+	$(CC) $(CFLAGS) $(LDFLAGS) -static -o $@ $< -lm
 
 test: test-i386
 	./test-i386 > test-i386.ref
