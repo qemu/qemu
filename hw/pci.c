@@ -1021,6 +1021,7 @@ static void pci_bios_init_device(PCIDevice *d)
             /* PIIX3 IDE */
             pci_config_writew(d, PCI_COMMAND, PCI_COMMAND_IO);
             pci_config_writew(d, 0x40, 0x8000); // enable IDE0
+            pci_config_writew(d, 0x42, 0x8000); // enable IDE1
         } else {
             /* IDE: we map it as in ISA mode */
             pci_set_io_region_addr(d, 0, 0x1f0);
