@@ -2830,7 +2830,7 @@ int main_loop(void *opaque)
             pic_set_irq(0, 0);
             timer_irq_pending = 0;
             /* XXX: RTC test */
-            if (cmos_data[RTC_REG_B] & 0x40) {
+            if (cmos_data[RTC_REG_B] & 0x50) {
                 pic_set_irq(8, 1);
             }
         }
@@ -3058,6 +3058,10 @@ int main(int argc, char **argv)
         
     if (!linux_boot && hd_filename[0] == '\0' && hd_filename[2] == '\0')
         help();
+    
+    /* boot to cd by default if no hard disk */
+    if (hd_filename[0] == '\0' && boot_device == 'c')
+        boot_device = 'd';
 
     /* init debug */
     setvbuf(stdout, NULL, _IOLBF, 0);
