@@ -725,6 +725,9 @@ static inline void cpu_physical_memory_write(target_phys_addr_t addr,
 {
     cpu_physical_memory_rw(addr, (uint8_t *)buf, len, 1);
 }
+uint32_t ldl_phys(target_phys_addr_t addr);
+void stl_phys_notdirty(target_phys_addr_t addr, uint32_t val);
+void stl_phys(target_phys_addr_t addr, uint32_t val);
 
 int cpu_memory_rw_debug(CPUState *env, target_ulong addr, 
                         uint8_t *buf, int len, int is_write);

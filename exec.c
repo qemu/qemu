@@ -2032,6 +2032,21 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
         addr += l;
     }
 }
+
+/* never used */
+uint32_t ldl_phys(target_phys_addr_t addr)
+{
+    return 0;
+}
+
+void stl_phys_notdirty(target_phys_addr_t addr, uint32_t val)
+{
+}
+
+void stl_phys(target_phys_addr_t addr, uint32_t val)
+{
+}
+
 #else
 void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf, 
                             int len, int is_write)
@@ -2118,6 +2133,96 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
         addr += l;
     }
 }
+
+/* warning: addr must be aligned */
+uint32_t ldl_phys(target_phys_addr_t addr)
+{
+    int io_index;
+    uint8_t *ptr;
+    uint32_t val;
+    unsigned long pd;
+    PhysPageDesc *p;
+
+    p = phys_page_find(addr >> TARGET_PAGE_BITS);
+    if (!p) {
+        pd = IO_MEM_UNASSIGNED;
+    } else {
+        pd = p->phys_offset;
+    }
+        
+    if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM &&
+        (pd & ~TARGET_PAGE_MASK) != IO_MEM_CODE) {
+        /* I/O case */
+        io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
+        val = io_mem_read[io_index][2](io_mem_opaque[io_index], addr);
+    } else {
+        /* RAM case */
+        ptr = phys_ram_base + (pd & TARGET_PAGE_MASK) + 
+            (addr & ~TARGET_PAGE_MASK);
+        val = ldl_p(ptr);
+    }
+    return val;
+}
+
+/* warning: addr must be aligned. The ram page is not masked as dirty
+   and the code inside is not invalidated. It is useful if the dirty
+   bits are used to track modified PTEs */
+void stl_phys_notdirty(target_phys_addr_t addr, uint32_t val)
+{
+    int io_index;
+    uint8_t *ptr;
+    unsigned long pd;
+    PhysPageDesc *p;
+
+    p = phys_page_find(addr >> TARGET_PAGE_BITS);
+    if (!p) {
+        pd = IO_MEM_UNASSIGNED;
+    } else {
+        pd = p->phys_offset;
+    }
+        
+    if ((pd & ~TARGET_PAGE_MASK) != 0) {
+        io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
+        io_mem_write[io_index][2](io_mem_opaque[io_index], addr, val);
+    } else {
+        ptr = phys_ram_base + (pd & TARGET_PAGE_MASK) + 
+            (addr & ~TARGET_PAGE_MASK);
+        stl_p(ptr, val);
+    }
+}
+
+/* warning: addr must be aligned */
+/* XXX: optimize code invalidation test */
+void stl_phys(target_phys_addr_t addr, uint32_t val)
+{
+    int io_index;
+    uint8_t *ptr;
+    unsigned long pd;
+    PhysPageDesc *p;
+
+    p = phys_page_find(addr >> TARGET_PAGE_BITS);
+    if (!p) {
+        pd = IO_MEM_UNASSIGNED;
+    } else {
+        pd = p->phys_offset;
+    }
+        
+    if ((pd & ~TARGET_PAGE_MASK) != 0) {
+        io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
+        io_mem_write[io_index][2](io_mem_opaque[io_index], addr, val);
+    } else {
+        unsigned long addr1;
+        addr1 = (pd & TARGET_PAGE_MASK) + (addr & ~TARGET_PAGE_MASK);
+        /* RAM case */
+        ptr = phys_ram_base + addr1;
+        stl_p(ptr, val);
+        /* invalidate code */
+        tb_invalidate_phys_page_range(addr1, addr1 + 4, 0);
+        /* set dirty bit */
+        phys_ram_dirty[addr1 >> TARGET_PAGE_BITS] = 1;
+    }
+}
+
 #endif
 
 /* virtual memory access for debug */
