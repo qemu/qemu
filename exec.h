@@ -219,10 +219,12 @@ label ## n:\
 #define JUMP_TB(tbparam, n, eip)\
 do {\
     static void __attribute__((unused)) *__op_label ## n = &&label ## n;\
+    static void __attribute__((unused)) *dummy ## n = &&dummy_label ## n;\
     goto *(void *)(((TranslationBlock *)tbparam)->tb_next[n]);\
 label ## n:\
     T0 = (long)(tbparam) + (n);\
     EIP = eip;\
+dummy_label ## n:\
 } while (0)
 
 #endif
