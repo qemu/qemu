@@ -209,7 +209,7 @@ extern int __op_param1, __op_param2, __op_param3;
 
 extern int __op_jmp0, __op_jmp1, __op_jmp2, __op_jmp3;
 
-#if defined(_WIN32)
+#if defined(_WIN32) || defined(__APPLE__)
 #define ASM_NAME(x) "_" #x
 #else
 #define ASM_NAME(x) #x
