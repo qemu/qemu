@@ -7,6 +7,9 @@ version 0.2:
  - initial Alpha port (Falk Hueffner)
  - initial IA64 port (Matt Wilson)
  - initial Sparc and Sparc64 port (David S. Miller)
+ - better exception support for dosemu
+ - added HLT instruction
+ - added GPF generation for I/Os
 
 version 0.1.6:
 
