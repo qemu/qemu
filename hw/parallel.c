@@ -141,10 +141,6 @@ static void parallel_receive_byte(ParallelState *s, int ch)
 {
 }
 
-static void parallel_receive_break(ParallelState *s)
-{
-}
-
 static int parallel_can_receive1(void *opaque)
 {
     ParallelState *s = opaque;
@@ -159,7 +155,6 @@ static void parallel_receive1(void *opaque, const uint8_t *buf, int size)
 
 static void parallel_event(void *opaque, int event)
 {
-    ParallelState *s = opaque;
 }
 
 /* If fd is zero, it means that the parallel device uses the console */
