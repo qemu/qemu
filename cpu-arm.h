@@ -40,6 +40,8 @@ typedef struct CPUARMState {
     jmp_buf jmp_env;
     int exception_index;
     int interrupt_request;
+    struct TranslationBlock *current_tb;
+    int user_mode_only;
 
     /* user data */
     void *opaque;
