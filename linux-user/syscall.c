@@ -1000,7 +1000,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         ret = get_errno(setsid());
         break;
     case TARGET_NR_sigaction:
-#if 1
+#if 0
         {
             ret = 0;
         }

@@ -19,7 +19,7 @@
  */
 #include "exec-i386.h"
 
-#define DEBUG_EXEC
+//#define DEBUG_EXEC
 #define DEBUG_FLUSH
 
 /* main execution loop */

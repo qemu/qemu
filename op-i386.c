@@ -177,7 +177,7 @@ void raise_exception(int exception_index)
 #undef REG
 #undef REGNAME
 
-/* operations */
+/* operations with flags */
 
 void OPPROTO op_addl_T0_T1_cc(void)
 {
@@ -217,11 +217,6 @@ void OPPROTO op_cmpl_T0_T1_cc(void)
     CC_DST = T0 - T1;
 }
 
-void OPPROTO op_notl_T0(void)
-{
-    T0 = ~T0;
-}
-
 void OPPROTO op_negl_T0_cc(void)
 {
     CC_SRC = 0;
@@ -246,6 +241,53 @@ void OPPROTO op_decl_T0_cc(void)
 void OPPROTO op_testl_T0_T1_cc(void)
 {
     CC_DST = T0 & T1;
+}
+
+/* operations without flags */
+
+void OPPROTO op_addl_T0_T1(void)
+{
+    T0 += T1;
+}
+
+void OPPROTO op_orl_T0_T1(void)
+{
+    T0 |= T1;
+}
+
+void OPPROTO op_andl_T0_T1(void)
+{
+    T0 &= T1;
+}
+
+void OPPROTO op_subl_T0_T1(void)
+{
+    T0 -= T1;
+}
+
+void OPPROTO op_xorl_T0_T1(void)
+{
+    T0 ^= T1;
+}
+
+void OPPROTO op_negl_T0(void)
+{
+    T0 = -T0;
+}
+
+void OPPROTO op_incl_T0(void)
+{
+    T0++;
+}
+
+void OPPROTO op_decl_T0(void)
+{
+    T0--;
+}
+
+void OPPROTO op_notl_T0(void)
+{
+    T0 = ~T0;
 }
 
 void OPPROTO op_bswapl_T0(void)

@@ -1,9 +1,7 @@
-- optimize translated cache chaining (DLL PLT like system)
-- improved 16 bit support 
-- optimize inverse flags propagation (easy by generating intermediate
-  micro operation array).
+- optimize translated cache chaining (DLL PLT-like system)
+- 64 bit syscalls
 - signals
 - threads
 - make it self runnable (use same trick as ld.so : include its own relocator and libc)
+- improved 16 bit support 
 - fix FPU exceptions (in particular: gen_op_fpush not before mem load)
-- tests

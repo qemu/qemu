@@ -385,7 +385,6 @@ void OPPROTO glue(op_setle_T0_sub, SUFFIX)(void)
 void OPPROTO glue(glue(op_rol, SUFFIX), _T0_T1_cc)(void)
 {
     int count, src;
-    /* XXX: testing */
     count = T1 & SHIFT_MASK;
     if (count) {
         CC_SRC = cc_table[CC_OP].compute_all() & ~(CC_O | CC_C);
@@ -395,6 +394,17 @@ void OPPROTO glue(glue(op_rol, SUFFIX), _T0_T1_cc)(void)
         CC_SRC |= (lshift(src ^ T0, 11 - (DATA_BITS - 1)) & CC_O) | 
             (T0 & CC_C);
         CC_OP = CC_OP_EFLAGS;
+    }
+    FORCE_RET();
+}
+
+void OPPROTO glue(glue(op_rol, SUFFIX), _T0_T1)(void)
+{
+    int count;
+    count = T1 & SHIFT_MASK;
+    if (count) {
+        T0 &= DATA_MASK;
+        T0 = (T0 << count) | (T0 >> (DATA_BITS - count));
     }
     FORCE_RET();
 }
@@ -411,6 +421,17 @@ void OPPROTO glue(glue(op_ror, SUFFIX), _T0_T1_cc)(void)
         CC_SRC |= (lshift(src ^ T0, 11 - (DATA_BITS - 1)) & CC_O) | 
             ((T0 >> (DATA_BITS - 1)) & CC_C);
         CC_OP = CC_OP_EFLAGS;
+    }
+    FORCE_RET();
+}
+
+void OPPROTO glue(glue(op_ror, SUFFIX), _T0_T1)(void)
+{
+    int count;
+    count = T1 & SHIFT_MASK;
+    if (count) {
+        T0 &= DATA_MASK;
+        T0 = (T0 >> count) | (T0 << (DATA_BITS - count));
     }
     FORCE_RET();
 }
@@ -482,6 +503,14 @@ void OPPROTO glue(glue(op_shl, SUFFIX), _T0_T1_cc)(void)
     FORCE_RET();
 }
 
+void OPPROTO glue(glue(op_shl, SUFFIX), _T0_T1)(void)
+{
+    int count;
+    count = T1 & 0x1f;
+    T0 = T0 << count;
+    FORCE_RET();
+}
+
 void OPPROTO glue(glue(op_shr, SUFFIX), _T0_T1_cc)(void)
 {
     int count;
@@ -496,6 +525,15 @@ void OPPROTO glue(glue(op_shr, SUFFIX), _T0_T1_cc)(void)
     FORCE_RET();
 }
 
+void OPPROTO glue(glue(op_shr, SUFFIX), _T0_T1)(void)
+{
+    int count;
+    count = T1 & 0x1f;
+    T0 &= DATA_MASK;
+    T0 = T0 >> count;
+    FORCE_RET();
+}
+
 void OPPROTO glue(glue(op_sar, SUFFIX), _T0_T1_cc)(void)
 {
     int count, src;
@@ -507,6 +545,15 @@ void OPPROTO glue(glue(op_sar, SUFFIX), _T0_T1_cc)(void)
         CC_DST = T0;
         CC_OP = CC_OP_SARB + SHIFT;
     }
+    FORCE_RET();
+}
+
+void OPPROTO glue(glue(op_sar, SUFFIX), _T0_T1)(void)
+{
+    int count, src;
+    count = T1 & 0x1f;
+    src = (DATA_STYPE)T0;
+    T0 = src >> count;
     FORCE_RET();
 }
 

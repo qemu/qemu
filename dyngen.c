@@ -28,7 +28,7 @@
 #include "thunk.h"
 
 /* all dynamically generated functions begin with this code */
-#define OP_PREFIX "op"
+#define OP_PREFIX "op_"
 
 int elf_must_swap(Elf32_Ehdr *h)
 {
@@ -201,7 +201,7 @@ int strstart(const char *str, const char *val, const char **ptr)
 /* generate op code */
 void gen_code(const char *name, unsigned long offset, unsigned long size, 
               FILE *outfile, uint8_t *text, void *relocs, int nb_relocs, int reloc_sh_type,
-              Elf32_Sym *symtab, char *strtab)
+              Elf32_Sym *symtab, char *strtab, int gen_switch)
 {
     int copy_size = 0;
     uint8_t *p_start, *p_end;
@@ -258,8 +258,6 @@ void gen_code(const char *name, unsigned long offset, unsigned long size,
                     if (n >= MAX_ARGS)
                         error("too many arguments in %s", name);
                     args_present[n - 1] = 1;
-                } else {
-                    fprintf(outfile, "extern char %s;\n", sym_name);
                 }
             }
         }
@@ -274,8 +272,6 @@ void gen_code(const char *name, unsigned long offset, unsigned long size,
                     if (n >= MAX_ARGS)
                         error("too many arguments in %s", name);
                     args_present[n - 1] = 1;
-                } else {
-                    fprintf(outfile, "extern char %s;\n", sym_name);
                 }
             }
         }
@@ -289,31 +285,57 @@ void gen_code(const char *name, unsigned long offset, unsigned long size,
             error("inconsistent argument numbering in %s", name);
     }
 
-    /* output C code */
-    fprintf(outfile, "extern void %s();\n", name);
-    fprintf(outfile, "static inline void gen_%s(", name);
-    if (nb_args == 0) {
-        fprintf(outfile, "void");
-    } else {
-        for(i = 0; i < nb_args; i++) {
-            if (i != 0)
-                fprintf(outfile, ", ");
-            fprintf(outfile, "long param%d", i + 1);
+    if (gen_switch) {
+
+        /* output C code */
+        fprintf(outfile, "case INDEX_%s: {\n", name);
+        if (nb_args > 0) {
+            fprintf(outfile, "    long ");
+            for(i = 0; i < nb_args; i++) {
+                if (i != 0)
+                    fprintf(outfile, ", ");
+                fprintf(outfile, "param%d", i + 1);
+            }
+            fprintf(outfile, ";\n");
         }
-    }
-    fprintf(outfile, ")\n");
-    fprintf(outfile, "{\n");
-    fprintf(outfile, "    memcpy(gen_code_ptr, &%s, %d);\n", name, copy_size);
-    
-    /* patch relocations */
-    switch(e_machine) {
-    case EM_386:
-        {
+        fprintf(outfile, "    extern void %s();\n", name);
+
+        if (reloc_sh_type == SHT_REL) {
             Elf32_Rel *rel;
-            char name[256];
-            int type;
-            long addend;
             for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
+                if (rel->r_offset >= offset && rel->r_offset < offset + copy_size) {
+                    sym_name = strtab + symtab[ELF32_R_SYM(rel->r_info)].st_name;
+                    if (!strstart(sym_name, "__op_param", &p)) {
+                        fprintf(outfile, "extern char %s;\n", sym_name);
+                    }
+                }
+            }
+        } else {
+            Elf32_Rela *rel;
+            for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
+                if (rel->r_offset >= offset && rel->r_offset < offset + copy_size) {
+                    sym_name = strtab + symtab[ELF32_R_SYM(rel->r_info)].st_name;
+                    if (!strstart(sym_name, "__op_param", &p)) {
+                        fprintf(outfile, "extern char %s;\n", sym_name);
+                    }
+                }
+            }
+        }
+
+        fprintf(outfile, "    memcpy(gen_code_ptr, &%s, %d);\n", name, copy_size);
+        for(i = 0; i < nb_args; i++) {
+            fprintf(outfile, "    param%d = *opparam_ptr++;\n", i + 1);
+        }
+
+        /* patch relocations */
+        switch(e_machine) {
+        case EM_386:
+            {
+                Elf32_Rel *rel;
+                char name[256];
+                int type;
+                long addend;
+                for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
                 if (rel->r_offset >= offset && rel->r_offset < offset + copy_size) {
                     sym_name = strtab + symtab[ELF32_R_SYM(rel->r_info)].st_name;
                     if (strstart(sym_name, "__op_param", &p)) {
@@ -336,20 +358,38 @@ void gen_code(const char *name, unsigned long offset, unsigned long size,
                         error("unsupported i386 relocation (%d)", type);
                     }
                 }
+                }
+            }
+            break;
+        default:
+            error("unsupported CPU for relocations (%d)", e_machine);
+        }
+        fprintf(outfile, "    gen_code_ptr += %d;\n", copy_size);
+        fprintf(outfile, "}\n");
+        fprintf(outfile, "break;\n\n");
+    } else {
+        fprintf(outfile, "static inline void gen_%s(", name);
+        if (nb_args == 0) {
+            fprintf(outfile, "void");
+        } else {
+            for(i = 0; i < nb_args; i++) {
+                if (i != 0)
+                    fprintf(outfile, ", ");
+                fprintf(outfile, "long param%d", i + 1);
             }
         }
-        break;
-    default:
-        error("unsupported CPU for relocations (%d)", e_machine);
+        fprintf(outfile, ")\n");
+        fprintf(outfile, "{\n");
+        for(i = 0; i < nb_args; i++) {
+            fprintf(outfile, "    *gen_opparam_ptr++ = param%d;\n", i + 1);
+        }
+        fprintf(outfile, "    *gen_opc_ptr++ = INDEX_%s;\n", name);
+        fprintf(outfile, "}\n\n");
     }
-
-
-    fprintf(outfile, "    gen_code_ptr += %d;\n", copy_size);
-    fprintf(outfile, "}\n\n");
 }
 
 /* load an elf object file */
-int load_elf(const char *filename, FILE *outfile)
+int load_elf(const char *filename, FILE *outfile, int do_print_enum)
 {
     int fd;
     Elf32_Ehdr ehdr;
@@ -476,23 +516,77 @@ int load_elf(const char *filename, FILE *outfile)
         error("unsupported CPU (e_machine=%d)", e_machine);
     }
 
-    fprintf(outfile, "#include \"gen-%s.h\"\n\n", cpu_name);
+    if (do_print_enum) {
+        fprintf(outfile, "DEF(end)\n");
+        for(i = 0, sym = symtab; i < nb_syms; i++, sym++) {
+            const char *name, *p;
+            name = strtab + sym->st_name;
+            if (strstart(name, OP_PREFIX, &p)) {
+                fprintf(outfile, "DEF(%s)\n", p);
+            }
+        }
+    } else {
+        /* generate big code generation switch */
+fprintf(outfile,
+"int dyngen_code(uint8_t *gen_code_buf,\n"
+"                const uint16_t *opc_buf, const uint32_t *opparam_buf)\n"
+"{\n"
+"    uint8_t *gen_code_ptr;\n"
+"    const uint16_t *opc_ptr;\n"
+"    const uint32_t *opparam_ptr;\n"
+"    gen_code_ptr = gen_code_buf;\n"
+"    opc_ptr = opc_buf;\n"
+"    opparam_ptr = opparam_buf;\n"
+"    for(;;) {\n"
+"        switch(*opc_ptr++) {\n"
+);
 
-    for(i = 0, sym = symtab; i < nb_syms; i++, sym++) {
-        const char *name;
-        name = strtab + sym->st_name;
-        if (strstart(name, "op_", NULL) ||
-            strstart(name, "op1_", NULL) ||
-            strstart(name, "op2_", NULL) ||
-            strstart(name, "op3_", NULL)) {
+        for(i = 0, sym = symtab; i < nb_syms; i++, sym++) {
+            const char *name;
+            name = strtab + sym->st_name;
+            if (strstart(name, OP_PREFIX, NULL)) {
 #if 0
-            printf("%4d: %s pos=0x%08x len=%d\n", 
-                   i, name, sym->st_value, sym->st_size);
+                printf("%4d: %s pos=0x%08x len=%d\n", 
+                       i, name, sym->st_value, sym->st_size);
 #endif
-            if (sym->st_shndx != (text_sec - shdr))
-                error("invalid section for opcode (0x%x)", sym->st_shndx);
-            gen_code(name, sym->st_value, sym->st_size, outfile, 
-                     text, relocs, nb_relocs, reloc_sh_type, symtab, strtab);
+                if (sym->st_shndx != (text_sec - shdr))
+                    error("invalid section for opcode (0x%x)", sym->st_shndx);
+                gen_code(name, sym->st_value, sym->st_size, outfile, 
+                         text, relocs, nb_relocs, reloc_sh_type, symtab, strtab, 1);
+            }
+        }
+
+fprintf(outfile,
+"        default:\n"
+"            goto the_end;\n"
+"        }\n"
+"    }\n"
+" the_end:\n"
+);
+
+/* generate a return */ 
+    switch(e_machine) {
+    case EM_386:
+        fprintf(outfile, "*gen_code_ptr++ = 0xc3; /* ret */\n");
+        break;
+    default:
+        error("no return generation for cpu '%s'", cpu_name);
+    }
+    
+    fprintf(outfile, "return gen_code_ptr -  gen_code_buf;\n");
+    fprintf(outfile, "}\n\n");
+
+/* generate gen_xxx functions */
+/* XXX: suppress the use of these functions to simplify code */
+        for(i = 0, sym = symtab; i < nb_syms; i++, sym++) {
+            const char *name;
+            name = strtab + sym->st_name;
+            if (strstart(name, OP_PREFIX, NULL)) {
+                if (sym->st_shndx != (text_sec - shdr))
+                    error("invalid section for opcode (0x%x)", sym->st_shndx);
+                gen_code(name, sym->st_value, sym->st_size, outfile, 
+                         text, relocs, nb_relocs, reloc_sh_type, symtab, strtab, 0);
+            }
         }
     }
 
@@ -503,20 +597,23 @@ int load_elf(const char *filename, FILE *outfile)
 void usage(void)
 {
     printf("dyngen (c) 2003 Fabrice Bellard\n"
-           "usage: dyngen [-o outfile] objfile\n"
-           "Generate a dynamic code generator from an object file\n");
+           "usage: dyngen [-o outfile] [-c] objfile\n"
+           "Generate a dynamic code generator from an object file\n"
+           "-c     output enum of operations\n"
+           );
     exit(1);
 }
 
 int main(int argc, char **argv)
 {
-    int c;
+    int c, do_print_enum;
     const char *filename, *outfilename;
     FILE *outfile;
 
     outfilename = "out.c";
+    do_print_enum = 0;
     for(;;) {
-        c = getopt(argc, argv, "ho:");
+        c = getopt(argc, argv, "ho:c");
         if (c == -1)
             break;
         switch(c) {
@@ -526,6 +623,9 @@ int main(int argc, char **argv)
         case 'o':
             outfilename = optarg;
             break;
+        case 'c':
+            do_print_enum = 1;
+            break;
         }
     }
     if (optind >= argc)
@@ -534,7 +634,7 @@ int main(int argc, char **argv)
     outfile = fopen(outfilename, "w");
     if (!outfile)
         error("could not open '%s'", outfilename);
-    load_elf(filename, outfile);
+    load_elf(filename, outfile, do_print_enum);
     fclose(outfile);
     return 0;
 }

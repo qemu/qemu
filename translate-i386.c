@@ -38,7 +38,8 @@
 #define offsetof(type, field) ((size_t) &((type *)0)->field)
 #endif
 
-static uint8_t *gen_code_ptr;
+static uint16_t *gen_opc_ptr;
+static uint32_t *gen_opparam_ptr;
 int __op_param1, __op_param2, __op_param3;
 
 extern FILE *logfile;
@@ -93,6 +94,13 @@ enum {
     OP_SHR, 
     OP_SHL1, /* undocumented */
     OP_SAR = 7,
+};
+
+enum {
+#define DEF(s) INDEX_op_ ## s,
+#include "opc-i386.h"
+#undef DEF
+    NB_OPS,
 };
 
 #include "op-i386.h"
@@ -1922,7 +1930,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         if (mod == 3)
             goto illegal_op;
         gen_op_ld_T1_A0[ot]();
-        op_addl_A0_im(1 << (ot - OT_WORD + 1));
+        gen_op_addl_A0_im(1 << (ot - OT_WORD + 1));
         /* load the segment first to handle exceptions properly */
         gen_op_lduw_T0_A0();
         gen_movl_seg_T0(s, op);
@@ -2842,24 +2850,350 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
     return -1;
 }
 
+#define CC_OSZAPC (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C)
+#define CC_OSZAP (CC_O | CC_S | CC_Z | CC_A | CC_P)
+
+/* flags read by an operation */
+static uint16_t opc_read_flags[NB_OPS] = { 
+    [INDEX_op_aas] = CC_A,
+    [INDEX_op_aaa] = CC_A,
+    [INDEX_op_das] = CC_A | CC_C,
+    [INDEX_op_daa] = CC_A | CC_C,
+
+    [INDEX_op_adcb_T0_T1_cc] = CC_C,
+    [INDEX_op_adcw_T0_T1_cc] = CC_C,
+    [INDEX_op_adcl_T0_T1_cc] = CC_C,
+    [INDEX_op_sbbb_T0_T1_cc] = CC_C,
+    [INDEX_op_sbbw_T0_T1_cc] = CC_C,
+    [INDEX_op_sbbl_T0_T1_cc] = CC_C,
+
+    [INDEX_op_into] = CC_O,
+
+    [INDEX_op_jo_cc] = CC_O,
+    [INDEX_op_jb_cc] = CC_C,
+    [INDEX_op_jz_cc] = CC_Z,
+    [INDEX_op_jbe_cc] = CC_Z | CC_C,
+    [INDEX_op_js_cc] = CC_S,
+    [INDEX_op_jp_cc] = CC_P,
+    [INDEX_op_jl_cc] = CC_O | CC_S,
+    [INDEX_op_jle_cc] = CC_O | CC_S | CC_Z,
+
+    [INDEX_op_jb_subb] = CC_C,
+    [INDEX_op_jb_subw] = CC_C,
+    [INDEX_op_jb_subl] = CC_C,
+
+    [INDEX_op_jz_subb] = CC_Z,
+    [INDEX_op_jz_subw] = CC_Z,
+    [INDEX_op_jz_subl] = CC_Z,
+
+    [INDEX_op_jbe_subb] = CC_Z | CC_C,
+    [INDEX_op_jbe_subw] = CC_Z | CC_C,
+    [INDEX_op_jbe_subl] = CC_Z | CC_C,
+
+    [INDEX_op_js_subb] = CC_S,
+    [INDEX_op_js_subw] = CC_S,
+    [INDEX_op_js_subl] = CC_S,
+
+    [INDEX_op_jl_subb] = CC_O | CC_S,
+    [INDEX_op_jl_subw] = CC_O | CC_S,
+    [INDEX_op_jl_subl] = CC_O | CC_S,
+
+    [INDEX_op_jle_subb] = CC_O | CC_S | CC_Z,
+    [INDEX_op_jle_subw] = CC_O | CC_S | CC_Z,
+    [INDEX_op_jle_subl] = CC_O | CC_S | CC_Z,
+
+    [INDEX_op_loopnzw] = CC_Z,
+    [INDEX_op_loopnzl] = CC_Z,
+    [INDEX_op_loopzw] = CC_Z,
+    [INDEX_op_loopzl] = CC_Z,
+
+    [INDEX_op_seto_T0_cc] = CC_O,
+    [INDEX_op_setb_T0_cc] = CC_C,
+    [INDEX_op_setz_T0_cc] = CC_Z,
+    [INDEX_op_setbe_T0_cc] = CC_Z | CC_C,
+    [INDEX_op_sets_T0_cc] = CC_S,
+    [INDEX_op_setp_T0_cc] = CC_P,
+    [INDEX_op_setl_T0_cc] = CC_O | CC_S,
+    [INDEX_op_setle_T0_cc] = CC_O | CC_S | CC_Z,
+
+    [INDEX_op_setb_T0_subb] = CC_C,
+    [INDEX_op_setb_T0_subw] = CC_C,
+    [INDEX_op_setb_T0_subl] = CC_C,
+
+    [INDEX_op_setz_T0_subb] = CC_Z,
+    [INDEX_op_setz_T0_subw] = CC_Z,
+    [INDEX_op_setz_T0_subl] = CC_Z,
+
+    [INDEX_op_setbe_T0_subb] = CC_Z | CC_C,
+    [INDEX_op_setbe_T0_subw] = CC_Z | CC_C,
+    [INDEX_op_setbe_T0_subl] = CC_Z | CC_C,
+
+    [INDEX_op_sets_T0_subb] = CC_S,
+    [INDEX_op_sets_T0_subw] = CC_S,
+    [INDEX_op_sets_T0_subl] = CC_S,
+
+    [INDEX_op_setl_T0_subb] = CC_O | CC_S,
+    [INDEX_op_setl_T0_subw] = CC_O | CC_S,
+    [INDEX_op_setl_T0_subl] = CC_O | CC_S,
+
+    [INDEX_op_setle_T0_subb] = CC_O | CC_S | CC_Z,
+    [INDEX_op_setle_T0_subw] = CC_O | CC_S | CC_Z,
+    [INDEX_op_setle_T0_subl] = CC_O | CC_S | CC_Z,
+
+    [INDEX_op_movl_T0_eflags] = CC_OSZAPC,
+    [INDEX_op_cmc] = CC_C,
+    [INDEX_op_salc] = CC_C,
+
+    [INDEX_op_rclb_T0_T1_cc] = CC_C,
+    [INDEX_op_rclw_T0_T1_cc] = CC_C,
+    [INDEX_op_rcll_T0_T1_cc] = CC_C,
+    [INDEX_op_rcrb_T0_T1_cc] = CC_C,
+    [INDEX_op_rcrw_T0_T1_cc] = CC_C,
+    [INDEX_op_rcrl_T0_T1_cc] = CC_C,
+};
+
+/* flags written by an operation */
+static uint16_t opc_write_flags[NB_OPS] = { 
+    [INDEX_op_addl_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_orl_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_adcb_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_adcw_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_adcl_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_sbbb_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_sbbw_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_sbbl_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_andl_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_subl_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_xorl_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_cmpl_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_negl_T0_cc] = CC_OSZAPC,
+    [INDEX_op_incl_T0_cc] = CC_OSZAP,
+    [INDEX_op_decl_T0_cc] = CC_OSZAP,
+    [INDEX_op_testl_T0_T1_cc] = CC_OSZAPC,
+
+    [INDEX_op_mulb_AL_T0] = CC_OSZAPC,
+    [INDEX_op_imulb_AL_T0] = CC_OSZAPC,
+    [INDEX_op_mulw_AX_T0] = CC_OSZAPC,
+    [INDEX_op_imulw_AX_T0] = CC_OSZAPC,
+    [INDEX_op_mull_EAX_T0] = CC_OSZAPC,
+    [INDEX_op_imull_EAX_T0] = CC_OSZAPC,
+    [INDEX_op_imulw_T0_T1] = CC_OSZAPC,
+    [INDEX_op_imull_T0_T1] = CC_OSZAPC,
+    
+    /* bcd */
+    [INDEX_op_aam] = CC_OSZAPC,
+    [INDEX_op_aad] = CC_OSZAPC,
+    [INDEX_op_aas] = CC_OSZAPC,
+    [INDEX_op_aaa] = CC_OSZAPC,
+    [INDEX_op_das] = CC_OSZAPC,
+    [INDEX_op_daa] = CC_OSZAPC,
+
+    [INDEX_op_movb_eflags_T0] = CC_S | CC_Z | CC_A | CC_P | CC_C,
+    [INDEX_op_movl_eflags_T0] = CC_OSZAPC,
+    [INDEX_op_clc] = CC_C,
+    [INDEX_op_stc] = CC_C,
+    [INDEX_op_cmc] = CC_C,
+
+    [INDEX_op_rolb_T0_T1_cc] = CC_O | CC_C,
+    [INDEX_op_rolw_T0_T1_cc] = CC_O | CC_C,
+    [INDEX_op_roll_T0_T1_cc] = CC_O | CC_C,
+    [INDEX_op_rorb_T0_T1_cc] = CC_O | CC_C,
+    [INDEX_op_rorw_T0_T1_cc] = CC_O | CC_C,
+    [INDEX_op_rorl_T0_T1_cc] = CC_O | CC_C,
+
+    [INDEX_op_rclb_T0_T1_cc] = CC_O | CC_C,
+    [INDEX_op_rclw_T0_T1_cc] = CC_O | CC_C,
+    [INDEX_op_rcll_T0_T1_cc] = CC_O | CC_C,
+    [INDEX_op_rcrb_T0_T1_cc] = CC_O | CC_C,
+    [INDEX_op_rcrw_T0_T1_cc] = CC_O | CC_C,
+    [INDEX_op_rcrl_T0_T1_cc] = CC_O | CC_C,
+
+    [INDEX_op_shlb_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_shlw_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_shll_T0_T1_cc] = CC_OSZAPC,
+
+    [INDEX_op_shrb_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_shrw_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_shrl_T0_T1_cc] = CC_OSZAPC,
+
+    [INDEX_op_sarb_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_sarw_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_sarl_T0_T1_cc] = CC_OSZAPC,
+
+    [INDEX_op_shldw_T0_T1_ECX_cc] = CC_OSZAPC,
+    [INDEX_op_shldl_T0_T1_ECX_cc] = CC_OSZAPC,
+    [INDEX_op_shldw_T0_T1_im_cc] = CC_OSZAPC,
+    [INDEX_op_shldl_T0_T1_im_cc] = CC_OSZAPC,
+
+    [INDEX_op_shrdw_T0_T1_ECX_cc] = CC_OSZAPC,
+    [INDEX_op_shrdl_T0_T1_ECX_cc] = CC_OSZAPC,
+    [INDEX_op_shrdw_T0_T1_im_cc] = CC_OSZAPC,
+    [INDEX_op_shrdl_T0_T1_im_cc] = CC_OSZAPC,
+
+    [INDEX_op_btw_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_btl_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_btsw_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_btsl_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_btrw_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_btrl_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_btcw_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_btcl_T0_T1_cc] = CC_OSZAPC,
+
+    [INDEX_op_bsfw_T0_cc] = CC_OSZAPC,
+    [INDEX_op_bsfl_T0_cc] = CC_OSZAPC,
+    [INDEX_op_bsrw_T0_cc] = CC_OSZAPC,
+    [INDEX_op_bsrl_T0_cc] = CC_OSZAPC,
+
+    [INDEX_op_scasb] = CC_OSZAPC,
+    [INDEX_op_scasw] = CC_OSZAPC,
+    [INDEX_op_scasl] = CC_OSZAPC,
+    [INDEX_op_repz_scasb] = CC_OSZAPC,
+    [INDEX_op_repz_scasw] = CC_OSZAPC,
+    [INDEX_op_repz_scasl] = CC_OSZAPC,
+    [INDEX_op_repnz_scasb] = CC_OSZAPC,
+    [INDEX_op_repnz_scasw] = CC_OSZAPC,
+    [INDEX_op_repnz_scasl] = CC_OSZAPC,
+
+    [INDEX_op_cmpsb] = CC_OSZAPC,
+    [INDEX_op_cmpsw] = CC_OSZAPC,
+    [INDEX_op_cmpsl] = CC_OSZAPC,
+    [INDEX_op_repz_cmpsb] = CC_OSZAPC,
+    [INDEX_op_repz_cmpsw] = CC_OSZAPC,
+    [INDEX_op_repz_cmpsl] = CC_OSZAPC,
+    [INDEX_op_repnz_cmpsb] = CC_OSZAPC,
+    [INDEX_op_repnz_cmpsw] = CC_OSZAPC,
+    [INDEX_op_repnz_cmpsl] = CC_OSZAPC,
+
+    [INDEX_op_cmpxchgw_T0_T1_EAX_cc] = CC_OSZAPC,
+    [INDEX_op_cmpxchgl_T0_T1_EAX_cc] = CC_OSZAPC,
+};
+
+/* simpler form of an operation if no flags need to be generated */
+static uint16_t opc_simpler[NB_OPS] = { 
+    [INDEX_op_addl_T0_T1_cc] = INDEX_op_addl_T0_T1,
+    [INDEX_op_orl_T0_T1_cc] = INDEX_op_orl_T0_T1,
+    [INDEX_op_andl_T0_T1_cc] = INDEX_op_andl_T0_T1,
+    [INDEX_op_subl_T0_T1_cc] = INDEX_op_subl_T0_T1,
+    [INDEX_op_xorl_T0_T1_cc] = INDEX_op_xorl_T0_T1,
+    [INDEX_op_negl_T0_cc] = INDEX_op_negl_T0,
+    [INDEX_op_incl_T0_cc] = INDEX_op_incl_T0,
+    [INDEX_op_decl_T0_cc] = INDEX_op_decl_T0,
+
+    [INDEX_op_rolb_T0_T1_cc] = INDEX_op_rolb_T0_T1,
+    [INDEX_op_rolw_T0_T1_cc] = INDEX_op_rolw_T0_T1,
+    [INDEX_op_roll_T0_T1_cc] = INDEX_op_roll_T0_T1,
+
+    [INDEX_op_rorb_T0_T1_cc] = INDEX_op_rorb_T0_T1,
+    [INDEX_op_rorw_T0_T1_cc] = INDEX_op_rorw_T0_T1,
+    [INDEX_op_rorl_T0_T1_cc] = INDEX_op_rorl_T0_T1,
+
+    [INDEX_op_shlb_T0_T1_cc] = INDEX_op_shlb_T0_T1,
+    [INDEX_op_shlw_T0_T1_cc] = INDEX_op_shlw_T0_T1,
+    [INDEX_op_shll_T0_T1_cc] = INDEX_op_shll_T0_T1,
+
+    [INDEX_op_shrb_T0_T1_cc] = INDEX_op_shrb_T0_T1,
+    [INDEX_op_shrw_T0_T1_cc] = INDEX_op_shrw_T0_T1,
+    [INDEX_op_shrl_T0_T1_cc] = INDEX_op_shrl_T0_T1,
+
+    [INDEX_op_sarb_T0_T1_cc] = INDEX_op_sarb_T0_T1,
+    [INDEX_op_sarw_T0_T1_cc] = INDEX_op_sarw_T0_T1,
+    [INDEX_op_sarl_T0_T1_cc] = INDEX_op_sarl_T0_T1,
+};
+
+static void optimize_flags_init(void)
+{
+    int i;
+    /* put default values in arrays */
+    for(i = 0; i < NB_OPS; i++) {
+        if (opc_simpler[i] == 0)
+            opc_simpler[i] = i;
+    }
+}
+
+/* CPU flags computation optimization: we move backward thru the
+   generated code to see which flags are needed. The operation is
+   modified if suitable */
+static void optimize_flags(uint16_t *opc_buf, int opc_buf_len)
+{
+    uint16_t *opc_ptr;
+    int live_flags, write_flags, op;
+
+    opc_ptr = opc_buf + opc_buf_len;
+    /* live_flags contains the flags needed by the next instructions
+       in the code. At the end of the bloc, we consider that all the
+       flags are live. */
+    live_flags = CC_OSZAPC;
+    while (opc_ptr > opc_buf) {
+        op = *--opc_ptr;
+        /* if none of the flags written by the instruction is used,
+           then we can try to find a simpler instruction */
+        write_flags = opc_write_flags[op];
+        if ((live_flags & write_flags) == 0) {
+            *opc_ptr = opc_simpler[op];
+        }
+        /* compute the live flags before the instruction */
+        live_flags &= ~write_flags;
+        live_flags |= opc_read_flags[op];
+    }
+}
+
+
+#ifdef DEBUG_DISAS
+static const char *op_str[] = {
+#define DEF(s) #s,
+#include "opc-i386.h"
+#undef DEF
+};
+
+static void dump_ops(const uint16_t *opc_buf)
+{
+    const uint16_t *opc_ptr;
+    int c;
+    opc_ptr = opc_buf;
+    for(;;) {
+        c = *opc_ptr++;
+        fprintf(logfile, "0x%04x: %s\n", opc_ptr - opc_buf - 1, op_str[c]);
+        if (c == INDEX_op_end)
+            break;
+    }
+}
+
+#endif
+
+/* XXX: make this buffer thread safe */
+/* XXX: make safe guess about sizes */
+#define MAX_OP_PER_INSTR 32
+#define OPC_BUF_SIZE 512
+#define OPC_MAX_SIZE (OPC_BUF_SIZE - MAX_OP_PER_INSTR)
+
+#define OPPARAM_BUF_SIZE (OPC_BUF_SIZE * 3)
+
+static uint16_t gen_opc_buf[OPC_BUF_SIZE];
+static uint32_t gen_opparam_buf[OPPARAM_BUF_SIZE];
+
 /* return the next pc */
 int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size, 
                      int *gen_code_size_ptr, uint8_t *pc_start, 
                      int flags)
 {
     DisasContext dc1, *dc = &dc1;
-    uint8_t *gen_code_end, *pc_ptr;
+    uint8_t *pc_ptr;
+    uint16_t *gen_opc_end;
     long ret;
 #ifdef DEBUG_DISAS
     struct disassemble_info disasm_info;
 #endif
+    
+    /* generate intermediate code */
+
     dc->code32 = (flags >> GEN_FLAG_CODE32_SHIFT) & 1;
     dc->addseg = (flags >> GEN_FLAG_ADDSEG_SHIFT) & 1;
     dc->f_st = (flags >> GEN_FLAG_ST_SHIFT) & 7;
     dc->cc_op = CC_OP_DYNAMIC;
-    gen_code_ptr = gen_code_buf;
-    gen_code_end = gen_code_buf + max_code_size - 4096;
-    gen_start();
+
+    gen_opc_ptr = gen_opc_buf;
+    gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
+    gen_opparam_ptr = gen_opparam_buf;
 
     dc->is_jmp = 0;
     pc_ptr = pc_start;
@@ -2871,7 +3205,7 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size,
             abort();
         }
         pc_ptr = (void *)ret;
-    } while (!dc->is_jmp && gen_code_ptr < gen_code_end);
+    } while (!dc->is_jmp && gen_opc_ptr < gen_opc_end);
     /* we must store the eflags state if it is not already done */
     if (dc->cc_op != CC_OP_DYNAMIC)
         gen_op_set_cc_op(dc->cc_op);
@@ -2879,9 +3213,9 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size,
         /* we add an additionnal jmp to update the simulated PC */
         gen_op_jmp_im(ret);
     }
-    gen_end();
-    *gen_code_size_ptr = gen_code_ptr - gen_code_buf;
+    *gen_opc_ptr = INDEX_op_end;
 
+    /* optimize flag computations */
 #ifdef DEBUG_DISAS
     if (loglevel) {
         uint8_t *pc;
@@ -2898,6 +3232,7 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size,
 #else
         disasm_info.endian = BFD_ENDIAN_LITTLE;
 #endif        
+        fprintf(logfile, "----------------\n");
         fprintf(logfile, "IN:\n");
         disasm_info.buffer = pc_start;
         disasm_info.buffer_vma = (unsigned long)pc_start;
@@ -2911,12 +3246,37 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size,
         }
         fprintf(logfile, "\n");
         
+        fprintf(logfile, "OP:\n");
+        dump_ops(gen_opc_buf);
+        fprintf(logfile, "\n");
+    }
+#endif
+
+    /* optimize flag computations */
+    optimize_flags(gen_opc_buf, gen_opc_ptr - gen_opc_buf);
+
+#ifdef DEBUG_DISAS
+    if (loglevel) {
+        fprintf(logfile, "AFTER FLAGS OPT:\n");
+        dump_ops(gen_opc_buf);
+        fprintf(logfile, "\n");
+    }
+#endif
+
+    /* generate machine code */
+    *gen_code_size_ptr = dyngen_code(gen_code_buf, gen_opc_buf, gen_opparam_buf);
+
+#ifdef DEBUG_DISAS
+    if (loglevel) {
+        uint8_t *pc;
+        int count;
+
         pc = gen_code_buf;
         disasm_info.buffer = pc;
         disasm_info.buffer_vma = (unsigned long)pc;
         disasm_info.buffer_length = *gen_code_size_ptr;
         fprintf(logfile, "OUT: [size=%d]\n", *gen_code_size_ptr);
-        while (pc < gen_code_ptr) {
+        while (pc < gen_code_buf + *gen_code_size_ptr) {
             fprintf(logfile, "0x%08lx:  ", (long)pc);
             count = print_insn_i386((unsigned long)pc, &disasm_info);
             fprintf(logfile, "\n");
@@ -2932,6 +3292,7 @@ CPUX86State *cpu_x86_init(void)
 {
     CPUX86State *env;
     int i;
+    static int inited;
 
     cpu_x86_tblocks_init();
 
@@ -2946,6 +3307,12 @@ CPUX86State *cpu_x86_init(void)
     /* flags setup */
     env->cc_op = CC_OP_EFLAGS;
     env->df = 1;
+
+    /* init various static tables */
+    if (!inited) {
+        inited = 1;
+        optimize_flags_init();
+    }
     return env;
 }
 

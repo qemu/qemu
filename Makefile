@@ -33,7 +33,7 @@ LIBS+=-ldl -lm
 # profiling code
 ifdef TARGET_GPROF
 LDFLAGS+=-p
-CFLAGS+=-p
+main.o: CFLAGS+=-p
 endif
 
 OBJS= elfload.o main.o thunk.o syscall.o
