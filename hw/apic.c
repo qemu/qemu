@@ -100,6 +100,18 @@ uint64_t cpu_get_apic_base(CPUState *env)
     return s->apicbase;
 }
 
+void cpu_set_apic_tpr(CPUX86State *env, uint8_t val)
+{
+    APICState *s = env->apic_state;
+    s->tpr = (val & 0x0f) << 4;
+}
+
+uint8_t cpu_get_apic_tpr(CPUX86State *env)
+{
+    APICState *s = env->apic_state;
+    return s->tpr >> 4;
+}
+
 /* return -1 if no bit is set */
 static int get_highest_priority_int(uint32_t *tab)
 {

@@ -509,15 +509,6 @@ typedef struct CPUX86State {
     void *opaque;
 } CPUX86State;
 
-#ifndef IN_OP_I386
-void cpu_x86_outb(CPUX86State *env, int addr, int val);
-void cpu_x86_outw(CPUX86State *env, int addr, int val);
-void cpu_x86_outl(CPUX86State *env, int addr, int val);
-int cpu_x86_inb(CPUX86State *env, int addr);
-int cpu_x86_inw(CPUX86State *env, int addr);
-int cpu_x86_inl(CPUX86State *env, int addr);
-#endif
-
 CPUX86State *cpu_x86_init(void);
 int cpu_x86_exec(CPUX86State *s);
 void cpu_x86_close(CPUX86State *s);
@@ -615,6 +606,10 @@ uint64_t cpu_get_tsc(CPUX86State *env);
 
 void cpu_set_apic_base(CPUX86State *env, uint64_t val);
 uint64_t cpu_get_apic_base(CPUX86State *env);
+void cpu_set_apic_tpr(CPUX86State *env, uint8_t val);
+#ifndef NO_CPU_IO_DEFS
+uint8_t cpu_get_apic_tpr(CPUX86State *env);
+#endif
 
 /* will be suppressed */
 void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0);

@@ -5631,17 +5631,20 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             case 2:
             case 3:
             case 4:
+            case 8:
                 if (b & 2) {
                     gen_op_mov_TN_reg[ot][0][rm]();
                     gen_op_movl_crN_T0(reg);
                     gen_jmp_im(s->pc - s->cs_base);
                     gen_eob(s);
                 } else {
-                    gen_op_movtl_T0_env(offsetof(CPUX86State,cr[reg]));
+                    if (reg == 8)
+                        gen_op_movtl_T0_cr8();
+                    else
+                        gen_op_movtl_T0_env(offsetof(CPUX86State,cr[reg]));
                     gen_op_mov_reg_T0[ot][rm]();
                 }
                 break;
-                /* XXX: add CR8 for x86_64 */
             default:
                 goto illegal_op;
             }
