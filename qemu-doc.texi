@@ -247,6 +247,29 @@ Use @var{file} as initial ram disk.
 
 Debug/Expert options:
 @table @option
+
+@item -serial dev
+Redirect the virtual serial port to host device @var{dev}. Available
+devices are:
+@table @code
+@item vc
+Virtual console
+@item pty
+[Linux only] Pseudo TTY (a new PTY is automatically allocated)
+@item null
+void device
+@item stdio
+[Unix only] standard input/output
+@end table
+The default device is @code{vc} in graphical mode and @code{stdio} in
+non graphical mode.
+
+@item -monitor dev
+Redirect the monitor to host device @var{dev} (same devices as the
+serial port).
+The default device is @code{vc} in graphical mode and @code{stdio} in
+non graphical mode.
+
 @item -s
 Wait gdb connection to port 1234 (@xref{gdb_usage}). 
 @item -p port
@@ -265,14 +288,26 @@ Cirrus Logic GD5446 PCI VGA)
 
 During the graphical emulation, you can use the following keys:
 @table @key
-@item Ctrl-Shift
-Toggle mouse and keyboard grab.
 @item Ctrl-Shift-f
 Toggle full screen
+
+@item Ctrl-Shift-Fn
+Switch to virtual console 'n'. Standard console mappings are:
+@table @emph
+@item 1
+Target system display
+@item 2
+Monitor
+@item 3
+Serial port
 @end table
 
-During emulation, if you are using the serial console, use @key{C-a h}
-to get terminal commands:
+@item Ctrl-Shift
+Toggle mouse and keyboard grab.
+@end table
+
+During emulation, if you are using the @option{-nographic} option, use
+@key{Ctrl-a h} to get terminal commands:
 
 @table @key
 @item Ctrl-a h
@@ -924,6 +959,15 @@ The only known workaround is to boot in Safe mode
 without networking support. 
 
 Future QEMU releases are likely to correct this bug.
+
+@subsection MS-DOS and FreeDOS
+
+@subsubsection CPU usage reduction
+
+DOS does not correctly use the CPU HLT instruction. The result is that
+it takes host CPU cycles even when idle. You can install the utility
+from @url{http://www.vmware.com/software/dosidle210.zip} to solve this
+problem.
 
 @chapter QEMU PowerPC System emulator invocation
 
