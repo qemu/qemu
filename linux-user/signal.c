@@ -25,9 +25,7 @@
 #include <errno.h>
 #include <sys/ucontext.h>
 
-#include "gemu.h"
-
-/* signal handling inspired from em86. */
+#include "qemu.h"
 
 //#define DEBUG_SIGNAL
 

@@ -28,7 +28,7 @@ endif
 
 DEFINES+=-D_GNU_SOURCE
 LDSCRIPT=$(ARCH).ld
-LIBS+=-ldl -lm
+LIBS+=-lm
 
 # profiling code
 ifdef TARGET_GPROF
@@ -36,24 +36,25 @@ LDFLAGS+=-p
 main.o: CFLAGS+=-p
 endif
 
-OBJS= elfload.o main.o thunk.o syscall.o signal.o libgemu.a
+OBJS= elfload.o main.o syscall.o signal.o
+SRCS:= $(OBJS:.o=.c)
+OBJS+= libqemu.a
 
-LIBOBJS+=translate-i386.o op-i386.o exec-i386.o
+LIBOBJS+=thunk.o translate-i386.o op-i386.o exec-i386.o
 # NOTE: the disassembler code is only needed for debugging
 LIBOBJS+=i386-dis.o dis-buf.o
-SRCS = $(OBJS:.o=.c)
 
-all: gemu
+all: qemu qemu-doc.html
 
-gemu: $(OBJS)
+qemu: $(OBJS)
 	$(CC) -Wl,-T,$(LDSCRIPT) $(LDFLAGS) -o $@ $^  $(LIBS)
 
 depend: $(SRCS)
 	$(CC) -MM $(CFLAGS) $^ 1>.depend
 
-# libgemu 
+# libqemu 
 
-libgemu.a: $(LIBOBJS)
+libqemu.a: $(LIBOBJS)
 	rm -f $@
 	$(AR) rcs $@ $(LIBOBJS)
 
@@ -73,36 +74,42 @@ op-i386.o: op-i386.c opreg_template.h ops_template.h
 
 clean:
 	$(MAKE) -C tests clean
-	rm -f *.o  *.a *~ gemu dyngen TAGS
+	rm -f *.o  *.a *~ qemu dyngen TAGS
 
 distclean: clean
 	rm -f config.mak config.h
 
-install: gemu
-	install -m755 -s gemu $(prefix)/bin
+install: qemu
+	install -m 755 -s qemu $(prefix)/bin
 
 # various test targets
-test speed: gemu
+test speed: qemu
 	make -C tests $@
 
 TAGS: 
 	etags *.[ch] i386/*.[ch]
 
+# documentation
+qemu-doc.html: qemu-doc.texi
+	texi2html -monolithic -number $<
+
 FILES= \
-COPYING.LIB  dyngen.c    ioctls.h          ops_template.h  syscall_types.h\
+README COPYING COPYING.LIB TODO Changelog VERSION \
+dyngen.c ioctls.h ops_template.h  syscall_types.h\
 Makefile     elf.h       linux_bin.h       segment.h       thunk.c\
-TODO         elfload.c   main.c            signal.c        thunk.h\
-cpu-i386.h   gemu.h      op-i386.c opc-i386.h syscall-i386.h  translate-i386.c\
+elfload.c   main.c            signal.c        thunk.h\
+cpu-i386.h   qemu.h      op-i386.c opc-i386.h syscall-i386.h  translate-i386.c\
 dis-asm.h    gen-i386.h  op-i386.h         syscall.c\
 dis-buf.c    i386-dis.c  opreg_template.h  syscall_defs.h\
-i386.ld ppc.ld exec-i386.h exec-i386.c configure VERSION \
+i386.ld ppc.ld exec-i386.h exec-i386.c configure \
 tests/Makefile\
 tests/test-i386.c tests/test-i386-shift.h tests/test-i386.h\
 tests/test-i386-muldiv.h tests/test-i386-code16.S\
 tests/hello.c tests/hello tests/sha1.c \
-tests/testsig.c tests/testclone.c tests/testthread.c 
+tests/testsig.c tests/testclone.c tests/testthread.c \
+qemu-doc.texi qemu-doc.html
 
-FILE=gemu-$(VERSION)
+FILE=qemu-$(VERSION)
 
 tar:
 	rm -rf /tmp/$(FILE)

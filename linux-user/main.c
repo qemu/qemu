@@ -1,5 +1,5 @@
 /*
- *  gemu main
+ *  qemu main
  * 
  *  Copyright (c) 2003 Fabrice Bellard
  *
@@ -24,11 +24,11 @@
 #include <errno.h>
 #include <unistd.h>
 
-#include "gemu.h"
+#include "qemu.h"
 
 #include "cpu-i386.h"
 
-#define DEBUG_LOGFILE "/tmp/gemu.log"
+#define DEBUG_LOGFILE "/tmp/qemu.log"
 
 FILE *logfile = NULL;
 int loglevel;
@@ -171,8 +171,8 @@ void cpu_loop(struct CPUX86State *env)
 
 void usage(void)
 {
-    printf("gemu version " GEMU_VERSION ", Copyright (c) 2003 Fabrice Bellard\n"
-           "usage: gemu [-d] program [arguments...]\n"
+    printf("qemu version " QEMU_VERSION ", Copyright (c) 2003 Fabrice Bellard\n"
+           "usage: qemu [-d] program [arguments...]\n"
            "Linux x86 emulator\n"
            );
     exit(1);

@@ -56,7 +56,7 @@
 #include <linux/soundcard.h>
 #include <linux/dirent.h>
 
-#include "gemu.h"
+#include "qemu.h"
 
 //#define DEBUG
 

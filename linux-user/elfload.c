@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "gemu.h"
+#include "qemu.h"
 
 #include "linux_bin.h"
 #include "elf.h"

@@ -1,0 +1,27 @@
+The QEMU x86 emulator
+---------------------
+
+INSTALLATION
+------------
+
+Type 
+
+    ./configure
+    make
+
+to build qemu and libqemu.a.
+
+Type
+
+    make install
+
+to install qemu in /usr/local/bin
+
+
+Documentation
+-------------
+
+Read the documentation in qemu-doc.html.
+
+
+Fabrice Bellard.
