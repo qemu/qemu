@@ -348,6 +348,13 @@ fi
 
 # kernel module support
 if test $kqemu = "yes" ; then
+    # test if the source code is installed
+    if test '!' -f "kqemu/Makefile" ; then 
+        kqemu="no"
+    fi
+fi
+  
+if test $kqemu = "yes" ; then
 # find the kernel path
 if test -z "$kernel_path" ; then
 kernel_version=`uname -r`
