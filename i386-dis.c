@@ -1832,7 +1832,7 @@ static bfd_vma start_pc;
  * The function returns the length of this instruction in bytes.
  */
 
-static char intel_syntax;
+static int8_t intel_syntax;
 static char open_char;
 static char close_char;
 static char separator_char;
