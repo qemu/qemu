@@ -597,12 +597,10 @@ Linux distribution.
 
 @subsection Using the user mode network stack
 
-This is @emph{experimental} (version 0.5.4). You must configure qemu
-with @code{--enable-slirp}. Then by using the option
-@option{-user-net} or if you have no tun/tap init script, QEMU uses a
-completely user mode network stack (you don't need root priviledge to
-use the virtual network). The virtual network configuration is the
-following:
+By using the option @option{-user-net} or if you have no tun/tap init
+script, QEMU uses a completely user mode network stack (you don't need
+root priviledge to use the virtual network). The virtual network
+configuration is the following:
 
 @example
 
@@ -624,6 +622,8 @@ the address 10.0.2.2 and verify that you got an address in the range
 Note that @code{ping} is not supported reliably to the internet as it
 would require root priviledges. It means you can only ping the local
 router (10.0.2.2).
+
+The user mode network is currently only supported on a Unix host.
 
 @node direct_linux_boot
 @section Direct Linux Boot

@@ -71,7 +71,7 @@ bigendian="no"
 mingw32="no"
 EXESUF=""
 gdbstub="yes"
-slirp="no"
+slirp="yes"
 
 # OS specific
 targetos=`uname -s`
@@ -139,7 +139,7 @@ for opt do
   ;;
   --enable-mingw32) mingw32="yes" ; cross_prefix="i386-mingw32-"
   ;; 
-  --enable-slirp) slirp="yes"
+  --disable-slirp) slirp="no"
   ;; 
   esac
 done
@@ -157,6 +157,7 @@ if test "$mingw32" = "yes" ; then
     target_list="i386-softmmu ppc-softmmu"
     EXESUF=".exe"
     gdbstub="no"
+    slirp="no"
 fi
 
 if test -z "$cross_prefix" ; then
