@@ -1221,7 +1221,7 @@ void tlb_flush(CPUState *env, int flush_global)
 #endif
 }
 
-static inline void tlb_flush_entry(CPUTLBEntry *tlb_entry, uint32_t addr)
+static inline void tlb_flush_entry(CPUTLBEntry *tlb_entry, target_ulong addr)
 {
     if (addr == (tlb_entry->address & 
                  (TARGET_PAGE_MASK | TLB_INVALID_MASK)))
@@ -1789,7 +1789,7 @@ static void code_mem_writeb(target_phys_addr_t addr, uint32_t val)
 {
     unsigned long phys_addr;
 
-    phys_addr = addr - (long)phys_ram_base;
+    phys_addr = addr - (unsigned long)phys_ram_base;
 #if !defined(CONFIG_USER_ONLY)
     tb_invalidate_phys_page_fast(phys_addr, 1);
 #endif
@@ -1801,7 +1801,7 @@ static void code_mem_writew(target_phys_addr_t addr, uint32_t val)
 {
     unsigned long phys_addr;
 
-    phys_addr = addr - (long)phys_ram_base;
+    phys_addr = addr - (unsigned long)phys_ram_base;
 #if !defined(CONFIG_USER_ONLY)
     tb_invalidate_phys_page_fast(phys_addr, 2);
 #endif
@@ -1813,7 +1813,7 @@ static void code_mem_writel(target_phys_addr_t addr, uint32_t val)
 {
     unsigned long phys_addr;
 
-    phys_addr = addr - (long)phys_ram_base;
+    phys_addr = addr - (unsigned long)phys_ram_base;
 #if !defined(CONFIG_USER_ONLY)
     tb_invalidate_phys_page_fast(phys_addr, 4);
 #endif

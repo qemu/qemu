@@ -127,7 +127,7 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
  */
 #define ELF_PLAT_INIT(_r)                                  \
 do {                                                       \
-   unsigned long *pos = (unsigned long *)bprm->p, tmp = 1; \
+    target_ulong *pos = (target_ulong *)bprm->p, tmp = 1;  \
     _r->gpr[3] = bprm->argc;                               \
     _r->gpr[4] = (unsigned long)++pos;                     \
     for (; tmp != 0; pos++)                                \

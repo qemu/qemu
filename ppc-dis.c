@@ -48,18 +48,18 @@ struct powerpc_opcode
 
   /* The opcode itself.  Those bits which will be filled in with
      operands are zeroes.  */
-  unsigned long opcode;
+  uint32_t opcode;
 
   /* The opcode mask.  This is used by the disassembler.  This is a
      mask containing ones indicating those bits which must match the
      opcode field, and zeroes indicating those bits which need not
      match (and are presumably filled in by operands).  */
-  unsigned long mask;
+  uint32_t mask;
 
   /* One bit flags for the opcode.  These are used to indicate which
      specific processors support the instructions.  The defined values
      are listed below.  */
-  unsigned long flags;
+  uint32_t flags;
 
   /* An array of operand codes.  Each code is an index into the
      operand table.  They appear in the order which the operands must
@@ -124,7 +124,7 @@ struct powerpc_operand
      string (the operand will be inserted in any case).  If the
      operand value is legal, *ERRMSG will be unchanged (most operands
      can accept any value).  */
-  unsigned long (*insert)(unsigned long instruction, long op,
+  unsigned long (*insert)(uint32_t instruction, int32_t op,
 				   const char **errmsg);
 
   /* Extraction function.  This is used by the disassembler.  To
@@ -144,10 +144,10 @@ struct powerpc_operand
      non-zero if this operand type can not actually be extracted from
      this operand (i.e., the instruction does not match).  If the
      operand is valid, *INVALID will not be changed.  */
-  long (*extract) (unsigned long instruction, int *invalid);
+  long (*extract) (uint32_t instruction, int *invalid);
 
   /* One bit syntax flags.  */
-  unsigned long flags;
+  uint32_t flags;
 };
 
 /* Elements in the table are retrieved by indexing with values from
@@ -244,7 +244,7 @@ struct powerpc_macro
   /* One bit flags for the opcode.  These are used to indicate which
      specific processors support the instructions.  The values are the
      same as those for the struct powerpc_opcode flags field.  */
-  unsigned long flags;
+  uint32_t flags;
 
   /* A format string to turn the macro into a normal instruction.
      Each %N in the string is replaced with operand number N (zero
@@ -288,43 +288,43 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  *
 
 /* Local insertion and extraction functions.  */
 
-static unsigned long insert_bat (unsigned long, long, const char **);
-static long extract_bat(unsigned long, int *);
-static unsigned long insert_bba(unsigned long, long, const char **);
-static long extract_bba(unsigned long, int *);
-static unsigned long insert_bd(unsigned long, long, const char **);
-static long extract_bd(unsigned long, int *);
-static unsigned long insert_bdm(unsigned long, long, const char **);
-static long extract_bdm(unsigned long, int *);
-static unsigned long insert_bdp(unsigned long, long, const char **);
-static long extract_bdp(unsigned long, int *);
-static unsigned long insert_bo(unsigned long, long, const char **);
-static long extract_bo(unsigned long, int *);
-static unsigned long insert_boe(unsigned long, long, const char **);
-static long extract_boe(unsigned long, int *);
-static unsigned long insert_ds(unsigned long, long, const char **);
-static long extract_ds(unsigned long, int *);
-static unsigned long insert_li(unsigned long, long, const char **);
-static long extract_li(unsigned long, int *);
-static unsigned long insert_mbe(unsigned long, long, const char **);
-static long extract_mbe(unsigned long, int *);
-static unsigned long insert_mb6(unsigned long, long, const char **);
-static long extract_mb6(unsigned long, int *);
-static unsigned long insert_nb(unsigned long, long, const char **);
-static long extract_nb(unsigned long, int *);
-static unsigned long insert_nsi(unsigned long, long, const char **);
-static long extract_nsi(unsigned long, int *);
-static unsigned long insert_ral(unsigned long, long, const char **);
-static unsigned long insert_ram(unsigned long, long, const char **);
-static unsigned long insert_ras(unsigned long, long, const char **);
-static unsigned long insert_rbs(unsigned long, long, const char **);
-static long extract_rbs(unsigned long, int *);
-static unsigned long insert_sh6(unsigned long, long, const char **);
-static long extract_sh6(unsigned long, int *);
-static unsigned long insert_spr(unsigned long, long, const char **);
-static long extract_spr(unsigned long, int *);
-static unsigned long insert_tbr(unsigned long, long, const char **);
-static long extract_tbr(unsigned long, int *);
+static unsigned long insert_bat (uint32_t, int32_t, const char **);
+static long extract_bat(uint32_t, int *);
+static unsigned long insert_bba(uint32_t, int32_t, const char **);
+static long extract_bba(uint32_t, int *);
+static unsigned long insert_bd(uint32_t, int32_t, const char **);
+static long extract_bd(uint32_t, int *);
+static unsigned long insert_bdm(uint32_t, int32_t, const char **);
+static long extract_bdm(uint32_t, int *);
+static unsigned long insert_bdp(uint32_t, int32_t, const char **);
+static long extract_bdp(uint32_t, int *);
+static unsigned long insert_bo(uint32_t, int32_t, const char **);
+static long extract_bo(uint32_t, int *);
+static unsigned long insert_boe(uint32_t, int32_t, const char **);
+static long extract_boe(uint32_t, int *);
+static unsigned long insert_ds(uint32_t, int32_t, const char **);
+static long extract_ds(uint32_t, int *);
+static unsigned long insert_li(uint32_t, int32_t, const char **);
+static long extract_li(uint32_t, int *);
+static unsigned long insert_mbe(uint32_t, int32_t, const char **);
+static long extract_mbe(uint32_t, int *);
+static unsigned long insert_mb6(uint32_t, int32_t, const char **);
+static long extract_mb6(uint32_t, int *);
+static unsigned long insert_nb(uint32_t, int32_t, const char **);
+static long extract_nb(uint32_t, int *);
+static unsigned long insert_nsi(uint32_t, int32_t, const char **);
+static long extract_nsi(uint32_t, int *);
+static unsigned long insert_ral(uint32_t, int32_t, const char **);
+static unsigned long insert_ram(uint32_t, int32_t, const char **);
+static unsigned long insert_ras(uint32_t, int32_t, const char **);
+static unsigned long insert_rbs(uint32_t, int32_t, const char **);
+static long extract_rbs(uint32_t, int *);
+static unsigned long insert_sh6(uint32_t, int32_t, const char **);
+static long extract_sh6(uint32_t, int *);
+static unsigned long insert_spr(uint32_t, int32_t, const char **);
+static long extract_spr(uint32_t, int *);
+static unsigned long insert_tbr(uint32_t, int32_t, const char **);
+static long extract_tbr(uint32_t, int *);
 
 /* The operands table.
 
@@ -648,8 +648,8 @@ const struct powerpc_operand powerpc_operands[] =
 /*ARGSUSED*/
 static unsigned long 
 insert_bat (insn, value, errmsg)
-     unsigned long insn;
-     long value;
+     uint32_t insn;
+     int32_t value;
      const char **errmsg;
 {
   return insn | (((insn >> 21) & 0x1f) << 16);
@@ -657,7 +657,7 @@ insert_bat (insn, value, errmsg)
 
 static long
 extract_bat (insn, invalid)
-     unsigned long insn;
+     uint32_t insn;
      int *invalid;
 {
   if (invalid != (int *) NULL
@@ -675,8 +675,8 @@ extract_bat (insn, invalid)
 /*ARGSUSED*/
 static unsigned long
 insert_bba (insn, value, errmsg)
-     unsigned long insn;
-     long value;
+     uint32_t insn;
+     int32_t value;
      const char **errmsg;
 {
   return insn | (((insn >> 16) & 0x1f) << 11);
@@ -684,7 +684,7 @@ insert_bba (insn, value, errmsg)
 
 static long
 extract_bba (insn, invalid)
-     unsigned long insn;
+     uint32_t insn;
      int *invalid;
 {
   if (invalid != (int *) NULL
@@ -699,8 +699,8 @@ extract_bba (insn, invalid)
 /*ARGSUSED*/
 static unsigned long
 insert_bd (insn, value, errmsg)
-     unsigned long insn;
-     long value;
+     uint32_t insn;
+     int32_t value;
      const char **errmsg;
 {
   return insn | (value & 0xfffc);
@@ -709,7 +709,7 @@ insert_bd (insn, value, errmsg)
 /*ARGSUSED*/
 static long
 extract_bd (insn, invalid)
-     unsigned long insn;
+     uint32_t insn;
      int *invalid;
 {
   if ((insn & 0x8000) != 0)
@@ -728,8 +728,8 @@ extract_bd (insn, invalid)
 /*ARGSUSED*/
 static unsigned long
 insert_bdm (insn, value, errmsg)
-     unsigned long insn;
-     long value;
+     uint32_t insn;
+     int32_t value;
      const char **errmsg;
 {
   if ((value & 0x8000) != 0)
@@ -739,7 +739,7 @@ insert_bdm (insn, value, errmsg)
 
 static long
 extract_bdm (insn, invalid)
-     unsigned long insn;
+     uint32_t insn;
      int *invalid;
 {
   if (invalid != (int *) NULL
@@ -759,8 +759,8 @@ extract_bdm (insn, invalid)
 /*ARGSUSED*/
 static unsigned long
 insert_bdp (insn, value, errmsg)
-     unsigned long insn;
-     long value;
+     uint32_t insn;
+     int32_t value;
      const char **errmsg;
 {
   if ((value & 0x8000) == 0)
@@ -770,7 +770,7 @@ insert_bdp (insn, value, errmsg)
 
 static long
 extract_bdp (insn, invalid)
-     unsigned long insn;
+     uint32_t insn;
      int *invalid;
 {
   if (invalid != (int *) NULL
@@ -786,7 +786,7 @@ extract_bdp (insn, invalid)
 /* Check for legal values of a BO field.  */
 
 static int
-valid_bo (long value)
+valid_bo (int32_t value)
 {
   /* Certain encodings have bits that are required to be zero.  These
      are (z must be zero, y may be anything):
@@ -815,8 +815,8 @@ valid_bo (long value)
 
 static unsigned long
 insert_bo (insn, value, errmsg)
-     unsigned long insn;
-     long value;
+     uint32_t insn;
+     int32_t value;
      const char **errmsg;
 {
   if (errmsg != (const char **) NULL
@@ -827,10 +827,10 @@ insert_bo (insn, value, errmsg)
 
 static long
 extract_bo (insn, invalid)
-     unsigned long insn;
+     uint32_t insn;
      int *invalid;
 {
-  long value;
+  int32_t value;
 
   value = (insn >> 21) & 0x1f;
   if (invalid != (int *) NULL
@@ -845,8 +845,8 @@ extract_bo (insn, invalid)
 
 static unsigned long
 insert_boe (insn, value, errmsg)
-     unsigned long insn;
-     long value;
+     uint32_t insn;
+     int32_t value;
      const char **errmsg;
 {
   if (errmsg != (const char **) NULL)
@@ -861,10 +861,10 @@ insert_boe (insn, value, errmsg)
 
 static long
 extract_boe (insn, invalid)
-     unsigned long insn;
+     uint32_t insn;
      int *invalid;
 {
-  long value;
+  int32_t value;
 
   value = (insn >> 21) & 0x1f;
   if (invalid != (int *) NULL
@@ -879,8 +879,8 @@ extract_boe (insn, invalid)
 /*ARGSUSED*/
 static unsigned long
 insert_ds (insn, value, errmsg)
-     unsigned long insn;
-     long value;
+     uint32_t insn;
+     int32_t value;
      const char **errmsg;
 {
   return insn | (value & 0xfffc);
@@ -889,7 +889,7 @@ insert_ds (insn, value, errmsg)
 /*ARGSUSED*/
 static long
 extract_ds (insn, invalid)
-     unsigned long insn;
+     uint32_t insn;
      int *invalid;
 {
   if ((insn & 0x8000) != 0)
@@ -904,8 +904,8 @@ extract_ds (insn, invalid)
 /*ARGSUSED*/
 static unsigned long
 insert_li (insn, value, errmsg)
-     unsigned long insn;
-     long value;
+     uint32_t insn;
+     int32_t value;
      const char **errmsg;
 {
   return insn | (value & 0x3fffffc);
@@ -914,7 +914,7 @@ insert_li (insn, value, errmsg)
 /*ARGSUSED*/
 static long
 extract_li (insn, invalid)
-     unsigned long insn;
+     uint32_t insn;
      int *invalid;
 {
   if ((insn & 0x2000000) != 0)
@@ -930,11 +930,11 @@ extract_li (insn, invalid)
 
 static unsigned long
 insert_mbe (insn, value, errmsg)
-     unsigned long insn;
-     long value;
+     uint32_t insn;
+     int32_t value;
      const char **errmsg;
 {
-  unsigned long uval;
+  uint32_t uval;
   int mb, me;
 
   uval = value;
@@ -972,7 +972,7 @@ insert_mbe (insn, value, errmsg)
 
 static long
 extract_mbe (insn, invalid)
-     unsigned long insn;
+     uint32_t insn;
      int *invalid;
 {
   long ret;
@@ -996,8 +996,8 @@ extract_mbe (insn, invalid)
 /*ARGSUSED*/
 static unsigned long
 insert_mb6 (insn, value, errmsg)
-     unsigned long insn;
-     long value;
+     uint32_t insn;
+     int32_t value;
      const char **errmsg;
 {
   return insn | ((value & 0x1f) << 6) | (value & 0x20);
@@ -1006,7 +1006,7 @@ insert_mb6 (insn, value, errmsg)
 /*ARGSUSED*/
 static long
 extract_mb6 (insn, invalid)
-     unsigned long insn;
+     uint32_t insn;
      int *invalid;
 {
   return ((insn >> 6) & 0x1f) | (insn & 0x20);
@@ -1017,8 +1017,8 @@ extract_mb6 (insn, invalid)
 
 static unsigned long
 insert_nb (insn, value, errmsg)
-     unsigned long insn;
-     long value;
+     uint32_t insn;
+     int32_t value;
      const char **errmsg;
 {
   if (value < 0 || value > 32)
@@ -1031,7 +1031,7 @@ insert_nb (insn, value, errmsg)
 /*ARGSUSED*/
 static long
 extract_nb (insn, invalid)
-     unsigned long insn;
+     uint32_t insn;
      int *invalid;
 {
   long ret;
@@ -1050,8 +1050,8 @@ extract_nb (insn, invalid)
 /*ARGSUSED*/
 static unsigned long
 insert_nsi (insn, value, errmsg)
-     unsigned long insn;
-     long value;
+     uint32_t insn;
+     int32_t value;
      const char **errmsg;
 {
   return insn | ((- value) & 0xffff);
@@ -1059,7 +1059,7 @@ insert_nsi (insn, value, errmsg)
 
 static long
 extract_nsi (insn, invalid)
-     unsigned long insn;
+     uint32_t insn;
      int *invalid;
 {
   if (invalid != (int *) NULL)
@@ -1076,8 +1076,8 @@ extract_nsi (insn, invalid)
 
 static unsigned long
 insert_ral (insn, value, errmsg)
-     unsigned long insn;
-     long value;
+     uint32_t insn;
+     int32_t value;
      const char **errmsg;
 {
   if (value == 0
@@ -1091,8 +1091,8 @@ insert_ral (insn, value, errmsg)
 
 static unsigned long
 insert_ram (insn, value, errmsg)
-     unsigned long insn;
-     long value;
+     uint32_t insn;
+     int32_t value;
      const char **errmsg;
 {
   if (value >= ((insn >> 21) & 0x1f))
@@ -1106,8 +1106,8 @@ insert_ram (insn, value, errmsg)
 
 static unsigned long
 insert_ras (insn, value, errmsg)
-     unsigned long insn;
-     long value;
+     uint32_t insn;
+     int32_t value;
      const char **errmsg;
 {
   if (value == 0)
@@ -1124,8 +1124,8 @@ insert_ras (insn, value, errmsg)
 /*ARGSUSED*/
 static unsigned long 
 insert_rbs (insn, value, errmsg)
-     unsigned long insn;
-     long value;
+     uint32_t insn;
+     int32_t value;
      const char **errmsg;
 {
   return insn | (((insn >> 21) & 0x1f) << 11);
@@ -1133,7 +1133,7 @@ insert_rbs (insn, value, errmsg)
 
 static long
 extract_rbs (insn, invalid)
-     unsigned long insn;
+     uint32_t insn;
      int *invalid;
 {
   if (invalid != (int *) NULL
@@ -1147,8 +1147,8 @@ extract_rbs (insn, invalid)
 /*ARGSUSED*/
 static unsigned long
 insert_sh6 (insn, value, errmsg)
-     unsigned long insn;
-     long value;
+     uint32_t insn;
+     int32_t value;
      const char **errmsg;
 {
   return insn | ((value & 0x1f) << 11) | ((value & 0x20) >> 4);
@@ -1157,7 +1157,7 @@ insert_sh6 (insn, value, errmsg)
 /*ARGSUSED*/
 static long
 extract_sh6 (insn, invalid)
-     unsigned long insn;
+     uint32_t insn;
      int *invalid;
 {
   return ((insn >> 11) & 0x1f) | ((insn << 4) & 0x20);
@@ -1168,8 +1168,8 @@ extract_sh6 (insn, invalid)
 
 static unsigned long
 insert_spr (insn, value, errmsg)
-     unsigned long insn;
-     long value;
+     uint32_t insn;
+     int32_t value;
      const char **errmsg;
 {
   return insn | ((value & 0x1f) << 16) | ((value & 0x3e0) << 6);
@@ -1177,7 +1177,7 @@ insert_spr (insn, value, errmsg)
 
 static long
 extract_spr (insn, invalid)
-     unsigned long insn;
+     uint32_t insn;
      int *invalid;
 {
   return ((insn >> 16) & 0x1f) | ((insn >> 6) & 0x3e0);
@@ -1195,8 +1195,8 @@ extract_spr (insn, invalid)
 
 static unsigned long
 insert_tbr (insn, value, errmsg)
-     unsigned long insn;
-     long value;
+     uint32_t insn;
+     int32_t value;
      const char **errmsg;
 {
   if (value == 0)
@@ -1206,7 +1206,7 @@ insert_tbr (insn, value, errmsg)
 
 static long
 extract_tbr (insn, invalid)
-     unsigned long insn;
+     uint32_t insn;
      int *invalid;
 {
   long ret;
@@ -3067,27 +3067,30 @@ const struct powerpc_macro powerpc_macros[] = {
 const int powerpc_num_macros =
   sizeof (powerpc_macros) / sizeof (powerpc_macros[0]);
 
-static int print_insn_powerpc(FILE *, unsigned long insn, unsigned memaddr, int dialect);
+static int print_insn_powerpc(FILE *, uint32_t insn, unsigned memaddr, int dialect);
 
 /* Print a big endian PowerPC instruction.  For convenience, also
    disassemble instructions supported by the Motorola PowerPC 601.  */
+#include "cpu.h"
 
 int print_insn_ppc (bfd_vma pc, disassemble_info *info)
 {
-	return print_insn_powerpc (info->stream, 
-                                   (unsigned int)bfd_getb32((bfd_byte *)pc), pc,
-				   PPC_OPCODE_PPC | PPC_OPCODE_601);
+    uint32_t opc;
+
+    (*info->read_memory_func)(pc, (bfd_byte *)(&opc), 4, info);
+    return print_insn_powerpc (info->stream, tswap32(opc), pc,
+                               PPC | B32 | M601);
 }
 
 /* Print a PowerPC or POWER instruction.  */
 
-static int
-print_insn_powerpc (FILE *out, unsigned long insn, unsigned memaddr,
+int
+print_insn_powerpc (FILE *out, uint32_t insn, unsigned memaddr,
 		    int dialect)
 {
   const struct powerpc_opcode *opcode;
   const struct powerpc_opcode *opcode_end;
-  unsigned long op;
+  uint32_t op;
 
   /* Get the major opcode of the instruction.  */
   op = PPC_OP (insn);
@@ -3097,7 +3100,7 @@ print_insn_powerpc (FILE *out, unsigned long insn, unsigned memaddr,
   opcode_end = powerpc_opcodes + powerpc_num_opcodes;
   for (opcode = powerpc_opcodes; opcode < opcode_end; opcode++)
     {
-      unsigned long table_op;
+      uint32_t table_op;
       const unsigned char *opindex;
       const struct powerpc_operand *operand;
       int invalid;
@@ -3137,7 +3140,7 @@ print_insn_powerpc (FILE *out, unsigned long insn, unsigned memaddr,
       need_paren = 0;
       for (opindex = opcode->operands; *opindex != 0; opindex++)
 		{
-		  long value;
+		  int32_t value;
 
 		  operand = powerpc_operands + *opindex;
 
@@ -3173,20 +3176,20 @@ print_insn_powerpc (FILE *out, unsigned long insn, unsigned memaddr,
 
 		  /* Print the operand as directed by the flags.  */
 		  if ((operand->flags & PPC_OPERAND_GPR) != 0)
-		    fprintf(out, "r%ld", value);
+		    fprintf(out, "r%d", value);
 		  else if ((operand->flags & PPC_OPERAND_FPR) != 0)
-		    fprintf(out, "f%ld", value);
+		    fprintf(out, "f%d", value);
 		  else if ((operand->flags & PPC_OPERAND_RELATIVE) != 0)
-		    fprintf(out, "%08lX", memaddr + value);
+		    fprintf(out, "%08X", memaddr + value);
 		  else if ((operand->flags & PPC_OPERAND_ABSOLUTE) != 0)
-		    fprintf(out, "%08lX", value & 0xffffffff);
+		    fprintf(out, "%08X", value & 0xffffffff);
 		  else if ((operand->flags & PPC_OPERAND_CR) == 0
 			   || (dialect & PPC_OPCODE_PPC) == 0)
-		    fprintf(out, "%ld", value);
+		    fprintf(out, "%d", value);
 		  else
 		    {
 		      if (operand->bits == 3)
-				fprintf(out, "cr%ld", value);
+				fprintf(out, "cr%d", value);
 		      else
 			{
 			  static const char *cbnames[4] = { "lt", "gt", "eq", "so" };
@@ -3226,7 +3229,7 @@ print_insn_powerpc (FILE *out, unsigned long insn, unsigned memaddr,
     }
 
   /* We could not find a match.  */
-  fprintf(out, ".long 0x%lx", insn);
+  fprintf(out, ".long 0x%x", insn);
 
   return 4;
 }
