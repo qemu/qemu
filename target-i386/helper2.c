@@ -108,8 +108,8 @@ CPUX86State *cpu_x86_init(void)
                                CPUID_CX8 | CPUID_PGE | CPUID_CMOV);
 #ifdef TARGET_X86_64
         /* currently not enabled for std i386 because not fully tested */
-        env->cpuid_features |= CPUID_APIC | CPUID_FXSR | CPUID_PAE |
-            CPUID_SSE | CPUID_SSE2;
+        env->cpuid_features |= CPUID_FXSR | CPUID_MMX | CPUID_SSE | CPUID_SSE2;
+        env->cpuid_features |= CPUID_APIC | CPUID_PAE;
 #endif
     }
     cpu_single_env = env;
