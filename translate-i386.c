@@ -1919,7 +1919,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         break;
     case 0x1a0: /* push fs */
     case 0x1a8: /* push gs */
-        gen_op_movl_T0_seg(((b >> 3) & 7) + R_FS);
+        gen_op_movl_T0_seg((b >> 3) & 7);
         gen_push_T0(s);
         break;
     case 0x07: /* pop es */
@@ -1932,7 +1932,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
     case 0x1a1: /* pop fs */
     case 0x1a9: /* pop gs */
         gen_pop_T0(s);
-        gen_movl_seg_T0(s, ((b >> 3) & 7) + R_FS);
+        gen_movl_seg_T0(s, (b >> 3) & 7);
         gen_pop_update(s);
         break;
 
@@ -2833,6 +2833,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         s->is_jmp = 1;
         break;
     case 0xca: /* lret im */
+        /* XXX: not restartable */
         val = ldsw(s->pc);
         s->pc += 2;
         /* pop offset */
@@ -2853,6 +2854,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         s->is_jmp = 1;
         break;
     case 0xcb: /* lret */
+        /* XXX: not restartable */
         /* pop offset */
         gen_pop_T0(s);
         if (s->dflag == 0)
@@ -2863,6 +2865,35 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         gen_pop_T0(s);
         gen_movl_seg_T0(s, R_CS);
         gen_pop_update(s);
+        s->is_jmp = 1;
+        break;
+    case 0xcf: /* iret */
+        /* XXX: not restartable */
+        /* pop offset */
+        gen_pop_T0(s);
+        if (s->dflag == 0)
+            gen_op_andl_T0_ffff();
+        gen_op_jmp_T0();
+        gen_pop_update(s);
+        /* pop selector */
+        gen_pop_T0(s);
+        gen_movl_seg_T0(s, R_CS);
+        gen_pop_update(s);
+        /* pop eflags */
+        gen_pop_T0(s);
+        if (s->dflag) {
+            if (s->vm86)
+                gen_op_movl_eflags_T0_vm(pc_start - s->cs_base);
+            else
+                gen_op_movl_eflags_T0();
+        } else {
+            if (s->vm86)
+                gen_op_movw_eflags_T0_vm(pc_start - s->cs_base);
+            else
+                gen_op_movw_eflags_T0();
+        }
+        gen_pop_update(s);
+        s->cc_op = CC_OP_EFLAGS;
         s->is_jmp = 1;
         break;
     case 0xe8: /* call im */
@@ -2978,12 +3009,25 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
     case 0x9c: /* pushf */
         if (s->cc_op != CC_OP_DYNAMIC)
             gen_op_set_cc_op(s->cc_op);
-        gen_op_movl_T0_eflags();
+        if (s->vm86)
+            gen_op_movl_T0_eflags_vm();
+        else
+            gen_op_movl_T0_eflags();
         gen_push_T0(s);
         break;
     case 0x9d: /* popf */
         gen_pop_T0(s);
-        gen_op_movl_eflags_T0();
+        if (s->dflag) {
+            if (s->vm86)
+                gen_op_movl_eflags_T0_vm(pc_start - s->cs_base);
+            else
+                gen_op_movl_eflags_T0();
+        } else {
+            if (s->vm86)
+                gen_op_movw_eflags_T0_vm(pc_start - s->cs_base);
+            else
+                gen_op_movw_eflags_T0();
+        }
         gen_pop_update(s);
         s->cc_op = CC_OP_EFLAGS;
         break;
@@ -3159,6 +3203,18 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             gen_op_set_cc_op(s->cc_op);
         gen_op_into();
         break;
+    case 0xfa: /* cli */
+        if (s->vm86) 
+            gen_op_cli_vm();
+        else
+            gen_op_cli();
+        break;
+    case 0xfb: /* sti */
+        if (s->vm86) 
+            gen_op_sti_vm(pc_start - s->cs_base);
+        else
+            gen_op_sti();
+        break;
     case 0x62: /* bound */
         ot = dflag ? OT_LONG : OT_WORD;
         modrm = ldub(s->pc++);
@@ -3308,6 +3364,7 @@ static uint16_t opc_read_flags[NB_OPS] = {
     [INDEX_op_setle_T0_subl] = CC_O | CC_S | CC_Z,
 
     [INDEX_op_movl_T0_eflags] = CC_OSZAPC,
+    [INDEX_op_movl_T0_eflags_vm] = CC_OSZAPC,
     [INDEX_op_cmc] = CC_C,
     [INDEX_op_salc] = CC_C,
 
@@ -3356,7 +3413,10 @@ static uint16_t opc_write_flags[NB_OPS] = {
     [INDEX_op_daa] = CC_OSZAPC,
 
     [INDEX_op_movb_eflags_T0] = CC_S | CC_Z | CC_A | CC_P | CC_C,
+    [INDEX_op_movw_eflags_T0] = CC_OSZAPC,
+    [INDEX_op_movw_eflags_T0_vm] = CC_OSZAPC,
     [INDEX_op_movl_eflags_T0] = CC_OSZAPC,
+    [INDEX_op_movl_eflags_T0_vm] = CC_OSZAPC,
     [INDEX_op_clc] = CC_C,
     [INDEX_op_stc] = CC_C,
     [INDEX_op_cmc] = CC_C,

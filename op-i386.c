@@ -611,6 +611,35 @@ void OPPROTO op_into(void)
     }
 }
 
+/* XXX: add IOPL/CPL tests */
+void OPPROTO op_cli(void)
+{
+    raise_exception(EXCP0D_GPF);
+}
+
+/* XXX: add IOPL/CPL tests */
+void OPPROTO op_sti(void)
+{
+    raise_exception(EXCP0D_GPF);
+}
+
+/* vm86plus instructions */
+
+void OPPROTO op_cli_vm(void)
+{
+    env->eflags &= ~VIF_MASK;
+}
+
+void OPPROTO op_sti_vm(void)
+{
+    env->eflags |= VIF_MASK;
+    if (env->eflags & VIP_MASK) {
+        EIP = PARAM1;
+        raise_exception(EXCP0D_GPF);
+    }
+    FORCE_RET();
+}
+
 void OPPROTO op_boundw(void)
 {
     int low, high, v;
@@ -1234,7 +1263,8 @@ void OPPROTO op_set_cc_op(void)
     CC_OP = PARAM1;
 }
 
-#define FL_UPDATE_MASK (TF_MASK | AC_MASK | ID_MASK)
+#define FL_UPDATE_MASK32 (TF_MASK | AC_MASK | ID_MASK)
+#define FL_UPDATE_MASK16 (TF_MASK)
 
 void OPPROTO op_movl_eflags_T0(void)
 {
@@ -1243,7 +1273,56 @@ void OPPROTO op_movl_eflags_T0(void)
     CC_SRC = eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
     DF = 1 - (2 * ((eflags >> 10) & 1));
     /* we also update some system flags as in user mode */
-    env->eflags = (env->eflags & ~FL_UPDATE_MASK) | (eflags & FL_UPDATE_MASK);
+    env->eflags = (env->eflags & ~FL_UPDATE_MASK32) | (eflags & FL_UPDATE_MASK32);
+}
+
+void OPPROTO op_movw_eflags_T0(void)
+{
+    int eflags;
+    eflags = T0;
+    CC_SRC = eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
+    DF = 1 - (2 * ((eflags >> 10) & 1));
+    /* we also update some system flags as in user mode */
+    env->eflags = (env->eflags & ~FL_UPDATE_MASK16) | (eflags & FL_UPDATE_MASK16);
+}
+
+/* vm86 version */
+void OPPROTO op_movw_eflags_T0_vm(void)
+{
+    int eflags;
+    eflags = T0;
+    CC_SRC = eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
+    DF = 1 - (2 * ((eflags >> 10) & 1));
+    /* we also update some system flags as in user mode */
+    env->eflags = (env->eflags & ~(FL_UPDATE_MASK16 | VIF_MASK)) |
+        (eflags & FL_UPDATE_MASK16);
+    if (eflags & IF_MASK) {
+        env->eflags |= VIF_MASK;
+        if (env->eflags & VIP_MASK) {
+            EIP = PARAM1;
+            raise_exception(EXCP0D_GPF);
+        }
+    }
+    FORCE_RET();
+}
+
+void OPPROTO op_movl_eflags_T0_vm(void)
+{
+    int eflags;
+    eflags = T0;
+    CC_SRC = eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
+    DF = 1 - (2 * ((eflags >> 10) & 1));
+    /* we also update some system flags as in user mode */
+    env->eflags = (env->eflags & ~(FL_UPDATE_MASK32 | VIF_MASK)) |
+        (eflags & FL_UPDATE_MASK32);
+    if (eflags & IF_MASK) {
+        env->eflags |= VIF_MASK;
+        if (env->eflags & VIP_MASK) {
+            EIP = PARAM1;
+            raise_exception(EXCP0D_GPF);
+        }
+    }
+    FORCE_RET();
 }
 
 /* XXX: compute only O flag */
@@ -1260,6 +1339,18 @@ void OPPROTO op_movl_T0_eflags(void)
     eflags = cc_table[CC_OP].compute_all();
     eflags |= (DF & DF_MASK);
     eflags |= env->eflags & ~(VM_MASK | RF_MASK);
+    T0 = eflags;
+}
+
+/* vm86 version */
+void OPPROTO op_movl_T0_eflags_vm(void)
+{
+    int eflags;
+    eflags = cc_table[CC_OP].compute_all();
+    eflags |= (DF & DF_MASK);
+    eflags |= env->eflags & ~(VM_MASK | RF_MASK | IF_MASK);
+    if (env->eflags & VIF_MASK)
+        eflags |= IF_MASK;
     T0 = eflags;
 }
 
@@ -1377,7 +1468,9 @@ CCTable cc_table[CC_OP_NB] = {
     [CC_OP_SARL] = { compute_all_sarl, compute_c_shll },
 };
 
-/* floating point support */
+/* floating point support. Some of the code for complicated x87
+   functions comes from the LGPL'ed x86 emulator found in the Willows
+   TWIN windows emulator. */
 
 #ifdef USE_X86LDOUBLE
 /* use long double functions */
