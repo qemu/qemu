@@ -1092,32 +1092,32 @@ void OPPROTO op_set_cc_op(void)
 
 void OPPROTO op_movl_eflags_T0(void)
 {
-    load_eflags(T0, (TF_MASK | AC_MASK | ID_MASK));
+    load_eflags(T0, (TF_MASK | AC_MASK | ID_MASK | NT_MASK));
 }
 
 void OPPROTO op_movw_eflags_T0(void)
 {
-    load_eflags(T0, (TF_MASK | AC_MASK | ID_MASK) & 0xffff);
+    load_eflags(T0, (TF_MASK | AC_MASK | ID_MASK | NT_MASK) & 0xffff);
 }
 
 void OPPROTO op_movl_eflags_T0_io(void)
 {
-    load_eflags(T0, (TF_MASK | AC_MASK | ID_MASK | IF_MASK));
+    load_eflags(T0, (TF_MASK | AC_MASK | ID_MASK | NT_MASK | IF_MASK));
 }
 
 void OPPROTO op_movw_eflags_T0_io(void)
 {
-    load_eflags(T0, (TF_MASK | AC_MASK | ID_MASK | IF_MASK) & 0xffff);
+    load_eflags(T0, (TF_MASK | AC_MASK | ID_MASK | NT_MASK | IF_MASK) & 0xffff);
 }
 
 void OPPROTO op_movl_eflags_T0_cpl0(void)
 {
-    load_eflags(T0, (TF_MASK | AC_MASK | ID_MASK | IF_MASK | IOPL_MASK));
+    load_eflags(T0, (TF_MASK | AC_MASK | ID_MASK | NT_MASK | IF_MASK | IOPL_MASK));
 }
 
 void OPPROTO op_movw_eflags_T0_cpl0(void)
 {
-    load_eflags(T0, (TF_MASK | AC_MASK | ID_MASK | IF_MASK | IOPL_MASK) & 0xffff);
+    load_eflags(T0, (TF_MASK | AC_MASK | ID_MASK | NT_MASK | IF_MASK | IOPL_MASK) & 0xffff);
 }
 
 #if 0
