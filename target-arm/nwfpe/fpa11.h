@@ -22,6 +22,10 @@
 #ifndef __FPA11_H__
 #define __FPA11_H__
 
+#include <stdlib.h>
+#include <stdio.h>
+#include <errno.h>
+
 #define GET_FPA11() (qemufpa)
 
 /*
@@ -87,8 +91,6 @@ extern void resetFPA11(void);
 extern void SetRoundingMode(const unsigned int);
 extern void SetRoundingPrecision(const unsigned int);
 
-#define get_user(x,y) ((x)=*(y))
-#define put_user(x,y) (*(y)=(x))
 static inline unsigned int readRegister(unsigned int reg)
 {
     return (user_registers[(reg)]);
@@ -127,5 +129,8 @@ unsigned    int ZF;
 #define REG_PC 15
 
 unsigned int EmulateAll(unsigned int opcode, FPA11* qfpa, unsigned int* qregs);
+
+/* included only for get_user/put_user macros */
+#include "qemu.h"
 
 #endif

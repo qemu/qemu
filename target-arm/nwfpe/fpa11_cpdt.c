@@ -43,8 +43,13 @@ void loadDouble(const unsigned int Fn,const unsigned int *pMem)
    unsigned int *p;
    p = (unsigned int*)&fpa11->fpreg[Fn].fDouble;
    fpa11->fType[Fn] = typeDouble;
+#ifdef WORDS_BIGENDIAN
+   get_user(p[0], &pMem[0]); /* sign & exponent */
+   get_user(p[1], &pMem[1]);
+#else
    get_user(p[0], &pMem[1]);
    get_user(p[1], &pMem[0]); /* sign & exponent */
+#endif
 }   
 
 static inline
@@ -133,8 +138,13 @@ void storeDouble(const unsigned int Fn,unsigned int *pMem)
 
       default: val = fpa11->fpreg[Fn].fDouble;
    }
+#ifdef WORDS_BIGENDIAN
+   put_user(p[0], &pMem[0]);	/* msw */
+   put_user(p[1], &pMem[1]);	/* lsw */
+#else
    put_user(p[1], &pMem[0]);	/* msw */
    put_user(p[0], &pMem[1]);	/* lsw */
+#endif
 }   
 
 static inline

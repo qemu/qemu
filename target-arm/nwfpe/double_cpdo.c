@@ -150,7 +150,11 @@ unsigned int DoubleCPDO(const unsigned int opcode)
       case MNF_CODE:
       {
          unsigned int *p = (unsigned int*)&rFm;
+#ifdef WORDS_BIGENDIAN
+         p[0] ^= 0x80000000;
+#else
          p[1] ^= 0x80000000;
+#endif
          fpa11->fpreg[Fd].fDouble = rFm;
       }
       break;
@@ -158,7 +162,11 @@ unsigned int DoubleCPDO(const unsigned int opcode)
       case ABS_CODE:
       {
          unsigned int *p = (unsigned int*)&rFm;
+#ifdef WORDS_BIGENDIAN
+         p[0] &= 0x7fffffff;
+#else
          p[1] &= 0x7fffffff;
+#endif
          fpa11->fpreg[Fd].fDouble = rFm;
       }
       break;
