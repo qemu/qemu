@@ -61,7 +61,7 @@ tar zxvf /tmp/qemu-XXX-i386.tar.gz
 @end example
 
 @section Windows
-w
+
 @itemize
 @item Install the current versions of MSYS and MinGW from
 @url{http://www.mingw.org/}. You can find detailed installation
