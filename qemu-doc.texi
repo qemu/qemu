@@ -189,6 +189,22 @@ command line application. The emulated serial port is redirected on
 the console. Therefore, you can still use QEMU to debug a Linux kernel
 with a serial console.
 
+@item -k language
+
+Use keyboard layout @var{language} (for example @code{fr} for
+French). This option is only needed where it is not easy to get raw PC
+keycodes (e.g. on Macs or with some X11 servers). You don't need to
+use it on PC/Linux or PC/Windows hosts.
+
+The available layouts are:
+@example
+ar  de-ch  es  fo     fr-ca  hu  ja  mk     no  pt-br  sv
+da  en-gb  et  fr     fr-ch  is  lt  nl     pl  ru     th
+de  en-us  fi  fr-be  hr     it  lv  nl-be  pt  sl     tr
+@end example
+
+The default is @code{en-us}.
+
 @item -enable-audio
 
 The SB16 emulation is disabled by default as it may give problems with

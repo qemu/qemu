@@ -123,6 +123,7 @@ extern int cirrus_vga_enabled;
 extern int graphic_width;
 extern int graphic_height;
 extern int graphic_depth;
+extern const char *keyboard_layout;
 
 /* XXX: make it dynamic */
 #if defined (TARGET_PPC)

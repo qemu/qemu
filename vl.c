@@ -112,6 +112,7 @@ int vga_ram_size;
 int bios_size;
 static DisplayState display_state;
 int nographic;
+const char* keyboard_layout = NULL;
 int64_t ticks_per_sec;
 int boot_device = 'c';
 int ram_size;
@@ -2541,6 +2542,7 @@ void help(void)
 	   "-snapshot       write to temporary files instead of disk image files\n"
            "-m megs         set virtual RAM size to megs MB [default=%d]\n"
            "-nographic      disable graphical output and redirect serial I/Os to console\n"
+	   "-k language     use keyboard layout (for example \"fr\" for French)\n"
            "-enable-audio   enable audio support\n"
            "-localtime      set the real time clock to local time [default=utc]\n"
            "-full-screen    start in full screen\n"
@@ -2658,6 +2660,7 @@ enum {
     QEMU_OPTION_pci,
     QEMU_OPTION_isa,
     QEMU_OPTION_prep,
+    QEMU_OPTION_k,
     QEMU_OPTION_localtime,
     QEMU_OPTION_cirrusvga,
     QEMU_OPTION_g,
@@ -2689,6 +2692,7 @@ const QEMUOption qemu_options[] = {
     { "snapshot", 0, QEMU_OPTION_snapshot },
     { "m", HAS_ARG, QEMU_OPTION_m },
     { "nographic", 0, QEMU_OPTION_nographic },
+    { "k", HAS_ARG, QEMU_OPTION_k },
     { "enable-audio", 0, QEMU_OPTION_enable_audio },
 
     { "nics", HAS_ARG, QEMU_OPTION_nics},
@@ -3092,6 +3096,9 @@ int main(int argc, char **argv)
             case QEMU_OPTION_prep:
                 prep_enabled = 1;
                 break;
+	    case QEMU_OPTION_k:
+		keyboard_layout = optarg;
+		break;
             case QEMU_OPTION_localtime:
                 rtc_utc = 0;
                 break;

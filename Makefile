@@ -56,6 +56,8 @@ install: all
 ifndef CONFIG_WIN32
 	mkdir -p "$(mandir)/man1"
 	install qemu.1 qemu-img.1 "$(mandir)/man1"
+	mkdir -p "$(datadir)/keymaps"
+	install -m 644 keymaps/* "$(datadir)"
 endif
 	for d in $(TARGET_DIRS); do \
 	$(MAKE) -C $$d $@ || exit 1 ; \

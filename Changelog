@@ -6,6 +6,7 @@ version 0.6.2:
   - Cirrus VGA: support for 1280x1024x[8,15,16] modes
   - 'pidfile' option
   - .dmg disk image format support (Johannes Schindelin)
+  - keymaps support (initial patch by Johannes Schindelin)
 
 version 0.6.1:
 

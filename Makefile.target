@@ -333,7 +333,7 @@ endif
 $(QEMU_SYSTEM): $(VL_OBJS) libqemu.a
 	$(CC) $(VL_LDFLAGS) -o $@ $^ $(LIBS) $(SDL_LIBS) $(VL_LIBS)
 
-sdl.o: sdl.c
+sdl.o: sdl.c keymaps.c sdl_keysym.h
 	$(CC) $(CFLAGS) $(DEFINES) $(SDL_CFLAGS) -c -o $@ $<
 
 sdlaudio.o: sdlaudio.c
