@@ -239,6 +239,9 @@ extern int ram_size;
 extern int bios_size;
 extern int rtc_utc;
 extern int cirrus_vga_enabled;
+extern int graphic_width;
+extern int graphic_height;
+extern int graphic_depth;
 
 /* XXX: make it dynamic */
 #if defined (TARGET_PPC)
@@ -520,6 +523,11 @@ void pci_prep_init(void);
 void pci_pmac_init(void);
 void pci_ppc_bios_init(void);
 
+/* openpic.c */
+typedef struct openpic_t openpic_t;
+void openpic_set_irq (openpic_t *opp, int n_IRQ, int level);
+openpic_t *openpic_init (uint32_t isu_base, uint32_t idu_base, int nb_cpus);
+
 /* vga.c */
 
 #define VGA_RAM_SIZE (4096 * 1024)
@@ -569,6 +577,8 @@ void isa_ide_init(int iobase, int iobase2, int irq,
                   BlockDriverState *hd0, BlockDriverState *hd1);
 void pci_ide_init(BlockDriverState **hd_table);
 void pci_piix3_ide_init(BlockDriverState **hd_table);
+int pmac_ide_init (BlockDriverState **hd_table,
+                   openpic_t *openpic, int irq);
 
 /* oss.c */
 typedef enum {
@@ -595,7 +605,7 @@ void DMA_hold_DREQ (int nchan);
 void DMA_release_DREQ (int nchan);
 void DMA_schedule(int nchan);
 void DMA_run (void);
-void DMA_init (void);
+void DMA_init (int high_page_enable);
 void DMA_register_channel (int nchan,
                            DMA_transfer_handler transfer_handler, void *opaque);
 
@@ -707,9 +717,10 @@ int PPC_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
                           const unsigned char *arch,
                           uint32_t RAM_size, int boot_device,
                           uint32_t kernel_image, uint32_t kernel_size,
-                          uint32_t cmdline, uint32_t cmdline_size,
+                          const char *cmdline,
                           uint32_t initrd_image, uint32_t initrd_size,
-                          uint32_t NVRAM_image);
+                          uint32_t NVRAM_image,
+                          int width, int height, int depth);
 
 /* adb.c */
 
@@ -744,7 +755,7 @@ void adb_mouse_init(ADBBusState *bus);
 /* cuda.c */
 
 extern ADBBusState adb_bus;
-int cuda_init(void);
+int cuda_init(openpic_t *openpic, int irq);
 
 /* monitor.c */
 void monitor_init(void);
