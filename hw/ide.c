@@ -393,22 +393,23 @@ static void ide_identify(IDEState *s)
     stw_raw(p + 0, 0x0040);
     stw_raw(p + 1, s->cylinders); 
     stw_raw(p + 3, s->heads);
-    stw_raw(p + 4, 512 * s->sectors); /* sectors */
-    stw_raw(p + 5, 512); /* sector size */
+    stw_raw(p + 4, 512 * s->sectors); /* XXX: retired, remove ? */
+    stw_raw(p + 5, 512); /* XXX: retired, remove ? */
     stw_raw(p + 6, s->sectors); 
     padstr((uint8_t *)(p + 10), "QM00001", 20); /* serial number */
-    stw_raw(p + 20, 3); /* buffer type */
+    stw_raw(p + 20, 3); /* XXX: retired, remove ? */
     stw_raw(p + 21, 512); /* cache size in sectors */
     stw_raw(p + 22, 4); /* ecc bytes */
     padstr((uint8_t *)(p + 23), QEMU_VERSION, 8); /* firmware version */
     padstr((uint8_t *)(p + 27), "QEMU HARDDISK", 40); /* model */
 #if MAX_MULT_SECTORS > 1    
-    stw_raw(p + 47, MAX_MULT_SECTORS);
+    stw_raw(p + 47, 0x8000 | MAX_MULT_SECTORS);
 #endif
     stw_raw(p + 48, 1); /* dword I/O */
     stw_raw(p + 49, 1 << 9); /* LBA supported, no DMA */
     stw_raw(p + 51, 0x200); /* PIO transfer cycle */
     stw_raw(p + 52, 0x200); /* DMA transfer cycle */
+    stw_raw(p + 53, 1); /* words 54-58 are valid */
     stw_raw(p + 54, s->cylinders);
     stw_raw(p + 55, s->heads);
     stw_raw(p + 56, s->sectors);
