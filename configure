@@ -423,6 +423,9 @@ mkdir -p $target_dir
 if test "$target" = "arm-user" ; then
   mkdir -p $target_dir/nwfpe
 fi
+if test "$target_user_only" = "no" ; then
+  mkdir -p $target_dir/slirp
+fi
 
 ln -sf $source_path/Makefile.target $target_dir/Makefile
 
