@@ -478,10 +478,24 @@ static inline void helper_fstt(CPU86_LDouble f, uint8_t *ptr)
 
 #endif /* USE_X86LDOUBLE */
 
+#define FPUS_IE (1 << 0)
+#define FPUS_DE (1 << 1)
+#define FPUS_ZE (1 << 2)
+#define FPUS_OE (1 << 3)
+#define FPUS_UE (1 << 4)
+#define FPUS_PE (1 << 5)
+#define FPUS_SF (1 << 6)
+#define FPUS_SE (1 << 7)
+#define FPUS_B  (1 << 15)
+
+#define FPUC_EM 0x3f
+
 const CPU86_LDouble f15rk[7];
 
 void helper_fldt_ST0_A0(void);
 void helper_fstt_ST0_A0(void);
+void fpu_raise_exception(void);
+CPU86_LDouble helper_fdiv(CPU86_LDouble a, CPU86_LDouble b);
 void helper_fbld_ST0_A0(void);
 void helper_fbst_ST0_A0(void);
 void helper_f2xm1(void);

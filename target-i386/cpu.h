@@ -143,6 +143,7 @@
 #define CR0_MP_MASK  (1 << 1)
 #define CR0_EM_MASK  (1 << 2)
 #define CR0_TS_MASK  (1 << 3)
+#define CR0_ET_MASK  (1 << 4)
 #define CR0_NE_MASK  (1 << 5)
 #define CR0_WP_MASK  (1 << 16)
 #define CR0_AM_MASK  (1 << 18)
@@ -373,6 +374,8 @@ CPUX86State *cpu_x86_init(void);
 int cpu_x86_exec(CPUX86State *s);
 void cpu_x86_close(CPUX86State *s);
 int cpu_get_pic_interrupt(CPUX86State *s);
+/* MSDOS compatibility mode FPU exception support */
+void cpu_set_ferr(CPUX86State *s);
 
 /* this function must always be used to load data in the segment
    cache: it synchronizes the hflags with the segment cache values */

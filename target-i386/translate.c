@@ -3761,6 +3761,11 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         if ((s->flags & (HF_MP_MASK | HF_TS_MASK)) == 
             (HF_MP_MASK | HF_TS_MASK)) {
             gen_exception(s, EXCP07_PREX, pc_start - s->cs_base);
+        } else {
+            if (s->cc_op != CC_OP_DYNAMIC)
+                gen_op_set_cc_op(s->cc_op);
+            gen_op_jmp_im(pc_start - s->cs_base);
+            gen_op_fwait();
         }
         break;
     case 0xcc: /* int3 */

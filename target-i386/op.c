@@ -1738,12 +1738,12 @@ void OPPROTO op_fsubr_ST0_FT0(void)
 
 void OPPROTO op_fdiv_ST0_FT0(void)
 {
-    ST0 /= FT0;
+    ST0 = helper_fdiv(ST0, FT0);
 }
 
 void OPPROTO op_fdivr_ST0_FT0(void)
 {
-    ST0 = FT0 / ST0;
+    ST0 = helper_fdiv(FT0, ST0);
 }
 
 /* fp operations between STN and ST0 */
@@ -1772,14 +1772,16 @@ void OPPROTO op_fsubr_STN_ST0(void)
 
 void OPPROTO op_fdiv_STN_ST0(void)
 {
-    ST(PARAM1) /= ST0;
+    CPU86_LDouble *p;
+    p = &ST(PARAM1);
+    *p = helper_fdiv(*p, ST0);
 }
 
 void OPPROTO op_fdivr_STN_ST0(void)
 {
     CPU86_LDouble *p;
     p = &ST(PARAM1);
-    *p = ST0 / *p;
+    *p = helper_fdiv(ST0, *p);
 }
 
 /* misc FPU operations */
@@ -1957,6 +1959,13 @@ void OPPROTO op_fldcw_A0(void)
 void OPPROTO op_fclex(void)
 {
     env->fpus &= 0x7f00;
+}
+
+void OPPROTO op_fwait(void)
+{
+    if (env->fpus & FPUS_SE)
+        fpu_raise_exception();
+    FORCE_RET();
 }
 
 void OPPROTO op_fninit(void)

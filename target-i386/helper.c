@@ -24,7 +24,7 @@
 #if 0
 #define raise_exception_err(a, b)\
 do {\
-    printf("raise_exception line=%d\n", __LINE__);\
+    fprintf(logfile, "raise_exception line=%d\n", __LINE__);\
     (raise_exception_err)(a, b);\
 } while (0)
 #endif
@@ -859,10 +859,11 @@ void do_interrupt(int intno, int is_int, int error_code,
     if (loglevel & (CPU_LOG_PCALL | CPU_LOG_INT)) {
         if ((env->cr[0] & CR0_PE_MASK)) {
             static int count;
-            fprintf(logfile, "%6d: v=%02x e=%04x i=%d cpl=%d IP=%04x:%08x SP=%04x:%08x",
+            fprintf(logfile, "%6d: v=%02x e=%04x i=%d cpl=%d IP=%04x:%08x pc=%08x SP=%04x:%08x",
                     count, intno, error_code, is_int,
                     env->hflags & HF_CPL_MASK,
                     env->segs[R_CS].selector, EIP,
+                    (int)env->segs[R_CS].base + EIP,
                     env->segs[R_SS].selector, ESP);
             if (intno == 0x0e) {
                 fprintf(logfile, " CR2=%08x", env->cr[2]);
@@ -1988,6 +1989,32 @@ void helper_fldt_ST0_A0(void)
 void helper_fstt_ST0_A0(void)
 {
     helper_fstt(ST0, (uint8_t *)A0);
+}
+
+void fpu_set_exception(int mask)
+{
+    env->fpus |= mask;
+    if (env->fpus & (~env->fpuc & FPUC_EM))
+        env->fpus |= FPUS_SE | FPUS_B;
+}
+
+CPU86_LDouble helper_fdiv(CPU86_LDouble a, CPU86_LDouble b)
+{
+    if (b == 0.0) 
+        fpu_set_exception(FPUS_ZE);
+    return a / b;
+}
+
+void fpu_raise_exception(void)
+{
+    if (env->cr[0] & CR0_NE_MASK) {
+        raise_exception(EXCP10_COPR);
+    } 
+#if !defined(CONFIG_USER_ONLY) 
+    else {
+        cpu_set_ferr(env);
+    }
+#endif
 }
 
 /* BCD ops */
