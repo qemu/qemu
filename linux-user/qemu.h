@@ -48,10 +48,21 @@ struct vm86_saved_state {
 };
 #endif
 
+#ifdef TARGET_ARM
+/* FPU emulator */
+#include "nwfpe/fpa11.h"
+#undef put_user
+#undef get_user
+#endif
+
 /* NOTE: we force a big alignment so that the stack stored after is
    aligned too */
 typedef struct TaskState {
     struct TaskState *next;
+#ifdef TARGET_ARM
+    /* FPA state */
+    FPA11 fpa;
+#endif
 #ifdef TARGET_I386
     struct target_vm86plus_struct *target_v86;
     struct vm86_saved_state vm86_saved_regs;
