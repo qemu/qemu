@@ -1538,10 +1538,15 @@ static void gen_setcc(DisasContext *s, int b)
    call this function with seg_reg == R_CS */
 static void gen_movl_seg_T0(DisasContext *s, int seg_reg, unsigned int cur_eip)
 {
-    if (s->pe && !s->vm86)
-        gen_op_movl_seg_T0(seg_reg, cur_eip);
-    else
+    if (s->pe && !s->vm86) {
+        /* XXX: optimize by finding processor state dynamically */
+        if (s->cc_op != CC_OP_DYNAMIC)
+            gen_op_set_cc_op(s->cc_op);
+        gen_op_jmp_im(cur_eip);
+        gen_op_movl_seg_T0(seg_reg);
+    } else {
         gen_op_movl_seg_T0_vm(offsetof(CPUX86State,segs[seg_reg]));
+    }
     /* abort translation because the register may have a non zero base
        or because ss32 may change. For R_SS, translation must always
        stop as a special handling must be done to disable hardware
@@ -3982,10 +3987,20 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
                     goto illegal_op;
                 gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
                 gen_op_invlpg_A0();
+                gen_op_jmp_im(s->pc - s->cs_base);
+                gen_eob(s);
             }
             break;
         default:
             goto illegal_op;
+        }
+        break;
+    case 0x108: /* invd */
+    case 0x109: /* wbinvd */
+        if (s->cpl != 0) {
+            gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
+        } else {
+            /* nothing to do */
         }
         break;
     case 0x63: /* arpl */

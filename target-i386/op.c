@@ -907,7 +907,7 @@ void OPPROTO op_das(void)
 /* never use it with R_CS */
 void OPPROTO op_movl_seg_T0(void)
 {
-    load_seg(PARAM1, T0 & 0xffff, PARAM2);
+    load_seg(PARAM1, T0);
 }
 
 /* faster VM86 version */
