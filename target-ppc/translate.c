@@ -276,11 +276,12 @@ static inline uint32_t MASK (uint32_t start, uint32_t end)
     return ret;
 }
 
-#if defined(__linux__)
+#if defined(__APPLE__)
+#define OPCODES_SECTION \
+    __attribute__ ((section("__TEXT,__opcodes"), unused, aligned (8) ))
+#else
 #define OPCODES_SECTION \
     __attribute__ ((section(".opcodes"), unused, aligned (8) ))
-#else
-#define OPCODES_SECTION
 #endif
 
 #define GEN_OPCODE(name, op1, op2, op3, invl, _typ)                           \
