@@ -39,7 +39,7 @@
 #if defined(__i386__) && !defined(CONFIG_SOFTMMU)
 #define USE_CODE_COPY
 #endif
-#if defined(__linux__) && defined(CONFIG_SOFTMMU) && defined(__i386__) && !defined(TARGET_X86_64)
+#if defined(CONFIG_KQEMU) && defined(__linux__) && defined(CONFIG_SOFTMMU) && defined(__i386__) && !defined(TARGET_X86_64)
 #define USE_KQEMU
 #endif
 
