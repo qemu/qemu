@@ -85,7 +85,7 @@ long do_rt_sigreturn(CPUX86State *env);
 #define __NR_sys_getdents64 __NR_getdents64
 #define __NR_sys_rt_sigqueueinfo __NR_rt_sigqueueinfo
 
-#ifdef __alpha__
+#if defined(__alpha__) || defined (__ia64__)
 #define __NR__llseek __NR_lseek
 #endif
 
@@ -1163,7 +1163,11 @@ int do_fork(CPUX86State *env, unsigned int flags, unsigned long newsp)
         new_env->regs[R_ESP] = newsp;
         new_env->regs[R_EAX] = 0;
         new_env->opaque = ts;
-        ret = clone(clone_func, new_stack + NEW_STACK_SIZE, flags, new_env);
+#ifdef __ia64__
+        ret = clone2(clone_func, new_stack + NEW_STACK_SIZE, flags, new_env);
+#else
+	ret = clone(clone_func, new_stack + NEW_STACK_SIZE, flags, new_env);
+#endif
     } else {
         /* if no CLONE_VM, we consider it is a fork */
         if ((flags & ~CSIGNAL) != 0)
@@ -1419,7 +1423,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 	struct target_flock *target_fl = (void *)arg3;
 
         switch(arg2) {
-        case F_GETLK:
+        case TARGET_F_GETLK:
             ret = get_errno(fcntl(arg1, arg2, &fl));
 	    if (ret == 0) {
 		target_fl->l_type = tswap16(fl.l_type);
@@ -1430,8 +1434,8 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 	    }
 	    break;
 
-        case F_SETLK:
-        case F_SETLKW:
+        case TARGET_F_SETLK:
+        case TARGET_F_SETLKW:
 	    fl.l_type = tswap16(target_fl->l_type);
 	    fl.l_whence = tswap16(target_fl->l_whence);
 	    fl.l_start = tswapl(target_fl->l_start);
@@ -1440,9 +1444,9 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             ret = get_errno(fcntl(arg1, arg2, &fl));
 	    break;
 
-	case F_GETLK64:
-	case F_SETLK64:
-	case F_SETLKW64:
+	case TARGET_F_GETLK64:
+	case TARGET_F_SETLK64:
+	case TARGET_F_SETLKW64:
             goto unimplemented;
         default:
             ret = get_errno(fcntl(arg1, arg2, arg3));
