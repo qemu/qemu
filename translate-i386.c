@@ -1273,19 +1273,38 @@ static void gen_pop_T0(DisasContext *s)
     }
 }
 
-static void gen_pop_update(DisasContext *s)
+static inline void gen_stack_update(DisasContext *s, int addend)
 {
     if (s->ss32) {
-        if (s->dflag)
-            gen_op_addl_ESP_4();
-        else
+        if (addend == 2)
             gen_op_addl_ESP_2();
+        else if (addend == 4)
+            gen_op_addl_ESP_4();
+        else 
+            gen_op_addl_ESP_im(addend);
     } else {
-        if (s->dflag)
+        if (addend == 2)
+            gen_op_addw_ESP_2();
+        else if (addend == 4)
             gen_op_addw_ESP_4();
         else
-            gen_op_addw_ESP_2();
+            gen_op_addw_ESP_im(addend);
     }
+}
+
+static void gen_pop_update(DisasContext *s)
+{
+    gen_stack_update(s, 2 << s->dflag);
+}
+
+static void gen_stack_A0(DisasContext *s)
+{
+    gen_op_movl_A0_ESP();
+    if (!s->ss32)
+        gen_op_andl_A0_ffff();
+    gen_op_movl_T1_A0();
+    if (s->addseg)
+        gen_op_addl_A0_seg(offsetof(CPUX86State,seg_cache[R_SS].base));
 }
 
 /* NOTE: wrap around in 16 bit not fully handled */
@@ -1957,7 +1976,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         }
         break;
     case 0xc9: /* leave */
-        /* XXX: exception not precise (ESP is update before potential exception) */
+        /* XXX: exception not precise (ESP is updated before potential exception) */
         if (s->ss32) {
             gen_op_mov_TN_reg[OT_LONG][0][R_EBP]();
             gen_op_mov_reg_T0[OT_LONG][R_ESP]();
@@ -2453,8 +2472,14 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
                     break;
                 }
                 break;
+            case 0x0c: /* fldenv mem */
+                gen_op_fldenv_A0(s->dflag);
+                break;
             case 0x0d: /* fldcw mem */
                 gen_op_fldcw_A0();
+                break;
+            case 0x0e: /* fnstenv mem */
+                gen_op_fnstenv_A0(s->dflag);
                 break;
             case 0x0f: /* fnstcw mem */
                 gen_op_fnstcw_A0();
@@ -2466,6 +2491,12 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             case 0x1f: /* fstpt mem */
                 gen_op_fstt_ST0_A0();
                 gen_op_fpop();
+                break;
+            case 0x2c: /* frstor mem */
+                gen_op_frstor_A0(s->dflag);
+                break;
+            case 0x2e: /* fnsave mem */
+                gen_op_fnsave_A0(s->dflag);
                 break;
             case 0x2f: /* fnstsw mem */
                 gen_op_fnstsw_A0();
@@ -2672,6 +2703,20 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
                     goto illegal_op;
                 }
                 break;
+            case 0x1d: /* fucomi */
+                if (s->cc_op != CC_OP_DYNAMIC)
+                    gen_op_set_cc_op(s->cc_op);
+                gen_op_fmov_FT0_STN(opreg);
+                gen_op_fucomi_ST0_FT0();
+                s->cc_op = CC_OP_EFLAGS;
+                break;
+            case 0x1e: /* fcomi */
+                if (s->cc_op != CC_OP_DYNAMIC)
+                    gen_op_set_cc_op(s->cc_op);
+                gen_op_fmov_FT0_STN(opreg);
+                gen_op_fcomi_ST0_FT0();
+                s->cc_op = CC_OP_EFLAGS;
+                break;
             case 0x2a: /* fst sti */
                 gen_op_fmov_STN_ST0(opreg);
                 break;
@@ -2708,6 +2753,22 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
                 default:
                     goto illegal_op;
                 }
+                break;
+            case 0x3d: /* fucomip */
+                if (s->cc_op != CC_OP_DYNAMIC)
+                    gen_op_set_cc_op(s->cc_op);
+                gen_op_fmov_FT0_STN(opreg);
+                gen_op_fucomi_ST0_FT0();
+                gen_op_fpop();
+                s->cc_op = CC_OP_EFLAGS;
+                break;
+            case 0x3e: /* fcomip */
+                if (s->cc_op != CC_OP_DYNAMIC)
+                    gen_op_set_cc_op(s->cc_op);
+                gen_op_fmov_FT0_STN(opreg);
+                gen_op_fcomi_ST0_FT0();
+                gen_op_fpop();
+                s->cc_op = CC_OP_EFLAGS;
                 break;
             default:
                 goto illegal_op;
@@ -2901,10 +2962,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         val = ldsw(s->pc);
         s->pc += 2;
         gen_pop_T0(s);
-        if (s->ss32)
-            gen_op_addl_ESP_im(val + (2 << s->dflag));
-        else
-            gen_op_addw_ESP_im(val + (2 << s->dflag));
+        gen_stack_update(s, val + (2 << s->dflag));
         if (s->dflag == 0)
             gen_op_andl_T0_ffff();
         gen_op_jmp_T0();
@@ -2919,63 +2977,55 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         s->is_jmp = 1;
         break;
     case 0xca: /* lret im */
-        /* XXX: not restartable */
         val = ldsw(s->pc);
         s->pc += 2;
+    do_lret:
+        gen_stack_A0(s);
         /* pop offset */
-        gen_pop_T0(s);
+        gen_op_ld_T0_A0[1 + s->dflag]();
         if (s->dflag == 0)
             gen_op_andl_T0_ffff();
+        /* NOTE: keeping EIP updated is not a problem in case of
+           exception */
         gen_op_jmp_T0();
-        gen_pop_update(s);
         /* pop selector */
-        gen_pop_T0(s);
+        gen_op_addl_A0_im(2 << s->dflag);
+        gen_op_ld_T0_A0[1 + s->dflag]();
         gen_movl_seg_T0(s, R_CS, pc_start - s->cs_base);
-        gen_pop_update(s);
         /* add stack offset */
-        if (s->ss32)
-            gen_op_addl_ESP_im(val);
-        else
-            gen_op_addw_ESP_im(val);
+        gen_stack_update(s, val + (4 << s->dflag));
         s->is_jmp = 1;
         break;
     case 0xcb: /* lret */
-        /* XXX: not restartable */
-        /* pop offset */
-        gen_pop_T0(s);
-        if (s->dflag == 0)
-            gen_op_andl_T0_ffff();
-        gen_op_jmp_T0();
-        gen_pop_update(s);
-        /* pop selector */
-        gen_pop_T0(s);
-        gen_movl_seg_T0(s, R_CS, pc_start - s->cs_base);
-        gen_pop_update(s);
-        s->is_jmp = 1;
-        break;
+        val = 0;
+        goto do_lret;
     case 0xcf: /* iret */
         if (s->vm86 && s->iopl != 3) {
             gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
             /* XXX: not restartable */
+            gen_stack_A0(s);
             /* pop offset */
-            gen_pop_T0(s);
+            gen_op_ld_T0_A0[1 + s->dflag]();
             if (s->dflag == 0)
                 gen_op_andl_T0_ffff();
-            gen_op_jmp_T0();
-            gen_pop_update(s);
+            /* NOTE: keeping EIP updated is not a problem in case of
+               exception */
+            gen_op_jmp_T0(); 
             /* pop selector */
-            gen_pop_T0(s);
-            gen_movl_seg_T0(s, R_CS, pc_start - s->cs_base);
-            gen_pop_update(s);
+            gen_op_addl_A0_im(2 << s->dflag);
+            gen_op_ld_T0_A0[1 + s->dflag]();
             /* pop eflags */
-            gen_pop_T0(s);
+            gen_op_addl_A0_im(2 << s->dflag);
+            gen_op_ld_T1_A0[1 + s->dflag]();
+            gen_movl_seg_T0(s, R_CS, pc_start - s->cs_base);
+            gen_op_movl_T0_T1();
             if (s->dflag) {
                 gen_op_movl_eflags_T0();
             } else {
                 gen_op_movw_eflags_T0();
             }
-            gen_pop_update(s);
+            gen_stack_update(s, (6 << s->dflag));
             s->cc_op = CC_OP_EFLAGS;
         }
         s->is_jmp = 1;
@@ -2997,6 +3047,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
     case 0x9a: /* lcall im */
         {
             unsigned int selector, offset;
+            /* XXX: not restartable */
 
             ot = dflag ? OT_LONG : OT_WORD;
             offset = insn_get(s, ot);
@@ -3613,6 +3664,8 @@ static uint16_t opc_write_flags[NB_OPS] = {
     [INDEX_op_cmpxchg8b] = CC_Z,
     [INDEX_op_lar] = CC_Z,
     [INDEX_op_lsl] = CC_Z,
+    [INDEX_op_fcomi_ST0_FT0] = CC_Z | CC_P | CC_C,
+    [INDEX_op_fucomi_ST0_FT0] = CC_Z | CC_P | CC_C,
 };
 
 /* simpler form of an operation if no flags need to be generated */

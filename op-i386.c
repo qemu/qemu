@@ -1073,7 +1073,7 @@ void helper_cpuid(void)
         EBX = 0x756e6547;
         ECX = 0x6c65746e;
         EDX = 0x49656e69;
-    } else {
+    } else if (EAX == 1) {
         /* EAX = 1 info */
         EAX = 0x52b;
         EBX = 0;
@@ -1899,17 +1899,22 @@ void OPPROTO op_fldt_ST0_A0(void)
     ST0 = *(long double *)A0;
 }
 #else
-void helper_fldt_ST0_A0(void)
+static inline CPU86_LDouble helper_fldt(uint8_t *ptr)
 {
     CPU86_LDoubleU temp;
     int upper, e;
     /* mantissa */
-    upper = lduw((uint8_t *)A0 + 8);
+    upper = lduw(ptr + 8);
     /* XXX: handle overflow ? */
     e = (upper & 0x7fff) - 16383 + EXPBIAS; /* exponent */
     e |= (upper >> 4) & 0x800; /* sign */
-    temp.ll = ((ldq((void *)A0) >> 11) & ((1LL << 52) - 1)) | ((uint64_t)e << 52);
-    ST0 = temp.d;
+    temp.ll = ((ldq(ptr) >> 11) & ((1LL << 52) - 1)) | ((uint64_t)e << 52);
+    return temp.d;
+}
+
+void helper_fldt_ST0_A0(void)
+{
+    ST0 = helper_fldt((uint8_t *)A0);
 }
 
 void OPPROTO op_fldt_ST0_A0(void)
@@ -2008,17 +2013,23 @@ void OPPROTO op_fstt_ST0_A0(void)
     *(long double *)A0 = ST0;
 }
 #else
-void helper_fstt_ST0_A0(void)
+
+static inline void helper_fstt(CPU86_LDouble f, uint8_t *ptr)
 {
     CPU86_LDoubleU temp;
     int e;
-    temp.d = ST0;
+    temp.d = f;
     /* mantissa */
-    stq((void *)A0, (MANTD(temp) << 11) | (1LL << 63));
+    stq(ptr, (MANTD(temp) << 11) | (1LL << 63));
     /* exponent + sign */
     e = EXPD(temp) - EXPBIAS + 16383;
     e |= SIGND(temp) >> 16;
-    stw((uint8_t *)A0 + 8, e);
+    stw(ptr + 8, e);
+}
+
+void helper_fstt_ST0_A0(void)
+{
+    helper_fstt(ST0, (uint8_t *)A0);
 }
 
 void OPPROTO op_fstt_ST0_A0(void)
@@ -2251,6 +2262,34 @@ void OPPROTO op_fucom_ST0_FT0(void)
         env->fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
     else if (ST0 == FT0)
         env->fpus |= 0x4000; /* (C3,C2,C0) <-- 100 */
+    FORCE_RET();
+}
+
+/* XXX: handle nans */
+void OPPROTO op_fcomi_ST0_FT0(void)
+{
+    int eflags;
+    eflags = cc_table[CC_OP].compute_all();
+    eflags &= ~(CC_Z | CC_P | CC_C);
+    if (ST0 < FT0)
+        eflags |= CC_C;
+    else if (ST0 == FT0)
+        eflags |= CC_Z;
+    CC_SRC = eflags;
+    FORCE_RET();
+}
+
+/* XXX: handle nans */
+void OPPROTO op_fucomi_ST0_FT0(void)
+{
+    int eflags;
+    eflags = cc_table[CC_OP].compute_all();
+    eflags &= ~(CC_Z | CC_P | CC_C);
+    if (ST0 < FT0)
+        eflags |= CC_C;
+    else if (ST0 == FT0)
+        eflags |= CC_Z;
+    CC_SRC = eflags;
     FORCE_RET();
 }
 
@@ -2748,6 +2787,149 @@ void OPPROTO op_fninit(void)
     env->fptags[5] = 1;
     env->fptags[6] = 1;
     env->fptags[7] = 1;
+}
+
+void helper_fstenv(uint8_t *ptr, int data32)
+{
+    int fpus, fptag, exp, i;
+    uint64_t mant;
+    CPU86_LDoubleU tmp;
+
+    fpus = (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
+    fptag = 0;
+    for (i=7; i>=0; i--) {
+	fptag <<= 2;
+	if (env->fptags[i]) {
+            fptag |= 3;
+	} else {
+            tmp.d = env->fpregs[i];
+            exp = EXPD(tmp);
+            mant = MANTD(tmp);
+            if (exp == 0 && mant == 0) {
+                /* zero */
+	        fptag |= 1;
+	    } else if (exp == 0 || exp == MAXEXPD
+#ifdef USE_X86LDOUBLE
+                       || (mant & (1LL << 63)) == 0
+#endif
+                       ) {
+                /* NaNs, infinity, denormal */
+                fptag |= 2;
+            }
+        }
+    }
+    if (data32) {
+        /* 32 bit */
+        stl(ptr, env->fpuc);
+        stl(ptr + 4, fpus);
+        stl(ptr + 8, fptag);
+        stl(ptr + 12, 0);
+        stl(ptr + 16, 0);
+        stl(ptr + 20, 0);
+        stl(ptr + 24, 0);
+    } else {
+        /* 16 bit */
+        stw(ptr, env->fpuc);
+        stw(ptr + 2, fpus);
+        stw(ptr + 4, fptag);
+        stw(ptr + 6, 0);
+        stw(ptr + 8, 0);
+        stw(ptr + 10, 0);
+        stw(ptr + 12, 0);
+    }
+}
+
+void helper_fldenv(uint8_t *ptr, int data32)
+{
+    int i, fpus, fptag;
+
+    if (data32) {
+	env->fpuc = lduw(ptr);
+        fpus = lduw(ptr + 4);
+        fptag = lduw(ptr + 8);
+    }
+    else {
+	env->fpuc = lduw(ptr);
+        fpus = lduw(ptr + 2);
+        fptag = lduw(ptr + 4);
+    }
+    env->fpstt = (fpus >> 11) & 7;
+    env->fpus = fpus & ~0x3800;
+    for(i = 0;i < 7; i++) {
+        env->fptags[i] = ((fptag & 3) == 3);
+        fptag >>= 2;
+    }
+}
+
+void helper_fsave(uint8_t *ptr, int data32)
+{
+    CPU86_LDouble tmp;
+    int i;
+
+    helper_fstenv(ptr, data32);
+
+    ptr += (14 << data32);
+    for(i = 0;i < 8; i++) {
+        tmp = ST(i);
+#ifdef USE_X86LDOUBLE
+        *(long double *)ptr = tmp;
+#else
+        helper_fstt(tmp, ptr);
+#endif        
+        ptr += 10;
+    }
+
+    /* fninit */
+    env->fpus = 0;
+    env->fpstt = 0;
+    env->fpuc = 0x37f;
+    env->fptags[0] = 1;
+    env->fptags[1] = 1;
+    env->fptags[2] = 1;
+    env->fptags[3] = 1;
+    env->fptags[4] = 1;
+    env->fptags[5] = 1;
+    env->fptags[6] = 1;
+    env->fptags[7] = 1;
+}
+
+void helper_frstor(uint8_t *ptr, int data32)
+{
+    CPU86_LDouble tmp;
+    int i;
+
+    helper_fldenv(ptr, data32);
+    ptr += (14 << data32);
+
+    for(i = 0;i < 8; i++) {
+#ifdef USE_X86LDOUBLE
+        tmp = *(long double *)ptr;
+#else
+        tmp = helper_fldt(ptr);
+#endif        
+        ST(i) = tmp;
+        ptr += 10;
+    }
+}
+
+void OPPROTO op_fnstenv_A0(void)
+{
+    helper_fstenv((uint8_t *)A0, PARAM1);
+}
+
+void OPPROTO op_fldenv_A0(void)
+{
+    helper_fldenv((uint8_t *)A0, PARAM1);
+}
+
+void OPPROTO op_fnsave_A0(void)
+{
+    helper_fsave((uint8_t *)A0, PARAM1);
+}
+
+void OPPROTO op_frstor_A0(void)
+{
+    helper_frstor((uint8_t *)A0, PARAM1);
 }
 
 /* threading support */

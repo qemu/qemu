@@ -225,6 +225,8 @@ void raise_interrupt(int intno, int is_int, int error_code,
 void raise_exception_err(int exception_index, int error_code);
 void raise_exception(int exception_index);
 void cpu_loop_exit(void);
+void helper_fsave(uint8_t *ptr, int data32);
+void helper_frstor(uint8_t *ptr, int data32);
 
 void OPPROTO op_movl_eflags_T0(void);
 void OPPROTO op_movl_T0_eflags(void);
