@@ -1,50 +1,61 @@
 \input texinfo @c -*- texinfo -*-
 
-@settitle QEMU x86 Emulator Reference Documentation
+@settitle QEMU CPU Emulator Reference Documentation
 @titlepage
 @sp 7
-@center @titlefont{QEMU x86 Emulator Reference Documentation}
+@center @titlefont{QEMU CPU Emulator Reference Documentation}
 @sp 3
 @end titlepage
 
 @chapter Introduction
 
-QEMU is an x86 processor emulator. Its purpose is to run x86 Linux
-processes on non-x86 Linux architectures such as PowerPC. By using
-dynamic translation it achieves a reasonnable speed while being easy to
-port on new host CPUs. Its main goal is to be able to launch the
-@code{Wine} Windows API emulator (@url{http://www.winehq.org}) or
-@code{DOSEMU} (@url{http://www.dosemu.org}) on non-x86 CPUs.
+@section Features
 
-QEMU features:
+QEMU is a FAST! processor emulator. Its purpose is to run Linux executables
+compiled for one architecture on another. For example, x86 Linux
+processes can be ran on PowerPC Linux architectures. By using dynamic
+translation it achieves a reasonnable speed while being easy to port on
+new host CPUs. Its main goal is to be able to launch the @code{Wine}
+Windows API emulator (@url{http://www.winehq.org}) or @code{DOSEMU}
+(@url{http://www.dosemu.org}) on non-x86 CPUs.
+
+QEMU generic features:
 
 @itemize 
 
-@item User space only x86 emulator.
+@item User space only emulation.
 
-@item Currently ported on i386, PowerPC. Work in progress for S390, Alpha and Sparc.
+@item Working on x86 and PowerPC hosts. Being tested on ARM, Sparc32, Alpha and S390.
 
 @item Using dynamic translation to native code for reasonnable speed.
-
-@item The virtual x86 CPU supports 16 bit and 32 bit addressing with segmentation. 
-User space LDT and GDT are emulated. VM86 mode is also supported.
 
 @item Generic Linux system call converter, including most ioctls.
 
 @item clone() emulation using native CPU clone() to use Linux scheduler for threads.
 
-@item Accurate signal handling by remapping host signals to virtual x86 signals. 
-
-@item Precise user space x86 exceptions.
+@item Accurate signal handling by remapping host signals to target signals. 
 
 @item Self-modifying code support.
+
+@item The virtual CPU is a library (@code{libqemu}) which can be used 
+in other projects.
+
+@end itemize
+
+@section x86 emulation
+
+QEMU x86 target features:
+
+@itemize 
+
+@item The virtual x86 CPU supports 16 bit and 32 bit addressing with segmentation. 
+User space LDT and GDT are emulated. VM86 mode is also supported to run DOSEMU.
+
+@item Precise user space x86 exceptions.
 
 @item Support of host page sizes bigger than 4KB.
 
 @item QEMU can emulate itself on x86.
-
-@item The virtual x86 CPU is a library (@code{libqemu}) which can be used 
-in other projects.
 
 @item An extensive Linux x86 CPU test program is included @file{tests/test-i386}. 
 It can be used to test other x86 virtual CPUs.
@@ -70,9 +81,25 @@ maximum performances.
 
 @end itemize
 
+@section ARM emulation
+
+@itemize
+
+@item ARM emulation can currently launch small programs while using the
+generic dynamic code generation architecture of QEMU.
+
+@item No FPU support (yet).
+
+@item No automatic regression testing (yet).
+
+@end itemize
+
 @chapter Invocation
 
 @section Quick Start
+
+If you need to compile QEMU, please read the @file{README} which gives
+the related information.
 
 In order to launch a Linux process, QEMU needs the process executable
 itself and all the target (x86) dynamic libraries used by it. 
@@ -186,7 +213,7 @@ support for it (QEMU could be used to detect out of bound memory accesses
 as Valgrind, but it has no support to track uninitialised data as
 Valgrind does). Valgrind dynamic translator generates better code than
 QEMU (in particular it does register allocation) but it is closely tied
-to an x86 host.
+to an x86 host and target.
 
 EM86 [4] is the closest project to QEMU (and QEMU still uses some of its
 code, in particular the ELF file loader). EM86 was limited to an alpha
@@ -204,7 +231,7 @@ between the API and the x86 code must be converted.
 
 QEMU is a dynamic translator. When it first encounters a piece of code,
 it converts it to the host instruction set. Usually dynamic translators
-are very complicated and highly CPU dependant. QEMU uses some tricks
+are very complicated and highly CPU dependent. QEMU uses some tricks
 which make it relatively easily portable and simple while achieving good
 performances.
 
@@ -416,12 +443,17 @@ Willows Software.
 
 @chapter Regression Tests
 
-In the directory @file{tests/}, various interesting x86 testing programs
+In the directory @file{tests/}, various interesting testing programs
 are available. There are used for regression testing.
 
-@section @file{hello}
+@section @file{hello-i386}
 
 Very simple statically linked x86 program, just to test QEMU during a
+port to a new host CPU.
+
+@section @file{hello-arm}
+
+Very simple statically linked ARM program, just to test QEMU during a
 port to a new host CPU.
 
 @section @file{test-i386}

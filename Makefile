@@ -211,7 +211,7 @@ arm-dis.c \
 tests/Makefile \
 tests/test-i386.c tests/test-i386-shift.h tests/test-i386.h \
 tests/test-i386-muldiv.h tests/test-i386-code16.S tests/test-i386-vm86.S \
-tests/hello.c tests/hello \
+tests/hello-i386.c tests/hello-i386 \
 tests/hello-arm.c tests/hello-arm \
 tests/sha1.c \
 tests/testsig.c tests/testclone.c tests/testthread.c \
