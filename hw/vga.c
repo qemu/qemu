@@ -662,7 +662,7 @@ static uint32_t vga_mem_readl(void *opaque, target_phys_addr_t addr)
 void vga_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     VGAState *s = opaque;
-    int memory_map_mode, plane, write_mode, b, func_select;
+    int memory_map_mode, plane, write_mode, b, func_select, mask;
     uint32_t write_mask, bit_mask, set_mask;
 
 #ifdef DEBUG_VGA_MEM
@@ -695,22 +695,26 @@ void vga_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
     if (s->sr[4] & 0x08) {
         /* chain 4 mode : simplest access */
         plane = addr & 3;
-        if (s->sr[2] & (1 << plane)) {
+        mask = (1 << plane);
+        if (s->sr[2] & mask) {
             s->vram_ptr[addr] = val;
 #ifdef DEBUG_VGA_MEM
             printf("vga: chain4: [0x%x]\n", addr);
 #endif
+            s->plane_updated |= mask; /* only used to detect font change */
             cpu_physical_memory_set_dirty(s->vram_offset + addr);
         }
     } else if (s->gr[5] & 0x10) {
         /* odd/even mode (aka text mode mapping) */
         plane = (s->gr[4] & 2) | (addr & 1);
-        if (s->sr[2] & (1 << plane)) {
+        mask = (1 << plane);
+        if (s->sr[2] & mask) {
             addr = ((addr & ~1) << 1) | plane;
             s->vram_ptr[addr] = val;
 #ifdef DEBUG_VGA_MEM
             printf("vga: odd/even: [0x%x]\n", addr);
 #endif
+            s->plane_updated |= mask; /* only used to detect font change */
             cpu_physical_memory_set_dirty(s->vram_offset + addr);
         }
     } else {
@@ -775,7 +779,9 @@ void vga_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 
     do_write:
         /* mask data according to sr[2] */
-        write_mask = mask16[s->sr[2]];
+        mask = s->sr[2];
+        s->plane_updated |= mask; /* only used to detect font change */
+        write_mask = mask16[mask];
         ((uint32_t *)s->vram_ptr)[addr] = 
             (((uint32_t *)s->vram_ptr)[addr] & ~write_mask) | 
             (val & write_mask);
@@ -1088,7 +1094,12 @@ static void vga_draw_text(VGAState *s, int full_update)
         s->font_offsets[1] = offset;
         full_update = 1;
     }
-
+    if (s->plane_updated & (1 << 2)) {
+        /* if the plane 2 was modified since the last display, it
+           indicates the font may have been modified */
+        s->plane_updated = 0;
+        full_update = 1;
+    }
     full_update |= update_basic_params(s);
 
     line_offset = s->line_offset;
