@@ -622,10 +622,11 @@ void OPPROTO op_int_im(void)
     raise_exception_err(EXCP0D_GPF, intno * 8 + 2);
 }
 
-void OPPROTO op_int3(void)
+void OPPROTO op_raise_exception(void)
 {
-    EIP = PARAM1;
-    raise_exception(EXCP03_INT3);
+    int exception_index;
+    exception_index = PARAM1;
+    raise_exception(exception_index);
 }
 
 void OPPROTO op_into(void)
@@ -636,12 +637,6 @@ void OPPROTO op_into(void)
         raise_exception(EXCP04_INTO);
     }
     FORCE_RET();
-}
-
-void OPPROTO op_gpf(void)
-{
-    EIP = PARAM1;
-    raise_exception(EXCP0D_GPF);
 }
 
 void OPPROTO op_cli(void)
