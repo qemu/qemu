@@ -132,21 +132,6 @@ void qemu_del_vm_stop_handler(VMStopHandler *cb, void *opaque);
 void vm_start(void);
 void vm_stop(int reason);
 
-/* network redirectors support */
-
-#define MAX_NICS 8
-
-typedef struct NetDriverState {
-    int fd;
-    uint8_t macaddr[6];
-    char ifname[16];
-} NetDriverState;
-
-extern int nb_nics;
-extern NetDriverState nd_table[MAX_NICS];
-
-void net_send_packet(NetDriverState *nd, const uint8_t *buf, int size);
-
 /* async I/O support */
 
 typedef void IOReadHandler(void *opaque, const uint8_t *buf, int size);
@@ -155,6 +140,31 @@ typedef int IOCanRWHandler(void *opaque);
 int qemu_add_fd_read_handler(int fd, IOCanRWHandler *fd_can_read, 
                              IOReadHandler *fd_read, void *opaque);
 void qemu_del_fd_read_handler(int fd);
+
+/* network redirectors support */
+
+#define MAX_NICS 8
+
+typedef struct NetDriverState {
+    int index; /* index number in QEMU */
+    uint8_t macaddr[6];
+    char ifname[16];
+    void (*send_packet)(struct NetDriverState *nd, 
+                        const uint8_t *buf, int size);
+    void (*add_read_packet)(struct NetDriverState *nd, 
+                            IOCanRWHandler *fd_can_read, 
+                            IOReadHandler *fd_read, void *opaque);
+    /* tun specific data */
+    int fd;
+    /* slirp specific data */
+} NetDriverState;
+
+extern int nb_nics;
+extern NetDriverState nd_table[MAX_NICS];
+
+void qemu_send_packet(NetDriverState *nd, const uint8_t *buf, int size);
+void qemu_add_read_packet(NetDriverState *nd, IOCanRWHandler *fd_can_read, 
+                          IOReadHandler *fd_read, void *opaque);
 
 /* timers */
 
@@ -417,6 +427,7 @@ void serial_receive_break(SerialState *s);
 void pic_set_irq(int irq, int level);
 void pic_init(void);
 uint32_t pic_intack_read(CPUState *env);
+void pic_info(void);
 
 /* i8254.c */
 

@@ -71,6 +71,7 @@ bigendian="no"
 mingw32="no"
 EXESUF=""
 gdbstub="yes"
+slirp="no"
 
 # OS specific
 targetos=`uname -s`
@@ -123,6 +124,8 @@ for opt do
   --disable-sdl) sdl="no"
   ;;
   --enable-mingw32) mingw32="yes" ; cross_prefix="i386-mingw32-"
+  ;; 
+  --enable-slirp) slirp="yes"
   ;; 
   esac
 done
@@ -377,6 +380,10 @@ if test "$sdl" = "yes" ; then
       echo -n " `aalib-config --cflags`" >> $config_mak ;
   fi
   echo "" >> $config_mak
+fi
+if test "$slirp" = "yes" ; then
+  echo "CONFIG_SLIRP=yes" >> $config_mak
+  echo "#define CONFIG_SLIRP 1" >> $config_h
 fi
 echo -n "VERSION=" >>$config_mak
 head $source_path/VERSION >>$config_mak

@@ -45,6 +45,10 @@
 #include <linux/if_tun.h>
 #endif
 
+#if defined(CONFIG_SLIRP)
+#include "libslirp.h"
+#endif
+
 #ifdef _WIN32
 #include <sys/timeb.h>
 #include <windows.h>
@@ -750,20 +754,121 @@ int serial_open_device(void)
 #endif
 
 /***********************************************************/
-/* Linux network device redirector */
+/* Linux network device redirectors */
 
-#ifdef _WIN32
-
-static int net_init(void)
+void hex_dump(FILE *f, const uint8_t *buf, int size)
 {
+    int len, i, j, c;
+
+    for(i=0;i<size;i+=16) {
+        len = size - i;
+        if (len > 16)
+            len = 16;
+        fprintf(f, "%08x ", i);
+        for(j=0;j<16;j++) {
+            if (j < len)
+                fprintf(f, " %02x", buf[i+j]);
+            else
+                fprintf(f, "   ");
+        }
+        fprintf(f, " ");
+        for(j=0;j<len;j++) {
+            c = buf[i+j];
+            if (c < ' ' || c > '~')
+                c = '.';
+            fprintf(f, "%c", c);
+        }
+        fprintf(f, "\n");
+    }
+}
+
+void qemu_send_packet(NetDriverState *nd, const uint8_t *buf, int size)
+{
+    nd->send_packet(nd, buf, size);
+}
+
+void qemu_add_read_packet(NetDriverState *nd, IOCanRWHandler *fd_can_read, 
+                          IOReadHandler *fd_read, void *opaque)
+{
+    nd->add_read_packet(nd, fd_can_read, fd_read, opaque);
+}
+
+/* dummy network adapter */
+
+static void dummy_send_packet(NetDriverState *nd, const uint8_t *buf, int size)
+{
+}
+
+static void dummy_add_read_packet(NetDriverState *nd, 
+                                  IOCanRWHandler *fd_can_read, 
+                                  IOReadHandler *fd_read, void *opaque)
+{
+}
+
+static int net_dummy_init(NetDriverState *nd)
+{
+    nd->send_packet = dummy_send_packet;
+    nd->add_read_packet = dummy_add_read_packet;
+    pstrcpy(nd->ifname, sizeof(nd->ifname), "dummy");
     return 0;
 }
 
-void net_send_packet(NetDriverState *nd, const uint8_t *buf, int size)
+#if defined(CONFIG_SLIRP)
+
+/* slirp network adapter */
+
+static void *slirp_fd_opaque;
+static IOCanRWHandler *slirp_fd_can_read;
+static IOReadHandler *slirp_fd_read;
+static int slirp_inited;
+
+int slirp_can_output(void)
 {
+    return slirp_fd_can_read(slirp_fd_opaque);
 }
 
-#else
+void slirp_output(const uint8_t *pkt, int pkt_len)
+{
+#if 0
+    printf("output:\n");
+    hex_dump(stdout, pkt, pkt_len);
+#endif
+    slirp_fd_read(slirp_fd_opaque, pkt, pkt_len);
+}
+
+static void slirp_send_packet(NetDriverState *nd, const uint8_t *buf, int size)
+{
+#if 0
+    printf("input:\n");
+    hex_dump(stdout, buf, size);
+#endif
+    slirp_input(buf, size);
+}
+
+static void slirp_add_read_packet(NetDriverState *nd, 
+                                  IOCanRWHandler *fd_can_read, 
+                                  IOReadHandler *fd_read, void *opaque)
+{
+    slirp_fd_opaque = opaque;
+    slirp_fd_can_read = fd_can_read;
+    slirp_fd_read = fd_read;
+}
+
+static int net_slirp_init(NetDriverState *nd)
+{
+    if (!slirp_inited) {
+        slirp_inited = 1;
+        slirp_init();
+    }
+    nd->send_packet = slirp_send_packet;
+    nd->add_read_packet = slirp_add_read_packet;
+    pstrcpy(nd->ifname, sizeof(nd->ifname), "slirp");
+    return 0;
+}
+
+#endif /* CONFIG_SLIRP */
+
+#if !defined(_WIN32)
 
 static int tun_open(char *ifname, int ifname_size)
 {
@@ -790,60 +895,61 @@ static int tun_open(char *ifname, int ifname_size)
     return fd;
 }
 
-static int net_init(void)
+static void tun_send_packet(NetDriverState *nd, const uint8_t *buf, int size)
 {
-    int pid, status, launch_script, i;
-    NetDriverState *nd;
-    char *args[MAX_NICS + 2];
-    char **parg;
-
-    launch_script = 0;
-    for(i = 0; i < nb_nics; i++) {
-        nd = &nd_table[i];
-        if (nd->fd < 0) {
-            nd->fd = tun_open(nd->ifname, sizeof(nd->ifname));
-            if (nd->fd >= 0) 
-                launch_script = 1;
-        }
-    }
-
-    if (launch_script) {
-        /* try to launch network init script */
-        pid = fork();
-        if (pid >= 0) {
-            if (pid == 0) {
-                parg = args;
-                *parg++ = network_script;
-                for(i = 0; i < nb_nics; i++) {
-                    nd = &nd_table[i];
-                    if (nd->fd >= 0) {
-                        *parg++ = nd->ifname;
-                    }
-                }
-                *parg++ = NULL;
-                execv(network_script, args);
-                exit(1);
-            }
-            while (waitpid(pid, &status, 0) != pid);
-            if (!WIFEXITED(status) ||
-                WEXITSTATUS(status) != 0) {
-                fprintf(stderr, "%s: could not launch network script\n",
-                        network_script);
-            }
-        }
-    }
-    return 0;
-}
-
-void net_send_packet(NetDriverState *nd, const uint8_t *buf, int size)
-{
-#ifdef DEBUG_NE2000
-    printf("NE2000: sending packet size=%d\n", size);
-#endif
     write(nd->fd, buf, size);
 }
 
-#endif
+static void tun_add_read_packet(NetDriverState *nd, 
+                                IOCanRWHandler *fd_can_read, 
+                                IOReadHandler *fd_read, void *opaque)
+{
+    qemu_add_fd_read_handler(nd->fd, fd_can_read, fd_read, opaque);
+}
+
+static int net_tun_init(NetDriverState *nd)
+{
+    int pid, status;
+    char *args[3];
+    char **parg;
+
+    nd->fd = tun_open(nd->ifname, sizeof(nd->ifname));
+    if (nd->fd < 0)
+        return -1;
+
+    /* try to launch network init script */
+    pid = fork();
+    if (pid >= 0) {
+        if (pid == 0) {
+            parg = args;
+            *parg++ = network_script;
+            *parg++ = nd->ifname;
+            *parg++ = NULL;
+            execv(network_script, args);
+            exit(1);
+        }
+        while (waitpid(pid, &status, 0) != pid);
+        if (!WIFEXITED(status) ||
+            WEXITSTATUS(status) != 0) {
+            fprintf(stderr, "%s: could not launch network script\n",
+                    network_script);
+        }
+    }
+    nd->send_packet = tun_send_packet;
+    nd->add_read_packet = tun_add_read_packet;
+    return 0;
+}
+
+static int net_fd_init(NetDriverState *nd, int fd)
+{
+    nd->fd = fd;
+    nd->send_packet = tun_send_packet;
+    nd->add_read_packet = tun_add_read_packet;
+    pstrcpy(nd->ifname, sizeof(nd->ifname), "tunfd");
+    return 0;
+}
+
+#endif /* !_WIN32 */
 
 /***********************************************************/
 /* dumb display */
@@ -1597,6 +1703,28 @@ int main_loop(void)
                 }
             }
         }
+
+#if defined(CONFIG_SLIRP)
+        /* XXX: merge with poll() */
+        if (slirp_inited) {
+            fd_set rfds, wfds, xfds;
+            int nfds;
+            struct timeval tv;
+
+            nfds = -1;
+            FD_ZERO(&rfds);
+            FD_ZERO(&wfds);
+            FD_ZERO(&xfds);
+            slirp_select_fill(&nfds, &rfds, &wfds, &xfds);
+            tv.tv_sec = 0;
+            tv.tv_usec = 0;
+            ret = select(nfds + 1, &rfds, &wfds, &xfds, &tv);
+            if (ret >= 0) {
+                slirp_select_poll(&rfds, &wfds, &xfds);
+            }
+        }
+#endif
+
 #endif
 
         if (vm_running) {
@@ -1636,10 +1764,14 @@ void help(void)
            "-nographic      disable graphical output and redirect serial I/Os to console\n"
            "\n"
            "Network options:\n"
-           "-n script       set network init script [default=%s]\n"
-           "-nics n         simulate 'n' network interfaces [default=1]\n"
+           "-nics n         simulate 'n' network cards [default=1]\n"
            "-macaddr addr   set the mac address of the first interface\n"
-           "-tun-fd fd0[,...] use these fds as already opened tap/tun interfaces\n"
+           "-n script       set tap/tun network init script [default=%s]\n"
+           "-tun-fd fd      use this fd as already opened tap/tun interface\n"
+#ifdef CONFIG_SLIRP
+           "-user-net       use user mode network stack [default if no tap/tun script]\n"
+#endif
+           "-dummy-net      use dummy network stack\n"
            "\n"
            "Linux boot specific:\n"
            "-kernel bzImage use 'bzImage' as kernel image\n"
@@ -1695,6 +1827,8 @@ struct option long_options[] = {
     { "no-code-copy", 0, NULL, 0 },
     { "nics", 1, NULL, 0 },
     { "macaddr", 1, NULL, 0 },
+    { "user-net", 1, NULL, 0 },
+    { "dummy-net", 1, NULL, 0 },
     { NULL, 0, NULL, 0 },
 };
 
@@ -1706,6 +1840,10 @@ struct option long_options[] = {
 static uint8_t *signal_stack;
 
 #endif
+
+#define NET_IF_TUN   0
+#define NET_IF_USER  1
+#define NET_IF_DUMMY 2
 
 int main(int argc, char **argv)
 {
@@ -1722,7 +1860,8 @@ int main(int argc, char **argv)
     int cyls, heads, secs;
     int start_emulation = 1;
     uint8_t macaddr[6];
-
+    int net_if_type, nb_tun_fds, tun_fds[MAX_NICS];
+    
 #if !defined(CONFIG_SOFTMMU)
     /* we never want that malloc() uses mmap() */
     mallopt(M_MMAP_THRESHOLD, 4096 * 1024);
@@ -1746,6 +1885,8 @@ int main(int argc, char **argv)
     has_cdrom = 1;
     cyls = heads = secs = 0;
 
+    nb_tun_fds = 0;
+    net_if_type = -1;
     nb_nics = 1;
     /* default mac address of the first network interface */
     macaddr[0] = 0x52;
@@ -1754,10 +1895,8 @@ int main(int argc, char **argv)
     macaddr[3] = 0x12;
     macaddr[4] = 0x34;
     macaddr[5] = 0x56;
-    
-    for(i = 0; i < MAX_NICS; i++) 
-        nd_table[i].fd = -1;
-    
+
+
     for(;;) {
         c = getopt_long_only(argc, argv, "hm:d:n:sp:L:S", long_options, &long_index);
         if (c == -1)
@@ -1809,23 +1948,13 @@ int main(int argc, char **argv)
                 {
                     const char *p;
                     int fd;
-                    p = optarg;
-                    nb_nics = 0;
-                    for(;;) {
-                        fd = strtol(p, (char **)&p, 0);
-                        nd_table[nb_nics].fd = fd;
-                        snprintf(nd_table[nb_nics].ifname, 
-                                 sizeof(nd_table[nb_nics].ifname),
-                                 "fd%d", nb_nics);
-                        nb_nics++;
-                        if (*p == ',') {
-                            p++;
-                        } else if (*p != '\0') {
-                            fprintf(stderr, "qemu: invalid fd for network interface %d\n", nb_nics);
+                    if (nb_tun_fds < MAX_NICS) {
+                        fd = strtol(optarg, (char **)&p, 0);
+                        if (*p != '\0') {
+                            fprintf(stderr, "qemu: invalid fd for network interface %d\n", nb_tun_fds);
                             exit(1);
-                        } else {
-                            break;
                         }
+                        tun_fds[nb_tun_fds++] = fd;
                     }
                 }
 		break;
@@ -1884,6 +2013,12 @@ int main(int argc, char **argv)
                         }
                     }
                 }
+                break;
+            case 18:
+                net_if_type = NET_IF_USER;
+                break;
+            case 19:
+                net_if_type = NET_IF_DUMMY;
                 break;
             }
             break;
@@ -1965,8 +2100,18 @@ int main(int argc, char **argv)
 #endif
 
     /* init host network redirectors */
-    for(i = 0; i < MAX_NICS; i++) {
+    if (net_if_type == -1) {
+        net_if_type = NET_IF_TUN;
+#if defined(CONFIG_SLIRP)
+        if (access(network_script, R_OK) < 0) {
+            net_if_type = NET_IF_USER;
+        }
+#endif
+    }
+
+    for(i = 0; i < nb_nics; i++) {
         NetDriverState *nd = &nd_table[i];
+        nd->index = i;
         /* init virtual mac address */
         nd->macaddr[0] = macaddr[0];
         nd->macaddr[1] = macaddr[1];
@@ -1974,8 +2119,27 @@ int main(int argc, char **argv)
         nd->macaddr[3] = macaddr[3];
         nd->macaddr[4] = macaddr[4];
         nd->macaddr[5] = macaddr[5] + i;
+        switch(net_if_type) {
+#if defined(CONFIG_SLIRP)
+        case NET_IF_USER:
+            net_slirp_init(nd);
+            break;
+#endif
+#if !defined(_WIN32)
+        case NET_IF_TUN:
+            if (i < nb_tun_fds) {
+                net_fd_init(nd, tun_fds[i]);
+            } else {
+                net_tun_init(nd);
+            }
+            break;
+#endif
+        case NET_IF_DUMMY:
+        default:
+            net_dummy_init(nd);
+            break;
+        }
     }
-    net_init();
 
     /* init the memory */
     phys_ram_size = ram_size + vga_ram_size;
@@ -2058,7 +2222,7 @@ int main(int argc, char **argv)
             }
             if (fd_filename[i] != '\0') {
                 if (bdrv_open(fd_table[i], fd_filename[i], snapshot) < 0) {
-                    fprintf(stderr, "qemu: could not open floppy disk image '%s\n",
+                    fprintf(stderr, "qemu: could not open floppy disk image '%s'\n",
                             fd_filename[i]);
                     exit(1);
                 }
