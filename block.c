@@ -22,43 +22,16 @@
  * THE SOFTWARE.
  */
 #include "vl.h"
-
-#ifndef _WIN32
-#include <sys/mman.h>
-#endif
-
-#include "cow.h"
-
-struct BlockDriverState {
-    int fd; /* if -1, only COW mappings */
-    int64_t total_sectors;
-    int read_only; /* if true, the media is read only */
-    int inserted; /* if true, the media is present */
-    int removable; /* if true, the media can be removed */
-    int locked;    /* if true, the media cannot temporarily be ejected */
-    /* event callback when inserting/removing */
-    void (*change_cb)(void *opaque);
-    void *change_opaque;
-
-    uint8_t *cow_bitmap; /* if non NULL, COW mappings are used first */
-    uint8_t *cow_bitmap_addr; /* mmap address of cow_bitmap */
-    int cow_bitmap_size;
-    int cow_fd;
-    int64_t cow_sectors_offset;
-    int boot_sector_enabled;
-    uint8_t boot_sector_data[512];
-
-    char filename[1024];
-    
-    /* NOTE: the following infos are only hints for real hardware
-       drivers. They are not used by the block driver */
-    int cyls, heads, secs;
-    int type;
-    char device_name[32];
-    BlockDriverState *next;
-};
+#include "block_int.h"
 
 static BlockDriverState *bdrv_first;
+static BlockDriver *first_drv;
+
+void bdrv_register(BlockDriver *bdrv)
+{
+    bdrv->next = first_drv;
+    first_drv = bdrv;
+}
 
 /* create a new block device (by default it is empty) */
 BlockDriverState *bdrv_new(const char *device_name)
@@ -69,126 +42,149 @@ BlockDriverState *bdrv_new(const char *device_name)
     if(!bs)
         return NULL;
     pstrcpy(bs->device_name, sizeof(bs->device_name), device_name);
-    /* insert at the end */
-    pbs = &bdrv_first;
-    while (*pbs != NULL)
-        pbs = &(*pbs)->next;
-    *pbs = bs;
+    if (device_name[0] != '\0') {
+        /* insert at the end */
+        pbs = &bdrv_first;
+        while (*pbs != NULL)
+            pbs = &(*pbs)->next;
+        *pbs = bs;
+    }
     return bs;
+}
+
+BlockDriver *bdrv_find_format(const char *format_name)
+{
+    BlockDriver *drv1;
+    for(drv1 = first_drv; drv1 != NULL; drv1 = drv1->next) {
+        if (!strcmp(drv1->format_name, format_name))
+            return drv1;
+    }
+    return NULL;
+}
+
+int bdrv_create(BlockDriver *drv, 
+                const char *filename, int64_t size_in_sectors,
+                const char *backing_file, int flags)
+{
+    if (!drv->bdrv_create)
+        return -ENOTSUP;
+    return drv->bdrv_create(filename, size_in_sectors, backing_file, flags);
+}
+
+/* XXX: race condition possible */
+static void get_tmp_filename(char *filename, int size)
+{
+    int fd;
+    pstrcpy(filename, size, "/tmp/vl.XXXXXX");
+    fd = mkstemp(filename);
+    close(fd);
+}
+
+static BlockDriver *find_image_format(const char *filename)
+{
+    int fd, ret, score, score_max;
+    BlockDriver *drv1, *drv;
+    uint8_t buf[1024];
+
+    fd = open(filename, O_RDONLY | O_BINARY | O_LARGEFILE);
+    if (fd < 0)
+        return NULL;
+    ret = read(fd, buf, sizeof(buf));
+    if (ret < 0) {
+        close(fd);
+        return NULL;
+    }
+    close(fd);
+    
+    drv = NULL;
+    score_max = 0;
+    for(drv1 = first_drv; drv1 != NULL; drv1 = drv1->next) {
+        score = drv1->bdrv_probe(buf, ret, filename);
+        if (score > score_max) {
+            score_max = score;
+            drv = drv1;
+        }
+    }
+    return drv;
 }
 
 int bdrv_open(BlockDriverState *bs, const char *filename, int snapshot)
 {
-    int fd;
-    int64_t size;
-    struct cow_header_v2 cow_header;
-#ifndef _WIN32
-    char template[] = "/tmp/vl.XXXXXX";
-    int cow_fd;
-    struct stat st;
-#endif
+    return bdrv_open2(bs, filename, snapshot, NULL);
+}
 
-    bs->read_only = 0;
-    bs->fd = -1;
-    bs->cow_fd = -1;
-    bs->cow_bitmap = NULL;
-    pstrcpy(bs->filename, sizeof(bs->filename), filename);
-
-    /* open standard HD image */
-#ifdef _WIN32
-    fd = open(filename, O_RDWR | O_BINARY);
-#else
-    fd = open(filename, O_RDWR | O_LARGEFILE);
-#endif
-    if (fd < 0) {
-        /* read only image on disk */
-#ifdef _WIN32
-        fd = open(filename, O_RDONLY | O_BINARY);
-#else
-        fd = open(filename, O_RDONLY | O_LARGEFILE);
-#endif
-        if (fd < 0) {
-            perror(filename);
-            goto fail;
-        }
-        if (!snapshot)
-            bs->read_only = 1;
-    }
-    bs->fd = fd;
-
-    /* see if it is a cow image */
-    if (read(fd, &cow_header, sizeof(cow_header)) != sizeof(cow_header)) {
-        fprintf(stderr, "%s: could not read header\n", filename);
-        goto fail;
-    }
-#ifndef _WIN32
-    if (be32_to_cpu(cow_header.magic) == COW_MAGIC &&
-        be32_to_cpu(cow_header.version) == COW_VERSION) {
-        /* cow image found */
-        size = cow_header.size;
-#ifndef WORDS_BIGENDIAN
-        size = bswap64(size);
-#endif    
-        bs->total_sectors = size / 512;
-
-        bs->cow_fd = fd;
-        bs->fd = -1;
-        if (cow_header.backing_file[0] != '\0') {
-            if (stat(cow_header.backing_file, &st) != 0) {
-                fprintf(stderr, "%s: could not find original disk image '%s'\n", filename, cow_header.backing_file);
-                goto fail;
-            }
-            if (st.st_mtime != be32_to_cpu(cow_header.mtime)) {
-                fprintf(stderr, "%s: original raw disk image '%s' does not match saved timestamp\n", filename, cow_header.backing_file);
-                goto fail;
-            }
-            fd = open(cow_header.backing_file, O_RDONLY | O_LARGEFILE);
-            if (fd < 0)
-                goto fail;
-            bs->fd = fd;
-        }
-        /* mmap the bitmap */
-        bs->cow_bitmap_size = ((bs->total_sectors + 7) >> 3) + sizeof(cow_header);
-        bs->cow_bitmap_addr = mmap(get_mmap_addr(bs->cow_bitmap_size), 
-                                   bs->cow_bitmap_size, 
-                                   PROT_READ | PROT_WRITE,
-                                   MAP_SHARED, bs->cow_fd, 0);
-        if (bs->cow_bitmap_addr == MAP_FAILED)
-            goto fail;
-        bs->cow_bitmap = bs->cow_bitmap_addr + sizeof(cow_header);
-        bs->cow_sectors_offset = (bs->cow_bitmap_size + 511) & ~511;
-        snapshot = 0;
-    } else 
-#endif
-    {
-        /* standard raw image */
-        size = lseek64(fd, 0, SEEK_END);
-        bs->total_sectors = size / 512;
-        bs->fd = fd;
-    }
-
-#ifndef _WIN32
-    if (snapshot) {
-        /* create a temporary COW file */
-        cow_fd = mkstemp64(template);
-        if (cow_fd < 0)
-            goto fail;
-        bs->cow_fd = cow_fd;
-	unlink(template);
-        
-        /* just need to allocate bitmap */
-        bs->cow_bitmap_size = (bs->total_sectors + 7) >> 3;
-        bs->cow_bitmap_addr = mmap(get_mmap_addr(bs->cow_bitmap_size), 
-                                   bs->cow_bitmap_size, 
-                                   PROT_READ | PROT_WRITE,
-                                   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-        if (bs->cow_bitmap_addr == MAP_FAILED)
-            goto fail;
-        bs->cow_bitmap = bs->cow_bitmap_addr;
-        bs->cow_sectors_offset = 0;
-    }
-#endif
+int bdrv_open2(BlockDriverState *bs, const char *filename, int snapshot,
+               BlockDriver *drv)
+{
+    int ret;
+    char tmp_filename[1024];
     
+    bs->read_only = 0;
+    bs->is_temporary = 0;
+    bs->encrypted = 0;
+    
+    if (snapshot) {
+        BlockDriverState *bs1;
+        int64_t total_size;
+        
+        /* if snapshot, we create a temporary backing file and open it
+           instead of opening 'filename' directly */
+
+        /* if there is a backing file, use it */
+        bs1 = bdrv_new("");
+        if (!bs1) {
+            return -1;
+        }
+        if (bdrv_open(bs1, filename, 0) < 0) {
+            bdrv_delete(bs1);
+            return -1;
+        }
+        total_size = bs1->total_sectors;
+        bdrv_delete(bs1);
+        
+        get_tmp_filename(tmp_filename, sizeof(tmp_filename));
+        /* XXX: use cow for linux as it is more efficient ? */
+        if (bdrv_create(&bdrv_qcow, tmp_filename, 
+                        total_size, filename, 0) < 0) {
+            return -1;
+        }
+        filename = tmp_filename;
+        bs->is_temporary = 1;
+    }
+    
+    pstrcpy(bs->filename, sizeof(bs->filename), filename);
+    if (!drv) {
+        drv = find_image_format(filename);
+        if (!drv)
+            return -1;
+    }
+    bs->drv = drv;
+    bs->opaque = qemu_mallocz(drv->instance_size);
+    if (bs->opaque == NULL && drv->instance_size > 0)
+        return -1;
+    
+    ret = drv->bdrv_open(bs, filename);
+    if (ret < 0) {
+        qemu_free(bs->opaque);
+        return -1;
+    }
+#ifndef _WIN32
+    if (bs->is_temporary) {
+        unlink(filename);
+    }
+#endif
+    if (bs->backing_file[0] != '\0' && drv->bdrv_is_allocated) {
+        /* if there is a backing file, use it */
+        bs->backing_hd = bdrv_new("");
+        if (!bs->backing_hd) {
+        fail:
+            bdrv_close(bs);
+            return -1;
+        }
+        if (bdrv_open(bs->backing_hd, bs->backing_file, 0) < 0)
+            goto fail;
+    }
+
     bs->inserted = 1;
 
     /* call the change callback */
@@ -196,23 +192,22 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int snapshot)
         bs->change_cb(bs->change_opaque);
 
     return 0;
- fail:
-    bdrv_close(bs);
-    return -1;
 }
 
 void bdrv_close(BlockDriverState *bs)
 {
     if (bs->inserted) {
-#ifndef _WIN32
-        /* we unmap the mapping so that it is written to the COW file */
-        if (bs->cow_bitmap_addr)
-            munmap(bs->cow_bitmap_addr, bs->cow_bitmap_size);
+        if (bs->backing_hd)
+            bdrv_delete(bs->backing_hd);
+        bs->drv->bdrv_close(bs);
+        qemu_free(bs->opaque);
+#ifdef _WIN32
+        if (bs->is_temporary) {
+            unlink(bs->filename);
+        }
 #endif
-        if (bs->cow_fd >= 0)
-            close(bs->cow_fd);
-        if (bs->fd >= 0)
-            close(bs->fd);
+        bs->opaque = NULL;
+        bs->drv = NULL;
         bs->inserted = 0;
 
         /* call the change callback */
@@ -223,85 +218,45 @@ void bdrv_close(BlockDriverState *bs)
 
 void bdrv_delete(BlockDriverState *bs)
 {
+    /* XXX: remove the driver list */
     bdrv_close(bs);
     qemu_free(bs);
-}
-
-static inline void set_bit(uint8_t *bitmap, int64_t bitnum)
-{
-    bitmap[bitnum / 8] |= (1 << (bitnum%8));
-}
-
-static inline int is_bit_set(const uint8_t *bitmap, int64_t bitnum)
-{
-    return !!(bitmap[bitnum / 8] & (1 << (bitnum%8)));
-}
-
-
-/* Return true if first block has been changed (ie. current version is
- * in COW file).  Set the number of continuous blocks for which that
- * is true. */
-static int is_changed(uint8_t *bitmap,
-                      int64_t sector_num, int nb_sectors,
-                      int *num_same)
-{
-    int changed;
-
-    if (!bitmap || nb_sectors == 0) {
-	*num_same = nb_sectors;
-	return 0;
-    }
-
-    changed = is_bit_set(bitmap, sector_num);
-    for (*num_same = 1; *num_same < nb_sectors; (*num_same)++) {
-	if (is_bit_set(bitmap, sector_num + *num_same) != changed)
-	    break;
-    }
-
-    return changed;
 }
 
 /* commit COW file into the raw image */
 int bdrv_commit(BlockDriverState *bs)
 {
     int64_t i;
-    uint8_t *cow_bitmap;
+    int n, j;
+    unsigned char sector[512];
 
     if (!bs->inserted)
-        return -1;
-
-    if (!bs->cow_bitmap) {
-	fprintf(stderr, "Already committed to %s\n", bs->filename);
-	return 0;
-    }
+        return -ENOENT;
 
     if (bs->read_only) {
-	fprintf(stderr, "Can't commit to %s: read-only\n", bs->filename);
-	return -1;
+	return -EACCES;
     }
 
-    cow_bitmap = bs->cow_bitmap;
-    for (i = 0; i < bs->total_sectors; i++) {
-	if (is_bit_set(cow_bitmap, i)) {
-	    unsigned char sector[512];
-	    if (bdrv_read(bs, i, sector, 1) != 0) {
-		fprintf(stderr, "Error reading sector %lli: aborting commit\n",
-			(long long)i);
-		return -1;
-	    }
-
-	    /* Make bdrv_write write to real file for a moment. */
-	    bs->cow_bitmap = NULL;
-	    if (bdrv_write(bs, i, sector, 1) != 0) {
-		fprintf(stderr, "Error writing sector %lli: aborting commit\n",
-			(long long)i);
-		bs->cow_bitmap = cow_bitmap;
-		return -1;
-	    }
-	    bs->cow_bitmap = cow_bitmap;
-	}
+    if (!bs->backing_hd) {
+	return -ENOTSUP;
     }
-    fprintf(stderr, "Committed snapshot to %s\n", bs->filename);
+
+    for (i = 0; i < bs->total_sectors;) {
+        if (bs->drv->bdrv_is_allocated(bs, i, 65536, &n)) {
+            for(j = 0; j < n; j++) {
+                if (bdrv_read(bs, i, sector, 1) != 0) {
+                    return -EIO;
+                }
+
+                if (bdrv_write(bs->backing_hd, i, sector, 1) != 0) {
+                    return -EIO;
+                }
+                i++;
+	    }
+	} else {
+            i += n;
+        }
+    }
     return 0;
 }
 
@@ -309,37 +264,34 @@ int bdrv_commit(BlockDriverState *bs)
 int bdrv_read(BlockDriverState *bs, int64_t sector_num, 
               uint8_t *buf, int nb_sectors)
 {
-    int ret, n, fd;
-    int64_t offset;
-    
+    int ret, n;
+    BlockDriver *drv = bs->drv;
+
     if (!bs->inserted)
         return -1;
 
     while (nb_sectors > 0) {
-        if (is_changed(bs->cow_bitmap, sector_num, nb_sectors, &n)) {
-            fd = bs->cow_fd;
-            offset = bs->cow_sectors_offset;
-        } else if (sector_num == 0 && bs->boot_sector_enabled) {
+        if (sector_num == 0 && bs->boot_sector_enabled) {
             memcpy(buf, bs->boot_sector_data, 512);
             n = 1;
-            goto next;
-        } else {
-            fd = bs->fd;
-            offset = 0;
-        }
-
-        if (fd < 0) {
-            /* no file, just return empty sectors */
-            memset(buf, 0, n * 512);
-        } else {
-            offset += sector_num * 512;
-            lseek64(fd, offset, SEEK_SET);
-            ret = read(fd, buf, n * 512);
-            if (ret != n * 512) {
-                return -1;
+        } else if (bs->backing_hd) {
+            if (drv->bdrv_is_allocated(bs, sector_num, nb_sectors, &n)) {
+                ret = drv->bdrv_read(bs, sector_num, buf, n);
+                if (ret < 0)
+                    return -1;
+            } else {
+                /* read from the base image */
+                ret = bdrv_read(bs->backing_hd, sector_num, buf, n);
+                if (ret < 0)
+                    return -1;
             }
+        } else {
+            ret = drv->bdrv_read(bs, sector_num, buf, nb_sectors);
+            if (ret < 0)
+                return -1;
+            /* no need to loop */
+            break;
         }
-    next:
         nb_sectors -= n;
         sector_num += n;
         buf += n * 512;
@@ -351,37 +303,11 @@ int bdrv_read(BlockDriverState *bs, int64_t sector_num,
 int bdrv_write(BlockDriverState *bs, int64_t sector_num, 
                const uint8_t *buf, int nb_sectors)
 {
-    int ret, fd, i;
-    int64_t offset, retl;
-    
     if (!bs->inserted)
         return -1;
     if (bs->read_only)
         return -1;
-
-    if (bs->cow_bitmap) {
-        fd = bs->cow_fd;
-        offset = bs->cow_sectors_offset;
-    } else {
-        fd = bs->fd;
-        offset = 0;
-    }
-    
-    offset += sector_num * 512;
-    retl = lseek64(fd, offset, SEEK_SET);
-    if (retl == -1) {
-        return -1;
-    }
-    ret = write(fd, buf, nb_sectors * 512);
-    if (ret != nb_sectors * 512) {
-        return -1;
-    }
-
-    if (bs->cow_bitmap) {
-	for (i = 0; i < nb_sectors; i++)
-	    set_bit(bs->cow_bitmap, sector_num + i);
-    }
-    return 0;
+    return bs->drv->bdrv_write(bs, sector_num, buf, nb_sectors);
 }
 
 void bdrv_get_geometry(BlockDriverState *bs, int64_t *nb_sectors_ptr)
@@ -459,6 +385,47 @@ void bdrv_set_change_cb(BlockDriverState *bs,
     bs->change_opaque = opaque;
 }
 
+int bdrv_is_encrypted(BlockDriverState *bs)
+{
+    if (bs->backing_hd && bs->backing_hd->encrypted)
+        return 1;
+    return bs->encrypted;
+}
+
+int bdrv_set_key(BlockDriverState *bs, const char *key)
+{
+    int ret;
+    if (bs->backing_hd && bs->backing_hd->encrypted) {
+        ret = bdrv_set_key(bs->backing_hd, key);
+        if (ret < 0)
+            return ret;
+        if (!bs->encrypted)
+            return 0;
+    }
+    if (!bs->encrypted || !bs->drv || !bs->drv->bdrv_set_key)
+        return -1;
+    return bs->drv->bdrv_set_key(bs, key);
+}
+
+void bdrv_get_format(BlockDriverState *bs, char *buf, int buf_size)
+{
+    if (!bs->inserted || !bs->drv) {
+        buf[0] = '\0';
+    } else {
+        pstrcpy(buf, buf_size, bs->drv->format_name);
+    }
+}
+
+void bdrv_iterate_format(void (*it)(void *opaque, const char *name), 
+                         void *opaque)
+{
+    BlockDriver *drv;
+
+    for (drv = first_drv; drv != NULL; drv = drv->next) {
+        it(opaque, drv->format_name);
+    }
+}
+
 BlockDriverState *bdrv_find(const char *name)
 {
     BlockDriverState *bs;
@@ -477,6 +444,11 @@ void bdrv_iterate(void (*it)(void *opaque, const char *name), void *opaque)
     for (bs = bdrv_first; bs != NULL; bs = bs->next) {
         it(opaque, bs->device_name);
     }
+}
+
+const char *bdrv_get_device_name(BlockDriverState *bs)
+{
+    return bs->device_name;
 }
 
 void bdrv_info(void)
@@ -503,10 +475,117 @@ void bdrv_info(void)
         }
         if (bs->inserted) {
             term_printf(" file=%s", bs->filename);
+            if (bs->backing_file[0] != '\0')
+                term_printf(" backing_file=%s", bs->backing_file);
             term_printf(" ro=%d", bs->read_only);
+            term_printf(" drv=%s", bs->drv->format_name);
+            if (bs->encrypted)
+                term_printf(" encrypted");
         } else {
             term_printf(" [not inserted]");
         }
         term_printf("\n");
     }
+}
+
+
+/**************************************************************/
+/* RAW block driver */
+
+typedef struct BDRVRawState {
+    int fd;
+} BDRVRawState;
+
+static int raw_probe(const uint8_t *buf, int buf_size, const char *filename)
+{
+    return 1; /* maybe */
+}
+
+static int raw_open(BlockDriverState *bs, const char *filename)
+{
+    BDRVRawState *s = bs->opaque;
+    int fd;
+    int64_t size;
+
+    fd = open(filename, O_RDWR | O_BINARY | O_LARGEFILE);
+    if (fd < 0) {
+        fd = open(filename, O_RDONLY | O_BINARY | O_LARGEFILE);
+        if (fd < 0)
+            return -1;
+        bs->read_only = 1;
+    }
+    size = lseek64(fd, 0, SEEK_END);
+    bs->total_sectors = size / 512;
+    s->fd = fd;
+    return 0;
+}
+
+static int raw_read(BlockDriverState *bs, int64_t sector_num, 
+                    uint8_t *buf, int nb_sectors)
+{
+    BDRVRawState *s = bs->opaque;
+    int ret;
+    
+    lseek64(s->fd, sector_num * 512, SEEK_SET);
+    ret = read(s->fd, buf, nb_sectors * 512);
+    if (ret != nb_sectors * 512) 
+        return -1;
+    return 0;
+}
+
+static int raw_write(BlockDriverState *bs, int64_t sector_num, 
+                     const uint8_t *buf, int nb_sectors)
+{
+    BDRVRawState *s = bs->opaque;
+    int ret;
+    
+    lseek64(s->fd, sector_num * 512, SEEK_SET);
+    ret = write(s->fd, buf, nb_sectors * 512);
+    if (ret != nb_sectors * 512) 
+        return -1;
+    return 0;
+}
+
+static int raw_close(BlockDriverState *bs)
+{
+    BDRVRawState *s = bs->opaque;
+    close(s->fd);
+}
+
+static int raw_create(const char *filename, int64_t total_size,
+                      const char *backing_file, int flags)
+{
+    int fd;
+
+    if (flags || backing_file)
+        return -ENOTSUP;
+
+    fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY | O_LARGEFILE, 
+              0644);
+    if (fd < 0)
+        return -EIO;
+    ftruncate64(fd, total_size * 512);
+    close(fd);
+    return 0;
+}
+
+BlockDriver bdrv_raw = {
+    "raw",
+    sizeof(BDRVRawState),
+    raw_probe,
+    raw_open,
+    raw_read,
+    raw_write,
+    raw_close,
+    raw_create,
+};
+
+void bdrv_init(void)
+{
+    bdrv_register(&bdrv_raw);
+#ifndef _WIN32
+    bdrv_register(&bdrv_cow);
+#endif
+    bdrv_register(&bdrv_qcow);
+    bdrv_register(&bdrv_vmdk);
 }

@@ -48,160 +48,26 @@
 #define lseek64 _lseeki64
 #endif
 
+#ifdef QEMU_TOOL
+
+/* we use QEMU_TOOL in the command line tools which do not depend on
+   the target CPU type */
+#include "config-host.h"
+#include <setjmp.h>
+#include "osdep.h"
+#include "bswap.h"
+
+#else
+
 #include "cpu.h"
+
+#endif /* !defined(QEMU_TOOL) */
 
 #ifndef glue
 #define xglue(x, y) x ## y
 #define glue(x, y) xglue(x, y)
 #define stringify(s)	tostring(s)
 #define tostring(s)	#s
-#endif
-
-#if defined(WORDS_BIGENDIAN)
-static inline uint32_t be32_to_cpu(uint32_t v)
-{
-    return v;
-}
-
-static inline uint16_t be16_to_cpu(uint16_t v)
-{
-    return v;
-}
-
-static inline uint32_t cpu_to_be32(uint32_t v)
-{
-    return v;
-}
-
-static inline uint16_t cpu_to_be16(uint16_t v)
-{
-    return v;
-}
-
-static inline uint32_t le32_to_cpu(uint32_t v)
-{
-    return bswap32(v);
-}
-
-static inline uint16_t le16_to_cpu(uint16_t v)
-{
-    return bswap16(v);
-}
-
-static inline uint32_t cpu_to_le32(uint32_t v)
-{
-    return bswap32(v);
-}
-
-static inline uint16_t cpu_to_le16(uint16_t v)
-{
-    return bswap16(v);
-}
-
-#else
-
-static inline uint32_t be32_to_cpu(uint32_t v)
-{
-    return bswap32(v);
-}
-
-static inline uint16_t be16_to_cpu(uint16_t v)
-{
-    return bswap16(v);
-}
-
-static inline uint32_t cpu_to_be32(uint32_t v)
-{
-    return bswap32(v);
-}
-
-static inline uint16_t cpu_to_be16(uint16_t v)
-{
-    return bswap16(v);
-}
-
-static inline uint32_t le32_to_cpu(uint32_t v)
-{
-    return v;
-}
-
-static inline uint16_t le16_to_cpu(uint16_t v)
-{
-    return v;
-}
-
-static inline uint32_t cpu_to_le32(uint32_t v)
-{
-    return v;
-}
-
-static inline uint16_t cpu_to_le16(uint16_t v)
-{
-    return v;
-}
-#endif
-
-static inline void cpu_to_le16w(uint16_t *p, uint16_t v)
-{
-    *p = cpu_to_le16(v);
-}
-
-static inline void cpu_to_le32w(uint32_t *p, uint32_t v)
-{
-    *p = cpu_to_le32(v);
-}
-
-static inline uint16_t le16_to_cpup(const uint16_t *p)
-{
-    return le16_to_cpu(*p);
-}
-
-static inline uint32_t le32_to_cpup(const uint32_t *p)
-{
-    return le32_to_cpu(*p);
-}
-
-/* unaligned versions (optimized for frequent unaligned accesses)*/
-
-#if defined(__i386__) || defined(__powerpc__)
-
-#define cpu_to_le16wu(p, v) cpu_to_le16w(p, v)
-#define cpu_to_le32wu(p, v) cpu_to_le32w(p, v)
-#define le16_to_cpupu(p) le16_to_cpup(p)
-#define le32_to_cpupu(p) le32_to_cpup(p)
-
-#else
-
-static inline void cpu_to_le16wu(uint16_t *p, uint16_t v)
-{
-    uint8_t *p1 = (uint8_t *)p;
-
-    p1[0] = v;
-    p1[1] = v >> 8;
-}
-
-static inline void cpu_to_le32wu(uint32_t *p, uint32_t v)
-{
-    uint8_t *p1 = (uint8_t *)p;
-
-    p1[0] = v;
-    p1[1] = v >> 8;
-    p1[2] = v >> 16;
-    p1[3] = v >> 24;
-}
-
-static inline uint16_t le16_to_cpupu(const uint16_t *p)
-{
-    const uint8_t *p1 = (const uint8_t *)p;
-    return p1[0] | (p1[1] << 8);
-}
-
-static inline uint32_t le32_to_cpupu(const uint32_t *p)
-{
-    const uint8_t *p1 = (const uint8_t *)p;
-    return p1[0] | (p1[1] << 8) | (p1[2] << 16) | (p1[3] << 24);
-}
-
 #endif
 
 /* vl.c */
@@ -232,6 +98,8 @@ typedef void QEMUResetHandler(void *opaque);
 void qemu_register_reset(QEMUResetHandler *func, void *opaque);
 void qemu_system_reset_request(void);
 void qemu_system_shutdown_request(void);
+
+void main_loop_wait(int timeout);
 
 extern int audio_enabled;
 extern int ram_size;
@@ -301,6 +169,7 @@ void qemu_del_fd_read_handler(int fd);
 /* character device */
 
 #define CHR_EVENT_BREAK 0 /* serial break char */
+#define CHR_EVENT_FOCUS 1 /* focus to this terminal (modal input needed) */
 
 typedef void IOEventHandler(void *opaque, int event);
 
@@ -310,11 +179,13 @@ typedef struct CharDriverState {
                                  IOCanRWHandler *fd_can_read, 
                                  IOReadHandler *fd_read, void *opaque);
     IOEventHandler *chr_event;
+    IOEventHandler *chr_send_event;
     void *opaque;
 } CharDriverState;
 
 void qemu_chr_printf(CharDriverState *s, const char *fmt, ...);
 int qemu_chr_write(CharDriverState *s, const uint8_t *buf, int len);
+void qemu_chr_send_event(CharDriverState *s, int event);
 void qemu_chr_add_read_handler(CharDriverState *s, 
                                IOCanRWHandler *fd_can_read, 
                                IOReadHandler *fd_read, void *opaque);
@@ -464,10 +335,23 @@ void qemu_put_timer(QEMUFile *f, QEMUTimer *ts);
 
 /* block.c */
 typedef struct BlockDriverState BlockDriverState;
+typedef struct BlockDriver BlockDriver;
 
+extern BlockDriver bdrv_raw;
+extern BlockDriver bdrv_cow;
+extern BlockDriver bdrv_qcow;
+extern BlockDriver bdrv_vmdk;
+
+void bdrv_init(void);
+BlockDriver *bdrv_find_format(const char *format_name);
+int bdrv_create(BlockDriver *drv, 
+                const char *filename, int64_t size_in_sectors,
+                const char *backing_file, int flags);
 BlockDriverState *bdrv_new(const char *device_name);
 void bdrv_delete(BlockDriverState *bs);
 int bdrv_open(BlockDriverState *bs, const char *filename, int snapshot);
+int bdrv_open2(BlockDriverState *bs, const char *filename, int snapshot,
+               BlockDriver *drv);
 void bdrv_close(BlockDriverState *bs);
 int bdrv_read(BlockDriverState *bs, int64_t sector_num, 
               uint8_t *buf, int nb_sectors);
@@ -494,11 +378,21 @@ int bdrv_is_locked(BlockDriverState *bs);
 void bdrv_set_locked(BlockDriverState *bs, int locked);
 void bdrv_set_change_cb(BlockDriverState *bs, 
                         void (*change_cb)(void *opaque), void *opaque);
-
+void bdrv_get_format(BlockDriverState *bs, char *buf, int buf_size);
 void bdrv_info(void);
 BlockDriverState *bdrv_find(const char *name);
 void bdrv_iterate(void (*it)(void *opaque, const char *name), void *opaque);
+int bdrv_is_encrypted(BlockDriverState *bs);
+int bdrv_set_key(BlockDriverState *bs, const char *key);
+void bdrv_iterate_format(void (*it)(void *opaque, const char *name), 
+                         void *opaque);
+const char *bdrv_get_device_name(BlockDriverState *bs);
 
+int qcow_get_cluster_size(BlockDriverState *bs);
+int qcow_compress_cluster(BlockDriverState *bs, int64_t sector_num,
+                          const uint8_t *buf);
+
+#ifndef QEMU_TOOL
 /* ISA bus */
 
 extern target_phys_addr_t isa_mem_base;
@@ -823,11 +717,28 @@ void adb_mouse_init(ADBBusState *bus);
 extern ADBBusState adb_bus;
 int cuda_init(openpic_t *openpic, int irq);
 
+#endif /* defined(QEMU_TOOL) */
+
 /* monitor.c */
 void monitor_init(CharDriverState *hd, int show_banner);
+void term_puts(const char *str);
+void term_vprintf(const char *fmt, va_list ap);
 void term_printf(const char *fmt, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
 void term_flush(void);
 void term_print_help(void);
+void monitor_readline(const char *prompt, int is_password,
+                      char *buf, int buf_size);
+
+/* readline.c */
+typedef void ReadLineFunc(void *opaque, const char *str);
+
+extern int completion_index;
+void add_completion(const char *str);
+void readline_handle_byte(int ch);
+void readline_find_completion(const char *cmdline);
+const char *readline_get_history(unsigned int index);
+void readline_start(const char *prompt, int is_password,
+                    ReadLineFunc *readline_func, void *opaque);
 
 /* gdbstub.c */
 
