@@ -24,16 +24,32 @@
 #ifndef VL_H
 #define VL_H
 
+/* vl.c */
+void *get_mmap_addr(unsigned long size);
+
 /* block.c */
 typedef struct BlockDriverState BlockDriverState;
 
-BlockDriverState *bdrv_open(const char *filename);
+BlockDriverState *bdrv_open(const char *filename, int snapshot);
 void bdrv_close(BlockDriverState *bs);
 int bdrv_read(BlockDriverState *bs, int64_t sector_num, 
               uint8_t *buf, int nb_sectors);
 int bdrv_write(BlockDriverState *bs, int64_t sector_num, 
                const uint8_t *buf, int nb_sectors);
 void bdrv_get_geometry(BlockDriverState *bs, int64_t *nb_sectors_ptr);
+int bdrv_commit(BlockDriverState *bs);
 
+/* user mode linux compatible COW file */
+#define COW_MAGIC 0x4f4f4f4d  /* MOOO */
+#define COW_VERSION 2
+
+struct cow_header_v2 {
+    uint32_t magic;
+    uint32_t  long version;
+    char backing_file[1024];
+    int32_t mtime;
+    uint64_t size;
+    uint32_t sectorsize;
+};
 
 #endif /* VL_H */

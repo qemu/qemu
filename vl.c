@@ -63,6 +63,8 @@
 #define INITRD_LOAD_ADDR   0x00400000
 #define KERNEL_PARAMS_ADDR 0x00090000
 
+#define MAX_DISKS 2
+
 /* from plex86 (BSD license) */
 struct  __attribute__ ((packed)) linux_params {
   // For 0x00..0x3f, see 'struct screen_info' in linux/include/linux/tty.h.
@@ -190,6 +192,7 @@ FILE *logfile = NULL;
 int loglevel;
 IOPortReadFunc *ioport_read_table[3][MAX_IOPORTS];
 IOPortWriteFunc *ioport_write_table[3][MAX_IOPORTS];
+BlockDriverState *bs_table[MAX_DISKS];
 
 /***********************************************************/
 /* x86 io ports */
@@ -1265,6 +1268,7 @@ void term_print_help(void)
     printf("\n"
            "C-a h    print this help\n"
            "C-a x    exit emulatior\n"
+	   "C-a s    save disk data back to file (if -snapshot)\n"
            "C-a b    send break (magic sysrq)\n"
            "C-a C-a  send C-a\n"
            );
@@ -1281,6 +1285,15 @@ void serial_received_byte(SerialState *s, int ch)
             break;
         case 'x':
             exit(0);
+            break;
+	case 's': 
+            {
+                int i;
+                for (i = 0; i < MAX_DISKS; i++) {
+                    if (bs_table[i])
+                        bdrv_commit(bs_table[i]);
+                }
+	    }
             break;
         case 'b':
             /* send break */
@@ -1976,8 +1989,6 @@ void ne2000_init(void)
 /* set to 1 set disable mult support */
 #define MAX_MULT_SECTORS 8
 
-#define MAX_DISKS 2
-
 struct IDEState;
 
 typedef void EndTransferFunc(struct IDEState *);
@@ -2009,7 +2020,6 @@ typedef struct IDEState {
     uint8_t io_buffer[MAX_MULT_SECTORS*512 + 4];
 } IDEState;
 
-BlockDriverState *bs_table[MAX_DISKS];
 IDEState ide_state[MAX_DISKS];
 
 static void padstr(char *str, const char *src, int len)
@@ -2513,6 +2523,16 @@ static void host_alarm_handler(int host_signum, siginfo_t *info,
     }
 }
 
+unsigned long mmap_addr = PHYS_RAM_BASE;
+
+void *get_mmap_addr(unsigned long size)
+{
+    unsigned long addr;
+    addr = mmap_addr;
+    mmap_addr += ((size + 4095) & ~4095) + 4096;
+    return (void *)addr;
+}
+
 /* main execution loop */
 
 CPUState *cpu_gdbstub_get_env(void *opaque)
@@ -2612,6 +2632,7 @@ void help(void)
            "-initrd file   use 'file' as initial ram disk\n"
            "-hda file      use 'file' as hard disk 0 image\n"
            "-hdb file      use 'file' as hard disk 1 image\n"
+	   "-snapshot      write to temporary files instead of disk image files\n"
            "-m megs        set virtual RAM size to megs MB\n"
            "-n script      set network init script [default=%s]\n"
            "\n"
@@ -2630,12 +2651,14 @@ struct option long_options[] = {
     { "initrd", 1, NULL, 0, },
     { "hda", 1, NULL, 0, },
     { "hdb", 1, NULL, 0, },
+    { "snapshot", 0, NULL, 0, },
     { NULL, 0, NULL, 0 },
 };
 
 int main(int argc, char **argv)
 {
     int c, ret, initrd_size, i, use_gdbstub, gdbstub_port, long_index;
+    int snapshot;
     struct linux_params *params;
     struct sigaction act;
     struct itimerval itv;
@@ -2652,6 +2675,7 @@ int main(int argc, char **argv)
     pstrcpy(network_script, sizeof(network_script), DEFAULT_NETWORK_SCRIPT);
     use_gdbstub = 0;
     gdbstub_port = DEFAULT_GDBSTUB_PORT;
+    snapshot = 0;
     for(;;) {
         c = getopt_long_only(argc, argv, "hm:dn:sp:", long_options, &long_index);
         if (c == -1)
@@ -2667,6 +2691,9 @@ int main(int argc, char **argv)
                 break;
             case 2:
                 hd_filename[1] = optarg;
+                break;
+            case 3:
+                snapshot = 1;
                 break;
             }
             break;
@@ -2711,18 +2738,6 @@ int main(int argc, char **argv)
         setvbuf(logfile, NULL, _IOLBF, 0);
     }
 
-    /* open the virtual block devices */
-    for(i = 0; i < MAX_DISKS; i++) {
-        if (hd_filename[i]) {
-            bs_table[i] = bdrv_open(hd_filename[i]);
-            if (!bs_table[i]) {
-                fprintf(stderr, "vl: could not open hard disk image '%s\n",
-                        hd_filename[i]);
-                exit(1);
-            }
-        }
-    }
-
     /* init network tun interface */
     net_init();
 
@@ -2744,12 +2759,24 @@ int main(int argc, char **argv)
     }
     ftruncate(phys_ram_fd, phys_ram_size);
     unlink(phys_ram_file);
-    phys_ram_base = mmap((void *)PHYS_RAM_BASE, phys_ram_size, 
+    phys_ram_base = mmap(get_mmap_addr(phys_ram_size), phys_ram_size, 
                          PROT_WRITE | PROT_READ, MAP_SHARED | MAP_FIXED, 
                          phys_ram_fd, 0);
     if (phys_ram_base == MAP_FAILED) {
         fprintf(stderr, "Could not map physical memory\n");
         exit(1);
+    }
+
+    /* open the virtual block devices */
+    for(i = 0; i < MAX_DISKS; i++) {
+        if (hd_filename[i]) {
+            bs_table[i] = bdrv_open(hd_filename[i], snapshot);
+            if (!bs_table[i]) {
+                fprintf(stderr, "vl: could not open hard disk image '%s\n",
+                        hd_filename[i]);
+                exit(1);
+            }
+        }
     }
 
     /* now we can load the kernel */

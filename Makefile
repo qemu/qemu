@@ -28,7 +28,7 @@ else
 LDFLAGS+=-Wl,-shared
 endif
 ifeq ($(TARGET_ARCH), i386)
-PROGS+=vl
+PROGS+=vl vlmkcow
 endif
 endif
 
@@ -141,7 +141,10 @@ endif
 
 # must use static linking to avoid leaving stuff in virtual address space
 vl: vl.o block.o libqemu.a
-	$(CC) -static -Wl,-T,i386-vl.ld -o $@ $^  $(LIBS)
+	$(CC) -pg -static -Wl,-T,i386-vl.ld -o $@ $^  $(LIBS)
+
+vlmkcow: vlmkcow.o
+	$(CC) -o $@ $^  $(LIBS)
 
 depend: $(SRCS)
 	$(CC) -MM $(CFLAGS) $^ 1>.depend
