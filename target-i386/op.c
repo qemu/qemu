@@ -980,8 +980,9 @@ void OPPROTO op_movl_drN_T0(void)
 
 void OPPROTO op_lmsw_T0(void)
 {
-    /* only 4 lower bits of CR0 are modified */
-    T0 = (env->cr[0] & ~0xf) | (T0 & 0xf);
+    /* only 4 lower bits of CR0 are modified. PE cannot be set to zero
+       if already set to one. */
+    T0 = (env->cr[0] & ~0xe) | (T0 & 0xf);
     helper_movl_crN_T0(0);
 }
 
