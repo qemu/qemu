@@ -50,13 +50,6 @@
 
 #include "cpu.h"
 
-#ifdef _BSD
-#define lseek64 lseek
-#define ftruncate64 ftruncate
-#define mkstemp64 mkstemp
-#define MAP_ANONYMOUS MAP_ANON
-#endif
-
 #ifndef glue
 #define xglue(x, y) x ## y
 #define glue(x, y) xglue(x, y)

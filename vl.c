@@ -739,10 +739,12 @@ static void host_alarm_handler(int host_signum)
 
 #ifndef _WIN32
 
+#if defined(__linux__)
+
 #define RTC_FREQ 1024
 
 static int rtc_fd;
-    
+
 static int start_rtc_timer(void)
 {
     rtc_fd = open("/dev/rtc", O_RDONLY);
@@ -763,7 +765,16 @@ static int start_rtc_timer(void)
     return 0;
 }
 
-#endif
+#else
+
+static int start_rtc_timer(void)
+{
+    return -1;
+}
+
+#endif /* !defined(__linux__) */
+
+#endif /* !defined(_WIN32) */
 
 static void init_timers(void)
 {
