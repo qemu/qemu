@@ -1164,8 +1164,8 @@ int
 print_insn_x86 (pc, info, aflag, dflag)
      bfd_vma pc;
      disassemble_info *info;
-     int aflag;
-     int dflag;
+     int volatile aflag;
+     int volatile dflag;
 {
   struct dis386 *dp;
   int i;

@@ -73,16 +73,20 @@ enum bfd_architecture
   bfd_arch_a29k,       /* AMD 29000 */
   bfd_arch_sparc,      /* SPARC */
 #define bfd_mach_sparc                 1
- /* The difference between v8plus and v9 is that v9 is a true 64 bit env.  */
+/* The difference between v8plus and v9 is that v9 is a true 64 bit env.  */
 #define bfd_mach_sparc_sparclet        2
 #define bfd_mach_sparc_sparclite       3
 #define bfd_mach_sparc_v8plus          4
-#define bfd_mach_sparc_v8plusa         5  /* with ultrasparc add'ns */
-#define bfd_mach_sparc_v9              6
-#define bfd_mach_sparc_v9a             7  /* with ultrasparc add'ns */
- /* Nonzero if MACH has the v9 instruction set.  */
+#define bfd_mach_sparc_v8plusa         5 /* with ultrasparc add'ns.  */
+#define bfd_mach_sparc_sparclite_le    6
+#define bfd_mach_sparc_v9              7
+#define bfd_mach_sparc_v9a             8 /* with ultrasparc add'ns.  */
+#define bfd_mach_sparc_v8plusb         9 /* with cheetah add'ns.  */
+#define bfd_mach_sparc_v9b             10 /* with cheetah add'ns.  */
+/* Nonzero if MACH has the v9 instruction set.  */
 #define bfd_mach_sparc_v9_p(mach) \
-  ((mach) >= bfd_mach_sparc_v8plus && (mach) <= bfd_mach_sparc_v9a)
+  ((mach) >= bfd_mach_sparc_v8plus && (mach) <= bfd_mach_sparc_v9b \
+   && (mach) != bfd_mach_sparc_sparclite_le)
   bfd_arch_mips,       /* MIPS Rxxxx */
 #define bfd_mach_mips3000              3000
 #define bfd_mach_mips3900              3900
@@ -279,6 +283,9 @@ typedef struct disassemble_info {
 				   zero if unknown.  */
   bfd_vma target2;		/* Second target address for dref2 */
 
+  /* Command line options specific to the target disassembler.  */
+  char * disassembler_options;
+
 } disassemble_info;
 
 
@@ -299,8 +306,7 @@ extern int print_insn_h8300s		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_h8500		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_alpha		PARAMS ((bfd_vma, disassemble_info*));
 extern disassembler_ftype arc_get_disassembler PARAMS ((int, int));
-extern int print_insn_big_arm		PARAMS ((bfd_vma, disassemble_info*));
-extern int print_insn_little_arm	PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_arm		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_sparc		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_big_a29k		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_little_a29k	PARAMS ((bfd_vma, disassemble_info*));
@@ -381,6 +387,15 @@ extern int generic_symbol_at_address
   (INFO).bytes_per_line = 0, \
   (INFO).bytes_per_chunk = 0, \
   (INFO).display_endian = BFD_ENDIAN_UNKNOWN, \
+  (INFO).disassembler_options = NULL, \
   (INFO).insn_info_valid = 0
+
+#define _(x) x
+
+/* from libbfd */
+
+bfd_vma bfd_getl32 (const bfd_byte *addr);
+bfd_vma bfd_getb32 (const bfd_byte *addr);
+typedef enum bfd_boolean {false, true} boolean;
 
 #endif /* ! defined (DIS_ASM_H) */

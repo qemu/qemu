@@ -2,11 +2,94 @@
 #include "dis-asm.h"
 #include "disas.h"
 #include "elf.h"
+#include <errno.h>
 
 /* Filled in by elfload.c.  Simplistic, but will do for now. */
 unsigned int disas_num_syms;
 void *disas_symtab;
 const char *disas_strtab;
+
+/* Get LENGTH bytes from info's buffer, at target address memaddr.
+   Transfer them to myaddr.  */
+int
+buffer_read_memory (memaddr, myaddr, length, info)
+     bfd_vma memaddr;
+     bfd_byte *myaddr;
+     int length;
+     struct disassemble_info *info;
+{
+  if (memaddr < info->buffer_vma
+      || memaddr + length > info->buffer_vma + info->buffer_length)
+    /* Out of bounds.  Use EIO because GDB uses it.  */
+    return EIO;
+  memcpy (myaddr, info->buffer + (memaddr - info->buffer_vma), length);
+  return 0;
+}
+
+/* Print an error message.  We can assume that this is in response to
+   an error return from buffer_read_memory.  */
+void
+perror_memory (status, memaddr, info)
+     int status;
+     bfd_vma memaddr;
+     struct disassemble_info *info;
+{
+  if (status != EIO)
+    /* Can't happen.  */
+    (*info->fprintf_func) (info->stream, "Unknown error %d\n", status);
+  else
+    /* Actually, address between memaddr and memaddr + len was
+       out of bounds.  */
+    (*info->fprintf_func) (info->stream,
+			   "Address 0x%x is out of bounds.\n", memaddr);
+}
+
+/* This could be in a separate file, to save miniscule amounts of space
+   in statically linked executables.  */
+
+/* Just print the address is hex.  This is included for completeness even
+   though both GDB and objdump provide their own (to print symbolic
+   addresses).  */
+
+void
+generic_print_address (addr, info)
+     bfd_vma addr;
+     struct disassemble_info *info;
+{
+  (*info->fprintf_func) (info->stream, "0x%x", addr);
+}
+
+/* Just return the given address.  */
+
+int
+generic_symbol_at_address (addr, info)
+     bfd_vma addr;
+     struct disassemble_info * info;
+{
+  return 1;
+}
+
+bfd_vma bfd_getl32 (const bfd_byte *addr)
+{
+  unsigned long v;
+
+  v = (unsigned long) addr[0];
+  v |= (unsigned long) addr[1] << 8;
+  v |= (unsigned long) addr[2] << 16;
+  v |= (unsigned long) addr[3] << 24;
+  return (bfd_vma) v;
+}
+
+bfd_vma bfd_getb32 (const bfd_byte *addr)
+{
+  unsigned long v;
+
+  v = (unsigned long) addr[0] << 24;
+  v |= (unsigned long) addr[1] << 16;
+  v |= (unsigned long) addr[2] << 8;
+  v |= (unsigned long) addr[3];
+  return (bfd_vma) v;
+}
 
 /* Disassemble this for me please... (debugging). */
 void disas(FILE *out, void *code, unsigned long size, enum disas_type type)
@@ -35,6 +118,10 @@ void disas(FILE *out, void *code, unsigned long size, enum disas_type type)
 	print_insn = print_insn_ppc;
 #elif defined(__alpha__)
 	print_insn = print_insn_alpha;
+#elif defined(__sparc__)
+	print_insn = print_insn_sparc;
+#elif defined(__arm__) 
+        print_insn = print_insn_arm;
 #else
 	fprintf(out, "Asm output not supported on this arch\n");
 	return;
@@ -51,6 +138,13 @@ void disas(FILE *out, void *code, unsigned long size, enum disas_type type)
 
     for (pc = code; pc < (uint8_t *)code + size; pc += count) {
 	fprintf(out, "0x%08lx:  ", (long)pc);
+#ifdef __arm__
+        /* since data are included in the code, it is better to
+           display code data too */
+        if (type == DISAS_TARGET) {
+            fprintf(out, "%08x  ", (int)bfd_getl32((const bfd_byte *)pc));
+        }
+#endif
 	count = print_insn((unsigned long)pc, &disasm_info);
 	fprintf(out, "\n");
 	if (count < 0)
