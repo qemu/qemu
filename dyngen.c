@@ -86,6 +86,13 @@
 #define elf_check_arch(x) ((x) == EM_ARM)
 #define ELF_USES_RELOC
 
+#elif defined(HOST_M68K)
+
+#define ELF_CLASS	ELFCLASS32
+#define ELF_ARCH	EM_68K
+#define elf_check_arch(x) ((x) == EM_68K)
+#define ELF_USES_RELOCA
+
 #else
 #error unsupported CPU - please update the code
 #endif
@@ -575,6 +582,21 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                                       relocs, nb_relocs);
         break;
 #endif
+    case EM_68K:
+	{
+	    uint8_t *p;
+	    p = (void *)(p_end - 2);
+	    if (p == p_start)
+		error("empty code for %s", name);
+	    // remove NOP's, probably added for alignment
+	    while ((get16((uint16_t *)p) == 0x4e71) &&
+		   (p>p_start)) 
+	      p -= 2;
+	    if (get16((uint16_t *)p) != 0x4e75)
+		error("rts expected at the end of %s", name);
+	    copy_size = p - p_start;
+	}
+        break;
     default:
 	error("unknown ELF architecture");
     }
@@ -1058,6 +1080,41 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                         break;
                     default:
                         error("unsupported arm relocation (%d)", type);
+                    }
+                }
+                }
+            }
+#elif defined(HOST_M68K)
+            {
+                char name[256];
+                int type;
+                int addend;
+		Elf32_Sym *sym;
+                for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
+                if (rel->r_offset >= start_offset &&
+		    rel->r_offset < start_offset + copy_size) {
+		    sym = &(symtab[ELFW(R_SYM)(rel->r_info)]);
+                    sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
+                    if (strstart(sym_name, "__op_param", &p)) {
+                        snprintf(name, sizeof(name), "param%s", p);
+                    } else {
+                        snprintf(name, sizeof(name), "(long)(&%s)", sym_name);
+                    }
+                    type = ELF32_R_TYPE(rel->r_info);
+                    addend = get32((uint32_t *)(text + rel->r_offset)) + rel->r_addend;
+                    switch(type) {
+                    case R_68K_32:
+		        fprintf(outfile, "    /* R_68K_32 RELOC, offset %x */\n", rel->r_offset) ;
+                        fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s + %#x;\n", 
+                                rel->r_offset - start_offset, name, addend );
+                        break;
+                    case R_68K_PC32:
+		        fprintf(outfile, "    /* R_68K_PC32 RELOC, offset %x */\n", rel->r_offset);
+                        fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s - (long)(gen_code_ptr + %#x) + %#x;\n", 
+                                rel->r_offset - start_offset, name, rel->r_offset - start_offset, /*sym->st_value+*/ addend);
+                        break;
+                    default:
+                        error("unsupported m68k relocation (%d)", type);
                     }
                 }
                 }

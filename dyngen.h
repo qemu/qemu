@@ -94,6 +94,14 @@ static inline void flush_icache_range(unsigned long start, unsigned long stop)
 }
 #endif
 
+#ifdef __mc68000
+#include <asm/cachectl.h>
+static inline void flush_icache_range(unsigned long start, unsigned long stop)
+{
+    cacheflush(start,FLUSH_SCOPE_LINE,FLUSH_CACHE_BOTH,stop-start+16);
+}
+#endif
+
 #ifdef __alpha__
 
 register int gp asm("$29");

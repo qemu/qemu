@@ -79,6 +79,11 @@ OP_CFLAGS=$(CFLAGS) -mno-sched-prolog
 LDFLAGS+=-Wl,-T,$(SRC_PATH)/arm.ld
 endif
 
+ifeq ($(ARCH),m68k)
+OP_CFLAGS=$(CFLAGS) -fomit-frame-pointer
+LDFLAGS+=-Wl,-T,m68k.ld
+endif
+
 ifeq ($(HAVE_GCC3_OPTIONS),yes)
 # very important to generate a return at the end of every operation
 OP_CFLAGS+=-fno-reorder-blocks -fno-optimize-sibling-calls

@@ -642,6 +642,23 @@ int cpu_signal_handler(int host_signum, struct siginfo *info,
                              &uc->uc_sigmask);
 }
 
+#elif defined(__mc68000)
+
+int cpu_signal_handler(int host_signum, struct siginfo *info, 
+                       void *puc)
+{
+    struct ucontext *uc = puc;
+    unsigned long pc;
+    int is_write;
+    
+    pc = uc->uc_mcontext.gregs[16];
+    /* XXX: compute is_write */
+    is_write = 0;
+    return handle_cpu_signal(pc, (unsigned long)info->si_addr, 
+                             is_write,
+                             &uc->uc_sigmask);
+}
+
 #else
 
 #error host CPU specific signal handler needed

@@ -109,6 +109,13 @@ extern int printf(const char *, ...);
 #define AREG5 "$13"
 #define AREG6 "$14"
 #endif
+#ifdef __mc68000
+#define AREG0 "%a5"
+#define AREG1 "%a4"
+#define AREG2 "%d7"
+#define AREG3 "%d6"
+#define AREG4 "%d5"
+#endif
 #ifdef __ia64__
 #define AREG0 "r27"
 #define AREG1 "r24"
@@ -178,4 +185,6 @@ extern int __op_jmp0, __op_jmp1;
 #ifdef __arm__
 #define EXIT_TB() asm volatile ("b exec_loop")
 #endif
-
+#ifdef __mc68000
+#define EXIT_TB() asm volatile ("rts")
+#endif

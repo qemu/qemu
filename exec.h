@@ -348,6 +348,18 @@ static inline int testandset (int *spinlock)
 }
 #endif
 
+#ifdef __mc68000
+static inline int testandset (int *p)
+{
+    char ret;
+    __asm__ __volatile__("tas %1; sne %0"
+                         : "=r" (ret)
+                         : "m" (p)
+                         : "cc","memory");
+    return ret == 0;
+}
+#endif
+
 typedef int spinlock_t;
 
 #define SPIN_LOCK_UNLOCKED 0

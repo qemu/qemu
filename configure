@@ -56,6 +56,9 @@ case "$cpu" in
   ia64)
     cpu="ia64"
   ;;
+  m68k)
+    cpu="m68k"
+  ;;
   *)
     cpu="unknown"
   ;;
@@ -163,7 +166,7 @@ fi
 else
 
 # if cross compiling, cannot launch a program, so make a static guess
-if test "$cpu" = "powerpc" -o "$cpu" = "mips" -o "$cpu" = "s390" -o "$cpu" = "sparc" -o "$cpu" = "sparc64"; then
+if test "$cpu" = "powerpc" -o "$cpu" = "mips" -o "$cpu" = "s390" -o "$cpu" = "sparc" -o "$cpu" = "sparc64" -o "$cpu" = "m68k"; then
     bigendian="yes"
 fi
 
@@ -265,6 +268,9 @@ elif test "$cpu" = "sparc64" ; then
 elif test "$cpu" = "ia64" ; then
   echo "ARCH=ia64" >> $config_mak
   echo "#define HOST_IA64 1" >> $config_h
+elif test "$cpu" = "m68k" ; then
+  echo "ARCH=m68k" >> config.mak
+  echo "#define HOST_M68K 1" >> $TMPH
 else
   echo "Unsupported CPU"
   exit 1
