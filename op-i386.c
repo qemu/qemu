@@ -516,9 +516,9 @@ void OPPROTO op_cmpxchg8b(void)
     helper_cmpxchg8b();
 }
 
-void OPPROTO op_jmp_tb_next(void)
+void OPPROTO op_jmp(void)
 {
-    JUMP_TB(op_jmp_tb_next, PARAM1, 0, PARAM2);
+    JUMP_TB(op_jmp, PARAM1, 0, PARAM2);
 }
 
 void OPPROTO op_movl_T0_0(void)
@@ -1030,6 +1030,15 @@ void OPPROTO op_jcc(void)
         JUMP_TB(op_jcc, PARAM1, 0, PARAM2);
     else
         JUMP_TB(op_jcc, PARAM1, 1, PARAM3);
+    FORCE_RET();
+}
+
+void OPPROTO op_jcc_im(void)
+{
+    if (T0)
+        EIP = PARAM1;
+    else
+        EIP = PARAM2;
     FORCE_RET();
 }
 

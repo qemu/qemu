@@ -518,34 +518,6 @@ void OPPROTO op_update_bt_cc(void)
 #endif
 
 /* string operations */
-/* XXX: maybe use lower level instructions to ease 16 bit / segment handling */
-
-#define STRING_SUFFIX _fast
-#define SI_ADDR (void *)ESI
-#define DI_ADDR (void *)EDI
-#define INC_SI() ESI += inc
-#define INC_DI() EDI += inc
-#define CX ECX
-#define DEC_CX() ECX--
-#include "op_string.h"
-
-#define STRING_SUFFIX _a32
-#define SI_ADDR (uint8_t *)A0 + ESI
-#define DI_ADDR env->segs[R_ES].base + EDI
-#define INC_SI() ESI += inc
-#define INC_DI() EDI += inc
-#define CX ECX
-#define DEC_CX() ECX--
-#include "op_string.h"
-
-#define STRING_SUFFIX _a16
-#define SI_ADDR (uint8_t *)A0 + (ESI & 0xffff)
-#define DI_ADDR env->segs[R_ES].base + (EDI & 0xffff)
-#define INC_SI() ESI = (ESI & ~0xffff) | ((ESI + inc) & 0xffff)
-#define INC_DI() EDI = (EDI & ~0xffff) | ((EDI + inc) & 0xffff)
-#define CX (ECX & 0xffff)
-#define DEC_CX() ECX = (ECX & ~0xffff) | ((ECX - 1) & 0xffff)
-#include "op_string.h"
 
 void OPPROTO glue(op_movl_T0_Dshift, SUFFIX)(void)
 {
@@ -555,14 +527,40 @@ void OPPROTO glue(op_movl_T0_Dshift, SUFFIX)(void)
 void OPPROTO glue(op_string_jz_sub, SUFFIX)(void)
 {
     if ((DATA_TYPE)CC_DST == 0)
-        JUMP_TB(glue(op_string_jz_sub, SUFFIX), PARAM1, 1, PARAM2);
+        JUMP_TB2(glue(op_string_jz_sub, SUFFIX), PARAM1, 1);
     FORCE_RET();
 }
 
 void OPPROTO glue(op_string_jnz_sub, SUFFIX)(void)
 {
     if ((DATA_TYPE)CC_DST != 0)
-        JUMP_TB(glue(op_string_jnz_sub, SUFFIX), PARAM1, 1, PARAM2);
+        JUMP_TB2(glue(op_string_jnz_sub, SUFFIX), PARAM1, 1);
+    FORCE_RET();
+}
+
+void OPPROTO glue(glue(op_string_jz_sub, SUFFIX), _im)(void)
+{
+    if ((DATA_TYPE)CC_DST == 0) {
+        EIP = PARAM1;
+        if (env->eflags & TF_MASK) {
+            raise_exception(EXCP01_SSTP);
+        }
+        T0 = 0;
+        EXIT_TB();
+    }
+    FORCE_RET();
+}
+
+void OPPROTO glue(glue(op_string_jnz_sub, SUFFIX), _im)(void)
+{
+    if ((DATA_TYPE)CC_DST != 0) {
+        EIP = PARAM1;
+        if (env->eflags & TF_MASK) {
+            raise_exception(EXCP01_SSTP);
+        }
+        T0 = 0;
+        EXIT_TB();
+    }
     FORCE_RET();
 }
 
@@ -571,6 +569,19 @@ void OPPROTO glue(op_jz_ecx, SUFFIX)(void)
 {
     if ((DATA_TYPE)ECX == 0)
         JUMP_TB(glue(op_jz_ecx, SUFFIX), PARAM1, 1, PARAM2);
+    FORCE_RET();
+}
+
+void OPPROTO glue(glue(op_jz_ecx, SUFFIX), _im)(void)
+{
+    if ((DATA_TYPE)ECX == 0) {
+        EIP = PARAM1;
+        if (env->eflags & TF_MASK) {
+            raise_exception(EXCP01_SSTP);
+        }
+        T0 = 0;
+        EXIT_TB();
+    }
     FORCE_RET();
 }
 #endif
