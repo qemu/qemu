@@ -688,6 +688,14 @@ void test_fenv(void)
     TEST_ENV(&float_env16, "data16 fnsave", "data16 frstor");
     TEST_ENV(&float_env32, "fnstenv", "fldenv");
     TEST_ENV(&float_env32, "fnsave", "frstor");
+
+    /* test for ffree */
+    for(i=0;i<5;i++)
+        asm volatile ("fldl %0" : : "m" (dtab[i]));
+    asm volatile("ffree %st(2)");
+    asm volatile ("fnstenv %0\n" : : "m" (float_env32));
+    asm volatile ("fninit");
+    printf("fptag=%04x\n", float_env32.fptag);
 }
 
 
