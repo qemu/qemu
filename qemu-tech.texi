@@ -167,7 +167,7 @@ interpreter part of the FX!32 Digital Win32 code translator [5]).
 
 TWIN [6] is a Windows API emulator like Wine. It is less accurate than
 Wine but includes a protected mode x86 interpreter to launch x86 Windows
-executables. Such an approach as greater potential because most of the
+executables. Such an approach has greater potential because most of the
 Windows API is executed natively but it is far more difficult to develop
 because all the data structures and function parameters exchanged
 between the API and the x86 code must be converted.
