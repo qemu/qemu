@@ -38,6 +38,7 @@ static const char *interp_prefix = CONFIG_QEMU_PREFIX;
 /* Force usage of an ELF interpreter even if it is an ELF shared
    object ! */
 const char interp[] __attribute__((section(".interp"))) = "/lib/ld-linux.so.2";
+#endif
 
 /* for recent libc, we add these dummies symbol which are not declared
    when generating a linked object (bug in ld ?) */
@@ -46,8 +47,6 @@ long __init_array_start[0];
 long __init_array_end[0];
 long __fini_array_start[0];
 long __fini_array_end[0];
-#endif
-
 #endif
 
 /* XXX: on x86 MAP_GROWSDOWN only works if ESP <= address + 32, so
