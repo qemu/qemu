@@ -226,6 +226,7 @@ do {\
 label ## n:\
     T0 = (long)(tbparam) + (n);\
     EIP = eip;\
+    EXIT_TB();\
 } while (0)
 
 #else
