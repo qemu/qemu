@@ -2,6 +2,12 @@ version 0.6.1:
 
   - Mac OS X port (Pierre d'Herbemont)
   - Virtual console support
+  - Better monitor line edition
+  - New block device layer 
+  - New 'qcow' growable disk image support with AES encryption and
+    transparent decompression
+  - VMware 3 and 4 read-only disk image support (untested)
+  - Support for up to 4 serial ports
 
 version 0.6.0:
 

@@ -120,8 +120,8 @@ Floppy disk
 @item 
 NE2000 PCI network adapters
 @item
-Serial port
-@item 
+Serial ports
+@item
 Soundblaster 16 card
 @end itemize
 
@@ -269,6 +269,9 @@ void device
 @end table
 The default device is @code{vc} in graphical mode and @code{stdio} in
 non graphical mode.
+
+This option can be used several times to simulate up to 4 serials
+ports.
 
 @item -monitor dev
 Redirect the monitor to host device @var{dev} (same devices as the
