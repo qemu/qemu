@@ -790,7 +790,7 @@ static void cirrus_bitblt_start(CirrusVGAState * s)
     blt_rop = s->gr[0x32];
 
 #ifdef DEBUG_BITBLT
-    printf("rop=0x%02x mode=0x%02x modeext=0x%02x w=%d h=%d dpitch=%d spicth=%d daddr=0x%08x saddr=0x%08x writemask=0x%02x\n",
+    printf("rop=0x%02x mode=0x%02x modeext=0x%02x w=%d h=%d dpitch=%d spitch=%d daddr=0x%08x saddr=0x%08x writemask=0x%02x\n",
            blt_rop, 
            s->cirrus_blt_mode,
            s->cirrus_blt_modeext,
@@ -1780,11 +1780,12 @@ static void cirrus_mem_writeb_mode4and5_8bpp(CirrusVGAState * s,
     dst = s->vram_ptr + offset;
     for (x = 0; x < 8; x++) {
 	if (val & 0x80) {
-	    *dst++ = s->cirrus_shadow_gr1;
+	    *dst = s->cirrus_shadow_gr1;
 	} else if (mode == 5) {
-	    *dst++ = s->cirrus_shadow_gr0;
+	    *dst = s->cirrus_shadow_gr0;
 	}
 	val <<= 1;
+	dst++;
     }
     cpu_physical_memory_set_dirty(s->vram_offset + offset);
     cpu_physical_memory_set_dirty(s->vram_offset + offset + 7);
@@ -1802,13 +1803,14 @@ static void cirrus_mem_writeb_mode4and5_16bpp(CirrusVGAState * s,
     dst = s->vram_ptr + offset;
     for (x = 0; x < 8; x++) {
 	if (val & 0x80) {
-	    *dst++ = s->cirrus_shadow_gr1;
-	    *dst++ = s->gr[0x11];
+	    *dst = s->cirrus_shadow_gr1;
+	    *(dst + 1) = s->gr[0x11];
 	} else if (mode == 5) {
-	    *dst++ = s->cirrus_shadow_gr0;
-	    *dst++ = s->gr[0x10];
+	    *dst = s->cirrus_shadow_gr0;
+	    *(dst + 1) = s->gr[0x10];
 	}
 	val <<= 1;
+	dst += 2;
     }
     cpu_physical_memory_set_dirty(s->vram_offset + offset);
     cpu_physical_memory_set_dirty(s->vram_offset + offset + 15);
