@@ -402,6 +402,9 @@ by
 # define HZ		100		/* Internal kernel timer frequency */
 @end example
 
+If you have problems running your kernel, verify that neither the SMP nor
+HIGHMEM configuration options are activated.
+
 @section PC Emulation
 
 QEMU emulates the following PC peripherials:
@@ -420,6 +423,36 @@ NE2000 network adapter (port=0x300, irq=9)
 @item
 Dumb VGA (to print the @code{Uncompressing Linux} message)
 @end itemize
+
+@section GDB usage
+
+QEMU has a primitive support to work with gdb, so that you can do
+'Ctrl-C' while the kernel is running and inspect its state.
+
+In order to use gdb, launch vl with the '-s' option. It will wait for a
+gdb connection:
+@example
+> vl -s arch/i386/boot/bzImage initrd-2.4.20.img root=/dev/ram0 ramdisk_size=6144
+Connected to host network interface: tun0
+Waiting gdb connection on port 1234
+@end example
+
+Then launch gdb on the 'vmlinux' executable:
+@example
+> gdb vmlinux
+@end example
+
+In gdb, connect to QEMU:
+@example
+(gdb) target remote locahost:1234
+@end example
+
+Then you can use gdb normally. For example, type 'c' to launch the kernel:
+@example
+(gdb) c
+@end example
+
+WARNING: breakpoints and single stepping are not yet supported.
 
 @chapter QEMU Internals
 
