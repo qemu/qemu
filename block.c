@@ -55,6 +55,9 @@ struct BlockDriverState {
     int cow_bitmap_size;
     int cow_fd;
     int64_t cow_sectors_offset;
+    int boot_sector_enabled;
+    uint8_t boot_sector_data[512];
+
     char filename[1024];
 };
 
@@ -262,6 +265,10 @@ int bdrv_read(BlockDriverState *bs, int64_t sector_num,
         if (is_changed(bs->cow_bitmap, sector_num, nb_sectors, &n)) {
             fd = bs->cow_fd;
             offset = bs->cow_sectors_offset;
+        } else if (sector_num == 0 && bs->boot_sector_enabled) {
+            memcpy(buf, bs->boot_sector_data, 512);
+            n = 1;
+            goto next;
         } else {
             fd = bs->fd;
             offset = 0;
@@ -278,6 +285,7 @@ int bdrv_read(BlockDriverState *bs, int64_t sector_num,
                 return -1;
             }
         }
+    next:
         nb_sectors -= n;
         sector_num += n;
         buf += n * 512;
@@ -291,7 +299,7 @@ int bdrv_write(BlockDriverState *bs, int64_t sector_num,
 {
     int ret, fd, i;
     int64_t offset, retl;
-
+    
     if (bs->read_only)
         return -1;
 
@@ -323,4 +331,14 @@ int bdrv_write(BlockDriverState *bs, int64_t sector_num,
 void bdrv_get_geometry(BlockDriverState *bs, int64_t *nb_sectors_ptr)
 {
     *nb_sectors_ptr = bs->total_sectors;
+}
+
+/* force a given boot sector. */
+void bdrv_set_boot_sector(BlockDriverState *bs, const uint8_t *data, int size)
+{
+    bs->boot_sector_enabled = 1;
+    if (size > 512)
+        size = 512;
+    memcpy(bs->boot_sector_data, data, size);
+    memset(bs->boot_sector_data + size, 0, 512 - size);
 }
