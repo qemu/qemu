@@ -5155,12 +5155,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         gen_op_into(s->pc - pc_start);
         break;
     case 0xf1: /* icebp (undocumented, exits to external debugger) */
-#if 0
         gen_debug(s, pc_start - s->cs_base);
-#else
-        /* test ! */
-        cpu_set_log(CPU_LOG_TB_IN_ASM | CPU_LOG_PCALL);
-#endif
         break;
     case 0xfa: /* cli */
         if (!s->vm86) {
