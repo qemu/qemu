@@ -415,7 +415,7 @@ void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
     char buf[1024];
     m48t59_t *nvram;
     int PPC_io_memory;
-    int ret, linux_boot, i, nb_nics1, fd;
+    int ret, linux_boot, i, nb_nics1;
     unsigned long bios_offset;
     uint32_t kernel_base, kernel_size, initrd_base, initrd_size;
     PCIBus *pci_bus;
@@ -492,8 +492,7 @@ void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
     pic_init();
     //    pit = pit_init(0x40, 0);
 
-    fd = serial_open_device();
-    serial_init(0x3f8, 4, fd);
+    serial_init(0x3f8, 4, serial_hd);
     nb_nics1 = nb_nics;
     if (nb_nics1 > NE2000_NB_MAX)
         nb_nics1 = NE2000_NB_MAX;

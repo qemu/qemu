@@ -215,8 +215,7 @@ extern const char *bios_dir;
 
 void pstrcpy(char *buf, int buf_size, const char *str);
 char *pstrcat(char *buf, int buf_size, const char *s);
-
-int serial_open_device(void);
+int strstart(const char *str, const char *val, const char **ptr);
 
 extern int vm_running;
 
@@ -265,6 +264,31 @@ void qemu_add_mouse_event_handler(QEMUPutMouseEvent *func, void *opaque);
 void kbd_put_keycode(int keycode);
 void kbd_mouse_event(int dx, int dy, int dz, int buttons_state);
 
+/* keysym is a unicode code except for special keys (see QEMU_KEY_xxx
+   constants) */
+#define QEMU_KEY_ESC1(c) ((c) | 0xe100)
+#define QEMU_KEY_BACKSPACE  0x007f
+#define QEMU_KEY_UP         QEMU_KEY_ESC1('A')
+#define QEMU_KEY_DOWN       QEMU_KEY_ESC1('B')
+#define QEMU_KEY_RIGHT      QEMU_KEY_ESC1('C')
+#define QEMU_KEY_LEFT       QEMU_KEY_ESC1('D')
+#define QEMU_KEY_HOME       QEMU_KEY_ESC1(1)
+#define QEMU_KEY_END        QEMU_KEY_ESC1(4)
+#define QEMU_KEY_PAGEUP     QEMU_KEY_ESC1(5)
+#define QEMU_KEY_PAGEDOWN   QEMU_KEY_ESC1(6)
+#define QEMU_KEY_DELETE     QEMU_KEY_ESC1(3)
+
+#define QEMU_KEY_CTRL_UP         0xe400
+#define QEMU_KEY_CTRL_DOWN       0xe401
+#define QEMU_KEY_CTRL_LEFT       0xe402
+#define QEMU_KEY_CTRL_RIGHT      0xe403
+#define QEMU_KEY_CTRL_HOME       0xe404
+#define QEMU_KEY_CTRL_END        0xe405
+#define QEMU_KEY_CTRL_PAGEUP     0xe406
+#define QEMU_KEY_CTRL_PAGEDOWN   0xe407
+
+void kbd_put_keysym(int keysym);
+
 /* async I/O support */
 
 typedef void IOReadHandler(void *opaque, const uint8_t *buf, int size);
@@ -273,6 +297,42 @@ typedef int IOCanRWHandler(void *opaque);
 int qemu_add_fd_read_handler(int fd, IOCanRWHandler *fd_can_read, 
                              IOReadHandler *fd_read, void *opaque);
 void qemu_del_fd_read_handler(int fd);
+
+/* character device */
+
+#define CHR_EVENT_BREAK 0 /* serial break char */
+
+typedef void IOEventHandler(void *opaque, int event);
+
+typedef struct CharDriverState {
+    int (*chr_write)(struct CharDriverState *s, const uint8_t *buf, int len);
+    void (*chr_add_read_handler)(struct CharDriverState *s, 
+                                 IOCanRWHandler *fd_can_read, 
+                                 IOReadHandler *fd_read, void *opaque);
+    IOEventHandler *chr_event;
+    void *opaque;
+} CharDriverState;
+
+void qemu_chr_printf(CharDriverState *s, const char *fmt, ...);
+int qemu_chr_write(CharDriverState *s, const uint8_t *buf, int len);
+void qemu_chr_add_read_handler(CharDriverState *s, 
+                               IOCanRWHandler *fd_can_read, 
+                               IOReadHandler *fd_read, void *opaque);
+void qemu_chr_add_event_handler(CharDriverState *s, IOEventHandler *chr_event);
+                               
+CharDriverState *serial_hd;
+
+/* consoles */
+
+typedef struct DisplayState DisplayState;
+typedef struct TextConsole TextConsole;
+
+extern TextConsole *vga_console;
+
+TextConsole *graphic_console_init(DisplayState *ds);
+int is_active_console(TextConsole *s);
+CharDriverState *text_console_init(DisplayState *ds);
+void console_select(unsigned int index);
 
 /* network redirectors support */
 
@@ -437,6 +497,7 @@ void bdrv_set_change_cb(BlockDriverState *bs,
 
 void bdrv_info(void);
 BlockDriverState *bdrv_find(const char *name);
+void bdrv_iterate(void (*it)(void *opaque, const char *name), void *opaque);
 
 /* ISA bus */
 
@@ -534,14 +595,16 @@ openpic_t *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus);
 
 #define VGA_RAM_SIZE (4096 * 1024)
 
-typedef struct DisplayState {
+struct DisplayState {
     uint8_t *data;
     int linesize;
     int depth;
+    int width;
+    int height;
     void (*dpy_update)(struct DisplayState *s, int x, int y, int w, int h);
     void (*dpy_resize)(struct DisplayState *s, int w, int h);
     void (*dpy_refresh)(struct DisplayState *s);
-} DisplayState;
+};
 
 static inline void dpy_update(DisplayState *s, int x, int y, int w, int h)
 {
@@ -644,13 +707,7 @@ void rtc_set_date(RTCState *s, const struct tm *tm);
 /* serial.c */
 
 typedef struct SerialState SerialState;
-
-extern SerialState *serial_console;
-
-SerialState *serial_init(int base, int irq, int fd);
-int serial_can_receive(SerialState *s);
-void serial_receive_byte(SerialState *s, int ch);
-void serial_receive_break(SerialState *s);
+SerialState *serial_init(int base, int irq, CharDriverState *chr);
 
 /* i8259.c */
 
@@ -767,7 +824,7 @@ extern ADBBusState adb_bus;
 int cuda_init(openpic_t *openpic, int irq);
 
 /* monitor.c */
-void monitor_init(void);
+void monitor_init(CharDriverState *hd, int show_banner);
 void term_printf(const char *fmt, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
 void term_flush(void);
 void term_print_help(void);

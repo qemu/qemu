@@ -126,7 +126,7 @@ void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
     openpic_t *openpic;
     m48t59_t *nvram;
     int PPC_io_memory;
-    int ret, linux_boot, i, fd;
+    int ret, linux_boot, i;
     unsigned long bios_offset;
     uint32_t kernel_base, kernel_size, initrd_base, initrd_size;
     PCIBus *pci_bus;
@@ -200,8 +200,7 @@ void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
     pic_init();
 
     /* XXX: use Mac Serial port */
-    fd = serial_open_device();
-    serial_init(0x3f8, 4, fd);
+    serial_init(0x3f8, 4, serial_hd);
 
     for(i = 0; i < nb_nics; i++) {
         pci_ne2000_init(pci_bus, &nd_table[i]);

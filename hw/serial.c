@@ -84,7 +84,7 @@ struct SerialState {
        it can be reset while reading iir */
     int thr_ipending;
     int irq;
-    int out_fd;
+    CharDriverState *chr;
 };
 
 static void serial_update_irq(SerialState *s)
@@ -107,7 +107,6 @@ static void serial_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
     SerialState *s = opaque;
     unsigned char ch;
-    int ret;
     
     addr &= 7;
 #ifdef DEBUG_SERIAL
@@ -122,13 +121,8 @@ static void serial_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             s->thr_ipending = 0;
             s->lsr &= ~UART_LSR_THRE;
             serial_update_irq(s);
-
-            if (s->out_fd >= 0) {
-                ch = val;
-                do {
-                    ret = write(s->out_fd, &ch, 1);
-                } while (ret != 1);
-            }
+            ch = val;
+            qemu_chr_write(s->chr, &ch, 1);
             s->thr_ipending = 1;
             s->lsr |= UART_LSR_THRE;
             s->lsr |= UART_LSR_TEMT;
@@ -223,19 +217,19 @@ static uint32_t serial_ioport_read(void *opaque, uint32_t addr)
     return ret;
 }
 
-int serial_can_receive(SerialState *s)
+static int serial_can_receive(SerialState *s)
 {
     return !(s->lsr & UART_LSR_DR);
 }
 
-void serial_receive_byte(SerialState *s, int ch)
+static void serial_receive_byte(SerialState *s, int ch)
 {
     s->rbr = ch;
     s->lsr |= UART_LSR_DR;
     serial_update_irq(s);
 }
 
-void serial_receive_break(SerialState *s)
+static void serial_receive_break(SerialState *s)
 {
     s->rbr = 0;
     s->lsr |= UART_LSR_BI | UART_LSR_DR;
@@ -254,8 +248,15 @@ static void serial_receive1(void *opaque, const uint8_t *buf, int size)
     serial_receive_byte(s, buf[0]);
 }
 
+static void serial_event(void *opaque, int event)
+{
+    SerialState *s = opaque;
+    if (event == CHR_EVENT_BREAK)
+        serial_receive_break(s);
+}
+
 /* If fd is zero, it means that the serial device uses the console */
-SerialState *serial_init(int base, int irq, int fd)
+SerialState *serial_init(int base, int irq, CharDriverState *chr)
 {
     SerialState *s;
 
@@ -268,16 +269,8 @@ SerialState *serial_init(int base, int irq, int fd)
 
     register_ioport_write(base, 8, 1, serial_ioport_write, s);
     register_ioport_read(base, 8, 1, serial_ioport_read, s);
-
-    if (fd < 0) {
-        /* no associated device */
-        s->out_fd = -1;
-    } else if (fd != 0) {
-        qemu_add_fd_read_handler(fd, serial_can_receive1, serial_receive1, s);
-        s->out_fd = fd;
-    } else {
-        serial_console = s;
-        s->out_fd = 1;
-    }
+    s->chr = chr;
+    qemu_chr_add_read_handler(chr, serial_can_receive1, serial_receive1, s);
+    qemu_chr_add_event_handler(chr, serial_event);
     return s;
 }

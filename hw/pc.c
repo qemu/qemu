@@ -324,7 +324,7 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
              const char *initrd_filename)
 {
     char buf[1024];
-    int ret, linux_boot, initrd_size, i, nb_nics1, fd;
+    int ret, linux_boot, initrd_size, i, nb_nics1;
     unsigned long bios_offset, vga_bios_offset;
     int bios_size, isa_bios_size;
     PCIBus *pci_bus;
@@ -471,8 +471,7 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
     pic_init();
     pit = pit_init(0x40, 0);
 
-    fd = serial_open_device();
-    serial_init(0x3f8, 4, fd);
+    serial_init(0x3f8, 4, serial_hd);
 
     if (pci_enabled) {
         for(i = 0; i < nb_nics; i++) {

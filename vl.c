@@ -128,7 +128,6 @@ static char network_script[1024];
 int pit_min_timer_count = 0;
 int nb_nics;
 NetDriverState nd_table[MAX_NICS];
-SerialState *serial_console;
 QEMUTimer *gui_timer;
 int vm_running;
 int audio_enabled = 0;
@@ -139,6 +138,7 @@ int cirrus_vga_enabled = 1;
 int graphic_width = 800;
 int graphic_height = 600;
 int graphic_depth = 15;
+TextConsole *vga_console;
 
 /***********************************************************/
 /* x86 ISA bus support */
@@ -296,6 +296,22 @@ char *pstrcat(char *buf, int buf_size, const char *s)
     if (len < buf_size) 
         pstrcpy(buf + len, buf_size - len, s);
     return buf;
+}
+
+int strstart(const char *str, const char *val, const char **ptr)
+{
+    const char *p, *q;
+    p = str;
+    q = val;
+    while (*q != '\0') {
+        if (*p != *q)
+            return 0;
+        p++;
+        q++;
+    }
+    if (ptr)
+        *ptr = p;
+    return 1;
 }
 
 /* return the size or -1 if error */
@@ -949,41 +965,272 @@ void quit_timers(void)
 }
 
 /***********************************************************/
-/* serial device */
+/* character device */
 
-#ifdef _WIN32
-
-int serial_open_device(void)
+int qemu_chr_write(CharDriverState *s, const uint8_t *buf, int len)
 {
-    return -1;
+    return s->chr_write(s, buf, len);
 }
 
-#else
-
-int serial_open_device(void)
+void qemu_chr_printf(CharDriverState *s, const char *fmt, ...)
 {
-    if (serial_console == NULL && nographic) {
-        /* use console for serial port */
-        return 0;
+    char buf[4096];
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, ap);
+    qemu_chr_write(s, buf, strlen(buf));
+    va_end(ap);
+}
+
+void qemu_chr_add_read_handler(CharDriverState *s, 
+                               IOCanRWHandler *fd_can_read, 
+                               IOReadHandler *fd_read, void *opaque)
+{
+    s->chr_add_read_handler(s, fd_can_read, fd_read, opaque);
+}
+             
+void qemu_chr_add_event_handler(CharDriverState *s, IOEventHandler *chr_event)
+{
+    s->chr_event = chr_event;
+}
+
+static int null_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
+{
+    return len;
+}
+
+static void null_chr_add_read_handler(CharDriverState *chr, 
+                                    IOCanRWHandler *fd_can_read, 
+                                    IOReadHandler *fd_read, void *opaque)
+{
+}
+
+CharDriverState *qemu_chr_open_null(void)
+{
+    CharDriverState *chr;
+
+    chr = qemu_mallocz(sizeof(CharDriverState));
+    if (!chr)
+        return NULL;
+    chr->chr_write = null_chr_write;
+    chr->chr_add_read_handler = null_chr_add_read_handler;
+    return chr;
+}
+
+#ifndef _WIN32
+
+typedef struct {
+    int fd_in, fd_out;
+    /* for nographic stdio only */
+    IOCanRWHandler *fd_can_read; 
+    IOReadHandler *fd_read;
+    void *fd_opaque;
+} FDCharDriver;
+
+#define STDIO_MAX_CLIENTS 2
+
+static int stdio_nb_clients;
+static CharDriverState *stdio_clients[STDIO_MAX_CLIENTS];
+
+static int fd_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
+{
+    FDCharDriver *s = chr->opaque;
+    return write(s->fd_out, buf, len);
+}
+
+static void fd_chr_add_read_handler(CharDriverState *chr, 
+                                    IOCanRWHandler *fd_can_read, 
+                                    IOReadHandler *fd_read, void *opaque)
+{
+    FDCharDriver *s = chr->opaque;
+
+    if (nographic && s->fd_in == 0) {
+        s->fd_can_read = fd_can_read;
+        s->fd_read = fd_read;
+        s->fd_opaque = opaque;
     } else {
-#if 0
-        char slave_name[1024];
-        int master_fd, slave_fd;
-        
-        /* Not satisfying */
-        if (openpty(&master_fd, &slave_fd, slave_name, NULL, NULL) < 0) {
-            fprintf(stderr, "warning: could not create pseudo terminal for serial port\n");
-            return -1;
-        }
-        fprintf(stderr, "Serial port redirected to %s\n", slave_name);
-        return master_fd;
-#else
-        return -1;
-#endif
+        qemu_add_fd_read_handler(s->fd_in, fd_can_read, fd_read, opaque);
     }
 }
 
+/* open a character device to a unix fd */
+CharDriverState *qemu_chr_open_fd(int fd_in, int fd_out)
+{
+    CharDriverState *chr;
+    FDCharDriver *s;
+
+    chr = qemu_mallocz(sizeof(CharDriverState));
+    if (!chr)
+        return NULL;
+    s = qemu_mallocz(sizeof(FDCharDriver));
+    if (!s) {
+        free(chr);
+        return NULL;
+    }
+    s->fd_in = fd_in;
+    s->fd_out = fd_out;
+    chr->opaque = s;
+    chr->chr_write = fd_chr_write;
+    chr->chr_add_read_handler = fd_chr_add_read_handler;
+    return chr;
+}
+
+/* for STDIO, we handle the case where several clients use it
+   (nographic mode) */
+
+#define TERM_ESCAPE 0x01 /* ctrl-a is used for escape */
+
+static int term_got_escape, client_index;
+
+void term_print_help(void)
+{
+    printf("\n"
+           "C-a h    print this help\n"
+           "C-a x    exit emulator\n"
+           "C-a s    save disk data back to file (if -snapshot)\n"
+           "C-a b    send break (magic sysrq)\n"
+           "C-a c    switch between console and monitor\n"
+           "C-a C-a  send C-a\n"
+           );
+}
+
+/* called when a char is received */
+static void stdio_received_byte(int ch)
+{
+    if (term_got_escape) {
+        term_got_escape = 0;
+        switch(ch) {
+        case 'h':
+            term_print_help();
+            break;
+        case 'x':
+            exit(0);
+            break;
+        case 's': 
+            {
+                int i;
+                for (i = 0; i < MAX_DISKS; i++) {
+                    if (bs_table[i])
+                        bdrv_commit(bs_table[i]);
+                }
+            }
+            break;
+        case 'b':
+            if (client_index < stdio_nb_clients) {
+                CharDriverState *chr;
+                FDCharDriver *s;
+
+                chr = stdio_clients[client_index];
+                s = chr->opaque;
+                chr->chr_event(s->fd_opaque, CHR_EVENT_BREAK);
+            }
+            break;
+        case 'c':
+            client_index++;
+            if (client_index >= stdio_nb_clients)
+                client_index = 0;
+            if (client_index == 0) {
+                /* send a new line in the monitor to get the prompt */
+                ch = '\r';
+                goto send_char;
+            }
+            break;
+        case TERM_ESCAPE:
+            goto send_char;
+        }
+    } else if (ch == TERM_ESCAPE) {
+        term_got_escape = 1;
+    } else {
+    send_char:
+        if (client_index < stdio_nb_clients) {
+            uint8_t buf[1];
+            CharDriverState *chr;
+            FDCharDriver *s;
+            
+            chr = stdio_clients[client_index];
+            s = chr->opaque;
+            buf[0] = ch;
+            /* XXX: should queue the char if the device is not
+               ready */
+            if (s->fd_can_read(s->fd_opaque) > 0) 
+                s->fd_read(s->fd_opaque, buf, 1);
+        }
+    }
+}
+
+static int stdio_can_read(void *opaque)
+{
+    /* XXX: not strictly correct */
+    return 1;
+}
+
+static void stdio_read(void *opaque, const uint8_t *buf, int size)
+{
+    int i;
+    for(i = 0; i < size; i++)
+        stdio_received_byte(buf[i]);
+}
+
+CharDriverState *qemu_chr_open_stdio(void)
+{
+    CharDriverState *chr;
+
+    if (nographic) {
+        if (stdio_nb_clients >= STDIO_MAX_CLIENTS)
+            return NULL;
+        chr = qemu_chr_open_fd(0, 1);
+        if (stdio_nb_clients == 0)
+            qemu_add_fd_read_handler(0, stdio_can_read, stdio_read, NULL);
+        client_index = stdio_nb_clients;
+    } else {
+        if (stdio_nb_clients != 0)
+            return NULL;
+        chr = qemu_chr_open_fd(0, 1);
+    }
+    stdio_clients[stdio_nb_clients++] = chr;
+    return chr;
+}
+
+#if defined(__linux__)
+CharDriverState *qemu_chr_open_pty(void)
+{
+    char slave_name[1024];
+    int master_fd, slave_fd;
+    
+    /* Not satisfying */
+    if (openpty(&master_fd, &slave_fd, slave_name, NULL, NULL) < 0) {
+        return NULL;
+    }
+    fprintf(stderr, "char device redirected to %s\n", slave_name);
+    return qemu_chr_open_fd(master_fd, master_fd);
+}
+#else
+CharDriverState *qemu_chr_open_pty(void)
+{
+    return NULL;
+}
 #endif
+
+#endif /* !defined(_WIN32) */
+
+CharDriverState *qemu_chr_open(const char *filename)
+{
+    if (!strcmp(filename, "vc")) {
+        return text_console_init(&display_state);
+    } else if (!strcmp(filename, "null")) {
+        return qemu_chr_open_null();
+    } else 
+#ifndef _WIN32
+    if (!strcmp(filename, "pty")) {
+        return qemu_chr_open_pty();
+    } else if (!strcmp(filename, "stdio")) {
+        return qemu_chr_open_stdio();
+    } else 
+#endif
+    {
+        return NULL;
+    }
+}
 
 /***********************************************************/
 /* Linux network device redirectors */
@@ -2106,6 +2353,8 @@ void help(void)
            "-initrd file    use 'file' as initial ram disk\n"
            "\n"
            "Debug/Expert options:\n"
+           "-monitor dev    redirect the monitor to char device 'dev'\n"
+           "-serial dev     redirect the serial port to char device 'dev'\n"
            "-S              freeze CPU at startup (use 'c' to start execution)\n"
            "-s              wait gdb connection to port %d\n"
            "-p port         change gdb connection port\n"
@@ -2121,7 +2370,13 @@ void help(void)
            "                (default is CL-GD5446 PCI VGA)\n"
 #endif
            "\n"
-           "During emulation, use C-a h to get terminal commands:\n",
+           "During emulation, the following keys are useful:\n"
+           "ctrl-shift-f    toggle full screen\n"
+           "ctrl-shift-Fn   switch to virtual console 'n'\n"
+           "ctrl-shift      toggle mouse and keyboard grab\n"
+           "\n"
+           "When using -nographic, press 'ctrl-a h' to get some help.\n"
+           ,
 #ifdef CONFIG_SOFTMMU
            "qemu",
 #else
@@ -2131,7 +2386,6 @@ void help(void)
            DEFAULT_NETWORK_SCRIPT,
            DEFAULT_GDBSTUB_PORT,
            "/tmp/qemu.log");
-    term_print_help();
 #ifndef CONFIG_SOFTMMU
     printf("\n"
            "NOTE: this version of QEMU is faster but it needs slightly patched OSes to\n"
@@ -2184,6 +2438,8 @@ enum {
     QEMU_OPTION_cirrusvga,
     QEMU_OPTION_g,
     QEMU_OPTION_std_vga,
+    QEMU_OPTION_monitor,
+    QEMU_OPTION_serial,
 };
 
 typedef struct QEMUOption {
@@ -2235,7 +2491,9 @@ const QEMUOption qemu_options[] = {
     { "localtime", 0, QEMU_OPTION_localtime },
     { "isa", 0, QEMU_OPTION_isa },
     { "std-vga", 0, QEMU_OPTION_std_vga },
-
+    { "monitor", 1, QEMU_OPTION_monitor },
+    { "serial", 1, QEMU_OPTION_serial },
+    
     /* temporary options */
     { "pci", 0, QEMU_OPTION_pci },
     { "cirrusvga", 0, QEMU_OPTION_cirrusvga },
@@ -2273,6 +2531,9 @@ int main(int argc, char **argv)
     int net_if_type, nb_tun_fds, tun_fds[MAX_NICS];
     int optind;
     const char *r, *optarg;
+    CharDriverState *monitor_hd;
+    char monitor_device[128];
+    char serial_device[128];
 
 #if !defined(CONFIG_SOFTMMU)
     /* we never want that malloc() uses mmap() */
@@ -2297,6 +2558,8 @@ int main(int argc, char **argv)
     kernel_cmdline = "";
     has_cdrom = 1;
     cyls = heads = secs = 0;
+    pstrcpy(monitor_device, sizeof(monitor_device), "vc");
+    pstrcpy(serial_device, sizeof(serial_device), "vc");
 
     nb_tun_fds = 0;
     net_if_type = -1;
@@ -2308,7 +2571,7 @@ int main(int argc, char **argv)
     macaddr[3] = 0x12;
     macaddr[4] = 0x34;
     macaddr[5] = 0x56;
-
+    
     optind = 1;
     for(;;) {
         if (optind >= argc)
@@ -2375,6 +2638,8 @@ int main(int argc, char **argv)
                 }
                 break;
             case QEMU_OPTION_nographic:
+                pstrcpy(monitor_device, sizeof(monitor_device), "stdio");
+                pstrcpy(serial_device, sizeof(serial_device), "stdio");
                 nographic = 1;
                 break;
             case QEMU_OPTION_kernel:
@@ -2560,6 +2825,12 @@ int main(int argc, char **argv)
                     graphic_height = h;
                     graphic_depth = depth;
                 }
+                break;
+            case QEMU_OPTION_monitor:
+                pstrcpy(monitor_device, sizeof(monitor_device), optarg);
+                break;
+            case QEMU_OPTION_serial:
+                pstrcpy(serial_device, sizeof(serial_device), optarg);
                 break;
             }
         }
@@ -2750,6 +3021,24 @@ int main(int argc, char **argv)
 #endif
     }
 
+    vga_console = graphic_console_init(ds);
+    
+    monitor_hd = qemu_chr_open(monitor_device);
+    if (!monitor_hd) {
+        fprintf(stderr, "qemu: could not open monitor device '%s'\n", monitor_device);
+        exit(1);
+    }
+    monitor_init(monitor_hd, !nographic);
+
+    serial_hd = qemu_chr_open(serial_device);
+    if (!serial_hd) {
+        fprintf(stderr, "qemu: could not open serial device '%s'\n", serial_device);
+        exit(1);
+    }
+    if (!strcmp(serial_device, "vc"))
+        qemu_chr_printf(serial_hd, "serial0 console\n");
+    
+
     /* setup cpu signal handlers for MMU / self modifying code handling */
 #if !defined(CONFIG_SOFTMMU)
     
@@ -2804,10 +3093,6 @@ int main(int argc, char **argv)
 	     ds, fd_filename, snapshot,
 	     kernel_filename, kernel_cmdline, initrd_filename);
 #endif
-
-    /* launched after the device init so that it can display or not a
-       banner */
-    monitor_init();
 
     gui_timer = qemu_new_timer(rt_clock, gui_update, NULL);
     qemu_mod_timer(gui_timer, qemu_get_clock(rt_clock));
