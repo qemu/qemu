@@ -12,9 +12,9 @@ QEMU=../qemu
 
 all: $(TESTS)
 
-hello: hello.c
+hello-i386: hello-i386.c
 	$(CC) -nostdlib $(CFLAGS) -static $(LDFLAGS) -o $@ $<
-	strip hello
+	strip $@
 
 testclone: testclone.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
