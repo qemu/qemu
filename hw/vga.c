@@ -1129,14 +1129,14 @@ static void vga_draw_text(VGAState *s, int full_update)
     
     /* compute font data address (in plane 2) */
     v = s->sr[3];
-    offset = (((v >> 5) & 1) | ((v >> 1) & 6)) * 8192 * 4 + 2;
+    offset = (((v >> 4) & 1) | ((v << 1) & 6)) * 8192 * 4 + 2;
     if (offset != s->font_offsets[0]) {
         s->font_offsets[0] = offset;
         full_update = 1;
     }
     font_base[0] = s->vram_ptr + offset;
 
-    offset = (((v >> 4) & 1) | ((v << 1) & 6)) * 8192 * 4 + 2;
+    offset = (((v >> 5) & 1) | ((v >> 1) & 6)) * 8192 * 4 + 2;
     font_base[1] = s->vram_ptr + offset;
     if (offset != s->font_offsets[1]) {
         s->font_offsets[1] = offset;
@@ -1709,8 +1709,17 @@ static int vga_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
+static void vga_map(PCIDevice *pci_dev, int region_num, 
+                    uint32_t addr, uint32_t size, int type)
+{
+    VGAState *s = &vga_state;
+
+    cpu_register_physical_memory(addr, s->vram_size, s->vram_offset);
+}
+
 int vga_initialize(DisplayState *ds, uint8_t *vga_ram_base, 
-                   unsigned long vga_ram_offset, int vga_ram_size)
+                   unsigned long vga_ram_offset, int vga_ram_size, 
+                   int is_pci)
 {
     VGAState *s = &vga_state;
     int i, j, v, b;
@@ -1782,13 +1791,36 @@ int vga_initialize(DisplayState *ds, uint8_t *vga_ram_base,
     vga_io_memory = cpu_register_io_memory(0, vga_mem_read, vga_mem_write);
     cpu_register_physical_memory(isa_mem_base + 0x000a0000, 0x20000, 
                                  vga_io_memory);
+
+    if (is_pci) {
+        PCIDevice *d;
+        uint8_t *pci_conf;
+
+        d = pci_register_device("VGA", 
+                                sizeof(PCIDevice),
+                                0, -1, 
+                                NULL, NULL);
+        pci_conf = d->config;
+        pci_conf[0x00] = 0x34; // dummy VGA (same as Bochs ID)
+        pci_conf[0x01] = 0x12;
+        pci_conf[0x02] = 0x11;
+        pci_conf[0x03] = 0x11;
+        pci_conf[0x0a] = 0x00; // VGA controller 
+        pci_conf[0x0b] = 0x03;
+        pci_conf[0x0e] = 0x00; // header_type
+
+        /* XXX: vga_ram_size must be a power of two */
+        pci_register_io_region(d, 0, vga_ram_size, 
+                               PCI_ADDRESS_SPACE_MEM_PREFETCH, vga_map);
+    } else {
 #ifdef CONFIG_BOCHS_VBE
 #if defined (TARGET_I386)
-    /* XXX: use optimized standard vga accesses */
-    cpu_register_physical_memory(VBE_DISPI_LFB_PHYSICAL_ADDRESS, 
-                                 vga_ram_size, vga_ram_offset);
+        /* XXX: use optimized standard vga accesses */
+        cpu_register_physical_memory(VBE_DISPI_LFB_PHYSICAL_ADDRESS, 
+                                     vga_ram_size, vga_ram_offset);
 #endif
 #endif
+    }
     return 0;
 }
 
