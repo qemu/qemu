@@ -343,6 +343,12 @@ Change gdb connection port.
 Do not start CPU at startup (you must type 'c' in the monitor).
 @item -d             
 Output log in /tmp/qemu.log
+@item -hdachs c,h,s,[,t]
+Force hard disk 0 physical geometry (1 <= @var{c} <= 16383, 1 <=
+@var{h} <= 16, 1 <= @var{s} <= 63) and optionally force the BIOS
+translation mode (@var{t}=none, lba or auto). Usually QEMU can guess
+all thoses parameters. This option is useful for old MS-DOS disk
+images.
 @item -isa
 Simulate an ISA-only system (default is PCI system).
 @item -std-vga

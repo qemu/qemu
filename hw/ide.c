@@ -1826,11 +1826,11 @@ struct partition {
 	uint32_t nr_sects;		/* nr of sectors in partition */
 } __attribute__((packed));
 
-/* try to guess the IDE geometry from the MSDOS partition table */
+/* try to guess the IDE physical geometry from the MSDOS partition table */
 static void ide_guess_geometry(IDEState *s)
 {
     uint8_t buf[512];
-    int ret, i;
+    int ret, i, heads, sectors, cylinders;
     struct partition *p;
     uint32_t nr_sects;
 
@@ -1848,9 +1848,18 @@ static void ide_guess_geometry(IDEState *s)
         if (nr_sects && p->end_head) {
             /* We make the assumption that the partition terminates on
                a cylinder boundary */
-            s->heads = p->end_head + 1;
-            s->sectors = p->end_sector & 63;
-            s->cylinders = s->nb_sectors / (s->heads * s->sectors);
+            heads = p->end_head + 1;
+            if (heads < 1 || heads > 16)
+                continue;
+            sectors = p->end_sector & 63;
+            if (sectors == 0)
+                continue;
+            cylinders = s->nb_sectors / (heads * sectors);
+            if (cylinders < 1 || cylinders > 16383)
+                continue;
+            s->heads = heads;
+            s->sectors = sectors;
+            s->cylinders = cylinders;
 #if 0
             printf("guessed partition: CHS=%d %d %d\n", 
                    s->cylinders, s->heads, s->sectors);
@@ -1885,7 +1894,7 @@ static void ide_init2(IDEState *ide_state, int irq,
             } else {
                 ide_guess_geometry(s);
                 if (s->cylinders == 0) {
-                    /* if no geometry, use a LBA compatible one */
+                    /* if no geometry, use a standard physical disk geometry */
                     cylinders = nb_sectors / (16 * 63);
                     if (cylinders > 16383)
                         cylinders = 16383;

@@ -348,6 +348,11 @@ void bdrv_set_type_hint(BlockDriverState *bs, int type)
                       type == BDRV_TYPE_FLOPPY));
 }
 
+void bdrv_set_translation_hint(BlockDriverState *bs, int translation)
+{
+    bs->translation = translation;
+}
+
 void bdrv_get_geometry_hint(BlockDriverState *bs, 
                             int *pcyls, int *pheads, int *psecs)
 {
@@ -359,6 +364,11 @@ void bdrv_get_geometry_hint(BlockDriverState *bs,
 int bdrv_get_type_hint(BlockDriverState *bs)
 {
     return bs->type;
+}
+
+int bdrv_get_translation_hint(BlockDriverState *bs)
+{
+    return bs->translation;
 }
 
 int bdrv_is_removable(BlockDriverState *bs)

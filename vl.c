@@ -2537,7 +2537,8 @@ void help(void)
            "-s              wait gdb connection to port %d\n"
            "-p port         change gdb connection port\n"
            "-d item1,...    output log to %s (use -d ? for a list of log items)\n"
-           "-hdachs c,h,s   force hard disk 0 geometry (usually qemu can guess it)\n"
+           "-hdachs c,h,s[,t]  force hard disk 0 physical geometry and the optional BIOS\n"
+           "                translation (t=none or lba) (usually qemu can guess them)\n"
            "-L path         set the directory for the BIOS and VGA BIOS\n"
 #ifdef USE_CODE_COPY
            "-no-code-copy   disable code copy acceleration\n"
@@ -2753,7 +2754,7 @@ int main(int argc, char **argv)
     const char *hd_filename[MAX_DISKS], *fd_filename[MAX_FD];
     const char *kernel_filename, *kernel_cmdline;
     DisplayState *ds = &display_state;
-    int cyls, heads, secs;
+    int cyls, heads, secs, translation;
     int start_emulation = 1;
     uint8_t macaddr[6];
     int net_if_type, nb_tun_fds, tun_fds[MAX_NICS];
@@ -2788,6 +2789,7 @@ int main(int argc, char **argv)
     kernel_cmdline = "";
     has_cdrom = 1;
     cyls = heads = secs = 0;
+    translation = BIOS_ATA_TRANSLATION_AUTO;
     pstrcpy(monitor_device, sizeof(monitor_device), "vc");
 
     pstrcpy(serial_devices[0], sizeof(serial_devices[0]), "vc");
@@ -2857,17 +2859,34 @@ int main(int argc, char **argv)
                     const char *p;
                     p = optarg;
                     cyls = strtol(p, (char **)&p, 0);
+                    if (cyls < 1 || cyls > 16383)
+                        goto chs_fail;
                     if (*p != ',')
                         goto chs_fail;
                     p++;
                     heads = strtol(p, (char **)&p, 0);
+                    if (heads < 1 || heads > 16)
+                        goto chs_fail;
                     if (*p != ',')
                         goto chs_fail;
                     p++;
                     secs = strtol(p, (char **)&p, 0);
-                    if (*p != '\0') {
+                    if (secs < 1 || secs > 63)
+                        goto chs_fail;
+                    if (*p == ',') {
+                        p++;
+                        if (!strcmp(p, "none"))
+                            translation = BIOS_ATA_TRANSLATION_NONE;
+                        else if (!strcmp(p, "lba"))
+                            translation = BIOS_ATA_TRANSLATION_LBA;
+                        else if (!strcmp(p, "auto"))
+                            translation = BIOS_ATA_TRANSLATION_AUTO;
+                        else
+                            goto chs_fail;
+                    } else if (*p != '\0') {
                     chs_fail:
-                        cyls = 0;
+                        fprintf(stderr, "qemu: invalid physical CHS format\n");
+                        exit(1);
                     }
                 }
                 break;
@@ -3230,8 +3249,10 @@ int main(int argc, char **argv)
                         hd_filename[i]);
                 exit(1);
             }
-            if (i == 0 && cyls != 0) 
+            if (i == 0 && cyls != 0) {
                 bdrv_set_geometry_hint(bs_table[i], cyls, heads, secs);
+                bdrv_set_translation_hint(bs_table[i], translation);
+            }
         }
     }
 

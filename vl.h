@@ -383,13 +383,18 @@ void bdrv_set_boot_sector(BlockDriverState *bs, const uint8_t *data, int size);
 #define BDRV_TYPE_HD     0
 #define BDRV_TYPE_CDROM  1
 #define BDRV_TYPE_FLOPPY 2
+#define BIOS_ATA_TRANSLATION_AUTO 0
+#define BIOS_ATA_TRANSLATION_NONE 1
+#define BIOS_ATA_TRANSLATION_LBA  2
 
 void bdrv_set_geometry_hint(BlockDriverState *bs, 
                             int cyls, int heads, int secs);
 void bdrv_set_type_hint(BlockDriverState *bs, int type);
+void bdrv_set_translation_hint(BlockDriverState *bs, int translation);
 void bdrv_get_geometry_hint(BlockDriverState *bs, 
                             int *pcyls, int *pheads, int *psecs);
 int bdrv_get_type_hint(BlockDriverState *bs);
+int bdrv_get_translation_hint(BlockDriverState *bs);
 int bdrv_is_removable(BlockDriverState *bs);
 int bdrv_is_read_only(BlockDriverState *bs);
 int bdrv_is_inserted(BlockDriverState *bs);

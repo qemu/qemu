@@ -68,7 +68,7 @@ struct BlockDriverState {
     
     /* NOTE: the following infos are only hints for real hardware
        drivers. They are not used by the block driver */
-    int cyls, heads, secs;
+    int cyls, heads, secs, translation;
     int type;
     char device_name[32];
     BlockDriverState *next;
