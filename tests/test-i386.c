@@ -970,6 +970,11 @@ void test_misc(void)
     asm volatile ("pushl $12345432 ; pushl $0x9abcdef ; popl (%%esp) ; popl %0"
                   : "=g" (res));
     printf("popl esp=%x\n", res);
+
+    /* specific popw test */
+    asm volatile ("pushl $12345432 ; pushl $0x9abcdef ; popw (%%esp) ; addl $2, %%esp ; popl %0"
+                  : "=g" (res));
+    printf("popw esp=%x\n", res);
 }
 
 uint8_t str_buffer[4096];
