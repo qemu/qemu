@@ -108,7 +108,12 @@ void exec_opb(int s0, int s1, int iflags)
 void exec_op(int s2, int s0, int s1)
 {
     exec_opl(s2, s0, s1, 0);
+#ifdef OP_SHIFTD
+    if (s1 <= 15)
+        exec_opw(s2, s0, s1, 0);
+#else
     exec_opw(s2, s0, s1, 0);
+#endif
 #ifndef OP_NOBYTE
     exec_opb(s0, s1, 0);
 #endif
