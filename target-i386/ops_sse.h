@@ -61,6 +61,7 @@ void OPPROTO glue(op_psrlw, SUFFIX)(void)
         d->W(7) >>= shift;
 #endif
     }
+    FORCE_RET();
 }
 
 void OPPROTO glue(op_psraw, SUFFIX)(void)
@@ -114,6 +115,7 @@ void OPPROTO glue(op_psllw, SUFFIX)(void)
         d->W(7) <<= shift;
 #endif
     }
+    FORCE_RET();
 }
 
 void OPPROTO glue(op_psrld, SUFFIX)(void)
@@ -138,6 +140,7 @@ void OPPROTO glue(op_psrld, SUFFIX)(void)
         d->L(3) >>= shift;
 #endif
     }
+    FORCE_RET();
 }
 
 void OPPROTO glue(op_psrad, SUFFIX)(void)
@@ -183,6 +186,7 @@ void OPPROTO glue(op_pslld, SUFFIX)(void)
         d->L(3) <<= shift;
 #endif
     }
+    FORCE_RET();
 }
 
 void OPPROTO glue(op_psrlq, SUFFIX)(void)
@@ -205,6 +209,7 @@ void OPPROTO glue(op_psrlq, SUFFIX)(void)
         d->Q(1) >>= shift;
 #endif
     }
+    FORCE_RET();
 }
 
 void OPPROTO glue(op_psllq, SUFFIX)(void)
@@ -227,6 +232,7 @@ void OPPROTO glue(op_psllq, SUFFIX)(void)
         d->Q(1) <<= shift;
 #endif
     }
+    FORCE_RET();
 }
 
 #if SHIFT == 1
@@ -478,6 +484,7 @@ void OPPROTO glue(op_pmaddwd, SUFFIX) (void)
         d->L(i) = (int16_t)s->W(2*i) * (int16_t)d->W(2*i) +
             (int16_t)s->W(2*i+1) * (int16_t)d->W(2*i+1);
     }
+    FORCE_RET();
 }
 
 #if SHIFT == 0
@@ -530,6 +537,7 @@ void OPPROTO glue(op_maskmov, SUFFIX) (void)
         if (s->B(i) & 0x80)
             stb(A0 + i, d->B(i));
     }
+    FORCE_RET();
 }
 
 void OPPROTO glue(op_movl_mm_T0, SUFFIX) (void)
@@ -682,7 +690,7 @@ void OPPROTO op_ ## name ## sd (void)\
 #define FPU_DIV(a, b) (a) / (b)
 #define FPU_MIN(a, b) (a) < (b) ? (a) : (b)
 #define FPU_MAX(a, b) (a) > (b) ? (a) : (b)
-#define FPU_SQRT(a, b) sqrt(b)
+#define FPU_SQRT(a, b) helper_sqrt(b)
 
 SSE_OP_S(add, FPU_ADD)
 SSE_OP_S(sub, FPU_SUB)
@@ -702,8 +710,8 @@ void OPPROTO op_cvtps2pd(void)
     s = (Reg *)((char *)env + PARAM2);
     s0 = s->XMM_S(0);
     s1 = s->XMM_S(1);
-    d->XMM_D(0) = s0;
-    d->XMM_D(1) = s1;
+    d->XMM_D(0) = float32_to_float64(s0);
+    d->XMM_D(1) = float32_to_float64(s1);
 }
 
 void OPPROTO op_cvtpd2ps(void)
@@ -711,8 +719,8 @@ void OPPROTO op_cvtpd2ps(void)
     Reg *d, *s;
     d = (Reg *)((char *)env + PARAM1);
     s = (Reg *)((char *)env + PARAM2);
-    d->XMM_S(0) = s->XMM_D(0);
-    d->XMM_S(1) = s->XMM_D(1);
+    d->XMM_S(0) = float64_to_float32(s->XMM_D(0));
+    d->XMM_S(1) = float64_to_float32(s->XMM_D(1));
     d->Q(1) = 0;
 }
 
@@ -721,7 +729,7 @@ void OPPROTO op_cvtss2sd(void)
     Reg *d, *s;
     d = (Reg *)((char *)env + PARAM1);
     s = (Reg *)((char *)env + PARAM2);
-    d->XMM_D(0) = s->XMM_S(0);
+    d->XMM_D(0) = float32_to_float64(s->XMM_S(0));
 }
 
 void OPPROTO op_cvtsd2ss(void)
@@ -729,7 +737,7 @@ void OPPROTO op_cvtsd2ss(void)
     Reg *d, *s;
     d = (Reg *)((char *)env + PARAM1);
     s = (Reg *)((char *)env + PARAM2);
-    d->XMM_S(0) = s->XMM_D(0);
+    d->XMM_S(0) = float64_to_float32(s->XMM_D(0));
 }
 
 /* integer to float */
@@ -737,10 +745,10 @@ void OPPROTO op_cvtdq2ps(void)
 {
     XMMReg *d = (XMMReg *)((char *)env + PARAM1);
     XMMReg *s = (XMMReg *)((char *)env + PARAM2);
-    d->XMM_S(0) = (int32_t)s->XMM_L(0);
-    d->XMM_S(1) = (int32_t)s->XMM_L(1);
-    d->XMM_S(2) = (int32_t)s->XMM_L(2);
-    d->XMM_S(3) = (int32_t)s->XMM_L(3);
+    d->XMM_S(0) = int32_to_float32(s->XMM_L(0));
+    d->XMM_S(1) = int32_to_float32(s->XMM_L(1));
+    d->XMM_S(2) = int32_to_float32(s->XMM_L(2));
+    d->XMM_S(3) = int32_to_float32(s->XMM_L(3));
 }
 
 void OPPROTO op_cvtdq2pd(void)
@@ -750,49 +758,49 @@ void OPPROTO op_cvtdq2pd(void)
     int32_t l0, l1;
     l0 = (int32_t)s->XMM_L(0);
     l1 = (int32_t)s->XMM_L(1);
-    d->XMM_D(0) = l0;
-    d->XMM_D(1) = l1;
+    d->XMM_D(0) = int32_to_float64(l0);
+    d->XMM_D(1) = int32_to_float64(l1);
 }
 
 void OPPROTO op_cvtpi2ps(void)
 {
     XMMReg *d = (Reg *)((char *)env + PARAM1);
     MMXReg *s = (MMXReg *)((char *)env + PARAM2);
-    d->XMM_S(0) = (int32_t)s->MMX_L(0);
-    d->XMM_S(1) = (int32_t)s->MMX_L(1);
+    d->XMM_S(0) = int32_to_float32(s->MMX_L(0));
+    d->XMM_S(1) = int32_to_float32(s->MMX_L(1));
 }
 
 void OPPROTO op_cvtpi2pd(void)
 {
     XMMReg *d = (Reg *)((char *)env + PARAM1);
     MMXReg *s = (MMXReg *)((char *)env + PARAM2);
-    d->XMM_D(0) = (int32_t)s->MMX_L(0);
-    d->XMM_D(1) = (int32_t)s->MMX_L(1);
+    d->XMM_D(0) = int32_to_float64(s->MMX_L(0));
+    d->XMM_D(1) = int32_to_float64(s->MMX_L(1));
 }
 
 void OPPROTO op_cvtsi2ss(void)
 {
     XMMReg *d = (Reg *)((char *)env + PARAM1);
-    d->XMM_S(0) = (int32_t)T0;
+    d->XMM_S(0) = int32_to_float32(T0);
 }
 
 void OPPROTO op_cvtsi2sd(void)
 {
     XMMReg *d = (Reg *)((char *)env + PARAM1);
-    d->XMM_D(0) = (int32_t)T0;
+    d->XMM_D(0) = int32_to_float64(T0);
 }
 
 #ifdef TARGET_X86_64
 void OPPROTO op_cvtsq2ss(void)
 {
     XMMReg *d = (Reg *)((char *)env + PARAM1);
-    d->XMM_S(0) = (int64_t)T0;
+    d->XMM_S(0) = int64_to_float32(T0);
 }
 
 void OPPROTO op_cvtsq2sd(void)
 {
     XMMReg *d = (Reg *)((char *)env + PARAM1);
-    d->XMM_D(0) = (int64_t)T0;
+    d->XMM_D(0) = int64_to_float64(T0);
 }
 #endif
 
