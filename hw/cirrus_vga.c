@@ -50,11 +50,6 @@
 #define CIRRUS_ID_CLGD5436  (0x2B<<2)
 #define CIRRUS_ID_CLGD5446  (0x2E<<2)
 
-/* this define is used to select the exact CLGD implementation we
-   emulate. */
-//#define CIRRUS_ID CIRRUS_ID_CLGD5430
-#define CIRRUS_ID CIRRUS_ID_CLGD5446
-
 // sequencer 0x07
 #define CIRRUS_SR7_BPP_VGA            0x00
 #define CIRRUS_SR7_BPP_SVGA           0x01
@@ -163,7 +158,6 @@
 
 // PCI 0x00: vendor, 0x02: device
 #define PCI_VENDOR_CIRRUS             0x1013
-#define PCI_DEVICE_ID                 CIRRUS_ID
 #define PCI_DEVICE_CLGD5462           0x00d0
 #define PCI_DEVICE_CLGD5465           0x00d6
 
@@ -2695,7 +2689,7 @@ static CPUWriteMemoryFunc *cirrus_mmio_write[3] = {
  *
  ***************************************/
 
-static void cirrus_init_common(CirrusVGAState * s)
+static void cirrus_init_common(CirrusVGAState * s, int device_id)
 {
     int vga_io_memory;
 
@@ -2722,7 +2716,7 @@ static void cirrus_init_common(CirrusVGAState * s)
     s->sr[0x0F] = CIRRUS_MEMSIZE_2M;
     s->sr[0x1F] = 0x22;		// MemClock
 
-    s->cr[0x27] = CIRRUS_ID;
+    s->cr[0x27] = device_id;
 
     s->cirrus_hidden_dac_lockindex = 5;
     s->cirrus_hidden_dac_data = 0;
@@ -2757,7 +2751,7 @@ void isa_cirrus_vga_init(DisplayState *ds, uint8_t *vga_ram_base,
     
     vga_common_init((VGAState *)s, 
                     ds, vga_ram_base, vga_ram_offset, vga_ram_size);
-    cirrus_init_common(s);
+    cirrus_init_common(s, CIRRUS_ID_CLGD5430);
     s->sr[0x17] = CIRRUS_BUSTYPE_ISA;
     /* XXX ISA-LFB support */
 }
@@ -2792,6 +2786,9 @@ void pci_cirrus_vga_init(DisplayState *ds, uint8_t *vga_ram_base,
     PCICirrusVGAState *d;
     uint8_t *pci_conf;
     CirrusVGAState *s;
+    int device_id;
+    
+    device_id = CIRRUS_ID_CLGD5446;
 
     /* setup PCI configuration registers */
     d = (PCICirrusVGAState *)pci_register_device("Cirrus VGA", 
@@ -2800,8 +2797,8 @@ void pci_cirrus_vga_init(DisplayState *ds, uint8_t *vga_ram_base,
     pci_conf = d->dev.config;
     pci_conf[0x00] = (uint8_t) (PCI_VENDOR_CIRRUS & 0xff);
     pci_conf[0x01] = (uint8_t) (PCI_VENDOR_CIRRUS >> 8);
-    pci_conf[0x02] = (uint8_t) (PCI_DEVICE_ID & 0xff);
-    pci_conf[0x03] = (uint8_t) (PCI_DEVICE_ID >> 8);
+    pci_conf[0x02] = (uint8_t) (device_id & 0xff);
+    pci_conf[0x03] = (uint8_t) (device_id >> 8);
     pci_conf[0x04] = PCI_COMMAND_IOACCESS | PCI_COMMAND_MEMACCESS;
     pci_conf[0x0a] = PCI_CLASS_SUB_VGA;
     pci_conf[0x0b] = PCI_CLASS_BASE_DISPLAY;
@@ -2811,7 +2808,7 @@ void pci_cirrus_vga_init(DisplayState *ds, uint8_t *vga_ram_base,
     s = &d->cirrus_vga;
     vga_common_init((VGAState *)s, 
                     ds, vga_ram_base, vga_ram_offset, vga_ram_size);
-    cirrus_init_common(s);
+    cirrus_init_common(s, device_id);
     s->sr[0x17] = CIRRUS_BUSTYPE_PCI;
 
     /* setup memory space */
@@ -2820,7 +2817,7 @@ void pci_cirrus_vga_init(DisplayState *ds, uint8_t *vga_ram_base,
     /* XXX: s->vram_size must be a power of two */
     pci_register_io_region((PCIDevice *)d, 0, s->vram_size,
 			   PCI_ADDRESS_SPACE_MEM_PREFETCH, cirrus_pci_lfb_map);
-    if (CIRRUS_ID == CIRRUS_ID_CLGD5446) {
+    if (device_id == CIRRUS_ID_CLGD5446) {
         pci_register_io_region((PCIDevice *)d, 1, CIRRUS_PNPMMIO_SIZE,
                                PCI_ADDRESS_SPACE_MEM, cirrus_pci_mmio_map);
     }
