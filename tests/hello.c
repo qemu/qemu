@@ -19,7 +19,7 @@ extern inline int write(int fd, const char * buf, int len)
 		    : "0" (__NR_write),"S" ((long)(fd)),"c" ((long)(buf)),"d" ((long)(len)));
 }
 
-void _startup(void)
+void _start(void)
 {
     write(1, "Hello World\n", 12);
     exit(0);
