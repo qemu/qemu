@@ -2542,7 +2542,9 @@ void help(void)
 	   "-snapshot       write to temporary files instead of disk image files\n"
            "-m megs         set virtual RAM size to megs MB [default=%d]\n"
            "-nographic      disable graphical output and redirect serial I/Os to console\n"
+#ifndef _WIN32
 	   "-k language     use keyboard layout (for example \"fr\" for French)\n"
+#endif
            "-enable-audio   enable audio support\n"
            "-localtime      set the real time clock to local time [default=utc]\n"
            "-full-screen    start in full screen\n"
