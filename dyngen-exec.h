@@ -54,6 +54,8 @@ extern int printf(const char *, ...);
 #define AREG1 "r24"
 #define AREG2 "r25"
 #define AREG3 "r26"
+/* XXX: suppress this hack */
+#if defined(CONFIG_USER_ONLY)
 #define AREG4 "r16"
 #define AREG5 "r17"
 #define AREG6 "r18"
@@ -62,6 +64,7 @@ extern int printf(const char *, ...);
 #define AREG9 "r21"
 #define AREG10 "r22"
 #define AREG11 "r23"
+#endif
 #define USE_INT_TO_FLOAT_HELPERS
 #define BUGGY_GCC_DIV64
 #endif
