@@ -1068,6 +1068,38 @@ void helper_cpuid(void)
     }
 }
 
+void helper_enter_level(int level, int data32)
+{
+    uint8_t *ssp;
+    uint32_t esp_mask, esp, ebp;
+
+    esp_mask = get_sp_mask(env->segs[R_SS].flags);
+    ssp = env->segs[R_SS].base;
+    ebp = EBP;
+    esp = ESP;
+    if (data32) {
+        /* 32 bit */
+        esp -= 4;
+        while (--level) {
+            esp -= 4;
+            ebp -= 4;
+            stl(ssp + (esp & esp_mask), ldl(ssp + (ebp & esp_mask)));
+        }
+        esp -= 4;
+        stl(ssp + (esp & esp_mask), T1);
+    } else {
+        /* 16 bit */
+        esp -= 2;
+        while (--level) {
+            esp -= 2;
+            ebp -= 2;
+            stw(ssp + (esp & esp_mask), lduw(ssp + (ebp & esp_mask)));
+        }
+        esp -= 2;
+        stw(ssp + (esp & esp_mask), T1);
+    }
+}
+
 void helper_lldt_T0(void)
 {
     int selector;

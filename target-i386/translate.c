@@ -1690,15 +1690,12 @@ static void gen_popa(DisasContext *s)
     gen_op_mov_reg_T1[OT_WORD + s->dflag][R_ESP]();
 }
 
-/* NOTE: wrap around in 16 bit not fully handled */
-/* XXX: check this */
 static void gen_enter(DisasContext *s, int esp_addend, int level)
 {
-    int ot, level1, addend, opsize;
+    int ot, opsize;
 
     ot = s->dflag + OT_WORD;
     level &= 0x1f;
-    level1 = level;
     opsize = 2 << s->dflag;
 
     gen_op_movl_A0_ESP();
@@ -1712,19 +1709,10 @@ static void gen_enter(DisasContext *s, int esp_addend, int level)
     gen_op_mov_TN_reg[OT_LONG][0][R_EBP]();
     gen_op_st_T0_A0[ot + s->mem_index]();
     if (level) {
-        while (level--) {
-            gen_op_addl_A0_im(-opsize);
-            gen_op_addl_T0_im(-opsize);
-            gen_op_st_T0_A0[ot + s->mem_index]();
-        }
-        gen_op_addl_A0_im(-opsize);
-        gen_op_st_T1_A0[ot + s->mem_index]();
+        gen_op_enter_level(level, s->dflag);
     }
     gen_op_mov_reg_T1[ot][R_EBP]();
-    addend = -esp_addend;
-    if (level1)
-        addend -= opsize * (level1 + 1);
-    gen_op_addl_T1_im(addend);
+    gen_op_addl_T1_im( -esp_addend + (-opsize * level) );
     gen_op_mov_reg_T1[ot][R_ESP]();
 }
 

@@ -27,6 +27,7 @@ version 0.6.1:
   - Floppy fixes for NT4 and NT5 (Mike Nordell)
   - NT4 IDE fixes (Ben Pfaf, Mike Nordell)
   - SDL Audio support and SB16 fixes (malc)
+  - ENTER instruction bug fix (initial patch by Stefan Kisdaroczi)
 
 version 0.6.0:
 

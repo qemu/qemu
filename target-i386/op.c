@@ -695,6 +695,11 @@ void OPPROTO op_cpuid(void)
     helper_cpuid();
 }
 
+void OPPROTO op_enter_level(void)
+{
+    helper_enter_level(PARAM1, PARAM2);
+}
+
 void OPPROTO op_sysenter(void)
 {
     helper_sysenter();

@@ -1625,7 +1625,55 @@ void test_self_modifying_code(void)
         printf("smc_code2(%d) = %d\n", i, smc_code2(i));
     }
 }
-    
+
+int enter_stack[4096];
+
+#define TEST_ENTER(size, stack_type, level)\
+{\
+    int esp_save, esp_val, ebp_val, ebp_save, i;\
+    stack_type *ptr, *stack_end, *stack_ptr;\
+    memset(enter_stack, 0, sizeof(enter_stack));\
+    stack_end = stack_ptr = (stack_type *)(enter_stack + 4096);\
+    ebp_val = (long)stack_ptr;\
+    for(i=1;i<=32;i++)\
+       *--stack_ptr = i;\
+    esp_val = (long)stack_ptr;\
+    asm("movl %%esp, %[esp_save]\n"\
+        "movl %%ebp, %[ebp_save]\n"\
+        "movl %[esp_val], %%esp\n"\
+        "movl %[ebp_val], %%ebp\n"\
+        "enter" size " $12, $" #level "\n"\
+        "movl %%esp, %[esp_val]\n"\
+        "movl %%ebp, %[ebp_val]\n"\
+        "movl %[esp_save], %%esp\n"\
+        "movl %[ebp_save], %%ebp\n"\
+        : [esp_save] "=r" (esp_save),\
+        [ebp_save] "=r" (ebp_save),\
+        [esp_val] "=r" (esp_val),\
+        [ebp_val] "=r" (ebp_val)\
+        :  "[esp_val]" (esp_val),\
+        "[ebp_val]" (ebp_val));\
+    printf("level=%d:\n", level);\
+    printf("esp_val=0x%08lx\n", esp_val - (long)stack_end);\
+    printf("ebp_val=0x%08lx\n", ebp_val - (long)stack_end);\
+    for(ptr = (stack_type *)esp_val; ptr < stack_end; ptr++)\
+        printf("%08x\n", ptr[0]);\
+}
+
+static void test_enter(void)
+{
+    TEST_ENTER("l", uint32_t, 0);
+    TEST_ENTER("l", uint32_t, 1);
+    TEST_ENTER("l", uint32_t, 2);
+    TEST_ENTER("l", uint32_t, 31);
+
+    TEST_ENTER("w", uint16_t, 0);
+    TEST_ENTER("w", uint16_t, 1);
+    TEST_ENTER("w", uint16_t, 2);
+    TEST_ENTER("w", uint16_t, 31);
+}
+
+
 static void *call_end __init_call = NULL;
 
 int main(int argc, char **argv)
@@ -1653,5 +1701,6 @@ int main(int argc, char **argv)
     test_exceptions();
     test_self_modifying_code();
     test_single_step();
+    test_enter();
     return 0;
 }
