@@ -85,7 +85,7 @@
 #define KERNEL_LOAD_ADDR   0x00100000
 #elif defined (TARGET_PPC)
 //#define USE_OPEN_FIRMWARE
-#if defined (USE_OPEN_FIRMWARE)
+#if !defined (USE_OPEN_FIRMWARE)
 #define KERNEL_LOAD_ADDR    0x01000000
 #define KERNEL_STACK_ADDR   0x01200000
 #else

@@ -541,7 +541,13 @@ static inline target_ulong get_phys_addr_code(CPUState *env, target_ulong addr)
     int is_user, index;
 
     index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
+#if defined(TARGET_I386)
     is_user = ((env->hflags & HF_CPL_MASK) == 3);
+#elif defined (TARGET_PPC)
+    is_user = msr_pr;
+#else
+#error "Unimplemented !"
+#endif
     if (__builtin_expect(env->tlb_read[is_user][index].address != 
                          (addr & TARGET_PAGE_MASK), 0)) {
         ldub_code((void *)addr);

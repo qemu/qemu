@@ -119,7 +119,7 @@ int cpu_gen_code(CPUState *env, TranslationBlock *tb,
                                 gen_opc_buf, gen_opparam_buf);
     *gen_code_size_ptr = gen_code_size;
 #ifdef DEBUG_DISAS
-    if (loglevel) {
+    if (loglevel && 0) {
         fprintf(logfile, "OUT: [size=%d]\n", *gen_code_size_ptr);
         disas(logfile, gen_code_buf, *gen_code_size_ptr, 1, 0);
         fprintf(logfile, "\n");
@@ -203,7 +203,6 @@ int cpu_restore_state(TranslationBlock *tb,
         case INDEX_op_ ## op ## _raw
 #else
 #define CASE3(op)\
-        case INDEX_op_ ## op ## _raw:\
         case INDEX_op_ ## op ## _user:\
         case INDEX_op_ ## op ## _kernel
 #endif
