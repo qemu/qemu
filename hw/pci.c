@@ -255,21 +255,49 @@ void pci_default_write_config(PCIDevice *d,
     addr = address;
     for(i = 0; i < len; i++) {
         /* default read/write accesses */
-        switch(addr) {
+        switch(d->config[0x0e]) {
         case 0x00:
-        case 0x01:
-        case 0x02:
-        case 0x03:
-        case 0x08:
-        case 0x09:
-        case 0x0a:
-        case 0x0b:
-        case 0x0e:
-        case 0x3d:
-            can_write = 0;
+        case 0x80:
+            switch(addr) {
+            case 0x00:
+            case 0x01:
+            case 0x02:
+            case 0x03:
+            case 0x08:
+            case 0x09:
+            case 0x0a:
+            case 0x0b:
+            case 0x0e:
+            case 0x10 ... 0x27: /* base */
+            case 0x30 ... 0x33: /* rom */
+            case 0x3d:
+                can_write = 0;
+                break;
+            default:
+                can_write = 1;
+                break;
+            }
             break;
         default:
-            can_write = 1;
+        case 0x01:
+            switch(addr) {
+            case 0x00:
+            case 0x01:
+            case 0x02:
+            case 0x03:
+            case 0x08:
+            case 0x09:
+            case 0x0a:
+            case 0x0b:
+            case 0x0e:
+            case 0x38 ... 0x3b: /* rom */
+            case 0x3d:
+                can_write = 0;
+                break;
+            default:
+                can_write = 1;
+                break;
+            }
             break;
         }
         if (can_write) {
@@ -986,10 +1014,10 @@ static void pci_bios_init_device(PCIDevice *d)
     int i, pin, pic_irq, vendor_id, device_id;
 
     class = pci_config_readw(d, PCI_CLASS_DEVICE);
+    vendor_id = pci_config_readw(d, PCI_VENDOR_ID);
+    device_id = pci_config_readw(d, PCI_DEVICE_ID);
     switch(class) {
     case 0x0101:
-        vendor_id = pci_config_readw(d, PCI_VENDOR_ID);
-        device_id = pci_config_readw(d, PCI_DEVICE_ID);
         if (vendor_id == 0x8086 && device_id == 0x7010) {
             /* PIIX3 IDE */
             pci_config_writew(d, PCI_COMMAND, PCI_COMMAND_IO);
@@ -1005,6 +1033,12 @@ static void pci_bios_init_device(PCIDevice *d)
     case 0x0300:
         /* VGA: map frame buffer to default Bochs VBE address */
         pci_set_io_region_addr(d, 0, 0xE0000000);
+        break;
+    case 0xff00:
+        if (vendor_id == 0x0106b && device_id == 0x0017) {
+            /* macio bridge */
+            pci_set_io_region_addr(d, 0, 0x80800000);
+        }
         break;
     default:
         /* default memory mappings */
