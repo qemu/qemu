@@ -66,6 +66,7 @@ register unsigned int T1 asm("r25");
 register unsigned int A0 asm("r26");
 register struct CPUX86State *env asm("r27");
 #define USE_INT_TO_FLOAT_HELPERS
+#define BUGGY_GCC_DIV64
 #define reg_EAX
 #define reg_ECX
 #define reg_EDX
@@ -98,6 +99,12 @@ register unsigned int T0 asm("r7");
 register unsigned int T1 asm("r8");
 register unsigned int A0 asm("r9");
 register struct CPUX86State *env asm("r10");
+#endif
+#ifdef __alpha__
+register unsigned int T0 asm("$9");
+register unsigned int T1 asm("$10");
+register unsigned int A0 asm("$11");
+register struct CPUX86State *env asm("$12");
 #endif
 
 /* force GCC to generate only one epilog at the end of the function */
