@@ -125,7 +125,7 @@ int main(int argc, char **argv)
     r->es = seg;
     r->fs = seg;
     r->gs = seg;
-    r->eflags = (IF_MASK | IOPL_MASK);
+    r->eflags = VIF_MASK;
 
     /* put return code */
     set_bit((uint8_t *)&ctx.int_revectored, 0x21);
