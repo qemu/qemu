@@ -357,6 +357,11 @@ void OPPROTO op_andl_T0_ffff(void)
     T0 = T0 & 0xffff;
 }
 
+void OPPROTO op_andl_T0_im(void)
+{
+    T0 = T0 & PARAM1;
+}
+
 void OPPROTO op_movl_T0_T1(void)
 {
     T0 = T1;
@@ -665,7 +670,7 @@ void op_pushl_ss32_T0(void)
 {
     uint32_t offset;
     offset = ESP - 4;
-    stl(env->seg_cache[R_SS].base + offset, T0);
+    stl(env->segs[R_SS].base + offset, T0);
     /* modify ESP after to handle exceptions correctly */
     ESP = offset;
 }
@@ -674,7 +679,7 @@ void op_pushw_ss32_T0(void)
 {
     uint32_t offset;
     offset = ESP - 2;
-    stw(env->seg_cache[R_SS].base + offset, T0);
+    stw(env->segs[R_SS].base + offset, T0);
     /* modify ESP after to handle exceptions correctly */
     ESP = offset;
 }
@@ -683,7 +688,7 @@ void op_pushl_ss16_T0(void)
 {
     uint32_t offset;
     offset = (ESP - 4) & 0xffff;
-    stl(env->seg_cache[R_SS].base + offset, T0);
+    stl(env->segs[R_SS].base + offset, T0);
     /* modify ESP after to handle exceptions correctly */
     ESP = (ESP & ~0xffff) | offset;
 }
@@ -692,7 +697,7 @@ void op_pushw_ss16_T0(void)
 {
     uint32_t offset;
     offset = (ESP - 2) & 0xffff;
-    stw(env->seg_cache[R_SS].base + offset, T0);
+    stw(env->segs[R_SS].base + offset, T0);
     /* modify ESP after to handle exceptions correctly */
     ESP = (ESP & ~0xffff) | offset;
 }
@@ -710,22 +715,22 @@ void op_popw_T0(void)
 
 void op_popl_ss32_T0(void)
 {
-    T0 = ldl(env->seg_cache[R_SS].base + ESP);
+    T0 = ldl(env->segs[R_SS].base + ESP);
 }
 
 void op_popw_ss32_T0(void)
 {
-    T0 = lduw(env->seg_cache[R_SS].base + ESP);
+    T0 = lduw(env->segs[R_SS].base + ESP);
 }
 
 void op_popl_ss16_T0(void)
 {
-    T0 = ldl(env->seg_cache[R_SS].base + (ESP & 0xffff));
+    T0 = ldl(env->segs[R_SS].base + (ESP & 0xffff));
 }
 
 void op_popw_ss16_T0(void)
 {
-    T0 = lduw(env->seg_cache[R_SS].base + (ESP & 0xffff));
+    T0 = lduw(env->segs[R_SS].base + (ESP & 0xffff));
 }
 
 void op_addl_ESP_4(void)
@@ -909,17 +914,18 @@ void OPPROTO op_movl_seg_T0(void)
 void OPPROTO op_movl_seg_T0_vm(void)
 {
     int selector;
+    SegmentCache *sc;
     
     selector = T0 & 0xffff;
     /* env->segs[] access */
-    *(uint32_t *)((char *)env + PARAM1) = selector;
-    /* env->seg_cache[] access */
-    ((SegmentCache *)((char *)env + PARAM2))->base = (void *)(selector << 4);
+    sc = (SegmentCache *)((char *)env + PARAM1);
+    sc->selector = selector;
+    sc->base = (void *)(selector << 4);
 }
 
 void OPPROTO op_movl_T0_seg(void)
 {
-    T0 = env->segs[PARAM1];
+    T0 = env->segs[PARAM1].selector;
 }
 
 void OPPROTO op_movl_A0_seg(void)
@@ -940,6 +946,61 @@ void OPPROTO op_lsl(void)
 void OPPROTO op_lar(void)
 {
     helper_lar();
+}
+
+/* T0: segment, T1:eip */
+void OPPROTO op_ljmp_T0_T1(void)
+{
+    jmp_seg(T0 & 0xffff, T1);
+}
+
+void OPPROTO op_lldt_T0(void)
+{
+    helper_lldt_T0();
+}
+
+void OPPROTO op_ltr_T0(void)
+{
+    helper_ltr_T0();
+}
+
+/* CR registers access */
+void OPPROTO op_movl_crN_T0(void)
+{
+    helper_movl_crN_T0(PARAM1);
+}
+
+/* DR registers access */
+void OPPROTO op_movl_drN_T0(void)
+{
+    helper_movl_drN_T0(PARAM1);
+}
+
+void OPPROTO op_lmsw_T0(void)
+{
+    /* only 4 lower bits of CR0 are modified */
+    T0 = (env->cr[0] & ~0xf) | (T0 & 0xf);
+    helper_movl_crN_T0(0);
+}
+
+void OPPROTO op_movl_T0_env(void)
+{
+    T0 = *(uint32_t *)((char *)env + PARAM1);
+}
+
+void OPPROTO op_movl_env_T0(void)
+{
+    *(uint32_t *)((char *)env + PARAM1) = T0;
+}
+
+void OPPROTO op_movl_env_T1(void)
+{
+    *(uint32_t *)((char *)env + PARAM1) = T1;
+}
+
+void OPPROTO op_clts(void)
+{
+    env->cr[0] &= ~CR0_TS_MASK;
 }
 
 /* flags handling */

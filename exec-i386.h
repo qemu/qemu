@@ -123,6 +123,11 @@ typedef struct CCTable {
 extern CCTable cc_table[];
 
 void load_seg(int seg_reg, int selector, unsigned cur_eip);
+void jmp_seg(int selector, unsigned int new_eip);
+void helper_lldt_T0(void);
+void helper_ltr_T0(void);
+void helper_movl_crN_T0(int reg);
+void helper_movl_drN_T0(int reg);
 void __hidden cpu_lock(void);
 void __hidden cpu_unlock(void);
 void raise_interrupt(int intno, int is_int, int error_code, 

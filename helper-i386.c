@@ -157,7 +157,7 @@ void raise_interrupt(int intno, int is_int, int error_code,
         break;
     }
     dpl = (e2 >> DESC_DPL_SHIFT) & 3;
-    cpl = env->segs[R_CS] & 3;
+    cpl = env->segs[R_CS].selector & 3;
     /* check privledge if software int */
     if (is_int && dpl < cpl)
         raise_exception_err(EXCP0D_GPF, intno * 8 + 2);
@@ -176,7 +176,7 @@ void raise_interrupt(int intno, int is_int, int error_code,
 void raise_interrupt(int intno, int is_int, int error_code, 
                      unsigned int next_eip)
 {
-    SegmentDescriptorTable *dt;
+    SegmentCache *dt;
     uint8_t *ptr;
     int dpl, cpl;
     uint32_t e2;
@@ -331,21 +331,98 @@ void helper_cpuid(void)
     }
 }
 
+static inline void load_seg_cache(SegmentCache *sc, uint32_t e1, uint32_t e2)
+{
+    sc->base = (void *)((e1 >> 16) | ((e2 & 0xff) << 16) | (e2 & 0xff000000));
+    sc->limit = (e1 & 0xffff) | (e2 & 0x000f0000);
+    if (e2 & (1 << 23))
+        sc->limit = (sc->limit << 12) | 0xfff;
+    sc->seg_32bit = (e2 >> 22) & 1;
+}
+
+void helper_lldt_T0(void)
+{
+    int selector;
+    SegmentCache *dt;
+    uint32_t e1, e2;
+    int index;
+    uint8_t *ptr;
+    
+    selector = T0 & 0xffff;
+    if ((selector & 0xfffc) == 0) {
+        /* XXX: NULL selector case: invalid LDT */
+        env->ldt.base = NULL;
+        env->ldt.limit = 0;
+    } else {
+        if (selector & 0x4)
+            raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+        dt = &env->gdt;
+        index = selector & ~7;
+        if ((index + 7) > dt->limit)
+            raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+        ptr = dt->base + index;
+        e1 = ldl(ptr);
+        e2 = ldl(ptr + 4);
+        if ((e2 & DESC_S_MASK) || ((e2 >> DESC_TYPE_SHIFT) & 0xf) != 2)
+            raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+        if (!(e2 & DESC_P_MASK))
+            raise_exception_err(EXCP0B_NOSEG, selector & 0xfffc);
+        load_seg_cache(&env->ldt, e1, e2);
+    }
+    env->ldt.selector = selector;
+}
+
+void helper_ltr_T0(void)
+{
+    int selector;
+    SegmentCache *dt;
+    uint32_t e1, e2;
+    int index, type;
+    uint8_t *ptr;
+    
+    selector = T0 & 0xffff;
+    if ((selector & 0xfffc) == 0) {
+        /* XXX: NULL selector case: invalid LDT */
+        env->tr.base = NULL;
+        env->tr.limit = 0;
+    } else {
+        if (selector & 0x4)
+            raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+        dt = &env->gdt;
+        index = selector & ~7;
+        if ((index + 7) > dt->limit)
+            raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+        ptr = dt->base + index;
+        e1 = ldl(ptr);
+        e2 = ldl(ptr + 4);
+        type = (e2 >> DESC_TYPE_SHIFT) & 0xf;
+        if ((e2 & DESC_S_MASK) || 
+            (type != 2 && type != 9))
+            raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+        if (!(e2 & DESC_P_MASK))
+            raise_exception_err(EXCP0B_NOSEG, selector & 0xfffc);
+        load_seg_cache(&env->tr, e1, e2);
+        e2 |= 0x00000200; /* set the busy bit */
+        stl(ptr + 4, e2);
+    }
+    env->tr.selector = selector;
+}
+
 /* only works if protected mode and not VM86 */
-void load_seg(int seg_reg, int selector, unsigned cur_eip)
+void load_seg(int seg_reg, int selector, unsigned int cur_eip)
 {
     SegmentCache *sc;
-    SegmentDescriptorTable *dt;
+    SegmentCache *dt;
     int index;
     uint32_t e1, e2;
     uint8_t *ptr;
-
-    sc = &env->seg_cache[seg_reg];
+    
+    sc = &env->segs[seg_reg];
     if ((selector & 0xfffc) == 0) {
         /* null selector case */
         if (seg_reg == R_SS) {
             EIP = cur_eip;
-            raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+            raise_exception_err(EXCP0D_GPF, 0);
         } else {
             /* XXX: each access should trigger an exception */
             sc->base = NULL;
@@ -390,18 +467,93 @@ void load_seg(int seg_reg, int selector, unsigned cur_eip)
             else
                 raise_exception_err(EXCP0B_NOSEG, selector & 0xfffc);
         }
-        
-        sc->base = (void *)((e1 >> 16) | ((e2 & 0xff) << 16) | (e2 & 0xff000000));
-        sc->limit = (e1 & 0xffff) | (e2 & 0x000f0000);
-        if (e2 & (1 << 23))
-            sc->limit = (sc->limit << 12) | 0xfff;
-        sc->seg_32bit = (e2 >> 22) & 1;
+        load_seg_cache(sc, e1, e2);
 #if 0
         fprintf(logfile, "load_seg: sel=0x%04x base=0x%08lx limit=0x%08lx seg_32bit=%d\n", 
                 selector, (unsigned long)sc->base, sc->limit, sc->seg_32bit);
 #endif
     }
-    env->segs[seg_reg] = selector;
+    sc->selector = selector;
+}
+
+/* protected mode jump */
+void jmp_seg(int selector, unsigned int new_eip)
+{
+    SegmentCache sc1;
+    SegmentCache *dt;
+    int index;
+    uint32_t e1, e2, cpl, dpl, rpl;
+    uint8_t *ptr;
+
+    if ((selector & 0xfffc) == 0) {
+        raise_exception_err(EXCP0D_GPF, 0);
+    }
+
+    if (selector & 0x4)
+      dt = &env->ldt;
+    else
+      dt = &env->gdt;
+    index = selector & ~7;
+    if ((index + 7) > dt->limit)
+        raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+    ptr = dt->base + index;
+    e1 = ldl(ptr);
+    e2 = ldl(ptr + 4);
+    cpl = env->segs[R_CS].selector & 3;
+    if (e2 & DESC_S_MASK) {
+        if (!(e2 & DESC_CS_MASK))
+            raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+        dpl = (e2 >> DESC_DPL_SHIFT) & 3;
+        if (e2 & DESC_CS_MASK) {
+            /* conforming code segment */
+            if (dpl > cpl)
+                raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+        } else {
+            /* non conforming code segment */
+            rpl = selector & 3;
+            if (rpl > cpl)
+                raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+            if (dpl != cpl)
+                raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+        }
+        if (!(e2 & DESC_P_MASK))
+            raise_exception_err(EXCP0B_NOSEG, selector & 0xfffc);
+        load_seg_cache(&sc1, e1, e2);
+        if (new_eip > sc1.limit)
+            raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+        env->segs[R_CS] = sc1;
+        env->segs[R_CS].selector = (selector & 0xfffc) | cpl;
+        EIP = new_eip;
+    } else {
+        cpu_abort(env, "jmp to call/task gate not supported 0x%04x:0x%08x", 
+                  selector, new_eip);
+    }
+}
+
+/* XXX: do more */
+void helper_movl_crN_T0(int reg)
+{
+    switch(reg) {
+    case 0:
+    default:
+        env->cr[0] = reg;
+        break;
+    case 2:
+        env->cr[2] = reg;
+        break;
+    case 3:
+        env->cr[3] = reg;
+        break;
+    case 4:
+        env->cr[4] = reg;
+        break;
+    }
+}
+
+/* XXX: do more */
+void helper_movl_drN_T0(int reg)
+{
+    env->dr[reg] = T0;
 }
 
 /* rdtsc */
@@ -425,7 +577,7 @@ void helper_rdtsc(void)
 void helper_lsl(void)
 {
     unsigned int selector, limit;
-    SegmentDescriptorTable *dt;
+    SegmentCache *dt;
     int index;
     uint32_t e1, e2;
     uint8_t *ptr;
@@ -452,7 +604,7 @@ void helper_lsl(void)
 void helper_lar(void)
 {
     unsigned int selector;
-    SegmentDescriptorTable *dt;
+    SegmentCache *dt;
     int index;
     uint32_t e2;
     uint8_t *ptr;
