@@ -100,6 +100,11 @@ int cpu_x86_inl(CPUX86State *env, int addr)
     return 0;
 }
 
+int cpu_x86_get_pic_interrupt(CPUX86State *env)
+{
+    return -1;
+}
+
 static void write_dt(void *ptr, unsigned long addr, unsigned long limit, 
                      int flags)
 {
@@ -395,7 +400,7 @@ int main(int argc, char **argv)
     /* NOTE: we need to init the CPU at this stage to get the
        host_page_size */
     env = cpu_init();
-
+    
     if (elf_exec(filename, argv+optind, environ, regs, info) != 0) {
 	printf("Error loading %s\n", filename);
 	_exit(1);
@@ -476,6 +481,8 @@ int main(int argc, char **argv)
     cpu_x86_load_seg(env, R_SS, __USER_DS);
     cpu_x86_load_seg(env, R_FS, __USER_DS);
     cpu_x86_load_seg(env, R_GS, __USER_DS);
+    env->user_mode_only = 1;
+
 #elif defined(TARGET_ARM)
     {
         int i;
