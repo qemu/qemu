@@ -458,6 +458,7 @@ void hw_error(const char *fmt, ...)
 
 /* PC cmos mappings */
 #define REG_EQUIPMENT_BYTE          0x14
+#define REG_IBM_CENTURY_BYTE        0x32
 
 uint8_t cmos_data[128];
 uint8_t cmos_index;
@@ -557,6 +558,7 @@ void cmos_init(void)
     cmos_data[RTC_REG_D] = 0x80;
 
     /* various important CMOS locations needed by PC/Bochs bios */
+    cmos_data[REG_IBM_CENTURY_BYTE] = to_bcd((tm->tm_year / 100) + 19);
 
     cmos_data[REG_EQUIPMENT_BYTE] = 0x02; /* FPU is there */
     cmos_data[REG_EQUIPMENT_BYTE] |= 0x04; /* PS/2 mouse installed */
@@ -2961,7 +2963,7 @@ struct option long_options[] = {
 #ifdef CONFIG_SDL
 /* SDL use the pthreads and they modify sigaction. We don't
    want that. */
-#if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 3)
+#if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 2)
 extern void __libc_sigaction();
 #define sigaction(sig, act, oact) __libc_sigaction(sig, act, oact)
 #else
@@ -3111,8 +3113,15 @@ int main(int argc, char **argv)
     if (hd_filename[0] == '\0' && boot_device == 'c')
         boot_device = 'd';
 
-    /* init debug */
+#if !defined(CONFIG_SOFTMMU)
+    /* must avoid mmap() usage of glibc by setting a buffer "by hand" */
+    {
+        static uint8_t stdout_buf[4096];
+        setvbuf(stdout, stdout_buf, _IOLBF, sizeof(stdout_buf));
+    }
+#else
     setvbuf(stdout, NULL, _IOLBF, 0);
+#endif
 
     /* init network tun interface */
     if (net_fd < 0)
@@ -3221,6 +3230,7 @@ int main(int argc, char **argv)
 
         /* setup basic memory access */
         env->cr[0] = 0x00000033;
+        env->hflags |= HF_PE_MASK;
         cpu_x86_init_mmu(env);
         
         memset(params->idt_table, 0, sizeof(params->idt_table));
@@ -3268,6 +3278,9 @@ int main(int argc, char **argv)
         env->cr[0] = 0x60000010;
         cpu_x86_init_mmu(env);
         
+        cpu_register_physical_memory(0xc0000, 0x10000, 0xc0000 | IO_MEM_ROM);
+        cpu_register_physical_memory(0xf0000, 0x10000, 0xf0000 | IO_MEM_ROM);
+
         env->idt.limit = 0xffff;
         env->gdt.limit = 0xffff;
         env->ldt.limit = 0xffff;
