@@ -1,3 +1,10 @@
+version 0.4:
+
+ - initial support for ring 0 x86 processor emulation
+ - fixed signal handling for correct dosemu DPMI emulation
+ - fast x86 MMU emulation with mmap()
+ - fixed popl (%esp) case
+
 version 0.3:
 
  - initial support for ARM emulation
