@@ -138,6 +138,7 @@ void cpu_x86_update_cr0(CPUX86State *env);
 void cpu_x86_update_cr3(CPUX86State *env);
 void cpu_x86_flush_tlb(CPUX86State *env, uint32_t addr);
 int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr, int is_write);
+void tlb_fill(unsigned long addr, int is_write, void *retaddr);
 void __hidden cpu_lock(void);
 void __hidden cpu_unlock(void);
 void do_interrupt(int intno, int is_int, int error_code, 
@@ -364,3 +365,52 @@ static inline void load_eflags(int eflags, int update_mask)
     env->eflags = (env->eflags & ~update_mask) | 
         (eflags & update_mask);
 }
+
+/* memory access macros */
+
+#define ldul ldl
+#define lduq ldq
+#define ldul_user ldl_user
+#define ldul_kernel ldl_kernel
+
+#define ldub_raw ldub
+#define ldsb_raw ldsb
+#define lduw_raw lduw
+#define ldsw_raw ldsw
+#define ldl_raw ldl
+#define ldq_raw ldq
+
+#define stb_raw stb
+#define stw_raw stw
+#define stl_raw stl
+#define stq_raw stq
+
+#define MEMUSER 0
+#define DATA_SIZE 1
+#include "softmmu_header.h"
+
+#define DATA_SIZE 2
+#include "softmmu_header.h"
+
+#define DATA_SIZE 4
+#include "softmmu_header.h"
+
+#define DATA_SIZE 8
+#include "softmmu_header.h"
+
+#undef MEMUSER
+#define MEMUSER 1
+#define DATA_SIZE 1
+#include "softmmu_header.h"
+
+#define DATA_SIZE 2
+#include "softmmu_header.h"
+
+#define DATA_SIZE 4
+#include "softmmu_header.h"
+
+#define DATA_SIZE 8
+#include "softmmu_header.h"
+
+#undef MEMUSER
+

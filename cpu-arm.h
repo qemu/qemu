@@ -20,12 +20,10 @@
 #ifndef CPU_ARM_H
 #define CPU_ARM_H
 
-#include "config.h"
-#include <setjmp.h>
+#include "cpu-defs.h"
 
 #define EXCP_UDEF       1   /* undefined instruction */
 #define EXCP_SWI        2   /* software interrupt */
-#define EXCP_INTERRUPT 	256 /* async interruption */
 
 typedef struct CPUARMState {
     uint32_t regs[16];

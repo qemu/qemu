@@ -68,6 +68,7 @@ typedef struct PageDesc {
 #define L2_SIZE (1 << L2_BITS)
 
 static void tb_invalidate_page(unsigned long address);
+static void io_mem_init(void);
 
 unsigned long real_host_page_size;
 unsigned long host_page_bits;
@@ -75,6 +76,12 @@ unsigned long host_page_size;
 unsigned long host_page_mask;
 
 static PageDesc *l1_map[L1_SIZE];
+
+/* io memory support */
+static unsigned long *l1_physmap[L1_SIZE];
+CPUWriteMemoryFunc *io_mem_write[IO_MEM_NB_ENTRIES][4];
+CPUReadMemoryFunc *io_mem_read[IO_MEM_NB_ENTRIES][4];
+static int io_mem_nb;
 
 static void page_init(void)
 {
@@ -201,6 +208,7 @@ void cpu_exec_init(void)
     if (!code_gen_ptr) {
         code_gen_ptr = code_gen_buffer;
         page_init();
+        io_mem_init();
     }
 }
 
@@ -744,3 +752,133 @@ void page_unmap(void)
     tb_flush();
 }
 #endif
+
+void tlb_flush(CPUState *env)
+{
+#if defined(TARGET_I386)
+    int i;
+    for(i = 0; i < CPU_TLB_SIZE; i++) {
+        env->tlb_read[0][i].address = -1;
+        env->tlb_write[0][i].address = -1;
+        env->tlb_read[1][i].address = -1;
+        env->tlb_write[1][i].address = -1;
+    }
+#endif
+}
+
+void tlb_flush_page(CPUState *env, uint32_t addr)
+{
+#if defined(TARGET_I386)
+    int i;
+
+    i = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
+    env->tlb_read[0][i].address = -1;
+    env->tlb_write[0][i].address = -1;
+    env->tlb_read[1][i].address = -1;
+    env->tlb_write[1][i].address = -1;
+#endif
+}
+
+static inline unsigned long *physpage_find_alloc(unsigned int page)
+{
+    unsigned long **lp, *p;
+    unsigned int index, i;
+
+    index = page >> TARGET_PAGE_BITS;
+    lp = &l1_physmap[index >> L2_BITS];
+    p = *lp;
+    if (!p) {
+        /* allocate if not found */
+        p = malloc(sizeof(unsigned long) * L2_SIZE);
+        for(i = 0; i < L2_SIZE; i++)
+            p[i] = IO_MEM_UNASSIGNED;
+        *lp = p;
+    }
+    return p + (index & (L2_SIZE - 1));
+}
+
+/* return NULL if no page defined (unused memory) */
+unsigned long physpage_find(unsigned long page)
+{
+    unsigned long *p;
+    unsigned int index;
+    index = page >> TARGET_PAGE_BITS;
+    p = l1_physmap[index >> L2_BITS];
+    if (!p)
+        return IO_MEM_UNASSIGNED;
+    return p[index & (L2_SIZE - 1)];
+}
+
+/* register physical memory. 'size' must be a multiple of the target
+   page size. If (phys_offset & ~TARGET_PAGE_MASK) != 0, then it is an
+   io memory page */
+void cpu_register_physical_memory(unsigned long start_addr, unsigned long size,
+                                  long phys_offset)
+{
+    unsigned long addr, end_addr;
+    unsigned long *p;
+
+    end_addr = start_addr + size;
+    for(addr = start_addr; addr < end_addr; addr += TARGET_PAGE_SIZE) {
+        p = physpage_find_alloc(addr);
+        *p = phys_offset;
+        if ((phys_offset & ~TARGET_PAGE_MASK) == 0)
+            phys_offset += TARGET_PAGE_SIZE;
+    }
+}
+
+static uint32_t unassigned_mem_readb(uint32_t addr)
+{
+    return 0;
+}
+
+static void unassigned_mem_writeb(uint32_t addr, uint32_t val)
+{
+}
+
+static CPUReadMemoryFunc *unassigned_mem_read[3] = {
+    unassigned_mem_readb,
+    unassigned_mem_readb,
+    unassigned_mem_readb,
+};
+
+static CPUWriteMemoryFunc *unassigned_mem_write[3] = {
+    unassigned_mem_writeb,
+    unassigned_mem_writeb,
+    unassigned_mem_writeb,
+};
+
+
+static void io_mem_init(void)
+{
+    io_mem_nb = 1;
+    cpu_register_io_memory(0, unassigned_mem_read, unassigned_mem_write);
+}
+
+/* mem_read and mem_write are arrays of functions containing the
+   function to access byte (index 0), word (index 1) and dword (index
+   2). All functions must be supplied. If io_index is non zero, the
+   corresponding io zone is modified. If it is zero, a new io zone is
+   allocated. The return value can be used with
+   cpu_register_physical_memory(). (-1) is returned if error. */
+int cpu_register_io_memory(int io_index,
+                           CPUReadMemoryFunc **mem_read,
+                           CPUWriteMemoryFunc **mem_write)
+{
+    int i;
+
+    if (io_index <= 0) {
+        if (io_index >= IO_MEM_NB_ENTRIES)
+            return -1;
+        io_index = io_mem_nb++;
+    } else {
+        if (io_index >= IO_MEM_NB_ENTRIES)
+            return -1;
+    }
+    
+    for(i = 0;i < 3; i++) {
+        io_mem_read[io_index][i] = mem_read[i];
+        io_mem_write[io_index][i] = mem_write[i];
+    }
+    return io_index << IO_MEM_SHIFT;
+}

@@ -781,7 +781,7 @@ void helper_lcall_real_T0_T1(int shift, int next_eip)
     int new_cs, new_eip;
     uint32_t esp, esp_mask;
     uint8_t *ssp;
-    
+
     new_cs = T0;
     new_eip = T1;
     esp = env->regs[R_ESP];
@@ -1741,3 +1741,34 @@ void helper_frstor(uint8_t *ptr, int data32)
     }
 }
 
+#define SHIFT 0
+#include "softmmu_template.h"
+
+#define SHIFT 1
+#include "softmmu_template.h"
+
+#define SHIFT 2
+#include "softmmu_template.h"
+
+#define SHIFT 3
+#include "softmmu_template.h"
+
+/* try to fill the TLB and return an exception if error */
+void tlb_fill(unsigned long addr, int is_write, void *retaddr)
+{
+    TranslationBlock *tb;
+    int ret;
+    unsigned long pc;
+    ret = cpu_x86_handle_mmu_fault(env, addr, is_write);
+    if (ret) {
+        /* now we have a real cpu fault */
+        pc = (unsigned long)retaddr;
+        tb = tb_find_pc(pc);
+        if (tb) {
+            /* the PC is inside the translated code. It means that we have
+               a virtual CPU fault */
+            cpu_restore_state(tb, env, pc);
+        }
+        raise_exception_err(EXCP0E_PAGE, env->error_code);
+    }
+}

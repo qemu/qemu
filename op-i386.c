@@ -376,70 +376,14 @@ void OPPROTO op_andl_A0_ffff(void)
 
 /* memory access */
 
-void OPPROTO op_ldub_T0_A0(void)
-{
-    T0 = ldub((uint8_t *)A0);
-}
+#define MEMSUFFIX
+#include "ops_mem.h"
 
-void OPPROTO op_ldsb_T0_A0(void)
-{
-    T0 = ldsb((int8_t *)A0);
-}
+#define MEMSUFFIX _user
+#include "ops_mem.h"
 
-void OPPROTO op_lduw_T0_A0(void)
-{
-    T0 = lduw((uint8_t *)A0);
-}
-
-void OPPROTO op_ldsw_T0_A0(void)
-{
-    T0 = ldsw((int8_t *)A0);
-}
-
-void OPPROTO op_ldl_T0_A0(void)
-{
-    T0 = ldl((uint8_t *)A0);
-}
-
-void OPPROTO op_ldub_T1_A0(void)
-{
-    T1 = ldub((uint8_t *)A0);
-}
-
-void OPPROTO op_ldsb_T1_A0(void)
-{
-    T1 = ldsb((int8_t *)A0);
-}
-
-void OPPROTO op_lduw_T1_A0(void)
-{
-    T1 = lduw((uint8_t *)A0);
-}
-
-void OPPROTO op_ldsw_T1_A0(void)
-{
-    T1 = ldsw((int8_t *)A0);
-}
-
-void OPPROTO op_ldl_T1_A0(void)
-{
-    T1 = ldl((uint8_t *)A0);
-}
-
-void OPPROTO op_stb_T0_A0(void)
-{
-    stb((uint8_t *)A0, T0);
-}
-
-void OPPROTO op_stw_T0_A0(void)
-{
-    stw((uint8_t *)A0, T0);
-}
-
-void OPPROTO op_stl_T0_A0(void)
-{
-    stl((uint8_t *)A0, T0);
-}
+#define MEMSUFFIX _kernel
+#include "ops_mem.h"
 
 /* used for bit operations */
 
@@ -633,6 +577,38 @@ void OPPROTO op_movslq_EDX_EAX(void)
 void OPPROTO op_movswl_DX_AX(void)
 {
     EDX = (EDX & 0xffff0000) | (((int16_t)EAX >> 15) & 0xffff);
+}
+
+/* string ops helpers */
+
+void OPPROTO op_addl_ESI_T0(void)
+{
+    ESI += T0;
+}
+
+void OPPROTO op_addw_ESI_T0(void)
+{
+    ESI = (ESI & ~0xffff) | ((ESI + T0) & 0xffff);
+}
+
+void OPPROTO op_addl_EDI_T0(void)
+{
+    EDI += T0;
+}
+
+void OPPROTO op_addw_EDI_T0(void)
+{
+    EDI = (EDI & ~0xffff) | ((EDI + T0) & 0xffff);
+}
+
+void OPPROTO op_decl_ECX(void)
+{
+    ECX--;
+}
+
+void OPPROTO op_decw_ECX(void)
+{
+    ECX = (ECX & ~0xffff) | ((ECX - 1) & 0xffff);
 }
 
 /* push/pop */

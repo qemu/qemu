@@ -140,6 +140,7 @@ static inline void stfl(void *ptr, float v)
     stl(ptr, u.i);
 }
 
+
 #if defined(__arm__) && !defined(WORDS_BIGENDIAN)
 
 /* NOTE: arm is horrible as double 32 bit words are stored in big endian ! */
@@ -316,6 +317,17 @@ void cpu_interrupt(CPUState *s, int mask);
 int cpu_breakpoint_insert(CPUState *env, uint32_t pc);
 int cpu_breakpoint_remove(CPUState *env, uint32_t pc);
 void cpu_single_step(CPUState *env, int enabled);
+
+/* memory API */
+
+typedef void CPUWriteMemoryFunc(uint32_t addr, uint32_t value);
+typedef uint32_t CPUReadMemoryFunc(uint32_t addr);
+
+void cpu_register_physical_memory(unsigned long start_addr, unsigned long size,
+                                  long phys_offset);
+int cpu_register_io_memory(int io_index,
+                           CPUReadMemoryFunc **mem_read,
+                           CPUWriteMemoryFunc **mem_write);
 
 /* gdb stub API */
 extern int gdbstub_fd;

@@ -547,6 +547,31 @@ void OPPROTO op_update_bt_cc(void)
 #define DEC_CX() ECX = (ECX & ~0xffff) | ((ECX - 1) & 0xffff)
 #include "op_string.h"
 
+void OPPROTO glue(op_movl_T0_Dshift, SUFFIX)(void)
+{
+    T0 = DF << SHIFT;
+}
+
+void OPPROTO glue(op_string_jz_sub, SUFFIX)(void)
+{
+    if ((DATA_TYPE)CC_DST == 0)
+        JUMP_TB(PARAM1, 1, PARAM2);
+}
+
+void OPPROTO glue(op_string_jnz_sub, SUFFIX)(void)
+{
+    if ((DATA_TYPE)CC_DST != 0)
+        JUMP_TB(PARAM1, 1, PARAM2);
+}
+
+#if DATA_BITS >= 16
+void OPPROTO glue(op_jz_ecx, SUFFIX)(void)
+{
+    if ((DATA_TYPE)ECX == 0)
+        JUMP_TB(PARAM1, 1, PARAM2);
+}
+#endif
+
 /* port I/O */
 
 void OPPROTO glue(glue(op_out, SUFFIX), _T0_T1)(void)
@@ -557,6 +582,16 @@ void OPPROTO glue(glue(op_out, SUFFIX), _T0_T1)(void)
 void OPPROTO glue(glue(op_in, SUFFIX), _T0_T1)(void)
 {
     T1 = glue(cpu_x86_in, SUFFIX)(env, T0 & 0xffff);
+}
+
+void OPPROTO glue(glue(op_in, SUFFIX), _DX_T0)(void)
+{
+    T0 = glue(cpu_x86_in, SUFFIX)(env, EDX & 0xffff);
+}
+
+void OPPROTO glue(glue(op_out, SUFFIX), _DX_T0)(void)
+{
+    glue(cpu_x86_out, SUFFIX)(env, EDX & 0xffff, T0);
 }
 
 #undef DATA_BITS

@@ -21,6 +21,17 @@
 /* allow to see translation results - the slowdown should be negligible, so we leave it */
 #define DEBUG_DISAS
 
+#ifndef glue
+#define xglue(x, y) x ## y
+#define glue(x, y) xglue(x, y)
+#define stringify(s)	tostring(s)
+#define tostring(s)	#s
+#endif
+
+#if GCC_MAJOR < 3
+#define __builtin_expect(x, n) (x)
+#endif
+
 /* is_jmp field values */
 #define DISAS_NEXT    0 /* next instruction can be analyzed */
 #define DISAS_JUMP    1 /* only pc was modified dynamically */
@@ -44,14 +55,17 @@ extern uint8_t gen_opc_instr_start[OPC_BUF_SIZE];
 
 #if defined(TARGET_I386)
 
-#define GEN_FLAG_CODE32_SHIFT 0
-#define GEN_FLAG_ADDSEG_SHIFT 1
-#define GEN_FLAG_SS32_SHIFT   2
-#define GEN_FLAG_VM_SHIFT     3
-#define GEN_FLAG_ST_SHIFT     4
-#define GEN_FLAG_TF_SHIFT     8 /* same position as eflags */
-#define GEN_FLAG_CPL_SHIFT    9
-#define GEN_FLAG_IOPL_SHIFT   12 /* same position as eflags */
+#define GEN_FLAG_CODE32_SHIFT    0
+#define GEN_FLAG_ADDSEG_SHIFT    1
+#define GEN_FLAG_SS32_SHIFT      2
+#define GEN_FLAG_VM_SHIFT        3
+#define GEN_FLAG_ST_SHIFT        4
+#define GEN_FLAG_TF_SHIFT        8 /* same position as eflags */
+#define GEN_FLAG_CPL_SHIFT       9
+#define GEN_FLAG_SOFT_MMU_SHIFT 11
+#define GEN_FLAG_IOPL_SHIFT     12 /* same position as eflags */
+
+void optimize_flags_init(void);
 
 #endif
 
@@ -68,6 +82,8 @@ int cpu_restore_state(struct TranslationBlock *tb,
 void cpu_exec_init(void);
 int page_unprotect(unsigned long address);
 void page_unmap(void);
+void tlb_flush_page(CPUState *env, uint32_t addr);
+void tlb_flush(CPUState *env);
 
 #define CODE_GEN_MAX_SIZE        65536
 #define CODE_GEN_ALIGN           16 /* must be >= of the size of a icache line */
@@ -229,6 +245,17 @@ dummy_label ## n:\
 } while (0)
 
 #endif
+
+/* physical memory access */
+#define IO_MEM_NB_ENTRIES  256
+#define TLB_INVALID_MASK   (1 << 3)
+#define IO_MEM_SHIFT       4
+#define IO_MEM_UNASSIGNED  (1 << IO_MEM_SHIFT)
+
+unsigned long physpage_find(unsigned long page);
+
+extern CPUWriteMemoryFunc *io_mem_write[IO_MEM_NB_ENTRIES][4];
+extern CPUReadMemoryFunc *io_mem_read[IO_MEM_NB_ENTRIES][4];
 
 #ifdef __powerpc__
 static inline int testandset (int *p)

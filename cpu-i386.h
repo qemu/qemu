@@ -20,8 +20,7 @@
 #ifndef CPU_I386_H
 #define CPU_I386_H
 
-#include "config.h"
-#include <setjmp.h>
+#include "cpu-defs.h"
 
 #define R_EAX 0
 #define R_ECX 1
@@ -153,12 +152,6 @@
 #define EXCP11_ALGN	17
 #define EXCP12_MCHK	18
 
-#define EXCP_INTERRUPT 	256 /* async interruption */
-#define EXCP_HLT        257 /* hlt instruction reached */
-#define EXCP_DEBUG      258 /* cpu stopped after a breakpoint or singlestep */
-
-#define MAX_BREAKPOINTS 32
-
 enum {
     CC_OP_DYNAMIC, /* must use dynamic code to get cc_op */
     CC_OP_EFLAGS,  /* all cc are explicitely computed, CC_SRC = flags */
@@ -257,7 +250,8 @@ typedef struct CPUX86State {
     SegmentCache gdt; /* only base and limit are used */
     SegmentCache idt; /* only base and limit are used */
     int cpl;          /* current cpl */
-
+    int soft_mmu;     /* TRUE if soft mmu is being used */
+    
     /* sysenter registers */
     uint32_t sysenter_cs;
     uint32_t sysenter_esp;
@@ -275,10 +269,16 @@ typedef struct CPUX86State {
     int interrupt_request; 
     int user_mode_only; /* user mode only simulation */
 
+    /* soft mmu support */
+    /* 0 = kernel, 1 = user */
+    CPUTLBEntry tlb_read[2][CPU_TLB_SIZE];
+    CPUTLBEntry tlb_write[2][CPU_TLB_SIZE];
+    
+    /* ice debug support */
     uint32_t breakpoints[MAX_BREAKPOINTS];
     int nb_breakpoints;
     int singlestep_enabled;
-    
+
     /* user data */
     void *opaque;
 } CPUX86State;
