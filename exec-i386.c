@@ -27,95 +27,16 @@
 
 /* thread support */
 
-#ifdef __powerpc__
-static inline int testandset (int *p)
-{
-    int ret;
-    __asm__ __volatile__ (
-                          "0:    lwarx %0,0,%1 ;"
-                          "      xor. %0,%3,%0;"
-                          "      bne 1f;"
-                          "      stwcx. %2,0,%1;"
-                          "      bne- 0b;"
-                          "1:    "
-                          : "=&r" (ret)
-                          : "r" (p), "r" (1), "r" (0)
-                          : "cr0", "memory");
-    return ret;
-}
-#endif
-
-#ifdef __i386__
-static inline int testandset (int *p)
-{
-    char ret;
-    long int readval;
-    
-    __asm__ __volatile__ ("lock; cmpxchgl %3, %1; sete %0"
-                          : "=q" (ret), "=m" (*p), "=a" (readval)
-                          : "r" (1), "m" (*p), "a" (0)
-                          : "memory");
-    return ret;
-}
-#endif
-
-#ifdef __s390__
-static inline int testandset (int *p)
-{
-    int ret;
-
-    __asm__ __volatile__ ("0: cs    %0,%1,0(%2)\n"
-			  "   jl    0b"
-			  : "=&d" (ret)
-			  : "r" (1), "a" (p), "0" (*p) 
-			  : "cc", "memory" );
-    return ret;
-}
-#endif
-
-#ifdef __alpha__
-int testandset (int *p)
-{
-    int ret;
-    unsigned long one;
-
-    __asm__ __volatile__ ("0:	mov 1,%2\n"
-			  "	ldl_l %0,%1\n"
-			  "	stl_c %2,%1\n"
-			  "	beq %2,1f\n"
-			  ".subsection 2\n"
-			  "1:	br 0b\n"
-			  ".previous"
-			  : "=r" (ret), "=m" (*p), "=r" (one)
-			  : "m" (*p));
-    return ret;
-}
-#endif
-
-#ifdef __sparc__
-static inline int testandset (int *p)
-{
-	int ret;
-
-	__asm__ __volatile__("ldstub	[%1], %0"
-			     : "=r" (ret)
-			     : "r" (p)
-			     : "memory");
-
-	return (ret ? 1 : 0);
-}
-#endif
-
-int global_cpu_lock = 0;
+spinlock_t global_cpu_lock = SPIN_LOCK_UNLOCKED;
 
 void cpu_lock(void)
 {
-    while (testandset(&global_cpu_lock));
+    spin_lock(&global_cpu_lock);
 }
 
 void cpu_unlock(void)
 {
-    global_cpu_lock = 0;
+    spin_unlock(&global_cpu_lock);
 }
 
 /* exception support */
@@ -292,16 +213,16 @@ int cpu_x86_exec(CPUX86State *env1)
                          flags);
             if (!tb) {
                 /* if no translated code available, then translate it now */
-                /* XXX: very inefficient: we lock all the cpus when
-                   generating code */
-                cpu_lock();
+                /* very inefficient but safe: we lock all the cpus
+                   when generating code */
+                spin_lock(&tb_lock);
                 tc_ptr = code_gen_ptr;
                 ret = cpu_x86_gen_code(code_gen_ptr, CODE_GEN_MAX_SIZE, 
                                        &code_gen_size, pc, cs_base, flags,
                                        &code_size);
                 /* if invalid instruction, signal it */
                 if (ret != 0) {
-                    cpu_unlock();
+                    spin_unlock(&tb_lock);
                     raise_exception(EXCP06_ILLOP);
                 }
                 tb = tb_alloc((unsigned long)pc, code_size);
@@ -311,7 +232,7 @@ int cpu_x86_exec(CPUX86State *env1)
                 tb->tc_ptr = tc_ptr;
                 tb->hash_next = NULL;
                 code_gen_ptr = (void *)(((unsigned long)code_gen_ptr + code_gen_size + CODE_GEN_ALIGN - 1) & ~(CODE_GEN_ALIGN - 1));
-                cpu_unlock();
+                spin_unlock(&tb_lock);
             }
 #ifdef DEBUG_EXEC
 	    if (loglevel) {
@@ -412,6 +333,7 @@ static inline int handle_cpu_signal(unsigned long pc,
     printf("qemu: SIGSEGV pc=0x%08lx address=%08lx wr=%d oldset=0x%08lx\n", 
            pc, address, is_write, *(unsigned long *)old_set);
 #endif
+    /* XXX: locking issue */
     if (is_write && page_unprotect(address)) {
         sigprocmask(SIG_SETMASK, old_set, NULL);
         return 1;
@@ -454,8 +376,28 @@ int cpu_x86_signal_handler(int host_signum, struct siginfo *info,
                              uc->uc_mcontext.gregs[REG_TRAPNO] == 0xe ? 
                              (uc->uc_mcontext.gregs[REG_ERR] >> 1) & 1 : 0,
                              pold_set);
+#elif defined(__powerpc)
+    struct ucontext *uc = puc;
+    struct pt_regs *regs = uc->uc_mcontext.regs;
+    unsigned long pc;
+    sigset_t *pold_set;
+    int is_write;
+
+    pc = regs->nip;
+    pold_set = &uc->uc_sigmask;
+    is_write = 0;
+#if 0
+    /* ppc 4xx case */
+    if (regs->dsisr & 0x00800000)
+        is_write = 1;
 #else
-#warning No CPU specific signal handler: cannot handle target SIGSEGV events
+    if (regs->trap != 0x400 && (regs->dsisr & 0x02000000))
+        is_write = 1;
+#endif
+    return handle_cpu_signal(pc, (unsigned long)info->si_addr, 
+                             is_write, pold_set);
+#else
+#error CPU specific signal handler needed
     return 0;
 #endif
 }
