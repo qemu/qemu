@@ -204,8 +204,13 @@ static int glue(compute_all_shl, SUFFIX)(void)
     return cf | pf | af | zf | sf | of;
 }
 
-#if DATA_BITS == 32
 static int glue(compute_c_shl, SUFFIX)(void)
+{
+    return (CC_SRC >> (DATA_BITS - 1)) & CC_C;
+}
+
+#if DATA_BITS == 32
+static int glue(compute_c_sar, SUFFIX)(void)
 {
     return CC_SRC & 1;
 }
