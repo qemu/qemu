@@ -297,6 +297,7 @@ typedef struct IDEState {
     int64_t nb_sectors;
     int mult_sectors;
     int irq;
+    PCIDevice *pci_dev;
     int drive_serial;
     /* ide regs */
     uint8_t feature;
@@ -463,7 +464,10 @@ static inline void ide_abort_command(IDEState *s)
 static inline void ide_set_irq(IDEState *s)
 {
     if (!(s->cmd & IDE_CMD_DISABLE_IRQ)) {
-        pic_set_irq(s->irq, 1);
+        if (s->irq == 16)
+            pci_set_irq(s->pci_dev, 0, 1);
+        else
+            pic_set_irq(s->irq, 1);
     }
 }
 
@@ -1169,7 +1173,22 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             s->status = READY_STAT;
             ide_set_irq(s);
             break;
-
+        case WIN_SETFEATURES:
+            if (!s->bs)
+                goto abort_cmd;
+            /* XXX: valid for CDROM ? */
+            switch(s->feature) {
+            case 0x02: /* write cache enable */
+            case 0x82: /* write cache disable */
+            case 0xaa: /* read look-ahead enable */
+            case 0x55: /* read look-ahead disable */
+                s->status = READY_STAT;
+                ide_set_irq(s);
+                break;
+            default:
+                goto abort_cmd;
+            }
+            break;
             /* ATAPI commands */
         case WIN_PIDENTIFY:
             if (s->is_cdrom) {
@@ -1262,7 +1281,10 @@ static uint32_t ide_ioport_read(void *opaque, uint32_t addr1)
             ret = 0;
         else
             ret = s->status;
-        pic_set_irq(s->irq, 0);
+        if (s->irq == 16)
+            pci_set_irq(s->pci_dev, 0, 0);
+        else
+            pic_set_irq(s->irq, 0);
         break;
     }
 #ifdef DEBUG_IDE
@@ -1481,6 +1503,22 @@ static void ide_init2(IDEState *ide_state, int irq,
     }
 }
 
+static void ide_init_ioport(IDEState *ide_state, int iobase, int iobase2)
+{
+    register_ioport_write(iobase, 8, 1, ide_ioport_write, ide_state);
+    register_ioport_read(iobase, 8, 1, ide_ioport_read, ide_state);
+    if (iobase2) {
+        register_ioport_read(iobase2, 1, 1, ide_status_read, ide_state);
+        register_ioport_write(iobase2, 1, 1, ide_cmd_write, ide_state);
+    }
+    
+    /* data ports */
+    register_ioport_write(iobase, 2, 2, ide_data_writew, ide_state);
+    register_ioport_read(iobase, 2, 2, ide_data_readw, ide_state);
+    register_ioport_write(iobase, 4, 4, ide_data_writel, ide_state);
+    register_ioport_read(iobase, 4, 4, ide_data_readl, ide_state);
+}
+
 /***********************************************************/
 /* ISA IDE definitions */
 
@@ -1494,19 +1532,7 @@ void isa_ide_init(int iobase, int iobase2, int irq,
         return;
     
     ide_init2(ide_state, irq, hd0, hd1);
-
-    register_ioport_write(iobase, 8, 1, ide_ioport_write, ide_state);
-    register_ioport_read(iobase, 8, 1, ide_ioport_read, ide_state);
-    if (iobase2) {
-        register_ioport_read(iobase2, 1, 1, ide_status_read, ide_state);
-        register_ioport_write(iobase2, 1, 1, ide_cmd_write, ide_state);
-    }
-    
-    /* data ports */
-    register_ioport_write(iobase, 2, 2, ide_data_writew, ide_state);
-    register_ioport_read(iobase, 2, 2, ide_data_readw, ide_state);
-    register_ioport_write(iobase, 4, 4, ide_data_writel, ide_state);
-    register_ioport_read(iobase, 4, 4, ide_data_readl, ide_state);
+    ide_init_ioport(ide_state, iobase, iobase2);
 }
 
 /***********************************************************/
@@ -1546,7 +1572,8 @@ void pci_ide_init(BlockDriverState **hd_table)
 {
     PCIIDEState *d;
     uint8_t *pci_conf;
-    
+    int i;
+
     d = (PCIIDEState *)pci_register_device("IDE", sizeof(PCIIDEState),
                                            0, -1, 
                                            NULL, NULL);
@@ -1573,6 +1600,38 @@ void pci_ide_init(BlockDriverState **hd_table)
     pci_register_io_region((PCIDevice *)d, 3, 0x4, 
                            PCI_ADDRESS_SPACE_IO, ide_map);
 
+    pci_conf[0x3d] = 0x01; // interrupt on pin 1
+
+    for(i = 0; i < 4; i++)
+        d->ide_if[i].pci_dev = (PCIDevice *)d;
+    ide_init2(&d->ide_if[0], 16, hd_table[0], hd_table[1]);
+    ide_init2(&d->ide_if[2], 16, hd_table[2], hd_table[3]);
+}
+
+/* hd_table must contain 4 block drivers */
+/* NOTE: for the PIIX3, the IRQs and IOports are hardcoded */
+void pci_piix3_ide_init(BlockDriverState **hd_table)
+{
+    PCIIDEState *d;
+    uint8_t *pci_conf;
+    
+    /* register a function 1 of PIIX3 */
+    d = (PCIIDEState *)pci_register_device("PIIX3 IDE", sizeof(PCIIDEState),
+                                           0, ((PCIDevice *)piix3_state)->devfn + 1, 
+                                           NULL, NULL);
+    pci_conf = d->dev.config;
+    pci_conf[0x00] = 0x86; // Intel
+    pci_conf[0x01] = 0x80;
+    pci_conf[0x02] = 0x10;
+    pci_conf[0x03] = 0x70;
+    pci_conf[0x0a] = 0x01; // class_sub = PCI_IDE
+    pci_conf[0x0b] = 0x01; // class_base = PCI_mass_storage
+    pci_conf[0x0e] = 0x00; // header_type
+
+    /* XXX: must add BMDMA support to be fully compliant */
+
     ide_init2(&d->ide_if[0], 14, hd_table[0], hd_table[1]);
     ide_init2(&d->ide_if[2], 15, hd_table[2], hd_table[3]);
+    ide_init_ioport(&d->ide_if[0], 0x1f0, 0x3f6);
+    ide_init_ioport(&d->ide_if[2], 0x170, 0x376);
 }
