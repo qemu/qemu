@@ -215,6 +215,29 @@ static inline void host_to_target_fds(target_long *target_fds,
 #endif
 }
 
+static inline void host_to_target_rusage(struct target_rusage *target_rusage, 
+                                         const struct rusage *rusage)
+{
+    target_rusage->ru_utime.tv_sec = tswapl(rusage->ru_utime.tv_sec);
+    target_rusage->ru_utime.tv_usec = tswapl(rusage->ru_utime.tv_usec);
+    target_rusage->ru_stime.tv_sec = tswapl(rusage->ru_stime.tv_sec);
+    target_rusage->ru_stime.tv_usec = tswapl(rusage->ru_stime.tv_usec);
+    target_rusage->ru_maxrss = tswapl(rusage->ru_maxrss);
+    target_rusage->ru_ixrss = tswapl(rusage->ru_ixrss);
+    target_rusage->ru_idrss = tswapl(rusage->ru_idrss);
+    target_rusage->ru_isrss = tswapl(rusage->ru_isrss);
+    target_rusage->ru_minflt = tswapl(rusage->ru_minflt);
+    target_rusage->ru_majflt = tswapl(rusage->ru_majflt);
+    target_rusage->ru_nswap = tswapl(rusage->ru_nswap);
+    target_rusage->ru_inblock = tswapl(rusage->ru_inblock);
+    target_rusage->ru_oublock = tswapl(rusage->ru_oublock);
+    target_rusage->ru_msgsnd = tswapl(rusage->ru_msgsnd);
+    target_rusage->ru_msgrcv = tswapl(rusage->ru_msgrcv);
+    target_rusage->ru_nsignals = tswapl(rusage->ru_nsignals);
+    target_rusage->ru_nvcsw = tswapl(rusage->ru_nvcsw);
+    target_rusage->ru_nivcsw = tswapl(rusage->ru_nivcsw);
+}
+
 static inline void target_to_host_timeval(struct timeval *tv, 
                                           const struct target_timeval *target_tv)
 {
@@ -1636,7 +1659,15 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         }
         break;
     case TARGET_NR_getrusage:
-        goto unimplemented;
+        {
+            struct rusage rusage;
+            struct target_rusage *target_rusage = (void *)arg2;
+            ret = get_errno(getrusage(arg1, &rusage));
+            if (!is_error(ret)) {
+                host_to_target_rusage(target_rusage, &rusage);
+            }
+        }
+        break;
     case TARGET_NR_gettimeofday:
         {
             struct target_timeval *target_tv = (void *)arg1;
@@ -1886,24 +1917,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                 if (status_ptr)
                     *status_ptr = tswap32(status);
                 if (target_rusage) {
-                    target_rusage->ru_utime.tv_sec = tswapl(rusage.ru_utime.tv_sec);
-                    target_rusage->ru_utime.tv_usec = tswapl(rusage.ru_utime.tv_usec);
-                    target_rusage->ru_stime.tv_sec = tswapl(rusage.ru_stime.tv_sec);
-                    target_rusage->ru_stime.tv_usec = tswapl(rusage.ru_stime.tv_usec);
-                    target_rusage->ru_maxrss = tswapl(rusage.ru_maxrss);
-                    target_rusage->ru_ixrss = tswapl(rusage.ru_ixrss);
-                    target_rusage->ru_idrss = tswapl(rusage.ru_idrss);
-                    target_rusage->ru_isrss = tswapl(rusage.ru_isrss);
-                    target_rusage->ru_minflt = tswapl(rusage.ru_minflt);
-                    target_rusage->ru_majflt = tswapl(rusage.ru_majflt);
-                    target_rusage->ru_nswap = tswapl(rusage.ru_nswap);
-                    target_rusage->ru_inblock = tswapl(rusage.ru_inblock);
-                    target_rusage->ru_oublock = tswapl(rusage.ru_oublock);
-                    target_rusage->ru_msgsnd = tswapl(rusage.ru_msgsnd);
-                    target_rusage->ru_msgrcv = tswapl(rusage.ru_msgrcv);
-                    target_rusage->ru_nsignals = tswapl(rusage.ru_nsignals);
-                    target_rusage->ru_nvcsw = tswapl(rusage.ru_nvcsw);
-                    target_rusage->ru_nivcsw = tswapl(rusage.ru_nivcsw);
+                    host_to_target_rusage(target_rusage, &rusage);
                 }
             }
         }
