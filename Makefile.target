@@ -145,9 +145,14 @@ LDFLAGS+=-p
 main.o: CFLAGS+=-p
 endif
 
-OBJS= elfload.o main.o syscall.o mmap.o signal.o path.o
+OBJS= elfload.o main.o syscall.o mmap.o signal.o path.o osdep.o
 ifeq ($(TARGET_ARCH), i386)
 OBJS+= vm86.o
+endif
+ifeq ($(TARGET_ARCH), arm)
+OBJS+=nwfpe/softfloat.o nwfpe/fpa11.o nwfpe/fpa11_cpdo.o \
+nwfpe/fpa11_cpdt.o nwfpe/fpa11_cprt.o nwfpe/fpopcode.o nwfpe/single_cpdo.o \
+ nwfpe/double_cpdo.o nwfpe/extended_cpdo.o
 endif
 SRCS:= $(OBJS:.o=.c)
 OBJS+= libqemu.a
@@ -158,6 +163,9 @@ LIBOBJS=thunk.o exec.o translate-all.o cpu-exec.o gdbstub.o \
 
 ifeq ($(TARGET_ARCH), i386)
 LIBOBJS+=helper.o helper2.o
+ifeq ($(ARCH), i386)
+LIBOBJS+=translate-copy.o
+endif
 endif
 
 ifeq ($(TARGET_ARCH), ppc)
@@ -197,7 +205,10 @@ ifeq ($(ARCH),alpha)
 endif
 
 # must use static linking to avoid leaving stuff in virtual address space
-VL_OBJS=vl.o block.o ide.o vga.o sb16.o dma.o oss.o fdc.o
+VL_OBJS=vl.o block.o ide.o vga.o sb16.o dma.o oss.o fdc.o osdep.o
+ifeq ($(TARGET_ARCH), i386)
+VL_OBJS+=linux_boot.o	
+endif
 ifeq ($(TARGET_ARCH), ppc)
 VL_OBJS+= hw.o
 endif
@@ -271,8 +282,11 @@ endif
 %.o: %.c
 	$(CC) $(CFLAGS) $(DEFINES) -c -o $@ $<
 
+%.o: %.S
+	$(CC) $(DEFINES) -c -o $@ $<
+
 clean:
-	rm -f *.o  *.a *~ $(PROGS) gen-op.h opc.h op.h
+	rm -f *.o  *.a *~ $(PROGS) gen-op.h opc.h op.h nwfpe/*.o
 
 install: all 
 	install -m 755 -s $(PROGS) $(prefix)/bin
