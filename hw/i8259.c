@@ -231,10 +231,20 @@ int cpu_get_pic_interrupt(CPUState *env)
     return intno;
 }
 
+static void pic_reset(void *opaque)
+{
+    PicState *s = opaque;
+    int tmp;
+
+    tmp = s->elcr_mask;
+    memset(s, 0, sizeof(PicState));
+    s->elcr_mask = tmp;
+}
+
 static void pic_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
     PicState *s = opaque;
-    int priority, cmd, irq, tmp;
+    int priority, cmd, irq;
 
 #ifdef DEBUG_PIC
     printf("pic_write: addr=0x%02x val=0x%02x\n", addr, val);
@@ -243,9 +253,7 @@ static void pic_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     if (addr == 0) {
         if (val & 0x10) {
             /* init */
-            tmp = s->elcr_mask;
-            memset(s, 0, sizeof(PicState));
-            s->elcr_mask = tmp;
+            pic_reset(s);
             /* deassert a pending interrupt */
             cpu_reset_interrupt(cpu_single_env, CPU_INTERRUPT_HARD);
 
@@ -458,6 +466,7 @@ static void pic_init1(int io_addr, int elcr_addr, PicState *s)
         register_ioport_read(elcr_addr, 1, 1, elcr_ioport_read, s);
     }
     register_savevm("i8259", io_addr, 1, pic_save, pic_load, s);
+    qemu_register_reset(pic_reset, s);
 }
 
 void pic_info(void)

@@ -355,6 +355,12 @@ void DMA_schedule(int nchan)
     cpu_interrupt(cpu_single_env, CPU_INTERRUPT_EXIT);
 }
 
+static void dma_reset(void *opaque)
+{
+    struct dma_cont *d = opaque;
+    write_cont (d, (0x0d << d->dshift), 0);
+}
+
 /* dshift = 0: 8 bit DMA, 1 = 16 bit DMA */
 static void dma_init2(struct dma_cont *d, int base, int dshift, int page_base)
 {
@@ -378,7 +384,8 @@ static void dma_init2(struct dma_cont *d, int base, int dshift, int page_base)
         register_ioport_read (base + ((i + 8) << dshift), 1, 1, 
                               read_cont, d);
     }
-    write_cont (d, base + (0x0d << dshift), 0);
+    qemu_register_reset(dma_reset, d);
+    dma_reset(d);
 }
 
 void DMA_init (void)

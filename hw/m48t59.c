@@ -162,9 +162,7 @@ static void watchdog_cb (void *opaque)
 	NVRAM->buffer[0x1FF7] = 0x00;
 	NVRAM->buffer[0x1FFC] &= ~0x40;
         /* May it be a hw CPU Reset instead ? */
-        reset_requested = 1;
-        printf("Watchdog reset...\n");
-        cpu_interrupt(cpu_single_env, CPU_INTERRUPT_EXIT);
+        qemu_system_reset_request();
     } else {
 	pic_set_irq(NVRAM->IRQ, 1);
 	pic_set_irq(NVRAM->IRQ, 0);

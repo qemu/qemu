@@ -139,7 +139,6 @@ typedef struct KBDState {
 } KBDState;
 
 KBDState kbd_state;
-int reset_requested;
 
 /* update irq and KBD_STAT_[MOUSE_]OBF */
 /* XXX: not generating the irqs if KBD_MODE_DISABLE_KBD is set may be
@@ -274,8 +273,7 @@ static void kbd_write_command(void *opaque, uint32_t addr, uint32_t val)
         break;
 #endif
     case KBD_CCMD_RESET:
-        reset_requested = 1;
-        cpu_interrupt(cpu_single_env, CPU_INTERRUPT_EXIT);
+        qemu_system_reset_request();
         break;
     case 0xff:
         /* ignore that - I don't know what is its use */
@@ -617,8 +615,7 @@ void kbd_write_data(void *opaque, uint32_t addr, uint32_t val)
         cpu_x86_set_a20(cpu_single_env, (val >> 1) & 1);
 #endif
         if (!(val & 1)) {
-            reset_requested = 1;
-            cpu_interrupt(cpu_single_env, CPU_INTERRUPT_EXIT);
+            qemu_system_reset_request();
         }
         break;
     case KBD_CCMD_WRITE_MOUSE:
@@ -630,8 +627,9 @@ void kbd_write_data(void *opaque, uint32_t addr, uint32_t val)
     s->write_cmd = 0;
 }
 
-void kbd_reset(KBDState *s)
+static void kbd_reset(void *opaque)
 {
+    KBDState *s = opaque;
     KBDQueue *q;
 
     s->kbd_write_cmd = -1;
@@ -656,4 +654,5 @@ void kbd_init(void)
 
     qemu_add_kbd_event_handler(pc_kbd_put_keycode, s);
     qemu_add_mouse_event_handler(pc_kbd_mouse_event, s);
+    qemu_register_reset(kbd_reset, s);
 }
