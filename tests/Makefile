@@ -6,6 +6,9 @@ LDFLAGS=
 ifeq ($(ARCH),i386)
 TESTS=linux-test testthread sha1-i386 test-i386 runcom
 endif
+ifeq ($(ARCH),x86_64)
+TESTS=test-x86_64
+endif
 TESTS+=sha1# test_path
 #TESTS+=test_path
 
@@ -24,11 +27,15 @@ test_path: test_path.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 	./$@ || { rm $@; exit 1; }
 
-# i386 emulation test (test various opcodes) */
+# i386/x86_64 emulation test (test various opcodes) */
 test-i386: test-i386.c test-i386-code16.S test-i386-vm86.S \
            test-i386.h test-i386-shift.h test-i386-muldiv.h
-	$(CC) $(CFLAGS) $(LDFLAGS) -static -o $@ test-i386.c \
-              test-i386-code16.S test-i386-vm86.S -lm
+	$(CC) $(CFLAGS) $(LDFLAGS) -static -o $@ \
+              test-i386.c test-i386-code16.S test-i386-vm86.S -lm
+
+test-x86_64: test-i386.c \
+           test-i386.h test-i386-shift.h test-i386-muldiv.h
+	$(CC) $(CFLAGS) $(LDFLAGS) -static -o $@ test-i386.c -lm
 
 ifeq ($(ARCH),i386)
 test: test-i386

@@ -1,95 +1,116 @@
 
 #define exec_op glue(exec_, OP)
+#define exec_opq glue(glue(exec_, OP), q)
 #define exec_opl glue(glue(exec_, OP), l)
 #define exec_opw glue(glue(exec_, OP), w)
 #define exec_opb glue(glue(exec_, OP), b)
 
-#define EXECOP2(size, res, s1, flags) \
+#define EXECOP2(size, rsize, res, s1, flags) \
     asm ("push %4\n\t"\
          "popf\n\t"\
-         stringify(OP) size " %" size "2, %" size "0\n\t" \
+         stringify(OP) size " %" rsize "2, %" rsize "0\n\t" \
          "pushf\n\t"\
-         "popl %1\n\t"\
+         "pop %1\n\t"\
          : "=q" (res), "=g" (flags)\
-         : "q" (s1), "0" (res), "1" (flags));
+         : "q" (s1), "0" (res), "1" (flags)); \
+    printf("%-10s A=" FMTLX " B=" FMTLX " R=" FMTLX " CCIN=%04lx CC=%04lx\n", \
+           stringify(OP) size, s0, s1, res, iflags, flags & CC_MASK);
 
-#define EXECOP1(size, res, flags) \
+#define EXECOP1(size, rsize, res, flags) \
     asm ("push %3\n\t"\
          "popf\n\t"\
-         stringify(OP) size " %" size "0\n\t" \
+         stringify(OP) size " %" rsize "0\n\t" \
          "pushf\n\t"\
-         "popl %1\n\t"\
+         "pop %1\n\t"\
          : "=q" (res), "=g" (flags)\
-         : "0" (res), "1" (flags));
+         : "0" (res), "1" (flags)); \
+    printf("%-10s A=" FMTLX " R=" FMTLX " CCIN=%04lx CC=%04lx\n", \
+           stringify(OP) size, s0, res, iflags, flags & CC_MASK);
 
 #ifdef OP1
-void exec_opl(int s0, int s1, int iflags)
+#if defined(__x86_64__)
+void exec_opq(long s0, long s1, long iflags)
 {
-    int res, flags;
+    long res, flags;
     res = s0;
     flags = iflags;
-    EXECOP1("", res, flags);
-    printf("%-10s A=%08x R=%08x CCIN=%04x CC=%04x\n",
-           stringify(OP) "l", s0, res, iflags, flags & CC_MASK);
-}
-
-void exec_opw(int s0, int s1, int iflags)
-{
-    int res, flags;
-    res = s0;
-    flags = iflags;
-    EXECOP1("w", res, flags);
-    printf("%-10s A=%08x R=%08x CCIN=%04x CC=%04x\n",
-           stringify(OP) "w", s0, res, iflags, flags & CC_MASK);
-}
-
-void exec_opb(int s0, int s1, int iflags)
-{
-    int res, flags;
-    res = s0;
-    flags = iflags;
-    EXECOP1("b", res, flags);
-    printf("%-10s A=%08x R=%08x CCIN=%04x CC=%04x\n",
-           stringify(OP) "b", s0, res, iflags, flags & CC_MASK);
-}
-#else
-void exec_opl(int s0, int s1, int iflags)
-{
-    int res, flags;
-    res = s0;
-    flags = iflags;
-    EXECOP2("", res, s1, flags);
-    printf("%-10s A=%08x B=%08x R=%08x CCIN=%04x CC=%04x\n",
-           stringify(OP) "l", s0, s1, res, iflags, flags & CC_MASK);
-}
-
-void exec_opw(int s0, int s1, int iflags)
-{
-    int res, flags;
-    res = s0;
-    flags = iflags;
-    EXECOP2("w", res, s1, flags);
-    printf("%-10s A=%08x B=%08x R=%08x CCIN=%04x CC=%04x\n",
-           stringify(OP) "w", s0, s1, res, iflags, flags & CC_MASK);
-}
-
-void exec_opb(int s0, int s1, int iflags)
-{
-    int res, flags;
-    res = s0;
-    flags = iflags;
-    EXECOP2("b", res, s1, flags);
-    printf("%-10s A=%08x B=%08x R=%08x CCIN=%04x CC=%04x\n",
-           stringify(OP) "b", s0, s1, res, iflags, flags & CC_MASK);
+    EXECOP1("q", "", res, flags);
 }
 #endif
 
-void exec_op(int s0, int s1)
+void exec_opl(long s0, long s1, long iflags)
 {
+    long res, flags;
+    res = s0;
+    flags = iflags;
+    EXECOP1("l", "k", res, flags);
+}
+
+void exec_opw(long s0, long s1, long iflags)
+{
+    long res, flags;
+    res = s0;
+    flags = iflags;
+    EXECOP1("w", "w", res, flags);
+}
+
+void exec_opb(long s0, long s1, long iflags)
+{
+    long res, flags;
+    res = s0;
+    flags = iflags;
+    EXECOP1("b", "b", res, flags);
+}
+#else
+#if defined(__x86_64__)
+void exec_opq(long s0, long s1, long iflags)
+{
+    long res, flags;
+    res = s0;
+    flags = iflags;
+    EXECOP2("q", "", res, s1, flags);
+}
+#endif
+
+void exec_opl(long s0, long s1, long iflags)
+{
+    long res, flags;
+    res = s0;
+    flags = iflags;
+    EXECOP2("l", "k", res, s1, flags);
+}
+
+void exec_opw(long s0, long s1, long iflags)
+{
+    long res, flags;
+    res = s0;
+    flags = iflags;
+    EXECOP2("w", "w", res, s1, flags);
+}
+
+void exec_opb(long s0, long s1, long iflags)
+{
+    long res, flags;
+    res = s0;
+    flags = iflags;
+    EXECOP2("b", "b", res, s1, flags);
+}
+#endif
+
+void exec_op(long s0, long s1)
+{
+    s0 = i2l(s0);
+    s1 = i2l(s1);
+#if defined(__x86_64__)
+    exec_opq(s0, s1, 0);
+#endif
     exec_opl(s0, s1, 0);
     exec_opw(s0, s1, 0);
     exec_opb(s0, s1, 0);
 #ifdef OP_CC
+#if defined(__x86_64__)
+    exec_opq(s0, s1, CC_C);
+#endif
     exec_opl(s0, s1, CC_C);
     exec_opw(s0, s1, CC_C);
     exec_opb(s0, s1, CC_C);
