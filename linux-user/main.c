@@ -297,10 +297,12 @@ int main(int argc, char **argv)
         default:
         trap_error:
             fprintf(stderr, "GEMU: Unknown error %d, aborting\n", err);
+#ifndef NO_TRACE_MSGS
             d_emu = 9;
             fprintf(stderr, "%s\n%s\n",
                     e_print_cpuemu_regs(env, 1), 
                     e_emu_disasm(env,pc,1));
+#endif
             abort();
         }
     }
