@@ -3,7 +3,7 @@
 
 #include "thunk.h"
 
-struct pt_regs {
+struct target_pt_regs {
 	long ebx;
 	long ecx;
 	long edx;
@@ -44,7 +44,7 @@ struct image_info {
 };
 
 int elf_exec(const char * filename, char ** argv, char ** envp, 
-             struct pt_regs * regs, struct image_info *infop);
+             struct target_pt_regs * regs, struct image_info *infop);
 
 void target_set_brk(char *new_brk);
 void syscall_init(void);

@@ -20,8 +20,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
-#include <elf.h>
-#include <endian.h>
 #include <errno.h>
 
 #include "gemu.h"
@@ -210,7 +208,7 @@ void usage(void)
 int main(int argc, char **argv)
 {
     const char *filename;
-    struct pt_regs regs1, *regs = &regs1;
+    struct target_pt_regs regs1, *regs = &regs1;
     struct image_info info1, *info = &info1;
     Interp_ENV *env;
 
@@ -220,12 +218,12 @@ int main(int argc, char **argv)
     filename = argv[1];
 
     /* Zero out regs */
-    memset(regs, 0, sizeof(struct pt_regs));
+    memset(regs, 0, sizeof(struct target_pt_regs));
 
     /* Zero out image_info */
     memset(info, 0, sizeof(struct image_info));
 
-    if(elf_exec(filename, argv+1, __environ, regs, info) != 0) {
+    if(elf_exec(filename, argv+1, environ, regs, info) != 0) {
 	printf("Error loading %s\n", filename);
 	exit(1);
     }
