@@ -4394,7 +4394,7 @@ static inline int gen_intermediate_code_internal(CPUState *env,
             dc->mem_index = 3;
     }
     dc->jmp_opt = !(dc->tf || env->singlestep_enabled
-#ifndef CONFIG_SOFT_MMU
+#ifndef CONFIG_SOFTMMU
                     || (flags & HF_SOFTMMU_MASK)
 #endif
                     );
