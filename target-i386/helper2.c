@@ -43,17 +43,42 @@ CPUX86State *cpu_x86_init(void)
     if (!env)
         return NULL;
     memset(env, 0, sizeof(CPUX86State));
-    /* basic FPU init */
-    for(i = 0;i < 8; i++)
-        env->fptags[i] = 1;
-    env->fpuc = 0x37f;
-    /* flags setup : we activate the IRQs by default as in user mode */
-    env->eflags = 0x2 | IF_MASK;
 
-    tlb_flush(env);
+    /* init to reset state */
+
+    tlb_flush(env, 1);
 #ifdef CONFIG_SOFTMMU
     env->hflags |= HF_SOFTMMU_MASK;
 #endif
+
+    cpu_x86_update_cr0(env, 0x60000010);
+    env->a20_mask = 0xffffffff;
+    
+    env->idt.limit = 0xffff;
+    env->gdt.limit = 0xffff;
+    env->ldt.limit = 0xffff;
+    env->ldt.flags = DESC_P_MASK;
+    env->tr.limit = 0xffff;
+    env->tr.flags = DESC_P_MASK;
+    
+    /* not correct (CS base=0xffff0000) */
+    cpu_x86_load_seg_cache(env, R_CS, 0xf000, (uint8_t *)0x000f0000, 0xffff, 0); 
+    cpu_x86_load_seg_cache(env, R_DS, 0, NULL, 0xffff, 0);
+    cpu_x86_load_seg_cache(env, R_ES, 0, NULL, 0xffff, 0);
+    cpu_x86_load_seg_cache(env, R_SS, 0, NULL, 0xffff, 0);
+    cpu_x86_load_seg_cache(env, R_FS, 0, NULL, 0xffff, 0);
+    cpu_x86_load_seg_cache(env, R_GS, 0, NULL, 0xffff, 0);
+    
+    env->eip = 0xfff0;
+    env->regs[R_EDX] = 0x600; /* indicate P6 processor */
+    
+    env->eflags = 0x2;
+    
+    /* FPU init */
+    for(i = 0;i < 8; i++)
+        env->fptags[i] = 1;
+    env->fpuc = 0x37f;
+    
     /* init various static tables */
     if (!inited) {
         inited = 1;
@@ -179,15 +204,10 @@ void cpu_x86_dump_state(CPUX86State *env, FILE *f, int flags)
 /* x86 mmu */
 /* XXX: add PGE support */
 
-/* called when cr3 or PG bit are modified */
-static int last_pg_state = -1;
-static uint32_t a20_mask;
-int a20_enabled;
-
 void cpu_x86_set_a20(CPUX86State *env, int a20_state)
 {
     a20_state = (a20_state != 0);
-    if (a20_state != a20_enabled) {
+    if (a20_state != ((env->a20_mask >> 20) & 1)) {
 #if defined(DEBUG_MMU)
         printf("A20 update: a20=%d\n", a20_state);
 #endif
@@ -197,27 +217,24 @@ void cpu_x86_set_a20(CPUX86State *env, int a20_state)
 
         /* when a20 is changed, all the MMU mappings are invalid, so
            we must flush everything */
-        tlb_flush(env);
-        a20_enabled = a20_state;
-        if (a20_enabled)
-            a20_mask = 0xffffffff;
-        else
-            a20_mask = 0xffefffff;
+        tlb_flush(env, 1);
+        env->a20_mask = 0xffefffff | (a20_state << 20);
     }
 }
 
-void cpu_x86_update_cr0(CPUX86State *env)
+void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0)
 {
-    int pg_state, pe_state;
+    int pe_state;
 
 #if defined(DEBUG_MMU)
-    printf("CR0 update: CR0=0x%08x\n", env->cr[0]);
+    printf("CR0 update: CR0=0x%08x\n", new_cr0);
 #endif
-    pg_state = env->cr[0] & CR0_PG_MASK;
-    if (pg_state != last_pg_state) {
-        tlb_flush(env);
-        last_pg_state = pg_state;
+    if ((new_cr0 & (CR0_PG_MASK | CR0_WP_MASK | CR0_PE_MASK)) !=
+        (env->cr[0] & (CR0_PG_MASK | CR0_WP_MASK | CR0_PE_MASK))) {
+        tlb_flush(env, 1);
     }
+    env->cr[0] = new_cr0;
+    
     /* update PE flag in hidden flags */
     pe_state = (env->cr[0] & CR0_PE_MASK);
     env->hflags = (env->hflags & ~HF_PE_MASK) | (pe_state << HF_PE_SHIFT);
@@ -225,23 +242,27 @@ void cpu_x86_update_cr0(CPUX86State *env)
     env->hflags |= ((pe_state ^ 1) << HF_ADDSEG_SHIFT);
 }
 
-void cpu_x86_update_cr3(CPUX86State *env)
+void cpu_x86_update_cr3(CPUX86State *env, uint32_t new_cr3)
 {
+    env->cr[3] = new_cr3;
     if (env->cr[0] & CR0_PG_MASK) {
 #if defined(DEBUG_MMU)
-        printf("CR3 update: CR3=%08x\n", env->cr[3]);
+        printf("CR3 update: CR3=%08x\n", new_cr3);
 #endif
-        tlb_flush(env);
+        tlb_flush(env, 0);
     }
 }
 
-void cpu_x86_init_mmu(CPUX86State *env)
+void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4)
 {
-    a20_enabled = 1;
-    a20_mask = 0xffffffff;
-
-    last_pg_state = -1;
-    cpu_x86_update_cr0(env);
+#if defined(DEBUG_MMU)
+    printf("CR4 update: CR4=%08x\n", env->cr[4]);
+#endif
+    if ((new_cr4 & (CR4_PGE_MASK | CR4_PAE_MASK | CR4_PSE_MASK)) !=
+        (env->cr[4] & (CR4_PGE_MASK | CR4_PAE_MASK | CR4_PSE_MASK))) {
+        tlb_flush(env, 1);
+    }
+    env->cr[4] = new_cr4;
 }
 
 /* XXX: also flush 4MB pages */
@@ -285,7 +306,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr,
 
     /* page directory entry */
     pde_ptr = phys_ram_base + 
-        (((env->cr[3] & ~0xfff) + ((addr >> 20) & ~3)) & a20_mask);
+        (((env->cr[3] & ~0xfff) + ((addr >> 20) & ~3)) & env->a20_mask);
     pde = ldl_raw(pde_ptr);
     if (!(pde & PG_PRESENT_MASK)) {
         error_code = 0;
@@ -323,7 +344,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr,
 
         /* page directory entry */
         pte_ptr = phys_ram_base + 
-            (((pde & ~0xfff) + ((addr >> 10) & 0xffc)) & a20_mask);
+            (((pde & ~0xfff) + ((addr >> 10) & 0xffc)) & env->a20_mask);
         pte = ldl_raw(pte_ptr);
         if (!(pte & PG_PRESENT_MASK)) {
             error_code = 0;
@@ -368,7 +389,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr,
     }
 
  do_mapping:
-    pte = pte & a20_mask;
+    pte = pte & env->a20_mask;
 
     /* Even if 4MB pages, we map only one 4KB page in the cache to
        avoid filling it too fast */
@@ -405,7 +426,7 @@ target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
     } else {
         /* page directory entry */
         pde_ptr = phys_ram_base + 
-            (((env->cr[3] & ~0xfff) + ((addr >> 20) & ~3)) & a20_mask);
+            (((env->cr[3] & ~0xfff) + ((addr >> 20) & ~3)) & env->a20_mask);
         pde = ldl_raw(pde_ptr);
         if (!(pde & PG_PRESENT_MASK)) 
             return -1;
@@ -415,14 +436,14 @@ target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
         } else {
             /* page directory entry */
             pte_ptr = phys_ram_base + 
-                (((pde & ~0xfff) + ((addr >> 10) & 0xffc)) & a20_mask);
+                (((pde & ~0xfff) + ((addr >> 10) & 0xffc)) & env->a20_mask);
             pte = ldl_raw(pte_ptr);
             if (!(pte & PG_PRESENT_MASK))
                 return -1;
             page_size = 4096;
         }
     }
-    pte = pte & a20_mask;
+    pte = pte & env->a20_mask;
     page_offset = (addr & TARGET_PAGE_MASK) & (page_size - 1);
     paddr = (pte & TARGET_PAGE_MASK) + page_offset;
     return paddr;

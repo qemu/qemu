@@ -134,8 +134,9 @@ void helper_ltr_T0(void);
 void helper_movl_crN_T0(int reg);
 void helper_movl_drN_T0(int reg);
 void helper_invlpg(unsigned int addr);
-void cpu_x86_update_cr0(CPUX86State *env);
-void cpu_x86_update_cr3(CPUX86State *env);
+void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0);
+void cpu_x86_update_cr3(CPUX86State *env, uint32_t new_cr3);
+void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4);
 void cpu_x86_flush_tlb(CPUX86State *env, uint32_t addr);
 int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr, 
                              int is_write, int is_user, int is_softmmu);

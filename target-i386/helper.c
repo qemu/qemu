@@ -424,8 +424,7 @@ static void switch_tss(int tss_selector,
     env->tr.flags = e2 & ~DESC_TSS_BUSY_MASK;
     
     if ((type & 8) && (env->cr[0] & CR0_PG_MASK)) {
-        env->cr[3] = new_cr3;
-        cpu_x86_update_cr3(env);
+        cpu_x86_update_cr3(env, new_cr3);
     }
     
     /* load all registers without an exception, then reload them with
@@ -1775,13 +1774,18 @@ void helper_lret_protected(int shift, int addend)
 
 void helper_movl_crN_T0(int reg)
 {
-    env->cr[reg] = T0;
     switch(reg) {
     case 0:
-        cpu_x86_update_cr0(env);
+        cpu_x86_update_cr0(env, T0);
         break;
     case 3:
-        cpu_x86_update_cr3(env);
+        cpu_x86_update_cr3(env, T0);
+        break;
+    case 4:
+        cpu_x86_update_cr4(env, T0);
+        break;
+    default:
+        env->cr[reg] = T0;
         break;
     }
 }
