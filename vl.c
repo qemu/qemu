@@ -362,6 +362,19 @@ int64_t cpu_get_real_ticks(void)
     return val;
 }
 
+#elif defined(__x86_64__)
+
+int64_t cpu_get_real_ticks(void)
+{
+    uint32_t low,high;
+    int64_t val;
+    asm volatile("rdtsc" : "=a" (low), "=d" (high));
+    val = high;
+    val <<= 32;
+    val |= low;
+    return val;
+}
+
 #else
 #error unsupported CPU
 #endif
