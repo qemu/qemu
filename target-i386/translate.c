@@ -391,7 +391,7 @@ static GenOpFunc *gen_op_arith_T0_T1_cc[8] = {
     },
 
 static GenOpFunc *gen_op_arithc_T0_T1_cc[3][2] = {
-    DEF_ARITHC()
+    DEF_ARITHC( )
 };
 
 static GenOpFunc *gen_op_arithc_mem_T0_T1_cc[9][2] = {
@@ -420,7 +420,7 @@ static const int cc_op_arithb[8] = {
 
 
 static GenOpFunc *gen_op_cmpxchg_T0_T1_EAX_cc[3] = {
-    DEF_CMPXCHG()
+    DEF_CMPXCHG( )
 };
 
 static GenOpFunc *gen_op_cmpxchg_mem_T0_T1_EAX_cc[9] = {
@@ -464,7 +464,7 @@ static GenOpFunc *gen_op_cmpxchg_mem_T0_T1_EAX_cc[9] = {
     },
 
 static GenOpFunc *gen_op_shift_T0_T1_cc[3][8] = {
-    DEF_SHIFT()
+    DEF_SHIFT( )
 };
 
 static GenOpFunc *gen_op_shift_mem_T0_T1_cc[9][8] = {
@@ -4277,7 +4277,7 @@ static uint16_t opc_read_flags[NB_OPS] = {
     [INDEX_op_rcrl ## SUFFIX ## _T0_T1_cc] = CC_C,
 
 
-    DEF_READF()
+    DEF_READF( )
     DEF_READF(_raw)
 #ifndef CONFIG_USER_ONLY
     DEF_READF(_kernel)
@@ -4396,7 +4396,7 @@ static uint16_t opc_write_flags[NB_OPS] = {
     [INDEX_op_cmpxchgl ## SUFFIX ## _T0_T1_EAX_cc] = CC_OSZAPC,
 
 
-    DEF_WRITEF()
+    DEF_WRITEF( )
     DEF_WRITEF(_raw)
 #ifndef CONFIG_USER_ONLY
     DEF_WRITEF(_kernel)
@@ -4435,7 +4435,7 @@ static uint16_t opc_simpler[NB_OPS] = {
     [INDEX_op_rorw ## SUFFIX ## _T0_T1_cc] = INDEX_op_rorw ## SUFFIX ## _T0_T1,\
     [INDEX_op_rorl ## SUFFIX ## _T0_T1_cc] = INDEX_op_rorl ## SUFFIX ## _T0_T1,
 
-    DEF_SIMPLER()
+    DEF_SIMPLER( )
     DEF_SIMPLER(_raw)
 #ifndef CONFIG_USER_ONLY
     DEF_SIMPLER(_kernel)
