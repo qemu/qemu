@@ -324,10 +324,8 @@ void cpu_x86_load_seg(CPUX86State *s, int seg_reg, int selector)
    the effective address of the memory exception. 'is_write' is 1 if a
    write caused the exception and otherwise 0'. 'old_set' is the
    signal set which should be restored */
-static inline int handle_cpu_signal(unsigned long pc,
-                                    unsigned long address,
-                                    int is_write,
-                                    sigset_t *old_set)
+static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
+                                    int is_write, sigset_t *old_set)
 {
 #if defined(DEBUG_SIGNAL)
     printf("qemu: SIGSEGV pc=0x%08lx address=%08lx wr=%d oldset=0x%08lx\n", 
@@ -355,13 +353,13 @@ static inline int handle_cpu_signal(unsigned long pc,
     }
 }
 
+#if defined(__i386__)
+
 int cpu_x86_signal_handler(int host_signum, struct siginfo *info, 
                            void *puc)
 {
-#if defined(__i386__)
     struct ucontext *uc = puc;
     unsigned long pc;
-    sigset_t *pold_set;
     
 #ifndef REG_EIP
 /* for glibc 2.1 */
@@ -370,20 +368,23 @@ int cpu_x86_signal_handler(int host_signum, struct siginfo *info,
 #define REG_TRAPNO TRAPNO
 #endif
     pc = uc->uc_mcontext.gregs[REG_EIP];
-    pold_set = &uc->uc_sigmask;
     return handle_cpu_signal(pc, (unsigned long)info->si_addr, 
                              uc->uc_mcontext.gregs[REG_TRAPNO] == 0xe ? 
                              (uc->uc_mcontext.gregs[REG_ERR] >> 1) & 1 : 0,
-                             pold_set);
+                             &uc->uc_sigmask);
+}
+
 #elif defined(__powerpc)
+
+int cpu_x86_signal_handler(int host_signum, struct siginfo *info, 
+                           void *puc)
+{
     struct ucontext *uc = puc;
     struct pt_regs *regs = uc->uc_mcontext.regs;
     unsigned long pc;
-    sigset_t *pold_set;
     int is_write;
 
     pc = regs->nip;
-    pold_set = &uc->uc_sigmask;
     is_write = 0;
 #if 0
     /* ppc 4xx case */
@@ -394,9 +395,11 @@ int cpu_x86_signal_handler(int host_signum, struct siginfo *info,
         is_write = 1;
 #endif
     return handle_cpu_signal(pc, (unsigned long)info->si_addr, 
-                             is_write, pold_set);
-#else
-#error CPU specific signal handler needed
-    return 0;
-#endif
+                             is_write, &uc->uc_sigmask);
 }
+
+#else
+
+#error CPU specific signal handler needed
+
+#endif
