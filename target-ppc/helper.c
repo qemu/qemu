@@ -27,8 +27,6 @@
 //#define DEBUG_BATS
 //#define DEBUG_EXCEPTIONS
 
-extern FILE *stdout, *stderr;
-
 /*****************************************************************************/
 /* PPC MMU emulation */
 int cpu_ppc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
