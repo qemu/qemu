@@ -105,6 +105,11 @@ void OPPROTO op_movl_T1_im(void)
     T1 = PARAM1;
 }
 
+void OPPROTO op_mov_CF_T1(void)
+{
+    env->CF = ((uint32_t)T1) >> 31;
+}
+
 void OPPROTO op_movl_T2_im(void)
 {
     T2 = PARAM1;

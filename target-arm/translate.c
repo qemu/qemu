@@ -536,7 +536,8 @@ static void disas_arm_insn(DisasContext *s)
             if (shift)
                 val = (val >> shift) | (val << (32 - shift));
             gen_op_movl_T1_im(val);
-            /* XXX: is CF modified ? */
+            if (logic_cc && shift)
+                gen_op_mov_CF_T1();
         } else {
             /* register */
             rm = (insn) & 0xf;
