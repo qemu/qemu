@@ -1776,6 +1776,14 @@ void OPPROTO op_fucomi_ST0_FT0(void)
     FORCE_RET();
 }
 
+void OPPROTO op_fcmov_ST0_STN_T0(void)
+{
+    if (T0) {
+        ST0 = ST(PARAM1);
+    }
+    FORCE_RET();
+}
+
 void OPPROTO op_fadd_ST0_FT0(void)
 {
     ST0 += FT0;
