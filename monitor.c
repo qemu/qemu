@@ -539,7 +539,7 @@ static const KeyDef key_defs[] = {
     { 0x32, "m" },
     
     { 0x39, "spc" },
-
+    { 0x3a, "caps_lock" },
     { 0x3b, "f1" },
     { 0x3c, "f2" },
     { 0x3d, "f3" },
@@ -550,7 +550,7 @@ static const KeyDef key_defs[] = {
     { 0x42, "f8" },
     { 0x43, "f9" },
     { 0x44, "f10" },
-
+    { 0x45, "num_lock" },
     { 0x46, "scroll_lock" },
 
     { 0x56, "<" },
