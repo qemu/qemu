@@ -78,25 +78,37 @@ enum {
     CC_OP_ADDW,
     CC_OP_ADDL,
 
+    CC_OP_ADCB, /* modify all flags, CC_DST = res, CC_SRC = src1 */
+    CC_OP_ADCW,
+    CC_OP_ADCL,
+
     CC_OP_SUBB, /* modify all flags, CC_DST = res, CC_SRC = src1 */
     CC_OP_SUBW,
     CC_OP_SUBL,
+
+    CC_OP_SBBB, /* modify all flags, CC_DST = res, CC_SRC = src1 */
+    CC_OP_SBBW,
+    CC_OP_SBBL,
 
     CC_OP_LOGICB, /* modify all flags, CC_DST = res */
     CC_OP_LOGICW,
     CC_OP_LOGICL,
 
-    CC_OP_INCB, /* modify all flags except, CC_DST = res */
+    CC_OP_INCB, /* modify all flags except, CC_DST = res, CC_SRC = C */
     CC_OP_INCW,
     CC_OP_INCL,
 
-    CC_OP_DECB, /* modify all flags except, CC_DST = res */
+    CC_OP_DECB, /* modify all flags except, CC_DST = res, CC_SRC = C  */
     CC_OP_DECW,
     CC_OP_DECL,
 
     CC_OP_SHLB, /* modify all flags, CC_DST = res, CC_SRC.lsb = C */
     CC_OP_SHLW,
     CC_OP_SHLL,
+
+    CC_OP_SARB, /* modify all flags, CC_DST = res, CC_SRC.lsb = C */
+    CC_OP_SARW,
+    CC_OP_SARL,
 
     CC_OP_NB,
 };

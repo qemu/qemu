@@ -27,7 +27,9 @@ static void error(const char *fmt, ...)
     va_list ap;
 
     va_start(ap, fmt);
+    fprintf(stderr, "\n");
     vfprintf(stderr, fmt, ap);
+    fprintf(stderr, "\n");
     va_end(ap);
     exit(1);
 }
@@ -98,41 +100,12 @@ enum {
     OR_EBP,
     OR_ESI,
     OR_EDI,
-
-    /* I386 float registers */
-    OR_ST0,
-    OR_ST1,
-    OR_ST2,
-    OR_ST3,
-    OR_ST4,
-    OR_ST5,
-    OR_ST6,
-    OR_ST7,
     OR_TMP0,    /* temporary operand register */
     OR_TMP1,
     OR_A0, /* temporary register used when doing address evaluation */
-    OR_EFLAGS,  /* cpu flags */
-    OR_ITMP0, /* used for byte/word insertion */
-    OR_ITMP1, /* used for byte/word insertion */
-    OR_ITMP2, /* used for byte/word insertion */
-    OR_FTMP0, /* float temporary */
-    OR_DF,    /* D flag, for string ops */
     OR_ZERO, /* fixed zero register */
-    OR_IM, /* dummy immediate value register */
     NB_OREGS,
 };
-
-#if 0
-static const double tab_const[7] = {
-    1.0, 
-    3.32192809488736234789, /* log2(10) */
-    M_LOG2E,
-    M_PI,
-    0.30102999566398119521, /* log10(2) */
-    M_LN2,
-    0.0
-};
-#endif
 
 typedef void (GenOpFunc)(void);
 typedef void (GenOpFunc1)(long);
@@ -354,12 +327,27 @@ static GenOpFunc *gen_op_addl_A0_reg_sN[4][8] = {
 static GenOpFunc *gen_op_arith_T0_T1_cc[8] = {
     gen_op_addl_T0_T1_cc,
     gen_op_orl_T0_T1_cc,
-    gen_op_adcl_T0_T1_cc,
-    gen_op_sbbl_T0_T1_cc,
+    NULL,
+    NULL,
     gen_op_andl_T0_T1_cc,
     gen_op_subl_T0_T1_cc,
     gen_op_xorl_T0_T1_cc,
     gen_op_cmpl_T0_T1_cc,
+};
+
+static GenOpFunc *gen_op_arithc_T0_T1_cc[3][2] = {
+    [OT_BYTE] = {
+        gen_op_adcb_T0_T1_cc,
+        gen_op_sbbb_T0_T1_cc,
+    },
+    [OT_WORD] = {
+        gen_op_adcw_T0_T1_cc,
+        gen_op_sbbw_T0_T1_cc,
+    },
+    [OT_LONG] = {
+        gen_op_adcl_T0_T1_cc,
+        gen_op_sbbl_T0_T1_cc,
+    },
 };
 
 static const int cc_op_arithb[8] = {
@@ -403,6 +391,21 @@ static GenOpFunc *gen_op_shift_T0_T1_cc[3][8] = {
         gen_op_shrl_T0_T1_cc,
         gen_op_shll_T0_T1_cc,
         gen_op_sarl_T0_T1_cc,
+    },
+};
+
+static GenOpFunc *gen_op_btx_T0_T1_cc[2][4] = {
+    [0] = {
+        gen_op_btw_T0_T1_cc,
+        gen_op_btsw_T0_T1_cc,
+        gen_op_btrw_T0_T1_cc,
+        gen_op_btcw_T0_T1_cc,
+    },
+    [1] = {
+        gen_op_btl_T0_T1_cc,
+        gen_op_btsl_T0_T1_cc,
+        gen_op_btrl_T0_T1_cc,
+        gen_op_btcl_T0_T1_cc,
     },
 };
 
@@ -644,18 +647,23 @@ static void gen_op(DisasContext *s1, int op, int ot, int d, int s)
         gen_op_mov_TN_reg[ot][0][d]();
     if (s != OR_TMP1)
         gen_op_mov_TN_reg[ot][1][s]();
-    if ((op == OP_ADCL || op == OP_SBBL) && s1->cc_op != CC_OP_DYNAMIC)
-        gen_op_set_cc_op(s1->cc_op);
-    gen_op_arith_T0_T1_cc[op]();
+    if (op == OP_ADCL || op == OP_SBBL) {
+        if (s1->cc_op != CC_OP_DYNAMIC)
+            gen_op_set_cc_op(s1->cc_op);
+        gen_op_arithc_T0_T1_cc[ot][op - OP_ADCL]();
+        s1->cc_op = CC_OP_DYNAMIC;
+    } else {
+        gen_op_arith_T0_T1_cc[op]();
+        s1->cc_op = cc_op_arithb[op] + ot;
+    }
     if (d != OR_TMP0 && op != OP_CMPL)
         gen_op_mov_reg_T0[ot][d]();
-    s1->cc_op = cc_op_arithb[op] + ot;
 }
 
 static void gen_opi(DisasContext *s1, int op, int ot, int d, int c)
 {
     gen_op_movl_T1_im(c);
-    gen_op(s1, op, ot, d, OR_TMP0);
+    gen_op(s1, op, ot, d, OR_TMP1);
 }
 
 static void gen_inc(DisasContext *s1, int ot, int d, int c)
@@ -664,10 +672,13 @@ static void gen_inc(DisasContext *s1, int ot, int d, int c)
         gen_op_mov_TN_reg[ot][0][d]();
     if (s1->cc_op != CC_OP_DYNAMIC)
         gen_op_set_cc_op(s1->cc_op);
-    if (c > 0)
+    if (c > 0) {
         gen_op_incl_T0_cc();
-    else
+        s1->cc_op = CC_OP_INCB + ot;
+    } else {
         gen_op_decl_T0_cc();
+        s1->cc_op = CC_OP_DECB + ot;
+    }
     if (d != OR_TMP0)
         gen_op_mov_reg_T0[ot][d]();
 }
@@ -678,20 +689,12 @@ static void gen_shift(DisasContext *s1, int op, int ot, int d, int s)
         gen_op_mov_TN_reg[ot][0][d]();
     if (s != OR_TMP1)
         gen_op_mov_TN_reg[ot][1][s]();
-    switch(op) {
-    case OP_ROL:
-    case OP_ROR:
-    case OP_RCL:
-    case OP_RCR:
-        /* only C and O are modified, so we must update flags dynamically */
-        if (s1->cc_op != CC_OP_DYNAMIC)
-            gen_op_set_cc_op(s1->cc_op);
-        gen_op_shift_T0_T1_cc[ot][op]();
-        break;
-    default:
-        gen_op_shift_T0_T1_cc[ot][op]();
-        break;
-    }
+    /* for zero counts, flags are not updated, so must do it dynamically */
+    if (s1->cc_op != CC_OP_DYNAMIC)
+        gen_op_set_cc_op(s1->cc_op);
+
+    gen_op_shift_T0_T1_cc[ot][op]();
+
     if (d != OR_TMP0)
         gen_op_mov_reg_T0[ot][d]();
     s1->cc_op = CC_OP_DYNAMIC; /* cannot predict flags after */
@@ -785,12 +788,65 @@ static void gen_lea_modrm(DisasContext *s, int modrm, int *reg_ptr, int *offset_
             }
             gen_op_addl_A0_reg_sN[scale][reg2]();
         }
-        opreg = OR_A0;
     } else {
-        fprintf(stderr, "16 bit addressing not supported\n");
-        disp = 0;
-        opreg = 0;
+        switch (mod) {
+        case 0:
+            if (rm == 6) {
+                disp = lduw(s->pc);
+                s->pc += 2;
+                gen_op_movl_A0_im(disp);
+                goto no_rm;
+            } else {
+                disp = 0;
+            }
+            break;
+        case 1:
+            disp = (int8_t)ldub(s->pc++);
+            break;
+        default:
+        case 2:
+            disp = lduw(s->pc);
+            s->pc += 2;
+            break;
+        }
+        switch(rm) {
+        case 0:
+            gen_op_movl_A0_reg[R_EBX]();
+            gen_op_addl_A0_reg_sN[0][R_ESI]();
+            break;
+        case 1:
+            gen_op_movl_A0_reg[R_EBX]();
+            gen_op_addl_A0_reg_sN[0][R_EDI]();
+            break;
+        case 2:
+            gen_op_movl_A0_reg[R_EBP]();
+            gen_op_addl_A0_reg_sN[0][R_ESI]();
+            break;
+        case 3:
+            gen_op_movl_A0_reg[R_EBP]();
+            gen_op_addl_A0_reg_sN[0][R_EDI]();
+            break;
+        case 4:
+            gen_op_movl_A0_reg[R_ESI]();
+            break;
+        case 5:
+            gen_op_movl_A0_reg[R_EDI]();
+            break;
+        case 6:
+            gen_op_movl_A0_reg[R_EBP]();
+            break;
+        default:
+        case 7:
+            gen_op_movl_A0_reg[R_EBX]();
+            break;
+        }
+        if (disp != 0)
+            gen_op_addl_A0_im(disp);
+        gen_op_andl_A0_ffff();
+    no_rm: ;
     }
+    opreg = OR_A0;
+    disp = 0;
     *reg_ptr = opreg;
     *offset_ptr = disp;
 }
@@ -870,6 +926,12 @@ static void gen_jcc(DisasContext *s, int b, int val)
     case CC_OP_ADDB:
     case CC_OP_ADDW:
     case CC_OP_ADDL:
+    case CC_OP_ADCB:
+    case CC_OP_ADCW:
+    case CC_OP_ADCL:
+    case CC_OP_SBBB:
+    case CC_OP_SBBW:
+    case CC_OP_SBBL:
     case CC_OP_LOGICB:
     case CC_OP_LOGICW:
     case CC_OP_LOGICL:
@@ -882,6 +944,9 @@ static void gen_jcc(DisasContext *s, int b, int val)
     case CC_OP_SHLB:
     case CC_OP_SHLW:
     case CC_OP_SHLL:
+    case CC_OP_SARB:
+    case CC_OP_SARW:
+    case CC_OP_SARL:
         switch(jcc_op) {
         case JCC_Z:
             func = gen_jcc_sub[(s->cc_op - CC_OP_ADDB) % 3][jcc_op];
@@ -1284,11 +1349,15 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
             gen_inc(s, ot, OR_TMP0, 1);
             if (mod != 3)
                 gen_op_st_T0_A0[ot]();
+            else
+                gen_op_mov_reg_T0[ot][rm]();
             break;
         case 1: /* dec Ev */
             gen_inc(s, ot, OR_TMP0, -1);
             if (mod != 3)
                 gen_op_st_T0_A0[ot]();
+            else
+                gen_op_mov_reg_T0[ot][rm]();
             break;
         case 2: /* call Ev */
             gen_op_movl_T1_im((long)s->pc);
@@ -1359,7 +1428,6 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
         ot = dflag ? OT_LONG : OT_WORD;
         modrm = ldub(s->pc++);
         reg = ((modrm >> 3) & 7) + OR_EAX;
-        
         gen_ldst_modrm(s, modrm, ot, OR_TMP0, 0);
         if (b == 0x69) {
             val = insn_get(s, ot);
@@ -1372,9 +1440,9 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
         }
 
         if (ot == OT_LONG) {
-            op_imull_T0_T1();
+            gen_op_imull_T0_T1();
         } else {
-            op_imulw_T0_T1();
+            gen_op_imulw_T0_T1();
         }
         gen_op_mov_reg_T0[ot][reg]();
         s->cc_op = CC_OP_MUL;
@@ -1522,7 +1590,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
             offset_addr = insn_get(s, OT_LONG);
         else
             offset_addr = insn_get(s, OT_WORD);
-            
+        gen_op_movl_A0_im(offset_addr);
         if ((b & 2) == 0) {
             gen_op_ld_T0_A0[ot]();
             gen_op_mov_reg_T0[ot][R_EAX]();
@@ -1717,17 +1785,19 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
                     break;
                 }
                 break;
-#if 0
-            case 0x2f: /* fnstsw mem */
-                gen_insn3(OP_FNSTS, OR_TMP0, OR_ZERO, OR_ZERO);
-                gen_st(OP_STW, OR_TMP0, reg_addr, offset_addr);
+            case 0x0d: /* fldcw mem */
+                gen_op_fldcw_A0();
                 break;
-
+            case 0x0f: /* fnstcw mem */
+                gen_op_fnstcw_A0();
+                break;
+            case 0x2f: /* fnstsw mem */
+                gen_op_fnstsw_A0();
+                break;
             case 0x3c: /* fbld */
             case 0x3e: /* fbstp */
                 error("float BCD not hanlded");
                 return -1;
-#endif
             case 0x3d: /* fildll */
                 gen_op_fpush();
                 gen_op_fildll_ST0_A0();
@@ -1737,7 +1807,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
                 gen_op_fpop();
                 break;
             default:
-                error("unhandled memory FP\n");
+                error("unhandled memory FP [op=0x%02x]\n", op);
                 return -1;
             }
         } else {
@@ -1987,11 +2057,18 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
         else
             ot = dflag ? OT_LONG : OT_WORD;
         if (prefixes & PREFIX_REPNZ) {
+            if (s->cc_op != CC_OP_DYNAMIC)
+                gen_op_set_cc_op(s->cc_op);
             gen_op_scas[6 + ot]();
+            s->cc_op = CC_OP_DYNAMIC; /* cannot predict flags after */
         } else if (prefixes & PREFIX_REPZ) {
+            if (s->cc_op != CC_OP_DYNAMIC)
+                gen_op_set_cc_op(s->cc_op);
             gen_op_scas[3 + ot]();
+            s->cc_op = CC_OP_DYNAMIC; /* cannot predict flags after */
         } else {
             gen_op_scas[ot]();
+            s->cc_op = CC_OP_SUBB + ot;
         }
         break;
 
@@ -2002,11 +2079,18 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
         else
             ot = dflag ? OT_LONG : OT_WORD;
         if (prefixes & PREFIX_REPNZ) {
+            if (s->cc_op != CC_OP_DYNAMIC)
+                gen_op_set_cc_op(s->cc_op);
             gen_op_cmps[6 + ot]();
+            s->cc_op = CC_OP_DYNAMIC; /* cannot predict flags after */
         } else if (prefixes & PREFIX_REPZ) {
+            if (s->cc_op != CC_OP_DYNAMIC)
+                gen_op_set_cc_op(s->cc_op);
             gen_op_cmps[3 + ot]();
+            s->cc_op = CC_OP_DYNAMIC; /* cannot predict flags after */
         } else {
             gen_op_cmps[ot]();
+            s->cc_op = CC_OP_SUBB + ot;
         }
         break;
         
@@ -2187,6 +2271,74 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
         break;
 
         /************************/
+        /* bit operations */
+    case 0x1ba: /* bt/bts/btr/btc Gv, im */
+        ot = dflag ? OT_LONG : OT_WORD;
+        modrm = ldub(s->pc++);
+        op = (modrm >> 3) & 7;
+        mod = (modrm >> 6) & 3;
+        rm = modrm & 7;
+        if (mod != 3) {
+            gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+            gen_op_ld_T0_A0[ot]();
+        } else {
+            gen_op_mov_TN_reg[ot][0][rm]();
+        }
+        /* load shift */
+        val = ldub(s->pc++);
+        gen_op_movl_T1_im(val);
+        if (op < 4)
+            return -1;
+        op -= 4;
+        gen_op_btx_T0_T1_cc[ot - OT_WORD][op]();
+        s->cc_op = CC_OP_SHLB + ot;
+        if (op != 0) {
+            if (mod != 3)
+                gen_op_st_T0_A0[ot]();
+            else
+                gen_op_mov_reg_T0[ot][rm]();
+        }
+        break;
+    case 0x1a3: /* bt Gv, Ev */
+        op = 0;
+        goto do_btx;
+    case 0x1ab: /* bts */
+        op = 1;
+        goto do_btx;
+    case 0x1b3: /* btr */
+        op = 2;
+        goto do_btx;
+    case 0x1bb: /* btc */
+        op = 3;
+    do_btx:
+        ot = dflag ? OT_LONG : OT_WORD;
+        modrm = ldub(s->pc++);
+        reg = (modrm >> 3) & 7;
+        mod = (modrm >> 6) & 3;
+        rm = modrm & 7;
+        gen_op_mov_TN_reg[OT_LONG][1][reg]();
+        if (mod != 3) {
+            gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+            /* specific case: we need to add a displacement */
+            if (ot == OT_WORD)
+                gen_op_add_bitw_A0_T1();
+            else
+                gen_op_add_bitl_A0_T1();
+            gen_op_ld_T0_A0[ot]();
+        } else {
+            gen_op_mov_TN_reg[ot][0][rm]();
+        }
+        gen_op_btx_T0_T1_cc[ot - OT_WORD][op]();
+        s->cc_op = CC_OP_SHLB + ot;
+        if (op != 0) {
+            if (mod != 3)
+                gen_op_st_T0_A0[ot]();
+            else
+                gen_op_mov_reg_T0[ot][rm]();
+        }
+        break;
+
+        /************************/
         /* misc */
     case 0x90: /* nop */
         break;
@@ -2206,6 +2358,13 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
         gen_op_into((long)pc_start, (long)s->pc);
         *is_jmp_ptr = 1;
         break;
+    case 0x1c8 ... 0x1cf: /* bswap reg */
+      reg = b & 7;
+      gen_op_mov_TN_reg[OT_LONG][0][reg]();
+      gen_op_bswapl_T0();
+      gen_op_mov_reg_T0[OT_LONG][reg]();
+      break;
+      
 #if 0
     case 0x1a2: /* cpuid */
         gen_insn0(OP_ASM);

@@ -10,7 +10,18 @@ typedef signed short int16_t;
 typedef signed int int32_t;
 typedef signed long long int64_t;
 
+#define bswap32(x) \
+({ \
+	uint32_t __x = (x); \
+	((uint32_t)( \
+		(((uint32_t)(__x) & (uint32_t)0x000000ffUL) << 24) | \
+		(((uint32_t)(__x) & (uint32_t)0x0000ff00UL) <<  8) | \
+		(((uint32_t)(__x) & (uint32_t)0x00ff0000UL) >>  8) | \
+		(((uint32_t)(__x) & (uint32_t)0xff000000UL) >> 24) )); \
+})
+
 #define NULL 0
+#include <fenv.h>
 
 typedef struct FILE FILE;
 extern FILE *logfile;
@@ -18,40 +29,38 @@ extern int loglevel;
 extern int fprintf(FILE *, const char *, ...);
 
 #ifdef __i386__
-register int T0 asm("esi");
-register int T1 asm("ebx");
-register int A0 asm("edi");
+register unsigned int T0 asm("ebx");
+register unsigned int T1 asm("esi");
+register unsigned int A0 asm("edi");
 register struct CPUX86State *env asm("ebp");
-#define FORCE_RET() asm volatile ("ret");
 #endif
 #ifdef __powerpc__
-register int T0 asm("r24");
-register int T1 asm("r25");
-register int A0 asm("r26");
+register unsigned int T0 asm("r24");
+register unsigned int T1 asm("r25");
+register unsigned int A0 asm("r26");
 register struct CPUX86State *env asm("r27");
-#define FORCE_RET() asm volatile ("blr");
 #endif
 #ifdef __arm__
-register int T0 asm("r4");
-register int T1 asm("r5");
-register int A0 asm("r6");
+register unsigned int T0 asm("r4");
+register unsigned int T1 asm("r5");
+register unsigned int A0 asm("r6");
 register struct CPUX86State *env asm("r7");
-#define FORCE_RET() asm volatile ("mov pc, lr");
 #endif
 #ifdef __mips__
-register int T0 asm("s0");
-register int T1 asm("s1");
-register int A0 asm("s2");
+register unsigned int T0 asm("s0");
+register unsigned int T1 asm("s1");
+register unsigned int A0 asm("s2");
 register struct CPUX86State *env asm("s3");
-#define FORCE_RET() asm volatile ("jr $31");
 #endif
 #ifdef __sparc__
-register int T0 asm("l0");
-register int T1 asm("l1");
-register int A0 asm("l2");
+register unsigned int T0 asm("l0");
+register unsigned int T1 asm("l1");
+register unsigned int A0 asm("l2");
 register struct CPUX86State *env asm("l3");
-#define FORCE_RET() asm volatile ("retl ; nop");
 #endif
+
+/* force GCC to generate only one epilog at the end of the function */
+#define FORCE_RET() asm volatile ("");
 
 #ifndef OPPROTO
 #define OPPROTO
@@ -267,20 +276,6 @@ void OPPROTO op_orl_T0_T1_cc(void)
     CC_DST = T0;
 }
 
-void OPPROTO op_adcl_T0_T1_cc(void)
-{
-    CC_SRC = T0;
-    T0 = T0 + T1 + cc_table[CC_OP].compute_c();
-    CC_DST = T0;
-}
-
-void OPPROTO op_sbbl_T0_T1_cc(void)
-{
-    CC_SRC = T0;
-    T0 = T0 - T1 - cc_table[CC_OP].compute_c();
-    CC_DST = T0;
-}
-
 void OPPROTO op_andl_T0_T1_cc(void)
 {
     T0 &= T1;
@@ -320,12 +315,14 @@ void OPPROTO op_negl_T0_cc(void)
 
 void OPPROTO op_incl_T0_cc(void)
 {
+    CC_SRC = cc_table[CC_OP].compute_c();
     T0++;
     CC_DST = T0;
 }
 
 void OPPROTO op_decl_T0_cc(void)
 {
+    CC_SRC = cc_table[CC_OP].compute_c();
     T0--;
     CC_DST = T0;
 }
@@ -333,6 +330,11 @@ void OPPROTO op_decl_T0_cc(void)
 void OPPROTO op_testl_T0_T1_cc(void)
 {
     CC_DST = T0 & T1;
+}
+
+void OPPROTO op_bswapl_T0(void)
+{
+    T0 = bswap32(T0);
 }
 
 /* multiply/divide */
@@ -399,7 +401,7 @@ void OPPROTO op_imulw_T0_T1(void)
 void OPPROTO op_imull_T0_T1(void)
 {
     int64_t res;
-    res = (int64_t)((int32_t)EAX) * (int64_t)((int32_t)T1);
+    res = (int64_t)((int32_t)T0) * (int64_t)((int32_t)T1);
     T0 = res;
     CC_SRC = (res != (int32_t)res);
 }
@@ -468,10 +470,10 @@ void OPPROTO op_divl_EAX_T0(void)
 void OPPROTO op_idivl_EAX_T0(void)
 {
     int den, q, r;
-    int16_t num;
+    int64_t num;
     
     num = EAX | ((uint64_t)EDX << 32);
-    den = (int16_t)T0;
+    den = T0;
     q = (num / den);
     r = (num % den);
     EAX = q;
@@ -493,6 +495,16 @@ void OPPROTO op_movl_T1_im(void)
 void OPPROTO op_movl_A0_im(void)
 {
     A0 = PARAM1;
+}
+
+void OPPROTO op_addl_A0_im(void)
+{
+    A0 += PARAM1;
+}
+
+void OPPROTO op_andl_A0_ffff(void)
+{
+    A0 = A0 & 0xffff;
 }
 
 /* memory access */
@@ -562,7 +574,17 @@ void OPPROTO op_stl_T0_A0(void)
     stl((uint8_t *)A0, T0);
 }
 
-/* jumps */
+/* used for bit operations */
+
+void OPPROTO op_add_bitw_A0_T1(void)
+{
+    A0 += ((int32_t)T1 >> 4) << 1;
+}
+
+void OPPROTO op_add_bitl_A0_T1(void)
+{
+    A0 += ((int32_t)T1 >> 5) << 2;
+}
 
 /* indirect jump */
 
@@ -938,25 +960,37 @@ CCTable cc_table[CC_OP_NB] = {
     [CC_OP_ADDW] = { compute_all_addw, compute_c_addw  },
     [CC_OP_ADDL] = { compute_all_addl, compute_c_addl  },
 
+    [CC_OP_ADCB] = { compute_all_adcb, compute_c_adcb },
+    [CC_OP_ADCW] = { compute_all_adcw, compute_c_adcw  },
+    [CC_OP_ADCL] = { compute_all_adcl, compute_c_adcl  },
+
     [CC_OP_SUBB] = { compute_all_subb, compute_c_subb  },
     [CC_OP_SUBW] = { compute_all_subw, compute_c_subw  },
     [CC_OP_SUBL] = { compute_all_subl, compute_c_subl  },
+    
+    [CC_OP_SBBB] = { compute_all_sbbb, compute_c_sbbb  },
+    [CC_OP_SBBW] = { compute_all_sbbw, compute_c_sbbw  },
+    [CC_OP_SBBL] = { compute_all_sbbl, compute_c_sbbl  },
     
     [CC_OP_LOGICB] = { compute_all_logicb, compute_c_logicb },
     [CC_OP_LOGICW] = { compute_all_logicw, compute_c_logicw },
     [CC_OP_LOGICL] = { compute_all_logicl, compute_c_logicl },
     
-    [CC_OP_INCB] = { compute_all_incb, compute_c_incb },
-    [CC_OP_INCW] = { compute_all_incw, compute_c_incw },
+    [CC_OP_INCB] = { compute_all_incb, compute_c_incl },
+    [CC_OP_INCW] = { compute_all_incw, compute_c_incl },
     [CC_OP_INCL] = { compute_all_incl, compute_c_incl },
     
-    [CC_OP_DECB] = { compute_all_decb, compute_c_incb },
-    [CC_OP_DECW] = { compute_all_decw, compute_c_incw },
+    [CC_OP_DECB] = { compute_all_decb, compute_c_incl },
+    [CC_OP_DECW] = { compute_all_decw, compute_c_incl },
     [CC_OP_DECL] = { compute_all_decl, compute_c_incl },
     
-    [CC_OP_SHLB] = { compute_all_shlb, compute_c_shlb },
-    [CC_OP_SHLW] = { compute_all_shlw, compute_c_shlw },
+    [CC_OP_SHLB] = { compute_all_shlb, compute_c_shll },
+    [CC_OP_SHLW] = { compute_all_shlw, compute_c_shll },
     [CC_OP_SHLL] = { compute_all_shll, compute_c_shll },
+
+    [CC_OP_SARB] = { compute_all_sarb, compute_c_shll },
+    [CC_OP_SARW] = { compute_all_sarw, compute_c_shll },
+    [CC_OP_SARL] = { compute_all_sarl, compute_c_shll },
 };
 
 /* floating point support */
@@ -1640,6 +1674,41 @@ void OPPROTO op_fcos(void)
     helper_fcos();
 }
 
+void OPPROTO op_fnstsw_A0(void)
+{
+    int fpus;
+    fpus = (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
+    stw((void *)A0, fpus);
+}
+
+void OPPROTO op_fnstcw_A0(void)
+{
+    stw((void *)A0, env->fpuc);
+}
+
+void OPPROTO op_fldcw_A0(void)
+{
+    int rnd_type;
+    env->fpuc = lduw((void *)A0);
+    /* set rounding mode */
+    switch(env->fpuc & RC_MASK) {
+    default:
+    case RC_NEAR:
+        rnd_type = FE_TONEAREST;
+        break;
+    case RC_DOWN:
+        rnd_type = FE_DOWNWARD;
+        break;
+    case RC_UP:
+        rnd_type = FE_UPWARD;
+        break;
+    case RC_CHOP:
+        rnd_type = FE_TOWARDZERO;
+        break;
+    }
+    fesetround(rnd_type);
+}
+
 /* main execution loop */
 uint8_t code_gen_buffer[65536];
 
@@ -1651,9 +1720,15 @@ static const char *cc_op_str[] = {
     "ADDB",
     "ADDW",
     "ADDL",
+    "ADCB",
+    "ADCW",
+    "ADCL",
     "SUBB",
     "SUBW",
     "SUBL",
+    "SBBB",
+    "SBBW",
+    "SBBL",
     "LOGICB",
     "LOGICW",
     "LOGICL",
@@ -1666,6 +1741,9 @@ static const char *cc_op_str[] = {
     "SHLB",
     "SHLW",
     "SHLL",
+    "SARB",
+    "SARW",
+    "SARL",
 };
 #endif
 
@@ -1688,13 +1766,24 @@ int cpu_x86_exec(CPUX86State *env1)
         for(;;) {
 #ifdef DEBUG_EXEC
             if (loglevel) {
+                int eflags;
+                eflags = cc_table[CC_OP].compute_all();
+                eflags |= (DF & DIRECTION_FLAG);
                 fprintf(logfile, 
                         "EAX=%08x EBX=%08X ECX=%08x EDX=%08x\n"
-                        "ESI=%08x ESI=%08X EBP=%08x ESP=%08x\n"
-                        "CCS=%08x CCD=%08x CCOP=%s\n",
+                        "ESI=%08x EDI=%08X EBP=%08x ESP=%08x\n"
+                        "CCS=%08x CCD=%08x CCO=%-8s EFL=%c%c%c%c%c%c%c\n",
                         env->regs[R_EAX], env->regs[R_EBX], env->regs[R_ECX], env->regs[R_EDX], 
                         env->regs[R_ESI], env->regs[R_EDI], env->regs[R_EBP], env->regs[R_ESP], 
-                        env->cc_src, env->cc_dst, cc_op_str[env->cc_op]);
+                        env->cc_src, env->cc_dst, cc_op_str[env->cc_op],
+                        eflags & DIRECTION_FLAG ? 'D' : '-',
+                        eflags & CC_O ? 'O' : '-',
+                        eflags & CC_S ? 'S' : '-',
+                        eflags & CC_Z ? 'Z' : '-',
+                        eflags & CC_A ? 'A' : '-',
+                        eflags & CC_P ? 'P' : '-',
+                        eflags & CC_C ? 'C' : '-'
+                        );
             }
 #endif
             cpu_x86_gen_code(code_gen_buffer, &code_gen_size, (uint8_t *)env->pc);

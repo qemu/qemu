@@ -14,12 +14,11 @@
 #define CC_S    0x0080
 #define CC_O    0x0800
 
-/* XXX: currently no A flag */
-#define CC_MASK (CC_C | CC_P | CC_Z | CC_S | CC_O)
-
 #define __init_call	__attribute__ ((unused,__section__ (".initcall.init")))
 
 static void *call_start __init_call = NULL;
+
+#define CC_MASK (CC_C | CC_P | CC_Z | CC_S | CC_O | CC_A)
 
 #define OP add
 #include "test-i386.h"
@@ -66,6 +65,9 @@ static void *call_start __init_call = NULL;
 #define OP_CC
 #define OP1
 #include "test-i386.h"
+
+#undef CC_MASK
+#define CC_MASK (CC_C | CC_P | CC_Z | CC_S | CC_O)
 
 #define OP shl
 #include "test-i386-shift.h"
@@ -268,18 +270,148 @@ void test_jcc(void)
     TEST_JCC("jns", 0, 0);
 }
 
+#undef CC_MASK
+#define CC_MASK (CC_O | CC_C)
+
+#define OP mul
+#include "test-i386-muldiv.h"
+
+#define OP imul
+#include "test-i386-muldiv.h"
+
+#undef CC_MASK
+#define CC_MASK (0)
+
+#define OP div
+#include "test-i386-muldiv.h"
+
+#define OP idiv
+#include "test-i386-muldiv.h"
+
+void test_imulw2(int op0, int op1) 
+{
+    int res, s1, s0, flags;
+    s0 = op0;
+    s1 = op1;
+    res = s0;
+    flags = 0;
+    asm ("push %4\n\t"
+         "popf\n\t"
+         "imulw %w2, %w0\n\t" 
+         "pushf\n\t"
+         "popl %1\n\t"
+         : "=q" (res), "=g" (flags)
+         : "q" (s1), "0" (res), "1" (flags));
+    printf("%-10s A=%08x B=%08x R=%08x CC=%04x\n",
+           "imulw", s0, s1, res, flags & CC_MASK);
+}
+
+void test_imull2(int op0, int op1) 
+{
+    int res, s1, s0, flags;
+    s0 = op0;
+    s1 = op1;
+    res = s0;
+    flags = 0;
+    asm ("push %4\n\t"
+         "popf\n\t"
+         "imull %2, %0\n\t" 
+         "pushf\n\t"
+         "popl %1\n\t"
+         : "=q" (res), "=g" (flags)
+         : "q" (s1), "0" (res), "1" (flags));
+    printf("%-10s A=%08x B=%08x R=%08x CC=%04x\n",
+           "imull", s0, s1, res, flags & CC_MASK);
+}
+
+void test_mul(void)
+{
+    test_imulb(0x1234561d, 4);
+    test_imulb(3, -4);
+    test_imulb(0x80, 0x80);
+    test_imulb(0x10, 0x10);
+
+    test_imulw(0, 0x1234001d, 45);
+    test_imulw(0, 23, -45);
+    test_imulw(0, 0x8000, 0x8000);
+    test_imulw(0, 0x100, 0x100);
+
+    test_imull(0, 0x1234001d, 45);
+    test_imull(0, 23, -45);
+    test_imull(0, 0x80000000, 0x80000000);
+    test_imull(0, 0x10000, 0x10000);
+
+    test_mulb(0x1234561d, 4);
+    test_mulb(3, -4);
+    test_mulb(0x80, 0x80);
+    test_mulb(0x10, 0x10);
+
+    test_mulw(0, 0x1234001d, 45);
+    test_mulw(0, 23, -45);
+    test_mulw(0, 0x8000, 0x8000);
+    test_mulw(0, 0x100, 0x100);
+
+    test_mull(0, 0x1234001d, 45);
+    test_mull(0, 23, -45);
+    test_mull(0, 0x80000000, 0x80000000);
+    test_mull(0, 0x10000, 0x10000);
+
+    test_imulw2(0x1234001d, 45);
+    test_imulw2(23, -45);
+    test_imulw2(0x8000, 0x8000);
+    test_imulw2(0x100, 0x100);
+
+    test_imull2(0x1234001d, 45);
+    test_imull2(23, -45);
+    test_imull2(0x80000000, 0x80000000);
+    test_imull2(0x10000, 0x10000);
+
+    test_idivb(0x12341678, 0x127e);
+    test_idivb(0x43210123, -5);
+    test_idivb(0x12340004, -1);
+
+    test_idivw(0, 0x12345678, 12347);
+    test_idivw(0, -23223, -45);
+    test_idivw(0, 0x12348000, -1);
+    test_idivw(0x12343, 0x12345678, 0x81238567);
+
+    test_idivl(0, 0x12345678, 12347);
+    test_idivl(0, -233223, -45);
+    test_idivl(0, 0x80000000, -1);
+    test_idivl(0x12343, 0x12345678, 0x81234567);
+
+    test_divb(0x12341678, 0x127e);
+    test_divb(0x43210123, -5);
+    test_divb(0x12340004, -1);
+
+    test_divw(0, 0x12345678, 12347);
+    test_divw(0, -23223, -45);
+    test_divw(0, 0x12348000, -1);
+    test_divw(0x12343, 0x12345678, 0x81238567);
+
+    test_divl(0, 0x12345678, 12347);
+    test_divl(0, -233223, -45);
+    test_divl(0, 0x80000000, -1);
+    test_divl(0x12343, 0x12345678, 0x81234567);
+}
+
+
 static void *call_end __init_call = NULL;
 
 int main(int argc, char **argv)
 {
     void **ptr;
     void (*func)(void);
+
+    test_mul();
+#if 0
     ptr = &call_start + 1;
     while (*ptr != NULL) {
         func = *ptr++;
         func();
     }
-    test_lea();
     test_jcc();
+    test_lea();
+#endif
     return 0;
 }

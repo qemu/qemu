@@ -198,14 +198,10 @@ void gen_code(const char *name, unsigned long offset, unsigned long size,
         {
             uint8_t *p;
             p = p_end - 1;
-            /* find ret */
-            while (p > p_start && *p != 0xc3)
-                p--;
-            /* skip double ret */
-            if (p > p_start && p[-1] == 0xc3)
-                p--;
             if (p == p_start)
                 error("empty code for %s", name);
+            if (p[0] != 0xc3)
+                error("ret expected at the end of %s", name);
             copy_size = p - p_start;
         }
         break;

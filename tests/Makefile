@@ -20,7 +20,7 @@ test2: test2.c
 
 # i386 emulation test (dump various opcodes) */
 test-i386: test-i386.c test-i386.h test-i386-shift.h
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
+	$(CC) $(CFLAGS) $(LDFLAGS) -static -o $@ $<
 
 test: test-i386
 	./test-i386 > test-i386.ref

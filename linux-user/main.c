@@ -128,21 +128,21 @@ int main(int argc, char **argv)
     /* Zero out image_info */
     memset(info, 0, sizeof(struct image_info));
 
-    if(elf_exec(filename, argv+1, environ, regs, info) != 0) {
+    if(elf_exec(filename, argv+optind, environ, regs, info) != 0) {
 	printf("Error loading %s\n", filename);
 	exit(1);
     }
     
-#if 0
-    printf("start_brk   0x%08lx\n" , info->start_brk);
-    printf("end_code    0x%08lx\n" , info->end_code);
-    printf("start_code  0x%08lx\n" , info->start_code);
-    printf("end_data    0x%08lx\n" , info->end_data);
-    printf("start_stack 0x%08lx\n" , info->start_stack);
-    printf("brk         0x%08lx\n" , info->brk);
-    printf("esp         0x%08lx\n" , regs->esp);
-    printf("eip         0x%08lx\n" , regs->eip);
-#endif
+    if (loglevel) {
+        fprintf(logfile, "start_brk   0x%08lx\n" , info->start_brk);
+        fprintf(logfile, "end_code    0x%08lx\n" , info->end_code);
+        fprintf(logfile, "start_code  0x%08lx\n" , info->start_code);
+        fprintf(logfile, "end_data    0x%08lx\n" , info->end_data);
+        fprintf(logfile, "start_stack 0x%08lx\n" , info->start_stack);
+        fprintf(logfile, "brk         0x%08lx\n" , info->brk);
+        fprintf(logfile, "esp         0x%08lx\n" , regs->esp);
+        fprintf(logfile, "eip         0x%08lx\n" , regs->eip);
+    }
 
     target_set_brk((char *)info->brk);
     syscall_init();

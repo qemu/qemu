@@ -33,7 +33,7 @@ static int glue(compute_all_add, SUFFIX)(void)
     cf = (DATA_TYPE)CC_DST < (DATA_TYPE)src1;
     pf = parity_table[(uint8_t)CC_DST];
     af = (CC_DST ^ src1 ^ src2) & 0x10;
-    zf = ((DATA_TYPE)CC_DST != 0) << 6;
+    zf = ((DATA_TYPE)CC_DST == 0) << 6;
     sf = lshift(CC_DST, 8 - DATA_BITS) & 0x80;
     of = lshift((src1 ^ src2 ^ -1) & (src1 ^ CC_DST), 12 - DATA_BITS) & CC_O;
     return cf | pf | af | zf | sf | of;
@@ -47,6 +47,29 @@ static int glue(compute_c_add, SUFFIX)(void)
     return cf;
 }
 
+static int glue(compute_all_adc, SUFFIX)(void)
+{
+    int cf, pf, af, zf, sf, of;
+    int src1, src2;
+    src1 = CC_SRC;
+    src2 = CC_DST - CC_SRC - 1;
+    cf = (DATA_TYPE)CC_DST <= (DATA_TYPE)src1;
+    pf = parity_table[(uint8_t)CC_DST];
+    af = (CC_DST ^ src1 ^ src2) & 0x10;
+    zf = ((DATA_TYPE)CC_DST == 0) << 6;
+    sf = lshift(CC_DST, 8 - DATA_BITS) & 0x80;
+    of = lshift((src1 ^ src2 ^ -1) & (src1 ^ CC_DST), 12 - DATA_BITS) & CC_O;
+    return cf | pf | af | zf | sf | of;
+}
+
+static int glue(compute_c_adc, SUFFIX)(void)
+{
+    int src1, cf;
+    src1 = CC_SRC;
+    cf = (DATA_TYPE)CC_DST <= (DATA_TYPE)src1;
+    return cf;
+}
+
 static int glue(compute_all_sub, SUFFIX)(void)
 {
     int cf, pf, af, zf, sf, of;
@@ -56,9 +79,9 @@ static int glue(compute_all_sub, SUFFIX)(void)
     cf = (DATA_TYPE)src1 < (DATA_TYPE)src2;
     pf = parity_table[(uint8_t)CC_DST];
     af = (CC_DST ^ src1 ^ src2) & 0x10;
-    zf = ((DATA_TYPE)CC_DST != 0) << 6;
+    zf = ((DATA_TYPE)CC_DST == 0) << 6;
     sf = lshift(CC_DST, 8 - DATA_BITS) & 0x80;
-    of = lshift((src1 ^ src2 ^ -1) & (src1 ^ CC_DST), 12 - DATA_BITS) & CC_O;
+    of = lshift((src1 ^ src2) & (src1 ^ CC_DST), 12 - DATA_BITS) & CC_O;
     return cf | pf | af | zf | sf | of;
 }
 
@@ -67,7 +90,31 @@ static int glue(compute_c_sub, SUFFIX)(void)
     int src1, src2, cf;
     src1 = CC_SRC;
     src2 = CC_SRC - CC_DST;
-    cf = (DATA_TYPE)src1 < (DATA_TYPE)src1;
+    cf = (DATA_TYPE)src1 < (DATA_TYPE)src2;
+    return cf;
+}
+
+static int glue(compute_all_sbb, SUFFIX)(void)
+{
+    int cf, pf, af, zf, sf, of;
+    int src1, src2;
+    src1 = CC_SRC;
+    src2 = CC_SRC - CC_DST - 1;
+    cf = (DATA_TYPE)src1 <= (DATA_TYPE)src2;
+    pf = parity_table[(uint8_t)CC_DST];
+    af = (CC_DST ^ src1 ^ src2) & 0x10;
+    zf = ((DATA_TYPE)CC_DST == 0) << 6;
+    sf = lshift(CC_DST, 8 - DATA_BITS) & 0x80;
+    of = lshift((src1 ^ src2) & (src1 ^ CC_DST), 12 - DATA_BITS) & CC_O;
+    return cf | pf | af | zf | sf | of;
+}
+
+static int glue(compute_c_sbb, SUFFIX)(void)
+{
+    int src1, src2, cf;
+    src1 = CC_SRC;
+    src2 = CC_SRC - CC_DST - 1;
+    cf = (DATA_TYPE)src1 <= (DATA_TYPE)src2;
     return cf;
 }
 
@@ -77,7 +124,7 @@ static int glue(compute_all_logic, SUFFIX)(void)
     cf = 0;
     pf = parity_table[(uint8_t)CC_DST];
     af = 0;
-    zf = ((DATA_TYPE)CC_DST != 0) << 6;
+    zf = ((DATA_TYPE)CC_DST == 0) << 6;
     sf = lshift(CC_DST, 8 - DATA_BITS) & 0x80;
     of = 0;
     return cf | pf | af | zf | sf | of;
@@ -97,16 +144,18 @@ static int glue(compute_all_inc, SUFFIX)(void)
     cf = CC_SRC;
     pf = parity_table[(uint8_t)CC_DST];
     af = (CC_DST ^ src1 ^ src2) & 0x10;
-    zf = ((DATA_TYPE)CC_DST != 0) << 6;
+    zf = ((DATA_TYPE)CC_DST == 0) << 6;
     sf = lshift(CC_DST, 8 - DATA_BITS) & 0x80;
-    of = lshift((src1 ^ src2 ^ -1) & (src1 ^ CC_DST), 12 - DATA_BITS) & CC_O;
+    of = ((CC_DST & DATA_MASK) == SIGN_MASK) << 11;
     return cf | pf | af | zf | sf | of;
 }
 
+#if DATA_BITS == 32
 static int glue(compute_c_inc, SUFFIX)(void)
 {
     return CC_SRC;
 }
+#endif
 
 static int glue(compute_all_dec, SUFFIX)(void)
 {
@@ -117,9 +166,9 @@ static int glue(compute_all_dec, SUFFIX)(void)
     cf = CC_SRC;
     pf = parity_table[(uint8_t)CC_DST];
     af = (CC_DST ^ src1 ^ src2) & 0x10;
-    zf = ((DATA_TYPE)CC_DST != 0) << 6;
+    zf = ((DATA_TYPE)CC_DST == 0) << 6;
     sf = lshift(CC_DST, 8 - DATA_BITS) & 0x80;
-    of = lshift((src1 ^ src2 ^ -1) & (src1 ^ CC_DST), 12 - DATA_BITS) & CC_O;
+    of = ((CC_DST & DATA_MASK) == ((uint32_t)SIGN_MASK - 1)) << 11;
     return cf | pf | af | zf | sf | of;
 }
 
@@ -129,15 +178,29 @@ static int glue(compute_all_shl, SUFFIX)(void)
     cf = CC_SRC & 1;
     pf = parity_table[(uint8_t)CC_DST];
     af = 0; /* undefined */
-    zf = ((DATA_TYPE)CC_DST != 0) << 6;
+    zf = ((DATA_TYPE)CC_DST == 0) << 6;
     sf = lshift(CC_DST, 8 - DATA_BITS) & 0x80;
-    of = sf << 4; /* only meaniful for shr with count == 1 */
+    of = lshift(CC_SRC, 12 - DATA_BITS) & CC_O; /* only meaniful for shr with count == 1 */
     return cf | pf | af | zf | sf | of;
 }
 
+#if DATA_BITS == 32
 static int glue(compute_c_shl, SUFFIX)(void)
 {
     return CC_SRC & 1;
+}
+#endif
+
+static int glue(compute_all_sar, SUFFIX)(void)
+{
+    int cf, pf, af, zf, sf, of;
+    cf = CC_SRC & 1;
+    pf = parity_table[(uint8_t)CC_DST];
+    af = 0; /* undefined */
+    zf = ((DATA_TYPE)CC_DST == 0) << 6;
+    sf = lshift(CC_DST, 8 - DATA_BITS) & 0x80;
+    of = 0; /* only meaniful for shr with count == 1 */
+    return cf | pf | af | zf | sf | of;
 }
 
 /* various optimized jumps cases */
@@ -157,7 +220,7 @@ void OPPROTO glue(op_jb_sub, SUFFIX)(void)
 
 void OPPROTO glue(op_jz_sub, SUFFIX)(void)
 {
-    if ((DATA_TYPE)CC_DST != 0)
+    if ((DATA_TYPE)CC_DST == 0)
         PC = PARAM1;
     else
         PC = PARAM2;
@@ -225,7 +288,7 @@ void OPPROTO glue(op_setb_T0_sub, SUFFIX)(void)
 
 void OPPROTO glue(op_setz_T0_sub, SUFFIX)(void)
 {
-    T0 = ((DATA_TYPE)CC_DST != 0);
+    T0 = ((DATA_TYPE)CC_DST == 0);
 }
 
 void OPPROTO glue(op_setbe_T0_sub, SUFFIX)(void)
@@ -275,6 +338,7 @@ void OPPROTO glue(glue(op_rol, SUFFIX), _T0_T1_cc)(void)
             (T0 & CC_C);
         CC_OP = CC_OP_EFLAGS;
     }
+    FORCE_RET();
 }
 
 void OPPROTO glue(glue(op_ror, SUFFIX), _T0_T1_cc)(void)
@@ -290,6 +354,7 @@ void OPPROTO glue(glue(op_ror, SUFFIX), _T0_T1_cc)(void)
             ((T0 >> (DATA_BITS - 1)) & CC_C);
         CC_OP = CC_OP_EFLAGS;
     }
+    FORCE_RET();
 }
 
 void OPPROTO glue(glue(op_rcl, SUFFIX), _T0_T1_cc)(void)
@@ -305,6 +370,7 @@ void OPPROTO glue(glue(op_rcl, SUFFIX), _T0_T1_cc)(void)
 #endif
     if (count) {
         eflags = cc_table[CC_OP].compute_all();
+        T0 &= DATA_MASK;
         src = T0;
         res = (T0 << count) | ((eflags & CC_C) << (count - 1));
         if (count > 1)
@@ -315,6 +381,7 @@ void OPPROTO glue(glue(op_rcl, SUFFIX), _T0_T1_cc)(void)
             ((src >> (DATA_BITS - count)) & CC_C);
         CC_OP = CC_OP_EFLAGS;
     }
+    FORCE_RET();
 }
 
 void OPPROTO glue(glue(op_rcr, SUFFIX), _T0_T1_cc)(void)
@@ -330,6 +397,7 @@ void OPPROTO glue(glue(op_rcr, SUFFIX), _T0_T1_cc)(void)
 #endif
     if (count) {
         eflags = cc_table[CC_OP].compute_all();
+        T0 &= DATA_MASK;
         src = T0;
         res = (T0 >> count) | ((eflags & CC_C) << (DATA_BITS - count));
         if (count > 1)
@@ -340,6 +408,7 @@ void OPPROTO glue(glue(op_rcr, SUFFIX), _T0_T1_cc)(void)
             ((src >> (count - 1)) & CC_C);
         CC_OP = CC_OP_EFLAGS;
     }
+    FORCE_RET();
 }
 
 void OPPROTO glue(glue(op_shl, SUFFIX), _T0_T1_cc)(void)
@@ -352,11 +421,12 @@ void OPPROTO glue(glue(op_shl, SUFFIX), _T0_T1_cc)(void)
         CC_DST = T0;
         CC_OP = CC_OP_ADDB + SHIFT;
     } else if (count) {
-        CC_SRC = T0 >> (DATA_BITS - count);
+        CC_SRC = (DATA_TYPE)T0 >> (DATA_BITS - count);
         T0 = T0 << count;
         CC_DST = T0;
         CC_OP = CC_OP_SHLB + SHIFT;
     }
+    FORCE_RET();
 }
 
 void OPPROTO glue(glue(op_shr, SUFFIX), _T0_T1_cc)(void)
@@ -370,6 +440,7 @@ void OPPROTO glue(glue(op_shr, SUFFIX), _T0_T1_cc)(void)
         CC_DST = T0;
         CC_OP = CC_OP_SHLB + SHIFT;
     }
+    FORCE_RET();
 }
 
 void OPPROTO glue(glue(op_sar, SUFFIX), _T0_T1_cc)(void)
@@ -381,9 +452,68 @@ void OPPROTO glue(glue(op_sar, SUFFIX), _T0_T1_cc)(void)
         CC_SRC =  src >> (count - 1);
         T0 = src >> count;
         CC_DST = T0;
-        CC_OP = CC_OP_SHLB + SHIFT;
+        CC_OP = CC_OP_SARB + SHIFT;
     }
+    FORCE_RET();
 }
+
+/* carry add/sub (we only need to set CC_OP differently) */
+
+void OPPROTO glue(glue(op_adc, SUFFIX), _T0_T1_cc)(void)
+{
+    int cf;
+    cf = cc_table[CC_OP].compute_c();
+    CC_SRC = T0;
+    T0 = T0 + T1 + cf;
+    CC_DST = T0;
+    CC_OP = CC_OP_ADDB + SHIFT + cf * 3;
+}
+
+void OPPROTO glue(glue(op_sbb, SUFFIX), _T0_T1_cc)(void)
+{
+    int cf;
+    cf = cc_table[CC_OP].compute_c();
+    CC_SRC = T0;
+    T0 = T0 - T1 - cf;
+    CC_DST = T0;
+    CC_OP = CC_OP_SUBB + SHIFT + cf * 3;
+}
+
+/* bit operations */
+#if DATA_BITS >= 16
+
+void OPPROTO glue(glue(op_bt, SUFFIX), _T0_T1_cc)(void)
+{
+    int count;
+    count = T1 & SHIFT_MASK;
+    CC_SRC = T0 >> count;
+}
+
+void OPPROTO glue(glue(op_bts, SUFFIX), _T0_T1_cc)(void)
+{
+    int count;
+    count = T1 & SHIFT_MASK;
+    CC_SRC = T0 >> count;
+    T0 |= (1 << count);
+}
+
+void OPPROTO glue(glue(op_btr, SUFFIX), _T0_T1_cc)(void)
+{
+    int count;
+    count = T1 & SHIFT_MASK;
+    CC_SRC = T0 >> count;
+    T0 &= ~(1 << count);
+}
+
+void OPPROTO glue(glue(op_btc, SUFFIX), _T0_T1_cc)(void)
+{
+    int count;
+    count = T1 & SHIFT_MASK;
+    CC_SRC = T0 >> count;
+    T0 ^= (1 << count);
+}
+
+#endif
 
 /* string operations */
 /* XXX: maybe use lower level instructions to ease exception handling */
@@ -464,8 +594,8 @@ void OPPROTO glue(op_scas, SUFFIX)(void)
 {
     int v;
 
-    v = glue(ldu, SUFFIX)((void *)ESI);
-    ESI += (DF << SHIFT);
+    v = glue(ldu, SUFFIX)((void *)EDI);
+    EDI += (DF << SHIFT);
     CC_SRC = EAX;
     CC_DST = EAX - v;
 }
@@ -476,20 +606,14 @@ void OPPROTO glue(op_repz_scas, SUFFIX)(void)
 
     if (ECX != 0) {
         /* NOTE: the flags are not modified if ECX == 0 */
-#if SHIFT == 0
-        v1 = EAX & 0xff;
-#elif SHIFT == 1
-        v1 = EAX & 0xffff;
-#else
-        v1 = EAX;
-#endif
+        v1 = EAX & DATA_MASK;
         inc = (DF << SHIFT);
         do {
-            v2 = glue(ldu, SUFFIX)((void *)ESI);
+            v2 = glue(ldu, SUFFIX)((void *)EDI);
+            EDI += inc;
+            ECX--;
             if (v1 != v2)
                 break;
-            ESI += inc;
-            ECX--;
         } while (ECX != 0);
         CC_SRC = v1;
         CC_DST = v1 - v2;
@@ -503,20 +627,14 @@ void OPPROTO glue(op_repnz_scas, SUFFIX)(void)
 
     if (ECX != 0) {
         /* NOTE: the flags are not modified if ECX == 0 */
-#if SHIFT == 0
-        v1 = EAX & 0xff;
-#elif SHIFT == 1
-        v1 = EAX & 0xffff;
-#else
-        v1 = EAX;
-#endif
+        v1 = EAX & DATA_MASK;
         inc = (DF << SHIFT);
         do {
-            v2 = glue(ldu, SUFFIX)((void *)ESI);
+            v2 = glue(ldu, SUFFIX)((void *)EDI);
+            EDI += inc;
+            ECX--;
             if (v1 == v2)
                 break;
-            ESI += inc;
-            ECX--;
         } while (ECX != 0);
         CC_SRC = v1;
         CC_DST = v1 - v2;
@@ -543,11 +661,11 @@ void OPPROTO glue(op_repz_cmps, SUFFIX)(void)
         do {
             v1 = glue(ldu, SUFFIX)((void *)ESI);
             v2 = glue(ldu, SUFFIX)((void *)EDI);
-            if (v1 != v2)
-                break;
             ESI += inc;
             EDI += inc;
             ECX--;
+            if (v1 != v2)
+                break;
         } while (ECX != 0);
         CC_SRC = v1;
         CC_DST = v1 - v2;
@@ -563,11 +681,11 @@ void OPPROTO glue(op_repnz_cmps, SUFFIX)(void)
         do {
             v1 = glue(ldu, SUFFIX)((void *)ESI);
             v2 = glue(ldu, SUFFIX)((void *)EDI);
-            if (v1 == v2)
-                break;
             ESI += inc;
             EDI += inc;
             ECX--;
+            if (v1 == v2)
+                break;
         } while (ECX != 0);
         CC_SRC = v1;
         CC_DST = v1 - v2;
