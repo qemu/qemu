@@ -302,6 +302,8 @@ void page_unprotect_range(uint8_t *data, unsigned long data_size);
 
 #endif
 
-#endif
+#endif /* SINGLE_CPU_DEFINES */
+
+void cpu_abort(CPUState *env, const char *fmt, ...);
 
 #endif /* CPU_ALL_H */
