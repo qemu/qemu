@@ -700,6 +700,16 @@ void OPPROTO op_cpuid(void)
     helper_cpuid();
 }
 
+void OPPROTO op_sysenter(void)
+{
+    helper_sysenter();
+}
+
+void OPPROTO op_sysexit(void)
+{
+    helper_sysexit();
+}
+
 void OPPROTO op_rdmsr(void)
 {
     helper_rdmsr();

@@ -167,6 +167,8 @@ void helper_divl_EAX_T0(uint32_t eip);
 void helper_idivl_EAX_T0(uint32_t eip);
 void helper_cmpxchg8b(void);
 void helper_cpuid(void);
+void helper_sysenter(void);
+void helper_sysexit(void);
 void helper_rdtsc(void);
 void helper_rdmsr(void);
 void helper_wrmsr(void);

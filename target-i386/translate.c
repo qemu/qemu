@@ -2973,6 +2973,11 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
             case 0x0a: /* grp d9/2 */
                 switch(rm) {
                 case 0: /* fnop */
+                    /* check exceptions (FreeBSD FPU probe) */
+                    if (s->cc_op != CC_OP_DYNAMIC)
+                        gen_op_set_cc_op(s->cc_op);
+                    gen_op_jmp_im(pc_start - s->cs_base);
+                    gen_op_fwait();
                     break;
                 default:
                     goto illegal_op;
@@ -3880,6 +3885,32 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         break;
     case 0x131: /* rdtsc */
         gen_op_rdtsc();
+        break;
+    case 0x134: /* sysenter */
+        if (!s->pe) {
+            gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
+        } else {
+            if (s->cc_op != CC_OP_DYNAMIC) {
+                gen_op_set_cc_op(s->cc_op);
+                s->cc_op = CC_OP_DYNAMIC;
+            }
+            gen_op_jmp_im(pc_start - s->cs_base);
+            gen_op_sysenter();
+            gen_eob(s);
+        }
+        break;
+    case 0x135: /* sysexit */
+        if (!s->pe) {
+            gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
+        } else {
+            if (s->cc_op != CC_OP_DYNAMIC) {
+                gen_op_set_cc_op(s->cc_op);
+                s->cc_op = CC_OP_DYNAMIC;
+            }
+            gen_op_jmp_im(pc_start - s->cs_base);
+            gen_op_sysexit();
+            gen_eob(s);
+        }
         break;
     case 0x1a2: /* cpuid */
         gen_op_cpuid();
