@@ -77,6 +77,7 @@ static const uint8_t x_keycode_to_pc_keycode[61] = {
    0xd3,      /* 107  Del    */
    0x9c,      /* 108  Enter  */
    0x9d,      /* 109  Ctrl-R */
+   0x0,       /* 110  Pause  */
    0xb7,      /* 111  Print  */
    0xb5,      /* 112  Divide */
    0xb8,      /* 113  Alt-R  */
