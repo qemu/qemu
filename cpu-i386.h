@@ -50,7 +50,8 @@
 
 /* segment descriptor fields */
 #define DESC_G_MASK     (1 << 23)
-#define DESC_B_MASK     (1 << 22)
+#define DESC_B_SHIFT    22
+#define DESC_B_MASK     (1 << DESC_B_SHIFT)
 #define DESC_AVL_MASK   (1 << 20)
 #define DESC_P_MASK     (1 << 15)
 #define DESC_DPL_SHIFT  13
@@ -95,6 +96,34 @@
 #define CR4_PVI_MASK  (1 << 1)
 #define CR4_TSD_MASK  (1 << 2)
 #define CR4_DE_MASK   (1 << 3)
+#define CR4_PSE_MASK  (1 << 4)
+
+#define PG_PRESENT_BIT	0
+#define PG_RW_BIT	1
+#define PG_USER_BIT	2
+#define PG_PWT_BIT	3
+#define PG_PCD_BIT	4
+#define PG_ACCESSED_BIT	5
+#define PG_DIRTY_BIT	6
+#define PG_PSE_BIT	7
+#define PG_GLOBAL_BIT	8
+
+#define PG_PRESENT_MASK  (1 << PG_PRESENT_BIT)
+#define PG_RW_MASK	 (1 << PG_RW_BIT)
+#define PG_USER_MASK	 (1 << PG_USER_BIT)
+#define PG_PWT_MASK	 (1 << PG_PWT_BIT)
+#define PG_PCD_MASK	 (1 << PG_PCD_BIT)
+#define PG_ACCESSED_MASK (1 << PG_ACCESSED_BIT)
+#define PG_DIRTY_MASK	 (1 << PG_DIRTY_BIT)
+#define PG_PSE_MASK	 (1 << PG_PSE_BIT)
+#define PG_GLOBAL_MASK	 (1 << PG_GLOBAL_BIT)
+
+#define PG_ERROR_W_BIT     1
+
+#define PG_ERROR_P_MASK    0x01
+#define PG_ERROR_W_MASK    (1 << PG_ERROR_W_BIT)
+#define PG_ERROR_U_MASK    0x04
+#define PG_ERROR_RSVD_MASK 0x08
 
 #define EXCP00_DIVZ	0
 #define EXCP01_SSTP	1
@@ -116,6 +145,7 @@
 #define EXCP12_MCHK	18
 
 #define EXCP_INTERRUPT 	256 /* async interruption */
+#define EXCP_HLT        257 /* hlt instruction reached */
 
 enum {
     CC_OP_DYNAMIC, /* must use dynamic code to get cc_op */
@@ -174,8 +204,8 @@ typedef double CPU86_LDouble;
 typedef struct SegmentCache {
     uint32_t selector;
     uint8_t *base;
-    unsigned long limit;
-    uint8_t seg_32bit;
+    uint32_t limit;
+    uint32_t flags;
 } SegmentCache;
 
 typedef struct CPUX86State {
@@ -219,9 +249,16 @@ typedef struct CPUX86State {
     jmp_buf jmp_env;
     int exception_index;
     int error_code;
+    int exception_is_int;
+    int exception_next_eip;
+
     uint32_t cr[5]; /* NOTE: cr1 is unused */
     uint32_t dr[8]; /* debug registers */
-    int interrupt_request;
+    int interrupt_request; /* if true, will exit from cpu_exec() ASAP */
+    /* if true, will call cpu_x86_get_pic_interrupt() ASAP to get the
+       request interrupt number */
+    int hard_interrupt_request; 
+    int user_mode_only; /* user mode only simulation */
 
     /* user data */
     void *opaque;
@@ -240,6 +277,7 @@ CPUX86State *cpu_x86_init(void);
 int cpu_x86_exec(CPUX86State *s);
 void cpu_x86_interrupt(CPUX86State *s);
 void cpu_x86_close(CPUX86State *s);
+int cpu_x86_get_pic_interrupt(CPUX86State *s);
 
 /* needed to load some predefinied segment registers */
 void cpu_x86_load_seg(CPUX86State *s, int seg_reg, int selector);
@@ -254,6 +292,13 @@ void cpu_x86_frstor(CPUX86State *s, uint8_t *ptr, int data32);
 struct siginfo;
 int cpu_x86_signal_handler(int host_signum, struct siginfo *info, 
                            void *puc);
+
+/* MMU defines */
+void cpu_x86_init_mmu(CPUX86State *env);
+extern CPUX86State *global_env;
+extern int phys_ram_size;
+extern int phys_ram_fd;
+extern uint8_t *phys_ram_base;
 
 /* used to debug */
 #define X86_DUMP_FPU  0x0001 /* dump FPU state too */

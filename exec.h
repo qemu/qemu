@@ -39,6 +39,7 @@ struct TranslationBlock;
 extern uint16_t gen_opc_buf[OPC_BUF_SIZE];
 extern uint32_t gen_opparam_buf[OPPARAM_BUF_SIZE];
 extern uint32_t gen_opc_pc[OPC_BUF_SIZE];
+extern uint8_t gen_opc_cc_op[OPC_BUF_SIZE];
 extern uint8_t gen_opc_instr_start[OPC_BUF_SIZE];
 
 #if defined(TARGET_I386)
@@ -57,14 +58,16 @@ extern uint8_t gen_opc_instr_start[OPC_BUF_SIZE];
 extern FILE *logfile;
 extern int loglevel;
 
-int gen_intermediate_code(struct TranslationBlock *tb, int search_pc);
+int gen_intermediate_code(struct TranslationBlock *tb);
+int gen_intermediate_code_pc(struct TranslationBlock *tb);
 void dump_ops(const uint16_t *opc_buf, const uint32_t *opparam_buf);
 int cpu_gen_code(struct TranslationBlock *tb,
                  int max_code_size, int *gen_code_size_ptr);
-int cpu_search_pc(struct TranslationBlock *tb, 
-                  uint32_t *found_pc, unsigned long searched_pc);
+int cpu_restore_state(struct TranslationBlock *tb, 
+                      CPUState *env, unsigned long searched_pc);
 void cpu_exec_init(void);
 int page_unprotect(unsigned long address);
+void page_unmap(void);
 
 #define CODE_GEN_MAX_SIZE        65536
 #define CODE_GEN_ALIGN           16 /* must be >= of the size of a icache line */

@@ -30,7 +30,7 @@
 #include "exec.h"
 
 //#define DEBUG_TB_INVALIDATE
-#define DEBUG_FLUSH
+//#define DEBUG_FLUSH
 
 /* make various TB consistency checks */
 //#define DEBUG_TB_CHECK 
@@ -579,3 +579,33 @@ void cpu_abort(CPUState *env, const char *fmt, ...)
     abort();
 }
 
+#ifdef TARGET_I386
+/* unmap all maped pages and flush all associated code */
+void page_unmap(void)
+{
+    PageDesc *p, *pmap;
+    unsigned long addr;
+    int i, j, ret;
+
+    for(i = 0; i < L1_SIZE; i++) {
+        pmap = l1_map[i];
+        if (pmap) {
+            p = pmap;
+            for(j = 0;j < L2_SIZE; j++) {
+                if (p->flags & PAGE_VALID) {
+                    addr = (i << (32 - L1_BITS)) | (j << TARGET_PAGE_BITS);
+                    ret = munmap((void *)addr, TARGET_PAGE_SIZE);
+                    if (ret != 0) {
+                        fprintf(stderr, "Could not unmap page 0x%08lx\n", addr);
+                        exit(1);
+                    }
+                }
+                p++;
+            }
+            free(pmap);
+            l1_map[i] = NULL;
+        }
+    }
+    tb_flush();
+}
+#endif
