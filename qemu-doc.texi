@@ -35,11 +35,7 @@ to ease cross-compilation and cross-debugging.
 @end itemize
 
 QEMU can run without an host kernel driver and yet gives acceptable
-performance. On an x86 host, if you want the highest performance for
-the x86 target, the @emph{QEMU Accelerator Module} (KQEMU) allows QEMU
-to reach near native performances. KQEMU is currently only supported
-for an x86 Linux 2.4 or 2.6 host system, but more host OSes will be
-supported in the future.
+performance. 
 
 For system emulation, the following hardware targets are supported:
 @itemize
@@ -343,11 +339,6 @@ translation mode (@var{t}=none, lba or auto). Usually QEMU can guess
 all thoses parameters. This option is useful for old MS-DOS disk
 images.
 
-@item -no-kqemu
-Disable the usage of the QEMU Accelerator module (KQEMU). QEMU will work as
-usual but will be slower. This option can be useful to determine if
-emulation problems are coming from KQEMU.
-
 @item -isa
 Simulate an ISA-only system (default is PCI system).
 @item -std-vga
@@ -422,30 +413,6 @@ Fabrice Bellard
 @end ignore
 
 @end ignore
-
-@section QEMU Accelerator Module
-
-The QEMU Accelerator Module (KQEMU) is an optional part of QEMU currently only
-available for Linux 2.4 or 2.6 x86 hosts. It enables QEMU to run x86
-code much faster. Provided it is installed on your PC (see
-@ref{kqemu_install}), QEMU will automatically use it.
-
-WARNING: as with any alpha stage kernel driver, KQEMU may cause
-arbitrary data loss on your PC, so you'd better backup your sensitive
-data before using it.
-
-When using KQEMU, QEMU will create a big hidden file containing the
-RAM of the virtual machine. For best performance, it is important that
-this file is kept in RAM and not on the hard disk. QEMU uses the
-@file{/dev/shm} directory to create this file because @code{tmpfs} is
-usually mounted on it (check with the shell command
-@code{df}). Otherwise @file{/tmp} is used as fallback. You can use the
-@var{QEMU_TMPDIR} shell variable to set a new directory for the QEMU
-RAM file.
-
-KQEMU has only been tested with Linux 2.4, Linux 2.6 and Windows 2000
-as guest OSes. If your guest OS do not work with KQEMU, you can
-dynamically disable KQEMU with the @option{-no-kqemu} option.
 
 @section QEMU Monitor
 
@@ -1165,12 +1132,6 @@ tar zxvf qemu-x.y.z.tar.gz
 cd qemu-x.y.z
 @end example
 
-If you want to use the optional QEMU Accelerator Module, then download
-it and install it in qemu-x.y.z/:
-@example
-tar zxvf /tmp/kqemu-x.y.z.tar.gz
-@end example
-
 Then you configure QEMU and build it (usually no options are needed):
 @example
 ./configure
@@ -1182,63 +1143,6 @@ Then type as root user:
 make install
 @end example
 to install QEMU in @file{/usr/local}.
-
-@node kqemu_install
-@subsection QEMU Accelerator Installation
-
-If you use x86 Linux, the compilation of the QEMU Accelerator Kernel
-Module (KQEMU) is automatically activated provided you have the
-necessary kernel headers. If nonetheless the compilation fails, you
-can disable its compilation with the @option{--disable-kqemu} option. 
-
-If you are using a 2.6 host kernel, then all the necessary kernel
-headers should be already installed. If you are using a 2.4 kernel,
-then you should verify that properly configured kernel sources are
-installed and compiled. On a Redhat 9 distribution for example, the
-following must be done:
-@example
-1) Install the kernel-source-xxx package
-2) cd /usr/src/linux-xxx
-3) make distclean
-4) Copy /boot/config-vvv in .config (use uname -r to know your configuration name 'vvv')
-5) Edit the Makefile to change the EXTRAVERSION line to match your
-   current configuration name:
-   EXTRAVERSION = -custom
-to 
-   EXTRAVERSION = -8 # This is an example, it can be -8smp too
-5) make menuconfig # Just save the configuration
-6) make dep bzImage
-@end example
-
-The installation of KQEMU is not fully automatic because it is highly
-distribution dependent. When launching 
-@example
-make install
-@end example
-
-KQEMU is installed in /lib/modules/@var{kernel_version}/misc. The
-device @file{/dev/kqemu} is created with read/write access rights for
-everyone. If you fear security issues, you can restrict the access
-rights of @file{/dev/kqemu}.
-
-If you want that KQEMU is installed automatically at boot time, you can add
-
-@example
-# Load the KQEMU kernel module
-/sbin/modprobe kqemu
-@end example
-
-in @file{/etc/rc.d/rc.local}.
-
-If your distribution uses udev (like Fedora), the @file{/dev/kqemu} is
-not created automatically (yet) at every reboot. You can add the
-following in @file{/etc/rc.d/rc.local}:
-
-@example
-# Create the KQEMU device
-mknod /dev/kqemu c 250 0
-chmod 666 /dev/kqemu
-@end example
 
 @subsection Tested tool versions
 
