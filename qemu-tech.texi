@@ -52,7 +52,8 @@ QEMU generic features:
 @item Precise exceptions support.
 
 @item The virtual CPU is a library (@code{libqemu}) which can be used 
-in other projects.
+in other projects (look at @file{qemu/tests/qruncom.c} to have an
+example of user mode @code{libqemu} usage).
 
 @end itemize
 
