@@ -617,7 +617,8 @@ static void tb_reset_jump_recursive(TranslationBlock *tb)
     tb_reset_jump_recursive2(tb, 1);
 }
 
-/* add a breakpoint */
+/* add a breakpoint. EXCP_DEBUG is returned by the CPU loop if a
+   breakpoint is reached */
 int cpu_breakpoint_insert(CPUState *env, uint32_t pc)
 {
 #if defined(TARGET_I386)
@@ -658,6 +659,20 @@ int cpu_breakpoint_remove(CPUState *env, uint32_t pc)
     return -1;
 #endif
 }
+
+/* enable or disable single step mode. EXCP_DEBUG is returned by the
+   CPU loop after each instruction */
+void cpu_single_step(CPUState *env, int enabled)
+{
+#if defined(TARGET_I386)
+    if (env->singlestep_enabled != enabled) {
+        env->singlestep_enabled = enabled;
+        /* must flush all the translated code to avoid inconsistancies */
+        tb_flush();
+    }
+#endif
+}
+
 
 /* mask must never be zero */
 void cpu_interrupt(CPUState *env, int mask)

@@ -324,6 +324,24 @@ int cpu_gdbstub(void *opaque, int (*main_loop)(void *opaque), int port)
             snprintf(buf, sizeof(buf), "S%02x", ret);
             put_packet(buf);
             break;
+        case 's':
+            env = cpu_gdbstub_get_env(opaque);
+            if (*p != '\0') {
+                addr = strtoul(p, (char **)&p, 16);
+#if defined(TARGET_I386)
+                env->eip = addr;
+#endif
+            }
+            cpu_single_step(env, 1);
+            ret = main_loop(opaque);
+            cpu_single_step(env, 0);
+            if (ret == EXCP_DEBUG)
+                ret = SIGTRAP;
+            else
+                ret = 0;
+            snprintf(buf, sizeof(buf), "S%02x", ret);
+            put_packet(buf);
+            break;
         case 'g':
             env = cpu_gdbstub_get_env(opaque);
             registers = (void *)mem_buf;

@@ -315,6 +315,7 @@ void cpu_interrupt(CPUState *s, int mask);
 
 int cpu_breakpoint_insert(CPUState *env, uint32_t pc);
 int cpu_breakpoint_remove(CPUState *env, uint32_t pc);
+void cpu_single_step(CPUState *env, int enabled);
 
 /* gdb stub API */
 extern int gdbstub_fd;
