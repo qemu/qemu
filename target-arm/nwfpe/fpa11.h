@@ -83,6 +83,7 @@ typedef struct tagFPA11 {
 					   so we can use it to detect whether this
 					   instance of the emulator needs to be
 					   initialised. */
+    float_status fp_status;      /* QEMU float emulator status */
 } FPA11;
 
 extern FPA11* qemufpa;

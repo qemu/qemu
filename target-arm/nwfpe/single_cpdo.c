@@ -76,30 +76,30 @@ unsigned int SingleCPDO(const unsigned int opcode)
    {
       /* dyadic opcodes */
       case ADF_CODE:
-         fpa11->fpreg[Fd].fSingle = float32_add(rFn,rFm);
+         fpa11->fpreg[Fd].fSingle = float32_add(rFn,rFm, &fpa11->fp_status);
       break;
 
       case MUF_CODE:
       case FML_CODE:
-        fpa11->fpreg[Fd].fSingle = float32_mul(rFn,rFm);
+        fpa11->fpreg[Fd].fSingle = float32_mul(rFn,rFm, &fpa11->fp_status);
       break;
 
       case SUF_CODE:
-         fpa11->fpreg[Fd].fSingle = float32_sub(rFn,rFm);
+         fpa11->fpreg[Fd].fSingle = float32_sub(rFn,rFm, &fpa11->fp_status);
       break;
 
       case RSF_CODE:
-         fpa11->fpreg[Fd].fSingle = float32_sub(rFm,rFn);
+         fpa11->fpreg[Fd].fSingle = float32_sub(rFm,rFn, &fpa11->fp_status);
       break;
 
       case DVF_CODE:
       case FDV_CODE:
-         fpa11->fpreg[Fd].fSingle = float32_div(rFn,rFm);
+         fpa11->fpreg[Fd].fSingle = float32_div(rFn,rFm, &fpa11->fp_status);
       break;
 
       case RDF_CODE:
       case FRD_CODE:
-         fpa11->fpreg[Fd].fSingle = float32_div(rFm,rFn);
+         fpa11->fpreg[Fd].fSingle = float32_div(rFm,rFn, &fpa11->fp_status);
       break;
 
 #if 0
@@ -113,7 +113,7 @@ unsigned int SingleCPDO(const unsigned int opcode)
 #endif
 
       case RMF_CODE:
-         fpa11->fpreg[Fd].fSingle = float32_rem(rFn,rFm);
+         fpa11->fpreg[Fd].fSingle = float32_rem(rFn,rFm, &fpa11->fp_status);
       break;
 
 #if 0
@@ -139,11 +139,11 @@ unsigned int SingleCPDO(const unsigned int opcode)
 
       case RND_CODE:
       case URD_CODE:
-         fpa11->fpreg[Fd].fSingle = float32_round_to_int(rFm);
+         fpa11->fpreg[Fd].fSingle = float32_round_to_int(rFm, &fpa11->fp_status);
       break;
 
       case SQT_CODE:
-         fpa11->fpreg[Fd].fSingle = float32_sqrt(rFm);
+         fpa11->fpreg[Fd].fSingle = float32_sqrt(rFm, &fpa11->fp_status);
       break;
 
 #if 0

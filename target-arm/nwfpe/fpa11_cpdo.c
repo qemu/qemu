@@ -80,10 +80,10 @@ unsigned int EmulateCPDO(const unsigned int opcode)
        {
          if (typeDouble == nType)
            fpa11->fpreg[Fd].fSingle = 
-              float64_to_float32(fpa11->fpreg[Fd].fDouble);
+              float64_to_float32(fpa11->fpreg[Fd].fDouble, &fpa11->fp_status);
          else
            fpa11->fpreg[Fd].fSingle = 
-              floatx80_to_float32(fpa11->fpreg[Fd].fExtended);
+              floatx80_to_float32(fpa11->fpreg[Fd].fExtended, &fpa11->fp_status);
        }
        break;
           
@@ -91,10 +91,10 @@ unsigned int EmulateCPDO(const unsigned int opcode)
        {
          if (typeSingle == nType)
            fpa11->fpreg[Fd].fDouble = 
-              float32_to_float64(fpa11->fpreg[Fd].fSingle);
+              float32_to_float64(fpa11->fpreg[Fd].fSingle, &fpa11->fp_status);
          else
            fpa11->fpreg[Fd].fDouble = 
-              floatx80_to_float64(fpa11->fpreg[Fd].fExtended);
+              floatx80_to_float64(fpa11->fpreg[Fd].fExtended, &fpa11->fp_status);
        }
        break;
           
@@ -102,10 +102,10 @@ unsigned int EmulateCPDO(const unsigned int opcode)
        {
          if (typeSingle == nType)
            fpa11->fpreg[Fd].fExtended = 
-              float32_to_floatx80(fpa11->fpreg[Fd].fSingle);
+              float32_to_floatx80(fpa11->fpreg[Fd].fSingle, &fpa11->fp_status);
          else
            fpa11->fpreg[Fd].fExtended = 
-              float64_to_floatx80(fpa11->fpreg[Fd].fDouble);
+              float64_to_floatx80(fpa11->fpreg[Fd].fDouble, &fpa11->fp_status);
        }
        break;
      }

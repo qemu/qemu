@@ -27,14 +27,14 @@
 //#include "fpmodule.inl"
 
 const floatx80 floatx80Constant[] = {
-  { 0x0000, 0x0000000000000000ULL},	/* extended 0.0 */
-  { 0x3fff, 0x8000000000000000ULL},	/* extended 1.0 */
-  { 0x4000, 0x8000000000000000ULL},	/* extended 2.0 */
-  { 0x4000, 0xc000000000000000ULL},	/* extended 3.0 */
-  { 0x4001, 0x8000000000000000ULL},	/* extended 4.0 */
-  { 0x4001, 0xa000000000000000ULL},	/* extended 5.0 */
-  { 0x3ffe, 0x8000000000000000ULL},	/* extended 0.5 */
-  { 0x4002, 0xa000000000000000ULL}	/* extended 10.0 */
+  { 0x0000000000000000ULL, 0x0000},	/* extended 0.0 */
+  { 0x8000000000000000ULL, 0x3fff},	/* extended 1.0 */
+  { 0x8000000000000000ULL, 0x4000},	/* extended 2.0 */
+  { 0xc000000000000000ULL, 0x4000},	/* extended 3.0 */
+  { 0x8000000000000000ULL, 0x4001},	/* extended 4.0 */
+  { 0xa000000000000000ULL, 0x4001},	/* extended 5.0 */
+  { 0x8000000000000000ULL, 0x3ffe},	/* extended 0.5 */
+  { 0xa000000000000000ULL, 0x4002}	/* extended 10.0 */
 };  
 
 const float64 float64Constant[] = {

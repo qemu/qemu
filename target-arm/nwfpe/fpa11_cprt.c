@@ -21,7 +21,6 @@
 */
 
 #include "fpa11.h"
-#include "milieu.h"
 #include "softfloat.h"
 #include "fpopcode.h"
 #include "fpa11.inl"
@@ -89,7 +88,7 @@ unsigned int PerformFLT(const unsigned int opcode)
       {
         fpa11->fType[getFn(opcode)] = typeSingle;
         fpa11->fpreg[getFn(opcode)].fSingle =
-	   int32_to_float32(readRegister(getRd(opcode)));
+	   int32_to_float32(readRegister(getRd(opcode)), &fpa11->fp_status);
       }
       break;
 
@@ -97,7 +96,7 @@ unsigned int PerformFLT(const unsigned int opcode)
       {
         fpa11->fType[getFn(opcode)] = typeDouble;
         fpa11->fpreg[getFn(opcode)].fDouble =
-            int32_to_float64(readRegister(getRd(opcode)));
+            int32_to_float64(readRegister(getRd(opcode)), &fpa11->fp_status);
       }
       break;
         
@@ -105,7 +104,7 @@ unsigned int PerformFLT(const unsigned int opcode)
       {
         fpa11->fType[getFn(opcode)] = typeExtended;
         fpa11->fpreg[getFn(opcode)].fExtended =
-	   int32_to_floatx80(readRegister(getRd(opcode)));
+	   int32_to_floatx80(readRegister(getRd(opcode)), &fpa11->fp_status);
       }
       break;
       
@@ -128,7 +127,7 @@ unsigned int PerformFIX(const unsigned int opcode)
       case typeSingle:
       {
          writeRegister(getRd(opcode),
-	               float32_to_int32(fpa11->fpreg[Fn].fSingle));
+	               float32_to_int32(fpa11->fpreg[Fn].fSingle, &fpa11->fp_status));
       }
       break;
 
@@ -136,14 +135,14 @@ unsigned int PerformFIX(const unsigned int opcode)
       {
          //printf("F%d is 0x%llx\n",Fn,fpa11->fpreg[Fn].fDouble);
          writeRegister(getRd(opcode),
-	               float64_to_int32(fpa11->fpreg[Fn].fDouble));
+	               float64_to_int32(fpa11->fpreg[Fn].fDouble, &fpa11->fp_status));
       }
       break;
       	               
       case typeExtended:
       {
          writeRegister(getRd(opcode),
-	               floatx80_to_int32(fpa11->fpreg[Fn].fExtended));
+	               floatx80_to_int32(fpa11->fpreg[Fn].fExtended, &fpa11->fp_status));
       }
       break;
       
@@ -157,22 +156,23 @@ unsigned int PerformFIX(const unsigned int opcode)
 static unsigned int __inline__
 PerformComparisonOperation(floatx80 Fn, floatx80 Fm)
 {
+   FPA11 *fpa11 = GET_FPA11();
    unsigned int flags = 0;
 
    /* test for less than condition */
-   if (floatx80_lt(Fn,Fm))
+   if (floatx80_lt(Fn,Fm, &fpa11->fp_status))
    {
       flags |= CC_NEGATIVE;
    }
   
    /* test for equal condition */
-   if (floatx80_eq(Fn,Fm))
+   if (floatx80_eq(Fn,Fm, &fpa11->fp_status))
    {
       flags |= CC_ZERO;
    }
 
    /* test for greater than or equal condition */
-   if (floatx80_lt(Fm,Fn))
+   if (floatx80_lt(Fm,Fn, &fpa11->fp_status))
    {
       flags |= CC_CARRY;
    }
@@ -208,14 +208,14 @@ static unsigned int PerformComparison(const unsigned int opcode)
         //printk("single.\n");
 	if (float32_is_nan(fpa11->fpreg[Fn].fSingle))
 	   goto unordered;
-        rFn = float32_to_floatx80(fpa11->fpreg[Fn].fSingle);
+        rFn = float32_to_floatx80(fpa11->fpreg[Fn].fSingle, &fpa11->fp_status);
       break;
 
       case typeDouble: 
         //printk("double.\n");
 	if (float64_is_nan(fpa11->fpreg[Fn].fDouble))
 	   goto unordered;
-        rFn = float64_to_floatx80(fpa11->fpreg[Fn].fDouble);
+        rFn = float64_to_floatx80(fpa11->fpreg[Fn].fDouble, &fpa11->fp_status);
       break;
       
       case typeExtended: 
@@ -244,14 +244,14 @@ static unsigned int PerformComparison(const unsigned int opcode)
            //printk("single.\n");
 	   if (float32_is_nan(fpa11->fpreg[Fm].fSingle))
 	      goto unordered;
-           rFm = float32_to_floatx80(fpa11->fpreg[Fm].fSingle);
+           rFm = float32_to_floatx80(fpa11->fpreg[Fm].fSingle, &fpa11->fp_status);
          break;
 
          case typeDouble: 
            //printk("double.\n");
 	   if (float64_is_nan(fpa11->fpreg[Fm].fDouble))
 	      goto unordered;
-           rFm = float64_to_floatx80(fpa11->fpreg[Fm].fDouble);
+           rFm = float64_to_floatx80(fpa11->fpreg[Fm].fDouble, &fpa11->fp_status);
          break;
       
          case typeExtended: 
@@ -283,7 +283,7 @@ static unsigned int PerformComparison(const unsigned int opcode)
 
    if (BIT_AC & readFPSR()) flags |= CC_CARRY;
 
-   if (e_flag) float_raise(float_flag_invalid);
+   if (e_flag) float_raise(float_flag_invalid, &fpa11->fp_status);
 
    writeConditionCodes(flags);
    return 1;

@@ -53,11 +53,11 @@ unsigned int ExtendedCPDO(const unsigned int opcode)
      switch (fpa11->fType[Fm])
      {
         case typeSingle:
-          rFm = float32_to_floatx80(fpa11->fpreg[Fm].fSingle);
+          rFm = float32_to_floatx80(fpa11->fpreg[Fm].fSingle, &fpa11->fp_status);
         break;
 
         case typeDouble:
-          rFm = float64_to_floatx80(fpa11->fpreg[Fm].fDouble);
+          rFm = float64_to_floatx80(fpa11->fpreg[Fm].fDouble, &fpa11->fp_status);
         break;
         
         case typeExtended:
@@ -74,11 +74,11 @@ unsigned int ExtendedCPDO(const unsigned int opcode)
       switch (fpa11->fType[Fn])
       {
         case typeSingle:
-          rFn = float32_to_floatx80(fpa11->fpreg[Fn].fSingle);
+          rFn = float32_to_floatx80(fpa11->fpreg[Fn].fSingle, &fpa11->fp_status);
         break;
 
         case typeDouble:
-          rFn = float64_to_floatx80(fpa11->fpreg[Fn].fDouble);
+          rFn = float64_to_floatx80(fpa11->fpreg[Fn].fDouble, &fpa11->fp_status);
         break;
         
         case typeExtended:
@@ -94,30 +94,30 @@ unsigned int ExtendedCPDO(const unsigned int opcode)
    {
       /* dyadic opcodes */
       case ADF_CODE:
-         fpa11->fpreg[Fd].fExtended = floatx80_add(rFn,rFm);
+         fpa11->fpreg[Fd].fExtended = floatx80_add(rFn,rFm, &fpa11->fp_status);
       break;
 
       case MUF_CODE:
       case FML_CODE:
-         fpa11->fpreg[Fd].fExtended = floatx80_mul(rFn,rFm);
+         fpa11->fpreg[Fd].fExtended = floatx80_mul(rFn,rFm, &fpa11->fp_status);
       break;
 
       case SUF_CODE:
-         fpa11->fpreg[Fd].fExtended = floatx80_sub(rFn,rFm);
+         fpa11->fpreg[Fd].fExtended = floatx80_sub(rFn,rFm, &fpa11->fp_status);
       break;
 
       case RSF_CODE:
-         fpa11->fpreg[Fd].fExtended = floatx80_sub(rFm,rFn);
+         fpa11->fpreg[Fd].fExtended = floatx80_sub(rFm,rFn, &fpa11->fp_status);
       break;
 
       case DVF_CODE:
       case FDV_CODE:
-         fpa11->fpreg[Fd].fExtended = floatx80_div(rFn,rFm);
+         fpa11->fpreg[Fd].fExtended = floatx80_div(rFn,rFm, &fpa11->fp_status);
       break;
 
       case RDF_CODE:
       case FRD_CODE:
-         fpa11->fpreg[Fd].fExtended = floatx80_div(rFm,rFn);
+         fpa11->fpreg[Fd].fExtended = floatx80_div(rFm,rFn, &fpa11->fp_status);
       break;
 
 #if 0
@@ -131,7 +131,7 @@ unsigned int ExtendedCPDO(const unsigned int opcode)
 #endif
 
       case RMF_CODE:
-         fpa11->fpreg[Fd].fExtended = floatx80_rem(rFn,rFm);
+         fpa11->fpreg[Fd].fExtended = floatx80_rem(rFn,rFm, &fpa11->fp_status);
       break;
 
 #if 0
@@ -157,11 +157,11 @@ unsigned int ExtendedCPDO(const unsigned int opcode)
 
       case RND_CODE:
       case URD_CODE:
-         fpa11->fpreg[Fd].fExtended = floatx80_round_to_int(rFm);
+         fpa11->fpreg[Fd].fExtended = floatx80_round_to_int(rFm, &fpa11->fp_status);
       break;
 
       case SQT_CODE:
-         fpa11->fpreg[Fd].fExtended = floatx80_sqrt(rFm);
+         fpa11->fpreg[Fd].fExtended = floatx80_sqrt(rFm, &fpa11->fp_status);
       break;
 
 #if 0

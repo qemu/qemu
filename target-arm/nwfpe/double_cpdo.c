@@ -53,7 +53,7 @@ unsigned int DoubleCPDO(const unsigned int opcode)
      switch (fpa11->fType[Fm])
      {
         case typeSingle:
-          rFm = float32_to_float64(fpa11->fpreg[Fm].fSingle);
+          rFm = float32_to_float64(fpa11->fpreg[Fm].fSingle, &fpa11->fp_status);
         break;
 
         case typeDouble:
@@ -79,7 +79,7 @@ unsigned int DoubleCPDO(const unsigned int opcode)
       switch (fpa11->fType[Fn])
       {
         case typeSingle:
-          rFn = float32_to_float64(fpa11->fpreg[Fn].fSingle);
+          rFn = float32_to_float64(fpa11->fpreg[Fn].fSingle, &fpa11->fp_status);
         break;
 
         case typeDouble:
@@ -96,30 +96,30 @@ unsigned int DoubleCPDO(const unsigned int opcode)
    {
       /* dyadic opcodes */
       case ADF_CODE:
-         fpa11->fpreg[Fd].fDouble = float64_add(rFn,rFm);
+         fpa11->fpreg[Fd].fDouble = float64_add(rFn,rFm, &fpa11->fp_status);
       break;
 
       case MUF_CODE:
       case FML_CODE:
-         fpa11->fpreg[Fd].fDouble = float64_mul(rFn,rFm);
+         fpa11->fpreg[Fd].fDouble = float64_mul(rFn,rFm, &fpa11->fp_status);
       break;
 
       case SUF_CODE:
-         fpa11->fpreg[Fd].fDouble = float64_sub(rFn,rFm);
+         fpa11->fpreg[Fd].fDouble = float64_sub(rFn,rFm, &fpa11->fp_status);
       break;
 
       case RSF_CODE:
-         fpa11->fpreg[Fd].fDouble = float64_sub(rFm,rFn);
+         fpa11->fpreg[Fd].fDouble = float64_sub(rFm,rFn, &fpa11->fp_status);
       break;
 
       case DVF_CODE:
       case FDV_CODE:
-         fpa11->fpreg[Fd].fDouble = float64_div(rFn,rFm);
+         fpa11->fpreg[Fd].fDouble = float64_div(rFn,rFm, &fpa11->fp_status);
       break;
 
       case RDF_CODE:
       case FRD_CODE:
-         fpa11->fpreg[Fd].fDouble = float64_div(rFm,rFn);
+         fpa11->fpreg[Fd].fDouble = float64_div(rFm,rFn, &fpa11->fp_status);
       break;
 
 #if 0
@@ -133,7 +133,7 @@ unsigned int DoubleCPDO(const unsigned int opcode)
 #endif
 
       case RMF_CODE:
-         fpa11->fpreg[Fd].fDouble = float64_rem(rFn,rFm);
+         fpa11->fpreg[Fd].fDouble = float64_rem(rFn,rFm, &fpa11->fp_status);
       break;
 
 #if 0
@@ -173,11 +173,11 @@ unsigned int DoubleCPDO(const unsigned int opcode)
 
       case RND_CODE:
       case URD_CODE:
-         fpa11->fpreg[Fd].fDouble = float64_round_to_int(rFm);
+         fpa11->fpreg[Fd].fDouble = float64_round_to_int(rFm, &fpa11->fp_status);
       break;
 
       case SQT_CODE:
-         fpa11->fpreg[Fd].fDouble = float64_sqrt(rFm);
+         fpa11->fpreg[Fd].fDouble = float64_sqrt(rFm, &fpa11->fp_status);
       break;
 
 #if 0

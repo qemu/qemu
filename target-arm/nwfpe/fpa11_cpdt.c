@@ -106,11 +106,11 @@ void storeSingle(const unsigned int Fn,unsigned int *pMem)
    switch (fpa11->fType[Fn])
    {
       case typeDouble: 
-         val = float64_to_float32(fpa11->fpreg[Fn].fDouble);
+         val = float64_to_float32(fpa11->fpreg[Fn].fDouble, &fpa11->fp_status);
       break;
 
       case typeExtended: 
-         val = floatx80_to_float32(fpa11->fpreg[Fn].fExtended);
+         val = floatx80_to_float32(fpa11->fpreg[Fn].fExtended, &fpa11->fp_status);
       break;
 
       default: val = fpa11->fpreg[Fn].fSingle;
@@ -129,11 +129,11 @@ void storeDouble(const unsigned int Fn,unsigned int *pMem)
    switch (fpa11->fType[Fn])
    {
       case typeSingle: 
-         val = float32_to_float64(fpa11->fpreg[Fn].fSingle);
+         val = float32_to_float64(fpa11->fpreg[Fn].fSingle, &fpa11->fp_status);
       break;
 
       case typeExtended:
-         val = floatx80_to_float64(fpa11->fpreg[Fn].fExtended);
+         val = floatx80_to_float64(fpa11->fpreg[Fn].fExtended, &fpa11->fp_status);
       break;
 
       default: val = fpa11->fpreg[Fn].fDouble;
@@ -157,11 +157,11 @@ void storeExtended(const unsigned int Fn,unsigned int *pMem)
    switch (fpa11->fType[Fn])
    {
       case typeSingle: 
-         val = float32_to_floatx80(fpa11->fpreg[Fn].fSingle);
+         val = float32_to_floatx80(fpa11->fpreg[Fn].fSingle, &fpa11->fp_status);
       break;
 
       case typeDouble: 
-         val = float64_to_floatx80(fpa11->fpreg[Fn].fDouble);
+         val = float64_to_floatx80(fpa11->fpreg[Fn].fDouble, &fpa11->fp_status);
       break;
 
       default: val = fpa11->fpreg[Fn].fExtended;
