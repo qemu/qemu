@@ -259,3 +259,4 @@
 					/* 254 for set_thread_area */
 					/* 255 for get_thread_area */
 					/* 256 for set_tid_address */
+#define TARGET_NR_utimes		        (269)

@@ -1742,6 +1742,20 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             ret = get_errno(utime((const char *)arg1, tbuf1));
         }
         break;
+    case TARGET_NR_utimes:
+        {
+            struct target_timeval *target_tvp = (struct target_timeval *)arg2;
+            struct timeval *tvp, tv[2];
+            if (target_tvp) {
+                target_to_host_timeval(&tv[0], &target_tvp[0]);
+                target_to_host_timeval(&tv[1], &target_tvp[1]);
+                tvp = tv;
+            } else {
+                tvp = NULL;
+            }
+            ret = get_errno(utimes((const char *)arg1, tvp));
+        }
+        break;
 #ifdef TARGET_NR_stty
     case TARGET_NR_stty:
         goto unimplemented;
