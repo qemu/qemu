@@ -44,7 +44,7 @@
 #include <linux/if.h>
 #include <linux/if_tun.h>
 
-#include "cpu-i386.h"
+#include "cpu.h"
 #include "disas.h"
 #include "thunk.h"
 
@@ -216,7 +216,7 @@ IOPortWriteFunc *ioport_write_table[3][MAX_IOPORTS];
 BlockDriverState *bs_table[MAX_DISKS];
 int vga_ram_size;
 static DisplayState display_state;
-int nodisp;
+int nographic;
 int term_inited;
 int64_t ticks_per_sec;
 
@@ -2434,6 +2434,52 @@ void ide_reset(IDEState *s)
     s->select = 0xa0;
 }
 
+struct partition {
+	uint8_t boot_ind;		/* 0x80 - active */
+	uint8_t head;		/* starting head */
+	uint8_t sector;		/* starting sector */
+	uint8_t cyl;		/* starting cylinder */
+	uint8_t sys_ind;		/* What partition type */
+	uint8_t end_head;		/* end head */
+	uint8_t end_sector;	/* end sector */
+	uint8_t end_cyl;		/* end cylinder */
+	uint32_t start_sect;	/* starting sector counting from 0 */
+	uint32_t nr_sects;		/* nr of sectors in partition */
+} __attribute__((packed));
+
+/* try to guess the IDE geometry from the MSDOS partition table */
+void ide_guess_geometry(IDEState *s)
+{
+    uint8_t buf[512];
+    int ret, i;
+    struct partition *p;
+    uint32_t nr_sects;
+
+    if (s->cylinders != 0)
+        return;
+    ret = bdrv_read(s->bs, 0, buf, 1);
+    if (ret < 0)
+        return;
+    /* test msdos magic */
+    if (buf[510] != 0x55 || buf[511] != 0xaa)
+        return;
+    for(i = 0; i < 4; i++) {
+        p = ((struct partition *)(buf + 0x1be)) + i;
+        nr_sects = tswap32(p->nr_sects);
+        if (nr_sects && p->end_head) {
+            /* We make the assumption that the partition terminates on
+               a cylinder boundary */
+            s->heads = p->end_head + 1;
+            s->sectors = p->end_sector & 63;
+            s->cylinders = s->nb_sectors / (s->heads * s->sectors);
+#if 0
+            printf("guessed partition: CHS=%d %d %d\n", 
+                   s->cylinders, s->heads, s->sectors);
+#endif
+        }
+    }
+}
+
 void ide_init(void)
 {
     IDEState *s;
@@ -2445,6 +2491,8 @@ void ide_init(void)
         s->bs = bs_table[i];
         if (s->bs) {
             bdrv_get_geometry(s->bs, &nb_sectors);
+            s->nb_sectors = nb_sectors;
+            ide_guess_geometry(s);
             if (s->cylinders == 0) {
                 /* if no geometry, use a LBA compatible one */
                 cylinders = nb_sectors / (16 * 63);
@@ -2456,7 +2504,6 @@ void ide_init(void)
                 s->heads = 16;
                 s->sectors = 63;
             }
-            s->nb_sectors = nb_sectors;
         }
         s->irq = 14;
         ide_reset(s);
@@ -3136,7 +3183,10 @@ static void term_init(void)
     tty.c_iflag &= ~(IGNBRK|BRKINT|PARMRK|ISTRIP
                           |INLCR|IGNCR|ICRNL|IXON);
     tty.c_oflag |= OPOST;
-    tty.c_lflag &= ~(ECHO|ECHONL|ICANON|IEXTEN|ISIG);
+    tty.c_lflag &= ~(ECHO|ECHONL|ICANON|IEXTEN);
+    /* if graphical mode, we allow Ctrl-C handling */
+    if (nographic)
+        tty.c_lflag &= ~ISIG;
     tty.c_cflag &= ~(CSIZE|PARENB);
     tty.c_cflag |= CS8;
     tty.c_cc[VMIN] = 1;
@@ -3238,7 +3288,7 @@ int main_loop(void *opaque)
     uint8_t ch;
     CPUState *env = global_env;
 
-    if (nodisp && !term_inited) {
+    if (!term_inited) {
         /* initialize terminal only there so that the user has a
            chance to stop QEMU with Ctrl-C before the gdb connection
            is launched */
@@ -3328,26 +3378,30 @@ int main_loop(void *opaque)
 
 void help(void)
 {
-    printf("Virtual Linux version " QEMU_VERSION ", Copyright (c) 2003 Fabrice Bellard\n"
-           "usage: vl [options] [bzImage [kernel parameters...]]\n"
+    printf("QEMU PC emulator version " QEMU_VERSION ", Copyright (c) 2003 Fabrice Bellard\n"
+           "usage: qemu [options] [disk_image]\n"
            "\n"
-           "'bzImage' is a Linux kernel image (PAGE_OFFSET must be defined\n"
-           "to 0x90000000 in asm/page.h and arch/i386/vmlinux.lds)\n"
+           "'disk_image' is a raw hard image image for IDE hard disk 0\n"
            "\n"
-           "General options:\n"
-           "-initrd file   use 'file' as initial ram disk\n"
-           "-hda file      use 'file' as hard disk 0 image\n"
-           "-hdb file      use 'file' as hard disk 1 image\n"
-	   "-snapshot      write to temporary files instead of disk image files\n"
-           "-m megs        set virtual RAM size to megs MB\n"
-           "-n script      set network init script [default=%s]\n"
+           "Standard options:\n"
+           "-hda file       use 'file' as IDE hard disk 0 image\n"
+           "-hdb file       use 'file' as IDE hard disk 1 image\n"
+	   "-snapshot       write to temporary files instead of disk image files\n"
+           "-m megs         set virtual RAM size to megs MB\n"
+           "-n script       set network init script [default=%s]\n"
+           "-nographic      disable graphical output\n"
+           "\n"
+           "Linux boot specific (does not require PC BIOS):\n"
+           "-kernel bzImage use 'bzImage' as kernel image\n"
+           "-append cmdline use 'cmdline' as kernel command line\n"
+           "-initrd file    use 'file' as initial ram disk\n"
            "\n"
            "Debug/Expert options:\n"
-           "-s             wait gdb connection to port %d\n"
-           "-p port        change gdb connection port\n"
-           "-d             output log in /tmp/vl.log\n"
-           "-hdachs c,h,s  force hard disk 0 geometry for non LBA disk images\n"
-           "-L path        set the directory for the BIOS and VGA BIOS\n"
+           "-s              wait gdb connection to port %d\n"
+           "-p port         change gdb connection port\n"
+           "-d              output log in /tmp/vl.log\n"
+           "-hdachs c,h,s   force hard disk 0 geometry (usually qemu can guess it)\n"
+           "-L path         set the directory for the BIOS and VGA BIOS\n"
            "\n"
            "During emulation, use C-a h to get terminal commands:\n",
            DEFAULT_NETWORK_SCRIPT, DEFAULT_GDBSTUB_PORT);
@@ -3361,9 +3415,23 @@ struct option long_options[] = {
     { "hdb", 1, NULL, 0, },
     { "snapshot", 0, NULL, 0, },
     { "hdachs", 1, NULL, 0, },
-    { "nodisp", 0, NULL, 0, },
+    { "nographic", 0, NULL, 0, },
+    { "kernel", 1, NULL, 0, },
+    { "append", 1, NULL, 0, },
     { NULL, 0, NULL, 0 },
 };
+
+#ifdef CONFIG_SDL
+/* SDL use the pthreads and they modify sigaction. We don't
+   want that. */
+#if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 3)
+extern void __libc_sigaction();
+#define sigaction(sig, act, oact) __libc_sigaction(sig, act, oact)
+#else
+extern void __sigaction();
+#define sigaction(sig, act, oact) __sigaction(sig, act, oact)
+#endif
+#endif /* CONFIG_SDL */
 
 int main(int argc, char **argv)
 {
@@ -3375,6 +3443,7 @@ int main(int argc, char **argv)
     CPUX86State *env;
     const char *tmpdir, *initrd_filename;
     const char *hd_filename[MAX_DISKS];
+    const char *kernel_filename, *kernel_cmdline;
     DisplayState *ds = &display_state;
 
     /* we never want that malloc() uses mmap() */
@@ -3388,8 +3457,9 @@ int main(int argc, char **argv)
     use_gdbstub = 0;
     gdbstub_port = DEFAULT_GDBSTUB_PORT;
     snapshot = 0;
-    linux_boot = 0;
-    nodisp = 0;
+    nographic = 0;
+    kernel_filename = NULL;
+    kernel_cmdline = "";
     for(;;) {
         c = getopt_long_only(argc, argv, "hm:dn:sp:L:", long_options, &long_index);
         if (c == -1)
@@ -3432,7 +3502,13 @@ int main(int argc, char **argv)
                 }
                 break;
             case 5:
-                nodisp = 1;
+                nographic = 1;
+                break;
+            case 6:
+                kernel_filename = optarg;
+                break;
+            case 7:
+                kernel_cmdline = optarg;
                 break;
             }
             break;
@@ -3467,7 +3543,11 @@ int main(int argc, char **argv)
         }
     }
 
-    linux_boot = (optind < argc);
+    if (optind < argc) {
+        hd_filename[0] = argv[optind++];
+    }
+
+    linux_boot = (kernel_filename != NULL);
         
     if (!linux_boot && hd_filename[0] == '\0')
         help();
@@ -3487,7 +3567,7 @@ int main(int argc, char **argv)
     net_init();
 
     /* init the memory */
-    tmpdir = getenv("VLTMPDIR");
+    tmpdir = getenv("QEMU_TMPDIR");
     if (!tmpdir)
         tmpdir = "/tmp";
     snprintf(phys_ram_file, sizeof(phys_ram_file), "%s/vlXXXXXX", tmpdir);
@@ -3538,9 +3618,10 @@ int main(int argc, char **argv)
 
     if (linux_boot) {
         /* now we can load the kernel */
-        ret = load_kernel(argv[optind], phys_ram_base + KERNEL_LOAD_ADDR);
+        ret = load_kernel(kernel_filename, phys_ram_base + KERNEL_LOAD_ADDR);
         if (ret < 0) {
-            fprintf(stderr, "vl: could not load kernel '%s'\n", argv[optind]);
+            fprintf(stderr, "vl: could not load kernel '%s'\n", 
+                    kernel_filename);
             exit(1);
         }
         
@@ -3562,11 +3643,7 @@ int main(int argc, char **argv)
         params->cl_magic = 0xA33F;
         params->cl_offset = params->commandline - (uint8_t *)params;
         params->alt_mem_k = (phys_ram_size / 1024) - 1024;
-        for(i = optind + 1; i < argc; i++) {
-            if (i != optind + 1)
-                pstrcat(params->commandline, sizeof(params->commandline), " ");
-            pstrcat(params->commandline, sizeof(params->commandline), argv[i]);
-        }
+        pstrcat(params->commandline, sizeof(params->commandline), kernel_cmdline);
         params->loader_type = 0x01;
         if (initrd_size > 0) {
             params->initrd_start = INITRD_LOAD_ADDR;
@@ -3602,7 +3679,7 @@ int main(int argc, char **argv)
 
     } else {
         char buf[1024];
-        
+
         /* RAW PC boot */
 
         /* BIOS load */
@@ -3642,18 +3719,11 @@ int main(int argc, char **argv)
     }
 
     /* terminal init */
-    if (nodisp) {
+    if (nographic) {
         dumb_display_init(ds);
     } else {
 #ifdef CONFIG_SDL
         sdl_display_init(ds);
-        /* SDL use the pthreads and they modify sigaction. We don't
-           want that. */
-#if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 3)
-#define sigaction __libc_sigaction
-#else
-#define sigaction __sigaction
-#endif
 #else
         dumb_display_init(ds);
 #endif
