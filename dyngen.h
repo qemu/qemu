@@ -18,6 +18,82 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+int __op_param1, __op_param2, __op_param3;
+int __op_jmp0, __op_jmp1;
+
+#ifdef __i386__
+static inline void flush_icache_range(unsigned long start, unsigned long stop)
+{
+}
+#endif
+
+#ifdef __s390__
+static inline void flush_icache_range(unsigned long start, unsigned long stop)
+{
+}
+#endif
+
+#ifdef __ia64__
+static inline void flush_icache_range(unsigned long start, unsigned long stop)
+{
+}
+#endif
+
+#ifdef __powerpc__
+
+#define MIN_CACHE_LINE_SIZE 8 /* conservative value */
+
+static void inline flush_icache_range(unsigned long start, unsigned long stop)
+{
+    unsigned long p;
+
+    p = start & ~(MIN_CACHE_LINE_SIZE - 1);
+    stop = (stop + MIN_CACHE_LINE_SIZE - 1) & ~(MIN_CACHE_LINE_SIZE - 1);
+    
+    for (p = start; p < stop; p += MIN_CACHE_LINE_SIZE) {
+        asm volatile ("dcbst 0,%0" : : "r"(p) : "memory");
+    }
+    asm volatile ("sync" : : : "memory");
+    for (p = start; p < stop; p += MIN_CACHE_LINE_SIZE) {
+        asm volatile ("icbi 0,%0" : : "r"(p) : "memory");
+    }
+    asm volatile ("sync" : : : "memory");
+    asm volatile ("isync" : : : "memory");
+}
+#endif
+
+#ifdef __alpha__
+static inline void flush_icache_range(unsigned long start, unsigned long stop)
+{
+    asm ("imb");
+}
+#endif
+
+#ifdef __sparc__
+
+static void inline flush_icache_range(unsigned long start, unsigned long stop)
+{
+	unsigned long p;
+
+	p = start & ~(8UL - 1UL);
+	stop = (stop + (8UL - 1UL)) & ~(8UL - 1UL);
+
+	for (; p < stop; p += 8)
+		__asm__ __volatile__("flush\t%0" : : "r" (p));
+}
+
+#endif
+
+#ifdef __arm__
+static inline void flush_icache_range(unsigned long start, unsigned long stop)
+{
+    register unsigned long _beg __asm ("a1") = start;
+    register unsigned long _end __asm ("a2") = stop;
+    register unsigned long _flg __asm ("a3") = 0;
+    __asm __volatile__ ("swi 0x9f0002" : : "r" (_beg), "r" (_end), "r" (_flg));
+}
+#endif
+
 #ifdef __alpha__
 
 register int gp asm("$29");
