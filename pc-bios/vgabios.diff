@@ -1,0 +1,97 @@
+? biossums
+? vgabios.cirrus.debug.txt
+? vgabios.cirrus.txt
+? vgabios.debug.txt
+? vgabios.txt
+? tests/Makefile
+? tests/setmode.S
+? tests/setmode.c
+? tests/setmode.com
+? tests/setmode.elf
+Index: Makefile
+===================================================================
+RCS file: /cvsroot/vgabios/vgabios/Makefile,v
+retrieving revision 1.15
+diff -u -w -r1.15 Makefile
+Index: VGABIOS-lgpl-latest.bin
+===================================================================
+RCS file: /cvsroot/vgabios/vgabios/VGABIOS-lgpl-latest.bin,v
+retrieving revision 1.60
+diff -u -w -r1.60 VGABIOS-lgpl-latest.bin
+Binary files /tmp/cvsCahrMA and VGABIOS-lgpl-latest.bin differ
+Index: VGABIOS-lgpl-latest.cirrus.bin
+===================================================================
+RCS file: /cvsroot/vgabios/vgabios/VGABIOS-lgpl-latest.cirrus.bin,v
+retrieving revision 1.12
+diff -u -w -r1.12 VGABIOS-lgpl-latest.cirrus.bin
+Binary files /tmp/cvsewygNU and VGABIOS-lgpl-latest.cirrus.bin differ
+Index: VGABIOS-lgpl-latest.cirrus.debug.bin
+===================================================================
+RCS file: /cvsroot/vgabios/vgabios/VGABIOS-lgpl-latest.cirrus.debug.bin,v
+retrieving revision 1.12
+diff -u -w -r1.12 VGABIOS-lgpl-latest.cirrus.debug.bin
+Binary files /tmp/cvsey9TQf and VGABIOS-lgpl-latest.cirrus.debug.bin differ
+Index: VGABIOS-lgpl-latest.debug.bin
+===================================================================
+RCS file: /cvsroot/vgabios/vgabios/VGABIOS-lgpl-latest.debug.bin,v
+retrieving revision 1.60
+diff -u -w -r1.60 VGABIOS-lgpl-latest.debug.bin
+Binary files /tmp/cvskxbTbC and VGABIOS-lgpl-latest.debug.bin differ
+Index: clext.c
+===================================================================
+RCS file: /cvsroot/vgabios/vgabios/clext.c,v
+retrieving revision 1.8
+diff -u -w -r1.8 clext.c
+--- clext.c	8 Aug 2004 16:52:55 -0000	1.8
++++ clext.c	30 Nov 2004 23:38:32 -0000
+@@ -222,7 +222,21 @@
+ 0x001a,0x221b,0x001d,
+ 0xffff
+ };
+-
++/* 1280x1024x16 */
++unsigned short cseq_1280x1024x16[] = {
++0x0300,0x2101,0x0f02,0x0003,0x0e04,0x1707,
++0x760b,0x760c,0x760d,0x760e,
++0x0412,0x0013,0x2017,
++0x341b,0x341c,0x341d,0x341e,
++0xffff
++};
++unsigned short ccrtc_1280x1024x16[] = {
++0x2911,0xc300,0x9f01,0x9f02,0x8603,0x8304,0x9405,0x2406,0xf707,
++0x6009,0x000c,0x000d,
++0x0310,0xff12,0x4013,0x4014,0xff15,0x2416,0xc317,0xff18,
++0x001a,0x321b,0x001d,
++0xffff
++};
+ 
+ cirrus_mode_t cirrus_modes[] =
+ {
+@@ -269,6 +283,12 @@
+  {0x6d,1280,1024,8,0x00,
+    cseq_1280x1024x8,cgraph_svgacolor,ccrtc_1280x1024x8,8,
+    4,0,0,0,0,0,0,0,0},
++ {0x69,1280,1024,15,0xf0,
++   cseq_1280x1024x16,cgraph_svgacolor,ccrtc_1280x1024x16,16,
++   6,5,10,5,5,5,0,1,15},
++ {0x75,1280,1024,16,0xe1,
++   cseq_1280x1024x16,cgraph_svgacolor,ccrtc_1280x1024x16,16,
++   6,5,11,6,5,5,0,0,0},
+ 
+  {0xfe,0,0,0,0,cseq_vga,cgraph_vga,ccrtc_vga,0,
+    0xff,0,0,0,0,0,0,0,0},
+@@ -310,9 +330,13 @@
+ // 1024x768x16
+   0x117, 0x74,
+ // 1024x768x24
+-//0x118, 0x79,
++  0x118, 0x79,
+ // 1280x1024x8
+   0x107, 0x6d,
++// 1280x1024x15
++  0x119, 0x69,
++// 1280x1024x16
++  0x11a, 0x75,
+ // invalid
+   0xffff,0xffff
+ };
