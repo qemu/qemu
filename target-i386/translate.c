@@ -128,11 +128,6 @@ enum {
     NB_OREGS,
 };
 
-typedef void (GenOpFunc)(void);
-typedef void (GenOpFunc1)(long);
-typedef void (GenOpFunc2)(long, long);
-typedef void (GenOpFunc3)(long, long, long);
-                    
 static GenOpFunc *gen_op_mov_reg_T0[3][8] = {
     [OT_BYTE] = {
         gen_op_movb_EAX_T0,

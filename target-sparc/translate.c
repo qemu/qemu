@@ -2,6 +2,7 @@
    SPARC translation
 
    Copyright (C) 2003 Thomas M. Ogrisegg <tom@fnord.at>
+   Copyright (C) 2003 Fabrice Bellard
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Lesser General Public
@@ -19,33 +20,15 @@
  */
 
 /*
-   SPARC has two pitfalls: Delay slots and (a)nullification.
-   This is currently solved as follows:
-
-   'call' instructions simply execute the delay slot before the actual
-   control transfer instructions.
-
-   'jmpl' instructions execute calculate the destination, then execute
-   the delay slot and then do the control transfer.
-
-   (conditional) branch instructions are the most difficult ones, as the
-   delay slot may be nullified (ie. not executed). This happens when a
-   conditional branch is not executed (thus no control transfer happens)
-   and the 'anull' bit in the branch instruction opcode is set. This is
-   currently solved by doing a jump after the delay slot instruction.
-
    TODO-list:
 
-   Register window overflow/underflow check
+   NPC/PC static optimisations (use JUMP_TB when possible)
    FPU-Instructions
-   Coprocessor-Instructions
-   Check signedness issues
    Privileged instructions
+   Coprocessor-Instructions
    Optimize synthetic instructions
    Optional alignment and privileged instruction check
-
-   -- TMO, 09/03/03
- */
+*/
 
 #include <stdarg.h>
 #include <stdlib.h>
@@ -86,11 +69,6 @@ enum {
 #define IS_IMM (insn & (1<<13))
 
 static void disas_sparc_insn(DisasContext * dc);
-
-typedef void (GenOpFunc) (void);
-typedef void (GenOpFunc1) (long);
-typedef void (GenOpFunc2) (long, long);
-typedef void (GenOpFunc3) (long, long, long);
 
 static GenOpFunc *gen_op_movl_TN_reg[2][32] = {
     {

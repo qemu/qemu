@@ -51,11 +51,6 @@ enum {
 
 #include "gen-op.h"
 
-typedef void (GenOpFunc)(void);
-typedef void (GenOpFunc1)(long);
-typedef void (GenOpFunc2)(long, long);
-typedef void (GenOpFunc3)(long, long, long);
-
 static GenOpFunc2 *gen_test_cc[14] = {
     gen_op_test_eq,
     gen_op_test_ne,
