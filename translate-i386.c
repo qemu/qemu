@@ -2083,7 +2083,40 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             gen_op_st_T0_A0[ot]();
         }
         break;
-
+    case 0xd7: /* xlat */
+        /* handle override */
+        gen_op_movl_A0_reg[R_EBX]();
+        gen_op_addl_A0_AL();
+        if (s->aflag == 0)
+            gen_op_andl_A0_ffff();
+        /* XXX: factorize that */
+        {
+            int override, must_add_seg;
+            override = R_DS;
+            must_add_seg = s->addseg;
+            if (s->prefix & (PREFIX_CS | PREFIX_SS | PREFIX_DS | 
+                             PREFIX_ES | PREFIX_FS | PREFIX_GS)) {
+                if (s->prefix & PREFIX_ES)
+                    override = R_ES;
+                else if (s->prefix & PREFIX_CS)
+                    override = R_CS;
+                else if (s->prefix & PREFIX_SS)
+                    override = R_SS;
+                else if (s->prefix & PREFIX_DS)
+                    override = R_DS;
+                else if (s->prefix & PREFIX_FS)
+                    override = R_FS;
+                else
+                    override = R_GS;
+                must_add_seg = 1;
+            }
+            if (must_add_seg) {
+                gen_op_addl_A0_seg(offsetof(CPUX86State,seg_cache[override].base));
+            }
+        }
+        gen_op_ldub_T0_A0();
+        gen_op_mov_reg_T0[OT_BYTE][R_EAX]();
+        break;
     case 0xb0 ... 0xb7: /* mov R, Ib */
         val = insn_get(s, OT_BYTE);
         gen_op_movl_T0_im(val);
@@ -2121,8 +2154,13 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         } else {
             gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
             gen_op_mov_TN_reg[ot][0][reg]();
+            /* for xchg, lock is implicit */
+            if (!(prefixes & PREFIX_LOCK))
+                gen_op_lock();
             gen_op_ld_T1_A0[ot]();
             gen_op_st_T0_A0[ot]();
+            if (!(prefixes & PREFIX_LOCK))
+                gen_op_unlock();
             gen_op_mov_reg_T1[ot][reg]();
         }
         break;

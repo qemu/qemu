@@ -489,6 +489,11 @@ void OPPROTO op_addl_A0_im(void)
     A0 += PARAM1;
 }
 
+void OPPROTO op_addl_A0_AL(void)
+{
+    A0 += (EAX & 0xff);
+}
+
 void OPPROTO op_andl_A0_ffff(void)
 {
     A0 = A0 & 0xffff;
