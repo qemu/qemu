@@ -102,11 +102,39 @@ unset LD_LIBRARY_PATH
 Then you can launch the precompiled @file{ls} x86 executable:
 
 @example
-qemu /usr/local/qemu-i386/bin/ls
+qemu /usr/local/qemu-i386/bin/ls-i386
 @end example
-You can look at @file{/usr/local/qemu-i386/bin/qemu-conf.sh} so that QEMU is automatically
-launched by the Linux kernel when you try to launch x86 executables. It
-requires the @code{binfmt_misc} module in the Linux kernel.
+You can look at @file{/usr/local/qemu-i386/bin/qemu-conf.sh} so that
+QEMU is automatically launched by the Linux kernel when you try to
+launch x86 executables. It requires the @code{binfmt_misc} module in the
+Linux kernel.
+
+@end itemize
+
+@section Wine launch (Currently only tested when emulating x86 on x86)
+
+@itemize
+
+@item Ensure that you have a working QEMU with the x86 glibc
+distribution (see previous section). In order to verify it, you must be
+able to do:
+
+@example
+qemu /usr/local/qemu-i386/bin/ls-i386
+@end example
+
+@item Download the binary x86 wine install
+(@file{qemu-i386-wine.tar.gz} on the QEMU web page). 
+
+@item Configure wine on your account. Look at the provided script
+@file{/usr/local/qemu-i386/bin/wine-conf.sh}. Your previous
+@code{$@{HOME@}/.wine} directory is saved to @code{$@{HOME@}/.wine.org}.
+
+@item Then you can try the example @file{putty.exe}:
+
+@example
+qemu /usr/local/qemu-i386/wine/bin/wine /usr/local/qemu-i386/wine/c/Program\ Files/putty.exe
+@end example
 
 @end itemize
 
