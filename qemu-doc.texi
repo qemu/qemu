@@ -131,12 +131,22 @@ generic dynamic code generation architecture of QEMU.
 
 The SPARC emulation is currently in development.
 
+@chapter Installation
+
+If you want to compile QEMU, please read the @file{README} which gives
+the related information. Otherwise just download the binary
+distribution (@file{qemu-XXX-i386.tar.gz}) and untar it as root in
+@file{/}:
+
+@example
+su
+cd /
+tar zxvf /tmp/qemu-XXX-i386.tar.gz
+@end example
+
 @chapter QEMU User space emulator invocation
 
 @section Quick Start
-
-If you need to compile QEMU, please read the @file{README} which gives
-the related information.
 
 In order to launch a Linux process, QEMU needs the process executable
 itself and all the target (x86) dynamic libraries used by it. 
@@ -153,14 +163,14 @@ qemu-i386 -L / /bin/ls
 @code{-L /} tells that the x86 dynamic linker must be searched with a
 @file{/} prefix.
 
-@item Since QEMU is also a linux process, you can launch qemu with qemu:
+@item Since QEMU is also a linux process, you can launch qemu with qemu (NOTE: you can only do that if you compiled QEMU from the sources):
 
 @example 
 qemu-i386 -L / qemu-i386 -L / /bin/ls
 @end example
 
 @item On non x86 CPUs, you need first to download at least an x86 glibc
-(@file{qemu-XXX-i386-glibc21.tar.gz} on the QEMU web page). Ensure that
+(@file{qemu-runtime-i386-XXX-.tar.gz} on the QEMU web page). Ensure that
 @code{LD_LIBRARY_PATH} is not set:
 
 @example
