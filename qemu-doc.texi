@@ -480,9 +480,9 @@ disk image. QEMU stores the original raw disk image name and its
 modified time in the COW disk image so that chances of mistakes are
 reduced.
 
-If raw disk image is not read-only, by pressing @key{C-a s} you can
-flush the COW disk image back into the raw disk image, as in snapshot
-mode.
+If the raw disk image is not read-only, by pressing @key{C-a s} you
+can flush the COW disk image back into the raw disk image, as in
+snapshot mode.
 
 COW disk images can also be created without a corresponding raw disk
 image. It is useful to have a big initial virtual disk image without

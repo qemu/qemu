@@ -50,6 +50,7 @@ host      gcc      binutils      glibc    linux       distribution
 x86       2.95.2   2.13.2        2.1.3    2.4.18           
           3.2      2.13.2        2.1.3    2.4.18
           2.96     2.11.93.0.2   2.2.5    2.4.18      Red Hat 7.3
+          3.2.2    2.13.90.0.18  2.3.2    2.4.20      Red Hat 9
 
 PowerPC   2.95.4   2.12.90.0.1   2.2.5    2.4.20-pre2 Debian 3.0
 
