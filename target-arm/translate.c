@@ -94,6 +94,13 @@ static GenOpFunc1 *gen_shift_T1_im[4] = {
     gen_op_rorl_T1_im,
 };
 
+static GenOpFunc *gen_shift_T1_0[4] = {
+    NULL,
+    gen_op_shrl_T1_0,
+    gen_op_sarl_T1_0,
+    gen_op_rrxl_T1,
+};
+
 static GenOpFunc1 *gen_shift_T2_im[4] = {
     gen_op_shll_T2_im,
     gen_op_shrl_T2_im,
@@ -101,11 +108,25 @@ static GenOpFunc1 *gen_shift_T2_im[4] = {
     gen_op_rorl_T2_im,
 };
 
+static GenOpFunc *gen_shift_T2_0[4] = {
+    NULL,
+    gen_op_shrl_T2_0,
+    gen_op_sarl_T2_0,
+    gen_op_rrxl_T2,
+};
+
 static GenOpFunc1 *gen_shift_T1_im_cc[4] = {
     gen_op_shll_T1_im_cc,
     gen_op_shrl_T1_im_cc,
     gen_op_sarl_T1_im_cc,
     gen_op_rorl_T1_im_cc,
+};
+
+static GenOpFunc *gen_shift_T1_0_cc[4] = {
+    NULL,
+    gen_op_shrl_T1_0_cc,
+    gen_op_sarl_T1_0_cc,
+    gen_op_rrxl_T1_cc,
 };
 
 static GenOpFunc *gen_shift_T1_T0[4] = {
@@ -272,7 +293,7 @@ static inline void gen_movl_reg_T1(DisasContext *s, int reg)
 
 static inline void gen_add_data_offset(DisasContext *s, unsigned int insn)
 {
-    int val, rm, shift;
+    int val, rm, shift, shiftop;
 
     if (!(insn & (1 << 25))) {
         /* immediate */
@@ -286,8 +307,11 @@ static inline void gen_add_data_offset(DisasContext *s, unsigned int insn)
         rm = (insn) & 0xf;
         shift = (insn >> 7) & 0x1f;
         gen_movl_T2_reg(s, rm);
+        shiftop = (insn >> 5) & 3;
         if (shift != 0) {
-            gen_shift_T2_im[(insn >> 5) & 3](shift);
+            gen_shift_T2_im[shiftop](shift);
+        } else if (shiftop != 0) {
+            gen_shift_T2_0[shiftop]();
         }
         if (!(insn & (1 << 23)))
             gen_op_subl_T1_T2();
@@ -365,11 +389,12 @@ static void disas_arm_insn(DisasContext *s)
                     } else {
                         gen_shift_T1_im[shiftop](shift);
                     }
-                } else if (shiftop == 3) {
-                    if (logic_cc)
-                        gen_op_rrxl_T1_cc();
-                    else
-                        gen_op_rrxl_T1();
+                } else if (shiftop != 0) {
+                    if (logic_cc) {
+                        gen_shift_T1_0_cc[shiftop]();
+                    } else {
+                        gen_shift_T1_0[shiftop]();
+                    }
                 }
             } else {
                 rs = (insn >> 8) & 0xf;

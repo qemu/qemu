@@ -463,6 +463,7 @@ void OPPROTO op_swpl_T0_T1(void)
 /* shifts */
 
 /* T1 based */
+
 void OPPROTO op_shll_T1_im(void)
 {
     T1 = T1 << PARAM1;
@@ -473,9 +474,19 @@ void OPPROTO op_shrl_T1_im(void)
     T1 = (uint32_t)T1 >> PARAM1;
 }
 
+void OPPROTO op_shrl_T1_0(void)
+{
+    T1 = 0;
+}
+
 void OPPROTO op_sarl_T1_im(void)
 {
     T1 = (int32_t)T1 >> PARAM1;
+}
+
+void OPPROTO op_sarl_T1_0(void)
+{
+    T1 = (int32_t)T1 >> 31;
 }
 
 void OPPROTO op_rorl_T1_im(void)
@@ -503,10 +514,22 @@ void OPPROTO op_shrl_T1_im_cc(void)
     T1 = (uint32_t)T1 >> PARAM1;
 }
 
+void OPPROTO op_shrl_T1_0_cc(void)
+{
+    env->CF = (T1 >> 31) & 1;
+    T1 = 0;
+}
+
 void OPPROTO op_sarl_T1_im_cc(void)
 {
     env->CF = (T1 >> (PARAM1 - 1)) & 1;
     T1 = (int32_t)T1 >> PARAM1;
+}
+
+void OPPROTO op_sarl_T1_0_cc(void)
+{
+    env->CF = (T1 >> 31) & 1;
+    T1 = (int32_t)T1 >> 31;
 }
 
 void OPPROTO op_rorl_T1_im_cc(void)
@@ -536,9 +559,19 @@ void OPPROTO op_shrl_T2_im(void)
     T2 = (uint32_t)T2 >> PARAM1;
 }
 
+void OPPROTO op_shrl_T2_0(void)
+{
+    T2 = 0;
+}
+
 void OPPROTO op_sarl_T2_im(void)
 {
     T2 = (int32_t)T2 >> PARAM1;
+}
+
+void OPPROTO op_sarl_T2_0(void)
+{
+    T2 = (int32_t)T2 >> 31;
 }
 
 void OPPROTO op_rorl_T2_im(void)
@@ -546,6 +579,11 @@ void OPPROTO op_rorl_T2_im(void)
     int shift;
     shift = PARAM1;
     T2 = ((uint32_t)T2 >> shift) | (T2 << (32 - shift));
+}
+
+void OPPROTO op_rrxl_T2(void)
+{
+    T2 = ((uint32_t)T2 >> 1) | ((uint32_t)env->CF << 31);
 }
 
 /* T1 based, use T0 as shift count */
