@@ -333,7 +333,6 @@ static int img_create(int argc, char **argv)
             break;
         }
     }
-    optind++;
     if (optind >= argc) 
         help();
     filename = argv[optind++];
@@ -403,7 +402,6 @@ static int img_commit(int argc, char **argv)
             break;
         }
     }
-    optind++;
     if (optind >= argc) 
         help();
     filename = argv[optind++];
@@ -511,7 +509,6 @@ static int img_convert(int argc, char **argv)
             break;
         }
     }
-    optind++;
     if (optind >= argc) 
         help();
     filename = argv[optind++];
@@ -639,7 +636,6 @@ static int img_info(int argc, char **argv)
             break;
         }
     }
-    optind++;
     if (optind >= argc) 
         help();
     filename = argv[optind++];
@@ -686,6 +682,7 @@ int main(int argc, char **argv)
     if (argc < 2)
         help();
     cmd = argv[1];
+    optind++;
     if (!strcmp(cmd, "create")) {
         img_create(argc, argv);
     } else if (!strcmp(cmd, "commit")) {
