@@ -1930,6 +1930,7 @@ void help(void)
            "-m megs         set virtual RAM size to megs MB [default=%d]\n"
            "-nographic      disable graphical output and redirect serial I/Os to console\n"
            "-enable-audio   enable audio support\n"
+           "-localtime      set the real time clock to local time [default=utc]\n"
            "\n"
            "Network options:\n"
            "-nics n         simulate 'n' network cards [default=1]\n"
