@@ -32,8 +32,15 @@
 #define CPU_TLB_SIZE 256
 
 typedef struct CPUTLBEntry {
-    uint32_t address;
-    uint32_t addend;
+    /* bit 31 to TARGET_PAGE_BITS : virtual address 
+       bit TARGET_PAGE_BITS-1..IO_MEM_SHIFT : if non zero, memory io
+                                              zone number
+       bit 3                      : indicates that the entry is invalid
+       bit 2..0                   : zero
+    */
+    uint32_t address; 
+    /* addend to virtual address to get physical address */
+    uint32_t addend; 
 } CPUTLBEntry;
 
 #endif
