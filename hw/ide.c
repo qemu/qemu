@@ -297,6 +297,7 @@ typedef struct IDEState {
     int64_t nb_sectors;
     int mult_sectors;
     int irq;
+    int drive_serial;
     /* ide regs */
     uint8_t feature;
     uint8_t error;
@@ -359,6 +360,7 @@ static void ide_identify(IDEState *s)
 {
     uint16_t *p;
     unsigned int oldsize;
+    char buf[20];
 
     memset(s->io_buffer, 0, 512);
     p = (uint16_t *)s->io_buffer;
@@ -368,7 +370,8 @@ static void ide_identify(IDEState *s)
     put_le16(p + 4, 512 * s->sectors); /* XXX: retired, remove ? */
     put_le16(p + 5, 512); /* XXX: retired, remove ? */
     put_le16(p + 6, s->sectors); 
-    padstr((uint8_t *)(p + 10), "QM00001", 20); /* serial number */
+    snprintf(buf, sizeof(buf), "QM%05d", s->drive_serial);
+    padstr((uint8_t *)(p + 10), buf, 20); /* serial number */
     put_le16(p + 20, 3); /* XXX: retired, remove ? */
     put_le16(p + 21, 512); /* cache size in sectors */
     put_le16(p + 22, 4); /* ecc bytes */
@@ -404,12 +407,14 @@ static void ide_identify(IDEState *s)
 static void ide_atapi_identify(IDEState *s)
 {
     uint16_t *p;
+    char buf[20];
 
     memset(s->io_buffer, 0, 512);
     p = (uint16_t *)s->io_buffer;
     /* Removable CDROM, 50us response, 12 byte packets */
     put_le16(p + 0, (2 << 14) | (5 << 8) | (1 << 7) | (2 << 5) | (0 << 0));
-    padstr((uint8_t *)(p + 10), "QM00001", 20); /* serial number */
+    snprintf(buf, sizeof(buf), "QM%05d", s->drive_serial);
+    padstr((uint8_t *)(p + 10), buf, 20); /* serial number */
     put_le16(p + 20, 3); /* buffer type */
     put_le16(p + 21, 512); /* cache size in sectors */
     put_le16(p + 22, 4); /* ecc bytes */
@@ -1432,6 +1437,7 @@ void ide_init(int iobase, int iobase2, int irq,
               BlockDriverState *hd0, BlockDriverState *hd1)
 {
     IDEState *s, *ide_state;
+    static int drive_serial = 1;
     int i, cylinders, heads, secs;
     int64_t nb_sectors;
 
@@ -1473,6 +1479,7 @@ void ide_init(int iobase, int iobase2, int irq,
                 bdrv_set_change_cb(s->bs, cdrom_change_cb, s);
             }
         }
+        s->drive_serial = drive_serial++;
         s->irq = irq;
         ide_reset(s);
     }
