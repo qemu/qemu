@@ -433,6 +433,7 @@ void OPPROTO op_jmp_im(void)
 
 void OPPROTO op_hlt(void)
 {
+    env->hflags &= ~HF_INHIBIT_IRQ_MASK; /* needed if sti is just before */
     env->exception_index = EXCP_HLT;
     cpu_loop_exit();
 }
