@@ -21,6 +21,7 @@ version 0.5.2:
   - fixed cmpxchg exception safeness
   - access to virtual memory in gdb stub
   - task gate and NT flag fixes
+  - eflags optimisation fix for string operations
 
 version 0.5.1:
   
