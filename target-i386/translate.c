@@ -3921,6 +3921,8 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
             } else {
                 gen_ldst_modrm(s, modrm, OT_WORD, OR_TMP0, 0);
                 gen_op_lmsw_T0();
+                gen_op_jmp_im(s->pc - s->cs_base);
+                gen_eob(s);
             }
             break;
         case 7: /* invlpg */
