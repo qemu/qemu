@@ -299,9 +299,9 @@ Output log in /tmp/qemu.log
 
 During the graphical emulation, you can use the following keys:
 @table @key
-@item Ctrl+Shift
+@item Ctrl-Shift
 Toggle mouse and keyboard grab.
-@item Ctrl+Shift-f
+@item Ctrl-Shift-f
 Toggle full screen
 @end table
 
