@@ -593,6 +593,7 @@ fi
 #echo "Creating $config_mak, $config_h and $target_dir/Makefile"
 
 mkdir -p $target_dir
+mkdir -p $target_dir/fpu
 if test "$target" = "arm-user" -o "$target" = "armeb-user" ; then
   mkdir -p $target_dir/nwfpe
 fi
@@ -658,6 +659,10 @@ if test "$target_user_only" = "yes" ; then
   echo "#define CONFIG_USER_ONLY 1" >> $config_h
 fi
 
+if test "$target_cpu" = "arm" -o "$target_cpu" = "armeb" ; then
+  echo "CONFIG_SOFTFLOAT=yes" >> $config_mak
+  echo "#define CONFIG_SOFTFLOAT 1" >> $config_h
+fi
 # sdl defines
 
 if test "$target_user_only" = "no"; then

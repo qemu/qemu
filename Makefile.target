@@ -229,7 +229,7 @@ ifeq ($(TARGET_ARCH), i386)
 OBJS+= vm86.o
 endif
 ifeq ($(TARGET_ARCH), arm)
-OBJS+=nwfpe/softfloat.o nwfpe/fpa11.o nwfpe/fpa11_cpdo.o \
+OBJS+=nwfpe/fpa11.o nwfpe/fpa11_cpdo.o \
 nwfpe/fpa11_cpdt.o nwfpe/fpa11_cprt.o nwfpe/fpopcode.o nwfpe/single_cpdo.o \
  nwfpe/double_cpdo.o nwfpe/extended_cpdo.o
 endif
@@ -237,8 +237,14 @@ SRCS:= $(OBJS:.o=.c)
 OBJS+= libqemu.a
 
 # cpu emulator library
-LIBOBJS=exec.o kqemu.o translate-all.o cpu-exec.o\
+LIBOBJS=exec.o kqemu.o translate-op.o translate-all.o cpu-exec.o\
         translate.o op.o 
+ifdef CONFIG_SOFTFLOAT
+LIBOBJS+=fpu/softfloat.o
+else
+LIBOBJS+=fpu/softfloat-native.o
+endif
+DEFINES+=-I$(SRC_PATH)/fpu
 
 ifeq ($(TARGET_ARCH), i386)
 LIBOBJS+=helper.o helper2.o
@@ -399,7 +405,9 @@ libqemu.a: $(LIBOBJS)
 
 translate.o: translate.c gen-op.h opc.h cpu.h
 
-translate-all.o: translate-all.c op.h opc.h cpu.h
+translate-all.o: translate-all.c opc.h cpu.h
+
+translate-op.o: translate-all.c op.h opc.h cpu.h
 
 op.h: op.o $(DYNGEN)
 	$(DYNGEN) -o $@ $<
