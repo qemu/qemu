@@ -74,12 +74,17 @@
 /* debug PC keyboard */
 //#define DEBUG_KBD
 
+/* debug PC keyboard : only mouse */
+//#define DEBUG_MOUSE
+
 #define PHYS_RAM_BASE     0xac000000
 #define PHYS_RAM_MAX_SIZE (256 * 1024 * 1024)
 
 #define KERNEL_LOAD_ADDR   0x00100000
 #define INITRD_LOAD_ADDR   0x00400000
 #define KERNEL_PARAMS_ADDR 0x00090000
+
+#define GUI_REFRESH_INTERVAL 30 
 
 #define MAX_DISKS 2
 
@@ -198,9 +203,6 @@ struct  __attribute__ ((packed)) linux_params {
 #define KERNEL_CS     0x10
 #define KERNEL_DS     0x18
 
-typedef void (IOPortWriteFunc)(CPUX86State *env, uint32_t address, uint32_t data);
-typedef uint32_t (IOPortReadFunc)(CPUX86State *env, uint32_t address);
-
 #define MAX_IOPORTS 4096
 
 static const char *interp_prefix = CONFIG_QEMU_PREFIX;
@@ -212,6 +214,11 @@ int loglevel;
 IOPortReadFunc *ioport_read_table[3][MAX_IOPORTS];
 IOPortWriteFunc *ioport_write_table[3][MAX_IOPORTS];
 BlockDriverState *bs_table[MAX_DISKS];
+int vga_ram_size;
+static DisplayState display_state;
+int nodisp;
+int term_inited;
+int64_t ticks_per_sec;
 
 /***********************************************************/
 /* x86 io ports */
@@ -431,49 +438,6 @@ void hw_error(const char *fmt, ...)
 }
 
 /***********************************************************/
-/* vga emulation */
-static uint8_t vga_index;
-static uint8_t vga_regs[256];
-static int last_cursor_pos;
-
-void update_console_messages(void)
-{
-    int c, i, cursor_pos, eol;
-
-    cursor_pos = vga_regs[0x0f] | (vga_regs[0x0e] << 8);
-    eol = 0;
-    for(i = last_cursor_pos; i < cursor_pos; i++) {
-        c = phys_ram_base[0xb8000 + (i) * 2];
-        if (c >= ' ') {
-            putchar(c);
-            eol = 0;
-        } else {
-            if (!eol)
-                putchar('\n');
-            eol = 1;
-        }
-    }
-    fflush(stdout);
-    last_cursor_pos = cursor_pos;
-}
-
-/* just to see first Linux console messages, we intercept cursor position */
-void vga_ioport_write(CPUX86State *env, uint32_t addr, uint32_t data)
-{
-    switch(addr) {
-    case 0x3d4:
-        vga_index = data;
-        break;
-    case 0x3d5:
-        vga_regs[vga_index] = data;
-        if (vga_index == 0x0f)
-            update_console_messages();
-        break;
-    }
-            
-}
-
-/***********************************************************/
 /* cmos emulation */
 
 #define RTC_SECONDS             0
@@ -555,6 +519,7 @@ void cmos_init(void)
     /* various important CMOS locations needed by PC/Bochs bios */
 
     cmos_data[REG_EQUIPMENT_BYTE] = 0x02; /* FPU is there */
+    cmos_data[REG_EQUIPMENT_BYTE] |= 0x04; /* PS/2 mouse installed */
 
     /* memory size */
     val = (phys_ram_size / 1024) - 1024;
@@ -674,13 +639,13 @@ static void pic_update_irq(void)
 int64_t irq_time[16];
 int64_t cpu_get_ticks(void);
 #endif
-#ifdef DEBUG_PIC
+#if defined(DEBUG_PIC)
 int irq_level[16];
 #endif
 
 void pic_set_irq(int irq, int level)
 {
-#ifdef DEBUG_PIC
+#if defined(DEBUG_PIC)
     if (level != irq_level[irq]) {
         printf("pic_set_irq: irq=%d level=%d\n", irq, level);
         irq_level[irq] = level;
@@ -702,7 +667,9 @@ int cpu_x86_get_pic_interrupt(CPUX86State *env)
     /* signal the pic that the irq was acked by the CPU */
     irq = pic_irq_requested;
 #ifdef DEBUG_IRQ_LATENCY
-    printf("IRQ%d latency=%Ld\n", irq, cpu_get_ticks() - irq_time[irq]);
+    printf("IRQ%d latency=%0.3fus\n", 
+           irq, 
+           (double)(cpu_get_ticks() - irq_time[irq]) * 1000000.0 / ticks_per_sec);
 #endif
 #ifdef DEBUG_PIC
     printf("pic_interrupt: irq=%d\n", irq);
@@ -761,18 +728,22 @@ void pic_ioport_write(CPUX86State *env, uint32_t addr, uint32_t val)
                 }
                 if (val == 0xa0)
                     s->priority_add = (s->priority_add + 1) & 7;
+                pic_update_irq();
                 break;
             case 0x60 ... 0x67:
                 priority = val & 7;
                 s->isr &= ~(1 << priority);
+                pic_update_irq();
                 break;
             case 0xc0 ... 0xc7:
                 s->priority_add = (val + 1) & 7;
+                pic_update_irq();
                 break;
             case 0xe0 ... 0xe7:
                 priority = val & 7;
                 s->isr &= ~(1 << priority);
                 s->priority_add = (priority + 1) & 7;
+                pic_update_irq();
                 break;
             }
         }
@@ -860,8 +831,6 @@ PITChannelState pit_channels[3];
 int speaker_data_on;
 int dummy_refresh_clock;
 int pit_min_timer_count = 0;
-
-int64_t ticks_per_sec;
 
 int64_t get_clock(void)
 {
@@ -1354,37 +1323,6 @@ void serial_received_byte(SerialState *s, int ch)
     }
 }
 
-/* init terminal so that we can grab keys */
-static struct termios oldtty;
-
-static void term_exit(void)
-{
-    tcsetattr (0, TCSANOW, &oldtty);
-}
-
-static void term_init(void)
-{
-    struct termios tty;
-
-    tcgetattr (0, &tty);
-    oldtty = tty;
-
-    tty.c_iflag &= ~(IGNBRK|BRKINT|PARMRK|ISTRIP
-                          |INLCR|IGNCR|ICRNL|IXON);
-    tty.c_oflag |= OPOST;
-    tty.c_lflag &= ~(ECHO|ECHONL|ICANON|IEXTEN|ISIG);
-    tty.c_cflag &= ~(CSIZE|PARENB);
-    tty.c_cflag |= CS8;
-    tty.c_cc[VMIN] = 1;
-    tty.c_cc[VTIME] = 0;
-    
-    tcsetattr (0, TCSANOW, &tty);
-
-    atexit(term_exit);
-
-    fcntl(0, F_SETFL, O_NONBLOCK);
-}
-
 void serial_init(void)
 {
     SerialState *s = &serial_ports[0];
@@ -1393,8 +1331,6 @@ void serial_init(void)
 
     register_ioport_write(0x3f8, 8, serial_ioport_write, 1);
     register_ioport_read(0x3f8, 8, serial_ioport_read, 1);
-
-    term_init();
 }
 
 /***********************************************************/
@@ -2597,67 +2533,109 @@ void ide_init(void)
 #define KBD_MODE_RFU		0x80
 
 /* Mouse Commands */
-#define AUX_SET_RES		0xE8	/* Set resolution */
 #define AUX_SET_SCALE11		0xE6	/* Set 1:1 scaling */
 #define AUX_SET_SCALE21		0xE7	/* Set 2:1 scaling */
+#define AUX_SET_RES		0xE8	/* Set resolution */
 #define AUX_GET_SCALE		0xE9	/* Get scaling factor */
 #define AUX_SET_STREAM		0xEA	/* Set stream mode */
+#define AUX_POLL		0xEB	/* Poll */
+#define AUX_RESET_WRAP		0xEC	/* Reset wrap mode */
+#define AUX_SET_WRAP		0xEE	/* Set wrap mode */
+#define AUX_SET_REMOTE		0xF0	/* Set remote mode */
+#define AUX_GET_TYPE		0xF2	/* Get type */
 #define AUX_SET_SAMPLE		0xF3	/* Set sample rate */
 #define AUX_ENABLE_DEV		0xF4	/* Enable aux device */
 #define AUX_DISABLE_DEV		0xF5	/* Disable aux device */
+#define AUX_SET_DEFAULT		0xF6
 #define AUX_RESET		0xFF	/* Reset aux device */
 #define AUX_ACK			0xFA	/* Command byte ACK. */
 
-#define KBD_QUEUE_SIZE 64
+#define MOUSE_STATUS_REMOTE     0x40
+#define MOUSE_STATUS_ENABLED    0x20
+#define MOUSE_STATUS_SCALE21    0x10
+
+#define KBD_QUEUE_SIZE 256
 
 typedef struct {
     uint8_t data[KBD_QUEUE_SIZE];
     int rptr, wptr, count;
 } KBDQueue;
 
-enum KBDWriteState {
-    KBD_STATE_CMD = 0,
-    KBD_STATE_LED,
-};
-
 typedef struct KBDState {
     KBDQueue queues[2];
     uint8_t write_cmd; /* if non zero, write data to port 60 is expected */
     uint8_t status;
     uint8_t mode;
+    /* keyboard state */
     int kbd_write_cmd;
     int scan_enabled;
+    /* mouse state */
+    int mouse_write_cmd;
+    uint8_t mouse_status;
+    uint8_t mouse_resolution;
+    uint8_t mouse_sample_rate;
+    uint8_t mouse_wrap;
+    uint8_t mouse_type; /* 0 = PS2, 3 = IMPS/2, 4 = IMEX */
+    uint8_t mouse_detect_state;
+    int mouse_dx; /* current values, needed for 'poll' mode */
+    int mouse_dy;
+    int mouse_dz;
+    uint8_t mouse_buttons;
 } KBDState;
 
 KBDState kbd_state;
 int reset_requested;
 int a20_enabled;
 
+/* update irq and KBD_STAT_[MOUSE_]OBF */
 static void kbd_update_irq(KBDState *s)
 {
-    int level;
-    
-    level = ((s->status & KBD_STAT_OBF) && (s->mode & KBD_MODE_KBD_INT));
-    pic_set_irq(1, level);
-    
-    level = ((s->status & KBD_STAT_MOUSE_OBF) && (s->mode & KBD_MODE_MOUSE_INT));
-    pic_set_irq(12, level);
+    int irq12_level, irq1_level;
+
+    irq1_level = 0;    
+    irq12_level = 0;    
+    s->status &= ~(KBD_STAT_OBF | KBD_STAT_MOUSE_OBF);
+    if (s->queues[0].count != 0 ||
+        s->queues[1].count != 0) {
+        s->status |= KBD_STAT_OBF;
+        if (s->queues[1].count != 0) {
+            s->status |= KBD_STAT_MOUSE_OBF;
+            if (s->mode & KBD_MODE_MOUSE_INT)
+                irq12_level = 1;
+        } else {
+            if (s->mode & KBD_MODE_KBD_INT)
+                irq1_level = 1;
+        }
+    }
+    pic_set_irq(1, irq1_level);
+    pic_set_irq(12, irq12_level);
 }
 
 static void kbd_queue(KBDState *s, int b, int aux)
 {
     KBDQueue *q = &kbd_state.queues[aux];
 
+#if defined(DEBUG_MOUSE) || defined(DEBUG_KBD)
+    if (aux)
+        printf("mouse event: 0x%02x\n", b);
+#ifdef DEBUG_KBD
+    else
+        printf("kbd event: 0x%02x\n", b);
+#endif
+#endif
     if (q->count >= KBD_QUEUE_SIZE)
         return;
     q->data[q->wptr] = b;
     if (++q->wptr == KBD_QUEUE_SIZE)
         q->wptr = 0;
     q->count++;
-    s->status |= KBD_STAT_OBF;
-    if (aux)
-        s->status |= KBD_STAT_MOUSE_OBF;
     kbd_update_irq(s);
+}
+
+void kbd_put_keycode(int keycode)
+{
+    KBDState *s = &kbd_state;
+    kbd_queue(s, keycode, 0);
 }
 
 uint32_t kbd_read_status(CPUX86State *env, uint32_t addr)
@@ -2745,9 +2723,9 @@ uint32_t kbd_read_data(CPUX86State *env, uint32_t addr)
     KBDQueue *q;
     int val;
     
-    q = &s->queues[1]; /* first check AUX data */
+    q = &s->queues[0]; /* first check KBD data */
     if (q->count == 0)
-        q = &s->queues[0]; /* then check KBD data */
+        q = &s->queues[1]; /* then check AUX data */
     if (q->count == 0) {
         /* XXX: return something else ? */
         val = 0;
@@ -2756,14 +2734,14 @@ uint32_t kbd_read_data(CPUX86State *env, uint32_t addr)
         if (++q->rptr == KBD_QUEUE_SIZE)
             q->rptr = 0;
         q->count--;
+        /* reading deasserts IRQ */
+        if (q == &s->queues[0])
+            pic_set_irq(1, 0);
+        else
+            pic_set_irq(12, 0);
     }
-    if (s->queues[1].count == 0) {
-        s->status &= ~KBD_STAT_MOUSE_OBF;
-        if (s->queues[0].count == 0)
-            s->status &= ~KBD_STAT_OBF;
-        kbd_update_irq(s);
-    }
-
+    /* reassert IRQs if data left */
+    kbd_update_irq(s);
 #ifdef DEBUG_KBD
     printf("kbd: read data=0x%02x\n", val);
 #endif
@@ -2820,12 +2798,212 @@ static void kbd_write_keyboard(KBDState *s, int val)
         break;
     case KBD_CMD_SET_LEDS:
         kbd_queue(s, KBD_REPLY_ACK, 0);
+        s->kbd_write_cmd = -1;
         break;
     case KBD_CMD_SET_RATE:
         kbd_queue(s, KBD_REPLY_ACK, 0);
+        s->kbd_write_cmd = -1;
         break;
     }
-    s->kbd_write_cmd = -1;
+}
+
+static void kbd_mouse_send_packet(KBDState *s)
+{
+    unsigned int b;
+    int dx1, dy1, dz1;
+
+    dx1 = s->mouse_dx;
+    dy1 = s->mouse_dy;
+    dz1 = s->mouse_dz;
+    /* XXX: increase range to 8 bits ? */
+    if (dx1 > 127)
+        dx1 = 127;
+    else if (dx1 < -127)
+        dx1 = -127;
+    if (dy1 > 127)
+        dy1 = 127;
+    else if (dy1 < -127)
+        dy1 = -127;
+    b = 0x08 | ((dx1 < 0) << 4) | ((dy1 < 0) << 5) | (s->mouse_buttons & 0x07);
+    kbd_queue(s, b, 1);
+    kbd_queue(s, dx1 & 0xff, 1);
+    kbd_queue(s, dy1 & 0xff, 1);
+    /* extra byte for IMPS/2 or IMEX */
+    switch(s->mouse_type) {
+    default:
+        break;
+    case 3:
+        if (dz1 > 127)
+            dz1 = 127;
+        else if (dz1 < -127)
+                dz1 = -127;
+        kbd_queue(s, dz1 & 0xff, 1);
+        break;
+    case 4:
+        if (dz1 > 7)
+            dz1 = 7;
+        else if (dz1 < -7)
+            dz1 = -7;
+        b = (dz1 & 0x0f) | ((s->mouse_buttons & 0x18) << 1);
+        kbd_queue(s, b, 1);
+        break;
+    }
+
+    /* update deltas */
+    s->mouse_dx -= dx1;
+    s->mouse_dy -= dy1;
+    s->mouse_dz -= dz1;
+}
+
+void kbd_mouse_event(int dx, int dy, int dz, int buttons_state)
+{
+    KBDState *s = &kbd_state;
+
+    /* check if deltas are recorded when disabled */
+    if (!(s->mouse_status & MOUSE_STATUS_ENABLED))
+        return;
+
+    s->mouse_dx += dx;
+    s->mouse_dy -= dy;
+    s->mouse_dz += dz;
+    s->mouse_buttons = buttons_state;
+    
+    if (!(s->mouse_status & MOUSE_STATUS_REMOTE) &&
+        (s->queues[1].count < (KBD_QUEUE_SIZE - 16))) {
+        for(;;) {
+            /* if not remote, send event. Multiple events are sent if
+               too big deltas */
+            kbd_mouse_send_packet(s);
+            if (s->mouse_dx == 0 && s->mouse_dy == 0 && s->mouse_dz == 0)
+                break;
+        }
+    }
+}
+
+static void kbd_write_mouse(KBDState *s, int val)
+{
+#ifdef DEBUG_MOUSE
+    printf("kbd: write mouse 0x%02x\n", val);
+#endif
+    switch(s->mouse_write_cmd) {
+    default:
+    case -1:
+        /* mouse command */
+        if (s->mouse_wrap) {
+            if (val == AUX_RESET_WRAP) {
+                s->mouse_wrap = 0;
+                kbd_queue(s, AUX_ACK, 1);
+                return;
+            } else if (val != AUX_RESET) {
+                kbd_queue(s, val, 1);
+                return;
+            }
+        }
+        switch(val) {
+        case AUX_SET_SCALE11:
+            s->mouse_status &= ~MOUSE_STATUS_SCALE21;
+            kbd_queue(s, AUX_ACK, 1);
+            break;
+        case AUX_SET_SCALE21:
+            s->mouse_status |= MOUSE_STATUS_SCALE21;
+            kbd_queue(s, AUX_ACK, 1);
+            break;
+        case AUX_SET_STREAM:
+            s->mouse_status &= ~MOUSE_STATUS_REMOTE;
+            kbd_queue(s, AUX_ACK, 1);
+            break;
+        case AUX_SET_WRAP:
+            s->mouse_wrap = 1;
+            kbd_queue(s, AUX_ACK, 1);
+            break;
+        case AUX_SET_REMOTE:
+            s->mouse_status |= MOUSE_STATUS_REMOTE;
+            kbd_queue(s, AUX_ACK, 1);
+            break;
+        case AUX_GET_TYPE:
+            kbd_queue(s, AUX_ACK, 1);
+            kbd_queue(s, s->mouse_type, 1);
+            break;
+        case AUX_SET_RES:
+        case AUX_SET_SAMPLE:
+            s->mouse_write_cmd = val;
+            kbd_queue(s, AUX_ACK, 1);
+            break;
+        case AUX_GET_SCALE:
+            kbd_queue(s, AUX_ACK, 1);
+            kbd_queue(s, s->mouse_status, 1);
+            kbd_queue(s, s->mouse_resolution, 1);
+            kbd_queue(s, s->mouse_sample_rate, 1);
+            break;
+        case AUX_POLL:
+            kbd_queue(s, AUX_ACK, 1);
+            kbd_mouse_send_packet(s);
+            break;
+        case AUX_ENABLE_DEV:
+            s->mouse_status |= MOUSE_STATUS_ENABLED;
+            kbd_queue(s, AUX_ACK, 1);
+            break;
+        case AUX_DISABLE_DEV:
+            s->mouse_status &= ~MOUSE_STATUS_ENABLED;
+            kbd_queue(s, AUX_ACK, 1);
+            break;
+        case AUX_SET_DEFAULT:
+            s->mouse_sample_rate = 100;
+            s->mouse_resolution = 2;
+            s->mouse_status = 0;
+            kbd_queue(s, AUX_ACK, 1);
+            break;
+        case AUX_RESET:
+            s->mouse_sample_rate = 100;
+            s->mouse_resolution = 2;
+            s->mouse_status = 0;
+            kbd_queue(s, AUX_ACK, 1);
+            kbd_queue(s, 0xaa, 1);
+            kbd_queue(s, s->mouse_type, 1);
+            break;
+        default:
+            break;
+        }
+        break;
+    case AUX_SET_SAMPLE:
+        s->mouse_sample_rate = val;
+#if 0
+        /* detect IMPS/2 or IMEX */
+        switch(s->mouse_detect_state) {
+        default:
+        case 0:
+            if (val == 200)
+                s->mouse_detect_state = 1;
+            break;
+        case 1:
+            if (val == 100)
+                s->mouse_detect_state = 2;
+            else if (val == 200)
+                s->mouse_detect_state = 3;
+            else
+                s->mouse_detect_state = 0;
+            break;
+        case 2:
+            if (val == 80) 
+                s->mouse_type = 3; /* IMPS/2 */
+            s->mouse_detect_state = 0;
+            break;
+        case 3:
+            if (val == 80) 
+                s->mouse_type = 4; /* IMEX */
+            s->mouse_detect_state = 0;
+            break;
+        }
+#endif
+        kbd_queue(s, AUX_ACK, 1);
+        s->mouse_write_cmd = -1;
+        break;
+    case AUX_SET_RES:
+        s->mouse_resolution = val;
+        kbd_queue(s, AUX_ACK, 1);
+        s->mouse_write_cmd = -1;
+        break;
+    }
 }
 
 void kbd_write_data(CPUX86State *env, uint32_t addr, uint32_t val)
@@ -2857,6 +3035,9 @@ void kbd_write_data(CPUX86State *env, uint32_t addr, uint32_t val)
             cpu_x86_interrupt(global_env, CPU_INTERRUPT_EXIT);
         }
         break;
+    case KBD_CCMD_WRITE_MOUSE:
+        kbd_write_mouse(s, val);
+        break;
     default:
         break;
     }
@@ -2869,8 +3050,9 @@ void kbd_reset(KBDState *s)
     int i;
 
     s->kbd_write_cmd = -1;
+    s->mouse_write_cmd = -1;
     s->mode = KBD_MODE_KBD_INT | KBD_MODE_MOUSE_INT;
-    s->status = KBD_MODE_SYS | KBD_MODE_NO_KEYLOCK;
+    s->status = KBD_STAT_CMD | KBD_STAT_UNLOCKED;
     for(i = 0; i < 2; i++) {
         q = &s->queues[i];
         q->rptr = 0;
@@ -2934,6 +3116,63 @@ void bochs_bios_init(void)
 }
 
 /***********************************************************/
+/* dumb display */
+
+/* init terminal so that we can grab keys */
+static struct termios oldtty;
+
+static void term_exit(void)
+{
+    tcsetattr (0, TCSANOW, &oldtty);
+}
+
+static void term_init(void)
+{
+    struct termios tty;
+
+    tcgetattr (0, &tty);
+    oldtty = tty;
+
+    tty.c_iflag &= ~(IGNBRK|BRKINT|PARMRK|ISTRIP
+                          |INLCR|IGNCR|ICRNL|IXON);
+    tty.c_oflag |= OPOST;
+    tty.c_lflag &= ~(ECHO|ECHONL|ICANON|IEXTEN|ISIG);
+    tty.c_cflag &= ~(CSIZE|PARENB);
+    tty.c_cflag |= CS8;
+    tty.c_cc[VMIN] = 1;
+    tty.c_cc[VTIME] = 0;
+    
+    tcsetattr (0, TCSANOW, &tty);
+
+    atexit(term_exit);
+
+    fcntl(0, F_SETFL, O_NONBLOCK);
+}
+
+static void dumb_update(DisplayState *ds, int x, int y, int w, int h)
+{
+}
+
+static void dumb_resize(DisplayState *ds, int w, int h)
+{
+}
+
+static void dumb_refresh(DisplayState *ds)
+{
+    vga_update_display();
+}
+
+void dumb_display_init(DisplayState *ds)
+{
+    ds->data = NULL;
+    ds->linesize = 0;
+    ds->depth = 0;
+    ds->dpy_update = dumb_update;
+    ds->dpy_resize = dumb_resize;
+    ds->dpy_refresh = dumb_refresh;
+}
+
+/***********************************************************/
 /* cpu signal handler */
 static void host_segv_handler(int host_signum, siginfo_t *info, 
                               void *puc)
@@ -2947,6 +3186,9 @@ static void host_segv_handler(int host_signum, siginfo_t *info,
 static int timer_irq_pending;
 static int timer_irq_count;
 
+static int timer_ms;
+static int gui_refresh_pending, gui_refresh_count;
+
 static void host_alarm_handler(int host_signum, siginfo_t *info, 
                                void *puc)
 {
@@ -2958,9 +3200,17 @@ static void host_alarm_handler(int host_signum, siginfo_t *info,
         if (timer_irq_count > 2)
             timer_irq_count = 2;
         timer_irq_count--;
+        timer_irq_pending = 1;
+    }
+    gui_refresh_count += timer_ms;
+    if (gui_refresh_count >= GUI_REFRESH_INTERVAL) {
+        gui_refresh_count = 0;
+        gui_refresh_pending = 1;
+    }
+
+    if (gui_refresh_pending || timer_irq_pending) {
         /* just exit from the cpu to have a chance to handle timers */
         cpu_x86_interrupt(global_env, CPU_INTERRUPT_EXIT);
-        timer_irq_pending = 1;
     }
 }
 
@@ -2987,6 +3237,14 @@ int main_loop(void *opaque)
     int ret, n, timeout;
     uint8_t ch;
     CPUState *env = global_env;
+
+    if (nodisp && !term_inited) {
+        /* initialize terminal only there so that the user has a
+           chance to stop QEMU with Ctrl-C before the gdb connection
+           is launched */
+        term_inited = 1;
+        term_init();
+    }
 
     for(;;) {
 
@@ -3059,6 +3317,12 @@ int main_loop(void *opaque)
             pic_set_irq(0, 0);
             timer_irq_pending = 0;
         }
+
+        /* VGA */
+        if (gui_refresh_pending) {
+            display_state.dpy_refresh(&display_state);
+            gui_refresh_pending = 0;
+        }
     }
     return EXCP_INTERRUPT;
 }
@@ -3098,31 +3362,35 @@ struct option long_options[] = {
     { "hdb", 1, NULL, 0, },
     { "snapshot", 0, NULL, 0, },
     { "hdachs", 1, NULL, 0, },
+    { "nodisp", 0, NULL, 0, },
     { NULL, 0, NULL, 0 },
 };
 
 int main(int argc, char **argv)
 {
     int c, ret, initrd_size, i, use_gdbstub, gdbstub_port, long_index;
-    int snapshot, linux_boot;
+    int snapshot, linux_boot, total_ram_size;
     struct linux_params *params;
     struct sigaction act;
     struct itimerval itv;
     CPUX86State *env;
     const char *tmpdir, *initrd_filename;
     const char *hd_filename[MAX_DISKS];
-    
+    DisplayState *ds = &display_state;
+
     /* we never want that malloc() uses mmap() */
     mallopt(M_MMAP_THRESHOLD, 4096 * 1024);
     initrd_filename = NULL;
     for(i = 0; i < MAX_DISKS; i++)
         hd_filename[i] = NULL;
     phys_ram_size = 32 * 1024 * 1024;
+    vga_ram_size = VGA_RAM_SIZE;
     pstrcpy(network_script, sizeof(network_script), DEFAULT_NETWORK_SCRIPT);
     use_gdbstub = 0;
     gdbstub_port = DEFAULT_GDBSTUB_PORT;
     snapshot = 0;
     linux_boot = 0;
+    nodisp = 0;
     for(;;) {
         c = getopt_long_only(argc, argv, "hm:dn:sp:L:", long_options, &long_index);
         if (c == -1)
@@ -3163,6 +3431,9 @@ int main(int argc, char **argv)
                     ide_state[0].sectors = secs;
                 chs_fail: ;
                 }
+                break;
+            case 5:
+                nodisp = 1;
                 break;
             }
             break;
@@ -3232,9 +3503,11 @@ int main(int argc, char **argv)
                 phys_ram_file);
         exit(1);
     }
-    ftruncate(phys_ram_fd, phys_ram_size);
+    total_ram_size = phys_ram_size + vga_ram_size;
+    ftruncate(phys_ram_fd, total_ram_size);
     unlink(phys_ram_file);
-    phys_ram_base = mmap(get_mmap_addr(phys_ram_size), phys_ram_size, 
+    phys_ram_base = mmap(get_mmap_addr(total_ram_size), 
+                         total_ram_size, 
                          PROT_WRITE | PROT_READ, MAP_SHARED | MAP_FIXED, 
                          phys_ram_fd, 0);
     if (phys_ram_base == MAP_FAILED) {
@@ -3260,6 +3533,9 @@ int main(int argc, char **argv)
     cpu_single_env = env;
 
     init_ioports();
+
+    /* allocate RAM */
+    cpu_register_physical_memory(0, phys_ram_size, 0);
 
     if (linux_boot) {
         /* now we can load the kernel */
@@ -3366,11 +3642,23 @@ int main(int argc, char **argv)
         bochs_bios_init();
     }
 
+    /* terminal init */
+    if (nodisp) {
+        dumb_display_init(ds);
+    } else {
+#ifdef CONFIG_SDL
+        sdl_display_init(ds);
+        /* the pthreads modify sigaction. We don't want that. */
+#define sigaction __sigaction
+#else
+        dumb_display_init(ds);
+#endif
+    }
     /* init basic PC hardware */
     register_ioport_write(0x80, 1, ioport80_write, 1);
 
-    register_ioport_write(0x3d4, 2, vga_ioport_write, 1);
-
+    vga_init(ds, phys_ram_base + phys_ram_size, phys_ram_size, 
+             vga_ram_size);
     cmos_init();
     pic_init();
     pit_init();
@@ -3378,7 +3666,7 @@ int main(int argc, char **argv)
     ne2000_init();
     ide_init();
     kbd_init();
-
+    
     /* setup cpu signal handlers for MMU / self modifying code handling */
     sigfillset(&act.sa_mask);
     act.sa_flags = SA_SIGINFO;
@@ -3397,6 +3685,7 @@ int main(int argc, char **argv)
     /* we probe the tick duration of the kernel to inform the user if
        the emulated kernel requested a too high timer frequency */
     getitimer(ITIMER_REAL, &itv);
+    timer_ms = itv.it_interval.tv_usec / 1000;
     pit_min_timer_count = ((uint64_t)itv.it_interval.tv_usec * PIT_FREQ) / 
         1000000;
     

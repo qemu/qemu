@@ -25,7 +25,22 @@
 #define VL_H
 
 /* vl.c */
+struct CPUX86State;
+extern int reset_requested;
+
+typedef void (IOPortWriteFunc)(struct CPUX86State *env, uint32_t address, uint32_t data);
+typedef uint32_t (IOPortReadFunc)(struct CPUX86State *env, uint32_t address);
+
 void *get_mmap_addr(unsigned long size);
+int register_ioport_read(int start, int length, IOPortReadFunc *func, int size);
+int register_ioport_write(int start, int length, IOPortWriteFunc *func, int size);
+
+void kbd_put_keycode(int keycode);
+
+#define MOUSE_EVENT_LBUTTON 0x01
+#define MOUSE_EVENT_RBUTTON 0x02
+#define MOUSE_EVENT_MBUTTON 0x04
+void kbd_mouse_event(int dx, int dy, int dz, int buttons_state);
 
 /* block.c */
 typedef struct BlockDriverState BlockDriverState;
@@ -51,5 +66,35 @@ struct cow_header_v2 {
     uint64_t size;
     uint32_t sectorsize;
 };
+
+/* vga.c */
+
+#define VGA_RAM_SIZE (8192 * 1024)
+
+typedef struct DisplayState {
+    uint8_t *data;
+    int linesize;
+    int depth;
+    void (*dpy_update)(struct DisplayState *s, int x, int y, int w, int h);
+    void (*dpy_resize)(struct DisplayState *s, int w, int h);
+    void (*dpy_refresh)(struct DisplayState *s);
+} DisplayState;
+
+static inline void dpy_update(DisplayState *s, int x, int y, int w, int h)
+{
+    s->dpy_update(s, x, y, w, h);
+}
+
+static inline void dpy_resize(DisplayState *s, int w, int h)
+{
+    s->dpy_resize(s, w, h);
+}
+
+int vga_init(DisplayState *ds, uint8_t *vga_ram_base, 
+             unsigned long vga_ram_offset, int vga_ram_size);
+void vga_update_display(void);
+
+/* sdl.c */
+void sdl_display_init(DisplayState *ds);
 
 #endif /* VL_H */
