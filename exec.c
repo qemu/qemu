@@ -315,7 +315,6 @@ static void page_flush_tb(void)
 /* XXX: tb_flush is currently not thread safe */
 void tb_flush(CPUState *env)
 {
-    int i;
 #if defined(DEBUG_FLUSH)
     printf("qemu: flush code_size=%d nb_tbs=%d avg_tb_size=%d\n", 
            code_gen_ptr - code_gen_buffer, 
@@ -323,12 +322,10 @@ void tb_flush(CPUState *env)
            nb_tbs > 0 ? (code_gen_ptr - code_gen_buffer) / nb_tbs : 0);
 #endif
     nb_tbs = 0;
-    for(i = 0;i < CODE_GEN_HASH_SIZE; i++)
-        tb_hash[i] = NULL;
+    memset (tb_hash, 0, CODE_GEN_HASH_SIZE * sizeof (void *));
     virt_page_flush();
 
-    for(i = 0;i < CODE_GEN_PHYS_HASH_SIZE; i++)
-        tb_phys_hash[i] = NULL;
+    memset (tb_phys_hash, 0, CODE_GEN_PHYS_HASH_SIZE * sizeof (void *));
     page_flush_tb();
 
     code_gen_ptr = code_gen_buffer;
@@ -1279,8 +1276,7 @@ void tlb_flush(CPUState *env, int flush_global)
     }
 
     virt_page_flush();
-    for(i = 0;i < CODE_GEN_HASH_SIZE; i++)
-        tb_hash[i] = NULL;
+    memset (tb_hash, 0, CODE_GEN_HASH_SIZE * sizeof (void *));
 
 #if !defined(CONFIG_SOFTMMU)
     munmap((void *)MMAP_AREA_START, MMAP_AREA_END - MMAP_AREA_START);
