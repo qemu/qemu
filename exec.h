@@ -65,7 +65,7 @@ typedef struct TranslationBlock {
 #ifdef USE_DIRECT_JUMP
     uint16_t tb_jmp_offset[2]; /* offset of jump instruction */
 #else
-    uint8_t *tb_next[2]; /* address of jump generated code */
+    uint32_t tb_next[2]; /* address of jump generated code */
 #endif
     /* list of TBs jumping to this one. This is a circular list using
        the two least significant bits of the pointers to tell what is
@@ -142,7 +142,7 @@ static inline void tb_set_jmp_target(TranslationBlock *tb,
 static inline void tb_set_jmp_target(TranslationBlock *tb, 
                                      int n, unsigned long addr)
 {
-    tb->tb_next[n] = (void *)addr;
+    tb->tb_next[n] = addr;
 }
 
 #endif
