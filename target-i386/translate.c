@@ -749,6 +749,43 @@ static GenOpFunc *gen_op_out_DX_T0[3] = {
     gen_op_outl_DX_T0,
 };
 
+static GenOpFunc *gen_op_in[3] = {
+    gen_op_inb_T0_T1,
+    gen_op_inw_T0_T1,
+    gen_op_inl_T0_T1,
+};
+
+static GenOpFunc *gen_op_out[3] = {
+    gen_op_outb_T0_T1,
+    gen_op_outw_T0_T1,
+    gen_op_outl_T0_T1,
+};
+
+static GenOpFunc *gen_check_io_T0[3] = {
+    gen_op_check_iob_T0,
+    gen_op_check_iow_T0,
+    gen_op_check_iol_T0,
+};
+
+static GenOpFunc *gen_check_io_DX[3] = {
+    gen_op_check_iob_DX,
+    gen_op_check_iow_DX,
+    gen_op_check_iol_DX,
+};
+
+static void gen_check_io(DisasContext *s, int ot, int use_dx, int cur_eip)
+{
+    if (s->pe && (s->cpl > s->iopl || s->vm86)) {
+        if (s->cc_op != CC_OP_DYNAMIC)
+            gen_op_set_cc_op(s->cc_op);
+        gen_op_jmp_im(cur_eip);
+        if (use_dx)
+            gen_check_io_DX[ot]();
+        else
+            gen_check_io_T0[ot]();
+    }
+}
+
 static inline void gen_movs(DisasContext *s, int ot)
 {
     gen_string_movl_A0_ESI(s);
@@ -911,18 +948,6 @@ GEN_REPZ(ins)
 GEN_REPZ(outs)
 GEN_REPZ2(scas)
 GEN_REPZ2(cmps)
-
-static GenOpFunc *gen_op_in[3] = {
-    gen_op_inb_T0_T1,
-    gen_op_inw_T0_T1,
-    gen_op_inl_T0_T1,
-};
-
-static GenOpFunc *gen_op_out[3] = {
-    gen_op_outb_T0_T1,
-    gen_op_outw_T0_T1,
-    gen_op_outl_T0_T1,
-};
 
 enum {
     JCC_O,
@@ -3221,36 +3246,28 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         break;
     case 0x6c: /* insS */
     case 0x6d:
-        if (s->pe && (s->cpl > s->iopl || s->vm86)) {
-            /* NOTE: even for (E)CX = 0 the exception is raised */
-            gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
+        if ((b & 1) == 0)
+            ot = OT_BYTE;
+        else
+            ot = dflag ? OT_LONG : OT_WORD;
+        gen_check_io(s, ot, 1, pc_start - s->cs_base);
+        if (prefixes & (PREFIX_REPZ | PREFIX_REPNZ)) {
+            gen_repz_ins(s, ot, pc_start - s->cs_base, s->pc - s->cs_base);
         } else {
-            if ((b & 1) == 0)
-                ot = OT_BYTE;
-            else
-                ot = dflag ? OT_LONG : OT_WORD;
-            if (prefixes & (PREFIX_REPZ | PREFIX_REPNZ)) {
-                gen_repz_ins(s, ot, pc_start - s->cs_base, s->pc - s->cs_base);
-            } else {
-                gen_ins(s, ot);
-            }
+            gen_ins(s, ot);
         }
         break;
     case 0x6e: /* outsS */
     case 0x6f:
-        if (s->pe && (s->cpl > s->iopl || s->vm86)) {
-            /* NOTE: even for (E)CX = 0 the exception is raised */
-            gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
+        if ((b & 1) == 0)
+            ot = OT_BYTE;
+        else
+            ot = dflag ? OT_LONG : OT_WORD;
+        gen_check_io(s, ot, 1, pc_start - s->cs_base);
+        if (prefixes & (PREFIX_REPZ | PREFIX_REPNZ)) {
+            gen_repz_outs(s, ot, pc_start - s->cs_base, s->pc - s->cs_base);
         } else {
-            if ((b & 1) == 0)
-                ot = OT_BYTE;
-            else
-                ot = dflag ? OT_LONG : OT_WORD;
-            if (prefixes & (PREFIX_REPZ | PREFIX_REPNZ)) {
-                gen_repz_outs(s, ot, pc_start - s->cs_base, s->pc - s->cs_base);
-            } else {
-                gen_outs(s, ot);
-            }
+            gen_outs(s, ot);
         }
         break;
 
@@ -3258,61 +3275,49 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         /* port I/O */
     case 0xe4:
     case 0xe5:
-        if (s->pe && (s->cpl > s->iopl || s->vm86)) {
-            gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
-        } else {
-            if ((b & 1) == 0)
-                ot = OT_BYTE;
-            else
-                ot = dflag ? OT_LONG : OT_WORD;
-            val = ldub_code(s->pc++);
-            gen_op_movl_T0_im(val);
-            gen_op_in[ot]();
-            gen_op_mov_reg_T1[ot][R_EAX]();
-        }
+        if ((b & 1) == 0)
+            ot = OT_BYTE;
+        else
+            ot = dflag ? OT_LONG : OT_WORD;
+        val = ldub_code(s->pc++);
+        gen_op_movl_T0_im(val);
+        gen_check_io(s, ot, 0, pc_start - s->cs_base);
+        gen_op_in[ot]();
+        gen_op_mov_reg_T1[ot][R_EAX]();
         break;
     case 0xe6:
     case 0xe7:
-        if (s->pe && (s->cpl > s->iopl || s->vm86)) {
-            gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
-        } else {
-            if ((b & 1) == 0)
-                ot = OT_BYTE;
-            else
-                ot = dflag ? OT_LONG : OT_WORD;
-            val = ldub_code(s->pc++);
-            gen_op_movl_T0_im(val);
-            gen_op_mov_TN_reg[ot][1][R_EAX]();
-            gen_op_out[ot]();
-        }
+        if ((b & 1) == 0)
+            ot = OT_BYTE;
+        else
+            ot = dflag ? OT_LONG : OT_WORD;
+        val = ldub_code(s->pc++);
+        gen_op_movl_T0_im(val);
+        gen_check_io(s, ot, 0, pc_start - s->cs_base);
+        gen_op_mov_TN_reg[ot][1][R_EAX]();
+        gen_op_out[ot]();
         break;
     case 0xec:
     case 0xed:
-        if (s->pe && (s->cpl > s->iopl || s->vm86)) {
-            gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
-        } else {
-            if ((b & 1) == 0)
-                ot = OT_BYTE;
-            else
-                ot = dflag ? OT_LONG : OT_WORD;
-            gen_op_mov_TN_reg[OT_WORD][0][R_EDX]();
-            gen_op_in[ot]();
-            gen_op_mov_reg_T1[ot][R_EAX]();
-        }
+        if ((b & 1) == 0)
+            ot = OT_BYTE;
+        else
+            ot = dflag ? OT_LONG : OT_WORD;
+        gen_op_mov_TN_reg[OT_WORD][0][R_EDX]();
+        gen_check_io(s, ot, 0, pc_start - s->cs_base);
+        gen_op_in[ot]();
+        gen_op_mov_reg_T1[ot][R_EAX]();
         break;
     case 0xee:
     case 0xef:
-        if (s->pe && (s->cpl > s->iopl || s->vm86)) {
-            gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
-        } else {
-            if ((b & 1) == 0)
-                ot = OT_BYTE;
-            else
-                ot = dflag ? OT_LONG : OT_WORD;
-            gen_op_mov_TN_reg[OT_WORD][0][R_EDX]();
-            gen_op_mov_TN_reg[ot][1][R_EAX]();
-            gen_op_out[ot]();
-        }
+        if ((b & 1) == 0)
+            ot = OT_BYTE;
+        else
+            ot = dflag ? OT_LONG : OT_WORD;
+        gen_op_mov_TN_reg[OT_WORD][0][R_EDX]();
+        gen_check_io(s, ot, 0, pc_start - s->cs_base);
+        gen_op_mov_TN_reg[ot][1][R_EAX]();
+        gen_op_out[ot]();
         break;
 
         /************************/
@@ -3370,8 +3375,13 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
             /* real mode */
             gen_op_iret_real(s->dflag);
             s->cc_op = CC_OP_EFLAGS;
-        } else if (s->vm86 && s->iopl != 3) {
-            gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
+        } else if (s->vm86) {
+            if (s->iopl != 3) {
+                gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
+            } else {
+                gen_op_iret_real(s->dflag);
+                s->cc_op = CC_OP_EFLAGS;
+            }
         } else {
             if (s->cc_op != CC_OP_DYNAMIC)
                 gen_op_set_cc_op(s->cc_op);
@@ -3675,11 +3685,11 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         break;
     case 0xcd: /* int N */
         val = ldub_code(s->pc++);
-        /* XXX: add error code for vm86 GPF */
-        if (!s->vm86)
-            gen_interrupt(s, val, pc_start - s->cs_base, s->pc - s->cs_base);
-        else
+        if (s->vm86 && s->iopl != 3) {
             gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base); 
+        } else {
+            gen_interrupt(s, val, pc_start - s->cs_base, s->pc - s->cs_base);
+        }
         break;
     case 0xce: /* into */
         if (s->cc_op != CC_OP_DYNAMIC)
@@ -3799,6 +3809,8 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         op = (modrm >> 3) & 7;
         switch(op) {
         case 0: /* sldt */
+            if (!s->pe || s->vm86)
+                goto illegal_op;
             gen_op_movl_T0_env(offsetof(CPUX86State,ldt.selector));
             ot = OT_WORD;
             if (mod == 3)
@@ -3806,6 +3818,8 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
             gen_ldst_modrm(s, modrm, ot, OR_TMP0, 1);
             break;
         case 2: /* lldt */
+            if (!s->pe || s->vm86)
+                goto illegal_op;
             if (s->cpl != 0) {
                 gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
             } else {
@@ -3815,6 +3829,8 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
             }
             break;
         case 1: /* str */
+            if (!s->pe || s->vm86)
+                goto illegal_op;
             gen_op_movl_T0_env(offsetof(CPUX86State,tr.selector));
             ot = OT_WORD;
             if (mod == 3)
@@ -3822,6 +3838,8 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
             gen_ldst_modrm(s, modrm, ot, OR_TMP0, 1);
             break;
         case 3: /* ltr */
+            if (!s->pe || s->vm86)
+                goto illegal_op;
             if (s->cpl != 0) {
                 gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
             } else {
@@ -3832,6 +3850,17 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
             break;
         case 4: /* verr */
         case 5: /* verw */
+            if (!s->pe || s->vm86)
+                goto illegal_op;
+            gen_ldst_modrm(s, modrm, OT_WORD, OR_TMP0, 0);
+            if (s->cc_op != CC_OP_DYNAMIC)
+                gen_op_set_cc_op(s->cc_op);
+            if (op == 4)
+                gen_op_verr();
+            else
+                gen_op_verw();
+            s->cc_op = CC_OP_EFLAGS;
+            break;
         default:
             goto illegal_op;
         }
@@ -3907,6 +3936,31 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         default:
             goto illegal_op;
         }
+        break;
+    case 0x63: /* arpl */
+        if (!s->pe || s->vm86)
+            goto illegal_op;
+        ot = dflag ? OT_LONG : OT_WORD;
+        modrm = ldub_code(s->pc++);
+        reg = (modrm >> 3) & 7;
+        mod = (modrm >> 6) & 3;
+        rm = modrm & 7;
+        if (mod != 3) {
+            gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+            gen_op_ld_T0_A0[ot + s->mem_index]();
+        } else {
+            gen_op_mov_TN_reg[ot][0][rm]();
+        }
+        if (s->cc_op != CC_OP_DYNAMIC)
+            gen_op_set_cc_op(s->cc_op);
+        gen_op_arpl();
+        s->cc_op = CC_OP_EFLAGS;
+        if (mod != 3) {
+            gen_op_st_T0_A0[ot + s->mem_index]();
+        } else {
+            gen_op_mov_reg_T0[ot][rm]();
+        }
+        gen_op_arpl_update();
         break;
     case 0x102: /* lar */
     case 0x103: /* lsl */
