@@ -61,13 +61,18 @@ int target_mprotect(unsigned long start, unsigned long len, int prot)
         for(addr = host_start; addr < start; addr += TARGET_PAGE_SIZE) {
             prot1 |= page_get_flags(addr);
         }
+        if (host_end == host_start + host_page_size) {
+            for(addr = end; addr < host_end; addr += TARGET_PAGE_SIZE) {
+                prot1 |= page_get_flags(addr);
+            }
+            end = host_end;
+        }
         ret = mprotect((void *)host_start, host_page_size, prot1 & PAGE_BITS);
         if (ret != 0)
             return ret;
         host_start += host_page_size;
     }
     if (end < host_end) {
-        /* handle host page containing end (can be the same as first page) */
         prot1 = prot;
         for(addr = end; addr < host_end; addr += TARGET_PAGE_SIZE) {
             prot1 |= page_get_flags(addr);
@@ -85,7 +90,6 @@ int target_mprotect(unsigned long start, unsigned long len, int prot)
         if (ret != 0)
             return ret;
     }
-
     page_set_flags(start, start + len, prot | PAGE_VALID);
     return 0;
 }
@@ -311,11 +315,16 @@ int target_munmap(unsigned long start, unsigned long len)
         for(addr = host_start; addr < start; addr += TARGET_PAGE_SIZE) {
             prot |= page_get_flags(addr);
         }
+        if (host_end == host_start + host_page_size) {
+            for(addr = end; addr < host_end; addr += TARGET_PAGE_SIZE) {
+                prot |= page_get_flags(addr);
+            }
+            end = host_end;
+        }
         if (prot != 0)
             host_start += host_page_size;
     }
     if (end < host_end) {
-        /* handle host page containing end (can be the same as first page) */
         prot = 0;
         for(addr = end; addr < host_end; addr += TARGET_PAGE_SIZE) {
             prot |= page_get_flags(addr);
@@ -360,11 +369,13 @@ int target_msync(unsigned long start, unsigned long len, int flags)
     if (start & ~TARGET_PAGE_MASK)
         return -EINVAL;
     len = TARGET_PAGE_ALIGN(len);
-    if (len == 0)
-        return 0;
     end = start + len;
+    if (end < start)
+        return -EINVAL;
+    if (end == start)
+        return 0;
     
     start &= host_page_mask;
-    return msync((void *)start, len, flags);
+    return msync((void *)start, end - start, flags);
 }
 
