@@ -39,7 +39,6 @@
 #define ldebug(...)
 #endif
 
-#define MEM_REAL(addr) ((addr)+(uint32_t)(phys_ram_base))
 #define LENOFA(a) ((int) (sizeof(a)/sizeof(a[0])))
 
 struct dma_regs {
@@ -49,8 +48,8 @@ struct dma_regs {
     uint8_t page;
     uint8_t dack;
     uint8_t eop;
-    DMA_read_handler read_handler;
-    DMA_misc_handler misc_handler;
+    DMA_transfer_handler transfer_handler;
+    void *opaque;
 };
 
 #define ADDR 0
@@ -284,40 +283,27 @@ static void channel_run (int ncont, int ichan)
 {
     struct dma_regs *r;
     int n;
-    int irq;
-    uint32_t addr;
+    target_ulong addr;
 /*     int ai, dir; */
 
     r = dma_controllers[ncont].regs + ichan;
 /*   ai = r->mode & 16; */
 /*   dir = r->mode & 32 ? -1 : 1; */
 
-    addr = MEM_REAL ((r->page << 16) | r->now[ADDR]);
-
-    irq = -1;
-    n = r->read_handler (addr, (r->base[COUNT] << ncont) + (1 << ncont), &irq);
+    addr = (r->page << 16) | r->now[ADDR];
+    n = r->transfer_handler (r->opaque, addr, 
+                             (r->base[COUNT] << ncont) + (1 << ncont));
     r->now[COUNT] = n;
 
-    ldebug ("dma_pos %d irq %d size %d\n",
-            n, irq, (r->base[1] << ncont) + (1 << ncont));
-
-    if (-1 != irq) {
-        pic_set_irq (irq, 1);
-    }
+    ldebug ("dma_pos %d size %d\n",
+            n, (r->base[1] << ncont) + (1 << ncont));
 }
 
 void DMA_run (void)
 {
-    static int in_dma;
     struct dma_cont *d;
     int icont, ichan;
 
-    if (in_dma) {
-        log ("attempt to re-enter dma\n");
-        return;
-    }
-
-    in_dma = 1;
     d = dma_controllers;
 
     for (icont = 0; icont < 2; icont++, d++) {
@@ -330,12 +316,11 @@ void DMA_run (void)
                 channel_run (icont, ichan);
         }
     }
-    in_dma = 0;
 }
 
 void DMA_register_channel (int nchan,
-                           DMA_read_handler read_handler,
-                           DMA_misc_handler misc_handler)
+                           DMA_transfer_handler transfer_handler, 
+                           void *opaque)
 {
     struct dma_regs *r;
     int ichan, ncont;
@@ -344,8 +329,14 @@ void DMA_register_channel (int nchan,
     ichan = nchan & 3;
 
     r = dma_controllers[ncont].regs + ichan;
-    r->read_handler = read_handler;
-    r->misc_handler = misc_handler;
+    r->transfer_handler = transfer_handler;
+    r->opaque = opaque;
+}
+
+/* request the emulator to transfer a new DMA memory block ASAP */
+void DMA_schedule(int nchan)
+{
+    cpu_interrupt(cpu_single_env, CPU_INTERRUPT_EXIT);
 }
 
 void DMA_init (void)

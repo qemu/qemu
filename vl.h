@@ -24,8 +24,9 @@
 #ifndef VL_H
 #define VL_H
 
+#include "cpu.h"
+
 /* vl.c */
-struct CPUState;
 extern int reset_requested;
 extern int64_t ticks_per_sec;
 
@@ -128,17 +129,15 @@ int AUD_get_buffer_size (void);
 void AUD_init (void);
 
 /* dma.c */
-typedef int (*DMA_read_handler) (uint32_t addr, int size, int *irq);
-typedef int (*DMA_misc_handler) (int);
-
+typedef int (*DMA_transfer_handler) (void *opaque, target_ulong addr, int size);
 int DMA_get_channel_mode (int nchan);
 void DMA_hold_DREQ (int nchan);
 void DMA_release_DREQ (int nchan);
+void DMA_schedule(int nchan);
 void DMA_run (void);
 void DMA_init (void);
 void DMA_register_channel (int nchan,
-                           DMA_read_handler read_handler,
-                           DMA_misc_handler misc_handler);
+                           DMA_transfer_handler transfer_handler, void *opaque);
 
 /* sb16.c */
 void SB16_run (void);
