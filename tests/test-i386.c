@@ -9,7 +9,8 @@
 #include <sys/mman.h>
 #include <asm/vm86.h>
 
-#define TEST_CMOV 0
+#define TEST_CMOV  0
+#define TEST_FCOMI 0
 
 #define xglue(x, y) x ## y
 #define glue(x, y) xglue(x, y)
@@ -510,6 +511,16 @@ void test_fcmp(double a, double b)
            a, b, a > b);
     printf("(%f<=%f)=%d\n",
            a, b, a >= b);
+    if (TEST_FCOMI) {
+        unsigned int eflags;
+        /* test f(u)comi instruction */
+        asm("fcomi %2, %1\n"
+            "pushf\n"
+            "pop %0\n"
+            : "=r" (eflags)
+            : "t" (a), "u" (b));
+        printf("fcomi(%f %f)=%08x\n", a, b, eflags & (CC_Z | CC_P | CC_C));
+    }
 }
 
 void test_fcvt(double a)
@@ -556,6 +567,57 @@ void test_fbcd(double a)
            a, bcd[4], bcd[3], bcd[2], bcd[1], bcd[0], b);
 }
 
+#define TEST_ENV(env, prefix)\
+{\
+    memset((env), 0xaa, sizeof(*(env)));\
+    asm("fld1\n"\
+        prefix "fnstenv %1\n"\
+        prefix "fldenv %1\n"\
+        : "=t" (res) : "m" (*(env)) : "st");\
+    printf("res=%f\n", res);\
+    printf("fpuc=%04x fpus=%04x fptag=%04x\n",\
+           (env)->fpuc,\
+           (env)->fpus & 0xff00,\
+           (env)->fptag);\
+    memset((env), 0xaa, sizeof(*(env)));\
+    asm("fld1\n"\
+        prefix "fnsave %1\n"\
+        prefix "frstor %1\n"\
+        : "=t" (res) : "m" (*(env)) : "st");\
+    printf("res=%f\n", res);\
+    printf("fpuc=%04x fpus=%04x fptag=%04x\n",\
+           (env)->fpuc,\
+           (env)->fpus & 0xff00,\
+           (env)->fptag);\
+    printf("ST(0) = %Lf\n",\
+           (env)->fpregs[0]);\
+}
+
+void test_fenv(void)
+{
+    struct __attribute__((packed)) {
+        uint16_t fpuc;
+        uint16_t dummy1;
+        uint16_t fpus;
+        uint16_t dummy2;
+        uint16_t fptag;
+        uint16_t dummy3;
+        uint32_t ignored[4];
+        long double fpregs[8];
+    } float_env32;
+    struct __attribute__((packed)) {
+        uint16_t fpuc;
+        uint16_t fpus;
+        uint16_t fptag;
+        uint16_t ignored[4];
+        long double fpregs[8];
+    } float_env16;
+    double res;
+
+    TEST_ENV(&float_env16, "data16 ");
+    TEST_ENV(&float_env32, "");
+}
+
 void test_floats(void)
 {
     test_fops(2, 3);
@@ -569,6 +631,7 @@ void test_floats(void)
     test_fconst();
     test_fbcd(1234567890123456);
     test_fbcd(-123451234567890);
+    test_fenv();
 }
 
 /**********************************************/
