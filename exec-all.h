@@ -64,6 +64,11 @@ extern uint32_t gen_opc_pc[OPC_BUF_SIZE];
 extern uint8_t gen_opc_cc_op[OPC_BUF_SIZE];
 extern uint8_t gen_opc_instr_start[OPC_BUF_SIZE];
 
+typedef void (GenOpFunc)(void);
+typedef void (GenOpFunc1)(long);
+typedef void (GenOpFunc2)(long, long);
+typedef void (GenOpFunc3)(long, long, long);
+                    
 #if defined(TARGET_I386)
 
 void optimize_flags_init(void);
@@ -498,7 +503,8 @@ extern spinlock_t tb_lock;
 
 extern int tb_invalidated_flag;
 
-#if defined(TARGET_I386) && !defined(CONFIG_USER_ONLY)
+#if (defined(TARGET_I386) || defined(TARGET_PPC)) && \
+    !defined(CONFIG_USER_ONLY)
 
 void tlb_fill(unsigned long addr, int is_write, int is_user, 
               void *retaddr);
