@@ -3283,8 +3283,8 @@ CPUState *cpu_gdbstub_get_env(void *opaque)
 
 int main_loop(void *opaque)
 {
-    struct pollfd ufds[2], *pf, *serial_ufd, *net_ufd, *gdb_ufd;
-    int ret, n, timeout;
+    struct pollfd ufds[3], *pf, *serial_ufd, *net_ufd, *gdb_ufd;
+    int ret, n, timeout, serial_ok;
     uint8_t ch;
     CPUState *env = global_env;
 
@@ -3296,6 +3296,7 @@ int main_loop(void *opaque)
         term_init();
     }
 
+    serial_ok = 1;
     for(;;) {
         ret = cpu_x86_exec(env);
         if (reset_requested)
@@ -3310,7 +3311,7 @@ int main_loop(void *opaque)
         /* poll any events */
         serial_ufd = NULL;
         pf = ufds;
-        if (!(serial_ports[0].lsr & UART_LSR_DR)) {
+        if (serial_ok && !(serial_ports[0].lsr & UART_LSR_DR)) {
             serial_ufd = pf;
             pf->fd = 0;
             pf->events = POLLIN;
@@ -3337,6 +3338,9 @@ int main_loop(void *opaque)
                 n = read(0, &ch, 1);
                 if (n == 1) {
                     serial_received_byte(&serial_ports[0], ch);
+                } else {
+		    /* Closed, stop polling. */
+                    serial_ok = 0;
                 }
             }
             if (net_ufd && (net_ufd->revents & POLLIN)) {
