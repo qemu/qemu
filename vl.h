@@ -481,6 +481,13 @@ int vga_initialize(DisplayState *ds, uint8_t *vga_ram_base,
 void vga_update_display(void);
 void vga_screen_dump(const char *filename);
 
+/* cirrus_vga.c */
+void pci_cirrus_vga_init(DisplayState *ds, uint8_t *vga_ram_base, 
+                         unsigned long vga_ram_offset, int vga_ram_size);
+
+void isa_cirrus_vga_init(DisplayState *ds, uint8_t *vga_ram_base, 
+                         unsigned long vga_ram_offset, int vga_ram_size);
+
 /* sdl.c */
 void sdl_display_init(DisplayState *ds);
 

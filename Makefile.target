@@ -237,7 +237,8 @@ VL_OBJS=vl.o osdep.o block.o monitor.o pci.o
 ifeq ($(TARGET_ARCH), i386)
 # Hardware support
 VL_OBJS+= ide.o ne2000.o pckbd.o vga.o sb16.o dma.o oss.o
-VL_OBJS+= fdc.o mc146818rtc.o serial.o i8259.o i8254.o pc.o
+VL_OBJS+= fdc.o mc146818rtc.o serial.o i8259.o i8254.o pc.o 
+VL_OBJS+= cirrus_vga.o
 endif
 ifeq ($(TARGET_ARCH), ppc)
 # Generic PPC support
