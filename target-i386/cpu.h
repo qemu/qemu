@@ -22,6 +22,12 @@
 
 #define TARGET_LONG_BITS 32
 
+/* target supports implicit self modifying code */
+#define TARGET_HAS_SMC
+/* support for self modifying code even if the modified instruction is
+   close to the modifying instruction */
+#define TARGET_HAS_PRECISE_SMC
+
 #include "cpu-defs.h"
 
 #if defined(__i386__) && !defined(CONFIG_SOFTMMU)
@@ -331,8 +337,16 @@ typedef struct CPUX86State {
     int interrupt_request; 
     int user_mode_only; /* user mode only simulation */
 
-    /* soft mmu support */
     uint32_t a20_mask;
+
+    /* soft mmu support */
+    /* in order to avoid passing too many arguments to the memory
+       write helpers, we store some rarely used information in the CPU
+       context) */
+    unsigned long mem_write_pc; /* host pc at which the memory was
+                                   written */
+    unsigned long mem_write_vaddr; /* target virtual addr at which the
+                                      memory was written */
     /* 0 = kernel, 1 = user */
     CPUTLBEntry tlb_read[2][CPU_TLB_SIZE];
     CPUTLBEntry tlb_write[2][CPU_TLB_SIZE];
@@ -358,7 +372,7 @@ int cpu_x86_inl(CPUX86State *env, int addr);
 CPUX86State *cpu_x86_init(void);
 int cpu_x86_exec(CPUX86State *s);
 void cpu_x86_close(CPUX86State *s);
-int cpu_x86_get_pic_interrupt(CPUX86State *s);
+int cpu_get_pic_interrupt(CPUX86State *s);
 
 /* this function must always be used to load data in the segment
    cache: it synchronizes the hflags with the segment cache values */

@@ -164,6 +164,13 @@ typedef struct CPUPPCState {
     int user_mode_only; /* user mode only simulation */
     struct TranslationBlock *current_tb; /* currently executing TB */
     /* soft mmu support */
+    /* in order to avoid passing too many arguments to the memory
+       write helpers, we store some rarely used information in the CPU
+       context) */
+    unsigned long mem_write_pc; /* host pc at which the memory was
+                                   written */
+    unsigned long mem_write_vaddr; /* target virtual addr at which the
+                                      memory was written */
     /* 0 = kernel, 1 = user (may have 2 = kernel code, 3 = user code ?) */
     CPUTLBEntry tlb_read[2][CPU_TLB_SIZE];
     CPUTLBEntry tlb_write[2][CPU_TLB_SIZE];

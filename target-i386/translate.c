@@ -4491,7 +4491,7 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     DisasContext dc1, *dc = &dc1;
     uint8_t *pc_ptr;
     uint16_t *gen_opc_end;
-    int flags, j, lj;
+    int flags, j, lj, cflags;
     uint8_t *pc_start;
     uint8_t *cs_base;
     
@@ -4499,6 +4499,7 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     pc_start = (uint8_t *)tb->pc;
     cs_base = (uint8_t *)tb->cs_base;
     flags = tb->flags;
+    cflags = tb->cflags;
 
     dc->pe = (flags >> HF_PE_SHIFT) & 1;
     dc->code32 = (flags >> HF_CS32_SHIFT) & 1;
@@ -4573,7 +4574,8 @@ static inline int gen_intermediate_code_internal(CPUState *env,
            the flag and abort the translation to give the irqs a
            change to be happen */
         if (dc->tf || dc->singlestep_enabled || 
-            (flags & HF_INHIBIT_IRQ_MASK)) {
+            (flags & HF_INHIBIT_IRQ_MASK) ||
+            (cflags & CF_SINGLE_INSN)) {
             gen_op_jmp_im(pc_ptr - dc->cs_base);
             gen_eob(dc);
             break;

@@ -681,8 +681,7 @@ extern uint8_t *phys_ram_dirty;
 #define IO_MEM_CODE        (3 << IO_MEM_SHIFT) /* used internally, never use directly */
 #define IO_MEM_NOTDIRTY    (4 << IO_MEM_SHIFT) /* used internally, never use directly */
 
-/* NOTE: vaddr is only used internally. Never use it except if you know what you do */
-typedef void CPUWriteMemoryFunc(uint32_t addr, uint32_t value, uint32_t vaddr);
+typedef void CPUWriteMemoryFunc(uint32_t addr, uint32_t value);
 typedef uint32_t CPUReadMemoryFunc(uint32_t addr);
 
 void cpu_register_physical_memory(unsigned long start_addr, unsigned long size,

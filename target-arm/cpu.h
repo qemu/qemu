@@ -43,6 +43,13 @@ typedef struct CPUARMState {
     struct TranslationBlock *current_tb;
     int user_mode_only;
 
+    /* in order to avoid passing too many arguments to the memory
+       write helpers, we store some rarely used information in the CPU
+       context) */
+    unsigned long mem_write_pc; /* host pc at which the memory was
+                                   written */
+    unsigned long mem_write_vaddr; /* target virtual addr at which the
+                                      memory was written */
     /* user data */
     void *opaque;
 } CPUARMState;

@@ -1189,6 +1189,8 @@ static inline int gen_intermediate_code_internal(CPUState *env,
         return -1;
     if (!(flags & HF_SS32_MASK))
         return -1;
+    if (tb->cflags & CF_SINGLE_INSN)
+        return -1;
     gen_code_end = gen_code_ptr + 
         GEN_CODE_MAX_SIZE - GEN_CODE_MAX_INSN_SIZE;
     dc->gen_code_ptr = gen_code_ptr;

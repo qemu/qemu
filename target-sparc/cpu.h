@@ -43,6 +43,14 @@ typedef struct CPUSPARCState {
     void *opaque;
     /* NOTE: we allow 8 more registers to handle wrapping */
     uint32_t regbase[NWINDOWS * 16 + 8];
+
+    /* in order to avoid passing too many arguments to the memory
+       write helpers, we store some rarely used information in the CPU
+       context) */
+    unsigned long mem_write_pc; /* host pc at which the memory was
+                                   written */
+    unsigned long mem_write_vaddr; /* target virtual addr at which the
+                                      memory was written */
 } CPUSPARCState;
 
 CPUSPARCState *cpu_sparc_init(void);

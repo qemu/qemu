@@ -70,20 +70,23 @@ static inline DATA_TYPE glue(io_read, SUFFIX)(unsigned long physaddr,
 
 static inline void glue(io_write, SUFFIX)(unsigned long physaddr, 
                                           DATA_TYPE val,
-                                          unsigned long tlb_addr)
+                                          unsigned long tlb_addr,
+                                          void *retaddr)
 {
     int index;
 
     index = (tlb_addr >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
+    env->mem_write_vaddr = tlb_addr;
+    env->mem_write_pc = (unsigned long)retaddr;
 #if SHIFT <= 2
-    io_mem_write[index][SHIFT](physaddr, val, tlb_addr);
+    io_mem_write[index][SHIFT](physaddr, val);
 #else
 #ifdef TARGET_WORDS_BIGENDIAN
-    io_mem_write[index][2](physaddr, val >> 32, tlb_addr);
-    io_mem_write[index][2](physaddr + 4, val, tlb_addr);
+    io_mem_write[index][2](physaddr, val >> 32);
+    io_mem_write[index][2](physaddr + 4, val);
 #else
-    io_mem_write[index][2](physaddr, val, tlb_addr);
-    io_mem_write[index][2](physaddr + 4, val >> 32, tlb_addr);
+    io_mem_write[index][2](physaddr, val);
+    io_mem_write[index][2](physaddr + 4, val >> 32);
 #endif
 #endif /* SHIFT > 2 */
 }
@@ -193,7 +196,8 @@ void REGPARM(2) glue(glue(__st, SUFFIX), MMUSUFFIX)(unsigned long addr,
             /* IO access */
             if ((addr & (DATA_SIZE - 1)) != 0)
                 goto do_unaligned_access;
-            glue(io_write, SUFFIX)(physaddr, val, tlb_addr);
+            retaddr = GETPC();
+            glue(io_write, SUFFIX)(physaddr, val, tlb_addr, retaddr);
         } else if (((addr & 0xfff) + DATA_SIZE - 1) >= TARGET_PAGE_SIZE) {
         do_unaligned_access:
             retaddr = GETPC();
@@ -229,7 +233,7 @@ static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(unsigned long addr,
             /* IO access */
             if ((addr & (DATA_SIZE - 1)) != 0)
                 goto do_unaligned_access;
-            glue(io_write, SUFFIX)(physaddr, val, tlb_addr);
+            glue(io_write, SUFFIX)(physaddr, val, tlb_addr, retaddr);
         } else if (((addr & 0xfff) + DATA_SIZE - 1) >= TARGET_PAGE_SIZE) {
         do_unaligned_access:
             /* XXX: not efficient, but simple */
