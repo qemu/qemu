@@ -25,7 +25,7 @@
 
 #include "config.h"
 
-#define IN_OP_I386
+#define NO_CPU_IO_DEFS
 #include "cpu.h"
 #include "exec-all.h"
 #include "disas.h"
@@ -192,7 +192,41 @@ int cpu_restore_state(TranslationBlock *tb,
 #elif defined(TARGET_SPARC)
     env->pc = gen_opc_pc[j];
 #elif defined(TARGET_PPC)
-    env->nip = gen_opc_pc[j];
+    {
+        int type;
+        /* for PPC, we need to look at the micro operation to get the
+           access type */
+        env->nip = gen_opc_pc[j];
+        switch(c) {
+#if defined(CONFIG_USER_ONLY)
+#define CASE3(op)\
+        case INDEX_op_ ## op ## _raw
+#else
+#define CASE3(op)\
+        case INDEX_op_ ## op ## _raw:\
+        case INDEX_op_ ## op ## _user:\
+        case INDEX_op_ ## op ## _kernel
+#endif
+            
+        CASE3(stfd):
+        CASE3(stfs):
+        CASE3(lfd):
+        CASE3(lfs):
+            type = ACCESS_FLOAT;
+            break;
+        CASE3(stwcx):
+            type = ACCESS_RES;
+            break;
+        CASE3(eciwx):
+        CASE3(ecowx):
+            type = ACCESS_EXT;
+            break;
+        default:
+            type = ACCESS_INT;
+            break;
+        }
+        env->access_type = type;
+    }
 #endif
     return 0;
 }
