@@ -1872,6 +1872,67 @@ void test_sse_comi(double a1, double b1)
            r.l[0]);\
 }
 
+struct fpxstate {
+    uint16_t fpuc;
+    uint16_t fpus;
+    uint16_t fptag;
+    uint16_t fop;
+    uint32_t fpuip;
+    uint16_t cs_sel;
+    uint16_t dummy0;
+    uint32_t fpudp;
+    uint16_t ds_sel;
+    uint16_t dummy1;
+    uint32_t mxcsr;
+    uint32_t mxcsr_mask;
+    uint8_t fpregs1[8 * 16];
+    uint8_t xmm_regs[8 * 16];
+    uint8_t dummy2[224];
+};
+
+static struct fpxstate fpx_state __attribute__((aligned(16)));
+static struct fpxstate fpx_state2 __attribute__((aligned(16)));
+
+void test_fxsave(void)
+{
+    struct fpxstate *fp = &fpx_state;
+    struct fpxstate *fp2 = &fpx_state2;
+    int i;
+    XMMReg a, b;
+    a.q[0] = test_values[0][0];
+    a.q[1] = test_values[0][1];
+    b.q[0] = test_values[1][0];
+    b.q[1] = test_values[1][1];
+
+    asm("movdqa %2, %%xmm0\n"
+        "movdqa %3, %%xmm7\n"
+        " fld1\n"
+        " fldpi\n"
+        " fldln2\n"
+        " fxsave %0\n"
+        " fxrstor %0\n"
+        " fxsave %1\n"
+        " fninit\n"
+        : "=m" (*(uint32_t *)fp2), "=m" (*(uint32_t *)fp) 
+        : "m" (a), "m" (b));
+    printf("fpuc=%04x\n", fp->fpuc);
+    printf("fpus=%04x\n", fp->fpus);
+    printf("fptag=%04x\n", fp->fptag);
+    for(i = 0; i < 3; i++) {
+        printf("ST%d: %016llx %04x\n",
+               i, 
+               *(uint64_t *)&fp->fpregs1[i * 16],
+               *(uint16_t *)&fp->fpregs1[i * 16 + 8]);
+    }
+    printf("mxcsr=%08x\n", fp->mxcsr & 0x1f80);
+    for(i = 0; i < 8; i++) {
+        printf("xmm%d: %016llx%016llx\n",
+               i, 
+               *(uint64_t *)&fp->xmm_regs[i * 16],
+               *(uint64_t *)&fp->xmm_regs[i * 16 + 8]);
+    }
+}
+
 void test_sse(void)
 {
     XMMReg r, a, b;
@@ -2098,6 +2159,7 @@ void test_sse(void)
 #if 0
     SSE_OP2(movshdup);
 #endif
+    asm volatile ("emms");
 }
 
 #endif
@@ -2134,6 +2196,7 @@ int main(int argc, char **argv)
     test_enter();
 #ifdef TEST_SSE
     test_sse();
+    test_fxsave();
 #endif
     return 0;
 }
