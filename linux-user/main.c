@@ -104,6 +104,40 @@ void write_dt(void *ptr, unsigned long addr, unsigned long limit,
 
 uint64_t gdt_table[6];
 
+void cpu_loop(struct CPUX86State *env)
+{
+    for(;;) {
+        int err;
+        uint8_t *pc;
+        
+        err = cpu_x86_exec(env);
+        pc = env->seg_cache[R_CS].base + env->eip;
+        switch(err) {
+        case EXCP0D_GPF:
+            if (pc[0] == 0xcd && pc[1] == 0x80) {
+                /* syscall */
+                env->eip += 2;
+                env->regs[R_EAX] = do_syscall(env, 
+                                              env->regs[R_EAX], 
+                                              env->regs[R_EBX],
+                                              env->regs[R_ECX],
+                                              env->regs[R_EDX],
+                                              env->regs[R_ESI],
+                                              env->regs[R_EDI],
+                                              env->regs[R_EBP]);
+            } else {
+                goto trap_error;
+            }
+            break;
+        default:
+        trap_error:
+            fprintf(stderr, "0x%08lx: Unknown exception %d, aborting\n", 
+                    (long)pc, err);
+            abort();
+        }
+    }
+}
+
 void usage(void)
 {
     printf("gemu version " GEMU_VERSION ", Copyright (c) 2003 Fabrice Bellard\n"
@@ -112,8 +146,6 @@ void usage(void)
            );
     exit(1);
 }
-
-
 
 int main(int argc, char **argv)
 {
@@ -193,35 +225,7 @@ int main(int argc, char **argv)
     cpu_x86_load_seg(env, R_FS, __USER_DS);
     cpu_x86_load_seg(env, R_GS, __USER_DS);
 
-    for(;;) {
-        int err;
-        uint8_t *pc;
-        
-        err = cpu_x86_exec(env);
-        pc = env->seg_cache[R_CS].base + env->eip;
-        switch(err) {
-        case EXCP0D_GPF:
-            if (pc[0] == 0xcd && pc[1] == 0x80) {
-                /* syscall */
-                env->eip += 2;
-                env->regs[R_EAX] = do_syscall(env, 
-                                              env->regs[R_EAX], 
-                                              env->regs[R_EBX],
-                                              env->regs[R_ECX],
-                                              env->regs[R_EDX],
-                                              env->regs[R_ESI],
-                                              env->regs[R_EDI],
-                                              env->regs[R_EBP]);
-            } else {
-                goto trap_error;
-            }
-            break;
-        default:
-        trap_error:
-            fprintf(stderr, "0x%08lx: Unknown exception %d, aborting\n", 
-                    (long)pc, err);
-            abort();
-        }
-    }
+    cpu_loop(env);
+    /* never exits */
     return 0;
 }

@@ -24,6 +24,11 @@ struct target_timeval {
     target_long tv_usec;
 };
 
+struct target_timespec {
+    target_long tv_sec;
+    target_long tv_nsec;
+};
+
 struct target_iovec {
     target_long iov_base;   /* Starting address */
     target_long iov_len;   /* Number of bytes */

@@ -1,8 +1,9 @@
-- overrides/16bit for string ops
-- optimize translated cache chaining (DLL PLT-like system)
-- 64 bit syscalls
+- verify thread support (clone() and various locks)
 - signals
-- threads
+- optimize translated cache chaining (DLL PLT-like system)
+- vm86 syscall support
+- overrides/16bit for string ops
+- more syscalls (in particular all 64 bit ones)
 - make it self runnable (use same trick as ld.so : include its own relocator and libc)
 - improved 16 bit support 
 - fix FPU exceptions (in particular: gen_op_fpush not before mem load)

@@ -1395,6 +1395,10 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
     s->aflag = aflag;
     s->dflag = dflag;
 
+    /* lock generation */
+    if (prefixes & PREFIX_LOCK)
+        gen_op_lock();
+
     /* now check op code */
  reswitch:
     switch(b) {
@@ -3153,8 +3157,12 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
     default:
         goto illegal_op;
     }
+    /* lock generation */
+    if (s->prefix & PREFIX_LOCK)
+        gen_op_unlock();
     return (long)s->pc;
  illegal_op:
+    /* XXX: ensure that no lock was generated */
     return -1;
 }
 
@@ -3609,6 +3617,7 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size,
             pc += count;
         }
         fprintf(logfile, "\n");
+        fflush(logfile);
     }
 #endif
     return 0;

@@ -762,7 +762,47 @@ int gemu_modify_ldt(CPUX86State *env, int func, void *ptr, unsigned long bytecou
     }
     return ret;
 }
+
+/* this stack is the equivalent of the kernel stack associated with a
+   thread/process */
+#define NEW_STACK_SIZE 8192
+
+static int clone_func(void *arg)
+{
+    CPUX86State *env = arg;
+    cpu_loop(env);
+    /* never exits */
+    return 0;
+}
+
+int do_fork(CPUX86State *env, unsigned int flags, unsigned long newsp)
+{
+    int ret;
+    uint8_t *new_stack;
+    CPUX86State *new_env;
+    
+    if (flags & CLONE_VM) {
+        if (!newsp)
+            newsp = env->regs[R_ESP];
+        new_stack = malloc(NEW_STACK_SIZE);
+        
+        /* we create a new CPU instance. */
+        new_env = cpu_x86_init();
+        memcpy(new_env, env, sizeof(CPUX86State));
+        new_env->regs[R_ESP] = newsp;
+        new_env->regs[R_EAX] = 0;
+        ret = clone(clone_func, new_stack + NEW_STACK_SIZE, flags, new_env);
+    } else {
+        /* if no CLONE_VM, we consider it is a fork */
+        if ((flags & ~CSIGNAL) != 0)
+            return -EINVAL;
+        ret = fork();
+    }
+    return ret;
+}
+
 #endif
+
 
 void syscall_init(void)
 {
@@ -788,6 +828,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #ifdef HAVE_GPROF
         _mcleanup();
 #endif
+        /* XXX: should free thread stack and CPU env */
         _exit(arg1);
         ret = 0; /* avoid warning */
         break;
@@ -807,7 +848,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         ret = do_brk((char *)arg1);
         break;
     case TARGET_NR_fork:
-        ret = get_errno(fork());
+        ret = get_errno(do_fork(cpu_env, SIGCHLD, 0));
         break;
     case TARGET_NR_waitpid:
         {
@@ -1241,7 +1282,8 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_sigreturn:
         goto unimplemented;
     case TARGET_NR_clone:
-        goto unimplemented;
+        ret = get_errno(do_fork(cpu_env, arg1, arg2));
+        break;
     case TARGET_NR_setdomainname:
         ret = get_errno(setdomainname((const char *)arg1, arg2));
         break;
@@ -1310,7 +1352,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_sysfs:
         goto unimplemented;
     case TARGET_NR_personality:
-        ret = get_errno(mprotect((void *)arg1, arg2, arg3));
+        ret = get_errno(personality(arg1));
         break;
     case TARGET_NR_afs_syscall:
         goto unimplemented;
@@ -1447,7 +1489,23 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_sched_get_priority_max:
     case TARGET_NR_sched_get_priority_min:
     case TARGET_NR_sched_rr_get_interval:
+        goto unimplemented;
+        
     case TARGET_NR_nanosleep:
+        {
+            struct target_timespec *target_req = (void *)arg1;
+            struct target_timespec *target_rem = (void *)arg2;
+            struct timespec req, rem;
+            req.tv_sec = tswapl(target_req->tv_sec);
+            req.tv_nsec = tswapl(target_req->tv_nsec);
+            ret = get_errno(nanosleep(&req, &rem));
+            if (target_rem) {
+                target_rem->tv_sec = tswapl(rem.tv_sec);
+                target_rem->tv_nsec = tswapl(rem.tv_nsec);
+            }
+        }
+        break;
+
     case TARGET_NR_mremap:
     case TARGET_NR_setresuid:
     case TARGET_NR_getresuid:
@@ -1481,7 +1539,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_getpmsg:
     case TARGET_NR_putpmsg:
     case TARGET_NR_vfork:
-        ret = get_errno(vfork());
+        ret = get_errno(do_fork(cpu_env, CLONE_VFORK | CLONE_VM | SIGCHLD, 0));
         break;
     case TARGET_NR_ugetrlimit:
     case TARGET_NR_truncate64:

@@ -4,7 +4,7 @@ CFLAGS=-Wall -O2 -g
 LDFLAGS=
 
 ifeq ($(ARCH),i386)
-TESTS=test2 sha1-i386 test-i386
+TESTS=testclone testsig testthread sha1-i386 test-i386
 endif
 TESTS+=sha1
 
@@ -16,8 +16,14 @@ hello: hello.c
 	$(CC) -nostdlib $(CFLAGS) -static $(LDFLAGS) -o $@ $<
 	strip hello
 
-test2: test2.c
+testclone: testclone.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
+
+testsig: testsig.c
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
+
+testthread: testthread.c
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< -lpthread
 
 # i386 emulation test (test various opcodes) */
 test-i386: test-i386.c test-i386-code16.S \

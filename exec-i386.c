@@ -52,6 +52,52 @@ int nb_tbs;
 uint8_t code_gen_buffer[CODE_GEN_BUFFER_SIZE];
 uint8_t *code_gen_ptr;
 
+/* thread support */
+
+#ifdef __powerpc__
+static inline int testandset (int *p)
+{
+    int ret;
+    __asm__ __volatile__ (
+                          "0:    lwarx %0,0,%1 ;"
+                          "      xor. %0,%3,%0;"
+                          "      bne 1f;"
+                          "      stwcx. %2,0,%1;"
+                          "      bne- 0b;"
+                          "1:    "
+                          : "=&r" (ret)
+                          : "r" (p), "r" (1), "r" (0)
+                          : "cr0", "memory");
+    return ret;
+}
+#endif
+
+#ifdef __i386__
+static inline int testandset (int *p)
+{
+    char ret;
+    long int readval;
+    
+    __asm__ __volatile__ ("lock; cmpxchgl %3, %1; sete %0"
+                          : "=q" (ret), "=m" (*p), "=a" (readval)
+                          : "r" (1), "m" (*p), "a" (0)
+                          : "memory");
+    return ret;
+}
+#endif
+
+int global_cpu_lock = 0;
+
+void cpu_lock(void)
+{
+    while (testandset(&global_cpu_lock));
+}
+
+void cpu_unlock(void)
+{
+    global_cpu_lock = 0;
+}
+
 #ifdef DEBUG_EXEC
 static const char *cc_op_str[] = {
     "DYNAMIC",
@@ -266,11 +312,15 @@ int cpu_x86_exec(CPUX86State *env1)
             tc_ptr = tb->tc_ptr;
             if (!tb->tc_ptr) {
                 /* if no translated code available, then translate it now */
+                /* XXX: very inefficient: we lock all the cpus when
+                   generating code */
+                cpu_lock();
                 tc_ptr = code_gen_ptr;
                 cpu_x86_gen_code(code_gen_ptr, CODE_GEN_MAX_SIZE, 
                                  &code_gen_size, pc, cs_base, flags);
                 tb->tc_ptr = tc_ptr;
                 code_gen_ptr = (void *)(((unsigned long)code_gen_ptr + code_gen_size + CODE_GEN_ALIGN - 1) & ~(CODE_GEN_ALIGN - 1));
+                cpu_unlock();
             }
             /* execute the generated code */
             gen_func = (void *)tc_ptr;

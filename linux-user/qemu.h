@@ -51,7 +51,7 @@ void syscall_init(void);
 long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3, 
                 long arg4, long arg5, long arg6);
 void gemu_log(const char *fmt, ...) __attribute__((format(printf,1,2)));
-
-
+struct CPUX86State;
+void cpu_loop(struct CPUX86State *env);
 
 #endif

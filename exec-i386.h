@@ -139,3 +139,5 @@ typedef struct CCTable {
 extern CCTable cc_table[];
 
 void load_seg(int seg_reg, int selector);
+void cpu_lock(void);
+void cpu_unlock(void);

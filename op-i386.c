@@ -2272,3 +2272,14 @@ void OPPROTO op_fninit(void)
     env->fptags[6] = 1;
     env->fptags[7] = 1;
 }
+
+/* threading support */
+void OPPROTO op_lock(void)
+{
+    cpu_lock();
+}
+
+void OPPROTO op_unlock(void)
+{
+    cpu_unlock();
+}
