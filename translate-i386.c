@@ -2771,6 +2771,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         if (s->cpl > s->iopl || s->vm86) {
             /* NOTE: even for (E)CX = 0 the exception is raised */
             gen_op_gpf(pc_start - s->cs_base);
+            s->is_jmp = 1;
         } else {
             if ((b & 1) == 0)
                 ot = OT_BYTE;
@@ -2788,6 +2789,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         if (s->cpl > s->iopl || s->vm86) {
             /* NOTE: even for (E)CX = 0 the exception is raised */
             gen_op_gpf(pc_start - s->cs_base);
+            s->is_jmp = 1;
         } else {
             if ((b & 1) == 0)
                 ot = OT_BYTE;
@@ -2807,6 +2809,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
     case 0xe5:
         if (s->cpl > s->iopl || s->vm86) {
             gen_op_gpf(pc_start - s->cs_base);
+            s->is_jmp = 1;
         } else {
             if ((b & 1) == 0)
                 ot = OT_BYTE;
@@ -2822,6 +2825,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
     case 0xe7:
         if (s->cpl > s->iopl || s->vm86) {
             gen_op_gpf(pc_start - s->cs_base);
+            s->is_jmp = 1;
         } else {
             if ((b & 1) == 0)
                 ot = OT_BYTE;
@@ -2837,6 +2841,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
     case 0xed:
         if (s->cpl > s->iopl || s->vm86) {
             gen_op_gpf(pc_start - s->cs_base);
+            s->is_jmp = 1;
         } else {
             if ((b & 1) == 0)
                 ot = OT_BYTE;
@@ -2851,6 +2856,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
     case 0xef:
         if (s->cpl > s->iopl || s->vm86) {
             gen_op_gpf(pc_start - s->cs_base);
+            s->is_jmp = 1;
         } else {
             if ((b & 1) == 0)
                 ot = OT_BYTE;
@@ -2901,9 +2907,9 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         gen_pop_update(s);
         /* add stack offset */
         if (s->ss32)
-            gen_op_addl_ESP_im(val + (2 << s->dflag));
+            gen_op_addl_ESP_im(val);
         else
-            gen_op_addw_ESP_im(val + (2 << s->dflag));
+            gen_op_addw_ESP_im(val);
         s->is_jmp = 1;
         break;
     case 0xcb: /* lret */
@@ -2921,32 +2927,31 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         s->is_jmp = 1;
         break;
     case 0xcf: /* iret */
-        /* XXX: not restartable */
-        /* pop offset */
-        gen_pop_T0(s);
-        if (s->dflag == 0)
-            gen_op_andl_T0_ffff();
-        gen_op_jmp_T0();
-        gen_pop_update(s);
-        /* pop selector */
-        gen_pop_T0(s);
-        gen_movl_seg_T0(s, R_CS);
-        gen_pop_update(s);
-        /* pop eflags */
-        gen_pop_T0(s);
-        if (s->dflag) {
-            if (s->vm86)
-                gen_op_movl_eflags_T0_vm(pc_start - s->cs_base);
-            else
-                gen_op_movl_eflags_T0();
+        if (s->vm86 && s->iopl != 3) {
+            gen_op_gpf(pc_start - s->cs_base);
+            s->is_jmp = 1;
         } else {
-            if (s->vm86)
-                gen_op_movw_eflags_T0_vm(pc_start - s->cs_base);
-            else
+            /* XXX: not restartable */
+            /* pop offset */
+            gen_pop_T0(s);
+            if (s->dflag == 0)
+                gen_op_andl_T0_ffff();
+            gen_op_jmp_T0();
+            gen_pop_update(s);
+            /* pop selector */
+            gen_pop_T0(s);
+            gen_movl_seg_T0(s, R_CS);
+            gen_pop_update(s);
+            /* pop eflags */
+            gen_pop_T0(s);
+            if (s->dflag) {
+                gen_op_movl_eflags_T0();
+            } else {
                 gen_op_movw_eflags_T0();
+            }
+            gen_pop_update(s);
+            s->cc_op = CC_OP_EFLAGS;
         }
-        gen_pop_update(s);
-        s->cc_op = CC_OP_EFLAGS;
         s->is_jmp = 1;
         break;
     case 0xe8: /* call im */
@@ -3060,29 +3065,30 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         /************************/
         /* flags */
     case 0x9c: /* pushf */
-        if (s->cc_op != CC_OP_DYNAMIC)
-            gen_op_set_cc_op(s->cc_op);
-        if (s->vm86)
-            gen_op_movl_T0_eflags_vm();
-        else
+        if (s->vm86 && s->iopl != 3) {
+            gen_op_gpf(pc_start - s->cs_base);
+            s->is_jmp = 1;
+        } else {
+            if (s->cc_op != CC_OP_DYNAMIC)
+                gen_op_set_cc_op(s->cc_op);
             gen_op_movl_T0_eflags();
-        gen_push_T0(s);
+            gen_push_T0(s);
+        }
         break;
     case 0x9d: /* popf */
-        gen_pop_T0(s);
-        if (s->dflag) {
-            if (s->vm86)
-                gen_op_movl_eflags_T0_vm(pc_start - s->cs_base);
-            else
-                gen_op_movl_eflags_T0();
+        if (s->vm86 && s->iopl != 3) {
+            gen_op_gpf(pc_start - s->cs_base);
+            s->is_jmp = 1;
         } else {
-            if (s->vm86)
-                gen_op_movw_eflags_T0_vm(pc_start - s->cs_base);
-            else
+            gen_pop_T0(s);
+            if (s->dflag) {
+                gen_op_movl_eflags_T0();
+            } else {
                 gen_op_movw_eflags_T0();
+            }
+            gen_pop_update(s);
+            s->cc_op = CC_OP_EFLAGS;
         }
-        gen_pop_update(s);
-        s->cc_op = CC_OP_EFLAGS;
         break;
     case 0x9e: /* sahf */
         gen_op_mov_TN_reg[OT_BYTE][0][R_AH]();
@@ -3257,28 +3263,36 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         break;
     case 0xfa: /* cli */
         if (!s->vm86) {
-            if (s->cpl <= s->iopl)
+            if (s->cpl <= s->iopl) {
                 gen_op_cli();
-            else
+            } else {
                 gen_op_gpf(pc_start - s->cs_base);
+                s->is_jmp = 1;
+            }
         } else {
-            if (s->iopl == 3)
+            if (s->iopl == 3) {
                 gen_op_cli();
-            else
-                gen_op_cli_vm();
+            } else {
+                gen_op_gpf(pc_start - s->cs_base);
+                s->is_jmp = 1;
+            }
         }
         break;
     case 0xfb: /* sti */
         if (!s->vm86) {
-            if (s->cpl <= s->iopl)
+            if (s->cpl <= s->iopl) {
                 gen_op_sti();
-            else
+            } else {
                 gen_op_gpf(pc_start - s->cs_base);
+                s->is_jmp = 1;
+            }
         } else {
-            if (s->iopl == 3)
+            if (s->iopl == 3) {
                 gen_op_sti();
-            else
-                gen_op_sti_vm(pc_start - s->cs_base);
+            } else {
+                gen_op_gpf(pc_start - s->cs_base);
+                s->is_jmp = 1;
+            }
         }
         break;
     case 0x62: /* bound */
@@ -3328,11 +3342,9 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         gen_op_cpuid();
         break;
     case 0xf4: /* hlt */
-        if (s->cpl == 0) {
-            /* ignored */
-        } else {
-            gen_op_gpf(pc_start - s->cs_base);
-        }
+        /* XXX: if cpl == 0, then should do something else */
+        gen_op_gpf(pc_start - s->cs_base);
+        s->is_jmp = 1;
         break;
     default:
         goto illegal_op;
@@ -3816,4 +3828,85 @@ CPUX86State *cpu_x86_init(void)
 void cpu_x86_close(CPUX86State *env)
 {
     free(env);
+}
+
+static const char *cc_op_str[] = {
+    "DYNAMIC",
+    "EFLAGS",
+    "MUL",
+    "ADDB",
+    "ADDW",
+    "ADDL",
+    "ADCB",
+    "ADCW",
+    "ADCL",
+    "SUBB",
+    "SUBW",
+    "SUBL",
+    "SBBB",
+    "SBBW",
+    "SBBL",
+    "LOGICB",
+    "LOGICW",
+    "LOGICL",
+    "INCB",
+    "INCW",
+    "INCL",
+    "DECB",
+    "DECW",
+    "DECL",
+    "SHLB",
+    "SHLW",
+    "SHLL",
+    "SARB",
+    "SARW",
+    "SARL",
+};
+
+void cpu_x86_dump_state(CPUX86State *env, FILE *f, int flags)
+{
+    int eflags;
+    char cc_op_name[32];
+
+    eflags = env->eflags;
+    fprintf(f, "EAX=%08x EBX=%08x ECX=%08x EDX=%08x\n"
+            "ESI=%08x EDI=%08x EBP=%08x ESP=%08x\n"
+            "EIP=%08x EFL=%08x [%c%c%c%c%c%c%c]\n",
+            env->regs[R_EAX], env->regs[R_EBX], env->regs[R_ECX], env->regs[R_EDX], 
+            env->regs[R_ESI], env->regs[R_EDI], env->regs[R_EBP], env->regs[R_ESP], 
+            env->eip, eflags,
+            eflags & DF_MASK ? 'D' : '-',
+            eflags & CC_O ? 'O' : '-',
+            eflags & CC_S ? 'S' : '-',
+            eflags & CC_Z ? 'Z' : '-',
+            eflags & CC_A ? 'A' : '-',
+            eflags & CC_P ? 'P' : '-',
+            eflags & CC_C ? 'C' : '-');
+    fprintf(f, "CS=%04x SS=%04x DS=%04x ES=%04x FS=%04x GS=%04x\n",
+            env->segs[R_CS],
+            env->segs[R_SS],
+            env->segs[R_DS],
+            env->segs[R_ES],
+            env->segs[R_FS],
+            env->segs[R_GS]);
+    if (flags & X86_DUMP_CCOP) {
+        if ((unsigned)env->cc_op < CC_OP_NB)
+            strcpy(cc_op_name, cc_op_str[env->cc_op]);
+        else
+            snprintf(cc_op_name, sizeof(cc_op_name), "[%d]", env->cc_op);
+        fprintf(f, "CCS=%08x CCD=%08x CCO=%-8s\n",
+                env->cc_src, env->cc_dst, cc_op_name);
+    }
+    if (flags & X86_DUMP_FPU) {
+        fprintf(f, "ST0=%f ST1=%f ST2=%f ST3=%f\n", 
+                (double)env->fpregs[0], 
+                (double)env->fpregs[1], 
+                (double)env->fpregs[2], 
+                (double)env->fpregs[3]);
+        fprintf(f, "ST4=%f ST5=%f ST6=%f ST7=%f\n", 
+                (double)env->fpregs[4], 
+                (double)env->fpregs[5], 
+                (double)env->fpregs[7], 
+                (double)env->fpregs[8]);
+    }
 }
