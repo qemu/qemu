@@ -244,13 +244,8 @@ int cpu_exec(CPUState *env1)
                            (unsigned long)env->segs[R_ES].base |
                            (unsigned long)env->segs[R_SS].base) != 0) << 
                     GEN_FLAG_ADDSEG_SHIFT;
-                if (env->cr[0] & CR0_PE_MASK) {
-                    if (!(env->eflags & VM_MASK))
-                        flags |= (env->segs[R_CS].selector & 3) << 
-                            GEN_FLAG_CPL_SHIFT;
-                    else
-                        flags |= (1 << GEN_FLAG_VM_SHIFT);
-                }
+                flags |= env->cpl << GEN_FLAG_CPL_SHIFT;
+                flags |= (env->eflags & VM_MASK) >> (17 - GEN_FLAG_VM_SHIFT);
                 flags |= (env->eflags & (IOPL_MASK | TF_MASK));
                 cs_base = env->segs[R_CS].base;
                 pc = cs_base + env->eip;

@@ -256,6 +256,7 @@ typedef struct CPUX86State {
     SegmentCache tr;
     SegmentCache gdt; /* only base and limit are used */
     SegmentCache idt; /* only base and limit are used */
+    int cpl;          /* current cpl */
 
     /* sysenter registers */
     uint32_t sysenter_cs;
@@ -276,6 +277,7 @@ typedef struct CPUX86State {
 
     uint32_t breakpoints[MAX_BREAKPOINTS];
     int nb_breakpoints;
+    int singlestep_enabled;
     
     /* user data */
     void *opaque;
@@ -297,6 +299,12 @@ int cpu_x86_get_pic_interrupt(CPUX86State *s);
 
 /* needed to load some predefinied segment registers */
 void cpu_x86_load_seg(CPUX86State *s, int seg_reg, int selector);
+
+/* wrapper, just in case memory mappings must be changed */
+static inline void cpu_x86_set_cpl(CPUX86State *s, int cpl)
+{
+    s->cpl = cpl;
+}
 
 /* simulate fsave/frstor */
 void cpu_x86_fsave(CPUX86State *s, uint8_t *ptr, int data32);

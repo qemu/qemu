@@ -4113,13 +4113,7 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     dc->addseg = (flags >> GEN_FLAG_ADDSEG_SHIFT) & 1;
     dc->f_st = (flags >> GEN_FLAG_ST_SHIFT) & 7;
     dc->vm86 = (flags >> GEN_FLAG_VM_SHIFT) & 1;
-    /* CPL is implicit if real mode or vm86 mode */
-    if (!dc->pe)
-        dc->cpl = 0;
-    else if (dc->vm86)
-        dc->cpl = 3;
-    else
-        dc->cpl = (flags >> GEN_FLAG_CPL_SHIFT) & 3;
+    dc->cpl = (flags >> GEN_FLAG_CPL_SHIFT) & 3;
     dc->iopl = (flags >> GEN_FLAG_IOPL_SHIFT) & 3;
     dc->tf = (flags >> GEN_FLAG_TF_SHIFT) & 1;
     dc->cc_op = CC_OP_DYNAMIC;
@@ -4362,7 +4356,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr, int is_write)
     int cpl, error_code, is_dirty, is_user, prot, page_size;
     void *map_addr;
 
-    cpl = env->segs[R_CS].selector & 3;
+    cpl = env->cpl;
     is_user = (cpl == 3);
     
 #ifdef DEBUG_MMU
