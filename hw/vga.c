@@ -597,6 +597,7 @@ static void vbe_ioport_write(void *opaque, uint32_t addr, uint32_t val)
                     s->sr[0x01] &= ~8; /* no double line */
                 } else {
                     shift_control = 2;
+                    s->sr[4] |= 0x08; /* set chain 4 mode */
                 }
                 s->gr[0x05] = (s->gr[0x05] & ~0x60) | (shift_control << 5);
                 s->cr[0x09] &= ~0x9f; /* no double scan */
@@ -1768,6 +1769,13 @@ int vga_initialize(DisplayState *ds, uint8_t *vga_ram_base,
 
     register_ioport_write(0x1ce, 1, 2, vbe_ioport_write, s);
     register_ioport_write(0x1cf, 1, 2, vbe_ioport_write, s);
+
+    /* old Bochs IO ports */
+    register_ioport_read(0xff80, 1, 2, vbe_ioport_read, s);
+    register_ioport_read(0xff81, 1, 2, vbe_ioport_read, s);
+
+    register_ioport_write(0xff80, 1, 2, vbe_ioport_write, s);
+    register_ioport_write(0xff81, 1, 2, vbe_ioport_write, s); 
 #endif
 
     vga_io_memory = cpu_register_io_memory(0, vga_mem_read, vga_mem_write);
