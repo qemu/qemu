@@ -1903,7 +1903,7 @@ void OPPROTO op_fldz_ST0(void)
 
 void OPPROTO op_fldz_FT0(void)
 {
-    ST0 = f15rk[0];
+    FT0 = f15rk[0];
 }
 
 /* associated heplers to reduce generated code length and to simplify
