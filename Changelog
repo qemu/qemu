@@ -28,6 +28,8 @@ version 0.6.1:
   - NT4 IDE fixes (Ben Pfaf, Mike Nordell)
   - SDL Audio support and SB16 fixes (malc)
   - ENTER instruction bug fix (initial patch by Stefan Kisdaroczi)
+  - VGA font change fix
+  - VGA read-only CRTC register fix
 
 version 0.6.0:
 
