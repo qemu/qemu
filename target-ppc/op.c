@@ -21,6 +21,8 @@
 #include "config.h"
 #include "exec.h"
 
+//#define DEBUG_OP
+
 #define regs (env)
 #define Ts0 (int32_t)T0
 #define Ts1 (int32_t)T1
@@ -34,7 +36,7 @@
 #define FTS1 ((float)env->ft1)
 #define FTS2 ((float)env->ft2)
 
-#define PPC_OP(name) void op_##name(void)
+#define PPC_OP(name) void glue(op_, name)(void)
 
 #define REG 0
 #include "op_template.h"
@@ -145,7 +147,7 @@ PPC_OP(set_Rc0)
     } else {
         tmp = 0x02;
     }
-    set_CRn(0, tmp);
+    env->crf[0] = tmp;
     RETURN();
 }
 
@@ -161,21 +163,21 @@ PPC_OP(set_Rc0_ov)
         tmp = 0x02;
     }
     tmp |= xer_ov;
-    set_CRn(0, tmp);
+    env->crf[0] = tmp;
     RETURN();
 }
 
 /* reset_Rc0 */
 PPC_OP(reset_Rc0)
 {
-    set_CRn(0, 0x02 | xer_ov);
+    env->crf[0] = 0x02 | xer_ov;
     RETURN();
 }
 
 /* set_Rc0_1 */
 PPC_OP(set_Rc0_1)
 {
-    set_CRn(0, 0x04 | xer_ov);
+    env->crf[0] = 0x04 | xer_ov;
     RETURN();
 }
 
@@ -186,6 +188,7 @@ PPC_OP(set_Rc1)
     RETURN();
 }
 
+/* Constants load */
 PPC_OP(set_T0)
 {
     T0 = PARAM(1);
@@ -204,23 +207,50 @@ PPC_OP(set_T2)
     RETURN();
 }
 
-/* Update time base */
-PPC_OP(update_tb)
+/* Generate exceptions */
+PPC_OP(queue_exception_err)
 {
-    T0 = regs->spr[SPR_ENCODE(268)];
-    T1 = T0;
-    T0 += PARAM(1);
-    if (T0 < T1) {
-        T1 = regs->spr[SPR_ENCODE(269)] + 1;
-        regs->spr[SPR_ENCODE(269)] = T1;
+    do_queue_exception_err(PARAM(1), PARAM(2));
+}
+
+PPC_OP(queue_exception)
+{
+    do_queue_exception(PARAM(1));
+}
+
+PPC_OP(process_exceptions)
+{
+    if (env->exceptions != 0) {
+        env->nip = PARAM(1);
+        do_check_exception_state();
     }
-    regs->spr[SPR_ENCODE(268)] = T0;
+}
+
+/* Segment registers load and store with immediate index */
+PPC_OP(load_srin)
+{
+    T0 = regs->sr[T1 >> 28];
     RETURN();
 }
 
-PPC_OP(raise_exception)
+PPC_OP(store_srin)
 {
-    raise_exception(PARAM(1));
+#if defined (DEBUG_OP)
+    dump_store_sr(T1 >> 28);
+#endif
+    regs->sr[T1 >> 28] = T0;
+    RETURN();
+}
+
+PPC_OP(load_sdr1)
+{
+    T0 = regs->sdr1;
+    RETURN();
+}
+
+PPC_OP(store_sdr1)
+{
+    regs->sdr1 = T0;
     RETURN();
 }
 
@@ -229,15 +259,16 @@ PPC_OP(exit_tb)
     EXIT_TB();
 }
 
+/* Load/store special registers */
 PPC_OP(load_cr)
 {
-    T0 = do_load_cr();
+    do_load_cr();
     RETURN();
 }
 
 PPC_OP(store_cr)
 {
-    do_store_cr(PARAM(1), T0);
+    do_store_cr(PARAM(1));
     RETURN();
 }
 
@@ -257,38 +288,150 @@ PPC_OP(clear_xer_cr)
 
 PPC_OP(load_xer_bc)
 {
-    T0 = xer_bc;
+    T1 = xer_bc;
     RETURN();
 }
 
 PPC_OP(load_xer)
 {
-    T0 = do_load_xer();
+    do_load_xer();
     RETURN();
 }
 
 PPC_OP(store_xer)
 {
-    do_store_xer(T0);
+    do_store_xer();
     RETURN();
 }
 
 PPC_OP(load_msr)
 {
-    T0 = do_load_msr();
+    do_load_msr();
     RETURN();
 }
 
 PPC_OP(store_msr)
 {
-    do_store_msr(T0);
+    do_store_msr();
+    RETURN();
+}
+
+/* SPR */
+PPC_OP(load_spr)
+{
+    T0 = regs->spr[PARAM(1)];
+    RETURN();
+}
+
+PPC_OP(store_spr)
+{
+    regs->spr[PARAM(1)] = T0;
     RETURN();
 }
 
 PPC_OP(load_lr)
 {
-    regs->LR = PARAM(1);
+    T0 = regs->lr;
     RETURN();
+}
+
+PPC_OP(store_lr)
+{
+    regs->lr = T0;
+    RETURN();
+}
+
+PPC_OP(load_ctr)
+{
+    T0 = regs->ctr;
+    RETURN();
+}
+
+PPC_OP(store_ctr)
+{
+    regs->ctr = T0;
+    RETURN();
+}
+
+/* Update time base */
+PPC_OP(update_tb)
+{
+    T0 = regs->tb[0];
+    T1 = T0;
+    T0 += PARAM(1);
+#if defined (DEBUG_OP)
+    dump_update_tb(PARAM(1));
+#endif
+    if (T0 < T1) {
+        T1 = regs->tb[1] + 1;
+        regs->tb[1] = T1;
+    }
+    regs->tb[0] = T0;
+    RETURN();
+}
+
+PPC_OP(load_tb)
+{
+    T0 = regs->tb[PARAM(1)];
+    RETURN();
+}
+
+PPC_OP(store_tb)
+{
+    regs->tb[PARAM(1)] = T0;
+#if defined (DEBUG_OP)
+    dump_store_tb(PARAM(1));
+#endif
+    RETURN();
+}
+
+/* Update decrementer */
+PPC_OP(update_decr)
+{
+    T0 = regs->decr;
+    T1 = T0;
+    T0 -= PARAM(1);
+    regs->decr = T0;
+    if (PARAM(1) > T1) {
+        do_queue_exception(EXCP_DECR);
+    }
+    RETURN();
+}
+
+PPC_OP(store_decr)
+{
+    T1 = regs->decr;
+    regs->decr = T0;
+    if (Ts0 < 0 && Ts1 > 0) {
+        do_queue_exception(EXCP_DECR);
+    }
+    RETURN();
+}
+
+PPC_OP(load_ibat)
+{
+    T0 = regs->IBAT[PARAM(1)][PARAM(2)];
+}
+
+PPC_OP(store_ibat)
+{
+#if defined (DEBUG_OP)
+    dump_store_ibat(PARAM(1), PARAM(2));
+#endif
+    regs->IBAT[PARAM(1)][PARAM(2)] = T0;
+}
+
+PPC_OP(load_dbat)
+{
+    T0 = regs->DBAT[PARAM(1)][PARAM(2)];
+}
+
+PPC_OP(store_dbat)
+{
+#if defined (DEBUG_OP)
+    dump_store_dbat(PARAM(1), PARAM(2));
+#endif
+    regs->DBAT[PARAM(1)][PARAM(2)] = T0;
 }
 
 /* FPSCR */
@@ -313,14 +456,7 @@ PPC_OP(reset_scrfx)
 /* Set reservation */
 PPC_OP(set_reservation)
 {
-    regs->reserve = T1 & ~0x03;
-    RETURN();
-}
-
-/* Reset reservation */
-PPC_OP(reset_reservation)
-{
-    regs->reserve = 0;
+    regs->reserve = T0 & ~0x03;
     RETURN();
 }
 
@@ -344,47 +480,65 @@ PPC_OP(setcrfbit)
 }
 
 /* Branch */
+#if 0
+#define EIP regs->nip
+#define TB_DO_JUMP(name, tb, n, target) JUMP_TB(name, tb, n, target)
+#else
+#define TB_DO_JUMP(name, tb, n, target) regs->nip = target;
+#endif
+
 #define __PPC_OP_B(name, target)                                              \
 PPC_OP(name)                                                                  \
 {                                                                             \
-    regs->nip = (target);                                                     \
+    TB_DO_JUMP(glue(op_, name), T1, 0, (target));                             \
     RETURN();                                                                 \
 }
 
-#define __PPC_OP_BL(name, target)                                             \
+#define __PPC_OP_BL(name, target, link)                                       \
 PPC_OP(name)                                                                  \
 {                                                                             \
-    regs->LR = PARAM(1);                                                      \
-    regs->nip = (target);                                                     \
+    regs->lr = (link);                                                        \
+    TB_DO_JUMP(glue(op_, name), T1, 0, (target));                             \
     RETURN();                                                                 \
 }
 
-#define PPC_OP_B(name, target)                                                \
+#define PPC_OP_B(name, target, link)                                          \
 __PPC_OP_B(name, target);                                                     \
-__PPC_OP_BL(name##l, target)
+__PPC_OP_BL(glue(name, l), target, link)
 
 #define __PPC_OP_BC(name, cond, target)                                       \
 PPC_OP(name)                                                                  \
 {                                                                             \
     if (cond) {                                                               \
-        T0 = (target);                                                        \
+        TB_DO_JUMP(glue(op_, name), T1, 1, (target));                         \
     } else {                                                                  \
-        T0 = PARAM(1);                                                        \
+        TB_DO_JUMP(glue(op_, name), T1, 0, PARAM(1));                         \
     }                                                                         \
-    regs->nip = T0;                                                           \
     RETURN();                                                                 \
 }
 
 #define __PPC_OP_BCL(name, cond, target)                                      \
 PPC_OP(name)                                                                  \
 {                                                                             \
+    regs->lr = PARAM(1);                                                      \
     if (cond) {                                                               \
-        T0 = (target);                                                        \
-        regs->LR = PARAM(1);                                                  \
+        TB_DO_JUMP(glue(op_, name), T1, 1, (target));                         \
     } else {                                                                  \
-        T0 = PARAM(1);                                                        \
+        TB_DO_JUMP(glue(op_, name), T1, 0, PARAM(1));                         \
     }                                                                         \
-    regs->nip = T0;                                                           \
+    RETURN();                                                                 \
+}
+
+#define __PPC_OP_BCLRL(name, cond, target)                                    \
+PPC_OP(name)                                                                  \
+{                                                                             \
+    T2 = (target);                                                            \
+    regs->lr = PARAM(1);                                                      \
+    if (cond) {                                                               \
+        TB_DO_JUMP(glue(op_, name), T1, 1, T2);                               \
+    } else {                                                                  \
+        TB_DO_JUMP(glue(op_, name), T1, 0, PARAM(1));                         \
+    }                                                                         \
     RETURN();                                                                 \
 }
 
@@ -396,48 +550,56 @@ __PPC_OP_BCL(namel, cond, target)
 #define PPC_OP_BC(name, cond)                                                 \
 _PPC_OP_BC(b_##name, bl_##name, cond, PARAM(2))
 
-PPC_OP_B(b, PARAM(1));
-PPC_OP_BC(ctr,        (regs->CTR != 0));
-PPC_OP_BC(ctr_true,   (regs->CTR != 0 && (T0 & PARAM(3)) != 0));
-PPC_OP_BC(ctr_false,  (regs->CTR != 0 && (T0 & PARAM(3)) == 0));
-PPC_OP_BC(ctrz,       (regs->CTR == 0));
-PPC_OP_BC(ctrz_true,  (regs->CTR == 0 && (T0 & PARAM(3)) != 0));
-PPC_OP_BC(ctrz_false, (regs->CTR == 0 && (T0 & PARAM(3)) == 0));
+PPC_OP_B(b, PARAM(1), PARAM(2));
+PPC_OP_BC(ctr,        (regs->ctr != 0));
+PPC_OP_BC(ctr_true,   (regs->ctr != 0 && (T0 & PARAM(3)) != 0));
+PPC_OP_BC(ctr_false,  (regs->ctr != 0 && (T0 & PARAM(3)) == 0));
+PPC_OP_BC(ctrz,       (regs->ctr == 0));
+PPC_OP_BC(ctrz_true,  (regs->ctr == 0 && (T0 & PARAM(3)) != 0));
+PPC_OP_BC(ctrz_false, (regs->ctr == 0 && (T0 & PARAM(3)) == 0));
 PPC_OP_BC(true,       ((T0 & PARAM(3)) != 0));
 PPC_OP_BC(false,      ((T0 & PARAM(3)) == 0));
 
 /* Branch to CTR */
 #define PPC_OP_BCCTR(name, cond)                                              \
-_PPC_OP_BC(bctr_##name, bctrl_##name, cond, regs->CTR & ~0x03)
+_PPC_OP_BC(bctr_##name, bctrl_##name, cond, regs->ctr & ~0x03)
 
-PPC_OP_B(bctr, regs->CTR & ~0x03);
-PPC_OP_BCCTR(ctr,        (regs->CTR != 0));
-PPC_OP_BCCTR(ctr_true,   (regs->CTR != 0 && (T0 & PARAM(2)) != 0));
-PPC_OP_BCCTR(ctr_false,  (regs->CTR != 0 && (T0 & PARAM(2)) == 0));
-PPC_OP_BCCTR(ctrz,       (regs->CTR == 0));
-PPC_OP_BCCTR(ctrz_true,  (regs->CTR == 0 && (T0 & PARAM(2)) != 0));
-PPC_OP_BCCTR(ctrz_false, (regs->CTR == 0 && (T0 & PARAM(2)) == 0));
+PPC_OP_B(bctr, regs->ctr & ~0x03, PARAM(1));
+PPC_OP_BCCTR(ctr,        (regs->ctr != 0));
+PPC_OP_BCCTR(ctr_true,   (regs->ctr != 0 && (T0 & PARAM(2)) != 0));
+PPC_OP_BCCTR(ctr_false,  (regs->ctr != 0 && (T0 & PARAM(2)) == 0));
+PPC_OP_BCCTR(ctrz,       (regs->ctr == 0));
+PPC_OP_BCCTR(ctrz_true,  (regs->ctr == 0 && (T0 & PARAM(2)) != 0));
+PPC_OP_BCCTR(ctrz_false, (regs->ctr == 0 && (T0 & PARAM(2)) == 0));
 PPC_OP_BCCTR(true,       ((T0 & PARAM(2)) != 0));
 PPC_OP_BCCTR(false,      ((T0 & PARAM(2)) == 0));
 
 /* Branch to LR */
 #define PPC_OP_BCLR(name, cond)                                               \
-_PPC_OP_BC(blr_##name, blrl_##name, cond, regs->LR & ~0x03)
+__PPC_OP_BC(blr_##name, cond, regs->lr & ~0x03);                              \
+__PPC_OP_BCLRL(blrl_##name, cond, regs->lr & ~0x03)
 
-PPC_OP_B(blr, regs->LR & ~0x03);
-PPC_OP_BCLR(ctr,        (regs->CTR != 0));
-PPC_OP_BCLR(ctr_true,   (regs->CTR != 0 && (T0 & PARAM(2)) != 0));
-PPC_OP_BCLR(ctr_false,  (regs->CTR != 0 && (T0 & PARAM(2)) == 0));
-PPC_OP_BCLR(ctrz,       (regs->CTR == 0));
-PPC_OP_BCLR(ctrz_true,  (regs->CTR == 0 && (T0 & PARAM(2)) != 0));
-PPC_OP_BCLR(ctrz_false, (regs->CTR == 0 && (T0 & PARAM(2)) == 0));
+__PPC_OP_B(blr, regs->lr & ~0x03);
+PPC_OP(blrl)
+{
+    T0 = regs->lr & ~0x03;
+    regs->lr = PARAM(1);
+    TB_DO_JUMP(op_blrl, T1, 0, T0);
+    RETURN();
+}
+PPC_OP_BCLR(ctr,        (regs->ctr != 0));
+PPC_OP_BCLR(ctr_true,   (regs->ctr != 0 && (T0 & PARAM(2)) != 0));
+PPC_OP_BCLR(ctr_false,  (regs->ctr != 0 && (T0 & PARAM(2)) == 0));
+PPC_OP_BCLR(ctrz,       (regs->ctr == 0));
+PPC_OP_BCLR(ctrz_true,  (regs->ctr == 0 && (T0 & PARAM(2)) != 0));
+PPC_OP_BCLR(ctrz_false, (regs->ctr == 0 && (T0 & PARAM(2)) == 0));
 PPC_OP_BCLR(true,       ((T0 & PARAM(2)) != 0));
 PPC_OP_BCLR(false,      ((T0 & PARAM(2)) == 0));
 
 /* CTR maintenance */
 PPC_OP(dec_ctr)
 {
-    regs->CTR--;
+    regs->ctr--;
     RETURN();
 }
 
@@ -1077,7 +1239,7 @@ PPC_OP(slw)
 /* shift right algebraic word */
 PPC_OP(sraw)
 {
-    Ts0 = do_sraw(Ts0, T1);
+    do_sraw();
     RETURN();
 }
 
@@ -1106,313 +1268,280 @@ PPC_OP(srw)
 }
 
 /***                       Floating-Point arithmetic                       ***/
+/* fadd - fadd. */
+PPC_OP(fadd)
+{
+    FT0 += FT1;
+    RETURN();
+}
+
+/* fadds - fadds. */
+PPC_OP(fadds)
+{
+    FTS0 += FTS1;
+    RETURN();
+}
+
+/* fsub - fsub. */
+PPC_OP(fsub)
+{
+    FT0 -= FT1;
+    RETURN();
+}
+
+/* fsubs - fsubs. */
+PPC_OP(fsubs)
+{
+    FTS0 -= FTS1;
+    RETURN();
+}
+
+/* fmul - fmul. */
+PPC_OP(fmul)
+{
+    FT0 *= FT1;
+    RETURN();
+}
+
+/* fmuls - fmuls. */
+PPC_OP(fmuls)
+{
+    FTS0 *= FTS1;
+    RETURN();
+}
+
+/* fdiv - fdiv. */
+PPC_OP(fdiv)
+{
+    FT0 /= FT1;
+    RETURN();
+}
+
+/* fdivs - fdivs. */
+PPC_OP(fdivs)
+{
+    FTS0 /= FTS1;
+    RETURN();
+}
+
+/* fsqrt - fsqrt. */
+PPC_OP(fsqrt)
+{
+    do_fsqrt();
+    RETURN();
+}
+
+/* fsqrts - fsqrts. */
+PPC_OP(fsqrts)
+{
+    do_fsqrts();
+    RETURN();
+}
+
+/* fres - fres. */
+PPC_OP(fres)
+{
+    do_fres();
+    RETURN();
+}
+
+/* frsqrte  - frsqrte. */
+PPC_OP(frsqrte)
+{
+    do_fsqrte();
+    RETURN();
+}
+
+/* fsel - fsel. */
+PPC_OP(fsel)
+{
+    do_fsel();
+    RETURN();
+}
 
 /***                     Floating-Point multiply-and-add                   ***/
+/* fmadd - fmadd. */
+PPC_OP(fmadd)
+{
+    FT0 = (FT0 * FT1) + FT2;
+    RETURN();
+}
+
+/* fmadds - fmadds. */
+PPC_OP(fmadds)
+{
+    FTS0 = (FTS0 * FTS1) + FTS2;
+    RETURN();
+}
+
+/* fmsub - fmsub. */
+PPC_OP(fmsub)
+{
+    FT0 = (FT0 * FT1) - FT2;
+    RETURN();
+}
+
+/* fmsubs - fmsubs. */
+PPC_OP(fmsubs)
+{
+    FTS0 = (FTS0 * FTS1) - FTS2;
+    RETURN();
+}
+
+/* fnmadd - fnmadd. - fnmadds - fnmadds. */
+PPC_OP(fnmadd)
+{
+    FT0 = -((FT0 * FT1) + FT2);
+    RETURN();
+}
+
+/* fnmadds - fnmadds. */
+PPC_OP(fnmadds)
+{
+    FTS0 = -((FTS0 * FTS1) + FTS2);
+    RETURN();
+}
+
+/* fnmsub - fnmsub. */
+PPC_OP(fnmsub)
+{
+    FT0 = -((FT0 * FT1) - FT2);
+    RETURN();
+}
+
+/* fnmsubs - fnmsubs. */
+PPC_OP(fnmsubs)
+{
+    FTS0 = -((FTS0 * FTS1) - FTS2);
+    RETURN();
+}
 
 /***                     Floating-Point round & convert                    ***/
+/* frsp - frsp. */
+PPC_OP(frsp)
+{
+    FT0 = FTS0;
+    RETURN();
+}
+
+/* fctiw - fctiw. */
+PPC_OP(fctiw)
+{
+    do_fctiw();
+    RETURN();
+}
+
+/* fctiwz - fctiwz. */
+PPC_OP(fctiwz)
+{
+    do_fctiwz();
+    RETURN();
+}
+
 
 /***                         Floating-Point compare                        ***/
-
-/***                  Floating-Point status & ctrl register                ***/
-
-/***                             Integer load                              ***/
-#define ld16x(x) s_ext16(ld16(x))
-#define PPC_ILD_OPX(name, op)                                                 \
-PPC_OP(l##name##x_z)                                                          \
-{                                                                             \
-    T1 = op(T0);                                                              \
-    RETURN();                                                                 \
-}                                                                             \
-PPC_OP(l##name##x)                                                            \
-{                                                                             \
-    T0 += T1;                                                                 \
-    T1 = op(T0);                                                              \
-    RETURN();                                                                 \
-}
-
-#define PPC_ILD_OP(name, op)                                                  \
-PPC_OP(l##name##_z)                                                           \
-{                                                                             \
-    T1 = op(SPARAM(1));                                                       \
-    RETURN();                                                                 \
-}                                                                             \
-PPC_OP(l##name)                                                               \
-{                                                                             \
-    T0 += SPARAM(1);                                                          \
-    T1 = op(T0);                                                              \
-    RETURN();                                                                 \
-}                                                                             \
-PPC_ILD_OPX(name, op)
-
-PPC_ILD_OP(bz, ld8);
-PPC_ILD_OP(ha, ld16x);
-PPC_ILD_OP(hz, ld16);
-PPC_ILD_OP(wz, ld32);
-
-/***                              Integer store                            ***/
-#define PPC_IST_OPX(name, op)                                                 \
-PPC_OP(st##name##x_z)                                                         \
-{                                                                             \
-    op(T0, T1);                                                               \
-    RETURN();                                                                 \
-}                                                                             \
-PPC_OP(st##name##x)                                                           \
-{                                                                             \
-    T0 += T1;                                                                 \
-    op(T0, T2);                                                               \
-    RETURN();                                                                 \
-}
-
-#define PPC_IST_OP(name, op)                                                  \
-PPC_OP(st##name##_z)                                                          \
-{                                                                             \
-    op(SPARAM(1), T0);                                                        \
-    RETURN();                                                                 \
-}                                                                             \
-PPC_OP(st##name)                                                              \
-{                                                                             \
-    T0 += SPARAM(1);                                                          \
-    op(T0, T1);                                                               \
-    RETURN();                                                                 \
-}                                                                             \
-PPC_IST_OPX(name, op);
-
-PPC_IST_OP(b, st8);
-PPC_IST_OP(h, st16);
-PPC_IST_OP(w, st32);
-
-/***                Integer load and store with byte reverse               ***/
-PPC_ILD_OPX(hbr, ld16r);
-PPC_ILD_OPX(wbr, ld32r);
-PPC_IST_OPX(hbr, st16r);
-PPC_IST_OPX(wbr, st32r);
-
-/***                    Integer load and store multiple                    ***/
-PPC_OP(lmw)
+/* fcmpu */
+PPC_OP(fcmpu)
 {
-    do_lmw(PARAM(1), SPARAM(2) + T0);
+    do_fcmpu();
     RETURN();
 }
 
-PPC_OP(stmw)
+/* fcmpo */
+PPC_OP(fcmpo)
 {
-    do_stmw(PARAM(1), SPARAM(2) + T0);
+    do_fcmpo();
     RETURN();
 }
 
-/***                    Integer load and store strings                     ***/
-PPC_OP(lswi)
+/***                         Floating-point move                           ***/
+/* fabs */
+PPC_OP(fabs)
 {
-    do_lsw(PARAM(1), PARAM(2), T0);
+    do_fabs();
     RETURN();
 }
 
-PPC_OP(lswx)
+/* fnabs */
+PPC_OP(fnabs)
 {
-    do_lsw(PARAM(1), T0, T1 + T2);
+    do_fnabs();
     RETURN();
 }
 
-PPC_OP(stswi_z)
+/* fneg */
+PPC_OP(fneg)
 {
-    do_stsw(PARAM(1), PARAM(2), 0);
+    FT0 = -FT0;
     RETURN();
 }
 
-PPC_OP(stswi)
-{
-    do_stsw(PARAM(1), PARAM(2), T0);
-    RETURN();
-}
+/* Load and store */
+#if defined(CONFIG_USER_ONLY)
+#define MEMSUFFIX _raw
+#include "op_mem.h"
+#else
+#define MEMSUFFIX _user
+#include "op_mem.h"
 
-PPC_OP(stswx_z)
-{
-    do_stsw(PARAM(1), T0, T1);
-    RETURN();
-}
+#define MEMSUFFIX _kernel
+#include "op_mem.h"
+#endif
 
-PPC_OP(stswx)
+/* Return from interrupt */
+PPC_OP(rfi)
 {
-    do_stsw(PARAM(1), T0, T1 + T2);
-    RETURN();
-}
-
-/* SPR */
-PPC_OP(load_spr)
-{
-    T0 = regs->spr[PARAM(1)];
-}
-
-PPC_OP(store_spr)
-{
-    regs->spr[PARAM(1)] = T0;
-}
-
-/***                         Floating-point store                          ***/
-
-PPC_OP(stfd_z_FT0)
-{
-    stfq((void *)SPARAM(1), FT0);
-}
-
-PPC_OP(stfd_FT0)
-{
-    T0 += SPARAM(1);
-    stfq((void *)T0, FT0);
-}
-
-PPC_OP(stfdx_z_FT0)
-{
-    stfq((void *)T0, FT0);
-}
-
-PPC_OP(stfdx_FT0)
-{
-    T0 += T1;
-    stfq((void *)T0, FT0);
-}
-
-PPC_OP(stfs_z_FT0)
-{
-    float tmp = FT0;
-    stfl((void *)SPARAM(1), tmp);
-}
-
-PPC_OP(stfs_FT0)
-{
-    float tmp = FT0;
-    T0 += SPARAM(1);
-    stfl((void *)T0, tmp);
-}
-
-PPC_OP(stfsx_z_FT0)
-{
-    float tmp = FT0;
-    stfl((void *)T0, tmp);
-}
-
-PPC_OP(stfsx_FT0)
-{
-    float tmp = FT0;
-    T0 += T1;
-    stfl((void *)T0, tmp);
-}
-
-/***                         Floating-point load                          ***/
-PPC_OP(lfd_z_FT0)
-{
-    FT0 = ldfq((void *)SPARAM(1));
-}
-
-PPC_OP(lfd_FT0)
-{
-    T0 += SPARAM(1);
-    FT0 = ldfq((void *)T0);
-}
-
-PPC_OP(lfdx_z_FT0)
-{
-    FT0 = ldfq((void *)T0);
-}
-
-PPC_OP(lfdx_FT0)
-{
-    T0 += T1;
-    FT0 = ldfq((void *)T0);
-}
-
-PPC_OP(lfs_z_FT0)
-{
-    float tmp = ldfl((void *)SPARAM(1));
-    FT0 = tmp;
-}
-
-PPC_OP(lfs_FT0)
-{
-    float tmp;
-    T0 += SPARAM(1);
-    tmp = ldfl((void *)T0);
-    FT0 = tmp;
-}
-
-PPC_OP(lfsx_z_FT0)
-{
-    float tmp;
-    tmp = ldfl((void *)T0);
-    FT0 = tmp;
-}
-
-PPC_OP(lfsx_FT0)
-{
-    float tmp;
-    T0 += T1;
-    tmp = ldfl((void *)T0);
-    FT0 = tmp;
-}
-
-PPC_OP(lwarx_z)
-{
-    T1 = ld32(T0);
-    regs->reserve = T0;
-    RETURN();
-}
-
-PPC_OP(lwarx)
-{
-    T0 += T1;
-    T1 = ld32(T0);
-    regs->reserve = T0;
-    RETURN();
-}
-
-PPC_OP(stwcx_z)
-{
-    if (regs->reserve != T0) {
-        env->crf[0] = xer_ov;
-    } else {
-        st32(T0, T1);
-        env->crf[0] = xer_ov | 0x02;
+    T0 = regs->spr[SRR1] & ~0xFFFF0000;
+    do_store_msr();
+    do_tlbia();
+    dump_rfi();
+    regs->nip = regs->spr[SRR0] & ~0x00000003;
+    if (env->exceptions != 0) {
+        do_check_exception_state();
     }
-    regs->reserve = 0;
     RETURN();
 }
 
-PPC_OP(stwcx)
+/* Trap word */
+PPC_OP(tw)
 {
-    T0 += T1;
-    if (regs->reserve != (T0 & ~0x03)) {
-        env->crf[0] = xer_ov;
-    } else {
-        st32(T0, T2);
-        env->crf[0] = xer_ov | 0x02;
-    }
-    regs->reserve = 0;
+    if ((Ts0 < Ts1 && (PARAM(1) & 0x10)) ||
+        (Ts0 > Ts1 && (PARAM(1) & 0x08)) ||
+        (Ts0 == Ts1 && (PARAM(1) & 0x04)) ||
+        (T0 < T1 && (PARAM(1) & 0x02)) ||
+        (T0 > T1 && (PARAM(1) & 0x01)))
+        do_queue_exception_err(EXCP_PROGRAM, EXCP_TRAP);
     RETURN();
 }
 
-PPC_OP(dcbz_z)
+PPC_OP(twi)
 {
-    do_dcbz();
-    RETURN();
-}
-
-PPC_OP(dcbz)
-{
-    T0 += T1;
-    do_dcbz();
+    if ((Ts0 < SPARAM(1) && (PARAM(2) & 0x10)) ||
+        (Ts0 > SPARAM(1) && (PARAM(2) & 0x08)) ||
+        (Ts0 == SPARAM(1) && (PARAM(2) & 0x04)) ||
+        (T0 < (uint32_t)SPARAM(1) && (PARAM(2) & 0x02)) ||
+        (T0 > (uint32_t)SPARAM(1) && (PARAM(2) & 0x01)))
+        do_queue_exception_err(EXCP_PROGRAM, EXCP_TRAP);
     RETURN();
 }
 
 /* Instruction cache block invalidate */
-PPC_OP(icbi_z)
+PPC_OP(icbi)
 {
     do_icbi();
     RETURN();
 }
 
-PPC_OP(icbi)
+/* tlbia */
+PPC_OP(tlbia)
 {
-    T0 += T1;
-    do_icbi();
+    do_tlbia();
+    RETURN();
+}
+
+/* tlbie */
+PPC_OP(tlbie)
+{
+    do_tlbie();
     RETURN();
 }

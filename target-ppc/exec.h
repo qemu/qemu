@@ -41,126 +41,119 @@ register uint32_t T2 asm(AREG3);
 #include "cpu.h"
 #include "exec-all.h"
 
-static inline uint8_t ld8 (uint32_t EA)
-{
-    return *((uint8_t *)EA);
-}
-
-static inline uint16_t ld16 (uint32_t EA)
-{
-    return __be16_to_cpu(*((uint16_t *)EA));
-}
-
-static inline uint16_t ld16r (uint32_t EA)
-{
-    return __le16_to_cpu(*((uint16_t *)EA));
-}
-
-static inline uint32_t ld32 (uint32_t EA)
-{
-    return __be32_to_cpu(*((uint32_t *)EA));
-}
-
-static inline uint32_t ld32r (uint32_t EA)
-{
-    return __le32_to_cpu(*((uint32_t *)EA));
-}
-
-static inline uint64_t ld64 (uint32_t EA)
-{
-    return __be64_to_cpu(*((uint64_t *)EA));
-}
-
-static inline uint64_t ld64r (uint32_t EA)
-{
-    return __le64_to_cpu(*((uint64_t *)EA));
-}
-
-static inline void st8 (uint32_t EA, uint8_t data)
-{
-    *((uint8_t *)EA) = data;
-}
-
-static inline void st16 (uint32_t EA, uint16_t data)
-{
-    *((uint16_t *)EA) = __cpu_to_be16(data);
-}
-
-static inline void st16r (uint32_t EA, uint16_t data)
-{
-    *((uint16_t *)EA) = __cpu_to_le16(data);
-}
-
-static inline void st32 (uint32_t EA, uint32_t data)
-{
-    *((uint32_t *)EA) = __cpu_to_be32(data);
-}
-
-static inline void st32r (uint32_t EA, uint32_t data)
-{
-    *((uint32_t *)EA) = __cpu_to_le32(data);
-}
-
-static inline void st64 (uint32_t EA, uint64_t data)
-{
-    *((uint64_t *)EA) = __cpu_to_be64(data);
-}
-
-static inline void st64r (uint32_t EA, uint64_t data)
-{
-    *((uint64_t *)EA) = __cpu_to_le64(data);
-}
-
-static inline void set_CRn(int n, uint8_t value)
-{
-    env->crf[n] = value;
-}
-
-static inline void set_carry (void)
-{
-    xer_ca = 1;
-}
-
-static inline void reset_carry (void)
-{
-    xer_ca = 0;
-}
-
-static inline void set_overflow (void)
-{
-    xer_so = 1;
-    xer_ov = 1;
-}
-
-static inline void reset_overflow (void)
-{
-    xer_ov = 0;
-}
-
 static inline uint32_t rotl (uint32_t i, int n)
 {
     return ((i << n) | (i >> (32 - n)));
 }
 
-void raise_exception (int exception_index);
-void raise_exception_err (int exception_index, int error_code);
+/* XXX: move that to a generic header */
+#if !defined(CONFIG_USER_ONLY)
 
-uint32_t do_load_cr (void);
-void do_store_cr (uint32_t crn, uint32_t value);
-uint32_t do_load_xer (void);
-void do_store_xer (uint32_t value);
-uint32_t do_load_msr (void);
-void do_store_msr (uint32_t msr_value);
+#define ldul_user ldl_user
+#define ldul_kernel ldl_kernel
+
+#define ACCESS_TYPE 0
+#define MEMSUFFIX _kernel
+#define DATA_SIZE 1
+#include "softmmu_header.h"
+
+#define DATA_SIZE 2
+#include "softmmu_header.h"
+
+#define DATA_SIZE 4
+#include "softmmu_header.h"
+
+#define DATA_SIZE 8
+#include "softmmu_header.h"
+#undef ACCESS_TYPE
+#undef MEMSUFFIX
+
+#define ACCESS_TYPE 1
+#define MEMSUFFIX _user
+#define DATA_SIZE 1
+#include "softmmu_header.h"
+
+#define DATA_SIZE 2
+#include "softmmu_header.h"
+
+#define DATA_SIZE 4
+#include "softmmu_header.h"
+
+#define DATA_SIZE 8
+#include "softmmu_header.h"
+#undef ACCESS_TYPE
+#undef MEMSUFFIX
+
+/* these access are slower, they must be as rare as possible */
+#define ACCESS_TYPE 2
+#define MEMSUFFIX _data
+#define DATA_SIZE 1
+#include "softmmu_header.h"
+
+#define DATA_SIZE 2
+#include "softmmu_header.h"
+
+#define DATA_SIZE 4
+#include "softmmu_header.h"
+
+#define DATA_SIZE 8
+#include "softmmu_header.h"
+#undef ACCESS_TYPE
+#undef MEMSUFFIX
+
+#define ldub(p) ldub_data(p)
+#define ldsb(p) ldsb_data(p)
+#define lduw(p) lduw_data(p)
+#define ldsw(p) ldsw_data(p)
+#define ldl(p) ldl_data(p)
+#define ldq(p) ldq_data(p)
+
+#define stb(p, v) stb_data(p, v)
+#define stw(p, v) stw_data(p, v)
+#define stl(p, v) stl_data(p, v)
+#define stq(p, v) stq_data(p, v)
+
+#endif /* !defined(CONFIG_USER_ONLY) */
+
+int check_exception_state (CPUState *env);
+
+void do_queue_exception_err (uint32_t exception, int error_code);
+void do_queue_exception (uint32_t exception);
+void do_process_exceptions (void);
+void do_check_exception_state (void);
+
+void do_load_cr (void);
+void do_store_cr (uint32_t mask);
+void do_load_xer (void);
+void do_store_xer (void);
+void do_load_msr (void);
+void do_store_msr (void);
 void do_load_fpscr (void);
 void do_store_fpscr (uint32_t mask);
 
-int32_t do_sraw(int32_t Ta, uint32_t Tb);
-void do_lmw (int reg, uint32_t src);
-void do_stmw (int reg, uint32_t dest);
-void do_lsw (uint32_t reg, int count, uint32_t src);
-void do_stsw (uint32_t reg, int count, uint32_t dest);
+void do_sraw(void);
 
-void do_dcbz (void);
+void do_fctiw (void);
+void do_fctiwz (void);
+void do_fsqrt (void);
+void do_fsqrts (void);
+void do_fres (void);
+void do_fsqrte (void);
+void do_fsel (void);
+void do_fcmpu (void);
+void do_fcmpo (void);
+void do_fabs (void);
+void do_fnabs (void);
+
 void do_icbi (void);
+void do_tlbia (void);
+void do_tlbie (void);
+
+void dump_rfi (void);
+void dump_store_sr (int srnum);
+void dump_store_ibat (int ul, int nr);
+void dump_store_dbat (int ul, int nr);
+void dump_store_tb (int ul);
+void dump_update_tb(uint32_t param);
 
 #endif /* !defined (__PPC_H__) */

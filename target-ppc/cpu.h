@@ -25,6 +25,8 @@
 
 #include "cpu-defs.h"
 
+//#define USE_OPEN_FIRMWARE
+
 /***                          Sign extend constants                        ***/
 /* 8 to 32 bits */
 static inline int32_t s_ext8 (uint8_t value)
@@ -54,56 +56,28 @@ static inline int32_t s_ext24 (uint32_t value)
 #include "config.h"
 #include <setjmp.h>
 
-/* Floting point status and control register */
-#define FPSCR_FX     31
-#define FPSCR_FEX    30
-#define FPSCR_VX     29
-#define FPSCR_OX     28
-#define FPSCR_UX     27
-#define FPSCR_ZX     26
-#define FPSCR_XX     25
-#define FPSCR_VXSNAN 24
-#define FPSCR_VXISI  26
-#define FPSCR_VXIDI  25
-#define FPSCR_VXZDZ  21
-#define FPSCR_VXIMZ  20
+/* Instruction types */
+enum {
+    PPC_NONE     = 0x0000,
+    PPC_INTEGER  = 0x0001, /* CPU has integer operations instructions        */
+    PPC_FLOAT    = 0x0002, /* CPU has floating point operations instructions */
+    PPC_FLOW     = 0x0004, /* CPU has flow control instructions              */
+    PPC_MEM      = 0x0008, /* CPU has virtual memory instructions            */
+    PPC_RES      = 0x0010, /* CPU has ld/st with reservation instructions    */
+    PPC_CACHE    = 0x0020, /* CPU has cache control instructions             */
+    PPC_MISC     = 0x0040, /* CPU has spr/msr access instructions            */
+    PPC_EXTERN   = 0x0080, /* CPU has external control instructions          */
+    PPC_SEGMENT  = 0x0100, /* CPU has memory segment instructions            */
+    PPC_CACHE_OPT= 0x0200,
+    PPC_FLOAT_OPT= 0x0400,
+    PPC_MEM_OPT  = 0x0800,
+};
 
-#define FPSCR_VXVC   18
-#define FPSCR_FR     17
-#define FPSCR_FI     16
-#define FPSCR_FPRF   11
-#define FPSCR_VXSOFT 9
-#define FPSCR_VXSQRT 8
-#define FPSCR_VXCVI  7
-#define FPSCR_OE     6
-#define FPSCR_UE     5
-#define FPSCR_ZE     4
-#define FPSCR_XE     3
-#define FPSCR_NI     2
-#define FPSCR_RN     0
-#define fpscr_fx     env->fpscr[FPSCR_FX]
-#define fpscr_fex    env->fpscr[FPSCR_FEX]
-#define fpscr_vx     env->fpscr[FPSCR_VX]
-#define fpscr_ox     env->fpscr[FPSCR_OX]
-#define fpscr_ux     env->fpscr[FPSCR_UX]
-#define fpscr_zx     env->fpscr[FPSCR_ZX]
-#define fpscr_xx     env->fpscr[FPSCR_XX]
-#define fpscr_vsxnan env->fpscr[FPSCR_VXSNAN]
-#define fpscr_vxisi  env->fpscr[FPSCR_VXISI]
-#define fpscr_vxidi  env->fpscr[FPSCR_VXIDI]
-#define fpscr_vxzdz  env->fpscr[FPSCR_VXZDZ]
-#define fpscr_vximz  env->fpscr[FPSCR_VXIMZ]
-#define fpscr_fr     env->fpscr[FPSCR_FR]
-#define fpscr_fi     env->fpscr[FPSCR_FI]
-#define fpscr_fprf   env->fpscr[FPSCR_FPRF]
-#define fpscr_vxsoft env->fpscr[FPSCR_VXSOFT]
-#define fpscr_vxsqrt env->fpscr[FPSCR_VXSQRT]
-#define fpscr_oe     env->fpscr[FPSCR_OE]
-#define fpscr_ue     env->fpscr[FPSCR_UE]
-#define fpscr_ze     env->fpscr[FPSCR_ZE]
-#define fpscr_xe     env->fpscr[FPSCR_XE]
-#define fpscr_ni     env->fpscr[FPSCR_NI]
-#define fpscr_rn     env->fpscr[FPSCR_RN]
+#define PPC_COMMON  (PPC_INTEGER | PPC_FLOAT | PPC_FLOW | PPC_MEM |           \
+                     PPC_RES | PPC_CACHE | PPC_MISC | PPC_SEGMENT)
+/* PPC 740/745/750/755 (aka G3) has external access instructions */
+#define PPC_750 (PPC_INTEGER | PPC_FLOAT | PPC_FLOW | PPC_MEM |               \
+                 PPC_RES | PPC_CACHE | PPC_MISC | PPC_EXTERN | PPC_SEGMENT)
 
 /* Supervisor mode registers */
 /* Machine state register */
@@ -139,26 +113,16 @@ static inline int32_t s_ext24 (uint32_t value)
 #define msr_le  env->msr[MSR_LE]
 
 /* Segment registers */
-typedef struct ppc_sr_t {
-    uint32_t t:1;
-    uint32_t ks:1;
-    uint32_t kp:1;
-    uint32_t n:1;
-    uint32_t res:4;
-    uint32_t vsid:24;
-} ppc_sr_t;
-
 typedef struct CPUPPCState {
     /* general purpose registers */
     uint32_t gpr[32];
     /* floating point registers */
     double fpr[32];
     /* segment registers */
-    ppc_sr_t sr[16];
-    /* special purpose registers */
-    uint32_t spr[1024];
+    uint32_t sdr1;
+    uint32_t sr[16];
     /* XER */
-    uint8_t xer[32];
+    uint8_t xer[4];
     /* Reservation address */
     uint32_t reserve;
     /* machine state register */
@@ -166,11 +130,20 @@ typedef struct CPUPPCState {
     /* condition register */
     uint8_t crf[8];
     /* floating point status and control register */
-    uint8_t fpscr[32];
+    uint8_t fpscr[8];
     uint32_t nip;
-    /* CPU exception code */
-    uint32_t exception;
-
+    /* special purpose registers */
+    uint32_t lr;
+    uint32_t ctr;
+    /* Time base */
+    uint32_t tb[2];
+    /* decrementer */
+    uint32_t decr;
+    /* BATs */
+    uint32_t DBAT[2][8];
+    uint32_t IBAT[2][8];
+    /* all others */
+    uint32_t spr[1024];
     /* qemu dedicated */
      /* temporary float registers */
     double ft0;
@@ -180,9 +153,14 @@ typedef struct CPUPPCState {
     jmp_buf jmp_env;
     int exception_index;
     int error_code;
+    uint32_t exceptions; /* exception queue */
+    uint32_t errors[16];
     int user_mode_only; /* user mode only simulation */
     struct TranslationBlock *current_tb; /* currently executing TB */
-
+    /* soft mmu support */
+    /* 0 = kernel, 1 = user */
+    CPUTLBEntry tlb_read[2][CPU_TLB_SIZE];
+    CPUTLBEntry tlb_write[2][CPU_TLB_SIZE];
     /* user data */
     void *opaque;
 } CPUPPCState;
@@ -198,107 +176,99 @@ int cpu_ppc_signal_handler(int host_signum, struct siginfo *info,
                            void *puc);
 
 void cpu_ppc_dump_state(CPUPPCState *env, FILE *f, int flags);
+void cpu_loop_exit(void);
+void dump_stack (CPUPPCState *env);
+uint32_t _load_xer (void);
+void _store_xer (uint32_t value);
+uint32_t _load_msr (void);
+void _store_msr (uint32_t value);
+void do_interrupt (CPUPPCState *env);
 
 #define TARGET_PAGE_BITS 12
 #include "cpu-all.h"
 
 #define ugpr(n) (env->gpr[n])
-#define fpr(n) (env->fpr[n])
+#define fprd(n) (env->fpr[n])
+#define fprs(n) ((float)env->fpr[n])
+#define fpru(n) ((uint32_t)env->fpr[n])
+#define fpri(n) ((int32_t)env->fpr[n])
 
 #define SPR_ENCODE(sprn)                               \
 (((sprn) >> 5) | (((sprn) & 0x1F) << 5))
 
 /* User mode SPR */
 #define spr(n) env->spr[n]
-//#define XER    spr[1]
-#define XER env->xer
 #define XER_SO 31
 #define XER_OV 30
 #define XER_CA 29
 #define XER_BC 0
-#define xer_so env->xer[XER_SO]
-#define xer_ov env->xer[XER_OV]
-#define xer_ca env->xer[XER_CA]
-#define xer_bc env->xer[XER_BC]
+#define xer_so env->xer[3]
+#define xer_ov env->xer[2]
+#define xer_ca env->xer[1]
+#define xer_bc env->xer[0]
 
-#define LR     spr[SPR_ENCODE(8)]
-#define CTR    spr[SPR_ENCODE(9)]
+#define XER    SPR_ENCODE(1)
+#define LR     SPR_ENCODE(8)
+#define CTR    SPR_ENCODE(9)
 /* VEA mode SPR */
-#define V_TBL  spr[SPR_ENCODE(268)]
-#define V_TBU  spr[SPR_ENCODE(269)]
+#define V_TBL  SPR_ENCODE(268)
+#define V_TBU  SPR_ENCODE(269)
 /* supervisor mode SPR */
-#define DSISR  spr[SPR_ENCODE(18)]
-#define DAR    spr[SPR_ENCODE(19)]
-#define DEC    spr[SPR_ENCODE(22)]
-#define SDR1   spr[SPR_ENCODE(25)]
-typedef struct ppc_sdr1_t {
-    uint32_t htaborg:16;
-    uint32_t res:7;
-    uint32_t htabmask:9;
-} ppc_sdr1_t;
-#define SRR0   spr[SPR_ENCODE(26)]
-#define SRR0_MASK 0xFFFFFFFC
-#define SRR1   spr[SPR_ENCODE(27)]
-#define SPRG0  spr[SPR_ENCODE(272)]
-#define SPRG1  spr[SPR_ENCODE(273)]
-#define SPRG2  spr[SPR_ENCODE(274)]
-#define SPRG3  spr[SPR_ENCODE(275)]
-#define EAR    spr[SPR_ENCODE(282)]
-typedef struct ppc_ear_t {
-    uint32_t e:1;
-    uint32_t res:25;
-    uint32_t rid:6;
-} ppc_ear_t;
-#define TBL    spr[SPR_ENCODE(284)]
-#define TBU    spr[SPR_ENCODE(285)]
-#define PVR    spr[SPR_ENCODE(287)]
-typedef struct ppc_pvr_t {
-    uint32_t version:16;
-    uint32_t revision:16;
-} ppc_pvr_t;
-#define IBAT0U spr[SPR_ENCODE(528)]
-#define IBAT0L spr[SPR_ENCODE(529)]
-#define IBAT1U spr[SPR_ENCODE(530)]
-#define IBAT1L spr[SPR_ENCODE(531)]
-#define IBAT2U spr[SPR_ENCODE(532)]
-#define IBAT2L spr[SPR_ENCODE(533)]
-#define IBAT3U spr[SPR_ENCODE(534)]
-#define IBAT3L spr[SPR_ENCODE(535)]
-#define DBAT0U spr[SPR_ENCODE(536)]
-#define DBAT0L spr[SPR_ENCODE(537)]
-#define DBAT1U spr[SPR_ENCODE(538)]
-#define DBAT1L spr[SPR_ENCODE(539)]
-#define DBAT2U spr[SPR_ENCODE(540)]
-#define DBAT2L spr[SPR_ENCODE(541)]
-#define DBAT3U spr[SPR_ENCODE(542)]
-#define DBAT3L spr[SPR_ENCODE(543)]
-typedef struct ppc_ubat_t {
-    uint32_t bepi:15;
-    uint32_t res:4;
-    uint32_t bl:11;
-    uint32_t vs:1;
-    uint32_t vp:1;
-} ppc_ubat_t;
-typedef struct ppc_lbat_t {
-    uint32_t brpn:15;
-    uint32_t res0:10;
-    uint32_t w:1;
-    uint32_t i:1;
-    uint32_t m:1;
-    uint32_t g:1;
-    uint32_t res1:1;
-    uint32_t pp:2;
-} ppc_lbat_t;
-#define DABR   spr[SPR_ENCODE(1013)]
+#define DSISR  SPR_ENCODE(18)
+#define DAR    SPR_ENCODE(19)
+#define DECR   SPR_ENCODE(22)
+#define SDR1   SPR_ENCODE(25)
+#define SRR0   SPR_ENCODE(26)
+#define SRR1   SPR_ENCODE(27)
+#define SPRG0  SPR_ENCODE(272)
+#define SPRG1  SPR_ENCODE(273)
+#define SPRG2  SPR_ENCODE(274)
+#define SPRG3  SPR_ENCODE(275)
+#define SPRG4  SPR_ENCODE(276)
+#define SPRG5  SPR_ENCODE(277)
+#define SPRG6  SPR_ENCODE(278)
+#define SPRG7  SPR_ENCODE(279)
+#define ASR    SPR_ENCODE(280)
+#define EAR    SPR_ENCODE(282)
+#define O_TBL  SPR_ENCODE(284)
+#define O_TBU  SPR_ENCODE(285)
+#define PVR    SPR_ENCODE(287)
+#define IBAT0U SPR_ENCODE(528)
+#define IBAT0L SPR_ENCODE(529)
+#define IBAT1U SPR_ENCODE(530)
+#define IBAT1L SPR_ENCODE(531)
+#define IBAT2U SPR_ENCODE(532)
+#define IBAT2L SPR_ENCODE(533)
+#define IBAT3U SPR_ENCODE(534)
+#define IBAT3L SPR_ENCODE(535)
+#define DBAT0U SPR_ENCODE(536)
+#define DBAT0L SPR_ENCODE(537)
+#define DBAT1U SPR_ENCODE(538)
+#define DBAT1L SPR_ENCODE(539)
+#define DBAT2U SPR_ENCODE(540)
+#define DBAT2L SPR_ENCODE(541)
+#define DBAT3U SPR_ENCODE(542)
+#define DBAT3L SPR_ENCODE(543)
+#define IBAT4U SPR_ENCODE(560)
+#define IBAT4L SPR_ENCODE(561)
+#define IBAT5U SPR_ENCODE(562)
+#define IBAT5L SPR_ENCODE(563)
+#define IBAT6U SPR_ENCODE(564)
+#define IBAT6L SPR_ENCODE(565)
+#define IBAT7U SPR_ENCODE(566)
+#define IBAT7L SPR_ENCODE(567)
+#define DBAT4U SPR_ENCODE(568)
+#define DBAT4L SPR_ENCODE(569)
+#define DBAT5U SPR_ENCODE(570)
+#define DBAT5L SPR_ENCODE(571)
+#define DBAT6U SPR_ENCODE(572)
+#define DBAT6L SPR_ENCODE(573)
+#define DBAT7U SPR_ENCODE(574)
+#define DBAT7L SPR_ENCODE(575)
+#define DABR   SPR_ENCODE(1013)
 #define DABR_MASK 0xFFFFFFF8
-typedef struct ppc_dabr_t {
-    uint32_t dab:29;
-    uint32_t bt:1;
-    uint32_t dw:1;
-    uint32_t dr:1;
-} ppc_dabr_t;
-#define FPECR  spr[SPR_ENCODE(1022)]
-#define PIR    spr[SPR_ENCODE(1023)]
+#define FPECR  SPR_ENCODE(1022)
+#define PIR    SPR_ENCODE(1023)
 
 #define TARGET_PAGE_BITS 12
 #include "cpu-all.h"
@@ -307,10 +277,30 @@ CPUPPCState *cpu_ppc_init(void);
 int cpu_ppc_exec(CPUPPCState *s);
 void cpu_ppc_close(CPUPPCState *s);
 void cpu_ppc_dump_state(CPUPPCState *env, FILE *f, int flags);
+void PPC_init_hw (CPUPPCState *env, uint32_t mem_size,
+                  uint32_t kernel_addr, uint32_t kernel_size,
+                  uint32_t stack_addr, int boot_device);
 
-/* Exeptions */
+/* Memory access type :
+ * may be needed for precise access rights control and precise exceptions.
+ */
 enum {
-    EXCP_NONE          = 0x00,
+    /* 1 bit to define user level / supervisor access */
+    ACCESS_USER  = 0x00,
+    ACCESS_SUPER = 0x01,
+    /* Type of instruction that generated the access */
+    ACCESS_CODE  = 0x10, /* Code fetch access                */
+    ACCESS_INT   = 0x20, /* Integer load/store access        */
+    ACCESS_FLOAT = 0x30, /* floating point load/store access */
+    ACCESS_RES   = 0x40, /* load/store with reservation      */
+    ACCESS_EXT   = 0x50, /* external access                  */
+    ACCESS_CACHE = 0x60, /* Cache manipulation               */
+};
+
+/*****************************************************************************/
+/* Exceptions */
+enum {
+    EXCP_NONE          = -1,
     /* PPC hardware exceptions : exception vector / 0x100 */
     EXCP_RESET         = 0x01, /* System reset                     */
     EXCP_MACHINE_CHECK = 0x02, /* Machine check exception          */
@@ -326,55 +316,80 @@ enum {
     EXCP_SYSCALL       = 0x0C, /* System call                      */
     EXCP_TRACE         = 0x0D, /* Trace exception (optional)       */
     EXCP_FP_ASSIST     = 0x0E, /* Floating-point assist (optional) */
-#if 0
-    /* Exeption subtypes for EXCP_DSI */
-    EXCP_DSI_TRANSLATE = 0x10301, /* Data address can't be translated */
-    EXCP_DSI_NOTSUP    = 0x10302, /* Access type not supported        */
-    EXCP_DSI_PROT      = 0x10303, /* Memory protection violation      */
-    EXCP_DSI_EXTERNAL  = 0x10304, /* External access disabled         */
-    EXCP_DSI_DABR      = 0x10305, /* Data address breakpoint          */
-    /* Exeption subtypes for EXCP_ISI */
-    EXCP_ISI_TRANSLATE = 0x10401, /* Code address can't be translated */
-    EXCP_ISI_NOTSUP    = 0x10402, /* Access type not supported        */
-    EXCP_ISI_PROT      = 0x10403, /* Memory protection violation      */
-    EXCP_ISI_GUARD     = 0x10404, /* Fetch into guarded memory        */
-    /* Exeption subtypes for EXCP_ALIGN */
-    EXCP_ALIGN_FP      = 0x10601, /* FP alignment exception           */
-    EXCP_ALIGN_LST     = 0x10602, /* Unaligned memory load/store      */
-    EXCP_ALIGN_LE      = 0x10603, /* Unaligned little-endian access   */
-    EXCP_ALIGN_PROT    = 0x10604, /* Access cross protection boundary */
-    EXCP_ALIGN_BAT     = 0x10605, /* Access cross a BAT/seg boundary  */
-    EXCP_ALIGN_CACHE   = 0x10606, /* Impossible dcbz access           */
-    /* Exeption subtypes for EXCP_PROGRAM */
-    /* FP exceptions */
-    EXCP_FP_OX         = 0x10701, /* FP overflow                      */
-    EXCP_FP_UX         = 0x10702, /* FP underflow                     */
-    EXCP_FP_ZX         = 0x10703, /* FP divide by zero                */
-    EXCP_FP_XX         = 0x10704, /* FP inexact                       */
-    EXCP_FP_VXNAN      = 0x10705, /* FP invalid SNaN op               */
-    EXCP_FP_VXISI      = 0x10706, /* FP invalid infinite substraction */
-    EXCP_FP_VXIDI      = 0x10707, /* FP invalid infinite divide       */
-    EXCP_FP_VXZDZ      = 0x10708, /* FP invalid zero divide           */
-    EXCP_FP_VXIMZ      = 0x10709, /* FP invalid infinite * zero       */
-    EXCP_FP_VXVC       = 0x1070A, /* FP invalid compare               */
-    EXCP_FP_VXSOFT     = 0x1070B, /* FP invalid operation             */
-    EXCP_FP_VXSQRT     = 0x1070C, /* FP invalid square root           */
-    EXCP_FP_VXCVI      = 0x1070D, /* FP invalid integer conversion    */
-    /* Invalid instruction */
-    EXCP_INVAL_INVAL   = 0x10711, /* Invalid instruction              */
-    EXCP_INVAL_LSWX    = 0x10712, /* Invalid lswx instruction         */
-    EXCP_INVAL_SPR     = 0x10713, /* Invalid SPR access               */
-    EXCP_INVAL_FP      = 0x10714, /* Unimplemented mandatory fp instr */
-#endif
-    EXCP_INVAL         = 0x70,    /* Invalid instruction              */
-    /* Privileged instruction */
-    EXCP_PRIV          = 0x71,    /* Privileged instruction           */
-    /* Trap */
-    EXCP_TRAP          = 0x72,    /* Trap                             */
+    /* MPC740/745/750 & IBM 750 */
+    EXCP_PERF          = 0x0F,  /* Performance monitor              */
+    EXCP_IABR          = 0x13,  /* Instruction address breakpoint   */
+    EXCP_SMI           = 0x14,  /* System management interrupt      */
+    EXCP_THRM          = 0x15,  /* Thermal management interrupt     */
+    /* MPC755 */
+    EXCP_TLBMISS       = 0x10,  /* Instruction TLB miss             */
+    EXCP_TLBMISS_DL    = 0x11,  /* Data TLB miss for load           */
+    EXCP_TLBMISS_DS    = 0x12,  /* Data TLB miss for store          */
+    EXCP_PPC_MAX       = 0x16,
+    /* Qemu exception */
+    EXCP_OFCALL        = 0x20,  /* Call open-firmware emulator      */
+    EXCP_RTASCALL      = 0x21,  /* Call RTAS emulator               */
     /* Special cases where we want to stop translation */
-    EXCP_MTMSR         = 0x103,   /* mtmsr instruction:               */
-                                  /* may change privilege level       */
-    EXCP_BRANCH        = 0x104,   /* branch instruction               */
+    EXCP_MTMSR         = 0x104, /* mtmsr instruction:               */
+                                /* may change privilege level       */
+    EXCP_BRANCH        = 0x108, /* branch instruction               */
+    EXCP_RFI           = 0x10C, /* return from interrupt            */
+    EXCP_SYSCALL_USER  = 0x110, /* System call in user mode only    */
 };
+/* Error codes */
+enum {
+    /* Exception subtypes for EXCP_DSI                              */
+    EXCP_DSI_TRANSLATE = 0x01,  /* Data address can't be translated */
+    EXCP_DSI_NOTSUP    = 0x02,  /* Access type not supported        */
+    EXCP_DSI_PROT      = 0x03,  /* Memory protection violation      */
+    EXCP_DSI_EXTERNAL  = 0x04,  /* External access disabled         */
+    EXCP_DSI_DABR      = 0x05,  /* Data address breakpoint          */
+    /* flags for EXCP_DSI */
+    EXCP_DSI_DIRECT    = 0x10,
+    EXCP_DSI_STORE     = 0x20,
+    EXCP_ECXW          = 0x40,
+    /* Exception subtypes for EXCP_ISI                              */
+    EXCP_ISI_TRANSLATE = 0x01,  /* Code address can't be translated */
+    EXCP_ISI_NOEXEC    = 0x02,  /* Try to fetch from a data segment */
+    EXCP_ISI_GUARD     = 0x03,  /* Fetch from guarded memory        */
+    EXCP_ISI_PROT      = 0x04,  /* Memory protection violation      */
+    /* Exception subtypes for EXCP_ALIGN                            */
+    EXCP_ALIGN_FP      = 0x01,  /* FP alignment exception           */
+    EXCP_ALIGN_LST     = 0x02,  /* Unaligned mult/extern load/store */
+    EXCP_ALIGN_LE      = 0x03,  /* Multiple little-endian access    */
+    EXCP_ALIGN_PROT    = 0x04,  /* Access cross protection boundary */
+    EXCP_ALIGN_BAT     = 0x05,  /* Access cross a BAT/seg boundary  */
+    EXCP_ALIGN_CACHE   = 0x06,  /* Impossible dcbz access           */
+    /* Exception subtypes for EXCP_PROGRAM                          */
+    /* FP exceptions */
+    EXCP_FP            = 0x10,
+    EXCP_FP_OX         = 0x01,  /* FP overflow                      */
+    EXCP_FP_UX         = 0x02,  /* FP underflow                     */
+    EXCP_FP_ZX         = 0x03,  /* FP divide by zero                */
+    EXCP_FP_XX         = 0x04,  /* FP inexact                       */
+    EXCP_FP_VXNAN      = 0x05,  /* FP invalid SNaN op               */
+    EXCP_FP_VXISI      = 0x06,  /* FP invalid infinite substraction */
+    EXCP_FP_VXIDI      = 0x07,  /* FP invalid infinite divide       */
+    EXCP_FP_VXZDZ      = 0x08,  /* FP invalid zero divide           */
+    EXCP_FP_VXIMZ      = 0x09,  /* FP invalid infinite * zero       */
+    EXCP_FP_VXVC       = 0x0A,  /* FP invalid compare               */
+    EXCP_FP_VXSOFT     = 0x0B,  /* FP invalid operation             */
+    EXCP_FP_VXSQRT     = 0x0C,  /* FP invalid square root           */
+    EXCP_FP_VXCVI      = 0x0D,  /* FP invalid integer conversion    */
+    /* Invalid instruction */
+    EXCP_INVAL         = 0x20,
+    EXCP_INVAL_INVAL   = 0x01,  /* Invalid instruction              */
+    EXCP_INVAL_LSWX    = 0x02,  /* Invalid lswx instruction         */
+    EXCP_INVAL_SPR     = 0x03,  /* Invalid SPR access               */
+    EXCP_INVAL_FP      = 0x04,  /* Unimplemented mandatory fp instr */
+    /* Privileged instruction */
+    EXCP_PRIV          = 0x30,
+    EXCP_PRIV_OPC      = 0x01,
+    EXCP_PRIV_REG      = 0x02,
+    /* Trap */
+    EXCP_TRAP          = 0x40,
+};
+
+/*****************************************************************************/
 
 #endif /* !defined (__CPU_PPC_H__) */

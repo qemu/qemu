@@ -18,56 +18,67 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+/* General purpose registers moves */
 void OPPROTO glue(op_load_gpr_T0_gpr, REG)(void)
 {
     T0 = regs->gpr[REG];
+    RETURN();
 }
 
 void OPPROTO glue(op_load_gpr_T1_gpr, REG)(void)
 {
     T1 = regs->gpr[REG];
+    RETURN();
 }
 
 void OPPROTO glue(op_load_gpr_T2_gpr, REG)(void)
 {
     T2 = regs->gpr[REG];
+    RETURN();
 }
 
 void OPPROTO glue(op_store_T0_gpr_gpr, REG)(void)
 {
     regs->gpr[REG] = T0;
+    RETURN();
 }
 
 void OPPROTO glue(op_store_T1_gpr_gpr, REG)(void)
 {
     regs->gpr[REG] = T1;
+    RETURN();
 }
 
 void OPPROTO glue(op_store_T2_gpr_gpr, REG)(void)
 {
     regs->gpr[REG] = T2;
+    RETURN();
 }
 
 #if REG <= 7
-
+/* Condition register moves */
 void OPPROTO glue(op_load_crf_T0_crf, REG)(void)
 {
     T0 = regs->crf[REG];
+    RETURN();
 }
 
 void OPPROTO glue(op_load_crf_T1_crf, REG)(void)
 {
     T1 = regs->crf[REG];
+    RETURN();
 }
 
 void OPPROTO glue(op_store_T0_crf_crf, REG)(void)
 {
     regs->crf[REG] = T0;
+    RETURN();
 }
 
 void OPPROTO glue(op_store_T1_crf_crf, REG)(void)
 {
     regs->crf[REG] = T1;
+    RETURN();
 }
 
 /* Floating point condition and status register moves */
@@ -117,8 +128,6 @@ void OPPROTO glue(op_clear_fpscr_fpscr, REG)(void)
 
 #endif /* REG <= 7 */
 
-/* float moves */
-
 /* floating point registers moves */
 void OPPROTO glue(op_load_fpr_FT0_fpr, REG)(void)
 {
@@ -155,5 +164,23 @@ void OPPROTO glue(op_store_FT2_fpr_fpr, REG)(void)
     env->fpr[REG] = FT2;
     RETURN();
 }
+
+#if REG <= 15
+/* Segment register moves */
+void OPPROTO glue(op_load_sr, REG)(void)
+{
+    T0 = env->sr[REG];
+    RETURN();
+}
+
+void OPPROTO glue(op_store_sr, REG)(void)
+{
+#if defined (DEBUG_OP)
+    dump_store_sr(REG);
+#endif
+    env->sr[REG] = T0;
+    RETURN();
+}
+#endif
 
 #undef REG
