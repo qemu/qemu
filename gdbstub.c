@@ -248,6 +248,23 @@ static int put_packet(char *buf)
     return 0;
 }
 
+    /* better than nothing for SOFTMMU : we use physical addresses */
+#ifdef CONFIG_SOFTMMU
+static int memory_rw(uint8_t *buf, uint32_t addr, int len, int is_write)
+{
+    uint8_t *ptr;
+
+    if (addr >= phys_ram_size ||
+        ((int64_t)addr + len > phys_ram_size))
+        return -1;
+    ptr = phys_ram_base + addr;
+    if (is_write)
+        memcpy(ptr, buf, len);
+    else
+        memcpy(buf, ptr, len);
+    return 0;
+}
+#else
 static int memory_rw(uint8_t *buf, uint32_t addr, int len, int is_write)
 {
     int l, flags;
@@ -276,13 +293,91 @@ static int memory_rw(uint8_t *buf, uint32_t addr, int len, int is_write)
     }
     return 0;
 }
+#endif
+
+#if defined(TARGET_I386)
+
+static void to_le32(uint8_t *p, int v)
+{
+    p[0] = v;
+    p[1] = v >> 8;
+    p[2] = v >> 16;
+    p[3] = v >> 24;
+}
+
+static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
+{
+    int i, fpus;
+
+    for(i = 0; i < 8; i++) {
+        to_le32(mem_buf + i * 4, env->regs[i]);
+    }
+    to_le32(mem_buf + 8 * 4, env->eip);
+    to_le32(mem_buf + 9 * 4, env->eflags);
+    to_le32(mem_buf + 10 * 4, env->segs[R_CS].selector);
+    to_le32(mem_buf + 11 * 4, env->segs[R_SS].selector);
+    to_le32(mem_buf + 12 * 4, env->segs[R_DS].selector);
+    to_le32(mem_buf + 13 * 4, env->segs[R_ES].selector);
+    to_le32(mem_buf + 14 * 4, env->segs[R_FS].selector);
+    to_le32(mem_buf + 15 * 4, env->segs[R_GS].selector);
+    /* XXX: convert floats */
+    for(i = 0; i < 8; i++) {
+        memcpy(mem_buf + 16 * 4 + i * 10, &env->fpregs[i], 10);
+    }
+    to_le32(mem_buf + 36 * 4, env->fpuc);
+    fpus = (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
+    to_le32(mem_buf + 37 * 4, fpus);
+    to_le32(mem_buf + 38 * 4, 0); /* XXX: convert tags */
+    to_le32(mem_buf + 39 * 4, 0); /* fiseg */
+    to_le32(mem_buf + 40 * 4, 0); /* fioff */
+    to_le32(mem_buf + 41 * 4, 0); /* foseg */
+    to_le32(mem_buf + 42 * 4, 0); /* fooff */
+    to_le32(mem_buf + 43 * 4, 0); /* fop */
+    return 44 * 4;
+}
+
+static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
+{
+    uint32_t *registers = (uint32_t *)mem_buf;
+    int i;
+
+    for(i = 0; i < 8; i++) {
+        env->regs[i] = tswapl(registers[i]);
+    }
+    env->eip = registers[8];
+    env->eflags = registers[9];
+#if defined(CONFIG_USER_ONLY)
+#define LOAD_SEG(index, sreg)\
+            if (tswapl(registers[index]) != env->segs[sreg].selector)\
+                cpu_x86_load_seg(env, sreg, tswapl(registers[index]));
+            LOAD_SEG(10, R_CS);
+            LOAD_SEG(11, R_SS);
+            LOAD_SEG(12, R_DS);
+            LOAD_SEG(13, R_ES);
+            LOAD_SEG(14, R_FS);
+            LOAD_SEG(15, R_GS);
+#endif
+}
+
+#else
+
+static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
+{
+    return 0;
+}
+
+static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
+{
+}
+
+#endif
 
 /* port = 0 means default port */
 int cpu_gdbstub(void *opaque, int (*main_loop)(void *opaque), int port)
 {
     CPUState *env;
     const char *p;
-    int ret, ch, nb_regs, i, type;
+    int ret, ch, reg_size, type;
     char buf[4096];
     uint8_t mem_buf[2000];
     uint32_t *registers;
@@ -339,47 +434,16 @@ int cpu_gdbstub(void *opaque, int (*main_loop)(void *opaque), int port)
             break;
         case 'g':
             env = cpu_gdbstub_get_env(opaque);
-            registers = (void *)mem_buf;
-#if defined(TARGET_I386)
-            for(i = 0; i < 8; i++) {
-                registers[i] = tswapl(env->regs[i]);
-            }
-            registers[8] = env->eip;
-            registers[9] = env->eflags;
-            registers[10] = env->segs[R_CS].selector;
-            registers[11] = env->segs[R_SS].selector;
-            registers[12] = env->segs[R_DS].selector;
-            registers[13] = env->segs[R_ES].selector;
-            registers[14] = env->segs[R_FS].selector;
-            registers[15] = env->segs[R_GS].selector;
-            nb_regs = 16;
-#endif
-            memtohex(buf, (const uint8_t *)registers, 
-                     sizeof(registers[0]) * nb_regs);
+            reg_size = cpu_gdb_read_registers(env, mem_buf);
+            memtohex(buf, mem_buf, reg_size);
             put_packet(buf);
             break;
         case 'G':
             env = cpu_gdbstub_get_env(opaque);
             registers = (void *)mem_buf;
-#if defined(TARGET_I386)
-            hextomem((uint8_t *)registers, p, 16 * 4);
-            for(i = 0; i < 8; i++) {
-                env->regs[i] = tswapl(registers[i]);
-            }
-            env->eip = registers[8];
-            env->eflags = registers[9];
-#if defined(CONFIG_USER_ONLY)
-#define LOAD_SEG(index, sreg)\
-            if (tswapl(registers[index]) != env->segs[sreg].selector)\
-                cpu_x86_load_seg(env, sreg, tswapl(registers[index]));
-            LOAD_SEG(10, R_CS);
-            LOAD_SEG(11, R_SS);
-            LOAD_SEG(12, R_DS);
-            LOAD_SEG(13, R_ES);
-            LOAD_SEG(14, R_FS);
-            LOAD_SEG(15, R_GS);
-#endif
-#endif
+            len = strlen(p) / 2;
+            hextomem((uint8_t *)registers, p, len);
+            cpu_gdb_write_registers(env, mem_buf, len);
             put_packet("OK");
             break;
         case 'm':
@@ -445,6 +509,8 @@ int cpu_gdbstub(void *opaque, int (*main_loop)(void *opaque), int port)
                 put_packet("OK");
             } else if (!strncmp(p, "TStart", 6)) {
                 /* start log (gdb 'tstart' command) */
+                env = cpu_gdbstub_get_env(opaque);
+                tb_flush(env);
                 cpu_set_log(CPU_LOG_ALL);
                 put_packet("OK");
             } else if (!strncmp(p, "TStop", 5)) {
