@@ -2541,13 +2541,11 @@ void helper_fbld_ST0_A0(void)
 
 void helper_fbst_ST0_A0(void)
 {
-    CPU86_LDouble tmp;
     int v;
     target_ulong mem_ref, mem_end;
     int64_t val;
 
-    tmp = rint(ST0);
-    val = (int64_t)tmp;
+    val = floatx_to_int64(ST0, &env->fp_status);
     mem_ref = A0;
     mem_end = mem_ref + 9;
     if (val < 0) {
@@ -2740,29 +2738,7 @@ void helper_fsincos(void)
 
 void helper_frndint(void)
 {
-    CPU86_LDouble a;
-
-    a = ST0;
-#ifdef __arm__
-    switch(env->fpuc & RC_MASK) {
-    default:
-    case RC_NEAR:
-        asm("rndd %0, %1" : "=f" (a) : "f"(a));
-        break;
-    case RC_DOWN:
-        asm("rnddm %0, %1" : "=f" (a) : "f"(a));
-        break;
-    case RC_UP:
-        asm("rnddp %0, %1" : "=f" (a) : "f"(a));
-        break;
-    case RC_CHOP:
-        asm("rnddz %0, %1" : "=f" (a) : "f"(a));
-        break;
-    }
-#else
-    a = rint(a);
-#endif
-    ST0 = a;
+    ST0 = floatx_round_to_int(ST0, &env->fp_status);
 }
 
 void helper_fscale(void)
@@ -3263,25 +3239,43 @@ float approx_rcp(float a)
     return 1.0 / a;
 }
 
-/* XXX: find a better solution */
-double helper_sqrt(double a)
+void update_fp_status(void)
 {
-    return sqrt(a);
-}
+    int rnd_type;
 
-/* XXX: move that to another file */
-#if defined(__powerpc__)
-/* better to call an helper on ppc */
-float int32_to_float32(int32_t a)
-{
-    return (float)a;
-}
-
-double int32_to_float64(int32_t a)
-{
-    return (double)a;
-}
+    /* set rounding mode */
+    switch(env->fpuc & RC_MASK) {
+    default:
+    case RC_NEAR:
+        rnd_type = float_round_nearest_even;
+        break;
+    case RC_DOWN:
+        rnd_type = float_round_down;
+        break;
+    case RC_UP:
+        rnd_type = float_round_up;
+        break;
+    case RC_CHOP:
+        rnd_type = float_round_to_zero;
+        break;
+    }
+    set_float_rounding_mode(rnd_type, &env->fp_status);
+#ifdef FLOATX80
+    switch((env->fpuc >> 8) & 3) {
+    case 0:
+        rnd_type = 32;
+        break;
+    case 2:
+        rnd_type = 64;
+        break;
+    case 3:
+    default:
+        rnd_type = 80;
+        break;
+    }
+    set_floatx80_rounding_precision(rnd_type, &env->fp_status);
 #endif
+}
 
 #if !defined(CONFIG_USER_ONLY) 
 

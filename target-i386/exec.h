@@ -139,44 +139,6 @@ extern int loglevel;
 #include "cpu.h"
 #include "exec-all.h"
 
-/* XXX: add a generic FPU library */
-
-static inline double float32_to_float64(float a)
-{
-    return a;
-}
-
-static inline float float64_to_float32(double a)
-{
-    return a;
-}
-
-#if defined(__powerpc__)
-/* better to call an helper on ppc */
-float int32_to_float32(int32_t a);
-double int32_to_float64(int32_t a);
-#else
-static inline float int32_to_float32(int32_t a)
-{
-    return (float)a;
-}
-
-static inline double int32_to_float64(int32_t a)
-{
-    return (double)a;
-}
-#endif
-
-static inline float int64_to_float32(int64_t a)
-{
-    return (float)a;
-}
-
-static inline double int64_to_float64(int64_t a)
-{
-    return (double)a;
-}
-
 typedef struct CCTable {
     int (*compute_all)(void); /* return all the flags */
     int (*compute_c)(void);  /* return the C flag */
@@ -358,9 +320,11 @@ static inline void stfl(target_ulong ptr, float v)
 
 #ifdef USE_X86LDOUBLE
 /* use long double functions */
-#define lrint lrintl
-#define llrint llrintl
-#define fabs fabsl
+#define floatx_to_int32 floatx80_to_int32
+#define floatx_to_int64 floatx80_to_int64
+#define floatx_abs floatx80_abs
+#define floatx_chs floatx80_chs
+#define floatx_round_to_int floatx80_round_to_int
 #define sin sinl
 #define cos cosl
 #define sqrt sqrtl
@@ -370,17 +334,14 @@ static inline void stfl(target_ulong ptr, float v)
 #define atan2 atan2l
 #define floor floorl
 #define ceil ceill
-#define rint rintl
+#else
+#define floatx_to_int32 float64_to_int32
+#define floatx_to_int64 float64_to_int64
+#define floatx_abs float64_abs
+#define floatx_chs float64_chs
+#define floatx_round_to_int float64_round_to_int
 #endif
 
-#if !defined(_BSD)
-extern int lrint(CPU86_LDouble x);
-extern int64_t llrint(CPU86_LDouble x);
-#else
-#define lrint(d)		((int)rint(d))
-#define llrint(d)		((int)rint(d))
-#endif
-extern CPU86_LDouble fabs(CPU86_LDouble x);
 extern CPU86_LDouble sin(CPU86_LDouble x);
 extern CPU86_LDouble cos(CPU86_LDouble x);
 extern CPU86_LDouble sqrt(CPU86_LDouble x);
@@ -390,7 +351,6 @@ extern CPU86_LDouble tan(CPU86_LDouble x);
 extern CPU86_LDouble atan2(CPU86_LDouble, CPU86_LDouble);
 extern CPU86_LDouble floor(CPU86_LDouble x);
 extern CPU86_LDouble ceil(CPU86_LDouble x);
-extern CPU86_LDouble rint(CPU86_LDouble x);
 
 #define RC_MASK         0xc00
 #define RC_NEAR		0x000
@@ -399,13 +359,6 @@ extern CPU86_LDouble rint(CPU86_LDouble x);
 #define RC_CHOP		0xc00
 
 #define MAXTAN 9223372036854775808.0
-
-#ifdef __arm__
-/* we have no way to do correct rounding - a FPU emulator is needed */
-#define FE_DOWNWARD   FE_TONEAREST
-#define FE_UPWARD     FE_TONEAREST
-#define FE_TOWARDZERO FE_TONEAREST
-#endif
 
 #ifdef USE_X86LDOUBLE
 
@@ -596,6 +549,7 @@ float approx_rsqrt(float a);
 float approx_rcp(float a);
 double helper_sqrt(double a);
 int fpu_isnan(double a);
+void update_fp_status(void);
 
 extern const uint8_t parity_table[256];
 extern const uint8_t rclw_table[32];

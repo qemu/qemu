@@ -62,17 +62,6 @@ extern int fprintf(FILE *, const char *, ...);
 extern int printf(const char *, ...);
 #undef NULL
 #define NULL 0
-#if defined(_BSD) && !defined(__APPLE__)
-#include <ieeefp.h>
-
-#define FE_TONEAREST   FP_RN
-#define FE_DOWNWARD    FP_RM
-#define FE_UPWARD      FP_RP
-#define FE_TOWARDZERO  FP_RZ
-#define fesetround(x)  fpsetround(x)
-#else
-#include <fenv.h>
-#endif
 
 #ifdef __i386__
 #define AREG0 "ebp"

@@ -15,6 +15,8 @@
 
 #include "cpu-defs.h"
 
+#include "softfloat.h"
+
 /*#define EXCP_INTERRUPT 0x100*/
 
 /* trap definitions */
@@ -150,6 +152,7 @@ typedef struct CPUSPARCState {
     /* temporary float registers */
     float ft0, ft1, ft2;
     double dt0, dt1, dt2;
+    float_status fp_status;
 #if defined(TARGET_SPARC64)
     target_ulong t0, t1, t2;
 #endif

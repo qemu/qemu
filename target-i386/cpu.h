@@ -36,6 +36,8 @@
 
 #include "cpu-defs.h"
 
+#include "softfloat.h"
+
 #if defined(__i386__) && !defined(CONFIG_SOFTMMU)
 #define USE_CODE_COPY
 #endif
@@ -332,14 +334,14 @@ enum {
     CC_OP_NB,
 };
 
-#if (defined(__i386__) || defined(__x86_64__)) && !defined(_BSD)
+#ifdef FLOATX80
 #define USE_X86LDOUBLE
 #endif
 
 #ifdef USE_X86LDOUBLE
-typedef long double CPU86_LDouble;
+typedef floatx80 CPU86_LDouble;
 #else
-typedef double CPU86_LDouble;
+typedef float64 CPU86_LDouble;
 #endif
 
 typedef struct SegmentCache {
@@ -354,8 +356,8 @@ typedef union {
     uint16_t _w[8];
     uint32_t _l[4];
     uint64_t _q[2];
-    float _s[4];
-    double _d[2];
+    float32 _s[4];
+    float64 _d[2];
 } XMMReg;
 
 typedef union {
@@ -441,6 +443,7 @@ typedef struct CPUX86State {
     } fpregs[8];
 
     /* emulator internal variables */
+    float_status fp_status;
     CPU86_LDouble ft0;
     union {
 	float f;
@@ -449,6 +452,7 @@ typedef struct CPUX86State {
         int64_t i64;
     } fp_convert;
     
+    float_status sse_status;
     uint32_t mxcsr;
     XMMReg xmm_regs[CPU_NB_REGS];
     XMMReg xmm_t0;

@@ -2271,6 +2271,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     }
 
     env->fpuc = fpuc;
+    /* XXX: restore FPU round state */
     env->fpstt = (fpus >> 11) & 7;
     env->fpus = fpus & ~0x3800;
     fptag ^= 0xff;

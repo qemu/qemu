@@ -1,5 +1,3 @@
-#include <math.h>
-#include <fenv.h>
 #include "exec.h"
 
 //#define DEBUG_MMU
@@ -24,17 +22,17 @@ void do_fitod(void)
 
 void do_fabss(void)
 {
-    FT0 = fabsf(FT1);
+    FT0 = float32_abs(FT1);
 }
 
 void do_fsqrts(void)
 {
-    FT0 = sqrtf(FT1);
+    FT0 = float32_sqrt(FT1, &env->fp_status);
 }
 
 void do_fsqrtd(void)
 {
-    DT0 = sqrt(DT1);
+    DT0 = float64_sqrt(DT1, &env->fp_status);
 }
 
 void do_fcmps (void)
@@ -252,20 +250,22 @@ void helper_rett()
 
 void helper_ldfsr(void)
 {
+    int rnd_mode;
     switch (env->fsr & FSR_RD_MASK) {
     case FSR_RD_NEAREST:
-	fesetround(FE_TONEAREST);
+        rnd_mode = float_round_nearest_even;
 	break;
     case FSR_RD_ZERO:
-	fesetround(FE_TOWARDZERO);
+        rnd_mode = float_round_to_zero;
 	break;
     case FSR_RD_POS:
-	fesetround(FE_UPWARD);
+        rnd_mode = float_round_up;
 	break;
     case FSR_RD_NEG:
-	fesetround(FE_DOWNWARD);
+        rnd_mode = float_round_down;
 	break;
     }
+    set_float_rounding_mode(rnd_mode, &env->fp_status);
 }
 
 void cpu_get_fp64(uint64_t *pmant, uint16_t *pexp, double f)

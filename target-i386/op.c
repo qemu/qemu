@@ -1598,26 +1598,6 @@ CCTable cc_table[CC_OP_NB] = {
    functions comes from the LGPL'ed x86 emulator found in the Willows
    TWIN windows emulator. */
 
-#if defined(__powerpc__)
-extern CPU86_LDouble copysign(CPU86_LDouble, CPU86_LDouble);
-
-/* correct (but slow) PowerPC rint() (glibc version is incorrect) */
-double qemu_rint(double x)
-{
-    double y = 4503599627370496.0;
-    if (fabs(x) >= y)
-        return x;
-    if (x < 0) 
-        y = -y;
-    y = (x + y) - y;
-    if (y == 0.0)
-        y = copysign(y, x);
-    return y;
-}
-
-#define rint qemu_rint
-#endif
-
 /* fp load FT0 */
 
 void OPPROTO op_flds_FT0_A0(void)
@@ -1866,7 +1846,7 @@ void OPPROTO op_fist_ST0_A0(void)
     int val;
 
     d = ST0;
-    val = lrint(d);
+    val = floatx_to_int32(d, &env->fp_status);
     if (val != (int16_t)val)
         val = -32768;
     stw(A0, val);
@@ -1883,7 +1863,7 @@ void OPPROTO op_fistl_ST0_A0(void)
     int val;
 
     d = ST0;
-    val = lrint(d);
+    val = floatx_to_int32(d, &env->fp_status);
     stl(A0, val);
     FORCE_RET();
 }
@@ -1898,7 +1878,7 @@ void OPPROTO op_fistll_ST0_A0(void)
     int64_t val;
 
     d = ST0;
-    val = llrint(d);
+    val = floatx_to_int64(d, &env->fp_status);
     stq(A0, val);
     FORCE_RET();
 }
@@ -2101,12 +2081,12 @@ void OPPROTO op_fdivr_STN_ST0(void)
 /* misc FPU operations */
 void OPPROTO op_fchs_ST0(void)
 {
-    ST0 = -ST0;
+    ST0 = floatx_chs(ST0);
 }
 
 void OPPROTO op_fabs_ST0(void)
 {
-    ST0 = fabs(ST0);
+    ST0 = floatx_abs(ST0);
 }
 
 void OPPROTO op_fxam_ST0(void)
@@ -2251,25 +2231,8 @@ void OPPROTO op_fnstcw_A0(void)
 
 void OPPROTO op_fldcw_A0(void)
 {
-    int rnd_type;
     env->fpuc = lduw(A0);
-    /* set rounding mode */
-    switch(env->fpuc & RC_MASK) {
-    default:
-    case RC_NEAR:
-        rnd_type = FE_TONEAREST;
-        break;
-    case RC_DOWN:
-        rnd_type = FE_DOWNWARD;
-        break;
-    case RC_UP:
-        rnd_type = FE_UPWARD;
-        break;
-    case RC_CHOP:
-        rnd_type = FE_TOWARDZERO;
-        break;
-    }
-    fesetround(rnd_type);
+    update_fp_status();
 }
 
 void OPPROTO op_fclex(void)
