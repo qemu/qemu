@@ -79,7 +79,11 @@
 //#define DEBUG_SERIAL
 
 #define PHYS_RAM_BASE     0xac000000
+#if !defined(CONFIG_SOFTMMU)
 #define PHYS_RAM_MAX_SIZE (256 * 1024 * 1024)
+#else
+#define PHYS_RAM_MAX_SIZE (2047 * 1024 * 1024)
+#endif
 
 #if defined (TARGET_I386)
 #define KERNEL_LOAD_ADDR   0x00100000
@@ -1309,7 +1313,7 @@ static inline void pit_load_count(PITChannelState *s, int val)
     s->count = val;
     if (s == &pit_channels[0] && val <= pit_min_timer_count) {
         fprintf(stderr, 
-                "\nWARNING: qemu: on your system, accurate timer emulation is impossible if its frequency is more than %d Hz. If using a 2.5.xx Linux kernel, you must patch asm/param.h to change HZ from 1000 to 100.\n\n", 
+                "\nWARNING: qemu: on your system, accurate timer emulation is impossible if its frequency is more than %d Hz. If using a 2.6 guest Linux kernel, you must patch asm/param.h to change HZ from 1000 to 100.\n\n", 
                 PIT_FREQ / pit_min_timer_count);
     }
 }
