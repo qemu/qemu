@@ -1690,7 +1690,7 @@ void cpu_dump_state(CPUState *env, FILE *f,
 }
 
 #if defined(CONFIG_USER_ONLY)
-target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {
     return addr;
 }
@@ -1700,7 +1700,7 @@ extern int get_physical_address (CPUState *env, target_phys_addr_t *physical, in
                                  int *access_index, target_ulong address, int rw,
                                  int is_user);
 
-target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {
     target_phys_addr_t phys_addr;
     int prot, access_index;

@@ -21,77 +21,74 @@
 #include "dyngen-exec.h"
 
 /* XXX: factorize this mess */
-#if defined(__alpha__) || defined (__ia64__) || defined(__x86_64__)
-#define HOST_LONG_BITS 64
-#else
-#define HOST_LONG_BITS 32
-#endif
-
 #ifdef TARGET_X86_64
 #define TARGET_LONG_BITS 64
 #else
 #define TARGET_LONG_BITS 32
 #endif
 
+#include "cpu-defs.h"
+
 /* at least 4 register variables are defined */
 register struct CPUX86State *env asm(AREG0);
 
-/* XXX: use 64 bit regs if HOST_LONG_BITS == 64 */
-#if TARGET_LONG_BITS == 32
-
-register uint32_t T0 asm(AREG1);
-register uint32_t T1 asm(AREG2);
-register uint32_t T2 asm(AREG3);
-
-/* if more registers are available, we define some registers too */
-#ifdef AREG4
-register uint32_t EAX asm(AREG4);
-#define reg_EAX
-#endif
-
-#ifdef AREG5
-register uint32_t ESP asm(AREG5);
-#define reg_ESP
-#endif
-
-#ifdef AREG6
-register uint32_t EBP asm(AREG6);
-#define reg_EBP
-#endif
-
-#ifdef AREG7
-register uint32_t ECX asm(AREG7);
-#define reg_ECX
-#endif
-
-#ifdef AREG8
-register uint32_t EDX asm(AREG8);
-#define reg_EDX
-#endif
-
-#ifdef AREG9
-register uint32_t EBX asm(AREG9);
-#define reg_EBX
-#endif
-
-#ifdef AREG10
-register uint32_t ESI asm(AREG10);
-#define reg_ESI
-#endif
-
-#ifdef AREG11
-register uint32_t EDI asm(AREG11);
-#define reg_EDI
-#endif
-
-#else
+#if TARGET_LONG_BITS > HOST_LONG_BITS
 
 /* no registers can be used */
 #define T0 (env->t0)
 #define T1 (env->t1)
 #define T2 (env->t2)
 
+#else
+
+/* XXX: use unsigned long instead of target_ulong - better code will
+   be generated for 64 bit CPUs */
+register target_ulong T0 asm(AREG1);
+register target_ulong T1 asm(AREG2);
+register target_ulong T2 asm(AREG3);
+
+/* if more registers are available, we define some registers too */
+#ifdef AREG4
+register target_ulong EAX asm(AREG4);
+#define reg_EAX
 #endif
+
+#ifdef AREG5
+register target_ulong ESP asm(AREG5);
+#define reg_ESP
+#endif
+
+#ifdef AREG6
+register target_ulong EBP asm(AREG6);
+#define reg_EBP
+#endif
+
+#ifdef AREG7
+register target_ulong ECX asm(AREG7);
+#define reg_ECX
+#endif
+
+#ifdef AREG8
+register target_ulong EDX asm(AREG8);
+#define reg_EDX
+#endif
+
+#ifdef AREG9
+register target_ulong EBX asm(AREG9);
+#define reg_EBX
+#endif
+
+#ifdef AREG10
+register target_ulong ESI asm(AREG10);
+#define reg_ESI
+#endif
+
+#ifdef AREG11
+register target_ulong EDI asm(AREG11);
+#define reg_EDI
+#endif
+
+#endif /* ! (TARGET_LONG_BITS > HOST_LONG_BITS) */
 
 #define A0 T2
 
