@@ -63,7 +63,7 @@ vl.c i386-vl.ld vl.h block.c vlmkcow.c vga.c vga_template.h sdl.c \
 thunk.c cpu-exec.c translate.c cpu-all.h cpu-defs.h thunk.h exec.h\
 exec.c cpu-exec.c gdbstub.c bswap.h \
 cpu-i386.h op-i386.c helper-i386.c helper2-i386.c syscall-i386.h translate-i386.c \
-exec-i386.h ops_template.h ops_template_mem.h op_string.h opreg_template.h \
+exec-i386.h ops_template.h ops_template_mem.h opreg_template.h \
 ops_mem.h softmmu_template.h softmmu_header.h \
 cpu-arm.h syscall-arm.h exec-arm.h op-arm.c translate-arm.c op-arm-template.h \
 dis-asm.h disas.c disas.h alpha-dis.c ppc-dis.c i386-dis.c sparc-dis.c \
@@ -84,7 +84,7 @@ FILE=qemu-$(VERSION)
 tar:
 	rm -rf /tmp/$(FILE)
 	mkdir -p /tmp/$(FILE)
-	cp -P $(FILES) /tmp/$(FILE)
+	cp --parent $(FILES) /tmp/$(FILE)
 	( cd /tmp ; tar zcvf ~/$(FILE).tar.gz $(FILE) )
 	rm -rf /tmp/$(FILE)
 

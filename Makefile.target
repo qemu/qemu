@@ -153,7 +153,7 @@ endif
 VL_OBJS=vl.o block.o vga.o
 ifdef CONFIG_SDL
 VL_OBJS+=sdl.o
-SDL_LIBS+=-L/usr/X11R6/lib -lX11 -lXext -lXv -ldl
+SDL_LIBS+=-L/usr/X11R6/lib -lX11 -lXext -lXv -ldl -lm
 endif
 
 vl: $(VL_OBJS) libqemu.a
