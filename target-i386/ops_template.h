@@ -608,6 +608,16 @@ void OPPROTO glue(glue(op_out, SUFFIX), _DX_T0)(void)
     glue(cpu_x86_out, SUFFIX)(env, EDX & 0xffff, T0);
 }
 
+void OPPROTO glue(glue(op_check_io, SUFFIX), _T0)(void)
+{
+    glue(glue(check_io, SUFFIX), _T0)();
+}
+
+void OPPROTO glue(glue(op_check_io, SUFFIX), _DX)(void)
+{
+    glue(glue(check_io, SUFFIX), _DX)();
+}
+
 #undef DATA_BITS
 #undef SHIFT_MASK
 #undef SIGN_MASK

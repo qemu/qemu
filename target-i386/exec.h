@@ -171,6 +171,13 @@ void helper_wrmsr(void);
 void helper_lsl(void);
 void helper_lar(void);
 
+void check_iob_T0(void);
+void check_iow_T0(void);
+void check_iol_T0(void);
+void check_iob_DX(void);
+void check_iow_DX(void);
+void check_iol_DX(void);
+
 /* XXX: move that to a generic header */
 #if !defined(CONFIG_USER_ONLY)
 
