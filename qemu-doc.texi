@@ -548,7 +548,55 @@ Since holes are used, the displayed size of the COW disk image is not
 the real one. To know it, use the @code{ls -ls} command.
 @end enumerate
 
-@section Direct Linux Boot and Network emulation
+@section Network emulation
+
+QEMU simulates up to 6 networks cards (NE2000 boards). Each card can
+be connected to a specific host network interface.
+
+@subsection Using tun/tap network interface
+
+This is the standard way to emulate network. QEMU adds a virtual
+network device on your host (called @code{tun0}), and you can then
+configure it as if it was a real ethernet card.
+
+As an example, you can download the @file{linux-test-xxx.tar.gz}
+archive and copy the script @file{qemu-ifup} in @file{/etc} and
+configure properly @code{sudo} so that the command @code{ifconfig}
+contained in @file{qemu-ifup} can be executed as root. You must verify
+that your host kernel supports the TUN/TAP network interfaces: the
+device @file{/dev/net/tun} must be present.
+
+See @ref{direct_linux_boot} to have an example of network use with a
+Linux distribution.
+
+@subsection Using the user mode network stack
+
+This is @emph{experimental} (version 0.5.4). You must configure qemu
+with @code{--enable-slirp}. Then by using the option
+@option{-user-net} or if you have no tun/tap init script, QEMU uses a
+completely user mode network stack (you don't need root priviledge to
+use the virtual network). The virtual network configuration is the
+following:
+
+@example
+
+QEMU Virtual Machine    <------>  Firewall/DHCP server <-----> Internet
+     (10.0.2.x)            |          (10.0.2.2)
+                           |
+                           ---->  DNS 
+                              (10.0.2.3)
+@end example
+
+The QEMU VM behaves as if it was behind a firewall which blocks all
+incoming connections. You can use a DHCP client to automatically
+configure the network in the QEMU VM.
+
+In order to check that the user mode network is working, you can ping
+the address 10.0.2.2 and verify that you got an address in the range
+10.0.2.x from the QEMU virtual DHCP server.
+
+@node direct_linux_boot
+@section Direct Linux Boot
 
 This section explains how to launch a Linux kernel inside QEMU without
 having to make a full bootable image. It is very useful for fast Linux
