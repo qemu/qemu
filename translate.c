@@ -179,7 +179,18 @@ int cpu_restore_state(TranslationBlock *tb,
 #if defined(TARGET_I386)
     {
         int cc_op;
-        
+#ifdef DEBUG_DISAS
+        if (loglevel) {
+            int i;
+            for(i=0;i<=j; i++) {
+                if (gen_opc_instr_start[i]) {
+                    fprintf(logfile, "0x%04x: 0x%08x", i, gen_opc_pc[i]);
+                }
+            }
+            fprintf(logfile, "j=0x%x eip=0x%lx cs_base=%lx\n", 
+                    j, gen_opc_pc[j] - tb->cs_base, tb->cs_base);
+        }
+#endif
         env->eip = gen_opc_pc[j] - tb->cs_base;
         cc_op = gen_opc_cc_op[j];
         if (cc_op != CC_OP_DYNAMIC)

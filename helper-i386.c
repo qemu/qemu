@@ -947,6 +947,45 @@ void helper_rdtsc(void)
     EDX = val >> 32;
 }
 
+void helper_wrmsr(void)
+{
+    switch(ECX) {
+    case MSR_IA32_SYSENTER_CS:
+        env->sysenter_cs = EAX & 0xffff;
+        break;
+    case MSR_IA32_SYSENTER_ESP:
+        env->sysenter_esp = EAX;
+        break;
+    case MSR_IA32_SYSENTER_EIP:
+        env->sysenter_eip = EAX;
+        break;
+    default:
+        /* XXX: exception ? */
+        break; 
+    }
+}
+
+void helper_rdmsr(void)
+{
+    switch(ECX) {
+    case MSR_IA32_SYSENTER_CS:
+        EAX = env->sysenter_cs;
+        EDX = 0;
+        break;
+    case MSR_IA32_SYSENTER_ESP:
+        EAX = env->sysenter_esp;
+        EDX = 0;
+        break;
+    case MSR_IA32_SYSENTER_EIP:
+        EAX = env->sysenter_eip;
+        EDX = 0;
+        break;
+    default:
+        /* XXX: exception ? */
+        break; 
+    }
+}
+
 void helper_lsl(void)
 {
     unsigned int selector, limit;

@@ -1575,14 +1575,22 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             switch(f) {
             case 0: /* OP Ev, Gv */
                 modrm = ldub(s->pc++);
-                reg = ((modrm >> 3) & 7) + OR_EAX;
+                reg = ((modrm >> 3) & 7);
                 mod = (modrm >> 6) & 3;
                 rm = modrm & 7;
                 if (mod != 3) {
                     gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
                     opreg = OR_TMP0;
+                } else if (op == OP_XORL && rm == reg) {
+                xor_zero:
+                    /* xor reg, reg optimisation */
+                    gen_op_movl_T0_0();
+                    s->cc_op = CC_OP_LOGICB + ot;
+                    gen_op_mov_reg_T0[ot][reg]();
+                    gen_op_update1_cc();
+                    break;
                 } else {
-                    opreg = OR_EAX + rm;
+                    opreg = rm;
                 }
                 gen_op_mov_TN_reg[ot][1][reg]();
                 gen_op(s, op, ot, opreg);
@@ -1590,11 +1598,13 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             case 1: /* OP Gv, Ev */
                 modrm = ldub(s->pc++);
                 mod = (modrm >> 6) & 3;
-                reg = ((modrm >> 3) & 7) + OR_EAX;
+                reg = ((modrm >> 3) & 7);
                 rm = modrm & 7;
                 if (mod != 3) {
                     gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
                     gen_op_ld_T1_A0[ot]();
+                } else if (op == OP_XORL && rm == reg) {
+                    goto xor_zero;
                 } else {
                     gen_op_mov_TN_reg[ot][1][rm]();
                 }
@@ -3464,6 +3474,17 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         gen_op_loop[s->aflag][b & 3](val, next_eip);
         s->is_jmp = 1;
         break;
+    case 0x130: /* wrmsr */
+    case 0x132: /* rdmsr */
+        if (s->cpl != 0) {
+            gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
+        } else {
+            if (b & 2)
+                gen_op_rdmsr();
+            else
+                gen_op_wrmsr();
+        }
+        break;
     case 0x131: /* rdtsc */
         gen_op_rdtsc();
         break;
@@ -4267,7 +4288,7 @@ void cpu_x86_update_cr0(CPUX86State *env)
 void cpu_x86_update_cr3(CPUX86State *env)
 {
     if (env->cr[0] & CR0_PG_MASK) {
-#ifdef DEBUG_MMU
+#if defined(DEBUG_MMU)
         printf("CR3 update: CR3=%08x\n", env->cr[3]);
 #endif
         page_unmap();

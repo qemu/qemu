@@ -125,6 +125,15 @@
 #define PG_ERROR_U_MASK    0x04
 #define PG_ERROR_RSVD_MASK 0x08
 
+#define MSR_IA32_APICBASE               0x1b
+#define MSR_IA32_APICBASE_BSP           (1<<8)
+#define MSR_IA32_APICBASE_ENABLE        (1<<11)
+#define MSR_IA32_APICBASE_BASE          (0xfffff<<12)
+
+#define MSR_IA32_SYSENTER_CS            0x174
+#define MSR_IA32_SYSENTER_ESP           0x175
+#define MSR_IA32_SYSENTER_EIP           0x176
+
 #define EXCP00_DIVZ	0
 #define EXCP01_SSTP	1
 #define EXCP02_NMI	2
@@ -244,6 +253,11 @@ typedef struct CPUX86State {
     SegmentCache tr;
     SegmentCache gdt; /* only base and limit are used */
     SegmentCache idt; /* only base and limit are used */
+
+    /* sysenter registers */
+    uint32_t sysenter_cs;
+    uint32_t sysenter_esp;
+    uint32_t sysenter_eip;
     
     /* exception/interrupt handling */
     jmp_buf jmp_env;

@@ -751,6 +751,16 @@ void OPPROTO op_cpuid(void)
     helper_cpuid();
 }
 
+void OPPROTO op_rdmsr(void)
+{
+    helper_rdmsr();
+}
+
+void OPPROTO op_wrmsr(void)
+{
+    helper_wrmsr();
+}
+
 /* bcd */
 
 /* XXX: exception */
