@@ -427,8 +427,8 @@ typedef struct target_siginfo {
 			pid_t _pid;		/* which child */
 			uid_t _uid;		/* sender's uid */
 			int _status;		/* exit code */
-			clock_t _utime;
-			clock_t _stime;
+			target_clock_t _utime;
+                        target_clock_t _stime;
 		} _sigchld;
 
 		/* SIGILL, SIGFPE, SIGSEGV, SIGBUS */
