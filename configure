@@ -46,6 +46,9 @@ case "$cpu" in
   s390)
     cpu="s390"
   ;;
+  ia64)
+    cpu="ia64"
+  ;;
   *)
     cpu="unknown"
   ;;
@@ -212,6 +215,9 @@ elif test "$cpu" = "s390" ; then
 elif test "$cpu" = "alpha" ; then
   echo "ARCH=alpha" >> config.mak
   echo "#define HOST_ALPHA 1" >> $TMPH
+elif test "$cpu" = "ia64" ; then
+  echo "ARCH=ia64" >> config.mak
+  echo "#define HOST_IA64 1" >> $TMPH
 else
   echo "Unsupported CPU"
   exit 1
