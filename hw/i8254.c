@@ -136,6 +136,10 @@ static int64_t pit_get_next_transition_time(PITChannelState *s,
     }
     /* convert to timer units */
     next_time = s->count_load_time + muldiv64(next_time, ticks_per_sec, PIT_FREQ);
+    /* fix potential rounding problems */
+    /* XXX: better solution: use a clock at PIT_FREQ Hz */
+    if (next_time <= current_time)
+        next_time = current_time + 1;
     return next_time;
 }
 
