@@ -563,3 +563,19 @@ TranslationBlock *tb_find_pc(unsigned long tc_ptr)
     } 
     return &tbs[m_max];
 }
+
+void cpu_abort(CPUState *env, const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    fprintf(stderr, "qemu: fatal: ");
+    vfprintf(stderr, fmt, ap);
+    fprintf(stderr, "\n");
+#ifdef TARGET_I386
+    cpu_x86_dump_state(env, stderr, X86_DUMP_FPU | X86_DUMP_CCOP);
+#endif
+    va_end(ap);
+    abort();
+}
+
