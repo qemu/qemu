@@ -512,10 +512,12 @@ void test_mul(void)
 {\
     int res, val, resz;\
     val = op0;\
-    asm("xorl %1, %1 ; " #op " %" size "2, %" size "0 ; setz %b1" \
+    asm("xorl %1, %1\n"\
+        "movl $0x12345678, %0\n"\
+        #op " %" size "2, %" size "0 ; setz %b1" \
         : "=r" (res), "=q" (resz)\
         : "g" (val));\
-    printf("%-10s A=%08x R=%08x %d\n", #op, val, resz ? 0 : res, resz);\
+    printf("%-10s A=%08x R=%08x %d\n", #op, val, res, resz);\
 }
 
 void test_bsx(void)
