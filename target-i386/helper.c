@@ -758,23 +758,10 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
     
     if (new_stack) {
         if (env->eflags & VM_MASK) {
-            /* XXX: explain me why W2K hangs if the whole segment cache is
-               reset ? */
-#if 1
-            env->segs[R_ES].selector = 0;
-            env->segs[R_ES].flags = 0;
-            env->segs[R_DS].selector = 0;
-            env->segs[R_DS].flags = 0;
-            env->segs[R_FS].selector = 0;
-            env->segs[R_FS].flags = 0;
-            env->segs[R_GS].selector = 0;
-            env->segs[R_GS].flags = 0;
-#else
             cpu_x86_load_seg_cache(env, R_ES, 0, NULL, 0, 0);
             cpu_x86_load_seg_cache(env, R_DS, 0, NULL, 0, 0);
             cpu_x86_load_seg_cache(env, R_FS, 0, NULL, 0, 0);
             cpu_x86_load_seg_cache(env, R_GS, 0, NULL, 0, 0);
-#endif
         }
         ss = (ss & ~3) | dpl;
         cpu_x86_load_seg_cache(env, R_SS, ss, 
