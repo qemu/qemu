@@ -101,8 +101,7 @@ static int vmdk_open(BlockDriverState *bs, const char *filename)
         return -1;
     if (read(fd, &magic, sizeof(magic)) != sizeof(magic))
         goto fail;
-    magic = le32_to_cpu(magic);
-    
+    magic = be32_to_cpu(magic);
     if (magic == VMDK3_MAGIC) {
         VMDK3Header header;
         if (read(fd, &header, sizeof(header)) != 
@@ -136,7 +135,9 @@ static int vmdk_open(BlockDriverState *bs, const char *filename)
     s->l1_table = qemu_malloc(l1_size);
     if (!s->l1_table)
         goto fail;
-    if (read(s->fd, s->l1_table, l1_size) != l1_size)
+    if (lseek(fd, s->l1_table_offset, SEEK_SET) == -1)
+        goto fail;
+    if (read(fd, s->l1_table, l1_size) != l1_size)
         goto fail;
     for(i = 0; i < s->l1_size; i++) {
         le32_to_cpus(&s->l1_table[i]);
