@@ -1198,6 +1198,13 @@ void OPPROTO op_movl_crN_T0(void)
     helper_movl_crN_T0(PARAM1);
 }
 
+void OPPROTO op_movtl_T0_cr8(void)
+{
+#if !defined(CONFIG_USER_ONLY) 
+    T0 = cpu_get_apic_tpr(env);
+#endif
+}
+
 /* DR registers access */
 void OPPROTO op_movl_drN_T0(void)
 {
@@ -1279,12 +1286,14 @@ void OPPROTO op_jnz_T0_label(void)
 {
     if (T0)
         GOTO_LABEL_PARAM(1);
+    FORCE_RET();
 }
 
 void OPPROTO op_jz_T0_label(void)
 {
     if (!T0)
         GOTO_LABEL_PARAM(1);
+    FORCE_RET();
 }
 
 /* slow set cases (compute x86 flags) */
