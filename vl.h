@@ -124,6 +124,7 @@ extern int graphic_width;
 extern int graphic_height;
 extern int graphic_depth;
 extern const char *keyboard_layout;
+extern int kqemu_allowed;
 
 /* XXX: make it dynamic */
 #if defined (TARGET_PPC)

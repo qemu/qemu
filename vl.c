@@ -2760,6 +2760,9 @@ void help(void)
            "-hdachs c,h,s[,t]  force hard disk 0 physical geometry and the optional BIOS\n"
            "                translation (t=none or lba) (usually qemu can guess them)\n"
            "-L path         set the directory for the BIOS and VGA BIOS\n"
+#ifdef USE_KQEMU
+           "-no-kqemu       disable KQEMU kernel module usage\n"
+#endif
 #ifdef USE_CODE_COPY
            "-no-code-copy   disable code copy acceleration\n"
 #endif
@@ -2848,6 +2851,7 @@ enum {
     QEMU_OPTION_loadvm,
     QEMU_OPTION_full_screen,
     QEMU_OPTION_pidfile,
+    QEMU_OPTION_no_kqemu,
 };
 
 typedef struct QEMUOption {
@@ -2898,6 +2902,9 @@ const QEMUOption qemu_options[] = {
     { "hdachs", HAS_ARG, QEMU_OPTION_hdachs },
     { "L", HAS_ARG, QEMU_OPTION_L },
     { "no-code-copy", 0, QEMU_OPTION_no_code_copy },
+#ifdef USE_KQEMU
+    { "no-kqemu", 0, QEMU_OPTION_no_kqemu },
+#endif
 #ifdef TARGET_PPC
     { "prep", 0, QEMU_OPTION_prep },
     { "g", 1, QEMU_OPTION_g },
@@ -3358,6 +3365,11 @@ int main(int argc, char **argv)
             case QEMU_OPTION_pidfile:
                 create_pidfile(optarg);
                 break;
+#ifdef USE_KQEMU
+            case QEMU_OPTION_no_kqemu:
+                kqemu_allowed = 0;
+                break;
+#endif
             }
         }
     }
@@ -3433,12 +3445,7 @@ int main(int argc, char **argv)
     phys_ram_size = ram_size + vga_ram_size + bios_size;
 
 #ifdef CONFIG_SOFTMMU
-#ifdef _BSD
-    /* mallocs are always aligned on BSD. valloc is better for correctness */
-    phys_ram_base = valloc(phys_ram_size);
-#else
-    phys_ram_base = memalign(TARGET_PAGE_SIZE, phys_ram_size);
-#endif
+    phys_ram_base = qemu_vmalloc(phys_ram_size);
     if (!phys_ram_base) {
         fprintf(stderr, "Could not allocate physical memory\n");
         exit(1);
