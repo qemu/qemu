@@ -26,8 +26,6 @@
 
 #include "qemu.h"
 
-#include "cpu-i386.h"
-
 #define DEBUG_LOGFILE "/tmp/qemu.log"
 
 FILE *logfile = NULL;
@@ -322,6 +320,9 @@ void usage(void)
 
 /* XXX: currently only used for async signals (see signal.c) */
 CPUState *global_env;
+/* used only if single thread */
+CPUState *cpu_single_env = NULL;
+
 /* used to free thread contexts */
 TaskState *first_task_state;
 
@@ -428,6 +429,7 @@ int main(int argc, char **argv)
     memset(ts, 0, sizeof(TaskState));
     env->opaque = ts;
     ts->used = 1;
+    env->user_mode_only = 1;
     
 #if defined(TARGET_I386)
     /* linux register setup */
@@ -481,7 +483,6 @@ int main(int argc, char **argv)
     cpu_x86_load_seg(env, R_SS, __USER_DS);
     cpu_x86_load_seg(env, R_FS, __USER_DS);
     cpu_x86_load_seg(env, R_GS, __USER_DS);
-    env->user_mode_only = 1;
 
 #elif defined(TARGET_ARM)
     {
