@@ -19,6 +19,7 @@ version 0.5.3:
   - support of CD-ROM change
   - multiple network interface support
   - initial x86-64 host support (Gwenole Beauchesne)
+  - lret to outer priviledge fix (OS/2 install fix)
   
 version 0.5.2:
 
