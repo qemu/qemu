@@ -22,19 +22,109 @@
 #include "exec.h"
 
 #define regs (env)
-extern uint32_t __a;
-extern uint32_t __b;
-extern uint32_t __c;
-extern uint32_t __d;
-extern uint32_t __e;
-extern uint32_t __f;
 #define Ts0 (int32_t)T0
 #define Ts1 (int32_t)T1
 #define Ts2 (int32_t)T2
 
-#include "op-multi.c"
+#define FT0 (env->ft0)
 
 #define PPC_OP(name) void op_##name(void)
+
+#define REG 0
+#include "op_template.h"
+
+#define REG 1
+#include "op_template.h"
+
+#define REG 2
+#include "op_template.h"
+
+#define REG 3
+#include "op_template.h"
+
+#define REG 4
+#include "op_template.h"
+
+#define REG 5
+#include "op_template.h"
+
+#define REG 6
+#include "op_template.h"
+
+#define REG 7
+#include "op_template.h"
+
+#define REG 8
+#include "op_template.h"
+
+#define REG 9
+#include "op_template.h"
+
+#define REG 10
+#include "op_template.h"
+
+#define REG 11
+#include "op_template.h"
+
+#define REG 12
+#include "op_template.h"
+
+#define REG 13
+#include "op_template.h"
+
+#define REG 14
+#include "op_template.h"
+
+#define REG 15
+#include "op_template.h"
+
+#define REG 16
+#include "op_template.h"
+
+#define REG 17
+#include "op_template.h"
+
+#define REG 18
+#include "op_template.h"
+
+#define REG 19
+#include "op_template.h"
+
+#define REG 20
+#include "op_template.h"
+
+#define REG 21
+#include "op_template.h"
+
+#define REG 22
+#include "op_template.h"
+
+#define REG 23
+#include "op_template.h"
+
+#define REG 24
+#include "op_template.h"
+
+#define REG 25
+#include "op_template.h"
+
+#define REG 26
+#include "op_template.h"
+
+#define REG 27
+#include "op_template.h"
+
+#define REG 28
+#include "op_template.h"
+
+#define REG 29
+#include "op_template.h"
+
+#define REG 30
+#include "op_template.h"
+
+#define REG 31
+#include "op_template.h"
 
 /* PPC state maintenance operations */
 /* set_Rc0 */
@@ -1113,4 +1203,136 @@ PPC_OP(stswx)
 {
     do_stsw(PARAM(1), T0, T1 + T2);
     RETURN();
+}
+
+/* SPR */
+PPC_OP(load_spr)
+{
+    T0 = regs->spr[PARAM(1)];
+}
+
+PPC_OP(store_spr)
+{
+    regs->spr[PARAM(1)] = T0;
+}
+
+/* FPSCR */
+PPC_OP(load_fpscr)
+{
+    T0 = do_load_fpscr();
+}
+
+PPC_OP(store_fpscr)
+{
+    do_store_fpscr(PARAM(1), T0);
+}
+
+/***                         Floating-point store                          ***/
+
+static inline uint32_t dtos(uint64_t f)
+{
+    unsigned int e, m, s;
+    e = (((f >> 52) & 0x7ff) - 1022) + 126;
+    s = (f >> 63);
+    m = (f >> 29);
+    return (s << 31) | (e << 23) | m;
+}
+
+static inline uint64_t stod(uint32_t f)
+{
+    unsigned int e, m, s;
+    e = ((f >> 23) & 0xff) - 126 + 1022;
+    s = f >> 31;
+    m = f & ((1 << 23) - 1);
+    return ((uint64_t)s << 63) | ((uint64_t)e << 52) | ((uint64_t)m << 29);
+}
+
+PPC_OP(stfd_z_FT0)
+{
+    st64(SPARAM(1), FT0);
+}
+
+PPC_OP(stfd_FT0)
+{
+    T0 += SPARAM(1);
+    st64(T0, FT0);
+}
+
+PPC_OP(stfdx_z_FT0)
+{
+    st64(T0, FT0);
+}
+
+PPC_OP(stfdx_FT0)
+{
+    T0 += T1;
+    st64(T0, FT0);
+}
+
+
+PPC_OP(stfs_z_FT0)
+{
+    st32(SPARAM(1), dtos(FT0));
+}
+
+PPC_OP(stfs_FT0)
+{
+    T0 += SPARAM(1);
+    st32(T0, dtos(FT0));
+}
+
+PPC_OP(stfsx_z_FT0)
+{
+    st32(T0, dtos(FT0));
+}
+
+PPC_OP(stfsx_FT0)
+{
+    T0 += T1;
+    st32(T0, dtos(FT0));
+}
+
+/***                         Floating-point load                          ***/
+PPC_OP(lfd_z_FT0)
+{
+    FT0 = ld64(SPARAM(1));
+}
+
+PPC_OP(lfd_FT0)
+{
+    T0 += SPARAM(1);
+    FT0 = ld64(T0);
+}
+
+PPC_OP(lfdx_z_FT0)
+{
+    FT0 = ld64(T0);
+}
+
+PPC_OP(lfdx_FT0)
+{
+    T0 += T1;
+    FT0 = ld64(T0);
+}
+
+PPC_OP(lfs_z_FT0)
+{
+    FT0 = stod(ld32(SPARAM(1)));
+}
+
+PPC_OP(lfs_FT0)
+{
+    T0 += SPARAM(1);
+    FT0 = stod(ld32(T0));
+}
+
+PPC_OP(lfsx_z_FT0)
+{
+    FT0 = stod(ld32(T0));
+}
+
+PPC_OP(lfsx_FT0)
+{
+    T0 += T1;
+    FT0 = stod(ld32(T0));
 }

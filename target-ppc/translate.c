@@ -36,7 +36,50 @@ static uint16_t *gen_opc_ptr;
 static uint32_t *gen_opparam_ptr;
 
 #include "gen-op.h"
-#include "select.h"
+
+typedef void (GenOpFunc)(void);
+
+#define GEN8(func, NAME) \
+static GenOpFunc *NAME ## _table [8] = {\
+NAME ## 0, NAME ## 1, NAME ## 2, NAME ## 3,\
+NAME ## 4, NAME ## 5, NAME ## 6, NAME ## 7,\
+};\
+static inline void func(int n)\
+{\
+    NAME ## _table[n]();\
+}
+
+#define GEN32(func, NAME) \
+static GenOpFunc *NAME ## _table [32] = {\
+NAME ## 0, NAME ## 1, NAME ## 2, NAME ## 3,\
+NAME ## 4, NAME ## 5, NAME ## 6, NAME ## 7,\
+NAME ## 8, NAME ## 9, NAME ## 10, NAME ## 11,\
+NAME ## 12, NAME ## 13, NAME ## 14, NAME ## 15,\
+NAME ## 16, NAME ## 17, NAME ## 18, NAME ## 19,\
+NAME ## 20, NAME ## 21, NAME ## 22, NAME ## 23,\
+NAME ## 24, NAME ## 25, NAME ## 26, NAME ## 27,\
+NAME ## 28, NAME ## 29, NAME ## 30, NAME ## 31,\
+};\
+static inline void func(int n)\
+{\
+    NAME ## _table[n]();\
+}
+
+GEN8(gen_op_load_crf_T0, gen_op_load_crf_T0_crf)
+GEN8(gen_op_load_crf_T1, gen_op_load_crf_T1_crf)
+GEN8(gen_op_store_T0_crf, gen_op_store_T0_crf_crf)
+GEN8(gen_op_store_T1_crf, gen_op_store_T1_crf_crf)
+
+GEN32(gen_op_load_gpr_T0, gen_op_load_gpr_T0_gpr)
+GEN32(gen_op_load_gpr_T1, gen_op_load_gpr_T1_gpr)
+GEN32(gen_op_load_gpr_T2, gen_op_load_gpr_T2_gpr)
+
+GEN32(gen_op_store_T0_gpr, gen_op_store_T0_gpr_gpr)
+GEN32(gen_op_store_T1_gpr, gen_op_store_T1_gpr_gpr)
+GEN32(gen_op_store_T2_gpr, gen_op_store_T2_gpr_gpr)
+
+GEN32(gen_op_load_FT0_fpr, gen_op_load_FT0_fpr)
+GEN32(gen_op_store_FT0_fpr, gen_op_store_FT0_fpr)
 
 static uint8_t  spr_access[1024 / 2];
 
@@ -810,7 +853,8 @@ GEN_HANDLER(mcrfs, 0x3F, 0x00, 0x02, 0x0063F801, PPC_FLOAT)
 /* mffs */
 GEN_HANDLER(mffs, 0x3F, 0x07, 0x12, 0x001FF800, PPC_FLOAT)
 {
-    gen_op_load_fpscr(rD(ctx->opcode));
+    gen_op_load_fpscr();
+    gen_op_store_T0_gpr(rD(ctx->opcode));
     if (Rc(ctx->opcode)) {
         /* Update CR1 */
     }
@@ -832,7 +876,8 @@ GEN_HANDLER(mtfsb1, 0x3F, 0x06, 0x01, 0x001FF800, PPC_FLOAT)
 /* mtfsf */
 GEN_HANDLER(mtfsf, 0x3F, 0x07, 0x16, 0x02010000, PPC_FLOAT)
 {
-    gen_op_store_fpscr(FM(ctx->opcode), rB(ctx->opcode));
+    gen_op_load_gpr_T0(rB(ctx->opcode));
+    gen_op_store_fpscr(FM(ctx->opcode));
     if (Rc(ctx->opcode)) {
         /* Update CR1 */
     }
@@ -1182,11 +1227,12 @@ GEN_HANDLER(lf##width, opc, 0xFF, 0xFF, 0x00000000, PPC_FLOAT)                \
 {                                                                             \
     uint32_t simm = SIMM(ctx->opcode);                                        \
     if (rA(ctx->opcode) == 0) {                                               \
-        gen_op_lf##width##_z(simm, rD(ctx->opcode));                          \
+        gen_op_lf##width##_z_FT0(simm);                          \
     } else {                                                                  \
         gen_op_load_gpr_T0(rA(ctx->opcode));                                  \
-        gen_op_lf##width(simm, rD(ctx->opcode));                              \
+        gen_op_lf##width##_FT0(simm);                              \
     }                                                                         \
+    gen_op_store_FT0_fpr(rD(ctx->opcode));\
     SET_RETVAL(0);                                                            \
 }
 
@@ -1197,7 +1243,8 @@ GEN_HANDLER(lf##width##u, opc, 0xFF, 0xFF, 0x00000000, PPC_FLOAT)             \
         rA(ctx->opcode) == rD(ctx->opcode))                                   \
         SET_RETVAL(EXCP_INVAL);                                               \
     gen_op_load_gpr_T0(rA(ctx->opcode));                                      \
-    gen_op_lf##width(SIMM(ctx->opcode), rD(ctx->opcode));                     \
+    gen_op_lf##width##_FT0(SIMM(ctx->opcode));                     \
+    gen_op_store_FT0_fpr(rD(ctx->opcode));\
     gen_op_store_T0_gpr(rA(ctx->opcode));                                     \
     SET_RETVAL(0);                                                            \
 }
@@ -1210,7 +1257,8 @@ GEN_HANDLER(lf##width##ux, 0x1F, 0x17, opc, 0x00000001, PPC_FLOAT)            \
         SET_RETVAL(EXCP_INVAL);                                               \
     gen_op_load_gpr_T0(rA(ctx->opcode));                                      \
     gen_op_load_gpr_T1(rB(ctx->opcode));                                      \
-    gen_op_lf##width##x(rD(ctx->opcode));                                     \
+    gen_op_lf##width##x_FT0();                                     \
+    gen_op_store_FT0_fpr(rD(ctx->opcode));\
     gen_op_store_T0_gpr(rA(ctx->opcode));                                     \
     SET_RETVAL(0);                                                            \
 }
@@ -1220,12 +1268,13 @@ GEN_HANDLER(lf##width##x, 0x1F, 0x17, opc, 0x00000001, PPC_FLOAT)             \
 {                                                                             \
     if (rA(ctx->opcode) == 0) {                                               \
         gen_op_load_gpr_T0(rB(ctx->opcode));                                  \
-        gen_op_lf##width##x_z(rD(ctx->opcode));                               \
+        gen_op_lf##width##x_z_FT0();                               \
     } else {                                                                  \
         gen_op_load_gpr_T0(rA(ctx->opcode));                                  \
         gen_op_load_gpr_T1(rB(ctx->opcode));                                  \
-        gen_op_lf##width##x(rD(ctx->opcode));                                 \
+        gen_op_lf##width##x_FT0();                                 \
     }                                                                         \
+    gen_op_store_FT0_fpr(rD(ctx->opcode));\
     SET_RETVAL(0);                                                            \
 }
 
@@ -1238,10 +1287,6 @@ GEN_LFX(width, opc | 0x00)
 /* lfd lfdu lfdux lfdx */
 GEN_LDF(d, 0x12);
 /* lfs lfsu lfsux lfsx */
-#define gen_op_lfs_z(a, b)
-#define gen_op_lfs(a, b)
-#define gen_op_lfsx_z(a)
-#define gen_op_lfsx(a)
 GEN_LDF(s, 0x10);
 
 /***                         Floating-point store                          ***/
@@ -1249,11 +1294,12 @@ GEN_LDF(s, 0x10);
 GEN_HANDLER(stf##width, opc, 0xFF, 0xFF, 0x00000000, PPC_FLOAT)               \
 {                                                                             \
     uint32_t simm = SIMM(ctx->opcode);                                        \
+    gen_op_load_FT0_fpr(rS(ctx->opcode));\
     if (rA(ctx->opcode) == 0) {                                               \
-        gen_op_stf##width##_z(simm, rS(ctx->opcode));                         \
+        gen_op_stf##width##_z_FT0(simm);                         \
     } else {                                                                  \
         gen_op_load_gpr_T0(rA(ctx->opcode));                                  \
-        gen_op_stf##width(simm, rS(ctx->opcode));                             \
+        gen_op_stf##width##_FT0(simm);                             \
     }                                                                         \
     SET_RETVAL(0);                                                            \
 }
@@ -1264,7 +1310,8 @@ GEN_HANDLER(stf##width##u, opc, 0xFF, 0xFF, 0x00000000, PPC_FLOAT)            \
     if (rA(ctx->opcode) == 0)                                                 \
         SET_RETVAL(EXCP_INVAL);                                               \
     gen_op_load_gpr_T0(rA(ctx->opcode));                                      \
-    gen_op_stf##width(SIMM(ctx->opcode), rS(ctx->opcode));                    \
+    gen_op_load_FT0_fpr(rS(ctx->opcode));\
+    gen_op_stf##width##_FT0(SIMM(ctx->opcode));                    \
     gen_op_store_T0_gpr(rA(ctx->opcode));                                     \
     SET_RETVAL(0);                                                            \
 }
@@ -1276,7 +1323,8 @@ GEN_HANDLER(stf##width##ux, 0x1F, 0x17, opc, 0x00000001, PPC_FLOAT)           \
         SET_RETVAL(EXCP_INVAL);                                               \
     gen_op_load_gpr_T0(rA(ctx->opcode));                                      \
     gen_op_load_gpr_T1(rB(ctx->opcode));                                      \
-    gen_op_stf##width##x(rS(ctx->opcode));                                    \
+    gen_op_load_FT0_fpr(rS(ctx->opcode));\
+    gen_op_stf##width##x_FT0();                                    \
     gen_op_store_T0_gpr(rA(ctx->opcode));                                     \
     SET_RETVAL(0);                                                            \
 }
@@ -1284,13 +1332,14 @@ GEN_HANDLER(stf##width##ux, 0x1F, 0x17, opc, 0x00000001, PPC_FLOAT)           \
 #define GEN_STFX(width, opc)                                                  \
 GEN_HANDLER(stf##width##x, 0x1F, 0x17, opc, 0x00000001, PPC_FLOAT)            \
 {                                                                             \
+    gen_op_load_FT0_fpr(rS(ctx->opcode));\
     if (rA(ctx->opcode) == 0) {                                               \
         gen_op_load_gpr_T0(rB(ctx->opcode));                                  \
-        gen_op_stf##width##x_z(rS(ctx->opcode));                              \
+        gen_op_stf##width##x_z_FT0();                              \
     } else {                                                                  \
         gen_op_load_gpr_T0(rA(ctx->opcode));                                  \
         gen_op_load_gpr_T1(rB(ctx->opcode));                                  \
-        gen_op_stf##width##x(rS(ctx->opcode));                                \
+        gen_op_stf##width##x_FT0();                                \
     }                                                                         \
     SET_RETVAL(0);                                                            \
 }
@@ -1304,10 +1353,6 @@ GEN_STFX(width, opc | 0x00)
 /* stfd stfdu stfdux stfdx */
 GEN_STOF(d, 0x16);
 /* stfs stfsu stfsux stfsx */
-#define gen_op_stfs_z(a, b)
-#define gen_op_stfs(a, b)
-#define gen_op_stfsx_z(a)
-#define gen_op_stfsx(a)
 GEN_STOF(s, 0x14);
 
 /* Optional: */

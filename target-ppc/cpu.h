@@ -172,6 +172,7 @@ typedef struct CPUPPCState {
     uint32_t exception;
 
     /* qemu dedicated */
+    uint64_t ft0; /* temporary float register */
     int interrupt_request;
     jmp_buf jmp_env;
     int exception_index;
