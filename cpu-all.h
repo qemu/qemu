@@ -420,6 +420,7 @@ void page_unprotect_range(uint8_t *data, unsigned long data_size);
 #define cpu_gen_code cpu_x86_gen_code
 #define cpu_interrupt cpu_x86_interrupt
 #define cpu_signal_handler cpu_x86_signal_handler
+#define cpu_dump_state cpu_x86_dump_state
 
 #elif defined(TARGET_ARM)
 
@@ -429,6 +430,7 @@ void page_unprotect_range(uint8_t *data, unsigned long data_size);
 #define cpu_gen_code cpu_arm_gen_code
 #define cpu_interrupt cpu_arm_interrupt
 #define cpu_signal_handler cpu_arm_signal_handler
+#define cpu_dump_state cpu_arm_dump_state
 
 #elif defined(TARGET_SPARC)
 
@@ -438,6 +440,7 @@ void page_unprotect_range(uint8_t *data, unsigned long data_size);
 #define cpu_gen_code cpu_sparc_gen_code
 #define cpu_interrupt cpu_sparc_interrupt
 #define cpu_signal_handler cpu_sparc_signal_handler
+#define cpu_dump_state cpu_sparc_dump_state
 
 #elif defined(TARGET_PPC)
 
@@ -447,6 +450,7 @@ void page_unprotect_range(uint8_t *data, unsigned long data_size);
 #define cpu_gen_code cpu_ppc_gen_code
 #define cpu_interrupt cpu_ppc_interrupt
 #define cpu_signal_handler cpu_ppc_signal_handler
+#define cpu_dump_state cpu_ppc_dump_state
 
 #else
 
@@ -472,6 +476,19 @@ void cpu_single_step(CPUState *env, int enabled);
 #define CPU_LOG_ALL 1
 void cpu_set_log(int log_flags);
 void cpu_set_log_filename(const char *filename);
+
+/* IO ports API */
+
+/* NOTE: as these functions may be even used when there is an isa
+   brige on non x86 targets, we always defined them */
+#ifndef NO_CPU_IO_DEFS
+void cpu_outb(CPUState *env, int addr, int val);
+void cpu_outw(CPUState *env, int addr, int val);
+void cpu_outl(CPUState *env, int addr, int val);
+int cpu_inb(CPUState *env, int addr);
+int cpu_inw(CPUState *env, int addr);
+int cpu_inl(CPUState *env, int addr);
+#endif
 
 /* memory API */
 
