@@ -101,13 +101,32 @@ static int cmos_get_fd_drive_type(int fd0)
     return val;
 }
 
-static void cmos_init(int ram_size, int boot_device)
+static void cmos_init_hd(int type_ofs, int info_ofs, BlockDriverState *hd) 
+{
+    RTCState *s = rtc_state;
+    int cylinders, heads, sectors;
+    bdrv_get_geometry_hint(hd, &cylinders, &heads, &sectors);
+    rtc_set_memory(s, type_ofs, 47);
+    rtc_set_memory(s, info_ofs, cylinders);
+    rtc_set_memory(s, info_ofs + 1, cylinders >> 8);
+    rtc_set_memory(s, info_ofs + 2, heads);
+    rtc_set_memory(s, info_ofs + 3, 0xff);
+    rtc_set_memory(s, info_ofs + 4, 0xff);
+    rtc_set_memory(s, info_ofs + 5, 0xc0 | ((heads > 8) << 3));
+    rtc_set_memory(s, info_ofs + 6, cylinders);
+    rtc_set_memory(s, info_ofs + 7, cylinders >> 8);
+    rtc_set_memory(s, info_ofs + 8, sectors);
+}
+
+/* hd_table must contain 4 block drivers */
+static void cmos_init(int ram_size, int boot_device, BlockDriverState **hd_table)
 {
     RTCState *s = rtc_state;
     int val;
     int fd0, fd1, nb;
     time_t ti;
     struct tm *tm;
+    int i;
 
     /* set the CMOS date */
     time(&ti);
@@ -187,6 +206,39 @@ static void cmos_init(int ram_size, int boot_device)
     val |= 0x04; /* PS/2 mouse installed */
     rtc_set_memory(s, REG_EQUIPMENT_BYTE, val);
 
+    /* hard drives */
+
+    rtc_set_memory(s, 0x12, (hd_table[0] ? 0xf0 : 0) | (hd_table[1] ? 0x0f : 0));
+    if (hd_table[0])
+        cmos_init_hd(0x19, 0x1b, hd_table[0]);
+    if (hd_table[1]) 
+        cmos_init_hd(0x1a, 0x24, hd_table[1]);
+
+    val = 0;
+    for (i = 0; i < 4; i++)
+        if (hd_table[i]) {
+            int cylinders, heads, sectors;
+            uint8_t translation;
+            
+            bdrv_get_geometry_hint(hd_table[i], &cylinders, &heads, &sectors);
+            if (cylinders <= 1024 && heads <= 16 && sectors <= 63) {
+                /* No translation. */
+                translation = 0;
+            } else if (cylinders * heads > 131072) {
+                /* LBA translation. */
+                translation = 1;
+            } else {
+                /* LARGE translation. */
+                translation = 2;
+            }
+
+            val |= translation << (i * 2);
+        }
+    rtc_set_memory(s, 0x39, val);
+
+    /* Disable check of 0x55AA signature on the last two bytes of
+       first sector of disk. XXX: make it the default ? */
+    //    rtc_set_memory(s, 0x38, 1);
 }
 
 static void speaker_ioport_write(void *opaque, uint32_t addr, uint32_t val)
@@ -512,7 +564,7 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
 
     floppy_controller = fdctrl_init(6, 2, 0, 0x3f0, fd_table);
 
-    cmos_init(ram_size, boot_device);
+    cmos_init(ram_size, boot_device, bs_table);
 
     /* must be done after all PCI devices are instanciated */
     /* XXX: should be done in the Bochs BIOS */
