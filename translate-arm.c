@@ -812,9 +812,9 @@ static inline int gen_intermediate_code_internal(TranslationBlock *tb, int searc
                 lj++;
                 while (lj < j)
                     gen_opc_instr_start[lj++] = 0;
-                gen_opc_pc[lj] = (uint32_t)dc->pc;
-                gen_opc_instr_start[lj] = 1;
             }
+            gen_opc_pc[lj] = (uint32_t)dc->pc;
+            gen_opc_instr_start[lj] = 1;
         }
         disas_arm_insn(dc);
     } while (!dc->is_jmp && gen_opc_ptr < gen_opc_end && 

@@ -4122,10 +4122,10 @@ static inline int gen_intermediate_code_internal(TranslationBlock *tb, int searc
                 lj++;
                 while (lj < j)
                     gen_opc_instr_start[lj++] = 0;
-                gen_opc_pc[lj] = (uint32_t)pc_ptr;
-                gen_opc_cc_op[lj] = dc->cc_op;
-                gen_opc_instr_start[lj] = 1;
             }
+            gen_opc_pc[lj] = (uint32_t)pc_ptr;
+            gen_opc_cc_op[lj] = dc->cc_op;
+            gen_opc_instr_start[lj] = 1;
         }
         ret = disas_insn(dc, pc_ptr);
         if (ret == -1) {
