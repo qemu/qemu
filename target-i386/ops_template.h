@@ -513,7 +513,7 @@ void OPPROTO glue(glue(op_bsf, SUFFIX), _T0_cc)(void)
             count++;
             res >>= 1;
         }
-        T0 = count;
+        T1 = count;
         CC_DST = 1; /* ZF = 0 */
     } else {
         CC_DST = 0; /* ZF = 1 */
@@ -531,7 +531,7 @@ void OPPROTO glue(glue(op_bsr, SUFFIX), _T0_cc)(void)
             count--;
             res <<= 1;
         }
-        T0 = count;
+        T1 = count;
         CC_DST = 1; /* ZF = 0 */
     } else {
         CC_DST = 0; /* ZF = 1 */

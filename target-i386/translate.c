@@ -3708,10 +3708,11 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         modrm = ldub_code(s->pc++);
         reg = (modrm >> 3) & 7;
         gen_ldst_modrm(s, modrm, ot, OR_TMP0, 0);
+        /* NOTE: in order to handle the 0 case, we must load the
+           result. It could be optimized with a generated jump */
+        gen_op_mov_TN_reg[ot][1][reg]();
         gen_op_bsx_T0_cc[ot - OT_WORD][b & 1]();
-        /* NOTE: we always write back the result. Intel doc says it is
-           undefined if T0 == 0 */
-        gen_op_mov_reg_T0[ot][reg]();
+        gen_op_mov_reg_T1[ot][reg]();
         s->cc_op = CC_OP_LOGICB + ot;
         break;
         /************************/
