@@ -414,7 +414,7 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds)
 			    /* Connected */
 			    so->so_state &= ~SS_ISFCONNECTING;
 			    
-			    ret = write(so->s, &ret, 0);
+			    ret = send(so->s, &ret, 0, 0);
 			    if (ret < 0) {
 			      /* XXXXX Must fix, zero bytes is a NOP */
 			      if (errno == EAGAIN || errno == EWOULDBLOCK ||
@@ -447,7 +447,7 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds)
 	 	 	 */
 #ifdef PROBE_CONN
 			if (so->so_state & SS_ISFCONNECTING) {
-			  ret = read(so->s, (char *)&ret, 0);
+			  ret = recv(so->s, (char *)&ret, 0,0);
 			  
 			  if (ret < 0) {
 			    /* XXX */
@@ -460,7 +460,7 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds)
 			    
 			    /* tcp_input will take care of it */
 			  } else {
-			    ret = write(so->s, &ret, 0);
+			    ret = send(so->s, &ret, 0,0);
 			    if (ret < 0) {
 			      /* XXX */
 			      if (errno == EAGAIN || errno == EWOULDBLOCK ||
@@ -496,6 +496,15 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds)
 	 */
 	if (if_queued && link_up)
 	   if_start();
+
+	/* clear global file descriptor sets.
+	 * these reside on the stack in vl.c
+	 * so they're unusable if we're not in
+	 * slirp_select_fill or slirp_select_poll.
+	 */
+	 global_readfds = NULL;
+	 global_writefds = NULL;
+	 global_xfds = NULL;
 }
 
 #define ETH_ALEN 6

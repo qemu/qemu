@@ -681,7 +681,7 @@ findso:
 	    goto cont_input;
 	  }
 	  
-	  if(tcp_fconnect(so) == -1 && errno != EINPROGRESS) {
+	  if((tcp_fconnect(so) == -1) && (errno != EINPROGRESS) && (errno != EWOULDBLOCK)) {
 	    u_char code=ICMP_UNREACH_NET;
 	    DEBUG_MISC((dfd," tcp fconnect errno = %d-%s\n",
 			errno,strerror(errno)));

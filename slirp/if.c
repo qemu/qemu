@@ -79,14 +79,14 @@ writen(fd, bptr, n)
 	int total;
 	
 	/* This should succeed most of the time */
-	ret = write(fd, bptr, n);
+	ret = send(fd, bptr, n,0);
 	if (ret == n || ret <= 0)
 	   return ret;
 	
 	/* Didn't write everything, go into the loop */
 	total = ret;
 	while (n > total) {
-		ret = write(fd, bptr+total, n-total);
+		ret = send(fd, bptr+total, n-total,0);
 		if (ret <= 0)
 		   return ret;
 		total += ret;
@@ -111,7 +111,7 @@ if_input(ttyp)
 	DEBUG_CALL("if_input");
 	DEBUG_ARG("ttyp = %lx", (long)ttyp);
 	
-	if_n = read(ttyp->fd, (char *)if_inbuff, INBUFF_SIZE);
+	if_n = recv(ttyp->fd, (char *)if_inbuff, INBUFF_SIZE,0);
 	
 	DEBUG_MISC((dfd, " read %d bytes\n", if_n));
 	
