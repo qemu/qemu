@@ -1052,8 +1052,12 @@ int main(int argc, char **argv)
     cpu_x86_set_cpl(env, 3);
 
     env->cr[0] = CR0_PG_MASK | CR0_WP_MASK | CR0_PE_MASK;
-    env->hflags |= HF_PE_MASK | HF_OSFXSR_MASK;
-    
+    env->hflags |= HF_PE_MASK;
+    if (env->cpuid_features & CPUID_SSE) {
+        env->cr[4] |= CR4_OSFXSR_MASK;
+        env->hflags |= HF_OSFXSR_MASK;
+    }
+
     /* flags setup : we activate the IRQs by default as in user mode */
     env->eflags |= IF_MASK;
     
