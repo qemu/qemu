@@ -197,6 +197,8 @@ typedef struct CPUX86State {
     /* exception/interrupt handling */
     jmp_buf jmp_env;
     int exception_index;
+    int error_code;
+    uint32_t cr2;
     int interrupt_request;
 
     /* user data */
@@ -401,12 +403,12 @@ static inline void stfq(void *ptr, double v)
 #endif
 
 #ifndef IN_OP_I386
-void cpu_x86_outb(int addr, int val);
-void cpu_x86_outw(int addr, int val);
-void cpu_x86_outl(int addr, int val);
-int cpu_x86_inb(int addr);
-int cpu_x86_inw(int addr);
-int cpu_x86_inl(int addr);
+void cpu_x86_outb(CPUX86State *env, int addr, int val);
+void cpu_x86_outw(CPUX86State *env, int addr, int val);
+void cpu_x86_outl(CPUX86State *env, int addr, int val);
+int cpu_x86_inb(CPUX86State *env, int addr);
+int cpu_x86_inw(CPUX86State *env, int addr);
+int cpu_x86_inl(CPUX86State *env, int addr);
 #endif
 
 CPUX86State *cpu_x86_init(void);
@@ -431,6 +433,8 @@ int cpu_x86_signal_handler(int host_signum, struct siginfo *info,
 #define GEN_FLAG_SS32_SHIFT   2
 #define GEN_FLAG_VM_SHIFT     3
 #define GEN_FLAG_ST_SHIFT     4
+#define GEN_FLAG_CPL_SHIFT    7
+#define GEN_FLAG_IOPL_SHIFT   9
 
 int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size, 
                      int *gen_code_size_ptr,
