@@ -301,6 +301,11 @@ static void sdl_refresh(DisplayState *ds)
                 }
             }
             break;
+        case SDL_ACTIVEEVENT:
+            if (gui_grab && (ev->active.gain & SDL_ACTIVEEVENTMASK) == 0) {
+                sdl_grab_end();
+            }
+            break;
         default:
             break;
         }
