@@ -86,7 +86,7 @@ void OPPROTO glue(glue(op_scas, SUFFIX), STRING_SUFFIX)(void)
     v = glue(ldu, SUFFIX)(DI_ADDR);
     inc = (DF << SHIFT);
     INC_DI();
-    CC_SRC = EAX;
+    CC_SRC = v;
     CC_DST = EAX - v;
 }
 
@@ -105,7 +105,7 @@ void OPPROTO glue(glue(op_repz_scas, SUFFIX), STRING_SUFFIX)(void)
             if (v1 != v2)
                 break;
         } while (CX != 0);
-        CC_SRC = v1;
+        CC_SRC = v2;
         CC_DST = v1 - v2;
         CC_OP = CC_OP_SUBB + SHIFT;
     }
@@ -127,7 +127,7 @@ void OPPROTO glue(glue(op_repnz_scas, SUFFIX), STRING_SUFFIX)(void)
             if (v1 == v2)
                 break;
         } while (CX != 0);
-        CC_SRC = v1;
+        CC_SRC = v2;
         CC_DST = v1 - v2;
         CC_OP = CC_OP_SUBB + SHIFT;
     }
@@ -142,7 +142,7 @@ void OPPROTO glue(glue(op_cmps, SUFFIX), STRING_SUFFIX)(void)
     inc = (DF << SHIFT);
     INC_SI();
     INC_DI();
-    CC_SRC = v1;
+    CC_SRC = v2;
     CC_DST = v1 - v2;
 }
 
@@ -160,7 +160,7 @@ void OPPROTO glue(glue(op_repz_cmps, SUFFIX), STRING_SUFFIX)(void)
             if (v1 != v2)
                 break;
         } while (CX != 0);
-        CC_SRC = v1;
+        CC_SRC = v2;
         CC_DST = v1 - v2;
         CC_OP = CC_OP_SUBB + SHIFT;
     }
@@ -181,7 +181,7 @@ void OPPROTO glue(glue(op_repnz_cmps, SUFFIX), STRING_SUFFIX)(void)
             if (v1 == v2)
                 break;
         } while (CX != 0);
-        CC_SRC = v1;
+        CC_SRC = v2;
         CC_DST = v1 - v2;
         CC_OP = CC_OP_SUBB + SHIFT;
     }

@@ -365,14 +365,14 @@ static GenOpFunc *gen_op_cmov_reg_T1_T0[2][8] = {
 };
 
 static GenOpFunc *gen_op_arith_T0_T1_cc[8] = {
-    gen_op_addl_T0_T1_cc,
-    gen_op_orl_T0_T1_cc,
+    NULL,
+    gen_op_orl_T0_T1,
     NULL,
     NULL,
-    gen_op_andl_T0_T1_cc,
-    gen_op_subl_T0_T1_cc,
-    gen_op_xorl_T0_T1_cc,
-    gen_op_cmpl_T0_T1_cc,
+    gen_op_andl_T0_T1,
+    NULL,
+    gen_op_xorl_T0_T1,
+    NULL,
 };
 
 static GenOpFunc *gen_op_arithc_T0_T1_cc[3][2] = {
@@ -748,46 +748,83 @@ static GenOpFunc1 *gen_op_fp_arith_STN_ST0[8] = {
     gen_op_fdiv_STN_ST0,
 };
 
-static void gen_op(DisasContext *s1, int op, int ot, int d, int s)
+/* if d == OR_TMP0, it means memory operand (address in A0) */
+static void gen_op(DisasContext *s1, int op, int ot, int d)
 {
-    if (d != OR_TMP0)
+    GenOpFunc *gen_update_cc;
+    
+    if (d != OR_TMP0) {
         gen_op_mov_TN_reg[ot][0][d]();
-    if (s != OR_TMP1)
-        gen_op_mov_TN_reg[ot][1][s]();
-    if (op == OP_ADCL || op == OP_SBBL) {
+    } else {
+        gen_op_ld_T0_A0[ot]();
+    }
+    switch(op) {
+    case OP_ADCL:
+    case OP_SBBL:
         if (s1->cc_op != CC_OP_DYNAMIC)
             gen_op_set_cc_op(s1->cc_op);
         gen_op_arithc_T0_T1_cc[ot][op - OP_ADCL]();
         s1->cc_op = CC_OP_DYNAMIC;
-    } else {
+        /* XXX: incorrect: CC_OP must also be modified AFTER memory access */
+        gen_update_cc = gen_op_update2_cc;
+        break;
+    case OP_ADDL:
+        gen_op_addl_T0_T1();
+        s1->cc_op = CC_OP_ADDB + ot;
+        gen_update_cc = gen_op_update2_cc;
+        break;
+    case OP_SUBL:
+        gen_op_subl_T0_T1();
+        s1->cc_op = CC_OP_SUBB + ot;
+        gen_update_cc = gen_op_update2_cc;
+        break;
+    default:
+    case OP_ANDL:
+    case OP_ORL:
+    case OP_XORL:
         gen_op_arith_T0_T1_cc[op]();
-        s1->cc_op = cc_op_arithb[op] + ot;
+        s1->cc_op = CC_OP_LOGICB + ot;
+        gen_update_cc = gen_op_update1_cc;
+        break;
+    case OP_CMPL:
+        gen_op_cmpl_T0_T1_cc();
+        s1->cc_op = CC_OP_SUBB + ot;
+        gen_update_cc = NULL;
+        break;
     }
-    if (d != OR_TMP0 && op != OP_CMPL)
-        gen_op_mov_reg_T0[ot][d]();
+    if (op != OP_CMPL) {
+        if (d != OR_TMP0)
+            gen_op_mov_reg_T0[ot][d]();
+        else
+            gen_op_st_T0_A0[ot]();
+    }
+    /* the flags update must happen after the memory write (precise
+       exception support) */
+    if (gen_update_cc)
+        gen_update_cc();
 }
 
-static void gen_opi(DisasContext *s1, int op, int ot, int d, int c)
-{
-    gen_op_movl_T1_im(c);
-    gen_op(s1, op, ot, d, OR_TMP1);
-}
-
+/* if d == OR_TMP0, it means memory operand (address in A0) */
 static void gen_inc(DisasContext *s1, int ot, int d, int c)
 {
     if (d != OR_TMP0)
         gen_op_mov_TN_reg[ot][0][d]();
+    else
+        gen_op_ld_T0_A0[ot]();
     if (s1->cc_op != CC_OP_DYNAMIC)
         gen_op_set_cc_op(s1->cc_op);
     if (c > 0) {
-        gen_op_incl_T0_cc();
+        gen_op_incl_T0();
         s1->cc_op = CC_OP_INCB + ot;
     } else {
-        gen_op_decl_T0_cc();
+        gen_op_decl_T0();
         s1->cc_op = CC_OP_DECB + ot;
     }
     if (d != OR_TMP0)
         gen_op_mov_reg_T0[ot][d]();
+    else
+        gen_op_st_T0_A0[ot]();
+    gen_op_update_inc_cc();
 }
 
 static void gen_shift(DisasContext *s1, int op, int ot, int d, int s)
@@ -1459,15 +1496,12 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
                 rm = modrm & 7;
                 if (mod != 3) {
                     gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
-                    gen_op_ld_T0_A0[ot]();
                     opreg = OR_TMP0;
                 } else {
                     opreg = OR_EAX + rm;
                 }
-                gen_op(s, op, ot, opreg, reg);
-                if (mod != 3 && op != 7) {
-                    gen_op_st_T0_A0[ot]();
-                }
+                gen_op_mov_TN_reg[ot][1][reg]();
+                gen_op(s, op, ot, opreg);
                 break;
             case 1: /* OP Gv, Ev */
                 modrm = ldub(s->pc++);
@@ -1477,15 +1511,15 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
                 if (mod != 3) {
                     gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
                     gen_op_ld_T1_A0[ot]();
-                    opreg = OR_TMP1;
                 } else {
-                    opreg = OR_EAX + rm;
+                    gen_op_mov_TN_reg[ot][1][rm]();
                 }
-                gen_op(s, op, ot, reg, opreg);
+                gen_op(s, op, ot, reg);
                 break;
             case 2: /* OP A, Iv */
                 val = insn_get(s, ot);
-                gen_opi(s, op, ot, OR_EAX, val);
+                gen_op_movl_T1_im(val);
+                gen_op(s, op, ot, OR_EAX);
                 break;
             }
         }
@@ -1509,7 +1543,6 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             
             if (mod != 3) {
                 gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
-                gen_op_ld_T0_A0[ot]();
                 opreg = OR_TMP0;
             } else {
                 opreg = rm + OR_EAX;
@@ -1525,11 +1558,8 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
                 val = (int8_t)insn_get(s, OT_BYTE);
                 break;
             }
-
-            gen_opi(s, op, ot, opreg, val);
-            if (op != 7 && mod != 3) {
-                gen_op_st_T0_A0[ot]();
-            }
+            gen_op_movl_T1_im(val);
+            gen_op(s, op, ot, opreg);
         }
         break;
 
@@ -1577,12 +1607,13 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             }
             break;
         case 3: /* neg */
-            gen_op_negl_T0_cc();
+            gen_op_negl_T0();
             if (mod != 3) {
                 gen_op_st_T0_A0[ot]();
             } else {
                 gen_op_mov_reg_T0[ot][rm]();
             }
+            gen_op_update_neg_cc();
             s->cc_op = CC_OP_SUBB + ot;
             break;
         case 4: /* mul */
@@ -1664,7 +1695,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         }
         if (mod != 3) {
             gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
-            if (op != 3 && op != 5)
+            if (op >= 2 && op != 3 && op != 5)
                 gen_op_ld_T0_A0[ot]();
         } else {
             gen_op_mov_TN_reg[ot][0][rm]();
@@ -1672,18 +1703,18 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
 
         switch(op) {
         case 0: /* inc Ev */
-            gen_inc(s, ot, OR_TMP0, 1);
             if (mod != 3)
-                gen_op_st_T0_A0[ot]();
+                opreg = OR_TMP0;
             else
-                gen_op_mov_reg_T0[ot][rm]();
+                opreg = rm;
+            gen_inc(s, ot, opreg, 1);
             break;
         case 1: /* dec Ev */
-            gen_inc(s, ot, OR_TMP0, -1);
             if (mod != 3)
-                gen_op_st_T0_A0[ot]();
+                opreg = OR_TMP0;
             else
-                gen_op_mov_reg_T0[ot][rm]();
+                opreg = rm;
+            gen_inc(s, ot, opreg, -1);
             break;
         case 2: /* call Ev */
             /* XXX: optimize if memory (no and is necessary) */
@@ -1822,17 +1853,18 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             rm = modrm & 7;
             gen_op_mov_TN_reg[ot][0][reg]();
             gen_op_mov_TN_reg[ot][1][rm]();
-            gen_op_addl_T0_T1_cc();
+            gen_op_addl_T0_T1();
             gen_op_mov_reg_T0[ot][rm]();
             gen_op_mov_reg_T1[ot][reg]();
         } else {
             gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
             gen_op_mov_TN_reg[ot][0][reg]();
             gen_op_ld_T1_A0[ot]();
-            gen_op_addl_T0_T1_cc();
+            gen_op_addl_T0_T1();
             gen_op_st_T0_A0[ot]();
             gen_op_mov_reg_T1[ot][reg]();
         }
+        gen_op_update2_cc();
         s->cc_op = CC_OP_ADDB + ot;
         break;
     case 0x1b0:
@@ -3607,8 +3639,7 @@ static uint16_t opc_read_flags[NB_OPS] = {
     [INDEX_op_sbbl_T0_T1_cc] = CC_C,
 
     /* subtle: due to the incl/decl implementation, C is used */
-    [INDEX_op_incl_T0_cc] = CC_C, 
-    [INDEX_op_decl_T0_cc] = CC_C,
+    [INDEX_op_update_inc_cc] = CC_C, 
 
     [INDEX_op_into] = CC_O,
 
@@ -3688,22 +3719,18 @@ static uint16_t opc_read_flags[NB_OPS] = {
 
 /* flags written by an operation */
 static uint16_t opc_write_flags[NB_OPS] = { 
-    [INDEX_op_addl_T0_T1_cc] = CC_OSZAPC,
-    [INDEX_op_orl_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_update2_cc] = CC_OSZAPC,
+    [INDEX_op_update1_cc] = CC_OSZAPC,
     [INDEX_op_adcb_T0_T1_cc] = CC_OSZAPC,
     [INDEX_op_adcw_T0_T1_cc] = CC_OSZAPC,
     [INDEX_op_adcl_T0_T1_cc] = CC_OSZAPC,
     [INDEX_op_sbbb_T0_T1_cc] = CC_OSZAPC,
     [INDEX_op_sbbw_T0_T1_cc] = CC_OSZAPC,
     [INDEX_op_sbbl_T0_T1_cc] = CC_OSZAPC,
-    [INDEX_op_andl_T0_T1_cc] = CC_OSZAPC,
-    [INDEX_op_subl_T0_T1_cc] = CC_OSZAPC,
-    [INDEX_op_xorl_T0_T1_cc] = CC_OSZAPC,
     [INDEX_op_cmpl_T0_T1_cc] = CC_OSZAPC,
-    [INDEX_op_negl_T0_cc] = CC_OSZAPC,
+    [INDEX_op_update_neg_cc] = CC_OSZAPC,
     /* subtle: due to the incl/decl implementation, C is used */
-    [INDEX_op_incl_T0_cc] = CC_OSZAPC, 
-    [INDEX_op_decl_T0_cc] = CC_OSZAPC,
+    [INDEX_op_update_inc_cc] = CC_OSZAPC, 
     [INDEX_op_testl_T0_T1_cc] = CC_OSZAPC,
 
     [INDEX_op_mulb_AL_T0] = CC_OSZAPC,
@@ -3812,14 +3839,10 @@ static uint16_t opc_write_flags[NB_OPS] = {
 
 /* simpler form of an operation if no flags need to be generated */
 static uint16_t opc_simpler[NB_OPS] = { 
-    [INDEX_op_addl_T0_T1_cc] = INDEX_op_addl_T0_T1,
-    [INDEX_op_orl_T0_T1_cc] = INDEX_op_orl_T0_T1,
-    [INDEX_op_andl_T0_T1_cc] = INDEX_op_andl_T0_T1,
-    [INDEX_op_subl_T0_T1_cc] = INDEX_op_subl_T0_T1,
-    [INDEX_op_xorl_T0_T1_cc] = INDEX_op_xorl_T0_T1,
-    [INDEX_op_negl_T0_cc] = INDEX_op_negl_T0,
-    [INDEX_op_incl_T0_cc] = INDEX_op_incl_T0,
-    [INDEX_op_decl_T0_cc] = INDEX_op_decl_T0,
+    [INDEX_op_update2_cc] = INDEX_op_nop,
+    [INDEX_op_update1_cc] = INDEX_op_nop,
+    [INDEX_op_update_neg_cc] = INDEX_op_nop,
+    [INDEX_op_update_inc_cc] = INDEX_op_nop,
 
     [INDEX_op_rolb_T0_T1_cc] = INDEX_op_rolb_T0_T1,
     [INDEX_op_rolw_T0_T1_cc] = INDEX_op_rolw_T0_T1,

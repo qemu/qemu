@@ -93,8 +93,8 @@ static int glue(compute_all_sub, SUFFIX)(void)
 {
     int cf, pf, af, zf, sf, of;
     int src1, src2;
-    src1 = CC_SRC;
-    src2 = CC_SRC - CC_DST;
+    src1 = CC_DST + CC_SRC;
+    src2 = CC_SRC;
     cf = (DATA_TYPE)src1 < (DATA_TYPE)src2;
     pf = parity_table[(uint8_t)CC_DST];
     af = (CC_DST ^ src1 ^ src2) & 0x10;
@@ -107,8 +107,8 @@ static int glue(compute_all_sub, SUFFIX)(void)
 static int glue(compute_c_sub, SUFFIX)(void)
 {
     int src1, src2, cf;
-    src1 = CC_SRC;
-    src2 = CC_SRC - CC_DST;
+    src1 = CC_DST + CC_SRC;
+    src2 = CC_SRC;
     cf = (DATA_TYPE)src1 < (DATA_TYPE)src2;
     return cf;
 }
@@ -117,8 +117,8 @@ static int glue(compute_all_sbb, SUFFIX)(void)
 {
     int cf, pf, af, zf, sf, of;
     int src1, src2;
-    src1 = CC_SRC;
-    src2 = CC_SRC - CC_DST - 1;
+    src1 = CC_DST + CC_SRC + 1;
+    src2 = CC_SRC;
     cf = (DATA_TYPE)src1 <= (DATA_TYPE)src2;
     pf = parity_table[(uint8_t)CC_DST];
     af = (CC_DST ^ src1 ^ src2) & 0x10;
@@ -131,8 +131,8 @@ static int glue(compute_all_sbb, SUFFIX)(void)
 static int glue(compute_c_sbb, SUFFIX)(void)
 {
     int src1, src2, cf;
-    src1 = CC_SRC;
-    src2 = CC_SRC - CC_DST - 1;
+    src1 = CC_DST + CC_SRC + 1;
+    src2 = CC_SRC;
     cf = (DATA_TYPE)src1 <= (DATA_TYPE)src2;
     return cf;
 }
@@ -234,8 +234,8 @@ static int glue(compute_all_sar, SUFFIX)(void)
 void OPPROTO glue(op_jb_sub, SUFFIX)(void)
 {
     int src1, src2;
-    src1 = CC_SRC;
-    src2 = CC_SRC - CC_DST;
+    src1 = CC_DST + CC_SRC;
+    src2 = CC_SRC;
 
     if ((DATA_TYPE)src1 < (DATA_TYPE)src2)
         JUMP_TB(PARAM1, 0, PARAM2);
@@ -256,8 +256,8 @@ void OPPROTO glue(op_jz_sub, SUFFIX)(void)
 void OPPROTO glue(op_jbe_sub, SUFFIX)(void)
 {
     int src1, src2;
-    src1 = CC_SRC;
-    src2 = CC_SRC - CC_DST;
+    src1 = CC_DST + CC_SRC;
+    src2 = CC_SRC;
 
     if ((DATA_TYPE)src1 <= (DATA_TYPE)src2)
         JUMP_TB(PARAM1, 0, PARAM2);
@@ -278,8 +278,8 @@ void OPPROTO glue(op_js_sub, SUFFIX)(void)
 void OPPROTO glue(op_jl_sub, SUFFIX)(void)
 {
     int src1, src2;
-    src1 = CC_SRC;
-    src2 = CC_SRC - CC_DST;
+    src1 = CC_DST + CC_SRC;
+    src2 = CC_SRC;
 
     if ((DATA_STYPE)src1 < (DATA_STYPE)src2)
         JUMP_TB(PARAM1, 0, PARAM2);
@@ -291,8 +291,8 @@ void OPPROTO glue(op_jl_sub, SUFFIX)(void)
 void OPPROTO glue(op_jle_sub, SUFFIX)(void)
 {
     int src1, src2;
-    src1 = CC_SRC;
-    src2 = CC_SRC - CC_DST;
+    src1 = CC_DST + CC_SRC;
+    src2 = CC_SRC;
 
     if ((DATA_STYPE)src1 <= (DATA_STYPE)src2)
         JUMP_TB(PARAM1, 0, PARAM2);
@@ -361,8 +361,8 @@ void OPPROTO glue(op_jecxz, SUFFIX)(void)
 void OPPROTO glue(op_setb_T0_sub, SUFFIX)(void)
 {
     int src1, src2;
-    src1 = CC_SRC;
-    src2 = CC_SRC - CC_DST;
+    src1 = CC_DST + CC_SRC;
+    src2 = CC_SRC;
 
     T0 = ((DATA_TYPE)src1 < (DATA_TYPE)src2);
 }
@@ -375,8 +375,8 @@ void OPPROTO glue(op_setz_T0_sub, SUFFIX)(void)
 void OPPROTO glue(op_setbe_T0_sub, SUFFIX)(void)
 {
     int src1, src2;
-    src1 = CC_SRC;
-    src2 = CC_SRC - CC_DST;
+    src1 = CC_DST + CC_SRC;
+    src2 = CC_SRC;
 
     T0 = ((DATA_TYPE)src1 <= (DATA_TYPE)src2);
 }
@@ -389,8 +389,8 @@ void OPPROTO glue(op_sets_T0_sub, SUFFIX)(void)
 void OPPROTO glue(op_setl_T0_sub, SUFFIX)(void)
 {
     int src1, src2;
-    src1 = CC_SRC;
-    src2 = CC_SRC - CC_DST;
+    src1 = CC_DST + CC_SRC;
+    src2 = CC_SRC;
 
     T0 = ((DATA_STYPE)src1 < (DATA_STYPE)src2);
 }
@@ -398,8 +398,8 @@ void OPPROTO glue(op_setl_T0_sub, SUFFIX)(void)
 void OPPROTO glue(op_setle_T0_sub, SUFFIX)(void)
 {
     int src1, src2;
-    src1 = CC_SRC;
-    src2 = CC_SRC - CC_DST;
+    src1 = CC_DST + CC_SRC;
+    src2 = CC_SRC;
 
     T0 = ((DATA_STYPE)src1 <= (DATA_STYPE)src2);
 }
@@ -714,9 +714,7 @@ void OPPROTO glue(glue(op_adc, SUFFIX), _T0_T1_cc)(void)
 {
     int cf;
     cf = cc_table[CC_OP].compute_c();
-    CC_SRC = T0;
     T0 = T0 + T1 + cf;
-    CC_DST = T0;
     CC_OP = CC_OP_ADDB + SHIFT + cf * 3;
 }
 
@@ -724,15 +722,13 @@ void OPPROTO glue(glue(op_sbb, SUFFIX), _T0_T1_cc)(void)
 {
     int cf;
     cf = cc_table[CC_OP].compute_c();
-    CC_SRC = T0;
     T0 = T0 - T1 - cf;
-    CC_DST = T0;
     CC_OP = CC_OP_SUBB + SHIFT + cf * 3;
 }
 
 void OPPROTO glue(glue(op_cmpxchg, SUFFIX), _T0_T1_EAX_cc)(void)
 {
-    CC_SRC = EAX;
+    CC_SRC = T0;
     CC_DST = EAX - T0;
     if ((DATA_TYPE)CC_DST == 0) {
         T0 = T1;

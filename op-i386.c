@@ -80,62 +80,34 @@ static inline int lshift(int x, int n)
 
 /* operations with flags */
 
-void OPPROTO op_addl_T0_T1_cc(void)
+/* update flags with T0 and T1 (add/sub case) */
+void OPPROTO op_update2_cc(void)
 {
-    CC_SRC = T0;
-    T0 += T1;
+    CC_SRC = T1;
     CC_DST = T0;
 }
 
-void OPPROTO op_orl_T0_T1_cc(void)
+/* update flags with T0 (logic operation case) */
+void OPPROTO op_update1_cc(void)
 {
-    T0 |= T1;
     CC_DST = T0;
 }
 
-void OPPROTO op_andl_T0_T1_cc(void)
+void OPPROTO op_update_neg_cc(void)
 {
-    T0 &= T1;
-    CC_DST = T0;
-}
-
-void OPPROTO op_subl_T0_T1_cc(void)
-{
-    CC_SRC = T0;
-    T0 -= T1;
-    CC_DST = T0;
-}
-
-void OPPROTO op_xorl_T0_T1_cc(void)
-{
-    T0 ^= T1;
+    CC_SRC = -T0;
     CC_DST = T0;
 }
 
 void OPPROTO op_cmpl_T0_T1_cc(void)
 {
-    CC_SRC = T0;
+    CC_SRC = T1;
     CC_DST = T0 - T1;
 }
 
-void OPPROTO op_negl_T0_cc(void)
-{
-    CC_SRC = 0;
-    T0 = -T0;
-    CC_DST = T0;
-}
-
-void OPPROTO op_incl_T0_cc(void)
+void OPPROTO op_update_inc_cc(void)
 {
     CC_SRC = cc_table[CC_OP].compute_c();
-    T0++;
-    CC_DST = T0;
-}
-
-void OPPROTO op_decl_T0_cc(void)
-{
-    CC_SRC = cc_table[CC_OP].compute_c();
-    T0--;
     CC_DST = T0;
 }
 
