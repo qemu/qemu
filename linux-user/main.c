@@ -231,13 +231,16 @@ void usage(void)
            "usage: qemu [-h] [-d] [-L path] [-s size] program [arguments...]\n"
            "Linux x86 emulator\n"
            "\n"
-           "-h        print this help\n"
-           "-d        activate log (logfile=%s)\n"
-           "-L path   set the x86 elf interpreter prefix (default=%s)\n"
-           "-s size   set the x86 stack size in bytes (default=%ld)\n",
-           DEBUG_LOGFILE,
+           "-h           print this help\n"
+           "-L path      set the x86 elf interpreter prefix (default=%s)\n"
+           "-s size      set the x86 stack size in bytes (default=%ld)\n"
+           "\n"
+           "debug options:\n"
+           "-d           activate log (logfile=%s)\n"
+           "-p pagesize  set the host page size to 'pagesize'\n",
            interp_prefix, 
-           x86_stack_size);
+           x86_stack_size,
+           DEBUG_LOGFILE);
     _exit(1);
 }
 
@@ -284,6 +287,13 @@ int main(int argc, char **argv)
                 x86_stack_size *= 1024;
         } else if (!strcmp(r, "L")) {
             interp_prefix = argv[optind++];
+        } else if (!strcmp(r, "p")) {
+            host_page_size = atoi(argv[optind++]);
+            if (host_page_size == 0 ||
+                (host_page_size & (host_page_size - 1)) != 0) {
+                fprintf(stderr, "page size must be a power of two\n");
+                exit(1);
+            }
         } else {
             usage();
         }
@@ -311,12 +321,18 @@ int main(int argc, char **argv)
     /* Scan interp_prefix dir for replacement files. */
     init_paths(interp_prefix);
 
+    /* NOTE: we need to init the CPU at this stage to get the
+       host_page_size */
+    env = cpu_x86_init();
+
     if (elf_exec(filename, argv+optind, environ, regs, info) != 0) {
 	printf("Error loading %s\n", filename);
 	_exit(1);
     }
     
     if (loglevel) {
+        page_dump(logfile);
+    
         fprintf(logfile, "start_brk   0x%08lx\n" , info->start_brk);
         fprintf(logfile, "end_code    0x%08lx\n" , info->end_code);
         fprintf(logfile, "start_code  0x%08lx\n" , info->start_code);
@@ -331,7 +347,6 @@ int main(int argc, char **argv)
     syscall_init();
     signal_init();
 
-    env = cpu_x86_init();
     global_env = env;
 
     /* build Task State */

@@ -58,11 +58,11 @@ LDFLAGS+=-p
 main.o: CFLAGS+=-p
 endif
 
-OBJS= elfload.o main.o syscall.o signal.o vm86.o path.o
+OBJS= elfload.o main.o syscall.o mmap.o signal.o vm86.o path.o
 SRCS:= $(OBJS:.o=.c)
 OBJS+= libqemu.a
 
-LIBOBJS+=thunk.o translate-i386.o op-i386.o exec-i386.o
+LIBOBJS+=thunk.o translate-i386.o op-i386.o exec-i386.o exec.o
 # NOTE: the disassembler code is only needed for debugging
 LIBOBJS+=disas.o ppc-dis.o i386-dis.o alpha-dis.o dis-buf.o
 

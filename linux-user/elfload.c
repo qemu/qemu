@@ -95,8 +95,6 @@ struct exec
 #define ZMAGIC 0413
 #define QMAGIC 0314
 
-#define X86_STACK_TOP 0x7d000000
-
 /* max code+data+bss space allocated to elf interpreter */
 #define INTERP_MAP_SIZE (32 * 1024 * 1024)
 
@@ -123,23 +121,11 @@ struct exec
 #define PER_XENIX		(0x0007 | STICKY_TIMEOUTS)
 
 /* Necessary parameters */
-#define	ALPHA_PAGE_SIZE 4096
-#define	X86_PAGE_SIZE 4096
-
-#define ALPHA_PAGE_MASK (~(ALPHA_PAGE_SIZE-1))
-#define X86_PAGE_MASK (~(X86_PAGE_SIZE-1))
-
-#define ALPHA_PAGE_ALIGN(addr) ((((addr)+ALPHA_PAGE_SIZE)-1)&ALPHA_PAGE_MASK)
-#define X86_PAGE_ALIGN(addr) ((((addr)+X86_PAGE_SIZE)-1)&X86_PAGE_MASK)
-
 #define NGROUPS 32
 
-#define X86_ELF_EXEC_PAGESIZE X86_PAGE_SIZE
-#define X86_ELF_PAGESTART(_v) ((_v) & ~(unsigned long)(X86_ELF_EXEC_PAGESIZE-1))
-#define X86_ELF_PAGEOFFSET(_v) ((_v) & (X86_ELF_EXEC_PAGESIZE-1))
-
-#define ALPHA_ELF_PAGESTART(_v) ((_v) & ~(unsigned long)(ALPHA_PAGE_SIZE-1))
-#define ALPHA_ELF_PAGEOFFSET(_v) ((_v) & (ALPHA_PAGE_SIZE-1))
+#define TARGET_ELF_EXEC_PAGESIZE TARGET_PAGE_SIZE
+#define TARGET_ELF_PAGESTART(_v) ((_v) & ~(unsigned long)(TARGET_ELF_EXEC_PAGESIZE-1))
+#define TARGET_ELF_PAGEOFFSET(_v) ((_v) & (TARGET_ELF_EXEC_PAGESIZE-1))
 
 #define INTERPRETER_NONE 0
 #define INTERPRETER_AOUT 1
@@ -159,9 +145,6 @@ static inline void memcpy_tofs(void * to, const void * from, unsigned long n)
 {
 	memcpy(to, from, n);
 }
-
-//extern void * mmap4k();
-#define mmap4k(a, b, c, d, e, f) mmap((void *)(a), b, c, d, e, f)
 
 extern unsigned long x86_stack_size;
 
@@ -227,8 +210,8 @@ static void * get_free_page(void)
     /* User-space version of kernel get_free_page.  Returns a page-aligned
      * page-sized chunk of memory.
      */
-    retval = mmap4k(0, ALPHA_PAGE_SIZE, PROT_READ|PROT_WRITE, 
-			MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+    retval = (void *)target_mmap(0, host_page_size, PROT_READ|PROT_WRITE, 
+                                 MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
 
     if((long)retval == -1) {
 	perror("get_free_page");
@@ -241,7 +224,7 @@ static void * get_free_page(void)
 
 static void free_page(void * pageaddr)
 {
-    (void)munmap(pageaddr, ALPHA_PAGE_SIZE);
+    target_munmap((unsigned long)pageaddr, host_page_size);
 }
 
 /*
@@ -272,9 +255,9 @@ static unsigned long copy_strings(int argc,char ** argv,unsigned long *page,
 	while (len) {
 	    --p; --tmp; --len;
 	    if (--offset < 0) {
-		offset = p % X86_PAGE_SIZE;
-		if (!(pag = (char *) page[p/X86_PAGE_SIZE]) &&
-		    !(pag = (char *) page[p/X86_PAGE_SIZE] =
+		offset = p % TARGET_PAGE_SIZE;
+		if (!(pag = (char *) page[p/TARGET_PAGE_SIZE]) &&
+		    !(pag = (char *) page[p/TARGET_PAGE_SIZE] =
 		      (unsigned long *) get_free_page())) {
 			return 0;
 		}
@@ -390,21 +373,21 @@ unsigned long setup_arg_pages(unsigned long p, struct linux_binprm * bprm,
      * it for args, we'll use it for something else...
      */
     size = x86_stack_size;
-    if (size < MAX_ARG_PAGES*X86_PAGE_SIZE)
-        size = MAX_ARG_PAGES*X86_PAGE_SIZE;
-    error = (unsigned long)mmap4k(NULL, 
-                                  size + X86_PAGE_SIZE,
-                                  PROT_READ | PROT_WRITE,
-                                  MAP_PRIVATE | MAP_ANONYMOUS,
-                                  -1, 0);
+    if (size < MAX_ARG_PAGES*TARGET_PAGE_SIZE)
+        size = MAX_ARG_PAGES*TARGET_PAGE_SIZE;
+    error = target_mmap(0, 
+                        size + host_page_size,
+                        PROT_READ | PROT_WRITE,
+                        MAP_PRIVATE | MAP_ANONYMOUS,
+                        -1, 0);
     if (error == -1) {
         perror("stk mmap");
         exit(-1);
     }
     /* we reserve one extra page at the top of the stack as guard */
-    mprotect((void *)(error + size), X86_PAGE_SIZE, PROT_NONE);
+    target_mprotect(error + size, host_page_size, PROT_NONE);
 
-    stack_base = error + size - MAX_ARG_PAGES*X86_PAGE_SIZE;
+    stack_base = error + size - MAX_ARG_PAGES*TARGET_PAGE_SIZE;
     p += stack_base;
 
     if (bprm->loader) {
@@ -416,10 +399,10 @@ unsigned long setup_arg_pages(unsigned long p, struct linux_binprm * bprm,
 	if (bprm->page[i]) {
 	    info->rss++;
 
-	    memcpy((void *)stack_base, (void *)bprm->page[i], X86_PAGE_SIZE);
+	    memcpy((void *)stack_base, (void *)bprm->page[i], TARGET_PAGE_SIZE);
 	    free_page((void *)bprm->page[i]);
 	}
-	stack_base += X86_PAGE_SIZE;
+	stack_base += TARGET_PAGE_SIZE;
     }
     return p;
 }
@@ -427,13 +410,13 @@ unsigned long setup_arg_pages(unsigned long p, struct linux_binprm * bprm,
 static void set_brk(unsigned long start, unsigned long end)
 {
 	/* page-align the start and end addresses... */
-        start = ALPHA_PAGE_ALIGN(start);
-        end = ALPHA_PAGE_ALIGN(end);
+        start = HOST_PAGE_ALIGN(start);
+        end = HOST_PAGE_ALIGN(end);
         if (end <= start)
                 return;
-        if((long)mmap4k(start, end - start,
-                PROT_READ | PROT_WRITE | PROT_EXEC,
-                MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0) == -1) {
+        if(target_mmap(start, end - start,
+                       PROT_READ | PROT_WRITE | PROT_EXEC,
+                       MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0) == -1) {
 	    perror("cannot mmap brk");
 	    exit(-1);
 	}
@@ -451,9 +434,9 @@ static void padzero(unsigned long elf_bss)
         unsigned long nbyte;
         char * fpnt;
 
-        nbyte = elf_bss & (ALPHA_PAGE_SIZE-1);	/* was X86_PAGE_SIZE - JRP */
+        nbyte = elf_bss & (host_page_size-1);	/* was TARGET_PAGE_SIZE - JRP */
         if (nbyte) {
-	    nbyte = ALPHA_PAGE_SIZE - nbyte;
+	    nbyte = host_page_size - nbyte;
 	    fpnt = (char *) elf_bss;
 	    do {
 		*fpnt++ = 0;
@@ -494,7 +477,7 @@ static unsigned int * create_elf_tables(char *p, int argc, int envc,
           NEW_AUX_ENT (AT_PHDR, (target_ulong)(load_addr + exec->e_phoff));
           NEW_AUX_ENT (AT_PHENT, (target_ulong)(sizeof (struct elf_phdr)));
           NEW_AUX_ENT (AT_PHNUM, (target_ulong)(exec->e_phnum));
-          NEW_AUX_ENT (AT_PAGESZ, (target_ulong)(ALPHA_PAGE_SIZE));
+          NEW_AUX_ENT (AT_PAGESZ, (target_ulong)(TARGET_PAGE_SIZE));
           NEW_AUX_ENT (AT_BASE, (target_ulong)(interp_load_addr));
           NEW_AUX_ENT (AT_FLAGS, (target_ulong)0);
           NEW_AUX_ENT (AT_ENTRY, load_bias + exec->e_entry);
@@ -554,7 +537,7 @@ static unsigned long load_elf_interp(struct elfhdr * interp_elf_ex,
 
 	/* Now read in all of the header information */
 	
-	if (sizeof(struct elf_phdr) * interp_elf_ex->e_phnum > X86_PAGE_SIZE)
+	if (sizeof(struct elf_phdr) * interp_elf_ex->e_phnum > TARGET_PAGE_SIZE)
 	    return ~0UL;
 	
 	elf_phdata =  (struct elf_phdr *) 
@@ -594,9 +577,9 @@ static unsigned long load_elf_interp(struct elfhdr * interp_elf_ex,
         if (interp_elf_ex->e_type == ET_DYN) {
             /* in order to avoid harcoding the interpreter load
                address in qemu, we allocate a big enough memory zone */
-            error = (unsigned long)mmap4k(NULL, INTERP_MAP_SIZE,
-                                          PROT_NONE, MAP_PRIVATE | MAP_ANON, 
-                                          -1, 0);
+            error = target_mmap(0, INTERP_MAP_SIZE,
+                                PROT_NONE, MAP_PRIVATE | MAP_ANON, 
+                                -1, 0);
             if (error == -1) {
                 perror("mmap");
                 exit(-1);
@@ -620,12 +603,12 @@ static unsigned long load_elf_interp(struct elfhdr * interp_elf_ex,
 	    	elf_type |= MAP_FIXED;
 	    	vaddr = eppnt->p_vaddr;
 	    }
-	    error = (unsigned long)mmap4k(load_addr+X86_ELF_PAGESTART(vaddr),
-		 eppnt->p_filesz + X86_ELF_PAGEOFFSET(eppnt->p_vaddr),
+	    error = target_mmap(load_addr+TARGET_ELF_PAGESTART(vaddr),
+		 eppnt->p_filesz + TARGET_ELF_PAGEOFFSET(eppnt->p_vaddr),
 		 elf_prot,
 		 elf_type,
 		 interpreter_fd,
-		 eppnt->p_offset - X86_ELF_PAGEOFFSET(eppnt->p_vaddr));
+		 eppnt->p_offset - TARGET_ELF_PAGEOFFSET(eppnt->p_vaddr));
 	    
 	    if (error > -1024UL) {
 	      /* Real error */
@@ -665,13 +648,13 @@ static unsigned long load_elf_interp(struct elfhdr * interp_elf_ex,
 	 * bss page.
 	 */
 	padzero(elf_bss);
-	elf_bss = X86_ELF_PAGESTART(elf_bss + ALPHA_PAGE_SIZE - 1); /* What we have mapped so far */
+	elf_bss = TARGET_ELF_PAGESTART(elf_bss + host_page_size - 1); /* What we have mapped so far */
 
 	/* Map the last of the bss segment */
 	if (last_bss > elf_bss) {
-	  mmap4k(elf_bss, last_bss-elf_bss,
-		  PROT_READ|PROT_WRITE|PROT_EXEC,
-		  MAP_FIXED|MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+            target_mmap(elf_bss, last_bss-elf_bss,
+                        PROT_READ|PROT_WRITE|PROT_EXEC,
+                        MAP_FIXED|MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
 	}
 	free(elf_phdata);
 
@@ -742,7 +725,7 @@ static int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * r
     unsigned int interpreter_type = INTERPRETER_NONE;
     unsigned char ibcs2_interpreter;
     int i;
-    void * mapped_addr;
+    unsigned long mapped_addr;
     struct elf_phdr * elf_ppnt;
     struct elf_phdr *elf_phdata;
     unsigned long elf_bss, k, elf_brk;
@@ -979,33 +962,32 @@ static int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * r
                is because the brk will follow the loader, and is not movable.  */
             /* NOTE: for qemu, we do a big mmap to get enough space
                without harcoding any address */
-            error = (unsigned long)mmap4k(NULL, ET_DYN_MAP_SIZE,
-                                          PROT_NONE, MAP_PRIVATE | MAP_ANON, 
-                                          -1, 0);
+            error = target_mmap(0, ET_DYN_MAP_SIZE,
+                                PROT_NONE, MAP_PRIVATE | MAP_ANON, 
+                                -1, 0);
             if (error == -1) {
                 perror("mmap");
                 exit(-1);
             }
-            load_bias = X86_ELF_PAGESTART(error - elf_ppnt->p_vaddr);
+            load_bias = TARGET_ELF_PAGESTART(error - elf_ppnt->p_vaddr);
         }
         
-        error = (unsigned long)mmap4k(
-                                      X86_ELF_PAGESTART(load_bias + elf_ppnt->p_vaddr),
-                                      (elf_ppnt->p_filesz +
-                                       X86_ELF_PAGEOFFSET(elf_ppnt->p_vaddr)),
-                                      elf_prot,
-                                      (MAP_FIXED | MAP_PRIVATE | MAP_DENYWRITE),
-                                      bprm->fd,
-                                      (elf_ppnt->p_offset - 
-                                       X86_ELF_PAGEOFFSET(elf_ppnt->p_vaddr)));
+        error = target_mmap(TARGET_ELF_PAGESTART(load_bias + elf_ppnt->p_vaddr),
+                            (elf_ppnt->p_filesz +
+                             TARGET_ELF_PAGEOFFSET(elf_ppnt->p_vaddr)),
+                            elf_prot,
+                            (MAP_FIXED | MAP_PRIVATE | MAP_DENYWRITE),
+                            bprm->fd,
+                            (elf_ppnt->p_offset - 
+                             TARGET_ELF_PAGEOFFSET(elf_ppnt->p_vaddr)));
         if (error == -1) {
             perror("mmap");
             exit(-1);
         }
 
 #ifdef LOW_ELF_STACK
-        if (X86_ELF_PAGESTART(elf_ppnt->p_vaddr) < elf_stack)
-            elf_stack = X86_ELF_PAGESTART(elf_ppnt->p_vaddr);
+        if (TARGET_ELF_PAGESTART(elf_ppnt->p_vaddr) < elf_stack)
+            elf_stack = TARGET_ELF_PAGESTART(elf_ppnt->p_vaddr);
 #endif
         
         if (!load_addr_set) {
@@ -1013,7 +995,7 @@ static int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * r
             load_addr = elf_ppnt->p_vaddr - elf_ppnt->p_offset;
             if (elf_ex.e_type == ET_DYN) {
                 load_bias += error -
-                    X86_ELF_PAGESTART(load_bias + elf_ppnt->p_vaddr);
+                    TARGET_ELF_PAGESTART(load_bias + elf_ppnt->p_vaddr);
                 load_addr += load_bias;
             }
         }
@@ -1108,8 +1090,8 @@ static int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * r
 	       and some applications "depend" upon this behavior.
 	       Since we do not have the power to recompile these, we
 	       emulate the SVr4 behavior.  Sigh.  */
-	    mapped_addr = mmap4k(NULL, ALPHA_PAGE_SIZE, PROT_READ | PROT_EXEC,
-			    MAP_FIXED | MAP_PRIVATE, -1, 0);
+	    mapped_addr = target_mmap(0, host_page_size, PROT_READ | PROT_EXEC,
+                                      MAP_FIXED | MAP_PRIVATE, -1, 0);
     }
 
 #ifdef ELF_PLAT_INIT
@@ -1137,7 +1119,7 @@ int elf_exec(const char * filename, char ** argv, char ** envp,
         int retval;
         int i;
 
-        bprm.p = X86_PAGE_SIZE*MAX_ARG_PAGES-sizeof(unsigned int);
+        bprm.p = TARGET_PAGE_SIZE*MAX_ARG_PAGES-sizeof(unsigned int);
         for (i=0 ; i<MAX_ARG_PAGES ; i++)       /* clear page-table */
                 bprm.page[i] = 0;
         retval = open(filename, O_RDONLY);

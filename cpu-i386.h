@@ -431,6 +431,30 @@ int cpu_x86_signal_handler(int host_signum, struct siginfo *info,
 #define X86_DUMP_CCOP 0x0002 /* dump qemu flag cache */
 void cpu_x86_dump_state(CPUX86State *env, FILE *f, int flags);
 
+/* page related stuff */
+#define TARGET_PAGE_BITS 12
+#define TARGET_PAGE_SIZE (1 << TARGET_PAGE_BITS)
+#define TARGET_PAGE_MASK ~(TARGET_PAGE_SIZE - 1)
+#define TARGET_PAGE_ALIGN(addr) (((addr) + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK)
+
+extern unsigned long real_host_page_size;
+extern unsigned long host_page_bits;
+extern unsigned long host_page_size;
+extern unsigned long host_page_mask;
+
+#define HOST_PAGE_ALIGN(addr) (((addr) + host_page_size - 1) & host_page_mask)
+
+/* same as PROT_xxx */
+#define PAGE_READ  0x0001
+#define PAGE_WRITE 0x0002
+#define PAGE_EXEC  0x0004
+#define PAGE_BITS  (PAGE_READ | PAGE_WRITE | PAGE_EXEC)
+#define PAGE_VALID 0x0008
+
+void page_dump(FILE *f);
+int page_get_flags(unsigned long address);
+void page_set_flags(unsigned long start, unsigned long end, int flags);
+
 /* internal functions */
 
 #define GEN_FLAG_CODE32_SHIFT 0
@@ -446,5 +470,6 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size,
                      int *gen_code_size_ptr,
                      uint8_t *pc_start,  uint8_t *cs_base, int flags);
 void cpu_x86_tblocks_init(void);
+void page_init(void);
 
 #endif /* CPU_I386_H */

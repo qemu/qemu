@@ -3845,6 +3845,7 @@ CPUX86State *cpu_x86_init(void)
     if (!inited) {
         inited = 1;
         optimize_flags_init();
+        page_init();
     }
     return env;
 }

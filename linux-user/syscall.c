@@ -64,11 +64,6 @@
 
 //#define DEBUG
 
-#ifndef PAGE_SIZE
-#define PAGE_SIZE 4096
-#define PAGE_MASK ~(PAGE_SIZE - 1)
-#endif
-
 //#include <linux/msdos_fs.h>
 #define	VFAT_IOCTL_READDIR_BOTH		_IOR('r', 1, struct dirent [2])
 #define	VFAT_IOCTL_READDIR_SHORT	_IOR('r', 2, struct dirent [2])
@@ -153,7 +148,7 @@ static long do_brk(char *new_brk)
     if (new_brk < target_original_brk)
         return -ENOMEM;
     
-    brk_page = (char *)(((unsigned long)target_brk + PAGE_SIZE - 1) & PAGE_MASK);
+    brk_page = (char *)HOST_PAGE_ALIGN((unsigned long)target_brk);
 
     /* If the new brk is less than this, set it and we're done... */
     if (new_brk < brk_page) {
@@ -162,11 +157,10 @@ static long do_brk(char *new_brk)
     }
 
     /* We need to allocate more memory after the brk... */
-    new_alloc_size = ((new_brk - brk_page + 1)+(PAGE_SIZE-1)) & PAGE_MASK;
-    mapped_addr = get_errno((long)mmap((caddr_t)brk_page, new_alloc_size, 
-                                       PROT_READ|PROT_WRITE,
-                                       MAP_ANON|MAP_FIXED|MAP_PRIVATE, 0, 0));
-    
+    new_alloc_size = HOST_PAGE_ALIGN(new_brk - brk_page + 1);
+    mapped_addr = get_errno(target_mmap((unsigned long)brk_page, new_alloc_size, 
+                                        PROT_READ|PROT_WRITE,
+                                        MAP_ANON|MAP_FIXED|MAP_PRIVATE, 0, 0));
     if (is_error(mapped_addr)) {
 	return mapped_addr;
     } else {
@@ -1709,7 +1703,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             v4 = tswap32(vptr[3]);
             v5 = tswap32(vptr[4]);
             v6 = tswap32(vptr[5]);
-            ret = get_errno((long)mmap((void *)v1, v2, v3, v4, v5, v6));
+            ret = get_errno(target_mmap(v1, v2, v3, v4, v5, v6));
         }
         break;
 #endif
@@ -1718,16 +1712,16 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #else
     case TARGET_NR_mmap:
 #endif
-        ret = get_errno((long)mmap((void *)arg1, arg2, arg3, arg4, arg5, arg6));
+        ret = get_errno(target_mmap(arg1, arg2, arg3, arg4, arg5, arg6));
         break;
     case TARGET_NR_munmap:
-        ret = get_errno(munmap((void *)arg1, arg2));
+        ret = get_errno(target_munmap(arg1, arg2));
         break;
     case TARGET_NR_mprotect:
-        ret = get_errno(mprotect((void *)arg1, arg2, arg3));
+        ret = get_errno(target_mprotect(arg1, arg2, arg3));
         break;
     case TARGET_NR_mremap:
-        ret = get_errno((long)mremap((void *)arg1, arg2, arg3, arg4));
+        ret = get_errno(target_mremap(arg1, arg2, arg3, arg4, arg5));
         break;
     case TARGET_NR_msync:
         ret = get_errno(msync((void *)arg1, arg2, arg3));

@@ -88,4 +88,14 @@ void handle_vm86_fault(CPUX86State *env);
 int do_vm86(CPUX86State *env, long subfunction, 
             struct target_vm86plus_struct * target_v86);
 
+/* mmap.c */
+int target_mprotect(unsigned long start, unsigned long len, int prot);
+long target_mmap(unsigned long start, unsigned long len, int prot, 
+                 int flags, int fd, unsigned long offset);
+int target_munmap(unsigned long start, unsigned long len);
+long target_mremap(unsigned long old_addr, unsigned long old_size, 
+                   unsigned long new_size, unsigned long flags,
+                   unsigned long new_addr);
+int target_msync(unsigned long start, unsigned long len, int flags);
+
 #endif
