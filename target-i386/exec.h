@@ -20,7 +20,7 @@
 #include "config.h"
 #include "dyngen-exec.h"
 
-/* at least 4 register variables are defines */
+/* at least 4 register variables are defined */
 register struct CPUX86State *env asm(AREG0);
 register uint32_t T0 asm(AREG1);
 register uint32_t T1 asm(AREG2);
@@ -546,3 +546,58 @@ static inline void load_eflags(int eflags, int update_mask)
         (eflags & update_mask);
 }
 
+static inline void env_to_regs(void)
+{
+#ifdef reg_EAX
+    EAX = env->regs[R_EAX];
+#endif
+#ifdef reg_ECX
+    ECX = env->regs[R_ECX];
+#endif
+#ifdef reg_EDX
+    EDX = env->regs[R_EDX];
+#endif
+#ifdef reg_EBX
+    EBX = env->regs[R_EBX];
+#endif
+#ifdef reg_ESP
+    ESP = env->regs[R_ESP];
+#endif
+#ifdef reg_EBP
+    EBP = env->regs[R_EBP];
+#endif
+#ifdef reg_ESI
+    ESI = env->regs[R_ESI];
+#endif
+#ifdef reg_EDI
+    EDI = env->regs[R_EDI];
+#endif
+}
+
+static inline void regs_to_env(void)
+{
+#ifdef reg_EAX
+    env->regs[R_EAX] = EAX;
+#endif
+#ifdef reg_ECX
+    env->regs[R_ECX] = ECX;
+#endif
+#ifdef reg_EDX
+    env->regs[R_EDX] = EDX;
+#endif
+#ifdef reg_EBX
+    env->regs[R_EBX] = EBX;
+#endif
+#ifdef reg_ESP
+    env->regs[R_ESP] = ESP;
+#endif
+#ifdef reg_EBP
+    env->regs[R_EBP] = EBP;
+#endif
+#ifdef reg_ESI
+    env->regs[R_ESI] = ESI;
+#endif
+#ifdef reg_EDI
+    env->regs[R_EDI] = EDI;
+#endif
+}

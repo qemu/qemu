@@ -38,3 +38,11 @@ static inline int compute_cpsr(void)
     return env->cpsr | (env->NZF & 0x80000000) | (ZF << 30) | 
         (env->CF << 29) | ((env->VF & 0x80000000) >> 3);
 }
+
+static inline void env_to_regs(void)
+{
+}
+
+static inline void regs_to_env(void)
+{
+}

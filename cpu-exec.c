@@ -123,37 +123,30 @@ int cpu_exec(CPUState *env1)
 #if defined(TARGET_I386)
 #ifdef reg_EAX
     saved_EAX = EAX;
-    EAX = env->regs[R_EAX];
 #endif
 #ifdef reg_ECX
     saved_ECX = ECX;
-    ECX = env->regs[R_ECX];
 #endif
 #ifdef reg_EDX
     saved_EDX = EDX;
-    EDX = env->regs[R_EDX];
 #endif
 #ifdef reg_EBX
     saved_EBX = EBX;
-    EBX = env->regs[R_EBX];
 #endif
 #ifdef reg_ESP
     saved_ESP = ESP;
-    ESP = env->regs[R_ESP];
 #endif
 #ifdef reg_EBP
     saved_EBP = EBP;
-    EBP = env->regs[R_EBP];
 #endif
 #ifdef reg_ESI
     saved_ESI = ESI;
-    ESI = env->regs[R_ESI];
 #endif
 #ifdef reg_EDI
     saved_EDI = EDI;
-    EDI = env->regs[R_EDI];
 #endif
-    
+
+    env_to_regs();
     /* put eflags in CPU temporary format */
     CC_SRC = env->eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
     DF = 1 - (2 * ((env->eflags >> 10) & 1));
@@ -353,6 +346,8 @@ int cpu_exec(CPUState *env1)
                     spin_lock(&tb_lock);
 
                     tb_invalidated_flag = 0;
+                    
+                    regs_to_env(); /* XXX: do it just before cpu_gen_code() */
 
                     /* find translated block using physical mappings */
                     phys_pc = get_phys_addr_code(env, (unsigned long)pc);
@@ -556,6 +551,7 @@ int cpu_exec(CPUState *env1)
 #endif
             }
         } else {
+            env_to_regs();
         }
     } /* for(;;) */
 

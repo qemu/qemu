@@ -109,30 +109,7 @@ void cpu_loop_exit(void)
 {
     /* NOTE: the register at this point must be saved by hand because
        longjmp restore them */
-#ifdef reg_EAX
-    env->regs[R_EAX] = EAX;
-#endif
-#ifdef reg_ECX
-    env->regs[R_ECX] = ECX;
-#endif
-#ifdef reg_EDX
-    env->regs[R_EDX] = EDX;
-#endif
-#ifdef reg_EBX
-    env->regs[R_EBX] = EBX;
-#endif
-#ifdef reg_ESP
-    env->regs[R_ESP] = ESP;
-#endif
-#ifdef reg_EBP
-    env->regs[R_EBP] = EBP;
-#endif
-#ifdef reg_ESI
-    env->regs[R_ESI] = ESI;
-#endif
-#ifdef reg_EDI
-    env->regs[R_EDI] = EDI;
-#endif
+    regs_to_env();
     longjmp(env->jmp_env, 1);
 }
 
@@ -384,16 +361,28 @@ static void switch_tss(int tss_selector,
         /* 32 bit */
         stl_kernel(env->tr.base + 0x20, next_eip);
         stl_kernel(env->tr.base + 0x24, old_eflags);
-        for(i = 0; i < 8; i++)
-            stl_kernel(env->tr.base + (0x28 + i * 4), env->regs[i]);
+        stl_kernel(env->tr.base + (0x28 + 0 * 4), EAX);
+        stl_kernel(env->tr.base + (0x28 + 1 * 4), ECX);
+        stl_kernel(env->tr.base + (0x28 + 2 * 4), EDX);
+        stl_kernel(env->tr.base + (0x28 + 3 * 4), EBX);
+        stl_kernel(env->tr.base + (0x28 + 4 * 4), ESP);
+        stl_kernel(env->tr.base + (0x28 + 5 * 4), EBP);
+        stl_kernel(env->tr.base + (0x28 + 6 * 4), ESI);
+        stl_kernel(env->tr.base + (0x28 + 7 * 4), EDI);
         for(i = 0; i < 6; i++)
             stw_kernel(env->tr.base + (0x48 + i * 4), env->segs[i].selector);
     } else {
         /* 16 bit */
         stw_kernel(env->tr.base + 0x0e, next_eip);
         stw_kernel(env->tr.base + 0x10, old_eflags);
-        for(i = 0; i < 8; i++)
-            stw_kernel(env->tr.base + (0x12 + i * 2), env->regs[i]);
+        stw_kernel(env->tr.base + (0x12 + 0 * 2), EAX);
+        stw_kernel(env->tr.base + (0x12 + 1 * 2), ECX);
+        stw_kernel(env->tr.base + (0x12 + 2 * 2), EDX);
+        stw_kernel(env->tr.base + (0x12 + 3 * 2), EBX);
+        stw_kernel(env->tr.base + (0x12 + 4 * 2), ESP);
+        stw_kernel(env->tr.base + (0x12 + 5 * 2), EBP);
+        stw_kernel(env->tr.base + (0x12 + 6 * 2), ESI);
+        stw_kernel(env->tr.base + (0x12 + 7 * 2), EDI);
         for(i = 0; i < 4; i++)
             stw_kernel(env->tr.base + (0x22 + i * 4), env->segs[i].selector);
     }
@@ -437,8 +426,15 @@ static void switch_tss(int tss_selector,
     if (!(type & 8))
         eflags_mask &= 0xffff;
     load_eflags(new_eflags, eflags_mask);
-    for(i = 0; i < 8; i++)
-        env->regs[i] = new_regs[i];
+    /* XXX: what to do in 16 bit case ? */
+    EAX = new_regs[0];
+    ECX = new_regs[1];
+    EDX = new_regs[2];
+    EBX = new_regs[3];
+    ESP = new_regs[4];
+    EBP = new_regs[5];
+    ESI = new_regs[6];
+    EDI = new_regs[7];
     if (new_eflags & VM_MASK) {
         for(i = 0; i < 6; i++) 
             load_seg_vm(i, new_segs[i]);
@@ -633,13 +629,13 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
                 mask = 0xffffffff;
             else
                 mask = 0xffff;
-            esp = (env->regs[R_ESP] - (2 << shift)) & mask;
+            esp = (ESP - (2 << shift)) & mask;
             ssp = env->segs[R_SS].base + esp;
             if (shift)
                 stl_kernel(ssp, error_code);
             else
                 stw_kernel(ssp, error_code);
-            env->regs[R_ESP] = (esp & mask) | (env->regs[R_ESP] & ~mask);
+            ESP = (esp & mask) | (ESP & ~mask);
         }
         return;
     case 6: /* 286 interrupt gate */
@@ -868,7 +864,7 @@ void do_interrupt(int intno, int is_int, int error_code,
             if (intno == 0x0e) {
                 fprintf(logfile, " CR2=%08x", env->cr[2]);
             } else {
-                fprintf(logfile, " EAX=%08x", env->regs[R_EAX]);
+                fprintf(logfile, " EAX=%08x", EAX);
             }
             fprintf(logfile, "\n");
 #if 0
@@ -909,6 +905,16 @@ void raise_interrupt(int intno, int is_int, int error_code,
     env->exception_is_int = is_int;
     env->exception_next_eip = next_eip;
     cpu_loop_exit();
+}
+
+/* same as raise_exception_err, but do not restore global registers */
+static void raise_exception_err_norestore(int exception_index, int error_code)
+{
+    env->exception_index = exception_index;
+    env->error_code = error_code;
+    env->exception_is_int = 0;
+    env->exception_next_eip = 0;
+    longjmp(env->jmp_env, 1);
 }
 
 /* shortcuts to generate exceptions */
@@ -2584,7 +2590,10 @@ void tlb_fill(unsigned long addr, int is_write, int is_user, void *retaddr)
                 cpu_restore_state(tb, env, pc, NULL);
             }
         }
-        raise_exception_err(EXCP0E_PAGE, env->error_code);
+        if (retaddr)
+            raise_exception_err(EXCP0E_PAGE, env->error_code);
+        else
+            raise_exception_err_norestore(EXCP0E_PAGE, env->error_code);
     }
     env = saved_env;
 }

@@ -109,4 +109,13 @@ void memcpy32(uint32_t *dst, const uint32_t *src);
 #define stq(p, v) stq_data(p, v)
 
 #endif /* !defined(CONFIG_USER_ONLY) */
+
+static inline void env_to_regs(void)
+{
+}
+
+static inline void regs_to_env(void)
+{
+}
+
 #endif

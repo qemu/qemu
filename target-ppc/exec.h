@@ -165,4 +165,12 @@ void dump_store_dbat (int ul, int nr);
 void dump_store_tb (int ul);
 void dump_update_tb(uint32_t param);
 
+static inline void env_to_regs(void)
+{
+}
+
+static inline void regs_to_env(void)
+{
+}
+
 #endif /* !defined (__PPC_H__) */
