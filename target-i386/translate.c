@@ -2074,7 +2074,7 @@ static void gen_pusha(DisasContext *s)
         gen_op_st_T0_A0[OT_WORD + s->dflag + s->mem_index]();
         gen_op_addl_A0_im(2 <<  s->dflag);
     }
-    gen_op_mov_reg_T1[OT_WORD + s->dflag][R_ESP]();
+    gen_op_mov_reg_T1[OT_WORD + s->ss32][R_ESP]();
 }
 
 /* NOTE: wrap around in 16 bit not fully handled */
@@ -2096,7 +2096,7 @@ static void gen_popa(DisasContext *s)
         }
         gen_op_addl_A0_im(2 <<  s->dflag);
     }
-    gen_op_mov_reg_T1[OT_WORD + s->dflag][R_ESP]();
+    gen_op_mov_reg_T1[OT_WORD + s->ss32][R_ESP]();
 }
 
 static void gen_enter(DisasContext *s, int esp_addend, int level)
@@ -2122,7 +2122,7 @@ static void gen_enter(DisasContext *s, int esp_addend, int level)
     }
     gen_op_mov_reg_T1[ot][R_EBP]();
     gen_op_addl_T1_im( -esp_addend + (-opsize * level) );
-    gen_op_mov_reg_T1[ot][R_ESP]();
+    gen_op_mov_reg_T1[OT_WORD + s->ss32][R_ESP]();
 }
 
 static void gen_exception(DisasContext *s, int trapno, target_ulong cur_eip)
