@@ -16,6 +16,7 @@ version 0.5.6:
   - PIC reset fix (Hidemi KAWAI)
   - PIC spurious irq support (aka Solaris install bug)
   - added '-localtime' option
+  - preliminary Cirrus CLGD 54xx VGA support (Makoto Suzuki (suzu))
 
 version 0.5.5:
 
