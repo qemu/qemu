@@ -1544,7 +1544,8 @@ static void gen_setcc(DisasContext *s, int b)
     }
 }
 
-/* move T0 to seg_reg and compute if the CPU state may change */
+/* move T0 to seg_reg and compute if the CPU state may change. Never
+   call this function with seg_reg == R_CS */
 static void gen_movl_seg_T0(DisasContext *s, int seg_reg, unsigned int cur_eip)
 {
     if (s->pe && !s->vm86)

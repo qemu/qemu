@@ -109,7 +109,7 @@
 #define HF_SOFTMMU_MASK      (1 << HF_SOFTMMU_SHIFT)
 #define HF_INHIBIT_IRQ_MASK  (1 << HF_INHIBIT_IRQ_SHIFT)
 #define HF_CS32_MASK         (1 << HF_CS32_SHIFT)
-#define HF_SS32_MASK         (1 << HF_CS32_SHIFT)
+#define HF_SS32_MASK         (1 << HF_SS32_SHIFT)
 #define HF_ADDSEG_MASK       (1 << HF_ADDSEG_SHIFT)
 
 #define CR0_PE_MASK  (1 << 0)
@@ -323,8 +323,43 @@ int cpu_x86_exec(CPUX86State *s);
 void cpu_x86_close(CPUX86State *s);
 int cpu_x86_get_pic_interrupt(CPUX86State *s);
 
-/* needed to load some predefinied segment registers */
-void cpu_x86_load_seg(CPUX86State *s, int seg_reg, int selector);
+/* this function must always be used to load data in the segment
+   cache: it synchronizes the hflags with the segment cache values */
+static inline void cpu_x86_load_seg_cache(CPUX86State *env, 
+                                          int seg_reg, unsigned int selector,
+                                          uint8_t *base, unsigned int limit, 
+                                          unsigned int flags)
+{
+    SegmentCache *sc;
+    unsigned int new_hflags;
+    
+    sc = &env->segs[seg_reg];
+    sc->selector = selector;
+    sc->base = base;
+    sc->limit = limit;
+    sc->flags = flags;
+
+    /* update the hidden flags */
+    new_hflags = (env->segs[R_CS].flags & DESC_B_MASK)
+        >> (DESC_B_SHIFT - HF_CS32_SHIFT);
+    new_hflags |= (env->segs[R_SS].flags & DESC_B_MASK)
+        >> (DESC_B_SHIFT - HF_SS32_SHIFT);
+    if (!(env->cr[0] & CR0_PE_MASK) || (env->eflags & VM_MASK)) {
+        /* XXX: try to avoid this test. The problem comes from the
+           fact that is real mode or vm86 mode we only modify the
+           'base' and 'selector' fields of the segment cache to go
+           faster. A solution may be to force addseg to one in
+           translate-i386.c. */
+        new_hflags |= HF_ADDSEG_MASK;
+    } else {
+        new_hflags |= (((unsigned long)env->segs[R_DS].base | 
+                        (unsigned long)env->segs[R_ES].base |
+                        (unsigned long)env->segs[R_SS].base) != 0) << 
+            HF_ADDSEG_SHIFT;
+    }
+    env->hflags = (env->hflags & 
+                   ~(HF_CS32_MASK | HF_SS32_MASK | HF_ADDSEG_MASK)) | new_hflags;
+}
 
 /* wrapper, just in case memory mappings must be changed */
 static inline void cpu_x86_set_cpl(CPUX86State *s, int cpl)
@@ -336,7 +371,9 @@ static inline void cpu_x86_set_cpl(CPUX86State *s, int cpl)
 #endif
 }
 
-/* simulate fsave/frstor */
+/* the following helpers are only usable in user mode simulation as
+   they can trigger unexpected exceptions */
+void cpu_x86_load_seg(CPUX86State *s, int seg_reg, int selector);
 void cpu_x86_fsave(CPUX86State *s, uint8_t *ptr, int data32);
 void cpu_x86_frstor(CPUX86State *s, uint8_t *ptr, int data32);
 

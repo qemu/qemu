@@ -890,6 +890,7 @@ void OPPROTO op_das(void)
 
 /* segment handling */
 
+/* never use it with R_CS */
 void OPPROTO op_movl_seg_T0(void)
 {
     load_seg(PARAM1, T0 & 0xffff, PARAM2);

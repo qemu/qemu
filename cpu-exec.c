@@ -182,7 +182,7 @@ int cpu_exec(CPUState *env1)
                 tmp_T0 = T0;
 #endif	    
                 interrupt_request = env->interrupt_request;
-                if (interrupt_request) {
+                if (__builtin_expect(interrupt_request, 0)) {
 #if defined(TARGET_I386)
                     /* if hardware interrupt pending, we execute it */
                     if ((interrupt_request & CPU_INTERRUPT_HARD) &&
@@ -238,15 +238,7 @@ int cpu_exec(CPUState *env1)
                    always be the same before a given translated block
                    is executed. */
 #if defined(TARGET_I386)
-                flags = (env->segs[R_CS].flags & DESC_B_MASK)
-                    >> (DESC_B_SHIFT - HF_CS32_SHIFT);
-                flags |= (env->segs[R_SS].flags & DESC_B_MASK)
-                    >> (DESC_B_SHIFT - HF_SS32_SHIFT);
-                flags |= (((unsigned long)env->segs[R_DS].base | 
-                           (unsigned long)env->segs[R_ES].base |
-                           (unsigned long)env->segs[R_SS].base) != 0) << 
-                    HF_ADDSEG_SHIFT;
-                flags |= env->hflags;
+                flags = env->hflags;
                 flags |= (env->eflags & (IOPL_MASK | TF_MASK | VM_MASK));
                 cs_base = env->segs[R_CS].base;
                 pc = cs_base + env->eip;
@@ -402,13 +394,9 @@ void cpu_x86_load_seg(CPUX86State *s, int seg_reg, int selector)
     saved_env = env;
     env = s;
     if (!(env->cr[0] & CR0_PE_MASK) || (env->eflags & VM_MASK)) {
-        SegmentCache *sc;
         selector &= 0xffff;
-        sc = &env->segs[seg_reg];
-        sc->base = (void *)(selector << 4);
-        sc->limit = 0xffff;
-        sc->flags = 0;
-        sc->selector = selector;
+        cpu_x86_load_seg_cache(env, seg_reg, selector, 
+                               (uint8_t *)(selector << 4), 0xffff, 0);
     } else {
         load_seg(seg_reg, selector, 0);
     }

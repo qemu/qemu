@@ -182,6 +182,34 @@ static inline int load_segment(uint32_t *e1_ptr, uint32_t *e2_ptr,
     return 0;
 }
                                      
+static inline unsigned int get_seg_limit(uint32_t e1, uint32_t e2)
+{
+    unsigned int limit;
+    limit = (e1 & 0xffff) | (e2 & 0x000f0000);
+    if (e2 & DESC_G_MASK)
+        limit = (limit << 12) | 0xfff;
+    return limit;
+}
+
+static inline uint8_t *get_seg_base(uint32_t e1, uint32_t e2)
+{
+    return (uint8_t *)((e1 >> 16) | ((e2 & 0xff) << 16) | (e2 & 0xff000000));
+}
+
+static inline void load_seg_cache_raw_dt(SegmentCache *sc, uint32_t e1, uint32_t e2)
+{
+    sc->base = get_seg_base(e1, e2);
+    sc->limit = get_seg_limit(e1, e2);
+    sc->flags = e2;
+}
+
+/* init the segment cache in vm86 mode. */
+static inline void load_seg_vm(int seg, int selector)
+{
+    selector &= 0xffff;
+    cpu_x86_load_seg_cache(env, seg, selector, 
+                           (uint8_t *)(selector << 4), 0xffff, 0);
+}
 
 /* protected mode interrupt */
 static void do_interrupt_protected(int intno, int is_int, int error_code,
@@ -288,7 +316,11 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
     if (new_stack) {
         old_esp = ESP;
         old_ss = env->segs[R_SS].selector;
-        load_seg(R_SS, ss, env->eip);
+        ss = (ss & ~3) | dpl;
+        cpu_x86_load_seg_cache(env, R_SS, ss, 
+                       get_seg_base(ss_e1, ss_e2),
+                       get_seg_limit(ss_e1, ss_e2),
+                       ss_e2);
     } else {
         old_esp = 0;
         old_ss = 0;
@@ -299,7 +331,12 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
     else
         old_eip = env->eip;
     old_cs = env->segs[R_CS].selector;
-    load_seg(R_CS, selector, env->eip);
+    selector = (selector & ~3) | dpl;
+    cpu_x86_load_seg_cache(env, R_CS, selector, 
+                   get_seg_base(e1, e2),
+                   get_seg_limit(e1, e2),
+                   e2);
+    cpu_x86_set_cpl(env, dpl);
     env->eip = offset;
     ESP = esp - push_size;
     ssp = env->segs[R_SS].base + esp;
@@ -593,15 +630,6 @@ void helper_cpuid(void)
     }
 }
 
-static inline void load_seg_cache(SegmentCache *sc, uint32_t e1, uint32_t e2)
-{
-    sc->base = (void *)((e1 >> 16) | ((e2 & 0xff) << 16) | (e2 & 0xff000000));
-    sc->limit = (e1 & 0xffff) | (e2 & 0x000f0000);
-    if (e2 & DESC_G_MASK)
-        sc->limit = (sc->limit << 12) | 0xfff;
-    sc->flags = e2;
-}
-
 void helper_lldt_T0(void)
 {
     int selector;
@@ -629,7 +657,7 @@ void helper_lldt_T0(void)
             raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
         if (!(e2 & DESC_P_MASK))
             raise_exception_err(EXCP0B_NOSEG, selector & 0xfffc);
-        load_seg_cache(&env->ldt, e1, e2);
+        load_seg_cache_raw_dt(&env->ldt, e1, e2);
     }
     env->ldt.selector = selector;
 }
@@ -664,30 +692,26 @@ void helper_ltr_T0(void)
             raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
         if (!(e2 & DESC_P_MASK))
             raise_exception_err(EXCP0B_NOSEG, selector & 0xfffc);
-        load_seg_cache(&env->tr, e1, e2);
+        load_seg_cache_raw_dt(&env->tr, e1, e2);
         e2 |= 0x00000200; /* set the busy bit */
         stl(ptr + 4, e2);
     }
     env->tr.selector = selector;
 }
 
-/* only works if protected mode and not VM86 */
+/* only works if protected mode and not VM86. Calling load_seg with
+   seg_reg == R_CS is discouraged */
 void load_seg(int seg_reg, int selector, unsigned int cur_eip)
 {
-    SegmentCache *sc;
     uint32_t e1, e2;
     
-    sc = &env->segs[seg_reg];
     if ((selector & 0xfffc) == 0) {
         /* null selector case */
         if (seg_reg == R_SS) {
             EIP = cur_eip;
             raise_exception_err(EXCP0D_GPF, 0);
         } else {
-            /* XXX: each access should trigger an exception */
-            sc->base = NULL;
-            sc->limit = 0;
-            sc->flags = 0;
+            cpu_x86_load_seg_cache(env, seg_reg, selector, NULL, 0, 0);
         }
     } else {
         if (load_segment(&e1, &e2, selector) != 0) {
@@ -719,24 +743,22 @@ void load_seg(int seg_reg, int selector, unsigned int cur_eip)
             else
                 raise_exception_err(EXCP0B_NOSEG, selector & 0xfffc);
         }
-        load_seg_cache(sc, e1, e2);
+        cpu_x86_load_seg_cache(env, seg_reg, selector, 
+                       get_seg_base(e1, e2),
+                       get_seg_limit(e1, e2),
+                       e2);
 #if 0
         fprintf(logfile, "load_seg: sel=0x%04x base=0x%08lx limit=0x%08lx flags=%08x\n", 
                 selector, (unsigned long)sc->base, sc->limit, sc->flags);
 #endif
     }
-    if (seg_reg == R_CS) {
-        cpu_x86_set_cpl(env, selector & 3);
-    }
-    sc->selector = selector;
 }
 
 /* protected mode jump */
 void helper_ljmp_protected_T0_T1(void)
 {
     int new_cs, new_eip;
-    SegmentCache sc1;
-    uint32_t e1, e2, cpl, dpl, rpl;
+    uint32_t e1, e2, cpl, dpl, rpl, limit;
 
     new_cs = T0;
     new_eip = T1;
@@ -763,13 +785,11 @@ void helper_ljmp_protected_T0_T1(void)
         }
         if (!(e2 & DESC_P_MASK))
             raise_exception_err(EXCP0B_NOSEG, new_cs & 0xfffc);
-        load_seg_cache(&sc1, e1, e2);
-        if (new_eip > sc1.limit)
+        limit = get_seg_limit(e1, e2);
+        if (new_eip > limit)
             raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
-        env->segs[R_CS].base = sc1.base;
-        env->segs[R_CS].limit = sc1.limit;
-        env->segs[R_CS].flags = sc1.flags;
-        env->segs[R_CS].selector = (new_cs & 0xfffc) | cpl;
+        cpu_x86_load_seg_cache(env, R_CS, (new_cs & 0xfffc) | cpl,
+                       get_seg_base(e1, e2), limit, e2);
         EIP = new_eip;
     } else {
         cpu_abort(env, "jmp to call/task gate not supported 0x%04x:0x%08x", 
@@ -816,10 +836,9 @@ void helper_lcall_real_T0_T1(int shift, int next_eip)
 void helper_lcall_protected_T0_T1(int shift, int next_eip)
 {
     int new_cs, new_eip;
-    SegmentCache sc1;
     uint32_t e1, e2, cpl, dpl, rpl, selector, offset, param_count;
     uint32_t ss, ss_e1, ss_e2, push_size, sp, type, ss_dpl;
-    uint32_t old_ss, old_esp, val, i;
+    uint32_t old_ss, old_esp, val, i, limit;
     uint8_t *ssp, *old_ssp;
     
     new_cs = T0;
@@ -865,18 +884,16 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip)
         }
         sp -= (4 << shift);
         
-        load_seg_cache(&sc1, e1, e2);
-        if (new_eip > sc1.limit)
+        limit = get_seg_limit(e1, e2);
+        if (new_eip > limit)
             raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
         /* from this point, not restartable */
         if (!(env->segs[R_SS].flags & DESC_B_MASK))
             ESP = (ESP & 0xffff0000) | (sp & 0xffff);
         else
             ESP = sp;
-        env->segs[R_CS].base = sc1.base;
-        env->segs[R_CS].limit = sc1.limit;
-        env->segs[R_CS].flags = sc1.flags;
-        env->segs[R_CS].selector = (new_cs & 0xfffc) | cpl;
+        cpu_x86_load_seg_cache(env, R_CS, (new_cs & 0xfffc) | cpl,
+                       get_seg_base(e1, e2), limit, e2);
         EIP = new_eip;
     } else {
         /* check gate type */
@@ -947,7 +964,11 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip)
             old_ssp = env->segs[R_SS].base + old_esp;
             
             /* XXX: from this point not restartable */
-            load_seg(R_SS, ss, env->eip);
+            ss = (ss & ~3) | dpl;
+            cpu_x86_load_seg_cache(env, R_SS, ss, 
+                           get_seg_base(ss_e1, ss_e2),
+                           get_seg_limit(ss_e1, ss_e2),
+                           ss_e2);
 
             if (!(env->segs[R_SS].flags & DESC_B_MASK))
                 sp &= 0xffff;
@@ -994,7 +1015,13 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip)
         }
 
         sp -= push_size;
-        load_seg(R_CS, selector, env->eip);
+        selector = (selector & ~3) | dpl;
+        cpu_x86_load_seg_cache(env, R_CS, selector, 
+                       get_seg_base(e1, e2),
+                       get_seg_limit(e1, e2),
+                       e2);
+        cpu_x86_set_cpl(env, dpl);
+        
         /* from this point, not restartable if same priviledge */
         if (!(env->segs[R_SS].flags & DESC_B_MASK))
             ESP = (ESP & 0xffff0000) | (sp & 0xffff);
@@ -1002,17 +1029,6 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip)
             ESP = sp;
         EIP = offset;
     }
-}
-
-/* init the segment cache in vm86 mode */
-static inline void load_seg_vm(int seg, int selector)
-{
-    SegmentCache *sc = &env->segs[seg];
-    selector &= 0xffff;
-    sc->base = (uint8_t *)(selector << 4);
-    sc->selector = selector;
-    sc->flags = 0;
-    sc->limit = 0xffff;
 }
 
 /* real mode iret */
@@ -1051,7 +1067,7 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
 {
     uint32_t sp, new_cs, new_eip, new_eflags, new_esp, new_ss;
     uint32_t new_es, new_ds, new_fs, new_gs;
-    uint32_t e1, e2;
+    uint32_t e1, e2, ss_e1, ss_e2;
     int cpl, dpl, rpl, eflags_mask;
     uint8_t *ssp;
     
@@ -1098,7 +1114,10 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
     
     if (rpl == cpl) {
         /* return to same priledge level */
-        load_seg(R_CS, new_cs, env->eip);
+        cpu_x86_load_seg_cache(env, R_CS, new_cs, 
+                       get_seg_base(e1, e2),
+                       get_seg_limit(e1, e2),
+                       e2);
         new_esp = sp + (4 << shift) + ((2 * is_iret) << shift) + addend;
     } else {
         /* return to different priviledge level */
@@ -1115,20 +1134,27 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
         
         if ((new_ss & 3) != rpl)
             raise_exception_err(EXCP0D_GPF, new_ss & 0xfffc);
-        if (load_segment(&e1, &e2, new_ss) != 0)
+        if (load_segment(&ss_e1, &ss_e2, new_ss) != 0)
             raise_exception_err(EXCP0D_GPF, new_ss & 0xfffc);
-        if (!(e2 & DESC_S_MASK) ||
-            (e2 & DESC_CS_MASK) ||
-            !(e2 & DESC_W_MASK))
+        if (!(ss_e2 & DESC_S_MASK) ||
+            (ss_e2 & DESC_CS_MASK) ||
+            !(ss_e2 & DESC_W_MASK))
             raise_exception_err(EXCP0D_GPF, new_ss & 0xfffc);
-        dpl = (e2 >> DESC_DPL_SHIFT) & 3;
+        dpl = (ss_e2 >> DESC_DPL_SHIFT) & 3;
         if (dpl != rpl)
             raise_exception_err(EXCP0D_GPF, new_ss & 0xfffc);
-        if (!(e2 & DESC_P_MASK))
+        if (!(ss_e2 & DESC_P_MASK))
             raise_exception_err(EXCP0B_NOSEG, new_ss & 0xfffc);
 
-        load_seg(R_CS, new_cs, env->eip);
-        load_seg(R_SS, new_ss, env->eip);
+        cpu_x86_load_seg_cache(env, R_CS, new_cs, 
+                       get_seg_base(e1, e2),
+                       get_seg_limit(e1, e2),
+                       e2);
+        cpu_x86_load_seg_cache(env, R_SS, new_ss, 
+                       get_seg_base(ss_e1, ss_e2),
+                       get_seg_limit(ss_e1, ss_e2),
+                       ss_e2);
+        cpu_x86_set_cpl(env, rpl);
     }
     if (env->segs[R_SS].flags & DESC_B_MASK)
         ESP = new_esp;
@@ -1137,6 +1163,7 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
             (new_esp & 0xffff);
     env->eip = new_eip;
     if (is_iret) {
+        /* NOTE: 'cpl' can be different from the current CPL */
         if (cpl == 0)
             eflags_mask = FL_UPDATE_CPL0_MASK;
         else

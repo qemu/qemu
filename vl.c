@@ -3590,12 +3590,12 @@ int main(int argc, char **argv)
         env->gdt.base = (void *)params->gdt_table;
         env->gdt.limit = sizeof(params->gdt_table) - 1;
         
-        cpu_x86_load_seg(env, R_CS, KERNEL_CS);
-        cpu_x86_load_seg(env, R_DS, KERNEL_DS);
-        cpu_x86_load_seg(env, R_ES, KERNEL_DS);
-        cpu_x86_load_seg(env, R_SS, KERNEL_DS);
-        cpu_x86_load_seg(env, R_FS, KERNEL_DS);
-        cpu_x86_load_seg(env, R_GS, KERNEL_DS);
+        cpu_x86_load_seg_cache(env, R_CS, KERNEL_CS, NULL, 0xffffffff, 0x00cf9a00);
+        cpu_x86_load_seg_cache(env, R_DS, KERNEL_DS, NULL, 0xffffffff, 0x00cf9200);
+        cpu_x86_load_seg_cache(env, R_ES, KERNEL_DS, NULL, 0xffffffff, 0x00cf9200);
+        cpu_x86_load_seg_cache(env, R_SS, KERNEL_DS, NULL, 0xffffffff, 0x00cf9200);
+        cpu_x86_load_seg_cache(env, R_FS, KERNEL_DS, NULL, 0xffffffff, 0x00cf9200);
+        cpu_x86_load_seg_cache(env, R_GS, KERNEL_DS, NULL, 0xffffffff, 0x00cf9200);
         
         env->eip = KERNEL_LOAD_ADDR;
         env->regs[R_ESI] = KERNEL_PARAMS_ADDR;
@@ -3627,12 +3627,12 @@ int main(int argc, char **argv)
         env->ldt.limit = 0xffff;
 
         /* not correct (CS base=0xffff0000) */
-        cpu_x86_load_seg(env, R_CS, 0xf000); 
-        cpu_x86_load_seg(env, R_DS, 0);
-        cpu_x86_load_seg(env, R_ES, 0);
-        cpu_x86_load_seg(env, R_SS, 0);
-        cpu_x86_load_seg(env, R_FS, 0);
-        cpu_x86_load_seg(env, R_GS, 0);
+        cpu_x86_load_seg_cache(env, R_CS, 0xf000, (uint8_t *)0x000f0000, 0xffff, 0); 
+        cpu_x86_load_seg_cache(env, R_DS, 0, NULL, 0xffff, 0);
+        cpu_x86_load_seg_cache(env, R_ES, 0, NULL, 0xffff, 0);
+        cpu_x86_load_seg_cache(env, R_SS, 0, NULL, 0xffff, 0);
+        cpu_x86_load_seg_cache(env, R_FS, 0, NULL, 0xffff, 0);
+        cpu_x86_load_seg_cache(env, R_GS, 0, NULL, 0xffff, 0);
 
         env->eip = 0xfff0;
         env->regs[R_EDX] = 0x600; /* indicate P6 processor */
