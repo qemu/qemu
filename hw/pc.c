@@ -302,6 +302,7 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
     
     /* setup basic memory access */
     cpu_register_physical_memory(0xc0000, 0x10000, 0xc0000 | IO_MEM_ROM);
+    cpu_register_physical_memory(0xd0000, 0x20000, IO_MEM_UNASSIGNED);
     cpu_register_physical_memory(0xf0000, 0x10000, 0xf0000 | IO_MEM_ROM);
     
     bochs_bios_init();
