@@ -1,162 +1,65 @@
 Index: rombios.c
 ===================================================================
 RCS file: /cvsroot/bochs/bochs/bios/rombios.c,v
-retrieving revision 1.110
-diff -u -w -r1.110 rombios.c
---- rombios.c	31 May 2004 13:11:27 -0000	1.110
-+++ rombios.c	7 Oct 2004 21:23:50 -0000
-@@ -137,6 +137,7 @@
- #define DEBUG_INT16        0
- #define DEBUG_INT1A        0
- #define DEBUG_INT74        0
-+#define DEBUG_APM          0
- 
- #define BX_CPU           3
- #define BX_USE_PS2_MOUSE 1
-@@ -145,6 +146,7 @@
- #define BX_SUPPORT_FLOPPY 1
- #define BX_FLOPPY_ON_CNT 37   // 2 seconds
- #define BX_PCIBIOS       1
-+#define BX_APM           1
- 
- #define BX_USE_ATADRV    1
- #define BX_ELTORITO_BOOT 1
-@@ -230,17 +232,6 @@
-   out dx,ax
- MEND
- 
--MACRO HALT2
--  ;; the HALT macro is called with the line number of the HALT call.
--  ;; The line number is then sent to the PANIC_PORT, causing Bochs/Plex
--  ;; to print a BX_PANIC message.  This will normally halt the simulation
--  ;; with a message such as "BIOS panic at rombios.c, line 4091".
--  ;; However, users can choose to make panics non-fatal and continue.
--  mov dx,#PANIC_PORT2
--  mov ax,#?1
--  out dx,ax
--MEND
--
- MACRO JMP_AP
-   db 0xea
-   dw ?2
-@@ -1543,15 +1534,12 @@
-     }
- 
-   if (action & BIOS_PRINTF_HALT) {
--    // freeze in a busy loop.  If I do a HLT instruction, then in versions
--    // 1.3.pre1 and earlier, it will panic without ever updating the VGA
--    // display, so the panic message will not be visible.  By waiting
--    // forever, you are certain to see the panic message on screen.
--    // After a few more versions have passed, we can turn this back into
--    // a halt or something.
--    // do {} while (1);
-+    // freeze in a busy loop.  
- ASM_START
--    HALT2(__LINE__)
-+    cli
-+ halt2_loop:
-+    hlt
-+    jmp halt2_loop
- ASM_END
-     }
- }
-@@ -5412,8 +5400,8 @@
-         case 0x03: SET_BL( 0x06 ); break;
-         }
- 
--      DI = 0xefc7;
--      ES = 0xf000;
-+      DI = read_word(0x00, 0x1e*4); // INT vector 0x1E
-+      ES = read_word(0x00, 0x1e*4+2);
-       goto int13_success;
-       break;
- 
-@@ -6984,8 +6972,8 @@
-         }
- 
-       /* set es & di to point to 11 byte diskette param table in ROM */
--      DI = 0xefc7;
--      ES = 0xf000;
-+      DI = read_word(0x00, 0x1e*4); // INT vector 0x1E
-+      ES = read_word(0x00, 0x1e*4+2);
-       CLEAR_CF(); // success
-       /* disk status not changed upon success */
-       return;
-@@ -7880,7 +7868,7 @@
-   mov  al, #0x02
-   out  #0x0a, al   ;; clear DMA-1 channel 2 mask bit
- 
--  SET_INT_VECTOR(0x1E, #0xF000, #diskette_param_table)
-+  SET_INT_VECTOR(0x1E, #0xF000, #diskette_param_table2)
-   SET_INT_VECTOR(0x40, #0xF000, #int13_diskette)
-   SET_INT_VECTOR(0x0E, #0xF000, #int0e_handler) ;; IRQ 6
- 
-@@ -8344,6 +8332,19 @@
-   pop   ax
-   iret
- 
-+
-+;--------------------
-+#if BX_APM
-+use32 386
-+#define APM_PROT32
-+#include "apmbios.S"
-+use16 386
-+
-+#define APM_REAL
-+#include "apmbios.S"
-+
-+#endif
-+
- ;--------------------
- #if BX_PCIBIOS
+retrieving revision 1.130
+diff -u -w -r1.130 rombios.c
+--- rombios.c	13 Feb 2005 08:47:30 -0000	1.130
++++ rombios.c	6 Apr 2005 22:38:16 -0000
+@@ -8570,7 +8570,10 @@
  use32 386
-@@ -9515,6 +9516,26 @@
-   pop  ds
-   iret
- 
-+diskette_param_table2:
-+;;  New diskette parameter table adding 3 parameters from IBM
-+;;  Since no provisions are made for multiple drive types, most
-+;;  values in this table are ignored.  I set parameters for 1.44M
-+;;  floppy here
-+db  0xAF
-+db  0x02 ;; head load time 0000001, DMA used
-+db  0x25
-+db  0x02
-+db    18
-+db  0x1B
-+db  0xFF
-+db  0x6C
-+db  0xF6
-+db  0x0F
-+db  0x08
-+db    79 ;; maximum track
-+db     0 ;; data transfer rate
-+db     4 ;; drive type in cmos
+ #define APM_PROT32
+ #include "apmbios.S"
 +
- .org 0xf045 ; INT 10 Functions 0-Fh Entry Point
-   HALT(__LINE__)
-   iret
-@@ -9560,6 +9581,10 @@
- .org 0xf859 ; INT 15h System Services Entry Point
- int15_handler:
-   pushf
-+#if BX_APM
-+  cmp ah, #0x53
-+  je apm_call
-+#endif
-   push  ds
-   push  es
-   pushad
-@@ -9570,6 +9595,10 @@
-   popf
-   //JMPL(iret_modify_cf)
-   jmp iret_modify_cf
-+#if BX_APM
-+apm_call:
-+  jmp _apmreal_entry
-+#endif
+ use16 386
++#define APM_PROT16
++#include "apmbios.S"
  
- ;; Protected mode IDT descriptor
- ;;
+ #define APM_REAL
+ #include "apmbios.S"
+Index: apmbios.S
+===================================================================
+RCS file: /cvsroot/bochs/bochs/bios/apmbios.S,v
+retrieving revision 1.1
+diff -u -w -r1.1 apmbios.S
+--- apmbios.S	20 Jun 2004 18:27:09 -0000	1.1
++++ apmbios.S	6 Apr 2005 22:38:16 -0000
+@@ -1,6 +1,9 @@
+ //  APM BIOS support for the Bochs BIOS
+ //  Copyright (C) 2004 Fabrice Bellard
+ //
++//  16-bit interface activation
++//  Copyright (C) 2005 Struan Bartlett
++//
+ //  This library is free software; you can redistribute it and/or
+ //  modify it under the terms of the GNU Lesser General Public
+ //  License as published by the Free Software Foundation; either
+@@ -111,13 +114,28 @@
+   mov bl, #0x4d // 'M'
+   // bit 0 : 16 bit interface supported
+   // bit 1 : 32 bit interface supported
+-  mov cx, #0x2 
++  mov cx, #0x3
+   jmp APMSYM(ok)
+   
+ ;-----------------
+ ; APM real mode interface connect
+ APMSYM(01):
+   cmp al, #0x01
++  jne APMSYM(02)
++  jmp APMSYM(ok)
++
++;-----------------
++; APM 16 bit protected mode interface connect
++APMSYM(02):
++  cmp al, #0x02
++  jne APMSYM(03)
++
++  mov bx, #_apm16_entry
++  
++  mov ax, #0xf000 // 16 bit code segment base
++  mov si, #0xfff0 // 16 bit code segment size
++  mov cx, #0xf000 // data segment address
++  mov di, #0xfff0 // data segment length
+   jne APMSYM(03)
+   jmp APMSYM(ok)
+ 
