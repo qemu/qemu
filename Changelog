@@ -2,6 +2,12 @@ version 0.5.6:
 
   - minimalist FPU exception support (NetBSD FPU probe fix)
   - cr0.ET fix (Win95 boot)
+  - *BSD port (Markus Niemisto)
+  - I/O access fix (signaled by Mark Jonckheere)
+  - IDE drives serial number fix (Mike Nordell)
+  - int13 CDROM BIOS fix (aka Solaris x86 install CD fix)
+  - int15, ah=86 BIOS fix (aka Solaris x86 hardware probe hang up fix)
+  - BSR/BSF "undefined behaviour" fix
 
 version 0.5.5:
 
