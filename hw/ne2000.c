@@ -103,7 +103,10 @@
 #define ENTSR_CDH 0x40	/* The collision detect "heartbeat" signal was lost. */
 #define ENTSR_OWC 0x80  /* There was an out-of-window collision. */
 
-#define NE2000_MEM_SIZE 32768
+#define NE2000_PMEM_SIZE    (32*1024)
+#define NE2000_PMEM_START   (16*1024)
+#define NE2000_PMEM_END     (NE2000_PMEM_SIZE+NE2000_PMEM_START)
+#define NE2000_MEM_SIZE     NE2000_PMEM_END
 
 typedef struct NE2000State {
     uint8_t cmd;
@@ -244,6 +247,7 @@ static void ne2000_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         /* control register */
         s->cmd = val;
         if (val & E8390_START) {
+            s->isr &= ~ENISR_RESET;
             /* test specific case: zero length transfert */
             if ((val & (E8390_RREAD | E8390_RWRITE)) &&
                 s->rcnt == 0) {
@@ -251,7 +255,7 @@ static void ne2000_ioport_write(void *opaque, uint32_t addr, uint32_t val)
                 ne2000_update_irq(s);
             }
             if (val & E8390_TRANS) {
-                net_send_packet(s->nd, s->mem + (s->tpsr << 8), s->tcnt);
+                qemu_send_packet(s->nd, s->mem + (s->tpsr << 8), s->tcnt);
                 /* signal end of transfert */
                 s->tsr = ENTSR_PTX;
                 s->isr |= ENISR_TX;
@@ -300,7 +304,7 @@ static void ne2000_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             s->dcfg = val;
             break;
         case EN0_ISR:
-            s->isr &= ~val;
+            s->isr &= ~(val & 0x7f);
             ne2000_update_irq(s);
             break;
         case EN1_PHYS ... EN1_PHYS + 5:
@@ -337,6 +341,12 @@ static uint32_t ne2000_ioport_read(void *opaque, uint32_t addr)
         case EN0_ISR:
             ret = s->isr;
             break;
+	case EN0_RSARLO:
+	    ret = s->rsar & 0x00ff;
+	    break;
+	case EN0_RSARHI:
+	    ret = s->rsar >> 8;
+	    break;
         case EN1_PHYS ... EN1_PHYS + 5:
             ret = s->phys[offset - EN1_PHYS];
             break;
@@ -357,24 +367,64 @@ static uint32_t ne2000_ioport_read(void *opaque, uint32_t addr)
     return ret;
 }
 
+static inline void ne2000_mem_writeb(NE2000State *s, uint32_t addr, 
+                                    uint32_t val)
+{
+    if (addr < 32 || 
+        (addr >= NE2000_PMEM_START && addr < NE2000_MEM_SIZE)) {
+        s->mem[addr] = val;
+    }
+}
+
+static inline void ne2000_mem_writew(NE2000State *s, uint32_t addr, 
+                                     uint32_t val)
+{
+    addr &= ~1; /* XXX: check exact behaviour if not even */
+    if (addr < 32 || 
+        (addr >= NE2000_PMEM_START && addr < NE2000_MEM_SIZE)) {
+        s->mem[addr] = val;
+        s->mem[addr + 1] = val >> 8;
+    }
+}
+
+static inline uint32_t ne2000_mem_readb(NE2000State *s, uint32_t addr)
+{
+    if (addr < 32 || 
+        (addr >= NE2000_PMEM_START && addr < NE2000_MEM_SIZE)) {
+        return s->mem[addr];
+    } else {
+        return 0xff;
+    }
+}
+
+static inline uint32_t ne2000_mem_readw(NE2000State *s, uint32_t addr)
+{
+    addr &= ~1; /* XXX: check exact behaviour if not even */
+    if (addr < 32 || 
+        (addr >= NE2000_PMEM_START && addr < NE2000_MEM_SIZE)) {
+        return s->mem[addr] | (s->mem[addr + 1] << 8);
+    } else {
+        return 0xffff;
+    }
+}
+
 static void ne2000_asic_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
     NE2000State *s = opaque;
-    uint8_t *p;
 
 #ifdef DEBUG_NE2000
     printf("NE2000: asic write val=0x%04x\n", val);
 #endif
-    p = s->mem + s->rsar;
+    if (s->rcnt == 0)
+	    return;
     if (s->dcfg & 0x01) {
         /* 16 bit access */
-        p[0] = val;
-        p[1] = val >> 8;
+        ne2000_mem_writew(s, s->rsar, val);
         s->rsar += 2;
         s->rcnt -= 2;
     } else {
         /* 8 bit access */
-        p[0] = val;
+        ne2000_mem_writeb(s, s->rsar, val);
         s->rsar++;
         s->rcnt--;
     }
@@ -391,18 +441,16 @@ static void ne2000_asic_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 static uint32_t ne2000_asic_ioport_read(void *opaque, uint32_t addr)
 {
     NE2000State *s = opaque;
-    uint8_t *p;
     int ret;
 
-    p = s->mem + s->rsar;
     if (s->dcfg & 0x01) {
         /* 16 bit access */
-        ret = p[0] | (p[1] << 8);
+        ret = ne2000_mem_readw(s, s->rsar);
         s->rsar += 2;
         s->rcnt -= 2;
     } else {
         /* 8 bit access */
-        ret = p[0];
+        ret = ne2000_mem_readb(s, s->rsar);
         s->rsar++;
         s->rcnt--;
     }
@@ -455,5 +503,5 @@ void ne2000_init(int base, int irq, NetDriverState *nd)
 
     ne2000_reset(s);
 
-    qemu_add_fd_read_handler(nd->fd, ne2000_can_receive, ne2000_receive, s);
+    qemu_add_read_packet(nd, ne2000_can_receive, ne2000_receive, s);
 }
