@@ -471,5 +471,5 @@ void ne2000_init(int base, int irq, NetDriverState *nd)
 
     ne2000_reset(s);
 
-    add_fd_read_handler(nd->fd, ne2000_can_receive, ne2000_receive, s);
+    qemu_add_fd_read_handler(nd->fd, ne2000_can_receive, ne2000_receive, s);
 }

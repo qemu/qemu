@@ -58,50 +58,69 @@
 int speaker_data_on;
 int dummy_refresh_clock;
 static fdctrl_t *floppy_controller;
+static RTCState *rtc_state;
 
 static void ioport80_write(void *opaque, uint32_t addr, uint32_t data)
 {
 }
 
+/* PC cmos mappings */
+
 #define REG_EQUIPMENT_BYTE          0x14
+#define REG_IBM_CENTURY_BYTE        0x32
+#define REG_IBM_PS2_CENTURY_BYTE    0x37
+
+
+static inline int to_bcd(RTCState *s, int a)
+{
+    return ((a / 10) << 4) | (a % 10);
+}
 
 static void cmos_init(int ram_size, int boot_device)
 {
-    RTCState *s = &rtc_state;
+    RTCState *s = rtc_state;
     int val;
     int fd0, fd1, nb;
-    
-    /* various important CMOS locations needed by PC/Bochs bios */
+    time_t ti;
+    struct tm *tm;
 
-    s->cmos_data[REG_EQUIPMENT_BYTE] = 0x02; /* FPU is there */
-    s->cmos_data[REG_EQUIPMENT_BYTE] |= 0x04; /* PS/2 mouse installed */
+    /* set the CMOS date */
+    time(&ti);
+    tm = gmtime(&ti);
+    rtc_set_date(s, tm);
+
+    val = to_bcd(s, (tm->tm_year / 100) + 19);
+    rtc_set_memory(s, REG_IBM_CENTURY_BYTE, val);
+    rtc_set_memory(s, REG_IBM_PS2_CENTURY_BYTE, val);
+
+    /* various important CMOS locations needed by PC/Bochs bios */
 
     /* memory size */
     val = (ram_size / 1024) - 1024;
     if (val > 65535)
         val = 65535;
-    s->cmos_data[0x17] = val;
-    s->cmos_data[0x18] = val >> 8;
-    s->cmos_data[0x30] = val;
-    s->cmos_data[0x31] = val >> 8;
+    rtc_set_memory(s, 0x17, val);
+    rtc_set_memory(s, 0x18, val >> 8);
+    rtc_set_memory(s, 0x30, val);
+    rtc_set_memory(s, 0x31, val >> 8);
 
     val = (ram_size / 65536) - ((16 * 1024 * 1024) / 65536);
     if (val > 65535)
         val = 65535;
-    s->cmos_data[0x34] = val;
-    s->cmos_data[0x35] = val >> 8;
+    rtc_set_memory(s, 0x34, val);
+    rtc_set_memory(s, 0x35, val >> 8);
     
     switch(boot_device) {
     case 'a':
     case 'b':
-        s->cmos_data[0x3d] = 0x01; /* floppy boot */
+        rtc_set_memory(s, 0x3d, 0x01); /* floppy boot */
         break;
     default:
     case 'c':
-        s->cmos_data[0x3d] = 0x02; /* hard drive boot */
+        rtc_set_memory(s, 0x3d, 0x02); /* hard drive boot */
         break;
     case 'd':
-        s->cmos_data[0x3d] = 0x03; /* CD-ROM boot */
+        rtc_set_memory(s, 0x3d, 0x03); /* CD-ROM boot */
         break;
     }
 
@@ -110,35 +129,38 @@ static void cmos_init(int ram_size, int boot_device)
     fd0 = fdctrl_get_drive_type(floppy_controller, 0);
     fd1 = fdctrl_get_drive_type(floppy_controller, 1);
 
-    s->cmos_data[0x10] = 0;
+    val = 0;
     switch (fd0) {
     case 0:
         /* 1.44 Mb 3"5 drive */
-        s->cmos_data[0x10] |= 0x40;
+        val |= 0x40;
         break;
     case 1:
         /* 2.88 Mb 3"5 drive */
-        s->cmos_data[0x10] |= 0x60;
+        val |= 0x60;
         break;
     case 2:
         /* 1.2 Mb 5"5 drive */
-        s->cmos_data[0x10] |= 0x20;
+        val |= 0x20;
         break;
     }
     switch (fd1) {
     case 0:
         /* 1.44 Mb 3"5 drive */
-        s->cmos_data[0x10] |= 0x04;
+        val |= 0x04;
         break;
     case 1:
         /* 2.88 Mb 3"5 drive */
-        s->cmos_data[0x10] |= 0x06;
+        val |= 0x06;
         break;
     case 2:
         /* 1.2 Mb 5"5 drive */
-        s->cmos_data[0x10] |= 0x02;
+        val |= 0x02;
         break;
     }
+    rtc_set_memory(s, 0x10, val);
+    
+    val = 0;
     nb = 0;
     if (fd0 < 3)
         nb++;
@@ -148,12 +170,16 @@ static void cmos_init(int ram_size, int boot_device)
     case 0:
         break;
     case 1:
-        s->cmos_data[REG_EQUIPMENT_BYTE] |= 0x01; /* 1 drive, ready for boot */
+        val |= 0x01; /* 1 drive, ready for boot */
         break;
     case 2:
-        s->cmos_data[REG_EQUIPMENT_BYTE] |= 0x41; /* 2 drives, ready for boot */
+        val |= 0x41; /* 2 drives, ready for boot */
         break;
     }
+    val |= 0x02; /* FPU is there */
+    val |= 0x04; /* PS/2 mouse installed */
+    rtc_set_memory(s, REG_EQUIPMENT_BYTE, val);
+
 }
 
 static void speaker_ioport_write(void *opaque, uint32_t addr, uint32_t val)
@@ -165,7 +191,7 @@ static void speaker_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 static uint32_t speaker_ioport_read(void *opaque, uint32_t addr)
 {
     int out;
-    out = pit_get_out(&pit_channels[2]);
+    out = pit_get_out(&pit_channels[2], qemu_get_clock(vm_clock));
     dummy_refresh_clock ^= 1;
     return (speaker_data_on << 1) | pit_channels[2].gate | (out << 5) |
       (dummy_refresh_clock << 4);
@@ -345,12 +371,12 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
     vga_initialize(ds, phys_ram_base + ram_size, ram_size, 
                    vga_ram_size);
 
-    rtc_init(0x70, 8);
+    rtc_state = rtc_init(0x70, 8);
     register_ioport_read(0x61, 1, 1, speaker_ioport_read, NULL);
     register_ioport_write(0x61, 1, 1, speaker_ioport_write, NULL);
 
     pic_init();
-    pit_init(0x40);
+    pit_init(0x40, 0);
 
     fd = serial_open_device();
     serial_init(0x3f8, 4, fd);

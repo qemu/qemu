@@ -288,7 +288,7 @@ SerialState *serial_init(int base, int irq, int fd)
     register_ioport_read(base, 8, 1, serial_ioport_read, s);
 
     if (fd != 0) {
-        add_fd_read_handler(fd, serial_can_receive1, serial_receive1, s);
+        qemu_add_fd_read_handler(fd, serial_can_receive1, serial_receive1, s);
         s->out_fd = fd;
     } else {
         serial_console = s;

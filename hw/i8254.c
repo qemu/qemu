@@ -43,6 +43,8 @@
 #include "cpu.h"
 #include "vl.h"
 
+//#define DEBUG_PIT
+
 #define RW_STATE_LSB 0
 #define RW_STATE_MSB 1
 #define RW_STATE_WORD0 2
@@ -52,12 +54,14 @@
 
 PITChannelState pit_channels[3];
 
+static void pit_irq_timer_update(PITChannelState *s, int64_t current_time);
+
 static int pit_get_count(PITChannelState *s)
 {
     uint64_t d;
     int counter;
 
-    d = muldiv64(cpu_get_ticks() - s->count_load_time, PIT_FREQ, ticks_per_sec);
+    d = muldiv64(qemu_get_clock(vm_clock) - s->count_load_time, PIT_FREQ, ticks_per_sec);
     switch(s->mode) {
     case 0:
     case 1:
@@ -77,12 +81,12 @@ static int pit_get_count(PITChannelState *s)
 }
 
 /* get pit output bit */
-int pit_get_out(PITChannelState *s)
+int pit_get_out(PITChannelState *s, int64_t current_time)
 {
     uint64_t d;
     int out;
 
-    d = muldiv64(cpu_get_ticks() - s->count_load_time, PIT_FREQ, ticks_per_sec);
+    d = muldiv64(current_time - s->count_load_time, PIT_FREQ, ticks_per_sec);
     switch(s->mode) {
     default:
     case 0:
@@ -108,53 +112,51 @@ int pit_get_out(PITChannelState *s)
     return out;
 }
 
-/* get the number of 0 to 1 transitions we had since we call this
-   function */
-/* XXX: maybe better to use ticks precision to avoid getting edges
-   twice if checks are done at very small intervals */
-int pit_get_out_edges(PITChannelState *s)
+/* return -1 if no transition will occur.  */
+static int64_t pit_get_next_transition_time(PITChannelState *s, 
+                                            int64_t current_time)
 {
-    uint64_t d1, d2;
-    int64_t ticks;
-    int ret, v;
+    uint64_t d, next_time, base;
+    int period2;
 
-    ticks = cpu_get_ticks();
-    d1 = muldiv64(s->count_last_edge_check_time - s->count_load_time, 
-                 PIT_FREQ, ticks_per_sec);
-    d2 = muldiv64(ticks - s->count_load_time, 
-                  PIT_FREQ, ticks_per_sec);
-    s->count_last_edge_check_time = ticks;
+    d = muldiv64(current_time - s->count_load_time, PIT_FREQ, ticks_per_sec);
     switch(s->mode) {
     default:
     case 0:
-        if (d1 < s->count && d2 >= s->count)
-            ret = 1;
-        else
-            ret = 0;
-        break;
     case 1:
-        ret = 0;
+        if (d < s->count)
+            next_time = s->count;
+        else
+            return -1;
         break;
     case 2:
-        d1 /= s->count;
-        d2 /= s->count;
-        ret = d2 - d1;
+        base = (d / s->count) * s->count;
+        if ((d - base) == 0 && d != 0)
+            next_time = base + s->count;
+        else
+            next_time = base + s->count + 1;
         break;
     case 3:
-        v = s->count - ((s->count + 1) >> 1);
-        d1 = (d1 + v) / s->count;
-        d2 = (d2 + v) / s->count;
-        ret = d2 - d1;
+        base = (d / s->count) * s->count;
+        period2 = ((s->count + 1) >> 1);
+        if ((d - base) < period2) 
+            next_time = base + period2;
+        else
+            next_time = base + s->count;
         break;
     case 4:
     case 5:
-        if (d1 < s->count && d2 >= s->count)
-            ret = 1;
+        if (d < s->count)
+            next_time = s->count;
+        else if (d == s->count)
+            next_time = s->count + 1;
         else
-            ret = 0;
+            return -1;
         break;
     }
-    return ret;
+    /* convert to timer units */
+    next_time = s->count_load_time + muldiv64(next_time, ticks_per_sec, PIT_FREQ);
+    return next_time;
 }
 
 /* val must be 0 or 1 */
@@ -170,16 +172,16 @@ void pit_set_gate(PITChannelState *s, int val)
     case 5:
         if (s->gate < val) {
             /* restart counting on rising edge */
-            s->count_load_time = cpu_get_ticks();
-            s->count_last_edge_check_time = s->count_load_time;
+            s->count_load_time = qemu_get_clock(vm_clock);
+            pit_irq_timer_update(s, s->count_load_time);
         }
         break;
     case 2:
     case 3:
         if (s->gate < val) {
             /* restart counting on rising edge */
-            s->count_load_time = cpu_get_ticks();
-            s->count_last_edge_check_time = s->count_load_time;
+            s->count_load_time = qemu_get_clock(vm_clock);
+            pit_irq_timer_update(s, s->count_load_time);
         }
         /* XXX: disable/enable counting */
         break;
@@ -191,14 +193,9 @@ static inline void pit_load_count(PITChannelState *s, int val)
 {
     if (val == 0)
         val = 0x10000;
-    s->count_load_time = cpu_get_ticks();
-    s->count_last_edge_check_time = s->count_load_time;
+    s->count_load_time = qemu_get_clock(vm_clock);
     s->count = val;
-    if (s == &pit_channels[0] && val <= pit_min_timer_count) {
-        fprintf(stderr, 
-                "\nWARNING: qemu: on your system, accurate timer emulation is impossible if its frequency is more than %d Hz. If using a 2.6 guest Linux kernel, you must patch asm/param.h to change HZ from 1000 to 100.\n\n", 
-                PIT_FREQ / pit_min_timer_count);
-    }
+    pit_irq_timer_update(s, s->count_load_time);
 }
 
 static void pit_ioport_write(void *opaque, uint32_t addr, uint32_t val)
@@ -222,6 +219,7 @@ static void pit_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             s->mode = (val >> 1) & 7;
             s->bcd = val & 1;
             s->rw_state = access - 1 +  RW_STATE_LSB;
+            /* XXX: update irq timer ? */
             break;
         }
     } else {
@@ -279,17 +277,99 @@ static uint32_t pit_ioport_read(void *opaque, uint32_t addr)
     return ret;
 }
 
-void pit_init(int base)
+static void pit_irq_timer_update(PITChannelState *s, int64_t current_time)
+{
+    int64_t expire_time;
+    int irq_level;
+
+    if (!s->irq_timer)
+        return;
+    expire_time = pit_get_next_transition_time(s, current_time);
+    irq_level = pit_get_out(s, current_time);
+    pic_set_irq(s->irq, irq_level);
+#ifdef DEBUG_PIT
+    printf("irq_level=%d next_delay=%f\n",
+           irq_level, 
+           (double)(expire_time - current_time) / ticks_per_sec);
+#endif
+    s->next_transition_time = expire_time;
+    if (expire_time != -1)
+        qemu_mod_timer(s->irq_timer, expire_time);
+    else
+        qemu_del_timer(s->irq_timer);
+}
+
+static void pit_irq_timer(void *opaque)
+{
+    PITChannelState *s = opaque;
+
+    pit_irq_timer_update(s, s->next_transition_time);
+}
+
+static void pit_save(QEMUFile *f, void *opaque)
+{
+    PITChannelState *s;
+    int i;
+    
+    for(i = 0; i < 3; i++) {
+        s = &pit_channels[i];
+        qemu_put_be32s(f, &s->count);
+        qemu_put_be16s(f, &s->latched_count);
+        qemu_put_8s(f, &s->rw_state);
+        qemu_put_8s(f, &s->mode);
+        qemu_put_8s(f, &s->bcd);
+        qemu_put_8s(f, &s->gate);
+        qemu_put_be64s(f, &s->count_load_time);
+        if (s->irq_timer) {
+            qemu_put_be64s(f, &s->next_transition_time);
+            qemu_put_timer(f, s->irq_timer);
+        }
+    }
+}
+
+static int pit_load(QEMUFile *f, void *opaque, int version_id)
+{
+    PITChannelState *s;
+    int i;
+    
+    if (version_id != 1)
+        return -EINVAL;
+
+    for(i = 0; i < 3; i++) {
+        s = &pit_channels[i];
+        qemu_get_be32s(f, &s->count);
+        qemu_get_be16s(f, &s->latched_count);
+        qemu_get_8s(f, &s->rw_state);
+        qemu_get_8s(f, &s->mode);
+        qemu_get_8s(f, &s->bcd);
+        qemu_get_8s(f, &s->gate);
+        qemu_get_be64s(f, &s->count_load_time);
+        if (s->irq_timer) {
+            qemu_get_be64s(f, &s->next_transition_time);
+            qemu_get_timer(f, s->irq_timer);
+        }
+    }
+    return 0;
+}
+
+void pit_init(int base, int irq)
 {
     PITChannelState *s;
     int i;
 
     for(i = 0;i < 3; i++) {
         s = &pit_channels[i];
+        if (i == 0) {
+            /* the timer 0 is connected to an IRQ */
+            s->irq_timer = qemu_new_timer(vm_clock, pit_irq_timer, s);
+            s->irq = irq;
+        }
         s->mode = 3;
         s->gate = (i != 2);
         pit_load_count(s, 0);
     }
+
+    register_savevm("i8254", base, 1, pit_save, pit_load, NULL);
 
     register_ioport_write(base, 4, 1, pit_ioport_write, NULL);
     register_ioport_read(base, 3, 1, pit_ioport_read, NULL);

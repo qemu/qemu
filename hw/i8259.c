@@ -122,7 +122,7 @@ static int pic_get_irq(PicState *s)
 
 /* raise irq to CPU if necessary. must be called every time the active
    irq may change */
-void pic_update_irq(void)
+static void pic_update_irq(void)
 {
     int irq2, irq;
 
@@ -160,7 +160,6 @@ void pic_update_irq(void)
 
 #ifdef DEBUG_IRQ_LATENCY
 int64_t irq_time[16];
-int64_t cpu_get_ticks(void);
 #endif
 #if defined(DEBUG_PIC)
 int irq_level[16];
@@ -376,11 +375,62 @@ uint32_t pic_intack_read(CPUState *env)
     return ret;
 }
 
+static void pic_save(QEMUFile *f, void *opaque)
+{
+    PicState *s = opaque;
+    
+    qemu_put_8s(f, &s->last_irr);
+    qemu_put_8s(f, &s->irr);
+    qemu_put_8s(f, &s->imr);
+    qemu_put_8s(f, &s->isr);
+    qemu_put_8s(f, &s->priority_add);
+    qemu_put_8s(f, &s->irq_base);
+    qemu_put_8s(f, &s->read_reg_select);
+    qemu_put_8s(f, &s->poll);
+    qemu_put_8s(f, &s->special_mask);
+    qemu_put_8s(f, &s->init_state);
+    qemu_put_8s(f, &s->auto_eoi);
+    qemu_put_8s(f, &s->rotate_on_auto_eoi);
+    qemu_put_8s(f, &s->special_fully_nested_mode);
+    qemu_put_8s(f, &s->init4);
+}
+
+static int pic_load(QEMUFile *f, void *opaque, int version_id)
+{
+    PicState *s = opaque;
+    
+    if (version_id != 1)
+        return -EINVAL;
+
+    qemu_get_8s(f, &s->last_irr);
+    qemu_get_8s(f, &s->irr);
+    qemu_get_8s(f, &s->imr);
+    qemu_get_8s(f, &s->isr);
+    qemu_get_8s(f, &s->priority_add);
+    qemu_get_8s(f, &s->irq_base);
+    qemu_get_8s(f, &s->read_reg_select);
+    qemu_get_8s(f, &s->poll);
+    qemu_get_8s(f, &s->special_mask);
+    qemu_get_8s(f, &s->init_state);
+    qemu_get_8s(f, &s->auto_eoi);
+    qemu_get_8s(f, &s->rotate_on_auto_eoi);
+    qemu_get_8s(f, &s->special_fully_nested_mode);
+    qemu_get_8s(f, &s->init4);
+    return 0;
+}
+
+/* XXX: add generic master/slave system */
+static void pic_init1(int io_addr, PicState *s)
+{
+    register_ioport_write(io_addr, 2, 1, pic_ioport_write, s);
+    register_ioport_read(io_addr, 2, 1, pic_ioport_read, s);
+
+    register_savevm("i8259", io_addr, 1, pic_save, pic_load, s);
+}
+
 void pic_init(void)
 {
-    register_ioport_write(0x20, 2, 1, pic_ioport_write, &pics[0]);
-    register_ioport_read(0x20, 2, 1, pic_ioport_read, &pics[0]);
-    register_ioport_write(0xa0, 2, 1, pic_ioport_write, &pics[1]);
-    register_ioport_read(0xa0, 2, 1, pic_ioport_read, &pics[1]);
+    pic_init1(0x20, &pics[0]);
+    pic_init1(0xa0, &pics[1]);
 }
 
