@@ -731,7 +731,10 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
                                     int is_write, sigset_t *old_set,
                                     void *puc)
 {
-    /* XXX: do more */
+    /* XXX: locking issue */
+    if (is_write && page_unprotect(address, pc, puc)) {
+        return 1;
+    }
     return 0;
 }
 #elif defined(TARGET_SPARC)
