@@ -1047,7 +1047,7 @@ static int write_ldt(CPUX86State *env,
         0x7000;
     if (!oldmode)
         entry_2 |= (useable << 20);
-    
+
     /* Install the new entry ...  */
 install:
     lp = (uint32_t *)(ldt_table + (ldt_info.entry_number << 3));
@@ -1753,7 +1753,8 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #else
     case TARGET_NR_mmap:
 #endif
-        ret = get_errno(target_mmap(arg1, arg2, arg3, arg4, arg5, arg6));
+        ret = get_errno(target_mmap(arg1, arg2, arg3, arg4, arg5, 
+                                    arg6 << TARGET_PAGE_BITS));
         break;
     case TARGET_NR_munmap:
         ret = get_errno(target_munmap(arg1, arg2));
