@@ -1364,7 +1364,7 @@ PPC_OP(fnmsubs)
 /* frsp - frsp. */
 PPC_OP(frsp)
 {
-    FT0 = FTS0;
+    FTS0 = FT0;
     RETURN();
 }
 
