@@ -98,7 +98,7 @@ static uint32_t speaker_ioport_read(void *opaque, uint32_t addr)
 
 /* PCI intack register */
 /* Read-only register (?) */
-static void _PPC_intack_write (target_phys_addr_t addr, uint32_t value)
+static void _PPC_intack_write (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
     //    printf("%s: 0x%08x => 0x%08x\n", __func__, addr, value);
 }
@@ -114,12 +114,12 @@ static inline uint32_t _PPC_intack_read (target_phys_addr_t addr)
     return retval;
 }
 
-static uint32_t PPC_intack_readb (target_phys_addr_t addr)
+static uint32_t PPC_intack_readb (void *opaque, target_phys_addr_t addr)
 {
     return _PPC_intack_read(addr);
 }
 
-static uint32_t PPC_intack_readw (target_phys_addr_t addr)
+static uint32_t PPC_intack_readw (void *opaque, target_phys_addr_t addr)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
     return bswap16(_PPC_intack_read(addr));
@@ -128,7 +128,7 @@ static uint32_t PPC_intack_readw (target_phys_addr_t addr)
 #endif
 }
 
-static uint32_t PPC_intack_readl (target_phys_addr_t addr)
+static uint32_t PPC_intack_readl (void *opaque, target_phys_addr_t addr)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
     return bswap32(_PPC_intack_read(addr));
@@ -177,12 +177,12 @@ static struct {
 } XCSR;
 #endif
 
-static void PPC_XCSR_writeb (target_phys_addr_t addr, uint32_t value)
+static void PPC_XCSR_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
     printf("%s: 0x%08lx => 0x%08x\n", __func__, (long)addr, value);
 }
 
-static void PPC_XCSR_writew (target_phys_addr_t addr, uint32_t value)
+static void PPC_XCSR_writew (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
     value = bswap16(value);
@@ -190,7 +190,7 @@ static void PPC_XCSR_writew (target_phys_addr_t addr, uint32_t value)
     printf("%s: 0x%08lx => 0x%08x\n", __func__, (long)addr, value);
 }
 
-static void PPC_XCSR_writel (target_phys_addr_t addr, uint32_t value)
+static void PPC_XCSR_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
     value = bswap32(value);
@@ -198,7 +198,7 @@ static void PPC_XCSR_writel (target_phys_addr_t addr, uint32_t value)
     printf("%s: 0x%08lx => 0x%08x\n", __func__, (long)addr, value);
 }
 
-static uint32_t PPC_XCSR_readb (target_phys_addr_t addr)
+static uint32_t PPC_XCSR_readb (void *opaque, target_phys_addr_t addr)
 {
     uint32_t retval = 0;
 
@@ -207,7 +207,7 @@ static uint32_t PPC_XCSR_readb (target_phys_addr_t addr)
     return retval;
 }
 
-static uint32_t PPC_XCSR_readw (target_phys_addr_t addr)
+static uint32_t PPC_XCSR_readw (void *opaque, target_phys_addr_t addr)
 {
     uint32_t retval = 0;
 
@@ -219,7 +219,7 @@ static uint32_t PPC_XCSR_readw (target_phys_addr_t addr)
     return retval;
 }
 
-static uint32_t PPC_XCSR_readl (target_phys_addr_t addr)
+static uint32_t PPC_XCSR_readl (void *opaque, target_phys_addr_t addr)
 {
     uint32_t retval = 0;
 
@@ -480,7 +480,7 @@ void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
     isa_mem_base = 0xc0000000;
     pci_prep_init();
     /* Register 64 KB of ISA IO space */
-    PPC_io_memory = cpu_register_io_memory(0, PPC_io_read, PPC_io_write);
+    PPC_io_memory = cpu_register_io_memory(0, PPC_io_read, PPC_io_write, NULL);
     cpu_register_physical_memory(0x80000000, 0x00010000, PPC_io_memory);
 
     /* init basic PC hardware */
@@ -525,10 +525,10 @@ void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
     register_ioport_write(0x0800, 0x52, 1, &PREP_io_800_writeb, sysctrl);
     /* PCI intack location */
     PPC_io_memory = cpu_register_io_memory(0, PPC_intack_read,
-                                           PPC_intack_write);
+                                           PPC_intack_write, NULL);
     cpu_register_physical_memory(0xBFFFFFF0, 0x4, PPC_io_memory);
     /* PowerPC control and status register group */
-    PPC_io_memory = cpu_register_io_memory(0, PPC_XCSR_read, PPC_XCSR_write);
+    PPC_io_memory = cpu_register_io_memory(0, PPC_XCSR_read, PPC_XCSR_write, NULL);
     cpu_register_physical_memory(0xFEFF0000, 0x1000, PPC_io_memory);
 
     nvram = m48t59_init(8, 0x0074, NVRAM_SIZE);

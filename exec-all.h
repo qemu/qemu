@@ -377,6 +377,7 @@ do {\
 
 extern CPUWriteMemoryFunc *io_mem_write[IO_MEM_NB_ENTRIES][4];
 extern CPUReadMemoryFunc *io_mem_read[IO_MEM_NB_ENTRIES][4];
+extern void *io_mem_opaque[IO_MEM_NB_ENTRIES];
 
 #ifdef __powerpc__
 static inline int testandset (int *p)

@@ -64,7 +64,7 @@ void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
     pci_pmac_init();
 
     /* Register 64 KB of ISA IO space */
-    PPC_io_memory = cpu_register_io_memory(0, PPC_io_read, PPC_io_write);
+    PPC_io_memory = cpu_register_io_memory(0, PPC_io_read, PPC_io_write, NULL);
     cpu_register_physical_memory(0x80000000, 0x10000, PPC_io_memory);
     //    cpu_register_physical_memory(0xfe000000, 0xfe010000, PPC_io_memory);
 

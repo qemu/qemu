@@ -55,14 +55,14 @@ static inline DATA_TYPE glue(io_read, SUFFIX)(unsigned long physaddr,
 
     index = (tlb_addr >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
 #if SHIFT <= 2
-    res = io_mem_read[index][SHIFT](physaddr);
+    res = io_mem_read[index][SHIFT](io_mem_opaque[index], physaddr);
 #else
 #ifdef TARGET_WORDS_BIGENDIAN
-    res = (uint64_t)io_mem_read[index][2](physaddr) << 32;
-    res |= io_mem_read[index][2](physaddr + 4);
+    res = (uint64_t)io_mem_read[index][2](io_mem_opaque[index], physaddr) << 32;
+    res |= io_mem_read[index][2](io_mem_opaque[index], physaddr + 4);
 #else
-    res = io_mem_read[index][2](physaddr);
-    res |= (uint64_t)io_mem_read[index][2](physaddr + 4) << 32;
+    res = io_mem_read[index][2](io_mem_opaque[index], physaddr);
+    res |= (uint64_t)io_mem_read[index][2](io_mem_opaque[index], physaddr + 4) << 32;
 #endif
 #endif /* SHIFT > 2 */
     return res;
@@ -79,14 +79,14 @@ static inline void glue(io_write, SUFFIX)(unsigned long physaddr,
     env->mem_write_vaddr = tlb_addr;
     env->mem_write_pc = (unsigned long)retaddr;
 #if SHIFT <= 2
-    io_mem_write[index][SHIFT](physaddr, val);
+    io_mem_write[index][SHIFT](io_mem_opaque[index], physaddr, val);
 #else
 #ifdef TARGET_WORDS_BIGENDIAN
-    io_mem_write[index][2](physaddr, val >> 32);
-    io_mem_write[index][2](physaddr + 4, val);
+    io_mem_write[index][2](io_mem_opaque[index], physaddr, val >> 32);
+    io_mem_write[index][2](io_mem_opaque[index], physaddr + 4, val);
 #else
-    io_mem_write[index][2](physaddr, val);
-    io_mem_write[index][2](physaddr + 4, val >> 32);
+    io_mem_write[index][2](io_mem_opaque[index], physaddr, val);
+    io_mem_write[index][2](io_mem_opaque[index], physaddr + 4, val >> 32);
 #endif
 #endif /* SHIFT > 2 */
 }

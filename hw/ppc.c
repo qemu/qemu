@@ -197,18 +197,18 @@ void cpu_ppc_reset (CPUState *env)
 }
 #endif
 
-static void PPC_io_writeb (target_phys_addr_t addr, uint32_t value)
+static void PPC_io_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
     cpu_outb(NULL, addr & 0xffff, value);
 }
 
-static uint32_t PPC_io_readb (target_phys_addr_t addr)
+static uint32_t PPC_io_readb (void *opaque, target_phys_addr_t addr)
 {
     uint32_t ret = cpu_inb(NULL, addr & 0xffff);
     return ret;
 }
 
-static void PPC_io_writew (target_phys_addr_t addr, uint32_t value)
+static void PPC_io_writew (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
     value = bswap16(value);
@@ -216,7 +216,7 @@ static void PPC_io_writew (target_phys_addr_t addr, uint32_t value)
     cpu_outw(NULL, addr & 0xffff, value);
 }
 
-static uint32_t PPC_io_readw (target_phys_addr_t addr)
+static uint32_t PPC_io_readw (void *opaque, target_phys_addr_t addr)
 {
     uint32_t ret = cpu_inw(NULL, addr & 0xffff);
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -225,7 +225,7 @@ static uint32_t PPC_io_readw (target_phys_addr_t addr)
     return ret;
 }
 
-static void PPC_io_writel (target_phys_addr_t addr, uint32_t value)
+static void PPC_io_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
     value = bswap32(value);
@@ -233,7 +233,7 @@ static void PPC_io_writel (target_phys_addr_t addr, uint32_t value)
     cpu_outl(NULL, addr & 0xffff, value);
 }
 
-static uint32_t PPC_io_readl (target_phys_addr_t addr)
+static uint32_t PPC_io_readl (void *opaque, target_phys_addr_t addr)
 {
     uint32_t ret = cpu_inl(NULL, addr & 0xffff);
 

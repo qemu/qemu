@@ -117,6 +117,7 @@ static unsigned int virt_valid_tag;
 /* io memory support */
 CPUWriteMemoryFunc *io_mem_write[IO_MEM_NB_ENTRIES][4];
 CPUReadMemoryFunc *io_mem_read[IO_MEM_NB_ENTRIES][4];
+void *io_mem_opaque[IO_MEM_NB_ENTRIES];
 static int io_mem_nb;
 
 /* log support */
@@ -711,10 +712,13 @@ static inline void tb_invalidate_phys_page_fast(target_ulong start, int len)
     PageDesc *p;
     int offset, b;
 #if 0
-    if (cpu_single_env->cr[0] & CR0_PE_MASK) {
-        printf("modifying code at 0x%x size=%d EIP=%x\n", 
-               (vaddr & TARGET_PAGE_MASK) | (start & ~TARGET_PAGE_MASK), len, 
-               cpu_single_env->eip);
+    if (1) {
+        if (loglevel) {
+            fprintf(logfile, "modifying code at 0x%x size=%d EIP=%x PC=%08x\n", 
+                   cpu_single_env->mem_write_vaddr, len, 
+                   cpu_single_env->eip, 
+                   cpu_single_env->eip + (long)cpu_single_env->segs[R_CS].base);
+        }
     }
 #endif
     p = page_find(start >> TARGET_PAGE_BITS);
@@ -1799,12 +1803,12 @@ void cpu_register_physical_memory(target_phys_addr_t start_addr,
     }
 }
 
-static uint32_t unassigned_mem_readb(target_phys_addr_t addr)
+static uint32_t unassigned_mem_readb(void *opaque, target_phys_addr_t addr)
 {
     return 0;
 }
 
-static void unassigned_mem_writeb(target_phys_addr_t addr, uint32_t val)
+static void unassigned_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
 }
 
@@ -1823,7 +1827,7 @@ static CPUWriteMemoryFunc *unassigned_mem_write[3] = {
 /* self modifying code support in soft mmu mode : writing to a page
    containing code comes to these functions */
 
-static void code_mem_writeb(target_phys_addr_t addr, uint32_t val)
+static void code_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     unsigned long phys_addr;
 
@@ -1835,7 +1839,7 @@ static void code_mem_writeb(target_phys_addr_t addr, uint32_t val)
     phys_ram_dirty[phys_addr >> TARGET_PAGE_BITS] = 1;
 }
 
-static void code_mem_writew(target_phys_addr_t addr, uint32_t val)
+static void code_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     unsigned long phys_addr;
 
@@ -1847,7 +1851,7 @@ static void code_mem_writew(target_phys_addr_t addr, uint32_t val)
     phys_ram_dirty[phys_addr >> TARGET_PAGE_BITS] = 1;
 }
 
-static void code_mem_writel(target_phys_addr_t addr, uint32_t val)
+static void code_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     unsigned long phys_addr;
 
@@ -1871,19 +1875,19 @@ static CPUWriteMemoryFunc *code_mem_write[3] = {
     code_mem_writel,
 };
 
-static void notdirty_mem_writeb(target_phys_addr_t addr, uint32_t val)
+static void notdirty_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     stb_raw((uint8_t *)addr, val);
     tlb_set_dirty(addr, cpu_single_env->mem_write_vaddr);
 }
 
-static void notdirty_mem_writew(target_phys_addr_t addr, uint32_t val)
+static void notdirty_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     stw_raw((uint8_t *)addr, val);
     tlb_set_dirty(addr, cpu_single_env->mem_write_vaddr);
 }
 
-static void notdirty_mem_writel(target_phys_addr_t addr, uint32_t val)
+static void notdirty_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     stl_raw((uint8_t *)addr, val);
     tlb_set_dirty(addr, cpu_single_env->mem_write_vaddr);
@@ -1897,10 +1901,10 @@ static CPUWriteMemoryFunc *notdirty_mem_write[3] = {
 
 static void io_mem_init(void)
 {
-    cpu_register_io_memory(IO_MEM_ROM >> IO_MEM_SHIFT, code_mem_read, unassigned_mem_write);
-    cpu_register_io_memory(IO_MEM_UNASSIGNED >> IO_MEM_SHIFT, unassigned_mem_read, unassigned_mem_write);
-    cpu_register_io_memory(IO_MEM_CODE >> IO_MEM_SHIFT, code_mem_read, code_mem_write);
-    cpu_register_io_memory(IO_MEM_NOTDIRTY >> IO_MEM_SHIFT, code_mem_read, notdirty_mem_write);
+    cpu_register_io_memory(IO_MEM_ROM >> IO_MEM_SHIFT, code_mem_read, unassigned_mem_write, NULL);
+    cpu_register_io_memory(IO_MEM_UNASSIGNED >> IO_MEM_SHIFT, unassigned_mem_read, unassigned_mem_write, NULL);
+    cpu_register_io_memory(IO_MEM_CODE >> IO_MEM_SHIFT, code_mem_read, code_mem_write, NULL);
+    cpu_register_io_memory(IO_MEM_NOTDIRTY >> IO_MEM_SHIFT, code_mem_read, notdirty_mem_write, NULL);
     io_mem_nb = 5;
 
     /* alloc dirty bits array */
@@ -1915,7 +1919,8 @@ static void io_mem_init(void)
    cpu_register_physical_memory(). (-1) is returned if error. */
 int cpu_register_io_memory(int io_index,
                            CPUReadMemoryFunc **mem_read,
-                           CPUWriteMemoryFunc **mem_write)
+                           CPUWriteMemoryFunc **mem_write,
+                           void *opaque)
 {
     int i;
 
@@ -1932,6 +1937,7 @@ int cpu_register_io_memory(int io_index,
         io_mem_read[io_index][i] = mem_read[i];
         io_mem_write[io_index][i] = mem_write[i];
     }
+    io_mem_opaque[io_index] = opaque;
     return io_index << IO_MEM_SHIFT;
 }
 
@@ -1994,17 +2000,17 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
                 if (l >= 4 && ((addr & 3) == 0)) {
                     /* 32 bit read access */
                     val = ldl_raw(buf);
-                    io_mem_write[io_index][2](addr, val);
+                    io_mem_write[io_index][2](io_mem_opaque[io_index], addr, val);
                     l = 4;
                 } else if (l >= 2 && ((addr & 1) == 0)) {
                     /* 16 bit read access */
                     val = lduw_raw(buf);
-                    io_mem_write[io_index][1](addr, val);
+                    io_mem_write[io_index][1](io_mem_opaque[io_index], addr, val);
                     l = 2;
                 } else {
                     /* 8 bit access */
                     val = ldub_raw(buf);
-                    io_mem_write[io_index][0](addr, val);
+                    io_mem_write[io_index][0](io_mem_opaque[io_index], addr, val);
                     l = 1;
                 }
             } else {
@@ -2025,17 +2031,17 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
                 io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
                 if (l >= 4 && ((addr & 3) == 0)) {
                     /* 32 bit read access */
-                    val = io_mem_read[io_index][2](addr);
+                    val = io_mem_read[io_index][2](io_mem_opaque[io_index], addr);
                     stl_raw(buf, val);
                     l = 4;
                 } else if (l >= 2 && ((addr & 1) == 0)) {
                     /* 16 bit read access */
-                    val = io_mem_read[io_index][1](addr);
+                    val = io_mem_read[io_index][1](io_mem_opaque[io_index], addr);
                     stw_raw(buf, val);
                     l = 2;
                 } else {
                     /* 8 bit access */
-                    val = io_mem_read[io_index][0](addr);
+                    val = io_mem_read[io_index][0](io_mem_opaque[io_index], addr);
                     stb_raw(buf, val);
                     l = 1;
                 }

@@ -656,9 +656,9 @@ static void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val)
 #endif
 
 /* called for accesses between 0xa0000 and 0xc0000 */
-static uint32_t vga_mem_readb(target_phys_addr_t addr)
+static uint32_t vga_mem_readb(void *opaque, target_phys_addr_t addr)
 {
-    VGAState *s = &vga_state;
+    VGAState *s = opaque;
     int memory_map_mode, plane;
     uint32_t ret;
     
@@ -712,40 +712,40 @@ static uint32_t vga_mem_readb(target_phys_addr_t addr)
     return ret;
 }
 
-static uint32_t vga_mem_readw(target_phys_addr_t addr)
+static uint32_t vga_mem_readw(void *opaque, target_phys_addr_t addr)
 {
     uint32_t v;
 #ifdef TARGET_WORDS_BIGENDIAN
-    v = vga_mem_readb(addr) << 8;
-    v |= vga_mem_readb(addr + 1);
+    v = vga_mem_readb(opaque, addr) << 8;
+    v |= vga_mem_readb(opaque, addr + 1);
 #else
-    v = vga_mem_readb(addr);
-    v |= vga_mem_readb(addr + 1) << 8;
+    v = vga_mem_readb(opaque, addr);
+    v |= vga_mem_readb(opaque, addr + 1) << 8;
 #endif
     return v;
 }
 
-static uint32_t vga_mem_readl(target_phys_addr_t addr)
+static uint32_t vga_mem_readl(void *opaque, target_phys_addr_t addr)
 {
     uint32_t v;
 #ifdef TARGET_WORDS_BIGENDIAN
-    v = vga_mem_readb(addr) << 24;
-    v |= vga_mem_readb(addr + 1) << 16;
-    v |= vga_mem_readb(addr + 2) << 8;
-    v |= vga_mem_readb(addr + 3);
+    v = vga_mem_readb(opaque, addr) << 24;
+    v |= vga_mem_readb(opaque, addr + 1) << 16;
+    v |= vga_mem_readb(opaque, addr + 2) << 8;
+    v |= vga_mem_readb(opaque, addr + 3);
 #else
-    v = vga_mem_readb(addr);
-    v |= vga_mem_readb(addr + 1) << 8;
-    v |= vga_mem_readb(addr + 2) << 16;
-    v |= vga_mem_readb(addr + 3) << 24;
+    v = vga_mem_readb(opaque, addr);
+    v |= vga_mem_readb(opaque, addr + 1) << 8;
+    v |= vga_mem_readb(opaque, addr + 2) << 16;
+    v |= vga_mem_readb(opaque, addr + 3) << 24;
 #endif
     return v;
 }
 
 /* called for accesses between 0xa0000 and 0xc0000 */
-static void vga_mem_writeb(target_phys_addr_t addr, uint32_t val)
+static void vga_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
-    VGAState *s = &vga_state;
+    VGAState *s = opaque;
     int memory_map_mode, plane, write_mode, b, func_select;
     uint32_t write_mask, bit_mask, set_mask;
 
@@ -871,29 +871,29 @@ static void vga_mem_writeb(target_phys_addr_t addr, uint32_t val)
     }
 }
 
-static void vga_mem_writew(target_phys_addr_t addr, uint32_t val)
+static void vga_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
-    vga_mem_writeb(addr, (val >> 8) & 0xff);
-    vga_mem_writeb(addr + 1, val & 0xff);
+    vga_mem_writeb(opaque, addr, (val >> 8) & 0xff);
+    vga_mem_writeb(opaque, addr + 1, val & 0xff);
 #else
-    vga_mem_writeb(addr, val & 0xff);
-    vga_mem_writeb(addr + 1, (val >> 8) & 0xff);
+    vga_mem_writeb(opaque, addr, val & 0xff);
+    vga_mem_writeb(opaque, addr + 1, (val >> 8) & 0xff);
 #endif
 }
 
-static void vga_mem_writel(target_phys_addr_t addr, uint32_t val)
+static void vga_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
-    vga_mem_writeb(addr, (val >> 24) & 0xff);
-    vga_mem_writeb(addr + 1, (val >> 16) & 0xff);
-    vga_mem_writeb(addr + 2, (val >> 8) & 0xff);
-    vga_mem_writeb(addr + 3, val & 0xff);
+    vga_mem_writeb(opaque, addr, (val >> 24) & 0xff);
+    vga_mem_writeb(opaque, addr + 1, (val >> 16) & 0xff);
+    vga_mem_writeb(opaque, addr + 2, (val >> 8) & 0xff);
+    vga_mem_writeb(opaque, addr + 3, val & 0xff);
 #else
-    vga_mem_writeb(addr, val & 0xff);
-    vga_mem_writeb(addr + 1, (val >> 8) & 0xff);
-    vga_mem_writeb(addr + 2, (val >> 16) & 0xff);
-    vga_mem_writeb(addr + 3, (val >> 24) & 0xff);
+    vga_mem_writeb(opaque, addr, val & 0xff);
+    vga_mem_writeb(opaque, addr + 1, (val >> 8) & 0xff);
+    vga_mem_writeb(opaque, addr + 2, (val >> 16) & 0xff);
+    vga_mem_writeb(opaque, addr + 3, (val >> 24) & 0xff);
 #endif
 }
 
@@ -1826,7 +1826,7 @@ int vga_initialize(DisplayState *ds, uint8_t *vga_ram_base,
 #endif
 #endif /* CONFIG_BOCHS_VBE */
 
-    vga_io_memory = cpu_register_io_memory(0, vga_mem_read, vga_mem_write);
+    vga_io_memory = cpu_register_io_memory(0, vga_mem_read, vga_mem_write, s);
     cpu_register_physical_memory(isa_mem_base + 0x000a0000, 0x20000, 
                                  vga_io_memory);
 
