@@ -1077,7 +1077,6 @@ int do_vm86(CPUX86State *env, long subfunction,
     }
 
     ts->target_v86 = target_v86;
-
     /* save current CPU regs */
     ts->vm86_saved_regs.eax = 0; /* default vm86 syscall return code */
     ts->vm86_saved_regs.ebx = env->regs[R_EBX];
@@ -1239,22 +1238,27 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_execve:
         {
             char **argp, **envp;
-            int argc = 0, envc = 0;
+            int argc, envc;
             uint32_t *p;
             char **q;
 
+            argc = 0;
             for (p = (void *)arg2; *p; p++)
                 argc++;
+            envc = 0;
             for (p = (void *)arg3; *p; p++)
                 envc++;
 
-            argp = alloca(argc * sizeof(void *));
-            envp = alloca(envc * sizeof(void *));
+            argp = alloca((argc + 1) * sizeof(void *));
+            envp = alloca((envc + 1) * sizeof(void *));
 
             for (p = (void *)arg2, q = argp; *p; p++, q++)
                 *q = (void *)tswap32(*p);
+            *q = NULL;
+
             for (p = (void *)arg3, q = envp; *p; p++, q++)
                 *q = (void *)tswap32(*p);
+            *q = NULL;
 
             ret = get_errno(execve((const char *)arg1, argp, envp));
         }
