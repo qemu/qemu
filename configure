@@ -153,20 +153,15 @@ fi
 
 fi
 
-# check gcc version
+# check gcc options support
 cat > $TMPC <<EOF
 int main(void) {
-#if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 2)
-return 0;
-#else
-#error gcc < 3.2
-#endif
 }
 EOF
 
-gcc_major="2"
-if $cc -o $TMPO $TMPC 2> /dev/null ; then
-   gcc_major="3"
+have_gcc3_options="no"
+if $cc -fno-reorder-blocks -fno-optimize-sibling-calls -o $TMPO $TMPC 2> /dev/null ; then
+   have_gcc3_options="yes"
 fi
 
 if test "$target_bigendian" = "default" ; then
@@ -224,7 +219,9 @@ echo "prefix=$prefix" >> config.mak
 echo "#define CONFIG_QEMU_PREFIX \"$interp_prefix\"" >> $TMPH
 echo "MAKE=$make" >> config.mak
 echo "CC=$cc" >> config.mak
-echo "GCC_MAJOR=$gcc_major" >> config.mak
+if test "$have_gcc3_options" = "yes" ; then
+  echo "HAVE_GCC3_OPTIONS=yes" >> config.mak
+fi
 echo "HOST_CC=$host_cc" >> config.mak
 echo "AR=$ar" >> config.mak
 echo "STRIP=$strip -s -R .comment -R .note" >> config.mak
