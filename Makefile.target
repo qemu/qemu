@@ -246,9 +246,13 @@ VL_OBJS+=gdbstub.o
 endif
 ifdef CONFIG_SDL
 VL_OBJS+=sdl.o
-ifdef CONFIG_STATIC
-SDL_LIBS:=$(SDL_STATIC_LIBS)
 endif
+ifdef CONFIG_SLIRP
+DEFINES+=-I$(SRC_PATH)/slirp
+SLIRP_OBJS=cksum.o if.o ip_icmp.o ip_input.o ip_output.o \
+slirp.o mbuf.o misc.o sbuf.o socket.o tcp_input.o tcp_output.o \
+tcp_subr.o tcp_timer.o udp.o bootp.o debug.o
+VL_OBJS+=$(addprefix slirp/, $(SLIRP_OBJS))
 endif
 
 VL_LDFLAGS=
@@ -321,7 +325,7 @@ endif
 	$(CC) $(DEFINES) -c -o $@ $<
 
 clean:
-	rm -f *.o  *.a *~ $(PROGS) gen-op.h opc.h op.h nwfpe/*.o
+	rm -f *.o  *.a *~ $(PROGS) gen-op.h opc.h op.h nwfpe/*.o slirp/*.o
 
 install: all 
 ifneq ($(PROGS),)
