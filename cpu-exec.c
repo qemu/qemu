@@ -268,17 +268,7 @@ int cpu_exec(CPUState *env1)
                     tb->tc_ptr = tc_ptr;
                     tb->cs_base = (unsigned long)cs_base;
                     tb->flags = flags;
-                    ret = cpu_gen_code(env, tb, CODE_GEN_MAX_SIZE, &code_gen_size);
-#if defined(TARGET_I386)
-                    /* XXX: suppress that, this is incorrect */
-                    /* if invalid instruction, signal it */
-                    if (ret != 0) {
-                        /* NOTE: the tb is allocated but not linked, so we
-                           can leave it */
-                        spin_unlock(&tb_lock);
-                        raise_exception(EXCP06_ILLOP);
-                    }
-#endif
+                    cpu_gen_code(env, tb, CODE_GEN_MAX_SIZE, &code_gen_size);
                     *ptb = tb;
                     tb->hash_next = NULL;
                     tb_link(tb);
@@ -295,12 +285,8 @@ int cpu_exec(CPUState *env1)
 #ifdef __sparc__
                 T0 = tmp_T0;
 #endif	    
-                /* see if we can patch the calling TB. XXX: remove TF test */
-                if (T0 != 0
-#if defined(TARGET_I386)
-                    && !(env->eflags & TF_MASK)
-#endif
-                    ) {
+                /* see if we can patch the calling TB. */
+                if (T0 != 0) {
                     spin_lock(&tb_lock);
                     tb_add_jump((TranslationBlock *)(T0 & ~3), T0 & 3, tb);
                     spin_unlock(&tb_lock);
