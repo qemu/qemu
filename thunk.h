@@ -61,14 +61,12 @@
 
 #endif
 
-#ifdef WORDS_BIGENDIAN
+#if defined(WORDS_BIGENDIAN) != defined(TARGET_WORDS_BIGENDIAN)
 #define BSWAP_NEEDED
 #endif
 
 /* XXX: autoconf */
-#define TARGET_I386
 #define TARGET_LONG_BITS 32
-
 
 #if defined(__alpha__) || defined (__ia64__)
 #define HOST_LONG_BITS 64
@@ -238,6 +236,81 @@ void thunk_register_struct(int id, const char *name, const argtype *types);
 void thunk_register_struct_direct(int id, const char *name, StructEntry *se1);
 const argtype *thunk_convert(void *dst, const void *src, 
                              const argtype *type_ptr, int to_host);
+
+extern StructEntry struct_entries[];
+
+static inline int thunk_type_size(const argtype *type_ptr, int is_host)
+{
+    int type, size;
+    const StructEntry *se;
+
+    type = *type_ptr;
+    switch(type) {
+    case TYPE_CHAR:
+        return 1;
+    case TYPE_SHORT:
+        return 2;
+    case TYPE_INT:
+        return 4;
+    case TYPE_LONGLONG:
+    case TYPE_ULONGLONG:
+        return 8;
+    case TYPE_LONG:
+    case TYPE_ULONG:
+    case TYPE_PTRVOID:
+    case TYPE_PTR:
+        if (is_host) {
+            return HOST_LONG_SIZE;
+        } else {
+            return TARGET_LONG_SIZE;
+        }
+        break;
+    case TYPE_ARRAY:
+        size = type_ptr[1];
+        return size * thunk_type_size(type_ptr + 2, is_host);
+    case TYPE_STRUCT:
+        se = struct_entries + type_ptr[1];
+        return se->size[is_host];
+    default:
+        return -1;
+    }
+}
+
+static inline int thunk_type_align(const argtype *type_ptr, int is_host)
+{
+    int type;
+    const StructEntry *se;
+
+    type = *type_ptr;
+    switch(type) {
+    case TYPE_CHAR:
+        return 1;
+    case TYPE_SHORT:
+        return 2;
+    case TYPE_INT:
+        return 4;
+    case TYPE_LONGLONG:
+    case TYPE_ULONGLONG:
+        return 8;
+    case TYPE_LONG:
+    case TYPE_ULONG:
+    case TYPE_PTRVOID:
+    case TYPE_PTR:
+        if (is_host) {
+            return HOST_LONG_SIZE;
+        } else {
+            return TARGET_LONG_SIZE;
+        }
+        break;
+    case TYPE_ARRAY:
+        return thunk_type_align(type_ptr + 2, is_host);
+    case TYPE_STRUCT:
+        se = struct_entries + type_ptr[1];
+        return se->align[is_host];
+    default:
+        return -1;
+    }
+}
 
 unsigned int target_to_host_bitmask(unsigned int x86_mask, 
                                     bitmask_transtbl * trans_tbl);

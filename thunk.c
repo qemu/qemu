@@ -29,80 +29,7 @@
 #define MAX_STRUCTS 128
 
 /* XXX: make it dynamic */
-static StructEntry struct_entries[MAX_STRUCTS];
-
-static inline int thunk_type_size(const argtype *type_ptr, int is_host)
-{
-    int type, size;
-    const StructEntry *se;
-
-    type = *type_ptr;
-    switch(type) {
-    case TYPE_CHAR:
-        return 1;
-    case TYPE_SHORT:
-        return 2;
-    case TYPE_INT:
-        return 4;
-    case TYPE_LONGLONG:
-    case TYPE_ULONGLONG:
-        return 8;
-    case TYPE_LONG:
-    case TYPE_ULONG:
-    case TYPE_PTRVOID:
-    case TYPE_PTR:
-        if (is_host) {
-            return HOST_LONG_SIZE;
-        } else {
-            return TARGET_LONG_SIZE;
-        }
-        break;
-    case TYPE_ARRAY:
-        size = type_ptr[1];
-        return size * thunk_type_size(type_ptr + 2, is_host);
-    case TYPE_STRUCT:
-        se = struct_entries + type_ptr[1];
-        return se->size[is_host];
-    default:
-        return -1;
-    }
-}
-
-static inline int thunk_type_align(const argtype *type_ptr, int is_host)
-{
-    int type;
-    const StructEntry *se;
-
-    type = *type_ptr;
-    switch(type) {
-    case TYPE_CHAR:
-        return 1;
-    case TYPE_SHORT:
-        return 2;
-    case TYPE_INT:
-        return 4;
-    case TYPE_LONGLONG:
-    case TYPE_ULONGLONG:
-        return 8;
-    case TYPE_LONG:
-    case TYPE_ULONG:
-    case TYPE_PTRVOID:
-    case TYPE_PTR:
-        if (is_host) {
-            return HOST_LONG_SIZE;
-        } else {
-            return TARGET_LONG_SIZE;
-        }
-        break;
-    case TYPE_ARRAY:
-        return thunk_type_align(type_ptr + 2, is_host);
-    case TYPE_STRUCT:
-        se = struct_entries + type_ptr[1];
-        return se->align[is_host];
-    default:
-        return -1;
-    }
-}
+StructEntry struct_entries[MAX_STRUCTS];
 
 static inline const argtype *thunk_type_next(const argtype *type_ptr)
 {
@@ -167,6 +94,7 @@ void thunk_register_struct(int id, const char *name, const argtype *types)
             offset += size;
             if (align > max_align)
                 max_align = align;
+            type_ptr = thunk_type_next(type_ptr);
         }
         offset = (offset + max_align - 1) & ~(max_align - 1);
         se->size[i] = offset;
