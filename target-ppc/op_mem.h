@@ -97,8 +97,7 @@ PPC_OP(glue(lswx, MEMSUFFIX))
     if (T1 > 0) {
         if ((PARAM(1) < PARAM(2) && (PARAM(1) + T1) > PARAM(2)) ||
             (PARAM(1) < PARAM(3) && (PARAM(1) + T1) > PARAM(3))) {
-            do_queue_exception_err(EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_LSWX);
-            do_process_exceptions();
+            do_raise_exception_err(EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_LSWX);
         } else {
             glue(do_lsw, MEMSUFFIX)(PARAM(1));
         }
@@ -138,8 +137,7 @@ PPC_LDF_OP(fs, ldfl);
 PPC_OP(glue(lwarx, MEMSUFFIX))
 {
     if (T0 & 0x03) {
-        do_queue_exception(EXCP_ALIGN);
-        do_process_exceptions();
+        do_raise_exception(EXCP_ALIGN);
     } else {
        T1 = glue(ldl, MEMSUFFIX)((void *)T0);
        regs->reserve = T0;
@@ -151,8 +149,7 @@ PPC_OP(glue(lwarx, MEMSUFFIX))
 PPC_OP(glue(stwcx, MEMSUFFIX))
 {
     if (T0 & 0x03) {
-        do_queue_exception(EXCP_ALIGN);
-        do_process_exceptions();
+        do_raise_exception(EXCP_ALIGN);
     } else {
         if (regs->reserve != T0) {
             env->crf[0] = xer_ov;

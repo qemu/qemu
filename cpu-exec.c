@@ -241,11 +241,25 @@ int cpu_exec(CPUState *env1)
 #endif
                     }
 #elif defined(TARGET_PPC)
+#if 0
+                    if ((interrupt_request & CPU_INTERRUPT_RESET)) {
+                        cpu_ppc_reset(env);
+                    }
+#endif
+                    if (msr_ee != 0) {
                     if ((interrupt_request & CPU_INTERRUPT_HARD)) {
-                        do_queue_exception(EXCP_EXTERNAL);
-                        if (check_exception_state(env))
+			    /* Raise it */
+			    env->exception_index = EXCP_EXTERNAL;
+			    env->error_code = 0;
                             do_interrupt(env);
                         env->interrupt_request &= ~CPU_INTERRUPT_HARD;
+			} else if ((interrupt_request & CPU_INTERRUPT_TIMER)) {
+			    /* Raise it */
+			    env->exception_index = EXCP_DECR;
+			    env->error_code = 0;
+			    do_interrupt(env);
+                            env->interrupt_request &= ~CPU_INTERRUPT_TIMER;
+			}
                     }
 #endif
                     if (interrupt_request & CPU_INTERRUPT_EXITTB) {
@@ -757,7 +771,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
     /* we restore the process signal mask as the sigreturn should
        do it (XXX: use sigsetjmp) */
         sigprocmask(SIG_SETMASK, old_set, NULL);
-        do_queue_exception_err(env->exception_index, env->error_code);
+        do_raise_exception_err(env->exception_index, env->error_code);
     } else {
         /* activate soft MMU for this block */
         cpu_resume_from_signal(env, puc);

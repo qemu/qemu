@@ -78,6 +78,8 @@ enum {
 #define PPC_750 (PPC_INTEGER | PPC_FLOAT | PPC_FLOW | PPC_MEM |               \
                  PPC_RES | PPC_CACHE | PPC_MISC | PPC_EXTERN | PPC_SEGMENT)
 
+typedef struct ppc_tb_t ppc_tb_t;
+
 /* Supervisor mode registers */
 /* Machine state register */
 #define MSR_POW 18
@@ -134,10 +136,6 @@ typedef struct CPUPPCState {
     /* special purpose registers */
     uint32_t lr;
     uint32_t ctr;
-    /* Time base */
-    uint32_t tb[2];
-    /* decrementer */
-    uint32_t decr;
     /* BATs */
     uint32_t DBAT[2][8];
     uint32_t IBAT[2][8];
@@ -154,13 +152,6 @@ typedef struct CPUPPCState {
     int error_code;
     int access_type; /* when a memory exception occurs, the access
                         type is stored here */
-#if 0 /* TODO */
-    uint32_t pending_exceptions; /* For external & decr exception,
-				  * that can be delayed */
-#else
-    uint32_t exceptions; /* exception queue */
-    uint32_t errors[32];
-#endif
     int user_mode_only; /* user mode only simulation */
     struct TranslationBlock *current_tb; /* currently executing TB */
     /* soft mmu support */
@@ -178,8 +169,13 @@ typedef struct CPUPPCState {
     /* ice debug support */
     uint32_t breakpoints[MAX_BREAKPOINTS];
     int nb_breakpoints;
-    int brkstate;
-    int singlestep_enabled;
+    int singlestep_enabled; /* XXX: should use CPU single step mode instead */
+
+    /* Time base and decrementer */
+    ppc_tb_t *tb_env;
+
+    /* Power management */
+    int power_mode;
 
     /* user data */
     void *opaque;
@@ -206,10 +202,15 @@ void _store_xer (CPUPPCState *env, uint32_t value);
 uint32_t _load_msr (CPUPPCState *env);
 void _store_msr (CPUPPCState *env, uint32_t value);
 
-void PPC_init_hw (uint32_t mem_size,
-                  uint32_t kernel_addr, uint32_t kernel_size,
-                  uint32_t stack_addr, int boot_device,
-		  const unsigned char *initrd_file);
+/* Time-base and decrementer management */
+#ifndef NO_CPU_IO_DEFS
+uint32_t cpu_ppc_load_tbl (CPUPPCState *env);
+uint32_t cpu_ppc_load_tbu (CPUPPCState *env);
+void cpu_ppc_store_tbu (CPUPPCState *env, uint32_t value);
+void cpu_ppc_store_tbl (CPUPPCState *env, uint32_t value);
+uint32_t cpu_ppc_load_decr (CPUPPCState *env);
+void cpu_ppc_store_decr (CPUPPCState *env, uint32_t value);
+#endif
 
 #define TARGET_PAGE_BITS 12
 #include "cpu-all.h"

@@ -119,12 +119,8 @@ static inline uint32_t rotl (uint32_t i, int n)
 
 #endif /* !defined(CONFIG_USER_ONLY) */
 
-int check_exception_state (CPUState *env);
-
-void do_queue_exception_err (uint32_t exception, int error_code);
-void do_queue_exception (uint32_t exception);
-void do_process_exceptions (void);
-void do_check_exception_state (void);
+void do_raise_exception_err (uint32_t exception, int error_code);
+void do_raise_exception (uint32_t exception);
 
 void do_load_cr (void);
 void do_store_cr (uint32_t mask);

@@ -208,32 +208,28 @@ PPC_OP(set_T2)
 }
 
 /* Generate exceptions */
-PPC_OP(queue_exception_err)
+PPC_OP(raise_exception_err)
 {
-    do_queue_exception_err(PARAM(1), PARAM(2));
+    do_raise_exception_err(PARAM(1), PARAM(2));
 }
 
-PPC_OP(queue_exception)
+PPC_OP(raise_exception)
 {
-    do_queue_exception(PARAM(1));
+    do_raise_exception(PARAM(1));
 }
 
-PPC_OP(process_exceptions)
+PPC_OP(update_nip)
 {
     env->nip = PARAM(1);
-    if (env->exceptions != 0) {
-        do_check_exception_state();
-    }
 }
 
 PPC_OP(debug)
 {
     env->nip = PARAM(1);
-    env->brkstate = 1;
 #if defined (DEBUG_OP)
     dump_state();
 #endif
-    do_queue_exception(EXCP_DEBUG);
+    do_raise_exception(EXCP_DEBUG);
     RETURN();
 }
 
@@ -364,58 +360,38 @@ PPC_OP(store_ctr)
     RETURN();
 }
 
-/* Update time base */
-PPC_OP(update_tb)
+PPC_OP(load_tbl)
 {
-    T0 = regs->tb[0];
-    T1 = T0;
-    T0 += PARAM(1);
-#if defined (DEBUG_OP)
-    dump_update_tb(PARAM(1));
-#endif
-    if (T0 < T1) {
-        T1 = regs->tb[1] + 1;
-        regs->tb[1] = T1;
+    T0 = cpu_ppc_load_tbl(regs);
+    RETURN();
+}
+
+PPC_OP(load_tbu)
+{
+    T0 = cpu_ppc_load_tbu(regs);
+    RETURN();
+}
+
+PPC_OP(store_tbl)
+{
+    cpu_ppc_store_tbl(regs, T0);
+    RETURN();
+}
+
+PPC_OP(store_tbu)
+{
+    cpu_ppc_store_tbu(regs, T0);
+    RETURN();
+}
+
+PPC_OP(load_decr)
+{
+    T0 = cpu_ppc_load_decr(regs);
     }
-    regs->tb[0] = T0;
-    RETURN();
-}
-
-PPC_OP(load_tb)
-{
-    T0 = regs->tb[PARAM(1)];
-    RETURN();
-}
-
-PPC_OP(store_tb)
-{
-    regs->tb[PARAM(1)] = T0;
-#if defined (DEBUG_OP)
-    dump_store_tb(PARAM(1));
-#endif
-    RETURN();
-}
-
-/* Update decrementer */
-PPC_OP(update_decr)
-{
-    T0 = regs->decr;
-    T1 = T0;
-    T0 -= PARAM(1);
-    regs->decr = T0;
-    if (PARAM(1) > T1) {
-        do_queue_exception(EXCP_DECR);
-    }
-    RETURN();
-}
 
 PPC_OP(store_decr)
 {
-    T1 = regs->decr;
-    regs->decr = T0;
-    if (Ts0 < 0 && Ts1 > 0) {
-        do_queue_exception(EXCP_DECR);
-    }
+    cpu_ppc_store_decr(regs, T0);
     RETURN();
 }
 
@@ -1471,17 +1447,14 @@ PPC_OP(fneg)
 /* Return from interrupt */
 PPC_OP(rfi)
 {
+    regs->nip = regs->spr[SRR0] & ~0x00000003;
     T0 = regs->spr[SRR1] & ~0xFFFF0000;
     do_store_msr();
-    do_tlbia();
 #if defined (DEBUG_OP)
     dump_rfi();
 #endif
-    regs->nip = regs->spr[SRR0] & ~0x00000003;
-    do_queue_exception(EXCP_RFI);
-    if (env->exceptions != 0) {
-        do_check_exception_state();
-    }
+    //    do_tlbia();
+    do_raise_exception(EXCP_RFI);
     RETURN();
 }
 
@@ -1493,7 +1466,7 @@ PPC_OP(tw)
         (Ts0 == Ts1 && (PARAM(1) & 0x04)) ||
         (T0 < T1 && (PARAM(1) & 0x02)) ||
         (T0 > T1 && (PARAM(1) & 0x01)))
-        do_queue_exception_err(EXCP_PROGRAM, EXCP_TRAP);
+        do_raise_exception_err(EXCP_PROGRAM, EXCP_TRAP);
     RETURN();
 }
 
@@ -1504,7 +1477,7 @@ PPC_OP(twi)
         (Ts0 == SPARAM(1) && (PARAM(2) & 0x04)) ||
         (T0 < (uint32_t)SPARAM(1) && (PARAM(2) & 0x02)) ||
         (T0 > (uint32_t)SPARAM(1) && (PARAM(2) & 0x01)))
-        do_queue_exception_err(EXCP_PROGRAM, EXCP_TRAP);
+        do_raise_exception_err(EXCP_PROGRAM, EXCP_TRAP);
     RETURN();
 }
 

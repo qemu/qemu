@@ -589,6 +589,24 @@ static int monitor_get_xer (struct MonitorDef *md)
         (cpu_single_env->xer[XER_CA] << XER_CA) |
         (cpu_single_env->xer[XER_BC] << XER_BC);
 }
+
+uint32_t cpu_ppc_load_decr (CPUState *env);
+static int monitor_get_decr (struct MonitorDef *md)
+{
+    return cpu_ppc_load_decr(cpu_single_env);
+}
+
+uint32_t cpu_ppc_load_tbu (CPUState *env);
+static int monitor_get_tbu (struct MonitorDef *md)
+{
+    return cpu_ppc_load_tbu(cpu_single_env);
+}
+
+uint32_t cpu_ppc_load_tbl (CPUState *env);
+static int monitor_get_tbl (struct MonitorDef *md)
+{
+    return cpu_ppc_load_tbl(cpu_single_env);
+}
 #endif
 
 static MonitorDef monitor_defs[] = {
@@ -651,12 +669,12 @@ static MonitorDef monitor_defs[] = {
     { "nip|pc", offsetof(CPUState, nip) },
     { "lr", offsetof(CPUState, lr) },
     { "ctr", offsetof(CPUState, ctr) },
-    { "decr", offsetof(CPUState, decr) },
+    { "decr", 0, &monitor_get_decr, },
     { "ccr", 0, &monitor_get_ccr, },
     { "msr", 0, &monitor_get_msr, },
     { "xer", 0, &monitor_get_xer, },
-    { "tbu", offsetof(CPUState, tb[0]) },
-    { "tbl", offsetof(CPUState, tb[1]) },
+    { "tbu", 0, &monitor_get_tbu, },
+    { "tbl", 0, &monitor_get_tbl, },
     { "sdr1", offsetof(CPUState, sdr1) },
     { "sr0", offsetof(CPUState, sr[0]) },
     { "sr1", offsetof(CPUState, sr[1]) },

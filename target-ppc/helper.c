@@ -27,49 +27,10 @@
 //#define DEBUG_BATS
 //#define DEBUG_EXCEPTIONS
 
-extern FILE *logfile, *stdout, *stderr;
-void exit (int);
+extern FILE *stdout, *stderr;
 void abort (void);
 
-void cpu_loop_exit(void)
-{
-    longjmp(env->jmp_env, 1);
-}
-
-void do_process_exceptions (void)
-{
-    cpu_loop_exit();
-}
-
-int check_exception_state (CPUState *env)
-{
-    int i;
-
-    /* Process PPC exceptions */
-    for (i = 1; i  < EXCP_PPC_MAX; i++) {
-        if (env->exceptions & (1 << i)) {
-            switch (i) {
-            case EXCP_EXTERNAL:
-            case EXCP_DECR:
-                if (msr_ee == 0)
-                    return 0;
-                break;
-            case EXCP_PROGRAM:
-                if (env->errors[EXCP_PROGRAM] == EXCP_FP &&
-                    msr_fe0 == 0 && msr_fe1 == 0)
-                    return 0;
-                break;
-            default:
-                break;
-            }
-            env->exception_index = i;
-            env->error_code = env->errors[i];
-            return 1;
-        }
-    }
-
-    return 0;
-}
+/*****************************************************************************/
 
 /*****************************************************************************/
 /* PPC MMU emulation */
@@ -500,8 +461,7 @@ void tlb_fill(unsigned long addr, int is_write, int is_user, void *retaddr)
                 cpu_restore_state(tb, env, pc, NULL);
             }
         }
-        do_queue_exception_err(env->exception_index, env->error_code);
-        do_process_exceptions();
+        do_raise_exception_err(env->exception_index, env->error_code);
     }
     {
         unsigned long tlb_addrr, tlb_addrw;
@@ -701,9 +661,6 @@ void do_interrupt (CPUState *env)
     uint32_t msr;
     int excp = env->exception_index;
 
-    /* Dequeue PPC exceptions */
-    if (excp < EXCP_PPC_MAX)
-        env->exceptions &= ~(1 << excp);
     msr = _load_msr(env);
 #if defined (DEBUG_EXCEPTIONS)
     if ((excp == EXCP_PROGRAM || excp == EXCP_DSI) && msr_pr == 1) 
@@ -812,7 +769,7 @@ void do_interrupt (CPUState *env)
     }
 #endif
             /* Requeue it */
-            do_queue_exception(EXCP_EXTERNAL);
+            do_raise_exception(EXCP_EXTERNAL);
             return;
             }
         goto store_next;
@@ -864,7 +821,7 @@ void do_interrupt (CPUState *env)
     case EXCP_DECR:
         if (msr_ee == 0) {
             /* Requeue it */
-            do_queue_exception(EXCP_DECR);
+            do_raise_exception(EXCP_DECR);
             return;
         }
         goto store_next;
@@ -937,4 +894,5 @@ void do_interrupt (CPUState *env)
     T0 = 0;
 #endif
 #endif
+    env->exception_index = -1;
 }

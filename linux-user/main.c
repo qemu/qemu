@@ -504,6 +504,49 @@ void cpu_loop (CPUSPARCState *env)
 #endif
 
 #ifdef TARGET_PPC
+
+static inline uint64_t cpu_ppc_get_tb (CPUState *env)
+{
+    /* TO FIX */
+    return 0;
+}
+  
+uint32_t cpu_ppc_load_tbl (CPUState *env)
+{
+    return cpu_ppc_get_tb(env) & 0xFFFFFFFF;
+}
+  
+uint32_t cpu_ppc_load_tbu (CPUState *env)
+{
+    return cpu_ppc_get_tb(env) >> 32;
+}
+  
+static void cpu_ppc_store_tb (CPUState *env, uint64_t value)
+{
+    /* TO FIX */
+}
+
+void cpu_ppc_store_tbu (CPUState *env, uint32_t value)
+{
+    cpu_ppc_store_tb(env, ((uint64_t)value << 32) | cpu_ppc_load_tbl(env));
+}
+ 
+void cpu_ppc_store_tbl (CPUState *env, uint32_t value)
+{
+    cpu_ppc_store_tb(env, ((uint64_t)cpu_ppc_load_tbl(env) << 32) | value);
+}
+  
+uint32_t cpu_ppc_load_decr (CPUState *env)
+{
+    /* TO FIX */
+    return -1;
+}
+ 
+void cpu_ppc_store_decr (CPUState *env, uint32_t value)
+{
+    /* TO FIX */
+}
+ 
 void cpu_loop(CPUPPCState *env)
 {
     target_siginfo_t info;
@@ -812,7 +855,7 @@ void cpu_loop(CPUPPCState *env)
             abort();
         case EXCP_MTMSR:
             /* We reloaded the msr, just go on */
-            if (msr_pr) {
+            if (msr_pr == 0) {
                 fprintf(stderr, "Tried to go into supervisor mode !\n");
                 if (loglevel)
                     fprintf(logfile, "Tried to go into supervisor mode !\n");
@@ -842,12 +885,7 @@ void cpu_loop(CPUPPCState *env)
             }
             abort();
         }
-        if (trapnr < EXCP_PPC_MAX)
-            env->exceptions &= ~(1 << trapnr);
         process_pending_signals(env);
-        if (env->exceptions != 0) {
-            check_exception_state(env);
-        }
     }
 }
 #endif

@@ -24,6 +24,9 @@
 #include "vl.h"
 #include "m48t59.h"
 
+/* XXX: move all TB related stuff in ppc_prep.c and suppress ppc.c ? */
+ppc_tb_t *cpu_ppc_tb_init (CPUPPCState *env, uint32_t freq);
+
 //#define HARD_DEBUG_PPC_IO
 //#define DEBUG_PPC_IO
 
@@ -663,7 +666,6 @@ static void VGA_printf (uint8_t *s)
 static void VGA_init (void)
 {
     /* Basic VGA init, inspired by plex86 VGAbios */
-    printf("Init VGA...\n");
 #if 1
     /* switch to color mode and enable CPU access 480 lines */
     PPC_io_writeb(PPC_IO_BASE + 0x3C2, 0xC3);
@@ -725,7 +727,6 @@ void PPC_init_hw (/*CPUPPCState *env,*/ uint32_t mem_size,
      * if a decrementer exception is pending when it enables msr_ee,
      * it's not ready to handle it...
      */
-    env->decr = 0xFFFFFFFF;
     p = phys_ram_base + kernel_addr;
 #if !defined (USE_OPEN_FIRMWARE)
     /* Let's register the whole memory available only in supervisor mode */
@@ -947,6 +948,8 @@ void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
 	    exit(1);
 	}
     }
+
+    cpu_ppc_tb_init(cpu_single_env, 100UL * 1000UL * 1000UL);
 
     /* init basic PC hardware */
     vga_initialize(ds, phys_ram_base + ram_size, ram_size, 

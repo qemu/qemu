@@ -31,31 +31,38 @@
 
 /*****************************************************************************/
 /* Exceptions processing helpers */
-void do_queue_exception_err (uint32_t exception, int error_code)
+void cpu_loop_exit(void)
 {
-    /* Queue real PPC exceptions */
-    if (exception < EXCP_PPC_MAX) {
-        env->exceptions |= 1 << exception;
-        env->errors[exception] = error_code;
-    } else {
-        /* Preserve compatibility with qemu core */
-        env->exceptions |= 1;
-        env->exception_index = exception;
-        env->error_code = error_code;
-    }
+    longjmp(env->jmp_env, 1);
 }
 
-void do_queue_exception (uint32_t exception)
+void do_raise_exception_err (uint32_t exception, int error_code)
 {
-    do_queue_exception_err(exception, 0);
+#if 0
+    printf("Raise exception %3x code : %d\n", exception, error_code);
+#endif
+    switch (exception) {
+    case EXCP_EXTERNAL:
+    case EXCP_DECR:
+	printf("DECREMENTER & EXTERNAL exceptions should be hard interrupts !\n");
+	if (msr_ee == 0)
+	    return;
+	break;
+    case EXCP_PROGRAM:
+	if (error_code == EXCP_FP && msr_fe0 == 0 && msr_fe1 == 0)
+	    return;
+	break;
+    default:
+	break;
 }
-
-void do_check_exception_state (void)
-{
-    if ((env->exceptions & 1) == 1 || check_exception_state(env)) {
-        env->exceptions &= ~1;
+    env->exception_index = exception;
+    env->error_code = error_code;
         cpu_loop_exit();
     }
+
+void do_raise_exception (uint32_t exception)
+{
+    do_raise_exception_err(exception, 0);
 }
 
 /*****************************************************************************/
@@ -125,13 +132,6 @@ void do_store_msr (void)
         /* Flush all tlb when changing translation mode or privilege level */
         do_tlbia();
     }
-#if 0
-    if ((T0 >> MSR_IP) & 0x01) {
-        printf("Halting CPU. Stop emulation\n");
-        do_queue_exception(EXCP_HLT);
-        cpu_loop_exit();
-    }
-#endif
     msr_pow = (T0 >> MSR_POW) & 0x03;
     msr_ile = (T0 >> MSR_ILE) & 0x01;
     msr_ee = (T0 >> MSR_EE) & 0x01;

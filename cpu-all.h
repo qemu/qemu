@@ -627,14 +627,15 @@ void cpu_single_step(CPUState *env, int enabled);
    if no page found. */
 target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr);
 
-#define CPU_LOG_TB_OUT_ASM  (1 << 0) 
-#define CPU_LOG_TB_IN_ASM     (1 << 1)
+#define CPU_LOG_TB_OUT_ASM (1 << 0) 
+#define CPU_LOG_TB_IN_ASM  (1 << 1)
 #define CPU_LOG_TB_OP      (1 << 2)
 #define CPU_LOG_TB_OP_OPT  (1 << 3)
 #define CPU_LOG_INT        (1 << 4)
 #define CPU_LOG_EXEC       (1 << 5)
 #define CPU_LOG_PCALL      (1 << 6)
 #define CPU_LOG_IOPORT     (1 << 7)
+#define CPU_LOG_TB_CPU     (1 << 8)
 
 /* define log items */
 typedef struct CPULogItem {

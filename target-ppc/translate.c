@@ -30,6 +30,7 @@
 //#define DO_SINGLE_STEP
 //#define DO_STEP_FLUSH
 //#define DEBUG_DISAS
+//#define PPC_DEBUG_DISAS
 
 enum {
 #define DEF(s, n, copy_size) INDEX_op_ ## s,
@@ -135,10 +136,6 @@ typedef struct DisasContext {
     uint32_t nip;
     uint32_t opcode;
     uint32_t exception;
-    /* Time base offset */
-    uint32_t tb_offset;
-    /* Decrementer offset */
-    uint32_t decr_offset;
     /* Execution mode */
 #if !defined(CONFIG_USER_ONLY)
     int supervisor;
@@ -156,21 +153,26 @@ typedef struct opc_handler_t {
     void (*handler)(DisasContext *ctx);
 } opc_handler_t;
 
-#define RET_EXCP(excp, error)                                                 \
+#define RET_EXCP(ctx, excp, error)                                            \
 do {                                                                          \
-    gen_op_queue_exception_err(excp, error);                                  \
-    ctx->exception = excp;                                                    \
-    return;                                                                   \
+    if ((ctx)->exception == EXCP_NONE) {                                      \
+        gen_op_update_nip((ctx)->nip);                                        \
+    }                                                                         \
+    gen_op_raise_exception_err((excp), (error));                              \
+    ctx->exception = (excp);                                                  \
 } while (0)
 
-#define RET_INVAL()                                                           \
-RET_EXCP(EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_INVAL)
+#define RET_INVAL(ctx)                                                        \
+RET_EXCP((ctx), EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_INVAL)
 
-#define RET_PRIVOPC()                                                         \
-RET_EXCP(EXCP_PROGRAM, EXCP_INVAL | EXCP_PRIV_OPC)
+#define RET_PRIVOPC(ctx)                                                      \
+RET_EXCP((ctx), EXCP_PROGRAM, EXCP_INVAL | EXCP_PRIV_OPC)
 
-#define RET_PRIVREG()                                                         \
-RET_EXCP(EXCP_PROGRAM, EXCP_INVAL | EXCP_PRIV_REG)
+#define RET_PRIVREG(ctx)                                                      \
+RET_EXCP((ctx), EXCP_PROGRAM, EXCP_INVAL | EXCP_PRIV_REG)
+
+#define RET_MTMSR(ctx)                                                        \
+RET_EXCP((ctx), EXCP_MTMSR, 0)
 
 #define GEN_HANDLER(name, opc1, opc2, opc3, inval, type)                      \
 static void gen_##name (DisasContext *ctx);                                   \
@@ -312,29 +314,26 @@ GEN_OPCODE_MARK(start);
 /* Invalid instruction */
 GEN_HANDLER(invalid, 0x00, 0x00, 0x00, 0xFFFFFFFF, PPC_NONE)
 {
-    RET_INVAL();
+    RET_INVAL(ctx);
 }
 
 /* Special opcode to stop emulation */
 GEN_HANDLER(stop, 0x06, 0x00, 0xFF, 0x03FFFFC1, PPC_COMMON)
 {
-    gen_op_queue_exception(EXCP_HLT);
-    ctx->exception = EXCP_HLT;
+    RET_EXCP(ctx, EXCP_HLT, 0);
 }
 
 /* Special opcode to call open-firmware */
 GEN_HANDLER(of_enter, 0x06, 0x01, 0xFF, 0x03FFFFC1, PPC_COMMON)
 {
-    gen_op_queue_exception(EXCP_OFCALL);
-    ctx->exception = EXCP_OFCALL;
+    RET_EXCP(ctx, EXCP_OFCALL, 0);
 }
 
 /* Special opcode to call RTAS */
 GEN_HANDLER(rtas_enter, 0x06, 0x02, 0xFF, 0x03FFFFC1, PPC_COMMON)
 {
     printf("RTAS entry point !\n");
-    gen_op_queue_exception(EXCP_RTASCALL);
-    ctx->exception = EXCP_RTASCALL;
+    RET_EXCP(ctx, EXCP_RTASCALL, 0);
 }
 
 static opc_handler_t invalid_handler = {
@@ -1010,7 +1009,8 @@ GEN_HANDLER(l##width##u, opc, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)            \
     uint32_t simm = SIMM(ctx->opcode);                                        \
     if (rA(ctx->opcode) == 0 ||                                               \
         rA(ctx->opcode) == rD(ctx->opcode)) {                                 \
-        RET_INVAL();                                                          \
+        RET_INVAL(ctx);                                                       \
+        return;                                                               \
     }                                                                         \
     gen_op_load_gpr_T0(rA(ctx->opcode));                                      \
     if (simm != 0)                                                            \
@@ -1025,7 +1025,8 @@ GEN_HANDLER(l##width##ux, 0x1F, 0x17, opc, 0x00000001, PPC_INTEGER)           \
 {                                                                             \
     if (rA(ctx->opcode) == 0 ||                                               \
         rA(ctx->opcode) == rD(ctx->opcode)) {                                 \
-        RET_INVAL();                                                          \
+        RET_INVAL(ctx);                                                       \
+        return;                                                               \
     }                                                                         \
     gen_op_load_gpr_T0(rA(ctx->opcode));                                      \
     gen_op_load_gpr_T1(rB(ctx->opcode));                                      \
@@ -1086,7 +1087,8 @@ GEN_HANDLER(st##width##u, opc, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)           \
 {                                                                             \
     uint32_t simm = SIMM(ctx->opcode);                                        \
     if (rA(ctx->opcode) == 0) {                                               \
-        RET_INVAL();                                                          \
+        RET_INVAL(ctx);                                                       \
+        return;                                                               \
     }                                                                         \
     gen_op_load_gpr_T0(rA(ctx->opcode));                                      \
     if (simm != 0)                                                            \
@@ -1100,7 +1102,8 @@ GEN_HANDLER(st##width##u, opc, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)           \
 GEN_HANDLER(st##width##ux, 0x1F, 0x17, opc, 0x00000001, PPC_INTEGER)          \
 {                                                                             \
     if (rA(ctx->opcode) == 0) {                                               \
-        RET_INVAL();                                                          \
+        RET_INVAL(ctx);                                                       \
+        return;                                                               \
     }                                                                         \
     gen_op_load_gpr_T0(rA(ctx->opcode));                                      \
     gen_op_load_gpr_T1(rB(ctx->opcode));                                      \
@@ -1236,7 +1239,8 @@ GEN_HANDLER(lswi, 0x1F, 0x15, 0x12, 0x00000001, PPC_INTEGER)
     nr = nb / 4;
     if (((start + nr) > 32  && start <= ra && (start + nr - 32) > ra) ||
         ((start + nr) <= 32 && start <= ra && (start + nr) > ra)) {
-        RET_EXCP(EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_LSWX);
+        RET_EXCP(ctx, EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_LSWX);
+        return;
     }
     if (ra == 0) {
         gen_op_set_T0(0);
@@ -1376,7 +1380,8 @@ GEN_HANDLER(l##width##u, opc, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)            \
     uint32_t simm = SIMM(ctx->opcode);                                        \
     if (rA(ctx->opcode) == 0 ||                                               \
         rA(ctx->opcode) == rD(ctx->opcode)) {                                 \
-        RET_INVAL();                                                          \
+        RET_INVAL(ctx);                                                       \
+        return;                                                               \
     }                                                                         \
     gen_op_load_gpr_T0(rA(ctx->opcode));                                      \
     if (simm != 0)                                                            \
@@ -1391,7 +1396,8 @@ GEN_HANDLER(l##width##ux, 0x1F, 0x17, opc, 0x00000001, PPC_INTEGER)           \
 {                                                                             \
     if (rA(ctx->opcode) == 0 ||                                               \
         rA(ctx->opcode) == rD(ctx->opcode)) {                                 \
-        RET_INVAL();                                                          \
+        RET_INVAL(ctx);                                                       \
+        return;                                                               \
     }                                                                         \
     gen_op_load_gpr_T0(rA(ctx->opcode));                                      \
     gen_op_load_gpr_T1(rB(ctx->opcode));                                      \
@@ -1448,7 +1454,8 @@ GEN_HANDLER(st##width##u, opc, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)           \
 {                                                                             \
     uint32_t simm = SIMM(ctx->opcode);                                        \
     if (rA(ctx->opcode) == 0) {                                               \
-        RET_INVAL();                                                          \
+        RET_INVAL(ctx);                                                       \
+        return;                                                               \
     }                                                                         \
     gen_op_load_gpr_T0(rA(ctx->opcode));                                      \
     if (simm != 0)                                                            \
@@ -1462,7 +1469,8 @@ GEN_HANDLER(st##width##u, opc, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)           \
 GEN_HANDLER(st##width##ux, 0x1F, 0x17, opc, 0x00000001, PPC_INTEGER)          \
 {                                                                             \
     if (rA(ctx->opcode) == 0) {                                               \
-        RET_INVAL();                                                          \
+        RET_INVAL(ctx);                                                       \
+        return;                                                               \
     }                                                                         \
     gen_op_load_gpr_T0(rA(ctx->opcode));                                      \
     gen_op_load_gpr_T1(rB(ctx->opcode));                                      \
@@ -1502,7 +1510,7 @@ GEN_STFS(fs, 0x14);
 /* stfiwx */
 GEN_HANDLER(stfiwx, 0x1F, 0x17, 0x1E, 0x00000001, PPC_FLOAT)
 {
-    RET_INVAL();
+    RET_INVAL(ctx);
 }
 
 /***                                Branch                                 ***/
@@ -1512,9 +1520,6 @@ GEN_HANDLER(b, 0x12, 0xFF, 0xFF, 0x00000000, PPC_FLOW)
 {
     uint32_t li = s_ext24(LI(ctx->opcode)), target;
 
-    gen_op_update_tb(ctx->tb_offset);
-    gen_op_update_decr(ctx->decr_offset);
-    gen_op_process_exceptions(ctx->nip - 4);
     if (AA(ctx->opcode) == 0)
         target = ctx->nip + li - 4;
     else
@@ -1537,10 +1542,6 @@ static inline void gen_bcond(DisasContext *ctx, int type)
     uint32_t bi = BI(ctx->opcode);                                            
     uint32_t mask;                                                            
     uint32_t li;
-
-    gen_op_update_tb(ctx->tb_offset);                                         
-    gen_op_update_decr(ctx->decr_offset);                                     
-    gen_op_process_exceptions(ctx->nip - 4);                        
 
     if ((bo & 0x4) == 0)
         gen_op_dec_ctr();                                                     
@@ -1683,14 +1684,15 @@ GEN_HANDLER(mcrf, 0x13, 0x00, 0xFF, 0x00000001, PPC_INTEGER)
 GEN_HANDLER(rfi, 0x13, 0x12, 0xFF, 0x03FF8001, PPC_FLOW)
 {
 #if defined(CONFIG_USER_ONLY)
-    RET_PRIVOPC();
+    RET_PRIVOPC(ctx);
 #else
     /* Restore CPU state */
     if (!ctx->supervisor) {
-        RET_PRIVOPC();
+        RET_PRIVOPC(ctx);
+        return;
     }
     gen_op_rfi();
-    ctx->exception = EXCP_RFI;
+    RET_EXCP(ctx, EXCP_RFI, 0);
 #endif
 }
 
@@ -1698,11 +1700,10 @@ GEN_HANDLER(rfi, 0x13, 0x12, 0xFF, 0x03FF8001, PPC_FLOW)
 GEN_HANDLER(sc, 0x11, 0xFF, 0xFF, 0x03FFFFFD, PPC_FLOW)
 {
 #if defined(CONFIG_USER_ONLY)
-    gen_op_queue_exception(EXCP_SYSCALL_USER);
+    RET_EXCP(ctx, EXCP_SYSCALL_USER, 0);
 #else
-    gen_op_queue_exception(EXCP_SYSCALL);
+    RET_EXCP(ctx, EXCP_SYSCALL, 0);
 #endif
-    ctx->exception = EXCP_SYSCALL;
 }
 
 /***                                Trap                                   ***/
@@ -1770,10 +1771,11 @@ GEN_HANDLER(mfcr, 0x1F, 0x13, 0x00, 0x001FF801, PPC_MISC)
 GEN_HANDLER(mfmsr, 0x1F, 0x13, 0x02, 0x001FF801, PPC_MISC)
 {
 #if defined(CONFIG_USER_ONLY)
-    RET_PRIVREG();
+    RET_PRIVREG(ctx);
 #else
     if (!ctx->supervisor) {
-        RET_PRIVREG();
+        RET_PRIVREG(ctx);
+        return;
     }
     gen_op_load_msr();
     gen_op_store_T0_gpr(rD(ctx->opcode));
@@ -1792,11 +1794,11 @@ GEN_HANDLER(mfspr, 0x1F, 0x13, 0x0A, 0x00000001, PPC_MISC)
 #endif
     {
     case -1:
-        RET_EXCP(EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_SPR);
-        break;
+        RET_EXCP(ctx, EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_SPR);
+        return;
     case 0:
-        RET_PRIVREG();
-        break;
+        RET_PRIVREG(ctx);
+        return;
     default:
         break;
         }
@@ -1910,19 +1912,13 @@ GEN_HANDLER(mfspr, 0x1F, 0x13, 0x0A, 0x00000001, PPC_MISC)
         gen_op_load_sdr1();
         break;
     case V_TBL:
-        gen_op_update_tb(ctx->tb_offset);
-        ctx->tb_offset = 0;
-        /* TBL is still in T0 */
+        gen_op_load_tbl();
         break;
     case V_TBU:
-        gen_op_update_tb(ctx->tb_offset);
-        ctx->tb_offset = 0;
-        gen_op_load_tb(1);
+        gen_op_load_tbu();
         break;
     case DECR:
-        gen_op_update_decr(ctx->decr_offset);
-        ctx->decr_offset = 0;
-        /* decr is still in T0 */
+        gen_op_load_decr();
         break;
     default:
         gen_op_load_spr(sprn);
@@ -1939,18 +1935,16 @@ GEN_HANDLER(mftb, 0x1F, 0x13, 0x0B, 0x00000001, PPC_MISC)
         /* We need to update the time base before reading it */
     switch (sprn) {
     case V_TBL:
-        gen_op_update_tb(ctx->tb_offset);
         /* TBL is still in T0 */
+        gen_op_load_tbl();
         break;
     case V_TBU:
-        gen_op_update_tb(ctx->tb_offset);
-        gen_op_load_tb(1);
+        gen_op_load_tbu();
         break;
     default:
-        RET_INVAL();
-        break;
+        RET_INVAL(ctx);
+        return;
     }
-    ctx->tb_offset = 0;
     gen_op_store_T0_gpr(rD(ctx->opcode));
 }
 
@@ -1965,15 +1959,16 @@ GEN_HANDLER(mtcrf, 0x1F, 0x10, 0x04, 0x00100801, PPC_MISC)
 GEN_HANDLER(mtmsr, 0x1F, 0x12, 0x04, 0x001FF801, PPC_MISC)
 {
 #if defined(CONFIG_USER_ONLY)
-    RET_PRIVREG();
+    RET_PRIVREG(ctx);
 #else
     if (!ctx->supervisor) {
-        RET_PRIVREG();
+        RET_PRIVREG(ctx);
+        return;
     }
     gen_op_load_gpr_T0(rS(ctx->opcode));
     gen_op_store_msr();
     /* Must stop the translation as machine state (may have) changed */
-    ctx->exception = EXCP_MTMSR;
+    RET_MTMSR(ctx);
 #endif
 }
 
@@ -1995,10 +1990,10 @@ GEN_HANDLER(mtspr, 0x1F, 0x13, 0x0E, 0x00000001, PPC_MISC)
 #endif
     {
     case -1:
-        RET_EXCP(EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_SPR);
+        RET_EXCP(ctx, EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_SPR);
         break;
     case 0:
-        RET_PRIVREG();
+        RET_PRIVREG(ctx);
         break;
     default:
         break;
@@ -2147,16 +2142,13 @@ GEN_HANDLER(mtspr, 0x1F, 0x13, 0x0E, 0x00000001, PPC_MISC)
         gen_op_tlbia();
         break;
     case O_TBL:
-        gen_op_store_tb(0);
-        ctx->tb_offset = 0;
+        gen_op_store_tbl();
         break;
     case O_TBU:
-        gen_op_store_tb(1);
-        ctx->tb_offset = 0;
+        gen_op_store_tbu();
         break;
     case DECR:
         gen_op_store_decr();
-        ctx->decr_offset = 0;
         break;
     default:
         gen_op_store_spr(sprn);
@@ -2186,10 +2178,11 @@ GEN_HANDLER(dcbf, 0x1F, 0x16, 0x02, 0x03E00001, PPC_CACHE)
 GEN_HANDLER(dcbi, 0x1F, 0x16, 0x0E, 0x03E00001, PPC_CACHE)
 {
 #if defined(CONFIG_USER_ONLY)
-    RET_PRIVOPC();
+    RET_PRIVOPC(ctx);
 #else
     if (!ctx->supervisor) {
-        RET_PRIVOPC();
+        RET_PRIVOPC(ctx);
+        return;
     }
     if (rA(ctx->opcode) == 0) {
         gen_op_load_gpr_T0(rB(ctx->opcode));
@@ -2274,10 +2267,11 @@ GEN_HANDLER(dcba, 0x1F, 0x16, 0x07, 0x03E00001, PPC_CACHE_OPT)
 GEN_HANDLER(mfsr, 0x1F, 0x13, 0x12, 0x0010F801, PPC_SEGMENT)
 {
 #if defined(CONFIG_USER_ONLY)
-    RET_PRIVREG();
+    RET_PRIVREG(ctx);
 #else
     if (!ctx->supervisor) {
-        RET_PRIVREG();
+        RET_PRIVREG(ctx);
+        return;
     }
     gen_op_load_sr(SR(ctx->opcode));
     gen_op_store_T0_gpr(rD(ctx->opcode));
@@ -2288,10 +2282,11 @@ GEN_HANDLER(mfsr, 0x1F, 0x13, 0x12, 0x0010F801, PPC_SEGMENT)
 GEN_HANDLER(mfsrin, 0x1F, 0x13, 0x14, 0x001F0001, PPC_SEGMENT)
 {
 #if defined(CONFIG_USER_ONLY)
-    RET_PRIVREG();
+    RET_PRIVREG(ctx);
 #else
     if (!ctx->supervisor) {
-        RET_PRIVREG();
+        RET_PRIVREG(ctx);
+        return;
     }
     gen_op_load_gpr_T1(rB(ctx->opcode));
     gen_op_load_srin();
@@ -2303,14 +2298,18 @@ GEN_HANDLER(mfsrin, 0x1F, 0x13, 0x14, 0x001F0001, PPC_SEGMENT)
 GEN_HANDLER(mtsr, 0x1F, 0x12, 0x06, 0x0010F801, PPC_SEGMENT)
 {
 #if defined(CONFIG_USER_ONLY)
-    RET_PRIVREG();
+    RET_PRIVREG(ctx);
 #else
     if (!ctx->supervisor) {
-        RET_PRIVREG();
+        RET_PRIVREG(ctx);
+        return;
     }
     gen_op_load_gpr_T0(rS(ctx->opcode));
     gen_op_store_sr(SR(ctx->opcode));
+#if 0
     gen_op_tlbia();
+    RET_MTMSR(ctx);
+#endif
 #endif
 }
 
@@ -2318,10 +2317,11 @@ GEN_HANDLER(mtsr, 0x1F, 0x12, 0x06, 0x0010F801, PPC_SEGMENT)
 GEN_HANDLER(mtsrin, 0x1F, 0x12, 0x07, 0x001F0001, PPC_SEGMENT)
 {
 #if defined(CONFIG_USER_ONLY)
-    RET_PRIVREG();
+    RET_PRIVREG(ctx);
 #else
     if (!ctx->supervisor) {
-        RET_PRIVREG();
+        RET_PRIVREG(ctx);
+        return;
     }
     gen_op_load_gpr_T0(rS(ctx->opcode));
     gen_op_load_gpr_T1(rB(ctx->opcode));
@@ -2336,10 +2336,13 @@ GEN_HANDLER(mtsrin, 0x1F, 0x12, 0x07, 0x001F0001, PPC_SEGMENT)
 GEN_HANDLER(tlbia, 0x1F, 0x12, 0x0B, 0x03FFFC01, PPC_MEM_OPT)
 {
 #if defined(CONFIG_USER_ONLY)
-    RET_PRIVOPC();
+    RET_PRIVOPC(ctx);
 #else
     if (!ctx->supervisor) {
-        RET_PRIVOPC();
+        if (loglevel)
+            fprintf(logfile, "%s: ! supervisor\n", __func__);
+        RET_PRIVOPC(ctx);
+        return;
     }
     gen_op_tlbia();
 #endif
@@ -2349,10 +2352,11 @@ GEN_HANDLER(tlbia, 0x1F, 0x12, 0x0B, 0x03FFFC01, PPC_MEM_OPT)
 GEN_HANDLER(tlbie, 0x1F, 0x12, 0x09, 0x03FF0001, PPC_MEM)
 {
 #if defined(CONFIG_USER_ONLY)
-    RET_PRIVOPC();
+    RET_PRIVOPC(ctx);
 #else
     if (!ctx->supervisor) {
-        RET_PRIVOPC();
+        RET_PRIVOPC(ctx);
+        return;
     }
     gen_op_load_gpr_T0(rB(ctx->opcode));
     gen_op_tlbie();
@@ -2363,10 +2367,11 @@ GEN_HANDLER(tlbie, 0x1F, 0x12, 0x09, 0x03FF0001, PPC_MEM)
 GEN_HANDLER(tlbsync, 0x1F, 0x16, 0x11, 0x03FFF801, PPC_MEM)
 {
 #if defined(CONFIG_USER_ONLY)
-    RET_PRIVOPC();
+    RET_PRIVOPC(ctx);
 #else
     if (!ctx->supervisor) {
-        RET_PRIVOPC();
+        RET_PRIVOPC(ctx);
+        return;
     }
     /* This has no effect: it should ensure that all previous
      * tlbie have completed
@@ -2916,7 +2921,8 @@ void cpu_ppc_dump_state(CPUPPCState *env, FILE *f, int flags)
         fprintf(f, " %c%c", a, env->crf[i] & 0x01 ? 'O' : ' ');
         }
     fprintf(f, " ] ");
-    fprintf(f, "TB: 0x%08x %08x\n", env->tb[1], env->tb[0]);
+    fprintf(f, "TB: 0x%08x %08x\n", cpu_ppc_load_tbu(env),
+            cpu_ppc_load_tbl(env));
         for (i = 0; i < 16; i++) {
             if ((i & 3) == 0)
             fprintf(f, "FPR%02d:", i);
@@ -2924,8 +2930,8 @@ void cpu_ppc_dump_state(CPUPPCState *env, FILE *f, int flags)
             if ((i & 3) == 3)
             fprintf(f, "\n");
     }
-    fprintf(f, "SRR0 0x%08x SRR1 0x%08x DECR=0x%08x excp:0x%08x\n",
-            env->spr[SRR0], env->spr[SRR1], env->decr, env->exceptions);
+    fprintf(f, "SRR0 0x%08x SRR1 0x%08x DECR=0x%08x\n",
+            env->spr[SRR0], env->spr[SRR1], cpu_ppc_load_decr(env));
     fprintf(f, "reservation 0x%08x\n", env->reserve);
     fflush(f);
 }
@@ -2952,7 +2958,6 @@ CPUPPCState *cpu_ppc_init(void)
 //    env->spr[PVR] = 0x00083100; /* MPC755 (G3 embedded) */
 //    env->spr[PVR] = 0x00070100; /* IBM 750FX */
 #endif
-    env->decr = 0xFFFFFFFF;
     if (create_ppc_proc(ppc_opcodes, env->spr[PVR]) < 0)
         return NULL;
     init_spr_rights(env->spr[PVR]);
@@ -2976,14 +2981,13 @@ void cpu_ppc_close(CPUPPCState *env)
 }
 
 /*****************************************************************************/
-void raise_exception_err (int exception_index, int error_code);
 int print_insn_powerpc (FILE *out, unsigned long insn, unsigned memaddr,
                         int dialect);
 
 int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
                                     int search_pc)
 {
-    DisasContext ctx;
+    DisasContext ctx, *ctxp = &ctx;
     opc_handler_t **table, *handler;
     uint32_t pc_start;
     uint16_t *gen_opc_end;
@@ -2994,8 +2998,6 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
     gen_opparam_ptr = gen_opparam_buf;
     ctx.nip = pc_start;
-    ctx.tb_offset = 0;
-    ctx.decr_offset = 0;
     ctx.tb = tb;
     ctx.exception = EXCP_NONE;
 #if defined(CONFIG_USER_ONLY)
@@ -3023,26 +3025,22 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
                 gen_opc_instr_start[lj] = 1;
             }
         }
-#if defined DEBUG_DISAS
-        if (loglevel > 0) {
+#if defined PPC_DEBUG_DISAS
+        if (loglevel & CPU_LOG_TB_IN_ASM) {
             fprintf(logfile, "----------------\n");
             fprintf(logfile, "nip=%08x super=%d ir=%d\n",
                     ctx.nip, 1 - msr_pr, msr_ir);
         }
 #endif
         ctx.opcode = ldl_code((void *)ctx.nip);
-#if defined DEBUG_DISAS
-        if (loglevel > 0) {
+#if defined PPC_DEBUG_DISAS
+        if (loglevel & CPU_LOG_TB_IN_ASM) {
             fprintf(logfile, "translate opcode %08x (%02x %02x %02x)\n",
                     ctx.opcode, opc1(ctx.opcode), opc2(ctx.opcode),
                     opc3(ctx.opcode));
         }
 #endif
         ctx.nip += 4;
-        ctx.tb_offset++;
-        /* Check decrementer exception */
-        if (++ctx.decr_offset == env->decr + 1)
-            ctx.exception = EXCP_DECR;
         table = ppc_opcodes;
         handler = table[opc1(ctx.opcode)];
         if (is_indirect_opcode(handler)) {
@@ -3098,26 +3096,17 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
                         (ctx.nip & 0xFC) != 0x04) &&
              ctx.exception != EXCP_SYSCALL && ctx.exception != EXCP_RFI &&
              ctx.exception != EXCP_TRAP)) {
-#if !defined(CONFIG_USER_ONLY)
-            gen_op_queue_exception(EXCP_TRACE);
-#endif
-            if (ctx.exception == EXCP_NONE) {
-                ctx.exception = EXCP_TRACE;
-    }
+            RET_EXCP(ctxp, EXCP_TRACE, 0);
         }
         /* if we reach a page boundary, stop generation */
         if ((ctx.nip & (TARGET_PAGE_SIZE - 1)) == 0) {
-            if (ctx.exception == EXCP_NONE) {
-        gen_op_b((long)ctx.tb, ctx.nip);
-                ctx.exception = EXCP_BRANCH;
+            RET_EXCP(ctxp, EXCP_BRANCH, 0);
     }
     }
-    }
-    /* In case of branch, this has already been done *BEFORE* the branch */
-    if (ctx.exception != EXCP_BRANCH && ctx.exception != EXCP_RFI) {
-        gen_op_update_tb(ctx.tb_offset);
-        gen_op_update_decr(ctx.decr_offset);
-        gen_op_process_exceptions(ctx.nip);
+    if (ctx.exception == EXCP_NONE) {
+        gen_op_b((unsigned long)ctx.tb, ctx.nip);
+    } else if (ctx.exception != EXCP_BRANCH) {
+        gen_op_set_T0(0);
     }
 #if 1
     /* TO BE FIXED: T0 hasn't got a proper value, which makes tb_add_jump
@@ -3144,15 +3133,16 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     }
     env->access_type = ACCESS_INT;
 #ifdef DEBUG_DISAS
-    if (loglevel > 0) {
+    if (loglevel & CPU_LOG_TB_CPU) {
         fprintf(logfile, "---------------- excp: %04x\n", ctx.exception);
         cpu_ppc_dump_state(env, logfile, 0);
+    }
+    if (loglevel & CPU_LOG_TB_IN_ASM) {
         fprintf(logfile, "IN: %s\n", lookup_symbol((void *)pc_start));
-#if defined(CONFIG_USER_ONLY)
 	disas(logfile, (void *)pc_start, ctx.nip - pc_start, 0, 0);
-#endif
         fprintf(logfile, "\n");
-
+    }
+    if (loglevel & CPU_LOG_TB_OP) {
         fprintf(logfile, "OP:\n");
         dump_ops(gen_opc_buf, gen_opparam_buf);
         fprintf(logfile, "\n");
