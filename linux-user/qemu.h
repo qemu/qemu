@@ -60,8 +60,7 @@ typedef struct TaskState {
 
 extern TaskState *first_task_state;
 
-int elf_exec(const char *interp_prefix, 
-             const char * filename, char ** argv, char ** envp, 
+int elf_exec(const char * filename, char ** argv, char ** envp, 
              struct target_pt_regs * regs, struct image_info *infop);
 
 void target_set_brk(char *new_brk);
@@ -75,5 +74,6 @@ void process_pending_signals(void *cpu_env);
 void signal_init(void);
 int queue_signal(int sig, target_siginfo_t *info);
 void save_v86_state(CPUX86State *env);
-
+void init_paths(const char *prefix);
+const char *path(const char *pathname);
 #endif

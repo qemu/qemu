@@ -70,7 +70,6 @@ struct linux_binprm {
 	int fd;
         int e_uid, e_gid;
         int argc, envc;
-        char * interp_prefix;   /* prefix for interpreter */
         char * filename;        /* Name of binary */
         unsigned long loader, exec;
         int dont_iput;          /* binfmt handler has put inode */
@@ -756,8 +755,7 @@ static int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * r
 	     * is an a.out format binary
 	     */
 
-	    elf_interpreter = (char *)malloc(elf_ppnt->p_filesz+
-                                             strlen(bprm->interp_prefix));
+	    elf_interpreter = (char *)malloc(elf_ppnt->p_filesz);
 
 	    if (elf_interpreter == NULL) {
 		free (elf_phdata);
@@ -765,12 +763,9 @@ static int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * r
 		return -ENOMEM;
 	    }
 
-	    strcpy(elf_interpreter, bprm->interp_prefix);
 	    retval = lseek(bprm->fd, elf_ppnt->p_offset, SEEK_SET);
 	    if(retval >= 0) {
-		retval = read(bprm->fd, 
-			      elf_interpreter+strlen(bprm->interp_prefix), 
-			      elf_ppnt->p_filesz);
+		retval = read(bprm->fd, elf_interpreter, elf_ppnt->p_filesz);
 	    }
 	    if(retval < 0) {
 	 	perror("load_elf_binary2");
@@ -792,7 +787,7 @@ static int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * r
 	    printf("Using ELF interpreter %s\n", elf_interpreter);
 #endif
 	    if (retval >= 0) {
-		retval = open(elf_interpreter, O_RDONLY);
+		retval = open(path(elf_interpreter), O_RDONLY);
 		if(retval >= 0) {
 		    interpreter_fd = retval;
 		}
@@ -1060,8 +1055,7 @@ static int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * r
 
 
 
-int elf_exec(const char *interp_prefix, 
-             const char * filename, char ** argv, char ** envp, 
+int elf_exec(const char * filename, char ** argv, char ** envp, 
              struct target_pt_regs * regs, struct image_info *infop)
 {
         struct linux_binprm bprm;
@@ -1080,7 +1074,6 @@ int elf_exec(const char *interp_prefix,
 	else {
 	    bprm.fd = retval;
 	}
-        bprm.interp_prefix = (char *)interp_prefix;
         bprm.filename = (char *)filename;
         bprm.sh_bang = 0;
         bprm.loader = 0;
