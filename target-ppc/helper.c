@@ -521,7 +521,7 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
     do_fault:
 #if defined (DEBUG_MMU)
 	if (loglevel > 0)
-	    cpu_ppc_dump_state(env, logfile, 0);
+	    cpu_dump_state(env, logfile, fprintf, 0);
 #endif
         if (access_type == ACCESS_CODE) {
             exception = EXCP_ISI;
@@ -676,7 +676,7 @@ void do_interrupt (CPUState *env)
                     env->nip, excp << 8, env->error_code);
         }
 	if (loglevel > 0)
-	    cpu_ppc_dump_state(env, logfile, 0);
+	    cpu_dump_state(env, logfile, fprintf, 0);
     }
 #endif
     if (loglevel & CPU_LOG_INT) {

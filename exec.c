@@ -1255,7 +1255,9 @@ void cpu_abort(CPUState *env, const char *fmt, ...)
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n");
 #ifdef TARGET_I386
-    cpu_x86_dump_state(env, stderr, X86_DUMP_FPU | X86_DUMP_CCOP);
+    cpu_dump_state(env, stderr, fprintf, X86_DUMP_FPU | X86_DUMP_CCOP);
+#else
+    cpu_dump_state(env, stderr, fprintf, 0);
 #endif
     va_end(ap);
     abort();

@@ -64,8 +64,6 @@ struct siginfo;
 int cpu_arm_signal_handler(int host_signum, struct siginfo *info, 
                            void *puc);
 
-void cpu_arm_dump_state(CPUARMState *env, FILE *f, int flags);
-
 #define TARGET_PAGE_BITS 12
 #include "cpu-all.h"
 

@@ -2924,24 +2924,26 @@ static int create_ppc_proc (opc_handler_t **ppc_opcodes, unsigned long pvr)
 /*****************************************************************************/
 /* Misc PPC helpers */
 
-void cpu_ppc_dump_state(CPUPPCState *env, FILE *f, int flags)
+void cpu_dump_state(CPUState *env, FILE *f, 
+                    int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
+                    int flags)
 {
     int i;
 
-    fprintf(f, "nip=0x%08x LR=0x%08x CTR=0x%08x XER=0x%08x "
+    cpu_fprintf(f, "nip=0x%08x LR=0x%08x CTR=0x%08x XER=0x%08x "
             "MSR=0x%08x\n", env->nip, env->lr, env->ctr,
             _load_xer(env), _load_msr(env));
         for (i = 0; i < 32; i++) {
             if ((i & 7) == 0)
-            fprintf(f, "GPR%02d:", i);
-        fprintf(f, " %08x", env->gpr[i]);
+            cpu_fprintf(f, "GPR%02d:", i);
+        cpu_fprintf(f, " %08x", env->gpr[i]);
             if ((i & 7) == 7)
-            fprintf(f, "\n");
+            cpu_fprintf(f, "\n");
         }
-    fprintf(f, "CR: 0x");
+    cpu_fprintf(f, "CR: 0x");
         for (i = 0; i < 8; i++)
-        fprintf(f, "%01x", env->crf[i]);
-    fprintf(f, "  [");
+        cpu_fprintf(f, "%01x", env->crf[i]);
+    cpu_fprintf(f, "  [");
         for (i = 0; i < 8; i++) {
             char a = '-';
             if (env->crf[i] & 0x08)
@@ -2950,22 +2952,21 @@ void cpu_ppc_dump_state(CPUPPCState *env, FILE *f, int flags)
                 a = 'G';
             else if (env->crf[i] & 0x02)
                 a = 'E';
-        fprintf(f, " %c%c", a, env->crf[i] & 0x01 ? 'O' : ' ');
+        cpu_fprintf(f, " %c%c", a, env->crf[i] & 0x01 ? 'O' : ' ');
         }
-    fprintf(f, " ] ");
-    fprintf(f, "TB: 0x%08x %08x\n", cpu_ppc_load_tbu(env),
+    cpu_fprintf(f, " ] ");
+    cpu_fprintf(f, "TB: 0x%08x %08x\n", cpu_ppc_load_tbu(env),
             cpu_ppc_load_tbl(env));
         for (i = 0; i < 16; i++) {
             if ((i & 3) == 0)
-            fprintf(f, "FPR%02d:", i);
-        fprintf(f, " %016llx", *((uint64_t *)&env->fpr[i]));
+            cpu_fprintf(f, "FPR%02d:", i);
+        cpu_fprintf(f, " %016llx", *((uint64_t *)&env->fpr[i]));
             if ((i & 3) == 3)
-            fprintf(f, "\n");
+            cpu_fprintf(f, "\n");
     }
-    fprintf(f, "SRR0 0x%08x SRR1 0x%08x DECR=0x%08x\n",
+    cpu_fprintf(f, "SRR0 0x%08x SRR1 0x%08x DECR=0x%08x\n",
             env->spr[SRR0], env->spr[SRR1], cpu_ppc_load_decr(env));
-    fprintf(f, "reservation 0x%08x\n", env->reserve);
-    fflush(f);
+    cpu_fprintf(f, "reservation 0x%08x\n", env->reserve);
 }
 
 #if !defined(CONFIG_USER_ONLY) && defined (USE_OPENFIRMWARE)
@@ -3170,7 +3171,7 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
 #ifdef DEBUG_DISAS
     if (loglevel & CPU_LOG_TB_CPU) {
         fprintf(logfile, "---------------- excp: %04x\n", ctx.exception);
-        cpu_ppc_dump_state(env, logfile, 0);
+        cpu_dump_state(env, logfile, fprintf, 0);
     }
     if (loglevel & CPU_LOG_TB_IN_ASM) {
         fprintf(logfile, "IN: %s\n", lookup_symbol((void *)pc_start));

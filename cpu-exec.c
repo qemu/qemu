@@ -304,16 +304,16 @@ int cpu_exec(CPUState *env1)
                     env->regs[R_EBP] = EBP;
                     env->regs[R_ESP] = ESP;
                     env->eflags = env->eflags | cc_table[CC_OP].compute_all() | (DF & DF_MASK);
-                    cpu_x86_dump_state(env, logfile, X86_DUMP_CCOP);
+                    cpu_dump_state(env, logfile, fprintf, X86_DUMP_CCOP);
                     env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
 #elif defined(TARGET_ARM)
                     env->cpsr = compute_cpsr();
-                    cpu_arm_dump_state(env, logfile, 0);
+                    cpu_dump_state(env, logfile, fprintf, 0);
                     env->cpsr &= ~0xf0000000;
 #elif defined(TARGET_SPARC)
-                    cpu_sparc_dump_state (env, logfile, 0);
+                    cpu_dump_state (env, logfile, fprintf, 0);
 #elif defined(TARGET_PPC)
-                    cpu_ppc_dump_state(env, logfile, 0);
+                    cpu_dump_state(env, logfile, fprintf, 0);
 #else
 #error unsupported target CPU 
 #endif

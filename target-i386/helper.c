@@ -872,7 +872,7 @@ void do_interrupt(int intno, int is_int, int error_code,
             }
             fprintf(logfile, "\n");
 #if 0
-            cpu_x86_dump_state(env, logfile, X86_DUMP_CCOP);
+            cpu_dump_state(env, logfile, fprintf, X86_DUMP_CCOP);
             {
                 int i;
                 uint8_t *ptr;
@@ -1334,7 +1334,7 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip)
     if (loglevel & CPU_LOG_PCALL) {
         fprintf(logfile, "lcall %04x:%08x s=%d\n",
                 new_cs, new_eip, shift);
-        cpu_x86_dump_state(env, logfile, X86_DUMP_CCOP);
+        cpu_dump_state(env, logfile, fprintf, X86_DUMP_CCOP);
     }
 #endif
     if ((new_cs & 0xfffc) == 0)
@@ -1596,7 +1596,7 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
     if (loglevel & CPU_LOG_PCALL) {
         fprintf(logfile, "lret new %04x:%08x s=%d addend=0x%x\n",
                 new_cs, new_eip, shift, addend);
-        cpu_x86_dump_state(env, logfile, X86_DUMP_CCOP);
+        cpu_dump_state(env, logfile, fprintf, X86_DUMP_CCOP);
     }
 #endif
     if ((new_cs & 0xfffc) == 0)

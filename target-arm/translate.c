@@ -824,18 +824,20 @@ void cpu_arm_close(CPUARMState *env)
     free(env);
 }
 
-void cpu_arm_dump_state(CPUARMState *env, FILE *f, int flags)
+void cpu_dump_state(CPUState *env, FILE *f, 
+                    int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
+                    int flags)
 {
     int i;
 
     for(i=0;i<16;i++) {
-        fprintf(f, "R%02d=%08x", i, env->regs[i]);
+        cpu_fprintf(f, "R%02d=%08x", i, env->regs[i]);
         if ((i % 4) == 3)
-            fprintf(f, "\n");
+            cpu_fprintf(f, "\n");
         else
-            fprintf(f, " ");
+            cpu_fprintf(f, " ");
     }
-    fprintf(f, "PSR=%08x %c%c%c%c\n", 
+    cpu_fprintf(f, "PSR=%08x %c%c%c%c\n", 
             env->cpsr, 
             env->cpsr & (1 << 31) ? 'N' : '-',
             env->cpsr & (1 << 30) ? 'Z' : '-',

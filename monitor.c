@@ -101,6 +101,15 @@ void term_printf(const char *fmt, ...)
     va_end(ap);
 }
 
+static int monitor_fprintf(FILE *stream, const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    term_vprintf(fmt, ap);
+    va_end(ap);
+    return 0;
+}
+
 static int compare_cmd(const char *name, const char *list)
 {
     const char *p, *pstart;
@@ -206,9 +215,11 @@ static void do_info_block(void)
 static void do_info_registers(void)
 {
 #ifdef TARGET_I386
-    cpu_dump_state(cpu_single_env, stdout, X86_DUMP_FPU | X86_DUMP_CCOP);
+    cpu_dump_state(cpu_single_env, stdout, monitor_fprintf,
+                   X86_DUMP_FPU | X86_DUMP_CCOP);
 #else
-    cpu_dump_state(cpu_single_env, stdout, 0);
+    cpu_dump_state(cpu_single_env, stdout, monitor_fprintf, 
+                   0);
 #endif
 }
 
@@ -1851,6 +1862,15 @@ void readline_find_completion(const char *cmdline)
             /* block device name completion */
             completion_index = strlen(str);
             bdrv_iterate(block_completion_it, (void *)str);
+            break;
+        case 's':
+            /* XXX: more generic ? */
+            if (!strcmp(cmd->name, "info")) {
+                completion_index = strlen(str);
+                for(cmd = info_cmds; cmd->name != NULL; cmd++) {
+                    cmd_completion(str, cmd->name);
+                }
+            }
             break;
         default:
             break;

@@ -1391,44 +1391,46 @@ CPUSPARCState *cpu_sparc_init(void)
 
 #define GET_FLAG(a,b) ((env->psr & a)?b:'-')
 
-void cpu_sparc_dump_state(CPUSPARCState * env, FILE * f, int flags)
+void cpu_dump_state(CPUState *env, FILE *f, 
+                    int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
+                    int flags)
 {
     int i, x;
 
-    fprintf(f, "pc: 0x%08x  npc: 0x%08x\n", (int) env->pc, (int) env->npc);
-    fprintf(f, "General Registers:\n");
+    cpu_fprintf(f, "pc: 0x%08x  npc: 0x%08x\n", (int) env->pc, (int) env->npc);
+    cpu_fprintf(f, "General Registers:\n");
     for (i = 0; i < 4; i++)
-	fprintf(f, "%%g%c: 0x%08x\t", i + '0', env->gregs[i]);
-    fprintf(f, "\n");
+	cpu_fprintf(f, "%%g%c: 0x%08x\t", i + '0', env->gregs[i]);
+    cpu_fprintf(f, "\n");
     for (; i < 8; i++)
-	fprintf(f, "%%g%c: 0x%08x\t", i + '0', env->gregs[i]);
-    fprintf(f, "\nCurrent Register Window:\n");
+	cpu_fprintf(f, "%%g%c: 0x%08x\t", i + '0', env->gregs[i]);
+    cpu_fprintf(f, "\nCurrent Register Window:\n");
     for (x = 0; x < 3; x++) {
 	for (i = 0; i < 4; i++)
-	    fprintf(f, "%%%c%d: 0x%08x\t",
+	    cpu_fprintf(f, "%%%c%d: 0x%08x\t",
 		    (x == 0 ? 'o' : (x == 1 ? 'l' : 'i')), i,
 		    env->regwptr[i + x * 8]);
-	fprintf(f, "\n");
+	cpu_fprintf(f, "\n");
 	for (; i < 8; i++)
-	    fprintf(f, "%%%c%d: 0x%08x\t",
+	    cpu_fprintf(f, "%%%c%d: 0x%08x\t",
 		    (x == 0 ? 'o' : x == 1 ? 'l' : 'i'), i,
 		    env->regwptr[i + x * 8]);
-	fprintf(f, "\n");
+	cpu_fprintf(f, "\n");
     }
-    fprintf(f, "\nFloating Point Registers:\n");
+    cpu_fprintf(f, "\nFloating Point Registers:\n");
     for (i = 0; i < 32; i++) {
         if ((i & 3) == 0)
-            fprintf(f, "%%f%02d:", i);
-        fprintf(f, " %016lf", env->fpr[i]);
+            cpu_fprintf(f, "%%f%02d:", i);
+        cpu_fprintf(f, " %016lf", env->fpr[i]);
         if ((i & 3) == 3)
-            fprintf(f, "\n");
+            cpu_fprintf(f, "\n");
     }
-    fprintf(f, "psr: 0x%08x -> %c%c%c%c %c%c%c wim: 0x%08x\n", GET_PSR(env),
+    cpu_fprintf(f, "psr: 0x%08x -> %c%c%c%c %c%c%c wim: 0x%08x\n", GET_PSR(env),
 	    GET_FLAG(PSR_ZERO, 'Z'), GET_FLAG(PSR_OVF, 'V'),
 	    GET_FLAG(PSR_NEG, 'N'), GET_FLAG(PSR_CARRY, 'C'),
 	    env->psrs?'S':'-', env->psrps?'P':'-', 
 	    env->psret?'E':'-', env->wim);
-    fprintf(f, "fsr: 0x%08x\n", env->fsr);
+    cpu_fprintf(f, "fsr: 0x%08x\n", env->fsr);
 }
 
 target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr)

@@ -372,7 +372,7 @@ void cpu_loop(CPUARMState *env)
         error:
             fprintf(stderr, "qemu: unhandled CPU exception 0x%x - aborting\n", 
                     trapnr);
-            cpu_arm_dump_state(env, stderr, 0);
+            cpu_dump_state(env, stderr, fprintf, 0);
             abort();
         }
         process_pending_signals(env);
@@ -499,7 +499,7 @@ void cpu_loop (CPUSPARCState *env)
             break;
         default:
             printf ("Unhandled trap: 0x%x\n", trapnr);
-            cpu_sparc_dump_state(env, stderr, 0);
+            cpu_dump_state(env, stderr, fprintf, 0);
             exit (1);
         }
         process_pending_signals (env);
@@ -563,7 +563,7 @@ void cpu_loop(CPUPPCState *env)
         if (trapnr != EXCP_SYSCALL_USER && trapnr != EXCP_BRANCH &&
             trapnr != EXCP_TRACE) {
             if (loglevel > 0) {
-                cpu_ppc_dump_state(env, logfile, 0);
+                cpu_dump_state(env, logfile, fprintf, 0);
             }
         }
         switch(trapnr) {

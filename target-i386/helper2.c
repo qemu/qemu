@@ -168,14 +168,16 @@ static const char *cc_op_str[] = {
     "SARL",
 };
 
-void cpu_x86_dump_state(CPUX86State *env, FILE *f, int flags)
+void cpu_dump_state(CPUState *env, FILE *f, 
+                    int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
+                    int flags)
 {
     int eflags, i;
     char cc_op_name[32];
     static const char *seg_name[6] = { "ES", "CS", "SS", "DS", "FS", "GS" };
 
     eflags = env->eflags;
-    fprintf(f, "EAX=%08x EBX=%08x ECX=%08x EDX=%08x\n"
+    cpu_fprintf(f, "EAX=%08x EBX=%08x ECX=%08x EDX=%08x\n"
             "ESI=%08x EDI=%08x EBP=%08x ESP=%08x\n"
             "EIP=%08x EFL=%08x [%c%c%c%c%c%c%c]    CPL=%d II=%d A20=%d\n",
             env->regs[R_EAX], env->regs[R_EBX], env->regs[R_ECX], env->regs[R_EDX], 
@@ -193,28 +195,28 @@ void cpu_x86_dump_state(CPUX86State *env, FILE *f, int flags)
             (env->a20_mask >> 20) & 1);
     for(i = 0; i < 6; i++) {
         SegmentCache *sc = &env->segs[i];
-        fprintf(f, "%s =%04x %08x %08x %08x\n",
+        cpu_fprintf(f, "%s =%04x %08x %08x %08x\n",
                 seg_name[i],
                 sc->selector,
                 (int)sc->base,
                 sc->limit,
                 sc->flags);
     }
-    fprintf(f, "LDT=%04x %08x %08x %08x\n",
+    cpu_fprintf(f, "LDT=%04x %08x %08x %08x\n",
             env->ldt.selector,
             (int)env->ldt.base,
             env->ldt.limit,
             env->ldt.flags);
-    fprintf(f, "TR =%04x %08x %08x %08x\n",
+    cpu_fprintf(f, "TR =%04x %08x %08x %08x\n",
             env->tr.selector,
             (int)env->tr.base,
             env->tr.limit,
             env->tr.flags);
-    fprintf(f, "GDT=     %08x %08x\n",
+    cpu_fprintf(f, "GDT=     %08x %08x\n",
             (int)env->gdt.base, env->gdt.limit);
-    fprintf(f, "IDT=     %08x %08x\n",
+    cpu_fprintf(f, "IDT=     %08x %08x\n",
             (int)env->idt.base, env->idt.limit);
-    fprintf(f, "CR0=%08x CR2=%08x CR3=%08x CR4=%08x\n",
+    cpu_fprintf(f, "CR0=%08x CR2=%08x CR3=%08x CR4=%08x\n",
             env->cr[0], env->cr[2], env->cr[3], env->cr[4]);
     
     if (flags & X86_DUMP_CCOP) {
@@ -222,16 +224,16 @@ void cpu_x86_dump_state(CPUX86State *env, FILE *f, int flags)
             snprintf(cc_op_name, sizeof(cc_op_name), "%s", cc_op_str[env->cc_op]);
         else
             snprintf(cc_op_name, sizeof(cc_op_name), "[%d]", env->cc_op);
-        fprintf(f, "CCS=%08x CCD=%08x CCO=%-8s\n",
+        cpu_fprintf(f, "CCS=%08x CCD=%08x CCO=%-8s\n",
                 env->cc_src, env->cc_dst, cc_op_name);
     }
     if (flags & X86_DUMP_FPU) {
-        fprintf(f, "ST0=%f ST1=%f ST2=%f ST3=%f\n", 
+        cpu_fprintf(f, "ST0=%f ST1=%f ST2=%f ST3=%f\n", 
                 (double)env->fpregs[0], 
                 (double)env->fpregs[1], 
                 (double)env->fpregs[2], 
                 (double)env->fpregs[3]);
-        fprintf(f, "ST4=%f ST5=%f ST6=%f ST7=%f\n", 
+        cpu_fprintf(f, "ST4=%f ST5=%f ST6=%f ST7=%f\n", 
                 (double)env->fpregs[4], 
                 (double)env->fpregs[5], 
                 (double)env->fpregs[7], 

@@ -4641,7 +4641,7 @@ static inline int gen_intermediate_code_internal(CPUState *env,
         
 #ifdef DEBUG_DISAS
     if (loglevel & CPU_LOG_TB_CPU) {
-        cpu_dump_state(env, logfile, X86_DUMP_CCOP);
+        cpu_dump_state(env, logfile, fprintf, X86_DUMP_CCOP);
     }
     if (loglevel & CPU_LOG_TB_IN_ASM) {
         fprintf(logfile, "----------------\n");

@@ -282,7 +282,7 @@ void monitor_disas(target_ulong pc, int nb_insn, int is_physical, int flags)
 #elif defined(TARGET_PPC)
     print_insn = print_insn_ppc;
 #else
-    fprintf(out, "Asm output not supported on this arch\n");
+    term_printf("Asm output not supported on this arch\n");
     return;
 #endif
 

@@ -570,7 +570,6 @@ void page_unprotect_range(uint8_t *data, unsigned long data_size);
 #define cpu_exec cpu_x86_exec
 #define cpu_gen_code cpu_x86_gen_code
 #define cpu_signal_handler cpu_x86_signal_handler
-#define cpu_dump_state cpu_x86_dump_state
 
 #elif defined(TARGET_ARM)
 
@@ -579,7 +578,6 @@ void page_unprotect_range(uint8_t *data, unsigned long data_size);
 #define cpu_exec cpu_arm_exec
 #define cpu_gen_code cpu_arm_gen_code
 #define cpu_signal_handler cpu_arm_signal_handler
-#define cpu_dump_state cpu_arm_dump_state
 
 #elif defined(TARGET_SPARC)
 
@@ -588,7 +586,6 @@ void page_unprotect_range(uint8_t *data, unsigned long data_size);
 #define cpu_exec cpu_sparc_exec
 #define cpu_gen_code cpu_sparc_gen_code
 #define cpu_signal_handler cpu_sparc_signal_handler
-#define cpu_dump_state cpu_sparc_dump_state
 
 #elif defined(TARGET_PPC)
 
@@ -597,7 +594,6 @@ void page_unprotect_range(uint8_t *data, unsigned long data_size);
 #define cpu_exec cpu_ppc_exec
 #define cpu_gen_code cpu_ppc_gen_code
 #define cpu_signal_handler cpu_ppc_signal_handler
-#define cpu_dump_state cpu_ppc_dump_state
 
 #else
 
@@ -606,6 +602,10 @@ void page_unprotect_range(uint8_t *data, unsigned long data_size);
 #endif
 
 #endif /* SINGLE_CPU_DEFINES */
+
+void cpu_dump_state(CPUState *env, FILE *f, 
+                    int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
+                    int flags);
 
 void cpu_abort(CPUState *env, const char *fmt, ...);
 extern CPUState *cpu_single_env;

@@ -406,9 +406,9 @@ void hw_error(const char *fmt, ...)
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n");
 #ifdef TARGET_I386
-    cpu_x86_dump_state(global_env, stderr, X86_DUMP_FPU | X86_DUMP_CCOP);
+    cpu_dump_state(global_env, stderr, fprintf, X86_DUMP_FPU | X86_DUMP_CCOP);
 #else
-    cpu_dump_state(global_env, stderr, 0);
+    cpu_dump_state(global_env, stderr, fprintf, 0);
 #endif
     va_end(ap);
     abort();

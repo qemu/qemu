@@ -147,7 +147,6 @@ int cpu_sparc_close(CPUSPARCState *s);
 
 struct siginfo;
 int cpu_sparc_signal_handler(int hostsignum, struct siginfo *info, void *puc);
-void cpu_sparc_dump_state(CPUSPARCState *env, FILE *f, int flags);
 
 #define TARGET_PAGE_BITS 12 /* 4k */
 #include "cpu-all.h"

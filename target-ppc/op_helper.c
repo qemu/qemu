@@ -466,14 +466,14 @@ void do_store_dbat (int ul, int nr)
 /* Special helpers for debug */
 void dump_state (void)
 {
-    //    cpu_ppc_dump_state(env, stdout, 0);
+    //    cpu_dump_state(env, stdout, fprintf, 0);
 }
 
 void dump_rfi (void)
 {
 #if 0
     printf("Return from interrupt => 0x%08x\n", env->nip);
-    //    cpu_ppc_dump_state(env, stdout, 0);
+    //    cpu_dump_state(env, stdout, fprintf, 0);
 #endif
 }
 

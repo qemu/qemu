@@ -290,7 +290,7 @@ void do_interrupt(int intno, int is_int, int error_code,
                     env->pc,
                     env->npc, env->regwptr[6]);
 #if 0
-	cpu_sparc_dump_state(env, logfile, 0);
+	cpu_dump_state(env, logfile, fprintf, 0);
 	{
 	    int i;
 	    uint8_t *ptr;

@@ -189,7 +189,6 @@ int cpu_ppc_signal_handler(int host_signum, struct siginfo *info,
 void do_interrupt (CPUPPCState *env);
 void cpu_loop_exit(void);
 
-void cpu_ppc_dump_state(CPUPPCState *env, FILE *f, int flags);
 void dump_stack (CPUPPCState *env);
 
 uint32_t _load_xer (CPUPPCState *env);
