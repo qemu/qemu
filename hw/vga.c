@@ -147,7 +147,7 @@ static uint32_t expand4[256];
 static uint16_t expand2[256];
 static uint8_t expand4to8[16];
 
-VGAState vga_state;
+VGAState *vga_state;
 int vga_io_memory;
 
 static uint32_t vga_ioport_read(void *opaque, uint32_t addr)
@@ -1507,7 +1507,7 @@ static void vga_draw_blank(VGAState *s, int full_update)
 
 void vga_update_display(void)
 {
-    VGAState *s = &vga_state;
+    VGAState *s = vga_state;
     int full_update, graphic_mode;
 
     if (s->ds->depth == 0) {
@@ -1674,7 +1674,7 @@ static int vga_load(QEMUFile *f, void *opaque, int version_id)
 static void vga_map(PCIDevice *pci_dev, int region_num, 
                     uint32_t addr, uint32_t size, int type)
 {
-    VGAState *s = &vga_state;
+    VGAState *s = vga_state;
 
     cpu_register_physical_memory(addr, s->vram_size, s->vram_offset);
 }
@@ -1715,6 +1715,8 @@ void vga_common_init(VGAState *s, DisplayState *ds, uint8_t *vga_ram_base,
     s->ds = ds;
     s->get_bpp = vga_get_bpp;
     s->get_offsets = vga_get_offsets;
+    /* XXX: currently needed for display */
+    vga_state = s;
 }
 
 
@@ -1722,7 +1724,11 @@ int vga_initialize(DisplayState *ds, uint8_t *vga_ram_base,
                    unsigned long vga_ram_offset, int vga_ram_size, 
                    int is_pci)
 {
-    VGAState *s = &vga_state;
+    VGAState *s;
+
+    s = qemu_mallocz(sizeof(VGAState));
+    if (!s)
+        return -1;
 
     vga_common_init(s, ds, vga_ram_base, vga_ram_offset, vga_ram_size);
 
@@ -1857,7 +1863,7 @@ static int ppm_save(const char *filename, uint8_t *data,
    available */
 void vga_screen_dump(const char *filename)
 {
-    VGAState *s = &vga_state;
+    VGAState *s = vga_state;
     DisplayState *saved_ds, ds1, *ds = &ds1;
     
     /* XXX: this is a little hackish */
