@@ -525,6 +525,8 @@ static term_cmd_t info_cmds[] = {
       "", "show the command line history", },
     { "pic", "", pic_info,
       "", "show i8259 (PIC) state", },
+    { "pci", "", pci_info,
+      "", "show PCI info", },
     { NULL, NULL, },
 };
 
