@@ -80,7 +80,21 @@ void OPPROTO glue(glue(op_stl, MEMSUFFIX), _T1_A0)(void)
     glue(stl, MEMSUFFIX)(A0, T1);
 }
 
-/* SSE support */
+/* SSE/MMX support */
+void OPPROTO glue(glue(op_ldq, MEMSUFFIX), _env_A0)(void)
+{
+    uint64_t *p;
+    p = (uint64_t *)((char *)env + PARAM1);
+    *p = glue(ldq, MEMSUFFIX)(A0);
+}
+
+void OPPROTO glue(glue(op_stq, MEMSUFFIX), _env_A0)(void)
+{
+    uint64_t *p;
+    p = (uint64_t *)((char *)env + PARAM1);
+    glue(stq, MEMSUFFIX)(A0, *p);
+}
+
 void OPPROTO glue(glue(op_ldo, MEMSUFFIX), _env_A0)(void)
 {
     XMMReg *p;

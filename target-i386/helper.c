@@ -2444,7 +2444,7 @@ void helper_fldt_ST0_A0(void)
 {
     int new_fpstt;
     new_fpstt = (env->fpstt - 1) & 7;
-    env->fpregs[new_fpstt] = helper_fldt(A0);
+    env->fpregs[new_fpstt].d = helper_fldt(A0);
     env->fpstt = new_fpstt;
     env->fptags[new_fpstt] = 0; /* validate stack entry */
 }
@@ -2804,9 +2804,10 @@ void helper_fstenv(target_ulong ptr, int data32)
 	if (env->fptags[i]) {
             fptag |= 3;
 	} else {
-            tmp.d = env->fpregs[i];
+            tmp.d = env->fpregs[i].d;
             exp = EXPD(tmp);
             mant = MANTD(tmp);
+            printf("mant=%llx exp=%x\n", mant, exp);
             if (exp == 0 && mant == 0) {
                 /* zero */
 	        fptag |= 1;
@@ -2930,7 +2931,7 @@ void helper_fxsave(target_ulong ptr, int data64)
     
     if (env->cr[4] & CR4_OSFXSR_MASK) {
         /* XXX: finish it */
-        stl(ptr + 0x18, 0); /* mxcsr */
+        stl(ptr + 0x18, env->mxcsr); /* mxcsr */
         stl(ptr + 0x1c, 0); /* mxcsr_mask */
         nb_xmm_regs = 8 << data64;
         addr = ptr + 0xa0;
@@ -2967,7 +2968,7 @@ void helper_fxrstor(target_ulong ptr, int data64)
 
     if (env->cr[4] & CR4_OSFXSR_MASK) {
         /* XXX: finish it, endianness */
-        //ldl(ptr + 0x18);
+        env->mxcsr = ldl(ptr + 0x18);
         //ldl(ptr + 0x1c);
         nb_xmm_regs = 8 << data64;
         addr = ptr + 0xa0;
@@ -3208,6 +3209,23 @@ void helper_idivq_EAX_T0(void)
 }
 
 #endif
+
+/* XXX: do it */
+int fpu_isnan(double a)
+{
+    return 0;
+}
+
+float approx_rsqrt(float a)
+{
+    return 1.0 / sqrt(a);
+}
+
+float approx_rcp(float a)
+{
+    return 1.0 / a;
+}
+
 
 #if !defined(CONFIG_USER_ONLY) 
 

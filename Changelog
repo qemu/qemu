@@ -11,6 +11,7 @@ version 0.6.2:
   - added generic 64 bit target support
   - initial x86_64 target support
   - initial APIC support
+  - MMX/SSE/SSE2/PNI support
 
 version 0.6.1:
 

@@ -131,8 +131,8 @@ extern int loglevel;
 
 /* float macros */
 #define FT0    (env->ft0)
-#define ST0    (env->fpregs[env->fpstt])
-#define ST(n)  (env->fpregs[(env->fpstt + (n)) & 7])
+#define ST0    (env->fpregs[env->fpstt].d)
+#define ST(n)  (env->fpregs[(env->fpstt + (n)) & 7].d)
 #define ST1    ST(1)
 
 #ifdef USE_FP_CONVERT
@@ -459,7 +459,7 @@ static inline CPU86_LDouble helper_fldt(target_ulong ptr)
     return temp.d;
 }
 
-static inline void helper_fstt(CPU86_LDouble f, uint8_t *ptr)
+static inline void helper_fstt(CPU86_LDouble f, target_ulong ptr)
 {
     CPU86_LDoubleU temp;
     int e;
@@ -557,6 +557,9 @@ void helper_fxsave(target_ulong ptr, int data64);
 void helper_fxrstor(target_ulong ptr, int data64);
 void restore_native_fp_state(CPUState *env);
 void save_native_fp_state(CPUState *env);
+float approx_rsqrt(float a);
+float approx_rcp(float a);
+int fpu_isnan(double a);
 
 extern const uint8_t parity_table[256];
 extern const uint8_t rclw_table[32];

@@ -1606,6 +1606,23 @@ static void gen_lea_modrm(DisasContext *s, int modrm, int *reg_ptr, int *offset_
     *offset_ptr = disp;
 }
 
+/* used for LEA and MOV AX, mem */
+static void gen_add_A0_ds_seg(DisasContext *s)
+{
+    int override, must_add_seg;
+    must_add_seg = s->addseg;
+    override = R_DS;
+    if (s->override >= 0) {
+        override = s->override;
+        must_add_seg = 1;
+    } else {
+        override = R_DS;
+    }
+    if (must_add_seg) {
+        gen_op_addl_A0_seg(offsetof(CPUX86State,segs[override].base));
+    }
+}
+
 /* generate modrm memory load or store of 'reg'. TMP0 is used if reg !=
    OR_TMP0 */
 static void gen_ldst_modrm(DisasContext *s, int modrm, int ot, int reg, int is_store)
@@ -2193,6 +2210,22 @@ static void gen_movtl_T0_im(target_ulong val)
 #endif
 }
 
+static GenOpFunc1 *gen_ldq_env_A0[3] = {
+    gen_op_ldq_raw_env_A0,
+#ifndef CONFIG_USER_ONLY
+    gen_op_ldq_kernel_env_A0,
+    gen_op_ldq_user_env_A0,
+#endif
+};
+
+static GenOpFunc1 *gen_stq_env_A0[3] = {
+    gen_op_stq_raw_env_A0,
+#ifndef CONFIG_USER_ONLY
+    gen_op_stq_kernel_env_A0,
+    gen_op_stq_user_env_A0,
+#endif
+};
+
 static GenOpFunc1 *gen_ldo_env_A0[3] = {
     gen_op_ldo_raw_env_A0,
 #ifndef CONFIG_USER_ONLY
@@ -2208,6 +2241,693 @@ static GenOpFunc1 *gen_sto_env_A0[3] = {
     gen_op_sto_user_env_A0,
 #endif
 };
+
+#define SSE_SPECIAL ((GenOpFunc2 *)1)
+
+#define MMX_OP2(x) { gen_op_ ## x ## _mmx, gen_op_ ## x ## _xmm }
+#define SSE_FOP(x) { gen_op_ ## x ## ps, gen_op_ ## x ## pd, \
+                     gen_op_ ## x ## ss, gen_op_ ## x ## sd, }
+
+static GenOpFunc2 *sse_op_table1[256][4] = {
+    /* pure SSE operations */
+    [0x10] = { SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL }, /* movups, movupd, movss, movsd */
+    [0x11] = { SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL }, /* movups, movupd, movss, movsd */
+    [0x12] = { SSE_SPECIAL, SSE_SPECIAL },  /* movlps, movlpd */
+    [0x13] = { SSE_SPECIAL, SSE_SPECIAL },  /* movlps, movlpd */
+    [0x14] = { gen_op_punpckldq_xmm, gen_op_punpcklqdq_xmm },
+    [0x15] = { gen_op_punpckhdq_xmm, gen_op_punpckhqdq_xmm },
+    [0x16] = { SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL },  /* movhps, movhpd, movshdup */
+    [0x17] = { SSE_SPECIAL, SSE_SPECIAL },  /* movhps, movhpd */
+
+    [0x28] = { SSE_SPECIAL, SSE_SPECIAL },  /* movaps, movapd */
+    [0x29] = { SSE_SPECIAL, SSE_SPECIAL },  /* movaps, movapd */
+    [0x2a] = { SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL }, /* cvtpi2ps, cvtpi2pd, cvtsi2ss, cvtsi2sd */
+    [0x2b] = { SSE_SPECIAL, SSE_SPECIAL },  /* movntps, movntpd */
+    [0x2c] = { SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL }, /* cvttps2pi, cvttpd2pi, cvttsd2si, cvttss2si */
+    [0x2d] = { SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL }, /* cvtps2pi, cvtpd2pi, cvtsd2si, cvtss2si */
+    [0x2e] = { gen_op_ucomiss, gen_op_ucomisd },
+    [0x2f] = { gen_op_comiss, gen_op_comisd },
+    [0x50] = { SSE_SPECIAL, SSE_SPECIAL }, /* movmskps, movmskpd */
+    [0x51] = SSE_FOP(sqrt),
+    [0x52] = { gen_op_rsqrtps, NULL, gen_op_rsqrtss, NULL },
+    [0x53] = { gen_op_rcpps, NULL, gen_op_rcpss, NULL },
+    [0x54] = { gen_op_pand_xmm, gen_op_pand_xmm }, /* andps, andpd */
+    [0x55] = { gen_op_pandn_xmm, gen_op_pandn_xmm }, /* andnps, andnpd */
+    [0x56] = { gen_op_por_xmm, gen_op_por_xmm }, /* orps, orpd */
+    [0x57] = { gen_op_pxor_xmm, gen_op_pxor_xmm }, /* xorps, xorpd */
+    [0x58] = SSE_FOP(add),
+    [0x59] = SSE_FOP(mul),
+    [0x5a] = { gen_op_cvtps2pd, gen_op_cvtpd2ps, 
+               gen_op_cvtss2sd, gen_op_cvtsd2ss },
+    [0x5b] = { gen_op_cvtdq2ps, gen_op_cvtps2dq, gen_op_cvttps2dq },
+    [0x5c] = SSE_FOP(sub),
+    [0x5d] = SSE_FOP(min),
+    [0x5e] = SSE_FOP(div),
+    [0x5f] = SSE_FOP(max),
+
+    [0xc2] = SSE_FOP(cmpeq),
+    [0xc6] = { (GenOpFunc2 *)gen_op_pshufd_xmm, (GenOpFunc2 *)gen_op_shufpd },
+
+    /* MMX ops and their SSE extensions */
+    [0x60] = MMX_OP2(punpcklbw),
+    [0x61] = MMX_OP2(punpcklwd),
+    [0x62] = MMX_OP2(punpckldq),
+    [0x63] = MMX_OP2(packsswb),
+    [0x64] = MMX_OP2(pcmpgtb),
+    [0x65] = MMX_OP2(pcmpgtw),
+    [0x66] = MMX_OP2(pcmpgtl),
+    [0x67] = MMX_OP2(packuswb),
+    [0x68] = MMX_OP2(punpckhbw),
+    [0x69] = MMX_OP2(punpckhwd),
+    [0x6a] = MMX_OP2(punpckhdq),
+    [0x6b] = MMX_OP2(packssdw),
+    [0x6c] = { NULL, gen_op_punpcklqdq_xmm },
+    [0x6d] = { NULL, gen_op_punpckhqdq_xmm },
+    [0x6e] = { SSE_SPECIAL, SSE_SPECIAL }, /* movd mm, ea */
+    [0x6f] = { SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL }, /* movq, movdqa, , movqdu */
+    [0x70] = { (GenOpFunc2 *)gen_op_pshufw_mmx, 
+               (GenOpFunc2 *)gen_op_pshufd_xmm, 
+               (GenOpFunc2 *)gen_op_pshufhw_xmm, 
+               (GenOpFunc2 *)gen_op_pshuflw_xmm },
+    [0x71] = { SSE_SPECIAL, SSE_SPECIAL }, /* shiftw */
+    [0x72] = { SSE_SPECIAL, SSE_SPECIAL }, /* shiftd */
+    [0x73] = { SSE_SPECIAL, SSE_SPECIAL }, /* shiftq */
+    [0x74] = MMX_OP2(pcmpeqb),
+    [0x75] = MMX_OP2(pcmpeqw),
+    [0x76] = MMX_OP2(pcmpeql),
+    [0x77] = { SSE_SPECIAL }, /* emms */
+    [0x7c] = { NULL, gen_op_haddpd, NULL, gen_op_haddps },
+    [0x7d] = { NULL, gen_op_hsubpd, NULL, gen_op_hsubps },
+    [0x7e] = { SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL }, /* movd, movd, , movq */
+    [0x7f] = { SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL }, /* movq, movdqa, movdqu */
+    [0xc4] = { SSE_SPECIAL, SSE_SPECIAL }, /* pinsrw */
+    [0xc5] = { SSE_SPECIAL, SSE_SPECIAL }, /* pextrw */
+    [0xd0] = { NULL, gen_op_addsubpd, NULL, gen_op_addsubps },
+    [0xd1] = MMX_OP2(psrlw),
+    [0xd2] = MMX_OP2(psrld),
+    [0xd3] = MMX_OP2(psrlq),
+    [0xd4] = MMX_OP2(paddq),
+    [0xd5] = MMX_OP2(pmullw),
+    [0xd6] = { NULL, SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL },
+    [0xd7] = { SSE_SPECIAL, SSE_SPECIAL }, /* pmovmskb */
+    [0xd8] = MMX_OP2(psubusb),
+    [0xd9] = MMX_OP2(psubusw),
+    [0xda] = MMX_OP2(pminub),
+    [0xdb] = MMX_OP2(pand),
+    [0xdc] = MMX_OP2(paddusb),
+    [0xdd] = MMX_OP2(paddusw),
+    [0xde] = MMX_OP2(pmaxub),
+    [0xdf] = MMX_OP2(pandn),
+    [0xe0] = MMX_OP2(pavgb),
+    [0xe1] = MMX_OP2(psraw),
+    [0xe2] = MMX_OP2(psrad),
+    [0xe3] = MMX_OP2(pavgw),
+    [0xe4] = MMX_OP2(pmulhuw),
+    [0xe5] = MMX_OP2(pmulhw),
+    [0xe6] = { NULL, gen_op_cvttpd2dq, gen_op_cvtdq2pd, gen_op_cvtpd2dq },
+    [0xe7] = { SSE_SPECIAL , SSE_SPECIAL },  /* movntq, movntq */
+    [0xe8] = MMX_OP2(psubsb),
+    [0xe9] = MMX_OP2(psubsw),
+    [0xea] = MMX_OP2(pminsw),
+    [0xeb] = MMX_OP2(por),
+    [0xec] = MMX_OP2(paddsb),
+    [0xed] = MMX_OP2(paddsw),
+    [0xee] = MMX_OP2(pmaxsw),
+    [0xef] = MMX_OP2(pxor),
+    [0xf0] = { NULL, NULL, NULL, SSE_SPECIAL }, /* lddqu (PNI) */
+    [0xf1] = MMX_OP2(psllw),
+    [0xf2] = MMX_OP2(pslld),
+    [0xf3] = MMX_OP2(psllq),
+    [0xf4] = MMX_OP2(pmuludq),
+    [0xf5] = MMX_OP2(pmaddwd),
+    [0xf6] = MMX_OP2(psadbw),
+    [0xf7] = MMX_OP2(maskmov),
+    [0xf8] = MMX_OP2(psubb),
+    [0xf9] = MMX_OP2(psubw),
+    [0xfa] = MMX_OP2(psubl),
+    [0xfb] = MMX_OP2(psubq),
+    [0xfc] = MMX_OP2(paddb),
+    [0xfd] = MMX_OP2(paddw),
+    [0xfe] = MMX_OP2(paddl),
+};
+
+static GenOpFunc2 *sse_op_table2[3 * 8][2] = {
+    [0 + 2] = MMX_OP2(psrlw),
+    [0 + 4] = MMX_OP2(psraw),
+    [0 + 6] = MMX_OP2(psllw),
+    [8 + 2] = MMX_OP2(psrld),
+    [8 + 4] = MMX_OP2(psrad),
+    [8 + 6] = MMX_OP2(pslld),
+    [16 + 2] = MMX_OP2(psrlq),
+    [16 + 3] = { NULL, gen_op_psrldq_xmm },
+    [16 + 6] = MMX_OP2(psllq),
+    [16 + 7] = { NULL, gen_op_pslldq_xmm },
+};
+
+static GenOpFunc1 *sse_op_table3[4 * 3] = {
+    gen_op_cvtsi2ss,
+    gen_op_cvtsi2sd,
+    X86_64_ONLY(gen_op_cvtsq2ss),
+    X86_64_ONLY(gen_op_cvtsq2sd),
+    
+    gen_op_cvttss2si,
+    gen_op_cvttsd2si,
+    X86_64_ONLY(gen_op_cvttss2sq),
+    X86_64_ONLY(gen_op_cvttsd2sq),
+
+    gen_op_cvtss2si,
+    gen_op_cvtsd2si,
+    X86_64_ONLY(gen_op_cvtss2sq),
+    X86_64_ONLY(gen_op_cvtsd2sq),
+};
+    
+static GenOpFunc2 *sse_op_table4[8][4] = {
+    SSE_FOP(cmpeq),
+    SSE_FOP(cmplt),
+    SSE_FOP(cmple),
+    SSE_FOP(cmpunord),
+    SSE_FOP(cmpneq),
+    SSE_FOP(cmpnlt),
+    SSE_FOP(cmpnle),
+    SSE_FOP(cmpord),
+};
+    
+static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
+{
+    int b1, op1_offset, op2_offset, is_xmm, val, ot;
+    int modrm, mod, rm, reg, reg_addr, offset_addr;
+    GenOpFunc2 *sse_op2;
+    GenOpFunc3 *sse_op3;
+
+    b &= 0xff;
+    if (s->prefix & PREFIX_DATA) 
+        b1 = 1;
+    else if (s->prefix & PREFIX_REPZ) 
+        b1 = 2;
+    else if (s->prefix & PREFIX_REPNZ) 
+        b1 = 3;
+    else
+        b1 = 0;
+    sse_op2 = sse_op_table1[b][b1];
+    if (!sse_op2) 
+        goto illegal_op;
+    if (b <= 0x5f || b == 0xc6 || b == 0xc2) {
+        is_xmm = 1;
+    } else {
+        if (b1 == 0) {
+            /* MMX case */
+            is_xmm = 0;
+        } else {
+            is_xmm = 1;
+        }
+    }
+    /* simple MMX/SSE operation */
+    if (s->flags & HF_TS_MASK) {
+        gen_exception(s, EXCP07_PREX, pc_start - s->cs_base);
+        return;
+    }
+    if (s->flags & HF_EM_MASK) {
+    illegal_op:
+        gen_exception(s, EXCP06_ILLOP, pc_start - s->cs_base);
+        return;
+    }
+    if (is_xmm && !(s->flags & HF_OSFXSR_MASK))
+        goto illegal_op;
+    if (b == 0x77) {
+        /* emms */
+        gen_op_emms();
+        return;
+    }
+    /* prepare MMX state (XXX: optimize by storing fptt and fptags in
+       the static cpu state) */
+    if (!is_xmm) {
+        gen_op_enter_mmx();
+    }
+
+    modrm = ldub_code(s->pc++);
+    reg = ((modrm >> 3) & 7);
+    if (is_xmm)
+        reg |= rex_r;
+    mod = (modrm >> 6) & 3;
+    if (sse_op2 == SSE_SPECIAL) {
+        b |= (b1 << 8);
+        switch(b) {
+        case 0x0e7: /* movntq */
+            if (mod == 3) 
+                goto illegal_op;
+            gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+            gen_stq_env_A0[s->mem_index >> 2](offsetof(CPUX86State,fpregs[reg].mmx));
+            break;
+        case 0x1e7: /* movntdq */
+        case 0x02b: /* movntps */
+        case 0x12b: /* movntps */
+        case 0x2f0: /* lddqu */
+            if (mod == 3) 
+                goto illegal_op;
+            gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+            gen_sto_env_A0[s->mem_index >> 2](offsetof(CPUX86State,xmm_regs[reg]));
+            break;
+        case 0x6e: /* movd mm, ea */
+            gen_ldst_modrm(s, modrm, OT_LONG, OR_TMP0, 0);
+            gen_op_movl_mm_T0_mmx(offsetof(CPUX86State,fpregs[reg].mmx));
+            break;
+        case 0x16e: /* movd xmm, ea */
+            gen_ldst_modrm(s, modrm, OT_LONG, OR_TMP0, 0);
+            gen_op_movl_mm_T0_xmm(offsetof(CPUX86State,xmm_regs[reg]));
+            break;
+        case 0x6f: /* movq mm, ea */
+            if (mod != 3) {
+                gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+                gen_ldq_env_A0[s->mem_index >> 2](offsetof(CPUX86State,fpregs[reg].mmx));
+            } else {
+                rm = (modrm & 7);
+                gen_op_movq(offsetof(CPUX86State,fpregs[reg].mmx),
+                            offsetof(CPUX86State,fpregs[rm].mmx));
+            }
+            break;
+        case 0x010: /* movups */
+        case 0x110: /* movupd */
+        case 0x028: /* movaps */
+        case 0x128: /* movapd */
+        case 0x16f: /* movdqa xmm, ea */
+        case 0x26f: /* movdqu xmm, ea */
+            if (mod != 3) {
+                gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+                gen_ldo_env_A0[s->mem_index >> 2](offsetof(CPUX86State,xmm_regs[reg]));
+            } else {
+                rm = (modrm & 7) | REX_B(s);
+                gen_op_movo(offsetof(CPUX86State,xmm_regs[reg]),
+                            offsetof(CPUX86State,xmm_regs[rm]));
+            }
+            break;
+        case 0x210: /* movss xmm, ea */
+            if (mod != 3) {
+                gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+                gen_op_ld_T0_A0[OT_LONG + s->mem_index]();
+                gen_op_movl_env_T0(offsetof(CPUX86State,xmm_regs[reg].XMM_L(0)));
+                gen_op_movl_T0_0();
+                gen_op_movl_env_T0(offsetof(CPUX86State,xmm_regs[reg].XMM_L(1)));
+                gen_op_movl_env_T0(offsetof(CPUX86State,xmm_regs[reg].XMM_L(2)));
+                gen_op_movl_env_T0(offsetof(CPUX86State,xmm_regs[reg].XMM_L(3)));
+            } else {
+                rm = (modrm & 7) | REX_B(s);
+                gen_op_movl(offsetof(CPUX86State,xmm_regs[reg].XMM_L(0)),
+                            offsetof(CPUX86State,xmm_regs[rm].XMM_L(0)));
+            }
+            break;
+        case 0x310: /* movsd xmm, ea */
+            if (mod != 3) {
+                gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+                gen_ldq_env_A0[s->mem_index >> 2](offsetof(CPUX86State,xmm_regs[reg].XMM_Q(0)));
+                gen_op_movl_T0_0();
+                gen_op_movl_env_T0(offsetof(CPUX86State,xmm_regs[reg].XMM_L(2)));
+                gen_op_movl_env_T0(offsetof(CPUX86State,xmm_regs[reg].XMM_L(3)));
+            } else {
+                rm = (modrm & 7) | REX_B(s);
+                gen_op_movq(offsetof(CPUX86State,xmm_regs[reg].XMM_Q(0)),
+                            offsetof(CPUX86State,xmm_regs[rm].XMM_Q(0)));
+            }
+            break;
+        case 0x012: /* movlps */
+        case 0x112: /* movlpd */
+            if (mod != 3) {
+                gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+                gen_ldq_env_A0[s->mem_index >> 2](offsetof(CPUX86State,xmm_regs[reg].XMM_Q(0)));
+            } else {
+                /* movhlps */
+                rm = (modrm & 7) | REX_B(s);
+                gen_op_movq(offsetof(CPUX86State,xmm_regs[reg].XMM_Q(0)),
+                            offsetof(CPUX86State,xmm_regs[rm].XMM_Q(1)));
+            }
+            break;
+        case 0x016: /* movhps */
+        case 0x116: /* movhpd */
+            if (mod != 3) {
+                gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+                gen_ldq_env_A0[s->mem_index >> 2](offsetof(CPUX86State,xmm_regs[reg].XMM_Q(1)));
+            } else {
+                /* movlhps */
+                rm = (modrm & 7) | REX_B(s);
+                gen_op_movq(offsetof(CPUX86State,xmm_regs[reg].XMM_Q(1)),
+                            offsetof(CPUX86State,xmm_regs[rm].XMM_Q(0)));
+            }
+            break;
+        case 0x216: /* movshdup */
+            if (mod != 3) {
+                gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+                gen_ldo_env_A0[s->mem_index >> 2](offsetof(CPUX86State,xmm_regs[reg]));
+            } else {
+                rm = (modrm & 7) | REX_B(s);
+                gen_op_movl(offsetof(CPUX86State,xmm_regs[reg].XMM_L(1)),
+                            offsetof(CPUX86State,xmm_regs[rm].XMM_L(1)));
+                gen_op_movl(offsetof(CPUX86State,xmm_regs[reg].XMM_L(3)),
+                            offsetof(CPUX86State,xmm_regs[rm].XMM_L(3)));
+            }
+            gen_op_movl(offsetof(CPUX86State,xmm_regs[reg].XMM_L(0)),
+                        offsetof(CPUX86State,xmm_regs[reg].XMM_L(1)));
+            gen_op_movl(offsetof(CPUX86State,xmm_regs[reg].XMM_L(2)),
+                        offsetof(CPUX86State,xmm_regs[reg].XMM_L(3)));
+            break;
+        case 0x7e: /* movd ea, mm */
+            gen_op_movl_T0_mm_mmx(offsetof(CPUX86State,fpregs[reg].mmx));
+            gen_ldst_modrm(s, modrm, OT_LONG, OR_TMP0, 1);
+            break;
+        case 0x17e: /* movd ea, xmm */
+            gen_op_movl_T0_mm_xmm(offsetof(CPUX86State,xmm_regs[reg]));
+            gen_ldst_modrm(s, modrm, OT_LONG, OR_TMP0, 1);
+            break;
+        case 0x27e: /* movq xmm, ea */
+            if (mod != 3) {
+                gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+                gen_ldq_env_A0[s->mem_index >> 2](offsetof(CPUX86State,xmm_regs[reg].XMM_Q(0)));
+            } else {
+                rm = (modrm & 7) | REX_B(s);
+                gen_op_movq(offsetof(CPUX86State,xmm_regs[reg].XMM_Q(0)),
+                            offsetof(CPUX86State,xmm_regs[rm].XMM_Q(0)));
+            }
+            gen_op_movq_env_0(offsetof(CPUX86State,xmm_regs[reg].XMM_Q(1)));
+            break;
+        case 0x7f: /* movq ea, mm */
+            if (mod != 3) {
+                gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+                gen_stq_env_A0[s->mem_index >> 2](offsetof(CPUX86State,fpregs[reg].mmx));
+            } else {
+                rm = (modrm & 7);
+                gen_op_movq(offsetof(CPUX86State,fpregs[rm].mmx),
+                            offsetof(CPUX86State,fpregs[reg].mmx));
+            }
+            break;
+        case 0x011: /* movups */
+        case 0x111: /* movupd */
+        case 0x029: /* movaps */
+        case 0x129: /* movapd */
+        case 0x17f: /* movdqa ea, xmm */
+        case 0x27f: /* movdqu ea, xmm */
+            if (mod != 3) {
+                gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+                gen_sto_env_A0[s->mem_index >> 2](offsetof(CPUX86State,xmm_regs[reg]));
+            } else {
+                rm = (modrm & 7) | REX_B(s);
+                gen_op_movo(offsetof(CPUX86State,xmm_regs[rm]),
+                            offsetof(CPUX86State,xmm_regs[reg]));
+            }
+            break;
+        case 0x211: /* movss ea, xmm */
+            if (mod != 3) {
+                gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+                gen_op_movl_T0_env(offsetof(CPUX86State,xmm_regs[reg].XMM_L(0)));
+                gen_op_st_T0_A0[OT_LONG + s->mem_index]();
+            } else {
+                rm = (modrm & 7) | REX_B(s);
+                gen_op_movl(offsetof(CPUX86State,xmm_regs[rm].XMM_L(0)),
+                            offsetof(CPUX86State,xmm_regs[reg].XMM_L(0)));
+            }
+            break;
+        case 0x311: /* movsd ea, xmm */
+            if (mod != 3) {
+                gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+                gen_stq_env_A0[s->mem_index >> 2](offsetof(CPUX86State,xmm_regs[reg].XMM_Q(0)));
+            } else {
+                rm = (modrm & 7) | REX_B(s);
+                gen_op_movq(offsetof(CPUX86State,xmm_regs[rm].XMM_Q(0)),
+                            offsetof(CPUX86State,xmm_regs[reg].XMM_Q(0)));
+            }
+            break;
+        case 0x013: /* movlps */
+        case 0x113: /* movlpd */
+            if (mod != 3) {
+                gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+                gen_stq_env_A0[s->mem_index >> 2](offsetof(CPUX86State,xmm_regs[reg].XMM_Q(0)));
+            } else {
+                goto illegal_op;
+            }
+            break;
+        case 0x017: /* movhps */
+        case 0x117: /* movhpd */
+            if (mod != 3) {
+                gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+                gen_stq_env_A0[s->mem_index >> 2](offsetof(CPUX86State,xmm_regs[reg].XMM_Q(1)));
+            } else {
+                goto illegal_op;
+            }
+            break;
+        case 0x71: /* shift mm, im */
+        case 0x72:
+        case 0x73:
+        case 0x171: /* shift xmm, im */
+        case 0x172:
+        case 0x173:
+            val = ldub_code(s->pc++);
+            if (is_xmm) {
+                gen_op_movl_T0_im(val);
+                gen_op_movl_env_T0(offsetof(CPUX86State,xmm_t0.XMM_L(0)));
+                gen_op_movl_T0_0();
+                gen_op_movl_env_T0(offsetof(CPUX86State,xmm_t0.XMM_L(1)));
+                op1_offset = offsetof(CPUX86State,xmm_t0);
+            } else {
+                gen_op_movl_T0_im(val);
+                gen_op_movl_env_T0(offsetof(CPUX86State,mmx_t0.MMX_L(0)));
+                gen_op_movl_T0_0();
+                gen_op_movl_env_T0(offsetof(CPUX86State,mmx_t0.MMX_L(1)));
+                op1_offset = offsetof(CPUX86State,mmx_t0);
+            }
+            sse_op2 = sse_op_table2[((b - 1) & 3) * 8 + (((modrm >> 3)) & 7)][b1];
+            if (!sse_op2)
+                goto illegal_op;
+            if (is_xmm) {
+                rm = (modrm & 7) | REX_B(s);
+                op2_offset = offsetof(CPUX86State,xmm_regs[rm]);
+            } else {
+                rm = (modrm & 7);
+                op2_offset = offsetof(CPUX86State,fpregs[rm].mmx);
+            }
+            sse_op2(op2_offset, op1_offset);
+            break;
+        case 0x050: /* movmskps */
+            gen_op_movmskps(offsetof(CPUX86State,xmm_regs[reg]));
+            rm = (modrm & 7) | REX_B(s);
+            gen_op_mov_reg_T0[OT_LONG][rm]();
+            break;
+        case 0x150: /* movmskpd */
+            gen_op_movmskpd(offsetof(CPUX86State,xmm_regs[reg]));
+            rm = (modrm & 7) | REX_B(s);
+            gen_op_mov_reg_T0[OT_LONG][rm]();
+            break;
+        case 0x02a: /* cvtpi2ps */
+        case 0x12a: /* cvtpi2pd */
+            gen_op_enter_mmx();
+            if (mod != 3) {
+                gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+                op2_offset = offsetof(CPUX86State,mmx_t0);
+                gen_ldq_env_A0[s->mem_index >> 2](op2_offset);
+            } else {
+                rm = (modrm & 7);
+                op2_offset = offsetof(CPUX86State,fpregs[rm].mmx);
+            }
+            op1_offset = offsetof(CPUX86State,xmm_regs[reg]);
+            switch(b >> 8) {
+            case 0x0:
+                gen_op_cvtpi2ps(op1_offset, op2_offset);
+                break;
+            default:
+            case 0x1:
+                gen_op_cvtpi2pd(op1_offset, op2_offset);
+                break;
+            }
+            break;
+        case 0x22a: /* cvtsi2ss */
+        case 0x32a: /* cvtsi2sd */
+            ot = (s->dflag == 2) ? OT_QUAD : OT_LONG;
+            gen_ldst_modrm(s, modrm, ot, OR_TMP0, 0);
+            op1_offset = offsetof(CPUX86State,xmm_regs[reg]);
+            sse_op_table3[(s->dflag == 2) * 2 + ((b >> 8) - 2)](op1_offset);
+            break;
+        case 0x02c: /* cvttps2pi */
+        case 0x12c: /* cvttpd2pi */
+        case 0x02d: /* cvtps2pi */
+        case 0x12d: /* cvtpd2pi */
+            gen_op_enter_mmx();
+            if (mod != 3) {
+                gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+                op2_offset = offsetof(CPUX86State,xmm_t0);
+                gen_ldo_env_A0[s->mem_index >> 2](op2_offset);
+            } else {
+                rm = (modrm & 7) | REX_B(s);
+                op2_offset = offsetof(CPUX86State,xmm_regs[rm]);
+            }
+            op1_offset = offsetof(CPUX86State,fpregs[reg & 7].mmx);
+            switch(b) {
+            case 0x02c:
+                gen_op_cvttps2pi(op1_offset, op2_offset);
+                break;
+            case 0x12c:
+                gen_op_cvttpd2pi(op1_offset, op2_offset);
+                break;
+            case 0x02d:
+                gen_op_cvtps2pi(op1_offset, op2_offset);
+                break;
+            case 0x12d:
+                gen_op_cvtpd2pi(op1_offset, op2_offset);
+                break;
+            }
+            break;
+        case 0x22c: /* cvttss2si */
+        case 0x32c: /* cvttsd2si */
+        case 0x22d: /* cvtss2si */
+        case 0x32d: /* cvtsd2si */
+            ot = (s->dflag == 2) ? OT_QUAD : OT_LONG;
+            op1_offset = offsetof(CPUX86State,xmm_regs[reg]);
+            sse_op_table3[(s->dflag == 2) * 2 + ((b >> 8) - 2) + 4 + 
+                          (b & 1) * 4](op1_offset);
+            gen_ldst_modrm(s, modrm, ot, OR_TMP0, 1);
+            break;
+        case 0xc4: /* pinsrw */
+        case 0x1c4: 
+            gen_ldst_modrm(s, modrm, OT_WORD, OR_TMP0, 0);
+            val = ldub_code(s->pc++);
+            if (b1) {
+                val &= 7;
+                gen_op_pinsrw_xmm(offsetof(CPUX86State,xmm_regs[reg]), val);
+            } else {
+                val &= 3;
+                gen_op_pinsrw_mmx(offsetof(CPUX86State,fpregs[reg].mmx), val);
+            }
+            break;
+        case 0xc5: /* pextrw */
+        case 0x1c5: 
+            if (mod != 3)
+                goto illegal_op;
+            val = ldub_code(s->pc++);
+            if (b1) {
+                val &= 7;
+                rm = (modrm & 7) | REX_B(s);
+                gen_op_pextrw_xmm(offsetof(CPUX86State,xmm_regs[rm]), val);
+            } else {
+                val &= 3;
+                rm = (modrm & 7);
+                gen_op_pextrw_mmx(offsetof(CPUX86State,fpregs[rm].mmx), val);
+            }
+            reg = ((modrm >> 3) & 7) | rex_r;
+            gen_op_mov_reg_T0[OT_LONG][reg]();
+            break;
+        case 0x1d6: /* movq ea, xmm */
+            if (mod != 3) {
+                gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+                gen_stq_env_A0[s->mem_index >> 2](offsetof(CPUX86State,xmm_regs[reg].XMM_Q(0)));
+            } else {
+                rm = (modrm & 7) | REX_B(s);
+                gen_op_movq(offsetof(CPUX86State,xmm_regs[rm].XMM_Q(0)),
+                            offsetof(CPUX86State,xmm_regs[reg].XMM_Q(0)));
+                gen_op_movq_env_0(offsetof(CPUX86State,xmm_regs[rm].XMM_Q(1)));
+            }
+            break;
+        case 0x2d6: /* movq2dq */
+            gen_op_enter_mmx();
+            rm = (modrm & 7) | REX_B(s);
+            gen_op_movq(offsetof(CPUX86State,xmm_regs[rm].XMM_Q(0)),
+                        offsetof(CPUX86State,fpregs[reg & 7].mmx));
+            gen_op_movq_env_0(offsetof(CPUX86State,xmm_regs[rm].XMM_Q(1)));
+            break;
+        case 0x3d6: /* movdq2q */
+            gen_op_enter_mmx();
+            rm = (modrm & 7);
+            gen_op_movq(offsetof(CPUX86State,fpregs[rm].mmx),
+                        offsetof(CPUX86State,xmm_regs[reg].XMM_Q(0)));
+            break;
+        case 0xd7: /* pmovmskb */
+        case 0x1d7:
+            if (mod != 3)
+                goto illegal_op;
+            if (b1) {
+                rm = (modrm & 7) | REX_B(s);
+                gen_op_pmovmskb_xmm(offsetof(CPUX86State,xmm_regs[rm]));
+            } else {
+                rm = (modrm & 7);
+                gen_op_pmovmskb_mmx(offsetof(CPUX86State,fpregs[rm].mmx));
+            }
+            reg = ((modrm >> 3) & 7) | rex_r;
+            gen_op_mov_reg_T0[OT_LONG][reg]();
+            break;
+        default:
+            goto illegal_op;
+        }
+    } else {
+        /* generic MMX or SSE operation */
+        if (b == 0xf7) {
+            /* maskmov : we must prepare A0 */
+            if (mod != 3) 
+                goto illegal_op;
+#ifdef TARGET_X86_64
+            if (CODE64(s)) {
+                gen_op_movq_A0_reg[R_EDI]();
+            } else 
+#endif
+            {
+                gen_op_movl_A0_reg[R_EDI]();
+                if (s->aflag == 0)
+                    gen_op_andl_A0_ffff();
+            }
+            gen_add_A0_ds_seg(s);
+        }
+        if (is_xmm) {
+            op1_offset = offsetof(CPUX86State,xmm_regs[reg]);
+            if (mod != 3) {
+                gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+                op2_offset = offsetof(CPUX86State,xmm_t0);
+                if (b1 >= 2 && ((b >= 0x50 && b <= 0x5f) ||
+                                b == 0xc2)) {
+                    /* specific case for SSE single instructions */
+                    if (b1 == 2) {
+                        /* 32 bit access */
+                        gen_op_ld_T0_A0[OT_LONG + s->mem_index]();
+                        gen_op_movl_env_T0(offsetof(CPUX86State,xmm_t0.XMM_L(0)));
+                    } else {
+                        /* 64 bit access */
+                        gen_ldq_env_A0[s->mem_index >> 2](offsetof(CPUX86State,xmm_t0.XMM_D(0)));
+                    }
+                } else {
+                    gen_ldo_env_A0[s->mem_index >> 2](op2_offset);
+                }
+            } else {
+                rm = (modrm & 7) | REX_B(s);
+                op2_offset = offsetof(CPUX86State,xmm_regs[rm]);
+            }
+        } else {
+            op1_offset = offsetof(CPUX86State,fpregs[reg].mmx);
+            if (mod != 3) {
+                gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+                op2_offset = offsetof(CPUX86State,mmx_t0);
+                gen_ldq_env_A0[s->mem_index >> 2](op2_offset);
+            } else {
+                rm = (modrm & 7);
+                op2_offset = offsetof(CPUX86State,fpregs[rm].mmx);
+            }
+        }
+        switch(b) {
+        case 0x70: /* pshufx insn */
+        case 0xc6: /* pshufx insn */
+            val = ldub_code(s->pc++);
+            sse_op3 = (GenOpFunc3 *)sse_op2;
+            sse_op3(op1_offset, op2_offset, val);
+            break;
+        case 0xc2:
+            /* compare insns */
+            val = ldub_code(s->pc++);
+            if (val >= 8)
+                goto illegal_op;
+            sse_op2 = sse_op_table4[val][b1];
+            sse_op2(op1_offset, op2_offset);
+            break;
+        default:
+            sse_op2(op1_offset, op2_offset);
+            break;
+        }
+        if (b == 0x2e || b == 0x2f) {
+            s->cc_op = CC_OP_EFLAGS;
+        }
+    }
+}
+
 
 /* convert one instruction. s->is_jmp is set if the translation must
    be stopped. Return the next pc value */
@@ -3176,20 +3896,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                 }
                 gen_op_movl_A0_im(offset_addr);
             }
-            /* handle override */
-            {
-                int override, must_add_seg;
-                must_add_seg = s->addseg;
-                if (s->override >= 0) {
-                    override = s->override;
-                    must_add_seg = 1;
-                } else {
-                    override = R_DS;
-                }
-                if (must_add_seg) {
-                    gen_op_addl_A0_seg(offsetof(CPUX86State,segs[override].base));
-                }
-            }
+            gen_add_A0_ds_seg(s);
             if ((b & 2) == 0) {
                 gen_op_ld_T0_A0[ot + s->mem_index]();
                 gen_op_mov_reg_T0[ot][R_EAX]();
@@ -3212,21 +3919,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             if (s->aflag == 0)
                 gen_op_andl_A0_ffff();
         }
-        /* handle override */
-        {
-            int override, must_add_seg;
-            must_add_seg = s->addseg;
-            override = R_DS;
-            if (s->override >= 0) {
-                override = s->override;
-                must_add_seg = 1;
-            } else {
-                override = R_DS;
-            }
-            if (must_add_seg) {
-                gen_op_addl_A0_seg(offsetof(CPUX86State,segs[override].base));
-            }
-        }
+        gen_add_A0_ds_seg(s);
         gen_op_ldu_T0_A0[OT_BYTE + s->mem_index]();
         gen_op_mov_reg_T0[OT_BYTE][R_EAX]();
         break;
@@ -4827,33 +5520,6 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             /* nothing to do */
         }
         break;
-    case 0x1ae:
-        modrm = ldub_code(s->pc++);
-        mod = (modrm >> 6) & 3;
-        op = (modrm >> 3) & 7;
-        switch(op) {
-        case 0: /* fxsave */
-            if (mod == 3 || !(s->cpuid_features & CPUID_FXSR))
-                goto illegal_op;
-            gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
-            gen_op_fxsave_A0((s->dflag == 2));
-            break;
-        case 1: /* fxrstor */
-            if (mod == 3 || !(s->cpuid_features & CPUID_FXSR))
-                goto illegal_op;
-            gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
-            gen_op_fxrstor_A0((s->dflag == 2));
-            break;
-        case 5: /* lfence */
-        case 6: /* mfence */
-        case 7: /* sfence */
-            if ((modrm & 0xc7) != 0xc0 || !(s->cpuid_features & CPUID_SSE))
-                goto illegal_op;
-            break;
-        default:
-            goto illegal_op;
-        }
-        break;
     case 0x63: /* arpl or movslS (x86_64) */
 #ifdef TARGET_X86_64
         if (CODE64(s)) {
@@ -5018,64 +5684,72 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             gen_eob(s);
         }
         break;
-    /* SSE support */
-    case 0x16f:
-        if (prefixes & PREFIX_DATA) {
-            /* movdqa xmm1, xmm2/mem128 */
-            if (!(s->cpuid_features & CPUID_SSE))
+    /* MMX/SSE/SSE2/PNI support */
+    case 0x1c3: /* MOVNTI reg, mem */
+        if (!(s->cpuid_features & CPUID_SSE2))
+            goto illegal_op;
+        ot = s->dflag == 2 ? OT_QUAD : OT_LONG;
+        modrm = ldub_code(s->pc++);
+        mod = (modrm >> 6) & 3;
+        if (mod == 3)
+            goto illegal_op;
+        reg = ((modrm >> 3) & 7) | rex_r;
+        /* generate a generic store */
+        gen_ldst_modrm(s, modrm, ot, reg, 1);
+        break;
+    case 0x1ae:
+        modrm = ldub_code(s->pc++);
+        mod = (modrm >> 6) & 3;
+        op = (modrm >> 3) & 7;
+        switch(op) {
+        case 0: /* fxsave */
+            if (mod == 3 || !(s->cpuid_features & CPUID_FXSR))
                 goto illegal_op;
-            modrm = ldub_code(s->pc++);
-            reg = ((modrm >> 3) & 7) | rex_r;
-            mod = (modrm >> 6) & 3;
-            if (mod != 3) {
-                gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
-                gen_ldo_env_A0[s->mem_index >> 2](offsetof(CPUX86State,xmm_regs[reg]));
-            } else {
-                rm = (modrm & 7) | REX_B(s);
-                gen_op_movo(offsetof(CPUX86State,xmm_regs[reg]),
-                            offsetof(CPUX86State,xmm_regs[rm]));
+            gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+            gen_op_fxsave_A0((s->dflag == 2));
+            break;
+        case 1: /* fxrstor */
+            if (mod == 3 || !(s->cpuid_features & CPUID_FXSR))
+                goto illegal_op;
+            gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+            gen_op_fxrstor_A0((s->dflag == 2));
+            break;
+        case 2: /* ldmxcsr */
+        case 3: /* stmxcsr */
+            if (s->flags & HF_TS_MASK) {
+                gen_exception(s, EXCP07_PREX, pc_start - s->cs_base);
+                break;
             }
-        } else {
+            if ((s->flags & HF_EM_MASK) || !(s->flags & HF_OSFXSR_MASK) ||
+                mod == 3)
+                goto illegal_op;
+            gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+            if (op == 2) {
+                gen_op_ld_T0_A0[OT_LONG + s->mem_index]();
+                gen_op_movl_env_T0(offsetof(CPUX86State, mxcsr));
+            } else {
+                gen_op_movl_T0_env(offsetof(CPUX86State, mxcsr));
+                gen_op_st_T0_A0[OT_LONG + s->mem_index]();
+            }
+            break;
+        case 5: /* lfence */
+        case 6: /* mfence */
+        case 7: /* sfence */
+            if ((modrm & 0xc7) != 0xc0 || !(s->cpuid_features & CPUID_SSE))
+                goto illegal_op;
+            break;
+        default:
             goto illegal_op;
         }
         break;
-    case 0x1e7:
-        if (prefixes & PREFIX_DATA) {
-            /* movntdq mem128, xmm1 */
-            if (!(s->cpuid_features & CPUID_SSE))
-                goto illegal_op;
-            modrm = ldub_code(s->pc++);
-            reg = ((modrm >> 3) & 7) | rex_r;
-            mod = (modrm >> 6) & 3;
-            if (mod != 3) {
-                gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
-                gen_sto_env_A0[s->mem_index >> 2](offsetof(CPUX86State,xmm_regs[reg]));
-            } else {
-                goto illegal_op;
-            }
-        } else {
-            goto illegal_op;
-        }
-        break;
-    case 0x17f:
-        if (prefixes & PREFIX_DATA) {
-            /* movdqa xmm2/mem128, xmm1 */
-            if (!(s->cpuid_features & CPUID_SSE))
-                goto illegal_op;
-            modrm = ldub_code(s->pc++);
-            reg = ((modrm >> 3) & 7) | rex_r;
-            mod = (modrm >> 6) & 3;
-            if (mod != 3) {
-                gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
-                gen_sto_env_A0[s->mem_index >> 2](offsetof(CPUX86State,xmm_regs[reg]));
-            } else {
-                rm = (modrm & 7) | REX_B(s);
-                gen_op_movo(offsetof(CPUX86State,xmm_regs[rm]),
-                            offsetof(CPUX86State,xmm_regs[reg]));
-            }
-        } else {
-            goto illegal_op;
-        }
+    case 0x110 ... 0x117:
+    case 0x128 ... 0x12f:
+    case 0x150 ... 0x177:
+    case 0x17c ... 0x17f:
+    case 0x1c2:
+    case 0x1c4 ... 0x1c6:
+    case 0x1d0 ... 0x1fe:
+        gen_sse(s, b, pc_start, rex_r);
         break;
     default:
         goto illegal_op;
@@ -5249,6 +5923,12 @@ static uint16_t opc_write_flags[NB_OPS] = {
     [INDEX_op_imulw_T0_T1] = CC_OSZAPC,
     [INDEX_op_imull_T0_T1] = CC_OSZAPC,
     X86_64_DEF([INDEX_op_imulq_T0_T1] = CC_OSZAPC,)
+
+    /* sse */
+    [INDEX_op_ucomiss] = CC_OSZAPC,
+    [INDEX_op_ucomisd] = CC_OSZAPC,
+    [INDEX_op_comiss] = CC_OSZAPC,
+    [INDEX_op_comisd] = CC_OSZAPC,
 
     /* bcd */
     [INDEX_op_aam] = CC_OSZAPC,

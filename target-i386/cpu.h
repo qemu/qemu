@@ -135,6 +135,7 @@
 #define HF_IOPL_SHIFT       12 /* must be same as eflags */
 #define HF_LMA_SHIFT        14 /* only used on x86_64: long mode active */
 #define HF_CS64_SHIFT       15 /* only used on x86_64: 64 bit code segment  */
+#define HF_OSFXSR_SHIFT     16 /* CR4.OSFXSR */
 #define HF_VM_SHIFT         17 /* must be same as eflags */
 
 #define HF_CPL_MASK          (3 << HF_CPL_SHIFT)
@@ -150,6 +151,7 @@
 #define HF_TS_MASK           (1 << HF_TS_SHIFT)
 #define HF_LMA_MASK          (1 << HF_LMA_SHIFT)
 #define HF_CS64_MASK         (1 << HF_CS64_SHIFT)
+#define HF_OSFXSR_MASK       (1 << HF_OSFXSR_SHIFT)
 
 #define CR0_PE_MASK  (1 << 0)
 #define CR0_MP_MASK  (1 << 1)
@@ -340,10 +342,12 @@ typedef struct SegmentCache {
 } SegmentCache;
 
 typedef union {
-        uint8_t _b[16];
-        uint16_t _w[8];
-        uint32_t _l[4];
-        uint64_t _q[2];
+    uint8_t _b[16];
+    uint16_t _w[8];
+    uint32_t _l[4];
+    uint64_t _q[2];
+    float _s[4];
+    double _d[2];
 } XMMReg;
 
 typedef union {
@@ -357,7 +361,9 @@ typedef union {
 #define XMM_B(n) _b[15 - (n)]
 #define XMM_W(n) _w[7 - (n)]
 #define XMM_L(n) _l[3 - (n)]
+#define XMM_S(n) _s[3 - (n)]
 #define XMM_Q(n) _q[1 - (n)]
+#define XMM_D(n) _d[1 - (n)]
 
 #define MMX_B(n) _b[7 - (n)]
 #define MMX_W(n) _w[3 - (n)]
@@ -366,12 +372,15 @@ typedef union {
 #define XMM_B(n) _b[n]
 #define XMM_W(n) _w[n]
 #define XMM_L(n) _l[n]
+#define XMM_S(n) _s[n]
 #define XMM_Q(n) _q[n]
+#define XMM_D(n) _d[n]
 
 #define MMX_B(n) _b[n]
 #define MMX_W(n) _w[n]
 #define MMX_L(n) _l[n]
 #endif
+#define MMX_Q(n) q
 
 #ifdef TARGET_X86_64
 #define CPU_NB_REGS 16
@@ -404,7 +413,14 @@ typedef struct CPUX86State {
     unsigned int fpus;
     unsigned int fpuc;
     uint8_t fptags[8];   /* 0 = valid, 1 = empty */
-    CPU86_LDouble fpregs[8];
+    union {
+#ifdef USE_X86LDOUBLE
+        CPU86_LDouble d __attribute__((aligned(16)));
+#else
+        CPU86_LDouble d;
+#endif
+        MMXReg mmx;
+    } fpregs[8];
 
     /* emulator internal variables */
     CPU86_LDouble ft0;
@@ -421,9 +437,11 @@ typedef struct CPUX86State {
     SegmentCache tr;
     SegmentCache gdt; /* only base and limit are used */
     SegmentCache idt; /* only base and limit are used */
-    
+
+    uint32_t mxcsr;
     XMMReg xmm_regs[CPU_NB_REGS];
     XMMReg xmm_t0;
+    MMXReg mmx_t0;
 
     /* sysenter registers */
     uint32_t sysenter_cs;

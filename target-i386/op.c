@@ -752,11 +752,6 @@ void OPPROTO op_movswl_T0_T0(void)
     T0 = (int16_t)T0;
 }
 
-void OPPROTO op_movslq_T0_T0(void)
-{
-    T0 = (int32_t)T0;
-}
-
 void OPPROTO op_movzwl_T0_T0(void)
 {
     T0 = (uint16_t)T0;
@@ -768,6 +763,11 @@ void OPPROTO op_movswl_EAX_AX(void)
 }
 
 #ifdef TARGET_X86_64
+void OPPROTO op_movslq_T0_T0(void)
+{
+    T0 = (int32_t)T0;
+}
+
 void OPPROTO op_movslq_RAX_EAX(void)
 {
     EAX = (int32_t)EAX;
@@ -1695,9 +1695,9 @@ void OPPROTO op_flds_ST0_A0(void)
     new_fpstt = (env->fpstt - 1) & 7;
 #ifdef USE_FP_CONVERT
     FP_CONVERT.i32 = ldl(A0);
-    env->fpregs[new_fpstt] = FP_CONVERT.f;
+    env->fpregs[new_fpstt].d = FP_CONVERT.f;
 #else
-    env->fpregs[new_fpstt] = ldfl(A0);
+    env->fpregs[new_fpstt].d = ldfl(A0);
 #endif
     env->fpstt = new_fpstt;
     env->fptags[new_fpstt] = 0; /* validate stack entry */
@@ -1709,9 +1709,9 @@ void OPPROTO op_fldl_ST0_A0(void)
     new_fpstt = (env->fpstt - 1) & 7;
 #ifdef USE_FP_CONVERT
     FP_CONVERT.i64 = ldq(A0);
-    env->fpregs[new_fpstt] = FP_CONVERT.d;
+    env->fpregs[new_fpstt].d = FP_CONVERT.d;
 #else
-    env->fpregs[new_fpstt] = ldfq(A0);
+    env->fpregs[new_fpstt].d = ldfq(A0);
 #endif
     env->fpstt = new_fpstt;
     env->fptags[new_fpstt] = 0; /* validate stack entry */
@@ -1729,7 +1729,7 @@ void helper_fild_ST0_A0(void)
 {
     int new_fpstt;
     new_fpstt = (env->fpstt - 1) & 7;
-    env->fpregs[new_fpstt] = (CPU86_LDouble)ldsw(A0);
+    env->fpregs[new_fpstt].d = (CPU86_LDouble)ldsw(A0);
     env->fpstt = new_fpstt;
     env->fptags[new_fpstt] = 0; /* validate stack entry */
 }
@@ -1738,7 +1738,7 @@ void helper_fildl_ST0_A0(void)
 {
     int new_fpstt;
     new_fpstt = (env->fpstt - 1) & 7;
-    env->fpregs[new_fpstt] = (CPU86_LDouble)((int32_t)ldl(A0));
+    env->fpregs[new_fpstt].d = (CPU86_LDouble)((int32_t)ldl(A0));
     env->fpstt = new_fpstt;
     env->fptags[new_fpstt] = 0; /* validate stack entry */
 }
@@ -1747,7 +1747,7 @@ void helper_fildll_ST0_A0(void)
 {
     int new_fpstt;
     new_fpstt = (env->fpstt - 1) & 7;
-    env->fpregs[new_fpstt] = (CPU86_LDouble)((int64_t)ldq(A0));
+    env->fpregs[new_fpstt].d = (CPU86_LDouble)((int64_t)ldq(A0));
     env->fpstt = new_fpstt;
     env->fptags[new_fpstt] = 0; /* validate stack entry */
 }
@@ -1775,9 +1775,9 @@ void OPPROTO op_fild_ST0_A0(void)
     new_fpstt = (env->fpstt - 1) & 7;
 #ifdef USE_FP_CONVERT
     FP_CONVERT.i32 = ldsw(A0);
-    env->fpregs[new_fpstt] = (CPU86_LDouble)FP_CONVERT.i32;
+    env->fpregs[new_fpstt].d = (CPU86_LDouble)FP_CONVERT.i32;
 #else
-    env->fpregs[new_fpstt] = (CPU86_LDouble)ldsw(A0);
+    env->fpregs[new_fpstt].d = (CPU86_LDouble)ldsw(A0);
 #endif
     env->fpstt = new_fpstt;
     env->fptags[new_fpstt] = 0; /* validate stack entry */
@@ -1789,9 +1789,9 @@ void OPPROTO op_fildl_ST0_A0(void)
     new_fpstt = (env->fpstt - 1) & 7;
 #ifdef USE_FP_CONVERT
     FP_CONVERT.i32 = (int32_t) ldl(A0);
-    env->fpregs[new_fpstt] = (CPU86_LDouble)FP_CONVERT.i32;
+    env->fpregs[new_fpstt].d = (CPU86_LDouble)FP_CONVERT.i32;
 #else
-    env->fpregs[new_fpstt] = (CPU86_LDouble)((int32_t)ldl(A0));
+    env->fpregs[new_fpstt].d = (CPU86_LDouble)((int32_t)ldl(A0));
 #endif
     env->fpstt = new_fpstt;
     env->fptags[new_fpstt] = 0; /* validate stack entry */
@@ -1803,9 +1803,9 @@ void OPPROTO op_fildll_ST0_A0(void)
     new_fpstt = (env->fpstt - 1) & 7;
 #ifdef USE_FP_CONVERT
     FP_CONVERT.i64 = (int64_t) ldq(A0);
-    env->fpregs[new_fpstt] = (CPU86_LDouble)FP_CONVERT.i64;
+    env->fpregs[new_fpstt].d = (CPU86_LDouble)FP_CONVERT.i64;
 #else
-    env->fpregs[new_fpstt] = (CPU86_LDouble)((int64_t)ldq(A0));
+    env->fpregs[new_fpstt].d = (CPU86_LDouble)((int64_t)ldq(A0));
 #endif
     env->fpstt = new_fpstt;
     env->fptags[new_fpstt] = 0; /* validate stack entry */
@@ -2322,6 +2322,29 @@ void OPPROTO op_movo(void)
     memcpy16(d, s);
 }
 
+void OPPROTO op_movq(void)
+{
+    uint64_t *d, *s;
+    d = (uint64_t *)((char *)env + PARAM1);
+    s = (uint64_t *)((char *)env + PARAM2);
+    *d = *s;
+}
+
+void OPPROTO op_movl(void)
+{
+    uint32_t *d, *s;
+    d = (uint32_t *)((char *)env + PARAM1);
+    s = (uint32_t *)((char *)env + PARAM2);
+    *d = *s;
+}
+
+void OPPROTO op_movq_env_0(void)
+{
+    uint64_t *d;
+    d = (uint64_t *)((char *)env + PARAM1);
+    *d = 0;
+}
+
 void OPPROTO op_fxsave_A0(void)
 {
     helper_fxsave(A0, PARAM1);
@@ -2331,3 +2354,24 @@ void OPPROTO op_fxrstor_A0(void)
 {
     helper_fxrstor(A0, PARAM1);
 }
+
+/* XXX: optimize by storing fptt and fptags in the static cpu state */
+void OPPROTO op_enter_mmx(void)
+{
+    env->fpstt = 0;
+    *(uint32_t *)(env->fptags) = 0;
+    *(uint32_t *)(env->fptags + 4) = 0;
+}
+
+void OPPROTO op_emms(void)
+{
+    /* set to empty state */
+    *(uint32_t *)(env->fptags) = 0x01010101;
+    *(uint32_t *)(env->fptags + 4) = 0x01010101;
+}
+
+#define SHIFT 0
+#include "ops_sse.h"
+
+#define SHIFT 1
+#include "ops_sse.h"

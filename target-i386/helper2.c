@@ -158,6 +158,8 @@ void cpu_reset(CPUX86State *env)
     for(i = 0;i < 8; i++)
         env->fptags[i] = 1;
     env->fpuc = 0x37f;
+
+    env->mxcsr = 0x1f80;
 }
 
 void cpu_x86_close(CPUX86State *env)
@@ -376,15 +378,15 @@ void cpu_dump_state(CPUState *env, FILE *f,
     }
     if (flags & X86_DUMP_FPU) {
         cpu_fprintf(f, "ST0=%f ST1=%f ST2=%f ST3=%f\n", 
-                (double)env->fpregs[0], 
-                (double)env->fpregs[1], 
-                (double)env->fpregs[2], 
-                (double)env->fpregs[3]);
+                (double)env->fpregs[0].d, 
+                (double)env->fpregs[1].d, 
+                (double)env->fpregs[2].d, 
+                (double)env->fpregs[3].d);
         cpu_fprintf(f, "ST4=%f ST5=%f ST6=%f ST7=%f\n", 
-                (double)env->fpregs[4], 
-                (double)env->fpregs[5], 
-                (double)env->fpregs[7], 
-                (double)env->fpregs[8]);
+                (double)env->fpregs[4].d, 
+                (double)env->fpregs[5].d, 
+                (double)env->fpregs[7].d, 
+                (double)env->fpregs[8].d);
     }
 }
 
@@ -471,6 +473,14 @@ void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4)
         (env->cr[4] & (CR4_PGE_MASK | CR4_PAE_MASK | CR4_PSE_MASK))) {
         tlb_flush(env, 1);
     }
+    /* SSE handling */
+    if (!(env->cpuid_features & CPUID_SSE))
+        new_cr4 &= ~CR4_OSFXSR_MASK;
+    if (new_cr4 & CR4_OSFXSR_MASK)
+        env->hflags |= HF_OSFXSR_MASK;
+    else
+        env->hflags &= ~HF_OSFXSR_MASK;
+
     env->cr[4] = new_cr4;
 }
 
@@ -800,7 +810,7 @@ void restore_native_fp_state(CPUState *env)
     fp->fptag = fptag;
     j = env->fpstt;
     for(i = 0;i < 8; i++) {
-        memcpy(&fp->fpregs1[i * 10], &env->fpregs[j], 10);
+        memcpy(&fp->fpregs1[i * 10], &env->fpregs[j].d, 10);
         j = (j + 1) & 7;
     }
     asm volatile ("frstor %0" : "=m" (*fp));
@@ -824,7 +834,7 @@ void save_native_fp_state(CPUState *env)
     }
     j = env->fpstt;
     for(i = 0;i < 8; i++) {
-        memcpy(&env->fpregs[j], &fp->fpregs1[i * 10], 10);
+        memcpy(&env->fpregs[j].d, &fp->fpregs1[i * 10], 10);
         j = (j + 1) & 7;
     }
     /* we must restore the default rounding state */
