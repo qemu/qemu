@@ -1103,6 +1103,49 @@ int do_fork(CPUX86State *env, unsigned int flags, unsigned long newsp)
 
 #endif
 
+static long do_fcntl(int fd, int cmd, unsigned long arg)
+{
+    struct flock fl;
+    struct target_flock *target_fl = (void *)arg;
+    long ret;
+    
+    switch(cmd) {
+    case TARGET_F_GETLK:
+        ret = fcntl(fd, cmd, &fl);
+        if (ret == 0) {
+            target_fl->l_type = tswap16(fl.l_type);
+            target_fl->l_whence = tswap16(fl.l_whence);
+            target_fl->l_start = tswapl(fl.l_start);
+            target_fl->l_len = tswapl(fl.l_len);
+            target_fl->l_pid = tswapl(fl.l_pid);
+        }
+        break;
+        
+    case TARGET_F_SETLK:
+    case TARGET_F_SETLKW:
+        fl.l_type = tswap16(target_fl->l_type);
+        fl.l_whence = tswap16(target_fl->l_whence);
+        fl.l_start = tswapl(target_fl->l_start);
+        fl.l_len = tswapl(target_fl->l_len);
+        fl.l_pid = tswapl(target_fl->l_pid);
+        ret = fcntl(fd, cmd, &fl);
+        break;
+        
+    case TARGET_F_GETLK64:
+    case TARGET_F_SETLK64:
+    case TARGET_F_SETLKW64:
+        ret = -1;
+        errno = EINVAL;
+        break;
+
+    default:
+        ret = fcntl(fd, cmd, arg);
+        break;
+    }
+    return ret;
+}
+
+
 #define high2lowuid(x) (x)
 #define high2lowgid(x) (x)
 #define low2highuid(x) (x)
@@ -1343,42 +1386,8 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         ret = do_ioctl(arg1, arg2, arg3);
         break;
     case TARGET_NR_fcntl:
-    {
-	struct flock fl;
-	struct target_flock *target_fl = (void *)arg3;
-
-        switch(arg2) {
-        case TARGET_F_GETLK:
-            ret = get_errno(fcntl(arg1, arg2, &fl));
-	    if (ret == 0) {
-		target_fl->l_type = tswap16(fl.l_type);
-		target_fl->l_whence = tswap16(fl.l_whence);
-		target_fl->l_start = tswapl(fl.l_start);
-		target_fl->l_len = tswapl(fl.l_len);
-		target_fl->l_pid = tswapl(fl.l_pid);
-	    }
-	    break;
-
-        case TARGET_F_SETLK:
-        case TARGET_F_SETLKW:
-	    fl.l_type = tswap16(target_fl->l_type);
-	    fl.l_whence = tswap16(target_fl->l_whence);
-	    fl.l_start = tswapl(target_fl->l_start);
-	    fl.l_len = tswapl(target_fl->l_len);
-	    fl.l_pid = tswapl(target_fl->l_pid);
-            ret = get_errno(fcntl(arg1, arg2, &fl));
-	    break;
-
-	case TARGET_F_GETLK64:
-	case TARGET_F_SETLK64:
-	case TARGET_F_SETLKW64:
-            goto unimplemented;
-        default:
-            ret = get_errno(fcntl(arg1, arg2, arg3));
-            break;
-        }
+        ret = get_errno(do_fcntl(arg1, arg2, arg3));
         break;
-    }
     case TARGET_NR_mpx:
         goto unimplemented;
     case TARGET_NR_setpgid:
@@ -2373,7 +2382,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             ret = get_errno(fcntl(arg1, arg2, &fl));
 	    break;
         default:
-            ret = get_errno(fcntl(arg1, arg2, arg3));
+            ret = get_errno(do_fcntl(arg1, arg2, arg3));
             break;
         }
 	break;
