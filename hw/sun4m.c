@@ -25,6 +25,7 @@
 #include "m48t08.h"
 
 #define KERNEL_LOAD_ADDR     0x00004000
+#define CMDLINE_ADDR         0x007ff000
 #define INITRD_LOAD_ADDR     0x00800000
 #define PROM_ADDR	     0xffd00000
 #define PROM_FILENAMEB	     "proll.bin"
@@ -64,10 +65,27 @@ void DMA_run() {}
 
 static m48t08_t *nvram;
 
-static void nvram_init(m48t08_t *nvram, uint8_t *macaddr)
+static void nvram_init(m48t08_t *nvram, uint8_t *macaddr, const char *cmdline)
 {
     unsigned char tmp = 0;
     int i, j;
+
+    i = 0x40;
+    if (cmdline) {
+	uint32_t cmdline_len;
+
+	strcpy(phys_ram_base + CMDLINE_ADDR, cmdline);
+	m48t08_write(nvram, i++, CMDLINE_ADDR >> 24);
+	m48t08_write(nvram, i++, (CMDLINE_ADDR >> 16) & 0xff);
+	m48t08_write(nvram, i++, (CMDLINE_ADDR >> 8) & 0xff);
+	m48t08_write(nvram, i++, CMDLINE_ADDR & 0xff);
+
+	cmdline_len = strlen(cmdline);
+	m48t08_write(nvram, i++, cmdline_len >> 24);
+	m48t08_write(nvram, i++, (cmdline_len >> 16) & 0xff);
+	m48t08_write(nvram, i++, (cmdline_len >> 8) & 0xff);
+	m48t08_write(nvram, i++, cmdline_len & 0xff);
+    }
 
     i = 0x1fd8;
     m48t08_write(nvram, i++, 0x01);
@@ -149,7 +167,7 @@ void sun4m_init(int ram_size, int vga_ram_size, int boot_device,
     tcx = tcx_init(ds, PHYS_JJ_TCX_FB, phys_ram_base + ram_size, ram_size, vram_size);
     lance_init(&nd_table[0], PHYS_JJ_LE_IRQ, PHYS_JJ_LE, PHYS_JJ_LEDMA);
     nvram = m48t08_init(PHYS_JJ_EEPROM, PHYS_JJ_EEPROM_SIZE);
-    nvram_init(nvram, (uint8_t *)&nd_table[0].macaddr);
+    nvram_init(nvram, (uint8_t *)&nd_table[0].macaddr, kernel_cmdline);
     slavio_timer_init(PHYS_JJ_CLOCK, PHYS_JJ_CLOCK_IRQ, PHYS_JJ_CLOCK1, PHYS_JJ_CLOCK1_IRQ);
     slavio_serial_ms_kbd_init(PHYS_JJ_MS_KBD, PHYS_JJ_MS_KBD_IRQ);
     slavio_serial_init(PHYS_JJ_SER, PHYS_JJ_SER_IRQ, serial_hds[0], serial_hds[1]);
