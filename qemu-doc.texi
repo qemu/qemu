@@ -228,6 +228,44 @@ example of its use.
 Use the user mode network stack. This is the default if no tun/tap
 network init script is found.
 
+@item -tftp prefix
+When using the user mode network stack, activate a built-in TFTP
+server. All filenames beginning with @var{prefix} can be downloaded
+from the host to the guest using a TFTP client. The TFTP client on the
+guest must be configured in binary mode (use the command @code{bin} of
+the Unix TFTP client). The host IP address on the guest is as usual
+10.0.2.2.
+
+@item -redir [tcp|udp]:host-port:[guest-host]:guest-port
+
+When using the user mode network stack, redirect incoming TCP or UDP
+connections to the host port @var{host-port} to the guest
+@var{guest-host} on guest port @var{guest-port}. If @var{guest-host}
+is not specified, its value is 10.0.2.15 (default address given by the
+built-in DHCP server).
+
+For example, to redirect host X11 connection from screen 1 to guest
+screen 0, use the following:
+
+@example
+# on the host
+qemu -redir tcp:6001::6000 [...]
+# this host xterm should open in the guest X11 server
+xterm -display :1
+@end example
+
+To redirect telnet connections from host port 5555 to telnet port on
+the guest, use the following:
+
+@example
+# on the host
+qemu -redir tcp:5555::23 [...]
+telnet localhost 5555
+@end example
+
+Then when you use on the host @code{telnet localhost 5555}, you
+connect to the guest telnet server.
+
 @item -dummy-net 
 Use the dummy network stack: no packet will be received by the network
 cards.
@@ -652,7 +690,12 @@ Note that @code{ping} is not supported reliably to the internet as it
 would require root priviledges. It means you can only ping the local
 router (10.0.2.2).
 
-The user mode network is currently only supported on a Unix host.
+When using the built-in TFTP server, the router is also the TFTP
+server.
+
+When using the @option{-redir} option, TCP or UDP connections can be
+redirected from the host to the guest. It allows for example to
+redirect X11, telnet or SSH connections.
 
 @node direct_linux_boot
 @section Direct Linux Boot

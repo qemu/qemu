@@ -36,7 +36,7 @@ struct tftp_session {
 
 struct tftp_session tftp_sessions[TFTP_SESSIONS_MAX];
 
-char *tftp_prefix;
+const char *tftp_prefix;
 
 static void tftp_session_update(struct tftp_session *spt)
 {

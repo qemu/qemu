@@ -1382,6 +1382,78 @@ static int net_slirp_init(NetDriverState *nd)
     return 0;
 }
 
+static int get_str_sep(char *buf, int buf_size, const char **pp, int sep)
+{
+    const char *p, *p1;
+    int len;
+    p = *pp;
+    p1 = strchr(p, sep);
+    if (!p1)
+        return -1;
+    len = p1 - p;
+    p1++;
+    if (buf_size > 0) {
+        if (len > buf_size - 1)
+            len = buf_size - 1;
+        memcpy(buf, p, len);
+        buf[len] = '\0';
+    }
+    *pp = p1;
+    return 0;
+}
+
+static void net_slirp_redir(const char *redir_str)
+{
+    int is_udp;
+    char buf[256], *r;
+    const char *p;
+    struct in_addr guest_addr;
+    int host_port, guest_port;
+    
+    if (!slirp_inited) {
+        slirp_inited = 1;
+        slirp_init();
+    }
+
+    p = redir_str;
+    if (get_str_sep(buf, sizeof(buf), &p, ':') < 0)
+        goto fail;
+    if (!strcmp(buf, "tcp")) {
+        is_udp = 0;
+    } else if (!strcmp(buf, "udp")) {
+        is_udp = 1;
+    } else {
+        goto fail;
+    }
+
+    if (get_str_sep(buf, sizeof(buf), &p, ':') < 0)
+        goto fail;
+    host_port = strtol(buf, &r, 0);
+    if (r == buf)
+        goto fail;
+
+    if (get_str_sep(buf, sizeof(buf), &p, ':') < 0)
+        goto fail;
+    if (buf[0] == '\0') {
+        pstrcpy(buf, sizeof(buf), "10.0.2.15");
+    }
+    if (!inet_aton(buf, &guest_addr))
+        goto fail;
+    
+    guest_port = strtol(p, &r, 0);
+    if (r == p)
+        goto fail;
+    
+    if (slirp_redir(is_udp, host_port, guest_addr, guest_port) < 0) {
+        fprintf(stderr, "qemu: could not set up redirection\n");
+        exit(1);
+    }
+    return;
+ fail:
+    fprintf(stderr, "qemu: syntax: -redir [tcp|udp]:host-port:[guest-host]:guest-port\n");
+    exit(1);
+}
+
 #endif /* CONFIG_SLIRP */
 
 #if !defined(_WIN32)
@@ -2334,7 +2406,9 @@ void help(void)
            "-tun-fd fd      use this fd as already opened tap/tun interface\n"
 #ifdef CONFIG_SLIRP
            "-user-net       use user mode network stack [default if no tap/tun script]\n"
-           "-tftp prefix    allow tftp access to files starting with prefix [only with -user-net enabled]\n"
+           "-tftp prefix    allow tftp access to files starting with prefix [-user-net]\n"
+           "-redir [tcp|udp]:host-port:[guest-host]:guest-port\n"
+           "                redirect TCP or UDP connections from host to guest [-user-net]\n"
 #endif
            "-dummy-net      use dummy network stack\n"
            "\n"
@@ -2410,6 +2484,7 @@ enum {
     QEMU_OPTION_tun_fd,
     QEMU_OPTION_user_net,
     QEMU_OPTION_tftp,
+    QEMU_OPTION_redir,
     QEMU_OPTION_dummy_net,
 
     QEMU_OPTION_kernel,
@@ -2463,6 +2538,7 @@ const QEMUOption qemu_options[] = {
 #ifdef CONFIG_SLIRP
     { "user-net", 0, QEMU_OPTION_user_net },
     { "tftp", HAS_ARG, QEMU_OPTION_tftp },
+    { "redir", HAS_ARG, QEMU_OPTION_redir },
 #endif
     { "dummy-net", 0, QEMU_OPTION_dummy_net },
 
@@ -2756,13 +2832,13 @@ int main(int argc, char **argv)
                 break;
 #ifdef CONFIG_SLIRP
             case QEMU_OPTION_tftp:
-	      {
-		extern const char *tftp_prefix;
 		tftp_prefix = optarg;
-	      }
-	      break;
+                break;
             case QEMU_OPTION_user_net:
                 net_if_type = NET_IF_USER;
+                break;
+            case QEMU_OPTION_redir:
+                net_slirp_redir(optarg);                
                 break;
 #endif
             case QEMU_OPTION_dummy_net:

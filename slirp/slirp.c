@@ -617,3 +617,18 @@ void if_encap(const uint8_t *ip_data, int ip_data_len)
     memcpy(buf + sizeof(struct ethhdr), ip_data, ip_data_len);
     slirp_output(buf, ip_data_len + ETH_HLEN);
 }
+
+int slirp_redir(int is_udp, int host_port, 
+                struct in_addr guest_addr, int guest_port)
+{
+    if (is_udp) {
+        if (!udp_listen(htons(host_port), guest_addr.s_addr, 
+                        htons(guest_port), 0))
+            return -1;
+    } else {
+        if (!solisten(htons(host_port), guest_addr.s_addr, 
+                      htons(guest_port), 0))
+            return -1;
+    }
+    return 0;
+}

@@ -29,6 +29,4 @@ struct tftp_t {
   } x;
 };
 
-extern char *tftp_prefix;
-
 void tftp_input(struct mbuf *m);

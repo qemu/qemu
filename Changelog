@@ -9,6 +9,7 @@ version 0.6.1:
   - VMware 3 and 4 read-only disk image support (untested)
   - Support for up to 4 serial ports
   - TFTP server support (Magnus Damm)
+  - Port redirection support in user mode networking
 
 version 0.6.0:
 
