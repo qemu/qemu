@@ -44,7 +44,7 @@
 #endif
 
 #ifdef _WIN32
-#define lseek64 lseek
+#define lseek64 _lseeki64
 #endif
 
 #include "cpu.h"
