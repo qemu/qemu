@@ -17,6 +17,10 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+
+/* XXX: must use this define because the soft mmu macros have huge
+   register constraints so they cannot be used in any C code */
+#define ASM_SOFTMMU
 #include "exec.h"
 
 /* n must be a constant to be efficient */
@@ -392,10 +396,10 @@ void OPPROTO op_andl_A0_ffff(void)
 #include "ops_mem.h"
 
 #if !defined(CONFIG_USER_ONLY)
-#define MEMSUFFIX _user
+#define MEMSUFFIX _kernel
 #include "ops_mem.h"
 
-#define MEMSUFFIX _kernel
+#define MEMSUFFIX _user
 #include "ops_mem.h"
 #endif
 
@@ -403,7 +407,7 @@ void OPPROTO op_andl_A0_ffff(void)
 
 void OPPROTO op_add_bitw_A0_T1(void)
 {
-    A0 += ((int32_t)T1 >> 4) << 1;
+    A0 += ((int16_t)T1 >> 4) << 1;
 }
 
 void OPPROTO op_add_bitl_A0_T1(void)
@@ -635,91 +639,21 @@ void OPPROTO op_decw_ECX(void)
     ECX = (ECX & ~0xffff) | ((ECX - 1) & 0xffff);
 }
 
-/* push/pop */
+/* push/pop utils */
 
-void op_pushl_T0(void)
+void op_addl_A0_SS(void)
 {
-    uint32_t offset;
-    offset = ESP - 4;
-    stl((void *)offset, T0);
-    /* modify ESP after to handle exceptions correctly */
-    ESP = offset;
+    A0 += (long)env->segs[R_SS].base;
 }
 
-void op_pushw_T0(void)
+void op_subl_A0_2(void)
 {
-    uint32_t offset;
-    offset = ESP - 2;
-    stw((void *)offset, T0);
-    /* modify ESP after to handle exceptions correctly */
-    ESP = offset;
+    A0 -= 2;
 }
 
-void op_pushl_ss32_T0(void)
+void op_subl_A0_4(void)
 {
-    uint32_t offset;
-    offset = ESP - 4;
-    stl(env->segs[R_SS].base + offset, T0);
-    /* modify ESP after to handle exceptions correctly */
-    ESP = offset;
-}
-
-void op_pushw_ss32_T0(void)
-{
-    uint32_t offset;
-    offset = ESP - 2;
-    stw(env->segs[R_SS].base + offset, T0);
-    /* modify ESP after to handle exceptions correctly */
-    ESP = offset;
-}
-
-void op_pushl_ss16_T0(void)
-{
-    uint32_t offset;
-    offset = (ESP - 4) & 0xffff;
-    stl(env->segs[R_SS].base + offset, T0);
-    /* modify ESP after to handle exceptions correctly */
-    ESP = (ESP & ~0xffff) | offset;
-}
-
-void op_pushw_ss16_T0(void)
-{
-    uint32_t offset;
-    offset = (ESP - 2) & 0xffff;
-    stw(env->segs[R_SS].base + offset, T0);
-    /* modify ESP after to handle exceptions correctly */
-    ESP = (ESP & ~0xffff) | offset;
-}
-
-/* NOTE: ESP update is done after */
-void op_popl_T0(void)
-{
-    T0 = ldl((void *)ESP);
-}
-
-void op_popw_T0(void)
-{
-    T0 = lduw((void *)ESP);
-}
-
-void op_popl_ss32_T0(void)
-{
-    T0 = ldl(env->segs[R_SS].base + ESP);
-}
-
-void op_popw_ss32_T0(void)
-{
-    T0 = lduw(env->segs[R_SS].base + ESP);
-}
-
-void op_popl_ss16_T0(void)
-{
-    T0 = ldl(env->segs[R_SS].base + (ESP & 0xffff));
-}
-
-void op_popw_ss16_T0(void)
-{
-    T0 = lduw(env->segs[R_SS].base + (ESP & 0xffff));
+    A0 -= 4;
 }
 
 void op_addl_ESP_4(void)
