@@ -33,6 +33,7 @@ typedef char *caddr_t;
 #else
 # define ioctlsocket ioctl
 # define closesocket(s) close(s)
+# define O_BINARY 0
 #endif
 
 #include <sys/types.h>

@@ -103,7 +103,7 @@ static int tftp_read_data(struct tftp_session *spt, u_int16_t block_nr,
   int fd;
   int bytes_read = 0;
 
-  fd = open(spt->filename, O_RDONLY);
+  fd = open(spt->filename, O_RDONLY | O_BINARY);
 
   if (fd < 0) {
     return -1;
