@@ -72,6 +72,8 @@ mingw32="no"
 EXESUF=""
 gdbstub="yes"
 slirp="yes"
+adlib="no"
+oss="no"
 
 # OS specific
 targetos=`uname -s`
@@ -81,18 +83,23 @@ mingw32="yes"
 ;;
 FreeBSD)
 bsd="yes"
+oss="yes"
 ;;
 NetBSD)
 bsd="yes"
+oss="yes"
 ;;
 OpenBSD)
 bsd="yes"
+oss="yes"
 ;;
 Darwin)
 bsd="yes"
 darwin="yes"
 ;;
-*) ;;
+*) 
+oss="yes"
+;;
 esac
 
 if [ "$bsd" = "yes" ] ; then
@@ -146,6 +153,8 @@ for opt do
   --enable-mingw32) mingw32="yes" ; cross_prefix="i386-mingw32-"
   ;; 
   --disable-slirp) slirp="no"
+  ;; 
+  --enable-adlib) adlib="yes"
   ;; 
   esac
 done
@@ -316,6 +325,7 @@ echo "static build      $static"
 echo "SDL support       $sdl"
 echo "SDL static link   $sdl_static"
 echo "mingw32 support   $mingw32"
+echo "Adlib support     $adlib"
 
 if test $sdl_too_old = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have FFplay/SDL support"
@@ -415,6 +425,14 @@ fi
 if test "$slirp" = "yes" ; then
   echo "CONFIG_SLIRP=yes" >> $config_mak
   echo "#define CONFIG_SLIRP 1" >> $config_h
+fi
+if test "$adlib" = "yes" ; then
+  echo "CONFIG_ADLIB=yes" >> $config_mak
+  echo "#define CONFIG_ADLIB 1" >> $config_h
+fi
+if test "$oss" = "yes" ; then
+  echo "CONFIG_OSS=yes" >> $config_mak
+  echo "#define CONFIG_OSS 1" >> $config_h
 fi
 echo -n "VERSION=" >>$config_mak
 head $source_path/VERSION >>$config_mak

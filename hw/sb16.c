@@ -23,12 +23,16 @@
  */
 #include "vl.h"
 
-/* #define DEBUG */
-#define AUDIO_CAP "sb16"
-#include "audio/audio.h"
-
 #define LENOFA(a) ((int) (sizeof(a)/sizeof(a[0])))
 
+#define dolog(...) AUD_log ("sb16", __VA_ARGS__)
+#ifdef DEBUG
+#define ldebug(...) dolog (__VA_ARGS__)
+#else
+#define ldebug(...)
+#endif
+
+/* #define DEBUG */
 /* #define DEBUG_SB16_MOST */
 
 #define IO_READ_PROTO(name)                             \
@@ -511,7 +515,7 @@ static void command (SB16State *s, uint8_t cmd)
     return;
 
  warn:
-    dolog ("warning command %#x,%d is not trully understood yet\n",
+    dolog ("warning: command %#x,%d is not trully understood yet\n",
            cmd, s->needed_bytes);
     s->cmd = cmd;
     return;
@@ -1172,8 +1176,10 @@ static int SB_load (QEMUFile *f, void *opaque, int version_id)
     qemu_get_be32s (f, &s->mixer_nreg);
     qemu_get_buffer (f, s->mixer_regs, 256);
 
-    if (s->voice)
-        AUD_reset (s->voice);
+    if (s->voice) {
+        AUD_close (s->voice);
+        s->voice = NULL;
+    }
 
     if (s->dma_running) {
         if (s->freq)

@@ -25,9 +25,22 @@
 #include <fmod_errors.h>
 #include "vl.h"
 
-#define AUDIO_CAP "fmod"
-#include "audio/audio.h"
-#include "audio/fmodaudio.h"
+#include "audio/audio_int.h"
+
+typedef struct FMODVoice {
+    HWVoice hw;
+    unsigned int old_pos;
+    FSOUND_SAMPLE *fmod_sample;
+    int channel;
+} FMODVoice;
+
+
+#define dolog(...) AUD_log ("fmod", __VA_ARGS__)
+#ifdef DEBUG
+#define ldebug(...) dolog (__VA_ARGS__)
+#else
+#define ldebug(...)
+#endif
 
 #define QC_FMOD_DRV "QEMU_FMOD_DRV"
 #define QC_FMOD_FREQ "QEMU_FMOD_FREQ"

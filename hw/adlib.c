@@ -23,8 +23,12 @@
  */
 #include "vl.h"
 
-#define AUDIO_CAP "adlib"
-#include "audio/audio.h"
+#define dolog(...) AUD_log ("adlib", __VA_ARGS__)
+#ifdef DEBUG
+#define ldebug(...) dolog (__VA_ARGS__)
+#else
+#define ldebug(...)
+#endif
 
 #ifdef USE_YMF262
 #define HAS_YMF262 1

@@ -37,6 +37,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include "audio/audio.h"
 
 #ifndef O_LARGEFILE
 #define O_LARGEFILE 0
@@ -112,6 +113,9 @@ void qemu_system_shutdown_request(void);
 void main_loop_wait(int timeout);
 
 extern int audio_enabled;
+extern int sb16_enabled;
+extern int adlib_enabled;
+extern int gus_enabled;
 extern int ram_size;
 extern int bios_size;
 extern int rtc_utc;
@@ -554,8 +558,14 @@ void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table);
 int pmac_ide_init (BlockDriverState **hd_table,
                    openpic_t *openpic, int irq);
 
-/* audio.c */
-void AUD_init (void);
+/* sb16.c */
+void SB16_init (void);
+
+/* adlib.c */
+void Adlib_init (void);
+
+/* gus.c */
+void GUS_init (void);
 
 /* dma.c */
 typedef int (*DMA_transfer_handler) (void *opaque, int nchan, int pos, int size);

@@ -23,9 +23,22 @@
  */
 #include "vl.h"
 
-#define AUDIO_CAP "wav"
-#include "audio/audio.h"
-#include "audio/wavaudio.h"
+#include "audio/audio_int.h"
+
+typedef struct WAVVoice {
+    HWVoice hw;
+    QEMUFile *f;
+    int64_t old_ticks;
+    void *pcm_buf;
+    int total_samples;
+} WAVVoice;
+
+#define dolog(...) AUD_log ("wav", __VA_ARGS__)
+#ifdef DEBUG
+#define ldebug(...) dolog (__VA_ARGS__)
+#else
+#define ldebug(...)
+#endif
 
 static struct {
     const char *wav_path;

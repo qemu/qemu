@@ -1,9 +1,5 @@
 include config.mak
 
-#After enabling Adlib and/or FMOD rebuild QEMU from scratch
-#Uncomment following for adlib support
-#USE_ADLIB=1
-
 #Uncomment following and specify proper paths/names for FMOD support
 #USE_FMOD=1
 #FMOD_INCLUDE=/net/include/fmod
@@ -278,11 +274,18 @@ VL_OBJS=vl.o osdep.o block.o readline.o monitor.o pci.o console.o
 VL_OBJS+=block-cow.o block-qcow.o aes.o block-vmdk.o block-cloop.o
 
 SOUND_HW = sb16.o
-AUDIODRV = audio.o ossaudio.o sdlaudio.o wavaudio.o
+AUDIODRV = audio.o wavaudio.o
+ifdef CONFIG_SDL
+AUDIODRV += sdlaudio.o
+endif
+ifdef CONFIG_OSS
+AUDIODRV += ossaudio.o
+endif
 
-ifeq ($(USE_ADLIB),1)
+pc.o: DEFINES := -DUSE_SB16 $(DEFINES)
+
+ifdef CONFIG_ADLIB
 SOUND_HW += fmopl.o adlib.o
-audio.o: DEFINES := -DUSE_ADLIB $(DEFINES)
 endif
 
 ifeq ($(USE_FMOD),1)

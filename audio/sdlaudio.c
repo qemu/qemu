@@ -25,9 +25,18 @@
 #include <SDL/SDL_thread.h>
 #include "vl.h"
 
-#define AUDIO_CAP "sdl"
-#include "audio/audio.h"
-#include "audio/sdlaudio.h"
+#include "audio/audio_int.h"
+
+typedef struct SDLVoice {
+    HWVoice hw;
+} SDLVoice;
+
+#define dolog(...) AUD_log ("sdl", __VA_ARGS__)
+#ifdef DEBUG
+#define ldebug(...) dolog (__VA_ARGS__)
+#else
+#define ldebug(...)
+#endif
 
 #define QC_SDL_SAMPLES "QEMU_SDL_SAMPLES"
 

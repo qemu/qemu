@@ -555,8 +555,19 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
     DMA_init(0);
 
     if (audio_enabled) {
-        /* no audio supported yet for win32 */
         AUD_init();
+#ifdef USE_SB16
+        if (sb16_enabled)
+            SB16_init ();
+#endif
+#ifdef CONFIG_ADLIB
+        if (adlib_enabled)
+            Adlib_init ();
+#endif
+#ifdef USE_GUS
+        if (gus_enabled)
+            GUS_init ();
+#endif
     }
 
     floppy_controller = fdctrl_init(6, 2, 0, 0x3f0, fd_table);

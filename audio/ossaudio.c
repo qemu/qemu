@@ -21,20 +21,32 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-
-/* Temporary kludge */
-#if defined __linux__ || (defined _BSD && !defined __APPLE__)
-#include <assert.h>
-#include "vl.h"
-
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/soundcard.h>
+#include <assert.h>
+#include "vl.h"
 
-#define AUDIO_CAP "oss"
-#include "audio/audio.h"
-#include "audio/ossaudio.h"
+#include "audio/audio_int.h"
+
+typedef struct OSSVoice {
+    HWVoice hw;
+    void *pcm_buf;
+    int fd;
+    int nfrags;
+    int fragsize;
+    int mmapped;
+    int old_optr;
+} OSSVoice;
+
+
+#define dolog(...) AUD_log ("oss", __VA_ARGS__)
+#ifdef DEBUG
+#define ldebug(...) dolog (__VA_ARGS__)
+#else
+#define ldebug(...)
+#endif
 
 #define QC_OSS_FRAGSIZE "QEMU_OSS_FRAGSIZE"
 #define QC_OSS_NFRAGS   "QEMU_OSS_NFRAGS"
@@ -463,4 +475,3 @@ struct audio_output_driver oss_output_driver = {
     INT_MAX,
     sizeof (OSSVoice)
 };
-#endif

@@ -22,62 +22,26 @@
  * THE SOFTWARE.
  */
 #include <assert.h>
-#include <limits.h>
 #include "vl.h"
-
-#define AUDIO_CAP "audio"
-#include "audio/audio.h"
 
 #define USE_SDL_AUDIO
 #define USE_WAV_AUDIO
 
-#if defined __linux__ || (defined _BSD && !defined __APPLE__)
-#define USE_OSS_AUDIO
-#endif
+#include "audio/audio_int.h"
 
-#ifdef USE_OSS_AUDIO
-#include "audio/ossaudio.h"
-#endif
-
-#ifdef USE_SDL_AUDIO
-#include "audio/sdlaudio.h"
-#endif
-
-#ifdef USE_WAV_AUDIO
-#include "audio/wavaudio.h"
-#endif
-
-#ifdef USE_FMOD_AUDIO
-#include "audio/fmodaudio.h"
+#define dolog(...) AUD_log ("audio", __VA_ARGS__)
+#ifdef DEBUG
+#define ldebug(...) dolog (__VA_ARGS__)
+#else
+#define ldebug(...)
 #endif
 
 #define QC_AUDIO_DRV    "QEMU_AUDIO_DRV"
-#define QC_VOICES    "QEMU_VOICES"
+#define QC_VOICES       "QEMU_VOICES"
 #define QC_FIXED_FORMAT "QEMU_FIXED_FORMAT"
 #define QC_FIXED_FREQ   "QEMU_FIXED_FREQ"
 
-extern void SB16_init (void);
-
-#ifdef USE_ADLIB
-extern void Adlib_init (void);
-#endif
-
-#ifdef USE_GUS
-extern void GUS_init (void);
-#endif
-
-static void (*hw_ctors[]) (void) = {
-    SB16_init,
-#ifdef USE_ADLIB
-    Adlib_init,
-#endif
-#ifdef USE_GUS
-    GUS_init,
-#endif
-    NULL
-};
-
-static HWVoice *hw_voice;
+static HWVoice *hw_voices;
 
 AudioState audio_state = {
     1,                          /* use fixed settings */
@@ -127,9 +91,10 @@ const char *audio_get_conf_str (const char *key, const char *defval)
         return val;
 }
 
-void audio_log (const char *fmt, ...)
+void AUD_log (const char *cap, const char *fmt, ...)
 {
     va_list ap;
+    fprintf (stderr, "%s: ", cap);
     va_start (ap, fmt);
     vfprintf (stderr, fmt, ap);
     va_end (ap);
@@ -403,7 +368,7 @@ int pcm_hw_init (HWVoice *hw, int freq, int nchannels, audfmt_e fmt)
 static int dist (void *hw)
 {
     if (hw) {
-        return (((uint8_t *) hw - (uint8_t *) hw_voice)
+        return (((uint8_t *) hw - (uint8_t *) hw_voices)
                 / audio_state.voice_size) + 1;
     }
     else {
@@ -411,7 +376,7 @@ static int dist (void *hw)
     }
 }
 
-#define ADVANCE(hw) hw ? advance (hw, audio_state.voice_size) : hw_voice
+#define ADVANCE(hw) hw ? advance (hw, audio_state.voice_size) : hw_voices
 
 HWVoice *pcm_hw_find_any (HWVoice *hw)
 {
@@ -648,6 +613,21 @@ SWVoice *AUD_open (SWVoice *sw, const char *name,
     return sw;
 }
 
+void AUD_close (SWVoice *sw)
+{
+    if (!sw)
+        return;
+
+    pcm_sw_fini (sw);
+    pcm_hw_del_sw (sw->hw, sw);
+    pcm_hw_gc (sw->hw);
+    if (sw->name) {
+        qemu_free (sw->name);
+        sw->name = NULL;
+    }
+    qemu_free (sw);
+}
+
 int AUD_write (SWVoice *sw, void *buf, int size)
 {
     int bytes;
@@ -797,13 +777,13 @@ void AUD_enable (SWVoice *sw, int on)
 }
 
 static struct audio_output_driver *drvtab[] = {
-#ifdef USE_OSS_AUDIO
+#ifdef CONFIG_OSS
     &oss_output_driver,
 #endif
 #ifdef USE_FMOD_AUDIO
     &fmod_output_driver,
 #endif
-#ifdef USE_SDL_AUDIO
+#ifdef CONFIG_SDL
     &sdl_output_driver,
 #endif
 #ifdef USE_WAV_AUDIO
@@ -821,8 +801,8 @@ static int voice_init (struct audio_output_driver *drv)
                    drv->name, audio_state.nb_hw_voices, drv->max_voices);
             audio_state.nb_hw_voices = drv->max_voices;
         }
-        hw_voice = qemu_mallocz (audio_state.nb_hw_voices * drv->voice_size);
-        if (hw_voice) {
+        hw_voices = qemu_mallocz (audio_state.nb_hw_voices * drv->voice_size);
+        if (hw_voices) {
             audio_state.drv = drv;
             return 1;
         }
@@ -927,9 +907,5 @@ void AUD_init (void)
     if (!done) {
         dolog ("Can not initialize audio subsystem\n");
         return;
-    }
-
-    for (i = 0; hw_ctors[i]; i++) {
-        hw_ctors[i] ();
     }
 }
