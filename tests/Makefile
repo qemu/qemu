@@ -9,7 +9,7 @@ endif
 TESTS+=sha1# test_path
 #TESTS+=test_path
 
-QEMU=../i386/qemu-i386
+QEMU=../i386-user/qemu-i386
 
 all: $(TESTS)
 
