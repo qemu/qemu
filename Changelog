@@ -1,3 +1,9 @@
+version 0.5.1:
+  
+  - float access fixes when using soft mmu
+  - PC emulation support on PowerPC
+  - A20 support
+
 version 0.5.0:
   
   - full hardware level VGA emulation
@@ -18,7 +24,7 @@ version 0.5.0:
   - automatic IDE geometry detection
   - renamed 'vl' to qemu[-fast] and user qemu to qemu-{cpu}.
   - added man page
-  - added full soft mmy mode to launch unpatched OSes.
+  - added full soft mmu mode to launch unpatched OSes.
 
 version 0.4.3:
 
