@@ -458,8 +458,16 @@ void OPPROTO glue(glue(op_sar, SUFFIX), _T0_T1)(void)
 #undef MEM_WRITE
 #include "ops_template_mem.h"
 
-#define MEM_WRITE
+#define MEM_WRITE 0
 #include "ops_template_mem.h"
+
+#if !defined(CONFIG_USER_ONLY)
+#define MEM_WRITE 1
+#include "ops_template_mem.h"
+
+#define MEM_WRITE 2
+#include "ops_template_mem.h"
+#endif
 
 /* bit operations */
 #if DATA_BITS >= 16
@@ -550,14 +558,14 @@ void OPPROTO glue(op_movl_T0_Dshift, SUFFIX)(void)
 void OPPROTO glue(op_string_jz_sub, SUFFIX)(void)
 {
     if ((DATA_TYPE)CC_DST == 0)
-        JUMP_TB2(glue(op_string_jz_sub, SUFFIX), PARAM1, 1);
+        JUMP_TB2(glue(op_string_jz_sub, SUFFIX), PARAM1, 3);
     FORCE_RET();
 }
 
 void OPPROTO glue(op_string_jnz_sub, SUFFIX)(void)
 {
     if ((DATA_TYPE)CC_DST != 0)
-        JUMP_TB2(glue(op_string_jnz_sub, SUFFIX), PARAM1, 1);
+        JUMP_TB2(glue(op_string_jnz_sub, SUFFIX), PARAM1, 3);
     FORCE_RET();
 }
 
@@ -613,12 +621,12 @@ void OPPROTO glue(glue(op_jz_ecx, SUFFIX), _im)(void)
 
 void OPPROTO glue(glue(op_out, SUFFIX), _T0_T1)(void)
 {
-    glue(cpu_x86_out, SUFFIX)(env, T0 & 0xffff, T1 & DATA_MASK);
+    glue(cpu_x86_out, SUFFIX)(env, T0, T1 & DATA_MASK);
 }
 
 void OPPROTO glue(glue(op_in, SUFFIX), _T0_T1)(void)
 {
-    T1 = glue(cpu_x86_in, SUFFIX)(env, T0 & 0xffff);
+    T1 = glue(cpu_x86_in, SUFFIX)(env, T0);
 }
 
 void OPPROTO glue(glue(op_in, SUFFIX), _DX_T0)(void)
