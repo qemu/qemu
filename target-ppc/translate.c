@@ -3024,9 +3024,6 @@ void cpu_ppc_close(CPUPPCState *env)
 }
 
 /*****************************************************************************/
-int print_insn_powerpc (FILE *out, unsigned long insn, unsigned memaddr,
-                        int dialect);
-
 int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
                                     int search_pc)
 {
