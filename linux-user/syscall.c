@@ -26,6 +26,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/time.h>
@@ -40,6 +41,7 @@
 #include <sys/uio.h>
 #include <sys/poll.h>
 //#include <sys/user.h>
+#include <netinet/tcp.h>
 
 #define termios host_termios
 #define winsize host_winsize
@@ -166,7 +168,7 @@ static long do_brk(char *new_brk)
 static inline fd_set *target_to_host_fds(fd_set *fds, 
                                          target_long *target_fds, int n)
 {
-#if !defined(BSWP_NEEDED) && !defined(WORD_BIGENDIAN)
+#if !defined(BSWAP_NEEDED) && !defined(WORDS_BIGENDIAN)
     return (fd_set *)target_fds;
 #else
     int i, b;
@@ -188,7 +190,7 @@ static inline fd_set *target_to_host_fds(fd_set *fds,
 static inline void host_to_target_fds(target_long *target_fds, 
                                       fd_set *fds, int n)
 {
-#if !defined(BSWP_NEEDED) && !defined(WORD_BIGENDIAN)
+#if !defined(BSWAP_NEEDED) && !defined(WORDS_BIGENDIAN)
     /* nothing to do */
 #else
     int i, nw, j, k;
@@ -256,55 +258,267 @@ static long do_select(long n,
     return ret;
 }
 
-static long do_socketcall(int num, long *vptr)
+static inline void target_to_host_sockaddr(struct sockaddr *addr,
+                                           struct target_sockaddr *target_addr,
+                                           socklen_t len)
+{
+    memcpy(addr, target_addr, len);
+    addr->sa_family = tswap16(target_addr->sa_family);
+}
+
+static inline void host_to_target_sockaddr(struct target_sockaddr *target_addr,
+                                           struct sockaddr *addr,
+                                           socklen_t len)
+{
+    memcpy(target_addr, addr, len);
+    target_addr->sa_family = tswap16(addr->sa_family);
+}
+
+static inline void target_to_host_cmsg(struct msghdr *msgh,
+                                       struct target_msghdr *target_msgh)
+{
+    struct cmsghdr *cmsg = CMSG_FIRSTHDR(msgh);
+    struct target_cmsghdr *target_cmsg = TARGET_CMSG_FIRSTHDR(target_msgh);
+    socklen_t space = 0;
+
+    while (cmsg && target_cmsg) {
+        void *data = CMSG_DATA(cmsg);
+        void *target_data = TARGET_CMSG_DATA(target_cmsg);
+
+        int len = tswapl(target_cmsg->cmsg_len) 
+                  - TARGET_CMSG_ALIGN(sizeof (struct target_cmsghdr));
+
+        space += CMSG_SPACE(len);
+        if (space > msgh->msg_controllen) {
+            space -= CMSG_SPACE(len);
+            gemu_log("Host cmsg overflow");
+            break;
+        }
+
+        cmsg->cmsg_level = tswap32(target_cmsg->cmsg_level);
+        cmsg->cmsg_type = tswap32(target_cmsg->cmsg_type);
+        cmsg->cmsg_len = CMSG_LEN(len);
+
+        if (cmsg->cmsg_level != SOL_SOCKET || cmsg->cmsg_type != SCM_RIGHTS) {
+            gemu_log("Unsupported ancillary data: %d/%d\n", cmsg->cmsg_level, cmsg->cmsg_type);
+            memcpy(data, target_data, len);
+        } else {
+            int *fd = (int *)data;
+            int *target_fd = (int *)target_data;
+            int i, numfds = len / sizeof(int);
+
+            for (i = 0; i < numfds; i++)
+                fd[i] = tswap32(target_fd[i]);
+        }
+
+        cmsg = CMSG_NXTHDR(msgh, cmsg);
+        target_cmsg = TARGET_CMSG_NXTHDR(target_msgh, target_cmsg);
+    }
+
+    msgh->msg_controllen = space;
+}
+
+static inline void host_to_target_cmsg(struct target_msghdr *target_msgh,
+                                       struct msghdr *msgh)
+{
+    struct cmsghdr *cmsg = CMSG_FIRSTHDR(msgh);
+    struct target_cmsghdr *target_cmsg = TARGET_CMSG_FIRSTHDR(target_msgh);
+    socklen_t space = 0;
+
+    while (cmsg && target_cmsg) {
+        void *data = CMSG_DATA(cmsg);
+        void *target_data = TARGET_CMSG_DATA(target_cmsg);
+
+        int len = cmsg->cmsg_len - CMSG_ALIGN(sizeof (struct cmsghdr));
+
+        space += TARGET_CMSG_SPACE(len);
+        if (space > tswapl(target_msgh->msg_controllen)) {
+            space -= TARGET_CMSG_SPACE(len);
+            gemu_log("Target cmsg overflow");
+            break;
+        }
+
+        target_cmsg->cmsg_level = tswap32(cmsg->cmsg_level);
+        target_cmsg->cmsg_type = tswap32(cmsg->cmsg_type);
+        target_cmsg->cmsg_len = tswapl(TARGET_CMSG_LEN(len));
+
+        if (cmsg->cmsg_level != SOL_SOCKET || cmsg->cmsg_type != SCM_RIGHTS) {
+            gemu_log("Unsupported ancillary data: %d/%d\n", cmsg->cmsg_level, cmsg->cmsg_type);
+            memcpy(target_data, data, len);
+        } else {
+            int *fd = (int *)data;
+            int *target_fd = (int *)target_data;
+            int i, numfds = len / sizeof(int);
+
+            for (i = 0; i < numfds; i++)
+                target_fd[i] = tswap32(fd[i]);
+        }
+
+        cmsg = CMSG_NXTHDR(msgh, cmsg);
+        target_cmsg = TARGET_CMSG_NXTHDR(target_msgh, target_cmsg);
+    }
+
+    msgh->msg_controllen = tswapl(space);
+}
+
+static long do_setsockopt(int sockfd, int level, int optname, 
+                          void *optval, socklen_t optlen)
+{
+    if (level == SOL_TCP) {
+        /* TCP options all take an 'int' value.  */
+        int val;
+
+        if (optlen < sizeof(uint32_t))
+            return -EINVAL;
+
+        val = tswap32(*(uint32_t *)optval);
+        return get_errno(setsockopt(sockfd, level, optname, &val, sizeof(val)));
+    }
+
+    else if (level != SOL_SOCKET) {
+        gemu_log("Unsupported setsockopt level: %d\n", level);
+        return -ENOSYS;
+    }
+
+    switch (optname) {
+    /* Options with 'int' argument.  */
+    case SO_DEBUG:
+    case SO_REUSEADDR:
+    case SO_TYPE:
+    case SO_ERROR:
+    case SO_DONTROUTE:
+    case SO_BROADCAST:
+    case SO_SNDBUF:
+    case SO_RCVBUF:
+    case SO_KEEPALIVE:
+    case SO_OOBINLINE:
+    case SO_NO_CHECK:
+    case SO_PRIORITY:
+    case SO_BSDCOMPAT:
+    case SO_PASSCRED:
+    case SO_TIMESTAMP:
+    case SO_RCVLOWAT:
+    case SO_RCVTIMEO:
+    case SO_SNDTIMEO:
+    {
+        int val;
+        if (optlen < sizeof(uint32_t))
+            return -EINVAL;
+        val = tswap32(*(uint32_t *)optval);
+        return get_errno(setsockopt(sockfd, level, optname, &val, sizeof(val)));
+    }
+
+    default:
+        gemu_log("Unsupported setsockopt SOL_SOCKET option: %d\n", optname);
+        return -ENOSYS;
+    }
+}
+
+static long do_getsockopt(int sockfd, int level, int optname, 
+                          void *optval, socklen_t *optlen)
+{
+    gemu_log("getsockopt not yet supported\n");
+    return -ENOSYS;
+}
+
+static long do_socketcall(int num, int32_t *vptr)
 {
     long ret;
 
     switch(num) {
     case SOCKOP_socket:
-        ret = get_errno(socket(vptr[0], vptr[1], vptr[2]));
+	{
+            int domain = tswap32(vptr[0]);
+            int type = tswap32(vptr[1]);
+            int protocol = tswap32(vptr[2]);
+
+            ret = get_errno(socket(domain, type, protocol));
+	}
         break;
     case SOCKOP_bind:
-        ret = get_errno(bind(vptr[0], (struct sockaddr *)vptr[1], vptr[2]));
+	{
+            int sockfd = tswap32(vptr[0]);
+            void *target_addr = (void *)tswap32(vptr[1]);
+            socklen_t addrlen = tswap32(vptr[2]);
+            void *addr = alloca(addrlen);
+
+            target_to_host_sockaddr(addr, target_addr, addrlen);
+            ret = get_errno(bind(sockfd, addr, addrlen));
+        }
         break;
     case SOCKOP_connect:
-        ret = get_errno(connect(vptr[0], (struct sockaddr *)vptr[1], vptr[2]));
+        {
+            int sockfd = tswap32(vptr[0]);
+            void *target_addr = (void *)tswap32(vptr[1]);
+            socklen_t addrlen = tswap32(vptr[2]);
+            void *addr = alloca(addrlen);
+
+            target_to_host_sockaddr(addr, target_addr, addrlen);
+            ret = get_errno(connect(sockfd, addr, addrlen));
+        }
         break;
     case SOCKOP_listen:
-        ret = get_errno(listen(vptr[0], vptr[1]));
+        {
+            int sockfd = tswap32(vptr[0]);
+            int backlog = tswap32(vptr[1]);
+
+            ret = get_errno(listen(sockfd, backlog));
+        }
         break;
     case SOCKOP_accept:
         {
-            socklen_t size;
-            size = tswap32(*(int32_t *)vptr[2]);
-            ret = get_errno(accept(vptr[0], (struct sockaddr *)vptr[1], &size));
-            if (!is_error(ret)) 
-                *(int32_t *)vptr[2] = size;
+            int sockfd = tswap32(vptr[0]);
+            void *target_addr = (void *)tswap32(vptr[1]);
+            uint32_t *target_addrlen = (void *)tswap32(vptr[2]);
+            socklen_t addrlen = tswap32(*target_addrlen);
+            void *addr = alloca(addrlen);
+
+            ret = get_errno(accept(sockfd, addr, &addrlen));
+            if (!is_error(ret)) {
+                host_to_target_sockaddr(target_addr, addr, addrlen);
+                *target_addrlen = tswap32(addrlen);
+            }
         }
         break;
     case SOCKOP_getsockname:
         {
-            socklen_t size;
-            size = tswap32(*(int32_t *)vptr[2]);
-            ret = get_errno(getsockname(vptr[0], (struct sockaddr *)vptr[1], &size));
-            if (!is_error(ret)) 
-                *(int32_t *)vptr[2] = size;
+            int sockfd = tswap32(vptr[0]);
+            void *target_addr = (void *)tswap32(vptr[1]);
+            uint32_t *target_addrlen = (void *)tswap32(vptr[2]);
+            socklen_t addrlen = tswap32(*target_addrlen);
+            void *addr = alloca(addrlen);
+
+            ret = get_errno(getsockname(sockfd, addr, &addrlen));
+            if (!is_error(ret)) {
+                host_to_target_sockaddr(target_addr, addr, addrlen);
+                *target_addrlen = tswap32(addrlen);
+            }
         }
         break;
     case SOCKOP_getpeername:
         {
-            socklen_t size;
-            size = tswap32(*(int32_t *)vptr[2]);
-            ret = get_errno(getpeername(vptr[0], (struct sockaddr *)vptr[1], &size));
-            if (!is_error(ret)) 
-                *(int32_t *)vptr[2] = size;
+            int sockfd = tswap32(vptr[0]);
+            void *target_addr = (void *)tswap32(vptr[1]);
+            uint32_t *target_addrlen = (void *)tswap32(vptr[2]);
+            socklen_t addrlen = tswap32(*target_addrlen);
+            void *addr = alloca(addrlen);
+
+            ret = get_errno(getpeername(sockfd, addr, &addrlen));
+            if (!is_error(ret)) {
+                host_to_target_sockaddr(target_addr, addr, addrlen);
+                *target_addrlen = tswap32(addrlen);
+            }
         }
         break;
     case SOCKOP_socketpair:
         {
+            int domain = tswap32(vptr[0]);
+            int type = tswap32(vptr[1]);
+            int protocol = tswap32(vptr[2]);
+            int32_t *target_tab = (void *)tswap32(vptr[3]);
             int tab[2];
-            int32_t *target_tab = (int32_t *)vptr[3];
-            ret = get_errno(socketpair(vptr[0], vptr[1], vptr[2], tab));
+
+            ret = get_errno(socketpair(domain, type, protocol, tab));
             if (!is_error(ret)) {
                 target_tab[0] = tswap32(tab[0]);
                 target_tab[1] = tswap32(tab[1]);
@@ -312,27 +526,64 @@ static long do_socketcall(int num, long *vptr)
         }
         break;
     case SOCKOP_send:
-        ret = get_errno(send(vptr[0], (void *)vptr[1], vptr[2], vptr[3]));
+        {
+            int sockfd = tswap32(vptr[0]);
+            void *msg = (void *)tswap32(vptr[1]);
+            size_t len = tswap32(vptr[2]);
+            int flags = tswap32(vptr[3]);
+
+            ret = get_errno(send(sockfd, msg, len, flags));
+        }
         break;
     case SOCKOP_recv:
-        ret = get_errno(recv(vptr[0], (void *)vptr[1], vptr[2], vptr[3]));
+        {
+            int sockfd = tswap32(vptr[0]);
+            void *msg = (void *)tswap32(vptr[1]);
+            size_t len = tswap32(vptr[2]);
+            int flags = tswap32(vptr[3]);
+
+            ret = get_errno(recv(sockfd, msg, len, flags));
+        }
         break;
     case SOCKOP_sendto:
-        ret = get_errno(sendto(vptr[0], (void *)vptr[1], vptr[2], vptr[3], 
-                               (struct sockaddr *)vptr[4], vptr[5]));
+        {
+            int sockfd = tswap32(vptr[0]);
+            void *msg = (void *)tswap32(vptr[1]);
+            size_t len = tswap32(vptr[2]);
+            int flags = tswap32(vptr[3]);
+            void *target_addr = (void *)tswap32(vptr[4]);
+            socklen_t addrlen = tswap32(vptr[5]);
+            void *addr = alloca(addrlen);
+
+            target_to_host_sockaddr(addr, target_addr, addrlen);
+            ret = get_errno(sendto(sockfd, msg, len, flags, addr, addrlen));
+        }
         break;
     case SOCKOP_recvfrom:
         {
-            socklen_t size;
-            size = tswap32(*(int32_t *)vptr[5]);
-            ret = get_errno(recvfrom(vptr[0], (void *)vptr[1], vptr[2], 
-                                     vptr[3], (struct sockaddr *)vptr[4], &size));
-            if (!is_error(ret)) 
-                *(int32_t *)vptr[5] = size;
+            int sockfd = tswap32(vptr[0]);
+            void *msg = (void *)tswap32(vptr[1]);
+            size_t len = tswap32(vptr[2]);
+            int flags = tswap32(vptr[3]);
+            void *target_addr = (void *)tswap32(vptr[4]);
+            uint32_t *target_addrlen = (void *)tswap32(vptr[5]);
+            socklen_t addrlen = tswap32(*target_addrlen);
+            void *addr = alloca(addrlen);
+
+            ret = get_errno(recvfrom(sockfd, msg, len, flags, addr, &addrlen));
+            if (!is_error(ret)) {
+                host_to_target_sockaddr(target_addr, addr, addrlen);
+                *target_addrlen = tswap32(addrlen);
+            }
         }
         break;
     case SOCKOP_shutdown:
-        ret = get_errno(shutdown(vptr[0], vptr[1]));
+        {
+            int sockfd = tswap32(vptr[0]);
+            int how = tswap32(vptr[1]);
+
+            ret = get_errno(shutdown(sockfd, how));
+        }
         break;
     case SOCKOP_sendmsg:
     case SOCKOP_recvmsg:
@@ -344,11 +595,11 @@ static long do_socketcall(int num, long *vptr)
             struct iovec *vec;
             struct target_iovec *target_vec;
 
-            msgp = (void *)vptr[1];
+            msgp = (void *)tswap32(vptr[1]);
             msg.msg_name = (void *)tswapl(msgp->msg_name);
             msg.msg_namelen = tswapl(msgp->msg_namelen);
-            msg.msg_control = (void *)tswapl(msgp->msg_control);
-            msg.msg_controllen = tswapl(msgp->msg_controllen);
+            msg.msg_controllen = 2 * tswapl(msgp->msg_controllen);
+            msg.msg_control = alloca(msg.msg_controllen);
             msg.msg_flags = tswap32(msgp->msg_flags);
 
             count = tswapl(msgp->msg_iovlen);
@@ -361,17 +612,43 @@ static long do_socketcall(int num, long *vptr)
             msg.msg_iovlen = count;
             msg.msg_iov = vec;
 
-            fd = vptr[0];
-            flags = vptr[2];
-            if (num == SOCKOP_sendmsg)
-                ret = sendmsg(fd, &msg, flags);
-            else
-                ret = recvmsg(fd, &msg, flags);
-            ret = get_errno(ret);
+            fd = tswap32(vptr[0]);
+            flags = tswap32(vptr[2]);
+            if (num == SOCKOP_sendmsg) {
+                target_to_host_cmsg(&msg, msgp);
+                ret = get_errno(sendmsg(fd, &msg, flags));
+            } else {
+                ret = get_errno(recvmsg(fd, &msg, flags));
+                if (!is_error(ret))
+                  host_to_target_cmsg(msgp, &msg);
+            }
         }
         break;
     case SOCKOP_setsockopt:
+        {
+            int sockfd = tswap32(vptr[0]);
+            int level = tswap32(vptr[1]);
+            int optname = tswap32(vptr[2]);
+            void *optval = (void *)tswap32(vptr[3]);
+            socklen_t optlen = tswap32(vptr[4]);
+
+            ret = do_setsockopt(sockfd, level, optname, optval, optlen);
+        }
+        break;
     case SOCKOP_getsockopt:
+        {
+            int sockfd = tswap32(vptr[0]);
+            int level = tswap32(vptr[1]);
+            int optname = tswap32(vptr[2]);
+            void *optval = (void *)tswap32(vptr[3]);
+            uint32_t *target_len = (void *)tswap32(vptr[4]);
+            socklen_t optlen = tswap32(*target_len);
+
+            ret = do_getsockopt(sockfd, level, optname, optval, &optlen);
+            if (!is_error(ret))
+                *target_len = tswap32(optlen);
+        }
+        break;
     default:
         gemu_log("Unsupported socketcall: %d\n", num);
         ret = -ENOSYS;
@@ -960,7 +1237,27 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         ret = get_errno(unlink((const char *)arg1));
         break;
     case TARGET_NR_execve:
-        ret = get_errno(execve((const char *)arg1, (void *)arg2, (void *)arg3));
+        {
+            char **argp, **envp;
+            int argc = 0, envc = 0;
+            uint32_t *p;
+            char **q;
+
+            for (p = (void *)arg2; *p; p++)
+                argc++;
+            for (p = (void *)arg3; *p; p++)
+                envc++;
+
+            argp = alloca(argc * sizeof(void *));
+            envp = alloca(envc * sizeof(void *));
+
+            for (p = (void *)arg2, q = argp; *p; p++, q++)
+                *q = (void *)tswap32(*p);
+            for (p = (void *)arg3, q = envp; *p; p++, q++)
+                *q = (void *)tswap32(*p);
+
+            ret = get_errno(execve((const char *)arg1, argp, envp));
+        }
         break;
     case TARGET_NR_chdir:
         ret = get_errno(chdir((const char *)arg1));
@@ -1484,7 +1781,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_ioperm:
         goto unimplemented;
     case TARGET_NR_socketcall:
-        ret = do_socketcall(arg1, (long *)arg2);
+        ret = do_socketcall(arg1, (int32_t *)arg2);
         break;
     case TARGET_NR_syslog:
         goto unimplemented;
@@ -1548,9 +1845,9 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                 target_st->st_size = tswapl(st.st_size);
                 target_st->st_blksize = tswapl(st.st_blksize);
                 target_st->st_blocks = tswapl(st.st_blocks);
-                target_st->st_atime = tswapl(st.st_atime);
-                target_st->st_mtime = tswapl(st.st_mtime);
-                target_st->st_ctime = tswapl(st.st_ctime);
+                target_st->target_st_atime = tswapl(st.st_atime);
+                target_st->target_st_mtime = tswapl(st.st_mtime);
+                target_st->target_st_ctime = tswapl(st.st_ctime);
             }
         }
         break;
@@ -1727,7 +2024,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             unsigned int nfds = arg2;
             int timeout = arg3;
             struct pollfd *pfd;
-            int i;
+            unsigned int i;
 
             pfd = alloca(sizeof(struct pollfd) * nfds);
             for(i = 0; i < nfds; i++) {
@@ -1940,9 +2237,9 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                 target_st->st_size = tswapl(st.st_size);
                 target_st->st_blksize = tswapl(st.st_blksize);
                 target_st->st_blocks = tswapl(st.st_blocks);
-                target_st->st_atime = tswapl(st.st_atime);
-                target_st->st_mtime = tswapl(st.st_mtime);
-                target_st->st_ctime = tswapl(st.st_ctime);
+                target_st->target_st_atime = tswapl(st.st_atime);
+                target_st->target_st_mtime = tswapl(st.st_mtime);
+                target_st->target_st_ctime = tswapl(st.st_ctime);
             }
         }
         break;

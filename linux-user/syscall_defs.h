@@ -19,6 +19,11 @@
 #define SOCKOP_sendmsg          16
 #define SOCKOP_recvmsg          17
 
+struct target_sockaddr {
+    uint16_t sa_family;
+    uint8_t sa_data[14];
+};
+
 struct target_timeval {
     target_long tv_sec;
     target_long tv_usec;
@@ -48,6 +53,43 @@ struct target_msghdr {
     target_long	 msg_controllen;	/* Length of cmsg list */
     unsigned int msg_flags;
 };
+
+struct target_cmsghdr {
+    target_long  cmsg_len;
+    int          cmsg_level;
+    int          cmsg_type;
+};
+
+#define TARGET_CMSG_DATA(cmsg) ((unsigned char *) ((struct target_cmsghdr *) (cmsg) + 1))
+#define TARGET_CMSG_NXTHDR(mhdr, cmsg) __target_cmsg_nxthdr (mhdr, cmsg)
+#define TARGET_CMSG_FIRSTHDR(mhdr) \
+  ((size_t) tswapl((mhdr)->msg_controllen) >= sizeof (struct target_cmsghdr) \
+   ? (struct target_cmsghdr *) tswapl((mhdr)->msg_control) : (struct target_cmsghdr *) NULL)
+#define TARGET_CMSG_ALIGN(len) (((len) + sizeof (target_long) - 1) \
+                               & (size_t) ~(sizeof (target_long) - 1))
+#define TARGET_CMSG_SPACE(len) (TARGET_CMSG_ALIGN (len) \
+                               + TARGET_CMSG_ALIGN (sizeof (struct target_cmsghdr)))
+#define TARGET_CMSG_LEN(len)   (TARGET_CMSG_ALIGN (sizeof (struct target_cmsghdr)) + (len))
+
+static __inline__ struct target_cmsghdr *
+__target_cmsg_nxthdr (struct target_msghdr *__mhdr, struct target_cmsghdr *__cmsg)
+{
+  if (tswapl(__cmsg->cmsg_len) < sizeof (struct target_cmsghdr))
+    /* The kernel header does this so there may be a reason.  */
+    return 0;
+
+  __cmsg = (struct target_cmsghdr *) ((unsigned char *) __cmsg
+                               + TARGET_CMSG_ALIGN (tswapl(__cmsg->cmsg_len)));
+  if ((unsigned char *) (__cmsg + 1) > ((unsigned char *) tswapl(__mhdr->msg_control)
+                                        + tswapl(__mhdr->msg_controllen))
+      || ((unsigned char *) __cmsg + TARGET_CMSG_ALIGN (tswapl(__cmsg->cmsg_len))
+          > ((unsigned char *) tswapl(__mhdr->msg_control) 
+             + tswapl(__mhdr->msg_controllen))))
+    /* No more entries.  */
+    return 0;
+  return __cmsg;
+}
+
 
 struct  target_rusage {
         struct target_timeval ru_utime;        /* user time used */

@@ -285,11 +285,11 @@ struct target_stat {
 	target_ulong  st_size;
 	target_ulong  st_blksize;
 	target_ulong  st_blocks;
-	target_ulong  st_atime;
+	target_ulong  target_st_atime;
 	target_ulong  __unused1;
-	target_ulong  st_mtime;
+	target_ulong  target_st_mtime;
 	target_ulong  __unused2;
-	target_ulong  st_ctime;
+	target_ulong  target_st_ctime;
 	target_ulong  __unused3;
 	target_ulong  __unused4;
 	target_ulong  __unused5;
@@ -320,13 +320,13 @@ struct target_stat64 {
 	target_ulong	st_blocks;	/* Number 512-byte blocks allocated. */
 	target_ulong	__pad4;		/* future possible st_blocks high bits */
 
-	target_ulong	st_atime;
+	target_ulong	target_st_atime;
 	target_ulong	__pad5;
 
-	target_ulong	st_mtime;
+	target_ulong	target_st_mtime;
 	target_ulong	__pad6;
 
-	target_ulong	st_ctime;
+	target_ulong	target_st_ctime;
 	target_ulong	__pad7;		/* will be high 32 bits of ctime someday */
 
 	unsigned long long	st_ino;
