@@ -390,6 +390,21 @@ static GenOpFunc *gen_op_arithc_T0_T1_cc[3][2] = {
     },
 };
 
+static GenOpFunc *gen_op_arithc_mem_T0_T1_cc[3][2] = {
+    [OT_BYTE] = {
+        gen_op_adcb_mem_T0_T1_cc,
+        gen_op_sbbb_mem_T0_T1_cc,
+    },
+    [OT_WORD] = {
+        gen_op_adcw_mem_T0_T1_cc,
+        gen_op_sbbw_mem_T0_T1_cc,
+    },
+    [OT_LONG] = {
+        gen_op_adcl_mem_T0_T1_cc,
+        gen_op_sbbl_mem_T0_T1_cc,
+    },
+};
+
 static const int cc_op_arithb[8] = {
     CC_OP_ADDB,
     CC_OP_LOGICB,
@@ -405,6 +420,12 @@ static GenOpFunc *gen_op_cmpxchg_T0_T1_EAX_cc[3] = {
     gen_op_cmpxchgb_T0_T1_EAX_cc,
     gen_op_cmpxchgw_T0_T1_EAX_cc,
     gen_op_cmpxchgl_T0_T1_EAX_cc,
+};
+
+static GenOpFunc *gen_op_cmpxchg_mem_T0_T1_EAX_cc[3] = {
+    gen_op_cmpxchgb_mem_T0_T1_EAX_cc,
+    gen_op_cmpxchgw_mem_T0_T1_EAX_cc,
+    gen_op_cmpxchgl_mem_T0_T1_EAX_cc,
 };
 
 static GenOpFunc *gen_op_shift_T0_T1_cc[3][8] = {
@@ -440,6 +461,39 @@ static GenOpFunc *gen_op_shift_T0_T1_cc[3][8] = {
     },
 };
 
+static GenOpFunc *gen_op_shift_mem_T0_T1_cc[3][8] = {
+    [OT_BYTE] = {
+        gen_op_rolb_mem_T0_T1_cc,
+        gen_op_rorb_mem_T0_T1_cc,
+        gen_op_rclb_mem_T0_T1_cc,
+        gen_op_rcrb_mem_T0_T1_cc,
+        gen_op_shlb_mem_T0_T1_cc,
+        gen_op_shrb_mem_T0_T1_cc,
+        gen_op_shlb_mem_T0_T1_cc,
+        gen_op_sarb_mem_T0_T1_cc,
+    },
+    [OT_WORD] = {
+        gen_op_rolw_mem_T0_T1_cc,
+        gen_op_rorw_mem_T0_T1_cc,
+        gen_op_rclw_mem_T0_T1_cc,
+        gen_op_rcrw_mem_T0_T1_cc,
+        gen_op_shlw_mem_T0_T1_cc,
+        gen_op_shrw_mem_T0_T1_cc,
+        gen_op_shlw_mem_T0_T1_cc,
+        gen_op_sarw_mem_T0_T1_cc,
+    },
+    [OT_LONG] = {
+        gen_op_roll_mem_T0_T1_cc,
+        gen_op_rorl_mem_T0_T1_cc,
+        gen_op_rcll_mem_T0_T1_cc,
+        gen_op_rcrl_mem_T0_T1_cc,
+        gen_op_shll_mem_T0_T1_cc,
+        gen_op_shrl_mem_T0_T1_cc,
+        gen_op_shll_mem_T0_T1_cc,
+        gen_op_sarl_mem_T0_T1_cc,
+    },
+};
+
 static GenOpFunc1 *gen_op_shiftd_T0_T1_im_cc[2][2] = {
     [0] = {
         gen_op_shldw_T0_T1_im_cc,
@@ -459,6 +513,28 @@ static GenOpFunc *gen_op_shiftd_T0_T1_ECX_cc[2][2] = {
     [1] = {
         gen_op_shldl_T0_T1_ECX_cc,
         gen_op_shrdl_T0_T1_ECX_cc,
+    },
+};
+
+static GenOpFunc1 *gen_op_shiftd_mem_T0_T1_im_cc[2][2] = {
+    [0] = {
+        gen_op_shldw_mem_T0_T1_im_cc,
+        gen_op_shrdw_mem_T0_T1_im_cc,
+    },
+    [1] = {
+        gen_op_shldl_mem_T0_T1_im_cc,
+        gen_op_shrdl_mem_T0_T1_im_cc,
+    },
+};
+
+static GenOpFunc *gen_op_shiftd_mem_T0_T1_ECX_cc[2][2] = {
+    [0] = {
+        gen_op_shldw_mem_T0_T1_ECX_cc,
+        gen_op_shrdw_mem_T0_T1_ECX_cc,
+    },
+    [1] = {
+        gen_op_shldl_mem_T0_T1_ECX_cc,
+        gen_op_shrdl_mem_T0_T1_ECX_cc,
     },
 };
 
@@ -763,11 +839,14 @@ static void gen_op(DisasContext *s1, int op, int ot, int d)
     case OP_SBBL:
         if (s1->cc_op != CC_OP_DYNAMIC)
             gen_op_set_cc_op(s1->cc_op);
-        gen_op_arithc_T0_T1_cc[ot][op - OP_ADCL]();
+        if (d != OR_TMP0) {
+            gen_op_arithc_T0_T1_cc[ot][op - OP_ADCL]();
+            gen_op_mov_reg_T0[ot][d]();
+        } else {
+            gen_op_arithc_mem_T0_T1_cc[ot][op - OP_ADCL]();
+        }
         s1->cc_op = CC_OP_DYNAMIC;
-        /* XXX: incorrect: CC_OP must also be modified AFTER memory access */
-        gen_update_cc = gen_op_update2_cc;
-        break;
+        goto the_end;
     case OP_ADDL:
         gen_op_addl_T0_T1();
         s1->cc_op = CC_OP_ADDB + ot;
@@ -802,6 +881,7 @@ static void gen_op(DisasContext *s1, int op, int ot, int d)
        exception support) */
     if (gen_update_cc)
         gen_update_cc();
+ the_end: ;
 }
 
 /* if d == OR_TMP0, it means memory operand (address in A0) */
@@ -831,14 +911,18 @@ static void gen_shift(DisasContext *s1, int op, int ot, int d, int s)
 {
     if (d != OR_TMP0)
         gen_op_mov_TN_reg[ot][0][d]();
+    else
+        gen_op_ld_T0_A0[ot]();
     if (s != OR_TMP1)
         gen_op_mov_TN_reg[ot][1][s]();
     /* for zero counts, flags are not updated, so must do it dynamically */
     if (s1->cc_op != CC_OP_DYNAMIC)
         gen_op_set_cc_op(s1->cc_op);
-
-    gen_op_shift_T0_T1_cc[ot][op]();
-
+    
+    if (d != OR_TMP0)
+        gen_op_shift_T0_T1_cc[ot][op]();
+    else
+        gen_op_shift_mem_T0_T1_cc[ot][op]();
     if (d != OR_TMP0)
         gen_op_mov_reg_T0[ot][d]();
     s1->cc_op = CC_OP_DYNAMIC; /* cannot predict flags after */
@@ -1885,8 +1969,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         } else {
             gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
             gen_op_ld_T0_A0[ot]();
-            gen_op_cmpxchg_T0_T1_EAX_cc[ot]();
-            gen_op_st_T0_A0[ot]();
+            gen_op_cmpxchg_mem_T0_T1_EAX_cc[ot]();
         }
         s->cc_op = CC_OP_SUBB + ot;
         break;
@@ -2264,7 +2347,6 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             
             if (mod != 3) {
                 gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
-                gen_op_ld_T0_A0[ot]();
                 opreg = OR_TMP0;
             } else {
                 opreg = rm + OR_EAX;
@@ -2278,10 +2360,6 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
                     shift = ldub(s->pc++);
                 }
                 gen_shifti(s, op, ot, opreg, shift);
-            }
-
-            if (mod != 3) {
-                gen_op_st_T0_A0[ot]();
             }
         }
         break;
@@ -2330,7 +2408,10 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             val = ldub(s->pc++);
             val &= 0x1f;
             if (val) {
-                gen_op_shiftd_T0_T1_im_cc[ot - OT_WORD][op](val);
+                if (mod == 3)
+                    gen_op_shiftd_T0_T1_im_cc[ot - OT_WORD][op](val);
+                else
+                    gen_op_shiftd_mem_T0_T1_im_cc[ot - OT_WORD][op](val);
                 if (op == 0 && ot != OT_WORD)
                     s->cc_op = CC_OP_SHLB + ot;
                 else
@@ -2339,12 +2420,13 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         } else {
             if (s->cc_op != CC_OP_DYNAMIC)
                 gen_op_set_cc_op(s->cc_op);
-            gen_op_shiftd_T0_T1_ECX_cc[ot - OT_WORD][op]();
+            if (mod == 3)
+                gen_op_shiftd_T0_T1_ECX_cc[ot - OT_WORD][op]();
+            else
+                gen_op_shiftd_mem_T0_T1_ECX_cc[ot - OT_WORD][op]();
             s->cc_op = CC_OP_DYNAMIC; /* cannot predict flags after */
         }
-        if (mod != 3) {
-            gen_op_st_T0_A0[ot]();
-        } else {
+        if (mod == 3) {
             gen_op_mov_reg_T0[ot][rm]();
         }
         break;
@@ -3202,6 +3284,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
                 gen_op_st_T0_A0[ot]();
             else
                 gen_op_mov_reg_T0[ot][rm]();
+            gen_op_update_bt_cc();
         }
         break;
     case 0x1a3: /* bt Gv, Ev */
@@ -3240,6 +3323,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
                 gen_op_st_T0_A0[ot]();
             else
                 gen_op_mov_reg_T0[ot][rm]();
+            gen_op_update_bt_cc();
         }
         break;
     case 0x1bc: /* bsf */
@@ -3640,6 +3724,13 @@ static uint16_t opc_read_flags[NB_OPS] = {
     [INDEX_op_sbbw_T0_T1_cc] = CC_C,
     [INDEX_op_sbbl_T0_T1_cc] = CC_C,
 
+    [INDEX_op_adcb_mem_T0_T1_cc] = CC_C,
+    [INDEX_op_adcw_mem_T0_T1_cc] = CC_C,
+    [INDEX_op_adcl_mem_T0_T1_cc] = CC_C,
+    [INDEX_op_sbbb_mem_T0_T1_cc] = CC_C,
+    [INDEX_op_sbbw_mem_T0_T1_cc] = CC_C,
+    [INDEX_op_sbbl_mem_T0_T1_cc] = CC_C,
+
     /* subtle: due to the incl/decl implementation, C is used */
     [INDEX_op_update_inc_cc] = CC_C, 
 
@@ -3717,23 +3808,38 @@ static uint16_t opc_read_flags[NB_OPS] = {
     [INDEX_op_rcrb_T0_T1_cc] = CC_C,
     [INDEX_op_rcrw_T0_T1_cc] = CC_C,
     [INDEX_op_rcrl_T0_T1_cc] = CC_C,
+
+    [INDEX_op_rclb_mem_T0_T1_cc] = CC_C,
+    [INDEX_op_rclw_mem_T0_T1_cc] = CC_C,
+    [INDEX_op_rcll_mem_T0_T1_cc] = CC_C,
+    [INDEX_op_rcrb_mem_T0_T1_cc] = CC_C,
+    [INDEX_op_rcrw_mem_T0_T1_cc] = CC_C,
+    [INDEX_op_rcrl_mem_T0_T1_cc] = CC_C,
 };
 
 /* flags written by an operation */
 static uint16_t opc_write_flags[NB_OPS] = { 
     [INDEX_op_update2_cc] = CC_OSZAPC,
     [INDEX_op_update1_cc] = CC_OSZAPC,
+    [INDEX_op_cmpl_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_update_neg_cc] = CC_OSZAPC,
+    /* subtle: due to the incl/decl implementation, C is used */
+    [INDEX_op_update_inc_cc] = CC_OSZAPC, 
+    [INDEX_op_testl_T0_T1_cc] = CC_OSZAPC,
+
     [INDEX_op_adcb_T0_T1_cc] = CC_OSZAPC,
     [INDEX_op_adcw_T0_T1_cc] = CC_OSZAPC,
     [INDEX_op_adcl_T0_T1_cc] = CC_OSZAPC,
     [INDEX_op_sbbb_T0_T1_cc] = CC_OSZAPC,
     [INDEX_op_sbbw_T0_T1_cc] = CC_OSZAPC,
     [INDEX_op_sbbl_T0_T1_cc] = CC_OSZAPC,
-    [INDEX_op_cmpl_T0_T1_cc] = CC_OSZAPC,
-    [INDEX_op_update_neg_cc] = CC_OSZAPC,
-    /* subtle: due to the incl/decl implementation, C is used */
-    [INDEX_op_update_inc_cc] = CC_OSZAPC, 
-    [INDEX_op_testl_T0_T1_cc] = CC_OSZAPC,
+
+    [INDEX_op_adcb_mem_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_adcw_mem_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_adcl_mem_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_sbbb_mem_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_sbbw_mem_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_sbbl_mem_T0_T1_cc] = CC_OSZAPC,
 
     [INDEX_op_mulb_AL_T0] = CC_OSZAPC,
     [INDEX_op_imulb_AL_T0] = CC_OSZAPC,
@@ -3795,6 +3901,42 @@ static uint16_t opc_write_flags[NB_OPS] = {
     [INDEX_op_shrdw_T0_T1_im_cc] = CC_OSZAPC,
     [INDEX_op_shrdl_T0_T1_im_cc] = CC_OSZAPC,
 
+    [INDEX_op_rolb_mem_T0_T1_cc] = CC_O | CC_C,
+    [INDEX_op_rolw_mem_T0_T1_cc] = CC_O | CC_C,
+    [INDEX_op_roll_mem_T0_T1_cc] = CC_O | CC_C,
+    [INDEX_op_rorb_mem_T0_T1_cc] = CC_O | CC_C,
+    [INDEX_op_rorw_mem_T0_T1_cc] = CC_O | CC_C,
+    [INDEX_op_rorl_mem_T0_T1_cc] = CC_O | CC_C,
+
+    [INDEX_op_rclb_mem_T0_T1_cc] = CC_O | CC_C,
+    [INDEX_op_rclw_mem_T0_T1_cc] = CC_O | CC_C,
+    [INDEX_op_rcll_mem_T0_T1_cc] = CC_O | CC_C,
+    [INDEX_op_rcrb_mem_T0_T1_cc] = CC_O | CC_C,
+    [INDEX_op_rcrw_mem_T0_T1_cc] = CC_O | CC_C,
+    [INDEX_op_rcrl_mem_T0_T1_cc] = CC_O | CC_C,
+
+    [INDEX_op_shlb_mem_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_shlw_mem_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_shll_mem_T0_T1_cc] = CC_OSZAPC,
+
+    [INDEX_op_shrb_mem_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_shrw_mem_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_shrl_mem_T0_T1_cc] = CC_OSZAPC,
+
+    [INDEX_op_sarb_mem_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_sarw_mem_T0_T1_cc] = CC_OSZAPC,
+    [INDEX_op_sarl_mem_T0_T1_cc] = CC_OSZAPC,
+
+    [INDEX_op_shldw_mem_T0_T1_ECX_cc] = CC_OSZAPC,
+    [INDEX_op_shldl_mem_T0_T1_ECX_cc] = CC_OSZAPC,
+    [INDEX_op_shldw_mem_T0_T1_im_cc] = CC_OSZAPC,
+    [INDEX_op_shldl_mem_T0_T1_im_cc] = CC_OSZAPC,
+
+    [INDEX_op_shrdw_mem_T0_T1_ECX_cc] = CC_OSZAPC,
+    [INDEX_op_shrdl_mem_T0_T1_ECX_cc] = CC_OSZAPC,
+    [INDEX_op_shrdw_mem_T0_T1_im_cc] = CC_OSZAPC,
+    [INDEX_op_shrdl_mem_T0_T1_im_cc] = CC_OSZAPC,
+
     [INDEX_op_btw_T0_T1_cc] = CC_OSZAPC,
     [INDEX_op_btl_T0_T1_cc] = CC_OSZAPC,
     [INDEX_op_btsw_T0_T1_cc] = CC_OSZAPC,
@@ -3832,6 +3974,10 @@ static uint16_t opc_write_flags[NB_OPS] = {
     [INDEX_op_cmpxchgw_T0_T1_EAX_cc] = CC_OSZAPC,
     [INDEX_op_cmpxchgl_T0_T1_EAX_cc] = CC_OSZAPC,
 
+    [INDEX_op_cmpxchgb_mem_T0_T1_EAX_cc] = CC_OSZAPC,
+    [INDEX_op_cmpxchgw_mem_T0_T1_EAX_cc] = CC_OSZAPC,
+    [INDEX_op_cmpxchgl_mem_T0_T1_EAX_cc] = CC_OSZAPC,
+
     [INDEX_op_cmpxchg8b] = CC_Z,
     [INDEX_op_lar] = CC_Z,
     [INDEX_op_lsl] = CC_Z,
@@ -3844,8 +3990,10 @@ static uint16_t opc_simpler[NB_OPS] = {
     [INDEX_op_update2_cc] = INDEX_op_nop,
     [INDEX_op_update1_cc] = INDEX_op_nop,
     [INDEX_op_update_neg_cc] = INDEX_op_nop,
+#if 0
+    /* broken: CC_OP logic must be rewritten */
     [INDEX_op_update_inc_cc] = INDEX_op_nop,
-
+#endif
     [INDEX_op_rolb_T0_T1_cc] = INDEX_op_rolb_T0_T1,
     [INDEX_op_rolw_T0_T1_cc] = INDEX_op_rolw_T0_T1,
     [INDEX_op_roll_T0_T1_cc] = INDEX_op_roll_T0_T1,
@@ -3853,6 +4001,14 @@ static uint16_t opc_simpler[NB_OPS] = {
     [INDEX_op_rorb_T0_T1_cc] = INDEX_op_rorb_T0_T1,
     [INDEX_op_rorw_T0_T1_cc] = INDEX_op_rorw_T0_T1,
     [INDEX_op_rorl_T0_T1_cc] = INDEX_op_rorl_T0_T1,
+
+    [INDEX_op_rolb_mem_T0_T1_cc] = INDEX_op_rolb_mem_T0_T1,
+    [INDEX_op_rolw_mem_T0_T1_cc] = INDEX_op_rolw_mem_T0_T1,
+    [INDEX_op_roll_mem_T0_T1_cc] = INDEX_op_roll_mem_T0_T1,
+
+    [INDEX_op_rorb_mem_T0_T1_cc] = INDEX_op_rorb_mem_T0_T1,
+    [INDEX_op_rorw_mem_T0_T1_cc] = INDEX_op_rorw_mem_T0_T1,
+    [INDEX_op_rorl_mem_T0_T1_cc] = INDEX_op_rorl_mem_T0_T1,
 
     [INDEX_op_shlb_T0_T1_cc] = INDEX_op_shlb_T0_T1,
     [INDEX_op_shlw_T0_T1_cc] = INDEX_op_shlw_T0_T1,
@@ -3971,6 +4127,10 @@ static inline int gen_intermediate_code_internal(TranslationBlock *tb, int searc
             break;
     } while (!dc->is_jmp && gen_opc_ptr < gen_opc_end && 
              (pc_ptr - pc_start) < (TARGET_PAGE_SIZE - 32));
+    if (!dc->tf && dc->is_jmp == DISAS_NEXT) {
+        gen_jmp(dc, ret - (unsigned long)dc->cs_base);
+    }
+
     /* we must store the eflags state if it is not already done */
     if (dc->is_jmp != DISAS_TB_JUMP) {
         if (dc->cc_op != CC_OP_DYNAMIC)
@@ -3983,12 +4143,19 @@ static inline int gen_intermediate_code_internal(TranslationBlock *tb, int searc
     if (dc->tf) {
         gen_op_raise_exception(EXCP01_SSTP);
     }
-    if (dc->is_jmp != 3) {
+    if (dc->is_jmp != DISAS_TB_JUMP) {
         /* indicate that the hash table must be used to find the next TB */
         gen_op_movl_T0_0();
     }
     *gen_opc_ptr = INDEX_op_end;
-
+    /* we don't forget to fill the last values */
+    if (search_pc) {
+        j = gen_opc_ptr - gen_opc_buf;
+        lj++;
+        while (lj <= j)
+            gen_opc_instr_start[lj++] = 0;
+    }
+        
 #ifdef DEBUG_DISAS
     if (loglevel) {
         fprintf(logfile, "----------------\n");

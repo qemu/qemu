@@ -174,7 +174,7 @@ op-$(TARGET_ARCH).o: op-$(TARGET_ARCH).c
 helper-$(TARGET_ARCH).o: helper-$(TARGET_ARCH).c
 	$(CC) $(HELPER_CFLAGS) $(DEFINES) -c -o $@ $<
 
-op-i386.o: op-i386.c opreg_template.h ops_template.h
+op-i386.o: op-i386.c opreg_template.h ops_template.h ops_template_mem.h
 
 op-arm.o: op-arm.c op-arm-template.h
 

@@ -406,146 +406,11 @@ void OPPROTO glue(op_setle_T0_sub, SUFFIX)(void)
 
 /* shifts */
 
-void OPPROTO glue(glue(op_rol, SUFFIX), _T0_T1_cc)(void)
-{
-    int count, src;
-    count = T1 & SHIFT_MASK;
-    if (count) {
-        CC_SRC = cc_table[CC_OP].compute_all() & ~(CC_O | CC_C);
-        src = T0;
-        T0 &= DATA_MASK;
-        T0 = (T0 << count) | (T0 >> (DATA_BITS - count));
-        CC_SRC |= (lshift(src ^ T0, 11 - (DATA_BITS - 1)) & CC_O) | 
-            (T0 & CC_C);
-        CC_OP = CC_OP_EFLAGS;
-    }
-    FORCE_RET();
-}
-
-void OPPROTO glue(glue(op_rol, SUFFIX), _T0_T1)(void)
-{
-    int count;
-    count = T1 & SHIFT_MASK;
-    if (count) {
-        T0 &= DATA_MASK;
-        T0 = (T0 << count) | (T0 >> (DATA_BITS - count));
-    }
-    FORCE_RET();
-}
-
-void OPPROTO glue(glue(op_ror, SUFFIX), _T0_T1_cc)(void)
-{
-    int count, src;
-    count = T1 & SHIFT_MASK;
-    if (count) {
-        CC_SRC = cc_table[CC_OP].compute_all() & ~(CC_O | CC_C);
-        src = T0;
-        T0 &= DATA_MASK;
-        T0 = (T0 >> count) | (T0 << (DATA_BITS - count));
-        CC_SRC |= (lshift(src ^ T0, 11 - (DATA_BITS - 1)) & CC_O) | 
-            ((T0 >> (DATA_BITS - 1)) & CC_C);
-        CC_OP = CC_OP_EFLAGS;
-    }
-    FORCE_RET();
-}
-
-void OPPROTO glue(glue(op_ror, SUFFIX), _T0_T1)(void)
-{
-    int count;
-    count = T1 & SHIFT_MASK;
-    if (count) {
-        T0 &= DATA_MASK;
-        T0 = (T0 >> count) | (T0 << (DATA_BITS - count));
-    }
-    FORCE_RET();
-}
-
-void OPPROTO glue(glue(op_rcl, SUFFIX), _T0_T1_cc)(void)
-{
-    int count, res, eflags;
-    unsigned int src;
-
-    count = T1 & 0x1f;
-#if DATA_BITS == 16
-    count = rclw_table[count];
-#elif DATA_BITS == 8
-    count = rclb_table[count];
-#endif
-    if (count) {
-        eflags = cc_table[CC_OP].compute_all();
-        T0 &= DATA_MASK;
-        src = T0;
-        res = (T0 << count) | ((eflags & CC_C) << (count - 1));
-        if (count > 1)
-            res |= T0 >> (DATA_BITS + 1 - count);
-        T0 = res;
-        CC_SRC = (eflags & ~(CC_C | CC_O)) |
-            (lshift(src ^ T0, 11 - (DATA_BITS - 1)) & CC_O) | 
-            ((src >> (DATA_BITS - count)) & CC_C);
-        CC_OP = CC_OP_EFLAGS;
-    }
-    FORCE_RET();
-}
-
-void OPPROTO glue(glue(op_rcr, SUFFIX), _T0_T1_cc)(void)
-{
-    int count, res, eflags;
-    unsigned int src;
-
-    count = T1 & 0x1f;
-#if DATA_BITS == 16
-    count = rclw_table[count];
-#elif DATA_BITS == 8
-    count = rclb_table[count];
-#endif
-    if (count) {
-        eflags = cc_table[CC_OP].compute_all();
-        T0 &= DATA_MASK;
-        src = T0;
-        res = (T0 >> count) | ((eflags & CC_C) << (DATA_BITS - count));
-        if (count > 1)
-            res |= T0 << (DATA_BITS + 1 - count);
-        T0 = res;
-        CC_SRC = (eflags & ~(CC_C | CC_O)) |
-            (lshift(src ^ T0, 11 - (DATA_BITS - 1)) & CC_O) | 
-            ((src >> (count - 1)) & CC_C);
-        CC_OP = CC_OP_EFLAGS;
-    }
-    FORCE_RET();
-}
-
-void OPPROTO glue(glue(op_shl, SUFFIX), _T0_T1_cc)(void)
-{
-    int count;
-    count = T1 & 0x1f;
-    if (count) {
-        CC_SRC = (DATA_TYPE)T0 << (count - 1);
-        T0 = T0 << count;
-        CC_DST = T0;
-        CC_OP = CC_OP_SHLB + SHIFT;
-    }
-    FORCE_RET();
-}
-
 void OPPROTO glue(glue(op_shl, SUFFIX), _T0_T1)(void)
 {
     int count;
     count = T1 & 0x1f;
     T0 = T0 << count;
-    FORCE_RET();
-}
-
-void OPPROTO glue(glue(op_shr, SUFFIX), _T0_T1_cc)(void)
-{
-    int count;
-    count = T1 & 0x1f;
-    if (count) {
-        T0 &= DATA_MASK;
-        CC_SRC = T0 >> (count - 1);
-        T0 = T0 >> count;
-        CC_DST = T0;
-        CC_OP = CC_OP_SARB + SHIFT;
-    }
     FORCE_RET();
 }
 
@@ -558,20 +423,6 @@ void OPPROTO glue(glue(op_shr, SUFFIX), _T0_T1)(void)
     FORCE_RET();
 }
 
-void OPPROTO glue(glue(op_sar, SUFFIX), _T0_T1_cc)(void)
-{
-    int count, src;
-    count = T1 & 0x1f;
-    if (count) {
-        src = (DATA_STYPE)T0;
-        CC_SRC = src >> (count - 1);
-        T0 = src >> count;
-        CC_DST = T0;
-        CC_OP = CC_OP_SARB + SHIFT;
-    }
-    FORCE_RET();
-}
-
 void OPPROTO glue(glue(op_sar, SUFFIX), _T0_T1)(void)
 {
     int count, src;
@@ -581,162 +432,11 @@ void OPPROTO glue(glue(op_sar, SUFFIX), _T0_T1)(void)
     FORCE_RET();
 }
 
-#if DATA_BITS == 16
-/* XXX: overflow flag might be incorrect in some cases in shldw */
-void OPPROTO glue(glue(op_shld, SUFFIX), _T0_T1_im_cc)(void)
-{
-    int count;
-    unsigned int res;
-    count = PARAM1;
-    T1 &= 0xffff;
-    res = T1 | (T0 << 16);
-    CC_SRC = res >> (32 - count);
-    res <<= count;
-    if (count > 16)
-        res |= T1 << (count - 16);
-    T0 = res >> 16;
-    CC_DST = T0;
-}
+#undef MEM_WRITE
+#include "ops_template_mem.h"
 
-void OPPROTO glue(glue(op_shld, SUFFIX), _T0_T1_ECX_cc)(void)
-{
-    int count;
-    unsigned int res;
-    count = ECX & 0x1f;
-    if (count) {
-        T1 &= 0xffff;
-        res = T1 | (T0 << 16);
-        CC_SRC = res >> (32 - count);
-        res <<= count;
-        if (count > 16)
-          res |= T1 << (count - 16);
-        T0 = res >> 16;
-        CC_DST = T0;
-        CC_OP = CC_OP_SARB + SHIFT;
-    }
-    FORCE_RET();
-}
-
-void OPPROTO glue(glue(op_shrd, SUFFIX), _T0_T1_im_cc)(void)
-{
-    int count;
-    unsigned int res;
-
-    count = PARAM1;
-    res = (T0 & 0xffff) | (T1 << 16);
-    CC_SRC = res >> (count - 1);
-    res >>= count;
-    if (count > 16)
-        res |= T1 << (32 - count);
-    T0 = res;
-    CC_DST = T0;
-}
-
-
-void OPPROTO glue(glue(op_shrd, SUFFIX), _T0_T1_ECX_cc)(void)
-{
-    int count;
-    unsigned int res;
-
-    count = ECX & 0x1f;
-    if (count) {
-        res = (T0 & 0xffff) | (T1 << 16);
-        CC_SRC = res >> (count - 1);
-        res >>= count;
-        if (count > 16)
-            res |= T1 << (32 - count);
-        T0 = res;
-        CC_DST = T0;
-        CC_OP = CC_OP_SARB + SHIFT;
-    }
-    FORCE_RET();
-}
-#endif
-
-#if DATA_BITS == 32
-void OPPROTO glue(glue(op_shld, SUFFIX), _T0_T1_im_cc)(void)
-{
-    int count;
-    count = PARAM1;
-    T0 &= DATA_MASK;
-    T1 &= DATA_MASK;
-    CC_SRC = T0 << (count - 1);
-    T0 = (T0 << count) | (T1 >> (DATA_BITS - count));
-    CC_DST = T0;
-}
-
-void OPPROTO glue(glue(op_shld, SUFFIX), _T0_T1_ECX_cc)(void)
-{
-    int count;
-    count = ECX & 0x1f;
-    if (count) {
-        T0 &= DATA_MASK;
-        T1 &= DATA_MASK;
-        CC_SRC = T0 << (count - 1);
-        T0 = (T0 << count) | (T1 >> (DATA_BITS - count));
-        CC_DST = T0;
-        CC_OP = CC_OP_SHLB + SHIFT;
-    }
-    FORCE_RET();
-}
-
-void OPPROTO glue(glue(op_shrd, SUFFIX), _T0_T1_im_cc)(void)
-{
-    int count;
-    count = PARAM1;
-    T0 &= DATA_MASK;
-    T1 &= DATA_MASK;
-    CC_SRC = T0 >> (count - 1);
-    T0 = (T0 >> count) | (T1 << (DATA_BITS - count));
-    CC_DST = T0;
-}
-
-
-void OPPROTO glue(glue(op_shrd, SUFFIX), _T0_T1_ECX_cc)(void)
-{
-    int count;
-    count = ECX & 0x1f;
-    if (count) {
-        T0 &= DATA_MASK;
-        T1 &= DATA_MASK;
-        CC_SRC = T0 >> (count - 1);
-        T0 = (T0 >> count) | (T1 << (DATA_BITS - count));
-        CC_DST = T0;
-        CC_OP = CC_OP_SARB + SHIFT;
-    }
-    FORCE_RET();
-}
-#endif
-
-/* carry add/sub (we only need to set CC_OP differently) */
-
-void OPPROTO glue(glue(op_adc, SUFFIX), _T0_T1_cc)(void)
-{
-    int cf;
-    cf = cc_table[CC_OP].compute_c();
-    T0 = T0 + T1 + cf;
-    CC_OP = CC_OP_ADDB + SHIFT + cf * 3;
-}
-
-void OPPROTO glue(glue(op_sbb, SUFFIX), _T0_T1_cc)(void)
-{
-    int cf;
-    cf = cc_table[CC_OP].compute_c();
-    T0 = T0 - T1 - cf;
-    CC_OP = CC_OP_SUBB + SHIFT + cf * 3;
-}
-
-void OPPROTO glue(glue(op_cmpxchg, SUFFIX), _T0_T1_EAX_cc)(void)
-{
-    CC_SRC = T0;
-    CC_DST = EAX - T0;
-    if ((DATA_TYPE)CC_DST == 0) {
-        T0 = T1;
-    } else {
-        EAX = (EAX & ~DATA_MASK) | (T0 & DATA_MASK);
-    }
-    FORCE_RET();
-}
+#define MEM_WRITE
+#include "ops_template_mem.h"
 
 /* bit operations */
 #if DATA_BITS >= 16
@@ -752,7 +452,7 @@ void OPPROTO glue(glue(op_bts, SUFFIX), _T0_T1_cc)(void)
 {
     int count;
     count = T1 & SHIFT_MASK;
-    CC_SRC = T0 >> count;
+    T1 = T0 >> count;
     T0 |= (1 << count);
 }
 
@@ -760,7 +460,7 @@ void OPPROTO glue(glue(op_btr, SUFFIX), _T0_T1_cc)(void)
 {
     int count;
     count = T1 & SHIFT_MASK;
-    CC_SRC = T0 >> count;
+    T1 = T0 >> count;
     T0 &= ~(1 << count);
 }
 
@@ -768,7 +468,7 @@ void OPPROTO glue(glue(op_btc, SUFFIX), _T0_T1_cc)(void)
 {
     int count;
     count = T1 & SHIFT_MASK;
-    CC_SRC = T0 >> count;
+    T1 = T0 >> count;
     T0 ^= (1 << count);
 }
 
@@ -808,6 +508,13 @@ void OPPROTO glue(glue(op_bsr, SUFFIX), _T0_cc)(void)
     FORCE_RET();
 }
 
+#endif
+
+#if DATA_BITS == 32
+void OPPROTO op_update_bt_cc(void)
+{
+    CC_SRC = T1;
+}
 #endif
 
 /* string operations */

@@ -1200,11 +1200,11 @@ int load_elf(const char *filename, FILE *outfile, int out_type)
     }
 
     if (out_type == OUT_INDEX_OP) {
-        fprintf(outfile, "DEF(nop1, 0, 0)\n");
-        fprintf(outfile, "DEF(nop2, 0, 0)\n");
-        fprintf(outfile, "DEF(nop3, 0, 0)\n");
-        fprintf(outfile, "DEF(nop, 0, 0)\n");
         fprintf(outfile, "DEF(end, 0, 0)\n");
+        fprintf(outfile, "DEF(nop, 0, 0)\n");
+        fprintf(outfile, "DEF(nop1, 1, 0)\n");
+        fprintf(outfile, "DEF(nop2, 2, 0)\n");
+        fprintf(outfile, "DEF(nop3, 3, 0)\n");
         for(i = 0, sym = symtab; i < nb_syms; i++, sym++) {
             const char *name, *p;
             name = strtab + sym->st_name;
