@@ -524,7 +524,7 @@ PPC_OP(movl_T1_lr)
 
 PPC_OP(test_ctr)
 {
-    T0 = (regs->ctr != 0);
+    T0 = regs->ctr;
 }
 
 PPC_OP(test_ctr_true)
@@ -554,7 +554,7 @@ PPC_OP(test_ctrz_false)
 
 PPC_OP(test_true)
 {
-    T0 = ((T0 & PARAM(1)) != 0);
+    T0 = (T0 & PARAM(1));
 }
 
 PPC_OP(test_false)
