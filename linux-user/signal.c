@@ -517,10 +517,10 @@ setup_sigcontext(struct target_sigcontext *sc, struct target_fpstate *fpstate,
 {
 	int err = 0;
 
-	err |= __put_user(env->segs[R_GS], (unsigned int *)&sc->gs);
-	err |= __put_user(env->segs[R_FS], (unsigned int *)&sc->fs);
-	err |= __put_user(env->segs[R_ES], (unsigned int *)&sc->es);
-	err |= __put_user(env->segs[R_DS], (unsigned int *)&sc->ds);
+	err |= __put_user(env->segs[R_GS].selector, (unsigned int *)&sc->gs);
+	err |= __put_user(env->segs[R_FS].selector, (unsigned int *)&sc->fs);
+	err |= __put_user(env->segs[R_ES].selector, (unsigned int *)&sc->es);
+	err |= __put_user(env->segs[R_DS].selector, (unsigned int *)&sc->ds);
 	err |= __put_user(env->regs[R_EDI], &sc->edi);
 	err |= __put_user(env->regs[R_ESI], &sc->esi);
 	err |= __put_user(env->regs[R_EBP], &sc->ebp);
@@ -532,10 +532,10 @@ setup_sigcontext(struct target_sigcontext *sc, struct target_fpstate *fpstate,
 	err |= __put_user(env->exception_index, &sc->trapno);
 	err |= __put_user(env->error_code, &sc->err);
 	err |= __put_user(env->eip, &sc->eip);
-	err |= __put_user(env->segs[R_CS], (unsigned int *)&sc->cs);
+	err |= __put_user(env->segs[R_CS].selector, (unsigned int *)&sc->cs);
 	err |= __put_user(env->eflags, &sc->eflags);
 	err |= __put_user(env->regs[R_ESP], &sc->esp_at_signal);
-	err |= __put_user(env->segs[R_SS], (unsigned int *)&sc->ss);
+	err |= __put_user(env->segs[R_SS].selector, (unsigned int *)&sc->ss);
 
         cpu_x86_fsave(env, (void *)fpstate, 1);
         fpstate->status = fpstate->sw;
@@ -544,7 +544,7 @@ setup_sigcontext(struct target_sigcontext *sc, struct target_fpstate *fpstate,
 
 	/* non-iBCS2 extensions.. */
 	err |= __put_user(mask, &sc->oldmask);
-	err |= __put_user(env->cr2, &sc->cr2);
+	err |= __put_user(env->cr[2], &sc->cr2);
 	return err;
 }
 
@@ -567,13 +567,14 @@ get_sigframe(struct emulated_sigaction *ka, CPUX86State *env, size_t frame_size)
 	}
 
 	/* This is the legacy signal stack switching. */
-	else if ((regs->xss & 0xffff) != __USER_DS &&
-		 !(ka->sa.sa_flags & SA_RESTORER) &&
-		 ka->sa.sa_restorer) {
-		esp = (unsigned long) ka->sa.sa_restorer;
-	}
+	else 
 #endif
-	return (void *)((esp - frame_size) & -8ul);
+        if ((env->segs[R_SS].selector & 0xffff) != __USER_DS &&
+            !(ka->sa.sa_flags & TARGET_SA_RESTORER) &&
+            ka->sa.sa_restorer) {
+            esp = (unsigned long) ka->sa.sa_restorer;
+	}
+        return (void *)((esp - frame_size) & -8ul);
 }
 
 static void setup_frame(int sig, struct emulated_sigaction *ka,
