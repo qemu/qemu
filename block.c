@@ -170,7 +170,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int snapshot)
 #ifndef _WIN32
     if (snapshot) {
         /* create a temporary COW file */
-        cow_fd = mkstemp(template);
+        cow_fd = mkstemp64(template);
         if (cow_fd < 0)
             goto fail;
         bs->cow_fd = cow_fd;
