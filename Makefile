@@ -29,6 +29,18 @@ OP_CFLAGS=$(CFLAGS)
 LDFLAGS+=-Wl,-T,s390.ld
 endif
 
+ifeq ($(ARCH),alpha)
+# Ensure there's only a single GP
+CFLAGS += -msmall-data -msmall-text
+# FIXME Too lazy to deal with gprelhigh/gprellow for now, inhibit them
+OP_CFLAGS=$(CFLAGS) -mno-explicit-relocs
+LDFLAGS+=-Wl,-T,alpha.ld
+endif
+
+ifeq ($(ARCH),ia64)
+OP_CFLAGS=$(CFLAGS)
+endif
+
 ifeq ($(GCC_MAJOR),3)
 # very important to generate a return at the end of every operation
 OP_CFLAGS+=-fno-reorder-blocks -fno-optimize-sibling-calls
@@ -52,6 +64,10 @@ OBJS+= libqemu.a
 LIBOBJS+=thunk.o translate-i386.o op-i386.o exec-i386.o
 # NOTE: the disassembler code is only needed for debugging
 LIBOBJS+=disas.o ppc-dis.o i386-dis.o dis-buf.o
+
+ifeq ($(ARCH),ia64)
+OBJS += ia64-syscall.o
+endif
 
 all: qemu qemu-doc.html
 
