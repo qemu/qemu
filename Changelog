@@ -16,13 +16,13 @@ version 0.5.6:
   - PIC reset fix (Hidemi KAWAI)
   - PIC spurious irq support (aka Solaris install bug)
   - added '-localtime' option
-  - Cirrus CLGD 54xx VGA support (initial patch by Makoto Suzuki
-    (suzu))
+  - Cirrus CL-GD54xx VGA support (initial patch by Makoto Suzuki (suzu))
   - APM and system shutdown support
   - Fixed system reset
   - Support for other PC BIOSes
   - Initial PowerMac hardware emulation
   - PowerMac/PREP OpenFirmware compatible BIOS (Jocelyn Mayer)
+  - Set the default memory size for PC emulation to 128 MB
 
 version 0.5.5:
 
