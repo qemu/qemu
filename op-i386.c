@@ -654,8 +654,8 @@ void OPPROTO op_sti(void)
     env->eflags |= IF_MASK;
 }
 
+#if 0
 /* vm86plus instructions */
-
 void OPPROTO op_cli_vm(void)
 {
     env->eflags &= ~VIF_MASK;
@@ -670,6 +670,7 @@ void OPPROTO op_sti_vm(void)
     }
     FORCE_RET();
 }
+#endif
 
 void OPPROTO op_boundw(void)
 {
@@ -939,7 +940,7 @@ void helper_cpuid(void)
         EAX = 0x52b;
         EBX = 0;
         ECX = 0;
-        EDX = CPUID_FP87 | CPUID_VME | CPUID_DE | CPUID_PSE |
+        EDX = CPUID_FP87 | CPUID_DE | CPUID_PSE |
             CPUID_TSC | CPUID_MSR | CPUID_MCE |
             CPUID_CX8;
     }
@@ -1091,7 +1092,6 @@ void load_seg(int seg_reg, int selector)
     uint32_t e1, e2;
     uint8_t *ptr;
 
-    env->segs[seg_reg] = selector;
     sc = &env->seg_cache[seg_reg];
     if (env->eflags & VM_MASK) {
         sc->base = (void *)(selector << 4);
@@ -1118,6 +1118,7 @@ void load_seg(int seg_reg, int selector)
                 selector, (unsigned long)sc->base, sc->limit, sc->seg_32bit);
 #endif
     }
+    env->segs[seg_reg] = selector;
 }
 
 void OPPROTO op_movl_seg_T0(void)
@@ -1317,7 +1318,8 @@ void OPPROTO op_movw_eflags_T0(void)
     env->eflags = (env->eflags & ~FL_UPDATE_MASK16) | (eflags & FL_UPDATE_MASK16);
 }
 
-/* vm86 version */
+#if 0
+/* vm86plus version */
 void OPPROTO op_movw_eflags_T0_vm(void)
 {
     int eflags;
@@ -1355,6 +1357,7 @@ void OPPROTO op_movl_eflags_T0_vm(void)
     }
     FORCE_RET();
 }
+#endif
 
 /* XXX: compute only O flag */
 void OPPROTO op_movb_eflags_T0(void)
@@ -1373,7 +1376,8 @@ void OPPROTO op_movl_T0_eflags(void)
     T0 = eflags;
 }
 
-/* vm86 version */
+/* vm86plus version */
+#if 0
 void OPPROTO op_movl_T0_eflags_vm(void)
 {
     int eflags;
@@ -1384,6 +1388,7 @@ void OPPROTO op_movl_T0_eflags_vm(void)
         eflags |= IF_MASK;
     T0 = eflags;
 }
+#endif
 
 void OPPROTO op_cld(void)
 {
