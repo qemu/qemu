@@ -161,6 +161,9 @@ endif
 
 DEFINES+=-D_GNU_SOURCE
 LIBS+=-lm
+ifndef CONFIG_USER_ONLY
+LIBS+=-lz
+endif
 ifdef CONFIG_WIN32
 LIBS+=-lwinmm -lws2_32 -liphlpapi
 endif
@@ -237,7 +240,8 @@ ifeq ($(ARCH),alpha)
 endif
 
 # must use static linking to avoid leaving stuff in virtual address space
-VL_OBJS=vl.o osdep.o block.o monitor.o pci.o console.o
+VL_OBJS=vl.o osdep.o block.o readline.o monitor.o pci.o console.o 
+VL_OBJS+=block-cow.o block-qcow.o aes.o block-vmdk.o
 
 ifeq ($(TARGET_ARCH), i386)
 # Hardware support

@@ -1,6 +1,6 @@
 include config-host.mak
 
-CFLAGS=-Wall -O2 -g
+CFLAGS=-Wall -O2 -g -fno-strict-aliasing
 ifdef CONFIG_DARWIN
 CFLAGS+= -mdynamic-no-pic
 endif
@@ -10,9 +10,7 @@ endif
 LDFLAGS=-g
 LIBS=
 DEFINES+=-D_GNU_SOURCE
-ifndef CONFIG_WIN32
-TOOLS=qemu-mkcow vmdk2raw
-endif
+TOOLS=qemu-img
 ifdef CONFIG_STATIC
 LDFLAGS+=-static
 endif
@@ -22,11 +20,8 @@ all: dyngen$(EXESUF) $(TOOLS) qemu-doc.html qemu-tech.html qemu.1
 	$(MAKE) -C $$d $@ || exit 1 ; \
         done
 
-qemu-mkcow: qemu-mkcow.c
-	$(CC) $(CFLAGS) $(LDFLAGS) $(DEFINES) -o $@ $^ $(LIBS)
-
-vmdk2raw: vmdk2raw.c
-	$(CC) $(CFLAGS) $(LDFLAGS) $(DEFINES) -o $@ $^ $(LIBS)
+qemu-img: qemu-img.c block.c block-cow.c block-qcow.c aes.c block-vmdk.c
+	$(CC) -DQEMU_TOOL $(CFLAGS) $(LDFLAGS) $(DEFINES) -o $@ $^ -lz $(LIBS)
 
 dyngen$(EXESUF): dyngen.c
 	$(HOST_CC) $(CFLAGS) $(DEFINES) -o $@ $^
@@ -99,7 +94,7 @@ tarbin:
         $(bindir)/qemu-arm \
         $(bindir)/qemu-sparc \
         $(bindir)/qemu-ppc \
-        $(bindir)/qemu-mkcow $(bindir)/vmdk2raw \
+        $(bindir)/qemu-img \
 	$(datadir)/bios.bin \
 	$(datadir)/vgabios.bin \
 	$(datadir)/vgabios-cirrus.bin \
