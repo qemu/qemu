@@ -220,8 +220,8 @@ PPC_OP(queue_exception)
 
 PPC_OP(process_exceptions)
 {
+    env->nip = PARAM(1);
     if (env->exceptions != 0) {
-        env->nip = PARAM(1);
         do_check_exception_state();
     }
 }
