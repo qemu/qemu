@@ -32,6 +32,10 @@
 static SDL_Surface *screen;
 static int gui_grab; /* if true, all keyboard/mouse events are grabbed */
 static int last_vm_running;
+static int gui_saved_grab;
+static int gui_fullscreen;
+static int gui_key_modifier_pressed;
+static int gui_keysym;
 
 static void sdl_update(DisplayState *ds, int x, int y, int w, int h)
 {
@@ -47,6 +51,8 @@ static void sdl_resize(DisplayState *ds, int w, int h)
 
     flags = SDL_HWSURFACE|SDL_ASYNCBLIT|SDL_HWACCEL;
     flags |= SDL_RESIZABLE;
+    if (gui_fullscreen)
+        flags |= SDL_FULLSCREEN;
     screen = SDL_SetVideoMode(w, h, 0, flags);
     if (!screen) {
         fprintf(stderr, "Could not open SDL display\n");
@@ -208,10 +214,26 @@ static void sdl_send_mouse_event(void)
     kbd_mouse_event(dx, dy, dz, buttons);
 }
 
+static void toggle_full_screen(DisplayState *ds)
+{
+    gui_fullscreen = !gui_fullscreen;
+    sdl_resize(ds, screen->w, screen->h);
+    if (gui_fullscreen) {
+        gui_saved_grab = gui_grab;
+        sdl_grab_start();
+    } else {
+        if (!gui_saved_grab)
+            sdl_grab_end();
+    }
+    vga_update_display();
+    sdl_update(ds, 0, 0, screen->w, screen->h);
+}
+
 static void sdl_refresh(DisplayState *ds)
 {
     SDL_Event ev1, *ev = &ev1;
-
+    int mod_state;
+                     
     if (last_vm_running != vm_running) {
         last_vm_running = vm_running;
         sdl_update_caption();
@@ -226,13 +248,32 @@ static void sdl_refresh(DisplayState *ds)
         case SDL_KEYDOWN:
         case SDL_KEYUP:
             if (ev->type == SDL_KEYDOWN) {
-                if ((SDL_GetModState() & (KMOD_LSHIFT | KMOD_LCTRL)) ==
-                    (KMOD_LSHIFT | KMOD_LCTRL)) {
-                    /* exit/enter grab if pressing Ctrl-Shift */
-                    if (!gui_grab)
-                        sdl_grab_start();
-                    else
-                        sdl_grab_end();
+                mod_state = (SDL_GetModState() & (KMOD_LSHIFT | KMOD_LCTRL)) ==
+                    (KMOD_LSHIFT | KMOD_LCTRL);
+                gui_key_modifier_pressed = mod_state;
+                if (gui_key_modifier_pressed && 
+                    ev->key.keysym.sym == SDLK_f) {
+                    gui_keysym = ev->key.keysym.sym;
+                }
+            } else if (ev->type == SDL_KEYUP) {
+                mod_state = (SDL_GetModState() & (KMOD_LSHIFT | KMOD_LCTRL));
+                if (!mod_state) {
+                    if (gui_key_modifier_pressed) {
+                        switch(gui_keysym) {
+                        case SDLK_f:
+                            toggle_full_screen(ds);
+                            break;
+                        case 0:
+                            /* exit/enter grab if pressing Ctrl-Shift */
+                            if (!gui_grab)
+                                sdl_grab_start();
+                            else
+                                sdl_grab_end();
+                            break;
+                        }
+                        gui_key_modifier_pressed = 0;
+                        gui_keysym = 0;
+                    }
                 }
             }
             sdl_process_key(&ev->key);
