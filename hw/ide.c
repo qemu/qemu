@@ -299,6 +299,7 @@ typedef struct IDEState {
     int irq;
     openpic_t *openpic;
     PCIDevice *pci_dev;
+    struct BMDMAState *bmdma;
     int drive_serial;
     /* ide regs */
     uint8_t feature;
@@ -321,13 +322,45 @@ typedef struct IDEState {
     int elementary_transfer_size;
     int io_buffer_index;
     int lba;
-    /* transfer handling */
+    int cd_sector_size;
+    int atapi_dma; /* true if dma is requested for the packet cmd */
+    /* ATA DMA state */
+    int io_buffer_size;
+    /* PIO transfer handling */
     int req_nb_sectors; /* number of sectors per interrupt */
     EndTransferFunc *end_transfer_func;
     uint8_t *data_ptr;
     uint8_t *data_end;
     uint8_t io_buffer[MAX_MULT_SECTORS*512 + 4];
 } IDEState;
+
+#define BM_STATUS_DMAING 0x01
+#define BM_STATUS_ERROR  0x02
+#define BM_STATUS_INT    0x04
+
+#define BM_CMD_START     0x01
+#define BM_CMD_READ      0x08
+
+typedef int IDEDMAFunc(IDEState *s, 
+                       target_phys_addr_t phys_addr, 
+                       int transfer_size1);
+
+typedef struct BMDMAState {
+    uint8_t cmd;
+    uint8_t status;
+    uint32_t addr;
+    /* current transfer state */
+    IDEState *ide_if;
+    IDEDMAFunc *dma_cb;
+} BMDMAState;
+
+typedef struct PCIIDEState {
+    PCIDevice dev;
+    IDEState ide_if[4];
+    BMDMAState bmdma[2];
+} PCIIDEState;
+
+static void ide_dma_start(IDEState *s, IDEDMAFunc *dma_cb);
 
 static void padstr(char *str, const char *src, int len)
 {
@@ -554,6 +587,59 @@ static void ide_sector_read(IDEState *s)
     }
 }
 
+static int ide_read_dma_cb(IDEState *s, 
+                           target_phys_addr_t phys_addr, 
+                           int transfer_size1)
+{
+    int len, transfer_size, n;
+    int64_t sector_num;
+
+    transfer_size = transfer_size1;
+    while (transfer_size > 0) {
+        len = s->io_buffer_size - s->io_buffer_index;
+        if (len <= 0) {
+            /* transfert next data */
+            n = s->nsector;
+            if (n == 0)
+                break;
+            if (n > MAX_MULT_SECTORS)
+                n = MAX_MULT_SECTORS;
+            sector_num = ide_get_sector(s);
+            bdrv_read(s->bs, sector_num, s->io_buffer, n);
+            s->io_buffer_index = 0;
+            s->io_buffer_size = n * 512;
+            len = s->io_buffer_size;
+            sector_num += n;
+            ide_set_sector(s, sector_num);
+            s->nsector -= n;
+        }
+        if (len > transfer_size)
+            len = transfer_size;
+        cpu_physical_memory_write(phys_addr, 
+                                  s->io_buffer + s->io_buffer_index, len);
+        s->io_buffer_index += len;
+        transfer_size -= len;
+        phys_addr += len;
+    }
+    if (s->io_buffer_index >= s->io_buffer_size && s->nsector == 0) {
+        s->status = READY_STAT | SEEK_STAT;
+        ide_set_irq(s);
+#ifdef DEBUG_IDE_ATAPI
+        printf("dma status=0x%x\n", s->status);
+#endif
+        return 0;
+    }
+    return transfer_size1 - transfer_size;
+}
+
+static void ide_sector_read_dma(IDEState *s)
+{
+    s->status = READY_STAT | SEEK_STAT | DRQ_STAT;
+    s->io_buffer_index = 0;
+    s->io_buffer_size = 0;
+    ide_dma_start(s, ide_read_dma_cb);
+}
+
 static void ide_sector_write(IDEState *s)
 {
     int64_t sector_num;
@@ -580,6 +666,62 @@ static void ide_sector_write(IDEState *s)
     }
     ide_set_sector(s, sector_num + n);
     ide_set_irq(s);
+}
+
+static int ide_write_dma_cb(IDEState *s, 
+                            target_phys_addr_t phys_addr, 
+                            int transfer_size1)
+{
+    int len, transfer_size, n;
+    int64_t sector_num;
+
+    transfer_size = transfer_size1;
+    for(;;) {
+        len = s->io_buffer_size - s->io_buffer_index;
+        if (len == 0) {
+            n = s->io_buffer_size >> 9;
+            sector_num = ide_get_sector(s);
+            bdrv_write(s->bs, sector_num, s->io_buffer, 
+                       s->io_buffer_size >> 9);
+            sector_num += n;
+            ide_set_sector(s, sector_num);
+            s->nsector -= n;
+            n = s->nsector;
+            if (n == 0) {
+                /* end of transfer */
+                s->status = READY_STAT | SEEK_STAT;
+                ide_set_irq(s);
+                return 0;
+            }
+            if (n > MAX_MULT_SECTORS)
+                n = MAX_MULT_SECTORS;
+            s->io_buffer_index = 0;
+            s->io_buffer_size = n * 512;
+            len = s->io_buffer_size;
+        }
+        if (transfer_size <= 0)
+            break;
+        if (len > transfer_size)
+            len = transfer_size;
+        cpu_physical_memory_read(phys_addr, 
+                                 s->io_buffer + s->io_buffer_index, len);
+        s->io_buffer_index += len;
+        transfer_size -= len;
+        phys_addr += len;
+    }
+    return transfer_size1 - transfer_size;
+}
+
+static void ide_sector_write_dma(IDEState *s)
+{
+    int n;
+    s->status = READY_STAT | SEEK_STAT | DRQ_STAT;
+    n = s->nsector;
+    if (n > MAX_MULT_SECTORS)
+        n = MAX_MULT_SECTORS;
+    s->io_buffer_index = 0;
+    s->io_buffer_size = n * 512;
+    ide_dma_start(s, ide_write_dma_cb);
 }
 
 static void ide_atapi_cmd_ok(IDEState *s)
@@ -627,6 +769,41 @@ static inline int ube32_to_cpu(const uint8_t *buf)
     return (buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3];
 }
 
+static void lba_to_msf(uint8_t *buf, int lba)
+{
+    lba += 150;
+    buf[0] = (lba / 75) / 60;
+    buf[1] = (lba / 75) % 60;
+    buf[2] = lba % 75;
+}
+
+static void cd_read_sector(BlockDriverState *bs, int lba, uint8_t *buf, 
+                           int sector_size)
+{
+    switch(sector_size) {
+    case 2048:
+        bdrv_read(bs, (int64_t)lba << 2, buf, 4);
+        break;
+    case 2352:
+        /* sync bytes */
+        buf[0] = 0x00;
+        memset(buf + 1, 0xff, 11);
+        buf += 12;
+        /* MSF */
+        lba_to_msf(buf, lba);
+        buf[3] = 0x01; /* mode 1 data */
+        buf += 4;
+        /* data */
+        bdrv_read(bs, (int64_t)lba << 2, buf, 4);
+        buf += 2048;
+        /* ECC */
+        memset(buf, 0, 288);
+        break;
+    default:
+        break;
+    }
+}
+
 /* The whole ATAPI transfer logic is handled in this function */
 static void ide_atapi_cmd_reply_end(IDEState *s)
 {
@@ -648,15 +825,15 @@ static void ide_atapi_cmd_reply_end(IDEState *s)
 #endif
     } else {
         /* see if a new sector must be read */
-        if (s->lba != -1 && s->io_buffer_index >= 2048) {
-            bdrv_read(s->bs, (int64_t)s->lba << 2, s->io_buffer, 4);
+        if (s->lba != -1 && s->io_buffer_index >= s->cd_sector_size) {
+            cd_read_sector(s->bs, s->lba, s->io_buffer, s->cd_sector_size);
             s->lba++;
             s->io_buffer_index = 0;
         }
         if (s->elementary_transfer_size > 0) {
             /* there are some data left to transmit in this elementary
                transfer */
-            size = 2048 - s->io_buffer_index;
+            size = s->cd_sector_size - s->io_buffer_index;
             if (size > s->elementary_transfer_size)
                 size = s->elementary_transfer_size;
             ide_transfer_start(s, s->io_buffer + s->io_buffer_index, 
@@ -685,8 +862,8 @@ static void ide_atapi_cmd_reply_end(IDEState *s)
             s->elementary_transfer_size = size;
             /* we cannot transmit more than one sector at a time */
             if (s->lba != -1) {
-                if (size > (2048 - s->io_buffer_index))
-                    size = (2048 - s->io_buffer_index);
+                if (size > (s->cd_sector_size - s->io_buffer_index))
+                    size = (s->cd_sector_size - s->io_buffer_index);
             }
             ide_transfer_start(s, s->io_buffer + s->io_buffer_index, 
                                size, ide_atapi_cmd_reply_end);
@@ -716,21 +893,88 @@ static void ide_atapi_cmd_reply(IDEState *s, int size, int max_size)
 }
 
 /* start a CD-CDROM read command */
-static void ide_atapi_cmd_read(IDEState *s, int lba, int nb_sectors)
+static void ide_atapi_cmd_read_pio(IDEState *s, int lba, int nb_sectors,
+                                   int sector_size)
 {
-#ifdef DEBUG_IDE_ATAPI
-    printf("read: LBA=%d nb_sectors=%d\n", lba, nb_sectors);
-#endif
     s->lba = lba;
-    s->packet_transfer_size = nb_sectors * 2048;
+    s->packet_transfer_size = nb_sectors * sector_size;
     s->elementary_transfer_size = 0;
-    s->io_buffer_index = 2048;
+    s->io_buffer_index = sector_size;
+    s->cd_sector_size = sector_size;
 
     s->status = READY_STAT;
     ide_atapi_cmd_reply_end(s);
 }
 
+/* ATAPI DMA support */
+static int ide_atapi_cmd_read_dma_cb(IDEState *s, 
+                                     target_phys_addr_t phys_addr, 
+                                     int transfer_size1)
+{
+    int len, transfer_size;
+    
+    transfer_size = transfer_size1;
+    while (transfer_size > 0) {
+        if (s->packet_transfer_size <= 0)
+            break;
+        len = s->cd_sector_size - s->io_buffer_index;
+        if (len <= 0) {
+            /* transfert next data */
+            cd_read_sector(s->bs, s->lba, s->io_buffer, s->cd_sector_size);
+            s->lba++;
+            s->io_buffer_index = 0;
+            len = s->cd_sector_size;
+        }
+        if (len > transfer_size)
+            len = transfer_size;
+        cpu_physical_memory_write(phys_addr, 
+                                  s->io_buffer + s->io_buffer_index, len);
+        s->packet_transfer_size -= len;
+        s->io_buffer_index += len;
+        transfer_size -= len;
+        phys_addr += len;
+    }
+    if (s->packet_transfer_size <= 0) {
+        s->status = READY_STAT;
+        s->nsector = (s->nsector & ~7) | ATAPI_INT_REASON_IO | ATAPI_INT_REASON_CD;
+        ide_set_irq(s);
+#ifdef DEBUG_IDE_ATAPI
+        printf("dma status=0x%x\n", s->status);
+#endif
+        return 0;
+    }
+    return transfer_size1 - transfer_size;
+}
+
+/* start a CD-CDROM read command with DMA */
+/* XXX: test if DMA is available */
+static void ide_atapi_cmd_read_dma(IDEState *s, int lba, int nb_sectors,
+                                   int sector_size)
+{
+    s->lba = lba;
+    s->packet_transfer_size = nb_sectors * sector_size;
+    s->io_buffer_index = sector_size;
+    s->cd_sector_size = sector_size;
+
+    s->status = READY_STAT | DRQ_STAT;
+    ide_dma_start(s, ide_atapi_cmd_read_dma_cb);
+}
+
+static void ide_atapi_cmd_read(IDEState *s, int lba, int nb_sectors, 
+                               int sector_size)
+{
+#ifdef DEBUG_IDE_ATAPI
+    printf("read: LBA=%d nb_sectors=%d\n", lba, nb_sectors);
+#endif
+    if (s->atapi_dma) {
+        ide_atapi_cmd_read_dma(s, lba, nb_sectors, sector_size);
+    } else {
+        ide_atapi_cmd_read_pio(s, lba, nb_sectors, sector_size);
+    }
+}
+
 /* same toc as bochs. Return -1 if error or the toc length */
+/* XXX: check this */
 static int cdrom_read_toc(IDEState *s, uint8_t *buf, int msf, int start_track)
 {
     uint8_t *q;
@@ -739,8 +983,8 @@ static int cdrom_read_toc(IDEState *s, uint8_t *buf, int msf, int start_track)
     if (start_track > 1 && start_track != 0xaa)
         return -1;
     q = buf + 2;
-    *q++ = 1;
-    *q++ = 1;
+    *q++ = 1; /* first session */
+    *q++ = 1; /* last session */
     if (start_track <= 1) {
         *q++ = 0; /* reserved */
         *q++ = 0x14; /* ADR, control */
@@ -765,13 +1009,81 @@ static int cdrom_read_toc(IDEState *s, uint8_t *buf, int msf, int start_track)
     nb_sectors = s->nb_sectors >> 2;
     if (msf) {
         *q++ = 0; /* reserved */
-        *q++ = ((nb_sectors + 150) / 75) / 60;
-        *q++ = ((nb_sectors + 150) / 75) % 60;
-        *q++ = (nb_sectors + 150) % 75;
+        lba_to_msf(q, nb_sectors);
+        q += 3;
     } else {
         cpu_to_ube32(q, nb_sectors);
         q += 4;
     }
+    len = q - buf;
+    cpu_to_ube16(buf, len - 2);
+    return len;
+}
+
+/* mostly same info as PearPc */
+static int cdrom_read_toc_raw(IDEState *s, uint8_t *buf, int msf, 
+                              int session_num)
+{
+    uint8_t *q;
+    int nb_sectors, len;
+    
+    q = buf + 2;
+    *q++ = 1; /* first session */
+    *q++ = 1; /* last session */
+
+    *q++ = 1; /* session number */
+    *q++ = 0x14; /* data track */
+    *q++ = 0; /* track number */
+    *q++ = 0xa0; /* lead-in */
+    *q++ = 0; /* min */
+    *q++ = 0; /* sec */
+    *q++ = 0; /* frame */
+    *q++ = 0;
+    *q++ = 1; /* first track */
+    *q++ = 0x00; /* disk type */
+    *q++ = 0x00;
+    
+    *q++ = 1; /* session number */
+    *q++ = 0x14; /* data track */
+    *q++ = 0; /* track number */
+    *q++ = 0xa1;
+    *q++ = 0; /* min */
+    *q++ = 0; /* sec */
+    *q++ = 0; /* frame */
+    *q++ = 0;
+    *q++ = 1; /* last track */
+    *q++ = 0x00;
+    *q++ = 0x00;
+    
+    *q++ = 1; /* session number */
+    *q++ = 0x14; /* data track */
+    *q++ = 0; /* track number */
+    *q++ = 0xa2; /* lead-out */
+    *q++ = 0; /* min */
+    *q++ = 0; /* sec */
+    *q++ = 0; /* frame */
+    nb_sectors = s->nb_sectors >> 2;
+    if (msf) {
+        *q++ = 0; /* reserved */
+        lba_to_msf(q, nb_sectors);
+        q += 3;
+    } else {
+        cpu_to_ube32(q, nb_sectors);
+        q += 4;
+    }
+
+    *q++ = 1; /* session number */
+    *q++ = 0x14; /* ADR, control */
+    *q++ = 0;    /* track number */
+    *q++ = 1;    /* point */
+    *q++ = 0; /* min */
+    *q++ = 0; /* sec */
+    *q++ = 0; /* frame */
+    *q++ = 0; 
+    *q++ = 0; 
+    *q++ = 0; 
+    *q++ = 0; 
+
     len = q - buf;
     cpu_to_ube16(buf, len - 2);
     return len;
@@ -921,7 +1233,48 @@ static void ide_atapi_cmd(IDEState *s)
                                     ASC_LOGICAL_BLOCK_OOR);
                 break;
             }
-            ide_atapi_cmd_read(s, lba, nb_sectors);
+            ide_atapi_cmd_read(s, lba, nb_sectors, 2048);
+        }
+        break;
+    case GPCMD_READ_CD:
+        {
+            int nb_sectors, lba, transfer_request;
+
+            if (!bdrv_is_inserted(s->bs)) {
+                ide_atapi_cmd_error(s, SENSE_NOT_READY, 
+                                    ASC_MEDIUM_NOT_PRESENT);
+                break;
+            }
+            nb_sectors = (packet[6] << 16) | (packet[7] << 8) | packet[8];
+            lba = ube32_to_cpu(packet + 2);
+            if (nb_sectors == 0) {
+                ide_atapi_cmd_ok(s);
+                break;
+            }
+            if (((int64_t)(lba + nb_sectors) << 2) > s->nb_sectors) {
+                ide_atapi_cmd_error(s, SENSE_ILLEGAL_REQUEST, 
+                                    ASC_LOGICAL_BLOCK_OOR);
+                break;
+            }
+            transfer_request = packet[9];
+            switch(transfer_request & 0xf8) {
+            case 0x00:
+                /* nothing */
+                ide_atapi_cmd_ok(s);
+                break;
+            case 0x10:
+                /* normal read */
+                ide_atapi_cmd_read(s, lba, nb_sectors, 2048);
+                break;
+            case 0xf8:
+                /* read all data */
+                ide_atapi_cmd_read(s, lba, nb_sectors, 2352);
+                break;
+            default:
+                ide_atapi_cmd_error(s, SENSE_ILLEGAL_REQUEST, 
+                                    ASC_INV_FIELD_IN_CMD_PACKET);
+                break;
+            }
         }
         break;
     case GPCMD_SEEK:
@@ -994,6 +1347,12 @@ static void ide_atapi_cmd(IDEState *s)
                 buf[2] = 0x01;
                 buf[3] = 0x01;
                 ide_atapi_cmd_reply(s, 12, max_len);
+                break;
+            case 2:
+                len = cdrom_read_toc_raw(s, buf, msf, start_track);
+                if (len < 0)
+                    goto error_cmd;
+                ide_atapi_cmd_reply(s, len, max_len);
                 break;
             default:
             error_cmd:
@@ -1169,6 +1528,18 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
                 n = s->req_nb_sectors;
             ide_transfer_start(s, s->io_buffer, 512 * n, ide_sector_write);
             break;
+        case WIN_READDMA:
+        case WIN_READDMA_ONCE:
+            if (!s->bs) 
+                goto abort_cmd;
+            ide_sector_read_dma(s);
+            break;
+        case WIN_WRITEDMA:
+        case WIN_WRITEDMA_ONCE:
+            if (!s->bs) 
+                goto abort_cmd;
+            ide_sector_write_dma(s);
+            break;
         case WIN_READ_NATIVE_MAX:
             ide_set_sector(s, s->nb_sectors - 1);
             s->status = READY_STAT;
@@ -1185,6 +1556,7 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             /* XXX: valid for CDROM ? */
             switch(s->feature) {
             case 0x02: /* write cache enable */
+            case 0x03: /* set transfer mode */
             case 0x82: /* write cache disable */
             case 0xaa: /* read look-ahead enable */
             case 0x55: /* read look-ahead disable */
@@ -1216,9 +1588,10 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         case WIN_PACKETCMD:
             if (!s->is_cdrom)
                 goto abort_cmd;
-            /* DMA or overlapping commands not supported */
-            if ((s->feature & 0x03) != 0)
+            /* overlapping commands not supported */
+            if (s->feature & 0x02)
                 goto abort_cmd;
+            s->atapi_dma = s->feature & 1;
             s->nsector = 1;
             ide_transfer_start(s, s->io_buffer, ATAPI_PACKET_SIZE, 
                                ide_atapi_cmd);
@@ -1549,11 +1922,6 @@ void isa_ide_init(int iobase, int iobase2, int irq,
 /***********************************************************/
 /* PCI IDE definitions */
 
-typedef struct PCIIDEState {
-    PCIDevice dev;
-    IDEState ide_if[4];
-} PCIIDEState;
-
 static void ide_map(PCIDevice *pci_dev, int region_num, 
                     uint32_t addr, uint32_t size, int type)
 {
@@ -1575,6 +1943,155 @@ static void ide_map(PCIDevice *pci_dev, int region_num,
             register_ioport_write(addr, 4, 4, ide_data_writel, ide_state);
             register_ioport_read(addr, 4, 4, ide_data_readl, ide_state);
         }
+    }
+}
+
+/* XXX: full callback usage to prepare non blocking I/Os support -
+   error handling */
+static void ide_dma_loop(BMDMAState *bm)
+{
+    struct {
+        uint32_t addr;
+        uint32_t size;
+    } prd;
+    target_phys_addr_t cur_addr;
+    int len, i, len1;
+
+    cur_addr = bm->addr;
+    /* at most one page to avoid hanging if erroneous parameters */
+    for(i = 0; i < 512; i++) {
+        cpu_physical_memory_read(cur_addr, (uint8_t *)&prd, 8);
+        prd.addr = le32_to_cpu(prd.addr);
+        prd.size = le32_to_cpu(prd.size);
+#ifdef DEBUG_IDE
+        printf("ide: dma: prd: %08x: addr=0x%08x size=0x%08x\n", 
+               (int)cur_addr, prd.addr, prd.size);
+#endif
+        len = prd.size & 0xfffe;
+        if (len == 0)
+            len = 0x10000;
+        while (len > 0) {
+            len1 = bm->dma_cb(bm->ide_if, prd.addr, len);
+            if (len1 == 0)
+                goto the_end;
+            prd.addr += len1;
+            len -= len1;
+        }
+        /* end of transfer */
+        if (prd.size & 0x80000000)
+            break;
+        cur_addr += 8;
+    }
+    /* end of transfer */
+ the_end:
+    bm->status &= ~BM_STATUS_DMAING;
+    bm->status |= BM_STATUS_INT;
+    bm->dma_cb = NULL;
+    bm->ide_if = NULL;
+}
+
+static void ide_dma_start(IDEState *s, IDEDMAFunc *dma_cb)
+{
+    BMDMAState *bm = s->bmdma;
+    if(!bm)
+        return;
+    bm->ide_if = s;
+    bm->dma_cb = dma_cb;
+    if (bm->status & BM_STATUS_DMAING) {
+        ide_dma_loop(bm);
+    }
+}
+
+static uint32_t bmdma_cmd_readb(void *opaque, uint32_t addr)
+{
+    BMDMAState *bm = opaque;
+    uint32_t val;
+    val = bm->cmd;
+#ifdef DEBUG_IDE
+    printf("%s: 0x%08x\n", __func__, val);
+#endif
+    return val;
+}
+
+static void bmdma_cmd_writeb(void *opaque, uint32_t addr, uint32_t val)
+{
+    BMDMAState *bm = opaque;
+#ifdef DEBUG_IDE
+    printf("%s: 0x%08x\n", __func__, val);
+#endif
+    if (!(val & BM_CMD_START)) {
+        /* XXX: do it better */
+        bm->status &= ~BM_STATUS_DMAING;
+        bm->cmd = val & 0x09;
+    } else {
+        bm->status |= BM_STATUS_DMAING;
+        bm->cmd = val & 0x09;
+        /* start dma transfer if possible */
+        if (bm->dma_cb)
+            ide_dma_loop(bm);
+    }
+}
+
+static uint32_t bmdma_status_readb(void *opaque, uint32_t addr)
+{
+    BMDMAState *bm = opaque;
+    uint32_t val;
+    val = bm->status;
+#ifdef DEBUG_IDE
+    printf("%s: 0x%08x\n", __func__, val);
+#endif
+    return val;
+}
+
+static void bmdma_status_writeb(void *opaque, uint32_t addr, uint32_t val)
+{
+    BMDMAState *bm = opaque;
+#ifdef DEBUG_IDE
+    printf("%s: 0x%08x\n", __func__, val);
+#endif
+    bm->status = (val & 0x60) | (bm->status & 1) | (bm->status & ~val & 0x06);
+}
+
+static uint32_t bmdma_addr_readl(void *opaque, uint32_t addr)
+{
+    BMDMAState *bm = opaque;
+    uint32_t val;
+    val = bm->addr;
+#ifdef DEBUG_IDE
+    printf("%s: 0x%08x\n", __func__, val);
+#endif
+    return val;
+}
+
+static void bmdma_addr_writel(void *opaque, uint32_t addr, uint32_t val)
+{
+    BMDMAState *bm = opaque;
+#ifdef DEBUG_IDE
+    printf("%s: 0x%08x\n", __func__, val);
+#endif
+    bm->addr = val & ~3;
+}
+
+static void bmdma_map(PCIDevice *pci_dev, int region_num, 
+                    uint32_t addr, uint32_t size, int type)
+{
+    PCIIDEState *d = (PCIIDEState *)pci_dev;
+    int i;
+
+    for(i = 0;i < 2; i++) {
+        BMDMAState *bm = &d->bmdma[i];
+        d->ide_if[2 * i].bmdma = bm;
+        d->ide_if[2 * i + 1].bmdma = bm;
+        
+        register_ioport_write(addr, 1, 1, bmdma_cmd_writeb, bm);
+        register_ioport_read(addr, 1, 1, bmdma_cmd_readb, bm);
+
+        register_ioport_write(addr + 2, 1, 1, bmdma_status_writeb, bm);
+        register_ioport_read(addr + 2, 1, 1, bmdma_status_readb, bm);
+
+        register_ioport_write(addr + 4, 4, 4, bmdma_addr_writel, bm);
+        register_ioport_read(addr + 4, 4, 4, bmdma_addr_readl, bm);
+        addr += 8;
     }
 }
 
@@ -1610,6 +2127,8 @@ void pci_ide_init(PCIBus *bus, BlockDriverState **hd_table)
                            PCI_ADDRESS_SPACE_IO, ide_map);
     pci_register_io_region((PCIDevice *)d, 3, 0x4, 
                            PCI_ADDRESS_SPACE_IO, ide_map);
+    pci_register_io_region((PCIDevice *)d, 4, 0x10, 
+                           PCI_ADDRESS_SPACE_IO, bmdma_map);
 
     pci_conf[0x3d] = 0x01; // interrupt on pin 1
 
@@ -1640,7 +2159,8 @@ void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table)
     pci_conf[0x0b] = 0x01; // class_base = PCI_mass_storage
     pci_conf[0x0e] = 0x00; // header_type
 
-    /* XXX: must add BMDMA support to be fully compliant */
+    pci_register_io_region((PCIDevice *)d, 4, 0x10, 
+                           PCI_ADDRESS_SPACE_IO, bmdma_map);
 
     ide_init2(&d->ide_if[0], 14, hd_table[0], hd_table[1]);
     ide_init2(&d->ide_if[2], 15, hd_table[2], hd_table[3]);
