@@ -103,10 +103,10 @@ extern int personality(int);
 extern int flock(int, int);
 extern int setfsuid(int);
 extern int setfsgid(int);
-extern int setresuid(int,int,int);
-extern int getresuid(int *,int *,int *);
-extern int setresgid(int,int,int);
-extern int getresgid(int *,int *,int *);
+extern int setresuid(uid_t, uid_t, uid_t);
+extern int getresuid(uid_t *, uid_t *, uid_t *);
+extern int setresgid(gid_t, gid_t, gid_t);
+extern int getresgid(gid_t *, gid_t *, gid_t *);
 
 static inline long get_errno(long ret)
 {
@@ -210,14 +210,14 @@ static inline void host_to_target_fds(target_long *target_fds,
 }
 
 static inline void target_to_host_timeval(struct timeval *tv, 
-                                          struct target_timeval *target_tv)
+                                          const struct target_timeval *target_tv)
 {
     tv->tv_sec = tswapl(target_tv->tv_sec);
     tv->tv_usec = tswapl(target_tv->tv_usec);
 }
 
 static inline void host_to_target_timeval(struct target_timeval *target_tv, 
-                                          struct timeval *tv)
+                                          const struct timeval *tv)
 {
     target_tv->tv_sec = tswapl(tv->tv_sec);
     target_tv->tv_usec = tswapl(tv->tv_usec);
@@ -238,8 +238,7 @@ static long do_select(long n,
     efds_ptr = target_to_host_fds(&efds, target_efds, n);
             
     if (target_tv) {
-        tv.tv_sec = tswapl(target_tv->tv_sec);
-        tv.tv_usec = tswapl(target_tv->tv_usec);
+        target_to_host_timeval(&tv, target_tv);
         tv_ptr = &tv;
     } else {
         tv_ptr = NULL;
@@ -251,8 +250,7 @@ static long do_select(long n,
         host_to_target_fds(target_efds, efds_ptr, n);
 
         if (target_tv) {
-            target_tv->tv_sec = tswapl(tv.tv_sec);
-            target_tv->tv_usec = tswapl(tv.tv_usec);
+            host_to_target_timeval(target_tv, &tv);
         }
     }
     return ret;
@@ -755,7 +753,7 @@ install:
 }
 
 /* specific and weird i386 syscalls */
-int gemu_modify_ldt(CPUX86State *env, int func, void *ptr, unsigned long bytecount)
+int do_modify_ldt(CPUX86State *env, int func, void *ptr, unsigned long bytecount)
 {
     int ret = -ENOSYS;
     
@@ -770,6 +768,79 @@ int gemu_modify_ldt(CPUX86State *env, int func, void *ptr, unsigned long bytecou
         ret = write_ldt(env, ptr, bytecount, 0);
         break;
     }
+    return ret;
+}
+
+/* vm86 emulation */
+
+#define SAFE_MASK  (0xDD5)
+
+int do_vm86(CPUX86State *env, long subfunction, 
+            struct target_vm86plus_struct * target_v86)
+{
+    TaskState *ts = env->opaque;
+    int ret;
+    
+    switch (subfunction) {
+    case TARGET_VM86_REQUEST_IRQ:
+    case TARGET_VM86_FREE_IRQ:
+    case TARGET_VM86_GET_IRQ_BITS:
+    case TARGET_VM86_GET_AND_RESET_IRQ:
+        gemu_log("qemu: unsupported vm86 subfunction (%ld)\n", subfunction);
+        ret = -EINVAL;
+        goto out;
+    case TARGET_VM86_PLUS_INSTALL_CHECK:
+        /* NOTE: on old vm86 stuff this will return the error
+           from verify_area(), because the subfunction is
+           interpreted as (invalid) address to vm86_struct.
+           So the installation check works.
+            */
+        ret = 0;
+        goto out;
+    }
+
+    ts->target_v86 = target_v86;
+
+    /* save current CPU regs */
+    ts->vm86_saved_regs.eax = 0; /* default vm86 syscall return code */
+    ts->vm86_saved_regs.ebx = env->regs[R_EBX];
+    ts->vm86_saved_regs.ecx = env->regs[R_ECX];
+    ts->vm86_saved_regs.edx = env->regs[R_EDX];
+    ts->vm86_saved_regs.esi = env->regs[R_ESI];
+    ts->vm86_saved_regs.edi = env->regs[R_EDI];
+    ts->vm86_saved_regs.ebp = env->regs[R_EBP];
+    ts->vm86_saved_regs.esp = env->regs[R_ESP];
+    ts->vm86_saved_regs.eflags = env->eflags;
+    ts->vm86_saved_regs.eip  = env->eip;
+    ts->vm86_saved_regs.cs = env->segs[R_CS];
+    ts->vm86_saved_regs.ss = env->segs[R_SS];
+    ts->vm86_saved_regs.ds = env->segs[R_DS];
+    ts->vm86_saved_regs.es = env->segs[R_ES];
+    ts->vm86_saved_regs.fs = env->segs[R_FS];
+    ts->vm86_saved_regs.gs = env->segs[R_GS];
+
+    /* build vm86 CPU state */
+    env->eflags = (env->eflags & ~SAFE_MASK) | 
+        (tswap32(target_v86->regs.eflags) & SAFE_MASK) | VM_MASK;
+
+    env->regs[R_EBX] = tswap32(target_v86->regs.ebx);
+    env->regs[R_ECX] = tswap32(target_v86->regs.ecx);
+    env->regs[R_EDX] = tswap32(target_v86->regs.edx);
+    env->regs[R_ESI] = tswap32(target_v86->regs.esi);
+    env->regs[R_EDI] = tswap32(target_v86->regs.edi);
+    env->regs[R_EBP] = tswap32(target_v86->regs.ebp);
+    env->regs[R_ESP] = tswap32(target_v86->regs.esp);
+    env->eip = tswap32(target_v86->regs.eip);
+    cpu_x86_load_seg(env, R_CS, tswap16(target_v86->regs.cs));
+    cpu_x86_load_seg(env, R_SS, tswap16(target_v86->regs.ss));
+    cpu_x86_load_seg(env, R_DS, tswap16(target_v86->regs.ds));
+    cpu_x86_load_seg(env, R_ES, tswap16(target_v86->regs.es));
+    cpu_x86_load_seg(env, R_FS, tswap16(target_v86->regs.fs));
+    cpu_x86_load_seg(env, R_GS, tswap16(target_v86->regs.gs));
+    ret = tswap32(target_v86->regs.eax); /* eax will be restored at
+                                            the end of the syscall */
+    /* now the virtual CPU is ready for vm86 execution ! */
+ out:
     return ret;
 }
 
@@ -788,19 +859,26 @@ static int clone_func(void *arg)
 int do_fork(CPUX86State *env, unsigned int flags, unsigned long newsp)
 {
     int ret;
+    TaskState *ts;
     uint8_t *new_stack;
     CPUX86State *new_env;
     
     if (flags & CLONE_VM) {
         if (!newsp)
             newsp = env->regs[R_ESP];
-        new_stack = malloc(NEW_STACK_SIZE);
-        
+        ts = malloc(sizeof(TaskState) + NEW_STACK_SIZE);
+        memset(ts, 0, sizeof(TaskState));
+        new_stack = ts->stack;
+        ts->used = 1;
+        /* add in task state list */
+        ts->next = first_task_state;
+        first_task_state = ts;
         /* we create a new CPU instance. */
         new_env = cpu_x86_init();
         memcpy(new_env, env, sizeof(CPUX86State));
         new_env->regs[R_ESP] = newsp;
         new_env->regs[R_EAX] = 0;
+        new_env->opaque = ts;
         ret = clone(clone_func, new_stack + NEW_STACK_SIZE, flags, new_env);
     } else {
         /* if no CLONE_VM, we consider it is a fork */
@@ -1281,8 +1359,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             struct timeval tv;
             ret = get_errno(gettimeofday(&tv, NULL));
             if (!is_error(ret)) {
-                target_tv->tv_sec = tswapl(tv.tv_sec);
-                target_tv->tv_usec = tswapl(tv.tv_usec);
+                host_to_target_timeval(target_tv, &tv);
             }
         }
         break;
@@ -1290,8 +1367,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         {
             struct target_timeval *target_tv = (void *)arg1;
             struct timeval tv;
-            tv.tv_sec = tswapl(target_tv->tv_sec);
-            tv.tv_usec = tswapl(target_tv->tv_usec);
+            target_to_host_timeval(&tv, target_tv);
             ret = get_errno(settimeofday(&tv, NULL));
         }
         break;
@@ -1487,8 +1563,6 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         break;
     case TARGET_NR_idle:
         goto unimplemented;
-    case TARGET_NR_vm86old:
-        goto unimplemented;
     case TARGET_NR_wait4:
         {
             int status;
@@ -1548,7 +1622,12 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         break;
 #ifdef TARGET_I386
     case TARGET_NR_modify_ldt:
-        ret = get_errno(gemu_modify_ldt(cpu_env, arg1, (void *)arg2, arg3));
+        ret = get_errno(do_modify_ldt(cpu_env, arg1, (void *)arg2, arg3));
+        break;
+    case TARGET_NR_vm86old:
+        goto unimplemented;
+    case TARGET_NR_vm86:
+        ret = do_vm86(cpu_env, arg1, (void *)arg2);
         break;
 #endif
     case TARGET_NR_adjtimex:
@@ -1652,13 +1731,13 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 
             pfd = alloca(sizeof(struct pollfd) * nfds);
             for(i = 0; i < nfds; i++) {
-                pfd->fd = tswap32(target_pfd->fd);
-                pfd->events = tswap16(target_pfd->events);
+                pfd[i].fd = tswap32(target_pfd[i].fd);
+                pfd[i].events = tswap16(target_pfd[i].events);
             }
             ret = get_errno(poll(pfd, nfds, timeout));
             if (!is_error(ret)) {
                 for(i = 0; i < nfds; i++) {
-                    target_pfd->revents = tswap16(pfd->revents);
+                    target_pfd[i].revents = tswap16(pfd[i].revents);
                 }
             }
         }
@@ -1702,25 +1781,59 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         ret = get_errno(getsid(arg1));
         break;
     case TARGET_NR_fdatasync:
-        goto unimplemented;
+        ret = get_errno(fdatasync(arg1));
+        break;
     case TARGET_NR__sysctl:
         goto unimplemented;
     case TARGET_NR_sched_setparam:
-        goto unimplemented;
+        {
+            struct sched_param *target_schp = (void *)arg2;
+            struct sched_param schp;
+            schp.sched_priority = tswap32(target_schp->sched_priority);
+            ret = get_errno(sched_setparam(arg1, &schp));
+        }
+        break;
     case TARGET_NR_sched_getparam:
-        goto unimplemented;
+        {
+            struct sched_param *target_schp = (void *)arg2;
+            struct sched_param schp;
+            ret = get_errno(sched_getparam(arg1, &schp));
+            if (!is_error(ret)) {
+                target_schp->sched_priority = tswap32(schp.sched_priority);
+            }
+        }
+        break;
     case TARGET_NR_sched_setscheduler:
-        goto unimplemented;
+        {
+            struct sched_param *target_schp = (void *)arg3;
+            struct sched_param schp;
+            schp.sched_priority = tswap32(target_schp->sched_priority);
+            ret = get_errno(sched_setscheduler(arg1, arg2, &schp));
+        }
+        break;
     case TARGET_NR_sched_getscheduler:
-        goto unimplemented;
+        ret = get_errno(sched_getscheduler(arg1));
+        break;
     case TARGET_NR_sched_yield:
         ret = get_errno(sched_yield());
         break;
     case TARGET_NR_sched_get_priority_max:
+        ret = get_errno(sched_get_priority_max(arg1));
+        break;
     case TARGET_NR_sched_get_priority_min:
+        ret = get_errno(sched_get_priority_min(arg1));
+        break;
     case TARGET_NR_sched_rr_get_interval:
-        goto unimplemented;
-        
+        {
+            struct target_timespec *target_ts = (void *)arg2;
+            struct timespec ts;
+            ret = get_errno(sched_rr_get_interval(arg1, &ts));
+            if (!is_error(ret)) {
+                target_ts->tv_sec = tswapl(ts.tv_sec);
+                target_ts->tv_nsec = tswapl(ts.tv_nsec);
+            }
+        }
+        break;
     case TARGET_NR_nanosleep:
         {
             struct target_timespec *target_req = (void *)arg1;
@@ -1767,11 +1880,14 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             }
         }
         break;
-    case TARGET_NR_vm86:
     case TARGET_NR_query_module:
+        goto unimplemented;
     case TARGET_NR_nfsservctl:
+        goto unimplemented;
     case TARGET_NR_prctl:
+        goto unimplemented;
     case TARGET_NR_pread:
+        goto unimplemented;
     case TARGET_NR_pwrite:
         goto unimplemented;
     case TARGET_NR_chown:
@@ -1781,16 +1897,24 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         ret = get_errno(sys_getcwd1((char *)arg1, arg2));
         break;
     case TARGET_NR_capget:
+        goto unimplemented;
     case TARGET_NR_capset:
+        goto unimplemented;
     case TARGET_NR_sigaltstack:
+        goto unimplemented;
     case TARGET_NR_sendfile:
+        goto unimplemented;
     case TARGET_NR_getpmsg:
+        goto unimplemented;
     case TARGET_NR_putpmsg:
+        goto unimplemented;
     case TARGET_NR_vfork:
         ret = get_errno(do_fork(cpu_env, CLONE_VFORK | CLONE_VM | SIGCHLD, 0));
         break;
     case TARGET_NR_ugetrlimit:
+        goto unimplemented;
     case TARGET_NR_truncate64:
+        goto unimplemented;
     case TARGET_NR_ftruncate64:
         goto unimplemented;
     case TARGET_NR_stat64:
@@ -1919,6 +2043,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         ret = get_errno(gettid());
         break;
     case TARGET_NR_readahead:
+        goto unimplemented;
     case TARGET_NR_setxattr:
     case TARGET_NR_lsetxattr:
     case TARGET_NR_fsetxattr:
@@ -1931,10 +2056,14 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_removexattr:
     case TARGET_NR_lremovexattr:
     case TARGET_NR_fremovexattr:
-        goto unimplemented;
+        goto unimplemented_nowarn;
+    case TARGET_NR_set_thread_area:
+    case TARGET_NR_get_thread_area:
+        goto unimplemented_nowarn;
     default:
     unimplemented:
-        gemu_log("gemu: Unsupported syscall: %d\n", num);
+        gemu_log("qemu: Unsupported syscall: %d\n", num);
+    unimplemented_nowarn:
         ret = -ENOSYS;
         break;
     }
