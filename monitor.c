@@ -764,13 +764,15 @@ static void tlb_info(void)
 static void mem_print(uint32_t *pstart, int *plast_prot, 
                       uint32_t end, int prot)
 {
-    if (prot != *plast_prot) {
+    int prot1;
+    prot1 = *plast_prot;
+    if (prot != prot1) {
         if (*pstart != -1) {
             term_printf("%08x-%08x %08x %c%c%c\n",
                         *pstart, end, end - *pstart, 
-                        prot & PG_USER_MASK ? 'u' : '-',
+                        prot1 & PG_USER_MASK ? 'u' : '-',
                         'r',
-                        prot & PG_RW_MASK ? 'w' : '-');
+                        prot1 & PG_RW_MASK ? 'w' : '-');
         }
         if (prot != 0)
             *pstart = end;
