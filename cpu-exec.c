@@ -71,7 +71,7 @@ int cpu_exec(CPUState *env1)
 #ifdef __sparc__
     int saved_i7, tmp_T0;
 #endif
-    int code_gen_size, ret;
+    int code_gen_size, ret, interrupt_request;
     void (*gen_func)(void);
     TranslationBlock *tb, **ptb;
     uint8_t *tc_ptr, *cs_base, *pc;
@@ -139,7 +139,6 @@ int cpu_exec(CPUState *env1)
 #else
 #error unsupported target CPU
 #endif
-    env->interrupt_request = 0;
     env->exception_index = -1;
 
     /* prepare setjmp context for exception handling */
@@ -176,28 +175,32 @@ int cpu_exec(CPUState *env1)
                 }
                 env->exception_index = -1;
             }
-#if defined(TARGET_I386)
-            /* if hardware interrupt pending, we execute it */
-            if (env->hard_interrupt_request &&
-                (env->eflags & IF_MASK)) {
-                int intno;
-                intno = cpu_x86_get_pic_interrupt(env);
-                if (loglevel) {
-                    fprintf(logfile, "Servicing hardware INT=0x%02x\n", intno);
-                }
-                do_interrupt(intno, 0, 0, 0);
-                env->hard_interrupt_request = 0;
-            }
-#endif
             T0 = 0; /* force lookup of first TB */
             for(;;) {
 #ifdef __sparc__
                 /* g1 can be modified by some libc? functions */ 
                 tmp_T0 = T0;
 #endif	    
-                if (env->interrupt_request) {
-                    env->exception_index = EXCP_INTERRUPT;
-                    cpu_loop_exit();
+                interrupt_request = env->interrupt_request;
+                if (interrupt_request) {
+#if defined(TARGET_I386)
+                    /* if hardware interrupt pending, we execute it */
+                    if ((interrupt_request & CPU_INTERRUPT_HARD) &&
+                        (env->eflags & IF_MASK)) {
+                        int intno;
+                        intno = cpu_x86_get_pic_interrupt(env);
+                        if (loglevel) {
+                            fprintf(logfile, "Servicing hardware INT=0x%02x\n", intno);
+                        }
+                        do_interrupt(intno, 0, 0, 0);
+                        env->interrupt_request &= ~CPU_INTERRUPT_HARD;
+                    }
+#endif
+                    if (interrupt_request & CPU_INTERRUPT_EXIT) {
+                        env->interrupt_request &= ~CPU_INTERRUPT_EXIT;
+                        env->exception_index = EXCP_INTERRUPT;
+                        cpu_loop_exit();
+                    }
                 }
 #ifdef DEBUG_EXEC
                 if (loglevel) {
@@ -212,7 +215,7 @@ int cpu_exec(CPUState *env1)
                     env->regs[R_EBP] = EBP;
                     env->regs[R_ESP] = ESP;
                     env->eflags = env->eflags | cc_table[CC_OP].compute_all() | (DF & DF_MASK);
-                    cpu_x86_dump_state(env, logfile, 0);
+                    cpu_x86_dump_state(env, logfile, X86_DUMP_CCOP);
                     env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
 #elif defined(TARGET_ARM)
                     cpu_arm_dump_state(env, logfile, 0);
@@ -454,7 +457,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
 {
     TranslationBlock *tb;
     int ret;
-    
+
     if (cpu_single_env)
         env = cpu_single_env; /* XXX: find a correct solution for multithread */
 #if defined(DEBUG_SIGNAL)

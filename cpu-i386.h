@@ -254,10 +254,7 @@ typedef struct CPUX86State {
     struct TranslationBlock *current_tb; /* currently executing TB */
     uint32_t cr[5]; /* NOTE: cr1 is unused */
     uint32_t dr[8]; /* debug registers */
-    int interrupt_request; /* if true, will exit from cpu_exec() ASAP */
-    /* if true, will call cpu_x86_get_pic_interrupt() ASAP to get the
-       request interrupt number */
-    int hard_interrupt_request; 
+    int interrupt_request; 
     int user_mode_only; /* user mode only simulation */
     
     /* user data */
@@ -275,7 +272,6 @@ int cpu_x86_inl(CPUX86State *env, int addr);
 
 CPUX86State *cpu_x86_init(void);
 int cpu_x86_exec(CPUX86State *s);
-void cpu_x86_interrupt(CPUX86State *s);
 void cpu_x86_close(CPUX86State *s);
 int cpu_x86_get_pic_interrupt(CPUX86State *s);
 

@@ -3331,12 +3331,14 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         if (!s->vm86) {
             if (s->cpl <= s->iopl) {
                 gen_op_sti();
+                s->is_jmp = 2; /* give a chance to handle pending irqs */
             } else {
                 gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
             }
         } else {
             if (s->iopl == 3) {
                 gen_op_sti();
+                s->is_jmp = 2; /* give a chance to handle pending irqs */
             } else {
                 gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
             }

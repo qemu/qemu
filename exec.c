@@ -617,11 +617,12 @@ static void tb_reset_jump_recursive(TranslationBlock *tb)
     tb_reset_jump_recursive2(tb, 1);
 }
 
-void cpu_interrupt(CPUState *env)
+/* mask must never be zero */
+void cpu_interrupt(CPUState *env, int mask)
 {
     TranslationBlock *tb;
-
-    env->interrupt_request = 1;
+    
+    env->interrupt_request |= mask;
     /* if the cpu is currently executing code, we must unlink it and
        all the potentially executing TB */
     tb = env->current_tb;
