@@ -75,6 +75,16 @@ enum {
     CC_OP_NB,
 };
 
+#ifdef __i386__
+#define USE_X86LDOUBLE
+#endif
+
+#ifdef USE_X86LDOUBLE
+typedef long double CPU86_LDouble;
+#else
+typedef double CPU86_LDouble;
+#endif
+
 typedef struct CPU86State {
     /* standard registers */
     uint32_t regs[8];
@@ -91,10 +101,18 @@ typedef struct CPU86State {
     uint8_t *segs_base[6];
     uint32_t segs[6];
 
+    /* FPU state */
+    CPU86_LDouble fpregs[8];    
+    uint8_t fptags[8];   /* 0 = valid, 1 = empty */
+    unsigned int fpstt; /* top of stack index */
+    unsigned int fpus;
+    unsigned int fpuc;
+
     /* emulator internal variables */
     uint32_t t0; /* temporary t0 storage */
     uint32_t t1; /* temporary t1 storage */
     uint32_t a0; /* temporary a0 storage (address) */
+    CPU86_LDouble ft0;
 } CPU86State;
 
 static inline int ldub(void *ptr)
@@ -122,6 +140,10 @@ static inline int ldl(void *ptr)
     return *(uint32_t *)ptr;
 }
 
+static inline uint64_t ldq(void *ptr)
+{
+    return *(uint64_t *)ptr;
+}
 
 static inline void stb(void *ptr, int v)
 {
@@ -138,11 +160,40 @@ static inline void stl(void *ptr, int v)
     *(uint32_t *)ptr = v;
 }
 
+static inline void stq(void *ptr, int v)
+{
+    *(uint64_t *)ptr = v;
+}
+
+/* float access */
+
+static inline float ldfl(void *ptr)
+{
+    return *(float *)ptr;
+}
+
+static inline double ldfq(void *ptr)
+{
+    return *(double *)ptr;
+}
+
+static inline void stfl(void *ptr, float v)
+{
+    *(float *)ptr = v;
+}
+
+static inline void stfq(void *ptr, double v)
+{
+    *(double *)ptr = v;
+}
+
+#ifndef IN_OP_I386
 void port_outb(int addr, int val);
 void port_outw(int addr, int val);
 void port_outl(int addr, int val);
 int port_inb(int addr);
 int port_inw(int addr);
 int port_inl(int addr);
+#endif
 
 #endif /* CPU_I386_H */

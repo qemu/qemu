@@ -8,6 +8,7 @@ LDFLAGS=-g
 LIBS=
 CC=gcc
 DEFINES=-DHAVE_BYTESWAP_H
+OP_CFLAGS=$(CFLAGS) -malign-functions=0 -mpreferred-stack-boundary=2
 endif
 
 ifeq ($(ARCH),ppc)
@@ -24,6 +25,7 @@ CRTEND=$(GCC_LIBS_DIR)/crtend.o
 LDFLAGS=-static -g -nostdlib $(CRT1) $(CRTI) $(CRTBEGIN) 
 LIBS=-L$(LIBS_DIR) -ltinyc -lgcc $(CRTEND) $(CRTN)
 DEFINES=-Dsocklen_t=int
+OP_CFLAGS=$(CFLAGS)
 endif
 
 #########################################################
@@ -31,7 +33,7 @@ endif
 DEFINES+=-D_GNU_SOURCE -DGEMU -DDOSEMU -DNO_TRACE_MSGS
 DEFINES+=-DCONFIG_PREFIX=\"/usr/local\"
 LDSCRIPT=$(ARCH).ld
-LIBS+=-ldl
+LIBS+=-ldl -lm
 
 OBJS= i386/fp87.o i386/interp_main.o i386/interp_modrm.o i386/interp_16_32.o \
       i386/interp_32_16.o i386/interp_32_32.o i386/emu-utils.o \
@@ -67,7 +69,7 @@ op-i386.h: op-i386.o dyngen
 	./dyngen -o $@ $<
 
 op-i386.o: op-i386.c opreg_template.h ops_template.h
-	$(CC) $(CFLAGS) $(DEFINES) -c -o $@ $<
+	$(CC) $(OP_CFLAGS) $(DEFINES) -c -o $@ $<
 
 %.o: %.c
 	$(CC) $(CFLAGS) $(DEFINES) -c -o $@ $<

@@ -5,6 +5,7 @@
 #include <inttypes.h>
 #include <assert.h>
 
+#define IN_OP_I386
 #include "cpu-i386.h"
 
 static uint8_t *gen_code_ptr;
@@ -39,7 +40,6 @@ typedef struct DisasContext {
     int prefix;
     int aflag, dflag;
     uint8_t *pc; /* current pc */
-    uint8_t *runtime_pc; /* current pc in the runtime generated code */
     int cc_op; /* current CC operation */
     int f_st;
 } DisasContext;
@@ -67,18 +67,6 @@ enum {
     OP_SHL1, /* undocumented */
     OP_SAR = 7,
 };
-
-
-static const int fp_ops[8] = {
-#if 0
-    OP_FADDQ, OP_FMULQ, OP_CMP, OP_CMP,
-    OP_FSUBQ, OP_FSUBQ, OP_FDIVQ, OP_FDIVQ
-#endif
-};
-
-extern char cc_table, rclw_table, rclb_table;
-extern char helper_rcll_T0_T1_cc;
-extern char __udivdi3, __umoddi3;
 
 #include "op-i386.h"
 
@@ -604,6 +592,28 @@ static GenOpFunc *gen_setcc_sub[3][8] = {
         gen_op_setl_T0_subl,
         gen_op_setle_T0_subl,
     },
+};
+
+static GenOpFunc *gen_op_fp_arith_ST0_FT0[8] = {
+    gen_op_fadd_ST0_FT0,
+    gen_op_fmul_ST0_FT0,
+    gen_op_fcom_ST0_FT0,
+    gen_op_fcom_ST0_FT0,
+    gen_op_fsub_ST0_FT0,
+    gen_op_fsubr_ST0_FT0,
+    gen_op_fdiv_ST0_FT0,
+    gen_op_fdivr_ST0_FT0,
+};
+
+static GenOpFunc1 *gen_op_fp_arith_STN_ST0[8] = {
+    gen_op_fadd_STN_ST0,
+    gen_op_fmul_STN_ST0,
+    NULL,
+    NULL,
+    gen_op_fsub_STN_ST0,
+    gen_op_fsubr_STN_ST0,
+    gen_op_fdiv_STN_ST0,
+    gen_op_fdivr_STN_ST0,
 };
 
 static void gen_op(DisasContext *s1, int op, int ot, int d, int s)
@@ -1345,12 +1355,12 @@ int disas_insn(DisasContext *s, uint8_t *pc_start)
         /**************************/
         /* push/pop */
     case 0x50 ... 0x57: /* push */
-        gen_op_mov_TN_reg[OT_LONG][0][(b & 7)]();
+        gen_op_mov_TN_reg[OT_LONG][0][b & 7]();
         gen_op_pushl_T0();
         break;
     case 0x58 ... 0x5f: /* pop */
         gen_op_popl_T0();
-        gen_op_mov_reg_T0[OT_LONG][reg]();
+        gen_op_mov_reg_T0[OT_LONG][b & 7]();
         break;
     case 0x68: /* push Iv */
     case 0x6a:
@@ -1581,7 +1591,6 @@ int disas_insn(DisasContext *s, uint8_t *pc_start)
 
         /************************/
         /* floats */
-#if 0        
     case 0xd8 ... 0xdf: 
         modrm = ldub(s->pc++);
         mod = (modrm >> 6) & 3;
@@ -1597,52 +1606,29 @@ int disas_insn(DisasContext *s, uint8_t *pc_start)
             case 0x20 ... 0x27: /* fxxxl */
             case 0x30 ... 0x37: /* fixxx */
                 {
-                    int op1, swap;
-                    op1 = fp_ops[op & 7];
-
-                    swap = 0;
-                    if ((op & 7) == 5 || (op & 7) == 7)
-                        swap = 1;
+                    int op1;
+                    op1 = op & 7;
 
                     switch(op >> 4) {
                     case 0:
-                        ot = OT_LONG;
-                        is_int = 0;
+                        gen_op_flds_FT0_A0();
                         break;
                     case 1:
-                        ot = OT_LONG;
-                        is_int = 1;
+                        gen_op_fildl_FT0_A0();
                         break;
                     case 2:
-                        ot = OT_QUAD;
-                        is_int = 0;
+                        gen_op_fldl_FT0_A0();
                         break;
                     case 3:
                     default:
-                        ot = OT_WORD;
-                        is_int = 1;
+                        gen_op_fild_FT0_A0();
                         break;
                     }
                     
-                    /* if integer, needs to convert to float */
-                    if (is_int) {
-                        /* XXX: potential loss of precision if large integer */
-                        gen_ld(OP_LDUB + ot, OR_TMP0, reg_addr, offset_addr);
-                        gen_insn2(OP_I2FL, OR_FTMP0, OR_TMP0);
-                    } else {
-                        gen_ld(OP_LDUB + ot, OR_FTMP0, reg_addr, offset_addr);
-                    }
-                    if (ot != OT_QUAD)
-                        op1 += OP_FADDL - OP_FADDQ;
-
-                    if (!swap)
-                        gen_insn3(op1, OR_ST0, OR_ST0, OR_FTMP0);
-                    else
-                        gen_insn3(op1, OR_ST0, OR_FTMP0, OR_ST0);
-                        
-                    if ((op & 7) == 3) {
+                    gen_op_fp_arith_ST0_FT0[op1]();
+                    if (op1 == 3) {
                         /* fcomp needs pop */
-                        gen_insn0(OP_FPOP);
+                        gen_op_fpop();
                     }
                 }
                 break;
@@ -1659,49 +1645,47 @@ int disas_insn(DisasContext *s, uint8_t *pc_start)
             case 0x3a: /* fists */
             case 0x3b: /* fistps */
                 
-                switch(op >> 4) {
-                case 0:
-                    ot = OT_LONG;
-                    is_int = 0;
-                    break;
-                case 1:
-                    ot = OT_LONG;
-                    is_int = 1;
-                    break;
-                case 2:
-                    ot = OT_QUAD;
-                    is_int = 0;
-                    break;
-                case 3:
-                default:
-                    ot = OT_WORD;
-                    is_int = 1;
-                    break;
-                }
-
                 switch(op & 7) {
                 case 0:
-                    gen_insn0(OP_FPUSH);
-                    if (is_int) {
-                        /* XXX: potential loss of precision */
-                        gen_ld(OP_LDUB + ot, OR_TMP0, reg_addr, offset_addr);
-                        gen_insn2(OP_I2FL, OR_ST0, OR_TMP0);
-                    } else {
-                        gen_ld(OP_LDUB + ot, OR_ST0, reg_addr, offset_addr);
+                    gen_op_fpush();
+                    switch(op >> 4) {
+                    case 0:
+                        gen_op_flds_ST0_A0();
+                        break;
+                    case 1:
+                        gen_op_fildl_ST0_A0();
+                        break;
+                    case 2:
+                        gen_op_fldl_ST0_A0();
+                        break;
+                    case 3:
+                    default:
+                        gen_op_fild_ST0_A0();
+                        break;
                     }
                     break;
                 default:
-                    if (is_int) {
-                        gen_insn2(OP_F2IL, OR_TMP0, OR_ST0);
-                        gen_st(OP_STB + ot, OR_TMP0, reg_addr, offset_addr);
-                    } else {
-                        gen_st(OP_STB + ot, OR_ST0, reg_addr, offset_addr);
+                    switch(op >> 4) {
+                    case 0:
+                        gen_op_fsts_ST0_A0();
+                        break;
+                    case 1:
+                        gen_op_fistl_ST0_A0();
+                        break;
+                    case 2:
+                        gen_op_fstl_ST0_A0();
+                        break;
+                    case 3:
+                    default:
+                        gen_op_fist_ST0_A0();
+                        break;
                     }
                     if ((op & 7) == 3)
-                        gen_insn0(OP_FPOP);
+                        gen_op_fpop();
                     break;
                 }
                 break;
+#if 0
             case 0x2f: /* fnstsw mem */
                 gen_insn3(OP_FNSTS, OR_TMP0, OR_ZERO, OR_ZERO);
                 gen_st(OP_STW, OR_TMP0, reg_addr, offset_addr);
@@ -1711,15 +1695,14 @@ int disas_insn(DisasContext *s, uint8_t *pc_start)
             case 0x3e: /* fbstp */
                 error("float BCD not hanlded");
                 return -1;
+#endif
             case 0x3d: /* fildll */
-                gen_insn0(OP_FPUSH);
-                gen_ld(OP_LDQ, OR_TMP0, reg_addr, offset_addr);
-                gen_insn2(OP_I2FQ, OR_ST0, OR_TMP0);
+                gen_op_fpush();
+                gen_op_fildll_ST0_A0();
                 break;
             case 0x3f: /* fistpll */
-                gen_insn2(OP_F2IQ, OR_TMP0, OR_ST0);
-                gen_st(OP_STQ, OR_TMP0, reg_addr, offset_addr);
-                gen_insn0(OP_FPOP);
+                gen_op_fistll_ST0_A0();
+                gen_op_fpop();
                 break;
             default:
                 error("unhandled memory FP\n");
@@ -1727,22 +1710,19 @@ int disas_insn(DisasContext *s, uint8_t *pc_start)
             }
         } else {
             /* register float ops */
-            opreg = rm + OR_ST0;
+            opreg = rm;
 
             switch(op) {
             case 0x08: /* fld sti */
-                gen_insn0(OP_FPUSH);
-                gen_mov(OR_ST0, OR_ST0 + ((rm + 1) & 7));
+                gen_op_fpush();
+                gen_op_fmov_ST0_STN((opreg + 1) & 7);
                 break;
             case 0x09: /* fxchg sti */
-                gen_mov(OR_TMP0, OR_ST0);
-                gen_mov(OR_ST0, opreg);
-                gen_mov(opreg, OR_TMP0);
+                gen_op_fxchg_ST0_STN((opreg + 1) & 7);
                 break;
             case 0x0a: /* grp d9/2 */
                 switch(rm) {
                 case 0: /* fnop */
-                    gen_insn0(OP_NOP);
                     break;
                 default:
                     error("unhandled FP GRP d9/2\n");
@@ -1752,16 +1732,17 @@ int disas_insn(DisasContext *s, uint8_t *pc_start)
             case 0x0c: /* grp d9/4 */
                 switch(rm) {
                 case 0: /* fchs */
-                    gen_insn3(OP_FSUBQ, OR_ST0, OR_ZERO, OR_ST0);
+                    gen_op_fchs_ST0();
                     break;
                 case 1: /* fabs */
-                    gen_insn2(OP_FABSQ, OR_ST0, OR_ST0);
+                    gen_op_fabs_ST0();
                     break;
                 case 4: /* ftst */
-                    gen_insn3(OP_CMP, OR_ZERO, OR_ST0, OR_ZERO);
+                    gen_op_fldz_FT0();
+                    gen_op_fcom_ST0_FT0();
                     break;
                 case 5: /* fxam */
-                    gen_insn3(OP_FSPECIAL, OR_ZERO, OR_ST0, OR_ZERO);
+                    gen_op_fxam_ST0();
                     break;
                 default:
                     return -1;
@@ -1769,76 +1750,88 @@ int disas_insn(DisasContext *s, uint8_t *pc_start)
                 break;
             case 0x0d: /* grp d9/5 */
                 {
-                    if (rm == 7) {
-                        error("bad GRP d9/5");
+                    switch(rm) {
+                    case 0:
+                        gen_op_fld1_ST0();
+                        break;
+                    case 1:
+                        gen_op_fld2t_ST0();
+                        break;
+                    case 2:
+                        gen_op_fld2e_ST0();
+                        break;
+                    case 3:
+                        gen_op_fldpi_ST0();
+                        break;
+                    case 4:
+                        gen_op_fldlg2_ST0();
+                        break;
+                    case 5:
+                        gen_op_fldln2_ST0();
+                        break;
+                    case 6:
+                        gen_op_fldz_ST0();
+                        break;
+                    default:
                         return -1;
                     }
-                    /* XXX: needs constant load or symbol table */
-                    gen_insn0(OP_FPUSH);
-                    gen_ld(OP_LDQ, OR_ST0, OR_ZERO, 
-                               (rm * 8) + FLOAT_CONST_ADDR);
                 }
                 break;
             case 0x0e: /* grp d9/6 */
                 switch(rm) {
                 case 0: /* f2xm1 */
-                    gen_insn3(OP_FSPECIAL, OR_ST0, OR_ST0, OR_ZERO);
+                    gen_op_f2xm1();
                     break;
                 case 1: /* fyl2x */
-                    gen_insn3(OP_FSPECIAL, OR_ST1, OR_ST0, OR_ST1);
-                    gen_insn0(OP_FPOP);
+                    gen_op_fyl2x();
                     break;
                 case 2: /* fptan */
-                    gen_insn3(OP_FSPECIAL, OR_ST0, OR_ST0, OR_ZERO);
-                    gen_insn0(OP_FPUSH);
-                    /* load one */
-                    gen_ld(OP_LDQ, OR_ST0, OR_ZERO, 
-                               (0 * 8) + FLOAT_CONST_ADDR);
+                    gen_op_fptan();
                     break;
                 case 3: /* fpatan */
-                    gen_insn3(OP_FSPECIAL, OR_ST1, OR_ST0, OR_ST1);
-                    gen_insn0(OP_FPOP);
+                    gen_op_fpatan();
                     break;
                 case 4: /* fxtract */
-                    gen_insn0(OP_FPUSH);
-                    gen_insn3(OP_FSPECIAL, OR_ST0, OR_ST1, OR_ZERO);
-                    gen_insn3(OP_FSPECIAL, OR_ST1, OR_ST1, OR_ZERO);
+                    gen_op_fxtract();
                     break;
                 case 5: /* fprem1 */
-                    gen_insn3(OP_FSPECIAL, OR_ST0, OR_ST0, OR_ST1);
+                    gen_op_fprem1();
                     break;
                 case 6: /* fdecstp */
-                    gen_insn0(OP_FPUSH);
+                    gen_op_fdecstp();
                     break;
                 default:
-                case 7: /* fdecstp */
-                    gen_insn0(OP_FPOP);
+                case 7: /* fincstp */
+                    gen_op_fincstp();
                     break;
                 }
                 break;
             case 0x0f: /* grp d9/7 */
                 switch(rm) {
                 case 0: /* fprem */
-                    gen_insn3(OP_FSPECIAL, OR_ST0, OR_ST0, OR_ST1);
+                    gen_op_fprem();
                     break;
                 case 1: /* fyl2xp1 */
-                    gen_insn3(OP_FSPECIAL, OR_ST1, OR_ST0, OR_ST1);
-                    gen_insn0(OP_FPOP);
-                    break;
-                case 3: /* fsincos */
-                    gen_insn0(OP_FPUSH);
-                    gen_insn3(OP_FSPECIAL, OR_ST0, OR_ST1, OR_ZERO);
-                    gen_insn3(OP_FSPECIAL, OR_ST1, OR_ST1, OR_ZERO);
-                    break;
-                case 5: /* fscale */
-                    gen_insn3(OP_FSPECIAL, OR_ST0, OR_ST0, OR_ST1);
+                    gen_op_fyl2xp1();
                     break;
                 case 2: /* fsqrt */
+                    gen_op_fsqrt();
+                    break;
+                case 3: /* fsincos */
+                    gen_op_fsincos();
+                    break;
+                case 5: /* fscale */
+                    gen_op_fscale();
+                    break;
                 case 4: /* frndint */
+                    gen_op_frndint();
+                    break;
                 case 6: /* fsin */
+                    gen_op_fsin();
+                    break;
                 default:
                 case 7: /* fcos */
-                    gen_insn3(OP_FSPECIAL, OR_ST0, OR_ST0, OR_ZERO);
+                    gen_op_fcos();
                     break;
                 }
                 break;
@@ -1846,58 +1839,54 @@ int disas_insn(DisasContext *s, uint8_t *pc_start)
             case 0x20: case 0x21: case 0x24 ... 0x27: /* fxxx sti, st */
             case 0x30: case 0x31: case 0x34 ... 0x37: /* fxxxp sti, st */
                 {
-                    int op1, swap;
+                    int op1;
                     
-                    op1 = fp_ops[op & 7];
-                    swap = 0;
-                    if ((op & 7) == 5 || (op & 7) == 7)
-                        swap = 1;
+                    op1 = op & 7;
                     if (op >= 0x20) {
-                        if (swap) 
-                            gen_insn3(op1, opreg, OR_ST0, opreg);
-                        else
-                            gen_insn3(op1, opreg, opreg, OR_ST0);
+                        gen_op_fp_arith_STN_ST0[op1](opreg);
                     } else {
-                        if (swap)
-                            gen_insn3(op1, OR_ST0, opreg, OR_ST0);
-                        else
-                            gen_insn3(op1, OR_ST0, OR_ST0, opreg);
+                        gen_op_fmov_FT0_STN(opreg);
+                        gen_op_fp_arith_ST0_FT0[op1]();
                     }
                     if (op >= 0x30)
-                        gen_insn0(OP_FPOP);
+                        gen_op_fpop();
                 }
                 break;
             case 0x02: /* fcom */
-                gen_insn3(OP_CMP, OR_ZERO, OR_ST0, opreg);
+                gen_op_fmov_FT0_STN(opreg);
+                gen_op_fcom_ST0_FT0();
                 break;
             case 0x03: /* fcomp */
-                gen_insn3(OP_CMP, OR_ZERO, OR_ST0, opreg);
-                gen_insn0(OP_FPOP);
+                gen_op_fmov_FT0_STN(opreg);
+                gen_op_fcom_ST0_FT0();
+                gen_op_fpop();
                 break;
             case 0x15: /* da/5 */
                 switch(rm) {
                 case 1: /* fucompp */
-                    gen_insn3(OP_CMP, OR_ZERO, OR_ST0, opreg);
-                    gen_insn0(OP_FPOP);
-                    gen_insn0(OP_FPOP);
+                    gen_op_fmov_FT0_STN(1);
+                    gen_op_fcom_ST0_FT0();
+                    gen_op_fpop();
+                    gen_op_fpop();
                     break;
                 default:
                     return -1;
                 }
                 break;
             case 0x2a: /* fst sti */
-                gen_mov(opreg, OR_ST0);
+                gen_op_fmov_STN_ST0(opreg);
                 break;
             case 0x2b: /* fstp sti */
-                gen_mov(opreg, OR_ST0);
-                gen_insn0(OP_FPOP);
+                gen_op_fmov_STN_ST0(opreg);
+                gen_op_fpop();
                 break;
             case 0x33: /* de/3 */
                 switch(rm) {
                 case 1: /* fcompp */
-                    gen_insn3(OP_CMP, OR_ZERO, OR_ST0, opreg);
-                    gen_insn0(OP_FPOP);
-                    gen_insn0(OP_FPOP);
+                    gen_op_fmov_FT0_STN(1);
+                    gen_op_fcom_ST0_FT0();
+                    gen_op_fpop();
+                    gen_op_fpop();
                     break;
                 default:
                     return -1;
@@ -1905,9 +1894,11 @@ int disas_insn(DisasContext *s, uint8_t *pc_start)
                 break;
             case 0x3c: /* df/4 */
                 switch(rm) {
+#if 0
                 case 0:
                     gen_insn3(OP_FNSTS, OR_EAX, OR_ZERO, OR_ZERO);
                     break;
+#endif
                 default:
                     return -1;
                 }
@@ -1918,7 +1909,6 @@ int disas_insn(DisasContext *s, uint8_t *pc_start)
             }
         }
         break;
-#endif
         /************************/
         /* string ops */
     case 0xa4: /* movsS */

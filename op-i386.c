@@ -66,7 +66,13 @@ register struct CPU86State *env asm("l3");
 
 #define CC_SRC (env->cc_src)
 #define CC_DST (env->cc_dst)
-#define CC_OP (env->cc_op)
+#define CC_OP  (env->cc_op)
+
+/* float macros */
+#define FT0    (env->ft0)
+#define ST0    (env->fpregs[env->fpstt])
+#define ST(n)  (env->fpregs[(env->fpstt + (n)) & 7])
+#define ST1    ST(1)
 
 extern int __op_param1, __op_param2, __op_param3;
 #define PARAM1 ((long)(&__op_param1))
@@ -133,6 +139,44 @@ const uint8_t rclb_table[32] = {
     6, 7, 8, 0, 1, 2, 3, 4,
 };
 
+#ifdef USE_X86LDOUBLE
+/* an array of Intel 80-bit FP constants, to be loaded via integer ops */
+typedef unsigned short f15ld[5];
+const f15ld f15rk[] =
+{
+/*0*/	{0x0000,0x0000,0x0000,0x0000,0x0000},
+/*1*/	{0x0000,0x0000,0x0000,0x8000,0x3fff},
+/*pi*/	{0xc235,0x2168,0xdaa2,0xc90f,0x4000},
+/*lg2*/	{0xf799,0xfbcf,0x9a84,0x9a20,0x3ffd},
+/*ln2*/	{0x79ac,0xd1cf,0x17f7,0xb172,0x3ffe},
+/*l2e*/	{0xf0bc,0x5c17,0x3b29,0xb8aa,0x3fff},
+/*l2t*/	{0x8afe,0xcd1b,0x784b,0xd49a,0x4000}
+};
+#else
+/* the same, 64-bit version */
+typedef unsigned short f15ld[4];
+const f15ld f15rk[] =
+{
+#ifndef WORDS_BIGENDIAN
+/*0*/	{0x0000,0x0000,0x0000,0x0000},
+/*1*/	{0x0000,0x0000,0x0000,0x3ff0},
+/*pi*/	{0x2d18,0x5444,0x21fb,0x4009},
+/*lg2*/	{0x79ff,0x509f,0x4413,0x3fd3},
+/*ln2*/	{0x39ef,0xfefa,0x2e42,0x3fe6},
+/*l2e*/	{0x82fe,0x652b,0x1547,0x3ff7},
+/*l2t*/	{0xa371,0x0979,0x934f,0x400a}
+#else
+/*0*/   {0x0000,0x0000,0x0000,0x0000},
+/*1*/   {0x3ff0,0x0000,0x0000,0x0000},
+/*pi*/  {0x4009,0x21fb,0x5444,0x2d18},
+/*lg2*/	{0x3fd3,0x4413,0x509f,0x79ff},
+/*ln2*/	{0x3fe6,0x2e42,0xfefa,0x39ef},
+/*l2e*/	{0x3ff7,0x1547,0x652b,0x82fe},
+/*l2t*/	{0x400a,0x934f,0x0979,0xa371}
+#endif
+};
+#endif
+    
 /* n must be a constant to be efficient */
 static inline int lshift(int x, int n)
 {
@@ -866,3 +910,685 @@ CCTable cc_table[CC_OP_NB] = {
     [CC_OP_SHLW] = { compute_all_shlw, compute_c_shlw },
     [CC_OP_SHLL] = { compute_all_shll, compute_c_shll },
 };
+
+/* floating point support */
+
+#ifdef USE_X86LDOUBLE
+/* use long double functions */
+#define lrint lrintl
+#define llrint llrintl
+#define fabs fabsl
+#define sin sinl
+#define cos cosl
+#define sqrt sqrtl
+#define pow powl
+#define log logl
+#define tan tanl
+#define atan2 atan2l
+#define floor floorl
+#define ceil ceill
+#define rint rintl
+#endif
+
+extern int lrint(CPU86_LDouble x);
+extern int64_t llrint(CPU86_LDouble x);
+extern CPU86_LDouble fabs(CPU86_LDouble x);
+extern CPU86_LDouble sin(CPU86_LDouble x);
+extern CPU86_LDouble cos(CPU86_LDouble x);
+extern CPU86_LDouble sqrt(CPU86_LDouble x);
+extern CPU86_LDouble pow(CPU86_LDouble, CPU86_LDouble);
+extern CPU86_LDouble log(CPU86_LDouble x);
+extern CPU86_LDouble tan(CPU86_LDouble x);
+extern CPU86_LDouble atan2(CPU86_LDouble, CPU86_LDouble);
+extern CPU86_LDouble floor(CPU86_LDouble x);
+extern CPU86_LDouble ceil(CPU86_LDouble x);
+extern CPU86_LDouble rint(CPU86_LDouble x);
+
+#define RC_MASK         0xc00
+#define RC_NEAR		0x000
+#define RC_DOWN		0x400
+#define RC_UP		0x800
+#define RC_CHOP		0xc00
+
+#define MAXTAN 9223372036854775808.0
+
+#ifdef USE_X86LDOUBLE
+
+/* only for x86 */
+typedef union {
+    long double d;
+    struct {
+        unsigned long long lower;
+        unsigned short upper;
+    } l;
+} CPU86_LDoubleU;
+
+/* the following deal with x86 long double-precision numbers */
+#define MAXEXPD 0x7fff
+#define EXPBIAS 16383
+#define EXPD(fp)	(fp.l.upper & 0x7fff)
+#define SIGND(fp)	((fp.l.upper) & 0x8000)
+#define MANTD(fp)       (fp.l.lower)
+#define BIASEXPONENT(fp) fp.l.upper = (fp.l.upper & ~(0x7fff)) | EXPBIAS
+
+#else
+
+typedef {
+    double d;
+#ifndef WORDS_BIGENDIAN
+    struct {
+        unsigned long lower;
+        long upper;
+    } l;
+#else
+    struct {
+        long upper;
+        unsigned long lower;
+    } l;
+#endif
+    long long ll;
+} CPU86_LDoubleU;
+
+/* the following deal with IEEE double-precision numbers */
+#define MAXEXPD 0x7ff
+#define EXPBIAS 1023
+#define EXPD(fp)	(((fp.l.upper) >> 20) & 0x7FF)
+#define SIGND(fp)	((fp.l.upper) & 0x80000000)
+#define MANTD(fp)	(fp.ll & ((1LL << 52) - 1))
+#define BIASEXPONENT(fp) fp.l.upper = (fp.l.upper & ~(0x7ff << 20)) | (EXPBIAS << 20)
+#endif
+
+/* fp load FT0 */
+
+void OPPROTO op_flds_FT0_A0(void)
+{
+    FT0 = ldfl((void *)A0);
+}
+
+void OPPROTO op_fldl_FT0_A0(void)
+{
+    FT0 = ldfq((void *)A0);
+}
+
+void OPPROTO op_fild_FT0_A0(void)
+{
+    FT0 = (CPU86_LDouble)ldsw((void *)A0);
+}
+
+void OPPROTO op_fildl_FT0_A0(void)
+{
+    FT0 = (CPU86_LDouble)((int32_t)ldl((void *)A0));
+}
+
+void OPPROTO op_fildll_FT0_A0(void)
+{
+    FT0 = (CPU86_LDouble)((int64_t)ldq((void *)A0));
+}
+
+/* fp load ST0 */
+
+void OPPROTO op_flds_ST0_A0(void)
+{
+    ST0 = ldfl((void *)A0);
+}
+
+void OPPROTO op_fldl_ST0_A0(void)
+{
+    ST0 = ldfq((void *)A0);
+}
+
+void OPPROTO op_fild_ST0_A0(void)
+{
+    ST0 = (CPU86_LDouble)ldsw((void *)A0);
+}
+
+void OPPROTO op_fildl_ST0_A0(void)
+{
+    ST0 = (CPU86_LDouble)((int32_t)ldl((void *)A0));
+}
+
+void OPPROTO op_fildll_ST0_A0(void)
+{
+    ST0 = (CPU86_LDouble)((int64_t)ldq((void *)A0));
+}
+
+/* fp store */
+
+void OPPROTO op_fsts_ST0_A0(void)
+{
+    stfl((void *)A0, (float)ST0);
+}
+
+void OPPROTO op_fstl_ST0_A0(void)
+{
+    ST0 = ldfq((void *)A0);
+}
+
+void OPPROTO op_fist_ST0_A0(void)
+{
+    int val;
+    val = lrint(ST0);
+    stw((void *)A0, val);
+}
+
+void OPPROTO op_fistl_ST0_A0(void)
+{
+    int val;
+    val = lrint(ST0);
+    stl((void *)A0, val);
+}
+
+void OPPROTO op_fistll_ST0_A0(void)
+{
+    int64_t val;
+    val = llrint(ST0);
+    stq((void *)A0, val);
+}
+
+/* FPU move */
+
+static inline void fpush(void)
+{
+    env->fpstt = (env->fpstt - 1) & 7;
+    env->fptags[env->fpstt] = 0; /* validate stack entry */
+}
+
+static inline void fpop(void)
+{
+    env->fptags[env->fpstt] = 1; /* invvalidate stack entry */
+    env->fpstt = (env->fpstt + 1) & 7;
+}
+
+void OPPROTO op_fpush(void)
+{
+    fpush();
+}
+
+void OPPROTO op_fpop(void)
+{
+    fpop();
+}
+
+void OPPROTO op_fdecstp(void)
+{
+    env->fpstt = (env->fpstt - 1) & 7;
+    env->fpus &= (~0x4700);
+}
+
+void OPPROTO op_fincstp(void)
+{
+    env->fpstt = (env->fpstt + 1) & 7;
+    env->fpus &= (~0x4700);
+}
+
+void OPPROTO op_fmov_ST0_FT0(void)
+{
+    ST0 = FT0;
+}
+
+void OPPROTO op_fmov_FT0_STN(void)
+{
+    FT0 = ST(PARAM1);
+}
+
+void OPPROTO op_fmov_ST0_STN(void)
+{
+    ST0 = ST(PARAM1);
+}
+
+void OPPROTO op_fmov_STN_ST0(void)
+{
+    ST(PARAM1) = ST0;
+}
+
+void OPPROTO op_fxchg_ST0_STN(void)
+{
+    CPU86_LDouble tmp;
+    tmp = ST(PARAM1);
+    ST(PARAM1) = ST0;
+    ST0 = tmp;
+}
+
+/* FPU operations */
+
+/* XXX: handle nans */
+void OPPROTO op_fcom_ST0_FT0(void)
+{
+    env->fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
+    if (ST0 < FT0)
+        env->fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
+    else if (ST0 == FT0)
+        env->fpus |= 0x4000; /* (C3,C2,C0) <-- 100 */
+    FORCE_RET();
+}
+
+void OPPROTO op_fadd_ST0_FT0(void)
+{
+    ST0 += FT0;
+}
+
+void OPPROTO op_fmul_ST0_FT0(void)
+{
+    ST0 *= FT0;
+}
+
+void OPPROTO op_fsub_ST0_FT0(void)
+{
+    ST0 -= FT0;
+}
+
+void OPPROTO op_fsubr_ST0_FT0(void)
+{
+    ST0 = FT0 - ST0;
+}
+
+void OPPROTO op_fdiv_ST0_FT0(void)
+{
+    ST0 /= FT0;
+}
+
+void OPPROTO op_fdivr_ST0_FT0(void)
+{
+    ST0 = FT0 / ST0;
+}
+
+/* fp operations between STN and ST0 */
+
+void OPPROTO op_fadd_STN_ST0(void)
+{
+    ST(PARAM1) += ST0;
+}
+
+void OPPROTO op_fmul_STN_ST0(void)
+{
+    ST(PARAM1) *= ST0;
+}
+
+void OPPROTO op_fsub_STN_ST0(void)
+{
+    ST(PARAM1) -= ST0;
+}
+
+void OPPROTO op_fsubr_STN_ST0(void)
+{
+    CPU86_LDouble *p;
+    p = &ST(PARAM1);
+    *p = ST0 - *p;
+}
+
+void OPPROTO op_fdiv_STN_ST0(void)
+{
+    ST(PARAM1) /= ST0;
+}
+
+void OPPROTO op_fdivr_STN_ST0(void)
+{
+    CPU86_LDouble *p;
+    p = &ST(PARAM1);
+    *p = ST0 / *p;
+}
+
+/* misc FPU operations */
+void OPPROTO op_fchs_ST0(void)
+{
+    ST0 = -ST0;
+}
+
+void OPPROTO op_fabs_ST0(void)
+{
+    ST0 = fabs(ST0);
+}
+
+void OPPROTO op_fxam_ST0(void)
+{
+    CPU86_LDoubleU temp;
+    int expdif;
+
+    temp.d = ST0;
+
+    env->fpus &= (~0x4700);  /* (C3,C2,C1,C0) <-- 0000 */
+    if (SIGND(temp))
+        env->fpus |= 0x200; /* C1 <-- 1 */
+
+    expdif = EXPD(temp);
+    if (expdif == MAXEXPD) {
+        if (MANTD(temp) == 0)
+            env->fpus |=  0x500 /*Infinity*/;
+        else
+            env->fpus |=  0x100 /*NaN*/;
+    } else if (expdif == 0) {
+        if (MANTD(temp) == 0)
+            env->fpus |=  0x4000 /*Zero*/;
+        else
+            env->fpus |= 0x4400 /*Denormal*/;
+    } else {
+        env->fpus |= 0x400;
+    }
+    FORCE_RET();
+}
+
+void OPPROTO op_fld1_ST0(void)
+{
+    ST0 = *(CPU86_LDouble *)&f15rk[1];
+}
+
+void OPPROTO op_fld2t_ST0(void)
+{
+    ST0 = *(CPU86_LDouble *)&f15rk[6];
+}
+
+void OPPROTO op_fld2e_ST0(void)
+{
+    ST0 = *(CPU86_LDouble *)&f15rk[5];
+}
+
+void OPPROTO op_fldpi_ST0(void)
+{
+    ST0 = *(CPU86_LDouble *)&f15rk[2];
+}
+
+void OPPROTO op_fldlg2_ST0(void)
+{
+    ST0 = *(CPU86_LDouble *)&f15rk[3];
+}
+
+void OPPROTO op_fldln2_ST0(void)
+{
+    ST0 = *(CPU86_LDouble *)&f15rk[4];
+}
+
+void OPPROTO op_fldz_ST0(void)
+{
+    ST0 = *(CPU86_LDouble *)&f15rk[0];
+}
+
+void OPPROTO op_fldz_FT0(void)
+{
+    ST0 = *(CPU86_LDouble *)&f15rk[0];
+}
+
+void helper_f2xm1(void)
+{
+    ST0 = pow(2.0,ST0) - 1.0;
+}
+
+void helper_fyl2x(void)
+{
+    CPU86_LDouble fptemp;
+    
+    fptemp = ST0;
+    if (fptemp>0.0){
+        fptemp = log(fptemp)/log(2.0);	 /* log2(ST) */
+        ST1 *= fptemp;
+        fpop();
+    } else { 
+        env->fpus &= (~0x4700);
+        env->fpus |= 0x400;
+    }
+}
+
+void helper_fptan(void)
+{
+    CPU86_LDouble fptemp;
+
+    fptemp = ST0;
+    if((fptemp > MAXTAN)||(fptemp < -MAXTAN)) {
+        env->fpus |= 0x400;
+    } else {
+        ST0 = tan(fptemp);
+        fpush();
+        ST0 = 1.0;
+        env->fpus &= (~0x400);  /* C2 <-- 0 */
+        /* the above code is for  |arg| < 2**52 only */
+    }
+}
+
+void helper_fpatan(void)
+{
+    CPU86_LDouble fptemp, fpsrcop;
+
+    fpsrcop = ST1;
+    fptemp = ST0;
+    ST1 = atan2(fpsrcop,fptemp);
+    fpop();
+}
+
+void helper_fxtract(void)
+{
+    CPU86_LDoubleU temp;
+    unsigned int expdif;
+
+    temp.d = ST0;
+    expdif = EXPD(temp) - EXPBIAS;
+    /*DP exponent bias*/
+    ST0 = expdif;
+    fpush();
+    BIASEXPONENT(temp);
+    ST0 = temp.d;
+}
+
+void helper_fprem1(void)
+{
+    CPU86_LDouble dblq, fpsrcop, fptemp;
+    CPU86_LDoubleU fpsrcop1, fptemp1;
+    int expdif;
+    int q;
+
+    fpsrcop = ST0;
+    fptemp = ST1;
+    fpsrcop1.d = fpsrcop;
+    fptemp1.d = fptemp;
+    expdif = EXPD(fpsrcop1) - EXPD(fptemp1);
+    if (expdif < 53) {
+        dblq = fpsrcop / fptemp;
+        dblq = (dblq < 0.0)? ceil(dblq): floor(dblq);
+        ST0 = fpsrcop - fptemp*dblq;
+        q = (int)dblq; /* cutting off top bits is assumed here */
+        env->fpus &= (~0x4700); /* (C3,C2,C1,C0) <-- 0000 */
+				/* (C0,C1,C3) <-- (q2,q1,q0) */
+        env->fpus |= (q&0x4) << 6; /* (C0) <-- q2 */
+        env->fpus |= (q&0x2) << 8; /* (C1) <-- q1 */
+        env->fpus |= (q&0x1) << 14; /* (C3) <-- q0 */
+    } else {
+        env->fpus |= 0x400;  /* C2 <-- 1 */
+        fptemp = pow(2.0, expdif-50);
+        fpsrcop = (ST0 / ST1) / fptemp;
+        /* fpsrcop = integer obtained by rounding to the nearest */
+        fpsrcop = (fpsrcop-floor(fpsrcop) < ceil(fpsrcop)-fpsrcop)?
+            floor(fpsrcop): ceil(fpsrcop);
+        ST0 -= (ST1 * fpsrcop * fptemp);
+    }
+}
+
+void helper_fprem(void)
+{
+    CPU86_LDouble dblq, fpsrcop, fptemp;
+    CPU86_LDoubleU fpsrcop1, fptemp1;
+    int expdif;
+    int q;
+    
+    fpsrcop = ST0;
+    fptemp = ST1;
+    fpsrcop1.d = fpsrcop;
+    fptemp1.d = fptemp;
+    expdif = EXPD(fpsrcop1) - EXPD(fptemp1);
+    if ( expdif < 53 ) {
+        dblq = fpsrcop / fptemp;
+        dblq = (dblq < 0.0)? ceil(dblq): floor(dblq);
+        ST0 = fpsrcop - fptemp*dblq;
+        q = (int)dblq; /* cutting off top bits is assumed here */
+        env->fpus &= (~0x4700); /* (C3,C2,C1,C0) <-- 0000 */
+				/* (C0,C1,C3) <-- (q2,q1,q0) */
+        env->fpus |= (q&0x4) << 6; /* (C0) <-- q2 */
+        env->fpus |= (q&0x2) << 8; /* (C1) <-- q1 */
+        env->fpus |= (q&0x1) << 14; /* (C3) <-- q0 */
+    } else {
+        env->fpus |= 0x400;  /* C2 <-- 1 */
+        fptemp = pow(2.0, expdif-50);
+        fpsrcop = (ST0 / ST1) / fptemp;
+        /* fpsrcop = integer obtained by chopping */
+        fpsrcop = (fpsrcop < 0.0)?
+            -(floor(fabs(fpsrcop))): floor(fpsrcop);
+        ST0 -= (ST1 * fpsrcop * fptemp);
+    }
+}
+
+void helper_fyl2xp1(void)
+{
+    CPU86_LDouble fptemp;
+
+    fptemp = ST0;
+    if ((fptemp+1.0)>0.0) {
+        fptemp = log(fptemp+1.0) / log(2.0); /* log2(ST+1.0) */
+        ST1 *= fptemp;
+        fpop();
+    } else { 
+        env->fpus &= (~0x4700);
+        env->fpus |= 0x400;
+    }
+}
+
+void helper_fsqrt(void)
+{
+    CPU86_LDouble fptemp;
+
+    fptemp = ST0;
+    if (fptemp<0.0) { 
+        env->fpus &= (~0x4700);  /* (C3,C2,C1,C0) <-- 0000 */
+        env->fpus |= 0x400;
+    }
+    ST0 = sqrt(fptemp);
+}
+
+void helper_fsincos(void)
+{
+    CPU86_LDouble fptemp;
+
+    fptemp = ST0;
+    if ((fptemp > MAXTAN)||(fptemp < -MAXTAN)) {
+        env->fpus |= 0x400;
+    } else {
+        ST0 = sin(fptemp);
+        fpush();
+        ST0 = cos(fptemp);
+        env->fpus &= (~0x400);  /* C2 <-- 0 */
+        /* the above code is for  |arg| < 2**63 only */
+    }
+}
+
+void helper_frndint(void)
+{
+    ST0 = rint(ST0);
+}
+
+void helper_fscale(void)
+{
+    CPU86_LDouble fpsrcop, fptemp;
+
+    fpsrcop = 2.0;
+    fptemp = pow(fpsrcop,ST1);
+    ST0 *= fptemp;
+}
+
+void helper_fsin(void)
+{
+    CPU86_LDouble fptemp;
+
+    fptemp = ST0;
+    if ((fptemp > MAXTAN)||(fptemp < -MAXTAN)) {
+        env->fpus |= 0x400;
+    } else {
+        ST0 = sin(fptemp);
+        env->fpus &= (~0x400);  /* C2 <-- 0 */
+        /* the above code is for  |arg| < 2**53 only */
+    }
+}
+
+void helper_fcos(void)
+{
+    CPU86_LDouble fptemp;
+
+    fptemp = ST0;
+    if((fptemp > MAXTAN)||(fptemp < -MAXTAN)) {
+        env->fpus |= 0x400;
+    } else {
+        ST0 = cos(fptemp);
+        env->fpus &= (~0x400);  /* C2 <-- 0 */
+        /* the above code is for  |arg5 < 2**63 only */
+    }
+}
+
+/* associated heplers to reduce generated code length and to simplify
+   relocation (FP constants are usually stored in .rodata section) */
+
+void OPPROTO op_f2xm1(void)
+{
+    helper_f2xm1();
+}
+
+void OPPROTO op_fyl2x(void)
+{
+    helper_fyl2x();
+}
+
+void OPPROTO op_fptan(void)
+{
+    helper_fptan();
+}
+
+void OPPROTO op_fpatan(void)
+{
+    helper_fpatan();
+}
+
+void OPPROTO op_fxtract(void)
+{
+    helper_fxtract();
+}
+
+void OPPROTO op_fprem1(void)
+{
+    helper_fprem1();
+}
+
+
+void OPPROTO op_fprem(void)
+{
+    helper_fprem();
+}
+
+void OPPROTO op_fyl2xp1(void)
+{
+    helper_fyl2xp1();
+}
+
+void OPPROTO op_fsqrt(void)
+{
+    helper_fsqrt();
+}
+
+void OPPROTO op_fsincos(void)
+{
+    helper_fsincos();
+}
+
+void OPPROTO op_frndint(void)
+{
+    helper_frndint();
+}
+
+void OPPROTO op_fscale(void)
+{
+    helper_fscale();
+}
+
+void OPPROTO op_fsin(void)
+{
+    helper_fsin();
+}
+
+void OPPROTO op_fcos(void)
+{
+    helper_fcos();
+}
+

@@ -243,6 +243,8 @@ void gen_code(const char *name, unsigned long offset, unsigned long size,
                     if (n >= MAX_ARGS)
                         error("too many arguments in %s", name);
                     args_present[n - 1] = 1;
+                } else {
+                    fprintf(outfile, "extern char %s;\n", sym_name);
                 }
             }
         }
@@ -257,6 +259,8 @@ void gen_code(const char *name, unsigned long offset, unsigned long size,
                     if (n >= MAX_ARGS)
                         error("too many arguments in %s", name);
                     args_present[n - 1] = 1;
+                } else {
+                    fprintf(outfile, "extern char %s;\n", sym_name);
                 }
             }
         }
