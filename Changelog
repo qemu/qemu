@@ -15,6 +15,7 @@ version 0.5.6:
   - VGA font selection fix (Daniel Serpell)
   - PIC reset fix (Hidemi KAWAI)
   - PIC spurious irq support (aka Solaris install bug)
+  - added '-localtime' option
 
 version 0.5.5:
 

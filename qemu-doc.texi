@@ -196,7 +196,8 @@ General options:
 @table @option
 @item -fda file
 @item -fdb file
-Use @var{file} as floppy disk 0/1 image (@xref{disk_images}).
+Use @var{file} as floppy disk 0/1 image (@xref{disk_images}). You can
+use the host floppy by using @file{/dev/fd0} as filename.
 
 @item -hda file
 @item -hdb file
@@ -206,7 +207,8 @@ Use @var{file} as hard disk 0, 1, 2 or 3 image (@xref{disk_images}).
 
 @item -cdrom file
 Use @var{file} as CD-ROM image (you cannot use @option{-hdc} and and
-@option{-cdrom} at the same time).
+@option{-cdrom} at the same time). You can use the host CD-ROM by
+using @file{/dev/cdrom} as filename.
 
 @item -boot [a|c|d]
 Boot on floppy (a), hard disk (c) or CD-ROM (d). Hard disk boot is
