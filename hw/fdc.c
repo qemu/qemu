@@ -95,9 +95,14 @@ typedef struct fdrive_t {
 } fdrive_t;
 
 #ifdef TARGET_SPARC
+/* XXX: suppress those hacks */
 #define DMA_read_memory(a,b,c,d)
 #define DMA_write_memory(a,b,c,d)
-#define DMA_register_channel(a,b,c)
+void DMA_register_channel (int nchan,
+                           DMA_transfer_handler transfer_handler,
+                           void *opaque)
+{
+}
 #define DMA_hold_DREQ(a)
 #define DMA_release_DREQ(a)
 #define DMA_get_channel_mode(a) (0)
@@ -469,16 +474,27 @@ static void fdctrl_write (void *opaque, uint32_t reg, uint32_t value)
     }
 }
 
+static uint32_t fdctrl_read_mem (void *opaque, target_phys_addr_t reg)
+{
+    return fdctrl_read(opaque, reg);
+}
+
+static void fdctrl_write_mem (void *opaque, 
+                              target_phys_addr_t reg, uint32_t value)
+{
+    fdctrl_write(opaque, reg, value);
+}
+
 static CPUReadMemoryFunc *fdctrl_mem_read[3] = {
-    fdctrl_read,
-    fdctrl_read,
-    fdctrl_read,
+    fdctrl_read_mem,
+    fdctrl_read_mem,
+    fdctrl_read_mem,
 };
 
 static CPUWriteMemoryFunc *fdctrl_mem_write[3] = {
-    fdctrl_write,
-    fdctrl_write,
-    fdctrl_write,
+    fdctrl_write_mem,
+    fdctrl_write_mem,
+    fdctrl_write_mem,
 };
 
 static void fd_change_cb (void *opaque)
