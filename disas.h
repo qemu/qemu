@@ -1,14 +1,8 @@
 #ifndef _QEMU_DISAS_H
 #define _QEMU_DISAS_H
 
-enum disas_type {
-    DISAS_I386_I386,
-    DISAS_I386_I8086,
-    DISAS_TARGET, /* whatever host is. */
-};
-
 /* Disassemble this for me please... (debugging). */
-void disas(FILE *out, void *code, unsigned long size, enum disas_type type);
+void disas(FILE *out, void *code, unsigned long size, int is_host, int flags);
 
 /* Look up symbol for debugging purpose.  Returns "" if unknown. */
 const char *lookup_symbol(void *orig_addr);

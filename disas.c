@@ -92,8 +92,9 @@ bfd_vma bfd_getb32 (const bfd_byte *addr)
   return (bfd_vma) v;
 }
 
-/* Disassemble this for me please... (debugging). */
-void disas(FILE *out, void *code, unsigned long size, enum disas_type type)
+/* Disassemble this for me please... (debugging). 'flags' is only used
+   for i386: non zero means 16 bit code */
+void disas(FILE *out, void *code, unsigned long size, int is_host, int flags)
 {
     uint8_t *pc;
     int count;
@@ -106,7 +107,7 @@ void disas(FILE *out, void *code, unsigned long size, enum disas_type type)
     disasm_info.buffer_vma = (unsigned long)code;
     disasm_info.buffer_length = size;
 
-    if (type == DISAS_TARGET) {
+    if (is_host) {
 #ifdef WORDS_BIGENDIAN
 	disasm_info.endian = BFD_ENDIAN_BIG;
 #else
@@ -128,13 +129,23 @@ void disas(FILE *out, void *code, unsigned long size, enum disas_type type)
 	return;
 #endif
     } else {
-	/* Currently only source supported in x86. */
+#ifdef TARGET_WORDS_BIGENDIAN
+	disasm_info.endian = BFD_ENDIAN_BIG;
+#else
 	disasm_info.endian = BFD_ENDIAN_LITTLE;
-	if (type == DISAS_I386_I386)
+#endif
+#if defined(TARGET_I386)
+        if (!flags)
 	    disasm_info.mach = bfd_mach_i386_i386;
 	else
 	    disasm_info.mach = bfd_mach_i386_i8086;
 	print_insn = print_insn_i386;
+#elif defined(TARGET_ARM)
+	print_insn = print_insn_arm;
+#else
+	fprintf(out, "Asm output not supported on this arch\n");
+	return;
+#endif
     }
 
     for (pc = code; pc < (uint8_t *)code + size; pc += count) {
@@ -142,7 +153,7 @@ void disas(FILE *out, void *code, unsigned long size, enum disas_type type)
 #ifdef __arm__
         /* since data are included in the code, it is better to
            display code data too */
-        if (type == DISAS_TARGET) {
+        if (is_host) {
             fprintf(out, "%08x  ", (int)bfd_getl32((const bfd_byte *)pc));
         }
 #endif
