@@ -3,16 +3,10 @@
  hello
  sha1.test.c
  sha1.c
- op.c
  test-i386
  sha1
  testclone
- interp.h
- interploop.c
  .gdb_history
- cachegrind.out
- interp.c
- interp
  testthread
  test-i386.s
  test-i386.ref

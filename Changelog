@@ -1,3 +1,13 @@
+version 0.2:
+
+ - PowerPC disassembly and ELF symbols output (Rusty Russel)
+ - flock support (Rusty Russel)
+ - ugetrlimit support (Rusty Russel)
+ - fstat64 fix (Rusty Russel)
+ - initial Alpha port (Falk Hueffner)
+ - initial IA64 port (Matt Wilson)
+ - initial Sparc and Sparc64 port (David S. Miller)
+
 version 0.1.6:
 
  - automatic library search system. QEMU can now work with unpatched

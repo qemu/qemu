@@ -32,7 +32,7 @@ test_path: test_path.c
 # i386 emulation test (test various opcodes) */
 test-i386: test-i386.c test-i386-code16.S \
            test-i386.h test-i386-shift.h test-i386-muldiv.h
-	$(CC) $(CFLAGS) $(LDFLAGS) -static -o $@ test-i386.c test-i386-code16.S -lm
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ test-i386.c test-i386-code16.S -lm
 
 test: test-i386
 ifeq ($(ARCH),i386)
