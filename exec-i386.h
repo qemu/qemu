@@ -243,10 +243,13 @@ void raise_interrupt(int intno, int is_int, int error_code,
                      unsigned int next_eip);
 void raise_exception_err(int exception_index, int error_code);
 void raise_exception(int exception_index);
+void helper_divl_EAX_T0(uint32_t eip);
+void helper_idivl_EAX_T0(uint32_t eip);
+void helper_cmpxchg8b(void);
 void helper_cpuid(void);
+void helper_rdtsc(void);
 void helper_lsl(void);
 void helper_lar(void);
-
 
 #ifdef USE_X86LDOUBLE
 /* use long double functions */
@@ -287,6 +290,13 @@ extern CPU86_LDouble rint(CPU86_LDouble x);
 
 #define MAXTAN 9223372036854775808.0
 
+#ifdef __arm__
+/* we have no way to do correct rounding - a FPU emulator is needed */
+#define FE_DOWNWARD   FE_TONEAREST
+#define FE_UPWARD     FE_TONEAREST
+#define FE_TOWARDZERO FE_TONEAREST
+#endif
+
 #ifdef USE_X86LDOUBLE
 
 /* only for x86 */
@@ -308,9 +318,10 @@ typedef union {
 
 #else
 
+/* NOTE: arm is horrible as double 32 bit words are stored in big endian ! */
 typedef union {
     double d;
-#ifndef WORDS_BIGENDIAN
+#if !defined(WORDS_BIGENDIAN) && !defined(__arm__)
     struct {
         uint32_t lower;
         int32_t upper;
@@ -321,7 +332,9 @@ typedef union {
         uint32_t lower;
     } l;
 #endif
+#ifndef __arm__
     int64_t ll;
+#endif
 } CPU86_LDoubleU;
 
 /* the following deal with IEEE double-precision numbers */
@@ -329,7 +342,11 @@ typedef union {
 #define EXPBIAS 1023
 #define EXPD(fp)	(((fp.l.upper) >> 20) & 0x7FF)
 #define SIGND(fp)	((fp.l.upper) & 0x80000000)
+#ifdef __arm__
+#define MANTD(fp)	(fp.l.lower | ((uint64_t)(fp.l.upper & ((1 << 20) - 1)) << 32))
+#else
 #define MANTD(fp)	(fp.ll & ((1LL << 52) - 1))
+#endif
 #define BIASEXPONENT(fp) fp.l.upper = (fp.l.upper & ~(0x7ff << 20)) | (EXPBIAS << 20)
 #endif
 
@@ -350,12 +367,20 @@ static inline CPU86_LDouble helper_fldt(uint8_t *ptr)
 {
     CPU86_LDoubleU temp;
     int upper, e;
+    uint64_t ll;
+
     /* mantissa */
     upper = lduw(ptr + 8);
     /* XXX: handle overflow ? */
     e = (upper & 0x7fff) - 16383 + EXPBIAS; /* exponent */
     e |= (upper >> 4) & 0x800; /* sign */
-    temp.ll = ((ldq(ptr) >> 11) & ((1LL << 52) - 1)) | ((uint64_t)e << 52);
+    ll = (ldq(ptr) >> 11) & ((1LL << 52) - 1);
+#ifdef __arm__
+    temp.l.upper = (e << 20) | (ll >> 32);
+    temp.l.lower = ll;
+#else
+    temp.ll = ll | ((uint64_t)e << 52);
+#endif
     return temp.d;
 }
 
@@ -363,6 +388,7 @@ static inline void helper_fstt(CPU86_LDouble f, uint8_t *ptr)
 {
     CPU86_LDoubleU temp;
     int e;
+
     temp.d = f;
     /* mantissa */
     stq(ptr, (MANTD(temp) << 11) | (1LL << 63));
@@ -372,6 +398,8 @@ static inline void helper_fstt(CPU86_LDouble f, uint8_t *ptr)
     stw(ptr + 8, e);
 }
 #endif
+
+const CPU86_LDouble f15rk[7];
 
 void helper_fldt_ST0_A0(void);
 void helper_fstt_ST0_A0(void);
