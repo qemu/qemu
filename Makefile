@@ -21,13 +21,15 @@ dyngen: dyngen.o
 	$(HOST_CC) $(CFLAGS) $(DEFINES) -c -o $@ $<
 
 clean:
+# avoid old build problems by removing potentially incorrect old files
+	rm -f config.mak config.h op-i386.h opc-i386.h gen-op-i386.h op-arm.h opc-arm.h gen-op-arm.h 
 	rm -f *.o *.a $(TOOLS) dyngen TAGS
 	for d in $(TARGET_DIRS); do \
 	make -C $$d $@ || exit 1 ; \
         done
 
 distclean: clean
-	rm -f config-host.mak config-host.h config.mak config.h
+	rm -f config-host.mak config-host.h
 	for d in $(TARGET_DIRS); do \
 	rm -f $$d/config.h $$d/config.mak || exit 1 ; \
         done
