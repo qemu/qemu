@@ -38,7 +38,7 @@ float32 float32_pol(float32 rFn,float32 rFm);
 unsigned int SingleCPDO(const unsigned int opcode)
 {
    FPA11 *fpa11 = GET_FPA11();
-   float32 rFm, rFn;
+   float32 rFm, rFn = 0;
    unsigned int Fd, Fm, Fn, nRc = 1;
 
    Fm = getFm(opcode);
