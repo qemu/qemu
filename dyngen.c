@@ -1200,6 +1200,10 @@ int load_elf(const char *filename, FILE *outfile, int out_type)
     }
 
     if (out_type == OUT_INDEX_OP) {
+        fprintf(outfile, "DEF(nop1, 0, 0)\n");
+        fprintf(outfile, "DEF(nop2, 0, 0)\n");
+        fprintf(outfile, "DEF(nop3, 0, 0)\n");
+        fprintf(outfile, "DEF(nop, 0, 0)\n");
         fprintf(outfile, "DEF(end, 0, 0)\n");
         for(i = 0, sym = symtab; i < nb_syms; i++, sym++) {
             const char *name, *p;
@@ -1270,6 +1274,17 @@ fprintf(outfile,
         }
 
 fprintf(outfile,
+"        case INDEX_op_nop:\n"
+"            break;\n"
+"        case INDEX_op_nop1:\n"
+"            opparam_ptr++;\n"
+"            break;\n"
+"        case INDEX_op_nop2:\n"
+"            opparam_ptr += 2;\n"
+"            break;\n"
+"        case INDEX_op_nop3:\n"
+"            opparam_ptr += 3;\n"
+"            break;\n"
 "        default:\n"
 "            goto the_end;\n"
 "        }\n");
