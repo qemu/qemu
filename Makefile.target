@@ -302,7 +302,9 @@ clean:
 	rm -f *.o  *.a *~ $(PROGS) gen-op.h opc.h op.h nwfpe/*.o
 
 install: all 
+ifneq ($(PROGS),)
 	install -m 755 -s $(PROGS) $(prefix)/bin
+endif
 
 ifneq ($(wildcard .depend),)
 include .depend
