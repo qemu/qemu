@@ -279,9 +279,9 @@ static void sdl_grab_end(void)
     sdl_update_caption();
 }
 
-static void sdl_send_mouse_event(void)
+static void sdl_send_mouse_event(int dz)
 {
-    int dx, dy, dz, state, buttons;
+    int dx, dy, state, buttons;
     state = SDL_GetRelativeMouseState(&dx, &dy);
     buttons = 0;
     if (state & SDL_BUTTON(SDL_BUTTON_LEFT))
@@ -290,14 +290,6 @@ static void sdl_send_mouse_event(void)
         buttons |= MOUSE_EVENT_RBUTTON;
     if (state & SDL_BUTTON(SDL_BUTTON_MIDDLE))
         buttons |= MOUSE_EVENT_MBUTTON;
-    /* XXX: test wheel */
-    dz = 0;
-#ifdef SDL_BUTTON_WHEELUP
-    if (state & SDL_BUTTON(SDL_BUTTON_WHEELUP))
-        dz--;
-    if (state & SDL_BUTTON(SDL_BUTTON_WHEELDOWN))
-        dz++;
-#endif
     kbd_mouse_event(dx, dy, dz, buttons);
 }
 
@@ -426,7 +418,7 @@ static void sdl_refresh(DisplayState *ds)
             break;
         case SDL_MOUSEMOTION:
             if (gui_grab) {
-                sdl_send_mouse_event();
+                sdl_send_mouse_event(0);
             }
             break;
         case SDL_MOUSEBUTTONDOWN:
@@ -440,7 +432,16 @@ static void sdl_refresh(DisplayState *ds)
                         sdl_grab_start();
                     }
                 } else {
-                    sdl_send_mouse_event();
+                    int dz;
+                    dz = 0;
+#ifdef SDL_BUTTON_WHEELUP
+                    if (bev->button == SDL_BUTTON_WHEELUP) {
+                        dz = -1;
+                    } else if (bev->button == SDL_BUTTON_WHEELDOWN) {
+                        dz = 1;
+                    }
+#endif               
+                    sdl_send_mouse_event(dz);
                 }
             }
             break;
