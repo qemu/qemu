@@ -348,15 +348,20 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, uint32_t addr,
         page_size = 4096;
         virt_addr = addr & ~0xfff;
     }
+
     /* the page can be put in the TLB */
     prot = PROT_READ;
-    if (is_user) {
-        if (pte & PG_RW_MASK)
-            prot |= PROT_WRITE;
-    } else {
-        if (!(env->cr[0] & CR0_WP_MASK) || !(pte & PG_USER_MASK) ||
-            (pte & PG_RW_MASK))
-            prot |= PROT_WRITE;
+    if (pte & PG_DIRTY_MASK) {
+        /* only set write access if already dirty... otherwise wait
+           for dirty access */
+        if (is_user) {
+            if (pte & PG_RW_MASK)
+                prot |= PROT_WRITE;
+        } else {
+            if (!(env->cr[0] & CR0_WP_MASK) || !(pte & PG_USER_MASK) ||
+                (pte & PG_RW_MASK))
+                prot |= PROT_WRITE;
+        }
     }
     
  do_mapping:
