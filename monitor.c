@@ -660,6 +660,11 @@ static void do_ioport_read(int count, int format, int size, int addr, int has_in
                 suffix, addr, size * 2, val);
 }
 
+static void do_system_reset(void)
+{
+    qemu_system_reset_request();
+}
+
 static term_cmd_t term_cmds[] = {
     { "help|?", "s?", do_help, 
       "[cmd]", "show the help" },
@@ -700,6 +705,8 @@ static term_cmd_t term_cmds[] = {
 
     { "sendkey", "s", do_send_key, 
       "keys", "send keys to the VM (e.g. 'sendkey ctrl-alt-f1')" },
+    { "system_reset", "", do_system_reset, 
+      "", "reset the system" },
     { NULL, NULL, }, 
 };
 
