@@ -125,17 +125,17 @@ static int fd_seek (fdrive_t *drv, uint8_t head, uint8_t track, uint8_t sect,
 
     if (track > drv->max_track ||
 	(head != 0 && (drv->flags & FDISK_DBL_SIDES) == 0)) {
-        FLOPPY_ERROR("try to read %d %02x %02x (max=%d %d %02x %02x)\n",
-                     head, track, sect, 1,
-		     (drv->flags & FDISK_DBL_SIDES) == 0 ? 0 : 1,
-		     drv->max_track, drv->last_sect);
+        FLOPPY_DPRINTF("try to read %d %02x %02x (max=%d %d %02x %02x)\n",
+                       head, track, sect, 1,
+                       (drv->flags & FDISK_DBL_SIDES) == 0 ? 0 : 1,
+                       drv->max_track, drv->last_sect);
         return 2;
     }
     if (sect > drv->last_sect) {
-        FLOPPY_ERROR("try to read %d %02x %02x (max=%d %d %02x %02x)\n",
-                     head, track, sect, 1,
-		     (drv->flags & FDISK_DBL_SIDES) == 0 ? 0 : 1,
-		     drv->max_track, drv->last_sect);
+        FLOPPY_DPRINTF("try to read %d %02x %02x (max=%d %d %02x %02x)\n",
+                       head, track, sect, 1,
+                       (drv->flags & FDISK_DBL_SIDES) == 0 ? 0 : 1,
+                       drv->max_track, drv->last_sect);
         return 3;
     }
     sector = _fd_sector(head, track, sect, drv->last_sect);
@@ -240,8 +240,8 @@ static void fd_revalidate (fdrive_t *drv)
 	ro = bdrv_is_read_only(drv->bs);
 	bdrv_get_geometry_hint(drv->bs, &nb_heads, &max_track, &last_sect);
 	if (nb_heads != 0 && max_track != 0 && last_sect != 0) {
-	    printf("User defined disk (%d %d %d)",
-		   nb_heads - 1, max_track, last_sect);
+	    FLOPPY_DPRINTF("User defined disk (%d %d %d)",
+                           nb_heads - 1, max_track, last_sect);
 	} else {
 	    bdrv_get_geometry(drv->bs, &nb_sectors);
 	    match = -1;
@@ -273,8 +273,8 @@ static void fd_revalidate (fdrive_t *drv)
 	    max_track = parse->max_track;
 	    last_sect = parse->last_sect;
 	    drv->drive = parse->drive;
-	    printf("%s floppy disk (%d h %d t %d s) %s\n", parse->str,
-		   nb_heads, max_track, last_sect, ro ? "ro" : "rw");
+	    FLOPPY_DPRINTF("%s floppy disk (%d h %d t %d s) %s\n", parse->str,
+                           nb_heads, max_track, last_sect, ro ? "ro" : "rw");
 	}
 	    if (nb_heads == 1) {
 		drv->flags &= ~FDISK_DBL_SIDES;
@@ -285,7 +285,7 @@ static void fd_revalidate (fdrive_t *drv)
 	    drv->last_sect = last_sect;
 	drv->ro = ro;
     } else {
-	printf("No disk in drive\n");
+	FLOPPY_DPRINTF("No disk in drive\n");
         drv->last_sect = 0;
 	drv->max_track = 0;
 	drv->flags &= ~FDISK_DBL_SIDES;
@@ -318,6 +318,7 @@ static void fdctrl_reset (fdctrl_t *fdctrl, int do_irq);
 static void fdctrl_reset_fifo (fdctrl_t *fdctrl);
 static int fdctrl_transfer_handler (void *opaque, target_ulong addr, int size);
 static void fdctrl_raise_irq (fdctrl_t *fdctrl, uint8_t status);
+static void fdctrl_result_timer(void *opaque);
 
 static uint32_t fdctrl_read_statusB (fdctrl_t *fdctrl);
 static uint32_t fdctrl_read_dor (fdctrl_t *fdctrl);
@@ -331,10 +332,10 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value);
 static uint32_t fdctrl_read_dir (fdctrl_t *fdctrl);
 
 enum {
-    FD_CTRL_ACTIVE = 0x01,
+    FD_CTRL_ACTIVE = 0x01, /* XXX: suppress that */
     FD_CTRL_RESET  = 0x02,
-    FD_CTRL_SLEEP  = 0x04,
-    FD_CTRL_BUSY   = 0x08,
+    FD_CTRL_SLEEP  = 0x04, /* XXX: suppress that */
+    FD_CTRL_BUSY   = 0x08, /* dma transfer in progress */
     FD_CTRL_INTR   = 0x10,
 };
 
@@ -372,6 +373,7 @@ struct fdctrl_t {
     int dma_chann;
     uint32_t io_base;
     /* Controler state */
+    QEMUTimer *result_timer;
     uint8_t state;
     uint8_t dma_en;
     uint8_t cur_drv;
@@ -425,6 +427,7 @@ static uint32_t fdctrl_read (void *opaque, uint32_t reg)
 	retval = (uint32_t)(-1);
 	break;
     }
+    FLOPPY_DPRINTF("read reg%d: 0x%02x\n", reg & 7, retval);
 
     return retval;
 }
@@ -432,6 +435,8 @@ static uint32_t fdctrl_read (void *opaque, uint32_t reg)
 static void fdctrl_write (void *opaque, uint32_t reg, uint32_t value)
 {
     fdctrl_t *fdctrl = opaque;
+
+    FLOPPY_DPRINTF("write reg%d: 0x%02x\n", reg & 7, value);
 
     switch (reg & 0x07) {
     case 0x02:
@@ -476,6 +481,9 @@ fdctrl_t *fdctrl_init (int irq_lvl, int dma_chann, int mem_mapped,
     fdctrl = qemu_mallocz(sizeof(fdctrl_t));
     if (!fdctrl)
         return NULL;
+    fdctrl->result_timer = qemu_new_timer(vm_clock, 
+                                          fdctrl_result_timer, fdctrl);
+
     fdctrl->version = 0x90; /* Intel 82078 controler */
     fdctrl->irq_lvl = irq_lvl;
     fdctrl->dma_chann = dma_chann;
@@ -524,10 +532,9 @@ int fdctrl_get_drive_type(fdctrl_t *fdctrl, int drive_num)
 /* Change IRQ state */
 static void fdctrl_reset_irq (fdctrl_t *fdctrl)
 {
-    if (fdctrl->state & FD_CTRL_INTR) {
-        pic_set_irq(fdctrl->irq_lvl, 0);
-        fdctrl->state &= ~(FD_CTRL_INTR | FD_CTRL_SLEEP | FD_CTRL_BUSY);
-    }
+    FLOPPY_DPRINTF("Reset interrupt\n");
+    pic_set_irq(fdctrl->irq_lvl, 0);
+    fdctrl->state &= ~FD_CTRL_INTR;
 }
 
 static void fdctrl_raise_irq (fdctrl_t *fdctrl, uint8_t status)
@@ -558,7 +565,7 @@ static void fdctrl_reset (fdctrl_t *fdctrl, int do_irq)
         fd_reset(&fdctrl->drives[i]);
     fdctrl_reset_fifo(fdctrl);
     if (do_irq)
-        fdctrl_raise_irq(fdctrl, 0x20);
+        fdctrl_raise_irq(fdctrl, 0xc0);
 }
 
 static inline fdrive_t *drv0 (fdctrl_t *fdctrl)
@@ -579,9 +586,7 @@ static fdrive_t *get_cur_drv (fdctrl_t *fdctrl)
 /* Status B register : 0x01 (read-only) */
 static uint32_t fdctrl_read_statusB (fdctrl_t *fdctrl)
 {
-    fdctrl_reset_irq(fdctrl);
     FLOPPY_DPRINTF("status register: 0x00\n");
-
     return 0;
 }
 
@@ -608,7 +613,6 @@ static uint32_t fdctrl_read_dor (fdctrl_t *fdctrl)
 
 static void fdctrl_write_dor (fdctrl_t *fdctrl, uint32_t value)
 {
-    fdctrl_reset_irq(fdctrl);
     /* Reset mode */
     if (fdctrl->state & FD_CTRL_RESET) {
         if (!(value & 0x04)) {
@@ -653,7 +657,6 @@ static uint32_t fdctrl_read_tape (fdctrl_t *fdctrl)
 {
     uint32_t retval = 0;
 
-    fdctrl_reset_irq(fdctrl);
     /* Disk boot selection indicator */
     retval |= fdctrl->bootsel << 2;
     /* Tape indicators: never allowed */
@@ -664,7 +667,6 @@ static uint32_t fdctrl_read_tape (fdctrl_t *fdctrl)
 
 static void fdctrl_write_tape (fdctrl_t *fdctrl, uint32_t value)
 {
-    fdctrl_reset_irq(fdctrl);
     /* Reset mode */
     if (fdctrl->state & FD_CTRL_RESET) {
         FLOPPY_DPRINTF("Floppy controler in RESET state !\n");
@@ -681,7 +683,6 @@ static uint32_t fdctrl_read_main_status (fdctrl_t *fdctrl)
 {
     uint32_t retval = 0;
 
-    fdctrl_reset_irq(fdctrl);
     fdctrl->state &= ~(FD_CTRL_SLEEP | FD_CTRL_RESET);
     if (!(fdctrl->state & FD_CTRL_BUSY)) {
         /* Data transfer allowed */
@@ -703,7 +704,6 @@ static uint32_t fdctrl_read_main_status (fdctrl_t *fdctrl)
 /* Data select rate register : 0x04 (write) */
 static void fdctrl_write_rate (fdctrl_t *fdctrl, uint32_t value)
 {
-    fdctrl_reset_irq(fdctrl);
     /* Reset mode */
     if (fdctrl->state & FD_CTRL_RESET) {
             FLOPPY_DPRINTF("Floppy controler in RESET state !\n");
@@ -728,7 +728,6 @@ static uint32_t fdctrl_read_dir (fdctrl_t *fdctrl)
 {
     uint32_t retval = 0;
 
-    fdctrl_reset_irq(fdctrl);
     if (drv0(fdctrl)->drflags & FDRIVE_REVALIDATE ||
 	drv1(fdctrl)->drflags & FDRIVE_REVALIDATE)
         retval |= 0x80;
@@ -795,8 +794,10 @@ static void fdctrl_stop_transfer (fdctrl_t *fdctrl, uint8_t status0,
     fdctrl->fifo[5] = cur_drv->sect;
     fdctrl->fifo[6] = FD_SECTOR_SC;
     fdctrl->data_dir = FD_DIR_READ;
-    if (fdctrl->state & FD_CTRL_BUSY)
+    if (fdctrl->state & FD_CTRL_BUSY) {
         DMA_release_DREQ(fdctrl->dma_chann);
+        fdctrl->state &= ~FD_CTRL_BUSY;
+    }
     fdctrl_set_fifo(fdctrl, 7, 1);
 }
 
@@ -916,7 +917,6 @@ static int fdctrl_transfer_handler (void *opaque, target_ulong addr, int size)
     uint8_t status0 = 0x00, status1 = 0x00, status2 = 0x00;
 
     fdctrl = opaque;
-    fdctrl_reset_irq(fdctrl);
     if (!(fdctrl->state & FD_CTRL_BUSY)) {
         FLOPPY_DPRINTF("Not in DMA transfer mode !\n");
         return 0;
@@ -1049,7 +1049,6 @@ static uint32_t fdctrl_read_data (fdctrl_t *fdctrl)
     uint32_t retval = 0;
     int pos, len;
 
-    fdctrl_reset_irq(fdctrl);
     cur_drv = get_cur_drv(fdctrl);
     fdctrl->state &= ~FD_CTRL_SLEEP;
     if (FD_STATE(fdctrl->data_state) == FD_STATE_CMD) {
@@ -1073,10 +1072,12 @@ static uint32_t fdctrl_read_data (fdctrl_t *fdctrl)
         /* Switch from transfert mode to status mode
          * then from status mode to command mode
          */
-        if (FD_STATE(fdctrl->data_state) == FD_STATE_DATA)
+        if (FD_STATE(fdctrl->data_state) == FD_STATE_DATA) {
             fdctrl_stop_transfer(fdctrl, 0x20, 0x00, 0x00);
-        else
+        } else {
             fdctrl_reset_fifo(fdctrl);
+            fdctrl_reset_irq(fdctrl);
+        }
     }
     FLOPPY_DPRINTF("data register: 0x%02x\n", retval);
 
@@ -1152,7 +1153,6 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
 {
     fdrive_t *cur_drv;
 
-    fdctrl_reset_irq(fdctrl);
     cur_drv = get_cur_drv(fdctrl);
     /* Reset mode */
     if (fdctrl->state & FD_CTRL_RESET) {
@@ -1583,7 +1583,9 @@ enqueue:
         case 0x4A:
                 /* READ_ID */
             FLOPPY_DPRINTF("treat READ_ID command\n");
-            fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
+            /* XXX: should set main status register to busy */
+            qemu_mod_timer(fdctrl->result_timer, 
+                           qemu_get_clock(vm_clock) + (ticks_per_sec / 50));
             break;
         case 0x4C:
             /* RESTORE */
@@ -1687,4 +1689,10 @@ enqueue:
             break;
         }
     }
+}
+
+static void fdctrl_result_timer(void *opaque)
+{
+    fdctrl_t *fdctrl = opaque;
+    fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
 }
