@@ -3319,6 +3319,12 @@ static void host_alarm_handler(int host_signum, siginfo_t *info,
     }
 }
 
+#ifdef CONFIG_SOFTMMU
+void *get_mmap_addr(unsigned long size)
+{
+    return NULL;
+}
+#else
 unsigned long mmap_addr = PHYS_RAM_BASE;
 
 void *get_mmap_addr(unsigned long size)
@@ -3328,6 +3334,7 @@ void *get_mmap_addr(unsigned long size)
     mmap_addr += ((size + 4095) & ~4095) + 4096;
     return (void *)addr;
 }
+#endif
 
 /* main execution loop */
 
@@ -3522,7 +3529,7 @@ int main(int argc, char **argv)
     struct sigaction act;
     struct itimerval itv;
     CPUX86State *env;
-    const char *tmpdir, *initrd_filename;
+    const char *initrd_filename;
     const char *hd_filename[MAX_DISKS];
     const char *kernel_filename, *kernel_cmdline;
     DisplayState *ds = &display_state;
@@ -3644,32 +3651,47 @@ int main(int argc, char **argv)
 	net_init();
 
     /* init the memory */
-    tmpdir = getenv("QEMU_TMPDIR");
-    if (!tmpdir)
-        tmpdir = "/tmp";
-    snprintf(phys_ram_file, sizeof(phys_ram_file), "%s/vlXXXXXX", tmpdir);
-    if (mkstemp(phys_ram_file) < 0) {
-        fprintf(stderr, "Could not create temporary memory file '%s'\n", 
-                phys_ram_file);
-        exit(1);
-    }
-    phys_ram_fd = open(phys_ram_file, O_CREAT | O_TRUNC | O_RDWR, 0600);
-    if (phys_ram_fd < 0) {
-        fprintf(stderr, "Could not open temporary memory file '%s'\n", 
-                phys_ram_file);
-        exit(1);
-    }
     total_ram_size = phys_ram_size + vga_ram_size;
-    ftruncate(phys_ram_fd, total_ram_size);
-    unlink(phys_ram_file);
-    phys_ram_base = mmap(get_mmap_addr(total_ram_size), 
-                         total_ram_size, 
-                         PROT_WRITE | PROT_READ, MAP_SHARED | MAP_FIXED, 
-                         phys_ram_fd, 0);
-    if (phys_ram_base == MAP_FAILED) {
-        fprintf(stderr, "Could not map physical memory\n");
+
+#ifdef CONFIG_SOFTMMU
+    phys_ram_base = malloc(total_ram_size);
+    if (!phys_ram_base) {
+        fprintf(stderr, "Could not allocate physical memory\n");
         exit(1);
     }
+#else
+    /* as we must map the same page at several addresses, we must use
+       a fd */
+    {
+        const char *tmpdir;
+
+        tmpdir = getenv("QEMU_TMPDIR");
+        if (!tmpdir)
+            tmpdir = "/tmp";
+        snprintf(phys_ram_file, sizeof(phys_ram_file), "%s/vlXXXXXX", tmpdir);
+        if (mkstemp(phys_ram_file) < 0) {
+            fprintf(stderr, "Could not create temporary memory file '%s'\n", 
+                    phys_ram_file);
+            exit(1);
+        }
+        phys_ram_fd = open(phys_ram_file, O_CREAT | O_TRUNC | O_RDWR, 0600);
+        if (phys_ram_fd < 0) {
+            fprintf(stderr, "Could not open temporary memory file '%s'\n", 
+                    phys_ram_file);
+            exit(1);
+        }
+        ftruncate(phys_ram_fd, total_ram_size);
+        unlink(phys_ram_file);
+        phys_ram_base = mmap(get_mmap_addr(total_ram_size), 
+                             total_ram_size, 
+                             PROT_WRITE | PROT_READ, MAP_SHARED | MAP_FIXED, 
+                             phys_ram_fd, 0);
+        if (phys_ram_base == MAP_FAILED) {
+            fprintf(stderr, "Could not map physical memory\n");
+            exit(1);
+        }
+    }
+#endif
 
     /* open the virtual block devices */
     for(i = 0; i < MAX_DISKS; i++) {
@@ -3717,14 +3739,14 @@ int main(int argc, char **argv)
         params = (void *)(phys_ram_base + KERNEL_PARAMS_ADDR);
         memset(params, 0, sizeof(struct linux_params));
         params->mount_root_rdonly = 0;
-        params->cl_magic = 0xA33F;
-        params->cl_offset = params->commandline - (uint8_t *)params;
-        params->alt_mem_k = (phys_ram_size / 1024) - 1024;
+        stw_raw(&params->cl_magic, 0xA33F);
+        stw_raw(&params->cl_offset, params->commandline - (uint8_t *)params);
+        stl_raw(&params->alt_mem_k, (phys_ram_size / 1024) - 1024);
         pstrcat(params->commandline, sizeof(params->commandline), kernel_cmdline);
         params->loader_type = 0x01;
         if (initrd_size > 0) {
-            params->initrd_start = INITRD_LOAD_ADDR;
-            params->initrd_size = initrd_size;
+            stl_raw(&params->initrd_start, INITRD_LOAD_ADDR);
+            stl_raw(&params->initrd_size, initrd_size);
         }
         params->orig_video_lines = 25;
         params->orig_video_cols = 80;
@@ -3735,11 +3757,11 @@ int main(int argc, char **argv)
         
         memset(params->idt_table, 0, sizeof(params->idt_table));
         
-        params->gdt_table[2] = 0x00cf9a000000ffffLL; /* KERNEL_CS */
-        params->gdt_table[3] = 0x00cf92000000ffffLL; /* KERNEL_DS */
+        stq_raw(&params->gdt_table[2], 0x00cf9a000000ffffLL); /* KERNEL_CS */
+        stq_raw(&params->gdt_table[3], 0x00cf92000000ffffLL); /* KERNEL_DS */
         /* for newer kernels (2.6.0) CS/DS are at different addresses */
-        params->gdt_table[12] = 0x00cf9a000000ffffLL; /* KERNEL_CS */
-        params->gdt_table[13] = 0x00cf92000000ffffLL; /* KERNEL_DS */
+        stq_raw(&params->gdt_table[12], 0x00cf9a000000ffffLL); /* KERNEL_CS */
+        stq_raw(&params->gdt_table[13], 0x00cf92000000ffffLL); /* KERNEL_DS */
         
         env->idt.base = (void *)((uint8_t *)params->idt_table - phys_ram_base);
         env->idt.limit = sizeof(params->idt_table) - 1;
@@ -3844,7 +3866,7 @@ int main(int argc, char **argv)
     timer_ms = itv.it_interval.tv_usec / 1000;
     pit_min_timer_count = ((uint64_t)itv.it_interval.tv_usec * PIT_FREQ) / 
         1000000;
-    
+
     if (use_gdbstub) {
         cpu_gdbstub(NULL, main_loop, gdbstub_port);
     } else {
