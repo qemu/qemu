@@ -936,6 +936,24 @@ union target_semun {
     unsigned int __pad;	/* really void* */
 };
 
+#define TARGET_F_DUPFD         0       /* dup */
+#define TARGET_F_GETFD         1       /* get close_on_exec */
+#define TARGET_F_SETFD         2       /* set/clear close_on_exec */
+#define TARGET_F_GETFL         3       /* get file->f_flags */
+#define TARGET_F_SETFL         4       /* set file->f_flags */
+#define TARGET_F_GETLK         5
+#define TARGET_F_SETLK         6
+#define TARGET_F_SETLKW        7
+
+#define TARGET_F_SETOWN        8       /*  for sockets. */
+#define TARGET_F_GETOWN        9       /*  for sockets. */
+#define TARGET_F_SETSIG        10      /*  for sockets. */
+#define TARGET_F_GETSIG        11      /*  for sockets. */
+
+#define TARGET_F_GETLK64       12      /*  using 'struct flock64' */
+#define TARGET_F_SETLK64       13
+#define TARGET_F_SETLKW64      14
+
 struct target_flock {
 	short l_type;
 	short l_whence;
