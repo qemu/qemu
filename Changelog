@@ -14,6 +14,9 @@ version 0.6.1:
   - Compressed loop disk image support (Johannes Schindelin)
   - Level triggered IRQ fix (aka NE2000 PCI performance fix) (Steve
     Wormley)
+  - Fixed Fedora Core 2 problems (now you can run qemu without any
+    LD_ASSUME_KERNEL tricks on FC2)
+  - DHCP fix for Windows (accept DHCPREQUEST alone)
 
 version 0.6.0:
 
