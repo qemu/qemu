@@ -2015,7 +2015,47 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_getdents:
 #if TARGET_LONG_SIZE != 4
 #error not supported
-#endif
+#elif TARGET_LONG_SIZE == 4 && HOST_LONG_SIZE == 8
+        {
+            struct target_dirent *target_dirp = (void *)arg2;
+            struct dirent *dirp;
+            long count = arg3;
+
+	    dirp = malloc(count);
+	    if (!dirp)
+                return -ENOMEM;
+            
+            ret = get_errno(sys_getdents(arg1, dirp, count));
+            if (!is_error(ret)) {
+                struct dirent *de;
+		struct target_dirent *tde;
+                int len = ret;
+                int reclen, treclen;
+		int count1, tnamelen;
+
+		count1 = 0;
+                de = dirp;
+		tde = target_dirp;
+                while (len > 0) {
+                    reclen = de->d_reclen;
+		    treclen = reclen - (2 * (sizeof(long) - sizeof(target_long)));
+                    tde->d_reclen = tswap16(treclen);
+                    tde->d_ino = tswapl(de->d_ino);
+                    tde->d_off = tswapl(de->d_off);
+		    tnamelen = treclen - (2 * sizeof(target_long) + 2);
+		    if (tnamelen > 256)
+                        tnamelen = 256;
+		    strncpy(tde->d_name, de->d_name, tnamelen);
+                    de = (struct dirent *)((char *)de + reclen);
+                    len -= reclen;
+                    tde = (struct dirent *)((char *)tde + treclen);
+		    count1 += treclen;
+                }
+		ret = count1;
+            }
+	    free(dirp);
+        }
+#else
         {
             struct dirent *dirp = (void *)arg2;
             long count = arg3;
@@ -2038,6 +2078,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                 }
             }
         }
+#endif
         break;
     case TARGET_NR_getdents64:
         {
