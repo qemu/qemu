@@ -19,6 +19,10 @@ ifeq ($(ARCH),ppc)
 OP_CFLAGS=$(CFLAGS)
 endif
 
+ifeq ($(ARCH),s390)
+OP_CFLAGS=$(CFLAGS)
+endif
+
 ifeq ($(GCC_MAJOR),3)
 # very important to generate a return at the end of every operation
 OP_CFLAGS+=-fno-reorder-blocks -fno-optimize-sibling-calls
@@ -94,19 +98,20 @@ qemu-doc.html: qemu-doc.texi
 	texi2html -monolithic -number $<
 
 FILES= \
-README COPYING COPYING.LIB TODO Changelog VERSION \
-dyngen.c ioctls.h ops_template.h  syscall_types.h\
+README README.distrib COPYING COPYING.LIB TODO Changelog VERSION \
+dyngen.c ioctls.h ops_template.h op_string.h  syscall_types.h\
 Makefile     elf.h       linux_bin.h       segment.h       thunk.c\
 elfload.c   main.c            signal.c        thunk.h\
-cpu-i386.h   qemu.h      op-i386.c opc-i386.h syscall-i386.h  translate-i386.c\
+cpu-i386.h qemu.h op-i386.c opc-i386.h syscall-i386.h  translate-i386.c\
 dis-asm.h    gen-i386.h  op-i386.h         syscall.c\
 dis-buf.c    i386-dis.c  opreg_template.h  syscall_defs.h\
-i386.ld ppc.ld exec-i386.h exec-i386.c configure \
+i386.ld ppc.ld s390.ld exec-i386.h exec-i386.c configure \
 tests/Makefile\
 tests/test-i386.c tests/test-i386-shift.h tests/test-i386.h\
 tests/test-i386-muldiv.h tests/test-i386-code16.S\
 tests/hello.c tests/hello tests/sha1.c \
 tests/testsig.c tests/testclone.c tests/testthread.c \
+tests/runcom.c tests/pi_10.com \
 qemu-doc.texi qemu-doc.html
 
 FILE=qemu-$(VERSION)

@@ -12,8 +12,9 @@
 QEMU is an x86 processor emulator. Its purpose is to run x86 Linux
 processes on non-x86 Linux architectures such as PowerPC or ARM. By
 using dynamic translation it achieves a reasonnable speed while being
-easy to port on new host CPUs. An obviously interesting x86 only process
-is 'wine' (Windows emulation).
+easy to port on new host CPUs. Its main goal is to be able to launch the
+@code{Wine} Windows API emulator (@url{http://www.winehq.org}) on
+non-x86 CPUs.
 
 QEMU features:
 
@@ -21,12 +22,13 @@ QEMU features:
 
 @item User space only x86 emulator.
 
-@item Currently ported on i386 and PowerPC.
+@item Currently ported on i386, PowerPC and S390.
 
-@item Using dynamic translation for reasonnable speed.
+@item Using dynamic translation to native code for reasonnable speed.
 
 @item The virtual x86 CPU supports 16 bit and 32 bit addressing with segmentation. 
-User space LDT and GDT are emulated.
+User space LDT and GDT are emulated. VM86 mode is also supported
+(experimental).
 
 @item Generic Linux system call converter, including most ioctls.
 
@@ -51,10 +53,6 @@ Current QEMU Limitations:
 @item Not self virtualizable (yet). [You cannot launch qemu with qemu on the same CPU].
 
 @item No support for self modifying code (yet). [Very few programs need that, a notable exception is QEMU itself !].
-
-@item No VM86 mode (yet), althought the virtual
-CPU has support for most of it. [VM86 support is useful to launch old 16
-bit DOS programs with dosemu or wine].
 
 @item No SSE/MMX support (yet).
 
@@ -123,10 +121,10 @@ able to do:
 qemu /usr/local/qemu-i386/bin/ls-i386
 @end example
 
-@item Download the binary x86 wine install
+@item Download the binary x86 Wine install
 (@file{qemu-i386-wine.tar.gz} on the QEMU web page). 
 
-@item Configure wine on your account. Look at the provided script
+@item Configure Wine on your account. Look at the provided script
 @file{/usr/local/qemu-i386/bin/wine-conf.sh}. Your previous
 @code{$@{HOME@}/.wine} directory is saved to @code{$@{HOME@}/.wine.org}.
 
@@ -177,6 +175,13 @@ code, in particular the ELF file loader). EM86 was limited to an alpha
 host and used a proprietary and slow interpreter (the interpreter part
 of the FX!32 Digital Win32 code translator [5]).
 
+TWIN [6] is a Windows API emulator like Wine. It is less accurate than
+Wine but includes a protected mode x86 interpreter to launch x86 Windows
+executables. Such an approach as greater potential because most of the
+Windows API is executed natively but it is far more difficult to develop
+because all the data structures and function parameters exchanged
+between the API and the x86 code must be converted.
+
 @section Portable dynamic translation
 
 QEMU is a dynamic translator. When it first encounters a piece of code,
@@ -218,7 +223,7 @@ doing complicated register allocation.
 Good CPU condition codes emulation (@code{EFLAGS} register on x86) is a
 critical point to get good performances. QEMU uses lazy condition code
 evaluation: instead of computing the condition codes after each x86
-instruction, it store justs one operand (called @code{CC_CRC}), the
+instruction, it just stores one operand (called @code{CC_SRC}), the
 result (called @code{CC_DST}) and the type of operation (called
 @code{CC_OP}).
 
@@ -231,7 +236,7 @@ generated simple instructions (see
 the condition codes are not needed by the next instructions, no
 condition codes are computed at all.
 
-@section Translation CPU state optimisations
+@section CPU state optimisations
 
 The x86 CPU has many internal states which change the way it evaluates
 instructions. In order to achieve a good speed, the translation phase
@@ -323,6 +328,10 @@ x86 emulator on Alpha-Linux.
 DIGITAL FX!32: Running 32-Bit x86 Applications on Alpha NT, by Anton
 Chernoff and Ray Hookway.
 
+@item [6]
+@url{http://www.willows.com/}, Windows API library emulation from
+Willows Software.
+
 @end table
 
 @chapter Regression Tests
@@ -365,3 +374,9 @@ It is a simple benchmark. Care must be taken to interpret the results
 because it mostly tests the ability of the virtual CPU to optimize the
 @code{rol} x86 instruction and the condition code computations.
 
+@section @file{runcom}
+
+A very simple MSDOS emulator to test the Linux vm86() system call
+emulation. The excellent 54 byte @file{pi_10.com} PI number calculator
+can be launched with it. @file{pi_10.com} was written by Bertram
+Felgenhauer (more information at @url{http://www.boo.net/~jasonp/pipage.html}).
