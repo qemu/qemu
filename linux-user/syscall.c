@@ -105,6 +105,9 @@ _syscall5(int, _llseek,  uint,  fd, ulong, hi, ulong, lo,
 _syscall2(int,sys_statfs,const char *,path,struct kernel_statfs *,buf)
 _syscall2(int,sys_fstatfs,int,fd,struct kernel_statfs *,buf)
 _syscall3(int,sys_rt_sigqueueinfo,int,pid,int,sig,siginfo_t *,uinfo)
+#ifdef __NR_exit_group
+_syscall1(int,exit_group,int,error_code)
+#endif
 
 extern int personality(int);
 extern int flock(int, int);
@@ -1212,7 +1215,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         ret = get_errno(write(arg1, (void *)arg2, arg3));
         break;
     case TARGET_NR_open:
-        ret = get_errno(open((const char *)arg1, arg2, arg3));
+        ret = get_errno(open(path((const char *)arg1), arg2, arg3));
         break;
     case TARGET_NR_close:
         ret = get_errno(close(arg1));
@@ -1700,7 +1703,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_oldlstat:
         goto unimplemented;
     case TARGET_NR_readlink:
-        ret = get_errno(readlink((const char *)arg1, (char *)arg2, arg3));
+        ret = get_errno(readlink(path((const char *)arg1), (char *)arg2, arg3));
         break;
     case TARGET_NR_uselib:
         goto unimplemented;
@@ -1779,7 +1782,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         goto unimplemented;
     case TARGET_NR_statfs:
         stfs = (void *)arg2;
-        ret = get_errno(sys_statfs((const char *)arg1, stfs));
+        ret = get_errno(sys_statfs(path((const char *)arg1), stfs));
     convert_statfs:
         if (!is_error(ret)) {
             tswap32s(&stfs->f_type);
@@ -1844,10 +1847,10 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         }
         break;
     case TARGET_NR_stat:
-        ret = get_errno(stat((const char *)arg1, &st));
+        ret = get_errno(stat(path((const char *)arg1), &st));
         goto do_stat;
     case TARGET_NR_lstat:
-        ret = get_errno(lstat((const char *)arg1, &st));
+        ret = get_errno(lstat(path((const char *)arg1), &st));
         goto do_stat;
     case TARGET_NR_fstat:
         {
@@ -1857,7 +1860,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                 struct target_stat *target_st = (void *)arg2;
                 target_st->st_dev = tswap16(st.st_dev);
                 target_st->st_ino = tswapl(st.st_ino);
-                target_st->st_mode = tswap32(st.st_mode);
+                target_st->st_mode = tswap16(st.st_mode);
                 target_st->st_nlink = tswap16(st.st_nlink);
                 target_st->st_uid = tswap16(st.st_uid);
                 target_st->st_gid = tswap16(st.st_gid);
@@ -1930,6 +1933,12 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_clone:
         ret = get_errno(do_fork(cpu_env, arg1, arg2));
         break;
+#ifdef __NR_exit_group
+        /* new thread calls */
+    case TARGET_NR_exit_group:
+        ret = get_errno(exit_group(arg1));
+        break;
+#endif
     case TARGET_NR_setdomainname:
         ret = get_errno(setdomainname((const char *)arg1, arg2));
         break;
@@ -2235,10 +2244,10 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_ftruncate64:
         goto unimplemented;
     case TARGET_NR_stat64:
-        ret = get_errno(stat((const char *)arg1, &st));
+        ret = get_errno(stat(path((const char *)arg1), &st));
         goto do_stat64;
     case TARGET_NR_lstat64:
-        ret = get_errno(lstat((const char *)arg1, &st));
+        ret = get_errno(lstat(path((const char *)arg1), &st));
         goto do_stat64;
     case TARGET_NR_fstat64:
         {
@@ -2246,15 +2255,19 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         do_stat64:
             if (!is_error(ret)) {
                 struct target_stat64 *target_st = (void *)arg2;
+                memset(target_st, 0, sizeof(struct target_stat64));
                 target_st->st_dev = tswap16(st.st_dev);
                 target_st->st_ino = tswapl(st.st_ino);
+#ifdef TARGET_STAT64_HAS_BROKEN_ST_INO
+                target_st->__st_ino = tswapl(st.st_ino);
+#endif
                 target_st->st_mode = tswap32(st.st_mode);
-                target_st->st_nlink = tswap16(st.st_nlink);
-                target_st->st_uid = tswap16(st.st_uid);
-                target_st->st_gid = tswap16(st.st_gid);
+                target_st->st_nlink = tswap32(st.st_nlink);
+                target_st->st_uid = tswapl(st.st_uid);
+                target_st->st_gid = tswapl(st.st_gid);
                 target_st->st_rdev = tswap16(st.st_rdev);
                 /* XXX: better use of kernel struct */
-                target_st->st_size = tswapl(st.st_size);
+                target_st->st_size = tswap64(st.st_size);
                 target_st->st_blksize = tswapl(st.st_blksize);
                 target_st->st_blocks = tswapl(st.st_blocks);
                 target_st->target_st_atime = tswapl(st.st_atime);
