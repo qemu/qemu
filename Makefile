@@ -57,7 +57,7 @@ LDFLAGS+=-p
 main.o: CFLAGS+=-p
 endif
 
-OBJS= elfload.o main.o syscall.o signal.o path.o
+OBJS= elfload.o main.o syscall.o signal.o vm86.o path.o
 SRCS:= $(OBJS:.o=.c)
 OBJS+= libqemu.a
 
