@@ -6,6 +6,8 @@
  *  The COFF object format support was extracted from Kazu's QEMU port
  *  to Win32.
  *
+ *  Mach-O Support by Matt Reda and Pierre d'Herbemont
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
@@ -34,6 +36,8 @@
    compilation */
 #if defined(CONFIG_WIN32)
 #define CONFIG_FORMAT_COFF
+#elif defined(CONFIG_DARWIN)
+#define CONFIG_FORMAT_MACH
 #else
 #define CONFIG_FORMAT_ELF
 #endif
@@ -168,6 +172,35 @@ typedef struct coff_rel {
 #define EXE_SYM struct coff_sym
 
 #endif /* CONFIG_FORMAT_COFF */
+
+#ifdef CONFIG_FORMAT_MACH
+
+#include <mach-o/loader.h>
+#include <mach-o/nlist.h>
+#include <mach-o/reloc.h>
+#include <mach-o/ppc/reloc.h>
+
+# define check_mach_header(x) (x.magic == MH_MAGIC)
+typedef int32_t host_long;
+typedef uint32_t host_ulong;
+
+struct nlist_extended
+{
+   union {
+   char *n_name; 
+   long  n_strx; 
+   } n_un;
+   unsigned char n_type; 
+   unsigned char n_sect; 
+   short st_desc;
+   unsigned long st_value;
+   unsigned long st_size;
+};
+
+#define EXE_RELOC struct relocation_info
+#define EXE_SYM struct nlist_extended
+
+#endif /* CONFIG_FORMAT_MACH */
 
 #include "bswap.h"
 
@@ -399,6 +432,11 @@ int find_reloc(int sh_index)
     return 0;
 }
 
+static host_ulong get_rel_offset(EXE_RELOC *rel)
+{
+    return rel->r_offset;
+}
+
 static char *get_rel_sym_name(EXE_RELOC *rel)
 {
     return strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
@@ -600,6 +638,11 @@ static char *get_rel_sym_name(EXE_RELOC *rel)
     return name;
 }
 
+static host_ulong get_rel_offset(EXE_RELOC *rel)
+{
+    return rel->r_offset;
+}
+
 struct external_scnhdr *find_coff_section(struct external_scnhdr *shdr, int shnum, const char *name)
 {
     int i;
@@ -757,6 +800,390 @@ int load_object(const char *filename)
 }
 
 #endif /* CONFIG_FORMAT_COFF */
+
+#ifdef CONFIG_FORMAT_MACH
+
+/* File Header */
+struct mach_header 	mach_hdr;
+
+/* commands */
+struct segment_command 	*segment = 0;
+struct dysymtab_command *dysymtabcmd = 0;
+struct symtab_command 	*symtabcmd = 0;
+
+/* section */
+struct section 	*section_hdr;
+struct section *text_sec_hdr;
+uint8_t 	**sdata;
+
+/* relocs */
+struct relocation_info *relocs;
+	
+/* symbols */
+EXE_SYM			*symtab;
+struct nlist 	*symtab_std;
+char			*strtab;
+
+/* indirect symbols */
+uint32_t 	*tocdylib;
+
+/* Utility functions */
+
+static inline char *find_str_by_index(int index)
+{
+    return strtab+index;
+}
+
+/* Used by dyngen common code */
+static char *get_sym_name(EXE_SYM *sym)
+{
+	char *name = find_str_by_index(sym->n_un.n_strx);
+	
+	if ( sym->n_type & N_STAB ) /* Debug symbols are ignored */
+		return "debug";
+			
+	if(!name)
+		return name;
+	if(name[0]=='_')
+		return name + 1;
+	else
+		return name;
+}
+
+/* find a section index given its segname, sectname */
+static int find_mach_sec_index(struct section *section_hdr, int shnum, const char *segname, 
+                                  const char *sectname)
+{
+    int i;
+    struct section *sec = section_hdr;
+
+    for(i = 0; i < shnum; i++, sec++) {
+        if (!sec->segname || !sec->sectname)
+            continue;
+        if (!strcmp(sec->sectname, sectname) && !strcmp(sec->segname, segname))
+            return i;
+    }
+    return -1;
+}
+
+/* find a section header given its segname, sectname */
+struct section *find_mach_sec_hdr(struct section *section_hdr, int shnum, const char *segname, 
+                                  const char *sectname)
+{
+    int index = find_mach_sec_index(section_hdr, shnum, segname, sectname);
+	if(index == -1)
+		return NULL;
+	return section_hdr+index;
+}
+
+
+static inline void fetch_next_pair_value(struct relocation_info * rel, unsigned int *value)
+{
+    struct scattered_relocation_info * scarel;
+	
+    if(R_SCATTERED & rel->r_address) {
+        scarel = (struct scattered_relocation_info*)rel;
+        if(scarel->r_type != PPC_RELOC_PAIR)
+            error("fetch_next_pair_value: looking for a pair which was not found (1)");
+        *value = scarel->r_value;
+    } else {
+		if(rel->r_type != PPC_RELOC_PAIR)
+			error("fetch_next_pair_value: looking for a pair which was not found (2)");
+		*value = rel->r_address;
+	}
+}
+
+/* find a sym name given its value, in a section number */
+static const char * find_sym_with_value_and_sec_number( int value, int sectnum, int * offset )
+{
+	int i, ret = -1;
+	
+	for( i = 0 ; i < nb_syms; i++ )
+	{
+	    if( !(symtab[i].n_type & N_STAB) && (symtab[i].n_type & N_SECT) &&
+			 (symtab[i].n_sect ==  sectnum) && (symtab[i].st_value <= value) )
+		{
+			if( (ret<0) || (symtab[i].st_value >= symtab[ret].st_value) )
+				ret = i;
+		}
+	}
+	if( ret < 0 ) {
+		*offset = 0;
+		return 0;
+	} else {
+		*offset = value - symtab[ret].st_value;
+		return get_sym_name(&symtab[ret]);
+	}
+}
+
+/* 
+ *  Find symbol name given a (virtual) address, and a section which is of type 
+ *  S_NON_LAZY_SYMBOL_POINTERS or S_LAZY_SYMBOL_POINTERS or S_SYMBOL_STUBS
+ */
+static const char * find_reloc_name_in_sec_ptr(int address, struct section * sec_hdr)
+{
+    unsigned int tocindex, symindex, size;
+    const char *name = 0;
+    
+    /* Sanity check */
+    if(!( address >= sec_hdr->addr && address < (sec_hdr->addr + sec_hdr->size) ) )
+        return (char*)0;
+		
+	if( sec_hdr->flags & S_SYMBOL_STUBS ){
+		size = sec_hdr->reserved2;
+		if(size == 0)
+		    error("size = 0");
+		
+	}
+	else if( sec_hdr->flags & S_LAZY_SYMBOL_POINTERS ||
+	            sec_hdr->flags & S_NON_LAZY_SYMBOL_POINTERS)
+		size = sizeof(unsigned long);
+	else
+		return 0;
+		
+    /* Compute our index in toc */
+	tocindex = (address - sec_hdr->addr)/size;
+	symindex = tocdylib[sec_hdr->reserved1 + tocindex];
+	
+	name = get_sym_name(&symtab[symindex]);
+
+    return name;
+}
+
+static const char * find_reloc_name_given_its_address(int address)
+{
+    unsigned int i;
+    for(i = 0; i < segment->nsects ; i++)
+    {
+        const char * name = find_reloc_name_in_sec_ptr(address, &section_hdr[i]);
+        if((long)name != -1)
+            return name;
+    }
+    return 0;
+}
+
+static const char * get_reloc_name(EXE_RELOC * rel, int * sslide)
+{
+	char * name = 0;
+	struct scattered_relocation_info * sca_rel = (struct scattered_relocation_info*)rel;
+	int sectnum = rel->r_symbolnum;
+	int sectoffset;
+	int other_half=0;
+	
+	/* init the slide value */
+	*sslide = 0;
+	
+	if(R_SCATTERED & rel->r_address)
+		return (char *)find_reloc_name_given_its_address(sca_rel->r_value);
+
+	if(rel->r_extern)
+	{
+		/* ignore debug sym */
+		if ( symtab[rel->r_symbolnum].n_type & N_STAB ) 
+			return 0;
+		return get_sym_name(&symtab[rel->r_symbolnum]);
+	}
+
+	/* Intruction contains an offset to the symbols pointed to, in the rel->r_symbolnum section */
+	sectoffset = *(uint32_t *)(text + rel->r_address) & 0xffff;
+			
+	if(sectnum==0xffffff)
+		return 0;
+
+	/* Sanity Check */
+	if(sectnum > segment->nsects)
+		error("sectnum > segment->nsects");
+
+	switch(rel->r_type)
+	{
+		case PPC_RELOC_LO16: fetch_next_pair_value(rel+1, &other_half); sectoffset = (sectoffset & 0xffff);
+			break;
+		case PPC_RELOC_HI16: fetch_next_pair_value(rel+1, &other_half); sectoffset = (other_half & 0xffff);
+			break;
+		case PPC_RELOC_HA16: fetch_next_pair_value(rel+1, &other_half); sectoffset = (other_half & 0xffff);
+			break;
+		case PPC_RELOC_BR24:
+			sectoffset = ( *(uint32_t *)(text + rel->r_address) & 0x03fffffc );
+			if (sectoffset & 0x02000000) sectoffset |= 0xfc000000;
+			break;
+		default:
+			error("switch(rel->type) not found");
+	}
+
+	if(rel->r_pcrel)
+		sectoffset += rel->r_address;
+			
+	if (rel->r_type == PPC_RELOC_BR24)
+		name = (char *)find_reloc_name_in_sec_ptr((int)sectoffset, &section_hdr[sectnum-1]);
+
+	/* search it in the full symbol list, if not found */
+	if(!name)
+		name = (char *)find_sym_with_value_and_sec_number(sectoffset, sectnum, sslide);
+	
+	return name;
+}
+
+/* Used by dyngen common code */
+static const char * get_rel_sym_name(EXE_RELOC * rel)
+{
+	int sslide;
+	return get_reloc_name( rel, &sslide);
+}
+
+/* Used by dyngen common code */
+static host_ulong get_rel_offset(EXE_RELOC *rel)
+{
+	struct scattered_relocation_info * sca_rel = (struct scattered_relocation_info*)rel;
+    if(R_SCATTERED & rel->r_address)
+		return sca_rel->r_address;
+	else
+		return rel->r_address;
+}
+
+/* load a mach-o object file */
+int load_object(const char *filename)
+{
+	int fd;
+	unsigned int offset_to_segment = 0;
+    unsigned int offset_to_dysymtab = 0;
+    unsigned int offset_to_symtab = 0;
+    struct load_command lc;
+    unsigned int i, j;
+	EXE_SYM *sym;
+	struct nlist *syment;
+    
+	fd = open(filename, O_RDONLY);
+    if (fd < 0) 
+        error("can't open file '%s'", filename);
+		
+    /* Read Mach header.  */
+    if (read(fd, &mach_hdr, sizeof (mach_hdr)) != sizeof (mach_hdr))
+        error("unable to read file header");
+
+    /* Check Mach identification.  */
+    if (!check_mach_header(mach_hdr)) {
+        error("bad Mach header");
+    }
+    
+    if (mach_hdr.cputype != CPU_TYPE_POWERPC)
+        error("Unsupported CPU");
+        
+    if (mach_hdr.filetype != MH_OBJECT)
+        error("Unsupported Mach Object");
+    
+    /* read segment headers */
+    for(i=0, j=sizeof(mach_hdr); i<mach_hdr.ncmds ; i++)
+    {
+        if(read(fd, &lc, sizeof(struct load_command)) != sizeof(struct load_command))
+            error("unable to read load_command");
+        if(lc.cmd == LC_SEGMENT)
+        {
+            offset_to_segment = j;
+            lseek(fd, offset_to_segment, SEEK_SET);
+            segment = malloc(sizeof(struct segment_command));
+            if(read(fd, segment, sizeof(struct segment_command)) != sizeof(struct segment_command))
+                error("unable to read LC_SEGMENT");
+        }
+        if(lc.cmd == LC_DYSYMTAB)
+        {
+            offset_to_dysymtab = j;
+            lseek(fd, offset_to_dysymtab, SEEK_SET);
+            dysymtabcmd = malloc(sizeof(struct dysymtab_command));
+            if(read(fd, dysymtabcmd, sizeof(struct dysymtab_command)) != sizeof(struct dysymtab_command))
+                error("unable to read LC_DYSYMTAB");
+        }
+        if(lc.cmd == LC_SYMTAB)
+        {
+            offset_to_symtab = j;
+            lseek(fd, offset_to_symtab, SEEK_SET);
+            symtabcmd = malloc(sizeof(struct symtab_command));
+            if(read(fd, symtabcmd, sizeof(struct symtab_command)) != sizeof(struct symtab_command))
+                error("unable to read LC_SYMTAB");
+        }
+        j+=lc.cmdsize;
+
+        lseek(fd, j, SEEK_SET);
+    }
+
+    if(!segment)
+        error("unable to find LC_SEGMENT");
+
+    /* read section headers */
+    section_hdr = load_data(fd, offset_to_segment + sizeof(struct segment_command), segment->nsects * sizeof(struct section));
+
+    /* read all section data */
+    sdata = (uint8_t **)malloc(sizeof(void *) * segment->nsects);
+    memset(sdata, 0, sizeof(void *) * segment->nsects);
+    
+	/* Load the data in section data */
+	for(i = 0; i < segment->nsects; i++) {
+        sdata[i] = load_data(fd, section_hdr[i].offset, section_hdr[i].size);
+    }
+	
+    /* text section */
+	text_sec_hdr = find_mach_sec_hdr(section_hdr, segment->nsects, SEG_TEXT, SECT_TEXT);
+	i = find_mach_sec_index(section_hdr, segment->nsects, SEG_TEXT, SECT_TEXT);
+	if (i == -1 || !text_sec_hdr)
+        error("could not find __TEXT,__text section");
+    text = sdata[i];
+	
+    /* Make sure dysym was loaded */
+    if(!(int)dysymtabcmd)
+        error("could not find __DYSYMTAB segment");
+    
+    /* read the table of content of the indirect sym */
+    tocdylib = load_data( fd, dysymtabcmd->indirectsymoff, dysymtabcmd->nindirectsyms * sizeof(uint32_t) );
+    
+    /* Make sure symtab was loaded  */
+    if(!(int)symtabcmd)
+        error("could not find __SYMTAB segment");
+    nb_syms = symtabcmd->nsyms;
+
+    symtab_std = load_data(fd, symtabcmd->symoff, symtabcmd->nsyms * sizeof(struct nlist));
+    strtab = load_data(fd, symtabcmd->stroff, symtabcmd->strsize);
+	
+	symtab = malloc(sizeof(EXE_SYM) * nb_syms);
+	
+	/* Now transform the symtab, to an extended version, with the sym size, and the C name */
+	for(i = 0, sym = symtab, syment = symtab_std; i < nb_syms; i++, sym++, syment++) {
+        const char *name;
+        struct nlist *sym_follow, *sym_next = 0;
+        unsigned int j;
+        name = find_str_by_index(sym->n_un.n_strx);
+		memset(sym, 0, sizeof(*sym));
+		
+		if ( sym->n_type & N_STAB ) /* Debug symbols are skipped */
+            continue;
+			
+		memcpy(sym, syment, sizeof(*syment));
+			
+		/* Find the following symbol in order to get the current symbol size */
+        for(j = 0, sym_follow = symtab_std; j < nb_syms; j++, sym_follow++) {
+            if ( sym_follow->n_sect != 1 || sym_follow->n_type & N_STAB || !(sym_follow->n_value > sym->st_value))
+                continue;
+            if(!sym_next) {
+                sym_next = sym_follow;
+                continue;
+            }
+            if(!(sym_next->n_value > sym_follow->n_value))
+                continue;
+            sym_next = sym_follow;
+        }
+		if(sym_next)
+            sym->st_size = sym_next->n_value - sym->st_value;
+		else
+            sym->st_size = text_sec_hdr->size - sym->st_value;
+	}
+	
+    /* Find Reloc */
+    relocs = load_data(fd, text_sec_hdr->reloff, text_sec_hdr->nreloc * sizeof(struct relocation_info));
+    nb_relocs = text_sec_hdr->nreloc;
+
+	close(fd);
+	return 0;
+}
+
+#endif /* CONFIG_FORMAT_MACH */
 
 #ifdef HOST_ARM
 
@@ -1049,9 +1476,12 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
         args_present[i] = 0;
 
     for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
-        if (rel->r_offset >= start_offset &&
-	    rel->r_offset < start_offset + (p_end - p_start)) {
+        host_ulong offset = get_rel_offset(rel);
+        if (offset >= start_offset &&
+	    offset < start_offset + (p_end - p_start)) {
             sym_name = get_rel_sym_name(rel);
+            if(!sym_name)
+                continue;
             if (strstart(sym_name, "__op_param", &p)) {
                 n = strtoul(p, NULL, 10);
                 if (n > MAX_ARGS)
@@ -1087,9 +1517,12 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
         fprintf(outfile, "    extern void %s();\n", name);
 
         for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
-            if (rel->r_offset >= start_offset &&
-		rel->r_offset < start_offset + (p_end - p_start)) {
+            host_ulong offset = get_rel_offset(rel);
+            if (offset >= start_offset &&
+                offset < start_offset + (p_end - p_start)) {
                 sym_name = get_rel_sym_name(rel);
+                if(!sym_name)
+                    continue;
                 if (*sym_name && 
                     !strstart(sym_name, "__op_param", NULL) &&
                     !strstart(sym_name, "__op_jmp", NULL)) {
@@ -1101,12 +1534,18 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 			continue;
 		    }
 #endif
+#ifdef __APPLE__
+/* set __attribute((unused)) on darwin because we wan't to avoid warning when we don't use the symbol */
+                    fprintf(outfile, "extern char %s __attribute__((unused));\n", sym_name);
+#else
                     fprintf(outfile, "extern char %s;\n", sym_name);
+#endif
                 }
             }
         }
 
-        fprintf(outfile, "    memcpy(gen_code_ptr, (void *)((char *)&%s+%d), %d);\n", name, start_offset - offset, copy_size);
+        fprintf(outfile, "    memcpy(gen_code_ptr, (void *)((char *)&%s+%d), %d);\n",
+					name, (int)(start_offset - offset), copy_size);
 
         /* emit code offset information */
         {
@@ -1131,12 +1570,19 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                     } else {
                         ptr = NULL;
                     }
+#elif defined(CONFIG_FORMAT_MACH)
+                    if(!sym->n_sect)
+                        continue;
+                    ptr = sdata[sym->n_sect-1];
 #else
                     ptr = sdata[sym->st_shndx];
 #endif
                     if (!ptr)
                         error("__op_labelN in invalid section");
                     offset = sym->st_value;
+#ifdef CONFIG_FORMAT_MACH
+                    offset -= section_hdr[sym->n_sect-1].addr;
+#endif
                     val = *(unsigned long *)(ptr + offset);
 #ifdef ELF_USES_RELOCA
                     {
@@ -1284,6 +1730,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
             }
 #elif defined(HOST_PPC)
             {
+#ifdef CONFIG_FORMAT_ELF
                 char name[256];
                 int type;
                 int addend;
@@ -1337,6 +1784,94 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                         }
                     }
                 }
+#elif defined(CONFIG_FORMAT_MACH)
+				struct scattered_relocation_info *scarel;
+				struct relocation_info * rel;
+				char final_sym_name[256];
+				const char *sym_name;
+				const char *p;
+				int slide, sslide;
+				int i;
+	
+				for(i = 0, rel = relocs; i < nb_relocs; i++, rel++) {
+					unsigned int offset, length, value = 0;
+					unsigned int type, pcrel, isym = 0;
+					unsigned int usesym = 0;
+				
+					if(R_SCATTERED & rel->r_address) {
+						scarel = (struct scattered_relocation_info*)rel;
+						offset = (unsigned int)scarel->r_address;
+						length = scarel->r_length;
+						pcrel = scarel->r_pcrel;
+						type = scarel->r_type;
+						value = scarel->r_value;
+					} else {
+						value = isym = rel->r_symbolnum;
+						usesym = (rel->r_extern);
+						offset = rel->r_address;
+						length = rel->r_length;
+						pcrel = rel->r_pcrel;
+						type = rel->r_type;
+					}
+				
+					slide = offset - start_offset;
+		
+					if (!(offset >= start_offset && offset < start_offset + size)) 
+						continue;  /* not in our range */
+
+					sym_name = get_reloc_name(rel, &sslide);
+					
+					if(usesym && symtab[isym].n_type & N_STAB)
+						continue; /* don't handle STAB (debug sym) */
+					
+					if (sym_name && strstart(sym_name, "__op_jmp", &p)) {
+						int n;
+						n = strtol(p, NULL, 10);
+						fprintf(outfile, "    jmp_offsets[%d] = %d + (gen_code_ptr - gen_code_buf);\n",
+							n, slide);
+						continue; /* Nothing more to do */
+					}
+					
+					if(!sym_name)
+					{
+						fprintf(outfile, "/* #warning relocation not handled in %s (value 0x%x, %s, offset 0x%x, length 0x%x, %s, type 0x%x) */\n",
+						           name, value, usesym ? "use sym" : "don't use sym", offset, length, pcrel ? "pcrel":"", type);
+						continue; /* dunno how to handle without final_sym_name */
+					}
+													   
+					if (strstart(sym_name, "__op_param", &p)) {
+						snprintf(final_sym_name, sizeof(final_sym_name), "param%s", p);
+					} else {
+						snprintf(final_sym_name, sizeof(final_sym_name), "(long)(&%s)", sym_name);
+					}
+			
+					switch(type) {
+					case PPC_RELOC_BR24:
+						fprintf(outfile, "{\n");
+						fprintf(outfile, "    uint32_t imm = *(uint32_t *)(gen_code_ptr + %d) & 0x3fffffc;\n", slide);
+						fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = (*(uint32_t *)(gen_code_ptr + %d) & ~0x03fffffc) | ((imm + ((long)%s - (long)gen_code_ptr) + %d) & 0x03fffffc);\n", 
+											slide, slide, name, sslide );
+						fprintf(outfile, "}\n");
+						break;
+					case PPC_RELOC_HI16:
+						fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d + 2) = (%s + %d) >> 16;\n", 
+							slide, final_sym_name, sslide);
+						break;
+					case PPC_RELOC_LO16:
+						fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d + 2) = (%s + %d);\n", 
+					slide, final_sym_name, sslide);
+                            break;
+					case PPC_RELOC_HA16:
+						fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d + 2) = (%s + %d + 0x8000) >> 16;\n", 
+							slide, final_sym_name, sslide);
+						break;
+				default:
+					error("unsupported powerpc relocation (%d)", type);
+				}
+			}
+#else
+#error unsupport object format
+#endif
             }
 #elif defined(HOST_S390)
             {
@@ -1689,9 +2224,9 @@ int gen_file(FILE *outfile, int out_type)
         fprintf(outfile, "DEF(nop2, 2, 0)\n");
         fprintf(outfile, "DEF(nop3, 3, 0)\n");
         for(i = 0, sym = symtab; i < nb_syms; i++, sym++) {
-            const char *name, *p;
+            const char *name;
             name = get_sym_name(sym);
-            if (strstart(name, OP_PREFIX, &p)) {
+            if (strstart(name, OP_PREFIX, NULL)) {
                 gen_code(name, sym->st_value, sym->st_size, outfile, 2);
             }
         }
@@ -1702,8 +2237,10 @@ int gen_file(FILE *outfile, int out_type)
             const char *name;
             name = get_sym_name(sym);
             if (strstart(name, OP_PREFIX, NULL)) {
+#if defined(CONFIG_FORMAT_ELF) || defined(CONFIG_FORMAT_COFF)
                 if (sym->st_shndx != text_shndx)
                     error("invalid section for opcode (0x%x)", sym->st_shndx);
+#endif
                 gen_code(name, sym->st_value, sym->st_size, outfile, 0);
             }
         }
@@ -1747,8 +2284,10 @@ fprintf(outfile,
                 printf("%4d: %s pos=0x%08x len=%d\n", 
                        i, name, sym->st_value, sym->st_size);
 #endif
+#if defined(CONFIG_FORMAT_ELF) || defined(CONFIG_FORMAT_COFF)
                 if (sym->st_shndx != text_shndx)
                     error("invalid section for opcode (0x%x)", sym->st_shndx);
+#endif
                 gen_code(name, sym->st_value, sym->st_size, outfile, 1);
             }
         }
