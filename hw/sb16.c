@@ -26,14 +26,15 @@
 #define LENOFA(a) ((int) (sizeof(a)/sizeof(a[0])))
 
 #define dolog(...) AUD_log ("sb16", __VA_ARGS__)
+
+/* #define DEBUG */
+/* #define DEBUG_SB16_MOST */
+
 #ifdef DEBUG
 #define ldebug(...) dolog (__VA_ARGS__)
 #else
 #define ldebug(...)
 #endif
-
-/* #define DEBUG */
-/* #define DEBUG_SB16_MOST */
 
 #define IO_READ_PROTO(name)                             \
     uint32_t name (void *opaque, uint32_t nport)
@@ -206,8 +207,18 @@ static void dma_cmd8 (SB16State *s, int mask, int dma_len)
         s->freq = (1000000 + (tmp / 2)) / tmp;
     }
 
-    if (-1 != dma_len)
-        s->block_size = dma_len + 1;
+    if (dma_len != -1)
+        s->block_size = dma_len << s->fmt_stereo;
+    else {
+        /* This is apparently the only way to make both Act1/PL
+           and SecondReality/FC work
+
+           Act1 sets block size via command 0x48 and it's an odd number
+           SR does the same with even number
+           Both use stereo, and Creatives own documentation states that
+           0x48 sets block size in bytes less one.. go figure */
+        s->block_size &= ~s->fmt_stereo;
+    }
 
     s->freq >>= s->fmt_stereo;
     s->left_till_irq = s->block_size;
@@ -215,6 +226,9 @@ static void dma_cmd8 (SB16State *s, int mask, int dma_len)
     /* s->highspeed = (mask & DMA8_HIGH) != 0; */
     s->dma_auto = (mask & DMA8_AUTO) != 0;
     s->align = (1 << s->fmt_stereo) - 1;
+
+    if (s->block_size & s->align)
+        dolog ("warning: unaligned buffer\n");
 
     ldebug ("freq %d, stereo %d, sign %d, bits %d, "
             "dma %d, auto %d, fifo %d, high %d\n",
@@ -260,8 +274,13 @@ static void dma_cmd (SB16State *s, uint8_t cmd, uint8_t d0, int dma_len)
 
     s->block_size = dma_len + 1;
     s->block_size <<= (s->fmt_bits == 16);
-    if (!s->dma_auto)           /* Miles Sound System ? */
+    if (!s->dma_auto) {
+        /* It is clear that for DOOM and auto-init this value
+           shouldn't take stereo into account, while Miles Sound Systems
+           setsound.exe with single transfer mode wouldn't work without it
+           wonders of SB16 yet again */
         s->block_size <<= s->fmt_stereo;
+    }
 
     ldebug ("freq %d, stereo %d, sign %d, bits %d, "
             "dma %d, auto %d, fifo %d, high %d\n",
@@ -290,6 +309,8 @@ static void dma_cmd (SB16State *s, uint8_t cmd, uint8_t d0, int dma_len)
     s->bytes_per_second = (s->freq << s->fmt_stereo) << (s->fmt_bits == 16);
     s->highspeed = 0;
     s->align = (1 << (s->fmt_stereo + (s->fmt_bits == 16))) - 1;
+    if (s->block_size & s->align)
+        dolog ("warning: unaligned buffer\n");
 
     if (s->freq)
         s->voice = AUD_open (s->voice, "sb16", s->freq,
@@ -371,6 +392,10 @@ static void command (SB16State *s, uint8_t cmd)
         case 0x14:
             s->needed_bytes = 2;
             s->block_size = 0;
+            break;
+
+        case 0x1c:              /* Auto-Initialize DMA DAC, 8-bit */
+            control (s, 1);
             break;
 
         case 0x20:              /* Direct ADC, Juice/PL */
@@ -607,9 +632,7 @@ static void complete (SB16State *s)
             break;
 
         case 0x14:
-            dma_cmd8 (s, 0, dsp_get_lohi (s));
-            /* s->can_write = 0; */
-            /* qemu_mod_timer (s->aux_ts, qemu_get_clock (vm_clock) + (ticks_per_sec * 320) / 1000000); */
+            dma_cmd8 (s, 0, dsp_get_lohi (s) + 1);
             break;
 
         case 0x40:
@@ -626,22 +649,20 @@ static void complete (SB16State *s)
             break;
 
         case 0x48:
-            s->block_size = dsp_get_lohi (s);
-            /* s->highspeed = 1; */
+            s->block_size = dsp_get_lohi (s) + 1;
             ldebug ("set dma block len %d\n", s->block_size);
             break;
 
         case 0x80:
             {
-                int samples, bytes;
+                int freq, samples, bytes;
                 int64_t ticks;
 
-                if (-1 == s->freq)
-                    s->freq = 11025;
-                samples = dsp_get_lohi (s);
+                freq = s->freq > 0 ? s->freq : 11025;
+                samples = dsp_get_lohi (s) + 1;
                 bytes = samples << s->fmt_stereo << (s->fmt_bits == 16);
-                ticks = bytes ? (ticks_per_sec / (s->freq / bytes)) : 0;
-                if (!bytes || ticks < ticks_per_sec / 1024)
+                ticks = (bytes * ticks_per_sec) / freq;
+                if (ticks < ticks_per_sec / 1024)
                     pic_set_irq (s->irq, 1);
                 else
                     qemu_mod_timer (s->aux_ts, qemu_get_clock (vm_clock) + ticks);
@@ -658,7 +679,7 @@ static void complete (SB16State *s)
 
         case 0xe2:
             d0 = dsp_get_data (s);
-            dolog ("E2 = %#x\n", d0);
+            ldebug ("E2 = %#x\n", d0);
             break;
 
         case 0xe4:
@@ -967,6 +988,9 @@ static IO_WRITE_PROTO(mixer_write_indexw)
 static IO_READ_PROTO(mixer_read)
 {
     SB16State *s = opaque;
+#ifndef DEBUG_SB16_MOST
+    if (s->mixer_nreg != 0x82)
+#endif
     ldebug ("mixer_read[%#x] -> %#x\n",
             s->mixer_nreg, s->mixer_regs[s->mixer_nreg]);
     return s->mixer_regs[s->mixer_nreg];
@@ -1049,8 +1073,9 @@ static int SB_read_DMA (void *opaque, int nchan, int dma_pos, int dma_len)
     }
 
 #ifdef DEBUG_SB16_MOST
-    ldebug ("pos %5d free %5d size %5d till % 5d copy %5d dma size %5d\n",
-            dma_pos, free, dma_len, s->left_till_irq, copy, s->block_size);
+    ldebug ("pos %5d free %5d size %5d till % 5d copy %5d written %5d size %5d\n",
+            dma_pos, free, dma_len, s->left_till_irq, copy, written,
+            s->block_size);
 #endif
 
     while (s->left_till_irq <= 0) {
