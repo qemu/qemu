@@ -277,7 +277,8 @@ static void tss_load_seg(int seg_reg, int selector)
 
 /* XXX: restore CPU state in registers (PowerPC case) */
 static void switch_tss(int tss_selector, 
-                       uint32_t e1, uint32_t e2, int source)
+                       uint32_t e1, uint32_t e2, int source,
+                       uint32_t next_eip)
 {
     int tss_limit, tss_limit_max, type, old_tss_limit_max, old_type, v1, v2, i;
     uint8_t *tss_base;
@@ -369,7 +370,7 @@ static void switch_tss(int tss_selector,
     if (source == SWITCH_TSS_JMP || source == SWITCH_TSS_IRET) {
         uint8_t *ptr;
         uint32_t e2;
-        ptr = env->gdt.base + (env->tr.selector << 3);
+        ptr = env->gdt.base + (env->tr.selector & ~7);
         e2 = ldl_kernel(ptr + 4);
         e2 &= ~DESC_TSS_BUSY_MASK;
         stl_kernel(ptr + 4, e2);
@@ -381,7 +382,7 @@ static void switch_tss(int tss_selector,
     /* save the current state in the old TSS */
     if (type & 8) {
         /* 32 bit */
-        stl_kernel(env->tr.base + 0x20, env->eip);
+        stl_kernel(env->tr.base + 0x20, next_eip);
         stl_kernel(env->tr.base + 0x24, old_eflags);
         for(i = 0; i < 8; i++)
             stl_kernel(env->tr.base + (0x28 + i * 4), env->regs[i]);
@@ -389,7 +390,7 @@ static void switch_tss(int tss_selector,
             stw_kernel(env->tr.base + (0x48 + i * 4), env->segs[i].selector);
     } else {
         /* 16 bit */
-        stw_kernel(env->tr.base + 0x0e, new_eip);
+        stw_kernel(env->tr.base + 0x0e, next_eip);
         stw_kernel(env->tr.base + 0x10, old_eflags);
         for(i = 0; i < 8; i++)
             stw_kernel(env->tr.base + (0x12 + i * 2), env->regs[i]);
@@ -409,7 +410,7 @@ static void switch_tss(int tss_selector,
     if (source == SWITCH_TSS_JMP || source == SWITCH_TSS_CALL) {
         uint8_t *ptr;
         uint32_t e2;
-        ptr = env->gdt.base + (tss_selector << 3);
+        ptr = env->gdt.base + (tss_selector & ~7);
         e2 = ldl_kernel(ptr + 4);
         e2 |= DESC_TSS_BUSY_MASK;
         stl_kernel(ptr + 4, e2);
@@ -418,6 +419,7 @@ static void switch_tss(int tss_selector,
     /* set the new CPU state */
     /* from this point, any exception which occurs can give problems */
     env->cr[0] |= CR0_TS_MASK;
+    env->hflags |= HF_TS_MASK;
     env->tr.selector = tss_selector;
     env->tr.base = tss_base;
     env->tr.limit = tss_limit;
@@ -486,6 +488,7 @@ static void switch_tss(int tss_selector,
     
     /* check that EIP is in the CS segment limits */
     if (new_eip > env->segs[R_CS].limit) {
+        /* XXX: different exception if CALL ? */
         raise_exception_err(EXCP0D_GPF, 0);
     }
 }
@@ -603,6 +606,10 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
             break;
         }
     }
+    if (is_int)
+        old_eip = next_eip;
+    else
+        old_eip = env->eip;
 
     dt = &env->idt;
     if (intno * 8 + 7 > dt->limit)
@@ -617,7 +624,7 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
         /* must do that check here to return the correct error code */
         if (!(e2 & DESC_P_MASK))
             raise_exception_err(EXCP0B_NOSEG, intno * 8 + 2);
-        switch_tss(intno * 8, e1, e2, SWITCH_TSS_CALL);
+        switch_tss(intno * 8, e1, e2, SWITCH_TSS_CALL, old_eip);
         if (has_error_code) {
             int mask;
             /* push the error code */
@@ -713,10 +720,6 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
         push_size += 8;
     push_size <<= shift;
 #endif
-    if (is_int)
-        old_eip = next_eip;
-    else
-        old_eip = env->eip;
     if (shift == 1) {
         if (new_stack) {
             if (env->eflags & VM_MASK) {
@@ -1264,7 +1267,8 @@ void helper_ljmp_protected_T0_T1(void)
         case 5: /* task gate */
             if (dpl < cpl || dpl < rpl)
                 raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
-            switch_tss(new_cs, e1, e2, SWITCH_TSS_JMP);
+            /* XXX: check if it is really the current EIP */
+            switch_tss(new_cs, e1, e2, SWITCH_TSS_JMP, env->eip);
             break;
         case 4: /* 286 call gate */
         case 12: /* 386 call gate */
@@ -1405,7 +1409,7 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip)
         case 5: /* task gate */
             if (dpl < cpl || dpl < rpl)
                 raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
-            switch_tss(new_cs, e1, e2, SWITCH_TSS_CALL);
+            switch_tss(new_cs, e1, e2, SWITCH_TSS_CALL, next_eip);
             return;
         case 4: /* 286 call gate */
         case 12: /* 386 call gate */
@@ -1744,7 +1748,8 @@ void helper_iret_protected(int shift)
         /* NOTE: we check both segment and busy TSS */
         if (type != 3)
             raise_exception_err(EXCP0A_TSS, tss_selector & 0xfffc);
-        switch_tss(tss_selector, e1, e2, SWITCH_TSS_IRET);
+        /* XXX: check if it is really the current EIP */
+        switch_tss(tss_selector, e1, e2, SWITCH_TSS_IRET, env->eip);
     } else {
         helper_ret_protected(shift, 1, 0);
     }
