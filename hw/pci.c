@@ -1030,6 +1030,8 @@ static void pci_bios_init_device(PCIDevice *d)
         }
         break;
     case 0x0300:
+        if (vendor_id != 0x1234)
+            goto default_map;
         /* VGA: map frame buffer to default Bochs VBE address */
         pci_set_io_region_addr(d, 0, 0xE0000000);
         break;
@@ -1040,6 +1042,7 @@ static void pci_bios_init_device(PCIDevice *d)
         }
         break;
     default:
+    default_map:
         /* default memory mappings */
         for(i = 0; i < PCI_NUM_REGIONS; i++) {
             r = &d->io_regions[i];
