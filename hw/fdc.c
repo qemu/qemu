@@ -1265,8 +1265,16 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
             FLOPPY_DPRINTF("SENSE_INTERRUPT_STATUS command (%02x)\n",
                            fdctrl->int_status);
             /* No parameters cmd: returns status if no interrupt */
+#if 0
             fdctrl->fifo[0] =
                 fdctrl->int_status | (cur_drv->head << 2) | fdctrl->cur_drv;
+#else
+            /* XXX: int_status handling is broken for read/write
+               commands, so we do this hack. It should be suppressed
+               ASAP */
+            fdctrl->fifo[0] =
+                0x20 | (cur_drv->head << 2) | fdctrl->cur_drv;
+#endif
             fdctrl->fifo[1] = cur_drv->track;
             fdctrl_set_fifo(fdctrl, 2, 0);
 	    fdctrl_reset_irq(fdctrl);
