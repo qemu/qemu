@@ -1,11 +1,5 @@
 include config.mak
 
-#Uncomment following and specify proper paths/names for FMOD support
-#USE_FMOD=1
-#FMOD_INCLUDE=/net/include/fmod
-#FMOD_LIBPATH=/net/lib
-#FMOD_VERSION=3.74
-
 TARGET_PATH=$(SRC_PATH)/target-$(TARGET_ARCH)
 VPATH=$(SRC_PATH):$(TARGET_PATH):$(SRC_PATH)/hw:$(SRC_PATH)/audio
 DEFINES=-I. -I$(TARGET_PATH) -I$(SRC_PATH)
@@ -288,11 +282,10 @@ ifdef CONFIG_ADLIB
 SOUND_HW += fmopl.o adlib.o
 endif
 
-ifeq ($(USE_FMOD),1)
+ifdef CONFIG_FMOD
 AUDIODRV += fmodaudio.o
-audio.o fmodaudio.o: DEFINES := -DUSE_FMOD_AUDIO -I$(FMOD_INCLUDE) $(DEFINES)
-LDFLAGS += -L$(FMOD_LIBPATH) -Wl,-rpath,$(FMOD_LIBPATH)
-LIBS += -lfmod-$(FMOD_VERSION)
+audio.o fmodaudio.o: DEFINES := -I$(CONFIG_FMOD_INC) $(DEFINES)
+LIBS += $(CONFIG_FMOD_LIB)
 endif
 
 ifeq ($(TARGET_ARCH), i386)

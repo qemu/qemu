@@ -24,7 +24,6 @@
 #include <assert.h>
 #include "vl.h"
 
-#define USE_SDL_AUDIO
 #define USE_WAV_AUDIO
 
 #include "audio/audio_int.h"
@@ -779,7 +778,7 @@ static struct audio_output_driver *drvtab[] = {
 #ifdef CONFIG_OSS
     &oss_output_driver,
 #endif
-#ifdef USE_FMOD_AUDIO
+#ifdef CONFIG_FMOD
     &fmod_output_driver,
 #endif
 #ifdef CONFIG_SDL

@@ -74,6 +74,9 @@ gdbstub="yes"
 slirp="yes"
 adlib="no"
 oss="no"
+fmod="no"
+fmod_lib=""
+fmod_inc=""
 
 # OS specific
 targetos=`uname -s`
@@ -149,6 +152,12 @@ for opt do
   --static) static="yes"
   ;;
   --disable-sdl) sdl="no"
+  ;;
+  --enable-fmod) fmod="yes"
+  ;;
+  --fmod-lib=*) fmod_lib=${opt#--fmod-lib=}
+  ;;
+  --fmod-inc=*) fmod_inc=${opt#--fmod-inc=}
   ;;
   --enable-mingw32) mingw32="yes" ; cross_prefix="i386-mingw32-"
   ;; 
@@ -285,6 +294,9 @@ echo "  --cc=CC                  use C compiler CC [$cc]"
 echo "  --make=MAKE              use specified make [$make]"
 echo "  --static                 enable static build [$static]"
 echo "  --enable-mingw32         enable Win32 cross compilation with mingw32"
+echo "  --enable-fmod            enable FMOD audio output driver"
+echo "  --fmod-lib               path to FMOD library"
+echo "  --fmod-inc               path to FMOD includes"
 echo ""
 echo "NOTE: The object files are build at the place where configure is launched"
 exit 1
@@ -327,6 +339,11 @@ echo "SDL support       $sdl"
 echo "SDL static link   $sdl_static"
 echo "mingw32 support   $mingw32"
 echo "Adlib support     $adlib"
+echo -n "FMOD support      $fmod"
+if test $fmod = "yes"; then
+    echo -n " (lib='$fmod_lib' include='$fmod_inc')"
+fi
+echo ""
 
 if test $sdl_too_old = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have FFplay/SDL support"
@@ -434,6 +451,12 @@ fi
 if test "$oss" = "yes" ; then
   echo "CONFIG_OSS=yes" >> $config_mak
   echo "#define CONFIG_OSS 1" >> $config_h
+fi
+if test "$fmod" = "yes" ; then
+  echo "CONFIG_FMOD=yes" >> $config_mak
+  echo "CONFIG_FMOD_LIB=$fmod_lib" >> $config_mak
+  echo "CONFIG_FMOD_INC=$fmod_inc" >> $config_mak
+  echo "#define CONFIG_FMOD 1" >> $config_h
 fi
 echo -n "VERSION=" >>$config_mak
 head $source_path/VERSION >>$config_mak
