@@ -217,6 +217,9 @@ static uint32_t ioport92_read(void *opaque, uint32_t addr)
 
 void bochs_bios_write(void *opaque, uint32_t addr, uint32_t val)
 {
+    static const char shutdown_str[8] = "Shutdown";
+    static int shutdown_index = 0;
+    
     switch(addr) {
         /* Bochs BIOS messages */
     case 0x400:
@@ -228,6 +231,18 @@ void bochs_bios_write(void *opaque, uint32_t addr, uint32_t val)
 #ifdef DEBUG_BIOS
         fprintf(stderr, "%c", val);
 #endif
+        break;
+    case 0x8900:
+        /* same as Bochs power off */
+        if (val == shutdown_str[shutdown_index]) {
+            shutdown_index++;
+            if (shutdown_index == 8) {
+                shutdown_index = 0;
+                qemu_system_shutdown_request();
+            }
+        } else {
+            shutdown_index = 0;
+        }
         break;
 
         /* LGPL'ed VGA BIOS messages */
@@ -250,6 +265,7 @@ void bochs_bios_init(void)
     register_ioport_write(0x401, 1, 2, bochs_bios_write, NULL);
     register_ioport_write(0x402, 1, 1, bochs_bios_write, NULL);
     register_ioport_write(0x403, 1, 1, bochs_bios_write, NULL);
+    register_ioport_write(0x8900, 1, 1, bochs_bios_write, NULL);
 
     register_ioport_write(0x501, 1, 2, bochs_bios_write, NULL);
     register_ioport_write(0x502, 1, 2, bochs_bios_write, NULL);
