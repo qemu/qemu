@@ -41,6 +41,8 @@ static int gui_fullscreen;
 static int gui_key_modifier_pressed;
 static int gui_keysym;
 static int gui_fullscreen_initial_grab;
+static int gui_grab_code = KMOD_LALT | KMOD_LCTRL;
+static uint8_t modifiers_state[256];
 
 static void sdl_update(DisplayState *ds, int x, int y, int w, int h)
 {
@@ -275,10 +277,22 @@ static uint8_t sdl_keyevent_to_keycode(const SDL_KeyboardEvent *ev)
 
 #endif
 
+static void reset_keys(void)
+{
+    int i;
+    for(i = 0; i < 256; i++) {
+        if (modifiers_state[i]) {
+            if (i & 0x80)
+                kbd_put_keycode(0xe0);
+            kbd_put_keycode(i | 0x80);
+            modifiers_state[i] = 0;
+        }
+    }
+}
+
 static void sdl_process_key(SDL_KeyboardEvent *ev)
 {
-    int keycode, v, i;
-    static uint8_t modifiers_state[256];
+    int keycode, v;
 
     if (ev->keysym.sym == SDLK_PAUSE) {
         /* specific case */
@@ -297,13 +311,7 @@ static void sdl_process_key(SDL_KeyboardEvent *ev)
     switch(keycode) {
     case 0x00:
         /* sent when leaving window: reset the modifiers state */
-        for(i = 0; i < 256; i++) {
-            if (modifiers_state[i]) {
-                if (i & 0x80)
-                    kbd_put_keycode(0xe0);
-                kbd_put_keycode(i | 0x80);
-            }
-        }
+        reset_keys();
         return;
     case 0x2a:                          /* Left Shift */
     case 0x36:                          /* Right Shift */
@@ -341,7 +349,7 @@ static void sdl_update_caption(void)
         strcat(buf, " [Stopped]");
     }
     if (gui_grab) {
-        strcat(buf, " - Press Ctrl-Shift to exit grab");
+        strcat(buf, " - Press Ctrl-Alt to exit grab");
     }
     SDL_WM_SetCaption(buf, "QEMU");
 }
@@ -422,17 +430,19 @@ static void sdl_refresh(DisplayState *ds)
         case SDL_KEYDOWN:
         case SDL_KEYUP:
             if (ev->type == SDL_KEYDOWN) {
-                mod_state = (SDL_GetModState() & (KMOD_LSHIFT | KMOD_LCTRL)) ==
-                    (KMOD_LSHIFT | KMOD_LCTRL);
+                mod_state = (SDL_GetModState() & gui_grab_code) ==
+                    gui_grab_code;
                 gui_key_modifier_pressed = mod_state;
                 if (gui_key_modifier_pressed) {
-                    switch(ev->key.keysym.sym) {
-                    case SDLK_f:
+                    int keycode;
+                    keycode = sdl_keyevent_to_keycode(&ev->key);
+                    switch(keycode) {
+                    case 0x21: /* 'f' key on US keyboard */
                         toggle_full_screen(ds);
                         gui_keysym = 1;
                         break;
-                    case SDLK_F1 ... SDLK_F12:
-                        console_select(ev->key.keysym.sym - SDLK_F1);
+                    case 0x02 ... 0x0a: /* '1' to '9' keys */ 
+                        console_select(keycode - 0x02);
                         if (is_active_console(vga_console)) {
                             /* tell the vga console to redisplay itself */
                             vga_invalidate_display();
@@ -446,8 +456,7 @@ static void sdl_refresh(DisplayState *ds)
                     default:
                         break;
                     }
-                }
-                if (!is_active_console(vga_console)) {
+                } else if (!is_active_console(vga_console)) {
                     int keysym;
                     keysym = 0;
                     if (ev->key.keysym.mod & (KMOD_LCTRL | KMOD_RCTRL)) {
@@ -483,15 +492,18 @@ static void sdl_refresh(DisplayState *ds)
                     }
                 }
             } else if (ev->type == SDL_KEYUP) {
-                mod_state = (SDL_GetModState() & (KMOD_LSHIFT | KMOD_LCTRL));
+                mod_state = (SDL_GetModState() & gui_grab_code);
                 if (!mod_state) {
                     if (gui_key_modifier_pressed) {
                         if (gui_keysym == 0) {
-                            /* exit/enter grab if pressing Ctrl-Shift */
+                            /* exit/enter grab if pressing Ctrl-Alt */
                             if (!gui_grab)
                                 sdl_grab_start();
                             else
                                 sdl_grab_end();
+                            /* SDL does not send back all the
+                               modifiers key, so we must correct it */
+                            reset_keys();
                             break;
                         }
                         gui_key_modifier_pressed = 0;
