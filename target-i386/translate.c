@@ -2304,8 +2304,9 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
     case 0x58 ... 0x5f: /* pop */
         ot = dflag ? OT_LONG : OT_WORD;
         gen_pop_T0(s);
-        gen_op_mov_reg_T0[ot][b & 7]();
+        /* NOTE: order is important for pop %sp */
         gen_pop_update(s);
+        gen_op_mov_reg_T0[ot][b & 7]();
         break;
     case 0x60: /* pusha */
         gen_pusha(s);
@@ -2326,11 +2327,20 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
     case 0x8f: /* pop Ev */
         ot = dflag ? OT_LONG : OT_WORD;
         modrm = ldub_code(s->pc++);
+        mod = (modrm >> 6) & 3;
         gen_pop_T0(s);
-        s->popl_esp_hack = 2 << dflag;
-        gen_ldst_modrm(s, modrm, ot, OR_TMP0, 1);
-        s->popl_esp_hack = 0;
-        gen_pop_update(s);
+        if (mod == 3) {
+            /* NOTE: order is important for pop %sp */
+            gen_pop_update(s);
+            rm = modrm & 7;
+            gen_op_mov_reg_T0[ot][rm]();
+        } else {
+            /* NOTE: order is important too for MMU exceptions */
+            s->popl_esp_hack = 2 << dflag;
+            gen_ldst_modrm(s, modrm, ot, OR_TMP0, 1);
+            s->popl_esp_hack = 0;
+            gen_pop_update(s);
+        }
         break;
     case 0xc8: /* enter */
         {
