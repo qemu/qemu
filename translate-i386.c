@@ -104,6 +104,16 @@ static void inline flush_icache_range(unsigned long start, unsigned long stop)
 
 #endif
 
+#ifdef __arm__
+static inline void flush_icache_range(unsigned long start, unsigned long stop)
+{
+    register unsigned long _beg __asm ("a1") = start;
+    register unsigned long _end __asm ("a2") = stop;
+    register unsigned long _flg __asm ("a3") = 0;
+    __asm __volatile__ ("swi 0x9f0002" : : "r" (_beg), "r" (_end), "r" (_flg));
+}
+#endif
+
 extern FILE *logfile;
 extern int loglevel;
 
@@ -166,6 +176,7 @@ enum {
     NB_OPS,
 };
 
+#include "dyngen.h"
 #include "op-i386.h"
 
 /* operand size */

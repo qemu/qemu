@@ -246,6 +246,18 @@ static inline int testandset (int *p)
 }
 #endif
 
+#ifdef __arm__
+static inline int testandset (int *spinlock)
+{
+    register unsigned int ret;
+    __asm__ __volatile__("swp %0, %1, [%2]"
+                         : "=r"(ret)
+                         : "0"(1), "r"(spinlock));
+    
+    return ret;
+}
+#endif
+
 typedef int spinlock_t;
 
 #define SPIN_LOCK_UNLOCKED 0

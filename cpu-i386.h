@@ -238,7 +238,10 @@ static inline void stb(void *ptr, int v)
     *(uint8_t *)ptr = v;
 }
 
-#ifdef WORDS_BIGENDIAN
+/* NOTE: on arm, putting 2 in /proc/sys/debug/alignment so that the
+   kernel handles unaligned load/stores may give better results, but
+   it is a system wide setting : bad */
+#if defined(WORDS_BIGENDIAN) || defined(__arm__)
 
 /* conservative code for little endian unaligned accesses */
 static inline int lduw(void *ptr)
@@ -329,16 +332,6 @@ static inline float ldfl(void *ptr)
     return u.f;
 }
 
-static inline double ldfq(void *ptr)
-{
-    union {
-        double d;
-        uint64_t i;
-    } u;
-    u.i = ldq(ptr);
-    return u.d;
-}
-
 static inline void stfl(void *ptr, float v)
 {
     union {
@@ -347,6 +340,42 @@ static inline void stfl(void *ptr, float v)
     } u;
     u.f = v;
     stl(ptr, u.i);
+}
+
+#if defined(__arm__) && !defined(WORDS_BIGENDIAN)
+
+/* NOTE: arm is horrible as double 32 bit words are stored in big endian ! */
+static inline double ldfq(void *ptr)
+{
+    union {
+        double d;
+        uint32_t tab[2];
+    } u;
+    u.tab[1] = ldl(ptr);
+    u.tab[0] = ldl(ptr + 4);
+    return u.d;
+}
+
+static inline void stfq(void *ptr, double v)
+{
+    union {
+        double d;
+        uint32_t tab[2];
+    } u;
+    u.d = v;
+    stl(ptr, u.tab[1]);
+    stl(ptr + 4, u.tab[0]);
+}
+
+#else
+static inline double ldfq(void *ptr)
+{
+    union {
+        double d;
+        uint64_t i;
+    } u;
+    u.i = ldq(ptr);
+    return u.d;
 }
 
 static inline void stfq(void *ptr, double v)
@@ -358,6 +387,7 @@ static inline void stfq(void *ptr, double v)
     u.d = v;
     stq(ptr, u.i);
 }
+#endif
 
 #else
 
