@@ -1250,6 +1250,8 @@ void test_exceptions(void)
     printf("PF exception:\n");
     if (setjmp(jmp_env) == 0) {
         val = 1;
+        /* we add a nop to test a weird PC retrieval case */
+        asm volatile ("nop");
         /* now store in an invalid address */
         *(char *)0x1234 = 1;
     }
