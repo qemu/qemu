@@ -2264,7 +2264,16 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         ret = get_errno(do_fork(cpu_env, CLONE_VFORK | CLONE_VM | SIGCHLD, 0));
         break;
     case TARGET_NR_ugetrlimit:
-        goto unimplemented;
+    {
+	struct rlimit rlim;
+	ret = get_errno(getrlimit(arg1, &rlim));
+	if (!is_error(ret)) {
+	    struct target_rlimit *target_rlim = (void *)arg2;
+	    target_rlim->rlim_cur = tswapl(rlim.rlim_cur);
+	    target_rlim->rlim_max = tswapl(rlim.rlim_max);
+	}
+	break;
+    }
     case TARGET_NR_truncate64:
         goto unimplemented;
     case TARGET_NR_ftruncate64:
@@ -2283,7 +2292,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                 struct target_stat64 *target_st = (void *)arg2;
                 memset(target_st, 0, sizeof(struct target_stat64));
                 target_st->st_dev = tswap16(st.st_dev);
-                target_st->st_ino = tswapl(st.st_ino);
+                target_st->st_ino = tswap64(st.st_ino);
 #ifdef TARGET_STAT64_HAS_BROKEN_ST_INO
                 target_st->__st_ino = tswapl(st.st_ino);
 #endif

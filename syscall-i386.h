@@ -330,7 +330,7 @@ struct target_stat64 {
 	target_ulong	__pad7;		/* will be high 32 bits of ctime someday */
 
 	unsigned long long	st_ino;
-};
+} __attribute__((packed));
 
 #define TARGET_SA_NOCLDSTOP	0x00000001
 #define TARGET_SA_NOCLDWAIT	0x00000002 /* not supported yet */
