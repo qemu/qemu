@@ -1,3 +1,8 @@
+version 0.5.6:
+
+  - minimalist FPU exception support (NetBSD FPU probe fix)
+  - cr0.ET fix (Win95 boot)
+
 version 0.5.5:
 
   - SDL full screen support (initial patch by malc)
