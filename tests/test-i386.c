@@ -689,6 +689,37 @@ void test_segs(void)
     printf("SS[tmp] = %02x\n", res2);
 }
 
+#define TEST_XCHG(op, size, opconst)\
+{\
+    int op0, op1;\
+    op0 = 0x12345678;\
+    op1 = 0xfbca7654;\
+    asm(#op " %" size "0, %" size "1" \
+        : "=q" (op0), opconst (op1) \
+        : "0" (op0), "1" (op1));\
+    printf("%-10s A=%08x B=%08x\n",\
+           #op, op0, op1);\
+}
+
+void test_xchg(void)
+{
+    TEST_XCHG(xchgl, "", "=q");
+    TEST_XCHG(xchgw, "w", "=q");
+    TEST_XCHG(xchgb, "b", "=q");
+
+    TEST_XCHG(xchgl, "", "=m");
+    TEST_XCHG(xchgw, "w", "=m");
+    TEST_XCHG(xchgb, "b", "=m");
+
+    TEST_XCHG(xaddl, "", "=q");
+    TEST_XCHG(xaddw, "w", "=q");
+    TEST_XCHG(xaddb, "b", "=q");
+
+    TEST_XCHG(xaddl, "", "=m");
+    TEST_XCHG(xaddw, "w", "=m");
+    TEST_XCHG(xaddb, "b", "=m");
+}
+
 static void *call_end __init_call = NULL;
 
 int main(int argc, char **argv)
@@ -706,6 +737,7 @@ int main(int argc, char **argv)
     test_jcc();
     test_floats();
     test_bcd();
+    test_xchg();
     test_lea();
     test_segs();
     return 0;

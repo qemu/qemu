@@ -29,6 +29,16 @@ struct target_iovec {
     target_long iov_len;   /* Number of bytes */
 };
 
+struct target_msghdr {
+    target_long	 msg_name;	/* Socket name			*/
+    int		 msg_namelen;	/* Length of name		*/
+    target_long	 msg_iov;	/* Data blocks			*/
+    target_long	 msg_iovlen;	/* Number of blocks		*/
+    target_long  msg_control;	/* Per protocol magic (eg BSD file descriptor passing) */
+    target_long	 msg_controllen;	/* Length of cmsg list */
+    unsigned int msg_flags;
+};
+
 struct  target_rusage {
         struct target_timeval ru_utime;        /* user time used */
         struct target_timeval ru_stime;        /* system time used */

@@ -277,6 +277,61 @@ void OPPROTO glue(op_jle_sub, SUFFIX)(void)
     FORCE_RET();
 }
 
+/* oldies */
+
+#if DATA_BITS >= 16
+
+void OPPROTO glue(op_loopnz, SUFFIX)(void)
+{
+    unsigned int tmp;
+    int eflags;
+    eflags = cc_table[CC_OP].compute_all();
+    tmp = (ECX - 1) & DATA_MASK;
+    ECX = (ECX & ~DATA_MASK) | tmp;
+    if (tmp != 0 && !(eflags & CC_Z))
+        PC = PARAM1;
+    else
+        PC = PARAM2;
+    FORCE_RET();
+}
+
+void OPPROTO glue(op_loopz, SUFFIX)(void)
+{
+    unsigned int tmp;
+    int eflags;
+    eflags = cc_table[CC_OP].compute_all();
+    tmp = (ECX - 1) & DATA_MASK;
+    ECX = (ECX & ~DATA_MASK) | tmp;
+    if (tmp != 0 && (eflags & CC_Z))
+        PC = PARAM1;
+    else
+        PC = PARAM2;
+    FORCE_RET();
+}
+
+void OPPROTO glue(op_loop, SUFFIX)(void)
+{
+    unsigned int tmp;
+    tmp = (ECX - 1) & DATA_MASK;
+    ECX = (ECX & ~DATA_MASK) | tmp;
+    if (tmp != 0)
+        PC = PARAM1;
+    else
+        PC = PARAM2;
+    FORCE_RET();
+}
+
+void OPPROTO glue(op_jecxz, SUFFIX)(void)
+{
+    if ((DATA_TYPE)ECX == 0)
+        PC = PARAM1;
+    else
+        PC = PARAM2;
+    FORCE_RET();
+}
+
+#endif
+
 /* various optimized set cases */
 
 void OPPROTO glue(op_setb_T0_sub, SUFFIX)(void)
@@ -597,6 +652,18 @@ void OPPROTO glue(glue(op_sbb, SUFFIX), _T0_T1_cc)(void)
     T0 = T0 - T1 - cf;
     CC_DST = T0;
     CC_OP = CC_OP_SUBB + SHIFT + cf * 3;
+}
+
+void OPPROTO glue(glue(op_cmpxchg, SUFFIX), _T0_T1_EAX_cc)(void)
+{
+    CC_SRC = EAX;
+    CC_DST = EAX - T0;
+    if ((DATA_TYPE)CC_DST == 0) {
+        T0 = T1;
+    } else {
+        EAX = (EAX & ~DATA_MASK) | (T0 & DATA_MASK);
+    }
+    FORCE_RET();
 }
 
 /* bit operations */

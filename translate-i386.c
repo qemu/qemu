@@ -389,6 +389,12 @@ static const int cc_op_arithb[8] = {
     CC_OP_SUBB,
 };
 
+static GenOpFunc *gen_op_cmpxchg_T0_T1_EAX_cc[3] = {
+    gen_op_cmpxchgb_T0_T1_EAX_cc,
+    gen_op_cmpxchgw_T0_T1_EAX_cc,
+    gen_op_cmpxchgl_T0_T1_EAX_cc,
+};
+
 static GenOpFunc *gen_op_shift_T0_T1_cc[3][8] = {
     [OT_BYTE] = {
         gen_op_rolb_T0_T1_cc,
@@ -635,6 +641,20 @@ static GenOpFunc2 *gen_jcc_sub[3][8] = {
         gen_op_jle_subl,
     },
 };
+static GenOpFunc2 *gen_op_loop[2][4] = {
+    [0] = {
+        gen_op_loopnzw,
+        gen_op_loopzw,
+        gen_op_loopw,
+        gen_op_jecxzw,
+    },
+    [1] = {
+        gen_op_loopnzl,
+        gen_op_loopzl,
+        gen_op_loopl,
+        gen_op_jecxzl,
+    },
+};
 
 static GenOpFunc *gen_setcc_slow[8] = {
     gen_op_seto_T0_cc,
@@ -779,7 +799,6 @@ static void gen_lea_modrm(DisasContext *s, int modrm, int *reg_ptr, int *offset_
     int mod, rm, code, override, must_add_seg;
 
     /* XXX: add a generation time variable to tell if base == 0 in DS/ES/SS */
-    /* XXX: fix lea case */
     override = -1;
     must_add_seg = s->addseg;
     if (s->prefix & (PREFIX_CS | PREFIX_SS | PREFIX_DS | 
@@ -1405,8 +1424,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             }
             break;
         default:
-            error("GRP3: bad instruction");
-            return -1;
+            goto illegal_op;
         }
         break;
 
@@ -1422,8 +1440,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         rm = modrm & 7;
         op = (modrm >> 3) & 7;
         if (op >= 2 && b == 0xfe) {
-            error("GRP4: bad instruction");
-            return -1;
+            goto illegal_op;
         }
         if (mod != 3) {
             gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
@@ -1461,8 +1478,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             gen_op_pushl_T0();
             break;
         default:
-            error("GRP5: bad instruction");
-            return -1;
+            goto illegal_op;
         }
         break;
 
@@ -1534,6 +1550,55 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         }
         gen_op_mov_reg_T0[ot][reg]();
         s->cc_op = CC_OP_MUL;
+        break;
+    case 0x1c0:
+    case 0x1c1: /* xadd Ev, Gv */
+        if ((b & 1) == 0)
+            ot = OT_BYTE;
+        else
+            ot = dflag ? OT_LONG : OT_WORD;
+        modrm = ldub(s->pc++);
+        reg = (modrm >> 3) & 7;
+        mod = (modrm >> 6) & 3;
+        if (mod == 3) {
+            rm = modrm & 7;
+            gen_op_mov_TN_reg[ot][0][reg]();
+            gen_op_mov_TN_reg[ot][1][rm]();
+            gen_op_addl_T0_T1_cc();
+            gen_op_mov_reg_T0[ot][rm]();
+            gen_op_mov_reg_T1[ot][reg]();
+        } else {
+            gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+            gen_op_mov_TN_reg[ot][0][reg]();
+            gen_op_ld_T1_A0[ot]();
+            gen_op_addl_T0_T1_cc();
+            gen_op_st_T0_A0[ot]();
+            gen_op_mov_reg_T1[ot][reg]();
+        }
+        s->cc_op = CC_OP_ADDB + ot;
+        break;
+    case 0x1b0:
+    case 0x1b1: /* cmpxchg Ev, Gv */
+        if ((b & 1) == 0)
+            ot = OT_BYTE;
+        else
+            ot = dflag ? OT_LONG : OT_WORD;
+        modrm = ldub(s->pc++);
+        reg = (modrm >> 3) & 7;
+        mod = (modrm >> 6) & 3;
+        gen_op_mov_TN_reg[ot][1][reg]();
+        if (mod == 3) {
+            rm = modrm & 7;
+            gen_op_mov_TN_reg[ot][0][rm]();
+            gen_op_cmpxchg_T0_T1_EAX_cc[ot]();
+            gen_op_mov_reg_T0[ot][rm]();
+        } else {
+            gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+            gen_op_ld_T0_A0[ot]();
+            gen_op_cmpxchg_T0_T1_EAX_cc[ot]();
+            gen_op_st_T0_A0[ot]();
+        }
+        s->cc_op = CC_OP_SUBB + ot;
         break;
         
         /**************************/
@@ -1748,6 +1813,32 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         else
             offset_addr = insn_get(s, OT_WORD);
         gen_op_movl_A0_im(offset_addr);
+        /* handle override */
+        /* XXX: factorize that */
+        {
+            int override, must_add_seg;
+            override = R_DS;
+            must_add_seg = s->addseg;
+            if (s->prefix & (PREFIX_CS | PREFIX_SS | PREFIX_DS | 
+                             PREFIX_ES | PREFIX_FS | PREFIX_GS)) {
+                if (s->prefix & PREFIX_ES)
+                    override = R_ES;
+                else if (s->prefix & PREFIX_CS)
+                    override = R_CS;
+                else if (s->prefix & PREFIX_SS)
+                    override = R_SS;
+                else if (s->prefix & PREFIX_DS)
+                    override = R_DS;
+                else if (s->prefix & PREFIX_FS)
+                    override = R_FS;
+                else
+                    override = R_GS;
+                must_add_seg = 1;
+            }
+            if (must_add_seg) {
+                gen_op_addl_A0_seg(offsetof(CPUX86State,seg_cache[override].base));
+            }
+        }
         if ((b & 2) == 0) {
             gen_op_ld_T0_A0[ot]();
             gen_op_mov_reg_T0[ot][R_EAX]();
@@ -1773,11 +1864,8 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
     case 0x91 ... 0x97: /* xchg R, EAX */
         ot = dflag ? OT_LONG : OT_WORD;
         reg = b & 7;
-        gen_op_mov_TN_reg[ot][0][reg]();
-        gen_op_mov_TN_reg[ot][1][R_EAX]();
-        gen_op_mov_reg_T0[ot][R_EAX]();
-        gen_op_mov_reg_T1[ot][reg]();
-        break;
+        rm = R_EAX;
+        goto do_xchg_reg;
     case 0x86:
     case 0x87: /* xchg Ev, Gv */
         if ((b & 1) == 0)
@@ -1786,12 +1874,21 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             ot = dflag ? OT_LONG : OT_WORD;
         modrm = ldub(s->pc++);
         reg = (modrm >> 3) & 7;
-
-        gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
-        gen_op_mov_TN_reg[ot][0][reg]();
-        gen_op_ld_T1_A0[ot]();
-        gen_op_st_T0_A0[ot]();
-        gen_op_mov_reg_T1[ot][reg]();
+        mod = (modrm >> 6) & 3;
+        if (mod == 3) {
+            rm = modrm & 7;
+        do_xchg_reg:
+            gen_op_mov_TN_reg[ot][0][reg]();
+            gen_op_mov_TN_reg[ot][1][rm]();
+            gen_op_mov_reg_T0[ot][rm]();
+            gen_op_mov_reg_T1[ot][reg]();
+        } else {
+            gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+            gen_op_mov_TN_reg[ot][0][reg]();
+            gen_op_ld_T1_A0[ot]();
+            gen_op_st_T0_A0[ot]();
+            gen_op_mov_reg_T1[ot][reg]();
+        }
         break;
     case 0xc4: /* les Gv */
         op = R_ES;
@@ -2058,8 +2155,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
                 gen_op_fpop();
                 break;
             default:
-                error("unhandled FPm [op=0x%02x]\n", op);
-                return -1;
+                goto illegal_op;
             }
         } else {
             /* register float ops */
@@ -2078,8 +2174,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
                 case 0: /* fnop */
                     break;
                 default:
-                    error("unhandled FP GRP d9/2\n");
-                    return -1;
+                    goto illegal_op;
                 }
                 break;
             case 0x0c: /* grp d9/4 */
@@ -2098,7 +2193,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
                     gen_op_fxam_ST0();
                     break;
                 default:
-                    return -1;
+                    goto illegal_op;
                 }
                 break;
             case 0x0d: /* grp d9/5 */
@@ -2133,7 +2228,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
                         gen_op_fldz_ST0();
                         break;
                     default:
-                        return -1;
+                        goto illegal_op;
                     }
                 }
                 break;
@@ -2230,7 +2325,19 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
                     gen_op_fpop();
                     break;
                 default:
-                    return -1;
+                    goto illegal_op;
+                }
+                break;
+            case 0x1c:
+                switch(rm) {
+                case 2: /* fclex */
+                    gen_op_fclex();
+                    break;
+                case 3: /* fninit */
+                    gen_op_fninit();
+                    break;
+                default:
+                    goto illegal_op;
                 }
                 break;
             case 0x2a: /* fst sti */
@@ -2258,7 +2365,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
                     gen_op_fpop();
                     break;
                 default:
-                    return -1;
+                    goto illegal_op;
                 }
                 break;
             case 0x3c: /* df/4 */
@@ -2267,13 +2374,11 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
                     gen_op_fnstsw_EAX();
                     break;
                 default:
-                    error("unhandled FP %x df/4\n", rm);
-                    return -1;
+                    goto illegal_op;
                 }
                 break;
             default:
-                error("unhandled FPr [op=0x%x]\n", op);
-                return -1;
+                goto illegal_op;
             }
         }
         break;
@@ -2556,7 +2661,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         val = ldub(s->pc++);
         gen_op_movl_T1_im(val);
         if (op < 4)
-            return -1;
+            goto illegal_op;
         op -= 4;
         gen_op_btx_T0_T1_cc[ot - OT_WORD][op]();
         s->cc_op = CC_OP_SARB + ot;
@@ -2684,6 +2789,18 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
             gen_op_set_cc_op(s->cc_op);
         gen_op_salc();
         break;
+    case 0xe0: /* loopnz */
+    case 0xe1: /* loopz */
+        if (s->cc_op != CC_OP_DYNAMIC)
+            gen_op_set_cc_op(s->cc_op);
+        /* FALL THRU */
+    case 0xe2: /* loop */
+    case 0xe3: /* jecxz */
+        val = (int8_t)insn_get(s, OT_BYTE);
+        val += (long)s->pc;
+        gen_op_loop[s->aflag][b & 3](val, (long)s->pc);
+        s->is_jmp = 1;
+        break;
     case 0x1a2: /* rdtsc */
         gen_op_rdtsc();
         break;
@@ -2693,12 +2810,10 @@ long disas_insn(DisasContext *s, uint8_t *pc_start)
         break;
 #endif
     default:
-        error("unknown opcode 0x%x", b);
-        return -1;
+        goto illegal_op;
     }
     return (long)s->pc;
  illegal_op:
-    error("illegal opcode pc=0x%08Lx", (long)pc_start);
     return -1;
 }
 
@@ -2725,9 +2840,11 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size,
     pc_ptr = pc_start;
     do {
         ret = disas_insn(dc, pc_ptr);
-        if (ret == -1) 
-            error("unknown instruction at PC=0x%x B=%02x %02x", 
-                  pc_ptr, pc_ptr[0], pc_ptr[1]);
+        if (ret == -1) {
+            error("unknown instruction at PC=0x%x B=%02x %02x %02x", 
+                  pc_ptr, pc_ptr[0], pc_ptr[1], pc_ptr[2]);
+            abort();
+        }
         pc_ptr = (void *)ret;
     } while (!dc->is_jmp && gen_code_ptr < gen_code_end);
     /* we must store the eflags state if it is not already done */

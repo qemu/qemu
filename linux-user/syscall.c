@@ -66,6 +66,10 @@ struct dirent {
         char            d_name[256]; /* We must not include limits.h! */
 };
 
+//#include <linux/msdos_fs.h>
+#define	VFAT_IOCTL_READDIR_BOTH		_IOR('r', 1, struct dirent [2])
+#define	VFAT_IOCTL_READDIR_SHORT	_IOR('r', 2, struct dirent [2])
+
 #include "syscall_defs.h"
 
 #ifdef TARGET_I386
@@ -324,6 +328,40 @@ static long do_socketcall(int num, long *vptr)
         break;
     case SOCKOP_sendmsg:
     case SOCKOP_recvmsg:
+        {
+            int fd;
+            struct target_msghdr *msgp;
+            struct msghdr msg;
+            int flags, count, i;
+            struct iovec *vec;
+            struct target_iovec *target_vec;
+
+            msgp = (void *)vptr[1];
+            msg.msg_name = (void *)tswapl(msgp->msg_name);
+            msg.msg_namelen = tswapl(msgp->msg_namelen);
+            msg.msg_control = (void *)tswapl(msgp->msg_control);
+            msg.msg_controllen = tswapl(msgp->msg_controllen);
+            msg.msg_flags = tswap32(msgp->msg_flags);
+
+            count = tswapl(msgp->msg_iovlen);
+            vec = alloca(count * sizeof(struct iovec));
+            target_vec = (void *)tswapl(msgp->msg_iov);
+            for(i = 0;i < count; i++) {
+                vec[i].iov_base = (void *)tswapl(target_vec[i].iov_base);
+                vec[i].iov_len = tswapl(target_vec[i].iov_len);
+            }
+            msg.msg_iovlen = count;
+            msg.msg_iov = vec;
+
+            fd = vptr[0];
+            flags = vptr[2];
+            if (num == SOCKOP_sendmsg)
+                ret = sendmsg(fd, &msg, flags);
+            else
+                ret = recvmsg(fd, &msg, flags);
+            ret = get_errno(ret);
+        }
+        break;
     case SOCKOP_setsockopt:
     case SOCKOP_getsockopt:
     default:
@@ -356,7 +394,7 @@ typedef struct IOCTLEntry {
     int host_cmd;
     const char *name;
     int access;
-    const argtype arg_type[3];
+    const argtype arg_type[5];
 } IOCTLEntry;
 
 #define IOC_R 0x0001
@@ -962,12 +1000,11 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         ret = get_errno(setsid());
         break;
     case TARGET_NR_sigaction:
-#if 0
+#if 1
         {
             int signum = arg1;
             struct target_old_sigaction *tact = arg2, *toldact = arg3;
-            ret = get_errno(setsid());
-            
+            ret = 0;
 
         }
         break;

@@ -2085,3 +2085,22 @@ void OPPROTO op_fldcw_A0(void)
     fesetround(rnd_type);
 }
 
+void OPPROTO op_fclex(void)
+{
+    env->fpus &= 0x7f00;
+}
+
+void OPPROTO op_fninit(void)
+{
+    env->fpus = 0;
+    env->fpstt = 0;
+    env->fpuc = 0x37f;
+    env->fptags[0] = 1;
+    env->fptags[1] = 1;
+    env->fptags[2] = 1;
+    env->fptags[3] = 1;
+    env->fptags[4] = 1;
+    env->fptags[5] = 1;
+    env->fptags[6] = 1;
+    env->fptags[7] = 1;
+}
