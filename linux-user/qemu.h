@@ -76,4 +76,6 @@ int queue_signal(int sig, target_siginfo_t *info);
 void save_v86_state(CPUX86State *env);
 void init_paths(const char *prefix);
 const char *path(const char *pathname);
+
+extern int loglevel;
 #endif
