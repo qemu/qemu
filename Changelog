@@ -16,6 +16,8 @@ version 0.6.2:
   - initial SPARC64 support (Blue Swirl)
   - armv5te user mode support (Paul Brook)
   - ARM VFP support (Paul Brook)
+  - Samba 3 support
+  - initial Cocoa support (Pierre d'Herbemont)
 
 version 0.6.1:
 
