@@ -136,6 +136,9 @@ static void bootp_reply(struct bootp_t *bp)
     dhcp_decode(bp->bp_vend, DHCP_OPT_LEN, &dhcp_msg_type);
     dprintf("bootp packet op=%d msgtype=%d\n", bp->bp_op, dhcp_msg_type);
     
+    if (dhcp_msg_type == 0)
+        dhcp_msg_type = DHCPREQUEST; /* Force reply for old BOOTP clients */
+        
     if (dhcp_msg_type != DHCPDISCOVER && 
         dhcp_msg_type != DHCPREQUEST)
         return;
