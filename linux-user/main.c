@@ -1164,7 +1164,7 @@ int main(int argc, char **argv)
     {
         int i;
         for (i = 0; i < 32; i++) {
-            if (i != 12 && i != 6)
+            if (i != 12 && i != 6 && i != 13)
                 env->msr[i] = (regs->msr >> i) & 1;
         }
         env->nip = regs->nip;
