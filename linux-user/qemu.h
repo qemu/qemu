@@ -1,5 +1,5 @@
-#ifndef GEMU_H
-#define GEMU_H
+#ifndef QEMU_H
+#define QEMU_H
 
 #include "thunk.h"
 
@@ -52,8 +52,6 @@ struct vm86_saved_state {
 #ifdef TARGET_ARM
 /* FPU emulator */
 #include "nwfpe/fpa11.h"
-#undef put_user
-#undef get_user
 #endif
 
 /* NOTE: we force a big alignment so that the stack stored after is
@@ -238,4 +236,4 @@ static inline unsigned long clear_user(void *dst, unsigned long size)
         return size;
 }
 
-#endif
+#endif /* QEMU_H */
