@@ -263,5 +263,5 @@ void do_dcbz (void)
 /* Instruction cache invalidation helper */
 void do_icbi (void)
 {
-    tb_invalidate_page(T0);
+    //    tb_invalidate_page(T0);
 }
