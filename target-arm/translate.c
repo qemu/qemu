@@ -543,7 +543,8 @@ static void disas_arm_insn(DisasContext *s)
                 rn = (insn >> 16) & 0xf;
                 rd = (insn >> 12) & 0xf;
                 gen_movl_T1_reg(s, rn);
-                gen_add_datah_offset(s, insn);
+                if (insn & (1 << 24))
+                    gen_add_datah_offset(s, insn);
                 if (insn & (1 << 20)) {
                     /* load */
                     switch(sh) {
