@@ -102,6 +102,25 @@ static inline int testandset (int *p)
 }
 #endif
 
+#ifdef __alpha__
+int testandset (int *p)
+{
+    int ret;
+    unsigned long one;
+
+    __asm__ __volatile__ ("0:	mov 1,%2\n"
+			  "	ldl_l %0,%1\n"
+			  "	stl_c %2,%1\n"
+			  "	beq %2,1f\n"
+			  ".subsection 2\n"
+			  "1:	br 0b\n"
+			  ".previous"
+			  : "=r" (ret), "=m" (*p), "=r" (one)
+			  : "m" (*p));
+    return ret;
+}
+#endif
+
 int global_cpu_lock = 0;
 
 void cpu_lock(void)
