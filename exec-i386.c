@@ -21,38 +21,9 @@
 #include "disas.h"
 
 //#define DEBUG_EXEC
-#define DEBUG_FLUSH
 //#define DEBUG_SIGNAL
 
 /* main execution loop */
-
-/* maximum total translate dcode allocated */
-#define CODE_GEN_BUFFER_SIZE     (2048 * 1024)
-//#define CODE_GEN_BUFFER_SIZE     (128 * 1024)
-#define CODE_GEN_MAX_SIZE        65536
-#define CODE_GEN_ALIGN           16 /* must be >= of the size of a icache line */
-
-/* threshold to flush the translated code buffer */
-#define CODE_GEN_BUFFER_MAX_SIZE (CODE_GEN_BUFFER_SIZE - CODE_GEN_MAX_SIZE)
-
-#define CODE_GEN_MAX_BLOCKS    (CODE_GEN_BUFFER_SIZE / 64)
-#define CODE_GEN_HASH_BITS     15
-#define CODE_GEN_HASH_SIZE     (1 << CODE_GEN_HASH_BITS)
-
-typedef struct TranslationBlock {
-    unsigned long pc;   /* simulated PC corresponding to this block (EIP + CS base) */
-    unsigned long cs_base; /* CS base for this block */
-    unsigned int flags; /* flags defining in which context the code was generated */
-    uint8_t *tc_ptr;    /* pointer to the translated code */
-    struct TranslationBlock *hash_next; /* next matching block */
-} TranslationBlock;
-
-TranslationBlock tbs[CODE_GEN_MAX_BLOCKS];
-TranslationBlock *tb_hash[CODE_GEN_HASH_SIZE];
-int nb_tbs;
-
-uint8_t code_gen_buffer[CODE_GEN_BUFFER_SIZE];
-uint8_t *code_gen_ptr;
 
 /* thread support */
 
@@ -195,70 +166,6 @@ void raise_exception(int exception_index)
     raise_exception_err(exception_index, 0);
 }
 
-void cpu_x86_tblocks_init(void)
-{
-    if (!code_gen_ptr) {
-        code_gen_ptr = code_gen_buffer;
-    }
-}
-
-/* flush all the translation blocks */
-static void tb_flush(void)
-{
-    int i;
-#ifdef DEBUG_FLUSH
-    printf("gemu: flush code_size=%d nb_tbs=%d avg_tb_size=%d\n", 
-           code_gen_ptr - code_gen_buffer, 
-           nb_tbs, 
-           (code_gen_ptr - code_gen_buffer) / nb_tbs);
-#endif
-    nb_tbs = 0;
-    for(i = 0;i < CODE_GEN_HASH_SIZE; i++)
-        tb_hash[i] = NULL;
-    code_gen_ptr = code_gen_buffer;
-    /* XXX: flush processor icache at this point */
-}
-
-/* find a translation block in the translation cache. If not found,
-   return NULL and the pointer to the last element of the list in pptb */
-static inline TranslationBlock *tb_find(TranslationBlock ***pptb,
-                                        unsigned long pc, 
-                                        unsigned long cs_base,
-                                        unsigned int flags)
-{
-    TranslationBlock **ptb, *tb;
-    unsigned int h;
- 
-    h = pc & (CODE_GEN_HASH_SIZE - 1);
-    ptb = &tb_hash[h];
-#if 0
-    /* XXX: hack to handle 16 bit modyfing code */
-    if (flags & (1 << GEN_FLAG_CODE32_SHIFT))
-#endif
-        for(;;) {
-            tb = *ptb;
-            if (!tb)
-                break;
-            if (tb->pc == pc && tb->cs_base == cs_base && tb->flags == flags)
-            return tb;
-            ptb = &tb->hash_next;
-        }
-    *pptb = ptb;
-    return NULL;
-}
-
-/* allocate a new translation block. flush the translation buffer if
-   too many translation blocks or too much generated code */
-static inline TranslationBlock *tb_alloc(void)
-{
-    TranslationBlock *tb;
-    if (nb_tbs >= CODE_GEN_MAX_BLOCKS || 
-        (code_gen_ptr - code_gen_buffer) >= CODE_GEN_BUFFER_MAX_SIZE)
-        tb_flush();
-    tb = &tbs[nb_tbs++];
-    return tb;
-}
-
 int cpu_x86_exec(CPUX86State *env1)
 {
     int saved_T0, saved_T1, saved_A0;
@@ -287,7 +194,7 @@ int cpu_x86_exec(CPUX86State *env1)
 #ifdef reg_EDI
     int saved_EDI;
 #endif
-    int code_gen_size, ret;
+    int code_gen_size, ret, code_size;
     void (*gen_func)(void);
     TranslationBlock *tb, **ptb;
     uint8_t *tc_ptr, *cs_base, *pc;
@@ -390,15 +297,15 @@ int cpu_x86_exec(CPUX86State *env1)
                 cpu_lock();
                 tc_ptr = code_gen_ptr;
                 ret = cpu_x86_gen_code(code_gen_ptr, CODE_GEN_MAX_SIZE, 
-                                       &code_gen_size, pc, cs_base, flags);
+                                       &code_gen_size, pc, cs_base, flags,
+                                       &code_size);
                 /* if invalid instruction, signal it */
                 if (ret != 0) {
                     cpu_unlock();
                     raise_exception(EXCP06_ILLOP);
                 }
-                tb = tb_alloc();
+                tb = tb_alloc((unsigned long)pc, code_size);
                 *ptb = tb;
-                tb->pc = (unsigned long)pc;
                 tb->cs_base = (unsigned long)cs_base;
                 tb->flags = flags;
                 tb->tc_ptr = tc_ptr;
@@ -493,15 +400,22 @@ void cpu_x86_load_seg(CPUX86State *s, int seg_reg, int selector)
 #include <sys/ucontext.h>
 
 /* 'pc' is the host PC at which the exception was raised. 'address' is
-   the effective address of the memory exception */
+   the effective address of the memory exception. 'is_write' is 1 if a
+   write caused the exception and otherwise 0'. 'old_set' is the
+   signal set which should be restored */
 static inline int handle_cpu_signal(unsigned long pc,
                                     unsigned long address,
+                                    int is_write,
                                     sigset_t *old_set)
 {
-#ifdef DEBUG_SIGNAL
-    printf("gemu: SIGSEGV pc=0x%08lx oldset=0x%08lx\n", 
-           pc, *(unsigned long *)old_set);
+#if defined(DEBUG_SIGNAL)
+    printf("qemu: SIGSEGV pc=0x%08lx address=%08lx wr=%d oldset=0x%08lx\n", 
+           pc, address, is_write, *(unsigned long *)old_set);
 #endif
+    if (is_write && page_unprotect(address)) {
+        sigprocmask(SIG_SETMASK, old_set, NULL);
+        return 1;
+    }
     if (pc >= (unsigned long)code_gen_buffer &&
         pc < (unsigned long)code_gen_buffer + CODE_GEN_BUFFER_SIZE) {
         /* the PC is inside the translated code. It means that we have
@@ -512,8 +426,7 @@ static inline int handle_cpu_signal(unsigned long pc,
         /* XXX: need to compute virtual pc position by retranslating
            code. The rest of the CPU state should be correct. */
         env->cr2 = address;
-        /* XXX: more precise exception code */
-        raise_exception_err(EXCP0E_PAGE, 4);
+        raise_exception_err(EXCP0E_PAGE, 4 | (is_write << 1));
         /* never comes here */
         return 1;
     } else {
@@ -531,11 +444,16 @@ int cpu_x86_signal_handler(int host_signum, struct siginfo *info,
     
 #ifndef REG_EIP
 /* for glibc 2.1 */
-#define REG_EIP EIP
+#define REG_EIP    EIP
+#define REG_ERR    ERR
+#define REG_TRAPNO TRAPNO
 #endif
     pc = uc->uc_mcontext.gregs[REG_EIP];
     pold_set = &uc->uc_sigmask;
-    return handle_cpu_signal(pc, (unsigned long)info->si_addr, pold_set);
+    return handle_cpu_signal(pc, (unsigned long)info->si_addr, 
+                             uc->uc_mcontext.gregs[REG_TRAPNO] == 0xe ? 
+                             (uc->uc_mcontext.gregs[REG_ERR] >> 1) & 1 : 0,
+                             pold_set);
 #else
 #warning No CPU specific signal handler: cannot handle target SIGSEGV events
     return 0;

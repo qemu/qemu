@@ -445,16 +445,21 @@ extern unsigned long host_page_mask;
 #define HOST_PAGE_ALIGN(addr) (((addr) + host_page_size - 1) & host_page_mask)
 
 /* same as PROT_xxx */
-#define PAGE_READ  0x0001
-#define PAGE_WRITE 0x0002
-#define PAGE_EXEC  0x0004
-#define PAGE_BITS  (PAGE_READ | PAGE_WRITE | PAGE_EXEC)
-#define PAGE_VALID 0x0008
+#define PAGE_READ      0x0001
+#define PAGE_WRITE     0x0002
+#define PAGE_EXEC      0x0004
+#define PAGE_BITS      (PAGE_READ | PAGE_WRITE | PAGE_EXEC)
+#define PAGE_VALID     0x0008
+/* original state of the write flag (used when tracking self-modifying
+   code */
+#define PAGE_WRITE_ORG 0x0010 
 
 void page_dump(FILE *f);
 int page_get_flags(unsigned long address);
 void page_set_flags(unsigned long start, unsigned long end, int flags);
+void page_unprotect_range(uint8_t *data, unsigned long data_size);
 
+/***************************************************/
 /* internal functions */
 
 #define GEN_FLAG_CODE32_SHIFT 0
@@ -468,8 +473,73 @@ void page_set_flags(unsigned long start, unsigned long end, int flags);
 
 int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size, 
                      int *gen_code_size_ptr,
-                     uint8_t *pc_start,  uint8_t *cs_base, int flags);
+                     uint8_t *pc_start,  uint8_t *cs_base, int flags,
+                     int *code_size_ptr);
 void cpu_x86_tblocks_init(void);
 void page_init(void);
+int page_unprotect(unsigned long address);
+
+#define CODE_GEN_MAX_SIZE        65536
+#define CODE_GEN_ALIGN           16 /* must be >= of the size of a icache line */
+
+#define CODE_GEN_HASH_BITS     15
+#define CODE_GEN_HASH_SIZE     (1 << CODE_GEN_HASH_BITS)
+
+/* maximum total translate dcode allocated */
+#define CODE_GEN_BUFFER_SIZE     (2048 * 1024)
+//#define CODE_GEN_BUFFER_SIZE     (128 * 1024)
+
+typedef struct TranslationBlock {
+    unsigned long pc;   /* simulated PC corresponding to this block (EIP + CS base) */
+    unsigned long cs_base; /* CS base for this block */
+    unsigned int flags; /* flags defining in which context the code was generated */
+    uint16_t size;      /* size of target code for this block (1 <=
+                           size <= TARGET_PAGE_SIZE) */
+    uint8_t *tc_ptr;    /* pointer to the translated code */
+    struct TranslationBlock *hash_next; /* next matching block */
+    struct TranslationBlock *page_next[2]; /* next blocks in even/odd page */
+} TranslationBlock;
+
+static inline unsigned int tb_hash_func(unsigned long pc)
+{
+    return pc & (CODE_GEN_HASH_SIZE - 1);
+}
+
+void tb_flush(void);
+TranslationBlock *tb_alloc(unsigned long pc, 
+                           unsigned long size);
+
+extern TranslationBlock *tb_hash[CODE_GEN_HASH_SIZE];
+
+extern uint8_t code_gen_buffer[CODE_GEN_BUFFER_SIZE];
+extern uint8_t *code_gen_ptr;
+
+/* find a translation block in the translation cache. If not found,
+   return NULL and the pointer to the last element of the list in pptb */
+static inline TranslationBlock *tb_find(TranslationBlock ***pptb,
+                                        unsigned long pc, 
+                                        unsigned long cs_base,
+                                        unsigned int flags)
+{
+    TranslationBlock **ptb, *tb;
+    unsigned int h;
+ 
+    h = tb_hash_func(pc);
+    ptb = &tb_hash[h];
+    for(;;) {
+        tb = *ptb;
+        if (!tb)
+            break;
+        if (tb->pc == pc && tb->cs_base == cs_base && tb->flags == flags)
+            return tb;
+        ptb = &tb->hash_next;
+    }
+    *pptb = ptb;
+    return NULL;
+}
+
+#ifndef offsetof
+#define offsetof(type, field) ((size_t) &((type *)0)->field)
+#endif
 
 #endif /* CPU_I386_H */
