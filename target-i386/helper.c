@@ -1037,13 +1037,15 @@ void helper_ltr_T0(void)
     env->tr.selector = selector;
 }
 
-/* only works if protected mode and not VM86. Calling load_seg with
-   seg_reg == R_CS is discouraged */
-/* XXX: add ring level checks */
+/* only works if protected mode and not VM86. seg_reg must be != R_CS */
 void load_seg(int seg_reg, int selector, unsigned int cur_eip)
 {
     uint32_t e1, e2;
-    
+    int cpl, dpl, rpl;
+    SegmentCache *dt;
+    int index;
+    uint8_t *ptr;
+
     if ((selector & 0xfffc) == 0) {
         /* null selector case */
         if (seg_reg == R_SS) {
@@ -1053,25 +1055,50 @@ void load_seg(int seg_reg, int selector, unsigned int cur_eip)
             cpu_x86_load_seg_cache(env, seg_reg, selector, NULL, 0, 0);
         }
     } else {
-        if (load_segment(&e1, &e2, selector) != 0) {
+        
+        if (selector & 0x4)
+            dt = &env->ldt;
+        else
+            dt = &env->gdt;
+        index = selector & ~7;
+        if ((index + 7) > dt->limit) {
             EIP = cur_eip;
             raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
         }
-        if (!(e2 & DESC_S_MASK) ||
-            (e2 & (DESC_CS_MASK | DESC_R_MASK)) == DESC_CS_MASK) {
-            EIP = cur_eip;
-            raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
-        }
+        ptr = dt->base + index;
+        e1 = ldl_kernel(ptr);
+        e2 = ldl_kernel(ptr + 4);
 
+        if (!(e2 & DESC_S_MASK)) {
+            EIP = cur_eip;
+            raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+        }
+        rpl = selector & 3;
+        dpl = (e2 >> DESC_DPL_SHIFT) & 3;
+        cpl = env->hflags & HF_CPL_MASK;
         if (seg_reg == R_SS) {
+            /* must be writable segment */
             if ((e2 & DESC_CS_MASK) || !(e2 & DESC_W_MASK)) {
                 EIP = cur_eip;
                 raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
             }
+            if (rpl != cpl || dpl != cpl) {
+                EIP = cur_eip;
+                raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+            }
         } else {
+            /* must be readable segment */
             if ((e2 & (DESC_CS_MASK | DESC_R_MASK)) == DESC_CS_MASK) {
                 EIP = cur_eip;
                 raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+            }
+            
+            if (!(e2 & DESC_CS_MASK) || !(e2 & DESC_C_MASK)) {
+                /* if not conforming code, test rights */
+                if (dpl < cpl || dpl < rpl) {
+                    EIP = cur_eip;
+                    raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
+                }
             }
         }
 
@@ -1082,6 +1109,13 @@ void load_seg(int seg_reg, int selector, unsigned int cur_eip)
             else
                 raise_exception_err(EXCP0B_NOSEG, selector & 0xfffc);
         }
+
+        /* set the access bit if not already set */
+        if (!(e2 & DESC_A_MASK)) {
+            e2 |= DESC_A_MASK;
+            stl_kernel(ptr + 4, e2);
+        }
+
         cpu_x86_load_seg_cache(env, seg_reg, selector, 
                        get_seg_base(e1, e2),
                        get_seg_limit(e1, e2),
@@ -1696,14 +1730,38 @@ void helper_lsl(void)
 {
     unsigned int selector, limit;
     uint32_t e1, e2;
+    int rpl, dpl, cpl, type;
 
     CC_SRC = cc_table[CC_OP].compute_all() & ~CC_Z;
     selector = T0 & 0xffff;
     if (load_segment(&e1, &e2, selector) != 0)
         return;
-    limit = (e1 & 0xffff) | (e2 & 0x000f0000);
-    if (e2 & (1 << 23))
-        limit = (limit << 12) | 0xfff;
+    rpl = selector & 3;
+    dpl = (e2 >> DESC_DPL_SHIFT) & 3;
+    cpl = env->hflags & HF_CPL_MASK;
+    if (e2 & DESC_S_MASK) {
+        if ((e2 & DESC_CS_MASK) && (e2 & DESC_C_MASK)) {
+            /* conforming */
+        } else {
+            if (dpl < cpl || dpl < rpl)
+                return;
+        }
+    } else {
+        type = (e2 >> DESC_TYPE_SHIFT) & 0xf;
+        switch(type) {
+        case 1:
+        case 2:
+        case 3:
+        case 9:
+        case 11:
+            break;
+        default:
+            return;
+        }
+        if (dpl < cpl || dpl < rpl)
+            return;
+    }
+    limit = get_seg_limit(e1, e2);
     T1 = limit;
     CC_SRC |= CC_Z;
 }
@@ -1712,13 +1770,103 @@ void helper_lar(void)
 {
     unsigned int selector;
     uint32_t e1, e2;
+    int rpl, dpl, cpl, type;
 
     CC_SRC = cc_table[CC_OP].compute_all() & ~CC_Z;
     selector = T0 & 0xffff;
+    if ((selector & 0xfffc) == 0)
+        return;
     if (load_segment(&e1, &e2, selector) != 0)
         return;
+    rpl = selector & 3;
+    dpl = (e2 >> DESC_DPL_SHIFT) & 3;
+    cpl = env->hflags & HF_CPL_MASK;
+    if (e2 & DESC_S_MASK) {
+        if ((e2 & DESC_CS_MASK) && (e2 & DESC_C_MASK)) {
+            /* conforming */
+        } else {
+            if (dpl < cpl || dpl < rpl)
+                return;
+        }
+    } else {
+        type = (e2 >> DESC_TYPE_SHIFT) & 0xf;
+        switch(type) {
+        case 1:
+        case 2:
+        case 3:
+        case 4:
+        case 5:
+        case 9:
+        case 11:
+        case 12:
+            break;
+        default:
+            return;
+        }
+        if (dpl < cpl || dpl < rpl)
+            return;
+    }
     T1 = e2 & 0x00f0ff00;
     CC_SRC |= CC_Z;
+}
+
+void helper_verr(void)
+{
+    unsigned int selector;
+    uint32_t e1, e2;
+    int rpl, dpl, cpl;
+
+    CC_SRC = cc_table[CC_OP].compute_all() & ~CC_Z;
+    selector = T0 & 0xffff;
+    if ((selector & 0xfffc) == 0)
+        return;
+    if (load_segment(&e1, &e2, selector) != 0)
+        return;
+    if (!(e2 & DESC_S_MASK))
+        return;
+    rpl = selector & 3;
+    dpl = (e2 >> DESC_DPL_SHIFT) & 3;
+    cpl = env->hflags & HF_CPL_MASK;
+    if (e2 & DESC_CS_MASK) {
+        if (!(e2 & DESC_R_MASK))
+            return;
+        if (!(e2 & DESC_C_MASK)) {
+            if (dpl < cpl || dpl < rpl)
+                return;
+        }
+    } else {
+        if (dpl < cpl || dpl < rpl)
+            return;
+    }
+    /* ok */
+}
+
+void helper_verw(void)
+{
+    unsigned int selector;
+    uint32_t e1, e2;
+    int rpl, dpl, cpl;
+
+    CC_SRC = cc_table[CC_OP].compute_all() & ~CC_Z;
+    selector = T0 & 0xffff;
+    if ((selector & 0xfffc) == 0)
+        return;
+    if (load_segment(&e1, &e2, selector) != 0)
+        return;
+    if (!(e2 & DESC_S_MASK))
+        return;
+    rpl = selector & 3;
+    dpl = (e2 >> DESC_DPL_SHIFT) & 3;
+    cpl = env->hflags & HF_CPL_MASK;
+    if (e2 & DESC_CS_MASK) {
+        return;
+    } else {
+        if (dpl < cpl || dpl < rpl)
+            return;
+        if (!(e2 & DESC_W_MASK))
+            return;
+    }
+    /* ok */
 }
 
 /* FPU helpers */

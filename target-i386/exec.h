@@ -170,6 +170,8 @@ void helper_rdmsr(void);
 void helper_wrmsr(void);
 void helper_lsl(void);
 void helper_lar(void);
+void helper_verr(void);
+void helper_verw(void);
 
 void check_iob_T0(void);
 void check_iow_T0(void);

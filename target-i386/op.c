@@ -936,6 +936,35 @@ void OPPROTO op_lar(void)
     helper_lar();
 }
 
+void OPPROTO op_verr(void)
+{
+    helper_verr();
+}
+
+void OPPROTO op_verw(void)
+{
+    helper_verw();
+}
+
+void OPPROTO op_arpl(void)
+{
+    if ((T0 & 3) < (T1 & 3)) {
+        /* XXX: emulate bug or 0xff3f0000 oring as in bochs ? */
+        T0 = (T0 & ~3) | (T1 & 3);
+        T1 = CC_Z;
+   } else {
+        T1 = 0;
+    }
+    FORCE_RET();
+}
+            
+void OPPROTO op_arpl_update(void)
+{
+    int eflags;
+    eflags = cc_table[CC_OP].compute_all();
+    CC_SRC = (eflags & ~CC_Z) | T1;
+}
+    
 /* T0: segment, T1:eip */
 void OPPROTO op_ljmp_protected_T0_T1(void)
 {
