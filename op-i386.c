@@ -616,8 +616,10 @@ void OPPROTO op_jmp_im(void)
 
 void OPPROTO op_int_im(void)
 {
-    EIP = PARAM1;
-    raise_exception(EXCP0D_GPF);
+    int intno;
+    intno = PARAM1;
+    EIP = PARAM2;
+    raise_exception_err(EXCP0D_GPF, intno * 8 + 2);
 }
 
 void OPPROTO op_int3(void)
@@ -633,18 +635,23 @@ void OPPROTO op_into(void)
     if (eflags & CC_O) {
         raise_exception(EXCP04_INTO);
     }
+    FORCE_RET();
 }
 
-/* XXX: add IOPL/CPL tests */
+void OPPROTO op_gpf(void)
+{
+    EIP = PARAM1;
+    raise_exception(EXCP0D_GPF);
+}
+
 void OPPROTO op_cli(void)
 {
-    raise_exception(EXCP0D_GPF);
+    env->eflags &= ~IF_MASK;
 }
 
-/* XXX: add IOPL/CPL tests */
 void OPPROTO op_sti(void)
 {
-    raise_exception(EXCP0D_GPF);
+    env->eflags |= IF_MASK;
 }
 
 /* vm86plus instructions */
@@ -1097,7 +1104,7 @@ void load_seg(int seg_reg, int selector)
             dt = &env->gdt;
         index = selector & ~7;
         if ((index + 7) > dt->limit)
-            raise_exception(EXCP0D_GPF);
+            raise_exception_err(EXCP0D_GPF, selector);
         ptr = dt->base + index;
         e1 = ldl(ptr);
         e2 = ldl(ptr + 4);
