@@ -36,7 +36,7 @@ case "$cpu" in
   alpha)
     cpu="alpha"
   ;;
-  "Power Macintosh"|ppc)
+  "Power Macintosh"|ppc|ppc64)
     cpu="powerpc"
   ;;
   mips)
@@ -209,14 +209,22 @@ echo "CFLAGS=$CFLAGS" >> config.mak
 echo "LDFLAGS=$LDFLAGS" >> config.mak
 if test "$cpu" = "x86" ; then
   echo "ARCH=i386" >> config.mak
+  echo "#define HOST_I386 1" >> $TMPH
 elif test "$cpu" = "armv4l" ; then
   echo "ARCH=arm" >> config.mak
+  echo "#define HOST_ARM 1" >> $TMPH
 elif test "$cpu" = "powerpc" ; then
   echo "ARCH=ppc" >> config.mak
+  echo "#define HOST_PPC 1" >> $TMPH
 elif test "$cpu" = "mips" ; then
   echo "ARCH=mips" >> config.mak
+  echo "#define HOST_MIPS 1" >> $TMPH
 elif test "$cpu" = "s390" ; then
   echo "ARCH=s390" >> config.mak
+  echo "#define HOST_S390 1" >> $TMPH
+elif test "$cpu" = "alpha" ; then
+  echo "ARCH=alpha" >> config.mak
+  echo "#define HOST_ALPHA 1" >> $TMPH
 else
   echo "Unsupported CPU"
   exit 1
