@@ -2689,7 +2689,7 @@ static void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 	printf("vga: write CR%x = 0x%02x\n", s->cr_index, val);
 #endif
 	/* handle CR0-7 protection */
-	if ((s->cr[11] & 0x80) && s->cr_index <= 7) {
+	if ((s->cr[0x11] & 0x80) && s->cr_index <= 7) {
 	    /* can always write bit 4 of CR7 */
 	    if (s->cr_index == 7)
 		s->cr[7] = (s->cr[7] & ~0x10) | (val & 0x10);
