@@ -93,6 +93,8 @@ extern void __sigaction();
 #define PHYS_RAM_MAX_SIZE (2047 * 1024 * 1024)
 #endif
 
+#define DEFAULT_RAM_SIZE 32
+
 /* in ms */
 #define GUI_REFRESH_INTERVAL 30
 
@@ -1914,7 +1916,7 @@ void help(void)
            "-cdrom file     use 'file' as IDE cdrom image (cdrom is ide1 master)\n"
            "-boot [a|b|c|d] boot on floppy (a, b), hard disk (c) or CD-ROM (d)\n"
 	   "-snapshot       write to temporary files instead of disk image files\n"
-           "-m megs         set virtual RAM size to megs MB\n"
+           "-m megs         set virtual RAM size to megs MB [default=%d]\n"
            "-nographic      disable graphical output and redirect serial I/Os to console\n"
            "-enable-audio   enable audio support\n"
            "\n"
@@ -1951,7 +1953,8 @@ void help(void)
 #else
            "qemu-fast",
 #endif
-           DEFAULT_NETWORK_SCRIPT, 
+           DEFAULT_RAM_SIZE,
+           DEFAULT_NETWORK_SCRIPT,
            DEFAULT_GDBSTUB_PORT,
            "/tmp/qemu.log");
     term_print_help();
@@ -2090,7 +2093,7 @@ int main(int argc, char **argv)
         fd_filename[i] = NULL;
     for(i = 0; i < MAX_DISKS; i++)
         hd_filename[i] = NULL;
-    ram_size = 32 * 1024 * 1024;
+    ram_size = DEFAULT_RAM_SIZE * 1024 * 1024;
     vga_ram_size = VGA_RAM_SIZE;
     pstrcpy(network_script, sizeof(network_script), DEFAULT_NETWORK_SCRIPT);
 #ifdef CONFIG_GDBSTUB
