@@ -258,7 +258,7 @@ segment base.
 
 @section Translation cache
 
-A 2MByte cache holds the most recently used translations. For
+A 16 MByte cache holds the most recently used translations. For
 simplicity, it is completely flushed when it is full. A translation unit
 contains just a single basic block (a block of x86 instructions
 terminated by a jump or by a virtual CPU state change which the
@@ -489,19 +489,6 @@ This program tests various Linux system calls. It is used to verify
 that the system call parameters are correctly converted between target
 and host CPUs.
 
-@section @file{hello-i386}
+@section @file{qruncom.c}
 
-Very simple statically linked x86 program, just to test QEMU during a
-port to a new host CPU.
-
-@section @file{hello-arm}
-
-Very simple statically linked ARM program, just to test QEMU during a
-port to a new host CPU.
-
-@section @file{sha1}
-
-It is a simple benchmark. Care must be taken to interpret the results
-because it mostly tests the ability of the virtual CPU to optimize the
-@code{rol} x86 instruction and the condition code computations.
-
+Example of usage of @code{libqemu} to emulate a user mode i386 CPU.

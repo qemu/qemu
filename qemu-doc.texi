@@ -41,18 +41,19 @@ For system emulation, the following hardware targets are supported:
 @itemize
 @item PC (x86 processor)
 @item PREP (PowerPC processor)
+@item PowerMac (PowerPC processor, in progress)
 @end itemize
 
 For user emulation, x86, PowerPC, ARM, and SPARC CPUs are supported.
 
 @chapter Installation
 
+If you want to compile QEMU yourself, see @ref{compilation}.
+
 @section Linux
 
-If you want to compile QEMU, please read the @file{README} which gives
-the related information. Otherwise just download the binary
-distribution (@file{qemu-XXX-i386.tar.gz}) and untar it as root in
-@file{/}:
+Download the binary distribution (@file{qemu-XXX-i386.tar.gz}) and
+untar it as root in @file{/}:
 
 @example
 su
@@ -62,67 +63,13 @@ tar zxvf /tmp/qemu-XXX-i386.tar.gz
 
 @section Windows
 
-@itemize
-@item Install the current versions of MSYS and MinGW from
-@url{http://www.mingw.org/}. You can find detailed installation
-instructions in the download section and the FAQ.
-
-@item Download 
-the MinGW development library of SDL 1.2.x
-(@file{SDL-devel-1.2.x-mingw32.tar.gz}) from
-@url{http://www.libsdl.org}. Unpack it in a temporary place, and
-unpack the archive @file{i386-mingw32msvc.tar.gz} in the MinGW tool
-directory. Edit the @file{sdl-config} script so that it gives the
-correct SDL directory when invoked.
-
-@item Extract the current version of QEMU.
- 
-@item Start the MSYS shell (file @file{msys.bat}).
-
-@item Change to the QEMU directory. Launch @file{./configure} and 
-@file{make}.  If you have problems using SDL, verify that
-@file{sdl-config} can be launched from the MSYS command line.
-
-@item You can install QEMU in @file{Program Files/Qemu} by typing 
-@file{make install}. Don't forget to copy @file{SDL.dll} in
-@file{Program Files/Qemu}.
-
-@end itemize
-
-@section Cross compilation for Windows with Linux
-
-@itemize
-@item
-Install the MinGW cross compilation tools available at
-@url{http://www.mingw.org/}.
-
-@item 
-Install the Win32 version of SDL (@url{http://www.libsdl.org}) by
-unpacking @file{i386-mingw32msvc.tar.gz}. Set up the PATH environment
-variable so that @file{i386-mingw32msvc-sdl-config} can be launched by
-the QEMU configuration script.
-
-@item 
-Configure QEMU for Windows cross compilation:
-@example
-./configure --enable-mingw32
-@end example
-If necessary, you can change the cross-prefix according to the prefix
-choosen for the MinGW tools with --cross-prefix. You can also use
---prefix to set the Win32 install path.
-
-@item You can install QEMU in the installation directory by typing 
-@file{make install}. Don't forget to copy @file{SDL.dll} in the
-installation directory. 
-
-@end itemize
-
-Note: Currently, Wine does not seem able to launch
-QEMU for Win32.
+Download the experimental binary installer at
+@url{http://www.freeoszoo.org/download.php}.
 
 @section Mac OS X
 
-Mac OS X is currently not supported.
+Download the experimental binary installer at
+@url{http://www.freeoszoo.org/download.php}.
 
 @chapter QEMU PC System emulator invocation
 
@@ -138,11 +85,11 @@ available:
 @enumerate
 
 @item 
-@code{qemu-fast} uses the host Memory Management Unit (MMU) to simulate 
-the x86 MMU. It is @emph{fast} but has limitations because the whole 4 GB
-address space cannot be used and some memory mapped peripherials
-cannot be emulated accurately yet. Therefore, a specific Linux kernel
-must be used (@xref{linux_compile}).
+@code{qemu-fast} uses the host Memory Management Unit (MMU) to
+simulate the x86 MMU. It is @emph{fast} but has limitations because
+the whole 4 GB address space cannot be used and some memory mapped
+peripherials cannot be emulated accurately yet. Therefore, a specific
+guest Linux kernel can be used (@xref{linux_compile}) as guest OS.
 
 @item 
 @code{qemu} uses a software MMU. It is about @emph{two times 
@@ -153,21 +100,27 @@ slower} but gives a more accurate emulation.
 QEMU emulates the following PC peripherials:
 
 @itemize @minus
+@item 
+i440FX host PCI bridge and PIIX3 PCI to ISA bridge
 @item
-VGA (hardware level, including all non standard modes)
+Cirrus CLGD 5446 PCI VGA card or dummy VGA card with Bochs VESA
+extensions (hardware level, including all non standard modes).
 @item
 PS/2 mouse and keyboard
 @item 
-2 IDE interfaces with hard disk and CD-ROM support
+2 PCI IDE interfaces with hard disk and CD-ROM support
 @item
 Floppy disk
 @item 
-up to 6 NE2000 network adapters
+NE2000 PCI network adapters
 @item
 Serial port
 @item 
 Soundblaster 16 card
 @end itemize
+
+QEMU uses the PC BIOS from the Bochs project and the Plex86/Bochs LGPL
+VGA BIOS.
 
 @c man end
 
@@ -220,7 +173,7 @@ the raw disk image you use is not written back. You can however force
 the write back by pressing @key{C-a s} (@xref{disk_images}). 
 
 @item -m megs
-Set virtual RAM size to @var{megs} megabytes.
+Set virtual RAM size to @var{megs} megabytes. Default is 128 MB.
 
 @item -initrd file
 Use @var{file} as initial ram disk.
@@ -237,6 +190,11 @@ with a serial console.
 
 The SB16 emulation is disabled by default as it may give problems with
 Windows. You can enable it manually with this option.
+
+@item -localtime
+Set the real time clock to local time (the default is to UTC
+time). This option is needed to have correct date in MS-DOS or
+Windows.
 
 @end table
 
@@ -261,11 +219,11 @@ it. Read @url{http://bellard.org/qemu/tetrinet.html} to have an
 example of its use.
 
 @item -user-net 
-(Experimental) Use the user mode network stack. This is the default if
-no tun/tap network init script is found.
+Use the user mode network stack. This is the default if no tun/tap
+network init script is found.
 
 @item -dummy-net 
-Use the dummy network stack: no packet will be received on the network
+Use the dummy network stack: no packet will be received by the network
 cards.
 
 @end table
@@ -287,7 +245,7 @@ Use @var{file} as initial ram disk.
 
 @end table
 
-Debug options:
+Debug/Expert options:
 @table @option
 @item -s
 Wait gdb connection to port 1234 (@xref{gdb_usage}). 
@@ -297,6 +255,12 @@ Change gdb connection port.
 Do not start CPU at startup (you must type 'c' in the monitor).
 @item -d             
 Output log in /tmp/qemu.log
+@item -isa
+Simulate an ISA-only system (default is PCI system).
+@item -std-vga
+Simulate a standard VGA card with Bochs VBE extensions (default is
+Cirrus Logic GD5446 PCI VGA)
+
 @end table
 
 During the graphical emulation, you can use the following keys:
@@ -494,6 +458,10 @@ sendkey ctrl-alt-f1
 
 This command is useful to send keys that your graphical user interface
 intercepts at low level, such as @code{ctrl-alt-f1} in X Window.
+
+@item system_reset
+
+Reset the system.
 
 @end table
 
@@ -904,62 +872,92 @@ Use @code{set architecture i8086} to dump 16 bit code. Then use
 
 @subsection Linux
 
-To have access to SVGA graphic modes under X11, use the @code{vesa}
-X11 driver. For optimal performances, use the same depth as your
-native display.
+To have access to SVGA graphic modes under X11, use the @code{vesa} or
+the @code{cirrus} X11 driver. For optimal performances, use 16 bit
+color depth in the guest and the host OS.
 
 @subsection Windows
 
 If you have a slow host, using Windows 95 is better as it gives the
 best speed. Windows 2000 is also a good choice.
 
-SVGA graphic modes support: QEMU currently supports the Bochs VESA VBE
-extensions. It supports color depths of 8, 15, 16 and 32 bits per
-pixel in 640x480, 800x600 and 1024x768. For optimal performances, use
-the same depth as your native display.
+SVGA graphic modes support: QEMU emulates a Cirrus Logic GD5446 Video
+card. All Windows versions starting from Windows 95 should recognize
+and use this graphic card. For optimal performances, use 16 bit color
+depth in the guest and the host OS.
 
-@itemize
+CPU usage reduction: Windows 9x does not correctly use the CPU HLT
+instruction. The result is that it takes host CPU cycles even when
+idle. You can install the utility from
+@url{http://www.user.cityline.ru/~maxamn/amnhltm.zip} to solve this
+problem. Note that no such tool is needed for NT, 2000 or XP.
 
-@item Windows XP: it should be automatically detected.
-
-@item Windows NT4 or 2000: use the driver
-@url{http://www.volny.cz/xnavara/qemuvid_bin.zip} by Filip Navara.
-
-@item Windows 95/98/Me: no clean solution yet (but it will change
-soon). You can however use the shareware driver from SciTech. Here are
-the steps recommended by Christophe Bothamy on the Bochs mailing list:
-
-@itemize
-@item install win95 with the VGA driver.
-@item download sdd 7 beta from @url{http://www.majorgeeks.com/download382.html}
-@item download pmhelp.vxd from @url{http://unununium.org/viewcvs/snap/redist/release/pmhelp.vxd}
-@item copy pmhelp.vxd to the win95 system directory
-@item install sdd7
-@end itemize
-@end itemize
-
-@chapter QEMU PREP PowerPC System emulator invocation
+@chapter QEMU PowerPC System emulator invocation
 
 Use the executable @file{qemu-system-ppc} to simulate a complete PREP
-PowerPC system.
+or PowerMac PowerPC system.
+
+QEMU emulates the following PowerMac peripherials:
+
+@itemize @minus
+@item 
+UniNorth PCI Bridge 
+@item
+PCI VGA compatible card with VESA Bochs Extensions
+@item 
+2 PMAC IDE interfaces with hard disk and CD-ROM support
+@item 
+NE2000 PCI adapters
+@item
+Non Volatile RAM
+@item
+VIA-CUDA with ADB keyboard and mouse.
+@end itemize
 
 QEMU emulates the following PREP peripherials:
 
 @itemize @minus
 @item 
+PCI Bridge
+@item
+PCI VGA compatible card with VESA Bochs Extensions
+@item 
 2 IDE interfaces with hard disk and CD-ROM support
 @item
 Floppy disk
 @item 
-up to 6 NE2000 network adapters
+NE2000 network adapters
 @item
 Serial port
 @item
 PREP Non Volatile RAM
+@item
+PC compatible keyboard and mouse.
 @end itemize
+
+QEMU uses the Open Hack'Ware Open Firmware Compatible BIOS available at
+@url{http://site.voila.fr/jmayer/OpenHackWare/index.htm}.
 
 You can read the qemu PC system emulation chapter to have more
 informations about QEMU usage.
+
+@c man begin OPTIONS
+
+The following options are specific to the PowerPC emulation:
+
+@table @option
+
+@item -prep
+Simulate a PREP system (default is PowerMAC)
+
+@item -g WxH[xDEPTH]  
+
+Set the initial VGA graphic mode. The default is 800x600x15.
+
+@end table
+
+@c man end 
+
 
 More information is available at
 @url{http://jocelyn.mayer.free.fr/qemu-ppc/}.
@@ -1064,4 +1062,77 @@ Activate log (logfile=/tmp/qemu.log)
 @item -p pagesize
 Act as if the host page size was 'pagesize' bytes
 @end table
+
+@node compilation
+@chapter Compilation from the sources
+
+@section Linux/BSD
+
+Read the @file{README} which gives the related information.
+
+@section Windows
+
+@itemize
+@item Install the current versions of MSYS and MinGW from
+@url{http://www.mingw.org/}. You can find detailed installation
+instructions in the download section and the FAQ.
+
+@item Download 
+the MinGW development library of SDL 1.2.x
+(@file{SDL-devel-1.2.x-mingw32.tar.gz}) from
+@url{http://www.libsdl.org}. Unpack it in a temporary place, and
+unpack the archive @file{i386-mingw32msvc.tar.gz} in the MinGW tool
+directory. Edit the @file{sdl-config} script so that it gives the
+correct SDL directory when invoked.
+
+@item Extract the current version of QEMU.
+ 
+@item Start the MSYS shell (file @file{msys.bat}).
+
+@item Change to the QEMU directory. Launch @file{./configure} and 
+@file{make}.  If you have problems using SDL, verify that
+@file{sdl-config} can be launched from the MSYS command line.
+
+@item You can install QEMU in @file{Program Files/Qemu} by typing 
+@file{make install}. Don't forget to copy @file{SDL.dll} in
+@file{Program Files/Qemu}.
+
+@end itemize
+
+@section Cross compilation for Windows with Linux
+
+@itemize
+@item
+Install the MinGW cross compilation tools available at
+@url{http://www.mingw.org/}.
+
+@item 
+Install the Win32 version of SDL (@url{http://www.libsdl.org}) by
+unpacking @file{i386-mingw32msvc.tar.gz}. Set up the PATH environment
+variable so that @file{i386-mingw32msvc-sdl-config} can be launched by
+the QEMU configuration script.
+
+@item 
+Configure QEMU for Windows cross compilation:
+@example
+./configure --enable-mingw32
+@end example
+If necessary, you can change the cross-prefix according to the prefix
+choosen for the MinGW tools with --cross-prefix. You can also use
+--prefix to set the Win32 install path.
+
+@item You can install QEMU in the installation directory by typing 
+@file{make install}. Don't forget to copy @file{SDL.dll} in the
+installation directory. 
+
+@end itemize
+
+Note: Currently, Wine does not seem able to launch
+QEMU for Win32.
+
+@section Mac OS X
+
+The Mac OS X patches are not fully merged in QEMU, so you should look
+at the QEMU mailing list archive to have all the necessary
+information.
 
