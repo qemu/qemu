@@ -3393,6 +3393,7 @@ void help(void)
 	   "-snapshot       write to temporary files instead of disk image files\n"
            "-m megs         set virtual RAM size to megs MB\n"
            "-n script       set network init script [default=%s]\n"
+           "-tun-fd fd      this fd talks to tap/tun, use it.\n"
            "-nographic      disable graphical output\n"
            "\n"
            "Linux boot specific (does not require PC BIOS):\n"
@@ -3422,6 +3423,7 @@ struct option long_options[] = {
     { "nographic", 0, NULL, 0, },
     { "kernel", 1, NULL, 0, },
     { "append", 1, NULL, 0, },
+    { "tun-fd", 1, NULL, 0, },
     { NULL, 0, NULL, 0 },
 };
 
@@ -3514,6 +3516,9 @@ int main(int argc, char **argv)
             case 7:
                 kernel_cmdline = optarg;
                 break;
+	    case 8:
+		net_fd = atoi(optarg);
+		break;
             }
             break;
         case 'h':
@@ -3568,7 +3573,8 @@ int main(int argc, char **argv)
     }
 
     /* init network tun interface */
-    net_init();
+    if (net_fd < 0)
+	net_init();
 
     /* init the memory */
     tmpdir = getenv("QEMU_TMPDIR");
