@@ -12,6 +12,9 @@ version 0.5.2:
   - fixed 'call Ev' in case of paging exception
   - updated the script 'qemu-binfmt-conf.sh' to use QEMU automagically
     when launching executables for the supported target CPUs.
+  - PowerPC system emulation update (Jocelyn Mayer)
+  - PC floppy emulation and DMA fixes (Jocelyn Mayer)
+  - polled mode for PIC (Jocelyn Mayer)
 
 version 0.5.1:
   

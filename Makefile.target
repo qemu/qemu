@@ -36,7 +36,21 @@ endif
 endif
 
 endif
+
+ifeq ($(TARGET_ARCH), ppc)
+
+ifeq ($(ARCH), ppc)
+PROGS+=$(QEMU_SYSTEM)
 endif
+
+ifeq ($(ARCH), i386)
+ifdef CONFIG_SOFTMMU
+PROGS+=$(QEMU_SYSTEM)
+endif
+endif # ARCH = i386
+
+endif # TARGET_ARCH = ppc
+endif # !CONFIG_USER_ONLY
 
 ifdef CONFIG_STATIC
 LDFLAGS+=-static
@@ -147,7 +161,7 @@ LIBOBJS+=helper.o helper2.o
 endif
 
 ifeq ($(TARGET_ARCH), ppc)
-LIBOBJS+=helper.o
+LIBOBJS+= op_helper.o helper.o
 endif
 
 # NOTE: the disassembler code is only needed for debugging
@@ -183,7 +197,10 @@ ifeq ($(ARCH),alpha)
 endif
 
 # must use static linking to avoid leaving stuff in virtual address space
-VL_OBJS=vl.o block.o ide.o vga.o sb16.o dma.o oss.o
+VL_OBJS=vl.o block.o ide.o vga.o sb16.o dma.o oss.o fdc.o
+ifeq ($(TARGET_ARCH), ppc)
+VL_OBJS+= hw.o
+endif
 ifdef CONFIG_SDL
 VL_OBJS+=sdl.o
 ifdef CONFIG_STATIC
@@ -244,6 +261,11 @@ endif
 
 ifeq ($(TARGET_ARCH), sparc)
 op.o: op.c op_template.h
+endif
+
+ifeq ($(TARGET_ARCH), ppc)
+op.o: op.c op_template.h op_mem.h
+op_helper.o: op_helper_mem.h
 endif
 
 %.o: %.c

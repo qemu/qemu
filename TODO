@@ -1,3 +1,12 @@
+before 0.5.2:
+------------
+
+- TLB code protection support
+- basic VGA optimizations
+- disable SMC handling for ARM/SPARC/PPC
+
+short term:
+----------
 - user/kernel PUSHL/POPL in helper.c
 - keyboard output buffer filling timing emulation
 - verify tb_flush() with a20 and TLBs
@@ -5,19 +14,20 @@
 - cmos clock update and timers
 - test ldt limit < 7 ?
 - tests for each target CPU
-- optimize FPU operations (evaluate x87 stack pointer statically) and
-  fix cr0.TS emulation
-- fix some 16 bit sp push/pop overflow (pusha/popa, lcall lret)
-- sysenter/sysexit emulation
 - fix CCOP optimisation
 - fix all remaining thread lock issues (must put TBs in a specific invalid
   state, find a solution for tb_flush()).
 - fix arm fpu rounding (at least for float->integer conversions)
+- SMP support
 
 lower priority:
 --------------
+- suppress shift_mem ops
+- fix some 16 bit sp push/pop overflow (pusha/popa, lcall lret)
+- sysenter/sysexit emulation
+- optimize FPU operations (evaluate x87 stack pointer statically) and
+  fix cr0.TS emulation
 - add IPC syscalls
-- SMP support
 - use -msoft-float on ARM
 - use kernel traps for unaligned accesses on ARM ?
 - handle rare page fault cases (in particular if page fault in heplers or
