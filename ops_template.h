@@ -556,12 +556,14 @@ void OPPROTO glue(op_string_jz_sub, SUFFIX)(void)
 {
     if ((DATA_TYPE)CC_DST == 0)
         JUMP_TB(PARAM1, 1, PARAM2);
+    FORCE_RET();
 }
 
 void OPPROTO glue(op_string_jnz_sub, SUFFIX)(void)
 {
     if ((DATA_TYPE)CC_DST != 0)
         JUMP_TB(PARAM1, 1, PARAM2);
+    FORCE_RET();
 }
 
 #if DATA_BITS >= 16
@@ -569,6 +571,7 @@ void OPPROTO glue(op_jz_ecx, SUFFIX)(void)
 {
     if ((DATA_TYPE)ECX == 0)
         JUMP_TB(PARAM1, 1, PARAM2);
+    FORCE_RET();
 }
 #endif
 
