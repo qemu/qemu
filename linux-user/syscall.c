@@ -41,8 +41,10 @@
 #include <sys/uio.h>
 #include <sys/poll.h>
 #include <sys/times.h>
+#include <sys/shm.h>
 #include <utime.h>
 //#include <sys/user.h>
+#include <netinet/ip.h>
 #include <netinet/tcp.h>
 
 #define termios host_termios
@@ -325,7 +327,7 @@ static inline void host_to_target_fds(target_long *target_fds,
     target_long v;
 
     if (target_fds) {
-        nw = n / TARGET_LONG_BITS;
+        nw = (n + TARGET_LONG_BITS - 1) / TARGET_LONG_BITS;
         k = 0;
         for(i = 0;i < nw; i++) {
             v = 0;
@@ -530,61 +532,116 @@ static inline void host_to_target_cmsg(struct target_msghdr *target_msgh,
 static long do_setsockopt(int sockfd, int level, int optname, 
                           void *optval, socklen_t optlen)
 {
-    if (level == SOL_TCP) {
+    int val, ret;
+            
+    switch(level) {
+    case SOL_TCP:
         /* TCP options all take an 'int' value.  */
-        int val;
-
         if (optlen < sizeof(uint32_t))
             return -EINVAL;
-
-        val = tswap32(*(uint32_t *)optval);
-        return get_errno(setsockopt(sockfd, level, optname, &val, sizeof(val)));
-    }
-
-    else if (level != SOL_SOCKET) {
-        gemu_log("Unsupported setsockopt level: %d\n", level);
-        return -ENOSYS;
-    }
-
-    switch (optname) {
-    /* Options with 'int' argument.  */
-    case SO_DEBUG:
-    case SO_REUSEADDR:
-    case SO_TYPE:
-    case SO_ERROR:
-    case SO_DONTROUTE:
-    case SO_BROADCAST:
-    case SO_SNDBUF:
-    case SO_RCVBUF:
-    case SO_KEEPALIVE:
-    case SO_OOBINLINE:
-    case SO_NO_CHECK:
-    case SO_PRIORITY:
-    case SO_BSDCOMPAT:
-    case SO_PASSCRED:
-    case SO_TIMESTAMP:
-    case SO_RCVLOWAT:
-    case SO_RCVTIMEO:
-    case SO_SNDTIMEO:
-    {
-        int val;
-        if (optlen < sizeof(uint32_t))
-            return -EINVAL;
-        val = tswap32(*(uint32_t *)optval);
-        return get_errno(setsockopt(sockfd, level, optname, &val, sizeof(val)));
-    }
-
+        
+        if (get_user(val, (uint32_t *)optval))
+            return -EFAULT;
+        ret = get_errno(setsockopt(sockfd, level, optname, &val, sizeof(val)));
+        break;
+    case SOL_IP:
+        switch(optname) {
+        case IP_HDRINCL:
+            val = 0;
+            if (optlen >= sizeof(uint32_t)) {
+                if (get_user(val, (uint32_t *)optval))
+                    return -EFAULT;
+            } else if (optlen >= 1) {
+                if (get_user(val, (uint8_t *)optval))
+                    return -EFAULT;
+            }
+            ret = get_errno(setsockopt(sockfd, level, optname, &val, sizeof(val)));
+            break;
+        default:
+            goto unimplemented;
+        }
+        break;
+    case SOL_SOCKET:
+        switch (optname) {
+            /* Options with 'int' argument.  */
+        case SO_DEBUG:
+        case SO_REUSEADDR:
+        case SO_TYPE:
+        case SO_ERROR:
+        case SO_DONTROUTE:
+        case SO_BROADCAST:
+        case SO_SNDBUF:
+        case SO_RCVBUF:
+        case SO_KEEPALIVE:
+        case SO_OOBINLINE:
+        case SO_NO_CHECK:
+        case SO_PRIORITY:
+        case SO_BSDCOMPAT:
+        case SO_PASSCRED:
+        case SO_TIMESTAMP:
+        case SO_RCVLOWAT:
+        case SO_RCVTIMEO:
+        case SO_SNDTIMEO:
+            if (optlen < sizeof(uint32_t))
+                return -EINVAL;
+            if (get_user(val, (uint32_t *)optval))
+                return -EFAULT;
+            ret = get_errno(setsockopt(sockfd, level, optname, &val, sizeof(val)));
+            break;
+        default:
+            goto unimplemented;
+        }
+        break;
     default:
-        gemu_log("Unsupported setsockopt SOL_SOCKET option: %d\n", optname);
-        return -ENOSYS;
+    unimplemented:
+        gemu_log("Unsupported setsockopt level=%d optname=%d \n", level, optname);
+        ret = -ENOSYS;
     }
+    return ret;
 }
 
 static long do_getsockopt(int sockfd, int level, int optname, 
                           void *optval, socklen_t *optlen)
 {
-    gemu_log("getsockopt not yet supported\n");
-    return -ENOSYS;
+    int len, lv, val, ret;
+
+    switch(level) {
+    case SOL_SOCKET:
+	switch (optname) {
+	case SO_LINGER:
+	case SO_RCVTIMEO:
+	case SO_SNDTIMEO:
+	case SO_PEERCRED:
+	case SO_PEERNAME:
+	    /* These don't just return a single integer */
+	    goto unimplemented;
+        default:
+            if (get_user(len, optlen))
+                return -EFAULT;
+            if (len < 0)
+                return -EINVAL;
+            lv = sizeof(int);
+            ret = get_errno(getsockopt(sockfd, level, optname, &val, &lv));
+            if (ret < 0)
+                return ret;
+            val = tswap32(val);
+            if (len > lv)
+                len = lv;
+            if (copy_to_user(optval, &val, len))
+                return -EFAULT;
+            if (put_user(len, optlen))
+                return -EFAULT;
+            break;
+        }
+        break;
+    default:
+    unimplemented:
+        gemu_log("getsockopt level=%d optname=%d not yet supported\n",
+                 level, optname);
+        ret = -ENOSYS;
+        break;
+    }
+    return ret;
 }
 
 static long do_socketcall(int num, int32_t *vptr)
@@ -807,18 +864,101 @@ static long do_socketcall(int num, int32_t *vptr)
             int level = tswap32(vptr[1]);
             int optname = tswap32(vptr[2]);
             void *optval = (void *)tswap32(vptr[3]);
-            uint32_t *target_len = (void *)tswap32(vptr[4]);
-            socklen_t optlen = tswap32(*target_len);
+            uint32_t *poptlen = (void *)tswap32(vptr[4]);
 
-            ret = do_getsockopt(sockfd, level, optname, optval, &optlen);
-            if (!is_error(ret))
-                *target_len = tswap32(optlen);
+            ret = do_getsockopt(sockfd, level, optname, optval, poptlen);
         }
         break;
     default:
         gemu_log("Unsupported socketcall: %d\n", num);
         ret = -ENOSYS;
         break;
+    }
+    return ret;
+}
+
+
+#define N_SHM_REGIONS	32
+
+static struct shm_region {
+    uint32_t	start;
+    uint32_t	size;
+} shm_regions[N_SHM_REGIONS];
+
+static long do_ipc(long call, long first, long second, long third,
+		   long ptr, long fifth)
+{
+    int version;
+    long ret = 0;
+    unsigned long raddr;
+    struct shmid_ds shm_info;
+    int i;
+
+    version = call >> 16;
+    call &= 0xffff;
+
+    switch (call) {
+    case IPCOP_shmat:
+	/* SHM_* flags are the same on all linux platforms */
+	ret = get_errno((long) shmat(first, (void *) ptr, second));
+        if (is_error(ret))
+            break;
+        raddr = ret;
+	/* find out the length of the shared memory segment */
+        
+        ret = get_errno(shmctl(first, IPC_STAT, &shm_info));
+        if (is_error(ret)) {
+            /* can't get length, bail out */
+            shmdt((void *) raddr);
+	    break;
+	}
+	page_set_flags(raddr, raddr + shm_info.shm_segsz,
+		       PAGE_VALID | PAGE_READ |
+		       ((second & SHM_RDONLY)? 0: PAGE_WRITE));
+	for (i = 0; i < N_SHM_REGIONS; ++i) {
+	    if (shm_regions[i].start == 0) {
+		shm_regions[i].start = raddr;
+		shm_regions[i].size = shm_info.shm_segsz;
+                break;
+	    }
+	}
+	if (put_user(raddr, (uint32_t *)third))
+            return -EFAULT;
+        ret = 0;
+	break;
+    case IPCOP_shmdt:
+	for (i = 0; i < N_SHM_REGIONS; ++i) {
+	    if (shm_regions[i].start == ptr) {
+		shm_regions[i].start = 0;
+		page_set_flags(ptr, shm_regions[i].size, 0);
+		break;
+	    }
+	}
+	ret = get_errno(shmdt((void *) ptr));
+	break;
+
+    case IPCOP_shmget:
+	/* IPC_* flag values are the same on all linux platforms */
+	ret = get_errno(shmget(first, second, third));
+	break;
+
+	/* IPC_* and SHM_* command values are the same on all linux platforms */
+    case IPCOP_shmctl:
+        switch(second) {
+        case IPC_RMID:
+        case SHM_LOCK:
+        case SHM_UNLOCK:
+            ret = get_errno(shmctl(first, second, NULL));
+            break;
+        default:
+            goto unimplemented;
+        }
+        break;
+    default:
+    unimplemented:
+	gemu_log("Unsupported ipc call: %ld (version %d)\n", call, version);
+	ret = -ENOSYS;
+	break;
     }
     return ret;
 }
@@ -2205,7 +2345,8 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_sysinfo:
         goto unimplemented;
     case TARGET_NR_ipc:
-        goto unimplemented;
+	ret = do_ipc(arg1, arg2, arg3, arg4, arg5, arg6);
+	break;
     case TARGET_NR_fsync:
         ret = get_errno(fsync(arg1));
         break;
