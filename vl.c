@@ -52,9 +52,27 @@
 
 #define DEBUG_LOGFILE "/tmp/vl.log"
 #define DEFAULT_NETWORK_SCRIPT "/etc/vl-ifup"
+#define BIOS_FILENAME "bios.bin"
+#define VGABIOS_FILENAME "vgabios.bin"
 
 //#define DEBUG_UNUSED_IOPORT
+
 //#define DEBUG_IRQ_LATENCY
+
+/* output Bochs bios info messages */
+//#define DEBUG_BIOS
+
+/* debug IDE devices */
+//#define DEBUG_IDE
+
+/* debug PIC */
+//#define DEBUG_PIC
+
+/* debug NE2000 card */
+//#define DEBUG_NE2000
+
+/* debug PC keyboard */
+//#define DEBUG_KBD
 
 #define PHYS_RAM_BASE     0xac000000
 #define PHYS_RAM_MAX_SIZE (256 * 1024 * 1024)
@@ -185,6 +203,7 @@ typedef uint32_t (IOPortReadFunc)(CPUX86State *env, uint32_t address);
 
 #define MAX_IOPORTS 4096
 
+static const char *interp_prefix = CONFIG_QEMU_PREFIX;
 char phys_ram_file[1024];
 CPUX86State *global_env;
 CPUX86State *cpu_single_env;
@@ -216,15 +235,15 @@ void default_ioport_writeb(CPUX86State *env, uint32_t address, uint32_t data)
 uint32_t default_ioport_readw(CPUX86State *env, uint32_t address)
 {
     uint32_t data;
-    data = ioport_read_table[0][address](env, address);
-    data |= ioport_read_table[0][address + 1](env, address + 1) << 8;
+    data = ioport_read_table[0][address & (MAX_IOPORTS - 1)](env, address);
+    data |= ioport_read_table[0][(address + 1) & (MAX_IOPORTS - 1)](env, address + 1) << 8;
     return data;
 }
 
 void default_ioport_writew(CPUX86State *env, uint32_t address, uint32_t data)
 {
-    ioport_write_table[0][address](env, address, data & 0xff);
-    ioport_write_table[0][address + 1](env, address + 1, (data >> 8) & 0xff);
+    ioport_write_table[0][address & (MAX_IOPORTS - 1)](env, address, data & 0xff);
+    ioport_write_table[0][(address + 1) & (MAX_IOPORTS - 1)](env, address + 1, (data >> 8) & 0xff);
 }
 
 uint32_t default_ioport_readl(CPUX86State *env, uint32_t address)
@@ -516,6 +535,7 @@ void cmos_init(void)
 {
     struct tm *tm;
     time_t ti;
+    int val;
 
     ti = time(NULL);
     tm = gmtime(&ti);
@@ -532,16 +552,33 @@ void cmos_init(void)
     cmos_data[RTC_REG_C] = 0x00;
     cmos_data[RTC_REG_D] = 0x80;
 
+    /* various important CMOS locations needed by PC/Bochs bios */
+
     cmos_data[REG_EQUIPMENT_BYTE] = 0x02; /* FPU is there */
 
+    /* memory size */
+    val = (phys_ram_size / 1024) - 1024;
+    if (val > 65535)
+        val = 65535;
+    cmos_data[0x17] = val;
+    cmos_data[0x18] = val >> 8;
+    cmos_data[0x30] = val;
+    cmos_data[0x31] = val >> 8;
+
+    val = (phys_ram_size / 65536) - ((16 * 1024 * 1024) / 65536);
+    if (val > 65535)
+        val = 65535;
+    cmos_data[0x34] = val;
+    cmos_data[0x35] = val >> 8;
+    
+    cmos_data[0x3d] = 0x02; /* hard drive boot */
+    
     register_ioport_write(0x70, 2, cmos_ioport_write, 1);
     register_ioport_read(0x70, 2, cmos_ioport_read, 1);
 }
 
 /***********************************************************/
 /* 8259 pic emulation */
-
-//#define DEBUG_PIC
 
 typedef struct PicState {
     uint8_t last_irr; /* edge detection */
@@ -1360,8 +1397,6 @@ void serial_init(void)
 /***********************************************************/
 /* ne2000 emulation */
 
-//#define DEBUG_NE2000
-
 #define NE2000_IOPORT   0x300
 #define NE2000_IRQ      9
 
@@ -1826,8 +1861,6 @@ void ne2000_init(void)
 
 /***********************************************************/
 /* ide emulation */
-
-//#define DEBUG_IDE
 
 /* Bits of HD_STATUS */
 #define ERR_STAT		0x01
@@ -2352,16 +2385,50 @@ uint32_t ide_status_read(CPUX86State *env, uint32_t addr)
     int ret;
     ret = s->status;
 #ifdef DEBUG_IDE
-    printf("ide: read addr=0x%x val=%02x\n", addr, ret);
+    printf("ide: read status val=%02x\n", ret);
 #endif
     return ret;
 }
 
 void ide_cmd_write(CPUX86State *env, uint32_t addr, uint32_t val)
 {
-    IDEState *s = &ide_state[0];
+    IDEState *s;
+    int i;
+
+#ifdef DEBUG_IDE
+    printf("ide: write control val=%02x\n", val);
+#endif
     /* common for both drives */
-    s->cmd = val;
+    if (!(ide_state[0].cmd & IDE_CMD_RESET) &&
+        (val & IDE_CMD_RESET)) {
+        /* reset low to high */
+        for(i = 0;i < 2; i++) {
+            s = &ide_state[i];
+            s->status = BUSY_STAT | SEEK_STAT;
+            s->error = 0x01;
+        }
+    } else if ((ide_state[0].cmd & IDE_CMD_RESET) &&
+               !(val & IDE_CMD_RESET)) {
+        /* high to low */
+        for(i = 0;i < 2; i++) {
+            s = &ide_state[i];
+            s->status = READY_STAT;
+            /* set hard disk drive ID */
+            s->select &= 0xf0; /* clear head */
+            s->nsector = 1;
+            s->sector = 1;
+            if (s->nb_sectors == 0) {
+                /* no disk present */
+                s->lcyl = 0x12;
+                s->hcyl = 0x34;
+            } else {
+                s->lcyl = 0;
+                s->hcyl = 0;
+            }
+        }
+    }
+
+    ide_state[0].cmd = val;
 }
 
 void ide_data_writew(CPUX86State *env, uint32_t addr, uint32_t val)
@@ -2439,14 +2506,17 @@ void ide_init(void)
         s->bs = bs_table[i];
         if (s->bs) {
             bdrv_get_geometry(s->bs, &nb_sectors);
-            cylinders = nb_sectors / (16 * 63);
-            if (cylinders > 16383)
-                cylinders = 16383;
-            else if (cylinders < 2)
-                cylinders = 2;
-            s->cylinders = cylinders;
-            s->heads = 16;
-            s->sectors = 63;
+            if (s->cylinders == 0) {
+                /* if no geometry, use a LBA compatible one */
+                cylinders = nb_sectors / (16 * 63);
+                if (cylinders > 16383)
+                    cylinders = 16383;
+                else if (cylinders < 2)
+                    cylinders = 2;
+                s->cylinders = cylinders;
+                s->heads = 16;
+                s->sectors = 63;
+            }
             s->nb_sectors = nb_sectors;
         }
         s->irq = 14;
@@ -2465,31 +2535,399 @@ void ide_init(void)
 }
 
 /***********************************************************/
-/* simulate reset (stop qemu) */
+/* keyboard emulation */
 
+/*	Keyboard Controller Commands */
+#define KBD_CCMD_READ_MODE	0x20	/* Read mode bits */
+#define KBD_CCMD_WRITE_MODE	0x60	/* Write mode bits */
+#define KBD_CCMD_GET_VERSION	0xA1	/* Get controller version */
+#define KBD_CCMD_MOUSE_DISABLE	0xA7	/* Disable mouse interface */
+#define KBD_CCMD_MOUSE_ENABLE	0xA8	/* Enable mouse interface */
+#define KBD_CCMD_TEST_MOUSE	0xA9	/* Mouse interface test */
+#define KBD_CCMD_SELF_TEST	0xAA	/* Controller self test */
+#define KBD_CCMD_KBD_TEST	0xAB	/* Keyboard interface test */
+#define KBD_CCMD_KBD_DISABLE	0xAD	/* Keyboard interface disable */
+#define KBD_CCMD_KBD_ENABLE	0xAE	/* Keyboard interface enable */
+#define KBD_CCMD_READ_INPORT    0xC0    /* read input port */
+#define KBD_CCMD_READ_OUTPORT	0xD0    /* read output port */
+#define KBD_CCMD_WRITE_OUTPORT	0xD1    /* write output port */
+#define KBD_CCMD_WRITE_OBUF	0xD2
+#define KBD_CCMD_WRITE_AUX_OBUF	0xD3    /* Write to output buffer as if
+					   initiated by the auxiliary device */
+#define KBD_CCMD_WRITE_MOUSE	0xD4	/* Write the following byte to the mouse */
+#define KBD_CCMD_ENABLE_A20     0xDD
+#define KBD_CCMD_DISABLE_A20    0xDF
+#define KBD_CCMD_RESET	        0xFE
+
+/* Keyboard Commands */
+#define KBD_CMD_SET_LEDS	0xED	/* Set keyboard leds */
+#define KBD_CMD_ECHO     	0xEE
+#define KBD_CMD_SET_RATE	0xF3	/* Set typematic rate */
+#define KBD_CMD_ENABLE		0xF4	/* Enable scanning */
+#define KBD_CMD_RESET_DISABLE	0xF5	/* reset and disable scanning */
+#define KBD_CMD_RESET_ENABLE   	0xF6    /* reset and enable scanning */
+#define KBD_CMD_RESET		0xFF	/* Reset */
+
+/* Keyboard Replies */
+#define KBD_REPLY_POR		0xAA	/* Power on reset */
+#define KBD_REPLY_ACK		0xFA	/* Command ACK */
+#define KBD_REPLY_RESEND	0xFE	/* Command NACK, send the cmd again */
+
+/* Status Register Bits */
+#define KBD_STAT_OBF 		0x01	/* Keyboard output buffer full */
+#define KBD_STAT_IBF 		0x02	/* Keyboard input buffer full */
+#define KBD_STAT_SELFTEST	0x04	/* Self test successful */
+#define KBD_STAT_CMD		0x08	/* Last write was a command write (0=data) */
+#define KBD_STAT_UNLOCKED	0x10	/* Zero if keyboard locked */
+#define KBD_STAT_MOUSE_OBF	0x20	/* Mouse output buffer full */
+#define KBD_STAT_GTO 		0x40	/* General receive/xmit timeout */
+#define KBD_STAT_PERR 		0x80	/* Parity error */
+
+/* Controller Mode Register Bits */
+#define KBD_MODE_KBD_INT	0x01	/* Keyboard data generate IRQ1 */
+#define KBD_MODE_MOUSE_INT	0x02	/* Mouse data generate IRQ12 */
+#define KBD_MODE_SYS 		0x04	/* The system flag (?) */
+#define KBD_MODE_NO_KEYLOCK	0x08	/* The keylock doesn't affect the keyboard if set */
+#define KBD_MODE_DISABLE_KBD	0x10	/* Disable keyboard interface */
+#define KBD_MODE_DISABLE_MOUSE	0x20	/* Disable mouse interface */
+#define KBD_MODE_KCC 		0x40	/* Scan code conversion to PC format */
+#define KBD_MODE_RFU		0x80
+
+/* Mouse Commands */
+#define AUX_SET_RES		0xE8	/* Set resolution */
+#define AUX_SET_SCALE11		0xE6	/* Set 1:1 scaling */
+#define AUX_SET_SCALE21		0xE7	/* Set 2:1 scaling */
+#define AUX_GET_SCALE		0xE9	/* Get scaling factor */
+#define AUX_SET_STREAM		0xEA	/* Set stream mode */
+#define AUX_SET_SAMPLE		0xF3	/* Set sample rate */
+#define AUX_ENABLE_DEV		0xF4	/* Enable aux device */
+#define AUX_DISABLE_DEV		0xF5	/* Disable aux device */
+#define AUX_RESET		0xFF	/* Reset aux device */
+#define AUX_ACK			0xFA	/* Command byte ACK. */
+
+#define KBD_QUEUE_SIZE 64
+
+typedef struct {
+    uint8_t data[KBD_QUEUE_SIZE];
+    int rptr, wptr, count;
+} KBDQueue;
+
+enum KBDWriteState {
+    KBD_STATE_CMD = 0,
+    KBD_STATE_LED,
+};
+
+typedef struct KBDState {
+    KBDQueue queues[2];
+    uint8_t write_cmd; /* if non zero, write data to port 60 is expected */
+    uint8_t status;
+    uint8_t mode;
+    int kbd_write_cmd;
+    int scan_enabled;
+} KBDState;
+
+KBDState kbd_state;
 int reset_requested;
+int a20_enabled;
+
+static void kbd_update_irq(KBDState *s)
+{
+    int level;
+    
+    level = ((s->status & KBD_STAT_OBF) && (s->mode & KBD_MODE_KBD_INT));
+    pic_set_irq(1, level);
+    
+    level = ((s->status & KBD_STAT_MOUSE_OBF) && (s->mode & KBD_MODE_MOUSE_INT));
+    pic_set_irq(12, level);
+}
+
+static void kbd_queue(KBDState *s, int b, int aux)
+{
+    KBDQueue *q = &kbd_state.queues[aux];
+
+    if (q->count >= KBD_QUEUE_SIZE)
+        return;
+    q->data[q->wptr] = b;
+    if (++q->wptr == KBD_QUEUE_SIZE)
+        q->wptr = 0;
+    q->count++;
+    s->status |= KBD_STAT_OBF;
+    if (aux)
+        s->status |= KBD_STAT_MOUSE_OBF;
+    kbd_update_irq(s);
+}
 
 uint32_t kbd_read_status(CPUX86State *env, uint32_t addr)
 {
-    return 0;
+    KBDState *s = &kbd_state;
+    int val;
+    val = s->status;
+#if defined(DEBUG_KBD) && 0
+    printf("kbd: read status=0x%02x\n", val);
+#endif
+    return val;
 }
 
 void kbd_write_command(CPUX86State *env, uint32_t addr, uint32_t val)
 {
+    KBDState *s = &kbd_state;
+
+#ifdef DEBUG_KBD
+    printf("kbd: write cmd=0x%02x\n", val);
+#endif
     switch(val) {
-    case 0xfe:
+    case KBD_CCMD_READ_MODE:
+        kbd_queue(s, s->mode, 0);
+        break;
+    case KBD_CCMD_WRITE_MODE:
+    case KBD_CCMD_WRITE_OBUF:
+    case KBD_CCMD_WRITE_AUX_OBUF:
+    case KBD_CCMD_WRITE_MOUSE:
+    case KBD_CCMD_WRITE_OUTPORT:
+        s->write_cmd = val;
+        break;
+    case KBD_CCMD_MOUSE_DISABLE:
+        s->mode |= KBD_MODE_DISABLE_MOUSE;
+        break;
+    case KBD_CCMD_MOUSE_ENABLE:
+        s->mode &= ~KBD_MODE_DISABLE_MOUSE;
+        break;
+    case KBD_CCMD_TEST_MOUSE:
+        kbd_queue(s, 0x00, 0);
+        break;
+    case KBD_CCMD_SELF_TEST:
+        s->status |= KBD_STAT_SELFTEST;
+        kbd_queue(s, 0x55, 0);
+        break;
+    case KBD_CCMD_KBD_TEST:
+        kbd_queue(s, 0x00, 0);
+        break;
+    case KBD_CCMD_KBD_DISABLE:
+        s->mode |= KBD_MODE_DISABLE_KBD;
+        break;
+    case KBD_CCMD_KBD_ENABLE:
+        s->mode &= ~KBD_MODE_DISABLE_KBD;
+        break;
+    case KBD_CCMD_READ_INPORT:
+        kbd_queue(s, 0x00, 0);
+        break;
+    case KBD_CCMD_READ_OUTPORT:
+        /* XXX: check that */
+        val = 0x01 | (a20_enabled << 1);
+        if (s->status & KBD_STAT_OBF)
+            val |= 0x10;
+        if (s->status & KBD_STAT_MOUSE_OBF)
+            val |= 0x20;
+        kbd_queue(s, val, 0);
+        break;
+    case KBD_CCMD_ENABLE_A20:
+        a20_enabled = 1;
+        break;
+    case KBD_CCMD_DISABLE_A20:
+        a20_enabled = 0;
+        break;
+    case KBD_CCMD_RESET:
         reset_requested = 1;
         cpu_x86_interrupt(global_env, CPU_INTERRUPT_EXIT);
         break;
     default:
+        fprintf(stderr, "vl: unsupported keyboard cmd=0x%02x\n", val);
         break;
+    }
+}
+
+uint32_t kbd_read_data(CPUX86State *env, uint32_t addr)
+{
+    KBDState *s = &kbd_state;
+    KBDQueue *q;
+    int val;
+    
+    q = &s->queues[1]; /* first check AUX data */
+    if (q->count == 0)
+        q = &s->queues[0]; /* then check KBD data */
+    if (q->count == 0) {
+        /* XXX: return something else ? */
+        val = 0;
+    } else {
+        val = q->data[q->rptr];
+        if (++q->rptr == KBD_QUEUE_SIZE)
+            q->rptr = 0;
+        q->count--;
+    }
+    if (s->queues[1].count == 0) {
+        s->status &= ~KBD_STAT_MOUSE_OBF;
+        if (s->queues[0].count == 0)
+            s->status &= ~KBD_STAT_OBF;
+        kbd_update_irq(s);
+    }
+
+#ifdef DEBUG_KBD
+    printf("kbd: read data=0x%02x\n", val);
+#endif
+    return val;
+}
+
+static void kbd_reset_keyboard(KBDState *s)
+{
+    s->scan_enabled = 1;
+}
+
+static void kbd_write_keyboard(KBDState *s, int val)
+{
+    switch(s->kbd_write_cmd) {
+    default:
+    case -1:
+        switch(val) {
+        case 0x00:
+            kbd_queue(s, KBD_REPLY_ACK, 0);
+            break;
+        case 0x05:
+            kbd_queue(s, KBD_REPLY_RESEND, 0);
+            break;
+        case KBD_CMD_ECHO:
+            kbd_queue(s, KBD_CMD_ECHO, 0);
+            break;
+        case KBD_CMD_ENABLE:
+            s->scan_enabled = 1;
+            kbd_queue(s, KBD_REPLY_ACK, 0);
+            break;
+        case KBD_CMD_SET_LEDS:
+        case KBD_CMD_SET_RATE:
+            s->kbd_write_cmd = val;
+            break;
+        case KBD_CMD_RESET_DISABLE:
+            kbd_reset_keyboard(s);
+            s->scan_enabled = 0;
+            kbd_queue(s, KBD_REPLY_ACK, 0);
+            break;
+        case KBD_CMD_RESET_ENABLE:
+            kbd_reset_keyboard(s);
+            s->scan_enabled = 1;
+            kbd_queue(s, KBD_REPLY_ACK, 0);
+            break;
+        case KBD_CMD_RESET:
+            kbd_reset_keyboard(s);
+            kbd_queue(s, KBD_REPLY_ACK, 0);
+            kbd_queue(s, KBD_REPLY_POR, 0);
+            break;
+        default:
+            kbd_queue(s, KBD_REPLY_ACK, 0);
+            break;
+        }
+        break;
+    case KBD_CMD_SET_LEDS:
+        kbd_queue(s, KBD_REPLY_ACK, 0);
+        break;
+    case KBD_CMD_SET_RATE:
+        kbd_queue(s, KBD_REPLY_ACK, 0);
+        break;
+    }
+    s->kbd_write_cmd = -1;
+}
+
+void kbd_write_data(CPUX86State *env, uint32_t addr, uint32_t val)
+{
+    KBDState *s = &kbd_state;
+
+#ifdef DEBUG_KBD
+    printf("kbd: write data=0x%02x\n", val);
+#endif
+
+    switch(s->write_cmd) {
+    case 0:
+        kbd_write_keyboard(s, val);
+        break;
+    case KBD_CCMD_WRITE_MODE:
+        s->mode = val;
+        kbd_update_irq(s);
+        break;
+    case KBD_CCMD_WRITE_OBUF:
+        kbd_queue(s, val, 0);
+        break;
+    case KBD_CCMD_WRITE_AUX_OBUF:
+        kbd_queue(s, val, 1);
+        break;
+    case KBD_CCMD_WRITE_OUTPORT:
+        a20_enabled = (val >> 1) & 1;
+        if (!(val & 1)) {
+            reset_requested = 1;
+            cpu_x86_interrupt(global_env, CPU_INTERRUPT_EXIT);
+        }
+        break;
+    default:
+        break;
+    }
+    s->write_cmd = 0;
+}
+
+void kbd_reset(KBDState *s)
+{
+    KBDQueue *q;
+    int i;
+
+    s->kbd_write_cmd = -1;
+    s->mode = KBD_MODE_KBD_INT | KBD_MODE_MOUSE_INT;
+    s->status = KBD_MODE_SYS | KBD_MODE_NO_KEYLOCK;
+    for(i = 0; i < 2; i++) {
+        q = &s->queues[i];
+        q->rptr = 0;
+        q->wptr = 0;
+        q->count = 0;
     }
 }
 
 void kbd_init(void)
 {
+    kbd_reset(&kbd_state);
+    register_ioport_read(0x60, 1, kbd_read_data, 1);
+    register_ioport_write(0x60, 1, kbd_write_data, 1);
     register_ioport_read(0x64, 1, kbd_read_status, 1);
     register_ioport_write(0x64, 1, kbd_write_command, 1);
+}
+
+/***********************************************************/
+/* Bochs BIOS debug ports */
+
+void bochs_bios_write(CPUX86State *env, uint32_t addr, uint32_t val)
+{
+    switch(addr) {
+        /* Bochs BIOS messages */
+    case 0x400:
+    case 0x401:
+        fprintf(stderr, "BIOS panic at rombios.c, line %d\n", val);
+        exit(1);
+    case 0x402:
+    case 0x403:
+#ifdef DEBUG_BIOS
+        fprintf(stderr, "%c", val);
+#endif
+        break;
+
+        /* LGPL'ed VGA BIOS messages */
+    case 0x501:
+    case 0x502:
+        fprintf(stderr, "VGA BIOS panic, line %d\n", val);
+        exit(1);
+    case 0x500:
+    case 0x503:
+#ifdef DEBUG_BIOS
+        fprintf(stderr, "%c", val);
+#endif
+        break;
+    }
+}
+
+void bochs_bios_init(void)
+{
+    register_ioport_write(0x400, 1, bochs_bios_write, 2);
+    register_ioport_write(0x401, 1, bochs_bios_write, 2);
+    register_ioport_write(0x402, 1, bochs_bios_write, 1);
+    register_ioport_write(0x403, 1, bochs_bios_write, 1);
+
+    register_ioport_write(0x501, 1, bochs_bios_write, 2);
+    register_ioport_write(0x502, 1, bochs_bios_write, 2);
+    register_ioport_write(0x500, 1, bochs_bios_write, 1);
+    register_ioport_write(0x503, 1, bochs_bios_write, 1);
 }
 
 /***********************************************************/
@@ -2625,7 +3063,7 @@ int main_loop(void *opaque)
 void help(void)
 {
     printf("Virtual Linux version " QEMU_VERSION ", Copyright (c) 2003 Fabrice Bellard\n"
-           "usage: vl [options] bzImage [kernel parameters...]\n"
+           "usage: vl [options] [bzImage [kernel parameters...]]\n"
            "\n"
            "'bzImage' is a Linux kernel image (PAGE_OFFSET must be defined\n"
            "to 0x90000000 in asm/page.h and arch/i386/vmlinux.lds)\n"
@@ -2638,10 +3076,12 @@ void help(void)
            "-m megs        set virtual RAM size to megs MB\n"
            "-n script      set network init script [default=%s]\n"
            "\n"
-           "Debug options:\n"
+           "Debug/Expert options:\n"
            "-s             wait gdb connection to port %d\n"
            "-p port        change gdb connection port\n"
            "-d             output log in /tmp/vl.log\n"
+           "-hdachs c,h,s  force hard disk 0 geometry for non LBA disk images\n"
+           "-L path        set the directory for the BIOS and VGA BIOS\n"
            "\n"
            "During emulation, use C-a h to get terminal commands:\n",
            DEFAULT_NETWORK_SCRIPT, DEFAULT_GDBSTUB_PORT);
@@ -2654,13 +3094,14 @@ struct option long_options[] = {
     { "hda", 1, NULL, 0, },
     { "hdb", 1, NULL, 0, },
     { "snapshot", 0, NULL, 0, },
+    { "hdachs", 1, NULL, 0, },
     { NULL, 0, NULL, 0 },
 };
 
 int main(int argc, char **argv)
 {
     int c, ret, initrd_size, i, use_gdbstub, gdbstub_port, long_index;
-    int snapshot;
+    int snapshot, linux_boot;
     struct linux_params *params;
     struct sigaction act;
     struct itimerval itv;
@@ -2678,8 +3119,9 @@ int main(int argc, char **argv)
     use_gdbstub = 0;
     gdbstub_port = DEFAULT_GDBSTUB_PORT;
     snapshot = 0;
+    linux_boot = 0;
     for(;;) {
-        c = getopt_long_only(argc, argv, "hm:dn:sp:", long_options, &long_index);
+        c = getopt_long_only(argc, argv, "hm:dn:sp:L:", long_options, &long_index);
         if (c == -1)
             break;
         switch(c) {
@@ -2696,6 +3138,28 @@ int main(int argc, char **argv)
                 break;
             case 3:
                 snapshot = 1;
+                break;
+            case 4:
+                {
+                    int cyls, heads, secs;
+                    const char *p;
+                    p = optarg;
+                    cyls = strtol(p, (char **)&p, 0);
+                    if (*p != ',')
+                        goto chs_fail;
+                    p++;
+                    heads = strtol(p, (char **)&p, 0);
+                    if (*p != ',')
+                        goto chs_fail;
+                    p++;
+                    secs = strtol(p, (char **)&p, 0);
+                    if (*p != '\0')
+                        goto chs_fail;
+                    ide_state[0].cylinders = cyls;
+                    ide_state[0].heads = heads;
+                    ide_state[0].sectors = secs;
+                chs_fail: ;
+                }
                 break;
             }
             break;
@@ -2724,9 +3188,15 @@ int main(int argc, char **argv)
         case 'p':
             gdbstub_port = atoi(optarg);
             break;
+        case 'L':
+            interp_prefix = optarg;
+            break;
         }
     }
-    if (optind >= argc)
+
+    linux_boot = (optind < argc);
+        
+    if (!linux_boot && hd_filename[0] == '\0')
         help();
 
     /* init debug */
@@ -2781,46 +3251,119 @@ int main(int argc, char **argv)
         }
     }
 
-    /* now we can load the kernel */
-    ret = load_kernel(argv[optind], phys_ram_base + KERNEL_LOAD_ADDR);
-    if (ret < 0) {
-        fprintf(stderr, "vl: could not load kernel '%s'\n", argv[optind]);
-        exit(1);
-    }
+    /* init CPU state */
+    env = cpu_init();
+    global_env = env;
+    cpu_single_env = env;
 
-    /* load initrd */
-    initrd_size = 0;
-    if (initrd_filename) {
-        initrd_size = load_image(initrd_filename, phys_ram_base + INITRD_LOAD_ADDR);
-        if (initrd_size < 0) {
-            fprintf(stderr, "vl: could not load initial ram disk '%s'\n", 
-                    initrd_filename);
+    init_ioports();
+
+    if (linux_boot) {
+        /* now we can load the kernel */
+        ret = load_kernel(argv[optind], phys_ram_base + KERNEL_LOAD_ADDR);
+        if (ret < 0) {
+            fprintf(stderr, "vl: could not load kernel '%s'\n", argv[optind]);
             exit(1);
         }
-    }
+        
+        /* load initrd */
+        initrd_size = 0;
+        if (initrd_filename) {
+            initrd_size = load_image(initrd_filename, phys_ram_base + INITRD_LOAD_ADDR);
+            if (initrd_size < 0) {
+                fprintf(stderr, "vl: could not load initial ram disk '%s'\n", 
+                        initrd_filename);
+                exit(1);
+            }
+        }
+        
+        /* init kernel params */
+        params = (void *)(phys_ram_base + KERNEL_PARAMS_ADDR);
+        memset(params, 0, sizeof(struct linux_params));
+        params->mount_root_rdonly = 0;
+        params->cl_magic = 0xA33F;
+        params->cl_offset = params->commandline - (uint8_t *)params;
+        params->alt_mem_k = (phys_ram_size / 1024) - 1024;
+        for(i = optind + 1; i < argc; i++) {
+            if (i != optind + 1)
+                pstrcat(params->commandline, sizeof(params->commandline), " ");
+            pstrcat(params->commandline, sizeof(params->commandline), argv[i]);
+        }
+        params->loader_type = 0x01;
+        if (initrd_size > 0) {
+            params->initrd_start = INITRD_LOAD_ADDR;
+            params->initrd_size = initrd_size;
+        }
+        params->orig_video_lines = 25;
+        params->orig_video_cols = 80;
 
-    /* init kernel params */
-    params = (void *)(phys_ram_base + KERNEL_PARAMS_ADDR);
-    memset(params, 0, sizeof(struct linux_params));
-    params->mount_root_rdonly = 0;
-    params->cl_magic = 0xA33F;
-    params->cl_offset = params->commandline - (uint8_t *)params;
-    params->alt_mem_k = (phys_ram_size / 1024) - 1024;
-    for(i = optind + 1; i < argc; i++) {
-        if (i != optind + 1)
-            pstrcat(params->commandline, sizeof(params->commandline), " ");
-        pstrcat(params->commandline, sizeof(params->commandline), argv[i]);
+        /* setup basic memory access */
+        env->cr[0] = 0x00000033;
+        cpu_x86_init_mmu(env);
+        
+        memset(params->idt_table, 0, sizeof(params->idt_table));
+        
+        params->gdt_table[2] = 0x00cf9a000000ffffLL; /* KERNEL_CS */
+        params->gdt_table[3] = 0x00cf92000000ffffLL; /* KERNEL_DS */
+        
+        env->idt.base = (void *)params->idt_table;
+        env->idt.limit = sizeof(params->idt_table) - 1;
+        env->gdt.base = (void *)params->gdt_table;
+        env->gdt.limit = sizeof(params->gdt_table) - 1;
+        
+        cpu_x86_load_seg(env, R_CS, KERNEL_CS);
+        cpu_x86_load_seg(env, R_DS, KERNEL_DS);
+        cpu_x86_load_seg(env, R_ES, KERNEL_DS);
+        cpu_x86_load_seg(env, R_SS, KERNEL_DS);
+        cpu_x86_load_seg(env, R_FS, KERNEL_DS);
+        cpu_x86_load_seg(env, R_GS, KERNEL_DS);
+        
+        env->eip = KERNEL_LOAD_ADDR;
+        env->regs[R_ESI] = KERNEL_PARAMS_ADDR;
+        env->eflags = 0x2;
+
+    } else {
+        char buf[1024];
+        
+        /* RAW PC boot */
+
+        /* BIOS load */
+        snprintf(buf, sizeof(buf), "%s/%s", interp_prefix, BIOS_FILENAME);
+        ret = load_image(buf, phys_ram_base + 0x000f0000);
+        if (ret != 0x10000) {
+            fprintf(stderr, "vl: could not load PC bios '%s'\n", BIOS_FILENAME);
+            exit(1);
+        }
+
+        /* VGA BIOS load */
+        snprintf(buf, sizeof(buf), "%s/%s", interp_prefix, VGABIOS_FILENAME);
+        ret = load_image(buf, phys_ram_base + 0x000c0000);
+
+        /* setup basic memory access */
+        env->cr[0] = 0x60000010;
+        cpu_x86_init_mmu(env);
+        
+        env->idt.limit = 0xffff;
+        env->gdt.limit = 0xffff;
+        env->ldt.limit = 0xffff;
+
+        /* not correct (CS base=0xffff0000) */
+        cpu_x86_load_seg(env, R_CS, 0xf000); 
+        cpu_x86_load_seg(env, R_DS, 0);
+        cpu_x86_load_seg(env, R_ES, 0);
+        cpu_x86_load_seg(env, R_SS, 0);
+        cpu_x86_load_seg(env, R_FS, 0);
+        cpu_x86_load_seg(env, R_GS, 0);
+
+        env->eip = 0xfff0;
+        env->regs[R_EDX] = 0x600; /* indicate P6 processor */
+
+        env->eflags = 0x2;
+
+        bochs_bios_init();
     }
-    params->loader_type = 0x01;
-    if (initrd_size > 0) {
-        params->initrd_start = INITRD_LOAD_ADDR;
-        params->initrd_size = initrd_size;
-    }
-    params->orig_video_lines = 25;
-    params->orig_video_cols = 80;
 
     /* init basic PC hardware */
-    init_ioports();
     register_ioport_write(0x80, 1, ioport80_write, 1);
 
     register_ioport_write(0x3d4, 2, vga_ioport_write, 1);
@@ -2842,36 +3385,6 @@ int main(int argc, char **argv)
 
     act.sa_sigaction = host_alarm_handler;
     sigaction(SIGALRM, &act, NULL);
-
-    /* init CPU state */
-    env = cpu_init();
-    global_env = env;
-    cpu_single_env = env;
-
-    /* setup basic memory access */
-    env->cr[0] = 0x00000033;
-    cpu_x86_init_mmu(env);
-    
-    memset(params->idt_table, 0, sizeof(params->idt_table));
-
-    params->gdt_table[2] = 0x00cf9a000000ffffLL; /* KERNEL_CS */
-    params->gdt_table[3] = 0x00cf92000000ffffLL; /* KERNEL_DS */
-    
-    env->idt.base = (void *)params->idt_table;
-    env->idt.limit = sizeof(params->idt_table) - 1;
-    env->gdt.base = (void *)params->gdt_table;
-    env->gdt.limit = sizeof(params->gdt_table) - 1;
-
-    cpu_x86_load_seg(env, R_CS, KERNEL_CS);
-    cpu_x86_load_seg(env, R_DS, KERNEL_DS);
-    cpu_x86_load_seg(env, R_ES, KERNEL_DS);
-    cpu_x86_load_seg(env, R_SS, KERNEL_DS);
-    cpu_x86_load_seg(env, R_FS, KERNEL_DS);
-    cpu_x86_load_seg(env, R_GS, KERNEL_DS);
-    
-    env->eip = KERNEL_LOAD_ADDR;
-    env->regs[R_ESI] = KERNEL_PARAMS_ADDR;
-    env->eflags = 0x2;
 
     itv.it_interval.tv_sec = 0;
     itv.it_interval.tv_usec = 1000;
