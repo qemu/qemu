@@ -335,9 +335,8 @@ static unsigned int * create_elf_tables(char *p, int argc, int envc,
                                   unsigned long interp_load_addr, int ibcs,
 				  struct image_info *info)
 {
-        unsigned int *argv, *envp, *dlinfo;
-        unsigned int *sp;
-	char **alpha_envp;
+        target_ulong *argv, *envp, *dlinfo;
+        target_ulong *sp;
 
         /*
          * Force 16 byte alignment here for generality.
@@ -350,14 +349,13 @@ static unsigned int * create_elf_tables(char *p, int argc, int envc,
         sp -= argc+1;
         argv = sp;
         if (!ibcs) {
-                put_user(envp,--sp);
-                put_user(argv,--sp);
+                put_user(tswapl((target_ulong)envp),--sp);
+                put_user(tswapl((target_ulong)argv),--sp);
         }
-	alpha_envp = (char **)malloc((envc+1) * sizeof(char *));
 
 #define NEW_AUX_ENT(id, val) \
-          put_user ((id), dlinfo++); \
-          put_user ((val), dlinfo++)
+          put_user (tswapl(id), dlinfo++); \
+          put_user (tswapl(val), dlinfo++)
 
         if (exec) { /* Put this here for an ELF program interpreter */
           struct elf_phdr * eppnt;
@@ -377,22 +375,19 @@ static unsigned int * create_elf_tables(char *p, int argc, int envc,
         }
         NEW_AUX_ENT (AT_NULL, 0);
 #undef NEW_AUX_ENT
-        put_user((unsigned int)argc,--sp);
+        put_user(tswapl(argc),--sp);
         info->arg_start = (unsigned int)((unsigned long)p & 0xffffffff);
         while (argc-->0) {
-                put_user(p,argv++);
+                put_user(tswapl((target_ulong)p),argv++);
                 while (get_user(p++)) /* nothing */ ;
         }
         put_user(0,argv);
         info->arg_end = info->env_start = (unsigned int)((unsigned long)p & 0xffffffff);
-	__environ = alpha_envp;
         while (envc-->0) {
-		*alpha_envp++ = (char *)p;
-                put_user(p,envp++);
+                put_user(tswapl((target_ulong)p),envp++);
                 while (get_user(p++)) /* nothing */ ;
         }
         put_user(0,envp);
-	*alpha_envp = 0;
         info->env_end = (unsigned int)((unsigned long)p & 0xffffffff);
         return sp;
 }
@@ -544,8 +539,8 @@ static unsigned long load_elf_interp(struct elfhdr * interp_elf_ex,
 
 
 
-static int load_elf_binary(struct linux_binprm * bprm, struct pt_regs * regs,
-				struct image_info * info)
+static int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
+                           struct image_info * info)
 {
     struct elfhdr elf_ex;
     struct elfhdr interp_elf_ex;
@@ -581,7 +576,6 @@ static int load_elf_binary(struct linux_binprm * bprm, struct pt_regs * regs,
 	    return  -ENOEXEC;
     }
 
-
     /* First of all, some simple consistency checks */
     if ((elf_ex.e_type != ET_EXEC && elf_ex.e_type != ET_DYN) ||
        				(! elf_check_arch(elf_ex.e_machine))) {
@@ -608,6 +602,12 @@ static int load_elf_binary(struct linux_binprm * bprm, struct pt_regs * regs,
 	return -errno;
     }
 
+#ifdef BSWAP_NEEDED
+    elf_ppnt = elf_phdata;
+    for (i=0; i<elf_ex.e_phnum; i++, elf_ppnt++) {
+        bswap_phdr(elf_ppnt);
+    }
+#endif
     elf_ppnt = elf_phdata;
 
     elf_bss = 0;
@@ -909,7 +909,7 @@ static int load_elf_binary(struct linux_binprm * bprm, struct pt_regs * regs,
 
 
 int elf_exec(const char * filename, char ** argv, char ** envp, 
-		struct pt_regs * regs, struct image_info *infop)
+             struct target_pt_regs * regs, struct image_info *infop)
 {
         struct linux_binprm bprm;
         int retval;
