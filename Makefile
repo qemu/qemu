@@ -5,6 +5,7 @@ LDFLAGS=-g
 LIBS=
 DEFINES=-DHAVE_BYTESWAP_H
 HELPER_CFLAGS=$(CFLAGS)
+PROGS=qemu
 
 ifdef CONFIG_STATIC
 LDFLAGS+=-static
@@ -13,7 +14,7 @@ endif
 ifeq ($(ARCH),i386)
 CFLAGS+=-fomit-frame-pointer
 OP_CFLAGS=$(CFLAGS) -mpreferred-stack-boundary=2
-ifeq ($(GCC_MAJOR),3)
+ifeq ($(HAVE_GCC3_OPTIONS),yes)
 OP_CFLAGS+= -falign-functions=0
 else
 OP_CFLAGS+= -malign-functions=0
@@ -25,6 +26,9 @@ else
 # that the kernel ELF loader considers as an executable. I think this
 # is the simplest way to make it self virtualizable!
 LDFLAGS+=-Wl,-shared
+endif
+ifeq ($(TARGET_ARCH), i386)
+PROGS+=vl
 endif
 endif
 
@@ -70,7 +74,7 @@ OP_CFLAGS=$(CFLAGS) -mno-sched-prolog
 LDFLAGS+=-Wl,-T,arm.ld
 endif
 
-ifeq ($(GCC_MAJOR),3)
+ifeq ($(HAVE_GCC3_OPTIONS),yes)
 # very important to generate a return at the end of every operation
 OP_CFLAGS+=-fno-reorder-blocks -fno-optimize-sibling-calls
 endif
@@ -125,7 +129,7 @@ ifeq ($(ARCH),ia64)
 OBJS += ia64-syscall.o
 endif
 
-all: qemu qemu-doc.html
+all: $(PROGS) qemu-doc.html
 
 qemu: $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^  $(LIBS)
@@ -184,8 +188,8 @@ clean:
 distclean: clean
 	rm -f config.mak config.h
 
-install: qemu
-	install -m 755 -s qemu $(prefix)/bin
+install: $(PROGS)
+	install -m 755 -s $(PROGS) $(prefix)/bin
 
 # various test targets
 test speed: qemu
@@ -204,7 +208,8 @@ configure \
 dyngen.c dyngen.h dyngen-exec.h ioctls.h syscall_types.h \
 Makefile elf.h elfload.c main.c signal.c qemu.h \
 syscall.c syscall_defs.h vm86.c path.c mmap.c \
-ppc.ld alpha.ld s390.ld sparc.ld arm.ld\
+i386.ld ppc.ld alpha.ld s390.ld sparc.ld arm.ld\
+vl.c i386-vl.ld\
 thunk.c cpu-exec.c translate.c cpu-all.h thunk.h exec.h\
 exec.c cpu-exec.c\
 cpu-i386.h op-i386.c helper-i386.c syscall-i386.h translate-i386.c \
