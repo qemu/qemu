@@ -1,9 +1,11 @@
 short term:
 ----------
 - debug option in 'configure' script + disable -fomit-frame-pointer
-- VGA font change fix
-- PIC spurious interrupt patch
-- VNC keyboard patch
+- Solaris display error with Cirrus VGA
+  (http://lists.gnu.org/archive/html/qemu-devel/2004-10/msg00390.html).
+- Precise VGA timings for old games/demos (malc patch)
+- merge PIC spurious interrupt patch
+- merge VNC keyboard patch
 - merge Solaris patch
 - merge ARM patches + self modifying code patch (Paul Brook)
 - warning for OS/2: must not use 128 MB memory
