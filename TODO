@@ -1,17 +1,20 @@
+- tests for each target CPU
+- ppc qemu test
 - optimize FPU operations (evaluate x87 stack pointer statically) and
   fix cr0.TS emulation
+- fix some 16 bit sp push/pop overflow
+- sysenter/sysexit emulation
+- finish segment ops (call far, ret far, load_seg suppressed)
 - fix CCOP optimisation
 - fix all remaining thread lock issues (must put TBs in a specific invalid
   state, find a solution for tb_flush()).
 - cpu loop optimisation (optimise ret case as the cpu state does not change)
 - fix arm fpu rounding (at least for float->integer conversions)
-- add IPC syscalls
 
 lower priority:
 --------------
-- sysenter/sysexit emulation
+- add IPC syscalls
 - SMP support
-- finish segment ops (call far, ret far, load_seg suppressed)
 - use -msoft-float on ARM
 - use kernel traps for unaligned accesses on ARM ?
 - handle rare page fault cases (in particular if page fault in heplers or

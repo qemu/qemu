@@ -72,7 +72,7 @@ QEMU user mode emulation features:
 
 QEMU full system emulation features:
 @itemize 
-@item Using mmap() system calls to simulate the MMU
+@item QEMU can either use a full software MMU for maximum portability or use the host system call mmap() to simulate the target MMU.
 @end itemize
 
 @section x86 emulation
@@ -110,14 +110,7 @@ memory access.
 10 byte @code{long double}s of x86 for floating point emulation to get
 maximum performances.
 
-@item Full system emulation only works if no data are mapped above the virtual address 
-0xc0000000 (yet).
-
-@item Some priviledged instructions or behaviors are missing. Only the ones 
-needed for proper Linux kernel operation are emulated.
-
-@item No memory separation between the kernel and the user processes is done. 
-It will be implemented very soon.
+@item Some priviledged instructions or behaviors are missing, especially for segment protection testing (yet). 
 
 @end itemize
 
@@ -177,9 +170,9 @@ unset LD_LIBRARY_PATH
 Then you can launch the precompiled @file{ls} x86 executable:
 
 @example
-qemu-i386 /usr/local/qemu-i386/bin/ls-i386
+qemu-i386 tests/i386/ls
 @end example
-You can look at @file{/usr/local/qemu-i386/bin/qemu-conf.sh} so that
+You can look at @file{qemu-binfmt-conf.sh} so that
 QEMU is automatically launched by the Linux kernel when you try to
 launch x86 executables. It requires the @code{binfmt_misc} module in the
 Linux kernel.
@@ -258,16 +251,15 @@ available:
 @enumerate
 
 @item 
-@code{qemu} uses the host Memory Management Unit (MMU) to simulate 
+@code{qemu-fast} uses the host Memory Management Unit (MMU) to simulate 
 the x86 MMU. It is @emph{fast} but has limitations because the whole 4 GB
 address space cannot be used and some memory mapped peripherials
 cannot be emulated accurately yet. Therefore, a specific Linux kernel
 must be used (@xref{linux_compile}).
 
 @item 
-@code{qemu-softmmu} uses a software MMU. It is about @emph{two times 
-slower} but gives a more accurate emulation. (XXX: Linux cannot be ran
-unpatched yet).
+@code{qemu} uses a software MMU. It is about @emph{two times 
+slower} but gives a more accurate emulation. 
 
 @end enumerate
 
@@ -296,10 +288,10 @@ CMOS memory
 
 @section Quick Start
 
-Download the linux image (@file{linux.img}) and type:
+Download and uncompress the linux image (@file{linux.img}) and type:
 
 @example
-qemu-softmmu linux.img
+qemu linux.img
 @end example
 
 Linux should boot and give you a prompt.
@@ -627,8 +619,10 @@ the real one. To know it, use the @code{ls -ls} command.
 @node linux_compile
 @section Linux Kernel Compilation
 
-You should be able to use any kernel with QEMU provided you make the
-following changes (only 2.4.x and 2.5.x were tested):
+You can use any linux kernel with QEMU. However, if you want to use
+@code{qemu-fast} to get maximum performances, you should make the
+following changes to the Linux kernel (only 2.4.x and 2.5.x were
+tested):
 
 @enumerate
 @item
@@ -722,8 +716,6 @@ Then you can use gdb normally. For example, type 'c' to launch the kernel:
 @example
 (gdb) c
 @end example
-
-WARNING: breakpoints and single stepping are not yet supported.
 
 Here are some useful tips in order to use gdb on system code:
 
@@ -1019,16 +1011,6 @@ The new Plex86 project.
 In the directory @file{tests/}, various interesting testing programs
 are available. There are used for regression testing.
 
-@section @file{hello-i386}
-
-Very simple statically linked x86 program, just to test QEMU during a
-port to a new host CPU.
-
-@section @file{hello-arm}
-
-Very simple statically linked ARM program, just to test QEMU during a
-port to a new host CPU.
-
 @section @file{test-i386}
 
 This program executes most of the 16 bit and 32 bit x86 instructions and
@@ -1043,6 +1025,22 @@ The Linux system call @code{vm86()} is used to test vm86 emulation.
 
 Various exceptions are raised to test most of the x86 user space
 exception reporting.
+
+@section @file{linux-test}
+
+This program tests various Linux system calls. It is used to verify
+that the system call parameters are correctly converted between target
+and host CPUs.
+
+@section @file{hello-i386}
+
+Very simple statically linked x86 program, just to test QEMU during a
+port to a new host CPU.
+
+@section @file{hello-arm}
+
+Very simple statically linked ARM program, just to test QEMU during a
+port to a new host CPU.
 
 @section @file{sha1}
 

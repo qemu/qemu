@@ -6,35 +6,17 @@ INSTALLATION
 
 Type 
 
-    ./configure --interp-prefix=/usr/local/qemu-i386
+    ./configure
     make
 
-to build qemu and libqemu.a.
+to build qemu, qemu-CPU and libqemu.a (CPU is the name of the various
+supported target CPUs).
 
 Type
 
     make install
 
-to install QEMU in /usr/local/bin
-
-* On x86 you should be able to launch any program by using the
-libraries installed on your PC. For example:
-
-    ./qemu -L / /bin/ls
-
-* On non x86 CPUs, you need first to download at least an x86 glibc
-(qemu-XXX-i386-glibc21.tar.gz on the qemu web page). Ensure that
-LD_LIBRARY_PATH is not set:
-
-    unset LD_LIBRARY_PATH 
-
-Then you can launch the precompiled 'ls' x86 executable:
-
-    ./qemu /usr/local/qemu-i386/bin/ls-i386
-
-You can look at /usr/local/qemu-i386/bin/qemu-conf.sh so that QEMU is
-automatically launched by the Linux kernel when you try to launch x86
-executables.
+to install QEMU in /usr/local
 
 Tested tool versions
 --------------------

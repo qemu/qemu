@@ -1,4 +1,4 @@
-version 0.4.4:
+version 0.5.0:
   
   - full hardware level VGA emulation
   - graphical display with SDL
@@ -16,8 +16,9 @@ version 0.4.4:
   - preliminary SPARC target support (Thomas M. Ogrisegg)
   - tun-fd option (Rusty Russell)
   - automatic IDE geometry detection
-  - renamed 'vl' to qemu and user qemu to qemu-{cpu}.
+  - renamed 'vl' to qemu[-fast] and user qemu to qemu-{cpu}.
   - added man page
+  - added full soft mmy mode to launch unpatched OSes.
 
 version 0.4.3:
 

@@ -6,11 +6,11 @@ x86 binary distribution:
 
 * wine-20020411 tarball
 
-  ./configure --prefix=/usr/local/qemu-i386/wine
+  ./configure --prefix=/usr/local/wine-i386
   
   All exe and libs were stripped. Some compile time tools and the
   includes were deleted.
 
 * ldconfig was launched to build the library links:
 
-  ./qemu /usr/local/qemu-i386/bin/ldconfig-i386 -C /usr/local/qemu-i386/etc/ld.so.cache
+  qemu-i386 /usr/gnemul/qemu-i386/bin/ldconfig-i386 -C /usr/gnemul/qemu-i386/etc/ld.so.cache

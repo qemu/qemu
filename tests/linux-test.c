@@ -71,7 +71,7 @@ int __chk_error(const char *filename, int line, int ret)
 
 #define FILE_BUF_SIZE 300
 
-void file_test(void)
+void test_file(void)
 {
     int fd, i, len, ret;
     uint8_t buf[FILE_BUF_SIZE];
@@ -499,7 +499,7 @@ void test_signal(void)
 
 int main(int argc, char **argv)
 {
-    file_test();
+    test_file();
     test_fork();
     test_time();
     test_socket();
@@ -507,4 +507,3 @@ int main(int argc, char **argv)
     test_signal();
     return 0;
 }
-    
