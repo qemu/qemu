@@ -345,7 +345,7 @@ static void openpic_reset (openpic_t *opp)
     int i;
 
     opp->glbc = 0x80000000;
-    /* Initialise controler registers */
+    /* Initialise controller registers */
     opp->frep = ((EXT_IRQ - 1) << 16) | ((MAX_CPU - 1) << 8) | VID;
     opp->veni = VENI;
     opp->spve = 0x000000FF;
