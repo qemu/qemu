@@ -1791,8 +1791,8 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         goto unimplemented;
     case TARGET_NR_readdir:
         goto unimplemented;
-#ifdef TARGET_I386
     case TARGET_NR_mmap:
+#if defined(TARGET_I386) || defined(TARGET_ARM)
         {
             uint32_t v1, v2, v3, v4, v5, v6, *vptr;
             vptr = (uint32_t *)arg1;
@@ -1806,13 +1806,14 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                                         target_to_host_bitmask(v4, mmap_flags_tbl),
                                         v5, v6));
         }
-        break;
-#endif
-#ifdef TARGET_I386
-    case TARGET_NR_mmap2:
 #else
-    case TARGET_NR_mmap:
+        ret = get_errno(target_mmap(arg1, arg2, arg3, 
+                                    target_to_host_bitmask(arg4, mmap_flags_tbl), 
+                                    arg5,
+                                    arg6));
 #endif
+        break;
+    case TARGET_NR_mmap2:
         ret = get_errno(target_mmap(arg1, arg2, arg3, 
                                     target_to_host_bitmask(arg4, mmap_flags_tbl), 
                                     arg5,
