@@ -217,11 +217,14 @@ typedef struct CCTable {
 
 extern CCTable cc_table[];
 
-void load_seg(int seg_reg, int selector);
+void load_seg(int seg_reg, int selector, unsigned cur_eip);
 void cpu_lock(void);
 void cpu_unlock(void);
+void raise_interrupt(int intno, int is_int, int error_code, 
+                     unsigned int next_eip);
 void raise_exception_err(int exception_index, int error_code);
 void raise_exception(int exception_index);
+void cpu_loop_exit(void);
 
 void OPPROTO op_movl_eflags_T0(void);
 void OPPROTO op_movl_T0_eflags(void);

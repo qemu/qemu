@@ -28,10 +28,10 @@
 #define GEN_FLAG_IOPL_SHIFT   12 /* same position as eflags */
 
 struct TranslationBlock;
-int cpu_x86_gen_code(uint8_t *gen_code_buf, int max_code_size, 
-                     int *gen_code_size_ptr,
-                     uint8_t *pc_start,  uint8_t *cs_base, int flags,
-                     int *code_size_ptr, struct TranslationBlock *tb);
+int cpu_x86_gen_code(struct TranslationBlock *tb,
+                     int max_code_size, int *gen_code_size_ptr);
+int cpu_x86_search_pc(struct TranslationBlock *tb, 
+                      uint32_t *found_pc, unsigned long searched_pc);
 void cpu_x86_tblocks_init(void);
 void page_init(void);
 int page_unprotect(unsigned long address);
@@ -160,6 +160,8 @@ static inline void tb_add_jump(TranslationBlock *tb, int n,
         tb_next->jmp_first = (TranslationBlock *)((long)(tb) | (n));
     }
 }
+
+TranslationBlock *tb_find_pc(unsigned long pc_ptr);
 
 #ifndef offsetof
 #define offsetof(type, field) ((size_t) &((type *)0)->field)

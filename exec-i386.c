@@ -39,9 +39,7 @@ void cpu_unlock(void)
     spin_unlock(&global_cpu_lock);
 }
 
-/* exception support */
-/* NOTE: not static to force relocation generation by GCC */
-void raise_exception_err(int exception_index, int error_code)
+void cpu_loop_exit(void)
 {
     /* NOTE: the register at this point must be saved by hand because
        longjmp restore them */
@@ -76,15 +74,7 @@ void raise_exception_err(int exception_index, int error_code)
 #ifdef reg_EDI
     env->regs[R_EDI] = EDI;
 #endif
-    env->exception_index = exception_index;
-    env->error_code = error_code;
     longjmp(env->jmp_env, 1);
-}
-
-/* short cut if error_code is 0 or not present */
-void raise_exception(int exception_index)
-{
-    raise_exception_err(exception_index, 0);
 }
 
 int cpu_x86_exec(CPUX86State *env1)
@@ -115,7 +105,7 @@ int cpu_x86_exec(CPUX86State *env1)
 #ifdef reg_EDI
     int saved_EDI;
 #endif
-    int code_gen_size, ret, code_size;
+    int code_gen_size, ret;
     void (*gen_func)(void);
     TranslationBlock *tb, **ptb;
     uint8_t *tc_ptr, *cs_base, *pc;
@@ -172,7 +162,8 @@ int cpu_x86_exec(CPUX86State *env1)
         T0 = 0; /* force lookup of first TB */
         for(;;) {
             if (env->interrupt_request) {
-                raise_exception(EXCP_INTERRUPT);
+                env->exception_index = EXCP_INTERRUPT;
+                cpu_loop_exit();
             }
 #ifdef DEBUG_EXEC
             if (loglevel) {
@@ -226,9 +217,9 @@ int cpu_x86_exec(CPUX86State *env1)
                 }
                 tc_ptr = code_gen_ptr;
                 tb->tc_ptr = tc_ptr;
-                ret = cpu_x86_gen_code(code_gen_ptr, CODE_GEN_MAX_SIZE, 
-                                       &code_gen_size, pc, cs_base, flags,
-                                       &code_size, tb);
+                tb->cs_base = (unsigned long)cs_base;
+                tb->flags = flags;
+                ret = cpu_x86_gen_code(tb, CODE_GEN_MAX_SIZE, &code_gen_size);
                 /* if invalid instruction, signal it */
                 if (ret != 0) {
                     /* NOTE: the tb is allocated but not linked, so we
@@ -237,9 +228,6 @@ int cpu_x86_exec(CPUX86State *env1)
                     raise_exception(EXCP06_ILLOP);
                 }
                 *ptb = tb;
-                tb->size = code_size;
-                tb->cs_base = (unsigned long)cs_base;
-                tb->flags = flags;
                 tb->hash_next = NULL;
                 tb_link(tb);
                 code_gen_ptr = (void *)(((unsigned long)code_gen_ptr + code_gen_size + CODE_GEN_ALIGN - 1) & ~(CODE_GEN_ALIGN - 1));
@@ -323,7 +311,19 @@ void cpu_x86_load_seg(CPUX86State *s, int seg_reg, int selector)
 
     saved_env = env;
     env = s;
-    load_seg(seg_reg, selector);
+    if (env->eflags & VM_MASK) {
+        SegmentCache *sc;
+        selector &= 0xffff;
+        sc = &env->seg_cache[seg_reg];
+        /* NOTE: in VM86 mode, limit and seg_32bit are never reloaded,
+           so we must load them here */
+        sc->base = (void *)(selector << 4);
+        sc->limit = 0xffff;
+        sc->seg_32bit = 0;
+        env->segs[seg_reg] = selector;
+    } else {
+        load_seg(seg_reg, selector, 0);
+    }
     env = saved_env;
 }
 
@@ -346,6 +346,10 @@ void cpu_x86_load_seg(CPUX86State *s, int seg_reg, int selector)
 static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
                                     int is_write, sigset_t *old_set)
 {
+    TranslationBlock *tb;
+    int ret;
+    uint32_t found_pc;
+    
 #if defined(DEBUG_SIGNAL)
     printf("qemu: SIGSEGV pc=0x%08lx address=%08lx wr=%d oldset=0x%08lx\n", 
            pc, address, is_write, *(unsigned long *)old_set);
@@ -354,16 +358,18 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
     if (is_write && page_unprotect(address)) {
         return 1;
     }
-    if (pc >= (unsigned long)code_gen_buffer &&
-        pc < (unsigned long)code_gen_buffer + CODE_GEN_BUFFER_SIZE) {
+    tb = tb_find_pc(pc);
+    if (tb) {
         /* the PC is inside the translated code. It means that we have
            a virtual CPU fault */
-        /* we restore the process signal mask as the sigreturn should
-           do it */
-        sigprocmask(SIG_SETMASK, old_set, NULL);
-        /* XXX: need to compute virtual pc position by retranslating
-           code. The rest of the CPU state should be correct. */
+        ret = cpu_x86_search_pc(tb, &found_pc, pc);
+        if (ret < 0)
+            return 0;
+        env->eip = found_pc - tb->cs_base;
         env->cr2 = address;
+        /* we restore the process signal mask as the sigreturn should
+           do it (XXX: use sigsetjmp) */
+        sigprocmask(SIG_SETMASK, old_set, NULL);
         raise_exception_err(EXCP0E_PAGE, 4 | (is_write << 1));
         /* never comes here */
         return 1;

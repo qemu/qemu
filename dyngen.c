@@ -451,7 +451,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
     }
 
     if (gen_switch == 2) {
-        fprintf(outfile, "DEF(%s, %d)\n", name + 3, nb_args);
+        fprintf(outfile, "DEF(%s, %d, %d)\n", name + 3, nb_args, copy_size);
     } else if (gen_switch == 1) {
 
         /* output C code */
@@ -991,7 +991,7 @@ int load_elf(const char *filename, FILE *outfile, int do_print_enum)
     }
 
     if (do_print_enum) {
-        fprintf(outfile, "DEF(end, 0)\n");
+        fprintf(outfile, "DEF(end, 0, 0)\n");
         for(i = 0, sym = symtab; i < nb_syms; i++, sym++) {
             const char *name, *p;
             name = strtab + sym->st_name;

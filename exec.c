@@ -531,3 +531,34 @@ void page_unprotect_range(uint8_t *data, unsigned long data_size)
         page_unprotect(addr);
     }
 }
+
+/* find the TB 'tb' such that tb[0].tc_ptr <= tc_ptr <
+   tb[1].tc_ptr. Return NULL if not found */
+TranslationBlock *tb_find_pc(unsigned long tc_ptr)
+{
+    int m_min, m_max, m;
+    unsigned long v;
+    TranslationBlock *tb;
+
+    if (nb_tbs <= 0)
+        return NULL;
+    if (tc_ptr < (unsigned long)code_gen_buffer ||
+        tc_ptr >= (unsigned long)code_gen_ptr)
+        return NULL;
+    /* binary search (cf Knuth) */
+    m_min = 0;
+    m_max = nb_tbs - 1;
+    while (m_min <= m_max) {
+        m = (m_min + m_max) >> 1;
+        tb = &tbs[m];
+        v = (unsigned long)tb->tc_ptr;
+        if (v == tc_ptr)
+            return tb;
+        else if (tc_ptr < v) {
+            m_max = m - 1;
+        } else {
+            m_min = m + 1;
+        }
+    } 
+    return &tbs[m_max];
+}
