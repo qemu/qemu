@@ -107,8 +107,7 @@ void cpu_reset(CPUX86State *env)
     env->tr.limit = 0xffff;
     env->tr.flags = DESC_P_MASK;
     
-    /* not correct (CS base=0xffff0000) */
-    cpu_x86_load_seg_cache(env, R_CS, 0xf000, (uint8_t *)0x000f0000, 0xffff, 0); 
+    cpu_x86_load_seg_cache(env, R_CS, 0xf000, (uint8_t *)0xffff0000, 0xffff, 0); 
     cpu_x86_load_seg_cache(env, R_DS, 0, NULL, 0xffff, 0);
     cpu_x86_load_seg_cache(env, R_ES, 0, NULL, 0xffff, 0);
     cpu_x86_load_seg_cache(env, R_SS, 0, NULL, 0xffff, 0);
