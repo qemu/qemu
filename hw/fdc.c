@@ -26,7 +26,6 @@
 #include <string.h>
 #include <inttypes.h>
 
-#include "cpu.h"
 #include "vl.h"
 
 /********************************************************/
@@ -218,8 +217,7 @@ static void fd_reset (fdrive_t *drv)
 
 static void fdctrl_reset (int do_irq);
 static void fdctrl_reset_fifo (void);
-static int fdctrl_transfer_handler (uint32_t addr, int size, int *irq);
-static int fdctrl_misc_handler (int duknwo);
+static int fdctrl_transfer_handler (void *opaque, target_ulong addr, int size);
 static void fdctrl_raise_irq (uint8_t status);
 
 static uint32_t fdctrl_read_statusB (CPUState *env, uint32_t reg);
@@ -310,8 +308,7 @@ void fdctrl_init (int irq_lvl, int dma_chann, int mem_mapped, uint32_t base,
     fdctrl.config = 0x40; /* Implicit seek, polling & FIFO enabled */
     if (fdctrl.dma_chann != -1) {
         fdctrl.dma_en = 1;
-        DMA_register_channel(dma_chann, &fdctrl_transfer_handler,
-                             &fdctrl_misc_handler);
+        DMA_register_channel(dma_chann, fdctrl_transfer_handler, &fdctrl);
     } else {
         fdctrl.dma_en = 0;
     }
@@ -721,6 +718,7 @@ static void fdctrl_start_transfer (int direction)
              * recall us...
              */
             DMA_hold_DREQ(fdctrl.dma_chann);
+            DMA_schedule(fdctrl.dma_chann);
             return;
         }
     }
@@ -749,12 +747,13 @@ static void fdctrl_start_transfer_del (int direction)
 }
 
 /* handlers for DMA transfers */
-static int fdctrl_transfer_handler (uint32_t addr, int size, int *irq)
+/* XXX: the partial transfer logic seems to be broken */
+static int fdctrl_transfer_handler (void *opaque, target_ulong addr, int size)
 {
     fdrive_t *cur_drv, *drv0, *drv1;
-    void *orig;
     int len;
     uint8_t status0 = 0x00, status1 = 0x00, status2 = 0x00;
+    uint8_t tmpbuf[FD_SECTOR_LEN];
 
     fdctrl_reset_irq();
     if (!(fdctrl.state & FD_CTRL_BUSY)) {
@@ -764,8 +763,6 @@ static int fdctrl_transfer_handler (uint32_t addr, int size, int *irq)
     drv0 = &fdctrl.drives[fdctrl.bootsel];
     drv1 = &fdctrl.drives[1 - fdctrl.bootsel];
     cur_drv = fdctrl.cur_drv == 0 ? drv0 : drv1;
-//    *irq = fdctrl.irq_lvl;
-    *irq = -1;
     if (fdctrl.data_dir == FD_DIR_SCANE || fdctrl.data_dir == FD_DIR_SCANL ||
         fdctrl.data_dir == FD_DIR_SCANH)
         status2 = 0x04;
@@ -779,35 +776,34 @@ static int fdctrl_transfer_handler (uint32_t addr, int size, int *irq)
                        fdctrl.data_len, fdctrl.cur_drv, cur_drv->head,
                        cur_drv->track, cur_drv->sect, fd_sector(cur_drv),
                        fd_sector(cur_drv) * 512);
-        if (len < FD_SECTOR_LEN) {
-            memset(&fdctrl.fifo[FD_SECTOR_LEN - len], 0,
-                   FD_SECTOR_LEN - len - 1);
-            orig = fdctrl.fifo;
-        } else {
-            orig = (void *)(addr + fdctrl.data_pos);
-        }
         if (fdctrl.data_dir != FD_DIR_WRITE) {
             /* READ & SCAN commands */
             if (cur_drv->bs == NULL) {
                 fdctrl_stop_transfer(0x40, 0x00, 0x00);
                 goto transfer_error;
             }
-                
-            if (bdrv_read(cur_drv->bs, fd_sector(cur_drv), orig, 1) < 0) {
+            if (bdrv_read(cur_drv->bs, fd_sector(cur_drv), tmpbuf, 1) < 0) {
                 FLOPPY_DPRINTF("Floppy: error getting sector %d\n",
                                fd_sector(cur_drv));
                 /* Sure, image size is too small... */
-                memset((void *)(addr + fdctrl.data_pos), 0, FD_SECTOR_LEN);
+                memset(tmpbuf, 0, FD_SECTOR_LEN);
             }
             if (fdctrl.data_dir == FD_DIR_READ) {
+                cpu_physical_memory_write(addr + fdctrl.data_pos,
+                                          tmpbuf, len);
                 if (len < FD_SECTOR_LEN) {
-                    memcpy((void *)(addr + fdctrl.data_pos),
-                           fdctrl.fifo, FD_SECTOR_LEN);
+                    memcpy(&fdctrl.fifo[0], tmpbuf + len, FD_SECTOR_LEN - len);
+                    memset(&fdctrl.fifo[FD_SECTOR_LEN - len], 0, len);
                 }
             } else {
                 int ret;
-                ret = memcmp((void *)(addr + fdctrl.data_pos),
-                             fdctrl.fifo, FD_SECTOR_LEN);
+                /* XXX: what to do if not enough data ? */
+                cpu_physical_memory_read(addr + fdctrl.data_pos, 
+                                         fdctrl.fifo, len); 
+                if (len < FD_SECTOR_LEN) {
+                    memset(&fdctrl.fifo[len], 0, FD_SECTOR_LEN - len);
+                }
+                ret = memcmp(tmpbuf, fdctrl.fifo, FD_SECTOR_LEN);
                 if (ret == 0) {
                     status2 = 0x08;
                     goto end_transfer;
@@ -820,8 +816,12 @@ static int fdctrl_transfer_handler (uint32_t addr, int size, int *irq)
             }
         } else {
             /* WRITE commands */
+            cpu_physical_memory_read(addr + fdctrl.data_pos, tmpbuf, len);
+            if (len < FD_SECTOR_LEN) {
+                memset(tmpbuf + len, 0, FD_SECTOR_LEN - len);
+            }
             if (cur_drv->bs == NULL ||
-                bdrv_write(cur_drv->bs, fd_sector(cur_drv), orig, 1) < 0) {
+                bdrv_write(cur_drv->bs, fd_sector(cur_drv), tmpbuf, 1) < 0) {
                 FLOPPY_ERROR("writting sector %d\n", fd_sector(cur_drv));
                 fdctrl_stop_transfer(0x60, 0x00, 0x00);
                 goto transfer_error;
@@ -869,12 +869,6 @@ end_transfer:
 transfer_error:
 
     return fdctrl.data_pos;
-}
-
-/* Unused... */
-static int fdctrl_misc_handler (int duknwo)
-{
-    return -1;
 }
 
 /* Data register : 0x05 */

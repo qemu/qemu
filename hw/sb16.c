@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <inttypes.h>
 
+#include "cpu.h"
 #include "vl.h"
 
 #define MIN(a, b) ((a)>(b)?(b):(a))
@@ -569,6 +570,7 @@ void SB16_run (void)
 static int write_audio (uint32_t addr, int len, int size)
 {
     int temp, net;
+    uint8_t tmpbuf[4096];
 
     temp = size;
 
@@ -582,8 +584,10 @@ static int write_audio (uint32_t addr, int len, int size)
         left_till_end = len - dsp.dma_pos;
 
         to_copy = MIN (temp, left_till_end);
-
-        copied = AUD_write ((void *) (addr + dsp.dma_pos), to_copy);
+        if (to_copy > sizeof(tmpbuf))
+            to_copy = sizeof(tmpbuf);
+        cpu_physical_memory_read(addr + dsp.dma_pos, tmpbuf, to_copy);
+        copied = AUD_write (tmpbuf, to_copy);
 
         temp -= copied;
         dsp.dma_pos += copied;
@@ -601,7 +605,7 @@ static int write_audio (uint32_t addr, int len, int size)
     return net;
 }
 
-static int SB_read_DMA (uint32_t addr, int size, int *_irq)
+static int SB_read_DMA (void *opaque, target_ulong addr, int size)
 {
     int free, till, copy, written;
 
@@ -644,7 +648,7 @@ static int SB_read_DMA (uint32_t addr, int size, int *_irq)
         mixer.regs[0x82] |= mixer.regs[0x80];
         if (0 == noirq) {
             ldebug ("request irq\n");
-            *_irq = sb.irq;
+            pic_set_irq(sb.irq, 1);
         }
 
         if (0 == dsp.dma_auto) {
@@ -661,11 +665,6 @@ static int SB_read_DMA (uint32_t addr, int size, int *_irq)
     }
 
     return dsp.dma_pos;
-}
-
-static int dma_misc_handler (int moo)
-{
-    return -1;
 }
 
 static int magic_of_irq (int irq)
@@ -731,6 +730,6 @@ void SB16_init (void)
     register_ioport_read (sb.port + 0x5, 1, mixer_read, 1);
     register_ioport_write (sb.port + 0x5, 1, mixer_write_datab, 1);
 
-    DMA_register_channel (sb.hdma, SB_read_DMA, dma_misc_handler);
-    DMA_register_channel (sb.dma, SB_read_DMA, dma_misc_handler);
+    DMA_register_channel (sb.hdma, SB_read_DMA, NULL);
+    DMA_register_channel (sb.dma, SB_read_DMA, NULL);
 }
