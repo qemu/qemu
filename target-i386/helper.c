@@ -290,7 +290,7 @@ static void switch_tss(int tss_selector,
 
     type = (e2 >> DESC_TYPE_SHIFT) & 0xf;
 #ifdef DEBUG_PCALL
-    if (loglevel)
+    if (loglevel & CPU_LOG_PCALL)
         fprintf(logfile, "switch_tss: sel=0x%04x type=%d src=%d\n", tss_selector, type, source);
 #endif
 
@@ -858,68 +858,43 @@ void do_interrupt_user(int intno, int is_int, int error_code,
 }
 
 /*
- * Begin excution of an interruption. is_int is TRUE if coming from
+ * Begin execution of an interruption. is_int is TRUE if coming from
  * the int instruction. next_eip is the EIP value AFTER the interrupt
  * instruction. It is only relevant if is_int is TRUE.  
  */
 void do_interrupt(int intno, int is_int, int error_code, 
                   unsigned int next_eip, int is_hw)
 {
-#if 0
-    {
-        extern FILE *stdout;
-        static int count;
-        if (env->cr[0] & CR0_PE_MASK)  {
-            fprintf(stdout, "%d: v=%02x e=%04x i=%d CPL=%d CS:EIP=%04x:%08x SS:ESP=%04x:%08x",
+#ifdef DEBUG_PCALL
+    if (loglevel & (CPU_LOG_PCALL | CPU_LOG_INT)) {
+        if ((env->cr[0] & CR0_PE_MASK)) {
+            static int count;
+            fprintf(logfile, "%6d: v=%02x e=%04x i=%d cpl=%d IP=%04x:%08x SP=%04x:%08x",
                     count, intno, error_code, is_int,
                     env->hflags & HF_CPL_MASK,
                     env->segs[R_CS].selector, EIP,
                     env->segs[R_SS].selector, ESP);
             if (intno == 0x0e) {
-                fprintf(stdout, " CR2=%08x", env->cr[2]);
+                fprintf(logfile, " CR2=%08x", env->cr[2]);
             } else {
-                fprintf(stdout, " EAX=%08x", env->regs[R_EAX]);
-            }
-            fprintf(stdout, "\n");
-
-            if (0) {
-                cpu_x86_dump_state(env, stdout, X86_DUMP_CCOP);
-#if 0
-                {
-                    int i;
-                    uint8_t *ptr;
-                    fprintf(stdout, "       code=");
-                    ptr = env->segs[R_CS].base + env->eip;
-                    for(i = 0; i < 16; i++) {
-                        fprintf(stdout, " %02x", ldub(ptr + i));
-                    }
-                    fprintf(stdout, "\n");
-                }
-#endif
-            }
-            count++;
-        }
-    }
-#endif
-#ifdef DEBUG_PCALL
-    if (loglevel) {
-        static int count;
-        fprintf(logfile, "%d: interrupt: vector=%02x error_code=%04x int=%d\n",
-                count, intno, error_code, is_int);
-        cpu_x86_dump_state(env, logfile, X86_DUMP_CCOP);
-#if 0
-        {
-            int i;
-            uint8_t *ptr;
-            fprintf(logfile, "       code=");
-            ptr = env->segs[R_CS].base + env->eip;
-            for(i = 0; i < 16; i++) {
-                fprintf(logfile, " %02x", ldub(ptr + i));
+                fprintf(logfile, " EAX=%08x", env->regs[R_EAX]);
             }
             fprintf(logfile, "\n");
-        }
+#if 0
+            cpu_x86_dump_state(env, logfile, X86_DUMP_CCOP);
+            {
+                int i;
+                uint8_t *ptr;
+                fprintf(logfile, "       code=");
+                ptr = env->segs[R_CS].base + env->eip;
+                for(i = 0; i < 16; i++) {
+                    fprintf(logfile, " %02x", ldub(ptr + i));
+                }
+                fprintf(logfile, "\n");
+            }
 #endif
-        count++;
+            count++;
+        }
     }
 #endif
     if (env->cr[0] & CR0_PE_MASK) {
@@ -1365,9 +1340,9 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip)
     new_cs = T0;
     new_eip = T1;
 #ifdef DEBUG_PCALL
-    if (loglevel) {
-        fprintf(logfile, "lcall %04x:%08x\n",
-                new_cs, new_eip);
+    if (loglevel & CPU_LOG_PCALL) {
+        fprintf(logfile, "lcall %04x:%08x s=%d\n",
+                new_cs, new_eip, shift);
         cpu_x86_dump_state(env, logfile, X86_DUMP_CCOP);
     }
 #endif
@@ -1377,7 +1352,7 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip)
         raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
     cpl = env->hflags & HF_CPL_MASK;
 #ifdef DEBUG_PCALL
-    if (loglevel) {
+    if (loglevel & CPU_LOG_PCALL) {
         fprintf(logfile, "desc=%08x:%08x\n", e1, e2);
     }
 #endif
@@ -1466,8 +1441,8 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip)
             /* to inner priviledge */
             get_ss_esp_from_tss(&ss, &sp, dpl);
 #ifdef DEBUG_PCALL
-            if (loglevel)
-                fprintf(logfile, "ss=%04x sp=%04x param_count=%d ESP=%x\n", 
+            if (loglevel & CPU_LOG_PCALL)
+                fprintf(logfile, "new ss:esp=%04x:%08x param_count=%d ESP=%x\n", 
                         ss, sp, param_count, ESP);
 #endif
             if ((ss & 0xfffc) == 0)
@@ -1626,9 +1601,9 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
             POPW(ssp, sp, sp_mask, new_eflags);
     }
 #ifdef DEBUG_PCALL
-    if (loglevel) {
-        fprintf(logfile, "lret new %04x:%08x addend=0x%x\n",
-                new_cs, new_eip, addend);
+    if (loglevel & CPU_LOG_PCALL) {
+        fprintf(logfile, "lret new %04x:%08x s=%d addend=0x%x\n",
+                new_cs, new_eip, shift, addend);
         cpu_x86_dump_state(env, logfile, X86_DUMP_CCOP);
     }
 #endif
@@ -1673,6 +1648,12 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
             POPW(ssp, sp, sp_mask, new_esp);
             POPW(ssp, sp, sp_mask, new_ss);
         }
+#ifdef DEBUG_PCALL
+        if (loglevel & CPU_LOG_PCALL) {
+            fprintf(logfile, "new ss:esp=%04x:%08x\n",
+                    new_ss, new_esp);
+        }
+#endif
         
         if ((new_ss & 3) != rpl)
             raise_exception_err(EXCP0D_GPF, new_ss & 0xfffc);

@@ -800,14 +800,16 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
     }
     *gen_opc_ptr = INDEX_op_end;
 #ifdef DEBUG_DISAS
-    if (loglevel) {
+    if (loglevel & CPU_LOG_TB_IN_ASM) {
 	fprintf(logfile, "--------------\n");
 	fprintf(logfile, "IN: %s\n", lookup_symbol((uint8_t *)pc_start));
 	disas(logfile, (uint8_t *)pc_start, last_pc + 4 - pc_start, 0, 0);
 	fprintf(logfile, "\n");
-	fprintf(logfile, "OP:\n");
-	dump_ops(gen_opc_buf, gen_opparam_buf);
-	fprintf(logfile, "\n");
+        if (loglevel & CPU_LOG_TB_OP) {
+            fprintf(logfile, "OP:\n");
+            dump_ops(gen_opc_buf, gen_opparam_buf);
+            fprintf(logfile, "\n");
+        }
     }
 #endif
 

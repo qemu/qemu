@@ -1237,7 +1237,7 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     }
     
 #ifdef DEBUG_DISAS
-    if (loglevel) {
+    if (loglevel & CPU_LOG_TB_IN_ASM) {
         fprintf(logfile, "----------------\n");
         fprintf(logfile, "IN: COPY: %s fpu=%d\n", 
                 lookup_symbol(pc_start),

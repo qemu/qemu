@@ -847,7 +847,18 @@ int main(int argc, char **argv)
         if (!strcmp(r, "-")) {
             break;
         } else if (!strcmp(r, "d")) {
-            cpu_set_log(CPU_LOG_ALL);
+            int mask;
+            CPULogItem *item;
+            
+            mask = cpu_str_to_log_mask(optarg);
+            if (!mask) {
+                printf("Log items (comma separated):\n");
+                for(item = cpu_log_items; item->mask != 0; item++) {
+                    printf("%-10s %s\n", item->name, item->help);
+                }
+                exit(1);
+            }
+            cpu_set_log(mask);
         } else if (!strcmp(r, "s")) {
             r = argv[optind++];
             x86_stack_size = strtol(r, (char **)&r, 0);

@@ -4595,16 +4595,16 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     }
         
 #ifdef DEBUG_DISAS
-    if (loglevel) {
+    if (loglevel & CPU_LOG_TB_IN_ASM) {
         fprintf(logfile, "----------------\n");
         fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
 	disas(logfile, pc_start, pc_ptr - pc_start, 0, !dc->code32);
         fprintf(logfile, "\n");
-#if 0
-        fprintf(logfile, "OP:\n");
-        dump_ops(gen_opc_buf, gen_opparam_buf);
-        fprintf(logfile, "\n");
-#endif
+        if (loglevel & CPU_LOG_TB_OP) {
+            fprintf(logfile, "OP:\n");
+            dump_ops(gen_opc_buf, gen_opparam_buf);
+            fprintf(logfile, "\n");
+        }
     }
 #endif
 
@@ -4612,7 +4612,7 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     optimize_flags(gen_opc_buf, gen_opc_ptr - gen_opc_buf);
 
 #ifdef DEBUG_DISAS
-    if (loglevel) {
+    if (loglevel & CPU_LOG_TB_OP_OPT) {
         fprintf(logfile, "AFTER FLAGS OPT:\n");
         dump_ops(gen_opc_buf, gen_opparam_buf);
         fprintf(logfile, "\n");
