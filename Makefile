@@ -6,7 +6,7 @@ LIBS=
 DEFINES+=-D_GNU_SOURCE
 TOOLS=qemu-mkcow
 
-all: dyngen $(TOOLS) qemu-doc.html
+all: dyngen $(TOOLS) qemu-doc.html qemu.1
 	for d in $(TARGET_DIRS); do \
 	make -C $$d $@ || exit 1 ; \
         done
@@ -23,7 +23,7 @@ dyngen: dyngen.o
 clean:
 # avoid old build problems by removing potentially incorrect old files
 	rm -f config.mak config.h op-i386.h opc-i386.h gen-op-i386.h op-arm.h opc-arm.h gen-op-arm.h 
-	rm -f *.o *.a $(TOOLS) dyngen TAGS
+	rm -f *.o *.a $(TOOLS) dyngen TAGS qemu.pod
 	for d in $(TARGET_DIRS); do \
 	make -C $$d $@ || exit 1 ; \
         done
@@ -37,6 +37,10 @@ distclean: clean
 install: all 
 	mkdir -p $(prefix)/bin
 	install -m 755 -s $(TOOLS) $(prefix)/bin
+	mkdir -p $(sharedir)
+	install -m 644 pc-bios/bios.bin pc-bios/vgabios.bin $(sharedir)
+	mkdir -p $(mandir)/man1
+	install qemu.1 $(mandir)/man1
 	for d in $(TARGET_DIRS); do \
 	make -C $$d $@ || exit 1 ; \
         done
@@ -51,6 +55,10 @@ TAGS:
 # documentation
 qemu-doc.html: qemu-doc.texi
 	texi2html -monolithic -number $<
+
+qemu.1: qemu-doc.texi
+	./texi2pod.pl $< qemu.pod
+	pod2man --section=1 --center=" " --release=" " qemu.pod > $@
 
 FILE=qemu-$(shell cat VERSION)
 

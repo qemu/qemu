@@ -51,7 +51,7 @@
 #include "vl.h"
 
 #define DEBUG_LOGFILE "/tmp/vl.log"
-#define DEFAULT_NETWORK_SCRIPT "/etc/vl-ifup"
+#define DEFAULT_NETWORK_SCRIPT "/etc/qemu-ifup"
 #define BIOS_FILENAME "bios.bin"
 #define VGABIOS_FILENAME "vgabios.bin"
 
@@ -205,7 +205,7 @@ struct  __attribute__ ((packed)) linux_params {
 
 #define MAX_IOPORTS 4096
 
-static const char *interp_prefix = CONFIG_QEMU_PREFIX;
+static const char *bios_dir = CONFIG_QEMU_SHAREDIR;
 char phys_ram_file[1024];
 CPUX86State *global_env;
 CPUX86State *cpu_single_env;
@@ -3547,7 +3547,7 @@ int main(int argc, char **argv)
             gdbstub_port = atoi(optarg);
             break;
         case 'L':
-            interp_prefix = optarg;
+            bios_dir = optarg;
             break;
         }
     }
@@ -3693,15 +3693,15 @@ int main(int argc, char **argv)
         /* RAW PC boot */
 
         /* BIOS load */
-        snprintf(buf, sizeof(buf), "%s/%s", interp_prefix, BIOS_FILENAME);
+        snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
         ret = load_image(buf, phys_ram_base + 0x000f0000);
         if (ret != 0x10000) {
-            fprintf(stderr, "vl: could not load PC bios '%s'\n", BIOS_FILENAME);
+            fprintf(stderr, "vl: could not load PC bios '%s'\n", buf);
             exit(1);
         }
 
         /* VGA BIOS load */
-        snprintf(buf, sizeof(buf), "%s/%s", interp_prefix, VGABIOS_FILENAME);
+        snprintf(buf, sizeof(buf), "%s/%s", bios_dir, VGABIOS_FILENAME);
         ret = load_image(buf, phys_ram_base + 0x000c0000);
 
         /* setup basic memory access */
