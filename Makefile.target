@@ -13,7 +13,15 @@ LIBS=
 HELPER_CFLAGS=$(CFLAGS)
 DYNGEN=../dyngen$(EXESUF)
 # user emulator name
-QEMU_USER=qemu-$(TARGET_ARCH)
+ifeq ($(TARGET_ARCH),arm)
+  ifeq ($(TARGET_WORDS_BIGENDIAN),yes)
+    QEMU_USER=qemu-armeb
+  else
+    QEMU_USER=qemu-arm
+  endif
+else
+  QEMU_USER=qemu-$(TARGET_ARCH)
+endif
 # system emulator name
 ifdef CONFIG_SOFTMMU
 ifeq ($(TARGET_ARCH), i386)

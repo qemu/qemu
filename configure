@@ -27,10 +27,13 @@ ar="ar"
 make="make"
 strip="strip"
 cpu=`uname -m`
-target_list="i386-user i386 i386-softmmu arm-user sparc-user ppc-user ppc-softmmu sparc-softmmu"
+target_list="i386-user i386 i386-softmmu arm-user armeb-user sparc-user ppc-user ppc-softmmu sparc-softmmu"
 case "$cpu" in
   i386|i486|i586|i686|i86pc|BePC)
     cpu="i386"
+  ;;
+  armv4b)
+    cpu="armv4b"
   ;;
   armv4l)
     cpu="armv4l"
@@ -205,7 +208,7 @@ fi
 else
 
 # if cross compiling, cannot launch a program, so make a static guess
-if test "$cpu" = "powerpc" -o "$cpu" = "mips" -o "$cpu" = "s390" -o "$cpu" = "sparc" -o "$cpu" = "sparc64" -o "$cpu" = "m68k"; then
+if test "$cpu" = "powerpc" -o "$cpu" = "mips" -o "$cpu" = "s390" -o "$cpu" = "sparc" -o "$cpu" = "sparc64" -o "$cpu" = "m68k" -o "$cpu" = "armv4b"; then
     bigendian="yes"
 fi
 
@@ -383,6 +386,9 @@ if test "$cpu" = "i386" ; then
 elif test "$cpu" = "amd64" ; then
   echo "ARCH=amd64" >> $config_mak
   echo "#define HOST_AMD64 1" >> $config_h
+elif test "$cpu" = "armv4b" ; then
+  echo "ARCH=arm" >> $config_mak
+  echo "#define HOST_ARM 1" >> $config_h
 elif test "$cpu" = "armv4l" ; then
   echo "ARCH=arm" >> $config_mak
   echo "#define HOST_ARM 1" >> $config_h
@@ -482,6 +488,7 @@ config_mak=$target_dir/config.mak
 config_h=$target_dir/config.h
 target_cpu=`echo $target | cut -d '-' -f 1`
 target_bigendian="no"
+[ "$target_cpu" = "armeb" ] && target_bigendian=yes
 [ "$target_cpu" = "sparc" ] && target_bigendian=yes
 [ "$target_cpu" = "ppc" ] && target_bigendian=yes
 target_softmmu="no"
@@ -496,7 +503,7 @@ fi
 #echo "Creating $config_mak, $config_h and $target_dir/Makefile"
 
 mkdir -p $target_dir
-if test "$target" = "arm-user" ; then
+if test "$target" = "arm-user" -o "$target" = "armeb-user" ; then
   mkdir -p $target_dir/nwfpe
 fi
 if test "$target_user_only" = "no" ; then
@@ -519,7 +526,7 @@ if test "$target_cpu" = "i386" ; then
   echo "TARGET_ARCH=i386" >> $config_mak
   echo "#define TARGET_ARCH \"i386\"" >> $config_h
   echo "#define TARGET_I386 1" >> $config_h
-elif test "$target_cpu" = "arm" ; then
+elif test "$target_cpu" = "arm" -o "$target_cpu" = "armeb" ; then
   echo "TARGET_ARCH=arm" >> $config_mak
   echo "#define TARGET_ARCH \"arm\"" >> $config_h
   echo "#define TARGET_ARM 1" >> $config_h

@@ -7,6 +7,7 @@ version 0.6.2:
   - 'pidfile' option
   - .dmg disk image format support (Johannes Schindelin)
   - keymaps support (initial patch by Johannes Schindelin)
+  - big endian ARM support (Lennert Buytenhek)
 
 version 0.6.1:
 
