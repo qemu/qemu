@@ -708,66 +708,6 @@ static void disas_arm_insn(DisasContext *s)
             gen_op_swi();
             s->is_jmp = DISAS_JUMP;
             break;
-        case 0xc:
-        case 0xd:
-            rd = (insn >> 12) & 0x7;
-            rn = (insn >> 16) & 0xf;
-            gen_movl_T1_reg(s, rn);
-            val = (insn) & 0xff;
-            if (!(insn & (1 << 23)))
-                val = -val;
-            switch((insn >> 8) & 0xf) {
-            case 0x1:
-                /* load/store */
-                if ((insn & (1 << 24)))
-                    gen_op_addl_T1_im(val);
-                /* XXX: do it */
-                if (!(insn & (1 << 24)))
-                    gen_op_addl_T1_im(val);
-                if (insn & (1 << 21))
-                    gen_movl_reg_T1(s, rn);
-                break;
-            case 0x2:
-                {
-                    int n, i;
-                    /* load store multiple */
-                    if ((insn & (1 << 24)))
-                        gen_op_addl_T1_im(val);
-                    switch(insn & 0x00408000) {
-                    case 0x00008000: n = 1; break;
-                    case 0x00400000: n = 2; break;
-                    case 0x00408000: n = 3; break;
-                    default: n = 4; break;
-                    }
-                    for(i = 0;i < n; i++) {
-                        /* XXX: do it */
-                    }
-                    if (!(insn & (1 << 24)))
-                        gen_op_addl_T1_im(val);
-                    if (insn & (1 << 21))
-                        gen_movl_reg_T1(s, rn);
-                }
-                break;
-            default:
-                goto illegal_op;
-            }
-            break;
-        case 0x0e:
-            /* float ops */
-            /* XXX: do it */
-            switch((insn >> 20) & 0xf) {
-            case 0x2: /* wfs */
-                break;
-            case 0x3: /* rfs */
-                break;
-            case 0x4: /* wfc */
-                break;
-            case 0x5: /* rfc */
-                break;
-            default:
-                goto illegal_op;
-            }
-            break;
         default:
         illegal_op:
             gen_op_movl_T0_im((long)s->pc - 4);
