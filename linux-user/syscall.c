@@ -65,6 +65,11 @@
 
 //#define DEBUG
 
+#if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SPARC)
+/* 16 bit uid wrappers emulation */
+#define USE_UID16
+#endif
+
 //#include <linux/msdos_fs.h>
 #define	VFAT_IOCTL_READDIR_BOTH		_IOR('r', 1, struct dirent [2])
 #define	VFAT_IOCTL_READDIR_SHORT	_IOR('r', 2, struct dirent [2])
@@ -1264,7 +1269,16 @@ int do_fork(CPUState *env, unsigned int flags, unsigned long newsp)
         new_env->regs[13] = newsp;
         new_env->regs[0] = 0;
 #elif defined(TARGET_SPARC)
-		printf ("HELPME: %s:%d\n", __FILE__, __LINE__);
+        printf ("HELPME: %s:%d\n", __FILE__, __LINE__);
+#elif defined(TARGET_PPC)
+        if (!newsp)
+            newsp = env->gpr[1];
+        new_env->gpr[1] = newsp;
+        { 
+            int i;
+            for (i = 7; i < 32; i++)
+                new_env->gpr[i] = 0;
+        }
 #else
 #error unsupported target CPU
 #endif
@@ -1325,11 +1339,41 @@ static long do_fcntl(int fd, int cmd, unsigned long arg)
     return ret;
 }
 
+#ifdef USE_UID16
 
-#define high2lowuid(x) (x)
-#define high2lowgid(x) (x)
-#define low2highuid(x) (x)
-#define low2highgid(x) (x)
+static inline int high2lowuid(int uid)
+{
+    if (uid > 65535)
+        return 65534;
+    else
+        return uid;
+}
+
+static inline int high2lowgid(int gid)
+{
+    if (gid > 65535)
+        return 65534;
+    else
+        return gid;
+}
+
+static inline int low2highuid(int uid)
+{
+    if ((int16_t)uid == -1)
+        return -1;
+    else
+        return uid;
+}
+
+static inline int low2highgid(int gid)
+{
+    if ((int16_t)gid == -1)
+        return -1;
+    else
+        return gid;
+}
+
+#endif /* USE_UID16 */
 
 void syscall_init(void)
 {
@@ -1472,9 +1516,6 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_chmod:
         ret = get_errno(chmod((const char *)arg1, arg2));
         break;
-    case TARGET_NR_lchown:
-        ret = get_errno(chown((const char *)arg1, arg2, arg3));
-        break;
 #ifdef TARGET_NR_break
     case TARGET_NR_break:
         goto unimplemented;
@@ -1494,12 +1535,6 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         goto unimplemented;
     case TARGET_NR_umount:
         ret = get_errno(umount((const char *)arg1));
-        break;
-    case TARGET_NR_setuid:
-        ret = get_errno(setuid(low2highuid(arg1)));
-        break;
-    case TARGET_NR_getuid:
-        ret = get_errno(getuid());
         break;
     case TARGET_NR_stime:
         {
@@ -1596,20 +1631,9 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_prof:
         goto unimplemented;
 #endif
-    case TARGET_NR_setgid:
-        ret = get_errno(setgid(low2highgid(arg1)));
-        break;
-    case TARGET_NR_getgid:
-        ret = get_errno(getgid());
-        break;
     case TARGET_NR_signal:
         goto unimplemented;
-    case TARGET_NR_geteuid:
-        ret = get_errno(geteuid());
-        break;
-    case TARGET_NR_getegid:
-        ret = get_errno(getegid());
-        break;
+
     case TARGET_NR_acct:
         goto unimplemented;
     case TARGET_NR_umount2:
@@ -1844,12 +1868,6 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         /* NOTE: ret is eax, so not transcoding must be done */
         ret = do_rt_sigreturn(cpu_env);
         break;
-    case TARGET_NR_setreuid:
-        ret = get_errno(setreuid(arg1, arg2));
-        break;
-    case TARGET_NR_setregid:
-        ret = get_errno(setregid(arg1, arg2));
-        break;
     case TARGET_NR_sethostname:
         ret = get_errno(sethostname((const char *)arg1, arg2));
         break;
@@ -1904,34 +1922,6 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             struct timeval tv;
             target_to_host_timeval(&tv, target_tv);
             ret = get_errno(settimeofday(&tv, NULL));
-        }
-        break;
-    case TARGET_NR_getgroups:
-        {
-            int gidsetsize = arg1;
-            uint16_t *target_grouplist = (void *)arg2;
-            gid_t *grouplist;
-            int i;
-
-            grouplist = alloca(gidsetsize * sizeof(gid_t));
-            ret = get_errno(getgroups(gidsetsize, grouplist));
-            if (!is_error(ret)) {
-                for(i = 0;i < gidsetsize; i++)
-                    target_grouplist[i] = tswap16(grouplist[i]);
-            }
-        }
-        break;
-    case TARGET_NR_setgroups:
-        {
-            int gidsetsize = arg1;
-            uint16_t *target_grouplist = (void *)arg2;
-            gid_t *grouplist;
-            int i;
-
-            grouplist = alloca(gidsetsize * sizeof(gid_t));
-            for(i = 0;i < gidsetsize; i++)
-                grouplist[i] = tswap16(target_grouplist[i]);
-            ret = get_errno(setgroups(gidsetsize, grouplist));
         }
         break;
     case TARGET_NR_select:
@@ -2026,9 +2016,6 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_fchmod:
         ret = get_errno(fchmod(arg1, arg2));
         break;
-    case TARGET_NR_fchown:
-        ret = get_errno(fchown(arg1, arg2, arg3));
-        break;
     case TARGET_NR_getpriority:
         ret = get_errno(getpriority(arg1, arg2));
         break;
@@ -2121,10 +2108,16 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                 struct target_stat *target_st = (void *)arg2;
                 target_st->st_dev = tswap16(st.st_dev);
                 target_st->st_ino = tswapl(st.st_ino);
+#if defined(TARGET_PPC)
+                target_st->st_mode = tswapl(st.st_mode); /* XXX: check this */
+                target_st->st_uid = tswap32(st.st_uid);
+                target_st->st_gid = tswap32(st.st_gid);
+#else
                 target_st->st_mode = tswap16(st.st_mode);
-                target_st->st_nlink = tswap16(st.st_nlink);
                 target_st->st_uid = tswap16(st.st_uid);
                 target_st->st_gid = tswap16(st.st_gid);
+#endif
+                target_st->st_nlink = tswap16(st.st_nlink);
                 target_st->st_rdev = tswap16(st.st_rdev);
                 target_st->st_size = tswapl(st.st_size);
                 target_st->st_blksize = tswapl(st.st_blksize);
@@ -2230,12 +2223,6 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         break;
     case TARGET_NR_afs_syscall:
         goto unimplemented;
-    case TARGET_NR_setfsuid:
-        ret = get_errno(setfsuid(arg1));
-        break;
-    case TARGET_NR_setfsgid:
-        ret = get_errno(setfsgid(arg1));
-        break;
     case TARGET_NR__llseek:
         {
             int64_t res;
@@ -2465,52 +2452,13 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             }
         }
         break;
-#ifdef TARGET_NR_setresuid
-    case TARGET_NR_setresuid:
-        ret = get_errno(setresuid(low2highuid(arg1), 
-                                  low2highuid(arg2), 
-                                  low2highuid(arg3)));
-        break;
-#endif
-#ifdef TARGET_NR_getresuid
-    case TARGET_NR_getresuid:
-        {
-            int ruid, euid, suid;
-            ret = get_errno(getresuid(&ruid, &euid, &suid));
-            if (!is_error(ret)) {
-                *(uint16_t *)arg1 = tswap16(high2lowuid(ruid));
-                *(uint16_t *)arg2 = tswap16(high2lowuid(euid));
-                *(uint16_t *)arg3 = tswap16(high2lowuid(suid));
-            }
-        }
-        break;
-#endif
-#ifdef TARGET_NR_getresgid
-    case TARGET_NR_setresgid:
-        ret = get_errno(setresgid(low2highgid(arg1), 
-                                  low2highgid(arg2), 
-                                  low2highgid(arg3)));
-        break;
-#endif
-#ifdef TARGET_NR_getresgid
-    case TARGET_NR_getresgid:
-        {
-            int rgid, egid, sgid;
-            ret = get_errno(getresgid(&rgid, &egid, &sgid));
-            if (!is_error(ret)) {
-                *(uint16_t *)arg1 = high2lowgid(tswap16(rgid));
-                *(uint16_t *)arg2 = high2lowgid(tswap16(egid));
-                *(uint16_t *)arg3 = high2lowgid(tswap16(sgid));
-            }
-        }
-        break;
-#endif
     case TARGET_NR_query_module:
         goto unimplemented;
     case TARGET_NR_nfsservctl:
         goto unimplemented;
     case TARGET_NR_prctl:
         goto unimplemented;
+#ifdef TARGET_NR_pread
     case TARGET_NR_pread:
         page_unprotect_range((void *)arg2, arg3);
         ret = get_errno(pread(arg1, (void *)arg2, arg3, arg4));
@@ -2518,9 +2466,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_pwrite:
         ret = get_errno(pwrite(arg1, (void *)arg2, arg3, arg4));
         break;
-    case TARGET_NR_chown:
-        ret = get_errno(chown((const char *)arg1, arg2, arg3));
-        break;
+#endif
     case TARGET_NR_getcwd:
         ret = get_errno(sys_getcwd1((char *)arg1, arg2));
         break;
@@ -2594,6 +2540,116 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         }
         break;
 
+#ifdef USE_UID16
+    case TARGET_NR_lchown:
+        ret = get_errno(lchown((const char *)arg1, low2highuid(arg2), low2highgid(arg3)));
+        break;
+    case TARGET_NR_getuid:
+        ret = get_errno(high2lowuid(getuid()));
+        break;
+    case TARGET_NR_getgid:
+        ret = get_errno(high2lowgid(getgid()));
+        break;
+    case TARGET_NR_geteuid:
+        ret = get_errno(high2lowuid(geteuid()));
+        break;
+    case TARGET_NR_getegid:
+        ret = get_errno(high2lowgid(getegid()));
+        break;
+    case TARGET_NR_setreuid:
+        ret = get_errno(setreuid(low2highuid(arg1), low2highuid(arg2)));
+        break;
+    case TARGET_NR_setregid:
+        ret = get_errno(setregid(low2highgid(arg1), low2highgid(arg2)));
+        break;
+    case TARGET_NR_getgroups:
+        {
+            int gidsetsize = arg1;
+            uint16_t *target_grouplist = (void *)arg2;
+            gid_t *grouplist;
+            int i;
+
+            grouplist = alloca(gidsetsize * sizeof(gid_t));
+            ret = get_errno(getgroups(gidsetsize, grouplist));
+            if (!is_error(ret)) {
+                for(i = 0;i < gidsetsize; i++)
+                    target_grouplist[i] = tswap16(grouplist[i]);
+            }
+        }
+        break;
+    case TARGET_NR_setgroups:
+        {
+            int gidsetsize = arg1;
+            uint16_t *target_grouplist = (void *)arg2;
+            gid_t *grouplist;
+            int i;
+
+            grouplist = alloca(gidsetsize * sizeof(gid_t));
+            for(i = 0;i < gidsetsize; i++)
+                grouplist[i] = tswap16(target_grouplist[i]);
+            ret = get_errno(setgroups(gidsetsize, grouplist));
+        }
+        break;
+    case TARGET_NR_fchown:
+        ret = get_errno(fchown(arg1, low2highuid(arg2), low2highgid(arg3)));
+        break;
+#ifdef TARGET_NR_setresuid
+    case TARGET_NR_setresuid:
+        ret = get_errno(setresuid(low2highuid(arg1), 
+                                  low2highuid(arg2), 
+                                  low2highuid(arg3)));
+        break;
+#endif
+#ifdef TARGET_NR_getresuid
+    case TARGET_NR_getresuid:
+        {
+            int ruid, euid, suid;
+            ret = get_errno(getresuid(&ruid, &euid, &suid));
+            if (!is_error(ret)) {
+                *(uint16_t *)arg1 = tswap16(high2lowuid(ruid));
+                *(uint16_t *)arg2 = tswap16(high2lowuid(euid));
+                *(uint16_t *)arg3 = tswap16(high2lowuid(suid));
+            }
+        }
+        break;
+#endif
+#ifdef TARGET_NR_getresgid
+    case TARGET_NR_setresgid:
+        ret = get_errno(setresgid(low2highgid(arg1), 
+                                  low2highgid(arg2), 
+                                  low2highgid(arg3)));
+        break;
+#endif
+#ifdef TARGET_NR_getresgid
+    case TARGET_NR_getresgid:
+        {
+            int rgid, egid, sgid;
+            ret = get_errno(getresgid(&rgid, &egid, &sgid));
+            if (!is_error(ret)) {
+                *(uint16_t *)arg1 = tswap16(high2lowgid(rgid));
+                *(uint16_t *)arg2 = tswap16(high2lowgid(egid));
+                *(uint16_t *)arg3 = tswap16(high2lowgid(sgid));
+            }
+        }
+        break;
+#endif
+    case TARGET_NR_chown:
+        ret = get_errno(chown((const char *)arg1, low2highuid(arg2), low2highgid(arg3)));
+        break;
+    case TARGET_NR_setuid:
+        ret = get_errno(setuid(low2highuid(arg1)));
+        break;
+    case TARGET_NR_setgid:
+        ret = get_errno(setgid(low2highgid(arg1)));
+        break;
+    case TARGET_NR_setfsuid:
+        ret = get_errno(setfsuid(arg1));
+        break;
+    case TARGET_NR_setfsgid:
+        ret = get_errno(setfsgid(arg1));
+        break;
+#endif /* USE_UID16 */
+
     case TARGET_NR_lchown32:
         ret = get_errno(lchown((const char *)arg1, arg2, arg3));
         break;
@@ -2665,6 +2721,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_setfsgid32:
         ret = get_errno(setfsgid(arg1));
         break;
+
     case TARGET_NR_pivot_root:
         goto unimplemented;
     case TARGET_NR_mincore:

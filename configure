@@ -27,7 +27,7 @@ ar="ar"
 make="make"
 strip="strip"
 cpu=`uname -m`
-target_list="i386-user i386 i386-softmmu arm-user sparc-user"
+target_list="i386-user i386 i386-softmmu arm-user sparc-user ppc-user"
 case "$cpu" in
   i386|i486|i586|i686|i86pc|BePC)
     cpu="i386"
@@ -322,6 +322,7 @@ config_h=$target_dir/config.h
 target_cpu=`echo $target | cut -d '-' -f 1`
 target_bigendian="no"
 [ "$target_cpu" = "sparc" ] && target_bigendian=yes
+[ "$target_cpu" = "ppc" ] && target_bigendian=yes
 target_softmmu="no"
 if expr $target : '.*-softmmu' > /dev/null ; then
   target_softmmu="yes"
@@ -358,6 +359,10 @@ elif test "$target_cpu" = "sparc" ; then
   echo "TARGET_ARCH=sparc" >> $config_mak
   echo "#define TARGET_ARCH \"sparc\"" >> $config_h
   echo "#define TARGET_SPARC 1" >> $config_h
+elif test "$target_cpu" = "ppc" ; then
+  echo "TARGET_ARCH=ppc" >> $config_mak
+  echo "#define TARGET_ARCH \"ppc\"" >> $config_h
+  echo "#define TARGET_PPC 1" >> $config_h
 else
   echo "Unsupported target CPU"
   exit 1

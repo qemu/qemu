@@ -146,6 +146,10 @@ ifeq ($(TARGET_ARCH), i386)
 LIBOBJS+=helper.o helper2.o
 endif
 
+ifeq ($(TARGET_ARCH), ppc)
+LIBOBJS+=helper.o
+endif
+
 # NOTE: the disassembler code is only needed for debugging
 LIBOBJS+=disas.o 
 ifeq ($(findstring i386, $(TARGET_ARCH) $(ARCH)),i386)

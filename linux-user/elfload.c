@@ -104,6 +104,46 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 
 #endif
 
+#ifdef TARGET_PPC
+
+#define ELF_START_MMAP 0x80000000
+
+#define elf_check_arch(x) ( (x) == EM_PPC )
+
+#define ELF_CLASS	ELFCLASS32
+#ifdef TARGET_WORDS_BIGENDIAN
+#define ELF_DATA	ELFDATA2MSB
+#else
+#define ELF_DATA	ELFDATA2LSB
+#endif
+#define ELF_ARCH	EM_PPC
+
+/* Note that isn't exactly what regular kernel does
+ * but this is what the ABI wants and is needed to allow
+ * execution of PPC BSD programs.
+ */
+#define ELF_PLAT_INIT(_r)                                  \
+do {                                                       \
+   unsigned long *pos = (unsigned long *)bprm->p, tmp = 1; \
+    _r->gpr[3] = bprm->argc;                               \
+    _r->gpr[4] = (unsigned long)++pos;                     \
+    for (; tmp != 0; pos++)                                \
+        tmp = *pos;                                        \
+     _r->gpr[5] = (unsigned long)pos;                      \
+} while (0)
+
+static inline void init_thread(struct target_pt_regs *_regs, struct image_info *infop)
+{
+    _regs->msr = 1 << MSR_PR; /* Set user mode */
+    _regs->gpr[1] = infop->start_stack;
+    _regs->nip = infop->entry;
+}
+
+#define USE_ELF_CORE_DUMP
+#define ELF_EXEC_PAGESIZE	4096
+
+#endif
+
 #include "elf.h"
 
 /*

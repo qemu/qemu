@@ -324,6 +324,127 @@ void cpu_loop (CPUSPARCState *env)
 
 #endif
 
+#ifdef TARGET_PPC
+
+void cpu_loop(CPUPPCState *env)
+{
+    int trapnr;
+    target_siginfo_t info;
+    
+    for(;;) {
+        trapnr = cpu_ppc_exec(env);
+        switch(trapnr) {
+        case EXCP_NONE:
+        case EXCP_INTERRUPT:
+        case EXCP_MTMSR: /* mtmsr instruction:               */
+        case EXCP_BRANCH: /* branch instruction               */
+            /* Single step mode */
+            break;
+#if 0
+        case EXCP_RESET: /* System reset                     */
+            fprintf(stderr, "RESET asked... Stop emulation\n");
+            cpu_ppc_dump_state(env, stderr, 0);
+            abort();
+#endif
+        case EXCP_MACHINE_CHECK: /* Machine check exception          */
+            fprintf(stderr, "Machine check exeption... "
+                    "See you in kernel code !\n");
+            cpu_ppc_dump_state(env, stderr, 0);
+            abort();
+        case EXCP_DSI:  /* Impossible memory access         */
+            fprintf(stderr, "Invalid memory access\n");
+            info.si_signo = SIGSEGV;
+            info.si_errno = 0;
+            info.si_code = TARGET_ILL_ILLOPN;
+            info._sifields._sigfault._addr = env->nip;
+            queue_signal(info.si_signo, &info);
+            break;
+        case EXCP_ISI: /* Impossible instruction fetch     */
+            fprintf(stderr, "Invalid instruction fetch\n");
+            info.si_signo = SIGBUS;
+            info.si_errno = 0;
+            info.si_code = TARGET_ILL_ILLOPN;
+            info._sifields._sigfault._addr = env->nip;
+            queue_signal(info.si_signo, &info);
+            break;
+        case EXCP_EXTERNAL: /* External interruption            */
+            fprintf(stderr, "External access exeption\n");
+            cpu_ppc_dump_state(env, stderr, 0);
+            abort();
+        case EXCP_ALIGN: /* Alignment exception              */
+            fprintf(stderr, "Alignment exception\n");
+            cpu_ppc_dump_state(env, stderr, 0);
+            abort();
+        case EXCP_PROGRAM: /* Program exception                */
+            fprintf(stderr, "Program exception\n");
+            cpu_ppc_dump_state(env, stderr, 0);
+            abort();
+            break;
+        /* Trap */
+        case EXCP_TRAP: /* Trap                             */
+        case EXCP_TRACE: /* Trace exception (optional)       */
+            info.si_signo = SIGTRAP;
+            info.si_errno = 0;
+            info.si_code = TARGET_ILL_ILLOPN;
+            info._sifields._sigfault._addr = env->nip;
+            queue_signal(info.si_signo, &info);
+            break;
+        /* Invalid instruction */
+        case EXCP_INVAL:
+            info.si_signo = SIGILL;
+            info.si_errno = 0;
+            info.si_code = TARGET_ILL_ILLOPN;
+            info._sifields._sigfault._addr = env->nip;
+            queue_signal(info.si_signo, &info);
+            break;
+        /* Privileged instruction */
+        case EXCP_PRIV: /* Privileged instruction           */
+            info.si_signo = SIGILL;
+            info.si_errno = 0;
+            info.si_code = TARGET_ILL_ILLOPN;
+            info._sifields._sigfault._addr = env->nip;
+            queue_signal(info.si_signo, &info);
+            break;
+        case EXCP_NO_FP: /* No floating point                */
+        case EXCP_DECR: /* Decrementer exception            */
+        case EXCP_RESA: /* Implementation specific          */
+        case EXCP_RESB: /* Implementation specific          */
+        case EXCP_FP_ASSIST: /* Floating-point assist (optional) */
+            fprintf(stderr, "Misc expt...\n");
+            cpu_ppc_dump_state(env, stderr, 0);
+            abort();
+
+        case EXCP_SYSCALL:
+        {
+            uint32_t ret;
+            /* system call */
+            /* WARNING:
+             * PPC ABI uses overflow flag in cr0 to signal an error
+             * in syscalls.
+             */
+            env->crf[0] &= ~0x1;
+            ret = do_syscall(env, env->gpr[0], env->gpr[3], env->gpr[4],
+                             env->gpr[5], env->gpr[6], env->gpr[7],
+                             env->gpr[8]);
+            if (ret > (uint32_t)(-515)) {
+                env->crf[0] |= 0x1;
+                ret = -ret;
+            }
+            env->gpr[3] = ret;
+            break;
+        }
+        default:
+//        error:
+            fprintf(stderr, "qemu: unhandled CPU exception 0x%x - aborting\n", 
+                    trapnr);
+            cpu_ppc_dump_state(env, stderr, 0);
+            abort();
+        }
+        process_pending_signals(env);
+    }
+}
+#endif
+
 void usage(void)
 {
     printf("qemu-" TARGET_ARCH " version " QEMU_VERSION ", Copyright (c) 2003 Fabrice Bellard\n"
@@ -517,6 +638,16 @@ int main(int argc, char **argv)
 #elif defined(TARGET_SPARC)
 	env->pc = regs->u_regs[0];
 	env->regwptr[6] = regs->u_regs[1]-0x40;
+#elif defined(TARGET_PPC)
+    {
+        int i;
+        for (i = 0; i < 32; i++)
+            env->msr[i] = (regs->msr >> i) & 1;
+        env->nip = regs->nip;
+        for(i = 0; i < 32; i++) {
+            env->gpr[i] = regs->gpr[i];
+        }
+    }
 #else
 #error unsupported target CPU
 #endif

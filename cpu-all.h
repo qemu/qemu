@@ -395,6 +395,15 @@ void page_unprotect_range(uint8_t *data, unsigned long data_size);
 #define cpu_interrupt cpu_sparc_interrupt
 #define cpu_signal_handler cpu_sparc_signal_handler
 
+#elif defined(TARGET_PPC)
+
+#define CPUState CPUPPCState
+#define cpu_init cpu_ppc_init
+#define cpu_exec cpu_ppc_exec
+#define cpu_gen_code cpu_ppc_gen_code
+#define cpu_interrupt cpu_ppc_interrupt
+#define cpu_signal_handler cpu_ppc_signal_handler
+
 #else
 
 #error unsupported target CPU

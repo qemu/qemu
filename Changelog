@@ -9,7 +9,8 @@ version 0.5.1:
   - IRET and INT fixes in VM86 mode with IOPL=3
   - Port I/Os use TSS io map
   - Full task switching/task gate support
-  - added verr, verw, arpl
+  - added verr, verw, arpl, fcmovxx
+  - PowerPC target support (Jocelyn Mayer)
 
 version 0.5.0:
   

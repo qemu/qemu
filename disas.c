@@ -171,6 +171,8 @@ void disas(FILE *out, void *code, unsigned long size, int is_host, int flags)
 	print_insn = print_insn_arm;
 #elif defined(TARGET_SPARC)
 	print_insn = print_insn_sparc;
+#elif defined(TARGET_PPC)
+	print_insn = print_insn_ppc;
 #else
 	fprintf(out, "Asm output not supported on this arch\n");
 	return;

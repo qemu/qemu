@@ -17,6 +17,9 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+#if !defined(__DYNGEN_EXEC_H__)
+#define __DYNGEN_EXEC_H__
+
 typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
 typedef unsigned int uint32_t;
@@ -26,6 +29,19 @@ typedef signed char int8_t;
 typedef signed short int16_t;
 typedef signed int int32_t;
 typedef signed long long int64_t;
+
+#define INT8_MIN		(-128)
+#define INT16_MIN		(-32767-1)
+#define INT32_MIN		(-2147483647-1)
+#define INT64_MIN		(-(int64_t)(9223372036854775807)-1)
+#define INT8_MAX		(127)
+#define INT16_MAX		(32767)
+#define INT32_MAX		(2147483647)
+#define INT64_MAX		((int64_t)(9223372036854775807))
+#define UINT8_MAX		(255)
+#define UINT16_MAX		(65535)
+#define UINT32_MAX		(4294967295U)
+#define UINT64_MAX		((uint64_t)(18446744073709551615))
 
 #define bswap32(x) \
 ({ \
@@ -191,3 +207,5 @@ extern int __op_jmp0, __op_jmp1, __op_jmp2, __op_jmp3;
 #ifdef __mc68000
 #define EXIT_TB() asm volatile ("rts")
 #endif
+
+#endif /* !defined(__DYNGEN_EXEC_H__) */

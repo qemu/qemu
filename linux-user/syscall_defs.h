@@ -279,7 +279,7 @@ struct target_sigaction;
 int do_sigaction(int sig, const struct target_sigaction *act,
                  struct target_sigaction *oact);
 
-#if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SPARC)
+#if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SPARC) || defined(TARGET_PPC)
 
 #define TARGET_SA_NOCLDSTOP	0x00000001
 #define TARGET_SA_NOCLDWAIT	0x00000002 /* not supported yet */
@@ -664,7 +664,7 @@ struct target_pollfd {
 #define TARGET_HDIO_SET_PIO_MODE      0x0327  /* reconfig interface to new speed */
 
 
-#if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SPARC)
+#if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SPARC) || defined(TARGET_PPC)
 
 /* 0x54 is just a magic number to make these relatively unique ('T') */
 
@@ -891,6 +891,9 @@ struct target_termios {
 #define TARGET_MAP_LOCKED	0x2000		/* pages are locked */
 #define TARGET_MAP_NORESERVE	0x4000		/* don't check for reservations */
 
+#endif /* defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SPARC) || defined(TARGET_PPC) */
+
+#if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SPARC)
 struct target_stat {
 	unsigned short st_dev;
 	unsigned short __pad1;
@@ -951,7 +954,62 @@ struct target_stat64 {
 	unsigned long long	st_ino;
 } __attribute__((packed));
 
-#endif /* defined(TARGET_I386) || defined(TARGET_ARM) */
+#elif defined(TARGET_PPC)
+
+struct target_stat {
+	unsigned short st_dev;
+	target_ulong st_ino;
+	unsigned int st_mode;
+	unsigned short st_nlink;
+	unsigned int st_uid;
+	unsigned int st_gid;
+	unsigned short st_rdev;
+	target_ulong  st_size;
+	target_ulong  st_blksize;
+	target_ulong  st_blocks;
+	target_ulong  target_st_atime;
+	target_ulong  __unused1;
+	target_ulong  target_st_mtime;
+	target_ulong  __unused2;
+	target_ulong  target_st_ctime;
+	target_ulong  __unused3;
+	target_ulong  __unused4;
+	target_ulong  __unused5;
+};
+
+struct target_stat64 {
+	unsigned long long st_dev;
+
+        unsigned long long st_ino;
+
+	unsigned int	st_mode;
+	unsigned int	st_nlink;
+
+	unsigned int st_uid;
+	unsigned int st_gid;
+
+	unsigned long long	st_rdev;
+	unsigned short int __pad2;
+
+	long long	st_size;
+	target_ulong	st_blksize;
+
+	long long	st_blocks;	/* Number 512-byte blocks allocated. */
+
+	target_ulong	target_st_atime;
+        target_ulong    target_st_atime_nsec;
+
+	target_ulong	target_st_mtime;
+        target_ulong    target_st_mtime_nsec;
+
+	target_ulong	target_st_ctime;
+        target_ulong    target_st_ctime_nsec;
+
+        target_ulong    __unused4;
+        target_ulong    __unused5;
+};
+
+#endif /* defined(TARGET_PPC) */
 
 #define TARGET_F_DUPFD         0       /* dup */
 #define TARGET_F_GETFD         1       /* get close_on_exec */
