@@ -1747,6 +1747,9 @@ static void gen_eob(DisasContext *s)
 {
     if (s->cc_op != CC_OP_DYNAMIC)
         gen_op_set_cc_op(s->cc_op);
+    if (s->tb->flags & HF_INHIBIT_IRQ_MASK) {
+        gen_op_reset_inhibit_irq();
+    }
     if (s->singlestep_enabled) {
         gen_op_debug();
     } else if (s->tf) {
@@ -2385,8 +2388,11 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         gen_movl_seg_T0(s, reg, pc_start - s->cs_base);
         gen_pop_update(s);
         if (reg == R_SS) {
-            /* if reg == SS, inhibit interrupts/trace */
-            gen_op_set_inhibit_irq();
+            /* if reg == SS, inhibit interrupts/trace. */
+            /* If several instructions disable interrupts, only the
+               _first_ does it */
+            if (!(s->tb->flags & HF_INHIBIT_IRQ_MASK))
+                gen_op_set_inhibit_irq();
             s->tf = 0;
         }
         if (s->is_jmp) {
@@ -2457,7 +2463,10 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
         gen_movl_seg_T0(s, reg, pc_start - s->cs_base);
         if (reg == R_SS) {
             /* if reg == SS, inhibit interrupts/trace */
-            gen_op_set_inhibit_irq();
+            /* If several instructions disable interrupts, only the
+               _first_ does it */
+            if (!(s->tb->flags & HF_INHIBIT_IRQ_MASK))
+                gen_op_set_inhibit_irq();
             s->tf = 0;
         }
         if (s->is_jmp) {
@@ -3176,6 +3185,21 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
                 gen_op_fpop();
                 s->cc_op = CC_OP_EFLAGS;
                 break;
+            case 0x10 ... 0x13: /* fcmovxx */
+            case 0x18 ... 0x1b:
+                {
+                    int op1;
+                    const static uint8_t fcmov_cc[8] = {
+                        (JCC_B << 1),
+                        (JCC_Z << 1),
+                        (JCC_BE << 1),
+                        (JCC_P << 1),
+                    };
+                    op1 = fcmov_cc[op & 3] | ((op >> 3) & 1);
+                    gen_setcc(s, op1);
+                    gen_op_fcmov_ST0_STN_T0(opreg);
+                }
+                break;
             default:
                 goto illegal_op;
             }
@@ -3730,7 +3754,10 @@ static uint8_t *disas_insn(DisasContext *s, uint8_t *pc_start)
             gen_sti:
                 gen_op_sti();
                 /* interruptions are enabled only the first insn after sti */
-                gen_op_set_inhibit_irq();
+                /* If several instructions disable interrupts, only the
+                   _first_ does it */
+                if (!(s->tb->flags & HF_INHIBIT_IRQ_MASK))
+                    gen_op_set_inhibit_irq();
                 /* give a chance to handle pending irqs */
                 gen_op_jmp_im(s->pc - s->cs_base);
                 gen_eob(s);
@@ -4459,7 +4486,8 @@ static inline int gen_intermediate_code_internal(CPUState *env,
         else
             dc->mem_index = 3;
     }
-    dc->jmp_opt = !(dc->tf || env->singlestep_enabled
+    dc->jmp_opt = !(dc->tf || env->singlestep_enabled ||
+                    (flags & HF_INHIBIT_IRQ_MASK)
 #ifndef CONFIG_SOFTMMU
                     || (flags & HF_SOFTMMU_MASK)
 #endif
@@ -4472,12 +4500,6 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     pc_ptr = pc_start;
     lj = -1;
 
-    /* if irq were inhibited for the next instruction, we can disable
-       them here as it is simpler (otherwise jumps would have to
-       handled as special case) */
-    if (flags & HF_INHIBIT_IRQ_MASK) {
-        gen_op_reset_inhibit_irq();
-    }
     for(;;) {
         if (env->nb_breakpoints > 0) {
             for(j = 0; j < env->nb_breakpoints; j++) {
@@ -4504,7 +4526,11 @@ static inline int gen_intermediate_code_internal(CPUState *env,
             break;
         /* if single step mode, we generate only one instruction and
            generate an exception */
-        if (dc->tf || dc->singlestep_enabled) {
+        /* if irq were inhibited with HF_INHIBIT_IRQ_MASK, we clear
+           the flag and abort the translation to give the irqs a
+           change to be happen */
+        if (dc->tf || dc->singlestep_enabled || 
+            (flags & HF_INHIBIT_IRQ_MASK)) {
             gen_op_jmp_im(pc_ptr - dc->cs_base);
             gen_eob(dc);
             break;
