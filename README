@@ -6,7 +6,7 @@ INSTALLATION
 
 Type 
 
-    ./configure
+    ./configure --interp-prefix=/usr/local/qemu-i386
     make
 
 to build qemu and libqemu.a.
@@ -23,7 +23,7 @@ libraries installed on your PC. For example:
     ./qemu -L / /bin/ls
 
 * On non x86 CPUs, you need first to download at least an x86 glibc
-(qemu-i386-glibc21.tar.gz on the qemu web page). Ensure that
+(qemu-XXX-i386-glibc21.tar.gz on the qemu web page). Ensure that
 LD_LIBRARY_PATH is not set:
 
     unset LD_LIBRARY_PATH 

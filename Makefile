@@ -45,7 +45,7 @@ LDFLAGS+=-p
 main.o: CFLAGS+=-p
 endif
 
-OBJS= elfload.o main.o syscall.o signal.o
+OBJS= elfload.o main.o syscall.o signal.o path.o
 SRCS:= $(OBJS:.o=.c)
 OBJS+= libqemu.a
 
@@ -110,13 +110,14 @@ elfload.c   main.c            signal.c        thunk.h\
 cpu-i386.h qemu.h op-i386.c opc-i386.h syscall-i386.h  translate-i386.c\
 dis-asm.h    gen-i386.h  syscall.c\
 dis-buf.c    i386-dis.c  opreg_template.h  syscall_defs.h\
-ppc.ld s390.ld exec-i386.h exec-i386.c configure \
+ppc.ld s390.ld exec-i386.h exec-i386.c path.c configure \
 tests/Makefile\
 tests/test-i386.c tests/test-i386-shift.h tests/test-i386.h\
 tests/test-i386-muldiv.h tests/test-i386-code16.S\
 tests/hello.c tests/hello tests/sha1.c \
 tests/testsig.c tests/testclone.c tests/testthread.c \
 tests/runcom.c tests/pi_10.com \
+tests/test_path.c \
 qemu-doc.texi qemu-doc.html
 
 FILE=qemu-$(VERSION)
@@ -132,10 +133,10 @@ tar:
 BINPATH=/usr/local/qemu-i386
 
 tarbin:
-	tar zcvf /tmp/qemu-i386-glibc21.tar.gz \
-                 $(BINPATH)/etc $(BINPATH)/lib $(BINPATH)/bin
-	tar zcvf /tmp/qemu-i386-wine.tar.gz \
-                 $(BINPATH)/X11R6 $(BINPATH)/wine
+	tar zcvf /tmp/qemu-$(VERSION)-i386-glibc21.tar.gz \
+                 $(BINPATH)/etc $(BINPATH)/lib $(BINPATH)/bin $(BINPATH)/usr
+	tar zcvf /tmp/qemu-$(VERSION)-i386-wine.tar.gz \
+                 $(BINPATH)/wine
 
 ifneq ($(wildcard .depend),)
 include .depend

@@ -1,8 +1,11 @@
 version 0.1.6:
 
+ - automatic library search system. QEMU can now work with unpatched
+   ELF dynamic loader and libc (Rusty Russell).
  - ISO C warning fixes (Alistair Strachan)
- - first self-virtualizable version (works only as long as the icache
-   is not flushed)
+ - first self-virtualizable version (works only as long as the
+   translation cache is not flushed)
+ - RH9 fixes
 
 version 0.1.5:
 

@@ -36,6 +36,8 @@ User space LDT and GDT are emulated. VM86 mode is also supported
 
 @item Accurate signal handling by remapping host signals to virtual x86 signals.
 
+@item QEMU can emulate itself on x86 (experimental).
+
 @item The virtual x86 CPU is a library (@code{libqemu}) which can be used 
 in other projects.
 
@@ -50,9 +52,7 @@ Current QEMU Limitations:
 
 @item Not all x86 exceptions are precise (yet). [Very few programs need that].
 
-@item Not self virtualizable (yet). [You cannot launch qemu with qemu on the same CPU].
-
-@item No support for self modifying code (yet). [Very few programs need that, a notable exception is QEMU itself !].
+@item No support for self-modifying code (yet). [Very few programs need that, a notable exception is QEMU itself !].
 
 @item No SSE/MMX support (yet).
 
@@ -88,9 +88,14 @@ qemu -L / /bin/ls
 @code{-L /} tells that the x86 dynamic linker must be searched with a
 @file{/} prefix.
 
+@item Since QEMU is also a linux process, you can launch qemu with qemu:
+
+@example 
+qemu -L / qemu -L / /bin/ls
+@end example
 
 @item On non x86 CPUs, you need first to download at least an x86 glibc
-(@file{qemu-i386-glibc21.tar.gz} on the QEMU web page). Ensure that
+(@file{qemu-XXX-i386-glibc21.tar.gz} on the QEMU web page). Ensure that
 @code{LD_LIBRARY_PATH} is not set:
 
 @example
@@ -107,6 +112,11 @@ QEMU is automatically launched by the Linux kernel when you try to
 launch x86 executables. It requires the @code{binfmt_misc} module in the
 Linux kernel.
 
+@item The x86 version of QEMU is also included. You can try weird things such as:
+@example
+qemu /usr/local/qemu-i386/bin/qemu-i386 /usr/local/qemu-i386/bin/ls-i386
+@end example
+
 @end itemize
 
 @section Wine launch (Currently only tested when emulating x86 on x86)
@@ -122,7 +132,7 @@ qemu /usr/local/qemu-i386/bin/ls-i386
 @end example
 
 @item Download the binary x86 Wine install
-(@file{qemu-i386-wine.tar.gz} on the QEMU web page). 
+(@file{qemu-XXX-i386-wine.tar.gz} on the QEMU web page). 
 
 @item Configure Wine on your account. Look at the provided script
 @file{/usr/local/qemu-i386/bin/wine-conf.sh}. Your previous
@@ -301,6 +311,21 @@ thread.
 
 The virtual x86 CPU atomic operations are emulated with a global lock so
 that their semantic is preserved.
+
+@section Self-virtualization
+
+QEMU was conceived so that ultimately it can emulate itself. Althought
+it is not very useful, it is an important test to show the power of the
+emulator.
+
+Achieving self-virtualization is not easy because there may be address
+space conflicts. QEMU solves this problem by being an ELF shared object
+as the ld-linux.so ELF interpreter. That way, it can be relocated at
+load time.
+
+Since self-modifying code is not supported yet, QEMU cannot self
+virtualize itself in case of translation cache flush. This limitation
+will be suppressed soon.
 
 @section Bibliography
 

@@ -271,4 +271,4 @@ else
 	echo "config.h is unchanged"
 fi
 
-rm -f $TMPH
+rm -f $TMPO $TMPC $TMPE $TMPS $TMPH
