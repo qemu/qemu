@@ -23,7 +23,6 @@
  */
 #include "vl.h"
 
-#include <getopt.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -1908,6 +1907,7 @@ void help(void)
            "-initrd file    use 'file' as initial ram disk\n"
            "\n"
            "Debug/Expert options:\n"
+           "-S              freeze CPU at startup (use 'c' to start execution)\n"
            "-s              wait gdb connection to port %d\n"
            "-p port         change gdb connection port\n"
            "-d item1,...    output log to %s (use -d ? for a list of log items)\n"
@@ -1937,29 +1937,85 @@ void help(void)
     exit(1);
 }
 
-struct option long_options[] = {
-    { "initrd", 1, NULL, 0, },
-    { "hda", 1, NULL, 0, },
-    { "hdb", 1, NULL, 0, },
-    { "snapshot", 0, NULL, 0, },
-    { "hdachs", 1, NULL, 0, },
-    { "nographic", 0, NULL, 0, },
-    { "kernel", 1, NULL, 0, },
-    { "append", 1, NULL, 0, },
-    { "tun-fd", 1, NULL, 0, },
-    { "hdc", 1, NULL, 0, },
-    { "hdd", 1, NULL, 0, },
-    { "cdrom", 1, NULL, 0, },
-    { "boot", 1, NULL, 0, },
-    { "fda", 1, NULL, 0, },
-    { "fdb", 1, NULL, 0, },
-    { "no-code-copy", 0, NULL, 0 },
-    { "nics", 1, NULL, 0 },
-    { "macaddr", 1, NULL, 0 },
-    { "user-net", 0, NULL, 0 },
-    { "dummy-net", 0, NULL, 0 },
-    { "enable-audio", 0, NULL, 0 },
-    { NULL, 0, NULL, 0 },
+#define HAS_ARG 0x0001
+
+enum {
+    QEMU_OPTION_h,
+
+    QEMU_OPTION_fda,
+    QEMU_OPTION_fdb,
+    QEMU_OPTION_hda,
+    QEMU_OPTION_hdb,
+    QEMU_OPTION_hdc,
+    QEMU_OPTION_hdd,
+    QEMU_OPTION_cdrom,
+    QEMU_OPTION_boot,
+    QEMU_OPTION_snapshot,
+    QEMU_OPTION_m,
+    QEMU_OPTION_nographic,
+    QEMU_OPTION_enable_audio,
+
+    QEMU_OPTION_nics,
+    QEMU_OPTION_macaddr,
+    QEMU_OPTION_n,
+    QEMU_OPTION_tun_fd,
+    QEMU_OPTION_user_net,
+    QEMU_OPTION_dummy_net,
+
+    QEMU_OPTION_kernel,
+    QEMU_OPTION_append,
+    QEMU_OPTION_initrd,
+
+    QEMU_OPTION_S,
+    QEMU_OPTION_s,
+    QEMU_OPTION_p,
+    QEMU_OPTION_d,
+    QEMU_OPTION_hdachs,
+    QEMU_OPTION_L,
+    QEMU_OPTION_no_code_copy,
+};
+
+typedef struct QEMUOption {
+    const char *name;
+    int flags;
+    int index;
+} QEMUOption;
+
+const QEMUOption qemu_options[] = {
+    { "h", 0, QEMU_OPTION_h },
+
+    { "fda", HAS_ARG, QEMU_OPTION_fda },
+    { "fdb", HAS_ARG, QEMU_OPTION_fdb },
+    { "hda", HAS_ARG, QEMU_OPTION_hda },
+    { "hdb", HAS_ARG, QEMU_OPTION_hdb },
+    { "hdc", HAS_ARG, QEMU_OPTION_hdc },
+    { "hdd", HAS_ARG, QEMU_OPTION_hdd },
+    { "cdrom", HAS_ARG, QEMU_OPTION_cdrom },
+    { "boot", HAS_ARG, QEMU_OPTION_boot },
+    { "snapshot", 0, QEMU_OPTION_snapshot },
+    { "m", HAS_ARG, QEMU_OPTION_m },
+    { "nographic", 0, QEMU_OPTION_nographic },
+    { "enable-audio", 0, QEMU_OPTION_enable_audio },
+
+    { "nics", HAS_ARG, QEMU_OPTION_nics},
+    { "macaddr", HAS_ARG, QEMU_OPTION_macaddr},
+    { "n", HAS_ARG, QEMU_OPTION_d },
+    { "tun-fd", HAS_ARG, QEMU_OPTION_tun_fd },
+    { "user-net", 0, QEMU_OPTION_user_net },
+    { "dummy-net", 0, QEMU_OPTION_dummy_net },
+
+    { "kernel", HAS_ARG, QEMU_OPTION_kernel },
+    { "append", HAS_ARG, QEMU_OPTION_append },
+    { "initrd", HAS_ARG, QEMU_OPTION_initrd },
+
+    { "S", 0, QEMU_OPTION_S },
+    { "s", 0, QEMU_OPTION_s },
+    { "p", HAS_ARG, QEMU_OPTION_p },
+    { "d", HAS_ARG, QEMU_OPTION_d },
+    { "hdachs", HAS_ARG, QEMU_OPTION_hdachs },
+    { "L", HAS_ARG, QEMU_OPTION_L },
+    { "no-code-copy", 0, QEMU_OPTION_no_code_copy },
+    { NULL },
 };
 
 #if defined (TARGET_I386) && defined(USE_CODE_COPY)
@@ -1980,7 +2036,7 @@ int main(int argc, char **argv)
 #ifdef CONFIG_GDBSTUB
     int use_gdbstub, gdbstub_port;
 #endif
-    int c, i, long_index, has_cdrom;
+    int i, has_cdrom;
     int snapshot, linux_boot;
     CPUState *env;
     const char *initrd_filename;
@@ -1991,7 +2047,9 @@ int main(int argc, char **argv)
     int start_emulation = 1;
     uint8_t macaddr[6];
     int net_if_type, nb_tun_fds, tun_fds[MAX_NICS];
-    
+    int optind;
+    const char *r, *optarg;
+
 #if !defined(CONFIG_SOFTMMU)
     /* we never want that malloc() uses mmap() */
     mallopt(M_MMAP_THRESHOLD, 4096 * 1024);
@@ -2026,27 +2084,53 @@ int main(int argc, char **argv)
     macaddr[4] = 0x34;
     macaddr[5] = 0x56;
 
-
+    optind = 1;
     for(;;) {
-        c = getopt_long_only(argc, argv, "hm:d:n:sp:L:S", long_options, &long_index);
-        if (c == -1)
+        if (optind >= argc)
             break;
-        switch(c) {
-        case 0:
-            switch(long_index) {
-            case 0:
+        r = argv[optind];
+        if (r[0] != '-') {
+            hd_filename[0] = argv[optind++];
+        } else {
+            const QEMUOption *popt;
+
+            optind++;
+            popt = qemu_options;
+            for(;;) {
+                if (!popt->name) {
+                    fprintf(stderr, "%s: invalid option -- '%s'\n", 
+                            argv[0], r);
+                    exit(1);
+                }
+                if (!strcmp(popt->name, r + 1))
+                    break;
+                popt++;
+            }
+            if (popt->flags & HAS_ARG) {
+                if (optind >= argc) {
+                    fprintf(stderr, "%s: option '%s' requires an argument\n",
+                            argv[0], r);
+                    exit(1);
+                }
+                optarg = argv[optind++];
+            } else {
+                optarg = NULL;
+            }
+
+            switch(popt->index) {
+            case QEMU_OPTION_initrd:
                 initrd_filename = optarg;
                 break;
-            case 1:
+            case QEMU_OPTION_hda:
                 hd_filename[0] = optarg;
                 break;
-            case 2:
+            case QEMU_OPTION_hdb:
                 hd_filename[1] = optarg;
                 break;
-            case 3:
+            case QEMU_OPTION_snapshot:
                 snapshot = 1;
                 break;
-            case 4:
+            case QEMU_OPTION_hdachs:
                 {
                     const char *p;
                     p = optarg;
@@ -2065,16 +2149,16 @@ int main(int argc, char **argv)
                     }
                 }
                 break;
-            case 5:
+            case QEMU_OPTION_nographic:
                 nographic = 1;
                 break;
-            case 6:
+            case QEMU_OPTION_kernel:
                 kernel_filename = optarg;
                 break;
-            case 7:
+            case QEMU_OPTION_append:
                 kernel_cmdline = optarg;
                 break;
-	    case 8:
+	    case QEMU_OPTION_tun_fd:
                 {
                     const char *p;
                     int fd;
@@ -2089,18 +2173,18 @@ int main(int argc, char **argv)
                     }
                 }
 		break;
-            case 9:
+            case QEMU_OPTION_hdc:
                 hd_filename[2] = optarg;
                 has_cdrom = 0;
                 break;
-            case 10:
+            case QEMU_OPTION_hdd:
                 hd_filename[3] = optarg;
                 break;
-            case 11:
+            case QEMU_OPTION_cdrom:
                 hd_filename[2] = optarg;
                 has_cdrom = 1;
                 break;
-            case 12:
+            case QEMU_OPTION_boot:
                 boot_device = optarg[0];
                 if (boot_device != 'a' && boot_device != 'b' &&
                     boot_device != 'c' && boot_device != 'd') {
@@ -2108,23 +2192,23 @@ int main(int argc, char **argv)
                     exit(1);
                 }
                 break;
-            case 13:
+            case QEMU_OPTION_fda:
                 fd_filename[0] = optarg;
                 break;
-            case 14:
+            case QEMU_OPTION_fdb:
                 fd_filename[1] = optarg;
                 break;
-            case 15:
+            case QEMU_OPTION_no_code_copy:
                 code_copy_enabled = 0;
                 break;
-            case 16:
+            case QEMU_OPTION_nics:
                 nb_nics = atoi(optarg);
                 if (nb_nics < 0 || nb_nics > MAX_NICS) {
                     fprintf(stderr, "qemu: invalid number of network interfaces\n");
                     exit(1);
                 }
                 break;
-            case 17:
+            case QEMU_OPTION_macaddr:
                 {
                     const char *p;
                     int i;
@@ -2145,68 +2229,63 @@ int main(int argc, char **argv)
                     }
                 }
                 break;
-            case 18:
+            case QEMU_OPTION_user_net:
                 net_if_type = NET_IF_USER;
                 break;
-            case 19:
+            case QEMU_OPTION_dummy_net:
                 net_if_type = NET_IF_DUMMY;
                 break;
-            case 20:
+            case QEMU_OPTION_enable_audio:
                 audio_enabled = 1;
                 break;
-            }
-            break;
-        case 'h':
-            help();
-            break;
-        case 'm':
-            ram_size = atoi(optarg) * 1024 * 1024;
-            if (ram_size <= 0)
+            case QEMU_OPTION_h:
                 help();
-            if (ram_size > PHYS_RAM_MAX_SIZE) {
-                fprintf(stderr, "qemu: at most %d MB RAM can be simulated\n",
-                        PHYS_RAM_MAX_SIZE / (1024 * 1024));
-                exit(1);
-            }
-            break;
-        case 'd':
-            {
-                int mask;
-                CPULogItem *item;
-
-                mask = cpu_str_to_log_mask(optarg);
-                if (!mask) {
-                    printf("Log items (comma separated):\n");
+                break;
+            case QEMU_OPTION_m:
+                ram_size = atoi(optarg) * 1024 * 1024;
+                if (ram_size <= 0)
+                    help();
+                if (ram_size > PHYS_RAM_MAX_SIZE) {
+                    fprintf(stderr, "qemu: at most %d MB RAM can be simulated\n",
+                            PHYS_RAM_MAX_SIZE / (1024 * 1024));
+                    exit(1);
+                }
+                break;
+            case QEMU_OPTION_d:
+                {
+                    int mask;
+                    CPULogItem *item;
+                    
+                    mask = cpu_str_to_log_mask(optarg);
+                    if (!mask) {
+                        printf("Log items (comma separated):\n");
                     for(item = cpu_log_items; item->mask != 0; item++) {
                         printf("%-10s %s\n", item->name, item->help);
                     }
                     exit(1);
+                    }
+                    cpu_set_log(mask);
                 }
-                cpu_set_log(mask);
-            }
-            break;
-        case 'n':
-            pstrcpy(network_script, sizeof(network_script), optarg);
-            break;
+                break;
+            case QEMU_OPTION_n:
+                pstrcpy(network_script, sizeof(network_script), optarg);
+                break;
 #ifdef CONFIG_GDBSTUB
-        case 's':
-            use_gdbstub = 1;
-            break;
-        case 'p':
-            gdbstub_port = atoi(optarg);
-            break;
+            case QEMU_OPTION_s:
+                use_gdbstub = 1;
+                break;
+            case QEMU_OPTION_p:
+                gdbstub_port = atoi(optarg);
+                break;
 #endif
-        case 'L':
-            bios_dir = optarg;
-            break;
-	case 'S':
-	    start_emulation = 0;
-	    break;
+            case QEMU_OPTION_L:
+                bios_dir = optarg;
+                break;
+            case QEMU_OPTION_S:
+                start_emulation = 0;
+                break;
+            }
         }
-    }
-
-    if (optind < argc) {
-        hd_filename[0] = argv[optind++];
     }
 
     linux_boot = (kernel_filename != NULL);
