@@ -52,7 +52,7 @@ typedef struct {
         int     val[2];
 } kernel_fsid_t;
 
-struct statfs {
+struct kernel_statfs {
 	int f_type;
 	int f_bsize;
 	int f_blocks;

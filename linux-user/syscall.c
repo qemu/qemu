@@ -37,7 +37,7 @@
 #include <sched.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
-#include <sys/user.h>
+//#include <sys/user.h>
 
 #define termios host_termios
 #define winsize host_winsize
@@ -52,7 +52,7 @@
 
 #include "gemu.h"
 
-#define DEBUG
+//#define DEBUG
 
 #ifndef PAGE_SIZE
 #define PAGE_SIZE 4096
@@ -73,18 +73,25 @@ struct dirent {
 #endif
 
 #define __NR_sys_uname __NR_uname
-#define __NR_sys_getcwd __NR_getcwd
+#define __NR_sys_getcwd1 __NR_getcwd
 #define __NR_sys_statfs __NR_statfs
 #define __NR_sys_fstatfs __NR_fstatfs
+#define __NR_sys_getdents __NR_getdents
 
+#ifdef __NR_gettid
 _syscall0(int, gettid)
+#else
+static int gettid(void) {
+    return -ENOSYS;
+}
+#endif
 _syscall1(int,sys_uname,struct new_utsname *,buf)
-_syscall2(int,sys_getcwd,char *,buf,size_t,size)
-_syscall3(int, getdents, uint, fd, struct dirent *, dirp, uint, count);
+_syscall2(int,sys_getcwd1,char *,buf,size_t,size)
+_syscall3(int, sys_getdents, uint, fd, struct dirent *, dirp, uint, count);
 _syscall5(int, _llseek,  uint,  fd, ulong, hi, ulong, lo,
           loff_t *, res, uint, wh);
-_syscall2(int,sys_statfs,const char *,path,struct statfs *,buf)
-_syscall2(int,sys_fstatfs,int,fd,struct statfs *,buf)
+_syscall2(int,sys_statfs,const char *,path,struct kernel_statfs *,buf)
+_syscall2(int,sys_fstatfs,int,fd,struct kernel_statfs *,buf)
 
 static inline long get_errno(long ret)
 {
@@ -382,7 +389,9 @@ static long do_ioctl(long fd, long cmd, long arg)
         ie++;
     }
     arg_type = ie->arg_type;
-    //    gemu_log("ioctl: cmd=0x%04lx (%s)\n", cmd, ie->name);
+#ifdef DEBUG
+    gemu_log("ioctl: cmd=0x%04lx (%s)\n", cmd, ie->name);
+#endif
     switch(arg_type[0]) {
     case TYPE_NULL:
         /* no argument */
@@ -612,9 +621,11 @@ long do_syscall(int num, long arg1, long arg2, long arg3,
 {
     long ret;
     struct stat st;
-    struct statfs *stfs;
+    struct kernel_statfs *stfs;
     
-    //    gemu_log("syscall %d\n", num);
+#ifdef DEBUG
+    gemu_log("syscall %d\n", num);
+#endif
     switch(num) {
     case TARGET_NR_exit:
         _exit(arg1);
@@ -1161,7 +1172,7 @@ long do_syscall(int num, long arg1, long arg2, long arg3,
         {
             struct dirent *dirp = (void *)arg2;
             long count = arg3;
-            ret = get_errno(getdents(arg1, dirp, count));
+            ret = get_errno(sys_getdents(arg1, dirp, count));
             if (!is_error(ret)) {
                 struct dirent *de;
                 int len = ret;
@@ -1277,7 +1288,7 @@ long do_syscall(int num, long arg1, long arg2, long arg3,
         ret = get_errno(chown((const char *)arg1, arg2, arg3));
         break;
     case TARGET_NR_getcwd:
-        ret = get_errno(sys_getcwd((char *)arg1, arg2));
+        ret = get_errno(sys_getcwd1((char *)arg1, arg2));
         break;
     case TARGET_NR_capget:
     case TARGET_NR_capset:
