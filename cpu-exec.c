@@ -250,11 +250,7 @@ int cpu_exec(CPUState *env1)
                 pc = (uint8_t *)env->regs[15];
 #elif defined(TARGET_SPARC)
                 flags = 0;
-                cs_base = 0;
-                if (env->npc) {
-                    env->pc = env->npc;
-                    env->npc = 0;
-                }
+                cs_base = env->npc;
                 pc = (uint8_t *) env->pc;
 #elif defined(TARGET_PPC)
                 flags = 0;
@@ -271,7 +267,7 @@ int cpu_exec(CPUState *env1)
                     tb = tb_alloc((unsigned long)pc);
                     if (!tb) {
                         /* flush must be done */
-                        tb_flush();
+                        tb_flush(env);
                         /* cannot fail at this point */
                         tb = tb_alloc((unsigned long)pc);
                         /* don't forget to invalidate previous TB info */
@@ -410,7 +406,7 @@ void cpu_x86_load_seg(CPUX86State *s, int seg_reg, int selector)
         cpu_x86_load_seg_cache(env, seg_reg, selector, 
                                (uint8_t *)(selector << 4), 0xffff, 0);
     } else {
-        load_seg(seg_reg, selector, 0);
+        load_seg(seg_reg, selector);
     }
     env = saved_env;
 }
@@ -519,7 +515,11 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
 static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
                                     int is_write, sigset_t *old_set)
 {
-	return 0;
+    /* XXX: locking issue */
+    if (is_write && page_unprotect(address)) {
+        return 1;
+    }
+    return 0;
 }
 #elif defined (TARGET_PPC)
 static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
