@@ -34,8 +34,12 @@ to ease cross-compilation and cross-debugging.
 
 @end itemize
 
-As QEMU requires no host kernel driver to run, it is very safe and
-easy to use.
+QEMU can run without an host kernel driver and yet gives acceptable
+performance. On an x86 host, if you want the highest performance for
+the x86 target, the @emph{QEMU Accelerator Module} (KQEMU) allows QEMU
+to reach near native performances. KQEMU is currently only supported
+for an x86 Linux 2.4 or 2.6 host system, but more host OSes will be
+supported in the future.
 
 For system emulation, the following hardware targets are supported:
 @itemize
@@ -52,14 +56,8 @@ If you want to compile QEMU yourself, see @ref{compilation}.
 
 @section Linux
 
-Download the binary distribution (@file{qemu-XXX-i386.tar.gz}) in
-@file{/tmp} and untar it as root from @file{/}:
-
-@example
-su
-cd /
-tar zxvf /tmp/qemu-XXX-i386.tar.gz
-@end example
+If a precompiled package is available for your distribution - you just
+have to install it. Otherwise, see @ref{compilation}.
 
 @section Windows
 
@@ -77,33 +75,8 @@ Download the experimental binary installer at
 
 @c man begin DESCRIPTION
 
-The QEMU System emulator simulates a complete PC.
-
-In order to meet specific user needs, two versions of QEMU are
-available:
-
-@enumerate
-
-@item 
-@code{qemu-fast} uses the host Memory Management Unit (MMU) to
-simulate the x86 MMU. It is @emph{fast} but has limitations because
-the whole 4 GB address space cannot be used and some memory mapped
-peripherials cannot be emulated accurately yet. Therefore, a specific
-guest Linux kernel can be used (@xref{linux_compile}) as guest
-OS. 
-
-Moreover there is no separation between the host and target address
-spaces, so it offers no security (the target OS can modify the
-@code{qemu-fast} code by writing at the right addresses).
-
-@item 
-@code{qemu} uses a software MMU. It is about @emph{two times slower}
-but gives a more accurate emulation and a complete separation between
-the host and target address spaces.
-
-@end enumerate
-
-QEMU emulates the following PC peripherials:
+The QEMU System emulator simulates the
+following PC peripherials:
 
 @itemize @minus
 @item 
@@ -369,6 +342,12 @@ Force hard disk 0 physical geometry (1 <= @var{c} <= 16383, 1 <=
 translation mode (@var{t}=none, lba or auto). Usually QEMU can guess
 all thoses parameters. This option is useful for old MS-DOS disk
 images.
+
+@item -no-kqemu
+Disable the usage of the QEMU Accelerator module (KQEMU). QEMU will work as
+usual but will be slower. This option can be useful to determine if
+emulation problems are coming from KQEMU.
+
 @item -isa
 Simulate an ISA-only system (default is PCI system).
 @item -std-vga
@@ -444,6 +423,25 @@ Fabrice Bellard
 
 @end ignore
 
+@section QEMU Accelerator Module
+
+The QEMU Accelerator Module (KQEMU) is an optional part of QEMU currently only
+available for Linux 2.4 or 2.6 x86 hosts. It enables QEMU to run x86
+code much faster. Provided it is installed on your PC (see
+@ref{kqemu_install}), QEMU will automatically use it.
+
+WARNING: as with any alpha stage kernel driver, KQEMU may cause
+arbitrary data loss on your PC, so you'd better backup your sensitive
+data before using it.
+
+When using KQEMU, QEMU will create a big hidden file containing the
+RAM of the virtual machine. For best performance, it is important that
+this file is kept in RAM and not on the hard disk. QEMU uses the
+@file{/dev/shm} directory to create this file because @code{tmpfs} is
+usually mounted on it (check with the shell command
+@code{df}). Otherwise @file{/tmp} is used as fallback. You can use the
+@var{QEMU_TMPDIR} shell variable to set a new directory for the QEMU
+RAM file.
 
 @section QEMU Monitor
 
@@ -825,12 +823,6 @@ A 2.5.74 kernel is also included in the archive. Just
 replace the bzImage in qemu.sh to try it.
 
 @item 
-qemu-fast creates a temporary file in @var{$QEMU_TMPDIR} (@file{/tmp} is the
-default) containing all the simulated PC memory. If possible, try to use
-a temporary directory using the tmpfs filesystem to avoid too many
-unnecessary disk accesses.
-
-@item 
 In order to exit cleanly from qemu, you can do a @emph{shutdown} inside
 qemu. qemu will automatically exit when the Linux shutdown is done.
 
@@ -847,80 +839,6 @@ The example disk image is a modified version of the one made by Kevin
 Lawton for the plex86 Project (@url{www.plex86.org}).
 
 @end enumerate
-
-@node linux_compile
-@section Linux Kernel Compilation
-
-You can use any linux kernel with QEMU. However, if you want to use
-@code{qemu-fast} to get maximum performances, you must use a modified
-guest kernel. If you are using a 2.6 guest kernel, you can use
-directly the patch @file{linux-2.6-qemu-fast.patch} made by Rusty
-Russel available in the QEMU source archive. Otherwise, you can make the
-following changes @emph{by hand} to the Linux kernel:
-
-@enumerate
-@item
-The kernel must be mapped at 0x90000000 (the default is
-0xc0000000). You must modify only two lines in the kernel source:
-
-In @file{include/asm/page.h}, replace
-@example
-#define __PAGE_OFFSET           (0xc0000000)
-@end example
-by
-@example
-#define __PAGE_OFFSET           (0x90000000)
-@end example
-
-And in @file{arch/i386/vmlinux.lds}, replace
-@example
-  . = 0xc0000000 + 0x100000;
-@end example
-by 
-@example
-  . = 0x90000000 + 0x100000;
-@end example
-
-@item
-If you want to enable SMP (Symmetric Multi-Processing) support, you
-must make the following change in @file{include/asm/fixmap.h}. Replace
-@example
-#define FIXADDR_TOP	(0xffffX000UL)
-@end example
-by 
-@example
-#define FIXADDR_TOP	(0xa7ffX000UL)
-@end example
-(X is 'e' or 'f' depending on the kernel version). Although you can
-use an SMP kernel with QEMU, it only supports one CPU.
-
-@item
-If you are not using a 2.6 kernel as host kernel but if you use a target
-2.6 kernel, you must also ensure that the 'HZ' define is set to 100
-(1000 is the default) as QEMU cannot currently emulate timers at
-frequencies greater than 100 Hz on host Linux systems < 2.6. In
-@file{include/asm/param.h}, replace:
-
-@example
-# define HZ		1000		/* Internal kernel timer frequency */
-@end example
-by
-@example
-# define HZ		100		/* Internal kernel timer frequency */
-@end example
-
-@end enumerate
-
-The file config-2.x.x gives the configuration of the example kernels.
-
-Just type
-@example
-make bzImage
-@end example
-
-As you would do to make a real kernel. Then you can use with QEMU
-exactly the same kernel as you would boot on your PC (in
-@file{arch/i386/boot/bzImage}).
 
 @node gdb_usage
 @section GDB usage
@@ -975,6 +893,12 @@ When using a 2.6 guest Linux kernel, you should add the option
 @code{clock=pit} on the kernel command line because the 2.6 Linux
 kernels make very strict real time clock checks by default that QEMU
 cannot simulate exactly.
+
+When using a 2.6 guest Linux kernel, verify that the 4G/4G patch is
+not activated because QEMU is slower with this patch. The QEMU
+Accelerator Module is also much slower in this case. Earlier Fedora
+Core 3 Linux kernel (< 2.6.9-1.724_FC3) were known to incorporte this
+patch by default. Newer kernels don't have it.
 
 @subsection Windows
 
@@ -1226,9 +1150,119 @@ Act as if the host page size was 'pagesize' bytes
 @node compilation
 @chapter Compilation from the sources
 
-@section Linux/BSD
+@section Linux/Unix
 
-Read the @file{README} which gives the related information.
+@subsection Compilation
+
+First you must decompress the sources:
+@example
+cd /tmp
+tar zxvf qemu-x.y.z.tar.gz
+cd qemu-x.y.z
+@end example
+
+Then you configure QEMU and build it (usually no options are needed):
+@example
+./configure
+make
+@end example
+
+Then type as root user:
+@example
+make install
+@end example
+to install QEMU in @file{/usr/local}.
+
+@node kqemu_install
+@subsection QEMU Accelerator Installation
+
+If you use x86 Linux, the compilation of the QEMU Accelerator Kernel
+Module (KQEMU) is automatically activated provided you have the
+necessary kernel headers. If nonetheless the compilation fails, you
+can disable its compilation with the @option{--disable-kqemu} option. 
+
+If you are using a 2.6 host kernel, then all the necessary kernel
+headers should be already installed. If you are using a 2.4 kernel,
+then you should verify that properly configured kernel sources are
+installed and compiled. On a Redhat 9 distribution for example, the
+following must be done:
+@example
+1) Install the kernel-source-xxx package
+2) cd /usr/src/linux-xxx
+3) make distclean
+4) Copy /boot/config-vvv in .config (use uname -r to know your configuration name 'vvv')
+5) Edit the Makefile to change the EXTRAVERSION line to match your
+   current configuration name:
+   EXTRAVERSION = -custom
+to 
+   EXTRAVERSION = -8 # This is an example, it can be -8smp too
+5) make menuconfig # Just save the configuration
+6) make dep bzImage
+@end example
+
+The installation of KQEMU is not fully automatic because it is highly
+distribution dependent. When launching 
+@example
+make install
+@end example
+
+KQEMU is installed in /lib/modules/@var{kernel_version}/misc. The
+device @file{/dev/kqemu} is created with read/write access rights for
+everyone. If you fear security issues, you can restrict the access
+rights of @file{/dev/kqemu}.
+
+If you want that KQEMU is installed automatically at boot time, you can add
+
+@example
+# Load the KQEMU kernel module
+/sbin/modprobe kqemu
+@end example
+
+in @file{/etc/rc.d/rc.local}.
+
+If your distribution uses udev (like Fedora), the @file{/dev/kqemu} is
+not created automatically (yet) at every reboot. You can add the
+following in @file{/etc/rc.d/rc.local}:
+
+@example
+# Create the KQEMU device
+mknod /dev/kqemu c 254 0
+chmod 666 /dev/kqemu
+@end example
+
+@subsection Tested tool versions
+
+In order to compile QEMU succesfully, it is very important that you
+have the right tools. The most important one is gcc. I cannot guaranty
+that QEMU works if you do not use a tested gcc version. Look at
+'configure' and 'Makefile' if you want to make a different gcc
+version work.
+
+@example
+host      gcc      binutils      glibc    linux       distribution
+----------------------------------------------------------------------
+x86       3.2      2.13.2        2.1.3    2.4.18
+          2.96     2.11.93.0.2   2.2.5    2.4.18      Red Hat 7.3
+          3.2.2    2.13.90.0.18  2.3.2    2.4.20      Red Hat 9
+
+PowerPC   3.3 [4]  2.13.90.0.18  2.3.1    2.4.20briq
+          3.2
+
+Alpha     3.3 [1]  2.14.90.0.4   2.2.5    2.2.20 [2]  Debian 3.0
+
+Sparc32   2.95.4   2.12.90.0.1   2.2.5    2.4.18      Debian 3.0
+
+ARM       2.95.4   2.12.90.0.1   2.2.5    2.4.9 [3]   Debian 3.0
+
+[1] On Alpha, QEMU needs the gcc 'visibility' attribute only available
+    for gcc version >= 3.3.
+[2] Linux >= 2.4.20 is necessary for precise exception support
+    (untested).
+[3] 2.4.9-ac10-rmk2-np1-cerf2
+
+[4] gcc 2.95.x generates invalid code when using too many register
+variables. You must use gcc 3.x on PowerPC.
+@end example
 
 @section Windows
 

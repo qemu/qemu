@@ -1,0 +1,26 @@
+The following points clarify the QEMU licenses:
+
+1) The QEMU virtual CPU core library (libqemu.a) and the QEMU PC
+   system emulator are released under the GNU Lesser General Public
+   License.
+
+2) The Linux user mode QEMU emulator is released under the GNU General
+   Public License.
+
+3) The QEMU Accelerator Module is a proprietary product. It is
+   available without charge. Commercial use of the QEMU Accelerator
+   Module is allowed.
+   
+   Redistribution of the QEMU Accelerator Module: any person or
+   organisation wishing to distribute it, for example on a CD or as a
+   binary or source package, must have an explicit authorization from
+   the author.
+
+   The QEMU Accelerator Module is available without any express or
+   implied warranty. In no event will the author be held liable for
+   any damages arising from the use of this software.
+
+4) QEMU is a trademark of Fabrice Bellard.
+
+
+Fabrice Bellard.
