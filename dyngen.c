@@ -110,6 +110,12 @@ typedef uint64_t host_ulong;
 
 #include "thunk.h"
 
+enum {
+    OUT_GEN_OP,
+    OUT_CODE,
+    OUT_INDEX_OP,
+};
+
 /* all dynamically generated functions begin with this code */
 #define OP_PREFIX "op_"
 
@@ -1087,7 +1093,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 }
 
 /* load an elf object file */
-int load_elf(const char *filename, FILE *outfile, int do_print_enum)
+int load_elf(const char *filename, FILE *outfile, int out_type)
 {
     int fd;
     struct elf_shdr *sec, *symtab_sec, *strtab_sec, *text_sec;
@@ -1195,7 +1201,7 @@ int load_elf(const char *filename, FILE *outfile, int do_print_enum)
         }
     }
 
-    if (do_print_enum) {
+    if (out_type == OUT_INDEX_OP) {
         fprintf(outfile, "DEF(end, 0, 0)\n");
         for(i = 0, sym = symtab; i < nb_syms; i++, sym++) {
             const char *name, *p;
@@ -1205,6 +1211,20 @@ int load_elf(const char *filename, FILE *outfile, int do_print_enum)
                          text, relocs, nb_relocs, 2);
             }
         }
+    } else if (out_type == OUT_GEN_OP) {
+        /* generate gen_xxx functions */
+
+        for(i = 0, sym = symtab; i < nb_syms; i++, sym++) {
+            const char *name;
+            name = strtab + sym->st_name;
+            if (strstart(name, OP_PREFIX, NULL)) {
+                if (sym->st_shndx != (text_sec - shdr))
+                    error("invalid section for opcode (0x%x)", sym->st_shndx);
+                gen_code(name, sym->st_value, sym->st_size, outfile, 
+                         text, relocs, nb_relocs, 0);
+            }
+        }
+        
     } else {
         /* generate big code generation switch */
 fprintf(outfile,
@@ -1305,22 +1325,12 @@ fprintf(outfile,
     default:
 	error("unknown ELF architecture");
     }
-    
+    /* flush instruction cache */
+    fprintf(outfile, "flush_icache_range((unsigned long)gen_code_buf, (unsigned long)gen_code_ptr);\n");
+
     fprintf(outfile, "return gen_code_ptr -  gen_code_buf;\n");
     fprintf(outfile, "}\n\n");
 
-/* generate gen_xxx functions */
-/* XXX: suppress the use of these functions to simplify code */
-        for(i = 0, sym = symtab; i < nb_syms; i++, sym++) {
-            const char *name;
-            name = strtab + sym->st_name;
-            if (strstart(name, OP_PREFIX, NULL)) {
-                if (sym->st_shndx != (text_sec - shdr))
-                    error("invalid section for opcode (0x%x)", sym->st_shndx);
-                gen_code(name, sym->st_value, sym->st_size, outfile, 
-                         text, relocs, nb_relocs, 0);
-            }
-        }
     }
 
     close(fd);
@@ -1333,20 +1343,21 @@ void usage(void)
            "usage: dyngen [-o outfile] [-c] objfile\n"
            "Generate a dynamic code generator from an object file\n"
            "-c     output enum of operations\n"
+           "-g     output gen_op_xx() functions\n"
            );
     exit(1);
 }
 
 int main(int argc, char **argv)
 {
-    int c, do_print_enum;
+    int c, out_type;
     const char *filename, *outfilename;
     FILE *outfile;
 
     outfilename = "out.c";
-    do_print_enum = 0;
+    out_type = OUT_CODE;
     for(;;) {
-        c = getopt(argc, argv, "ho:c");
+        c = getopt(argc, argv, "ho:cg");
         if (c == -1)
             break;
         switch(c) {
@@ -1357,7 +1368,10 @@ int main(int argc, char **argv)
             outfilename = optarg;
             break;
         case 'c':
-            do_print_enum = 1;
+            out_type = OUT_INDEX_OP;
+            break;
+        case 'g':
+            out_type = OUT_GEN_OP;
             break;
         }
     }
@@ -1367,7 +1381,7 @@ int main(int argc, char **argv)
     outfile = fopen(outfilename, "w");
     if (!outfile)
         error("could not open '%s'", outfilename);
-    load_elf(filename, outfile, do_print_enum);
+    load_elf(filename, outfile, out_type);
     fclose(outfile);
     return 0;
 }
