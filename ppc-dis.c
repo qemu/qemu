@@ -3076,15 +3076,20 @@ static int print_insn_powerpc(FILE *, uint32_t insn, unsigned memaddr, int diale
 int print_insn_ppc (bfd_vma pc, disassemble_info *info)
 {
     uint32_t opc;
+    bfd_byte buf[4];
 
-    (*info->read_memory_func)(pc, (bfd_byte *)(&opc), 4, info);
-    return print_insn_powerpc (info->stream, tswap32(opc), pc,
+    (*info->read_memory_func)(pc, buf, 4, info);
+    if (info->endian == BFD_ENDIAN_BIG)
+        opc = bfd_getb32(buf);
+    else
+        opc = bfd_getl32(buf);
+    return print_insn_powerpc (info->stream, opc, pc,
                                PPC | B32 | M601);
 }
 
 /* Print a PowerPC or POWER instruction.  */
 
-int
+static int
 print_insn_powerpc (FILE *out, uint32_t insn, unsigned memaddr,
 		    int dialect)
 {
