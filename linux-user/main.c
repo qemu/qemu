@@ -23,9 +23,6 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
-#if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 3)
-#include <sys/personality.h>
-#endif
 
 #include "qemu.h"
 
@@ -35,12 +32,22 @@
 
 FILE *logfile = NULL;
 int loglevel;
-const char *interp_prefix = CONFIG_QEMU_PREFIX "/qemu-i386";
+static const char *interp_prefix = CONFIG_QEMU_PREFIX;
 
 #ifdef __i386__
 /* Force usage of an ELF interpreter even if it is an ELF shared
    object ! */
 const char interp[] __attribute__((section(".interp"))) = "/lib/ld-linux.so.2";
+
+/* for recent libc, we add these dummies symbol which are not declared
+   when generating a linked object (bug in ld ?) */
+#if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 3)
+long __init_array_start[0];
+long __init_array_end[0];
+long __fini_array_start[0];
+long __fini_array_end[0];
+#endif
+
 #endif
 
 /* XXX: on x86 MAP_GROWSDOWN only works if ESP <= address + 32, so
@@ -358,7 +365,7 @@ void usage(void)
            DEBUG_LOGFILE,
            interp_prefix, 
            x86_stack_size);
-    exit(1);
+    _exit(1);
 }
 
 /* XXX: currently only used for async signals (see signal.c) */
@@ -378,12 +385,6 @@ int main(int argc, char **argv)
     
     if (argc <= 1)
         usage();
-
-    /* Set personality to X86_LINUX.  May fail on unpatched kernels:
-       if so, they need to have munged paths themselves (eg. chroot,
-       hacked ld.so, whatever). */
-    if (personality(0x11) >= 0)
-	    interp_prefix = "";
 
     loglevel = 0;
     optind = 1;
@@ -423,7 +424,7 @@ int main(int argc, char **argv)
         logfile = fopen(DEBUG_LOGFILE, "w");
         if (!logfile) {
             perror(DEBUG_LOGFILE);
-            exit(1);
+            _exit(1);
         }
         setvbuf(logfile, NULL, _IOLBF, 0);
     }
@@ -434,9 +435,12 @@ int main(int argc, char **argv)
     /* Zero out image_info */
     memset(info, 0, sizeof(struct image_info));
 
-    if(elf_exec(interp_prefix, filename, argv+optind, environ, regs, info) != 0) {
+    /* Scan interp_prefix dir for replacement files. */
+    init_paths(interp_prefix);
+
+    if (elf_exec(filename, argv+optind, environ, regs, info) != 0) {
 	printf("Error loading %s\n", filename);
-	exit(1);
+	_exit(1);
     }
     
     if (loglevel) {
