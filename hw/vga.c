@@ -1124,7 +1124,10 @@ static void vga_draw_graphic(VGAState *s, int full_update)
     disp_width = width;
     
     shift_control = (s->gr[0x05] >> 5) & 3;
-    double_scan = (s->cr[0x09] & 0x80);
+    if (shift_control > 1)
+        double_scan = ((s->cr[0x09] & 0x1f) != 0);
+    else
+        double_scan = (s->cr[0x09] & 0x80);
     if (shift_control != s->shift_control ||
         double_scan != s->double_scan) {
         full_update = 1;
@@ -1151,7 +1154,6 @@ static void vga_draw_graphic(VGAState *s, int full_update)
     } else {
         full_update |= update_palette256(s);
         v = VGA_DRAW_LINE8D2;
-        double_scan = 1; /* XXX: explain me why it is always activated */
     }
     vga_draw_line = vga_draw_line_table[v * 4 + get_depth_index(s->ds->depth)];
 
