@@ -822,7 +822,7 @@ static inline void tb_alloc_page(TranslationBlock *tb,
     p->first_tb = (TranslationBlock *)((long)tb | n);
     invalidate_page_bitmap(p);
 
-#ifdef TARGET_HAS_SMC
+#if defined(TARGET_HAS_SMC) || 1
 
 #if defined(CONFIG_USER_ONLY)
     if (p->flags & PAGE_WRITE) {
