@@ -10,6 +10,9 @@ DEFINES+=-D_GNU_SOURCE
 ifndef CONFIG_WIN32
 TOOLS=qemu-mkcow
 endif
+ifdef CONFIG_STATIC
+LDFLAGS+=-static
+endif
 
 all: dyngen$(EXESUF) $(TOOLS) qemu-doc.html qemu-tech.html qemu.1
 	for d in $(TARGET_DIRS); do \
@@ -17,7 +20,7 @@ all: dyngen$(EXESUF) $(TOOLS) qemu-doc.html qemu-tech.html qemu.1
         done
 
 qemu-mkcow: qemu-mkcow.c
-	$(CC) $(CFLAGS) $(DEFINES) -o $@ $^ $(LIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(DEFINES) -o $@ $^ $(LIBS)
 
 dyngen$(EXESUF): dyngen.c
 	$(HOST_CC) $(CFLAGS) $(DEFINES) -o $@ $^
@@ -45,6 +48,8 @@ endif
 	mkdir -p "$(sharedir)"
 	install -m 644 pc-bios/bios.bin pc-bios/vgabios.bin \
                        pc-bios/linux_boot.bin "$(sharedir)"
+	mkdir -p "$(docdir)"
+	install -m 644 qemu-doc.html  qemu-tech.html "$(docdir)"
 ifndef CONFIG_WIN32
 	mkdir -p "$(mandir)/man1"
 	install qemu.1 qemu-mkcow.1 "$(mandir)/man1"
@@ -86,9 +91,13 @@ tarbin:
         $(prefix)/bin/qemu-arm \
         $(prefix)/bin/qemu-sparc \
         $(prefix)/bin/qemu-ppc \
+        $(prefix)/bin/qemu-mkcow \
 	$(sharedir)/bios.bin \
 	$(sharedir)/vgabios.bin \
-	$(mandir)/man1/qemu.1 )
+	$(sharedir)/linux_boot.bin \
+	$(docdir)/qemu-doc.html \
+	$(docdir)/qemu-tech.html \
+	$(mandir)/man1/qemu.1 $(mandir)/man1/qemu-mkcow.1 )
 
 ifneq ($(wildcard .depend),)
 include .depend

@@ -266,6 +266,7 @@ if test -z "$prefix" ; then
 fi
 mandir="$prefix"
 sharedir="$prefix"
+docdir="$prefix"
 bindir="$prefix"
 else
 if test -z "$prefix" ; then
@@ -273,6 +274,7 @@ if test -z "$prefix" ; then
 fi
 mandir="$prefix/share/man"
 sharedir="$prefix/share/qemu"
+docdir="$prefix/share/doc/qemu"
 bindir="$prefix/bin"
 fi
 
@@ -314,6 +316,7 @@ echo "prefix=$prefix" >> $config_mak
 echo "bindir=$bindir" >> $config_mak
 echo "mandir=$mandir" >> $config_mak
 echo "sharedir=$sharedir" >> $config_mak
+echo "docdir=$docdir" >> $config_mak
 echo "#define CONFIG_QEMU_SHAREDIR \"$sharedir\"" >> $config_h
 echo "MAKE=$make" >> $config_mak
 echo "CC=$cc" >> $config_mak
