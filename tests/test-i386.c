@@ -658,6 +658,43 @@ void test_fenv(void)
     TEST_ENV(&float_env32, "");
 }
 
+
+#define TEST_FCMOV(a, b, eflags, CC)\
+{\
+    double res;\
+    asm("push %3\n"\
+        "popf\n"\
+        "fcmov" CC " %2, %0\n"\
+        : "=t" (res)\
+        : "0" (a), "u" (b), "g" (eflags));\
+    printf("fcmov%s eflags=0x%04x-> %f\n", \
+           CC, eflags, res);\
+}
+
+void test_fcmov(void)
+{
+    double a, b;
+    int eflags, i;
+
+    a = 1.0;
+    b = 2.0;
+    for(i = 0; i < 4; i++) {
+        eflags = 0;
+        if (i & 1)
+            eflags |= CC_C;
+        if (i & 2)
+            eflags |= CC_Z;
+        TEST_FCMOV(a, b, eflags, "b");
+        TEST_FCMOV(a, b, eflags, "e");
+        TEST_FCMOV(a, b, eflags, "be");
+        TEST_FCMOV(a, b, eflags, "nb");
+        TEST_FCMOV(a, b, eflags, "ne");
+        TEST_FCMOV(a, b, eflags, "nbe");
+    }
+    TEST_FCMOV(a, b, 0, "u");
+    TEST_FCMOV(a, b, CC_P, "nu");
+}
+
 void test_floats(void)
 {
     test_fops(2, 3);
@@ -675,6 +712,9 @@ void test_floats(void)
     test_fbcd(1234567890123456);
     test_fbcd(-123451234567890);
     test_fenv();
+    if (TEST_CMOV) {
+        test_fcmov();
+    }
 }
 
 /**********************************************/
