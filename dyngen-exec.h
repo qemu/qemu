@@ -172,7 +172,7 @@ extern int __op_jmp0, __op_jmp1;
 #define EXIT_TB() asm volatile ("br.ret.sptk.many b0;;")
 #endif
 #ifdef __sparc__
-#define EXIT_TB() asm volatile ("jmpl %i0 + 8, %g0\n"
+#define EXIT_TB() asm volatile ("jmpl %i0 + 8, %g0\n" \
                                 "nop")
 #endif
 #ifdef __arm__

@@ -47,7 +47,8 @@ CFLAGS+=-m32 -ffixed-g1 -ffixed-g2 -ffixed-g3 -ffixed-g6
 LDFLAGS+=-m32
 OP_CFLAGS=$(CFLAGS) -fno-delayed-branch -ffixed-i0
 HELPER_CFLAGS=$(CFLAGS) -ffixed-i0 -mflat
-LDFLAGS+=-Wl,-T,sparc.ld
+# -static is used to avoid g1/g3 usage by the dynamic linker
+LDFLAGS+=-Wl,-T,sparc.ld -static
 endif
 
 ifeq ($(ARCH),sparc64)
