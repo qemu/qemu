@@ -1705,6 +1705,8 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
         validate_seg(R_DS, cpl);
         validate_seg(R_FS, cpl);
         validate_seg(R_GS, cpl);
+
+        sp += addend;
     }
     ESP = (ESP & ~sp_mask) | (sp & sp_mask);
     env->eip = new_eip;
