@@ -20,6 +20,40 @@
 #ifndef CPU_ALL_H
 #define CPU_ALL_H
 
+#if defined(__arm__) || defined(__sparc__)
+#define WORDS_ALIGNED
+#endif
+
+/* some important defines: 
+ * 
+ * WORDS_ALIGNED : if defined, the host cpu can only make word aligned
+ * memory accesses.
+ * 
+ * WORDS_BIGENDIAN : if defined, the host cpu is big endian and
+ * otherwise little endian.
+ * 
+ * (TARGET_WORDS_ALIGNED : same for target cpu (not supported yet))
+ * 
+ * TARGET_WORDS_BIGENDIAN : same for target cpu
+ */
+
+/* NOTE: arm is horrible as double 32 bit words are stored in big endian ! */
+typedef union {
+    double d;
+#if !defined(WORDS_BIGENDIAN) && !defined(__arm__)
+    struct {
+        uint32_t lower;
+        uint32_t upper;
+    } l;
+#else
+    struct {
+        uint32_t upper;
+        uint32_t lower;
+    } l;
+#endif
+    uint64_t ll;
+} CPU_DoubleU;
+
 /* CPU memory access without any memory or io remapping */
 
 static inline int ldub_raw(void *ptr)
@@ -40,7 +74,7 @@ static inline void stb_raw(void *ptr, int v)
 /* NOTE: on arm, putting 2 in /proc/sys/debug/alignment so that the
    kernel handles unaligned load/stores may give better results, but
    it is a system wide setting : bad */
-#if defined(WORDS_BIGENDIAN) || defined(__arm__)
+#if !defined(TARGET_WORDS_BIGENDIAN) && (defined(WORDS_BIGENDIAN) || defined(WORDS_ALIGNED))
 
 /* conservative code for little endian unaligned accesses */
 static inline int lduw_raw(void *ptr)
@@ -141,55 +175,23 @@ static inline void stfl_raw(void *ptr, float v)
     stl_raw(ptr, u.i);
 }
 
-
-#if defined(__arm__) && !defined(WORDS_BIGENDIAN)
-
-/* NOTE: arm is horrible as double 32 bit words are stored in big endian ! */
 static inline double ldfq_raw(void *ptr)
 {
-    union {
-        double d;
-        uint32_t tab[2];
-    } u;
-    u.tab[1] = ldl_raw(ptr);
-    u.tab[0] = ldl_raw(ptr + 4);
+    CPU_DoubleU u;
+    u.l.lower = ldl_raw(ptr);
+    u.l.upper = ldl_raw(ptr + 4);
     return u.d;
 }
 
 static inline void stfq_raw(void *ptr, double v)
 {
-    union {
-        double d;
-        uint32_t tab[2];
-    } u;
+    CPU_DoubleU u;
     u.d = v;
-    stl_raw(ptr, u.tab[1]);
-    stl_raw(ptr + 4, u.tab[0]);
+    stl_raw(ptr, u.l.lower);
+    stl_raw(ptr + 4, u.l.upper);
 }
 
-#else
-static inline double ldfq_raw(void *ptr)
-{
-    union {
-        double d;
-        uint64_t i;
-    } u;
-    u.i = ldq_raw(ptr);
-    return u.d;
-}
-
-static inline void stfq_raw(void *ptr, double v)
-{
-    union {
-        double d;
-        uint64_t i;
-    } u;
-    u.d = v;
-    stq_raw(ptr, u.i);
-}
-#endif
-
-#elif defined(TARGET_WORDS_BIGENDIAN) && !defined(WORDS_BIGENDIAN)
+#elif defined(TARGET_WORDS_BIGENDIAN) && (!defined(WORDS_BIGENDIAN) || defined(WORDS_ALIGNED))
 
 static inline int lduw_raw(void *ptr)
 {
@@ -235,8 +237,46 @@ static inline void stl_raw(void *ptr, int v)
 
 static inline void stq_raw(void *ptr, uint64_t v)
 {
-    stl_raw(ptr, v);
-    stl_raw(ptr+4, v >> 32);
+    stl_raw(ptr, v >> 32);
+    stl_raw(ptr + 4, v);
+}
+
+/* float access */
+
+static inline float ldfl_raw(void *ptr)
+{
+    union {
+        float f;
+        uint32_t i;
+    } u;
+    u.i = ldl_raw(ptr);
+    return u.f;
+}
+
+static inline void stfl_raw(void *ptr, float v)
+{
+    union {
+        float f;
+        uint32_t i;
+    } u;
+    u.f = v;
+    stl_raw(ptr, u.i);
+}
+
+static inline double ldfq_raw(void *ptr)
+{
+    CPU_DoubleU u;
+    u.l.upper = ldl_raw(ptr);
+    u.l.lower = ldl_raw(ptr + 4);
+    return u.d;
+}
+
+static inline void stfq_raw(void *ptr, double v)
+{
+    CPU_DoubleU u;
+    u.d = v;
+    stl_raw(ptr, u.l.upper);
+    stl_raw(ptr + 4, u.l.lower);
 }
 
 #else
@@ -330,10 +370,14 @@ static inline void stfq_raw(void *ptr, double v)
 #define lduw_kernel(p) lduw_raw(p)
 #define ldsw_kernel(p) ldsw_raw(p)
 #define ldl_kernel(p) ldl_raw(p)
+#define ldfl_kernel(p) ldfl_raw(p)
+#define ldfq_kernel(p) ldfq_raw(p)
 #define stb_kernel(p, v) stb_raw(p, v)
 #define stw_kernel(p, v) stw_raw(p, v)
 #define stl_kernel(p, v) stl_raw(p, v)
 #define stq_kernel(p, v) stq_raw(p, v)
+#define stfl_kernel(p, v) stfl_raw(p, v)
+#define stfq_kernel(p, vt) stfq_raw(p, v)
 
 #endif /* defined(CONFIG_USER_ONLY) */
 
