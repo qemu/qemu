@@ -497,7 +497,7 @@ void glue(vga_draw_cursor_line_, DEPTH)(uint8_t *d1,
 #else
 #error unsupported depth
 #endif
-        d += (DEPTH / 8);
+        d += BPP;
     }
 }
 #endif
