@@ -92,6 +92,35 @@ static void *call_start __init_call = NULL;
 #define OP_CC
 #include "test-i386-shift.h"
 
+#define OP shld
+#define OP_SHIFTD
+#define OP_NOBYTE
+#include "test-i386-shift.h"
+
+#define OP shrd
+#define OP_SHIFTD
+#define OP_NOBYTE
+#include "test-i386-shift.h"
+
+/* XXX: should be more precise ? */
+#undef CC_MASK
+#define CC_MASK (CC_C)
+
+#define OP bt
+#define OP_NOBYTE
+#include "test-i386-shift.h"
+
+#define OP bts
+#define OP_NOBYTE
+#include "test-i386-shift.h"
+
+#define OP btr
+#define OP_NOBYTE
+#include "test-i386-shift.h"
+
+#define OP btc
+#define OP_NOBYTE
+#include "test-i386-shift.h"
 
 /* lea test (modrm support) */
 #define TEST_LEA(STR)\
@@ -403,15 +432,13 @@ int main(int argc, char **argv)
     void **ptr;
     void (*func)(void);
 
-    test_mul();
-#if 0
     ptr = &call_start + 1;
     while (*ptr != NULL) {
         func = *ptr++;
         func();
     }
+    test_mul();
     test_jcc();
     test_lea();
-#endif
     return 0;
 }

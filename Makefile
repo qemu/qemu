@@ -84,6 +84,7 @@ dis-asm.h    gen-i386.h  op-i386.h         syscall.c\
 dis-buf.c    i386-dis.c  opreg_template.h  syscall_defs.h\
 i386.ld ppc.ld\
 tests/test-i386.c tests/test-i386-shift.h tests/test-i386.h\
+tests/test-i386-muldiv.h\
 tests/test2.c tests/hello.c tests/sha1.c tests/test1.c
 
 FILE=gemu-$(VERSION)

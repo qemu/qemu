@@ -394,6 +394,28 @@ static GenOpFunc *gen_op_shift_T0_T1_cc[3][8] = {
     },
 };
 
+static GenOpFunc1 *gen_op_shiftd_T0_T1_im_cc[2][2] = {
+    [0] = {
+        gen_op_shldw_T0_T1_im_cc,
+        gen_op_shrdw_T0_T1_im_cc,
+    },
+    [1] = {
+        gen_op_shldl_T0_T1_im_cc,
+        gen_op_shrdl_T0_T1_im_cc,
+    },
+};
+
+static GenOpFunc *gen_op_shiftd_T0_T1_ECX_cc[2][2] = {
+    [0] = {
+        gen_op_shldw_T0_T1_ECX_cc,
+        gen_op_shrdw_T0_T1_ECX_cc,
+    },
+    [1] = {
+        gen_op_shldl_T0_T1_ECX_cc,
+        gen_op_shrdl_T0_T1_ECX_cc,
+    },
+};
+
 static GenOpFunc *gen_op_btx_T0_T1_cc[2][4] = {
     [0] = {
         gen_op_btw_T0_T1_cc,
@@ -1689,6 +1711,59 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
         shift = 0;
         goto grp2;
 
+    case 0x1a4: /* shld imm */
+        op = 0;
+        shift = 1;
+        goto do_shiftd;
+    case 0x1a5: /* shld cl */
+        op = 0;
+        shift = 0;
+        goto do_shiftd;
+    case 0x1ac: /* shrd imm */
+        op = 1;
+        shift = 1;
+        goto do_shiftd;
+    case 0x1ad: /* shrd cl */
+        op = 1;
+        shift = 0;
+    do_shiftd:
+        ot = dflag ? OT_LONG : OT_WORD;
+        modrm = ldub(s->pc++);
+        mod = (modrm >> 6) & 3;
+        rm = modrm & 7;
+        reg = (modrm >> 3) & 7;
+        
+        if (mod != 3) {
+            gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+            gen_op_ld_T0_A0[ot]();
+        } else {
+            gen_op_mov_TN_reg[ot][0][rm]();
+        }
+        gen_op_mov_TN_reg[ot][1][reg]();
+        
+        if (shift) {
+            val = ldub(s->pc++);
+            val &= 0x1f;
+            if (val) {
+                gen_op_shiftd_T0_T1_im_cc[ot - OT_WORD][op](val);
+                if (op == 0 && ot != OT_WORD)
+                    s->cc_op = CC_OP_SHLB + ot;
+                else
+                    s->cc_op = CC_OP_SARB + ot;
+            }
+        } else {
+            if (s->cc_op != CC_OP_DYNAMIC)
+                gen_op_set_cc_op(s->cc_op);
+            gen_op_shiftd_T0_T1_ECX_cc[ot - OT_WORD][op]();
+            s->cc_op = CC_OP_DYNAMIC; /* cannot predict flags after */
+        }
+        if (mod != 3) {
+            gen_op_st_T0_A0[ot]();
+        } else {
+            gen_op_mov_reg_T0[ot][rm]();
+        }
+        break;
+
         /************************/
         /* floats */
     case 0xd8 ... 0xdf: 
@@ -2002,6 +2077,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
                     break;
 #endif
                 default:
+                    error("unhandled FP df/4\n");
                     return -1;
                 }
                 break;
@@ -2291,7 +2367,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
             return -1;
         op -= 4;
         gen_op_btx_T0_T1_cc[ot - OT_WORD][op]();
-        s->cc_op = CC_OP_SHLB + ot;
+        s->cc_op = CC_OP_SARB + ot;
         if (op != 0) {
             if (mod != 3)
                 gen_op_st_T0_A0[ot]();
@@ -2329,7 +2405,7 @@ long disas_insn(DisasContext *s, uint8_t *pc_start, int *is_jmp_ptr)
             gen_op_mov_TN_reg[ot][0][rm]();
         }
         gen_op_btx_T0_T1_cc[ot - OT_WORD][op]();
-        s->cc_op = CC_OP_SHLB + ot;
+        s->cc_op = CC_OP_SARB + ot;
         if (op != 0) {
             if (mod != 3)
                 gen_op_st_T0_A0[ot]();
@@ -2417,7 +2493,8 @@ int cpu_x86_gen_code(uint8_t *gen_code_buf, int *gen_code_size_ptr,
     is_jmp = 0;
     ret = disas_insn(dc, pc_start, &is_jmp);
     if (ret == -1) 
-        error("unknown instruction at PC=0x%x", pc_start);
+        error("unknown instruction at PC=0x%x B=%02x %02x", 
+              pc_start, pc_start[0], pc_start[1]);
     /* we must store the eflags state if it is not already done */
     if (dc->cc_op != CC_OP_DYNAMIC)
         gen_op_set_cc_op(dc->cc_op);

@@ -149,9 +149,8 @@ typedef struct CPUX86State {
     uint32_t segs[6];
 
     /* emulator internal variables */
-    
     CPU86_LDouble ft0;
-
+    
     /* exception handling */
     jmp_buf jmp_env;
     int exception_index;
