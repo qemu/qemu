@@ -113,7 +113,7 @@ void __attribute__((noreturn)) error(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    fprintf(stderr, "qemuimg: ");
+    fprintf(stderr, "qemu-img: ");
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n");
     exit(1);
@@ -127,8 +127,8 @@ static void format_print(void *opaque, const char *name)
 
 void help(void)
 {
-    printf("qemuimg version " QEMU_VERSION ", Copyright (c) 2004 Fabrice Bellard\n"
-           "usage: qemuimg command [command options]\n"
+    printf("qemu-img version " QEMU_VERSION ", Copyright (c) 2004 Fabrice Bellard\n"
+           "usage: qemu-img command [command options]\n"
            "QEMU disk image utility\n"
            "\n"
            "Command syntax:\n"
@@ -592,6 +592,24 @@ static int img_convert(int argc, char **argv)
     return 0;
 }
 
+#ifdef _WIN32
+static int64_t get_allocated_file_size(const char *filename)
+{
+    struct _stati64 st;
+    if (_stati64(filename, &st) < 0) 
+        return -1;
+    return st.st_size;
+}
+#else
+static int64_t get_allocated_file_size(const char *filename)
+{
+    struct stat st;
+    if (stat(filename, &st) < 0) 
+        return -1;
+    return (int64_t)st.st_blocks * 512;
+}
+#endif
+
 static int img_info(int argc, char **argv)
 {
     int c;
@@ -599,8 +617,7 @@ static int img_info(int argc, char **argv)
     BlockDriver *drv;
     BlockDriverState *bs;
     char fmt_name[128], size_buf[128], dsize_buf[128];
-    int64_t total_sectors;
-    struct stat st;
+    int64_t total_sectors, allocated_size;
 
     fmt = NULL;
     for(;;) {
@@ -637,10 +654,11 @@ static int img_info(int argc, char **argv)
     bdrv_get_format(bs, fmt_name, sizeof(fmt_name));
     bdrv_get_geometry(bs, &total_sectors);
     get_human_readable_size(size_buf, sizeof(size_buf), total_sectors * 512);
-    if (stat(filename, &st) < 0) 
-        error("Could not stat '%s'", filename);
+    allocated_size = get_allocated_file_size(filename);
+    if (allocated_size < 0)
+        error("Could not get file size '%s'", filename);
     get_human_readable_size(dsize_buf, sizeof(dsize_buf), 
-                            (int64_t)st.st_blocks * 512);
+                            allocated_size);
     printf("image: %s\n"
            "file format: %s\n"
            "virtual size: %s (%lld bytes)\n"
