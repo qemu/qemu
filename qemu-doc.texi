@@ -443,6 +443,10 @@ usually mounted on it (check with the shell command
 @var{QEMU_TMPDIR} shell variable to set a new directory for the QEMU
 RAM file.
 
+KQEMU has only been tested with Linux 2.4, Linux 2.6 and Windows 2000
+as guest OSes. If your guest OS do not work with KQEMU, you can
+dynamically disable KQEMU with the @option{-no-kqemu} option.
+
 @section QEMU Monitor
 
 The QEMU monitor is used to give complex commands to the QEMU
