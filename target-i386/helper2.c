@@ -34,9 +34,14 @@
 #ifdef USE_CODE_COPY
 #include <asm/ldt.h>
 #include <linux/unistd.h>
+#include <linux/version.h>
 
 _syscall3(int, modify_ldt, int, func, void *, ptr, unsigned long, bytecount)
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 66)
+#define modify_ldt_ldt_s user_desc
 #endif
+#endif /* USE_CODE_COPY */
 
 CPUX86State *cpu_x86_init(void)
 {

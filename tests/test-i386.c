@@ -884,8 +884,13 @@ void test_xchg(void)
 
 #include <asm/ldt.h>
 #include <linux/unistd.h>
+#include <linux/version.h>
 
 _syscall3(int, modify_ldt, int, func, void *, ptr, unsigned long, bytecount)
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 66)
+#define modify_ldt_ldt_s user_desc
+#endif
 
 uint8_t seg_data1[4096];
 uint8_t seg_data2[4096];
