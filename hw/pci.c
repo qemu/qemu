@@ -316,7 +316,18 @@ static uint32_t pci_data_read(void *opaque, uint32_t addr,
     pci_dev = bus[(s->config_reg >> 8) & 0xff];
     if (!pci_dev) {
     fail:
-        val = 0;
+        switch(len) {
+        case 1:
+            val = 0xff;
+            break;
+        case 2:
+            val = 0xffff;
+            break;
+        default:
+        case 4:
+            val = 0xffffffff;
+            break;
+        }
         goto the_end;
     }
     config_addr = (s->config_reg & 0xfc) | (addr & 3);
@@ -682,16 +693,24 @@ static void pci_bios_init_device(PCIDevice *d)
     int class;
     PCIIORegion *r;
     uint32_t *paddr;
-    int i, pin, pic_irq;
+    int i, pin, pic_irq, vendor_id, device_id;
 
-    class = d->config[0x0a] | (d->config[0x0b] << 8);
+    class = pci_config_readw(d, PCI_CLASS_DEVICE);
     switch(class) {
     case 0x0101:
-        /* IDE: we map it as in ISA mode */
-        pci_set_io_region_addr(d, 0, 0x1f0);
-        pci_set_io_region_addr(d, 1, 0x3f4);
-        pci_set_io_region_addr(d, 2, 0x170);
-        pci_set_io_region_addr(d, 3, 0x374);
+        vendor_id = pci_config_readw(d, PCI_VENDOR_ID);
+        device_id = pci_config_readw(d, PCI_DEVICE_ID);
+        if (vendor_id == 0x8086 && device_id == 0x7010) {
+            /* PIIX3 IDE */
+            pci_config_writew(d, PCI_COMMAND, PCI_COMMAND_IO);
+            pci_config_writew(d, 0x40, 0x8000); // enable IDE0
+        } else {
+            /* IDE: we map it as in ISA mode */
+            pci_set_io_region_addr(d, 0, 0x1f0);
+            pci_set_io_region_addr(d, 1, 0x3f4);
+            pci_set_io_region_addr(d, 2, 0x170);
+            pci_set_io_region_addr(d, 3, 0x374);
+        }
         break;
     case 0x0300:
         /* VGA: map frame buffer to default Bochs VBE address */
