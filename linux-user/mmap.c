@@ -188,6 +188,11 @@ long target_mmap(unsigned long start, unsigned long len, int prot,
     host_start = start & host_page_mask;
 
     if (!(flags & MAP_FIXED)) {
+#ifdef __alpha__
+        /* tell the kenel to search at the same place as i386 */
+        if (host_start == 0)
+            host_start = 0x40000000;
+#endif
         if (host_page_size != real_host_page_size) {
             /* NOTE: this code is only for debugging with '-p' option */
             /* reserve a memory area */
@@ -286,6 +291,7 @@ long target_mmap(unsigned long start, unsigned long len, int prot,
     page_set_flags(start, start + len, prot | PAGE_VALID);
  the_end:
 #ifdef DEBUG_MMAP
+    printf("ret=0x%lx\n", (long)start);
     page_dump(stdout);
     printf("\n");
 #endif
