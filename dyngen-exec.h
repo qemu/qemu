@@ -211,12 +211,14 @@ extern int __op_jmp0, __op_jmp1, __op_jmp2, __op_jmp3;
 
 #ifdef __i386__
 #define EXIT_TB() asm volatile ("ret")
+#define GOTO_LABEL_PARAM(n) asm volatile ("jmp __op_gen_label" #n)
 #endif
 #ifdef __x86_64__
 #define EXIT_TB() asm volatile ("ret")
 #endif
 #ifdef __powerpc__
 #define EXIT_TB() asm volatile ("blr")
+#define GOTO_LABEL_PARAM(n) asm volatile ("b __op_gen_label" #n)
 #endif
 #ifdef __s390__
 #define EXIT_TB() asm volatile ("br %r14")

@@ -54,7 +54,7 @@
 #define elf_check_arch(x) ( ((x) == EM_386) || ((x) == EM_486) )
 #undef ELF_USES_RELOCA
 
-#elif defined(HOST_AMD64)
+#elif defined(HOST_X86_64)
 
 #define ELF_CLASS	ELFCLASS64
 #define ELF_ARCH	EM_X86_64
@@ -1307,7 +1307,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
     p_start = text + offset;
     p_end = p_start + size;
     start_offset = offset;
-#if defined(HOST_I386) || defined(HOST_AMD64)
+#if defined(HOST_I386) || defined(HOST_X86_64)
 #ifdef CONFIG_FORMAT_COFF
     {
         uint8_t *p;
@@ -1482,7 +1482,8 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
             sym_name = get_rel_sym_name(rel);
             if(!sym_name)
                 continue;
-            if (strstart(sym_name, "__op_param", &p)) {
+            if (strstart(sym_name, "__op_param", &p) ||
+                strstart(sym_name, "__op_gen_label", &p)) {
                 n = strtoul(p, NULL, 10);
                 if (n > MAX_ARGS)
                     error("too many arguments in %s", name);
@@ -1525,7 +1526,8 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                     continue;
                 if (*sym_name && 
                     !strstart(sym_name, "__op_param", NULL) &&
-                    !strstart(sym_name, "__op_jmp", NULL)) {
+                    !strstart(sym_name, "__op_jmp", NULL) &&
+                    !strstart(sym_name, "__op_gen_label", NULL)) {
 #if defined(HOST_SPARC)
 		    if (sym_name[0] == '.') {
 			fprintf(outfile,
@@ -1604,8 +1606,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                         }
                     }
 #endif                    
-
-                    if (val >= start_offset && val < start_offset + copy_size) {
+                    if (val >= start_offset && val <= start_offset + copy_size) {
                         n = strtol(p, NULL, 10);
                         fprintf(outfile, "    label_offsets[%d] = %ld + (gen_code_ptr - gen_code_buf);\n", n, val - start_offset);
                     }
@@ -1642,6 +1643,8 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                         
                     if (strstart(sym_name, "__op_param", &p)) {
                         snprintf(name, sizeof(name), "param%s", p);
+                    } else if (strstart(sym_name, "__op_gen_label", &p)) {
+                        snprintf(name, sizeof(name), "gen_labels[param%s]", p);
                     } else {
                         snprintf(name, sizeof(name), "(long)(&%s)", sym_name);
                     }
@@ -1693,7 +1696,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                 }
                 }
             }
-#elif defined(HOST_AMD64)
+#elif defined(HOST_X86_64)
             {
                 char name[256];
                 int type;
@@ -1723,7 +1726,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                                 rel->r_offset - start_offset, name, rel->r_offset - start_offset, addend);
                         break;
                     default:
-                        error("unsupported AMD64 relocation (%d)", type);
+                        error("unsupported X86_64 relocation (%d)", type);
                     }
                 }
                 }
@@ -2232,7 +2235,7 @@ int gen_file(FILE *outfile, int out_type)
         }
     } else if (out_type == OUT_GEN_OP) {
         /* generate gen_xxx functions */
-
+        fprintf(outfile, "#include \"dyngen-op.h\"\n");
         for(i = 0, sym = symtab; i < nb_syms; i++, sym++) {
             const char *name;
             name = get_sym_name(sym);
@@ -2250,7 +2253,7 @@ int gen_file(FILE *outfile, int out_type)
 fprintf(outfile,
 "int dyngen_code(uint8_t *gen_code_buf,\n"
 "                uint16_t *label_offsets, uint16_t *jmp_offsets,\n"
-"                const uint16_t *opc_buf, const uint32_t *opparam_buf)\n"
+"                const uint16_t *opc_buf, const uint32_t *opparam_buf, const long *gen_labels)\n"
 "{\n"
 "    uint8_t *gen_code_ptr;\n"
 "    const uint16_t *opc_ptr;\n"

@@ -42,12 +42,15 @@ enum {
 
 uint16_t gen_opc_buf[OPC_BUF_SIZE];
 uint32_t gen_opparam_buf[OPPARAM_BUF_SIZE];
-uint32_t gen_opc_pc[OPC_BUF_SIZE];
+long gen_labels[OPC_BUF_SIZE];
+int nb_gen_labels;
+
+target_ulong gen_opc_pc[OPC_BUF_SIZE];
 uint8_t gen_opc_instr_start[OPC_BUF_SIZE];
 #if defined(TARGET_I386)
 uint8_t gen_opc_cc_op[OPC_BUF_SIZE];
 #elif defined(TARGET_SPARC)
-uint32_t gen_opc_npc[OPC_BUF_SIZE];
+target_ulong gen_opc_npc[OPC_BUF_SIZE];
 #endif
 
 int code_copy_enabled = 1;
@@ -61,6 +64,12 @@ static const char *op_str[] = {
 
 static uint8_t op_nb_args[] = {
 #define DEF(s, n, copy_size) n,
+#include "opc.h"
+#undef DEF
+};
+
+static const unsigned short opc_copy_size[] = {
+#define DEF(s, n, copy_size) copy_size,
 #include "opc.h"
 #undef DEF
 };
@@ -89,6 +98,35 @@ void dump_ops(const uint16_t *opc_buf, const uint32_t *opparam_buf)
 }
 
 #endif
+
+/* compute label info */
+static void dyngen_labels(long *gen_labels, int nb_gen_labels,
+                          uint8_t *gen_code_buf, const uint16_t *opc_buf)
+{
+    uint8_t *gen_code_ptr;
+    int c, i;
+    unsigned long gen_code_addr[OPC_BUF_SIZE];
+    
+    if (nb_gen_labels == 0)
+        return;
+    /* compute the address of each op code */
+    
+    gen_code_ptr = gen_code_buf;
+    i = 0;
+    for(;;) {
+        c = opc_buf[i];
+        gen_code_addr[i] =(unsigned long)gen_code_ptr;
+        if (c == INDEX_op_end)
+            break;
+        gen_code_ptr += opc_copy_size[c];
+        i++;
+    }
+    
+    /* compute the address of each label */
+    for(i = 0; i < nb_gen_labels; i++) {
+        gen_labels[i] = gen_code_addr[gen_labels[i]];
+    }
+}
 
 /* return non zero if the very first instruction is invalid so that
    the virtual CPU can trigger an exception. 
@@ -121,31 +159,27 @@ int cpu_gen_code(CPUState *env, TranslationBlock *tb,
         tb->tb_jmp_offset[2] = 0xffff;
         tb->tb_jmp_offset[3] = 0xffff;
 #endif
+        dyngen_labels(gen_labels, nb_gen_labels, gen_code_buf, gen_opc_buf);
+
         gen_code_size = dyngen_code(gen_code_buf, tb->tb_next_offset,
 #ifdef USE_DIRECT_JUMP
                                     tb->tb_jmp_offset,
 #else
                                     NULL,
 #endif
-                                    gen_opc_buf, gen_opparam_buf);
+                                    gen_opc_buf, gen_opparam_buf, gen_labels);
     }
     *gen_code_size_ptr = gen_code_size;
 #ifdef DEBUG_DISAS
     if (loglevel & CPU_LOG_TB_OUT_ASM) {
         fprintf(logfile, "OUT: [size=%d]\n", *gen_code_size_ptr);
-        disas(logfile, tb->tc_ptr, *gen_code_size_ptr, 1, 0);
+        disas(logfile, tb->tc_ptr, *gen_code_size_ptr);
         fprintf(logfile, "\n");
         fflush(logfile);
     }
 #endif
     return 0;
 }
-
-static const unsigned short opc_copy_size[] = {
-#define DEF(s, n, copy_size) copy_size,
-#include "opc.h"
-#undef DEF
-};
 
 /* The cpu state corresponding to 'searched_pc' is restored. 
  */
@@ -193,11 +227,12 @@ int cpu_restore_state(TranslationBlock *tb,
             fprintf(logfile, "RESTORE:\n");
             for(i=0;i<=j; i++) {
                 if (gen_opc_instr_start[i]) {
-                    fprintf(logfile, "0x%04x: 0x%08x\n", i, gen_opc_pc[i]);
+                    fprintf(logfile, "0x%04x: " TARGET_FMT_lx "\n", i, gen_opc_pc[i]);
                 }
             }
-            fprintf(logfile, "spc=0x%08lx j=0x%x eip=0x%x cs_base=%x\n", 
-                    searched_pc, j, gen_opc_pc[j] - tb->cs_base, tb->cs_base);
+            fprintf(logfile, "spc=0x%08lx j=0x%x eip=" TARGET_FMT_lx " cs_base=%x\n", 
+                    searched_pc, j, gen_opc_pc[j] - tb->cs_base, 
+                    (uint32_t)tb->cs_base);
         }
 #endif
         env->eip = gen_opc_pc[j] - tb->cs_base;

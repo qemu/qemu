@@ -19,6 +19,7 @@
  */
 
 int __op_param1, __op_param2, __op_param3;
+int __op_gen_label1, __op_gen_label2, __op_gen_label3;
 int __op_jmp0, __op_jmp1, __op_jmp2, __op_jmp3;
 
 #ifdef __i386__
@@ -203,6 +204,3 @@ static uint8_t *arm_flush_ldr(uint8_t *gen_code_ptr,
 }
 
 #endif /* __arm__ */
-
-                       
-                   
