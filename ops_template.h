@@ -609,6 +609,7 @@ void OPPROTO glue(glue(op_shld, SUFFIX), _T0_T1_ECX_cc)(void)
         CC_DST = T0;
         CC_OP = CC_OP_SARB + SHIFT;
     }
+    FORCE_RET();
 }
 
 void OPPROTO glue(glue(op_shrd, SUFFIX), _T0_T1_im_cc)(void)
@@ -643,6 +644,7 @@ void OPPROTO glue(glue(op_shrd, SUFFIX), _T0_T1_ECX_cc)(void)
         CC_DST = T0;
         CC_OP = CC_OP_SARB + SHIFT;
     }
+    FORCE_RET();
 }
 #endif
 
@@ -670,6 +672,7 @@ void OPPROTO glue(glue(op_shld, SUFFIX), _T0_T1_ECX_cc)(void)
         CC_DST = T0;
         CC_OP = CC_OP_SHLB + SHIFT;
     }
+    FORCE_RET();
 }
 
 void OPPROTO glue(glue(op_shrd, SUFFIX), _T0_T1_im_cc)(void)
@@ -696,6 +699,7 @@ void OPPROTO glue(glue(op_shrd, SUFFIX), _T0_T1_ECX_cc)(void)
         CC_DST = T0;
         CC_OP = CC_OP_SARB + SHIFT;
     }
+    FORCE_RET();
 }
 #endif
 
