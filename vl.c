@@ -3461,8 +3461,12 @@ int main(int argc, char **argv)
         help();
     
     /* boot to cd by default if no hard disk */
-    if (hd_filename[0] == '\0' && boot_device == 'c')
-        boot_device = 'd';
+    if (hd_filename[0] == '\0' && boot_device == 'c') {
+        if (fd_filename[0] != '\0')
+            boot_device = 'a';
+        else
+            boot_device = 'd';
+    }
 
 #if !defined(CONFIG_SOFTMMU)
     /* must avoid mmap() usage of glibc by setting a buffer "by hand" */
