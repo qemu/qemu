@@ -27,7 +27,10 @@ clean:
         done
 
 distclean: clean
-	rm -f config.mak config.h
+	rm -f config-host.mak config-host.h config.mak config.h
+	for d in $(TARGET_DIRS); do \
+	rm -f $$d/config.h $$d/config.mak || exit 1 ; \
+        done
 
 install: all 
 	mkdir -p $(prefix)/bin
@@ -49,16 +52,17 @@ qemu-doc.html: qemu-doc.texi
 
 FILES= \
 README README.distrib COPYING COPYING.LIB TODO Changelog VERSION \
-configure \
+configure Makefile Makefile.target \
 dyngen.c dyngen.h dyngen-exec.h ioctls.h syscall_types.h \
-Makefile elf.h elfload.c main.c signal.c qemu.h \
+elf.h elfload.c main.c signal.c qemu.h \
 syscall.c syscall_defs.h vm86.c path.c mmap.c \
-i386.ld ppc.ld alpha.ld s390.ld sparc.ld arm.ld\
-vl.c i386-vl.ld vl.h block.c vlmkcow.c\
-thunk.c cpu-exec.c translate.c cpu-all.h thunk.h exec.h\
-exec.c cpu-exec.c gdbstub.c\
-cpu-i386.h op-i386.c helper-i386.c syscall-i386.h translate-i386.c \
+i386.ld ppc.ld alpha.ld s390.ld sparc.ld arm.ld m68k.ld \
+vl.c i386-vl.ld vl.h block.c vlmkcow.c vga.c vga_template.h sdl.c \
+thunk.c cpu-exec.c translate.c cpu-all.h cpu-defs.h thunk.h exec.h\
+exec.c cpu-exec.c gdbstub.c bswap.h \
+cpu-i386.h op-i386.c helper-i386.c helper2-i386.c syscall-i386.h translate-i386.c \
 exec-i386.h ops_template.h ops_template_mem.h op_string.h opreg_template.h \
+ops_mem.h softmmu_template.h softmmu_header.h \
 cpu-arm.h syscall-arm.h exec-arm.h op-arm.c translate-arm.c op-arm-template.h \
 dis-asm.h disas.c disas.h alpha-dis.c ppc-dis.c i386-dis.c sparc-dis.c \
 arm-dis.c \
