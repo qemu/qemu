@@ -1789,8 +1789,9 @@ void cpu_register_physical_memory(target_phys_addr_t start_addr,
     unsigned long addr, end_addr;
     PhysPageDesc *p;
 
+    size = (size + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK;
     end_addr = start_addr + size;
-    for(addr = start_addr; addr < end_addr; addr += TARGET_PAGE_SIZE) {
+    for(addr = start_addr; addr != end_addr; addr += TARGET_PAGE_SIZE) {
         p = phys_page_find_alloc(addr >> TARGET_PAGE_BITS);
         p->phys_offset = phys_offset;
         if ((phys_offset & ~TARGET_PAGE_MASK) <= IO_MEM_ROM)
