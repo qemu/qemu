@@ -59,7 +59,9 @@ uint16_t gen_opc_buf[OPC_BUF_SIZE];
 uint32_t gen_opparam_buf[OPPARAM_BUF_SIZE];
 uint32_t gen_opc_pc[OPC_BUF_SIZE];
 uint8_t gen_opc_instr_start[OPC_BUF_SIZE];
-
+#if defined(TARGET_I386)
+uint8_t gen_opc_cc_op[OPC_BUF_SIZE];
+#endif
 
 #ifdef DEBUG_DISAS
 static const char *op_str[] = {
@@ -111,7 +113,7 @@ int cpu_gen_code(TranslationBlock *tb,
     uint8_t *gen_code_buf;
     int gen_code_size;
 
-    if (gen_intermediate_code(tb, 0) < 0)
+    if (gen_intermediate_code(tb) < 0)
         return -1;
 
     /* generate machine code */
@@ -143,18 +145,16 @@ static const unsigned short opc_copy_size[] = {
 #undef DEF
 };
 
-/* The simulated PC corresponding to
-   'searched_pc' in the generated code is searched. 0 is returned if
-   found. *found_pc contains the found PC. 
+/* The cpu state corresponding to 'searched_pc' is restored. 
  */
-int cpu_search_pc(TranslationBlock *tb, 
-                  uint32_t *found_pc, unsigned long searched_pc)
+int cpu_restore_state(TranslationBlock *tb, 
+                      CPUState *env, unsigned long searched_pc)
 {
     int j, c;
     unsigned long tc_ptr;
     uint16_t *opc_ptr;
 
-    if (gen_intermediate_code(tb, 1) < 0)
+    if (gen_intermediate_code_pc(tb) < 0)
         return -1;
     
     /* find opc index corresponding to search_pc */
@@ -176,7 +176,18 @@ int cpu_search_pc(TranslationBlock *tb,
     /* now find start of instruction before */
     while (gen_opc_instr_start[j] == 0)
         j--;
-    *found_pc = gen_opc_pc[j];
+#if defined(TARGET_I386)
+    {
+        int cc_op;
+        
+        env->eip = gen_opc_pc[j] - tb->cs_base;
+        cc_op = gen_opc_cc_op[j];
+        if (cc_op != CC_OP_DYNAMIC)
+            env->cc_op = cc_op;
+    }
+#elif defined(TARGET_ARM)
+    env->regs[15] = gen_opc_pc[j];
+#endif
     return 0;
 }
 
