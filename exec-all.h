@@ -126,6 +126,8 @@ int tlb_set_page(CPUState *env, target_ulong vaddr,
 
 #if defined(__alpha__)
 #define CODE_GEN_BUFFER_SIZE     (2 * 1024 * 1024)
+#elif defined(__ia64)
+#define CODE_GEN_BUFFER_SIZE     (4 * 1024 * 1024)	/* range of addl */
 #elif defined(__powerpc__)
 #define CODE_GEN_BUFFER_SIZE     (6 * 1024 * 1024)
 #else
@@ -484,6 +486,15 @@ static inline int testandset (int *p)
                          : "m" (p)
                          : "cc","memory");
     return ret;
+}
+#endif
+
+#ifdef __ia64
+#include <ia64intrin.h>
+
+static inline int testandset (int *p)
+{
+    return __sync_lock_test_and_set (p, 1);
 }
 #endif
 

@@ -573,6 +573,15 @@ int cpu_exec(CPUState *env1)
             );
     }
 }
+#elif defined(__ia64)
+		struct fptr {
+			void *ip;
+			void *gp;
+		} fp;
+
+		fp.ip = tc_ptr;
+		fp.gp = code_gen_buffer + 2 * (1 << 20);
+		(*(void (*)(void)) &fp)();
 #else
                 gen_func();
 #endif
@@ -1114,6 +1123,40 @@ int cpu_signal_handler(int host_signum, struct siginfo *info,
     /* XXX: compute is_write */
     is_write = 0;
     return handle_cpu_signal(pc, (unsigned long)info->si_addr, 
+                             is_write,
+                             &uc->uc_sigmask, puc);
+}
+
+#elif defined(__ia64)
+
+#ifndef __ISR_VALID
+  /* This ought to be in <bits/siginfo.h>... */
+# define __ISR_VALID	1
+# define si_flags	_sifields._sigfault._si_pad0
+#endif
+
+int cpu_signal_handler(int host_signum, struct siginfo *info, void *puc)
+{
+    struct ucontext *uc = puc;
+    unsigned long ip;
+    int is_write = 0;
+
+    ip = uc->uc_mcontext.sc_ip;
+    switch (host_signum) {
+      case SIGILL:
+      case SIGFPE:
+      case SIGSEGV:
+      case SIGBUS:
+      case SIGTRAP:
+	  if (info->si_code && (info->si_flags & __ISR_VALID))
+	      /* ISR.W (write-access) is bit 33:  */
+	      is_write = (info->si_isr >> 33) & 1;
+	  break;
+
+      default:
+	  break;
+    }
+    return handle_cpu_signal(ip, (unsigned long)info->si_addr,
                              is_write,
                              &uc->uc_sigmask, puc);
 }

@@ -143,7 +143,8 @@ void target_disas(FILE *out, target_ulong code, target_ulong size, int flags)
 #elif defined(TARGET_PPC)
     print_insn = print_insn_ppc;
 #else
-    fprintf(out, "Asm output not supported on this arch\n");
+    fprintf(out, "0x" TARGET_FMT_lx
+	    ": Asm output not supported on this arch\n", code);
     return;
 #endif
 
@@ -202,7 +203,8 @@ void disas(FILE *out, void *code, unsigned long size)
 #elif defined(__arm__) 
     print_insn = print_insn_arm;
 #else
-    fprintf(out, "Asm output not supported on this arch\n");
+    fprintf(out, "0x%lx: Asm output not supported on this arch\n",
+	    (long) code);
     return;
 #endif
     for (pc = (unsigned long)code; pc < (unsigned long)code + size; pc += count) {
@@ -311,7 +313,8 @@ void monitor_disas(target_ulong pc, int nb_insn, int is_physical, int flags)
 #elif defined(TARGET_PPC)
     print_insn = print_insn_ppc;
 #else
-    term_printf("Asm output not supported on this arch\n");
+    term_printf("0x" TARGET_FMT_lx
+		": Asm output not supported on this arch\n", pc);
     return;
 #endif
 

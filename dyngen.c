@@ -1203,6 +1203,48 @@ void get_reloc_expr(char *name, int name_size, const char *sym_name)
     }
 }
 
+#ifdef HOST_IA64
+
+#define PLT_ENTRY_SIZE	16	/* 1 bundle containing "brl" */
+
+struct plt_entry {
+    struct plt_entry *next;
+    const char *name;
+    unsigned long addend;
+} *plt_list;
+
+static int
+get_plt_index (const char *name, unsigned long addend)
+{
+    struct plt_entry *plt, *prev= NULL;
+    int index = 0;
+
+    /* see if we already have an entry for this target: */
+    for (plt = plt_list; plt; ++index, prev = plt, plt = plt->next)
+	if (strcmp(plt->name, name) == 0 && plt->addend == addend)
+	    return index;
+
+    /* nope; create a new PLT entry: */
+
+    plt = malloc(sizeof(*plt));
+    if (!plt) {
+	perror("malloc");
+	exit(1);
+    }
+    memset(plt, 0, sizeof(*plt));
+    plt->name = strdup(name);
+    plt->addend = addend;
+
+    /* append to plt-list: */
+    if (prev)
+	prev->next = plt;
+    else
+	plt_list = plt;
+    return index;
+}
+
+#endif
+
 #ifdef HOST_ARM
 
 int arm_emit_ldr_info(const char *name, unsigned long start_offset,
@@ -1392,7 +1434,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
         /* 08 00 84 00 */
         if (get32((uint32_t *)p) != 0x00840008)
             error("br.ret.sptk.many b0;; expected at the end of %s", name);
-        copy_size = p - p_start;
+	copy_size = p_end - p_start;
     }
 #elif defined(HOST_SPARC)
     {
@@ -1529,7 +1571,11 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
             }
             fprintf(outfile, ";\n");
         }
+#if defined(HOST_IA64)
+        fprintf(outfile, "    extern char %s;\n", name);
+#else
         fprintf(outfile, "    extern void %s();\n", name);
+#endif
 
         for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
             host_ulong offset = get_rel_offset(rel);
@@ -1550,9 +1596,18 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 			continue;
 		    }
 #endif
-#ifdef __APPLE__
+#if defined(__APPLE__)
 /* set __attribute((unused)) on darwin because we wan't to avoid warning when we don't use the symbol */
                     fprintf(outfile, "extern char %s __attribute__((unused));\n", sym_name);
+#elif defined(HOST_IA64)
+			if (ELF64_R_TYPE(rel->r_info) != R_IA64_PCREL21B)
+				/*
+				 * PCREL21 br.call targets generally
+				 * are out of range and need to go
+				 * through an "import stub".
+				 */
+				fprintf(outfile, "    extern char %s;\n",
+					sym_name);
 #else
                     fprintf(outfile, "extern char %s;\n", sym_name);
 #endif
@@ -1964,25 +2019,78 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
             }
 #elif defined(HOST_IA64)
             {
+		unsigned long sym_idx;
+		long code_offset;
                 char name[256];
                 int type;
-                int addend;
+                long addend;
+
                 for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
-                    if (rel->r_offset >= start_offset && rel->r_offset < start_offset + copy_size) {
-                        sym_name = strtab + symtab[ELF64_R_SYM(rel->r_info)].st_name;
-                        get_reloc_expr(name, sizeof(name), sym_name);
-                        type = ELF64_R_TYPE(rel->r_info);
-                        addend = rel->r_addend;
-                        switch(type) {
-			case R_IA64_LTOFF22:
-			    error("must implemnt R_IA64_LTOFF22 relocation");
-			case R_IA64_PCREL21B:
-			    error("must implemnt R_IA64_PCREL21B relocation");
-                        default:
-                            error("unsupported ia64 relocation (%d)", type);
-                        }
-                    }
+		    sym_idx = ELF64_R_SYM(rel->r_info);
+                    if (rel->r_offset < start_offset
+			|| rel->r_offset >= start_offset + copy_size)
+			continue;
+		    sym_name = (strtab + symtab[sym_idx].st_name);
+		    if (strstart(sym_name, "__op_jmp", &p)) {
+			int n;
+			n = strtol(p, NULL, 10);
+			/* __op_jmp relocations are done at
+			   runtime to do translated block
+			   chaining: the offset of the instruction
+			   needs to be stored */
+			fprintf(outfile, "    jmp_offsets[%d] ="
+				"%ld + (gen_code_ptr - gen_code_buf);\n",
+				n, rel->r_offset - start_offset);
+			continue;
+		    }
+		    get_reloc_expr(name, sizeof(name), sym_name);
+		    type = ELF64_R_TYPE(rel->r_info);
+		    addend = rel->r_addend;
+		    code_offset = rel->r_offset - start_offset;
+		    switch(type) {
+		      case R_IA64_IMM64:
+			  fprintf(outfile,
+				  "    ia64_imm64(gen_code_ptr + %ld, "
+				  "%s + %ld);\n",
+				  code_offset, name, addend);
+			  break;
+		      case R_IA64_LTOFF22X:
+		      case R_IA64_LTOFF22:
+			  fprintf(outfile, "    IA64_LTOFF(gen_code_ptr + %ld,"
+				  " %s + %ld, %d);\n",
+				  code_offset, name, addend,
+				  (type == R_IA64_LTOFF22X));
+			  break;
+		      case R_IA64_LDXMOV:
+			  fprintf(outfile,
+				  "    ia64_ldxmov(gen_code_ptr + %ld,"
+				  " %s + %ld);\n", code_offset, name, addend);
+			  break;
+
+		      case R_IA64_PCREL21B:
+			  if (strstart(sym_name, "__op_gen_label", NULL)) {
+			      fprintf(outfile,
+				      "    ia64_imm21b(gen_code_ptr + %ld,"
+				      " (long) (%s + %ld -\n\t\t"
+				      "((long) gen_code_ptr + %ld)) >> 4);\n",
+				      code_offset, name, addend,
+				      code_offset & ~0xfUL);
+			  } else {
+			      fprintf(outfile,
+				      "    IA64_PLT(gen_code_ptr + %ld, "
+				      "%d);\t/* %s + %ld */\n",
+				      code_offset,
+				      get_plt_index(sym_name, addend),
+				      sym_name, addend);
+			  }
+			  break;
+		      default:
+			  error("unsupported ia64 relocation (0x%x)",
+				type);
+		    }
                 }
+		fprintf(outfile, "    ia64_nop_b(gen_code_ptr + %d);\n",
+			copy_size - 16 + 2);
             }
 #elif defined(HOST_SPARC)
             {
@@ -2236,6 +2344,63 @@ fprintf(outfile,
 "    LDREntry *arm_ldr_ptr = arm_ldr_table;\n"
 "    uint32_t *arm_data_ptr = arm_data_table;\n");
 #endif
+#ifdef HOST_IA64
+    {
+	long addend, not_first = 0;
+	unsigned long sym_idx;
+	int index, max_index;
+	const char *sym_name;
+	EXE_RELOC *rel;
+
+	max_index = -1;
+	for (i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
+	    sym_idx = ELF64_R_SYM(rel->r_info);
+	    sym_name = (strtab + symtab[sym_idx].st_name);
+	    if (strstart(sym_name, "__op_gen_label", NULL))
+		continue;
+	    if (ELF64_R_TYPE(rel->r_info) != R_IA64_PCREL21B)
+		continue;
+
+	    addend = rel->r_addend;
+	    index = get_plt_index(sym_name, addend);
+	    if (index <= max_index)
+		continue;
+	    max_index = index;
+	    fprintf(outfile, "    extern void %s(void);\n", sym_name);
+	}
+
+	fprintf(outfile,
+		"    struct ia64_fixup *plt_fixes = NULL, "
+		"*ltoff_fixes = NULL;\n"
+		"    static long plt_target[] = {\n\t");
+
+	max_index = -1;
+	for (i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
+	    sym_idx = ELF64_R_SYM(rel->r_info);
+	    sym_name = (strtab + symtab[sym_idx].st_name);
+	    if (strstart(sym_name, "__op_gen_label", NULL))
+		continue;
+	    if (ELF64_R_TYPE(rel->r_info) != R_IA64_PCREL21B)
+		continue;
+
+	    addend = rel->r_addend;
+	    index = get_plt_index(sym_name, addend);
+	    if (index <= max_index)
+		continue;
+	    max_index = index;
+
+	    if (not_first)
+		fprintf(outfile, ",\n\t");
+	    not_first = 1;
+	    if (addend)
+		fprintf(outfile, "(long) &%s + %ld", sym_name, addend);
+	    else
+		fprintf(outfile, "(long) &%s", sym_name);
+	}
+	fprintf(outfile, "\n    };\n"
+	    "    unsigned int plt_offset[%u] = { 0 };\n", max_index + 1);
+    }
+#endif
 
 fprintf(outfile,
 "\n"
@@ -2298,6 +2463,13 @@ fprintf(outfile,
 "    }\n"
 " the_end:\n"
 );
+#ifdef HOST_IA64
+    fprintf(outfile,
+	    "    ia64_apply_fixes(&gen_code_ptr, ltoff_fixes, "
+	    "(uint64_t) code_gen_buffer + 2*(1<<20), plt_fixes,\n\t\t\t"
+	    "sizeof(plt_target)/sizeof(plt_target[0]),\n\t\t\t"
+	    "plt_target, plt_offset);\n");
+#endif
 
 /* generate some code patching */ 
 #ifdef HOST_ARM

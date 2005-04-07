@@ -165,7 +165,7 @@ static void get_human_readable_size(char *buf, int buf_size, int64_t size)
     int i;
 
     if (size <= 999) {
-        snprintf(buf, buf_size, "%lld", size);
+        snprintf(buf, buf_size, "%lld", (long long) size);
     } else {
         base = 1024;
         for(i = 0; i < NB_SUFFIXES; i++) {
@@ -176,7 +176,7 @@ static void get_human_readable_size(char *buf, int buf_size, int64_t size)
                 break;
             } else if (size < (1000 * base) || i == (NB_SUFFIXES - 1)) {
                 snprintf(buf, buf_size, "%lld%c", 
-                         (size + (base >> 1)) / base,
+                         (long long) ((size + (base >> 1)) / base),
                          suffixes[i]);
                 break;
             }
@@ -369,7 +369,7 @@ static int img_create(int argc, char **argv)
         printf(", backing_file=%s",
                base_filename);
     }
-    printf(", size=%lld kB\n", size / 1024);
+    printf(", size=%lld kB\n", (long long) (size / 1024));
     ret = bdrv_create(drv, filename, size / 512, base_filename, encrypted);
     if (ret < 0) {
         if (ret == -ENOTSUP) {
@@ -666,7 +666,7 @@ static int img_info(int argc, char **argv)
            "virtual size: %s (%lld bytes)\n"
            "disk size: %s\n",
            filename, fmt_name, size_buf, 
-           total_sectors * 512,
+           (long long) (total_sectors * 512),
            dsize_buf);
     if (bdrv_is_encrypted(bs))
         printf("encrypted: yes\n");

@@ -184,7 +184,9 @@ LDFLAGS+=-Wl,-T,$(SRC_PATH)/alpha.ld
 endif
 
 ifeq ($(ARCH),ia64)
+CFLAGS += -mno-sdata
 OP_CFLAGS=$(CFLAGS)
+LDFLAGS+=-Wl,-G0 -Wl,-T,$(SRC_PATH)/ia64.ld
 endif
 
 ifeq ($(ARCH),arm)
@@ -380,6 +382,10 @@ endif
 ifdef TARGET_GPROF
 vl.o: CFLAGS+=-p
 VL_LDFLAGS+=-p
+endif
+
+ifeq ($(ARCH),ia64)
+VL_LDFLAGS+=-Wl,-G0 -Wl,-T,$(SRC_PATH)/ia64.ld
 endif
 
 $(QEMU_SYSTEM): $(VL_OBJS) libqemu.a

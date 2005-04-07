@@ -43,6 +43,11 @@ static inline void flush_icache_range(unsigned long start, unsigned long stop)
 #ifdef __ia64__
 static inline void flush_icache_range(unsigned long start, unsigned long stop)
 {
+    while (start < stop) {
+	asm volatile ("fc %0" :: "r"(start));
+	start += 32;
+    }
+    asm volatile (";;sync.i;;srlz.i;;");
 }
 #endif
 
@@ -204,3 +209,218 @@ static uint8_t *arm_flush_ldr(uint8_t *gen_code_ptr,
 }
 
 #endif /* __arm__ */
+
+#ifdef __ia64
+
+
+/* Patch instruction with "val" where "mask" has 1 bits. */
+static inline void ia64_patch (uint64_t insn_addr, uint64_t mask, uint64_t val)
+{
+    uint64_t m0, m1, v0, v1, b0, b1, *b = (uint64_t *) (insn_addr & -16);
+#   define insn_mask ((1UL << 41) - 1)
+    unsigned long shift;
+
+    b0 = b[0]; b1 = b[1];
+    shift = 5 + 41 * (insn_addr % 16); /* 5 template, 3 x 41-bit insns */
+    if (shift >= 64) {
+	m1 = mask << (shift - 64);
+	v1 = val << (shift - 64);
+    } else {
+	m0 = mask << shift; m1 = mask >> (64 - shift);
+	v0 = val  << shift; v1 = val >> (64 - shift);
+	b[0] = (b0 & ~m0) | (v0 & m0);
+    }
+    b[1] = (b1 & ~m1) | (v1 & m1);
+}
+
+static inline void ia64_patch_imm60 (uint64_t insn_addr, uint64_t val)
+{
+	ia64_patch(insn_addr,
+		   0x011ffffe000UL,
+		   (  ((val & 0x0800000000000000UL) >> 23) /* bit 59 -> 36 */
+		    | ((val & 0x00000000000fffffUL) << 13) /* bit 0 -> 13 */));
+	ia64_patch(insn_addr - 1, 0x1fffffffffcUL, val >> 18);
+}
+
+static inline void ia64_imm64 (void *insn, uint64_t val)
+{
+    /* Ignore the slot number of the relocation; GCC and Intel
+       toolchains differed for some time on whether IMM64 relocs are
+       against slot 1 (Intel) or slot 2 (GCC).  */
+    uint64_t insn_addr = (uint64_t) insn & ~3UL;
+
+    ia64_patch(insn_addr + 2,
+	       0x01fffefe000UL,
+	       (  ((val & 0x8000000000000000UL) >> 27) /* bit 63 -> 36 */
+		| ((val & 0x0000000000200000UL) <<  0) /* bit 21 -> 21 */
+		| ((val & 0x00000000001f0000UL) <<  6) /* bit 16 -> 22 */
+		| ((val & 0x000000000000ff80UL) << 20) /* bit  7 -> 27 */
+		| ((val & 0x000000000000007fUL) << 13) /* bit  0 -> 13 */)
+	    );
+    ia64_patch(insn_addr + 1, 0x1ffffffffffUL, val >> 22);
+}
+
+static inline void ia64_imm60b (void *insn, uint64_t val)
+{
+    /* Ignore the slot number of the relocation; GCC and Intel
+       toolchains differed for some time on whether IMM64 relocs are
+       against slot 1 (Intel) or slot 2 (GCC).  */
+    uint64_t insn_addr = (uint64_t) insn & ~3UL;
+
+    if (val + ((uint64_t) 1 << 59) >= (1UL << 60))
+	fprintf(stderr, "%s: value %ld out of IMM60 range\n",
+		__FUNCTION__, (int64_t) val);
+    ia64_patch_imm60(insn_addr + 2, val);
+}
+
+static inline void ia64_imm22 (void *insn, uint64_t val)
+{
+    if (val + (1 << 21) >= (1 << 22))
+	fprintf(stderr, "%s: value %li out of IMM22 range\n",
+		__FUNCTION__, (int64_t)val);
+    ia64_patch((uint64_t) insn, 0x01fffcfe000UL,
+	       (  ((val & 0x200000UL) << 15) /* bit 21 -> 36 */
+		| ((val & 0x1f0000UL) <<  6) /* bit 16 -> 22 */
+		| ((val & 0x00ff80UL) << 20) /* bit  7 -> 27 */
+		| ((val & 0x00007fUL) << 13) /* bit  0 -> 13 */));
+}
+
+/* Like ia64_imm22(), but also clear bits 20-21.  For addl, this has
+   the effect of turning "addl rX=imm22,rY" into "addl
+   rX=imm22,r0".  */
+static inline void ia64_imm22_r0 (void *insn, uint64_t val)
+{
+    if (val + (1 << 21) >= (1 << 22))
+	fprintf(stderr, "%s: value %li out of IMM22 range\n",
+		__FUNCTION__, (int64_t)val);
+    ia64_patch((uint64_t) insn, 0x01fffcfe000UL | (0x3UL << 20),
+	       (  ((val & 0x200000UL) << 15) /* bit 21 -> 36 */
+		| ((val & 0x1f0000UL) <<  6) /* bit 16 -> 22 */
+		| ((val & 0x00ff80UL) << 20) /* bit  7 -> 27 */
+		| ((val & 0x00007fUL) << 13) /* bit  0 -> 13 */));
+}
+
+static inline void ia64_imm21b (void *insn, uint64_t val)
+{
+    if (val + (1 << 20) >= (1 << 21))
+	fprintf(stderr, "%s: value %li out of IMM21b range\n",
+		__FUNCTION__, (int64_t)val);
+    ia64_patch((uint64_t) insn, 0x11ffffe000UL,
+	       (  ((val & 0x100000UL) << 16) /* bit 20 -> 36 */
+		| ((val & 0x0fffffUL) << 13) /* bit  0 -> 13 */));
+}
+
+static inline void ia64_nop_b (void *insn)
+{
+    ia64_patch((uint64_t) insn, (1UL << 41) - 1, 2UL << 37);
+}
+
+static inline void ia64_ldxmov(void *insn, uint64_t val)
+{
+    if (val + (1 << 21) < (1 << 22))
+	ia64_patch((uint64_t) insn, 0x1fff80fe000UL, 8UL << 37);
+}
+
+static inline int ia64_patch_ltoff(void *insn, uint64_t val,
+				   int relaxable)
+{
+    if (relaxable && (val + (1 << 21) < (1 << 22))) {
+	ia64_imm22_r0(insn, val);
+	return 0;
+    }
+    return 1;
+}
+
+struct ia64_fixup {
+    struct ia64_fixup *next;
+    void *addr;			/* address that needs to be patched */
+    long value;
+};
+
+#define IA64_PLT(insn, plt_index)			\
+do {							\
+    struct ia64_fixup *fixup = alloca(sizeof(*fixup));	\
+    fixup->next = plt_fixes;				\
+    plt_fixes = fixup;					\
+    fixup->addr = (insn);				\
+    fixup->value = (plt_index);				\
+    plt_offset[(plt_index)] = 1;			\
+} while (0)
+
+#define IA64_LTOFF(insn, val, relaxable)			\
+do {								\
+    if (ia64_patch_ltoff(insn, val, relaxable)) {		\
+	struct ia64_fixup *fixup = alloca(sizeof(*fixup));	\
+	fixup->next = ltoff_fixes;				\
+	ltoff_fixes = fixup;					\
+	fixup->addr = (insn);					\
+	fixup->value = (val);					\
+    }								\
+} while (0)
+
+static inline void ia64_apply_fixes (uint8_t **gen_code_pp,
+				     struct ia64_fixup *ltoff_fixes,
+				     uint64_t gp,
+				     struct ia64_fixup *plt_fixes,
+				     int num_plts,
+				     unsigned long *plt_target,
+				     unsigned int *plt_offset)
+{
+    static const uint8_t plt_bundle[] = {
+	0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,	/* nop 0; movl r1=GP */
+	0x00, 0x00, 0x00, 0x20, 0x00, 0x00, 0x00, 0x60,
+
+	0x05, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,	/* nop 0; brl IP */
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc0
+    };
+    uint8_t *gen_code_ptr = *gen_code_pp, *plt_start, *got_start, *vp;
+    struct ia64_fixup *fixup;
+    unsigned int offset = 0;
+    struct fdesc {
+	long ip;
+	long gp;
+    } *fdesc;
+    int i;
+
+    if (plt_fixes) {
+	plt_start = gen_code_ptr;
+
+	for (i = 0; i < num_plts; ++i) {
+	    if (plt_offset[i]) {
+		plt_offset[i] = offset;
+		offset += sizeof(plt_bundle);
+
+		fdesc = (struct fdesc *) plt_target[i];
+		memcpy(gen_code_ptr, plt_bundle, sizeof(plt_bundle));
+		ia64_imm64 (gen_code_ptr + 0x02, fdesc->gp);
+		ia64_imm60b(gen_code_ptr + 0x12,
+			    (fdesc->ip - (long) (gen_code_ptr + 0x10)) >> 4);
+		gen_code_ptr += sizeof(plt_bundle);
+	    }
+	}
+
+	for (fixup = plt_fixes; fixup; fixup = fixup->next)
+	    ia64_imm21b(fixup->addr,
+			((long) plt_start + plt_offset[fixup->value]
+			 - ((long) fixup->addr & ~0xf)) >> 4);
+    }
+
+    got_start = gen_code_ptr;
+
+    /* First, create the GOT: */
+    for (fixup = ltoff_fixes; fixup; fixup = fixup->next) {
+	/* first check if we already have this value in the GOT: */
+	for (vp = got_start; vp < gen_code_ptr; ++vp)
+	    if (*(uint64_t *) vp == fixup->value)
+		break;
+	if (vp == gen_code_ptr) {
+	    /* Nope, we need to put the value in the GOT: */
+	    *(uint64_t *) vp = fixup->value;
+	    gen_code_ptr += 8;
+	}
+	ia64_imm22(fixup->addr, (long) vp - gp);
+    }
+    *gen_code_pp = gen_code_ptr;
+}
+
+#endif

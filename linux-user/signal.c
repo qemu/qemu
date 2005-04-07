@@ -26,13 +26,6 @@
 #include <errno.h>
 #include <sys/ucontext.h>
 
-#ifdef __ia64__
-#undef uc_mcontext
-#undef uc_sigmask
-#undef uc_stack
-#undef uc_link
-#endif 
-
 #include "qemu.h"
 
 //#define DEBUG_SIGNAL
@@ -557,11 +550,11 @@ typedef struct target_sigaltstack {
 } target_stack_t;
 
 struct target_ucontext {
-        target_ulong	  uc_flags;
-	target_ulong      uc_link;
-	target_stack_t	  uc_stack;
-	struct target_sigcontext uc_mcontext;
-	target_sigset_t	  uc_sigmask;	/* mask last for extensibility */
+        target_ulong	  tuc_flags;
+	target_ulong      tuc_link;
+	target_stack_t	  tuc_stack;
+	struct target_sigcontext tuc_mcontext;
+	target_sigset_t	  tuc_sigmask;	/* mask last for extensibility */
 };
 
 struct sigframe
@@ -743,16 +736,18 @@ static void setup_rt_frame(int sig, struct emulated_sigaction *ka,
 		goto give_sigsegv;
 
 	/* Create the ucontext.  */
-	err |= __put_user(0, &frame->uc.uc_flags);
-	err |= __put_user(0, &frame->uc.uc_link);
-	err |= __put_user(/*current->sas_ss_sp*/ 0, &frame->uc.uc_stack.ss_sp);
+	err |= __put_user(0, &frame->uc.tuc_flags);
+	err |= __put_user(0, &frame->uc.tuc_link);
+	err |= __put_user(/*current->sas_ss_sp*/ 0,
+			  &frame->uc.tuc_stack.ss_sp);
 	err |= __put_user(/* sas_ss_flags(regs->esp) */ 0,
-			  &frame->uc.uc_stack.ss_flags);
-	err |= __put_user(/* current->sas_ss_size */ 0, &frame->uc.uc_stack.ss_size);
-	err |= setup_sigcontext(&frame->uc.uc_mcontext, &frame->fpstate,
+			  &frame->uc.tuc_stack.ss_flags);
+	err |= __put_user(/* current->sas_ss_size */ 0,
+			  &frame->uc.tuc_stack.ss_size);
+	err |= setup_sigcontext(&frame->uc.tuc_mcontext, &frame->fpstate,
 			        env, set->sig[0]);
         for(i = 0; i < TARGET_NSIG_WORDS; i++) {
-            if (__put_user(set->sig[i], &frame->uc.uc_sigmask.sig[i]))
+            if (__put_user(set->sig[i], &frame->uc.tuc_sigmask.sig[i]))
                 goto give_sigsegv;
         }
 
@@ -880,14 +875,14 @@ long do_rt_sigreturn(CPUX86State *env)
 	if (verify_area(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
 #endif
-        target_to_host_sigset(&set, &frame->uc.uc_sigmask);
+        target_to_host_sigset(&set, &frame->uc.tuc_sigmask);
         sigprocmask(SIG_SETMASK, &set, NULL);
 	
-	if (restore_sigcontext(env, &frame->uc.uc_mcontext, &eax))
+	if (restore_sigcontext(env, &frame->uc.tuc_mcontext, &eax))
 		goto badframe;
 
 #if 0
-	if (__copy_from_user(&st, &frame->uc.uc_stack, sizeof(st)))
+	if (__copy_from_user(&st, &frame->uc.tuc_stack, sizeof(st)))
 		goto badframe;
 	/* It is more difficult to avoid calling this function than to
 	   call it and ignore errors.  */
@@ -933,11 +928,11 @@ typedef struct target_sigaltstack {
 } target_stack_t;
 
 struct target_ucontext {
-    target_ulong uc_flags;
-    target_ulong uc_link;
-    target_stack_t uc_stack;
-    struct target_sigcontext uc_mcontext;
-    target_sigset_t  uc_sigmask;	/* mask last for extensibility */
+    target_ulong tuc_flags;
+    target_ulong tuc_link;
+    target_stack_t tuc_stack;
+    struct target_sigcontext tuc_mcontext;
+    target_sigset_t  tuc_sigmask;	/* mask last for extensibility */
 };
 
 struct sigframe
@@ -1135,10 +1130,10 @@ static void setup_rt_frame(int usig, struct emulated_sigaction *ka,
 	/* Clear all the bits of the ucontext we don't use.  */
 	err |= __clear_user(&frame->uc, offsetof(struct ucontext, uc_mcontext));
 
-	err |= setup_sigcontext(&frame->uc.uc_mcontext, /*&frame->fpstate,*/
+	err |= setup_sigcontext(&frame->uc.tuc_mcontext, /*&frame->fpstate,*/
 				env, set->sig[0]);
         for(i = 0; i < TARGET_NSIG_WORDS; i++) {
-            if (__put_user(set->sig[i], &frame->uc.uc_sigmask.sig[i]))
+            if (__put_user(set->sig[i], &frame->uc.tuc_sigmask.sig[i]))
                 return;
         }
 
@@ -1253,10 +1248,10 @@ long do_rt_sigreturn(CPUState *env)
 	if (verify_area(VERIFY_READ, frame, sizeof (*frame)))
 		goto badframe;
 #endif
-        target_to_host_sigset(&host_set, &frame->uc.uc_sigmask);
+        target_to_host_sigset(&host_set, &frame->uc.tuc_sigmask);
         sigprocmask(SIG_SETMASK, &host_set, NULL);
 
-	if (restore_sigcontext(env, &frame->uc.uc_mcontext))
+	if (restore_sigcontext(env, &frame->uc.tuc_mcontext))
 		goto badframe;
 
 #if 0

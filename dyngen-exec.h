@@ -29,7 +29,7 @@ typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
 typedef unsigned int uint32_t;
 /* XXX may be done for all 64 bits targets ? */
-#if defined (__x86_64__)
+#if defined (__x86_64__) || defined(__ia64)
 typedef unsigned long uint64_t;
 #else
 typedef unsigned long long uint64_t;
@@ -38,7 +38,7 @@ typedef unsigned long long uint64_t;
 typedef signed char int8_t;
 typedef signed short int16_t;
 typedef signed int int32_t;
-#if defined (__x86_64__)
+#if defined (__x86_64__) || defined(__ia64)
 typedef signed long int64_t;
 #else
 typedef signed long long int64_t;
@@ -148,10 +148,10 @@ extern int printf(const char *, ...);
 #define AREG4 "%d5"
 #endif
 #ifdef __ia64__
-#define AREG0 "r27"
-#define AREG1 "r24"
-#define AREG2 "r25"
-#define AREG3 "r26"
+#define AREG0 "r7"
+#define AREG1 "r4"
+#define AREG2 "r5"
+#define AREG3 "r6"
 #endif
 
 /* force GCC to generate only one epilog at the end of the function */
@@ -224,6 +224,8 @@ extern int __op_jmp0, __op_jmp1, __op_jmp2, __op_jmp3;
 #endif
 #ifdef __ia64__
 #define EXIT_TB() asm volatile ("br.ret.sptk.many b0;;")
+#define GOTO_LABEL_PARAM(n) asm volatile ("br.sptk.many " \
+					  ASM_NAME(__op_gen_label) #n)
 #endif
 #ifdef __sparc__
 #define EXIT_TB() asm volatile ("jmpl %i0 + 8, %g0\n" \
