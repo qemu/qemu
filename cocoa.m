@@ -416,8 +416,11 @@ static void QZ_SetPortAlphaOpaque ()
 /* Called when the internal event loop has just started running */
 - (void)applicationDidFinishLaunching: (NSNotification *) note
 {
-    
-    /* Do whatever we want here : set up a pc list... */
+
+    /* Display an open dialog box if no argument were passed or
+       if qemu was launched from the finder ( the Finder passes "-psn" ) */
+
+    if( gArgc <= 1 || strncmp (gArgv[1], "-psn", 4) == 0)
     {
         NSOpenPanel *op = [[NSOpenPanel alloc] init];
         
@@ -431,9 +434,11 @@ static void QZ_SetPortAlphaOpaque ()
               modalForWindow:window modalDelegate:self
               didEndSelector:@selector(openPanelDidEnd:returnCode:contextInfo:) contextInfo:NULL];
     }
-    
-    /* or Launch Qemu, with the global args */
-    //[self startEmulationWithArgc:gArgc argv:gArgv];
+    else
+    {
+        /* or Launch Qemu, with the global args */
+        [self startEmulationWithArgc:gArgc argv:gArgv];
+    }
 }
 
 - (void)applicationWillTerminate:(NSNotification *)aNotification
