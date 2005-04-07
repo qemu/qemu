@@ -120,7 +120,8 @@ static inline void tswap64s(uint64_t *s)
    endian ! */
 typedef union {
     float64 d;
-#if defined(WORDS_BIGENDIAN) || (defined(__arm__) && !defined(__VFP_FP__))
+#if defined(WORDS_BIGENDIAN) \
+    || (defined(__arm__) && !defined(__VFP_FP__) && !defined(CONFIG_SOFTFLOAT))
     struct {
         uint32_t upper;
         uint32_t lower;
