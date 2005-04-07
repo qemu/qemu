@@ -35,9 +35,9 @@
    precision respectively.
    Doing runtime conversions is tricky because VFP registers may contain
    integer values (eg. as the result of a FTOSI instruction).
-   A double precision register load/store must also load/store the
-   corresponding single precision pair, although it is undefined how
-   these overlap.  */
+   s<2n> maps to the least significant half of d<n>
+   s<2n+1> maps to the most significant half of d<n>
+ */
 
 typedef struct CPUARMState {
     uint32_t regs[16];
@@ -71,10 +71,7 @@ typedef struct CPUARMState {
                                       memory was written */
     /* VFP coprocessor state.  */
     struct {
-        union {
-            float32 s[32];
-            float64 d[16];
-        } regs;
+        float64 regs[16];
 
         /* We store these fpcsr fields separately for convenience.  */
         int vec_len;

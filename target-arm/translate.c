@@ -385,28 +385,41 @@ VFP_OP(st)
 
 #undef VFP_OP
 
+static inline long
+vfp_reg_offset (int dp, int reg)
+{
+    if (dp)
+        return offsetof(CPUARMState, vfp.regs[reg]);
+    else if (reg & 1) {
+        return offsetof(CPUARMState, vfp.regs[reg >> 1])
+          + offsetof(CPU_DoubleU, l.upper);
+    } else {
+        return offsetof(CPUARMState, vfp.regs[reg >> 1])
+          + offsetof(CPU_DoubleU, l.lower);
+    }
+}
 static inline void gen_mov_F0_vreg(int dp, int reg)
 {
     if (dp)
-        gen_op_vfp_getreg_F0d(offsetof(CPUARMState, vfp.regs.d[reg]));
+        gen_op_vfp_getreg_F0d(vfp_reg_offset(dp, reg));
     else
-        gen_op_vfp_getreg_F0s(offsetof(CPUARMState, vfp.regs.s[reg]));
+        gen_op_vfp_getreg_F0s(vfp_reg_offset(dp, reg));
 }
 
 static inline void gen_mov_F1_vreg(int dp, int reg)
 {
     if (dp)
-        gen_op_vfp_getreg_F1d(offsetof(CPUARMState, vfp.regs.d[reg]));
+        gen_op_vfp_getreg_F1d(vfp_reg_offset(dp, reg));
     else
-        gen_op_vfp_getreg_F1s(offsetof(CPUARMState, vfp.regs.s[reg]));
+        gen_op_vfp_getreg_F1s(vfp_reg_offset(dp, reg));
 }
 
 static inline void gen_mov_vreg_F0(int dp, int reg)
 {
     if (dp)
-        gen_op_vfp_setreg_F0d(offsetof(CPUARMState, vfp.regs.d[reg]));
+        gen_op_vfp_setreg_F0d(vfp_reg_offset(dp, reg));
     else
-        gen_op_vfp_setreg_F0s(offsetof(CPUARMState, vfp.regs.s[reg]));
+        gen_op_vfp_setreg_F0s(vfp_reg_offset(dp, reg));
 }
 
 /* Disassemble a VFP instruction.  Returns nonzero if an error occured
@@ -2120,9 +2133,9 @@ void cpu_dump_state(CPUState *env, FILE *f,
             env->cpsr & (1 << 28) ? 'V' : '-');
 
     for (i = 0; i < 16; i++) {
-        s0.s = env->vfp.regs.s[i * 2];
-        s1.s = env->vfp.regs.s[i * 2 + 1];
-        d.d = env->vfp.regs.d[i];
+        d.d = env->vfp.regs[i];
+        s0.i = d.l.lower;
+        s1.i = d.l.upper;
         cpu_fprintf(f, "s%02d=%08x(%8f) s%02d=%08x(%8f) d%02d=%08x%08x(%8f)\n",
                     i * 2, (int)s0.i, s0.s,
                     i * 2 + 1, (int)s0.i, s0.s,
