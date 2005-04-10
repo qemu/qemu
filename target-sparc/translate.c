@@ -1395,24 +1395,24 @@ static void disas_sparc_insn(DisasContext * dc)
 		    if (!supervisor(dc))
 			goto priv_insn;
 		    gen_op_sta(insn, 0, 4, 0);
-		    break;
+                    break;
 		case 0x15:
 		    if (!supervisor(dc))
 			goto priv_insn;
 		    gen_op_stba(insn, 0, 1, 0);
-		    break;
+                    break;
 		case 0x16:
 		    if (!supervisor(dc))
 			goto priv_insn;
 		    gen_op_stha(insn, 0, 2, 0);
-		    break;
+                    break;
 		case 0x17:
 		    if (!supervisor(dc))
 			goto priv_insn;
                     flush_T2(dc);
 		    gen_movl_reg_T2(rd + 1);
 		    gen_op_stda(insn, 0, 8, 0);
-		    break;
+                    break;
 #endif
 		default:
 		case 0x0e: /* V9 stx */
@@ -1545,6 +1545,10 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
 	/* if the next PC is different, we abort now */
 	if (dc->pc != (last_pc + 4))
 	    break;
+        /* if we reach a page boundary, we stop generation so that the
+           PC of a TT_TFAULT exception is always in the right page */
+        if ((dc->pc & (TARGET_PAGE_SIZE - 1)) == 0)
+            break;
         /* if single step mode, we generate only one instruction and
            generate an exception */
         if (env->singlestep_enabled) {
