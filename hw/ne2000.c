@@ -246,7 +246,7 @@ static void ne2000_receive(void *opaque, const uint8_t *buf, int size)
 static void ne2000_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
     NE2000State *s = opaque;
-    int offset, page;
+    int offset, page, index;
 
     addr &= 0xf;
 #ifdef DEBUG_NE2000
@@ -264,10 +264,18 @@ static void ne2000_ioport_write(void *opaque, uint32_t addr, uint32_t val)
                 ne2000_update_irq(s);
             }
             if (val & E8390_TRANS) {
-                qemu_send_packet(s->nd, s->mem + (s->tpsr << 8), s->tcnt);
+                index = (s->tpsr << 8);
+                /* XXX: next 2 lines are a hack to make netware 3.11 work */ 
+                if (index >= NE2000_PMEM_END)
+                    index -= NE2000_PMEM_SIZE;
+                /* fail safe: check range on the transmitted length  */
+                if (index + s->tcnt <= NE2000_PMEM_END) {
+                    qemu_send_packet(s->nd, s->mem + index, s->tcnt);
+                }
                 /* signal end of transfert */
                 s->tsr = ENTSR_PTX;
                 s->isr |= ENISR_TX;
+                s->cmd &= ~E8390_TRANS; 
                 ne2000_update_irq(s);
             }
         }
