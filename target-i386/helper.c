@@ -2335,13 +2335,13 @@ void helper_rdmsr(void)
 void helper_lsl(void)
 {
     unsigned int selector, limit;
-    uint32_t e1, e2;
+    uint32_t e1, e2, eflags;
     int rpl, dpl, cpl, type;
 
-    CC_SRC = cc_table[CC_OP].compute_all() & ~CC_Z;
+    eflags = cc_table[CC_OP].compute_all();
     selector = T0 & 0xffff;
     if (load_segment(&e1, &e2, selector) != 0)
-        return;
+        goto fail;
     rpl = selector & 3;
     dpl = (e2 >> DESC_DPL_SHIFT) & 3;
     cpl = env->hflags & HF_CPL_MASK;
@@ -2350,7 +2350,7 @@ void helper_lsl(void)
             /* conforming */
         } else {
             if (dpl < cpl || dpl < rpl)
-                return;
+                goto fail;
         }
     } else {
         type = (e2 >> DESC_TYPE_SHIFT) & 0xf;
@@ -2362,28 +2362,31 @@ void helper_lsl(void)
         case 11:
             break;
         default:
+            goto fail;
+        }
+        if (dpl < cpl || dpl < rpl) {
+        fail:
+            CC_SRC = eflags & ~CC_Z;
             return;
         }
-        if (dpl < cpl || dpl < rpl)
-            return;
     }
     limit = get_seg_limit(e1, e2);
     T1 = limit;
-    CC_SRC |= CC_Z;
+    CC_SRC = eflags | CC_Z;
 }
 
 void helper_lar(void)
 {
     unsigned int selector;
-    uint32_t e1, e2;
+    uint32_t e1, e2, eflags;
     int rpl, dpl, cpl, type;
 
-    CC_SRC = cc_table[CC_OP].compute_all() & ~CC_Z;
+    eflags = cc_table[CC_OP].compute_all();
     selector = T0 & 0xffff;
     if ((selector & 0xfffc) == 0)
-        return;
+        goto fail;
     if (load_segment(&e1, &e2, selector) != 0)
-        return;
+        goto fail;
     rpl = selector & 3;
     dpl = (e2 >> DESC_DPL_SHIFT) & 3;
     cpl = env->hflags & HF_CPL_MASK;
@@ -2392,7 +2395,7 @@ void helper_lar(void)
             /* conforming */
         } else {
             if (dpl < cpl || dpl < rpl)
-                return;
+                goto fail;
         }
     } else {
         type = (e2 >> DESC_TYPE_SHIFT) & 0xf;
@@ -2407,72 +2410,81 @@ void helper_lar(void)
         case 12:
             break;
         default:
+            goto fail;
+        }
+        if (dpl < cpl || dpl < rpl) {
+        fail:
+            CC_SRC = eflags & ~CC_Z;
             return;
         }
-        if (dpl < cpl || dpl < rpl)
-            return;
     }
     T1 = e2 & 0x00f0ff00;
-    CC_SRC |= CC_Z;
+    CC_SRC = eflags | CC_Z;
 }
 
 void helper_verr(void)
 {
     unsigned int selector;
-    uint32_t e1, e2;
+    uint32_t e1, e2, eflags;
     int rpl, dpl, cpl;
 
-    CC_SRC = cc_table[CC_OP].compute_all() & ~CC_Z;
+    eflags = cc_table[CC_OP].compute_all();
     selector = T0 & 0xffff;
     if ((selector & 0xfffc) == 0)
-        return;
+        goto fail;
     if (load_segment(&e1, &e2, selector) != 0)
-        return;
+        goto fail;
     if (!(e2 & DESC_S_MASK))
-        return;
+        goto fail;
     rpl = selector & 3;
     dpl = (e2 >> DESC_DPL_SHIFT) & 3;
     cpl = env->hflags & HF_CPL_MASK;
     if (e2 & DESC_CS_MASK) {
         if (!(e2 & DESC_R_MASK))
-            return;
+            goto fail;
         if (!(e2 & DESC_C_MASK)) {
             if (dpl < cpl || dpl < rpl)
-                return;
+                goto fail;
         }
     } else {
-        if (dpl < cpl || dpl < rpl)
+        if (dpl < cpl || dpl < rpl) {
+        fail:
+            CC_SRC = eflags & ~CC_Z;
             return;
+        }
     }
-    CC_SRC |= CC_Z;
+    CC_SRC = eflags | CC_Z;
 }
 
 void helper_verw(void)
 {
     unsigned int selector;
-    uint32_t e1, e2;
+    uint32_t e1, e2, eflags;
     int rpl, dpl, cpl;
 
-    CC_SRC = cc_table[CC_OP].compute_all() & ~CC_Z;
+    eflags = cc_table[CC_OP].compute_all();
     selector = T0 & 0xffff;
     if ((selector & 0xfffc) == 0)
-        return;
+        goto fail;
     if (load_segment(&e1, &e2, selector) != 0)
-        return;
+        goto fail;
     if (!(e2 & DESC_S_MASK))
-        return;
+        goto fail;
     rpl = selector & 3;
     dpl = (e2 >> DESC_DPL_SHIFT) & 3;
     cpl = env->hflags & HF_CPL_MASK;
     if (e2 & DESC_CS_MASK) {
-        return;
+        goto fail;
     } else {
         if (dpl < cpl || dpl < rpl)
+            goto fail;
+        if (!(e2 & DESC_W_MASK)) {
+        fail:
+            CC_SRC = eflags & ~CC_Z;
             return;
-        if (!(e2 & DESC_W_MASK))
-            return;
+        }
     }
-    CC_SRC |= CC_Z;
+    CC_SRC = eflags | CC_Z;
 }
 
 /* FPU helpers */
