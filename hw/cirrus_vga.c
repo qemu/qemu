@@ -800,7 +800,7 @@ static void cirrus_bitblt_start(CirrusVGAState * s)
            s->cirrus_blt_srcpitch,
            s->cirrus_blt_dstaddr,
            s->cirrus_blt_srcaddr,
-           s->sr[0x2f]);
+           s->gr[0x2f]);
 #endif
 
     switch (s->cirrus_blt_mode & CIRRUS_BLTMODE_PIXELWIDTHMASK) {
@@ -1042,10 +1042,10 @@ static void cirrus_update_bank_ptr(CirrusVGAState * s, unsigned bank_index)
     else
 	offset <<= 12;
 
-    if (s->vram_size <= offset)
+    if (s->real_vram_size <= offset)
 	limit = 0;
     else
-	limit = s->vram_size - offset;
+	limit = s->real_vram_size - offset;
 
     if (((s->gr[0x0b] & 0x01) == 0) && (bank_index != 0)) {
 	if (limit > 0x8000) {
@@ -1213,7 +1213,7 @@ cirrus_hook_write_sr(CirrusVGAState * s, unsigned reg_index, int reg_value)
 #endif
 	break;
     case 0x17:			// Configuration Readback and Extended Control
-	s->sr[reg_index] = reg_value;
+	s->sr[reg_index] = (s->sr[reg_index] & 0x38) | (reg_value & 0xc7);
         cirrus_update_memory_access(s);
         break;
     default:
