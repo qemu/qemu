@@ -6012,6 +6012,8 @@ static uint16_t opc_write_flags[NB_OPS] = {
     [INDEX_op_cmpxchg8b] = CC_Z,
     [INDEX_op_lar] = CC_Z,
     [INDEX_op_lsl] = CC_Z,
+    [INDEX_op_verr] = CC_Z,
+    [INDEX_op_verw] = CC_Z,
     [INDEX_op_fcomi_ST0_FT0] = CC_Z | CC_P | CC_C,
     [INDEX_op_fucomi_ST0_FT0] = CC_Z | CC_P | CC_C,
 
