@@ -17,6 +17,8 @@
 
 #include "softfloat.h"
 
+#define TARGET_HAS_ICE 1
+
 /*#define EXCP_INTERRUPT 0x100*/
 
 /* trap definitions */

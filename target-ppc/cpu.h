@@ -29,6 +29,8 @@
 
 #include "softfloat.h"
 
+#define TARGET_HAS_ICE 1
+
 /* Instruction types */
 enum {
     PPC_NONE     = 0x0000,

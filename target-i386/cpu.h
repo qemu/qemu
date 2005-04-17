@@ -34,6 +34,8 @@
    close to the modifying instruction */
 #define TARGET_HAS_PRECISE_SMC
 
+#define TARGET_HAS_ICE 1
+
 #include "cpu-defs.h"
 
 #include "softfloat.h"

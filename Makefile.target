@@ -298,6 +298,9 @@ endif
 ifeq ($(ARCH),ia64)
 OBJS += ia64-syscall.o
 endif
+ifdef CONFIG_GDBSTUB
+OBJS+=gdbstub.o
+endif
 
 all: $(PROGS)
 

@@ -278,6 +278,20 @@ void cpu_loop(CPUX86State *env)
         case EXCP_INTERRUPT:
             /* just indicate that signals should be handled asap */
             break;
+        case EXCP_DEBUG:
+            {
+                int sig;
+
+                sig = gdb_handlesig (env, TARGET_SIGTRAP);
+                if (sig)
+                  {
+                    info.si_signo = sig;
+                    info.si_errno = 0;
+                    info.si_code = TARGET_TRAP_BRKPT;
+                    queue_signal(info.si_signo, &info);
+                  }
+            }
+            break;
         default:
             pc = env->segs[R_CS].base + env->eip;
             fprintf(stderr, "qemu: 0x%08lx: unhandled CPU exception 0x%x - aborting\n", 
@@ -377,6 +391,20 @@ void cpu_loop(CPUARMState *env)
                 info.si_code = TARGET_SEGV_MAPERR;
                 info._sifields._sigfault._addr = env->cp15_6;
                 queue_signal(info.si_signo, &info);
+            }
+            break;
+        case EXCP_DEBUG:
+            {
+                int sig;
+
+                sig = gdb_handlesig (env, TARGET_SIGTRAP);
+                if (sig)
+                  {
+                    info.si_signo = sig;
+                    info.si_errno = 0;
+                    info.si_code = TARGET_TRAP_BRKPT;
+                    queue_signal(info.si_signo, &info);
+                  }
             }
             break;
         default:
@@ -529,6 +557,20 @@ void cpu_loop (CPUSPARCState *env)
             break;
 	case 0x100: // XXX, why do we get these?
 	    break;
+        case EXCP_DEBUG:
+            {
+                int sig;
+
+                sig = gdb_handlesig (env, TARGET_SIGTRAP);
+                if (sig)
+                  {
+                    info.si_signo = sig;
+                    info.si_errno = 0;
+                    info.si_code = TARGET_TRAP_BRKPT;
+                    queue_signal(info.si_signo, &info);
+                  }
+            }
+            break;
         default:
             printf ("Unhandled trap: 0x%x\n", trapnr);
             cpu_dump_state(env, stderr, fprintf, 0);
@@ -911,8 +953,20 @@ void cpu_loop(CPUPPCState *env)
         case EXCP_INTERRUPT:
             /* Don't know why this should ever happen... */
             break;
-	case EXCP_DEBUG:
-	    break;
+        case EXCP_DEBUG:
+            {
+                int sig;
+
+                sig = gdb_handlesig (env, TARGET_SIGTRAP);
+                if (sig)
+                  {
+                    info.si_signo = sig;
+                    info.si_errno = 0;
+                    info.si_code = TARGET_TRAP_BRKPT;
+                    queue_signal(info.si_signo, &info);
+                  }
+            }
+            break;
         default:
             fprintf(stderr, "qemu: unhandled CPU exception 0x%x - aborting\n", 
                     trapnr);
@@ -930,10 +984,11 @@ void cpu_loop(CPUPPCState *env)
 void usage(void)
 {
     printf("qemu-" TARGET_ARCH " version " QEMU_VERSION ", Copyright (c) 2003-2004 Fabrice Bellard\n"
-           "usage: qemu-" TARGET_ARCH " [-h] [-d opts] [-L path] [-s size] program [arguments...]\n"
+           "usage: qemu-" TARGET_ARCH " [-h] [-g] [-d opts] [-L path] [-s size] program [arguments...]\n"
            "Linux CPU emulator (compiled for %s emulation)\n"
            "\n"
            "-h           print this help\n"
+           "-g           wait gdb connection to port %d\n"
            "-L path      set the elf interpreter prefix (default=%s)\n"
            "-s size      set the stack size in bytes (default=%ld)\n"
            "\n"
@@ -944,6 +999,7 @@ void usage(void)
            "-d options   activate log (logfile=%s)\n"
            "-p pagesize  set the host page size to 'pagesize'\n",
            TARGET_ARCH,
+           DEFAULT_GDBSTUB_PORT,
            interp_prefix, 
            x86_stack_size,
            DEBUG_LOGFILE);
@@ -967,6 +1023,7 @@ int main(int argc, char **argv)
     CPUState *env;
     int optind;
     const char *r;
+    int use_gdbstub = 0;
     
     if (argc <= 1)
         usage();
@@ -1020,6 +1077,8 @@ int main(int argc, char **argv)
                 fprintf(stderr, "page size must be a power of two\n");
                 exit(1);
             }
+        } else if (!strcmp(r, "g")) {
+            use_gdbstub = 1;
         } else 
 #ifdef USE_CODE_COPY
         if (!strcmp(r, "no-code-copy")) {
@@ -1176,6 +1235,10 @@ int main(int argc, char **argv)
 #error unsupported target CPU
 #endif
 
+    if (use_gdbstub) {
+        gdbserver_start (DEFAULT_GDBSTUB_PORT);
+        gdb_handlesig(env, 0);
+    }
     cpu_loop(env);
     /* never exits */
     return 0;

@@ -71,6 +71,7 @@ static inline char *realpath(const char *path, char *resolved_path)
 #else
 
 #include "cpu.h"
+#include "gdbstub.h"
 
 #endif /* !defined(QEMU_TOOL) */
 
@@ -828,11 +829,5 @@ void readline_find_completion(const char *cmdline);
 const char *readline_get_history(unsigned int index);
 void readline_start(const char *prompt, int is_password,
                     ReadLineFunc *readline_func, void *opaque);
-
-/* gdbstub.c */
-
-#define DEFAULT_GDBSTUB_PORT 1234
-
-int gdbserver_start(int port);
 
 #endif /* VL_H */

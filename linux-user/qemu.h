@@ -9,6 +9,7 @@
 
 #include "cpu.h"
 #include "syscall.h"
+#include "gdbstub.h"
 
 /* This struct is used to hold certain information about the image.
  * Basically, it replicates in user space what would be certain

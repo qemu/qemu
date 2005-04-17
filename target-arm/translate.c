@@ -2026,6 +2026,17 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     dc->pc = pc_start;
     lj = -1;
     do {
+        if (env->nb_breakpoints > 0) {
+            for(j = 0; j < env->nb_breakpoints; j++) {
+                if (env->breakpoints[j] == dc->pc) {
+                    gen_op_movl_T0_im((long)dc->pc);
+                    gen_op_movl_reg_TN[0][15]();
+                    gen_op_debug();
+                    dc->is_jmp = DISAS_JUMP;
+                    break;
+                }
+            }
+        }
         if (search_pc) {
             j = gen_opc_ptr - gen_opc_buf;
             if (lj < j) {
@@ -2040,7 +2051,8 @@ static inline int gen_intermediate_code_internal(CPUState *env,
           disas_thumb_insn(dc);
         else
           disas_arm_insn(env, dc);
-    } while (!dc->is_jmp && gen_opc_ptr < gen_opc_end && 
+    } while (!dc->is_jmp && gen_opc_ptr < gen_opc_end &&
+             !env->singlestep_enabled &&
              (dc->pc - pc_start) < (TARGET_PAGE_SIZE - 32));
     switch(dc->is_jmp) {
     case DISAS_JUMP_NEXT:

@@ -26,6 +26,8 @@
 
 #include "softfloat.h"
 
+#define TARGET_HAS_ICE 1
+
 #define EXCP_UDEF            1   /* undefined instruction */
 #define EXCP_SWI             2   /* software interrupt */
 #define EXCP_PREFETCH_ABORT  3
@@ -61,6 +63,11 @@ typedef struct CPUARMState {
     struct TranslationBlock *current_tb;
     int user_mode_only;
     uint32_t address;
+
+    /* ICE debug support.  */
+    target_ulong breakpoints[MAX_BREAKPOINTS];
+    int nb_breakpoints;
+    int singlestep_enabled;
 
     /* in order to avoid passing too many arguments to the memory
        write helpers, we store some rarely used information in the CPU

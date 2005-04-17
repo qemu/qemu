@@ -1675,6 +1675,12 @@ void process_pending_signals(void *cpu_env)
     k->first = q->next;
     if (!k->first)
         k->pending = 0;
+      
+    sig = gdb_handlesig (cpu_env, sig);
+    if (!sig) {
+        fprintf (stderr, "Lost signal\n");
+        abort();
+    }
 
     handler = k->sa._sa_handler;
     if (handler == TARGET_SIG_DFL) {

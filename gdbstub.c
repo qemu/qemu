@@ -17,7 +17,18 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+#ifdef CONFIG_USER_ONLY
+#include <stdlib.h>
+#include <stdio.h>
+#include <stdarg.h>
+#include <string.h>
+#include <errno.h>
+#include <unistd.h>
+
+#include "qemu.h"
+#else
 #include "vl.h"
+#endif
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -31,9 +42,10 @@ enum RSState {
     RS_GETLINE,
     RS_CHKSUM1,
     RS_CHKSUM2,
+    RS_CONTINUE
 };
-
-static int gdbserver_fd;
+/* XXX: This is not thread safe.  Do we care?  */
+static int gdbserver_fd = -1;
 
 typedef struct GDBState {
     enum RSState state;
@@ -42,6 +54,11 @@ typedef struct GDBState {
     int line_buf_index;
     int line_csum;
 } GDBState;
+
+#ifdef CONFIG_USER_ONLY
+/* XXX: remove this hack.  */
+static GDBState gdbserver_state;
+#endif
 
 static int get_char(GDBState *s)
 {
@@ -330,8 +347,47 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
     env->npc = tswapl(registers[69]);
     env->fsr = tswapl(registers[70]);
 }
-#else
+#elif defined (TARGET_ARM)
+static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
+{
+    int i;
+    uint8_t *ptr;
 
+    ptr = mem_buf;
+    /* 16 core integer registers (4 bytes each).  */
+    for (i = 0; i < 16; i++)
+      {
+        *(uint32_t *)ptr = tswapl(env->regs[i]);
+        ptr += 4;
+      }
+    /* 8 FPA registers (12 bytes each), FPS (4 bytes).
+       Not yet implemented.  */
+    memset (ptr, 0, 8 * 12 + 4);
+    ptr += 8 * 12 + 4;
+    /* CPSR (4 bytes).  */
+    *(uint32_t *)ptr = tswapl (env->cpsr);
+    ptr += 4;
+
+    return ptr - mem_buf;
+}
+
+static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
+{
+    int i;
+    uint8_t *ptr;
+
+    ptr = mem_buf;
+    /* Core integer registers.  */
+    for (i = 0; i < 16; i++)
+      {
+        env->regs[i] = tswapl(*(uint32_t *)ptr);
+        ptr += 4;
+      }
+    /* Ignore FPA regs and scr.  */
+    ptr += 8 * 12 + 4;
+    env->cpsr = tswapl(*(uint32_t *)ptr);
+}
+#else
 static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
 {
     return 0;
@@ -343,10 +399,8 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
 
 #endif
 
-/* port = 0 means default port */
-static int gdb_handle_packet(GDBState *s, const char *line_buf)
+static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
 {
-    CPUState *env = cpu_single_env;
     const char *p;
     int ch, reg_size, type;
     char buf[4096];
@@ -361,6 +415,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
     ch = *p++;
     switch(ch) {
     case '?':
+        /* TODO: Make this return the correct value for user-mode.  */
         snprintf(buf, sizeof(buf), "S%02x", SIGTRAP);
         put_packet(s, buf);
         break;
@@ -376,8 +431,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             env->npc = addr + 4;
 #endif
         }
-        vm_start();
-        break;
+        return RS_CONTINUE;
     case 's':
         if (*p != '\0') {
             addr = strtoul(p, (char **)&p, 16);
@@ -391,8 +445,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
 #endif
         }
         cpu_single_step(env, 1);
-        vm_start();
-        break;
+        return RS_CONTINUE;
     case 'g':
         reg_size = cpu_gdb_read_registers(env, mem_buf);
         memtohex(buf, mem_buf, reg_size);
@@ -472,6 +525,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
 
 extern void tb_flush(CPUState *env);
 
+#ifndef CONFIG_USER_ONLY
 static void gdb_vm_stopped(void *opaque, int reason)
 {
     GDBState *s = opaque;
@@ -490,17 +544,20 @@ static void gdb_vm_stopped(void *opaque, int reason)
     snprintf(buf, sizeof(buf), "S%02x", ret);
     put_packet(s, buf);
 }
+#endif
 
-static void gdb_read_byte(GDBState *s, int ch)
+static void gdb_read_byte(GDBState *s, CPUState *env, int ch)
 {
     int i, csum;
     char reply[1];
 
+#ifndef CONFIG_USER_ONLY
     if (vm_running) {
         /* when the CPU is running, we cannot do anything except stop
            it when receiving a char */
         vm_stop(EXCP_INTERRUPT);
     } else {
+#endif
         switch(s->state) {
         case RS_IDLE:
             if (ch == '$') {
@@ -535,13 +592,67 @@ static void gdb_read_byte(GDBState *s, int ch)
             } else {
                 reply[0] = '+';
                 put_buffer(s, reply, 1);
-                s->state = gdb_handle_packet(s, s->line_buf);
+                s->state = gdb_handle_packet(s, env, s->line_buf);
             }
             break;
+        case RS_CONTINUE:
+#ifndef CONFIG_USER_ONLY
+            vm_start();
+            s->state = RS_IDLE;
+#endif
+            break;
         }
+#ifndef CONFIG_USER_ONLY
     }
+#endif
 }
 
+#ifdef CONFIG_USER_ONLY
+int
+gdb_handlesig (CPUState *env, int sig)
+{
+  GDBState *s;
+  char buf[256];
+  int n;
+
+  if (gdbserver_fd < 0)
+    return sig;
+
+  s = &gdbserver_state;
+
+  /* disable single step if it was enabled */
+  cpu_single_step(env, 0);
+  tb_flush(env);
+
+  if (sig != 0)
+    {
+      snprintf(buf, sizeof(buf), "S%02x", sig);
+      put_packet(s, buf);
+    }
+
+  /* TODO: How do we terminate this loop?  */
+  sig = 0;
+  s->state = RS_IDLE;
+  while (s->state != RS_CONTINUE)
+    {
+      n = read (s->fd, buf, 256);
+      if (n > 0)
+        {
+          int i;
+
+          for (i = 0; i < n; i++)
+            gdb_read_byte (s, env, buf[i]);
+        }
+      else if (n == 0 || errno != EAGAIN)
+        {
+          /* XXX: Connection closed.  Should probably wait for annother
+             connection before continuing.  */
+          return sig;
+        }
+    }
+  return sig;
+}
+#else
 static int gdb_can_read(void *opaque)
 {
     return 256;
@@ -559,9 +670,11 @@ static void gdb_read(void *opaque, const uint8_t *buf, int size)
         vm_start();
     } else {
         for(i = 0; i < size; i++)
-            gdb_read_byte(s, buf[i]);
+            gdb_read_byte(s, cpu_single_env, buf[i]);
     }
 }
+
+#endif
 
 static void gdb_accept(void *opaque, const uint8_t *buf, int size)
 {
@@ -585,15 +698,21 @@ static void gdb_accept(void *opaque, const uint8_t *buf, int size)
     val = 1;
     setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &val, sizeof(val));
     
+#ifdef CONFIG_USER_ONLY
+    s = &gdbserver_state;
+    memset (s, 0, sizeof (GDBState));
+#else
     s = qemu_mallocz(sizeof(GDBState));
     if (!s) {
         close(fd);
         return;
     }
+#endif
     s->fd = fd;
 
     fcntl(fd, F_SETFL, O_NONBLOCK);
 
+#ifndef CONFIG_USER_ONLY
     /* stop the VM */
     vm_stop(EXCP_INTERRUPT);
 
@@ -601,6 +720,7 @@ static void gdb_accept(void *opaque, const uint8_t *buf, int size)
     qemu_add_fd_read_handler(s->fd, gdb_can_read, gdb_read, s);
     /* when the VM is stopped, the following callback is called */
     qemu_add_vm_stop_handler(gdb_vm_stopped, s);
+#endif
 }
 
 static int gdbserver_open(int port)
@@ -631,7 +751,9 @@ static int gdbserver_open(int port)
         perror("listen");
         return -1;
     }
+#ifndef CONFIG_USER_ONLY
     fcntl(fd, F_SETFL, O_NONBLOCK);
+#endif
     return fd;
 }
 
@@ -641,6 +763,10 @@ int gdbserver_start(int port)
     if (gdbserver_fd < 0)
         return -1;
     /* accept connections */
+#ifdef CONFIG_USER_ONLY
+    gdb_accept (NULL, NULL, 0);
+#else
     qemu_add_fd_read_handler(gdbserver_fd, NULL, gdb_accept, NULL);
+#endif
     return 0;
 }
