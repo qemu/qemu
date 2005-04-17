@@ -20,9 +20,11 @@
 #include "config.h"
 #ifdef _WIN32
 #include <windows.h>
+#include <winioctl.h>
 #else
 #include <sys/types.h>
 #include <sys/mman.h>
+#include <sys/ioctl.h>
 #endif
 #include <stdlib.h>
 #include <stdio.h>
@@ -41,13 +43,25 @@
 
 #include <unistd.h>
 #include <fcntl.h>
-#include <sys/ioctl.h>
 #include "kqemu/kqemu.h"
 
+#ifdef _WIN32
+#define KQEMU_DEVICE "\\\\.\\kqemu"
+#else
 #define KQEMU_DEVICE "/dev/kqemu"
+#endif
+
+#ifdef _WIN32
+#define KQEMU_INVALID_FD INVALID_HANDLE_VALUE
+HANDLE kqemu_fd = KQEMU_INVALID_FD;
+#define kqemu_closefd(x) CloseHandle(x)
+#else
+#define KQEMU_INVALID_FD -1
+int kqemu_fd = KQEMU_INVALID_FD;
+#define kqemu_closefd(x) close(x)
+#endif
 
 int kqemu_allowed = 1;
-int kqemu_fd = -1;
 unsigned long *pages_to_flush;
 unsigned int nb_pages_to_flush;
 extern uint32_t **l1_phys_map;
@@ -104,17 +118,32 @@ int kqemu_init(CPUState *env)
 {
     struct kqemu_init init;
     int ret, version;
+#ifdef _WIN32
+    DWORD temp;
+#endif
 
     if (!kqemu_allowed)
         return -1;
 
+#ifdef _WIN32
+    kqemu_fd = CreateFile(KQEMU_DEVICE, GENERIC_WRITE | GENERIC_READ,
+                          FILE_SHARE_READ | FILE_SHARE_WRITE,
+                          NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL,
+                          NULL);
+#else
     kqemu_fd = open(KQEMU_DEVICE, O_RDWR);
-    if (kqemu_fd < 0) {
+#endif
+    if (kqemu_fd == KQEMU_INVALID_FD) {
         fprintf(stderr, "Could not open '%s' - QEMU acceleration layer not activated\n", KQEMU_DEVICE);
         return -1;
     }
     version = 0;
+#ifdef _WIN32
+    DeviceIoControl(kqemu_fd, KQEMU_GET_VERSION, NULL, 0,
+                    &version, sizeof(version), &temp, NULL);
+#else
     ioctl(kqemu_fd, KQEMU_GET_VERSION, &version);
+#endif
     if (version != KQEMU_VERSION) {
         fprintf(stderr, "Version mismatch between kqemu module and qemu (%08x %08x) - disabling kqemu use\n",
                 version, KQEMU_VERSION);
@@ -131,12 +160,17 @@ int kqemu_init(CPUState *env)
     init.ram_dirty = phys_ram_dirty;
     init.phys_to_ram_map = l1_phys_map;
     init.pages_to_flush = pages_to_flush;
+#ifdef _WIN32
+    ret = DeviceIoControl(kqemu_fd, KQEMU_INIT, &init, sizeof(init),
+                          NULL, 0, &temp, NULL) == TRUE ? 0 : -1;
+#else
     ret = ioctl(kqemu_fd, KQEMU_INIT, &init);
+#endif
     if (ret < 0) {
         fprintf(stderr, "Error %d while initializing QEMU acceleration layer - disabling it for now\n", ret);
     fail:
-        close(kqemu_fd);
-        kqemu_fd = -1;
+        kqemu_closefd(kqemu_fd);
+        kqemu_fd = KQEMU_INVALID_FD;
         return -1;
     }
     kqemu_update_cpuid(env);
@@ -313,6 +347,9 @@ int kqemu_cpu_exec(CPUState *env)
 {
     struct kqemu_cpu_state kcpu_state, *kenv = &kcpu_state;
     int ret;
+#ifdef _WIN32
+    DWORD temp;
+#endif
 
 #ifdef DEBUG
     if (loglevel & CPU_LOG_INT) {
@@ -354,8 +391,20 @@ int kqemu_cpu_exec(CPUState *env)
             restore_native_fp_frstor(env);
     }
 
+#ifdef _WIN32
+    DeviceIoControl(kqemu_fd, KQEMU_EXEC,
+		    kenv, sizeof(struct kqemu_cpu_state),
+		    kenv, sizeof(struct kqemu_cpu_state),
+		    &temp, NULL);
+    ret = kenv->retval;
+#else
+#if KQEMU_VERSION >= 0x010100
+    ioctl(kqemu_fd, KQEMU_EXEC, kenv);
+    ret = kenv->retval;
+#else
     ret = ioctl(kqemu_fd, KQEMU_EXEC, kenv);
-
+#endif
+#endif
     if (!(kenv->cr0 & CR0_TS_MASK)) {
         if (env->cpuid_features & CPUID_FXSR)
             save_native_fp_fxsave(env);

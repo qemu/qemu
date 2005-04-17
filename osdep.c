@@ -273,14 +273,12 @@ void *get_mmap_addr(unsigned long size)
 
 #else
 
-#ifdef _BSD
+#ifdef _WIN32
+#include <windows.h>
+#elif defined(_BSD)
 #include <stdlib.h>
 #else
 #include <malloc.h>
-#endif
-#ifdef _WIN32
-/* XXX: find a solution to have page aligned data */
-#define memalign(align, size) malloc(size)
 #endif
 
 int qemu_write(int fd, const void *buf, size_t n)
@@ -308,7 +306,22 @@ void *qemu_malloc(size_t size)
     return malloc(size);
 }
 
-#if defined(USE_KQEMU)
+#if defined(_WIN32)
+
+void *qemu_vmalloc(size_t size)
+{
+    /* FIXME: this is not exactly optimal solution since VirtualAlloc
+       has 64Kb granularity, but at least it guarantees us that the
+       memory is page aligned. */
+    return VirtualAlloc(NULL, size, MEM_COMMIT, PAGE_READWRITE);
+}
+
+void qemu_vfree(void *ptr)
+{
+    VirtualFree(ptr, 0, MEM_RELEASE);
+}
+
+#elif defined(USE_KQEMU)
 
 #include <sys/mman.h>
 #include <fcntl.h>
