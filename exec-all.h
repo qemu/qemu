@@ -601,9 +601,6 @@ static inline target_ulong get_phys_addr_code(CPUState *env, target_ulong addr)
 
 
 #ifdef USE_KQEMU
-extern int kqemu_fd;
-extern int kqemu_flushed;
-
 int kqemu_init(CPUState *env);
 int kqemu_cpu_exec(CPUState *env);
 void kqemu_flush_page(CPUState *env, target_ulong addr);
