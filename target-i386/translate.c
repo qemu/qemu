@@ -2231,6 +2231,16 @@ static void gen_movtl_T1_im(target_ulong val)
 #endif
 }
 
+static void gen_add_A0_im(DisasContext *s, int val)
+{
+#ifdef TARGET_X86_64
+    if (CODE64(s))
+        gen_op_addq_A0_im(val);
+    else
+#endif
+        gen_op_addl_A0_im(val);
+}
+
 static GenOpFunc1 *gen_ldq_env_A0[3] = {
     gen_op_ldq_raw_env_A0,
 #ifndef CONFIG_USER_ONLY
@@ -3382,9 +3392,13 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             goto illegal_op;
         }
         if (CODE64(s)) {
-            if (op >= 2 && op <= 5) {
+            if (op == 2 || op == 4) {
                 /* operand size for jumps is 64 bit */
                 ot = OT_QUAD;
+            } else if (op == 3 || op == 5) {
+                /* for call calls, the operand is 16 or 32 bit, even
+                   in long mode */
+                ot = dflag ? OT_LONG : OT_WORD;
             } else if (op == 6) {
                 /* default push size is 64 bit */
                 ot = dflag ? OT_QUAD : OT_WORD;
@@ -3425,14 +3439,14 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             break;
         case 3: /* lcall Ev */
             gen_op_ld_T1_A0[ot + s->mem_index]();
-            gen_op_addl_A0_im(1 << (ot - OT_WORD + 1));
+            gen_add_A0_im(s, 1 << (ot - OT_WORD + 1));
             gen_op_ldu_T0_A0[OT_WORD + s->mem_index]();
         do_lcall:
             if (s->pe && !s->vm86) {
                 if (s->cc_op != CC_OP_DYNAMIC)
                     gen_op_set_cc_op(s->cc_op);
                 gen_jmp_im(pc_start - s->cs_base);
-                gen_op_lcall_protected_T0_T1(dflag, s->pc - s->cs_base);
+                gen_op_lcall_protected_T0_T1(dflag, s->pc - pc_start);
             } else {
                 gen_op_lcall_real_T0_T1(dflag, s->pc - s->cs_base);
             }
@@ -3446,14 +3460,14 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             break;
         case 5: /* ljmp Ev */
             gen_op_ld_T1_A0[ot + s->mem_index]();
-            gen_op_addl_A0_im(1 << (ot - OT_WORD + 1));
+            gen_add_A0_im(s, 1 << (ot - OT_WORD + 1));
             gen_op_ldu_T0_A0[OT_WORD + s->mem_index]();
         do_ljmp:
             if (s->pe && !s->vm86) {
                 if (s->cc_op != CC_OP_DYNAMIC)
                     gen_op_set_cc_op(s->cc_op);
                 gen_jmp_im(pc_start - s->cs_base);
-                gen_op_ljmp_protected_T0_T1(s->pc - s->cs_base);
+                gen_op_ljmp_protected_T0_T1(s->pc - pc_start);
             } else {
                 gen_op_movl_seg_T0_vm(offsetof(CPUX86State,segs[R_CS]));
                 gen_op_movl_T0_T1();
@@ -4043,7 +4057,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             goto illegal_op;
         gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
         gen_op_ld_T1_A0[ot + s->mem_index]();
-        gen_op_addl_A0_im(1 << (ot - OT_WORD + 1));
+        gen_add_A0_im(s, 1 << (ot - OT_WORD + 1));
         /* load the segment first to handle exceptions properly */
         gen_op_ldu_T0_A0[OT_WORD + s->mem_index]();
         gen_movl_seg_T0(s, op, pc_start - s->cs_base);
@@ -5182,7 +5196,13 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         gen_op_into(s->pc - pc_start);
         break;
     case 0xf1: /* icebp (undocumented, exits to external debugger) */
+#if 1
         gen_debug(s, pc_start - s->cs_base);
+#else
+        /* start debug */
+        tb_flush(cpu_single_env);
+        cpu_set_log(CPU_LOG_INT | CPU_LOG_TB_IN_ASM);
+#endif
         break;
     case 0xfa: /* cli */
         if (!s->vm86) {
@@ -5363,6 +5383,9 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             }
             gen_jmp_im(pc_start - s->cs_base);
             gen_op_sysret(s->dflag);
+            /* condition codes are modified only in long mode */
+            if (s->lma)
+                s->cc_op = CC_OP_EFLAGS;
             gen_eob(s);
         }
         break;
@@ -5458,12 +5481,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             else
                 gen_op_movl_T0_env(offsetof(CPUX86State,idt.limit));
             gen_op_st_T0_A0[OT_WORD + s->mem_index]();
-#ifdef TARGET_X86_64
-            if (CODE64(s)) 
-                gen_op_addq_A0_im(2);
-            else
-#endif
-                gen_op_addl_A0_im(2);
+            gen_add_A0_im(s, 2);
             if (op == 0)
                 gen_op_movtl_T0_env(offsetof(CPUX86State,gdt.base));
             else
@@ -5481,12 +5499,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             } else {
                 gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
                 gen_op_ld_T1_A0[OT_WORD + s->mem_index]();
-#ifdef TARGET_X86_64
-                if (CODE64(s))
-                    gen_op_addq_A0_im(2);
-                else
-#endif
-                    gen_op_addl_A0_im(2);
+                gen_add_A0_im(s, 2);
                 gen_op_ld_T0_A0[CODE64(s) + OT_LONG + s->mem_index]();
                 if (!s->dflag)
                     gen_op_andl_T0_im(0xffffff);
