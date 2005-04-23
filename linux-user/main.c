@@ -373,7 +373,7 @@ void cpu_loop(CPUARMState *env)
                                               env->regs[2],
                                               env->regs[3],
                                               env->regs[4],
-                                              0);
+                                              env->regs[5]);
                 } else {
                     goto error;
                 }
