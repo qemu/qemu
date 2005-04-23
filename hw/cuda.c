@@ -178,16 +178,19 @@ static int64_t get_next_irq_time(CUDATimer *s, int64_t current_time)
     /* current counter value */
     d = muldiv64(current_time - s->load_time, 
                  CUDA_TIMER_FREQ, ticks_per_sec);
-    if (d <= s->counter_value) {
+    if (d < s->counter_value) {
         next_time = s->counter_value + 1;
-    } else {
-        base = ((d - s->counter_value) / s->latch);
+    } else
+    {
+        base = ((d - s->counter_value + 1) / s->latch);
         base = (base * s->latch) + s->counter_value;
         next_time = base + s->latch;
     }
+#if 0
 #ifdef DEBUG_CUDA
     printf("latch=%d counter=%lld delta_next=%lld\n", 
            s->latch, d, next_time - d);
+#endif
 #endif
     next_time = muldiv64(next_time, ticks_per_sec, CUDA_TIMER_FREQ) + 
         s->load_time;
@@ -505,6 +508,7 @@ static void cuda_receive_packet(CUDAState *s,
         cuda_send_packet_to_host(s, obuf, 2);
         break;
     case CUDA_GET_TIME:
+    case CUDA_SET_TIME:
         /* XXX: add time support ? */
         ti = time(NULL) + RTC_OFFSET;
         obuf[0] = CUDA_PACKET;
@@ -516,7 +520,6 @@ static void cuda_receive_packet(CUDAState *s,
         obuf[6] = ti;
         cuda_send_packet_to_host(s, obuf, 7);
         break;
-    case CUDA_SET_TIME:
     case CUDA_FILE_SERVER_FLAG:
     case CUDA_SET_DEVICE_LIST:
     case CUDA_SET_AUTO_RATE:
