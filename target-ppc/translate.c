@@ -1046,22 +1046,41 @@ GEN_HANDLER(mtfsfi, 0x3F, 0x06, 0x04, 0x006f0800, PPC_FLOAT)
 }
 
 /***                             Integer load                              ***/
-#if defined(CONFIG_USER_ONLY)
-#define op_ldst(name)        gen_op_##name##_raw()
-#define OP_LD_TABLE(width)
-#define OP_ST_TABLE(width)
-#else
 #define op_ldst(name)        (*gen_op_##name[ctx->mem_idx])()
+#if defined(CONFIG_USER_ONLY)
+#define OP_LD_TABLE(width)                                                    \
+static GenOpFunc *gen_op_l##width[] = {                                       \
+    &gen_op_l##width##_raw,                                                   \
+    &gen_op_l##width##_le_raw,                                                \
+};
+#define OP_ST_TABLE(width)                                                    \
+static GenOpFunc *gen_op_st##width[] = {                                      \
+    &gen_op_st##width##_raw,                                                  \
+    &gen_op_st##width##_le_raw,                                               \
+};
+/* Byte access routine are endian safe */
+#define gen_op_stb_le_raw gen_op_stb_raw
+#define gen_op_lbz_le_raw gen_op_lbz_raw
+#else
 #define OP_LD_TABLE(width)                                                    \
 static GenOpFunc *gen_op_l##width[] = {                                       \
     &gen_op_l##width##_user,                                                  \
+    &gen_op_l##width##_le_user,                                               \
     &gen_op_l##width##_kernel,                                                \
-}
+    &gen_op_l##width##_le_kernel,                                             \
+};
 #define OP_ST_TABLE(width)                                                    \
 static GenOpFunc *gen_op_st##width[] = {                                      \
     &gen_op_st##width##_user,                                                 \
+    &gen_op_st##width##_le_user,                                              \
     &gen_op_st##width##_kernel,                                               \
-}
+    &gen_op_st##width##_le_kernel,                                            \
+};
+/* Byte access routine are endian safe */
+#define gen_op_stb_le_user gen_op_stb_user
+#define gen_op_lbz_le_user gen_op_lbz_user
+#define gen_op_stb_le_kernel gen_op_stb_kernel
+#define gen_op_lbz_le_kernel gen_op_lbz_kernel
 #endif
 
 #define GEN_LD(width, opc)                                                    \
@@ -1232,17 +1251,28 @@ OP_ST_TABLE(wbr);
 GEN_STX(wbr, 0x16, 0x14);
 
 /***                    Integer load and store multiple                    ***/
-#if defined(CONFIG_USER_ONLY)
-#define op_ldstm(name, reg) gen_op_##name##_raw(reg)
-#else
 #define op_ldstm(name, reg) (*gen_op_##name[ctx->mem_idx])(reg)
+#if defined(CONFIG_USER_ONLY)
+static GenOpFunc1 *gen_op_lmw[] = {
+    &gen_op_lmw_raw,
+    &gen_op_lmw_le_raw,
+};
+static GenOpFunc1 *gen_op_stmw[] = {
+    &gen_op_stmw_raw,
+    &gen_op_stmw_le_raw,
+};
+#else
 static GenOpFunc1 *gen_op_lmw[] = {
     &gen_op_lmw_user,
+    &gen_op_lmw_le_user,
     &gen_op_lmw_kernel,
+    &gen_op_lmw_le_kernel,
 };
 static GenOpFunc1 *gen_op_stmw[] = {
     &gen_op_stmw_user,
+    &gen_op_stmw_le_user,
     &gen_op_stmw_kernel,
+    &gen_op_stmw_le_kernel,
 };
 #endif
 
@@ -1277,23 +1307,39 @@ GEN_HANDLER(stmw, 0x2F, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 }
 
 /***                    Integer load and store strings                     ***/
-#if defined(CONFIG_USER_ONLY)
-#define op_ldsts(name, start) gen_op_##name##_raw(start)
-#define op_ldstsx(name, rd, ra, rb) gen_op_##name##_raw(rd, ra, rb)
-#else
 #define op_ldsts(name, start) (*gen_op_##name[ctx->mem_idx])(start)
 #define op_ldstsx(name, rd, ra, rb) (*gen_op_##name[ctx->mem_idx])(rd, ra, rb)
+#if defined(CONFIG_USER_ONLY)
+static GenOpFunc1 *gen_op_lswi[] = {
+    &gen_op_lswi_raw,
+    &gen_op_lswi_le_raw,
+};
+static GenOpFunc3 *gen_op_lswx[] = {
+    &gen_op_lswx_raw,
+    &gen_op_lswx_le_raw,
+};
+static GenOpFunc1 *gen_op_stsw[] = {
+    &gen_op_stsw_raw,
+    &gen_op_stsw_le_raw,
+};
+#else
 static GenOpFunc1 *gen_op_lswi[] = {
     &gen_op_lswi_user,
+    &gen_op_lswi_le_user,
     &gen_op_lswi_kernel,
+    &gen_op_lswi_le_kernel,
 };
 static GenOpFunc3 *gen_op_lswx[] = {
     &gen_op_lswx_user,
+    &gen_op_lswx_le_user,
     &gen_op_lswx_kernel,
+    &gen_op_lswx_le_kernel,
 };
 static GenOpFunc1 *gen_op_stsw[] = {
     &gen_op_stsw_user,
+    &gen_op_stsw_le_user,
     &gen_op_stsw_kernel,
+    &gen_op_stsw_le_kernel,
 };
 #endif
 
@@ -1389,23 +1435,33 @@ GEN_HANDLER(isync, 0x13, 0x16, 0xFF, 0x03FF0801, PPC_MEM)
 {
 }
 
-/* lwarx */
-#if defined(CONFIG_USER_ONLY)
-#define op_lwarx() gen_op_lwarx_raw()
-#define op_stwcx() gen_op_stwcx_raw()
-#else
 #define op_lwarx() (*gen_op_lwarx[ctx->mem_idx])()
+#define op_stwcx() (*gen_op_stwcx[ctx->mem_idx])()
+#if defined(CONFIG_USER_ONLY)
+static GenOpFunc *gen_op_lwarx[] = {
+    &gen_op_lwarx_raw,
+    &gen_op_lwarx_le_raw,
+};
+static GenOpFunc *gen_op_stwcx[] = {
+    &gen_op_stwcx_raw,
+    &gen_op_stwcx_le_raw,
+};
+#else
 static GenOpFunc *gen_op_lwarx[] = {
     &gen_op_lwarx_user,
+    &gen_op_lwarx_le_user,
     &gen_op_lwarx_kernel,
+    &gen_op_lwarx_le_kernel,
 };
-#define op_stwcx() (*gen_op_stwcx[ctx->mem_idx])()
 static GenOpFunc *gen_op_stwcx[] = {
     &gen_op_stwcx_user,
+    &gen_op_stwcx_le_user,
     &gen_op_stwcx_kernel,
+    &gen_op_stwcx_le_kernel,
 };
 #endif
 
+/* lwarx */
 GEN_HANDLER(lwarx, 0x1F, 0x14, 0xFF, 0x00000001, PPC_RES)
 {
     if (rA(ctx->opcode) == 0) {
@@ -2498,23 +2554,33 @@ GEN_HANDLER(tlbsync, 0x1F, 0x16, 0x11, 0x03FFF801, PPC_MEM)
 
 /***                              External control                         ***/
 /* Optional: */
-/* eciwx */
-#if defined(CONFIG_USER_ONLY)
-#define op_eciwx() gen_op_eciwx_raw()
-#define op_ecowx() gen_op_ecowx_raw()
-#else
 #define op_eciwx() (*gen_op_eciwx[ctx->mem_idx])()
 #define op_ecowx() (*gen_op_ecowx[ctx->mem_idx])()
+#if defined(CONFIG_USER_ONLY)
+static GenOpFunc *gen_op_eciwx[] = {
+    &gen_op_eciwx_raw,
+    &gen_op_eciwx_le_raw,
+};
+static GenOpFunc *gen_op_ecowx[] = {
+    &gen_op_ecowx_raw,
+    &gen_op_ecowx_le_raw,
+};
+#else
 static GenOpFunc *gen_op_eciwx[] = {
     &gen_op_eciwx_user,
+    &gen_op_eciwx_le_user,
     &gen_op_eciwx_kernel,
+    &gen_op_eciwx_le_kernel,
 };
 static GenOpFunc *gen_op_ecowx[] = {
     &gen_op_ecowx_user,
+    &gen_op_ecowx_le_user,
     &gen_op_ecowx_kernel,
+    &gen_op_ecowx_le_kernel,
 };
 #endif
 
+/* eciwx */
 GEN_HANDLER(eciwx, 0x1F, 0x16, 0x0D, 0x00000001, PPC_EXTERN)
 {
     /* Should check EAR[E] & alignment ! */
@@ -3143,10 +3209,10 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     ctx.tb = tb;
     ctx.exception = EXCP_NONE;
 #if defined(CONFIG_USER_ONLY)
-    ctx.mem_idx = 0;
+    ctx.mem_idx = msr_le;
 #else
     ctx.supervisor = 1 - msr_pr;
-    ctx.mem_idx = 1 - msr_pr;
+    ctx.mem_idx = ((1 - msr_pr) << 1) | msr_le;
 #endif
     ctx.fpu_enabled = msr_fp;
 #if defined (DO_SINGLE_STEP)
@@ -3173,11 +3239,17 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
         }
 #endif
         ctx.opcode = ldl_code(ctx.nip);
+        if (msr_le) {
+            ctx.opcode = ((ctx.opcode & 0xFF000000) >> 24) |
+                ((ctx.opcode & 0x00FF0000) >> 8) |
+                ((ctx.opcode & 0x0000FF00) << 8) |
+                ((ctx.opcode & 0x000000FF) << 24);
+        }
 #if defined PPC_DEBUG_DISAS
         if (loglevel & CPU_LOG_TB_IN_ASM) {
-            fprintf(logfile, "translate opcode %08x (%02x %02x %02x)\n",
+            fprintf(logfile, "translate opcode %08x (%02x %02x %02x) (%s)\n",
                     ctx.opcode, opc1(ctx.opcode), opc2(ctx.opcode),
-                    opc3(ctx.opcode));
+                    opc3(ctx.opcode), msr_le ? "little" : "big");
         }
 #endif
         ctx.nip += 4;

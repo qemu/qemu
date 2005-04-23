@@ -141,6 +141,8 @@ void target_disas(FILE *out, target_ulong code, target_ulong size, int flags)
 #elif defined(TARGET_SPARC)
     print_insn = print_insn_sparc;
 #elif defined(TARGET_PPC)
+    if (cpu_single_env->msr[MSR_LE])
+        disasm_info.endian = BFD_ENDIAN_LITTLE;
     print_insn = print_insn_ppc;
 #else
     fprintf(out, "0x" TARGET_FMT_lx
