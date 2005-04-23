@@ -77,21 +77,3 @@ myfunc2:
 
 
 code16_end:
-
-
-/* other 32 bits tests */
-        .code32
-
-        .globl func_lret32
-func_lret32:
-        movl $0x87654321, %eax
-        lret
-
-        .globl func_iret32
-func_iret32:
-        movl $0xabcd4321, %eax
-        iret
-
-                
-
-        
