@@ -258,6 +258,7 @@
 
 #define CPUID_EXT2_SYSCALL (1 << 11)
 #define CPUID_EXT2_NX      (1 << 20)
+#define CPUID_EXT2_FFXSR   (1 << 25)
 #define CPUID_EXT2_LM      (1 << 29)
 
 #define EXCP00_DIVZ	0
@@ -464,9 +465,9 @@ typedef struct CPUX86State {
     uint32_t sysenter_cs;
     uint32_t sysenter_esp;
     uint32_t sysenter_eip;
+    uint64_t efer;
+    uint64_t star;
 #ifdef TARGET_X86_64
-    target_ulong efer;
-    target_ulong star;
     target_ulong lstar;
     target_ulong cstar;
     target_ulong fmask;
@@ -510,13 +511,17 @@ typedef struct CPUX86State {
     int singlestep_enabled;
 
     /* processor features (e.g. for CPUID insn) */
+    uint32_t cpuid_level;
     uint32_t cpuid_vendor1;
     uint32_t cpuid_vendor2;
     uint32_t cpuid_vendor3;
     uint32_t cpuid_version;
     uint32_t cpuid_features;
     uint32_t cpuid_ext_features;
-
+    uint32_t cpuid_xlevel;
+    uint32_t cpuid_model[12];
+    uint32_t cpuid_ext2_features;
+    
 #ifdef USE_KQEMU
     int kqemu_enabled;
 #endif
