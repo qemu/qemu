@@ -88,6 +88,10 @@ cocoa="no"
 # OS specific
 targetos=`uname -s`
 case $targetos in
+CYGWIN*)
+mingw32="yes"
+CFLAGS="-O2 -mno-cygwin"
+;;
 MINGW32*)
 mingw32="yes"
 ;;
