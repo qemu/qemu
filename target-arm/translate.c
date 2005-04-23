@@ -33,6 +33,7 @@ typedef struct DisasContext {
     target_ulong pc;
     int is_jmp;
     struct TranslationBlock *tb;
+    int singlestep_enabled;
 } DisasContext;
 
 #define DISAS_JUMP_NEXT 4
@@ -888,6 +889,18 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
     return 0;
 }
 
+static inline void gen_jmp (DisasContext *s, uint32_t dest)
+{
+    if (__builtin_expect(s->singlestep_enabled, 0)) {
+        /* An indirect jump so that we still trigger the debug exception.  */
+        gen_op_movl_T0_im(dest);
+        gen_bx(s);
+    } else {
+        gen_op_jmp((long)s->tb, dest);
+        s->is_jmp = DISAS_TB_JUMP;
+    }
+}
+
 static void disas_arm_insn(CPUState * env, DisasContext *s)
 {
     unsigned int cond, insn, val, op1, i, shift, rm, rs, rn, rd, sh;
@@ -1469,8 +1482,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                 }
                 offset = (((int32_t)insn << 8) >> 8);
                 val += (offset << 2) + 4;
-                gen_op_jmp((long)s->tb, val);
-                s->is_jmp = DISAS_TB_JUMP;
+                gen_jmp(s, val);
             }
             break;
         case 0xc:
@@ -1957,8 +1969,7 @@ static void disas_thumb_insn(DisasContext *s)
         val = (uint32_t)s->pc;
         offset = ((int32_t)insn << 24) >> 24;
         val += (offset << 1) + 2;
-        gen_op_jmp((long)s->tb, val);
-        s->is_jmp = DISAS_TB_JUMP;
+        gen_jmp(s, val);
         break;
 
     case 14:
@@ -1968,8 +1979,7 @@ static void disas_thumb_insn(DisasContext *s)
         val = (uint32_t)s->pc;
         offset = ((int32_t)insn << 21) >> 21;
         val += (offset << 1) + 2;
-        gen_op_jmp((long)s->tb, val);
-        s->is_jmp = DISAS_TB_JUMP;
+        gen_jmp(s, val);
         break;
 
     case 15:
@@ -1985,8 +1995,7 @@ static void disas_thumb_insn(DisasContext *s)
         val += offset;
         if (insn & (1 << 11)) {
             /* bl */
-            gen_op_jmp((long)s->tb, val);
-            s->is_jmp = DISAS_TB_JUMP;
+            gen_jmp(s, val);
         } else {
             /* blx */
             gen_op_movl_T0_im(val);
@@ -2024,6 +2033,7 @@ static inline int gen_intermediate_code_internal(CPUState *env,
 
     dc->is_jmp = DISAS_NEXT;
     dc->pc = pc_start;
+    dc->singlestep_enabled = env->singlestep_enabled;
     lj = -1;
     do {
         if (env->nb_breakpoints > 0) {
@@ -2054,21 +2064,30 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     } while (!dc->is_jmp && gen_opc_ptr < gen_opc_end &&
              !env->singlestep_enabled &&
              (dc->pc - pc_start) < (TARGET_PAGE_SIZE - 32));
-    switch(dc->is_jmp) {
-    case DISAS_JUMP_NEXT:
-    case DISAS_NEXT:
-        gen_op_jmp((long)dc->tb, (long)dc->pc);
-        break;
-    default:
-    case DISAS_JUMP:
-    case DISAS_UPDATE:
-        /* indicate that the hash table must be used to find the next TB */
-        gen_op_movl_T0_0();
-        gen_op_exit_tb();
-        break;
-    case DISAS_TB_JUMP:
-        /* nothing more to generate */
-        break;
+    if (__builtin_expect(env->singlestep_enabled, 0)) {
+        /* Make sure the pc is updated, and raise a debug exception.  */
+        if (dc->is_jmp == DISAS_NEXT || dc->is_jmp == DISAS_JUMP_NEXT) {
+            gen_op_movl_T0_im((long)dc->pc);
+            gen_op_movl_reg_TN[0][15]();
+        }
+        gen_op_debug();
+    } else {
+        switch(dc->is_jmp) {
+        case DISAS_JUMP_NEXT:
+        case DISAS_NEXT:
+            gen_op_jmp((long)dc->tb, (long)dc->pc);
+            break;
+        default:
+        case DISAS_JUMP:
+        case DISAS_UPDATE:
+            /* indicate that the hash table must be used to find the next TB */
+            gen_op_movl_T0_0();
+            gen_op_exit_tb();
+            break;
+        case DISAS_TB_JUMP:
+            /* nothing more to generate */
+            break;
+        }
     }
     *gen_opc_ptr = INDEX_op_end;
 
