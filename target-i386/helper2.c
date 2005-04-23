@@ -102,15 +102,32 @@ CPUX86State *cpu_x86_init(void)
         stepping = 3;
 #endif
 #endif
+        env->cpuid_level = 2;
         env->cpuid_version = (family << 8) | (model << 4) | stepping;
         env->cpuid_features = (CPUID_FP87 | CPUID_DE | CPUID_PSE |
                                CPUID_TSC | CPUID_MSR | CPUID_MCE |
                                CPUID_CX8 | CPUID_PGE | CPUID_CMOV);
         env->cpuid_ext_features = 0;
         env->cpuid_features |= CPUID_FXSR | CPUID_MMX | CPUID_SSE | CPUID_SSE2 | CPUID_PAE | CPUID_SEP;
+        env->cpuid_xlevel = 0;
+        {
+            const char *model_id = "QEMU Virtual CPU version " QEMU_VERSION;
+            int c, len, i;
+            len = strlen(model_id);
+            for(i = 0; i < 48; i++) {
+                if (i >= len)
+                    c = '\0';
+                else
+                    c = model_id[i];
+                env->cpuid_model[i >> 2] |= c << (8 * (i & 3));
+            }
+        }
 #ifdef TARGET_X86_64
         /* currently not enabled for std i386 because not fully tested */
         env->cpuid_features |= CPUID_APIC;
+        env->cpuid_ext2_features = (env->cpuid_features & 0x0183F3FF);
+        env->cpuid_ext2_features |= CPUID_EXT2_LM | CPUID_EXT2_SYSCALL;
+        env->cpuid_xlevel = 0x80000008;
 #endif
     }
     cpu_single_env = env;
