@@ -28,11 +28,7 @@
 //#define DEBUG_VGA_MEM
 //#define DEBUG_VGA_REG
 
-//#define DEBUG_S3
 //#define DEBUG_BOCHS_VBE
-
-/* S3 VGA is deprecated - another graphic card will be emulated */
-//#define CONFIG_S3VGA
 
 /* force some bits to zero */
 const uint8_t sr_mask[8] = {
@@ -225,11 +221,6 @@ static uint32_t vga_ioport_read(void *opaque, uint32_t addr)
 #ifdef DEBUG_VGA_REG
             printf("vga: read CR%x = 0x%02x\n", s->cr_index, val);
 #endif
-#ifdef DEBUG_S3
-            if (s->cr_index >= 0x20)
-                printf("S3: CR read index=0x%x val=0x%x\n",
-                       s->cr_index, val);
-#endif
             break;
         case 0x3ba:
         case 0x3da:
@@ -359,43 +350,10 @@ static void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         case 0x12: /* veritcal display end */
             s->cr[s->cr_index] = val;
             break;
-
-#ifdef CONFIG_S3VGA
-            /* S3 registers */
-        case 0x2d:
-        case 0x2e:
-        case 0x2f:
-        case 0x30:
-            /* chip ID, cannot write */
-            break;
-        case 0x31:
-            /* update start address */
-            {
-                int v;
-                s->cr[s->cr_index] = val;
-                v = (val >> 4) & 3;
-                s->cr[0x69] = (s->cr[69] & ~0x03) | v;
-            }
-            break;
-        case 0x51:
-            /* update start address */
-            {
-                int v;
-                s->cr[s->cr_index] = val;
-                v = val & 3;
-                s->cr[0x69] = (s->cr[69] & ~0x0c) | (v << 2);
-            }
-            break;
-#endif
         default:
             s->cr[s->cr_index] = val;
             break;
         }
-#ifdef DEBUG_S3
-        if (s->cr_index >= 0x20)
-            printf("S3: CR write index=0x%x val=0x%x\n",
-                   s->cr_index, val);
-#endif
         break;
     case 0x3ba:
     case 0x3da:
@@ -954,22 +912,10 @@ static void vga_get_offsets(VGAState *s,
     {  
         /* compute line_offset in bytes */
         line_offset = s->cr[0x13];
-#ifdef CONFIG_S3VGA
-        {
-            uinr32_t v;
-            v = (s->cr[0x51] >> 4) & 3; /* S3 extension */
-            if (v == 0)
-                v = (s->cr[0x43] >> 2) & 1; /* S3 extension */
-            line_offset |= (v << 8);
-        }
-#endif
         line_offset <<= 3;
-        
+
         /* starting address */
         start_addr = s->cr[0x0d] | (s->cr[0x0c] << 8);
-#ifdef CONFIG_S3VGA
-        start_addr |= (s->cr[0x69] & 0x1f) << 16; /* S3 extension */
-#endif
     }
     *pline_offset = line_offset;
     *pstart_addr = start_addr;
@@ -1597,13 +1543,6 @@ void vga_invalidate_display(void)
 static void vga_reset(VGAState *s)
 {
     memset(s, 0, sizeof(VGAState));
-#ifdef CONFIG_S3VGA
-    /* chip ID for 8c968 */
-    s->cr[0x2d] = 0x88;
-    s->cr[0x2e] = 0xb0;
-    s->cr[0x2f] = 0x01; /* XXX: check revision code */
-    s->cr[0x30] = 0xe1;
-#endif
     s->graphic_mode = -1; /* force full update */
 }
 
