@@ -94,6 +94,9 @@ mingw32="yes"
 FreeBSD)
 bsd="yes"
 oss="yes"
+if [ "$cpu" = "i386" ] ; then
+    kqemu="yes"
+fi
 ;;
 NetBSD)
 bsd="yes"
@@ -110,7 +113,7 @@ darwin="yes"
 *) 
 oss="yes"
 linux="yes"
-if [ "$cpu" = "i386" ] ; then
+if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     kqemu="yes"
 fi
 ;;
@@ -198,7 +201,9 @@ if test "$mingw32" = "yes" ; then
     EXESUF=".exe"
     gdbstub="no"
     oss="no"
-    kqemu="no"
+    if [ "$cpu" = "i386" ] ; then
+        kqemu="yes"
+    fi
 fi
 
 if test -z "$target_list" ; then
@@ -350,7 +355,7 @@ docdir="$prefix/share/doc/qemu"
 bindir="$prefix/bin"
 fi
 
-# kernel module support
+# kqemu support
 if test $kqemu = "yes" ; then
     # test if the source code is installed
     if test '!' -f "kqemu/Makefile" ; then 
@@ -358,7 +363,8 @@ if test $kqemu = "yes" ; then
     fi
 fi
   
-if test $kqemu = "yes" ; then
+# Linux specific kqemu configuration
+if test $kqemu = "yes" -a $linux = "yes" ; then
 # find the kernel path
 if test -z "$kernel_path" ; then
 kernel_version=`uname -r`
@@ -388,7 +394,7 @@ fi
 
 fi # kqemu
 
-fi # kqemu
+fi # kqemu and linux
 
 
 echo "Install prefix    $prefix"
@@ -418,9 +424,10 @@ if test $fmod = "yes"; then
     echo -n " (lib='$fmod_lib' include='$fmod_inc')"
 fi
 echo ""
-if test $kqemu = "yes" ; then
+echo "kqemu support     $kqemu"
+if test $kqemu = "yes" -a $linux = "yes" ; then
 echo ""
-echo "KQEMU module configuration:"
+echo "KQEMU Linux module configuration:"
 echo "kernel sources    $kernel_path"
 echo -n "kbuild type       "
 if test $kbuild26 = "yes"; then
@@ -617,7 +624,7 @@ if test "$target_cpu" = "i386" ; then
   echo "TARGET_ARCH=i386" >> $config_mak
   echo "#define TARGET_ARCH \"i386\"" >> $config_h
   echo "#define TARGET_I386 1" >> $config_h
-  if test $kqemu = "yes" -a "$target_softmmu" = "yes" ; then
+  if test $kqemu = "yes" -a "$target_softmmu" = "yes" -a $cpu = "i386" ; then
     echo "#define USE_KQEMU 1" >> $config_h
   fi
 elif test "$target_cpu" = "arm" -o "$target_cpu" = "armeb" ; then
@@ -642,6 +649,9 @@ elif test "$target_cpu" = "x86_64" ; then
   echo "#define TARGET_ARCH \"x86_64\"" >> $config_h
   echo "#define TARGET_I386 1" >> $config_h
   echo "#define TARGET_X86_64 1" >> $config_h
+  if test $kqemu = "yes" -a "$target_softmmu" = "yes" -a $cpu = "x86_64"  ; then
+    echo "#define USE_KQEMU 1" >> $config_h
+  fi
 else
   echo "Unsupported target CPU"
   exit 1

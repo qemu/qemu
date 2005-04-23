@@ -18,7 +18,11 @@ all: dyngen$(EXESUF) $(TOOLS) $(DOCS)
 	$(MAKE) -C $$d $@ || exit 1 ; \
         done
 ifdef CONFIG_KQEMU
+ifdef CONFIG_WIN32
+	$(MAKE) -C kqemu -f Makefile.winnt
+else
 	$(MAKE) -C kqemu
+endif
 endif
 
 qemu-img$(EXESUF): qemu-img.c block.c block-cow.c block-qcow.c aes.c block-vmdk.c block-cloop.c block-dmg.c
