@@ -2172,8 +2172,8 @@ void cpu_dump_state(CPUState *env, FILE *f,
                     i * 2 + 1, (int)s0.i, s0.s,
                     i, (int)(uint32_t)d.l.upper, (int)(uint32_t)d.l.lower,
                     d.d);
-        cpu_fprintf(f, "FPSCR: %08x\n", (int)env->vfp.fpscr);
     }
+    cpu_fprintf(f, "FPSCR: %08x\n", (int)env->vfp.fpscr);
 }
 
 target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
