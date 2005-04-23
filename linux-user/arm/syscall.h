@@ -29,8 +29,13 @@ struct target_pt_regs {
 
 #define ARM_NR_cacheflush (ARM_SYSCALL_BASE + 0xf0000 + 2)
 
+#define ARM_NR_semihosting	  0x123456
+#define ARM_NR_thumb_semihosting  0xAB
+
 #if defined(TARGET_WORDS_BIGENDIAN)
 #define UNAME_MACHINE "armv5teb"
 #else
 #define UNAME_MACHINE "armv5tel"
 #endif
+
+uint32_t do_arm_semihosting(CPUState *);

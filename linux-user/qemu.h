@@ -62,6 +62,11 @@ typedef struct TaskState {
 #ifdef TARGET_ARM
     /* FPA state */
     FPA11 fpa;
+    /* Extra fields for semihosted binaries.  */
+    uint32_t stack_base;
+    uint32_t heap_base;
+    uint32_t heap_limit;
+    int swi_errno;
 #endif
 #ifdef TARGET_I386
     struct target_vm86plus_struct *target_v86;
@@ -80,6 +85,7 @@ int elf_exec(const char * filename, char ** argv, char ** envp,
              struct target_pt_regs * regs, struct image_info *infop);
 
 void target_set_brk(char *new_brk);
+long do_brk(char *new_brk);
 void syscall_init(void);
 long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3, 
                 long arg4, long arg5, long arg6);

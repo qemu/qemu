@@ -363,6 +363,9 @@ void cpu_loop(CPUARMState *env)
                 n = insn & 0xffffff;
                 if (n == ARM_NR_cacheflush) {
                     arm_cache_flush(env->regs[0], env->regs[1]);
+                } else if (n == ARM_NR_semihosting
+                           || n == ARM_NR_thumb_semihosting) {
+                    env->regs[0] = do_arm_semihosting (env);
                 } else if (n >= ARM_SYSCALL_BASE) {
                     /* linux syscall */
                     n -= ARM_SYSCALL_BASE;
@@ -1207,6 +1210,10 @@ int main(int argc, char **argv)
             env->regs[i] = regs->uregs[i];
         }
         env->cpsr = regs->uregs[16];
+        ts->stack_base = info->start_stack;
+        ts->heap_base = info->brk;
+        /* This will be filled in on the first SYS_HEAPINFO call.  */
+        ts->heap_limit = 0;
     }
 #elif defined(TARGET_SPARC)
     {

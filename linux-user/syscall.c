@@ -264,7 +264,7 @@ void target_set_brk(char *new_brk)
     target_original_brk = new_brk;
 }
 
-static long do_brk(char *new_brk)
+long do_brk(char *new_brk)
 {
     char *brk_page;
     long mapped_addr;
