@@ -67,7 +67,7 @@ void do_vfp_cmp##p(void)                  \
 {                                         \
     uint32_t flags;                       \
     switch(float ## size ## _compare_quiet(FT0##p, FT1##p, &env->vfp.fp_status)) {\
-    case 0: flags = 0xc; break;\
+    case 0: flags = 0x6; break;\
     case -1: flags = 0x8; break;\
     case 1: flags = 0x2; break;\
     default: case 2: flags = 0x3; break;\
@@ -80,7 +80,7 @@ void do_vfp_cmpe##p(void)                   \
 {                                           \
     uint32_t flags;                       \
     switch(float ## size ## _compare(FT0##p, FT1##p, &env->vfp.fp_status)) {\
-    case 0: flags = 0xc; break;\
+    case 0: flags = 0x6; break;\
     case -1: flags = 0x8; break;\
     case 1: flags = 0x2; break;\
     default: case 2: flags = 0x3; break;\
