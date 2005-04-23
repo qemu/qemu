@@ -325,12 +325,6 @@ GEN_HANDLER(invalid, 0x00, 0x00, 0x00, 0xFFFFFFFF, PPC_NONE)
     RET_INVAL(ctx);
 }
 
-/* Special opcode to stop emulation */
-GEN_HANDLER(stop, 0x06, 0x00, 0xFF, 0x03FFFFC1, PPC_COMMON)
-{
-    RET_EXCP(ctx, EXCP_HLT, 0);
-}
-
 static opc_handler_t invalid_handler = {
     .inval   = 0xFFFFFFFF,
     .type    = PPC_NONE,
@@ -867,7 +861,19 @@ _GEN_FLOAT_ACB(sel, sel, 0x3F, 0x17, 0);
 GEN_FLOAT_AB(sub, 0x14, 0x000007C0);
 /* Optional: */
 /* fsqrt */
-GEN_FLOAT_BS(sqrt, 0x3F, 0x16);
+GEN_HANDLER(fsqrt, 0x3F, 0x16, 0xFF, 0x001F07C0, PPC_FLOAT_OPT)
+{
+    if (!ctx->fpu_enabled) {
+        RET_EXCP(ctx, EXCP_NO_FP, 0);
+        return;
+    }
+    gen_op_reset_scrfx();
+    gen_op_load_fpr_FT0(rB(ctx->opcode));
+    gen_op_fsqrt();
+    gen_op_store_FT0_fpr(rD(ctx->opcode));
+    if (Rc(ctx->opcode))
+        gen_op_set_Rc1();
+}
 
 GEN_HANDLER(fsqrts, 0x3B, 0x16, 0xFF, 0x001F07C0, PPC_FLOAT_OPT)
 {
@@ -1434,7 +1440,7 @@ GEN_HANDLER(sync, 0x1F, 0x16, 0x12, 0x03FF0801, PPC_MEM)
 
 /***                         Floating-point load                           ***/
 #define GEN_LDF(width, opc)                                                   \
-GEN_HANDLER(l##width, opc, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)               \
+GEN_HANDLER(l##width, opc, 0xFF, 0xFF, 0x00000000, PPC_FLOAT)                 \
 {                                                                             \
     uint32_t simm = SIMM(ctx->opcode);                                        \
     if (!ctx->fpu_enabled) {                                                  \
@@ -1453,7 +1459,7 @@ GEN_HANDLER(l##width, opc, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)               \
 }
 
 #define GEN_LDUF(width, opc)                                                  \
-GEN_HANDLER(l##width##u, opc, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)            \
+GEN_HANDLER(l##width##u, opc, 0xFF, 0xFF, 0x00000000, PPC_FLOAT)              \
 {                                                                             \
     uint32_t simm = SIMM(ctx->opcode);                                        \
     if (!ctx->fpu_enabled) {                                                  \
@@ -1474,7 +1480,7 @@ GEN_HANDLER(l##width##u, opc, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)            \
 }
 
 #define GEN_LDUXF(width, opc)                                                 \
-GEN_HANDLER(l##width##ux, 0x1F, 0x17, opc, 0x00000001, PPC_INTEGER)           \
+GEN_HANDLER(l##width##ux, 0x1F, 0x17, opc, 0x00000001, PPC_FLOAT)             \
 {                                                                             \
     if (!ctx->fpu_enabled) {                                                  \
         RET_EXCP(ctx, EXCP_NO_FP, 0);                                         \
@@ -1494,7 +1500,7 @@ GEN_HANDLER(l##width##ux, 0x1F, 0x17, opc, 0x00000001, PPC_INTEGER)           \
 }
 
 #define GEN_LDXF(width, opc2, opc3)                                           \
-GEN_HANDLER(l##width##x, 0x1F, opc2, opc3, 0x00000001, PPC_INTEGER)           \
+GEN_HANDLER(l##width##x, 0x1F, opc2, opc3, 0x00000001, PPC_FLOAT)             \
 {                                                                             \
     if (!ctx->fpu_enabled) {                                                  \
         RET_EXCP(ctx, EXCP_NO_FP, 0);                                         \
@@ -1525,7 +1531,7 @@ GEN_LDFS(fs, 0x10);
 
 /***                         Floating-point store                          ***/
 #define GEN_STF(width, opc)                                                   \
-GEN_HANDLER(st##width, opc, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)              \
+GEN_HANDLER(st##width, opc, 0xFF, 0xFF, 0x00000000, PPC_FLOAT)                \
 {                                                                             \
     uint32_t simm = SIMM(ctx->opcode);                                        \
     if (!ctx->fpu_enabled) {                                                  \
@@ -1544,7 +1550,7 @@ GEN_HANDLER(st##width, opc, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)              \
 }
 
 #define GEN_STUF(width, opc)                                                  \
-GEN_HANDLER(st##width##u, opc, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)           \
+GEN_HANDLER(st##width##u, opc, 0xFF, 0xFF, 0x00000000, PPC_FLOAT)             \
 {                                                                             \
     uint32_t simm = SIMM(ctx->opcode);                                        \
     if (!ctx->fpu_enabled) {                                                  \
@@ -1564,7 +1570,7 @@ GEN_HANDLER(st##width##u, opc, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)           \
 }
 
 #define GEN_STUXF(width, opc)                                                 \
-GEN_HANDLER(st##width##ux, 0x1F, 0x17, opc, 0x00000001, PPC_INTEGER)          \
+GEN_HANDLER(st##width##ux, 0x1F, 0x17, opc, 0x00000001, PPC_FLOAT)            \
 {                                                                             \
     if (!ctx->fpu_enabled) {                                                  \
         RET_EXCP(ctx, EXCP_NO_FP, 0);                                         \
@@ -1583,7 +1589,7 @@ GEN_HANDLER(st##width##ux, 0x1F, 0x17, opc, 0x00000001, PPC_INTEGER)          \
 }
 
 #define GEN_STXF(width, opc2, opc3)                                           \
-GEN_HANDLER(st##width##x, 0x1F, opc2, opc3, 0x00000001, PPC_INTEGER)          \
+GEN_HANDLER(st##width##x, 0x1F, opc2, opc3, 0x00000001, PPC_FLOAT)            \
 {                                                                             \
     if (!ctx->fpu_enabled) {                                                  \
         RET_EXCP(ctx, EXCP_NO_FP, 0);                                         \
@@ -2370,7 +2376,7 @@ GEN_HANDLER(icbi, 0x1F, 0x16, 0x1E, 0x03E00001, PPC_CACHE)
 
 /* Optional: */
 /* dcba */
-GEN_HANDLER(dcba, 0x1F, 0x16, 0x07, 0x03E00001, PPC_CACHE_OPT)
+GEN_HANDLER(dcba, 0x1F, 0x16, 0x17, 0x03E00001, PPC_CACHE_OPT)
 {
 }
 
