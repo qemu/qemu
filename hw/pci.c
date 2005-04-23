@@ -694,6 +694,16 @@ PCIBus *pci_prep_init(void)
     s = pci_register_bus();
     s->set_irq = prep_set_irq;
 
+    register_ioport_write(0xcf8, 4, 4, pci_addr_writel, s);
+    register_ioport_read(0xcf8, 4, 4, pci_addr_readl, s);
+
+    register_ioport_write(0xcfc, 4, 1, pci_data_writeb, s);
+    register_ioport_write(0xcfc, 4, 2, pci_data_writew, s);
+    register_ioport_write(0xcfc, 4, 4, pci_data_writel, s);
+    register_ioport_read(0xcfc, 4, 1, pci_data_readb, s);
+    register_ioport_read(0xcfc, 4, 2, pci_data_readw, s);
+    register_ioport_read(0xcfc, 4, 4, pci_data_readl, s);
+
     PPC_io_memory = cpu_register_io_memory(0, PPC_PCIIO_read, 
                                            PPC_PCIIO_write, s);
     cpu_register_physical_memory(0x80800000, 0x00400000, PPC_io_memory);

@@ -249,6 +249,7 @@ typedef struct sysctrl_t {
     uint8_t state;
     uint8_t syscontrol;
     uint8_t fake_io[2];
+    int contiguous_map;
 } sysctrl_t;
 
 enum {
@@ -328,10 +329,7 @@ static void PREP_io_800_writeb (void *opaque, uint32_t addr, uint32_t val)
         break;
     case 0x0850:
         /* I/O map type register */
-        if (!(val & 0x01)) {
-            printf("No support for non-continuous I/O map mode\n");
-            abort();
-        }
+        sysctrl->contiguous_map = val & 0x01;
         break;
     default:
         printf("ERROR: unaffected IO port write: %04lx => %02x\n",
@@ -375,6 +373,9 @@ static uint32_t PREP_io_800_readb (void *opaque, uint32_t addr)
         /* Motorola base module extended feature register */
         retval = 0x39; /* No USB, CF and PCI bridge. NVRAM present */
         break;
+    case 0x0814:
+        /* L2 invalidate: don't care */
+        break;
     case 0x0818:
         /* Keylock */
         retval = 0x00;
@@ -391,7 +392,7 @@ static uint32_t PREP_io_800_readb (void *opaque, uint32_t addr)
         break;
     case 0x0850:
         /* I/O map type register */
-        retval = 0x01;
+        retval = sysctrl->contiguous_map;
         break;
     default:
         printf("ERROR: unaffected IO port: %04lx read\n", (long)addr);
@@ -401,6 +402,108 @@ static uint32_t PREP_io_800_readb (void *opaque, uint32_t addr)
 
     return retval;
 }
+
+static inline target_phys_addr_t prep_IO_address (sysctrl_t *sysctrl,
+                                                  target_phys_addr_t addr)
+{
+    if (sysctrl->contiguous_map == 0) {
+        /* 64 KB contiguous space for IOs */
+        addr &= 0xFFFF;
+    } else {
+        /* 8 MB non-contiguous space for IOs */
+        addr = (addr & 0x1F) | ((addr & 0x007FFF000) >> 7);
+    }
+
+    return addr;
+}
+
+static void PPC_prep_io_writeb (void *opaque, target_phys_addr_t addr,
+                                uint32_t value)
+{
+    sysctrl_t *sysctrl = opaque;
+
+    addr = prep_IO_address(sysctrl, addr);
+    cpu_outb(NULL, addr, value);
+}
+
+static uint32_t PPC_prep_io_readb (void *opaque, target_phys_addr_t addr)
+{
+    sysctrl_t *sysctrl = opaque;
+    uint32_t ret;
+
+    addr = prep_IO_address(sysctrl, addr);
+    ret = cpu_inb(NULL, addr);
+
+    return ret;
+}
+
+static void PPC_prep_io_writew (void *opaque, target_phys_addr_t addr,
+                                uint32_t value)
+{
+    sysctrl_t *sysctrl = opaque;
+
+    addr = prep_IO_address(sysctrl, addr);
+#ifdef TARGET_WORDS_BIGENDIAN
+    value = bswap16(value);
+#endif
+    PPC_IO_DPRINTF("0x%08lx => 0x%08x\n", (long)addr, value);
+    cpu_outw(NULL, addr, value);
+}
+
+static uint32_t PPC_prep_io_readw (void *opaque, target_phys_addr_t addr)
+{
+    sysctrl_t *sysctrl = opaque;
+    uint32_t ret;
+
+    addr = prep_IO_address(sysctrl, addr);
+    ret = cpu_inw(NULL, addr);
+#ifdef TARGET_WORDS_BIGENDIAN
+    ret = bswap16(ret);
+#endif
+    PPC_IO_DPRINTF("0x%08lx <= 0x%08x\n", (long)addr, ret);
+
+    return ret;
+}
+
+static void PPC_prep_io_writel (void *opaque, target_phys_addr_t addr,
+                                uint32_t value)
+{
+    sysctrl_t *sysctrl = opaque;
+
+    addr = prep_IO_address(sysctrl, addr);
+#ifdef TARGET_WORDS_BIGENDIAN
+    value = bswap32(value);
+#endif
+    PPC_IO_DPRINTF("0x%08lx => 0x%08x\n", (long)addr, value);
+    cpu_outl(NULL, addr, value);
+}
+
+static uint32_t PPC_prep_io_readl (void *opaque, target_phys_addr_t addr)
+{
+    sysctrl_t *sysctrl = opaque;
+    uint32_t ret;
+
+    addr = prep_IO_address(sysctrl, addr);
+    ret = cpu_inl(NULL, addr);
+#ifdef TARGET_WORDS_BIGENDIAN
+    ret = bswap32(ret);
+#endif
+    PPC_IO_DPRINTF("0x%08lx <= 0x%08x\n", (long)addr, ret);
+
+    return ret;
+}
+
+CPUWriteMemoryFunc *PPC_prep_io_write[] = {
+    &PPC_prep_io_writeb,
+    &PPC_prep_io_writew,
+    &PPC_prep_io_writel,
+};
+
+CPUReadMemoryFunc *PPC_prep_io_read[] = {
+    &PPC_prep_io_readb,
+    &PPC_prep_io_readw,
+    &PPC_prep_io_readl,
+};
 
 extern CPUPPCState *global_env;
 
@@ -472,16 +575,18 @@ void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
         initrd_size = 0;
     }
 
-    /* Register CPU as a 74x/75x */
-    cpu_ppc_register(cpu_single_env, 0x00080000);
+    /* Register CPU as a 604 */
+    cpu_ppc_register(cpu_single_env, 0x00040000);
     /* Set time-base frequency to 100 Mhz */
     cpu_ppc_tb_init(cpu_single_env, 100UL * 1000UL * 1000UL);
 
     isa_mem_base = 0xc0000000;
     pci_bus = pci_prep_init();
-    /* Register 64 KB of ISA IO space */
-    PPC_io_memory = cpu_register_io_memory(0, PPC_io_read, PPC_io_write, NULL);
-    cpu_register_physical_memory(0x80000000, 0x00010000, PPC_io_memory);
+    //    pci_bus = i440fx_init();
+    /* Register 8 MB of ISA IO space (needed for non-contiguous map) */
+    PPC_io_memory = cpu_register_io_memory(0, PPC_prep_io_read,
+                                           PPC_prep_io_write, sysctrl);
+    cpu_register_physical_memory(0x80000000, 0x00800000, PPC_io_memory);
 
     /* init basic PC hardware */
     vga_initialize(pci_bus, ds, phys_ram_base + ram_size, ram_size, 
