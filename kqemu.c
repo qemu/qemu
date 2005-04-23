@@ -45,6 +45,11 @@
 #include <fcntl.h>
 #include "kqemu/kqemu.h"
 
+/* compatibility stuff */
+#ifndef KQEMU_RET_SYSCALL
+#define KQEMU_RET_SYSCALL   0x0300 /* syscall insn */
+#endif
+
 #ifdef _WIN32
 #define KQEMU_DEVICE "\\\\.\\kqemu"
 #else
@@ -71,6 +76,12 @@ extern uint32_t **l1_phys_map;
                 : "=a" (eax), "=b" (ebx), "=c" (ecx), "=d" (edx) \
                 : "0" (index))
 
+#ifdef __x86_64__
+static int is_cpuid_supported(void)
+{
+    return 1;
+}
+#else
 static int is_cpuid_supported(void)
 {
     int v0, v1;
@@ -87,6 +98,7 @@ static int is_cpuid_supported(void)
                   : "cc");
     return (v0 != v1);
 }
+#endif
 
 static void kqemu_update_cpuid(CPUState *env)
 {
@@ -231,8 +243,8 @@ struct fpxstate {
     uint32_t mxcsr;
     uint32_t mxcsr_mask;
     uint8_t fpregs1[8 * 16];
-    uint8_t xmm_regs[8 * 16];
-    uint8_t dummy2[224];
+    uint8_t xmm_regs[16 * 16];
+    uint8_t dummy2[96];
 };
 
 static struct fpxstate fpx1 __attribute__((aligned(16)));
@@ -308,7 +320,7 @@ static void restore_native_fp_fxrstor(CPUState *env)
         fp->mxcsr = env->mxcsr;
         /* XXX: check if DAZ is not available */
         fp->mxcsr_mask = 0xffff;
-        memcpy(fp->xmm_regs, env->xmm_regs, 8 * 16);
+        memcpy(fp->xmm_regs, env->xmm_regs, CPU_NB_REGS * 16);
     }
     asm volatile ("fxrstor %0" : "=m" (*fp));
 }
@@ -334,13 +346,62 @@ static void save_native_fp_fxsave(CPUState *env)
     }
     if (env->cpuid_features & CPUID_SSE) {
         env->mxcsr = fp->mxcsr;
-        memcpy(env->xmm_regs, fp->xmm_regs, 8 * 16);
+        memcpy(env->xmm_regs, fp->xmm_regs, CPU_NB_REGS * 16);
     }
 
     /* we must restore the default rounding state */
     asm volatile ("fninit");
     fpuc = 0x037f | (env->fpuc & (3 << 10));
     asm volatile("fldcw %0" : : "m" (fpuc));
+}
+
+static int do_syscall(CPUState *env,
+                      struct kqemu_cpu_state *kenv)
+{
+    int selector;
+    
+    selector = (env->star >> 32) & 0xffff;
+#ifdef __x86_64__
+    if (env->hflags & HF_LMA_MASK) {
+        env->regs[R_ECX] = kenv->next_eip;
+        env->regs[11] = env->eflags;
+
+        cpu_x86_set_cpl(env, 0);
+        cpu_x86_load_seg_cache(env, R_CS, selector & 0xfffc, 
+                               0, 0xffffffff, 
+                               DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
+                               DESC_S_MASK |
+                               DESC_CS_MASK | DESC_R_MASK | DESC_A_MASK | DESC_L_MASK);
+        cpu_x86_load_seg_cache(env, R_SS, (selector + 8) & 0xfffc, 
+                               0, 0xffffffff,
+                               DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
+                               DESC_S_MASK |
+                               DESC_W_MASK | DESC_A_MASK);
+        env->eflags &= ~env->fmask;
+        if (env->hflags & HF_CS64_MASK)
+            env->eip = env->lstar;
+        else
+            env->eip = env->cstar;
+    } else 
+#endif
+    {
+        env->regs[R_ECX] = (uint32_t)kenv->next_eip;
+        
+        cpu_x86_set_cpl(env, 0);
+        cpu_x86_load_seg_cache(env, R_CS, selector & 0xfffc, 
+                           0, 0xffffffff, 
+                               DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
+                               DESC_S_MASK |
+                               DESC_CS_MASK | DESC_R_MASK | DESC_A_MASK);
+        cpu_x86_load_seg_cache(env, R_SS, (selector + 8) & 0xfffc, 
+                               0, 0xffffffff,
+                               DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
+                               DESC_S_MASK |
+                               DESC_W_MASK | DESC_A_MASK);
+        env->eflags &= ~(IF_MASK | RF_MASK | VM_MASK);
+        env->eip = (uint32_t)env->star;
+    }
+    return 2;
 }
 
 int kqemu_cpu_exec(CPUState *env)
@@ -370,6 +431,9 @@ int kqemu_cpu_exec(CPUState *env)
     kenv->cr3 = env->cr[3];
     kenv->cr4 = env->cr[4];
     kenv->a20_mask = env->a20_mask;
+#ifdef __x86_64__
+    kenv->efer = env->efer;
+#endif
     if (env->dr[7] & 0xff) {
         kenv->dr7 = env->dr[7];
         kenv->dr0 = env->dr[0];
@@ -435,17 +499,21 @@ int kqemu_cpu_exec(CPUState *env)
         fprintf(logfile, "kqemu: kqemu_cpu_exec: ret=0x%x\n", ret);
     }
 #endif
+    if (ret == KQEMU_RET_SYSCALL) {
+        /* syscall instruction */
+        return do_syscall(env, kenv);
+    } else 
     if ((ret & 0xff00) == KQEMU_RET_INT) {
         env->exception_index = ret & 0xff;
         env->error_code = 0;
         env->exception_is_int = 1;
         env->exception_next_eip = kenv->next_eip;
 #ifdef DEBUG
-    if (loglevel & CPU_LOG_INT) {
-        fprintf(logfile, "kqemu: interrupt v=%02x:\n", 
-                env->exception_index);
-        cpu_dump_state(env, logfile, fprintf, 0);
-    }
+        if (loglevel & CPU_LOG_INT) {
+            fprintf(logfile, "kqemu: interrupt v=%02x:\n", 
+                    env->exception_index);
+            cpu_dump_state(env, logfile, fprintf, 0);
+        }
 #endif
         return 1;
     } else if ((ret & 0xff00) == KQEMU_RET_EXCEPTION) {
