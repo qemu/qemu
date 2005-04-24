@@ -42,17 +42,19 @@ enum RSState {
     RS_GETLINE,
     RS_CHKSUM1,
     RS_CHKSUM2,
-    RS_CONTINUE
 };
 /* XXX: This is not thread safe.  Do we care?  */
 static int gdbserver_fd = -1;
 
 typedef struct GDBState {
-    enum RSState state;
+    enum RSState state; /* parsing state */
     int fd;
     char line_buf[4096];
     int line_buf_index;
     int line_csum;
+#ifdef CONFIG_USER_ONLY
+    int running_state;
+#endif
 } GDBState;
 
 #ifdef CONFIG_USER_ONLY
@@ -431,7 +433,12 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
             env->npc = addr + 4;
 #endif
         }
-        return RS_CONTINUE;
+#ifdef CONFIG_USER_ONLY
+        s->running_state = 1;
+#else
+        vm_start();
+#endif
+	return RS_IDLE;
     case 's':
         if (*p != '\0') {
             addr = strtoul(p, (char **)&p, 16);
@@ -445,7 +452,12 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
 #endif
         }
         cpu_single_step(env, 1);
-        return RS_CONTINUE;
+#ifdef CONFIG_USER_ONLY
+        s->running_state = 1;
+#else
+        vm_start();
+#endif
+	return RS_IDLE;
     case 'g':
         reg_size = cpu_gdb_read_registers(env, mem_buf);
         memtohex(buf, mem_buf, reg_size);
@@ -556,8 +568,9 @@ static void gdb_read_byte(GDBState *s, CPUState *env, int ch)
         /* when the CPU is running, we cannot do anything except stop
            it when receiving a char */
         vm_stop(EXCP_INTERRUPT);
-    } else {
+    } else 
 #endif
+    {
         switch(s->state) {
         case RS_IDLE:
             if (ch == '$') {
@@ -595,16 +608,8 @@ static void gdb_read_byte(GDBState *s, CPUState *env, int ch)
                 s->state = gdb_handle_packet(s, env, s->line_buf);
             }
             break;
-        case RS_CONTINUE:
-#ifndef CONFIG_USER_ONLY
-            vm_start();
-            s->state = RS_IDLE;
-#endif
-            break;
         }
-#ifndef CONFIG_USER_ONLY
     }
-#endif
 }
 
 #ifdef CONFIG_USER_ONLY
@@ -630,11 +635,10 @@ gdb_handlesig (CPUState *env, int sig)
       put_packet(s, buf);
     }
 
-  /* TODO: How do we terminate this loop?  */
   sig = 0;
   s->state = RS_IDLE;
-  while (s->state != RS_CONTINUE)
-    {
+  s->running_state = 0;
+  while (s->running_state == 0) {
       n = read (s->fd, buf, 256);
       if (n > 0)
         {
@@ -649,7 +653,7 @@ gdb_handlesig (CPUState *env, int sig)
              connection before continuing.  */
           return sig;
         }
-    }
+  }
   return sig;
 }
 #else
