@@ -142,7 +142,7 @@ int get_physical_address (CPUState *env, target_phys_addr_t *physical, int *prot
 
     /* SPARC reference MMU table walk: Context table->L1->L2->PTE */
     /* Context base + context number */
-    pde_ptr = (env->mmuregs[1] << 4) + (env->mmuregs[2] << 4);
+    pde_ptr = (env->mmuregs[1] << 4) + (env->mmuregs[2] << 2);
     pde = ldl_phys(pde_ptr);
 
     /* Ctx pde */
@@ -356,7 +356,7 @@ target_ulong mmu_probe(target_ulong address, int mmulev)
     uint32_t pde;
 
     /* Context base + context number */
-    pde_ptr = (env->mmuregs[1] << 4) + (env->mmuregs[2] << 4);
+    pde_ptr = (env->mmuregs[1] << 4) + (env->mmuregs[2] << 2);
     pde = ldl_phys(pde_ptr);
 
     switch (pde & PTE_ENTRYTYPE_MASK) {
@@ -421,7 +421,7 @@ void dump_mmu(void)
     uint32_t pde;
 
     printf("MMU dump:\n");
-    pde_ptr = (env->mmuregs[1] << 4) + (env->mmuregs[2] << 4);
+    pde_ptr = (env->mmuregs[1] << 4) + (env->mmuregs[2] << 2);
     pde = ldl_phys(pde_ptr);
     printf("Root ptr: " TARGET_FMT_lx ", ctx: %d\n", env->mmuregs[1] << 4, env->mmuregs[2]);
     for (n = 0, va = 0; n < 256; n++, va += 16 * 1024 * 1024) {
