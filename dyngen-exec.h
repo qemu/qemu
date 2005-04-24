@@ -74,8 +74,8 @@ extern int printf(const char *, ...);
 #define AREG1 "rbx"
 #define AREG2 "r12"
 #define AREG3 "r13"
-#define AREG4 "r14"
-#define AREG5 "r15"
+//#define AREG4 "r14"
+//#define AREG5 "r15"
 #endif
 #ifdef __powerpc__
 #define AREG0 "r27"
