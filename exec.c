@@ -80,7 +80,7 @@ typedef struct PageDesc {
 
 typedef struct PhysPageDesc {
     /* offset in host memory of the page + io_index in the low 12 bits */
-    unsigned long phys_offset;
+    uint32_t phys_offset;
 } PhysPageDesc;
 
 typedef struct VirtPageDesc {
