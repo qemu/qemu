@@ -1494,11 +1494,12 @@ void load_seg(int seg_reg, int selector)
     target_ulong ptr;
 
     selector &= 0xffff;
+    cpl = env->hflags & HF_CPL_MASK;
     if ((selector & 0xfffc) == 0) {
         /* null selector case */
         if (seg_reg == R_SS
 #ifdef TARGET_X86_64
-            && !(env->hflags & HF_CS64_MASK)
+            && (!(env->hflags & HF_CS64_MASK) || cpl == 3)
 #endif
             )
             raise_exception_err(EXCP0D_GPF, 0);
@@ -1520,7 +1521,6 @@ void load_seg(int seg_reg, int selector)
             raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
         rpl = selector & 3;
         dpl = (e2 >> DESC_DPL_SHIFT) & 3;
-        cpl = env->hflags & HF_CPL_MASK;
         if (seg_reg == R_SS) {
             /* must be writable segment */
             if ((e2 & DESC_CS_MASK) || !(e2 & DESC_W_MASK))
@@ -2054,13 +2054,20 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
                     new_ss, new_esp);
         }
 #endif
-        if ((env->hflags & HF_LMA_MASK) && (new_ss & 0xfffc) == 0) {
-            /* NULL ss is allowed in long mode */
-            cpu_x86_load_seg_cache(env, R_SS, new_ss, 
-                                   0, 0xffffffff,
-                                   DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
-                                   DESC_S_MASK | (rpl << DESC_DPL_SHIFT) |
-                                   DESC_W_MASK | DESC_A_MASK);
+        if ((new_ss & 0xfffc) == 0) {
+#ifdef TARGET_X86_64
+            /* NULL ss is allowed in long mode if cpl != 3*/
+            if ((env->hflags & HF_LMA_MASK) && rpl != 3) {
+                cpu_x86_load_seg_cache(env, R_SS, new_ss, 
+                                       0, 0xffffffff,
+                                       DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
+                                       DESC_S_MASK | (rpl << DESC_DPL_SHIFT) |
+                                       DESC_W_MASK | DESC_A_MASK);
+            } else 
+#endif
+            {
+                raise_exception_err(EXCP0D_GPF, 0);
+            }
         } else {
             if ((new_ss & 3) != rpl)
                 raise_exception_err(EXCP0D_GPF, new_ss & 0xfffc);
