@@ -431,7 +431,7 @@ int kqemu_cpu_exec(CPUState *env)
     kenv->cr3 = env->cr[3];
     kenv->cr4 = env->cr[4];
     kenv->a20_mask = env->a20_mask;
-#ifdef __x86_64__
+#if KQEMU_VERSION >= 0x010100
     kenv->efer = env->efer;
 #endif
     if (env->dr[7] & 0xff) {
@@ -530,6 +530,11 @@ int kqemu_cpu_exec(CPUState *env)
 #endif
         return 1;
     } else if (ret == KQEMU_RET_INTR) {
+#ifdef DEBUG
+        if (loglevel & CPU_LOG_INT) {
+            cpu_dump_state(env, logfile, fprintf, 0);
+        }
+#endif
         return 0;
     } else if (ret == KQEMU_RET_SOFTMMU) { 
         return 2;
