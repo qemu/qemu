@@ -88,4 +88,5 @@ test2:
         done
 
 clean:
-	rm -f *~ *.o test-i386.out test-i386.ref qruncom $(TESTS)
+	rm -f *~ *.o test-i386.out test-i386.ref \
+           test-x86_64.log test-x86_64.ref qruncom $(TESTS)
