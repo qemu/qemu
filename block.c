@@ -24,6 +24,14 @@
 #include "vl.h"
 #include "block_int.h"
 
+#ifdef _BSD
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/ioctl.h>
+#include <sys/queue.h>
+#include <sys/disk.h>
+#endif
+
 static BlockDriverState *bdrv_first;
 static BlockDriver *first_drv;
 
@@ -88,18 +96,33 @@ static void get_tmp_filename(char *filename, int size)
 }
 #endif
 
+/* XXX: force raw format if block or character device ? It would
+   simplify the BSD case */
 static BlockDriver *find_image_format(const char *filename)
 {
     int fd, ret, score, score_max;
     BlockDriver *drv1, *drv;
-    uint8_t buf[1024];
+    uint8_t *buf;
+    size_t bufsize = 1024;
 
     fd = open(filename, O_RDONLY | O_BINARY | O_LARGEFILE);
     if (fd < 0)
         return NULL;
-    ret = read(fd, buf, sizeof(buf));
+#ifdef DIOCGSECTORSIZE
+    {
+        unsigned int sectorsize = 512;
+        if (!ioctl(fd, DIOCGSECTORSIZE, &sectorsize) &&
+            sectorsize > bufsize)
+            bufsize = sectorsize;
+    }
+#endif
+    buf = malloc(bufsize);
+    if (!buf)
+        return NULL;
+    ret = read(fd, buf, bufsize);
     if (ret < 0) {
         close(fd);
+        free(buf);
         return NULL;
     }
     close(fd);
@@ -113,6 +136,7 @@ static BlockDriver *find_image_format(const char *filename)
             drv = drv1;
         }
     }
+    free(buf);
     return drv;
 }
 
@@ -532,7 +556,19 @@ static int raw_open(BlockDriverState *bs, const char *filename)
             return -1;
         bs->read_only = 1;
     }
-    size = lseek(fd, 0, SEEK_END);
+#ifdef _BSD
+    {
+        struct stat sb;
+        if (!fstat(fd, &sb) && (S_IFCHR & sb.st_mode)) {
+#ifdef DIOCGMEDIASIZE
+            if (ioctl(fd, DIOCGMEDIASIZE, (off_t *)&size))
+#endif
+                size = lseek(fd, 0LL, SEEK_END);
+    } else
+#endif
+    {
+        size = lseek(fd, 0, SEEK_END);
+    }
 #ifdef _WIN32
     /* On Windows hosts it can happen that we're unable to get file size
        for CD-ROM raw device (it's inherent limitation of the CDFS driver). */
