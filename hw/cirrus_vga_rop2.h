@@ -47,7 +47,11 @@ glue(glue(glue(cirrus_patternfill_, ROP_NAME), _),DEPTH)
     int x, y, pattern_y, pattern_pitch, pattern_x;
     unsigned int col;
     const uint8_t *src1;
+#if DEPTH == 24
+    int skipleft = s->gr[0x2f] & 0x1f;
+#else
     int skipleft = (s->gr[0x2f] & 0x07) * (DEPTH / 8);
+#endif
 
 #if DEPTH == 8
     pattern_pitch = 8;
@@ -100,8 +104,13 @@ glue(glue(glue(cirrus_colorexpand_transp_, ROP_NAME), _),DEPTH)
     unsigned int col;
     unsigned bitmask;
     unsigned index;
+#if DEPTH == 24
+    int dstskipleft = s->gr[0x2f] & 0x1f;
+    int srcskipleft = dstskipleft / 3;
+#else
     int srcskipleft = s->gr[0x2f] & 0x07;
     int dstskipleft = srcskipleft * (DEPTH / 8);
+#endif
 
     if (s->cirrus_blt_modeext & CIRRUS_BLTMODEEXT_COLOREXPINV) {
         bits_xor = 0xff;
@@ -178,8 +187,13 @@ glue(glue(glue(cirrus_colorexpand_pattern_transp_, ROP_NAME), _),DEPTH)
     int x, y, bitpos, pattern_y;
     unsigned int bits, bits_xor;
     unsigned int col;
+#if DEPTH == 24
+    int dstskipleft = s->gr[0x2f] & 0x1f;
+    int srcskipleft = dstskipleft / 3;
+#else
     int srcskipleft = s->gr[0x2f] & 0x07;
     int dstskipleft = srcskipleft * (DEPTH / 8);
+#endif
 
     if (s->cirrus_blt_modeext & CIRRUS_BLTMODEEXT_COLOREXPINV) {
         bits_xor = 0xff;

@@ -31,7 +31,7 @@
 
 /*
  * TODO:
- *    - add support for WRITEMASK (GR2F)
+ *    - destination write mask support not complete (bits 5..7)
  *    - optimize linear mappings
  *    - optimize bitblt functions
  */
