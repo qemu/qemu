@@ -158,8 +158,6 @@ for opt do
   ;;
   --extra-ldflags=*) LDFLAGS="${opt#--extra-ldflags=}"
   ;;
-  --extra-libs=*) extralibs=${opt#--extra-libs=}
-  ;;
   --cpu=*) cpu=`echo $opt | cut -d '=' -f 2`
   ;;
   --target-list=*) target_list=${opt#--target-list=}
@@ -420,7 +418,9 @@ if test "$darwin" = "yes" ; then
     echo "Cocoa support     $cocoa"
 fi
 echo "SDL support       $sdl"
-echo "SDL static link   $sdl_static"
+if test "$sdl" != "no" ; then
+    echo "SDL static link   $sdl_static"
+fi
 echo "mingw32 support   $mingw32"
 echo "Adlib support     $adlib"
 echo -n "FMOD support      $fmod"
