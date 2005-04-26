@@ -124,7 +124,10 @@ uint32_t do_arm_semihosting(CPUState *env)
     case SYS_ISTTY:
         return isatty(ARG(0));
     case SYS_SEEK:
-        return set_swi_errno(ts, lseek(ARG(0), ARG(1), SEEK_SET));
+        ret = set_swi_errno(ts, lseek(ARG(0), ARG(1), SEEK_SET));
+	if (ret == (uint32_t)-1)
+	  return -1;
+	return 0;
     case SYS_FLEN:
         {
             struct stat buf;
