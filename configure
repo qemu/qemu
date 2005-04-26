@@ -566,9 +566,11 @@ echo "\"" >> $config_h
 
 if test $kqemu = "yes" ; then
   echo "CONFIG_KQEMU=yes" >> $config_mak
-  echo "KERNEL_PATH=$kernel_path" >> $config_mak
-  if test $kbuild26 = "yes" ; then
-    echo "CONFIG_KBUILD26=yes" >> $config_mak
+  if test $linux = "yes" ; then
+    echo "KERNEL_PATH=$kernel_path" >> $config_mak
+    if test $kbuild26 = "yes" ; then
+      echo "CONFIG_KBUILD26=yes" >> $config_mak
+    fi
   fi
 fi
 echo "SRC_PATH=$source_path" >> $config_mak
