@@ -1,4 +1,4 @@
-version 0.6.2:
+version 0.7.0:
 
   - better BIOS translation and HDD geometry auto-detection
   - user mode networking bug fix
@@ -9,15 +9,19 @@ version 0.6.2:
   - keymaps support (initial patch by Johannes Schindelin)
   - big endian ARM support (Lennert Buytenhek)
   - added generic 64 bit target support
-  - initial x86_64 target support
+  - x86_64 target support
   - initial APIC support
   - MMX/SSE/SSE2/PNI support
   - PC parallel port support (Mark Jonckheere)
   - initial SPARC64 support (Blue Swirl)
+  - SPARC target boots Linux (Blue Swirl)
   - armv5te user mode support (Paul Brook)
   - ARM VFP support (Paul Brook)
+  - ARM "Angel" semihosting syscalls (Paul Brook)
+  - user mode gdb stub support (Paul Brook)
   - Samba 3 support
   - initial Cocoa support (Pierre d'Herbemont)
+  - generic FPU emulation code
 
 version 0.6.1:
 
