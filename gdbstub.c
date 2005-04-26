@@ -656,6 +656,22 @@ gdb_handlesig (CPUState *env, int sig)
   }
   return sig;
 }
+
+/* Tell the remote gdb that the process has exited.  */
+void gdb_exit(CPUState *env, int code)
+{
+  GDBState *s;
+  char buf[4];
+
+  if (gdbserver_fd < 0)
+    return;
+
+  s = &gdbserver_state;
+
+  snprintf(buf, sizeof(buf), "W%02x", code);
+  put_packet(s, buf);
+}
+
 #else
 static int gdb_can_read(void *opaque)
 {

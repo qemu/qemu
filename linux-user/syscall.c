@@ -1603,6 +1603,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #ifdef HAVE_GPROF
         _mcleanup();
 #endif
+        gdb_exit(cpu_env, arg1);
         /* XXX: should free thread stack and CPU env */
         _exit(arg1);
         ret = 0; /* avoid warning */
@@ -2409,6 +2410,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #ifdef __NR_exit_group
         /* new thread calls */
     case TARGET_NR_exit_group:
+        gdb_exit(cpu_env, arg1);
         ret = get_errno(exit_group(arg1));
         break;
 #endif
