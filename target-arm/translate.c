@@ -32,6 +32,10 @@
 typedef struct DisasContext {
     target_ulong pc;
     int is_jmp;
+    /* Nonzero if this instruction has been conditionally skipped.  */
+    int condjmp;
+    /* The label that will be jumped to when the instruction is skipped.  */
+    int condlabel;
     struct TranslationBlock *tb;
     int singlestep_enabled;
 } DisasContext;
@@ -53,7 +57,7 @@ enum {
 
 #include "gen-op.h"
 
-static GenOpFunc2 *gen_test_cc[14] = {
+static GenOpFunc1 *gen_test_cc[14] = {
     gen_op_test_eq,
     gen_op_test_ne,
     gen_op_test_cs,
@@ -896,7 +900,7 @@ static inline void gen_jmp (DisasContext *s, uint32_t dest)
         gen_op_movl_T0_im(dest);
         gen_bx(s);
     } else {
-        gen_op_jmp((long)s->tb, dest);
+        gen_op_jmp0((long)s->tb, dest);
         s->is_jmp = DISAS_TB_JUMP;
     }
 }
@@ -939,8 +943,11 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
     if (cond != 0xe) {
         /* if not always execute, we generate a conditional jump to
            next instruction */
-        gen_test_cc[cond ^ 1]((long)s->tb, (long)s->pc);
-        s->is_jmp = DISAS_JUMP_NEXT;
+        s->condlabel = gen_new_label();
+        gen_test_cc[cond ^ 1](s->condlabel);
+        s->condjmp = 1;
+        //gen_test_cc[cond ^ 1]((long)s->tb, (long)s->pc);
+        //s->is_jmp = DISAS_JUMP_NEXT;
     }
     if ((insn & 0x0f900000) == 0x03000000) {
         if ((insn & 0x0ff0f000) != 0x0360f000)
@@ -1961,8 +1968,11 @@ static void disas_thumb_insn(DisasContext *s)
             break;
         }
         /* generate a conditional jump to next instruction */
-        gen_test_cc[cond ^ 1]((long)s->tb, (long)s->pc);
-        s->is_jmp = DISAS_JUMP_NEXT;
+        s->condlabel = gen_new_label();
+        gen_test_cc[cond ^ 1](s->condlabel);
+        s->condjmp = 1;
+        //gen_test_cc[cond ^ 1]((long)s->tb, (long)s->pc);
+        //s->is_jmp = DISAS_JUMP_NEXT;
         gen_movl_T1_reg(s, 15);
 
         /* jump to the offset */
@@ -2034,6 +2044,8 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     dc->is_jmp = DISAS_NEXT;
     dc->pc = pc_start;
     dc->singlestep_enabled = env->singlestep_enabled;
+    dc->condjmp = 0;
+    nb_gen_labels = 0;
     lj = -1;
     do {
         if (env->nb_breakpoints > 0) {
@@ -2057,25 +2069,41 @@ static inline int gen_intermediate_code_internal(CPUState *env,
             gen_opc_pc[lj] = dc->pc;
             gen_opc_instr_start[lj] = 1;
         }
+
         if (env->thumb)
           disas_thumb_insn(dc);
         else
           disas_arm_insn(env, dc);
+
+        if (dc->condjmp && !dc->is_jmp) {
+            gen_set_label(dc->condlabel);
+            dc->condjmp = 0;
+        }
+        /* Translation stops when a conditional branch is enoutered.
+         * Otherwise the subsequent code could get translated several times.
+         */
     } while (!dc->is_jmp && gen_opc_ptr < gen_opc_end &&
              !env->singlestep_enabled &&
              (dc->pc - pc_start) < (TARGET_PAGE_SIZE - 32));
+    /* It this stage dc->condjmp will only be set when the skipped
+     * instruction was a conditional branch, and teh PC has already been
+     * written.  */
     if (__builtin_expect(env->singlestep_enabled, 0)) {
         /* Make sure the pc is updated, and raise a debug exception.  */
-        if (dc->is_jmp == DISAS_NEXT || dc->is_jmp == DISAS_JUMP_NEXT) {
+        if (dc->condjmp) {
+            gen_op_debug();
+            gen_set_label(dc->condlabel);
+        }
+        if (dc->condjmp || !dc->is_jmp) {
             gen_op_movl_T0_im((long)dc->pc);
             gen_op_movl_reg_TN[0][15]();
+            dc->condjmp = 0;
         }
         gen_op_debug();
     } else {
         switch(dc->is_jmp) {
-        case DISAS_JUMP_NEXT:
         case DISAS_NEXT:
-            gen_op_jmp((long)dc->tb, (long)dc->pc);
+            gen_op_jmp1((long)dc->tb, (long)dc->pc);
             break;
         default:
         case DISAS_JUMP:
@@ -2087,6 +2115,11 @@ static inline int gen_intermediate_code_internal(CPUState *env,
         case DISAS_TB_JUMP:
             /* nothing more to generate */
             break;
+        }
+        if (dc->condjmp) {
+            gen_set_label(dc->condlabel);
+            gen_op_jmp1((long)dc->tb, (long)dc->pc);
+            dc->condjmp = 0;
         }
     }
     *gen_opc_ptr = INDEX_op_end;
