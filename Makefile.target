@@ -459,7 +459,7 @@ mixeng.o: mixeng.c mixeng.h mixeng_template.h
 	$(CC) $(DEFINES) -c -o $@ $<
 
 clean:
-	rm -f *.o  *.a *~ $(PROGS) gen-op.h opc.h op.h nwfpe/*.o slirp/*.o
+	rm -f *.o  *.a *~ $(PROGS) gen-op.h opc.h op.h nwfpe/*.o slirp/*.o fpu/*.o
 
 install: all 
 ifneq ($(PROGS),)
