@@ -489,7 +489,7 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
             p++;
         hextomem(mem_buf, p, len);
         if (cpu_memory_rw_debug(env, addr, mem_buf, len, 1) != 0)
-            put_packet(s, "ENN");
+            put_packet(s, "E14");
         else
             put_packet(s, "OK");
         break;
@@ -507,7 +507,7 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
             put_packet(s, "OK");
         } else {
         breakpoint_error:
-            put_packet(s, "ENN");
+            put_packet(s, "E22");
         }
         break;
     case 'z':
