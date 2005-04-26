@@ -322,14 +322,30 @@ int cpu_exec(CPUState *env1)
                 if ((loglevel & CPU_LOG_EXEC)) {
 #if defined(TARGET_I386)
                     /* restore flags in standard format */
+#ifdef reg_EAX
                     env->regs[R_EAX] = EAX;
+#endif
+#ifdef reg_EBX
                     env->regs[R_EBX] = EBX;
+#endif
+#ifdef reg_ECX
                     env->regs[R_ECX] = ECX;
+#endif
+#ifdef reg_EDX
                     env->regs[R_EDX] = EDX;
+#endif
+#ifdef reg_ESI
                     env->regs[R_ESI] = ESI;
+#endif
+#ifdef reg_EDI
                     env->regs[R_EDI] = EDI;
+#endif
+#ifdef reg_EBP
                     env->regs[R_EBP] = EBP;
+#endif
+#ifdef reg_ESP
                     env->regs[R_ESP] = ESP;
+#endif
                     env->eflags = env->eflags | cc_table[CC_OP].compute_all() | (DF & DF_MASK);
                     cpu_dump_state(env, logfile, fprintf, X86_DUMP_CCOP);
                     env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
