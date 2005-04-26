@@ -217,7 +217,7 @@ static void sdl_callback (void *opaque, Uint8 *buf, int len)
 static void sdl_hw_fini (HWVoice *hw)
 {
     ldebug ("sdl_hw_fini %d fixed=%d\n",
-             glob_sdl.initialized, audio_conf.fixed_format);
+             glob_sdl.initialized, audio_state.fixed_format);
     sdl_close (&glob_sdl);
 }
 
@@ -229,7 +229,7 @@ static int sdl_hw_init (HWVoice *hw, int freq, int nchannels, audfmt_e fmt)
     int shift;
 
     ldebug ("sdl_hw_init %d freq=%d fixed=%d\n",
-            s->initialized, freq, audio_conf.fixed_format);
+            s->initialized, freq, audio_state.fixed_format);
 
     if (nchannels != 2) {
         dolog ("Bogus channel count %d\n", nchannels);
