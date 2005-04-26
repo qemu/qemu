@@ -1079,9 +1079,11 @@ SSE_OP_CMP(cmpnlt, FPU_CMPNLT)
 SSE_OP_CMP(cmpnle, FPU_CMPNLE)
 SSE_OP_CMP(cmpord, FPU_CMPORD)
 
+const int comis_eflags[4] = {CC_C, CC_Z, 0, CC_Z | CC_P | CC_C};
+
 void OPPROTO op_ucomiss(void)
 {
-    int eflags;
+    int ret;
     float32 s0, s1;
     Reg *d, *s;
     d = (Reg *)((char *)env + PARAM1);
@@ -1089,28 +1091,14 @@ void OPPROTO op_ucomiss(void)
 
     s0 = d->XMM_S(0);
     s1 = s->XMM_S(0);
-    switch(float32_compare_quiet(s0, s1, &env->sse_status)) {
-    case -1:
-        eflags = CC_C;
-        break;
-    case 0:
-        eflags = CC_Z;
-        break;
-    case 1:
-        eflags = 0;
-        break;
-    case 2:
-    default:
-        eflags = CC_Z | CC_P | CC_C;
-        break;
-    }
-    CC_SRC = eflags;
+    ret = float32_compare_quiet(s0, s1, &env->sse_status);
+    CC_SRC = comis_eflags[ret + 1];
     FORCE_RET();
 }
 
 void OPPROTO op_comiss(void)
 {
-    int eflags;
+    int ret;
     float32 s0, s1;
     Reg *d, *s;
     d = (Reg *)((char *)env + PARAM1);
@@ -1118,28 +1106,14 @@ void OPPROTO op_comiss(void)
 
     s0 = d->XMM_S(0);
     s1 = s->XMM_S(0);
-    switch(float32_compare(s0, s1, &env->sse_status)) {
-    case -1:
-        eflags = CC_C;
-        break;
-    case 0:
-        eflags = CC_Z;
-        break;
-    case 1:
-        eflags = 0;
-        break;
-    case 2:
-    default:
-        eflags = CC_Z | CC_P | CC_C;
-        break;
-    }
-    CC_SRC = eflags;
+    ret = float32_compare(s0, s1, &env->sse_status);
+    CC_SRC = comis_eflags[ret + 1];
     FORCE_RET();
 }
 
 void OPPROTO op_ucomisd(void)
 {
-    int eflags;
+    int ret;
     float64 d0, d1;
     Reg *d, *s;
     d = (Reg *)((char *)env + PARAM1);
@@ -1147,28 +1121,14 @@ void OPPROTO op_ucomisd(void)
 
     d0 = d->XMM_D(0);
     d1 = s->XMM_D(0);
-    switch(float64_compare_quiet(d0, d1, &env->sse_status)) {
-    case -1:
-        eflags = CC_C;
-        break;
-    case 0:
-        eflags = CC_Z;
-        break;
-    case 1:
-        eflags = 0;
-        break;
-    case 2:
-    default:
-        eflags = CC_Z | CC_P | CC_C;
-        break;
-    }
-    CC_SRC = eflags;
+    ret = float64_compare_quiet(d0, d1, &env->sse_status);
+    CC_SRC = comis_eflags[ret + 1];
     FORCE_RET();
 }
 
 void OPPROTO op_comisd(void)
 {
-    int eflags;
+    int ret;
     float64 d0, d1;
     Reg *d, *s;
     d = (Reg *)((char *)env + PARAM1);
@@ -1176,22 +1136,8 @@ void OPPROTO op_comisd(void)
 
     d0 = d->XMM_D(0);
     d1 = s->XMM_D(0);
-    switch(float64_compare(d0, d1, &env->sse_status)) {
-    case -1:
-        eflags = CC_C;
-        break;
-    case 0:
-        eflags = CC_Z;
-        break;
-    case 1:
-        eflags = 0;
-        break;
-    case 2:
-    default:
-        eflags = CC_Z | CC_P | CC_C;
-        break;
-    }
-    CC_SRC = eflags;
+    ret = float64_compare(d0, d1, &env->sse_status);
+    CC_SRC = comis_eflags[ret + 1];
     FORCE_RET();
 }
 

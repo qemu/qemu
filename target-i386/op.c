@@ -1952,94 +1952,48 @@ void OPPROTO op_fxchg_ST0_STN(void)
 
 /* FPU operations */
 
+const int fcom_ccval[4] = {0x0100, 0x4000, 0x0000, 0x4500};
+
 void OPPROTO op_fcom_ST0_FT0(void)
 {
-    int cc;
-    switch(floatx_compare(ST0, FT0, &env->fp_status)) {
-    case -1:
-        cc = 0x0100;
-        break;
-    case 0:
-        cc = 0x4000;
-        break;
-    case 1:
-        cc = 0x0000;
-        break;
-    case 2:
-    default:
-        cc = 0x4500;
-        break;
-    }
-    env->fpus = (env->fpus & ~0x4500) | cc;
+    int ret;
+
+    ret = floatx_compare(ST0, FT0, &env->fp_status);
+    env->fpus = (env->fpus & ~0x4500) | fcom_ccval[ret + 1];
     FORCE_RET();
 }
 
 void OPPROTO op_fucom_ST0_FT0(void)
 {
-    int cc;
-    switch(floatx_compare_quiet(ST0, FT0, &env->fp_status)) {
-    case -1:
-        cc = 0x0100;
-        break;
-    case 0:
-        cc = 0x4000;
-        break;
-    case 1:
-        cc = 0x0000;
-        break;
-    case 2:
-    default:
-        cc = 0x4500;
-        break;
-    }
-    env->fpus = (env->fpus & ~0x4500) | cc;
+    int ret;
+
+    ret = floatx_compare_quiet(ST0, FT0, &env->fp_status);
+    env->fpus = (env->fpus & ~0x4500) | fcom_ccval[ret+ 1];
     FORCE_RET();
 }
 
+const int fcomi_ccval[4] = {CC_C, CC_Z, 0, CC_Z | CC_P | CC_C};
+
 void OPPROTO op_fcomi_ST0_FT0(void)
 {
-    int eflags, cc;
-    switch(floatx_compare(ST0, FT0, &env->fp_status)) {
-    case -1:
-        cc = CC_C;
-        break;
-    case 0:
-        cc = CC_Z;
-        break;
-    case 1:
-        cc = 0;
-        break;
-    case 2:
-    default:
-        cc = CC_Z | CC_P | CC_C;
-        break;
-    }
+    int eflags;
+    int ret;
+
+    ret = floatx_compare(ST0, FT0, &env->fp_status);
     eflags = cc_table[CC_OP].compute_all();
-    eflags = (eflags & ~(CC_Z | CC_P | CC_C)) | cc;
+    eflags = (eflags & ~(CC_Z | CC_P | CC_C)) | fcomi_ccval[ret + 1];
     CC_SRC = eflags;
     FORCE_RET();
 }
 
 void OPPROTO op_fucomi_ST0_FT0(void)
 {
-    int eflags, cc;
-    switch(floatx_compare_quiet(ST0, FT0, &env->fp_status)) {
-    case -1:
-        cc = CC_C;
-        break;
-    case 0:
-        cc = CC_Z;
-        break;
-    case 1:
-        cc = 0;
-        break;
-    case 2:
-    default:
-        cc = CC_Z | CC_P | CC_C;
-        break;
-    }
+    int eflags;
+    int ret;
+
+    ret = floatx_compare_quiet(ST0, FT0, &env->fp_status);
     eflags = cc_table[CC_OP].compute_all();
-    eflags = (eflags & ~(CC_Z | CC_P | CC_C)) | cc;
+    eflags = (eflags & ~(CC_Z | CC_P | CC_C)) | fcomi_ccval[ret + 1];
     CC_SRC = eflags;
     FORCE_RET();
 }
