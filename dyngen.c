@@ -635,6 +635,8 @@ static char *get_rel_sym_name(EXE_RELOC *rel)
     name = get_sym_name(symtab + *(uint32_t *)(rel->r_reloc->r_symndx));
     if (!strcmp(name, ".data"))
         name = name_for_dotdata(rel);
+    if (name[0] == '.')
+        return NULL;
     return name;
 }
 
@@ -1698,6 +1700,8 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                 if (rel->r_offset >= start_offset &&
 		    rel->r_offset < start_offset + copy_size) {
                     sym_name = get_rel_sym_name(rel);
+                    if (!sym_name)
+                        continue;
                     if (strstart(sym_name, "__op_jmp", &p)) {
                         int n;
                         n = strtol(p, NULL, 10);
