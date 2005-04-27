@@ -359,16 +359,27 @@ void cpu_loop(CPUARMState *env)
         case EXCP_SWI:
             {
                 /* system call */
-                insn = ldl((void *)(env->regs[15] - 4));
-                n = insn & 0xffffff;
+                if (env->thumb) {
+                    insn = lduw((void *)(env->regs[15] - 2));
+                    n = insn & 0xff;
+                } else {
+                    insn = ldl((void *)(env->regs[15] - 4));
+                    n = insn & 0xffffff;
+                }
+
                 if (n == ARM_NR_cacheflush) {
                     arm_cache_flush(env->regs[0], env->regs[1]);
                 } else if (n == ARM_NR_semihosting
                            || n == ARM_NR_thumb_semihosting) {
                     env->regs[0] = do_arm_semihosting (env);
-                } else if (n >= ARM_SYSCALL_BASE) {
+                } else if (n >= ARM_SYSCALL_BASE
+                           || (env->thumb && n == ARM_THUMB_SYSCALL)) {
                     /* linux syscall */
-                    n -= ARM_SYSCALL_BASE;
+                    if (env->thumb) {
+                        n = env->regs[7];
+                    } else {
+                        n -= ARM_SYSCALL_BASE;
+                    }
                     env->regs[0] = do_syscall(env, 
                                               n, 
                                               env->regs[0],
