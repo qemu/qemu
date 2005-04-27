@@ -652,4 +652,5 @@ void bdrv_init(void)
     bdrv_register(&bdrv_cloop);
     bdrv_register(&bdrv_dmg);
     bdrv_register(&bdrv_bochs);
+    bdrv_register(&bdrv_vpc);
 }

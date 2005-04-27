@@ -383,6 +383,7 @@ extern BlockDriver bdrv_vmdk;
 extern BlockDriver bdrv_cloop;
 extern BlockDriver bdrv_dmg;
 extern BlockDriver bdrv_bochs;
+extern BlockDriver bdrv_vpc;
 
 void bdrv_init(void);
 BlockDriver *bdrv_find_format(const char *format_name);
