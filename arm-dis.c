@@ -1556,6 +1556,11 @@ print_insn_arm (pc, info)
     }
   
   is_thumb = force_thumb;
+  if (pc & 1)
+    {
+      is_thumb = 1;
+      pc &= ~(bfd_vma) 1;
+    }
   
 #if 0
   if (!is_thumb && info->symbols != NULL)

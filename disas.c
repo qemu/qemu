@@ -108,8 +108,20 @@ bfd_vma bfd_getb32 (const bfd_byte *addr)
   return (bfd_vma) v;
 }
 
-/* Disassemble this for me please... (debugging). 'flags' is only used
-   for i386: non zero means 16 bit code */
+#ifdef TARGET_ARM
+static int
+print_insn_thumb1(bfd_vma pc, disassemble_info *info)
+{
+  return print_insn_arm(pc | 1, info);
+}
+#endif
+
+/* Disassemble this for me please... (debugging). 'flags' has teh following
+   values:
+    i386 - nonzero means 16 bit code
+    arm  - nonzero means thumb code 
+    other targets - unused
+ */
 void target_disas(FILE *out, target_ulong code, target_ulong size, int flags)
 {
     target_ulong pc;
@@ -137,7 +149,10 @@ void target_disas(FILE *out, target_ulong code, target_ulong size, int flags)
         disasm_info.mach = bfd_mach_i386_i386;
     print_insn = print_insn_i386;
 #elif defined(TARGET_ARM)
-    print_insn = print_insn_arm;
+    if (flags)
+	print_insn = print_insn_thumb1;
+    else
+	print_insn = print_insn_arm;
 #elif defined(TARGET_SPARC)
     print_insn = print_insn_sparc;
 #elif defined(TARGET_PPC)
