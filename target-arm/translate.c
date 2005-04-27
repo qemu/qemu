@@ -38,6 +38,7 @@ typedef struct DisasContext {
     int condlabel;
     struct TranslationBlock *tb;
     int singlestep_enabled;
+    int thumb;
 } DisasContext;
 
 #define DISAS_JUMP_NEXT 4
@@ -268,8 +269,11 @@ static inline void gen_movl_TN_reg(DisasContext *s, int reg, int t)
     int val;
 
     if (reg == 15) {
-        /* normaly, since we updated PC, we need only to add 4 */
-        val = (long)s->pc + 4;
+        /* normaly, since we updated PC, we need only to add one insn */
+        if (s->thumb)
+            val = (long)s->pc + 2;
+        else
+            val = (long)s->pc + 4;
         gen_op_movl_TN_im[t](val);
     } else {
         gen_op_movl_TN_reg[t][reg]();
@@ -897,6 +901,8 @@ static inline void gen_jmp (DisasContext *s, uint32_t dest)
 {
     if (__builtin_expect(s->singlestep_enabled, 0)) {
         /* An indirect jump so that we still trigger the debug exception.  */
+        if (s->thumb)
+          dest |= 1;
         gen_op_movl_T0_im(dest);
         gen_bx(s);
     } else {
@@ -1552,7 +1558,7 @@ static void disas_thumb_insn(DisasContext *s)
                 gen_movl_T1_reg(s, rm);
             }
             if (insn & (1 << 9))
-                gen_op_addl_T0_T1_cc();
+                gen_op_subl_T0_T1_cc();
             else
                 gen_op_addl_T0_T1_cc();
             gen_movl_reg_T0(s, rd);
@@ -1595,11 +1601,10 @@ static void disas_thumb_insn(DisasContext *s)
     case 4:
         if (insn & (1 << 11)) {
             rd = (insn >> 8) & 7;
-            /* load pc-relative */
-            val = (insn & 0xff) * 4;
+            /* load pc-relative.  Bit 1 of PC is ignored.  */
+            val = s->pc + 2 + ((insn & 0xff) * 4);
+            val &= ~(uint32_t)2;
             gen_op_movl_T1_im(val);
-            gen_movl_T2_reg(s, 15);
-            gen_op_addl_T1_T2();
             gen_op_ldl_T0_T1();
             gen_movl_reg_T0(s, rd);
             break;
@@ -1658,7 +1663,7 @@ static void disas_thumb_insn(DisasContext *s)
             gen_movl_T0_reg(s, rd);
 
         gen_movl_T1_reg(s, rm);
-        switch (insn >> 6) {
+        switch (op) {
         case 0x0: /* and */
             gen_op_andl_T0_T1();
             gen_op_logic_T0_cc();
@@ -1689,8 +1694,9 @@ static void disas_thumb_insn(DisasContext *s)
             gen_op_andl_T0_T1();
             gen_op_logic_T0_cc();
             rd = 16;
+            break;
         case 0x9: /* neg */
-            gen_op_rsbl_T0_T1_cc();
+            gen_op_subl_T0_T1_cc();
             break;
         case 0xa: /* cmp */
             gen_op_subl_T0_T1_cc();
@@ -1716,11 +1722,12 @@ static void disas_thumb_insn(DisasContext *s)
             gen_op_notl_T1();
             gen_op_logic_T1_cc();
             val = 1;
+            rm = rd;
             break;
         }
         if (rd != 16) {
             if (val)
-                gen_movl_reg_T1(s, rd);
+                gen_movl_reg_T1(s, rm);
             else
                 gen_movl_reg_T0(s, rd);
         }
@@ -1756,7 +1763,7 @@ static void disas_thumb_insn(DisasContext *s)
             gen_op_ldl_T0_T1();
             break;
         case 5: /* ldrh */
-            gen_op_ldsw_T0_T1();
+            gen_op_lduw_T0_T1();
             break;
         case 6: /* ldrb */
             gen_op_ldub_T0_T1();
@@ -1851,11 +1858,13 @@ static void disas_thumb_insn(DisasContext *s)
     case 10:
         /* add to high reg */
         rd = (insn >> 8) & 7;
-        if (insn & (1 << 11))
-            rm = 13; /* sp */
-        else
-            rm = 15; /* pc */
-        gen_movl_T0_reg(s, rm);
+        if (insn & (1 << 11)) {
+            /* SP */
+            gen_movl_T0_reg(s, 13);
+        } else {
+            /* PC. bit 1 is ignored.  */
+            gen_op_movl_T0_im((s->pc + 2) & ~(uint32_t)2);
+        }
         val = (insn & 0xff) * 4;
         gen_op_movl_T1_im(val);
         gen_op_addl_T0_T1();
@@ -1880,11 +1889,19 @@ static void disas_thumb_insn(DisasContext *s)
         case 4: case 5: case 0xc: case 0xd:
             /* push/pop */
             gen_movl_T1_reg(s, 13);
-            if (insn & (1 << 11))
-                val = 4;
+            if (insn & (1 << 8))
+                offset = 4;
             else
-                val = -4;
-            gen_op_movl_T2_im(val);
+                offset = 0;
+            for (i = 0; i < 8; i++) {
+                if (insn & (1 << i))
+                    offset += 4;
+            }
+            if ((insn & (1 << 11)) == 0) {
+                gen_op_movl_T2_im(-offset);
+                gen_op_addl_T1_T2();
+            }
+            gen_op_movl_T2_im(4);
             for (i = 0; i < 8; i++) {
                 if (insn & (1 << i)) {
                     if (insn & (1 << 11)) {
@@ -1896,7 +1913,7 @@ static void disas_thumb_insn(DisasContext *s)
                         gen_movl_T0_reg(s, i);
                         gen_op_stl_T0_T1();
                     }
-                    /* move to the next address */
+                    /* advance to the next address.  */
                     gen_op_addl_T1_T2();
                 }
             }
@@ -1913,7 +1930,10 @@ static void disas_thumb_insn(DisasContext *s)
                 }
                 gen_op_addl_T1_T2();
             }
-
+            if ((insn & (1 << 11)) == 0) {
+                gen_op_movl_T2_im(-offset);
+                gen_op_addl_T1_T2();
+            }
             /* write back the new stack pointer */
             gen_movl_reg_T1(s, 13);
             /* set the new PC value */
@@ -1931,14 +1951,8 @@ static void disas_thumb_insn(DisasContext *s)
         rn = (insn >> 8) & 0x7;
         gen_movl_T1_reg(s, rn);
         gen_op_movl_T2_im(4);
-        val = 0;
         for (i = 0; i < 8; i++) {
             if (insn & (1 << i)) {
-                /* advance to the next address */
-                if (val)
-                    gen_op_addl_T1_T2();
-                else
-                    val = 1;
                 if (insn & (1 << 11)) {
                     /* load */
                     gen_op_ldl_T0_T1();
@@ -1948,8 +1962,12 @@ static void disas_thumb_insn(DisasContext *s)
                     gen_movl_T0_reg(s, i);
                     gen_op_stl_T0_T1();
                 }
+                /* advance to the next address */
+                gen_op_addl_T1_T2();
             }
         }
+        /* Base register writeback.  */
+        gen_movl_reg_T1(s, rn);
         break;
 
     case 13:
@@ -1976,9 +1994,9 @@ static void disas_thumb_insn(DisasContext *s)
         gen_movl_T1_reg(s, 15);
 
         /* jump to the offset */
-        val = (uint32_t)s->pc;
+        val = (uint32_t)s->pc + 2;
         offset = ((int32_t)insn << 24) >> 24;
-        val += (offset << 1) + 2;
+        val += offset << 1;
         gen_jmp(s, val);
         break;
 
@@ -2002,19 +2020,20 @@ static void disas_thumb_insn(DisasContext *s)
         gen_op_movl_T1_im(val | 1);
         gen_movl_reg_T1(s, 14);
         
-        val += offset;
+        val += offset << 1;
         if (insn & (1 << 11)) {
             /* bl */
             gen_jmp(s, val);
         } else {
             /* blx */
+            val &= ~(uint32_t)2;
             gen_op_movl_T0_im(val);
             gen_bx(s);
         }
     }
     return;
 undef:
-    gen_op_movl_T0_im((long)s->pc - 4);
+    gen_op_movl_T0_im((long)s->pc - 2);
     gen_op_movl_reg_TN[0][15]();
     gen_op_undef_insn();
     s->is_jmp = DISAS_JUMP;
@@ -2045,6 +2064,7 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     dc->pc = pc_start;
     dc->singlestep_enabled = env->singlestep_enabled;
     dc->condjmp = 0;
+    dc->thumb = env->thumb;
     nb_gen_labels = 0;
     lj = -1;
     do {
@@ -2128,7 +2148,7 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     if (loglevel & CPU_LOG_TB_IN_ASM) {
         fprintf(logfile, "----------------\n");
         fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
-        target_disas(logfile, pc_start, dc->pc - pc_start, 0);
+        target_disas(logfile, pc_start, dc->pc - pc_start, env->thumb);
         fprintf(logfile, "\n");
         if (loglevel & (CPU_LOG_TB_OP)) {
             fprintf(logfile, "OP:\n");

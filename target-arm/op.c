@@ -824,12 +824,13 @@ void OPPROTO op_shrl_T0_im_thumb(void)
 
     shift = PARAM1;
     if (shift == 0) {
-	env->CF = 0;
+	env->CF = ((uint32_t)shift) >> 31;
 	T0 = 0;
     } else {
 	env->CF = (T0 >> (shift - 1)) & 1;
 	T0 = T0 >> shift;
     }
+    env->NZF = T0;
     FORCE_RET();
 }
 
