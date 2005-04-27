@@ -108,9 +108,10 @@ tar:
 # generate a binary distribution
 tarbin:
 	( cd / ; tar zcvf ~/qemu-$(VERSION)-i386.tar.gz \
-	$(bindir)/qemu $(bindir)/qemu-fast \
+	$(bindir)/qemu \
 	$(bindir)/qemu-system-ppc \
 	$(bindir)/qemu-system-sparc \
+	$(bindir)/qemu-system-x86_64 \
 	$(bindir)/qemu-i386 \
         $(bindir)/qemu-arm \
         $(bindir)/qemu-sparc \
