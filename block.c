@@ -548,6 +548,9 @@ static int raw_open(BlockDriverState *bs, const char *filename)
     BDRVRawState *s = bs->opaque;
     int fd;
     int64_t size;
+#ifdef _BSD
+    struct stat sb;
+#endif
 
     fd = open(filename, O_RDWR | O_BINARY | O_LARGEFILE);
     if (fd < 0) {
@@ -557,13 +560,11 @@ static int raw_open(BlockDriverState *bs, const char *filename)
         bs->read_only = 1;
     }
 #ifdef _BSD
-    {
-        struct stat sb;
-        if (!fstat(fd, &sb) && (S_IFCHR & sb.st_mode)) {
+    if (!fstat(fd, &sb) && (S_IFCHR & sb.st_mode)) {
 #ifdef DIOCGMEDIASIZE
-            if (ioctl(fd, DIOCGMEDIASIZE, (off_t *)&size))
+	if (ioctl(fd, DIOCGMEDIASIZE, (off_t *)&size))
 #endif
-                size = lseek(fd, 0LL, SEEK_END);
+	    size = lseek(fd, 0LL, SEEK_END);
     } else
 #endif
     {
