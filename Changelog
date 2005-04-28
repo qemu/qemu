@@ -1,3 +1,7 @@
+version 0.7.1:
+
+  - read-only Virtual FAT support (Johannes Schindelin)
+
 version 0.7.0:
 
   - better BIOS translation and HDD geometry auto-detection

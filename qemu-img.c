@@ -658,9 +658,10 @@ static int img_info(int argc, char **argv)
     get_human_readable_size(size_buf, sizeof(size_buf), total_sectors * 512);
     allocated_size = get_allocated_file_size(filename);
     if (allocated_size < 0)
-        error("Could not get file size '%s'", filename);
-    get_human_readable_size(dsize_buf, sizeof(dsize_buf), 
-                            allocated_size);
+	sprintf(dsize_buf, "unavailable");
+    else
+        get_human_readable_size(dsize_buf, sizeof(dsize_buf), 
+                                allocated_size);
     printf("image: %s\n"
            "file format: %s\n"
            "virtual size: %s (%lld bytes)\n"
