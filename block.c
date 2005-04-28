@@ -106,26 +106,29 @@ static BlockDriver *find_image_format(const char *filename)
     size_t bufsize = 1024;
 
     fd = open(filename, O_RDONLY | O_BINARY | O_LARGEFILE);
-    if (fd < 0)
-        return NULL;
+    if (fd < 0) {
+        buf = NULL;
+        ret = 0;
+    } else {
 #ifdef DIOCGSECTORSIZE
-    {
-        unsigned int sectorsize = 512;
-        if (!ioctl(fd, DIOCGSECTORSIZE, &sectorsize) &&
-            sectorsize > bufsize)
-            bufsize = sectorsize;
-    }
+        {
+            unsigned int sectorsize = 512;
+            if (!ioctl(fd, DIOCGSECTORSIZE, &sectorsize) &&
+                sectorsize > bufsize)
+                bufsize = sectorsize;
+        }
 #endif
-    buf = malloc(bufsize);
-    if (!buf)
-        return NULL;
-    ret = read(fd, buf, bufsize);
-    if (ret < 0) {
+        buf = qemu_malloc(bufsize);
+        if (!buf)
+            return NULL;
+        ret = read(fd, buf, bufsize);
+        if (ret < 0) {
+            close(fd);
+            qemu_free(buf);
+            return NULL;
+        }
         close(fd);
-        free(buf);
-        return NULL;
     }
-    close(fd);
     
     drv = NULL;
     score_max = 0;
@@ -136,7 +139,7 @@ static BlockDriver *find_image_format(const char *filename)
             drv = drv1;
         }
     }
-    free(buf);
+    qemu_free(buf);
     return drv;
 }
 
@@ -154,7 +157,7 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int snapshot,
     bs->read_only = 0;
     bs->is_temporary = 0;
     bs->encrypted = 0;
-    
+
     if (snapshot) {
         BlockDriverState *bs1;
         int64_t total_size;
@@ -183,7 +186,7 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int snapshot,
         filename = tmp_filename;
         bs->is_temporary = 1;
     }
-    
+
     pstrcpy(bs->filename, sizeof(bs->filename), filename);
     if (!drv) {
         drv = find_image_format(filename);
@@ -653,4 +656,5 @@ void bdrv_init(void)
     bdrv_register(&bdrv_dmg);
     bdrv_register(&bdrv_bochs);
     bdrv_register(&bdrv_vpc);
+    bdrv_register(&bdrv_vvfat);
 }

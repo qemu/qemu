@@ -80,8 +80,9 @@ static int decompress_cluster(BDRVQcowState *s, uint64_t cluster_offset);
 static int qcow_probe(const uint8_t *buf, int buf_size, const char *filename)
 {
     const QCowHeader *cow_header = (const void *)buf;
-
-    if (be32_to_cpu(cow_header->magic) == QCOW_MAGIC &&
+    
+    if (buf_size >= sizeof(QCowHeader) &&
+        be32_to_cpu(cow_header->magic) == QCOW_MAGIC &&
         be32_to_cpu(cow_header->version) == QCOW_VERSION) 
         return 100;
     else
@@ -551,9 +552,19 @@ static int qcow_create(const char *filename, int64_t total_size,
     header_size = sizeof(header);
     backing_filename_len = 0;
     if (backing_file) {
-        realpath(backing_file, backing_filename);
-        if (stat(backing_filename, &st) != 0) {
-            return -1;
+        const char *p;
+        /* XXX: this is a hack: we do not attempt to check for URL
+           like syntax */
+        p = strchr(backing_file, ':');
+        if (p && (p - backing_file) >= 2) {
+            /* URL like but exclude "c:" like filenames */
+            pstrcpy(backing_filename, sizeof(backing_filename),
+                    backing_file);
+        } else {
+            realpath(backing_file, backing_filename);
+            if (stat(backing_filename, &st) != 0) {
+                return -1;
+            }
         }
         header.mtime = cpu_to_be32(st.st_mtime);
         header.backing_file_offset = cpu_to_be64(header_size);
