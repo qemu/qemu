@@ -91,7 +91,9 @@ static int dmg_open(BlockDriverState *bs, const char *filename)
     if(lseek(s->fd,-0x1d8,SEEK_END)<0) {
 dmg_close:
 	close(s->fd);
-	return -1;
+	/* open raw instead */
+	bs->drv=&bdrv_raw;
+	return bs->drv->bdrv_open(bs,filename);
     }
     info_begin=read_off(s->fd);
     if(info_begin==0)
