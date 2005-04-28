@@ -61,6 +61,9 @@
 #define EN1_CURPAG      0x17
 #define EN1_MULT        0x18
 
+#define EN2_STARTPG	0x21	/* Starting page of ring bfr RD */
+#define EN2_STOPPG	0x22	/* Ending page +1 of ring bfr RD */
+
 /*  Register accessed at EN_CMD, the 8390 base addr.  */
 #define E8390_STOP	0x01	/* Stop and reset the chip */
 #define E8390_START	0x02	/* Start the chip, clear reset */
@@ -150,7 +153,7 @@ static void ne2000_reset(NE2000State *s)
 static void ne2000_update_irq(NE2000State *s)
 {
     int isr;
-    isr = s->isr & s->imr;
+    isr = (s->isr & s->imr) & 0x7f;
 #if defined(DEBUG_NE2000)
     printf("NE2000: Set IRQ line %d to %d (%02x %02x)\n",
 	   s->irq, isr ? 1 : 0, s->isr, s->imr);
@@ -255,7 +258,7 @@ static void ne2000_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     if (addr == E8390_CMD) {
         /* control register */
         s->cmd = val;
-        if (val & E8390_START) {
+        if (!(val & E8390_STOP)) { /* START bit makes no sense on RTL8029... */
             s->isr &= ~ENISR_RESET;
             /* test specific case: zero length transfert */
             if ((val & (E8390_RREAD | E8390_RWRITE)) &&
@@ -375,6 +378,12 @@ static uint32_t ne2000_ioport_read(void *opaque, uint32_t addr)
             break;
         case EN0_RSR:
             ret = s->rsr;
+            break;
+        case EN2_STARTPG:
+            ret = s->start >> 8;
+            break;
+        case EN2_STOPPG:
+            ret = s->stop >> 8;
             break;
         default:
             ret = 0x00;
