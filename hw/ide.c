@@ -499,7 +499,10 @@ static inline void ide_abort_command(IDEState *s)
 
 static inline void ide_set_irq(IDEState *s)
 {
+    BMDMAState *bm = s->bmdma;
     if (!(s->cmd & IDE_CMD_DISABLE_IRQ)) {
+        if (bm)
+            bm->status |= BM_STATUS_INT;
 #ifdef TARGET_PPC
         if (s->openpic) 
             openpic_set_irq(s->openpic, s->irq, 1);
