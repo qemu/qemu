@@ -22,7 +22,7 @@ QEMU has two operating modes:
 
 @item 
 Full system emulation. In this mode, QEMU emulates a full system (for
-example a PC), including a processor and various peripherials. It can
+example a PC), including a processor and various peripherals. It can
 be used to launch different Operating Systems without rebooting the
 PC or to debug system code.
 
@@ -73,7 +73,7 @@ Download the experimental binary installer at
 @c man begin DESCRIPTION
 
 The QEMU System emulator simulates the
-following PC peripherials:
+following PC peripherals:
 
 @itemize @minus
 @item 
@@ -930,7 +930,7 @@ problem.
 Use the executable @file{qemu-system-ppc} to simulate a complete PREP
 or PowerMac PowerPC system.
 
-QEMU emulates the following PowerMac peripherials:
+QEMU emulates the following PowerMac peripherals:
 
 @itemize @minus
 @item 
@@ -947,7 +947,7 @@ Non Volatile RAM
 VIA-CUDA with ADB keyboard and mouse.
 @end itemize
 
-QEMU emulates the following PREP peripherials:
+QEMU emulates the following PREP peripherals:
 
 @itemize @minus
 @item 
@@ -1000,7 +1000,7 @@ More information is available at
 Use the executable @file{qemu-system-sparc} to simulate a JavaStation
 (sun4m architecture). The emulation is far from complete.
 
-QEMU emulates the following sun4m peripherials:
+QEMU emulates the following sun4m peripherals:
 
 @itemize @minus
 @item 

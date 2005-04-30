@@ -22,7 +22,7 @@ QEMU has two operating modes:
 
 @item 
 Full system emulation. In this mode, QEMU emulates a full system
-(usually a PC), including a processor and various peripherials. It can
+(usually a PC), including a processor and various peripherals. It can
 be used to launch an different Operating System without rebooting the
 PC or to debug system code.
 
