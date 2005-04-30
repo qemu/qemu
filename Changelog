@@ -1,6 +1,8 @@
 version 0.7.1:
 
   - read-only Virtual FAT support (Johannes Schindelin)
+  - Windows 2000 install disk full hack (original idea from Vladimir
+    N. Oleynik)
 
 version 0.7.0:
 

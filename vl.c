@@ -147,6 +147,9 @@ int full_screen = 0;
 TextConsole *vga_console;
 CharDriverState *serial_hds[MAX_SERIAL_PORTS];
 CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
+#ifdef TARGET_I386
+int win2k_install_hack = 0;
+#endif
 
 /***********************************************************/
 /* x86 ISA bus support */
@@ -933,7 +936,7 @@ static void init_timers(void)
         
         /* timer signal */
         sigfillset(&act.sa_mask);
-        act.sa_flags = 0;
+       act.sa_flags = 0;
 #if defined (TARGET_I386) && defined(USE_CODE_COPY)
         act.sa_flags |= SA_ONSTACK;
 #endif
@@ -2746,6 +2749,9 @@ void help(void)
            "-enable-audio   enable audio support\n"
            "-localtime      set the real time clock to local time [default=utc]\n"
            "-full-screen    start in full screen\n"
+#ifdef TARGET_I386
+           "-win2k-hack     use it when installing Windows 2000 to avoid a disk full bug\n"
+#endif
 #ifdef TARGET_PPC
            "-prep           Simulate a PREP system (default is PowerMAC)\n"
 #endif
@@ -2878,6 +2884,7 @@ enum {
     QEMU_OPTION_full_screen,
     QEMU_OPTION_pidfile,
     QEMU_OPTION_no_kqemu,
+    QEMU_OPTION_win2k_hack,
 };
 
 typedef struct QEMUOption {
@@ -2946,7 +2953,8 @@ const QEMUOption qemu_options[] = {
     { "loadvm", HAS_ARG, QEMU_OPTION_loadvm },
     { "full-screen", 0, QEMU_OPTION_full_screen },
     { "pidfile", HAS_ARG, QEMU_OPTION_pidfile },
-
+    { "win2k-hack", 0, QEMU_OPTION_win2k_hack },
+    
     /* temporary options */
     { "pci", 0, QEMU_OPTION_pci },
     { "cirrusvga", 0, QEMU_OPTION_cirrusvga },
@@ -3397,6 +3405,11 @@ int main(int argc, char **argv)
             case QEMU_OPTION_pidfile:
                 create_pidfile(optarg);
                 break;
+#ifdef TARGET_I386
+            case QEMU_OPTION_win2k_hack:
+                win2k_install_hack = 1;
+                break;
+#endif
 #ifdef USE_KQEMU
             case QEMU_OPTION_no_kqemu:
                 kqemu_allowed = 0;

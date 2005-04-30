@@ -332,6 +332,7 @@ typedef struct IDEState {
     uint8_t *data_ptr;
     uint8_t *data_end;
     uint8_t io_buffer[MAX_MULT_SECTORS*512 + 4];
+    QEMUTimer *sector_write_timer; /* only used for win2k instal hack */
 } IDEState;
 
 #define BM_STATUS_DMAING 0x01
@@ -645,6 +646,12 @@ static void ide_sector_read_dma(IDEState *s)
     ide_dma_start(s, ide_read_dma_cb);
 }
 
+static void ide_sector_write_timer_cb(void *opaque)
+{
+    IDEState *s = opaque;
+    ide_set_irq(s);
+}
+
 static void ide_sector_write(IDEState *s)
 {
     int64_t sector_num;
@@ -670,7 +677,22 @@ static void ide_sector_write(IDEState *s)
         ide_transfer_start(s, s->io_buffer, 512 * n1, ide_sector_write);
     }
     ide_set_sector(s, sector_num + n);
-    ide_set_irq(s);
+    
+#ifdef TARGET_I386
+    if (win2k_install_hack) {
+        /* It seems there is a bug in the Windows 2000 installer HDD
+           IDE driver which fills the disk with empty logs when the
+           IDE write IRQ comes too early. This hack tries to correct
+           that at the expense of slower write performances. Use this
+           option _only_ to install Windows 2000. You must disable it
+           for normal use. */
+        qemu_mod_timer(s->sector_write_timer, 
+                       qemu_get_clock(vm_clock) + (ticks_per_sec / 1000));
+    } else 
+#endif
+    {
+        ide_set_irq(s);
+    }
 }
 
 static int ide_write_dma_cb(IDEState *s, 
@@ -1939,6 +1961,8 @@ static void ide_init2(IDEState *ide_state, int irq,
         }
         s->drive_serial = drive_serial++;
         s->irq = irq;
+        s->sector_write_timer = qemu_new_timer(vm_clock, 
+                                               ide_sector_write_timer_cb, s);
         ide_reset(s);
     }
 }
