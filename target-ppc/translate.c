@@ -2400,6 +2400,8 @@ GEN_HANDLER(dcbtst, 0x1F, 0x16, 0x07, 0x03E00001, PPC_CACHE)
 #define op_dcbz() (*gen_op_dcbz[ctx->mem_idx])()
 static GenOpFunc *gen_op_dcbz[] = {
     &gen_op_dcbz_user,
+    &gen_op_dcbz_user,
+    &gen_op_dcbz_kernel,
     &gen_op_dcbz_kernel,
 };
 #endif
