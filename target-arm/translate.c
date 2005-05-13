@@ -2191,7 +2191,7 @@ void cpu_dump_state(CPUState *env, FILE *f,
                     int flags)
 {
     int i;
-    struct {
+    union {
         uint32_t i;
         float s;
     } s0, s1;
