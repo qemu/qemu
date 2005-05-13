@@ -99,7 +99,7 @@ uint32_t do_arm_semihosting(CPUState *env)
             else
                 return STDOUT_FILENO;
         }
-        return set_swi_errno(ts, open(s, open_modeflags[ARG(1)]));
+        return set_swi_errno(ts, open(s, open_modeflags[ARG(1)], 0644));
     case SYS_CLOSE:
         return set_swi_errno(ts, close(ARG(0)));
     case SYS_WRITEC:
