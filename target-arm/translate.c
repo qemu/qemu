@@ -1019,20 +1019,15 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
         case 0x5: /* saturating add/subtract */
             rd = (insn >> 12) & 0xf;
             rn = (insn >> 16) & 0xf;
-            gen_movl_T0_reg(s, rn);
-            if (op1 & 2) {
-                gen_movl_T1_reg(s, rn);
-                if (op1 & 1) 
-                    gen_op_subl_T0_T1_saturate();
-                else
-                    gen_op_addl_T0_T1_saturate();
-            }
-            gen_movl_T1_reg(s, rm);
+            gen_movl_T0_reg(s, rm);
+            gen_movl_T1_reg(s, rn);
+            if (op1 & 2)
+                gen_op_double_T1_saturate();
             if (op1 & 1)
                 gen_op_subl_T0_T1_saturate();
             else
                 gen_op_addl_T0_T1_saturate();
-            gen_movl_reg_T0(s, rn);
+            gen_movl_reg_T0(s, rd);
             break;
         case 0x8: /* signed multiply */
         case 0xa:

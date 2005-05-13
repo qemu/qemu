@@ -805,6 +805,23 @@ void OPPROTO op_subl_T0_T1_saturate(void)
   FORCE_RET();
 }
 
+void OPPROTO op_double_T1_saturate(void)
+{
+  int32_t val;
+
+  val = T1;
+  if (val >= 0x40000000) {
+      T1 = 0x7fffffff;
+      env->QF = 1;
+  } else if (val <= (int32_t)0xc0000000) {
+      T1 = 0x80000000;
+      env->QF = 1;
+  } else {
+      T1 = val << 1;
+  }
+  FORCE_RET();
+}
+
 /* thumb shift by immediate */
 void OPPROTO op_shll_T0_im_thumb(void)
 {
