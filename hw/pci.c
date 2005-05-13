@@ -498,6 +498,27 @@ static inline int pci_slot_get_pirq(PCIDevice *pci_dev, int irq_num)
     return (irq_num + slot_addend) & 3;
 }
 
+static inline int get_pci_irq_level(int irq_num)
+{
+    int pic_level;
+#if (PCI_IRQ_WORDS == 2)
+    pic_level = ((pci_irq_levels[irq_num][0] | 
+                  pci_irq_levels[irq_num][1]) != 0);
+#else
+    {
+        int i;
+        pic_level = 0;
+        for(i = 0; i < PCI_IRQ_WORDS; i++) {
+            if (pci_irq_levels[irq_num][i]) {
+                pic_level = 1;
+                break;
+            }
+        }
+    }
+#endif
+    return pic_level;
+}
+
 static void piix3_set_irq(PCIDevice *pci_dev, int irq_num, int level)
 {
     int irq_index, shift, pic_irq, pic_level;
@@ -510,26 +531,20 @@ static void piix3_set_irq(PCIDevice *pci_dev, int irq_num, int level)
     *p = (*p & ~(1 << shift)) | (level << shift);
 
     /* now we change the pic irq level according to the piix irq mappings */
+    /* XXX: optimize */
     pic_irq = piix3_state->dev.config[0x60 + irq_num];
     if (pic_irq < 16) {
         /* the pic level is the logical OR of all the PCI irqs mapped
            to it */
         pic_level = 0;
-#if (PCI_IRQ_WORDS == 2)
-        pic_level = ((pci_irq_levels[irq_num][0] | 
-                      pci_irq_levels[irq_num][1]) != 0);
-#else
-        {
-            int i;
-            pic_level = 0;
-            for(i = 0; i < PCI_IRQ_WORDS; i++) {
-                if (pci_irq_levels[irq_num][i]) {
-                    pic_level = 1;
-                    break;
-                }
-            }
-        }
-#endif
+        if (pic_irq == piix3_state->dev.config[0x60])
+            pic_level |= get_pci_irq_level(0);
+        if (pic_irq == piix3_state->dev.config[0x61])
+            pic_level |= get_pci_irq_level(1);
+        if (pic_irq == piix3_state->dev.config[0x62])
+            pic_level |= get_pci_irq_level(2);
+        if (pic_irq == piix3_state->dev.config[0x63])
+            pic_level |= get_pci_irq_level(3);
         pic_set_irq(pic_irq, pic_level);
     }
 }
