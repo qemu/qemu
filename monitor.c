@@ -562,6 +562,22 @@ static void do_print(int count, int format, int size, unsigned int valh, unsigne
     term_printf("\n");
 }
 
+static void do_sum(uint32_t start, uint32_t size)
+{
+    uint32_t addr;
+    uint8_t buf[1];
+    uint16_t sum;
+
+    sum = 0;
+    for(addr = start; addr < (start + size); addr++) {
+        cpu_physical_memory_rw(addr, buf, 1, 0);
+        /* BSD sum algorithm ('sum' Unix command) */
+        sum = (sum >> 1) | (sum << 15);
+        sum += buf[0];
+    }
+    term_printf("%05d\n", sum);
+}
+
 typedef struct {
     int keycode;
     const char *name;
@@ -906,6 +922,8 @@ static term_cmd_t term_cmds[] = {
       "keys", "send keys to the VM (e.g. 'sendkey ctrl-alt-f1')" },
     { "system_reset", "", do_system_reset, 
       "", "reset the system" },
+    { "sum", "ii", do_sum, 
+      "addr size", "compute the checksum of a memory region" },
     { NULL, NULL, }, 
 };
 
