@@ -3067,7 +3067,9 @@ const struct powerpc_macro powerpc_macros[] = {
 const int powerpc_num_macros =
   sizeof (powerpc_macros) / sizeof (powerpc_macros[0]);
 
-static int print_insn_powerpc(FILE *, uint32_t insn, unsigned memaddr, int dialect);
+static int
+print_insn_powerpc (disassemble_info *info, uint32_t insn, unsigned memaddr,
+		    int dialect);
 
 /* Print a big endian PowerPC instruction.  For convenience, also
    disassemble instructions supported by the Motorola PowerPC 601.  */
@@ -3083,14 +3085,14 @@ int print_insn_ppc (bfd_vma pc, disassemble_info *info)
         opc = bfd_getb32(buf);
     else
         opc = bfd_getl32(buf);
-    return print_insn_powerpc (info->stream, opc, pc,
+    return print_insn_powerpc (info, opc, pc,
                                PPC | B32 | M601);
 }
 
 /* Print a PowerPC or POWER instruction.  */
 
 static int
-print_insn_powerpc (FILE *out, uint32_t insn, unsigned memaddr,
+print_insn_powerpc (disassemble_info *info, uint32_t insn, unsigned memaddr,
 		    int dialect)
 {
   const struct powerpc_opcode *opcode;
@@ -3136,9 +3138,9 @@ print_insn_powerpc (FILE *out, uint32_t insn, unsigned memaddr,
 		continue;
 
       /* The instruction is valid.  */
-      fprintf(out, "%s", opcode->name);
+      (*info->fprintf_func)(info->stream, "%s", opcode->name);
       if (opcode->operands[0] != 0)
-		fprintf(out, "\t");
+		(*info->fprintf_func)(info->stream, "\t");
 
       /* Now extract and print the operands.  */
       need_comma = 0;
@@ -3175,26 +3177,26 @@ print_insn_powerpc (FILE *out, uint32_t insn, unsigned memaddr,
 
 		  if (need_comma)
 		    {
-		      fprintf(out, ",");
+		      (*info->fprintf_func)(info->stream, ",");
 		      need_comma = 0;
 		    }
 
 		  /* Print the operand as directed by the flags.  */
 		  if ((operand->flags & PPC_OPERAND_GPR) != 0)
-		    fprintf(out, "r%d", value);
+		    (*info->fprintf_func)(info->stream, "r%d", value);
 		  else if ((operand->flags & PPC_OPERAND_FPR) != 0)
-		    fprintf(out, "f%d", value);
+		    (*info->fprintf_func)(info->stream, "f%d", value);
 		  else if ((operand->flags & PPC_OPERAND_RELATIVE) != 0)
-		    fprintf(out, "%08X", memaddr + value);
+		    (*info->fprintf_func)(info->stream, "%08X", memaddr + value);
 		  else if ((operand->flags & PPC_OPERAND_ABSOLUTE) != 0)
-		    fprintf(out, "%08X", value & 0xffffffff);
+		    (*info->fprintf_func)(info->stream, "%08X", value & 0xffffffff);
 		  else if ((operand->flags & PPC_OPERAND_CR) == 0
 			   || (dialect & PPC_OPCODE_PPC) == 0)
-		    fprintf(out, "%d", value);
+		    (*info->fprintf_func)(info->stream, "%d", value);
 		  else
 		    {
 		      if (operand->bits == 3)
-				fprintf(out, "cr%d", value);
+				(*info->fprintf_func)(info->stream, "cr%d", value);
 		      else
 			{
 			  static const char *cbnames[4] = { "lt", "gt", "eq", "so" };
@@ -3203,20 +3205,20 @@ print_insn_powerpc (FILE *out, uint32_t insn, unsigned memaddr,
 
 			  cr = value >> 2;
 			  if (cr != 0)
-			    fprintf(out, "4*cr%d", cr);
+			    (*info->fprintf_func)(info->stream, "4*cr%d", cr);
 			  cc = value & 3;
 			  if (cc != 0)
 			    {
 			      if (cr != 0)
-					fprintf(out, "+");
-			      fprintf(out, "%s", cbnames[cc]);
+					(*info->fprintf_func)(info->stream, "+");
+			      (*info->fprintf_func)(info->stream, "%s", cbnames[cc]);
 			    }
 			}
 	    }
 
 	  if (need_paren)
 	    {
-	      fprintf(out, ")");
+	      (*info->fprintf_func)(info->stream, ")");
 	      need_paren = 0;
 	    }
 
@@ -3224,7 +3226,7 @@ print_insn_powerpc (FILE *out, uint32_t insn, unsigned memaddr,
 	    need_comma = 1;
 	  else
 	    {
-	      fprintf(out, "(");
+	      (*info->fprintf_func)(info->stream, "(");
 	      need_paren = 1;
 	    }
 	}
@@ -3234,7 +3236,7 @@ print_insn_powerpc (FILE *out, uint32_t insn, unsigned memaddr,
     }
 
   /* We could not find a match.  */
-  fprintf(out, ".long 0x%x", insn);
+  (*info->fprintf_func)(info->stream, ".long 0x%x", insn);
 
   return 4;
 }
