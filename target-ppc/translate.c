@@ -1370,6 +1370,8 @@ GEN_HANDLER(lswi, 0x1F, 0x15, 0x12, 0x00000001, PPC_INTEGER)
         gen_op_load_gpr_T0(ra);
     }
     gen_op_set_T1(nb);
+    /* NIP cannot be restored if the memory exception comes from an helper */
+    gen_op_update_nip((ctx)->nip - 4); 
     op_ldsts(lswi, start);
 }
 
@@ -1388,6 +1390,8 @@ GEN_HANDLER(lswx, 0x1F, 0x15, 0x10, 0x00000001, PPC_INTEGER)
         gen_op_add();
     }
     gen_op_load_xer_bc();
+    /* NIP cannot be restored if the memory exception comes from an helper */
+    gen_op_update_nip((ctx)->nip - 4); 
     op_ldstsx(lswx, rD(ctx->opcode), ra, rb);
 }
 
@@ -1404,6 +1408,8 @@ GEN_HANDLER(stswi, 0x1F, 0x15, 0x16, 0x00000001, PPC_INTEGER)
     if (nb == 0)
         nb = 32;
     gen_op_set_T1(nb);
+    /* NIP cannot be restored if the memory exception comes from an helper */
+    gen_op_update_nip((ctx)->nip - 4); 
     op_ldsts(stsw, rS(ctx->opcode));
 }
 
@@ -1421,6 +1427,8 @@ GEN_HANDLER(stswx, 0x1F, 0x15, 0x14, 0x00000001, PPC_INTEGER)
         gen_op_add();
     }
     gen_op_load_xer_bc();
+    /* NIP cannot be restored if the memory exception comes from an helper */
+    gen_op_update_nip((ctx)->nip - 4); 
     op_ldsts(stsw, rS(ctx->opcode));
 }
 
@@ -2123,7 +2131,8 @@ GEN_HANDLER(mftb, 0x1F, 0x13, 0x0B, 0x00000001, PPC_MISC)
 }
 
 /* mtcrf */
-GEN_HANDLER(mtcrf, 0x1F, 0x10, 0x04, 0x00100801, PPC_MISC)
+/* The mask should be 0x00100801, but Mac OS X 10.4 use an alternate form */
+GEN_HANDLER(mtcrf, 0x1F, 0x10, 0x04, 0x00000801, PPC_MISC)
 {
     gen_op_load_gpr_T0(rS(ctx->opcode));
     gen_op_store_cr(CRM(ctx->opcode));
@@ -3312,10 +3321,14 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
              ctx.exception != EXCP_TRAP)) {
             RET_EXCP(ctxp, EXCP_TRACE, 0);
         }
+        if (ctx.exception != EXCP_NONE)
+            break;
         /* if we reach a page boundary, stop generation */
         if ((ctx.nip & (TARGET_PAGE_SIZE - 1)) == 0) {
-            RET_EXCP(ctxp, EXCP_BRANCH, 0);
-    }
+            gen_op_b((long)ctx.tb, ctx.nip);
+            ctx.exception = EXCP_BRANCH;
+            break;
+        }
     }
     if (ctx.exception == EXCP_NONE) {
         gen_op_b((unsigned long)ctx.tb, ctx.nip);
