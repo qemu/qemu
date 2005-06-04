@@ -22,6 +22,8 @@
 //#define DEBUG_MMU
 //#define DEBUG_BATS
 //#define DEBUG_EXCEPTIONS
+/* accurate but slower TLB flush in exceptions */
+//#define ACCURATE_TLB_FLUSH
 
 /*****************************************************************************/
 /* PPC MMU emulation */
@@ -128,7 +130,7 @@ static int find_pte (uint32_t *RPN, int *prot, uint32_t base, uint32_t va,
         pte0 = ldl_phys(base + (i * 8));
         pte1 =  ldl_phys(base + (i * 8) + 4);
 #if defined (DEBUG_MMU)
-	if (loglevel > 0) {
+        if (loglevel > 0) {
 	    fprintf(logfile, "Load pte from 0x%08x => 0x%08x 0x%08x "
 		    "%d %d %d 0x%08x\n", base + (i * 8), pte0, pte1,
 		    pte0 >> 31, h, (pte0 >> 6) & 1, va);
@@ -175,17 +177,17 @@ static int find_pte (uint32_t *RPN, int *prot, uint32_t base, uint32_t va,
 			if (loglevel > 0)
 			    fprintf(logfile, "PTE access granted !\n");
 #endif
-                    good = i;
-                    keep = pte1;
-                    ret = 0;
+                        good = i;
+                        keep = pte1;
+                        ret = 0;
 		    } else {
 			/* Access right violation */
-			ret = -2;
+                        ret = -2;
 #if defined (DEBUG_MMU)
 			if (loglevel > 0)
 			    fprintf(logfile, "PTE access rejected\n");
 #endif
-                }
+                    }
 		    *prot = access;
 		}
             }
@@ -194,7 +196,7 @@ static int find_pte (uint32_t *RPN, int *prot, uint32_t base, uint32_t va,
     if (good != -1) {
         *RPN = keep & 0xFFFFF000;
 #if defined (DEBUG_MMU)
-	if (loglevel > 0) {
+        if (loglevel > 0) {
 	    fprintf(logfile, "found PTE at addr 0x%08x prot=0x%01x ret=%d\n",
                *RPN, *prot, ret);
 	}
@@ -205,7 +207,7 @@ static int find_pte (uint32_t *RPN, int *prot, uint32_t base, uint32_t va,
             keep |= 0x00000100;
             store = 1;
         }
-            if (!(keep & 0x00000080)) {
+        if (!(keep & 0x00000080)) {
 	    if (rw && ret == 0) {
 		/* Change flag */
                 keep |= 0x00000080;
@@ -251,7 +253,7 @@ static int get_segment (CPUState *env, uint32_t *real, int *prot,
         ((sr & 0x40000000) && msr_pr == 0)) ? 1 : 0;
     if ((sr & 0x80000000) == 0) {
 #if defined (DEBUG_MMU)
-	if (loglevel > 0)
+    if (loglevel > 0) 
 	    fprintf(logfile, "pte segment: key=%d n=0x%08x\n",
 		    key, sr & 0x10000000);
 #endif
@@ -604,7 +606,7 @@ void _store_xer (CPUState *env, uint32_t value)
     xer_so = (value >> XER_SO) & 0x01;
     xer_ov = (value >> XER_OV) & 0x01;
     xer_ca = (value >> XER_CA) & 0x01;
-    xer_bc = (value >> XER_BC) & 0x1f;
+    xer_bc = (value >> XER_BC) & 0x3f;
 }
 
 uint32_t _load_msr (CPUState *env)
@@ -628,12 +630,12 @@ uint32_t _load_msr (CPUState *env)
 
 void _store_msr (CPUState *env, uint32_t value)
 {
-#if 0 // TRY
+#ifdef ACCURATE_TLB_FLUSH
     if (((value >> MSR_IR) & 0x01) != msr_ir ||
         ((value >> MSR_DR) & 0x01) != msr_dr)
     {
         /* Flush all tlb when changing translation mode or privilege level */
-	tlb_flush(env, 1);
+        tlb_flush(env, 1);
     }
 #endif
     msr_pow = (value >> MSR_POW) & 0x03;
@@ -660,6 +662,13 @@ void do_interrupt (CPUState *env)
     env->exception_index = -1;
 }
 #else
+static void dump_syscall(CPUState *env)
+{
+    fprintf(logfile, "syscall r0=0x%08x r3=0x%08x r4=0x%08x r5=0x%08x r6=0x%08x nip=0x%08x\n",
+            env->gpr[0], env->gpr[3], env->gpr[4],
+            env->gpr[5], env->gpr[6], env->nip);
+}
+
 void do_interrupt (CPUState *env)
 {
     uint32_t msr;
@@ -707,11 +716,11 @@ void do_interrupt (CPUState *env)
      */
 	msr &= ~0xFFFF0000;
 	env->spr[DSISR] = 0;
-	if (env->error_code &  EXCP_DSI_TRANSLATE)
+	if ((env->error_code & 0x0f) ==  EXCP_DSI_TRANSLATE)
 	    env->spr[DSISR] |= 0x40000000;
-	else if (env->error_code & EXCP_DSI_PROT)
+	else if ((env->error_code & 0x0f) ==  EXCP_DSI_PROT)
 	    env->spr[DSISR] |= 0x08000000;
-	else if (env->error_code & EXCP_DSI_NOTSUP) {
+	else if ((env->error_code & 0x0f) ==  EXCP_DSI_NOTSUP) {
 	    env->spr[DSISR] |= 0x80000000;
 	    if (env->error_code & EXCP_DSI_DIRECT)
 		env->spr[DSISR] |= 0x04000000;
@@ -819,28 +828,15 @@ void do_interrupt (CPUState *env)
         }
         goto store_next;
     case EXCP_SYSCALL:
+        /* NOTE: this is a temporary hack to support graphics OSI
+           calls from the MOL driver */
+        if (env->gpr[3] == 0x113724fa && env->gpr[4] == 0x77810f9b &&
+            env->osi_call) {
+            if (env->osi_call(env) != 0)
+                return;
+        }
         if (loglevel & CPU_LOG_INT) {
-            fprintf(logfile, "syscall %d 0x%08x 0x%08x 0x%08x 0x%08x\n",
-                    env->gpr[0], env->gpr[3], env->gpr[4],
-                    env->gpr[5], env->gpr[6]);
-            if (env->gpr[0] == 4 && env->gpr[3] == 1) {
-                int len, addr, i;
-                uint8_t c;
-
-                fprintf(logfile, "write: ");
-                addr = env->gpr[4];
-                len = env->gpr[5];
-                if (len > 64)
-                    len = 64;
-                for(i = 0; i < len; i++) {
-                    c = 0;
-                    cpu_memory_rw_debug(env, addr + i, &c, 1, 0);
-                    if (c < 32 || c > 126)
-                        c = '.';
-                    fprintf(logfile, "%c", c);
-                }
-                fprintf(logfile, "\n");
-            }
+            dump_syscall(env);
         }
         goto store_next;
     case EXCP_TRACE:
@@ -887,6 +883,9 @@ void do_interrupt (CPUState *env)
     env->nip = excp << 8;
     env->exception_index = EXCP_NONE;
     /* Invalidate all TLB as we may have changed translation mode */
+#ifdef ACCURATE_TLB_FLUSH
+    tlb_flush(env, 1);
+#endif
     /* ensure that no TB jump will be modified as
        the program flow was changed */
 #ifdef __sparc__
