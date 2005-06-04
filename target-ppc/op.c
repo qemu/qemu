@@ -446,7 +446,7 @@ PPC_OP(b)
 
 PPC_OP(b_T1)
 {
-    regs->nip = T1;
+    regs->nip = T1 & ~3;
 }
 
 PPC_OP(btest) 
