@@ -159,6 +159,9 @@ typedef struct CPUPPCState {
     /* Power management */
     int power_mode;
 
+    /* temporary hack to handle OSI calls (only used if non NULL) */
+    int (*osi_call)(struct CPUPPCState *env);
+
     /* user data */
     void *opaque;
 } CPUPPCState;
