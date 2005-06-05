@@ -296,8 +296,9 @@ typedef struct IDEState {
     int cylinders, heads, sectors;
     int64_t nb_sectors;
     int mult_sectors;
+    SetIRQFunc *set_irq;
+    void *irq_opaque;
     int irq;
-    openpic_t *openpic;
     PCIDevice *pci_dev;
     struct BMDMAState *bmdma;
     int drive_serial;
@@ -342,6 +343,18 @@ typedef struct IDEState {
 #define BM_CMD_START     0x01
 #define BM_CMD_READ      0x08
 
+#define IDE_TYPE_PIIX3   0
+#define IDE_TYPE_CMD646  1
+
+/* CMD646 specific */
+#define MRDMODE		0x71
+#define   MRDMODE_INTR_CH0	0x04
+#define   MRDMODE_INTR_CH1	0x08
+#define   MRDMODE_BLK_CH0	0x10
+#define   MRDMODE_BLK_CH1	0x20
+#define UDIDETCR0	0x73
+#define UDIDETCR1	0x7B
+
 typedef int IDEDMAFunc(IDEState *s, 
                        target_phys_addr_t phys_addr, 
                        int transfer_size1);
@@ -350,6 +363,8 @@ typedef struct BMDMAState {
     uint8_t cmd;
     uint8_t status;
     uint32_t addr;
+
+    struct PCIIDEState *pci_dev;
     /* current transfer state */
     IDEState *ide_if;
     IDEDMAFunc *dma_cb;
@@ -359,6 +374,7 @@ typedef struct PCIIDEState {
     PCIDevice dev;
     IDEState ide_if[4];
     BMDMAState bmdma[2];
+    int type; /* see IDE_TYPE_xxx */
 } PCIIDEState;
 
 static void ide_dma_start(IDEState *s, IDEDMAFunc *dma_cb);
@@ -502,17 +518,10 @@ static inline void ide_set_irq(IDEState *s)
 {
     BMDMAState *bm = s->bmdma;
     if (!(s->cmd & IDE_CMD_DISABLE_IRQ)) {
-        if (bm)
+        if (bm) {
             bm->status |= BM_STATUS_INT;
-#ifdef TARGET_PPC
-        if (s->openpic) 
-            openpic_set_irq(s->openpic, s->irq, 1);
-        else 
-#endif
-        if (s->irq == 16)
-            pci_set_irq(s->pci_dev, 0, 1);
-        else
-            pic_set_irq(s->irq, 1);
+        }
+        s->set_irq(s->irq_opaque, s->irq, 1);
     }
 }
 
@@ -814,7 +823,8 @@ static void cd_read_sector(BlockDriverState *bs, int lba, uint8_t *buf,
     case 2352:
         /* sync bytes */
         buf[0] = 0x00;
-        memset(buf + 1, 0xff, 11);
+        memset(buf + 1, 0xff, 10);
+        buf[11] = 0x00;
         buf += 12;
         /* MSF */
         lba_to_msf(buf, lba);
@@ -942,6 +952,9 @@ static int ide_atapi_cmd_read_dma_cb(IDEState *s,
     
     transfer_size = transfer_size1;
     while (transfer_size > 0) {
+#ifdef DEBUG_IDE_ATAPI
+        printf("transfer_size: %d phys_addr=%08x\n", transfer_size, phys_addr);
+#endif
         if (s->packet_transfer_size <= 0)
             break;
         len = s->cd_sector_size - s->io_buffer_index;
@@ -1019,9 +1032,8 @@ static int cdrom_read_toc(IDEState *s, uint8_t *buf, int msf, int start_track)
         *q++ = 0; /* reserved */
         if (msf) {
             *q++ = 0; /* reserved */
-            *q++ = 0; /* minute */
-            *q++ = 2; /* second */
-            *q++ = 0; /* frame */
+            lba_to_msf(q, 0);
+            q += 3;
         } else {
             /* sector 0 */
             cpu_to_ube32(q, 0);
@@ -1476,6 +1488,11 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         unit = (val >> 4) & 1;
         s = ide_if + unit;
         ide_if->cur_drive = s;
+#ifdef TARGET_PPC
+        /* XXX: currently a workaround for Darwin/PPC. Need to check
+           the IDE spec to see if it is correct */
+        ide_set_signature(s);
+#endif
         break;
     default:
     case 7:
@@ -1596,6 +1613,7 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             break;
 	case WIN_STANDBYNOW1:
         case WIN_IDLEIMMEDIATE:
+        case WIN_FLUSH_CACHE:
 	    s->status = READY_STAT;
             ide_set_irq(s);
             break;
@@ -1697,15 +1715,7 @@ static uint32_t ide_ioport_read(void *opaque, uint32_t addr1)
             ret = 0;
         else
             ret = s->status;
-#ifdef TARGET_PPC
-        if (s->openpic) 
-            openpic_set_irq(s->openpic, s->irq, 0);
-        else 
-#endif
-        if (s->irq == 16)
-            pci_set_irq(s->pci_dev, 0, 0);
-        else
-            pic_set_irq(s->irq, 0);
+        s->set_irq(s->irq_opaque, s->irq, 0);
         break;
     }
 #ifdef DEBUG_IDE
@@ -1898,8 +1908,9 @@ static int guess_disk_lchs(IDEState *s,
     return -1;
 }
 
-static void ide_init2(IDEState *ide_state, int irq,
-                      BlockDriverState *hd0, BlockDriverState *hd1)
+static void ide_init2(IDEState *ide_state,
+                      BlockDriverState *hd0, BlockDriverState *hd1,
+                      SetIRQFunc *set_irq, void *irq_opaque, int irq)
 {
     IDEState *s;
     static int drive_serial = 1;
@@ -1960,6 +1971,8 @@ static void ide_init2(IDEState *ide_state, int irq,
             }
         }
         s->drive_serial = drive_serial++;
+        s->set_irq = set_irq;
+        s->irq_opaque = irq_opaque;
         s->irq = irq;
         s->sector_write_timer = qemu_new_timer(vm_clock, 
                                                ide_sector_write_timer_cb, s);
@@ -1995,12 +2008,14 @@ void isa_ide_init(int iobase, int iobase2, int irq,
     if (!ide_state)
         return;
     
-    ide_init2(ide_state, irq, hd0, hd1);
+    ide_init2(ide_state, hd0, hd1, pic_set_irq_new, NULL, irq);
     ide_init_ioport(ide_state, iobase, iobase2);
 }
 
 /***********************************************************/
 /* PCI IDE definitions */
+
+static void cmd646_update_irq(PCIIDEState *d);
 
 static void ide_map(PCIDevice *pci_dev, int region_num, 
                     uint32_t addr, uint32_t size, int type)
@@ -2082,17 +2097,6 @@ static void ide_dma_start(IDEState *s, IDEDMAFunc *dma_cb)
     }
 }
 
-static uint32_t bmdma_cmd_readb(void *opaque, uint32_t addr)
-{
-    BMDMAState *bm = opaque;
-    uint32_t val;
-    val = bm->cmd;
-#ifdef DEBUG_IDE
-    printf("%s: 0x%08x\n", __func__, val);
-#endif
-    return val;
-}
-
 static void bmdma_cmd_writeb(void *opaque, uint32_t addr, uint32_t val)
 {
     BMDMAState *bm = opaque;
@@ -2112,24 +2116,77 @@ static void bmdma_cmd_writeb(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
-static uint32_t bmdma_status_readb(void *opaque, uint32_t addr)
+static uint32_t bmdma_readb(void *opaque, uint32_t addr)
 {
     BMDMAState *bm = opaque;
+    PCIIDEState *pci_dev;
     uint32_t val;
-    val = bm->status;
+    
+    switch(addr & 3) {
+    case 0: 
+        val = bm->cmd;
+        break;
+    case 1:
+        pci_dev = bm->pci_dev;
+        if (pci_dev->type == IDE_TYPE_CMD646) {
+            val = pci_dev->dev.config[MRDMODE];
+        } else {
+            val = 0xff;
+        }
+        break;
+    case 2:
+        val = bm->status;
+        break;
+    case 3:
+        pci_dev = bm->pci_dev;
+        if (pci_dev->type == IDE_TYPE_CMD646) {
+            if (bm == &pci_dev->bmdma[0])
+                val = pci_dev->dev.config[UDIDETCR0];
+            else
+                val = pci_dev->dev.config[UDIDETCR1];
+        } else {
+            val = 0xff;
+        }
+        break;
+    default:
+        val = 0xff;
+        break;
+    }
 #ifdef DEBUG_IDE
-    printf("%s: 0x%08x\n", __func__, val);
+    printf("bmdma: readb 0x%02x : 0x%02x\n", addr, val);
 #endif
     return val;
 }
 
-static void bmdma_status_writeb(void *opaque, uint32_t addr, uint32_t val)
+static void bmdma_writeb(void *opaque, uint32_t addr, uint32_t val)
 {
     BMDMAState *bm = opaque;
+    PCIIDEState *pci_dev;
 #ifdef DEBUG_IDE
-    printf("%s: 0x%08x\n", __func__, val);
+    printf("bmdma: writeb 0x%02x : 0x%02x\n", addr, val);
 #endif
-    bm->status = (val & 0x60) | (bm->status & 1) | (bm->status & ~val & 0x06);
+    switch(addr & 3) {
+    case 1:
+        pci_dev = bm->pci_dev;
+        if (pci_dev->type == IDE_TYPE_CMD646) {
+            pci_dev->dev.config[MRDMODE] = 
+                (pci_dev->dev.config[MRDMODE] & ~0x30) | (val & 0x30);
+            cmd646_update_irq(pci_dev);
+        }
+        break;
+    case 2:
+        bm->status = (val & 0x60) | (bm->status & 1) | (bm->status & ~val & 0x06);
+        break;
+    case 3:
+        pci_dev = bm->pci_dev;
+        if (pci_dev->type == IDE_TYPE_CMD646) {
+            if (bm == &pci_dev->bmdma[0])
+                pci_dev->dev.config[UDIDETCR0] = val;
+            else
+                pci_dev->dev.config[UDIDETCR1] = val;
+        }
+        break;
+    }
 }
 
 static uint32_t bmdma_addr_readl(void *opaque, uint32_t addr)
@@ -2162,12 +2219,12 @@ static void bmdma_map(PCIDevice *pci_dev, int region_num,
         BMDMAState *bm = &d->bmdma[i];
         d->ide_if[2 * i].bmdma = bm;
         d->ide_if[2 * i + 1].bmdma = bm;
-        
-        register_ioport_write(addr, 1, 1, bmdma_cmd_writeb, bm);
-        register_ioport_read(addr, 1, 1, bmdma_cmd_readb, bm);
+        bm->pci_dev = (PCIIDEState *)pci_dev;
 
-        register_ioport_write(addr + 2, 1, 1, bmdma_status_writeb, bm);
-        register_ioport_read(addr + 2, 1, 1, bmdma_status_readb, bm);
+        register_ioport_write(addr, 1, 1, bmdma_cmd_writeb, bm);
+
+        register_ioport_write(addr + 1, 3, 1, bmdma_writeb, bm);
+        register_ioport_read(addr, 4, 1, bmdma_readb, bm);
 
         register_ioport_write(addr + 4, 4, 4, bmdma_addr_writel, bm);
         register_ioport_read(addr + 4, 4, 4, bmdma_addr_readl, bm);
@@ -2175,29 +2232,62 @@ static void bmdma_map(PCIDevice *pci_dev, int region_num,
     }
 }
 
-/* hd_table must contain 4 block drivers */
-void pci_ide_init(PCIBus *bus, BlockDriverState **hd_table)
+/* XXX: call it also when the MRDMODE is changed from the PCI config
+   registers */
+static void cmd646_update_irq(PCIIDEState *d)
+{
+    int pci_level;
+    pci_level = ((d->dev.config[MRDMODE] & MRDMODE_INTR_CH0) &&
+                 !(d->dev.config[MRDMODE] & MRDMODE_BLK_CH0)) ||
+        ((d->dev.config[MRDMODE] & MRDMODE_INTR_CH1) &&
+         !(d->dev.config[MRDMODE] & MRDMODE_BLK_CH1));
+    pci_set_irq((PCIDevice *)d, 0, pci_level);
+}
+
+/* the PCI irq level is the logical OR of the two channels */
+static void cmd646_set_irq(void *opaque, int channel, int level)
+{
+    PCIIDEState *d = opaque;
+    int irq_mask;
+
+    irq_mask = MRDMODE_INTR_CH0 << channel;
+    if (level)
+        d->dev.config[MRDMODE] |= irq_mask;
+    else
+        d->dev.config[MRDMODE] &= ~irq_mask;
+    cmd646_update_irq(d);
+}
+
+/* CMD646 PCI IDE controller */
+void pci_cmd646_ide_init(PCIBus *bus, BlockDriverState **hd_table,
+                         int secondary_ide_enabled)
 {
     PCIIDEState *d;
     uint8_t *pci_conf;
     int i;
 
-    d = (PCIIDEState *)pci_register_device(bus, "IDE", sizeof(PCIIDEState),
+    d = (PCIIDEState *)pci_register_device(bus, "CMD646 IDE", 
+                                           sizeof(PCIIDEState),
                                            -1, 
                                            NULL, NULL);
+    d->type = IDE_TYPE_CMD646;
     pci_conf = d->dev.config;
-    pci_conf[0x00] = 0x86; // Intel
-    pci_conf[0x01] = 0x80;
-    pci_conf[0x02] = 0x00; // fake
-    pci_conf[0x03] = 0x01; // fake
+    pci_conf[0x00] = 0x95; // CMD646
+    pci_conf[0x01] = 0x10;
+    pci_conf[0x02] = 0x46;
+    pci_conf[0x03] = 0x06;
+
+    pci_conf[0x08] = 0x07; // IDE controller revision
+    pci_conf[0x09] = 0x8f; 
+
     pci_conf[0x0a] = 0x01; // class_sub = PCI_IDE
     pci_conf[0x0b] = 0x01; // class_base = PCI_mass_storage
-    pci_conf[0x0e] = 0x80; // header_type = PCI_multifunction, generic
-
-    pci_conf[0x2c] = 0x86; // subsys vendor
-    pci_conf[0x2d] = 0x80; // subsys vendor
-    pci_conf[0x2e] = 0x00; // fake
-    pci_conf[0x2f] = 0x01; // fake
+    pci_conf[0x0e] = 0x00; // header_type
+    
+    if (secondary_ide_enabled) {
+        /* XXX: if not enabled, really disable the seconday IDE controller */
+        pci_conf[0x51] = 0x80; /* enable IDE1 */
+    }
 
     pci_register_io_region((PCIDevice *)d, 0, 0x8, 
                            PCI_ADDRESS_SPACE_IO, ide_map);
@@ -2211,11 +2301,13 @@ void pci_ide_init(PCIBus *bus, BlockDriverState **hd_table)
                            PCI_ADDRESS_SPACE_IO, bmdma_map);
 
     pci_conf[0x3d] = 0x01; // interrupt on pin 1
-
+    
     for(i = 0; i < 4; i++)
         d->ide_if[i].pci_dev = (PCIDevice *)d;
-    ide_init2(&d->ide_if[0], 16, hd_table[0], hd_table[1]);
-    ide_init2(&d->ide_if[2], 16, hd_table[2], hd_table[3]);
+    ide_init2(&d->ide_if[0], hd_table[0], hd_table[1],
+              cmd646_set_irq, d, 0);
+    ide_init2(&d->ide_if[2], hd_table[2], hd_table[3],
+              cmd646_set_irq, d, 1);
 }
 
 /* hd_table must contain 4 block drivers */
@@ -2230,6 +2322,8 @@ void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table)
                                            sizeof(PCIIDEState),
                                            ((PCIDevice *)piix3_state)->devfn + 1, 
                                            NULL, NULL);
+    d->type = IDE_TYPE_PIIX3;
+
     pci_conf = d->dev.config;
     pci_conf[0x00] = 0x86; // Intel
     pci_conf[0x01] = 0x80;
@@ -2242,8 +2336,10 @@ void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table)
     pci_register_io_region((PCIDevice *)d, 4, 0x10, 
                            PCI_ADDRESS_SPACE_IO, bmdma_map);
 
-    ide_init2(&d->ide_if[0], 14, hd_table[0], hd_table[1]);
-    ide_init2(&d->ide_if[2], 15, hd_table[2], hd_table[3]);
+    ide_init2(&d->ide_if[0], hd_table[0], hd_table[1],
+              pic_set_irq_new, NULL, 14);
+    ide_init2(&d->ide_if[2], hd_table[2], hd_table[3],
+              pic_set_irq_new, NULL, 15);
     ide_init_ioport(&d->ide_if[0], 0x1f0, 0x3f6);
     ide_init_ioport(&d->ide_if[2], 0x170, 0x376);
 }
@@ -2361,15 +2457,14 @@ static CPUReadMemoryFunc *pmac_ide_read[] = {
 /* PowerMac uses memory mapped registers, not I/O. Return the memory
    I/O index to access the ide. */
 int pmac_ide_init (BlockDriverState **hd_table,
-                   openpic_t *openpic, int irq)
+                   SetIRQFunc *set_irq, void *irq_opaque, int irq)
 {
     IDEState *ide_if;
     int pmac_ide_memory;
 
     ide_if = qemu_mallocz(sizeof(IDEState) * 2);
-    ide_init2(&ide_if[0], irq, hd_table[0], hd_table[1]);
-    ide_if[0].openpic = openpic;
-    ide_if[1].openpic = openpic;
+    ide_init2(&ide_if[0], hd_table[0], hd_table[1],
+              set_irq, irq_opaque, irq);
     
     pmac_ide_memory = cpu_register_io_memory(0, pmac_ide_read,
                                              pmac_ide_write, &ide_if[0]);
