@@ -179,6 +179,12 @@ void pic_set_irq(int irq, int level)
     pic_update_irq();
 }
 
+/* this function should be used to have the controller context */
+void pic_set_irq_new(void *opaque, int irq, int level)
+{
+    pic_set_irq(irq, level);
+}
+
 /* acknowledge interrupt 'irq' */
 static inline void pic_intack(PicState *s, int irq)
 {

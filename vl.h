@@ -443,6 +443,24 @@ int qcow_compress_cluster(BlockDriverState *bs, int64_t sector_num,
                           const uint8_t *buf);
 
 #ifndef QEMU_TOOL
+
+typedef void QEMUMachineInitFunc(int ram_size, int vga_ram_size, 
+                                 int boot_device,
+             DisplayState *ds, const char **fd_filename, int snapshot,
+             const char *kernel_filename, const char *kernel_cmdline,
+             const char *initrd_filename);
+
+typedef struct QEMUMachine {
+    const char *name;
+    const char *desc;
+    QEMUMachineInitFunc *init;
+    struct QEMUMachine *next;
+} QEMUMachine;
+
+int qemu_register_machine(QEMUMachine *m);
+
+typedef void SetIRQFunc(void *opaque, int irq_num, int level);
+
 /* ISA bus */
 
 extern target_phys_addr_t isa_mem_base;
@@ -527,15 +545,20 @@ void pci_bios_init(void);
 void pci_info(void);
 
 /* temporary: will be moved in platform specific file */
+void pci_set_pic(PCIBus *bus, SetIRQFunc *set_irq, void *irq_opaque);
 PCIBus *pci_prep_init(void);
-struct openpic_t;
-void pci_pmac_set_openpic(PCIBus *bus, struct openpic_t *openpic);
+PCIBus *pci_grackle_init(uint32_t base);
 PCIBus *pci_pmac_init(void);
 
 /* openpic.c */
 typedef struct openpic_t openpic_t;
-void openpic_set_irq (openpic_t *opp, int n_IRQ, int level);
+void openpic_set_irq(void *opaque, int n_IRQ, int level);
 openpic_t *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus);
+
+/* heathrow_pic.c */
+typedef struct HeathrowPICS HeathrowPICS;
+void heathrow_pic_set_irq(void *opaque, int num, int level);
+HeathrowPICS *heathrow_pic_init(int *pmem_index);
 
 /* vga.c */
 
@@ -587,10 +610,11 @@ extern BlockDriverState *bs_table[MAX_DISKS];
 
 void isa_ide_init(int iobase, int iobase2, int irq,
                   BlockDriverState *hd0, BlockDriverState *hd1);
-void pci_ide_init(PCIBus *bus, BlockDriverState **hd_table);
+void pci_cmd646_ide_init(PCIBus *bus, BlockDriverState **hd_table,
+                         int secondary_ide_enabled);
 void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table);
 int pmac_ide_init (BlockDriverState **hd_table,
-                   openpic_t *openpic, int irq);
+                   SetIRQFunc *set_irq, void *irq_opaque, int irq);
 
 /* sb16.c */
 void SB16_init (void);
@@ -655,6 +679,7 @@ ParallelState *parallel_init(int base, int irq, CharDriverState *chr);
 /* i8259.c */
 
 void pic_set_irq(int irq, int level);
+void pic_set_irq_new(void *opaque, int irq, int level);
 void pic_init(void);
 uint32_t pic_intack_read(CPUState *env);
 void pic_info(void);
@@ -676,24 +701,13 @@ int pit_get_gate(PITState *pit, int channel);
 int pit_get_out(PITState *pit, int channel, int64_t current_time);
 
 /* pc.c */
-void pc_init(int ram_size, int vga_ram_size, int boot_device,
-             DisplayState *ds, const char **fd_filename, int snapshot,
-             const char *kernel_filename, const char *kernel_cmdline,
-             const char *initrd_filename);
+extern QEMUMachine pc_machine;
 
 /* ppc.c */
-void ppc_init (int ram_size, int vga_ram_size, int boot_device,
-	       DisplayState *ds, const char **fd_filename, int snapshot,
-	       const char *kernel_filename, const char *kernel_cmdline,
-	       const char *initrd_filename);
-void ppc_prep_init (int ram_size, int vga_ram_size, int boot_device,
-		    DisplayState *ds, const char **fd_filename, int snapshot,
-		    const char *kernel_filename, const char *kernel_cmdline,
-		    const char *initrd_filename);
-void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
-		   DisplayState *ds, const char **fd_filename, int snapshot,
-		   const char *kernel_filename, const char *kernel_cmdline,
-		   const char *initrd_filename);
+extern QEMUMachine prep_machine;
+extern QEMUMachine core99_machine;
+extern QEMUMachine heathrow_machine;
+
 #ifdef TARGET_PPC
 ppc_tb_t *cpu_ppc_tb_init (CPUState *env, uint32_t freq);
 #endif
@@ -702,12 +716,10 @@ void PREP_debug_write (void *opaque, uint32_t addr, uint32_t val);
 extern CPUWriteMemoryFunc *PPC_io_write[];
 extern CPUReadMemoryFunc *PPC_io_read[];
 extern int prep_enabled;
+void PPC_debug_write (void *opaque, uint32_t addr, uint32_t val);
 
 /* sun4m.c */
-void sun4m_init(int ram_size, int vga_ram_size, int boot_device,
-             DisplayState *ds, const char **fd_filename, int snapshot,
-             const char *kernel_filename, const char *kernel_cmdline,
-             const char *initrd_filename);
+extern QEMUMachine sun4m_machine;
 uint32_t iommu_translate(uint32_t addr);
 
 /* iommu.c */
@@ -809,7 +821,7 @@ void adb_mouse_init(ADBBusState *bus);
 /* cuda.c */
 
 extern ADBBusState adb_bus;
-int cuda_init(openpic_t *openpic, int irq);
+int cuda_init(SetIRQFunc *set_irq, void *irq_opaque, int irq);
 
 #endif /* defined(QEMU_TOOL) */
 

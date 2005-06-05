@@ -320,8 +320,9 @@ static void openpic_update_irq(openpic_t *opp, int n_IRQ)
     }
 }
 
-void openpic_set_irq(openpic_t *opp, int n_IRQ, int level)
+void openpic_set_irq(void *opaque, int n_IRQ, int level)
 {
+    openpic_t *opp = opaque;
     IRQ_src_t *src;
 
     src = &opp->src[n_IRQ];
