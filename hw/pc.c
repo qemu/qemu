@@ -380,10 +380,10 @@ static int parallel_io[MAX_PARALLEL_PORTS] = { 0x378, 0x278, 0x3bc };
 static int parallel_irq[MAX_PARALLEL_PORTS] = { 7, 7, 7 };
 
 /* PC hardware initialisation */
-void pc_init(int ram_size, int vga_ram_size, int boot_device,
-             DisplayState *ds, const char **fd_filename, int snapshot,
-             const char *kernel_filename, const char *kernel_cmdline,
-             const char *initrd_filename)
+static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
+                     DisplayState *ds, const char **fd_filename, int snapshot,
+                     const char *kernel_filename, const char *kernel_cmdline,
+                     const char *initrd_filename)
 {
     char buf[1024];
     int ret, linux_boot, initrd_size, i, nb_nics1;
@@ -595,3 +595,9 @@ void pc_init(int ram_size, int vga_ram_size, int boot_device,
         pci_bios_init();
     }
 }
+
+QEMUMachine pc_machine = {
+    "pc",
+    "Standard PC",
+    pc_init1,
+};
