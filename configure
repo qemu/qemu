@@ -215,6 +215,8 @@ if test -z "$target_list" ; then
     if [ "$linux" = "yes" ] ; then
         target_list="i386-user arm-user armeb-user sparc-user ppc-user $target_list"
     fi
+else
+    target_list=$(echo "$target_list" | sed -e 's/,/ /g')
 fi
 
 if test -z "$cross_prefix" ; then
