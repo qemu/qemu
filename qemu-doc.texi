@@ -203,6 +203,10 @@ Set TUN/TAP network init script [default=/etc/qemu-ifup]. This script
 is launched to configure the host network interface (usually tun0)
 corresponding to the virtual NE2000 card.
 
+@item -nics n
+
+Simulate @var{n} network cards (the default is 1).
+
 @item -macaddr addr   
 
 Set the mac address of the first interface (the format is
