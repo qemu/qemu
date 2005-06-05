@@ -120,8 +120,9 @@ typedef struct CUDAState {
     int data_in_index;
     int data_out_index;
 
+    SetIRQFunc *set_irq;
     int irq;
-    openpic_t *openpic;
+    void *irq_opaque;
     uint8_t autopoll;
     uint8_t data_in[128];
     uint8_t data_out[16];
@@ -140,9 +141,9 @@ static void cuda_timer_update(CUDAState *s, CUDATimer *ti,
 static void cuda_update_irq(CUDAState *s)
 {
     if (s->ifr & s->ier & (SR_INT | T1_INT)) {
-        openpic_set_irq(s->openpic, s->irq, 1);
+        s->set_irq(s->irq_opaque, s->irq, 1);
     } else {
-        openpic_set_irq(s->openpic, s->irq, 0);
+        s->set_irq(s->irq_opaque, s->irq, 0);
     }
 }
 
@@ -356,6 +357,7 @@ static void cuda_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
         cuda_update_irq(s);
         break;
     case 14:
+#if 0
         if (val & IER_SET) {
             /* set bits */
             s->ier |= val & 0x7f;
@@ -363,6 +365,10 @@ static void cuda_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
             /* reset bits */
             s->ier &= ~val;
         }
+#else
+        /* XXX: please explain me why the SPEC is not correct ! */
+        s->ier = val;
+#endif
         cuda_update_irq(s);
         break;
     default:
@@ -545,7 +551,7 @@ static void cuda_receive_packet_from_host(CUDAState *s,
 #ifdef DEBUG_CUDA_PACKET
     {
         int i;
-        printf("cuda_receive_packet_to_host:\n");
+        printf("cuda_receive_packet_from_host:\n");
         for(i = 0; i < len; i++)
             printf(" %02x", data[i]);
         printf("\n");
@@ -605,19 +611,21 @@ static CPUReadMemoryFunc *cuda_read[] = {
     &cuda_readl,
 };
 
-int cuda_init(openpic_t *openpic, int irq)
+int cuda_init(SetIRQFunc *set_irq, void *irq_opaque, int irq)
 {
     CUDAState *s = &cuda_state;
     int cuda_mem_index;
 
-    s->openpic = openpic;
+    s->set_irq = set_irq;
+    s->irq_opaque = irq_opaque;
     s->irq = irq;
 
     s->timers[0].timer = qemu_new_timer(vm_clock, cuda_timer1, s);
     s->timers[0].latch = 0x10000;
     set_counter(s, &s->timers[0], 0xffff);
     s->timers[1].latch = 0x10000;
-    s->ier = T1_INT | SR_INT;
+    //    s->ier = T1_INT | SR_INT;
+    s->ier = 0;
     set_counter(s, &s->timers[1], 0xffff);
 
     s->adb_poll_timer = qemu_new_timer(vm_clock, cuda_adb_poll, s);
