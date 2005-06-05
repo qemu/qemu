@@ -246,6 +246,12 @@ fi
 
 fi
 
+# host long bits test
+hostlongbits="32"
+if test "$cpu" = "sparc64" -o "$cpu" = "ia64" -o "$cpu" = "x86_64" -o "$cpu" = "alpha"; then
+    hostlongbits="64"
+fi
+
 # check gcc options support
 cat > $TMPC <<EOF
 int main(void) {
@@ -520,6 +526,7 @@ if test "$bigendian" = "yes" ; then
   echo "WORDS_BIGENDIAN=yes" >> $config_mak
   echo "#define WORDS_BIGENDIAN 1" >> $config_h
 fi
+echo "#define HOST_LONG_BITS $hostlongbits" >> $config_h
 if test "$mingw32" = "yes" ; then
   echo "CONFIG_WIN32=yes" >> $config_mak
   echo "#define CONFIG_WIN32 1" >> $config_h

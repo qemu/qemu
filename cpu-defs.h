@@ -29,12 +29,6 @@
 #error TARGET_LONG_BITS must be defined before including this header
 #endif
 
-#if defined(__alpha__) || defined (__ia64__) || defined(__x86_64__)
-#define HOST_LONG_BITS 64
-#else
-#define HOST_LONG_BITS 32
-#endif
-
 #ifndef TARGET_PHYS_ADDR_BITS 
 #if TARGET_LONG_BITS >= HOST_LONG_BITS
 #define TARGET_PHYS_ADDR_BITS TARGET_LONG_BITS
