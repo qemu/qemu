@@ -4,8 +4,10 @@ void glue(do_lsw, MEMSUFFIX) (int dst)
     int sh;
 
 #if 0
-    fprintf(logfile, "%s: addr=0x%08x count=%d reg=%d\n",
-            __func__, T0, T1, dst);
+    if (loglevel > 0) {
+        fprintf(logfile, "%s: addr=0x%08x count=%d reg=%d\n",
+                __func__, T0, T1, dst);
+    }
 #endif
     for (; T1 > 3; T1 -= 4, T0 += 4) {
         ugpr(dst++) = glue(ldl, MEMSUFFIX)(T0);
@@ -26,8 +28,10 @@ void glue(do_stsw, MEMSUFFIX) (int src)
     int sh;
 
 #if 0
-    fprintf(logfile, "%s: addr=0x%08x count=%d reg=%d\n",
-            __func__, T0, T1, src);
+    if (loglevel > 0) {
+        fprintf(logfile, "%s: addr=0x%08x count=%d reg=%d\n",
+                __func__, T0, T1, src);
+    }
 #endif
     for (; T1 > 3; T1 -= 4, T0 += 4) {
         glue(stl, MEMSUFFIX)(T0, ugpr(src++));
@@ -46,8 +50,10 @@ void glue(do_lsw_le, MEMSUFFIX) (int dst)
     int sh;
 
 #if 0
+    if (loglevel > 0) {
         fprintf(logfile, "%s: addr=0x%08x count=%d reg=%d\n",
                 __func__, T0, T1, dst);
+    }
 #endif
     for (; T1 > 3; T1 -= 4, T0 += 4) {
         tmp = glue(ldl, MEMSUFFIX)(T0);
@@ -71,8 +77,10 @@ void glue(do_stsw_le, MEMSUFFIX) (int src)
     int sh;
 
 #if 0
+    if (loglevel > 0) {
         fprintf(logfile, "%s: addr=0x%08x count=%d reg=%d\n",
                 __func__, T0, T1, src);
+    }
 #endif
     for (; T1 > 3; T1 -= 4, T0 += 4) {
         tmp = ((ugpr(src++) & 0xFF000000) >> 24);
