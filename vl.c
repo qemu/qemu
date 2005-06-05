@@ -2494,6 +2494,33 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
 }
 
 /***********************************************************/
+/* machine registration */
+
+QEMUMachine *first_machine = NULL;
+
+int qemu_register_machine(QEMUMachine *m)
+{
+    QEMUMachine **pm;
+    pm = &first_machine;
+    while (*pm != NULL)
+        pm = &(*pm)->next;
+    m->next = NULL;
+    *pm = m;
+    return 0;
+}
+
+QEMUMachine *find_machine(const char *name)
+{
+    QEMUMachine *m;
+
+    for(m = first_machine; m != NULL; m = m->next) {
+        if (!strcmp(m->name, name))
+            return m;
+    }
+    return NULL;
+}
+
+/***********************************************************/
 /* main execution loop */
 
 void gui_update(void *opaque)
@@ -2735,6 +2762,7 @@ void help(void)
            "'disk_image' is a raw hard image image for IDE hard disk 0\n"
            "\n"
            "Standard options:\n"
+           "-M machine      select emulated machine (-M ? for list)\n"
            "-fda/-fdb file  use 'file' as floppy disk 0/1 image\n"
            "-hda/-hdb file  use 'file' as IDE hard disk 0/1 image\n"
            "-hdc/-hdd file  use 'file' as IDE hard disk 2/3 image\n"
@@ -2751,9 +2779,6 @@ void help(void)
            "-full-screen    start in full screen\n"
 #ifdef TARGET_I386
            "-win2k-hack     use it when installing Windows 2000 to avoid a disk full bug\n"
-#endif
-#ifdef TARGET_PPC
-           "-prep           Simulate a PREP system (default is PowerMAC)\n"
 #endif
 #if defined(TARGET_PPC) || defined(TARGET_SPARC)
            "-g WxH[xDEPTH]  Set the initial graphical resolution and depth\n"
@@ -2835,6 +2860,7 @@ void help(void)
 enum {
     QEMU_OPTION_h,
 
+    QEMU_OPTION_M,
     QEMU_OPTION_fda,
     QEMU_OPTION_fdb,
     QEMU_OPTION_hda,
@@ -2896,6 +2922,7 @@ typedef struct QEMUOption {
 const QEMUOption qemu_options[] = {
     { "h", 0, QEMU_OPTION_h },
 
+    { "M", HAS_ARG, QEMU_OPTION_M },
     { "fda", HAS_ARG, QEMU_OPTION_fda },
     { "fdb", HAS_ARG, QEMU_OPTION_fdb },
     { "hda", HAS_ARG, QEMU_OPTION_hda },
@@ -3007,6 +3034,20 @@ static void read_passwords(void)
     }
 }
 
+/* XXX: currently we cannot use simultaneously different CPUs */
+void register_machines(void)
+{
+#if defined(TARGET_I386)
+    qemu_register_machine(&pc_machine);
+#elif defined(TARGET_PPC)
+    qemu_register_machine(&heathrow_machine);
+    qemu_register_machine(&core99_machine);
+    qemu_register_machine(&prep_machine);
+#elif defined(TARGET_SPARC)
+    qemu_register_machine(&sun4m_machine);
+#endif
+}
+
 #define NET_IF_TUN   0
 #define NET_IF_USER  1
 #define NET_IF_DUMMY 2
@@ -3016,7 +3057,7 @@ int main(int argc, char **argv)
 #ifdef CONFIG_GDBSTUB
     int use_gdbstub, gdbstub_port;
 #endif
-    int i, has_cdrom;
+    int i, cdrom_index;
     int snapshot, linux_boot;
     CPUState *env;
     const char *initrd_filename;
@@ -3036,11 +3077,14 @@ int main(int argc, char **argv)
     char parallel_devices[MAX_PARALLEL_PORTS][128];
     int parallel_device_index;
     const char *loadvm = NULL;
-    
+    QEMUMachine *machine;
+
 #if !defined(CONFIG_SOFTMMU)
     /* we never want that malloc() uses mmap() */
     mallopt(M_MMAP_THRESHOLD, 4096 * 1024);
 #endif
+    register_machines();
+    machine = first_machine;
     initrd_filename = NULL;
     for(i = 0; i < MAX_FD; i++)
         fd_filename[i] = NULL;
@@ -3058,7 +3102,11 @@ int main(int argc, char **argv)
     nographic = 0;
     kernel_filename = NULL;
     kernel_cmdline = "";
-    has_cdrom = 1;
+#ifdef TARGET_PPC
+    cdrom_index = 1;
+#else
+    cdrom_index = 2;
+#endif
     cyls = heads = secs = 0;
     translation = BIOS_ATA_TRANSLATION_AUTO;
     pstrcpy(monitor_device, sizeof(monitor_device), "vc");
@@ -3118,14 +3166,33 @@ int main(int argc, char **argv)
             }
 
             switch(popt->index) {
+            case QEMU_OPTION_M:
+                machine = find_machine(optarg);
+                if (!machine) {
+                    QEMUMachine *m;
+                    printf("Supported machines are:\n");
+                    for(m = first_machine; m != NULL; m = m->next) {
+                        printf("%-10s %s%s\n",
+                               m->name, m->desc, 
+                               m == first_machine ? " (default)" : "");
+                    }
+                    exit(1);
+                }
+                break;
             case QEMU_OPTION_initrd:
                 initrd_filename = optarg;
                 break;
             case QEMU_OPTION_hda:
-                hd_filename[0] = optarg;
-                break;
             case QEMU_OPTION_hdb:
-                hd_filename[1] = optarg;
+            case QEMU_OPTION_hdc:
+            case QEMU_OPTION_hdd:
+                {
+                    int hd_index;
+                    hd_index = popt->index - QEMU_OPTION_hda;
+                    hd_filename[hd_index] = optarg;
+                    if (hd_index == cdrom_index)
+                        cdrom_index = -1;
+                }
                 break;
             case QEMU_OPTION_snapshot:
                 snapshot = 1;
@@ -3192,16 +3259,10 @@ int main(int argc, char **argv)
                     }
                 }
 		break;
-            case QEMU_OPTION_hdc:
-                hd_filename[2] = optarg;
-                has_cdrom = 0;
-                break;
-            case QEMU_OPTION_hdd:
-                hd_filename[3] = optarg;
-                break;
             case QEMU_OPTION_cdrom:
-                hd_filename[2] = optarg;
-                has_cdrom = 1;
+                if (cdrom_index >= 0) {
+                    hd_filename[cdrom_index] = optarg;
+                }
                 break;
             case QEMU_OPTION_boot:
                 boot_device = optarg[0];
@@ -3421,7 +3482,9 @@ int main(int argc, char **argv)
 
     linux_boot = (kernel_filename != NULL);
         
-    if (!linux_boot && hd_filename[0] == '\0' && hd_filename[2] == '\0' &&
+    if (!linux_boot && 
+        hd_filename[0] == '\0' && 
+        (cdrom_index >= 0 && hd_filename[cdrom_index] == '\0') &&
         fd_filename[0] == '\0')
         help();
     
@@ -3531,9 +3594,9 @@ int main(int argc, char **argv)
 
     /* we always create the cdrom drive, even if no disk is there */
     bdrv_init();
-    if (has_cdrom) {
-        bs_table[2] = bdrv_new("cdrom");
-        bdrv_set_type_hint(bs_table[2], BDRV_TYPE_CDROM);
+    if (cdrom_index >= 0) {
+        bs_table[cdrom_index] = bdrv_new("cdrom");
+        bdrv_set_type_hint(bs_table[cdrom_index], BDRV_TYPE_CDROM);
     }
 
     /* open the virtual block devices */
@@ -3684,19 +3747,9 @@ int main(int argc, char **argv)
 #endif
     init_timers();
 
-#if defined(TARGET_I386)
-    pc_init(ram_size, vga_ram_size, boot_device,
-            ds, fd_filename, snapshot,
-            kernel_filename, kernel_cmdline, initrd_filename);
-#elif defined(TARGET_PPC)
-    ppc_init(ram_size, vga_ram_size, boot_device,
-	     ds, fd_filename, snapshot,
-	     kernel_filename, kernel_cmdline, initrd_filename);
-#elif defined(TARGET_SPARC)
-    sun4m_init(ram_size, vga_ram_size, boot_device,
-            ds, fd_filename, snapshot,
-            kernel_filename, kernel_cmdline, initrd_filename);
-#endif
+    machine->init(ram_size, vga_ram_size, boot_device,
+                  ds, fd_filename, snapshot,
+                  kernel_filename, kernel_cmdline, initrd_filename);
 
     gui_timer = qemu_new_timer(rt_clock, gui_update, NULL);
     qemu_mod_timer(gui_timer, qemu_get_clock(rt_clock));
