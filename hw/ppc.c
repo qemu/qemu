@@ -440,23 +440,4 @@ int PPC_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
     NVRAM_set_word(nvram,  0xFC, crc);
 
     return 0;
- }
-
-/*****************************************************************************/
-void ppc_init (int ram_size, int vga_ram_size, int boot_device,
-	       DisplayState *ds, const char **fd_filename, int snapshot,
-	       const char *kernel_filename, const char *kernel_cmdline,
-	       const char *initrd_filename)
-{
-    if (prep_enabled) {
-        ppc_prep_init(ram_size, vga_ram_size, boot_device, ds, fd_filename,
-                      snapshot, kernel_filename, kernel_cmdline,
-                      initrd_filename);
-    } else {
-        ppc_chrp_init(ram_size, vga_ram_size, boot_device, ds, fd_filename,
-                      snapshot, kernel_filename, kernel_cmdline,
-                      initrd_filename);
-    }
-    /* Special port to get debug messages from Open-Firmware */
-    register_ioport_write(0x0F00, 4, 1, &PPC_debug_write, NULL);
 }
