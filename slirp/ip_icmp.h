@@ -83,8 +83,8 @@ struct icmp {
 			struct ip idi_ip;
 			/* options and then 64 bits of data */
 		} id_ip;
-		u_long	id_mask;
-		char	id_data[1];
+		uint32_t	id_mask;
+		char		id_data[1];
 	} icmp_dun;
 #define	icmp_otime	icmp_dun.id_ts.its_otime
 #define	icmp_rtime	icmp_dun.id_ts.its_rtime

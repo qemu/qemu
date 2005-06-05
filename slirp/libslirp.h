@@ -9,6 +9,10 @@ int inet_aton(const char *cp, struct in_addr *ia);
 #include <arpa/inet.h>
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void slirp_init(void);
 
 void slirp_select_fill(int *pnfds, 
@@ -28,5 +32,9 @@ int slirp_add_exec(int do_pty, const char *args, int addr_low_byte,
                    int guest_port);
 
 extern const char *tftp_prefix;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

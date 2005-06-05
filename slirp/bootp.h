@@ -97,9 +97,9 @@ struct bootp_t {
     uint8_t bp_htype;
     uint8_t bp_hlen;
     uint8_t bp_hops;
-    unsigned long bp_xid;
-    unsigned short bp_secs;
-    unsigned short unused;
+    uint32_t bp_xid;
+    uint16_t bp_secs;
+    uint16_t unused;
     struct in_addr bp_ciaddr;
     struct in_addr bp_yiaddr;
     struct in_addr bp_siaddr;

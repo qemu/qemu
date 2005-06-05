@@ -94,6 +94,7 @@ struct udpstat {
 
 extern struct udpstat udpstat;
 extern struct socket udb;
+struct mbuf;
 
 void udp_init _P((void));
 void udp_input _P((register struct mbuf *, int));

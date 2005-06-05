@@ -238,7 +238,7 @@ static void bootp_reply(struct bootp_t *bp)
 
 void bootp_input(struct mbuf *m)
 {
-    struct bootp_t *bp = (struct bootp_t *)m->m_data;
+    struct bootp_t *bp = mtod(m, struct bootp_t *);
 
     if (bp->bp_op == BOOTP_REQUEST) {
         bootp_reply(bp);

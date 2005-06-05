@@ -149,8 +149,7 @@
 #define SIZEOF_INT 4
 
 /* Define to sizeof(char *) */
-/* XXX: patch it */
-#define SIZEOF_CHAR_P 4
+#define SIZEOF_CHAR_P (HOST_LONG_BITS / 8)
 
 /* Define if you have random() */
 #undef HAVE_RANDOM
