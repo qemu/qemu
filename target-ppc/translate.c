@@ -3321,14 +3321,9 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
              ctx.exception != EXCP_TRAP)) {
             RET_EXCP(ctxp, EXCP_TRACE, 0);
         }
-        if (ctx.exception != EXCP_NONE)
-            break;
         /* if we reach a page boundary, stop generation */
-        if ((ctx.nip & (TARGET_PAGE_SIZE - 1)) == 0) {
-            gen_op_b((long)ctx.tb, ctx.nip);
-            ctx.exception = EXCP_BRANCH;
+        if ((ctx.nip & (TARGET_PAGE_SIZE - 1)) == 0) 
             break;
-        }
     }
     if (ctx.exception == EXCP_NONE) {
         gen_op_b((unsigned long)ctx.tb, ctx.nip);
