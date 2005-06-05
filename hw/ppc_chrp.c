@@ -34,9 +34,10 @@
 
 static int dbdma_mem_index;
 static int cuda_mem_index;
-static int ide0_mem_index;
-static int ide1_mem_index;
-static int openpic_mem_index;
+static int ide0_mem_index = -1;
+static int ide1_mem_index = -1;
+static int openpic_mem_index = -1;
+static int heathrow_pic_mem_index = -1;
 
 /* DBDMA: currently no op - should suffice right now */
 
@@ -84,11 +85,20 @@ static CPUReadMemoryFunc *dbdma_read[] = {
 static void macio_map(PCIDevice *pci_dev, int region_num, 
                       uint32_t addr, uint32_t size, int type)
 {
+    if (heathrow_pic_mem_index >= 0) {
+        cpu_register_physical_memory(addr + 0x00000, 0x1000, 
+                                     heathrow_pic_mem_index);
+    }
     cpu_register_physical_memory(addr + 0x08000, 0x1000, dbdma_mem_index);
     cpu_register_physical_memory(addr + 0x16000, 0x2000, cuda_mem_index);
-    cpu_register_physical_memory(addr + 0x1f000, 0x1000, ide0_mem_index);
-    cpu_register_physical_memory(addr + 0x20000, 0x1000, ide1_mem_index);
-    cpu_register_physical_memory(addr + 0x40000, 0x40000, openpic_mem_index);
+    if (ide0_mem_index >= 0)
+        cpu_register_physical_memory(addr + 0x1f000, 0x1000, ide0_mem_index);
+    if (ide1_mem_index >= 0)
+        cpu_register_physical_memory(addr + 0x20000, 0x1000, ide1_mem_index);
+    if (openpic_mem_index >= 0) {
+        cpu_register_physical_memory(addr + 0x40000, 0x40000, 
+                                     openpic_mem_index);
+    }
 }
 
 static void macio_init(PCIBus *bus)
@@ -116,20 +126,112 @@ static void macio_init(PCIBus *bus)
                            PCI_ADDRESS_SPACE_MEM, macio_map);
 }
 
-/* PowerPC PREP hardware initialisation */
-void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
-		   DisplayState *ds, const char **fd_filename, int snapshot,
-		   const char *kernel_filename, const char *kernel_cmdline,
-		   const char *initrd_filename)
+/* UniN device */
+static void unin_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
+{
+}
+
+static uint32_t unin_readl (void *opaque, target_phys_addr_t addr)
+{
+    return 0;
+}
+
+static CPUWriteMemoryFunc *unin_write[] = {
+    &unin_writel,
+    &unin_writel,
+    &unin_writel,
+};
+
+static CPUReadMemoryFunc *unin_read[] = {
+    &unin_readl,
+    &unin_readl,
+    &unin_readl,
+};
+
+/* temporary frame buffer OSI calls for the video.x driver. The right
+   solution is to modify the driver to use VGA PCI I/Os */
+static int vga_osi_call(CPUState *env)
+{
+    static int vga_vbl_enabled;
+    int linesize;
+    
+    //    printf("osi_call R5=%d\n", env->gpr[5]);
+
+    /* same handler as PearPC, coming from the original MOL video
+       driver. */
+    switch(env->gpr[5]) {
+    case 4:
+        break;
+    case 28: /* set_vmode */
+        if (env->gpr[6] != 1 || env->gpr[7] != 0)
+            env->gpr[3] = 1;
+        else
+            env->gpr[3] = 0;
+        break;
+    case 29: /* get_vmode_info */
+        if (env->gpr[6] != 0) {
+            if (env->gpr[6] != 1 || env->gpr[7] != 0) {
+                env->gpr[3] = 1;
+                break;
+            }
+        }
+        env->gpr[3] = 0; 
+        env->gpr[4] = (1 << 16) | 1; /* num_vmodes, cur_vmode */
+        env->gpr[5] = (1 << 16) | 0; /* num_depths, cur_depth_mode */
+        env->gpr[6] = (graphic_width << 16) | graphic_height; /* w, h */
+        env->gpr[7] = 85 << 16; /* refresh rate */
+        env->gpr[8] = (graphic_depth + 7) & ~7; /* depth (round to byte) */
+        linesize = ((graphic_depth + 7) >> 3) * graphic_width;
+        linesize = (linesize + 3) & ~3;
+        env->gpr[9] = (linesize << 16) | 0; /* row_bytes, offset */
+        break;
+    case 31: /* set_video power */
+        env->gpr[3] = 0;
+        break;
+    case 39: /* video_ctrl */
+        if (env->gpr[6] == 0 || env->gpr[6] == 1)
+            vga_vbl_enabled = env->gpr[6];
+        env->gpr[3] = 0;
+        break;
+    case 47:
+        break;
+    case 59: /* set_color */
+        /* R6 = index, R7 = RGB */
+        env->gpr[3] = 0;
+        break;
+    case 64: /* get color */
+        /* R6 = index */
+        env->gpr[3] = 0; 
+        break;
+    case 116: /* set hwcursor */
+        /* R6 = x, R7 = y, R8 = visible, R9 = data */
+        break;
+    default:
+        fprintf(stderr, "unsupported OSI call R5=%08x\n", env->gpr[5]);
+        break;
+    }
+    return 1; /* osi_call handled */
+}
+
+/* PowerPC CHRP hardware initialisation */
+static void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
+                          DisplayState *ds, const char **fd_filename, 
+                          int snapshot,
+                          const char *kernel_filename, 
+                          const char *kernel_cmdline,
+                          const char *initrd_filename,
+                          int is_heathrow)
 {
     char buf[1024];
-    openpic_t *openpic;
+    SetIRQFunc *set_irq;
+    void *pic;
     m48t59_t *nvram;
-    int PPC_io_memory;
+    int PPC_io_memory, unin_memory;
     int ret, linux_boot, i;
     unsigned long bios_offset;
     uint32_t kernel_base, kernel_size, initrd_base, initrd_size;
     PCIBus *pci_bus;
+    const char *arch_name;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -180,49 +282,101 @@ void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
     }
     /* Register CPU as a 74x/75x */
     cpu_ppc_register(cpu_single_env, 0x00080000);
-    /* Set time-base frequency to 100 Mhz */
-    cpu_ppc_tb_init(cpu_single_env, 100UL * 1000UL * 1000UL);
+    /* Set time-base frequency to 10 Mhz */
+    cpu_ppc_tb_init(cpu_single_env, 10UL * 1000UL * 1000UL);
 
-    isa_mem_base = 0x80000000;
-    pci_bus = pci_pmac_init();
+    cpu_single_env->osi_call = vga_osi_call;
 
-    /* Register 8 MB of ISA IO space */
-    PPC_io_memory = cpu_register_io_memory(0, PPC_io_read, PPC_io_write, NULL);
-    cpu_register_physical_memory(0xF2000000, 0x00800000, PPC_io_memory);
+    if (is_heathrow) {
+        isa_mem_base = 0x80000000;
+        pci_bus = pci_grackle_init(0xfec00000);
+        
+        /* Register 2 MB of ISA IO space */
+        PPC_io_memory = cpu_register_io_memory(0, PPC_io_read, PPC_io_write, NULL);
+        cpu_register_physical_memory(0xfe000000, 0x00200000, PPC_io_memory);
+        
+        /* init basic PC hardware */
+        vga_initialize(pci_bus, ds, phys_ram_base + ram_size, ram_size, 
+                       vga_ram_size);
+        pic = heathrow_pic_init(&heathrow_pic_mem_index);
+        set_irq = heathrow_pic_set_irq;
+        pci_set_pic(pci_bus, set_irq, pic);
 
-    /* init basic PC hardware */
-    vga_initialize(pci_bus, ds, phys_ram_base + ram_size, ram_size, 
-                   vga_ram_size);
-    openpic = openpic_init(NULL, &openpic_mem_index, 1);
-    pci_pmac_set_openpic(pci_bus, openpic);
-    
-    /* XXX: suppress that */
-    pic_init();
+        /* XXX: suppress that */
+        pic_init();
+        
+        /* XXX: use Mac Serial port */
+        serial_init(0x3f8, 4, serial_hds[0]);
+        
+        for(i = 0; i < nb_nics; i++) {
+            pci_ne2000_init(pci_bus, &nd_table[i]);
+        }
+        
+        pci_cmd646_ide_init(pci_bus, &bs_table[0], 0);
 
-    /* XXX: use Mac Serial port */
-    serial_init(0x3f8, 4, serial_hds[0]);
+        /* cuda also initialize ADB */
+        cuda_mem_index = cuda_init(set_irq, pic, 0x12);
+        
+        adb_kbd_init(&adb_bus);
+        adb_mouse_init(&adb_bus);
+        
+        macio_init(pci_bus);
+        
+        nvram = m48t59_init(8, 0xFFF04000, 0x0074, NVRAM_SIZE);
+        
+        arch_name = "HEATHROW";
+    } else {
+        isa_mem_base = 0x80000000;
+        pci_bus = pci_pmac_init();
+        
+        /* Register 8 MB of ISA IO space */
+        PPC_io_memory = cpu_register_io_memory(0, PPC_io_read, PPC_io_write, NULL);
+        cpu_register_physical_memory(0xF2000000, 0x00800000, PPC_io_memory);
+        
+        /* UniN init */
+        unin_memory = cpu_register_io_memory(0, unin_read, unin_write, NULL);
+        cpu_register_physical_memory(0xf8000000, 0x00001000, unin_memory);
 
-    for(i = 0; i < nb_nics; i++) {
-        pci_ne2000_init(pci_bus, &nd_table[i]);
+        /* init basic PC hardware */
+        vga_initialize(pci_bus, ds, phys_ram_base + ram_size, ram_size, 
+                       vga_ram_size);
+        pic = openpic_init(NULL, &openpic_mem_index, 1);
+        set_irq = openpic_set_irq;
+        pci_set_pic(pci_bus, set_irq, pic);
+
+        /* XXX: suppress that */
+        pic_init();
+        
+        /* XXX: use Mac Serial port */
+        serial_init(0x3f8, 4, serial_hds[0]);
+        
+        for(i = 0; i < nb_nics; i++) {
+            pci_ne2000_init(pci_bus, &nd_table[i]);
+        }
+        
+#if 1
+        ide0_mem_index = pmac_ide_init(&bs_table[0], set_irq, pic, 0x13);
+        ide1_mem_index = pmac_ide_init(&bs_table[2], set_irq, pic, 0x14);
+#else
+        pci_cmd646_ide_init(pci_bus, &bs_table[0], 0);
+#endif
+        /* cuda also initialize ADB */
+        cuda_mem_index = cuda_init(set_irq, pic, 0x19);
+        
+        adb_kbd_init(&adb_bus);
+        adb_mouse_init(&adb_bus);
+        
+        macio_init(pci_bus);
+        
+        nvram = m48t59_init(8, 0xFFF04000, 0x0074, NVRAM_SIZE);
+        
+        arch_name = "MAC99";
     }
-
-    ide0_mem_index = pmac_ide_init(&bs_table[0], openpic, 0x13);
-    ide1_mem_index = pmac_ide_init(&bs_table[2], openpic, 0x14);
-
-    /* cuda also initialize ADB */
-    cuda_mem_index = cuda_init(openpic, 0x19);
-
-    adb_kbd_init(&adb_bus);
-    adb_mouse_init(&adb_bus);
-    
-    macio_init(pci_bus);
-
-    nvram = m48t59_init(8, 0xFFF04000, 0x0074, NVRAM_SIZE);
     
     if (graphic_depth != 15 && graphic_depth != 32 && graphic_depth != 8)
         graphic_depth = 15;
 
-    PPC_NVRAM_set_params(nvram, NVRAM_SIZE, "CHRP", ram_size, boot_device,
+    PPC_NVRAM_set_params(nvram, NVRAM_SIZE, arch_name, ram_size, boot_device,
                          kernel_base, kernel_size,
                          kernel_cmdline,
                          initrd_base, initrd_size,
@@ -230,4 +384,45 @@ void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
                          0,
                          graphic_width, graphic_height, graphic_depth);
     /* No PCI init: the BIOS will do it */
+
+    /* Special port to get debug messages from Open-Firmware */
+    register_ioport_write(0x0F00, 4, 1, &PPC_debug_write, NULL);
 }
+
+static void ppc_core99_init(int ram_size, int vga_ram_size, int boot_device,
+                            DisplayState *ds, const char **fd_filename, 
+                            int snapshot,
+                            const char *kernel_filename, 
+                            const char *kernel_cmdline,
+                            const char *initrd_filename)
+{
+    ppc_chrp_init(ram_size, vga_ram_size, boot_device,
+                  ds, fd_filename, snapshot,
+                  kernel_filename, kernel_cmdline,
+                  initrd_filename, 0);
+}
+    
+static void ppc_heathrow_init(int ram_size, int vga_ram_size, int boot_device,
+                              DisplayState *ds, const char **fd_filename, 
+                              int snapshot,
+                              const char *kernel_filename, 
+                              const char *kernel_cmdline,
+                              const char *initrd_filename)
+{
+    ppc_chrp_init(ram_size, vga_ram_size, boot_device,
+                  ds, fd_filename, snapshot,
+                  kernel_filename, kernel_cmdline,
+                  initrd_filename, 1);
+}
+
+QEMUMachine core99_machine = {
+    "core99",
+    "Core99 based PowerMAC",
+    ppc_core99_init,
+};
+
+QEMUMachine heathrow_machine = {
+    "heathrow",
+    "Heathrow based PowerMAC",
+    ppc_heathrow_init,
+};
