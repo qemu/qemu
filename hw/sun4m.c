@@ -203,10 +203,10 @@ uint32_t iommu_translate(uint32_t addr)
 }
 
 /* Sun4m hardware initialisation */
-void sun4m_init(int ram_size, int vga_ram_size, int boot_device,
-             DisplayState *ds, const char **fd_filename, int snapshot,
-             const char *kernel_filename, const char *kernel_cmdline,
-             const char *initrd_filename)
+static void sun4m_init(int ram_size, int vga_ram_size, int boot_device,
+                       DisplayState *ds, const char **fd_filename, int snapshot,
+                       const char *kernel_filename, const char *kernel_cmdline,
+                       const char *initrd_filename)
 {
     char buf[1024];
     int ret, linux_boot;
@@ -283,3 +283,9 @@ void sun4m_init(int ram_size, int vga_ram_size, int boot_device,
     }
     nvram_init(nvram, (uint8_t *)&nd_table[0].macaddr, kernel_cmdline, boot_device, ram_size, kernel_size, graphic_width, graphic_height, graphic_depth);
 }
+
+QEMUMachine sun4m_machine = {
+    "sun4m",
+    "Sun4m platform",
+    sun4m_init,
+};

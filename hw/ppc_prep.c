@@ -510,10 +510,10 @@ extern CPUPPCState *global_env;
 #define NVRAM_SIZE        0x2000
 
 /* PowerPC PREP hardware initialisation */
-void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
-		   DisplayState *ds, const char **fd_filename, int snapshot,
-		   const char *kernel_filename, const char *kernel_cmdline,
-		   const char *initrd_filename)
+static void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
+                          DisplayState *ds, const char **fd_filename, int snapshot,
+                          const char *kernel_filename, const char *kernel_cmdline,
+                          const char *initrd_filename)
 {
     char buf[1024];
     m48t59_t *nvram;
@@ -650,4 +650,13 @@ void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
                          /* XXX: need an option to load a NVRAM image */
                          0,
                          graphic_width, graphic_height, graphic_depth);
+
+    /* Special port to get debug messages from Open-Firmware */
+    register_ioport_write(0x0F00, 4, 1, &PPC_debug_write, NULL);
 }
+
+QEMUMachine prep_machine = {
+    "prep",
+    "PowerPC PREP platform",
+    ppc_prep_init,
+};
