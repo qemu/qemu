@@ -45,7 +45,9 @@ struct PCIBus {
     int devfn_min;
     void (*set_irq)(PCIDevice *pci_dev, int irq_num, int level);
     uint32_t config_reg; /* XXX: suppress */
-    openpic_t *openpic; /* XXX: suppress */
+    /* low level pic */
+    SetIRQFunc *low_set_irq;
+    void *irq_opaque;
     PCIDevice *devices[256];
 };
 
@@ -723,25 +725,25 @@ PCIBus *pci_prep_init(void)
                                            PPC_PCIIO_write, s);
     cpu_register_physical_memory(0x80800000, 0x00400000, PPC_io_memory);
 
-    d = pci_register_device(s, "PREP PCI Bridge", sizeof(PCIDevice), 0,
-                            NULL, NULL);
-
-    /* XXX: put correct IDs */
-    d->config[0x00] = 0x11; // vendor_id
+    /* PCI host bridge */ 
+    d = pci_register_device(s, "PREP Host Bridge - Motorola Raven", 
+                            sizeof(PCIDevice), 0, NULL, NULL);
+    d->config[0x00] = 0x57; // vendor_id : Motorola
     d->config[0x01] = 0x10;
-    d->config[0x02] = 0x26; // device_id
-    d->config[0x03] = 0x00;
-    d->config[0x08] = 0x02; // revision
-    d->config[0x0a] = 0x04; // class_sub = pci2pci
-    d->config[0x0b] = 0x06; // class_base = PCI_bridge
-    d->config[0x0e] = 0x01; // header_type
+    d->config[0x02] = 0x01; // device_id : Raven
+    d->config[0x03] = 0x48;
+    d->config[0x08] = 0x00; // revision
+    d->config[0x0A] = 0x00; // class_sub = pci host
+    d->config[0x0B] = 0x06; // class_base = PCI_bridge
+    d->config[0x0C] = 0x08; // cache_line_size
+    d->config[0x0D] = 0x10; // latency_timer
+    d->config[0x0E] = 0x00; // header_type
+    d->config[0x34] = 0x00; // capabilities_pointer
+
     return s;
 }
 
 
-/* pmac pci init */
-
-#if 0
 /* Grackle PCI host */
 static void pci_grackle_config_writel (void *opaque, target_phys_addr_t addr,
                                        uint32_t val)
@@ -846,7 +848,93 @@ static CPUReadMemoryFunc *pci_grackle_read[] = {
     &pci_grackle_readw,
     &pci_grackle_readl,
 };
+
+void pci_set_pic(PCIBus *bus, SetIRQFunc *set_irq, void *irq_opaque)
+{
+    bus->low_set_irq = set_irq;
+    bus->irq_opaque = irq_opaque;
+}
+
+/* XXX: we do not simulate the hardware - we rely on the BIOS to
+   set correctly for irq line field */
+static void pci_set_irq_simple(PCIDevice *d, int irq_num, int level)
+{
+    PCIBus *s = d->bus;
+    s->low_set_irq(s->irq_opaque, d->config[PCI_INTERRUPT_LINE], level);
+}
+
+PCIBus *pci_grackle_init(uint32_t base)
+{
+    PCIBus *s;
+    PCIDevice *d;
+    int pci_mem_config, pci_mem_data;
+
+    s = pci_register_bus();
+    s->set_irq = pci_set_irq_simple;
+
+    pci_mem_config = cpu_register_io_memory(0, pci_grackle_config_read, 
+                                            pci_grackle_config_write, s);
+    pci_mem_data = cpu_register_io_memory(0, pci_grackle_read,
+                                          pci_grackle_write, s);
+    cpu_register_physical_memory(base, 0x1000, pci_mem_config);
+    cpu_register_physical_memory(base + 0x00200000, 0x1000, pci_mem_data);
+    d = pci_register_device(s, "Grackle host bridge", sizeof(PCIDevice), 
+                            0, NULL, NULL);
+    d->config[0x00] = 0x57; // vendor_id
+    d->config[0x01] = 0x10;
+    d->config[0x02] = 0x02; // device_id
+    d->config[0x03] = 0x00;
+    d->config[0x08] = 0x00; // revision
+    d->config[0x09] = 0x01;
+    d->config[0x0a] = 0x00; // class_sub = host
+    d->config[0x0b] = 0x06; // class_base = PCI_bridge
+    d->config[0x0e] = 0x00; // header_type
+
+    d->config[0x18] = 0x00;  // primary_bus
+    d->config[0x19] = 0x01;  // secondary_bus
+    d->config[0x1a] = 0x00;  // subordinate_bus
+    d->config[0x1c] = 0x00;
+    d->config[0x1d] = 0x00;
+    
+    d->config[0x20] = 0x00; // memory_base
+    d->config[0x21] = 0x00;
+    d->config[0x22] = 0x01; // memory_limit
+    d->config[0x23] = 0x00;
+    
+    d->config[0x24] = 0x00; // prefetchable_memory_base
+    d->config[0x25] = 0x00;
+    d->config[0x26] = 0x00; // prefetchable_memory_limit
+    d->config[0x27] = 0x00;
+
+#if 0
+    /* PCI2PCI bridge same values as PearPC - check this */
+    d->config[0x00] = 0x11; // vendor_id
+    d->config[0x01] = 0x10;
+    d->config[0x02] = 0x26; // device_id
+    d->config[0x03] = 0x00;
+    d->config[0x08] = 0x02; // revision
+    d->config[0x0a] = 0x04; // class_sub = pci2pci
+    d->config[0x0b] = 0x06; // class_base = PCI_bridge
+    d->config[0x0e] = 0x01; // header_type
+
+    d->config[0x18] = 0x0;  // primary_bus
+    d->config[0x19] = 0x1;  // secondary_bus
+    d->config[0x1a] = 0x1;  // subordinate_bus
+    d->config[0x1c] = 0x10; // io_base
+    d->config[0x1d] = 0x20; // io_limit
+    
+    d->config[0x20] = 0x80; // memory_base
+    d->config[0x21] = 0x80;
+    d->config[0x22] = 0x90; // memory_limit
+    d->config[0x23] = 0x80;
+    
+    d->config[0x24] = 0x00; // prefetchable_memory_base
+    d->config[0x25] = 0x84;
+    d->config[0x26] = 0x00; // prefetchable_memory_limit
+    d->config[0x27] = 0x85;
 #endif
+    return s;
+}
 
 /* Uninorth PCI host (for all Mac99 and newer machines */
 static void pci_unin_main_config_writel (void *opaque, target_phys_addr_t addr,
@@ -1088,23 +1176,6 @@ static CPUReadMemoryFunc *pci_unin_read[] = {
 };
 #endif
 
-static void pmac_set_irq(PCIDevice *d, int irq_num, int level)
-{
-    openpic_t *openpic;
-    /* XXX: we do not simulate the hardware - we rely on the BIOS to
-       set correctly for irq line field */
-    openpic = d->bus->openpic;
-#ifdef TARGET_PPC
-    if (openpic)
-        openpic_set_irq(openpic, d->config[PCI_INTERRUPT_LINE], level);
-#endif
-}
-
-void pci_pmac_set_openpic(PCIBus *bus, openpic_t *openpic)
-{
-    bus->openpic = openpic;
-}
-
 PCIBus *pci_pmac_init(void)
 {
     PCIBus *s;
@@ -1114,7 +1185,7 @@ PCIBus *pci_pmac_init(void)
     /* Use values found on a real PowerMac */
     /* Uninorth main bus */
     s = pci_register_bus();
-    s->set_irq = pmac_set_irq;
+    s->set_irq = pci_set_irq_simple;
 
     pci_mem_config = cpu_register_io_memory(0, pci_unin_main_config_read, 
                                             pci_unin_main_config_write, s);
@@ -1216,34 +1287,6 @@ PCIBus *pci_pmac_init(void)
     d->config[0x0D] = 0x10; // latency_timer
     d->config[0x0E] = 0x00; // header_type
     d->config[0x34] = 0x00; // capabilities_pointer
-#endif
-
-#if 0 // Grackle ?
-    /* same values as PearPC - check this */
-    d->config[0x00] = 0x11; // vendor_id
-    d->config[0x01] = 0x10;
-    d->config[0x02] = 0x26; // device_id
-    d->config[0x03] = 0x00;
-    d->config[0x08] = 0x02; // revision
-    d->config[0x0a] = 0x04; // class_sub = pci2pci
-    d->config[0x0b] = 0x06; // class_base = PCI_bridge
-    d->config[0x0e] = 0x01; // header_type
-
-    d->config[0x18] = 0x0;  // primary_bus
-    d->config[0x19] = 0x1;  // secondary_bus
-    d->config[0x1a] = 0x1;  // subordinate_bus
-    d->config[0x1c] = 0x10; // io_base
-    d->config[0x1d] = 0x20; // io_limit
-    
-    d->config[0x20] = 0x80; // memory_base
-    d->config[0x21] = 0x80;
-    d->config[0x22] = 0x90; // memory_limit
-    d->config[0x23] = 0x80;
-    
-    d->config[0x24] = 0x00; // prefetchable_memory_base
-    d->config[0x25] = 0x84;
-    d->config[0x26] = 0x00; // prefetchable_memory_limit
-    d->config[0x27] = 0x85;
 #endif
     return s;
 }
