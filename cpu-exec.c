@@ -307,7 +307,7 @@ int cpu_exec(CPUState *env1)
 #elif defined(TARGET_MIPS)
                     if ((interrupt_request & CPU_INTERRUPT_HARD) &&
                         (env->CP0_Status & (1 << CP0St_IE)) &&
-                        (env->CP0_Cause & 0x0000FC00) &&
+                        (env->CP0_Cause & 0x0000FF00) &&
                         !(env->hflags & MIPS_HFLAG_EXL) &&
                         !(env->hflags & MIPS_HFLAG_ERL) &&
                         !(env->hflags & MIPS_HFLAG_DM)) {

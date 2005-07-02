@@ -352,7 +352,7 @@ void do_mtc0 (int reg, int sel)
         old = env->CP0_Status;
         env->CP0_Status = val;
         /* If we unmasked an asserted IRQ, raise it */
-        mask = 0x0000FC00;
+        mask = 0x0000FF00;
         if (loglevel & CPU_LOG_TB_IN_ASM) {
             fprintf(logfile, "Status %08x => %08x Cause %08x (%08x %08x %08x)\n",
                     old, val, env->CP0_Cause, old & mask, val & mask,
