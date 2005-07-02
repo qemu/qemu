@@ -527,6 +527,7 @@ static void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
     int ret, linux_boot, i, nb_nics1;
     unsigned long bios_offset;
     uint32_t kernel_base, kernel_size, initrd_base, initrd_size;
+    ppc_def_t *def;
     PCIBus *pci_bus;
 
     sysctrl = qemu_mallocz(sizeof(sysctrl_t));
@@ -582,7 +583,14 @@ static void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
     }
 
     /* Register CPU as a 604 */
-    cpu_ppc_register(cpu_single_env, 0x00040000);
+    /* XXX: CPU model (or PVR) should be provided on command line */
+    //    ppc_find_by_name("604r", &def);
+    //    ppc_find_by_name("604e", &def);
+    ppc_find_by_name("604", &def);
+    if (def == NULL) {
+        cpu_abort(cpu_single_env, "Unable to find PowerPC CPU definition\n");
+    }
+    cpu_ppc_register(cpu_single_env, def);
     /* Set time-base frequency to 100 Mhz */
     cpu_ppc_tb_init(cpu_single_env, 100UL * 1000UL * 1000UL);
 

@@ -235,6 +235,7 @@ static void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
     int ret, linux_boot, i;
     unsigned long bios_offset;
     uint32_t kernel_base, kernel_size, initrd_base, initrd_size;
+    ppc_def_t *def;
     PCIBus *pci_bus;
     const char *arch_name;
 
@@ -286,7 +287,26 @@ static void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
         initrd_size = 0;
     }
     /* Register CPU as a 74x/75x */
-    cpu_ppc_register(cpu_single_env, 0x00080000);
+    /* XXX: CPU model (or PVR) should be provided on command line */
+    //    ppc_find_by_name("750gx", &def); // Linux boot OK
+    //    ppc_find_by_name("750fx", &def); // Linux boot OK
+    /* Linux does not boot on 750cxe (and probably other 750cx based)
+     * because it assumes it has 8 IBAT & DBAT pairs as it only have 4.
+     */
+    //    ppc_find_by_name("750cxe", &def);
+    //    ppc_find_by_name("750p", &def);
+    //    ppc_find_by_name("740p", &def);
+    ppc_find_by_name("750", &def);
+    //    ppc_find_by_name("740", &def);
+    //    ppc_find_by_name("G3", &def);
+    //    ppc_find_by_name("604r", &def);
+    //    ppc_find_by_name("604e", &def);
+    //    ppc_find_by_name("604", &def);
+    if (def == NULL) {
+        cpu_abort(cpu_single_env, "Unable to find PowerPC CPU definition\n");
+    }
+    cpu_ppc_register(cpu_single_env, def);
+
     /* Set time-base frequency to 10 Mhz */
     cpu_ppc_tb_init(cpu_single_env, 10UL * 1000UL * 1000UL);
 

@@ -700,10 +700,11 @@ void cpu_loop(CPUPPCState *env)
             info._sifields._sigfault._addr = env->nip - 4;
             queue_signal(info.si_signo, &info);
         case EXCP_DSI:
-            fprintf(stderr, "Invalid data memory access: 0x%08x\n", env->spr[DAR]);
+            fprintf(stderr, "Invalid data memory access: 0x%08x\n",
+                    env->spr[SPR_DAR]);
             if (loglevel) {
                 fprintf(logfile, "Invalid data memory access: 0x%08x\n",
-                        env->spr[DAR]);
+                        env->spr[SPR_DAR]);
             }
             switch (env->error_code & 0xF) {
             case EXCP_DSI_TRANSLATE:
@@ -1243,7 +1244,25 @@ int main(int argc, char **argv)
     }
 #elif defined(TARGET_PPC)
     {
+        ppc_def_t *def;
         int i;
+
+        /* Choose and initialise CPU */
+        /* XXX: CPU model (or PVR) should be provided on command line */
+        //        ppc_find_by_name("750gx", &def);
+        //        ppc_find_by_name("750fx", &def);
+        //        ppc_find_by_name("750p", &def);
+        ppc_find_by_name("750", &def);
+        //        ppc_find_by_name("G3", &def);
+        //        ppc_find_by_name("604r", &def);
+        //        ppc_find_by_name("604e", &def);
+        //        ppc_find_by_name("604", &def);
+        if (def == NULL) {
+            cpu_abort(cpu_single_env,
+                      "Unable to find PowerPC CPU definition\n");
+        }
+        cpu_ppc_register(cpu_single_env, def);
+
         for (i = 0; i < 32; i++) {
             if (i != 12 && i != 6 && i != 13)
                 env->msr[i] = (regs->msr >> i) & 1;

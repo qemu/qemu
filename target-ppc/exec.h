@@ -1,7 +1,7 @@
 /*
- *  PPC emulation definitions for qemu.
+ *  PowerPC emulation definitions for qemu.
  * 
- *  Copyright (c) 2003 Jocelyn Mayer
+ *  Copyright (c) 2003-2005 Jocelyn Mayer
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -119,15 +119,6 @@ static inline uint32_t rotl (uint32_t i, int n)
 void do_raise_exception_err (uint32_t exception, int error_code);
 void do_raise_exception (uint32_t exception);
 
-void do_load_cr (void);
-void do_store_cr (uint32_t mask);
-void do_load_xer (void);
-void do_store_xer (void);
-void do_load_msr (void);
-void do_store_msr (void);
-void do_load_fpscr (void);
-void do_store_fpscr (uint32_t mask);
-
 void do_sraw(void);
 
 void do_fctiw (void);
@@ -143,19 +134,8 @@ void do_fcmpo (void);
 
 void do_check_reservation (void);
 void do_icbi (void);
-void do_store_sr (uint32_t srnum);
-void do_store_ibat (int ul, int nr);
-void do_store_dbat (int ul, int nr);
 void do_tlbia (void);
 void do_tlbie (void);
-
-void dump_state (void);
-void dump_rfi (void);
-void dump_store_sr (int srnum);
-void dump_store_ibat (int ul, int nr);
-void dump_store_dbat (int ul, int nr);
-void dump_store_tb (int ul);
-void dump_update_tb(uint32_t param);
 
 static inline void env_to_regs(void)
 {

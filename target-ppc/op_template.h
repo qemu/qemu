@@ -1,7 +1,7 @@
 /*
- *  PPC emulation micro-operations for qemu.
+ *  PowerPC emulation micro-operations for qemu.
  * 
- *  Copyright (c) 2003 Jocelyn Mayer
+ *  Copyright (c) 2003-2005 Jocelyn Mayer
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -175,7 +175,7 @@ void OPPROTO glue(op_load_sr, REG)(void)
 
 void OPPROTO glue(op_store_sr, REG)(void)
 {
-    do_store_sr(REG);
+    do_store_sr(env, REG, T0);
     RETURN();
 }
 #endif

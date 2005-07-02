@@ -253,14 +253,14 @@ static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
     }
     /* nip, msr, ccr, lnk, ctr, xer, mq */
     registers[96] = tswapl(env->nip);
-    registers[97] = tswapl(_load_msr(env));
+    registers[97] = tswapl(do_load_msr(env));
     tmp = 0;
     for (i = 0; i < 8; i++)
         tmp |= env->crf[i] << (32 - ((i + 1) * 4));
     registers[98] = tswapl(tmp);
     registers[99] = tswapl(env->lr);
     registers[100] = tswapl(env->ctr);
-    registers[101] = tswapl(_load_xer(env));
+    registers[101] = tswapl(do_load_xer(env));
     registers[102] = 0;
 
     return 103 * 4;
@@ -282,13 +282,13 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
     }
     /* nip, msr, ccr, lnk, ctr, xer, mq */
     env->nip = tswapl(registers[96]);
-    _store_msr(env, tswapl(registers[97]));
+    do_store_msr(env, tswapl(registers[97]));
     registers[98] = tswapl(registers[98]);
     for (i = 0; i < 8; i++)
         env->crf[i] = (registers[98] >> (32 - ((i + 1) * 4))) & 0xF;
     env->lr = tswapl(registers[99]);
     env->ctr = tswapl(registers[100]);
-    _store_xer(env, tswapl(registers[101]));
+    do_store_xer(env, tswapl(registers[101]));
 }
 #elif defined (TARGET_SPARC)
 static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)

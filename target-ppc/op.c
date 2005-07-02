@@ -1,7 +1,7 @@
 /*
- *  PPC emulation micro-operations for qemu.
+ *  PowerPC emulation micro-operations for qemu.
  * 
- *  Copyright (c) 2003 Jocelyn Mayer
+ *  Copyright (c) 2003-2005 Jocelyn Mayer
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -130,7 +130,7 @@
 #define REG 31
 #include "op_template.h"
 
-/* PPC state maintenance operations */
+/* PowerPC state maintenance operations */
 /* set_Rc0 */
 PPC_OP(set_Rc0)
 {
@@ -223,7 +223,7 @@ PPC_OP(load_srin)
 
 PPC_OP(store_srin)
 {
-    do_store_sr(T1 >> 28);
+    do_store_sr(env, ((uint32_t)T1 >> 28), T0);
     RETURN();
 }
 
@@ -235,7 +235,7 @@ PPC_OP(load_sdr1)
 
 PPC_OP(store_sdr1)
 {
-    regs->sdr1 = T0;
+    do_store_sdr1(env, T0);
     RETURN();
 }
 
@@ -247,13 +247,13 @@ PPC_OP(exit_tb)
 /* Load/store special registers */
 PPC_OP(load_cr)
 {
-    do_load_cr();
+    T0 = do_load_cr(env);
     RETURN();
 }
 
 PPC_OP(store_cr)
 {
-    do_store_cr(PARAM(1));
+    do_store_cr(env, T0, PARAM(1));
     RETURN();
 }
 
@@ -279,25 +279,25 @@ PPC_OP(load_xer_bc)
 
 PPC_OP(load_xer)
 {
-    do_load_xer();
+    T0 = do_load_xer(env);
     RETURN();
 }
 
 PPC_OP(store_xer)
 {
-    do_store_xer();
+    do_store_xer(env, T0);
     RETURN();
 }
 
 PPC_OP(load_msr)
 {
-    do_load_msr();
+    T0 = do_load_msr(env);
     RETURN();
 }
 
 PPC_OP(store_msr)
 {
-    do_store_msr();
+    do_store_msr(env, T0);
     RETURN();
 }
 
@@ -378,9 +378,20 @@ PPC_OP(load_ibat)
     T0 = regs->IBAT[PARAM(1)][PARAM(2)];
 }
 
-PPC_OP(store_ibat)
+void op_store_ibatu (void)
 {
-    do_store_ibat(PARAM(1), PARAM(2));
+    do_store_ibatu(env, PARAM1, T0);
+    RETURN();
+}
+
+void op_store_ibatl (void)
+{
+#if 1
+    env->IBAT[1][PARAM1] = T0;
+#else
+    do_store_ibatl(env, PARAM1, T0);
+#endif
+    RETURN();
 }
 
 PPC_OP(load_dbat)
@@ -388,21 +399,32 @@ PPC_OP(load_dbat)
     T0 = regs->DBAT[PARAM(1)][PARAM(2)];
 }
 
-PPC_OP(store_dbat)
+void op_store_dbatu (void)
 {
-    do_store_dbat(PARAM(1), PARAM(2));
+    do_store_dbatu(env, PARAM1, T0);
+    RETURN();
+}
+
+void op_store_dbatl (void)
+{
+#if 1
+    env->DBAT[1][PARAM1] = T0;
+#else
+    do_store_dbatl(env, PARAM1, T0);
+#endif
+    RETURN();
 }
 
 /* FPSCR */
 PPC_OP(load_fpscr)
 {
-    do_load_fpscr();
+    FT0 = do_load_fpscr(env);
     RETURN();
 }
 
 PPC_OP(store_fpscr)
 {
-    do_store_fpscr(PARAM(1));
+    do_store_fpscr(env, FT0, PARAM1);
     RETURN();
 }
 
@@ -1362,17 +1384,13 @@ PPC_OP(check_reservation)
 /* Return from interrupt */
 PPC_OP(rfi)
 {
-    regs->nip = regs->spr[SRR0] & ~0x00000003;
+    regs->nip = regs->spr[SPR_SRR0] & ~0x00000003;
 #if 1 // TRY
-    T0 = regs->spr[SRR1] & ~0xFFF00000;
+    T0 = regs->spr[SPR_SRR1] & ~0xFFF00000;
 #else
-    T0 = regs->spr[SRR1] & ~0xFFFF0000;
+    T0 = regs->spr[SPR_SRR1] & ~0xFFFF0000;
 #endif
-    do_store_msr();
-#if defined (DEBUG_OP)
-    dump_rfi();
-#endif
-    //    do_tlbia();
+    do_store_msr(env, T0);
     do_raise_exception(EXCP_RFI);
     RETURN();
 }
@@ -1418,5 +1436,11 @@ PPC_OP(tlbia)
 PPC_OP(tlbie)
 {
     do_tlbie();
+    RETURN();
+}
+
+void op_store_pir (void)
+{
+    env->spr[SPR_PIR] = T0 & 0x0000000FUL;
     RETURN();
 }

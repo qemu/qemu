@@ -1,7 +1,7 @@
 /*
- *  PPC emulation helpers for qemu.
+ *  PowerPC emulation helpers for qemu.
  * 
- *  Copyright (c) 2003 Jocelyn Mayer
+ *  Copyright (c) 2003-2005 Jocelyn Mayer
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -26,7 +26,7 @@
 //#define ACCURATE_TLB_FLUSH
 
 /*****************************************************************************/
-/* PPC MMU emulation */
+/* PowerPC MMU emulation */
 
 /* Perform BAT hit & translation */
 static int get_bat (CPUState *env, uint32_t *real, int *prot,
@@ -580,7 +580,7 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
             if (rw)
                 error_code |= EXCP_DSI_STORE;
 	    /* Store fault address */
-	    env->spr[DAR] = address;
+	    env->spr[SPR_DAR] = address;
         }
 #if 0
         printf("%s: set exception to %d %02x\n",
@@ -593,25 +593,239 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
     return ret;
 }
 
-uint32_t _load_xer (CPUState *env)
+/*****************************************************************************/
+/* BATs management */
+#if !defined(FLUSH_ALL_TLBS)
+static inline void do_invalidate_BAT (CPUPPCState *env,
+                                      target_ulong BATu, target_ulong mask)
+{
+    target_ulong base, end, page;
+    base = BATu & ~0x0001FFFF;
+    end = base + mask + 0x00020000;
+#if defined (DEBUG_BATS)
+    if (loglevel != 0)
+        fprintf(logfile, "Flush BAT from %08x to %08x (%08x)\n", base, end, mask);
+#endif
+    for (page = base; page != end; page += TARGET_PAGE_SIZE)
+        tlb_flush_page(env, page);
+#if defined (DEBUG_BATS)
+    if (loglevel != 0)
+        fprintf(logfile, "Flush done\n");
+#endif
+}
+#endif
+
+static inline void dump_store_bat (CPUPPCState *env, char ID, int ul, int nr,
+                                   target_ulong value)
+{
+#if defined (DEBUG_BATS)
+    if (loglevel != 0) {
+        fprintf(logfile, "Set %cBAT%d%c to 0x%08lx (0x%08lx)\n",
+                ID, nr, ul == 0 ? 'u' : 'l', (unsigned long)value,
+                (unsigned long)env->nip);
+    }
+#endif
+}
+
+target_ulong do_load_ibatu (CPUPPCState *env, int nr)
+{
+    return env->IBAT[0][nr];
+}
+
+target_ulong do_load_ibatl (CPUPPCState *env, int nr)
+{
+    return env->IBAT[1][nr];
+}
+
+void do_store_ibatu (CPUPPCState *env, int nr, target_ulong value)
+{
+    target_ulong mask;
+
+    dump_store_bat(env, 'I', 0, nr, value);
+    if (env->IBAT[0][nr] != value) {
+        mask = (value << 15) & 0x0FFE0000UL;
+#if !defined(FLUSH_ALL_TLBS)
+        do_invalidate_BAT(env, env->IBAT[0][nr], mask);
+#endif
+        /* When storing valid upper BAT, mask BEPI and BRPN
+         * and invalidate all TLBs covered by this BAT
+         */
+        mask = (value << 15) & 0x0FFE0000UL;
+        env->IBAT[0][nr] = (value & 0x00001FFFUL) |
+            (value & ~0x0001FFFFUL & ~mask);
+        env->IBAT[1][nr] = (env->IBAT[1][nr] & 0x0000007B) |
+            (env->IBAT[1][nr] & ~0x0001FFFF & ~mask);
+#if !defined(FLUSH_ALL_TLBS)
+        do_invalidate_BAT(env, env->IBAT[0][nr], mask);
+#endif
+#if defined(FLUSH_ALL_TLBS)
+        tlb_flush(env, 1);
+#endif
+    }
+}
+
+void do_store_ibatl (CPUPPCState *env, int nr, target_ulong value)
+{
+    dump_store_bat(env, 'I', 1, nr, value);
+    env->IBAT[1][nr] = value;
+}
+
+target_ulong do_load_dbatu (CPUPPCState *env, int nr)
+{
+    return env->DBAT[0][nr];
+}
+
+target_ulong do_load_dbatl (CPUPPCState *env, int nr)
+{
+    return env->DBAT[1][nr];
+}
+
+void do_store_dbatu (CPUPPCState *env, int nr, target_ulong value)
+{
+    target_ulong mask;
+
+    dump_store_bat(env, 'D', 0, nr, value);
+    if (env->DBAT[0][nr] != value) {
+        /* When storing valid upper BAT, mask BEPI and BRPN
+         * and invalidate all TLBs covered by this BAT
+         */
+        mask = (value << 15) & 0x0FFE0000UL;
+#if !defined(FLUSH_ALL_TLBS)
+        do_invalidate_BAT(env, env->DBAT[0][nr], mask);
+#endif
+        mask = (value << 15) & 0x0FFE0000UL;
+        env->DBAT[0][nr] = (value & 0x00001FFFUL) |
+            (value & ~0x0001FFFFUL & ~mask);
+        env->DBAT[1][nr] = (env->DBAT[1][nr] & 0x0000007B) |
+            (env->DBAT[1][nr] & ~0x0001FFFF & ~mask);
+#if !defined(FLUSH_ALL_TLBS)
+        do_invalidate_BAT(env, env->DBAT[0][nr], mask);
+#else
+        tlb_flush(env, 1);
+#endif
+    }
+}
+
+void do_store_dbatl (CPUPPCState *env, int nr, target_ulong value)
+{
+    dump_store_bat(env, 'D', 1, nr, value);
+    env->DBAT[1][nr] = value;
+}
+
+static inline void invalidate_all_tlbs (CPUPPCState *env)
+{
+    /* XXX: this needs to be completed for sotware driven TLB support */
+    tlb_flush(env, 1);
+}
+
+/*****************************************************************************/
+/* Special registers manipulation */
+target_ulong do_load_nip (CPUPPCState *env)
+{
+    return env->nip;
+}
+
+void do_store_nip (CPUPPCState *env, target_ulong value)
+{
+    env->nip = value;
+}
+
+target_ulong do_load_sdr1 (CPUPPCState *env)
+{
+    return env->sdr1;
+}
+
+void do_store_sdr1 (CPUPPCState *env, target_ulong value)
+{
+#if defined (DEBUG_MMU)
+    if (loglevel != 0) {
+        fprintf(logfile, "%s: 0x%08lx\n", __func__, (unsigned long)value);
+    }
+#endif
+    if (env->sdr1 != value) {
+        env->sdr1 = value;
+        invalidate_all_tlbs(env);
+    }
+}
+
+target_ulong do_load_sr (CPUPPCState *env, int srnum)
+{
+    return env->sr[srnum];
+}
+
+void do_store_sr (CPUPPCState *env, int srnum, target_ulong value)
+{
+#if defined (DEBUG_MMU)
+    if (loglevel != 0) {
+        fprintf(logfile, "%s: reg=%d 0x%08lx %08lx\n",
+                __func__, srnum, (unsigned long)value, env->sr[srnum]);
+    }
+#endif
+    if (env->sr[srnum] != value) {
+        env->sr[srnum] = value;
+#if !defined(FLUSH_ALL_TLBS) && 0
+        {
+            target_ulong page, end;
+            /* Invalidate 256 MB of virtual memory */
+            page = (16 << 20) * srnum;
+            end = page + (16 << 20);
+            for (; page != end; page += TARGET_PAGE_SIZE)
+                tlb_flush_page(env, page);
+        }
+#else
+        invalidate_all_tlbs(env);
+#endif
+    }
+}
+
+uint32_t do_load_cr (CPUPPCState *env)
+{
+    return (env->crf[0] << 28) |
+        (env->crf[1] << 24) |
+        (env->crf[2] << 20) |
+        (env->crf[3] << 16) |
+        (env->crf[4] << 12) |
+        (env->crf[5] << 8) |
+        (env->crf[6] << 4) |
+        (env->crf[7] << 0);
+}
+
+void do_store_cr (CPUPPCState *env, uint32_t value, uint32_t mask)
+{
+    int i, sh;
+
+    for (i = 0, sh = 7; i < 8; i++, sh --) {
+        if (mask & (1 << sh))
+            env->crf[i] = (value >> (sh * 4)) & 0xFUL;
+    }
+}
+
+uint32_t do_load_xer (CPUPPCState *env)
 {
     return (xer_so << XER_SO) |
         (xer_ov << XER_OV) |
         (xer_ca << XER_CA) |
-        (xer_bc << XER_BC);
+        (xer_bc << XER_BC) |
+        (xer_cmp << XER_CMP);
 }
 
-void _store_xer (CPUState *env, uint32_t value)
+void do_store_xer (CPUPPCState *env, uint32_t value)
 {
     xer_so = (value >> XER_SO) & 0x01;
     xer_ov = (value >> XER_OV) & 0x01;
     xer_ca = (value >> XER_CA) & 0x01;
-    xer_bc = (value >> XER_BC) & 0x3f;
+    xer_cmp = (value >> XER_CMP) & 0xFF;
+    xer_bc = (value >> XER_BC) & 0x3F;
 }
 
-uint32_t _load_msr (CPUState *env)
+target_ulong do_load_msr (CPUPPCState *env)
 {
-    return (msr_pow << MSR_POW) |
+    return (msr_vr << MSR_VR)  |
+        (msr_ap  << MSR_AP)  |
+        (msr_sa  << MSR_SA)  |
+        (msr_key << MSR_KEY) |
+        (msr_pow << MSR_POW) |
+        (msr_tlb << MSR_TLB) |
         (msr_ile << MSR_ILE) |
         (msr_ee << MSR_EE) |
         (msr_pr << MSR_PR) |
@@ -621,41 +835,141 @@ uint32_t _load_msr (CPUState *env)
         (msr_se << MSR_SE) |
         (msr_be << MSR_BE) |
         (msr_fe1 << MSR_FE1) |
+        (msr_al  << MSR_AL)  |
         (msr_ip << MSR_IP) |
         (msr_ir << MSR_IR) |
         (msr_dr << MSR_DR) |
+        (msr_pe  << MSR_PE)  |
+        (msr_px  << MSR_PX)  |
         (msr_ri << MSR_RI) |
         (msr_le << MSR_LE);
 }
 
-void _store_msr (CPUState *env, uint32_t value)
+void do_compute_hflags (CPUPPCState *env)
 {
-#ifdef ACCURATE_TLB_FLUSH
-    if (((value >> MSR_IR) & 0x01) != msr_ir ||
-        ((value >> MSR_DR) & 0x01) != msr_dr)
-    {
-        /* Flush all tlb when changing translation mode or privilege level */
-        tlb_flush(env, 1);
-    }
-#endif
-    msr_pow = (value >> MSR_POW) & 0x03;
-    msr_ile = (value >> MSR_ILE) & 0x01;
-    msr_ee = (value >> MSR_EE) & 0x01;
-    msr_pr = (value >> MSR_PR) & 0x01;
-    msr_fp = (value >> MSR_FP) & 0x01;
-    msr_me = (value >> MSR_ME) & 0x01;
-    msr_fe0 = (value >> MSR_FE0) & 0x01;
-    msr_se = (value >> MSR_SE) & 0x01;
-    msr_be = (value >> MSR_BE) & 0x01;
-    msr_fe1 = (value >> MSR_FE1) & 0x01;
-    msr_ip = (value >> MSR_IP) & 0x01;
-    msr_ir = (value >> MSR_IR) & 0x01;
-    msr_dr = (value >> MSR_DR) & 0x01;
-    msr_ri = (value >> MSR_RI) & 0x01;
-    msr_le = (value >> MSR_LE) & 0x01;
-    /* XXX: should enter PM state if msr_pow has been set */
+    /* Compute current hflags */
+    env->hflags = (msr_pr << MSR_PR) | (msr_le << MSR_LE) |
+        (msr_fp << MSR_FP) | (msr_fe0 << MSR_FE0) | (msr_fe1 << MSR_FE1) |
+        (msr_vr << MSR_VR) | (msr_ap << MSR_AP) | (msr_sa << MSR_SA) | 
+        (msr_se << MSR_SE) | (msr_be << MSR_BE);
 }
 
+void do_store_msr (CPUPPCState *env, target_ulong value)
+    {
+    value &= env->msr_mask;
+    if (((value >> MSR_IR) & 1) != msr_ir ||
+        ((value >> MSR_DR) & 1) != msr_dr) {
+        /* Flush all tlb when changing translation mode
+         * When using software driven TLB, we may also need to reload
+         * all defined TLBs
+         */
+        tlb_flush(env, 1);
+        env->interrupt_request |= CPU_INTERRUPT_EXITTB;
+    }
+#if 0
+    if (loglevel != 0) {
+        fprintf(logfile, "%s: T0 %08lx\n", __func__, value);
+    }
+#endif
+    msr_vr  = (value >> MSR_VR)  & 1;
+    msr_ap  = (value >> MSR_AP)  & 1;
+    msr_sa  = (value >> MSR_SA)  & 1;
+    msr_key = (value >> MSR_KEY) & 1;
+    msr_pow = (value >> MSR_POW) & 1;
+    msr_tlb = (value >> MSR_TLB)  & 1;
+    msr_ile = (value >> MSR_ILE) & 1;
+    msr_ee  = (value >> MSR_EE)  & 1;
+    msr_pr  = (value >> MSR_PR)  & 1;
+    msr_fp  = (value >> MSR_FP)  & 1;
+    msr_me  = (value >> MSR_ME)  & 1;
+    msr_fe0 = (value >> MSR_FE0) & 1;
+    msr_se  = (value >> MSR_SE)  & 1;
+    msr_be  = (value >> MSR_BE)  & 1;
+    msr_fe1 = (value >> MSR_FE1) & 1;
+    msr_al  = (value >> MSR_AL)  & 1;
+    msr_ip  = (value >> MSR_IP)  & 1;
+    msr_ir  = (value >> MSR_IR)  & 1;
+    msr_dr  = (value >> MSR_DR)  & 1;
+    msr_pe  = (value >> MSR_PE)  & 1;
+    msr_px  = (value >> MSR_PX)  & 1;
+    msr_ri  = (value >> MSR_RI)  & 1;
+    msr_le  = (value >> MSR_LE)  & 1;
+    do_compute_hflags(env);
+}
+
+float64 do_load_fpscr (CPUPPCState *env)
+{
+    /* The 32 MSB of the target fpr are undefined.
+     * They'll be zero...
+     */
+    union {
+        float64 d;
+        struct {
+            uint32_t u[2];
+        } s;
+    } u;
+    int i;
+
+#ifdef WORDS_BIGENDIAN
+#define WORD0 0
+#define WORD1 1
+#else
+#define WORD0 1
+#define WORD1 0
+#endif
+    u.s.u[WORD0] = 0;
+    u.s.u[WORD1] = 0;
+    for (i = 0; i < 8; i++)
+        u.s.u[WORD1] |= env->fpscr[i] << (4 * i);
+    return u.d;
+}
+
+void do_store_fpscr (CPUPPCState *env, float64 f, uint32_t mask)
+{
+    /*
+     * We use only the 32 LSB of the incoming fpr
+     */
+    union {
+        double d;
+        struct {
+            uint32_t u[2];
+        } s;
+    } u;
+    int i, rnd_type;
+
+    u.d = f;
+    if (mask & 0x80)
+        env->fpscr[0] = (env->fpscr[0] & 0x9) | ((u.s.u[WORD1] >> 28) & ~0x9);
+    for (i = 1; i < 7; i++) {
+        if (mask & (1 << (7 - i)))
+            env->fpscr[i] = (u.s.u[WORD1] >> (4 * (7 - i))) & 0xF;
+    }
+    /* TODO: update FEX & VX */
+    /* Set rounding mode */
+    switch (env->fpscr[0] & 0x3) {
+    case 0:
+        /* Best approximation (round to nearest) */
+        rnd_type = float_round_nearest_even;
+        break;
+    case 1:
+        /* Smaller magnitude (round toward zero) */
+        rnd_type = float_round_to_zero;
+        break;
+    case 2:
+        /* Round toward +infinite */
+        rnd_type = float_round_up;
+        break;
+    default:
+    case 3:
+        /* Round toward -infinite */
+        rnd_type = float_round_down;
+        break;
+    }
+    set_float_rounding_mode(rnd_type, &env->fp_status);
+}
+
+/*****************************************************************************/
+/* Exception processing */
 #if defined (CONFIG_USER_ONLY)
 void do_interrupt (CPUState *env)
 {
@@ -675,7 +989,7 @@ void do_interrupt (CPUState *env)
     int excp;
 
     excp = env->exception_index;
-    msr = _load_msr(env);
+    msr = do_load_msr(env);
 #if defined (DEBUG_EXCEPTIONS)
     if ((excp == EXCP_PROGRAM || excp == EXCP_DSI) && msr_pr == 1) 
     {
@@ -715,29 +1029,29 @@ void do_interrupt (CPUState *env)
          * when the fault has been detected
      */
 	msr &= ~0xFFFF0000;
-	env->spr[DSISR] = 0;
+	env->spr[SPR_DSISR] = 0;
 	if ((env->error_code & 0x0f) ==  EXCP_DSI_TRANSLATE)
-	    env->spr[DSISR] |= 0x40000000;
+	    env->spr[SPR_DSISR] |= 0x40000000;
 	else if ((env->error_code & 0x0f) ==  EXCP_DSI_PROT)
-	    env->spr[DSISR] |= 0x08000000;
+	    env->spr[SPR_DSISR] |= 0x08000000;
 	else if ((env->error_code & 0x0f) ==  EXCP_DSI_NOTSUP) {
-	    env->spr[DSISR] |= 0x80000000;
+	    env->spr[SPR_DSISR] |= 0x80000000;
 	    if (env->error_code & EXCP_DSI_DIRECT)
-		env->spr[DSISR] |= 0x04000000;
+		env->spr[SPR_DSISR] |= 0x04000000;
 	}
 	if (env->error_code & EXCP_DSI_STORE)
-	    env->spr[DSISR] |= 0x02000000;
+	    env->spr[SPR_DSISR] |= 0x02000000;
 	if ((env->error_code & 0xF) == EXCP_DSI_DABR)
-	    env->spr[DSISR] |= 0x00400000;
+	    env->spr[SPR_DSISR] |= 0x00400000;
 	if (env->error_code & EXCP_DSI_ECXW)
-	    env->spr[DSISR] |= 0x00100000;
+	    env->spr[SPR_DSISR] |= 0x00100000;
 #if defined (DEBUG_EXCEPTIONS)
 	if (loglevel) {
 	    fprintf(logfile, "DSI exception: DSISR=0x%08x, DAR=0x%08x\n",
-		    env->spr[DSISR], env->spr[DAR]);
+		    env->spr[SPR_DSISR], env->spr[SPR_DAR]);
 	} else {
 	    printf("DSI exception: DSISR=0x%08x, DAR=0x%08x nip=0x%08x\n",
-		   env->spr[DSISR], env->spr[DAR], env->nip);
+		   env->spr[SPR_DSISR], env->spr[SPR_DAR], env->nip);
 	}
 #endif
         goto store_next;
@@ -777,7 +1091,7 @@ void do_interrupt (CPUState *env)
     case EXCP_ALIGN:
         /* Store exception cause */
         /* Get rS/rD and rA from faulting opcode */
-        env->spr[DSISR] |=
+        env->spr[SPR_DSISR] |=
             (ldl_code((env->nip - 4)) & 0x03FF0000) >> 16;
         /* data location address has been stored
          * when the fault has been detected
@@ -858,14 +1172,14 @@ void do_interrupt (CPUState *env)
         return;
     store_current:
         /* SRR0 is set to current instruction */
-        env->spr[SRR0] = (uint32_t)env->nip - 4;
+        env->spr[SPR_SRR0] = (uint32_t)env->nip - 4;
         break;
     store_next:
         /* SRR0 is set to next instruction */
-        env->spr[SRR0] = (uint32_t)env->nip;
+        env->spr[SPR_SRR0] = (uint32_t)env->nip;
         break;
     }
-    env->spr[SRR1] = msr;
+    env->spr[SPR_SRR1] = msr;
     /* reload MSR with correct bits */
     msr_pow = 0;
     msr_ee = 0;
@@ -879,6 +1193,7 @@ void do_interrupt (CPUState *env)
     msr_dr = 0;
     msr_ri = 0;
     msr_le = msr_ile;
+    do_compute_hflags(env);
     /* Jump to handler */
     env->nip = excp << 8;
     env->exception_index = EXCP_NONE;

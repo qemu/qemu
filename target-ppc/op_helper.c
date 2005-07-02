@@ -1,7 +1,7 @@
 /*
- *  PPC emulation helpers for qemu.
+ *  PowerPC emulation helpers for qemu.
  * 
- *  Copyright (c) 2003 Jocelyn Mayer
+ *  Copyright (c) 2003-2005 Jocelyn Mayer
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -67,91 +67,6 @@ void do_raise_exception (uint32_t exception)
 
 /*****************************************************************************/
 /* Helpers for "fat" micro operations */
-/* Special registers load and store */
-void do_load_cr (void)
-{
-    T0 = (env->crf[0] << 28) |
-        (env->crf[1] << 24) |
-        (env->crf[2] << 20) |
-        (env->crf[3] << 16) |
-        (env->crf[4] << 12) |
-        (env->crf[5] << 8) |
-        (env->crf[6] << 4) |
-        (env->crf[7] << 0);
-}
-
-void do_store_cr (uint32_t mask)
-{
-    int i, sh;
-
-    for (i = 0, sh = 7; i < 8; i++, sh --) {
-        if (mask & (1 << sh))
-            env->crf[i] = (T0 >> (sh * 4)) & 0xF;
-    }
-}
-
-void do_load_xer (void)
-{
-    T0 = (xer_so << XER_SO) |
-        (xer_ov << XER_OV) |
-        (xer_ca << XER_CA) |
-        (xer_bc << XER_BC);
-}
-
-void do_store_xer (void)
-{
-    xer_so = (T0 >> XER_SO) & 0x01;
-    xer_ov = (T0 >> XER_OV) & 0x01;
-    xer_ca = (T0 >> XER_CA) & 0x01;
-    xer_bc = (T0 >> XER_BC) & 0x3f;
-}
-
-void do_load_msr (void)
-{
-    T0 = (msr_pow << MSR_POW) |
-        (msr_ile << MSR_ILE) |
-        (msr_ee << MSR_EE) |
-        (msr_pr << MSR_PR) |
-        (msr_fp << MSR_FP) |
-        (msr_me << MSR_ME) |
-        (msr_fe0 << MSR_FE0) |
-        (msr_se << MSR_SE) |
-        (msr_be << MSR_BE) |
-        (msr_fe1 << MSR_FE1) |
-        (msr_ip << MSR_IP) |
-        (msr_ir << MSR_IR) |
-        (msr_dr << MSR_DR) |
-        (msr_ri << MSR_RI) |
-        (msr_le << MSR_LE);
-}
-
-void do_store_msr (void)
-{
-#if 1 // TRY
-    if (((T0 >> MSR_IR) & 0x01) != msr_ir ||
-        ((T0 >> MSR_DR) & 0x01) != msr_dr ||
-        ((T0 >> MSR_PR) & 0x01) != msr_pr)
-    {
-        do_tlbia();
-    }
-#endif
-    msr_pow = (T0 >> MSR_POW) & 0x03;
-    msr_ile = (T0 >> MSR_ILE) & 0x01;
-    msr_ee = (T0 >> MSR_EE) & 0x01;
-    msr_pr = (T0 >> MSR_PR) & 0x01;
-    msr_fp = (T0 >> MSR_FP) & 0x01;
-    msr_me = (T0 >> MSR_ME) & 0x01;
-    msr_fe0 = (T0 >> MSR_FE0) & 0x01;
-    msr_se = (T0 >> MSR_SE) & 0x01;
-    msr_be = (T0 >> MSR_BE) & 0x01;
-    msr_fe1 = (T0 >> MSR_FE1) & 0x01;
-    msr_ip = (T0 >> MSR_IP) & 0x01;
-    msr_ir = (T0 >> MSR_IR) & 0x01;
-    msr_dr = (T0 >> MSR_DR) & 0x01;
-    msr_ri = (T0 >> MSR_RI) & 0x01;
-    msr_le = (T0 >> MSR_LE) & 0x01;
-}
-
 /* shift right arithmetic helper */
 void do_sraw (void)
 {
@@ -175,77 +90,6 @@ void do_sraw (void)
 }
 
 /* Floating point operations helpers */
-void do_load_fpscr (void)
-{
-    /* The 32 MSB of the target fpr are undefined.
-     * They'll be zero...
-     */
-    union {
-        double d;
-        struct {
-            uint32_t u[2];
-        } s;
-    } u;
-    int i;
-
-#ifdef WORDS_BIGENDIAN
-#define WORD0 0
-#define WORD1 1
-#else
-#define WORD0 1
-#define WORD1 0
-#endif
-    u.s.u[WORD0] = 0;
-    u.s.u[WORD1] = 0;
-    for (i = 0; i < 8; i++)
-        u.s.u[WORD1] |= env->fpscr[i] << (4 * i);
-    FT0 = u.d;
-}
-
-void do_store_fpscr (uint32_t mask)
-{
-    /*
-     * We use only the 32 LSB of the incoming fpr
-     */
-    union {
-        double d;
-        struct {
-            uint32_t u[2];
-        } s;
-    } u;
-    int i, rnd_type;
-
-    u.d = FT0;
-    if (mask & 0x80)
-        env->fpscr[0] = (env->fpscr[0] & 0x9) | ((u.s.u[WORD1] >> 28) & ~0x9);
-    for (i = 1; i < 7; i++) {
-        if (mask & (1 << (7 - i)))
-            env->fpscr[i] = (u.s.u[WORD1] >> (4 * (7 - i))) & 0xF;
-    }
-    /* TODO: update FEX & VX */
-    /* Set rounding mode */
-    switch (env->fpscr[0] & 0x3) {
-    case 0:
-        /* Best approximation (round to nearest) */
-        rnd_type = float_round_nearest_even;
-        break;
-    case 1:
-        /* Smaller magnitude (round toward zero) */
-        rnd_type = float_round_to_zero;
-        break;
-    case 2:
-        /* Round toward +infinite */
-        rnd_type = float_round_up;
-        break;
-    default:
-    case 3:
-        /* Round toward -infinite */
-        rnd_type = float_round_down;
-        break;
-    }
-    set_float_rounding_mode(rnd_type, &env->fp_status);
-}
-
 void do_fctiw (void)
 {
     union {
@@ -254,7 +98,7 @@ void do_fctiw (void)
     } p;
 
     /* XXX: higher bits are not supposed to be significant.
-     *      to make tests easier, return the same as a real PPC 750 (aka G3)
+     *      to make tests easier, return the same as a real PowerPC 750 (aka G3)
      */
     p.i = float64_to_int32(FT0, &env->fp_status);
     p.i |= 0xFFF80000ULL << 32;
@@ -269,7 +113,7 @@ void do_fctiwz (void)
     } p;
 
     /* XXX: higher bits are not supposed to be significant.
-     *      to make tests easier, return the same as a real PPC 750 (aka G3)
+     *      to make tests easier, return the same as a real PowerPC 750 (aka G3)
      */
     p.i = float64_to_int32_round_to_zero(FT0, &env->fp_status);
     p.i |= 0xFFF80000ULL << 32;
@@ -453,118 +297,5 @@ void do_tlbia (void)
 void do_tlbie (void)
 {
     tlb_flush_page(env, T0);
-}
-
-void do_store_sr (uint32_t srnum)
-{
-#if defined (DEBUG_OP)
-    dump_store_sr(srnum);
-#endif
-#if 0 // TRY
-    {
-        uint32_t base, page;
-        
-        base = srnum << 28;
-        for (page = base; page != base + 0x100000000; page += 0x1000)
-            tlb_flush_page(env, page);
-    }
-#else
-    tlb_flush(env, 1);
-#endif
-    env->sr[srnum] = T0;
-}
-
-/* For BATs, we may not invalidate any TLBs if the change is only on
- * protection bits for user mode.
- */
-void do_store_ibat (int ul, int nr)
-{
-#if defined (DEBUG_OP)
-    dump_store_ibat(ul, nr);
-#endif
-#if 0 // TRY
-    {
-        uint32_t base, length, page;
-
-        base = env->IBAT[0][nr];
-        length = (((base >> 2) & 0x000007FF) + 1) << 17;
-        base &= 0xFFFC0000;
-        for (page = base; page != base + length; page += 0x1000)
-            tlb_flush_page(env, page);
-    }
-#else
-    tlb_flush(env, 1);
-#endif
-    env->IBAT[ul][nr] = T0;
-}
-
-void do_store_dbat (int ul, int nr)
-{
-#if defined (DEBUG_OP)
-    dump_store_dbat(ul, nr);
-#endif
-#if 0 // TRY
-    {
-        uint32_t base, length, page;
-        base = env->DBAT[0][nr];
-        length = (((base >> 2) & 0x000007FF) + 1) << 17;
-        base &= 0xFFFC0000;
-        for (page = base; page != base + length; page += 0x1000)
-            tlb_flush_page(env, page);
-    }
-#else
-    tlb_flush(env, 1);
-#endif
-    env->DBAT[ul][nr] = T0;
-}
-
-/*****************************************************************************/
-/* Special helpers for debug */
-void dump_state (void)
-{
-    //    cpu_dump_state(env, stdout, fprintf, 0);
-}
-
-void dump_rfi (void)
-{
-#if 0
-    printf("Return from interrupt => 0x%08x\n", env->nip);
-    //    cpu_dump_state(env, stdout, fprintf, 0);
-#endif
-}
-
-void dump_store_sr (int srnum)
-{
-#if 0
-    printf("%s: reg=%d 0x%08x\n", __func__, srnum, T0);
-#endif
-}
-
-static void _dump_store_bat (char ID, int ul, int nr)
-{
-    printf("Set %cBAT%d%c to 0x%08x (0x%08x)\n",
-           ID, nr, ul == 0 ? 'u' : 'l', T0, env->nip);
-}
-
-void dump_store_ibat (int ul, int nr)
-{
-    _dump_store_bat('I', ul, nr);
-}
-
-void dump_store_dbat (int ul, int nr)
-{
-    _dump_store_bat('D', ul, nr);
-}
-
-void dump_store_tb (int ul)
-{
-    printf("Set TB%c to 0x%08x\n", ul == 0 ? 'L' : 'U', T0);
-}
-
-void dump_update_tb(uint32_t param)
-{
-#if 0
-    printf("Update TB: 0x%08x + %d => 0x%08x\n", T1, param, T0);
-#endif
 }
 

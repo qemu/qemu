@@ -1,7 +1,7 @@
 /*
- *  PPC emulation for qemu: main translation routines.
+ *  PowerPC emulation for qemu: main translation routines.
  * 
- *  Copyright (c) 2003 Jocelyn Mayer
+ *  Copyright (c) 2003-2005 Jocelyn Mayer
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -141,16 +141,17 @@ typedef struct DisasContext {
     int supervisor;
 #endif
     int fpu_enabled;
+    ppc_spr_t *spr_cb; /* Needed to check rights for mfspr/mtspr */
 } DisasContext;
 
-typedef struct opc_handler_t {
+struct opc_handler_t {
     /* invalid bits */
     uint32_t inval;
     /* instruction type */
     uint32_t type;
     /* handler */
     void (*handler)(DisasContext *ctx);
-} opc_handler_t;
+};
 
 #define RET_EXCP(ctx, excp, error)                                            \
 do {                                                                          \
@@ -173,6 +174,11 @@ RET_EXCP((ctx), EXCP_PROGRAM, EXCP_INVAL | EXCP_PRIV_REG)
 #define RET_MTMSR(ctx)                                                        \
 RET_EXCP((ctx), EXCP_MTMSR, 0)
 
+static inline void RET_STOP (DisasContext *ctx)
+{
+    RET_EXCP(ctx, EXCP_MTMSR, 0);
+}
+
 #define GEN_HANDLER(name, opc1, opc2, opc3, inval, type)                      \
 static void gen_##name (DisasContext *ctx);                                   \
 GEN_OPCODE(name, opc1, opc2, opc3, inval, type);                              \
@@ -186,6 +192,7 @@ typedef struct opcode_t {
     unsigned char pad[1];
 #endif
     opc_handler_t handler;
+    const unsigned char *oname;
 } opcode_t;
 
 /***                           Instruction decoding                        ***/
@@ -226,7 +233,13 @@ EXTRACT_HELPER(crbD, 21, 5);
 EXTRACT_HELPER(crbA, 16, 5);
 EXTRACT_HELPER(crbB, 11, 5);
 /* SPR / TBL */
-EXTRACT_HELPER(SPR, 11, 10);
+EXTRACT_HELPER(_SPR, 11, 10);
+static inline uint32_t SPR (uint32_t opcode)
+{
+    uint32_t sprn = _SPR(opcode);
+
+    return ((sprn >> 5) & 0x1F) | ((sprn & 0x1F) << 5);
+}
 /***                              Get constants                            ***/
 EXTRACT_HELPER(IMM, 12, 8);
 /* 16 bits signed immediate value */
@@ -282,12 +295,17 @@ static inline uint32_t MASK (uint32_t start, uint32_t end)
     return ret;
 }
 
+#if HOST_LONG_BITS == 64
+#define OPC_ALIGN 8
+#else
+#define OPC_ALIGN 4
+#endif
 #if defined(__APPLE__)
 #define OPCODES_SECTION \
-    __attribute__ ((section("__TEXT,__opcodes"), unused, aligned (8) ))
+    __attribute__ ((section("__TEXT,__opcodes"), unused, aligned (OPC_ALIGN) ))
 #else
 #define OPCODES_SECTION \
-    __attribute__ ((section(".opcodes"), unused, aligned (8) ))
+    __attribute__ ((section(".opcodes"), unused, aligned (OPC_ALIGN) ))
 #endif
 
 #define GEN_OPCODE(name, op1, op2, op3, invl, _typ)                           \
@@ -301,6 +319,7 @@ OPCODES_SECTION opcode_t opc_##name = {                                       \
         .type = _typ,                                                         \
         .handler = &gen_##name,                                               \
     },                                                                        \
+    .oname = stringify(name),                                                 \
 }
 
 #define GEN_OPCODE_MARK(name)                                                 \
@@ -314,6 +333,7 @@ OPCODES_SECTION opcode_t opc_##name = {                                       \
         .type = 0x00,                                                         \
         .handler = NULL,                                                      \
     },                                                                        \
+    .oname = stringify(name),                                                 \
 }
 
 /* Start opcode list */
@@ -1344,7 +1364,7 @@ static GenOpFunc1 *gen_op_stsw[] = {
 #endif
 
 /* lswi */
-/* PPC32 specification says we must generate an exception if
+/* PowerPC32 specification says we must generate an exception if
  * rA is in the range of registers to be loaded.
  * In an other hand, IBM says this is valid, but rA won't be loaded.
  * For now, I'll follow the spec...
@@ -1965,169 +1985,54 @@ GEN_HANDLER(mfmsr, 0x1F, 0x13, 0x02, 0x001FF801, PPC_MISC)
 #endif
 }
 
-/* mfspr */
-GEN_HANDLER(mfspr, 0x1F, 0x13, 0x0A, 0x00000001, PPC_MISC)
+#if 0
+#define SPR_NOACCESS ((void *)(-1))
+#else
+static void spr_noaccess (void *opaque, int sprn)
 {
+    sprn = ((sprn >> 5) & 0x1F) | ((sprn & 0x1F) << 5);
+    printf("ERROR: try to access SPR %d !\n", sprn);
+}
+#define SPR_NOACCESS (&spr_noaccess)
+#endif
+
+/* mfspr */
+static inline void gen_op_mfspr (DisasContext *ctx)
+{
+    void (*read_cb)(void *opaque, int sprn);
     uint32_t sprn = SPR(ctx->opcode);
 
-#if defined(CONFIG_USER_ONLY)
-    switch (check_spr_access(sprn, 0, 0))
-#else
-    switch (check_spr_access(sprn, 0, ctx->supervisor))
+#if !defined(CONFIG_USER_ONLY)
+    if (ctx->supervisor)
+        read_cb = ctx->spr_cb[sprn].oea_read;
+    else
 #endif
-    {
-    case -1:
-        RET_EXCP(ctx, EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_SPR);
-        return;
-    case 0:
+        read_cb = ctx->spr_cb[sprn].uea_read;
+    if (read_cb != NULL) {
+        if (read_cb != SPR_NOACCESS) {
+            (*read_cb)(ctx, sprn);
+            gen_op_store_T0_gpr(rD(ctx->opcode));
+        } else {
+            /* Privilege exception */
+            printf("Trying to read priviledged spr %d %03x\n", sprn, sprn);
         RET_PRIVREG(ctx);
-        return;
-    default:
-        break;
         }
-    switch (sprn) {
-    case XER:
-        gen_op_load_xer();
-        break;
-    case LR:
-        gen_op_load_lr();
-        break;
-    case CTR:
-        gen_op_load_ctr();
-        break;
-    case IBAT0U:
-        gen_op_load_ibat(0, 0);
-        break;
-    case IBAT1U:
-        gen_op_load_ibat(0, 1);
-        break;
-    case IBAT2U:
-        gen_op_load_ibat(0, 2);
-        break;
-    case IBAT3U:
-        gen_op_load_ibat(0, 3);
-        break;
-    case IBAT4U:
-        gen_op_load_ibat(0, 4);
-        break;
-    case IBAT5U:
-        gen_op_load_ibat(0, 5);
-        break;
-    case IBAT6U:
-        gen_op_load_ibat(0, 6);
-        break;
-    case IBAT7U:
-        gen_op_load_ibat(0, 7);
-        break;
-    case IBAT0L:
-        gen_op_load_ibat(1, 0);
-        break;
-    case IBAT1L:
-        gen_op_load_ibat(1, 1);
-        break;
-    case IBAT2L:
-        gen_op_load_ibat(1, 2);
-        break;
-    case IBAT3L:
-        gen_op_load_ibat(1, 3);
-        break;
-    case IBAT4L:
-        gen_op_load_ibat(1, 4);
-        break;
-    case IBAT5L:
-        gen_op_load_ibat(1, 5);
-        break;
-    case IBAT6L:
-        gen_op_load_ibat(1, 6);
-        break;
-    case IBAT7L:
-        gen_op_load_ibat(1, 7);
-        break;
-    case DBAT0U:
-        gen_op_load_dbat(0, 0);
-        break;
-    case DBAT1U:
-        gen_op_load_dbat(0, 1);
-        break;
-    case DBAT2U:
-        gen_op_load_dbat(0, 2);
-        break;
-    case DBAT3U:
-        gen_op_load_dbat(0, 3);
-        break;
-    case DBAT4U:
-        gen_op_load_dbat(0, 4);
-        break;
-    case DBAT5U:
-        gen_op_load_dbat(0, 5);
-        break;
-    case DBAT6U:
-        gen_op_load_dbat(0, 6);
-        break;
-    case DBAT7U:
-        gen_op_load_dbat(0, 7);
-        break;
-    case DBAT0L:
-        gen_op_load_dbat(1, 0);
-        break;
-    case DBAT1L:
-        gen_op_load_dbat(1, 1);
-        break;
-    case DBAT2L:
-        gen_op_load_dbat(1, 2);
-        break;
-    case DBAT3L:
-        gen_op_load_dbat(1, 3);
-        break;
-    case DBAT4L:
-        gen_op_load_dbat(1, 4);
-        break;
-    case DBAT5L:
-        gen_op_load_dbat(1, 5);
-        break;
-    case DBAT6L:
-        gen_op_load_dbat(1, 6);
-        break;
-    case DBAT7L:
-        gen_op_load_dbat(1, 7);
-        break;
-    case SDR1:
-        gen_op_load_sdr1();
-        break;
-    case V_TBL:
-        gen_op_load_tbl();
-        break;
-    case V_TBU:
-        gen_op_load_tbu();
-        break;
-    case DECR:
-        gen_op_load_decr();
-        break;
-    default:
-        gen_op_load_spr(sprn);
-        break;
+    } else {
+        /* Not defined */
+        printf("Trying to read invalid spr %d %03x\n", sprn, sprn);
+        RET_EXCP(ctx, EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_SPR);
     }
-    gen_op_store_T0_gpr(rD(ctx->opcode));
 }
 
-/* mftb */
-GEN_HANDLER(mftb, 0x1F, 0x13, 0x0B, 0x00000001, PPC_MISC)
+GEN_HANDLER(mfspr, 0x1F, 0x13, 0x0A, 0x00000001, PPC_MISC)
 {
-    uint32_t sprn = SPR(ctx->opcode);
-
-        /* We need to update the time base before reading it */
-    switch (sprn) {
-    case V_TBL:
-        gen_op_load_tbl();
-        break;
-    case V_TBU:
-        gen_op_load_tbu();
-        break;
-    default:
-        RET_INVAL(ctx);
-        return;
+    gen_op_mfspr(ctx);
     }
-    gen_op_store_T0_gpr(rD(ctx->opcode));
+
+/* mftb */
+GEN_HANDLER(mftb, 0x1F, 0x13, 0x0B, 0x00000001, PPC_TB)
+{
+    gen_op_mfspr(ctx);
 }
 
 /* mtcrf */
@@ -2158,184 +2063,28 @@ GEN_HANDLER(mtmsr, 0x1F, 0x12, 0x04, 0x001FF801, PPC_MISC)
 /* mtspr */
 GEN_HANDLER(mtspr, 0x1F, 0x13, 0x0E, 0x00000001, PPC_MISC)
 {
+    void (*write_cb)(void *opaque, int sprn);
     uint32_t sprn = SPR(ctx->opcode);
 
-#if 0
-    if (loglevel > 0) {
-        fprintf(logfile, "MTSPR %d src=%d (%d)\n", SPR_ENCODE(sprn),
-                rS(ctx->opcode), sprn);
-    }
+#if !defined(CONFIG_USER_ONLY)
+    if (ctx->supervisor)
+        write_cb = ctx->spr_cb[sprn].oea_write;
+    else
 #endif
-#if defined(CONFIG_USER_ONLY)
-    switch (check_spr_access(sprn, 1, 0))
-#else
-    switch (check_spr_access(sprn, 1, ctx->supervisor))
-#endif
-    {
-    case -1:
-        RET_EXCP(ctx, EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_SPR);
-        break;
-    case 0:
+        write_cb = ctx->spr_cb[sprn].uea_write;
+    if (write_cb != NULL) {
+        if (write_cb != SPR_NOACCESS) {
+            gen_op_load_gpr_T0(rS(ctx->opcode));
+            (*write_cb)(ctx, sprn);
+        } else {
+            /* Privilege exception */
+            printf("Trying to write priviledged spr %d %03x\n", sprn, sprn);
         RET_PRIVREG(ctx);
-        break;
-    default:
-        break;
     }
-    gen_op_load_gpr_T0(rS(ctx->opcode));
-    switch (sprn) {
-    case XER:
-        gen_op_store_xer();
-        break;
-    case LR:
-        gen_op_store_lr();
-        break;
-    case CTR:
-        gen_op_store_ctr();
-        break;
-    case IBAT0U:
-        gen_op_store_ibat(0, 0);
-        RET_MTMSR(ctx);
-        break;
-    case IBAT1U:
-        gen_op_store_ibat(0, 1);
-        RET_MTMSR(ctx);
-        break;
-    case IBAT2U:
-        gen_op_store_ibat(0, 2);
-        RET_MTMSR(ctx);
-        break;
-    case IBAT3U:
-        gen_op_store_ibat(0, 3);
-        RET_MTMSR(ctx);
-        break;
-    case IBAT4U:
-        gen_op_store_ibat(0, 4);
-        RET_MTMSR(ctx);
-        break;
-    case IBAT5U:
-        gen_op_store_ibat(0, 5);
-        RET_MTMSR(ctx);
-        break;
-    case IBAT6U:
-        gen_op_store_ibat(0, 6);
-        RET_MTMSR(ctx);
-        break;
-    case IBAT7U:
-        gen_op_store_ibat(0, 7);
-        RET_MTMSR(ctx);
-        break;
-    case IBAT0L:
-        gen_op_store_ibat(1, 0);
-        RET_MTMSR(ctx);
-        break;
-    case IBAT1L:
-        gen_op_store_ibat(1, 1);
-        RET_MTMSR(ctx);
-        break;
-    case IBAT2L:
-        gen_op_store_ibat(1, 2);
-        RET_MTMSR(ctx);
-        break;
-    case IBAT3L:
-        gen_op_store_ibat(1, 3);
-        RET_MTMSR(ctx);
-        break;
-    case IBAT4L:
-        gen_op_store_ibat(1, 4);
-        RET_MTMSR(ctx);
-        break;
-    case IBAT5L:
-        gen_op_store_ibat(1, 5);
-        RET_MTMSR(ctx);
-        break;
-    case IBAT6L:
-        gen_op_store_ibat(1, 6);
-        RET_MTMSR(ctx);
-        break;
-    case IBAT7L:
-        gen_op_store_ibat(1, 7);
-        RET_MTMSR(ctx);
-        break;
-    case DBAT0U:
-        gen_op_store_dbat(0, 0);
-        RET_MTMSR(ctx);
-        break;
-    case DBAT1U:
-        gen_op_store_dbat(0, 1);
-        RET_MTMSR(ctx);
-        break;
-    case DBAT2U:
-        gen_op_store_dbat(0, 2);
-        RET_MTMSR(ctx);
-        break;
-    case DBAT3U:
-        gen_op_store_dbat(0, 3);
-        RET_MTMSR(ctx);
-        break;
-    case DBAT4U:
-        gen_op_store_dbat(0, 4);
-        RET_MTMSR(ctx);
-        break;
-    case DBAT5U:
-        gen_op_store_dbat(0, 5);
-        RET_MTMSR(ctx);
-        break;
-    case DBAT6U:
-        gen_op_store_dbat(0, 6);
-        RET_MTMSR(ctx);
-        break;
-    case DBAT7U:
-        gen_op_store_dbat(0, 7);
-        RET_MTMSR(ctx);
-        break;
-    case DBAT0L:
-        gen_op_store_dbat(1, 0);
-        RET_MTMSR(ctx);
-        break;
-    case DBAT1L:
-        gen_op_store_dbat(1, 1);
-        RET_MTMSR(ctx);
-        break;
-    case DBAT2L:
-        gen_op_store_dbat(1, 2);
-        RET_MTMSR(ctx);
-        break;
-    case DBAT3L:
-        gen_op_store_dbat(1, 3);
-        RET_MTMSR(ctx);
-        break;
-    case DBAT4L:
-        gen_op_store_dbat(1, 4);
-        RET_MTMSR(ctx);
-        break;
-    case DBAT5L:
-        gen_op_store_dbat(1, 5);
-        RET_MTMSR(ctx);
-        break;
-    case DBAT6L:
-        gen_op_store_dbat(1, 6);
-        RET_MTMSR(ctx);
-        break;
-    case DBAT7L:
-        gen_op_store_dbat(1, 7);
-        RET_MTMSR(ctx);
-        break;
-    case SDR1:
-        gen_op_store_sdr1();
-        RET_MTMSR(ctx);
-        break;
-    case O_TBL:
-        gen_op_store_tbl();
-        break;
-    case O_TBU:
-        gen_op_store_tbu();
-        break;
-    case DECR:
-        gen_op_store_decr();
-        break;
-    default:
-        gen_op_store_spr(sprn);
-        break;
+    } else {
+        /* Not defined */
+        printf("Trying to write invalid spr %d %03x\n", sprn, sprn);
+        RET_EXCP(ctx, EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_SPR);
     }
 }
 
@@ -2514,7 +2263,7 @@ GEN_HANDLER(mtsrin, 0x1F, 0x12, 0x07, 0x001F0001, PPC_SEGMENT)
 /***                      Lookaside buffer management                      ***/
 /* Optional & supervisor only: */
 /* tlbia */
-GEN_HANDLER(tlbia, 0x1F, 0x12, 0x0B, 0x03FFFC01, PPC_MEM_OPT)
+GEN_HANDLER(tlbia, 0x1F, 0x12, 0x0B, 0x03FFFC01, PPC_MEM_TLBIA)
 {
 #if defined(CONFIG_USER_ONLY)
     RET_PRIVOPC(ctx);
@@ -2624,510 +2373,41 @@ GEN_HANDLER(ecowx, 0x1F, 0x16, 0x09, 0x00000001, PPC_EXTERN)
 /* End opcode list */
 GEN_OPCODE_MARK(end);
 
-/*****************************************************************************/
-#include <stdlib.h>
-#include <string.h>
-
-int fflush (FILE *stream);
-
-/* Main ppc opcodes table:
- * at init, all opcodes are invalids
- */
-static opc_handler_t *ppc_opcodes[0x40];
-
-/* Opcode types */
-enum {
-    PPC_DIRECT   = 0, /* Opcode routine        */
-    PPC_INDIRECT = 1, /* Indirect opcode table */
-};
-
-static inline int is_indirect_opcode (void *handler)
-{
-    return ((unsigned long)handler & 0x03) == PPC_INDIRECT;
-}
-
-static inline opc_handler_t **ind_table(void *handler)
-{
-    return (opc_handler_t **)((unsigned long)handler & ~3);
-}
-
-/* Instruction table creation */
-/* Opcodes tables creation */
-static void fill_new_table (opc_handler_t **table, int len)
-{
-    int i;
-
-    for (i = 0; i < len; i++)
-        table[i] = &invalid_handler;
-}
-
-static int create_new_table (opc_handler_t **table, unsigned char idx)
-{
-    opc_handler_t **tmp;
-
-    tmp = malloc(0x20 * sizeof(opc_handler_t));
-    if (tmp == NULL)
-        return -1;
-    fill_new_table(tmp, 0x20);
-    table[idx] = (opc_handler_t *)((unsigned long)tmp | PPC_INDIRECT);
-
-    return 0;
-}
-
-static int insert_in_table (opc_handler_t **table, unsigned char idx,
-                            opc_handler_t *handler)
-{
-    if (table[idx] != &invalid_handler)
-        return -1;
-    table[idx] = handler;
-
-    return 0;
-}
-
-static int register_direct_insn (opc_handler_t **ppc_opcodes,
-                                 unsigned char idx, opc_handler_t *handler)
-{
-    if (insert_in_table(ppc_opcodes, idx, handler) < 0) {
-        printf("*** ERROR: opcode %02x already assigned in main "
-                "opcode table\n", idx);
-        return -1;
-    }
-
-    return 0;
-}
-
-static int register_ind_in_table (opc_handler_t **table,
-                                  unsigned char idx1, unsigned char idx2,
-                                  opc_handler_t *handler)
-{
-    if (table[idx1] == &invalid_handler) {
-        if (create_new_table(table, idx1) < 0) {
-            printf("*** ERROR: unable to create indirect table "
-                    "idx=%02x\n", idx1);
-            return -1;
-        }
-    } else {
-        if (!is_indirect_opcode(table[idx1])) {
-            printf("*** ERROR: idx %02x already assigned to a direct "
-                    "opcode\n", idx1);
-            return -1;
-        }
-    }
-    if (handler != NULL &&
-        insert_in_table(ind_table(table[idx1]), idx2, handler) < 0) {
-        printf("*** ERROR: opcode %02x already assigned in "
-                "opcode table %02x\n", idx2, idx1);
-        return -1;
-    }
-
-    return 0;
-}
-
-static int register_ind_insn (opc_handler_t **ppc_opcodes,
-                              unsigned char idx1, unsigned char idx2,
-                               opc_handler_t *handler)
-{
-    int ret;
-
-    ret = register_ind_in_table(ppc_opcodes, idx1, idx2, handler);
-
-    return ret;
-}
-
-static int register_dblind_insn (opc_handler_t **ppc_opcodes, 
-                                 unsigned char idx1, unsigned char idx2,
-                                  unsigned char idx3, opc_handler_t *handler)
-{
-    if (register_ind_in_table(ppc_opcodes, idx1, idx2, NULL) < 0) {
-        printf("*** ERROR: unable to join indirect table idx "
-                "[%02x-%02x]\n", idx1, idx2);
-        return -1;
-    }
-    if (register_ind_in_table(ind_table(ppc_opcodes[idx1]), idx2, idx3,
-                              handler) < 0) {
-        printf("*** ERROR: unable to insert opcode "
-                "[%02x-%02x-%02x]\n", idx1, idx2, idx3);
-        return -1;
-    }
-
-    return 0;
-}
-
-static int register_insn (opc_handler_t **ppc_opcodes, opcode_t *insn)
-{
-    if (insn->opc2 != 0xFF) {
-        if (insn->opc3 != 0xFF) {
-            if (register_dblind_insn(ppc_opcodes, insn->opc1, insn->opc2,
-                                     insn->opc3, &insn->handler) < 0)
-                return -1;
-        } else {
-            if (register_ind_insn(ppc_opcodes, insn->opc1,
-                                  insn->opc2, &insn->handler) < 0)
-                return -1;
-        }
-    } else {
-        if (register_direct_insn(ppc_opcodes, insn->opc1, &insn->handler) < 0)
-            return -1;
-    }
-
-    return 0;
-}
-
-static int test_opcode_table (opc_handler_t **table, int len)
-{
-    int i, count, tmp;
-
-    for (i = 0, count = 0; i < len; i++) {
-        /* Consistency fixup */
-        if (table[i] == NULL)
-            table[i] = &invalid_handler;
-        if (table[i] != &invalid_handler) {
-            if (is_indirect_opcode(table[i])) {
-                tmp = test_opcode_table(ind_table(table[i]), 0x20);
-                if (tmp == 0) {
-                    free(table[i]);
-                    table[i] = &invalid_handler;
-                } else {
-                    count++;
-                }
-            } else {
-                count++;
-            }
-        }
-    }
-
-    return count;
-}
-
-static void fix_opcode_tables (opc_handler_t **ppc_opcodes)
-{
-    if (test_opcode_table(ppc_opcodes, 0x40) == 0)
-        printf("*** WARNING: no opcode defined !\n");
-}
-
-#define SPR_RIGHTS(rw, priv) (1 << ((2 * (priv)) + (rw)))
-#define SPR_UR SPR_RIGHTS(0, 0)
-#define SPR_UW SPR_RIGHTS(1, 0)
-#define SPR_SR SPR_RIGHTS(0, 1)
-#define SPR_SW SPR_RIGHTS(1, 1)
-
-#define spr_set_rights(spr, rights)                            \
-do {                                                           \
-    spr_access[(spr) >> 1] |= ((rights) << (4 * ((spr) & 1))); \
-} while (0)
-
-static void init_spr_rights (uint32_t pvr)
-{
-    /* XER    (SPR 1) */
-    spr_set_rights(XER,    SPR_UR | SPR_UW | SPR_SR | SPR_SW);
-    /* LR     (SPR 8) */
-    spr_set_rights(LR,     SPR_UR | SPR_UW | SPR_SR | SPR_SW);
-    /* CTR    (SPR 9) */
-    spr_set_rights(CTR,    SPR_UR | SPR_UW | SPR_SR | SPR_SW);
-    /* TBL    (SPR 268) */
-    spr_set_rights(V_TBL,  SPR_UR | SPR_SR);
-    /* TBU    (SPR 269) */
-    spr_set_rights(V_TBU,  SPR_UR | SPR_SR);
-    /* DSISR  (SPR 18) */
-    spr_set_rights(DSISR,  SPR_SR | SPR_SW);
-    /* DAR    (SPR 19) */
-    spr_set_rights(DAR,    SPR_SR | SPR_SW);
-    /* DEC    (SPR 22) */
-    spr_set_rights(DECR,   SPR_SR | SPR_SW);
-    /* SDR1   (SPR 25) */
-    spr_set_rights(SDR1,   SPR_SR | SPR_SW);
-    /* SRR0   (SPR 26) */
-    spr_set_rights(SRR0,   SPR_SR | SPR_SW);
-    /* SRR1   (SPR 27) */
-    spr_set_rights(SRR1,   SPR_SR | SPR_SW);
-    /* SPRG0  (SPR 272) */
-    spr_set_rights(SPRG0,  SPR_SR | SPR_SW);
-    /* SPRG1  (SPR 273) */
-    spr_set_rights(SPRG1,  SPR_SR | SPR_SW);
-    /* SPRG2  (SPR 274) */
-    spr_set_rights(SPRG2,  SPR_SR | SPR_SW);
-    /* SPRG3  (SPR 275) */
-    spr_set_rights(SPRG3,  SPR_SR | SPR_SW);
-    /* ASR    (SPR 280) */
-    spr_set_rights(ASR,    SPR_SR | SPR_SW);
-    /* EAR    (SPR 282) */
-    spr_set_rights(EAR,    SPR_SR | SPR_SW);
-    /* TBL    (SPR 284) */
-    spr_set_rights(O_TBL,  SPR_SW);
-    /* TBU    (SPR 285) */
-    spr_set_rights(O_TBU,  SPR_SW);
-    /* PVR    (SPR 287) */
-    spr_set_rights(PVR,    SPR_SR);
-    /* IBAT0U (SPR 528) */
-    spr_set_rights(IBAT0U, SPR_SR | SPR_SW);
-    /* IBAT0L (SPR 529) */
-    spr_set_rights(IBAT0L, SPR_SR | SPR_SW);
-    /* IBAT1U (SPR 530) */
-    spr_set_rights(IBAT1U, SPR_SR | SPR_SW);
-    /* IBAT1L (SPR 531) */
-    spr_set_rights(IBAT1L, SPR_SR | SPR_SW);
-    /* IBAT2U (SPR 532) */
-    spr_set_rights(IBAT2U, SPR_SR | SPR_SW);
-    /* IBAT2L (SPR 533) */
-    spr_set_rights(IBAT2L, SPR_SR | SPR_SW);
-    /* IBAT3U (SPR 534) */
-    spr_set_rights(IBAT3U, SPR_SR | SPR_SW);
-    /* IBAT3L (SPR 535) */
-    spr_set_rights(IBAT3L, SPR_SR | SPR_SW);
-    /* DBAT0U (SPR 536) */
-    spr_set_rights(DBAT0U, SPR_SR | SPR_SW);
-    /* DBAT0L (SPR 537) */
-    spr_set_rights(DBAT0L, SPR_SR | SPR_SW);
-    /* DBAT1U (SPR 538) */
-    spr_set_rights(DBAT1U, SPR_SR | SPR_SW);
-    /* DBAT1L (SPR 539) */
-    spr_set_rights(DBAT1L, SPR_SR | SPR_SW);
-    /* DBAT2U (SPR 540) */
-    spr_set_rights(DBAT2U, SPR_SR | SPR_SW);
-    /* DBAT2L (SPR 541) */
-    spr_set_rights(DBAT2L, SPR_SR | SPR_SW);
-    /* DBAT3U (SPR 542) */
-    spr_set_rights(DBAT3U, SPR_SR | SPR_SW);
-    /* DBAT3L (SPR 543) */
-    spr_set_rights(DBAT3L, SPR_SR | SPR_SW);
-    /* FPECR  (SPR 1022) */
-    spr_set_rights(FPECR,  SPR_SR | SPR_SW);
-    /* Special registers for PPC 604 */
-    if ((pvr & 0xFFFF0000) == 0x00040000) {
-        /* IABR */
-        spr_set_rights(IABR ,  SPR_SR | SPR_SW);
-        /* DABR   (SPR 1013) */
-        spr_set_rights(DABR,   SPR_SR | SPR_SW);
-        /* HID0 */
-        spr_set_rights(HID0,   SPR_SR | SPR_SW);
-        /* PIR */
-    spr_set_rights(PIR,    SPR_SR | SPR_SW);
-        /* PMC1 */
-        spr_set_rights(PMC1,   SPR_SR | SPR_SW);
-        /* PMC2 */
-        spr_set_rights(PMC2,   SPR_SR | SPR_SW);
-        /* MMCR0 */
-        spr_set_rights(MMCR0,  SPR_SR | SPR_SW);
-        /* SIA */
-        spr_set_rights(SIA,    SPR_SR | SPR_SW);
-        /* SDA */
-        spr_set_rights(SDA,    SPR_SR | SPR_SW);
-    }
-    /* Special registers for MPC740/745/750/755 (aka G3) & IBM 750 */
-    if ((pvr & 0xFFFF0000) == 0x00080000 ||
-        (pvr & 0xFFFF0000) == 0x70000000) {
-        /* HID0 */
-        spr_set_rights(HID0,   SPR_SR | SPR_SW);
-        /* HID1 */
-        spr_set_rights(HID1,   SPR_SR | SPR_SW);
-        /* IABR */
-        spr_set_rights(IABR,   SPR_SR | SPR_SW);
-        /* ICTC */
-        spr_set_rights(ICTC,   SPR_SR | SPR_SW);
-        /* L2CR */
-        spr_set_rights(L2CR,   SPR_SR | SPR_SW);
-        /* MMCR0 */
-        spr_set_rights(MMCR0,  SPR_SR | SPR_SW);
-        /* MMCR1 */
-        spr_set_rights(MMCR1,  SPR_SR | SPR_SW);
-        /* PMC1 */
-        spr_set_rights(PMC1,   SPR_SR | SPR_SW);
-        /* PMC2 */
-        spr_set_rights(PMC2,   SPR_SR | SPR_SW);
-        /* PMC3 */
-        spr_set_rights(PMC3,   SPR_SR | SPR_SW);
-        /* PMC4 */
-        spr_set_rights(PMC4,   SPR_SR | SPR_SW);
-        /* SIA */
-        spr_set_rights(SIA,    SPR_SR | SPR_SW);
-        /* SDA */
-        spr_set_rights(SDA,    SPR_SR | SPR_SW);
-        /* THRM1 */
-        spr_set_rights(THRM1,  SPR_SR | SPR_SW);
-        /* THRM2 */
-        spr_set_rights(THRM2,  SPR_SR | SPR_SW);
-        /* THRM3 */
-        spr_set_rights(THRM3,  SPR_SR | SPR_SW);
-        /* UMMCR0 */
-        spr_set_rights(UMMCR0, SPR_UR | SPR_UW);
-        /* UMMCR1 */
-        spr_set_rights(UMMCR1, SPR_UR | SPR_UW);
-        /* UPMC1 */
-        spr_set_rights(UPMC1,  SPR_UR | SPR_UW);
-        /* UPMC2 */
-        spr_set_rights(UPMC2,  SPR_UR | SPR_UW);
-        /* UPMC3 */
-        spr_set_rights(UPMC3,  SPR_UR | SPR_UW);
-        /* UPMC4 */
-        spr_set_rights(UPMC4,  SPR_UR | SPR_UW);
-        /* USIA */
-        spr_set_rights(USIA,   SPR_UR | SPR_UW);
-    }
-    /* MPC755 has special registers */
-    if (pvr == 0x00083100) {
-        /* SPRG4 */
-        spr_set_rights(SPRG4, SPR_SR | SPR_SW);
-        /* SPRG5 */
-        spr_set_rights(SPRG5, SPR_SR | SPR_SW);
-        /* SPRG6 */
-        spr_set_rights(SPRG6, SPR_SR | SPR_SW);
-        /* SPRG7 */
-        spr_set_rights(SPRG7, SPR_SR | SPR_SW);
-        /* IBAT4U */
-        spr_set_rights(IBAT4U, SPR_SR | SPR_SW);
-        /* IBAT4L */
-        spr_set_rights(IBAT4L, SPR_SR | SPR_SW);
-        /* IBAT5U */
-        spr_set_rights(IBAT5U, SPR_SR | SPR_SW);
-        /* IBAT5L */
-        spr_set_rights(IBAT5L, SPR_SR | SPR_SW);
-        /* IBAT6U */
-        spr_set_rights(IBAT6U, SPR_SR | SPR_SW);
-        /* IBAT6L */
-        spr_set_rights(IBAT6L, SPR_SR | SPR_SW);
-        /* IBAT7U */
-        spr_set_rights(IBAT7U, SPR_SR | SPR_SW);
-        /* IBAT7L */
-        spr_set_rights(IBAT7L, SPR_SR | SPR_SW);
-        /* DBAT4U */
-        spr_set_rights(DBAT4U, SPR_SR | SPR_SW);
-        /* DBAT4L */
-        spr_set_rights(DBAT4L, SPR_SR | SPR_SW);
-        /* DBAT5U */
-        spr_set_rights(DBAT5U, SPR_SR | SPR_SW);
-        /* DBAT5L */
-        spr_set_rights(DBAT5L, SPR_SR | SPR_SW);
-        /* DBAT6U */
-        spr_set_rights(DBAT6U, SPR_SR | SPR_SW);
-        /* DBAT6L */
-        spr_set_rights(DBAT6L, SPR_SR | SPR_SW);
-        /* DBAT7U */
-        spr_set_rights(DBAT7U, SPR_SR | SPR_SW);
-        /* DBAT7L */
-        spr_set_rights(DBAT7L, SPR_SR | SPR_SW);
-        /* DMISS */
-        spr_set_rights(DMISS,  SPR_SR | SPR_SW);
-        /* DCMP */
-        spr_set_rights(DCMP,   SPR_SR | SPR_SW);
-        /* DHASH1 */
-        spr_set_rights(DHASH1, SPR_SR | SPR_SW);
-        /* DHASH2 */
-        spr_set_rights(DHASH2, SPR_SR | SPR_SW);
-        /* IMISS */
-        spr_set_rights(IMISS,  SPR_SR | SPR_SW);
-        /* ICMP */
-        spr_set_rights(ICMP,   SPR_SR | SPR_SW);
-        /* RPA */
-        spr_set_rights(RPA,    SPR_SR | SPR_SW);
-        /* HID2 */
-        spr_set_rights(HID2,   SPR_SR | SPR_SW);
-        /* L2PM */
-        spr_set_rights(L2PM,   SPR_SR | SPR_SW);
-    }
-}
+#include "translate_init.c"
 
 /*****************************************************************************/
-/* PPC "main stream" common instructions (no optional ones) */
-
-typedef struct ppc_proc_t {
-    int flags;
-    void *specific;
-} ppc_proc_t;
-
-typedef struct ppc_def_t {
-    unsigned long pvr;
-    unsigned long pvr_mask;
-    ppc_proc_t *proc;
-} ppc_def_t;
-
-static ppc_proc_t ppc_proc_common = {
-    .flags    = PPC_COMMON,
-    .specific = NULL,
-};
-
-static ppc_proc_t ppc_proc_G3 = {
-    .flags    = PPC_750,
-    .specific = NULL,
-};
-
-static ppc_def_t ppc_defs[] =
-{
-    /* MPC740/745/750/755 (G3) */
-    {
-        .pvr      = 0x00080000,
-        .pvr_mask = 0xFFFF0000,
-        .proc     = &ppc_proc_G3,
-    },
-    /* IBM 750FX (G3 embedded) */
-    {
-        .pvr      = 0x70000000,
-        .pvr_mask = 0xFFFF0000,
-        .proc     = &ppc_proc_G3,
-    },
-    /* Fallback (generic PPC) */
-    {
-        .pvr      = 0x00000000,
-        .pvr_mask = 0x00000000,
-        .proc     = &ppc_proc_common,
-    },
-};
-
-static int create_ppc_proc (opc_handler_t **ppc_opcodes, unsigned long pvr)
-{
-    opcode_t *opc, *start, *end;
-    int i, flags;
-
-    fill_new_table(ppc_opcodes, 0x40);
-    for (i = 0; ; i++) {
-        if ((ppc_defs[i].pvr & ppc_defs[i].pvr_mask) ==
-            (pvr & ppc_defs[i].pvr_mask)) {
-            flags = ppc_defs[i].proc->flags;
-            break;
-        }
-    }
-    
-    if (&opc_start < &opc_end) {
-	start = &opc_start;
-	end = &opc_end;
-    } else {
-	start = &opc_end;
-	end = &opc_start;
-    }
-    for (opc = start + 1; opc != end; opc++) {
-        if ((opc->handler.type & flags) != 0)
-            if (register_insn(ppc_opcodes, opc) < 0) {
-                printf("*** ERROR initializing PPC instruction "
-                        "0x%02x 0x%02x 0x%02x\n", opc->opc1, opc->opc2,
-                        opc->opc3);
-                return -1;
-            }
-    }
-    fix_opcode_tables(ppc_opcodes);
-
-    return 0;
-}
-
-
-/*****************************************************************************/
-/* Misc PPC helpers */
-
+/* Misc PowerPC helpers */
 void cpu_dump_state(CPUState *env, FILE *f, 
                     int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
                     int flags)
 {
+#if defined(TARGET_PPC64) || 1
+#define FILL ""
+#define REGX "%016llx"
+#define RGPL  4
+#define RFPL  4
+#else
+#define FILL "        "
+#define REGX "%08llx"
+#define RGPL  8
+#define RFPL  4
+#endif
+
     int i;
 
-    cpu_fprintf(f, "nip=0x%08x LR=0x%08x CTR=0x%08x XER=0x%08x "
-            "MSR=0x%08x\n", env->nip, env->lr, env->ctr,
-            _load_xer(env), _load_msr(env));
+    cpu_fprintf(f, "NIP " REGX " LR " REGX " CTR " REGX "\n",
+                env->nip, env->lr, env->ctr);
+    cpu_fprintf(f, "MSR " REGX FILL " XER %08x      TB %08x %08x DECR %08x\n",
+                do_load_msr(env), do_load_xer(env), cpu_ppc_load_tbu(env),
+                cpu_ppc_load_tbl(env), cpu_ppc_load_decr(env));
         for (i = 0; i < 32; i++) {
-            if ((i & 7) == 0)
-            cpu_fprintf(f, "GPR%02d:", i);
-        cpu_fprintf(f, " %08x", env->gpr[i]);
-            if ((i & 7) == 7)
+        if ((i & (RGPL - 1)) == 0)
+            cpu_fprintf(f, "GPR%02d", i);
+        cpu_fprintf(f, " " REGX, env->gpr[i]);
+        if ((i & (RGPL - 1)) == (RGPL - 1))
             cpu_fprintf(f, "\n");
         }
-    cpu_fprintf(f, "CR: 0x");
+    cpu_fprintf(f, "CR ");
         for (i = 0; i < 8; i++)
         cpu_fprintf(f, "%01x", env->crf[i]);
     cpu_fprintf(f, "  [");
@@ -3141,65 +2421,22 @@ void cpu_dump_state(CPUState *env, FILE *f,
                 a = 'E';
         cpu_fprintf(f, " %c%c", a, env->crf[i] & 0x01 ? 'O' : ' ');
         }
-    cpu_fprintf(f, " ] ");
-    cpu_fprintf(f, "TB: 0x%08x %08x\n", cpu_ppc_load_tbu(env),
-            cpu_ppc_load_tbl(env));
-        for (i = 0; i < 16; i++) {
-            if ((i & 3) == 0)
-            cpu_fprintf(f, "FPR%02d:", i);
+    cpu_fprintf(f, " ]             " FILL "RES " REGX "\n", env->reserve);
+    for (i = 0; i < 32; i++) {
+        if ((i & (RFPL - 1)) == 0)
+            cpu_fprintf(f, "FPR%02d", i);
         cpu_fprintf(f, " %016llx", *((uint64_t *)&env->fpr[i]));
-            if ((i & 3) == 3)
+        if ((i & (RFPL - 1)) == (RFPL - 1))
             cpu_fprintf(f, "\n");
     }
-    cpu_fprintf(f, "SRR0 0x%08x SRR1 0x%08x DECR=0x%08x\n",
-            env->spr[SRR0], env->spr[SRR1], cpu_ppc_load_decr(env));
-    cpu_fprintf(f, "reservation 0x%08x\n", env->reserve);
-}
+    cpu_fprintf(f, "SRR0 " REGX " SRR1 " REGX "         " FILL FILL FILL
+                "SDR1 " REGX "\n",
+                env->spr[SPR_SRR0], env->spr[SPR_SRR1], env->sdr1);
 
-CPUPPCState *cpu_ppc_init(void)
-{
-    CPUPPCState *env;
-
-    cpu_exec_init();
-
-    env = qemu_mallocz(sizeof(CPUPPCState));
-    if (!env)
-        return NULL;
-//    env->spr[PVR] = 0; /* Basic PPC */
-    env->spr[PVR] = 0x00080100; /* G3 CPU */
-//    env->spr[PVR] = 0x00083100; /* MPC755 (G3 embedded) */
-//    env->spr[PVR] = 0x00070100; /* IBM 750FX */
-    tlb_flush(env, 1);
-#if defined (DO_SINGLE_STEP)
-    /* Single step trace mode */
-    msr_se = 1;
-#endif
-    msr_fp = 1; /* Allow floating point exceptions */
-    msr_me = 1; /* Allow machine check exceptions  */
-#if defined(CONFIG_USER_ONLY)
-    msr_pr = 1;
-    cpu_ppc_register(env, 0x00080000);
-#else
-    env->nip = 0xFFFFFFFC;
-#endif
-    cpu_single_env = env;
-    return env;
-}
-
-int cpu_ppc_register (CPUPPCState *env, uint32_t pvr)
-{
-    env->spr[PVR] = pvr;
-    if (create_ppc_proc(ppc_opcodes, env->spr[PVR]) < 0)
-        return -1;
-    init_spr_rights(env->spr[PVR]);
-
-    return 0;
-}
-
-void cpu_ppc_close(CPUPPCState *env)
-{
-    /* Should also remove all opcode tables... */
-    free(env);
+#undef REGX
+#undef RGPL
+#undef RFPL
+#undef FILL
 }
 
 /*****************************************************************************/
@@ -3219,6 +2456,7 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     ctx.nip = pc_start;
     ctx.tb = tb;
     ctx.exception = EXCP_NONE;
+    ctx.spr_cb = env->spr_cb;
 #if defined(CONFIG_USER_ONLY)
     ctx.mem_idx = msr_le;
 #else
@@ -3226,7 +2464,7 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     ctx.mem_idx = ((1 - msr_pr) << 1) | msr_le;
 #endif
     ctx.fpu_enabled = msr_fp;
-#if defined (DO_SINGLE_STEP)
+#if defined (DO_SINGLE_STEP) && 0
     /* Single step trace mode */
     msr_se = 1;
 #endif
@@ -3264,7 +2502,7 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
         }
 #endif
         ctx.nip += 4;
-        table = ppc_opcodes;
+        table = env->opcodes;
         handler = table[opc1(ctx.opcode)];
         if (is_indirect_opcode(handler)) {
             table = ind_table(handler);
@@ -3322,8 +2560,12 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
             RET_EXCP(ctxp, EXCP_TRACE, 0);
         }
         /* if we reach a page boundary, stop generation */
-        if ((ctx.nip & (TARGET_PAGE_SIZE - 1)) == 0) 
+        if ((ctx.nip & (TARGET_PAGE_SIZE - 1)) == 0) {
             break;
+    }
+#if defined (DO_SINGLE_STEP)
+        break;
+#endif
     }
     if (ctx.exception == EXCP_NONE) {
         gen_op_b((unsigned long)ctx.tb, ctx.nip);

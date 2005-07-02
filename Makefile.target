@@ -468,6 +468,7 @@ endif
 ifeq ($(TARGET_ARCH), ppc)
 op.o: op.c op_template.h op_mem.h
 op_helper.o: op_helper_mem.h
+translate.o: translate.c translate_init.c
 endif
 
 ifeq ($(TARGET_ARCH), mips)
