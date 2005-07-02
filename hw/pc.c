@@ -65,6 +65,33 @@ uint64_t cpu_get_tsc(CPUX86State *env)
     return qemu_get_clock(vm_clock);
 }
 
+/* IRQ handling */
+int cpu_get_pic_interrupt(CPUState *env)
+{
+    int intno;
+
+#ifdef TARGET_X86_64
+    intno = apic_get_interrupt(env);
+    if (intno >= 0) {
+        /* set irq request if a PIC irq is still pending */
+        /* XXX: improve that */
+        pic_update_irq(isa_pic); 
+        return intno;
+    }
+#endif
+    /* read the irq from the PIC */
+    intno = pic_read_irq(isa_pic);
+    return intno;
+}
+
+static void pic_irq_request(void *opaque, int level)
+{
+    if (level)
+        cpu_interrupt(cpu_single_env, CPU_INTERRUPT_HARD);
+    else
+        cpu_reset_interrupt(cpu_single_env, CPU_INTERRUPT_HARD);
+}
+
 /* PC cmos mappings */
 
 #define REG_EQUIPMENT_BYTE          0x14
@@ -532,7 +559,7 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
 
     if (pci_enabled)
         apic_init(cpu_single_env);
-    pic_init();
+    isa_pic = pic_init(pic_irq_request, cpu_single_env);
     pit = pit_init(0x40, 0);
 
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {

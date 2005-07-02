@@ -155,6 +155,7 @@ int win2k_install_hack = 0;
 /* x86 ISA bus support */
 
 target_phys_addr_t isa_mem_base = 0;
+PicState2 *isa_pic;
 
 uint32_t default_ioport_readb(void *opaque, uint32_t address)
 {

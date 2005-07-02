@@ -213,6 +213,11 @@ static int vga_osi_call(CPUState *env)
     return 1; /* osi_call handled */
 }
 
+/* XXX: suppress that */
+static void pic_irq_request(void *opaque, int level)
+{
+}
+
 /* PowerPC CHRP hardware initialisation */
 static void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
                           DisplayState *ds, const char **fd_filename, 
@@ -303,7 +308,7 @@ static void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
         pci_set_pic(pci_bus, set_irq, pic);
 
         /* XXX: suppress that */
-        pic_init();
+        pic_init(pic_irq_request, NULL);
         
         /* XXX: use Mac Serial port */
         serial_init(0x3f8, 4, serial_hds[0]);
@@ -345,7 +350,7 @@ static void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
         pci_set_pic(pci_bus, set_irq, pic);
 
         /* XXX: suppress that */
-        pic_init();
+        pic_init(pic_irq_request, NULL);
         
         /* XXX: use Mac Serial port */
         serial_init(0x3f8, 4, serial_hds[0]);

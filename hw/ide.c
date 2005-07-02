@@ -2008,7 +2008,7 @@ void isa_ide_init(int iobase, int iobase2, int irq,
     if (!ide_state)
         return;
     
-    ide_init2(ide_state, hd0, hd1, pic_set_irq_new, NULL, irq);
+    ide_init2(ide_state, hd0, hd1, pic_set_irq_new, isa_pic, irq);
     ide_init_ioport(ide_state, iobase, iobase2);
 }
 
@@ -2337,9 +2337,9 @@ void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table)
                            PCI_ADDRESS_SPACE_IO, bmdma_map);
 
     ide_init2(&d->ide_if[0], hd_table[0], hd_table[1],
-              pic_set_irq_new, NULL, 14);
+              pic_set_irq_new, isa_pic, 14);
     ide_init2(&d->ide_if[2], hd_table[2], hd_table[3],
-              pic_set_irq_new, NULL, 15);
+              pic_set_irq_new, isa_pic, 15);
     ide_init_ioport(&d->ide_if[0], 0x1f0, 0x3f6);
     ide_init_ioport(&d->ide_if[2], 0x170, 0x376);
 }

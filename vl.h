@@ -469,6 +469,7 @@ typedef struct QEMUMachine {
 int qemu_register_machine(QEMUMachine *m);
 
 typedef void SetIRQFunc(void *opaque, int irq_num, int level);
+typedef void IRQRequestFunc(void *opaque, int level);
 
 /* ISA bus */
 
@@ -687,10 +688,14 @@ ParallelState *parallel_init(int base, int irq, CharDriverState *chr);
 
 /* i8259.c */
 
+typedef struct PicState2 PicState2;
+extern PicState2 *isa_pic;
 void pic_set_irq(int irq, int level);
 void pic_set_irq_new(void *opaque, int irq, int level);
-void pic_init(void);
-uint32_t pic_intack_read(CPUState *env);
+PicState2 *pic_init(IRQRequestFunc *irq_request, void *irq_request_opaque);
+int pic_read_irq(PicState2 *s);
+void pic_update_irq(PicState2 *s);
+uint32_t pic_intack_read(PicState2 *s);
 void pic_info(void);
 void irq_info(void);
 

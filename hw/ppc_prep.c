@@ -96,6 +96,14 @@ static uint32_t speaker_ioport_read(void *opaque, uint32_t addr)
     return 0;
 }
 
+static void pic_irq_request(void *opaque, int level)
+{
+    if (level)
+        cpu_interrupt(cpu_single_env, CPU_INTERRUPT_HARD);
+    else
+        cpu_reset_interrupt(cpu_single_env, CPU_INTERRUPT_HARD);
+}
+
 /* PCI intack register */
 /* Read-only register (?) */
 static void _PPC_intack_write (void *opaque, target_phys_addr_t addr, uint32_t value)
@@ -108,7 +116,7 @@ static inline uint32_t _PPC_intack_read (target_phys_addr_t addr)
     uint32_t retval = 0;
 
     if (addr == 0xBFFFFFF0)
-        retval = pic_intack_read(NULL);
+        retval = pic_intack_read(isa_pic);
        //   printf("%s: 0x%08x <= %d\n", __func__, addr, retval);
 
     return retval;
@@ -505,8 +513,6 @@ CPUReadMemoryFunc *PPC_prep_io_read[] = {
     &PPC_prep_io_readl,
 };
 
-extern CPUPPCState *global_env;
-
 #define NVRAM_SIZE        0x2000
 
 /* PowerPC PREP hardware initialisation */
@@ -593,8 +599,7 @@ static void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
                    vga_ram_size);
     rtc_init(0x70, 8);
     //    openpic = openpic_init(0x00000000, 0xF0000000, 1);
-    //    pic_init(openpic);
-    pic_init();
+    isa_pic = pic_init(pic_irq_request, cpu_single_env);
     //    pit = pit_init(0x40, 0);
 
     serial_init(0x3f8, 4, serial_hds[0]);
