@@ -531,8 +531,10 @@ static void fill_tb (int idx)
 
 void do_tlbwi (void)
 {
-    invalidate_tb(env->CP0_index & 0xF);
-    fill_tb(env->CP0_index & 0xF);
+    /* Wildly undefined effects for CP0_index containing a too high value and
+       MIPS_TLB_NB not being a power of two.  But so does real silicon.  */
+    invalidate_tb(env->CP0_index & (MIPS_TLB_NB - 1));
+    fill_tb(env->CP0_index & (MIPS_TLB_NB - 1));
 }
 
 void do_tlbwr (void)
@@ -552,7 +554,7 @@ void do_tlbp (void)
 
     tag = (env->CP0_EntryHi & 0xFFFFE000);
     ASID = env->CP0_EntryHi & 0x000000FF;
-        for (i = 0; i < 16; i++) {
+        for (i = 0; i < MIPS_TLB_NB; i++) {
         tlb = &env->tlb[i];
         /* Check ASID, virtual page number & size */
         if ((tlb->G == 1 || tlb->ASID == ASID) && tlb->VPN == tag) {
@@ -561,7 +563,7 @@ void do_tlbp (void)
             break;
         }
     }
-    if (i == 16) {
+    if (i == MIPS_TLB_NB) {
         env->CP0_index |= 0x80000000;
     }
 }
@@ -571,7 +573,7 @@ void do_tlbr (void)
     tlb_t *tlb;
     int size;
 
-    tlb = &env->tlb[env->CP0_index & 0xF];
+    tlb = &env->tlb[env->CP0_index & (MIPS_TLB_NB - 1)];
     env->CP0_EntryHi = tlb->VPN | tlb->ASID;
     size = (tlb->end - tlb->VPN) >> 12;
     env->CP0_PageMask = (size - 1) << 13;

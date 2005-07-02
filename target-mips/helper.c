@@ -33,7 +33,7 @@ static int map_address (CPUState *env, target_ulong *physical, int *prot,
     ret = -2;
     tag = (address & 0xFFFFE000);
     ASID = env->CP0_EntryHi & 0x000000FF;
-    for (i = 0; i < 16; i++) {
+    for (i = 0; i < MIPS_TLB_NB; i++) {
         tlb = &env->tlb[i];
         /* Check ASID, virtual page number & size */
         if ((tlb->G == 1 || tlb->ASID == ASID) &&
