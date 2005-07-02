@@ -285,22 +285,19 @@ void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
         initrd_base = 0;
         initrd_size = 0;
     }
-    /* XXX: should not be ! */
-    printf("%s: init VGA\n", __func__);
-    vga_initialize(NULL, ds, phys_ram_base + ram_size, ram_size, 
-                   vga_ram_size);
-
 
     /* Init internal devices */
     cpu_mips_clock_init(cpu_single_env);
     cpu_mips_irqctrl_init();
 
-    isa_mem_base = 0x78000000;
-    /* Register 64 KB of ISA IO space at random address */
+    /* Register 64 KB of ISA IO space at 0x14000000 */
     io_memory = cpu_register_io_memory(0, io_read, io_write, NULL);
-    cpu_register_physical_memory(0x70000000, 0x00010000, io_memory);
+    cpu_register_physical_memory(0x14000000, 0x00010000, io_memory);
+    isa_mem_base = 0x10000000;
+
     serial_init(0x3f8, 4, serial_hds[0]);
-    printf("%s: done\n", __func__);
+    vga_initialize(NULL, ds, phys_ram_base + ram_size, ram_size, 
+                   vga_ram_size);
 }
 
 QEMUMachine mips_machine = {
