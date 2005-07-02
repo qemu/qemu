@@ -78,14 +78,14 @@ void cpu_mips_irqctrl_init (void)
 {
 }
 
-/* MIPS R4K timer */
 uint32_t cpu_mips_get_random (CPUState *env)
 {
-    uint64_t now = qemu_get_clock(vm_clock);
+    uint32_t now = qemu_get_clock(vm_clock);
 
-    return (uint32_t)now & 0x0000000F;
+    return now % (MIPS_TLB_NB - env->CP0_Wired) + env->CP0_Wired;
 }
 
+/* MIPS R4K timer */
 uint32_t cpu_mips_get_count (CPUState *env)
 {
     return env->CP0_Count +
