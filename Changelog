@@ -5,6 +5,8 @@ version 0.7.1:
     N. Oleynik)
   - VMDK disk image creation (Filip Navara)
   - SPARC64 progress (Blue Swirl)
+  - initial MIPS support (Jocelyn mayer)
+  - MIPS improvements (Ralf Baechle)
 
 version 0.7.0:
 
