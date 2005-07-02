@@ -261,9 +261,6 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
             break;
                 
         }
-        if (ret == -2) {
-            exception = EXCP_AdEL;
-        }
         /* Raise exception */
         env->CP0_BadVAddr = address;
         env->CP0_Context =
