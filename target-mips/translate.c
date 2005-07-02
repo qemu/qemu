@@ -798,7 +798,7 @@ static void gen_compute_branch (DisasContext *ctx, uint16_t opc,
     case OPC_J:
     case OPC_JAL:
         /* Jump to immediate */
-        btarget = ((ctx->pc + 4) & 0xFF000000) | offset;
+        btarget = ((ctx->pc + 4) & 0xF0000000) | offset;
         break;
     case OPC_JR:
     case OPC_JALR:
