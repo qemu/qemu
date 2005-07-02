@@ -21,6 +21,30 @@
 #include "config.h"
 #include "exec.h"
 
+#ifndef CALL_FROM_TB0
+#define CALL_FROM_TB0(func) func();
+#endif
+#ifndef CALL_FROM_TB1
+#define CALL_FROM_TB1(func, arg0) func(arg0);
+#endif
+#ifndef CALL_FROM_TB1_CONST16
+#define CALL_FROM_TB1_CONST16(func, arg0) CALL_FROM_TB1(func, arg0);
+#endif
+#ifndef CALL_FROM_TB2
+#define CALL_FROM_TB2(func, arg0, arg1) func(arg0, arg1);
+#endif
+#ifndef CALL_FROM_TB2_CONST16
+#define CALL_FROM_TB2_CONST16(func, arg0, arg1)     \
+CALL_FROM_TB2(func, arg0, arg1);
+#endif
+#ifndef CALL_FROM_TB3
+#define CALL_FROM_TB3(func, arg0, arg1, arg2) func(arg0, arg1, arg2);
+#endif
+#ifndef CALL_FROM_TB4
+#define CALL_FROM_TB4(func, arg0, arg1, arg2, arg3) \
+        func(arg0, arg1, arg2, arg3);
+#endif
+
 #define REG 1
 #include "op_template.c"
 #undef REG
