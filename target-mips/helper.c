@@ -263,10 +263,10 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
         }
         /* Raise exception */
         env->CP0_BadVAddr = address;
-        env->CP0_Context =
-            (env->CP0_Context & 0x00000FFF) | (address & 0xFFFFF000);
+        env->CP0_Context = (env->CP0_Context & 0xff800000) |
+	                   ((address >> 8) &   0x007ffff0);
         env->CP0_EntryHi =
-            (env->CP0_EntryHi & 0x00000FFF) | (address & 0xFFFFF000);
+            (env->CP0_EntryHi & 0x000000FF) | (address & 0xFFFFF000);
         env->exception_index = exception;
         env->error_code = error_code;
         ret = 1;
