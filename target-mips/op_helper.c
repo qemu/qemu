@@ -174,11 +174,11 @@ void do_mfc0 (int reg, int sel)
     case 12:
         T0 = env->CP0_Status;
         if (env->hflags & MIPS_HFLAG_UM)
-            T0 |= CP0St_UM;
+            T0 |= (1 << CP0St_UM);
         if (env->hflags & MIPS_HFLAG_ERL)
-            T0 |= CP0St_ERL;
+            T0 |= (1 << CP0St_ERL);
         if (env->hflags & MIPS_HFLAG_EXL)
-            T0 |= CP0St_EXL;
+            T0 |= (1 << CP0St_EXL);
         rn = "Status";
         break;
     case 13:
