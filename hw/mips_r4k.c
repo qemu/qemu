@@ -298,6 +298,8 @@ void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
     serial_init(0x3f8, 4, serial_hds[0]);
     vga_initialize(NULL, ds, phys_ram_base + ram_size, ram_size, 
                    vga_ram_size);
+
+    isa_ne2000_init(0x300, 9, &nd_table[0]);
 }
 
 QEMUMachine mips_machine = {
