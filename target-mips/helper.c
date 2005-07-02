@@ -17,11 +17,10 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
 #include "exec.h"
 
 /* MIPS32 4K MMU emulation */
-#if MIPS_USES_4K_TLB
+#ifdef MIPS_USES_R4K_TLB
 static int map_address (CPUState *env, target_ulong *physical, int *prot,
                         target_ulong address, int rw, int access_type)
 {
@@ -44,9 +43,9 @@ static int map_address (CPUState *env, target_ulong *physical, int *prot,
             /* Check access rights */
             if ((tlb->V[n] & 2) && (rw == 0 || (tlb->D[n] & 4))) {
                 *physical = tlb->PFN[n] | (address & 0xFFF);
-                *prot = PROT_READ;
+                *prot = PAGE_READ;
                 if (tlb->D[n])
-                    *prot |= PROT_WRITE;
+                    *prot |= PAGE_WRITE;
                 return 0;
             } else if (!(tlb->V[n] & 2)) {
                 return -3;
@@ -78,9 +77,9 @@ int get_physical_address (CPUState *env, target_ulong *physical, int *prot,
         return -1;
     ret = 0;
     if (address < 0x80000000UL) {
-        if (user_mode || !(env->hflags & MIPS_HFLAG_ERL)) {
-#if MIPS_USES_4K_TLB
-            ret = map_address(env, physical, prot, address, rw);
+        if (!(env->hflags & MIPS_HFLAG_ERL)) {
+#ifdef MIPS_USES_R4K_TLB
+            ret = map_address(env, physical, prot, address, rw, access_type);
 #else
             *physical = address + 0x40000000UL;
             *prot = PAGE_READ | PAGE_WRITE;
@@ -101,8 +100,8 @@ int get_physical_address (CPUState *env, target_ulong *physical, int *prot,
         *prot = PAGE_READ | PAGE_WRITE;
     } else if (address < 0xE0000000UL) {
         /* kseg2 */
-#if MIPS_USES_4K_TLB
-        ret = map_address(env, physical, prot, address, rw);
+#ifdef MIPS_USES_R4K_TLB
+        ret = map_address(env, physical, prot, address, rw, access_type);
 #else
         *physical = address;
         *prot = PAGE_READ | PAGE_WRITE;
@@ -111,8 +110,8 @@ int get_physical_address (CPUState *env, target_ulong *physical, int *prot,
         /* kseg3 */
         /* XXX: check supervisor mode */
         /* XXX: debug segment is not emulated */
-#if MIPS_USES_4K_TLB
-        ret = map_address(env, physical, prot, address, rw);
+#ifdef MIPS_USES_R4K_TLB
+        ret = map_address(env, physical, prot, address, rw, access_type);
 #else
         *physical = address;
         *prot = PAGE_READ | PAGE_WRITE;
@@ -332,7 +331,7 @@ void do_interrupt (CPUState *env)
         pc = 0xBFC00480;
         break;
     case EXCP_RESET:
-#if defined (MIPS_USES_R4K_TLB)
+#ifdef MIPS_USES_R4K_TLB
         env->CP0_random = MIPS_TLB_NB - 1;
 #endif
         env->CP0_Wired = 0;
