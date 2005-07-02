@@ -257,8 +257,9 @@ void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
     if (linux_boot) {
         kernel_base = KERNEL_LOAD_ADDR;
         /* now we can load the kernel */
-        kernel_size = load_image(kernel_filename, phys_ram_base + kernel_base);
-        if (kernel_size < 0) {
+        kernel_size = load_image(kernel_filename,
+                                phys_ram_base + (kernel_base - 0x80000000));
+        if (kernel_size == (target_ulong) -1) {
             fprintf(stderr, "qemu: could not load kernel '%s'\n", 
                     kernel_filename);
             exit(1);
@@ -268,7 +269,7 @@ void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
             initrd_base = INITRD_LOAD_ADDR;
             initrd_size = load_image(initrd_filename,
                                      phys_ram_base + initrd_base);
-            if (initrd_size < 0) {
+            if (initrd_size == (target_ulong) -1) {
                 fprintf(stderr, "qemu: could not load initial ram disk '%s'\n", 
                         initrd_filename);
                 exit(1);
