@@ -315,6 +315,109 @@ static int vmdk_write(BlockDriverState *bs, int64_t sector_num,
     return 0;
 }
 
+static int vmdk_create(const char *filename, int64_t total_size,
+                       const char *backing_file, int flags)
+{
+    int fd, i;
+    VMDK4Header header;
+    uint32_t tmp, magic, grains, gd_size, gt_size, gt_count;
+    char *desc_template =
+        "# Disk DescriptorFile\n"
+        "version=1\n"
+        "CID=%x\n"
+        "parentCID=ffffffff\n"
+        "createType=\"monolithicSparse\"\n"
+        "\n"
+        "# Extent description\n"
+        "RW %lu SPARSE \"%s\"\n"
+        "\n"
+        "# The Disk Data Base \n"
+        "#DDB\n"
+        "\n"
+        "ddb.virtualHWVersion = \"3\"\n"
+        "ddb.geometry.cylinders = \"%lu\"\n"
+        "ddb.geometry.heads = \"16\"\n"
+        "ddb.geometry.sectors = \"63\"\n"
+        "ddb.adapterType = \"ide\"\n";
+    char desc[1024];
+    const char *real_filename, *temp_str;
+
+    /* XXX: add support for backing file */
+
+    fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY | O_LARGEFILE,
+              0644);
+    if (fd < 0)
+        return -1;
+    magic = cpu_to_be32(VMDK4_MAGIC);
+    memset(&header, 0, sizeof(header));
+    header.version = cpu_to_le32(1);
+    header.flags = cpu_to_le32(3); /* ?? */
+    header.capacity = cpu_to_le64(total_size);
+    header.granularity = cpu_to_le64(128);
+    header.num_gtes_per_gte = cpu_to_le32(512);
+
+    grains = (total_size + header.granularity - 1) / header.granularity;
+    gt_size = ((header.num_gtes_per_gte * sizeof(uint32_t)) + 511) >> 9;
+    gt_count = (grains + header.num_gtes_per_gte - 1) / header.num_gtes_per_gte;
+    gd_size = (gt_count * sizeof(uint32_t) + 511) >> 9;
+
+    header.desc_offset = 1;
+    header.desc_size = 20;
+    header.rgd_offset = header.desc_offset + header.desc_size;
+    header.gd_offset = header.rgd_offset + gd_size + (gt_size * gt_count);
+    header.grain_offset =
+       ((header.gd_offset + gd_size + (gt_size * gt_count) +
+         header.granularity - 1) / header.granularity) *
+        header.granularity;
+
+    header.desc_offset = cpu_to_le64(header.desc_offset);
+    header.desc_size = cpu_to_le64(header.desc_size);
+    header.rgd_offset = cpu_to_le64(header.rgd_offset);
+    header.gd_offset = cpu_to_le64(header.gd_offset);
+    header.grain_offset = cpu_to_le64(header.grain_offset);
+
+    header.check_bytes[0] = 0xa;
+    header.check_bytes[1] = 0x20;
+    header.check_bytes[2] = 0xd;
+    header.check_bytes[3] = 0xa;
+    
+    /* write all the data */    
+    write(fd, &magic, sizeof(magic));
+    write(fd, &header, sizeof(header));
+
+    ftruncate(fd, header.grain_offset << 9);
+
+    /* write grain directory */
+    lseek(fd, le64_to_cpu(header.rgd_offset) << 9, SEEK_SET);
+    for (i = 0, tmp = header.rgd_offset + gd_size;
+         i < gt_count; i++, tmp += gt_size)
+        write(fd, &tmp, sizeof(tmp));
+   
+    /* write backup grain directory */
+    lseek(fd, le64_to_cpu(header.gd_offset) << 9, SEEK_SET);
+    for (i = 0, tmp = header.gd_offset + gd_size;
+         i < gt_count; i++, tmp += gt_size)
+        write(fd, &tmp, sizeof(tmp));
+
+    /* compose the descriptor */
+    real_filename = filename;
+    if ((temp_str = strrchr(real_filename, '\\')) != NULL)
+        real_filename = temp_str + 1;
+    if ((temp_str = strrchr(real_filename, '/')) != NULL)
+        real_filename = temp_str + 1;
+    if ((temp_str = strrchr(real_filename, ':')) != NULL)
+        real_filename = temp_str + 1;
+    sprintf(desc, desc_template, time(NULL), (unsigned long)total_size,
+            real_filename, total_size / (63 * 16));
+
+    /* write the descriptor */
+    lseek(fd, le64_to_cpu(header.desc_offset) << 9, SEEK_SET);
+    write(fd, desc, strlen(desc));
+
+    close(fd);
+    return 0;
+}
+
 static void vmdk_close(BlockDriverState *bs)
 {
     BDRVVmdkState *s = bs->opaque;
@@ -331,6 +434,6 @@ BlockDriver bdrv_vmdk = {
     vmdk_read,
     vmdk_write,
     vmdk_close,
-    NULL, /* no create yet */
+    vmdk_create,
     vmdk_is_allocated,
 };
