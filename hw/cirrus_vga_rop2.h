@@ -61,8 +61,8 @@ glue(glue(glue(cirrus_patternfill_, ROP_NAME), _),DEPTH)
     pattern_pitch = 32;
 #endif
     pattern_y = s->cirrus_blt_srcaddr & 7;
-    pattern_x = skipleft;
     for(y = 0; y < bltheight; y++) {
+        pattern_x = skipleft;
         d = dst + skipleft;
         src1 = src + pattern_y * pattern_pitch;
         for (x = skipleft; x < bltwidth; x += (DEPTH / 8)) {
