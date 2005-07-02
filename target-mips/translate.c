@@ -1454,6 +1454,7 @@ void cpu_dump_state (CPUState *env, FILE *f,
                      int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
                      int flags)
 {
+    uint32_t c0_status;
     int i;
     
     cpu_fprintf(f, "pc=0x%08x HI=0x%08x LO=0x%08x ds %04x %08x %d\n",
@@ -1465,8 +1466,17 @@ void cpu_dump_state (CPUState *env, FILE *f,
         if ((i & 3) == 3)
             cpu_fprintf(f, "\n");
     }
+
+    c0_status = env->CP0_Status;
+    if (env->hflags & MIPS_HFLAG_UM)
+        c0_status |= (1 << CP0St_UM);
+    if (env->hflags & MIPS_HFLAG_ERL)
+        c0_status |= (1 << CP0St_ERL);
+    if (env->hflags & MIPS_HFLAG_EXL)
+        c0_status |= (1 << CP0St_EXL);
+
     cpu_fprintf(f, "CP0 Status  0x%08x Cause   0x%08x EPC    0x%08x\n",
-                env->CP0_Status, env->CP0_Cause, env->CP0_EPC);
+                c0_status, env->CP0_Cause, env->CP0_EPC);
     cpu_fprintf(f, "    Config0 0x%08x Config1 0x%08x LLAddr 0x%08x\n",
                 env->CP0_Config0, env->CP0_Config1, env->CP0_LLAddr);
 }
