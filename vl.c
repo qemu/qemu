@@ -2375,12 +2375,14 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_betls(f, &env->y);
     tmp = GET_PSR(env);
     qemu_put_be32(f, tmp);
-    qemu_put_be32s(f, &env->fsr);
+    qemu_put_betls(f, &env->fsr);
+    qemu_put_betls(f, &env->tbr);
+#ifndef TARGET_SPARC64
     qemu_put_be32s(f, &env->wim);
-    qemu_put_be32s(f, &env->tbr);
     /* MMU */
     for(i = 0; i < 16; i++)
         qemu_put_be32s(f, &env->mmuregs[i]);
+#endif
 }
 
 int cpu_load(QEMUFile *f, void *opaque, int version_id)
@@ -2411,13 +2413,14 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     env->cwp = 0; /* needed to ensure that the wrapping registers are
                      correctly updated */
     PUT_PSR(env, tmp);
-    qemu_get_be32s(f, &env->fsr);
+    qemu_get_betls(f, &env->fsr);
+    qemu_get_betls(f, &env->tbr);
+#ifndef TARGET_SPARC64
     qemu_get_be32s(f, &env->wim);
-    qemu_get_be32s(f, &env->tbr);
     /* MMU */
     for(i = 0; i < 16; i++)
         qemu_get_be32s(f, &env->mmuregs[i]);
-
+#endif
     tlb_flush(env, 1);
     return 0;
 }
@@ -2577,6 +2580,7 @@ typedef struct QEMUResetEntry {
 static QEMUResetEntry *first_reset_entry;
 static int reset_requested;
 static int shutdown_requested;
+static int powerdown_requested;
 
 void qemu_register_reset(QEMUResetHandler *func, void *opaque)
 {
@@ -2611,6 +2615,12 @@ void qemu_system_reset_request(void)
 void qemu_system_shutdown_request(void)
 {
     shutdown_requested = 1;
+    cpu_interrupt(cpu_single_env, CPU_INTERRUPT_EXIT);
+}
+
+void qemu_system_powerdown_request(void)
+{
+    powerdown_requested = 1;
     cpu_interrupt(cpu_single_env, CPU_INTERRUPT_EXIT);
 }
 
@@ -2728,20 +2738,25 @@ int main_loop(void)
         if (vm_running) {
             ret = cpu_exec(env);
             if (shutdown_requested) {
-                ret = EXCP_INTERRUPT; 
+                ret = EXCP_INTERRUPT;
                 break;
             }
             if (reset_requested) {
                 reset_requested = 0;
                 qemu_system_reset();
-                ret = EXCP_INTERRUPT; 
+                ret = EXCP_INTERRUPT;
+            }
+            if (powerdown_requested) {
+                powerdown_requested = 0;
+		qemu_system_powerdown();
+                ret = EXCP_INTERRUPT;
             }
             if (ret == EXCP_DEBUG) {
                 vm_stop(EXCP_DEBUG);
             }
             /* if hlt instruction, we wait until the next IRQ */
             /* XXX: use timeout computed from timers */
-            if (ret == EXCP_HLT) 
+            if (ret == EXCP_HLT)
                 timeout = 10;
             else
                 timeout = 0;
@@ -3044,7 +3059,11 @@ void register_machines(void)
     qemu_register_machine(&core99_machine);
     qemu_register_machine(&prep_machine);
 #elif defined(TARGET_SPARC)
+#ifdef TARGET_SPARC64
+    qemu_register_machine(&sun4u_machine);
+#else
     qemu_register_machine(&sun4m_machine);
+#endif
 #endif
 }
 

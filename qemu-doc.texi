@@ -42,10 +42,11 @@ For system emulation, the following hardware targets are supported:
 @item PC (x86 processor)
 @item PREP (PowerPC processor)
 @item PowerMac (PowerPC processor, in progress)
-@item Sun4m (Sparc processor, in progress)
+@item Sun4m (32-bit Sparc processor)
+@item Sun4u (64-bit Sparc processor, in progress)
 @end itemize
 
-For user emulation, x86, PowerPC, ARM, and SPARC CPUs are supported.
+For user emulation, x86, PowerPC, ARM, and Sparc32/64 CPUs are supported.
 
 @chapter Installation
 
@@ -999,15 +1000,15 @@ Set the initial VGA graphic mode. The default is 800x600x15.
 More information is available at
 @url{http://jocelyn.mayer.free.fr/qemu-ppc/}.
 
-@chapter Sparc System emulator invocation
+@chapter Sparc32 System emulator invocation
 
 Use the executable @file{qemu-system-sparc} to simulate a JavaStation
-(sun4m architecture). The emulation is far from complete.
+(sun4m architecture). The emulation is somewhat complete.
 
 QEMU emulates the following sun4m peripherals:
 
 @itemize @minus
-@item 
+@item
 IOMMU
 @item
 TCX Frame buffer
@@ -1016,14 +1017,42 @@ Lance (Am7990) Ethernet
 @item
 Non Volatile RAM M48T08
 @item
-Slave I/O: timers, interrupt controllers, Zilog serial ports
+Slave I/O: timers, interrupt controllers, Zilog serial ports, keyboard
+and power/reset logic
+@item
+ESP SCSI controller with hard disk and CD-ROM support
+@item
+Floppy drive
 @end itemize
 
-QEMU uses the Proll, a PROM replacement available at
-@url{http://people.redhat.com/zaitcev/linux/}.
+The number of peripherals is fixed in the architecture.
 
-A sample Linux kernel and ram disk image are available on the QEMU web
-site.
+QEMU uses the Proll, a PROM replacement available at
+@url{http://people.redhat.com/zaitcev/linux/}. The required
+QEMU-specific patches are included with the sources.
+
+A sample Linux 2.6 series kernel and ram disk image are available on
+the QEMU web site. Please note that currently neither Linux 2.4
+series, NetBSD, nor OpenBSD kernels work.
+
+@c man begin OPTIONS
+
+The following options are specific to the Sparc emulation:
+
+@table @option
+
+@item -g WxH
+
+Set the initial TCX graphic mode. The default is 1024x768.
+
+@end table
+
+@c man end 
+
+@chapter Sparc64 System emulator invocation
+
+Use the executable @file{qemu-system-sparc64} to simulate a Sun4u machine.
+The emulator is not usable for anything yet.
 
 @chapter QEMU User space emulator invocation
 

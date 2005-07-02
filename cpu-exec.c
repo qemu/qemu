@@ -47,6 +47,9 @@ void cpu_loop_exit(void)
     longjmp(env->jmp_env, 1);
 }
 #endif
+#ifndef TARGET_SPARC
+#define reg_T2
+#endif
 
 /* exit the current TB from a signal handler. The host registers are
    restored in a state compatible with the CPU emulator
@@ -74,8 +77,12 @@ void cpu_resume_from_signal(CPUState *env1, void *puc)
 
 int cpu_exec(CPUState *env1)
 {
-    int saved_T0, saved_T1, saved_T2;
+    int saved_T0, saved_T1;
+#if defined(reg_T2)
+    int saved_T2;
+#endif
     CPUState *saved_env;
+#if defined(TARGET_I386)
 #ifdef reg_EAX
     int saved_EAX;
 #endif
@@ -100,6 +107,11 @@ int cpu_exec(CPUState *env1)
 #ifdef reg_EDI
     int saved_EDI;
 #endif
+#elif defined(TARGET_SPARC)
+#if defined(reg_REGWPTR)
+    uint32_t *saved_regwptr;
+#endif
+#endif
 #ifdef __sparc__
     int saved_i7, tmp_T0;
 #endif
@@ -115,7 +127,9 @@ int cpu_exec(CPUState *env1)
     env = env1;
     saved_T0 = T0;
     saved_T1 = T1;
+#if defined(reg_T2)
     saved_T2 = T2;
+#endif
 #ifdef __sparc__
     /* we also save i7 because longjmp may not restore it */
     asm volatile ("mov %%i7, %0" : "=r" (saved_i7));
@@ -164,6 +178,9 @@ int cpu_exec(CPUState *env1)
         env->cpsr = psr & ~CACHED_CPSR_BITS;
     }
 #elif defined(TARGET_SPARC)
+#if defined(reg_REGWPTR)
+    saved_regwptr = REGWPTR;
+#endif
 #elif defined(TARGET_PPC)
 #else
 #error unsupported target CPU
@@ -354,7 +371,9 @@ int cpu_exec(CPUState *env1)
                     cpu_dump_state(env, logfile, fprintf, 0);
                     env->cpsr &= ~CACHED_CPSR_BITS;
 #elif defined(TARGET_SPARC)
-                    cpu_dump_state (env, logfile, fprintf, 0);
+		    REGWPTR = env->regbase + (env->cwp * 16);
+		    env->regwptr = REGWPTR;
+                    cpu_dump_state(env, logfile, fprintf, 0);
 #elif defined(TARGET_PPC)
                     cpu_dump_state(env, logfile, fprintf, 0);
 #else
@@ -376,7 +395,11 @@ int cpu_exec(CPUState *env1)
                 cs_base = 0;
                 pc = env->regs[15];
 #elif defined(TARGET_SPARC)
-                flags = 0;
+#ifdef TARGET_SPARC64
+                flags = (env->pstate << 2) | ((env->lsu & (DMMU_E | IMMU_E)) >> 2);
+#else
+                flags = env->psrs | ((env->mmuregs[0] & (MMU_E | MMU_NF)) << 1);
+#endif
                 cs_base = env->npc;
                 pc = env->pc;
 #elif defined(TARGET_PPC)
@@ -657,6 +680,9 @@ int cpu_exec(CPUState *env1)
     env->cpsr = compute_cpsr();
     /* XXX: Save/restore host fpu exception state?.  */
 #elif defined(TARGET_SPARC)
+#if defined(reg_REGWPTR)
+    REGWPTR = saved_regwptr;
+#endif
 #elif defined(TARGET_PPC)
 #else
 #error unsupported target CPU
@@ -666,7 +692,9 @@ int cpu_exec(CPUState *env1)
 #endif
     T0 = saved_T0;
     T1 = saved_T1;
+#if defined(reg_T2)
     T2 = saved_T2;
+#endif
     env = saved_env;
     return ret;
 }

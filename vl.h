@@ -110,6 +110,13 @@ typedef void QEMUResetHandler(void *opaque);
 void qemu_register_reset(QEMUResetHandler *func, void *opaque);
 void qemu_system_reset_request(void);
 void qemu_system_shutdown_request(void);
+void qemu_system_powerdown_request(void);
+#if !defined(TARGET_SPARC)
+// Please implement a power failure function to signal the OS
+#define qemu_system_powerdown() do{}while(0)
+#else
+void qemu_system_powerdown(void);
+#endif
 
 void main_loop_wait(int timeout);
 
@@ -753,8 +760,15 @@ void slavio_timer_init(uint32_t addr1, int irq1, uint32_t addr2, int irq2);
 SerialState *slavio_serial_init(int base, int irq, CharDriverState *chr1, CharDriverState *chr2);
 void slavio_serial_ms_kbd_init(int base, int irq);
 
+/* slavio_misc.c */
+void *slavio_misc_init(uint32_t base, int irq);
+void slavio_set_power_fail(void *opaque, int power_failing);
+
 /* esp.c */
 void esp_init(BlockDriverState **bd, int irq, uint32_t espaddr, uint32_t espdaddr);
+
+/* sun4u.c */
+extern QEMUMachine sun4u_machine;
 
 /* NVRAM helpers */
 #include "hw/m48t59.h"

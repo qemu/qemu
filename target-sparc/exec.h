@@ -1,23 +1,41 @@
 #ifndef EXEC_SPARC_H
 #define EXEC_SPARC_H 1
 #include "dyngen-exec.h"
+#include "config.h"
 
 register struct CPUSPARCState *env asm(AREG0);
 #ifdef TARGET_SPARC64
 #define T0 (env->t0)
 #define T1 (env->t1)
 #define T2 (env->t2)
+#define REGWPTR env->regwptr
 #else
 register uint32_t T0 asm(AREG1);
 register uint32_t T1 asm(AREG2);
-register uint32_t T2 asm(AREG3);
+
+#undef REG_REGWPTR // Broken
+#ifdef REG_REGWPTR
+register uint32_t *REGWPTR asm(AREG3);
+#define reg_REGWPTR
+
+#ifdef AREG4
+register uint32_t T2 asm(AREG4);
+#define reg_T2
+#else
+#define T2 (env->t2)
 #endif
+
+#else
+#define REGWPTR env->regwptr
+register uint32_t T2 asm(AREG3);
+#define reg_T2
+#endif
+#endif
+
 #define FT0 (env->ft0)
 #define FT1 (env->ft1)
-#define FT2 (env->ft2)
 #define DT0 (env->dt0)
 #define DT1 (env->dt1)
-#define DT2 (env->dt2)
 
 #include "cpu.h"
 #include "exec-all.h"
@@ -38,6 +56,16 @@ void do_fsqrts(void);
 void do_fsqrtd(void);
 void do_fcmps(void);
 void do_fcmpd(void);
+#ifdef TARGET_SPARC64
+void do_fabsd(void);
+void do_fcmps_fcc1(void);
+void do_fcmpd_fcc1(void);
+void do_fcmps_fcc2(void);
+void do_fcmpd_fcc2(void);
+void do_fcmps_fcc3(void);
+void do_fcmpd_fcc3(void);
+void do_popc();
+#endif
 void do_ldd_kernel(target_ulong addr);
 void do_ldd_user(target_ulong addr);
 void do_ldd_raw(target_ulong addr);

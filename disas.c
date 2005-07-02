@@ -155,6 +155,9 @@ void target_disas(FILE *out, target_ulong code, target_ulong size, int flags)
 	print_insn = print_insn_arm;
 #elif defined(TARGET_SPARC)
     print_insn = print_insn_sparc;
+#ifdef TARGET_SPARC64
+    disasm_info.mach = bfd_mach_sparc_v9b;
+#endif    
 #elif defined(TARGET_PPC)
     if (cpu_single_env->msr[MSR_LE])
         disasm_info.endian = BFD_ENDIAN_LITTLE;

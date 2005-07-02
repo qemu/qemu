@@ -349,7 +349,11 @@ VL_OBJS+= mc146818rtc.o serial.o i8259.o i8254.o fdc.o m48t59.o
 VL_OBJS+= ppc_prep.o ppc_chrp.o cuda.o adb.o openpic.o heathrow_pic.o mixeng.o
 endif
 ifeq ($(TARGET_BASE_ARCH), sparc)
-VL_OBJS+= sun4m.o tcx.o lance.o iommu.o m48t08.o magic-load.o slavio_intctl.o slavio_timer.o slavio_serial.o fdc.o esp.o
+ifeq ($(TARGET_ARCH), sparc64)
+VL_OBJS+= sun4u.o m48t08.o magic-load.o slavio_serial.o
+else
+VL_OBJS+= sun4m.o tcx.o lance.o iommu.o m48t08.o magic-load.o slavio_intctl.o slavio_timer.o slavio_serial.o slavio_misc.o fdc.o esp.o
+endif
 endif
 ifdef CONFIG_GDBSTUB
 VL_OBJS+=gdbstub.o 
@@ -442,7 +446,8 @@ op.o: op.c op_template.h
 endif
 
 ifeq ($(TARGET_BASE_ARCH), sparc)
-op.o: op.c op_template.h op_mem.h
+op.o: op.c op_template.h op_mem.h fop_template.h fbranch_template.h
+magic_load.o: elf_op.h
 endif
 
 ifeq ($(TARGET_ARCH), ppc)

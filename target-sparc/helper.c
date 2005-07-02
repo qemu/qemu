@@ -43,7 +43,6 @@ void cpu_unlock(void)
 int cpu_sparc_handle_mmu_fault(CPUState *env, target_ulong address, int rw,
                                int is_user, int is_softmmu)
 {
-    env->mmuregs[4] = address;
     if (rw & 2)
         env->exception_index = TT_TFAULT;
     else
@@ -102,6 +101,7 @@ void tlb_fill(target_ulong addr, int is_write, int is_user, void *retaddr)
     env = saved_env;
 }
 
+#ifndef TARGET_SPARC64
 static const int access_table[8][8] = {
     { 0, 0, 0, 0, 2, 0, 3, 3 },
     { 0, 0, 0, 0, 2, 0, 0, 0 },
@@ -268,6 +268,136 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
         return 1;
     }
 }
+#else
+static int get_physical_address_data(CPUState *env, target_phys_addr_t *physical, int *prot,
+			  int *access_index, target_ulong address, int rw,
+			  int is_user)
+{
+    target_ulong mask;
+    unsigned int i;
+
+    if ((env->lsu & DMMU_E) == 0) { /* DMMU disabled */
+	*physical = address & 0xffffffff;
+	*prot = PAGE_READ | PAGE_WRITE;
+        return 0;
+    }
+
+    for (i = 0; i < 64; i++) {
+	if ((env->dtlb_tte[i] & 0x8000000000000000ULL) != 0) {
+	    switch (env->dtlb_tte[i] >> 60) {
+	    default:
+	    case 0x4: // 8k
+		mask = 0xffffffffffffe000ULL;
+		break;
+	    case 0x5: // 64k
+		mask = 0xffffffffffff0000ULL;
+		break;
+	    case 0x6: // 512k
+		mask = 0xfffffffffff80000ULL;
+		break;
+	    case 0x7: // 4M
+		mask = 0xffffffffffc00000ULL;
+		break;
+	    }
+	    // ctx match, vaddr match?
+	    if (env->dmmuregs[1] == (env->dtlb_tag[i] & 0x1fff) &&
+		(address & mask) == (env->dtlb_tag[i] & ~0x1fffULL)) {
+		// access ok?
+		if (((env->dtlb_tte[i] & 0x4) && !(env->pstate & PS_PRIV)) ||
+		    (!(env->dtlb_tte[i] & 0x2) && (rw == 1))) {
+		    env->exception_index = TT_DFAULT;
+		    return 1;
+		}
+		*physical = env->dtlb_tte[i] & 0xffffe000;
+		*prot = PAGE_READ;
+		if (env->dtlb_tte[i] & 0x2)
+		    *prot |= PAGE_WRITE;
+		return 0;
+	    }
+	}
+    }
+    env->exception_index = TT_DFAULT;
+    return 1;
+}
+
+static int get_physical_address_code(CPUState *env, target_phys_addr_t *physical, int *prot,
+			  int *access_index, target_ulong address, int rw,
+			  int is_user)
+{
+    target_ulong mask;
+    unsigned int i;
+
+    if ((env->lsu & IMMU_E) == 0) { /* IMMU disabled */
+	*physical = address & 0xffffffff;
+	*prot = PAGE_READ;
+        return 0;
+    }
+    for (i = 0; i < 64; i++) {
+	if ((env->itlb_tte[i] & 0x8000000000000000ULL) != 0) {
+	    switch (env->itlb_tte[i] >> 60) {
+	    default:
+	    case 0x4: // 8k
+		mask = 0xffffffffffffe000ULL;
+		break;
+	    case 0x5: // 64k
+		mask = 0xffffffffffff0000ULL;
+		break;
+	    case 0x6: // 512k
+		mask = 0xfffffffffff80000ULL;
+		break;
+	    case 0x7: // 4M
+		mask = 0xffffffffffc00000ULL;
+		break;
+	    }
+	    // ctx match, vaddr match?
+	    if (env->immuregs[1] == (env->itlb_tag[i] & 0x1fff) &&
+		(address & mask) == (env->itlb_tag[i] & ~0x1fffULL)) {
+		// access ok?
+		if ((env->itlb_tte[i] & 0x4) && !(env->pstate & PS_PRIV)) {
+		    env->exception_index = TT_TFAULT;
+		    return 1;
+		}
+		*physical = env->itlb_tte[i] & 0xffffe000;
+		*prot = PAGE_READ;
+		return 0;
+	    }
+	}
+    }
+    env->exception_index = TT_TFAULT;
+    return 1;
+}
+
+int get_physical_address(CPUState *env, target_phys_addr_t *physical, int *prot,
+			  int *access_index, target_ulong address, int rw,
+			  int is_user)
+{
+    if (rw == 2)
+	return get_physical_address_code(env, physical, prot, access_index, address, rw, is_user);
+    else
+	return get_physical_address_data(env, physical, prot, access_index, address, rw, is_user);
+}
+
+/* Perform address translation */
+int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
+                              int is_user, int is_softmmu)
+{
+    target_ulong virt_addr;
+    target_phys_addr_t paddr;
+    unsigned long vaddr;
+    int error_code = 0, prot, ret = 0, access_index;
+
+    error_code = get_physical_address(env, &paddr, &prot, &access_index, address, rw, is_user);
+    if (error_code == 0) {
+	virt_addr = address & TARGET_PAGE_MASK;
+	vaddr = virt_addr + ((address & TARGET_PAGE_MASK) & (TARGET_PAGE_SIZE - 1));
+	ret = tlb_set_page(env, vaddr, paddr, prot, is_user, is_softmmu);
+	return ret;
+    }
+    // XXX
+    return 1;
+}
+
+#endif
 #endif
 
 void memcpy32(target_ulong *dst, const target_ulong *src)
@@ -292,17 +422,73 @@ void set_cwp(int new_cwp)
     if (new_cwp == (NWINDOWS - 1))
         memcpy32(env->regbase + NWINDOWS * 16, env->regbase);
     env->regwptr = env->regbase + (new_cwp * 16);
+    REGWPTR = env->regwptr;
 }
 
 void cpu_set_cwp(CPUState *env1, int new_cwp)
 {
     CPUState *saved_env;
+#ifdef reg_REGWPTR
+    target_ulong *saved_regwptr;
+#endif
+
     saved_env = env;
+#ifdef reg_REGWPTR
+    saved_regwptr = REGWPTR;
+#endif
     env = env1;
     set_cwp(new_cwp);
     env = saved_env;
+#ifdef reg_REGWPTR
+    REGWPTR = saved_regwptr;
+#endif
 }
 
+#ifdef TARGET_SPARC64
+void do_interrupt(int intno)
+{
+#ifdef DEBUG_PCALL
+    if (loglevel & CPU_LOG_INT) {
+	static int count;
+	fprintf(logfile, "%6d: v=%02x pc=%08x npc=%08x SP=%08x\n",
+                count, intno,
+                env->pc,
+                env->npc, env->regwptr[6]);
+	cpu_dump_state(env, logfile, fprintf, 0);
+#if 0
+	{
+	    int i;
+	    uint8_t *ptr;
+
+	    fprintf(logfile, "       code=");
+	    ptr = (uint8_t *)env->pc;
+	    for(i = 0; i < 16; i++) {
+		fprintf(logfile, " %02x", ldub(ptr + i));
+	    }
+	    fprintf(logfile, "\n");
+	}
+#endif
+	count++;
+    }
+#endif
+#if !defined(CONFIG_USER_ONLY) 
+    if (env->pstate & PS_IE) {
+        cpu_abort(cpu_single_env, "Trap 0x%02x while interrupts disabled, Error state", env->exception_index);
+	return;
+    }
+#endif
+    env->tstate[env->tl] = ((uint64_t)GET_CCR(env) << 32) | ((env->asi & 0xff) << 24) |
+	((env->pstate & 0xfff) << 8) | (env->cwp & 0xff);
+    env->tpc[env->tl] = env->pc;
+    env->tnpc[env->tl] = env->npc;
+    env->tt[env->tl] = intno;
+    env->tbr = env->tbr | (env->tl > 1) ? 1 << 14 : 0 | (intno << 4);
+    env->tl++;
+    env->pc = env->tbr;
+    env->npc = env->pc + 4;
+    env->exception_index = 0;
+}
+#else
 void do_interrupt(int intno)
 {
     int cwp;
@@ -447,4 +633,5 @@ void dump_mmu(void)
     }
     printf("MMU dump ends\n");
 }
+#endif
 #endif

@@ -552,6 +552,7 @@ void cpu_loop (CPUSPARCState *env)
             env->pc = env->npc;
             env->npc = env->npc + 4;
             break;
+#ifndef TARGET_SPARC64
         case TT_WIN_OVF: /* window overflow */
             save_window(env);
             break;
@@ -569,6 +570,9 @@ void cpu_loop (CPUSPARCState *env)
                 queue_signal(info.si_signo, &info);
             }
             break;
+#else
+	    // XXX
+#endif
 	case 0x100: // XXX, why do we get these?
 	    break;
         case EXCP_DEBUG:

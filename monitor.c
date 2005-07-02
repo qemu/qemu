@@ -767,6 +767,11 @@ static void do_system_reset(void)
     qemu_system_reset_request();
 }
 
+static void do_system_powerdown(void)
+{
+    qemu_system_powerdown_request();
+}
+
 #if defined(TARGET_I386)
 static void print_pte(uint32_t addr, uint32_t pte, uint32_t mask)
 {
@@ -922,6 +927,8 @@ static term_cmd_t term_cmds[] = {
       "keys", "send keys to the VM (e.g. 'sendkey ctrl-alt-f1')" },
     { "system_reset", "", do_system_reset, 
       "", "reset the system" },
+    { "system_powerdown", "", do_system_powerdown, 
+      "", "send system power down event" },
     { "sum", "ii", do_sum, 
       "addr size", "compute the checksum of a memory region" },
     { NULL, NULL, }, 

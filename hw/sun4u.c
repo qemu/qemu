@@ -1,7 +1,7 @@
 /*
- * QEMU Sun4m System Emulator
+ * QEMU Sun4u System Emulator
  * 
- * Copyright (c) 2003-2005 Fabrice Bellard
+ * Copyright (c) 2005 Fabrice Bellard
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,35 +28,17 @@
 #define CMDLINE_ADDR         0x007ff000
 #define INITRD_LOAD_ADDR     0x00800000
 #define PROM_ADDR	     0xffd00000
-#define PROM_FILENAMEB	     "proll.bin"
-#define PROM_FILENAMEE	     "proll.elf"
+#define PROM_FILENAMEB	     "proll-sparc64.bin"
+#define PROM_FILENAMEE	     "proll-sparc64.elf"
 #define PHYS_JJ_EEPROM	0x71200000	/* m48t08 */
 #define PHYS_JJ_IDPROM_OFF	0x1FD8
 #define PHYS_JJ_EEPROM_SIZE	0x2000
 // IRQs are not PIL ones, but master interrupt controller register
 // bits
-#define PHYS_JJ_IOMMU	0x10000000	/* I/O MMU */
-#define PHYS_JJ_TCX_FB	0x50000000	/* TCX frame buffer */
-#define PHYS_JJ_SLAVIO	0x70000000	/* Slavio base */
-#define PHYS_JJ_ESPDMA  0x78400000      /* ESP DMA controller */
-#define PHYS_JJ_ESP     0x78800000      /* ESP SCSI */
-#define PHYS_JJ_ESP_IRQ    18
-#define PHYS_JJ_LEDMA   0x78400010      /* Lance DMA controller */
-#define PHYS_JJ_LE      0x78C00000      /* Lance ethernet */
-#define PHYS_JJ_LE_IRQ     16
-#define PHYS_JJ_CLOCK	0x71D00000      /* Per-CPU timer/counter, L14 */
-#define PHYS_JJ_CLOCK_IRQ  7
-#define PHYS_JJ_CLOCK1	0x71D10000      /* System timer/counter, L10 */
-#define PHYS_JJ_CLOCK1_IRQ 19
-#define PHYS_JJ_INTR0	0x71E00000	/* Per-CPU interrupt control registers */
-#define PHYS_JJ_INTR_G	0x71E10000	/* Master interrupt control registers */
 #define PHYS_JJ_MS_KBD	0x71000000	/* Mouse and keyboard */
 #define PHYS_JJ_MS_KBD_IRQ    14
 #define PHYS_JJ_SER	0x71100000	/* Serial */
 #define PHYS_JJ_SER_IRQ    15
-#define PHYS_JJ_FDC	0x71400000	/* Floppy */
-#define PHYS_JJ_FLOPPY_IRQ 22
-#define PHYS_JJ_ME_IRQ 30		/* Module error, power fail */
 
 /* TSC handling */
 
@@ -163,59 +145,39 @@ static void nvram_init(m48t08_t *nvram, uint8_t *macaddr, const char *cmdline,
     m48t08_write(nvram, 0x1fe7, tmp);
 }
 
-static void *slavio_intctl;
-
 void pic_info()
 {
-    slavio_pic_info(slavio_intctl);
 }
 
 void irq_info()
 {
-    slavio_irq_info(slavio_intctl);
 }
 
 void pic_set_irq(int irq, int level)
 {
-    slavio_pic_set_irq(slavio_intctl, irq, level);
 }
-
-static void *tcx;
 
 void vga_update_display()
 {
-    tcx_update_display(tcx);
 }
 
 void vga_invalidate_display()
 {
-    tcx_invalidate_display(tcx);
 }
 
 void vga_screen_dump(const char *filename)
 {
-    tcx_screen_dump(tcx, filename);
 }
-
-static void *iommu;
-
-uint32_t iommu_translate(uint32_t addr)
-{
-    return iommu_translate_local(iommu, addr);
-}
-
-static void *slavio_misc;
 
 void qemu_system_powerdown(void)
 {
-    slavio_set_power_fail(slavio_misc, 1);
 }
 
-/* Sun4m hardware initialisation */
-static void sun4m_init(int ram_size, int vga_ram_size, int boot_device,
-                       DisplayState *ds, const char **fd_filename, int snapshot,
-                       const char *kernel_filename, const char *kernel_cmdline,
-                       const char *initrd_filename)
+/* Sun4u hardware initialisation */
+static void sun4u_init(int ram_size, int vga_ram_size, int boot_device,
+             DisplayState *ds, const char **fd_filename, int snapshot,
+             const char *kernel_filename, const char *kernel_cmdline,
+             const char *initrd_filename)
 {
     char buf[1024];
     int ret, linux_boot;
@@ -227,19 +189,10 @@ static void sun4m_init(int ram_size, int vga_ram_size, int boot_device,
     /* allocate RAM */
     cpu_register_physical_memory(0, ram_size, 0);
 
-    iommu = iommu_init(PHYS_JJ_IOMMU);
-    slavio_intctl = slavio_intctl_init(PHYS_JJ_INTR0, PHYS_JJ_INTR_G);
-    tcx = tcx_init(ds, PHYS_JJ_TCX_FB, phys_ram_base + ram_size, ram_size, vram_size, graphic_width, graphic_height);
-    lance_init(&nd_table[0], PHYS_JJ_LE_IRQ, PHYS_JJ_LE, PHYS_JJ_LEDMA);
     nvram = m48t08_init(PHYS_JJ_EEPROM, PHYS_JJ_EEPROM_SIZE);
-    slavio_timer_init(PHYS_JJ_CLOCK, PHYS_JJ_CLOCK_IRQ, PHYS_JJ_CLOCK1, PHYS_JJ_CLOCK1_IRQ);
-    slavio_serial_ms_kbd_init(PHYS_JJ_MS_KBD, PHYS_JJ_MS_KBD_IRQ);
     // Slavio TTYA (base+4, Linux ttyS0) is the first Qemu serial device
     // Slavio TTYB (base+0, Linux ttyS1) is the second Qemu serial device
     slavio_serial_init(PHYS_JJ_SER, PHYS_JJ_SER_IRQ, serial_hds[1], serial_hds[0]);
-    fdctrl_init(PHYS_JJ_FLOPPY_IRQ, 0, 1, PHYS_JJ_FDC, fd_table);
-    esp_init(bs_table, PHYS_JJ_ESP_IRQ, PHYS_JJ_ESP, PHYS_JJ_ESPDMA);
-    slavio_misc = slavio_misc_init(PHYS_JJ_SLAVIO, PHYS_JJ_ME_IRQ);
 
     prom_offset = ram_size + vram_size;
 
@@ -294,8 +247,8 @@ static void sun4m_init(int ram_size, int vga_ram_size, int boot_device,
     nvram_init(nvram, (uint8_t *)&nd_table[0].macaddr, kernel_cmdline, boot_device, ram_size, kernel_size, graphic_width, graphic_height, graphic_depth);
 }
 
-QEMUMachine sun4m_machine = {
-    "sun4m",
-    "Sun4m platform",
-    sun4m_init,
+QEMUMachine sun4u_machine = {
+    "sun4u",
+    "Sun4u platform",
+    sun4u_init,
 };

@@ -56,213 +56,49 @@ static void bswap_ahdr(struct exec *e)
 
 #include "elf.h"
 
-#ifdef BSWAP_NEEDED
-static void bswap_ehdr(Elf32_Ehdr *ehdr)
-{
-    bswap16s(&ehdr->e_type);			/* Object file type */
-    bswap16s(&ehdr->e_machine);		/* Architecture */
-    bswap32s(&ehdr->e_version);		/* Object file version */
-    bswap32s(&ehdr->e_entry);		/* Entry point virtual address */
-    bswap32s(&ehdr->e_phoff);		/* Program header table file offset */
-    bswap32s(&ehdr->e_shoff);		/* Section header table file offset */
-    bswap32s(&ehdr->e_flags);		/* Processor-specific flags */
-    bswap16s(&ehdr->e_ehsize);		/* ELF header size in bytes */
-    bswap16s(&ehdr->e_phentsize);		/* Program header table entry size */
-    bswap16s(&ehdr->e_phnum);		/* Program header table entry count */
-    bswap16s(&ehdr->e_shentsize);		/* Section header table entry size */
-    bswap16s(&ehdr->e_shnum);		/* Section header table entry count */
-    bswap16s(&ehdr->e_shstrndx);		/* Section header string table index */
-}
-
-static void bswap_phdr(Elf32_Phdr *phdr)
-{
-    bswap32s(&phdr->p_type);			/* Segment type */
-    bswap32s(&phdr->p_offset);		/* Segment file offset */
-    bswap32s(&phdr->p_vaddr);		/* Segment virtual address */
-    bswap32s(&phdr->p_paddr);		/* Segment physical address */
-    bswap32s(&phdr->p_filesz);		/* Segment size in file */
-    bswap32s(&phdr->p_memsz);		/* Segment size in memory */
-    bswap32s(&phdr->p_flags);		/* Segment flags */
-    bswap32s(&phdr->p_align);		/* Segment alignment */
-}
-
-static void bswap_shdr(Elf32_Shdr *shdr)
-{
-    bswap32s(&shdr->sh_name);
-    bswap32s(&shdr->sh_type);
-    bswap32s(&shdr->sh_flags);
-    bswap32s(&shdr->sh_addr);
-    bswap32s(&shdr->sh_offset);
-    bswap32s(&shdr->sh_size);
-    bswap32s(&shdr->sh_link);
-    bswap32s(&shdr->sh_info);
-    bswap32s(&shdr->sh_addralign);
-    bswap32s(&shdr->sh_entsize);
-}
-
-static void bswap_sym(Elf32_Sym *sym)
-{
-    bswap32s(&sym->st_name);
-    bswap32s(&sym->st_value);
-    bswap32s(&sym->st_size);
-    bswap16s(&sym->st_shndx);
-}
-#else
-#define bswap_ehdr(e) do { } while (0)
-#define bswap_phdr(e) do { } while (0)
-#define bswap_shdr(e) do { } while (0)
-#define bswap_sym(e) do { } while (0)
+#ifndef BSWAP_NEEDED
+#define bswap_ehdr32(e) do { } while (0)
+#define bswap_phdr32(e) do { } while (0)
+#define bswap_shdr32(e) do { } while (0)
+#define bswap_sym32(e) do { } while (0)
+#ifdef TARGET_SPARC64
+#define bswap_ehdr64(e) do { } while (0)
+#define bswap_phdr64(e) do { } while (0)
+#define bswap_shdr64(e) do { } while (0)
+#define bswap_sym64(e) do { } while (0)
+#endif
 #endif
 
-static int find_phdr(struct elfhdr *ehdr, int fd, struct elf_phdr *phdr, uint32_t type)
-{
-    int i, retval;
+#define SZ		32
+#define elf_word        uint32_t
+#define bswapSZs	bswap32s
+#include "elf_ops.h"
 
-    retval = lseek(fd, ehdr->e_phoff, SEEK_SET);
-    if (retval < 0)
-	return -1;
-
-    for (i = 0; i < ehdr->e_phnum; i++) {
-	retval = read(fd, phdr, sizeof(*phdr));
-	if (retval < 0)
-	    return -1;
-	bswap_phdr(phdr);
-	if (phdr->p_type == type)
-	    return 0;
-    }
-    return -1;
-}
-
-static void *find_shdr(struct elfhdr *ehdr, int fd, struct elf_shdr *shdr, uint32_t type)
-{
-    int i, retval;
-
-    retval = lseek(fd, ehdr->e_shoff, SEEK_SET);
-    if (retval < 0)
-	return NULL;
-
-    for (i = 0; i < ehdr->e_shnum; i++) {
-	retval = read(fd, shdr, sizeof(*shdr));
-	if (retval < 0)
-	    return NULL;
-	bswap_shdr(shdr);
-	if (shdr->sh_type == type)
-	    return qemu_malloc(shdr->sh_size);
-    }
-    return NULL;
-}
-
-static void *find_strtab(struct elfhdr *ehdr, int fd, struct elf_shdr *shdr, struct elf_shdr *symtab)
-{
-    int retval;
-
-    retval = lseek(fd, ehdr->e_shoff + sizeof(struct elf_shdr) * symtab->sh_link, SEEK_SET);
-    if (retval < 0)
-	return NULL;
-
-    retval = read(fd, shdr, sizeof(*shdr));
-    if (retval < 0)
-	return NULL;
-    bswap_shdr(shdr);
-    if (shdr->sh_type == SHT_STRTAB)
-	return qemu_malloc(shdr->sh_size);;
-    return NULL;
-}
-
-static int read_program(int fd, struct elf_phdr *phdr, void *dst, uint32_t entry)
-{
-    int retval;
-    retval = lseek(fd, phdr->p_offset + entry - phdr->p_vaddr, SEEK_SET);
-    if (retval < 0)
-	return -1;
-    return read(fd, dst, phdr->p_filesz);
-}
-
-static int read_section(int fd, struct elf_shdr *s, void *dst)
-{
-    int retval;
-
-    retval = lseek(fd, s->sh_offset, SEEK_SET);
-    if (retval < 0)
-	return -1;
-    retval = read(fd, dst, s->sh_size);
-    if (retval < 0)
-	return -1;
-    return 0;
-}
-
-static void *process_section(struct elfhdr *ehdr, int fd, struct elf_shdr *shdr, uint32_t type)
-{
-    void *dst;
-
-    dst = find_shdr(ehdr, fd, shdr, type);
-    if (!dst)
-	goto error;
-
-    if (read_section(fd, shdr, dst))
-	goto error;
-    return dst;
- error:
-    qemu_free(dst);
-    return NULL;
-}
-
-static void *process_strtab(struct elfhdr *ehdr, int fd, struct elf_shdr *shdr, struct elf_shdr *symtab)
-{
-    void *dst;
-
-    dst = find_strtab(ehdr, fd, shdr, symtab);
-    if (!dst)
-	goto error;
-
-    if (read_section(fd, shdr, dst))
-	goto error;
-    return dst;
- error:
-    qemu_free(dst);
-    return NULL;
-}
-
-static void load_symbols(struct elfhdr *ehdr, int fd)
-{
-    struct elf_shdr symtab, strtab;
-    struct elf_sym *syms;
-    struct syminfo *s;
-    int nsyms, i;
-    char *str;
-
-    /* Symbol table */
-    syms = process_section(ehdr, fd, &symtab, SHT_SYMTAB);
-    if (!syms)
-	return;
-
-    nsyms = symtab.sh_size / sizeof(struct elf_sym);
-    for (i = 0; i < nsyms; i++)
-	bswap_sym(&syms[i]);
-
-    /* String table */
-    str = process_strtab(ehdr, fd, &strtab, &symtab);
-    if (!str)
-	goto error_freesyms;
-
-    /* Commit */
-    s = qemu_mallocz(sizeof(*s));
-    s->disas_symtab = syms;
-    s->disas_num_syms = nsyms;
-    s->disas_strtab = str;
-    s->next = syminfos;
-    syminfos = s;
-    return;
- error_freesyms:
-    qemu_free(syms);
-    return;
-}
+#ifdef TARGET_SPARC64
+#undef elfhdr
+#undef elf_phdr
+#undef elf_shdr
+#undef elf_sym
+#undef elf_note
+#undef elf_word
+#undef bswapSZs
+#undef SZ
+#define elfhdr		elf64_hdr
+#define elf_phdr	elf64_phdr
+#define elf_note	elf64_note
+#define elf_shdr	elf64_shdr
+#define elf_sym		elf64_sym
+#define elf_word        uint64_t
+#define bswapSZs	bswap64s
+#define SZ		64
+#include "elf_ops.h"
+#endif
 
 int load_elf(const char *filename, uint8_t *addr)
 {
-    struct elfhdr ehdr;
-    struct elf_phdr phdr;
+    struct elf32_hdr ehdr;
     int retval, fd;
+    Elf32_Half machine;
 
     fd = open(filename, O_RDONLY | O_BINARY);
     if (fd < 0)
@@ -272,21 +108,43 @@ int load_elf(const char *filename, uint8_t *addr)
     if (retval < 0)
 	goto error;
 
-    bswap_ehdr(&ehdr);
-
     if (ehdr.e_ident[0] != 0x7f || ehdr.e_ident[1] != 'E'
-	|| ehdr.e_ident[2] != 'L' || ehdr.e_ident[3] != 'F'
-	|| (ehdr.e_machine != EM_SPARC
-	    && ehdr.e_machine != EM_SPARC32PLUS))
+	|| ehdr.e_ident[2] != 'L' || ehdr.e_ident[3] != 'F')
 	goto error;
+    machine = tswap16(ehdr.e_machine);
+    if (machine == EM_SPARC || machine == EM_SPARC32PLUS) {
+	struct elf32_phdr phdr;
 
-    if (find_phdr(&ehdr, fd, &phdr, PT_LOAD))
-	goto error;
-    retval = read_program(fd, &phdr, addr, ehdr.e_entry);
-    if (retval < 0)
-	goto error;
+	bswap_ehdr32(&ehdr);
 
-    load_symbols(&ehdr, fd);
+	if (find_phdr32(&ehdr, fd, &phdr, PT_LOAD))
+	    goto error;
+	retval = read_program32(fd, &phdr, addr, ehdr.e_entry);
+	if (retval < 0)
+	    goto error;
+	load_symbols32(&ehdr, fd);
+    }
+#ifdef TARGET_SPARC64
+    else if (machine == EM_SPARCV9) {
+	struct elf64_hdr ehdr64;
+	struct elf64_phdr phdr;
+
+	lseek(fd, 0, SEEK_SET);
+
+	retval = read(fd, &ehdr64, sizeof(ehdr64));
+	if (retval < 0)
+	    goto error;
+
+	bswap_ehdr64(&ehdr64);
+
+	if (find_phdr64(&ehdr64, fd, &phdr, PT_LOAD))
+	    goto error;
+	retval = read_program64(fd, &phdr, addr, ehdr64.e_entry);
+	if (retval < 0)
+	    goto error;
+	load_symbols64(&ehdr64, fd);
+    }
+#endif
 
     close(fd);
     return retval;

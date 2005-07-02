@@ -1,7 +1,7 @@
 /*
  * gdb server stub
  * 
- * Copyright (c) 2003 Fabrice Bellard
+ * Copyright (c) 2003-2005 Fabrice Bellard
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -293,7 +293,7 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
 #elif defined (TARGET_SPARC)
 static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
 {
-    uint32_t *registers = (uint32_t *)mem_buf, tmp;
+    target_ulong *registers = (target_ulong *)mem_buf;
     int i;
 
     /* fill in g0..g7 */
@@ -308,10 +308,15 @@ static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
     for (i = 0; i < 32; i++) {
         registers[i + 32] = tswapl(*((uint32_t *)&env->fpr[i]));
     }
+#ifndef TARGET_SPARC64
     /* Y, PSR, WIM, TBR, PC, NPC, FPSR, CPSR */
     registers[64] = tswapl(env->y);
-    tmp = GET_PSR(env);
-    registers[65] = tswapl(tmp);
+    {
+	target_ulong tmp;
+
+	tmp = GET_PSR(env);
+	registers[65] = tswapl(tmp);
+    }
     registers[66] = tswapl(env->wim);
     registers[67] = tswapl(env->tbr);
     registers[68] = tswapl(env->pc);
@@ -319,13 +324,24 @@ static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
     registers[70] = tswapl(env->fsr);
     registers[71] = 0; /* csr */
     registers[72] = 0;
-
-    return 73 * 4;
+    return 73 * sizeof(target_ulong);
+#else
+    for (i = 0; i < 32; i += 2) {
+        registers[i/2 + 64] = tswapl(*((uint64_t *)&env->fpr[i]));
+    }
+    registers[81] = tswapl(env->pc);
+    registers[82] = tswapl(env->npc);
+    registers[83] = tswapl(env->tstate[env->tl]);
+    registers[84] = tswapl(env->fsr);
+    registers[85] = tswapl(env->fprs);
+    registers[86] = tswapl(env->y);
+    return 87 * sizeof(target_ulong);
+#endif
 }
 
 static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
 {
-    uint32_t *registers = (uint32_t *)mem_buf;
+    target_ulong *registers = (target_ulong *)mem_buf;
     int i;
 
     /* fill in g0..g7 */
@@ -334,12 +350,13 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
     }
     /* fill in register window */
     for(i = 0; i < 24; i++) {
-        env->regwptr[i] = tswapl(registers[i]);
+        env->regwptr[i] = tswapl(registers[i + 8]);
     }
     /* fill in fprs */
     for (i = 0; i < 32; i++) {
         *((uint32_t *)&env->fpr[i]) = tswapl(registers[i + 32]);
     }
+#ifndef TARGET_SPARC64
     /* Y, PSR, WIM, TBR, PC, NPC, FPSR, CPSR */
     env->y = tswapl(registers[64]);
     PUT_PSR(env, tswapl(registers[65]));
@@ -348,6 +365,20 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
     env->pc = tswapl(registers[68]);
     env->npc = tswapl(registers[69]);
     env->fsr = tswapl(registers[70]);
+#else
+    for (i = 0; i < 32; i += 2) {
+	uint64_t tmp;
+	tmp = tswapl(registers[i/2 + 64]) << 32;
+	tmp |= tswapl(registers[i/2 + 64 + 1]);
+        *((uint64_t *)&env->fpr[i]) = tmp;
+    }
+    env->pc = tswapl(registers[81]);
+    env->npc = tswapl(registers[82]);
+    env->tstate[env->tl] = tswapl(registers[83]);
+    env->fsr = tswapl(registers[84]);
+    env->fprs = tswapl(registers[85]);
+    env->y = tswapl(registers[86]);
+#endif
 }
 #elif defined (TARGET_ARM)
 static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)

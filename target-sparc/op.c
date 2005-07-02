@@ -46,76 +46,76 @@
 #define REG (env->gregs[7])
 #include "op_template.h"
 #define REGNAME i0
-#define REG (env->regwptr[16])
+#define REG (REGWPTR[16])
 #include "op_template.h"
 #define REGNAME i1
-#define REG (env->regwptr[17])
+#define REG (REGWPTR[17])
 #include "op_template.h"
 #define REGNAME i2
-#define REG (env->regwptr[18])
+#define REG (REGWPTR[18])
 #include "op_template.h"
 #define REGNAME i3
-#define REG (env->regwptr[19])
+#define REG (REGWPTR[19])
 #include "op_template.h"
 #define REGNAME i4
-#define REG (env->regwptr[20])
+#define REG (REGWPTR[20])
 #include "op_template.h"
 #define REGNAME i5
-#define REG (env->regwptr[21])
+#define REG (REGWPTR[21])
 #include "op_template.h"
 #define REGNAME i6
-#define REG (env->regwptr[22])
+#define REG (REGWPTR[22])
 #include "op_template.h"
 #define REGNAME i7
-#define REG (env->regwptr[23])
+#define REG (REGWPTR[23])
 #include "op_template.h"
 #define REGNAME l0
-#define REG (env->regwptr[8])
+#define REG (REGWPTR[8])
 #include "op_template.h"
 #define REGNAME l1
-#define REG (env->regwptr[9])
+#define REG (REGWPTR[9])
 #include "op_template.h"
 #define REGNAME l2
-#define REG (env->regwptr[10])
+#define REG (REGWPTR[10])
 #include "op_template.h"
 #define REGNAME l3
-#define REG (env->regwptr[11])
+#define REG (REGWPTR[11])
 #include "op_template.h"
 #define REGNAME l4
-#define REG (env->regwptr[12])
+#define REG (REGWPTR[12])
 #include "op_template.h"
 #define REGNAME l5
-#define REG (env->regwptr[13])
+#define REG (REGWPTR[13])
 #include "op_template.h"
 #define REGNAME l6
-#define REG (env->regwptr[14])
+#define REG (REGWPTR[14])
 #include "op_template.h"
 #define REGNAME l7
-#define REG (env->regwptr[15])
+#define REG (REGWPTR[15])
 #include "op_template.h"
 #define REGNAME o0
-#define REG (env->regwptr[0])
+#define REG (REGWPTR[0])
 #include "op_template.h"
 #define REGNAME o1
-#define REG (env->regwptr[1])
+#define REG (REGWPTR[1])
 #include "op_template.h"
 #define REGNAME o2
-#define REG (env->regwptr[2])
+#define REG (REGWPTR[2])
 #include "op_template.h"
 #define REGNAME o3
-#define REG (env->regwptr[3])
+#define REG (REGWPTR[3])
 #include "op_template.h"
 #define REGNAME o4
-#define REG (env->regwptr[4])
+#define REG (REGWPTR[4])
 #include "op_template.h"
 #define REGNAME o5
-#define REG (env->regwptr[5])
+#define REG (REGWPTR[5])
 #include "op_template.h"
 #define REGNAME o6
-#define REG (env->regwptr[6])
+#define REG (REGWPTR[6])
 #include "op_template.h"
 #define REGNAME o7
-#define REG (env->regwptr[7])
+#define REG (REGWPTR[7])
 #include "op_template.h"
 
 #define REGNAME f0
@@ -215,10 +215,106 @@
 #define REG (env->fpr[31])
 #include "fop_template.h"
 
+#ifdef TARGET_SPARC64
+#define REGNAME f32
+#define REG (env->fpr[32])
+#include "fop_template.h"
+#define REGNAME f34
+#define REG (env->fpr[34])
+#include "fop_template.h"
+#define REGNAME f36
+#define REG (env->fpr[36])
+#include "fop_template.h"
+#define REGNAME f38
+#define REG (env->fpr[38])
+#include "fop_template.h"
+#define REGNAME f40
+#define REG (env->fpr[40])
+#include "fop_template.h"
+#define REGNAME f42
+#define REG (env->fpr[42])
+#include "fop_template.h"
+#define REGNAME f44
+#define REG (env->fpr[44])
+#include "fop_template.h"
+#define REGNAME f46
+#define REG (env->fpr[46])
+#include "fop_template.h"
+#define REGNAME f48
+#define REG (env->fpr[47])
+#include "fop_template.h"
+#define REGNAME f50
+#define REG (env->fpr[50])
+#include "fop_template.h"
+#define REGNAME f52
+#define REG (env->fpr[52])
+#include "fop_template.h"
+#define REGNAME f54
+#define REG (env->fpr[54])
+#include "fop_template.h"
+#define REGNAME f56
+#define REG (env->fpr[56])
+#include "fop_template.h"
+#define REGNAME f58
+#define REG (env->fpr[58])
+#include "fop_template.h"
+#define REGNAME f60
+#define REG (env->fpr[60])
+#include "fop_template.h"
+#define REGNAME f62
+#define REG (env->fpr[62])
+#include "fop_template.h"
+#endif
+
+#ifdef TARGET_SPARC64
+#undef JUMP_TB
+#define JUMP_TB(opname, tbparam, n, eip)	\
+    do {					\
+	GOTO_TB(opname, tbparam, n);		\
+	T0 = (long)(tbparam) + (n);		\
+	env->pc = (eip) & 0xffffffff;		\
+	EXIT_TB();				\
+    } while (0)
+
+#ifdef WORDS_BIGENDIAN
+typedef union UREG64 {
+    struct { uint16_t v3, v2, v1, v0; } w;
+    struct { uint32_t v1, v0; } l;
+    uint64_t q;
+} UREG64;
+#else
+typedef union UREG64 {
+    struct { uint16_t v0, v1, v2, v3; } w;
+    struct { uint32_t v0, v1; } l;
+    uint64_t q;
+} UREG64;
+#endif
+
+#define PARAMQ1 \
+({\
+    UREG64 __p;\
+    __p.l.v1 = PARAM1;\
+    __p.l.v0 = PARAM2;\
+    __p.q;\
+}) 
+
+void OPPROTO op_movq_T0_im64(void)
+{
+    T0 = PARAMQ1;
+}
+
+void OPPROTO op_movq_T1_im64(void)
+{
+    T1 = PARAMQ1;
+}
+
+#define XFLAG_SET(x) ((env->xcc&x)?1:0)
+
+#else
 #define EIP (env->pc)
+#endif
 
 #define FLAG_SET(x) ((env->psr&x)?1:0)
-#define FFLAG_SET(x) ((env->fsr&x)?1:0)
 
 void OPPROTO op_movl_T0_0(void)
 {
@@ -227,17 +323,52 @@ void OPPROTO op_movl_T0_0(void)
 
 void OPPROTO op_movl_T0_im(void)
 {
-    T0 = PARAM1;
+    T0 = (uint32_t)PARAM1;
 }
 
 void OPPROTO op_movl_T1_im(void)
 {
-    T1 = PARAM1;
+    T1 = (uint32_t)PARAM1;
 }
 
 void OPPROTO op_movl_T2_im(void)
 {
-    T2 = PARAM1;
+    T2 = (uint32_t)PARAM1;
+}
+
+void OPPROTO op_movl_T0_sim(void)
+{
+    T0 = (int32_t)PARAM1;
+}
+
+void OPPROTO op_movl_T1_sim(void)
+{
+    T1 = (int32_t)PARAM1;
+}
+
+void OPPROTO op_movl_T2_sim(void)
+{
+    T2 = (int32_t)PARAM1;
+}
+
+void OPPROTO op_movl_T0_env(void)
+{
+    T0 = *(uint32_t *)((char *)env + PARAM1);
+}
+
+void OPPROTO op_movl_env_T0(void)
+{
+    *(uint32_t *)((char *)env + PARAM1) = T0;
+}
+
+void OPPROTO op_movtl_T0_env(void)
+{
+    T0 = *(target_ulong *)((char *)env + PARAM1);
+}
+
+void OPPROTO op_movtl_env_T0(void)
+{
+    *(target_ulong *)((char *)env + PARAM1) = T0;
 }
 
 void OPPROTO op_add_T1_T0(void)
@@ -252,6 +383,27 @@ void OPPROTO op_add_T1_T0_cc(void)
     src1 = T0;
     T0 += T1;
     env->psr = 0;
+#ifdef TARGET_SPARC64
+    if (!(T0 & 0xffffffff))
+	env->psr |= PSR_ZERO;
+    if ((int32_t) T0 < 0)
+	env->psr |= PSR_NEG;
+    if ((T0 & 0xffffffff) < (src1 & 0xffffffff))
+	env->psr |= PSR_CARRY;
+    if ((((src1 & 0xffffffff) ^ (T1 & 0xffffffff) ^ -1) &
+	 ((src1 & 0xffffffff) ^ (T0 & 0xffffffff))) & (1 << 31))
+	env->psr |= PSR_OVF;
+
+    env->xcc = 0;
+    if (!T0)
+	env->xcc |= PSR_ZERO;
+    if ((int64_t) T0 < 0)
+	env->xcc |= PSR_NEG;
+    if (T0 < src1)
+	env->xcc |= PSR_CARRY;
+    if (((src1 ^ T1 ^ -1) & (src1 ^ T0)) & (1ULL << 63))
+	env->xcc |= PSR_OVF;
+#else
     if (!T0)
 	env->psr |= PSR_ZERO;
     if ((int32_t) T0 < 0)
@@ -260,7 +412,7 @@ void OPPROTO op_add_T1_T0_cc(void)
 	env->psr |= PSR_CARRY;
     if (((src1 ^ T1 ^ -1) & (src1 ^ T0)) & (1 << 31))
 	env->psr |= PSR_OVF;
-    /* V9 xcc */
+#endif
     FORCE_RET();
 }
 
@@ -276,6 +428,27 @@ void OPPROTO op_addx_T1_T0_cc(void)
     src1 = T0;
     T0 += T1 + FLAG_SET(PSR_CARRY);
     env->psr = 0;
+#ifdef TARGET_SPARC64
+    if (!(T0 & 0xffffffff))
+	env->psr |= PSR_ZERO;
+    if ((int32_t) T0 < 0)
+	env->psr |= PSR_NEG;
+    if ((T0 & 0xffffffff) < (src1 & 0xffffffff))
+	env->psr |= PSR_CARRY;
+    if ((((src1 & 0xffffffff) ^ (T1 & 0xffffffff) ^ -1) &
+	 ((src1 & 0xffffffff) ^ (T0 & 0xffffffff))) & (1 << 31))
+	env->psr |= PSR_OVF;
+
+    env->xcc = 0;
+    if (!T0)
+	env->xcc |= PSR_ZERO;
+    if ((int64_t) T0 < 0)
+	env->xcc |= PSR_NEG;
+    if (T0 < src1)
+	env->xcc |= PSR_CARRY;
+    if (((src1 ^ T1 ^ -1) & (src1 ^ T0)) & (1ULL << 63))
+	env->xcc |= PSR_OVF;
+#else
     if (!T0)
 	env->psr |= PSR_ZERO;
     if ((int32_t) T0 < 0)
@@ -284,7 +457,7 @@ void OPPROTO op_addx_T1_T0_cc(void)
 	env->psr |= PSR_CARRY;
     if (((src1 ^ T1 ^ -1) & (src1 ^ T0)) & (1 << 31))
 	env->psr |= PSR_OVF;
-    /* V9 xcc */
+#endif
     FORCE_RET();
 }
 
@@ -300,6 +473,27 @@ void OPPROTO op_sub_T1_T0_cc(void)
     src1 = T0;
     T0 -= T1;
     env->psr = 0;
+#ifdef TARGET_SPARC64
+    if (!(T0 & 0xffffffff))
+	env->psr |= PSR_ZERO;
+    if ((int32_t) T0 < 0)
+	env->psr |= PSR_NEG;
+    if ((T0 & 0xffffffff) < (src1 & 0xffffffff))
+	env->psr |= PSR_CARRY;
+    if ((((src1 & 0xffffffff) ^ (T1 & 0xffffffff)) &
+	 ((src1 & 0xffffffff) ^ (T0 & 0xffffffff))) & (1 << 31))
+	env->psr |= PSR_OVF;
+
+    env->xcc = 0;
+    if (!T0)
+	env->xcc |= PSR_ZERO;
+    if ((int64_t) T0 < 0)
+	env->xcc |= PSR_NEG;
+    if (T0 < src1)
+	env->xcc |= PSR_CARRY;
+    if (((src1 ^ T1) & (src1 ^ T0)) & (1ULL << 63))
+	env->xcc |= PSR_OVF;
+#else
     if (!T0)
 	env->psr |= PSR_ZERO;
     if ((int32_t) T0 < 0)
@@ -308,7 +502,7 @@ void OPPROTO op_sub_T1_T0_cc(void)
 	env->psr |= PSR_CARRY;
     if (((src1 ^ T1) & (src1 ^ T0)) & (1 << 31))
 	env->psr |= PSR_OVF;
-    /* V9 xcc */
+#endif
     FORCE_RET();
 }
 
@@ -324,6 +518,27 @@ void OPPROTO op_subx_T1_T0_cc(void)
     src1 = T0;
     T0 -= T1 + FLAG_SET(PSR_CARRY);
     env->psr = 0;
+#ifdef TARGET_SPARC64
+    if (!(T0 & 0xffffffff))
+	env->psr |= PSR_ZERO;
+    if ((int32_t) T0 < 0)
+	env->psr |= PSR_NEG;
+    if ((T0 & 0xffffffff) < (src1 & 0xffffffff))
+	env->psr |= PSR_CARRY;
+    if ((((src1 & 0xffffffff) ^ (T1 & 0xffffffff)) &
+	 ((src1 & 0xffffffff) ^ (T0 & 0xffffffff))) & (1 << 31))
+	env->psr |= PSR_OVF;
+
+    env->xcc = 0;
+    if (!T0)
+	env->xcc |= PSR_ZERO;
+    if ((int64_t) T0 < 0)
+	env->xcc |= PSR_NEG;
+    if (T0 < src1)
+	env->xcc |= PSR_CARRY;
+    if (((src1 ^ T1) & (src1 ^ T0)) & (1ULL << 63))
+	env->xcc |= PSR_OVF;
+#else
     if (!T0)
 	env->psr |= PSR_ZERO;
     if ((int32_t) T0 < 0)
@@ -332,7 +547,7 @@ void OPPROTO op_subx_T1_T0_cc(void)
 	env->psr |= PSR_CARRY;
     if (((src1 ^ T1) & (src1 ^ T0)) & (1 << 31))
 	env->psr |= PSR_OVF;
-    /* V9 xcc */
+#endif
     FORCE_RET();
 }
 
@@ -449,24 +664,73 @@ void OPPROTO op_sdiv_T1_T0(void)
 void OPPROTO op_div_cc(void)
 {
     env->psr = 0;
+#ifdef TARGET_SPARC64
     if (!T0)
 	env->psr |= PSR_ZERO;
     if ((int32_t) T0 < 0)
 	env->psr |= PSR_NEG;
     if (T1)
 	env->psr |= PSR_OVF;
-    /* V9 xcc */
-    FORCE_RET();
-}
 
-void OPPROTO op_logic_T0_cc(void)
-{
-    env->psr = 0;
+    env->xcc = 0;
+    if (!T0)
+	env->xcc |= PSR_ZERO;
+    if ((int64_t) T0 < 0)
+	env->xcc |= PSR_NEG;
+#else
     if (!T0)
 	env->psr |= PSR_ZERO;
     if ((int32_t) T0 < 0)
 	env->psr |= PSR_NEG;
-    /* V9 xcc */
+    if (T1)
+	env->psr |= PSR_OVF;
+#endif
+    FORCE_RET();
+}
+
+#ifdef TARGET_SPARC64
+void OPPROTO op_mulx_T1_T0(void)
+{
+    T0 *= T1;
+    FORCE_RET();
+}
+
+void OPPROTO op_udivx_T1_T0(void)
+{
+    T0 /= T1;
+    FORCE_RET();
+}
+
+void OPPROTO op_sdivx_T1_T0(void)
+{
+    if (T0 == INT64_MIN && T1 == -1)
+	T0 = INT64_MIN;
+    else
+	T0 /= (target_long) T1;
+    FORCE_RET();
+}
+#endif
+
+void OPPROTO op_logic_T0_cc(void)
+{
+    env->psr = 0;
+#ifdef TARGET_SPARC64
+    if (!(T0 & 0xffffffff))
+	env->psr |= PSR_ZERO;
+    if ((int32_t) T0 < 0)
+	env->psr |= PSR_NEG;
+
+    env->xcc = 0;
+    if (!T0)
+	env->xcc |= PSR_ZERO;
+    if ((int64_t) T0 < 0)
+	env->xcc |= PSR_NEG;
+#else
+    if (!T0)
+	env->psr |= PSR_ZERO;
+    if ((int32_t) T0 < 0)
+	env->psr |= PSR_NEG;
+#endif
     FORCE_RET();
 }
 
@@ -475,6 +739,27 @@ void OPPROTO op_sll(void)
     T0 <<= T1;
 }
 
+#ifdef TARGET_SPARC64
+void OPPROTO op_srl(void)
+{
+    T0 = (T0 & 0xffffffff) >> T1;
+}
+
+void OPPROTO op_srlx(void)
+{
+    T0 >>= T1;
+}
+
+void OPPROTO op_sra(void)
+{
+    T0 = ((int32_t) (T0 & 0xffffffff)) >> T1;
+}
+
+void OPPROTO op_srax(void)
+{
+    T0 = ((int64_t) T0) >> T1;
+}
+#else
 void OPPROTO op_srl(void)
 {
     T0 >>= T1;
@@ -484,6 +769,7 @@ void OPPROTO op_sra(void)
 {
     T0 = ((int32_t) T0) >> T1;
 }
+#endif
 
 /* Load and store */
 #define MEMSUFFIX _raw
@@ -498,36 +784,16 @@ void OPPROTO op_sra(void)
 
 void OPPROTO op_ldfsr(void)
 {
-    env->fsr = *((uint32_t *) &FT0);
+    PUT_FSR32(env, *((uint32_t *) &FT0));
     helper_ldfsr();
 }
 
 void OPPROTO op_stfsr(void)
 {
-    *((uint32_t *) &FT0) = env->fsr;
+    *((uint32_t *) &FT0) = GET_FSR32(env);
 }
 
-void OPPROTO op_wry(void)
-{
-    env->y = T0;
-}
-
-void OPPROTO op_rdy(void)
-{
-    T0 = env->y;
-}
-
-void OPPROTO op_rdwim(void)
-{
-    T0 = env->wim;
-}
-
-void OPPROTO op_wrwim(void)
-{
-    env->wim = T0;
-    FORCE_RET();
-}
-
+#ifndef TARGET_SPARC64
 void OPPROTO op_rdpsr(void)
 {
     do_rdpsr();
@@ -536,17 +802,6 @@ void OPPROTO op_rdpsr(void)
 void OPPROTO op_wrpsr(void)
 {
     do_wrpsr();
-    FORCE_RET();
-}
-
-void OPPROTO op_rdtbr(void)
-{
-    T0 = env->tbr;
-}
-
-void OPPROTO op_wrtbr(void)
-{
-    env->tbr = T0;
     FORCE_RET();
 }
 
@@ -579,6 +834,128 @@ void OPPROTO op_restore(void)
     set_cwp(cwp);
     FORCE_RET();
 }
+#else
+void OPPROTO op_rdccr(void)
+{
+    T0 = GET_CCR(env);
+}
+
+void OPPROTO op_wrccr(void)
+{
+    PUT_CCR(env, T0);
+}
+
+void OPPROTO op_rdtick(void)
+{
+    T0 = 0; // XXX read cycle counter and bit 31
+}
+
+void OPPROTO op_wrtick(void)
+{
+    // XXX write cycle counter and bit 31
+}
+
+void OPPROTO op_rdtpc(void)
+{
+    T0 = env->tpc[env->tl];
+}
+
+void OPPROTO op_wrtpc(void)
+{
+    env->tpc[env->tl] = T0;
+}
+
+void OPPROTO op_rdtnpc(void)
+{
+    T0 = env->tnpc[env->tl];
+}
+
+void OPPROTO op_wrtnpc(void)
+{
+    env->tnpc[env->tl] = T0;
+}
+
+void OPPROTO op_rdtstate(void)
+{
+    T0 = env->tstate[env->tl];
+}
+
+void OPPROTO op_wrtstate(void)
+{
+    env->tstate[env->tl] = T0;
+}
+
+void OPPROTO op_rdtt(void)
+{
+    T0 = env->tt[env->tl];
+}
+
+void OPPROTO op_wrtt(void)
+{
+    env->tt[env->tl] = T0;
+}
+
+void OPPROTO op_rdpstate(void)
+{
+    T0 = env->pstate;
+}
+
+void OPPROTO op_wrpstate(void)
+{
+    env->pstate = T0 & 0x1f;
+}
+
+// CWP handling is reversed in V9, but we still use the V8 register
+// order.
+void OPPROTO op_rdcwp(void)
+{
+    T0 = NWINDOWS - 1 - env->cwp;
+}
+
+void OPPROTO op_wrcwp(void)
+{
+    env->cwp = NWINDOWS - 1 - T0;
+}
+
+/* XXX: use another pointer for %iN registers to avoid slow wrapping
+   handling ? */
+void OPPROTO op_save(void)
+{
+    uint32_t cwp;
+    cwp = (env->cwp - 1) & (NWINDOWS - 1); 
+    if (env->cansave == 0) {
+        raise_exception(TT_SPILL | (env->otherwin != 0 ? 
+				    (TT_WOTHER | ((env->wstate & 0x38) >> 1)):
+				    ((env->wstate & 0x7) << 2)));
+    } else {
+	if (env->cleanwin - env->canrestore == 0) {
+	    // XXX Clean windows without trap
+	    raise_exception(TT_CLRWIN);
+	} else {
+	    env->cansave--;
+	    env->canrestore++;
+	    set_cwp(cwp);
+	}
+    }
+    FORCE_RET();
+}
+
+void OPPROTO op_restore(void)
+{
+    uint32_t cwp;
+    cwp = (env->cwp + 1) & (NWINDOWS - 1); 
+    if (env->canrestore == 0) {
+        raise_exception(TT_FILL | (env->otherwin != 0 ? 
+				   (TT_WOTHER | ((env->wstate & 0x38) >> 1)):
+				   ((env->wstate & 0x7) << 2)));
+    } else {
+	env->cansave++;
+	env->canrestore--;
+	set_cwp(cwp);
+    }
+    FORCE_RET();
+}
+#endif
 
 void OPPROTO op_exception(void)
 {
@@ -629,6 +1006,11 @@ void OPPROTO op_exit_tb(void)
     EXIT_TB();
 }
 
+void OPPROTO op_eval_ba(void)
+{
+    T2 = 1;
+}
+
 void OPPROTO op_eval_be(void)
 {
     T2 = FLAG_SET(PSR_ZERO);
@@ -663,6 +1045,11 @@ void OPPROTO op_eval_bcs(void)
 void OPPROTO op_eval_bvs(void)
 {
     T2 = FLAG_SET(PSR_OVF);
+}
+
+void OPPROTO op_eval_bn(void)
+{
+    T2 = 0;
 }
 
 void OPPROTO op_eval_bneg(void)
@@ -711,101 +1098,156 @@ void OPPROTO op_eval_bvc(void)
     T2 = !FLAG_SET(PSR_OVF);
 }
 
-/* FCC1:FCC0: 0 =, 1 <, 2 >, 3 u */
-
-void OPPROTO op_eval_fbne(void)
+#ifdef TARGET_SPARC64
+void OPPROTO op_eval_xbe(void)
 {
-// !0
-    T2 = (env->fsr & (FSR_FCC1 | FSR_FCC0)); /* L or G or U */
+    T2 = XFLAG_SET(PSR_ZERO);
 }
 
-void OPPROTO op_eval_fblg(void)
+void OPPROTO op_eval_xble(void)
 {
-// 1 or 2
-    T2 = FFLAG_SET(FSR_FCC0) ^ FFLAG_SET(FSR_FCC1);
+    target_ulong Z = XFLAG_SET(PSR_ZERO), N = XFLAG_SET(PSR_NEG), V = XFLAG_SET(PSR_OVF);
+    
+    T2 = Z | (N ^ V);
 }
 
-void OPPROTO op_eval_fbul(void)
+void OPPROTO op_eval_xbl(void)
 {
-// 1 or 3
-    T2 = FFLAG_SET(FSR_FCC0);
+    target_ulong N = XFLAG_SET(PSR_NEG), V = XFLAG_SET(PSR_OVF);
+
+    T2 = N ^ V;
 }
 
-void OPPROTO op_eval_fbl(void)
+void OPPROTO op_eval_xbleu(void)
 {
-// 1
-    T2 = FFLAG_SET(FSR_FCC0) & !FFLAG_SET(FSR_FCC1);
+    target_ulong Z = XFLAG_SET(PSR_ZERO), C = XFLAG_SET(PSR_CARRY);
+
+    T2 = C | Z;
 }
 
-void OPPROTO op_eval_fbug(void)
+void OPPROTO op_eval_xbcs(void)
 {
-// 2 or 3
-    T2 = FFLAG_SET(FSR_FCC1);
+    T2 = XFLAG_SET(PSR_CARRY);
 }
 
-void OPPROTO op_eval_fbg(void)
+void OPPROTO op_eval_xbvs(void)
 {
-// 2
-    T2 = !FFLAG_SET(FSR_FCC0) & FFLAG_SET(FSR_FCC1);
+    T2 = XFLAG_SET(PSR_OVF);
 }
 
-void OPPROTO op_eval_fbu(void)
+void OPPROTO op_eval_xbneg(void)
 {
-// 3
-    T2 = FFLAG_SET(FSR_FCC0) & FFLAG_SET(FSR_FCC1);
+    T2 = XFLAG_SET(PSR_NEG);
 }
 
-void OPPROTO op_eval_fbe(void)
+void OPPROTO op_eval_xbne(void)
 {
-// 0
-    T2 = !FFLAG_SET(FSR_FCC0) & !FFLAG_SET(FSR_FCC1);
+    T2 = !XFLAG_SET(PSR_ZERO);
 }
 
-void OPPROTO op_eval_fbue(void)
+void OPPROTO op_eval_xbg(void)
 {
-// 0 or 3
-    T2 = !(FFLAG_SET(FSR_FCC1) ^ FFLAG_SET(FSR_FCC0));
-    FORCE_RET();
+    target_ulong Z = XFLAG_SET(PSR_ZERO), N = XFLAG_SET(PSR_NEG), V = XFLAG_SET(PSR_OVF);
+
+    T2 = !(Z | (N ^ V));
 }
 
-void OPPROTO op_eval_fbge(void)
+void OPPROTO op_eval_xbge(void)
 {
-// 0 or 2
-    T2 = !FFLAG_SET(FSR_FCC0);
+    target_ulong N = XFLAG_SET(PSR_NEG), V = XFLAG_SET(PSR_OVF);
+
+    T2 = !(N ^ V);
 }
 
-void OPPROTO op_eval_fbuge(void)
+void OPPROTO op_eval_xbgu(void)
 {
-// !1
-    T2 = !(FFLAG_SET(FSR_FCC0) & !FFLAG_SET(FSR_FCC1));
+    target_ulong Z = XFLAG_SET(PSR_ZERO), C = XFLAG_SET(PSR_CARRY);
+
+    T2 = !(C | Z);
 }
 
-void OPPROTO op_eval_fble(void)
+void OPPROTO op_eval_xbcc(void)
 {
-// 0 or 1
-    T2 = !FFLAG_SET(FSR_FCC1);
+    T2 = !XFLAG_SET(PSR_CARRY);
 }
 
-void OPPROTO op_eval_fbule(void)
+void OPPROTO op_eval_xbpos(void)
 {
-// !2
-    T2 = !(!FFLAG_SET(FSR_FCC0) & FFLAG_SET(FSR_FCC1));
+    T2 = !XFLAG_SET(PSR_NEG);
 }
 
-void OPPROTO op_eval_fbo(void)
+void OPPROTO op_eval_xbvc(void)
 {
-// !3
-    T2 = !(FFLAG_SET(FSR_FCC0) & FFLAG_SET(FSR_FCC1));
+    T2 = !XFLAG_SET(PSR_OVF);
 }
+#endif
+
+#define FCC
+#define FFLAG_SET(x) (env->fsr & x? 1: 0)
+#include "fbranch_template.h"
+
+#ifdef TARGET_SPARC64
+#define FCC _fcc1
+#define FFLAG_SET(x) ((env->fsr & ((uint64_t)x >> 32))? 1: 0)
+#include "fbranch_template.h"
+#define FCC _fcc2
+#define FFLAG_SET(x) ((env->fsr & ((uint64_t)x >> 34))? 1: 0)
+#include "fbranch_template.h"
+#define FCC _fcc3
+#define FFLAG_SET(x) ((env->fsr & ((uint64_t)x >> 36))? 1: 0)
+#include "fbranch_template.h"
+#endif
+
+#ifdef TARGET_SPARC64
+void OPPROTO op_eval_brz(void)
+{
+    T2 = T0;
+}
+
+void OPPROTO op_eval_brnz(void)
+{
+    T2 = !T0;
+}
+
+void OPPROTO op_eval_brlz(void)
+{
+    T2 = ((int64_t)T0 < 0);
+}
+
+void OPPROTO op_eval_brlez(void)
+{
+    T2 = ((int64_t)T0 <= 0);
+}
+
+void OPPROTO op_eval_brgz(void)
+{
+    T2 = ((int64_t)T0 > 0);
+}
+
+void OPPROTO op_eval_brgez(void)
+{
+    T2 = ((int64_t)T0 >= 0);
+}
+
+void OPPROTO op_jmp_im64(void)
+{
+    env->pc = PARAMQ1;
+}
+
+void OPPROTO op_movq_npc_im64(void)
+{
+    env->npc = PARAMQ1;
+}
+#endif
 
 void OPPROTO op_jmp_im(void)
 {
-    env->pc = PARAM1;
+    env->pc = (uint32_t)PARAM1;
 }
 
 void OPPROTO op_movl_npc_im(void)
 {
-    env->npc = PARAM1;
+    env->npc = (uint32_t)PARAM1;
 }
 
 void OPPROTO op_movl_npc_T0(void)
@@ -826,17 +1268,17 @@ void OPPROTO op_next_insn(void)
 
 void OPPROTO op_branch(void)
 {
-    env->npc = PARAM3; /* XXX: optimize */
+    env->npc = (uint32_t)PARAM3; /* XXX: optimize */
     JUMP_TB(op_branch, PARAM1, 0, PARAM2);
 }
 
 void OPPROTO op_branch2(void)
 {
     if (T2) {
-        env->npc = PARAM2 + 4; 
+        env->npc = (uint32_t)PARAM2 + 4; 
         JUMP_TB(op_branch2, PARAM1, 0, PARAM2);
     } else {
-        env->npc = PARAM3 + 4; 
+        env->npc = (uint32_t)PARAM3 + 4; 
         JUMP_TB(op_branch2, PARAM1, 1, PARAM3);
     }
     FORCE_RET();
@@ -845,10 +1287,10 @@ void OPPROTO op_branch2(void)
 void OPPROTO op_branch_a(void)
 {
     if (T2) {
-	env->npc = PARAM2; /* XXX: optimize */
+	env->npc = (uint32_t)PARAM2; /* XXX: optimize */
         JUMP_TB(op_branch_a, PARAM1, 0, PARAM3);
     } else {
-	env->npc = PARAM3 + 8; /* XXX: optimize */
+	env->npc = (uint32_t)PARAM3 + 8; /* XXX: optimize */
         JUMP_TB(op_branch_a, PARAM1, 1, PARAM3 + 4);
     }
     FORCE_RET();
@@ -857,9 +1299,9 @@ void OPPROTO op_branch_a(void)
 void OPPROTO op_generic_branch(void)
 {
     if (T2) {
-	env->npc = PARAM1;
+	env->npc = (uint32_t)PARAM1;
     } else {
-	env->npc = PARAM2;
+	env->npc = (uint32_t)PARAM2;
     }
     FORCE_RET();
 }
@@ -878,6 +1320,18 @@ void OPPROTO op_fabss(void)
 {
     do_fabss();
 }
+
+#ifdef TARGET_SPARC64
+void OPPROTO op_fnegd(void)
+{
+    DT0 = -DT1;
+}
+
+void OPPROTO op_fabsd(void)
+{
+    do_fabsd();
+}
+#endif
 
 void OPPROTO op_fsqrts(void)
 {
@@ -944,6 +1398,38 @@ void OPPROTO op_fcmpd(void)
     do_fcmpd();
 }
 
+#ifdef TARGET_SPARC64
+void OPPROTO op_fcmps_fcc1(void)
+{
+    do_fcmps_fcc1();
+}
+
+void OPPROTO op_fcmpd_fcc1(void)
+{
+    do_fcmpd_fcc1();
+}
+
+void OPPROTO op_fcmps_fcc2(void)
+{
+    do_fcmps_fcc2();
+}
+
+void OPPROTO op_fcmpd_fcc2(void)
+{
+    do_fcmpd_fcc2();
+}
+
+void OPPROTO op_fcmps_fcc3(void)
+{
+    do_fcmps_fcc3();
+}
+
+void OPPROTO op_fcmpd_fcc3(void)
+{
+    do_fcmpd_fcc3();
+}
+#endif
+
 #ifdef USE_INT_TO_FLOAT_HELPERS
 void OPPROTO op_fitos(void)
 {
@@ -964,6 +1450,18 @@ void OPPROTO op_fitod(void)
 {
     DT0 = (double) *((int32_t *)&FT1);
 }
+
+#ifdef TARGET_SPARC64
+void OPPROTO op_fxtos(void)
+{
+    FT0 = (float) *((int64_t *)&DT1);
+}
+
+void OPPROTO op_fxtod(void)
+{
+    DT0 = (double) *((int64_t *)&DT1);
+}
+#endif
 #endif
 
 void OPPROTO op_fdtos(void)
@@ -985,6 +1483,102 @@ void OPPROTO op_fdtoi(void)
 {
     *((int32_t *)&FT0) = (int32_t) DT1;
 }
+
+#ifdef TARGET_SPARC64
+void OPPROTO op_fstox(void)
+{
+    *((int64_t *)&DT0) = (int64_t) FT1;
+}
+
+void OPPROTO op_fdtox(void)
+{
+    *((int64_t *)&DT0) = (int64_t) DT1;
+}
+
+void OPPROTO op_fmovs_cc(void)
+{
+    if (T2)
+	FT0 = FT1;
+}
+
+void OPPROTO op_fmovd_cc(void)
+{
+    if (T2)
+	DT0 = DT1;
+}
+
+void OPPROTO op_mov_cc(void)
+{
+    if (T2)
+	T0 = T1;
+}
+
+void OPPROTO op_flushw(void)
+{
+    if (env->cansave != NWINDOWS - 2) {
+        raise_exception(TT_SPILL | (env->otherwin != 0 ? 
+				    (TT_WOTHER | ((env->wstate & 0x38) >> 1)):
+				    ((env->wstate & 0x7) << 2)));
+    }
+}
+
+void OPPROTO op_saved(void)
+{
+    env->cansave++;
+    if (env->otherwin == 0)
+	env->canrestore--;
+}
+
+void OPPROTO op_restored(void)
+{
+    env->canrestore++;
+    if (env->cleanwin < NWINDOWS - 1)
+	env->cleanwin++;
+    if (env->otherwin == 0)
+	env->cansave--;
+    else
+	env->otherwin--;
+}
+
+void OPPROTO op_popc(void)
+{
+    do_popc();
+}
+
+void OPPROTO op_done(void)
+{
+    env->pc = env->tnpc[env->tl];
+    env->npc = env->tnpc[env->tl] + 4;
+    env->pstate = env->tstate[env->tl];
+    env->tl--;
+}
+
+void OPPROTO op_retry(void)
+{
+    env->pc = env->tpc[env->tl];
+    env->npc = env->tnpc[env->tl];
+    env->pstate = env->tstate[env->tl];
+    env->tl--;
+}
+
+void OPPROTO op_sir(void)
+{
+    // XXX
+
+}
+
+void OPPROTO op_ld_asi_reg()
+{
+    T0 += PARAM1;
+    helper_ld_asi(env->asi, PARAM2, PARAM3);
+}
+
+void OPPROTO op_st_asi_reg()
+{
+    T0 += PARAM1;
+    helper_st_asi(env->asi, PARAM2, PARAM3);
+}
+#endif
 
 void OPPROTO op_ld_asi()
 {

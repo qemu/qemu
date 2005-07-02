@@ -2,8 +2,14 @@
 #define SPARC_LD_OP(name, qp)                                                 \
 void OPPROTO glue(glue(op_, name), MEMSUFFIX)(void)                           \
 {                                                                             \
-    T1 = glue(qp, MEMSUFFIX)(T0);                                     \
+    T1 = (target_ulong)glue(qp, MEMSUFFIX)(T0);				\
 }
+
+#define SPARC_LD_OP_S(name, qp)						\
+    void OPPROTO glue(glue(op_, name), MEMSUFFIX)(void)			\
+    {									\
+	T1 = (target_long)glue(qp, MEMSUFFIX)(T0);			\
+    }
 
 #define SPARC_ST_OP(name, op)                                                 \
 void OPPROTO glue(glue(op_, name), MEMSUFFIX)(void)                           \
@@ -14,8 +20,8 @@ void OPPROTO glue(glue(op_, name), MEMSUFFIX)(void)                           \
 SPARC_LD_OP(ld, ldl);
 SPARC_LD_OP(ldub, ldub);
 SPARC_LD_OP(lduh, lduw);
-SPARC_LD_OP(ldsb, ldsb);
-SPARC_LD_OP(ldsh, ldsw);
+SPARC_LD_OP_S(ldsb, ldsb);
+SPARC_LD_OP_S(ldsh, ldsw);
 
 /***                              Integer store                            ***/
 SPARC_ST_OP(st, stl);
@@ -68,4 +74,51 @@ void OPPROTO glue(op_lddf, MEMSUFFIX) (void)
 {
     DT0 = glue(ldfq, MEMSUFFIX)(T0);
 }
+
+#ifdef TARGET_SPARC64
+/* XXX: Should be Atomically */
+/* XXX: There are no cas[x] instructions, only cas[x]a */
+void OPPROTO glue(op_cas, MEMSUFFIX)(void)
+{
+    uint32_t tmp;
+
+    tmp = glue(ldl, MEMSUFFIX)(T0);
+    T2 &=  0xffffffffULL;
+    if (tmp == (T1 & 0xffffffffULL)) {
+	glue(stl, MEMSUFFIX)(T0, T2);
+    }
+    T2 = tmp;
+}
+
+void OPPROTO glue(op_casx, MEMSUFFIX)(void)
+{
+    uint64_t tmp;
+
+    // XXX
+    tmp = (uint64_t)glue(ldl, MEMSUFFIX)(T0) << 32;
+    tmp |= glue(ldl, MEMSUFFIX)(T0);
+    if (tmp == T1) {
+	glue(stq, MEMSUFFIX)(T0, T2);
+    }
+    T2 = tmp;
+}
+
+void OPPROTO glue(op_ldsw, MEMSUFFIX)(void)
+{
+    T1 = (int64_t)glue(ldl, MEMSUFFIX)(T0);
+}
+
+void OPPROTO glue(op_ldx, MEMSUFFIX)(void)
+{
+    // XXX
+    T1 = (uint64_t)glue(ldl, MEMSUFFIX)(T0) << 32;
+    T1 |= glue(ldl, MEMSUFFIX)(T0);
+}
+
+void OPPROTO glue(op_stx, MEMSUFFIX)(void)
+{
+    glue(stl, MEMSUFFIX)(T0, T1 >> 32);
+    glue(stl, MEMSUFFIX)(T0, T1 & 0xffffffff);
+}
+#endif
 #undef MEMSUFFIX

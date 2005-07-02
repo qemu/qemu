@@ -2,7 +2,7 @@
    SPARC translation
 
    Copyright (C) 2003 Thomas M. Ogrisegg <tom@fnord.at>
-   Copyright (C) 2003 Fabrice Bellard
+   Copyright (C) 2003-2005 Fabrice Bellard
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Lesser General Public
@@ -22,12 +22,12 @@
 /*
    TODO-list:
 
+   Rest of V9 instructions, VIS instructions
    NPC/PC static optimisations (use JUMP_TB when possible)
-   FPU-Instructions
-   Privileged instructions
-   Coprocessor-Instructions
    Optimize synthetic instructions
-   Optional alignment and privileged instruction check
+   Optional alignment check
+   128-bit float
+   Tagged add/sub
 */
 
 #include <stdarg.h>
@@ -69,8 +69,28 @@ enum {
 
 #include "gen-op.h"
 
+// This function uses non-native bit order
 #define GET_FIELD(X, FROM, TO) \
   ((X) >> (31 - (TO)) & ((1 << ((TO) - (FROM) + 1)) - 1))
+
+// This function uses the order in the manuals, i.e. bit 0 is 2^0
+#define GET_FIELD_SP(X, FROM, TO) \
+    GET_FIELD(X, 31 - (TO), 31 - (FROM))
+
+#define GET_FIELDs(x,a,b) sign_extend (GET_FIELD(x,a,b), (b) - (a) + 1)
+#define GET_FIELD_SPs(x,a,b) sign_extend (GET_FIELD_SP(x,a,b), 32 - ((b) - (a) + 1))
+
+#ifdef TARGET_SPARC64
+#define DFPREG(r) (((r & 1) << 6) | (r & 0x1e))
+#else
+#define DFPREG(r) (r)
+#endif
+
+static int sign_extend(int x, int len)
+{
+    len = 32 - len;
+    return (x << len) >> len;
+}
 
 #define IS_IMM (insn & (1<<13))
 
@@ -258,6 +278,34 @@ static GenOpFunc1 *gen_op_movl_TN_im[3] = {
     gen_op_movl_T2_im
 };
 
+// Sign extending version
+static GenOpFunc1 * const gen_op_movl_TN_sim[3] = {
+    gen_op_movl_T0_sim,
+    gen_op_movl_T1_sim,
+    gen_op_movl_T2_sim
+};
+
+#ifdef TARGET_SPARC64
+#define GEN32(func, NAME) \
+static GenOpFunc *NAME ## _table [64] = {                                     \
+NAME ## 0, NAME ## 1, NAME ## 2, NAME ## 3,                                   \
+NAME ## 4, NAME ## 5, NAME ## 6, NAME ## 7,                                   \
+NAME ## 8, NAME ## 9, NAME ## 10, NAME ## 11,                                 \
+NAME ## 12, NAME ## 13, NAME ## 14, NAME ## 15,                               \
+NAME ## 16, NAME ## 17, NAME ## 18, NAME ## 19,                               \
+NAME ## 20, NAME ## 21, NAME ## 22, NAME ## 23,                               \
+NAME ## 24, NAME ## 25, NAME ## 26, NAME ## 27,                               \
+NAME ## 28, NAME ## 29, NAME ## 30, NAME ## 31,                               \
+NAME ## 32, 0, NAME ## 34, 0, NAME ## 36, 0, NAME ## 38, 0,                   \
+NAME ## 40, 0, NAME ## 42, 0, NAME ## 44, 0, NAME ## 46, 0,                   \
+NAME ## 48, 0, NAME ## 50, 0, NAME ## 52, 0, NAME ## 54, 0,                   \
+NAME ## 56, 0, NAME ## 58, 0, NAME ## 60, 0, NAME ## 62, 0,                   \
+};                                                                            \
+static inline void func(int n)                                                \
+{                                                                             \
+    NAME ## _table[n]();                                                      \
+}
+#else
 #define GEN32(func, NAME) \
 static GenOpFunc *NAME ## _table [32] = {                                     \
 NAME ## 0, NAME ## 1, NAME ## 2, NAME ## 3,                                   \
@@ -273,22 +321,77 @@ static inline void func(int n)                                                \
 {                                                                             \
     NAME ## _table[n]();                                                      \
 }
+#endif
 
 /* floating point registers moves */
 GEN32(gen_op_load_fpr_FT0, gen_op_load_fpr_FT0_fprf);
 GEN32(gen_op_load_fpr_FT1, gen_op_load_fpr_FT1_fprf);
-GEN32(gen_op_load_fpr_FT2, gen_op_load_fpr_FT2_fprf);
 GEN32(gen_op_store_FT0_fpr, gen_op_store_FT0_fpr_fprf);
 GEN32(gen_op_store_FT1_fpr, gen_op_store_FT1_fpr_fprf);
-GEN32(gen_op_store_FT2_fpr, gen_op_store_FT2_fpr_fprf);
 
 GEN32(gen_op_load_fpr_DT0, gen_op_load_fpr_DT0_fprf);
 GEN32(gen_op_load_fpr_DT1, gen_op_load_fpr_DT1_fprf);
-GEN32(gen_op_load_fpr_DT2, gen_op_load_fpr_DT2_fprf);
 GEN32(gen_op_store_DT0_fpr, gen_op_store_DT0_fpr_fprf);
 GEN32(gen_op_store_DT1_fpr, gen_op_store_DT1_fpr_fprf);
-GEN32(gen_op_store_DT2_fpr, gen_op_store_DT2_fpr_fprf);
 
+#ifdef TARGET_SPARC64
+// 'a' versions allowed to user depending on asi
+#if defined(CONFIG_USER_ONLY)
+#define supervisor(dc) 0
+#define gen_op_ldst(name)        gen_op_##name##_raw()
+#define OP_LD_TABLE(width)						\
+    static void gen_op_##width##a(int insn, int is_ld, int size, int sign) \
+    {									\
+	int asi, offset;						\
+									\
+	if (IS_IMM) {							\
+	    offset = GET_FIELD(insn, 25, 31);				\
+	    if (is_ld)							\
+		gen_op_ld_asi_reg(offset, size, sign);			\
+	    else							\
+		gen_op_st_asi_reg(offset, size, sign);			\
+	    return;							\
+	}								\
+	asi = GET_FIELD(insn, 19, 26);					\
+	switch (asi) {							\
+	case 0x80: /* Primary address space */				\
+	    gen_op_##width##_raw();					\
+	    break;							\
+	default:							\
+            break;							\
+	}								\
+    }
+
+#else
+#define gen_op_ldst(name)        (*gen_op_##name[dc->mem_idx])()
+#define OP_LD_TABLE(width)						\
+    static GenOpFunc *gen_op_##width[] = {				\
+	&gen_op_##width##_user,						\
+	&gen_op_##width##_kernel,					\
+    };									\
+									\
+    static void gen_op_##width##a(int insn, int is_ld, int size, int sign) \
+    {									\
+	int asi, offset;						\
+									\
+	if (IS_IMM) {							\
+	    offset = GET_FIELD(insn, 25, 31);				\
+	    if (is_ld)							\
+		gen_op_ld_asi_reg(offset, size, sign);			\
+	    else							\
+		gen_op_st_asi_reg(offset, size, sign);			\
+	    return;							\
+	}								\
+	asi = GET_FIELD(insn, 19, 26);					\
+	if (is_ld)							\
+	    gen_op_ld_asi(asi, size, sign);				\
+	else								\
+	    gen_op_st_asi(asi, size, sign);				\
+    }
+
+#define supervisor(dc) (dc->mem_idx == 1)
+#endif
+#else
 #if defined(CONFIG_USER_ONLY)
 #define gen_op_ldst(name)        gen_op_##name##_raw()
 #define OP_LD_TABLE(width)
@@ -330,6 +433,7 @@ static void gen_op_##width##a(int insn, int is_ld, int size, int sign)        \
 
 #define supervisor(dc) (dc->mem_idx == 1)
 #endif
+#endif
 
 OP_LD_TABLE(ld);
 OP_LD_TABLE(st);
@@ -348,19 +452,42 @@ OP_LD_TABLE(stdf);
 OP_LD_TABLE(ldf);
 OP_LD_TABLE(lddf);
 
-static inline void gen_movl_imm_TN(int reg, int imm)
+#ifdef TARGET_SPARC64
+OP_LD_TABLE(ldsw);
+OP_LD_TABLE(ldx);
+OP_LD_TABLE(stx);
+OP_LD_TABLE(cas);
+OP_LD_TABLE(casx);
+#endif
+
+static inline void gen_movl_imm_TN(int reg, uint32_t imm)
 {
     gen_op_movl_TN_im[reg] (imm);
 }
 
-static inline void gen_movl_imm_T1(int val)
+static inline void gen_movl_imm_T1(uint32_t val)
 {
     gen_movl_imm_TN(1, val);
 }
 
-static inline void gen_movl_imm_T0(int val)
+static inline void gen_movl_imm_T0(uint32_t val)
 {
     gen_movl_imm_TN(0, val);
+}
+
+static inline void gen_movl_simm_TN(int reg, int32_t imm)
+{
+    gen_op_movl_TN_sim[reg](imm);
+}
+
+static inline void gen_movl_simm_T1(int32_t val)
+{
+    gen_movl_simm_TN(1, val);
+}
+
+static inline void gen_movl_simm_T0(int32_t val)
+{
+    gen_movl_simm_TN(0, val);
 }
 
 static inline void gen_movl_reg_TN(int reg, int t)
@@ -411,19 +538,45 @@ static inline void flush_T2(DisasContext * dc)
     }
 }
 
+static inline void gen_jmp_im(target_ulong pc)
+{
+#ifdef TARGET_SPARC64
+    if (pc == (uint32_t)pc) {
+        gen_op_jmp_im(pc);
+    } else {
+        gen_op_jmp_im64(pc >> 32, pc);
+    }
+#else
+    gen_op_jmp_im(pc);
+#endif
+}
+
+static inline void gen_movl_npc_im(target_ulong npc)
+{
+#ifdef TARGET_SPARC64
+    if (npc == (uint32_t)npc) {
+        gen_op_movl_npc_im(npc);
+    } else {
+        gen_op_movq_npc_im64(npc >> 32, npc);
+    }
+#else
+    gen_op_movl_npc_im(npc);
+#endif
+}
+
 static inline void save_npc(DisasContext * dc)
 {
     if (dc->npc == JUMP_PC) {
         gen_op_generic_branch(dc->jump_pc[0], dc->jump_pc[1]);
         dc->npc = DYNAMIC_PC;
     } else if (dc->npc != DYNAMIC_PC) {
-        gen_op_movl_npc_im(dc->npc);
+        gen_movl_npc_im(dc->npc);
     }
 }
 
 static inline void save_state(DisasContext * dc)
 {
-    gen_op_jmp_im(dc->pc);
+    gen_jmp_im(dc->pc);
     save_npc(dc);
 }
 
@@ -441,110 +594,159 @@ static inline void gen_mov_pc_npc(DisasContext * dc)
     }
 }
 
-static void gen_cond(int cond)
-{
-	switch (cond) {
-	case 0x1:
-	    gen_op_eval_be();
-	    break;
-	case 0x2:
-	    gen_op_eval_ble();
-	    break;
-	case 0x3:
-	    gen_op_eval_bl();
-	    break;
-	case 0x4:
-	    gen_op_eval_bleu();
-	    break;
-	case 0x5:
-	    gen_op_eval_bcs();
-	    break;
-	case 0x6:
-	    gen_op_eval_bneg();
-	    break;
-	case 0x7:
-	    gen_op_eval_bvs();
-	    break;
-	case 0x9:
-	    gen_op_eval_bne();
-	    break;
-	case 0xa:
-	    gen_op_eval_bg();
-	    break;
-	case 0xb:
-	    gen_op_eval_bge();
-	    break;
-	case 0xc:
-	    gen_op_eval_bgu();
-	    break;
-	case 0xd:
-	    gen_op_eval_bcc();
-	    break;
-	case 0xe:
-	    gen_op_eval_bpos();
-	    break;
-        default:
-	case 0xf:
-	    gen_op_eval_bvc();
-	    break;
-	}
-}
+static GenOpFunc * const gen_cond[2][16] = {
+    {
+	gen_op_eval_ba,
+	gen_op_eval_be,
+	gen_op_eval_ble,
+	gen_op_eval_bl,
+	gen_op_eval_bleu,
+	gen_op_eval_bcs,
+	gen_op_eval_bneg,
+	gen_op_eval_bvs,
+	gen_op_eval_bn,
+	gen_op_eval_bne,
+	gen_op_eval_bg,
+	gen_op_eval_bge,
+	gen_op_eval_bgu,
+	gen_op_eval_bcc,
+	gen_op_eval_bpos,
+	gen_op_eval_bvc,
+    },
+    {
+#ifdef TARGET_SPARC64
+	gen_op_eval_ba,
+	gen_op_eval_xbe,
+	gen_op_eval_xble,
+	gen_op_eval_xbl,
+	gen_op_eval_xbleu,
+	gen_op_eval_xbcs,
+	gen_op_eval_xbneg,
+	gen_op_eval_xbvs,
+	gen_op_eval_bn,
+	gen_op_eval_xbne,
+	gen_op_eval_xbg,
+	gen_op_eval_xbge,
+	gen_op_eval_xbgu,
+	gen_op_eval_xbcc,
+	gen_op_eval_xbpos,
+	gen_op_eval_xbvc,
+#endif
+    },
+};
 
-static void gen_fcond(int cond)
+static GenOpFunc * const gen_fcond[4][16] = {
+    {
+	gen_op_eval_ba,
+	gen_op_eval_fbne,
+	gen_op_eval_fblg,
+	gen_op_eval_fbul,
+	gen_op_eval_fbl,
+	gen_op_eval_fbug,
+	gen_op_eval_fbg,
+	gen_op_eval_fbu,
+	gen_op_eval_bn,
+	gen_op_eval_fbe,
+	gen_op_eval_fbue,
+	gen_op_eval_fbge,
+	gen_op_eval_fbuge,
+	gen_op_eval_fble,
+	gen_op_eval_fbule,
+	gen_op_eval_fbo,
+    },
+#ifdef TARGET_SPARC64
+    {
+	gen_op_eval_ba,
+	gen_op_eval_fbne_fcc1,
+	gen_op_eval_fblg_fcc1,
+	gen_op_eval_fbul_fcc1,
+	gen_op_eval_fbl_fcc1,
+	gen_op_eval_fbug_fcc1,
+	gen_op_eval_fbg_fcc1,
+	gen_op_eval_fbu_fcc1,
+	gen_op_eval_bn,
+	gen_op_eval_fbe_fcc1,
+	gen_op_eval_fbue_fcc1,
+	gen_op_eval_fbge_fcc1,
+	gen_op_eval_fbuge_fcc1,
+	gen_op_eval_fble_fcc1,
+	gen_op_eval_fbule_fcc1,
+	gen_op_eval_fbo_fcc1,
+    },
+    {
+	gen_op_eval_ba,
+	gen_op_eval_fbne_fcc2,
+	gen_op_eval_fblg_fcc2,
+	gen_op_eval_fbul_fcc2,
+	gen_op_eval_fbl_fcc2,
+	gen_op_eval_fbug_fcc2,
+	gen_op_eval_fbg_fcc2,
+	gen_op_eval_fbu_fcc2,
+	gen_op_eval_bn,
+	gen_op_eval_fbe_fcc2,
+	gen_op_eval_fbue_fcc2,
+	gen_op_eval_fbge_fcc2,
+	gen_op_eval_fbuge_fcc2,
+	gen_op_eval_fble_fcc2,
+	gen_op_eval_fbule_fcc2,
+	gen_op_eval_fbo_fcc2,
+    },
+    {
+	gen_op_eval_ba,
+	gen_op_eval_fbne_fcc3,
+	gen_op_eval_fblg_fcc3,
+	gen_op_eval_fbul_fcc3,
+	gen_op_eval_fbl_fcc3,
+	gen_op_eval_fbug_fcc3,
+	gen_op_eval_fbg_fcc3,
+	gen_op_eval_fbu_fcc3,
+	gen_op_eval_bn,
+	gen_op_eval_fbe_fcc3,
+	gen_op_eval_fbue_fcc3,
+	gen_op_eval_fbge_fcc3,
+	gen_op_eval_fbuge_fcc3,
+	gen_op_eval_fble_fcc3,
+	gen_op_eval_fbule_fcc3,
+	gen_op_eval_fbo_fcc3,
+    },
+#else
+    {}, {}, {},
+#endif
+};
+
+#ifdef TARGET_SPARC64
+static void gen_cond_reg(int cond)
 {
 	switch (cond) {
 	case 0x1:
-	    gen_op_eval_fbne();
+	    gen_op_eval_brz();
 	    break;
 	case 0x2:
-	    gen_op_eval_fblg();
+	    gen_op_eval_brlez();
 	    break;
 	case 0x3:
-	    gen_op_eval_fbul();
-	    break;
-	case 0x4:
-	    gen_op_eval_fbl();
+	    gen_op_eval_brlz();
 	    break;
 	case 0x5:
-	    gen_op_eval_fbug();
+	    gen_op_eval_brnz();
 	    break;
 	case 0x6:
-	    gen_op_eval_fbg();
-	    break;
-	case 0x7:
-	    gen_op_eval_fbu();
-	    break;
-	case 0x9:
-	    gen_op_eval_fbe();
-	    break;
-	case 0xa:
-	    gen_op_eval_fbue();
-	    break;
-	case 0xb:
-	    gen_op_eval_fbge();
-	    break;
-	case 0xc:
-	    gen_op_eval_fbuge();
-	    break;
-	case 0xd:
-	    gen_op_eval_fble();
-	    break;
-	case 0xe:
-	    gen_op_eval_fbule();
+	    gen_op_eval_brgz();
 	    break;
         default:
-	case 0xf:
-	    gen_op_eval_fbo();
+	case 0x7:
+	    gen_op_eval_brgez();
 	    break;
 	}
 }
+#endif
 
 /* XXX: potentially incorrect if dynamic npc */
-static void do_branch(DisasContext * dc, int32_t offset, uint32_t insn)
+static void do_branch(DisasContext * dc, int32_t offset, uint32_t insn, int cc)
 {
     unsigned int cond = GET_FIELD(insn, 3, 6), a = (insn & (1 << 29));
     target_ulong target = dc->pc + offset;
-
+	
     if (cond == 0x0) {
 	/* unconditional not taken */
 	if (a) {
@@ -565,7 +767,7 @@ static void do_branch(DisasContext * dc, int32_t offset, uint32_t insn)
 	}
     } else {
         flush_T2(dc);
-        gen_cond(cond);
+        gen_cond[cc][cond]();
 	if (a) {
 	    gen_op_branch_a((long)dc->tb, target, dc->npc);
             dc->is_br = 1;
@@ -579,7 +781,7 @@ static void do_branch(DisasContext * dc, int32_t offset, uint32_t insn)
 }
 
 /* XXX: potentially incorrect if dynamic npc */
-static void do_fbranch(DisasContext * dc, int32_t offset, uint32_t insn)
+static void do_fbranch(DisasContext * dc, int32_t offset, uint32_t insn, int cc)
 {
     unsigned int cond = GET_FIELD(insn, 3, 6), a = (insn & (1 << 29));
     target_ulong target = dc->pc + offset;
@@ -604,7 +806,7 @@ static void do_fbranch(DisasContext * dc, int32_t offset, uint32_t insn)
 	}
     } else {
         flush_T2(dc);
-        gen_fcond(cond);
+        gen_fcond[cc][cond]();
 	if (a) {
 	    gen_op_branch_a((long)dc->tb, target, dc->npc);
             dc->is_br = 1;
@@ -617,13 +819,40 @@ static void do_fbranch(DisasContext * dc, int32_t offset, uint32_t insn)
     }
 }
 
-#define GET_FIELDs(x,a,b) sign_extend (GET_FIELD(x,a,b), (b) - (a) + 1)
-
-static int sign_extend(int x, int len)
+#ifdef TARGET_SPARC64
+/* XXX: potentially incorrect if dynamic npc */
+static void do_branch_reg(DisasContext * dc, int32_t offset, uint32_t insn)
 {
-    len = 32 - len;
-    return (x << len) >> len;
+    unsigned int cond = GET_FIELD_SP(insn, 25, 27), a = (insn & (1 << 29));
+    target_ulong target = dc->pc + offset;
+
+    flush_T2(dc);
+    gen_cond_reg(cond);
+    if (a) {
+	gen_op_branch_a((long)dc->tb, target, dc->npc);
+	dc->is_br = 1;
+    } else {
+	dc->pc = dc->npc;
+	dc->jump_pc[0] = target;
+	dc->jump_pc[1] = dc->npc + 4;
+	dc->npc = JUMP_PC;
+    }
 }
+
+static GenOpFunc * const gen_fcmps[4] = {
+    gen_op_fcmps,
+    gen_op_fcmps_fcc1,
+    gen_op_fcmps_fcc2,
+    gen_op_fcmps_fcc3,
+};
+
+static GenOpFunc * const gen_fcmpd[4] = {
+    gen_op_fcmpd,
+    gen_op_fcmpd_fcc1,
+    gen_op_fcmpd_fcc2,
+    gen_op_fcmpd_fcc3,
+};
+#endif
 
 /* before an instruction, dc->pc must be static */
 static void disas_sparc_insn(DisasContext * dc)
@@ -639,19 +868,54 @@ static void disas_sparc_insn(DisasContext * dc)
 	{
 	    unsigned int xop = GET_FIELD(insn, 7, 9);
 	    int32_t target;
-	    target = GET_FIELD(insn, 10, 31);
 	    switch (xop) {
-	    case 0x0:		/* UNIMPL */
+#ifdef TARGET_SPARC64
 	    case 0x1:		/* V9 BPcc */
+		{
+		    int cc;
+
+		    target = GET_FIELD_SP(insn, 0, 18);
+		    target <<= 2;
+		    target = sign_extend(target, 18);
+		    cc = GET_FIELD_SP(insn, 20, 21);
+		    if (cc == 0)
+			do_branch(dc, target, insn, 0);
+		    else if (cc == 2)
+			do_branch(dc, target, insn, 1);
+		    else
+			goto illegal_insn;
+		    goto jmp_insn;
+		}
 	    case 0x3:		/* V9 BPr */
+		{
+		    target = GET_FIELD_SP(insn, 0, 13) | 
+			(GET_FIELD_SP(insn, 20, 21) >> 7);
+		    target <<= 2;
+		    target = sign_extend(target, 16);
+		    rs1 = GET_FIELD(insn, 13, 17);
+		    gen_movl_T0_reg(rs1);
+		    do_branch_reg(dc, target, insn);
+		    goto jmp_insn;
+		}
 	    case 0x5:		/* V9 FBPcc */
-	    default:
-                goto illegal_insn;
+		{
+		    int cc = GET_FIELD_SP(insn, 20, 21);
+#if !defined(CONFIG_USER_ONLY)
+		    gen_op_trap_ifnofpu();
+#endif
+		    target = GET_FIELD_SP(insn, 0, 18);
+		    target <<= 2;
+		    target = sign_extend(target, 19);
+		    do_fbranch(dc, target, insn, cc);
+		    goto jmp_insn;
+		}
+#endif
 	    case 0x2:		/* BN+x */
 		{
+		    target = GET_FIELD(insn, 10, 31);
 		    target <<= 2;
 		    target = sign_extend(target, 22);
-		    do_branch(dc, target, insn);
+		    do_branch(dc, target, insn, 0);
 		    goto jmp_insn;
 		}
 	    case 0x6:		/* FBN+x */
@@ -659,9 +923,10 @@ static void disas_sparc_insn(DisasContext * dc)
 #if !defined(CONFIG_USER_ONLY)
 		    gen_op_trap_ifnofpu();
 #endif
+		    target = GET_FIELD(insn, 10, 31);
 		    target <<= 2;
 		    target = sign_extend(target, 22);
-		    do_fbranch(dc, target, insn);
+		    do_fbranch(dc, target, insn, 0);
 		    goto jmp_insn;
 		}
 	    case 0x4:		/* SETHI */
@@ -669,12 +934,16 @@ static void disas_sparc_insn(DisasContext * dc)
 #if defined(OPTIM)
 		if (rd) { // nop
 #endif
-		    gen_movl_imm_T0(target << 10);
+		    uint32_t value = GET_FIELD(insn, 10, 31);
+		    gen_movl_imm_T0(value << 10);
 		    gen_movl_T0_reg(rd);
 #if defined(OPTIM)
 		}
 #endif
 		break;
+	    case 0x0:		/* UNIMPL */
+	    default:
+                goto illegal_insn;
 	    }
 	    break;
 	}
@@ -695,6 +964,7 @@ static void disas_sparc_insn(DisasContext * dc)
 	    unsigned int xop = GET_FIELD(insn, 7, 12);
 	    if (xop == 0x3a) {	/* generate trap */
                 int cond;
+
                 rs1 = GET_FIELD(insn, 13, 17);
                 gen_movl_reg_T0(rs1);
 		if (IS_IMM) {
@@ -702,7 +972,7 @@ static void disas_sparc_insn(DisasContext * dc)
 #if defined(OPTIM)
 		    if (rs2 != 0) {
 #endif
-			gen_movl_imm_T1(rs2);
+			gen_movl_simm_T1(rs2);
 			gen_op_add_T1_T0();
 #if defined(OPTIM)
 		    }
@@ -719,51 +989,141 @@ static void disas_sparc_insn(DisasContext * dc)
 #endif
                 }
                 save_state(dc);
-		/* V9 icc/xcc */
                 cond = GET_FIELD(insn, 3, 6);
                 if (cond == 0x8) {
                     gen_op_trap_T0();
                     dc->is_br = 1;
                     goto jmp_insn;
                 } else if (cond != 0) {
-		    gen_cond(cond);
+#ifdef TARGET_SPARC64
+		    /* V9 icc/xcc */
+		    int cc = GET_FIELD_SP(insn, 11, 12);
+		    if (cc == 0)
+			gen_cond[0][cond]();
+		    else if (cc == 2)
+			gen_cond[1][cond]();
+		    else
+			goto illegal_insn;
+#else
+		    gen_cond[0][cond]();
+#endif
                     gen_op_trapcc_T0();
                 }
             } else if (xop == 0x28) {
                 rs1 = GET_FIELD(insn, 13, 17);
                 switch(rs1) {
                 case 0: /* rdy */
-                    gen_op_rdy();
+		    gen_op_movtl_T0_env(offsetof(CPUSPARCState, y));
                     gen_movl_T0_reg(rd);
                     break;
                 case 15: /* stbar / V9 membar */
 		    break; /* no effect? */
-                default:
+#ifdef TARGET_SPARC64
 		case 0x2: /* V9 rdccr */
+                    gen_op_rdccr();
+                    gen_movl_T0_reg(rd);
+                    break;
 		case 0x3: /* V9 rdasi */
+		    gen_op_movl_T0_env(offsetof(CPUSPARCState, asi));
+                    gen_movl_T0_reg(rd);
+                    break;
 		case 0x4: /* V9 rdtick */
+                    gen_op_rdtick();
+                    gen_movl_T0_reg(rd);
+                    break;
 		case 0x5: /* V9 rdpc */
+		    gen_op_movl_T0_im(dc->pc);
+		    gen_movl_T0_reg(rd);
+		    break;
 		case 0x6: /* V9 rdfprs */
+		    gen_op_movl_T0_env(offsetof(CPUSPARCState, fprs));
+                    gen_movl_T0_reg(rd);
+                    break;
+#endif
+                default:
                     goto illegal_insn;
                 }
 #if !defined(CONFIG_USER_ONLY)
-            } else if (xop == 0x29) {
+#ifndef TARGET_SPARC64
+            } else if (xop == 0x29) { /* rdpsr / V9 unimp */
 		if (!supervisor(dc))
 		    goto priv_insn;
                 gen_op_rdpsr();
                 gen_movl_T0_reg(rd);
                 break;
-            } else if (xop == 0x2a) {
+#endif
+            } else if (xop == 0x2a) { /* rdwim / V9 rdpr */
 		if (!supervisor(dc))
 		    goto priv_insn;
-                gen_op_rdwim();
+#ifdef TARGET_SPARC64
+                rs1 = GET_FIELD(insn, 13, 17);
+		switch (rs1) {
+		case 0: // tpc
+		    gen_op_rdtpc();
+		    break;
+		case 1: // tnpc
+		    gen_op_rdtnpc();
+		    break;
+		case 2: // tstate
+		    gen_op_rdtstate();
+		    break;
+		case 3: // tt
+		    gen_op_rdtt();
+		    break;
+		case 4: // tick
+		    gen_op_rdtick();
+		    break;
+		case 5: // tba
+		    gen_op_movtl_T0_env(offsetof(CPUSPARCState, tbr));
+		    break;
+		case 6: // pstate
+		    gen_op_rdpstate();
+		    break;
+		case 7: // tl
+		    gen_op_movl_T0_env(offsetof(CPUSPARCState, tl));
+		    break;
+		case 8: // pil
+		    gen_op_movl_T0_env(offsetof(CPUSPARCState, psrpil));
+		    break;
+		case 9: // cwp
+		    gen_op_rdcwp();
+		    break;
+		case 10: // cansave
+		    gen_op_movl_T0_env(offsetof(CPUSPARCState, cansave));
+		    break;
+		case 11: // canrestore
+		    gen_op_movl_T0_env(offsetof(CPUSPARCState, canrestore));
+		    break;
+		case 12: // cleanwin
+		    gen_op_movl_T0_env(offsetof(CPUSPARCState, cleanwin));
+		    break;
+		case 13: // otherwin
+		    gen_op_movl_T0_env(offsetof(CPUSPARCState, otherwin));
+		    break;
+		case 14: // wstate
+		    gen_op_movl_T0_env(offsetof(CPUSPARCState, wstate));
+		    break;
+		case 31: // ver
+		    gen_op_movtl_T0_env(offsetof(CPUSPARCState, version));
+		    break;
+		case 15: // fq
+		default:
+		    goto illegal_insn;
+		}
+#else
+		gen_op_movl_T0_env(offsetof(CPUSPARCState, wim));
+#endif
                 gen_movl_T0_reg(rd);
                 break;
-            } else if (xop == 0x2b) {
+            } else if (xop == 0x2b) { /* rdtbr / V9 flushw */
+#ifdef TARGET_SPARC64
+		gen_op_flushw();
+#else
 		if (!supervisor(dc))
 		    goto priv_insn;
-                gen_op_rdtbr();
+		gen_op_movtl_T0_env(offsetof(CPUSPARCState, tbr));
                 gen_movl_T0_reg(rd);
+#endif
                 break;
 #endif
 	    } else if (xop == 0x34) {	/* FPU Operations */
@@ -794,9 +1154,9 @@ static void disas_sparc_insn(DisasContext * dc)
 			gen_op_store_FT0_fpr(rd);
 			break;
 		    case 0x2a: /* fsqrtd */
-                	gen_op_load_fpr_DT1(rs2);
+                	gen_op_load_fpr_DT1(DFPREG(rs2));
 			gen_op_fsqrtd();
-			gen_op_store_DT0_fpr(rd);
+			gen_op_store_DT0_fpr(DFPREG(rd));
 			break;
 		    case 0x2b: /* fsqrtq */
 		        goto nfpu_insn;
@@ -807,10 +1167,10 @@ static void disas_sparc_insn(DisasContext * dc)
 			gen_op_store_FT0_fpr(rd);
 			break;
 		    case 0x42:
-                	gen_op_load_fpr_DT0(rs1);
-                	gen_op_load_fpr_DT1(rs2);
+                	gen_op_load_fpr_DT0(DFPREG(rs1));
+                	gen_op_load_fpr_DT1(DFPREG(rs2));
 			gen_op_faddd();
-			gen_op_store_DT0_fpr(rd);
+			gen_op_store_DT0_fpr(DFPREG(rd));
 			break;
 		    case 0x43: /* faddq */
 		        goto nfpu_insn;
@@ -821,10 +1181,10 @@ static void disas_sparc_insn(DisasContext * dc)
 			gen_op_store_FT0_fpr(rd);
 			break;
 		    case 0x46:
-                	gen_op_load_fpr_DT0(rs1);
-                	gen_op_load_fpr_DT1(rs2);
+                	gen_op_load_fpr_DT0(DFPREG(rs1));
+                	gen_op_load_fpr_DT1(DFPREG(rs2));
 			gen_op_fsubd();
-			gen_op_store_DT0_fpr(rd);
+			gen_op_store_DT0_fpr(DFPREG(rd));
 			break;
 		    case 0x47: /* fsubq */
 		        goto nfpu_insn;
@@ -835,8 +1195,8 @@ static void disas_sparc_insn(DisasContext * dc)
 			gen_op_store_FT0_fpr(rd);
 			break;
 		    case 0x4a:
-                	gen_op_load_fpr_DT0(rs1);
-                	gen_op_load_fpr_DT1(rs2);
+                	gen_op_load_fpr_DT0(DFPREG(rs1));
+                	gen_op_load_fpr_DT1(DFPREG(rs2));
 			gen_op_fmuld();
 			gen_op_store_DT0_fpr(rd);
 			break;
@@ -849,10 +1209,10 @@ static void disas_sparc_insn(DisasContext * dc)
 			gen_op_store_FT0_fpr(rd);
 			break;
 		    case 0x4e:
-                	gen_op_load_fpr_DT0(rs1);
-                	gen_op_load_fpr_DT1(rs2);
+                	gen_op_load_fpr_DT0(DFPREG(rs1));
+			gen_op_load_fpr_DT1(DFPREG(rs2));
 			gen_op_fdivd();
-			gen_op_store_DT0_fpr(rd);
+			gen_op_store_DT0_fpr(DFPREG(rd));
 			break;
 		    case 0x4f: /* fdivq */
 		        goto nfpu_insn;
@@ -860,7 +1220,7 @@ static void disas_sparc_insn(DisasContext * dc)
                 	gen_op_load_fpr_FT0(rs1);
                 	gen_op_load_fpr_FT1(rs2);
 			gen_op_fsmuld();
-			gen_op_store_DT0_fpr(rd);
+			gen_op_store_DT0_fpr(DFPREG(rd));
 			break;
 		    case 0x6e: /* fdmulq */
 		        goto nfpu_insn;
@@ -870,7 +1230,7 @@ static void disas_sparc_insn(DisasContext * dc)
 			gen_op_store_FT0_fpr(rd);
 			break;
 		    case 0xc6:
-                	gen_op_load_fpr_DT1(rs2);
+                	gen_op_load_fpr_DT1(DFPREG(rs2));
 			gen_op_fdtos();
 			gen_op_store_FT0_fpr(rd);
 			break;
@@ -879,12 +1239,12 @@ static void disas_sparc_insn(DisasContext * dc)
 		    case 0xc8:
                 	gen_op_load_fpr_FT1(rs2);
 			gen_op_fitod();
-			gen_op_store_DT0_fpr(rd);
+			gen_op_store_DT0_fpr(DFPREG(rd));
 			break;
 		    case 0xc9:
                 	gen_op_load_fpr_FT1(rs2);
 			gen_op_fstod();
-			gen_op_store_DT0_fpr(rd);
+			gen_op_store_DT0_fpr(DFPREG(rd));
 			break;
 		    case 0xcb: /* fqtod */
 		        goto nfpu_insn;
@@ -906,55 +1266,248 @@ static void disas_sparc_insn(DisasContext * dc)
 			break;
 		    case 0xd3: /* fqtoi */
 		        goto nfpu_insn;
-		    default:
+#ifdef TARGET_SPARC64
 		    case 0x2: /* V9 fmovd */
+                	gen_op_load_fpr_DT0(DFPREG(rs2));
+			gen_op_store_DT0_fpr(DFPREG(rd));
+			break;
 		    case 0x6: /* V9 fnegd */
+                	gen_op_load_fpr_DT1(DFPREG(rs2));
+			gen_op_fnegd();
+			gen_op_store_DT0_fpr(DFPREG(rd));
+			break;
 		    case 0xa: /* V9 fabsd */
+                	gen_op_load_fpr_DT1(DFPREG(rs2));
+			gen_op_fabsd();
+			gen_op_store_DT0_fpr(DFPREG(rd));
+			break;
 		    case 0x81: /* V9 fstox */
+                	gen_op_load_fpr_FT1(rs2);
+			gen_op_fstox();
+			gen_op_store_DT0_fpr(DFPREG(rd));
+			break;
 		    case 0x82: /* V9 fdtox */
+                	gen_op_load_fpr_DT1(DFPREG(rs2));
+			gen_op_fdtox();
+			gen_op_store_DT0_fpr(DFPREG(rd));
+			break;
 		    case 0x84: /* V9 fxtos */
+                	gen_op_load_fpr_DT1(DFPREG(rs2));
+			gen_op_fxtos();
+			gen_op_store_FT0_fpr(rd);
+			break;
 		    case 0x88: /* V9 fxtod */
-
+                	gen_op_load_fpr_DT1(DFPREG(rs2));
+			gen_op_fxtod();
+			gen_op_store_DT0_fpr(DFPREG(rd));
+			break;
 		    case 0x3: /* V9 fmovq */
 		    case 0x7: /* V9 fnegq */
 		    case 0xb: /* V9 fabsq */
 		    case 0x83: /* V9 fqtox */
 		    case 0x8c: /* V9 fxtoq */
+		        goto nfpu_insn;
+#endif
+		    default:
                 	goto illegal_insn;
 		}
 	    } else if (xop == 0x35) {	/* FPU Operations */
+#ifdef TARGET_SPARC64
+		int cond;
+#endif
 #if !defined(CONFIG_USER_ONLY)
 		gen_op_trap_ifnofpu();
 #endif
                 rs1 = GET_FIELD(insn, 13, 17);
 	        rs2 = GET_FIELD(insn, 27, 31);
 	        xop = GET_FIELD(insn, 18, 26);
-		/* V9 fmovscc: x5, cond = x >> 1 */
-		/* V9 fmovdcc: x6, cond = x >> 1 */
-
-		/* V9 fmovqcc: x7, cond = x >> 1 */
+#ifdef TARGET_SPARC64
+		if ((xop & 0x11f) == 0x005) { // V9 fmovsr
+		    cond = GET_FIELD_SP(insn, 14, 17);
+		    gen_op_load_fpr_FT0(rd);
+		    gen_op_load_fpr_FT1(rs2);
+		    rs1 = GET_FIELD(insn, 13, 17);
+		    gen_movl_reg_T0(rs1);
+		    flush_T2(dc);
+		    gen_cond_reg(cond);
+		    gen_op_fmovs_cc();
+		    gen_op_store_FT0_fpr(rd);
+		    break;
+		} else if ((xop & 0x11f) == 0x006) { // V9 fmovdr
+		    cond = GET_FIELD_SP(insn, 14, 17);
+		    gen_op_load_fpr_DT0(rd);
+		    gen_op_load_fpr_DT1(rs2);
+		    flush_T2(dc);
+		    rs1 = GET_FIELD(insn, 13, 17);
+		    gen_movl_reg_T0(rs1);
+		    gen_cond_reg(cond);
+		    gen_op_fmovs_cc();
+		    gen_op_store_DT0_fpr(rd);
+		    break;
+		} else if ((xop & 0x11f) == 0x007) { // V9 fmovqr
+		    goto nfpu_insn;
+		}
+#endif
 		switch (xop) {
-		    case 0x51:
+#ifdef TARGET_SPARC64
+		    case 0x001: /* V9 fmovscc %fcc0 */
+			cond = GET_FIELD_SP(insn, 14, 17);
+                	gen_op_load_fpr_FT0(rd);
+                	gen_op_load_fpr_FT1(rs2);
+			flush_T2(dc);
+			gen_fcond[0][cond]();
+			gen_op_fmovs_cc();
+			gen_op_store_FT0_fpr(rd);
+			break;
+		    case 0x002: /* V9 fmovdcc %fcc0 */
+			cond = GET_FIELD_SP(insn, 14, 17);
+                	gen_op_load_fpr_DT0(rd);
+                	gen_op_load_fpr_DT1(rs2);
+			flush_T2(dc);
+			gen_fcond[0][cond]();
+			gen_op_fmovd_cc();
+			gen_op_store_DT0_fpr(rd);
+			break;
+		    case 0x003: /* V9 fmovqcc %fcc0 */
+		        goto nfpu_insn;
+		    case 0x041: /* V9 fmovscc %fcc1 */
+			cond = GET_FIELD_SP(insn, 14, 17);
+                	gen_op_load_fpr_FT0(rd);
+                	gen_op_load_fpr_FT1(rs2);
+			flush_T2(dc);
+			gen_fcond[1][cond]();
+			gen_op_fmovs_cc();
+			gen_op_store_FT0_fpr(rd);
+			break;
+		    case 0x042: /* V9 fmovdcc %fcc1 */
+			cond = GET_FIELD_SP(insn, 14, 17);
+                	gen_op_load_fpr_DT0(rd);
+                	gen_op_load_fpr_DT1(rs2);
+			flush_T2(dc);
+			gen_fcond[1][cond]();
+			gen_op_fmovd_cc();
+			gen_op_store_DT0_fpr(rd);
+			break;
+		    case 0x043: /* V9 fmovqcc %fcc1 */
+		        goto nfpu_insn;
+		    case 0x081: /* V9 fmovscc %fcc2 */
+			cond = GET_FIELD_SP(insn, 14, 17);
+                	gen_op_load_fpr_FT0(rd);
+                	gen_op_load_fpr_FT1(rs2);
+			flush_T2(dc);
+			gen_fcond[2][cond]();
+			gen_op_fmovs_cc();
+			gen_op_store_FT0_fpr(rd);
+			break;
+		    case 0x082: /* V9 fmovdcc %fcc2 */
+			cond = GET_FIELD_SP(insn, 14, 17);
+                	gen_op_load_fpr_DT0(rd);
+                	gen_op_load_fpr_DT1(rs2);
+			flush_T2(dc);
+			gen_fcond[2][cond]();
+			gen_op_fmovd_cc();
+			gen_op_store_DT0_fpr(rd);
+			break;
+		    case 0x083: /* V9 fmovqcc %fcc2 */
+		        goto nfpu_insn;
+		    case 0x0c1: /* V9 fmovscc %fcc3 */
+			cond = GET_FIELD_SP(insn, 14, 17);
+                	gen_op_load_fpr_FT0(rd);
+                	gen_op_load_fpr_FT1(rs2);
+			flush_T2(dc);
+			gen_fcond[3][cond]();
+			gen_op_fmovs_cc();
+			gen_op_store_FT0_fpr(rd);
+			break;
+		    case 0x0c2: /* V9 fmovdcc %fcc3 */
+			cond = GET_FIELD_SP(insn, 14, 17);
+                	gen_op_load_fpr_DT0(rd);
+                	gen_op_load_fpr_DT1(rs2);
+			flush_T2(dc);
+			gen_fcond[3][cond]();
+			gen_op_fmovd_cc();
+			gen_op_store_DT0_fpr(rd);
+			break;
+		    case 0x0c3: /* V9 fmovqcc %fcc3 */
+		        goto nfpu_insn;
+		    case 0x101: /* V9 fmovscc %icc */
+			cond = GET_FIELD_SP(insn, 14, 17);
+                	gen_op_load_fpr_FT0(rd);
+                	gen_op_load_fpr_FT1(rs2);
+			flush_T2(dc);
+			gen_cond[0][cond]();
+			gen_op_fmovs_cc();
+			gen_op_store_FT0_fpr(rd);
+			break;
+		    case 0x102: /* V9 fmovdcc %icc */
+			cond = GET_FIELD_SP(insn, 14, 17);
+                	gen_op_load_fpr_DT0(rd);
+                	gen_op_load_fpr_DT1(rs2);
+			flush_T2(dc);
+			gen_cond[0][cond]();
+			gen_op_fmovd_cc();
+			gen_op_store_DT0_fpr(rd);
+			break;
+		    case 0x103: /* V9 fmovqcc %icc */
+		        goto nfpu_insn;
+		    case 0x181: /* V9 fmovscc %xcc */
+			cond = GET_FIELD_SP(insn, 14, 17);
+                	gen_op_load_fpr_FT0(rd);
+                	gen_op_load_fpr_FT1(rs2);
+			flush_T2(dc);
+			gen_cond[1][cond]();
+			gen_op_fmovs_cc();
+			gen_op_store_FT0_fpr(rd);
+			break;
+		    case 0x182: /* V9 fmovdcc %xcc */
+			cond = GET_FIELD_SP(insn, 14, 17);
+                	gen_op_load_fpr_DT0(rd);
+                	gen_op_load_fpr_DT1(rs2);
+			flush_T2(dc);
+			gen_cond[1][cond]();
+			gen_op_fmovd_cc();
+			gen_op_store_DT0_fpr(rd);
+			break;
+		    case 0x183: /* V9 fmovqcc %xcc */
+		        goto nfpu_insn;
+#endif
+		    case 0x51: /* V9 %fcc */
                 	gen_op_load_fpr_FT0(rs1);
                 	gen_op_load_fpr_FT1(rs2);
+#ifdef TARGET_SPARC64
+			gen_fcmps[rd & 3]();
+#else
 			gen_op_fcmps();
+#endif
 			break;
-		    case 0x52:
-                	gen_op_load_fpr_DT0(rs1);
-                	gen_op_load_fpr_DT1(rs2);
+		    case 0x52: /* V9 %fcc */
+                	gen_op_load_fpr_DT0(DFPREG(rs1));
+                	gen_op_load_fpr_DT1(DFPREG(rs2));
+#ifdef TARGET_SPARC64
+			gen_fcmpd[rd & 3]();
+#else
 			gen_op_fcmpd();
+#endif
 			break;
 		    case 0x53: /* fcmpq */
 		        goto nfpu_insn;
-		    case 0x55: /* fcmpes */
+		    case 0x55: /* fcmpes, V9 %fcc */
                 	gen_op_load_fpr_FT0(rs1);
                 	gen_op_load_fpr_FT1(rs2);
+#ifdef TARGET_SPARC64
+			gen_fcmps[rd & 3]();
+#else
 			gen_op_fcmps(); /* XXX should trap if qNaN or sNaN  */
+#endif
 			break;
-		    case 0x56: /* fcmped */
-                	gen_op_load_fpr_DT0(rs1);
-                	gen_op_load_fpr_DT1(rs2);
+		    case 0x56: /* fcmped, V9 %fcc */
+                	gen_op_load_fpr_DT0(DFPREG(rs1));
+                	gen_op_load_fpr_DT1(DFPREG(rs2));
+#ifdef TARGET_SPARC64
+			gen_fcmpd[rd & 3]();
+#else
 			gen_op_fcmpd(); /* XXX should trap if qNaN or sNaN  */
+#endif
 			break;
 		    case 0x57: /* fcmpeq */
 		        goto nfpu_insn;
@@ -970,7 +1523,7 @@ static void disas_sparc_insn(DisasContext * dc)
 		    // or %g0, x, y -> mov T1, x; mov y, T1
 		    if (IS_IMM) {	/* immediate */
 			rs2 = GET_FIELDs(insn, 19, 31);
-			gen_movl_imm_T1(rs2);
+			gen_movl_simm_T1(rs2);
 		    } else {		/* register */
 			rs2 = GET_FIELD(insn, 27, 31);
 			gen_movl_reg_T1(rs2);
@@ -982,7 +1535,7 @@ static void disas_sparc_insn(DisasContext * dc)
 			// or x, #0, y -> mov T1, x; mov y, T1
 			rs2 = GET_FIELDs(insn, 19, 31);
 			if (rs2 != 0) {
-			    gen_movl_imm_T1(rs2);
+			    gen_movl_simm_T1(rs2);
 			    gen_op_or_T1_T0();
 			}
 		    } else {		/* register */
@@ -1001,7 +1554,7 @@ static void disas_sparc_insn(DisasContext * dc)
 		gen_movl_reg_T0(rs1);
 		if (IS_IMM) {	/* immediate */
                     rs2 = GET_FIELDs(insn, 19, 31);
-                    gen_movl_imm_T1(rs2);
+                    gen_movl_simm_T1(rs2);
                 } else {		/* register */
                     rs2 = GET_FIELD(insn, 27, 31);
                     gen_movl_reg_T1(rs2);
@@ -1083,13 +1636,21 @@ static void disas_sparc_insn(DisasContext * dc)
                             gen_op_div_cc();
                         break;
                     default:
-		    case 0x9: /* V9 mulx */
-		    case 0xd: /* V9 udivx */
                         goto illegal_insn;
                     }
 		    gen_movl_T0_reg(rd);
                 } else {
                     switch (xop) {
+#ifdef TARGET_SPARC64
+		    case 0x9: /* V9 mulx */
+                        gen_op_mulx_T1_T0();
+			gen_movl_T0_reg(rd);
+                        break;
+		    case 0xd: /* V9 udivx */
+                        gen_op_udivx_T1_T0();
+			gen_movl_T0_reg(rd);
+                        break;
+#endif
 		    case 0x20: /* taddcc */
 		    case 0x21: /* tsubcc */
 		    case 0x22: /* taddcctv */
@@ -1099,30 +1660,67 @@ static void disas_sparc_insn(DisasContext * dc)
                         gen_op_mulscc_T1_T0();
                         gen_movl_T0_reg(rd);
                         break;
-                    case 0x25:	/* sll, V9 sllx */
-                        gen_op_sll();
+                    case 0x25:	/* sll, V9 sllx ( == sll) */
+			gen_op_sll();
                         gen_movl_T0_reg(rd);
                         break;
                     case 0x26:  /* srl, V9 srlx */
-                        gen_op_srl();
+#ifdef TARGET_SPARC64
+			if (insn & (1 << 12))
+			    gen_op_srlx();
+			else
+			    gen_op_srl();
+#else
+			gen_op_srl();
+#endif
                         gen_movl_T0_reg(rd);
                         break;
                     case 0x27:  /* sra, V9 srax */
-                        gen_op_sra();
+#ifdef TARGET_SPARC64
+			if (insn & (1 << 12))
+			    gen_op_srax();
+			else
+			    gen_op_sra();
+#else
+			gen_op_sra();
+#endif
                         gen_movl_T0_reg(rd);
                         break;
                     case 0x30:
                         {
-                            gen_op_xor_T1_T0();
                             switch(rd) {
-                            case 0:
-                                gen_op_wry();
+                            case 0: /* wry */
+				gen_op_xor_T1_T0();
+				gen_op_movtl_env_T0(offsetof(CPUSPARCState, y));
                                 break;
-                            default:
+#ifdef TARGET_SPARC64
 			    case 0x2: /* V9 wrccr */
+                                gen_op_wrccr();
+				break;
 			    case 0x3: /* V9 wrasi */
+				gen_op_movl_env_T0(offsetof(CPUSPARCState, asi));
+				break;
 			    case 0x6: /* V9 wrfprs */
-			    case 0xf: /* V9 sir */
+				gen_op_movl_env_T0(offsetof(CPUSPARCState, fprs));
+				break;
+			    case 0xf: /* V9 sir, nop if user */
+#if !defined(CONFIG_USER_ONLY)
+				if (supervisor(dc))
+				    gen_op_sir();
+#endif
+				break;
+#endif
+			    case 0x10: /* Performance Control */
+			    case 0x11: /* Performance Instrumentation Counter */
+			    case 0x12: /* Dispatch Control */
+			    case 0x13: /* Graphics Status */
+			    case 0x14: /* Softint set */
+			    case 0x15: /* Softint clear */
+			    case 0x16: /* Softint write */
+			    case 0x17: /* Tick compare */
+			    case 0x18: /* System tick */
+			    case 0x19: /* System tick compare */
+                            default:
                                 goto illegal_insn;
                             }
                         }
@@ -1132,8 +1730,21 @@ static void disas_sparc_insn(DisasContext * dc)
                         {
 			    if (!supervisor(dc))
 				goto priv_insn;
+#ifdef TARGET_SPARC64
+			    switch (rd) {
+			    case 0:
+				gen_op_saved();
+				break;
+			    case 1:
+				gen_op_restored();
+				break;
+			    default:
+                                goto illegal_insn;
+                            }
+#else
                             gen_op_xor_T1_T0();
                             gen_op_wrpsr();
+#endif
                         }
                         break;
                     case 0x32: /* wrwim, V9 wrpr */
@@ -1141,28 +1752,179 @@ static void disas_sparc_insn(DisasContext * dc)
 			    if (!supervisor(dc))
 				goto priv_insn;
                             gen_op_xor_T1_T0();
-                            gen_op_wrwim();
+#ifdef TARGET_SPARC64
+			    switch (rd) {
+			    case 0: // tpc
+				gen_op_wrtpc();
+				break;
+			    case 1: // tnpc
+				gen_op_wrtnpc();
+				break;
+			    case 2: // tstate
+				gen_op_wrtstate();
+				break;
+			    case 3: // tt
+				gen_op_wrtt();
+				break;
+			    case 4: // tick
+				gen_op_wrtick();
+				break;
+			    case 5: // tba
+				gen_op_movl_env_T0(offsetof(CPUSPARCState, tbr));
+				break;
+			    case 6: // pstate
+				gen_op_wrpstate();
+				break;
+			    case 7: // tl
+				gen_op_movl_env_T0(offsetof(CPUSPARCState, tl));
+				break;
+			    case 8: // pil
+				gen_op_movl_env_T0(offsetof(CPUSPARCState, psrpil));
+				break;
+			    case 9: // cwp
+				gen_op_wrcwp();
+				break;
+			    case 10: // cansave
+				gen_op_movl_env_T0(offsetof(CPUSPARCState, cansave));
+				break;
+			    case 11: // canrestore
+				gen_op_movl_env_T0(offsetof(CPUSPARCState, canrestore));
+				break;
+			    case 12: // cleanwin
+				gen_op_movl_env_T0(offsetof(CPUSPARCState, cleanwin));
+				break;
+			    case 13: // otherwin
+				gen_op_movl_env_T0(offsetof(CPUSPARCState, otherwin));
+				break;
+			    case 14: // wstate
+				gen_op_movl_env_T0(offsetof(CPUSPARCState, wstate));
+				break;
+			    default:
+				goto illegal_insn;
+			    }
+#else
+			    gen_op_movl_env_T0(offsetof(CPUSPARCState, wim));
+#endif
                         }
                         break;
-                    case 0x33:
+#ifndef TARGET_SPARC64
+                    case 0x33: /* wrtbr, V9 unimp */
                         {
 			    if (!supervisor(dc))
 				goto priv_insn;
                             gen_op_xor_T1_T0();
-                            gen_op_wrtbr();
+			    gen_op_movtl_env_T0(offsetof(CPUSPARCState, tbr));
                         }
                         break;
 #endif
-		    default:
-		    case 0x2a: /* V9 rdpr */
-		    case 0x2b: /* V9 flushw */
+#endif
+#ifdef TARGET_SPARC64
 		    case 0x2c: /* V9 movcc */
+			{
+			    int cc = GET_FIELD_SP(insn, 11, 12);
+			    int cond = GET_FIELD_SP(insn, 14, 17);
+			    if (IS_IMM) {	/* immediate */
+				rs2 = GET_FIELD_SPs(insn, 0, 10);
+				gen_movl_simm_T1(rs2);
+			    }
+			    else {
+				rs2 = GET_FIELD_SP(insn, 0, 4);
+				gen_movl_reg_T1(rs2);
+			    }
+			    gen_movl_reg_T0(rd);
+			    flush_T2(dc);
+			    if (insn & (1 << 18)) {
+				if (cc == 0)
+				    gen_cond[0][cond]();
+				else if (cc == 2)
+				    gen_cond[1][cond]();
+				else
+				    goto illegal_insn;
+			    } else {
+				gen_fcond[cc][cond]();
+			    }
+			    gen_op_mov_cc();
+			    gen_movl_T0_reg(rd);
+			    break;
+			}
 		    case 0x2d: /* V9 sdivx */
+                        gen_op_sdivx_T1_T0();
+			gen_movl_T0_reg(rd);
+                        break;
 		    case 0x2e: /* V9 popc */
+			{
+			    if (IS_IMM) {	/* immediate */
+				rs2 = GET_FIELD_SPs(insn, 0, 12);
+				gen_movl_simm_T1(rs2);
+				// XXX optimize: popc(constant)
+			    }
+			    else {
+				rs2 = GET_FIELD_SP(insn, 0, 4);
+				gen_movl_reg_T1(rs2);
+			    }
+			    gen_op_popc();
+			    gen_movl_T0_reg(rd);
+			}
 		    case 0x2f: /* V9 movr */
+			{
+			    int cond = GET_FIELD_SP(insn, 10, 12);
+			    rs1 = GET_FIELD(insn, 13, 17);
+			    flush_T2(dc);
+			    gen_movl_reg_T0(rs1);
+			    gen_cond_reg(cond);
+			    if (IS_IMM) {	/* immediate */
+				rs2 = GET_FIELD_SPs(insn, 0, 10);
+				gen_movl_simm_T1(rs2);
+			    }
+			    else {
+				rs2 = GET_FIELD_SP(insn, 0, 4);
+				gen_movl_reg_T1(rs2);
+			    }
+			    gen_movl_reg_T0(rd);
+			    gen_op_mov_cc();
+			    gen_movl_T0_reg(rd);
+			    break;
+			}
+		    case 0x36: /* UltraSparc shutdown, VIS */
+			{
+			    // XXX
+			}
+#endif
+		    default:
 			goto illegal_insn;
 		    }
 		}
+#ifdef TARGET_SPARC64
+	    } else if (xop == 0x39) { /* V9 return */
+		gen_op_restore();
+                rs1 = GET_FIELD(insn, 13, 17);
+		gen_movl_reg_T0(rs1);
+                if (IS_IMM) {	/* immediate */
+		    rs2 = GET_FIELDs(insn, 19, 31);
+#if defined(OPTIM)
+		    if (rs2) {
+#endif
+			gen_movl_simm_T1(rs2);
+			gen_op_add_T1_T0();
+#if defined(OPTIM)
+		    }
+#endif
+                } else {		/* register */
+                    rs2 = GET_FIELD(insn, 27, 31);
+#if defined(OPTIM)
+		    if (rs2) {
+#endif
+			gen_movl_reg_T1(rs2);
+			gen_op_add_T1_T0();
+#if defined(OPTIM)
+		    }
+#endif
+                }
+		gen_mov_pc_npc(dc);
+		gen_op_movl_npc_T0();
+		dc->npc = DYNAMIC_PC;
+		goto jmp_insn;
+#endif
 	    } else {
                 rs1 = GET_FIELD(insn, 13, 17);
 		gen_movl_reg_T0(rs1);
@@ -1171,7 +1933,7 @@ static void disas_sparc_insn(DisasContext * dc)
 #if defined(OPTIM)
 		    if (rs2) {
 #endif
-			gen_movl_imm_T1(rs2);
+			gen_movl_simm_T1(rs2);
 			gen_op_add_T1_T0();
 #if defined(OPTIM)
 		    }
@@ -1199,7 +1961,7 @@ static void disas_sparc_insn(DisasContext * dc)
 			dc->npc = DYNAMIC_PC;
 		    }
 		    goto jmp_insn;
-#if !defined(CONFIG_USER_ONLY)
+#if !defined(CONFIG_USER_ONLY) && !defined(TARGET_SPARC64)
 		case 0x39:	/* rett, V9 return */
 		    {
 			if (!supervisor(dc))
@@ -1224,8 +1986,27 @@ static void disas_sparc_insn(DisasContext * dc)
 		    gen_op_restore();
 		    gen_movl_T0_reg(rd);
 		    break;
-		default:
+#if !defined(CONFIG_USER_ONLY) && defined(TARGET_SPARC64)
 		case 0x3e:      /* V9 done/retry */
+		    {
+			switch (rd) {
+			case 0:
+			    if (!supervisor(dc))
+				goto priv_insn;
+			    gen_op_done();
+			    break;
+			case 1:
+			    if (!supervisor(dc))
+				goto priv_insn;
+			    gen_op_retry();
+			    break;
+			default:
+			    goto illegal_insn;
+			}
+		    }
+		    break;
+#endif
+		default:
 		    goto illegal_insn;
 		}
             }
@@ -1242,7 +2023,7 @@ static void disas_sparc_insn(DisasContext * dc)
 #if defined(OPTIM)
 		if (rs2 != 0) {
 #endif
-		    gen_movl_imm_T1(rs2);
+		    gen_movl_simm_T1(rs2);
 		    gen_op_add_T1_T0();
 #if defined(OPTIM)
 		}
@@ -1258,8 +2039,9 @@ static void disas_sparc_insn(DisasContext * dc)
 		}
 #endif
 	    }
-	    if (xop < 4 || (xop > 7 && xop < 0x14) || \
-		    (xop > 0x17 && xop < 0x20)) {
+	    if (xop < 4 || (xop > 7 && xop < 0x14 && xop != 0x0e) || \
+		    (xop > 0x17 && xop < 0x1d ) || \
+		    (xop > 0x2c && xop < 0x33) || xop == 0x1f) {
 		switch (xop) {
 		case 0x0:	/* load word */
 		    gen_op_ldst(ld);
@@ -1287,72 +2069,115 @@ static void disas_sparc_insn(DisasContext * dc)
 		    gen_movl_reg_T1(rd);
 		    gen_op_ldst(swap);
 		    break;
-#if !defined(CONFIG_USER_ONLY)
+#if !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64)
 		case 0x10:	/* load word alternate */
+#ifndef TARGET_SPARC64
 		    if (!supervisor(dc))
 			goto priv_insn;
+#endif
 		    gen_op_lda(insn, 1, 4, 0);
 		    break;
 		case 0x11:	/* load unsigned byte alternate */
+#ifndef TARGET_SPARC64
 		    if (!supervisor(dc))
 			goto priv_insn;
+#endif
 		    gen_op_lduba(insn, 1, 1, 0);
 		    break;
 		case 0x12:	/* load unsigned halfword alternate */
+#ifndef TARGET_SPARC64
 		    if (!supervisor(dc))
 			goto priv_insn;
+#endif
 		    gen_op_lduha(insn, 1, 2, 0);
 		    break;
 		case 0x13:	/* load double word alternate */
+#ifndef TARGET_SPARC64
 		    if (!supervisor(dc))
 			goto priv_insn;
+#endif
 		    gen_op_ldda(insn, 1, 8, 0);
 		    gen_movl_T0_reg(rd + 1);
 		    break;
 		case 0x19:	/* load signed byte alternate */
+#ifndef TARGET_SPARC64
 		    if (!supervisor(dc))
 			goto priv_insn;
+#endif
 		    gen_op_ldsba(insn, 1, 1, 1);
 		    break;
 		case 0x1a:	/* load signed halfword alternate */
+#ifndef TARGET_SPARC64
 		    if (!supervisor(dc))
 			goto priv_insn;
+#endif
 		    gen_op_ldsha(insn, 1, 2 ,1);
 		    break;
 		case 0x1d:	/* ldstuba -- XXX: should be atomically */
+#ifndef TARGET_SPARC64
 		    if (!supervisor(dc))
 			goto priv_insn;
+#endif
 		    gen_op_ldstuba(insn, 1, 1, 0);
 		    break;
 		case 0x1f:	/* swap reg with alt. memory. Also atomically */
+#ifndef TARGET_SPARC64
 		    if (!supervisor(dc))
 			goto priv_insn;
+#endif
 		    gen_movl_reg_T1(rd);
 		    gen_op_swapa(insn, 1, 4, 0);
 		    break;
-                    
+
+#ifndef TARGET_SPARC64
                     /* avoid warnings */
                     (void) &gen_op_stfa;
                     (void) &gen_op_stdfa;
                     (void) &gen_op_ldfa;
                     (void) &gen_op_lddfa;
+#else
+#if !defined(CONFIG_USER_ONLY)
+		    (void) &gen_op_cas;
+		    (void) &gen_op_casx;
+#endif
+#endif
+#endif
+#ifdef TARGET_SPARC64
+		case 0x08: /* V9 ldsw */
+		    gen_op_ldst(ldsw);
+		    break;
+		case 0x0b: /* V9 ldx */
+		    gen_op_ldst(ldx);
+		    break;
+		case 0x18: /* V9 ldswa */
+		    gen_op_ldswa(insn, 1, 4, 1);
+		    break;
+		case 0x1b: /* V9 ldxa */
+		    gen_op_ldxa(insn, 1, 8, 0);
+		    break;
+		case 0x2d: /* V9 prefetch, no effect */
+		    goto skip_move;
+		case 0x30: /* V9 ldfa */
+		    gen_op_ldfa(insn, 1, 8, 0); // XXX
+		    break;
+		case 0x33: /* V9 lddfa */
+		    gen_op_lddfa(insn, 1, 8, 0); // XXX
+
+		    break;
+		case 0x3d: /* V9 prefetcha, no effect */
+		    goto skip_move;
+		case 0x32: /* V9 ldqfa */
+		    goto nfpu_insn;
 #endif
 		default:
-		case 0x08: /* V9 ldsw */
-		case 0x0b: /* V9 ldx */
-		case 0x18: /* V9 ldswa */
-		case 0x1b: /* V9 ldxa */
-		case 0x2d: /* V9 prefetch */
-		case 0x30: /* V9 ldfa */
-		case 0x33: /* V9 lddfa */
-		case 0x3d: /* V9 prefetcha */
-
-		case 0x32: /* V9 ldqfa */
 		    goto illegal_insn;
 		}
 		gen_movl_T1_reg(rd);
+#ifdef TARGET_SPARC64
+	    skip_move: ;
+#endif
 	    } else if (xop >= 0x20 && xop < 0x24) {
-#if !defined(CONFIG_USER_ONLY)
+#if !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64)
 		gen_op_trap_ifnofpu();
 #endif
 		switch (xop) {
@@ -1368,12 +2193,13 @@ static void disas_sparc_insn(DisasContext * dc)
 		    goto nfpu_insn;
 		case 0x23:	/* load double fpreg */
 		    gen_op_ldst(lddf);
-		    gen_op_store_DT0_fpr(rd);
+		    gen_op_store_DT0_fpr(DFPREG(rd));
 		    break;
 		default:
 		    goto illegal_insn;
 		}
-	    } else if (xop < 8 || (xop >= 0x14 && xop < 0x18)) {
+	    } else if (xop < 8 || (xop >= 0x14 && xop < 0x18) || \
+		       xop == 0xe || xop == 0x1e) {
 		gen_movl_reg_T1(rd);
 		switch (xop) {
 		case 0x4:
@@ -1390,33 +2216,47 @@ static void disas_sparc_insn(DisasContext * dc)
 		    gen_movl_reg_T2(rd + 1);
 		    gen_op_ldst(std);
 		    break;
-#if !defined(CONFIG_USER_ONLY)
+#if !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64)
 		case 0x14:
+#ifndef TARGET_SPARC64
 		    if (!supervisor(dc))
 			goto priv_insn;
+#endif
 		    gen_op_sta(insn, 0, 4, 0);
                     break;
 		case 0x15:
+#ifndef TARGET_SPARC64
 		    if (!supervisor(dc))
 			goto priv_insn;
+#endif
 		    gen_op_stba(insn, 0, 1, 0);
                     break;
 		case 0x16:
+#ifndef TARGET_SPARC64
 		    if (!supervisor(dc))
 			goto priv_insn;
+#endif
 		    gen_op_stha(insn, 0, 2, 0);
                     break;
 		case 0x17:
+#ifndef TARGET_SPARC64
 		    if (!supervisor(dc))
 			goto priv_insn;
+#endif
                     flush_T2(dc);
 		    gen_movl_reg_T2(rd + 1);
 		    gen_op_stda(insn, 0, 8, 0);
                     break;
 #endif
-		default:
+#ifdef TARGET_SPARC64
 		case 0x0e: /* V9 stx */
+		    gen_op_ldst(stx);
+		    break;
 		case 0x1e: /* V9 stxa */
+		    gen_op_stxa(insn, 0, 8, 0); // XXX
+		    break;
+#endif
+		default:
 		    goto illegal_insn;
 		}
 	    } else if (xop > 0x23 && xop < 0x28) {
@@ -1430,26 +2270,41 @@ static void disas_sparc_insn(DisasContext * dc)
 		    break;
 		case 0x25: /* stfsr, V9 stxfsr */
                     gen_op_load_fpr_FT0(rd);
+		    // XXX
 		    gen_op_stfsr();
 		    break;
 		case 0x26: /* stdfq */
 		    goto nfpu_insn;
 		case 0x27:
-                    gen_op_load_fpr_DT0(rd);
+                    gen_op_load_fpr_DT0(DFPREG(rd));
 		    gen_op_ldst(stdf);
 		    break;
 		default:
-		case 0x34: /* V9 stfa */
-		case 0x37: /* V9 stdfa */
-		case 0x3c: /* V9 casa */
-		case 0x3e: /* V9 casxa */
-
-		case 0x36: /* V9 stqfa */
 		    goto illegal_insn;
 		}
-	    } else if (xop > 0x33 && xop < 0x38) {
-		/* Co-processor */
+	    } else if (xop > 0x33 && xop < 0x3f) {
+#ifdef TARGET_SPARC64
+		switch (xop) {
+		case 0x34: /* V9 stfa */
+		    gen_op_stfa(insn, 0, 0, 0); // XXX
+		    break;
+		case 0x37: /* V9 stdfa */
+		    gen_op_stdfa(insn, 0, 0, 0); // XXX
+		    break;
+		case 0x3c: /* V9 casa */
+		    gen_op_casa(insn, 0, 4, 0); // XXX
+		    break;
+		case 0x3e: /* V9 casxa */
+		    gen_op_casxa(insn, 0, 8, 0); // XXX
+		    break;
+		case 0x36: /* V9 stqfa */
+		    goto nfpu_insn;
+		default:
+		    goto illegal_insn;
+		}
+#else
 		goto illegal_insn;
+#endif
             }
 	    else
 		goto illegal_insn;
@@ -1540,6 +2395,7 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
         }
 	last_pc = dc->pc;
 	disas_sparc_insn(dc);
+
 	if (dc->is_br)
 	    break;
 	/* if the next PC is different, we abort now */
@@ -1552,7 +2408,7 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
         /* if single step mode, we generate only one instruction and
            generate an exception */
         if (env->singlestep_enabled) {
-            gen_op_jmp_im(dc->pc);
+            gen_jmp_im(dc->pc);
             gen_op_movl_T0_0();
             gen_op_exit_tb();
             break;
@@ -1568,7 +2424,7 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
             gen_op_branch((long)tb, dc->pc, dc->npc);
         } else {
             if (dc->pc != DYNAMIC_PC)
-                gen_op_jmp_im(dc->pc);
+                gen_jmp_im(dc->pc);
             save_npc(dc);
             gen_op_movl_T0_0();
             gen_op_exit_tb();
@@ -1633,8 +2489,13 @@ void cpu_reset(CPUSPARCState *env)
     env->psrps = 1;
     env->pc = 0xffd00000;
     env->gregs[1] = ram_size;
-    env->mmuregs[0] = (0x04 << 24); /* Impl 0, ver 4, MMU disabled */
     env->npc = env->pc + 4;
+#ifdef TARGET_SPARC64
+    env->pstate = PS_AM | PS_PRIV; // XXX: Force AM
+    env->version = GET_VER(env);
+#else
+    env->mmuregs[0] = (0x04 << 24); /* Impl 0, ver 4, MMU disabled */
+#endif
 #endif
 }
 
@@ -1692,7 +2553,7 @@ void cpu_dump_state(CPUState *env, FILE *f,
 	    GET_FLAG(PSR_NEG, 'N'), GET_FLAG(PSR_CARRY, 'C'),
 	    env->psrs?'S':'-', env->psrps?'P':'-', 
 	    env->psret?'E':'-', env->wim);
-    cpu_fprintf(f, "fsr: 0x%08x\n", env->fsr);
+    cpu_fprintf(f, "fsr: 0x%08x\n", GET_FSR32(env));
 }
 
 #if defined(CONFIG_USER_ONLY)

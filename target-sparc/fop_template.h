@@ -40,16 +40,6 @@ void OPPROTO glue(op_store_FT1_fpr_fpr, REGNAME)(void)
     REG = FT1;
 }
 
-void OPPROTO glue(op_load_fpr_FT2_fpr, REGNAME)(void)
-{
-    FT2 = REG;
-}
-
-void OPPROTO glue(op_store_FT2_fpr_fpr, REGNAME)(void)
-{
-    REG = FT2;
-}
-
 /* double floating point registers moves */
 void OPPROTO glue(op_load_fpr_DT0_fpr, REGNAME)(void)
 {
@@ -83,24 +73,6 @@ void OPPROTO glue(op_store_DT1_fpr_fpr, REGNAME)(void)
     CPU_DoubleU u;
     uint32_t *p = (uint32_t *)&REG;
     u.d = DT1;
-    *(p +1) = u.l.lower;
-    *p = u.l.upper;
-}
-
-void OPPROTO glue(op_load_fpr_DT2_fpr, REGNAME)(void)
-{
-    CPU_DoubleU u;
-    uint32_t *p = (uint32_t *)&REG;
-    u.l.lower = *(p +1);
-    u.l.upper = *p;
-    DT2 = u.d;
-}
-
-void OPPROTO glue(op_store_DT2_fpr_fpr, REGNAME)(void)
-{
-    CPU_DoubleU u;
-    uint32_t *p = (uint32_t *)&REG;
-    u.d = DT2;
     *(p +1) = u.l.lower;
     *p = u.l.upper;
 }

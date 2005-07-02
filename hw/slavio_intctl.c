@@ -144,14 +144,14 @@ static void slavio_intctlm_mem_writel(void *opaque, target_phys_addr_t addr, uin
     switch (saddr) {
     case 2: // clear (enable)
 	// Force clear unused bits
-	val &= ~0x7fb2007f;
+	val &= ~0x4fb2007f;
 	s->intregm_disabled &= ~val;
 	DPRINTF("Enabled master irq mask %x, curmask %x\n", val, s->intregm_disabled);
 	slavio_check_interrupts(s);
 	break;
     case 3: // set (disable, clear pending)
 	// Force clear unused bits
-	val &= ~0x7fb2007f;
+	val &= ~0x4fb2007f;
 	s->intregm_disabled |= val;
 	s->intregm_pending &= ~val;
 	DPRINTF("Disabled master irq mask %x, curmask %x\n", val, s->intregm_disabled);
@@ -208,7 +208,7 @@ void slavio_irq_info(void *opaque)
 
 static const uint32_t intbit_to_level[32] = {
     2, 3, 5, 7, 9, 11, 0, 14,	3, 5, 7, 9, 11, 13, 12, 12,
-    6, 0, 4, 10, 8, 0, 11, 0,	0, 0, 0, 0, 15, 0, 0, 0,
+    6, 0, 4, 10, 8, 0, 11, 0,	0, 0, 0, 0, 15, 0, 15, 0,
 };
 
 static void slavio_check_interrupts(void *opaque)
