@@ -363,7 +363,7 @@ void do_mtc0 (int reg, int sel)
             !(env->hflags & MIPS_HFLAG_EXL) &&
             !(env->hflags & MIPS_HFLAG_ERL) &&
             !(env->hflags & MIPS_HFLAG_DM) && 
-            (env->CP0_Cause & mask)) {
+            (env->CP0_Status & env->CP0_Cause & mask)) {
             if (logfile)
                 fprintf(logfile, "Raise pending IRQs\n");
             env->interrupt_request |= CPU_INTERRUPT_HARD;
