@@ -1,77 +1,21 @@
 #include "vl.h"
 
-#define DEBUG_IRQ_COUNT
-
 #define BIOS_FILENAME "mips_bios.bin"
 //#define BIOS_FILENAME "system.bin"
 #define KERNEL_LOAD_ADDR 0x80010000
 #define INITRD_LOAD_ADDR 0x80800000
 
-/* MIPS R4K IRQ controler */
-#if defined(DEBUG_IRQ_COUNT)
-static uint64_t irq_count[16];
-#endif
-
 extern FILE *logfile;
 
-void mips_set_irq (int n_IRQ, int level)
+static void pic_irq_request(void *opaque, int level)
 {
-    uint32_t mask;
-
-    if (n_IRQ < 0 || n_IRQ >= 8)
-        return;
-    mask = 0x100 << n_IRQ;
-    if (level != 0) {
-#if 1
-        if (logfile) {
-            fprintf(logfile, "%s n %d l %d mask %08x %08x\n",
-                    __func__, n_IRQ, level, mask, cpu_single_env->CP0_Status);
-        }
-#endif
-        cpu_single_env->CP0_Cause |= mask;
-        if ((cpu_single_env->CP0_Status & 0x00000001) &&
-            (cpu_single_env->CP0_Status & mask)) {
-#if defined(DEBUG_IRQ_COUNT)
-            irq_count[n_IRQ]++;
-#endif
-#if 1
-            if (logfile)
-                fprintf(logfile, "%s raise IRQ\n", __func__);
-#endif
-            cpu_interrupt(cpu_single_env, CPU_INTERRUPT_HARD);
-        }
+    if (level) {
+        cpu_single_env->CP0_Cause |= 0x00000400;
+        cpu_interrupt(cpu_single_env, CPU_INTERRUPT_HARD);
     } else {
-        cpu_single_env->CP0_Cause &= ~mask;
+	cpu_single_env->CP0_Cause &= ~0x00000400;
+        cpu_reset_interrupt(cpu_single_env, CPU_INTERRUPT_HARD);
     }
-}
-
-void pic_set_irq (int n_IRQ, int level)
-{
-    mips_set_irq(n_IRQ + 2, level);
-}
-
-void pic_info (void)
-{
-    term_printf("IRQ asserted: %02x mask: %02x\n",
-                (cpu_single_env->CP0_Cause >> 8) & 0xFF,
-                (cpu_single_env->CP0_Status >> 8) & 0xFF);
-}
-
-void irq_info (void)
-{
-#if !defined(DEBUG_IRQ_COUNT)
-    term_printf("irq statistic code not compiled.\n");
-#else
-    int i;
-    int64_t count;
-
-    term_printf("IRQ statistics:\n");
-    for (i = 0; i < 8; i++) {
-        count = irq_count[i];
-        if (count > 0)
-            term_printf("%2d: %lld\n", i, count);
-    }
-#endif
 }
 
 void cpu_mips_irqctrl_init (void)
@@ -295,6 +239,7 @@ void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
     cpu_register_physical_memory(0x14000000, 0x00010000, io_memory);
     isa_mem_base = 0x10000000;
 
+    isa_pic = pic_init(pic_irq_request, cpu_single_env);
     serial_init(0x3f8, 4, serial_hds[0]);
     vga_initialize(NULL, ds, phys_ram_base + ram_size, ram_size, 
                    vga_ram_size);
