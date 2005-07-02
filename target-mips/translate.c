@@ -329,6 +329,7 @@ static void gen_ldst (DisasContext *ctx, uint16_t opc, int rt,
         opn = "lbu";
         break;
     case OPC_LWL:
+	GEN_LOAD_REG_TN(T1, rt);
         op_ldst(lwl);
         GEN_STORE_TN_REG(rt, T0);
         opn = "lwl";
@@ -339,6 +340,7 @@ static void gen_ldst (DisasContext *ctx, uint16_t opc, int rt,
         opn = "swr";
         break;
     case OPC_LWR:
+	GEN_LOAD_REG_TN(T1, rt);
         op_ldst(lwr);
         GEN_STORE_TN_REG(rt, T0);
         opn = "lwr";
