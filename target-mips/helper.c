@@ -417,6 +417,9 @@ void do_interrupt (CPUState *env)
         goto set_EPC;
     case EXCP_TLBS:
         cause = 3;
+        if (env->error_code == 1 && !(env->hflags & MIPS_HFLAG_EXL))
+            offset = 0x000;
+        goto set_EPC;
     set_EPC:
         if (env->CP0_Status & (1 << CP0St_BEV)) {
             pc = 0xBFC00200;
