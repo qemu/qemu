@@ -597,10 +597,13 @@ void debug_eret (void);
 void op_eret (void)
 {
     CALL_FROM_TB0(debug_eret);
-    if (env->hflags & MIPS_HFLAG_ERL)
+    if (env->hflags & MIPS_HFLAG_ERL) {
         env->PC = env->CP0_ErrorEPC;
-    else
+        env->hflags &= ~MIPS_HFLAG_ERL;
+    } else {
         env->PC = env->CP0_EPC;
+        env->hflags &= ~MIPS_HFLAG_EXL;
+    }
     env->CP0_LLAddr = 1;
 }
 
