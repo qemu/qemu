@@ -28,7 +28,7 @@
 #define tostring(s)	#s
 #endif
 
-#if GCC_MAJOR < 3
+#if __GNUC__ < 3
 #define __builtin_expect(x, n) (x)
 #endif
 
@@ -131,7 +131,7 @@ int tlb_set_page(CPUState *env, target_ulong vaddr,
 #elif defined(__powerpc__)
 #define CODE_GEN_BUFFER_SIZE     (6 * 1024 * 1024)
 #else
-#define CODE_GEN_BUFFER_SIZE     (8 * 1024 * 1024)
+#define CODE_GEN_BUFFER_SIZE     (16 * 1024 * 1024)
 #endif
 
 //#define CODE_GEN_BUFFER_SIZE     (128 * 1024)
