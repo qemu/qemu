@@ -213,7 +213,7 @@ fi
 
 if test -z "$target_list" ; then
 # these targets are portable
-    target_list="i386-softmmu ppc-softmmu sparc-softmmu x86_64-softmmu"
+    target_list="i386-softmmu ppc-softmmu sparc-softmmu x86_64-softmmu mips-softmmu"
 # the following are Linux specific
     if [ "$linux" = "yes" ] ; then
         target_list="i386-user arm-user armeb-user sparc-user ppc-user $target_list"
@@ -607,6 +607,7 @@ target_bigendian="no"
 [ "$target_cpu" = "sparc" ] && target_bigendian=yes
 [ "$target_cpu" = "sparc64" ] && target_bigendian=yes
 [ "$target_cpu" = "ppc" ] && target_bigendian=yes
+[ "$target_cpu" = "mips" ] && target_bigendian=yes
 target_softmmu="no"
 if expr $target : '.*-softmmu' > /dev/null ; then
   target_softmmu="yes"
@@ -679,6 +680,10 @@ elif test "$target_cpu" = "x86_64" ; then
   if test $kqemu = "yes" -a "$target_softmmu" = "yes" -a $cpu = "x86_64"  ; then
     echo "#define USE_KQEMU 1" >> $config_h
   fi
+elif test "$target_cpu" = "mips" ; then
+  echo "TARGET_ARCH=mips" >> $config_mak
+  echo "#define TARGET_ARCH \"mips\"" >> $config_h
+  echo "#define TARGET_MIPS 1" >> $config_h
 else
   echo "Unsupported target CPU"
   exit 1
