@@ -44,78 +44,10 @@ endif
 ifdef CONFIG_USER_ONLY
 PROGS=$(QEMU_USER)
 else
-ifeq ($(TARGET_ARCH), i386)
-
-ifeq ($(ARCH), i386)
 PROGS+=$(QEMU_SYSTEM)
 ifndef CONFIG_SOFTMMU
 CONFIG_STATIC=y
 endif
-else
-# the system emulator using soft mmu is portable
-ifdef CONFIG_SOFTMMU
-PROGS+=$(QEMU_SYSTEM)
-endif
-endif # ARCH != i386
-
-endif # TARGET_ARCH = i386
-
-ifeq ($(TARGET_ARCH), x86_64)
-ifdef CONFIG_SOFTMMU
-PROGS+=$(QEMU_SYSTEM)
-endif
-endif # TARGET_ARCH = x86_64
-
-ifeq ($(TARGET_ARCH), ppc)
-
-ifeq ($(ARCH), ppc)
-PROGS+=$(QEMU_SYSTEM)
-endif
-
-endif # TARGET_ARCH = ppc
-
-ifeq ($(TARGET_ARCH), mips)
-
-ifeq ($(ARCH), i386)
-ifdef CONFIG_SOFTMMU
-PROGS+=$(QEMU_SYSTEM)
-endif
-endif # ARCH = i386
-
-ifeq ($(ARCH), x86_64)
-ifdef CONFIG_SOFTMMU
-PROGS+=$(QEMU_SYSTEM)
-endif
-endif # ARCH = x86_64
-
-endif # TARGET_ARCH = mips
-
-ifeq ($(TARGET_ARCH), sparc)
-
-ifeq ($(ARCH), ppc)
-PROGS+=$(QEMU_SYSTEM)
-endif
-
-ifeq ($(ARCH), i386)
-ifdef CONFIG_SOFTMMU
-PROGS+=$(QEMU_SYSTEM)
-endif
-endif # ARCH = i386
-
-ifeq ($(ARCH), x86_64)
-ifdef CONFIG_SOFTMMU
-PROGS+=$(QEMU_SYSTEM)
-endif
-endif # ARCH = x86_64
-
-endif # TARGET_ARCH = sparc
-
-ifeq ($(TARGET_ARCH), sparc64)
-ifdef CONFIG_SOFTMMU
-PROGS+=$(QEMU_SYSTEM)
-endif
-endif # TARGET_ARCH = sparc64
-
 endif # !CONFIG_USER_ONLY
 
 ifdef CONFIG_STATIC
