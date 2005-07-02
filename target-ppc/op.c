@@ -204,16 +204,6 @@ PPC_OP(update_nip)
     env->nip = PARAM(1);
 }
 
-PPC_OP(debug)
-{
-    env->nip = PARAM(1);
-#if defined (DEBUG_OP)
-    dump_state();
-#endif
-    do_raise_exception(EXCP_DEBUG);
-    RETURN();
-}
-
 /* Segment registers load and store with immediate index */
 PPC_OP(load_srin)
 {
@@ -1384,14 +1374,10 @@ PPC_OP(check_reservation)
 /* Return from interrupt */
 PPC_OP(rfi)
 {
-    regs->nip = regs->spr[SPR_SRR0] & ~0x00000003;
-#if 1 // TRY
-    T0 = regs->spr[SPR_SRR1] & ~0xFFF00000;
-#else
-    T0 = regs->spr[SPR_SRR1] & ~0xFFFF0000;
-#endif
+    env->nip = env->spr[SPR_SRR0] & ~0x00000003;
+    T0 = env->spr[SPR_SRR1] & ~0xFFFF0000UL;
     do_store_msr(env, T0);
-    do_raise_exception(EXCP_RFI);
+    env->interrupt_request |= CPU_INTERRUPT_EXITTB;
     RETURN();
 }
 

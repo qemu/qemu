@@ -42,12 +42,6 @@ void do_raise_exception_err (uint32_t exception, int error_code)
     printf("Raise exception %3x code : %d\n", exception, error_code);
 #endif
     switch (exception) {
-    case EXCP_EXTERNAL:
-    case EXCP_DECR:
-	printf("DECREMENTER & EXTERNAL exceptions should be hard interrupts !\n");
-	if (msr_ee == 0)
-	    return;
-	break;
     case EXCP_PROGRAM:
 	if (error_code == EXCP_FP && msr_fe0 == 0 && msr_fe1 == 0)
 	    return;

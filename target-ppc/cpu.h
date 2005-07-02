@@ -924,62 +924,72 @@ enum {
 
 /*****************************************************************************/
 /* Exceptions */
-enum {
-    EXCP_NONE          = -1,
-    /* PowerPC hardware exceptions : exception vector / 0x100 */
-    EXCP_RESET         = 0x01, /* System reset                     */
-    EXCP_MACHINE_CHECK = 0x02, /* Machine check exception          */
-    EXCP_DSI           = 0x03, /* Impossible memory access         */
-    EXCP_ISI           = 0x04, /* Impossible instruction fetch     */
-    EXCP_EXTERNAL      = 0x05, /* External interruption            */
-    EXCP_ALIGN         = 0x06, /* Alignment exception              */
-    EXCP_PROGRAM       = 0x07, /* Program exception                */
-    EXCP_NO_FP         = 0x08, /* No floating point                */
-    EXCP_DECR          = 0x09, /* Decrementer exception            */
-    EXCP_RESA          = 0x0A, /* Implementation specific          */
-    EXCP_RESB          = 0x0B, /* Implementation specific          */
-    EXCP_SYSCALL       = 0x0C, /* System call                      */
-    EXCP_TRACE         = 0x0D, /* Trace exception (optional)       */
-    EXCP_FP_ASSIST     = 0x0E, /* Floating-point assist (optional) */
-    /* MPC740/745/750 & IBM 750 */
-    EXCP_PERF          = 0x0F,  /* Performance monitor              */
-    EXCP_IABR          = 0x13,  /* Instruction address breakpoint   */
-    EXCP_SMI           = 0x14,  /* System management interrupt      */
-    EXCP_THRM          = 0x15,  /* Thermal management interrupt     */
-    /* MPC755 */
-    EXCP_TLBMISS       = 0x10,  /* Instruction TLB miss             */
-    EXCP_TLBMISS_DL    = 0x11,  /* Data TLB miss for load           */
-    EXCP_TLBMISS_DS    = 0x12,  /* Data TLB miss for store          */
-    EXCP_PPC_MAX       = 0x16,
-    /* Qemu exception */
-    EXCP_OFCALL        = 0x20,  /* Call open-firmware emulator      */
-    EXCP_RTASCALL      = 0x21,  /* Call RTAS emulator               */
-    /* Special cases where we want to stop translation */
-    EXCP_MTMSR         = 0x104, /* mtmsr instruction:               */
+#define EXCP_NONE          -1
+/* PowerPC hardware exceptions : exception vectors defined in PowerPC book 3 */
+#define EXCP_RESET         0x0100 /* System reset                            */
+#define EXCP_MACHINE_CHECK 0x0200 /* Machine check exception                 */
+#define EXCP_DSI           0x0300 /* Data storage exception                  */
+#define EXCP_DSEG          0x0380 /* Data segment exception                  */
+#define EXCP_ISI           0x0400 /* Instruction storage exception           */
+#define EXCP_ISEG          0x0480 /* Instruction segment exception           */
+#define EXCP_EXTERNAL      0x0500 /* External interruption                   */
+#define EXCP_ALIGN         0x0600 /* Alignment exception                     */
+#define EXCP_PROGRAM       0x0700 /* Program exception                       */
+#define EXCP_NO_FP         0x0800 /* Floating point unavailable exception    */
+#define EXCP_DECR          0x0900 /* Decrementer exception                   */
+#define EXCP_HDECR         0x0980 /* Hypervisor decrementer exception        */
+#define EXCP_SYSCALL       0x0C00 /* System call                             */
+#define EXCP_TRACE         0x0D00 /* Trace exception                         */
+#define EXCP_PERF          0x0F00 /* Performance monitor exception           */
+/* Exceptions defined in PowerPC 32 bits programming environment manual      */
+#define EXCP_FP_ASSIST     0x0E00 /* Floating-point assist                   */
+/* Implementation specific exceptions                                        */
+/* 40x exceptions                                                            */
+#define EXCP_40x_PIT       0x1000 /* Programmable interval timer interrupt   */
+#define EXCP_40x_FIT       0x1010 /* Fixed interval timer interrupt          */
+#define EXCP_40x_WATCHDOG  0x1020 /* Watchdog timer exception                */
+#define EXCP_40x_DTLBMISS  0x1100 /* Data TLB miss exception                 */
+#define EXCP_40x_ITLBMISS  0x1200 /* Instruction TLB miss exception          */
+#define EXCP_40x_DEBUG     0x2000 /* Debug exception                         */
+/* 405 specific exceptions                                                   */
+#define EXCP_405_APU       0x0F20 /* APU unavailable exception               */
+/* TLB assist exceptions (602/603)                                           */
+#define EXCP_I_TLBMISS     0x1000 /* Instruction TLB miss                    */
+#define EXCP_DL_TLBMISS    0x1100 /* Data load TLB miss                      */
+#define EXCP_DS_TLBMISS    0x1200 /* Data store TLB miss                     */
+/* Breakpoint exceptions (602/603/604/620/740/745/750/755...)                */
+#define EXCP_IABR          0x1300 /* Instruction address breakpoint          */
+#define EXCP_SMI           0x1400 /* System management interrupt             */
+/* Altivec related exceptions                                                */
+#define EXCP_VPU           0x0F20 /* VPU unavailable exception               */
+/* 601 specific exceptions                                                   */
+#define EXCP_601_IO        0x0600 /* IO error exception                      */
+#define EXCP_601_RUNM      0x2000 /* Run mode exception                      */
+/* 602 specific exceptions                                                   */
+#define EXCP_602_WATCHDOG  0x1500 /* Watchdog exception                      */
+#define EXCP_602_EMUL      0x1600 /* Emulation trap exception                */
+/* G2 specific exceptions                                                    */
+#define EXCP_G2_CRIT       0x0A00 /* Critical interrupt                      */
+/* MPC740/745/750 & IBM 750 specific exceptions                              */
+#define EXCP_THRM          0x1700 /* Thermal management interrupt            */
+/* 74xx specific exceptions                                                  */
+#define EXCP_74xx_VPUA     0x1600 /* VPU assist exception                    */
+/* 970FX specific exceptions                                                 */
+#define EXCP_970_SOFTP     0x1500 /* Soft patch exception                    */
+#define EXCP_970_MAINT     0x1600 /* Maintenance exception                   */
+#define EXCP_970_THRM      0x1800 /* Thermal exception                       */
+#define EXCP_970_VPUA      0x1700 /* VPU assist exception                    */
+/* End of exception vectors area                                             */
+#define EXCP_PPC_MAX       0x4000
+/* Qemu exceptions: special cases we want to stop translation                */
+#define EXCP_MTMSR         0x11000 /* mtmsr instruction:                     */
                                 /* may change privilege level       */
-    EXCP_BRANCH        = 0x108, /* branch instruction               */
-    EXCP_RFI           = 0x10C, /* return from interrupt            */
-    EXCP_SYSCALL_USER  = 0x110, /* System call in user mode only    */
-};
+#define EXCP_BRANCH        0x11001 /* branch instruction                     */
+#define EXCP_SYSCALL_USER  0x12000 /* System call in user mode only          */
+#define EXCP_INTERRUPT_CRITICAL 0x13000 /* critical IRQ                      */
+
 /* Error codes */
 enum {
-    /* Exception subtypes for EXCP_DSI                              */
-    EXCP_DSI_TRANSLATE = 0x01,  /* Data address can't be translated */
-    EXCP_DSI_NOTSUP    = 0x02,  /* Access type not supported        */
-    EXCP_DSI_PROT      = 0x03,  /* Memory protection violation      */
-    EXCP_DSI_EXTERNAL  = 0x04,  /* External access disabled         */
-    EXCP_DSI_DABR      = 0x05,  /* Data address breakpoint          */
-    /* flags for EXCP_DSI */
-    EXCP_DSI_DIRECT    = 0x10,
-    EXCP_DSI_STORE     = 0x20,
-    EXCP_DSI_ECXW      = 0x40,
-    /* Exception subtypes for EXCP_ISI                              */
-    EXCP_ISI_TRANSLATE = 0x01,  /* Code address can't be translated */
-    EXCP_ISI_NOEXEC    = 0x02,  /* Try to fetch from a data segment */
-    EXCP_ISI_GUARD     = 0x03,  /* Fetch from guarded memory        */
-    EXCP_ISI_PROT      = 0x04,  /* Memory protection violation      */
-    EXCP_ISI_DIRECT    = 0x05,  /* Trying to fetch from             *
-				 * a direct store segment           */
     /* Exception subtypes for EXCP_ALIGN                            */
     EXCP_ALIGN_FP      = 0x01,  /* FP alignment exception           */
     EXCP_ALIGN_LST     = 0x02,  /* Unaligned mult/extern load/store */

@@ -68,9 +68,9 @@ typedef uint64_t target_phys_addr_t;
 
 #define HOST_LONG_SIZE (HOST_LONG_BITS / 8)
 
-#define EXCP_INTERRUPT 	256 /* async interruption */
-#define EXCP_HLT        257 /* hlt instruction reached */
-#define EXCP_DEBUG      258 /* cpu stopped after a breakpoint or singlestep */
+#define EXCP_INTERRUPT 	0x10000 /* async interruption */
+#define EXCP_HLT        0x10001 /* hlt instruction reached */
+#define EXCP_DEBUG      0x10002 /* cpu stopped after a breakpoint or singlestep */
 
 #define MAX_BREAKPOINTS 32
 

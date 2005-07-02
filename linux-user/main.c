@@ -706,27 +706,21 @@ void cpu_loop(CPUPPCState *env)
                 fprintf(logfile, "Invalid data memory access: 0x%08x\n",
                         env->spr[SPR_DAR]);
             }
-            switch (env->error_code & 0xF) {
-            case EXCP_DSI_TRANSLATE:
+            switch (env->error_code & 0xFF000000) {
+            case 0x40000000:
                 info.si_signo = TARGET_SIGSEGV;
                 info.si_errno = 0;
                 info.si_code = TARGET_SEGV_MAPERR;
                 break;
-            case EXCP_DSI_NOTSUP:
-            case EXCP_DSI_EXTERNAL:
+            case 0x04000000:
                 info.si_signo = TARGET_SIGILL;
                 info.si_errno = 0;
                 info.si_code = TARGET_ILL_ILLADR;
                 break;
-            case EXCP_DSI_PROT: 
+            case 0x08000000:
                 info.si_signo = TARGET_SIGSEGV;
                 info.si_errno = 0;
                 info.si_code = TARGET_SEGV_ACCERR;
-                break;
-            case EXCP_DSI_DABR:
-                info.si_signo = TARGET_SIGTRAP;
-                info.si_errno = 0;
-                info.si_code = TARGET_TRAP_BRKPT;
                 break;
             default:
                 /* Let's send a regular segfault... */
@@ -748,19 +742,14 @@ void cpu_loop(CPUPPCState *env)
             fprintf(stderr, "Invalid instruction fetch\n");
             if (loglevel)
                 fprintf(logfile, "Invalid instruction fetch\n");
-            switch (env->error_code) {
-            case EXCP_ISI_TRANSLATE:
+            switch (env->error_code & 0xFF000000) {
+            case 0x40000000:
                 info.si_signo = TARGET_SIGSEGV;
             info.si_errno = 0;
                 info.si_code = TARGET_SEGV_MAPERR;
                 break;
-            case EXCP_ISI_GUARD:
-                info.si_signo = TARGET_SIGILL;
-                info.si_errno = 0;
-                info.si_code = TARGET_ILL_ILLADR;
-                break;
-            case EXCP_ISI_NOEXEC:
-            case EXCP_ISI_PROT:
+            case 0x10000000:
+            case 0x08000000:
                 info.si_signo = TARGET_SIGSEGV;
                 info.si_errno = 0;
                 info.si_code = TARGET_SEGV_ACCERR;
@@ -930,18 +919,6 @@ void cpu_loop(CPUPPCState *env)
             if (loglevel)
                 fprintf(logfile, "Decrementer exception\n");
             abort();
-        case EXCP_RESA: /* Implementation specific          */
-            /* Should not happen ! */
-            fprintf(stderr, "RESA exception should never happen !\n");
-            if (loglevel)
-                fprintf(logfile, "RESA exception should never happen !\n");
-            abort();
-        case EXCP_RESB: /* Implementation specific          */
-            /* Should not happen ! */
-            fprintf(stderr, "RESB exception should never happen !\n");
-            if (loglevel)
-                fprintf(logfile, "RESB exception should never happen !\n");
-            abort();
         case EXCP_TRACE:
             /* Do nothing: we use this to trace execution */
             break;
@@ -963,12 +940,6 @@ void cpu_loop(CPUPPCState *env)
         case EXCP_BRANCH:
             /* We stopped because of a jump... */
             break;
-        case EXCP_RFI:
-            /* Should not occur: we always are in user mode */
-            fprintf(stderr, "Return from interrupt ?\n");
-            if (loglevel)
-                fprintf(logfile, "Return from interrupt ?\n");
-            abort();
         case EXCP_INTERRUPT:
             /* Don't know why this should ever happen... */
             break;

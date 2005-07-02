@@ -179,6 +179,12 @@ static inline void RET_STOP (DisasContext *ctx)
     RET_EXCP(ctx, EXCP_MTMSR, 0);
 }
 
+static inline void RET_CHG_FLOW (DisasContext *ctx)
+{
+    gen_op_raise_exception_err(EXCP_MTMSR, 0);
+    ctx->exception = EXCP_MTMSR;
+}
+
 #define GEN_HANDLER(name, opc1, opc2, opc3, inval, type)                      \
 static void gen_##name (DisasContext *ctx);                                   \
 GEN_OPCODE(name, opc1, opc2, opc3, inval, type);                              \
@@ -1895,7 +1901,7 @@ GEN_HANDLER(rfi, 0x13, 0x12, 0xFF, 0x03FF8001, PPC_FLOW)
         return;
     }
     gen_op_rfi();
-    RET_EXCP(ctx, EXCP_RFI, 0);
+    RET_CHG_FLOW(ctx);
 #endif
 }
 
@@ -2555,7 +2561,8 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
             (msr_se && (ctx.nip < 0x100 ||
                         ctx.nip > 0xF00 ||
                         (ctx.nip & 0xFC) != 0x04) &&
-             ctx.exception != EXCP_SYSCALL && ctx.exception != EXCP_RFI &&
+             ctx.exception != EXCP_SYSCALL &&
+             ctx.exception != EXCP_SYSCALL_USER &&
              ctx.exception != EXCP_TRAP)) {
             RET_EXCP(ctxp, EXCP_TRACE, 0);
         }
