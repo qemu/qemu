@@ -582,6 +582,8 @@ static inline target_ulong get_phys_addr_code(CPUState *env, target_ulong addr)
     is_user = ((env->hflags & HF_CPL_MASK) == 3);
 #elif defined (TARGET_PPC)
     is_user = msr_pr;
+#elif defined (TARGET_MIPS)
+    is_user = ((env->hflags & MIPS_HFLAG_MODE) == MIPS_HFLAG_UM);
 #elif defined (TARGET_SPARC)
     is_user = (env->psrs == 0);
 #else

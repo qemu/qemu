@@ -2348,6 +2348,17 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
 {
     return 0;
 }
+
+#elif defined(TARGET_MIPS)
+void cpu_save(QEMUFile *f, void *opaque)
+{
+}
+
+int cpu_load(QEMUFile *f, void *opaque, int version_id)
+{
+    return 0;
+}
+
 #elif defined(TARGET_SPARC)
 void cpu_save(QEMUFile *f, void *opaque)
 {
@@ -3058,6 +3069,8 @@ void register_machines(void)
     qemu_register_machine(&heathrow_machine);
     qemu_register_machine(&core99_machine);
     qemu_register_machine(&prep_machine);
+#elif defined(TARGET_MIPS)
+    qemu_register_machine(&mips_machine);
 #elif defined(TARGET_SPARC)
 #ifdef TARGET_SPARC64
     qemu_register_machine(&sun4u_machine);

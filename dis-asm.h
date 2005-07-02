@@ -404,6 +404,8 @@ extern int generic_symbol_at_address
 
 bfd_vma bfd_getl32 (const bfd_byte *addr);
 bfd_vma bfd_getb32 (const bfd_byte *addr);
+bfd_vma bfd_getl16 (const bfd_byte *addr);
+bfd_vma bfd_getb16 (const bfd_byte *addr);
 typedef enum bfd_boolean {false, true} boolean;
 
 #endif /* ! defined (DIS_ASM_H) */

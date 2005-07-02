@@ -138,6 +138,8 @@ extern int win2k_install_hack;
 /* XXX: make it dynamic */
 #if defined (TARGET_PPC)
 #define BIOS_SIZE (512 * 1024)
+#elif defined(TARGET_MIPS)
+#define BIOS_SIZE (128 * 1024)
 #else
 #define BIOS_SIZE ((256 + 64) * 1024)
 #endif
@@ -714,6 +716,9 @@ extern QEMUMachine pc_machine;
 extern QEMUMachine prep_machine;
 extern QEMUMachine core99_machine;
 extern QEMUMachine heathrow_machine;
+
+/* mips_r4k.c */
+extern QEMUMachine mips_machine;
 
 #ifdef TARGET_PPC
 ppc_tb_t *cpu_ppc_tb_init (CPUState *env, uint32_t freq);

@@ -617,6 +617,13 @@ void page_unprotect_range(uint8_t *data, unsigned long data_size);
 #define cpu_gen_code cpu_ppc_gen_code
 #define cpu_signal_handler cpu_ppc_signal_handler
 
+#elif defined(TARGET_MIPS)
+#define CPUState CPUMIPSState
+#define cpu_init cpu_mips_init
+#define cpu_exec cpu_mips_exec
+#define cpu_gen_code cpu_mips_gen_code
+#define cpu_signal_handler cpu_mips_signal_handler
+
 #else
 
 #error unsupported target CPU

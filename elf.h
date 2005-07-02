@@ -31,11 +31,29 @@ typedef int64_t  Elf64_Sxword;
 #define PT_LOPROC  0x70000000
 #define PT_HIPROC  0x7fffffff
 #define PT_MIPS_REGINFO		0x70000000
+#define PT_MIPS_OPTIONS		0x70000001
 
 /* Flags in the e_flags field of the header */
+/* MIPS architecture level. */
+#define EF_MIPS_ARCH_1		0x00000000	/* -mips1 code.  */
+#define EF_MIPS_ARCH_2		0x10000000	/* -mips2 code.  */
+#define EF_MIPS_ARCH_3		0x20000000	/* -mips3 code.  */
+#define EF_MIPS_ARCH_4		0x30000000	/* -mips4 code.  */
+#define EF_MIPS_ARCH_5		0x40000000	/* -mips5 code.  */
+#define EF_MIPS_ARCH_32		0x50000000	/* MIPS32 code.  */
+#define EF_MIPS_ARCH_64		0x60000000	/* MIPS64 code.  */
+
+/* The ABI of a file. */
+#define EF_MIPS_ABI_O32		0x00001000	/* O32 ABI.  */
+#define EF_MIPS_ABI_O64		0x00002000	/* O32 extended for 64 bit.  */
+
 #define EF_MIPS_NOREORDER 0x00000001
 #define EF_MIPS_PIC       0x00000002
 #define EF_MIPS_CPIC      0x00000004
+#define EF_MIPS_ABI2		0x00000020
+#define EF_MIPS_OPTIONS_FIRST	0x00000080
+#define EF_MIPS_32BITMODE	0x00000100
+#define EF_MIPS_ABI		0x0000f000
 #define EF_MIPS_ARCH      0xf0000000
 
 /* These constants define the different elf file types */

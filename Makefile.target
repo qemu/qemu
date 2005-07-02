@@ -72,6 +72,10 @@ ifeq ($(ARCH), ppc)
 PROGS+=$(QEMU_SYSTEM)
 endif
 
+endif # TARGET_ARCH = ppc
+
+ifeq ($(TARGET_ARCH), mips)
+
 ifeq ($(ARCH), i386)
 ifdef CONFIG_SOFTMMU
 PROGS+=$(QEMU_SYSTEM)
@@ -84,7 +88,7 @@ PROGS+=$(QEMU_SYSTEM)
 endif
 endif # ARCH = x86_64
 
-endif # TARGET_ARCH = ppc
+endif # TARGET_ARCH = mips
 
 ifeq ($(TARGET_ARCH), sparc)
 
@@ -263,6 +267,10 @@ ifeq ($(TARGET_ARCH), ppc)
 LIBOBJS+= op_helper.o helper.o
 endif
 
+ifeq ($(TARGET_ARCH), mips)
+LIBOBJS+= op_helper.o helper.o
+endif
+
 ifeq ($(TARGET_BASE_ARCH), sparc)
 LIBOBJS+= op_helper.o helper.o
 endif
@@ -287,6 +295,9 @@ LIBOBJS+=alpha-dis.o
 endif
 ifeq ($(findstring ppc, $(TARGET_ARCH) $(ARCH)),ppc)
 LIBOBJS+=ppc-dis.o
+endif
+ifeq ($(findstring mips, $(TARGET_ARCH) $(ARCH)),mips)
+LIBOBJS+=mips-dis.o
 endif
 ifeq ($(findstring sparc, $(TARGET_BASE_ARCH) $(ARCH)),sparc)
 LIBOBJS+=sparc-dis.o
@@ -347,6 +358,10 @@ ifeq ($(TARGET_ARCH), ppc)
 VL_OBJS+= ppc.o ide.o ne2000.o pckbd.o vga.o $(SOUND_HW) dma.o $(AUDIODRV)
 VL_OBJS+= mc146818rtc.o serial.o i8259.o i8254.o fdc.o m48t59.o
 VL_OBJS+= ppc_prep.o ppc_chrp.o cuda.o adb.o openpic.o heathrow_pic.o mixeng.o
+endif
+ifeq ($(TARGET_ARCH), mips)
+VL_OBJS+= mips.o mips_r4k.o dma.o vga.o serial.o #ide.o ne2000.o pckbd.o
+VL_OBJS+= #i8259.o i8254.o fdc.o m48t59.o
 endif
 ifeq ($(TARGET_BASE_ARCH), sparc)
 ifeq ($(TARGET_ARCH), sparc64)
@@ -453,6 +468,11 @@ endif
 ifeq ($(TARGET_ARCH), ppc)
 op.o: op.c op_template.h op_mem.h
 op_helper.o: op_helper_mem.h
+endif
+
+ifeq ($(TARGET_ARCH), mips)
+op.o: op.c op_template.c op_mem.c
+op_helper.o: op_helper_mem.c
 endif
 
 mixeng.o: mixeng.c mixeng.h mixeng_template.h

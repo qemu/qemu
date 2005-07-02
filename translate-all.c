@@ -300,6 +300,8 @@ int cpu_restore_state(TranslationBlock *tb,
         }
         env->access_type = type;
     }
+#elif defined(TARGET_MIPS)
+    env->PC = gen_opc_pc[j];
 #endif
     return 0;
 }

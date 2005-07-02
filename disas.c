@@ -108,6 +108,24 @@ bfd_vma bfd_getb32 (const bfd_byte *addr)
   return (bfd_vma) v;
 }
 
+bfd_vma bfd_getl16 (const bfd_byte *addr)
+{
+  unsigned long v;
+
+  v = (unsigned long) addr[0];
+  v |= (unsigned long) addr[1] << 8;
+  return (bfd_vma) v;
+}
+
+bfd_vma bfd_getb16 (const bfd_byte *addr)
+{
+  unsigned long v;
+
+  v = (unsigned long) addr[0] << 24;
+  v |= (unsigned long) addr[1] << 16;
+  return (bfd_vma) v;
+}
+
 #ifdef TARGET_ARM
 static int
 print_insn_thumb1(bfd_vma pc, disassemble_info *info)
@@ -162,6 +180,8 @@ void target_disas(FILE *out, target_ulong code, target_ulong size, int flags)
     if (cpu_single_env->msr[MSR_LE])
         disasm_info.endian = BFD_ENDIAN_LITTLE;
     print_insn = print_insn_ppc;
+#elif defined(TARGET_MIPS)
+    print_insn = print_insn_big_mips;
 #else
     fprintf(out, "0x" TARGET_FMT_lx
 	    ": Asm output not supported on this arch\n", code);
@@ -222,6 +242,10 @@ void disas(FILE *out, void *code, unsigned long size)
     print_insn = print_insn_sparc;
 #elif defined(__arm__) 
     print_insn = print_insn_arm;
+#elif defined(__MIPSEB__)
+    print_insn = print_insn_big_mips;
+#elif defined(__MIPSEL__)
+    print_insn = print_insn_little_mips;
 #else
     fprintf(out, "0x%lx: Asm output not supported on this arch\n",
 	    (long) code);
@@ -332,6 +356,8 @@ void monitor_disas(target_ulong pc, int nb_insn, int is_physical, int flags)
     print_insn = print_insn_sparc;
 #elif defined(TARGET_PPC)
     print_insn = print_insn_ppc;
+#elif defined(TARGET_MIPS)
+    print_insn = print_insn_big_mips;
 #else
     term_printf("0x" TARGET_FMT_lx
 		": Asm output not supported on this arch\n", pc);

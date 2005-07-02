@@ -182,6 +182,7 @@ int cpu_exec(CPUState *env1)
     saved_regwptr = REGWPTR;
 #endif
 #elif defined(TARGET_PPC)
+#elif defined(TARGET_MIPS)
 #else
 #error unsupported target CPU
 #endif
@@ -219,6 +220,8 @@ int cpu_exec(CPUState *env1)
                                  env->error_code, 
                                  env->exception_next_eip, 0);
 #elif defined(TARGET_PPC)
+                    do_interrupt(env);
+#elif defined(TARGET_MIPS)
                     do_interrupt(env);
 #elif defined(TARGET_SPARC)
                     do_interrupt(env->exception_index);
@@ -301,6 +304,19 @@ int cpu_exec(CPUState *env1)
                             env->interrupt_request &= ~CPU_INTERRUPT_TIMER;
 			}
                     }
+#elif defined(TARGET_MIPS)
+                    if ((interrupt_request & CPU_INTERRUPT_HARD) &&
+                        (env->CP0_Status & (1 << CP0St_IE)) &&
+                        (env->CP0_Cause & 0x0000FC00) &&
+                        !(env->hflags & MIPS_HFLAG_EXL) &&
+                        !(env->hflags & MIPS_HFLAG_ERL) &&
+                        !(env->hflags & MIPS_HFLAG_DM)) {
+                        /* Raise it */
+                        env->exception_index = EXCP_EXT_INTERRUPT;
+                        env->error_code = 0;
+                        do_interrupt(env);
+                        env->interrupt_request &= ~CPU_INTERRUPT_HARD;
+                    }
 #elif defined(TARGET_SPARC)
                     if ((interrupt_request & CPU_INTERRUPT_HARD) &&
 			(env->psret != 0)) {
@@ -376,6 +392,8 @@ int cpu_exec(CPUState *env1)
                     cpu_dump_state(env, logfile, fprintf, 0);
 #elif defined(TARGET_PPC)
                     cpu_dump_state(env, logfile, fprintf, 0);
+#elif defined(TARGET_MIPS)
+                    cpu_dump_state(env, logfile, fprintf, 0);
 #else
 #error unsupported target CPU 
 #endif
@@ -407,6 +425,10 @@ int cpu_exec(CPUState *env1)
                     (msr_se << MSR_SE) | (msr_le << MSR_LE);
                 cs_base = 0;
                 pc = env->nip;
+#elif defined(TARGET_MIPS)
+                flags = env->hflags & MIPS_HFLAGS_TMASK;
+                cs_base = NULL;
+                pc = env->PC;
 #else
 #error unsupported CPU
 #endif
@@ -684,6 +706,7 @@ int cpu_exec(CPUState *env1)
     REGWPTR = saved_regwptr;
 #endif
 #elif defined(TARGET_PPC)
+#elif defined(TARGET_MIPS)
 #else
 #error unsupported target CPU
 #endif
@@ -935,6 +958,57 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
     /* never comes here */
     return 1;
 }
+
+#elif defined (TARGET_MIPS)
+static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
+                                    int is_write, sigset_t *old_set,
+                                    void *puc)
+{
+    TranslationBlock *tb;
+    int ret;
+    
+    if (cpu_single_env)
+        env = cpu_single_env; /* XXX: find a correct solution for multithread */
+#if defined(DEBUG_SIGNAL)
+    printf("qemu: SIGSEGV pc=0x%08lx address=%08lx w=%d oldset=0x%08lx\n", 
+           pc, address, is_write, *(unsigned long *)old_set);
+#endif
+    /* XXX: locking issue */
+    if (is_write && page_unprotect(address, pc, puc)) {
+        return 1;
+    }
+
+    /* see if it is an MMU fault */
+    ret = cpu_ppc_handle_mmu_fault(env, address, is_write, msr_pr, 0);
+    if (ret < 0)
+        return 0; /* not an MMU fault */
+    if (ret == 0)
+        return 1; /* the MMU fault was handled without causing real CPU fault */
+
+    /* now we have a real cpu fault */
+    tb = tb_find_pc(pc);
+    if (tb) {
+        /* the PC is inside the translated code. It means that we have
+           a virtual CPU fault */
+        cpu_restore_state(tb, env, pc, puc);
+    }
+    if (ret == 1) {
+#if 0
+        printf("PF exception: NIP=0x%08x error=0x%x %p\n", 
+               env->nip, env->error_code, tb);
+#endif
+    /* we restore the process signal mask as the sigreturn should
+       do it (XXX: use sigsetjmp) */
+        sigprocmask(SIG_SETMASK, old_set, NULL);
+        do_raise_exception_err(env->exception_index, env->error_code);
+    } else {
+        /* activate soft MMU for this block */
+        cpu_resume_from_signal(env, puc);
+    }
+    /* never comes here */
+    return 1;
+}
+
 #else
 #error unsupported target CPU
 #endif
