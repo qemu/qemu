@@ -307,8 +307,8 @@ static void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
     }
     cpu_ppc_register(cpu_single_env, def);
 
-    /* Set time-base frequency to 10 Mhz */
-    cpu_ppc_tb_init(cpu_single_env, 10UL * 1000UL * 1000UL);
+    /* Set time-base frequency to 100 Mhz */
+    cpu_ppc_tb_init(cpu_single_env, 100UL * 1000UL * 1000UL);
 
     cpu_single_env->osi_call = vga_osi_call;
 
@@ -328,7 +328,7 @@ static void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
         pci_set_pic(pci_bus, set_irq, pic);
 
         /* XXX: suppress that */
-        pic_init(pic_irq_request, NULL);
+        isa_pic = pic_init(pic_irq_request, NULL);
         
         /* XXX: use Mac Serial port */
         serial_init(0x3f8, 4, serial_hds[0]);
@@ -370,7 +370,7 @@ static void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
         pci_set_pic(pci_bus, set_irq, pic);
 
         /* XXX: suppress that */
-        pic_init(pic_irq_request, NULL);
+        isa_pic = pic_init(pic_irq_request, NULL);
         
         /* XXX: use Mac Serial port */
         serial_init(0x3f8, 4, serial_hds[0]);
