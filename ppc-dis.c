@@ -3073,7 +3073,6 @@ print_insn_powerpc (disassemble_info *info, uint32_t insn, unsigned memaddr,
 
 /* Print a big endian PowerPC instruction.  For convenience, also
    disassemble instructions supported by the Motorola PowerPC 601.  */
-#include "cpu.h"
 
 int print_insn_ppc (bfd_vma pc, disassemble_info *info)
 {

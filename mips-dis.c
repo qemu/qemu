@@ -3315,8 +3315,6 @@ print_insn_mips (memaddr, word, info)
    are single stepping, or the pc is within the disassembled function,
    this works.  Otherwise, we need a clue.  Sometimes.  */
 
-#include "cpu.h"
-
 static int
 _print_insn_mips (memaddr, info, endianness)
      bfd_vma memaddr;
