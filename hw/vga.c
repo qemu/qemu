@@ -1654,8 +1654,11 @@ static void vga_map(PCIDevice *pci_dev, int region_num,
                     uint32_t addr, uint32_t size, int type)
 {
     VGAState *s = vga_state;
-
-    cpu_register_physical_memory(addr, s->vram_size, s->vram_offset);
+    if (region_num == PCI_ROM_SLOT) {
+        cpu_register_physical_memory(addr, s->bios_size, s->bios_offset);
+    } else {
+        cpu_register_physical_memory(addr, s->vram_size, s->vram_offset);
+    }
 }
 
 void vga_common_init(VGAState *s, DisplayState *ds, uint8_t *vga_ram_base, 
@@ -1701,7 +1704,8 @@ void vga_common_init(VGAState *s, DisplayState *ds, uint8_t *vga_ram_base,
 
 
 int vga_initialize(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base, 
-                   unsigned long vga_ram_offset, int vga_ram_size)
+                   unsigned long vga_ram_offset, int vga_ram_size,
+                   unsigned long vga_bios_offset, int vga_bios_size)
 {
     VGAState *s;
 
@@ -1776,6 +1780,17 @@ int vga_initialize(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base,
         /* XXX: vga_ram_size must be a power of two */
         pci_register_io_region(d, 0, vga_ram_size, 
                                PCI_ADDRESS_SPACE_MEM_PREFETCH, vga_map);
+        if (vga_bios_size != 0) {
+            unsigned int bios_total_size;
+            s->bios_offset = vga_bios_offset;
+            s->bios_size = vga_bios_size;
+            /* must be a power of two */
+            bios_total_size = 1;
+            while (bios_total_size < vga_bios_size)
+                bios_total_size <<= 1;
+            pci_register_io_region(d, PCI_ROM_SLOT, bios_total_size, 
+                                   PCI_ADDRESS_SPACE_MEM_PREFETCH, vga_map);
+        }
     } else {
 #ifdef CONFIG_BOCHS_VBE
         /* XXX: use optimized standard vga accesses */

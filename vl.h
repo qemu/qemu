@@ -137,7 +137,7 @@ extern int win2k_install_hack;
 
 /* XXX: make it dynamic */
 #if defined (TARGET_PPC)
-#define BIOS_SIZE (512 * 1024)
+#define BIOS_SIZE ((512 + 32) * 1024)
 #elif defined(TARGET_MIPS)
 #define BIOS_SIZE (128 * 1024)
 #else
@@ -596,7 +596,8 @@ static inline void dpy_resize(DisplayState *s, int w, int h)
 }
 
 int vga_initialize(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base, 
-                   unsigned long vga_ram_offset, int vga_ram_size);
+                   unsigned long vga_ram_offset, int vga_ram_size,
+                   unsigned long vga_bios_offset, int vga_bios_size);
 void vga_update_display(void);
 void vga_invalidate_display(void);
 void vga_screen_dump(const char *filename);

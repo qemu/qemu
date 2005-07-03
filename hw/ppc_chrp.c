@@ -24,6 +24,7 @@
 #include "vl.h"
 
 #define BIOS_FILENAME "ppc_rom.bin"
+#define VGABIOS_FILENAME "video.x"
 #define NVRAM_SIZE        0x2000
 
 #define KERNEL_LOAD_ADDR 0x01000000
@@ -232,12 +233,13 @@ static void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
     void *pic;
     m48t59_t *nvram;
     int PPC_io_memory, unin_memory;
-    int ret, linux_boot, i;
-    unsigned long bios_offset;
+    int linux_boot, i;
+    unsigned long bios_offset, vga_bios_offset;
     uint32_t kernel_base, kernel_size, initrd_base, initrd_size;
     ppc_def_t *def;
     PCIBus *pci_bus;
     const char *arch_name;
+    int vga_bios_size, bios_size;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -247,15 +249,36 @@ static void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
     /* allocate and load BIOS */
     bios_offset = ram_size + vga_ram_size;
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
-    ret = load_image(buf, phys_ram_base + bios_offset);
-    if (ret != BIOS_SIZE) {
-        fprintf(stderr, "qemu: could not load PPC PREP bios '%s'\n", buf);
+    bios_size = load_image(buf, phys_ram_base + bios_offset);
+    if (bios_size < 0 || bios_size > BIOS_SIZE) {
+        fprintf(stderr, "qemu: could not load PowerPC bios '%s'\n", buf);
         exit(1);
     }
-    cpu_register_physical_memory((uint32_t)(-BIOS_SIZE), 
-                                 BIOS_SIZE, bios_offset | IO_MEM_ROM);
-    cpu_single_env->nip = 0xfffffffc;
-
+    bios_size = (bios_size + 0xfff) & ~0xfff;
+    cpu_register_physical_memory((uint32_t)(-bios_size), 
+                                 bios_size, bios_offset | IO_MEM_ROM);
+    
+    /* allocate and load VGA BIOS */
+    vga_bios_offset = bios_offset + bios_size;
+    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, VGABIOS_FILENAME);
+    vga_bios_size = load_image(buf, phys_ram_base + vga_bios_offset + 8);
+    if (vga_bios_size < 0) {
+        /* if no bios is present, we can still work */
+        fprintf(stderr, "qemu: warning: could not load VGA bios '%s'\n", buf);
+        vga_bios_size = 0;
+    } else {
+        /* set a specific header (XXX: find real Apple format for NDRV
+           drivers) */
+        phys_ram_base[vga_bios_offset] = 'N';
+        phys_ram_base[vga_bios_offset + 1] = 'D';
+        phys_ram_base[vga_bios_offset + 2] = 'R';
+        phys_ram_base[vga_bios_offset + 3] = 'V';
+        cpu_to_be32w((uint32_t *)(phys_ram_base + vga_bios_offset + 4), 
+                     vga_bios_size);
+        vga_bios_size += 8;
+    }
+    vga_bios_size = (vga_bios_size + 0xfff) & ~0xfff;
+    
     if (linux_boot) {
         kernel_base = KERNEL_LOAD_ADDR;
         /* now we can load the kernel */
@@ -321,8 +344,9 @@ static void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
         cpu_register_physical_memory(0xfe000000, 0x00200000, PPC_io_memory);
         
         /* init basic PC hardware */
-        vga_initialize(pci_bus, ds, phys_ram_base + ram_size, ram_size, 
-                       vga_ram_size);
+        vga_initialize(pci_bus, ds, phys_ram_base + ram_size, 
+                       ram_size, vga_ram_size,
+                       vga_bios_offset, vga_bios_size);
         pic = heathrow_pic_init(&heathrow_pic_mem_index);
         set_irq = heathrow_pic_set_irq;
         pci_set_pic(pci_bus, set_irq, pic);
@@ -363,8 +387,9 @@ static void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
         cpu_register_physical_memory(0xf8000000, 0x00001000, unin_memory);
 
         /* init basic PC hardware */
-        vga_initialize(pci_bus, ds, phys_ram_base + ram_size, ram_size, 
-                       vga_ram_size);
+        vga_initialize(pci_bus, ds, phys_ram_base + ram_size,
+                       ram_size, vga_ram_size,
+                       vga_bios_offset, vga_bios_size);
         pic = openpic_init(NULL, &openpic_mem_index, 1);
         set_irq = openpic_set_irq;
         pci_set_pic(pci_bus, set_irq, pic);
