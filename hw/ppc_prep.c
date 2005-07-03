@@ -258,6 +258,7 @@ typedef struct sysctrl_t {
     uint8_t syscontrol;
     uint8_t fake_io[2];
     int contiguous_map;
+    int endian;
 } sysctrl_t;
 
 enum {
@@ -297,8 +298,9 @@ static void PREP_io_800_writeb (void *opaque, uint32_t addr, uint32_t val)
         }
         /* Check LE mode */
         if (val & 0x02) {
-            printf("Little Endian mode isn't supported (yet ?)\n");
-            abort();
+            sysctrl->endian = 1;
+        } else {
+            sysctrl->endian = 0;
         }
         break;
     case 0x0800:
@@ -549,7 +551,6 @@ static void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
     }
     cpu_register_physical_memory((uint32_t)(-BIOS_SIZE), 
                                  BIOS_SIZE, bios_offset | IO_MEM_ROM);
-    cpu_single_env->nip = 0xfffffffc;
 
     if (linux_boot) {
         kernel_base = KERNEL_LOAD_ADDR;
@@ -604,7 +605,7 @@ static void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
 
     /* init basic PC hardware */
     vga_initialize(pci_bus, ds, phys_ram_base + ram_size, ram_size, 
-                   vga_ram_size);
+                   vga_ram_size, 0, 0);
     rtc_init(0x70, 8);
     //    openpic = openpic_init(0x00000000, 0xF0000000, 1);
     isa_pic = pic_init(pic_irq_request, cpu_single_env);
