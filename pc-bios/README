@@ -5,9 +5,13 @@
   project (http://www.nongnu.org/vgabios/).
 
 - The PowerPC Open Hack'Ware Open Firmware Compatible BIOS is
-  available at http://site.voila.fr/jmayer/OpenHackWare/index.htm.
+  available at http://perso.magic.fr/l_indien/OpenHackWare/index.htm.
 
 - Proll is a GPL'd boot PROM for Sparc JavaStations
   (http://people.redhat.com/zaitcev/linux/).
   Applying proll.patch allows circumventing some bugs and enables
   faster kernel load through a hack.
+
+- video.x is a PowerMac NDRV compatible driver for a VGA frame
+  buffer. It comes from the Mac-on-Linux project
+  (http://www.maconlinux.org/).

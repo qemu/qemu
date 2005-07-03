@@ -7,6 +7,7 @@ version 0.7.1:
   - SPARC64 progress (Blue Swirl)
   - initial MIPS support (Jocelyn mayer)
   - MIPS improvements (Ralf Baechle)
+  - 64 bit fixes in user networking (initial patch by Gwenole Beauchesne)
 
 version 0.7.0:
 
