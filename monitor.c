@@ -222,7 +222,7 @@ static void do_info_registers(void)
 {
 #ifdef TARGET_I386
     cpu_dump_state(cpu_single_env, NULL, monitor_fprintf,
-                   X86_DUMP_FPU | X86_DUMP_CCOP);
+                   X86_DUMP_FPU);
 #else
     cpu_dump_state(cpu_single_env, NULL, monitor_fprintf, 
                    0);
