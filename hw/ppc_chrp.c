@@ -466,13 +466,13 @@ static void ppc_heathrow_init(int ram_size, int vga_ram_size, int boot_device,
 }
 
 QEMUMachine core99_machine = {
-    "core99",
-    "Core99 based PowerMAC",
+    "mac99",
+    "Mac99 based PowerMAC",
     ppc_core99_init,
 };
 
 QEMUMachine heathrow_machine = {
-    "heathrow",
+    "g3bw",
     "Heathrow based PowerMAC",
     ppc_heathrow_init,
 };
