@@ -526,7 +526,7 @@ static void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
     char buf[1024];
     m48t59_t *nvram;
     int PPC_io_memory;
-    int ret, linux_boot, i, nb_nics1;
+    int linux_boot, i, nb_nics1, bios_size;
     unsigned long bios_offset;
     uint32_t kernel_base, kernel_size, initrd_base, initrd_size;
     ppc_def_t *def;
@@ -544,13 +544,14 @@ static void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
     /* allocate and load BIOS */
     bios_offset = ram_size + vga_ram_size;
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
-    ret = load_image(buf, phys_ram_base + bios_offset);
-    if (ret != BIOS_SIZE) {
+    bios_size = load_image(buf, phys_ram_base + bios_offset);
+    if (bios_size < 0 || bios_size > BIOS_SIZE) {
         fprintf(stderr, "qemu: could not load PPC PREP bios '%s'\n", buf);
         exit(1);
     }
-    cpu_register_physical_memory((uint32_t)(-BIOS_SIZE), 
-                                 BIOS_SIZE, bios_offset | IO_MEM_ROM);
+    bios_size = (bios_size + 0xfff) & ~0xfff;
+    cpu_register_physical_memory((uint32_t)(-bios_size), 
+                                 bios_size, bios_offset | IO_MEM_ROM);
 
     if (linux_boot) {
         kernel_base = KERNEL_LOAD_ADDR;
