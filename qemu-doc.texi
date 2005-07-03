@@ -39,11 +39,13 @@ performance.
 
 For system emulation, the following hardware targets are supported:
 @itemize
-@item PC (x86 processor)
+@item PC (x86 or x86_64 processor)
 @item PREP (PowerPC processor)
-@item PowerMac (PowerPC processor, in progress)
+@item G3 BW PowerMac (PowerPC processor)
+@item Mac99 PowerMac (PowerPC processor, in progress)
 @item Sun4m (32-bit Sparc processor)
 @item Sun4u (64-bit Sparc processor, in progress)
+@item Malta board (32-bit MIPS processor, in progress)
 @end itemize
 
 For user emulation, x86, PowerPC, ARM, and Sparc32/64 CPUs are supported.
@@ -192,6 +194,11 @@ Start in full screen.
 @item -pidfile file
 Store the QEMU process PID in @var{file}. It is useful if you launch QEMU
 from a script.
+
+@item -win2k-hack
+Use it when installing Windows 2000 to avoid a disk full bug. After
+Windows 2000 is installed, you no longer need this option (this option
+slows down the IDE transfers).
 
 @end table
 
@@ -897,16 +904,13 @@ idle. You can install the utility from
 @url{http://www.user.cityline.ru/~maxamn/amnhltm.zip} to solve this
 problem. Note that no such tool is needed for NT, 2000 or XP.
 
-@subsubsection Windows 2000 disk full problems
+@subsubsection Windows 2000 disk full problem
 
-Currently (release 0.6.0) QEMU has a bug which gives a @code{disk
-full} error during installation of some releases of Windows 2000. The
-workaround is to stop QEMU as soon as you notice that your disk image
-size is growing too fast (monitor it with @code{ls -ls}). Then
-relaunch QEMU to continue the installation. If you still experience
-the problem, relaunch QEMU again.
-
-Future QEMU releases are likely to correct this bug.
+Windows 2000 has a bug which gives a disk full problem during its
+installation. When installing it, use the @option{-win2k-hack} QEMU
+option to enable a specific workaround. After Windows 2000 is
+installed, you no longer need this option (this option slows down the
+IDE transfers).
 
 @subsubsection Windows XP security problems
 
@@ -1053,6 +1057,11 @@ Set the initial TCX graphic mode. The default is 1024x768.
 
 Use the executable @file{qemu-system-sparc64} to simulate a Sun4u machine.
 The emulator is not usable for anything yet.
+
+@chapter MIPS System emulator invocation
+
+Use the executable @file{qemu-system-mips} to simulate a MIPS machine.
+The emulator begins to launch a Linux kernel.
 
 @chapter QEMU User space emulator invocation
 
