@@ -250,7 +250,7 @@ void cpu_dump_state(CPUState *env, FILE *f,
                     int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
                     int flags)
 {
-    int eflags, i;
+    int eflags, i, nb;
     char cc_op_name[32];
     static const char *seg_name[6] = { "ES", "CS", "SS", "DS", "FS", "GS" };
 
@@ -398,16 +398,54 @@ void cpu_dump_state(CPUState *env, FILE *f,
         }
     }
     if (flags & X86_DUMP_FPU) {
-        cpu_fprintf(f, "ST0=%f ST1=%f ST2=%f ST3=%f\n", 
-                (double)env->fpregs[0].d, 
-                (double)env->fpregs[1].d, 
-                (double)env->fpregs[2].d, 
-                (double)env->fpregs[3].d);
-        cpu_fprintf(f, "ST4=%f ST5=%f ST6=%f ST7=%f\n", 
-                (double)env->fpregs[4].d, 
-                (double)env->fpregs[5].d, 
-                (double)env->fpregs[7].d, 
-                (double)env->fpregs[8].d);
+        int fptag;
+        fptag = 0;
+        for(i = 0; i < 8; i++) {
+            fptag |= ((!env->fptags[i]) << i);
+        }
+        cpu_fprintf(f, "FCW=%04x FSW=%04x [ST=%d] FTW=%02x MXCSR=%08x\n",
+                    env->fpuc,
+                    (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11,
+                    env->fpstt,
+                    fptag,
+                    env->mxcsr);
+        for(i=0;i<8;i++) {
+#if defined(USE_X86LDOUBLE)
+            union {
+                long double d;
+                struct {
+                    uint64_t lower;
+                    uint16_t upper;
+                } l;
+            } tmp;
+            tmp.d = env->fpregs[i].d;
+            cpu_fprintf(f, "FPR%d=%016llx %04x",
+                        i, tmp.l.lower, tmp.l.upper);
+#else
+            cpu_fprintf(f, "FPR%d=%016llx",
+                        i, env->fpregs[i].mmx.q);
+#endif
+            if ((i & 1) == 1)
+                cpu_fprintf(f, "\n");
+            else
+                cpu_fprintf(f, " ");
+        }
+        if (env->hflags & HF_CS64_MASK) 
+            nb = 16;
+        else
+            nb = 8;
+        for(i=0;i<nb;i++) {
+            cpu_fprintf(f, "XMM%02d=%08x%08x%08x%08x",
+                        i, 
+                        env->xmm_regs[i].XMM_L(3),
+                        env->xmm_regs[i].XMM_L(2),
+                        env->xmm_regs[i].XMM_L(1),
+                        env->xmm_regs[i].XMM_L(0));
+            if ((i & 1) == 1)
+                cpu_fprintf(f, "\n");
+            else
+                cpu_fprintf(f, " ");
+        }
     }
 }
 
