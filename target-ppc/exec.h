@@ -20,7 +20,11 @@
 #if !defined (__PPC_H__)
 #define __PPC_H__
 
+#include "config.h"
+
 #include "dyngen-exec.h"
+
+#define TARGET_LONG_BITS 32
 
 register struct CPUPPCState *env asm(AREG0);
 register uint32_t T0 asm(AREG1);

@@ -17,11 +17,21 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#include "exec.h"
+#include <stdarg.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <inttypes.h>
+#include <signal.h>
+#include <assert.h>
+
+#include "cpu.h"
+#include "exec-all.h"
 
 //#define DEBUG_MMU
 //#define DEBUG_BATS
 //#define DEBUG_EXCEPTIONS
+//#define FLUSH_ALL_TLBS
 
 /*****************************************************************************/
 /* PowerPC MMU emulation */
@@ -394,92 +404,6 @@ target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 }
 #endif
 
-#if !defined(CONFIG_USER_ONLY) 
-
-#define MMUSUFFIX _mmu
-#define GETPC() (__builtin_return_address(0))
-
-#define SHIFT 0
-#include "softmmu_template.h"
-
-#define SHIFT 1
-#include "softmmu_template.h"
-
-#define SHIFT 2
-#include "softmmu_template.h"
-
-#define SHIFT 3
-#include "softmmu_template.h"
-
-/* try to fill the TLB and return an exception if error. If retaddr is
-   NULL, it means that the function was called in C code (i.e. not
-   from generated code or from helper.c) */
-/* XXX: fix it to restore all registers */
-void tlb_fill(target_ulong addr, int is_write, int is_user, void *retaddr)
-{
-    TranslationBlock *tb;
-    CPUState *saved_env;
-    unsigned long pc;
-    int ret;
-
-    /* XXX: hack to restore env in all cases, even if not called from
-       generated code */
-    saved_env = env;
-    env = cpu_single_env;
-#if 0
-    {
-        unsigned long tlb_addrr, tlb_addrw;
-        int index;
-        index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-        tlb_addrr = env->tlb_read[is_user][index].address;
-        tlb_addrw = env->tlb_write[is_user][index].address;
-        if (loglevel) {
-            fprintf(logfile,
-                    "%s 1 %p %p idx=%d addr=0x%08lx tbl_addr=0x%08lx 0x%08lx "
-               "(0x%08lx 0x%08lx)\n", __func__, env,
-               &env->tlb_read[is_user][index], index, addr,
-               tlb_addrr, tlb_addrw, addr & TARGET_PAGE_MASK,
-               tlb_addrr & (TARGET_PAGE_MASK | TLB_INVALID_MASK));
-        }
-    }
-#endif
-    ret = cpu_ppc_handle_mmu_fault(env, addr, is_write, is_user, 1);
-    if (ret) {
-        if (retaddr) {
-            /* now we have a real cpu fault */
-            pc = (unsigned long)retaddr;
-            tb = tb_find_pc(pc);
-            if (tb) {
-                /* the PC is inside the translated code. It means that we have
-                   a virtual CPU fault */
-                cpu_restore_state(tb, env, pc, NULL);
-            }
-        }
-        do_raise_exception_err(env->exception_index, env->error_code);
-    }
-#if 0
-    {
-        unsigned long tlb_addrr, tlb_addrw;
-        int index;
-        index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-        tlb_addrr = env->tlb_read[is_user][index].address;
-        tlb_addrw = env->tlb_write[is_user][index].address;
-        printf("%s 2 %p %p idx=%d addr=0x%08lx tbl_addr=0x%08lx 0x%08lx "
-               "(0x%08lx 0x%08lx)\n", __func__, env,
-               &env->tlb_read[is_user][index], index, addr,
-               tlb_addrr, tlb_addrw, addr & TARGET_PAGE_MASK,
-               tlb_addrr & (TARGET_PAGE_MASK | TLB_INVALID_MASK));
-    }
-#endif
-    env = saved_env;
-}
-
-void cpu_ppc_init_mmu(CPUState *env)
-{
-    /* Nothing to do: all translation are disabled */
-}
-#endif
-
 /* Perform address translation */
 int cpu_ppc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
                               int is_user, int is_softmmu)
@@ -576,13 +500,14 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
                     error_code = EXCP_INVAL | EXCP_INVAL_INVAL;
                     break;
                 }
+                break;
             case -5:
                 /* No match in segment table */
                 exception = EXCP_DSEG;
                 error_code = 0;
                 break;
             }
-            if (rw)
+            if (exception == EXCP_DSI && rw == 1)
                 error_code |= 0x02000000;
 	    /* Store fault address */
 	    env->spr[SPR_DAR] = address;
@@ -1491,12 +1416,14 @@ void do_interrupt (CPUState *env)
     /* Jump to handler */
     env->nip = excp;
     env->exception_index = EXCP_NONE;
+#if 0
     /* ensure that no TB jump will be modified as
        the program flow was changed */
 #ifdef __sparc__
     tmp_T0 = 0;
 #else
     T0 = 0;
+#endif
 #endif
     env->interrupt_request |= CPU_INTERRUPT_EXITTB;
 }

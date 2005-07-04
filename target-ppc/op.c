@@ -548,16 +548,10 @@ PPC_OP(add)
     RETURN();
 }
 
-PPC_OP(addo)
+void do_addo (void);
+void op_addo (void)
 {
-    T2 = T0;
-    T0 += T1;
-    if ((T2 ^ T1 ^ (-1)) & (T2 ^ T0) & (1 << 31)) {
-        xer_so = 1;
-        xer_ov = 1;
-    } else {
-        xer_ov = 0;
-    }
+    do_addo();
     RETURN();
 }
 
@@ -574,53 +568,24 @@ PPC_OP(addc)
     RETURN();
 }
 
-PPC_OP(addco)
+void do_addco (void);
+void op_addco (void)
 {
-    T2 = T0;
-    T0 += T1;
-    if (T0 < T2) {
-        xer_ca = 1;
-    } else {
-        xer_ca = 0;
-    }
-    if ((T2 ^ T1 ^ (-1)) & (T2 ^ T0) & (1 << 31)) {
-        xer_so = 1;
-        xer_ov = 1;
-    } else {
-        xer_ov = 0;
-    }
+    do_addco();
     RETURN();
 }
 
 /* add extended */
-/* candidate for helper (too long) */
-PPC_OP(adde)
+void do_adde (void);
+void op_adde (void)
 {
-    T2 = T0;
-    T0 += T1 + xer_ca;
-    if (T0 < T2 || (xer_ca == 1 && T0 == T2)) {
-        xer_ca = 1;
-    } else {
-        xer_ca = 0;
-    }
-    RETURN();
+    do_adde();
 }
 
+void do_addeo (void);
 PPC_OP(addeo)
 {
-    T2 = T0;
-    T0 += T1 + xer_ca;
-    if (T0 < T2 || (xer_ca == 1 && T0 == T2)) {
-        xer_ca = 1;
-    } else {
-        xer_ca = 0;
-    }
-    if ((T2 ^ T1 ^ (-1)) & (T2 ^ T0) & (1 << 31)) {
-        xer_so = 1;
-        xer_ov = 1;
-    } else {
-        xer_ov = 0;
-    }
+    do_addeo();
     RETURN();
 }
 
@@ -654,18 +619,10 @@ PPC_OP(addme)
     RETURN();
 }
 
-PPC_OP(addmeo)
+void do_addmeo (void);
+void op_addmeo (void)
 {
-    T1 = T0;
-    T0 += xer_ca + (-1);
-    if (T1 & (T1 ^ T0) & (1 << 31)) {
-        xer_so = 1;
-        xer_ov = 1;
-    } else {
-        xer_ov = 0;
-    }
-    if (T1 != 0)
-        xer_ca = 1;
+    do_addmeo();
     RETURN();
 }
 
@@ -682,26 +639,14 @@ PPC_OP(addze)
     RETURN();
 }
 
-PPC_OP(addzeo)
+void do_addzeo (void);
+void op_addzeo (void)
 {
-    T1 = T0;
-    T0 += xer_ca;
-    if ((T1 ^ (-1)) & (T1 ^ T0) & (1 << 31)) {
-        xer_so = 1;
-        xer_ov = 1;
-    } else {
-        xer_ov = 0;
-    }
-    if (T0 < T1) {
-        xer_ca = 1;
-    } else {
-        xer_ca = 0;
-    }
+    do_addzeo();
     RETURN();
 }
 
 /* divide word */
-/* candidate for helper (too long) */
 PPC_OP(divw)
 {
     if ((Ts0 == INT32_MIN && Ts1 == -1) || Ts1 == 0) {
@@ -712,16 +657,10 @@ PPC_OP(divw)
     RETURN();
 }
 
-PPC_OP(divwo)
+void do_divwo (void);
+void op_divwo (void)
 {
-    if ((Ts0 == INT32_MIN && Ts1 == -1) || Ts1 == 0) {
-        xer_so = 1;
-        xer_ov = 1;
-        T0 = (-1) * (T0 >> 31);
-    } else {
-        xer_ov = 0;
-        T0 = (Ts0 / Ts1);
-    }
+    do_divwo();
     RETURN();
 }
 
@@ -736,16 +675,10 @@ PPC_OP(divwu)
     RETURN();
 }
 
-PPC_OP(divwuo)
+void do_divwuo (void);
+void op_divwuo (void)
 {
-    if (T1 == 0) {
-        xer_so = 1;
-        xer_ov = 1;
-        T0 = 0;
-    } else {
-        xer_ov = 0;
-        T0 /= T1;
-    }
+    do_divwuo();
     RETURN();
 }
 
@@ -777,17 +710,10 @@ PPC_OP(mullw)
     RETURN();
 }
 
-PPC_OP(mullwo)
+void do_mullwo (void);
+void op_mullwo (void)
 {
-    int64_t res = (int64_t)Ts0 * (int64_t)Ts1;
-
-    if ((int32_t)res != res) {
-        xer_ov = 1;
-        xer_so = 1;
-    } else {
-        xer_ov = 0;
-    }
-    T0 = (int32_t)res;
+    do_mullwo();
     RETURN();
 }
 
@@ -800,15 +726,10 @@ PPC_OP(neg)
     RETURN();
 }
 
-PPC_OP(nego)
+void do_nego (void);
+void op_nego (void)
 {
-    if (T0 == 0x80000000) {
-        xer_ov = 1;
-        xer_so = 1;
-    } else {
-        xer_ov = 0;
-        T0 = -Ts0;
-    }
+    do_nego();
     RETURN();
 }
 
@@ -819,16 +740,10 @@ PPC_OP(subf)
     RETURN();
 }
 
-PPC_OP(subfo)
+void do_subfo (void);
+void op_subfo (void)
 {
-    T2 = T0;
-    T0 = T1 - T0;
-    if (((~T2) ^ T1 ^ (-1)) & ((~T2) ^ T0) & (1 << 31)) {
-        xer_so = 1;
-        xer_ov = 1;
-    } else {
-        xer_ov = 0;
-    }
+    do_subfo();
     RETURN();
 }
 
@@ -844,52 +759,25 @@ PPC_OP(subfc)
     RETURN();
 }
 
-PPC_OP(subfco)
+void do_subfco (void);
+void op_subfco (void)
 {
-    T2 = T0;
-    T0 = T1 - T0;
-    if (T0 <= T1) {
-        xer_ca = 1;
-    } else {
-        xer_ca = 0;
-    }
-    if (((~T2) ^ T1 ^ (-1)) & ((~T2) ^ T0) & (1 << 31)) {
-        xer_so = 1;
-        xer_ov = 1;
-    } else {
-        xer_ov = 0;
-    }
+    do_subfco();
     RETURN();
 }
 
 /* substract from extended */
-/* candidate for helper (too long) */
-PPC_OP(subfe)
+void do_subfe (void);
+void op_subfe (void)
 {
-    T0 = T1 + ~T0 + xer_ca;
-    if (T0 < T1 || (xer_ca == 1 && T0 == T1)) {
-        xer_ca = 1;
-    } else {
-        xer_ca = 0;
-    }
+    do_subfe();
     RETURN();
 }
 
+void do_subfeo (void);
 PPC_OP(subfeo)
 {
-    T2 = T0;
-    T0 = T1 + ~T0 + xer_ca;
-    if ((~T2 ^ T1 ^ (-1)) & (~T2 ^ T0) & (1 << 31)) {
-        xer_so = 1;
-        xer_ov = 1;
-    } else {
-        xer_ov = 0;
-    }
-    if (T0 < T1 || (xer_ca == 1 && T0 == T1)) {
-        xer_ca = 1;
-    } else {
-        xer_ca = 0;
-    }
+    do_subfeo();
     RETURN();
 }
 
@@ -915,18 +803,10 @@ PPC_OP(subfme)
     RETURN();
 }
 
-PPC_OP(subfmeo)
+void do_subfmeo (void);
+void op_subfmeo (void)
 {
-    T1 = T0;
-    T0 = ~T0 + xer_ca - 1;
-    if (~T1 & (~T1 ^ T0) & (1 << 31)) {
-        xer_so = 1;
-        xer_ov = 1;
-    } else {
-        xer_ov = 0;
-    }
-    if (T1 != -1)
-        xer_ca = 1;
+    do_subfmeo();
     RETURN();
 }
 
@@ -943,21 +823,10 @@ PPC_OP(subfze)
     RETURN();
 }
 
-PPC_OP(subfzeo)
+void do_subfzeo (void);
+void op_subfzeo (void)
 {
-    T1 = T0;
-    T0 = ~T0 + xer_ca;
-    if ((~T1 ^ (-1)) & ((~T1) ^ T0) & (1 << 31)) {
-        xer_ov = 1;
-        xer_so = 1;
-    } else {
-        xer_ov = 0;
-    }
-    if (T0 < ~T1) {
-        xer_ca = 1;
-    } else {
-        xer_ca = 0;
-    }
+    do_subfzeo();
     RETURN();
 }
 
@@ -1174,7 +1043,7 @@ PPC_OP(slw)
 }
 
 /* shift right algebraic word */
-PPC_OP(sraw)
+void op_sraw (void)
 {
     do_sraw();
     RETURN();
@@ -1227,10 +1096,9 @@ PPC_OP(fmul)
 }
 
 /* fdiv - fdiv. */
-void do_fdiv (void);
 PPC_OP(fdiv)
 {
-    do_fdiv();
+    FT0 = float64_div(FT0, FT1, &env->fp_status);
     RETURN();
 }
 
@@ -1331,25 +1199,24 @@ PPC_OP(fcmpo)
 
 /***                         Floating-point move                           ***/
 /* fabs */
-void do_fabs (void);
 PPC_OP(fabs)
 {
-    do_fabs();
+    FT0 = float64_abs(FT0);
     RETURN();
 }
 
 /* fnabs */
-void do_fnabs (void);
 PPC_OP(fnabs)
 {
-    do_fnabs();
+    FT0 = float64_abs(FT0);
+    FT0 = float64_chs(FT0);
     RETURN();
 }
 
 /* fneg */
 PPC_OP(fneg)
 {
-    FT0 = -FT0;
+    FT0 = float64_chs(FT0);
     RETURN();
 }
 
@@ -1367,40 +1234,30 @@ PPC_OP(fneg)
 /* Special op to check and maybe clear reservation */
 PPC_OP(check_reservation)
 {
-    do_check_reservation();
+    if ((uint32_t)env->reserve == (uint32_t)(T0 & ~0x00000003))
+        env->reserve = -1;
     RETURN();
 }
 
 /* Return from interrupt */
-PPC_OP(rfi)
+void do_rfi (void);
+void op_rfi (void)
 {
-    env->nip = env->spr[SPR_SRR0] & ~0x00000003;
-    T0 = env->spr[SPR_SRR1] & ~0xFFFF0000UL;
-    do_store_msr(env, T0);
-    env->interrupt_request |= CPU_INTERRUPT_EXITTB;
+    do_rfi();
     RETURN();
 }
 
 /* Trap word */
-PPC_OP(tw)
+void do_tw (uint32_t cmp, int flags);
+void op_tw (void)
 {
-    if ((Ts0 < Ts1 && (PARAM(1) & 0x10)) ||
-        (Ts0 > Ts1 && (PARAM(1) & 0x08)) ||
-        (Ts0 == Ts1 && (PARAM(1) & 0x04)) ||
-        (T0 < T1 && (PARAM(1) & 0x02)) ||
-        (T0 > T1 && (PARAM(1) & 0x01)))
-        do_raise_exception_err(EXCP_PROGRAM, EXCP_TRAP);
+    do_tw(T1, PARAM(1));
     RETURN();
 }
 
-PPC_OP(twi)
+void op_twi (void)
 {
-    if ((Ts0 < SPARAM(1) && (PARAM(2) & 0x10)) ||
-        (Ts0 > SPARAM(1) && (PARAM(2) & 0x08)) ||
-        (Ts0 == SPARAM(1) && (PARAM(2) & 0x04)) ||
-        (T0 < (uint32_t)SPARAM(1) && (PARAM(2) & 0x02)) ||
-        (T0 > (uint32_t)SPARAM(1) && (PARAM(2) & 0x01)))
-        do_raise_exception_err(EXCP_PROGRAM, EXCP_TRAP);
+    do_tw(PARAM(1), PARAM(2));
     RETURN();
 }
 

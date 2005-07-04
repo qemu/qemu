@@ -32,6 +32,15 @@
 
 #define TARGET_HAS_ICE 1
 
+/* XXX: this should be tunable: PowerPC 601 & 64 bits PowerPC
+ *                              have different cache line sizes
+ */
+#define ICACHE_LINE_SIZE 32
+#define DCACHE_LINE_SIZE 32
+
+/* XXX: put this in a common place */
+#define likely(x)   __builtin_expect(!!(x), 1)
+
 /*****************************************************************************/
 /* PVR definitions for most known PowerPC */
 enum {
