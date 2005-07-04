@@ -17,7 +17,16 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#include "exec.h"
+#include <stdarg.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <inttypes.h>
+#include <signal.h>
+#include <assert.h>
+
+#include "cpu.h"
+#include "exec-all.h"
 
 //#define DEBUG_PCALL
 //#define DEBUG_MMU
@@ -51,55 +60,6 @@ int cpu_sparc_handle_mmu_fault(CPUState *env, target_ulong address, int rw,
 }
 
 #else
-
-#define MMUSUFFIX _mmu
-#define GETPC() (__builtin_return_address(0))
-
-#define SHIFT 0
-#include "softmmu_template.h"
-
-#define SHIFT 1
-#include "softmmu_template.h"
-
-#define SHIFT 2
-#include "softmmu_template.h"
-
-#define SHIFT 3
-#include "softmmu_template.h"
-
-
-/* try to fill the TLB and return an exception if error. If retaddr is
-   NULL, it means that the function was called in C code (i.e. not
-   from generated code or from helper.c) */
-/* XXX: fix it to restore all registers */
-void tlb_fill(target_ulong addr, int is_write, int is_user, void *retaddr)
-{
-    TranslationBlock *tb;
-    int ret;
-    unsigned long pc;
-    CPUState *saved_env;
-
-    /* XXX: hack to restore env in all cases, even if not called from
-       generated code */
-    saved_env = env;
-    env = cpu_single_env;
-
-    ret = cpu_sparc_handle_mmu_fault(env, addr, is_write, is_user, 1);
-    if (ret) {
-        if (retaddr) {
-            /* now we have a real cpu fault */
-            pc = (unsigned long)retaddr;
-            tb = tb_find_pc(pc);
-            if (tb) {
-                /* the PC is inside the translated code. It means that we have
-                   a virtual CPU fault */
-                cpu_restore_state(tb, env, pc, (void *)T2);
-            }
-        }
-        cpu_loop_exit();
-    }
-    env = saved_env;
-}
 
 #ifndef TARGET_SPARC64
 static const int access_table[8][8] = {
@@ -412,131 +372,8 @@ void memcpy32(target_ulong *dst, const target_ulong *src)
     dst[7] = src[7];
 }
 
-void set_cwp(int new_cwp)
-{
-    /* put the modified wrap registers at their proper location */
-    if (env->cwp == (NWINDOWS - 1))
-        memcpy32(env->regbase, env->regbase + NWINDOWS * 16);
-    env->cwp = new_cwp;
-    /* put the wrap registers at their temporary location */
-    if (new_cwp == (NWINDOWS - 1))
-        memcpy32(env->regbase + NWINDOWS * 16, env->regbase);
-    env->regwptr = env->regbase + (new_cwp * 16);
-    REGWPTR = env->regwptr;
-}
-
-void cpu_set_cwp(CPUState *env1, int new_cwp)
-{
-    CPUState *saved_env;
-#ifdef reg_REGWPTR
-    target_ulong *saved_regwptr;
-#endif
-
-    saved_env = env;
-#ifdef reg_REGWPTR
-    saved_regwptr = REGWPTR;
-#endif
-    env = env1;
-    set_cwp(new_cwp);
-    env = saved_env;
-#ifdef reg_REGWPTR
-    REGWPTR = saved_regwptr;
-#endif
-}
-
-#ifdef TARGET_SPARC64
-void do_interrupt(int intno)
-{
-#ifdef DEBUG_PCALL
-    if (loglevel & CPU_LOG_INT) {
-	static int count;
-	fprintf(logfile, "%6d: v=%02x pc=%08x npc=%08x SP=%08x\n",
-                count, intno,
-                env->pc,
-                env->npc, env->regwptr[6]);
-	cpu_dump_state(env, logfile, fprintf, 0);
-#if 0
-	{
-	    int i;
-	    uint8_t *ptr;
-
-	    fprintf(logfile, "       code=");
-	    ptr = (uint8_t *)env->pc;
-	    for(i = 0; i < 16; i++) {
-		fprintf(logfile, " %02x", ldub(ptr + i));
-	    }
-	    fprintf(logfile, "\n");
-	}
-#endif
-	count++;
-    }
-#endif
-#if !defined(CONFIG_USER_ONLY) 
-    if (env->pstate & PS_IE) {
-        cpu_abort(cpu_single_env, "Trap 0x%02x while interrupts disabled, Error state", env->exception_index);
-	return;
-    }
-#endif
-    env->tstate[env->tl] = ((uint64_t)GET_CCR(env) << 32) | ((env->asi & 0xff) << 24) |
-	((env->pstate & 0xfff) << 8) | (env->cwp & 0xff);
-    env->tpc[env->tl] = env->pc;
-    env->tnpc[env->tl] = env->npc;
-    env->tt[env->tl] = intno;
-    env->tbr = env->tbr | (env->tl > 1) ? 1 << 14 : 0 | (intno << 4);
-    env->tl++;
-    env->pc = env->tbr;
-    env->npc = env->pc + 4;
-    env->exception_index = 0;
-}
-#else
-void do_interrupt(int intno)
-{
-    int cwp;
-
-#ifdef DEBUG_PCALL
-    if (loglevel & CPU_LOG_INT) {
-	static int count;
-	fprintf(logfile, "%6d: v=%02x pc=%08x npc=%08x SP=%08x\n",
-                count, intno,
-                env->pc,
-                env->npc, env->regwptr[6]);
-	cpu_dump_state(env, logfile, fprintf, 0);
-#if 0
-	{
-	    int i;
-	    uint8_t *ptr;
-
-	    fprintf(logfile, "       code=");
-	    ptr = (uint8_t *)env->pc;
-	    for(i = 0; i < 16; i++) {
-		fprintf(logfile, " %02x", ldub(ptr + i));
-	    }
-	    fprintf(logfile, "\n");
-	}
-#endif
-	count++;
-    }
-#endif
-#if !defined(CONFIG_USER_ONLY) 
-    if (env->psret == 0) {
-        cpu_abort(cpu_single_env, "Trap 0x%02x while interrupts disabled, Error state", env->exception_index);
-	return;
-    }
-#endif
-    env->psret = 0;
-    cwp = (env->cwp - 1) & (NWINDOWS - 1); 
-    set_cwp(cwp);
-    env->regwptr[9] = env->pc;
-    env->regwptr[10] = env->npc;
-    env->psrps = env->psrs;
-    env->psrs = 1;
-    env->tbr = (env->tbr & TBR_BASE_MASK) | (intno << 4);
-    env->pc = env->tbr;
-    env->npc = env->pc + 4;
-    env->exception_index = 0;
-}
-
-target_ulong mmu_probe(target_ulong address, int mmulev)
+#if !defined(TARGET_SPARC64)
+target_ulong mmu_probe(CPUState *env, target_ulong address, int mmulev)
 {
     target_phys_addr_t pde_ptr;
     uint32_t pde;
@@ -599,7 +436,7 @@ target_ulong mmu_probe(target_ulong address, int mmulev)
 }
 
 #ifdef DEBUG_MMU
-void dump_mmu(void)
+void dump_mmu(CPUState *env)
 {
      target_ulong va, va1, va2;
      unsigned int n, m, o;
@@ -611,17 +448,17 @@ void dump_mmu(void)
     pde = ldl_phys(pde_ptr);
     printf("Root ptr: " TARGET_FMT_lx ", ctx: %d\n", env->mmuregs[1] << 4, env->mmuregs[2]);
     for (n = 0, va = 0; n < 256; n++, va += 16 * 1024 * 1024) {
-	pde_ptr = mmu_probe(va, 2);
+	pde_ptr = mmu_probe(env, va, 2);
 	if (pde_ptr) {
 	    pa = cpu_get_phys_page_debug(env, va);
  	    printf("VA: " TARGET_FMT_lx ", PA: " TARGET_FMT_lx " PDE: " TARGET_FMT_lx "\n", va, pa, pde_ptr);
 	    for (m = 0, va1 = va; m < 64; m++, va1 += 256 * 1024) {
-		pde_ptr = mmu_probe(va1, 1);
+		pde_ptr = mmu_probe(env, va1, 1);
 		if (pde_ptr) {
 		    pa = cpu_get_phys_page_debug(env, va1);
  		    printf(" VA: " TARGET_FMT_lx ", PA: " TARGET_FMT_lx " PDE: " TARGET_FMT_lx "\n", va1, pa, pde_ptr);
 		    for (o = 0, va2 = va1; o < 64; o++, va2 += 4 * 1024) {
-			pde_ptr = mmu_probe(va2, 0);
+			pde_ptr = mmu_probe(env, va2, 0);
 			if (pde_ptr) {
 			    pa = cpu_get_phys_page_debug(env, va2);
  			    printf("  VA: " TARGET_FMT_lx ", PA: " TARGET_FMT_lx " PTE: " TARGET_FMT_lx "\n", va2, pa, pde_ptr);

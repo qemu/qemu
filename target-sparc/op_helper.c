@@ -234,7 +234,7 @@ void helper_ld_asi(int asi, int size, int sign)
 	    if (mmulev > 4)
 		ret = 0;
 	    else {
-		ret = mmu_probe(T0, mmulev);
+		ret = mmu_probe(env, T0, mmulev);
 		//bswap32s(&ret);
 	    }
 #ifdef DEBUG_MMU
@@ -293,7 +293,7 @@ void helper_st_asi(int asi, int size, int sign)
 		break;
 	    }
 #ifdef DEBUG_MMU
-	    dump_mmu();
+	    dump_mmu(env);
 #endif
 	    return;
 	}
@@ -330,7 +330,7 @@ void helper_st_asi(int asi, int size, int sign)
             if (oldreg != env->mmuregs[reg]) {
                 printf("mmu change reg[%d]: 0x%08x -> 0x%08x\n", reg, oldreg, env->mmuregs[reg]);
             }
-	    dump_mmu();
+	    dump_mmu(env);
 #endif
 	    return;
 	}
@@ -508,7 +508,7 @@ void helper_st_asi(int asi, int size, int sign)
             if (oldreg != env->immuregs[reg]) {
                 printf("mmu change reg[%d]: 0x%08x -> 0x%08x\n", reg, oldreg, env->immuregs[reg]);
             }
-	    dump_mmu();
+	    dump_mmu(env);
 #endif
 	    return;
 	}
@@ -576,7 +576,7 @@ void helper_st_asi(int asi, int size, int sign)
             if (oldreg != env->dmmuregs[reg]) {
                 printf("mmu change reg[%d]: 0x%08x -> 0x%08x\n", reg, oldreg, env->dmmuregs[reg]);
             }
-	    dump_mmu();
+	    dump_mmu(env);
 #endif
 	    return;
 	}
@@ -704,4 +704,182 @@ void do_popc()
     T0 = (T0 & 0x0000ffff0000ffffULL) + ((T0 >> 16) & 0x0000ffff0000ffffULL);
     T0 = (T0 & 0x00000000ffffffffULL) + ((T0 >> 32) & 0x00000000ffffffffULL);
 }
+#endif
+
+void set_cwp(int new_cwp)
+{
+    /* put the modified wrap registers at their proper location */
+    if (env->cwp == (NWINDOWS - 1))
+        memcpy32(env->regbase, env->regbase + NWINDOWS * 16);
+    env->cwp = new_cwp;
+    /* put the wrap registers at their temporary location */
+    if (new_cwp == (NWINDOWS - 1))
+        memcpy32(env->regbase + NWINDOWS * 16, env->regbase);
+    env->regwptr = env->regbase + (new_cwp * 16);
+    REGWPTR = env->regwptr;
+}
+
+void cpu_set_cwp(CPUState *env1, int new_cwp)
+{
+    CPUState *saved_env;
+#ifdef reg_REGWPTR
+    target_ulong *saved_regwptr;
+#endif
+
+    saved_env = env;
+#ifdef reg_REGWPTR
+    saved_regwptr = REGWPTR;
+#endif
+    env = env1;
+    set_cwp(new_cwp);
+    env = saved_env;
+#ifdef reg_REGWPTR
+    REGWPTR = saved_regwptr;
+#endif
+}
+
+#ifdef TARGET_SPARC64
+void do_interrupt(int intno)
+{
+#ifdef DEBUG_PCALL
+    if (loglevel & CPU_LOG_INT) {
+	static int count;
+	fprintf(logfile, "%6d: v=%02x pc=%08x npc=%08x SP=%08x\n",
+                count, intno,
+                env->pc,
+                env->npc, env->regwptr[6]);
+	cpu_dump_state(env, logfile, fprintf, 0);
+#if 0
+	{
+	    int i;
+	    uint8_t *ptr;
+
+	    fprintf(logfile, "       code=");
+	    ptr = (uint8_t *)env->pc;
+	    for(i = 0; i < 16; i++) {
+		fprintf(logfile, " %02x", ldub(ptr + i));
+	    }
+	    fprintf(logfile, "\n");
+	}
+#endif
+	count++;
+    }
+#endif
+#if !defined(CONFIG_USER_ONLY) 
+    if (env->pstate & PS_IE) {
+        cpu_abort(cpu_single_env, "Trap 0x%02x while interrupts disabled, Error state", env->exception_index);
+	return;
+    }
+#endif
+    env->tstate[env->tl] = ((uint64_t)GET_CCR(env) << 32) | ((env->asi & 0xff) << 24) |
+	((env->pstate & 0xfff) << 8) | (env->cwp & 0xff);
+    env->tpc[env->tl] = env->pc;
+    env->tnpc[env->tl] = env->npc;
+    env->tt[env->tl] = intno;
+    env->tbr = env->tbr | (env->tl > 1) ? 1 << 14 : 0 | (intno << 4);
+    env->tl++;
+    env->pc = env->tbr;
+    env->npc = env->pc + 4;
+    env->exception_index = 0;
+}
+#else
+void do_interrupt(int intno)
+{
+    int cwp;
+
+#ifdef DEBUG_PCALL
+    if (loglevel & CPU_LOG_INT) {
+	static int count;
+	fprintf(logfile, "%6d: v=%02x pc=%08x npc=%08x SP=%08x\n",
+                count, intno,
+                env->pc,
+                env->npc, env->regwptr[6]);
+	cpu_dump_state(env, logfile, fprintf, 0);
+#if 0
+	{
+	    int i;
+	    uint8_t *ptr;
+
+	    fprintf(logfile, "       code=");
+	    ptr = (uint8_t *)env->pc;
+	    for(i = 0; i < 16; i++) {
+		fprintf(logfile, " %02x", ldub(ptr + i));
+	    }
+	    fprintf(logfile, "\n");
+	}
+#endif
+	count++;
+    }
+#endif
+#if !defined(CONFIG_USER_ONLY) 
+    if (env->psret == 0) {
+        cpu_abort(cpu_single_env, "Trap 0x%02x while interrupts disabled, Error state", env->exception_index);
+	return;
+    }
+#endif
+    env->psret = 0;
+    cwp = (env->cwp - 1) & (NWINDOWS - 1); 
+    set_cwp(cwp);
+    env->regwptr[9] = env->pc;
+    env->regwptr[10] = env->npc;
+    env->psrps = env->psrs;
+    env->psrs = 1;
+    env->tbr = (env->tbr & TBR_BASE_MASK) | (intno << 4);
+    env->pc = env->tbr;
+    env->npc = env->pc + 4;
+    env->exception_index = 0;
+}
+#endif
+
+#if !defined(CONFIG_USER_ONLY) 
+
+#define MMUSUFFIX _mmu
+#define GETPC() (__builtin_return_address(0))
+
+#define SHIFT 0
+#include "softmmu_template.h"
+
+#define SHIFT 1
+#include "softmmu_template.h"
+
+#define SHIFT 2
+#include "softmmu_template.h"
+
+#define SHIFT 3
+#include "softmmu_template.h"
+
+
+/* try to fill the TLB and return an exception if error. If retaddr is
+   NULL, it means that the function was called in C code (i.e. not
+   from generated code or from helper.c) */
+/* XXX: fix it to restore all registers */
+void tlb_fill(target_ulong addr, int is_write, int is_user, void *retaddr)
+{
+    TranslationBlock *tb;
+    int ret;
+    unsigned long pc;
+    CPUState *saved_env;
+
+    /* XXX: hack to restore env in all cases, even if not called from
+       generated code */
+    saved_env = env;
+    env = cpu_single_env;
+
+    ret = cpu_sparc_handle_mmu_fault(env, addr, is_write, is_user, 1);
+    if (ret) {
+        if (retaddr) {
+            /* now we have a real cpu fault */
+            pc = (unsigned long)retaddr;
+            tb = tb_find_pc(pc);
+            if (tb) {
+                /* the PC is inside the translated code. It means that we have
+                   a virtual CPU fault */
+                cpu_restore_state(tb, env, pc, (void *)T2);
+            }
+        }
+        cpu_loop_exit();
+    }
+    env = saved_env;
+}
+
 #endif
