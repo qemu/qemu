@@ -29,7 +29,6 @@ void cpu_loop_exit(void)
     longjmp(env->jmp_env, 1);
 }
 
-__attribute__ (( regparm(2) ))
 void do_raise_exception_err (uint32_t exception, int error_code)
 {
 #if 1
@@ -42,7 +41,6 @@ void do_raise_exception_err (uint32_t exception, int error_code)
     cpu_loop_exit();
 }
 
-__attribute__ (( regparm(1) ))
 void do_raise_exception (uint32_t exception)
 {
     do_raise_exception_err(exception, 0);
@@ -117,7 +115,6 @@ void do_msubu (void)
 #endif
 
 /* CP0 helpers */
-__attribute__ (( regparm(2) ))
 void do_mfc0 (int reg, int sel)
 {
     const unsigned char *rn;
@@ -267,12 +264,10 @@ void do_mfc0 (int reg, int sel)
     return;
 }
 
-__attribute__ (( regparm(2) ))
 void do_mtc0 (int reg, int sel)
 {
     const unsigned char *rn;
     uint32_t val, old, mask;
-    int i, raise;
 
     if (sel != 0 && reg != 16 && reg != 28) {
         val = -1;
@@ -379,11 +374,14 @@ void do_mtc0 (int reg, int sel)
         old = env->CP0_Cause;
         env->CP0_Cause = val;
 #if 0
-        /* Check if we ever asserted a software IRQ */
-        for (i = 0; i < 2; i++) {
-            mask = 0x100 << i;
-            if ((val & mask) & !(old & mask))
-                mips_set_irq(i);
+        {
+            int i;
+            /* Check if we ever asserted a software IRQ */
+            for (i = 0; i < 2; i++) {
+                mask = 0x100 << i;
+                if ((val & mask) & !(old & mask))
+                    mips_set_irq(i);
+            }
         }
 #endif
         rn = "Cause";
@@ -486,7 +484,6 @@ void do_mtc0 (int reg, int sel)
 
 /* TLB management */
 #if defined(MIPS_USES_R4K_TLB)
-__attribute__ (( regparm(1) ))
 static void invalidate_tb (int idx)
 {
     tlb_t *tlb;
@@ -505,7 +502,6 @@ static void invalidate_tb (int idx)
     }
 }
 
-__attribute__ (( regparm(1) ))
 static void fill_tb (int idx)
 {
     tlb_t *tlb;
@@ -584,7 +580,6 @@ void do_tlbr (void)
 }
 #endif
 
-__attribute__ (( regparm(1) ))
 void op_dump_ldst (const unsigned char *func)
 {
     if (loglevel)
@@ -608,7 +603,6 @@ void debug_eret (void)
     }
 }
 
-__attribute__ (( regparm(1) ))
 void do_pmon (int function)
 {
     function /= 2;
@@ -634,3 +628,50 @@ void do_pmon (int function)
         break;
     }
 }
+
+#if !defined(CONFIG_USER_ONLY) 
+
+#define MMUSUFFIX _mmu
+#define GETPC() (__builtin_return_address(0))
+
+#define SHIFT 0
+#include "softmmu_template.h"
+
+#define SHIFT 1
+#include "softmmu_template.h"
+
+#define SHIFT 2
+#include "softmmu_template.h"
+
+#define SHIFT 3
+#include "softmmu_template.h"
+
+void tlb_fill (target_ulong addr, int is_write, int is_user, void *retaddr)
+{
+    TranslationBlock *tb;
+    CPUState *saved_env;
+    unsigned long pc;
+    int ret;
+
+    /* XXX: hack to restore env in all cases, even if not called from
+       generated code */
+    saved_env = env;
+    env = cpu_single_env;
+    ret = cpu_mips_handle_mmu_fault(env, addr, is_write, is_user, 1);
+    if (ret) {
+        if (retaddr) {
+            /* now we have a real cpu fault */
+            pc = (unsigned long)retaddr;
+            tb = tb_find_pc(pc);
+            if (tb) {
+                /* the PC is inside the translated code. It means that we have
+                   a virtual CPU fault */
+                cpu_restore_state(tb, env, pc, NULL);
+            }
+        }
+        do_raise_exception_err(env->exception_index, env->error_code);
+    }
+    env = saved_env;
+}
+
+#endif

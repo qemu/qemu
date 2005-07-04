@@ -19,27 +19,15 @@ typedef uint32_t host_uint_t;
 register host_uint_t T0 asm(AREG1);
 register host_uint_t T1 asm(AREG2);
 register host_uint_t T2 asm(AREG3);
-register host_int_t Ts0 asm(AREG1);
-register host_int_t Ts1 asm(AREG2);
-register host_int_t Ts2 asm(AREG3);
-
-#define PARAM(n) ((uint32_t)PARAM##n)
-#define SPARAM(n) ((int32_t)PARAM##n)
 
 #if defined (USE_HOST_FLOAT_REGS)
 register double FT0 asm(FREG0);
 register double FT1 asm(FREG1);
 register double FT2 asm(FREG2);
-register float FTS0 asm(FREG0);
-register float FTS1 asm(FREG1);
-register float FTS2 asm(FREG2);
 #else
 #define FT0 (env->ft0.d)
 #define FT1 (env->ft1.d)
 #define FT2 (env->ft2.d)
-#define FTS0 (env->ft0.f)
-#define FTS1 (env->ft1.f)
-#define FTS2 (env->ft2.f)
 #endif
 
 #if defined (DEBUG_OP)

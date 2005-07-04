@@ -17,7 +17,16 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#include "exec.h"
+#include <stdarg.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <inttypes.h>
+#include <signal.h>
+#include <assert.h>
+
+#include "cpu.h"
+#include "exec-all.h"
 
 /* MIPS32 4K MMU emulation */
 #ifdef MIPS_USES_R4K_TLB
@@ -142,57 +151,10 @@ target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
         return -1;
     return phys_addr;
 }
-#endif
-
-#if !defined(CONFIG_USER_ONLY) 
-
-#define MMUSUFFIX _mmu
-#define GETPC() (__builtin_return_address(0))
-
-#define SHIFT 0
-#include "softmmu_template.h"
-
-#define SHIFT 1
-#include "softmmu_template.h"
-
-#define SHIFT 2
-#include "softmmu_template.h"
-
-#define SHIFT 3
-#include "softmmu_template.h"
-
-void tlb_fill (target_ulong addr, int is_write, int is_user, void *retaddr)
-{
-    TranslationBlock *tb;
-    CPUState *saved_env;
-    unsigned long pc;
-    int ret;
-
-    /* XXX: hack to restore env in all cases, even if not called from
-       generated code */
-    saved_env = env;
-    env = cpu_single_env;
-    ret = cpu_mips_handle_mmu_fault(env, addr, is_write, is_user, 1);
-    if (ret) {
-        if (retaddr) {
-            /* now we have a real cpu fault */
-            pc = (unsigned long)retaddr;
-            tb = tb_find_pc(pc);
-            if (tb) {
-                /* the PC is inside the translated code. It means that we have
-                   a virtual CPU fault */
-                cpu_restore_state(tb, env, pc, NULL);
-            }
-        }
-        do_raise_exception_err(env->exception_index, env->error_code);
-    }
-    env = saved_env;
-}
 
 void cpu_mips_init_mmu (CPUState *env)
 {
 }
-
 #endif /* !defined(CONFIG_USER_ONLY) */
 
 int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
