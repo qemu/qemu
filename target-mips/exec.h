@@ -123,9 +123,7 @@ void do_maddu (void);
 void do_msub (void);
 void do_msubu (void);
 #endif
-__attribute__ (( regparm(2) ))
 void do_mfc0(int reg, int sel);
-__attribute__ (( regparm(2) ))
 void do_mtc0(int reg, int sel);
 void do_tlbwi (void);
 void do_tlbwr (void);
@@ -145,7 +143,6 @@ void do_swl_kernel (void);
 void do_swr_user (void);
 void do_swr_kernel (void);
 #endif
-__attribute__ (( regparm(1) ))
 void do_pmon (int function);
 
 int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
@@ -153,9 +150,7 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 void do_interrupt (CPUState *env);
 
 void cpu_loop_exit(void);
-__attribute__ (( regparm(2) ))
 void do_raise_exception_err (uint32_t exception, int error_code);
-__attribute__ (( regparm(1) ))
 void do_raise_exception (uint32_t exception);
 
 void cpu_dump_state(CPUState *env, FILE *f, 
