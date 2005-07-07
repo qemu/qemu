@@ -1118,10 +1118,16 @@ static int cdrom_read_toc_raw(IDEState *s, uint8_t *buf, int msf,
     *q++ = 0; /* min */
     *q++ = 0; /* sec */
     *q++ = 0; /* frame */
-    *q++ = 0; 
-    *q++ = 0; 
-    *q++ = 0; 
-    *q++ = 0; 
+    if (msf) {
+        *q++ = 0; 
+        lba_to_msf(q, 0);
+        q += 3;
+    } else {
+        *q++ = 0; 
+        *q++ = 0; 
+        *q++ = 0; 
+        *q++ = 0; 
+    }
 
     len = q - buf;
     cpu_to_ube16(buf, len - 2);
@@ -1488,11 +1494,6 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         unit = (val >> 4) & 1;
         s = ide_if + unit;
         ide_if->cur_drive = s;
-#ifdef TARGET_PPC
-        /* XXX: currently a workaround for Darwin/PPC. Need to check
-           the IDE spec to see if it is correct */
-        ide_set_signature(s);
-#endif
         break;
     default:
     case 7:
