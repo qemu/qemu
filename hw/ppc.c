@@ -107,13 +107,16 @@ uint32_t cpu_ppc_load_decr (CPUState *env)
 {
     ppc_tb_t *tb_env = env->tb_env;
     uint32_t decr;
+    int64_t diff;
 
-    decr = muldiv64(tb_env->decr_next - qemu_get_clock(vm_clock),
-                    tb_env->tb_freq, ticks_per_sec);
+    diff = tb_env->decr_next - qemu_get_clock(vm_clock);
+    if (diff >= 0)
+        decr = muldiv64(diff, tb_env->tb_freq, ticks_per_sec);
+    else
+        decr = -muldiv64(-diff, tb_env->tb_freq, ticks_per_sec);
 #if defined(DEBUG_TB)
     printf("%s: 0x%08x\n", __func__, decr);
 #endif
-
     return decr;
 }
 
