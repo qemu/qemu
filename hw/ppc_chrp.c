@@ -31,7 +31,7 @@
 #define INITRD_LOAD_ADDR 0x01800000
 
 /* MacIO devices (mapped inside the MacIO address space): CUDA, DBDMA,
-   NVRAM (not implemented).  */
+   NVRAM */
 
 static int dbdma_mem_index;
 static int cuda_mem_index;
@@ -39,6 +39,7 @@ static int ide0_mem_index = -1;
 static int ide1_mem_index = -1;
 static int openpic_mem_index = -1;
 static int heathrow_pic_mem_index = -1;
+static int macio_nvram_mem_index = -1;
 
 /* DBDMA: currently no op - should suffice right now */
 
@@ -83,6 +84,53 @@ static CPUReadMemoryFunc *dbdma_read[] = {
     &dbdma_readl,
 };
 
+/* macio style NVRAM device */
+typedef struct MacIONVRAMState {
+    uint8_t data[0x2000];
+} MacIONVRAMState;
+
+static void macio_nvram_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
+{
+    MacIONVRAMState *s = opaque;
+    addr = (addr >> 4) & 0x1fff;
+    s->data[addr] = value;
+    //    printf("macio_nvram_writeb %04x = %02x\n", addr, value);
+}
+
+static uint32_t macio_nvram_readb (void *opaque, target_phys_addr_t addr)
+{
+    MacIONVRAMState *s = opaque;
+    uint32_t value;
+
+    addr = (addr >> 4) & 0x1fff;
+    value = s->data[addr];
+    //    printf("macio_nvram_readb %04x = %02x\n", addr, value);
+    return value;
+}
+
+static CPUWriteMemoryFunc *macio_nvram_write[] = {
+    &macio_nvram_writeb,
+    &macio_nvram_writeb,
+    &macio_nvram_writeb,
+};
+
+static CPUReadMemoryFunc *macio_nvram_read[] = {
+    &macio_nvram_readb,
+    &macio_nvram_readb,
+    &macio_nvram_readb,
+};
+
+static MacIONVRAMState *macio_nvram_init(void)
+{
+    MacIONVRAMState *s;
+    s = qemu_mallocz(sizeof(MacIONVRAMState));
+    if (!s)
+        return NULL;
+    macio_nvram_mem_index = cpu_register_io_memory(0, macio_nvram_read, 
+                                                   macio_nvram_write, s);
+    return s;
+}
+
 static void macio_map(PCIDevice *pci_dev, int region_num, 
                       uint32_t addr, uint32_t size, int type)
 {
@@ -100,9 +148,11 @@ static void macio_map(PCIDevice *pci_dev, int region_num,
         cpu_register_physical_memory(addr + 0x40000, 0x40000, 
                                      openpic_mem_index);
     }
+    if (macio_nvram_mem_index >= 0)
+        cpu_register_physical_memory(addr + 0x60000, 0x20000, macio_nvram_mem_index);
 }
 
-static void macio_init(PCIBus *bus)
+static void macio_init(PCIBus *bus, int device_id)
 {
     PCIDevice *d;
 
@@ -112,8 +162,8 @@ static void macio_init(PCIBus *bus)
        in PearPC */
     d->config[0x00] = 0x6b; // vendor_id
     d->config[0x01] = 0x10;
-    d->config[0x02] = 0x22;
-    d->config[0x03] = 0x00;
+    d->config[0x02] = device_id;
+    d->config[0x03] = device_id >> 8;
 
     d->config[0x0a] = 0x00; // class_sub = pci2pci
     d->config[0x0b] = 0xff; // class_base = bridge
@@ -218,6 +268,28 @@ static int vga_osi_call(CPUState *env)
 static void pic_irq_request(void *opaque, int level)
 {
 }
+
+static uint8_t nvram_chksum(const uint8_t *buf, int n)
+{
+    int sum, i;
+    sum = 0;
+    for(i = 0; i < n; i++)
+        sum += buf[i];
+    return (sum & 0xff) + (sum >> 8);
+}
+
+/* set a free Mac OS NVRAM partition */
+void pmac_format_nvram_partition(uint8_t *buf, int len)
+{
+    char partition_name[12] = "wwwwwwwwwwww";
+    
+    buf[0] = 0x7f; /* free partition magic */
+    buf[1] = 0; /* checksum */
+    buf[2] = len >> 8;
+    buf[3] = len;
+    memcpy(buf + 4, partition_name, 12);
+    buf[1] = nvram_chksum(buf, 16);
+}    
 
 /* PowerPC CHRP hardware initialisation */
 static void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
@@ -369,7 +441,13 @@ static void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
         adb_kbd_init(&adb_bus);
         adb_mouse_init(&adb_bus);
         
-        macio_init(pci_bus);
+        {
+            MacIONVRAMState *nvr;
+            nvr = macio_nvram_init();
+            pmac_format_nvram_partition(nvr->data, 0x2000);
+        }
+
+        macio_init(pci_bus, 0x0017);
         
         nvram = m48t59_init(8, 0xFFF04000, 0x0074, NVRAM_SIZE);
         
@@ -416,7 +494,7 @@ static void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
         adb_kbd_init(&adb_bus);
         adb_mouse_init(&adb_bus);
         
-        macio_init(pci_bus);
+        macio_init(pci_bus, 0x0022);
         
         nvram = m48t59_init(8, 0xFFF04000, 0x0074, NVRAM_SIZE);
         
