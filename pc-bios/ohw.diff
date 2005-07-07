@@ -1,6 +1,6 @@
 diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --exclude mkdiff OpenHackWare-release-0.4.org/src/bios.h OpenHackWare-release-0.4/src/bios.h
 --- OpenHackWare-release-0.4.org/src/bios.h	2005-04-06 23:20:22.000000000 +0200
-+++ OpenHackWare-release-0.4/src/bios.h	2005-07-03 16:17:41.000000000 +0200
++++ OpenHackWare-release-0.4/src/bios.h	2005-07-07 01:10:20.000000000 +0200
 @@ -64,6 +64,7 @@
      ARCH_CHRP,
      ARCH_MAC99,
@@ -9,7 +9,15 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
  };
  
  /* Hardware definition(s) */
-@@ -183,12 +184,12 @@
+@@ -174,6 +175,7 @@
+ int bd_ioctl (bloc_device_t *bd, int func, void *args);
+ uint32_t bd_seclen (bloc_device_t *bd);
+ void bd_close (bloc_device_t *bd);
++void bd_reset_all(void);
+ uint32_t bd_seclen (bloc_device_t *bd);
+ uint32_t bd_maxbloc (bloc_device_t *bd);
+ void bd_sect2CHS (bloc_device_t *bd, uint32_t secnum,
+@@ -183,12 +185,12 @@
  part_t *bd_probe (int boot_device);
  bloc_device_t *bd_get (int device);
  void bd_put (bloc_device_t *bd);
@@ -24,7 +32,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
  void ide_pci_pmac_register (uint32_t io_base0, uint32_t io_base1,
                              void *OF_private);
  
-@@ -399,17 +400,23 @@
+@@ -399,17 +401,23 @@
                                uint16_t min_grant, uint16_t max_latency);
  void OF_finalize_pci_host (void *dev, int first_bus, int nb_busses);
  void OF_finalize_pci_device (void *dev, uint8_t bus, uint8_t devfn,
@@ -53,7 +61,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
                              const unsigned char *name, int devnum,
 diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --exclude mkdiff OpenHackWare-release-0.4.org/src/bloc.c OpenHackWare-release-0.4/src/bloc.c
 --- OpenHackWare-release-0.4.org/src/bloc.c	2005-04-06 23:21:00.000000000 +0200
-+++ OpenHackWare-release-0.4/src/bloc.c	2005-07-03 16:17:41.000000000 +0200
++++ OpenHackWare-release-0.4/src/bloc.c	2005-07-08 00:28:26.000000000 +0200
 @@ -55,6 +55,7 @@
      /* Partitions */
      part_t *parts, *bparts;
@@ -62,7 +70,33 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
      /* Chain */
      bloc_device_t *next;
  };
-@@ -223,10 +224,12 @@
+@@ -66,6 +67,7 @@
+ 
+ static int ide_initialize (bloc_device_t *bd, int device);
+ static int ide_read_sector (bloc_device_t *bd, void *buffer, int secnum);
++static int ide_reset (bloc_device_t *bd);
+ 
+ static int mem_initialize (bloc_device_t *bd, int device);
+ static int mem_read_sector (bloc_device_t *bd, void *buffer, int secnum);
+@@ -212,6 +214,17 @@
+ {
+ }
+ 
++void bd_reset_all(void)
++{
++    bloc_device_t *bd;
++    for (bd = bd_list; bd != NULL; bd = bd->next) {
++        if (bd->init == &ide_initialize) {
++            /* reset IDE drive because Darwin wants all IDE devices to be reset */
++            ide_reset(bd);
++        }
++    }
++}
++
+ uint32_t bd_seclen (bloc_device_t *bd)
+ {
+     return bd->seclen;
+@@ -223,10 +236,12 @@
  }
  
  /* XXX: to be suppressed */
@@ -76,7 +110,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
      }
  }
  
-@@ -240,6 +243,13 @@
+@@ -240,6 +255,13 @@
      return &bd->bparts;
  }
  
@@ -90,7 +124,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
  part_t *bd_probe (int boot_device)
  {
      char devices[] = { /*'a', 'b',*/ 'c', 'd', 'e', 'f', 'm', '\0', };
-@@ -272,9 +282,7 @@
+@@ -272,9 +294,7 @@
          tmp = part_probe(bd, force_raw);
          if (boot_device == bd->device) {
              boot_part = tmp;
@@ -101,7 +135,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
          }
      }
  
-@@ -717,34 +725,29 @@
+@@ -717,34 +737,29 @@
  /* IDE PCI access for pc */
  static uint8_t ide_pci_port_read (bloc_device_t *bd, int port)
  {
@@ -143,7 +177,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
  }
  
  static ide_ops_t ide_pci_pc_ops = {
-@@ -761,7 +764,7 @@
+@@ -761,7 +776,7 @@
  
  void ide_pci_pc_register (uint32_t io_base0, uint32_t io_base1,
                            uint32_t io_base2, uint32_t io_base3,
@@ -152,7 +186,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
  {
      if (ide_pci_ops == NULL) {
          ide_pci_ops = malloc(sizeof(ide_ops_t));
-@@ -770,19 +773,19 @@
+@@ -770,19 +785,19 @@
          memcpy(ide_pci_ops, &ide_pci_pc_ops, sizeof(ide_ops_t));
      }
      if ((io_base0 != 0 || io_base1 != 0) &&
@@ -178,6 +212,78 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
  #endif
      }
  }
+@@ -935,6 +950,8 @@
+ }
+ 
+ static void atapi_pad_req (void *buffer, int len);
++static void atapi_make_req (bloc_device_t *bd, uint32_t *buffer,
++                            int maxlen);
+ static int atapi_read_sector (bloc_device_t *bd, void *buffer, int secnum);
+ 
+ static int ide_initialize (bloc_device_t *bd, int device)
+@@ -1035,9 +1052,7 @@
+         DPRINTF("INQUIRY\n");
+         len = spc_inquiry_req(&atapi_buffer, 36);
+         atapi_pad_req(&atapi_buffer, len);
+-        ide_port_write(bd, 0x07, 0xA0);
+-        for (i = 0; i < 3; i++)
+-            ide_data_writel(bd, ldswap32(&atapi_buffer[i]));
++        atapi_make_req(bd, atapi_buffer, 36);
+         status = ide_port_read(bd, 0x07);
+         if (status != 0x48) {
+             ERROR("ATAPI INQUIRY : status %0x != 0x48\n", status);
+@@ -1053,9 +1068,7 @@
+         DPRINTF("READ_CAPACITY\n");
+         len = mmc_read_capacity_req(&atapi_buffer);
+         atapi_pad_req(&atapi_buffer, len);
+-        ide_port_write(bd, 0x07, 0xA0);
+-        for (i = 0; i < 3; i++)
+-            ide_data_writel(bd, ldswap32(&atapi_buffer[i]));
++        atapi_make_req(bd, atapi_buffer, 8);
+         status = ide_port_read(bd, 0x07);
+         if (status != 0x48) {
+             ERROR("ATAPI READ_CAPACITY : status %0x != 0x48\n", status);
+@@ -1105,6 +1118,22 @@
+     memset(p + len, 0, 12 - len);
+ }
+ 
++static void atapi_make_req (bloc_device_t *bd, uint32_t *buffer,
++                            int maxlen)
++{
++    int i;
++    /* select drive */
++    if (bd->drv == 0)
++        ide_port_write(bd, 0x06, 0x40);
++    else
++        ide_port_write(bd, 0x06, 0x50);
++    ide_port_write(bd, 0x04, maxlen & 0xff);
++    ide_port_write(bd, 0x05, (maxlen >> 8) & 0xff);
++    ide_port_write(bd, 0x07, 0xA0);
++    for (i = 0; i < 3; i++)
++        ide_data_writel(bd, ldswap32(&buffer[i]));
++}
++
+ static int atapi_read_sector (bloc_device_t *bd, void *buffer, int secnum)
+ {
+     uint32_t atapi_buffer[4];
+@@ -1112,16 +1141,9 @@
+     uint32_t status, value;
+     int i, len;
+ 
+-    /* select drive */
+-    if (bd->drv == 0)
+-        ide_port_write(bd, 0x06, 0x40);
+-    else
+-        ide_port_write(bd, 0x06, 0x50);
+     len = mmc_read12_req(atapi_buffer, secnum, 1);
+     atapi_pad_req(&atapi_buffer, len);
+-    ide_port_write(bd, 0x07, 0xA0);
+-    for (i = 0; i < 3; i++)
+-        ide_data_writel(bd, ldswap32(&atapi_buffer[i]));
++    atapi_make_req(bd, atapi_buffer, bd->seclen);
+     status = ide_port_read(bd, 0x07);
+     if (status != 0x48) {
+         ERROR("ATAPI READ12 : status %0x != 0x48\n", status);
 diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --exclude mkdiff OpenHackWare-release-0.4.org/src/libpart/apple.c OpenHackWare-release-0.4/src/libpart/apple.c
 --- OpenHackWare-release-0.4.org/src/libpart/apple.c	2005-03-31 09:23:33.000000000 +0200
 +++ OpenHackWare-release-0.4/src/libpart/apple.c	2005-07-03 16:17:41.000000000 +0200
@@ -527,7 +633,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
      byte = NVRAM_get_byte(nvram, 0x34);
 diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --exclude mkdiff OpenHackWare-release-0.4.org/src/of.c OpenHackWare-release-0.4/src/of.c
 --- OpenHackWare-release-0.4.org/src/of.c	2005-04-06 23:17:26.000000000 +0200
-+++ OpenHackWare-release-0.4/src/of.c	2005-07-03 17:46:25.000000000 +0200
++++ OpenHackWare-release-0.4/src/of.c	2005-07-07 23:30:08.000000000 +0200
 @@ -489,7 +489,7 @@
          ERROR("%s can't alloc new node '%s' name\n", __func__, name);
          return NULL;
@@ -537,7 +643,41 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
      if (new->prop_address == NULL) {
          free(new->prop_name->value);
          free(new->prop_name);
-@@ -1421,15 +1421,12 @@
+@@ -1017,6 +1017,33 @@
+                            string, strlen(string) + 1);
+ }
+ 
++/* convert '\1' char to '\0' */
++static OF_prop_t *OF_prop_string_new1 (OF_env_t *env, OF_node_t *node,
++                                       const unsigned char *name,
++                                       const unsigned char *string)
++{
++    int len, i;
++    OF_prop_t *ret;
++    unsigned char *str;
++
++    if (strchr(string, '\1') == NULL) {
++        return OF_prop_string_new(env, node, name, string);
++    } else {
++        len = strlen(string) + 1;
++        str = malloc(len);
++        if (!str)
++            return NULL;
++        memcpy(str, string, len);
++        for(i = 0; i < len; i++)
++            if (str[i] == '\1')
++                str[i] = '\0';
++        ret = OF_property_new(env, node, name,
++                              str, len);
++        free(str);
++        return ret;
++    }
++}
++
+ __attribute__ (( section (".OpenFirmware") ))
+ static OF_prop_t *OF_prop_int_new (OF_env_t *env, OF_node_t *node,
+                                    const unsigned char *name, uint32_t value)
+@@ -1421,15 +1448,12 @@
  __attribute__ (( section (".OpenFirmware") ))
  int OF_init (void)
  {
@@ -553,7 +693,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
  #endif
      OF_env_t *OF_env;
      OF_node_t *als, *opt, *chs, *pks;
-@@ -1455,15 +1452,21 @@
+@@ -1455,15 +1479,21 @@
          return -1;
      }
      OF_prop_string_new(OF_env, OF_node_root, "device_type", "bootrom");
@@ -581,7 +721,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
  #if 0
      OF_prop_string_new(OF_env, OF_node_root, "copyright", copyright);
  #else
-@@ -1561,14 +1564,15 @@
+@@ -1561,14 +1591,15 @@
          range.size = 0x00800000;
          OF_property_new(OF_env, rom, "ranges", &range, sizeof(OF_range_t));
          OF_prop_int_new(OF_env, rom, "#address-cells", 1);
@@ -599,7 +739,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
          OF_property_new(OF_env, brom, "reg", &regs, sizeof(OF_regprop_t));
          OF_prop_string_new(OF_env, brom, "write-characteristic", "flash");
          OF_prop_string_new(OF_env, brom, "BootROM-build-date",
-@@ -1577,7 +1581,7 @@
+@@ -1577,7 +1608,7 @@
          OF_prop_string_new(OF_env, brom, "copyright", copyright);
          OF_prop_string_new(OF_env, brom, "model", BIOS_str);
          OF_prop_int_new(OF_env, brom, "result", 0);
@@ -608,7 +748,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
          {
              /* Hack taken 'as-is' from PearPC */
              unsigned char info[] = {
-@@ -1596,7 +1600,9 @@
+@@ -1596,7 +1627,9 @@
          OF_node_put(OF_env, brom);
          OF_node_put(OF_env, rom);
      }
@@ -618,7 +758,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
      /* "/nvram@fff04000" node */
      {
          OF_regprop_t regs;
-@@ -1617,6 +1623,7 @@
+@@ -1617,6 +1650,7 @@
          OF_prop_int_new(OF_env, chs, "nvram", OF_pack_handle(OF_env, nvr));
          OF_node_put(OF_env, nvr);
      }
@@ -626,7 +766,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
      /* "/pseudo-hid" : hid emulation as Apple does */
      {
          OF_node_t *hid;
-@@ -1663,7 +1670,27 @@
+@@ -1663,7 +1697,27 @@
          }
          OF_node_put(OF_env, hid);
      }
@@ -654,7 +794,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
      
  #if 1 /* This is mandatory for claim to work
         * but I don't know where it should really be (in cpu ?)
-@@ -1693,7 +1720,9 @@
+@@ -1693,7 +1747,9 @@
  
      /* "/options/boot-args" node */
      {
@@ -665,7 +805,18 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
          /* Ask MacOS X to print debug messages */
          //        OF_prop_string_new(OF_env, chs, "machargs", args);
          //        OF_prop_string_new(OF_env, opt, "boot-command", args);
-@@ -2021,9 +2050,9 @@
+@@ -2013,17 +2069,17 @@
+     OF_prop_int_new(OF_env, node, "min-grant", min_grant);
+     OF_prop_int_new(OF_env, node, "max-latency", max_latency);
+     if (dev->type != NULL)
+-        OF_prop_string_new(OF_env, node, "device_type", dev->type);
++        OF_prop_string_new1(OF_env, node, "device_type", dev->type);
+     if (dev->compat != NULL)
+-        OF_prop_string_new(OF_env, node, "compatible", dev->compat);
++        OF_prop_string_new1(OF_env, node, "compatible", dev->compat);
+     if (dev->model != NULL)
+-        OF_prop_string_new(OF_env, node, "model", dev->model);
++        OF_prop_string_new1(OF_env, node, "model", dev->model);
      if (dev->acells != 0)
          OF_prop_int_new(OF_env, node, "#address-cells", dev->acells);
      if (dev->scells != 0)
@@ -677,7 +828,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
      dprintf("Done %p %p\n", parent, node);
      
      return node;
-@@ -2040,8 +2069,9 @@
+@@ -2040,8 +2096,9 @@
      OF_env_t *OF_env;
      pci_range_t ranges[3];
      OF_regprop_t regs[1];
@@ -688,7 +839,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
  
      OF_env = OF_env_main;
      dprintf("register PCI host '%s' '%s' '%s' '%s'\n",
-@@ -2052,6 +2082,17 @@
+@@ -2052,6 +2109,17 @@
          ERROR("Cannot create pci host\n");
          return NULL;
      }
@@ -706,7 +857,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
      regs[0].address = cfg_base;
      regs[0].size = cfg_len;
      OF_property_new(OF_env, pci_host, "reg", regs, sizeof(OF_regprop_t));
-@@ -2136,6 +2177,11 @@
+@@ -2136,6 +2204,11 @@
      return pci_dev;
  }
  
@@ -718,7 +869,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
  void OF_finalize_pci_host (void *dev, int first_bus, int nb_busses)
  {
      OF_env_t *OF_env;
-@@ -2145,10 +2191,12 @@
+@@ -2145,10 +2218,12 @@
      regs[0].address = first_bus;
      regs[0].size = nb_busses;
      OF_property_new(OF_env, dev, "bus-range", regs, sizeof(OF_regprop_t));
@@ -732,7 +883,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
  {
      OF_env_t *OF_env;
      pci_reg_prop_t pregs[6], rregs[6];
-@@ -2156,6 +2204,7 @@
+@@ -2156,6 +2231,7 @@
      int i, j, k;
  
      OF_env = OF_env_main;
@@ -740,7 +891,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
      if (regions[0] != 0x00000000)
          OF_prop_int_set(OF_env, dev, "address", regions[0] & ~0x0000000F);
      for (i = 0, j = 0, k = 0; i < 6; i++) {
-@@ -2222,7 +2271,22 @@
+@@ -2222,7 +2298,22 @@
      } else {
          OF_property_new(OF_env, dev, "assigned-addresses", NULL, 0);
      }
@@ -764,7 +915,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
      {
          OF_prop_t *prop_name = ((OF_node_t *)dev)->prop_name;
  
-@@ -2390,6 +2454,54 @@
+@@ -2390,6 +2481,54 @@
      return 0;
  }
  
@@ -819,7 +970,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
  void OF_finalize_pci_macio (void *dev, uint32_t base_address, uint32_t size,
                              void *private_data)
  {
-@@ -2398,6 +2510,8 @@
+@@ -2398,6 +2537,8 @@
      pci_reg_prop_t pregs[2];
      OF_node_t *mio, *chs, *als;
      uint16_t pic_phandle;
@@ -828,7 +979,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
  
      OF_DPRINTF("mac-io: %p\n", dev);
      OF_env = OF_env_main;
-@@ -2416,10 +2530,14 @@
+@@ -2416,10 +2557,14 @@
      mio = dev;
      mio->private_data = private_data;
      pregs[0].addr.hi = 0x00000000;
@@ -844,28 +995,10 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
      OF_property_new(OF_env, mio, "ranges",
                      &pregs, sizeof(pci_reg_prop_t));
  #if 0
-@@ -2431,8 +2549,49 @@
+@@ -2431,8 +2576,32 @@
      OF_property_new(OF_env, mio, "assigned-addresses",
                      &pregs, sizeof(pci_reg_prop_t));
  #endif
--    /* OpenPIC */
-+
-+    switch(arch) {
-+    default:
-+    case ARCH_MAC99:
-+        OF_prop_int_new(OF_env, mio, "#interrupt-cells", 2);
-+        OF_prop_string_new(OF_env, mio, "model", "AAPL,Keylargo");
-+        OF_prop_string_new(OF_env, mio, "compatible", "Keylargo");
-+        break;
-+    case ARCH_HEATHROW:
-+        OF_prop_int_new(OF_env, mio, "#interrupt-cells", 1);
-+        OF_prop_string_new(OF_env, mio, "model", "AAPL,343S1211");
-     {
-+            const char str[] = "paddington\0heathrow";
-+            OF_property_new(OF_env, mio, "compatible", str, sizeof(str));
-+        }
-+        break;
-+    }
 +
 +    if (arch == ARCH_HEATHROW) {
 +        /* Heathrow PIC */
@@ -891,11 +1024,12 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
 +        OF_node_put(OF_env, mpic);
 +        rec_len = 6;
 +    } else {
-+        /* OpenPIC */
+     /* OpenPIC */
+-    {
          OF_regprop_t regs[4];
          OF_node_t *mpic;
          mpic = OF_node_new(OF_env, mio, "interrupt-controller", 0x40000);
-@@ -2455,8 +2614,37 @@
+@@ -2455,8 +2624,37 @@
          pic_phandle = OF_pack_handle(OF_env, mpic);
          OF_prop_int_new(OF_env, chs, "interrupt-controller", pic_phandle);
          OF_node_put(OF_env, mpic);
@@ -934,7 +1068,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
      /* escc is usefull to get MacOS X debug messages */
      {
          OF_regprop_t regs[8];
-@@ -2645,85 +2833,12 @@
+@@ -2645,85 +2843,12 @@
          OF_node_put(OF_env, scc);
      }
  #endif
@@ -1025,7 +1159,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
      /* Timer */
      {
          OF_node_t *tmr;
-@@ -2746,10 +2861,11 @@
+@@ -2746,10 +2871,11 @@
                          regs, sizeof(OF_regprop_t));
          OF_node_put(OF_env, tmr);
      }
@@ -1038,7 +1172,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
          OF_regprop_t regs[1];
  #if 0 // THIS IS A HACK AND IS COMPLETELY ABSURD !
        // (but needed has Qemu doesn't emulate via-pmu).
-@@ -2773,14 +2889,21 @@
+@@ -2773,14 +2899,21 @@
          regs[0].size = 0x00002000;
          OF_property_new(OF_env, via, "reg", regs, sizeof(OF_regprop_t));
          OF_prop_int_new(OF_env, via, "interrupt-parent", pic_phandle);
@@ -1061,7 +1195,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
          /* ADB pseudo-device */
          adb = OF_node_new(OF_env, via, "adb", OF_ADDRESS_NONE);
          if (adb == NULL) {
-@@ -2797,9 +2920,26 @@
+@@ -2797,9 +2930,26 @@
          OF_prop_int_new(OF_env, adb, "#size-cells", 0);
          OF_pack_get_path(OF_env, tmp, 512, adb);
          OF_prop_string_new(OF_env, als, "adb", tmp);
@@ -1091,7 +1225,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
          
          rtc = OF_node_new(OF_env, via, "rtc", OF_ADDRESS_NONE);
          if (rtc == NULL) {
-@@ -2813,14 +2953,55 @@
+@@ -2813,14 +2963,68 @@
          OF_prop_string_new(OF_env, rtc, "compatible", "rtc");
  #endif
          OF_node_put(OF_env, rtc);
@@ -1106,6 +1240,19 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
 +        OF_prop_string_new(OF_env, pmgt, "compatible", "cuda");
 +        OF_prop_string_new(OF_env, pmgt, "mgt-kind", "min-consumption-pwm-led");
 +        OF_node_put(OF_env, pmgt);
++    }
++
++    if (arch == ARCH_HEATHROW) {
++        /* NVRAM */
++        OF_node_t *nvr;
++        OF_regprop_t regs;
++        nvr = OF_node_new(OF_env, mio, "nvram", 0x60000);
++        OF_prop_string_new(OF_env, nvr, "device_type", "nvram");
++        regs.address = 0x60000;
++        regs.size = 0x00020000;
++        OF_property_new(OF_env, nvr, "reg", &regs, sizeof(regs));
++        OF_prop_int_new(OF_env, nvr, "#bytes", 0x2000);
++        OF_node_put(OF_env, nvr);
 +    }
 +
   out:
@@ -1148,7 +1295,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
  /*****************************************************************************/
  /* Fake package */
  static void OF_method_fake (OF_env_t *OF_env)
-@@ -2862,11 +3043,11 @@
+@@ -2862,11 +3066,11 @@
      /* As we get a 1:1 mapping, do nothing */
      ihandle = popd(OF_env);
      args = (void *)popd(OF_env);
@@ -1160,11 +1307,11 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
 +    size = popd(OF_env);
 +    virt = popd(OF_env);
 +    address = popd(OF_env);
-+    dprintf("map %0x %0x %0x %0x\n", ihandle, address,
++    OF_DPRINTF("Map %0x %0x %0x %0x\n", ihandle, address,
                 virt, size);
      pushd(OF_env, 0);
  }
-@@ -3270,7 +3451,7 @@
+@@ -3270,7 +3474,7 @@
      OF_prop_string_new(OF_env, dsk, "device_type", "block");
      OF_prop_string_new(OF_env, dsk, "category", type);
      OF_prop_int_new(OF_env, dsk, "device_id", devnum);
@@ -1173,7 +1320,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
      OF_method_new(OF_env, dsk, "open", &OF_blockdev_open);
      OF_method_new(OF_env, dsk, "seek", &OF_blockdev_seek);
      OF_method_new(OF_env, dsk, "read", &OF_blockdev_read);
-@@ -3432,7 +3613,8 @@
+@@ -3432,7 +3636,8 @@
  }
  
  void OF_vga_register (const unsigned char *name, unused uint32_t address,
@@ -1183,7 +1330,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
  {
      OF_env_t *OF_env;
      unsigned char tmp[OF_NAMELEN_MAX];
-@@ -3504,6 +3686,18 @@
+@@ -3504,6 +3709,18 @@
      OF_prop_string_new(OF_env, als, "display", tmp);
      OF_node_put(OF_env, als);
      /* XXX: may also need read-rectangle */
@@ -1202,7 +1349,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
   out:
      OF_node_put(OF_env, disp);
  }
-@@ -4451,7 +4645,10 @@
+@@ -4451,7 +4668,10 @@
          break;
      case 0x233441d3: /* MacOS X 10.2 and OpenDarwin 1.41 */
          /* Create "memory-map" pseudo device */
@@ -1214,7 +1361,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
          /* Find "/packages" */
          chs = OF_pack_find_by_name(OF_env, OF_node_root, "/chosen");
          if (chs == NULL) {
-@@ -4459,10 +4656,6 @@
+@@ -4459,10 +4679,6 @@
              ERROR("Cannot get '/chosen'\n");
              break;
          }
@@ -1225,7 +1372,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
              map = OF_node_new(OF_env, chs, "memory-map", OF_ADDRESS_NONE);
              if (map == NULL) {
                  pushd(OF_env, -1);
-@@ -4473,11 +4666,8 @@
+@@ -4473,11 +4689,8 @@
              OF_node_put(OF_env, map);
              OF_node_put(OF_env, chs);
              pushd(OF_env, phandle);
@@ -1238,7 +1385,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
          break;
      case 0x32a2d18e: /* MacOS X 10.2 and OpenDarwin 6.02 */
          /* Return screen ihandle */
-@@ -4540,9 +4730,10 @@
+@@ -4540,9 +4753,10 @@
      case 0x4ad41f2d:
          /* Yaboot: wait 10 ms: sure ! */
          break;
@@ -1250,9 +1397,17 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
          printf("Call %0x NOT IMPLEMENTED !\n", crc);
          bug();
          break;
+@@ -4581,6 +4795,7 @@
+ {
+     OF_CHECK_NBARGS(OF_env, 0);
+     /* Should free all OF resources */
++    bd_reset_all();
+ #if defined (DEBUG_BIOS)
+     {
+         uint16_t loglevel = 0x02 | 0x10 | 0x80;
 diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --exclude mkdiff OpenHackWare-release-0.4.org/src/pci.c OpenHackWare-release-0.4/src/pci.c
 --- OpenHackWare-release-0.4.org/src/pci.c	2005-03-31 09:23:33.000000000 +0200
-+++ OpenHackWare-release-0.4/src/pci.c	2005-07-03 15:52:16.000000000 +0200
++++ OpenHackWare-release-0.4/src/pci.c	2005-07-07 23:27:37.000000000 +0200
 @@ -99,8 +99,8 @@
      uint16_t min_grant;
      uint16_t max_latency;
@@ -1490,20 +1645,23 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
      },
      {
          0x1057, 0x4801, NULL,
-@@ -1446,8 +1531,10 @@
-     /* Apple Mac-io controller */
+@@ -1443,7 +1528,14 @@
+ }
+ 
+ static const pci_dev_t misc_pci[] = {
+-    /* Apple Mac-io controller */
++    /* Paddington Mac I/O */
++    { 
++        0x106B, 0x0017,
++        "mac-io", "mac-io", "AAPL,343S1211", "paddington\1heathrow",
++        1, 1, 1,
++        &macio_config_cb, NULL,
++    },
++    /* KeyLargo Mac I/O */
      { 
          0x106B, 0x0022,
--        "mac-io", "mac-io", "AAPL,Keylargo", "Keylargo",
--        1, 1, 2,
-+        /* model, compatible and #interrupt-cells fields are filled in
-+           of.c */
-+        "mac-io", "mac-io", NULL, NULL,
-+        1, 1, 0,
-         &macio_config_cb, NULL,
-     },
-     {
-@@ -1599,7 +1686,7 @@
+         "mac-io", "mac-io", "AAPL,Keylargo", "Keylargo",
+@@ -1599,7 +1691,7 @@
                                        uint8_t min_grant, uint8_t max_latency,
                                        int irq_line)
  {
@@ -1512,7 +1670,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
      int i;
  
      device->min_grant = min_grant;
-@@ -1611,22 +1698,28 @@
+@@ -1611,22 +1703,28 @@
          printf("MAP PCI device %d:%d to IRQ %d\n",
                 device->bus, device->devfn, irq_line);
      }
@@ -1545,7 +1703,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
          }
      }
  }
-@@ -1900,7 +1993,7 @@
+@@ -1900,7 +1998,7 @@
          goto out;
      }
      ret = (pci_u_t *)newd;
@@ -1554,7 +1712,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
      /* register PCI device in OF tree */
      if (bridge->dev.common.type == PCI_FAKE_BRIDGE) {
          newd->common.OF_private =
-@@ -1927,6 +2020,9 @@
+@@ -1927,6 +2025,9 @@
              /* Handle 64 bits memory mapping */
              continue;
          }
@@ -1564,7 +1722,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
          addr = 0x10 + (i * sizeof(uint32_t));
          /* Get region size
           * Note: we assume it's always a power of 2
-@@ -1935,7 +2031,7 @@
+@@ -1935,7 +2036,7 @@
          smask = pci_config_readl(bridge, bus, devfn, addr);
          if (smask == 0x00000000 || smask == 0xFFFFFFFF)
              continue;
@@ -1573,7 +1731,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
              /* I/O space */
              base = io_base;
              /* Align to a minimum of 256 bytes (arbitrary) */
-@@ -1947,6 +2043,8 @@
+@@ -1947,6 +2048,8 @@
              /* Align to a minimum of 64 kB (arbitrary) */
              min_align = 1 << 16;
              amask = 0x0000000F;
@@ -1582,7 +1740,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
          }
          omask = smask & amask;
          smask &= ~amask;
-@@ -1980,7 +2078,10 @@
+@@ -1980,7 +2083,10 @@
      if (irq_pin > 0) {
          /* assign the IRQ */
          irq_pin = ((devfn >> 3) + irq_pin - 1) & 3;
@@ -1594,7 +1752,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
              int elcr_port, val;
              irq_line = prep_pci_irqs[irq_pin];
              /* set the IRQ to level-sensitive */
-@@ -1988,14 +2089,22 @@
+@@ -1988,14 +2094,22 @@
              val = inb(elcr_port);
              val |= 1 << (irq_line & 7);
              outb(elcr_port, val);
@@ -1619,7 +1777,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
      /* Call special inits if needed */
      if (dev->config_cb != NULL)
          (*dev->config_cb)(newd);
-@@ -2049,6 +2158,32 @@
+@@ -2049,6 +2163,32 @@
      case ARCH_CHRP:
          /* TODO */
          break;
@@ -1652,7 +1810,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
      case ARCH_MAC99:
          dev = pci_find_device(0x06, 0x00, 0xFF, checkv, checkp);
          if (dev == NULL)
-@@ -2167,6 +2302,30 @@
+@@ -2167,6 +2307,30 @@
      case ARCH_CHRP:
          /* TODO */
          break;
