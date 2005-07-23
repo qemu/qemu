@@ -53,7 +53,6 @@ static void sdl_resize(DisplayState *ds, int w, int h)
     //    printf("resizing to %d %d\n", w, h);
 
     flags = SDL_HWSURFACE|SDL_ASYNCBLIT|SDL_HWACCEL;
-    flags |= SDL_RESIZABLE;
     if (gui_fullscreen)
         flags |= SDL_FULLSCREEN;
     screen = SDL_SetVideoMode(w, h, 0, flags);
