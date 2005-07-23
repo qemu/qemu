@@ -96,7 +96,6 @@ struct IOAPICState {
 static int apic_io_memory;
 static APICState *first_local_apic = NULL;
 static int last_apic_id = 0;
-static IOAPICState *ioapic_state;
 
 static void apic_init_ipi(APICState *s);
 static void apic_set_irq(APICState *s, int vector_num, int trigger_mode);
@@ -127,7 +126,7 @@ static void apic_bus_deliver(uint32_t deliver_bitmask, uint8_t delivery_mode,
             return;
     
         case APIC_DM_EXTINT:
-            /* XXX: implement */
+            /* handled in I/O APIC code */
             break;
 
         default:
@@ -754,24 +753,34 @@ int apic_init(CPUState *env)
 
 static void ioapic_service(IOAPICState *s)
 {
+    uint8_t i;
+    uint8_t trig_mode;
     uint8_t vector;
+    uint8_t delivery_mode;
     uint32_t mask;
     uint64_t entry;
     uint8_t dest;
     uint8_t dest_mode;
+    uint8_t polarity;
 
-    for (vector = 0; vector < IOAPIC_NUM_PINS; vector++) {
-        mask = 1 << vector;
+    for (i = 0; i < IOAPIC_NUM_PINS; i++) {
+        mask = 1 << i;
         if (s->irr & mask) {
-            entry = s->ioredtbl[vector];
+            entry = s->ioredtbl[i];
             if (!(entry & APIC_LVT_MASKED)) {
-                if (!((entry >> 15) & 1))
-                    s->irr &= ~mask;
+                trig_mode = ((entry >> 15) & 1);
                 dest = entry >> 56;
                 dest_mode = (entry >> 11) & 1;
+                delivery_mode = (entry >> 8) & 7;
+                polarity = (entry >> 13) & 1;
+                if (trig_mode == APIC_TRIGGER_EDGE)
+                    s->irr &= ~mask;
+                if (delivery_mode == APIC_DM_EXTINT)
+                    vector = pic_read_irq(isa_pic);
+                else
+                    vector = entry & 0xff;
                 apic_bus_deliver(apic_get_delivery_bitmask(dest, dest_mode),
-                                 (entry >> 8) & 7, entry & 0xff,
-                                 (entry >> 13) & 1, (entry >> 15) & 1);
+                                 delivery_mode, vector, polarity, trig_mode);
             }
         }
     }
@@ -930,10 +939,9 @@ IOAPICState *ioapic_init(void)
     IOAPICState *s;
     int io_memory;
 
-    s = malloc(sizeof(IOAPICState));
+    s = qemu_mallocz(sizeof(IOAPICState));
     if (!s)
         return NULL;
-    ioapic_state = s;
     ioapic_reset(s);
     s->id = last_apic_id++;
 
