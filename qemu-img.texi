@@ -44,8 +44,7 @@ User Mode Linux Copy On Write image format. Used to be the only growable
 image format in QEMU. It is supported only for compatibility with
 previous versions. It does not work on win32.
 @item vmdk
-VMware 3 and 4 compatible image format. Currently only supported as
-read-only.
+VMware 3 and 4 compatible image format.
 @item cloop
 Linux Compressed Loop image, useful only to reuse directly compressed
 CD-ROM images present for example in the Knoppix CD-ROMs.
