@@ -611,6 +611,7 @@ target_bigendian="no"
 [ "$target_cpu" = "sparc" ] && target_bigendian=yes
 [ "$target_cpu" = "sparc64" ] && target_bigendian=yes
 [ "$target_cpu" = "ppc" ] && target_bigendian=yes
+[ "$target_cpu" = "ppc64" ] && target_bigendian=yes
 [ "$target_cpu" = "mips" ] && target_bigendian=yes
 target_softmmu="no"
 if expr $target : '.*-softmmu' > /dev/null ; then
@@ -676,6 +677,11 @@ elif test "$target_cpu" = "ppc" ; then
   echo "TARGET_ARCH=ppc" >> $config_mak
   echo "#define TARGET_ARCH \"ppc\"" >> $config_h
   echo "#define TARGET_PPC 1" >> $config_h
+elif test "$target_cpu" = "ppc64" ; then
+  echo "TARGET_ARCH=ppc64" >> $config_mak
+  echo "#define TARGET_ARCH \"ppc64\"" >> $config_h
+  echo "#define TARGET_PPC 1" >> $config_h
+  echo "#define TARGET_PPC64 1" >> $config_h
 elif test "$target_cpu" = "x86_64" ; then
   echo "TARGET_ARCH=x86_64" >> $config_mak
   echo "#define TARGET_ARCH \"x86_64\"" >> $config_h

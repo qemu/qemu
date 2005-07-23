@@ -179,6 +179,11 @@ void target_disas(FILE *out, target_ulong code, target_ulong size, int flags)
 #elif defined(TARGET_PPC)
     if (cpu_single_env->msr[MSR_LE])
         disasm_info.endian = BFD_ENDIAN_LITTLE;
+#ifdef TARGET_PPC64
+    disasm_info.mach = bfd_mach_ppc64;
+#else
+    disasm_info.mach = bfd_mach_ppc;
+#endif
     print_insn = print_insn_ppc;
 #elif defined(TARGET_MIPS)
     print_insn = print_insn_big_mips;
@@ -355,6 +360,11 @@ void monitor_disas(target_ulong pc, int nb_insn, int is_physical, int flags)
 #elif defined(TARGET_SPARC)
     print_insn = print_insn_sparc;
 #elif defined(TARGET_PPC)
+#ifdef TARGET_PPC64
+    disasm_info.mach = bfd_mach_ppc64;
+#else
+    disasm_info.mach = bfd_mach_ppc;
+#endif
     print_insn = print_insn_ppc;
 #elif defined(TARGET_MIPS)
     print_insn = print_insn_big_mips;

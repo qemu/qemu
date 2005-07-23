@@ -4,6 +4,9 @@ TARGET_BASE_ARCH:=$(TARGET_ARCH)
 ifeq ($(TARGET_ARCH), x86_64)
 TARGET_BASE_ARCH:=i386
 endif
+ifeq ($(TARGET_ARCH), ppc64)
+TARGET_BASE_ARCH:=ppc
+endif
 ifeq ($(TARGET_ARCH), sparc64)
 TARGET_BASE_ARCH:=sparc
 endif
@@ -195,7 +198,7 @@ ifeq ($(TARGET_ARCH), x86_64)
 LIBOBJS+=helper.o helper2.o
 endif
 
-ifeq ($(TARGET_ARCH), ppc)
+ifeq ($(TARGET_BASE_ARCH), ppc)
 LIBOBJS+= op_helper.o helper.o
 endif
 
@@ -225,7 +228,7 @@ endif
 ifeq ($(findstring alpha, $(TARGET_ARCH) $(ARCH)),alpha)
 LIBOBJS+=alpha-dis.o
 endif
-ifeq ($(findstring ppc, $(TARGET_ARCH) $(ARCH)),ppc)
+ifeq ($(findstring ppc, $(TARGET_BASE_ARCH) $(ARCH)),ppc)
 LIBOBJS+=ppc-dis.o
 endif
 ifeq ($(findstring mips, $(TARGET_ARCH) $(ARCH)),mips)
@@ -286,7 +289,7 @@ VL_OBJS+= ide.o ne2000.o pckbd.o vga.o $(SOUND_HW) dma.o $(AUDIODRV)
 VL_OBJS+= fdc.o mc146818rtc.o serial.o i8259.o i8254.o pc.o
 VL_OBJS+= cirrus_vga.o mixeng.o apic.o parallel.o
 endif
-ifeq ($(TARGET_ARCH), ppc)
+ifeq ($(TARGET_BASE_ARCH), ppc)
 VL_OBJS+= ppc.o ide.o ne2000.o pckbd.o vga.o $(SOUND_HW) dma.o $(AUDIODRV)
 VL_OBJS+= mc146818rtc.o serial.o i8259.o i8254.o fdc.o m48t59.o
 VL_OBJS+= ppc_prep.o ppc_chrp.o cuda.o adb.o openpic.o heathrow_pic.o mixeng.o
@@ -400,7 +403,7 @@ op.o: op.c op_template.h op_mem.h fop_template.h fbranch_template.h
 magic_load.o: elf_op.h
 endif
 
-ifeq ($(TARGET_ARCH), ppc)
+ifeq ($(TARGET_BASE_ARCH), ppc)
 op.o: op.c op_template.h op_mem.h
 op_helper.o: op_helper_mem.h
 translate.o: translate.c translate_init.c

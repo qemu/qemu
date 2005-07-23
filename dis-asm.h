@@ -126,6 +126,24 @@ enum bfd_architecture
 #define bfd_mach_h8300h  2
 #define bfd_mach_h8300s  3
   bfd_arch_powerpc,    /* PowerPC */
+#define bfd_mach_ppc           0
+#define bfd_mach_ppc64         1
+#define bfd_mach_ppc_403       403
+#define bfd_mach_ppc_403gc     4030
+#define bfd_mach_ppc_505       505
+#define bfd_mach_ppc_601       601
+#define bfd_mach_ppc_602       602
+#define bfd_mach_ppc_603       603
+#define bfd_mach_ppc_ec603e    6031
+#define bfd_mach_ppc_604       604
+#define bfd_mach_ppc_620       620
+#define bfd_mach_ppc_630       630
+#define bfd_mach_ppc_750       750
+#define bfd_mach_ppc_860       860
+#define bfd_mach_ppc_a35       35
+#define bfd_mach_ppc_rs64ii    642
+#define bfd_mach_ppc_rs64iii   643
+#define bfd_mach_ppc_7400      7400
   bfd_arch_rs6000,     /* IBM RS/6000 */
   bfd_arch_hppa,       /* HP PA RISC */
   bfd_arch_d10v,       /* Mitsubishi D10V */

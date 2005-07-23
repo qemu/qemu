@@ -3084,8 +3084,13 @@ int print_insn_ppc (bfd_vma pc, disassemble_info *info)
         opc = bfd_getb32(buf);
     else
         opc = bfd_getl32(buf);
-    return print_insn_powerpc (info, opc, pc,
-                               PPC | B32 | M601);
+    if (info->mach == bfd_mach_ppc64) {
+        return print_insn_powerpc (info, opc, pc,
+                                   PPC | B64);
+    } else {
+        return print_insn_powerpc (info, opc, pc,
+                                   PPC | B32 | M601);
+    }
 }
 
 /* Print a PowerPC or POWER instruction.  */
