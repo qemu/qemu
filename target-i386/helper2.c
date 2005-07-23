@@ -106,7 +106,9 @@ CPUX86State *cpu_x86_init(void)
         env->cpuid_version = (family << 8) | (model << 4) | stepping;
         env->cpuid_features = (CPUID_FP87 | CPUID_DE | CPUID_PSE |
                                CPUID_TSC | CPUID_MSR | CPUID_MCE |
-                               CPUID_CX8 | CPUID_PGE | CPUID_CMOV);
+                               CPUID_CX8 | CPUID_PGE | CPUID_CMOV |
+                               CPUID_PAT);
+        env->pat = 0x0007040600070406ULL;
         env->cpuid_ext_features = 0;
         env->cpuid_features |= CPUID_FXSR | CPUID_MMX | CPUID_SSE | CPUID_SSE2 | CPUID_PAE | CPUID_SEP;
         env->cpuid_xlevel = 0;
@@ -128,6 +130,9 @@ CPUX86State *cpu_x86_init(void)
         env->cpuid_ext2_features = (env->cpuid_features & 0x0183F3FF);
         env->cpuid_ext2_features |= CPUID_EXT2_LM | CPUID_EXT2_SYSCALL;
         env->cpuid_xlevel = 0x80000008;
+
+        /* these features are needed for Win64 and aren't fully implemented */
+        env->cpuid_features |= CPUID_MTRR | CPUID_CLFLUSH | CPUID_MCA;
 #endif
     }
     cpu_single_env = env;
@@ -546,7 +551,7 @@ void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4)
 }
 
 /* XXX: also flush 4MB pages */
-void cpu_x86_flush_tlb(CPUX86State *env, uint32_t addr)
+void cpu_x86_flush_tlb(CPUX86State *env, target_ulong addr)
 {
     tlb_flush_page(env, addr);
 }

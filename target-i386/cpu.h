@@ -214,6 +214,12 @@
 #define MSR_IA32_SYSENTER_ESP           0x175
 #define MSR_IA32_SYSENTER_EIP           0x176
 
+#define MSR_MCG_CAP                     0x179
+#define MSR_MCG_STATUS                  0x17a
+#define MSR_MCG_CTL                     0x17b
+
+#define MSR_PAT                         0x277
+
 #define MSR_EFER                        0xc0000080
 
 #define MSR_EFER_SCE   (1 << 0)
@@ -246,6 +252,8 @@
 #define CPUID_PGE  (1 << 13)
 #define CPUID_MCA  (1 << 14)
 #define CPUID_CMOV (1 << 15)
+#define CPUID_PAT  (1 << 16)
+#define CPUID_CLFLUSH (1 << 19)
 /* ... */
 #define CPUID_MMX  (1 << 23)
 #define CPUID_FXSR (1 << 24)
@@ -473,6 +481,8 @@ typedef struct CPUX86State {
     target_ulong fmask;
     target_ulong kernelgsbase;
 #endif
+
+    uint64_t pat;
 
     /* temporary data for USE_CODE_COPY mode */
 #ifdef USE_CODE_COPY

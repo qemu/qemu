@@ -898,6 +898,11 @@ void op_addw_ESP_im(void)
 }
 
 #ifdef TARGET_X86_64
+void op_subq_A0_2(void)
+{
+    A0 -= 2;
+}
+
 void op_subq_A0_8(void)
 {
     A0 -= 8;
@@ -928,6 +933,13 @@ void OPPROTO op_enter_level(void)
 {
     helper_enter_level(PARAM1, PARAM2);
 }
+
+#ifdef TARGET_X86_64
+void OPPROTO op_enter64_level(void)
+{
+    helper_enter64_level(PARAM1, PARAM2);
+}
+#endif
 
 void OPPROTO op_sysenter(void)
 {

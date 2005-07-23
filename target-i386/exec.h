@@ -157,11 +157,11 @@ void helper_lldt_T0(void);
 void helper_ltr_T0(void);
 void helper_movl_crN_T0(int reg);
 void helper_movl_drN_T0(int reg);
-void helper_invlpg(unsigned int addr);
+void helper_invlpg(target_ulong addr);
 void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0);
 void cpu_x86_update_cr3(CPUX86State *env, target_ulong new_cr3);
 void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4);
-void cpu_x86_flush_tlb(CPUX86State *env, uint32_t addr);
+void cpu_x86_flush_tlb(CPUX86State *env, target_ulong addr);
 int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr, 
                              int is_write, int is_user, int is_softmmu);
 void tlb_fill(target_ulong addr, int is_write, int is_user, 
@@ -190,6 +190,7 @@ void helper_idivq_EAX_T0(void);
 void helper_cmpxchg8b(void);
 void helper_cpuid(void);
 void helper_enter_level(int level, int data32);
+void helper_enter64_level(int level, int data64);
 void helper_sysenter(void);
 void helper_sysexit(void);
 void helper_syscall(int next_eip_addend);

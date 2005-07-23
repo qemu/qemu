@@ -1627,7 +1627,14 @@ static void gen_add_A0_ds_seg(DisasContext *s)
         override = R_DS;
     }
     if (must_add_seg) {
-        gen_op_addl_A0_seg(offsetof(CPUX86State,segs[override].base));
+#ifdef TARGET_X86_64
+        if (CODE64(s)) {
+            gen_op_addq_A0_seg(offsetof(CPUX86State,segs[override].base));
+        } else 
+#endif
+        {
+            gen_op_addl_A0_seg(offsetof(CPUX86State,segs[override].base));
+        }
     }
 }
 
@@ -1948,10 +1955,14 @@ static void gen_push_T0(DisasContext *s)
 {
 #ifdef TARGET_X86_64
     if (CODE64(s)) {
-        /* XXX: check 16 bit behaviour */
         gen_op_movq_A0_reg[R_ESP]();
-        gen_op_subq_A0_8();
-        gen_op_st_T0_A0[OT_QUAD + s->mem_index]();
+        if (s->dflag) {
+            gen_op_subq_A0_8();
+            gen_op_st_T0_A0[OT_QUAD + s->mem_index]();
+        } else {
+            gen_op_subq_A0_2();
+            gen_op_st_T0_A0[OT_WORD + s->mem_index]();
+        }
         gen_op_movq_ESP_A0();
     } else 
 #endif
@@ -1985,10 +1996,14 @@ static void gen_push_T1(DisasContext *s)
 {
 #ifdef TARGET_X86_64
     if (CODE64(s)) {
-        /* XXX: check 16 bit behaviour */
         gen_op_movq_A0_reg[R_ESP]();
-        gen_op_subq_A0_8();
-        gen_op_st_T1_A0[OT_QUAD + s->mem_index]();
+        if (s->dflag) {
+            gen_op_subq_A0_8();
+            gen_op_st_T1_A0[OT_QUAD + s->mem_index]();
+        } else {
+            gen_op_subq_A0_2();
+            gen_op_st_T0_A0[OT_WORD + s->mem_index]();
+        }
         gen_op_movq_ESP_A0();
     } else 
 #endif
@@ -2020,9 +2035,8 @@ static void gen_pop_T0(DisasContext *s)
 {
 #ifdef TARGET_X86_64
     if (CODE64(s)) {
-        /* XXX: check 16 bit behaviour */
         gen_op_movq_A0_reg[R_ESP]();
-        gen_op_ld_T0_A0[OT_QUAD + s->mem_index]();
+        gen_op_ld_T0_A0[(s->dflag ? OT_QUAD : OT_WORD) + s->mem_index]();
     } else 
 #endif
     {
@@ -2041,7 +2055,7 @@ static void gen_pop_T0(DisasContext *s)
 static void gen_pop_update(DisasContext *s)
 {
 #ifdef TARGET_X86_64
-    if (CODE64(s)) {
+    if (CODE64(s) && s->dflag) {
         gen_stack_update(s, 8);
     } else
 #endif
@@ -2105,26 +2119,48 @@ static void gen_enter(DisasContext *s, int esp_addend, int level)
 {
     int ot, opsize;
 
-    ot = s->dflag + OT_WORD;
     level &= 0x1f;
-    opsize = 2 << s->dflag;
+#ifdef TARGET_X86_64
+    if (CODE64(s)) {
+        ot = s->dflag ? OT_QUAD : OT_WORD;
+        opsize = 1 << ot;
+        
+        gen_op_movl_A0_ESP();
+        gen_op_addq_A0_im(-opsize);
+        gen_op_movl_T1_A0();
 
-    gen_op_movl_A0_ESP();
-    gen_op_addl_A0_im(-opsize);
-    if (!s->ss32)
-        gen_op_andl_A0_ffff();
-    gen_op_movl_T1_A0();
-    if (s->addseg)
-        gen_op_addl_A0_seg(offsetof(CPUX86State,segs[R_SS].base));
-    /* push bp */
-    gen_op_mov_TN_reg[OT_LONG][0][R_EBP]();
-    gen_op_st_T0_A0[ot + s->mem_index]();
-    if (level) {
-        gen_op_enter_level(level, s->dflag);
+        /* push bp */
+        gen_op_mov_TN_reg[OT_LONG][0][R_EBP]();
+        gen_op_st_T0_A0[ot + s->mem_index]();
+        if (level) {
+            gen_op_enter64_level(level, (ot == OT_QUAD));
+        }
+        gen_op_mov_reg_T1[ot][R_EBP]();
+        gen_op_addl_T1_im( -esp_addend + (-opsize * level) );
+        gen_op_mov_reg_T1[OT_QUAD][R_ESP]();
+    } else 
+#endif
+    {
+        ot = s->dflag + OT_WORD;
+        opsize = 2 << s->dflag;
+        
+        gen_op_movl_A0_ESP();
+        gen_op_addl_A0_im(-opsize);
+        if (!s->ss32)
+            gen_op_andl_A0_ffff();
+        gen_op_movl_T1_A0();
+        if (s->addseg)
+            gen_op_addl_A0_seg(offsetof(CPUX86State,segs[R_SS].base));
+        /* push bp */
+        gen_op_mov_TN_reg[OT_LONG][0][R_EBP]();
+        gen_op_st_T0_A0[ot + s->mem_index]();
+        if (level) {
+            gen_op_enter_level(level, s->dflag);
+        }
+        gen_op_mov_reg_T1[ot][R_EBP]();
+        gen_op_addl_T1_im( -esp_addend + (-opsize * level) );
+        gen_op_mov_reg_T1[OT_WORD + s->ss32][R_ESP]();
     }
-    gen_op_mov_reg_T1[ot][R_EBP]();
-    gen_op_addl_T1_im( -esp_addend + (-opsize * level) );
-    gen_op_mov_reg_T1[OT_WORD + s->ss32][R_ESP]();
 }
 
 static void gen_exception(DisasContext *s, int trapno, target_ulong cur_eip)
@@ -2901,7 +2937,7 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
             if (mod != 3) 
                 goto illegal_op;
 #ifdef TARGET_X86_64
-            if (CODE64(s)) {
+            if (s->aflag == 2) {
                 gen_op_movq_A0_reg[R_EDI]();
             } else 
 #endif
@@ -3697,7 +3733,6 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         break;
     case 0xc8: /* enter */
         {
-            /* XXX: long mode support */
             int level;
             val = lduw_code(s->pc);
             s->pc += 2;
@@ -3707,7 +3742,6 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         break;
     case 0xc9: /* leave */
         /* XXX: exception not precise (ESP is updated before potential exception) */
-        /* XXX: may be invalid for 16 bit in long mode */
         if (CODE64(s)) {
             gen_op_mov_TN_reg[OT_QUAD][0][R_EBP]();
             gen_op_mov_reg_T0[OT_QUAD][R_ESP]();
@@ -3926,7 +3960,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             else
                 ot = dflag + OT_WORD;
 #ifdef TARGET_X86_64
-            if (CODE64(s)) {
+            if (s->aflag == 2) {
                 offset_addr = ldq_code(s->pc);
                 s->pc += 8;
                 if (offset_addr == (int32_t)offset_addr)
@@ -3955,7 +3989,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         break;
     case 0xd7: /* xlat */
 #ifdef TARGET_X86_64
-        if (CODE64(s)) {
+        if (s->aflag == 2) {
             gen_op_movq_A0_reg[R_EBX]();
             gen_op_addq_A0_AL();
         } else 
@@ -4779,6 +4813,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         val = ldsw_code(s->pc);
         s->pc += 2;
         gen_pop_T0(s);
+        if (CODE64(s) && s->dflag)
+            s->dflag = 2;
         gen_stack_update(s, val + (2 << s->dflag));
         if (s->dflag == 0)
             gen_op_andl_T0_ffff();
@@ -5782,13 +5818,29 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             break;
         case 5: /* lfence */
         case 6: /* mfence */
-        case 7: /* sfence */
             if ((modrm & 0xc7) != 0xc0 || !(s->cpuid_features & CPUID_SSE))
                 goto illegal_op;
+            break;
+        case 7: /* sfence / clflush */
+            if ((modrm & 0xc7) == 0xc0) {
+                /* sfence */
+                if (!(s->cpuid_features & CPUID_SSE))
+                    goto illegal_op;
+            } else {
+                /* clflush */
+                if (!(s->cpuid_features & CPUID_CLFLUSH))
+                    goto illegal_op;
+                gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+            }
             break;
         default:
             goto illegal_op;
         }
+        break;
+    case 0x10d: /* prefetch */
+        modrm = ldub_code(s->pc++);
+        gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+        /* ignore for now */
         break;
     case 0x110 ... 0x117:
     case 0x128 ... 0x12f:

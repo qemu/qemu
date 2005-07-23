@@ -1334,6 +1334,20 @@ void helper_cpuid(void)
         ECX = env->cpuid_model[(index - 0x80000002) * 4 + 2];
         EDX = env->cpuid_model[(index - 0x80000002) * 4 + 3];
         break;
+    case 0x80000005:
+        /* cache info (L1 cache) */
+        EAX = 0x01ff01ff;
+        EBX = 0x01ff01ff;
+        ECX = 0x40020140;
+        EDX = 0x40020140;
+        break;
+    case 0x80000006:
+        /* cache info (L2 cache) */
+        EAX = 0;
+        EBX = 0x42004200;
+        ECX = 0x02008140;
+        EDX = 0;
+        break;
     case 0x80000008:
         /* virtual & phys address size in low 2 bytes. */
         EAX = 0x00003028;
@@ -1382,6 +1396,37 @@ void helper_enter_level(int level, int data32)
         stw(ssp + (esp & esp_mask), T1);
     }
 }
+
+#ifdef TARGET_X86_64
+void helper_enter64_level(int level, int data64)
+{
+    target_ulong esp, ebp;
+    ebp = EBP;
+    esp = ESP;
+
+    if (data64) {
+        /* 64 bit */
+        esp -= 8;
+        while (--level) {
+            esp -= 8;
+            ebp -= 8;
+            stq(esp, ldq(ebp));
+        }
+        esp -= 8;
+        stq(esp, T1);
+    } else {
+        /* 16 bit */
+        esp -= 2;
+        while (--level) {
+            esp -= 2;
+            ebp -= 2;
+            stw(esp, lduw(ebp));
+        }
+        esp -= 2;
+        stw(esp, T1);
+    }
+}
+#endif
 
 void helper_lldt_T0(void)
 {
@@ -1963,6 +2008,7 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
 #endif
         sp_mask = get_sp_mask(env->segs[R_SS].flags);
     sp = ESP;
+    /* XXX: ssp is zero in 64 bit ? */
     ssp = env->segs[R_SS].base;
     new_eflags = 0; /* avoid warning */
 #ifdef TARGET_X86_64
@@ -2271,7 +2317,7 @@ void helper_movl_drN_T0(int reg)
     env->dr[reg] = T0;
 }
 
-void helper_invlpg(unsigned int addr)
+void helper_invlpg(target_ulong addr)
 {
     cpu_x86_flush_tlb(env, addr);
 }
@@ -2332,6 +2378,9 @@ void helper_wrmsr(void)
     case MSR_STAR:
         env->star = val;
         break;
+    case MSR_PAT:
+        env->pat = val;
+        break;
 #ifdef TARGET_X86_64
     case MSR_LSTAR:
         env->lstar = val;
@@ -2379,6 +2428,9 @@ void helper_rdmsr(void)
         break;
     case MSR_STAR:
         val = env->star;
+        break;
+    case MSR_PAT:
+        val = env->pat;
         break;
 #ifdef TARGET_X86_64
     case MSR_LSTAR:
