@@ -55,6 +55,9 @@ struct PicState2 {
     PicState pics[2];
     IRQRequestFunc *irq_request;
     void *irq_request_opaque;
+    /* IOAPIC callback support */
+    SetIRQFunc *alt_irq_func;
+    void *alt_irq_opaque;
 };
 
 #if defined(DEBUG_PIC) || defined (DEBUG_IRQ_COUNT)
@@ -186,6 +189,9 @@ void pic_set_irq_new(void *opaque, int irq, int level)
     }
 #endif
     pic_set_irq1(&s->pics[irq >> 3], irq & 7, level);
+    /* used for IOAPIC irqs */
+    if (s->alt_irq_func)
+        s->alt_irq_func(s->alt_irq_opaque, irq, level);
     pic_update_irq(s);
 }
 
@@ -545,4 +551,11 @@ PicState2 *pic_init(IRQRequestFunc *irq_request, void *irq_request_opaque)
     s->pics[0].pics_state = s;
     s->pics[1].pics_state = s;
     return s;
+}
+
+void pic_set_alt_irq_func(PicState2 *s, SetIRQFunc *alt_irq_func,
+                          void *alt_irq_opaque)
+{
+    s->alt_irq_func = alt_irq_func;
+    s->alt_irq_opaque = alt_irq_opaque;
 }

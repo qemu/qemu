@@ -695,6 +695,8 @@ extern PicState2 *isa_pic;
 void pic_set_irq(int irq, int level);
 void pic_set_irq_new(void *opaque, int irq, int level);
 PicState2 *pic_init(IRQRequestFunc *irq_request, void *irq_request_opaque);
+void pic_set_alt_irq_func(PicState2 *s, SetIRQFunc *alt_irq_func,
+                          void *alt_irq_opaque);
 int pic_read_irq(PicState2 *s);
 void pic_update_irq(PicState2 *s);
 uint32_t pic_intack_read(PicState2 *s);
@@ -702,8 +704,12 @@ void pic_info(void);
 void irq_info(void);
 
 /* APIC */
+typedef struct IOAPICState IOAPICState;
+
 int apic_init(CPUState *env);
 int apic_get_interrupt(CPUState *env);
+IOAPICState *ioapic_init(void);
+void ioapic_set_irq(void *opaque, int vector, int level);
 
 /* i8254.c */
 

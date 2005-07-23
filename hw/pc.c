@@ -41,6 +41,7 @@ int dummy_refresh_clock;
 static fdctrl_t *floppy_controller;
 static RTCState *rtc_state;
 static PITState *pit;
+static IOAPICState *ioapic;
 
 static void ioport80_write(void *opaque, uint32_t addr, uint32_t data)
 {
@@ -70,7 +71,6 @@ int cpu_get_pic_interrupt(CPUState *env)
 {
     int intno;
 
-#ifdef TARGET_X86_64
     intno = apic_get_interrupt(env);
     if (intno >= 0) {
         /* set irq request if a PIC irq is still pending */
@@ -78,7 +78,6 @@ int cpu_get_pic_interrupt(CPUState *env)
         pic_update_irq(isa_pic); 
         return intno;
     }
-#endif
     /* read the irq from the PIC */
     intno = pic_read_irq(isa_pic);
     return intno;
@@ -417,7 +416,7 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
     unsigned long bios_offset, vga_bios_offset;
     int bios_size, isa_bios_size;
     PCIBus *pci_bus;
-    
+
     linux_boot = (kernel_filename != NULL);
 
     /* allocate RAM */
@@ -557,10 +556,15 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
     register_ioport_read(0x92, 1, 1, ioport92_read, NULL);
     register_ioport_write(0x92, 1, 1, ioport92_write, NULL);
 
-    if (pci_enabled)
+    if (pci_enabled) {
         apic_init(cpu_single_env);
+        ioapic = ioapic_init();
+    }
     isa_pic = pic_init(pic_irq_request, cpu_single_env);
     pit = pit_init(0x40, 0);
+    if (pci_enabled) {
+        pic_set_alt_irq_func(isa_pic, ioapic_set_irq, ioapic);
+    }
 
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
         if (serial_hds[i]) {
