@@ -547,7 +547,21 @@ static long do_setsockopt(int sockfd, int level, int optname,
         break;
     case SOL_IP:
         switch(optname) {
+        case IP_TOS:
+        case IP_TTL:
         case IP_HDRINCL:
+        case IP_ROUTER_ALERT:
+        case IP_RECVOPTS:
+        case IP_RETOPTS:
+        case IP_PKTINFO:
+        case IP_MTU_DISCOVER:
+        case IP_RECVERR:
+        case IP_RECVTOS:
+#ifdef IP_FREEBIND
+        case IP_FREEBIND:
+#endif
+        case IP_MULTICAST_TTL:
+        case IP_MULTICAST_LOOP:
             val = 0;
             if (optlen >= sizeof(uint32_t)) {
                 if (get_user(val, (uint32_t *)optval))
@@ -619,6 +633,45 @@ static long do_getsockopt(int sockfd, int level, int optname,
 	    /* These don't just return a single integer */
 	    goto unimplemented;
         default:
+            goto int_case;
+        }
+        break;
+    case SOL_TCP:
+        /* TCP options all take an 'int' value.  */
+    int_case:
+        if (get_user(len, optlen))
+            return -EFAULT;
+        if (len < 0)
+            return -EINVAL;
+        lv = sizeof(int);
+        ret = get_errno(getsockopt(sockfd, level, optname, &val, &lv));
+        if (ret < 0)
+            return ret;
+        val = tswap32(val);
+        if (len > lv)
+            len = lv;
+        if (copy_to_user(optval, &val, len))
+            return -EFAULT;
+        if (put_user(len, optlen))
+            return -EFAULT;
+        break;
+    case SOL_IP:
+        switch(optname) {
+        case IP_TOS:
+        case IP_TTL:
+        case IP_HDRINCL:
+        case IP_ROUTER_ALERT:
+        case IP_RECVOPTS:
+        case IP_RETOPTS:
+        case IP_PKTINFO:
+        case IP_MTU_DISCOVER:
+        case IP_RECVERR:
+        case IP_RECVTOS:
+#ifdef IP_FREEBIND
+        case IP_FREEBIND:
+#endif
+        case IP_MULTICAST_TTL:
+        case IP_MULTICAST_LOOP:
             if (get_user(len, optlen))
                 return -EFAULT;
             if (len < 0)
@@ -627,14 +680,25 @@ static long do_getsockopt(int sockfd, int level, int optname,
             ret = get_errno(getsockopt(sockfd, level, optname, &val, &lv));
             if (ret < 0)
                 return ret;
-            val = tswap32(val);
-            if (len > lv)
-                len = lv;
-            if (copy_to_user(optval, &val, len))
-                return -EFAULT;
-            if (put_user(len, optlen))
-                return -EFAULT;
+            if (len < sizeof(int) && len > 0 && val >= 0 && val < 255) {
+                unsigned char ucval = val;
+                len = 1;
+		if (put_user(len, optlen))
+                    return -EFAULT;
+		if (copy_to_user(optval,&ucval,1))
+                    return -EFAULT;
+            } else {
+                val = tswap32(val);
+                if (len > sizeof(int))
+                    len = sizeof(int);
+                if (put_user(len, optlen))
+                    return -EFAULT;
+                if (copy_to_user(optval, &val, len))
+                    return -EFAULT;
+            }
             break;
+        default:
+            goto unimplemented;
         }
         break;
     default:
