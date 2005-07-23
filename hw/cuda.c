@@ -298,9 +298,11 @@ static uint32_t cuda_readb(void *opaque, target_phys_addr_t addr)
         break;
     case 13:
         val = s->ifr;
+        if (s->ifr & s->ier) 
+            val |= 0x80;
         break;
     case 14:
-        val = s->ier;
+        val = s->ier | 0x80;
         break;
     default:
     case 15:
@@ -379,7 +381,6 @@ static void cuda_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
         cuda_update_irq(s);
         break;
     case 14:
-#if 0
         if (val & IER_SET) {
             /* set bits */
             s->ier |= val & 0x7f;
@@ -387,10 +388,6 @@ static void cuda_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
             /* reset bits */
             s->ier &= ~val;
         }
-#else
-        /* XXX: please explain me why the SPEC is not correct ! */
-        s->ier = val;
-#endif
         cuda_update_irq(s);
         break;
     default:
