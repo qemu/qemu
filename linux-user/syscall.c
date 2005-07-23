@@ -2756,11 +2756,13 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #endif
 #ifdef TARGET_NR_truncate64
     case TARGET_NR_truncate64:
-        goto unimplemented;
+	ret = get_errno(truncate64((const char *)arg1, arg2));
+	break;
 #endif
 #ifdef TARGET_NR_ftruncate64
     case TARGET_NR_ftruncate64:
-        goto unimplemented;
+	ret = get_errno(ftruncate64(arg1, arg2));
+	break;
 #endif
 #ifdef TARGET_NR_stat64
     case TARGET_NR_stat64:
