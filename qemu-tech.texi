@@ -163,7 +163,6 @@ implemented.  Floating point exception support is untested.
 @item Atomic instructions are not correctly implemented.
 
 @item Sparc64 emulators are not usable for anything yet.
-Address space is limited to first 4 gigabytes.
 
 @end itemize
 

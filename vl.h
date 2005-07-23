@@ -559,6 +559,7 @@ void pci_set_pic(PCIBus *bus, SetIRQFunc *set_irq, void *irq_opaque);
 PCIBus *pci_prep_init(void);
 PCIBus *pci_grackle_init(uint32_t base);
 PCIBus *pci_pmac_init(void);
+PCIBus *pci_apb_init(target_ulong special_base, target_ulong mem_base);
 
 /* openpic.c */
 typedef struct openpic_t openpic_t;

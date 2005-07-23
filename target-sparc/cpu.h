@@ -6,9 +6,11 @@
 #if !defined(TARGET_SPARC64)
 #define TARGET_LONG_BITS 32
 #define TARGET_FPREGS 32
+#define TARGET_PAGE_BITS 12 /* 4k */
 #else
 #define TARGET_LONG_BITS 64
 #define TARGET_FPREGS 64
+#define TARGET_PAGE_BITS 12 /* XXX */
 #endif
 #define TARGET_FPREG_T float
 
@@ -35,6 +37,7 @@
 #define TT_TRAP     0x80
 #else
 #define TT_TFAULT   0x08
+#define TT_TMISS    0x09
 #define TT_ILL_INSN 0x10
 #define TT_PRIV_INSN 0x11
 #define TT_NFPU_INSN 0x20
@@ -42,6 +45,9 @@
 #define TT_CLRWIN   0x24
 #define TT_DIV_ZERO 0x28
 #define TT_DFAULT   0x30
+#define TT_DMISS    0x31
+#define TT_DPROT    0x32
+#define TT_PRIV_ACT 0x37
 #define TT_EXTINT   0x40
 #define TT_SPILL    0x80
 #define TT_FILL     0xc0
@@ -65,10 +71,14 @@
 #define TBR_BASE_MASK 0xfffff000
 
 #if defined(TARGET_SPARC64)
+#define PS_IG    (1<<11)
+#define PS_MG    (1<<10)
+#define PS_RED   (1<<5)
 #define PS_PEF   (1<<4)
 #define PS_AM    (1<<3)
 #define PS_PRIV  (1<<2)
 #define PS_IE    (1<<1)
+#define PS_AG    (1<<0)
 #endif
 
 /* Fcc */
@@ -166,7 +176,7 @@ typedef struct CPUSPARCState {
        context) */
     unsigned long mem_write_pc; /* host pc at which the memory was
                                    written */
-    unsigned long mem_write_vaddr; /* target virtual addr at which the
+    target_ulong mem_write_vaddr; /* target virtual addr at which the
                                       memory was written */
     /* 0 = kernel, 1 = user (may have 2 = kernel code, 3 = user code ?) */
     CPUTLBEntry tlb_read[2][CPU_TLB_SIZE];
@@ -201,11 +211,13 @@ typedef struct CPUSPARCState {
     uint32_t pstate;
     uint32_t tl;
     uint32_t cansave, canrestore, otherwin, wstate, cleanwin;
-    target_ulong agregs[8]; /* alternate general registers */
-    target_ulong igregs[8]; /* interrupt general registers */
-    target_ulong mgregs[8]; /* mmu general registers */
+    uint64_t agregs[8]; /* alternate general registers */
+    uint64_t bgregs[8]; /* backup for normal global registers */
+    uint64_t igregs[8]; /* interrupt general registers */
+    uint64_t mgregs[8]; /* mmu general registers */
     uint64_t version;
     uint64_t fprs;
+    uint64_t tick_cmpr, stick_cmpr;
 #endif
 #if !defined(TARGET_SPARC64) && !defined(reg_T2)
     target_ulong t2;
@@ -275,7 +287,6 @@ void cpu_set_cwp(CPUSPARCState *env1, int new_cwp);
 struct siginfo;
 int cpu_sparc_signal_handler(int hostsignum, struct siginfo *info, void *puc);
 
-#define TARGET_PAGE_BITS 12 /* 4k */
 #include "cpu-all.h"
 
 #endif

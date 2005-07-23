@@ -86,6 +86,12 @@ enum {
 #define DFPREG(r) (r)
 #endif
 
+#ifdef USE_DIRECT_JUMP
+#define TBPARAM(x)
+#else
+#define TBPARAM(x) (long)(x)
+#endif
+
 static int sign_extend(int x, int len)
 {
     len = 32 - len;
@@ -462,7 +468,7 @@ OP_LD_TABLE(casx);
 
 static inline void gen_movl_imm_TN(int reg, uint32_t imm)
 {
-    gen_op_movl_TN_im[reg] (imm);
+    gen_op_movl_TN_im[reg](imm);
 }
 
 static inline void gen_movl_imm_T1(uint32_t val)
@@ -529,15 +535,6 @@ static inline void gen_movl_T1_reg(int reg)
     gen_movl_TN_reg(reg, 1);
 }
 
-/* call this function before using T2 as it may have been set for a jump */
-static inline void flush_T2(DisasContext * dc)
-{
-    if (dc->npc == JUMP_PC) {
-        gen_op_generic_branch(dc->jump_pc[0], dc->jump_pc[1]);
-        dc->npc = DYNAMIC_PC;
-    }
-}
-
 static inline void gen_jmp_im(target_ulong pc)
 {
 #ifdef TARGET_SPARC64
@@ -564,10 +561,88 @@ static inline void gen_movl_npc_im(target_ulong npc)
 #endif
 }
 
+static inline void gen_branch2(DisasContext *dc, long tb, target_ulong pc1, target_ulong pc2)
+{
+    int l1;
+
+    l1 = gen_new_label();
+
+    gen_op_jz_T2_label(l1);
+
+    gen_op_goto_tb0(TBPARAM(tb));
+    gen_jmp_im(pc1);
+    gen_movl_npc_im(pc1 + 4);
+    gen_op_movl_T0_im((long)tb + 0);
+    gen_op_exit_tb();
+
+    gen_set_label(l1);
+    gen_op_goto_tb1(TBPARAM(tb));
+    gen_jmp_im(pc2);
+    gen_movl_npc_im(pc2 + 4);
+    gen_op_movl_T0_im((long)tb + 1);
+    gen_op_exit_tb();
+}
+
+static inline void gen_branch_a(DisasContext *dc, long tb, target_ulong pc1, target_ulong pc2)
+{
+    int l1;
+
+    l1 = gen_new_label();
+
+    gen_op_jz_T2_label(l1);
+
+    gen_op_goto_tb0(TBPARAM(tb));
+    gen_jmp_im(pc2);
+    gen_movl_npc_im(pc1);
+    gen_op_movl_T0_im((long)tb + 0);
+    gen_op_exit_tb();
+
+    gen_set_label(l1);
+    gen_op_goto_tb1(TBPARAM(tb));
+    gen_jmp_im(pc2 + 4);
+    gen_movl_npc_im(pc2 + 8);
+    gen_op_movl_T0_im((long)tb + 1);
+    gen_op_exit_tb();
+}
+
+static inline void gen_branch(DisasContext *dc, long tb, target_ulong pc, target_ulong npc)
+{
+    gen_op_goto_tb0(TBPARAM(tb));
+    gen_jmp_im(pc);
+    gen_movl_npc_im(npc);
+    gen_op_movl_T0_im((long)tb + 0);
+    gen_op_exit_tb();
+}
+
+static inline void gen_generic_branch(DisasContext *dc, target_ulong npc1, target_ulong npc2)
+{
+    int l1, l2;
+
+    l1 = gen_new_label();
+    l2 = gen_new_label();
+    gen_op_jz_T2_label(l1);
+
+    gen_movl_npc_im(npc1);
+    gen_op_jmp_label(l2);
+
+    gen_set_label(l1);
+    gen_movl_npc_im(npc2);
+    gen_set_label(l2);
+}
+
+/* call this function before using T2 as it may have been set for a jump */
+static inline void flush_T2(DisasContext * dc)
+{
+    if (dc->npc == JUMP_PC) {
+        gen_generic_branch(dc, dc->jump_pc[0], dc->jump_pc[1]);
+        dc->npc = DYNAMIC_PC;
+    }
+}
+
 static inline void save_npc(DisasContext * dc)
 {
     if (dc->npc == JUMP_PC) {
-        gen_op_generic_branch(dc->jump_pc[0], dc->jump_pc[1]);
+        gen_generic_branch(dc, dc->jump_pc[0], dc->jump_pc[1]);
         dc->npc = DYNAMIC_PC;
     } else if (dc->npc != DYNAMIC_PC) {
         gen_movl_npc_im(dc->npc);
@@ -583,7 +658,7 @@ static inline void save_state(DisasContext * dc)
 static inline void gen_mov_pc_npc(DisasContext * dc)
 {
     if (dc->npc == JUMP_PC) {
-        gen_op_generic_branch(dc->jump_pc[0], dc->jump_pc[1]);
+        gen_generic_branch(dc, dc->jump_pc[0], dc->jump_pc[1]);
         gen_op_mov_pc_npc();
         dc->pc = DYNAMIC_PC;
     } else if (dc->npc == DYNAMIC_PC) {
@@ -769,7 +844,7 @@ static void do_branch(DisasContext * dc, int32_t offset, uint32_t insn, int cc)
         flush_T2(dc);
         gen_cond[cc][cond]();
 	if (a) {
-	    gen_op_branch_a((long)dc->tb, target, dc->npc);
+	    gen_branch_a(dc, (long)dc->tb, target, dc->npc);
             dc->is_br = 1;
 	} else {
             dc->pc = dc->npc;
@@ -808,7 +883,7 @@ static void do_fbranch(DisasContext * dc, int32_t offset, uint32_t insn, int cc)
         flush_T2(dc);
         gen_fcond[cc][cond]();
 	if (a) {
-	    gen_op_branch_a((long)dc->tb, target, dc->npc);
+	    gen_branch_a(dc, (long)dc->tb, target, dc->npc);
             dc->is_br = 1;
 	} else {
             dc->pc = dc->npc;
@@ -829,7 +904,7 @@ static void do_branch_reg(DisasContext * dc, int32_t offset, uint32_t insn)
     flush_T2(dc);
     gen_cond_reg(cond);
     if (a) {
-	gen_op_branch_a((long)dc->tb, target, dc->npc);
+	gen_branch_a(dc, (long)dc->tb, target, dc->npc);
 	dc->is_br = 1;
     } else {
 	dc->pc = dc->npc;
@@ -893,7 +968,7 @@ static void disas_sparc_insn(DisasContext * dc)
 		    target <<= 2;
 		    target = sign_extend(target, 16);
 		    rs1 = GET_FIELD(insn, 13, 17);
-		    gen_movl_T0_reg(rs1);
+		    gen_movl_reg_T0(rs1);
 		    do_branch_reg(dc, target, insn);
 		    goto jmp_insn;
 		}
@@ -952,7 +1027,15 @@ static void disas_sparc_insn(DisasContext * dc)
 	/*CALL*/ {
 	    target_long target = GET_FIELDs(insn, 2, 31) << 2;
 
+#ifdef TARGET_SPARC64
+	    if (dc->pc == (uint32_t)dc->pc) {
+		gen_op_movl_T0_im(dc->pc);
+	    } else {
+		gen_op_movq_T0_im64(dc->pc >> 32, dc->pc);
+	    }
+#else
 	    gen_op_movl_T0_im(dc->pc);
+#endif
 	    gen_movl_T0_reg(15);
 	    target += dc->pc;
             gen_mov_pc_npc(dc);
@@ -1039,6 +1122,25 @@ static void disas_sparc_insn(DisasContext * dc)
 		    gen_op_movl_T0_env(offsetof(CPUSPARCState, fprs));
                     gen_movl_T0_reg(rd);
                     break;
+		case 0x17: /* Tick compare */
+		    gen_op_movtl_T0_env(offsetof(CPUSPARCState, tick_cmpr));
+                    gen_movl_T0_reg(rd);
+                    break;
+		case 0x18: /* System tick */
+                    gen_op_rdtick(); // XXX
+                    gen_movl_T0_reg(rd);
+                    break;
+		case 0x19: /* System tick compare */
+		    gen_op_movtl_T0_env(offsetof(CPUSPARCState, stick_cmpr));
+                    gen_movl_T0_reg(rd);
+                    break;
+		case 0x10: /* Performance Control */
+		case 0x11: /* Performance Instrumentation Counter */
+		case 0x12: /* Dispatch Control */
+		case 0x13: /* Graphics Status */
+		case 0x14: /* Softint set, WO */
+		case 0x15: /* Softint clear, WO */
+		case 0x16: /* Softint write */
 #endif
                 default:
                     goto illegal_insn;
@@ -1549,6 +1651,50 @@ static void disas_sparc_insn(DisasContext * dc)
 		    gen_movl_T0_reg(rd);
 		}
 #endif
+#ifdef TARGET_SPARC64
+	    } else if (xop == 0x25) { /* sll, V9 sllx ( == sll) */
+                rs1 = GET_FIELD(insn, 13, 17);
+		gen_movl_reg_T0(rs1);
+		if (IS_IMM) {	/* immediate */
+                    rs2 = GET_FIELDs(insn, 20, 31);
+                    gen_movl_simm_T1(rs2);
+                } else {		/* register */
+                    rs2 = GET_FIELD(insn, 27, 31);
+                    gen_movl_reg_T1(rs2);
+                }
+		gen_op_sll();
+		gen_movl_T0_reg(rd);
+	    } else if (xop == 0x26) { /* srl, V9 srlx */
+                rs1 = GET_FIELD(insn, 13, 17);
+		gen_movl_reg_T0(rs1);
+		if (IS_IMM) {	/* immediate */
+                    rs2 = GET_FIELDs(insn, 20, 31);
+                    gen_movl_simm_T1(rs2);
+                } else {		/* register */
+                    rs2 = GET_FIELD(insn, 27, 31);
+                    gen_movl_reg_T1(rs2);
+                }
+		if (insn & (1 << 12))
+		    gen_op_srlx();
+		else
+		    gen_op_srl();
+		gen_movl_T0_reg(rd);
+	    } else if (xop == 0x27) { /* sra, V9 srax */
+                rs1 = GET_FIELD(insn, 13, 17);
+		gen_movl_reg_T0(rs1);
+		if (IS_IMM) {	/* immediate */
+                    rs2 = GET_FIELDs(insn, 20, 31);
+                    gen_movl_simm_T1(rs2);
+                } else {		/* register */
+                    rs2 = GET_FIELD(insn, 27, 31);
+                    gen_movl_reg_T1(rs2);
+                }
+		if (insn & (1 << 12))
+		    gen_op_srax();
+		else
+		    gen_op_sra();
+		gen_movl_T0_reg(rd);
+#endif
 	    } else if (xop < 0x38) {
                 rs1 = GET_FIELD(insn, 13, 17);
 		gen_movl_reg_T0(rs1);
@@ -1660,32 +1806,20 @@ static void disas_sparc_insn(DisasContext * dc)
                         gen_op_mulscc_T1_T0();
                         gen_movl_T0_reg(rd);
                         break;
-                    case 0x25:	/* sll, V9 sllx ( == sll) */
+#ifndef TARGET_SPARC64
+                    case 0x25:	/* sll */
 			gen_op_sll();
                         gen_movl_T0_reg(rd);
                         break;
-                    case 0x26:  /* srl, V9 srlx */
-#ifdef TARGET_SPARC64
-			if (insn & (1 << 12))
-			    gen_op_srlx();
-			else
-			    gen_op_srl();
-#else
+                    case 0x26:  /* srl */
 			gen_op_srl();
-#endif
                         gen_movl_T0_reg(rd);
                         break;
-                    case 0x27:  /* sra, V9 srax */
-#ifdef TARGET_SPARC64
-			if (insn & (1 << 12))
-			    gen_op_srax();
-			else
-			    gen_op_sra();
-#else
+                    case 0x27:  /* sra */
 			gen_op_sra();
-#endif
                         gen_movl_T0_reg(rd);
                         break;
+#endif
                     case 0x30:
                         {
                             switch(rd) {
@@ -1709,7 +1843,28 @@ static void disas_sparc_insn(DisasContext * dc)
 				    gen_op_sir();
 #endif
 				break;
+			    case 0x17: /* Tick compare */
+#if !defined(CONFIG_USER_ONLY)
+				if (!supervisor(dc))
+				    goto illegal_insn;
 #endif
+				gen_op_movtl_env_T0(offsetof(CPUSPARCState, tick_cmpr));
+				break;
+			    case 0x18: /* System tick */
+#if !defined(CONFIG_USER_ONLY)
+				if (!supervisor(dc))
+				    goto illegal_insn;
+#endif
+				gen_op_movtl_env_T0(offsetof(CPUSPARCState, stick_cmpr));
+				break;
+			    case 0x19: /* System tick compare */
+#if !defined(CONFIG_USER_ONLY)
+				if (!supervisor(dc))
+				    goto illegal_insn;
+#endif
+				gen_op_movtl_env_T0(offsetof(CPUSPARCState, stick_cmpr));
+				break;
+
 			    case 0x10: /* Performance Control */
 			    case 0x11: /* Performance Instrumentation Counter */
 			    case 0x12: /* Dispatch Control */
@@ -1717,9 +1872,7 @@ static void disas_sparc_insn(DisasContext * dc)
 			    case 0x14: /* Softint set */
 			    case 0x15: /* Softint clear */
 			    case 0x16: /* Softint write */
-			    case 0x17: /* Tick compare */
-			    case 0x18: /* System tick */
-			    case 0x19: /* System tick compare */
+#endif
                             default:
                                 goto illegal_insn;
                             }
@@ -1770,7 +1923,7 @@ static void disas_sparc_insn(DisasContext * dc)
 				gen_op_wrtick();
 				break;
 			    case 5: // tba
-				gen_op_movl_env_T0(offsetof(CPUSPARCState, tbr));
+				gen_op_movtl_env_T0(offsetof(CPUSPARCState, tbr));
 				break;
 			    case 6: // pstate
 				gen_op_wrpstate();
@@ -1896,7 +2049,6 @@ static void disas_sparc_insn(DisasContext * dc)
 		}
 #ifdef TARGET_SPARC64
 	    } else if (xop == 0x39) { /* V9 return */
-		gen_op_restore();
                 rs1 = GET_FIELD(insn, 13, 17);
 		gen_movl_reg_T0(rs1);
                 if (IS_IMM) {	/* immediate */
@@ -1920,6 +2072,7 @@ static void disas_sparc_insn(DisasContext * dc)
 		    }
 #endif
                 }
+		gen_op_restore();
 		gen_mov_pc_npc(dc);
 		gen_op_movl_npc_T0();
 		dc->npc = DYNAMIC_PC;
@@ -1993,13 +2146,17 @@ static void disas_sparc_insn(DisasContext * dc)
 			case 0:
 			    if (!supervisor(dc))
 				goto priv_insn;
+			    dc->npc = DYNAMIC_PC;
+			    dc->pc = DYNAMIC_PC;
 			    gen_op_done();
-			    break;
+			    goto jmp_insn;
 			case 1:
 			    if (!supervisor(dc))
 				goto priv_insn;
+			    dc->npc = DYNAMIC_PC;
+			    dc->pc = DYNAMIC_PC;
 			    gen_op_retry();
-			    break;
+			    goto jmp_insn;
 			default:
 			    goto illegal_insn;
 			}
@@ -2317,7 +2474,7 @@ static void disas_sparc_insn(DisasContext * dc)
 	gen_op_next_insn();
     } else if (dc->npc == JUMP_PC) {
         /* we can do a static jump */
-        gen_op_branch2((long)dc->tb, dc->jump_pc[0], dc->jump_pc[1]);
+        gen_branch2(dc, (long)dc->tb, dc->jump_pc[0], dc->jump_pc[1]);
         dc->is_br = 1;
     } else {
 	dc->pc = dc->npc;
@@ -2365,6 +2522,7 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
     gen_opc_ptr = gen_opc_buf;
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
     gen_opparam_ptr = gen_opparam_buf;
+    nb_gen_labels = 0;
 
     do {
         if (env->nb_breakpoints > 0) {
@@ -2421,7 +2579,7 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
         if (dc->pc != DYNAMIC_PC && 
             (dc->npc != DYNAMIC_PC && dc->npc != JUMP_PC)) {
             /* static PC and NPC: we can use direct chaining */
-            gen_op_branch((long)tb, dc->pc, dc->npc);
+            gen_branch(dc, (long)tb, dc->pc, dc->npc);
         } else {
             if (dc->pc != DYNAMIC_PC)
                 gen_jmp_im(dc->pc);
@@ -2487,15 +2645,16 @@ void cpu_reset(CPUSPARCState *env)
 #else
     env->psrs = 1;
     env->psrps = 1;
-    env->pc = 0xffd00000;
     env->gregs[1] = ram_size;
-    env->npc = env->pc + 4;
 #ifdef TARGET_SPARC64
-    env->pstate = PS_AM | PS_PRIV; // XXX: Force AM
+    env->pstate = PS_PRIV;
     env->version = GET_VER(env);
+    env->pc = 0x1fff0000000ULL;
 #else
     env->mmuregs[0] = (0x04 << 24); /* Impl 0, ver 4, MMU disabled */
+    env->pc = 0xffd00000;
 #endif
+    env->npc = env->pc + 4;
 #endif
 }
 

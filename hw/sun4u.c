@@ -22,23 +22,18 @@
  * THE SOFTWARE.
  */
 #include "vl.h"
-#include "m48t08.h"
+#include "m48t59.h"
 
-#define KERNEL_LOAD_ADDR     0x00004000
-#define CMDLINE_ADDR         0x007ff000
-#define INITRD_LOAD_ADDR     0x00800000
-#define PROM_ADDR	     0xffd00000
+#define KERNEL_LOAD_ADDR     0x00404000
+#define CMDLINE_ADDR         0x003ff000
+#define INITRD_LOAD_ADDR     0x00300000
+#define PROM_ADDR	     0x1fff0000000ULL
+#define APB_SPECIAL_BASE     0x1fe00000000ULL
+#define APB_MEM_BASE	     0x1ff00000000ULL
+#define VGA_BASE	     (APB_MEM_BASE + 0x400000ULL)
 #define PROM_FILENAMEB	     "proll-sparc64.bin"
 #define PROM_FILENAMEE	     "proll-sparc64.elf"
-#define PHYS_JJ_EEPROM	0x71200000	/* m48t08 */
-#define PHYS_JJ_IDPROM_OFF	0x1FD8
-#define PHYS_JJ_EEPROM_SIZE	0x2000
-// IRQs are not PIL ones, but master interrupt controller register
-// bits
-#define PHYS_JJ_MS_KBD	0x71000000	/* Mouse and keyboard */
-#define PHYS_JJ_MS_KBD_IRQ    14
-#define PHYS_JJ_SER	0x71100000	/* Serial */
-#define PHYS_JJ_SER_IRQ    15
+#define NVRAM_SIZE           0x2000
 
 /* TSC handling */
 
@@ -70,79 +65,170 @@ void DMA_register_channel (int nchan,
 {
 }
 
-static void nvram_set_word (m48t08_t *nvram, uint32_t addr, uint16_t value)
+/* NVRAM helpers */
+void NVRAM_set_byte (m48t59_t *nvram, uint32_t addr, uint8_t value)
 {
-    m48t08_write(nvram, addr++, (value >> 8) & 0xff);
-    m48t08_write(nvram, addr++, value & 0xff);
+    m48t59_set_addr(nvram, addr);
+    m48t59_write(nvram, value);
 }
 
-static void nvram_set_lword (m48t08_t *nvram, uint32_t addr, uint32_t value)
+uint8_t NVRAM_get_byte (m48t59_t *nvram, uint32_t addr)
 {
-    m48t08_write(nvram, addr++, value >> 24);
-    m48t08_write(nvram, addr++, (value >> 16) & 0xff);
-    m48t08_write(nvram, addr++, (value >> 8) & 0xff);
-    m48t08_write(nvram, addr++, value & 0xff);
+    m48t59_set_addr(nvram, addr);
+    return m48t59_read(nvram);
 }
 
-static void nvram_set_string (m48t08_t *nvram, uint32_t addr,
+void NVRAM_set_word (m48t59_t *nvram, uint32_t addr, uint16_t value)
+{
+    m48t59_set_addr(nvram, addr);
+    m48t59_write(nvram, value >> 8);
+    m48t59_set_addr(nvram, addr + 1);
+    m48t59_write(nvram, value & 0xFF);
+}
+
+uint16_t NVRAM_get_word (m48t59_t *nvram, uint32_t addr)
+{
+    uint16_t tmp;
+
+    m48t59_set_addr(nvram, addr);
+    tmp = m48t59_read(nvram) << 8;
+    m48t59_set_addr(nvram, addr + 1);
+    tmp |= m48t59_read(nvram);
+
+    return tmp;
+}
+
+void NVRAM_set_lword (m48t59_t *nvram, uint32_t addr, uint32_t value)
+{
+    m48t59_set_addr(nvram, addr);
+    m48t59_write(nvram, value >> 24);
+    m48t59_set_addr(nvram, addr + 1);
+    m48t59_write(nvram, (value >> 16) & 0xFF);
+    m48t59_set_addr(nvram, addr + 2);
+    m48t59_write(nvram, (value >> 8) & 0xFF);
+    m48t59_set_addr(nvram, addr + 3);
+    m48t59_write(nvram, value & 0xFF);
+}
+
+uint32_t NVRAM_get_lword (m48t59_t *nvram, uint32_t addr)
+{
+    uint32_t tmp;
+
+    m48t59_set_addr(nvram, addr);
+    tmp = m48t59_read(nvram) << 24;
+    m48t59_set_addr(nvram, addr + 1);
+    tmp |= m48t59_read(nvram) << 16;
+    m48t59_set_addr(nvram, addr + 2);
+    tmp |= m48t59_read(nvram) << 8;
+    m48t59_set_addr(nvram, addr + 3);
+    tmp |= m48t59_read(nvram);
+
+    return tmp;
+}
+
+void NVRAM_set_string (m48t59_t *nvram, uint32_t addr,
                        const unsigned char *str, uint32_t max)
 {
-    unsigned int i;
+    int i;
 
     for (i = 0; i < max && str[i] != '\0'; i++) {
-        m48t08_write(nvram, addr + i, str[i]);
+        m48t59_set_addr(nvram, addr + i);
+        m48t59_write(nvram, str[i]);
     }
-    m48t08_write(nvram, addr + max - 1, '\0');
+    m48t59_set_addr(nvram, addr + max - 1);
+    m48t59_write(nvram, '\0');
 }
 
-static m48t08_t *nvram;
+int NVRAM_get_string (m48t59_t *nvram, uint8_t *dst, uint16_t addr, int max)
+{
+    int i;
+
+    memset(dst, 0, max);
+    for (i = 0; i < max; i++) {
+        dst[i] = NVRAM_get_byte(nvram, addr + i);
+        if (dst[i] == '\0')
+            break;
+    }
+
+    return i;
+}
+
+static uint16_t NVRAM_crc_update (uint16_t prev, uint16_t value)
+{
+    uint16_t tmp;
+    uint16_t pd, pd1, pd2;
+
+    tmp = prev >> 8;
+    pd = prev ^ value;
+    pd1 = pd & 0x000F;
+    pd2 = ((pd >> 4) & 0x000F) ^ pd1;
+    tmp ^= (pd1 << 3) | (pd1 << 8);
+    tmp ^= pd2 | (pd2 << 7) | (pd2 << 12);
+
+    return tmp;
+}
+
+uint16_t NVRAM_compute_crc (m48t59_t *nvram, uint32_t start, uint32_t count)
+{
+    uint32_t i;
+    uint16_t crc = 0xFFFF;
+    int odd;
+
+    odd = count & 1;
+    count &= ~1;
+    for (i = 0; i != count; i++) {
+	crc = NVRAM_crc_update(crc, NVRAM_get_word(nvram, start + i));
+    }
+    if (odd) {
+	crc = NVRAM_crc_update(crc, NVRAM_get_byte(nvram, start + i) << 8);
+    }
+
+    return crc;
+}
 
 extern int nographic;
 
-static void nvram_init(m48t08_t *nvram, uint8_t *macaddr, const char *cmdline,
-		       int boot_device, uint32_t RAM_size,
-		       uint32_t kernel_size,
-		       int width, int height, int depth)
+int sun4u_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
+                          const unsigned char *arch,
+                          uint32_t RAM_size, int boot_device,
+                          uint32_t kernel_image, uint32_t kernel_size,
+                          const char *cmdline,
+                          uint32_t initrd_image, uint32_t initrd_size,
+                          uint32_t NVRAM_image,
+                          int width, int height, int depth)
 {
-    unsigned char tmp = 0;
-    int i, j;
+    uint16_t crc;
 
-    // Try to match PPC NVRAM
-    nvram_set_string(nvram, 0x00, "QEMU_BIOS", 16);
-    nvram_set_lword(nvram,  0x10, 0x00000001); /* structure v1 */
-    // NVRAM_size, arch not applicable
-    m48t08_write(nvram, 0x2F, nographic & 0xff);
-    nvram_set_lword(nvram,  0x30, RAM_size);
-    m48t08_write(nvram, 0x34, boot_device & 0xff);
-    nvram_set_lword(nvram,  0x38, KERNEL_LOAD_ADDR);
-    nvram_set_lword(nvram,  0x3C, kernel_size);
+    /* Set parameters for Open Hack'Ware BIOS */
+    NVRAM_set_string(nvram, 0x00, "QEMU_BIOS", 16);
+    NVRAM_set_lword(nvram,  0x10, 0x00000002); /* structure v2 */
+    NVRAM_set_word(nvram,   0x14, NVRAM_size);
+    NVRAM_set_string(nvram, 0x20, arch, 16);
+    NVRAM_set_byte(nvram,   0x2f, nographic & 0xff);
+    NVRAM_set_lword(nvram,  0x30, RAM_size);
+    NVRAM_set_byte(nvram,   0x34, boot_device);
+    NVRAM_set_lword(nvram,  0x38, kernel_image);
+    NVRAM_set_lword(nvram,  0x3C, kernel_size);
     if (cmdline) {
-	strcpy(phys_ram_base + CMDLINE_ADDR, cmdline);
-	nvram_set_lword(nvram,  0x40, CMDLINE_ADDR);
-        nvram_set_lword(nvram,  0x44, strlen(cmdline));
+        /* XXX: put the cmdline in NVRAM too ? */
+        strcpy(phys_ram_base + CMDLINE_ADDR, cmdline);
+        NVRAM_set_lword(nvram,  0x40, CMDLINE_ADDR);
+        NVRAM_set_lword(nvram,  0x44, strlen(cmdline));
+    } else {
+        NVRAM_set_lword(nvram,  0x40, 0);
+        NVRAM_set_lword(nvram,  0x44, 0);
     }
-    // initrd_image, initrd_size passed differently
-    nvram_set_word(nvram,   0x54, width);
-    nvram_set_word(nvram,   0x56, height);
-    nvram_set_word(nvram,   0x58, depth);
+    NVRAM_set_lword(nvram,  0x48, initrd_image);
+    NVRAM_set_lword(nvram,  0x4C, initrd_size);
+    NVRAM_set_lword(nvram,  0x50, NVRAM_image);
 
-    // Sun4m specific use
-    i = 0x1fd8;
-    m48t08_write(nvram, i++, 0x01);
-    m48t08_write(nvram, i++, 0x80); /* Sun4m OBP */
-    j = 0;
-    m48t08_write(nvram, i++, macaddr[j++]);
-    m48t08_write(nvram, i++, macaddr[j++]);
-    m48t08_write(nvram, i++, macaddr[j++]);
-    m48t08_write(nvram, i++, macaddr[j++]);
-    m48t08_write(nvram, i++, macaddr[j++]);
-    m48t08_write(nvram, i, macaddr[j]);
+    NVRAM_set_word(nvram,   0x54, width);
+    NVRAM_set_word(nvram,   0x56, height);
+    NVRAM_set_word(nvram,   0x58, depth);
+    crc = NVRAM_compute_crc(nvram, 0x00, 0xF8);
+    NVRAM_set_word(nvram,  0xFC, crc);
 
-    /* Calculate checksum */
-    for (i = 0x1fd8; i < 0x1fe7; i++) {
-	tmp ^= m48t08_read(nvram, i);
-    }
-    m48t08_write(nvram, 0x1fe7, tmp);
+    return 0;
 }
 
 void pic_info()
@@ -157,21 +243,25 @@ void pic_set_irq(int irq, int level)
 {
 }
 
-void vga_update_display()
-{
-}
-
-void vga_invalidate_display()
-{
-}
-
-void vga_screen_dump(const char *filename)
+void pic_set_irq_new(void *opaque, int irq, int level)
 {
 }
 
 void qemu_system_powerdown(void)
 {
 }
+
+static const int ide_iobase[2] = { 0x1f0, 0x170 };
+static const int ide_iobase2[2] = { 0x3f6, 0x376 };
+static const int ide_irq[2] = { 14, 15 };
+
+static const int serial_io[MAX_SERIAL_PORTS] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8 };
+static const int serial_irq[MAX_SERIAL_PORTS] = { 4, 3, 4, 3 };
+
+static const int parallel_io[MAX_PARALLEL_PORTS] = { 0x378, 0x278, 0x3bc };
+static const int parallel_irq[MAX_PARALLEL_PORTS] = { 7, 7, 7 };
+
+static fdctrl_t *floppy_controller;
 
 /* Sun4u hardware initialisation */
 static void sun4u_init(int ram_size, int vga_ram_size, int boot_device,
@@ -180,21 +270,18 @@ static void sun4u_init(int ram_size, int vga_ram_size, int boot_device,
              const char *initrd_filename)
 {
     char buf[1024];
+    m48t59_t *nvram;
     int ret, linux_boot;
     unsigned int i;
-    long vram_size = 0x100000, prom_offset, initrd_size, kernel_size;
+    long prom_offset, initrd_size, kernel_size;
+    PCIBus *pci_bus;
 
     linux_boot = (kernel_filename != NULL);
 
     /* allocate RAM */
     cpu_register_physical_memory(0, ram_size, 0);
 
-    nvram = m48t08_init(PHYS_JJ_EEPROM, PHYS_JJ_EEPROM_SIZE);
-    // Slavio TTYA (base+4, Linux ttyS0) is the first Qemu serial device
-    // Slavio TTYB (base+0, Linux ttyS1) is the second Qemu serial device
-    slavio_serial_init(PHYS_JJ_SER, PHYS_JJ_SER_IRQ, serial_hds[1], serial_hds[0]);
-
-    prom_offset = ram_size + vram_size;
+    prom_offset = ram_size + vga_ram_size;
 
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, PROM_FILENAMEE);
     ret = load_elf(buf, phys_ram_base + prom_offset);
@@ -211,6 +298,7 @@ static void sun4u_init(int ram_size, int vga_ram_size, int boot_device,
                                  prom_offset | IO_MEM_ROM);
 
     kernel_size = 0;
+    initrd_size = 0;
     if (linux_boot) {
         kernel_size = load_elf(kernel_filename, phys_ram_base + KERNEL_LOAD_ADDR);
         if (kernel_size < 0)
@@ -224,7 +312,6 @@ static void sun4u_init(int ram_size, int vga_ram_size, int boot_device,
         }
 
         /* load initrd */
-        initrd_size = 0;
         if (initrd_filename) {
             initrd_size = load_image(initrd_filename, phys_ram_base + INITRD_LOAD_ADDR);
             if (initrd_size < 0) {
@@ -244,7 +331,41 @@ static void sun4u_init(int ram_size, int vga_ram_size, int boot_device,
 	    }
         }
     }
-    nvram_init(nvram, (uint8_t *)&nd_table[0].macaddr, kernel_cmdline, boot_device, ram_size, kernel_size, graphic_width, graphic_height, graphic_depth);
+    pci_bus = pci_apb_init(APB_SPECIAL_BASE, APB_MEM_BASE);
+    isa_mem_base = VGA_BASE;
+    vga_initialize(pci_bus, ds, phys_ram_base + ram_size, ram_size, 
+                   vga_ram_size, 0, 0);
+    cpu_register_physical_memory(VGA_BASE, vga_ram_size, ram_size);
+    //pci_cirrus_vga_init(pci_bus, ds, phys_ram_base + ram_size, ram_size, vga_ram_size);
+
+    for(i = 0; i < MAX_SERIAL_PORTS; i++) {
+        if (serial_hds[i]) {
+            serial_init(serial_io[i], serial_irq[i], serial_hds[i]);
+        }
+    }
+
+    for(i = 0; i < MAX_PARALLEL_PORTS; i++) {
+        if (parallel_hds[i]) {
+            parallel_init(parallel_io[i], parallel_irq[i], parallel_hds[i]);
+        }
+    }
+
+    for(i = 0; i < nb_nics; i++) {
+	pci_ne2000_init(pci_bus, &nd_table[i]);
+    }
+
+    pci_cmd646_ide_init(pci_bus, bs_table, 1);
+    kbd_init();
+    floppy_controller = fdctrl_init(6, 2, 0, 0x3f0, fd_table);
+    nvram = m48t59_init(8, 0, 0x0074, NVRAM_SIZE);
+    sun4u_NVRAM_set_params(nvram, NVRAM_SIZE, "Sun4u", ram_size, boot_device,
+                         KERNEL_LOAD_ADDR, kernel_size,
+                         kernel_cmdline,
+                         INITRD_LOAD_ADDR, initrd_size,
+                         /* XXX: need an option to load a NVRAM image */
+                         0,
+                         graphic_width, graphic_height, graphic_depth);
+
 }
 
 QEMUMachine sun4u_machine = {

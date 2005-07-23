@@ -65,6 +65,9 @@ void do_fcmpd_fcc2(void);
 void do_fcmps_fcc3(void);
 void do_fcmpd_fcc3(void);
 void do_popc();
+void do_wrpstate();
+void do_done();
+void do_retry();
 #endif
 void do_ldd_kernel(target_ulong addr);
 void do_ldd_user(target_ulong addr);

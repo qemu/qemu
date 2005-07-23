@@ -267,15 +267,6 @@
 #endif
 
 #ifdef TARGET_SPARC64
-#undef JUMP_TB
-#define JUMP_TB(opname, tbparam, n, eip)	\
-    do {					\
-	GOTO_TB(opname, tbparam, n);		\
-	T0 = (long)(tbparam) + (n);		\
-	env->pc = (eip) & 0xffffffff;		\
-	EXIT_TB();				\
-    } while (0)
-
 #ifdef WORDS_BIGENDIAN
 typedef union UREG64 {
     struct { uint16_t v3, v2, v1, v0; } w;
@@ -388,7 +379,7 @@ void OPPROTO op_add_T1_T0_cc(void)
 	env->psr |= PSR_ZERO;
     if ((int32_t) T0 < 0)
 	env->psr |= PSR_NEG;
-    if ((T0 & 0xffffffff) < (src1 & 0xffffffff))
+    if ((src1 & 0xffffffff) < (T1 & 0xffffffff))
 	env->psr |= PSR_CARRY;
     if ((((src1 & 0xffffffff) ^ (T1 & 0xffffffff) ^ -1) &
 	 ((src1 & 0xffffffff) ^ (T0 & 0xffffffff))) & (1 << 31))
@@ -433,7 +424,7 @@ void OPPROTO op_addx_T1_T0_cc(void)
 	env->psr |= PSR_ZERO;
     if ((int32_t) T0 < 0)
 	env->psr |= PSR_NEG;
-    if ((T0 & 0xffffffff) < (src1 & 0xffffffff))
+    if ((src1 & 0xffffffff) < (T1 & 0xffffffff))
 	env->psr |= PSR_CARRY;
     if ((((src1 & 0xffffffff) ^ (T1 & 0xffffffff) ^ -1) &
 	 ((src1 & 0xffffffff) ^ (T0 & 0xffffffff))) & (1 << 31))
@@ -478,7 +469,7 @@ void OPPROTO op_sub_T1_T0_cc(void)
 	env->psr |= PSR_ZERO;
     if ((int32_t) T0 < 0)
 	env->psr |= PSR_NEG;
-    if ((T0 & 0xffffffff) < (src1 & 0xffffffff))
+    if ((src1 & 0xffffffff) < (T1 & 0xffffffff))
 	env->psr |= PSR_CARRY;
     if ((((src1 & 0xffffffff) ^ (T1 & 0xffffffff)) &
 	 ((src1 & 0xffffffff) ^ (T0 & 0xffffffff))) & (1 << 31))
@@ -523,7 +514,7 @@ void OPPROTO op_subx_T1_T0_cc(void)
 	env->psr |= PSR_ZERO;
     if ((int32_t) T0 < 0)
 	env->psr |= PSR_NEG;
-    if ((T0 & 0xffffffff) < (src1 & 0xffffffff))
+    if ((src1 & 0xffffffff) < (T1 & 0xffffffff))
 	env->psr |= PSR_CARRY;
     if ((((src1 & 0xffffffff) ^ (T1 & 0xffffffff)) &
 	 ((src1 & 0xffffffff) ^ (T0 & 0xffffffff))) & (1 << 31))
@@ -585,7 +576,11 @@ void OPPROTO op_umul_T1_T0(void)
 {
     uint64_t res;
     res = (uint64_t) T0 * (uint64_t) T1;
+#ifdef TARGET_SPARC64
+    T0 = res;
+#else
     T0 = res & 0xffffffff;
+#endif
     env->y = res >> 32;
 }
 
@@ -593,7 +588,11 @@ void OPPROTO op_smul_T1_T0(void)
 {
     uint64_t res;
     res = (int64_t) ((int32_t) T0) * (int64_t) ((int32_t) T1);
+#ifdef TARGET_SPARC64
+    T0 = res;
+#else
     T0 = res & 0xffffffff;
+#endif
     env->y = res >> 32;
 }
 
@@ -902,7 +901,7 @@ void OPPROTO op_rdpstate(void)
 
 void OPPROTO op_wrpstate(void)
 {
-    env->pstate = T0 & 0x1f;
+    do_wrpstate();
 }
 
 // CWP handling is reversed in V9, but we still use the V8 register
@@ -1201,12 +1200,12 @@ void OPPROTO op_eval_xbvc(void)
 #ifdef TARGET_SPARC64
 void OPPROTO op_eval_brz(void)
 {
-    T2 = T0;
+    T2 = (T0 == 0);
 }
 
 void OPPROTO op_eval_brnz(void)
 {
-    T2 = !T0;
+    T2 = (T0 != 0);
 }
 
 void OPPROTO op_eval_brlz(void)
@@ -1266,43 +1265,32 @@ void OPPROTO op_next_insn(void)
     env->npc = env->npc + 4;
 }
 
-void OPPROTO op_branch(void)
+void OPPROTO op_goto_tb0(void)
 {
-    env->npc = (uint32_t)PARAM3; /* XXX: optimize */
-    JUMP_TB(op_branch, PARAM1, 0, PARAM2);
+    GOTO_TB(op_goto_tb0, PARAM1, 0);
 }
 
-void OPPROTO op_branch2(void)
+void OPPROTO op_goto_tb1(void)
 {
-    if (T2) {
-        env->npc = (uint32_t)PARAM2 + 4; 
-        JUMP_TB(op_branch2, PARAM1, 0, PARAM2);
-    } else {
-        env->npc = (uint32_t)PARAM3 + 4; 
-        JUMP_TB(op_branch2, PARAM1, 1, PARAM3);
-    }
+    GOTO_TB(op_goto_tb1, PARAM1, 1);
+}
+
+void OPPROTO op_jmp_label(void)
+{
+    GOTO_LABEL_PARAM(1);
+}
+
+void OPPROTO op_jnz_T2_label(void)
+{
+    if (T2)
+        GOTO_LABEL_PARAM(1);
     FORCE_RET();
 }
 
-void OPPROTO op_branch_a(void)
+void OPPROTO op_jz_T2_label(void)
 {
-    if (T2) {
-	env->npc = (uint32_t)PARAM2; /* XXX: optimize */
-        JUMP_TB(op_branch_a, PARAM1, 0, PARAM3);
-    } else {
-	env->npc = (uint32_t)PARAM3 + 8; /* XXX: optimize */
-        JUMP_TB(op_branch_a, PARAM1, 1, PARAM3 + 4);
-    }
-    FORCE_RET();
-}
-
-void OPPROTO op_generic_branch(void)
-{
-    if (T2) {
-	env->npc = (uint32_t)PARAM1;
-    } else {
-	env->npc = (uint32_t)PARAM2;
-    }
+    if (!T2)
+        GOTO_LABEL_PARAM(1);
     FORCE_RET();
 }
 
@@ -1547,18 +1535,12 @@ void OPPROTO op_popc(void)
 
 void OPPROTO op_done(void)
 {
-    env->pc = env->tnpc[env->tl];
-    env->npc = env->tnpc[env->tl] + 4;
-    env->pstate = env->tstate[env->tl];
-    env->tl--;
+    do_done();
 }
 
 void OPPROTO op_retry(void)
 {
-    env->pc = env->tpc[env->tl];
-    env->npc = env->tnpc[env->tl];
-    env->pstate = env->tstate[env->tl];
-    env->tl--;
+    do_retry();
 }
 
 void OPPROTO op_sir(void)

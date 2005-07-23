@@ -139,7 +139,7 @@ int load_elf(const char *filename, uint8_t *addr)
 
 	if (find_phdr64(&ehdr64, fd, &phdr, PT_LOAD))
 	    goto error;
-	retval = read_program64(fd, &phdr, addr, ehdr64.e_entry);
+	retval = read_program64(fd, &phdr, phys_ram_base + ehdr64.e_entry, ehdr64.e_entry);
 	if (retval < 0)
 	    goto error;
 	load_symbols64(&ehdr64, fd);

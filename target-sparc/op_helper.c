@@ -1,5 +1,6 @@
 #include "exec.h"
 
+//#define DEBUG_PCALL
 //#define DEBUG_MMU
 
 void raise_exception(int tt)
@@ -223,7 +224,7 @@ void do_fcmpd_fcc3 (void)
 #ifndef TARGET_SPARC64
 void helper_ld_asi(int asi, int size, int sign)
 {
-    uint32_t ret;
+    uint32_t ret = 0;
 
     switch (asi) {
     case 3: /* MMU probe */
@@ -299,7 +300,8 @@ void helper_st_asi(int asi, int size, int sign)
 	}
     case 4: /* write MMU regs */
 	{
-	    int reg = (T0 >> 8) & 0xf, oldreg;
+	    int reg = (T0 >> 8) & 0xf;
+	    uint32_t oldreg;
 	    
 	    oldreg = env->mmuregs[reg];
             switch(reg) {
@@ -339,7 +341,7 @@ void helper_st_asi(int asi, int size, int sign)
 	    // value (T1) = src
 	    // address (T0) = dst
 	    // copy 32 bytes
-	    int src = T1, dst = T0;
+	    uint32_t src = T1, dst = T0;
 	    uint8_t temp[32];
 	    
 	    tswap32s(&src);
@@ -353,7 +355,8 @@ void helper_st_asi(int asi, int size, int sign)
 	    // value (T1, T2)
 	    // address (T0) = dst
 	    // fill 32 bytes
-	    int i, dst = T0;
+	    int i;
+	    uint32_t dst = T0;
 	    uint64_t val;
 	    
 	    val = (((uint64_t)T1) << 32) | T2;
@@ -366,7 +369,7 @@ void helper_st_asi(int asi, int size, int sign)
 	return;
     case 0x20 ... 0x2f: /* MMU passthrough */
 	{
-	    int temp = T1;
+	    uint32_t temp = T1;
 	    if (size == 4)
 		tswap32s(&temp);
 	    else if (size == 2)
@@ -383,10 +386,10 @@ void helper_st_asi(int asi, int size, int sign)
 
 void helper_ld_asi(int asi, int size, int sign)
 {
-    uint64_t ret;
+    uint64_t ret = 0;
 
     if (asi < 0x80 && (env->pstate & PS_PRIV) == 0)
-	raise_exception(TT_PRIV_INSN);
+	raise_exception(TT_PRIV_ACT);
 
     switch (asi) {
     case 0x14: // Bypass
@@ -401,8 +404,23 @@ void helper_ld_asi(int asi, int size, int sign)
 		tswap16s((uint16_t *)&ret);
 	    break;
 	}
+    case 0x04: // Nucleus
+    case 0x0c: // Nucleus Little Endian (LE)
+    case 0x10: // As if user primary
+    case 0x11: // As if user secondary
+    case 0x18: // As if user primary LE
+    case 0x19: // As if user secondary LE
     case 0x1c: // Bypass LE
     case 0x1d: // Bypass, non-cacheable LE
+    case 0x24: // Nucleus quad LDD 128 bit atomic
+    case 0x2c: // Nucleus quad LDD 128 bit atomic
+    case 0x4a: // UPA config
+    case 0x82: // Primary no-fault
+    case 0x83: // Secondary no-fault
+    case 0x88: // Primary LE
+    case 0x89: // Secondary LE
+    case 0x8a: // Primary no-fault LE
+    case 0x8b: // Secondary no-fault LE
 	// XXX
 	break;
     case 0x45: // LSU
@@ -418,8 +436,22 @@ void helper_ld_asi(int asi, int size, int sign)
     case 0x51: // I-MMU 8k TSB pointer
     case 0x52: // I-MMU 64k TSB pointer
     case 0x55: // I-MMU data access
-    case 0x56: // I-MMU tag read
+	// XXX
 	break;
+    case 0x56: // I-MMU tag read
+	{
+	    unsigned int i;
+	    
+	    for (i = 0; i < 64; i++) {
+		// Valid, ctx match, vaddr match
+		if ((env->itlb_tte[i] & 0x8000000000000000ULL) != 0 &&
+		    env->itlb_tag[i] == T0) {
+		    ret = env->itlb_tag[i];
+		    break;
+		}
+	    }
+	    break;
+	}
     case 0x58: // D-MMU regs
 	{
 	    int reg = (T0 >> 3) & 0xf;
@@ -427,16 +459,34 @@ void helper_ld_asi(int asi, int size, int sign)
 	    ret = env->dmmuregs[reg];
 	    break;
 	}
+    case 0x5e: // D-MMU tag read
+	{
+	    unsigned int i;
+	    
+	    for (i = 0; i < 64; i++) {
+		// Valid, ctx match, vaddr match
+		if ((env->dtlb_tte[i] & 0x8000000000000000ULL) != 0 &&
+		    env->dtlb_tag[i] == T0) {
+		    ret = env->dtlb_tag[i];
+		    break;
+		}
+	    }
+	    break;
+	}
     case 0x59: // D-MMU 8k TSB pointer
     case 0x5a: // D-MMU 64k TSB pointer
     case 0x5b: // D-MMU data pointer
     case 0x5d: // D-MMU data access
-    case 0x5e: // D-MMU tag read
+    case 0x48: // Interrupt dispatch, RO
+    case 0x49: // Interrupt data receive
+    case 0x7f: // Incoming interrupt vector, RO
+	// XXX
 	break;
     case 0x54: // I-MMU data in, WO
     case 0x57: // I-MMU demap, WO
     case 0x5c: // D-MMU data in, WO
     case 0x5f: // D-MMU demap, WO
+    case 0x77: // Interrupt vector, WO
     default:
 	ret = 0;
 	break;
@@ -447,7 +497,7 @@ void helper_ld_asi(int asi, int size, int sign)
 void helper_st_asi(int asi, int size, int sign)
 {
     if (asi < 0x80 && (env->pstate & PS_PRIV) == 0)
-	raise_exception(TT_PRIV_INSN);
+	raise_exception(TT_PRIV_ACT);
 
     switch(asi) {
     case 0x14: // Bypass
@@ -463,8 +513,19 @@ void helper_st_asi(int asi, int size, int sign)
 	    cpu_physical_memory_write(T0, (void *) &temp, size);
 	}
 	return;
+    case 0x04: // Nucleus
+    case 0x0c: // Nucleus Little Endian (LE)
+    case 0x10: // As if user primary
+    case 0x11: // As if user secondary
+    case 0x18: // As if user primary LE
+    case 0x19: // As if user secondary LE
     case 0x1c: // Bypass LE
     case 0x1d: // Bypass, non-cacheable LE
+    case 0x24: // Nucleus quad LDD 128 bit atomic
+    case 0x2c: // Nucleus quad LDD 128 bit atomic
+    case 0x4a: // UPA config
+    case 0x88: // Primary LE
+    case 0x89: // Secondary LE
 	// XXX
 	return;
     case 0x45: // LSU
@@ -475,8 +536,13 @@ void helper_st_asi(int asi, int size, int sign)
 	    env->lsu = T1 & (DMMU_E | IMMU_E);
 	    // Mappings generated during D/I MMU disabled mode are
 	    // invalid in normal mode
-	    if (oldreg != env->lsu)
+	    if (oldreg != env->lsu) {
+#ifdef DEBUG_MMU
+                printf("LSU change: 0x%llx -> 0x%llx\n", oldreg, env->lsu);
+		dump_mmu(env);
+#endif
 		tlb_flush(env, 1);
+	    }
 	    return;
 	}
     case 0x50: // I-MMU regs
@@ -506,7 +572,7 @@ void helper_st_asi(int asi, int size, int sign)
 	    env->immuregs[reg] = T1;
 #ifdef DEBUG_MMU
             if (oldreg != env->immuregs[reg]) {
-                printf("mmu change reg[%d]: 0x%08x -> 0x%08x\n", reg, oldreg, env->immuregs[reg]);
+                printf("mmu change reg[%d]: 0x%08llx -> 0x%08llx\n", reg, oldreg, env->immuregs[reg]);
             }
 	    dump_mmu(env);
 #endif
@@ -544,6 +610,7 @@ void helper_st_asi(int asi, int size, int sign)
 	    return;
 	}
     case 0x57: // I-MMU demap
+	// XXX
 	return;
     case 0x58: // D-MMU regs
 	{
@@ -574,7 +641,7 @@ void helper_st_asi(int asi, int size, int sign)
 	    env->dmmuregs[reg] = T1;
 #ifdef DEBUG_MMU
             if (oldreg != env->dmmuregs[reg]) {
-                printf("mmu change reg[%d]: 0x%08x -> 0x%08x\n", reg, oldreg, env->dmmuregs[reg]);
+                printf("mmu change reg[%d]: 0x%08llx -> 0x%08llx\n", reg, oldreg, env->dmmuregs[reg]);
             }
 	    dump_mmu(env);
 #endif
@@ -612,6 +679,8 @@ void helper_st_asi(int asi, int size, int sign)
 	    return;
 	}
     case 0x5f: // D-MMU demap
+    case 0x49: // Interrupt data receive
+	// XXX
 	return;
     case 0x51: // I-MMU 8k TSB pointer, RO
     case 0x52: // I-MMU 64k TSB pointer, RO
@@ -620,6 +689,12 @@ void helper_st_asi(int asi, int size, int sign)
     case 0x5a: // D-MMU 64k TSB pointer, RO
     case 0x5b: // D-MMU data pointer, RO
     case 0x5e: // D-MMU tag read, RO
+    case 0x48: // Interrupt dispatch, RO
+    case 0x7f: // Incoming interrupt vector, RO
+    case 0x82: // Primary no-fault, RO
+    case 0x83: // Secondary no-fault, RO
+    case 0x8a: // Primary no-fault LE, RO
+    case 0x8b: // Secondary no-fault LE, RO
     default:
 	return;
     }
@@ -704,6 +779,61 @@ void do_popc()
     T0 = (T0 & 0x0000ffff0000ffffULL) + ((T0 >> 16) & 0x0000ffff0000ffffULL);
     T0 = (T0 & 0x00000000ffffffffULL) + ((T0 >> 32) & 0x00000000ffffffffULL);
 }
+
+static inline uint64_t *get_gregset(uint64_t pstate)
+{
+    switch (pstate) {
+    default:
+    case 0:
+	return env->bgregs;
+    case PS_AG:
+	return env->agregs;
+    case PS_MG:
+	return env->mgregs;
+    case PS_IG:
+	return env->igregs;
+    }
+}
+
+void do_wrpstate()
+{
+    uint64_t new_pstate, pstate_regs, new_pstate_regs;
+    uint64_t *src, *dst;
+
+    new_pstate = T0 & 0xf3f;
+    pstate_regs = env->pstate & 0xc01;
+    new_pstate_regs = new_pstate & 0xc01;
+    if (new_pstate_regs != pstate_regs) {
+	// Switch global register bank
+	src = get_gregset(new_pstate_regs);
+	dst = get_gregset(pstate_regs);
+	memcpy32(dst, env->gregs);
+	memcpy32(env->gregs, src);
+    }
+    env->pstate = new_pstate;
+}
+
+void do_done(void)
+{
+    env->tl--;
+    env->pc = env->tnpc[env->tl];
+    env->npc = env->tnpc[env->tl] + 4;
+    PUT_CCR(env, env->tstate[env->tl] >> 32);
+    env->asi = (env->tstate[env->tl] >> 24) & 0xff;
+    env->pstate = (env->tstate[env->tl] >> 8) & 0xfff;
+    set_cwp(env->tstate[env->tl] & 0xff);
+}
+
+void do_retry(void)
+{
+    env->tl--;
+    env->pc = env->tpc[env->tl];
+    env->npc = env->tnpc[env->tl];
+    PUT_CCR(env, env->tstate[env->tl] >> 32);
+    env->asi = (env->tstate[env->tl] >> 24) & 0xff;
+    env->pstate = (env->tstate[env->tl] >> 8) & 0xfff;
+    set_cwp(env->tstate[env->tl] & 0xff);
+}
 #endif
 
 void set_cwp(int new_cwp)
@@ -744,7 +874,7 @@ void do_interrupt(int intno)
 #ifdef DEBUG_PCALL
     if (loglevel & CPU_LOG_INT) {
 	static int count;
-	fprintf(logfile, "%6d: v=%02x pc=%08x npc=%08x SP=%08x\n",
+	fprintf(logfile, "%6d: v=%04x pc=%016llx npc=%016llx SP=%016llx\n",
                 count, intno,
                 env->pc,
                 env->npc, env->regwptr[6]);
@@ -766,8 +896,8 @@ void do_interrupt(int intno)
     }
 #endif
 #if !defined(CONFIG_USER_ONLY) 
-    if (env->pstate & PS_IE) {
-        cpu_abort(cpu_single_env, "Trap 0x%02x while interrupts disabled, Error state", env->exception_index);
+    if (env->tl == MAXTL) {
+        cpu_abort(cpu_single_env, "Trap 0x%04x while trap level is MAXTL, Error state", env->exception_index);
 	return;
     }
 #endif
@@ -776,8 +906,16 @@ void do_interrupt(int intno)
     env->tpc[env->tl] = env->pc;
     env->tnpc[env->tl] = env->npc;
     env->tt[env->tl] = intno;
-    env->tbr = env->tbr | (env->tl > 1) ? 1 << 14 : 0 | (intno << 4);
-    env->tl++;
+    env->pstate = PS_PEF | PS_PRIV | PS_AG;
+    env->tbr &= ~0x7fffULL;
+    env->tbr |= ((env->tl > 1) ? 1 << 14 : 0) | (intno << 5);
+    if (env->tl < MAXTL - 1) {
+	env->tl++;
+    } else {
+	env->pstate |= PS_RED;
+	if (env->tl != MAXTL)
+	    env->tl++;
+    }
     env->pc = env->tbr;
     env->npc = env->pc + 4;
     env->exception_index = 0;

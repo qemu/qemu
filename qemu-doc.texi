@@ -1058,6 +1058,19 @@ Set the initial TCX graphic mode. The default is 1024x768.
 Use the executable @file{qemu-system-sparc64} to simulate a Sun4u machine.
 The emulator is not usable for anything yet.
 
+QEMU emulates the following sun4u peripherals:
+
+@itemize @minus
+@item
+UltraSparc IIi APB PCI Bridge 
+@item
+PCI VGA compatible card with VESA Bochs Extensions
+@item
+Non Volatile RAM M48T59
+@item
+PC-compatible serial ports
+@end itemize
+
 @chapter MIPS System emulator invocation
 
 Use the executable @file{qemu-system-mips} to simulate a MIPS machine.

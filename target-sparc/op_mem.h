@@ -105,20 +105,10 @@ void OPPROTO glue(op_casx, MEMSUFFIX)(void)
 
 void OPPROTO glue(op_ldsw, MEMSUFFIX)(void)
 {
-    T1 = (int64_t)glue(ldl, MEMSUFFIX)(T0);
+    T1 = (int64_t)(glue(ldl, MEMSUFFIX)(T0) & 0xffffffff);
 }
 
-void OPPROTO glue(op_ldx, MEMSUFFIX)(void)
-{
-    // XXX
-    T1 = (uint64_t)glue(ldl, MEMSUFFIX)(T0) << 32;
-    T1 |= glue(ldl, MEMSUFFIX)(T0);
-}
-
-void OPPROTO glue(op_stx, MEMSUFFIX)(void)
-{
-    glue(stl, MEMSUFFIX)(T0, T1 >> 32);
-    glue(stl, MEMSUFFIX)(T0, T1 & 0xffffffff);
-}
+SPARC_LD_OP(ldx, ldq);
+SPARC_ST_OP(stx, stq);
 #endif
 #undef MEMSUFFIX
