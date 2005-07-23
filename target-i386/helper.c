@@ -1209,13 +1209,13 @@ void raise_exception(int exception_index)
 #ifdef BUGGY_GCC_DIV64
 /* gcc 2.95.4 on PowerPC does not seem to like using __udivdi3, so we
    call it from another function */
-uint32_t div32(uint32_t *q_ptr, uint64_t num, uint32_t den)
+uint32_t div32(uint64_t *q_ptr, uint64_t num, uint32_t den)
 {
     *q_ptr = num / den;
     return num % den;
 }
 
-int32_t idiv32(int32_t *q_ptr, int64_t num, int32_t den)
+int32_t idiv32(int64_t *q_ptr, int64_t num, int32_t den)
 {
     *q_ptr = num / den;
     return num % den;
@@ -1224,8 +1224,8 @@ int32_t idiv32(int32_t *q_ptr, int64_t num, int32_t den)
 
 void helper_divl_EAX_T0(void)
 {
-    unsigned int den, q, r;
-    uint64_t num;
+    unsigned int den, r;
+    uint64_t num, q;
     
     num = ((uint32_t)EAX) | ((uint64_t)((uint32_t)EDX) << 32);
     den = T0;
@@ -1238,14 +1238,16 @@ void helper_divl_EAX_T0(void)
     q = (num / den);
     r = (num % den);
 #endif
+    if (q > 0xffffffff)
+        raise_exception(EXCP00_DIVZ);
     EAX = (uint32_t)q;
     EDX = (uint32_t)r;
 }
 
 void helper_idivl_EAX_T0(void)
 {
-    int den, q, r;
-    int64_t num;
+    int den, r;
+    int64_t num, q;
     
     num = ((uint32_t)EAX) | ((uint64_t)((uint32_t)EDX) << 32);
     den = T0;
@@ -1258,6 +1260,8 @@ void helper_idivl_EAX_T0(void)
     q = (num / den);
     r = (num % den);
 #endif
+    if (q != (int32_t)q)
+        raise_exception(EXCP00_DIVZ);
     EAX = (uint32_t)q;
     EDX = (uint32_t)r;
 }
@@ -3254,8 +3258,8 @@ static void imul64(uint64_t *plow, uint64_t *phigh, int64_t a, int64_t b)
     }
 }
 
-/* XXX: overflow support */
-static void div64(uint64_t *plow, uint64_t *phigh, uint64_t b)
+/* return TRUE if overflow */
+static int div64(uint64_t *plow, uint64_t *phigh, uint64_t b)
 {
     uint64_t q, r, a1, a0;
     int i, qb;
@@ -3268,6 +3272,8 @@ static void div64(uint64_t *plow, uint64_t *phigh, uint64_t b)
         *plow = q;
         *phigh = r;
     } else {
+        if (a1 >= b)
+            return 1;
         /* XXX: use a better algorithm */
         for(i = 0; i < 64; i++) {
             a1 = (a1 << 1) | (a0 >> 63);
@@ -3286,9 +3292,11 @@ static void div64(uint64_t *plow, uint64_t *phigh, uint64_t b)
         *plow = a0;
         *phigh = a1;
     }
+    return 0;
 }
 
-static void idiv64(uint64_t *plow, uint64_t *phigh, int64_t b)
+/* return TRUE if overflow */
+static int idiv64(uint64_t *plow, uint64_t *phigh, int64_t b)
 {
     int sa, sb;
     sa = ((int64_t)*phigh < 0);
@@ -3297,11 +3305,19 @@ static void idiv64(uint64_t *plow, uint64_t *phigh, int64_t b)
     sb = (b < 0);
     if (sb)
         b = -b;
-    div64(plow, phigh, b);
-    if (sa ^ sb)
+    if (div64(plow, phigh, b) != 0)
+        return 1;
+    if (sa ^ sb) {
+        if (*plow > (1ULL << 63))
+            return 1;
         *plow = - *plow;
+    } else {
+        if (*plow >= (1ULL << 63))
+            return 1;
+    }
     if (sa)
         *phigh = - *phigh;
+    return 0;
 }
 
 void helper_mulq_EAX_T0(void)
@@ -3344,7 +3360,8 @@ void helper_divq_EAX_T0(void)
     }
     r0 = EAX;
     r1 = EDX;
-    div64(&r0, &r1, T0);
+    if (div64(&r0, &r1, T0))
+        raise_exception(EXCP00_DIVZ);
     EAX = r0;
     EDX = r1;
 }
@@ -3357,7 +3374,8 @@ void helper_idivq_EAX_T0(void)
     }
     r0 = EAX;
     r1 = EDX;
-    idiv64(&r0, &r1, T0);
+    if (idiv64(&r0, &r1, T0))
+        raise_exception(EXCP00_DIVZ);
     EAX = r0;
     EDX = r1;
 }

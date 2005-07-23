@@ -328,7 +328,6 @@ void OPPROTO op_imulq_T0_T1(void)
 #endif
 
 /* division, flags are undefined */
-/* XXX: add exceptions for overflow */
 
 void OPPROTO op_divb_AL_T0(void)
 {
@@ -339,7 +338,10 @@ void OPPROTO op_divb_AL_T0(void)
     if (den == 0) {
         raise_exception(EXCP00_DIVZ);
     }
-    q = (num / den) & 0xff;
+    q = (num / den);
+    if (q > 0xff)
+        raise_exception(EXCP00_DIVZ);
+    q &= 0xff;
     r = (num % den) & 0xff;
     EAX = (EAX & ~0xffff) | (r << 8) | q;
 }
@@ -353,7 +355,10 @@ void OPPROTO op_idivb_AL_T0(void)
     if (den == 0) {
         raise_exception(EXCP00_DIVZ);
     }
-    q = (num / den) & 0xff;
+    q = (num / den);
+    if (q != (int8_t)q)
+        raise_exception(EXCP00_DIVZ);
+    q &= 0xff;
     r = (num % den) & 0xff;
     EAX = (EAX & ~0xffff) | (r << 8) | q;
 }
@@ -367,7 +372,10 @@ void OPPROTO op_divw_AX_T0(void)
     if (den == 0) {
         raise_exception(EXCP00_DIVZ);
     }
-    q = (num / den) & 0xffff;
+    q = (num / den);
+    if (q > 0xffff)
+        raise_exception(EXCP00_DIVZ);
+    q &= 0xffff;
     r = (num % den) & 0xffff;
     EAX = (EAX & ~0xffff) | q;
     EDX = (EDX & ~0xffff) | r;
@@ -382,7 +390,10 @@ void OPPROTO op_idivw_AX_T0(void)
     if (den == 0) {
         raise_exception(EXCP00_DIVZ);
     }
-    q = (num / den) & 0xffff;
+    q = (num / den);
+    if (q != (int16_t)q)
+        raise_exception(EXCP00_DIVZ);
+    q &= 0xffff;
     r = (num % den) & 0xffff;
     EAX = (EAX & ~0xffff) | q;
     EDX = (EDX & ~0xffff) | r;
