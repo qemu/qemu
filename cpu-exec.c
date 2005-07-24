@@ -1280,6 +1280,23 @@ int cpu_signal_handler(int host_signum, struct siginfo *info, void *puc)
                              &uc->uc_sigmask, puc);
 }
 
+#elif defined(__s390__)
+
+int cpu_signal_handler(int host_signum, struct siginfo *info, 
+                       void *puc)
+{
+    struct ucontext *uc = puc;
+    unsigned long pc;
+    int is_write;
+    
+    pc = uc->uc_mcontext.psw.addr;
+    /* XXX: compute is_write */
+    is_write = 0;
+    return handle_cpu_signal(pc, (unsigned long)info->si_addr, 
+                             is_write,
+                             &uc->uc_sigmask, puc);
+}
+
 #else
 
 #error host CPU specific signal handler needed

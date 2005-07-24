@@ -532,6 +532,15 @@ int64_t cpu_get_real_ticks(void)
 	return val;
 }
 
+#elif defined(__s390__)
+
+int64_t cpu_get_real_ticks(void)
+{
+    int64_t val;
+    asm volatile("stck 0(%1)" : "=m" (val) : "a" (&val) : "cc");
+    return val;
+}
+
 #else
 #error unsupported CPU
 #endif
