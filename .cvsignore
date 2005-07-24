@@ -6,6 +6,7 @@ i386
 i386-softmmu
 i386-user
 ppc-softmmu
+ppc64-softmmu
 ppc-user
 qemu-doc.html
 qemu-tech.html
