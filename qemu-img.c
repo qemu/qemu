@@ -127,7 +127,7 @@ static void format_print(void *opaque, const char *name)
 
 void help(void)
 {
-    printf("qemu-img version " QEMU_VERSION ", Copyright (c) 2004 Fabrice Bellard\n"
+    printf("qemu-img version " QEMU_VERSION ", Copyright (c) 2004-2005 Fabrice Bellard\n"
            "usage: qemu-img command [command options]\n"
            "QEMU disk image utility\n"
            "\n"

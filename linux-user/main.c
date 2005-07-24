@@ -973,7 +973,7 @@ void cpu_loop(CPUPPCState *env)
 
 void usage(void)
 {
-    printf("qemu-" TARGET_ARCH " version " QEMU_VERSION ", Copyright (c) 2003-2004 Fabrice Bellard\n"
+    printf("qemu-" TARGET_ARCH " version " QEMU_VERSION ", Copyright (c) 2003-2005 Fabrice Bellard\n"
            "usage: qemu-" TARGET_ARCH " [-h] [-g] [-d opts] [-L path] [-s size] program [arguments...]\n"
            "Linux CPU emulator (compiled for %s emulation)\n"
            "\n"
