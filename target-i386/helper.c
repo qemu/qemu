@@ -2888,11 +2888,7 @@ void helper_frndint(void)
 
 void helper_fscale(void)
 {
-    CPU86_LDouble fpsrcop, fptemp;
-
-    fpsrcop = 2.0;
-    fptemp = pow(fpsrcop,ST1);
-    ST0 *= fptemp;
+    ST0 = ldexp (ST0, (int)(ST1)); 
 }
 
 void helper_fsin(void)

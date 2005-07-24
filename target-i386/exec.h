@@ -337,6 +337,7 @@ static inline void stfl(target_ulong ptr, float v)
 #define atan2 atan2l
 #define floor floorl
 #define ceil ceill
+#define ldexp ldexpl
 #else
 #define floatx_to_int32 float64_to_int32
 #define floatx_to_int64 float64_to_int64
