@@ -178,7 +178,7 @@ uint8_t cpu_get_apic_tpr(CPUX86State *env)
     return s->tpr >> 4;
 }
 
-int fls_bit(int value)
+static int fls_bit(int value)
 {
     unsigned int ret = 0;
 
