@@ -885,6 +885,20 @@ static void mem_info(void)
 }
 #endif
 
+static void do_info_kqemu(void)
+{
+#ifdef USE_KQEMU
+    int val;
+    val = 0;
+    if (cpu_single_env)
+        val = cpu_single_env->kqemu_enabled;
+    term_printf("kqemu is %s\n", val ? "enabled" : "disabled");
+#else
+    term_printf("kqemu support is not compiled\n");
+#endif
+} 
+
+
 static term_cmd_t term_cmds[] = {
     { "help|?", "s?", do_help, 
       "[cmd]", "show the help" },
@@ -959,6 +973,8 @@ static term_cmd_t info_cmds[] = {
 #endif
     { "jit", "", do_info_jit,
       "", "show dynamic compiler info", },
+    { "kqemu", "", do_info_kqemu,
+      "", "show kqemu information", },
     { NULL, NULL, },
 };
 
