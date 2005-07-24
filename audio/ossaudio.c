@@ -127,7 +127,7 @@ static int oss_open (struct oss_params *req, struct oss_params *obt, int *pfd)
     int fmt, freq, nchannels;
     const char *dspname = conf.dspname;
 
-    fd = open (dspname, O_RDWR | O_NONBLOCK);
+    fd = open (dspname, O_WRONLY | O_NONBLOCK);
     if (-1 == fd) {
         dolog ("Could not initialize audio hardware. Failed to open `%s':\n"
                "Reason:%s\n",
