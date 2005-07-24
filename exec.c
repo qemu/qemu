@@ -83,6 +83,8 @@ typedef struct PhysPageDesc {
     uint32_t phys_offset;
 } PhysPageDesc;
 
+/* Note: the VirtPage handling is absolete and will be suppressed
+   ASAP */
 typedef struct VirtPageDesc {
     /* physical address of code page. It is valid only if 'valid_tag'
        matches 'virt_valid_tag' */ 
@@ -113,7 +115,13 @@ static PageDesc *l1_map[L1_SIZE];
 PhysPageDesc **l1_phys_map;
 
 #if !defined(CONFIG_USER_ONLY)
+#if TARGET_LONG_BITS > 32
+#define VIRT_L_BITS 9
+#define VIRT_L_SIZE (1 << VIRT_L_BITS)
+static void *l1_virt_map[VIRT_L_SIZE];
+#else
 static VirtPageDesc *l1_virt_map[L1_SIZE];
+#endif
 static unsigned int virt_valid_tag;
 #endif
 
@@ -234,51 +242,113 @@ static inline PhysPageDesc *phys_page_find(unsigned int index)
 static void tlb_protect_code(CPUState *env, target_ulong addr);
 static void tlb_unprotect_code_phys(CPUState *env, unsigned long phys_addr, target_ulong vaddr);
 
-static inline VirtPageDesc *virt_page_find_alloc(unsigned int index)
+static VirtPageDesc *virt_page_find_alloc(target_ulong index, int alloc)
 {
-    VirtPageDesc **lp, *p;
-
-    /* XXX: should not truncate for 64 bit addresses */
 #if TARGET_LONG_BITS > 32
-    index &= (L1_SIZE - 1);
-#endif
+    void **p, **lp;
+
+    p = l1_virt_map;
+    lp = p + ((index >> (5 * VIRT_L_BITS)) & (VIRT_L_SIZE - 1));
+    p = *lp;
+    if (!p) {
+        if (!alloc)
+            return NULL;
+        p = qemu_mallocz(sizeof(void *) * VIRT_L_SIZE);
+        *lp = p;
+    }
+    lp = p + ((index >> (4 * VIRT_L_BITS)) & (VIRT_L_SIZE - 1));
+    p = *lp;
+    if (!p) {
+        if (!alloc)
+            return NULL;
+        p = qemu_mallocz(sizeof(void *) * VIRT_L_SIZE);
+        *lp = p;
+    }
+    lp = p + ((index >> (3 * VIRT_L_BITS)) & (VIRT_L_SIZE - 1));
+    p = *lp;
+    if (!p) {
+        if (!alloc)
+            return NULL;
+        p = qemu_mallocz(sizeof(void *) * VIRT_L_SIZE);
+        *lp = p;
+    }
+    lp = p + ((index >> (2 * VIRT_L_BITS)) & (VIRT_L_SIZE - 1));
+    p = *lp;
+    if (!p) {
+        if (!alloc)
+            return NULL;
+        p = qemu_mallocz(sizeof(void *) * VIRT_L_SIZE);
+        *lp = p;
+    }
+    lp = p + ((index >> (1 * VIRT_L_BITS)) & (VIRT_L_SIZE - 1));
+    p = *lp;
+    if (!p) {
+        if (!alloc)
+            return NULL;
+        p = qemu_mallocz(sizeof(VirtPageDesc) * VIRT_L_SIZE);
+        *lp = p;
+    }
+    return ((VirtPageDesc *)p) + (index & (VIRT_L_SIZE - 1));
+#else
+    VirtPageDesc *p, **lp;
+
     lp = &l1_virt_map[index >> L2_BITS];
     p = *lp;
     if (!p) {
         /* allocate if not found */
-        p = qemu_malloc(sizeof(VirtPageDesc) * L2_SIZE);
-        memset(p, 0, sizeof(VirtPageDesc) * L2_SIZE);
+        if (!alloc)
+            return NULL;
+        p = qemu_mallocz(sizeof(VirtPageDesc) * L2_SIZE);
         *lp = p;
     }
     return p + (index & (L2_SIZE - 1));
+#endif
 }
 
-static inline VirtPageDesc *virt_page_find(unsigned int index)
+static inline VirtPageDesc *virt_page_find(target_ulong index)
 {
-    VirtPageDesc *p;
-
-    p = l1_virt_map[index >> L2_BITS];
-    if (!p)
-        return 0;
-    return p + (index & (L2_SIZE - 1));
+    return virt_page_find_alloc(index, 0);
 }
+
+#if TARGET_LONG_BITS > 32
+static void virt_page_flush_internal(void **p, int level)
+{
+    int i; 
+    if (level == 0) {
+        VirtPageDesc *q = (VirtPageDesc *)p;
+        for(i = 0; i < VIRT_L_SIZE; i++)
+            q[i].valid_tag = 0;
+    } else {
+        level--;
+        for(i = 0; i < VIRT_L_SIZE; i++) {
+            if (p[i])
+                virt_page_flush_internal(p[i], level);
+        }
+    }
+}
+#endif
 
 static void virt_page_flush(void)
 {
-    int i, j;
-    VirtPageDesc *p;
-    
     virt_valid_tag++;
 
     if (virt_valid_tag == 0) {
         virt_valid_tag = 1;
-        for(i = 0; i < L1_SIZE; i++) {
-            p = l1_virt_map[i];
-            if (p) {
-                for(j = 0; j < L2_SIZE; j++)
-                    p[j].valid_tag = 0;
+#if TARGET_LONG_BITS > 32
+        virt_page_flush_internal(l1_virt_map, 5);
+#else
+        {
+            int i, j;
+            VirtPageDesc *p;
+            for(i = 0; i < L1_SIZE; i++) {
+                p = l1_virt_map[i];
+                if (p) {
+                    for(j = 0; j < L2_SIZE; j++)
+                        p[j].valid_tag = 0;
+                }
             }
         }
+#endif
     }
 }
 #else
@@ -945,7 +1015,7 @@ void tb_link(TranslationBlock *tb)
         
         /* save the code memory mappings (needed to invalidate the code) */
         addr = tb->pc & TARGET_PAGE_MASK;
-        vp = virt_page_find_alloc(addr >> TARGET_PAGE_BITS);
+        vp = virt_page_find_alloc(addr >> TARGET_PAGE_BITS, 1);
 #ifdef DEBUG_TLB_CHECK 
         if (vp->valid_tag == virt_valid_tag &&
             vp->phys_addr != tb->page_addr[0]) {
@@ -963,7 +1033,7 @@ void tb_link(TranslationBlock *tb)
         
         if (tb->page_addr[1] != -1) {
             addr += TARGET_PAGE_SIZE;
-            vp = virt_page_find_alloc(addr >> TARGET_PAGE_BITS);
+            vp = virt_page_find_alloc(addr >> TARGET_PAGE_BITS, 1);
 #ifdef DEBUG_TLB_CHECK 
             if (vp->valid_tag == virt_valid_tag &&
                 vp->phys_addr != tb->page_addr[1]) { 
@@ -1572,7 +1642,7 @@ int tlb_set_page(CPUState *env, target_ulong vaddr,
             addend = (unsigned long)phys_ram_base + (pd & TARGET_PAGE_MASK);
         }
         
-        index = (vaddr >> 12) & (CPU_TLB_SIZE - 1);
+        index = (vaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
         addend -= vaddr;
         if (prot & PAGE_READ) {
             env->tlb_read[is_user][index].address = address;
@@ -1635,7 +1705,7 @@ int tlb_set_page(CPUState *env, target_ulong vaddr,
                            original mapping */
                         VirtPageDesc *vp;
                         
-                        vp = virt_page_find_alloc(vaddr >> TARGET_PAGE_BITS);
+                        vp = virt_page_find_alloc(vaddr >> TARGET_PAGE_BITS, 1);
                         vp->phys_addr = pd;
                         vp->prot = prot;
                         vp->valid_tag = virt_valid_tag;
