@@ -51,6 +51,15 @@
 #define MMAP_AREA_START        0x00000000
 #define MMAP_AREA_END          0xa8000000
 
+#if defined(TARGET_SPARC64)
+#define TARGET_PHYS_ADDR_SPACE_BITS 41
+#elif defined(TARGET_PPC64)
+#define TARGET_PHYS_ADDR_SPACE_BITS 42
+#else
+/* Note: for compatibility with kqemu, we use 32 bits for x86_64 */
+#define TARGET_PHYS_ADDR_SPACE_BITS 32
+#endif
+
 TranslationBlock tbs[CODE_GEN_MAX_BLOCKS];
 TranslationBlock *tb_hash[CODE_GEN_HASH_SIZE];
 TranslationBlock *tb_phys_hash[CODE_GEN_PHYS_HASH_SIZE];
@@ -184,8 +193,8 @@ static void page_init(void)
 #if !defined(CONFIG_USER_ONLY)
     virt_valid_tag = 1;
 #endif
-    l1_phys_map = qemu_vmalloc(L1_SIZE * sizeof(PhysPageDesc *));
-    memset(l1_phys_map, 0, L1_SIZE * sizeof(PhysPageDesc *));
+    l1_phys_map = qemu_vmalloc(L1_SIZE * sizeof(void *));
+    memset(l1_phys_map, 0, L1_SIZE * sizeof(void *));
 }
 
 static inline PageDesc *page_find_alloc(unsigned int index)
@@ -213,29 +222,43 @@ static inline PageDesc *page_find(unsigned int index)
     return p + (index & (L2_SIZE - 1));
 }
 
-static inline PhysPageDesc *phys_page_find_alloc(unsigned int index)
+static PhysPageDesc *phys_page_find_alloc(target_phys_addr_t index, int alloc)
 {
-    PhysPageDesc **lp, *p;
+    void **lp, **p;
 
-    lp = &l1_phys_map[index >> L2_BITS];
+    p = (void **)l1_phys_map;
+#if TARGET_PHYS_ADDR_SPACE_BITS > 32
+
+#if TARGET_PHYS_ADDR_SPACE_BITS > (32 + L1_BITS)
+#error unsupported TARGET_PHYS_ADDR_SPACE_BITS
+#endif
+    lp = p + ((index >> (L1_BITS + L2_BITS)) & (L1_SIZE - 1));
     p = *lp;
     if (!p) {
         /* allocate if not found */
+        if (!alloc)
+            return NULL;
+        p = qemu_vmalloc(sizeof(void *) * L1_SIZE);
+        memset(p, 0, sizeof(void *) * L1_SIZE);
+        *lp = p;
+    }
+#endif
+    lp = p + ((index >> L2_BITS) & (L1_SIZE - 1));
+    p = *lp;
+    if (!p) {
+        /* allocate if not found */
+        if (!alloc)
+            return NULL;
         p = qemu_vmalloc(sizeof(PhysPageDesc) * L2_SIZE);
         memset(p, 0, sizeof(PhysPageDesc) * L2_SIZE);
         *lp = p;
     }
-    return p + (index & (L2_SIZE - 1));
+    return ((PhysPageDesc *)p) + (index & (L2_SIZE - 1));
 }
 
-static inline PhysPageDesc *phys_page_find(unsigned int index)
+static inline PhysPageDesc *phys_page_find(target_phys_addr_t index)
 {
-    PhysPageDesc *p;
-
-    p = l1_phys_map[index >> L2_BITS];
-    if (!p)
-        return 0;
-    return p + (index & (L2_SIZE - 1));
+    return phys_page_find_alloc(index, 0);
 }
 
 #if !defined(CONFIG_USER_ONLY)
@@ -1400,7 +1423,7 @@ void tlb_flush_page(CPUState *env, target_ulong addr)
     TranslationBlock *tb;
 
 #if defined(DEBUG_TLB)
-    printf("tlb_flush_page: 0x%08x\n", addr);
+    printf("tlb_flush_page: " TARGET_FMT_lx "\n", addr);
 #endif
     /* must reset current TB so that interrupts cannot modify the
        links while we are modifying them */
@@ -1567,7 +1590,7 @@ void cpu_physical_memory_reset_dirty(target_ulong start, target_ulong end,
 }
 
 static inline void tlb_set_dirty1(CPUTLBEntry *tlb_entry, 
-                                    unsigned long start)
+                                  unsigned long start)
 {
     unsigned long addr;
     if ((tlb_entry->address & ~TARGET_PAGE_MASK) == IO_MEM_NOTDIRTY) {
@@ -1606,7 +1629,7 @@ int tlb_set_page(CPUState *env, target_ulong vaddr,
     TranslationBlock *first_tb;
     unsigned int index;
     target_ulong address;
-    unsigned long addend;
+    target_phys_addr_t addend;
     int ret;
 
     p = phys_page_find(paddr >> TARGET_PAGE_BITS);
@@ -1623,7 +1646,7 @@ int tlb_set_page(CPUState *env, target_ulong vaddr,
         }
     }
 #if defined(DEBUG_TLB)
-    printf("tlb_set_page: vaddr=0x%08x paddr=0x%08x prot=%x u=%d c=%d smmu=%d pd=0x%08x\n",
+    printf("tlb_set_page: vaddr=" TARGET_FMT_lx " paddr=0x%08x prot=%x u=%d c=%d smmu=%d pd=0x%08x\n",
            vaddr, paddr, prot, is_user, (first_tb != NULL), is_softmmu, pd);
 #endif
 
@@ -1929,13 +1952,13 @@ void cpu_register_physical_memory(target_phys_addr_t start_addr,
                                   unsigned long size,
                                   unsigned long phys_offset)
 {
-    unsigned long addr, end_addr;
+    target_phys_addr_t addr, end_addr;
     PhysPageDesc *p;
 
     size = (size + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK;
     end_addr = start_addr + size;
     for(addr = start_addr; addr != end_addr; addr += TARGET_PAGE_SIZE) {
-        p = phys_page_find_alloc(addr >> TARGET_PAGE_BITS);
+        p = phys_page_find_alloc(addr >> TARGET_PAGE_BITS, 1);
         p->phys_offset = phys_offset;
         if ((phys_offset & ~TARGET_PAGE_MASK) <= IO_MEM_ROM)
             phys_offset += TARGET_PAGE_SIZE;

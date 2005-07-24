@@ -48,7 +48,7 @@
 static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(target_ulong addr, 
                                                         int is_user,
                                                         void *retaddr);
-static inline DATA_TYPE glue(io_read, SUFFIX)(unsigned long physaddr, 
+static inline DATA_TYPE glue(io_read, SUFFIX)(target_phys_addr_t physaddr, 
                                               target_ulong tlb_addr)
 {
     DATA_TYPE res;
@@ -76,7 +76,7 @@ DATA_TYPE REGPARM(1) glue(glue(__ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
     DATA_TYPE res;
     int index;
     target_ulong tlb_addr;
-    unsigned long physaddr;
+    target_phys_addr_t physaddr;
     void *retaddr;
     
     /* test if there is match for unaligned or IO access */
@@ -99,7 +99,7 @@ DATA_TYPE REGPARM(1) glue(glue(__ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
                                                          is_user, retaddr);
         } else {
             /* unaligned access in the same page */
-            res = glue(glue(ld, USUFFIX), _raw)((uint8_t *)physaddr);
+            res = glue(glue(ld, USUFFIX), _raw)((uint8_t *)(long)physaddr);
         }
     } else {
         /* the page is not in the TLB : fill it */
@@ -117,7 +117,7 @@ static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
 {
     DATA_TYPE res, res1, res2;
     int index, shift;
-    unsigned long physaddr;
+    target_phys_addr_t physaddr;
     target_ulong tlb_addr, addr1, addr2;
 
     index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
@@ -148,7 +148,7 @@ static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
             res = (DATA_TYPE)res;
         } else {
             /* unaligned/aligned access in the same page */
-            res = glue(glue(ld, USUFFIX), _raw)((uint8_t *)physaddr);
+            res = glue(glue(ld, USUFFIX), _raw)((uint8_t *)(long)physaddr);
         }
     } else {
         /* the page is not in the TLB : fill it */
@@ -165,7 +165,7 @@ static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(target_ulong addr,
                                                    int is_user,
                                                    void *retaddr);
 
-static inline void glue(io_write, SUFFIX)(unsigned long physaddr, 
+static inline void glue(io_write, SUFFIX)(target_phys_addr_t physaddr, 
                                           DATA_TYPE val,
                                           target_ulong tlb_addr,
                                           void *retaddr)
@@ -192,7 +192,7 @@ void REGPARM(2) glue(glue(__st, SUFFIX), MMUSUFFIX)(target_ulong addr,
                                                     DATA_TYPE val,
                                                     int is_user)
 {
-    unsigned long physaddr;
+    target_phys_addr_t physaddr;
     target_ulong tlb_addr;
     void *retaddr;
     int index;
@@ -215,7 +215,7 @@ void REGPARM(2) glue(glue(__st, SUFFIX), MMUSUFFIX)(target_ulong addr,
                                                    is_user, retaddr);
         } else {
             /* aligned/unaligned access in the same page */
-            glue(glue(st, SUFFIX), _raw)((uint8_t *)physaddr, val);
+            glue(glue(st, SUFFIX), _raw)((uint8_t *)(long)physaddr, val);
         }
     } else {
         /* the page is not in the TLB : fill it */
@@ -231,7 +231,7 @@ static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(target_ulong addr,
                                                    int is_user,
                                                    void *retaddr)
 {
-    unsigned long physaddr;
+    target_phys_addr_t physaddr;
     target_ulong tlb_addr;
     int index, i;
 
@@ -259,7 +259,7 @@ static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(target_ulong addr,
             }
         } else {
             /* aligned/unaligned access in the same page */
-            glue(glue(st, SUFFIX), _raw)((uint8_t *)physaddr, val);
+            glue(glue(st, SUFFIX), _raw)((uint8_t *)(long)physaddr, val);
         }
     } else {
         /* the page is not in the TLB : fill it */
