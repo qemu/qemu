@@ -113,6 +113,7 @@ qemu linux.img
 
 Linux should boot and give you a prompt.
 
+@node sec_invocation
 @section Invocation
 
 @example
@@ -254,7 +255,7 @@ Then @file{dir} can be accessed in @file{\\smbserver\qemu}.
 
 Note that a SAMBA server must be installed on the host OS in
 @file{/usr/sbin/smbd}. QEMU was tested succesfully with smbd version
-2.2.7a from the Red Hat 9.
+2.2.7a from the Red Hat 9 and version 3.0.10-1.fc3 from Fedora Core 3.
 
 @item -redir [tcp|udp]:host-port:[guest-host]:guest-port
 
@@ -911,6 +912,23 @@ installation. When installing it, use the @option{-win2k-hack} QEMU
 option to enable a specific workaround. After Windows 2000 is
 installed, you no longer need this option (this option slows down the
 IDE transfers).
+
+@subsubsection Windows 2000 shutdown
+
+Windows 2000 cannot automatically shutdown in QEMU although Windows 98
+can. It comes from the fact that Windows 2000 does not automatically
+use the APM driver provided by the BIOS.
+
+In order to correct that, do the following (thanks to Struan
+Bartlett): go to the Control Panel => Add/Remove Hardware & Next =>
+Add/Troubleshoot a device => Add a new device & Next => No, select the
+hardware from a list & Next => NT Apm/Legacy Support & Next => Next
+(again) a few times. Now the driver is installed and Windows 2000 now
+correctly instructs QEMU to shutdown at the appropriate moment. 
+
+@subsubsection Share a directory between Unix and Windows
+
+See @ref{sec_invocation} about the help of the option @option{-smb}.
 
 @subsubsection Windows XP security problems
 
