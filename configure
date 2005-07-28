@@ -99,7 +99,7 @@ mingw32="yes"
 FreeBSD)
 bsd="yes"
 oss="yes"
-if [ "$cpu" = "i386" ] ; then
+if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     kqemu="yes"
 fi
 ;;
