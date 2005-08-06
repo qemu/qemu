@@ -2330,6 +2330,7 @@ void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table)
     pci_conf[0x01] = 0x80;
     pci_conf[0x02] = 0x10;
     pci_conf[0x03] = 0x70;
+    pci_conf[0x09] = 0x80; // legacy ATA mode
     pci_conf[0x0a] = 0x01; // class_sub = PCI_IDE
     pci_conf[0x0b] = 0x01; // class_base = PCI_mass_storage
     pci_conf[0x0e] = 0x00; // header_type
