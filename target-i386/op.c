@@ -865,7 +865,7 @@ void OPPROTO op_decq_ECX(void)
 
 void op_addl_A0_SS(void)
 {
-    A0 += (long)env->segs[R_SS].base;
+    A0 = (uint32_t)(A0 + env->segs[R_SS].base);
 }
 
 void op_subl_A0_2(void)
