@@ -2012,7 +2012,6 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
 #endif
         sp_mask = get_sp_mask(env->segs[R_SS].flags);
     sp = ESP;
-    /* XXX: ssp is zero in 64 bit ? */
     ssp = env->segs[R_SS].base;
     new_eflags = 0; /* avoid warning */
 #ifdef TARGET_X86_64
@@ -2145,7 +2144,7 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
         cpu_x86_set_cpl(env, rpl);
         sp = new_esp;
 #ifdef TARGET_X86_64
-        if (shift == 2)
+        if (env->hflags & HF_CS64_MASK)
             sp_mask = -1;
         else
 #endif
