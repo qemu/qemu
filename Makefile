@@ -84,6 +84,11 @@ test speed test2: all
 TAGS: 
 	etags *.[ch] tests/*.[ch]
 
+cscope:
+	rm -f ./cscope.*
+	find . -name "*.[ch]" -print > ./cscope.files
+	cscope -b
+
 # documentation
 %.html: %.texi
 	texi2html -monolithic -number $<
