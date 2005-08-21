@@ -622,9 +622,10 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
             raise_exception_err(EXCP0B_NOSEG, intno * 8 + 2);
         switch_tss(intno * 8, e1, e2, SWITCH_TSS_CALL, old_eip);
         if (has_error_code) {
-            int mask;
+            int mask, type;
             /* push the error code */
-            shift = (env->segs[R_CS].flags >> DESC_B_SHIFT) & 1;
+            type = (env->tr.flags >> DESC_TYPE_SHIFT) & 0xf;
+            shift = type >> 3;
             if (env->segs[R_SS].flags & DESC_B_MASK)
                 mask = 0xffffffff;
             else
