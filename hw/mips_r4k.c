@@ -72,7 +72,8 @@ void cpu_mips_store_count (CPUState *env, uint32_t value)
 void cpu_mips_store_compare (CPUState *env, uint32_t value)
 {
     cpu_mips_update_count(env, cpu_mips_get_count(env), value);
-    pic_set_irq(5, 0);
+    cpu_single_env->CP0_Cause &= ~0x00008000;
+    cpu_reset_interrupt(cpu_single_env, CPU_INTERRUPT_HARD);
 }
 
 static void mips_timer_cb (void *opaque)
@@ -86,7 +87,8 @@ static void mips_timer_cb (void *opaque)
     }
 #endif
     cpu_mips_update_count(env, cpu_mips_get_count(env), env->CP0_Compare);
-    pic_set_irq(5, 1);
+    cpu_single_env->CP0_Cause |= 0x00008000;
+    cpu_interrupt(cpu_single_env, CPU_INTERRUPT_HARD);
 }
 
 void cpu_mips_clock_init (CPUState *env)
