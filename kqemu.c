@@ -40,6 +40,7 @@
 #ifdef USE_KQEMU
 
 #define DEBUG
+//#define PROFILE
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -48,6 +49,10 @@
 /* compatibility stuff */
 #ifndef KQEMU_RET_SYSCALL
 #define KQEMU_RET_SYSCALL   0x0300 /* syscall insn */
+#endif
+#ifndef KQEMU_MAX_RAM_PAGES_TO_UPDATE
+#define KQEMU_MAX_RAM_PAGES_TO_UPDATE 512
+#define KQEMU_RAM_PAGES_UPDATE_ALL (KQEMU_MAX_RAM_PAGES_TO_UPDATE + 1)
 #endif
 
 #ifdef _WIN32
@@ -69,6 +74,8 @@ int kqemu_fd = KQEMU_INVALID_FD;
 int kqemu_allowed = 1;
 unsigned long *pages_to_flush;
 unsigned int nb_pages_to_flush;
+unsigned long *ram_pages_to_update;
+unsigned int nb_ram_pages_to_update;
 extern uint32_t **l1_phys_map;
 
 #define cpuid(index, eax, ebx, ecx, edx) \
@@ -167,11 +174,19 @@ int kqemu_init(CPUState *env)
     if (!pages_to_flush)
         goto fail;
 
+    ram_pages_to_update = qemu_vmalloc(KQEMU_MAX_RAM_PAGES_TO_UPDATE * 
+                                       sizeof(unsigned long));
+    if (!ram_pages_to_update)
+        goto fail;
+
     init.ram_base = phys_ram_base;
     init.ram_size = phys_ram_size;
     init.ram_dirty = phys_ram_dirty;
     init.phys_to_ram_map = l1_phys_map;
     init.pages_to_flush = pages_to_flush;
+#if KQEMU_VERSION >= 0x010200
+    init.ram_pages_to_update = ram_pages_to_update;
+#endif
 #ifdef _WIN32
     ret = DeviceIoControl(kqemu_fd, KQEMU_INIT, &init, sizeof(init),
                           NULL, 0, &temp, NULL) == TRUE ? 0 : -1;
@@ -188,6 +203,7 @@ int kqemu_init(CPUState *env)
     kqemu_update_cpuid(env);
     env->kqemu_enabled = 1;
     nb_pages_to_flush = 0;
+    nb_ram_pages_to_update = 0;
     return 0;
 }
 
@@ -212,6 +228,19 @@ void kqemu_flush(CPUState *env, int global)
     }
 #endif
     nb_pages_to_flush = KQEMU_FLUSH_ALL;
+}
+
+void kqemu_set_notdirty(CPUState *env, ram_addr_t ram_addr)
+{
+#ifdef DEBUG
+    if (loglevel & CPU_LOG_INT) {
+        fprintf(logfile, "kqemu_set_notdirty: addr=%08lx\n", ram_addr);
+    }
+#endif
+    if (nb_ram_pages_to_update >= KQEMU_MAX_RAM_PAGES_TO_UPDATE)
+        nb_ram_pages_to_update = KQEMU_RAM_PAGES_UPDATE_ALL;
+    else
+        ram_pages_to_update[nb_ram_pages_to_update++] = ram_addr;
 }
 
 struct fpstate {
@@ -404,6 +433,103 @@ static int do_syscall(CPUState *env,
     return 2;
 }
 
+#ifdef PROFILE
+
+#define PC_REC_SIZE 1
+#define PC_REC_HASH_BITS 16
+#define PC_REC_HASH_SIZE (1 << PC_REC_HASH_BITS)
+
+typedef struct PCRecord {
+    unsigned long pc;
+    int64_t count;
+    struct PCRecord *next;
+} PCRecord;
+
+PCRecord *pc_rec_hash[PC_REC_HASH_SIZE];
+int nb_pc_records;
+
+void kqemu_record_pc(unsigned long pc)
+{
+    unsigned long h;
+    PCRecord **pr, *r;
+
+    h = pc / PC_REC_SIZE;
+    h = h ^ (h >> PC_REC_HASH_BITS);
+    h &= (PC_REC_HASH_SIZE - 1);
+    pr = &pc_rec_hash[h];
+    for(;;) {
+        r = *pr;
+        if (r == NULL)
+            break;
+        if (r->pc == pc) {
+            r->count++;
+            return;
+        }
+        pr = &r->next;
+    }
+    r = malloc(sizeof(PCRecord));
+    r->count = 1;
+    r->pc = pc;
+    r->next = NULL;
+    *pr = r;
+    nb_pc_records++;
+}
+
+int pc_rec_cmp(const void *p1, const void *p2)
+{
+    PCRecord *r1 = *(PCRecord **)p1;
+    PCRecord *r2 = *(PCRecord **)p2;
+    if (r1->count < r2->count)
+        return 1;
+    else if (r1->count == r2->count)
+        return 0;
+    else
+        return -1;
+}
+
+void kqemu_record_dump(void)
+{
+    PCRecord **pr, *r;
+    int i, h;
+    FILE *f;
+    int64_t total, sum;
+
+    pr = malloc(sizeof(PCRecord *) * nb_pc_records);
+    i = 0;
+    total = 0;
+    for(h = 0; h < PC_REC_HASH_SIZE; h++) {
+        for(r = pc_rec_hash[h]; r != NULL; r = r->next) {
+            pr[i++] = r;
+            total += r->count;
+        }
+    }
+    qsort(pr, nb_pc_records, sizeof(PCRecord *), pc_rec_cmp);
+    
+    f = fopen("/tmp/kqemu.stats", "w");
+    if (!f) {
+        perror("/tmp/kqemu.stats");
+        exit(1);
+    }
+    fprintf(f, "total: %lld\n", total);
+    sum = 0;
+    for(i = 0; i < nb_pc_records; i++) {
+        r = pr[i];
+        sum += r->count;
+        fprintf(f, "%08lx: %lld %0.2f%% %0.2f%%\n", 
+                r->pc, 
+                r->count, 
+                (double)r->count / (double)total * 100.0,
+                (double)sum / (double)total * 100.0);
+    }
+    fclose(f);
+    free(pr);
+}
+#else
+void kqemu_record_dump(void)
+{
+}
+#endif
+
 int kqemu_cpu_exec(CPUState *env)
 {
     struct kqemu_cpu_state kcpu_state, *kenv = &kcpu_state;
@@ -447,6 +573,11 @@ int kqemu_cpu_exec(CPUState *env)
     kenv->cpl = 3;
     kenv->nb_pages_to_flush = nb_pages_to_flush;
     nb_pages_to_flush = 0;
+#if KQEMU_VERSION >= 0x010200
+    kenv->user_only = 1;
+    kenv->nb_ram_pages_to_update = nb_ram_pages_to_update;
+#endif
+    nb_ram_pages_to_update = 0;
     
     if (!(kenv->cr0 & CR0_TS_MASK)) {
         if (env->cpuid_features & CPUID_FXSR)
@@ -494,6 +625,49 @@ int kqemu_cpu_exec(CPUState *env)
     env->cr[2] = kenv->cr2;
     env->dr[6] = kenv->dr6;
 
+#if KQEMU_VERSION >= 0x010200
+    if (kenv->nb_ram_pages_to_update > 0) {
+        cpu_tlb_update_dirty(env);
+    }
+#endif
+
+    /* restore the hidden flags */
+    {
+        unsigned int new_hflags;
+#ifdef TARGET_X86_64
+        if ((env->hflags & HF_LMA_MASK) && 
+            (env->segs[R_CS].flags & DESC_L_MASK)) {
+            /* long mode */
+            new_hflags = HF_CS32_MASK | HF_SS32_MASK | HF_CS64_MASK;
+        } else
+#endif
+        {
+            /* legacy / compatibility case */
+            new_hflags = (env->segs[R_CS].flags & DESC_B_MASK)
+                >> (DESC_B_SHIFT - HF_CS32_SHIFT);
+            new_hflags |= (env->segs[R_SS].flags & DESC_B_MASK)
+                >> (DESC_B_SHIFT - HF_SS32_SHIFT);
+            if (!(env->cr[0] & CR0_PE_MASK) || 
+                   (env->eflags & VM_MASK) ||
+                   !(env->hflags & HF_CS32_MASK)) {
+                /* XXX: try to avoid this test. The problem comes from the
+                   fact that is real mode or vm86 mode we only modify the
+                   'base' and 'selector' fields of the segment cache to go
+                   faster. A solution may be to force addseg to one in
+                   translate-i386.c. */
+                new_hflags |= HF_ADDSEG_MASK;
+            } else {
+                new_hflags |= ((env->segs[R_DS].base | 
+                                env->segs[R_ES].base |
+                                env->segs[R_SS].base) != 0) << 
+                    HF_ADDSEG_SHIFT;
+            }
+        }
+        env->hflags = (env->hflags & 
+           ~(HF_CS32_MASK | HF_SS32_MASK | HF_CS64_MASK | HF_ADDSEG_MASK)) |
+            new_hflags;
+    }
+
 #ifdef DEBUG
     if (loglevel & CPU_LOG_INT) {
         fprintf(logfile, "kqemu: kqemu_cpu_exec: ret=0x%x\n", ret);
@@ -537,6 +711,14 @@ int kqemu_cpu_exec(CPUState *env)
 #endif
         return 0;
     } else if (ret == KQEMU_RET_SOFTMMU) { 
+#ifdef PROFILE
+        kqemu_record_pc(env->eip + env->segs[R_CS].base);
+#endif
+#ifdef DEBUG
+        if (loglevel & CPU_LOG_INT) {
+            cpu_dump_state(env, logfile, fprintf, 0);
+        }
+#endif
         return 2;
     } else {
         cpu_dump_state(env, stderr, fprintf, 0);
