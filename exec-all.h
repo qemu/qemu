@@ -572,7 +572,6 @@ static inline target_ulong get_phys_addr_code(CPUState *env, target_ulong addr)
 /* NOTE: this function can trigger an exception */
 /* NOTE2: the returned address is not exactly the physical address: it
    is the offset relative to phys_ram_base */
-/* XXX: i386 target specific */
 static inline target_ulong get_phys_addr_code(CPUState *env, target_ulong addr)
 {
     int is_user, index, pd;
@@ -607,6 +606,7 @@ int kqemu_init(CPUState *env);
 int kqemu_cpu_exec(CPUState *env);
 void kqemu_flush_page(CPUState *env, target_ulong addr);
 void kqemu_flush(CPUState *env, int global);
+void kqemu_set_notdirty(CPUState *env, ram_addr_t ram_addr);
 
 static inline int kqemu_is_ok(CPUState *env)
 {
@@ -615,8 +615,11 @@ static inline int kqemu_is_ok(CPUState *env)
            (env->eflags & IOPL_MASK) != IOPL_MASK &&
            (env->cr[0] & CR0_PE_MASK) && 
            (env->eflags & IF_MASK) &&
-           !(env->eflags & VM_MASK) &&
-           (env->ldt.limit == 0 || env->ldt.limit == 0x27));
+           !(env->eflags & VM_MASK)
+#if 1
+           && (env->ldt.limit == 0 || env->ldt.limit == 0x27)
+#endif
+           );
 }
 
 #endif
