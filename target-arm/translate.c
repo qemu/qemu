@@ -2204,12 +2204,13 @@ void cpu_dump_state(CPUState *env, FILE *f,
         else
             cpu_fprintf(f, " ");
     }
-    cpu_fprintf(f, "PSR=%08x %c%c%c%c\n", 
+    cpu_fprintf(f, "PSR=%08x %c%c%c%c %c\n", 
              env->cpsr, 
             env->cpsr & (1 << 31) ? 'N' : '-',
             env->cpsr & (1 << 30) ? 'Z' : '-',
             env->cpsr & (1 << 29) ? 'C' : '-',
-            env->cpsr & (1 << 28) ? 'V' : '-');
+            env->cpsr & (1 << 28) ? 'V' : '-',
+            env->thumb ? 'T' : 'A');
 
     for (i = 0; i < 16; i++) {
         d.d = env->vfp.regs[i];
