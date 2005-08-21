@@ -2328,7 +2328,10 @@ void helper_invlpg(target_ulong addr)
 void helper_rdtsc(void)
 {
     uint64_t val;
-    
+
+    if ((env->cr[4] & CR4_TSD_MASK) && ((env->hflags & HF_CPL_MASK) != 0)) {
+        raise_exception(EXCP0D_GPF);
+    }
     val = cpu_get_tsc(env);
     EAX = (uint32_t)(val);
     EDX = (uint32_t)(val >> 32);

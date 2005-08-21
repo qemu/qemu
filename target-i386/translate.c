@@ -4909,7 +4909,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             gen_op_movl_T1_imu(offset);
         }
         goto do_lcall;
-    case 0xe9: /* jmp */
+    case 0xe9: /* jmp im */
         if (dflag)
             tval = (int32_t)insn_get(s, OT_LONG);
         else
@@ -5366,6 +5366,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         }
         break;
     case 0x131: /* rdtsc */
+        gen_jmp_im(pc_start - s->cs_base);
         gen_op_rdtsc();
         break;
     case 0x134: /* sysenter */
