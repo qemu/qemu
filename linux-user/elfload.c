@@ -186,19 +186,17 @@ do {                                                       \
  * - for compatibility with glibc ARCH_DLINFO must always be defined on PPC,
  *   even if DLINFO_ARCH_ITEMS goes to zero or is undefined.
  */
-#define DLINFO_ARCH_ITEMS       3
+#define DLINFO_ARCH_ITEMS       5
 #define ARCH_DLINFO                                                     \
 do {                                                                    \
-	sp -= DLINFO_ARCH_ITEMS * 2;					\
-        NEW_AUX_ENT(0, AT_DCACHEBSIZE, 0x20);                           \
-        NEW_AUX_ENT(1, AT_ICACHEBSIZE, 0x20);                           \
-        NEW_AUX_ENT(2, AT_UCACHEBSIZE, 0);                              \
+        NEW_AUX_ENT(AT_DCACHEBSIZE, 0x20);                              \
+        NEW_AUX_ENT(AT_ICACHEBSIZE, 0x20);                              \
+        NEW_AUX_ENT(AT_UCACHEBSIZE, 0);                                 \
         /*                                                              \
          * Now handle glibc compatibility.                              \
          */                                                             \
-	sp -= 2*2;							\
-	NEW_AUX_ENT(0, AT_IGNOREPPC, AT_IGNOREPPC);			\
-	NEW_AUX_ENT(1, AT_IGNOREPPC, AT_IGNOREPPC);			\
+	NEW_AUX_ENT(AT_IGNOREPPC, AT_IGNOREPPC);			\
+	NEW_AUX_ENT(AT_IGNOREPPC, AT_IGNOREPPC);			\
  } while (0)
 
 static inline void init_thread(struct target_pt_regs *_regs, struct image_info *infop)
@@ -643,24 +641,24 @@ static unsigned int * create_elf_tables(char *p, int argc, int envc,
         if ((unsigned long)csp & 15UL)
             sp -= ((unsigned long)csp & 15UL) / sizeof(*sp);
         
-#define NEW_AUX_ENT(nr, id, val) \
-          put_user (id, sp + (nr * 2)); \
-          put_user (val, sp + (nr * 2 + 1))
-        sp -= 2;
-        NEW_AUX_ENT (0, AT_NULL, 0);
+#define NEW_AUX_ENT(id, val) \
+          sp -= 2; \
+          put_user (id, sp); \
+          put_user (val, sp + 1)
+        NEW_AUX_ENT (AT_NULL, 0);
 
-	sp -= DLINFO_ITEMS*2;
-        NEW_AUX_ENT( 0, AT_PHDR, (target_ulong)(load_addr + exec->e_phoff));
-        NEW_AUX_ENT( 1, AT_PHENT, (target_ulong)(sizeof (struct elf_phdr)));
-        NEW_AUX_ENT( 2, AT_PHNUM, (target_ulong)(exec->e_phnum));
-        NEW_AUX_ENT( 3, AT_PAGESZ, (target_ulong)(TARGET_PAGE_SIZE));
-        NEW_AUX_ENT( 4, AT_BASE, (target_ulong)(interp_load_addr));
-        NEW_AUX_ENT( 5, AT_FLAGS, (target_ulong)0);
-        NEW_AUX_ENT( 6, AT_ENTRY, load_bias + exec->e_entry);
-        NEW_AUX_ENT( 7, AT_UID, (target_ulong) getuid());
-        NEW_AUX_ENT( 8, AT_EUID, (target_ulong) geteuid());
-        NEW_AUX_ENT( 9, AT_GID, (target_ulong) getgid());
-        NEW_AUX_ENT(11, AT_EGID, (target_ulong) getegid());
+        /* There must be exactly DLINFO_ITEMS entries here.  */
+        NEW_AUX_ENT(AT_PHDR, (target_ulong)(load_addr + exec->e_phoff));
+        NEW_AUX_ENT(AT_PHENT, (target_ulong)(sizeof (struct elf_phdr)));
+        NEW_AUX_ENT(AT_PHNUM, (target_ulong)(exec->e_phnum));
+        NEW_AUX_ENT(AT_PAGESZ, (target_ulong)(TARGET_PAGE_SIZE));
+        NEW_AUX_ENT(AT_BASE, (target_ulong)(interp_load_addr));
+        NEW_AUX_ENT(AT_FLAGS, (target_ulong)0);
+        NEW_AUX_ENT(AT_ENTRY, load_bias + exec->e_entry);
+        NEW_AUX_ENT(AT_UID, (target_ulong) getuid());
+        NEW_AUX_ENT(AT_EUID, (target_ulong) geteuid());
+        NEW_AUX_ENT(AT_GID, (target_ulong) getgid());
+        NEW_AUX_ENT(AT_EGID, (target_ulong) getegid());
 #ifdef ARCH_DLINFO
 	/* 
 	 * ARCH_DLINFO must come last so platform specific code can enforce
