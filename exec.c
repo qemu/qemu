@@ -262,8 +262,10 @@ static inline PhysPageDesc *phys_page_find(target_phys_addr_t index)
 }
 
 #if !defined(CONFIG_USER_ONLY)
-static void tlb_protect_code(CPUState *env, target_ulong addr);
-static void tlb_unprotect_code_phys(CPUState *env, unsigned long phys_addr, target_ulong vaddr);
+static void tlb_protect_code(CPUState *env, ram_addr_t ram_addr, 
+                             target_ulong vaddr);
+static void tlb_unprotect_code_phys(CPUState *env, ram_addr_t ram_addr, 
+                                    target_ulong vaddr);
 
 static VirtPageDesc *virt_page_find_alloc(target_ulong index, int alloc)
 {
@@ -945,7 +947,7 @@ static inline void tb_alloc_page(TranslationBlock *tb,
     TranslationBlock *last_first_tb;
 
     tb->page_addr[n] = page_addr;
-    p = page_find(page_addr >> TARGET_PAGE_BITS);
+    p = page_find_alloc(page_addr >> TARGET_PAGE_BITS);
     tb->page_next[n] = p->first_tb;
     last_first_tb = p->first_tb;
     p->first_tb = (TranslationBlock *)((long)tb | n);
@@ -981,7 +983,7 @@ static inline void tb_alloc_page(TranslationBlock *tb,
         target_ulong virt_addr;
 
         virt_addr = (tb->pc & TARGET_PAGE_MASK) + (n << TARGET_PAGE_BITS);
-        tlb_protect_code(cpu_single_env, virt_addr);        
+        tlb_protect_code(cpu_single_env, page_addr, virt_addr);
     }
 #endif
 
@@ -1473,50 +1475,44 @@ static inline void tlb_protect_code1(CPUTLBEntry *tlb_entry, target_ulong addr)
 {
     if (addr == (tlb_entry->address & 
                  (TARGET_PAGE_MASK | TLB_INVALID_MASK)) &&
-        (tlb_entry->address & ~TARGET_PAGE_MASK) != IO_MEM_CODE &&
-        (tlb_entry->address & ~TARGET_PAGE_MASK) != IO_MEM_ROM) {
-        tlb_entry->address = (tlb_entry->address & TARGET_PAGE_MASK) | IO_MEM_CODE;
+        (tlb_entry->address & ~TARGET_PAGE_MASK) == IO_MEM_RAM) {
+        tlb_entry->address = (tlb_entry->address & TARGET_PAGE_MASK) | IO_MEM_NOTDIRTY;
     }
 }
 
 /* update the TLBs so that writes to code in the virtual page 'addr'
    can be detected */
-static void tlb_protect_code(CPUState *env, target_ulong addr)
+static void tlb_protect_code(CPUState *env, ram_addr_t ram_addr, 
+                             target_ulong vaddr)
 {
     int i;
 
-    addr &= TARGET_PAGE_MASK;
-    i = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-    tlb_protect_code1(&env->tlb_write[0][i], addr);
-    tlb_protect_code1(&env->tlb_write[1][i], addr);
+    vaddr &= TARGET_PAGE_MASK;
+    i = (vaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
+    tlb_protect_code1(&env->tlb_write[0][i], vaddr);
+    tlb_protect_code1(&env->tlb_write[1][i], vaddr);
+
+    phys_ram_dirty[ram_addr >> TARGET_PAGE_BITS] &= ~CODE_DIRTY_FLAG;
+#ifdef USE_KQEMU
+    if (env->kqemu_enabled) {
+        kqemu_set_notdirty(env, ram_addr);
+    }
+#endif
+    
 #if !defined(CONFIG_SOFTMMU)
     /* NOTE: as we generated the code for this page, it is already at
        least readable */
-    if (addr < MMAP_AREA_END)
-        mprotect((void *)addr, TARGET_PAGE_SIZE, PROT_READ);
+    if (vaddr < MMAP_AREA_END)
+        mprotect((void *)vaddr, TARGET_PAGE_SIZE, PROT_READ);
 #endif
 }
 
-static inline void tlb_unprotect_code2(CPUTLBEntry *tlb_entry, 
-                                       unsigned long phys_addr)
-{
-    if ((tlb_entry->address & ~TARGET_PAGE_MASK) == IO_MEM_CODE &&
-        ((tlb_entry->address & TARGET_PAGE_MASK) + tlb_entry->addend) == phys_addr) {
-        tlb_entry->address = (tlb_entry->address & TARGET_PAGE_MASK) | IO_MEM_NOTDIRTY;
-    }
-}
-
 /* update the TLB so that writes in physical page 'phys_addr' are no longer
-   tested self modifying code */
-static void tlb_unprotect_code_phys(CPUState *env, unsigned long phys_addr, target_ulong vaddr)
+   tested for self modifying code */
+static void tlb_unprotect_code_phys(CPUState *env, ram_addr_t ram_addr, 
+                                    target_ulong vaddr)
 {
-    int i;
-
-    phys_addr &= TARGET_PAGE_MASK;
-    phys_addr += (long)phys_ram_base;
-    i = (vaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-    tlb_unprotect_code2(&env->tlb_write[0][i], phys_addr);
-    tlb_unprotect_code2(&env->tlb_write[1][i], phys_addr);
+    phys_ram_dirty[ram_addr >> TARGET_PAGE_BITS] |= CODE_DIRTY_FLAG;
 }
 
 static inline void tlb_reset_dirty_range(CPUTLBEntry *tlb_entry, 
@@ -1531,7 +1527,7 @@ static inline void tlb_reset_dirty_range(CPUTLBEntry *tlb_entry,
     }
 }
 
-void cpu_physical_memory_reset_dirty(target_ulong start, target_ulong end,
+void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end,
                                      int dirty_flags)
 {
     CPUState *env;
@@ -1552,6 +1548,12 @@ void cpu_physical_memory_reset_dirty(target_ulong start, target_ulong end,
         p[i] &= mask;
 
     env = cpu_single_env;
+#ifdef USE_KQEMU
+    if (env->kqemu_enabled) {
+        for(i = 0; i < len; i++)
+            kqemu_set_notdirty(env, (unsigned long)i << TARGET_PAGE_BITS);
+    }
+#endif
     /* we modify the TLB cache so that the dirty bit will be set again
        when accessing the range */
     start1 = start + (unsigned long)phys_ram_base;
@@ -1587,6 +1589,29 @@ void cpu_physical_memory_reset_dirty(target_ulong start, target_ulong end,
         }
     }
 #endif
+}
+
+static inline void tlb_update_dirty(CPUTLBEntry *tlb_entry)
+{
+    ram_addr_t ram_addr;
+
+    if ((tlb_entry->address & ~TARGET_PAGE_MASK) == IO_MEM_RAM) {
+        ram_addr = (tlb_entry->address & TARGET_PAGE_MASK) + 
+            tlb_entry->addend - (unsigned long)phys_ram_base;
+        if (!cpu_physical_memory_is_dirty(ram_addr)) {
+            tlb_entry->address |= IO_MEM_NOTDIRTY;
+        }
+    }
+}
+
+/* update the TLB according to the current state of the dirty bits */
+void cpu_tlb_update_dirty(CPUState *env)
+{
+    int i;
+    for(i = 0; i < CPU_TLB_SIZE; i++)
+        tlb_update_dirty(&env->tlb_write[0][i]);
+    for(i = 0; i < CPU_TLB_SIZE; i++)
+        tlb_update_dirty(&env->tlb_write[1][i]);
 }
 
 static inline void tlb_set_dirty1(CPUTLBEntry *tlb_entry, 
@@ -1626,28 +1651,20 @@ int tlb_set_page(CPUState *env, target_ulong vaddr,
 {
     PhysPageDesc *p;
     unsigned long pd;
-    TranslationBlock *first_tb;
     unsigned int index;
     target_ulong address;
     target_phys_addr_t addend;
     int ret;
 
     p = phys_page_find(paddr >> TARGET_PAGE_BITS);
-    first_tb = NULL;
     if (!p) {
         pd = IO_MEM_UNASSIGNED;
     } else {
-        PageDesc *p1;
         pd = p->phys_offset;
-        if ((pd & ~TARGET_PAGE_MASK) <= IO_MEM_ROM) {
-            /* NOTE: we also allocate the page at this stage */
-            p1 = page_find_alloc(pd >> TARGET_PAGE_BITS);
-            first_tb = p1->first_tb;
-        }
     }
 #if defined(DEBUG_TLB)
-    printf("tlb_set_page: vaddr=" TARGET_FMT_lx " paddr=0x%08x prot=%x u=%d c=%d smmu=%d pd=0x%08x\n",
-           vaddr, paddr, prot, is_user, (first_tb != NULL), is_softmmu, pd);
+    printf("tlb_set_page: vaddr=" TARGET_FMT_lx " paddr=0x%08x prot=%x u=%d smmu=%d pd=0x%08lx\n",
+           vaddr, paddr, prot, is_user, is_softmmu, pd);
 #endif
 
     ret = 0;
@@ -1679,18 +1696,7 @@ int tlb_set_page(CPUState *env, target_ulong vaddr,
                 /* ROM: access is ignored (same as unassigned) */
                 env->tlb_write[is_user][index].address = vaddr | IO_MEM_ROM;
                 env->tlb_write[is_user][index].addend = addend;
-            } else 
-                /* XXX: the PowerPC code seems not ready to handle
-                   self modifying code with DCBI */
-#if defined(TARGET_HAS_SMC) || 1
-            if (first_tb) {
-                /* if code is present, we use a specific memory
-                   handler. It works only for physical memory access */
-                env->tlb_write[is_user][index].address = vaddr | IO_MEM_CODE;
-                env->tlb_write[is_user][index].addend = addend;
-            } else 
-#endif
-            if ((pd & ~TARGET_PAGE_MASK) == IO_MEM_RAM && 
+            } else if ((pd & ~TARGET_PAGE_MASK) == IO_MEM_RAM && 
                        !cpu_physical_memory_is_dirty(pd)) {
                 env->tlb_write[is_user][index].address = vaddr | IO_MEM_NOTDIRTY;
                 env->tlb_write[is_user][index].addend = addend;
@@ -1986,74 +1992,65 @@ static CPUWriteMemoryFunc *unassigned_mem_write[3] = {
     unassigned_mem_writeb,
 };
 
-/* self modifying code support in soft mmu mode : writing to a page
-   containing code comes to these functions */
-
-static void code_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
-{
-    unsigned long phys_addr;
-
-    phys_addr = addr - (unsigned long)phys_ram_base;
-#if !defined(CONFIG_USER_ONLY)
-    tb_invalidate_phys_page_fast(phys_addr, 1);
-#endif
-    stb_p((uint8_t *)(long)addr, val);
-    phys_ram_dirty[phys_addr >> TARGET_PAGE_BITS] = 0xff;
-}
-
-static void code_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
-{
-    unsigned long phys_addr;
-
-    phys_addr = addr - (unsigned long)phys_ram_base;
-#if !defined(CONFIG_USER_ONLY)
-    tb_invalidate_phys_page_fast(phys_addr, 2);
-#endif
-    stw_p((uint8_t *)(long)addr, val);
-    phys_ram_dirty[phys_addr >> TARGET_PAGE_BITS] = 0xff;
-}
-
-static void code_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
-{
-    unsigned long phys_addr;
-
-    phys_addr = addr - (unsigned long)phys_ram_base;
-#if !defined(CONFIG_USER_ONLY)
-    tb_invalidate_phys_page_fast(phys_addr, 4);
-#endif
-    stl_p((uint8_t *)(long)addr, val);
-    phys_ram_dirty[phys_addr >> TARGET_PAGE_BITS] = 0xff;
-}
-
-static CPUReadMemoryFunc *code_mem_read[3] = {
-    NULL, /* never used */
-    NULL, /* never used */
-    NULL, /* never used */
-};
-
-static CPUWriteMemoryFunc *code_mem_write[3] = {
-    code_mem_writeb,
-    code_mem_writew,
-    code_mem_writel,
-};
-
 static void notdirty_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
+    unsigned long ram_addr;
+    int dirty_flags;
+    ram_addr = addr - (unsigned long)phys_ram_base;
+    dirty_flags = phys_ram_dirty[ram_addr >> TARGET_PAGE_BITS];
+    if (!(dirty_flags & CODE_DIRTY_FLAG)) {
+#if !defined(CONFIG_USER_ONLY)
+        tb_invalidate_phys_page_fast(ram_addr, 1);
+        dirty_flags = phys_ram_dirty[ram_addr >> TARGET_PAGE_BITS];
+#endif
+    }
     stb_p((uint8_t *)(long)addr, val);
-    tlb_set_dirty(addr, cpu_single_env->mem_write_vaddr);
+    /* we set the page as dirty only if the code has been flushed */
+    if (dirty_flags & CODE_DIRTY_FLAG)
+        tlb_set_dirty(addr, cpu_single_env->mem_write_vaddr);
 }
 
 static void notdirty_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
+    unsigned long ram_addr;
+    int dirty_flags;
+    ram_addr = addr - (unsigned long)phys_ram_base;
+    dirty_flags = phys_ram_dirty[ram_addr >> TARGET_PAGE_BITS];
+    if (!(dirty_flags & CODE_DIRTY_FLAG)) {
+#if !defined(CONFIG_USER_ONLY)
+        tb_invalidate_phys_page_fast(ram_addr, 2);
+        dirty_flags = phys_ram_dirty[ram_addr >> TARGET_PAGE_BITS];
+#endif
+    }
     stw_p((uint8_t *)(long)addr, val);
-    tlb_set_dirty(addr, cpu_single_env->mem_write_vaddr);
+    /* we set the page as dirty only if the code has been flushed */
+    if (dirty_flags & CODE_DIRTY_FLAG)
+        tlb_set_dirty(addr, cpu_single_env->mem_write_vaddr);
 }
 
 static void notdirty_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
+    unsigned long ram_addr;
+    int dirty_flags;
+    ram_addr = addr - (unsigned long)phys_ram_base;
+    dirty_flags = phys_ram_dirty[ram_addr >> TARGET_PAGE_BITS];
+    if (!(dirty_flags & CODE_DIRTY_FLAG)) {
+#if !defined(CONFIG_USER_ONLY)
+        tb_invalidate_phys_page_fast(ram_addr, 4);
+        dirty_flags = phys_ram_dirty[ram_addr >> TARGET_PAGE_BITS];
+#endif
+    }
     stl_p((uint8_t *)(long)addr, val);
-    tlb_set_dirty(addr, cpu_single_env->mem_write_vaddr);
+    /* we set the page as dirty only if the code has been flushed */
+    if (dirty_flags & CODE_DIRTY_FLAG)
+        tlb_set_dirty(addr, cpu_single_env->mem_write_vaddr);
 }
+
+static CPUReadMemoryFunc *error_mem_read[3] = {
+    NULL, /* never used */
+    NULL, /* never used */
+    NULL, /* never used */
+};
 
 static CPUWriteMemoryFunc *notdirty_mem_write[3] = {
     notdirty_mem_writeb,
@@ -2063,14 +2060,14 @@ static CPUWriteMemoryFunc *notdirty_mem_write[3] = {
 
 static void io_mem_init(void)
 {
-    cpu_register_io_memory(IO_MEM_ROM >> IO_MEM_SHIFT, code_mem_read, unassigned_mem_write, NULL);
+    cpu_register_io_memory(IO_MEM_ROM >> IO_MEM_SHIFT, error_mem_read, unassigned_mem_write, NULL);
     cpu_register_io_memory(IO_MEM_UNASSIGNED >> IO_MEM_SHIFT, unassigned_mem_read, unassigned_mem_write, NULL);
-    cpu_register_io_memory(IO_MEM_CODE >> IO_MEM_SHIFT, code_mem_read, code_mem_write, NULL);
-    cpu_register_io_memory(IO_MEM_NOTDIRTY >> IO_MEM_SHIFT, code_mem_read, notdirty_mem_write, NULL);
+    cpu_register_io_memory(IO_MEM_NOTDIRTY >> IO_MEM_SHIFT, error_mem_read, notdirty_mem_write, NULL);
     io_mem_nb = 5;
 
     /* alloc dirty bits array */
     phys_ram_dirty = qemu_vmalloc(phys_ram_size >> TARGET_PAGE_BITS);
+    memset(phys_ram_dirty, 0xff, phys_ram_size >> TARGET_PAGE_BITS);
 }
 
 /* mem_read and mem_write are arrays of functions containing the
@@ -2182,7 +2179,7 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
         }
         
         if (is_write) {
-            if ((pd & ~TARGET_PAGE_MASK) != 0) {
+            if ((pd & ~TARGET_PAGE_MASK) != IO_MEM_RAM) {
                 io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
                 if (l >= 4 && ((addr & 3) == 0)) {
                     /* 32 bit read access */
@@ -2206,14 +2203,15 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
                 /* RAM case */
                 ptr = phys_ram_base + addr1;
                 memcpy(ptr, buf, l);
-                /* invalidate code */
-                tb_invalidate_phys_page_range(addr1, addr1 + l, 0);
-                /* set dirty bit */
-                phys_ram_dirty[addr1 >> TARGET_PAGE_BITS] = 0xff;
+                if (!cpu_physical_memory_is_dirty(addr1)) {
+                    /* invalidate code */
+                    tb_invalidate_phys_page_range(addr1, addr1 + l, 0);
+                    /* set dirty bit */
+                    phys_ram_dirty[addr1 >> TARGET_PAGE_BITS] = 0xff;
+                }
             }
         } else {
-            if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM &&
-                (pd & ~TARGET_PAGE_MASK) != IO_MEM_CODE) {
+            if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM) {
                 /* I/O case */
                 io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
                 if (l >= 4 && ((addr & 3) == 0)) {
@@ -2261,8 +2259,7 @@ uint32_t ldl_phys(target_phys_addr_t addr)
         pd = p->phys_offset;
     }
         
-    if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM &&
-        (pd & ~TARGET_PAGE_MASK) != IO_MEM_CODE) {
+    if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM) {
         /* I/O case */
         io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
         val = io_mem_read[io_index][2](io_mem_opaque[io_index], addr);
@@ -2292,7 +2289,7 @@ void stl_phys_notdirty(target_phys_addr_t addr, uint32_t val)
         pd = p->phys_offset;
     }
         
-    if ((pd & ~TARGET_PAGE_MASK) != 0) {
+    if ((pd & ~TARGET_PAGE_MASK) != IO_MEM_RAM) {
         io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
         io_mem_write[io_index][2](io_mem_opaque[io_index], addr, val);
     } else {
@@ -2303,7 +2300,6 @@ void stl_phys_notdirty(target_phys_addr_t addr, uint32_t val)
 }
 
 /* warning: addr must be aligned */
-/* XXX: optimize code invalidation test */
 void stl_phys(target_phys_addr_t addr, uint32_t val)
 {
     int io_index;
@@ -2318,7 +2314,7 @@ void stl_phys(target_phys_addr_t addr, uint32_t val)
         pd = p->phys_offset;
     }
         
-    if ((pd & ~TARGET_PAGE_MASK) != 0) {
+    if ((pd & ~TARGET_PAGE_MASK) != IO_MEM_RAM) {
         io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
         io_mem_write[io_index][2](io_mem_opaque[io_index], addr, val);
     } else {
@@ -2327,10 +2323,12 @@ void stl_phys(target_phys_addr_t addr, uint32_t val)
         /* RAM case */
         ptr = phys_ram_base + addr1;
         stl_p(ptr, val);
-        /* invalidate code */
-        tb_invalidate_phys_page_range(addr1, addr1 + 4, 0);
-        /* set dirty bit */
-        phys_ram_dirty[addr1 >> TARGET_PAGE_BITS] = 0xff;
+        if (!cpu_physical_memory_is_dirty(addr1)) {
+            /* invalidate code */
+            tb_invalidate_phys_page_range(addr1, addr1 + 4, 0);
+            /* set dirty bit */
+            phys_ram_dirty[addr1 >> TARGET_PAGE_BITS] = 0xff;
+        }
     }
 }
 
