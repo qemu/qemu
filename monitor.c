@@ -251,6 +251,9 @@ static void do_info_history (void)
 
 static void do_quit(void)
 {
+#ifdef USE_KQEMU
+    kqemu_record_dump();
+#endif
     exit(0);
 }
 

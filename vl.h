@@ -878,4 +878,6 @@ const char *readline_get_history(unsigned int index);
 void readline_start(const char *prompt, int is_password,
                     ReadLineFunc *readline_func, void *opaque);
 
+void kqemu_record_dump(void);
+
 #endif /* VL_H */
