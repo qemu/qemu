@@ -7,6 +7,8 @@
 
 extern FILE *logfile;
 
+static PITState *pit;
+
 static void pic_irq_request(void *opaque, int level)
 {
     if (level) {
@@ -242,6 +244,7 @@ void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
     isa_mem_base = 0x10000000;
 
     isa_pic = pic_init(pic_irq_request, cpu_single_env);
+    pit = pit_init(0x40, 0);
     serial_init(0x3f8, 4, serial_hds[0]);
     vga_initialize(NULL, ds, phys_ram_base + ram_size, ram_size, 
                    vga_ram_size, 0, 0);
