@@ -320,13 +320,16 @@ TranslationBlock *tb_find_pc(unsigned long pc_ptr);
 #define ASM_PREVIOUS_SECTION ".previous\n"
 #endif
 
+#define ASM_OP_LABEL_NAME(n, opname) \
+    ASM_NAME(__op_label) #n "." ASM_NAME(opname)
+
 #if defined(__powerpc__)
 
 /* we patch the jump instruction directly */
 #define GOTO_TB(opname, tbparam, n)\
 do {\
     asm volatile (ASM_DATA_SECTION\
-		  ASM_NAME(__op_label) #n "." ASM_NAME(opname) ":\n"\
+		  ASM_OP_LABEL_NAME(n, opname) ":\n"\
 		  ".long 1f\n"\
 		  ASM_PREVIOUS_SECTION \
                   "b " ASM_NAME(__op_jmp) #n "\n"\
@@ -339,7 +342,7 @@ do {\
 #define GOTO_TB(opname, tbparam, n)\
 do {\
     asm volatile (".section .data\n"\
-		  ASM_NAME(__op_label) #n "." ASM_NAME(opname) ":\n"\
+		  ASM_OP_LABEL_NAME(n, opname) ":\n"\
 		  ".long 1f\n"\
 		  ASM_PREVIOUS_SECTION \
                   "jmp " ASM_NAME(__op_jmp) #n "\n"\
@@ -353,7 +356,8 @@ do {\
 #define GOTO_TB(opname, tbparam, n)\
 do {\
     static void __attribute__((unused)) *dummy ## n = &&dummy_label ## n;\
-    static void __attribute__((unused)) *__op_label ## n = &&label ## n;\
+    static void __attribute__((unused)) *__op_label ## n \
+        __asm__(ASM_OP_LABEL_NAME(n, opname)) = &&label ## n;\
     goto *(void *)(((TranslationBlock *)tbparam)->tb_next[n]);\
 label ## n: ;\
 dummy_label ## n: ;\
