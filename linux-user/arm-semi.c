@@ -178,7 +178,7 @@ uint32_t do_arm_semihosting(CPUState *env)
                 ts->heap_limit = limit;
             }
               
-            ptr = (uint32_t *)tswap32(ARG(0));
+            ptr = (uint32_t *)ARG(0);
             ptr[0] = tswap32(ts->heap_base);
             ptr[1] = tswap32(ts->heap_limit);
             ptr[2] = tswap32(ts->stack_base);
