@@ -540,7 +540,7 @@ static void command (SB16State *s, uint8_t cmd)
     return;
 
  warn:
-    dolog ("warning: command %#x,%d is not trully understood yet\n",
+    dolog ("warning: command %#x,%d is not truly understood yet\n",
            cmd, s->needed_bytes);
     s->cmd = cmd;
     return;
