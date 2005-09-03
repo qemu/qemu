@@ -2193,17 +2193,17 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
             if ((pd & ~TARGET_PAGE_MASK) != IO_MEM_RAM) {
                 io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
                 if (l >= 4 && ((addr & 3) == 0)) {
-                    /* 32 bit read access */
+                    /* 32 bit write access */
                     val = ldl_p(buf);
                     io_mem_write[io_index][2](io_mem_opaque[io_index], addr, val);
                     l = 4;
                 } else if (l >= 2 && ((addr & 1) == 0)) {
-                    /* 16 bit read access */
+                    /* 16 bit write access */
                     val = lduw_p(buf);
                     io_mem_write[io_index][1](io_mem_opaque[io_index], addr, val);
                     l = 2;
                 } else {
-                    /* 8 bit access */
+                    /* 8 bit write access */
                     val = ldub_p(buf);
                     io_mem_write[io_index][0](io_mem_opaque[io_index], addr, val);
                     l = 1;
@@ -2237,7 +2237,7 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
                     stw_p(buf, val);
                     l = 2;
                 } else {
-                    /* 8 bit access */
+                    /* 8 bit read access */
                     val = io_mem_read[io_index][0](io_mem_opaque[io_index], addr);
                     stb_p(buf, val);
                     l = 1;
