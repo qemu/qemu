@@ -350,7 +350,7 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds)
 	 * See if anything has timed out 
 	 */
 	if (link_up) {
-		if (time_fasttimo && ((curtime - time_fasttimo) >= 199)) {
+		if (time_fasttimo && ((curtime - time_fasttimo) >= 2)) {
 			tcp_fasttimo();
 			time_fasttimo = 0;
 		}
