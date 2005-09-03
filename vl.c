@@ -1138,7 +1138,11 @@ CharDriverState *qemu_chr_open_fd(int fd_in, int fd_out)
 
 #define TERM_ESCAPE 0x01 /* ctrl-a is used for escape */
 
+#define TERM_FIFO_MAX_SIZE 1
+
 static int term_got_escape, client_index;
+static uint8_t term_fifo[TERM_FIFO_MAX_SIZE];
+int term_fifo_size;
 
 void term_print_help(void)
 {
@@ -1207,19 +1211,37 @@ static void stdio_received_byte(int ch)
             
             chr = stdio_clients[client_index];
             s = chr->opaque;
-            buf[0] = ch;
-            /* XXX: should queue the char if the device is not
-               ready */
-            if (s->fd_can_read(s->fd_opaque) > 0) 
+            if (s->fd_can_read(s->fd_opaque) > 0) {
+                buf[0] = ch;
                 s->fd_read(s->fd_opaque, buf, 1);
+            } else if (term_fifo_size == 0) {
+                term_fifo[term_fifo_size++] = ch;
+            }
         }
     }
 }
 
 static int stdio_can_read(void *opaque)
 {
-    /* XXX: not strictly correct */
-    return 1;
+    CharDriverState *chr;
+    FDCharDriver *s;
+
+    if (client_index < stdio_nb_clients) {
+        chr = stdio_clients[client_index];
+        s = chr->opaque;
+        /* try to flush the queue if needed */
+        if (term_fifo_size != 0 && s->fd_can_read(s->fd_opaque) > 0) {
+            s->fd_read(s->fd_opaque, term_fifo, 1);
+            term_fifo_size = 0;
+        }
+        /* see if we can absorb more chars */
+        if (term_fifo_size == 0)
+            return 1;
+        else
+            return 0;
+    } else {
+        return 1;
+    }
 }
 
 static void stdio_read(void *opaque, const uint8_t *buf, int size)
