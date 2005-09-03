@@ -1,3 +1,10 @@
+version 0.7.2:
+  
+  - x86_64 fixes (Win2000 and Linux 2.6 boot in 32 bit)
+  - merge self modifying code handling in dirty ram page mecanism.
+  - MIPS fixes (Ralf Baechle)
+  - better user net performances
+
 version 0.7.1:
 
   - read-only Virtual FAT support (Johannes Schindelin)
@@ -8,6 +15,7 @@ version 0.7.1:
   - initial MIPS support (Jocelyn mayer)
   - MIPS improvements (Ralf Baechle)
   - 64 bit fixes in user networking (initial patch by Gwenole Beauchesne)
+  - IOAPIC support (Filip Navara)
 
 version 0.7.0:
 
