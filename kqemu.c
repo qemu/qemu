@@ -119,13 +119,19 @@ static void kqemu_update_cpuid(CPUState *env)
     critical_features_mask = 
         CPUID_CMOV | CPUID_CX8 | 
         CPUID_FXSR | CPUID_MMX | CPUID_SSE | 
-        CPUID_SSE2;
+        CPUID_SSE2 | CPUID_SEP;
     if (!is_cpuid_supported()) {
         features = 0;
     } else {
         cpuid(1, eax, ebx, ecx, edx);
         features = edx;
     }
+#ifdef __x86_64__
+    /* NOTE: on x86_64 CPUs, SYSENTER is not supported in
+       compatibility mode, so in order to have the best performances
+       it is better not to use it */
+    features &= ~CPUID_SEP;
+#endif
     env->cpuid_features = (env->cpuid_features & ~critical_features_mask) |
         (features & critical_features_mask);
     /* XXX: we could update more of the target CPUID state so that the
