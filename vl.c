@@ -875,6 +875,9 @@ static void host_alarm_handler(int host_signum)
                            qemu_get_clock(rt_clock))) {
         /* stop the cpu because a timer occured */
         cpu_interrupt(global_env, CPU_INTERRUPT_EXIT);
+#ifdef USE_KQEMU
+        kqemu_cpu_interrupt(global_env);
+#endif
     }
 }
 

@@ -596,11 +596,14 @@ int kqemu_cpu_exec(CPUState *env)
     }
 
 #ifdef _WIN32
-    DeviceIoControl(kqemu_fd, KQEMU_EXEC,
-		    kenv, sizeof(struct kqemu_cpu_state),
-		    kenv, sizeof(struct kqemu_cpu_state),
-		    &temp, NULL);
-    ret = kenv->retval;
+    if (DeviceIoControl(kqemu_fd, KQEMU_EXEC,
+                        kenv, sizeof(struct kqemu_cpu_state),
+                        kenv, sizeof(struct kqemu_cpu_state),
+                        &temp, NULL)) {
+        ret = kenv->retval;
+    } else {
+        ret = -1;
+    }
 #else
 #if KQEMU_VERSION >= 0x010100
     ioctl(kqemu_fd, KQEMU_EXEC, kenv);
@@ -735,6 +738,15 @@ int kqemu_cpu_exec(CPUState *env)
         exit(1);
     }
     return 0;
+}
+
+void kqemu_cpu_interrupt(CPUState *env)
+{
+#if defined(_WIN32) && KQEMU_VERSION >= 0x010101
+    /* cancelling the I/O request causes KQEMU to finish executing the 
+       current block and successfully returning. */
+    CancelIo(kqemu_fd);
+#endif
 }
 
 #endif

@@ -611,6 +611,7 @@ int kqemu_cpu_exec(CPUState *env);
 void kqemu_flush_page(CPUState *env, target_ulong addr);
 void kqemu_flush(CPUState *env, int global);
 void kqemu_set_notdirty(CPUState *env, ram_addr_t ram_addr);
+void kqemu_cpu_interrupt(CPUState *env);
 
 static inline int kqemu_is_ok(CPUState *env)
 {
