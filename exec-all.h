@@ -620,11 +620,7 @@ static inline int kqemu_is_ok(CPUState *env)
            (env->eflags & IOPL_MASK) != IOPL_MASK &&
            (env->cr[0] & CR0_PE_MASK) && 
            (env->eflags & IF_MASK) &&
-           !(env->eflags & VM_MASK)
-#if 1
-           && (env->ldt.limit == 0 || env->ldt.limit == 0x27)
-#endif
-           );
+           !(env->eflags & VM_MASK));
 }
 
 #endif
