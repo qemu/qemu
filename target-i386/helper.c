@@ -3261,7 +3261,7 @@ static void imul64(uint64_t *plow, uint64_t *phigh, int64_t a, int64_t b)
 static int div64(uint64_t *plow, uint64_t *phigh, uint64_t b)
 {
     uint64_t q, r, a1, a0;
-    int i, qb;
+    int i, qb, ab;
 
     a0 = *plow;
     a1 = *phigh;
@@ -3275,8 +3275,9 @@ static int div64(uint64_t *plow, uint64_t *phigh, uint64_t b)
             return 1;
         /* XXX: use a better algorithm */
         for(i = 0; i < 64; i++) {
+            ab = a1 >> 63;
             a1 = (a1 << 1) | (a0 >> 63);
-            if (a1 >= b) {
+            if (ab || a1 >= b) {
                 a1 -= b;
                 qb = 1;
             } else {
