@@ -978,7 +978,7 @@ void usage(void)
            "Linux CPU emulator (compiled for %s emulation)\n"
            "\n"
            "-h           print this help\n"
-           "-g           wait gdb connection to port %d\n"
+           "-g port      wait gdb connection to port\n"
            "-L path      set the elf interpreter prefix (default=%s)\n"
            "-s size      set the stack size in bytes (default=%ld)\n"
            "\n"
@@ -989,7 +989,6 @@ void usage(void)
            "-d options   activate log (logfile=%s)\n"
            "-p pagesize  set the host page size to 'pagesize'\n",
            TARGET_ARCH,
-           DEFAULT_GDBSTUB_PORT,
            interp_prefix, 
            x86_stack_size,
            DEBUG_LOGFILE);
@@ -1013,7 +1012,7 @@ int main(int argc, char **argv)
     CPUState *env;
     int optind;
     const char *r;
-    int use_gdbstub = 0;
+    int gdbstub_port = 0;
     
     if (argc <= 1)
         usage();
@@ -1068,7 +1067,7 @@ int main(int argc, char **argv)
                 exit(1);
             }
         } else if (!strcmp(r, "g")) {
-            use_gdbstub = 1;
+            gdbstub_port = atoi(argv[optind++]);
         } else 
 #ifdef USE_CODE_COPY
         if (!strcmp(r, "no-code-copy")) {
@@ -1247,8 +1246,8 @@ int main(int argc, char **argv)
 #error unsupported target CPU
 #endif
 
-    if (use_gdbstub) {
-        gdbserver_start (DEFAULT_GDBSTUB_PORT);
+    if (gdbstub_port) {
+        gdbserver_start (gdbstub_port);
         gdb_handlesig(env, 0);
     }
     cpu_loop(env);
