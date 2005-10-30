@@ -221,6 +221,15 @@ void do_fcmpd_fcc3 (void)
 #undef FS
 #endif
 
+#if defined(CONFIG_USER_ONLY) 
+void helper_ld_asi(int asi, int size, int sign)
+{
+}
+
+void helper_st_asi(int asi, int size, int sign)
+{
+}
+#else
 #ifndef TARGET_SPARC64
 void helper_ld_asi(int asi, int size, int sign)
 {
@@ -727,8 +736,8 @@ void helper_st_asi(int asi, int size, int sign)
 	return;
     }
 }
-
 #endif
+#endif /* !CONFIG_USER_ONLY */
 
 #ifndef TARGET_SPARC64
 void helper_rett()

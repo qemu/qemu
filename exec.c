@@ -2152,20 +2152,6 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
     }
 }
 
-/* never used */
-uint32_t ldl_phys(target_phys_addr_t addr)
-{
-    return 0;
-}
-
-void stl_phys_notdirty(target_phys_addr_t addr, uint32_t val)
-{
-}
-
-void stl_phys(target_phys_addr_t addr, uint32_t val)
-{
-}
-
 #else
 void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf, 
                             int len, int is_write)

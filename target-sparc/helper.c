@@ -230,7 +230,107 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
         return 1;
     }
 }
-#else
+
+target_ulong mmu_probe(CPUState *env, target_ulong address, int mmulev)
+{
+    target_phys_addr_t pde_ptr;
+    uint32_t pde;
+
+    /* Context base + context number */
+    pde_ptr = (env->mmuregs[1] << 4) + (env->mmuregs[2] << 2);
+    pde = ldl_phys(pde_ptr);
+
+    switch (pde & PTE_ENTRYTYPE_MASK) {
+    default:
+    case 0: /* Invalid */
+    case 2: /* PTE, maybe should not happen? */
+    case 3: /* Reserved */
+	return 0;
+    case 1: /* L1 PDE */
+	if (mmulev == 3)
+	    return pde;
+	pde_ptr = ((address >> 22) & ~3) + ((pde & ~3) << 4);
+        pde = ldl_phys(pde_ptr);
+
+	switch (pde & PTE_ENTRYTYPE_MASK) {
+	default:
+	case 0: /* Invalid */
+	case 3: /* Reserved */
+	    return 0;
+	case 2: /* L1 PTE */
+	    return pde;
+	case 1: /* L2 PDE */
+	    if (mmulev == 2)
+		return pde;
+	    pde_ptr = ((address & 0xfc0000) >> 16) + ((pde & ~3) << 4);
+            pde = ldl_phys(pde_ptr);
+
+	    switch (pde & PTE_ENTRYTYPE_MASK) {
+	    default:
+	    case 0: /* Invalid */
+	    case 3: /* Reserved */
+		return 0;
+	    case 2: /* L2 PTE */
+		return pde;
+	    case 1: /* L3 PDE */
+		if (mmulev == 1)
+		    return pde;
+		pde_ptr = ((address & 0x3f000) >> 10) + ((pde & ~3) << 4);
+                pde = ldl_phys(pde_ptr);
+
+		switch (pde & PTE_ENTRYTYPE_MASK) {
+		default:
+		case 0: /* Invalid */
+		case 1: /* PDE, should not happen */
+		case 3: /* Reserved */
+		    return 0;
+		case 2: /* L3 PTE */
+		    return pde;
+		}
+	    }
+	}
+    }
+    return 0;
+}
+
+#ifdef DEBUG_MMU
+void dump_mmu(CPUState *env)
+{
+     target_ulong va, va1, va2;
+     unsigned int n, m, o;
+     target_phys_addr_t pde_ptr, pa;
+    uint32_t pde;
+
+    printf("MMU dump:\n");
+    pde_ptr = (env->mmuregs[1] << 4) + (env->mmuregs[2] << 2);
+    pde = ldl_phys(pde_ptr);
+    printf("Root ptr: " TARGET_FMT_lx ", ctx: %d\n", env->mmuregs[1] << 4, env->mmuregs[2]);
+    for (n = 0, va = 0; n < 256; n++, va += 16 * 1024 * 1024) {
+	pde_ptr = mmu_probe(env, va, 2);
+	if (pde_ptr) {
+	    pa = cpu_get_phys_page_debug(env, va);
+ 	    printf("VA: " TARGET_FMT_lx ", PA: " TARGET_FMT_lx " PDE: " TARGET_FMT_lx "\n", va, pa, pde_ptr);
+	    for (m = 0, va1 = va; m < 64; m++, va1 += 256 * 1024) {
+		pde_ptr = mmu_probe(env, va1, 1);
+		if (pde_ptr) {
+		    pa = cpu_get_phys_page_debug(env, va1);
+ 		    printf(" VA: " TARGET_FMT_lx ", PA: " TARGET_FMT_lx " PDE: " TARGET_FMT_lx "\n", va1, pa, pde_ptr);
+		    for (o = 0, va2 = va1; o < 64; o++, va2 += 4 * 1024) {
+			pde_ptr = mmu_probe(env, va2, 0);
+			if (pde_ptr) {
+			    pa = cpu_get_phys_page_debug(env, va2);
+ 			    printf("  VA: " TARGET_FMT_lx ", PA: " TARGET_FMT_lx " PTE: " TARGET_FMT_lx "\n", va2, pa, pde_ptr);
+			}
+		    }
+		}
+	    }
+	}
+    }
+    printf("MMU dump ends\n");
+}
+#endif /* DEBUG_MMU */
+
+#else /* !TARGET_SPARC64 */
 /*
  * UltraSparc IIi I/DMMUs
  */
@@ -382,121 +482,6 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
     return 1;
 }
 
-#endif
-#endif
-
-void memcpy32(target_ulong *dst, const target_ulong *src)
-{
-    dst[0] = src[0];
-    dst[1] = src[1];
-    dst[2] = src[2];
-    dst[3] = src[3];
-    dst[4] = src[4];
-    dst[5] = src[5];
-    dst[6] = src[6];
-    dst[7] = src[7];
-}
-
-#if !defined(TARGET_SPARC64)
-target_ulong mmu_probe(CPUState *env, target_ulong address, int mmulev)
-{
-    target_phys_addr_t pde_ptr;
-    uint32_t pde;
-
-    /* Context base + context number */
-    pde_ptr = (env->mmuregs[1] << 4) + (env->mmuregs[2] << 2);
-    pde = ldl_phys(pde_ptr);
-
-    switch (pde & PTE_ENTRYTYPE_MASK) {
-    default:
-    case 0: /* Invalid */
-    case 2: /* PTE, maybe should not happen? */
-    case 3: /* Reserved */
-	return 0;
-    case 1: /* L1 PDE */
-	if (mmulev == 3)
-	    return pde;
-	pde_ptr = ((address >> 22) & ~3) + ((pde & ~3) << 4);
-        pde = ldl_phys(pde_ptr);
-
-	switch (pde & PTE_ENTRYTYPE_MASK) {
-	default:
-	case 0: /* Invalid */
-	case 3: /* Reserved */
-	    return 0;
-	case 2: /* L1 PTE */
-	    return pde;
-	case 1: /* L2 PDE */
-	    if (mmulev == 2)
-		return pde;
-	    pde_ptr = ((address & 0xfc0000) >> 16) + ((pde & ~3) << 4);
-            pde = ldl_phys(pde_ptr);
-
-	    switch (pde & PTE_ENTRYTYPE_MASK) {
-	    default:
-	    case 0: /* Invalid */
-	    case 3: /* Reserved */
-		return 0;
-	    case 2: /* L2 PTE */
-		return pde;
-	    case 1: /* L3 PDE */
-		if (mmulev == 1)
-		    return pde;
-		pde_ptr = ((address & 0x3f000) >> 10) + ((pde & ~3) << 4);
-                pde = ldl_phys(pde_ptr);
-
-		switch (pde & PTE_ENTRYTYPE_MASK) {
-		default:
-		case 0: /* Invalid */
-		case 1: /* PDE, should not happen */
-		case 3: /* Reserved */
-		    return 0;
-		case 2: /* L3 PTE */
-		    return pde;
-		}
-	    }
-	}
-    }
-    return 0;
-}
-
-#ifdef DEBUG_MMU
-void dump_mmu(CPUState *env)
-{
-     target_ulong va, va1, va2;
-     unsigned int n, m, o;
-     target_phys_addr_t pde_ptr, pa;
-    uint32_t pde;
-
-    printf("MMU dump:\n");
-    pde_ptr = (env->mmuregs[1] << 4) + (env->mmuregs[2] << 2);
-    pde = ldl_phys(pde_ptr);
-    printf("Root ptr: " TARGET_FMT_lx ", ctx: %d\n", env->mmuregs[1] << 4, env->mmuregs[2]);
-    for (n = 0, va = 0; n < 256; n++, va += 16 * 1024 * 1024) {
-	pde_ptr = mmu_probe(env, va, 2);
-	if (pde_ptr) {
-	    pa = cpu_get_phys_page_debug(env, va);
- 	    printf("VA: " TARGET_FMT_lx ", PA: " TARGET_FMT_lx " PDE: " TARGET_FMT_lx "\n", va, pa, pde_ptr);
-	    for (m = 0, va1 = va; m < 64; m++, va1 += 256 * 1024) {
-		pde_ptr = mmu_probe(env, va1, 1);
-		if (pde_ptr) {
-		    pa = cpu_get_phys_page_debug(env, va1);
- 		    printf(" VA: " TARGET_FMT_lx ", PA: " TARGET_FMT_lx " PDE: " TARGET_FMT_lx "\n", va1, pa, pde_ptr);
-		    for (o = 0, va2 = va1; o < 64; o++, va2 += 4 * 1024) {
-			pde_ptr = mmu_probe(env, va2, 0);
-			if (pde_ptr) {
-			    pa = cpu_get_phys_page_debug(env, va2);
- 			    printf("  VA: " TARGET_FMT_lx ", PA: " TARGET_FMT_lx " PTE: " TARGET_FMT_lx "\n", va2, pa, pde_ptr);
-			}
-		    }
-		}
-	    }
-	}
-    }
-    printf("MMU dump ends\n");
-}
-#endif
-#else
 #ifdef DEBUG_MMU
 void dump_mmu(CPUState *env)
 {
@@ -568,5 +553,19 @@ void dump_mmu(CPUState *env)
 	}
     }
 }
-#endif
-#endif
+#endif /* DEBUG_MMU */
+
+#endif /* TARGET_SPARC64 */
+#endif /* !CONFIG_USER_ONLY */
+
+void memcpy32(target_ulong *dst, const target_ulong *src)
+{
+    dst[0] = src[0];
+    dst[1] = src[1];
+    dst[2] = src[2];
+    dst[3] = src[3];
+    dst[4] = src[4];
+    dst[5] = src[5];
+    dst[6] = src[6];
+    dst[7] = src[7];
+}
