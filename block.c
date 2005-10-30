@@ -32,8 +32,78 @@
 #include <sys/disk.h>
 #endif
 
+#ifdef CONFIG_COCOA
+#include <paths.h>
+#include <sys/param.h>
+#include <IOKit/IOKitLib.h>
+#include <IOKit/IOBSD.h>
+#include <IOKit/storage/IOMediaBSDClient.h>
+#include <IOKit/storage/IOMedia.h>
+#include <IOKit/storage/IOCDMedia.h>
+//#include <IOKit/storage/IOCDTypes.h>
+#include <CoreFoundation/CoreFoundation.h>
+#endif
+
 static BlockDriverState *bdrv_first;
 static BlockDriver *first_drv;
+
+#ifdef CONFIG_COCOA
+static kern_return_t FindEjectableCDMedia( io_iterator_t *mediaIterator );
+static kern_return_t GetBSDPath( io_iterator_t mediaIterator, char *bsdPath, CFIndex maxPathSize );
+
+kern_return_t FindEjectableCDMedia( io_iterator_t *mediaIterator )
+{
+    kern_return_t       kernResult; 
+    mach_port_t     masterPort;
+    CFMutableDictionaryRef  classesToMatch;
+
+    kernResult = IOMasterPort( MACH_PORT_NULL, &masterPort );
+    if ( KERN_SUCCESS != kernResult ) {
+        printf( "IOMasterPort returned %d\n", kernResult );
+    }
+    
+    classesToMatch = IOServiceMatching( kIOCDMediaClass ); 
+    if ( classesToMatch == NULL ) {
+        printf( "IOServiceMatching returned a NULL dictionary.\n" );
+    } else {
+    CFDictionarySetValue( classesToMatch, CFSTR( kIOMediaEjectableKey ), kCFBooleanTrue );
+    }
+    kernResult = IOServiceGetMatchingServices( masterPort, classesToMatch, mediaIterator );
+    if ( KERN_SUCCESS != kernResult )
+    {
+        printf( "IOServiceGetMatchingServices returned %d\n", kernResult );
+    }
+    
+    return kernResult;
+}
+
+kern_return_t GetBSDPath( io_iterator_t mediaIterator, char *bsdPath, CFIndex maxPathSize )
+{
+    io_object_t     nextMedia;
+    kern_return_t   kernResult = KERN_FAILURE;
+    *bsdPath = '\0';
+    nextMedia = IOIteratorNext( mediaIterator );
+    if ( nextMedia )
+    {
+        CFTypeRef   bsdPathAsCFString;
+    bsdPathAsCFString = IORegistryEntryCreateCFProperty( nextMedia, CFSTR( kIOBSDNameKey ), kCFAllocatorDefault, 0 );
+        if ( bsdPathAsCFString ) {
+            size_t devPathLength;
+            strcpy( bsdPath, _PATH_DEV );
+            strcat( bsdPath, "r" );
+            devPathLength = strlen( bsdPath );
+            if ( CFStringGetCString( bsdPathAsCFString, bsdPath + devPathLength, maxPathSize - devPathLength, kCFStringEncodingASCII ) ) {
+                kernResult = KERN_SUCCESS;
+            }
+            CFRelease( bsdPathAsCFString );
+        }
+        IOObjectRelease( nextMedia );
+    }
+    
+    return kernResult;
+}
+
+#endif
 
 void bdrv_register(BlockDriver *bdrv)
 {
@@ -118,6 +188,12 @@ static BlockDriver *find_image_format(const char *filename)
                 bufsize = sectorsize;
         }
 #endif
+#ifdef CONFIG_COCOA
+        u_int32_t   blockSize = 512;
+        if ( !ioctl( fd, DKIOCGETBLOCKSIZE, &blockSize ) && blockSize > bufsize) {
+            bufsize = blockSize;
+        }
+#endif
         buf = qemu_malloc(bufsize);
         if (!buf)
             return NULL;
@@ -145,6 +221,32 @@ static BlockDriver *find_image_format(const char *filename)
 
 int bdrv_open(BlockDriverState *bs, const char *filename, int snapshot)
 {
+#ifdef CONFIG_COCOA
+    if ( strncmp( filename, "/dev/cdrom", 10 ) == 0 ) {
+        kern_return_t kernResult;
+        io_iterator_t mediaIterator;
+        char bsdPath[ MAXPATHLEN ];
+        int fd;
+ 
+        kernResult = FindEjectableCDMedia( &mediaIterator );
+        kernResult = GetBSDPath( mediaIterator, bsdPath, sizeof( bsdPath ) );
+    
+        if ( bsdPath[ 0 ] != '\0' ) {
+            strcat(bsdPath,"s0");
+            /* some CDs don't have a partition 0 */
+            fd = open(bsdPath, O_RDONLY | O_BINARY | O_LARGEFILE);
+            if (fd < 0) {
+                bsdPath[strlen(bsdPath)-1] = '1';
+            } else {
+                close(fd);
+            }
+            filename = bsdPath;
+        }
+        
+        if ( mediaIterator )
+            IOObjectRelease( mediaIterator );
+    }
+#endif
     return bdrv_open2(bs, filename, snapshot, NULL);
 }
 
@@ -567,7 +669,11 @@ static int raw_open(BlockDriverState *bs, const char *filename)
 #ifdef DIOCGMEDIASIZE
 	if (ioctl(fd, DIOCGMEDIASIZE, (off_t *)&size))
 #endif
-	    size = lseek(fd, 0LL, SEEK_END);
+#ifdef CONFIG_COCOA
+        size = LONG_LONG_MAX;
+#else
+        size = lseek(fd, 0LL, SEEK_END);
+#endif
     } else
 #endif
     {
