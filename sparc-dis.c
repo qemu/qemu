@@ -2102,7 +2102,55 @@ lookup_value (table, value)
 
 /* Handle ASI's.  */
 
-static arg asi_table[] =
+static const arg asi_table_v8[] =
+{
+  { 0x00, "#ASI_M_RES00" },
+  { 0x01, "#ASI_M_UNA01" },
+  { 0x02, "#ASI_M_MXCC" },
+  { 0x03, "#ASI_M_FLUSH_PROBE" },
+  { 0x04, "#ASI_M_MMUREGS" },
+  { 0x05, "#ASI_M_TLBDIAG" },
+  { 0x06, "#ASI_M_DIAGS" },
+  { 0x07, "#ASI_M_IODIAG" },
+  { 0x08, "#ASI_M_USERTXT" },
+  { 0x09, "#ASI_M_KERNELTXT" },
+  { 0x0A, "#ASI_M_USERDATA" },
+  { 0x0B, "#ASI_M_KERNELDATA" },
+  { 0x0C, "#ASI_M_TXTC_TAG" },
+  { 0x0D, "#ASI_M_TXTC_DATA" },
+  { 0x0E, "#ASI_M_DATAC_TAG" },
+  { 0x0F, "#ASI_M_DATAC_DATA" },
+  { 0x10, "#ASI_M_FLUSH_PAGE" },
+  { 0x11, "#ASI_M_FLUSH_SEG" },
+  { 0x12, "#ASI_M_FLUSH_REGION" },
+  { 0x13, "#ASI_M_FLUSH_CTX" },
+  { 0x14, "#ASI_M_FLUSH_USER" },
+  { 0x17, "#ASI_M_BCOPY" },
+  { 0x18, "#ASI_M_IFLUSH_PAGE" },
+  { 0x19, "#ASI_M_IFLUSH_SEG" },
+  { 0x1A, "#ASI_M_IFLUSH_REGION" },
+  { 0x1B, "#ASI_M_IFLUSH_CTX" },
+  { 0x1C, "#ASI_M_IFLUSH_USER" },
+  { 0x1F, "#ASI_M_BFILL" },
+  { 0x20, "#ASI_M_BYPASS" },
+  { 0x29, "#ASI_M_FBMEM" },
+  { 0x2A, "#ASI_M_VMEUS" },
+  { 0x2B, "#ASI_M_VMEPS" },
+  { 0x2C, "#ASI_M_VMEUT" },
+  { 0x2D, "#ASI_M_VMEPT" },
+  { 0x2E, "#ASI_M_SBUS" },
+  { 0x2F, "#ASI_M_CTL" },
+  { 0x31, "#ASI_M_FLUSH_IWHOLE" },
+  { 0x36, "#ASI_M_IC_FLCLEAR" },
+  { 0x37, "#ASI_M_DC_FLCLEAR" },
+  { 0x39, "#ASI_M_DCDR" },
+  { 0x40, "#ASI_M_VIKING_TMP1" },
+  { 0x41, "#ASI_M_VIKING_TMP2" },
+  { 0x4c, "#ASI_M_ACTION" },
+  { 0, 0 }
+};
+
+static const arg asi_table_v9[] =
 {
   /* These are in the v9 architecture manual.  */
   /* The shorter versions appear first, they're here because Sun's as has them.
@@ -2142,22 +2190,18 @@ static arg asi_table[] =
   { 0, 0 }
 };
 
-/* Return the value for ASI NAME, or -1 if not found.  */
-
-int
-sparc_encode_asi (name)
-     const char *name;
-{
-  return lookup_name (asi_table, name);
-}
-
 /* Return the name for ASI value VALUE or NULL if not found.  */
 
-const char *
-sparc_decode_asi (value)
-     int value;
+static const char *
+sparc_decode_asi_v9 (int value)
 {
-  return lookup_value (asi_table, value);
+  return lookup_value (asi_table_v9, value);
+}
+
+static const char *
+sparc_decode_asi_v8 (int value)
+{
+  return lookup_value (asi_table_v8, value);
 }
 
 /* Handle membar masks.  */
@@ -2841,7 +2885,12 @@ print_insn_sparc (memaddr, info)
 
 		  case 'A':
 		    {
-		      const char *name = sparc_decode_asi (X_ASI (insn));
+		      const char *name;
+
+		      if (info->mach == bfd_mach_sparc_v9)
+			name = sparc_decode_asi_v9 (X_ASI (insn));
+		      else
+			name = sparc_decode_asi_v8 (X_ASI (insn));
 
 		      if (name)
 			(*info->fprintf_func) (stream, "%s", name);
