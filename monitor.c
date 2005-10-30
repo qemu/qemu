@@ -1060,10 +1060,12 @@ static target_long monitor_get_tbl (struct MonitorDef *md, int val)
 #endif
 
 #if defined(TARGET_SPARC)
+#ifndef TARGET_SPARC64
 static target_long monitor_get_psr (struct MonitorDef *md, int val)
 {
     return GET_PSR(cpu_single_env);
 }
+#endif
 
 static target_long monitor_get_reg(struct MonitorDef *md, int val)
 {
@@ -1202,8 +1204,10 @@ static MonitorDef monitor_defs[] = {
     { "pc", offsetof(CPUState, pc) },
     { "npc", offsetof(CPUState, npc) },
     { "y", offsetof(CPUState, y) },
+#ifndef TARGET_SPARC64
     { "psr", 0, &monitor_get_psr, },
     { "wim", offsetof(CPUState, wim) },
+#endif
     { "tbr", offsetof(CPUState, tbr) },
     { "fsr", offsetof(CPUState, fsr) },
     { "f0", offsetof(CPUState, fpr[0]) },
@@ -1238,6 +1242,32 @@ static MonitorDef monitor_defs[] = {
     { "f29", offsetof(CPUState, fpr[29]) },
     { "f30", offsetof(CPUState, fpr[30]) },
     { "f31", offsetof(CPUState, fpr[31]) },
+#ifdef TARGET_SPARC64
+    { "f32", offsetof(CPUState, fpr[32]) },
+    { "f34", offsetof(CPUState, fpr[34]) },
+    { "f36", offsetof(CPUState, fpr[36]) },
+    { "f38", offsetof(CPUState, fpr[38]) },
+    { "f40", offsetof(CPUState, fpr[40]) },
+    { "f42", offsetof(CPUState, fpr[42]) },
+    { "f44", offsetof(CPUState, fpr[44]) },
+    { "f46", offsetof(CPUState, fpr[46]) },
+    { "f48", offsetof(CPUState, fpr[48]) },
+    { "f50", offsetof(CPUState, fpr[50]) },
+    { "f52", offsetof(CPUState, fpr[52]) },
+    { "f54", offsetof(CPUState, fpr[54]) },
+    { "f56", offsetof(CPUState, fpr[56]) },
+    { "f58", offsetof(CPUState, fpr[58]) },
+    { "f60", offsetof(CPUState, fpr[60]) },
+    { "f62", offsetof(CPUState, fpr[62]) },
+    { "asi", offsetof(CPUState, asi) },
+    { "pstate", offsetof(CPUState, pstate) },
+    { "cansave", offsetof(CPUState, cansave) },
+    { "canrestore", offsetof(CPUState, canrestore) },
+    { "otherwin", offsetof(CPUState, otherwin) },
+    { "wstate", offsetof(CPUState, wstate) },
+    { "cleanwin", offsetof(CPUState, cleanwin) },
+    { "fprs", offsetof(CPUState, fprs) },
+#endif
 #endif
     { NULL },
 };
