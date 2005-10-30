@@ -194,8 +194,7 @@ uint32_t iommu_translate_local(void *opaque, uint32_t addr)
     iopte = s->regs[1] << 4;
     addr &= ~s->iostart;
     iopte += (addr >> (PAGE_SHIFT - 2)) & ~3;
-    cpu_physical_memory_read(iopte, (void *) &pa, 4);
-    bswap32s(&pa);
+    pa = ldl_phys(iopte);
     tmppte = pa;
     pa = ((pa & IOPTE_PAGE) << 4) + (addr & PAGE_MASK);
     DPRINTF("xlate dva %x => pa %x (iopte[%x] = %x)\n", addr, pa, iopte, tmppte);
