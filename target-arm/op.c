@@ -346,14 +346,14 @@ void OPPROTO op_test_le(void)
     FORCE_RET();
 }
 
-void OPPROTO op_jmp0(void)
+void OPPROTO op_goto_tb0(void)
 {
-    JUMP_TB(op_jmp0, PARAM1, 0, PARAM2);
+    GOTO_TB(op_goto_tb0, PARAM1, 0);
 }
 
-void OPPROTO op_jmp1(void)
+void OPPROTO op_goto_tb1(void)
 {
-    JUMP_TB(op_jmp1, PARAM1, 1, PARAM2);
+    GOTO_TB(op_goto_tb1, PARAM1, 1);
 }
 
 void OPPROTO op_exit_tb(void)

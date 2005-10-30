@@ -31,6 +31,12 @@
 #define MIPS_DEBUG_DISAS
 //#define MIPS_SINGLE_STEP
 
+#ifdef USE_DIRECT_JUMP
+#define TBPARAM(x)
+#else
+#define TBPARAM(x) (long)(x)
+#endif
+
 enum {
 #define DEF(s, n, copy_size) INDEX_op_ ## s,
 #include "opc.h"
@@ -922,6 +928,17 @@ static void gen_trap (DisasContext *ctx, uint16_t opc,
     ctx->bstate = BS_STOP;
 }
 
+static inline void gen_jmp_tb(long tb, int n, uint32_t dest)
+{
+    if (n == 0)
+        gen_op_goto_tb0(TBPARAM(tb));
+    else
+        gen_op_goto_tb1(TBPARAM(tb));
+    gen_op_save_pc(dest);
+    gen_op_set_T0(tb + n);
+    gen_op_exit_tb();
+}
+
 /* Branches (before delay slot) */
 static void gen_compute_branch (DisasContext *ctx, uint16_t opc,
                                 int rs, int rt, int32_t offset)
@@ -1018,7 +1035,7 @@ static void gen_compute_branch (DisasContext *ctx, uint16_t opc,
         case OPC_BLTZL:   /* 0 < 0 likely */
             /* Skip the instruction in the delay slot */
             MIPS_DEBUG("bnever and skip");
-            gen_op_branch((long)ctx->tb, ctx->pc + 4);
+            gen_jmp_tb((long)ctx->tb, 0, ctx->pc + 4);
             return;
         case OPC_J:
             ctx->hflags |= MIPS_HFLAG_DS | MIPS_HFLAG_B;
@@ -1255,6 +1272,15 @@ static void gen_arith64 (DisasContext *ctx, uint16_t opc)
 
 #endif
 
+static void gen_blikely(DisasContext *ctx)
+{
+  int l1;
+  l1 = gen_new_label();
+  gen_op_jnz_T2(l1);
+  gen_op_save_state(ctx->hflags & ~(MIPS_HFLAG_BMASK | MIPS_HFLAG_DS));
+  gen_jmp_tb((long)ctx->tb, 1, ctx->pc + 4);
+}
+
 static void decode_opc (DisasContext *ctx)
 {
     int32_t offset;
@@ -1266,8 +1292,7 @@ static void decode_opc (DisasContext *ctx)
         (ctx->hflags & MIPS_HFLAG_BL)) {
         /* Handle blikely not taken case */
         MIPS_DEBUG("blikely condition (%08x)", ctx->pc + 4);
-        gen_op_blikely((long)ctx->tb, ctx->pc + 4,
-                       ctx->hflags & ~(MIPS_HFLAG_BMASK | MIPS_HFLAG_DS));
+        gen_blikely(ctx);
     }
     op = ctx->opcode >> 26;
     rs = ((ctx->opcode >> 21) & 0x1F);
@@ -1477,17 +1502,24 @@ static void decode_opc (DisasContext *ctx)
         case MIPS_HFLAG_B:
             /* unconditional branch */
             MIPS_DEBUG("unconditional branch");
-            gen_op_branch((long)ctx->tb, ctx->btarget);
+            gen_jmp_tb((long)ctx->tb, 0, ctx->btarget);
             break;
         case MIPS_HFLAG_BL:
             /* blikely taken case */
             MIPS_DEBUG("blikely branch taken");
-            gen_op_branch((long)ctx->tb, ctx->btarget);
+            gen_jmp_tb((long)ctx->tb, 0, ctx->btarget);
             break;
         case MIPS_HFLAG_BC:
             /* Conditional branch */
             MIPS_DEBUG("conditional branch");
-            gen_op_bcond((long)ctx->tb, ctx->btarget, ctx->pc + 4);
+            {
+              int l1;
+              l1 = gen_new_label();
+              gen_op_jnz_T2(l1);
+              gen_jmp_tb((long)ctx->tb, 0, ctx->btarget);
+              gen_set_label(l1);
+              gen_jmp_tb((long)ctx->tb, 1, ctx->pc + 4);
+            }
             break;
         case MIPS_HFLAG_BR:
             /* unconditional branch to register */
@@ -1513,6 +1545,7 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     gen_opc_ptr = gen_opc_buf;
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
     gen_opparam_ptr = gen_opparam_buf;
+    nb_gen_labels = 0;
     ctx.pc = pc_start;
     ctx.tb = tb;
     ctx.bstate = BS_NONE;
@@ -1570,7 +1603,7 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     }
     if (ctx.bstate != BS_BRANCH && ctx.bstate != BS_EXCP) {
         save_cpu_state(ctxp, 0);
-        gen_op_branch((long)ctx.tb, ctx.pc);
+        gen_jmp_tb((long)ctx.tb, 0, ctx.pc);
     }
     gen_op_reset_T0();
     /* Generate the return instruction */

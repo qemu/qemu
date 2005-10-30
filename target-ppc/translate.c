@@ -30,6 +30,12 @@
 //#define DO_SINGLE_STEP
 //#define PPC_DEBUG_DISAS
 
+#ifdef USE_DIRECT_JUMP
+#define TBPARAM(x)
+#else
+#define TBPARAM(x) (long)(x)
+#endif
+
 enum {
 #define DEF(s, n, copy_size) INDEX_op_ ## s,
 #include "opc.h"
@@ -1721,6 +1727,18 @@ GEN_HANDLER(stfiwx, 0x1F, 0x17, 0x1E, 0x00000001, PPC_FLOAT)
 
 /***                                Branch                                 ***/
 
+static inline void gen_jmp_tb(long tb, int n, uint32_t dest)
+{
+    if (n == 0)
+        gen_op_goto_tb0(TBPARAM(tb));
+    else
+        gen_op_goto_tb1(TBPARAM(tb));
+    gen_op_set_T1(dest);
+    gen_op_b_T1();
+    gen_op_set_T0(tb + n);
+    gen_op_exit_tb();
+}
+
 /* b ba bl bla */
 GEN_HANDLER(b, 0x12, 0xFF, 0xFF, 0x00000000, PPC_FLOW)
 {
@@ -1736,7 +1754,7 @@ GEN_HANDLER(b, 0x12, 0xFF, 0xFF, 0x00000000, PPC_FLOW)
     if (LK(ctx->opcode)) {
         gen_op_setlr(ctx->nip);
     }
-    gen_op_b((long)ctx->tb, target);
+    gen_jmp_tb((long)ctx->tb, 0, target);
     ctx->exception = EXCP_BRANCH;
 }
 
@@ -1787,7 +1805,7 @@ static inline void gen_bcond(DisasContext *ctx, int type)
         case 4:                                                               
         case 6:                                                               
             if (type == BCOND_IM) {
-                gen_op_b((long)ctx->tb, target);
+                gen_jmp_tb((long)ctx->tb, 0, target);
             } else {
                 gen_op_b_T1();
             }
@@ -1827,7 +1845,11 @@ static inline void gen_bcond(DisasContext *ctx, int type)
         }                                                                     
     }                                                                         
     if (type == BCOND_IM) {
-        gen_op_btest((long)ctx->tb, target, ctx->nip);
+        int l1 = gen_new_label();
+        gen_op_jz_T0(l1);
+        gen_jmp_tb((long)ctx->tb, 0, target);
+        gen_set_label(l1);
+        gen_jmp_tb((long)ctx->tb, 1, ctx->nip);
     } else {
         gen_op_btest_T1(ctx->nip);
     }
@@ -2459,6 +2481,7 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     gen_opc_ptr = gen_opc_buf;
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
     gen_opparam_ptr = gen_opparam_buf;
+    nb_gen_labels = 0;
     ctx.nip = pc_start;
     ctx.tb = tb;
     ctx.exception = EXCP_NONE;
@@ -2575,7 +2598,7 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
 #endif
     }
     if (ctx.exception == EXCP_NONE) {
-        gen_op_b((unsigned long)ctx.tb, ctx.nip);
+        gen_jmp_tb((long)ctx.tb, 0, ctx.nip);
     } else if (ctx.exception != EXCP_BRANCH) {
         gen_op_set_T0(0);
     }

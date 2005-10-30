@@ -451,9 +451,14 @@ PPC_OP(setlr)
     regs->lr = PARAM1;
 }
 
-PPC_OP(b)
+PPC_OP(goto_tb0)
 {
-    JUMP_TB(b1, PARAM1, 0, PARAM2);
+    GOTO_TB(op_goto_tb0, PARAM1, 0);
+}
+
+PPC_OP(goto_tb1)
+{
+    GOTO_TB(op_goto_tb1, PARAM1, 1);
 }
 
 PPC_OP(b_T1)
@@ -461,13 +466,10 @@ PPC_OP(b_T1)
     regs->nip = T1 & ~3;
 }
 
-PPC_OP(btest) 
+PPC_OP(jz_T0)
 {
-    if (T0) {
-        JUMP_TB(btest, PARAM1, 0, PARAM2);
-    } else {
-        JUMP_TB(btest, PARAM1, 1, PARAM3);
-    }
+    if (!T0)
+        GOTO_LABEL_PARAM(1);
     RETURN();
 }
 

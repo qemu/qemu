@@ -365,15 +365,6 @@ dummy_label ## n: ;\
 
 #endif
 
-/* XXX: will be suppressed */
-#define JUMP_TB(opname, tbparam, n, eip)\
-do {\
-    GOTO_TB(opname, tbparam, n);\
-    T0 = (long)(tbparam) + (n);\
-    EIP = (int32_t)eip;\
-    EXIT_TB();\
-} while (0)
-
 extern CPUWriteMemoryFunc *io_mem_write[IO_MEM_NB_ENTRIES][4];
 extern CPUReadMemoryFunc *io_mem_read[IO_MEM_NB_ENTRIES][4];
 extern void *io_mem_opaque[IO_MEM_NB_ENTRIES];

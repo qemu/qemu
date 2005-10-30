@@ -43,6 +43,12 @@ typedef struct DisasContext {
 
 #define DISAS_JUMP_NEXT 4
 
+#ifdef USE_DIRECT_JUMP
+#define TBPARAM(x)
+#else
+#define TBPARAM(x) (long)(x)
+#endif
+
 /* XXX: move that elsewhere */
 static uint16_t *gen_opc_ptr;
 static uint32_t *gen_opparam_ptr;
@@ -897,6 +903,18 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
     return 0;
 }
 
+static inline void gen_jmp_tb(long tb, int n, uint32_t dest)
+{
+    if (n == 0)
+        gen_op_goto_tb0(TBPARAM(tb));
+    else
+        gen_op_goto_tb1(TBPARAM(tb));
+    gen_op_movl_T0_im(dest);
+    gen_op_movl_r15_T0();
+    gen_op_movl_T0_im(tb + n);
+    gen_op_exit_tb();
+}
+
 static inline void gen_jmp (DisasContext *s, uint32_t dest)
 {
     if (__builtin_expect(s->singlestep_enabled, 0)) {
@@ -906,7 +924,8 @@ static inline void gen_jmp (DisasContext *s, uint32_t dest)
         gen_op_movl_T0_im(dest);
         gen_bx(s);
     } else {
-        gen_op_jmp0((long)s->tb, dest);
+        long tb = (long)s->tb;
+        gen_jmp_tb(tb, 0, dest);
         s->is_jmp = DISAS_TB_JUMP;
     }
 }
@@ -2118,7 +2137,7 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     } else {
         switch(dc->is_jmp) {
         case DISAS_NEXT:
-            gen_op_jmp1((long)dc->tb, (long)dc->pc);
+            gen_jmp_tb((long)dc->tb, 1, dc->pc);
             break;
         default:
         case DISAS_JUMP:
@@ -2133,7 +2152,7 @@ static inline int gen_intermediate_code_internal(CPUState *env,
         }
         if (dc->condjmp) {
             gen_set_label(dc->condlabel);
-            gen_op_jmp1((long)dc->tb, (long)dc->pc);
+            gen_jmp_tb((long)dc->tb, 1, dc->pc);
             dc->condjmp = 0;
         }
     }

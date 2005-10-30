@@ -487,7 +487,16 @@ OP_COND(ltz, (int32_t)T0 < 0);
 
 /* Branchs */
 //#undef USE_DIRECT_JUMP
-#define EIP env->PC
+
+void OPPROTO op_goto_tb0(void)
+{
+    GOTO_TB(op_goto_tb0, PARAM1, 0);
+}
+
+void OPPROTO op_goto_tb1(void)
+{
+    GOTO_TB(op_goto_tb1, PARAM1, 1);
+}
 
 /* Branch to register */
 void op_save_breg_target (void)
@@ -503,13 +512,6 @@ void op_restore_breg_target (void)
 void op_breg (void)
 {
     env->PC = T2;
-    RETURN();
-}
-
-/* Unconditional branch */
-void op_branch (void)
-{
-    JUMP_TB(branch, PARAM1, 0, PARAM2);
     RETURN();
 }
 
@@ -538,24 +540,10 @@ void op_restore_bcond (void)
     RETURN();
 }
 
-void op_bcond (void)
+void op_jnz_T2 (void)
 {
-    if (T2) {
-        JUMP_TB(bcond, PARAM1, 0, PARAM2);
-    } else {
-        JUMP_TB(bcond, PARAM1, 1, PARAM3);
-    }
-    RETURN();
-}
-
-/* Likely branch (used to skip the delay slot) */
-void op_blikely (void)
-{
-    /* If the test is false, skip the delay slot */
-    if (T2 == 0) {
-        env->hflags = PARAM3;
-        JUMP_TB(blikely, PARAM1, 1, PARAM2);
-    }
+    if (T2)
+        GOTO_LABEL_PARAM(1);
     RETURN();
 }
 
