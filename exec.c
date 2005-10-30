@@ -2284,6 +2284,30 @@ uint32_t ldl_phys(target_phys_addr_t addr)
     return val;
 }
 
+/* XXX: optimize */
+uint32_t ldub_phys(target_phys_addr_t addr)
+{
+    uint8_t val;
+    cpu_physical_memory_read(addr, &val, 1);
+    return val;
+}
+
+/* XXX: optimize */
+uint32_t lduw_phys(target_phys_addr_t addr)
+{
+    uint16_t val;
+    cpu_physical_memory_read(addr, (uint8_t *)&val, 2);
+    return tswap16(val);
+}
+
+/* XXX: optimize */
+uint64_t ldq_phys(target_phys_addr_t addr)
+{
+    uint64_t val;
+    cpu_physical_memory_read(addr, (uint8_t *)&val, 8);
+    return tswap64(val);
+}
+
 /* warning: addr must be aligned. The ram page is not masked as dirty
    and the code inside is not invalidated. It is useful if the dirty
    bits are used to track modified PTEs */
@@ -2343,6 +2367,27 @@ void stl_phys(target_phys_addr_t addr, uint32_t val)
                 (0xff & ~CODE_DIRTY_FLAG);
         }
     }
+}
+
+/* XXX: optimize */
+void stb_phys(target_phys_addr_t addr, uint32_t val)
+{
+    uint8_t v = val;
+    cpu_physical_memory_write(addr, &v, 1);
+}
+
+/* XXX: optimize */
+void stw_phys(target_phys_addr_t addr, uint32_t val)
+{
+    uint16_t v = tswap16(val);
+    cpu_physical_memory_write(addr, (const uint8_t *)&v, 2);
+}
+
+/* XXX: optimize */
+void stq_phys(target_phys_addr_t addr, uint64_t val)
+{
+    val = tswap64(val);
+    cpu_physical_memory_write(addr, (const uint8_t *)&val, 8);
 }
 
 #endif
