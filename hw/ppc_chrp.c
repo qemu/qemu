@@ -449,7 +449,7 @@ static void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
 
         macio_init(pci_bus, 0x0017);
         
-        nvram = m48t59_init(8, 0xFFF04000, 0x0074, NVRAM_SIZE);
+        nvram = m48t59_init(8, 0xFFF04000, 0x0074, NVRAM_SIZE, 59);
         
         arch_name = "HEATHROW";
     } else {
@@ -496,7 +496,7 @@ static void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
         
         macio_init(pci_bus, 0x0022);
         
-        nvram = m48t59_init(8, 0xFFF04000, 0x0074, NVRAM_SIZE);
+        nvram = m48t59_init(8, 0xFFF04000, 0x0074, NVRAM_SIZE, 59);
         
         arch_name = "MAC99";
     }

@@ -22,7 +22,6 @@
  * THE SOFTWARE.
  */
 #include "vl.h"
-#include "m48t08.h"
 
 #define KERNEL_LOAD_ADDR     0x00004000
 #define CMDLINE_ADDR         0x007ff000
@@ -88,36 +87,36 @@ void DMA_register_channel (int nchan,
 {
 }
 
-static void nvram_set_word (m48t08_t *nvram, uint32_t addr, uint16_t value)
+static void nvram_set_word (m48t59_t *nvram, uint32_t addr, uint16_t value)
 {
-    m48t08_write(nvram, addr++, (value >> 8) & 0xff);
-    m48t08_write(nvram, addr++, value & 0xff);
+    m48t59_write(nvram, addr++, (value >> 8) & 0xff);
+    m48t59_write(nvram, addr++, value & 0xff);
 }
 
-static void nvram_set_lword (m48t08_t *nvram, uint32_t addr, uint32_t value)
+static void nvram_set_lword (m48t59_t *nvram, uint32_t addr, uint32_t value)
 {
-    m48t08_write(nvram, addr++, value >> 24);
-    m48t08_write(nvram, addr++, (value >> 16) & 0xff);
-    m48t08_write(nvram, addr++, (value >> 8) & 0xff);
-    m48t08_write(nvram, addr++, value & 0xff);
+    m48t59_write(nvram, addr++, value >> 24);
+    m48t59_write(nvram, addr++, (value >> 16) & 0xff);
+    m48t59_write(nvram, addr++, (value >> 8) & 0xff);
+    m48t59_write(nvram, addr++, value & 0xff);
 }
 
-static void nvram_set_string (m48t08_t *nvram, uint32_t addr,
+static void nvram_set_string (m48t59_t *nvram, uint32_t addr,
                        const unsigned char *str, uint32_t max)
 {
     unsigned int i;
 
     for (i = 0; i < max && str[i] != '\0'; i++) {
-        m48t08_write(nvram, addr + i, str[i]);
+        m48t59_write(nvram, addr + i, str[i]);
     }
-    m48t08_write(nvram, addr + max - 1, '\0');
+    m48t59_write(nvram, addr + max - 1, '\0');
 }
 
-static m48t08_t *nvram;
+static m48t59_t *nvram;
 
 extern int nographic;
 
-static void nvram_init(m48t08_t *nvram, uint8_t *macaddr, const char *cmdline,
+static void nvram_init(m48t59_t *nvram, uint8_t *macaddr, const char *cmdline,
 		       int boot_device, uint32_t RAM_size,
 		       uint32_t kernel_size,
 		       int width, int height, int depth)
@@ -129,9 +128,9 @@ static void nvram_init(m48t08_t *nvram, uint8_t *macaddr, const char *cmdline,
     nvram_set_string(nvram, 0x00, "QEMU_BIOS", 16);
     nvram_set_lword(nvram,  0x10, 0x00000001); /* structure v1 */
     // NVRAM_size, arch not applicable
-    m48t08_write(nvram, 0x2F, nographic & 0xff);
+    m48t59_write(nvram, 0x2F, nographic & 0xff);
     nvram_set_lword(nvram,  0x30, RAM_size);
-    m48t08_write(nvram, 0x34, boot_device & 0xff);
+    m48t59_write(nvram, 0x34, boot_device & 0xff);
     nvram_set_lword(nvram,  0x38, KERNEL_LOAD_ADDR);
     nvram_set_lword(nvram,  0x3C, kernel_size);
     if (cmdline) {
@@ -146,21 +145,21 @@ static void nvram_init(m48t08_t *nvram, uint8_t *macaddr, const char *cmdline,
 
     // Sun4m specific use
     i = 0x1fd8;
-    m48t08_write(nvram, i++, 0x01);
-    m48t08_write(nvram, i++, 0x80); /* Sun4m OBP */
+    m48t59_write(nvram, i++, 0x01);
+    m48t59_write(nvram, i++, 0x80); /* Sun4m OBP */
     j = 0;
-    m48t08_write(nvram, i++, macaddr[j++]);
-    m48t08_write(nvram, i++, macaddr[j++]);
-    m48t08_write(nvram, i++, macaddr[j++]);
-    m48t08_write(nvram, i++, macaddr[j++]);
-    m48t08_write(nvram, i++, macaddr[j++]);
-    m48t08_write(nvram, i, macaddr[j]);
+    m48t59_write(nvram, i++, macaddr[j++]);
+    m48t59_write(nvram, i++, macaddr[j++]);
+    m48t59_write(nvram, i++, macaddr[j++]);
+    m48t59_write(nvram, i++, macaddr[j++]);
+    m48t59_write(nvram, i++, macaddr[j++]);
+    m48t59_write(nvram, i, macaddr[j]);
 
     /* Calculate checksum */
     for (i = 0x1fd8; i < 0x1fe7; i++) {
-	tmp ^= m48t08_read(nvram, i);
+	tmp ^= m48t59_read(nvram, i);
     }
-    m48t08_write(nvram, 0x1fe7, tmp);
+    m48t59_write(nvram, 0x1fe7, tmp);
 }
 
 static void *slavio_intctl;
@@ -231,7 +230,7 @@ static void sun4m_init(int ram_size, int vga_ram_size, int boot_device,
     slavio_intctl = slavio_intctl_init(PHYS_JJ_INTR0, PHYS_JJ_INTR_G);
     tcx = tcx_init(ds, PHYS_JJ_TCX_FB, phys_ram_base + ram_size, ram_size, vram_size, graphic_width, graphic_height);
     lance_init(&nd_table[0], PHYS_JJ_LE_IRQ, PHYS_JJ_LE, PHYS_JJ_LEDMA);
-    nvram = m48t08_init(PHYS_JJ_EEPROM, PHYS_JJ_EEPROM_SIZE);
+    nvram = m48t59_init(0, PHYS_JJ_EEPROM, 0, PHYS_JJ_EEPROM_SIZE, 8);
     slavio_timer_init(PHYS_JJ_CLOCK, PHYS_JJ_CLOCK_IRQ, PHYS_JJ_CLOCK1, PHYS_JJ_CLOCK1_IRQ);
     slavio_serial_ms_kbd_init(PHYS_JJ_MS_KBD, PHYS_JJ_MS_KBD_IRQ);
     // Slavio TTYA (base+4, Linux ttyS0) is the first Qemu serial device

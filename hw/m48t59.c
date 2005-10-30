@@ -1,7 +1,7 @@
 /*
- * QEMU M48T59 NVRAM emulation for PPC PREP platform
+ * QEMU M48T59 and M48T08 NVRAM emulation for PPC PREP and Sparc platforms
  * 
- * Copyright (c) 2003-2004 Jocelyn Mayer
+ * Copyright (c) 2003-2005 Jocelyn Mayer
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,7 +32,14 @@
 #define NVRAM_PRINTF(fmt, args...) do { } while (0)
 #endif
 
+/*
+ * The M48T08 and M48T59 chips are very similar. The newer '59 has
+ * alarm and a watchdog timer and related control registers. In the
+ * PPC platform there is also a nvram lock function.
+ */
 struct m48t59_t {
+    /* Model parameters */
+    int type; // 8 = m48t08, 59 = m48t59
     /* Hardware parameters */
     int      IRQ;
     int mem_index;
@@ -188,14 +195,17 @@ static void set_up_watchdog (m48t59_t *NVRAM, uint8_t value)
 }
 
 /* Direct access to NVRAM */
-void m48t59_write (m48t59_t *NVRAM, uint32_t val)
+void m48t59_write (m48t59_t *NVRAM, uint32_t addr, uint32_t val)
 {
     struct tm tm;
     int tmp;
 
-    if (NVRAM->addr > 0x1FF8 && NVRAM->addr < 0x2000)
-	NVRAM_PRINTF("%s: 0x%08x => 0x%08x\n", __func__, NVRAM->addr, val);
-    switch (NVRAM->addr) {
+    if (addr > 0x1FF8 && addr < 0x2000)
+	NVRAM_PRINTF("%s: 0x%08x => 0x%08x\n", __func__, addr, val);
+    if (NVRAM->type == 8 && 
+        (addr >= 0x1ff0 && addr <= 0x1ff7))
+        goto do_write;
+    switch (addr) {
     case 0x1FF0:
         /* flags register : read-only */
         break;
@@ -204,52 +214,52 @@ void m48t59_write (m48t59_t *NVRAM, uint32_t val)
         break;
     case 0x1FF2:
         /* alarm seconds */
-	tmp = fromBCD(val & 0x7F);
-	if (tmp >= 0 && tmp <= 59) {
-	    get_alarm(NVRAM, &tm);
-	    tm.tm_sec = tmp;
-	    NVRAM->buffer[0x1FF2] = val;
-	    set_alarm(NVRAM, &tm);
-	}
+        tmp = fromBCD(val & 0x7F);
+        if (tmp >= 0 && tmp <= 59) {
+            get_alarm(NVRAM, &tm);
+            tm.tm_sec = tmp;
+            NVRAM->buffer[0x1FF2] = val;
+            set_alarm(NVRAM, &tm);
+        }
         break;
     case 0x1FF3:
         /* alarm minutes */
-	tmp = fromBCD(val & 0x7F);
-	if (tmp >= 0 && tmp <= 59) {
-	    get_alarm(NVRAM, &tm);
-	    tm.tm_min = tmp;
-	    NVRAM->buffer[0x1FF3] = val;
-	    set_alarm(NVRAM, &tm);
-	}
+        tmp = fromBCD(val & 0x7F);
+        if (tmp >= 0 && tmp <= 59) {
+            get_alarm(NVRAM, &tm);
+            tm.tm_min = tmp;
+            NVRAM->buffer[0x1FF3] = val;
+            set_alarm(NVRAM, &tm);
+        }
         break;
     case 0x1FF4:
         /* alarm hours */
-	tmp = fromBCD(val & 0x3F);
-	if (tmp >= 0 && tmp <= 23) {
-	    get_alarm(NVRAM, &tm);
-	    tm.tm_hour = tmp;
-	    NVRAM->buffer[0x1FF4] = val;
-	    set_alarm(NVRAM, &tm);
-	}
+        tmp = fromBCD(val & 0x3F);
+        if (tmp >= 0 && tmp <= 23) {
+            get_alarm(NVRAM, &tm);
+            tm.tm_hour = tmp;
+            NVRAM->buffer[0x1FF4] = val;
+            set_alarm(NVRAM, &tm);
+        }
         break;
     case 0x1FF5:
         /* alarm date */
-	tmp = fromBCD(val & 0x1F);
-	if (tmp != 0) {
-	    get_alarm(NVRAM, &tm);
-	    tm.tm_mday = tmp;
-	    NVRAM->buffer[0x1FF5] = val;
-	    set_alarm(NVRAM, &tm);
-	}
+        tmp = fromBCD(val & 0x1F);
+        if (tmp != 0) {
+            get_alarm(NVRAM, &tm);
+            tm.tm_mday = tmp;
+            NVRAM->buffer[0x1FF5] = val;
+            set_alarm(NVRAM, &tm);
+        }
         break;
     case 0x1FF6:
         /* interrupts */
-	NVRAM->buffer[0x1FF6] = val;
+        NVRAM->buffer[0x1FF6] = val;
         break;
     case 0x1FF7:
         /* watchdog */
-	NVRAM->buffer[0x1FF7] = val;
-	set_up_watchdog(NVRAM, val);
+        NVRAM->buffer[0x1FF7] = val;
+        set_up_watchdog(NVRAM, val);
         break;
     case 0x1FF8:
         /* control */
@@ -328,24 +338,27 @@ void m48t59_write (m48t59_t *NVRAM, uint32_t val)
         break;
     default:
         /* Check lock registers state */
-        if (NVRAM->addr >= 0x20 && NVRAM->addr <= 0x2F && (NVRAM->lock & 1))
+        if (addr >= 0x20 && addr <= 0x2F && (NVRAM->lock & 1))
             break;
-        if (NVRAM->addr >= 0x30 && NVRAM->addr <= 0x3F && (NVRAM->lock & 2))
+        if (addr >= 0x30 && addr <= 0x3F && (NVRAM->lock & 2))
             break;
-        if (NVRAM->addr < 0x1FF0 ||
-	    (NVRAM->addr > 0x1FFF && NVRAM->addr < NVRAM->size)) {
-            NVRAM->buffer[NVRAM->addr] = val & 0xFF;
+    do_write:
+        if (addr < NVRAM->size) {
+            NVRAM->buffer[addr] = val & 0xFF;
 	}
         break;
     }
 }
 
-uint32_t m48t59_read (m48t59_t *NVRAM)
+uint32_t m48t59_read (m48t59_t *NVRAM, uint32_t addr)
 {
     struct tm tm;
     uint32_t retval = 0xFF;
 
-    switch (NVRAM->addr) {
+    if (NVRAM->type == 8 && 
+        (addr >= 0x1ff0 && addr <= 0x1ff7))
+        goto do_read;
+    switch (addr) {
     case 0x1FF0:
         /* flags register */
 	goto do_read;
@@ -412,19 +425,18 @@ uint32_t m48t59_read (m48t59_t *NVRAM)
         break;
     default:
         /* Check lock registers state */
-        if (NVRAM->addr >= 0x20 && NVRAM->addr <= 0x2F && (NVRAM->lock & 1))
+        if (addr >= 0x20 && addr <= 0x2F && (NVRAM->lock & 1))
             break;
-        if (NVRAM->addr >= 0x30 && NVRAM->addr <= 0x3F && (NVRAM->lock & 2))
+        if (addr >= 0x30 && addr <= 0x3F && (NVRAM->lock & 2))
             break;
-        if (NVRAM->addr < 0x1FF0 ||
-	    (NVRAM->addr > 0x1FFF && NVRAM->addr < NVRAM->size)) {
-	do_read:
-            retval = NVRAM->buffer[NVRAM->addr];
+    do_read:
+        if (addr < NVRAM->size) {
+            retval = NVRAM->buffer[addr];
 	}
         break;
     }
-    if (NVRAM->addr > 0x1FF9 && NVRAM->addr < 0x2000)
-	NVRAM_PRINTF("0x%08x <= 0x%08x\n", NVRAM->addr, retval);
+    if (addr > 0x1FF9 && addr < 0x2000)
+	NVRAM_PRINTF("0x%08x <= 0x%08x\n", addr, retval);
 
     return retval;
 }
@@ -456,7 +468,7 @@ static void NVRAM_writeb (void *opaque, uint32_t addr, uint32_t val)
         NVRAM->addr |= val << 8;
         break;
     case 3:
-        m48t59_write(NVRAM, val);
+        m48t59_write(NVRAM, val, NVRAM->addr);
         NVRAM->addr = 0x0000;
         break;
     default:
@@ -472,7 +484,7 @@ static uint32_t NVRAM_readb (void *opaque, uint32_t addr)
     addr -= NVRAM->io_base;
     switch (addr) {
     case 3:
-        retval = m48t59_read(NVRAM);
+        retval = m48t59_read(NVRAM, NVRAM->addr);
         break;
     default:
         retval = -1;
@@ -488,8 +500,7 @@ static void nvram_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
     m48t59_t *NVRAM = opaque;
     
     addr -= NVRAM->mem_base;
-    if (addr < 0x1FF0)
-        NVRAM->buffer[addr] = value;
+    m48t59_write(NVRAM, addr, value & 0xff);
 }
 
 static void nvram_writew (void *opaque, target_phys_addr_t addr, uint32_t value)
@@ -497,10 +508,8 @@ static void nvram_writew (void *opaque, target_phys_addr_t addr, uint32_t value)
     m48t59_t *NVRAM = opaque;
     
     addr -= NVRAM->mem_base;
-    if (addr < 0x1FF0) {
-        NVRAM->buffer[addr] = value >> 8;
-        NVRAM->buffer[addr + 1] = value;
-    }
+    m48t59_write(NVRAM, addr, (value >> 8) & 0xff);
+    m48t59_write(NVRAM, addr + 1, value & 0xff);
 }
 
 static void nvram_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
@@ -508,53 +517,43 @@ static void nvram_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
     m48t59_t *NVRAM = opaque;
     
     addr -= NVRAM->mem_base;
-    if (addr < 0x1FF0) {
-        NVRAM->buffer[addr] = value >> 24;
-        NVRAM->buffer[addr + 1] = value >> 16;
-        NVRAM->buffer[addr + 2] = value >> 8;
-        NVRAM->buffer[addr + 3] = value;
-    }
+    m48t59_write(NVRAM, addr, (value >> 24) & 0xff);
+    m48t59_write(NVRAM, addr + 1, (value >> 16) & 0xff);
+    m48t59_write(NVRAM, addr + 2, (value >> 8) & 0xff);
+    m48t59_write(NVRAM, addr + 3, value & 0xff);
 }
 
 static uint32_t nvram_readb (void *opaque, target_phys_addr_t addr)
 {
     m48t59_t *NVRAM = opaque;
-    uint32_t retval = 0;
+    uint32_t retval;
     
     addr -= NVRAM->mem_base;
-    if (addr < 0x1FF0)
-        retval = NVRAM->buffer[addr];
-
+    retval = m48t59_read(NVRAM, addr);
     return retval;
 }
 
 static uint32_t nvram_readw (void *opaque, target_phys_addr_t addr)
 {
     m48t59_t *NVRAM = opaque;
-    uint32_t retval = 0;
+    uint32_t retval;
     
     addr -= NVRAM->mem_base;
-    if (addr < 0x1FF0) {
-        retval = NVRAM->buffer[addr] << 8;
-        retval |= NVRAM->buffer[addr + 1];
-    }
-
+    retval = m48t59_read(NVRAM, addr) << 8;
+    retval |= m48t59_read(NVRAM, addr + 1);
     return retval;
 }
 
 static uint32_t nvram_readl (void *opaque, target_phys_addr_t addr)
 {
     m48t59_t *NVRAM = opaque;
-    uint32_t retval = 0;
-    
-    addr -= NVRAM->mem_base;
-    if (addr < 0x1FF0) {
-        retval = NVRAM->buffer[addr] << 24;
-        retval |= NVRAM->buffer[addr + 1] << 16;
-        retval |= NVRAM->buffer[addr + 2] << 8;
-        retval |= NVRAM->buffer[addr + 3];
-    }
+    uint32_t retval;
 
+    addr -= NVRAM->mem_base;
+    retval = m48t59_read(NVRAM, addr) << 24;
+    retval |= m48t59_read(NVRAM, addr + 1) << 16;
+    retval |= m48t59_read(NVRAM, addr + 2) << 8;
+    retval |= m48t59_read(NVRAM, addr + 3);
     return retval;
 }
 
@@ -569,9 +568,11 @@ static CPUReadMemoryFunc *nvram_read[] = {
     &nvram_readw,
     &nvram_readl,
 };
+
 /* Initialisation routine */
-m48t59_t *m48t59_init (int IRQ, uint32_t mem_base,
-                       uint32_t io_base, uint16_t size)
+m48t59_t *m48t59_init (int IRQ, target_ulong mem_base,
+                       uint32_t io_base, uint16_t size,
+                       int type)
 {
     m48t59_t *s;
 
@@ -588,14 +589,19 @@ m48t59_t *m48t59_init (int IRQ, uint32_t mem_base,
     s->mem_base = mem_base;
     s->io_base = io_base;
     s->addr = 0;
-    register_ioport_read(io_base, 0x04, 1, NVRAM_readb, s);
-    register_ioport_write(io_base, 0x04, 1, NVRAM_writeb, s);
+    s->type = type;
+    if (io_base != 0) {
+        register_ioport_read(io_base, 0x04, 1, NVRAM_readb, s);
+        register_ioport_write(io_base, 0x04, 1, NVRAM_writeb, s);
+    }
     if (mem_base != 0) {
         s->mem_index = cpu_register_io_memory(0, nvram_read, nvram_write, s);
         cpu_register_physical_memory(mem_base, 0x4000, s->mem_index);
     }
-    s->alrm_timer = qemu_new_timer(vm_clock, &alarm_cb, s);
-    s->wd_timer = qemu_new_timer(vm_clock, &watchdog_cb, s);
+    if (type == 59) {
+        s->alrm_timer = qemu_new_timer(vm_clock, &alarm_cb, s);
+        s->wd_timer = qemu_new_timer(vm_clock, &watchdog_cb, s);
+    }
     s->lock = 0;
 
     return s;
