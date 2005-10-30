@@ -55,8 +55,19 @@ static void sdl_resize(DisplayState *ds, int w, int h)
     flags = SDL_HWSURFACE|SDL_ASYNCBLIT|SDL_HWACCEL;
     if (gui_fullscreen)
         flags |= SDL_FULLSCREEN;
+
+ again:
     screen = SDL_SetVideoMode(w, h, 0, flags);
     if (!screen) {
+        fprintf(stderr, "Could not open SDL display\n");
+        exit(1);
+    }
+    if (!screen->pixels && (flags & SDL_HWSURFACE) && (flags & SDL_FULLSCREEN)) {
+        flags &= ~SDL_HWSURFACE;
+        goto again;
+    }
+
+    if (!screen->pixels) {
         fprintf(stderr, "Could not open SDL display\n");
         exit(1);
     }
