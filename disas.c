@@ -279,6 +279,7 @@ const char *lookup_symbol(target_ulong orig_addr)
     /* Hack, because we know this is x86. */
     Elf32_Sym *sym;
     struct syminfo *s;
+    target_ulong addr;
     
     for (s = syminfos; s; s = s->next) {
 	sym = s->disas_symtab;
@@ -290,8 +291,13 @@ const char *lookup_symbol(target_ulong orig_addr)
 	    if (ELF_ST_TYPE(sym[i].st_info) != STT_FUNC)
 		continue;
 
-	    if (orig_addr >= sym[i].st_value
-		&& orig_addr < sym[i].st_value + sym[i].st_size)
+	    addr = sym[i].st_value;
+#ifdef TARGET_ARM
+            /* The bottom address bit marks a Thumb symbol.  */
+            addr &= ~(target_ulong)1;
+#endif
+	    if (orig_addr >= addr
+		&& orig_addr < addr + sym[i].st_size)
 		return s->disas_strtab + sym[i].st_name;
 	}
     }
