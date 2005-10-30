@@ -297,7 +297,7 @@ static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
     int i;
 
     /* fill in g0..g7 */
-    for(i = 0; i < 7; i++) {
+    for(i = 0; i < 8; i++) {
         registers[i] = tswapl(env->gregs[i]);
     }
     /* fill in register window */
