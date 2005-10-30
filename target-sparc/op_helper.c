@@ -256,11 +256,18 @@ void helper_ld_asi(int asi, int size, int sign)
 	}
 	break;
     case 0x20 ... 0x2f: /* MMU passthrough */
-	cpu_physical_memory_read(T0, (void *) &ret, size);
-	if (size == 4)
-	    tswap32s(&ret);
-        else if (size == 2)
-	    tswap16s((uint16_t *)&ret);
+        switch(size) {
+        case 1:
+            ret = ldub_phys(T0);
+            break;
+        case 2:
+            ret = lduw_phys(T0 & ~1);
+            break;
+        default:
+        case 4:
+            ret = ldl_phys(T0 & ~3);
+            break;
+        }
 	break;
     default:
 	ret = 0;
@@ -369,12 +376,18 @@ void helper_st_asi(int asi, int size, int sign)
 	return;
     case 0x20 ... 0x2f: /* MMU passthrough */
 	{
-	    uint32_t temp = T1;
-	    if (size == 4)
-		tswap32s(&temp);
-	    else if (size == 2)
-		tswap16s((uint16_t *)&temp);
-	    cpu_physical_memory_write(T0, (void *) &temp, size);
+            switch(size) {
+            case 1:
+                stb_phys(T0, T1);
+                break;
+            case 2:
+                stw_phys(T0 & ~1, T1);
+                break;
+            case 4:
+            default:
+                stl_phys(T0 & ~3, T1);
+                break;
+            }
 	}
 	return;
     default:
@@ -395,13 +408,21 @@ void helper_ld_asi(int asi, int size, int sign)
     case 0x14: // Bypass
     case 0x15: // Bypass, non-cacheable
 	{
-	    cpu_physical_memory_read(T0, (void *) &ret, size);
-	    if (size == 8)
-		tswap64s(&ret);
-	    if (size == 4)
-		tswap32s((uint32_t *)&ret);
-	    else if (size == 2)
-		tswap16s((uint16_t *)&ret);
+            switch(size) {
+            case 1:
+                ret = ldub_phys(T0);
+                break;
+            case 2:
+                ret = lduw_phys(T0 & ~1);
+                break;
+            case 4:
+                ret = ldl_phys(T0 & ~3);
+                break;
+            default:
+            case 8:
+                ret = ldq_phys(T0 & ~7);
+                break;
+            }
 	    break;
 	}
     case 0x04: // Nucleus
@@ -503,14 +524,21 @@ void helper_st_asi(int asi, int size, int sign)
     case 0x14: // Bypass
     case 0x15: // Bypass, non-cacheable
 	{
-	    target_ulong temp = T1;
-	    if (size == 8)
-		tswap64s(&temp);
-	    else if (size == 4)
-		tswap32s((uint32_t *)&temp);
-	    else if (size == 2)
-		tswap16s((uint16_t *)&temp);
-	    cpu_physical_memory_write(T0, (void *) &temp, size);
+            switch(size) {
+            case 1:
+                stb_phys(T0, T1);
+                break;
+            case 2:
+                stw_phys(T0 & ~1, T1);
+                break;
+            case 4:
+                stl_phys(T0 & ~3, T1);
+                break;
+            case 8:
+            default:
+                stq_phys(T0 & ~7, T1);
+                break;
+            }
 	}
 	return;
     case 0x04: // Nucleus
