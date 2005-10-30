@@ -91,6 +91,28 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 #define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE	4096
 
+#define DLINFO_ARCH_ITEMS       1
+enum
+{
+  ARM_HWCAP_ARM_SWP       = 1 << 0,
+  ARM_HWCAP_ARM_HALF      = 1 << 1,
+  ARM_HWCAP_ARM_THUMB     = 1 << 2,
+  ARM_HWCAP_ARM_26BIT     = 1 << 3,
+  ARM_HWCAP_ARM_FAST_MULT = 1 << 4,
+  ARM_HWCAP_ARM_FPA       = 1 << 5,
+  ARM_HWCAP_ARM_VFP       = 1 << 6,
+  ARM_HWCAP_ARM_EDSP      = 1 << 7,
+};
+
+#define ARM_HWCAPS (ARM_HWCAP_ARM_SWP | ARM_HWCAP_ARM_HALF              \
+                    | ARM_HWCAP_ARM_THUMB | ARM_HWCAP_ARM_FAST_MULT     \
+                    | ARM_HWCAP_ARM_FPA | ARM_HWCAP_ARM_VFP)
+
+#define ARCH_DLINFO                     \
+do {                                    \
+    NEW_AUX_ENT(AT_HWCAP, ARM_HWCAPS);  \
+} while (0)
+
 #endif
 
 #ifdef TARGET_SPARC
