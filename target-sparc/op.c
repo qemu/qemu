@@ -379,7 +379,7 @@ void OPPROTO op_add_T1_T0_cc(void)
 	env->psr |= PSR_ZERO;
     if ((int32_t) T0 < 0)
 	env->psr |= PSR_NEG;
-    if ((src1 & 0xffffffff) < (T1 & 0xffffffff))
+    if ((T0 & 0xffffffff) < (src1 & 0xffffffff))
 	env->psr |= PSR_CARRY;
     if ((((src1 & 0xffffffff) ^ (T1 & 0xffffffff) ^ -1) &
 	 ((src1 & 0xffffffff) ^ (T0 & 0xffffffff))) & (1 << 31))
@@ -424,7 +424,7 @@ void OPPROTO op_addx_T1_T0_cc(void)
 	env->psr |= PSR_ZERO;
     if ((int32_t) T0 < 0)
 	env->psr |= PSR_NEG;
-    if ((src1 & 0xffffffff) < (T1 & 0xffffffff))
+    if ((T0 & 0xffffffff) < (src1 & 0xffffffff))
 	env->psr |= PSR_CARRY;
     if ((((src1 & 0xffffffff) ^ (T1 & 0xffffffff) ^ -1) &
 	 ((src1 & 0xffffffff) ^ (T0 & 0xffffffff))) & (1 << 31))
@@ -480,7 +480,7 @@ void OPPROTO op_sub_T1_T0_cc(void)
 	env->xcc |= PSR_ZERO;
     if ((int64_t) T0 < 0)
 	env->xcc |= PSR_NEG;
-    if (T0 < src1)
+    if (src1 < T1)
 	env->xcc |= PSR_CARRY;
     if (((src1 ^ T1) & (src1 ^ T0)) & (1ULL << 63))
 	env->xcc |= PSR_OVF;
@@ -525,7 +525,7 @@ void OPPROTO op_subx_T1_T0_cc(void)
 	env->xcc |= PSR_ZERO;
     if ((int64_t) T0 < 0)
 	env->xcc |= PSR_NEG;
-    if (T0 < src1)
+    if (src1 < T1)
 	env->xcc |= PSR_CARRY;
     if (((src1 ^ T1) & (src1 ^ T0)) & (1ULL << 63))
 	env->xcc |= PSR_OVF;
