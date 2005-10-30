@@ -44,7 +44,7 @@ typedef struct MiscState {
     int irq;
     uint8_t config;
     uint8_t aux1, aux2;
-    uint8_t diag, mctrl;
+    uint8_t diag, mctrl, sysctrl;
 } MiscState;
 
 #define MISC_MAXADDR 1
@@ -64,7 +64,7 @@ static void slavio_misc_reset(void *opaque)
 {
     MiscState *s = opaque;
 
-    // Diagnostic register not cleared in reset
+    // Diagnostic and system control registers not cleared in reset
     s->config = s->aux1 = s->aux2 = s->mctrl = 0;
 }
 
@@ -116,8 +116,10 @@ static void slavio_misc_mem_writeb(void *opaque, target_phys_addr_t addr, uint32
 	break;
     case 0x1f00000:
 	MISC_DPRINTF("Write system control %2.2x\n", val & 0xff);
-	if (val & 1)
+	if (val & 1) {
+	    s->sysctrl = 0x2;
 	    qemu_system_reset_request();
+	}
 	break;
     case 0xa000000:
 	MISC_DPRINTF("Write power management %2.2x\n", val & 0xff);
@@ -158,6 +160,7 @@ static uint32_t slavio_misc_mem_readb(void *opaque, target_phys_addr_t addr)
 	break;
     case 0x1f00000:
 	MISC_DPRINTF("Read system control %2.2x\n", ret);
+	ret = s->sysctrl;
 	break;
     case 0xa000000:
 	MISC_DPRINTF("Read power management %2.2x\n", ret);
@@ -188,6 +191,7 @@ static void slavio_misc_save(QEMUFile *f, void *opaque)
     qemu_put_8s(f, &s->aux2);
     qemu_put_8s(f, &s->diag);
     qemu_put_8s(f, &s->mctrl);
+    qemu_put_8s(f, &s->sysctrl);
 }
 
 static int slavio_misc_load(QEMUFile *f, void *opaque, int version_id)
@@ -203,6 +207,7 @@ static int slavio_misc_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_8s(f, &s->aux2);
     qemu_get_8s(f, &s->diag);
     qemu_get_8s(f, &s->mctrl);
+    qemu_get_8s(f, &s->sysctrl);
     return 0;
 }
 

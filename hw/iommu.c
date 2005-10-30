@@ -33,9 +33,11 @@ do { printf("IOMMU: " fmt , ##args); } while (0)
 #define DPRINTF(fmt, args...)
 #endif
 
-#define IOMMU_NREGS (3*4096)
+#define IOMMU_NREGS (3*4096/4)
+#define IOMMU_CTRL          (0x0000 >> 2)
 #define IOMMU_CTRL_IMPL     0xf0000000 /* Implementation */
 #define IOMMU_CTRL_VERS     0x0f000000 /* Version */
+#define IOMMU_VERSION       0x04000000
 #define IOMMU_CTRL_RNGE     0x0000001c /* Mapping RANGE */
 #define IOMMU_RNGE_16MB     0x00000000 /* 0xff000000 -> 0xffffffff */
 #define IOMMU_RNGE_32MB     0x00000004 /* 0xfe000000 -> 0xffffffff */
@@ -46,6 +48,32 @@ do { printf("IOMMU: " fmt , ##args); } while (0)
 #define IOMMU_RNGE_1GB      0x00000018 /* 0xc0000000 -> 0xffffffff */
 #define IOMMU_RNGE_2GB      0x0000001c /* 0x80000000 -> 0xffffffff */
 #define IOMMU_CTRL_ENAB     0x00000001 /* IOMMU Enable */
+#define IOMMU_CTRL_MASK     0x0000001d
+
+#define IOMMU_BASE          (0x0004 >> 2)
+#define IOMMU_BASE_MASK     0x07fffc00
+
+#define IOMMU_TLBFLUSH      (0x0014 >> 2)
+#define IOMMU_TLBFLUSH_MASK 0xffffffff
+
+#define IOMMU_PGFLUSH       (0x0018 >> 2)
+#define IOMMU_PGFLUSH_MASK  0xffffffff
+
+#define IOMMU_SBCFG0        (0x1010 >> 2) /* SBUS configration per-slot */
+#define IOMMU_SBCFG1        (0x1014 >> 2) /* SBUS configration per-slot */
+#define IOMMU_SBCFG2        (0x1018 >> 2) /* SBUS configration per-slot */
+#define IOMMU_SBCFG3        (0x101c >> 2) /* SBUS configration per-slot */
+#define IOMMU_SBCFG_SAB30   0x00010000 /* Phys-address bit 30 when bypass enabled */
+#define IOMMU_SBCFG_BA16    0x00000004 /* Slave supports 16 byte bursts */
+#define IOMMU_SBCFG_BA8     0x00000002 /* Slave supports 8 byte bursts */
+#define IOMMU_SBCFG_BYPASS  0x00000001 /* Bypass IOMMU, treat all addresses
+       	                                  produced by this device as pure
+                                          physical. */
+#define IOMMU_SBCFG_MASK    0x00010003
+
+#define IOMMU_ARBEN         (0x2000 >> 2) /* SBUS arbitration enable */
+#define IOMMU_ARBEN_MASK    0x001f0000
+#define IOMMU_MID           0x00000008
 
 /* The format of an iopte in the page tables */
 #define IOPTE_PAGE          0x07ffff00 /* Physical page number (PA[30:12]) */
@@ -87,7 +115,7 @@ static void iommu_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val
     saddr = (addr - s->addr) >> 2;
     DPRINTF("write reg[%d] = %x\n", saddr, val);
     switch (saddr) {
-    case 0:
+    case IOMMU_CTRL:
 	switch (val & IOMMU_CTRL_RNGE) {
 	case IOMMU_RNGE_16MB:
 	    s->iostart = 0xff000000;
@@ -116,7 +144,30 @@ static void iommu_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val
 	    break;
 	}
 	DPRINTF("iostart = %x\n", s->iostart);
-	/* Fall through */
+	s->regs[saddr] = ((val & IOMMU_CTRL_MASK) | IOMMU_VERSION);
+	break;
+    case IOMMU_BASE:
+	s->regs[saddr] = val & IOMMU_BASE_MASK;
+	break;
+    case IOMMU_TLBFLUSH:
+	DPRINTF("tlb flush %x\n", val);
+	s->regs[saddr] = val & IOMMU_TLBFLUSH_MASK;
+	break;
+    case IOMMU_PGFLUSH:
+	DPRINTF("page flush %x\n", val);
+	s->regs[saddr] = val & IOMMU_PGFLUSH_MASK;
+	break;
+    case IOMMU_SBCFG0:
+    case IOMMU_SBCFG1:
+    case IOMMU_SBCFG2:
+    case IOMMU_SBCFG3:
+	s->regs[saddr] = val & IOMMU_SBCFG_MASK;
+	break;
+    case IOMMU_ARBEN:
+        // XXX implement SBus probing: fault when reading unmapped
+        // addresses, fault cause and address stored to MMU/IOMMU
+	s->regs[saddr] = (val & IOMMU_ARBEN_MASK) | IOMMU_MID;
+	break;
     default:
 	s->regs[saddr] = val;
 	break;
@@ -184,6 +235,7 @@ static void iommu_reset(void *opaque)
 
     memset(s->regs, 0, IOMMU_NREGS * 4);
     s->iostart = 0;
+    s->regs[0] = IOMMU_VERSION;
 }
 
 void *iommu_init(uint32_t addr)
