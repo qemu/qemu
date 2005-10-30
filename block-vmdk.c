@@ -123,8 +123,8 @@ static int vmdk_open(BlockDriverState *bs, const char *filename)
         
         if (read(fd, &header, sizeof(header)) != sizeof(header))
             goto fail;
-        bs->total_sectors = le32_to_cpu(header.capacity);
-        s->cluster_sectors = le32_to_cpu(header.granularity);
+        bs->total_sectors = le64_to_cpu(header.capacity);
+        s->cluster_sectors = le64_to_cpu(header.granularity);
         s->l2_size = le32_to_cpu(header.num_gtes_per_gte);
         s->l1_entry_sectors = s->l2_size * s->cluster_sectors;
         if (s->l1_entry_sectors <= 0)
