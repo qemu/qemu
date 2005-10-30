@@ -152,6 +152,10 @@ void do_rdpsr();
 
 static inline void env_to_regs(void)
 {
+#if defined(reg_REGWPTR)
+    REGWPTR = env->regbase + (env->cwp * 16);
+    env->regwptr = REGWPTR;
+#endif
 }
 
 static inline void regs_to_env(void)
