@@ -1,8 +1,8 @@
 /*
  * QEMU Mixing engine header
- * 
- * Copyright (c) 2004 Vassili Karpov (malc)
- * 
+ *
+ * Copyright (c) 2004-2005 Vassili Karpov (malc)
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -24,16 +24,28 @@
 #ifndef QEMU_MIXENG_H
 #define QEMU_MIXENG_H
 
-typedef void (t_sample) (void *dst, const void *src, int samples);
-typedef void (f_sample) (void *dst, const void *src, int samples);
+#ifdef FLOAT_MIXENG
+typedef float real_t;
+typedef struct { int mute; real_t r; real_t l; } volume_t;
+typedef struct { real_t l; real_t r; } st_sample_t;
+#else
+typedef struct { int mute; int64_t r; int64_t l; } volume_t;
 typedef struct { int64_t l; int64_t r; } st_sample_t;
+#endif
 
-extern t_sample *mixeng_conv[2][2][2];
-extern f_sample *mixeng_clip[2][2][2];
+typedef void (t_sample) (st_sample_t *dst, const void *src,
+                         int samples, volume_t *vol);
+typedef void (f_sample) (void *dst, const st_sample_t *src, int samples);
+
+extern t_sample *mixeng_conv[2][2][2][2];
+extern f_sample *mixeng_clip[2][2][2][2];
 
 void *st_rate_start (int inrate, int outrate);
 void st_rate_flow (void *opaque, st_sample_t *ibuf, st_sample_t *obuf,
                    int *isamp, int *osamp);
+void st_rate_flow_mix (void *opaque, st_sample_t *ibuf, st_sample_t *obuf,
+                       int *isamp, int *osamp);
 void st_rate_stop (void *opaque);
+void mixeng_clear (st_sample_t *buf, int len);
 
 #endif  /* mixeng.h */

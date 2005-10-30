@@ -181,8 +181,23 @@ The default is @code{en-us}.
 
 @item -enable-audio
 
-The SB16 emulation is disabled by default as it may give problems with
-Windows. You can enable it manually with this option.
+Will enable audio and all the sound hardware QEMU was built with.
+
+@item -audio-help
+
+Will show the audio subsystem help: list of drivers, tunable
+parameters.
+
+@item -soundhw card1,card2,...
+
+Enable audio and selected sound hardware. Use ? to print all
+available sound hardware.
+
+@example
+qemu -soundhw sb16,adlib hda
+qemu -soundhw es1370 hda
+qemu -soundhw ?
+@end example
 
 @item -localtime
 Set the real time clock to local time (the default is to UTC

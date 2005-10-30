@@ -1,8 +1,8 @@
 /*
  * QEMU Audio subsystem header
- * 
- * Copyright (c) 2003-2004 Vassili Karpov (malc)
- * 
+ *
+ * Copyright (c) 2003-2005 Vassili Karpov (malc)
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -24,7 +24,7 @@
 #ifndef QEMU_AUDIO_H
 #define QEMU_AUDIO_H
 
-#include "mixeng.h"
+typedef void (*audio_callback_fn_t) (void *opaque, int avail);
 
 typedef enum {
   AUD_FMT_U8,
@@ -33,22 +33,60 @@ typedef enum {
   AUD_FMT_S16
 } audfmt_e;
 
-typedef struct SWVoice SWVoice;
+typedef struct SWVoiceOut SWVoiceOut;
+typedef struct SWVoiceIn SWVoiceIn;
 
-SWVoice * AUD_open (SWVoice *sw, const char *name, int freq,
-                    int nchannels, audfmt_e fmt);
-void   AUD_init (void);
-void   AUD_log (const char *cap, const char *fmt, ...)
-    __attribute__ ((__format__ (__printf__, 2, 3)));;
-void   AUD_close (SWVoice *sw);
-int    AUD_write (SWVoice *sw, void *pcm_buf, int size);
-void   AUD_adjust (SWVoice *sw, int leftover);
-void   AUD_reset (SWVoice *sw);
-int    AUD_get_free (SWVoice *sw);
-int    AUD_get_buffer_size (SWVoice *sw);
-void   AUD_run (void);
-void   AUD_enable (SWVoice *sw, int on);
-int    AUD_calc_elapsed (SWVoice *sw);
+typedef struct QEMUAudioTimeStamp {
+    uint64_t old_ts;
+} QEMUAudioTimeStamp;
+
+void AUD_vlog (const char *cap, const char *fmt, va_list ap);
+void AUD_log (const char *cap, const char *fmt, ...)
+#ifdef __GNUC__
+    __attribute__ ((__format__ (__printf__, 2, 3)))
+#endif
+    ;
+
+void AUD_init (void);
+void AUD_help (void);
+
+SWVoiceOut  *AUD_open_out (
+    SWVoiceOut *sw,
+    const char *name,
+    void *callback_opaque,
+    audio_callback_fn_t callback_fn,
+    int freq,
+    int nchannels,
+    audfmt_e fmt
+    );
+void         AUD_close_out (SWVoiceOut *sw);
+int          AUD_write (SWVoiceOut *sw, void *pcm_buf, int size);
+int          AUD_get_buffer_size_out (SWVoiceOut *sw);
+void         AUD_set_active_out (SWVoiceOut *sw, int on);
+int          AUD_is_active_out (SWVoiceOut *sw);
+void         AUD_init_time_stamp_out (SWVoiceOut *sw,
+                                      QEMUAudioTimeStamp *ts);
+uint64_t     AUD_time_stamp_get_elapsed_usec_out (SWVoiceOut *sw,
+                                                  QEMUAudioTimeStamp *ts);
+
+SWVoiceIn   *AUD_open_in (
+    SWVoiceIn *sw,
+    const char *name,
+    void *callback_opaque,
+    audio_callback_fn_t callback_fn,
+    int freq,
+    int nchannels,
+    audfmt_e fmt
+    );
+void         AUD_close_in (SWVoiceIn *sw);
+int          AUD_read (SWVoiceIn *sw, void *pcm_buf, int size);
+void         AUD_adjust_in (SWVoiceIn *sw, int leftover);
+void         AUD_set_active_in (SWVoiceIn *sw, int on);
+int          AUD_is_active_in (SWVoiceIn *sw);
+void         AUD_init_time_stamp_in (SWVoiceIn *sw,
+                                     QEMUAudioTimeStamp *ts);
+uint64_t     AUD_time_stamp_get_elapsed_usec_in (SWVoiceIn *sw,
+                                                 QEMUAudioTimeStamp *ts);
 
 static inline void *advance (void *p, int incr)
 {
@@ -59,7 +97,21 @@ static inline void *advance (void *p, int incr)
 uint32_t popcount (uint32_t u);
 inline uint32_t lsbindex (uint32_t u);
 
+#ifdef __GNUC__
+#define audio_MIN(a, b) ( __extension__ ({      \
+    __typeof (a) ta = a;                        \
+    __typeof (b) tb = b;                        \
+    ((ta)>(tb)?(tb):(ta));                      \
+}))
+
+#define audio_MAX(a, b) ( __extension__ ({      \
+    __typeof (a) ta = a;                        \
+    __typeof (b) tb = b;                        \
+    ((ta)<(tb)?(tb):(ta));                      \
+}))
+#else
 #define audio_MIN(a, b) ((a)>(b)?(b):(a))
 #define audio_MAX(a, b) ((a)<(b)?(b):(a))
+#endif
 
 #endif  /* audio.h */

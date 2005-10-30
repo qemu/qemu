@@ -124,6 +124,7 @@ extern int audio_enabled;
 extern int sb16_enabled;
 extern int adlib_enabled;
 extern int gus_enabled;
+extern int es1370_enabled;
 extern int ram_size;
 extern int bios_size;
 extern int rtc_utc;
@@ -627,6 +628,9 @@ void pci_cmd646_ide_init(PCIBus *bus, BlockDriverState **hd_table,
 void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table);
 int pmac_ide_init (BlockDriverState **hd_table,
                    SetIRQFunc *set_irq, void *irq_opaque, int irq);
+
+/* es1370.c */
+int es1370_init (PCIBus *bus);
 
 /* sb16.c */
 void SB16_init (void);

@@ -1,8 +1,8 @@
 /*
- * QEMU SDL audio output driver
- * 
- * Copyright (c) 2004 Vassili Karpov (malc)
- * 
+ * QEMU SDL audio driver
+ *
+ * Copyright (c) 2004-2005 Vassili Karpov (malc)
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -25,22 +25,15 @@
 #include <SDL_thread.h>
 #include "vl.h"
 
-#include "audio/audio_int.h"
+#define AUDIO_CAP "sdl"
+#include "audio_int.h"
 
-typedef struct SDLVoice {
-    HWVoice hw;
-} SDLVoice;
-
-#define dolog(...) AUD_log ("sdl", __VA_ARGS__)
-#ifdef DEBUG
-#define ldebug(...) dolog (__VA_ARGS__)
-#else
-#define ldebug(...)
-#endif
-
-#define QC_SDL_SAMPLES "QEMU_SDL_SAMPLES"
-
-#define errstr() SDL_GetError ()
+typedef struct SDLVoiceOut {
+    HWVoiceOut hw;
+    int live;
+    int rpos;
+    int decr;
+} SDLVoiceOut;
 
 static struct {
     int nb_samples;
@@ -56,91 +49,129 @@ struct SDLAudioState {
 } glob_sdl;
 typedef struct SDLAudioState SDLAudioState;
 
-static void sdl_hw_run (HWVoice *hw)
+static void GCC_FMT_ATTR (1, 2) sdl_logerr (const char *fmt, ...)
 {
-    (void) hw;
+    va_list ap;
+
+    va_start (ap, fmt);
+    AUD_vlog (AUDIO_CAP, fmt, ap);
+    va_end (ap);
+
+    AUD_log (AUDIO_CAP, "Reason: %s\n", SDL_GetError ());
 }
 
-static int sdl_lock (SDLAudioState *s)
+static int sdl_lock (SDLAudioState *s, const char *forfn)
 {
     if (SDL_LockMutex (s->mutex)) {
-        dolog ("SDL_LockMutex failed\nReason: %s\n", errstr ());
+        sdl_logerr ("SDL_LockMutex for %s failed\n", forfn);
         return -1;
     }
     return 0;
 }
 
-static int sdl_unlock (SDLAudioState *s)
+static int sdl_unlock (SDLAudioState *s, const char *forfn)
 {
     if (SDL_UnlockMutex (s->mutex)) {
-        dolog ("SDL_UnlockMutex failed\nReason: %s\n", errstr ());
+        sdl_logerr ("SDL_UnlockMutex for %s failed\n", forfn);
         return -1;
     }
     return 0;
 }
 
-static int sdl_post (SDLAudioState *s)
+static int sdl_post (SDLAudioState *s, const char *forfn)
 {
     if (SDL_SemPost (s->sem)) {
-        dolog ("SDL_SemPost failed\nReason: %s\n", errstr ());
+        sdl_logerr ("SDL_SemPost for %s failed\n", forfn);
         return -1;
     }
     return 0;
 }
 
-static int sdl_wait (SDLAudioState *s)
+static int sdl_wait (SDLAudioState *s, const char *forfn)
 {
     if (SDL_SemWait (s->sem)) {
-        dolog ("SDL_SemWait failed\nReason: %s\n", errstr ());
+        sdl_logerr ("SDL_SemWait for %s failed\n", forfn);
         return -1;
     }
     return 0;
 }
 
-static int sdl_unlock_and_post (SDLAudioState *s)
+static int sdl_unlock_and_post (SDLAudioState *s, const char *forfn)
 {
-    if (sdl_unlock (s))
+    if (sdl_unlock (s, forfn)) {
         return -1;
+    }
 
-    return sdl_post (s);
+    return sdl_post (s, forfn);
 }
 
-static int sdl_hw_write (SWVoice *sw, void *buf, int len)
+static int aud_to_sdlfmt (audfmt_e fmt, int *shift)
 {
-    int ret;
-    SDLAudioState *s = &glob_sdl;
-    sdl_lock (s);
-    ret = pcm_hw_write (sw, buf, len);
-    sdl_unlock_and_post (s);
-    return ret;
-}
-
-static int AUD_to_sdlfmt (audfmt_e fmt, int *shift)
-{
-    *shift = 0;
     switch (fmt) {
-    case AUD_FMT_S8: return AUDIO_S8;
-    case AUD_FMT_U8: return AUDIO_U8;
-    case AUD_FMT_S16: *shift = 1; return AUDIO_S16LSB;
-    case AUD_FMT_U16: *shift = 1; return AUDIO_U16LSB;
+    case AUD_FMT_S8:
+        *shift = 0;
+        return AUDIO_S8;
+
+    case AUD_FMT_U8:
+        *shift = 0;
+        return AUDIO_U8;
+
+    case AUD_FMT_S16:
+        *shift = 1;
+        return AUDIO_S16LSB;
+
+    case AUD_FMT_U16:
+        *shift = 1;
+        return AUDIO_U16LSB;
+
     default:
-        dolog ("Internal logic error: Bad audio format %d\nAborting\n", fmt);
-        exit (EXIT_FAILURE);
+        dolog ("Internal logic error: Bad audio format %d\n", fmt);
+#ifdef DEBUG_AUDIO
+        abort ();
+#endif
+        return AUDIO_U8;
     }
 }
 
-static int sdl_to_audfmt (int fmt)
+static int sdl_to_audfmt (int sdlfmt, audfmt_e *fmt, int *endianess)
 {
-    switch (fmt) {
-    case AUDIO_S8: return AUD_FMT_S8;
-    case AUDIO_U8: return AUD_FMT_U8;
-    case AUDIO_S16LSB: return AUD_FMT_S16;
-    case AUDIO_U16LSB: return AUD_FMT_U16;
+    switch (sdlfmt) {
+    case AUDIO_S8:
+        *endianess = 0;
+        *fmt = AUD_FMT_S8;
+        break;
+
+    case AUDIO_U8:
+        *endianess = 0;
+        *fmt = AUD_FMT_U8;
+        break;
+
+    case AUDIO_S16LSB:
+        *endianess = 0;
+        *fmt = AUD_FMT_S16;
+        break;
+
+    case AUDIO_U16LSB:
+        *endianess = 0;
+        *fmt = AUD_FMT_U16;
+        break;
+
+    case AUDIO_S16MSB:
+        *endianess = 1;
+        *fmt = AUD_FMT_S16;
+        break;
+
+    case AUDIO_U16MSB:
+        *endianess = 1;
+        *fmt = AUD_FMT_U16;
+        break;
+
     default:
-        dolog ("Internal logic error: Unrecognized SDL audio format %d\n"
-               "Aborting\n", fmt);
-        exit (EXIT_FAILURE);
+        dolog ("Unrecognized SDL audio format %d\n", sdlfmt);
+        return -1;
     }
+
+    return 0;
 }
 
 static int sdl_open (SDL_AudioSpec *req, SDL_AudioSpec *obt)
@@ -149,7 +180,7 @@ static int sdl_open (SDL_AudioSpec *req, SDL_AudioSpec *obt)
 
     status = SDL_OpenAudio (req, obt);
     if (status) {
-        dolog ("SDL_OpenAudio failed\nReason: %s\n", errstr ());
+        sdl_logerr ("SDL_OpenAudio failed\n");
     }
     return status;
 }
@@ -157,9 +188,9 @@ static int sdl_open (SDL_AudioSpec *req, SDL_AudioSpec *obt)
 static void sdl_close (SDLAudioState *s)
 {
     if (s->initialized) {
-        sdl_lock (s);
+        sdl_lock (s, "sdl_close");
         s->exit = 1;
-        sdl_unlock_and_post (s);
+        sdl_unlock_and_post (s, "sdl_close");
         SDL_PauseAudio (1);
         SDL_CloseAudio ();
         s->initialized = 0;
@@ -168,31 +199,40 @@ static void sdl_close (SDLAudioState *s)
 
 static void sdl_callback (void *opaque, Uint8 *buf, int len)
 {
-    SDLVoice *sdl = opaque;
+    SDLVoiceOut *sdl = opaque;
     SDLAudioState *s = &glob_sdl;
-    HWVoice *hw = &sdl->hw;
-    int samples = len >> hw->shift;
+    HWVoiceOut *hw = &sdl->hw;
+    int samples = len >> hw->info.shift;
 
     if (s->exit) {
         return;
     }
 
     while (samples) {
-        int to_mix, live, decr;
+        int to_mix, decr;
 
         /* dolog ("in callback samples=%d\n", samples); */
-        sdl_wait (s);
+        sdl_wait (s, "sdl_callback");
         if (s->exit) {
             return;
         }
 
-        sdl_lock (s);
-        live = pcm_hw_get_live (hw);
-        if (live <= 0)
+        if (sdl_lock (s, "sdl_callback")) {
+            return;
+        }
+
+        if (audio_bug (AUDIO_FUNC, sdl->live < 0 || sdl->live > hw->samples)) {
+            dolog ("sdl->live=%d hw->samples=%d\n",
+                   sdl->live, hw->samples);
+            return;
+        }
+
+        if (!sdl->live) {
             goto again;
+        }
 
         /* dolog ("in callback live=%d\n", live); */
-        to_mix = audio_MIN (samples, live);
+        to_mix = audio_MIN (samples, sdl->live);
         decr = to_mix;
         while (to_mix) {
             int chunk = audio_MIN (to_mix, hw->samples - hw->rpos);
@@ -200,44 +240,86 @@ static void sdl_callback (void *opaque, Uint8 *buf, int len)
 
             /* dolog ("in callback to_mix %d, chunk %d\n", to_mix, chunk); */
             hw->clip (buf, src, chunk);
-            memset (src, 0, chunk * sizeof (st_sample_t));
-            hw->rpos = (hw->rpos + chunk) % hw->samples;
+            mixeng_clear (src, chunk);
+            sdl->rpos = (sdl->rpos + chunk) % hw->samples;
             to_mix -= chunk;
-            buf += chunk << hw->shift;
+            buf += chunk << hw->info.shift;
         }
         samples -= decr;
-        pcm_hw_dec_live (hw, decr);
+        sdl->live -= decr;
+        sdl->decr += decr;
 
     again:
-        sdl_unlock (s);
+        if (sdl_unlock (s, "sdl_callback")) {
+            return;
+        }
     }
     /* dolog ("done len=%d\n", len); */
 }
 
-static void sdl_hw_fini (HWVoice *hw)
+static int sdl_write_out (SWVoiceOut *sw, void *buf, int len)
 {
-    ldebug ("sdl_hw_fini %d fixed=%d\n",
-             glob_sdl.initialized, audio_state.fixed_format);
+    return audio_pcm_sw_write (sw, buf, len);
+}
+
+static int sdl_run_out (HWVoiceOut *hw)
+{
+    int decr, live;
+    SDLVoiceOut *sdl = (SDLVoiceOut *) hw;
+    SDLAudioState *s = &glob_sdl;
+
+    if (sdl_lock (s, "sdl_callback")) {
+        return 0;
+    }
+
+    live = audio_pcm_hw_get_live_out (hw);
+
+    if (sdl->decr > live) {
+        ldebug ("sdl->decr %d live %d sdl->live %d\n",
+                sdl->decr,
+                live,
+                sdl->live);
+    }
+
+    decr = audio_MIN (sdl->decr, live);
+    sdl->decr -= decr;
+
+    sdl->live = live - decr;
+    hw->rpos = sdl->rpos;
+
+    if (sdl->live > 0) {
+        sdl_unlock_and_post (s, "sdl_callback");
+    }
+    else {
+        sdl_unlock (s, "sdl_callback");
+    }
+    return decr;
+}
+
+static void sdl_fini_out (HWVoiceOut *hw)
+{
+    (void) hw;
+
     sdl_close (&glob_sdl);
 }
 
-static int sdl_hw_init (HWVoice *hw, int freq, int nchannels, audfmt_e fmt)
+static int sdl_init_out (HWVoiceOut *hw, int freq, int nchannels, audfmt_e fmt)
 {
-    SDLVoice *sdl = (SDLVoice *) hw;
+    SDLVoiceOut *sdl = (SDLVoiceOut *) hw;
     SDLAudioState *s = &glob_sdl;
     SDL_AudioSpec req, obt;
     int shift;
-
-    ldebug ("sdl_hw_init %d freq=%d fixed=%d\n",
-            s->initialized, freq, audio_state.fixed_format);
+    int endianess;
+    int err;
+    audfmt_e effective_fmt;
 
     if (nchannels != 2) {
-        dolog ("Bogus channel count %d\n", nchannels);
+        dolog ("Can not init DAC. Bogus channel count %d\n", nchannels);
         return -1;
     }
 
     req.freq = freq;
-    req.format = AUD_to_sdlfmt (fmt, &shift);
+    req.format = aud_to_sdlfmt (fmt, &shift);
     req.channels = nchannels;
     req.samples = conf.nb_samples;
     shift <<= nchannels == 2;
@@ -245,12 +327,23 @@ static int sdl_hw_init (HWVoice *hw, int freq, int nchannels, audfmt_e fmt)
     req.callback = sdl_callback;
     req.userdata = sdl;
 
-    if (sdl_open (&req, &obt))
+    if (sdl_open (&req, &obt)) {
         return -1;
+    }
 
-    hw->freq = obt.freq;
-    hw->fmt = sdl_to_audfmt (obt.format);
-    hw->nchannels = obt.channels;
+    err = sdl_to_audfmt (obt.format, &effective_fmt, &endianess);
+    if (err) {
+        sdl_close (s);
+        return -1;
+    }
+
+    audio_pcm_init_info (
+        &hw->info,
+        obt.freq,
+        obt.channels,
+        effective_fmt,
+        audio_need_to_swap_endian (endianess)
+        );
     hw->bufsize = obt.samples << shift;
 
     s->initialized = 1;
@@ -259,7 +352,7 @@ static int sdl_hw_init (HWVoice *hw, int freq, int nchannels, audfmt_e fmt)
     return 0;
 }
 
-static int sdl_hw_ctl (HWVoice *hw, int cmd, ...)
+static int sdl_ctl_out (HWVoiceOut *hw, int cmd, ...)
 {
     (void) hw;
 
@@ -278,24 +371,22 @@ static int sdl_hw_ctl (HWVoice *hw, int cmd, ...)
 static void *sdl_audio_init (void)
 {
     SDLAudioState *s = &glob_sdl;
-    conf.nb_samples = audio_get_conf_int (QC_SDL_SAMPLES, conf.nb_samples);
 
     if (SDL_InitSubSystem (SDL_INIT_AUDIO)) {
-        dolog ("SDL failed to initialize audio subsystem\nReason: %s\n",
-               errstr ());
+        sdl_logerr ("SDL failed to initialize audio subsystem\n");
         return NULL;
     }
 
     s->mutex = SDL_CreateMutex ();
     if (!s->mutex) {
-        dolog ("Failed to create SDL mutex\nReason: %s\n", errstr ());
+        sdl_logerr ("Failed to create SDL mutex\n");
         SDL_QuitSubSystem (SDL_INIT_AUDIO);
         return NULL;
     }
 
     s->sem = SDL_CreateSemaphore (0);
     if (!s->sem) {
-        dolog ("Failed to create SDL semaphore\nReason: %s\n", errstr ());
+        sdl_logerr ("Failed to create SDL semaphore\n");
         SDL_DestroyMutex (s->mutex);
         SDL_QuitSubSystem (SDL_INIT_AUDIO);
         return NULL;
@@ -313,20 +404,36 @@ static void sdl_audio_fini (void *opaque)
     SDL_QuitSubSystem (SDL_INIT_AUDIO);
 }
 
-struct pcm_ops sdl_pcm_ops = {
-    sdl_hw_init,
-    sdl_hw_fini,
-    sdl_hw_run,
-    sdl_hw_write,
-    sdl_hw_ctl
+static struct audio_option sdl_options[] = {
+    {"SAMPLES", AUD_OPT_INT, &conf.nb_samples,
+     "Size of SDL buffer in samples", NULL, 0},
+    {NULL, 0, NULL, NULL, NULL, 0}
 };
 
-struct audio_output_driver sdl_output_driver = {
-    "sdl",
-    sdl_audio_init,
-    sdl_audio_fini,
-    &sdl_pcm_ops,
-    1,
-    1,
-    sizeof (SDLVoice)
+static struct audio_pcm_ops sdl_pcm_ops = {
+    sdl_init_out,
+    sdl_fini_out,
+    sdl_run_out,
+    sdl_write_out,
+    sdl_ctl_out,
+
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL
+};
+
+struct audio_driver sdl_audio_driver = {
+    INIT_FIELD (name           = ) "sdl",
+    INIT_FIELD (descr          = ) "SDL http://www.libsdl.org",
+    INIT_FIELD (options        = ) sdl_options,
+    INIT_FIELD (init           = ) sdl_audio_init,
+    INIT_FIELD (fini           = ) sdl_audio_fini,
+    INIT_FIELD (pcm_ops        = ) &sdl_pcm_ops,
+    INIT_FIELD (can_be_default = ) 1,
+    INIT_FIELD (max_voices_out = ) 1,
+    INIT_FIELD (max_voices_in  = ) 0,
+    INIT_FIELD (voice_size_out = ) sizeof (SDLVoiceOut),
+    INIT_FIELD (voice_size_in  = ) 0
 };

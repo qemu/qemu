@@ -1,8 +1,8 @@
 /*
- * QEMU Adlib emulation
- * 
- * Copyright (c) 2004 Vassili Karpov (malc)
- * 
+ * QEMU Proxy for OPL2/3 emulation by MAME team
+ *
+ * Copyright (c) 2004-2005 Vassili Karpov (malc)
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -21,7 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#include <assert.h>
 #include "vl.h"
+
+#define ADLIB_KILL_TIMERS 1
 
 #define dolog(...) AUD_log ("adlib", __VA_ARGS__)
 #ifdef DEBUG
@@ -30,21 +33,13 @@
 #define ldebug(...)
 #endif
 
-#ifdef USE_YMF262
-#define HAS_YMF262 1
+#ifdef HAS_YMF262
 #include "ymf262.h"
-void YMF262UpdateOneQEMU(int which, INT16 *dst, int length);
+void YMF262UpdateOneQEMU (int which, INT16 *dst, int length);
 #define SHIFT 2
 #else
 #include "fmopl.h"
 #define SHIFT 1
-#endif
-
-#ifdef _WIN32
-#include <windows.h>
-#define small_delay() Sleep (1)
-#else
-#define small_delay() usleep (1)
 #endif
 
 #define IO_READ_PROTO(name) \
@@ -58,23 +53,57 @@ static struct {
 } conf = {0x220, 44100};
 
 typedef struct {
+    int ticking[2];
     int enabled;
     int active;
-    int cparam;
-    int64_t ticks;
     int bufpos;
+#ifdef DEBUG
+    int64_t exp[2];
+#endif
     int16_t *mixbuf;
-    double interval;
-    QEMUTimer *ts, *opl_ts;
-    SWVoice *voice;
-    int left, pos, samples, bytes_per_second, old_free;
-    int refcount;
-#ifndef USE_YMF262
+    uint64_t dexp[2];
+    SWVoiceOut *voice;
+    int left, pos, samples;
+    QEMUAudioTimeStamp ats;
+#ifndef HAS_YMF262
     FM_OPL *opl;
 #endif
 } AdlibState;
 
 static AdlibState adlib;
+
+static void adlib_stop_opl_timer (AdlibState *s, size_t n)
+{
+#ifdef HAS_YMF262
+    YMF262TimerOver (0, n);
+#else
+    OPLTimerOver (s->opl, n);
+#endif
+    s->ticking[n] = 0;
+}
+
+static void adlib_kill_timers (AdlibState *s)
+{
+    size_t i;
+
+    for (i = 0; i < 2; ++i) {
+        if (s->ticking[i]) {
+            uint64_t delta;
+
+            delta = AUD_time_stamp_get_elapsed_usec_out (s->voice, &s->ats);
+            ldebug (
+                "delta = %f dexp = %f expired => %d\n",
+                delta / 1000000.0,
+                s->dexp[i] / 1000000.0,
+                delta >= s->dexp[i]
+                );
+            if (ADLIB_KILL_TIMERS || delta >= s->dexp[i]) {
+                adlib_stop_opl_timer (s, i);
+                AUD_init_time_stamp_out (s->voice, &s->ats);
+            }
+        }
+    }
+}
 
 static IO_WRITE_PROTO(adlib_write)
 {
@@ -82,11 +111,12 @@ static IO_WRITE_PROTO(adlib_write)
     int a = nport & 3;
     int status;
 
-    s->ticks = qemu_get_clock (vm_clock);
     s->active = 1;
-    AUD_enable (s->voice, 1);
+    AUD_set_active_out (s->voice, 1);
 
-#ifdef USE_YMF262
+    adlib_kill_timers (s);
+
+#ifdef HAS_YMF262
     status = YMF262Write (0, a, val);
 #else
     status = OPLWrite (s->opl, a, val);
@@ -99,8 +129,9 @@ static IO_READ_PROTO(adlib_read)
     uint8_t data;
     int a = nport & 3;
 
-#ifdef USE_YMF262
-    (void) s;
+    adlib_kill_timers (s);
+
+#ifdef HAS_YMF262
     data = YMF262Read (0, a);
 #else
     data = OPLRead (s->opl, a);
@@ -108,119 +139,115 @@ static IO_READ_PROTO(adlib_read)
     return data;
 }
 
-static void OPL_timer (void *opaque)
-{
-    AdlibState *s = opaque;
-#ifdef USE_YMF262
-    YMF262TimerOver (s->cparam >> 1, s->cparam & 1);
-#else
-    OPLTimerOver (s->opl, s->cparam);
-#endif
-    qemu_mod_timer (s->opl_ts, qemu_get_clock (vm_clock) + s->interval);
-}
-
-static void YMF262TimerHandler (int c, double interval_Sec)
+static void timer_handler (int c, double interval_Sec)
 {
     AdlibState *s = &adlib;
+    unsigned n = c & 1;
+#ifdef DEBUG
+    double interval;
+#endif
+
     if (interval_Sec == 0.0) {
-        qemu_del_timer (s->opl_ts);
+        s->ticking[n] = 0;
         return;
     }
-    s->cparam = c;
-    s->interval = ticks_per_sec * interval_Sec;
-    qemu_mod_timer (s->opl_ts, qemu_get_clock (vm_clock) + s->interval);
-    small_delay ();
+
+    s->ticking[n] = 1;
+#ifdef DEBUG
+    interval = ticks_per_sec * interval_Sec;
+    exp = qemu_get_clock (vm_clock) + interval;
+    s->exp[n] = exp;
+#endif
+
+    s->dexp[n] = interval_Sec * 1000000.0;
+    AUD_init_time_stamp_out (s->voice, &s->ats);
 }
 
 static int write_audio (AdlibState *s, int samples)
 {
     int net = 0;
-    int ss = samples;
+    int pos = s->pos;
+
     while (samples) {
-        int nbytes = samples << SHIFT;
-        int wbytes = AUD_write (s->voice,
-                                s->mixbuf + (s->pos << (SHIFT - 1)),
-                                nbytes);
-        int wsampl = wbytes >> SHIFT;
-        samples -= wsampl;
-        s->pos = (s->pos + wsampl) % s->samples;
-        net += wsampl;
-        if (!wbytes)
+        int nbytes, wbytes, wsampl;
+
+        nbytes = samples << SHIFT;
+        wbytes = AUD_write (
+            s->voice,
+            s->mixbuf + (pos << (SHIFT - 1)),
+            nbytes
+            );
+
+        if (wbytes) {
+            wsampl = wbytes >> SHIFT;
+
+            samples -= wsampl;
+            pos = (pos + wsampl) % s->samples;
+
+            net += wsampl;
+        }
+        else {
             break;
+        }
     }
-    if (net > ss) {
-        dolog ("WARNING: net > ss\n");
-    }
+
     return net;
 }
 
-static void timer (void *opaque)
+static void adlib_callback (void *opaque, int free)
 {
     AdlibState *s = opaque;
-    int elapsed, samples, net = 0;
+    int samples, net = 0, to_play, written;
 
-    if (s->refcount)
-        dolog ("refcount=%d\n", s->refcount);
-
-    s->refcount += 1;
-    if (!(s->active && s->enabled))
-        goto reset;
-
-    AUD_run ();
-
-    while (s->left) {
-        int written = write_audio (s, s->left);
-        net += written;
-        if (!written)
-            goto reset2;
-        s->left -= written;
+    samples = free >> SHIFT;
+    if (!(s->active && s->enabled) || !samples) {
+        return;
     }
-    s->pos = 0;
 
-    elapsed = AUD_calc_elapsed (s->voice);
-    if (!elapsed)
-        goto reset2;
+    to_play = audio_MIN (s->left, samples);
+    while (to_play) {
+        written = write_audio (s, to_play);
 
-    /* elapsed = AUD_get_free (s->voice); */
-    samples = elapsed >> SHIFT;
-    if (!samples)
-        goto reset2;
+        if (written) {
+            s->left -= written;
+            samples -= written;
+            to_play -= written;
+            s->pos = (s->pos + written) % s->samples;
+        }
+        else {
+            return;
+        }
+    }
 
     samples = audio_MIN (samples, s->samples - s->pos);
-    if (s->left)
-        dolog ("left=%d samples=%d elapsed=%d free=%d\n",
-               s->left, samples, elapsed, AUD_get_free (s->voice));
+    if (!samples) {
+        return;
+    }
 
-    if (!samples)
-        goto reset2;
-
-#ifdef USE_YMF262
+#ifdef HAS_YMF262
     YMF262UpdateOneQEMU (0, s->mixbuf + s->pos * 2, samples);
 #else
     YM3812UpdateOne (s->opl, s->mixbuf + s->pos, samples);
 #endif
 
     while (samples) {
-        int written = write_audio (s, samples);
-        net += written;
-        if (!written)
-            break;
-        samples -= written;
-    }
-    if (!samples)
-        s->pos = 0;
-    s->left = samples;
+        written = write_audio (s, samples);
 
-reset2:
-    AUD_adjust (s->voice, net << SHIFT);
-reset:
-    qemu_mod_timer (s->ts, qemu_get_clock (vm_clock) + ticks_per_sec / 1024);
-    s->refcount -= 1;
+        if (written) {
+            net += written;
+            samples -= written;
+            s->pos = (s->pos + written) % s->samples;
+        }
+        else {
+            s->left = samples;
+            return;
+        }
+    }
 }
 
 static void Adlib_fini (AdlibState *s)
 {
-#ifdef USE_YMF262
+#ifdef HAS_YMF262
     YMF262Shutdown ();
 #else
     if (s->opl) {
@@ -229,15 +256,9 @@ static void Adlib_fini (AdlibState *s)
     }
 #endif
 
-    if (s->opl_ts)
-        qemu_free_timer (s->opl_ts);
-
-    if (s->ts)
-        qemu_free_timer (s->ts);
-
-#define maybe_free(p) if (p) qemu_free (p)
-    maybe_free (s->mixbuf);
-#undef maybe_free
+    if (s->mixbuf) {
+        qemu_free (s->mixbuf);
+    }
 
     s->active = 0;
     s->enabled = 0;
@@ -247,15 +268,13 @@ void Adlib_init (void)
 {
     AdlibState *s = &adlib;
 
-    memset (s, 0, sizeof (*s));
-
-#ifdef USE_YMF262
+#ifdef HAS_YMF262
     if (YMF262Init (1, 14318180, conf.freq)) {
         dolog ("YMF262Init %d failed\n", conf.freq);
         return;
     }
     else {
-        YMF262SetTimerHandler (0, YMF262TimerHandler, 0);
+        YMF262SetTimerHandler (0, timer_handler, 0);
         s->enabled = 1;
     }
 #else
@@ -265,33 +284,26 @@ void Adlib_init (void)
         return;
     }
     else {
-        OPLSetTimerHandler (s->opl, YMF262TimerHandler, 0);
+        OPLSetTimerHandler (s->opl, timer_handler, 0);
         s->enabled = 1;
     }
 #endif
 
-    s->opl_ts = qemu_new_timer (vm_clock, OPL_timer, s);
-    if (!s->opl_ts) {
-        dolog ("Can not get timer for adlib emulation\n");
-        Adlib_fini (s);
-        return;
-    }
-
-    s->ts = qemu_new_timer (vm_clock, timer, s);
-    if (!s->opl_ts) {
-        dolog ("Can not get timer for adlib emulation\n");
-        Adlib_fini (s);
-        return;
-    }
-
-    s->voice = AUD_open (s->voice, "adlib", conf.freq, SHIFT, AUD_FMT_S16);
+    s->voice = AUD_open_out (
+        s->voice,
+        "adlib",
+        s,
+        adlib_callback,
+        conf.freq,
+        SHIFT,
+        AUD_FMT_S16
+        );
     if (!s->voice) {
         Adlib_fini (s);
         return;
     }
 
-    s->bytes_per_second = conf.freq << SHIFT;
-    s->samples = AUD_get_buffer_size (s->voice) >> SHIFT;
+    s->samples = AUD_get_buffer_size_out (s->voice) >> SHIFT;
     s->mixbuf = qemu_mallocz (s->samples << SHIFT);
 
     if (!s->mixbuf) {
@@ -300,6 +312,7 @@ void Adlib_init (void)
         Adlib_fini (s);
         return;
     }
+
     register_ioport_read (0x388, 4, 1, adlib_read, s);
     register_ioport_write (0x388, 4, 1, adlib_write, s);
 
@@ -308,6 +321,4 @@ void Adlib_init (void)
 
     register_ioport_read (conf.port + 8, 2, 1, adlib_read, s);
     register_ioport_write (conf.port + 8, 2, 1, adlib_write, s);
-
-    qemu_mod_timer (s->ts, qemu_get_clock (vm_clock) + 1);
 }

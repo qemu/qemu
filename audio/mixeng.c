@@ -1,7 +1,7 @@
 /*
  * QEMU Mixing engine
  *
- * Copyright (c) 2004 Vassili Karpov (malc)
+ * Copyright (c) 2004-2005 Vassili Karpov (malc)
  * Copyright (c) 1998 Fabrice Bellard
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -23,87 +23,174 @@
  * THE SOFTWARE.
  */
 #include "vl.h"
-//#define DEBUG_FP
-#include "audio/mixeng.h"
 
+#define AUDIO_CAP "mixeng"
+#include "audio_int.h"
+
+#define NOVOL
+
+/* 8 bit */
+#define ENDIAN_CONVERSION natural
+#define ENDIAN_CONVERT(v) (v)
+
+/* Signed 8 bit */
 #define IN_T int8_t
-#define IN_MIN CHAR_MIN
-#define IN_MAX CHAR_MAX
+#define IN_MIN SCHAR_MIN
+#define IN_MAX SCHAR_MAX
 #define SIGNED
+#define SHIFT 8
 #include "mixeng_template.h"
 #undef SIGNED
 #undef IN_MAX
 #undef IN_MIN
 #undef IN_T
+#undef SHIFT
 
+/* Unsigned 8 bit */
 #define IN_T uint8_t
 #define IN_MIN 0
 #define IN_MAX UCHAR_MAX
+#define SHIFT 8
 #include "mixeng_template.h"
 #undef IN_MAX
 #undef IN_MIN
 #undef IN_T
+#undef SHIFT
 
+#undef ENDIAN_CONVERT
+#undef ENDIAN_CONVERSION
+
+/* Signed 16 bit */
 #define IN_T int16_t
 #define IN_MIN SHRT_MIN
 #define IN_MAX SHRT_MAX
 #define SIGNED
+#define SHIFT 16
+#define ENDIAN_CONVERSION natural
+#define ENDIAN_CONVERT(v) (v)
 #include "mixeng_template.h"
+#undef ENDIAN_CONVERT
+#undef ENDIAN_CONVERSION
+#define ENDIAN_CONVERSION swap
+#define ENDIAN_CONVERT(v) bswap16 (v)
+#include "mixeng_template.h"
+#undef ENDIAN_CONVERT
+#undef ENDIAN_CONVERSION
 #undef SIGNED
 #undef IN_MAX
 #undef IN_MIN
 #undef IN_T
+#undef SHIFT
 
 #define IN_T uint16_t
 #define IN_MIN 0
 #define IN_MAX USHRT_MAX
+#define SHIFT 16
+#define ENDIAN_CONVERSION natural
+#define ENDIAN_CONVERT(v) (v)
 #include "mixeng_template.h"
+#undef ENDIAN_CONVERT
+#undef ENDIAN_CONVERSION
+#define ENDIAN_CONVERSION swap
+#define ENDIAN_CONVERT(v) bswap16 (v)
+#include "mixeng_template.h"
+#undef ENDIAN_CONVERT
+#undef ENDIAN_CONVERSION
 #undef IN_MAX
 #undef IN_MIN
 #undef IN_T
+#undef SHIFT
 
-t_sample *mixeng_conv[2][2][2] = {
+t_sample *mixeng_conv[2][2][2][2] = {
     {
         {
-            conv_uint8_t_to_mono,
-            conv_uint16_t_to_mono
+            {
+                conv_natural_uint8_t_to_mono,
+                conv_natural_uint16_t_to_mono
+            },
+            {
+                conv_natural_uint8_t_to_mono,
+                conv_swap_uint16_t_to_mono
+            }
         },
         {
-            conv_int8_t_to_mono,
-            conv_int16_t_to_mono
+            {
+                conv_natural_int8_t_to_mono,
+                conv_natural_int16_t_to_mono
+            },
+            {
+                conv_natural_int8_t_to_mono,
+                conv_swap_int16_t_to_mono
+            }
         }
     },
     {
         {
-            conv_uint8_t_to_stereo,
-            conv_uint16_t_to_stereo
+            {
+                conv_natural_uint8_t_to_stereo,
+                conv_natural_uint16_t_to_stereo
+            },
+            {
+                conv_natural_uint8_t_to_stereo,
+                conv_swap_uint16_t_to_stereo
+            }
         },
         {
-            conv_int8_t_to_stereo,
-            conv_int16_t_to_stereo
+            {
+                conv_natural_int8_t_to_stereo,
+                conv_natural_int16_t_to_stereo
+            },
+            {
+                conv_natural_int8_t_to_stereo,
+                conv_swap_int16_t_to_stereo
+            }
         }
     }
 };
 
-f_sample *mixeng_clip[2][2][2] = {
+f_sample *mixeng_clip[2][2][2][2] = {
     {
         {
-            clip_uint8_t_from_mono,
-            clip_uint16_t_from_mono
+            {
+                clip_natural_uint8_t_from_mono,
+                clip_natural_uint16_t_from_mono
+            },
+            {
+                clip_natural_uint8_t_from_mono,
+                clip_swap_uint16_t_from_mono
+            }
         },
         {
-            clip_int8_t_from_mono,
-            clip_int16_t_from_mono
+            {
+                clip_natural_int8_t_from_mono,
+                clip_natural_int16_t_from_mono
+            },
+            {
+                clip_natural_int8_t_from_mono,
+                clip_swap_int16_t_from_mono
+            }
         }
     },
     {
         {
-            clip_uint8_t_from_stereo,
-            clip_uint16_t_from_stereo
+            {
+                clip_natural_uint8_t_from_stereo,
+                clip_natural_uint16_t_from_stereo
+            },
+            {
+                clip_natural_uint8_t_from_stereo,
+                clip_swap_uint16_t_from_stereo
+            }
         },
         {
-            clip_int8_t_from_stereo,
-            clip_int16_t_from_stereo
+            {
+                clip_natural_int8_t_from_stereo,
+                clip_natural_int16_t_from_stereo
+            },
+            {
+                clip_natural_int8_t_from_stereo,
+                clip_swap_int16_t_from_stereo
+            }
         }
     }
 };
@@ -116,9 +203,9 @@ f_sample *mixeng_clip[2][2][2] = {
  * Contributors with a more efficient algorithm.]
  *
  * This source code is freely redistributable and may be used for
- * any purpose.  This copyright notice must be maintained. 
- * Lance Norskog And Sundry Contributors are not responsible for 
- * the consequences of using this software.  
+ * any purpose.  This copyright notice must be maintained.
+ * Lance Norskog And Sundry Contributors are not responsible for
+ * the consequences of using this software.
  */
 
 /*
@@ -156,21 +243,13 @@ void *st_rate_start (int inrate, int outrate)
     rate_t rate = (rate_t) qemu_mallocz (sizeof (struct ratestuff));
 
     if (!rate) {
-        exit (EXIT_FAILURE);
-    }
-
-    if (inrate == outrate) {
-        // exit (EXIT_FAILURE);
-    }
-
-    if (inrate >= 65535 || outrate >= 65535) {
-        // exit (EXIT_FAILURE);
+        return NULL;
     }
 
     rate->opos = 0;
 
     /* increment */
-    rate->opos_inc = (inrate * ((int64_t) UINT_MAX)) / outrate;
+    rate->opos_inc = ((uint64_t) inrate << 32) / outrate;
 
     rate->ipos = 0;
     rate->ilast.l = 0;
@@ -178,78 +257,20 @@ void *st_rate_start (int inrate, int outrate)
     return rate;
 }
 
-/*
- * Processed signed long samples from ibuf to obuf.
- * Return number of samples processed.
- */
-void st_rate_flow (void *opaque, st_sample_t *ibuf, st_sample_t *obuf,
-                   int *isamp, int *osamp)
-{
-    rate_t rate = (rate_t) opaque;
-    st_sample_t *istart, *iend;
-    st_sample_t *ostart, *oend;
-    st_sample_t ilast, icur, out;
-    int64_t t;
+#define NAME st_rate_flow_mix
+#define OP(a, b) a += b
+#include "rate_template.h"
 
-    ilast = rate->ilast;
-
-    istart = ibuf;
-    iend = ibuf + *isamp;
-
-    ostart = obuf;
-    oend = obuf + *osamp;
-
-    if (rate->opos_inc == 1ULL << 32) {
-        int i, n = *isamp > *osamp ? *osamp : *isamp;
-        for (i = 0; i < n; i++) {
-            obuf[i].l += ibuf[i].r;
-            obuf[i].r += ibuf[i].r;
-        }
-        *isamp = n;
-        *osamp = n;
-        return;
-    }
-
-    while (obuf < oend) {
-
-        /* Safety catch to make sure we have input samples.  */
-        if (ibuf >= iend)
-            break;
-
-        /* read as many input samples so that ipos > opos */
-
-        while (rate->ipos <= (rate->opos >> 32)) {
-            ilast = *ibuf++;
-            rate->ipos++;
-            /* See if we finished the input buffer yet */
-            if (ibuf >= iend) goto the_end;
-        }
-
-        icur = *ibuf;
-
-        /* interpolate */
-        t = rate->opos & 0xffffffff;
-        out.l = (ilast.l * (INT_MAX - t) + icur.l * t) / INT_MAX;
-        out.r = (ilast.r * (INT_MAX - t) + icur.r * t) / INT_MAX;
-
-        /* output sample & increment position */
-#if 0
-        *obuf++ = out;
-#else
-        obuf->l += out.l;
-        obuf->r += out.r;
-        obuf += 1;
-#endif
-        rate->opos += rate->opos_inc;
-    }
-
-the_end:
-    *isamp = ibuf - istart;
-    *osamp = obuf - ostart;
-    rate->ilast = ilast;
-}
+#define NAME st_rate_flow
+#define OP(a, b) a = b
+#include "rate_template.h"
 
 void st_rate_stop (void *opaque)
 {
     qemu_free (opaque);
+}
+
+void mixeng_clear (st_sample_t *buf, int len)
+{
+    memset (buf, 0, len * sizeof (st_sample_t));
 }

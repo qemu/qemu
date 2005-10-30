@@ -1,8 +1,8 @@
 /*
- * QEMU NULL audio output driver
- * 
- * Copyright (c) 2004 Vassili Karpov (malc)
- * 
+ * QEMU Timer based audio emulation
+ *
+ * Copyright (c) 2004-2005 Vassili Karpov (malc)
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -23,77 +23,110 @@
  */
 #include "vl.h"
 
-#include "audio/audio_int.h"
+#define AUDIO_CAP "noaudio"
+#include "audio_int.h"
 
-typedef struct NoVoice {
-    HWVoice hw;
+typedef struct NoVoiceOut {
+    HWVoiceOut hw;
     int64_t old_ticks;
-} NoVoice;
+} NoVoiceOut;
 
-#define dolog(...) AUD_log ("noaudio", __VA_ARGS__)
-#ifdef DEBUG
-#define ldebug(...) dolog (__VA_ARGS__)
-#else
-#define ldebug(...)
-#endif
+typedef struct NoVoiceIn {
+    HWVoiceIn hw;
+    int64_t old_ticks;
+} NoVoiceIn;
 
-static void no_hw_run (HWVoice *hw)
+static int no_run_out (HWVoiceOut *hw)
 {
-    NoVoice *no = (NoVoice *) hw;
-    int rpos, live, decr, samples;
-    st_sample_t *src;
+    NoVoiceOut *no = (NoVoiceOut *) hw;
+    int live, decr, samples;
     int64_t now = qemu_get_clock (vm_clock);
     int64_t ticks = now - no->old_ticks;
-    int64_t bytes = (ticks * hw->bytes_per_second) / ticks_per_sec;
+    int64_t bytes = (ticks * hw->info.bytes_per_second) / ticks_per_sec;
 
-    if (bytes > INT_MAX)
-        samples = INT_MAX >> hw->shift;
-    else
-        samples = bytes >> hw->shift;
+    if (bytes > INT_MAX) {
+        samples = INT_MAX >> hw->info.shift;
+    }
+    else {
+        samples = bytes >> hw->info.shift;
+    }
 
-    live = pcm_hw_get_live (hw);
-    if (live <= 0)
-        return;
+    live = audio_pcm_hw_get_live_out (&no->hw);
+    if (!live) {
+        return 0;
+    }
 
     no->old_ticks = now;
     decr = audio_MIN (live, samples);
-    samples = decr;
-    rpos = hw->rpos;
-    while (samples) {
-        int left_till_end_samples = hw->samples - rpos;
-        int convert_samples = audio_MIN (samples, left_till_end_samples);
-
-        src = advance (hw->mix_buf, rpos * sizeof (st_sample_t));
-        memset (src, 0, convert_samples * sizeof (st_sample_t));
-
-        rpos = (rpos + convert_samples) % hw->samples;
-        samples -= convert_samples;
-    }
-
-    pcm_hw_dec_live (hw, decr);
-    hw->rpos = rpos;
+    hw->rpos = (hw->rpos + decr) % hw->samples;
+    return decr;
 }
 
-static int no_hw_write (SWVoice *sw, void *buf, int len)
+static int no_write (SWVoiceOut *sw, void *buf, int len)
 {
-    return pcm_hw_write (sw, buf, len);
+    return audio_pcm_sw_write (sw, buf, len);
 }
 
-static int no_hw_init (HWVoice *hw, int freq, int nchannels, audfmt_e fmt)
+static int no_init_out (HWVoiceOut *hw, int freq,
+                        int nchannels, audfmt_e fmt)
 {
-    hw->freq = freq;
-    hw->nchannels = nchannels;
-    hw->fmt = fmt;
+    audio_pcm_init_info (&hw->info, freq, nchannels, fmt, 0);
     hw->bufsize = 4096;
     return 0;
 }
 
-static void no_hw_fini (HWVoice *hw)
+static void no_fini_out (HWVoiceOut *hw)
 {
     (void) hw;
 }
 
-static int no_hw_ctl (HWVoice *hw, int cmd, ...)
+static int no_ctl_out (HWVoiceOut *hw, int cmd, ...)
+{
+    (void) hw;
+    (void) cmd;
+    return 0;
+}
+
+static int no_init_in (HWVoiceIn *hw, int freq,
+                       int nchannels, audfmt_e fmt)
+{
+    audio_pcm_init_info (&hw->info, freq, nchannels, fmt, 0);
+    hw->bufsize = 4096;
+    return 0;
+}
+
+static void no_fini_in (HWVoiceIn *hw)
+{
+    (void) hw;
+}
+
+static int no_run_in (HWVoiceIn *hw)
+{
+    NoVoiceIn *no = (NoVoiceIn *) hw;
+    int64_t now = qemu_get_clock (vm_clock);
+    int64_t ticks = now - no->old_ticks;
+    int64_t bytes = (ticks * hw->info.bytes_per_second) / ticks_per_sec;
+    int live = audio_pcm_hw_get_live_in (hw);
+    int dead = hw->samples - live;
+    int samples;
+
+    bytes = audio_MIN (bytes, INT_MAX);
+    samples = bytes >> hw->info.shift;
+    samples = audio_MIN (samples, dead);
+
+    return samples;
+}
+
+static int no_read (SWVoiceIn *sw, void *buf, int size)
+{
+    int samples = size >> sw->info.shift;
+    int total = sw->hw->total_samples_captured - sw->total_hw_samples_acquired;
+    int to_clear = audio_MIN (samples, total);
+    audio_pcm_info_clear_buf (&sw->info, buf, to_clear);
+    return to_clear;
+}
+
+static int no_ctl_in (HWVoiceIn *hw, int cmd, ...)
 {
     (void) hw;
     (void) cmd;
@@ -107,22 +140,33 @@ static void *no_audio_init (void)
 
 static void no_audio_fini (void *opaque)
 {
+    (void) opaque;
 }
 
-struct pcm_ops no_pcm_ops = {
-    no_hw_init,
-    no_hw_fini,
-    no_hw_run,
-    no_hw_write,
-    no_hw_ctl
+static struct audio_pcm_ops no_pcm_ops = {
+    no_init_out,
+    no_fini_out,
+    no_run_out,
+    no_write,
+    no_ctl_out,
+
+    no_init_in,
+    no_fini_in,
+    no_run_in,
+    no_read,
+    no_ctl_in
 };
 
-struct audio_output_driver no_output_driver = {
-    "none",
-    no_audio_init,
-    no_audio_fini,
-    &no_pcm_ops,
-    1,
-    1,
-    sizeof (NoVoice)
+struct audio_driver no_audio_driver = {
+    INIT_FIELD (name           = ) "none",
+    INIT_FIELD (descr          = ) "Timer based audio emulation",
+    INIT_FIELD (options        = ) NULL,
+    INIT_FIELD (init           = ) no_audio_init,
+    INIT_FIELD (fini           = ) no_audio_fini,
+    INIT_FIELD (pcm_ops        = ) &no_pcm_ops,
+    INIT_FIELD (can_be_default = ) 1,
+    INIT_FIELD (max_voices_out = ) INT_MAX,
+    INIT_FIELD (max_voices_in  = ) INT_MAX,
+    INIT_FIELD (voice_size_out = ) sizeof (NoVoiceOut),
+    INIT_FIELD (voice_size_in  = ) sizeof (NoVoiceIn)
 };

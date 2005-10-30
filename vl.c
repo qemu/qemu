@@ -127,10 +127,13 @@ int nb_nics;
 NetDriverState nd_table[MAX_NICS];
 QEMUTimer *gui_timer;
 int vm_running;
+#ifdef HAS_AUDIO
 int audio_enabled = 0;
-int sb16_enabled = 1;
-int adlib_enabled = 1;
-int gus_enabled = 1;
+int sb16_enabled = 0;
+int adlib_enabled = 0;
+int gus_enabled = 0;
+int es1370_enabled = 0;
+#endif
 int pci_enabled = 1;
 int prep_enabled = 0;
 int rtc_utc = 1;
@@ -930,7 +933,7 @@ static void init_timers(void)
 #ifdef _WIN32
     {
         int count=0;
-        timerID = timeSetEvent(10,    // interval (ms)
+        timerID = timeSetEvent(1,     // interval (ms)
                                0,     // resolution
                                host_alarm_handler, // function
                                (DWORD)&count,  // user parameter
@@ -2837,7 +2840,12 @@ void help(void)
 #ifndef _WIN32
 	   "-k language     use keyboard layout (for example \"fr\" for French)\n"
 #endif
+#ifdef HAS_AUDIO
            "-enable-audio   enable audio support\n"
+           "-audio-help     print list of audio drivers and their options\n"
+           "-soundhw c1,... comma separated list of sound card names\n"
+           "                use -soundhw ? to get the list of supported sound cards\n"
+#endif
            "-localtime      set the real time clock to local time [default=utc]\n"
            "-full-screen    start in full screen\n"
 #ifdef TARGET_I386
@@ -2935,7 +2943,11 @@ enum {
     QEMU_OPTION_snapshot,
     QEMU_OPTION_m,
     QEMU_OPTION_nographic,
+#ifdef HAS_AUDIO
     QEMU_OPTION_enable_audio,
+    QEMU_OPTION_audio_help,
+    QEMU_OPTION_soundhw,
+#endif
 
     QEMU_OPTION_nics,
     QEMU_OPTION_macaddr,
@@ -2998,7 +3010,11 @@ const QEMUOption qemu_options[] = {
     { "m", HAS_ARG, QEMU_OPTION_m },
     { "nographic", 0, QEMU_OPTION_nographic },
     { "k", HAS_ARG, QEMU_OPTION_k },
+#ifdef HAS_AUDIO
     { "enable-audio", 0, QEMU_OPTION_enable_audio },
+    { "audio-help", 0, QEMU_OPTION_audio_help },
+    { "soundhw", HAS_ARG, QEMU_OPTION_soundhw },
+#endif
 
     { "nics", HAS_ARG, QEMU_OPTION_nics},
     { "macaddr", HAS_ARG, QEMU_OPTION_macaddr},
@@ -3116,6 +3132,78 @@ void register_machines(void)
 #endif
 #endif
 }
+
+#ifdef HAS_AUDIO
+static void select_soundhw (const char *optarg)
+{
+    if (*optarg == '?') {
+    show_valid_cards:
+        printf ("Valid sound card names (comma separated):\n");
+        printf ("sb16       Creative Sound Blaster 16\n");
+#ifdef CONFIG_ADLIB
+#ifdef HAS_YMF262
+        printf ("adlib      Ymaha YMF262 (OPL3)\n");
+#else
+        printf ("adlib      Ymaha YM3812 (OPL2)\n");
+#endif
+#endif
+#ifdef CONFIG_GUS
+        printf ("gus        Gravis Ultrasound GF1\n");
+#endif
+        printf ("es1370     ENSONIQ AudioPCI ES1370\n");
+        exit (*optarg != '?');
+    }
+    else {
+        struct {
+            char *name;
+            int *enabledp;
+        } soundhw_tab[] = {
+            { "sb16", &sb16_enabled },
+#ifdef CONFIG_ADLIB
+            { "adlib", &adlib_enabled },
+#endif
+#ifdef CONFIG_GUS
+            { "gus", &gus_enabled },
+#endif
+            { "es1370", &es1370_enabled },
+        };
+        size_t tablen, l, i;
+        const char *p;
+        char *e;
+        int bad_card = 0;
+
+        p = optarg;
+        tablen = sizeof (soundhw_tab) / sizeof (soundhw_tab[0]);
+
+        while (*p) {
+            e = strchr (p, ',');
+            l = !e ? strlen (p) : (size_t) (e - p);
+            for (i = 0; i < tablen; ++i) {
+                if (!strncmp (soundhw_tab[i].name, p, l)) {
+                    audio_enabled = 1;
+                    *soundhw_tab[i].enabledp = 1;
+                    break;
+                }
+            }
+            if (i == tablen) {
+                if (l > 80) {
+                    fprintf (stderr,
+                             "Unknown sound card name (too big to show)\n");
+                }
+                else {
+                    fprintf (stderr, "Unknown sound card name `%.*s'\n",
+                             (int) l, p);
+                }
+                bad_card = 1;
+            }
+            p += l + (e != NULL);
+        }
+
+        if (bad_card)
+            goto show_valid_cards;
+    }
+}
+#endif
 
 #define NET_IF_TUN   0
 #define NET_IF_USER  1
@@ -3401,9 +3489,22 @@ int main(int argc, char **argv)
             case QEMU_OPTION_dummy_net:
                 net_if_type = NET_IF_DUMMY;
                 break;
+#ifdef HAS_AUDIO
             case QEMU_OPTION_enable_audio:
                 audio_enabled = 1;
+                sb16_enabled = 1;
+                adlib_enabled = 1;
+                gus_enabled = 1;
+                es1370_enabled = 1;
                 break;
+            case QEMU_OPTION_audio_help:
+                AUD_help ();
+                exit (0);
+                break;
+            case QEMU_OPTION_soundhw:
+                select_soundhw (optarg);
+                break;
+#endif
             case QEMU_OPTION_h:
                 help();
                 break;

@@ -1,3 +1,10 @@
+version 0.7.3:
+
+  - Mac OS X cocoa improvements (Mike Kronenberg)
+  - DirectSound driver (malc)
+  - new audio options: '-soundhw' and 'audio-help' (malc)
+  - ES1370 PCI audio device (malc)
+   
 version 0.7.2:
   
   - x86_64 fixes (Win2000 and Linux 2.6 boot in 32 bit)

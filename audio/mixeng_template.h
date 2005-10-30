@@ -1,8 +1,8 @@
 /*
  * QEMU Mixing engine
- * 
- * Copyright (c) 2004 Vassili Karpov (malc)
- * 
+ *
+ * Copyright (c) 2004-2005 Vassili Karpov (malc)
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -27,85 +27,151 @@
  * dec++'ified by Dscho
  */
 
-#ifdef SIGNED
-#define HALFT IN_MAX
-#define HALF IN_MAX
-#else
-#define HALFT ((IN_MAX)>>1)
-#define HALF HALFT
+#ifndef SIGNED
+#define HALF (IN_MAX >> 1)
 #endif
 
-static int64_t inline glue(conv_,IN_T) (IN_T v)
-{
-#ifdef SIGNED
-    return (INT_MAX*(int64_t)v)/HALF;
+#ifdef NOVOL
+#define VOL(a, b) a
 #else
-    return (INT_MAX*((int64_t)v-HALFT))/HALF;
+#ifdef FLOAT_MIXENG
+#define VOL(a, b) ((a) * (b))
+#else
+#define VOL(a, b) ((a) * (b)) >> 32
+#endif
+#endif
+
+#define ET glue (ENDIAN_CONVERSION, glue (_, IN_T))
+
+#ifdef FLOAT_MIXENG
+static real_t inline glue (conv_, ET) (IN_T v)
+{
+    IN_T nv = ENDIAN_CONVERT (v);
+
+#ifdef RECIPROCAL
+#ifdef SIGNED
+    return nv * (1.f / (real_t) (IN_MAX - IN_MIN));
+#else
+    return (nv - HALF) * (1.f / (real_t) IN_MAX);
+#endif
+#else  /* !RECIPROCAL */
+#ifdef SIGNED
+    return nv / (real_t) (IN_MAX - IN_MIN);
+#else
+    return (nv - HALF) / (real_t) IN_MAX;
+#endif
 #endif
 }
 
-static IN_T inline glue(clip_,IN_T) (int64_t v)
+static IN_T inline glue (clip_, ET) (real_t v)
 {
-    if (v >= INT_MAX)
+    if (v >= 0.5) {
         return IN_MAX;
-    else if (v < -INT_MAX)
+    }
+    else if (v < -0.5) {
         return IN_MIN;
+    }
 
 #ifdef SIGNED
-    return (IN_T) (v*HALF/INT_MAX);
+    return ENDIAN_CONVERT ((IN_T) (v * (IN_MAX - IN_MIN)));
 #else
-    return (IN_T) (v+INT_MAX/2)*HALF/INT_MAX;
+    return ENDIAN_CONVERT ((IN_T) ((v * IN_MAX) + HALF));
 #endif
 }
 
-static void glue(glue(conv_,IN_T),_to_stereo) (void *dst, const void *src,
-                                               int samples)
+#else  /* !FLOAT_MIXENG */
+
+static inline int64_t glue (conv_, ET) (IN_T v)
 {
-    st_sample_t *out = (st_sample_t *) dst;
+    IN_T nv = ENDIAN_CONVERT (v);
+#ifdef SIGNED
+    return ((int64_t) nv) << (32 - SHIFT);
+#else
+    return ((int64_t) nv - HALF) << (32 - SHIFT);
+#endif
+}
+
+static inline IN_T glue (clip_, ET) (int64_t v)
+{
+    if (v >= 0x7f000000) {
+        return IN_MAX;
+    }
+    else if (v < -2147483648LL) {
+        return IN_MIN;
+    }
+
+#ifdef SIGNED
+    return ENDIAN_CONVERT ((IN_T) (v >> (32 - SHIFT)));
+#else
+    return ENDIAN_CONVERT ((IN_T) ((v >> (32 - SHIFT)) + HALF));
+#endif
+}
+#endif
+
+static void glue (glue (conv_, ET), _to_stereo)
+    (st_sample_t *dst, const void *src, int samples, volume_t *vol)
+{
+    st_sample_t *out = dst;
     IN_T *in = (IN_T *) src;
+#ifndef NOVOL
+    if (vol->mute) {
+        mixeng_clear (dst, samples);
+        return;
+    }
+#else
+    (void) vol;
+#endif
     while (samples--) {
-        out->l = glue(conv_,IN_T) (*in++);
-        out->r = glue(conv_,IN_T) (*in++);
+        out->l = VOL (glue (conv_, ET) (*in++), vol->l);
+        out->r = VOL (glue (conv_, ET) (*in++), vol->r);
         out += 1;
     }
 }
 
-static void glue(glue(conv_,IN_T),_to_mono) (void *dst, const void *src,
-                                             int samples)
+static void glue (glue (conv_, ET), _to_mono)
+    (st_sample_t *dst, const void *src, int samples, volume_t *vol)
 {
-    st_sample_t *out = (st_sample_t *) dst;
+    st_sample_t *out = dst;
     IN_T *in = (IN_T *) src;
+#ifndef NOVOL
+    if (vol->mute) {
+        mixeng_clear (dst, samples);
+        return;
+    }
+#else
+    (void) vol;
+#endif
     while (samples--) {
-        out->l = glue(conv_,IN_T) (in[0]);
+        out->l = VOL (glue (conv_, ET) (in[0]), vol->l);
         out->r = out->l;
         out += 1;
         in += 1;
     }
 }
 
-static void glue(glue(clip_,IN_T),_from_stereo) (void *dst, const void *src,
-                                                 int samples)
+static void glue (glue (clip_, ET), _from_stereo)
+    (void *dst, const st_sample_t *src, int samples)
 {
-    st_sample_t *in = (st_sample_t *) src;
+    const st_sample_t *in = src;
     IN_T *out = (IN_T *) dst;
     while (samples--) {
-        *out++ = glue(clip_,IN_T) (in->l);
-        *out++ = glue(clip_,IN_T) (in->r);
+        *out++ = glue (clip_, ET) (in->l);
+        *out++ = glue (clip_, ET) (in->r);
         in += 1;
     }
 }
 
-static void glue(glue(clip_,IN_T),_from_mono) (void *dst, const void *src,
-                                               int samples)
+static void glue (glue (clip_, ET), _from_mono)
+    (void *dst, const st_sample_t *src, int samples)
 {
-    st_sample_t *in = (st_sample_t *) src;
+    const st_sample_t *in = src;
     IN_T *out = (IN_T *) dst;
     while (samples--) {
-        *out++ = glue(clip_,IN_T) (in->l + in->r);
+        *out++ = glue (clip_, ET) (in->l + in->r);
         in += 1;
     }
 }
 
+#undef ET
 #undef HALF
-#undef HALFT
-
+#undef VOL

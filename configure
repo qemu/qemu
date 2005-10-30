@@ -77,6 +77,9 @@ gdbstub="yes"
 slirp="yes"
 adlib="no"
 oss="no"
+dsound="no"
+coreaudio="no"
+alsa="no"
 fmod="no"
 fmod_lib=""
 fmod_inc=""
@@ -115,7 +118,7 @@ Darwin)
 bsd="yes"
 darwin="yes"
 ;;
-*) 
+*)
 oss="yes"
 linux="yes"
 if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
@@ -131,7 +134,7 @@ if [ "$bsd" = "yes" ] ; then
 fi
 
 # find source path
-# XXX: we assume an absolute path is given when launching configure, 
+# XXX: we assume an absolute path is given when launching configure,
 # except in './configure' case.
 source_path=${0%configure}
 source_path=${source_path%/}
@@ -171,6 +174,12 @@ for opt do
   ;;
   --disable-sdl) sdl="no"
   ;;
+  --enable-coreaudio) coreaudio="yes"
+  ;;
+  --enable-alsa) alsa="yes"
+  ;;
+  --enable-dsound) dsound="yes"
+  ;;
   --enable-fmod) fmod="yes"
   ;;
   --fmod-lib=*) fmod_lib=${opt#--fmod-lib=}
@@ -178,17 +187,17 @@ for opt do
   --fmod-inc=*) fmod_inc=${opt#--fmod-inc=}
   ;;
   --enable-mingw32) mingw32="yes" ; cross_prefix="i386-mingw32-"
-  ;; 
+  ;;
   --disable-slirp) slirp="no"
-  ;; 
+  ;;
   --enable-adlib) adlib="yes"
-  ;; 
+  ;;
   --disable-kqemu) kqemu="no"
-  ;; 
+  ;;
   --kernel-path=*) kernel_path=${opt#--kernel-path=}
-  ;; 
-  --enable-cocoa) cocoa="yes" ; sdl="no"
-  ;; 
+  ;;
+  --enable-cocoa) cocoa="yes" ; coreaudio="yes" ; sdl="no"
+  ;;
   --disable-gfx-check) check_gfx="no"
   ;;
   esac
@@ -231,8 +240,8 @@ if test -z "$cross_prefix" ; then
 cat > $TMPC << EOF
 #include <inttypes.h>
 int main(int argc, char ** argv){
-	volatile uint32_t i=0x01234567;
-	return (*((uint8_t*)(&i))) == 0x67;
+        volatile uint32_t i=0x01234567;
+        return (*((uint8_t*)(&i))) == 0x67;
 }
 EOF
 
@@ -346,7 +355,10 @@ echo "  --make=MAKE              use specified make [$make]"
 echo "  --static                 enable static build [$static]"
 echo "  --enable-mingw32         enable Win32 cross compilation with mingw32"
 echo "  --enable-adlib           enable Adlib emulation"
-echo "  --enable-fmod            enable FMOD audio output driver"
+echo "  --enable-coreaudio       enable Coreaudio audio driver"
+echo "  --enable-alsa            enable ALSA audio driver"
+echo "  --enable-fmod            enable FMOD audio driver"
+echo "  --enabled-dsound         enable DirectSound audio driver"
 echo "  --fmod-lib               path to FMOD library"
 echo "  --fmod-inc               path to FMOD includes"
 echo ""
@@ -375,20 +387,20 @@ fi
 # kqemu support
 if test $kqemu = "yes" ; then
     # test if the source code is installed
-    if test '!' -f "kqemu/Makefile" ; then 
+    if test '!' -f "kqemu/Makefile" ; then
         kqemu="no"
     fi
 fi
-  
+
 # Linux specific kqemu configuration
 if test $kqemu = "yes" -a $linux = "yes" ; then
 # find the kernel path
 if test -z "$kernel_path" ; then
 kernel_version=`uname -r`
 kernel_path="/lib/modules/$kernel_version/build"
-if test '!' -d "$kernel_path/include" ; then 
+if test '!' -d "$kernel_path/include" ; then
     kernel_path="/usr/src/linux"
-    if test '!' -d "$kernel_path/include" ; then 
+    if test '!' -d "$kernel_path/include" ; then
         echo "Could not find kernel includes in /lib/modules or /usr/src/linux - cannot build the kqemu module"
         kqemu="no"
     fi
@@ -401,7 +413,7 @@ if test $kqemu = "yes" ; then
 if test '!' -f "$kernel_path/Makefile" ; then
     echo "No Makefile file present in $kernel_path - kqemu cannot be built"
     kqemu="no"
-fi    
+fi
 
 # find build system (2.6 or legacy)
 kbuild26="yes"
@@ -439,8 +451,18 @@ if test "$sdl" != "no" ; then
 fi
 echo "mingw32 support   $mingw32"
 echo "Adlib support     $adlib"
+echo "CoreAudio support $coreaudio"
+echo "ALSA support      $alsa"
+echo "DSound support    $dsound"
 echo -n "FMOD support      $fmod"
-if test $fmod = "yes"; then
+if test "$fmod" = "yes"; then
+    if test -z $fmod_lib || test -z $fmod_inc; then
+        echo
+        echo "Error: You must specify path to FMOD library and headers"
+        echo "Example: --fmod-inc=/path/include/fmod --fmod-lib=/path/lib/libfmod-3.74.so"
+        echo
+        exit 1
+    fi
     echo -n " (lib='$fmod_lib' include='$fmod_inc')"
 fi
 echo ""
@@ -568,6 +590,18 @@ if test "$oss" = "yes" ; then
   echo "CONFIG_OSS=yes" >> $config_mak
   echo "#define CONFIG_OSS 1" >> $config_h
 fi
+if test "$coreaudio" = "yes" ; then
+  echo "CONFIG_COREAUDIO=yes" >> $config_mak
+  echo "#define CONFIG_COREAUDIO 1" >> $config_h
+fi
+if test "$alsa" = "yes" ; then
+  echo "CONFIG_ALSA=yes" >> $config_mak
+  echo "#define CONFIG_ALSA 1" >> $config_h
+fi
+if test "$dsound" = "yes" ; then
+  echo "CONFIG_DSOUND=yes" >> $config_mak
+  echo "#define CONFIG_DSOUND 1" >> $config_h
+fi
 if test "$fmod" = "yes" ; then
   echo "CONFIG_FMOD=yes" >> $config_mak
   echo "CONFIG_FMOD_LIB=$fmod_lib" >> $config_mak
@@ -600,7 +634,7 @@ if [ "$bsd" = "yes" ] ; then
   echo "#define _BSD 1" >> $config_h
 fi
 
-for target in $target_list; do 
+for target in $target_list; do
 
 target_dir="$target"
 config_mak=$target_dir/config.mak
@@ -623,7 +657,7 @@ if expr $target : '.*-user' > /dev/null ; then
 fi
 
 if test "$target_user_only" = "no" -a "$check_gfx" = "yes" \
-	-a "$sdl" = "no" -a "$cocoa" = "no" ; then
+        -a "$sdl" = "no" -a "$cocoa" = "no" ; then
     echo "ERROR: QEMU requires SDL or Cocoa for graphical output"
     echo "To build QEMU with graphical output configure with --disable-gfx-check"
     echo "Note that this will disable all output from the virtual graphics card."

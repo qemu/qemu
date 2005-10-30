@@ -602,18 +602,18 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
 
     if (audio_enabled) {
         AUD_init();
-#ifdef USE_SB16
         if (sb16_enabled)
             SB16_init ();
-#endif
 #ifdef CONFIG_ADLIB
         if (adlib_enabled)
             Adlib_init ();
 #endif
-#ifdef USE_GUS
+#ifdef CONFIG_GUS
         if (gus_enabled)
             GUS_init ();
 #endif
+        if (pci_enabled && es1370_enabled)
+            es1370_init (pci_bus);
     }
 
     floppy_controller = fdctrl_init(6, 2, 0, 0x3f0, fd_table);
