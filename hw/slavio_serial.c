@@ -195,7 +195,7 @@ static void slavio_serial_mem_writeb(void *opaque, target_phys_addr_t addr, uint
 	    val &= 0x38;
 	    switch (val) {
 	    case 8:
-		s->reg |= 0x8;
+		newreg |= 0x8;
 		break;
 	    case 0x20:
 		s->rxint = 0;
@@ -245,7 +245,8 @@ static void slavio_serial_mem_writeb(void *opaque, target_phys_addr_t addr, uint
 		handle_kbd_command(s, val);
 	    }
 	    s->txint = 1;
-	    s->rregs[0] |= 4;
+	    s->rregs[0] |= 4; // Tx buffer empty
+	    s->rregs[1] |= 1; // All sent
 	    // Interrupts reported only on channel A
 	    if (s->chn == 0)
 		s->rregs[3] |= 0x10;
@@ -278,12 +279,12 @@ static uint32_t slavio_serial_mem_readb(void *opaque, target_phys_addr_t addr)
 	s->reg = 0;
 	return ret;
     case 1:
-	SER_DPRINTF("Read channel %c, ch %d\n", channel? 'b' : 'a', s->rx);
 	s->rregs[0] &= ~1;
 	if (s->type == kbd)
 	    ret = get_queue(s);
 	else
 	    ret = s->rx;
+	SER_DPRINTF("Read channel %c, ch %d\n", channel? 'b' : 'a', ret);
 	return ret;
     default:
 	break;
@@ -453,7 +454,6 @@ static void handle_kbd_command(ChannelState *s, int val)
     KBD_DPRINTF("Command %d\n", val);
     switch (val) {
     case 1: // Reset, return type code
-	put_queue(s, 0xff);
 	put_queue(s, 0xff);
 	put_queue(s, 5); // Type 5
 	break;
