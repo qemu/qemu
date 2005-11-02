@@ -88,6 +88,7 @@ kqemu="no"
 kernel_path=""
 cocoa="no"
 check_gfx="yes"
+check_gcc="yes"
 
 # OS specific
 targetos=`uname -s`
@@ -200,6 +201,8 @@ for opt do
   ;;
   --disable-gfx-check) check_gfx="no"
   ;;
+  --disable-gcc-check) check_gcc="no"
+  ;;
   esac
 done
 
@@ -275,6 +278,23 @@ EOF
 have_gcc3_options="no"
 if $cc -fno-reorder-blocks -fno-optimize-sibling-calls -o $TMPO $TMPC 2> /dev/null ; then
    have_gcc3_options="yes"
+fi
+
+# Check for gcc4
+if test "$check_gcc" = "yes" ; then
+    cat > $TMPC <<EOF
+#if __GNUC__ >= 4
+#error gcc4
+#endif
+int main(){return 0;}
+EOF
+    if ! $cc -o $TMPO $TMPC 2>/dev/null ; then
+        echo "ERROR: \"$cc\" looks like gcc 4.x"
+        echo "QEMU is known to have problems when compiled with gcc 4.x"
+        echo "It is recommended that you use gcc 3.x to build QEMU"
+        echo "To use this compiler anyway, configure with --disable-gcc-check"
+        exit 1;
+    fi
 fi
 
 ##########################################
