@@ -199,10 +199,6 @@ int set_usb_string(uint8_t *buf, const char *str)
 
 #define MAX_PORTS 8
 
-#define DS_IDLE        0
-#define DS_CONTROL_IN  1
-#define DS_CONTROL_OUT 2
-
 typedef struct USBHubPort {
     USBPort port;
     USBDevice *dev;
@@ -260,41 +256,41 @@ typedef struct USBHubState {
 /* same as Linux kernel root hubs */
 
 static const uint8_t qemu_hub_dev_descriptor[] = {
-	0x12,       /*  __u8 bLength; */
-	0x01,       /*  __u8 bDescriptorType; Device */
-	0x10, 0x01, /*  __u16 bcdUSB; v1.1 */
+	0x12,       /*  u8 bLength; */
+	0x01,       /*  u8 bDescriptorType; Device */
+	0x10, 0x01, /*  u16 bcdUSB; v1.1 */
 
-	0x09,	    /*  __u8  bDeviceClass; HUB_CLASSCODE */
-	0x00,	    /*  __u8  bDeviceSubClass; */
-	0x00,       /*  __u8  bDeviceProtocol; [ low/full speeds only ] */
-	0x08,       /*  __u8  bMaxPacketSize0; 8 Bytes */
+	0x09,	    /*  u8  bDeviceClass; HUB_CLASSCODE */
+	0x00,	    /*  u8  bDeviceSubClass; */
+	0x00,       /*  u8  bDeviceProtocol; [ low/full speeds only ] */
+	0x08,       /*  u8  bMaxPacketSize0; 8 Bytes */
 
-	0x00, 0x00, /*  __u16 idVendor; */
- 	0x00, 0x00, /*  __u16 idProduct; */
-	0x01, 0x01, /*  __u16 bcdDevice */
+	0x00, 0x00, /*  u16 idVendor; */
+ 	0x00, 0x00, /*  u16 idProduct; */
+	0x01, 0x01, /*  u16 bcdDevice */
 
-	0x03,       /*  __u8  iManufacturer; */
-	0x02,       /*  __u8  iProduct; */
-	0x01,       /*  __u8  iSerialNumber; */
-	0x01        /*  __u8  bNumConfigurations; */
+	0x03,       /*  u8  iManufacturer; */
+	0x02,       /*  u8  iProduct; */
+	0x01,       /*  u8  iSerialNumber; */
+	0x01        /*  u8  bNumConfigurations; */
 };
 
 /* XXX: patch interrupt size */
 static const uint8_t qemu_hub_config_descriptor[] = {
 
 	/* one configuration */
-	0x09,       /*  __u8  bLength; */
-	0x02,       /*  __u8  bDescriptorType; Configuration */
-	0x19, 0x00, /*  __u16 wTotalLength; */
-	0x01,       /*  __u8  bNumInterfaces; (1) */
-	0x01,       /*  __u8  bConfigurationValue; */
-	0x00,       /*  __u8  iConfiguration; */
-	0xc0,       /*  __u8  bmAttributes; 
+	0x09,       /*  u8  bLength; */
+	0x02,       /*  u8  bDescriptorType; Configuration */
+	0x19, 0x00, /*  u16 wTotalLength; */
+	0x01,       /*  u8  bNumInterfaces; (1) */
+	0x01,       /*  u8  bConfigurationValue; */
+	0x00,       /*  u8  iConfiguration; */
+	0xc0,       /*  u8  bmAttributes; 
 				 Bit 7: must be set,
 				     6: Self-powered,
 				     5: Remote wakeup,
 				     4..0: resvd */
-	0x00,       /*  __u8  MaxPower; */
+	0x00,       /*  u8  MaxPower; */
       
 	/* USB 1.1:
 	 * USB 2.0, single TT organization (mandatory):
@@ -308,36 +304,36 @@ static const uint8_t qemu_hub_config_descriptor[] = {
 	 */
 
 	/* one interface */
-	0x09,       /*  __u8  if_bLength; */
-	0x04,       /*  __u8  if_bDescriptorType; Interface */
-	0x00,       /*  __u8  if_bInterfaceNumber; */
-	0x00,       /*  __u8  if_bAlternateSetting; */
-	0x01,       /*  __u8  if_bNumEndpoints; */
-	0x09,       /*  __u8  if_bInterfaceClass; HUB_CLASSCODE */
-	0x00,       /*  __u8  if_bInterfaceSubClass; */
-	0x00,       /*  __u8  if_bInterfaceProtocol; [usb1.1 or single tt] */
-	0x00,       /*  __u8  if_iInterface; */
+	0x09,       /*  u8  if_bLength; */
+	0x04,       /*  u8  if_bDescriptorType; Interface */
+	0x00,       /*  u8  if_bInterfaceNumber; */
+	0x00,       /*  u8  if_bAlternateSetting; */
+	0x01,       /*  u8  if_bNumEndpoints; */
+	0x09,       /*  u8  if_bInterfaceClass; HUB_CLASSCODE */
+	0x00,       /*  u8  if_bInterfaceSubClass; */
+	0x00,       /*  u8  if_bInterfaceProtocol; [usb1.1 or single tt] */
+	0x00,       /*  u8  if_iInterface; */
      
 	/* one endpoint (status change endpoint) */
-	0x07,       /*  __u8  ep_bLength; */
-	0x05,       /*  __u8  ep_bDescriptorType; Endpoint */
-	0x81,       /*  __u8  ep_bEndpointAddress; IN Endpoint 1 */
- 	0x03,       /*  __u8  ep_bmAttributes; Interrupt */
- 	0x02, 0x00, /*  __u16 ep_wMaxPacketSize; 1 + (MAX_ROOT_PORTS / 8) */
-	0xff        /*  __u8  ep_bInterval; (255ms -- usb 2.0 spec) */
+	0x07,       /*  u8  ep_bLength; */
+	0x05,       /*  u8  ep_bDescriptorType; Endpoint */
+	0x81,       /*  u8  ep_bEndpointAddress; IN Endpoint 1 */
+ 	0x03,       /*  u8  ep_bmAttributes; Interrupt */
+ 	0x02, 0x00, /*  u16 ep_wMaxPacketSize; 1 + (MAX_ROOT_PORTS / 8) */
+	0xff        /*  u8  ep_bInterval; (255ms -- usb 2.0 spec) */
 };
 
 static const uint8_t qemu_hub_hub_descriptor[] =
 {
-	0x09,			/*  __u8  bLength; */
-	0x29,			/*  __u8  bDescriptorType; Hub-descriptor */
-	0x00,			/*  __u8  bNbrPorts; (patched later) */
-	0x0a,			/* __u16  wHubCharacteristics; */
+	0x09,			/*  u8  bLength; */
+	0x29,			/*  u8  bDescriptorType; Hub-descriptor */
+	0x00,			/*  u8  bNbrPorts; (patched later) */
+	0x0a,			/* u16  wHubCharacteristics; */
 	0x00,			/*   (per-port OC, no power switching) */
-	0x01,			/*  __u8  bPwrOn2pwrGood; 2ms */
-	0x00,			/*  __u8  bHubContrCurrent; 0 mA */
-	0x00,			/*  __u8  DeviceRemovable; *** 7 Ports max *** */
-	0xff			/*  __u8  PortPwrCtrlMask; *** 7 ports max *** */
+	0x01,			/*  u8  bPwrOn2pwrGood; 2ms */
+	0x00,			/*  u8  bHubContrCurrent; 0 mA */
+	0x00,			/*  u8  DeviceRemovable; *** 7 Ports max *** */
+	0xff			/*  u8  PortPwrCtrlMask; *** 7 ports max *** */
 };
 
 static void usb_hub_attach(USBPort *port1, USBDevice *dev)
@@ -571,6 +567,7 @@ static int usb_hub_handle_control(USBDevice *dev, int request, int value,
     default:
     fail:
         ret = USB_RET_STALL;
+        break;
     }
     return ret;
 }
