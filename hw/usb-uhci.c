@@ -106,7 +106,7 @@ static void uhci_update_irq(UHCIState *s)
     } else {
         level = 0;
     }
-    pci_set_irq(&s->dev, 0, level);
+    pci_set_irq(&s->dev, 3, level);
 }
 
 static void uhci_reset(UHCIState *s)
@@ -642,7 +642,7 @@ void usb_uhci_init(PCIBus *bus, USBPort **usb_ports)
 
     s = (UHCIState *)pci_register_device(bus,
                                         "USB-UHCI", sizeof(UHCIState),
-                                        -1, 
+                                        ((PCIDevice *)piix3_state)->devfn + 2, 
                                         NULL, NULL);
     pci_conf = s->dev.config;
     pci_conf[0x00] = 0x86;
@@ -654,7 +654,7 @@ void usb_uhci_init(PCIBus *bus, USBPort **usb_ports)
     pci_conf[0x0a] = 0x03;
     pci_conf[0x0b] = 0x0c;
     pci_conf[0x0e] = 0x00; // header_type
-    pci_conf[0x3d] = 1; // interrupt pin 0
+    pci_conf[0x3d] = 4; // interrupt pin 3
     
     for(i = 0; i < NB_PORTS; i++) {
         port = &s->ports[i];
