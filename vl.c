@@ -153,6 +153,7 @@ CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
 #ifdef TARGET_I386
 int win2k_install_hack = 0;
 #endif
+int usb_enabled = 0;
 
 /***********************************************************/
 /* x86 ISA bus support */
@@ -2986,6 +2987,7 @@ enum {
     QEMU_OPTION_pidfile,
     QEMU_OPTION_no_kqemu,
     QEMU_OPTION_win2k_hack,
+    QEMU_OPTION_usb,
 };
 
 typedef struct QEMUOption {
@@ -3060,6 +3062,7 @@ const QEMUOption qemu_options[] = {
     { "full-screen", 0, QEMU_OPTION_full_screen },
     { "pidfile", HAS_ARG, QEMU_OPTION_pidfile },
     { "win2k-hack", 0, QEMU_OPTION_win2k_hack },
+    { "usb", 0, QEMU_OPTION_usb },
     
     /* temporary options */
     { "pci", 0, QEMU_OPTION_pci },
@@ -3646,6 +3649,9 @@ int main(int argc, char **argv)
                 kqemu_allowed = 0;
                 break;
 #endif
+            case QEMU_OPTION_usb:
+                usb_enabled = 1;
+                break;
             }
         }
     }

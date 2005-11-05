@@ -135,6 +135,7 @@ extern int graphic_depth;
 extern const char *keyboard_layout;
 extern int kqemu_allowed;
 extern int win2k_install_hack;
+extern int usb_enabled;
 
 /* XXX: make it dynamic */
 #if defined (TARGET_PPC)
@@ -858,6 +859,8 @@ void adb_mouse_init(ADBBusState *bus);
 
 extern ADBBusState adb_bus;
 int cuda_init(SetIRQFunc *set_irq, void *irq_opaque, int irq);
+
+#include "hw/usb.h"
 
 #endif /* defined(QEMU_TOOL) */
 
