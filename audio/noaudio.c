@@ -67,11 +67,10 @@ static int no_write (SWVoiceOut *sw, void *buf, int len)
     return audio_pcm_sw_write (sw, buf, len);
 }
 
-static int no_init_out (HWVoiceOut *hw, int freq,
-                        int nchannels, audfmt_e fmt)
+static int no_init_out (HWVoiceOut *hw, audsettings_t *as)
 {
-    audio_pcm_init_info (&hw->info, freq, nchannels, fmt, 0);
-    hw->bufsize = 4096;
+    audio_pcm_init_info (&hw->info, as, 0);
+    hw->samples = 1024;
     return 0;
 }
 
@@ -87,11 +86,10 @@ static int no_ctl_out (HWVoiceOut *hw, int cmd, ...)
     return 0;
 }
 
-static int no_init_in (HWVoiceIn *hw, int freq,
-                       int nchannels, audfmt_e fmt)
+static int no_init_in (HWVoiceIn *hw, audsettings_t *as)
 {
-    audio_pcm_init_info (&hw->info, freq, nchannels, fmt, 0);
-    hw->bufsize = 4096;
+    audio_pcm_init_info (&hw->info, as, 0);
+    hw->samples = 1024;
     return 0;
 }
 

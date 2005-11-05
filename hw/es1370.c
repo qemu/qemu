@@ -265,6 +265,7 @@ struct chan {
 typedef struct ES1370State {
     PCIDevice *pci_dev;
 
+    QEMUSoundCard card;
     struct chan chan[NB_CHANNELS];
     SWVoiceOut *dac_voice[2];
     SWVoiceIn *adc_voice;
@@ -341,11 +342,11 @@ static void es1370_reset (ES1370State *s)
         d->scount = 0;
         d->leftover = 0;
         if (i == ADC_CHANNEL) {
-            AUD_close_in (s->adc_voice);
+            AUD_close_in (&s->card, s->adc_voice);
             s->adc_voice = NULL;
         }
         else {
-            AUD_close_out (s->dac_voice[i]);
+            AUD_close_out (&s->card, s->dac_voice[i]);
             s->dac_voice[i] = NULL;
         }
     }
@@ -417,28 +418,32 @@ static void es1370_update_voices (ES1370State *s, uint32_t ctl, uint32_t sctl)
                     (new_fmt & 2) ? AUD_FMT_S16 : AUD_FMT_U8,
                     d->shift);
             if (new_freq) {
+                audsettings_t as;
+
+                as.freq = new_freq;
+                as.nchannels = 1 << (new_fmt & 1);
+                as.fmt = (new_fmt & 2) ? AUD_FMT_S16 : AUD_FMT_U8;
+
                 if (i == ADC_CHANNEL) {
                     s->adc_voice =
                         AUD_open_in (
+                            &s->card,
                             s->adc_voice,
                             "es1370.adc",
                             s,
                             es1370_adc_callback,
-                            new_freq,
-                            1 << (new_fmt & 1),
-                            (new_fmt & 2) ? AUD_FMT_S16 : AUD_FMT_U8
+                            &as
                             );
                 }
                 else {
                     s->dac_voice[i] =
                         AUD_open_out (
+                            &s->card,
                             s->dac_voice[i],
                             i ? "es1370.dac2" : "es1370.dac1",
                             s,
                             i ? es1370_dac2_callback : es1370_dac1_callback,
-                            new_freq,
-                            1 << (new_fmt & 1),
-                            (new_fmt & 2) ? AUD_FMT_S16 : AUD_FMT_U8
+                            &as
                             );
                 }
             }
@@ -761,7 +766,7 @@ static void es1370_transfer_audio (ES1370State *s, struct chan *d, int loop_sel,
         while (temp) {
             int acquired, to_copy;
 
-            to_copy = audio_MIN (temp, sizeof (tmpbuf));
+            to_copy = audio_MIN ((size_t) temp, sizeof (tmpbuf));
             acquired = AUD_read (s->adc_voice, tmpbuf, to_copy);
             if (!acquired)
                 break;
@@ -779,7 +784,7 @@ static void es1370_transfer_audio (ES1370State *s, struct chan *d, int loop_sel,
         while (temp) {
             int copied, to_copy;
 
-            to_copy = audio_MIN (temp, sizeof (tmpbuf));
+            to_copy = audio_MIN ((size_t) temp, sizeof (tmpbuf));
             cpu_physical_memory_read (addr, tmpbuf, to_copy);
             copied = AUD_write (voice, tmpbuf, to_copy);
             if (!copied)
@@ -812,7 +817,7 @@ static void es1370_transfer_audio (ES1370State *s, struct chan *d, int loop_sel,
     else {
         d->frame_cnt = size;
 
-        if (cnt <= d->frame_cnt)
+        if ((uint32_t) cnt <= d->frame_cnt)
             d->frame_cnt |= cnt << 16;
     }
 
@@ -876,6 +881,10 @@ static void es1370_map (PCIDevice *pci_dev, int region_num,
     PCIES1370State *d = (PCIES1370State *) pci_dev;
     ES1370State *s = &d->es1370;
 
+    (void) region_num;
+    (void) size;
+    (void) type;
+
     register_ioport_write (addr, 0x40 * 4, 1, es1370_writeb, s);
     register_ioport_write (addr, 0x40 * 2, 2, es1370_writew, s);
     register_ioport_write (addr, 0x40, 4, es1370_writel, s);
@@ -923,13 +932,13 @@ static int es1370_load (QEMUFile *f, void *opaque, int version_id)
         qemu_get_be32s (f, &d->frame_cnt);
         if (i == ADC_CHANNEL) {
             if (s->adc_voice) {
-                AUD_close_in (s->adc_voice);
+                AUD_close_in (&s->card, s->adc_voice);
                 s->adc_voice = NULL;
             }
         }
         else {
             if (s->dac_voice[i]) {
-                AUD_close_out (s->dac_voice[i]);
+                AUD_close_out (&s->card, s->dac_voice[i]);
                 s->dac_voice[i] = NULL;
             }
         }
@@ -953,11 +962,21 @@ static void es1370_on_reset (void *opaque)
     es1370_reset (s);
 }
 
-int es1370_init (PCIBus *bus)
+int es1370_init (PCIBus *bus, AudioState *audio)
 {
     PCIES1370State *d;
     ES1370State *s;
     uint8_t *c;
+
+    if (!bus) {
+        dolog ("No PCI bus\n");
+        return -1;
+    }
+
+    if (!audio) {
+        dolog ("No audio state\n");
+        return -1;
+    }
 
     d = (PCIES1370State *) pci_register_device (bus, "ES1370",
                                                 sizeof (PCIES1370State),
@@ -1002,6 +1021,8 @@ int es1370_init (PCIBus *bus)
     pci_register_io_region (&d->dev, 0, 256, PCI_ADDRESS_SPACE_IO, es1370_map);
     register_savevm ("es1370", 0, 1, es1370_save, es1370_load, s);
     qemu_register_reset (es1370_on_reset, s);
+
+    AUD_register_card (audio, "es1370", &s->card);
     es1370_reset (s);
     return 0;
 }

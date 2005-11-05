@@ -303,7 +303,7 @@ static void sdl_fini_out (HWVoiceOut *hw)
     sdl_close (&glob_sdl);
 }
 
-static int sdl_init_out (HWVoiceOut *hw, int freq, int nchannels, audfmt_e fmt)
+static int sdl_init_out (HWVoiceOut *hw, audsettings_t *as)
 {
     SDLVoiceOut *sdl = (SDLVoiceOut *) hw;
     SDLAudioState *s = &glob_sdl;
@@ -312,18 +312,14 @@ static int sdl_init_out (HWVoiceOut *hw, int freq, int nchannels, audfmt_e fmt)
     int endianess;
     int err;
     audfmt_e effective_fmt;
+    audsettings_t obt_as;
 
-    if (nchannels != 2) {
-        dolog ("Can not init DAC. Bogus channel count %d\n", nchannels);
-        return -1;
-    }
+    shift <<= as->nchannels == 2;
 
-    req.freq = freq;
-    req.format = aud_to_sdlfmt (fmt, &shift);
-    req.channels = nchannels;
+    req.freq = as->freq;
+    req.format = aud_to_sdlfmt (as->fmt, &shift);
+    req.channels = as->nchannels;
     req.samples = conf.nb_samples;
-    shift <<= nchannels == 2;
-
     req.callback = sdl_callback;
     req.userdata = sdl;
 
@@ -337,14 +333,16 @@ static int sdl_init_out (HWVoiceOut *hw, int freq, int nchannels, audfmt_e fmt)
         return -1;
     }
 
+    obt_as.freq = obt.freq;
+    obt_as.nchannels = obt.channels;
+    obt_as.fmt = effective_fmt;
+
     audio_pcm_init_info (
         &hw->info,
-        obt.freq,
-        obt.channels,
-        effective_fmt,
+        &obt_as,
         audio_need_to_swap_endian (endianess)
         );
-    hw->bufsize = obt.samples << shift;
+    hw->samples = obt.samples;
 
     s->initialized = 1;
     s->exit = 0;

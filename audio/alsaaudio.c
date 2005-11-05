@@ -98,7 +98,7 @@ struct alsa_params_obt {
     audfmt_e fmt;
     int nchannels;
     int can_pause;
-    snd_pcm_uframes_t buffer_size;
+    snd_pcm_uframes_t samples;
 };
 
 static void GCC_FMT_ATTR (2, 3) alsa_logerr (int err, const char *fmt, ...)
@@ -121,7 +121,7 @@ static void GCC_FMT_ATTR (3, 4) alsa_logerr2 (
 {
     va_list ap;
 
-    AUD_log (AUDIO_CAP, "Can not initialize %s\n", typ);
+    AUD_log (AUDIO_CAP, "Could not initialize %s\n", typ);
 
     va_start (ap, fmt);
     AUD_vlog (AUDIO_CAP, fmt, ap);
@@ -209,7 +209,7 @@ static int alsa_to_audfmt (int alsafmt, audfmt_e *fmt, int *endianness)
     return 0;
 }
 
-#ifdef DEBUG_MISMATCHES
+#if defined DEBUG_MISMATCHES || defined DEBUG
 static void alsa_dump_info (struct alsa_params_req *req,
                             struct alsa_params_obt *obt)
 {
@@ -221,7 +221,7 @@ static void alsa_dump_info (struct alsa_params_req *req,
     dolog ("============================================\n");
     dolog ("requested: buffer size %d period size %d\n",
            req->buffer_size, req->period_size);
-    dolog ("obtained: buffer size %ld\n", obt->buffer_size);
+    dolog ("obtained: samples %ld\n", obt->samples);
 }
 #endif
 
@@ -234,14 +234,14 @@ static void alsa_set_threshold (snd_pcm_t *handle, snd_pcm_uframes_t threshold)
 
     err = snd_pcm_sw_params_current (handle, sw_params);
     if (err < 0) {
-        dolog ("Can not fully initialize DAC\n");
+        dolog ("Could not fully initialize DAC\n");
         alsa_logerr (err, "Failed to get current software parameters\n");
         return;
     }
 
     err = snd_pcm_sw_params_set_start_threshold (handle, sw_params, threshold);
     if (err < 0) {
-        dolog ("Can not fully initialize DAC\n");
+        dolog ("Could not fully initialize DAC\n");
         alsa_logerr (err, "Failed to set software threshold to %ld\n",
                      threshold);
         return;
@@ -249,7 +249,7 @@ static void alsa_set_threshold (snd_pcm_t *handle, snd_pcm_uframes_t threshold)
 
     err = snd_pcm_sw_params (handle, sw_params);
     if (err < 0) {
-        dolog ("Can not fully initialize DAC\n");
+        dolog ("Could not fully initialize DAC\n");
         alsa_logerr (err, "Failed to set software parameters\n");
         return;
     }
@@ -344,7 +344,8 @@ static int alsa_open (int in, struct alsa_params_req *req,
                     handle,
                     hw_params,
                     &period_size,
-                    0);
+                    0
+                    );
                 if (err < 0) {
                     alsa_logerr2 (err, typ,
                                   "Failed to set period time %d\n",
@@ -357,7 +358,8 @@ static int alsa_open (int in, struct alsa_params_req *req,
                 handle,
                 hw_params,
                 &buffer_size,
-                0);
+                0
+                );
 
             if (err < 0) {
                 alsa_logerr2 (err, typ,
@@ -382,7 +384,7 @@ static int alsa_open (int in, struct alsa_params_req *req,
                 if (err < 0) {
                     alsa_logerr (
                         err,
-                        "Can not get minmal period size for %s\n",
+                        "Could not get minmal period size for %s\n",
                         typ
                         );
                 }
@@ -419,7 +421,7 @@ static int alsa_open (int in, struct alsa_params_req *req,
                 &minval
                 );
             if (err < 0) {
-                alsa_logerr (err, "Can not get minmal buffer size for %s\n",
+                alsa_logerr (err, "Could not get minmal buffer size for %s\n",
                              typ);
             }
             else {
@@ -451,7 +453,7 @@ static int alsa_open (int in, struct alsa_params_req *req,
         }
     }
     else {
-        dolog ("warning: buffer size is not set\n");
+        dolog ("warning: Buffer size is not set\n");
     }
 
     err = snd_pcm_hw_params (handle, hw_params);
@@ -468,13 +470,13 @@ static int alsa_open (int in, struct alsa_params_req *req,
 
     err = snd_pcm_prepare (handle);
     if (err < 0) {
-        alsa_logerr2 (err, typ, "Can not prepare handle %p\n", handle);
+        alsa_logerr2 (err, typ, "Could not prepare handle %p\n", handle);
         goto err;
     }
 
     obt->can_pause = snd_pcm_hw_params_can_pause (hw_params);
     if (obt->can_pause < 0) {
-        alsa_logerr (err, "Can not get pause capability for %s\n", typ);
+        alsa_logerr (err, "Could not get pause capability for %s\n", typ);
         obt->can_pause = 0;
     }
 
@@ -493,17 +495,17 @@ static int alsa_open (int in, struct alsa_params_req *req,
     obt->fmt = req->fmt;
     obt->nchannels = nchannels;
     obt->freq = freq;
-    obt->buffer_size = snd_pcm_frames_to_bytes (handle, obt_buffer_size);
+    obt->samples = obt_buffer_size;
     *handlep = handle;
 
+#if defined DEBUG_MISMATCHES || defined DEBUG
     if (obt->fmt != req->fmt ||
         obt->nchannels != req->nchannels ||
         obt->freq != req->freq) {
-#ifdef DEBUG_MISMATCHES
         dolog ("Audio paramters mismatch for %s\n", typ);
         alsa_dump_info (req, obt);
-#endif
     }
+#endif
 
 #ifdef DEBUG
     alsa_dump_info (req, obt);
@@ -550,7 +552,7 @@ static int alsa_run_out (HWVoiceOut *hw)
             }
         }
 
-        alsa_logerr (avail, "Can not get amount free space\n");
+        alsa_logerr (avail, "Could not get amount free space\n");
         return 0;
     }
 
@@ -618,7 +620,7 @@ static void alsa_fini_out (HWVoiceOut *hw)
     }
 }
 
-static int alsa_init_out (HWVoiceOut *hw, int freq, int nchannels, audfmt_e fmt)
+static int alsa_init_out (HWVoiceOut *hw, audsettings_t *as)
 {
     ALSAVoiceOut *alsa = (ALSAVoiceOut *) hw;
     struct alsa_params_req req;
@@ -627,10 +629,11 @@ static int alsa_init_out (HWVoiceOut *hw, int freq, int nchannels, audfmt_e fmt)
     int endianness;
     int err;
     snd_pcm_t *handle;
+    audsettings_t obt_as;
 
-    req.fmt = aud_to_alsafmt (fmt);
-    req.freq = freq;
-    req.nchannels = nchannels;
+    req.fmt = aud_to_alsafmt (as->fmt);
+    req.freq = as->freq;
+    req.nchannels = as->nchannels;
     req.period_size = conf.period_size_out;
     req.buffer_size = conf.buffer_size_out;
 
@@ -644,18 +647,22 @@ static int alsa_init_out (HWVoiceOut *hw, int freq, int nchannels, audfmt_e fmt)
         return -1;
     }
 
+    obt_as.freq = obt.freq;
+    obt_as.nchannels = obt.nchannels;
+    obt_as.fmt = effective_fmt;
+
     audio_pcm_init_info (
         &hw->info,
-        obt.freq,
-        obt.nchannels,
-        effective_fmt,
+        &obt_as,
         audio_need_to_swap_endian (endianness)
         );
     alsa->can_pause = obt.can_pause;
-    hw->bufsize = obt.buffer_size;
+    hw->samples = obt.samples;
 
-    alsa->pcm_buf = qemu_mallocz (hw->bufsize);
+    alsa->pcm_buf = audio_calloc (AUDIO_FUNC, obt.samples, 1 << hw->info.shift);
     if (!alsa->pcm_buf) {
+        dolog ("Could not allocate DAC buffer (%d bytes)\n",
+               hw->samples << hw->info.shift);
         alsa_anal_close (&handle);
         return -1;
     }
@@ -703,8 +710,7 @@ static int alsa_ctl_out (HWVoiceOut *hw, int cmd, ...)
     return 0;
 }
 
-static int alsa_init_in (HWVoiceIn *hw,
-                        int freq, int nchannels, audfmt_e fmt)
+static int alsa_init_in (HWVoiceIn *hw, audsettings_t *as)
 {
     ALSAVoiceIn *alsa = (ALSAVoiceIn *) hw;
     struct alsa_params_req req;
@@ -713,10 +719,11 @@ static int alsa_init_in (HWVoiceIn *hw,
     int err;
     audfmt_e effective_fmt;
     snd_pcm_t *handle;
+    audsettings_t obt_as;
 
-    req.fmt = aud_to_alsafmt (fmt);
-    req.freq = freq;
-    req.nchannels = nchannels;
+    req.fmt = aud_to_alsafmt (as->fmt);
+    req.freq = as->freq;
+    req.nchannels = as->nchannels;
     req.period_size = conf.period_size_in;
     req.buffer_size = conf.buffer_size_in;
 
@@ -730,17 +737,22 @@ static int alsa_init_in (HWVoiceIn *hw,
         return -1;
     }
 
+    obt_as.freq = obt.freq;
+    obt_as.nchannels = obt.nchannels;
+    obt_as.fmt = effective_fmt;
+
     audio_pcm_init_info (
         &hw->info,
-        obt.freq,
-        obt.nchannels,
-        effective_fmt,
+        &obt_as,
         audio_need_to_swap_endian (endianness)
         );
     alsa->can_pause = obt.can_pause;
-    hw->bufsize = obt.buffer_size;
-    alsa->pcm_buf = qemu_mallocz (hw->bufsize);
+    hw->samples = obt.samples;
+
+    alsa->pcm_buf = audio_calloc (AUDIO_FUNC, hw->samples, 1 << hw->info.shift);
     if (!alsa->pcm_buf) {
+        dolog ("Could not allocate ADC buffer (%d bytes)\n",
+               hw->samples << hw->info.shift);
         alsa_anal_close (&handle);
         return -1;
     }

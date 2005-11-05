@@ -91,7 +91,7 @@ static void GCC_FMT_ATTR (3, 4) oss_logerr2 (
 {
     va_list ap;
 
-    AUD_log (AUDIO_CAP, "Can not initialize %s\n", typ);
+    AUD_log (AUDIO_CAP, "Could not initialize %s\n", typ);
 
     va_start (ap, fmt);
     AUD_vlog (AUDIO_CAP, fmt, ap);
@@ -179,7 +179,7 @@ static int oss_to_audfmt (int ossfmt, audfmt_e *fmt, int *endianness)
     return 0;
 }
 
-#ifdef DEBUG_MISMATCHES
+#if defined DEBUG_MISMATCHES || defined DEBUG
 static void oss_dump_info (struct oss_params *req, struct oss_params *obt)
 {
     dolog ("parameter | requested value | obtained value\n");
@@ -253,16 +253,16 @@ static int oss_open (int in, struct oss_params *req,
     obt->fragsize = abinfo.fragsize;
     *pfd = fd;
 
+#ifdef DEBUG_MISMATCHES
     if ((req->fmt != obt->fmt) ||
         (req->nchannels != obt->nchannels) ||
         (req->freq != obt->freq) ||
         (req->fragsize != obt->fragsize) ||
         (req->nfrags != obt->nfrags)) {
-#ifdef DEBUG_MISMATCHES
         dolog ("Audio parameters mismatch\n");
         oss_dump_info (req, obt);
-#endif
     }
+#endif
 
 #ifdef DEBUG
     oss_dump_info (req, obt);
@@ -283,11 +283,14 @@ static int oss_run_out (HWVoiceOut *hw)
     st_sample_t *src;
     struct audio_buf_info abinfo;
     struct count_info cntinfo;
+    int bufsize;
 
     live = audio_pcm_hw_get_live_out (hw);
     if (!live) {
         return 0;
     }
+
+    bufsize = hw->samples << hw->info.shift;
 
     if (oss->mmapped) {
         int bytes;
@@ -300,7 +303,7 @@ static int oss_run_out (HWVoiceOut *hw)
 
         if (cntinfo.ptr == oss->old_optr) {
             if (abs (hw->samples - live) < 64) {
-                dolog ("warning: overrun\n");
+                dolog ("warning: Overrun\n");
             }
             return 0;
         }
@@ -309,7 +312,7 @@ static int oss_run_out (HWVoiceOut *hw)
             bytes = cntinfo.ptr - oss->old_optr;
         }
         else {
-            bytes = hw->bufsize + cntinfo.ptr - oss->old_optr;
+            bytes = bufsize + cntinfo.ptr - oss->old_optr;
         }
 
         decr = audio_MIN (bytes >> hw->info.shift, live);
@@ -321,9 +324,9 @@ static int oss_run_out (HWVoiceOut *hw)
             return 0;
         }
 
-        if (abinfo.bytes < 0 || abinfo.bytes > hw->bufsize) {
-            ldebug ("warning: invalid available size, size=%d bufsize=%d\n",
-                    abinfo.bytes, hw->bufsize);
+        if (abinfo.bytes < 0 || abinfo.bytes > bufsize) {
+            ldebug ("warning: Invalid available size, size=%d bufsize=%d\n",
+                    abinfo.bytes, bufsize);
             return 0;
         }
 
@@ -362,7 +365,7 @@ static int oss_run_out (HWVoiceOut *hw)
                 int wsamples = written >> hw->info.shift;
                 int wbytes = wsamples << hw->info.shift;
                 if (wbytes != written) {
-                    dolog ("warning: misaligned write %d (requested %d), "
+                    dolog ("warning: Misaligned write %d (requested %d), "
                            "alignment %d\n",
                            wbytes, written, hw->info.align + 1);
                 }
@@ -396,10 +399,10 @@ static void oss_fini_out (HWVoiceOut *hw)
 
     if (oss->pcm_buf) {
         if (oss->mmapped) {
-            err = munmap (oss->pcm_buf, hw->bufsize);
+            err = munmap (oss->pcm_buf, hw->samples << hw->info.shift);
             if (err) {
                 oss_logerr (errno, "Failed to unmap buffer %p, size %d\n",
-                            oss->pcm_buf, hw->bufsize);
+                            oss->pcm_buf, hw->samples << hw->info.shift);
             }
         }
         else {
@@ -409,7 +412,7 @@ static void oss_fini_out (HWVoiceOut *hw)
     }
 }
 
-static int oss_init_out (HWVoiceOut *hw, int freq, int nchannels, audfmt_e fmt)
+static int oss_init_out (HWVoiceOut *hw, audsettings_t *as)
 {
     OSSVoiceOut *oss = (OSSVoiceOut *) hw;
     struct oss_params req, obt;
@@ -417,10 +420,11 @@ static int oss_init_out (HWVoiceOut *hw, int freq, int nchannels, audfmt_e fmt)
     int err;
     int fd;
     audfmt_e effective_fmt;
+    audsettings_t obt_as;
 
-    req.fmt = aud_to_ossfmt (fmt);
-    req.freq = freq;
-    req.nchannels = nchannels;
+    req.fmt = aud_to_ossfmt (as->fmt);
+    req.freq = as->freq;
+    req.nchannels = as->nchannels;
     req.fragsize = conf.fragsize;
     req.nfrags = conf.nfrags;
 
@@ -434,24 +438,38 @@ static int oss_init_out (HWVoiceOut *hw, int freq, int nchannels, audfmt_e fmt)
         return -1;
     }
 
+    obt_as.freq = obt.freq;
+    obt_as.nchannels = obt.nchannels;
+    obt_as.fmt = effective_fmt;
+
     audio_pcm_init_info (
         &hw->info,
-        obt.freq,
-        obt.nchannels,
-        effective_fmt,
+        &obt_as,
         audio_need_to_swap_endian (endianness)
         );
     oss->nfrags = obt.nfrags;
     oss->fragsize = obt.fragsize;
-    hw->bufsize = obt.nfrags * obt.fragsize;
+
+    if (obt.nfrags * obt.fragsize & hw->info.align) {
+        dolog ("warning: Misaligned DAC buffer, size %d, alignment %d\n",
+               obt.nfrags * obt.fragsize, hw->info.align + 1);
+    }
+
+    hw->samples = (obt.nfrags * obt.fragsize) >> hw->info.shift;
 
     oss->mmapped = 0;
     if (conf.try_mmap) {
-        oss->pcm_buf = mmap (0, hw->bufsize, PROT_READ | PROT_WRITE,
-                             MAP_SHARED, fd, 0);
+        oss->pcm_buf = mmap (
+            0,
+            hw->samples << hw->info.shift,
+            PROT_READ | PROT_WRITE,
+            MAP_SHARED,
+            fd,
+            0
+            );
         if (oss->pcm_buf == MAP_FAILED) {
             oss_logerr (errno, "Failed to map %d bytes of DAC\n",
-                        hw->bufsize);
+                        hw->samples << hw->info.shift);
         } else {
             int err;
             int trig = 0;
@@ -472,18 +490,24 @@ static int oss_init_out (HWVoiceOut *hw, int freq, int nchannels, audfmt_e fmt)
             }
 
             if (!oss->mmapped) {
-                err = munmap (oss->pcm_buf, hw->bufsize);
+                err = munmap (oss->pcm_buf, hw->samples << hw->info.shift);
                 if (err) {
                     oss_logerr (errno, "Failed to unmap buffer %p size %d\n",
-                                oss->pcm_buf, hw->bufsize);
+                                oss->pcm_buf, hw->samples << hw->info.shift);
                 }
             }
         }
     }
 
     if (!oss->mmapped) {
-        oss->pcm_buf = qemu_mallocz (hw->bufsize);
+        oss->pcm_buf = audio_calloc (
+            AUDIO_FUNC,
+            hw->samples,
+            1 << hw->info.shift
+            );
         if (!oss->pcm_buf) {
+            dolog ("Could not allocate DAC buffer (%d bytes)\n",
+                   hw->samples << hw->info.shift);
             oss_anal_close (&fd);
             return -1;
         }
@@ -528,8 +552,7 @@ static int oss_ctl_out (HWVoiceOut *hw, int cmd, ...)
     return 0;
 }
 
-static int oss_init_in (HWVoiceIn *hw,
-                        int freq, int nchannels, audfmt_e fmt)
+static int oss_init_in (HWVoiceIn *hw, audsettings_t *as)
 {
     OSSVoiceIn *oss = (OSSVoiceIn *) hw;
     struct oss_params req, obt;
@@ -537,10 +560,11 @@ static int oss_init_in (HWVoiceIn *hw,
     int err;
     int fd;
     audfmt_e effective_fmt;
+    audsettings_t obt_as;
 
-    req.fmt = aud_to_ossfmt (fmt);
-    req.freq = freq;
-    req.nchannels = nchannels;
+    req.fmt = aud_to_ossfmt (as->fmt);
+    req.freq = as->freq;
+    req.nchannels = as->nchannels;
     req.fragsize = conf.fragsize;
     req.nfrags = conf.nfrags;
     if (oss_open (1, &req, &obt, &fd)) {
@@ -553,18 +577,28 @@ static int oss_init_in (HWVoiceIn *hw,
         return -1;
     }
 
+    obt_as.freq = obt.freq;
+    obt_as.nchannels = obt.nchannels;
+    obt_as.fmt = effective_fmt;
+
     audio_pcm_init_info (
         &hw->info,
-        obt.freq,
-        obt.nchannels,
-        effective_fmt,
+        &obt_as,
         audio_need_to_swap_endian (endianness)
         );
     oss->nfrags = obt.nfrags;
     oss->fragsize = obt.fragsize;
-    hw->bufsize = obt.nfrags * obt.fragsize;
-    oss->pcm_buf = qemu_mallocz (hw->bufsize);
+
+    if (obt.nfrags * obt.fragsize & hw->info.align) {
+        dolog ("warning: Misaligned ADC buffer, size %d, alignment %d\n",
+               obt.nfrags * obt.fragsize, hw->info.align + 1);
+    }
+
+    hw->samples = (obt.nfrags * obt.fragsize) >> hw->info.shift;
+    oss->pcm_buf = audio_calloc (AUDIO_FUNC, hw->samples, 1 << hw->info.shift);
     if (!oss->pcm_buf) {
+        dolog ("Could not allocate ADC buffer (%d bytes)\n",
+               hw->samples << hw->info.shift);
         oss_anal_close (&fd);
         return -1;
     }
@@ -623,7 +657,7 @@ static int oss_run_in (HWVoiceIn *hw)
 
             if (nread > 0) {
                 if (nread & hw->info.align) {
-                    dolog ("warning: misaligned read %d (requested %d), "
+                    dolog ("warning: Misaligned read %d (requested %d), "
                            "alignment %d\n", nread, bufs[i].add << hwshift,
                            hw->info.align + 1);
                 }

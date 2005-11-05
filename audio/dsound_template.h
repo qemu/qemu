@@ -47,7 +47,7 @@ static int glue (dsound_unlock_, TYPE) (
 
     hr = glue (IFACE, _Unlock) (buf, p1, blen1, p2, blen2);
     if (FAILED (hr)) {
-        dsound_logerr (hr, "Can not unlock " NAME "\n");
+        dsound_logerr (hr, "Could not unlock " NAME "\n");
         return -1;
     }
 
@@ -93,13 +93,13 @@ static int glue (dsound_lock_, TYPE) (
 #ifndef DSBTYPE_IN
             if (hr == DSERR_BUFFERLOST) {
                 if (glue (dsound_restore_, TYPE) (buf)) {
-                    dsound_logerr (hr, "Can not lock " NAME "\n");
+                    dsound_logerr (hr, "Could not lock " NAME "\n");
                     goto fail;
                 }
                 continue;
             }
 #endif
-            dsound_logerr (hr, "Can not lock " NAME "\n");
+            dsound_logerr (hr, "Could not lock " NAME "\n");
             goto fail;
         }
 
@@ -158,38 +158,28 @@ static void dsound_fini_out (HWVoiceOut *hw)
     if (ds->FIELD) {
         hr = glue (IFACE, _Stop) (ds->FIELD);
         if (FAILED (hr)) {
-            dsound_logerr (hr, "Can not stop " NAME "\n");
+            dsound_logerr (hr, "Could not stop " NAME "\n");
         }
 
         hr = glue (IFACE, _Release) (ds->FIELD);
         if (FAILED (hr)) {
-            dsound_logerr (hr, "Can not release " NAME "\n");
+            dsound_logerr (hr, "Could not release " NAME "\n");
         }
         ds->FIELD = NULL;
     }
 }
 
 #ifdef DSBTYPE_IN
-static int dsound_init_in (
-    HWVoiceIn *hw,
-    int freq,
-    int nchannels,
-    audfmt_e fmt
-    )
+static int dsound_init_in (HWVoiceIn *hw, audsettings_t *as)
 #else
-static int dsound_init_out (
-    HWVoiceOut *hw,
-    int freq,
-    int nchannels,
-    audfmt_e fmt
-    )
+static int dsound_init_out (HWVoiceOut *hw, audsettings_t *as)
 #endif
 {
     int err;
     HRESULT hr;
     dsound *s = &glob_dsound;
     WAVEFORMATEX wfx;
-    struct full_fmt full_fmt;
+    audsettings_t obt_as;
 #ifdef DSBTYPE_IN
     const char *typ = "ADC";
     DSoundVoiceIn *ds = (DSoundVoiceIn *) hw;
@@ -202,10 +192,7 @@ static int dsound_init_out (
     DSBCAPS bc;
 #endif
 
-    full_fmt.freq = freq;
-    full_fmt.nchannels = nchannels;
-    full_fmt.fmt = fmt;
-    err = waveformat_from_full_fmt (&wfx, &full_fmt);
+    err = waveformat_from_audio_settings (&wfx, as);
     if (err) {
         return -1;
     }
@@ -233,18 +220,13 @@ static int dsound_init_out (
 #endif
 
     if (FAILED (hr)) {
-        dsound_logerr2 (hr, typ, "Can not create " NAME "\n");
+        dsound_logerr2 (hr, typ, "Could not create " NAME "\n");
         return -1;
     }
 
-    hr = glue (IFACE, _GetFormat) (
-        ds->FIELD,
-        &wfx,
-        sizeof (wfx),
-        NULL
-        );
+    hr = glue (IFACE, _GetFormat) (ds->FIELD, &wfx, sizeof (wfx), NULL);
     if (FAILED (hr)) {
-        dsound_logerr2 (hr, typ, "Can not get " NAME " format\n");
+        dsound_logerr2 (hr, typ, "Could not get " NAME " format\n");
         goto fail0;
     }
 
@@ -258,31 +240,33 @@ static int dsound_init_out (
 
     hr = glue (IFACE, _GetCaps) (ds->FIELD, &bc);
     if (FAILED (hr)) {
-        dsound_logerr2 (hr, typ, "Can not get " NAME " format\n");
+        dsound_logerr2 (hr, typ, "Could not get " NAME " format\n");
         goto fail0;
     }
 
-    err = waveformat_to_full_fmt (&wfx, &full_fmt);
+    err = waveformat_to_audio_settings (&wfx, &obt_as);
     if (err) {
         goto fail0;
     }
 
     ds->first_time = 1;
-    hw->bufsize = bc.dwBufferBytes;
-    audio_pcm_init_info (
-        &hw->info,
-        full_fmt.freq,
-        full_fmt.nchannels,
-        full_fmt.fmt,
-        audio_need_to_swap_endian (0)
-        );
+
+    audio_pcm_init_info (&hw->info, &obt_as, audio_need_to_swap_endian (0));
+
+    if (bc.dwBufferBytes & hw->info.align) {
+        dolog (
+            "GetCaps returned misaligned buffer size %ld, alignment %d\n",
+            bc.dwBufferBytes, hw->info.align + 1
+            );
+    }
+    hw->samples = bc.dwBufferBytes >> hw->info.shift;
 
 #ifdef DEBUG_DSOUND
     dolog ("caps %ld, desc %ld\n",
            bc.dwBufferBytes, bd.dwBufferBytes);
 
     dolog ("bufsize %d, freq %d, chan %d, fmt %d\n",
-           hw->bufsize, full_fmt.freq, full_fmt.nchannels, full_fmt.fmt);
+           hw->bufsize, settings.freq, settings.nchannels, settings.fmt);
 #endif
     return 0;
 

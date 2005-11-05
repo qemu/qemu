@@ -95,11 +95,20 @@ NE2000 PCI network adapters
 @item
 Serial ports
 @item
-Soundblaster 16 card
+Creative SoundBlaster 16 sound card
+@item
+ENSONIQ AudioPCI ES1370 sound card
+@item
+Adlib(OPL2) - Yamaha YM3812 compatible chip
 @end itemize
+
+Note that adlib is only available when QEMU was configured with
+-enable-adlib
 
 QEMU uses the PC BIOS from the Bochs project and the Plex86/Bochs LGPL
 VGA BIOS.
+
+QEMU uses YM3812 emulation by Tatsuyuki Satoh.
 
 @c man end
 

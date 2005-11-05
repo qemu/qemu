@@ -35,9 +35,15 @@ typedef struct WAVVoiceOut {
 } WAVVoiceOut;
 
 static struct {
+    audsettings_t settings;
     const char *wav_path;
 } conf = {
-    .wav_path = "qemu.wav"
+    {
+        44100,
+        2,
+        AUD_FMT_S16
+    },
+    "qemu.wav"
 };
 
 static int wav_run_out (HWVoiceOut *hw)
@@ -101,22 +107,22 @@ static void le_store (uint8_t *buf, uint32_t val, int len)
     }
 }
 
-static int wav_init_out (HWVoiceOut *hw, int freq, int nchannels, audfmt_e fmt)
+static int wav_init_out (HWVoiceOut *hw, audsettings_t *as)
 {
     WAVVoiceOut *wav = (WAVVoiceOut *) hw;
-    int bits16;
+    int bits16 = 0, stereo = 0;
     uint8_t hdr[] = {
         0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x41, 0x56,
         0x45, 0x66, 0x6d, 0x74, 0x20, 0x10, 0x00, 0x00, 0x00, 0x01, 0x00,
         0x02, 0x00, 0x44, 0xac, 0x00, 0x00, 0x10, 0xb1, 0x02, 0x00, 0x04,
         0x00, 0x10, 0x00, 0x64, 0x61, 0x74, 0x61, 0x00, 0x00, 0x00, 0x00
     };
+    audsettings_t wav_as = conf.settings;
 
-    freq = audio_state.fixed_freq_out;
-    fmt = audio_state.fixed_fmt_out;
-    nchannels = audio_state.fixed_channels_out;
+    (void) as;
 
-    switch (fmt) {
+    stereo = wav_as.nchannels == 2;
+    switch (wav_as.fmt) {
     case AUD_FMT_S8:
     case AUD_FMT_U8:
         bits16 = 0;
@@ -126,32 +132,24 @@ static int wav_init_out (HWVoiceOut *hw, int freq, int nchannels, audfmt_e fmt)
     case AUD_FMT_U16:
         bits16 = 1;
         break;
-
-    default:
-        dolog ("Internal logic error bad format %d\n", fmt);
-        return -1;
     }
 
     hdr[34] = bits16 ? 0x10 : 0x08;
-    audio_pcm_init_info (
-        &hw->info,
-        freq,
-        nchannels,
-        bits16 ? AUD_FMT_S16 : AUD_FMT_U8,
-        audio_need_to_swap_endian (0)
-        );
-    hw->bufsize = 4096;
-    wav->pcm_buf = qemu_mallocz (hw->bufsize);
+
+    audio_pcm_init_info (&hw->info, &wav_as, audio_need_to_swap_endian (0));
+
+    hw->samples = 1024;
+    wav->pcm_buf = audio_calloc (AUDIO_FUNC, hw->samples, 1 << hw->info.shift);
     if (!wav->pcm_buf) {
-        dolog ("Can not initialize WAV buffer of %d bytes\n",
-               hw->bufsize);
+        dolog ("Could not allocate buffer (%d bytes)\n",
+               hw->samples << hw->info.shift);
         return -1;
     }
 
     le_store (hdr + 22, hw->info.nchannels, 2);
     le_store (hdr + 24, hw->info.freq, 4);
-    le_store (hdr + 28, hw->info.freq << (bits16 + (nchannels == 2)), 4);
-    le_store (hdr + 32, 1 << (bits16 + (nchannels == 2)), 2);
+    le_store (hdr + 28, hw->info.freq << (bits16 + stereo), 4);
+    le_store (hdr + 32, 1 << (bits16 + stereo), 2);
 
     wav->f = fopen (conf.wav_path, "wb");
     if (!wav->f) {
@@ -175,7 +173,7 @@ static void wav_fini_out (HWVoiceOut *hw)
     uint32_t rifflen = (wav->total_samples << stereo) + 36;
     uint32_t datalen = wav->total_samples << stereo;
 
-    if (!wav->f || !hw->active) {
+    if (!wav->f) {
         return;
     }
 
@@ -214,6 +212,15 @@ static void wav_audio_fini (void *opaque)
 }
 
 struct audio_option wav_options[] = {
+    {"FREQUENCY", AUD_OPT_INT, &conf.settings.freq,
+     "Frequency", NULL, 0},
+
+    {"FORMAT", AUD_OPT_FMT, &conf.settings.fmt,
+     "Format", NULL, 0},
+
+    {"DAC_FIXED_CHANNELS", AUD_OPT_INT, &conf.settings.nchannels,
+     "Number of channels (1 - mono, 2 - stereo)", NULL, 0},
+
     {"PATH", AUD_OPT_STR, &conf.wav_path,
      "Path to wave file", NULL, 0},
     {NULL, 0, NULL, NULL, NULL, 0}

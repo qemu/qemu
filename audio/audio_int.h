@@ -24,15 +24,11 @@
 #ifndef QEMU_AUDIO_INT_H
 #define QEMU_AUDIO_INT_H
 
-#include "sys-queue.h"
-
 #ifdef CONFIG_COREAUDIO
 #define FLOAT_MIXENG
 /* #define RECIPROCAL */
 #endif
 #include "mixeng.h"
-
-int audio_bug (const char *funcname, int cond);
 
 struct audio_pcm_ops;
 
@@ -69,7 +65,6 @@ struct audio_pcm_info {
 };
 
 typedef struct HWVoiceOut {
-    int active;
     int enabled;
     int pending_disable;
     int valid;
@@ -78,7 +73,6 @@ typedef struct HWVoiceOut {
     f_sample *clip;
 
     int rpos;
-    int bufsize;
     uint64_t ts_helper;
 
     st_sample_t *mix_buf;
@@ -91,13 +85,11 @@ typedef struct HWVoiceOut {
 
 typedef struct HWVoiceIn {
     int enabled;
-    int active;
     struct audio_pcm_info info;
 
     t_sample *conv;
 
     int wpos;
-    int bufsize;
     int total_samples_captured;
     uint64_t ts_helper;
 
@@ -108,58 +100,6 @@ typedef struct HWVoiceIn {
     struct audio_pcm_ops *pcm_ops;
     LIST_ENTRY (HWVoiceIn) entries;
 } HWVoiceIn;
-
-extern struct audio_driver no_audio_driver;
-extern struct audio_driver oss_audio_driver;
-extern struct audio_driver sdl_audio_driver;
-extern struct audio_driver wav_audio_driver;
-extern struct audio_driver fmod_audio_driver;
-extern struct audio_driver alsa_audio_driver;
-extern struct audio_driver coreaudio_audio_driver;
-extern struct audio_driver dsound_audio_driver;
-extern volume_t nominal_volume;
-
-struct audio_driver {
-    const char *name;
-    const char *descr;
-    struct audio_option *options;
-    void *(*init) (void);
-    void (*fini) (void *);
-    struct audio_pcm_ops *pcm_ops;
-    int can_be_default;
-    int max_voices_out;
-    int max_voices_in;
-    int voice_size_out;
-    int voice_size_in;
-};
-
-typedef struct AudioState {
-    int fixed_settings_out;
-    int fixed_freq_out;
-    int fixed_channels_out;
-    int fixed_fmt_out;
-    int nb_hw_voices_out;
-    int greedy_out;
-
-    int fixed_settings_in;
-    int fixed_freq_in;
-    int fixed_channels_in;
-    int fixed_fmt_in;
-    int nb_hw_voices_in;
-    int greedy_in;
-
-    void *opaque;
-    struct audio_driver *drv;
-
-    QEMUTimer *ts;
-    union {
-        int usec;
-        int64_t ticks;
-    } period;
-
-    int plive;
-} AudioState;
-extern AudioState audio_state;
 
 struct SWVoiceOut {
     struct audio_pcm_info info;
@@ -192,22 +132,58 @@ struct SWVoiceIn {
     LIST_ENTRY (SWVoiceIn) entries;
 };
 
+struct audio_driver {
+    const char *name;
+    const char *descr;
+    struct audio_option *options;
+    void *(*init) (void);
+    void (*fini) (void *);
+    struct audio_pcm_ops *pcm_ops;
+    int can_be_default;
+    int max_voices_out;
+    int max_voices_in;
+    int voice_size_out;
+    int voice_size_in;
+};
+
 struct audio_pcm_ops {
-    int  (*init_out)(HWVoiceOut *hw, int freq, int nchannels, audfmt_e fmt);
+    int  (*init_out)(HWVoiceOut *hw, audsettings_t *as);
     void (*fini_out)(HWVoiceOut *hw);
     int  (*run_out) (HWVoiceOut *hw);
     int  (*write)   (SWVoiceOut *sw, void *buf, int size);
     int  (*ctl_out) (HWVoiceOut *hw, int cmd, ...);
 
-    int  (*init_in) (HWVoiceIn *hw, int freq, int nchannels, audfmt_e fmt);
+    int  (*init_in) (HWVoiceIn *hw, audsettings_t *as);
     void (*fini_in) (HWVoiceIn *hw);
     int  (*run_in)  (HWVoiceIn *hw);
     int  (*read)    (SWVoiceIn *sw, void *buf, int size);
     int  (*ctl_in)  (HWVoiceIn *hw, int cmd, ...);
 };
 
-void audio_pcm_init_info (struct audio_pcm_info *info, int freq,
-                          int nchannels, audfmt_e fmt, int swap_endian);
+struct AudioState {
+    struct audio_driver *drv;
+    void *drv_opaque;
+
+    QEMUTimer *ts;
+    LIST_HEAD (card_head, QEMUSoundCard) card_head;
+    LIST_HEAD (hw_in_listhead, HWVoiceIn) hw_head_in;
+    LIST_HEAD (hw_out_listhead, HWVoiceOut) hw_head_out;
+    int nb_hw_voices_out;
+    int nb_hw_voices_in;
+};
+
+extern struct audio_driver no_audio_driver;
+extern struct audio_driver oss_audio_driver;
+extern struct audio_driver sdl_audio_driver;
+extern struct audio_driver wav_audio_driver;
+extern struct audio_driver fmod_audio_driver;
+extern struct audio_driver alsa_audio_driver;
+extern struct audio_driver coreaudio_audio_driver;
+extern struct audio_driver dsound_audio_driver;
+extern volume_t nominal_volume;
+
+void audio_pcm_init_info (struct audio_pcm_info *info, audsettings_t *as,
+                          int swap_endian);
 void audio_pcm_info_clear_buf (struct audio_pcm_info *info, void *buf, int len);
 
 int  audio_pcm_sw_write (SWVoiceOut *sw, void *buf, int len);
@@ -216,6 +192,9 @@ int  audio_pcm_hw_get_live_in (HWVoiceIn *hw);
 int  audio_pcm_sw_read (SWVoiceIn *sw, void *buf, int len);
 int  audio_pcm_hw_get_live_out (HWVoiceOut *hw);
 int  audio_pcm_hw_get_live_out2 (HWVoiceOut *hw, int *nb_live);
+
+int audio_bug (const char *funcname, int cond);
+void *audio_calloc (const char *funcname, int nmemb, size_t size);
 
 #define VOICE_ENABLE 1
 #define VOICE_DISABLE 2

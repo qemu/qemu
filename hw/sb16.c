@@ -53,6 +53,7 @@ static struct {
 } conf = {5, 4, 5, 1, 5, 0x220};
 
 typedef struct SB16State {
+    QEMUSoundCard card;
     int irq;
     int dma;
     int hdma;
@@ -107,9 +108,6 @@ typedef struct SB16State {
     int mixer_nreg;
     uint8_t mixer_regs[256];
 } SB16State;
-
-/* XXX: suppress that and use a context */
-static struct SB16State dsp;
 
 static void SB_audio_callback (void *opaque, int free);
 
@@ -242,15 +240,21 @@ static void dma_cmd8 (SB16State *s, int mask, int dma_len)
             s->block_size, s->dma_auto, s->fifo, s->highspeed);
 
     if (s->freq) {
+        audsettings_t as;
+
         s->audio_free = 0;
+
+        as.freq = s->freq;
+        as.nchannels = 1 << s->fmt_stereo;
+        as.fmt = s->fmt;
+
         s->voice = AUD_open_out (
+            &s->card,
             s->voice,
             "sb16",
             s,
             SB_audio_callback,
-            s->freq,
-            1 << s->fmt_stereo,
-            s->fmt
+            &as
             );
     }
 
@@ -330,15 +334,21 @@ static void dma_cmd (SB16State *s, uint8_t cmd, uint8_t d0, int dma_len)
     }
 
     if (s->freq) {
+        audsettings_t as;
+
         s->audio_free = 0;
+
+        as.freq = s->freq;
+        as.nchannels = 1 << s->fmt_stereo;
+        as.fmt = s->fmt;
+
         s->voice = AUD_open_out (
+            &s->card,
             s->voice,
             "sb16",
             s,
             SB_audio_callback,
-            s->freq,
-            1 << s->fmt_stereo,
-            s->fmt
+            &as
             );
     }
 
@@ -349,7 +359,7 @@ static void dma_cmd (SB16State *s, uint8_t cmd, uint8_t d0, int dma_len)
 static inline void dsp_out_data (SB16State *s, uint8_t val)
 {
     ldebug ("outdata %#x\n", val);
-    if (s->out_data_len < sizeof (s->out_data)) {
+    if ((size_t) s->out_data_len < sizeof (s->out_data)) {
         s->out_data[s->out_data_len++] = val;
     }
 }
@@ -1018,6 +1028,7 @@ static void reset_mixer (SB16State *s)
 static IO_WRITE_PROTO(mixer_write_indexb)
 {
     SB16State *s = opaque;
+    (void) nport;
     s->mixer_nreg = val;
 }
 
@@ -1025,10 +1036,8 @@ static IO_WRITE_PROTO(mixer_write_datab)
 {
     SB16State *s = opaque;
 
+    (void) nport;
     ldebug ("mixer_write [%#x] <- %#x\n", s->mixer_nreg, val);
-    if (s->mixer_nreg > sizeof (s->mixer_regs)) {
-        return;
-    }
 
     switch (s->mixer_nreg) {
     case 0x00:
@@ -1088,6 +1097,8 @@ static IO_WRITE_PROTO(mixer_write_indexw)
 static IO_READ_PROTO(mixer_read)
 {
     SB16State *s = opaque;
+
+    (void) nport;
 #ifndef DEBUG_SB16_MOST
     if (s->mixer_nreg != 0x82) {
         ldebug ("mixer_read[%#x] -> %#x\n",
@@ -1111,11 +1122,12 @@ static int write_audio (SB16State *s, int nchan, int dma_pos,
 
     while (temp) {
         int left = dma_len - dma_pos;
-        int to_copy, copied;
+        int copied;
+        size_t to_copy;
 
         to_copy = audio_MIN (temp, left);
-        if (to_copy > sizeof(tmpbuf)) {
-            to_copy = sizeof(tmpbuf);
+        if (to_copy > sizeof (tmpbuf)) {
+            to_copy = sizeof (tmpbuf);
         }
 
         copied = DMA_read_memory (nchan, tmpbuf, dma_pos, to_copy);
@@ -1308,21 +1320,27 @@ static int SB_load (QEMUFile *f, void *opaque, int version_id)
     qemu_get_buffer (f, s->mixer_regs, 256);
 
     if (s->voice) {
-        AUD_close_out (s->voice);
+        AUD_close_out (&s->card, s->voice);
         s->voice = NULL;
     }
 
     if (s->dma_running) {
         if (s->freq) {
+            audsettings_t as;
+
             s->audio_free = 0;
+
+            as.freq = s->freq;
+            as.nchannels = 1 << s->fmt_stereo;
+            as.fmt = s->fmt;
+
             s->voice = AUD_open_out (
+                &s->card,
                 s->voice,
                 "sb16",
                 s,
                 SB_audio_callback,
-                s->freq,
-                1 << s->fmt_stereo,
-                s->fmt
+                &as
                 );
         }
 
@@ -1332,12 +1350,24 @@ static int SB_load (QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-void SB16_init (void)
+int SB16_init (AudioState *audio)
 {
-    SB16State *s = &dsp;
+    SB16State *s;
     int i;
     static const uint8_t dsp_write_ports[] = {0x6, 0xc};
     static const uint8_t dsp_read_ports[] = {0x6, 0xa, 0xc, 0xd, 0xe, 0xf};
+
+    if (!audio) {
+        dolog ("No audio state\n");
+        return -1;
+    }
+
+    s = qemu_mallocz (sizeof (*s));
+    if (!s) {
+        dolog ("Could not allocate memory for SB16 (%d bytes)\n",
+               sizeof (*s));
+        return -1;
+    }
 
     s->cmd = -1;
     s->irq = conf.irq;
@@ -1356,7 +1386,7 @@ void SB16_init (void)
     reset_mixer (s);
     s->aux_ts = qemu_new_timer (vm_clock, aux_timer, s);
     if (!s->aux_ts) {
-        dolog ("Can not create auxiliary timer\n");
+        dolog ("warning: Could not create auxiliary timer\n");
     }
 
     for (i = 0; i < LENOFA (dsp_write_ports); i++) {
@@ -1377,4 +1407,6 @@ void SB16_init (void)
     s->can_write = 1;
 
     register_savevm ("sb16", 0, 1, SB_save, SB_load, s);
+    AUD_register_card (audio, "sb16", &s->card);
+    return 0;
 }

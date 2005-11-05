@@ -631,16 +631,16 @@ int pmac_ide_init (BlockDriverState **hd_table,
                    SetIRQFunc *set_irq, void *irq_opaque, int irq);
 
 /* es1370.c */
-int es1370_init (PCIBus *bus);
+int es1370_init (PCIBus *bus, AudioState *s);
 
 /* sb16.c */
-void SB16_init (void);
+int SB16_init (AudioState *s);
 
 /* adlib.c */
-void Adlib_init (void);
+int Adlib_init (AudioState *s);
 
 /* gus.c */
-void GUS_init (void);
+int GUS_init (AudioState *s);
 
 /* dma.c */
 typedef int (*DMA_transfer_handler) (void *opaque, int nchan, int pos, int size);

@@ -228,21 +228,22 @@ f_sample *mixeng_clip[2][2][2][2] = {
  */
 
 /* Private data */
-typedef struct ratestuff {
+struct rate {
     uint64_t opos;
     uint64_t opos_inc;
     uint32_t ipos;              /* position in the input stream (integer) */
     st_sample_t ilast;          /* last sample in the input stream */
-} *rate_t;
+};
 
 /*
  * Prepare processing.
  */
 void *st_rate_start (int inrate, int outrate)
 {
-    rate_t rate = (rate_t) qemu_mallocz (sizeof (struct ratestuff));
+    struct rate *rate = audio_calloc (AUDIO_FUNC, 1, sizeof (*rate));
 
     if (!rate) {
+        dolog ("Could not allocate resampler (%d bytes)\n", sizeof (*rate));
         return NULL;
     }
 

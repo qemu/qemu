@@ -24,17 +24,32 @@
 #ifndef QEMU_AUDIO_H
 #define QEMU_AUDIO_H
 
+#include "sys-queue.h"
+
 typedef void (*audio_callback_fn_t) (void *opaque, int avail);
 
 typedef enum {
-  AUD_FMT_U8,
-  AUD_FMT_S8,
-  AUD_FMT_U16,
-  AUD_FMT_S16
+    AUD_FMT_U8,
+    AUD_FMT_S8,
+    AUD_FMT_U16,
+    AUD_FMT_S16
 } audfmt_e;
 
+typedef struct {
+    int freq;
+    int nchannels;
+    audfmt_e fmt;
+} audsettings_t;
+
+typedef struct AudioState AudioState;
 typedef struct SWVoiceOut SWVoiceOut;
 typedef struct SWVoiceIn SWVoiceIn;
+
+typedef struct QEMUSoundCard {
+    AudioState *audio;
+    char *name;
+    LIST_ENTRY (QEMUSoundCard) entries;
+} QEMUSoundCard;
 
 typedef struct QEMUAudioTimeStamp {
     uint64_t old_ts;
@@ -47,46 +62,45 @@ void AUD_log (const char *cap, const char *fmt, ...)
 #endif
     ;
 
-void AUD_init (void);
+AudioState *AUD_init (void);
 void AUD_help (void);
+void AUD_register_card (AudioState *s, const char *name, QEMUSoundCard *card);
+void AUD_remove_card (QEMUSoundCard *card);
 
-SWVoiceOut  *AUD_open_out (
+SWVoiceOut *AUD_open_out (
+    QEMUSoundCard *card,
     SWVoiceOut *sw,
     const char *name,
     void *callback_opaque,
     audio_callback_fn_t callback_fn,
-    int freq,
-    int nchannels,
-    audfmt_e fmt
+    audsettings_t *settings
     );
-void         AUD_close_out (SWVoiceOut *sw);
-int          AUD_write (SWVoiceOut *sw, void *pcm_buf, int size);
-int          AUD_get_buffer_size_out (SWVoiceOut *sw);
-void         AUD_set_active_out (SWVoiceOut *sw, int on);
-int          AUD_is_active_out (SWVoiceOut *sw);
-void         AUD_init_time_stamp_out (SWVoiceOut *sw,
-                                      QEMUAudioTimeStamp *ts);
-uint64_t     AUD_time_stamp_get_elapsed_usec_out (SWVoiceOut *sw,
-                                                  QEMUAudioTimeStamp *ts);
 
-SWVoiceIn   *AUD_open_in (
+void AUD_close_out (QEMUSoundCard *card, SWVoiceOut *sw);
+int  AUD_write (SWVoiceOut *sw, void *pcm_buf, int size);
+int  AUD_get_buffer_size_out (SWVoiceOut *sw);
+void AUD_set_active_out (SWVoiceOut *sw, int on);
+int  AUD_is_active_out (SWVoiceOut *sw);
+
+void     AUD_init_time_stamp_out (SWVoiceOut *sw, QEMUAudioTimeStamp *ts);
+uint64_t AUD_get_elapsed_usec_out (SWVoiceOut *sw, QEMUAudioTimeStamp *ts);
+
+SWVoiceIn *AUD_open_in (
+    QEMUSoundCard *card,
     SWVoiceIn *sw,
     const char *name,
     void *callback_opaque,
     audio_callback_fn_t callback_fn,
-    int freq,
-    int nchannels,
-    audfmt_e fmt
+    audsettings_t *settings
     );
-void         AUD_close_in (SWVoiceIn *sw);
-int          AUD_read (SWVoiceIn *sw, void *pcm_buf, int size);
-void         AUD_adjust_in (SWVoiceIn *sw, int leftover);
-void         AUD_set_active_in (SWVoiceIn *sw, int on);
-int          AUD_is_active_in (SWVoiceIn *sw);
-void         AUD_init_time_stamp_in (SWVoiceIn *sw,
-                                     QEMUAudioTimeStamp *ts);
-uint64_t     AUD_time_stamp_get_elapsed_usec_in (SWVoiceIn *sw,
-                                                 QEMUAudioTimeStamp *ts);
+
+void AUD_close_in (QEMUSoundCard *card, SWVoiceIn *sw);
+int  AUD_read (SWVoiceIn *sw, void *pcm_buf, int size);
+void AUD_set_active_in (SWVoiceIn *sw, int on);
+int  AUD_is_active_in (SWVoiceIn *sw);
+
+void     AUD_init_time_stamp_in (SWVoiceIn *sw, QEMUAudioTimeStamp *ts);
+uint64_t AUD_get_elapsed_usec_in (SWVoiceIn *sw, QEMUAudioTimeStamp *ts);
 
 static inline void *advance (void *p, int incr)
 {

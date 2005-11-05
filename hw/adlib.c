@@ -53,6 +53,7 @@ static struct {
 } conf = {0x220, 44100};
 
 typedef struct {
+    QEMUSoundCard card;
     int ticking[2];
     int enabled;
     int active;
@@ -70,7 +71,7 @@ typedef struct {
 #endif
 } AdlibState;
 
-static AdlibState adlib;
+static AdlibState glob_adlib;
 
 static void adlib_stop_opl_timer (AdlibState *s, size_t n)
 {
@@ -90,7 +91,7 @@ static void adlib_kill_timers (AdlibState *s)
         if (s->ticking[i]) {
             uint64_t delta;
 
-            delta = AUD_time_stamp_get_elapsed_usec_out (s->voice, &s->ats);
+            delta = AUD_get_elapsed_usec_out (s->voice, &s->ats);
             ldebug (
                 "delta = %f dexp = %f expired => %d\n",
                 delta / 1000000.0,
@@ -141,10 +142,11 @@ static IO_READ_PROTO(adlib_read)
 
 static void timer_handler (int c, double interval_Sec)
 {
-    AdlibState *s = &adlib;
+    AdlibState *s = &glob_adlib;
     unsigned n = c & 1;
 #ifdef DEBUG
     double interval;
+    int64_t exp;
 #endif
 
     if (interval_Sec == 0.0) {
@@ -262,16 +264,23 @@ static void Adlib_fini (AdlibState *s)
 
     s->active = 0;
     s->enabled = 0;
+    AUD_remove_card (&s->card);
 }
 
-void Adlib_init (void)
+int Adlib_init (AudioState *audio)
 {
-    AdlibState *s = &adlib;
+    AdlibState *s = &glob_adlib;
+    audsettings_t as;
+
+    if (!audio) {
+        dolog ("No audio state\n");
+        return -1;
+    }
 
 #ifdef HAS_YMF262
     if (YMF262Init (1, 14318180, conf.freq)) {
         dolog ("YMF262Init %d failed\n", conf.freq);
-        return;
+        return -1;
     }
     else {
         YMF262SetTimerHandler (0, timer_handler, 0);
@@ -281,7 +290,7 @@ void Adlib_init (void)
     s->opl = OPLCreate (OPL_TYPE_YM3812, 3579545, conf.freq);
     if (!s->opl) {
         dolog ("OPLCreate %d failed\n", conf.freq);
-        return;
+        return -1;
     }
     else {
         OPLSetTimerHandler (s->opl, timer_handler, 0);
@@ -289,18 +298,23 @@ void Adlib_init (void)
     }
 #endif
 
+    as.freq = conf.freq;
+    as.nchannels = SHIFT;
+    as.fmt = AUD_FMT_S16;
+
+    AUD_register_card (audio, "adlib", &s->card);
+
     s->voice = AUD_open_out (
+        &s->card,
         s->voice,
         "adlib",
         s,
         adlib_callback,
-        conf.freq,
-        SHIFT,
-        AUD_FMT_S16
+        &as
         );
     if (!s->voice) {
         Adlib_fini (s);
-        return;
+        return -1;
     }
 
     s->samples = AUD_get_buffer_size_out (s->voice) >> SHIFT;
@@ -310,7 +324,7 @@ void Adlib_init (void)
         dolog ("not enough memory for adlib mixing buffer (%d)\n",
                s->samples << SHIFT);
         Adlib_fini (s);
-        return;
+        return -1;
     }
 
     register_ioport_read (0x388, 4, 1, adlib_read, s);
@@ -321,4 +335,6 @@ void Adlib_init (void)
 
     register_ioport_read (conf.port + 8, 2, 1, adlib_read, s);
     register_ioport_write (conf.port + 8, 2, 1, adlib_write, s);
+
+    return 0;
 }

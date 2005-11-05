@@ -453,8 +453,8 @@ ifneq ($(wildcard .depend),)
 include .depend
 endif
 
-ifeq (0, 1)
+ifeq (1, 0)
 audio.o sdlaudio.o dsoundaudio.o ossaudio.o wavaudio.o noaudio.o \
-fmodaudio.o alsaaudio.o mixeng.o: \
+fmodaudio.o alsaaudio.o mixeng.o sb16.o es1370.o gus.o adlib.o: \
 CFLAGS := $(CFLAGS) -Wall -Werror -W -Wsign-compare
 endif

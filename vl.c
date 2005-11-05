@@ -2842,10 +2842,11 @@ void help(void)
 	   "-k language     use keyboard layout (for example \"fr\" for French)\n"
 #endif
 #ifdef HAS_AUDIO
-           "-enable-audio   enable audio support\n"
+           "-enable-audio   enable audio support, and all the sound cars\n"
            "-audio-help     print list of audio drivers and their options\n"
-           "-soundhw c1,... comma separated list of sound card names\n"
-           "                use -soundhw ? to get the list of supported sound cards\n"
+           "-soundhw c1,... enable audio support\n"
+           "                and only specified sound cards (comma separated list)\n"
+           "                use -soundhw ? to get the list of supported cards\n"
 #endif
            "-localtime      set the real time clock to local time [default=utc]\n"
            "-full-screen    start in full screen\n"
@@ -3145,9 +3146,9 @@ static void select_soundhw (const char *optarg)
         printf ("sb16       Creative Sound Blaster 16\n");
 #ifdef CONFIG_ADLIB
 #ifdef HAS_YMF262
-        printf ("adlib      Ymaha YMF262 (OPL3)\n");
+        printf ("adlib      Yamaha YMF262 (OPL3)\n");
 #else
-        printf ("adlib      Ymaha YM3812 (OPL2)\n");
+        printf ("adlib      Yamaha YM3812 (OPL2)\n");
 #endif
 #endif
 #ifdef CONFIG_GUS

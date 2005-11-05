@@ -78,7 +78,7 @@ static void GCC_FMT_ATTR (2, 3) fmod_logerr2 (
 {
     va_list ap;
 
-    AUD_log (AUDIO_CAP, "Can not initialize %s\n", typ);
+    AUD_log (AUDIO_CAP, "Could not initialize %s\n", typ);
 
     va_start (ap, fmt);
     AUD_vlog (AUDIO_CAP, fmt, ap);
@@ -356,17 +356,17 @@ static void fmod_fini_out (HWVoiceOut *hw)
     }
 }
 
-static int fmod_init_out (HWVoiceOut *hw, int freq, int nchannels, audfmt_e fmt)
+static int fmod_init_out (HWVoiceOut *hw, audsettings_t *as)
 {
     int bits16, mode, channel;
     FMODVoiceOut *fmd = (FMODVoiceOut *) hw;
 
-    mode = aud_to_fmodfmt (fmt, nchannels == 2 ? 1 : 0);
+    mode = aud_to_fmodfmt (as->fmt, as->nchannels == 2 ? 1 : 0);
     fmd->fmod_sample = FSOUND_Sample_Alloc (
         FSOUND_FREE,            /* index */
         conf.nb_samples,        /* length */
         mode,                   /* mode */
-        freq,                   /* freq */
+        as->freq,               /* freq */
         255,                    /* volume */
         128,                    /* pan */
         255                     /* priority */
@@ -386,10 +386,9 @@ static int fmod_init_out (HWVoiceOut *hw, int freq, int nchannels, audfmt_e fmt)
     fmd->channel = channel;
 
     /* FMOD always operates on little endian frames? */
-    audio_pcm_init_info (&hw->info, freq, nchannels, fmt,
-                         audio_need_to_swap_endian (0));
+    audio_pcm_init_info (&hw->info, as, audio_need_to_swap_endian (0));
     bits16 = (mode & FSOUND_16BITS) != 0;
-    hw->bufsize = conf.nb_samples << (nchannels == 2) << bits16;
+    hw->samples = conf.nb_samples;
     return 0;
 }
 
@@ -417,7 +416,7 @@ static int fmod_ctl_out (HWVoiceOut *hw, int cmd, ...)
     return 0;
 }
 
-static int fmod_init_in (HWVoiceIn *hw, int freq, int nchannels, audfmt_e fmt)
+static int fmod_init_in (HWVoiceIn *hw, audsettings_t *as)
 {
     int bits16, mode;
     FMODVoiceIn *fmd = (FMODVoiceIn *) hw;
@@ -426,12 +425,12 @@ static int fmod_init_in (HWVoiceIn *hw, int freq, int nchannels, audfmt_e fmt)
         return -1;
     }
 
-    mode = aud_to_fmodfmt (fmt, nchannels == 2 ? 1 : 0);
+    mode = aud_to_fmodfmt (as->fmt, as->nchannels == 2 ? 1 : 0);
     fmd->fmod_sample = FSOUND_Sample_Alloc (
         FSOUND_FREE,            /* index */
         conf.nb_samples,        /* length */
         mode,                   /* mode */
-        freq,                   /* freq */
+        as->freq,               /* freq */
         255,                    /* volume */
         128,                    /* pan */
         255                     /* priority */
@@ -443,10 +442,9 @@ static int fmod_init_in (HWVoiceIn *hw, int freq, int nchannels, audfmt_e fmt)
     }
 
     /* FMOD always operates on little endian frames? */
-    audio_pcm_init_info (&hw->info, freq, nchannels, fmt,
-                         audio_need_to_swap_endian (0));
+    audio_pcm_init_info (&hw->info, as, audio_need_to_swap_endian (0));
     bits16 = (mode & FSOUND_16BITS) != 0;
-    hw->bufsize = conf.nb_samples << (nchannels == 2) << bits16;
+    hw->samples = conf.nb_samples;
     return 0;
 }
 
@@ -479,7 +477,7 @@ static int fmod_run_in (HWVoiceIn *hw)
 
     new_pos = FSOUND_Record_GetPosition ();
     if (new_pos < 0) {
-        fmod_logerr ("Can not get recording position\n");
+        fmod_logerr ("Could not get recording position\n");
         return 0;
     }
 
