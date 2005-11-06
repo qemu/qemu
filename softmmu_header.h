@@ -304,20 +304,20 @@ static inline void glue(glue(st, SUFFIX), MEMSUFFIX)(target_ulong ptr, RES_TYPE 
 #endif
 
 #if DATA_SIZE == 8
-static inline double glue(ldfq, MEMSUFFIX)(target_ulong ptr)
+static inline float64 glue(ldfq, MEMSUFFIX)(target_ulong ptr)
 {
     union {
-        double d;
+        float64 d;
         uint64_t i;
     } u;
     u.i = glue(ldq, MEMSUFFIX)(ptr);
     return u.d;
 }
 
-static inline void glue(stfq, MEMSUFFIX)(target_ulong ptr, double v)
+static inline void glue(stfq, MEMSUFFIX)(target_ulong ptr, float64 v)
 {
     union {
-        double d;
+        float64 d;
         uint64_t i;
     } u;
     u.d = v;
@@ -326,20 +326,20 @@ static inline void glue(stfq, MEMSUFFIX)(target_ulong ptr, double v)
 #endif /* DATA_SIZE == 8 */
 
 #if DATA_SIZE == 4
-static inline float glue(ldfl, MEMSUFFIX)(target_ulong ptr)
+static inline float32 glue(ldfl, MEMSUFFIX)(target_ulong ptr)
 {
     union {
-        float f;
+        float32 f;
         uint32_t i;
     } u;
     u.i = glue(ldl, MEMSUFFIX)(ptr);
     return u.f;
 }
 
-static inline void glue(stfl, MEMSUFFIX)(target_ulong ptr, float v)
+static inline void glue(stfl, MEMSUFFIX)(target_ulong ptr, float32 v)
 {
     union {
-        float f;
+        float32 f;
         uint32_t i;
     } u;
     u.f = v;
