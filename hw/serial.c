@@ -258,6 +258,41 @@ static void serial_event(void *opaque, int event)
         serial_receive_break(s);
 }
 
+static void serial_save(QEMUFile *f, void *opaque)
+{
+    SerialState *s = opaque;
+
+    qemu_put_8s(f,&s->divider);
+    qemu_put_8s(f,&s->rbr);
+    qemu_put_8s(f,&s->ier);
+    qemu_put_8s(f,&s->iir);
+    qemu_put_8s(f,&s->lcr);
+    qemu_put_8s(f,&s->mcr);
+    qemu_put_8s(f,&s->lsr);
+    qemu_put_8s(f,&s->msr);
+    qemu_put_8s(f,&s->scr);
+}
+
+static int serial_load(QEMUFile *f, void *opaque, int version_id)
+{
+    SerialState *s = opaque;
+
+    if(version_id != 1)
+        return -EINVAL;
+
+    qemu_get_8s(f,&s->divider);
+    qemu_get_8s(f,&s->rbr);
+    qemu_get_8s(f,&s->ier);
+    qemu_get_8s(f,&s->iir);
+    qemu_get_8s(f,&s->lcr);
+    qemu_get_8s(f,&s->mcr);
+    qemu_get_8s(f,&s->lsr);
+    qemu_get_8s(f,&s->msr);
+    qemu_get_8s(f,&s->scr);
+
+    return 0;
+}
+
 /* If fd is zero, it means that the serial device uses the console */
 SerialState *serial_init(int base, int irq, CharDriverState *chr)
 {
@@ -269,6 +304,8 @@ SerialState *serial_init(int base, int irq, CharDriverState *chr)
     s->irq = irq;
     s->lsr = UART_LSR_TEMT | UART_LSR_THRE;
     s->iir = UART_IIR_NO_INT;
+
+    register_savevm("serial", base, 1, serial_save, serial_load, s);
 
     register_ioport_write(base, 8, 1, serial_ioport_write, s);
     register_ioport_read(base, 8, 1, serial_ioport_read, s);
