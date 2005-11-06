@@ -100,6 +100,8 @@ Creative SoundBlaster 16 sound card
 ENSONIQ AudioPCI ES1370 sound card
 @item
 Adlib(OPL2) - Yamaha YM3812 compatible chip
+@item
+PCI UHCI USB controller and a virtual USB hub.
 @end itemize
 
 Note that adlib is only available when QEMU was configured with
@@ -225,6 +227,17 @@ Use it when installing Windows 2000 to avoid a disk full bug. After
 Windows 2000 is installed, you no longer need this option (this option
 slows down the IDE transfers).
 
+@end table
+
+USB options:
+@table @option
+
+@item -usb
+Enable the USB driver (will be the default soon)
+
+@item -usbdevice devname
+Add the USB device @var{devname}. See the monitor command
+@code{usb_add} to have more information.
 @end table
 
 Network options:
@@ -495,6 +508,12 @@ show the block devices
 show the cpu registers
 @item info history
 show the command line history
+@item info pci
+show emulated PCI device
+@item info usb
+show USB devices plugged on the virtual USB hub
+@item info usbhost
+show all USB host devices
 @end table
 
 @item q or quit
@@ -605,6 +624,19 @@ intercepts at low level, such as @code{ctrl-alt-f1} in X Window.
 @item system_reset
 
 Reset the system.
+
+@item usb_add devname
+
+Plug the USB device devname to the QEMU virtual USB hub. @var{devname}
+is either a virtual device name (for example @code{mouse}) or a host
+USB device identifier. Host USB device identifiers have the following
+syntax: @code{host:bus.addr} or @code{host:vendor_id:product_id}.
+
+@item usb_del devname
+
+Remove the USB device @var{devname} from the QEMU virtual USB
+hub. @var{devname} has the syntax @code{bus.addr}. Use the monitor
+command @code{info usb} to see the devices you can remove.
 
 @end table
 
@@ -848,6 +880,80 @@ The example disk image is a modified version of the one made by Kevin
 Lawton for the plex86 Project (@url{www.plex86.org}).
 
 @end enumerate
+
+@section USB emulation
+
+QEMU emulates a PCI UHCI USB controller and a 8 port USB hub connected
+to it. You can virtually plug to the hub virtual USB devices or real
+host USB devices (experimental, works only on Linux hosts).
+
+@subsection Using virtual USB devices
+
+A virtual USB mouse device is available for testing in QEMU.
+
+You can try it with the following monitor commands:
+
+@example
+# add the mouse device
+(qemu) usb_add mouse 
+
+# show the virtual USB devices plugged on the QEMU Virtual USB hub
+(qemu) info usb
+  Device 0.3, speed 12 Mb/s
+
+# after some time you can try to remove the mouse
+(qemu) usb_del 0.3
+@end example
+
+The option @option{-usbdevice} is similar to the monitor command
+@code{usb_add}.
+
+@subsection Using host USB devices on a Linux host
+
+WARNING: this is an experimental feature. QEMU will slow down when
+using it. USB devices requiring real time streaming (i.e. USB Video
+Cameras) are not supported yet.
+
+@enumerate
+@item If you use an early Linux 2.4 kernel, verify that no Linux driver 
+is actually using the USB device. A simple way to do that is simply to
+disable the corresponding kernel module by renaming it from @file{mydriver.o}
+to @file{mydriver.o.disabled}.
+
+@item Verify that @file{/proc/bus/usb} is working (most Linux distributions should enable it by default). You should see something like that:
+@example
+ls /proc/bus/usb
+001  devices  drivers
+@end example
+
+@item Since only root can access to the USB devices directly, you can either launch QEMU as root or change the permissions of the USB devices you want to use. For testing, the following suffices:
+@example
+chown -R myuid /proc/bus/usb
+@end example
+
+@item Launch QEMU and do in the monitor:
+@example 
+info usbhost
+  Device 1.2, speed 480 Mb/s
+    Class 00: USB device 1234:5678, USB DISK
+@end example
+You should see the list of the devices you can use (Never try to use
+hubs, it won't work).
+
+@item Add the device in QEMU by using:
+@example 
+usb_add host:1234:5678
+@end example
+
+Normally the guest OS should report that a new USB device is
+plugged. You can use the option @option{-usbdevice} to do the same.
+
+@item Now you can try to use the host USB device in QEMU.
+
+@end enumerate
+
+When relaunching QEMU, you may have to unplug and plug again the USB
+device to make it work again (this is a bug).
 
 @node gdb_usage
 @section GDB usage

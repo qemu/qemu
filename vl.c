@@ -2966,6 +2966,8 @@ void help(void)
 #ifdef TARGET_I386
            "-win2k-hack     use it when installing Windows 2000 to avoid a disk full bug\n"
 #endif
+           "-usb            enable the USB driver (will be the default soon)\n"
+           "-usbdevice name add the host or guest USB device 'name'\n"
 #if defined(TARGET_PPC) || defined(TARGET_SPARC)
            "-g WxH[xDEPTH]  Set the initial graphical resolution and depth\n"
 #endif
