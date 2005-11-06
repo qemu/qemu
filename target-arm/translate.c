@@ -2035,7 +2035,7 @@ static void disas_thumb_insn(DisasContext *s)
         gen_movl_reg_T1(s, 14);
         
         val += offset << 1;
-        if (insn & (1 << 11)) {
+        if (insn & (1 << 12)) {
             /* bl */
             gen_jmp(s, val);
         } else {
