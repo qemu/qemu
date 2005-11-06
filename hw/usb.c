@@ -201,7 +201,6 @@ int set_usb_string(uint8_t *buf, const char *str)
 
 typedef struct USBHubPort {
     USBPort port;
-    USBDevice *dev;
     uint16_t wPortStatus;
     uint16_t wPortChange;
 } USBHubPort;
@@ -342,7 +341,7 @@ static void usb_hub_attach(USBPort *port1, USBDevice *dev)
     USBHubPort *port = &s->ports[port1->index];
     
     if (dev) {
-        if (port->dev)
+        if (port->port.dev)
             usb_attach(port1, NULL);
         
         port->wPortStatus |= PORT_STAT_CONNECTION;
@@ -351,9 +350,9 @@ static void usb_hub_attach(USBPort *port1, USBDevice *dev)
             port->wPortStatus |= PORT_STAT_LOW_SPEED;
         else
             port->wPortStatus &= ~PORT_STAT_LOW_SPEED;
-        port->dev = dev;
+        port->port.dev = dev;
     } else {
-        dev = port->dev;
+        dev = port->port.dev;
         if (dev) {
             port->wPortStatus &= ~PORT_STAT_CONNECTION;
             port->wPortChange |= PORT_STAT_C_CONNECTION;
@@ -361,7 +360,7 @@ static void usb_hub_attach(USBPort *port1, USBDevice *dev)
                 port->wPortStatus &= ~PORT_STAT_ENABLE;
                 port->wPortChange |= PORT_STAT_C_ENABLE;
             }
-            port->dev = NULL;
+            port->port.dev = NULL;
         }
     }
 }
@@ -498,7 +497,7 @@ static int usb_hub_handle_control(USBDevice *dev, int request, int value,
             if (n >= s->nb_ports)
                 goto fail;
             port = &s->ports[n];
-            dev = port->dev;
+            dev = port->port.dev;
             switch(value) {
             case PORT_SUSPEND:
                 port->wPortStatus |= PORT_STAT_SUSPEND;
@@ -529,7 +528,7 @@ static int usb_hub_handle_control(USBDevice *dev, int request, int value,
             if (n >= s->nb_ports)
                 goto fail;
             port = &s->ports[n];
-            dev = port->dev;
+            dev = port->port.dev;
             switch(value) {
             case PORT_ENABLE:
                 port->wPortStatus &= ~PORT_STAT_ENABLE;
@@ -624,7 +623,7 @@ static int usb_hub_broadcast_packet(USBHubState *s, int pid,
 
     for(i = 0; i < s->nb_ports; i++) {
         port = &s->ports[i];
-        dev = port->dev;
+        dev = port->port.dev;
         if (dev && (port->wPortStatus & PORT_STAT_ENABLE)) {
             ret = dev->handle_packet(dev, pid, 
                                      devaddr, devep,

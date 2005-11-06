@@ -154,6 +154,8 @@ CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
 int win2k_install_hack = 0;
 #endif
 int usb_enabled = 0;
+USBPort *vm_usb_ports[MAX_VM_USB_PORTS];
+USBDevice *vm_usb_hub;
 
 /***********************************************************/
 /* x86 ISA bus support */
@@ -1738,6 +1740,117 @@ static int net_fd_init(NetDriverState *nd, int fd)
 #endif /* !_WIN32 */
 
 /***********************************************************/
+/* USB devices */
+
+static int usb_device_add(const char *devname)
+{
+    const char *p;
+    USBDevice *dev;
+    int i;
+
+    if (!vm_usb_hub)
+        return -1;
+    for(i = 0;i < MAX_VM_USB_PORTS; i++) {
+        if (!vm_usb_ports[i]->dev)
+            break;
+    }
+    if (i == MAX_VM_USB_PORTS)
+        return -1;
+
+    if (strstart(devname, "host:", &p)) {
+        dev = usb_host_device_open(p);
+        if (!dev)
+            return -1;
+    } else if (!strcmp(devname, "mouse")) {
+        dev = usb_mouse_init();
+        if (!dev)
+            return -1;
+    } else {
+        return -1;
+    }
+    usb_attach(vm_usb_ports[i], dev);
+    return 0;
+}
+
+static int usb_device_del(const char *devname)
+{
+    USBDevice *dev;
+    int bus_num, addr, i;
+    const char *p;
+
+    if (!vm_usb_hub)
+        return -1;
+
+    p = strchr(devname, '.');
+    if (!p) 
+        return -1;
+    bus_num = strtoul(devname, NULL, 0);
+    addr = strtoul(p + 1, NULL, 0);
+    if (bus_num != 0)
+        return -1;
+    for(i = 0;i < MAX_VM_USB_PORTS; i++) {
+        dev = vm_usb_ports[i]->dev;
+        if (dev && dev->addr == addr)
+            break;
+    }
+    if (i == MAX_VM_USB_PORTS)
+        return -1;
+    usb_attach(vm_usb_ports[i], NULL);
+    return 0;
+}
+
+void do_usb_add(const char *devname)
+{
+    int ret;
+    ret = usb_device_add(devname);
+    if (ret < 0) 
+        term_printf("Could not add USB device '%s'\n", devname);
+}
+
+void do_usb_del(const char *devname)
+{
+    int ret;
+    ret = usb_device_del(devname);
+    if (ret < 0) 
+        term_printf("Could not remove USB device '%s'\n", devname);
+}
+
+void usb_info(void)
+{
+    USBDevice *dev;
+    int i;
+    const char *speed_str;
+
+    if (!vm_usb_hub) {
+        term_printf("USB support not enabled\n");
+        return;
+    }
+
+    for(i = 0; i < MAX_VM_USB_PORTS; i++) {
+        dev = vm_usb_ports[i]->dev;
+        if (dev) {
+            term_printf("Hub port %d:\n", i);
+            switch(dev->speed) {
+            case USB_SPEED_LOW: 
+                speed_str = "1.5"; 
+                break;
+            case USB_SPEED_FULL: 
+                speed_str = "12"; 
+                break;
+            case USB_SPEED_HIGH: 
+                speed_str = "480"; 
+                break;
+            default:
+                speed_str = "?"; 
+                break;
+            }
+            term_printf("  Device %d.%d, speed %s Mb/s\n", 
+                        0, dev->addr, speed_str);
+        }
+    }
+}
+
+/***********************************************************/
 /* pid file */
 
 static char *pid_filename;
@@ -2989,6 +3102,7 @@ enum {
     QEMU_OPTION_no_kqemu,
     QEMU_OPTION_win2k_hack,
     QEMU_OPTION_usb,
+    QEMU_OPTION_usbdevice,
 };
 
 typedef struct QEMUOption {
@@ -3063,9 +3177,10 @@ const QEMUOption qemu_options[] = {
     { "full-screen", 0, QEMU_OPTION_full_screen },
     { "pidfile", HAS_ARG, QEMU_OPTION_pidfile },
     { "win2k-hack", 0, QEMU_OPTION_win2k_hack },
-    { "usb", 0, QEMU_OPTION_usb },
+    { "usbdevice", HAS_ARG, QEMU_OPTION_usbdevice },
     
     /* temporary options */
+    { "usb", 0, QEMU_OPTION_usb },
     { "pci", 0, QEMU_OPTION_pci },
     { "cirrusvga", 0, QEMU_OPTION_cirrusvga },
     { NULL },
@@ -3239,7 +3354,9 @@ int main(int argc, char **argv)
     int parallel_device_index;
     const char *loadvm = NULL;
     QEMUMachine *machine;
-
+    char usb_devices[MAX_VM_USB_PORTS][128];
+    int usb_devices_index;
+    
 #if !defined(CONFIG_SOFTMMU)
     /* we never want that malloc() uses mmap() */
     mallopt(M_MMAP_THRESHOLD, 4096 * 1024);
@@ -3281,6 +3398,8 @@ int main(int argc, char **argv)
     for(i = 1; i < MAX_PARALLEL_PORTS; i++)
         parallel_devices[i][0] = '\0';
     parallel_device_index = 0;
+    
+    usb_devices_index = 0;
     
     nb_tun_fds = 0;
     net_if_type = -1;
@@ -3653,6 +3772,17 @@ int main(int argc, char **argv)
             case QEMU_OPTION_usb:
                 usb_enabled = 1;
                 break;
+            case QEMU_OPTION_usbdevice:
+                usb_enabled = 1;
+                if (usb_devices_index >= MAX_VM_USB_PORTS) {
+                    fprintf(stderr, "Too many USB devices\n");
+                    exit(1);
+                }
+                pstrcpy(usb_devices[usb_devices_index],
+                        sizeof(usb_devices[usb_devices_index]),
+                        optarg);
+                usb_devices_index++;
+                break;
             }
         }
     }
@@ -3814,6 +3944,17 @@ int main(int argc, char **argv)
                             fd_filename[i]);
                     exit(1);
                 }
+            }
+        }
+    }
+
+    /* init USB devices */
+    if (usb_enabled) {
+        vm_usb_hub = usb_hub_init(vm_usb_ports, MAX_VM_USB_PORTS);
+        for(i = 0; i < usb_devices_index; i++) {
+            if (usb_device_add(usb_devices[i]) < 0) {
+                fprintf(stderr, "Warning: could not add USB device %s\n",
+                        usb_devices[i]);
             }
         }
     }

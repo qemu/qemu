@@ -901,7 +901,6 @@ static void do_info_kqemu(void)
 #endif
 } 
 
-
 static term_cmd_t term_cmds[] = {
     { "help|?", "s?", do_help, 
       "[cmd]", "show the help" },
@@ -948,6 +947,10 @@ static term_cmd_t term_cmds[] = {
       "", "send system power down event" },
     { "sum", "ii", do_sum, 
       "addr size", "compute the checksum of a memory region" },
+    { "usb_add", "s", do_usb_add,
+      "device", "add USB device (e.g. 'host:bus.addr' or 'host:vendor_id:product_id')" },
+    { "usb_del", "s", do_usb_del,
+      "device", "remove USB device 'bus.addr'" },
     { NULL, NULL, }, 
 };
 
@@ -978,6 +981,10 @@ static term_cmd_t info_cmds[] = {
       "", "show dynamic compiler info", },
     { "kqemu", "", do_info_kqemu,
       "", "show kqemu information", },
+    { "usb", "", usb_info,
+      "", "show guest USB devices", },
+    { "usbhost", "", usb_host_info,
+      "", "show host USB devices", },
     { NULL, NULL, },
 };
 

@@ -290,12 +290,14 @@ ifdef CONFIG_ADLIB
 SOUND_HW += fmopl.o adlib.o
 endif
 
+# USB layer
+VL_OBJS+= usb.o usb-uhci.o usb-linux.o usb-hid.o
+
 ifeq ($(TARGET_BASE_ARCH), i386)
 # Hardware support
 VL_OBJS+= ide.o ne2000.o pckbd.o vga.o $(SOUND_HW) dma.o $(AUDIODRV)
 VL_OBJS+= fdc.o mc146818rtc.o serial.o i8259.o i8254.o pc.o
 VL_OBJS+= cirrus_vga.o mixeng.o apic.o parallel.o
-VL_OBJS+= usb.o usb-uhci.o usb-linux.o usb-hid.o
 DEFINES += -DHAS_AUDIO
 endif
 ifeq ($(TARGET_BASE_ARCH), ppc)

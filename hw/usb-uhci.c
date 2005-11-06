@@ -63,7 +63,6 @@
 typedef struct UHCIPort {
     USBPort port;
     uint16_t ctrl;
-    USBDevice *dev; /* connected device */
 } UHCIPort;
 
 typedef struct UHCIState {
@@ -128,8 +127,8 @@ static void uhci_reset(UHCIState *s)
     for(i = 0; i < NB_PORTS; i++) {
         port = &s->ports[i];
         port->ctrl = 0x0080;
-        if (port->dev)
-            uhci_attach(&port->port, port->dev);
+        if (port->port.dev)
+            uhci_attach(&port->port, port->port.dev);
     }
 }
 
@@ -183,7 +182,7 @@ static void uhci_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
             /* send reset on the USB bus */
             for(i = 0; i < NB_PORTS; i++) {
                 port = &s->ports[i];
-                dev = port->dev;
+                dev = port->port.dev;
                 if (dev) {
                     dev->handle_packet(dev, 
                                        USB_MSG_RESET, 0, 0, NULL, 0);
@@ -224,7 +223,7 @@ static void uhci_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
             if (n >= NB_PORTS)
                 return;
             port = &s->ports[n];
-            dev = port->dev;
+            dev = port->port.dev;
             if (dev) {
                 /* port reset */
                 if ( (val & UHCI_PORT_RESET) && 
@@ -320,7 +319,7 @@ static void uhci_attach(USBPort *port1, USBDevice *dev)
     UHCIPort *port = &s->ports[port1->index];
 
     if (dev) {
-        if (port->dev) {
+        if (port->port.dev) {
             usb_attach(port1, NULL);
         }
         /* set connect status */
@@ -332,7 +331,7 @@ static void uhci_attach(USBPort *port1, USBDevice *dev)
             port->ctrl |= UHCI_PORT_LSDA;
         else
             port->ctrl &= ~UHCI_PORT_LSDA;
-        port->dev = dev;
+        port->port.dev = dev;
         /* send the attach message */
         dev->handle_packet(dev, 
                            USB_MSG_ATTACH, 0, 0, NULL, 0);
@@ -346,13 +345,13 @@ static void uhci_attach(USBPort *port1, USBDevice *dev)
             port->ctrl &= ~UHCI_PORT_EN;
             port->ctrl |= UHCI_PORT_ENC;
         }
-        dev = port->dev;
+        dev = port->port.dev;
         if (dev) {
             /* send the detach message */
             dev->handle_packet(dev, 
                                USB_MSG_DETACH, 0, 0, NULL, 0);
         }
-        port->dev = NULL;
+        port->port.dev = NULL;
     }
 }
 
@@ -386,7 +385,7 @@ static int uhci_broadcast_packet(UHCIState *s, uint8_t pid,
 #endif
     for(i = 0; i < NB_PORTS; i++) {
         port = &s->ports[i];
-        dev = port->dev;
+        dev = port->port.dev;
         if (dev && (port->ctrl & UHCI_PORT_EN)) {
             ret = dev->handle_packet(dev, pid, 
                                      devaddr, devep,

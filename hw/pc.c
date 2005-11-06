@@ -42,6 +42,7 @@ static fdctrl_t *floppy_controller;
 static RTCState *rtc_state;
 static PITState *pit;
 static IOAPICState *ioapic;
+static USBPort *usb_root_ports[2];
 
 static void ioport80_write(void *opaque, uint32_t addr, uint32_t data)
 {
@@ -625,32 +626,8 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
     cmos_init(ram_size, boot_device, bs_table);
 
     if (pci_enabled && usb_enabled) {
-        USBPort *usb_root_ports[2];
-        USBDevice *usb_dev;
         usb_uhci_init(pci_bus, usb_root_ports);
-#if 0
-        {
-            USBPort *usb_hub1_ports[4];
-            USBPort *usb_hub2_ports[2];
-            /* test: we simulate a USB hub */
-            usb_dev = usb_hub_init(usb_hub1_ports, 4);
-            usb_attach(usb_root_ports[0], usb_dev);
-            
-            /* test: we simulate a USB hub */
-            usb_dev = usb_hub_init(usb_hub2_ports, 2);
-            usb_attach(usb_hub1_ports[0], usb_dev);
-        }
-#endif
-#if 0
-        /* USB mouse */
-        usb_dev = usb_mouse_init();
-        usb_attach(usb_root_ports[0], usb_dev);
-#endif
-#if 1
-        /* simulated hub with the host USB devices connected to it */
-        usb_dev = usb_host_hub_init();
-        usb_attach(usb_root_ports[0], usb_dev);
-#endif
+        usb_attach(usb_root_ports[0], vm_usb_hub);
     }
 
     /* must be done after all PCI devices are instanciated */

@@ -40,9 +40,13 @@ struct usb_ctrltransfer {
     void *data;
 };
 
-//#define DEBUG
+typedef int USBScanFunc(void *opaque, int bus_num, int addr, int class_id,
+                        int vendor_id, int product_id, 
+                        const char *product_name, int speed);
+static int usb_host_find_device(int *pbus_num, int *paddr, 
+                                const char *devname);
 
-#define MAX_DEVICES 8
+//#define DEBUG
 
 #define USBDEVFS_PATH "/proc/bus/usb"
 
@@ -50,12 +54,6 @@ typedef struct USBHostDevice {
     USBDevice dev;
     int fd;
 } USBHostDevice;
-
-typedef struct USBHostHubState {
-    USBDevice *hub_dev;
-    USBPort *hub_ports[MAX_DEVICES];
-    USBDevice *hub_devices[MAX_DEVICES];
-} USBHostHubState;
 
 static void usb_host_handle_reset(USBDevice *dev)
 {
@@ -137,29 +135,26 @@ static int usb_host_handle_data(USBDevice *dev, int pid,
     }
 }
 
-static int usb_host_handle_packet(USBDevice *dev, int pid, 
-                                  uint8_t devaddr, uint8_t devep,
-                                  uint8_t *data, int len)
-{
-    return usb_generic_handle_packet(dev, pid, devaddr, devep, data, len);
-}
-
 /* XXX: exclude high speed devices or implement EHCI */
-static void scan_host_device(USBHostHubState *s, const char *filename)
+USBDevice *usb_host_device_open(const char *devname)
 {
     int fd, interface, ret, i;
     USBHostDevice *dev;
     struct usbdevfs_connectinfo ci;
     uint8_t descr[1024];
+    char buf[1024];
     int descr_len, dev_descr_len, config_descr_len, nb_interfaces;
+    int bus_num, addr;
 
-#ifdef DEBUG
-    printf("scanning %s\n", filename);
-#endif
-    fd = open(filename, O_RDWR);
+    if (usb_host_find_device(&bus_num, &addr, devname) < 0) 
+        return NULL;
+    
+    snprintf(buf, sizeof(buf), USBDEVFS_PATH "/%03d/%03d", 
+             bus_num, addr);
+    fd = open(buf, O_RDWR);
     if (fd < 0) {
-        perror(filename);
-        return;
+        perror(buf);
+        return NULL;
     }
 
     /* read the config description */
@@ -180,22 +175,31 @@ static void scan_host_device(USBHostHubState *s, const char *filename)
     nb_interfaces = descr[i + 4];
     if (nb_interfaces != 1) {
         /* NOTE: currently we grab only one interface */
+        fprintf(stderr, "usb_host: only one interface supported\n");
         goto fail;
     }
+
+#ifdef USBDEVFS_DISCONNECT
+    /* earlier Linux 2.4 do not support that */
+    ret = ioctl(fd, USBDEVFS_DISCONNECT);
+    if (ret < 0 && errno != ENODATA) {
+        perror("USBDEVFS_DISCONNECT");
+        goto fail;
+    }
+#endif
+
     /* XXX: only grab if all interfaces are free */
     interface = 0;
     ret = ioctl(fd, USBDEVFS_CLAIMINTERFACE, &interface);
     if (ret < 0) {
         if (errno == EBUSY) {
-#ifdef DEBUG
-            printf("%s already grabbed\n", filename);
-#endif            
+            fprintf(stderr, "usb_host: device already grabbed\n");
         } else {
             perror("USBDEVFS_CLAIMINTERFACE");
         }
     fail:
         close(fd);
-        return;
+        return NULL;
     }
 
     ret = ioctl(fd, USBDEVFS_CONNECTINFO, &ci);
@@ -205,20 +209,8 @@ static void scan_host_device(USBHostHubState *s, const char *filename)
     }
 
 #ifdef DEBUG
-    printf("%s grabbed\n", filename);
+    printf("host USB device %d.%d grabbed\n", bus_num, addr);
 #endif    
-
-    /* find a free slot */
-    for(i = 0; i < MAX_DEVICES; i++) {
-        if (!s->hub_devices[i])
-            break;
-    }
-    if (i == MAX_DEVICES) {
-#ifdef DEBUG
-        printf("too many host devices\n");
-        goto fail;
-#endif
-    }
 
     dev = qemu_mallocz(sizeof(USBHostDevice));
     if (!dev)
@@ -228,80 +220,259 @@ static void scan_host_device(USBHostHubState *s, const char *filename)
         dev->dev.speed = USB_SPEED_LOW;
     else
         dev->dev.speed = USB_SPEED_HIGH;
-    dev->dev.handle_packet = usb_host_handle_packet;
+    dev->dev.handle_packet = usb_generic_handle_packet;
 
     dev->dev.handle_reset = usb_host_handle_reset;
     dev->dev.handle_control = usb_host_handle_control;
     dev->dev.handle_data = usb_host_handle_data;
-
-    s->hub_devices[i] = (USBDevice *)dev;
-
-    /* activate device on hub */
-    usb_attach(s->hub_ports[i], s->hub_devices[i]);
+    return (USBDevice *)dev;
 }
 
-static void scan_host_devices(USBHostHubState *s, const char *bus_path)
+static int get_tag_value(char *buf, int buf_size,
+                         const char *str, const char *tag, 
+                         const char *stopchars)
 {
-    DIR *d;
-    struct dirent *de;
-    char buf[1024];
+    const char *p;
+    char *q;
+    p = strstr(str, tag);
+    if (!p)
+        return -1;
+    p += strlen(tag);
+    while (isspace(*p))
+        p++;
+    q = buf;
+    while (*p != '\0' && !strchr(stopchars, *p)) {
+        if ((q - buf) < (buf_size - 1))
+            *q++ = *p;
+        p++;
+    }
+    *q = '\0';
+    return q - buf;
+}
 
-    d = opendir(bus_path);
-    if (!d)
-        return;
+static int usb_host_scan(void *opaque, USBScanFunc *func)
+{
+    FILE *f;
+    char line[1024];
+    char buf[1024];
+    int bus_num, addr, speed, device_count, class_id, product_id, vendor_id;
+    int ret;
+    char product_name[512];
+    
+    f = fopen(USBDEVFS_PATH "/devices", "r");
+    if (!f) {
+        term_printf("Could not open %s\n", USBDEVFS_PATH "/devices");
+        return 0;
+    }
+    device_count = 0;
+    bus_num = addr = speed = class_id = product_id = vendor_id = 0;
+    ret = 0;
     for(;;) {
-        de = readdir(d);
-        if (!de)
+        if (fgets(line, sizeof(line), f) == NULL)
             break;
-        if (de->d_name[0] != '.') {
-            snprintf(buf, sizeof(buf), "%s/%s", bus_path, de->d_name);
-            scan_host_device(s, buf);
+        if (strlen(line) > 0)
+            line[strlen(line) - 1] = '\0';
+        if (line[0] == 'T' && line[1] == ':') {
+            if (device_count) {
+                ret = func(opaque, bus_num, addr, class_id, vendor_id, 
+                           product_id, product_name, speed);
+                if (ret)
+                    goto the_end;
+            }
+            if (get_tag_value(buf, sizeof(buf), line, "Bus=", " ") < 0)
+                goto fail;
+            bus_num = atoi(buf);
+            if (get_tag_value(buf, sizeof(buf), line, "Dev#=", " ") < 0)
+                goto fail;
+            addr = atoi(buf);
+            if (get_tag_value(buf, sizeof(buf), line, "Spd=", " ") < 0)
+                goto fail;
+            if (!strcmp(buf, "480"))
+                speed = USB_SPEED_HIGH;
+            else if (!strcmp(buf, "1.5"))
+                speed = USB_SPEED_LOW;
+            else
+                speed = USB_SPEED_FULL;
+            product_name[0] = '\0';
+            class_id = 0xff;
+            device_count++;
+            product_id = 0;
+            vendor_id = 0;
+        } else if (line[0] == 'P' && line[1] == ':') {
+            if (get_tag_value(buf, sizeof(buf), line, "Vendor=", " ") < 0)
+                goto fail;
+            vendor_id = strtoul(buf, NULL, 16);
+            if (get_tag_value(buf, sizeof(buf), line, "ProdID=", " ") < 0)
+                goto fail;
+            product_id = strtoul(buf, NULL, 16);
+        } else if (line[0] == 'S' && line[1] == ':') {
+            if (get_tag_value(buf, sizeof(buf), line, "Product=", "") < 0)
+                goto fail;
+            pstrcpy(product_name, sizeof(product_name), buf);
+        } else if (line[0] == 'D' && line[1] == ':') {
+            if (get_tag_value(buf, sizeof(buf), line, "Cls=", " (") < 0)
+                goto fail;
+            class_id = strtoul(buf, NULL, 16);
+        }
+    fail: ;
+    }
+    if (device_count) {
+        ret = func(opaque, bus_num, addr, class_id, vendor_id, 
+                   product_id, product_name, speed);
+    }
+ the_end:
+    fclose(f);
+    return ret;
+}
+
+typedef struct FindDeviceState {
+    int vendor_id;
+    int product_id;
+    int bus_num;
+    int addr;
+} FindDeviceState;
+
+static int usb_host_find_device_scan(void *opaque, int bus_num, int addr, 
+                                     int class_id,
+                                     int vendor_id, int product_id, 
+                                     const char *product_name, int speed)
+{
+    FindDeviceState *s = opaque;
+    if (vendor_id == s->vendor_id &&
+        product_id == s->product_id) {
+        s->bus_num = bus_num;
+        s->addr = addr;
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+/* the syntax is : 
+   'bus.addr' (decimal numbers) or 
+   'vendor_id:product_id' (hexa numbers) */
+static int usb_host_find_device(int *pbus_num, int *paddr, 
+                                const char *devname)
+{
+    const char *p;
+    int ret;
+    FindDeviceState fs;
+
+    p = strchr(devname, '.');
+    if (p) {
+        *pbus_num = strtoul(devname, NULL, 0);
+        *paddr = strtoul(p + 1, NULL, 0);
+        return 0;
+    }
+    p = strchr(devname, ':');
+    if (p) {
+        fs.vendor_id = strtoul(devname, NULL, 16);
+        fs.product_id = strtoul(p + 1, NULL, 16);
+        ret = usb_host_scan(&fs, usb_host_find_device_scan);
+        if (ret) {
+            *pbus_num = fs.bus_num;
+            *paddr = fs.addr;
+            return 0;
         }
     }
-    closedir(d);
+    return -1;
 }
 
-static void scan_host_buses(USBHostHubState *s)
-{
-    DIR *d;
-    struct dirent *de;
-    char buf[1024];
+/**********************/
+/* USB host device info */
 
-    d = opendir(USBDEVFS_PATH);
-    if (!d)
-        return;
-    for(;;) {
-        de = readdir(d);
-        if (!de)
+struct usb_class_info {
+    int class;
+    const char *class_name;
+};
+
+static const struct usb_class_info usb_class_info[] = {
+    { USB_CLASS_AUDIO, "Audio"},
+    { USB_CLASS_COMM, "Communication"},
+    { USB_CLASS_HID, "HID"},
+    { USB_CLASS_HUB, "Hub" },
+    { USB_CLASS_PHYSICAL, "Physical" },
+    { USB_CLASS_PRINTER, "Printer" },
+    { USB_CLASS_MASS_STORAGE, "Storage" },
+    { USB_CLASS_CDC_DATA, "Data" },
+    { USB_CLASS_APP_SPEC, "Application Specific" },
+    { USB_CLASS_VENDOR_SPEC, "Vendor Specific" },
+    { USB_CLASS_STILL_IMAGE, "Still Image" },
+    { USB_CLASS_CSCID, 	"Smart Card" },
+    { USB_CLASS_CONTENT_SEC, "Content Security" },
+    { -1, NULL }
+};
+
+static const char *usb_class_str(uint8_t class)
+{
+    const struct usb_class_info *p;
+    for(p = usb_class_info; p->class != -1; p++) {
+        if (p->class == class)
             break;
-        if (isdigit(de->d_name[0])) {
-            snprintf(buf, sizeof(buf), "%s/%s", USBDEVFS_PATH, de->d_name);
-            scan_host_devices(s, buf);
-        }
     }
-    closedir(d);
+    return p->class_name;
 }
 
-/* virtual hub containing the USB devices of the host */
-USBDevice *usb_host_hub_init(void)
+void usb_info_device(int bus_num, int addr, int class_id,
+                     int vendor_id, int product_id, 
+                     const char *product_name,
+                     int speed)
 {
-    USBHostHubState *s;
-    s = qemu_mallocz(sizeof(USBHostHubState));
-    if (!s)
-        return NULL;
-    s->hub_dev = usb_hub_init(s->hub_ports, MAX_DEVICES);
-    if (!s->hub_dev) {
-        free(s);
-        return NULL;
+    const char *class_str, *speed_str;
+
+    switch(speed) {
+    case USB_SPEED_LOW: 
+        speed_str = "1.5"; 
+        break;
+    case USB_SPEED_FULL: 
+        speed_str = "12"; 
+        break;
+    case USB_SPEED_HIGH: 
+        speed_str = "480"; 
+        break;
+    default:
+        speed_str = "?"; 
+        break;
     }
-    scan_host_buses(s);
-    return s->hub_dev;
+
+    term_printf("  Device %d.%d, speed %s Mb/s\n", 
+                bus_num, addr, speed_str);
+    class_str = usb_class_str(class_id);
+    if (class_str) 
+        term_printf("    %s:", class_str);
+    else
+        term_printf("    Class %02x:", class_id);
+    term_printf(" USB device %04x:%04x", vendor_id, product_id);
+    if (product_name[0] != '\0')
+        term_printf(", %s", product_name);
+    term_printf("\n");
+}
+
+static int usb_host_info_device(void *opaque, int bus_num, int addr, 
+                                int class_id,
+                                int vendor_id, int product_id, 
+                                const char *product_name,
+                                int speed)
+{
+    usb_info_device(bus_num, addr, class_id, vendor_id, product_id,
+                    product_name, speed);
+    return 0;
+}
+
+void usb_host_info(void)
+{
+    usb_host_scan(NULL, usb_host_info_device);
 }
 
 #else
 
+void usb_host_info(void)
+{
+    term_printf("USB host devices not supported\n");
+}
+
 /* XXX: modify configure to compile the right host driver */
-USBDevice *usb_host_hub_init(void)
+USBDevice *usb_host_device_open(const char *devname)
 {
     return NULL;
 }

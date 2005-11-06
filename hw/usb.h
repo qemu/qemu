@@ -47,6 +47,20 @@
 //#define	USB_STATE_CONFIGURED  5
 #define USB_STATE_SUSPENDED   6
 
+#define USB_CLASS_AUDIO			1
+#define USB_CLASS_COMM			2
+#define USB_CLASS_HID			3
+#define USB_CLASS_PHYSICAL		5
+#define USB_CLASS_STILL_IMAGE		6
+#define USB_CLASS_PRINTER		7
+#define USB_CLASS_MASS_STORAGE		8
+#define USB_CLASS_HUB			9
+#define USB_CLASS_CDC_DATA		0x0a
+#define USB_CLASS_CSCID			0x0b
+#define USB_CLASS_CONTENT_SEC		0x0d
+#define USB_CLASS_APP_SPEC		0xfe
+#define USB_CLASS_VENDOR_SPEC		0xff
+
 #define USB_DIR_OUT			0
 #define USB_DIR_IN			0x80
 
@@ -125,6 +139,7 @@ struct USBDevice {
 
 /* USB port on which a device can be connected */
 struct USBPort {
+    USBDevice *dev;
     void (*attach)(USBPort *port, USBDevice *dev);
     void *opaque;
     int index; /* internal port index, may be used with the opaque */
@@ -143,7 +158,8 @@ USBDevice *usb_hub_init(USBPort **usb_ports, int nb_ports);
 void usb_uhci_init(PCIBus *bus, USBPort **usb_ports);
 
 /* usb-linux.c */
-USBDevice *usb_host_hub_init(void);
+USBDevice *usb_host_device_open(const char *devname);
+void usb_host_info(void);
 
 /* usb-hid.c */
 USBDevice *usb_mouse_init(void);
