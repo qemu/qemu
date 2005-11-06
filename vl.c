@@ -134,8 +134,6 @@ int adlib_enabled = 0;
 int gus_enabled = 0;
 int es1370_enabled = 0;
 #endif
-int pci_enabled = 1;
-int prep_enabled = 0;
 int rtc_utc = 1;
 int cirrus_vga_enabled = 1;
 #ifdef TARGET_SPARC
@@ -3087,9 +3085,6 @@ enum {
     QEMU_OPTION_hdachs,
     QEMU_OPTION_L,
     QEMU_OPTION_no_code_copy,
-    QEMU_OPTION_pci,
-    QEMU_OPTION_isa,
-    QEMU_OPTION_prep,
     QEMU_OPTION_k,
     QEMU_OPTION_localtime,
     QEMU_OPTION_cirrusvga,
@@ -3163,14 +3158,10 @@ const QEMUOption qemu_options[] = {
 #ifdef USE_KQEMU
     { "no-kqemu", 0, QEMU_OPTION_no_kqemu },
 #endif
-#ifdef TARGET_PPC
-    { "prep", 0, QEMU_OPTION_prep },
-#endif
 #if defined(TARGET_PPC) || defined(TARGET_SPARC)
     { "g", 1, QEMU_OPTION_g },
 #endif
     { "localtime", 0, QEMU_OPTION_localtime },
-    { "isa", 0, QEMU_OPTION_isa },
     { "std-vga", 0, QEMU_OPTION_std_vga },
     { "monitor", 1, QEMU_OPTION_monitor },
     { "serial", 1, QEMU_OPTION_serial },
@@ -3183,7 +3174,6 @@ const QEMUOption qemu_options[] = {
     
     /* temporary options */
     { "usb", 0, QEMU_OPTION_usb },
-    { "pci", 0, QEMU_OPTION_pci },
     { "cirrusvga", 0, QEMU_OPTION_cirrusvga },
     { NULL },
 };
@@ -3239,6 +3229,7 @@ void register_machines(void)
 {
 #if defined(TARGET_I386)
     qemu_register_machine(&pc_machine);
+    qemu_register_machine(&isapc_machine);
 #elif defined(TARGET_PPC)
     qemu_register_machine(&heathrow_machine);
     qemu_register_machine(&core99_machine);
@@ -3675,15 +3666,6 @@ int main(int argc, char **argv)
                 break;
             case QEMU_OPTION_S:
                 start_emulation = 0;
-                break;
-            case QEMU_OPTION_pci:
-                pci_enabled = 1;
-                break;
-            case QEMU_OPTION_isa:
-                pci_enabled = 0;
-                break;
-            case QEMU_OPTION_prep:
-                prep_enabled = 1;
                 break;
 	    case QEMU_OPTION_k:
 		keyboard_layout = optarg;

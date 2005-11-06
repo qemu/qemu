@@ -410,7 +410,8 @@ static int parallel_irq[MAX_PARALLEL_PORTS] = { 7, 7, 7 };
 static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
                      DisplayState *ds, const char **fd_filename, int snapshot,
                      const char *kernel_filename, const char *kernel_cmdline,
-                     const char *initrd_filename)
+                     const char *initrd_filename,
+                     int pci_enabled)
 {
     char buf[1024];
     int ret, linux_boot, initrd_size, i, nb_nics1;
@@ -637,8 +638,40 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
     }
 }
 
+static void pc_init_pci(int ram_size, int vga_ram_size, int boot_device,
+                        DisplayState *ds, const char **fd_filename, 
+                        int snapshot, 
+                        const char *kernel_filename, 
+                        const char *kernel_cmdline,
+                        const char *initrd_filename)
+{
+    pc_init1(ram_size, vga_ram_size, boot_device,
+             ds, fd_filename, snapshot,
+             kernel_filename, kernel_cmdline,
+             initrd_filename, 1);
+}
+
+static void pc_init_isa(int ram_size, int vga_ram_size, int boot_device,
+                        DisplayState *ds, const char **fd_filename, 
+                        int snapshot, 
+                        const char *kernel_filename, 
+                        const char *kernel_cmdline,
+                        const char *initrd_filename)
+{
+    pc_init1(ram_size, vga_ram_size, boot_device,
+             ds, fd_filename, snapshot,
+             kernel_filename, kernel_cmdline,
+             initrd_filename, 0);
+}
+
 QEMUMachine pc_machine = {
     "pc",
     "Standard PC",
-    pc_init1,
+    pc_init_pci,
+};
+
+QEMUMachine isapc_machine = {
+    "isapc",
+    "ISA-only PC",
+    pc_init_isa,
 };

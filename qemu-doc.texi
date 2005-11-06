@@ -138,6 +138,9 @@ usage: qemu [options] [disk_image]
 
 General options:
 @table @option
+@item -M machine
+Select the emulated machine (@code{-M ?} for list)
+
 @item -fda file
 @item -fdb file
 Use @var{file} as floppy disk 0/1 image (@xref{disk_images}). You can
@@ -390,8 +393,6 @@ translation mode (@var{t}=none, lba or auto). Usually QEMU can guess
 all thoses parameters. This option is useful for old MS-DOS disk
 images.
 
-@item -isa
-Simulate an ISA-only system (default is PCI system).
 @item -std-vga
 Simulate a standard VGA card with Bochs VBE extensions (default is
 Cirrus Logic GD5446 PCI VGA)
@@ -1136,9 +1137,6 @@ informations about QEMU usage.
 The following options are specific to the PowerPC emulation:
 
 @table @option
-
-@item -prep
-Simulate a PREP system (default is PowerMAC)
 
 @item -g WxH[xDEPTH]  
 

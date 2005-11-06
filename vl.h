@@ -488,8 +488,6 @@ void isa_unassign_ioport(int start, int length);
 
 /* PCI bus */
 
-extern int pci_enabled;
-
 extern target_phys_addr_t pci_mem_base;
 
 typedef struct PCIBus PCIBus;
@@ -729,6 +727,7 @@ int pit_get_out(PITState *pit, int channel, int64_t current_time);
 
 /* pc.c */
 extern QEMUMachine pc_machine;
+extern QEMUMachine isapc_machine;
 
 /* ppc.c */
 extern QEMUMachine prep_machine;
@@ -745,7 +744,6 @@ void PREP_debug_write (void *opaque, uint32_t addr, uint32_t val);
 
 extern CPUWriteMemoryFunc *PPC_io_write[];
 extern CPUReadMemoryFunc *PPC_io_read[];
-extern int prep_enabled;
 void PPC_debug_write (void *opaque, uint32_t addr, uint32_t val);
 
 /* sun4m.c */
