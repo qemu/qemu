@@ -187,6 +187,8 @@ void target_disas(FILE *out, target_ulong code, target_ulong size, int flags)
     print_insn = print_insn_ppc;
 #elif defined(TARGET_MIPS)
     print_insn = print_insn_big_mips;
+#elif defined(TARGET_M68K)
+    print_insn = print_insn_m68k;
 #else
     fprintf(out, "0x" TARGET_FMT_lx
 	    ": Asm output not supported on this arch\n", code);
@@ -251,6 +253,8 @@ void disas(FILE *out, void *code, unsigned long size)
     print_insn = print_insn_big_mips;
 #elif defined(__MIPSEL__)
     print_insn = print_insn_little_mips;
+#elif defined(__m68k__)
+    print_insn = print_insn_m68k;
 #else
     fprintf(out, "0x%lx: Asm output not supported on this arch\n",
 	    (long) code);
@@ -374,6 +378,8 @@ void monitor_disas(target_ulong pc, int nb_insn, int is_physical, int flags)
     print_insn = print_insn_ppc;
 #elif defined(TARGET_MIPS)
     print_insn = print_insn_big_mips;
+#elif defined(TARGET_M68K)
+    print_insn = print_insn_m68k;
 #else
     term_printf("0x" TARGET_FMT_lx
 		": Asm output not supported on this arch\n", pc);

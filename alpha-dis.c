@@ -23,9 +23,6 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include <stdio.h>
 #include "dis-asm.h"
 
-#define ATTRIBUTE_UNUSED __attribute__((unused))
-#define _(x) x
-
 /* The opcode table is an array of struct alpha_opcode.  */
 
 struct alpha_opcode

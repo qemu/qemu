@@ -2155,10 +2155,6 @@ struct mips_opcode *mips_opcodes =
 int bfd_mips_num_opcodes = MIPS_NUM_OPCODES;
 #undef MIPS_NUM_OPCODES
 
-typedef int bfd_boolean;
-#define TRUE (1)
-#define FALSE (0)
-
 /* Mips instructions are at maximum this many bytes long.  */
 #define INSNLEN 4
 

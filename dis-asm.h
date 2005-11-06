@@ -56,6 +56,17 @@ enum bfd_architecture
 #define bfd_mach_m68030 5
 #define bfd_mach_m68040 6
 #define bfd_mach_m68060 7
+#define bfd_mach_cpu32  8
+#define bfd_mach_mcf5200  9
+#define bfd_mach_mcf5206e 10
+#define bfd_mach_mcf5307  11
+#define bfd_mach_mcf5407  12
+#define bfd_mach_mcf528x  13
+#define bfd_mach_mcfv4e   14
+#define bfd_mach_mcf521x   15
+#define bfd_mach_mcf5249   16
+#define bfd_mach_mcf547x   17
+#define bfd_mach_mcf548x   18
   bfd_arch_vax,        /* DEC Vax */   
   bfd_arch_i960,       /* Intel 960 */
      /* The order of the following is important.
@@ -417,6 +428,7 @@ extern int generic_symbol_at_address
   (INFO).insn_info_valid = 0
 
 #define _(x) x
+#define ATTRIBUTE_UNUSED __attribute__((unused))
 
 /* from libbfd */
 
@@ -425,5 +437,6 @@ bfd_vma bfd_getb32 (const bfd_byte *addr);
 bfd_vma bfd_getl16 (const bfd_byte *addr);
 bfd_vma bfd_getb16 (const bfd_byte *addr);
 typedef enum bfd_boolean {false, true} boolean;
+typedef boolean bfd_boolean;
 
 #endif /* ! defined (DIS_ASM_H) */
