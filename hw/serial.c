@@ -85,6 +85,7 @@ struct SerialState {
     int thr_ipending;
     int irq;
     CharDriverState *chr;
+    int last_break_enable;
 };
 
 static void serial_update_irq(SerialState *s)
@@ -103,6 +104,32 @@ static void serial_update_irq(SerialState *s)
     }
 }
 
+static void serial_update_parameters(SerialState *s)
+{
+    int speed, parity, data_bits, stop_bits;
+
+    if (s->lcr & 0x08) {
+        if (s->lcr & 0x10)
+            parity = 'E';
+        else
+            parity = 'O';
+    } else {
+            parity = 'N';
+    }
+    if (s->lcr & 0x04) 
+        stop_bits = 2;
+    else
+        stop_bits = 1;
+    data_bits = (s->lcr & 0x03) + 5;
+    if (s->divider == 0)
+        return;
+    speed = 115200 / s->divider;
+#if 0    
+    printf("speed=%d parity=%c data=%d stop=%d\n", 
+           speed, parity, data_bits, stop_bits);
+#endif
+}
+
 static void serial_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
     SerialState *s = opaque;
@@ -117,6 +144,7 @@ static void serial_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     case 0:
         if (s->lcr & UART_LCR_DLAB) {
             s->divider = (s->divider & 0xff00) | val;
+            serial_update_parameters(s);
         } else {
             s->thr_ipending = 0;
             s->lsr &= ~UART_LSR_THRE;
@@ -132,6 +160,7 @@ static void serial_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     case 1:
         if (s->lcr & UART_LCR_DLAB) {
             s->divider = (s->divider & 0x00ff) | (val << 8);
+            serial_update_parameters(s);
         } else {
             s->ier = val & 0x0f;
             if (s->lsr & UART_LSR_THRE) {
@@ -143,7 +172,16 @@ static void serial_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     case 2:
         break;
     case 3:
-        s->lcr = val;
+        {
+            int break_enable;
+            s->lcr = val;
+            serial_update_parameters(s);
+            break_enable = (val >> 6) & 1;
+            if (break_enable != s->last_break_enable) {
+                s->last_break_enable = break_enable;
+                qemu_chr_set_serial_break(s, break_enable);
+            }
+        }
         break;
     case 4:
         s->mcr = val & 0x1f;

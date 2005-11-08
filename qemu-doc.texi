@@ -363,8 +363,15 @@ Virtual console
 [Linux only] Pseudo TTY (a new PTY is automatically allocated)
 @item null
 void device
+@item /dev/XXX
+[Linux only]Use host tty, e.g. @file{/dev/ttyS0}. The host serial port
+parameters are set according to the emulated ones.
+@item file:filename
+Write output to filename. No character can be read.
 @item stdio
 [Unix only] standard input/output
+@item pipe:filename
+[Unix only] name pipe @var{filename}
 @end table
 The default device is @code{vc} in graphical mode and @code{stdio} in
 non graphical mode.

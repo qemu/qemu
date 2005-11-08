@@ -1013,6 +1013,21 @@ int qemu_chr_write(CharDriverState *s, const uint8_t *buf, int len)
     return s->chr_write(s, buf, len);
 }
 
+void qemu_chr_set_serial_parameters(CharDriverState *s,
+                                    int speed, int parity,
+                                    int data_bits, int stop_bits)
+{
+    if (s->chr_set_serial_parameters)
+        s->chr_set_serial_parameters(s, speed, parity, data_bits, stop_bits);
+}
+
+void qemu_chr_set_serial_break(CharDriverState *s, int enable)
+{
+    if (s->chr_set_serial_break)
+        s->chr_set_serial_break(s, enable);
+}
+
+
 void qemu_chr_printf(CharDriverState *s, const char *fmt, ...)
 {
     char buf[4096];
@@ -1111,12 +1126,14 @@ static void fd_chr_add_read_handler(CharDriverState *chr,
 {
     FDCharDriver *s = chr->opaque;
 
-    if (nographic && s->fd_in == 0) {
-        s->fd_can_read = fd_can_read;
-        s->fd_read = fd_read;
-        s->fd_opaque = opaque;
-    } else {
-        qemu_add_fd_read_handler(s->fd_in, fd_can_read, fd_read, opaque);
+    if (s->fd_in >= 0) {
+        if (nographic && s->fd_in == 0) {
+            s->fd_can_read = fd_can_read;
+            s->fd_read = fd_read;
+            s->fd_opaque = opaque;
+        } else {
+            qemu_add_fd_read_handler(s->fd_in, fd_can_read, fd_read, opaque);
+        }
     }
 }
 
@@ -1141,6 +1158,27 @@ CharDriverState *qemu_chr_open_fd(int fd_in, int fd_out)
     chr->chr_add_read_handler = fd_chr_add_read_handler;
     return chr;
 }
+
+CharDriverState *qemu_chr_open_file_out(const char *file_out)
+{
+    int fd_out;
+
+    fd_out = open(file_out, O_WRONLY | O_TRUNC | O_CREAT | O_BINARY);
+    if (fd_out < 0)
+        return NULL;
+    return qemu_chr_open_fd(-1, fd_out);
+}
+
+CharDriverState *qemu_chr_open_pipe(const char *filename)
+{
+    int fd;
+
+    fd = open(filename, O_RDWR | O_BINARY);
+    if (fd < 0)
+        return NULL;
+    return qemu_chr_open_fd(fd, fd);
+}
+
 
 /* for STDIO, we handle the case where several clients use it
    (nographic mode) */
@@ -1334,6 +1372,127 @@ CharDriverState *qemu_chr_open_pty(void)
     fprintf(stderr, "char device redirected to %s\n", slave_name);
     return qemu_chr_open_fd(master_fd, master_fd);
 }
+
+static void tty_serial_init(int fd, int speed, 
+                            int parity, int data_bits, int stop_bits)
+{
+    struct termios tty;
+    speed_t spd;
+
+    tcgetattr (0, &tty);
+
+    switch(speed) {
+    case 50:
+        spd = B50;
+        break;
+    case 75:
+        spd = B75;
+        break;
+    case 300:
+        spd = B300;
+        break;
+    case 600:
+        spd = B600;
+        break;
+    case 1200:
+        spd = B1200;
+        break;
+    case 2400:
+        spd = B2400;
+        break;
+    case 4800:
+        spd = B4800;
+        break;
+    case 9600:
+        spd = B9600;
+        break;
+    case 19200:
+        spd = B19200;
+        break;
+    case 38400:
+        spd = B38400;
+        break;
+    case 57600:
+        spd = B57600;
+        break;
+    default:
+    case 115200:
+        spd = B115200;
+        break;
+    }
+
+    cfsetispeed(&tty, spd);
+    cfsetospeed(&tty, spd);
+
+    tty.c_iflag &= ~(IGNBRK|BRKINT|PARMRK|ISTRIP
+                          |INLCR|IGNCR|ICRNL|IXON);
+    tty.c_oflag |= OPOST;
+    tty.c_lflag &= ~(ECHO|ECHONL|ICANON|IEXTEN|ISIG);
+    tty.c_cflag &= ~(CSIZE|PARENB|PARODD|CRTSCTS);
+    switch(data_bits) {
+    default:
+    case 8:
+        tty.c_cflag |= CS8;
+        break;
+    case 7:
+        tty.c_cflag |= CS7;
+        break;
+    case 6:
+        tty.c_cflag |= CS6;
+        break;
+    case 5:
+        tty.c_cflag |= CS5;
+        break;
+    }
+    switch(parity) {
+    default:
+    case 'N':
+        break;
+    case 'E':
+        tty.c_cflag |= PARENB;
+        break;
+    case 'O':
+        tty.c_cflag |= PARENB | PARODD;
+        break;
+    }
+    
+    tcsetattr (fd, TCSANOW, &tty);
+}
+
+static void tty_set_serial_parameters(CharDriverState *chr,
+                                      int speed, int parity,
+                                      int data_bits, int stop_bits)
+{
+    FDCharDriver *s = chr->opaque;
+    tty_serial_init(s->fd_in, speed, parity, data_bits, stop_bits);
+}
+
+static void tty_set_serial_break(CharDriverState *chr, int enable)
+{
+    FDCharDriver *s = chr->opaque;
+    /* XXX: find a better solution */
+    if (enable)
+        tcsendbreak(s->fd_in, 1);
+}
+
+CharDriverState *qemu_chr_open_tty(const char *filename)
+{
+    CharDriverState *chr;
+    int fd;
+
+    fd = open(filename, O_RDWR);
+    if (fd < 0)
+        return NULL;
+    fcntl(fd, F_SETFL, O_NONBLOCK);
+    tty_serial_init(fd, 115200, 'N', 8, 1);
+    chr = qemu_chr_open_fd(fd, fd);
+    if (!chr)
+        return NULL;
+    chr->chr_set_serial_parameters = tty_set_serial_parameters;
+    chr->chr_set_serial_break = tty_set_serial_break;
+    return chr;
+}
+
 #else
 CharDriverState *qemu_chr_open_pty(void)
 {
@@ -1345,16 +1504,26 @@ CharDriverState *qemu_chr_open_pty(void)
 
 CharDriverState *qemu_chr_open(const char *filename)
 {
+    const char *p;
     if (!strcmp(filename, "vc")) {
         return text_console_init(&display_state);
     } else if (!strcmp(filename, "null")) {
         return qemu_chr_open_null();
+    } else if (strstart(filename, "file:", &p)) {
+        return qemu_chr_open_file_out(p);
+    } else if (strstart(filename, "pipe:", &p)) {
+        return qemu_chr_open_pipe(p);
     } else 
 #ifndef _WIN32
     if (!strcmp(filename, "pty")) {
         return qemu_chr_open_pty();
     } else if (!strcmp(filename, "stdio")) {
         return qemu_chr_open_stdio();
+    } else 
+#endif
+#if defined(__linux__)
+    if (strstart(filename, "/dev/", NULL)) {
+        return qemu_chr_open_tty(filename);
     } else 
 #endif
     {
@@ -3010,7 +3179,6 @@ void help(void)
            "-no-code-copy   disable code copy acceleration\n"
 #endif
 #ifdef TARGET_I386
-           "-isa            simulate an ISA-only system (default is PCI system)\n"
            "-std-vga        simulate a standard VGA card with VESA Bochs Extensions\n"
            "                (default is CL-GD5446 PCI VGA)\n"
 #endif

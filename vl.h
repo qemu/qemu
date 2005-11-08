@@ -207,6 +207,10 @@ typedef struct CharDriverState {
     void (*chr_add_read_handler)(struct CharDriverState *s, 
                                  IOCanRWHandler *fd_can_read, 
                                  IOReadHandler *fd_read, void *opaque);
+    void (*chr_set_serial_parameters)(struct CharDriverState *s,
+                                      int speed, int parity,
+                                      int data_bits, int stop_bits);
+    void (*chr_set_serial_break)(struct CharDriverState *s, int enable);
     IOEventHandler *chr_event;
     void (*chr_send_event)(struct CharDriverState *chr, int event);
     void *opaque;
@@ -219,7 +223,11 @@ void qemu_chr_add_read_handler(CharDriverState *s,
                                IOCanRWHandler *fd_can_read, 
                                IOReadHandler *fd_read, void *opaque);
 void qemu_chr_add_event_handler(CharDriverState *s, IOEventHandler *chr_event);
-                               
+void qemu_chr_set_serial_parameters(CharDriverState *s,
+                                    int speed, int parity,
+                                    int data_bits, int stop_bits);
+void qemu_chr_set_serial_break(CharDriverState *s, int enable);
+
 /* consoles */
 
 typedef struct DisplayState DisplayState;
