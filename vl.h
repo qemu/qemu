@@ -200,6 +200,24 @@ void qemu_del_fd_read_handler(int fd);
 #define CHR_EVENT_BREAK 0 /* serial break char */
 #define CHR_EVENT_FOCUS 1 /* focus to this terminal (modal input needed) */
 
+
+
+#define CHR_IOCTL_SERIAL_SET_PARAMS   1
+typedef struct {
+    int speed;
+    int parity;
+    int data_bits;
+    int stop_bits;
+} QEMUSerialSetParams;
+
+#define CHR_IOCTL_SERIAL_SET_BREAK    2
+
+#define CHR_IOCTL_PP_READ_DATA        3
+#define CHR_IOCTL_PP_WRITE_DATA       4
+#define CHR_IOCTL_PP_READ_CONTROL     5
+#define CHR_IOCTL_PP_WRITE_CONTROL    6
+#define CHR_IOCTL_PP_READ_STATUS      7
+
 typedef void IOEventHandler(void *opaque, int event);
 
 typedef struct CharDriverState {
@@ -207,10 +225,7 @@ typedef struct CharDriverState {
     void (*chr_add_read_handler)(struct CharDriverState *s, 
                                  IOCanRWHandler *fd_can_read, 
                                  IOReadHandler *fd_read, void *opaque);
-    void (*chr_set_serial_parameters)(struct CharDriverState *s,
-                                      int speed, int parity,
-                                      int data_bits, int stop_bits);
-    void (*chr_set_serial_break)(struct CharDriverState *s, int enable);
+    int (*chr_ioctl)(struct CharDriverState *s, int cmd, void *arg);
     IOEventHandler *chr_event;
     void (*chr_send_event)(struct CharDriverState *chr, int event);
     void *opaque;
@@ -223,10 +238,7 @@ void qemu_chr_add_read_handler(CharDriverState *s,
                                IOCanRWHandler *fd_can_read, 
                                IOReadHandler *fd_read, void *opaque);
 void qemu_chr_add_event_handler(CharDriverState *s, IOEventHandler *chr_event);
-void qemu_chr_set_serial_parameters(CharDriverState *s,
-                                    int speed, int parity,
-                                    int data_bits, int stop_bits);
-void qemu_chr_set_serial_break(CharDriverState *s, int enable);
+int qemu_chr_ioctl(CharDriverState *s, int cmd, void *arg);
 
 /* consoles */
 

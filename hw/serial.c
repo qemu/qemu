@@ -107,6 +107,7 @@ static void serial_update_irq(SerialState *s)
 static void serial_update_parameters(SerialState *s)
 {
     int speed, parity, data_bits, stop_bits;
+    QEMUSerialSetParams ssp;
 
     if (s->lcr & 0x08) {
         if (s->lcr & 0x10)
@@ -124,7 +125,12 @@ static void serial_update_parameters(SerialState *s)
     if (s->divider == 0)
         return;
     speed = 115200 / s->divider;
-#if 0    
+    ssp.speed = speed;
+    ssp.parity = parity;
+    ssp.data_bits = data_bits;
+    ssp.stop_bits = stop_bits;
+    qemu_chr_ioctl(s->chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
+#if 0
     printf("speed=%d parity=%c data=%d stop=%d\n", 
            speed, parity, data_bits, stop_bits);
 #endif
@@ -179,7 +185,8 @@ static void serial_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             break_enable = (val >> 6) & 1;
             if (break_enable != s->last_break_enable) {
                 s->last_break_enable = break_enable;
-                qemu_chr_set_serial_break(s, break_enable);
+                qemu_chr_ioctl(s->chr, CHR_IOCTL_SERIAL_SET_BREAK, 
+                               &break_enable);
             }
         }
         break;
