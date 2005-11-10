@@ -1,7 +1,7 @@
 /*
  * QEMU Parallel PORT emulation
  * 
- * Copyright (c) 2003-2004 Fabrice Bellard
+ * Copyright (c) 2003-2005 Fabrice Bellard
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -50,6 +50,7 @@ struct ParallelState {
     int irq;
     int irq_pending;
     CharDriverState *chr;
+    int hw_driver;
 };
 
 static void parallel_update_irq(ParallelState *s)
@@ -70,29 +71,39 @@ static void parallel_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 #endif
     switch(addr) {
     case 0:
-        s->data = val;
-        parallel_update_irq(s);
+        if (s->hw_driver) {
+            s->data = val;
+            qemu_chr_ioctl(s->chr, CHR_IOCTL_PP_WRITE_DATA, &s->data);
+        } else {
+            s->data = val;
+            parallel_update_irq(s);
+        }
         break;
     case 2:
-        if ((val & PARA_CTR_INIT) == 0 ) {
-            s->status = PARA_STS_BUSY;
-            s->status |= PARA_STS_ACK;
-            s->status |= PARA_STS_ONLINE;
-            s->status |= PARA_STS_ERROR;
-        }
-        else if (val & PARA_CTR_SELECT) {
-            if (val & PARA_CTR_STROBE) {
-                s->status &= ~PARA_STS_BUSY;
-                if ((s->control & PARA_CTR_STROBE) == 0)
-                    qemu_chr_write(s->chr, &s->data, 1);
-            } else {
-                if (s->control & PARA_CTR_INTEN) {
-                    s->irq_pending = 1;
+        if (s->hw_driver) {
+            s->control = val;
+            qemu_chr_ioctl(s->chr, CHR_IOCTL_PP_WRITE_CONTROL, &s->control);
+        } else {
+            if ((val & PARA_CTR_INIT) == 0 ) {
+                s->status = PARA_STS_BUSY;
+                s->status |= PARA_STS_ACK;
+                s->status |= PARA_STS_ONLINE;
+                s->status |= PARA_STS_ERROR;
+            }
+            else if (val & PARA_CTR_SELECT) {
+                if (val & PARA_CTR_STROBE) {
+                    s->status &= ~PARA_STS_BUSY;
+                    if ((s->control & PARA_CTR_STROBE) == 0)
+                        qemu_chr_write(s->chr, &s->data, 1);
+                } else {
+                    if (s->control & PARA_CTR_INTEN) {
+                        s->irq_pending = 1;
+                    }
                 }
             }
+            parallel_update_irq(s);
+            s->control = val;
         }
-        parallel_update_irq(s);
-        s->control = val;
         break;
     }
 }
@@ -105,24 +116,35 @@ static uint32_t parallel_ioport_read(void *opaque, uint32_t addr)
     addr &= 7;
     switch(addr) {
     case 0:
+        if (s->hw_driver) {
+            qemu_chr_ioctl(s->chr, CHR_IOCTL_PP_READ_DATA, &s->data);
+        } 
         ret = s->data; 
         break;
     case 1:
-        ret = s->status;
-        s->irq_pending = 0;
-        if ((s->status & PARA_STS_BUSY) == 0 && (s->control & PARA_CTR_STROBE) == 0) {
-            /* XXX Fixme: wait 5 microseconds */
-            if (s->status & PARA_STS_ACK)
-                s->status &= ~PARA_STS_ACK;
-            else {
-            /* XXX Fixme: wait 5 microseconds */
-                s->status |= PARA_STS_ACK;
-                s->status |= PARA_STS_BUSY;
+        if (s->hw_driver) {
+            qemu_chr_ioctl(s->chr, CHR_IOCTL_PP_READ_STATUS, &s->status);
+            ret = s->status; 
+        } else {
+            ret = s->status;
+            s->irq_pending = 0;
+            if ((s->status & PARA_STS_BUSY) == 0 && (s->control & PARA_CTR_STROBE) == 0) {
+                /* XXX Fixme: wait 5 microseconds */
+                if (s->status & PARA_STS_ACK)
+                    s->status &= ~PARA_STS_ACK;
+                else {
+                    /* XXX Fixme: wait 5 microseconds */
+                    s->status |= PARA_STS_ACK;
+                    s->status |= PARA_STS_BUSY;
+                }
             }
+            parallel_update_irq(s);
         }
-        parallel_update_irq(s);
         break;
     case 2:
+        if (s->hw_driver) {
+            qemu_chr_ioctl(s->chr, CHR_IOCTL_PP_READ_CONTROL, &s->control);
+        }
         ret = s->control;
         break;
     }
@@ -153,18 +175,20 @@ static void parallel_receive1(void *opaque, const uint8_t *buf, int size)
     parallel_receive_byte(s, buf[0]);
 }
 
-static void parallel_event(void *opaque, int event)
-{
-}
-
 /* If fd is zero, it means that the parallel device uses the console */
 ParallelState *parallel_init(int base, int irq, CharDriverState *chr)
 {
     ParallelState *s;
+    uint8_t dummy;
 
     s = qemu_mallocz(sizeof(ParallelState));
     if (!s)
         return NULL;
+    s->chr = chr;
+    s->hw_driver = 0;
+    if (qemu_chr_ioctl(chr, CHR_IOCTL_PP_READ_STATUS, &dummy) == 0)
+        s->hw_driver = 1;
+
     s->irq = irq;
     s->data = 0;
     s->status = PARA_STS_BUSY;
@@ -176,8 +200,6 @@ ParallelState *parallel_init(int base, int irq, CharDriverState *chr)
 
     register_ioport_write(base, 8, 1, parallel_ioport_write, s);
     register_ioport_read(base, 8, 1, parallel_ioport_read, s);
-    s->chr = chr;
     qemu_chr_add_read_handler(chr, parallel_can_receive1, parallel_receive1, s);
-    qemu_chr_add_event_handler(chr, parallel_event);
     return s;
 }

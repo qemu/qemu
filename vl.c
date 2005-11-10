@@ -51,6 +51,7 @@
 #include <pty.h>
 #include <malloc.h>
 #include <linux/rtc.h>
+#include <linux/ppdev.h>
 #endif
 #endif
 
@@ -1013,20 +1014,12 @@ int qemu_chr_write(CharDriverState *s, const uint8_t *buf, int len)
     return s->chr_write(s, buf, len);
 }
 
-void qemu_chr_set_serial_parameters(CharDriverState *s,
-                                    int speed, int parity,
-                                    int data_bits, int stop_bits)
+int qemu_chr_ioctl(CharDriverState *s, int cmd, void *arg)
 {
-    if (s->chr_set_serial_parameters)
-        s->chr_set_serial_parameters(s, speed, parity, data_bits, stop_bits);
+    if (!s->chr_ioctl)
+        return -ENOTSUP;
+    return s->chr_ioctl(s, cmd, arg);
 }
-
-void qemu_chr_set_serial_break(CharDriverState *s, int enable)
-{
-    if (s->chr_set_serial_break)
-        s->chr_set_serial_break(s, enable);
-}
-
 
 void qemu_chr_printf(CharDriverState *s, const char *fmt, ...)
 {
@@ -1379,7 +1372,11 @@ static void tty_serial_init(int fd, int speed,
     struct termios tty;
     speed_t spd;
 
-    tcgetattr (0, &tty);
+#if 0
+    printf("tty_serial_init: speed=%d parity=%c data=%d stop=%d\n", 
+           speed, parity, data_bits, stop_bits);
+#endif
+    tcgetattr (fd, &tty);
 
     switch(speed) {
     case 50:
@@ -1459,20 +1456,29 @@ static void tty_serial_init(int fd, int speed,
     tcsetattr (fd, TCSANOW, &tty);
 }
 
-static void tty_set_serial_parameters(CharDriverState *chr,
-                                      int speed, int parity,
-                                      int data_bits, int stop_bits)
+static int tty_serial_ioctl(CharDriverState *chr, int cmd, void *arg)
 {
     FDCharDriver *s = chr->opaque;
-    tty_serial_init(s->fd_in, speed, parity, data_bits, stop_bits);
-}
-
-static void tty_set_serial_break(CharDriverState *chr, int enable)
-{
-    FDCharDriver *s = chr->opaque;
-    /* XXX: find a better solution */
-    if (enable)
-        tcsendbreak(s->fd_in, 1);
+    
+    switch(cmd) {
+    case CHR_IOCTL_SERIAL_SET_PARAMS:
+        {
+            QEMUSerialSetParams *ssp = arg;
+            tty_serial_init(s->fd_in, ssp->speed, ssp->parity, 
+                            ssp->data_bits, ssp->stop_bits);
+        }
+        break;
+    case CHR_IOCTL_SERIAL_SET_BREAK:
+        {
+            int enable = *(int *)arg;
+            if (enable)
+                tcsendbreak(s->fd_in, 1);
+        }
+        break;
+    default:
+        return -ENOTSUP;
+    }
+    return 0;
 }
 
 CharDriverState *qemu_chr_open_tty(const char *filename)
@@ -1480,7 +1486,7 @@ CharDriverState *qemu_chr_open_tty(const char *filename)
     CharDriverState *chr;
     int fd;
 
-    fd = open(filename, O_RDWR);
+    fd = open(filename, O_RDWR | O_NONBLOCK);
     if (fd < 0)
         return NULL;
     fcntl(fd, F_SETFL, O_NONBLOCK);
@@ -1488,8 +1494,70 @@ CharDriverState *qemu_chr_open_tty(const char *filename)
     chr = qemu_chr_open_fd(fd, fd);
     if (!chr)
         return NULL;
-    chr->chr_set_serial_parameters = tty_set_serial_parameters;
-    chr->chr_set_serial_break = tty_set_serial_break;
+    chr->chr_ioctl = tty_serial_ioctl;
+    return chr;
+}
+
+static int pp_ioctl(CharDriverState *chr, int cmd, void *arg)
+{
+    int fd = (int)chr->opaque;
+    uint8_t b;
+
+    switch(cmd) {
+    case CHR_IOCTL_PP_READ_DATA:
+        if (ioctl(fd, PPRDATA, &b) < 0)
+            return -ENOTSUP;
+        *(uint8_t *)arg = b;
+        break;
+    case CHR_IOCTL_PP_WRITE_DATA:
+        b = *(uint8_t *)arg;
+        if (ioctl(fd, PPWDATA, &b) < 0)
+            return -ENOTSUP;
+        break;
+    case CHR_IOCTL_PP_READ_CONTROL:
+        if (ioctl(fd, PPRCONTROL, &b) < 0)
+            return -ENOTSUP;
+        *(uint8_t *)arg = b;
+        break;
+    case CHR_IOCTL_PP_WRITE_CONTROL:
+        b = *(uint8_t *)arg;
+        if (ioctl(fd, PPWCONTROL, &b) < 0)
+            return -ENOTSUP;
+        break;
+    case CHR_IOCTL_PP_READ_STATUS:
+        if (ioctl(fd, PPRSTATUS, &b) < 0)
+            return -ENOTSUP;
+        *(uint8_t *)arg = b;
+        break;
+    default:
+        return -ENOTSUP;
+    }
+    return 0;
+}
+
+CharDriverState *qemu_chr_open_pp(const char *filename)
+{
+    CharDriverState *chr;
+    int fd;
+
+    fd = open(filename, O_RDWR);
+    if (fd < 0)
+        return NULL;
+
+    if (ioctl(fd, PPCLAIM) < 0) {
+        close(fd);
+        return NULL;
+    }
+
+    chr = qemu_mallocz(sizeof(CharDriverState));
+    if (!chr) {
+        close(fd);
+        return NULL;
+    }
+    chr->opaque = (void *)fd;
+    chr->chr_write = null_chr_write;
+    chr->chr_add_read_handler = null_chr_add_read_handler;
+    chr->chr_ioctl = pp_ioctl;
     return chr;
 }
 
@@ -1522,6 +1590,9 @@ CharDriverState *qemu_chr_open(const char *filename)
     } else 
 #endif
 #if defined(__linux__)
+    if (strstart(filename, "/dev/parport", NULL)) {
+        return qemu_chr_open_pp(filename);
+    } else 
     if (strstart(filename, "/dev/", NULL)) {
         return qemu_chr_open_tty(filename);
     } else 

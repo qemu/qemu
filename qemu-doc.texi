@@ -364,8 +364,11 @@ Virtual console
 @item null
 void device
 @item /dev/XXX
-[Linux only]Use host tty, e.g. @file{/dev/ttyS0}. The host serial port
+[Linux only] Use host tty, e.g. @file{/dev/ttyS0}. The host serial port
 parameters are set according to the emulated ones.
+@item /dev/parportN
+[Linux only, parallel port only] Use host parallel port
+@var{N}. Currently only SPP parallel port features can be used.
 @item file:filename
 Write output to filename. No character can be read.
 @item stdio
@@ -377,6 +380,15 @@ The default device is @code{vc} in graphical mode and @code{stdio} in
 non graphical mode.
 
 This option can be used several times to simulate up to 4 serials
+ports.
+
+@item -parallel dev
+Redirect the virtual parallel port to host device @var{dev} (same
+devices as the serial port). On Linux hosts, @file{/dev/parportN} can
+be used to use hardware devices connected on the corresponding host
+parallel port.
+
+This option can be used several times to simulate up to 3 parallel
 ports.
 
 @item -monitor dev

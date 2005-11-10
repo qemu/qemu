@@ -8,6 +8,7 @@ version 0.7.3:
   - ES1370 PCI audio device (malc)
   - Initial USB support
   - Linux host serial port access
+  - Linux host low level parallel port access
 
 version 0.7.2:
   
