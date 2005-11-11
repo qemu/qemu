@@ -216,7 +216,7 @@ static inline int audio_need_to_swap_endian (int endianness)
 #if defined __GNUC__
 #define GCC_ATTR __attribute__ ((__unused__, __format__ (__printf__, 1, 2)))
 #define INIT_FIELD(f) . f
-#define GCC_FMT_ATTR(n, m) __attribute__ ((__format__ (printf, n, m)))
+#define GCC_FMT_ATTR(n, m) __attribute__ ((__format__ (__printf__, n, m)))
 #else
 #define GCC_ATTR /**/
 #define INIT_FIELD(f) /**/

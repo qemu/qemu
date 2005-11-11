@@ -570,36 +570,39 @@ static int alsa_run_out (HWVoiceOut *hw)
 
         hw->clip (dst, src, convert_samples);
 
-    again:
-        written = snd_pcm_writei (alsa->handle, dst, convert_samples);
+        while (convert_samples) {
+            written = snd_pcm_writei (alsa->handle, dst, convert_samples);
 
-        if (written < 0) {
-            switch (written) {
-            case -EPIPE:
-                if (!alsa_recover (alsa->handle)) {
-                    goto again;
+            if (written < 0) {
+                switch (written) {
+                case -EPIPE:
+                    if (!alsa_recover (alsa->handle)) {
+                        continue;
+                    }
+                    dolog ("Failed to write %d frames to %p, "
+                           "handle %p not prepared\n",
+                           convert_samples,
+                           dst,
+                           alsa->handle);
+                    goto exit;
+
+                case -EAGAIN:
+                    continue;
+
+                default:
+                    alsa_logerr (written, "Failed to write %d frames to %p\n",
+                                 convert_samples, dst);
+                    goto exit;
                 }
-                dolog (
-                    "Failed to write %d frames to %p, handle %p not prepared\n",
-                    convert_samples,
-                    dst,
-                    alsa->handle
-                    );
-                goto exit;
-
-            case -EAGAIN:
-                goto again;
-
-            default:
-                alsa_logerr (written, "Failed to write %d frames to %p\n",
-                             convert_samples, dst);
-                goto exit;
             }
-        }
 
-        mixeng_clear (src, written);
-        rpos = (rpos + written) % hw->samples;
-        samples -= written;
+            mixeng_clear (src, written);
+            rpos = (rpos + written) % hw->samples;
+            samples -= written;
+            convert_samples -= written;
+            dst = advance (dst, written << hw->info.shift);
+            src += written;
+        }
     }
 
  exit:
@@ -661,8 +664,8 @@ static int alsa_init_out (HWVoiceOut *hw, audsettings_t *as)
 
     alsa->pcm_buf = audio_calloc (AUDIO_FUNC, obt.samples, 1 << hw->info.shift);
     if (!alsa->pcm_buf) {
-        dolog ("Could not allocate DAC buffer (%d bytes)\n",
-               hw->samples << hw->info.shift);
+        dolog ("Could not allocate DAC buffer (%d samples, each %d bytes)\n",
+               hw->samples, 1 << hw->info.shift);
         alsa_anal_close (&handle);
         return -1;
     }
@@ -751,8 +754,8 @@ static int alsa_init_in (HWVoiceIn *hw, audsettings_t *as)
 
     alsa->pcm_buf = audio_calloc (AUDIO_FUNC, hw->samples, 1 << hw->info.shift);
     if (!alsa->pcm_buf) {
-        dolog ("Could not allocate ADC buffer (%d bytes)\n",
-               hw->samples << hw->info.shift);
+        dolog ("Could not allocate ADC buffer (%d samples, each %d bytes)\n",
+               hw->samples, 1 << hw->info.shift);
         alsa_anal_close (&handle);
         return -1;
     }
