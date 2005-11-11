@@ -70,6 +70,7 @@ static struct {
         int64_t ticks;
     } period;
     int plive;
+    int log_to_monitor;
 } conf = {
     {                           /* DAC fixed settings */
         1,                      /* enabled */
@@ -94,7 +95,8 @@ static struct {
     },
 
     { 0 },                      /* period */
-    0                           /* plive */
+    0,                          /* plive */
+    0
 };
 
 static AudioState glob_audio_state;
@@ -176,7 +178,7 @@ void *audio_calloc (const char *funcname, int nmemb, size_t size)
     if (audio_bug ("audio_calloc", cond)) {
         AUD_log (NULL, "%s passed invalid arguments to audio_calloc\n",
                  funcname);
-        AUD_log (NULL, "nmemb=%d size=%d (len=%d)\n", nmemb, size, len);
+        AUD_log (NULL, "nmemb=%d size=%zu (len=%zu)\n", nmemb, size, len);
         return NULL;
     }
 
@@ -300,23 +302,31 @@ static const char *audio_get_conf_str (const char *key,
     }
 }
 
+void AUD_vlog (const char *cap, const char *fmt, va_list ap)
+{
+    if (conf.log_to_monitor) {
+        if (cap) {
+            term_printf ("%s: ", cap);
+        }
+
+        term_vprintf (fmt, ap);
+    }
+    else {
+        if (cap) {
+            fprintf (stderr, "%s: ", cap);
+        }
+
+        vfprintf (stderr, fmt, ap);
+    }
+}
+
 void AUD_log (const char *cap, const char *fmt, ...)
 {
     va_list ap;
-    if (cap) {
-        fprintf (stderr, "%s: ", cap);
-    }
-    va_start (ap, fmt);
-    vfprintf (stderr, fmt, ap);
-    va_end (ap);
-}
 
-void AUD_vlog (const char *cap, const char *fmt, va_list ap)
-{
-    if (cap) {
-        fprintf (stderr, "%s: ", cap);
-    }
-    vfprintf (stderr, fmt, ap);
+    va_start (ap, fmt);
+    AUD_vlog (cap, fmt, ap);
+    va_end (ap);
 }
 
 static void audio_print_options (const char *prefix,
@@ -625,8 +635,8 @@ static int audio_pcm_hw_alloc_resources_in (HWVoiceIn *hw)
 {
     hw->conv_buf = audio_calloc (AUDIO_FUNC, hw->samples, sizeof (st_sample_t));
     if (!hw->conv_buf) {
-        dolog ("Could not allocate ADC conversion buffer (%d bytes)\n",
-               hw->samples * sizeof (st_sample_t));
+        dolog ("Could not allocate ADC conversion buffer (%d samples)\n",
+               hw->samples);
         return -1;
     }
     return 0;
@@ -677,8 +687,8 @@ static int audio_pcm_sw_alloc_resources_in (SWVoiceIn *sw)
     int samples = ((int64_t) sw->hw->samples << 32) / sw->ratio;
     sw->conv_buf = audio_calloc (AUDIO_FUNC, samples, sizeof (st_sample_t));
     if (!sw->conv_buf) {
-        dolog ("Could not allocate buffer for `%s' (%d bytes)\n",
-               SW_NAME (sw), samples * sizeof (st_sample_t));
+        dolog ("Could not allocate buffer for `%s' (%d samples)\n",
+               SW_NAME (sw), samples);
         return -1;
     }
 
@@ -805,8 +815,8 @@ static int audio_pcm_hw_alloc_resources_out (HWVoiceOut *hw)
 {
     hw->mix_buf = audio_calloc (AUDIO_FUNC, hw->samples, sizeof (st_sample_t));
     if (!hw->mix_buf) {
-        dolog ("Could not allocate DAC mixing buffer (%d bytes)\n",
-               hw->samples * sizeof (st_sample_t));
+        dolog ("Could not allocate DAC mixing buffer (%d samples)\n",
+               hw->samples);
         return -1;
     }
 
@@ -884,8 +894,8 @@ static int audio_pcm_sw_alloc_resources_out (SWVoiceOut *sw)
 {
     sw->buf = audio_calloc (AUDIO_FUNC, sw->hw->samples, sizeof (st_sample_t));
     if (!sw->buf) {
-        dolog ("Could not allocate buffer for `%s' (%d bytes)\n",
-               SW_NAME (sw), sw->hw->samples * sizeof (st_sample_t));
+        dolog ("Could not allocate buffer for `%s' (%d samples)\n",
+               SW_NAME (sw), sw->hw->samples);
         return -1;
     }
 
@@ -1346,6 +1356,10 @@ static struct audio_option audio_options[] = {
     {"PLIVE", AUD_OPT_BOOL, &conf.plive,
      "(undocumented)", NULL, 0},
 
+
+    {"LOG_TO_MONITOR", AUD_OPT_BOOL, &conf.log_to_monitor,
+     "print logging messages to montior instead of stderr", NULL, 0},
+
     {NULL, 0, NULL, NULL, NULL, 0}
 };
 
@@ -1513,31 +1527,19 @@ static int audio_driver_init (AudioState *s, struct audio_driver *drv)
     }
 }
 
-static void audio_vm_stop_handler (void *opaque, int reason)
+static void audio_vm_change_state_handler (void *opaque, int running)
 {
     AudioState *s = opaque;
     HWVoiceOut *hwo = NULL;
     HWVoiceIn *hwi = NULL;
-    int op = reason ? VOICE_ENABLE : VOICE_DISABLE;
+    int op = running ? VOICE_ENABLE : VOICE_DISABLE;
 
-    while ((hwo = audio_pcm_hw_find_any_out (s, hwo))) {
-        if (!hwo->pcm_ops) {
-            continue;
-        }
-
-        if (hwo->enabled != reason) {
-            hwo->pcm_ops->ctl_out (hwo, op);
-        }
+    while ((hwo = audio_pcm_hw_find_any_enabled_out (s, hwo))) {
+        hwo->pcm_ops->ctl_out (hwo, op);
     }
 
-    while ((hwi = audio_pcm_hw_find_any_in (s, hwi))) {
-        if (!hwi->pcm_ops) {
-            continue;
-        }
-
-        if (hwi->enabled != reason) {
-            hwi->pcm_ops->ctl_in (hwi, op);
-        }
+    while ((hwi = audio_pcm_hw_find_any_enabled_in (s, hwi))) {
+        hwi->pcm_ops->ctl_in (hwi, op);
     }
 }
 
@@ -1690,7 +1692,7 @@ AudioState *AUD_init (void)
             conf.period.ticks = ticks_per_sec / conf.period.hz;
         }
 
-        qemu_add_vm_stop_handler (audio_vm_stop_handler, NULL);
+        qemu_add_vm_change_state_handler (audio_vm_change_state_handler, s);
     }
     else {
         qemu_del_timer (s->ts);
