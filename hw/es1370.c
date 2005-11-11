@@ -249,7 +249,7 @@ static void print_sctl (uint32_t val)
 #endif
 
 #ifndef SILENT_ES1370
-#define lwarn(...) AUD_log ("es1370: warning:", __VA_ARGS__)
+#define lwarn(...) AUD_log ("es1370: warning", __VA_ARGS__)
 #else
 #define lwarn(...)
 #endif
@@ -590,6 +590,13 @@ IO_WRITE_PROTO (es1370_writel)
         ldebug ("chan %d frame address %#x\n", d - &s->chan[0], val);
         break;
 
+    case ES1370_REG_PHANTOM_FRAMECNT:
+        lwarn ("writing to phantom frame count %#x\n", val);
+        break;
+    case ES1370_REG_PHANTOM_FRAMEADR:
+        lwarn ("writing to phantom frame address %#x\n", val);
+        break;
+
     case ES1370_REG_ADC_FRAMECNT:
         d++;
     case ES1370_REG_DAC2_FRAMECNT:
@@ -657,6 +664,22 @@ IO_READ_PROTO (es1370_readw)
         d++;
     case ES1370_REG_DAC1_SCOUNT + 2:
         val = d->scount >> 16;
+        break;
+
+    case ES1370_REG_ADC_FRAMECNT:
+        d++;
+    case ES1370_REG_DAC2_FRAMECNT:
+        d++;
+    case ES1370_REG_DAC1_FRAMECNT:
+        val = d->frame_cnt & 0xffff;
+        break;
+
+    case ES1370_REG_ADC_FRAMECNT + 2:
+        d++;
+    case ES1370_REG_DAC2_FRAMECNT + 2:
+        d++;
+    case ES1370_REG_DAC1_FRAMECNT + 2:
+        val = d->frame_cnt >> 16;
         break;
 
     default:
@@ -736,6 +759,15 @@ IO_READ_PROTO (es1370_readl)
         val = d->frame_addr;
         break;
 
+    case ES1370_REG_PHANTOM_FRAMECNT:
+        val = ~0U;
+        lwarn ("reading from phantom frame count\n");
+        break;
+    case ES1370_REG_PHANTOM_FRAMEADR:
+        val = ~0U;
+        lwarn ("reading from phantom frame address\n");
+        break;
+
     default:
         val = ~0U;
         lwarn ("readl %#x -> %#x\n", addr, val);
@@ -812,7 +844,7 @@ static void es1370_transfer_audio (ES1370State *s, struct chan *d, int loop_sel,
     if (s->sctl & loop_sel) {
         /* Bah, how stupid is that having a 0 represent true value?
            i just spent few hours on this shit */
-        lwarn ("whoops non looping mode\n");
+        AUD_log ("es1370: warning", "non looping mode\n");
     }
     else {
         d->frame_cnt = size;
@@ -983,7 +1015,7 @@ int es1370_init (PCIBus *bus, AudioState *audio)
                                                 -1, NULL, NULL);
 
     if (!d) {
-        fprintf (stderr, "Failed to register PCI device for ES1370\n");
+        AUD_log (NULL, "Failed to register PCI device for ES1370\n");
         return -1;
     }
 
