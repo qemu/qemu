@@ -375,7 +375,8 @@ static int coreaudio_init_out (HWVoiceOut *hw, audsettings_t *as)
         propertySize,
         &core->outputStreamBasicDescription);
     if (status != kAudioHardwareNoError) {
-        coreaudio_logerr2 (status, typ, "Could not set samplerate %d\n", freq);
+        coreaudio_logerr2 (status, typ, "Could not set samplerate %d\n",
+                           as->freq);
         core->outputDeviceID = kAudioDeviceUnknown;
         return -1;
     }
