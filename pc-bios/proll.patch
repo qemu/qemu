@@ -1,6 +1,6 @@
-diff -ruN proll_18.orig/Makefile proll-patch10/Makefile
+diff -ruN proll_18.orig/Makefile proll-patch-15/Makefile
 --- proll_18.orig/Makefile	2002-09-13 14:16:59.000000000 +0000
-+++ proll-patch10/Makefile	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch-15/Makefile	2005-11-09 18:14:51.000000000 +0000
 @@ -4,6 +4,7 @@
  	make -C krups-ser    all
  	make -C espresso     all
@@ -14,14 +14,14 @@ diff -ruN proll_18.orig/Makefile proll-patch10/Makefile
  	make -C espresso     clean
  	make -C espresso-ser clean
 +	make -C qemu clean
-diff -ruN proll_18.orig/qemu/Makefile proll-patch10/qemu/Makefile
+diff -ruN proll_18.orig/qemu/Makefile proll-patch-15/qemu/Makefile
 --- proll_18.orig/qemu/Makefile	1970-01-01 00:00:00.000000000 +0000
-+++ proll-patch10/qemu/Makefile	2005-04-12 14:42:23.000000000 +0000
++++ proll-patch-15/qemu/Makefile	2005-08-14 10:25:06.000000000 +0000
 @@ -0,0 +1,123 @@
 +#
 +# proll:
 +# qemu/Makefile - make PROLL for QEMU
-+# $Id: proll.patch,v 1.5 2005-04-26 21:02:48 bellard Exp $
++# $Id: proll.patch,v 1.6 2005-11-11 00:24:57 bellard Exp $
 +#
 +# Copyright 1999 Pete Zaitcev
 +# This is Free Software is licensed under terms of GNU General Public License.
@@ -55,8 +55,8 @@ diff -ruN proll_18.orig/qemu/Makefile proll-patch10/qemu/Makefile
 +# Fixed %g6 is for arch/sparc/kernel/head.S, it seems ok w/o -ffixed-g6.
 +# Kernel uses -fcall-used-g5 -fcall-used-g7, we probably do not need them.
 +# __ANSI__ is supposed to be on by default but it is not.
-+CFLAGS = -O2 -Wall -DPROLBASE=$(PROLBASE) -DPROLDATA=$(PROLDATA) -DPROLRODATA=$(PROLRODATA) -D__ANSI__=1 -I$(SRC) -mcpu=hypersparc -g -DQEMU
-+ASFLAGS = -D__ASSEMBLY__ -I$(SRC) -DPROLRODATA=$(PROLRODATA) -DPROLDATA=$(PROLDATA) -DPROLSIZE=$(PROLSIZE) -g
++CFLAGS = -O2 -W -Wall -DPROLBASE=$(PROLBASE) -DPROLDATA=$(PROLDATA) -DPROLRODATA=$(PROLRODATA) -D__ANSI__=1 -I$(SRC) -mcpu=hypersparc -Wa,-xarch=v8 -g -DQEMU -m32 -fno-builtin
++ASFLAGS = -D__ASSEMBLY__ -I$(SRC) -DPROLRODATA=$(PROLRODATA) -DPROLDATA=$(PROLDATA) -DPROLSIZE=$(PROLSIZE) -g -Wa,-xarch=v8 -Wa,-32
 +# Solaris or Linux/i386 cross compilation
 +#CFLAGS = -Iinclude -O
 +
@@ -141,17 +141,17 @@ diff -ruN proll_18.orig/qemu/Makefile proll-patch10/qemu/Makefile
 +
 +proll.aout:	$(PROLLEXE)
 +	$(ELFTOAOUT) -o proll.aout $(PROLLEXE)
-diff -ruN proll_18.orig/qemu/head.S proll-patch10/qemu/head.S
+diff -ruN proll_18.orig/qemu/head.S proll-patch-15/qemu/head.S
 --- proll_18.orig/qemu/head.S	1970-01-01 00:00:00.000000000 +0000
-+++ proll-patch10/qemu/head.S	2005-03-02 15:30:47.000000000 +0000
-@@ -0,0 +1,539 @@
++++ proll-patch-15/qemu/head.S	2005-07-12 22:24:17.000000000 +0000
+@@ -0,0 +1,543 @@
 +/**
 + ** Standalone startup code for Linux PROM emulator.
 + ** Copyright 1999 Pete A. Zaitcev
 + ** This code is licensed under GNU General Public License.
 + **/
 +/*
-+ * $Id: proll.patch,v 1.5 2005-04-26 21:02:48 bellard Exp $
++ * $Id: proll.patch,v 1.6 2005-11-11 00:24:57 bellard Exp $
 + */
 +
 +#include <psr.h>
@@ -443,6 +443,10 @@ diff -ruN proll_18.orig/qemu/head.S proll-patch10/qemu/head.S
 +C_LABEL(bootup_user_stack):		.skip 0x2000
 +
 +	.section ".text"
++	.register %g2, #scratch
++	.register %g3, #scratch
++	.register %g6, #scratch
++	.register %g7, #scratch
 +
 +goprol:
 +	! %g1 contains end of memory
@@ -684,9 +688,9 @@ diff -ruN proll_18.orig/qemu/head.S proll-patch10/qemu/head.S
 +C_LABEL(ldb_bypass):
 +	retl
 +	 lduba [%o0] ASI_M_BYPASS, %o0
-diff -ruN proll_18.orig/qemu/main.c proll-patch10/qemu/main.c
+diff -ruN proll_18.orig/qemu/main.c proll-patch-15/qemu/main.c
 --- proll_18.orig/qemu/main.c	1970-01-01 00:00:00.000000000 +0000
-+++ proll-patch10/qemu/main.c	2005-04-16 18:03:23.000000000 +0000
++++ proll-patch-15/qemu/main.c	2005-08-14 10:07:48.000000000 +0000
 @@ -0,0 +1,185 @@
 +/**
 + ** Proll (PROM replacement)
@@ -852,7 +856,7 @@ diff -ruN proll_18.orig/qemu/main.c proll-patch10/qemu/main.c
 +
 +/*
 + */
-+void udelay(unsigned long usecs)
++void udelay(__attribute__((unused)) unsigned long usecs)
 +{
 +    // Qemu hardware is perfect and does not need any delays!
 +}
@@ -873,10 +877,10 @@ diff -ruN proll_18.orig/qemu/main.c proll-patch10/qemu/main.c
 +	hw_idprom = va_prom; 
 +}
 +
-diff -ruN proll_18.orig/qemu/openprom.c proll-patch10/qemu/openprom.c
+diff -ruN proll_18.orig/qemu/openprom.c proll-patch-15/qemu/openprom.c
 --- proll_18.orig/qemu/openprom.c	1970-01-01 00:00:00.000000000 +0000
-+++ proll-patch10/qemu/openprom.c	2005-04-16 17:30:19.000000000 +0000
-@@ -0,0 +1,741 @@
++++ proll-patch-15/qemu/openprom.c	2005-11-07 20:11:04.000000000 +0000
+@@ -0,0 +1,910 @@
 +/*
 + * PROM interface support
 + * Copyright 1996 The Australian National University.
@@ -900,7 +904,7 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch10/qemu/openprom.c
 +struct property {
 +	const char *name;
 +	const char *value;
-+	const int length;
++	int length;
 +};
 +
 +struct node {
@@ -920,12 +924,13 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch10/qemu/openprom.c
 +static const struct property null_properties = { NULL, NULL, -1 };
 +static const int prop_true = -1;
 +
-+static const struct property propv_root[] = {
-+	{"name",	"SUNW,JavaStation-1", sizeof("SUNW,JavaStation-1") },
++static struct property propv_root[7];
++
++static const struct property propv_root_templ[] = {
++	{"name",	"SUNW,SparcStation-5", sizeof("SUNW,SparcStation-5") },
 +	{"idprom",	obp_idprom, IDPROM_SIZE},
-+	{"banner-name", "JavaStation", sizeof("JavaStation")},
++	{"banner-name", "SparcStation", sizeof("SparcStation")},
 +	{"compatible",	"sun4m", 6},
-+	{NULL, NULL, -1}
 +};
 +
 +static const int prop_iommu_reg[] = {
@@ -986,7 +991,7 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch10/qemu/openprom.c
 +static const int height = 0x300;
 +static const int width = 0x400;
 +static const int linebytes = 0x400;
-+static const int depth = 8;
++static const int depth = 24;
 +static const int tcx_intr[] = { 5, 0 };
 +static const int tcx_interrupts = 5;
 +static const struct property propv_sbus_tcx[] = {
@@ -1004,7 +1009,7 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch10/qemu/openprom.c
 +	{"linebytes",	(char*)&linebytes, sizeof(int)},
 +	{"depth",	(char*)&depth, sizeof(int)},
 +	{"reg",		(char*)&prop_tcx_regs[0], sizeof(prop_tcx_regs)},
-+	{"tcx-8-bit",	(char*)&prop_true, 0},
++	{"tcx-8-bit",	0, -1},
 +	{"intr",	(char*)&tcx_intr[0], sizeof(tcx_intr)},
 +	{"interrupts",	(char*)&tcx_interrupts, sizeof(tcx_interrupts)},
 +	{"device_type",	"display", sizeof("display")},
@@ -1101,15 +1106,17 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch10/qemu/openprom.c
 +static const int prop_zs_reg[] = {
 +	0x0, 0x00000000, 0x00000008,
 +};
-+static const int prop_zs_slave[] = { 1 };
 +static void *prop_zs_addr;
++static const int prop_zs_slave = 1;
 +static const struct property propv_obio_zs[] = {
 +	{"name",	"zs", sizeof("zs")},
 +	{"reg",		(char*)&prop_zs_reg[0], sizeof(prop_zs_reg) },
-+	{"slave",	(char*)&prop_zs_slave[0], sizeof(prop_zs_slave) },
++	{"slave",	(char*)&prop_zs_slave, sizeof(prop_zs_slave) },
 +	{"device_type", "serial", sizeof("serial") },
 +	{"intr",	(char*)&prop_zs_intr[0], sizeof(prop_zs_intr) },
 +	{"address",	(char*)&prop_zs_addr, sizeof(prop_zs_addr) },
++	{"keyboard",	(char*)&prop_true, 0},
++	{"mouse",	(char*)&prop_true, 0},
 +	{NULL, NULL, -1}
 +};
 +
@@ -1118,11 +1125,11 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch10/qemu/openprom.c
 +	0x0, 0x00100000, 0x00000008,
 +};
 +static void *prop_zs1_addr;
-+static const int prop_zs1_slave[] = { 0 };
++static const int prop_zs1_slave = 0;
 +static const struct property propv_obio_zs1[] = {
 +	{"name",	"zs", sizeof("zs")},
 +	{"reg",		(char*)&prop_zs1_reg[0], sizeof(prop_zs1_reg) },
-+	{"slave",	(char*)&prop_zs1_slave[0], sizeof(prop_zs1_slave) },
++	{"slave",	(char*)&prop_zs1_slave, sizeof(prop_zs1_slave) },
 +	{"device_type", "serial", sizeof("serial") },
 +	{"intr",	(char*)&prop_zs1_intr[0], sizeof(prop_zs1_intr) },
 +	{"address",	(char*)&prop_zs1_addr, sizeof(prop_zs1_addr) },
@@ -1185,6 +1192,15 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch10/qemu/openprom.c
 +	{NULL, NULL, -1}
 +};
 +
++static const int prop_apc_reg[] = {
++	0x4, 0x0a000000, 0x00000010,
++};
++static const struct property propv_sbus_apc[] = {
++	{"name",	"xxxpower-management", sizeof("xxxpower-management")},
++	{"reg",		(char*)&prop_apc_reg[0], sizeof(prop_apc_reg) },
++	{NULL, NULL, -1}
++};
++
 +static const int prop_fd_intr[] = { 0x2b, 0x0 };
 +static const int prop_fd_reg[] = {
 +	0x0, 0x00400000, 0x0000000f,
@@ -1221,41 +1237,62 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch10/qemu/openprom.c
 +	{"name",	"options", sizeof("options")},
 +	{"screen-#columns",	"80", sizeof("80")},
 +	{"screen-#rows",	"25", sizeof("25")},
-+	{"tpe-link-test?",	"true", sizeof("true")},
++	{"tpe-link-test?",	(char *)&prop_true, 0},
 +	{"ttya-mode",		"9600,8,n,1,-", sizeof("9600,8,n,1,-")},
-+	{"ttya-ignore-cd",	"true", sizeof("true")},
-+	{"ttya-rts-dtr-off",	"false", sizeof("false")},
++	{"ttya-ignore-cd",	(char *)&prop_true, 0},
++	{"ttya-rts-dtr-off",	0, -1},
 +	{"ttyb-mode",		"9600,8,n,1,-", sizeof("9600,8,n,1,-")},
-+	{"ttyb-ignore-cd",	"true", sizeof("true")},
-+	{"ttyb-rts-dtr-off",	"false", sizeof("false")},
++	{"ttyb-ignore-cd",	(char *)&prop_true, 0},
++	{"ttyb-rts-dtr-off",	0, -1},
++	{NULL, NULL, -1}
++};
++
++static int prop_mem_reg[3];
++static int prop_mem_avail[3];
++
++static const struct property propv_memory[] = {
++	{"name",	"memory", sizeof("memory")},
++	{"reg",		(char*)&prop_mem_reg[0], sizeof(prop_mem_reg) },
++	{"available",	(char*)&prop_mem_avail[0], sizeof(prop_mem_avail) },
++	{NULL, NULL, -1}
++};
++
++static int prop_vmem_avail[6];
++
++static const struct property propv_vmemory[] = {
++	{"name",	"virtual-memory", sizeof("virtual-memory")},
++	{"available",	(char*)&prop_vmem_avail[0], sizeof(prop_vmem_avail) },
 +	{NULL, NULL, -1}
 +};
 +
 +static const struct node nodes[] = {
 +	{ &null_properties,	 1,  0 }, /* 0 = big brother of root */
 +	{ propv_root,		 0,  2 }, /*  1 "/" */
-+	{ propv_iommu,		11,  3 }, /*  2 "/iommu" */
++	{ propv_iommu,		12,  3 }, /*  2 "/iommu" */
 +	{ propv_sbus,		 0,  4 }, /*  3 "/iommu/sbus" */
 +	{ propv_sbus_tcx,	 5,  0 }, /*  4 "/iommu/sbus/SUNW,tcx" */
 +	{ propv_sbus_ledma,	 7,  6 }, /*  5 "/iommu/sbus/ledma" */
 +	{ propv_sbus_ledma_le,	 0,  0 }, /*  6 "/iommu/sbus/ledma/le" */
 +	{ propv_sbus_cs4231,	 8,  0 }, /*  7 "/iommu/sbus/SUNW,CS4231 */
 +	{ propv_sbus_bpp,	 9,  0 }, /*  8 "/iommu/sbus/SUNW,bpp */
-+	{ propv_sbus_espdma,	 0, 10 }, /*  9 "/iommu/sbus/espdma" */
++	{ propv_sbus_espdma,	11, 10 }, /*  9 "/iommu/sbus/espdma" */
 +	{ propv_sbus_espdma_esp, 0,  0 }, /* 10 "/iommu/sbus/espdma/esp" */
-+	{ propv_cpu,		12,  0 }, /* 11 "/STP1012PGA" */
-+	{ propv_obio,		22, 13 }, /* 12 "/obio" */
-+	{ propv_obio_int,	14,  0 }, /* 13 "/obio/interrupt" */
-+	{ propv_obio_cnt,	15,  0 }, /* 14 "/obio/counter" */
-+	{ propv_obio_eep,	16,  0 }, /* 15 "/obio/eeprom" */
-+	{ propv_obio_auxio,	17,  0 }, /* 16 "/obio/auxio" */
-+	{ propv_obio_zs1,	18,  0 }, /* 17 "/obio/zs@0,100000"
++	{ propv_sbus_apc,	 0,  0 }, /* 11 "/iommu/sbus/power-management */
++	{ propv_cpu,		13,  0 }, /* 12 "/STP1012PGA" */
++	{ propv_obio,		23, 14 }, /* 13 "/obio" */
++	{ propv_obio_int,	15,  0 }, /* 14 "/obio/interrupt" */
++	{ propv_obio_cnt,	16,  0 }, /* 15 "/obio/counter" */
++	{ propv_obio_eep,	17,  0 }, /* 16 "/obio/eeprom" */
++	{ propv_obio_auxio,	18,  0 }, /* 17 "/obio/auxio" */
++	{ propv_obio_zs1,	19,  0 }, /* 18 "/obio/zs@0,100000"
 +					     Must be before zs@0,0! */
-+	{ propv_obio_zs,	19,  0 }, /* 18 "/obio/zs@0,0" */
-+	{ propv_obio_fd,	20,  0 }, /* 19 "/obio/SUNW,fdtwo" */
-+	{ propv_obio_pw,	21,  0 }, /* 20 "/obio/power" */
-+	{ propv_obio_cf,	 0,  0 }, /* 21 "/obio/slavioconfig@0,800000" */
-+	{ propv_options,	 0,  0 }, /* 22 "/options" */
++	{ propv_obio_zs,	20,  0 }, /* 19 "/obio/zs@0,0" */
++	{ propv_obio_fd,	21,  0 }, /* 20 "/obio/SUNW,fdtwo" */
++	{ propv_obio_pw,	22,  0 }, /* 21 "/obio/power" */
++	{ propv_obio_cf,	 0,  0 }, /* 22 "/obio/slavioconfig@0,800000" */
++	{ propv_options,	24,  0 }, /* 23 "/options" */
++	{ propv_memory,		25,  0 }, /* 24 "/memory" */
++	{ propv_vmemory,	 0,  0 }, /* 25 "/virtual-memory" */
 +};
 +
 +static struct linux_mlist_v0 totphys[MAX_BANKS];
@@ -1281,6 +1318,7 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch10/qemu/openprom.c
 +
 +static void (*synch_hook)(void);
 +static char obp_stdin, obp_stdout;
++static int obp_fd_stdin, obp_fd_stdout;
 +
 +static int obp_nbgetchar(void);
 +static int obp_nbputchar(int ch);
@@ -1289,9 +1327,13 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch10/qemu/openprom.c
 +static void obp_halt(void);
 +static int obp_devopen(char *str);
 +static int obp_devclose(int dev_desc);
++static int obp_devread(int dev_desc, char *buf, int nbytes);
++static int obp_devwrite(int dev_desc, char *buf, int nbytes);
++static int obp_devseek(int dev_desc, int hi, int lo);
 +static int obp_rdblkdev(int dev_desc, int num_blks, int blk_st, char *buf);
 +static char *obp_dumb_mmap(char *va, int which_io, unsigned int pa, unsigned int size);
 +static void obp_dumb_munmap(char *va, unsigned int size);
++static int obp_inst2pkg(int dev_desc);
 +
 +static void doublewalk(unsigned ptab1, unsigned va)
 +{
@@ -1303,6 +1345,17 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch10/qemu/openprom.c
 +}
 +
 +static struct linux_romvec romvec0;
++
++struct fd {
++    int unit, part;
++    int offset;
++    int (*pread)(int dev_desc, int offset, char *buf, unsigned int nbytes);
++    int (*pwrite)(int dev_desc, int offset, char *buf, unsigned int nbytes);
++} fd_table[16];
++
++static int fd_index;
++static int con_pread(int dev_desc, int offset, char *buf, unsigned int nbytes);
++static int con_pwrite(int dev_desc, int offset, char *buf, unsigned int nbytes);
 +
 +void *
 +init_openprom_qemu(int bankc, struct bank *bankv, unsigned hiphybas,
@@ -1345,6 +1398,18 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch10/qemu/openprom.c
 +	totmap[0].theres_more = 0;
 +	totmap[0].start_adr = (char*) PROLBASE;
 +	totmap[0].num_bytes = PROLSIZE;
++	prop_mem_reg[0] = 0;
++	prop_mem_reg[1] = 0;
++	prop_mem_reg[2] = bankv[0].length;
++	prop_mem_avail[0] = 0;
++	prop_mem_avail[1] = 0;
++	prop_mem_avail[2] = hiphybas;
++	prop_vmem_avail[0] = 0;
++	prop_vmem_avail[1] = 0;
++	prop_vmem_avail[2] = PROLBASE-1;
++	prop_vmem_avail[3] = 0;
++	prop_vmem_avail[4] = 0xffe00000;
++	prop_vmem_avail[5] = 0x00200000;
 +
 +	/*
 +	 * idprom
@@ -1353,6 +1418,7 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch10/qemu/openprom.c
 +
 +	// Linux wants a R/W romvec table
 +	romvec0.pv_magic_cookie = LINUX_OPPROM_MAGIC;
++	romvec0.pv_romvers = 3;
 +	romvec0.pv_plugin_revision = 77;
 +	romvec0.pv_printrev = 0x10203;
 +	romvec0.pv_v0mem.v0_totphys = &ptphys;
@@ -1375,10 +1441,17 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch10/qemu/openprom.c
 +	romvec0.pv_halt = obp_halt;
 +	romvec0.pv_synchook = &synch_hook;
 +	romvec0.pv_v0bootargs = &obp_argp;
++	romvec0.pv_v2devops.v2_inst2pkg = obp_inst2pkg;
 +	romvec0.pv_v2devops.v2_dumb_mmap = obp_dumb_mmap;
 +	romvec0.pv_v2devops.v2_dumb_munmap = obp_dumb_munmap;
++	romvec0.pv_v2devops.v2_dev_open = obp_devopen;
++	romvec0.pv_v2devops.v2_dev_close = (void (*)(int))obp_devclose;
++	romvec0.pv_v2devops.v2_dev_read = obp_devread;
++	romvec0.pv_v2devops.v2_dev_write = obp_devwrite;
++	romvec0.pv_v2devops.v2_dev_seek = obp_devseek;
 +	obp_arg.boot_dev_ctrl = 0;
 +	obp_arg.boot_dev_unit = '0';
++	obp_arg.argv[0] = "sd(0,0,0):d";
 +	switch(boot_device) {
 +	default:
 +	case 'a':
@@ -1388,9 +1461,9 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch10/qemu/openprom.c
 +	    break;
 +	case 'd':
 +	    obp_arg.boot_dev_unit = '2';
++	    obp_arg.argv[0] = "sd(0,2,0):d";
 +	    // Fall through
 +	case 'c':
-+	    obp_arg.argv[0] = "sd()";
 +	    obp_arg.boot_dev[0] = 's';
 +	    obp_arg.boot_dev[1] = 'd';
 +	    break;
@@ -1401,13 +1474,39 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch10/qemu/openprom.c
 +	    break;
 +	}
 +	obp_arg.argv[1] = cmdline;
++	romvec0.pv_v2bootargs.bootpath = &obp_arg.argv[0];
++	romvec0.pv_v2bootargs.bootargs = &cmdline;
++	romvec0.pv_v2bootargs.fd_stdin = &obp_fd_stdin;
++	romvec0.pv_v2bootargs.fd_stdout = &obp_fd_stdout;
 +
++	bcopy(propv_root_templ, propv_root, sizeof(propv_root_templ));
++	propv_root[4].name = "stdin-path";
++	propv_root[5].name = "stdout-path";
++	obp_fd_stdin = 0;
++	obp_fd_stdout = 1;
++	fd_table[0].pread = con_pread;
++	fd_table[0].pwrite = con_pwrite;
++	fd_table[1].pread = con_pread;
++	fd_table[1].pwrite = con_pwrite;
++	fd_index = 2;
 +	if (nographic) {
 +	    obp_stdin = PROMDEV_TTYA;
++	    propv_root[4].value = "/obio/zs@0,100000:a";
++	    propv_root[4].length = sizeof("/obio/zs@0,100000:a");
++	    fd_table[0].unit = 18;
 +	    obp_stdout = PROMDEV_TTYA;
++	    propv_root[5].value = "/obio/zs@0,100000:a";
++	    propv_root[5].length = sizeof("/obio/zs@0,100000:a");
++	    fd_table[1].unit = 18;
 +	} else {
 +	    obp_stdin = PROMDEV_KBD;
++	    propv_root[4].value = "/obio/zs@0,0";
++	    propv_root[4].length = sizeof("/obio/zs@0,0");
++	    fd_table[0].unit = 19;
 +	    obp_stdout = PROMDEV_SCREEN;
++	    propv_root[5].value = "/iommu/sbus/SUNW,tcx";
++	    propv_root[5].length = sizeof("/iommu/sbus/SUNW,tcx");
++	    fd_table[1].unit = 4;
 +	}
 +	prop_zs_addr = map_io(0x71000000, 8);
 +	prop_zs1_addr = map_io(0x71100000, 8);
@@ -1481,7 +1580,10 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch10/qemu/openprom.c
 +	return -1;
 +}
 +
-+static int obp_setprop(int node, char *name, char *value, int len)
++static int obp_setprop(__attribute__((unused)) int node,
++		       __attribute__((unused)) char *name,
++		       __attribute__((unused)) char *value,
++		       __attribute__((unused)) int len)
 +{
 +#ifdef DEBUG_OBP
 +        printk("obp_setprop(%d, %s) = %s (%d)\n", node, name, value, len);
@@ -1511,7 +1613,7 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch10/qemu/openprom.c
 +#ifdef DEBUG_OBP
 +        printk("obp_nextprop(%d, %s): not found\n", node, name);
 +#endif
-+	return (const char *)-1;
++	return "";
 +}
 +
 +extern int (*getch_fn)(struct vconterm *v);
@@ -1527,21 +1629,60 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch10/qemu/openprom.c
 +}
 +
 +static void obp_reboot(char *str) {
-+	printk("rebooting (%s): not implemented, freezing\n", str);
++	printk("rebooting (%s)\n", str);
++	stb_bypass(0x71f00000, 1);
 +	for (;;) {}
 +}
 +
 +static void obp_abort() {
-+	printk("abort, freezing\n");
++	printk("abort, power off\n");
++	stb_bypass(0x71910000, 1);
 +	for (;;) {}
 +}
 +
 +static void obp_halt() {
-+	printk("halt, freezing\n");
++	printk("halt, power off\n");
++	stb_bypass(0x71910000, 1);
 +	for (;;) {}
 +}
++
++extern void *esp_read(int unit, int part, int offset, short len);
++
++static int esp_pread(int dev_desc, int offset, char *buf, unsigned int nbytes)
++{
++    unsigned int i;
++    void *src;
++
++    for(i = 0; i < nbytes; i += 512) {
++	src = esp_read(fd_table[dev_desc].unit, fd_table[dev_desc].part, (offset + i) / 512, 512);
++	memcpy(&buf[i], src, 512);
++    }
++    return nbytes;
++}
++
++static int con_pread(__attribute__((unused)) int dev_desc, __attribute__((unused)) int offset, char *buf, unsigned int nbytes)
++{
++    unsigned int i;
++
++    for(i = 0; i < nbytes; i ++) {
++	buf[i] = obp_nbgetchar();
++    }
++    return nbytes;
++}
++
++static int con_pwrite(__attribute__((unused)) int dev_desc, __attribute__((unused)) int offset, char *buf, unsigned int nbytes)
++{
++    unsigned int i;
++
++    for(i = 0; i < nbytes; i ++) {
++	obp_nbputchar(buf[i]);
++    }
++    return nbytes;
++}
++
 +#define isnum(c) ((c >= '0') && (c < '9'))
 +#define ctoi(c) (c - '0')
++
 +static int obp_devopen(char *str) {
 +#ifdef DEBUG_OBP
 +        printk("obp_devopen(%s)\n", str);
@@ -1557,39 +1698,32 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch10/qemu/openprom.c
 +	    else {
 +		target = ctoi(str[5]) & 7;
 +	    }
-+	    return 's' + target;
++	    fd_table[fd_index].unit = target;
++	    fd_table[fd_index].part = str[10] - 'a';
++	    fd_table[fd_index].pread = esp_pread;
++	    return fd_index++; // XXX
 +	}
 +	return 0;
 +}
 +
-+static int obp_devclose(int dev_desc) {
++static int obp_devclose(__attribute__((unused)) int dev_desc) {
 +#ifdef DEBUG_OBP
 +        printk("obp_devclose %d\n", dev_desc);
 +#endif
++	fd_index--; // XXX
 +	return 0;
 +}
 +
-+extern void *esp_read(int unit, int offset, short len);
-+
 +static int obp_rdblkdev(int dev_desc, int num_blks, int offset, char *buf)
 +{
-+    unsigned int i;
-+    void *src;
-+
 +#ifdef DEBUG_OBP
 +    printk("obp_rdblkdev: fd %d, num_blks %d, offset %d, buf 0x%x\n", dev_desc, num_blks, offset, buf);
 +#endif
-+    if (dev_desc >= 's' && dev_desc < 'v') {
-+	for(i = 0; i < num_blks; i++) {
-+	    src = esp_read(dev_desc - 's', offset + i, 1);
-+	    memcpy(&buf[i << 9], src, 512);
-+	}
-+	return num_blks;
-+    }
-+    return -1;
++    return fd_table[dev_desc].pread(dev_desc, offset, buf, num_blks * 512);
 +}
 +
-+static char *obp_dumb_mmap(char *va, int which_io, unsigned int pa, unsigned int size)
++static char *obp_dumb_mmap(char *va, __attribute__((unused)) int which_io,
++			   unsigned int pa, unsigned int size)
 +{
 +	unsigned int npages;
 +	unsigned int off;
@@ -1611,16 +1745,55 @@ diff -ruN proll_18.orig/qemu/openprom.c proll-patch10/qemu/openprom.c
 +	return va;
 +}
 +
-+static void obp_dumb_munmap(char *va, unsigned int size)
++static void obp_dumb_munmap(__attribute__((unused)) char *va,
++			    __attribute__((unused)) unsigned int size)
 +{
 +#ifdef DEBUG_OBP
 +	printk("obp_dumb_munmap: virta %x, sz %d\n", va, size);
 +#endif
-+    
 +}
-diff -ruN proll_18.orig/qemu/system_qemu.c proll-patch10/qemu/system_qemu.c
++
++static int obp_devread(int dev_desc, char *buf, int nbytes)
++{
++	int ret;
++#ifdef DEBUG_OBP
++	printk("obp_devread: fd %d, nbytes %d\n", dev_desc, nbytes);
++#endif
++	ret = fd_table[dev_desc].pread(dev_desc, fd_table[dev_desc].offset, buf, nbytes);
++	fd_table[dev_desc].offset += nbytes;
++	return ret;
++}
++
++static int obp_devwrite(int dev_desc, char *buf, int nbytes)
++{
++	int ret;
++#ifdef DEBUG_OBP
++	printk("obp_devwrite: fd %d, buf %s, nbytes %d\n", dev_desc, buf, nbytes);
++#endif
++	ret = fd_table[dev_desc].pwrite(dev_desc, fd_table[dev_desc].offset, buf, nbytes);
++	fd_table[dev_desc].offset += nbytes;
++	return ret;
++}
++
++static int obp_devseek(int dev_desc, __attribute__((unused)) int hi, int lo)
++{
++#ifdef DEBUG_OBP
++	printk("obp_devseek: fd %d, hi %d, lo %d\n", dev_desc, hi, lo);
++#endif
++	fd_table[dev_desc].offset = lo;
++	return 0;
++}
++
++static int obp_inst2pkg(int dev_desc)
++{
++#ifdef DEBUG_OBP
++	printk("obp_inst2pkg: fd %d\n", dev_desc);
++#endif
++	return fd_table[dev_desc].unit;
++}
+diff -ruN proll_18.orig/qemu/system_qemu.c proll-patch-15/qemu/system_qemu.c
 --- proll_18.orig/qemu/system_qemu.c	1970-01-01 00:00:00.000000000 +0000
-+++ proll-patch10/qemu/system_qemu.c	2005-04-16 06:16:20.000000000 +0000
++++ proll-patch-15/qemu/system_qemu.c	2005-04-16 06:16:20.000000000 +0000
 @@ -0,0 +1,430 @@
 +/**
 + ** Proll (PROM replacement)
@@ -2052,9 +2225,9 @@ diff -ruN proll_18.orig/qemu/system_qemu.c proll-patch10/qemu/system_qemu.c
 +	n = (n>>24 & 0xFF) | (n>>8 & 0xFF00) | ((n&0xFF00) << 8) | (n<<24);
 +	st_bypass(ptr, n);
 +};
-diff -ruN proll_18.orig/src/arp.c proll-patch10/src/arp.c
+diff -ruN proll_18.orig/src/arp.c proll-patch-15/src/arp.c
 --- proll_18.orig/src/arp.c	2001-12-24 05:12:31.000000000 +0000
-+++ proll-patch10/src/arp.c	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch-15/src/arp.c	2005-08-14 10:10:11.000000000 +0000
 @@ -45,7 +45,7 @@
  #endif
  static struct arp_cache arp_list[ARPNUM];	/* ARP address cache	*/
@@ -2064,7 +2237,19 @@ diff -ruN proll_18.orig/src/arp.c proll-patch10/src/arp.c
  
  
  
-@@ -144,7 +144,7 @@
+@@ -100,10 +100,7 @@
+  * 
+  * ARP receiver routine
+  */
+-static int arp_recv(buf, bufsize, addr)
+-unsigned char *buf;
+-int            bufsize;
+-unsigned char *addr;
++static int arp_recv(unsigned char *buf, unsigned int bufsize, unsigned char *addr)
+ {
+   register struct arphdr *ahp = (struct arphdr *)buf;
+ 
+@@ -144,7 +141,7 @@
   * 
   * Resolve IP address and return pointer to hardware address.
   */
@@ -2073,7 +2258,7 @@ diff -ruN proll_18.orig/src/arp.c proll-patch10/src/arp.c
  t_ipaddr ip;
  {
    int i;
-@@ -230,14 +230,11 @@
+@@ -230,14 +227,11 @@
   */
  int init_arp()
  {
@@ -2089,9 +2274,9 @@ diff -ruN proll_18.orig/src/arp.c proll-patch10/src/arp.c
 +  def_gw = IP_ANY;
    return(TRUE);
  }
-diff -ruN proll_18.orig/src/arp.h proll-patch10/src/arp.h
+diff -ruN proll_18.orig/src/arp.h proll-patch-15/src/arp.h
 --- proll_18.orig/src/arp.h	1999-03-18 03:39:43.000000000 +0000
-+++ proll-patch10/src/arp.h	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch-15/src/arp.h	2004-11-13 15:50:49.000000000 +0000
 @@ -104,7 +104,7 @@
  extern int init_arp __P((void));
  
@@ -2101,10 +2286,22 @@ diff -ruN proll_18.orig/src/arp.h proll-patch10/src/arp.h
  
  /* Add a new antry to the ARP cache */
  extern void addcache __P((unsigned char *ha, t_ipaddr ip));
-diff -ruN proll_18.orig/src/esp.c proll-patch10/src/esp.c
+diff -ruN proll_18.orig/src/bootp.c proll-patch-15/src/bootp.c
+--- proll_18.orig/src/bootp.c	1999-12-15 17:20:30.000000000 +0000
++++ proll-patch-15/src/bootp.c	2005-08-14 10:16:09.000000000 +0000
+@@ -151,7 +151,7 @@
+   while (TRUE) {
+ 	boot_xid = get_ticks() + random();
+ 	bootp_send();
+-	i = udp_read((char *)(&boot_rec), BOOTP_REC_SIZE, timeout, CHR_ESC);
++	i = udp_read((char *)(&boot_rec), BOOTP_REC_SIZE, timeout);
+ 	if (i < 0) {				/* user pressed ESC */
+ 		printf("\nAborted\n");
+ 		return(1);
+diff -ruN proll_18.orig/src/esp.c proll-patch-15/src/esp.c
 --- proll_18.orig/src/esp.c	1970-01-01 00:00:00.000000000 +0000
-+++ proll-patch10/src/esp.c	2005-04-16 06:24:23.000000000 +0000
-@@ -0,0 +1,252 @@
++++ proll-patch-15/src/esp.c	2005-08-15 18:42:46.000000000 +0000
+@@ -0,0 +1,305 @@
 +#include <system.h>		/* == <asm/system.h> */
 +#include <general.h>		/* __P for netpriv.h */
 +#include <dma.h>		/* dmaga */
@@ -2138,6 +2335,10 @@ diff -ruN proll_18.orig/src/esp.c proll-patch10/src/esp.c
 +	struct esp_dma *espdma;         /* If set this points to espdma    */
 +
 +        unsigned char *buffer;
++	struct disk_info {
++		unsigned int hw_sector;
++		unsigned int part_offset[8];
++	} disk[8];
 +};
 +
 +static void esp_interrupt(void *dev_id)
@@ -2260,7 +2461,7 @@ diff -ruN proll_18.orig/src/esp.c proll-patch10/src/esp.c
 +	return;
 +}
 +
-+void *esp_read(int unit, int offset, short len)
++void esp_read_capacity(int unit)
 +{
 +	// Set SCSI target
 +	stb_bypass(PHYS_JJ_ESP + 4*4, unit & 7);
@@ -2271,28 +2472,74 @@ diff -ruN proll_18.orig/src/esp.c proll-patch10/src/esp.c
 +	stb_bypass(PHYS_JJ_ESP + 1*4, 0);
 +	// Set DMA direction
 +	st_bypass(PHYS_JJ_ESPDMA + 0, 0x000);
++	// Setup command = Read Capacity
++	esp.buffer[0] = 0x80;
++	esp.buffer[1] = 0x25;
++	esp.buffer[2] = 0x00;
++	esp.buffer[3] = 0x00;
++	esp.buffer[4] = 0x00;
++	esp.buffer[5] = 0x00;
++	esp.buffer[6] = 0x00;
++	esp.buffer[7] = 0x00;
++	esp.buffer[8] = 0x00;
++	esp.buffer[9] = 0x00;
++	esp.buffer[10] = 0x00;
++	// Set ATN, issue command
++	stb_bypass(PHYS_JJ_ESP + 3*4, 0xc2);
++
++	// Set DMA length = 512 * read length
++	stb_bypass(PHYS_JJ_ESP + 0*4, 0);
++	stb_bypass(PHYS_JJ_ESP + 1*4, 8 & 0xff);
++	// Set DMA direction
++	st_bypass(PHYS_JJ_ESPDMA + 0, 0x100);
++	// Transfer
++	stb_bypass(PHYS_JJ_ESP + 3*4, 0x90);
++	esp.disk[unit].hw_sector = (esp.buffer[4] << 24) | (esp.buffer[5] << 16) | (esp.buffer[6] << 8) | esp.buffer[7];
++}
++
++// offset is multiple of 512, len in bytes
++void *esp_read(int unit, int part, int offset, short len)
++{
++	int pos, hw_sect, sect_offset, spb;
++
++	// Set SCSI target
++	stb_bypass(PHYS_JJ_ESP + 4*4, unit & 7);
++	// Set DMA address
++	st_bypass(PHYS_JJ_ESPDMA + 4, esp.buffer_dvma);
++	// Set DMA length
++	stb_bypass(PHYS_JJ_ESP + 0*4, 10);
++	stb_bypass(PHYS_JJ_ESP + 1*4, 0);
++	// Set DMA direction
++	st_bypass(PHYS_JJ_ESPDMA + 0, 0x000);
++	hw_sect = esp.disk[unit].hw_sector;
++	offset += esp.disk[unit].part_offset[part];
++	spb = hw_sect / 512;
++	sect_offset = offset / spb;
++	pos = (offset - sect_offset * spb) * 512;
++	len /= 512;
++	//printk("Read unit %d, offset %d -> offset %d, pos %d, hw_sect %d\n", unit, offset, sect_offset, pos, hw_sect);
 +	// Setup command = Read(10)
 +	esp.buffer[0] = 0x80;
 +	esp.buffer[1] = 0x28;
 +	esp.buffer[2] = 0x00;
-+	esp.buffer[3] = (offset >> 24) & 0xff;
-+	esp.buffer[4] = (offset >> 16) & 0xff;
-+	esp.buffer[5] = (offset >> 8) & 0xff;
-+	esp.buffer[6] = offset & 0xff;
++	esp.buffer[3] = (sect_offset >> 24) & 0xff;
++	esp.buffer[4] = (sect_offset >> 16) & 0xff;
++	esp.buffer[5] = (sect_offset >> 8) & 0xff;
++	esp.buffer[6] = sect_offset & 0xff;
 +	esp.buffer[7] = 0x00;
 +	esp.buffer[8] = (len >> 8) & 0xff;
 +	esp.buffer[9] = len & 0xff;
 +	// Set ATN, issue command
-+	stb_bypass(PHYS_JJ_ESP + 3*4, 0x42);
++	stb_bypass(PHYS_JJ_ESP + 3*4, 0xc2);
 +
-+	// Set DMA length = 512 * read length
-+	stb_bypass(PHYS_JJ_ESP + 0*4, 0);
-+	stb_bypass(PHYS_JJ_ESP + 1*4, (len << 1) & 0xff);
++	// Set DMA length = sector size * read length
++	stb_bypass(PHYS_JJ_ESP + 0*4, (len * hw_sect) & 0xff);
++	stb_bypass(PHYS_JJ_ESP + 1*4, ((len * hw_sect) >> 8) & 0xff);
 +	// Set DMA direction
 +	st_bypass(PHYS_JJ_ESPDMA + 0, 0x100);
 +	// Transfer
-+	stb_bypass(PHYS_JJ_ESP + 3*4, 0x10);
-+	return esp.buffer;
++	stb_bypass(PHYS_JJ_ESP + 3*4, 0x90);
++	return esp.buffer + pos;
 +}
 +
 +// Sparc boot sequence can be found in SILO docs,
@@ -2334,32 +2581,35 @@ diff -ruN proll_18.orig/src/esp.c proll-patch10/src/esp.c
 +	stb_bypass(PHYS_JJ_ESP + 3*4, 2);
 +
 +	esp_open(&esp);
++	esp_read_capacity(unit);
 +
-+	label = esp_read(unit, 0, 1);
-+	printk("CHS: %d/%d/%d, partitions:\n", label->ncyl, label->ntrks, label->nsect);
++	label = esp_read(unit, 0, 0, 512);
++	printk("hw sector: %d, CHS: %d/%d/%d, partitions:\n", esp.disk[unit].hw_sector, 
++	       label->ncyl, label->ntrks, label->nsect);
 +	for (i = 0; i < 8; i++) {
-+	    printk("%c: %d + %d\n", 'a' + i, label->partitions[i].start_cylinder,
-+		   label->partitions[i].num_sectors);
++	    printk("%c: %d + %d, id %x, flags %x\n", 'a' + i, label->partitions[i].start_cylinder,
++		   label->partitions[i].num_sectors, label->infos[i].id, label->infos[i].flags);
++	    esp.disk[unit].part_offset[i] = label->partitions[3].start_cylinder * label->ntrks * label->nsect;
 +	}
-+	offset = label->partitions[4].start_cylinder * label->ntrks * label->nsect + 1;
++	offset = 1;
 +	printk("booting sd(0,%d,0):d (offset %d)\n", unit, offset);
 +	// Skip a.out header (0x20)
 +	dst = (void *)0x4000;
-+	src = esp_read(unit, offset, 1);
++	src = esp_read(unit, 3, offset, 512);
 +	src = (void *)((unsigned int) src + 0x20);
 +	memcpy(dst, src, 512 - 0x20);
 +	dst = (void *)0x4000 + 512 - 0x20;
 +	for (i = 1; i < 7680/512; i++) {
-+	    src = esp_read(unit, offset + i, 1);
++	    src = esp_read(unit, 3,  offset + i, 512);
 +	    memcpy(dst, src, 512);
 +	    dst += 512;
 +	}
 +	esp_close(&esp);
 +	return 0;
 +}
-diff -ruN proll_18.orig/src/hconsole.c proll-patch10/src/hconsole.c
+diff -ruN proll_18.orig/src/hconsole.c proll-patch-15/src/hconsole.c
 --- proll_18.orig/src/hconsole.c	2002-07-23 05:52:48.000000000 +0000
-+++ proll-patch10/src/hconsole.c	2005-03-02 17:03:09.000000000 +0000
++++ proll-patch-15/src/hconsole.c	2005-11-09 18:46:34.000000000 +0000
 @@ -29,6 +29,10 @@
         struct raster r_master;	/* For a case of resize, whole fb */
         struct raster r_0;	/* malloc() erzatz */
@@ -2383,9 +2633,84 @@ diff -ruN proll_18.orig/src/hconsole.c proll-patch10/src/hconsole.c
  	t->r_ = r;
  	t->r0_ = q;
  	t->f_ = &f_master;
-diff -ruN proll_18.orig/src/hme.c proll-patch10/src/hme.c
+@@ -67,7 +75,7 @@
+ 	return 0;
+ }
+ 
+-void hcon_fini (struct hconsole *t)
++void hcon_fini (__attribute((unused)) struct hconsole *t)
+ {
+ 	return;
+ }
+@@ -77,12 +85,12 @@
+ {
+ 	struct rfont *f = t->f_;
+ 
+-	if (sy < 0 || sy >= t->ydim_) return -1;
+-	if (sx < 0 || sx >= t->xdim_) return -1;
++	if (sy < 0 || (unsigned)sy >= t->ydim_) return -1;
++	if (sx < 0 || (unsigned)sx >= t->xdim_) return -1;
+ 	if (height < 0) return -1;
+-	if (sy + height > t->ydim_) height = t->ydim_ - sy;
++	if ((unsigned)sy + (unsigned)height > t->ydim_) height = t->ydim_ - sy;
+ 	if (width < 0) return -1;
+-	if (sx + width > t->xdim_) width = t->xdim_ - sx;
++	if ((unsigned)sx + (unsigned)width > t->xdim_) width = t->xdim_ - sx;
+ 
+ 	/* XXX Clear with correct background color */
+ 	(*t->r_->clear_)(t->r_,
+@@ -107,10 +115,10 @@
+ 	char c0 = c;
+ 	RC_color rfg, rbg;
+ 
+-	if (y < 0 || y >= t->ydim_) return -1;
+-	if (x < 0 || x >= t->xdim_) return -1;
++	if (y < 0 || (unsigned)y >= t->ydim_) return -1;
++	if (x < 0 || (unsigned)x >= t->xdim_) return -1;
+ 
+-	if (t->curson_ && t->ypos_ == y && t->xpos_ == x) {
++	if (t->curson_ && t->ypos_ == (unsigned)y && t->xpos_ == (unsigned)x) {
+ 		rfg = t->bg_;    rbg = t->fg_;
+ 	} else {
+ 		rfg = t->fg_;    rbg = t->bg_;
+@@ -126,9 +134,9 @@
+ {	
+ 	struct rfont *f = t->f_;
+ 
+-	if (y < 0 || y >= t->ydim_) return -1;
+-	if (x < 0 || x >= t->xdim_) return -1;
+-	if (x + count >= t->xdim_) count = t->xdim_ - x;
++	if (y < 0 || (unsigned)y >= t->ydim_) return -1;
++	if (x < 0 || (unsigned)x >= t->xdim_) return -1;
++	if ((unsigned)x + (unsigned)count >= t->xdim_) count = t->xdim_ - x;
+ 
+ 	(*t->r_->render_)(t->r_, y*f->height_, x*f->width_,
+ 			    s, count, t->bg_, t->fg_, f);
+@@ -200,8 +208,8 @@
+ 
+ 	rc = 0;
+ 	if (dir == SM_UP) {
+-		if (d < 0 || d >= t->ydim_) return -1;
+-		if (b <= d || b > t->ydim_) return -1;
++		if (d < 0 || (unsigned)d >= t->ydim_) return -1;
++		if (b <= d || (unsigned)b > t->ydim_) return -1;
+ 		if (d + count >= b) count = b - d;
+ 		if (d + count >= b) count = b - d;
+ 		(*t->r_->yscroll_)(t->r_,
+@@ -213,8 +221,8 @@
+ 				   count*f->height_, raster_qwidth(t->r_),
+ 				   t->bg_);
+ 	} else if (dir == SM_DOWN) {
+-		if (d < 0 || d >= t->ydim_) return -1;
+-		if (b <= d || b > t->ydim_) return -1;
++		if (d < 0 || (unsigned)d >= t->ydim_) return -1;
++		if (b <= d || (unsigned)b > t->ydim_) return -1;
+ 		if (d + count >= b) count = b - d;
+ 		(*t->r_->yscroll_)(t->r_,
+ 				     d*f->height_, 0,
+diff -ruN proll_18.orig/src/hme.c proll-patch-15/src/hme.c
 --- proll_18.orig/src/hme.c	2002-07-23 05:52:52.000000000 +0000
-+++ proll-patch10/src/hme.c	2005-04-16 06:16:20.000000000 +0000
++++ proll-patch-15/src/hme.c	2005-04-16 06:16:20.000000000 +0000
 @@ -655,10 +655,10 @@
  				    unsigned int flags,
  				    unsigned int addr)
@@ -2443,9 +2768,21 @@ diff -ruN proll_18.orig/src/hme.c proll-patch10/src/hme.c
  				     : "=r" (flags)
  				     : "r" (&this->rx_flags), "i" (ASI_PL));
  #else
-diff -ruN proll_18.orig/src/lat7_2.bm proll-patch10/src/lat7_2.bm
+diff -ruN proll_18.orig/src/iommu.c proll-patch-15/src/iommu.c
+--- proll_18.orig/src/iommu.c	2002-07-23 05:52:49.000000000 +0000
++++ proll-patch-15/src/iommu.c	2005-08-14 10:08:17.000000000 +0000
+@@ -36,7 +36,7 @@
+ 	unsigned int pa, ba;
+ 	unsigned int npages;
+ 	unsigned int mva, mpa;
+-	int i;
++	unsigned int i;
+ 	unsigned int *iopte;
+ 
+ 	npages = (size + (PAGE_SIZE-1)) / PAGE_SIZE;
+diff -ruN proll_18.orig/src/lat7_2.bm proll-patch-15/src/lat7_2.bm
 --- proll_18.orig/src/lat7_2.bm	1999-02-27 05:48:54.000000000 +0000
-+++ proll-patch10/src/lat7_2.bm	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch-15/src/lat7_2.bm	2004-11-13 15:50:49.000000000 +0000
 @@ -1,6 +1,6 @@
  #define lat7_2_width 128
  #define lat7_2_height 88
@@ -2454,9 +2791,9 @@ diff -ruN proll_18.orig/src/lat7_2.bm proll-patch10/src/lat7_2.bm
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0xaa, 0x12, 0x1e, 0x0c, 0x02, 0x70, 0x18,
     0x22, 0x22, 0x18, 0x00, 0x00, 0x18, 0x18, 0xff, 0x18, 0x00, 0x12, 0x02,
-diff -ruN proll_18.orig/src/lat7_2_swapped.bm proll-patch10/src/lat7_2_swapped.bm
+diff -ruN proll_18.orig/src/lat7_2_swapped.bm proll-patch-15/src/lat7_2_swapped.bm
 --- proll_18.orig/src/lat7_2_swapped.bm	1970-01-01 00:00:00.000000000 +0000
-+++ proll-patch10/src/lat7_2_swapped.bm	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch-15/src/lat7_2_swapped.bm	2004-11-13 15:50:49.000000000 +0000
 @@ -0,0 +1,121 @@
 +#define lat7_2_width 128
 +#define lat7_2_height 88
@@ -2579,9 +2916,9 @@ diff -ruN proll_18.orig/src/lat7_2_swapped.bm proll-patch10/src/lat7_2_swapped.b
 +   0x18, 0x18, 0x30, 0x00, 0x00, 0x00, 0x00, 0x36, 0x6c, 0x00, 0x00, 0x00, 
 +   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7e, 0x42, 0x00, 0x00, 0x00, 0x00, 
 +   0x00, 0x00, 0x00, 0x00};
-diff -ruN proll_18.orig/src/le.c proll-patch10/src/le.c
+diff -ruN proll_18.orig/src/le.c proll-patch-15/src/le.c
 --- proll_18.orig/src/le.c	2002-07-23 05:52:49.000000000 +0000
-+++ proll-patch10/src/le.c	2005-04-16 06:16:20.000000000 +0000
++++ proll-patch-15/src/le.c	2005-04-16 06:16:20.000000000 +0000
 @@ -185,8 +185,6 @@
  	unsigned short rap;			/* register address port */
  };
@@ -2600,9 +2937,21 @@ diff -ruN proll_18.orig/src/le.c proll-patch10/src/le.c
      
  	/* Now, give the packet to the lance */
  	ib->btx_ring [entry].tmd1_bits = (LE_T1_POK|LE_T1_OWN);
-diff -ruN proll_18.orig/src/netinit.c proll-patch10/src/netinit.c
+diff -ruN proll_18.orig/src/net.h proll-patch-15/src/net.h
+--- proll_18.orig/src/net.h	1999-12-15 17:20:17.000000000 +0000
++++ proll-patch-15/src/net.h	2005-08-14 10:17:02.000000000 +0000
+@@ -124,7 +124,7 @@
+ extern int udp_open __P((t_ipaddr daddr, int source, int dest));
+ 
+ /* Read from a UDP socket */
+-extern int udp_read __P((char *buf, int bufsize, int timeout, char abortch));
++extern int udp_read(char *buf, unsigned int bufsize, int timeout);
+ 
+ /* Write to a UDP socket */
+ extern int udp_write __P((char *buf, int writelen));
+diff -ruN proll_18.orig/src/netinit.c proll-patch-15/src/netinit.c
 --- proll_18.orig/src/netinit.c	2002-09-13 21:53:33.000000000 +0000
-+++ proll-patch10/src/netinit.c	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch-15/src/netinit.c	2004-11-13 15:50:49.000000000 +0000
 @@ -49,13 +49,20 @@
  unsigned char     myhwaddr[ETH_ALEN];		/* my own hardware addr	*/
           t_ipaddr myipaddr;			/* my own IP address	*/
@@ -2646,9 +2995,18 @@ diff -ruN proll_18.orig/src/netinit.c proll-patch10/src/netinit.c
  	fatal();
    }
  }
-diff -ruN proll_18.orig/src/netpriv.h proll-patch10/src/netpriv.h
+diff -ruN proll_18.orig/src/netpriv.h proll-patch-15/src/netpriv.h
 --- proll_18.orig/src/netpriv.h	1999-04-27 05:39:37.000000000 +0000
-+++ proll-patch10/src/netpriv.h	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch-15/src/netpriv.h	2005-08-14 10:12:20.000000000 +0000
+@@ -83,7 +83,7 @@
+ 	 */
+ 	struct device *dev;
+ 	char *data;
+-	int len;
++	unsigned int len;
+ 	int protocol;
+ 	unsigned char ip_summed;
+ };
 @@ -130,10 +130,9 @@
   *
   */
@@ -2670,10 +3028,10 @@ diff -ruN proll_18.orig/src/netpriv.h proll-patch10/src/netpriv.h
  
  /* Empty read buffer */
  extern void empty_buf __P((void));
-diff -ruN proll_18.orig/src/openprom.h proll-patch10/src/openprom.h
+diff -ruN proll_18.orig/src/openprom.h proll-patch-15/src/openprom.h
 --- proll_18.orig/src/openprom.h	2002-07-14 02:26:30.000000000 +0000
-+++ proll-patch10/src/openprom.h	2004-11-13 15:50:49.000000000 +0000
-@@ -54,20 +54,20 @@
++++ proll-patch-15/src/openprom.h	2005-05-13 16:23:14.000000000 +0000
+@@ -54,29 +54,29 @@
  };
  
  struct linux_mem_v0 {
@@ -2699,6 +3057,19 @@ diff -ruN proll_18.orig/src/openprom.h proll-patch10/src/openprom.h
  	void *aieee1;           /* XXX */
  };
  
+ /* V2 and up boot things. */
+ struct linux_bootargs_v2 {
+-	char **bootpath;
+-	char **bootargs;
+-	int *fd_stdin;
+-	int *fd_stdout;
++	const char **bootpath;
++	const char **bootargs;
++	const int *fd_stdin;
++	const int *fd_stdout;
+ };
+ 
+ /* The top level PROM vector. */
 @@ -91,13 +91,13 @@
  	struct linux_mem_v0 pv_v0mem;
  
@@ -2734,9 +3105,9 @@ diff -ruN proll_18.orig/src/openprom.h proll-patch10/src/openprom.h
  };
  
  /* More fun PROM structures for device probing. */
-diff -ruN proll_18.orig/src/packet.c proll-patch10/src/packet.c
+diff -ruN proll_18.orig/src/packet.c proll-patch-15/src/packet.c
 --- proll_18.orig/src/packet.c	2000-02-11 04:56:45.000000000 +0000
-+++ proll-patch10/src/packet.c	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch-15/src/packet.c	2005-08-14 10:12:49.000000000 +0000
 @@ -41,7 +41,7 @@
  	int aligner;
  } wbuf;
@@ -2764,9 +3135,24 @@ diff -ruN proll_18.orig/src/packet.c proll-patch10/src/packet.c
  {
  	struct sk_buff *skb;
  	unsigned char *s;
-diff -ruN proll_18.orig/src/printf.c proll-patch10/src/printf.c
+@@ -209,12 +211,12 @@
+ /*
+  */
+ void
+-eth_copy_and_sum(struct sk_buff *dest, unsigned char *src, int len, int base)
++eth_copy_and_sum(struct sk_buff *dest, unsigned char *src, int len, __attribute__((unused)) int base)
+ {
+ 	bcopy(src, dest->data, len);
+ }
+ 
+-unsigned short eth_type_trans(struct sk_buff *skb, struct device *dev)
++unsigned short eth_type_trans(struct sk_buff *skb, __attribute__((unused)) struct device *dev)
+ {
+ 	unsigned char *s = skb->data + 12;
+ 	return s[0] << 8 | s[1];		/* Network order word */
+diff -ruN proll_18.orig/src/printf.c proll-patch-15/src/printf.c
 --- proll_18.orig/src/printf.c	1999-03-19 07:03:59.000000000 +0000
-+++ proll-patch10/src/printf.c	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch-15/src/printf.c	2005-08-14 10:07:26.000000000 +0000
 @@ -19,7 +19,7 @@
  static void printn(struct prf_fp *, unsigned long, unsigned int);
  static void putchar(char, struct prf_fp *);
@@ -2794,9 +3180,20 @@ diff -ruN proll_18.orig/src/printf.c proll-patch10/src/printf.c
                          	putchar(c,filog);
         		} else if (c == 'l' || c == 'O') {
          	        printn(filog, (long)va_arg(adx,long), c=='l'?10:8);
-diff -ruN proll_18.orig/src/rconsole.c proll-patch10/src/rconsole.c
+@@ -77,10 +77,6 @@
+         char prbuf[24];
+         register char *cp;
+ 
+-        if (b == 10 && n < 0) {
+-                putchar('-',filog);
+-                n = (~n) + 1;		/* n = -n */
+-        }
+         cp = prbuf;
+         do
+ 		*cp++ = hextab[(unsigned int)(n%b)];
+diff -ruN proll_18.orig/src/rconsole.c proll-patch-15/src/rconsole.c
 --- proll_18.orig/src/rconsole.c	1999-01-16 07:16:55.000000000 +0000
-+++ proll-patch10/src/rconsole.c	2005-04-16 06:16:20.000000000 +0000
++++ proll-patch-15/src/rconsole.c	2005-08-14 10:25:53.000000000 +0000
 @@ -28,12 +28,18 @@
   * move to California. Only plain lat7 survived. 
   * I recreated lat7-1 changes in lat7-2.  --zaitcev
@@ -2882,9 +3279,18 @@ diff -ruN proll_18.orig/src/rconsole.c proll-patch10/src/rconsole.c
    p->nchars_ = LAT7_NCHARS;
    p->width_ = LAT7_WIDTH;
    p->height_ = LAT7_HEIGHT;
-diff -ruN proll_18.orig/src/rconsole.h proll-patch10/src/rconsole.h
+@@ -175,7 +188,7 @@
+   r->render_ = p->render_;
+ }
+ 
+-void raster_dest(struct raster *r)
++void raster_dest(__attribute((unused)) struct raster *r)
+ {
+ }
+ 
+diff -ruN proll_18.orig/src/rconsole.h proll-patch-15/src/rconsole.h
 --- proll_18.orig/src/rconsole.h	1999-01-16 05:00:59.000000000 +0000
-+++ proll-patch10/src/rconsole.h	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch-15/src/rconsole.h	2004-11-13 15:50:49.000000000 +0000
 @@ -13,10 +13,10 @@
   */
  
@@ -2898,9 +3304,9 @@ diff -ruN proll_18.orig/src/rconsole.h proll-patch10/src/rconsole.h
    int nchars_;                 /* 128 for ASCII ...  65536 for Unicode   */
    int width_;                  /* [Pixels]. Maximum size is 16.          */
    int height_;                 /* [Pixels == scan lines].                */
-diff -ruN proll_18.orig/src/romlib.h proll-patch10/src/romlib.h
+diff -ruN proll_18.orig/src/romlib.h proll-patch-15/src/romlib.h
 --- proll_18.orig/src/romlib.h	1999-04-20 04:26:45.000000000 +0000
-+++ proll-patch10/src/romlib.h	2005-04-16 20:32:49.000000000 +0000
++++ proll-patch-15/src/romlib.h	2005-04-16 20:32:49.000000000 +0000
 @@ -72,13 +72,13 @@
   */
  #define memcpy(dst, src, len)	bcopy(src, dst, len)
@@ -2920,9 +3326,9 @@ diff -ruN proll_18.orig/src/romlib.h proll-patch10/src/romlib.h
  
  
  /*
-diff -ruN proll_18.orig/src/sched_4m.c proll-patch10/src/sched_4m.c
+diff -ruN proll_18.orig/src/sched_4m.c proll-patch-15/src/sched_4m.c
 --- proll_18.orig/src/sched_4m.c	1999-04-27 05:48:51.000000000 +0000
-+++ proll-patch10/src/sched_4m.c	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch-15/src/sched_4m.c	2005-08-14 10:18:14.000000000 +0000
 @@ -108,7 +108,7 @@
  static int set_bolt;			/* Tick counter limit */
  static struct handsc hndv[16];
@@ -2932,9 +3338,36 @@ diff -ruN proll_18.orig/src/sched_4m.c proll-patch10/src/sched_4m.c
  	0,	0,	0,	0,	0,	0, SUN4M_INT_ETHERNET,	0,
  	0,	0,	0,	0,	0,	0,	0,	0,
  };
-diff -ruN proll_18.orig/src/swap.c proll-patch10/src/swap.c
+@@ -130,7 +130,7 @@
+ int	/* 0 - not expired yet; <>0 - timer expired */
+ chk_timeout()
+ {
+-	int lim = (((1000000/HZ) + 1) << 10);
++	unsigned int lim = (((1000000/HZ) + 1) << 10);
+ 	unsigned int clear;
+ 	unsigned int intc;
+ 	int n;
+@@ -182,7 +182,7 @@
+ 	struct handsc *hndp;
+ 	unsigned int mask;
+ 
+-	if (irq < 0 || irq >= 16) {
++	if (irq == 0 || irq >= 16) {
+ 		printk("request_irq: bad irq %d\n", irq);
+ 		return -1;
+ 	}
+@@ -207,7 +207,7 @@
+ {
+ 	struct handsc *hndp;
+ 
+-	if (irq < 0 || irq >= 16) {
++	if (irq == 0 || irq >= 16) {
+ 		printk("free_irq: bad irq %d\n", irq);
+ 		return;
+ 	}
+diff -ruN proll_18.orig/src/swap.c proll-patch-15/src/swap.c
 --- proll_18.orig/src/swap.c	1970-01-01 00:00:00.000000000 +0000
-+++ proll-patch10/src/swap.c	2004-11-13 15:50:49.000000000 +0000
++++ proll-patch-15/src/swap.c	2004-11-13 15:50:49.000000000 +0000
 @@ -0,0 +1,21 @@
 +// Convert the lat7 font so that no conversion is needed at runtime.
 +#define ORIG
@@ -2957,9 +3390,9 @@ diff -ruN proll_18.orig/src/swap.c proll-patch10/src/swap.c
 +    }
 +    printf("\n");
 +}
-diff -ruN proll_18.orig/src/system.c proll-patch10/src/system.c
+diff -ruN proll_18.orig/src/system.c proll-patch-15/src/system.c
 --- proll_18.orig/src/system.c	2002-07-23 05:52:49.000000000 +0000
-+++ proll-patch10/src/system.c	2005-04-16 06:16:20.000000000 +0000
++++ proll-patch-15/src/system.c	2005-04-16 06:16:20.000000000 +0000
 @@ -298,8 +298,8 @@
  	}
  
@@ -3050,9 +3483,9 @@ diff -ruN proll_18.orig/src/system.c proll-patch10/src/system.c
  void fatal()
  {
  	printk("fatal.");
-diff -ruN proll_18.orig/src/system.h proll-patch10/src/system.h
+diff -ruN proll_18.orig/src/system.h proll-patch-15/src/system.h
 --- proll_18.orig/src/system.h	2002-09-13 21:53:32.000000000 +0000
-+++ proll-patch10/src/system.h	2005-04-16 06:16:20.000000000 +0000
++++ proll-patch-15/src/system.h	2005-04-16 06:16:20.000000000 +0000
 @@ -16,7 +16,7 @@
  #define IOMAPSIZE (1*1024*1024) /* 1 Meg maximum: we do not map framebuffer. */
  #define NCTX_SWIFT  0x100
@@ -3171,19 +3604,72 @@ diff -ruN proll_18.orig/src/system.h proll-patch10/src/system.h
  		: "i" (PSR_PIL)
  		: "g1", "memory");
  
-diff -ruN proll_18.orig/src/udp.c proll-patch10/src/udp.c
+diff -ruN proll_18.orig/src/tftp.c proll-patch-15/src/tftp.c
+--- proll_18.orig/src/tftp.c	2002-09-13 21:53:34.000000000 +0000
++++ proll-patch-15/src/tftp.c	2005-08-14 10:16:15.000000000 +0000
+@@ -127,7 +127,7 @@
+   int len;
+ 
+   /* Read packet with timeout */
+-  len = udp_read((char *)(&inpbuf), sizeof(inpbuf), TFTP_TIMEOUT, CHR_ESC);
++  len = udp_read((char *)(&inpbuf), sizeof(inpbuf), TFTP_TIMEOUT);
+   if (len == 0) {
+ 	printf("TFTP: Timeout\n");
+ 	return(ERR_TIMEOUT);
+diff -ruN proll_18.orig/src/udp.c proll-patch-15/src/udp.c
 --- proll_18.orig/src/udp.c	2001-12-24 05:12:53.000000000 +0000
-+++ proll-patch10/src/udp.c	2004-11-13 15:50:49.000000000 +0000
-@@ -81,7 +81,7 @@
- int      source;
- int      dest;
++++ proll-patch-15/src/udp.c	2005-08-14 10:17:19.000000000 +0000
+@@ -76,12 +76,9 @@
+  * 
+  * Open a new UDP socket.
+  */
+-int udp_open(daddr, source, dest)
+-t_ipaddr daddr;
+-int      source;
+-int      dest;
++int udp_open(t_ipaddr daddr, int source, int dest)
  {
 -  register unsigned char *addr;
-+  const register unsigned char *addr;
++  const unsigned char *addr;
  
    /* Set global variables */
    usource = source;
-@@ -299,9 +299,6 @@
+@@ -101,16 +98,13 @@
+  * 
+  * IP receiver routine
+  */
+-static int ip_recv(buf, bufsize, addr)
+-unsigned char *buf;
+-int            bufsize;
+-unsigned char *addr;
++static int ip_recv(unsigned char *buf, unsigned int bufsize, unsigned char *addr)
+ {
+   struct iphdr *ipp = ((struct iphdr *)buf);
+   struct udphdr *udpp = ((struct udphdr *)(buf + IP_MIN_HSIZE));
+   struct udp_pseudo psehdr;
+ 
+-  int size;
++  unsigned int size;
+   t_ipaddr dadr;
+ 
+ #ifdef DEBUG
+@@ -194,13 +188,9 @@
+  * 
+  * Read one packet from a UDP socket
+  */
+-int udp_read(buf, bufsize, timeout, abortch)
+-char *buf;
+-int   bufsize;
+-int   timeout;
+-char  abortch;
++int udp_read(char *buf, unsigned int bufsize, int timeout)
+ {
+-  int len;
++  unsigned int len;
+ 
+   /* Wait until we get something */
+   set_timeout(timeout);
+@@ -299,9 +289,6 @@
   */
  int init_udp()
  {
@@ -3193,9 +3679,21 @@ diff -ruN proll_18.orig/src/udp.c proll-patch10/src/udp.c
    /* Register IP packet type and set write buffer pointer */
    if ((writebuf = reg_type(htons(ETH_P_IP), ip_recv)) == NULL)
  	return(FALSE);
-diff -ruN proll_18.orig/src/vcons_zs.c proll-patch10/src/vcons_zs.c
+diff -ruN proll_18.orig/src/udp.h proll-patch-15/src/udp.h
+--- proll_18.orig/src/udp.h	2001-12-24 05:12:34.000000000 +0000
++++ proll-patch-15/src/udp.h	2005-08-14 10:16:40.000000000 +0000
+@@ -53,7 +53,7 @@
+ extern int udp_open __P((t_ipaddr daddr, int source, int dest));
+ 
+ /* Read from a UDP socket */
+-extern int udp_read __P((char *buf, int bufsize, int timeout, char abortch));
++extern int udp_read(char *buf, unsigned int bufsize, int timeout);
+ 
+ /* Write to a UDP socket */
+ extern int udp_write __P((char *buf, int writelen));
+diff -ruN proll_18.orig/src/vcons_zs.c proll-patch-15/src/vcons_zs.c
 --- proll_18.orig/src/vcons_zs.c	1970-01-01 00:00:00.000000000 +0000
-+++ proll-patch10/src/vcons_zs.c	2005-04-10 07:01:03.000000000 +0000
++++ proll-patch-15/src/vcons_zs.c	2005-08-14 10:25:51.000000000 +0000
 @@ -0,0 +1,68 @@
 +/**
 + ** Console over 'zs' (Zilog serial port)
@@ -3243,7 +3741,7 @@ diff -ruN proll_18.orig/src/vcons_zs.c proll-patch10/src/vcons_zs.c
 +	return leng;
 +}
 +
-+int vcon_zs_read(struct vconterm *t, char *data, int leng)
++int vcon_zs_read(struct vconterm *t, char *data, __attribute((unused)) int leng)
 +{
 +	unsigned zs_ptr = (unsigned) t->impl;
 +
@@ -3260,14 +3758,14 @@ diff -ruN proll_18.orig/src/vcons_zs.c proll-patch10/src/vcons_zs.c
 +	return ldb_bypass(zs_ptr + ZS_DATA) & 0xff;
 +}
 +
-+void vcon_zs_fini(struct vconterm *t)
++void vcon_zs_fini(__attribute((unused)) struct vconterm *t)
 +{
 +	/* violent crash in the end */
 +	;
 +}
-diff -ruN proll_18.orig/src/vconsole.c proll-patch10/src/vconsole.c
+diff -ruN proll_18.orig/src/vconsole.c proll-patch-15/src/vconsole.c
 --- proll_18.orig/src/vconsole.c	1999-11-08 03:10:28.000000000 +0000
-+++ proll-patch10/src/vconsole.c	2005-04-17 19:23:21.000000000 +0000
++++ proll-patch-15/src/vconsole.c	2005-08-14 10:24:49.000000000 +0000
 @@ -7,12 +7,17 @@
  #include "vconsole.h"
  
@@ -3336,7 +3834,7 @@ diff -ruN proll_18.orig/src/vconsole.c proll-patch10/src/vconsole.c
  int vcon_write(struct vconterm *t, char *data, int leng)
  {
  	int l = leng;
-@@ -40,29 +83,99 @@
+@@ -40,29 +83,101 @@
  		if (l <= 0) break;
  		c = *data++;    --l;
  
@@ -3358,7 +3856,7 @@ diff -ruN proll_18.orig/src/vconsole.c proll-patch10/src/vconsole.c
 +				hcon_scroll(hconp, 0, hcon_qydim(hconp), SM_UP, 1);
 +				break;
 +			default:
-+				printk("Unhandled escape code '%c'\n", c);
++			        //printk("Unhandled escape code '%c'\n", c);
 +				break;
 +			}
  			break;
@@ -3399,8 +3897,10 @@ diff -ruN proll_18.orig/src/vconsole.c proll-patch10/src/vconsole.c
 +			case 'm':
 +				break;
 +			default:
-+				printk("Unhandled escape code '%c', par[%d, %d, %d, %d, %d]\n",
++#if 0
++			        printk("Unhandled escape code '%c', par[%d, %d, %d, %d, %d]\n",
 +				   c, t->vc_par[0], t->vc_par[1], t->vc_par[2], t->vc_par[3], t->vc_par[4]);
++#endif
 +				break;
 +			}
  			break;
@@ -3446,7 +3946,7 @@ diff -ruN proll_18.orig/src/vconsole.c proll-patch10/src/vconsole.c
 +				} else {
 +					t->backc++;
 +				}
-+				if (t->vc_x + t->backc >= hcon_qxdim(hconp)) {
++				if ((unsigned int)t->vc_x + t->backc >= hcon_qxdim(hconp)) {
 +					vcon_i_backflush(t);
 +					t->vc_x = 0;
 +					vcon_i_cursfeed(t);
@@ -3454,10 +3954,32 @@ diff -ruN proll_18.orig/src/vconsole.c proll-patch10/src/vconsole.c
  			}
  		}
  	}
-@@ -100,9 +213,62 @@
+@@ -73,7 +188,7 @@
+ static void vcon_i_cursfeed(struct vconterm *t) {
+ 	struct hconsole *hconp = t->impl;
+ 
+-	if (++t->vc_y >= hcon_qydim(hconp)) {
++	if ((unsigned int)++t->vc_y >= hcon_qydim(hconp)) {
+ 		t->vc_y = hcon_qydim(hconp)-1;
+ 		hcon_scroll(hconp, 0, hcon_qydim(hconp), SM_UP, 1);
+ 	}
+@@ -90,22 +205,75 @@
+ 	t->backp = 0;    t->backc = 0;
+ }
+ 
+-int vcon_putch(struct vconterm *t, char c)
++int vcon_putch(__attribute__((unused)) struct vconterm *t, __attribute__((unused)) char c)
+ {
+ 	return -1;
+ }
+ 
+-int vcon_read(struct vconterm *t, char *data, int leng)
++int vcon_read(__attribute__((unused)) struct vconterm *t, __attribute__((unused)) char *data, __attribute__((unused)) int leng)
+ {
  	return 0;
  }
  
+-int vcon_getch(struct vconterm *t)
 +static const unsigned char sunkbd_keycode[128] = {
 +    0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0,
 +    0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0,
@@ -3488,7 +4010,7 @@ diff -ruN proll_18.orig/src/vconsole.c proll-patch10/src/vconsole.c
 +
 +static int shiftstate;
 +
- int vcon_getch(struct vconterm *t)
++int vcon_getch(__attribute__((unused)) struct vconterm *t)
  {
 -	return -1;
 +        int ch;
@@ -3517,10 +4039,14 @@ diff -ruN proll_18.orig/src/vconsole.c proll-patch10/src/vconsole.c
 +	return ch;
  }
  
- void vcon_fini(struct vconterm *t)
-diff -ruN proll_18.orig/src/vconsole.h proll-patch10/src/vconsole.h
+-void vcon_fini(struct vconterm *t)
++void vcon_fini(__attribute__((unused)) struct vconterm *t)
+ {
+ 	/* violent crash in the end */
+ 	;
+diff -ruN proll_18.orig/src/vconsole.h proll-patch-15/src/vconsole.h
 --- proll_18.orig/src/vconsole.h	1999-11-08 00:58:13.000000000 +0000
-+++ proll-patch10/src/vconsole.h	2005-03-02 12:40:12.000000000 +0000
++++ proll-patch-15/src/vconsole.h	2005-03-02 12:40:12.000000000 +0000
 @@ -6,6 +6,8 @@
  #ifndef VCONSOLE_H
  #define VCONSOLE_H

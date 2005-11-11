@@ -29,6 +29,8 @@
 #ifdef DEBUG_ESP
 #define DPRINTF(fmt, args...) \
 do { printf("ESP: " fmt , ##args); } while (0)
+#define pic_set_irq(irq, level) \
+do { printf("ESP: set_irq(%d): %d\n", (irq), (level)); pic_set_irq((irq),(level));} while (0)
 #else
 #define DPRINTF(fmt, args...)
 #endif
@@ -38,6 +40,8 @@ do { printf("ESP: " fmt , ##args); } while (0)
 #define ESP_MAXREG 0x3f
 #define TI_BUFSZ 65536
 #define DMA_VER 0xa0000000
+#define DMA_INTR 1
+#define DMA_INTREN 0x10
 #define DMA_LOADED 0x04000000
 
 typedef struct ESPState {
@@ -66,6 +70,7 @@ typedef struct ESPState {
 #define INTR_FC 0x08
 #define INTR_BS 0x10
 #define INTR_DC 0x20
+#define INTR_RST 0x80
 
 #define SEQ_0 0x0
 #define SEQ_CD 0x4
@@ -98,11 +103,11 @@ static void handle_satn(ESPState *s)
     s->ti_rptr = 0;
     s->ti_wptr = 0;
 
-    if (target > 4 || !s->bd[target]) { // No such drive
+    if (target >= 4 || !s->bd[target]) { // No such drive
 	s->rregs[4] = STAT_IN;
 	s->rregs[5] = INTR_DC;
 	s->rregs[6] = SEQ_0;
-	s->espdmaregs[0] |= 1;
+	s->espdmaregs[0] |= DMA_INTR;
 	pic_set_irq(s->irq, 1);
 	return;
     }
@@ -192,7 +197,7 @@ static void handle_satn(ESPState *s)
     s->rregs[4] = STAT_IN | STAT_TC | STAT_DI;
     s->rregs[5] = INTR_BS | INTR_FC;
     s->rregs[6] = SEQ_CD;
-    s->espdmaregs[0] |= 1;
+    s->espdmaregs[0] |= DMA_INTR;
     pic_set_irq(s->irq, 1);
 }
 
@@ -209,13 +214,14 @@ static void dma_write(ESPState *s, const uint8_t *buf, uint32_t len)
 	s->rregs[4] = STAT_IN | STAT_TC | STAT_ST;
 	s->rregs[5] = INTR_BS | INTR_FC;
 	s->rregs[6] = SEQ_CD;
-	s->espdmaregs[0] |= 1;
     } else {
 	memcpy(s->ti_buf, buf, len);
 	s->ti_size = dmalen;
 	s->ti_rptr = 0;
 	s->ti_wptr = 0;
+	s->rregs[7] = dmalen;
     }
+    s->espdmaregs[0] |= DMA_INTR;
     pic_set_irq(s->irq, 1);
 
 }
@@ -242,11 +248,12 @@ static void handle_ti(ESPState *s)
 	s->rregs[4] = STAT_IN | STAT_TC | STAT_ST;
 	s->rregs[5] = INTR_BS;
 	s->rregs[6] = 0;
-	s->espdmaregs[0] |= 1;
+	s->espdmaregs[0] |= DMA_INTR;
     } else {
 	s->ti_size = dmalen;
 	s->ti_rptr = 0;
 	s->ti_wptr = 0;
+	s->rregs[7] = dmalen;
     }	
     pic_set_irq(s->irq, 1);
 }
@@ -265,6 +272,7 @@ static uint32_t esp_mem_readb(void *opaque, target_phys_addr_t addr)
     uint32_t saddr;
 
     saddr = (addr & ESP_MAXREG) >> 2;
+    DPRINTF("read reg[%d]: 0x%2.2x\n", saddr, s->rregs[saddr]);
     switch (saddr) {
     case 2:
 	// FIFO
@@ -278,11 +286,16 @@ static uint32_t esp_mem_readb(void *opaque, target_phys_addr_t addr)
             s->ti_wptr = 0;
         }
 	break;
+    case 5:
+        // interrupt
+        // Clear status bits except TC
+        s->rregs[4] &= STAT_TC;
+        pic_set_irq(s->irq, 0);
+	s->espdmaregs[0] &= ~DMA_INTR;
+        break;
     default:
 	break;
     }
-    DPRINTF("read reg[%d]: 0x%2.2x\n", saddr, s->rregs[saddr]);
-
     return s->rregs[saddr];
 }
 
@@ -317,8 +330,9 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 	    break;
 	case 1:
 	    DPRINTF("Flush FIFO (%2.2x)\n", val);
-	    s->rregs[6] = 0;
+            //s->ti_size = 0;
 	    s->rregs[5] = INTR_FC;
+	    s->rregs[6] = 0;
 	    break;
 	case 2:
 	    DPRINTF("Chip reset (%2.2x)\n", val);
@@ -326,6 +340,11 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 	    break;
 	case 3:
 	    DPRINTF("Bus reset (%2.2x)\n", val);
+	    s->rregs[5] = INTR_RST;
+            if (!(s->wregs[8] & 0x40)) {
+                s->espdmaregs[0] |= DMA_INTR;
+                pic_set_irq(s->irq, 1);
+            }
 	    break;
 	case 0x10:
 	    handle_ti(s);
@@ -362,7 +381,10 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
         break;
     case 9 ... 10:
         break;
-    case 11 ... 15:
+    case 11:
+        s->rregs[saddr] = val & 0x15;
+        break;
+    case 12 ... 15:
         s->rregs[saddr] = val;
         break;
     default:
@@ -403,7 +425,7 @@ static void espdma_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t va
     DPRINTF("write dmareg[%d]: 0x%8.8x -> 0x%8.8x\n", saddr, s->espdmaregs[saddr], val);
     switch (saddr) {
     case 0:
-	if (!(val & 0x10))
+	if (!(val & DMA_INTREN))
 	    pic_set_irq(s->irq, 0);
 	if (val & 0x80) {
             esp_reset(s);

@@ -276,6 +276,10 @@ void helper_ld_asi(int asi, int size, int sign)
         case 4:
             ret = ldl_phys(T0 & ~3);
             break;
+        case 8:
+	    ret = ldl_phys(T0 & ~3);
+	    T0 = ldl_phys((T0 + 4) & ~3);
+	    break;
         }
 	break;
     default:
@@ -395,6 +399,10 @@ void helper_st_asi(int asi, int size, int sign)
             case 4:
             default:
                 stl_phys(T0 & ~3, T1);
+                break;
+            case 8:
+                stl_phys(T0 & ~3, T1);
+                stl_phys((T0 + 4) & ~3, T2);
                 break;
             }
 	}

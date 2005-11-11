@@ -195,15 +195,17 @@ int get_physical_address (CPUState *env, target_phys_addr_t *physical, int *prot
 int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                               int is_user, int is_softmmu)
 {
-    target_ulong virt_addr;
     target_phys_addr_t paddr;
     unsigned long vaddr;
     int error_code = 0, prot, ret = 0, access_index;
 
     error_code = get_physical_address(env, &paddr, &prot, &access_index, address, rw, is_user);
     if (error_code == 0) {
-	virt_addr = address & TARGET_PAGE_MASK;
-	vaddr = virt_addr + ((address & TARGET_PAGE_MASK) & (TARGET_PAGE_SIZE - 1));
+	vaddr = address & TARGET_PAGE_MASK;
+	paddr &= TARGET_PAGE_MASK;
+#ifdef DEBUG_MMU
+	printf("Translate at 0x%lx -> 0x%lx, vaddr 0x%lx\n", (long)address, (long)paddr, (long)vaddr);
+#endif
 	ret = tlb_set_page(env, vaddr, paddr, prot, is_user, is_softmmu);
 	return ret;
     }

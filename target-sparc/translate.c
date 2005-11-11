@@ -1897,6 +1897,11 @@ static void disas_sparc_insn(DisasContext * dc)
 #else
                             gen_op_xor_T1_T0();
                             gen_op_wrpsr();
+                            save_state(dc);
+                            gen_op_next_insn();
+			    gen_op_movl_T0_0();
+			    gen_op_exit_tb();
+			    dc->is_br = 1;
 #endif
                         }
                         break;
@@ -2343,8 +2348,8 @@ static void disas_sparc_insn(DisasContext * dc)
 		    gen_op_store_FT0_fpr(rd);
 		    break;
 		case 0x21:	/* load fsr */
+		    gen_op_ldst(ldf);
 		    gen_op_ldfsr();
-		    gen_op_store_FT0_fpr(rd);
 		    break;
 		case 0x22:      /* load quad fpreg */
 		    goto nfpu_insn;
@@ -2426,9 +2431,8 @@ static void disas_sparc_insn(DisasContext * dc)
 		    gen_op_ldst(stf);
 		    break;
 		case 0x25: /* stfsr, V9 stxfsr */
-                    gen_op_load_fpr_FT0(rd);
-		    // XXX
 		    gen_op_stfsr();
+		    gen_op_ldst(stf);
 		    break;
 		case 0x26: /* stdfq */
 		    goto nfpu_insn;
