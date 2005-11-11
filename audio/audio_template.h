@@ -131,6 +131,7 @@ static HW *glue (audio_pcm_hw_find_any_passive_, TYPE) (AudioState *s)
         if (!hw) {
             dolog ("Can not allocate voice `%s' size %d\n",
                    drv->name, glue (drv->voice_size_, TYPE));
+            return NULL;
         }
 
         LIST_INSERT_HEAD (&s->glue (hw_head_, TYPE), hw, entries);
@@ -221,7 +222,7 @@ static SW *glue (audio_pcm_create_voice_pair_, TYPE) (
 
     sw = audio_calloc (AUDIO_FUNC, 1, sizeof (*sw));
     if (!sw) {
-        dolog ("Could not allocate soft voice `%s' (%d bytes)\n",
+        dolog ("Could not allocate soft voice `%s' (%zu bytes)\n",
                sw_name ? sw_name : "unknown", sizeof (*sw));
         goto err1;
     }
