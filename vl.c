@@ -2935,9 +2935,47 @@ void gui_update(void *opaque)
     qemu_mod_timer(gui_timer, GUI_REFRESH_INTERVAL + qemu_get_clock(rt_clock));
 }
 
+struct vm_change_state_entry {
+    VMChangeStateHandler *cb;
+    void *opaque;
+    LIST_ENTRY (vm_change_state_entry) entries;
+};
+
+static LIST_HEAD(vm_change_state_head, vm_change_state_entry) vm_change_state_head;
+
+VMChangeStateEntry *qemu_add_vm_change_state_handler(VMChangeStateHandler *cb,
+                                                     void *opaque)
+{
+    VMChangeStateEntry *e;
+
+    e = qemu_mallocz(sizeof (*e));
+    if (!e)
+        return NULL;
+
+    e->cb = cb;
+    e->opaque = opaque;
+    LIST_INSERT_HEAD(&vm_change_state_head, e, entries);
+    return e;
+}
+
+void qemu_del_vm_change_state_handler(VMChangeStateEntry *e)
+{
+    LIST_REMOVE (e, entries);
+    qemu_free (e);
+}
+
+static void vm_state_notify(int running)
+{
+    VMChangeStateEntry *e;
+
+    for (e = vm_change_state_head.lh_first; e; e = e->entries.le_next) {
+        e->cb(e->opaque, running);
+    }
+}
+
 /* XXX: support several handlers */
-VMStopHandler *vm_stop_cb;
-VMStopHandler *vm_stop_opaque;
+static VMStopHandler *vm_stop_cb;
+static void *vm_stop_opaque;
 
 int qemu_add_vm_stop_handler(VMStopHandler *cb, void *opaque)
 {
@@ -2956,6 +2994,7 @@ void vm_start(void)
     if (!vm_running) {
         cpu_enable_ticks();
         vm_running = 1;
+        vm_state_notify(1);
     }
 }
 
@@ -2969,6 +3008,7 @@ void vm_stop(int reason)
                 vm_stop_cb(vm_stop_opaque, reason);
             }
         }
+        vm_state_notify(0);
     }
 }
 
@@ -3588,7 +3628,8 @@ int main(int argc, char **argv)
     QEMUMachine *machine;
     char usb_devices[MAX_VM_USB_PORTS][128];
     int usb_devices_index;
-    
+
+    LIST_INIT (&vm_change_state_head);
 #if !defined(CONFIG_SOFTMMU)
     /* we never want that malloc() uses mmap() */
     mallopt(M_MMAP_THRESHOLD, 4096 * 1024);

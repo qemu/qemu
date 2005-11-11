@@ -97,7 +97,13 @@ int strstart(const char *str, const char *val, const char **ptr);
 
 extern int vm_running;
 
+typedef struct vm_change_state_entry VMChangeStateEntry;
+typedef void VMChangeStateHandler(void *opaque, int running);
 typedef void VMStopHandler(void *opaque, int reason);
+
+VMChangeStateEntry *qemu_add_vm_change_state_handler(VMChangeStateHandler *cb,
+                                                     void *opaque);
+void qemu_del_vm_change_state_handler(VMChangeStateEntry *e);
 
 int qemu_add_vm_stop_handler(VMStopHandler *cb, void *opaque);
 void qemu_del_vm_stop_handler(VMStopHandler *cb, void *opaque);
