@@ -506,8 +506,11 @@ static int oss_init_out (HWVoiceOut *hw, audsettings_t *as)
             1 << hw->info.shift
             );
         if (!oss->pcm_buf) {
-            dolog ("Could not allocate DAC buffer (%d bytes)\n",
-                   hw->samples << hw->info.shift);
+            dolog (
+                "Could not allocate DAC buffer (%d samples, each %d bytes)\n",
+                hw->samples,
+                1 << hw->info.shift
+                );
             oss_anal_close (&fd);
             return -1;
         }
@@ -597,8 +600,8 @@ static int oss_init_in (HWVoiceIn *hw, audsettings_t *as)
     hw->samples = (obt.nfrags * obt.fragsize) >> hw->info.shift;
     oss->pcm_buf = audio_calloc (AUDIO_FUNC, hw->samples, 1 << hw->info.shift);
     if (!oss->pcm_buf) {
-        dolog ("Could not allocate ADC buffer (%d bytes)\n",
-               hw->samples << hw->info.shift);
+        dolog ("Could not allocate ADC buffer (%d samples, each %d bytes)\n",
+               hw->samples, 1 << hw->info.shift);
         oss_anal_close (&fd);
         return -1;
     }
@@ -657,7 +660,7 @@ static int oss_run_in (HWVoiceIn *hw)
 
             if (nread > 0) {
                 if (nread & hw->info.align) {
-                    dolog ("warning: Misaligned read %d (requested %d), "
+                    dolog ("warning: Misaligned read %zd (requested %d), "
                            "alignment %d\n", nread, bufs[i].add << hwshift,
                            hw->info.align + 1);
                 }
