@@ -181,10 +181,15 @@ USBDevice *usb_host_device_open(const char *devname)
 
 #ifdef USBDEVFS_DISCONNECT
     /* earlier Linux 2.4 do not support that */
-    ret = ioctl(fd, USBDEVFS_DISCONNECT);
-    if (ret < 0 && errno != ENODATA) {
-        perror("USBDEVFS_DISCONNECT");
-        goto fail;
+    {
+        struct usbdevfs_ioctl ctrl;
+        ctrl.ioctl_code = USBDEVFS_DISCONNECT;
+        ctrl.ifno = 0;
+        ret = ioctl(fd, USBDEVFS_IOCTL, &ctrl);
+        if (ret < 0 && errno != ENODATA) {
+            perror("USBDEVFS_DISCONNECT");
+            goto fail;
+        }
     }
 #endif
 
