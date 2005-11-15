@@ -9,6 +9,7 @@ version 0.7.3:
   - Initial USB support
   - Linux host serial port access
   - Linux host low level parallel port access
+  - New network emulation code supporting VLANs.
 
 version 0.7.2:
   

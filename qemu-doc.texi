@@ -247,29 +247,56 @@ Network options:
 
 @table @option
 
-@item -n script      
-Set TUN/TAP network init script [default=/etc/qemu-ifup]. This script
-is launched to configure the host network interface (usually tun0)
-corresponding to the virtual NE2000 card.
+@item -net nic[,vlan=n][,macaddr=addr]
+Create a new Network Interface Card and connect it to VLAN @var{n} (@var{n}
+= 0 is the default). The NIC is currently an NE2000 on the PC
+target. Optionally, the MAC address can be changed. If no
+@option{-net} option is specified, a single NIC is created.
 
-@item -nics n
+@item -net user[,vlan=n]
+Use the user mode network stack which requires not administrator
+priviledge to run. This is the default if no @option{-net} option is
+specified.
 
-Simulate @var{n} network cards (the default is 1).
+@item -net tap[,vlan=n][,fd=h][,ifname=name][,script=file]
+Connect the host TAP network interface @var{name} to VLAN @var{n} and
+use the network script @var{file} to configure it. The default
+network script is @file{/etc/qemu-ifup}. If @var{name} is not
+provided, the OS automatically provides one.  @option{fd=h} can be
+used to specify the handle of an already opened host TAP interface. Example:
 
-@item -macaddr addr   
+@example
+qemu linux.img -net nic -net tap
+@end example
 
-Set the mac address of the first interface (the format is
-aa:bb:cc:dd:ee:ff in hexa). The mac address is incremented for each
-new network interface.
+More complicated example (two NICs, each one connected to a TAP device)
+@example
+qemu linux.img -net nic,vlan=0 -net tap,vlan=0,ifname=tap0 \
+               -net nic,vlan=1 -net tap,vlan=1,ifname=tap1
+@end example
 
-@item -tun-fd fd
-Assumes @var{fd} talks to a tap/tun host network interface and use
-it. Read @url{http://bellard.org/qemu/tetrinet.html} to have an
-example of its use.
 
-@item -user-net 
-Use the user mode network stack. This is the default if no tun/tap
-network init script is found.
+@item -net socket[,vlan=n][,fd=h][,listen=[host]:port][,connect=host:port]
+
+Connect the VLAN @var{n} to a remote VLAN in another QEMU virtual
+machine using a TCP socket connection. If @option{listen} is
+specified, QEMU waits for incoming connections on @var{port}
+(@var{host} is optional). @option{connect} is used to connect to
+another QEMU instance using the @option{listen} option.  @option{fd=h}
+specifies an already opened socket.
+
+Example:
+@example
+# launch a first QEMU instance
+qemu linux.img -net nic -net socket,listen=:1234
+# connect the VLAN 0 of this instance to the VLAN 0 of the first instance
+qemu linux.img -net nic -net socket,connect=127.0.0.1:1234
+@end example
+
+@item -net none
+Indicate that no network devices should be configured. It is used to
+override the default configuration which is activated if no
+@option{-net} options are provided.
 
 @item -tftp prefix
 When using the user mode network stack, activate a built-in TFTP
@@ -327,13 +354,9 @@ telnet localhost 5555
 Then when you use on the host @code{telnet localhost 5555}, you
 connect to the guest telnet server.
 
-@item -dummy-net 
-Use the dummy network stack: no packet will be received by the network
-cards.
-
 @end table
 
-Linux boot specific. When using this options, you can use a given
+Linux boot specific: When using these options, you can use a given
 Linux kernel without installing it in the disk image. It can be useful
 for easier testing of various kernels.
 
@@ -521,7 +544,7 @@ show various information about the system state
 
 @table @option
 @item info network
-show the network state
+show the various VLANs and the associated devices
 @item info block
 show the block devices
 @item info registers
@@ -700,36 +723,49 @@ command (or @key{C-a s} in the serial console).
 
 @section Network emulation
 
-QEMU simulates up to 6 networks cards (NE2000 boards). Each card can
-be connected to a specific host network interface.
+QEMU can simulate several networks cards (NE2000 boards on the PC
+target) and can connect them to an arbitrary number of Virtual Local
+Area Networks (VLANs). Host TAP devices can be connected to any QEMU
+VLAN. VLAN can be connected between separate instances of QEMU to
+simulate large networks. For simpler usage, a non priviledged user mode
+network stack can replace the TAP device to have a basic network
+connection.
 
-@subsection Using tun/tap network interface
+@subsection VLANs
 
-This is the standard way to emulate network. QEMU adds a virtual
-network device on your host (called @code{tun0}), and you can then
-configure it as if it was a real ethernet card.
+QEMU simulates several VLANs. A VLAN can be symbolised as a virtual
+connection between several network devices. These devices can be for
+example QEMU virtual Ethernet cards or virtual Host ethernet devices
+(TAP devices).
+
+@subsection Using TAP network interfaces
+
+This is the standard way to connect QEMU to a real network. QEMU adds
+a virtual network device on your host (called @code{tapN}), and you
+can then configure it as if it was a real ethernet card.
 
 As an example, you can download the @file{linux-test-xxx.tar.gz}
 archive and copy the script @file{qemu-ifup} in @file{/etc} and
 configure properly @code{sudo} so that the command @code{ifconfig}
 contained in @file{qemu-ifup} can be executed as root. You must verify
-that your host kernel supports the TUN/TAP network interfaces: the
+that your host kernel supports the TAP network interfaces: the
 device @file{/dev/net/tun} must be present.
 
 See @ref{direct_linux_boot} to have an example of network use with a
-Linux distribution.
+Linux distribution and @ref{sec_invocation} to have examples of
+command lines using the TAP network interfaces.
 
 @subsection Using the user mode network stack
 
-By using the option @option{-user-net} or if you have no tun/tap init
-script, QEMU uses a completely user mode network stack (you don't need
-root priviledge to use the virtual network). The virtual network
-configuration is the following:
+By using the option @option{-net user} (default configuration if no
+@option{-net} option is specified), QEMU uses a completely user mode
+network stack (you don't need root priviledge to use the virtual
+network). The virtual network configuration is the following:
 
 @example
 
-QEMU Virtual Machine    <------>  Firewall/DHCP server <-----> Internet
-     (10.0.2.x)            |          (10.0.2.2)
+         QEMU VLAN      <------>  Firewall/DHCP server <-----> Internet
+                           |          (10.0.2.2)
                            |
                            ---->  DNS server (10.0.2.3)
                            |     
@@ -738,7 +774,8 @@ QEMU Virtual Machine    <------>  Firewall/DHCP server <-----> Internet
 
 The QEMU VM behaves as if it was behind a firewall which blocks all
 incoming connections. You can use a DHCP client to automatically
-configure the network in the QEMU VM.
+configure the network in the QEMU VM. The DHCP server assign addresses
+to the hosts starting from 10.0.2.15.
 
 In order to check that the user mode network is working, you can ping
 the address 10.0.2.2 and verify that you got an address in the range
@@ -754,6 +791,12 @@ server.
 When using the @option{-redir} option, TCP or UDP connections can be
 redirected from the host to the guest. It allows for example to
 redirect X11, telnet or SSH connections.
+
+@subsection Connecting VLANs between QEMU instances
+
+Using the @option{-net socket} option, it is possible to make VLANs
+that span several QEMU instances. See @ref{sec_invocation} to have a
+basic example.
 
 @node direct_linux_boot
 @section Direct Linux Boot
