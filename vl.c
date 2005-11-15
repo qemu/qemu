@@ -40,6 +40,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <dirent.h>
+#include <netdb.h>
 #ifdef _BSD
 #include <sys/stat.h>
 #ifndef __APPLE__
@@ -122,10 +123,9 @@ const char* keyboard_layout = NULL;
 int64_t ticks_per_sec;
 int boot_device = 'c';
 int ram_size;
-static char network_script[1024];
 int pit_min_timer_count = 0;
 int nb_nics;
-NetDriverState nd_table[MAX_NICS];
+NICInfo nd_table[MAX_NICS];
 QEMUTimer *gui_timer;
 int vm_running;
 #ifdef HAS_AUDIO
@@ -155,6 +155,7 @@ int win2k_install_hack = 0;
 int usb_enabled = 0;
 USBPort *vm_usb_ports[MAX_VM_USB_PORTS];
 USBDevice *vm_usb_hub;
+static VLANState *first_vlan;
 
 /***********************************************************/
 /* x86 ISA bus support */
@@ -1076,10 +1077,10 @@ CharDriverState *qemu_chr_open_null(void)
 
 typedef struct {
     int fd_in, fd_out;
-    /* for nographic stdio only */
     IOCanRWHandler *fd_can_read; 
     IOReadHandler *fd_read;
     void *fd_opaque;
+    int max_size;
 } FDCharDriver;
 
 #define STDIO_MAX_CLIENTS 2
@@ -1113,6 +1114,33 @@ static int fd_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
     return unix_write(s->fd_out, buf, len);
 }
 
+static int fd_chr_read_poll(void *opaque)
+{
+    CharDriverState *chr = opaque;
+    FDCharDriver *s = chr->opaque;
+
+    s->max_size = s->fd_can_read(s->fd_opaque);
+    return s->max_size;
+}
+
+static void fd_chr_read(void *opaque)
+{
+    CharDriverState *chr = opaque;
+    FDCharDriver *s = chr->opaque;
+    int size, len;
+    uint8_t buf[1024];
+    
+    len = sizeof(buf);
+    if (len > s->max_size)
+        len = s->max_size;
+    if (len == 0)
+        return;
+    size = read(s->fd_in, buf, len);
+    if (size > 0) {
+        s->fd_read(s->fd_opaque, buf, size);
+    }
+}
+
 static void fd_chr_add_read_handler(CharDriverState *chr, 
                                     IOCanRWHandler *fd_can_read, 
                                     IOReadHandler *fd_read, void *opaque)
@@ -1120,12 +1148,13 @@ static void fd_chr_add_read_handler(CharDriverState *chr,
     FDCharDriver *s = chr->opaque;
 
     if (s->fd_in >= 0) {
+        s->fd_can_read = fd_can_read;
+        s->fd_read = fd_read;
+        s->fd_opaque = opaque;
         if (nographic && s->fd_in == 0) {
-            s->fd_can_read = fd_can_read;
-            s->fd_read = fd_read;
-            s->fd_opaque = opaque;
         } else {
-            qemu_add_fd_read_handler(s->fd_in, fd_can_read, fd_read, opaque);
+            qemu_set_fd_handler2(s->fd_in, fd_chr_read_poll, 
+                                 fd_chr_read, NULL, chr);
         }
     }
 }
@@ -1261,7 +1290,7 @@ static void stdio_received_byte(int ch)
     }
 }
 
-static int stdio_can_read(void *opaque)
+static int stdio_read_poll(void *opaque)
 {
     CharDriverState *chr;
     FDCharDriver *s;
@@ -1284,11 +1313,14 @@ static int stdio_can_read(void *opaque)
     }
 }
 
-static void stdio_read(void *opaque, const uint8_t *buf, int size)
+static void stdio_read(void *opaque)
 {
-    int i;
-    for(i = 0; i < size; i++)
-        stdio_received_byte(buf[i]);
+    int size;
+    uint8_t buf[1];
+    
+    size = read(0, buf, 1);
+    if (size > 0)
+        stdio_received_byte(buf[0]);
 }
 
 /* init terminal so that we can grab keys */
@@ -1337,7 +1369,7 @@ CharDriverState *qemu_chr_open_stdio(void)
             return NULL;
         chr = qemu_chr_open_fd(0, 1);
         if (stdio_nb_clients == 0)
-            qemu_add_fd_read_handler(0, stdio_can_read, stdio_read, NULL);
+            qemu_set_fd_handler2(0, stdio_read_poll, stdio_read, NULL, NULL);
         client_index = stdio_nb_clients;
     } else {
         if (stdio_nb_clients != 0)
@@ -1603,7 +1635,7 @@ CharDriverState *qemu_chr_open(const char *filename)
 }
 
 /***********************************************************/
-/* Linux network device redirectors */
+/* network device redirectors */
 
 void hex_dump(FILE *f, const uint8_t *buf, int size)
 {
@@ -1631,87 +1663,20 @@ void hex_dump(FILE *f, const uint8_t *buf, int size)
     }
 }
 
-void qemu_send_packet(NetDriverState *nd, const uint8_t *buf, int size)
+static int parse_macaddr(uint8_t *macaddr, const char *p)
 {
-    nd->send_packet(nd, buf, size);
-}
-
-void qemu_add_read_packet(NetDriverState *nd, IOCanRWHandler *fd_can_read, 
-                          IOReadHandler *fd_read, void *opaque)
-{
-    nd->add_read_packet(nd, fd_can_read, fd_read, opaque);
-}
-
-/* dummy network adapter */
-
-static void dummy_send_packet(NetDriverState *nd, const uint8_t *buf, int size)
-{
-}
-
-static void dummy_add_read_packet(NetDriverState *nd, 
-                                  IOCanRWHandler *fd_can_read, 
-                                  IOReadHandler *fd_read, void *opaque)
-{
-}
-
-static int net_dummy_init(NetDriverState *nd)
-{
-    nd->send_packet = dummy_send_packet;
-    nd->add_read_packet = dummy_add_read_packet;
-    pstrcpy(nd->ifname, sizeof(nd->ifname), "dummy");
-    return 0;
-}
-
-#if defined(CONFIG_SLIRP)
-
-/* slirp network adapter */
-
-static void *slirp_fd_opaque;
-static IOCanRWHandler *slirp_fd_can_read;
-static IOReadHandler *slirp_fd_read;
-static int slirp_inited;
-
-int slirp_can_output(void)
-{
-    return slirp_fd_can_read(slirp_fd_opaque);
-}
-
-void slirp_output(const uint8_t *pkt, int pkt_len)
-{
-#if 0
-    printf("output:\n");
-    hex_dump(stdout, pkt, pkt_len);
-#endif
-    slirp_fd_read(slirp_fd_opaque, pkt, pkt_len);
-}
-
-static void slirp_send_packet(NetDriverState *nd, const uint8_t *buf, int size)
-{
-#if 0
-    printf("input:\n");
-    hex_dump(stdout, buf, size);
-#endif
-    slirp_input(buf, size);
-}
-
-static void slirp_add_read_packet(NetDriverState *nd, 
-                                  IOCanRWHandler *fd_can_read, 
-                                  IOReadHandler *fd_read, void *opaque)
-{
-    slirp_fd_opaque = opaque;
-    slirp_fd_can_read = fd_can_read;
-    slirp_fd_read = fd_read;
-}
-
-static int net_slirp_init(NetDriverState *nd)
-{
-    if (!slirp_inited) {
-        slirp_inited = 1;
-        slirp_init();
+    int i;
+    for(i = 0; i < 6; i++) {
+        macaddr[i] = strtol(p, (char **)&p, 16);
+        if (i == 5) {
+            if (*p != '\0') 
+                return -1;
+        } else {
+            if (*p != ':') 
+                return -1;
+            p++;
+        }
     }
-    nd->send_packet = slirp_send_packet;
-    nd->add_read_packet = slirp_add_read_packet;
-    pstrcpy(nd->ifname, sizeof(nd->ifname), "slirp");
     return 0;
 }
 
@@ -1732,6 +1697,137 @@ static int get_str_sep(char *buf, int buf_size, const char **pp, int sep)
         buf[len] = '\0';
     }
     *pp = p1;
+    return 0;
+}
+
+int parse_host_port(struct sockaddr_in *saddr, const char *str)
+{
+    char buf[512];
+    struct hostent *he;
+    const char *p, *r;
+    int port;
+
+    p = str;
+    if (get_str_sep(buf, sizeof(buf), &p, ':') < 0)
+        return -1;
+    saddr->sin_family = AF_INET;
+    if (buf[0] == '\0') {
+        saddr->sin_addr.s_addr = 0;
+    } else {
+        if (isdigit(buf[0])) {
+            if (!inet_aton(buf, &saddr->sin_addr))
+                return -1;
+        } else {
+#ifdef _WIN32
+            return -1;
+#else
+            if ((he = gethostbyname(buf)) == NULL)
+                return - 1;
+            saddr->sin_addr = *(struct in_addr *)he->h_addr;
+#endif
+        }
+    }
+    port = strtol(p, (char **)&r, 0);
+    if (r == p)
+        return -1;
+    saddr->sin_port = htons(port);
+    return 0;
+}
+
+/* find or alloc a new VLAN */
+VLANState *qemu_find_vlan(int id)
+{
+    VLANState **pvlan, *vlan;
+    for(vlan = first_vlan; vlan != NULL; vlan = vlan->next) {
+        if (vlan->id == id)
+            return vlan;
+    }
+    vlan = qemu_mallocz(sizeof(VLANState));
+    if (!vlan)
+        return NULL;
+    vlan->id = id;
+    vlan->next = NULL;
+    pvlan = &first_vlan;
+    while (*pvlan != NULL)
+        pvlan = &(*pvlan)->next;
+    *pvlan = vlan;
+    return vlan;
+}
+
+VLANClientState *qemu_new_vlan_client(VLANState *vlan,
+                                      IOReadHandler *fd_read, void *opaque)
+{
+    VLANClientState *vc, **pvc;
+    vc = qemu_mallocz(sizeof(VLANClientState));
+    if (!vc)
+        return NULL;
+    vc->fd_read = fd_read;
+    vc->opaque = opaque;
+    vc->vlan = vlan;
+
+    vc->next = NULL;
+    pvc = &vlan->first_client;
+    while (*pvc != NULL)
+        pvc = &(*pvc)->next;
+    *pvc = vc;
+    return vc;
+}
+
+void qemu_send_packet(VLANClientState *vc1, const uint8_t *buf, int size)
+{
+    VLANState *vlan = vc1->vlan;
+    VLANClientState *vc;
+
+#if 0
+    printf("vlan %d send:\n", vlan->id);
+    hex_dump(stdout, buf, size);
+#endif
+    for(vc = vlan->first_client; vc != NULL; vc = vc->next) {
+        if (vc != vc1) {
+            vc->fd_read(vc->opaque, buf, size);
+        }
+    }
+}
+
+#if defined(CONFIG_SLIRP)
+
+/* slirp network adapter */
+
+static int slirp_inited;
+static VLANClientState *slirp_vc;
+
+int slirp_can_output(void)
+{
+    return 1;
+}
+
+void slirp_output(const uint8_t *pkt, int pkt_len)
+{
+#if 0
+    printf("slirp output:\n");
+    hex_dump(stdout, pkt, pkt_len);
+#endif
+    qemu_send_packet(slirp_vc, pkt, pkt_len);
+}
+
+static void slirp_receive(void *opaque, const uint8_t *buf, int size)
+{
+#if 0
+    printf("slirp input:\n");
+    hex_dump(stdout, buf, size);
+#endif
+    slirp_input(buf, size);
+}
+
+static int net_slirp_init(VLANState *vlan)
+{
+    if (!slirp_inited) {
+        slirp_inited = 1;
+        slirp_init();
+    }
+    slirp_vc = qemu_new_vlan_client(vlan, 
+                                    slirp_receive, NULL);
+    snprintf(slirp_vc->info_str, sizeof(slirp_vc->info_str), "user redirector");
     return 0;
 }
 
@@ -1874,8 +1970,55 @@ void net_slirp_smb(const char *exported_dir)
 #endif /* CONFIG_SLIRP */
 
 #if !defined(_WIN32)
+
+typedef struct TAPState {
+    VLANClientState *vc;
+    int fd;
+} TAPState;
+
+static void tap_receive(void *opaque, const uint8_t *buf, int size)
+{
+    TAPState *s = opaque;
+    int ret;
+    for(;;) {
+        ret = write(s->fd, buf, size);
+        if (ret < 0 && (errno == EINTR || errno == EAGAIN)) {
+        } else {
+            break;
+        }
+    }
+}
+
+static void tap_send(void *opaque)
+{
+    TAPState *s = opaque;
+    uint8_t buf[4096];
+    int size;
+
+    size = read(s->fd, buf, sizeof(buf));
+    if (size > 0) {
+        qemu_send_packet(s->vc, buf, size);
+    }
+}
+
+/* fd support */
+
+static TAPState *net_tap_fd_init(VLANState *vlan, int fd)
+{
+    TAPState *s;
+
+    s = qemu_mallocz(sizeof(TAPState));
+    if (!s)
+        return NULL;
+    s->fd = fd;
+    s->vc = qemu_new_vlan_client(vlan, tap_receive, s);
+    qemu_set_fd_handler(s->fd, tap_send, NULL, s);
+    snprintf(s->vc->info_str, sizeof(s->vc->info_str), "tap: fd=%d", fd);
+    return s;
+}
+
 #ifdef _BSD
-static int tun_open(char *ifname, int ifname_size)
+static int tap_open(char *ifname, int ifname_size)
 {
     int fd;
     char *dev;
@@ -1895,7 +2038,7 @@ static int tun_open(char *ifname, int ifname_size)
     return fd;
 }
 #else
-static int tun_open(char *ifname, int ifname_size)
+static int tap_open(char *ifname, int ifname_size)
 {
     struct ifreq ifr;
     int fd, ret;
@@ -1907,76 +2050,448 @@ static int tun_open(char *ifname, int ifname_size)
     }
     memset(&ifr, 0, sizeof(ifr));
     ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
-    pstrcpy(ifr.ifr_name, IFNAMSIZ, "tun%d");
+    if (ifname[0] != '\0')
+        pstrcpy(ifr.ifr_name, IFNAMSIZ, ifname);
+    else
+        pstrcpy(ifr.ifr_name, IFNAMSIZ, "tap%d");
     ret = ioctl(fd, TUNSETIFF, (void *) &ifr);
     if (ret != 0) {
         fprintf(stderr, "warning: could not configure /dev/net/tun: no virtual network emulation\n");
         close(fd);
         return -1;
     }
-    printf("Connected to host network interface: %s\n", ifr.ifr_name);
     pstrcpy(ifname, ifname_size, ifr.ifr_name);
     fcntl(fd, F_SETFL, O_NONBLOCK);
     return fd;
 }
 #endif
 
-static void tun_send_packet(NetDriverState *nd, const uint8_t *buf, int size)
+static int net_tap_init(VLANState *vlan, const char *ifname1,
+                        const char *setup_script)
 {
-    write(nd->fd, buf, size);
-}
-
-static void tun_add_read_packet(NetDriverState *nd, 
-                                IOCanRWHandler *fd_can_read, 
-                                IOReadHandler *fd_read, void *opaque)
-{
-    qemu_add_fd_read_handler(nd->fd, fd_can_read, fd_read, opaque);
-}
-
-static int net_tun_init(NetDriverState *nd)
-{
-    int pid, status;
+    TAPState *s;
+    int pid, status, fd;
     char *args[3];
     char **parg;
+    char ifname[128];
 
-    nd->fd = tun_open(nd->ifname, sizeof(nd->ifname));
-    if (nd->fd < 0)
+    if (ifname1 != NULL)
+        pstrcpy(ifname, sizeof(ifname), ifname1);
+    else
+        ifname[0] = '\0';
+    fd = tap_open(ifname, sizeof(ifname));
+    if (fd < 0)
         return -1;
 
-    /* try to launch network init script */
-    pid = fork();
-    if (pid >= 0) {
-        if (pid == 0) {
-            parg = args;
-            *parg++ = network_script;
-            *parg++ = nd->ifname;
-            *parg++ = NULL;
-            execv(network_script, args);
-            exit(1);
-        }
-        while (waitpid(pid, &status, 0) != pid);
-        if (!WIFEXITED(status) ||
-            WEXITSTATUS(status) != 0) {
-            fprintf(stderr, "%s: could not launch network script\n",
-                    network_script);
+    if (!setup_script)
+        setup_script = "";
+    if (setup_script[0] != '\0') {
+        /* try to launch network init script */
+        pid = fork();
+        if (pid >= 0) {
+            if (pid == 0) {
+                parg = args;
+                *parg++ = (char *)setup_script;
+                *parg++ = ifname;
+                *parg++ = NULL;
+                execv(setup_script, args);
+                exit(1);
+            }
+            while (waitpid(pid, &status, 0) != pid);
+            if (!WIFEXITED(status) ||
+                WEXITSTATUS(status) != 0) {
+                fprintf(stderr, "%s: could not launch network script\n",
+                        setup_script);
+                return -1;
+            }
         }
     }
-    nd->send_packet = tun_send_packet;
-    nd->add_read_packet = tun_add_read_packet;
+    s = net_tap_fd_init(vlan, fd);
+    if (!s)
+        return -1;
+    snprintf(s->vc->info_str, sizeof(s->vc->info_str), 
+             "tap: ifname=%s setup_script=%s", ifname, setup_script);
     return 0;
 }
 
-static int net_fd_init(NetDriverState *nd, int fd)
+/* network connection */
+typedef struct NetSocketState {
+    VLANClientState *vc;
+    int fd;
+    int state; /* 0 = getting length, 1 = getting data */
+    int index;
+    int packet_len;
+    uint8_t buf[4096];
+} NetSocketState;
+
+typedef struct NetSocketListenState {
+    VLANState *vlan;
+    int fd;
+} NetSocketListenState;
+
+/* XXX: we consider we can send the whole packet without blocking */
+static void net_socket_receive(void *opaque, const uint8_t *buf, int size)
 {
-    nd->fd = fd;
-    nd->send_packet = tun_send_packet;
-    nd->add_read_packet = tun_add_read_packet;
-    pstrcpy(nd->ifname, sizeof(nd->ifname), "tunfd");
+    NetSocketState *s = opaque;
+    uint32_t len;
+    len = htonl(size);
+
+    unix_write(s->fd, (const uint8_t *)&len, sizeof(len));
+    unix_write(s->fd, buf, size);
+}
+
+static void net_socket_send(void *opaque)
+{
+    NetSocketState *s = opaque;
+    int l, size;
+    uint8_t buf1[4096];
+    const uint8_t *buf;
+
+    size = read(s->fd, buf1, sizeof(buf1));
+    if (size < 0) 
+        return;
+    if (size == 0) {
+        /* end of connection */
+        qemu_set_fd_handler(s->fd, NULL, NULL, NULL);
+        return;
+    }
+    buf = buf1;
+    while (size > 0) {
+        /* reassemble a packet from the network */
+        switch(s->state) {
+        case 0:
+            l = 4 - s->index;
+            if (l > size)
+                l = size;
+            memcpy(s->buf + s->index, buf, l);
+            buf += l;
+            size -= l;
+            s->index += l;
+            if (s->index == 4) {
+                /* got length */
+                s->packet_len = ntohl(*(uint32_t *)s->buf);
+                s->index = 0;
+                s->state = 1;
+            }
+            break;
+        case 1:
+            l = s->packet_len - s->index;
+            if (l > size)
+                l = size;
+            memcpy(s->buf + s->index, buf, l);
+            s->index += l;
+            buf += l;
+            size -= l;
+            if (s->index >= s->packet_len) {
+                qemu_send_packet(s->vc, s->buf, s->packet_len);
+                s->index = 0;
+                s->state = 0;
+            }
+            break;
+        }
+    }
+}
+
+static void net_socket_connect(void *opaque)
+{
+    NetSocketState *s = opaque;
+    qemu_set_fd_handler(s->fd, net_socket_send, NULL, s);
+}
+
+static NetSocketState *net_socket_fd_init(VLANState *vlan, int fd, 
+                                          int is_connected)
+{
+    NetSocketState *s;
+    s = qemu_mallocz(sizeof(NetSocketState));
+    if (!s)
+        return NULL;
+    s->fd = fd;
+    s->vc = qemu_new_vlan_client(vlan, 
+                                 net_socket_receive, s);
+    snprintf(s->vc->info_str, sizeof(s->vc->info_str),
+             "socket: fd=%d", fd);
+    if (is_connected) {
+        net_socket_connect(s);
+    } else {
+        qemu_set_fd_handler(s->fd, NULL, net_socket_connect, s);
+    }
+    return s;
+}
+
+static void net_socket_accept(void *opaque)
+{
+    NetSocketListenState *s = opaque;    
+    NetSocketState *s1;
+    struct sockaddr_in saddr;
+    socklen_t len;
+    int fd;
+
+    for(;;) {
+        len = sizeof(saddr);
+        fd = accept(s->fd, (struct sockaddr *)&saddr, &len);
+        if (fd < 0 && errno != EINTR) {
+            return;
+        } else if (fd >= 0) {
+            break;
+        }
+    }
+    s1 = net_socket_fd_init(s->vlan, fd, 1); 
+    if (!s1) {
+        close(fd);
+    } else {
+        snprintf(s1->vc->info_str, sizeof(s1->vc->info_str),
+                 "socket: connection from %s:%d", 
+                 inet_ntoa(saddr.sin_addr), ntohs(saddr.sin_port));
+    }
+}
+
+static int net_socket_listen_init(VLANState *vlan, const char *host_str)
+{
+    NetSocketListenState *s;
+    int fd, val, ret;
+    struct sockaddr_in saddr;
+
+    if (parse_host_port(&saddr, host_str) < 0)
+        return -1;
+    
+    s = qemu_mallocz(sizeof(NetSocketListenState));
+    if (!s)
+        return -1;
+
+    fd = socket(PF_INET, SOCK_STREAM, 0);
+    if (fd < 0) {
+        perror("socket");
+        return -1;
+    }
+    fcntl(fd, F_SETFL, O_NONBLOCK);
+
+    /* allow fast reuse */
+    val = 1;
+    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
+    
+    ret = bind(fd, (struct sockaddr *)&saddr, sizeof(saddr));
+    if (ret < 0) {
+        perror("bind");
+        return -1;
+    }
+    ret = listen(fd, 0);
+    if (ret < 0) {
+        perror("listen");
+        return -1;
+    }
+    s->vlan = vlan;
+    s->fd = fd;
+    qemu_set_fd_handler(fd, net_socket_accept, NULL, s);
+    return 0;
+}
+
+static int net_socket_connect_init(VLANState *vlan, const char *host_str)
+{
+    NetSocketState *s;
+    int fd, connected, ret;
+    struct sockaddr_in saddr;
+
+    if (parse_host_port(&saddr, host_str) < 0)
+        return -1;
+
+    fd = socket(PF_INET, SOCK_STREAM, 0);
+    if (fd < 0) {
+        perror("socket");
+        return -1;
+    }
+    fcntl(fd, F_SETFL, O_NONBLOCK);
+
+    connected = 0;
+    for(;;) {
+        ret = connect(fd, (struct sockaddr *)&saddr, sizeof(saddr));
+        if (ret < 0) {
+            if (errno == EINTR || errno == EAGAIN) {
+            } else if (errno == EINPROGRESS) {
+                break;
+            } else {
+                perror("connect");
+                close(fd);
+                return -1;
+            }
+        } else {
+            connected = 1;
+            break;
+        }
+    }
+    s = net_socket_fd_init(vlan, fd, connected);
+    if (!s)
+        return -1;
+    snprintf(s->vc->info_str, sizeof(s->vc->info_str),
+             "socket: connect to %s:%d", 
+             inet_ntoa(saddr.sin_addr), ntohs(saddr.sin_port));
     return 0;
 }
 
 #endif /* !_WIN32 */
 
+static int get_param_value(char *buf, int buf_size,
+                           const char *tag, const char *str)
+{
+    const char *p;
+    char *q;
+    char option[128];
+
+    p = str;
+    for(;;) {
+        q = option;
+        while (*p != '\0' && *p != '=') {
+            if ((q - option) < sizeof(option) - 1)
+                *q++ = *p;
+            p++;
+        }
+        *q = '\0';
+        if (*p != '=')
+            break;
+        p++;
+        if (!strcmp(tag, option)) {
+            q = buf;
+            while (*p != '\0' && *p != ',') {
+                if ((q - buf) < buf_size - 1)
+                    *q++ = *p;
+                p++;
+            }
+            *q = '\0';
+            return q - buf;
+        } else {
+            while (*p != '\0' && *p != ',') {
+                p++;
+            }
+        }
+        if (*p != ',')
+            break;
+        p++;
+    }
+    return 0;
+}
+
+int net_client_init(const char *str)
+{
+    const char *p;
+    char *q;
+    char device[64];
+    char buf[1024];
+    int vlan_id, ret;
+    VLANState *vlan;
+
+    p = str;
+    q = device;
+    while (*p != '\0' && *p != ',') {
+        if ((q - device) < sizeof(device) - 1)
+            *q++ = *p;
+        p++;
+    }
+    *q = '\0';
+    if (*p == ',')
+        p++;
+    vlan_id = 0;
+    if (get_param_value(buf, sizeof(buf), "vlan", p)) {
+        vlan_id = strtol(buf, NULL, 0);
+    }
+    vlan = qemu_find_vlan(vlan_id);
+    if (!vlan) {
+        fprintf(stderr, "Could not create vlan %d\n", vlan_id);
+        return -1;
+    }
+    if (!strcmp(device, "nic")) {
+        NICInfo *nd;
+        uint8_t *macaddr;
+
+        if (nb_nics >= MAX_NICS) {
+            fprintf(stderr, "Too Many NICs\n");
+            return -1;
+        }
+        nd = &nd_table[nb_nics];
+        macaddr = nd->macaddr;
+        macaddr[0] = 0x52;
+        macaddr[1] = 0x54;
+        macaddr[2] = 0x00;
+        macaddr[3] = 0x12;
+        macaddr[4] = 0x34;
+        macaddr[5] = 0x56 + nb_nics;
+
+        if (get_param_value(buf, sizeof(buf), "macaddr", p)) {
+            if (parse_macaddr(macaddr, buf) < 0) {
+                fprintf(stderr, "invalid syntax for ethernet address\n");
+                return -1;
+            }
+        }
+        nd->vlan = vlan;
+        nb_nics++;
+        ret = 0;
+    } else
+    if (!strcmp(device, "none")) {
+        /* does nothing. It is needed to signal that no network cards
+           are wanted */
+        ret = 0;
+    } else
+#ifdef CONFIG_SLIRP
+    if (!strcmp(device, "user")) {
+        ret = net_slirp_init(vlan);
+    } else
+#endif
+#ifndef _WIN32
+    if (!strcmp(device, "tap")) {
+        char ifname[64];
+        char setup_script[1024];
+        int fd;
+        if (get_param_value(buf, sizeof(buf), "fd", p) > 0) {
+            fd = strtol(buf, NULL, 0);
+            ret = -1;
+            if (net_tap_fd_init(vlan, fd))
+                ret = 0;
+        } else {
+            get_param_value(ifname, sizeof(ifname), "ifname", p);
+            if (get_param_value(setup_script, sizeof(setup_script), "script", p) == 0) {
+                pstrcpy(setup_script, sizeof(setup_script), DEFAULT_NETWORK_SCRIPT);
+            }
+            ret = net_tap_init(vlan, ifname, setup_script);
+        }
+    } else
+    if (!strcmp(device, "socket")) {
+        if (get_param_value(buf, sizeof(buf), "fd", p) > 0) {
+            int fd;
+            fd = strtol(buf, NULL, 0);
+            ret = -1;
+            if (net_socket_fd_init(vlan, fd, 1))
+                ret = 0;
+        } else if (get_param_value(buf, sizeof(buf), "listen", p) > 0) {
+            ret = net_socket_listen_init(vlan, buf);
+        } else if (get_param_value(buf, sizeof(buf), "connect", p) > 0) {
+            ret = net_socket_connect_init(vlan, buf);
+        } else {
+            fprintf(stderr, "Unknown socket options: %s\n", p);
+            return -1;
+        }
+    } else
+#endif
+    {
+        fprintf(stderr, "Unknown network device: %s\n", device);
+        return -1;
+    }
+    if (ret < 0) {
+        fprintf(stderr, "Could not initialize device '%s'\n", device);
+    }
+    
+    return ret;
+}
+
+void do_info_network(void)
+{
+    VLANState *vlan;
+    VLANClientState *vc;
+
+    for(vlan = first_vlan; vlan != NULL; vlan = vlan->next) {
+        term_printf("VLAN %d devices:\n", vlan->id);
+        for(vc = vlan->first_client; vc != NULL; vc = vc->next)
+            term_printf("  %s\n", vc->info_str);
+    }
+}
+ 
 /***********************************************************/
 /* USB devices */
 
@@ -2175,49 +2690,65 @@ static void host_segv_handler(int host_signum, siginfo_t *info,
 
 typedef struct IOHandlerRecord {
     int fd;
-    IOCanRWHandler *fd_can_read;
-    IOReadHandler *fd_read;
+    IOCanRWHandler *fd_read_poll;
+    IOHandler *fd_read;
+    IOHandler *fd_write;
     void *opaque;
     /* temporary data */
     struct pollfd *ufd;
-    int max_size;
     struct IOHandlerRecord *next;
 } IOHandlerRecord;
 
 static IOHandlerRecord *first_io_handler;
 
-int qemu_add_fd_read_handler(int fd, IOCanRWHandler *fd_can_read, 
-                             IOReadHandler *fd_read, void *opaque)
-{
-    IOHandlerRecord *ioh;
-
-    ioh = qemu_mallocz(sizeof(IOHandlerRecord));
-    if (!ioh)
-        return -1;
-    ioh->fd = fd;
-    ioh->fd_can_read = fd_can_read;
-    ioh->fd_read = fd_read;
-    ioh->opaque = opaque;
-    ioh->next = first_io_handler;
-    first_io_handler = ioh;
-    return 0;
-}
-
-void qemu_del_fd_read_handler(int fd)
+/* XXX: fd_read_poll should be suppressed, but an API change is
+   necessary in the character devices to suppress fd_can_read(). */
+int qemu_set_fd_handler2(int fd, 
+                         IOCanRWHandler *fd_read_poll, 
+                         IOHandler *fd_read, 
+                         IOHandler *fd_write, 
+                         void *opaque)
 {
     IOHandlerRecord **pioh, *ioh;
 
-    pioh = &first_io_handler;
-    for(;;) {
-        ioh = *pioh;
-        if (ioh == NULL)
-            break;
-        if (ioh->fd == fd) {
-            *pioh = ioh->next;
-            break;
+    if (!fd_read && !fd_write) {
+        pioh = &first_io_handler;
+        for(;;) {
+            ioh = *pioh;
+            if (ioh == NULL)
+                break;
+            if (ioh->fd == fd) {
+                *pioh = ioh->next;
+                break;
+            }
+            pioh = &ioh->next;
         }
-        pioh = &ioh->next;
+    } else {
+        for(ioh = first_io_handler; ioh != NULL; ioh = ioh->next) {
+            if (ioh->fd == fd)
+                goto found;
+        }
+        ioh = qemu_mallocz(sizeof(IOHandlerRecord));
+        if (!ioh)
+            return -1;
+        ioh->next = first_io_handler;
+        first_io_handler = ioh;
+    found:
+        ioh->fd = fd;
+        ioh->fd_read_poll = fd_read_poll;
+        ioh->fd_read = fd_read;
+        ioh->fd_write = fd_write;
+        ioh->opaque = opaque;
     }
+    return 0;
+}
+
+int qemu_set_fd_handler(int fd, 
+                        IOHandler *fd_read, 
+                        IOHandler *fd_write, 
+                        void *opaque)
+{
+    return qemu_set_fd_handler2(fd, NULL, fd_read, fd_write, opaque);
 }
 
 /***********************************************************/
@@ -3080,8 +3611,6 @@ void main_loop_wait(int timeout)
 #ifndef _WIN32
     struct pollfd ufds[MAX_IO_HANDLERS + 1], *pf;
     IOHandlerRecord *ioh, *ioh_next;
-    uint8_t buf[4096];
-    int n, max_size;
 #endif
     int ret;
 
@@ -3093,26 +3622,18 @@ void main_loop_wait(int timeout)
         /* XXX: separate device handlers from system ones */
         pf = ufds;
         for(ioh = first_io_handler; ioh != NULL; ioh = ioh->next) {
-            if (!ioh->fd_can_read) {
-                max_size = 0;
-                pf->fd = ioh->fd;
-                pf->events = POLLIN;
-                ioh->ufd = pf;
-                pf++;
-            } else {
-                max_size = ioh->fd_can_read(ioh->opaque);
-                if (max_size > 0) {
-                    if (max_size > sizeof(buf))
-                        max_size = sizeof(buf);
-                    pf->fd = ioh->fd;
-                    pf->events = POLLIN;
-                    ioh->ufd = pf;
-                    pf++;
-                } else {
-                    ioh->ufd = NULL;
-                }
+            pf->events = 0;
+            pf->fd = ioh->fd;
+            if (ioh->fd_read &&
+                (!ioh->fd_read_poll ||
+                 ioh->fd_read_poll(ioh->opaque) != 0)) {
+                pf->events |= POLLIN;
             }
-            ioh->max_size = max_size;
+            if (ioh->fd_write) {
+                pf->events |= POLLOUT;
+            }
+            ioh->ufd = pf;
+            pf++;
         }
         
         ret = poll(ufds, pf - ufds, timeout);
@@ -3121,20 +3642,11 @@ void main_loop_wait(int timeout)
             for(ioh = first_io_handler; ioh != NULL; ioh = ioh_next) {
                 ioh_next = ioh->next;
                 pf = ioh->ufd;
-                if (pf) {
-                    if (pf->revents & POLLIN) {
-                        if (ioh->max_size == 0) {
-                            /* just a read event */
-                            ioh->fd_read(ioh->opaque, NULL, 0);
-                        } else {
-                            n = read(ioh->fd, buf, ioh->max_size);
-                            if (n >= 0) {
-                                ioh->fd_read(ioh->opaque, buf, n);
-                            } else if (errno != EAGAIN) {
-                                ioh->fd_read(ioh->opaque, NULL, -errno);
-                            }
-                        }
-                    }
+                if (pf->revents & POLLIN) {
+                    ioh->fd_read(ioh->opaque);
+                }
+                if (pf->revents & POLLOUT) {
+                    ioh->fd_write(ioh->opaque);
                 }
             }
         }
@@ -3251,20 +3763,31 @@ void help(void)
 #endif
            "\n"
            "Network options:\n"
-           "-nics n         simulate 'n' network cards [default=1]\n"
-           "-macaddr addr   set the mac address of the first interface\n"
-           "-n script       set tap/tun network init script [default=%s]\n"
-           "-tun-fd fd      use this fd as already opened tap/tun interface\n"
+           "-net nic[,vlan=n][,macaddr=addr]\n"
+           "                create a new Network Interface Card and connect it to VLAN 'n'\n"
 #ifdef CONFIG_SLIRP
-           "-user-net       use user mode network stack [default if no tap/tun script]\n"
-           "-tftp prefix    allow tftp access to files starting with prefix [-user-net]\n"
+           "-net user[,vlan=n]\n"
+           "                connect the user mode network stack to VLAN 'n'\n"
+#endif
 #ifndef _WIN32
-           "-smb dir        allow SMB access to files in 'dir' [-user-net]\n"
+           "-net tap[,vlan=n][,fd=h][,ifname=name][,script=file]\n"
+           "                connect the host TAP network interface to VLAN 'n' and use\n"
+           "                the network script 'file' (default=%s);\n"
+           "                use 'fd=h' to connect to an already opened TAP interface\n"
+           "-net socket[,vlan=n][,fd=x][,listen=[host]:port][,connect=host:port]\n"
+           "                connect the vlan 'n' to another VLAN using a socket connection\n"
+#endif
+           "-net none       use it alone to have zero network devices; if no -net option\n"
+           "                is provided, the default is '-net nic -net user'\n"
+           "\n"
+#ifdef CONFIG_SLIRP
+           "-tftp prefix    allow tftp access to files starting with prefix [-net user]\n"
+#ifndef _WIN32
+           "-smb dir        allow SMB access to files in 'dir' [-net user]\n"
 #endif
            "-redir [tcp|udp]:host-port:[guest-host]:guest-port\n"
-           "                redirect TCP or UDP connections from host to guest [-user-net]\n"
+           "                redirect TCP or UDP connections from host to guest [-net user]\n"
 #endif
-           "-dummy-net      use dummy network stack\n"
            "\n"
            "Linux boot specific:\n"
            "-kernel bzImage use 'bzImage' as kernel image\n"
@@ -3308,7 +3831,9 @@ void help(void)
            "qemu-fast",
 #endif
            DEFAULT_RAM_SIZE,
+#ifndef _WIN32
            DEFAULT_NETWORK_SCRIPT,
+#endif
            DEFAULT_GDBSTUB_PORT,
            "/tmp/qemu.log");
 #ifndef CONFIG_SOFTMMU
@@ -3343,15 +3868,10 @@ enum {
     QEMU_OPTION_soundhw,
 #endif
 
-    QEMU_OPTION_nics,
-    QEMU_OPTION_macaddr,
-    QEMU_OPTION_n,
-    QEMU_OPTION_tun_fd,
-    QEMU_OPTION_user_net,
+    QEMU_OPTION_net,
     QEMU_OPTION_tftp,
     QEMU_OPTION_smb,
     QEMU_OPTION_redir,
-    QEMU_OPTION_dummy_net,
 
     QEMU_OPTION_kernel,
     QEMU_OPTION_append,
@@ -3409,19 +3929,14 @@ const QEMUOption qemu_options[] = {
     { "soundhw", HAS_ARG, QEMU_OPTION_soundhw },
 #endif
 
-    { "nics", HAS_ARG, QEMU_OPTION_nics},
-    { "macaddr", HAS_ARG, QEMU_OPTION_macaddr},
-    { "n", HAS_ARG, QEMU_OPTION_n },
-    { "tun-fd", HAS_ARG, QEMU_OPTION_tun_fd },
+    { "net", HAS_ARG, QEMU_OPTION_net},
 #ifdef CONFIG_SLIRP
-    { "user-net", 0, QEMU_OPTION_user_net },
     { "tftp", HAS_ARG, QEMU_OPTION_tftp },
 #ifndef _WIN32
     { "smb", HAS_ARG, QEMU_OPTION_smb },
 #endif
     { "redir", HAS_ARG, QEMU_OPTION_redir },
 #endif
-    { "dummy-net", 0, QEMU_OPTION_dummy_net },
 
     { "kernel", HAS_ARG, QEMU_OPTION_kernel },
     { "append", HAS_ARG, QEMU_OPTION_append },
@@ -3596,9 +4111,7 @@ static void select_soundhw (const char *optarg)
 }
 #endif
 
-#define NET_IF_TUN   0
-#define NET_IF_USER  1
-#define NET_IF_DUMMY 2
+#define MAX_NET_CLIENTS 32
 
 int main(int argc, char **argv)
 {
@@ -3614,8 +4127,8 @@ int main(int argc, char **argv)
     DisplayState *ds = &display_state;
     int cyls, heads, secs, translation;
     int start_emulation = 1;
-    uint8_t macaddr[6];
-    int net_if_type, nb_tun_fds, tun_fds[MAX_NICS];
+    char net_clients[MAX_NET_CLIENTS][256];
+    int nb_net_clients;
     int optind;
     const char *r, *optarg;
     CharDriverState *monitor_hd;
@@ -3644,7 +4157,6 @@ int main(int argc, char **argv)
     ram_size = DEFAULT_RAM_SIZE * 1024 * 1024;
     vga_ram_size = VGA_RAM_SIZE;
     bios_size = BIOS_SIZE;
-    pstrcpy(network_script, sizeof(network_script), DEFAULT_NETWORK_SCRIPT);
 #ifdef CONFIG_GDBSTUB
     use_gdbstub = 0;
     gdbstub_port = DEFAULT_GDBSTUB_PORT;
@@ -3674,16 +4186,10 @@ int main(int argc, char **argv)
     
     usb_devices_index = 0;
     
-    nb_tun_fds = 0;
-    net_if_type = -1;
-    nb_nics = 1;
+    nb_net_clients = 0;
+
+    nb_nics = 0;
     /* default mac address of the first network interface */
-    macaddr[0] = 0x52;
-    macaddr[1] = 0x54;
-    macaddr[2] = 0x00;
-    macaddr[3] = 0x12;
-    macaddr[4] = 0x34;
-    macaddr[5] = 0x56;
     
     optind = 1;
     for(;;) {
@@ -3797,21 +4303,6 @@ int main(int argc, char **argv)
             case QEMU_OPTION_append:
                 kernel_cmdline = optarg;
                 break;
-	    case QEMU_OPTION_tun_fd:
-                {
-                    const char *p;
-                    int fd;
-                    net_if_type = NET_IF_TUN;
-                    if (nb_tun_fds < MAX_NICS) {
-                        fd = strtol(optarg, (char **)&p, 0);
-                        if (*p != '\0') {
-                            fprintf(stderr, "qemu: invalid fd for network interface %d\n", nb_tun_fds);
-                            exit(1);
-                        }
-                        tun_fds[nb_tun_fds++] = fd;
-                    }
-                }
-		break;
             case QEMU_OPTION_cdrom:
                 if (cdrom_index >= 0) {
                     hd_filename[cdrom_index] = optarg;
@@ -3838,33 +4329,15 @@ int main(int argc, char **argv)
             case QEMU_OPTION_no_code_copy:
                 code_copy_enabled = 0;
                 break;
-            case QEMU_OPTION_nics:
-                nb_nics = atoi(optarg);
-                if (nb_nics < 0 || nb_nics > MAX_NICS) {
-                    fprintf(stderr, "qemu: invalid number of network interfaces\n");
+            case QEMU_OPTION_net:
+                if (nb_net_clients >= MAX_NET_CLIENTS) {
+                    fprintf(stderr, "qemu: too many network clients\n");
                     exit(1);
                 }
-                break;
-            case QEMU_OPTION_macaddr:
-                {
-                    const char *p;
-                    int i;
-                    p = optarg;
-                    for(i = 0; i < 6; i++) {
-                        macaddr[i] = strtol(p, (char **)&p, 16);
-                        if (i == 5) {
-                            if (*p != '\0') 
-                                goto macaddr_error;
-                        } else {
-                            if (*p != ':') {
-                            macaddr_error:
-                                fprintf(stderr, "qemu: invalid syntax for ethernet address\n");
-                                exit(1);
-                            }
-                            p++;
-                        }
-                    }
-                }
+                pstrcpy(net_clients[nb_net_clients],
+                        sizeof(net_clients[0]),
+                        optarg);
+                nb_net_clients++;
                 break;
 #ifdef CONFIG_SLIRP
             case QEMU_OPTION_tftp:
@@ -3875,16 +4348,10 @@ int main(int argc, char **argv)
 		net_slirp_smb(optarg);
                 break;
 #endif
-            case QEMU_OPTION_user_net:
-                net_if_type = NET_IF_USER;
-                break;
             case QEMU_OPTION_redir:
                 net_slirp_redir(optarg);                
                 break;
 #endif
-            case QEMU_OPTION_dummy_net:
-                net_if_type = NET_IF_DUMMY;
-                break;
 #ifdef HAS_AUDIO
             case QEMU_OPTION_enable_audio:
                 audio_enabled = 1;
@@ -3929,9 +4396,6 @@ int main(int argc, char **argv)
                     }
                     cpu_set_log(mask);
                 }
-                break;
-            case QEMU_OPTION_n:
-                pstrcpy(network_script, sizeof(network_script), optarg);
                 break;
 #ifdef CONFIG_GDBSTUB
             case QEMU_OPTION_s:
@@ -4076,48 +4540,20 @@ int main(int argc, char **argv)
 #else
     setvbuf(stdout, NULL, _IOLBF, 0);
 #endif
-
-    /* init host network redirectors */
-    if (net_if_type == -1) {
-        net_if_type = NET_IF_TUN;
-#if defined(CONFIG_SLIRP)
-        if (access(network_script, R_OK) < 0) {
-            net_if_type = NET_IF_USER;
-        }
-#endif
+    
+    /* init network clients */
+    if (nb_net_clients == 0) {
+        /* if no clients, we use a default config */
+        pstrcpy(net_clients[0], sizeof(net_clients[0]),
+                "nic");
+        pstrcpy(net_clients[1], sizeof(net_clients[0]),
+                "user");
+        nb_net_clients = 2;
     }
 
-    for(i = 0; i < nb_nics; i++) {
-        NetDriverState *nd = &nd_table[i];
-        nd->index = i;
-        /* init virtual mac address */
-        nd->macaddr[0] = macaddr[0];
-        nd->macaddr[1] = macaddr[1];
-        nd->macaddr[2] = macaddr[2];
-        nd->macaddr[3] = macaddr[3];
-        nd->macaddr[4] = macaddr[4];
-        nd->macaddr[5] = macaddr[5] + i;
-        switch(net_if_type) {
-#if defined(CONFIG_SLIRP)
-        case NET_IF_USER:
-            net_slirp_init(nd);
-            break;
-#endif
-#if !defined(_WIN32)
-        case NET_IF_TUN:
-            if (i < nb_tun_fds) {
-                net_fd_init(nd, tun_fds[i]);
-            } else {
-                if (net_tun_init(nd) < 0)
-                    net_dummy_init(nd);
-            }
-            break;
-#endif
-        case NET_IF_DUMMY:
-        default:
-            net_dummy_init(nd);
-            break;
-        }
+    for(i = 0;i < nb_net_clients; i++) {
+        if (net_client_init(net_clients[i]) < 0)
+            exit(1);
     }
 
     /* init the memory */

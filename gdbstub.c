@@ -704,19 +704,19 @@ void gdb_exit(CPUState *env, int code)
 }
 
 #else
-static int gdb_can_read(void *opaque)
-{
-    return 256;
-}
-
-static void gdb_read(void *opaque, const uint8_t *buf, int size)
+static void gdb_read(void *opaque)
 {
     GDBState *s = opaque;
-    int i;
+    int i, size;
+    uint8_t buf[4096];
+
+    size = read(s->fd, buf, sizeof(buf));
+    if (size < 0)
+        return;
     if (size == 0) {
         /* end of connection */
         qemu_del_vm_stop_handler(gdb_vm_stopped, s);
-        qemu_del_fd_read_handler(s->fd);
+        qemu_set_fd_handler(s->fd, NULL, NULL, NULL);
         qemu_free(s);
         vm_start();
     } else {
@@ -727,7 +727,7 @@ static void gdb_read(void *opaque, const uint8_t *buf, int size)
 
 #endif
 
-static void gdb_accept(void *opaque, const uint8_t *buf, int size)
+static void gdb_accept(void *opaque)
 {
     GDBState *s;
     struct sockaddr_in sockaddr;
@@ -768,7 +768,7 @@ static void gdb_accept(void *opaque, const uint8_t *buf, int size)
     vm_stop(EXCP_INTERRUPT);
 
     /* start handling I/O */
-    qemu_add_fd_read_handler(s->fd, gdb_can_read, gdb_read, s);
+    qemu_set_fd_handler(s->fd, gdb_read, NULL, s);
     /* when the VM is stopped, the following callback is called */
     qemu_add_vm_stop_handler(gdb_vm_stopped, s);
 #endif
@@ -815,9 +815,9 @@ int gdbserver_start(int port)
         return -1;
     /* accept connections */
 #ifdef CONFIG_USER_ONLY
-    gdb_accept (NULL, NULL, 0);
+    gdb_accept (NULL);
 #else
-    qemu_add_fd_read_handler(gdbserver_fd, NULL, gdb_accept, NULL);
+    qemu_set_fd_handler(gdbserver_fd, gdb_accept, NULL, NULL);
 #endif
     return 0;
 }

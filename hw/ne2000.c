@@ -122,6 +122,7 @@ typedef struct NE2000State {
     uint16_t rcnt;
     uint32_t rsar;
     uint8_t rsr;
+    uint8_t rxcr;
     uint8_t isr;
     uint8_t dcfg;
     uint8_t imr;
@@ -130,7 +131,8 @@ typedef struct NE2000State {
     uint8_t mult[8]; /* multicast mask array */
     int irq;
     PCIDevice *pci_dev;
-    NetDriverState *nd;
+    VLANClientState *vc;
+    uint8_t macaddr[6];
     uint8_t mem[NE2000_MEM_SIZE];
 } NE2000State;
 
@@ -139,7 +141,7 @@ static void ne2000_reset(NE2000State *s)
     int i;
 
     s->isr = ENISR_RESET;
-    memcpy(s->mem, s->nd->macaddr, 6);
+    memcpy(s->mem, s->macaddr, 6);
     s->mem[14] = 0x57;
     s->mem[15] = 0x57;
 
@@ -167,6 +169,30 @@ static void ne2000_update_irq(NE2000State *s)
     }
 }
 
+#define POLYNOMIAL 0x04c11db6
+
+/* From FreeBSD */
+/* XXX: optimize */
+static int compute_mcast_idx(const uint8_t *ep)
+{
+    uint32_t crc;
+    int carry, i, j;
+    uint8_t b;
+
+    crc = 0xffffffff;
+    for (i = 0; i < 6; i++) {
+        b = *ep++;
+        for (j = 0; j < 8; j++) {
+            carry = ((crc & 0x80000000L) ? 1 : 0) ^ (b & 0x01);
+            crc <<= 1;
+            b >>= 1;
+            if (carry)
+                crc = ((crc ^ POLYNOMIAL) | carry);
+        }
+    }
+    return (crc >> 26);
+}
+
 /* return the max buffer size if the NE2000 can receive more data */
 static int ne2000_can_receive(void *opaque)
 {
@@ -192,12 +218,45 @@ static void ne2000_receive(void *opaque, const uint8_t *buf, int size)
 {
     NE2000State *s = opaque;
     uint8_t *p;
-    int total_len, next, avail, len, index;
+    int total_len, next, avail, len, index, mcast_idx;
     uint8_t buf1[60];
+    static const uint8_t broadcast_macaddr[6] = 
+        { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
     
 #if defined(DEBUG_NE2000)
     printf("NE2000: received len=%d\n", size);
 #endif
+
+    if (!ne2000_can_receive(s))
+        return;
+    
+    /* XXX: check this */
+    if (s->rxcr & 0x10) {
+        /* promiscuous: receive all */
+    } else {
+        if (!memcmp(buf,  broadcast_macaddr, 6)) {
+            /* broadcast address */
+            if (!(s->rxcr & 0x04))
+                return;
+        } else if (buf[0] & 0x01) {
+            /* multicast */
+            if (!(s->rxcr & 0x08))
+                return;
+            mcast_idx = compute_mcast_idx(buf);
+            if (!(s->mult[mcast_idx >> 3] & (1 << (mcast_idx & 7))))
+                return;
+        } else if (s->mem[0] == buf[0] &&
+                   s->mem[2] == buf[1] &&                   
+                   s->mem[4] == buf[2] &&            
+                   s->mem[6] == buf[3] &&            
+                   s->mem[8] == buf[4] &&            
+                   s->mem[10] == buf[5]) {
+            /* match */
+        } else {
+            return;
+        }
+    }
+
 
     /* if too small buffer, then expand it */
     if (size < MIN_BUF_SIZE) {
@@ -273,7 +332,7 @@ static void ne2000_ioport_write(void *opaque, uint32_t addr, uint32_t val)
                     index -= NE2000_PMEM_SIZE;
                 /* fail safe: check range on the transmitted length  */
                 if (index + s->tcnt <= NE2000_PMEM_END) {
-                    qemu_send_packet(s->nd, s->mem + index, s->tcnt);
+                    qemu_send_packet(s->vc, s->mem + index, s->tcnt);
                 }
                 /* signal end of transfert */
                 s->tsr = ENTSR_PTX;
@@ -319,6 +378,9 @@ static void ne2000_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             break;
         case EN0_RCNTHI:
             s->rcnt = (s->rcnt & 0x00ff) | (val << 8);
+            break;
+        case EN0_RXCR:
+            s->rxcr = val;
             break;
         case EN0_DCFG:
             s->dcfg = val;
@@ -608,10 +670,10 @@ static int ne2000_load(QEMUFile* f,void* opaque,int version_id)
 	return 0;
 }
 
-void isa_ne2000_init(int base, int irq, NetDriverState *nd)
+void isa_ne2000_init(int base, int irq, NICInfo *nd)
 {
     NE2000State *s;
-
+    
     s = qemu_mallocz(sizeof(NE2000State));
     if (!s)
         return;
@@ -627,14 +689,22 @@ void isa_ne2000_init(int base, int irq, NetDriverState *nd)
     register_ioport_write(base + 0x1f, 1, 1, ne2000_reset_ioport_write, s);
     register_ioport_read(base + 0x1f, 1, 1, ne2000_reset_ioport_read, s);
     s->irq = irq;
-    s->nd = nd;
+    memcpy(s->macaddr, nd->macaddr, 6);
 
     ne2000_reset(s);
 
-    qemu_add_read_packet(nd, ne2000_can_receive, ne2000_receive, s);
+    s->vc = qemu_new_vlan_client(nd->vlan, ne2000_receive, s);
 
+    snprintf(s->vc->info_str, sizeof(s->vc->info_str),
+             "ne2000 macaddr=%02x:%02x:%02x:%02x:%02x:%02x",
+             s->macaddr[0],
+             s->macaddr[1],
+             s->macaddr[2],
+             s->macaddr[3],
+             s->macaddr[4],
+             s->macaddr[5]);
+             
     register_savevm("ne2000", 0, 1, ne2000_save, ne2000_load, s);
-
 }
 
 /***********************************************************/
@@ -665,7 +735,7 @@ static void ne2000_map(PCIDevice *pci_dev, int region_num,
     register_ioport_read(addr + 0x1f, 1, 1, ne2000_reset_ioport_read, s);
 }
 
-void pci_ne2000_init(PCIBus *bus, NetDriverState *nd)
+void pci_ne2000_init(PCIBus *bus, NICInfo *nd)
 {
     PCINE2000State *d;
     NE2000State *s;
@@ -690,10 +760,19 @@ void pci_ne2000_init(PCIBus *bus, NetDriverState *nd)
     s = &d->ne2000;
     s->irq = 16; // PCI interrupt
     s->pci_dev = (PCIDevice *)d;
-    s->nd = nd;
+    memcpy(s->macaddr, nd->macaddr, 6);
     ne2000_reset(s);
-    qemu_add_read_packet(nd, ne2000_can_receive, ne2000_receive, s);
+    s->vc = qemu_new_vlan_client(nd->vlan, ne2000_receive, s);
 
+    snprintf(s->vc->info_str, sizeof(s->vc->info_str),
+             "ne2000 pci macaddr=%02x:%02x:%02x:%02x:%02x:%02x",
+             s->macaddr[0],
+             s->macaddr[1],
+             s->macaddr[2],
+             s->macaddr[3],
+             s->macaddr[4],
+             s->macaddr[5]);
+             
     /* XXX: instance number ? */
     register_savevm("ne2000", 0, 1, ne2000_save, ne2000_load, s);
     register_savevm("ne2000_pci", 0, 1, generic_pci_save, generic_pci_load, 

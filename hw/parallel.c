@@ -154,27 +154,6 @@ static uint32_t parallel_ioport_read(void *opaque, uint32_t addr)
     return ret;
 }
 
-static int parallel_can_receive(ParallelState *s)
-{
-    return 0;
-}
-
-static void parallel_receive_byte(ParallelState *s, int ch)
-{
-}
-
-static int parallel_can_receive1(void *opaque)
-{
-    ParallelState *s = opaque;
-    return parallel_can_receive(s);
-}
-
-static void parallel_receive1(void *opaque, const uint8_t *buf, int size)
-{
-    ParallelState *s = opaque;
-    parallel_receive_byte(s, buf[0]);
-}
-
 /* If fd is zero, it means that the parallel device uses the console */
 ParallelState *parallel_init(int base, int irq, CharDriverState *chr)
 {
@@ -200,6 +179,5 @@ ParallelState *parallel_init(int base, int irq, CharDriverState *chr)
 
     register_ioport_write(base, 8, 1, parallel_ioport_write, s);
     register_ioport_read(base, 8, 1, parallel_ioport_read, s);
-    qemu_chr_add_read_handler(chr, parallel_can_receive1, parallel_receive1, s);
     return s;
 }

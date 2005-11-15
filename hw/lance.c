@@ -154,7 +154,8 @@ struct lance_init_block {
 #define LEDMA_MAXADDR (LEDMA_REGS * 4 - 1)
 
 typedef struct LANCEState {
-    NetDriverState *nd;
+    VLANClientState *vc;
+    uint8_t macaddr[6]; /* init mac address */
     uint32_t leptr;
     uint16_t addr;
     uint16_t regs[LE_NREGS];
@@ -169,7 +170,7 @@ static void lance_send(void *opaque);
 static void lance_reset(void *opaque)
 {
     LANCEState *s = opaque;
-    memcpy(s->phys, s->nd->macaddr, 6);
+    memcpy(s->phys, s->macaddr, 6);
     s->rxptr = 0;
     s->txptr = 0;
     memset(s->regs, 0, LE_NREGS * 2);
@@ -280,31 +281,6 @@ static CPUWriteMemoryFunc *lance_mem_write[3] = {
 };
 
 
-/* return the max buffer size if the LANCE can receive more data */
-static int lance_can_receive(void *opaque)
-{
-    LANCEState *s = opaque;
-    uint32_t dmaptr = s->leptr + s->ledmaregs[3];
-    struct lance_init_block *ib;
-    int i;
-    uint8_t temp8;
-
-    if ((s->regs[LE_CSR0] & LE_C0_STOP) == LE_C0_STOP)
-	return 0;
-
-    ib = (void *) iommu_translate(dmaptr);
-
-    for (i = 0; i < RX_RING_SIZE; i++) {
-	cpu_physical_memory_read((uint32_t)&ib->brx_ring[i].rmd1_bits, (void *) &temp8, 1);
-	if (temp8 == (LE_R1_OWN)) {
-	    DPRINTF("can receive %d\n", RX_BUFF_SIZE);
-	    return RX_BUFF_SIZE;
-	}
-    }
-    DPRINTF("cannot receive\n");
-    return 0;
-}
-
 #define MIN_BUF_SIZE 60
 
 static void lance_receive(void *opaque, const uint8_t *buf, int size)
@@ -368,7 +344,7 @@ static void lance_send(void *opaque)
 	    temp16 = (~temp16) + 1;
 	    cpu_physical_memory_read((uint32_t)&ib->tx_buf[i], pkt_buf, temp16);
 	    DPRINTF("sending packet, len %d\n", temp16);
-	    qemu_send_packet(s->nd, pkt_buf, temp16);
+	    qemu_send_packet(s->vc, pkt_buf, temp16);
 	    temp8 = LE_T1_POK;
 	    cpu_physical_memory_write((uint32_t)&ib->btx_ring[i].tmd1_bits, (void *) &temp8, 1);
 	    s->txptr = (s->txptr + 1) & TX_RING_MOD_MASK;
@@ -443,7 +419,7 @@ static int lance_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-void lance_init(NetDriverState *nd, int irq, uint32_t leaddr, uint32_t ledaddr)
+void lance_init(NICInfo *nd, int irq, uint32_t leaddr, uint32_t ledaddr)
 {
     LANCEState *s;
     int lance_io_memory, ledma_io_memory;
@@ -452,7 +428,6 @@ void lance_init(NetDriverState *nd, int irq, uint32_t leaddr, uint32_t ledaddr)
     if (!s)
         return;
 
-    s->nd = nd;
     s->irq = irq;
 
     lance_io_memory = cpu_register_io_memory(0, lance_mem_read, lance_mem_write, s);
@@ -461,8 +436,21 @@ void lance_init(NetDriverState *nd, int irq, uint32_t leaddr, uint32_t ledaddr)
     ledma_io_memory = cpu_register_io_memory(0, ledma_mem_read, ledma_mem_write, s);
     cpu_register_physical_memory(ledaddr, 16, ledma_io_memory);
 
+    memcpy(s->macaddr, nd->macaddr, 6);
+
     lance_reset(s);
-    qemu_add_read_packet(nd, lance_can_receive, lance_receive, s);
+
+    s->vc = qemu_new_vlan_client(nd->vlan, lance_receive, s);
+
+    snprintf(s->vc->info_str, sizeof(s->vc->info_str),
+             "lance macaddr=%02x:%02x:%02x:%02x:%02x:%02x",
+             s->macaddr[0],
+             s->macaddr[1],
+             s->macaddr[2],
+             s->macaddr[3],
+             s->macaddr[4],
+             s->macaddr[5]);
+
     register_savevm("lance", leaddr, 1, lance_save, lance_load, s);
     qemu_register_reset(lance_reset, s);
 }

@@ -196,10 +196,17 @@ void kbd_put_keysym(int keysym);
 
 typedef void IOReadHandler(void *opaque, const uint8_t *buf, int size);
 typedef int IOCanRWHandler(void *opaque);
+typedef void IOHandler(void *opaque);
 
-int qemu_add_fd_read_handler(int fd, IOCanRWHandler *fd_can_read, 
-                             IOReadHandler *fd_read, void *opaque);
-void qemu_del_fd_read_handler(int fd);
+int qemu_set_fd_handler2(int fd, 
+                         IOCanRWHandler *fd_read_poll, 
+                         IOHandler *fd_read, 
+                         IOHandler *fd_write, 
+                         void *opaque);
+int qemu_set_fd_handler(int fd,
+                        IOHandler *fd_read, 
+                        IOHandler *fd_write,
+                        void *opaque);
 
 /* character device */
 
@@ -270,30 +277,42 @@ extern CharDriverState *serial_hds[MAX_SERIAL_PORTS];
 
 extern CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
 
-/* network redirectors support */
+/* VLANs support */
+
+typedef struct VLANClientState VLANClientState;
+
+struct VLANClientState {
+    IOReadHandler *fd_read;
+    void *opaque;
+    struct VLANClientState *next;
+    struct VLANState *vlan;
+    char info_str[256];
+};
+
+typedef struct VLANState {
+    int id;
+    VLANClientState *first_client;
+    struct VLANState *next;
+} VLANState;
+
+VLANState *qemu_find_vlan(int id);
+VLANClientState *qemu_new_vlan_client(VLANState *vlan,
+                                      IOReadHandler *fd_read, void *opaque);
+void qemu_send_packet(VLANClientState *vc, const uint8_t *buf, int size);
+
+void do_info_network(void);
+
+/* NIC info */
 
 #define MAX_NICS 8
 
-typedef struct NetDriverState {
-    int index; /* index number in QEMU */
+typedef struct NICInfo {
     uint8_t macaddr[6];
-    char ifname[16];
-    void (*send_packet)(struct NetDriverState *nd, 
-                        const uint8_t *buf, int size);
-    void (*add_read_packet)(struct NetDriverState *nd, 
-                            IOCanRWHandler *fd_can_read, 
-                            IOReadHandler *fd_read, void *opaque);
-    /* tun specific data */
-    int fd;
-    /* slirp specific data */
-} NetDriverState;
+    VLANState *vlan;
+} NICInfo;
 
 extern int nb_nics;
-extern NetDriverState nd_table[MAX_NICS];
-
-void qemu_send_packet(NetDriverState *nd, const uint8_t *buf, int size);
-void qemu_add_read_packet(NetDriverState *nd, IOCanRWHandler *fd_can_read, 
-                          IOReadHandler *fd_read, void *opaque);
+extern NICInfo nd_table[MAX_NICS];
 
 /* timers */
 
@@ -692,8 +711,8 @@ int fdctrl_get_drive_type(fdctrl_t *fdctrl, int drive_num);
 
 /* ne2000.c */
 
-void isa_ne2000_init(int base, int irq, NetDriverState *nd);
-void pci_ne2000_init(PCIBus *bus, NetDriverState *nd);
+void isa_ne2000_init(int base, int irq, NICInfo *nd);
+void pci_ne2000_init(PCIBus *bus, NICInfo *nd);
 
 /* pckbd.c */
 
@@ -781,7 +800,7 @@ void *iommu_init(uint32_t addr);
 uint32_t iommu_translate_local(void *opaque, uint32_t addr);
 
 /* lance.c */
-void lance_init(NetDriverState *nd, int irq, uint32_t leaddr, uint32_t ledaddr);
+void lance_init(NICInfo *nd, int irq, uint32_t leaddr, uint32_t ledaddr);
 
 /* tcx.c */
 void *tcx_init(DisplayState *ds, uint32_t addr, uint8_t *vram_base,
