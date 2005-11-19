@@ -254,7 +254,7 @@ target. Optionally, the MAC address can be changed. If no
 @option{-net} option is specified, a single NIC is created.
 
 @item -net user[,vlan=n]
-Use the user mode network stack which requires not administrator
+Use the user mode network stack which requires no administrator
 priviledge to run. This is the default if no @option{-net} option is
 specified.
 
@@ -288,9 +288,9 @@ specifies an already opened socket.
 Example:
 @example
 # launch a first QEMU instance
-qemu linux.img -net nic -net socket,listen=:1234
+qemu linux.img -net nic,macaddr=52:54:00:12:34:56 -net socket,listen=:1234
 # connect the VLAN 0 of this instance to the VLAN 0 of the first instance
-qemu linux.img -net nic -net socket,connect=127.0.0.1:1234
+qemu linux.img -net nic,macaddr=52:54:00:12:34:57 -net socket,connect=127.0.0.1:1234
 @end example
 
 @item -net none
