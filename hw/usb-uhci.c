@@ -191,7 +191,7 @@ static void uhci_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
             uhci_reset(s);
             return;
         }
-        if (val & UHCI_CMD_GRESET) {
+        if (val & UHCI_CMD_HCRESET) {
             uhci_reset(s);
             return;
         }
