@@ -703,7 +703,7 @@ static int init_directory(BDRVVVFATState* s,const char* dirname)
     memset(&(s->first_sectors[0]),0,0x40*0x200);
 
     /* TODO: if FAT32, this is probably wrong */
-    s->sectors_per_fat=0xfc;
+    s->sectors_per_fat=0xec;
     s->sectors_per_cluster=0x10;
     s->cluster_size=s->sectors_per_cluster*0x200;
     s->cluster=malloc(s->cluster_size);
