@@ -31,15 +31,12 @@ typedef struct ALSAVoiceOut {
     HWVoiceOut hw;
     void *pcm_buf;
     snd_pcm_t *handle;
-    int can_pause;
-    int was_enabled;
 } ALSAVoiceOut;
 
 typedef struct ALSAVoiceIn {
     HWVoiceIn hw;
     snd_pcm_t *handle;
     void *pcm_buf;
-    int can_pause;
 } ALSAVoiceIn;
 
 static struct {
@@ -58,6 +55,7 @@ static struct {
 
     int buffer_size_out_overriden;
     int period_size_out_overriden;
+    int verbose;
 } conf = {
 #ifdef HIGH_LATENCY
     .size_in_usec_in = 1,
@@ -73,8 +71,8 @@ static struct {
 #else
 #define DEFAULT_BUFFER_SIZE 1024
 #define DEFAULT_PERIOD_SIZE 256
-    .buffer_size_in = DEFAULT_BUFFER_SIZE,
-    .period_size_in = DEFAULT_PERIOD_SIZE,
+    .buffer_size_in = DEFAULT_BUFFER_SIZE * 4,
+    .period_size_in = DEFAULT_PERIOD_SIZE * 4,
     .buffer_size_out = DEFAULT_BUFFER_SIZE,
     .period_size_out = DEFAULT_PERIOD_SIZE,
     .buffer_size_in_overriden = 0,
@@ -82,7 +80,8 @@ static struct {
     .period_size_in_overriden = 0,
     .period_size_out_overriden = 0,
 #endif
-    .threshold = 0
+    .threshold = 0,
+    .verbose = 0
 };
 
 struct alsa_params_req {
@@ -97,7 +96,6 @@ struct alsa_params_obt {
     int freq;
     audfmt_e fmt;
     int nchannels;
-    int can_pause;
     snd_pcm_uframes_t samples;
 };
 
@@ -474,12 +472,6 @@ static int alsa_open (int in, struct alsa_params_req *req,
         goto err;
     }
 
-    obt->can_pause = snd_pcm_hw_params_can_pause (hw_params);
-    if (obt->can_pause < 0) {
-        alsa_logerr (err, "Could not get pause capability for %s\n", typ);
-        obt->can_pause = 0;
-    }
-
     if (!in && conf.threshold) {
         snd_pcm_uframes_t threshold;
         int bytes_per_sec;
@@ -527,6 +519,28 @@ static int alsa_recover (snd_pcm_t *handle)
     return 0;
 }
 
+static snd_pcm_sframes_t alsa_get_avail (snd_pcm_t *handle)
+{
+    snd_pcm_sframes_t avail;
+
+    avail = snd_pcm_avail_update (handle);
+    if (avail < 0) {
+        if (avail == -EPIPE) {
+            if (!alsa_recover (handle)) {
+                avail = snd_pcm_avail_update (handle);
+            }
+        }
+
+        if (avail < 0) {
+            alsa_logerr (avail,
+                         "Could not obtain number of available frames\n");
+            return -1;
+        }
+    }
+
+    return avail;
+}
+
 static int alsa_run_out (HWVoiceOut *hw)
 {
     ALSAVoiceOut *alsa = (ALSAVoiceOut *) hw;
@@ -541,57 +555,53 @@ static int alsa_run_out (HWVoiceOut *hw)
         return 0;
     }
 
-    avail = snd_pcm_avail_update (alsa->handle);
+    avail = alsa_get_avail (alsa->handle);
     if (avail < 0) {
-        if (avail == -EPIPE) {
-            if (!alsa_recover (alsa->handle)) {
-                avail = snd_pcm_avail_update (alsa->handle);
-                if (avail >= 0) {
-                    goto ok;
-                }
-            }
-        }
-
-        alsa_logerr (avail, "Could not get amount free space\n");
+        dolog ("Could not get number of available playback frames\n");
         return 0;
     }
 
- ok:
     decr = audio_MIN (live, avail);
     samples = decr;
     rpos = hw->rpos;
     while (samples) {
         int left_till_end_samples = hw->samples - rpos;
-        int convert_samples = audio_MIN (samples, left_till_end_samples);
+        int len = audio_MIN (samples, left_till_end_samples);
         snd_pcm_sframes_t written;
 
         src = hw->mix_buf + rpos;
         dst = advance (alsa->pcm_buf, rpos << hw->info.shift);
 
-        hw->clip (dst, src, convert_samples);
+        hw->clip (dst, src, len);
 
-        while (convert_samples) {
-            written = snd_pcm_writei (alsa->handle, dst, convert_samples);
+        while (len) {
+            written = snd_pcm_writei (alsa->handle, dst, len);
 
-            if (written < 0) {
+            if (written <= 0) {
                 switch (written) {
-                case -EPIPE:
-                    if (!alsa_recover (alsa->handle)) {
-                        continue;
+                case 0:
+                    if (conf.verbose) {
+                        dolog ("Failed to write %d frames (wrote zero)\n", len);
                     }
-                    dolog ("Failed to write %d frames to %p, "
-                           "handle %p not prepared\n",
-                           convert_samples,
-                           dst,
-                           alsa->handle);
                     goto exit;
 
-                case -EAGAIN:
+                case -EPIPE:
+                    if (alsa_recover (alsa->handle)) {
+                        alsa_logerr (written, "Failed to write %d frames\n",
+                                     len);
+                        goto exit;
+                    }
+                    if (conf.verbose) {
+                        dolog ("Recovering from playback xrun\n");
+                    }
                     continue;
+
+                case -EAGAIN:
+                    goto exit;
 
                 default:
                     alsa_logerr (written, "Failed to write %d frames to %p\n",
-                                 convert_samples, dst);
+                                 len, dst);
                     goto exit;
                 }
             }
@@ -599,7 +609,7 @@ static int alsa_run_out (HWVoiceOut *hw)
             mixeng_clear (src, written);
             rpos = (rpos + written) % hw->samples;
             samples -= written;
-            convert_samples -= written;
+            len -= written;
             dst = advance (dst, written << hw->info.shift);
             src += written;
         }
@@ -659,7 +669,6 @@ static int alsa_init_out (HWVoiceOut *hw, audsettings_t *as)
         &obt_as,
         audio_need_to_swap_endian (endianness)
         );
-    alsa->can_pause = obt.can_pause;
     hw->samples = obt.samples;
 
     alsa->pcm_buf = audio_calloc (AUDIO_FUNC, obt.samples, 1 << hw->info.shift);
@@ -671,46 +680,46 @@ static int alsa_init_out (HWVoiceOut *hw, audsettings_t *as)
     }
 
     alsa->handle = handle;
-    alsa->was_enabled = 0;
+    return 0;
+}
+
+static int alsa_voice_ctl (snd_pcm_t *handle, const char *typ, int pause)
+{
+    int err;
+
+    if (pause) {
+        err = snd_pcm_drop (handle);
+        if (err < 0) {
+            alsa_logerr (err, "Could not stop %s", typ);
+            return -1;
+        }
+    }
+    else {
+        err = snd_pcm_prepare (handle);
+        if (err < 0) {
+            alsa_logerr (err, "Could not prepare handle for %s", typ);
+            return -1;
+        }
+    }
+
     return 0;
 }
 
 static int alsa_ctl_out (HWVoiceOut *hw, int cmd, ...)
 {
-    int err;
     ALSAVoiceOut *alsa = (ALSAVoiceOut *) hw;
 
     switch (cmd) {
     case VOICE_ENABLE:
         ldebug ("enabling voice\n");
-        audio_pcm_info_clear_buf (&hw->info, alsa->pcm_buf, hw->samples);
-        if (alsa->can_pause) {
-            /* Why this was_enabled madness is needed at all?? */
-            if (alsa->was_enabled) {
-                err = snd_pcm_pause (alsa->handle, 0);
-                if (err < 0) {
-                    alsa_logerr (err, "Failed to resume playing\n");
-                    /* not fatal really */
-                }
-            }
-            else {
-                alsa->was_enabled = 1;
-            }
-        }
-        break;
+        return alsa_voice_ctl (alsa->handle, "playback", 0);
 
     case VOICE_DISABLE:
         ldebug ("disabling voice\n");
-        if (alsa->can_pause) {
-            err = snd_pcm_pause (alsa->handle, 1);
-            if (err < 0) {
-                alsa_logerr (err, "Failed to stop playing\n");
-                /* not fatal really */
-            }
-        }
-        break;
+        return alsa_voice_ctl (alsa->handle, "playback", 1);
     }
-    return 0;
+
+    return -1;
 }
 
 static int alsa_init_in (HWVoiceIn *hw, audsettings_t *as)
@@ -749,7 +758,6 @@ static int alsa_init_in (HWVoiceIn *hw, audsettings_t *as)
         &obt_as,
         audio_need_to_swap_endian (endianness)
         );
-    alsa->can_pause = obt.can_pause;
     hw->samples = obt.samples;
 
     alsa->pcm_buf = audio_calloc (AUDIO_FUNC, hw->samples, 1 << hw->info.shift);
@@ -783,6 +791,7 @@ static int alsa_run_in (HWVoiceIn *hw)
     int i;
     int live = audio_pcm_hw_get_live_in (hw);
     int dead = hw->samples - live;
+    int decr;
     struct {
         int add;
         int len;
@@ -790,21 +799,35 @@ static int alsa_run_in (HWVoiceIn *hw)
         { hw->wpos, 0 },
         { 0, 0 }
     };
-
+    snd_pcm_sframes_t avail;
     snd_pcm_uframes_t read_samples = 0;
 
     if (!dead) {
         return 0;
     }
 
-    if (hw->wpos + dead > hw->samples) {
-        bufs[0].len = (hw->samples - hw->wpos);
-        bufs[1].len = (dead - (hw->samples - hw->wpos));
-    }
-    else {
-        bufs[0].len = dead;
+    avail = alsa_get_avail (alsa->handle);
+    if (avail < 0) {
+        dolog ("Could not get number of captured frames\n");
+        return 0;
     }
 
+    if (!avail && (snd_pcm_state (alsa->handle) == SND_PCM_STATE_PREPARED)) {
+        avail = hw->samples;
+    }
+
+    decr = audio_MIN (dead, avail);
+    if (!decr) {
+        return 0;
+    }
+
+    if (hw->wpos + decr > hw->samples) {
+        bufs[0].len = (hw->samples - hw->wpos);
+        bufs[1].len = (decr - (hw->samples - hw->wpos));
+    }
+    else {
+        bufs[0].len = decr;
+    }
 
     for (i = 0; i < 2; ++i) {
         void *src;
@@ -820,23 +843,26 @@ static int alsa_run_in (HWVoiceIn *hw)
         while (len) {
             nread = snd_pcm_readi (alsa->handle, src, len);
 
-            if (nread < 0) {
+            if (nread <= 0) {
                 switch (nread) {
-                case -EPIPE:
-                    if (!alsa_recover (alsa->handle)) {
-                        continue;
+                case 0:
+                    if (conf.verbose) {
+                        dolog ("Failed to read %ld frames (read zero)\n", len);
                     }
-                    dolog (
-                        "Failed to read %ld frames from %p, "
-                        "handle %p not prepared\n",
-                        len,
-                        src,
-                        alsa->handle
-                        );
                     goto exit;
 
-                case -EAGAIN:
+                case -EPIPE:
+                    if (alsa_recover (alsa->handle)) {
+                        alsa_logerr (nread, "Failed to read %ld frames\n", len);
+                        goto exit;
+                    }
+                    if (conf.verbose) {
+                        dolog ("Recovering from capture xrun\n");
+                    }
                     continue;
+
+                case -EAGAIN:
+                    goto exit;
 
                 default:
                     alsa_logerr (
@@ -871,9 +897,19 @@ static int alsa_read (SWVoiceIn *sw, void *buf, int size)
 
 static int alsa_ctl_in (HWVoiceIn *hw, int cmd, ...)
 {
-    (void) hw;
-    (void) cmd;
-    return 0;
+    ALSAVoiceIn *alsa = (ALSAVoiceIn *) hw;
+
+    switch (cmd) {
+    case VOICE_ENABLE:
+        ldebug ("enabling voice\n");
+        return alsa_voice_ctl (alsa->handle, "capture", 0);
+
+    case VOICE_DISABLE:
+        ldebug ("disabling voice\n");
+        return alsa_voice_ctl (alsa->handle, "capture", 1);
+    }
+
+    return -1;
 }
 
 static void *alsa_audio_init (void)
@@ -909,6 +945,10 @@ static struct audio_option alsa_options[] = {
 
     {"ADC_DEV", AUD_OPT_STR, &conf.pcm_name_in,
      "ADC device name", NULL, 0},
+
+    {"VERBOSE", AUD_OPT_BOOL, &conf.verbose,
+     "Behave in a more verbose way", NULL, 0},
+
     {NULL, 0, NULL, NULL, NULL, 0}
 };
 

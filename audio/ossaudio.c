@@ -75,11 +75,11 @@ static void GCC_FMT_ATTR (2, 3) oss_logerr (int err, const char *fmt, ...)
 {
     va_list ap;
 
-    AUD_vlog (AUDIO_CAP, fmt, ap);
-
     va_start (ap, fmt);
-    AUD_log (AUDIO_CAP, "Reason: %s\n", strerror (err));
+    AUD_vlog (AUDIO_CAP, fmt, ap);
     va_end (ap);
+
+    AUD_log (AUDIO_CAP, "Reason: %s\n", strerror (err));
 }
 
 static void GCC_FMT_ATTR (3, 4) oss_logerr2 (
@@ -422,6 +422,8 @@ static int oss_init_out (HWVoiceOut *hw, audsettings_t *as)
     audfmt_e effective_fmt;
     audsettings_t obt_as;
 
+    oss->fd = -1;
+
     req.fmt = aud_to_ossfmt (as->fmt);
     req.freq = as->freq;
     req.nchannels = as->nchannels;
@@ -564,6 +566,8 @@ static int oss_init_in (HWVoiceIn *hw, audsettings_t *as)
     int fd;
     audfmt_e effective_fmt;
     audsettings_t obt_as;
+
+    oss->fd = -1;
 
     req.fmt = aud_to_ossfmt (as->fmt);
     req.freq = as->freq;

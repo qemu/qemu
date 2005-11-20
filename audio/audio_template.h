@@ -23,50 +23,157 @@
  */
 
 #ifdef DAC
+#define NAME "playback"
+#define HWBUF hw->mix_buf
 #define TYPE out
-#define HW glue (HWVoice, Out)
-#define SW glue (SWVoice, Out)
+#define HW HWVoiceOut
+#define SW SWVoiceOut
 #else
+#define NAME "capture"
 #define TYPE in
-#define HW glue (HWVoice, In)
-#define SW glue (SWVoice, In)
+#define HW HWVoiceIn
+#define SW SWVoiceIn
+#define HWBUF hw->conv_buf
 #endif
 
-static int glue (audio_pcm_hw_init_, TYPE) (
-    HW *hw,
-    audsettings_t *as
+static void glue (audio_init_nb_voices_, TYPE) (
+    AudioState *s,
+    struct audio_driver *drv
     )
 {
-    glue (audio_pcm_hw_free_resources_, TYPE) (hw);
+    int max_voices = glue (drv->max_voices_, TYPE);
+    int voice_size = glue (drv->voice_size_, TYPE);
 
-    if (glue (hw->pcm_ops->init_, TYPE) (hw, as)) {
-        return -1;
-    }
-
-    if (audio_bug (AUDIO_FUNC, hw->samples <= 0)) {
-        dolog ("hw->samples=%d\n", hw->samples);
-        return -1;
-    }
-
-    LIST_INIT (&hw->sw_head);
+    if (glue (s->nb_hw_voices_, TYPE) > max_voices) {
+        if (!max_voices) {
 #ifdef DAC
-    hw->clip =
-        mixeng_clip
-#else
-    hw->conv =
-        mixeng_conv
+            dolog ("Driver `%s' does not support " NAME "\n", drv->name);
 #endif
-        [hw->info.nchannels == 2]
-        [hw->info.sign]
-        [hw->info.swap_endian]
-        [hw->info.bits == 16];
+        }
+        else {
+            dolog ("Driver `%s' does not support %d " NAME " voices, max %d\n",
+                   drv->name,
+                   glue (s->nb_hw_voices_, TYPE),
+                   max_voices);
+        }
+        glue (s->nb_hw_voices_, TYPE) = max_voices;
+    }
 
-    if (glue (audio_pcm_hw_alloc_resources_, TYPE) (hw)) {
-        glue (hw->pcm_ops->fini_, TYPE) (hw);
+    if (audio_bug (AUDIO_FUNC, !voice_size && max_voices)) {
+        dolog ("drv=`%s' voice_size=0 max_voices=%d\n",
+               drv->name, max_voices);
+        glue (s->nb_hw_voices_, TYPE) = 0;
+    }
+
+    if (audio_bug (AUDIO_FUNC, voice_size && !max_voices)) {
+        dolog ("drv=`%s' voice_size=%d max_voices=0\n",
+               drv->name, voice_size);
+    }
+}
+
+static void glue (audio_pcm_hw_free_resources_, TYPE) (HW *hw)
+{
+    if (HWBUF) {
+        qemu_free (HWBUF);
+    }
+
+    HWBUF = NULL;
+}
+
+static int glue (audio_pcm_hw_alloc_resources_, TYPE) (HW *hw)
+{
+    HWBUF = audio_calloc (AUDIO_FUNC, hw->samples, sizeof (st_sample_t));
+    if (!HWBUF) {
+        dolog ("Could not allocate " NAME " buffer (%d samples)\n",
+               hw->samples);
         return -1;
     }
 
     return 0;
+}
+
+static void glue (audio_pcm_sw_free_resources_, TYPE) (SW *sw)
+{
+    if (sw->buf) {
+        qemu_free (sw->buf);
+    }
+
+    if (sw->rate) {
+        st_rate_stop (sw->rate);
+    }
+
+    sw->buf = NULL;
+    sw->rate = NULL;
+}
+
+static int glue (audio_pcm_sw_alloc_resources_, TYPE) (SW *sw)
+{
+    int samples;
+
+#ifdef DAC
+    samples = sw->hw->samples;
+#else
+    samples = ((int64_t) sw->hw->samples << 32) / sw->ratio;
+#endif
+
+    sw->buf = audio_calloc (AUDIO_FUNC, samples, sizeof (st_sample_t));
+    if (!sw->buf) {
+        dolog ("Could not allocate buffer for `%s' (%d samples)\n",
+               SW_NAME (sw), samples);
+        return -1;
+    }
+
+#ifdef DAC
+    sw->rate = st_rate_start (sw->info.freq, sw->hw->info.freq);
+#else
+    sw->rate = st_rate_start (sw->hw->info.freq, sw->info.freq);
+#endif
+    if (!sw->rate) {
+        qemu_free (sw->buf);
+        sw->buf = NULL;
+        return -1;
+    }
+    return 0;
+}
+
+static int glue (audio_pcm_sw_init_, TYPE) (
+    SW *sw,
+    HW *hw,
+    const char *name,
+    audsettings_t *as,
+    int endian
+    )
+{
+    int err;
+
+    audio_pcm_init_info (&sw->info, as, audio_need_to_swap_endian (endian));
+    sw->hw = hw;
+    sw->active = 0;
+#ifdef DAC
+    sw->ratio = ((int64_t) sw->hw->info.freq << 32) / sw->info.freq;
+    sw->total_hw_samples_mixed = 0;
+    sw->empty = 1;
+#else
+    sw->ratio = ((int64_t) sw->info.freq << 32) / sw->hw->info.freq;
+#endif
+
+#ifdef DAC
+    sw->conv = mixeng_conv
+#else
+    sw->clip = mixeng_clip
+#endif
+        [sw->info.nchannels == 2]
+        [sw->info.sign]
+        [sw->info.swap_endian]
+        [sw->info.bits == 16];
+
+    sw->name = qemu_strdup (name);
+    err = glue (audio_pcm_sw_alloc_resources_, TYPE) (sw);
+    if (err) {
+        qemu_free (sw->name);
+        sw->name = NULL;
+    }
+    return err;
 }
 
 static void glue (audio_pcm_sw_fini_, TYPE) (SW *sw)
@@ -117,31 +224,6 @@ static HW *glue (audio_pcm_hw_find_any_enabled_, TYPE) (AudioState *s, HW *hw)
     return NULL;
 }
 
-static HW *glue (audio_pcm_hw_find_any_passive_, TYPE) (AudioState *s)
-{
-    if (glue (s->nb_hw_voices_, TYPE)) {
-        struct audio_driver *drv = s->drv;
-
-        if (audio_bug (AUDIO_FUNC, !drv)) {
-            dolog ("No host audio driver\n");
-            return NULL;
-        }
-
-        HW *hw = audio_calloc (AUDIO_FUNC, 1, glue (drv->voice_size_, TYPE));
-        if (!hw) {
-            dolog ("Can not allocate voice `%s' size %d\n",
-                   drv->name, glue (drv->voice_size_, TYPE));
-            return NULL;
-        }
-
-        LIST_INSERT_HEAD (&s->glue (hw_head_, TYPE), hw, entries);
-        glue (s->nb_hw_voices_, TYPE) -= 1;
-        return hw;
-    }
-
-    return NULL;
-}
-
 static HW *glue (audio_pcm_hw_find_specific_, TYPE) (
     AudioState *s,
     HW *hw,
@@ -159,23 +241,63 @@ static HW *glue (audio_pcm_hw_find_specific_, TYPE) (
 static HW *glue (audio_pcm_hw_add_new_, TYPE) (AudioState *s, audsettings_t *as)
 {
     HW *hw;
+    struct audio_driver *drv = s->drv;
 
-    hw = glue (audio_pcm_hw_find_any_passive_, TYPE) (s);
-    if (hw) {
-        hw->pcm_ops = s->drv->pcm_ops;
-        if (!hw->pcm_ops) {
-            return NULL;
-        }
-
-        if (glue (audio_pcm_hw_init_, TYPE) (hw, as)) {
-            glue (audio_pcm_hw_gc_, TYPE) (s, &hw);
-            return NULL;
-        }
-        else {
-            return hw;
-        }
+    if (!glue (s->nb_hw_voices_, TYPE)) {
+        return NULL;
     }
 
+    if (audio_bug (AUDIO_FUNC, !drv)) {
+        dolog ("No host audio driver\n");
+        return NULL;
+    }
+
+    if (audio_bug (AUDIO_FUNC, !drv->pcm_ops)) {
+        dolog ("Host audio driver without pcm_ops\n");
+        return NULL;
+    }
+
+    hw = audio_calloc (AUDIO_FUNC, 1, glue (drv->voice_size_, TYPE));
+    if (!hw) {
+        dolog ("Can not allocate voice `%s' size %d\n",
+               drv->name, glue (drv->voice_size_, TYPE));
+        return NULL;
+    }
+
+    hw->pcm_ops = drv->pcm_ops;
+    LIST_INIT (&hw->sw_head);
+
+    if (glue (hw->pcm_ops->init_, TYPE) (hw, as)) {
+        goto err0;
+    }
+
+    if (audio_bug (AUDIO_FUNC, hw->samples <= 0)) {
+        dolog ("hw->samples=%d\n", hw->samples);
+        goto err1;
+    }
+
+#ifdef DAC
+    hw->clip = mixeng_clip
+#else
+    hw->conv = mixeng_conv
+#endif
+        [hw->info.nchannels == 2]
+        [hw->info.sign]
+        [hw->info.swap_endian]
+        [hw->info.bits == 16];
+
+    if (glue (audio_pcm_hw_alloc_resources_, TYPE) (hw)) {
+        goto err1;
+    }
+
+    LIST_INSERT_HEAD (&s->glue (hw_head_, TYPE), hw, entries);
+    glue (s->nb_hw_voices_, TYPE) -= 1;
+    return hw;
+
+ err1:
+    glue (hw->pcm_ops->fini_, TYPE) (hw);
+ err0:
+    qemu_free (hw);
     return NULL;
 }
 
@@ -206,7 +328,8 @@ static HW *glue (audio_pcm_hw_add_, TYPE) (AudioState *s, audsettings_t *as)
 static SW *glue (audio_pcm_create_voice_pair_, TYPE) (
     AudioState *s,
     const char *sw_name,
-    audsettings_t *as
+    audsettings_t *as,
+    int sw_endian
     )
 {
     SW *sw;
@@ -234,7 +357,7 @@ static SW *glue (audio_pcm_create_voice_pair_, TYPE) (
 
     glue (audio_pcm_hw_add_sw_, TYPE) (hw, sw);
 
-    if (glue (audio_pcm_sw_init_, TYPE) (sw, hw, sw_name, as)) {
+    if (glue (audio_pcm_sw_init_, TYPE) (sw, hw, sw_name, as, sw_endian)) {
         goto err3;
     }
 
@@ -256,6 +379,7 @@ static void glue (audio_close_, TYPE) (AudioState *s, SW *sw)
     glue (audio_pcm_hw_gc_, TYPE) (s, &sw->hw);
     qemu_free (sw);
 }
+
 void glue (AUD_close_, TYPE) (QEMUSoundCard *card, SW *sw)
 {
     if (sw) {
@@ -275,7 +399,8 @@ SW *glue (AUD_open_, TYPE) (
     const char *name,
     void *callback_opaque ,
     audio_callback_fn_t callback_fn,
-    audsettings_t *as
+    audsettings_t *as,
+    int sw_endian
     )
 {
     AudioState *s;
@@ -347,15 +472,16 @@ SW *glue (AUD_open_, TYPE) (
             goto fail;
         }
 
-        if (glue (audio_pcm_sw_init_, TYPE) (sw, hw, name, as)) {
+        glue (audio_pcm_sw_fini_, TYPE) (sw);
+        if (glue (audio_pcm_sw_init_, TYPE) (sw, hw, name, as, sw_endian)) {
             goto fail;
         }
     }
     else {
-        sw = glue (audio_pcm_create_voice_pair_, TYPE) (s, name, as);
+        sw = glue (audio_pcm_create_voice_pair_, TYPE) (s, name, as, sw_endian);
         if (!sw) {
             dolog ("Failed to create voice `%s'\n", name);
-            goto fail;
+            return NULL;
         }
     }
 
@@ -435,3 +561,5 @@ uint64_t glue (AUD_get_elapsed_usec_, TYPE) (SW *sw, QEMUAudioTimeStamp *ts)
 #undef TYPE
 #undef HW
 #undef SW
+#undef HWBUF
+#undef NAME

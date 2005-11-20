@@ -123,7 +123,7 @@ struct SWVoiceIn {
     int64_t ratio;
     void *rate;
     int total_hw_samples_acquired;
-    st_sample_t *conv_buf;
+    st_sample_t *buf;
     f_sample *clip;
     HWVoiceIn *hw;
     char *name;

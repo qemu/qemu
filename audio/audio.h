@@ -73,7 +73,8 @@ SWVoiceOut *AUD_open_out (
     const char *name,
     void *callback_opaque,
     audio_callback_fn_t callback_fn,
-    audsettings_t *settings
+    audsettings_t *settings,
+    int sw_endian
     );
 
 void AUD_close_out (QEMUSoundCard *card, SWVoiceOut *sw);
@@ -91,7 +92,8 @@ SWVoiceIn *AUD_open_in (
     const char *name,
     void *callback_opaque,
     audio_callback_fn_t callback_fn,
-    audsettings_t *settings
+    audsettings_t *settings,
+    int sw_endian
     );
 
 void AUD_close_in (QEMUSoundCard *card, SWVoiceIn *sw);
