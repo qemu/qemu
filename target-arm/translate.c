@@ -903,16 +903,26 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
     return 0;
 }
 
-static inline void gen_jmp_tb(long tb, int n, uint32_t dest)
+static inline void gen_goto_tb(DisasContext *s, int n, uint32_t dest)
 {
-    if (n == 0)
-        gen_op_goto_tb0(TBPARAM(tb));
-    else
-        gen_op_goto_tb1(TBPARAM(tb));
-    gen_op_movl_T0_im(dest);
-    gen_op_movl_r15_T0();
-    gen_op_movl_T0_im(tb + n);
-    gen_op_exit_tb();
+    TranslationBlock *tb;
+
+    tb = s->tb;
+    if ((tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK)) {
+        if (n == 0)
+            gen_op_goto_tb0(TBPARAM(tb));
+        else
+            gen_op_goto_tb1(TBPARAM(tb));
+        gen_op_movl_T0_im(dest);
+        gen_op_movl_r15_T0();
+        gen_op_movl_T0_im((long)tb + n);
+        gen_op_exit_tb();
+    } else {
+        gen_op_movl_T0_im(dest);
+        gen_op_movl_r15_T0();
+        gen_op_movl_T0_0();
+        gen_op_exit_tb();
+    }
 }
 
 static inline void gen_jmp (DisasContext *s, uint32_t dest)
@@ -924,8 +934,7 @@ static inline void gen_jmp (DisasContext *s, uint32_t dest)
         gen_op_movl_T0_im(dest);
         gen_bx(s);
     } else {
-        long tb = (long)s->tb;
-        gen_jmp_tb(tb, 0, dest);
+        gen_goto_tb(s, 0, dest);
         s->is_jmp = DISAS_TB_JUMP;
     }
 }
@@ -2137,7 +2146,7 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     } else {
         switch(dc->is_jmp) {
         case DISAS_NEXT:
-            gen_jmp_tb((long)dc->tb, 1, dc->pc);
+            gen_goto_tb(dc, 1, dc->pc);
             break;
         default:
         case DISAS_JUMP:
@@ -2152,7 +2161,7 @@ static inline int gen_intermediate_code_internal(CPUState *env,
         }
         if (dc->condjmp) {
             gen_set_label(dc->condlabel);
-            gen_jmp_tb((long)dc->tb, 1, dc->pc);
+            gen_goto_tb(dc, 1, dc->pc);
             dc->condjmp = 0;
         }
     }

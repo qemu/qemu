@@ -1700,6 +1700,31 @@ static inline int insn_const_size(unsigned int ot)
         return 4;
 }
 
+static inline void gen_goto_tb(DisasContext *s, int tb_num, target_ulong eip)
+{
+    TranslationBlock *tb;
+    target_ulong pc;
+
+    pc = s->cs_base + eip;
+    tb = s->tb;
+    /* NOTE: we handle the case where the TB spans two pages here */
+    if ((pc & TARGET_PAGE_MASK) == (tb->pc & TARGET_PAGE_MASK) ||
+        (pc & TARGET_PAGE_MASK) == ((s->pc - 1) & TARGET_PAGE_MASK))  {
+        /* jump to same page: we can use a direct jump */
+        if (tb_num == 0)
+            gen_op_goto_tb0(TBPARAM(tb));
+        else
+            gen_op_goto_tb1(TBPARAM(tb));
+        gen_jmp_im(eip);
+        gen_op_movl_T0_im((long)tb + tb_num);
+        gen_op_exit_tb();
+    } else {
+        /* jump to another page: currently not optimized */
+        gen_jmp_im(eip);
+        gen_eob(s);
+    }
+}
+
 static inline void gen_jcc(DisasContext *s, int b, 
                            target_ulong val, target_ulong next_eip)
 {
@@ -1779,8 +1804,10 @@ static inline void gen_jcc(DisasContext *s, int b,
             break;
         }
 
-        if (s->cc_op != CC_OP_DYNAMIC)
+        if (s->cc_op != CC_OP_DYNAMIC) {
             gen_op_set_cc_op(s->cc_op);
+            s->cc_op = CC_OP_DYNAMIC;
+        }
 
         if (!func) {
             gen_setcc_slow[jcc_op]();
@@ -1797,16 +1824,10 @@ static inline void gen_jcc(DisasContext *s, int b,
         l1 = gen_new_label();
         func(l1);
 
-        gen_op_goto_tb0(TBPARAM(tb));
-        gen_jmp_im(next_eip);
-        gen_op_movl_T0_im((long)tb + 0);
-        gen_op_exit_tb();
+        gen_goto_tb(s, 0, next_eip);
 
         gen_set_label(l1);
-        gen_op_goto_tb1(TBPARAM(tb));
-        gen_jmp_im(val);
-        gen_op_movl_T0_im((long)tb + 1);
-        gen_op_exit_tb();
+        gen_goto_tb(s, 1, val);
 
         s->is_jmp = 3;
     } else {
@@ -2217,18 +2238,12 @@ static void gen_eob(DisasContext *s)
    direct call to the next block may occur */
 static void gen_jmp_tb(DisasContext *s, target_ulong eip, int tb_num)
 {
-    TranslationBlock *tb = s->tb;
-
     if (s->jmp_opt) {
-        if (s->cc_op != CC_OP_DYNAMIC)
+        if (s->cc_op != CC_OP_DYNAMIC) {
             gen_op_set_cc_op(s->cc_op);
-        if (tb_num)
-            gen_op_goto_tb1(TBPARAM(tb));
-        else
-            gen_op_goto_tb0(TBPARAM(tb));
-        gen_jmp_im(eip);
-        gen_op_movl_T0_im((long)tb + tb_num);
-        gen_op_exit_tb();
+            s->cc_op = CC_OP_DYNAMIC;
+        }
+        gen_goto_tb(s, tb_num, eip);
         s->is_jmp = 3;
     } else {
         gen_jmp_im(eip);

@@ -928,15 +928,23 @@ static void gen_trap (DisasContext *ctx, uint16_t opc,
     ctx->bstate = BS_STOP;
 }
 
-static inline void gen_jmp_tb(long tb, int n, uint32_t dest)
+static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
 {
-    if (n == 0)
-        gen_op_goto_tb0(TBPARAM(tb));
-    else
-        gen_op_goto_tb1(TBPARAM(tb));
-    gen_op_save_pc(dest);
-    gen_op_set_T0(tb + n);
-    gen_op_exit_tb();
+    TranslationBlock *tb;
+    tb = ctx->tb;
+    if ((tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK)) {
+        if (n == 0)
+            gen_op_goto_tb0(TBPARAM(tb));
+        else
+            gen_op_goto_tb1(TBPARAM(tb));
+        gen_op_save_pc(dest);
+        gen_op_set_T0((long)tb + n);
+        gen_op_exit_tb();
+    } else {
+        gen_op_save_pc(dest);
+        gen_op_set_T0(0);
+        gen_op_exit_tb();
+    }
 }
 
 /* Branches (before delay slot) */
@@ -1035,7 +1043,7 @@ static void gen_compute_branch (DisasContext *ctx, uint16_t opc,
         case OPC_BLTZL:   /* 0 < 0 likely */
             /* Skip the instruction in the delay slot */
             MIPS_DEBUG("bnever and skip");
-            gen_jmp_tb((long)ctx->tb, 0, ctx->pc + 4);
+            gen_goto_tb(ctx, 0, ctx->pc + 4);
             return;
         case OPC_J:
             ctx->hflags |= MIPS_HFLAG_DS | MIPS_HFLAG_B;
@@ -1278,7 +1286,7 @@ static void gen_blikely(DisasContext *ctx)
   l1 = gen_new_label();
   gen_op_jnz_T2(l1);
   gen_op_save_state(ctx->hflags & ~(MIPS_HFLAG_BMASK | MIPS_HFLAG_DS));
-  gen_jmp_tb((long)ctx->tb, 1, ctx->pc + 4);
+  gen_goto_tb(ctx, 1, ctx->pc + 4);
 }
 
 static void decode_opc (DisasContext *ctx)
@@ -1502,12 +1510,12 @@ static void decode_opc (DisasContext *ctx)
         case MIPS_HFLAG_B:
             /* unconditional branch */
             MIPS_DEBUG("unconditional branch");
-            gen_jmp_tb((long)ctx->tb, 0, ctx->btarget);
+            gen_goto_tb(ctx, 0, ctx->btarget);
             break;
         case MIPS_HFLAG_BL:
             /* blikely taken case */
             MIPS_DEBUG("blikely branch taken");
-            gen_jmp_tb((long)ctx->tb, 0, ctx->btarget);
+            gen_goto_tb(ctx, 0, ctx->btarget);
             break;
         case MIPS_HFLAG_BC:
             /* Conditional branch */
@@ -1516,9 +1524,9 @@ static void decode_opc (DisasContext *ctx)
               int l1;
               l1 = gen_new_label();
               gen_op_jnz_T2(l1);
-              gen_jmp_tb((long)ctx->tb, 0, ctx->btarget);
+              gen_goto_tb(ctx, 0, ctx->btarget);
               gen_set_label(l1);
-              gen_jmp_tb((long)ctx->tb, 1, ctx->pc + 4);
+              gen_goto_tb(ctx, 1, ctx->pc + 4);
             }
             break;
         case MIPS_HFLAG_BR:
@@ -1603,7 +1611,7 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     }
     if (ctx.bstate != BS_BRANCH && ctx.bstate != BS_EXCP) {
         save_cpu_state(ctxp, 0);
-        gen_jmp_tb((long)ctx.tb, 0, ctx.pc);
+        gen_goto_tb(&ctx, 0, ctx.pc);
     }
     gen_op_reset_T0();
     /* Generate the return instruction */

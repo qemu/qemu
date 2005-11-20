@@ -561,6 +561,32 @@ static inline void gen_movl_npc_im(target_ulong npc)
 #endif
 }
 
+static inline void gen_goto_tb(DisasContext *s, int tb_num, 
+                               target_ulong pc, target_ulong npc)
+{
+    TranslationBlock *tb;
+
+    tb = s->tb;
+    if ((pc & TARGET_PAGE_MASK) == (tb->pc & TARGET_PAGE_MASK) &&
+        (npc & TARGET_PAGE_MASK) == (tb->pc & TARGET_PAGE_MASK))  {
+        /* jump to same page: we can use a direct jump */
+        if (tb_num == 0)
+            gen_op_goto_tb0(TBPARAM(tb));
+        else
+            gen_op_goto_tb1(TBPARAM(tb));
+        gen_jmp_im(pc);
+        gen_movl_npc_im(npc);
+        gen_op_movl_T0_im((long)tb + tb_num);
+        gen_op_exit_tb();
+    } else {
+        /* jump to another page: currently not optimized */
+        gen_jmp_im(pc);
+        gen_movl_npc_im(npc);
+        gen_op_movl_T0_0();
+        gen_op_exit_tb();
+    }
+}
+
 static inline void gen_branch2(DisasContext *dc, long tb, target_ulong pc1, target_ulong pc2)
 {
     int l1;
@@ -569,18 +595,10 @@ static inline void gen_branch2(DisasContext *dc, long tb, target_ulong pc1, targ
 
     gen_op_jz_T2_label(l1);
 
-    gen_op_goto_tb0(TBPARAM(tb));
-    gen_jmp_im(pc1);
-    gen_movl_npc_im(pc1 + 4);
-    gen_op_movl_T0_im((long)tb + 0);
-    gen_op_exit_tb();
+    gen_goto_tb(dc, 0, pc1, pc1 + 4);
 
     gen_set_label(l1);
-    gen_op_goto_tb1(TBPARAM(tb));
-    gen_jmp_im(pc2);
-    gen_movl_npc_im(pc2 + 4);
-    gen_op_movl_T0_im((long)tb + 1);
-    gen_op_exit_tb();
+    gen_goto_tb(dc, 1, pc2, pc2 + 4);
 }
 
 static inline void gen_branch_a(DisasContext *dc, long tb, target_ulong pc1, target_ulong pc2)
@@ -591,27 +609,15 @@ static inline void gen_branch_a(DisasContext *dc, long tb, target_ulong pc1, tar
 
     gen_op_jz_T2_label(l1);
 
-    gen_op_goto_tb0(TBPARAM(tb));
-    gen_jmp_im(pc2);
-    gen_movl_npc_im(pc1);
-    gen_op_movl_T0_im((long)tb + 0);
-    gen_op_exit_tb();
+    gen_goto_tb(dc, 0, pc2, pc1);
 
     gen_set_label(l1);
-    gen_op_goto_tb1(TBPARAM(tb));
-    gen_jmp_im(pc2 + 4);
-    gen_movl_npc_im(pc2 + 8);
-    gen_op_movl_T0_im((long)tb + 1);
-    gen_op_exit_tb();
+    gen_goto_tb(dc, 1, pc2 + 4, pc2 + 8);
 }
 
 static inline void gen_branch(DisasContext *dc, long tb, target_ulong pc, target_ulong npc)
 {
-    gen_op_goto_tb0(TBPARAM(tb));
-    gen_jmp_im(pc);
-    gen_movl_npc_im(npc);
-    gen_op_movl_T0_im((long)tb + 0);
-    gen_op_exit_tb();
+    gen_goto_tb(dc, 0, pc, npc);
 }
 
 static inline void gen_generic_branch(DisasContext *dc, target_ulong npc1, target_ulong npc2)
