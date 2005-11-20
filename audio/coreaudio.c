@@ -33,9 +33,11 @@
 
 struct {
     int buffer_frames;
+    int nbuffers;
     int isAtexit;
 } conf = {
     .buffer_frames = 512,
+    .nbuffers = 4,
     .isAtexit = 0
 };
 
@@ -393,7 +395,7 @@ static int coreaudio_init_out (HWVoiceOut *hw, audsettings_t *as)
                            "Could not get device buffer frame size\n");
         return -1;
     }
-    hw->samples = 4 * core->audioDevicePropertyBufferFrameSize;
+    hw->samples = conf.nbuffers * core->audioDevicePropertyBufferFrameSize;
 
     /* get StreamFormat */
     propertySize = sizeof(core->outputStreamBasicDescription);
@@ -527,6 +529,8 @@ static void coreaudio_audio_fini (void *opaque)
 static struct audio_option coreaudio_options[] = {
     {"BUFFER_SIZE", AUD_OPT_INT, &conf.buffer_frames,
      "Size of the buffer in frames", NULL, 0},
+    {"BUFFER_COUNT", AUD_OPT_INT, &conf.nbuffers,
+     "Number of buffers", NULL, 0},
     {NULL, 0, NULL, NULL, NULL, 0}
 };
 
