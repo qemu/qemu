@@ -73,6 +73,137 @@ void cpu_resume_from_signal(CPUState *env1, void *puc)
     longjmp(env->jmp_env, 1);
 }
 
+
+static TranslationBlock *tb_find_slow(target_ulong pc,
+                                      target_ulong cs_base,
+                                      unsigned int flags)
+{
+    TranslationBlock *tb, **ptb1;
+    int code_gen_size;
+    unsigned int h;
+    target_ulong phys_pc, phys_page1, phys_page2, virt_page2;
+    uint8_t *tc_ptr;
+    
+    spin_lock(&tb_lock);
+
+    tb_invalidated_flag = 0;
+    
+    regs_to_env(); /* XXX: do it just before cpu_gen_code() */
+    
+    /* find translated block using physical mappings */
+    phys_pc = get_phys_addr_code(env, pc);
+    phys_page1 = phys_pc & TARGET_PAGE_MASK;
+    phys_page2 = -1;
+    h = tb_phys_hash_func(phys_pc);
+    ptb1 = &tb_phys_hash[h];
+    for(;;) {
+        tb = *ptb1;
+        if (!tb)
+            goto not_found;
+        if (tb->pc == pc && 
+            tb->page_addr[0] == phys_page1 &&
+            tb->cs_base == cs_base && 
+            tb->flags == flags) {
+            /* check next page if needed */
+            if (tb->page_addr[1] != -1) {
+                virt_page2 = (pc & TARGET_PAGE_MASK) + 
+                    TARGET_PAGE_SIZE;
+                phys_page2 = get_phys_addr_code(env, virt_page2);
+                if (tb->page_addr[1] == phys_page2)
+                    goto found;
+            } else {
+                goto found;
+            }
+        }
+        ptb1 = &tb->phys_hash_next;
+    }
+ not_found:
+    /* if no translated code available, then translate it now */
+    tb = tb_alloc(pc);
+    if (!tb) {
+        /* flush must be done */
+        tb_flush(env);
+        /* cannot fail at this point */
+        tb = tb_alloc(pc);
+        /* don't forget to invalidate previous TB info */
+        T0 = 0;
+    }
+    tc_ptr = code_gen_ptr;
+    tb->tc_ptr = tc_ptr;
+    tb->cs_base = cs_base;
+    tb->flags = flags;
+    cpu_gen_code(env, tb, CODE_GEN_MAX_SIZE, &code_gen_size);
+    code_gen_ptr = (void *)(((unsigned long)code_gen_ptr + code_gen_size + CODE_GEN_ALIGN - 1) & ~(CODE_GEN_ALIGN - 1));
+    
+    /* check next page if needed */
+    virt_page2 = (pc + tb->size - 1) & TARGET_PAGE_MASK;
+    phys_page2 = -1;
+    if ((pc & TARGET_PAGE_MASK) != virt_page2) {
+        phys_page2 = get_phys_addr_code(env, virt_page2);
+    }
+    tb_link_phys(tb, phys_pc, phys_page2);
+    
+ found:
+    if (tb_invalidated_flag) {
+        /* as some TB could have been invalidated because
+           of memory exceptions while generating the code, we
+           must recompute the hash index here */
+        T0 = 0;
+    }
+    /* we add the TB in the virtual pc hash table */
+    env->tb_jmp_cache[tb_jmp_cache_hash_func(pc)] = tb;
+    spin_unlock(&tb_lock);
+    return tb;
+}
+
+static inline TranslationBlock *tb_find_fast(void)
+{
+    TranslationBlock *tb;
+    target_ulong cs_base, pc;
+    unsigned int flags;
+
+    /* we record a subset of the CPU state. It will
+       always be the same before a given translated block
+       is executed. */
+#if defined(TARGET_I386)
+    flags = env->hflags;
+    flags |= (env->eflags & (IOPL_MASK | TF_MASK | VM_MASK));
+    cs_base = env->segs[R_CS].base;
+    pc = cs_base + env->eip;
+#elif defined(TARGET_ARM)
+    flags = env->thumb | (env->vfp.vec_len << 1)
+        | (env->vfp.vec_stride << 4);
+    cs_base = 0;
+    pc = env->regs[15];
+#elif defined(TARGET_SPARC)
+#ifdef TARGET_SPARC64
+    flags = (env->pstate << 2) | ((env->lsu & (DMMU_E | IMMU_E)) >> 2);
+#else
+    flags = env->psrs | ((env->mmuregs[0] & (MMU_E | MMU_NF)) << 1);
+#endif
+    cs_base = env->npc;
+    pc = env->pc;
+#elif defined(TARGET_PPC)
+    flags = (msr_pr << MSR_PR) | (msr_fp << MSR_FP) |
+        (msr_se << MSR_SE) | (msr_le << MSR_LE);
+    cs_base = 0;
+    pc = env->nip;
+#elif defined(TARGET_MIPS)
+    flags = env->hflags & MIPS_HFLAGS_TMASK;
+    cs_base = NULL;
+    pc = env->PC;
+#else
+#error unsupported CPU
+#endif
+    tb = env->tb_jmp_cache[tb_jmp_cache_hash_func(pc)];
+    if (__builtin_expect(!tb || tb->pc != pc || tb->cs_base != cs_base ||
+                         tb->flags != flags, 0)) {
+        tb = tb_find_slow(pc, cs_base, flags);
+    }
+    return tb;
+}
+
+
 /* main execution loop */
 
 int cpu_exec(CPUState *env1)
@@ -115,12 +246,10 @@ int cpu_exec(CPUState *env1)
 #ifdef __sparc__
     int saved_i7, tmp_T0;
 #endif
-    int code_gen_size, ret, interrupt_request;
+    int ret, interrupt_request;
     void (*gen_func)(void);
-    TranslationBlock *tb, **ptb;
-    target_ulong cs_base, pc;
+    TranslationBlock *tb;
     uint8_t *tc_ptr;
-    unsigned int flags;
 
     /* first we save global registers */
     saved_env = env;
@@ -290,19 +419,29 @@ int cpu_exec(CPUState *env1)
                     }
 #endif
                     if (msr_ee != 0) {
-                    if ((interrupt_request & CPU_INTERRUPT_HARD)) {
+                        if ((interrupt_request & CPU_INTERRUPT_HARD)) {
 			    /* Raise it */
 			    env->exception_index = EXCP_EXTERNAL;
 			    env->error_code = 0;
                             do_interrupt(env);
-                        env->interrupt_request &= ~CPU_INTERRUPT_HARD;
-			} else if ((interrupt_request & CPU_INTERRUPT_TIMER)) {
-			    /* Raise it */
-			    env->exception_index = EXCP_DECR;
-			    env->error_code = 0;
-			    do_interrupt(env);
+                            env->interrupt_request &= ~CPU_INTERRUPT_HARD;
+#ifdef __sparc__
+                            tmp_T0 = 0;
+#else
+                            T0 = 0;
+#endif
+                        } else if ((interrupt_request & CPU_INTERRUPT_TIMER)) {
+                            /* Raise it */
+                            env->exception_index = EXCP_DECR;
+                            env->error_code = 0;
+                            do_interrupt(env);
                             env->interrupt_request &= ~CPU_INTERRUPT_TIMER;
-			}
+#ifdef __sparc__
+                            tmp_T0 = 0;
+#else
+                            T0 = 0;
+#endif
+                        }
                     }
 #elif defined(TARGET_MIPS)
                     if ((interrupt_request & CPU_INTERRUPT_HARD) &&
@@ -316,6 +455,11 @@ int cpu_exec(CPUState *env1)
                         env->error_code = 0;
                         do_interrupt(env);
                         env->interrupt_request &= ~CPU_INTERRUPT_HARD;
+#ifdef __sparc__
+                        tmp_T0 = 0;
+#else
+                        T0 = 0;
+#endif
                     }
 #elif defined(TARGET_SPARC)
                     if ((interrupt_request & CPU_INTERRUPT_HARD) &&
@@ -329,6 +473,11 @@ int cpu_exec(CPUState *env1)
 			    env->interrupt_request &= ~CPU_INTERRUPT_HARD;
 			    do_interrupt(env->interrupt_index);
 			    env->interrupt_index = 0;
+#ifdef __sparc__
+                            tmp_T0 = 0;
+#else
+                            T0 = 0;
+#endif
 			}
 		    } else if (interrupt_request & CPU_INTERRUPT_TIMER) {
 			//do_interrupt(0, 0, 0, 0, 0);
@@ -399,123 +548,7 @@ int cpu_exec(CPUState *env1)
 #endif
                 }
 #endif
-                /* we record a subset of the CPU state. It will
-                   always be the same before a given translated block
-                   is executed. */
-#if defined(TARGET_I386)
-                flags = env->hflags;
-                flags |= (env->eflags & (IOPL_MASK | TF_MASK | VM_MASK));
-                cs_base = env->segs[R_CS].base;
-                pc = cs_base + env->eip;
-#elif defined(TARGET_ARM)
-                flags = env->thumb | (env->vfp.vec_len << 1)
-                        | (env->vfp.vec_stride << 4);
-                cs_base = 0;
-                pc = env->regs[15];
-#elif defined(TARGET_SPARC)
-#ifdef TARGET_SPARC64
-                flags = (env->pstate << 2) | ((env->lsu & (DMMU_E | IMMU_E)) >> 2);
-#else
-                flags = env->psrs | ((env->mmuregs[0] & (MMU_E | MMU_NF)) << 1);
-#endif
-                cs_base = env->npc;
-                pc = env->pc;
-#elif defined(TARGET_PPC)
-                flags = (msr_pr << MSR_PR) | (msr_fp << MSR_FP) |
-                    (msr_se << MSR_SE) | (msr_le << MSR_LE);
-                cs_base = 0;
-                pc = env->nip;
-#elif defined(TARGET_MIPS)
-                flags = env->hflags & MIPS_HFLAGS_TMASK;
-                cs_base = NULL;
-                pc = env->PC;
-#else
-#error unsupported CPU
-#endif
-                tb = tb_find(&ptb, pc, cs_base, 
-                             flags);
-                if (!tb) {
-                    TranslationBlock **ptb1;
-                    unsigned int h;
-                    target_ulong phys_pc, phys_page1, phys_page2, virt_page2;
-                    
-                    
-                    spin_lock(&tb_lock);
-
-                    tb_invalidated_flag = 0;
-                    
-                    regs_to_env(); /* XXX: do it just before cpu_gen_code() */
-
-                    /* find translated block using physical mappings */
-                    phys_pc = get_phys_addr_code(env, pc);
-                    phys_page1 = phys_pc & TARGET_PAGE_MASK;
-                    phys_page2 = -1;
-                    h = tb_phys_hash_func(phys_pc);
-                    ptb1 = &tb_phys_hash[h];
-                    for(;;) {
-                        tb = *ptb1;
-                        if (!tb)
-                            goto not_found;
-                        if (tb->pc == pc && 
-                            tb->page_addr[0] == phys_page1 &&
-                            tb->cs_base == cs_base && 
-                            tb->flags == flags) {
-                            /* check next page if needed */
-                            if (tb->page_addr[1] != -1) {
-                                virt_page2 = (pc & TARGET_PAGE_MASK) + 
-                                    TARGET_PAGE_SIZE;
-                                phys_page2 = get_phys_addr_code(env, virt_page2);
-                                if (tb->page_addr[1] == phys_page2)
-                                    goto found;
-                            } else {
-                                goto found;
-                            }
-                        }
-                        ptb1 = &tb->phys_hash_next;
-                    }
-                not_found:
-                    /* if no translated code available, then translate it now */
-                    tb = tb_alloc(pc);
-                    if (!tb) {
-                        /* flush must be done */
-                        tb_flush(env);
-                        /* cannot fail at this point */
-                        tb = tb_alloc(pc);
-                        /* don't forget to invalidate previous TB info */
-                        ptb = &tb_hash[tb_hash_func(pc)];
-                        T0 = 0;
-                    }
-                    tc_ptr = code_gen_ptr;
-                    tb->tc_ptr = tc_ptr;
-                    tb->cs_base = cs_base;
-                    tb->flags = flags;
-                    cpu_gen_code(env, tb, CODE_GEN_MAX_SIZE, &code_gen_size);
-                    code_gen_ptr = (void *)(((unsigned long)code_gen_ptr + code_gen_size + CODE_GEN_ALIGN - 1) & ~(CODE_GEN_ALIGN - 1));
-                    
-                    /* check next page if needed */
-                    virt_page2 = (pc + tb->size - 1) & TARGET_PAGE_MASK;
-                    phys_page2 = -1;
-                    if ((pc & TARGET_PAGE_MASK) != virt_page2) {
-                        phys_page2 = get_phys_addr_code(env, virt_page2);
-                    }
-                    tb_link_phys(tb, phys_pc, phys_page2);
-
-                found:
-                    if (tb_invalidated_flag) {
-                        /* as some TB could have been invalidated because
-                           of memory exceptions while generating the code, we
-                           must recompute the hash index here */
-                        ptb = &tb_hash[tb_hash_func(pc)];
-                        while (*ptb != NULL)
-                            ptb = &(*ptb)->hash_next;
-                        T0 = 0;
-                    }
-                    /* we add the TB in the virtual pc hash table */
-                    *ptb = tb;
-                    tb->hash_next = NULL;
-                    tb_link(tb);
-                    spin_unlock(&tb_lock);
-                }
+                tb = tb_find_fast();
 #ifdef DEBUG_EXEC
                 if ((loglevel & CPU_LOG_EXEC)) {
                     fprintf(logfile, "Trace 0x%08lx [" TARGET_FMT_lx "] %s\n",
@@ -526,9 +559,12 @@ int cpu_exec(CPUState *env1)
 #ifdef __sparc__
                 T0 = tmp_T0;
 #endif	    
-                /* see if we can patch the calling TB. */
+                /* see if we can patch the calling TB. When the TB
+                   spans two pages, we cannot safely do a direct
+                   jump. */
                 {
-                    if (T0 != 0
+                    if (T0 != 0 &&
+                        tb->page_addr[1] == -1
 #if defined(TARGET_I386) && defined(USE_CODE_COPY)
                     && (tb->cflags & CF_CODE_COPY) == 
                     (((TranslationBlock *)(T0 & ~3))->cflags & CF_CODE_COPY)

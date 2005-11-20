@@ -105,9 +105,6 @@ int tlb_set_page(CPUState *env, target_ulong vaddr,
 #define CODE_GEN_MAX_SIZE        65536
 #define CODE_GEN_ALIGN           16 /* must be >= of the size of a icache line */
 
-#define CODE_GEN_HASH_BITS     15
-#define CODE_GEN_HASH_SIZE     (1 << CODE_GEN_HASH_BITS)
-
 #define CODE_GEN_PHYS_HASH_BITS     15
 #define CODE_GEN_PHYS_HASH_SIZE     (1 << CODE_GEN_PHYS_HASH_BITS)
 
@@ -167,7 +164,6 @@ typedef struct TranslationBlock {
 #define CF_SINGLE_INSN 0x0008 /* compile only a single instruction */
 
     uint8_t *tc_ptr;    /* pointer to the translated code */
-    struct TranslationBlock *hash_next; /* next matching tb for virtual address */
     /* next matching tb for physical address. */
     struct TranslationBlock *phys_hash_next; 
     /* first and second physical page containing code. The lower bit
@@ -191,9 +187,9 @@ typedef struct TranslationBlock {
     struct TranslationBlock *jmp_first;
 } TranslationBlock;
 
-static inline unsigned int tb_hash_func(target_ulong pc)
+static inline unsigned int tb_jmp_cache_hash_func(target_ulong pc)
 {
-    return pc & (CODE_GEN_HASH_SIZE - 1);
+    return (pc ^ (pc >> TB_JMP_CACHE_BITS)) & (TB_JMP_CACHE_SIZE - 1);
 }
 
 static inline unsigned int tb_phys_hash_func(unsigned long pc)
@@ -203,40 +199,13 @@ static inline unsigned int tb_phys_hash_func(unsigned long pc)
 
 TranslationBlock *tb_alloc(target_ulong pc);
 void tb_flush(CPUState *env);
-void tb_link(TranslationBlock *tb);
 void tb_link_phys(TranslationBlock *tb, 
                   target_ulong phys_pc, target_ulong phys_page2);
 
-extern TranslationBlock *tb_hash[CODE_GEN_HASH_SIZE];
 extern TranslationBlock *tb_phys_hash[CODE_GEN_PHYS_HASH_SIZE];
 
 extern uint8_t code_gen_buffer[CODE_GEN_BUFFER_SIZE];
 extern uint8_t *code_gen_ptr;
-
-/* find a translation block in the translation cache. If not found,
-   return NULL and the pointer to the last element of the list in pptb */
-static inline TranslationBlock *tb_find(TranslationBlock ***pptb,
-                                        target_ulong pc, 
-                                        target_ulong cs_base,
-                                        unsigned int flags)
-{
-    TranslationBlock **ptb, *tb;
-    unsigned int h;
- 
-    h = tb_hash_func(pc);
-    ptb = &tb_hash[h];
-    for(;;) {
-        tb = *ptb;
-        if (!tb)
-            break;
-        if (tb->pc == pc && tb->cs_base == cs_base && tb->flags == flags)
-            return tb;
-        ptb = &tb->hash_next;
-    }
-    *pptb = ptb;
-    return NULL;
-}
-
 
 #if defined(USE_DIRECT_JUMP)
 

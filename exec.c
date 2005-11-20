@@ -61,7 +61,6 @@
 #endif
 
 TranslationBlock tbs[CODE_GEN_MAX_BLOCKS];
-TranslationBlock *tb_hash[CODE_GEN_HASH_SIZE];
 TranslationBlock *tb_phys_hash[CODE_GEN_PHYS_HASH_SIZE];
 int nb_tbs;
 /* any access to the tbs or the page table must use this lock */
@@ -92,20 +91,6 @@ typedef struct PhysPageDesc {
     uint32_t phys_offset;
 } PhysPageDesc;
 
-/* Note: the VirtPage handling is absolete and will be suppressed
-   ASAP */
-typedef struct VirtPageDesc {
-    /* physical address of code page. It is valid only if 'valid_tag'
-       matches 'virt_valid_tag' */ 
-    target_ulong phys_addr; 
-    unsigned int valid_tag;
-#if !defined(CONFIG_SOFTMMU)
-    /* original page access rights. It is valid only if 'valid_tag'
-       matches 'virt_valid_tag' */
-    unsigned int prot;
-#endif
-} VirtPageDesc;
-
 #define L2_BITS 10
 #define L1_BITS (32 - L2_BITS - TARGET_PAGE_BITS)
 
@@ -122,17 +107,6 @@ unsigned long qemu_host_page_mask;
 /* XXX: for system emulation, it could just be an array */
 static PageDesc *l1_map[L1_SIZE];
 PhysPageDesc **l1_phys_map;
-
-#if !defined(CONFIG_USER_ONLY)
-#if TARGET_LONG_BITS > 32
-#define VIRT_L_BITS 9
-#define VIRT_L_SIZE (1 << VIRT_L_BITS)
-static void *l1_virt_map[VIRT_L_SIZE];
-#else
-static VirtPageDesc *l1_virt_map[L1_SIZE];
-#endif
-static unsigned int virt_valid_tag;
-#endif
 
 /* io memory support */
 CPUWriteMemoryFunc *io_mem_write[IO_MEM_NB_ENTRIES][4];
@@ -190,9 +164,6 @@ static void page_init(void)
     while ((1 << qemu_host_page_bits) < qemu_host_page_size)
         qemu_host_page_bits++;
     qemu_host_page_mask = ~(qemu_host_page_size - 1);
-#if !defined(CONFIG_USER_ONLY)
-    virt_valid_tag = 1;
-#endif
     l1_phys_map = qemu_vmalloc(L1_SIZE * sizeof(void *));
     memset(l1_phys_map, 0, L1_SIZE * sizeof(void *));
 }
@@ -266,120 +237,6 @@ static void tlb_protect_code(CPUState *env, ram_addr_t ram_addr,
                              target_ulong vaddr);
 static void tlb_unprotect_code_phys(CPUState *env, ram_addr_t ram_addr, 
                                     target_ulong vaddr);
-
-static VirtPageDesc *virt_page_find_alloc(target_ulong index, int alloc)
-{
-#if TARGET_LONG_BITS > 32
-    void **p, **lp;
-
-    p = l1_virt_map;
-    lp = p + ((index >> (5 * VIRT_L_BITS)) & (VIRT_L_SIZE - 1));
-    p = *lp;
-    if (!p) {
-        if (!alloc)
-            return NULL;
-        p = qemu_mallocz(sizeof(void *) * VIRT_L_SIZE);
-        *lp = p;
-    }
-    lp = p + ((index >> (4 * VIRT_L_BITS)) & (VIRT_L_SIZE - 1));
-    p = *lp;
-    if (!p) {
-        if (!alloc)
-            return NULL;
-        p = qemu_mallocz(sizeof(void *) * VIRT_L_SIZE);
-        *lp = p;
-    }
-    lp = p + ((index >> (3 * VIRT_L_BITS)) & (VIRT_L_SIZE - 1));
-    p = *lp;
-    if (!p) {
-        if (!alloc)
-            return NULL;
-        p = qemu_mallocz(sizeof(void *) * VIRT_L_SIZE);
-        *lp = p;
-    }
-    lp = p + ((index >> (2 * VIRT_L_BITS)) & (VIRT_L_SIZE - 1));
-    p = *lp;
-    if (!p) {
-        if (!alloc)
-            return NULL;
-        p = qemu_mallocz(sizeof(void *) * VIRT_L_SIZE);
-        *lp = p;
-    }
-    lp = p + ((index >> (1 * VIRT_L_BITS)) & (VIRT_L_SIZE - 1));
-    p = *lp;
-    if (!p) {
-        if (!alloc)
-            return NULL;
-        p = qemu_mallocz(sizeof(VirtPageDesc) * VIRT_L_SIZE);
-        *lp = p;
-    }
-    return ((VirtPageDesc *)p) + (index & (VIRT_L_SIZE - 1));
-#else
-    VirtPageDesc *p, **lp;
-
-    lp = &l1_virt_map[index >> L2_BITS];
-    p = *lp;
-    if (!p) {
-        /* allocate if not found */
-        if (!alloc)
-            return NULL;
-        p = qemu_mallocz(sizeof(VirtPageDesc) * L2_SIZE);
-        *lp = p;
-    }
-    return p + (index & (L2_SIZE - 1));
-#endif
-}
-
-static inline VirtPageDesc *virt_page_find(target_ulong index)
-{
-    return virt_page_find_alloc(index, 0);
-}
-
-#if TARGET_LONG_BITS > 32
-static void virt_page_flush_internal(void **p, int level)
-{
-    int i; 
-    if (level == 0) {
-        VirtPageDesc *q = (VirtPageDesc *)p;
-        for(i = 0; i < VIRT_L_SIZE; i++)
-            q[i].valid_tag = 0;
-    } else {
-        level--;
-        for(i = 0; i < VIRT_L_SIZE; i++) {
-            if (p[i])
-                virt_page_flush_internal(p[i], level);
-        }
-    }
-}
-#endif
-
-static void virt_page_flush(void)
-{
-    virt_valid_tag++;
-
-    if (virt_valid_tag == 0) {
-        virt_valid_tag = 1;
-#if TARGET_LONG_BITS > 32
-        virt_page_flush_internal(l1_virt_map, 5);
-#else
-        {
-            int i, j;
-            VirtPageDesc *p;
-            for(i = 0; i < L1_SIZE; i++) {
-                p = l1_virt_map[i];
-                if (p) {
-                    for(j = 0; j < L2_SIZE; j++)
-                        p[j].valid_tag = 0;
-                }
-            }
-        }
-#endif
-    }
-}
-#else
-static void virt_page_flush(void)
-{
-}
 #endif
 
 void cpu_exec_init(void)
@@ -429,8 +286,7 @@ void tb_flush(CPUState *env)
            nb_tbs > 0 ? (code_gen_ptr - code_gen_buffer) / nb_tbs : 0);
 #endif
     nb_tbs = 0;
-    memset (tb_hash, 0, CODE_GEN_HASH_SIZE * sizeof (void *));
-    virt_page_flush();
+    memset (env->tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof (void *));
 
     memset (tb_phys_hash, 0, CODE_GEN_PHYS_HASH_SIZE * sizeof (void *));
     page_flush_tb();
@@ -566,53 +422,12 @@ static inline void tb_reset_jump(TranslationBlock *tb, int n)
     tb_set_jmp_target(tb, n, (unsigned long)(tb->tc_ptr + tb->tb_next_offset[n]));
 }
 
-static inline void tb_invalidate(TranslationBlock *tb)
-{
-    unsigned int h, n1;
-    TranslationBlock *tb1, *tb2, **ptb;
-    
-    tb_invalidated_flag = 1;
-
-    /* remove the TB from the hash list */
-    h = tb_hash_func(tb->pc);
-    ptb = &tb_hash[h];
-    for(;;) {
-        tb1 = *ptb;
-        /* NOTE: the TB is not necessarily linked in the hash. It
-           indicates that it is not currently used */
-        if (tb1 == NULL)
-            return;
-        if (tb1 == tb) {
-            *ptb = tb1->hash_next;
-            break;
-        }
-        ptb = &tb1->hash_next;
-    }
-
-    /* suppress this TB from the two jump lists */
-    tb_jmp_remove(tb, 0);
-    tb_jmp_remove(tb, 1);
-
-    /* suppress any remaining jumps to this TB */
-    tb1 = tb->jmp_first;
-    for(;;) {
-        n1 = (long)tb1 & 3;
-        if (n1 == 2)
-            break;
-        tb1 = (TranslationBlock *)((long)tb1 & ~3);
-        tb2 = tb1->jmp_next[n1];
-        tb_reset_jump(tb1, n1);
-        tb1->jmp_next[n1] = NULL;
-        tb1 = tb2;
-    }
-    tb->jmp_first = (TranslationBlock *)((long)tb | 2); /* fail safe */
-}
-
 static inline void tb_phys_invalidate(TranslationBlock *tb, unsigned int page_addr)
 {
     PageDesc *p;
-    unsigned int h;
+    unsigned int h, n1;
     target_ulong phys_pc;
+    TranslationBlock *tb1, *tb2;
     
     /* remove the TB from the hash list */
     phys_pc = tb->page_addr[0] + (tb->pc & ~TARGET_PAGE_MASK);
@@ -632,7 +447,30 @@ static inline void tb_phys_invalidate(TranslationBlock *tb, unsigned int page_ad
         invalidate_page_bitmap(p);
     }
 
-    tb_invalidate(tb);
+    tb_invalidated_flag = 1;
+
+    /* remove the TB from the hash list */
+    h = tb_jmp_cache_hash_func(tb->pc);
+    cpu_single_env->tb_jmp_cache[h] = NULL;
+
+    /* suppress this TB from the two jump lists */
+    tb_jmp_remove(tb, 0);
+    tb_jmp_remove(tb, 1);
+
+    /* suppress any remaining jumps to this TB */
+    tb1 = tb->jmp_first;
+    for(;;) {
+        n1 = (long)tb1 & 3;
+        if (n1 == 2)
+            break;
+        tb1 = (TranslationBlock *)((long)tb1 & ~3);
+        tb2 = tb1->jmp_next[n1];
+        tb_reset_jump(tb1, n1);
+        tb1->jmp_next[n1] = NULL;
+        tb1 = tb2;
+    }
+    tb->jmp_first = (TranslationBlock *)((long)tb | 2); /* fail safe */
+
     tb_phys_invalidate_count++;
 }
 
@@ -1025,57 +863,6 @@ void tb_link_phys(TranslationBlock *tb,
         tb_alloc_page(tb, 1, phys_page2);
     else
         tb->page_addr[1] = -1;
-#ifdef DEBUG_TB_CHECK
-    tb_page_check();
-#endif
-}
-
-/* link the tb with the other TBs */
-void tb_link(TranslationBlock *tb)
-{
-#if !defined(CONFIG_USER_ONLY)
-    {
-        VirtPageDesc *vp;
-        target_ulong addr;
-        
-        /* save the code memory mappings (needed to invalidate the code) */
-        addr = tb->pc & TARGET_PAGE_MASK;
-        vp = virt_page_find_alloc(addr >> TARGET_PAGE_BITS, 1);
-#ifdef DEBUG_TLB_CHECK 
-        if (vp->valid_tag == virt_valid_tag &&
-            vp->phys_addr != tb->page_addr[0]) {
-            printf("Error tb addr=0x%x phys=0x%x vp->phys_addr=0x%x\n",
-                   addr, tb->page_addr[0], vp->phys_addr);
-        }
-#endif
-        vp->phys_addr = tb->page_addr[0];
-        if (vp->valid_tag != virt_valid_tag) {
-            vp->valid_tag = virt_valid_tag;
-#if !defined(CONFIG_SOFTMMU)
-            vp->prot = 0;
-#endif
-        }
-        
-        if (tb->page_addr[1] != -1) {
-            addr += TARGET_PAGE_SIZE;
-            vp = virt_page_find_alloc(addr >> TARGET_PAGE_BITS, 1);
-#ifdef DEBUG_TLB_CHECK 
-            if (vp->valid_tag == virt_valid_tag &&
-                vp->phys_addr != tb->page_addr[1]) { 
-                printf("Error tb addr=0x%x phys=0x%x vp->phys_addr=0x%x\n",
-                       addr, tb->page_addr[1], vp->phys_addr);
-            }
-#endif
-            vp->phys_addr = tb->page_addr[1];
-            if (vp->valid_tag != virt_valid_tag) {
-                vp->valid_tag = virt_valid_tag;
-#if !defined(CONFIG_SOFTMMU)
-                vp->prot = 0;
-#endif
-            }
-        }
-    }
-#endif
 
     tb->jmp_first = (TranslationBlock *)((long)tb | 2);
     tb->jmp_next[0] = NULL;
@@ -1091,6 +878,10 @@ void tb_link(TranslationBlock *tb)
         tb_reset_jump(tb, 0);
     if (tb->tb_next_offset[1] != 0xffff)
         tb_reset_jump(tb, 1);
+
+#ifdef DEBUG_TB_CHECK
+    tb_page_check();
+#endif
 }
 
 /* find the TB 'tb' such that tb[0].tc_ptr <= tc_ptr <
@@ -1396,8 +1187,7 @@ void tlb_flush(CPUState *env, int flush_global)
         env->tlb_write[1][i].address = -1;
     }
 
-    virt_page_flush();
-    memset (tb_hash, 0, CODE_GEN_HASH_SIZE * sizeof (void *));
+    memset (env->tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof (void *));
 
 #if !defined(CONFIG_SOFTMMU)
     munmap((void *)MMAP_AREA_START, MMAP_AREA_END - MMAP_AREA_START);
@@ -1419,9 +1209,7 @@ static inline void tlb_flush_entry(CPUTLBEntry *tlb_entry, target_ulong addr)
 
 void tlb_flush_page(CPUState *env, target_ulong addr)
 {
-    int i, n;
-    VirtPageDesc *vp;
-    PageDesc *p;
+    int i;
     TranslationBlock *tb;
 
 #if defined(DEBUG_TLB)
@@ -1438,26 +1226,13 @@ void tlb_flush_page(CPUState *env, target_ulong addr)
     tlb_flush_entry(&env->tlb_read[1][i], addr);
     tlb_flush_entry(&env->tlb_write[1][i], addr);
 
-    /* remove from the virtual pc hash table all the TB at this
-       virtual address */
-    
-    vp = virt_page_find(addr >> TARGET_PAGE_BITS);
-    if (vp && vp->valid_tag == virt_valid_tag) {
-        p = page_find(vp->phys_addr >> TARGET_PAGE_BITS);
-        if (p) {
-            /* we remove all the links to the TBs in this virtual page */
-            tb = p->first_tb;
-            while (tb != NULL) {
-                n = (long)tb & 3;
-                tb = (TranslationBlock *)((long)tb & ~3);
-                if ((tb->pc & TARGET_PAGE_MASK) == addr ||
-                    ((tb->pc + tb->size - 1) & TARGET_PAGE_MASK) == addr) {
-                    tb_invalidate(tb);
-                }
-                tb = tb->page_next[n];
-            }
+    for(i = 0; i < TB_JMP_CACHE_SIZE; i++) {
+        tb = env->tb_jmp_cache[i];
+        if (tb && 
+            ((tb->pc & TARGET_PAGE_MASK) == addr ||
+             ((tb->pc + tb->size - 1) & TARGET_PAGE_MASK) == addr)) {
+            env->tb_jmp_cache[i] = NULL;
         }
-        vp->valid_tag = 0;
     }
 
 #if !defined(CONFIG_SOFTMMU)
