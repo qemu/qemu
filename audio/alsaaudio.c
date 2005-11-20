@@ -690,14 +690,14 @@ static int alsa_voice_ctl (snd_pcm_t *handle, const char *typ, int pause)
     if (pause) {
         err = snd_pcm_drop (handle);
         if (err < 0) {
-            alsa_logerr (err, "Could not stop %s", typ);
+            alsa_logerr (err, "Could not stop %s\n", typ);
             return -1;
         }
     }
     else {
         err = snd_pcm_prepare (handle);
         if (err < 0) {
-            alsa_logerr (err, "Could not prepare handle for %s", typ);
+            alsa_logerr (err, "Could not prepare handle for %s\n", typ);
             return -1;
         }
     }
