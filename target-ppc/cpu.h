@@ -493,19 +493,10 @@ struct CPUPPCState {
     /* floating point status and control register */
     uint8_t fpscr[8];
 
-    /* soft mmu support */
-    /* 0 = kernel, 1 = user (may have 2 = kernel code, 3 = user code ?) */
-    CPUTLBEntry tlb_read[2][CPU_TLB_SIZE];
-    CPUTLBEntry tlb_write[2][CPU_TLB_SIZE];
+    CPU_COMMON
+
     int access_type; /* when a memory exception occurs, the access
                         type is stored here */
-    /* in order to avoid passing too many arguments to the memory
-       write helpers, we store some rarely used information in the CPU
-       context) */
-    unsigned long mem_write_pc; /* host pc at which the memory was
-                                   written */
-    unsigned long mem_write_vaddr; /* target virtual addr at which the
-                                      memory was written */
 
     /* MMU context */
     /* Address space register */
@@ -564,22 +555,13 @@ struct CPUPPCState {
     /* Those resources are used only in Qemu core */
     jmp_buf jmp_env;
     int user_mode_only; /* user mode only simulation */
-    struct TranslationBlock *current_tb; /* currently executing TB */
     uint32_t hflags;
-
-    /* ice debug support */
-    target_ulong breakpoints[MAX_BREAKPOINTS];
-    int nb_breakpoints;
-    int singlestep_enabled; /* XXX: should use CPU single step mode instead */
 
     /* Power management */
     int power_mode;
 
     /* temporary hack to handle OSI calls (only used if non NULL) */
     int (*osi_call)(struct CPUPPCState *env);
-
-    /* user data */
-    void *opaque;
 };
 
 /*****************************************************************************/

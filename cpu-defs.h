@@ -77,6 +77,9 @@ typedef unsigned long ram_addr_t;
 
 #define MAX_BREAKPOINTS 32
 
+#define TB_JMP_CACHE_BITS 12
+#define TB_JMP_CACHE_SIZE (1 << TB_JMP_CACHE_BITS)
+
 #define CPU_TLB_SIZE 256
 
 typedef struct CPUTLBEntry {
@@ -90,5 +93,31 @@ typedef struct CPUTLBEntry {
     /* addend to virtual address to get physical address */
     target_phys_addr_t addend; 
 } CPUTLBEntry;
+
+#define CPU_COMMON                                                      \
+    struct TranslationBlock *current_tb; /* currently executing TB  */  \
+    /* soft mmu support */                                              \
+    /* in order to avoid passing too many arguments to the memory       \
+       write helpers, we store some rarely used information in the CPU  \
+       context) */                                                      \
+    unsigned long mem_write_pc; /* host pc at which the memory was      \
+                                   written */                           \
+    target_ulong mem_write_vaddr; /* target virtual addr at which the   \
+                                     memory was written */              \
+    /* 0 = kernel, 1 = user */                                          \
+    CPUTLBEntry tlb_read[2][CPU_TLB_SIZE];                              \
+    CPUTLBEntry tlb_write[2][CPU_TLB_SIZE];                             \
+    struct TranslationBlock *tb_jmp_cache[TB_JMP_CACHE_SIZE];           \
+                                                                        \
+    /* from this point: preserved by CPU reset */                       \
+    /* ice debug support */                                             \
+    target_ulong breakpoints[MAX_BREAKPOINTS];                          \
+    int nb_breakpoints;                                                 \
+    int singlestep_enabled;                                             \
+                                                                        \
+    /* user data */                                                     \
+    void *opaque;
+
+
 
 #endif

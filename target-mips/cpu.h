@@ -162,24 +162,8 @@ struct CPUMIPSState {
 #define MIPS_HFLAG_BR     0x0800 /* branch to register (can't link TB) */
     target_ulong btarget;        /* Jump / branch target               */
     int bcond;                   /* Branch condition (if needed)       */
-    struct TranslationBlock *current_tb; /* currently executing TB  */
-    /* soft mmu support */
-    /* in order to avoid passing too many arguments to the memory
-       write helpers, we store some rarely used information in the CPU
-       context) */
-    target_ulong mem_write_pc; /* host pc at which the memory was
-                                   written */
-    unsigned long mem_write_vaddr; /* target virtual addr at which the
-                                      memory was written */
-    /* 0 = kernel, 1 = user (may have 2 = kernel code, 3 = user code ?) */
-    CPUTLBEntry tlb_read[2][CPU_TLB_SIZE];
-    CPUTLBEntry tlb_write[2][CPU_TLB_SIZE];
-    /* ice debug support */
-    target_ulong breakpoints[MAX_BREAKPOINTS];
-    int nb_breakpoints;
-    int singlestep_enabled; /* XXX: should use CPU single step mode instead */
-    /* user data */
-    void *opaque;
+
+    CPU_COMMON
 };
 
 #include "cpu-all.h"

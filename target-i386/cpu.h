@@ -497,28 +497,11 @@ typedef struct CPUX86State {
     int error_code;
     int exception_is_int;
     target_ulong exception_next_eip;
-    struct TranslationBlock *current_tb; /* currently executing TB */
     target_ulong dr[8]; /* debug registers */
     int interrupt_request; 
     int user_mode_only; /* user mode only simulation */
 
-    /* soft mmu support */
-    /* in order to avoid passing too many arguments to the memory
-       write helpers, we store some rarely used information in the CPU
-       context) */
-    unsigned long mem_write_pc; /* host pc at which the memory was
-                                   written */
-    target_ulong mem_write_vaddr; /* target virtual addr at which the
-                                     memory was written */
-    /* 0 = kernel, 1 = user */
-    CPUTLBEntry tlb_read[2][CPU_TLB_SIZE];
-    CPUTLBEntry tlb_write[2][CPU_TLB_SIZE];
-    
-    /* from this point: preserved by CPU reset */
-    /* ice debug support */
-    target_ulong breakpoints[MAX_BREAKPOINTS];
-    int nb_breakpoints;
-    int singlestep_enabled;
+    CPU_COMMON
 
     /* processor features (e.g. for CPUID insn) */
     uint32_t cpuid_level;
@@ -538,8 +521,6 @@ typedef struct CPUX86State {
     /* in order to simplify APIC support, we leave this pointer to the
        user */
     struct APICState *apic_state;
-    /* user data */
-    void *opaque;
 } CPUX86State;
 
 CPUX86State *cpu_x86_init(void);

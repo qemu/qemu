@@ -166,21 +166,11 @@ typedef struct CPUSPARCState {
     int exception_index;
     int interrupt_index;
     int interrupt_request;
-    struct TranslationBlock *current_tb;
-    void *opaque;
     /* NOTE: we allow 8 more registers to handle wrapping */
     target_ulong regbase[NWINDOWS * 16 + 8];
 
-    /* in order to avoid passing too many arguments to the memory
-       write helpers, we store some rarely used information in the CPU
-       context) */
-    unsigned long mem_write_pc; /* host pc at which the memory was
-                                   written */
-    target_ulong mem_write_vaddr; /* target virtual addr at which the
-                                      memory was written */
-    /* 0 = kernel, 1 = user (may have 2 = kernel code, 3 = user code ?) */
-    CPUTLBEntry tlb_read[2][CPU_TLB_SIZE];
-    CPUTLBEntry tlb_write[2][CPU_TLB_SIZE];
+    CPU_COMMON
+
     /* MMU regs */
 #if defined(TARGET_SPARC64)
     uint64_t lsu;
@@ -222,12 +212,6 @@ typedef struct CPUSPARCState {
 #if !defined(TARGET_SPARC64) && !defined(reg_T2)
     target_ulong t2;
 #endif
-
-    /* ice debug support */
-    target_ulong breakpoints[MAX_BREAKPOINTS];
-    int nb_breakpoints;
-    int singlestep_enabled; /* XXX: should use CPU single step mode instead */
-
 } CPUSPARCState;
 #if defined(TARGET_SPARC64)
 #define GET_FSR32(env) (env->fsr & 0xcfc1ffff)

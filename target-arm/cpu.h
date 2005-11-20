@@ -60,22 +60,9 @@ typedef struct CPUARMState {
     jmp_buf jmp_env;
     int exception_index;
     int interrupt_request;
-    struct TranslationBlock *current_tb;
     int user_mode_only;
     uint32_t address;
 
-    /* ICE debug support.  */
-    target_ulong breakpoints[MAX_BREAKPOINTS];
-    int nb_breakpoints;
-    int singlestep_enabled;
-
-    /* in order to avoid passing too many arguments to the memory
-       write helpers, we store some rarely used information in the CPU
-       context) */
-    unsigned long mem_write_pc; /* host pc at which the memory was
-                                   written */
-    unsigned long mem_write_vaddr; /* target virtual addr at which the
-                                      memory was written */
     /* VFP coprocessor state.  */
     struct {
         float64 regs[16];
@@ -93,8 +80,8 @@ typedef struct CPUARMState {
         float_status fp_status;
     } vfp;
 
-    /* user data */
-    void *opaque;
+    CPU_COMMON
+
 } CPUARMState;
 
 CPUARMState *cpu_arm_init(void);
