@@ -806,7 +806,7 @@ void do_compute_hflags (CPUPPCState *env)
 }
 
 void do_store_msr (CPUPPCState *env, target_ulong value)
-    {
+{
     value &= env->msr_mask;
     if (((value >> MSR_IR) & 1) != msr_ir ||
         ((value >> MSR_DR) & 1) != msr_dr) {
@@ -1436,15 +1436,5 @@ void do_interrupt (CPUState *env)
     /* Jump to handler */
     env->nip = excp;
     env->exception_index = EXCP_NONE;
-#if 0
-    /* ensure that no TB jump will be modified as
-       the program flow was changed */
-#ifdef __sparc__
-    tmp_T0 = 0;
-#else
-    T0 = 0;
-#endif
-#endif
-    env->interrupt_request |= CPU_INTERRUPT_EXITTB;
 }
 #endif /* !CONFIG_USER_ONLY */
