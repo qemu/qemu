@@ -167,11 +167,10 @@ static int wav_init_out (HWVoiceOut *hw, audsettings_t *as)
 static void wav_fini_out (HWVoiceOut *hw)
 {
     WAVVoiceOut *wav = (WAVVoiceOut *) hw;
-    int stereo = hw->info.nchannels == 2;
     uint8_t rlen[4];
     uint8_t dlen[4];
-    uint32_t rifflen = (wav->total_samples << stereo) + 36;
-    uint32_t datalen = wav->total_samples << stereo;
+    uint32_t datalen = wav->total_samples << hw->info.shift;
+    uint32_t rifflen = datalen + 36;
 
     if (!wav->f) {
         return;
