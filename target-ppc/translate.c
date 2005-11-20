@@ -1727,16 +1727,25 @@ GEN_HANDLER(stfiwx, 0x1F, 0x17, 0x1E, 0x00000001, PPC_FLOAT)
 
 /***                                Branch                                 ***/
 
-static inline void gen_jmp_tb(long tb, int n, uint32_t dest)
+static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
 {
-    if (n == 0)
-        gen_op_goto_tb0(TBPARAM(tb));
-    else
-        gen_op_goto_tb1(TBPARAM(tb));
-    gen_op_set_T1(dest);
-    gen_op_b_T1();
-    gen_op_set_T0(tb + n);
-    gen_op_exit_tb();
+    TranslationBlock *tb;
+    tb = ctx->tb;
+    if ((tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK)) {
+        if (n == 0)
+            gen_op_goto_tb0(TBPARAM(tb));
+        else
+            gen_op_goto_tb1(TBPARAM(tb));
+        gen_op_set_T1(dest);
+        gen_op_b_T1();
+        gen_op_set_T0((long)tb + n);
+        gen_op_exit_tb();
+    } else {
+        gen_op_set_T1(dest);
+        gen_op_b_T1();
+        gen_op_set_T0(0);
+        gen_op_exit_tb();
+    }
 }
 
 /* b ba bl bla */
@@ -1754,7 +1763,7 @@ GEN_HANDLER(b, 0x12, 0xFF, 0xFF, 0x00000000, PPC_FLOW)
     if (LK(ctx->opcode)) {
         gen_op_setlr(ctx->nip);
     }
-    gen_jmp_tb((long)ctx->tb, 0, target);
+    gen_goto_tb(ctx, 0, target);
     ctx->exception = EXCP_BRANCH;
 }
 
@@ -1805,7 +1814,7 @@ static inline void gen_bcond(DisasContext *ctx, int type)
         case 4:                                                               
         case 6:                                                               
             if (type == BCOND_IM) {
-                gen_jmp_tb((long)ctx->tb, 0, target);
+                gen_goto_tb(ctx, 0, target);
             } else {
                 gen_op_b_T1();
             }
@@ -1847,9 +1856,9 @@ static inline void gen_bcond(DisasContext *ctx, int type)
     if (type == BCOND_IM) {
         int l1 = gen_new_label();
         gen_op_jz_T0(l1);
-        gen_jmp_tb((long)ctx->tb, 0, target);
+        gen_goto_tb(ctx, 0, target);
         gen_set_label(l1);
-        gen_jmp_tb((long)ctx->tb, 1, ctx->nip);
+        gen_goto_tb(ctx, 1, ctx->nip);
     } else {
         gen_op_btest_T1(ctx->nip);
     }
@@ -2269,6 +2278,7 @@ GEN_HANDLER(mtsr, 0x1F, 0x12, 0x06, 0x0010F801, PPC_SEGMENT)
     }
     gen_op_load_gpr_T0(rS(ctx->opcode));
     gen_op_store_sr(SR(ctx->opcode));
+    RET_MTMSR(ctx);
 #endif
 }
 
@@ -2285,6 +2295,7 @@ GEN_HANDLER(mtsrin, 0x1F, 0x12, 0x07, 0x001F0001, PPC_SEGMENT)
     gen_op_load_gpr_T0(rS(ctx->opcode));
     gen_op_load_gpr_T1(rB(ctx->opcode));
     gen_op_store_srin();
+    RET_MTMSR(ctx);
 #endif
 }
 
@@ -2598,7 +2609,7 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
 #endif
     }
     if (ctx.exception == EXCP_NONE) {
-        gen_jmp_tb((long)ctx.tb, 0, ctx.nip);
+        gen_goto_tb(&ctx, 0, ctx.nip);
     } else if (ctx.exception != EXCP_BRANCH) {
         gen_op_set_T0(0);
     }
