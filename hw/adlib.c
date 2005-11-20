@@ -310,7 +310,8 @@ int Adlib_init (AudioState *audio)
         "adlib",
         s,
         adlib_callback,
-        &as
+        &as,
+        0                       /* XXX: little endian? */
         );
     if (!s->voice) {
         Adlib_fini (s);
@@ -321,8 +322,8 @@ int Adlib_init (AudioState *audio)
     s->mixbuf = qemu_mallocz (s->samples << SHIFT);
 
     if (!s->mixbuf) {
-        dolog ("not enough memory for adlib mixing buffer (%d)\n",
-               s->samples << SHIFT);
+        dolog ("Could not allocate mixing buffer, %d samples (each %d bytes)\n",
+               s->samples, 1 << SHIFT);
         Adlib_fini (s);
         return -1;
     }

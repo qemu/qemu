@@ -254,7 +254,8 @@ static void dma_cmd8 (SB16State *s, int mask, int dma_len)
             "sb16",
             s,
             SB_audio_callback,
-            &as
+            &as,
+            0                   /* little endian */
             );
     }
 
@@ -348,7 +349,8 @@ static void dma_cmd (SB16State *s, uint8_t cmd, uint8_t d0, int dma_len)
             "sb16",
             s,
             SB_audio_callback,
-            &as
+            &as,
+            0                   /* little endian */
             );
     }
 
@@ -1340,7 +1342,8 @@ static int SB_load (QEMUFile *f, void *opaque, int version_id)
                 "sb16",
                 s,
                 SB_audio_callback,
-                &as
+                &as,
+                0               /* little endian */
                 );
         }
 

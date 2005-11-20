@@ -432,7 +432,8 @@ static void es1370_update_voices (ES1370State *s, uint32_t ctl, uint32_t sctl)
                             "es1370.adc",
                             s,
                             es1370_adc_callback,
-                            &as
+                            &as,
+                            0   /* little endian */
                             );
                 }
                 else {
@@ -443,7 +444,8 @@ static void es1370_update_voices (ES1370State *s, uint32_t ctl, uint32_t sctl)
                             i ? "es1370.dac2" : "es1370.dac1",
                             s,
                             i ? es1370_dac2_callback : es1370_dac1_callback,
-                            &as
+                            &as,
+                            0   /* litle endian */
                             );
                 }
             }
