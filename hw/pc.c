@@ -86,10 +86,11 @@ int cpu_get_pic_interrupt(CPUState *env)
 
 static void pic_irq_request(void *opaque, int level)
 {
+    CPUState *env = opaque;
     if (level)
-        cpu_interrupt(cpu_single_env, CPU_INTERRUPT_HARD);
+        cpu_interrupt(env, CPU_INTERRUPT_HARD);
     else
-        cpu_reset_interrupt(cpu_single_env, CPU_INTERRUPT_HARD);
+        cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
 }
 
 /* PC cmos mappings */
@@ -287,15 +288,26 @@ static uint32_t speaker_ioport_read(void *opaque, uint32_t addr)
       (dummy_refresh_clock << 4);
 }
 
+void ioport_set_a20(int enable)
+{
+    /* XXX: send to all CPUs ? */
+    cpu_x86_set_a20(first_cpu, enable);
+}
+
+int ioport_get_a20(void)
+{
+    return ((first_cpu->a20_mask >> 20) & 1);
+}
+
 static void ioport92_write(void *opaque, uint32_t addr, uint32_t val)
 {
-    cpu_x86_set_a20(cpu_single_env, (val >> 1) & 1);
+    ioport_set_a20((val >> 1) & 1);
     /* XXX: bit 0 is fast reset */
 }
 
 static uint32_t ioport92_read(void *opaque, uint32_t addr)
 {
-    return ((cpu_single_env->a20_mask >> 20) & 1) << 1;
+    return ioport_get_a20() << 1;
 }
 
 /***********************************************************/
@@ -391,6 +403,162 @@ int load_kernel(const char *filename, uint8_t *addr,
     return -1;
 }
 
+static void main_cpu_reset(void *opaque)
+{
+    CPUState *env = opaque;
+    cpu_reset(env);
+}
+
+/*************************************************/
+
+static void putb(uint8_t **pp, int val)
+{
+    uint8_t *q;
+    q = *pp;
+    *q++ = val;
+    *pp = q;
+}
+
+static void putstr(uint8_t **pp, const char *str)
+{
+    uint8_t *q;
+    q = *pp;
+    while (*str)
+        *q++ = *str++;
+    *pp = q;
+}
+
+static void putle16(uint8_t **pp, int val)
+{
+    uint8_t *q;
+    q = *pp;
+    *q++ = val;
+    *q++ = val >> 8;
+    *pp = q;
+}
+
+static void putle32(uint8_t **pp, int val)
+{
+    uint8_t *q;
+    q = *pp;
+    *q++ = val;
+    *q++ = val >> 8;
+    *q++ = val >> 16;
+    *q++ = val >> 24;
+    *pp = q;
+}
+
+static int mpf_checksum(const uint8_t *data, int len)
+{
+    int sum, i;
+    sum = 0;
+    for(i = 0; i < len; i++)
+        sum += data[i];
+    return sum & 0xff;
+}
+
+/* Build the Multi Processor table in the BIOS. Same values as Bochs. */
+static void bios_add_mptable(uint8_t *bios_data)
+{
+    uint8_t *mp_config_table, *q, *float_pointer_struct;
+    int ioapic_id, offset, i, len;
+    
+    if (smp_cpus <= 1)
+        return;
+
+    mp_config_table = bios_data + 0xcc00;
+    q = mp_config_table;
+    putstr(&q, "PCMP"); /* "PCMP signature */
+    putle16(&q, 0); /* table length (patched later) */
+    putb(&q, 4); /* spec rev */
+    putb(&q, 0); /* checksum (patched later) */
+    putstr(&q, "QEMUCPU "); /* OEM id */
+    putstr(&q, "0.1         "); /* vendor id */
+    putle32(&q, 0); /* OEM table ptr */
+    putle16(&q, 0); /* OEM table size */
+    putle16(&q, 20); /* entry count */
+    putle32(&q, 0xfee00000); /* local APIC addr */
+    putle16(&q, 0); /* ext table length */
+    putb(&q, 0); /* ext table checksum */
+    putb(&q, 0); /* reserved */
+    
+    for(i = 0; i < smp_cpus; i++) {
+        putb(&q, 0); /* entry type = processor */
+        putb(&q, i); /* APIC id */
+        putb(&q, 0x11); /* local APIC version number */
+        if (i == 0)
+            putb(&q, 3); /* cpu flags: enabled, bootstrap cpu */
+        else
+            putb(&q, 1); /* cpu flags: enabled */
+        putb(&q, 0); /* cpu signature */
+        putb(&q, 6);
+        putb(&q, 0);
+        putb(&q, 0);
+        putle16(&q, 0x201); /* feature flags */
+        putle16(&q, 0);
+
+        putle16(&q, 0); /* reserved */
+        putle16(&q, 0);
+        putle16(&q, 0);
+        putle16(&q, 0);
+    }
+
+    /* isa bus */
+    putb(&q, 1); /* entry type = bus */
+    putb(&q, 0); /* bus ID */
+    putstr(&q, "ISA   ");
+    
+    /* ioapic */
+    ioapic_id = smp_cpus;
+    putb(&q, 2); /* entry type = I/O APIC */
+    putb(&q, ioapic_id); /* apic ID */
+    putb(&q, 0x11); /* I/O APIC version number */
+    putb(&q, 1); /* enable */
+    putle32(&q, 0xfec00000); /* I/O APIC addr */
+
+    /* irqs */
+    for(i = 0; i < 16; i++) {
+        putb(&q, 3); /* entry type = I/O interrupt */
+        putb(&q, 0); /* interrupt type = vectored interrupt */
+        putb(&q, 0); /* flags: po=0, el=0 */
+        putb(&q, 0);
+        putb(&q, 0); /* source bus ID = ISA */
+        putb(&q, i); /* source bus IRQ */
+        putb(&q, ioapic_id); /* dest I/O APIC ID */
+        putb(&q, i); /* dest I/O APIC interrupt in */
+    }
+    /* patch length */
+    len = q - mp_config_table;
+    mp_config_table[4] = len;
+    mp_config_table[5] = len >> 8;
+
+    mp_config_table[7] = -mpf_checksum(mp_config_table, q - mp_config_table);
+
+    /* align to 16 */
+    offset = q - bios_data;
+    offset = (offset + 15) & ~15;
+    float_pointer_struct = bios_data + offset;
+    
+    /* floating pointer structure */
+    q = float_pointer_struct;
+    putstr(&q, "_MP_");
+    /* pointer to MP config table */
+    putle32(&q, mp_config_table - bios_data + 0x000f0000); 
+
+    putb(&q, 1); /* length in 16 byte units */
+    putb(&q, 4); /* MP spec revision */
+    putb(&q, 0); /* checksum (patched later) */
+    putb(&q, 0); /* MP feature byte 1 */
+
+    putb(&q, 0);
+    putb(&q, 0);
+    putb(&q, 0);
+    putb(&q, 0);
+    float_pointer_struct[10] = 
+        -mpf_checksum(float_pointer_struct, q - float_pointer_struct);
+}
+
+
 static const int ide_iobase[2] = { 0x1f0, 0x170 };
 static const int ide_iobase2[2] = { 0x3f6, 0x376 };
 static const int ide_irq[2] = { 14, 15 };
@@ -418,8 +586,25 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
     unsigned long bios_offset, vga_bios_offset;
     int bios_size, isa_bios_size;
     PCIBus *pci_bus;
+    CPUState *env;
 
     linux_boot = (kernel_filename != NULL);
+
+    /* init CPUs */
+    for(i = 0; i < smp_cpus; i++) {
+        env = cpu_init();
+        if (i != 0)
+            env->cpu_halted = 1;
+        if (smp_cpus > 1) {
+            /* XXX: enable it in all cases */
+            env->cpuid_features |= CPUID_APIC;
+        }
+        register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
+        qemu_register_reset(main_cpu_reset, env);
+        if (pci_enabled) {
+            apic_init(env);
+        }
+    }
 
     /* allocate RAM */
     cpu_register_physical_memory(0, ram_size, 0);
@@ -440,6 +625,9 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
     bios_error:
         fprintf(stderr, "qemu: could not load PC bios '%s'\n", buf);
         exit(1);
+    }
+    if (bios_size == 65536) {
+        bios_add_mptable(phys_ram_base + bios_offset);
     }
 
     /* VGA BIOS load */
@@ -559,10 +747,9 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
     register_ioport_write(0x92, 1, 1, ioport92_write, NULL);
 
     if (pci_enabled) {
-        apic_init(cpu_single_env);
         ioapic = ioapic_init();
     }
-    isa_pic = pic_init(pic_irq_request, cpu_single_env);
+    isa_pic = pic_init(pic_irq_request, first_cpu);
     pit = pit_init(0x40, 0);
     if (pci_enabled) {
         pic_set_alt_irq_func(isa_pic, ioapic_set_irq, ioapic);
