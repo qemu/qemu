@@ -2643,7 +2643,7 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     }
     if (loglevel & CPU_LOG_TB_IN_ASM) {
         fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
-	target_disas(logfile, pc_start, ctx.nip - pc_start, 0);
+	target_disas(logfile, pc_start, ctx.nip - pc_start, msr_le);
         fprintf(logfile, "\n");
     }
     if (loglevel & CPU_LOG_TB_OP) {
