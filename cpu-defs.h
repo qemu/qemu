@@ -96,6 +96,7 @@ typedef struct CPUTLBEntry {
 
 #define CPU_COMMON                                                      \
     struct TranslationBlock *current_tb; /* currently executing TB  */  \
+    int cpu_halted; /* TRUE if cpu is halted (sleep mode) */            \
     /* soft mmu support */                                              \
     /* in order to avoid passing too many arguments to the memory       \
        write helpers, we store some rarely used information in the CPU  \
@@ -115,9 +116,9 @@ typedef struct CPUTLBEntry {
     int nb_breakpoints;                                                 \
     int singlestep_enabled;                                             \
                                                                         \
+    void *next_cpu; /* next CPU sharing TB cache */                     \
+    int cpu_index; /* CPU index (informative) */                        \
     /* user data */                                                     \
     void *opaque;
-
-
 
 #endif

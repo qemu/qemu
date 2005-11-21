@@ -142,6 +142,7 @@ extern const char *keyboard_layout;
 extern int kqemu_allowed;
 extern int win2k_install_hack;
 extern int usb_enabled;
+extern int smp_cpus;
 
 /* XXX: make it dynamic */
 #if defined (TARGET_PPC)
@@ -428,6 +429,9 @@ int register_savevm(const char *idstr,
                     void *opaque);
 void qemu_get_timer(QEMUFile *f, QEMUTimer *ts);
 void qemu_put_timer(QEMUFile *f, QEMUTimer *ts);
+
+void cpu_save(QEMUFile *f, void *opaque);
+int cpu_load(QEMUFile *f, void *opaque, int version_id);
 
 /* block.c */
 typedef struct BlockDriverState BlockDriverState;
@@ -773,6 +777,9 @@ int pit_get_out(PITState *pit, int channel, int64_t current_time);
 /* pc.c */
 extern QEMUMachine pc_machine;
 extern QEMUMachine isapc_machine;
+
+void ioport_set_a20(int enable);
+int ioport_get_a20(void);
 
 /* ppc.c */
 extern QEMUMachine prep_machine;

@@ -64,6 +64,8 @@ static int term_outbuf_index;
 
 static void monitor_start_input(void);
 
+CPUState *mon_cpu = NULL;
+
 void term_flush(void)
 {
     if (term_outbuf_index > 0) {
@@ -201,15 +203,67 @@ static void do_info_block(void)
     bdrv_info();
 }
 
+/* get the current CPU defined by the user */
+int mon_set_cpu(int cpu_index)
+{
+    CPUState *env;
+
+    for(env = first_cpu; env != NULL; env = env->next_cpu) {
+        if (env->cpu_index == cpu_index) {
+            mon_cpu = env;
+            return 0;
+        }
+    }
+    return -1;
+}
+
+CPUState *mon_get_cpu(void)
+{
+    if (!mon_cpu) {
+        mon_set_cpu(0);
+    }
+    return mon_cpu;
+}
+
 static void do_info_registers(void)
 {
+    CPUState *env;
+    env = mon_get_cpu();
+    if (!env)
+        return;
 #ifdef TARGET_I386
-    cpu_dump_state(cpu_single_env, NULL, monitor_fprintf,
+    cpu_dump_state(env, NULL, monitor_fprintf,
                    X86_DUMP_FPU);
 #else
-    cpu_dump_state(cpu_single_env, NULL, monitor_fprintf, 
+    cpu_dump_state(env, NULL, monitor_fprintf, 
                    0);
 #endif
+}
+
+static void do_info_cpus(void)
+{
+    CPUState *env;
+
+    /* just to set the default cpu if not already done */
+    mon_get_cpu();
+
+    for(env = first_cpu; env != NULL; env = env->next_cpu) {
+        term_printf("%c CPU #%d:", 
+                    (env == mon_cpu) ? '*' : ' ',
+                    env->cpu_index);
+#if defined(TARGET_I386)
+        term_printf(" pc=0x" TARGET_FMT_lx, env->eip + env->segs[R_CS].base);
+        if (env->cpu_halted)
+            term_printf(" (halted)");
+#endif
+        term_printf("\n");
+    }
+}
+
+static void do_cpu_set(int index)
+{
+    if (mon_set_cpu(index) < 0)
+        term_printf("Invalid CPU index\n");
 }
 
 static void do_info_jit(void)
@@ -381,6 +435,7 @@ static void term_printc(int c)
 static void memory_dump(int count, int format, int wsize, 
                         target_ulong addr, int is_physical)
 {
+    CPUState *env;
     int nb_per_line, l, line_size, i, max_digits, len;
     uint8_t buf[16];
     uint64_t v;
@@ -388,19 +443,22 @@ static void memory_dump(int count, int format, int wsize,
     if (format == 'i') {
         int flags;
         flags = 0;
+        env = mon_get_cpu();
+        if (!env && !is_physical)
+            return;
 #ifdef TARGET_I386
         if (wsize == 2) {
             flags = 1;
         } else if (wsize == 4) {
             flags = 0;
         } else {
-            /* as default we use the current CS size */
+                /* as default we use the current CS size */
             flags = 0;
-            if (!(cpu_single_env->segs[R_CS].flags & DESC_B_MASK))
+            if (env && !(env->segs[R_CS].flags & DESC_B_MASK))
                 flags = 1;
         }
 #endif
-        monitor_disas(addr, count, is_physical, flags);
+        monitor_disas(env, addr, count, is_physical, flags);
         return;
     }
 
@@ -437,7 +495,10 @@ static void memory_dump(int count, int format, int wsize,
         if (is_physical) {
             cpu_physical_memory_rw(addr, buf, l, 0);
         } else {
-            cpu_memory_rw_debug(cpu_single_env, addr, buf, l, 0);
+            env = mon_get_cpu();
+            if (!env)
+                break;
+            cpu_memory_rw_debug(env, addr, buf, l, 0);
         }
         i = 0; 
         while (i < l) {
@@ -776,9 +837,13 @@ static void print_pte(uint32_t addr, uint32_t pte, uint32_t mask)
 
 static void tlb_info(void)
 {
-    CPUState *env = cpu_single_env;
+    CPUState *env;
     int l1, l2;
     uint32_t pgd, pde, pte;
+
+    env = mon_get_cpu();
+    if (!env)
+        return;
 
     if (!(env->cr[0] & CR0_PG_MASK)) {
         term_printf("PG disabled\n");
@@ -830,9 +895,13 @@ static void mem_print(uint32_t *pstart, int *plast_prot,
 
 static void mem_info(void)
 {
-    CPUState *env = cpu_single_env;
+    CPUState *env;
     int l1, l2, prot, last_prot;
     uint32_t pgd, pde, pte, start, end;
+
+    env = mon_get_cpu();
+    if (!env)
+        return;
 
     if (!(env->cr[0] & CR0_PG_MASK)) {
         term_printf("PG disabled\n");
@@ -874,10 +943,15 @@ static void mem_info(void)
 static void do_info_kqemu(void)
 {
 #ifdef USE_KQEMU
+    CPUState *env;
     int val;
     val = 0;
-    if (cpu_single_env)
-        val = cpu_single_env->kqemu_enabled;
+    env = mon_get_cpu();
+    if (!env) {
+        term_printf("No cpu initialized yet");
+        return;
+    }
+    val = env->kqemu_enabled;
     term_printf("kqemu is %s\n", val ? "enabled" : "disabled");
 #else
     term_printf("kqemu support is not compiled\n");
@@ -934,6 +1008,8 @@ static term_cmd_t term_cmds[] = {
       "device", "add USB device (e.g. 'host:bus.addr' or 'host:vendor_id:product_id')" },
     { "usb_del", "s", do_usb_del,
       "device", "remove USB device 'bus.addr'" },
+    { "cpu", "i", do_cpu_set, 
+      "index", "set the default CPU" },
     { NULL, NULL, }, 
 };
 
@@ -946,6 +1022,8 @@ static term_cmd_t info_cmds[] = {
       "", "show the block devices" },
     { "registers", "", do_info_registers,
       "", "show the cpu registers" },
+    { "cpus", "", do_info_cpus,
+      "", "show infos for each CPU" },
     { "history", "", do_info_history,
       "", "show the command line history", },
     { "irq", "", irq_info,
@@ -989,63 +1067,85 @@ typedef struct MonitorDef {
 #if defined(TARGET_I386)
 static target_long monitor_get_pc (struct MonitorDef *md, int val)
 {
-    return cpu_single_env->eip + cpu_single_env->segs[R_CS].base;
+    CPUState *env = mon_get_cpu();
+    if (!env)
+        return 0;
+    return env->eip + env->segs[R_CS].base;
 }
 #endif
 
 #if defined(TARGET_PPC)
 static target_long monitor_get_ccr (struct MonitorDef *md, int val)
 {
+    CPUState *env = mon_get_cpu();
     unsigned int u;
     int i;
 
+    if (!env)
+        return 0;
+
     u = 0;
     for (i = 0; i < 8; i++)
-	u |= cpu_single_env->crf[i] << (32 - (4 * i));
+	u |= env->crf[i] << (32 - (4 * i));
 
     return u;
 }
 
 static target_long monitor_get_msr (struct MonitorDef *md, int val)
 {
-    return (cpu_single_env->msr[MSR_POW] << MSR_POW) |
-        (cpu_single_env->msr[MSR_ILE] << MSR_ILE) |
-        (cpu_single_env->msr[MSR_EE] << MSR_EE) |
-        (cpu_single_env->msr[MSR_PR] << MSR_PR) |
-        (cpu_single_env->msr[MSR_FP] << MSR_FP) |
-        (cpu_single_env->msr[MSR_ME] << MSR_ME) |
-        (cpu_single_env->msr[MSR_FE0] << MSR_FE0) |
-        (cpu_single_env->msr[MSR_SE] << MSR_SE) |
-        (cpu_single_env->msr[MSR_BE] << MSR_BE) |
-        (cpu_single_env->msr[MSR_FE1] << MSR_FE1) |
-        (cpu_single_env->msr[MSR_IP] << MSR_IP) |
-        (cpu_single_env->msr[MSR_IR] << MSR_IR) |
-        (cpu_single_env->msr[MSR_DR] << MSR_DR) |
-        (cpu_single_env->msr[MSR_RI] << MSR_RI) |
-        (cpu_single_env->msr[MSR_LE] << MSR_LE);
+    CPUState *env = mon_get_cpu();
+    if (!env)
+        return 0;
+    return (env->msr[MSR_POW] << MSR_POW) |
+        (env->msr[MSR_ILE] << MSR_ILE) |
+        (env->msr[MSR_EE] << MSR_EE) |
+        (env->msr[MSR_PR] << MSR_PR) |
+        (env->msr[MSR_FP] << MSR_FP) |
+        (env->msr[MSR_ME] << MSR_ME) |
+        (env->msr[MSR_FE0] << MSR_FE0) |
+        (env->msr[MSR_SE] << MSR_SE) |
+        (env->msr[MSR_BE] << MSR_BE) |
+        (env->msr[MSR_FE1] << MSR_FE1) |
+        (env->msr[MSR_IP] << MSR_IP) |
+        (env->msr[MSR_IR] << MSR_IR) |
+        (env->msr[MSR_DR] << MSR_DR) |
+        (env->msr[MSR_RI] << MSR_RI) |
+        (env->msr[MSR_LE] << MSR_LE);
 }
 
 static target_long monitor_get_xer (struct MonitorDef *md, int val)
 {
-    return (cpu_single_env->xer[XER_SO] << XER_SO) |
-        (cpu_single_env->xer[XER_OV] << XER_OV) |
-        (cpu_single_env->xer[XER_CA] << XER_CA) |
-        (cpu_single_env->xer[XER_BC] << XER_BC);
+    CPUState *env = mon_get_cpu();
+    if (!env)
+        return 0;
+    return (env->xer[XER_SO] << XER_SO) |
+        (env->xer[XER_OV] << XER_OV) |
+        (env->xer[XER_CA] << XER_CA) |
+        (env->xer[XER_BC] << XER_BC);
 }
 
 static target_long monitor_get_decr (struct MonitorDef *md, int val)
 {
-    return cpu_ppc_load_decr(cpu_single_env);
+    CPUState *env = mon_get_cpu();
+    if (!env)
+        return 0;
+    return cpu_ppc_load_decr(env);
 }
 
 static target_long monitor_get_tbu (struct MonitorDef *md, int val)
 {
-    return cpu_ppc_load_tbu(cpu_single_env);
+    CPUState *env = mon_get_cpu();
+    if (!env)
+        return 0;
+    return cpu_ppc_load_tbu(env);
 }
 
 static target_long monitor_get_tbl (struct MonitorDef *md, int val)
 {
-    return cpu_ppc_load_tbl(cpu_single_env);
+    CPUState *env = mon_get_cpu();
+    if (!env)
+        return 0;
+    return cpu_ppc_load_tbl(env);
 }
 #endif
 
@@ -1053,13 +1153,19 @@ static target_long monitor_get_tbl (struct MonitorDef *md, int val)
 #ifndef TARGET_SPARC64
 static target_long monitor_get_psr (struct MonitorDef *md, int val)
 {
-    return GET_PSR(cpu_single_env);
+    CPUState *env = mon_get_cpu();
+    if (!env)
+        return 0;
+    return GET_PSR(env);
 }
 #endif
 
 static target_long monitor_get_reg(struct MonitorDef *md, int val)
 {
-    return cpu_single_env->regwptr[val];
+    CPUState *env = mon_get_cpu();
+    if (!env)
+        return 0;
+    return env->regwptr[val];
 }
 #endif
 
@@ -1269,6 +1375,7 @@ static void expr_error(const char *fmt)
     longjmp(expr_env, 1);
 }
 
+/* return 0 if OK, -1 if not found, -2 if no CPU defined */
 static int get_monitor_def(target_long *pval, const char *name)
 {
     MonitorDef *md;
@@ -1279,7 +1386,10 @@ static int get_monitor_def(target_long *pval, const char *name)
             if (md->get_value) {
                 *pval = md->get_value(md, md->offset);
             } else {
-                ptr = (uint8_t *)cpu_single_env + md->offset;
+                CPUState *env = mon_get_cpu();
+                if (!env)
+                    return -2;
+                ptr = (uint8_t *)env + md->offset;
                 switch(md->type) {
                 case MD_I32:
                     *pval = *(int32_t *)ptr;
@@ -1313,6 +1423,7 @@ static target_long expr_unary(void)
 {
     target_long n;
     char *p;
+    int ret;
 
     switch(*pch) {
     case '+':
@@ -1362,8 +1473,11 @@ static target_long expr_unary(void)
             while (isspace(*pch))
                 pch++;
             *q = 0;
-            if (get_monitor_def(&n, buf))
+            ret = get_monitor_def(&n, buf);
+            if (ret == -1)
                 expr_error("unknown register");
+            else if (ret == -2) 
+                expr_error("no cpu defined");
         }
         break;
     case '\0':

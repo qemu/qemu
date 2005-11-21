@@ -47,6 +47,7 @@ enum RSState {
 static int gdbserver_fd = -1;
 
 typedef struct GDBState {
+    CPUState *env; /* current CPU */
     enum RSState state; /* parsing state */
     int fd;
     char line_buf[4096];
@@ -576,10 +577,10 @@ static void gdb_vm_stopped(void *opaque, int reason)
     int ret;
 
     /* disable single step if it was enable */
-    cpu_single_step(cpu_single_env, 0);
+    cpu_single_step(s->env, 0);
 
     if (reason == EXCP_DEBUG) {
-	tb_flush(cpu_single_env);
+	tb_flush(s->env);
         ret = SIGTRAP;
     }
     else
@@ -589,8 +590,9 @@ static void gdb_vm_stopped(void *opaque, int reason)
 }
 #endif
 
-static void gdb_read_byte(GDBState *s, CPUState *env, int ch)
+static void gdb_read_byte(GDBState *s, int ch)
 {
+    CPUState *env = s->env;
     int i, csum;
     char reply[1];
 
@@ -676,7 +678,7 @@ gdb_handlesig (CPUState *env, int sig)
           int i;
 
           for (i = 0; i < n; i++)
-            gdb_read_byte (s, env, buf[i]);
+            gdb_read_byte (s, buf[i]);
         }
       else if (n == 0 || errno != EAGAIN)
         {
@@ -721,7 +723,7 @@ static void gdb_read(void *opaque)
         vm_start();
     } else {
         for(i = 0; i < size; i++)
-            gdb_read_byte(s, cpu_single_env, buf[i]);
+            gdb_read_byte(s, buf[i]);
     }
 }
 
@@ -759,6 +761,7 @@ static void gdb_accept(void *opaque)
         return;
     }
 #endif
+    s->env = first_cpu; /* XXX: allow to change CPU */
     s->fd = fd;
 
     fcntl(fd, F_SETFL, O_NONBLOCK);

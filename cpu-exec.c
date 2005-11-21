@@ -251,6 +251,8 @@ int cpu_exec(CPUState *env1)
     TranslationBlock *tb;
     uint8_t *tc_ptr;
 
+    cpu_single_env = env1; 
+
     /* first we save global registers */
     saved_env = env;
     env = env1;
@@ -755,6 +757,8 @@ int cpu_exec(CPUState *env1)
     T2 = saved_T2;
 #endif
     env = saved_env;
+    /* fail safe : never use cpu_single_env outside cpu_exec() */
+    cpu_single_env = NULL; 
     return ret;
 }
 

@@ -138,6 +138,7 @@ print_insn_thumb1(bfd_vma pc, disassemble_info *info)
    values:
     i386 - nonzero means 16 bit code
     arm  - nonzero means thumb code 
+    ppc  - nonzero means little endian
     other targets - unused
  */
 void target_disas(FILE *out, target_ulong code, target_ulong size, int flags)
@@ -177,7 +178,7 @@ void target_disas(FILE *out, target_ulong code, target_ulong size, int flags)
     disasm_info.mach = bfd_mach_sparc_v9b;
 #endif    
 #elif defined(TARGET_PPC)
-    if (cpu_single_env->msr[MSR_LE])
+    if (flags)
         disasm_info.endian = BFD_ENDIAN_LITTLE;
 #ifdef TARGET_PPC64
     disasm_info.mach = bfd_mach_ppc64;
@@ -314,6 +315,7 @@ void term_vprintf(const char *fmt, va_list ap);
 void term_printf(const char *fmt, ...);
 
 static int monitor_disas_is_physical;
+static CPUState *monitor_disas_env;
 
 static int
 monitor_read_memory (memaddr, myaddr, length, info)
@@ -325,7 +327,7 @@ monitor_read_memory (memaddr, myaddr, length, info)
     if (monitor_disas_is_physical) {
         cpu_physical_memory_rw(memaddr, myaddr, length, 0);
     } else {
-        cpu_memory_rw_debug(cpu_single_env, memaddr,myaddr, length, 0);
+        cpu_memory_rw_debug(monitor_disas_env, memaddr,myaddr, length, 0);
     }
     return 0;
 }
@@ -339,7 +341,8 @@ static int monitor_fprintf(FILE *stream, const char *fmt, ...)
     return 0;
 }
 
-void monitor_disas(target_ulong pc, int nb_insn, int is_physical, int flags)
+void monitor_disas(CPUState *env,
+                   target_ulong pc, int nb_insn, int is_physical, int flags)
 {
     int count, i;
     struct disassemble_info disasm_info;
@@ -347,6 +350,7 @@ void monitor_disas(target_ulong pc, int nb_insn, int is_physical, int flags)
 
     INIT_DISASSEMBLE_INFO(disasm_info, NULL, monitor_fprintf);
 
+    monitor_disas_env = env;
     monitor_disas_is_physical = is_physical;
     disasm_info.read_memory_func = monitor_read_memory;
 

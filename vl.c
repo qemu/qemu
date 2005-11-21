@@ -83,8 +83,6 @@
 
 #include "exec-all.h"
 
-//#define DO_TB_FLUSH
-
 #define DEFAULT_NETWORK_SCRIPT "/etc/qemu-ifup"
 
 //#define DEBUG_UNUSED_IOPORT
@@ -109,8 +107,6 @@
 
 const char *bios_dir = CONFIG_QEMU_SHAREDIR;
 char phys_ram_file[1024];
-CPUState *global_env;
-CPUState *cpu_single_env;
 void *ioport_opaque[MAX_IOPORTS];
 IOPortReadFunc *ioport_read_table[3][MAX_IOPORTS];
 IOPortWriteFunc *ioport_write_table[3][MAX_IOPORTS];
@@ -156,6 +152,7 @@ int usb_enabled = 0;
 USBPort *vm_usb_ports[MAX_VM_USB_PORTS];
 USBDevice *vm_usb_hub;
 static VLANState *first_vlan;
+int smp_cpus = 1;
 
 /***********************************************************/
 /* x86 ISA bus support */
@@ -427,16 +424,20 @@ int cpu_inl(CPUState *env, int addr)
 void hw_error(const char *fmt, ...)
 {
     va_list ap;
+    CPUState *env;
 
     va_start(ap, fmt);
     fprintf(stderr, "qemu: hardware error: ");
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n");
+    for(env = first_cpu; env != NULL; env = env->next_cpu) {
+        fprintf(stderr, "CPU #%d:\n", env->cpu_index);
 #ifdef TARGET_I386
-    cpu_dump_state(global_env, stderr, fprintf, X86_DUMP_FPU | X86_DUMP_CCOP);
+        cpu_dump_state(env, stderr, fprintf, X86_DUMP_FPU);
 #else
-    cpu_dump_state(global_env, stderr, fprintf, 0);
+        cpu_dump_state(env, stderr, fprintf, 0);
 #endif
+    }
     va_end(ap);
     abort();
 }
@@ -879,13 +880,16 @@ static void host_alarm_handler(int host_signum)
                            qemu_get_clock(vm_clock)) ||
         qemu_timer_expired(active_timers[QEMU_TIMER_REALTIME],
                            qemu_get_clock(rt_clock))) {
-        /* stop the cpu because a timer occured */
-        cpu_interrupt(global_env, CPU_INTERRUPT_EXIT);
+        CPUState *env = cpu_single_env;
+        if (env) {
+            /* stop the currently executing cpu because a timer occured */
+            cpu_interrupt(env, CPU_INTERRUPT_EXIT);
 #ifdef USE_KQEMU
-        if (global_env->kqemu_enabled) {
-            kqemu_cpu_interrupt(global_env);
-        }
+            if (env->kqemu_enabled) {
+                kqemu_cpu_interrupt(env);
+            }
 #endif
+        }
     }
 }
 
@@ -2970,9 +2974,6 @@ int qemu_loadvm(const char *filename)
         goto the_end;
     }
     for(;;) {
-#if defined (DO_TB_FLUSH)
-        tb_flush(global_env);
-#endif
         len = qemu_get_byte(f);
         if (feof(f))
             break;
@@ -3583,27 +3584,22 @@ void qemu_system_reset(void)
 void qemu_system_reset_request(void)
 {
     reset_requested = 1;
-    cpu_interrupt(cpu_single_env, CPU_INTERRUPT_EXIT);
+    if (cpu_single_env)
+        cpu_interrupt(cpu_single_env, CPU_INTERRUPT_EXIT);
 }
 
 void qemu_system_shutdown_request(void)
 {
     shutdown_requested = 1;
-    cpu_interrupt(cpu_single_env, CPU_INTERRUPT_EXIT);
+    if (cpu_single_env)
+        cpu_interrupt(cpu_single_env, CPU_INTERRUPT_EXIT);
 }
 
 void qemu_system_powerdown_request(void)
 {
     powerdown_requested = 1;
-    cpu_interrupt(cpu_single_env, CPU_INTERRUPT_EXIT);
-}
-
-static void main_cpu_reset(void *opaque)
-{
-#if defined(TARGET_I386) || defined(TARGET_SPARC)
-    CPUState *env = opaque;
-    cpu_reset(env);
-#endif
+    if (cpu_single_env)
+        cpu_interrupt(cpu_single_env, CPU_INTERRUPT_EXIT);
 }
 
 void main_loop_wait(int timeout)
@@ -3684,14 +3680,42 @@ void main_loop_wait(int timeout)
                         qemu_get_clock(rt_clock));
 }
 
+static CPUState *cur_cpu;
+
+static CPUState *find_next_cpu(void)
+{
+    CPUState *env;
+    env = cur_cpu;
+    for(;;) {
+        /* get next cpu */
+        env = env->next_cpu;
+        if (!env)
+            env = first_cpu;
+        if (!env->cpu_halted) 
+            break;
+        /* all CPUs are halted ? */
+        if (env == cur_cpu)
+            return NULL;
+    }
+    cur_cpu = env;
+    return env;
+}
+
 int main_loop(void)
 {
     int ret, timeout;
-    CPUState *env = global_env;
+    CPUState *env;
 
+    cur_cpu = first_cpu;
     for(;;) {
         if (vm_running) {
-            ret = cpu_exec(env);
+            /* find next cpu to run */
+            /* XXX: handle HLT correctly */
+            env = find_next_cpu();
+            if (!env)
+                ret = EXCP_HLT;
+            else
+                ret = cpu_exec(env);
             if (shutdown_requested) {
                 ret = EXCP_INTERRUPT;
                 break;
@@ -3774,7 +3798,7 @@ void help(void)
            "                connect the host TAP network interface to VLAN 'n' and use\n"
            "                the network script 'file' (default=%s);\n"
            "                use 'fd=h' to connect to an already opened TAP interface\n"
-           "-net socket[,vlan=n][,fd=x][,listen=[host]:port][,connect=host:port]\n"
+           "-net socket[,vlan=n][,fd=h][,listen=[host]:port][,connect=host:port]\n"
            "                connect the vlan 'n' to another VLAN using a socket connection\n"
 #endif
            "-net none       use it alone to have zero network devices; if no -net option\n"
@@ -3899,6 +3923,7 @@ enum {
     QEMU_OPTION_win2k_hack,
     QEMU_OPTION_usb,
     QEMU_OPTION_usbdevice,
+    QEMU_OPTION_smp,
 };
 
 typedef struct QEMUOption {
@@ -3965,6 +3990,7 @@ const QEMUOption qemu_options[] = {
     { "pidfile", HAS_ARG, QEMU_OPTION_pidfile },
     { "win2k-hack", 0, QEMU_OPTION_win2k_hack },
     { "usbdevice", HAS_ARG, QEMU_OPTION_usbdevice },
+    { "smp", HAS_ARG, QEMU_OPTION_smp },
     
     /* temporary options */
     { "usb", 0, QEMU_OPTION_usb },
@@ -4120,7 +4146,6 @@ int main(int argc, char **argv)
 #endif
     int i, cdrom_index;
     int snapshot, linux_boot;
-    CPUState *env;
     const char *initrd_filename;
     const char *hd_filename[MAX_DISKS], *fd_filename[MAX_FD];
     const char *kernel_filename, *kernel_cmdline;
@@ -4511,6 +4536,13 @@ int main(int argc, char **argv)
                         optarg);
                 usb_devices_index++;
                 break;
+            case QEMU_OPTION_smp:
+                smp_cpus = atoi(optarg);
+                if (smp_cpus < 1 || smp_cpus > 8) {
+                    fprintf(stderr, "Invalid number of CPUs\n");
+                    exit(1);
+                }
+                break;
             }
         }
     }
@@ -4659,15 +4691,8 @@ int main(int argc, char **argv)
         }
     }
 
-    /* init CPU state */
-    env = cpu_init();
-    global_env = env;
-    cpu_single_env = env;
-
-    register_savevm("timer", 0, 1, timer_save, timer_load, env);
-    register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
+    register_savevm("timer", 0, 1, timer_save, timer_load, NULL);
     register_savevm("ram", 0, 1, ram_save, ram_load, NULL);
-    qemu_register_reset(main_cpu_reset, global_env);
 
     init_ioports();
     cpu_calibrate_ticks();
