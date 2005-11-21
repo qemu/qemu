@@ -210,18 +210,29 @@ void qemu_system_powerdown(void)
     slavio_set_power_fail(slavio_misc, 1);
 }
 
+static void main_cpu_reset(void *opaque)
+{
+    CPUState *env = opaque;
+    cpu_reset(env);
+}
+
 /* Sun4m hardware initialisation */
 static void sun4m_init(int ram_size, int vga_ram_size, int boot_device,
                        DisplayState *ds, const char **fd_filename, int snapshot,
                        const char *kernel_filename, const char *kernel_cmdline,
                        const char *initrd_filename)
 {
+    CPUState *env;
     char buf[1024];
     int ret, linux_boot;
     unsigned int i;
     long vram_size = 0x100000, prom_offset, initrd_size, kernel_size;
 
     linux_boot = (kernel_filename != NULL);
+
+    env = cpu_init();
+    register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
+    qemu_register_reset(main_cpu_reset, env);
 
     /* allocate RAM */
     cpu_register_physical_memory(0, ram_size, 0);

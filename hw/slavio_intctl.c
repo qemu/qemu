@@ -213,6 +213,7 @@ static const uint32_t intbit_to_level[32] = {
 
 static void slavio_check_interrupts(void *opaque)
 {
+    CPUState *env;
     SLAVIO_INTCTLState *s = opaque;
     uint32_t pending = s->intregm_pending;
     unsigned int i, max = 0;
@@ -226,16 +227,17 @@ static void slavio_check_interrupts(void *opaque)
 		    max = intbit_to_level[i];
 	    }
 	}
-	if (cpu_single_env->interrupt_index == 0) {
+        env = first_cpu;
+	if (env->interrupt_index == 0) {
 	    DPRINTF("Triggered pil %d\n", max);
 #ifdef DEBUG_IRQ_COUNT
 	    s->irq_count[max]++;
 #endif
-	    cpu_single_env->interrupt_index = TT_EXTINT | max;
-	    cpu_interrupt(cpu_single_env, CPU_INTERRUPT_HARD);
+	    env->interrupt_index = TT_EXTINT | max;
+	    cpu_interrupt(env, CPU_INTERRUPT_HARD);
 	}
 	else
-	    DPRINTF("Not triggered (pending %x), pending exception %x\n", pending, cpu_single_env->interrupt_index);
+	    DPRINTF("Not triggered (pending %x), pending exception %x\n", pending, env->interrupt_index);
     }
     else
 	DPRINTF("Not triggered (pending %x), disabled %x\n", pending, s->intregm_disabled);

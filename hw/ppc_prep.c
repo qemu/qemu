@@ -99,9 +99,9 @@ static uint32_t speaker_ioport_read(void *opaque, uint32_t addr)
 static void pic_irq_request(void *opaque, int level)
 {
     if (level)
-        cpu_interrupt(cpu_single_env, CPU_INTERRUPT_HARD);
+        cpu_interrupt(first_cpu, CPU_INTERRUPT_HARD);
     else
-        cpu_reset_interrupt(cpu_single_env, CPU_INTERRUPT_HARD);
+        cpu_reset_interrupt(first_cpu, CPU_INTERRUPT_HARD);
 }
 
 /* PCI intack register */
@@ -294,7 +294,7 @@ static void PREP_io_800_writeb (void *opaque, uint32_t addr, uint32_t val)
         /* Special port 92 */
         /* Check soft reset asked */
         if (val & 0x01) {
-            //            cpu_interrupt(cpu_single_env, CPU_INTERRUPT_RESET);
+            //            cpu_interrupt(first_cpu, CPU_INTERRUPT_RESET);
         }
         /* Check LE mode */
         if (val & 0x02) {
@@ -331,7 +331,7 @@ static void PREP_io_800_writeb (void *opaque, uint32_t addr, uint32_t val)
         break;
     case 0x0814:
         /* L2 invalidate register */
-        //        tlb_flush(cpu_single_env, 1);
+        //        tlb_flush(first_cpu, 1);
         break;
     case 0x081C:
         /* system control register */
@@ -523,6 +523,7 @@ static void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
                           const char *kernel_filename, const char *kernel_cmdline,
                           const char *initrd_filename)
 {
+    CPUState *env;
     char buf[1024];
     m48t59_t *nvram;
     int PPC_io_memory;
@@ -537,6 +538,23 @@ static void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
 	return;
 
     linux_boot = (kernel_filename != NULL);
+    
+    /* init CPUs */
+
+    env = cpu_init();
+    register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
+    
+    /* Register CPU as a 604 */
+    /* XXX: CPU model (or PVR) should be provided on command line */
+    //    ppc_find_by_name("604r", &def);
+    //    ppc_find_by_name("604e", &def);
+    ppc_find_by_name("604", &def);
+    if (def == NULL) {
+        cpu_abort(env, "Unable to find PowerPC CPU definition\n");
+    }
+    cpu_ppc_register(env, def);
+    /* Set time-base frequency to 100 Mhz */
+    cpu_ppc_tb_init(env, 100UL * 1000UL * 1000UL);
 
     /* allocate RAM */
     cpu_register_physical_memory(0, ram_size, IO_MEM_RAM);
@@ -584,18 +602,6 @@ static void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
         initrd_size = 0;
     }
 
-    /* Register CPU as a 604 */
-    /* XXX: CPU model (or PVR) should be provided on command line */
-    //    ppc_find_by_name("604r", &def);
-    //    ppc_find_by_name("604e", &def);
-    ppc_find_by_name("604", &def);
-    if (def == NULL) {
-        cpu_abort(cpu_single_env, "Unable to find PowerPC CPU definition\n");
-    }
-    cpu_ppc_register(cpu_single_env, def);
-    /* Set time-base frequency to 100 Mhz */
-    cpu_ppc_tb_init(cpu_single_env, 100UL * 1000UL * 1000UL);
-
     isa_mem_base = 0xc0000000;
     pci_bus = pci_prep_init();
     //    pci_bus = i440fx_init();
@@ -609,7 +615,7 @@ static void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
                    vga_ram_size, 0, 0);
     rtc_init(0x70, 8);
     //    openpic = openpic_init(0x00000000, 0xF0000000, 1);
-    isa_pic = pic_init(pic_irq_request, cpu_single_env);
+    isa_pic = pic_init(pic_irq_request, first_cpu);
     //    pit = pit_init(0x40, 0);
 
     serial_init(0x3f8, 4, serial_hds[0]);

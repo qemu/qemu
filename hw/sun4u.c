@@ -235,6 +235,12 @@ void qemu_system_powerdown(void)
 {
 }
 
+static void main_cpu_reset(void *opaque)
+{
+    CPUState *env = opaque;
+    cpu_reset(env);
+}
+
 static const int ide_iobase[2] = { 0x1f0, 0x170 };
 static const int ide_iobase2[2] = { 0x3f6, 0x376 };
 static const int ide_irq[2] = { 14, 15 };
@@ -253,6 +259,7 @@ static void sun4u_init(int ram_size, int vga_ram_size, int boot_device,
              const char *kernel_filename, const char *kernel_cmdline,
              const char *initrd_filename)
 {
+    CPUState *env;
     char buf[1024];
     m48t59_t *nvram;
     int ret, linux_boot;
@@ -261,6 +268,10 @@ static void sun4u_init(int ram_size, int vga_ram_size, int boot_device,
     PCIBus *pci_bus;
 
     linux_boot = (kernel_filename != NULL);
+
+    env = cpu_init();
+    register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
+    qemu_register_reset(main_cpu_reset, env);
 
     /* allocate RAM */
     cpu_register_physical_memory(0, ram_size, 0);

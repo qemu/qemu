@@ -997,8 +997,6 @@ void usage(void)
 
 /* XXX: currently only used for async signals (see signal.c) */
 CPUState *global_env;
-/* used only if single thread */
-CPUState *cpu_single_env = NULL;
 
 /* used to free thread contexts */
 TaskState *first_task_state;
@@ -1228,10 +1226,10 @@ int main(int argc, char **argv)
         //        ppc_find_by_name("604e", &def);
         //        ppc_find_by_name("604", &def);
         if (def == NULL) {
-            cpu_abort(cpu_single_env,
+            cpu_abort(env,
                       "Unable to find PowerPC CPU definition\n");
         }
-        cpu_ppc_register(cpu_single_env, def);
+        cpu_ppc_register(env, def);
 
         for (i = 0; i < 32; i++) {
             if (i != 12 && i != 6 && i != 13)

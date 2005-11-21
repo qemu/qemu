@@ -45,9 +45,9 @@ static inline int check_irq(HeathrowPIC *pic)
 static void heathrow_pic_update(HeathrowPICS *s)
 {
     if (check_irq(&s->pics[0]) || check_irq(&s->pics[1])) {
-        cpu_interrupt(cpu_single_env, CPU_INTERRUPT_HARD);
+        cpu_interrupt(first_cpu, CPU_INTERRUPT_HARD);
     } else {
-        cpu_reset_interrupt(cpu_single_env, CPU_INTERRUPT_HARD);
+        cpu_reset_interrupt(first_cpu, CPU_INTERRUPT_HARD);
     }
 }
 

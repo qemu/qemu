@@ -265,7 +265,8 @@ static void IRQ_local_pipe (openpic_t *opp, int n_CPU, int n_IRQ)
     if (priority > dst->raised.priority) {
         IRQ_get_next(opp, &dst->raised);
         DPRINTF("Raise CPU IRQ\n");
-        cpu_interrupt(cpu_single_env, CPU_INTERRUPT_HARD);
+        /* XXX: choose the correct cpu */
+        cpu_interrupt(first_cpu, CPU_INTERRUPT_HARD);
     }
 }
 
@@ -532,7 +533,7 @@ static void openpic_gbl_write (void *opaque, uint32_t addr, uint32_t val)
         /* XXX: Should be able to reset any CPU */
         if (val & 1) {
             DPRINTF("Reset CPU IRQ\n");
-            //            cpu_interrupt(cpu_single_env, CPU_INTERRUPT_RESET);
+            //            cpu_interrupt(first_cpu, CPU_INTERRUPT_RESET);
         }
 	break;
 #if MAX_IPI > 0
@@ -781,7 +782,8 @@ static void openpic_cpu_write (void *opaque, uint32_t addr, uint32_t val)
 	    src = &opp->src[n_IRQ];
 	    if (IPVP_PRIORITY(src->ipvp) > dst->servicing.priority) {
                 DPRINTF("Raise CPU IRQ\n");
-                cpu_interrupt(cpu_single_env, CPU_INTERRUPT_HARD);
+                /* XXX: choose cpu */
+                cpu_interrupt(first_cpu, CPU_INTERRUPT_HARD);
             }
 	}
 	break;

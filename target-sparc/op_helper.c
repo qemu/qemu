@@ -942,7 +942,7 @@ void do_interrupt(int intno)
 #endif
 #if !defined(CONFIG_USER_ONLY) 
     if (env->tl == MAXTL) {
-        cpu_abort(cpu_single_env, "Trap 0x%04x while trap level is MAXTL, Error state", env->exception_index);
+        cpu_abort(env, "Trap 0x%04x while trap level is MAXTL, Error state", env->exception_index);
 	return;
     }
 #endif
@@ -996,7 +996,7 @@ void do_interrupt(int intno)
 #endif
 #if !defined(CONFIG_USER_ONLY) 
     if (env->psret == 0) {
-        cpu_abort(cpu_single_env, "Trap 0x%02x while interrupts disabled, Error state", env->exception_index);
+        cpu_abort(env, "Trap 0x%02x while interrupts disabled, Error state", env->exception_index);
 	return;
     }
 #endif

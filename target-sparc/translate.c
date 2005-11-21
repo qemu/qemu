@@ -2672,11 +2672,10 @@ CPUSPARCState *cpu_sparc_init(void)
 {
     CPUSPARCState *env;
 
-    cpu_exec_init();
-
-    if (!(env = malloc(sizeof(CPUSPARCState))))
-	return (NULL);
-    cpu_single_env = env;
+    env = qemu_mallocz(sizeof(CPUSPARCState));
+    if (!env)
+	return NULL;
+    cpu_exec_init(env);
     cpu_reset(env);
     return (env);
 }

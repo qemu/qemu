@@ -254,7 +254,7 @@ static void kbd_write_command(void *opaque, uint32_t addr, uint32_t val)
     case KBD_CCMD_READ_OUTPORT:
         /* XXX: check that */
 #ifdef TARGET_I386
-        val = 0x01 | (((cpu_single_env->a20_mask >> 20) & 1) << 1);
+        val = 0x01 | (ioport_get_a20() << 1);
 #else
         val = 0x01;
 #endif
@@ -266,10 +266,10 @@ static void kbd_write_command(void *opaque, uint32_t addr, uint32_t val)
         break;
 #ifdef TARGET_I386
     case KBD_CCMD_ENABLE_A20:
-        cpu_x86_set_a20(cpu_single_env, 1);
+        ioport_set_a20(1);
         break;
     case KBD_CCMD_DISABLE_A20:
-        cpu_x86_set_a20(cpu_single_env, 0);
+        ioport_set_a20(0);
         break;
 #endif
     case KBD_CCMD_RESET:
@@ -611,7 +611,7 @@ void kbd_write_data(void *opaque, uint32_t addr, uint32_t val)
         break;
     case KBD_CCMD_WRITE_OUTPORT:
 #ifdef TARGET_I386
-        cpu_x86_set_a20(cpu_single_env, (val >> 1) & 1);
+        ioport_set_a20((val >> 1) & 1);
 #endif
         if (!(val & 1)) {
             qemu_system_reset_request();

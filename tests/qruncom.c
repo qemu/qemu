@@ -15,8 +15,6 @@
 
 //#define SIGTEST
 
-CPUState *cpu_single_env = NULL;
-
 void cpu_outb(CPUState *env, int addr, int val)
 {
     fprintf(stderr, "outb: port=0x%04x, data=%02x\n", addr, val);

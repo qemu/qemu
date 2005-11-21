@@ -1616,32 +1616,32 @@ void pci_info(void)
 
 static __attribute__((unused)) uint32_t isa_inb(uint32_t addr)
 {
-    return cpu_inb(cpu_single_env, addr);
+    return cpu_inb(NULL, addr);
 }
 
 static void isa_outb(uint32_t val, uint32_t addr)
 {
-    cpu_outb(cpu_single_env, addr, val);
+    cpu_outb(NULL, addr, val);
 }
 
 static __attribute__((unused)) uint32_t isa_inw(uint32_t addr)
 {
-    return cpu_inw(cpu_single_env, addr);
+    return cpu_inw(NULL, addr);
 }
 
 static __attribute__((unused)) void isa_outw(uint32_t val, uint32_t addr)
 {
-    cpu_outw(cpu_single_env, addr, val);
+    cpu_outw(NULL, addr, val);
 }
 
 static __attribute__((unused)) uint32_t isa_inl(uint32_t addr)
 {
-    return cpu_inl(cpu_single_env, addr);
+    return cpu_inl(NULL, addr);
 }
 
 static __attribute__((unused)) void isa_outl(uint32_t val, uint32_t addr)
 {
-    cpu_outl(cpu_single_env, addr, val);
+    cpu_outl(NULL, addr, val);
 }
 
 static void pci_config_writel(PCIDevice *d, uint32_t addr, uint32_t val)

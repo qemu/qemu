@@ -11,12 +11,13 @@ static PITState *pit;
 
 static void pic_irq_request(void *opaque, int level)
 {
+    CPUState *env = first_cpu;
     if (level) {
-        cpu_single_env->CP0_Cause |= 0x00000400;
-        cpu_interrupt(cpu_single_env, CPU_INTERRUPT_HARD);
+        env->CP0_Cause |= 0x00000400;
+        cpu_interrupt(env, CPU_INTERRUPT_HARD);
     } else {
-	cpu_single_env->CP0_Cause &= ~0x00000400;
-        cpu_reset_interrupt(cpu_single_env, CPU_INTERRUPT_HARD);
+	env->CP0_Cause &= ~0x00000400;
+        cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
     }
 }
 
@@ -74,8 +75,8 @@ void cpu_mips_store_count (CPUState *env, uint32_t value)
 void cpu_mips_store_compare (CPUState *env, uint32_t value)
 {
     cpu_mips_update_count(env, cpu_mips_get_count(env), value);
-    cpu_single_env->CP0_Cause &= ~0x00008000;
-    cpu_reset_interrupt(cpu_single_env, CPU_INTERRUPT_HARD);
+    env->CP0_Cause &= ~0x00008000;
+    cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
 }
 
 static void mips_timer_cb (void *opaque)
@@ -89,8 +90,8 @@ static void mips_timer_cb (void *opaque)
     }
 #endif
     cpu_mips_update_count(env, cpu_mips_get_count(env), env->CP0_Compare);
-    cpu_single_env->CP0_Cause |= 0x00008000;
-    cpu_interrupt(cpu_single_env, CPU_INTERRUPT_HARD);
+    env->CP0_Cause |= 0x00008000;
+    cpu_interrupt(env, CPU_INTERRUPT_HARD);
 }
 
 void cpu_mips_clock_init (CPUState *env)
@@ -181,9 +182,14 @@ void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
     int io_memory;
     int linux_boot;
     int ret;
+    CPUState *env;
 
     printf("%s: start\n", __func__);
     linux_boot = (kernel_filename != NULL);
+
+    env = cpu_init();
+    register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
+
     /* allocate RAM */
     cpu_register_physical_memory(0, ram_size, IO_MEM_RAM);
     bios_offset = ram_size + vga_ram_size;
@@ -198,9 +204,9 @@ void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
                                  BIOS_SIZE, bios_offset | IO_MEM_ROM);
 #if 0
     memcpy(phys_ram_base + 0x10000, phys_ram_base + bios_offset, BIOS_SIZE);
-    cpu_single_env->PC = 0x80010004;
+    env->PC = 0x80010004;
 #else
-    cpu_single_env->PC = 0xBFC00004;
+    env->PC = 0xBFC00004;
 #endif
     if (linux_boot) {
         kernel_base = KERNEL_LOAD_ADDR;
@@ -226,7 +232,7 @@ void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
             initrd_base = 0;
             initrd_size = 0;
         }
-        cpu_single_env->PC = KERNEL_LOAD_ADDR;
+        env->PC = KERNEL_LOAD_ADDR;
     } else {
         kernel_base = 0;
         kernel_size = 0;
@@ -235,7 +241,7 @@ void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
     }
 
     /* Init internal devices */
-    cpu_mips_clock_init(cpu_single_env);
+    cpu_mips_clock_init(env);
     cpu_mips_irqctrl_init();
 
     /* Register 64 KB of ISA IO space at 0x14000000 */
@@ -243,7 +249,7 @@ void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
     cpu_register_physical_memory(0x14000000, 0x00010000, io_memory);
     isa_mem_base = 0x10000000;
 
-    isa_pic = pic_init(pic_irq_request, cpu_single_env);
+    isa_pic = pic_init(pic_irq_request, env);
     pit = pit_init(0x40, 0);
     serial_init(0x3f8, 4, serial_hds[0]);
     vga_initialize(NULL, ds, phys_ram_base + ram_size, ram_size, 

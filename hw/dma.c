@@ -427,7 +427,9 @@ int DMA_write_memory (int nchan, void *buf, int pos, int len)
 /* request the emulator to transfer a new DMA memory block ASAP */
 void DMA_schedule(int nchan)
 {
-    cpu_interrupt(cpu_single_env, CPU_INTERRUPT_EXIT);
+    CPUState *env = cpu_single_env;
+    if (env)
+        cpu_interrupt(env, CPU_INTERRUPT_EXIT);
 }
 
 static void dma_reset(void *opaque)
