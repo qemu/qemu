@@ -121,7 +121,8 @@ static void apic_bus_deliver(uint32_t deliver_bitmask, uint8_t delivery_mode,
             /* normal INIT IPI sent to processors */
             for (apic_iter = first_local_apic; apic_iter != NULL;
                  apic_iter = apic_iter->next_apic) {
-                apic_init_ipi(apic_iter);
+                if (deliver_bitmask & (1 << apic_iter->id))
+                    apic_init_ipi(apic_iter);
             }
             return;
     
@@ -317,7 +318,7 @@ static void apic_init_ipi(APICState *s)
     s->tpr = 0;
     s->spurious_vec = 0xff;
     s->log_dest = 0;
-    s->dest_mode = 0;
+    s->dest_mode = 0xf;
     memset(s->isr, 0, sizeof(s->isr));
     memset(s->tmr, 0, sizeof(s->tmr));
     memset(s->irr, 0, sizeof(s->irr));
@@ -331,6 +332,18 @@ static void apic_init_ipi(APICState *s)
     s->next_time = 0;
 }
 
+/* send a SIPI message to the CPU to start it */
+static void apic_startup(APICState *s, int vector_num)
+{
+    CPUState *env = s->cpu_env;
+    if (!env->cpu_halted)
+        return;
+    env->eip = 0;
+    cpu_x86_load_seg_cache(env, R_CS, vector_num << 8, vector_num << 12, 
+                           0xffff, 0);
+    env->cpu_halted = 0;
+}
+
 static void apic_deliver(APICState *s, uint8_t dest, uint8_t dest_mode,
                          uint8_t delivery_mode, uint8_t vector_num,
                          uint8_t polarity, uint8_t trigger_mode)
@@ -339,10 +352,26 @@ static void apic_deliver(APICState *s, uint8_t dest, uint8_t dest_mode,
     int dest_shorthand = (s->icr[0] >> 18) & 3;
     APICState *apic_iter;
 
+    switch (dest_shorthand) {
+        case 0:
+            deliver_bitmask = apic_get_delivery_bitmask(dest, dest_mode);
+            break;
+        case 1:
+            deliver_bitmask = (1 << s->id);
+            break;
+        case 2:
+            deliver_bitmask = 0xffffffff;
+            break;
+        case 3:
+            deliver_bitmask = 0xffffffff & ~(1 << s->id);
+            break;
+    }
+
     switch (delivery_mode) {
         case APIC_DM_LOWPRI:
-            /* XXX: serch for focus processor, arbitration */
+            /* XXX: search for focus processor, arbitration */
             dest = s->id;
+            break;
 
         case APIC_DM_INIT:
             {
@@ -364,26 +393,10 @@ static void apic_deliver(APICState *s, uint8_t dest, uint8_t dest_mode,
             for (apic_iter = first_local_apic; apic_iter != NULL;
                  apic_iter = apic_iter->next_apic) {
                 if (deliver_bitmask & (1 << apic_iter->id)) {
-                    /* XXX: SMP support */
-                    /* apic_startup(apic_iter); */
+                    apic_startup(apic_iter, vector_num);
                 }
             }
             return;
-    }
-
-    switch (dest_shorthand) {
-        case 0:
-            deliver_bitmask = apic_get_delivery_bitmask(dest, dest_mode);
-            break;
-        case 1:
-            deliver_bitmask = (1 << s->id);
-            break;
-        case 2:
-            deliver_bitmask = 0xffffffff;
-            break;
-        case 3:
-            deliver_bitmask = 0xffffffff & ~(1 << s->id);
-            break;
     }
 
     apic_bus_deliver(deliver_bitmask, delivery_mode, vector_num, polarity,
@@ -534,12 +547,12 @@ static uint32_t apic_mem_readl(void *opaque, target_phys_addr_t addr)
     case 0x28:
         val = s->esr;
         break;
-    case 0x32 ... 0x37:
-        val = s->lvt[index - 0x32];
-        break;
     case 0x30:
     case 0x31:
         val = s->icr[index & 1];
+        break;
+    case 0x32 ... 0x37:
+        val = s->lvt[index - 0x32];
         break;
     case 0x38:
         val = s->initial_count;
@@ -581,9 +594,14 @@ static void apic_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     case 0x02:
         s->id = (val >> 24);
         break;
+    case 0x03:
+        break;
     case 0x08:
         s->tpr = val;
         apic_update_irq(s);
+        break;
+    case 0x09:
+    case 0x0a:
         break;
     case 0x0b: /* EOI */
         apic_eoi(s);
@@ -597,6 +615,11 @@ static void apic_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     case 0x0f:
         s->spurious_vec = val & 0x1ff;
         apic_update_irq(s);
+        break;
+    case 0x10 ... 0x17:
+    case 0x18 ... 0x1f:
+    case 0x20 ... 0x27:
+    case 0x28:
         break;
     case 0x30:
         s->icr[0] = val;
@@ -619,6 +642,8 @@ static void apic_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
         s->initial_count = val;
         s->initial_count_load_time = qemu_get_clock(vm_clock);
         apic_timer_update(s, s->initial_count_load_time);
+        break;
+    case 0x39:
         break;
     case 0x3e:
         {
