@@ -231,8 +231,8 @@ static inline uint64_t ldq_le_p(void *ptr)
 {
     uint8_t *p = ptr;
     uint32_t v1, v2;
-    v1 = ldl_p(p);
-    v2 = ldl_p(p + 4);
+    v1 = ldl_le_p(p);
+    v2 = ldl_le_p(p + 4);
     return v1 | ((uint64_t)v2 << 32);
 }
 
@@ -263,8 +263,8 @@ static inline void stl_le_p(void *ptr, int v)
 static inline void stq_le_p(void *ptr, uint64_t v)
 {
     uint8_t *p = ptr;
-    stl_p(p, (uint32_t)v);
-    stl_p(p + 4, v >> 32);
+    stl_le_p(p, (uint32_t)v);
+    stl_le_p(p + 4, v >> 32);
 }
 
 /* float access */
@@ -725,6 +725,7 @@ void cpu_dump_state(CPUState *env, FILE *f,
                     int flags);
 
 void cpu_abort(CPUState *env, const char *fmt, ...);
+extern CPUState *first_cpu;
 extern CPUState *cpu_single_env;
 extern int code_copy_enabled;
 
