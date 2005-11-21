@@ -47,12 +47,11 @@ CPUX86State *cpu_x86_init(void)
     CPUX86State *env;
     static int inited;
 
-    cpu_exec_init();
-
-    env = malloc(sizeof(CPUX86State));
+    env = qemu_mallocz(sizeof(CPUX86State));
     if (!env)
         return NULL;
-    memset(env, 0, sizeof(CPUX86State));
+    cpu_exec_init(env);
+
     /* init various static tables */
     if (!inited) {
         inited = 1;
@@ -135,7 +134,6 @@ CPUX86State *cpu_x86_init(void)
         env->cpuid_features |= CPUID_MTRR | CPUID_CLFLUSH | CPUID_MCA;
 #endif
     }
-    cpu_single_env = env;
     cpu_reset(env);
 #ifdef USE_KQEMU
     kqemu_init(env);

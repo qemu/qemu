@@ -2199,13 +2199,10 @@ CPUARMState *cpu_arm_init(void)
 {
     CPUARMState *env;
 
-    cpu_exec_init();
-
-    env = malloc(sizeof(CPUARMState));
+    env = qemu_mallocz(sizeof(CPUARMState));
     if (!env)
         return NULL;
-    memset(env, 0, sizeof(CPUARMState));
-    cpu_single_env = env;
+    cpu_exec_init(env);
     return env;
 }
 

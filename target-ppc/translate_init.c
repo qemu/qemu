@@ -1081,11 +1081,10 @@ CPUPPCState *cpu_ppc_init(void)
 {
     CPUPPCState *env;
 
-    cpu_exec_init();
-
     env = qemu_mallocz(sizeof(CPUPPCState));
     if (!env)
         return NULL;
+    cpu_exec_init(env);
     tlb_flush(env, 1);
 #if defined (DO_SINGLE_STEP) && 0
     /* Single step trace mode */
@@ -1101,7 +1100,6 @@ CPUPPCState *cpu_ppc_init(void)
 #endif
     do_compute_hflags(env);
     env->reserve = -1;
-    cpu_single_env = env;
     return env;
 }
 

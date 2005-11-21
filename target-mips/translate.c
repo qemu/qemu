@@ -1694,10 +1694,10 @@ CPUMIPSState *cpu_mips_init (void)
 {
     CPUMIPSState *env;
 
-    cpu_exec_init();
     env = qemu_mallocz(sizeof(CPUMIPSState));
     if (!env)
         return NULL;
+    cpu_exec_init(env);
     tlb_flush(env, 1);
     /* Minimal init */
     env->PC = 0xBFC00000;
@@ -1722,8 +1722,5 @@ CPUMIPSState *cpu_mips_init (void)
     env->CP0_Debug = (1 << CP0DB_CNT) | (0x1 << CP0DB_VER);
     env->CP0_PRid = MIPS_CPU;
     env->exception_index = EXCP_NONE;
-
-    cpu_single_env = env;
-
     return env;
 }
