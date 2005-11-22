@@ -47,7 +47,9 @@
 #define EN0_CRDAHI	0x09	/* high byte, current remote dma address RD */
 #define EN0_RSARHI	0x09	/* Remote start address reg 1 */
 #define EN0_RCNTLO	0x0a	/* Remote byte count reg WR */
+#define EN0_RTL8029ID0	0x0a	/* Realtek ID byte #1 RD */
 #define EN0_RCNTHI	0x0b	/* Remote byte count reg WR */
+#define EN0_RTL8029ID1	0x0b	/* Realtek ID byte #2 RD */
 #define EN0_RSR		0x0c	/* rx status reg RD */
 #define EN0_RXCR	0x0c	/* RX configuration reg WR */
 #define EN0_TXCR	0x0d	/* TX configuration reg WR */
@@ -63,6 +65,11 @@
 
 #define EN2_STARTPG	0x21	/* Starting page of ring bfr RD */
 #define EN2_STOPPG	0x22	/* Ending page +1 of ring bfr RD */
+
+#define EN3_CONFIG0	0x33
+#define EN3_CONFIG1	0x34
+#define EN3_CONFIG2	0x35
+#define EN3_CONFIG3	0x36
 
 /*  Register accessed at EN_CMD, the 8390 base addr.  */
 #define E8390_STOP	0x01	/* Stop and reset the chip */
@@ -447,6 +454,21 @@ static uint32_t ne2000_ioport_read(void *opaque, uint32_t addr)
         case EN2_STOPPG:
             ret = s->stop >> 8;
             break;
+	case EN0_RTL8029ID0:
+	    ret = 0x50;
+	    break;
+	case EN0_RTL8029ID1:
+	    ret = 0x43;
+	    break;
+	case EN3_CONFIG0:
+	    ret = 0;		/* 10baseT media */
+	    break;
+	case EN3_CONFIG2:
+	    ret = 0x40;		/* 10baseT active */
+	    break;
+	case EN3_CONFIG3:
+	    ret = 0x40;		/* Full duplex */
+	    break;
         default:
             ret = 0x00;
             break;
