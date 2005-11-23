@@ -474,7 +474,7 @@ static void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
         vga_initialize(pci_bus, ds, phys_ram_base + ram_size,
                        ram_size, vga_ram_size,
                        vga_bios_offset, vga_bios_size);
-        pic = openpic_init(NULL, &openpic_mem_index, 1);
+        pic = openpic_init(NULL, &openpic_mem_index, 1, &env);
         set_irq = openpic_set_irq;
         pci_set_pic(pci_bus, set_irq, pic);
 

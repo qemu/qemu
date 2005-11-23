@@ -613,7 +613,8 @@ PCIBus *pci_apb_init(target_ulong special_base, target_ulong mem_base);
 /* openpic.c */
 typedef struct openpic_t openpic_t;
 void openpic_set_irq(void *opaque, int n_IRQ, int level);
-openpic_t *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus);
+openpic_t *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus,
+                         CPUState **envp);
 
 /* heathrow_pic.c */
 typedef struct HeathrowPICS HeathrowPICS;

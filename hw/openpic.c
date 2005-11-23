@@ -159,7 +159,7 @@ typedef struct IRQ_dst_t {
     uint32_t pcsr; /* CPU sensitivity register */
     IRQ_queue_t raised;
     IRQ_queue_t servicing;
-    CPUState *env; /* Needed if we did SMP */
+    CPUState *env;
 } IRQ_dst_t;
 
 struct openpic_t {
@@ -265,8 +265,7 @@ static void IRQ_local_pipe (openpic_t *opp, int n_CPU, int n_IRQ)
     if (priority > dst->raised.priority) {
         IRQ_get_next(opp, &dst->raised);
         DPRINTF("Raise CPU IRQ\n");
-        /* XXX: choose the correct cpu */
-        cpu_interrupt(first_cpu, CPU_INTERRUPT_HARD);
+        cpu_interrupt(dst->env, CPU_INTERRUPT_HARD);
     }
 }
 
@@ -782,8 +781,7 @@ static void openpic_cpu_write (void *opaque, uint32_t addr, uint32_t val)
 	    src = &opp->src[n_IRQ];
 	    if (IPVP_PRIORITY(src->ipvp) > dst->servicing.priority) {
                 DPRINTF("Raise CPU IRQ\n");
-                /* XXX: choose cpu */
-                cpu_interrupt(first_cpu, CPU_INTERRUPT_HARD);
+                cpu_interrupt(dst->env, CPU_INTERRUPT_HARD);
             }
 	}
 	break;
@@ -965,7 +963,8 @@ static void openpic_map(PCIDevice *pci_dev, int region_num,
 #endif
 }
 
-openpic_t *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus)
+openpic_t *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus,
+                         CPUPPCState **envp)
 {
     openpic_t *opp;
     uint8_t *pci_conf;
@@ -1019,6 +1018,8 @@ openpic_t *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus)
     for (; i < MAX_IRQ; i++) {
         opp->src[i].type = IRQ_INTERNAL;
     }
+    for (i = 0; i < nb_cpus; i++)
+        opp->dst[i].env = envp[i];
     openpic_reset(opp);
     if (pmem_index)
         *pmem_index = opp->mem_index;
