@@ -262,6 +262,16 @@ int cpu_exec(CPUState *env1)
             return EXCP_HALTED;
         }
     }
+#elif defined(TARGET_PPC)
+    if (env1->msr[MSR_POW]) {
+        if (env1->msr[MSR_EE] && 
+            (env1->interrupt_request & 
+             (CPU_INTERRUPT_HARD | CPU_INTERRUPT_TIMER))) {
+            env1->msr[MSR_POW] = 0;
+        } else {
+            return EXCP_HALTED;
+        }
+    }
 #endif
 
     cpu_single_env = env1; 

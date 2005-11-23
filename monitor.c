@@ -255,6 +255,10 @@ static void do_info_cpus(void)
         term_printf(" pc=0x" TARGET_FMT_lx, env->eip + env->segs[R_CS].base);
         if (env->hflags & HF_HALTED_MASK)
             term_printf(" (halted)");
+#elif defined(TARGET_PPC)
+        term_printf(" nip=0x" TARGET_FMT_lx, env->nip);
+        if (msr_pow)
+            term_printf(" (halted)");
 #endif
         term_printf("\n");
     }

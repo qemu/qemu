@@ -846,6 +846,11 @@ void do_store_msr (CPUPPCState *env, target_ulong value)
     msr_ri  = (value >> MSR_RI)  & 1;
     msr_le  = (value >> MSR_LE)  & 1;
     do_compute_hflags(env);
+    if (msr_pow) {
+        /* power save: exit cpu loop */
+        env->exception_index = EXCP_HLT;
+        cpu_loop_exit();
+    }
 }
 
 float64 do_load_fpscr (CPUPPCState *env)
