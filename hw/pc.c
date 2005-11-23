@@ -594,7 +594,7 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
     for(i = 0; i < smp_cpus; i++) {
         env = cpu_init();
         if (i != 0)
-            env->cpu_halted = 1;
+            env->hflags |= HF_HALTED_MASK;
         if (smp_cpus > 1) {
             /* XXX: enable it in all cases */
             env->cpuid_features |= CPUID_APIC;

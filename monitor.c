@@ -253,7 +253,7 @@ static void do_info_cpus(void)
                     env->cpu_index);
 #if defined(TARGET_I386)
         term_printf(" pc=0x" TARGET_FMT_lx, env->eip + env->segs[R_CS].base);
-        if (env->cpu_halted)
+        if (env->hflags & HF_HALTED_MASK)
             term_printf(" (halted)");
 #endif
         term_printf("\n");
