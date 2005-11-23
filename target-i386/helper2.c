@@ -265,7 +265,7 @@ void cpu_dump_state(CPUState *env, FILE *f,
                     "RSI=%016llx RDI=%016llx RBP=%016llx RSP=%016llx\n"
                     "R8 =%016llx R9 =%016llx R10=%016llx R11=%016llx\n"
                     "R12=%016llx R13=%016llx R14=%016llx R15=%016llx\n"
-                    "RIP=%016llx RFL=%08x [%c%c%c%c%c%c%c]    CPL=%d II=%d A20=%d\n",
+                    "RIP=%016llx RFL=%08x [%c%c%c%c%c%c%c] CPL=%d II=%d A20=%d HLT=%d\n",
                     env->regs[R_EAX], 
                     env->regs[R_EBX], 
                     env->regs[R_ECX], 
@@ -292,13 +292,14 @@ void cpu_dump_state(CPUState *env, FILE *f,
                     eflags & CC_C ? 'C' : '-',
                     env->hflags & HF_CPL_MASK, 
                     (env->hflags >> HF_INHIBIT_IRQ_SHIFT) & 1,
-                    (env->a20_mask >> 20) & 1);
+                    (env->a20_mask >> 20) & 1,
+                    (env->hflags >> HF_HALTED_SHIFT) & 1);
     } else 
 #endif
     {
         cpu_fprintf(f, "EAX=%08x EBX=%08x ECX=%08x EDX=%08x\n"
                     "ESI=%08x EDI=%08x EBP=%08x ESP=%08x\n"
-                    "EIP=%08x EFL=%08x [%c%c%c%c%c%c%c]    CPL=%d II=%d A20=%d\n",
+                    "EIP=%08x EFL=%08x [%c%c%c%c%c%c%c] CPL=%d II=%d A20=%d HLT=%d\n",
                     (uint32_t)env->regs[R_EAX], 
                     (uint32_t)env->regs[R_EBX], 
                     (uint32_t)env->regs[R_ECX], 
@@ -317,7 +318,8 @@ void cpu_dump_state(CPUState *env, FILE *f,
                     eflags & CC_C ? 'C' : '-',
                     env->hflags & HF_CPL_MASK, 
                     (env->hflags >> HF_INHIBIT_IRQ_SHIFT) & 1,
-                    (env->a20_mask >> 20) & 1);
+                    (env->a20_mask >> 20) & 1,
+                    (env->hflags >> HF_HALTED_SHIFT) & 1);
     }
 
 #ifdef TARGET_X86_64
