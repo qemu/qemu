@@ -433,7 +433,7 @@ static void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
         isa_pic = pic_init(pic_irq_request, NULL);
         
         /* XXX: use Mac Serial port */
-        serial_init(0x3f8, 4, serial_hds[0]);
+        serial_init(&pic_set_irq_new, isa_pic, 0x3f8, 4, serial_hds[0]);
         
         for(i = 0; i < nb_nics; i++) {
             pci_ne2000_init(pci_bus, &nd_table[i]);
@@ -482,7 +482,7 @@ static void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
         isa_pic = pic_init(pic_irq_request, NULL);
         
         /* XXX: use Mac Serial port */
-        serial_init(0x3f8, 4, serial_hds[0]);
+        serial_init(&pic_set_irq_new, isa_pic, 0x3f8, 4, serial_hds[0]);
         
         for(i = 0; i < nb_nics; i++) {
             pci_ne2000_init(pci_bus, &nd_table[i]);

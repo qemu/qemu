@@ -599,7 +599,7 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
             /* XXX: enable it in all cases */
             env->cpuid_features |= CPUID_APIC;
         }
-        register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
+        register_savevm("cpu", i, 3, cpu_save, cpu_load, env);
         qemu_register_reset(main_cpu_reset, env);
         if (pci_enabled) {
             apic_init(env);
@@ -757,7 +757,8 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
 
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
         if (serial_hds[i]) {
-            serial_init(serial_io[i], serial_irq[i], serial_hds[i]);
+            serial_init(&pic_set_irq_new, isa_pic,
+                        serial_io[i], serial_irq[i], serial_hds[i]);
         }
     }
 

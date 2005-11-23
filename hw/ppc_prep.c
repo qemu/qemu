@@ -525,6 +525,7 @@ static void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
 {
     CPUState *env;
     char buf[1024];
+    SetIRQFunc *set_irq;
     m48t59_t *nvram;
     int PPC_io_memory;
     int linux_boot, i, nb_nics1, bios_size;
@@ -618,7 +619,7 @@ static void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
     isa_pic = pic_init(pic_irq_request, first_cpu);
     //    pit = pit_init(0x40, 0);
 
-    serial_init(0x3f8, 4, serial_hds[0]);
+    serial_init(&pic_set_irq_new, isa_pic, 0x3f8, 4, serial_hds[0]);
     nb_nics1 = nb_nics;
     if (nb_nics1 > NE2000_NB_MAX)
         nb_nics1 = NE2000_NB_MAX;

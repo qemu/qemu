@@ -733,7 +733,11 @@ void rtc_set_date(RTCState *s, const struct tm *tm);
 /* serial.c */
 
 typedef struct SerialState SerialState;
-SerialState *serial_init(int base, int irq, CharDriverState *chr);
+SerialState *serial_init(SetIRQFunc *set_irq, void *opaque,
+                         int base, int irq, CharDriverState *chr);
+SerialState *serial_mm_init (SetIRQFunc *set_irq, void *opaque,
+                             target_ulong base, int it_shift,
+                             int irq, CharDriverState *chr);
 
 /* parallel.c */
 
