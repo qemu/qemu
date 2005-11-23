@@ -109,8 +109,16 @@ static void apic_bus_deliver(uint32_t deliver_bitmask, uint8_t delivery_mode,
 
     switch (delivery_mode) {
         case APIC_DM_LOWPRI:
+            /* XXX: search for focus processor, arbitration */
+            if (deliver_bitmask) {
+                uint32_t m = 1;
+                while ((deliver_bitmask & m) == 0)
+                    m <<= 1;
+                deliver_bitmask = m;
+            }
+            break;
+
         case APIC_DM_FIXED:
-            /* XXX: arbitration */
             break;
 
         case APIC_DM_SMI:
@@ -336,12 +344,12 @@ static void apic_init_ipi(APICState *s)
 static void apic_startup(APICState *s, int vector_num)
 {
     CPUState *env = s->cpu_env;
-    if (!env->cpu_halted)
+    if (!(env->hflags & HF_HALTED_MASK))
         return;
     env->eip = 0;
     cpu_x86_load_seg_cache(env, R_CS, vector_num << 8, vector_num << 12, 
                            0xffff, 0);
-    env->cpu_halted = 0;
+    env->hflags &= ~HF_HALTED_MASK;
 }
 
 static void apic_deliver(APICState *s, uint8_t dest, uint8_t dest_mode,
@@ -368,11 +376,6 @@ static void apic_deliver(APICState *s, uint8_t dest, uint8_t dest_mode,
     }
 
     switch (delivery_mode) {
-        case APIC_DM_LOWPRI:
-            /* XXX: search for focus processor, arbitration */
-            dest = s->id;
-            break;
-
         case APIC_DM_INIT:
             {
                 int trig_mode = (s->icr[0] >> 15) & 1;
