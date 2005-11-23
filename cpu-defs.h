@@ -74,7 +74,7 @@ typedef unsigned long ram_addr_t;
 #define EXCP_INTERRUPT 	0x10000 /* async interruption */
 #define EXCP_HLT        0x10001 /* hlt instruction reached */
 #define EXCP_DEBUG      0x10002 /* cpu stopped after a breakpoint or singlestep */
-
+#define EXCP_HALTED     0x10003 /* cpu is halted (waiting for external event) */
 #define MAX_BREAKPOINTS 32
 
 #define TB_JMP_CACHE_BITS 12
@@ -96,7 +96,6 @@ typedef struct CPUTLBEntry {
 
 #define CPU_COMMON                                                      \
     struct TranslationBlock *current_tb; /* currently executing TB  */  \
-    int cpu_halted; /* TRUE if cpu is halted (sleep mode) */            \
     /* soft mmu support */                                              \
     /* in order to avoid passing too many arguments to the memory       \
        write helpers, we store some rarely used information in the CPU  \

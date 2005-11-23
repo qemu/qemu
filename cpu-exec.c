@@ -251,6 +251,19 @@ int cpu_exec(CPUState *env1)
     TranslationBlock *tb;
     uint8_t *tc_ptr;
 
+#if defined(TARGET_I386)
+    /* handle exit of HALTED state */
+    if (env1->hflags & HF_HALTED_MASK) {
+        /* disable halt condition */
+        if ((env1->interrupt_request & CPU_INTERRUPT_HARD) &&
+            (env1->eflags & IF_MASK)) {
+            env1->hflags &= ~HF_HALTED_MASK;
+        } else {
+            return EXCP_HALTED;
+        }
+    }
+#endif
+
     cpu_single_env = env1; 
 
     /* first we save global registers */
