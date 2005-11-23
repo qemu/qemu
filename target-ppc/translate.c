@@ -177,17 +177,16 @@ RET_EXCP((ctx), EXCP_PROGRAM, EXCP_INVAL | EXCP_PRIV_OPC)
 #define RET_PRIVREG(ctx)                                                      \
 RET_EXCP((ctx), EXCP_PROGRAM, EXCP_INVAL | EXCP_PRIV_REG)
 
-#define RET_MTMSR(ctx)                                                        \
-RET_EXCP((ctx), EXCP_MTMSR, 0)
-
+/* Stop translation */
 static inline void RET_STOP (DisasContext *ctx)
 {
-    RET_EXCP(ctx, EXCP_MTMSR, 0);
+    gen_op_update_nip((ctx)->nip);
+    ctx->exception = EXCP_MTMSR;
 }
 
+/* No need to update nip here, as execution flow will change */
 static inline void RET_CHG_FLOW (DisasContext *ctx)
 {
-    gen_op_raise_exception_err(EXCP_MTMSR, 0);
     ctx->exception = EXCP_MTMSR;
 }
 
@@ -2051,11 +2050,19 @@ static inline void gen_op_mfspr (DisasContext *ctx)
             gen_op_store_T0_gpr(rD(ctx->opcode));
         } else {
             /* Privilege exception */
+            if (loglevel) {
+                fprintf(logfile, "Trying to read priviledged spr %d %03x\n",
+                        sprn, sprn);
+            }
             printf("Trying to read priviledged spr %d %03x\n", sprn, sprn);
         RET_PRIVREG(ctx);
         }
     } else {
         /* Not defined */
+        if (loglevel) {
+            fprintf(logfile, "Trying to read invalid spr %d %03x\n",
+                    sprn, sprn);
+        }
         printf("Trying to read invalid spr %d %03x\n", sprn, sprn);
         RET_EXCP(ctx, EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_SPR);
     }
@@ -2093,7 +2100,7 @@ GEN_HANDLER(mtmsr, 0x1F, 0x12, 0x04, 0x001FF801, PPC_MISC)
     gen_op_load_gpr_T0(rS(ctx->opcode));
     gen_op_store_msr();
     /* Must stop the translation as machine state (may have) changed */
-    RET_MTMSR(ctx);
+    RET_STOP(ctx);
 #endif
 }
 
@@ -2115,11 +2122,19 @@ GEN_HANDLER(mtspr, 0x1F, 0x13, 0x0E, 0x00000001, PPC_MISC)
             (*write_cb)(ctx, sprn);
         } else {
             /* Privilege exception */
+            if (loglevel) {
+                fprintf(logfile, "Trying to write priviledged spr %d %03x\n",
+                        sprn, sprn);
+            }
             printf("Trying to write priviledged spr %d %03x\n", sprn, sprn);
         RET_PRIVREG(ctx);
     }
     } else {
         /* Not defined */
+        if (loglevel) {
+            fprintf(logfile, "Trying to write invalid spr %d %03x\n",
+                    sprn, sprn);
+        }
         printf("Trying to write invalid spr %d %03x\n", sprn, sprn);
         RET_EXCP(ctx, EXCP_PROGRAM, EXCP_INVAL | EXCP_INVAL_SPR);
     }
@@ -2278,7 +2293,7 @@ GEN_HANDLER(mtsr, 0x1F, 0x12, 0x06, 0x0010F801, PPC_SEGMENT)
     }
     gen_op_load_gpr_T0(rS(ctx->opcode));
     gen_op_store_sr(SR(ctx->opcode));
-    RET_MTMSR(ctx);
+    RET_STOP(ctx);
 #endif
 }
 
@@ -2295,7 +2310,7 @@ GEN_HANDLER(mtsrin, 0x1F, 0x12, 0x07, 0x001F0001, PPC_SEGMENT)
     gen_op_load_gpr_T0(rS(ctx->opcode));
     gen_op_load_gpr_T1(rB(ctx->opcode));
     gen_op_store_srin();
-    RET_MTMSR(ctx);
+    RET_STOP(ctx);
 #endif
 }
 
@@ -2314,7 +2329,7 @@ GEN_HANDLER(tlbia, 0x1F, 0x12, 0x0B, 0x03FFFC01, PPC_MEM_TLBIA)
         return;
     }
     gen_op_tlbia();
-    RET_MTMSR(ctx);
+    RET_STOP(ctx);
 #endif
 }
 
@@ -2330,7 +2345,7 @@ GEN_HANDLER(tlbie, 0x1F, 0x12, 0x09, 0x03FF0001, PPC_MEM)
     }
     gen_op_load_gpr_T0(rB(ctx->opcode));
     gen_op_tlbie();
-    RET_MTMSR(ctx);
+    RET_STOP(ctx);
 #endif
 }
 
@@ -2347,7 +2362,7 @@ GEN_HANDLER(tlbsync, 0x1F, 0x16, 0x11, 0x03FFF801, PPC_MEM)
     /* This has no effect: it should ensure that all previous
      * tlbie have completed
      */
-    RET_MTMSR(ctx);
+    RET_STOP(ctx);
 #endif
 }
 
