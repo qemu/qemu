@@ -3682,25 +3682,6 @@ void main_loop_wait(int timeout)
 
 static CPUState *cur_cpu;
 
-static CPUState *find_next_cpu(void)
-{
-    CPUState *env;
-    env = cur_cpu;
-    for(;;) {
-        /* get next cpu */
-        env = env->next_cpu;
-        if (!env)
-            env = first_cpu;
-        if (!env->cpu_halted) 
-            break;
-        /* all CPUs are halted ? */
-        if (env == cur_cpu)
-            return NULL;
-    }
-    cur_cpu = env;
-    return env;
-}
-
 int main_loop(void)
 {
     int ret, timeout;
@@ -3709,13 +3690,24 @@ int main_loop(void)
     cur_cpu = first_cpu;
     for(;;) {
         if (vm_running) {
-            /* find next cpu to run */
-            /* XXX: handle HLT correctly */
-            env = find_next_cpu();
-            if (!env)
-                ret = EXCP_HLT;
-            else
+
+            env = cur_cpu;
+            for(;;) {
+                /* get next cpu */
+                env = env->next_cpu;
+                if (!env)
+                    env = first_cpu;
                 ret = cpu_exec(env);
+                if (ret != EXCP_HALTED)
+                    break;
+                /* all CPUs are halted ? */
+                if (env == cur_cpu) {
+                    ret = EXCP_HLT;
+                    break;
+                }
+            }
+            cur_cpu = env;
+
             if (shutdown_requested) {
                 ret = EXCP_INTERRUPT;
                 break;
