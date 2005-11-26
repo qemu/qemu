@@ -928,6 +928,14 @@ void do_usb_add(const char *devname);
 void do_usb_del(const char *devname);
 void usb_info(void);
 
+/* ps2.c */
+void *ps2_kbd_init(void (*update_irq)(void *, int), void *update_arg);
+void *ps2_mouse_init(void (*update_irq)(void *, int), void *update_arg);
+void ps2_write_mouse(void *, int val);
+void ps2_write_keyboard(void *, int val);
+uint32_t ps2_read_data(void *);
+void ps2_queue(void *, int b);
+
 #endif /* defined(QEMU_TOOL) */
 
 /* monitor.c */
