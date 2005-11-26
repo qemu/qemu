@@ -28,7 +28,7 @@
 #include "exec-all.h"
 #include "disas.h"
 
-#define MIPS_DEBUG_DISAS
+//#define MIPS_DEBUG_DISAS
 //#define MIPS_SINGLE_STEP
 
 #ifdef USE_DIRECT_JUMP
@@ -1033,13 +1033,20 @@ static void gen_compute_branch (DisasContext *ctx, uint16_t opc,
         case OPC_BNE:     /* rx != rx        */
         case OPC_BGTZ:    /* 0 > 0           */
         case OPC_BLTZ:    /* 0 < 0           */
-        case OPC_BLTZAL:  /* 0 < 0           */
             /* Treated as NOP */
             MIPS_DEBUG("bnever (NOP)");
             return;
+        case OPC_BLTZAL:  /* 0 < 0           */
+            gen_op_set_T0(ctx->pc + 8);
+            gen_op_store_T0_gpr(31);
+            return;
+        case OPC_BLTZALL: /* 0 < 0 likely */
+            gen_op_set_T0(ctx->pc + 8);
+            gen_op_store_T0_gpr(31);
+            gen_goto_tb(ctx, 0, ctx->pc + 4);
+            return;
         case OPC_BNEL:    /* rx != rx likely */
         case OPC_BGTZL:   /* 0 > 0 likely */
-        case OPC_BLTZALL: /* 0 < 0 likely */
         case OPC_BLTZL:   /* 0 < 0 likely */
             /* Skip the instruction in the delay slot */
             MIPS_DEBUG("bnever and skip");
@@ -1282,11 +1289,12 @@ static void gen_arith64 (DisasContext *ctx, uint16_t opc)
 
 static void gen_blikely(DisasContext *ctx)
 {
-  int l1;
-  l1 = gen_new_label();
-  gen_op_jnz_T2(l1);
-  gen_op_save_state(ctx->hflags & ~(MIPS_HFLAG_BMASK | MIPS_HFLAG_DS));
-  gen_goto_tb(ctx, 1, ctx->pc + 4);
+    int l1;
+    l1 = gen_new_label();
+    gen_op_jnz_T2(l1);
+    gen_op_save_state(ctx->hflags & ~(MIPS_HFLAG_BMASK | MIPS_HFLAG_DS));
+    gen_goto_tb(ctx, 1, ctx->pc + 4);
+    gen_set_label(l1);
 }
 
 static void decode_opc (DisasContext *ctx)
@@ -1524,9 +1532,9 @@ static void decode_opc (DisasContext *ctx)
               int l1;
               l1 = gen_new_label();
               gen_op_jnz_T2(l1);
-              gen_goto_tb(ctx, 0, ctx->btarget);
-              gen_set_label(l1);
               gen_goto_tb(ctx, 1, ctx->pc + 4);
+              gen_set_label(l1);
+              gen_goto_tb(ctx, 0, ctx->btarget);
             }
             break;
         case MIPS_HFLAG_BR:
@@ -1722,5 +1730,8 @@ CPUMIPSState *cpu_mips_init (void)
     env->CP0_Debug = (1 << CP0DB_CNT) | (0x1 << CP0DB_VER);
     env->CP0_PRid = MIPS_CPU;
     env->exception_index = EXCP_NONE;
+#if defined(CONFIG_USER_ONLY)
+    env->hflags |= MIPS_HFLAG_UM;
+#endif
     return env;
 }
