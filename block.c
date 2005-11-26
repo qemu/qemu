@@ -444,6 +444,9 @@ int bdrv_write(BlockDriverState *bs, int64_t sector_num,
         return -1;
     if (bs->read_only)
         return -1;
+    if (sector_num == 0 && bs->boot_sector_enabled && nb_sectors > 0) {
+        memcpy(bs->boot_sector_data, buf, 512);   
+    }
     return bs->drv->bdrv_write(bs, sector_num, buf, nb_sectors);
 }
 
