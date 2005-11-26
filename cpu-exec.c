@@ -192,7 +192,7 @@ static inline TranslationBlock *tb_find_fast(void)
     pc = env->nip;
 #elif defined(TARGET_MIPS)
     flags = env->hflags & MIPS_HFLAGS_TMASK;
-    cs_base = NULL;
+    cs_base = 0;
     pc = env->PC;
 #else
 #error unsupported CPU
@@ -1056,7 +1056,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
     }
 
     /* see if it is an MMU fault */
-    ret = cpu_ppc_handle_mmu_fault(env, address, is_write, msr_pr, 0);
+    ret = cpu_mips_handle_mmu_fault(env, address, is_write, 1, 0);
     if (ret < 0)
         return 0; /* not an MMU fault */
     if (ret == 0)
