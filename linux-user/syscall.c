@@ -1497,6 +1497,8 @@ int do_fork(CPUState *env, unsigned int flags, unsigned long newsp)
         new_env->regs[0] = 0;
 #elif defined(TARGET_SPARC)
         printf ("HELPME: %s:%d\n", __FILE__, __LINE__);
+#elif defined(TARGET_MIPS)
+        printf ("HELPME: %s:%d\n", __FILE__, __LINE__);
 #elif defined(TARGET_PPC)
         if (!newsp)
             newsp = env->gpr[1];
@@ -2184,6 +2186,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             ret = get_errno(settimeofday(&tv, NULL));
         }
         break;
+#ifdef TARGET_NR_select
     case TARGET_NR_select:
         {
             struct target_sel_arg_struct *sel = (void *)arg1;
@@ -2196,6 +2199,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                             (void *)sel->exp, (void *)sel->tvp);
         }
         break;
+#endif
     case TARGET_NR_symlink:
         ret = get_errno(symlink((const char *)arg1, (const char *)arg2));
         break;
@@ -2802,9 +2806,11 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_putpmsg:
         goto unimplemented;
 #endif
+#ifdef TARGET_NR_vfork
     case TARGET_NR_vfork:
         ret = get_errno(do_fork(cpu_env, CLONE_VFORK | CLONE_VM | SIGCHLD, 0));
         break;
+#endif
 #ifdef TARGET_NR_ugetrlimit
     case TARGET_NR_ugetrlimit:
     {

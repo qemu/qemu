@@ -114,6 +114,37 @@ void do_msubu (void)
 }
 #endif
 
+#if defined(CONFIG_USER_ONLY) 
+void do_mfc0 (int reg, int sel)
+{
+    cpu_abort(env, "mfc0 reg=%d sel=%d\n", reg, sel);
+}
+void do_mtc0 (int reg, int sel)
+{
+    cpu_abort(env, "mtc0 reg=%d sel=%d\n", reg, sel);
+}
+
+void do_tlbwi (void)
+{
+    cpu_abort(env, "tlbwi\n");
+}
+
+void do_tlbwr (void)
+{
+    cpu_abort(env, "tlbwr\n");
+}
+
+void do_tlbp (void)
+{
+    cpu_abort(env, "tlbp\n");
+}
+
+void do_tlbr (void)
+{
+    cpu_abort(env, "tlbr\n");
+}
+#else
+
 /* CP0 helpers */
 void do_mfc0 (int reg, int sel)
 {
@@ -579,6 +610,8 @@ void do_tlbr (void)
         (tlb->PFN[1] >> 6);
 }
 #endif
+
+#endif /* !CONFIG_USER_ONLY */
 
 void op_dump_ldst (const unsigned char *func)
 {

@@ -247,6 +247,31 @@ static inline void init_thread(struct target_pt_regs *_regs, struct image_info *
 
 #endif
 
+#ifdef TARGET_MIPS
+
+#define ELF_START_MMAP 0x80000000
+
+#define elf_check_arch(x) ( (x) == EM_MIPS )
+
+#define ELF_CLASS   ELFCLASS32
+#ifdef TARGET_WORDS_BIGENDIAN
+#define ELF_DATA	ELFDATA2MSB
+#else
+#define ELF_DATA	ELFDATA2LSB
+#endif
+#define ELF_ARCH    EM_MIPS
+
+#define ELF_PLAT_INIT(_r) 
+
+static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
+{
+    regs->cp0_status = CP0St_UM;
+    regs->cp0_epc = infop->entry;
+    regs->regs[29] = infop->start_stack;
+}
+
+#endif /* TARGET_MIPS */
+
 #ifndef ELF_PLATFORM
 #define ELF_PLATFORM (NULL)
 #endif

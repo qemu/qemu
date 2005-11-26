@@ -57,7 +57,8 @@
 #define TARGET_IOC_WRITE  1U
 #define TARGET_IOC_READ	  2U
 
-#elif defined(TARGET_PPC) || defined(TARGET_ALPHA) || defined(TARGET_SPARC)
+#elif defined(TARGET_PPC) || defined(TARGET_ALPHA) || \
+      defined(TARGET_SPARC) || defined(TARGET_MIPS)
 
 #define TARGET_IOC_SIZEBITS	13
 #define TARGET_IOC_DIRBITS	3
@@ -292,9 +293,26 @@ struct target_sigaction;
 int do_sigaction(int sig, const struct target_sigaction *act,
                  struct target_sigaction *oact);
 
-#if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SPARC) || defined(TARGET_PPC)
+#if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SPARC) || defined(TARGET_PPC) || defined(TARGET_MIPS)
 
-#if !defined(TARGET_SPARC)
+#if defined(TARGET_SPARC)
+#define TARGET_SA_NOCLDSTOP    8u
+#define TARGET_SA_NOCLDWAIT    0x100u
+#define TARGET_SA_SIGINFO      0x200u
+#define TARGET_SA_ONSTACK      1u
+#define TARGET_SA_RESTART      2u
+#define TARGET_SA_NODEFER      0x20u
+#define TARGET_SA_RESETHAND    4u
+#elif defined(TARGET_MIPS)
+#define TARGET_SA_NOCLDSTOP	0x00000001
+#define TARGET_SA_NOCLDWAIT	0x00010000
+#define TARGET_SA_SIGINFO	0x00000008
+#define TARGET_SA_ONSTACK	0x08000000
+#define TARGET_SA_NODEFER	0x40000000
+#define TARGET_SA_RESTART	0x10000000
+#define TARGET_SA_RESETHAND	0x80000000
+#define TARGET_SA_RESTORER	0x04000000	/* Only for o32 */
+#else
 #define TARGET_SA_NOCLDSTOP	0x00000001
 #define TARGET_SA_NOCLDWAIT	0x00000002 /* not supported yet */
 #define TARGET_SA_SIGINFO	0x00000004
@@ -303,14 +321,6 @@ int do_sigaction(int sig, const struct target_sigaction *act,
 #define TARGET_SA_NODEFER	0x40000000
 #define TARGET_SA_RESETHAND	0x80000000
 #define TARGET_SA_RESTORER	0x04000000
-#else /* TARGET_SPARC */
-#define TARGET_SA_NOCLDSTOP    8u
-#define TARGET_SA_NOCLDWAIT    0x100u
-#define TARGET_SA_SIGINFO      0x200u
-#define TARGET_SA_ONSTACK      1u
-#define TARGET_SA_RESTART      2u
-#define TARGET_SA_NODEFER      0x20u
-#define TARGET_SA_RESETHAND    4u
 #endif
 
 #if defined(TARGET_SPARC)
@@ -352,6 +362,49 @@ int do_sigaction(int sig, const struct target_sigaction *act,
 #define TARGET_SIG_BLOCK          0x01 /* for blocking signals */
 #define TARGET_SIG_UNBLOCK        0x02 /* for unblocking signals */
 #define TARGET_SIG_SETMASK        0x04 /* for setting the signal mask */
+
+#elif defined(TARGET_MIPS)
+
+#define TARGET_SIGHUP		 1	/* Hangup (POSIX).  */
+#define TARGET_SIGINT		 2	/* Interrupt (ANSI).  */
+#define TARGET_SIGQUIT		 3	/* Quit (POSIX).  */
+#define TARGET_SIGILL		 4	/* Illegal instruction (ANSI).  */
+#define TARGET_SIGTRAP		 5	/* Trace trap (POSIX).  */
+#define TARGET_SIGIOT		 6	/* IOT trap (4.2 BSD).  */
+#define TARGET_SIGABRT		 TARGET_SIGIOT	/* Abort (ANSI).  */
+#define TARGET_SIGEMT		 7
+#define TARGET_SIGSTKFLT	 7 /* XXX: incorrect */
+#define TARGET_SIGFPE		 8	/* Floating-point exception (ANSI).  */
+#define TARGET_SIGKILL		 9	/* Kill, unblockable (POSIX).  */
+#define TARGET_SIGBUS		10	/* BUS error (4.2 BSD).  */
+#define TARGET_SIGSEGV		11	/* Segmentation violation (ANSI).  */
+#define TARGET_SIGSYS		12
+#define TARGET_SIGPIPE		13	/* Broken pipe (POSIX).  */
+#define TARGET_SIGALRM		14	/* Alarm clock (POSIX).  */
+#define TARGET_SIGTERM		15	/* Termination (ANSI).  */
+#define TARGET_SIGUSR1		16	/* User-defined signal 1 (POSIX).  */
+#define TARGET_SIGUSR2		17	/* User-defined signal 2 (POSIX).  */
+#define TARGET_SIGCHLD		18	/* Child status has changed (POSIX).  */
+#define TARGET_SIGCLD		TARGET_SIGCHLD	/* Same as TARGET_SIGCHLD (System V).  */
+#define TARGET_SIGPWR		19	/* Power failure restart (System V).  */
+#define TARGET_SIGWINCH	20	/* Window size change (4.3 BSD, Sun).  */
+#define TARGET_SIGURG		21	/* Urgent condition on socket (4.2 BSD).  */
+#define TARGET_SIGIO		22	/* I/O now possible (4.2 BSD).  */
+#define TARGET_SIGPOLL		TARGET_SIGIO	/* Pollable event occurred (System V).  */
+#define TARGET_SIGSTOP		23	/* Stop, unblockable (POSIX).  */
+#define TARGET_SIGTSTP		24	/* Keyboard stop (POSIX).  */
+#define TARGET_SIGCONT		25	/* Continue (POSIX).  */
+#define TARGET_SIGTTIN		26	/* Background read from tty (POSIX).  */
+#define TARGET_SIGTTOU		27	/* Background write to tty (POSIX).  */
+#define TARGET_SIGVTALRM	28	/* Virtual alarm clock (4.2 BSD).  */
+#define TARGET_SIGPROF		29	/* Profiling alarm clock (4.2 BSD).  */
+#define TARGET_SIGXCPU		30	/* CPU limit exceeded (4.2 BSD).  */
+#define TARGET_SIGXFSZ		31	/* File size limit exceeded (4.2 BSD).  */
+#define TARGET_SIGRTMIN         32
+
+#define TARGET_SIG_BLOCK	1	/* for blocking signals */
+#define TARGET_SIG_UNBLOCK	2	/* for unblocking signals */
+#define TARGET_SIG_SETMASK	3	/* for setting the signal mask */
 
 #else
 
@@ -794,13 +847,21 @@ struct target_winsize {
 #define TARGET_MAP_PRIVATE	0x02		/* Changes are private */
 #define TARGET_MAP_TYPE	0x0f		/* Mask for type of mapping */
 #define TARGET_MAP_FIXED	0x10		/* Interpret addr exactly */
+#if defined(TARGET_MIPS)
+#define TARGET_MAP_ANONYMOUS	0x0800		/* don't use a file */
+#define TARGET_MAP_GROWSDOWN	0x1000		/* stack-like segment */
+#define TARGET_MAP_DENYWRITE	0x2000		/* ETXTBSY */
+#define TARGET_MAP_EXECUTABLE	0x4000		/* mark it as an executable */
+#define TARGET_MAP_LOCKED	0x8000		/* pages are locked */
+#define TARGET_MAP_NORESERVE	0x0400		/* don't check for reservations */
+#else
 #define TARGET_MAP_ANONYMOUS	0x20		/* don't use a file */
-
 #define TARGET_MAP_GROWSDOWN	0x0100		/* stack-like segment */
 #define TARGET_MAP_DENYWRITE	0x0800		/* ETXTBSY */
 #define TARGET_MAP_EXECUTABLE	0x1000		/* mark it as an executable */
 #define TARGET_MAP_LOCKED	0x2000		/* pages are locked */
 #define TARGET_MAP_NORESERVE	0x4000		/* don't check for reservations */
+#endif
 
 #if defined(TARGET_I386) || defined(TARGET_ARM)
 struct target_stat {
@@ -967,7 +1028,79 @@ struct target_stat64 {
         target_ulong    __unused5;
 };
 
-#endif /* defined(TARGET_PPC) */
+#elif defined(TARGET_MIPS)
+
+struct target_stat {
+	unsigned	st_dev;
+	target_long	st_pad1[3];		/* Reserved for network id */
+	target_ulong	st_ino;
+	unsigned int	st_mode;
+	unsigned int	st_nlink;
+	int		st_uid;
+	int		st_gid;
+	unsigned 	st_rdev;
+	target_long	st_pad2[2];
+	target_long	st_size;
+	target_long	st_pad3;
+	/*
+	 * Actually this should be timestruc_t st_atime, st_mtime and st_ctime
+	 * but we don't have it under Linux.
+	 */
+	target_long		target_st_atime;
+	target_long		target_st_atime_nsec;
+	target_long		target_st_mtime;
+	target_long		target_st_mtime_nsec;
+	target_long		target_st_ctime;
+	target_long		target_st_ctime_nsec;
+	target_long		st_blksize;
+	target_long		st_blocks;
+	target_long		st_pad4[14];
+};
+
+/*
+ * This matches struct stat64 in glibc2.1, hence the absolutely insane
+ * amounts of padding around dev_t's.  The memory layout is the same as of
+ * struct stat of the 64-bit kernel.
+ */
+
+struct target_stat64 {
+	target_ulong	st_dev;
+	target_ulong	st_pad0[3];	/* Reserved for st_dev expansion  */
+
+	uint64_t	st_ino;
+
+        unsigned int	st_mode;
+        unsigned int	st_nlink;
+
+	int		st_uid;
+	int		st_gid;
+
+	target_ulong	st_rdev;
+	target_ulong	st_pad1[3];	/* Reserved for st_rdev expansion  */
+
+	int64_t 	st_size;
+
+	/*
+	 * Actually this should be timestruc_t st_atime, st_mtime and st_ctime
+	 * but we don't have it under Linux.
+	 */
+	target_long	target_st_atime;
+	target_ulong	target_st_atime_nsec;	/* Reserved for st_atime expansion  */
+
+	target_long	target_st_mtime;
+	target_ulong	target_st_mtime_nsec;	/* Reserved for st_mtime expansion  */
+
+	target_long	target_st_ctime;
+	target_ulong	target_st_ctime_nsec;	/* Reserved for st_ctime expansion  */
+
+	target_ulong	st_blksize;
+	target_ulong	st_pad2;
+
+	int64_t  	st_blocks;
+};
+#else
+#error unsupported CPU
+#endif
 
 #define TARGET_F_DUPFD         0       /* dup */
 #define TARGET_F_GETFD         1       /* get close_on_exec */
@@ -1007,7 +1140,7 @@ struct target_stat64 {
 #define TARGET_O_TRUNC           01000 /* not fcntl */
 #define TARGET_O_APPEND          02000
 #define TARGET_O_NONBLOCK        04000
-#define TARGET_O_NDELAY        O_NONBLOCK
+#define TARGET_O_NDELAY        TARGET_O_NONBLOCK
 #define TARGET_O_SYNC           010000
 #define TARGET_FASYNC           020000 /* fcntl, for BSD compatibility */
 #define TARGET_O_DIRECTORY      040000 /* must be a directory */
@@ -1025,7 +1158,7 @@ struct target_stat64 {
 #define TARGET_O_TRUNC           01000 /* not fcntl */
 #define TARGET_O_APPEND          02000
 #define TARGET_O_NONBLOCK        04000
-#define TARGET_O_NDELAY        O_NONBLOCK
+#define TARGET_O_NDELAY        TARGET_O_NONBLOCK
 #define TARGET_O_SYNC           010000
 #define TARGET_FASYNC           020000 /* fcntl, for BSD compatibility */
 #define TARGET_O_DIRECTORY      040000 /* must be a directory */
@@ -1044,12 +1177,31 @@ struct target_stat64 {
 #define TARGET_O_EXCL          0x0800  /* not fcntl */
 #define TARGET_O_SYNC          0x2000
 #define TARGET_O_NONBLOCK      0x4000
-#define TARGET_O_NDELAY        (0x0004 | O_NONBLOCK)
+#define TARGET_O_NDELAY        (0x0004 | TARGET_O_NONBLOCK)
 #define TARGET_O_NOCTTY        0x8000  /* not fcntl */
 #define TARGET_O_DIRECTORY     0x10000 /* must be a directory */
 #define TARGET_O_NOFOLLOW      0x20000 /* don't follow links */
 #define TARGET_O_LARGEFILE     0x40000
 #define TARGET_O_DIRECT        0x100000 /* direct disk access hint */
+#elif defined(TARGET_MIPS)
+#define TARGET_O_ACCMODE	0x0003
+#define TARGET_O_RDONLY	0x0000
+#define TARGET_O_WRONLY	0x0001
+#define TARGET_O_RDWR		0x0002
+#define TARGET_O_APPEND	0x0008
+#define TARGET_O_SYNC		0x0010
+#define TARGET_O_NONBLOCK	0x0080
+#define TARGET_O_CREAT         0x0100	/* not fcntl */
+#define TARGET_O_TRUNC		0x0200	/* not fcntl */
+#define TARGET_O_EXCL		0x0400	/* not fcntl */
+#define TARGET_O_NOCTTY	0x0800	/* not fcntl */
+#define TARGET_FASYNC		0x1000	/* fcntl, for BSD compatibility */
+#define TARGET_O_LARGEFILE	0x2000	/* allow large file opens */
+#define TARGET_O_DIRECT	0x8000	/* direct disk access hint */
+#define TARGET_O_DIRECTORY	0x10000	/* must be a directory */
+#define TARGET_O_NOFOLLOW	0x20000	/* don't follow links */
+#define TARGET_O_NOATIME	0x40000
+#define TARGET_O_NDELAY	TARGET_O_NONBLOCK
 #else
 #define TARGET_O_ACCMODE          0003
 #define TARGET_O_RDONLY             00
@@ -1061,7 +1213,7 @@ struct target_stat64 {
 #define TARGET_O_TRUNC           01000 /* not fcntl */
 #define TARGET_O_APPEND          02000
 #define TARGET_O_NONBLOCK        04000
-#define TARGET_O_NDELAY        O_NONBLOCK
+#define TARGET_O_NDELAY        TARGET_O_NONBLOCK
 #define TARGET_O_SYNC           010000
 #define TARGET_FASYNC           020000 /* fcntl, for BSD compatibility */
 #define TARGET_O_DIRECT         040000 /* direct disk access hint */
