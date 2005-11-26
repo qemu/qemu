@@ -2099,7 +2099,7 @@ static int net_tap_init(VLANState *vlan, const char *ifname1,
                 *parg++ = ifname;
                 *parg++ = NULL;
                 execv(setup_script, args);
-                exit(1);
+                _exit(1);
             }
             while (waitpid(pid, &status, 0) != pid);
             if (!WIFEXITED(status) ||
