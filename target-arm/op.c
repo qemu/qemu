@@ -878,6 +878,13 @@ void OPPROTO op_debug(void)
     cpu_loop_exit();
 }
 
+void OPPROTO op_wfi(void)
+{
+    env->exception_index = EXCP_HLT;
+    env->halted = 1;
+    cpu_loop_exit();
+}
+
 /* VFP support.  We follow the convention used for VFP instrunctions:
    Single precition routines have a "s" suffix, double precision a
    "d" suffix.  */

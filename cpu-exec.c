@@ -274,6 +274,17 @@ int cpu_exec(CPUState *env1)
             return EXCP_HALTED;
         }
     }
+#elif defined(TARGET_ARM)
+    if (env1->halted) {
+        /* An interrupt wakes the CPU even if the I and F CPSR bits are
+           set.  */
+        if (env1->interrupt_request
+            & (CPU_INTERRUPT_FIQ | CPU_INTERRUPT_HARD)) {
+            env1->halted = 0;
+        } else {
+            return EXCP_HALTED;
+        }
+    }
 #endif
 
     cpu_single_env = env1; 

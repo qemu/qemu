@@ -496,6 +496,15 @@ static int disas_cp15_insn(DisasContext *s, uint32_t insn)
     if (IS_USER(s)) {
         return 1;
     }
+    if ((insn & 0x0fff0fff) == 0x0e070f90
+        || (insn & 0x0fff0fff) == 0x0e070f58) {
+        /* Wait for interrupt.  */
+        gen_op_movl_T0_im((long)s->pc);
+        gen_op_movl_reg_TN[0][15]();
+        gen_op_wfi();
+        s->is_jmp = DISAS_JUMP;
+        return 0;
+    }
     rd = (insn >> 12) & 0xf;
     if (insn & (1 << 20)) {
         gen_op_movl_T0_cp15(insn);
