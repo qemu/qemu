@@ -32,6 +32,8 @@
 #define EXCP_SWI             2   /* software interrupt */
 #define EXCP_PREFETCH_ABORT  3
 #define EXCP_DATA_ABORT      4
+#define EXCP_IRQ             5
+#define EXCP_FIQ             6
 
 /* We currently assume float and double are IEEE single and double
    precision respectively.
@@ -42,8 +44,22 @@
  */
 
 typedef struct CPUARMState {
+    /* Regs for current mode.  */
     uint32_t regs[16];
-    uint32_t cpsr;
+    /* Frequently accessed CPSR bits are stored separately for efficiently.
+       This contains all the other bits.  Use cpsr_{read,write} to accless
+       the whole CPSR.  */
+    uint32_t uncached_cpsr;
+    uint32_t spsr;
+
+    /* Banked registers.  */
+    uint32_t banked_spsr[6];
+    uint32_t banked_r13[6];
+    uint32_t banked_r14[6];
+    
+    /* These hold r8-r12.  */
+    uint32_t usr_regs[5];
+    uint32_t fiq_regs[5];
     
     /* cpsr flag cache for faster execution */
     uint32_t CF; /* 0 or 1 */
@@ -53,8 +69,21 @@ typedef struct CPUARMState {
 
     int thumb; /* 0 = arm mode, 1 = thumb mode */
 
-    /* coprocessor 15 (MMU) status */
-    uint32_t cp15_6;
+    /* System control coprocessor (cp15) */
+    struct {
+        uint32_t c1_sys; /* System control register.  */
+        uint32_t c1_coproc; /* Coprocessor access register.  */
+        uint32_t c2; /* MMU translation table base.  */
+        uint32_t c3; /* MMU domain access control register.  */
+        uint32_t c5_insn; /* Fault status registers.  */
+        uint32_t c5_data;
+        uint32_t c6_insn; /* Fault address registers.  */
+        uint32_t c6_data;
+        uint32_t c9_insn; /* Cache lockdown registers.  */
+        uint32_t c9_data;
+        uint32_t c13_fcse; /* FCSE PID.  */
+        uint32_t c13_context; /* Context ID.  */
+    } cp15;
     
     /* exception/interrupt handling */
     jmp_buf jmp_env;
@@ -87,6 +116,9 @@ typedef struct CPUARMState {
 CPUARMState *cpu_arm_init(void);
 int cpu_arm_exec(CPUARMState *s);
 void cpu_arm_close(CPUARMState *s);
+void do_interrupt(CPUARMState *);
+void switch_mode(CPUARMState *, int);
+
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
    is returned if the signal was handled by the virtual CPU.  */
@@ -94,7 +126,69 @@ struct siginfo;
 int cpu_arm_signal_handler(int host_signum, struct siginfo *info, 
                            void *puc);
 
+#define CPSR_M (0x1f)
+#define CPSR_T (1 << 5)
+#define CPSR_F (1 << 6)
+#define CPSR_I (1 << 7)
+#define CPSR_A (1 << 8)
+#define CPSR_E (1 << 9)
+#define CPSR_IT_2_7 (0xfc00)
+/* Bits 20-23 reserved.  */
+#define CPSR_J (1 << 24)
+#define CPSR_IT_0_1 (3 << 25)
+#define CPSR_Q (1 << 27)
+#define CPSR_NZCV (0xf << 28)
+
+#define CACHED_CPSR_BITS (CPSR_T | CPSR_Q | CPSR_NZCV)
+/* Return the current CPSR value.  */
+static inline uint32_t cpsr_read(CPUARMState *env)
+{
+    int ZF;
+    ZF = (env->NZF == 0);
+    return env->uncached_cpsr | (env->NZF & 0x80000000) | (ZF << 30) | 
+        (env->CF << 29) | ((env->VF & 0x80000000) >> 3) | (env->QF << 27)
+        | (env->thumb << 5);
+}
+
+/* Set the CPSR.  Note that some bits of mask must be all-set or all-clear.  */
+static inline void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
+{
+    /* NOTE: N = 1 and Z = 1 cannot be stored currently */
+    if (mask & CPSR_NZCV) {
+        env->NZF = (val & 0xc0000000) ^ 0x40000000;
+        env->CF = (val >> 29) & 1;
+        env->VF = (val << 3) & 0x80000000;
+    }
+    if (mask & CPSR_Q)
+        env->QF = ((val & CPSR_Q) != 0);
+    if (mask & CPSR_T)
+        env->thumb = ((val & CPSR_T) != 0);
+
+    if ((env->uncached_cpsr ^ val) & mask & CPSR_M) {
+        switch_mode(env, val & CPSR_M);
+    }
+    mask &= ~CACHED_CPSR_BITS;
+    env->uncached_cpsr = (env->uncached_cpsr & ~mask) | (val & mask);
+}
+
+enum arm_cpu_mode {
+  ARM_CPU_MODE_USR = 0x10,
+  ARM_CPU_MODE_FIQ = 0x11,
+  ARM_CPU_MODE_IRQ = 0x12,
+  ARM_CPU_MODE_SVC = 0x13,
+  ARM_CPU_MODE_ABT = 0x17,
+  ARM_CPU_MODE_UND = 0x1b,
+  ARM_CPU_MODE_SYS = 0x1f
+};
+
+#if defined(CONFIG_USER_ONLY)
 #define TARGET_PAGE_BITS 12
+#else
+/* The ARM MMU allows 1k pages.  */
+/* ??? Linux doesn't actually use these, and they're deprecated in recent
+   architecture revisions.  Maybe an a configure option to disable them.  */
+#define TARGET_PAGE_BITS 10
+#endif
 #include "cpu-all.h"
 
 #endif

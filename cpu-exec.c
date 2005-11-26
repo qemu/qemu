@@ -172,7 +172,9 @@ static inline TranslationBlock *tb_find_fast(void)
     pc = cs_base + env->eip;
 #elif defined(TARGET_ARM)
     flags = env->thumb | (env->vfp.vec_len << 1)
-        | (env->vfp.vec_stride << 4);
+            | (env->vfp.vec_stride << 4);
+    if ((env->uncached_cpsr & CPSR_M) != ARM_CPU_MODE_USR)
+        flags |= (1 << 6);
     cs_base = 0;
     pc = env->regs[15];
 #elif defined(TARGET_SPARC)
@@ -322,15 +324,6 @@ int cpu_exec(CPUState *env1)
     CC_OP = CC_OP_EFLAGS;
     env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
 #elif defined(TARGET_ARM)
-    {
-        unsigned int psr;
-        psr = env->cpsr;
-        env->CF = (psr >> 29) & 1;
-        env->NZF = (psr & 0xc0000000) ^ 0x40000000;
-        env->VF = (psr << 3) & 0x80000000;
-        env->QF = (psr >> 27) & 1;
-        env->cpsr = psr & ~CACHED_CPSR_BITS;
-    }
 #elif defined(TARGET_SPARC)
 #if defined(reg_REGWPTR)
     saved_regwptr = REGWPTR;
@@ -379,6 +372,8 @@ int cpu_exec(CPUState *env1)
                     do_interrupt(env);
 #elif defined(TARGET_SPARC)
                     do_interrupt(env->exception_index);
+#elif defined(TARGET_ARM)
+                    do_interrupt(env);
 #endif
                 }
                 env->exception_index = -1;
@@ -508,8 +503,19 @@ int cpu_exec(CPUState *env1)
 			//do_interrupt(0, 0, 0, 0, 0);
 			env->interrupt_request &= ~CPU_INTERRUPT_TIMER;
 		    }
+#elif defined(TARGET_ARM)
+                    if (interrupt_request & CPU_INTERRUPT_FIQ
+                        && !(env->uncached_cpsr & CPSR_F)) {
+                        env->exception_index = EXCP_FIQ;
+                        do_interrupt(env);
+                    }
+                    if (interrupt_request & CPU_INTERRUPT_HARD
+                        && !(env->uncached_cpsr & CPSR_I)) {
+                        env->exception_index = EXCP_IRQ;
+                        do_interrupt(env);
+                    }
 #endif
-                    if (interrupt_request & CPU_INTERRUPT_EXITTB) {
+                    if (env->interrupt_request & CPU_INTERRUPT_EXITTB) {
                         env->interrupt_request &= ~CPU_INTERRUPT_EXITTB;
                         /* ensure that no TB jump will be modified as
                            the program flow was changed */
@@ -526,7 +532,7 @@ int cpu_exec(CPUState *env1)
                     }
                 }
 #ifdef DEBUG_EXEC
-                if ((loglevel & CPU_LOG_EXEC)) {
+                if ((loglevel & CPU_LOG_TB_CPU)) {
 #if defined(TARGET_I386)
                     /* restore flags in standard format */
 #ifdef reg_EAX
@@ -557,9 +563,7 @@ int cpu_exec(CPUState *env1)
                     cpu_dump_state(env, logfile, fprintf, X86_DUMP_CCOP);
                     env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
 #elif defined(TARGET_ARM)
-                    env->cpsr = compute_cpsr();
                     cpu_dump_state(env, logfile, fprintf, 0);
-                    env->cpsr &= ~CACHED_CPSR_BITS;
 #elif defined(TARGET_SPARC)
 		    REGWPTR = env->regbase + (env->cwp * 16);
 		    env->regwptr = REGWPTR;
@@ -760,7 +764,6 @@ int cpu_exec(CPUState *env1)
     EDI = saved_EDI;
 #endif
 #elif defined(TARGET_ARM)
-    env->cpsr = compute_cpsr();
     /* XXX: Save/restore host fpu exception state?.  */
 #elif defined(TARGET_SPARC)
 #if defined(reg_REGWPTR)

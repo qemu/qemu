@@ -211,7 +211,7 @@ LIBOBJS+= op_helper.o helper.o
 endif
 
 ifeq ($(TARGET_BASE_ARCH), arm)
-LIBOBJS+= op_helper.o
+LIBOBJS+= op_helper.o helper.o
 endif
 
 # NOTE: the disassembler code is only needed for debugging
@@ -323,6 +323,9 @@ else
 VL_OBJS+= sun4m.o tcx.o lance.o iommu.o m48t59.o magic-load.o slavio_intctl.o
 VL_OBJS+= slavio_timer.o slavio_serial.o slavio_misc.o fdc.o esp.o
 endif
+endif
+ifeq ($(TARGET_BASE_ARCH), arm)
+VL_OBJS+= integratorcp.o ps2.o
 endif
 ifdef CONFIG_GDBSTUB
 VL_OBJS+=gdbstub.o 

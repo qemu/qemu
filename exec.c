@@ -1868,14 +1868,14 @@ int cpu_register_io_memory(int io_index,
     int i;
 
     if (io_index <= 0) {
-        if (io_index >= IO_MEM_NB_ENTRIES)
+        if (io_mem_nb >= IO_MEM_NB_ENTRIES)
             return -1;
         io_index = io_mem_nb++;
     } else {
         if (io_index >= IO_MEM_NB_ENTRIES)
             return -1;
     }
-    
+
     for(i = 0;i < 3; i++) {
         io_mem_read[io_index][i] = mem_read[i];
         io_mem_write[io_index][i] = mem_write[i];

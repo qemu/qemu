@@ -3359,6 +3359,19 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     tlb_flush(env, 1);
     return 0;
 }
+
+#elif defined(TARGET_ARM)
+
+/* ??? Need to implement these.  */
+void cpu_save(QEMUFile *f, void *opaque)
+{
+}
+
+int cpu_load(QEMUFile *f, void *opaque, int version_id)
+{
+    return 0;
+}
+
 #else
 
 #warning No CPU save/restore functions
@@ -4054,6 +4067,10 @@ void register_machines(void)
 #else
     qemu_register_machine(&sun4m_machine);
 #endif
+#elif defined(TARGET_ARM)
+    qemu_register_machine(&integratorcp_machine);
+#else
+#error unsupported CPU
 #endif
 }
 

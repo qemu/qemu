@@ -331,6 +331,7 @@ void cpu_loop(CPUARMState *env)
     int trapnr;
     unsigned int n, insn;
     target_siginfo_t info;
+    uint32_t addr;
     
     for(;;) {
         trapnr = cpu_arm_exec(env);
@@ -397,13 +398,18 @@ void cpu_loop(CPUARMState *env)
             /* just indicate that signals should be handled asap */
             break;
         case EXCP_PREFETCH_ABORT:
+            addr = env->cp15.c6_data;
+            goto do_segv;
         case EXCP_DATA_ABORT:
+            addr = env->cp15.c6_insn;
+            goto do_segv;
+        do_segv:
             {
                 info.si_signo = SIGSEGV;
                 info.si_errno = 0;
                 /* XXX: check env->error_code */
                 info.si_code = TARGET_SEGV_MAPERR;
-                info._sifields._sigfault._addr = env->cp15_6;
+                info._sifields._sigfault._addr = addr;
                 queue_signal(info.si_signo, &info);
             }
             break;
@@ -1190,10 +1196,10 @@ int main(int argc, char **argv)
 #elif defined(TARGET_ARM)
     {
         int i;
+        cpsr_write(env, regs->uregs[16], 0xffffffff);
         for(i = 0; i < 16; i++) {
             env->regs[i] = regs->uregs[i];
         }
-        env->cpsr = regs->uregs[16];
         ts->stack_base = info->start_stack;
         ts->heap_base = info->brk;
         /* This will be filled in on the first SYS_HEAPINFO call.  */

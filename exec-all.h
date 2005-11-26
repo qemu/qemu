@@ -549,8 +549,10 @@ static inline target_ulong get_phys_addr_code(CPUState *env, target_ulong addr)
     is_user = ((env->hflags & MIPS_HFLAG_MODE) == MIPS_HFLAG_UM);
 #elif defined (TARGET_SPARC)
     is_user = (env->psrs == 0);
+#elif defined (TARGET_ARM)
+    is_user = ((env->uncached_cpsr & CPSR_M) == ARM_CPU_MODE_USR);
 #else
-#error "Unimplemented !"
+#error unimplemented CPU
 #endif
     if (__builtin_expect(env->tlb_read[is_user][index].address != 
                          (addr & TARGET_PAGE_MASK), 0)) {

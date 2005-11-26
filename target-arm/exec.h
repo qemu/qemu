@@ -34,16 +34,6 @@ register uint32_t T2 asm(AREG3);
 #include "cpu.h"
 #include "exec-all.h"
 
-/* Implemented CPSR bits.  */
-#define CACHED_CPSR_BITS 0xf8000000
-static inline int compute_cpsr(void)
-{
-    int ZF;
-    ZF = (env->NZF == 0);
-    return env->cpsr | (env->NZF & 0x80000000) | (ZF << 30) | 
-        (env->CF << 29) | ((env->VF & 0x80000000) >> 3) | (env->QF << 27);
-}
-
 static inline void env_to_regs(void)
 {
 }
@@ -55,10 +45,17 @@ static inline void regs_to_env(void)
 int cpu_arm_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                               int is_user, int is_softmmu);
 
+#if !defined(CONFIG_USER_ONLY)
+#include "softmmu_exec.h"
+#endif
+
 /* In op_helper.c */
 
 void cpu_lock(void);
 void cpu_unlock(void);
+void helper_set_cp15(CPUState *, uint32_t, uint32_t);
+uint32_t helper_get_cp15(CPUState *, uint32_t);
+
 void cpu_loop_exit(void);
 
 void raise_exception(int);

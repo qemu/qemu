@@ -59,6 +59,10 @@
 #define CPU_MEM_INDEX ((env->hflags & MIPS_HFLAG_MODE) == MIPS_HFLAG_UM)
 #elif defined (TARGET_SPARC)
 #define CPU_MEM_INDEX ((env->psrs) == 0)
+#elif defined (TARGET_ARM)
+#define CPU_MEM_INDEX ((env->uncached_cpsr & CPSR_M) == ARM_CPU_MODE_USR)
+#else
+#error unsupported CPU
 #endif
 #define MMUSUFFIX _mmu
 
@@ -72,6 +76,10 @@
 #define CPU_MEM_INDEX ((env->hflags & MIPS_HFLAG_MODE) == MIPS_HFLAG_UM)
 #elif defined (TARGET_SPARC)
 #define CPU_MEM_INDEX ((env->psrs) == 0)
+#elif defined (TARGET_ARM)
+#define CPU_MEM_INDEX ((env->uncached_cpsr & CPSR_M) == ARM_CPU_MODE_USR)
+#else
+#error unsupported CPU
 #endif
 #define MMUSUFFIX _cmmu
 

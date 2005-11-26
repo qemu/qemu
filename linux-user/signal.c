@@ -1003,7 +1003,7 @@ setup_sigcontext(struct target_sigcontext *sc, /*struct _fpstate *fpstate,*/
 	__put_user_error(env->regs[14], &sc->arm_lr, err);
 	__put_user_error(env->regs[15], &sc->arm_pc, err);
 #ifdef TARGET_CONFIG_CPU_32
-	__put_user_error(env->cpsr, &sc->arm_cpsr, err);
+	__put_user_error(cpsr_read(env), &sc->arm_cpsr, err);
 #endif
 
 	__put_user_error(/* current->thread.trap_no */ 0, &sc->trap_no, err);
@@ -1040,9 +1040,9 @@ setup_return(CPUState *env, struct emulated_sigaction *ka,
 	target_ulong retcode;
 	int thumb = 0;
 #if defined(TARGET_CONFIG_CPU_32)
+#if 0
 	target_ulong cpsr = env->cpsr;
 
-#if 0
 	/*
 	 * Maybe we need to deliver a 32-bit signal to a 26-bit task.
 	 */
@@ -1088,8 +1088,10 @@ setup_return(CPUState *env, struct emulated_sigaction *ka,
 	env->regs[14] = retcode;
 	env->regs[15] = handler & (thumb ? ~1 : ~3);
 
+#if 0
 #ifdef TARGET_CONFIG_CPU_32
 	env->cpsr = cpsr;
+#endif
 #endif
 
 	return 0;
@@ -1157,6 +1159,7 @@ static int
 restore_sigcontext(CPUState *env, struct target_sigcontext *sc)
 {
 	int err = 0;
+        uint32_t cpsr;
 
 	__get_user_error(env->regs[0], &sc->arm_r0, err);
 	__get_user_error(env->regs[1], &sc->arm_r1, err);
@@ -1175,7 +1178,8 @@ restore_sigcontext(CPUState *env, struct target_sigcontext *sc)
 	__get_user_error(env->regs[14], &sc->arm_lr, err);
 	__get_user_error(env->regs[15], &sc->arm_pc, err);
 #ifdef TARGET_CONFIG_CPU_32
-	__get_user_error(env->cpsr, &sc->arm_cpsr, err);
+	__get_user_error(cpsr, &sc->arm_cpsr, err);
+        cpsr_write(env, cpsr, 0xffffffff);
 #endif
 
 	err |= !valid_user_regs(env);

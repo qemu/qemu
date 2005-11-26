@@ -28,6 +28,12 @@
 #include "exec-all.h"
 #include "disas.h"
 
+#define ENABLE_ARCH_5J  0
+#define ENABLE_ARCH_6   1
+#define ENABLE_ARCH_6T2 1
+
+#define ARCH(x) if (!ENABLE_ARCH_##x) goto illegal_op;
+
 /* internal defines */
 typedef struct DisasContext {
     target_ulong pc;
@@ -39,7 +45,16 @@ typedef struct DisasContext {
     struct TranslationBlock *tb;
     int singlestep_enabled;
     int thumb;
+#if !defined(CONFIG_USER_ONLY)
+    int user;
+#endif
 } DisasContext;
+
+#if defined(CONFIG_USER_ONLY)
+#define IS_USER(s) 1
+#else
+#define IS_USER(s) (s->user)
+#endif
 
 #define DISAS_JUMP_NEXT 4
 
@@ -270,6 +285,18 @@ static inline void gen_bx(DisasContext *s)
   gen_op_bx_T0();
 }
 
+
+#if defined(CONFIG_USER_ONLY)
+#define gen_ldst(name, s) gen_op_##name##_raw()
+#else
+#define gen_ldst(name, s) do { \
+    if (IS_USER(s)) \
+        gen_op_##name##_user(); \
+    else \
+        gen_op_##name##_kernel(); \
+    } while (0)
+#endif
+
 static inline void gen_movl_TN_reg(DisasContext *s, int reg, int t)
 {
     int val;
@@ -317,6 +344,14 @@ static inline void gen_movl_reg_T0(DisasContext *s, int reg)
 static inline void gen_movl_reg_T1(DisasContext *s, int reg)
 {
     gen_movl_reg_TN(s, reg, 1);
+}
+
+/* Force a TB lookup after an instruction that changes the CPU state.  */
+static inline void gen_lookup_tb(DisasContext *s)
+{
+    gen_op_movl_T0_im(s->pc);
+    gen_movl_reg_T0(s, 15);
+    s->is_jmp = DISAS_UPDATE;
 }
 
 static inline void gen_add_data_offset(DisasContext *s, unsigned int insn)
@@ -395,10 +430,24 @@ VFP_OP(toui)
 VFP_OP(touiz)
 VFP_OP(tosi)
 VFP_OP(tosiz)
-VFP_OP(ld)
-VFP_OP(st)
 
 #undef VFP_OP
+
+static inline void gen_vfp_ld(DisasContext *s, int dp)
+{
+    if (dp)
+        gen_ldst(vfp_ldd, s);
+    else
+        gen_ldst(vfp_lds, s);
+}
+
+static inline void gen_vfp_st(DisasContext *s, int dp)
+{
+    if (dp)
+        gen_ldst(vfp_std, s);
+    else
+        gen_ldst(vfp_sts, s);
+}
 
 static inline long
 vfp_reg_offset (int dp, int reg)
@@ -435,6 +484,30 @@ static inline void gen_mov_vreg_F0(int dp, int reg)
         gen_op_vfp_setreg_F0d(vfp_reg_offset(dp, reg));
     else
         gen_op_vfp_setreg_F0s(vfp_reg_offset(dp, reg));
+}
+
+/* Disassemble system coprocessor (cp15) instruction.  Return nonzero if
+   instruction is not defined.  */
+static int disas_cp15_insn(DisasContext *s, uint32_t insn)
+{
+    uint32_t rd;
+
+    /* ??? Some cp15 registers are accessible from userspace.  */
+    if (IS_USER(s)) {
+        return 1;
+    }
+    rd = (insn >> 12) & 0xf;
+    if (insn & (1 << 20)) {
+        gen_op_movl_T0_cp15(insn);
+        /* If the destination register is r15 then sets condition codes.  */
+        if (rd != 15)
+            gen_movl_reg_T0(s, rd);
+    } else {
+        gen_movl_T0_reg(s, rd);
+        gen_op_movl_cp15_T0(insn);
+    }
+    gen_lookup_tb(s);
+    return 0;
 }
 
 /* Disassemble a VFP instruction.  Returns nonzero if an error occured
@@ -499,8 +572,8 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         gen_op_vfp_mrs();
                     }
                     if (rd == 15) {
-                        /* This will only set the 4 flag bits */
-                        gen_op_movl_psr_T0();
+                        /* Set the 4 flag bits in the CPSR.  */
+                        gen_op_movl_cpsr_T0(0xf0000000);
                     } else
                         gen_movl_reg_T0(s, rd);
                 } else {
@@ -516,9 +589,7 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                             gen_op_vfp_movl_fpscr_T0();
                             /* This could change vector settings, so jump to
                                the next instuction.  */
-                            gen_op_movl_T0_im(s->pc);
-                            gen_movl_reg_T0(s, 15);
-                            s->is_jmp = DISAS_UPDATE;
+                            gen_lookup_tb(s);
                             break;
                         default:
                             return 1;
@@ -848,11 +919,11 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     offset = -offset;
                 gen_op_addl_T1_im(offset);
                 if (insn & (1 << 20)) {
-                    gen_vfp_ld(dp);
+                    gen_vfp_ld(s, dp);
                     gen_mov_vreg_F0(dp, rd);
                 } else {
                     gen_mov_F0_vreg(dp, rd);
-                    gen_vfp_st(dp);
+                    gen_vfp_st(s, dp);
                 }
             } else {
                 /* load/store multiple */
@@ -871,12 +942,12 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 for (i = 0; i < n; i++) {
                     if (insn & (1 << 20)) {
                         /* load */
-                        gen_vfp_ld(dp);
+                        gen_vfp_ld(s, dp);
                         gen_mov_vreg_F0(dp, rd + i);
                     } else {
                         /* store */
                         gen_mov_F0_vreg(dp, rd + i);
-                        gen_vfp_st(dp);
+                        gen_vfp_st(s, dp);
                     }
                     gen_op_addl_T1_im(offset);
                 }
@@ -939,11 +1010,68 @@ static inline void gen_jmp (DisasContext *s, uint32_t dest)
     }
 }
 
+static inline void gen_mulxy(int x, int y)
+{
+    if (x & 2)
+        gen_op_sarl_T0_im(16);
+    else
+        gen_op_sxth_T0();
+    if (y & 1)
+        gen_op_sarl_T1_im(16);
+    else
+        gen_op_sxth_T1();
+    gen_op_mul_T0_T1();
+}
+
+/* Return the mask of PSR bits set by a MSR instruction.  */
+static uint32_t msr_mask(DisasContext *s, int flags) {
+    uint32_t mask;
+
+    mask = 0;
+    if (flags & (1 << 0))
+        mask |= 0xff;
+    if (flags & (1 << 1))
+        mask |= 0xff00;
+    if (flags & (1 << 2))
+        mask |= 0xff0000;
+    if (flags & (1 << 3))
+        mask |= 0xff000000;
+    /* Mask out undefined bits and state bits.  */
+    mask &= 0xf89f03df;
+    /* Mask out privileged bits.  */
+    if (IS_USER(s))
+        mask &= 0xf80f0200;
+    return mask;
+}
+
+/* Returns nonzero if access to the PSR is not permitted.  */
+static int gen_set_psr_T0(DisasContext *s, uint32_t mask, int spsr)
+{
+    if (spsr) {
+        /* ??? This is also undefined in system mode.  */
+        if (IS_USER(s))
+            return 1;
+        gen_op_movl_spsr_T0(mask);
+    } else {
+        gen_op_movl_cpsr_T0(mask);
+    }
+    gen_lookup_tb(s);
+    return 0;
+}
+
+static void gen_exception_return(DisasContext *s)
+{
+    gen_op_movl_reg_TN[0][15]();
+    gen_op_movl_T0_spsr();
+    gen_op_movl_cpsr_T0(0xffffffff);
+    s->is_jmp = DISAS_UPDATE;
+}
+
 static void disas_arm_insn(CPUState * env, DisasContext *s)
 {
     unsigned int cond, insn, val, op1, i, shift, rm, rs, rn, rd, sh;
     
-    insn = ldl(s->pc);
+    insn = ldl_code(s->pc);
     s->pc += 4;
     
     cond = insn >> 28;
@@ -971,6 +1099,15 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             /* Coprocessor double register transfer.  */
         } else if ((insn & 0x0f000010) == 0x0e000010) {
             /* Additional coprocessor register transfer.  */
+        } else if ((insn & 0x0ff10010) == 0x01000000) {
+            /* cps (privileged) */
+        } else if ((insn & 0x0ffffdff) == 0x01010000) {
+            /* setend */
+            if (insn & (1 << 9)) {
+                /* BE8 mode not implemented.  */
+                goto illegal_op;
+            }
+            return;
         }
         goto illegal_op;
     }
@@ -984,7 +1121,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
         //s->is_jmp = DISAS_JUMP_NEXT;
     }
     if ((insn & 0x0f900000) == 0x03000000) {
-        if ((insn & 0x0ff0f000) != 0x0360f000)
+        if ((insn & 0x0fb0f000) != 0x0320f000)
             goto illegal_op;
         /* CPSR = immediate */
         val = insn & 0xff;
@@ -992,8 +1129,9 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
         if (shift)
             val = (val >> shift) | (val << (32 - shift));
         gen_op_movl_T0_im(val);
-        if (insn & (1 << 19))
-            gen_op_movl_psr_T0();
+        if (gen_set_psr_T0(s, msr_mask(s, (insn >> 16) & 0xf),
+                           (insn & (1 << 22)) != 0))
+            goto illegal_op;
     } else if ((insn & 0x0f900000) == 0x01000000
                && (insn & 0x00000090) != 0x00000090) {
         /* miscellaneous instructions */
@@ -1002,19 +1140,22 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
         rm = insn & 0xf;
         switch (sh) {
         case 0x0: /* move program status register */
-            if (op1 & 2) {
-                /* SPSR not accessible in user mode */
-                goto illegal_op;
-            }
             if (op1 & 1) {
-                /* CPSR = reg */
+                /* PSR = reg */
                 gen_movl_T0_reg(s, rm);
-                if (insn & (1 << 19))
-                    gen_op_movl_psr_T0();
+                if (gen_set_psr_T0(s, msr_mask(s, (insn >> 16) & 0xf),
+                                   (op1 & 2) != 0))
+                    goto illegal_op;
             } else {
                 /* reg = CPSR */
                 rd = (insn >> 12) & 0xf;
-                gen_op_movl_T0_psr();
+                if (op1 & 2) {
+                    if (IS_USER(s))
+                        goto illegal_op;
+                    gen_op_movl_T0_spsr();
+                } else {
+                    gen_op_movl_T0_cpsr();
+                }
                 gen_movl_reg_T0(s, rd);
             }
             break;
@@ -1029,6 +1170,16 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                 gen_movl_T0_reg(s, rm);
                 gen_op_clz_T0();
                 gen_movl_reg_T0(s, rd);
+            } else {
+                goto illegal_op;
+            }
+            break;
+        case 0x2:
+            if (op1 == 1) {
+                ARCH(5J); /* bxj */
+                /* Trivial implementation equivalent to bx.  */
+                gen_movl_T0_reg(s, rm);
+                gen_bx(s);
             } else {
                 goto illegal_op;
             }
@@ -1071,7 +1222,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                 if (sh & 4)
                     gen_op_sarl_T1_im(16);
                 else
-                    gen_op_sxl_T1();
+                    gen_op_sxth_T1();
                 gen_op_imulw_T0_T1();
                 if ((sh & 2) == 0) {
                     gen_movl_T1_reg(s, rn);
@@ -1081,22 +1232,14 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             } else {
                 /* 16 * 16 */
                 gen_movl_T0_reg(s, rm);
-                if (sh & 2)
-                    gen_op_sarl_T0_im(16);
-                else
-                    gen_op_sxl_T0();
                 gen_movl_T1_reg(s, rs);
-                if (sh & 4)
-                    gen_op_sarl_T1_im(16);
-                else
-                    gen_op_sxl_T1();
+                gen_mulxy(sh & 2, sh & 4);
                 if (op1 == 2) {
-                    gen_op_imull_T0_T1();
+                    gen_op_signbit_T1_T0();
                     gen_op_addq_T0_T1(rn, rd);
                     gen_movl_reg_T0(s, rn);
                     gen_movl_reg_T1(s, rd);
                 } else {
-                    gen_op_mul_T0_T1();
                     if (op1 == 0) {
                         gen_movl_T1_reg(s, rn);
                         gen_op_addl_T0_T1_setq();
@@ -1176,11 +1319,19 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                 gen_op_logic_T0_cc();
             break;
         case 0x02:
-            if (set_cc)
+            if (set_cc && rd == 15) {
+                /* SUBS r15, ... is used for exception return.  */
+                if (IS_USER(s))
+                    goto illegal_op;
                 gen_op_subl_T0_T1_cc();
-            else
-                gen_op_subl_T0_T1();
-            gen_movl_reg_T0(s, rd);
+                gen_exception_return(s);
+            } else {
+                if (set_cc)
+                    gen_op_subl_T0_T1_cc();
+                else
+                    gen_op_subl_T0_T1();
+                gen_movl_reg_T0(s, rd);
+            }
             break;
         case 0x03:
             if (set_cc)
@@ -1246,9 +1397,17 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                 gen_op_logic_T0_cc();
             break;
         case 0x0d:
-            gen_movl_reg_T1(s, rd);
-            if (logic_cc)
-                gen_op_logic_T1_cc();
+            if (logic_cc && rd == 15) {
+                /* MOVS r15, ... is used for exception return.  */
+                if (IS_USER(s))
+                    goto illegal_op;
+                gen_op_movl_T0_T1();
+                gen_exception_return(s);
+            } else {
+                gen_movl_reg_T1(s, rd);
+                if (logic_cc)
+                    gen_op_logic_T1_cc();
+            }
             break;
         case 0x0e:
             gen_op_bicl_T0_T1();
@@ -1301,6 +1460,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                         if (insn & (1 << 21)) /* mult accumulate */
                             gen_op_addq_T0_T1(rn, rd);
                         if (!(insn & (1 << 23))) { /* double accumulate */
+                            ARCH(6);
                             gen_op_addq_lo_T0_T1(rn);
                             gen_op_addq_lo_T0_T1(rd);
                         }
@@ -1322,9 +1482,9 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                         gen_movl_T0_reg(s, rm);
                         gen_movl_T1_reg(s, rn);
                         if (insn & (1 << 22)) {
-                            gen_op_swpb_T0_T1();
+                            gen_ldst(swpb, s);
                         } else {
-                            gen_op_swpl_T0_T1();
+                            gen_ldst(swpl, s);
                         }
                         gen_movl_reg_T0(s, rd);
                     }
@@ -1340,14 +1500,14 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                     /* load */
                     switch(sh) {
                     case 1:
-                        gen_op_lduw_T0_T1();
+                        gen_ldst(lduw, s);
                         break;
                     case 2:
-                        gen_op_ldsb_T0_T1();
+                        gen_ldst(ldsb, s);
                         break;
                     default:
                     case 3:
-                        gen_op_ldsw_T0_T1();
+                        gen_ldst(ldsw, s);
                         break;
                     }
                     gen_movl_reg_T0(s, rd);
@@ -1356,18 +1516,18 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                     if (sh & 1) {
                         /* store */
                         gen_movl_T0_reg(s, rd);
-                        gen_op_stl_T0_T1();
+                        gen_ldst(stl, s);
                         gen_op_addl_T1_im(4);
                         gen_movl_T0_reg(s, rd + 1);
-                        gen_op_stl_T0_T1();
+                        gen_ldst(stl, s);
                         if ((insn & (1 << 24)) || (insn & (1 << 20)))
                             gen_op_addl_T1_im(-4);
                     } else {
                         /* load */
-                        gen_op_ldl_T0_T1();
+                        gen_ldst(ldl, s);
                         gen_movl_reg_T0(s, rd);
                         gen_op_addl_T1_im(4);
-                        gen_op_ldl_T0_T1();
+                        gen_ldst(ldl, s);
                         gen_movl_reg_T0(s, rd + 1);
                         if ((insn & (1 << 24)) || (insn & (1 << 20)))
                             gen_op_addl_T1_im(-4);
@@ -1375,7 +1535,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                 } else {
                     /* store */
                     gen_movl_T0_reg(s, rd);
-                    gen_op_stw_T0_T1();
+                    gen_ldst(stw, s);
                 }
                 if (!(insn & (1 << 24))) {
                     gen_add_datah_offset(s, insn);
@@ -1393,14 +1553,29 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             rn = (insn >> 16) & 0xf;
             rd = (insn >> 12) & 0xf;
             gen_movl_T1_reg(s, rn);
+            i = (IS_USER(s) || (insn & 0x01200000) == 0x00200000);
             if (insn & (1 << 24))
                 gen_add_data_offset(s, insn);
             if (insn & (1 << 20)) {
                 /* load */
+#if defined(CONFIG_USER_ONLY)
                 if (insn & (1 << 22))
-                    gen_op_ldub_T0_T1();
+                    gen_op_ldub_raw();
                 else
-                    gen_op_ldl_T0_T1();
+                    gen_op_ldl_raw();
+#else
+                if (insn & (1 << 22)) {
+                    if (i)
+                        gen_op_ldub_user();
+                    else
+                        gen_op_ldub_kernel();
+                } else {
+                    if (i)
+                        gen_op_ldl_user();
+                    else
+                        gen_op_ldl_kernel();
+                }
+#endif
                 if (rd == 15)
                     gen_bx(s);
                 else
@@ -1408,10 +1583,24 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             } else {
                 /* store */
                 gen_movl_T0_reg(s, rd);
+#if defined(CONFIG_USER_ONLY)
                 if (insn & (1 << 22))
-                    gen_op_stb_T0_T1();
+                    gen_op_stb_raw();
                 else
-                    gen_op_stl_T0_T1();
+                    gen_op_stl_raw();
+#else
+                if (insn & (1 << 22)) {
+                    if (i)
+                        gen_op_stb_user();
+                    else
+                        gen_op_stb_kernel();
+                } else {
+                    if (i)
+                        gen_op_stl_user();
+                    else
+                        gen_op_stl_kernel();
+                }
+#endif
             }
             if (!(insn & (1 << 24))) {
                 gen_add_data_offset(s, insn);
@@ -1423,11 +1612,17 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
         case 0x08:
         case 0x09:
             {
-                int j, n;
+                int j, n, user;
                 /* load/store multiple words */
                 /* XXX: store correct base if write back */
-                if (insn & (1 << 22))
-                    goto illegal_op; /* only usable in supervisor mode */
+                user = 0;
+                if (insn & (1 << 22)) {
+                    if (IS_USER(s))
+                        goto illegal_op; /* only usable in supervisor mode */
+
+                    if ((insn & (1 << 15)) == 0)
+                        user = 1;
+                }
                 rn = (insn >> 16) & 0xf;
                 gen_movl_T1_reg(s, rn);
                 
@@ -1460,21 +1655,26 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                     if (insn & (1 << i)) {
                         if (insn & (1 << 20)) {
                             /* load */
-                            gen_op_ldl_T0_T1();
-                            if (i == 15)
+                            gen_ldst(ldl, s);
+                            if (i == 15) {
                                 gen_bx(s);
-                            else
+                            } else if (user) {
+                                gen_op_movl_user_T0(i);
+                            } else {
                                 gen_movl_reg_T0(s, i);
+                            }
                         } else {
                             /* store */
                             if (i == 15) {
                                 /* special case: r15 = PC + 12 */
                                 val = (long)s->pc + 8;
                                 gen_op_movl_TN_im[0](val);
+                            } else if (user) {
+                                gen_op_movl_T0_user(i);
                             } else {
                                 gen_movl_T0_reg(s, i);
                             }
-                            gen_op_stl_T0_T1();
+                            gen_ldst(stl, s);
                         }
                         j++;
                         /* no need to add after the last transfer */
@@ -1503,6 +1703,12 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                     }
                     gen_movl_reg_T1(s, rn);
                 }
+                if ((insn & (1 << 22)) && !user) {
+                    /* Restore CPSR from SPSR.  */
+                    gen_op_movl_T0_spsr();
+                    gen_op_movl_cpsr_T0(0xffffffff);
+                    s->is_jmp = DISAS_UPDATE;
+                }
             }
             break;
         case 0xa:
@@ -1530,6 +1736,10 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             case 10:
             case 11:
                 if (disas_vfp_insn (env, s, insn))
+                    goto illegal_op;
+                break;
+            case 15:
+                if (disas_cp15_insn (s, insn))
                     goto illegal_op;
                 break;
             default:
@@ -1561,9 +1771,9 @@ static void disas_thumb_insn(DisasContext *s)
     int32_t offset;
     int i;
 
-    insn = lduw(s->pc);
+    insn = lduw_code(s->pc);
     s->pc += 2;
-    
+
     switch (insn >> 12) {
     case 0: case 1:
         rd = insn & 7;
@@ -1628,7 +1838,7 @@ static void disas_thumb_insn(DisasContext *s)
             val = s->pc + 2 + ((insn & 0xff) * 4);
             val &= ~(uint32_t)2;
             gen_op_movl_T1_im(val);
-            gen_op_ldl_T0_T1();
+            gen_ldst(ldl, s);
             gen_movl_reg_T0(s, rd);
             break;
         }
@@ -1771,28 +1981,28 @@ static void disas_thumb_insn(DisasContext *s)
 
         switch (op) {
         case 0: /* str */
-            gen_op_stl_T0_T1();
+            gen_ldst(stl, s);
             break;
         case 1: /* strh */
-            gen_op_stw_T0_T1();
+            gen_ldst(stw, s);
             break;
         case 2: /* strb */
-            gen_op_stb_T0_T1();
+            gen_ldst(stb, s);
             break;
         case 3: /* ldrsb */
-            gen_op_ldsb_T0_T1();
+            gen_ldst(ldsb, s);
             break;
         case 4: /* ldr */
-            gen_op_ldl_T0_T1();
+            gen_ldst(ldl, s);
             break;
         case 5: /* ldrh */
-            gen_op_lduw_T0_T1();
+            gen_ldst(lduw, s);
             break;
         case 6: /* ldrb */
-            gen_op_ldub_T0_T1();
+            gen_ldst(ldub, s);
             break;
         case 7: /* ldrsh */
-            gen_op_ldsw_T0_T1();
+            gen_ldst(ldsw, s);
             break;
         }
         if (op >= 3) /* load */
@@ -1810,12 +2020,12 @@ static void disas_thumb_insn(DisasContext *s)
 
         if (insn & (1 << 11)) {
             /* load */
-            gen_op_ldl_T0_T1();
+            gen_ldst(ldl, s);
             gen_movl_reg_T0(s, rd);
         } else {
             /* store */
             gen_movl_T0_reg(s, rd);
-            gen_op_stl_T0_T1();
+            gen_ldst(stl, s);
         }
         break;
 
@@ -1830,12 +2040,12 @@ static void disas_thumb_insn(DisasContext *s)
 
         if (insn & (1 << 11)) {
             /* load */
-            gen_op_ldub_T0_T1();
+            gen_ldst(ldub, s);
             gen_movl_reg_T0(s, rd);
         } else {
             /* store */
             gen_movl_T0_reg(s, rd);
-            gen_op_stb_T0_T1();
+            gen_ldst(stb, s);
         }
         break;
 
@@ -1850,12 +2060,12 @@ static void disas_thumb_insn(DisasContext *s)
 
         if (insn & (1 << 11)) {
             /* load */
-            gen_op_lduw_T0_T1();
+            gen_ldst(lduw, s);
             gen_movl_reg_T0(s, rd);
         } else {
             /* store */
             gen_movl_T0_reg(s, rd);
-            gen_op_stw_T0_T1();
+            gen_ldst(stw, s);
         }
         break;
 
@@ -1869,12 +2079,12 @@ static void disas_thumb_insn(DisasContext *s)
 
         if (insn & (1 << 11)) {
             /* load */
-            gen_op_ldl_T0_T1();
+            gen_ldst(ldl, s);
             gen_movl_reg_T0(s, rd);
         } else {
             /* store */
             gen_movl_T0_reg(s, rd);
-            gen_op_stl_T0_T1();
+            gen_ldst(stl, s);
         }
         break;
 
@@ -1929,12 +2139,12 @@ static void disas_thumb_insn(DisasContext *s)
                 if (insn & (1 << i)) {
                     if (insn & (1 << 11)) {
                         /* pop */
-                        gen_op_ldl_T0_T1();
+                        gen_ldst(ldl, s);
                         gen_movl_reg_T0(s, i);
                     } else {
                         /* push */
                         gen_movl_T0_reg(s, i);
-                        gen_op_stl_T0_T1();
+                        gen_ldst(stl, s);
                     }
                     /* advance to the next address.  */
                     gen_op_addl_T1_T2();
@@ -1943,13 +2153,13 @@ static void disas_thumb_insn(DisasContext *s)
             if (insn & (1 << 8)) {
                 if (insn & (1 << 11)) {
                     /* pop pc */
-                    gen_op_ldl_T0_T1();
+                    gen_ldst(ldl, s);
                     /* don't set the pc until the rest of the instruction
                        has completed */
                 } else {
                     /* push lr */
                     gen_movl_T0_reg(s, 14);
-                    gen_op_stl_T0_T1();
+                    gen_ldst(stl, s);
                 }
                 gen_op_addl_T1_T2();
             }
@@ -1978,19 +2188,20 @@ static void disas_thumb_insn(DisasContext *s)
             if (insn & (1 << i)) {
                 if (insn & (1 << 11)) {
                     /* load */
-                    gen_op_ldl_T0_T1();
+                    gen_ldst(ldl, s);
                     gen_movl_reg_T0(s, i);
                 } else {
                     /* store */
                     gen_movl_T0_reg(s, i);
-                    gen_op_stl_T0_T1();
+                    gen_ldst(stl, s);
                 }
                 /* advance to the next address */
                 gen_op_addl_T1_T2();
             }
         }
         /* Base register writeback.  */
-        gen_movl_reg_T1(s, rn);
+        if ((insn & (1 << rn)) == 0)
+            gen_movl_reg_T1(s, rn);
         break;
 
     case 13:
@@ -2036,7 +2247,7 @@ static void disas_thumb_insn(DisasContext *s)
     case 15:
         /* branch and link [and switch to arm] */
         offset = ((int32_t)insn << 21) >> 10;
-        insn = lduw(s->pc);
+        insn = lduw_code(s->pc);
         offset |= insn & 0x7ff;
 
         val = (uint32_t)s->pc + 2;
@@ -2073,6 +2284,7 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     uint16_t *gen_opc_end;
     int j, lj;
     target_ulong pc_start;
+    uint32_t next_page_start;
     
     /* generate intermediate code */
     pc_start = tb->pc;
@@ -2088,6 +2300,10 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     dc->singlestep_enabled = env->singlestep_enabled;
     dc->condjmp = 0;
     dc->thumb = env->thumb;
+#if !defined(CONFIG_USER_ONLY)
+    dc->user = (env->uncached_cpsr & 0x1f) == ARM_CPU_MODE_USR;
+#endif
+    next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
     nb_gen_labels = 0;
     lj = -1;
     do {
@@ -2124,12 +2340,13 @@ static inline int gen_intermediate_code_internal(CPUState *env,
         }
         /* Translation stops when a conditional branch is enoutered.
          * Otherwise the subsequent code could get translated several times.
-         */
+         * Also stop translation when a page boundary is reached.  This
+         * ensures prefech aborts occur at the right place.  */
     } while (!dc->is_jmp && gen_opc_ptr < gen_opc_end &&
              !env->singlestep_enabled &&
-             (dc->pc - pc_start) < (TARGET_PAGE_SIZE - 32));
-    /* It this stage dc->condjmp will only be set when the skipped
-     * instruction was a conditional branch, and teh PC has already been
+             dc->pc < next_page_start);
+    /* At this stage dc->condjmp will only be set when the skipped
+     * instruction was a conditional branch, and the PC has already been
      * written.  */
     if (__builtin_expect(env->singlestep_enabled, 0)) {
         /* Make sure the pc is updated, and raise a debug exception.  */
@@ -2180,8 +2397,15 @@ static inline int gen_intermediate_code_internal(CPUState *env,
         }
     }
 #endif
-    if (!search_pc)
+    if (search_pc) {
+        j = gen_opc_ptr - gen_opc_buf;
+        lj++;
+        while (lj <= j)
+            gen_opc_instr_start[lj++] = 0;
+        tb->size = 0;
+    } else {
         tb->size = dc->pc - pc_start;
+    }
     return 0;
 }
 
@@ -2195,6 +2419,17 @@ int gen_intermediate_code_pc(CPUState *env, TranslationBlock *tb)
     return gen_intermediate_code_internal(env, tb, 1);
 }
 
+void cpu_reset(CPUARMState *env)
+{
+#if defined (CONFIG_USER_ONLY)
+    /* SVC mode with interrupts disabled.  */
+    env->uncached_cpsr = ARM_CPU_MODE_SVC | CPSR_A | CPSR_F | CPSR_I;
+#else
+    env->uncached_cpsr = ARM_CPU_MODE_USR;
+#endif
+    env->regs[15] = 0;
+}
+
 CPUARMState *cpu_arm_init(void)
 {
     CPUARMState *env;
@@ -2203,6 +2438,8 @@ CPUARMState *cpu_arm_init(void)
     if (!env)
         return NULL;
     cpu_exec_init(env);
+    cpu_reset(env);
+    tlb_flush(env, 1);
     return env;
 }
 
@@ -2211,6 +2448,10 @@ void cpu_arm_close(CPUARMState *env)
     free(env);
 }
 
+static const char *cpu_mode_names[16] = {
+  "usr", "fiq", "irq", "svc", "???", "???", "???", "abt",
+  "???", "???", "???", "und", "???", "???", "???", "sys"
+};
 void cpu_dump_state(CPUState *env, FILE *f, 
                     int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
                     int flags)
@@ -2221,6 +2462,7 @@ void cpu_dump_state(CPUState *env, FILE *f,
         float s;
     } s0, s1;
     CPU_DoubleU d;
+    uint32_t psr;
 
     for(i=0;i<16;i++) {
         cpu_fprintf(f, "R%02d=%08x", i, env->regs[i]);
@@ -2229,13 +2471,15 @@ void cpu_dump_state(CPUState *env, FILE *f,
         else
             cpu_fprintf(f, " ");
     }
-    cpu_fprintf(f, "PSR=%08x %c%c%c%c %c\n", 
-             env->cpsr, 
-            env->cpsr & (1 << 31) ? 'N' : '-',
-            env->cpsr & (1 << 30) ? 'Z' : '-',
-            env->cpsr & (1 << 29) ? 'C' : '-',
-            env->cpsr & (1 << 28) ? 'V' : '-',
-            env->thumb ? 'T' : 'A');
+    psr = cpsr_read(env);
+    cpu_fprintf(f, "PSR=%08x %c%c%c%c %c %s%d %x\n", 
+                psr, 
+                psr & (1 << 31) ? 'N' : '-',
+                psr & (1 << 30) ? 'Z' : '-',
+                psr & (1 << 29) ? 'C' : '-',
+                psr & (1 << 28) ? 'V' : '-',
+                psr & CPSR_T ? 'T' : 'A', 
+                cpu_mode_names[psr & 0xf], (psr & 0x10) ? 32 : 26);
 
     for (i = 0; i < 16; i++) {
         d.d = env->vfp.regs[i];
@@ -2250,27 +2494,3 @@ void cpu_dump_state(CPUState *env, FILE *f,
     cpu_fprintf(f, "FPSCR: %08x\n", (int)env->vfp.fpscr);
 }
 
-target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
-{
-    return addr;
-}
-
-#if defined(CONFIG_USER_ONLY) 
-
-int cpu_arm_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
-                              int is_user, int is_softmmu)
-{
-    env->cp15_6 = address;
-    if (rw == 2) {
-        env->exception_index = EXCP_PREFETCH_ABORT;
-    } else {
-        env->exception_index = EXCP_DATA_ABORT;
-    }
-    return 1;
-}
-
-#else
-
-#error not implemented
-
-#endif

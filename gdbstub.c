@@ -399,7 +399,7 @@ static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
     memset (ptr, 0, 8 * 12 + 4);
     ptr += 8 * 12 + 4;
     /* CPSR (4 bytes).  */
-    *(uint32_t *)ptr = tswapl (env->cpsr);
+    *(uint32_t *)ptr = tswapl (cpsr_read(env));
     ptr += 4;
 
     return ptr - mem_buf;
@@ -419,7 +419,7 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
       }
     /* Ignore FPA regs and scr.  */
     ptr += 8 * 12 + 4;
-    env->cpsr = tswapl(*(uint32_t *)ptr);
+    cpsr_write (env, tswapl(*(uint32_t *)ptr), 0xffffffff);
 }
 #else
 static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
@@ -463,6 +463,8 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
 #elif defined (TARGET_SPARC)
             env->pc = addr;
             env->npc = addr + 4;
+#elif defined (TARGET_ARM)
+            env->regs[15] = addr;
 #endif
         }
 #ifdef CONFIG_USER_ONLY
@@ -481,6 +483,8 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
 #elif defined (TARGET_SPARC)
             env->pc = addr;
             env->npc = addr + 4;
+#elif defined (TARGET_ARM)
+            env->regs[15] = addr;
 #endif
         }
         cpu_single_step(env, 1);

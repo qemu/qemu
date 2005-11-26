@@ -1,5 +1,8 @@
 version 0.7.3:
 
+  - ARM system emulation: Arm Integrator/CP board with an arm1026ej-s
+    cpu (Paul Brook)
+  - SMP support
   - Mac OS X cocoa improvements (Mike Kronenberg)
   - Mac OS X CoreAudio driver (Mike Kronenberg)
   - DirectSound driver (malc)
@@ -10,7 +13,6 @@ version 0.7.3:
   - Linux host serial port access
   - Linux host low level parallel port access
   - New network emulation code supporting VLANs.
-  - SMP support
 
 version 0.7.2:
   

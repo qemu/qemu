@@ -101,6 +101,11 @@ void OPPROTO op_movl_T0_im(void)
     T0 = PARAM1;
 }
 
+void OPPROTO op_movl_T0_T1(void)
+{
+    T0 = T1;
+}
+
 void OPPROTO op_movl_T1_im(void)
 {
     T1 = PARAM1;
@@ -361,20 +366,27 @@ void OPPROTO op_exit_tb(void)
     EXIT_TB();
 }
 
-void OPPROTO op_movl_T0_psr(void)
+void OPPROTO op_movl_T0_cpsr(void)
 {
-    T0 = compute_cpsr();
+    T0 = cpsr_read(env);
+    FORCE_RET();
 }
 
-/* NOTE: N = 1 and Z = 1 cannot be stored currently */
-void OPPROTO op_movl_psr_T0(void)
+void OPPROTO op_movl_T0_spsr(void)
 {
-    unsigned int psr;
-    psr = T0;
-    env->CF = (psr >> 29) & 1;
-    env->NZF = (psr & 0xc0000000) ^ 0x40000000;
-    env->VF = (psr << 3) & 0x80000000;
-    /* for user mode we do not update other state info */
+    T0 = env->spsr;
+}
+
+void OPPROTO op_movl_spsr_T0(void)
+{
+    uint32_t mask = PARAM1;
+    env->spsr = (env->spsr & ~mask) | (T0 & mask);
+}
+
+void OPPROTO op_movl_cpsr_T0(void)
+{
+    cpsr_write(env, T0, PARAM1);
+    FORCE_RET();
 }
 
 void OPPROTO op_mul_T0_T1(void)
@@ -433,67 +445,15 @@ void OPPROTO op_logicq_cc(void)
 
 /* memory access */
 
-void OPPROTO op_ldub_T0_T1(void)
-{
-    T0 = ldub((void *)T1);
-}
+#define MEMSUFFIX _raw
+#include "op_mem.h"
 
-void OPPROTO op_ldsb_T0_T1(void)
-{
-    T0 = ldsb((void *)T1);
-}
-
-void OPPROTO op_lduw_T0_T1(void)
-{
-    T0 = lduw((void *)T1);
-}
-
-void OPPROTO op_ldsw_T0_T1(void)
-{
-    T0 = ldsw((void *)T1);
-}
-
-void OPPROTO op_ldl_T0_T1(void)
-{
-    T0 = ldl((void *)T1);
-}
-
-void OPPROTO op_stb_T0_T1(void)
-{
-    stb((void *)T1, T0);
-}
-
-void OPPROTO op_stw_T0_T1(void)
-{
-    stw((void *)T1, T0);
-}
-
-void OPPROTO op_stl_T0_T1(void)
-{
-    stl((void *)T1, T0);
-}
-
-void OPPROTO op_swpb_T0_T1(void)
-{
-    int tmp;
-
-    cpu_lock();
-    tmp = ldub((void *)T1);
-    stb((void *)T1, T0);
-    T0 = tmp;
-    cpu_unlock();
-}
-
-void OPPROTO op_swpl_T0_T1(void)
-{
-    int tmp;
-
-    cpu_lock();
-    tmp = ldl((void *)T1);
-    stl((void *)T1, T0);
-    T0 = tmp;
-    cpu_unlock();
-}
+#if !defined(CONFIG_USER_ONLY)
+#define MEMSUFFIX _user
+#include "op_mem.h"
+#define MEMSUFFIX _kernel
+#include "op_mem.h"
+#endif
 
 /* shifts */
 
@@ -744,15 +704,46 @@ void OPPROTO op_sarl_T0_im(void)
     T0 = (int32_t)T0 >> PARAM1;
 }
 
-/* 16->32 Sign extend */
-void OPPROTO op_sxl_T0(void)
+/* Sign/zero extend */
+void OPPROTO op_sxth_T0(void)
 {
   T0 = (int16_t)T0;
 }
 
-void OPPROTO op_sxl_T1(void)
+void OPPROTO op_sxth_T1(void)
 {
   T1 = (int16_t)T1;
+}
+
+void OPPROTO op_sxtb_T1(void)
+{
+    T1 = (int8_t)T1;
+}
+
+void OPPROTO op_uxtb_T1(void)
+{
+    T1 = (uint8_t)T1;
+}
+
+void OPPROTO op_uxth_T1(void)
+{
+    T1 = (uint16_t)T1;
+}
+
+void OPPROTO op_sxtb16_T1(void)
+{
+    uint32_t res;
+    res = (uint16_t)(int8_t)T1;
+    res |= (uint32_t)(int8_t)(T1 >> 16) << 16;
+    T1 = res;
+}
+
+void OPPROTO op_uxtb16_T1(void)
+{
+    uint32_t res;
+    res = (uint16_t)(uint8_t)T1;
+    res |= (uint32_t)(uint8_t)(T1 >> 16) << 16;
+    T1 = res;
 }
 
 #define SIGNBIT (uint32_t)0x80000000
@@ -1128,23 +1119,52 @@ void OPPROTO op_vfp_mdrr(void)
     FT0d = u.d;
 }
 
-/* Floating point load/store.  Address is in T1 */
-void OPPROTO op_vfp_lds(void)
+/* Copy the most significant bit to T0 to all bits of T1.  */
+void OPPROTO op_signbit_T1_T0(void)
 {
-    FT0s = ldfl((void *)T1);
+    T1 = (int32_t)T0 >> 31;
 }
 
-void OPPROTO op_vfp_ldd(void)
+void OPPROTO op_movl_cp15_T0(void)
 {
-    FT0d = ldfq((void *)T1);
+    helper_set_cp15(env, PARAM1, T0);
+    FORCE_RET();
 }
 
-void OPPROTO op_vfp_sts(void)
+void OPPROTO op_movl_T0_cp15(void)
 {
-    stfl((void *)T1, FT0s);
+    T0 = helper_get_cp15(env, PARAM1);
+    FORCE_RET();
 }
 
-void OPPROTO op_vfp_std(void)
+/* Access to user mode registers from privileged modes.  */
+void OPPROTO op_movl_T0_user(void)
 {
-    stfq((void *)T1, FT0d);
+    int regno = PARAM1;
+    if (regno == 13) {
+        T0 = env->banked_r13[0];
+    } else if (regno == 14) {
+        T0 = env->banked_r14[0];
+    } else if ((env->uncached_cpsr & 0x1f) == ARM_CPU_MODE_FIQ) {
+        T0 = env->usr_regs[regno - 8];
+    } else {
+        T0 = env->regs[regno];
+    }
+    FORCE_RET();
+}
+
+
+void OPPROTO op_movl_user_T0(void)
+{
+    int regno = PARAM1;
+    if (regno == 13) {
+        env->banked_r13[0] = T0;
+    } else if (regno == 14) {
+        env->banked_r14[0] = T0;
+    } else if ((env->uncached_cpsr & 0x1f) == ARM_CPU_MODE_FIQ) {
+        env->usr_regs[regno - 8] = T0;
+    } else {
+        env->regs[regno] = T0;
+    }
+    FORCE_RET();
 }
