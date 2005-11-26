@@ -1098,6 +1098,7 @@ int main(int argc, char **argv)
     /* NOTE: we need to init the CPU at this stage to get
        qemu_host_page_size */
     env = cpu_init();
+    global_env = env;
     
     if (elf_exec(filename, argv+optind, environ, regs, info) != 0) {
 	printf("Error loading %s\n", filename);
@@ -1119,8 +1120,6 @@ int main(int argc, char **argv)
     target_set_brk((char *)info->brk);
     syscall_init();
     signal_init();
-
-    global_env = env;
 
     /* build Task State */
     memset(ts, 0, sizeof(TaskState));

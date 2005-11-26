@@ -25,6 +25,26 @@
 
 #ifdef TARGET_I386
 
+#define ELF_PLATFORM get_elf_platform()
+
+static const char *get_elf_platform(void)
+{
+    static char elf_platform[] = "i386";
+    int family = (global_env->cpuid_version >> 8) & 0xff;
+    if (family > 6)
+        family = 6;
+    if (family >= 3)
+        elf_platform[1] = '0' + family;
+    return elf_platform;
+}
+
+#define ELF_HWCAP get_elf_hwcap()
+
+static uint32_t get_elf_hwcap(void)
+{
+  return global_env->cpuid_features;
+}
+
 #define ELF_START_MMAP 0x80000000
 
 /*
@@ -91,7 +111,6 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 #define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE	4096
 
-#define DLINFO_ARCH_ITEMS       1
 enum
 {
   ARM_HWCAP_ARM_SWP       = 1 << 0,
@@ -104,14 +123,9 @@ enum
   ARM_HWCAP_ARM_EDSP      = 1 << 7,
 };
 
-#define ARM_HWCAPS (ARM_HWCAP_ARM_SWP | ARM_HWCAP_ARM_HALF              \
+#define ELF_HWCAP (ARM_HWCAP_ARM_SWP | ARM_HWCAP_ARM_HALF              \
                     | ARM_HWCAP_ARM_THUMB | ARM_HWCAP_ARM_FAST_MULT     \
                     | ARM_HWCAP_ARM_FPA | ARM_HWCAP_ARM_VFP)
-
-#define ARCH_DLINFO                     \
-do {                                    \
-    NEW_AUX_ENT(AT_HWCAP, ARM_HWCAPS);  \
-} while (0)
 
 #endif
 
@@ -233,6 +247,14 @@ static inline void init_thread(struct target_pt_regs *_regs, struct image_info *
 
 #endif
 
+#ifndef ELF_PLATFORM
+#define ELF_PLATFORM (NULL)
+#endif
+
+#ifndef ELF_HWCAP
+#define ELF_HWCAP 0
+#endif
+
 #include "elf.h"
 
 /*
@@ -314,7 +336,7 @@ struct exec
 #define INTERPRETER_AOUT 1
 #define INTERPRETER_ELF 2
 
-#define DLINFO_ITEMS 11
+#define DLINFO_ITEMS 12
 
 static inline void memcpy_fromfs(void * to, const void * from, unsigned long n)
 {
@@ -646,14 +668,26 @@ static unsigned int * create_elf_tables(char *p, int argc, int envc,
 {
         target_ulong *argv, *envp;
         target_ulong *sp, *csp;
+        target_ulong *u_platform;
+        const char *k_platform;
         int v;
 
 	/*
 	 * Force 16 byte _final_ alignment here for generality.
 	 */
         sp = (unsigned int *) (~15UL & (unsigned long) p);
+        u_platform = NULL;
+        k_platform = ELF_PLATFORM;
+        if (k_platform) {
+            size_t len = strlen(k_platform) + 1;
+            sp -= (len + sizeof(target_ulong) - 1) / sizeof(target_ulong);
+            u_platform = (target_ulong *)sp;
+            __copy_to_user(u_platform, k_platform, len);
+        }
         csp = sp;
         csp -= (DLINFO_ITEMS + 1) * 2;
+        if (k_platform)
+          csp -= 2;
 #ifdef DLINFO_ARCH_ITEMS
 	csp -= DLINFO_ARCH_ITEMS*2;
 #endif
@@ -681,6 +715,9 @@ static unsigned int * create_elf_tables(char *p, int argc, int envc,
         NEW_AUX_ENT(AT_EUID, (target_ulong) geteuid());
         NEW_AUX_ENT(AT_GID, (target_ulong) getgid());
         NEW_AUX_ENT(AT_EGID, (target_ulong) getegid());
+        NEW_AUX_ENT(AT_HWCAP, (target_ulong) ELF_HWCAP);
+        if (k_platform)
+            NEW_AUX_ENT(AT_PLATFORM, (target_ulong) u_platform);
 #ifdef ARCH_DLINFO
 	/* 
 	 * ARCH_DLINFO must come last so platform specific code can enforce
