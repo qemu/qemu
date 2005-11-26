@@ -733,6 +733,8 @@ extern int code_copy_enabled;
 #define CPU_INTERRUPT_HARD   0x02 /* hardware interrupt pending */
 #define CPU_INTERRUPT_EXITTB 0x04 /* exit the current TB (use for x86 a20 case) */
 #define CPU_INTERRUPT_TIMER  0x08 /* internal timer exception pending */
+#define CPU_INTERRUPT_FIQ    0x10 /* Fast interrupt pending.  */
+
 void cpu_interrupt(CPUState *s, int mask);
 void cpu_reset_interrupt(CPUState *env, int mask);
 
@@ -790,9 +792,9 @@ extern uint8_t *phys_ram_base;
 extern uint8_t *phys_ram_dirty;
 
 /* physical memory access */
-#define IO_MEM_NB_ENTRIES  256
 #define TLB_INVALID_MASK   (1 << 3)
 #define IO_MEM_SHIFT       4
+#define IO_MEM_NB_ENTRIES  (1 << (TARGET_PAGE_BITS  - IO_MEM_SHIFT))
 
 #define IO_MEM_RAM         (0 << IO_MEM_SHIFT) /* hardcoded offset */
 #define IO_MEM_ROM         (1 << IO_MEM_SHIFT) /* hardcoded offset */

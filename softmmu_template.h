@@ -91,7 +91,7 @@ DATA_TYPE REGPARM(1) glue(glue(__ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
             if ((addr & (DATA_SIZE - 1)) != 0)
                 goto do_unaligned_access;
             res = glue(io_read, SUFFIX)(physaddr, tlb_addr);
-        } else if (((addr & 0xfff) + DATA_SIZE - 1) >= TARGET_PAGE_SIZE) {
+        } else if (((addr & ~TARGET_PAGE_MASK) + DATA_SIZE - 1) >= TARGET_PAGE_SIZE) {
             /* slow unaligned access (it spans two pages or IO) */
         do_unaligned_access:
             retaddr = GETPC();
@@ -130,7 +130,7 @@ static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
             if ((addr & (DATA_SIZE - 1)) != 0)
                 goto do_unaligned_access;
             res = glue(io_read, SUFFIX)(physaddr, tlb_addr);
-        } else if (((addr & 0xfff) + DATA_SIZE - 1) >= TARGET_PAGE_SIZE) {
+        } else if (((addr & ~TARGET_PAGE_MASK) + DATA_SIZE - 1) >= TARGET_PAGE_SIZE) {
         do_unaligned_access:
             /* slow unaligned access (it spans two pages) */
             addr1 = addr & ~(DATA_SIZE - 1);
@@ -208,7 +208,7 @@ void REGPARM(2) glue(glue(__st, SUFFIX), MMUSUFFIX)(target_ulong addr,
                 goto do_unaligned_access;
             retaddr = GETPC();
             glue(io_write, SUFFIX)(physaddr, val, tlb_addr, retaddr);
-        } else if (((addr & 0xfff) + DATA_SIZE - 1) >= TARGET_PAGE_SIZE) {
+        } else if (((addr & ~TARGET_PAGE_MASK) + DATA_SIZE - 1) >= TARGET_PAGE_SIZE) {
         do_unaligned_access:
             retaddr = GETPC();
             glue(glue(slow_st, SUFFIX), MMUSUFFIX)(addr, val, 
@@ -245,7 +245,7 @@ static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(target_ulong addr,
             if ((addr & (DATA_SIZE - 1)) != 0)
                 goto do_unaligned_access;
             glue(io_write, SUFFIX)(physaddr, val, tlb_addr, retaddr);
-        } else if (((addr & 0xfff) + DATA_SIZE - 1) >= TARGET_PAGE_SIZE) {
+        } else if (((addr & ~TARGET_PAGE_MASK) + DATA_SIZE - 1) >= TARGET_PAGE_SIZE) {
         do_unaligned_access:
             /* XXX: not efficient, but simple */
             for(i = 0;i < DATA_SIZE; i++) {
