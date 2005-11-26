@@ -672,12 +672,19 @@ void tb_invalidate_phys_page_range(target_ulong start, target_ulong end,
 #endif
             }
 #endif /* TARGET_HAS_PRECISE_SMC */
-            saved_tb = env->current_tb;
-            env->current_tb = NULL;
+            /* we need to do that to handle the case where a signal
+               occurs while doing tb_phys_invalidate() */
+            saved_tb = NULL;
+            if (env) {
+                saved_tb = env->current_tb;
+                env->current_tb = NULL;
+            }
             tb_phys_invalidate(tb, -1);
-            env->current_tb = saved_tb;
-            if (env->interrupt_request && env->current_tb)
-                cpu_interrupt(env, env->interrupt_request);
+            if (env) {
+                env->current_tb = saved_tb;
+                if (env->interrupt_request && env->current_tb)
+                    cpu_interrupt(env, env->interrupt_request);
+            }
         }
         tb = tb_next;
     }
