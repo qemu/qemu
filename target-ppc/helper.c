@@ -807,6 +807,8 @@ void do_compute_hflags (CPUPPCState *env)
 
 void do_store_msr (CPUPPCState *env, target_ulong value)
 {
+    int enter_pm;
+
     value &= env->msr_mask;
     if (((value >> MSR_IR) & 1) != msr_ir ||
         ((value >> MSR_DR) & 1) != msr_dr) {
@@ -846,8 +848,19 @@ void do_store_msr (CPUPPCState *env, target_ulong value)
     msr_ri  = (value >> MSR_RI)  & 1;
     msr_le  = (value >> MSR_LE)  & 1;
     do_compute_hflags(env);
-    if (msr_pow) {
+
+    enter_pm = 0;
+    switch (PPC_EXCP(env)) {
+    case PPC_FLAGS_EXCP_7x0:
+	if (msr_pow == 1 && (env->spr[SPR_HID0] & 0x00E00000) != 0)
+            enter_pm = 1;
+        break;
+    default:
+        break;
+    }
+    if (enter_pm) {
         /* power save: exit cpu loop */
+        env->halted = 1;
         env->exception_index = EXCP_HLT;
         cpu_loop_exit();
     }
