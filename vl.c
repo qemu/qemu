@@ -1613,13 +1613,13 @@ CharDriverState *qemu_chr_open(const char *filename)
         return text_console_init(&display_state);
     } else if (!strcmp(filename, "null")) {
         return qemu_chr_open_null();
-    } else if (strstart(filename, "file:", &p)) {
+    } else 
+#ifndef _WIN32
+    if (strstart(filename, "file:", &p)) {
         return qemu_chr_open_file_out(p);
     } else if (strstart(filename, "pipe:", &p)) {
         return qemu_chr_open_pipe(p);
-    } else 
-#ifndef _WIN32
-    if (!strcmp(filename, "pty")) {
+    } else if (!strcmp(filename, "pty")) {
         return qemu_chr_open_pty();
     } else if (!strcmp(filename, "stdio")) {
         return qemu_chr_open_stdio();
