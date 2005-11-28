@@ -93,6 +93,11 @@
 #define RES_TYPE int
 #endif
 
+#if ACCESS_TYPE == 3
+#define ADDR_READ addr_code
+#else
+#define ADDR_READ addr_read
+#endif
 
 DATA_TYPE REGPARM(1) glue(glue(__ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
                                                          int is_user);
@@ -100,6 +105,8 @@ void REGPARM(2) glue(glue(__st, SUFFIX), MMUSUFFIX)(target_ulong addr, DATA_TYPE
 
 #if (DATA_SIZE <= 4) && (TARGET_LONG_BITS == 32) && defined(__i386__) && \
     (ACCESS_TYPE <= 1) && defined(ASM_SOFTMMU)
+
+#define CPU_TLB_ENTRY_BITS 4
 
 static inline RES_TYPE glue(glue(ld, USUFFIX), MEMSUFFIX)(target_ulong ptr)
 {
@@ -120,7 +127,7 @@ static inline RES_TYPE glue(glue(ld, USUFFIX), MEMSUFFIX)(target_ulong ptr)
                   "movl %%eax, %0\n"
                   "jmp 2f\n"
                   "1:\n"
-                  "addl 4(%%edx), %%eax\n"
+                  "addl 12(%%edx), %%eax\n"
 #if DATA_SIZE == 1
                   "movzbl (%%eax), %0\n"
 #elif DATA_SIZE == 2
@@ -133,10 +140,10 @@ static inline RES_TYPE glue(glue(ld, USUFFIX), MEMSUFFIX)(target_ulong ptr)
                   "2:\n"
                   : "=r" (res)
                   : "r" (ptr), 
-                  "i" ((CPU_TLB_SIZE - 1) << 3), 
-                  "i" (TARGET_PAGE_BITS - 3), 
+                  "i" ((CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS), 
+                  "i" (TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS), 
                   "i" (TARGET_PAGE_MASK | (DATA_SIZE - 1)),
-                  "m" (*(uint32_t *)offsetof(CPUState, tlb_read[CPU_MEM_INDEX][0].address)),
+                  "m" (*(uint32_t *)offsetof(CPUState, tlb_table[CPU_MEM_INDEX][0].addr_read)),
                   "i" (CPU_MEM_INDEX),
                   "m" (*(uint8_t *)&glue(glue(__ld, SUFFIX), MMUSUFFIX))
                   : "%eax", "%ecx", "%edx", "memory", "cc");
@@ -169,7 +176,7 @@ static inline int glue(glue(lds, SUFFIX), MEMSUFFIX)(target_ulong ptr)
 #endif
                   "jmp 2f\n"
                   "1:\n"
-                  "addl 4(%%edx), %%eax\n"
+                  "addl 12(%%edx), %%eax\n"
 #if DATA_SIZE == 1
                   "movsbl (%%eax), %0\n"
 #elif DATA_SIZE == 2
@@ -180,10 +187,10 @@ static inline int glue(glue(lds, SUFFIX), MEMSUFFIX)(target_ulong ptr)
                   "2:\n"
                   : "=r" (res)
                   : "r" (ptr), 
-                  "i" ((CPU_TLB_SIZE - 1) << 3), 
-                  "i" (TARGET_PAGE_BITS - 3), 
+                  "i" ((CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS), 
+                  "i" (TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS), 
                   "i" (TARGET_PAGE_MASK | (DATA_SIZE - 1)),
-                  "m" (*(uint32_t *)offsetof(CPUState, tlb_read[CPU_MEM_INDEX][0].address)),
+                  "m" (*(uint32_t *)offsetof(CPUState, tlb_table[CPU_MEM_INDEX][0].addr_read)),
                   "i" (CPU_MEM_INDEX),
                   "m" (*(uint8_t *)&glue(glue(__ld, SUFFIX), MMUSUFFIX))
                   : "%eax", "%ecx", "%edx", "memory", "cc");
@@ -216,7 +223,7 @@ static inline void glue(glue(st, SUFFIX), MEMSUFFIX)(target_ulong ptr, RES_TYPE 
                   "popl %%eax\n"
                   "jmp 2f\n"
                   "1:\n"
-                  "addl 4(%%edx), %%eax\n"
+                  "addl 8(%%edx), %%eax\n"
 #if DATA_SIZE == 1
                   "movb %b1, (%%eax)\n"
 #elif DATA_SIZE == 2
@@ -232,10 +239,10 @@ static inline void glue(glue(st, SUFFIX), MEMSUFFIX)(target_ulong ptr, RES_TYPE 
 /* NOTE: 'q' would be needed as constraint, but we could not use it
    with T1 ! */
                   "r" (v), 
-                  "i" ((CPU_TLB_SIZE - 1) << 3), 
-                  "i" (TARGET_PAGE_BITS - 3), 
+                  "i" ((CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS), 
+                  "i" (TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS), 
                   "i" (TARGET_PAGE_MASK | (DATA_SIZE - 1)),
-                  "m" (*(uint32_t *)offsetof(CPUState, tlb_write[CPU_MEM_INDEX][0].address)),
+                  "m" (*(uint32_t *)offsetof(CPUState, tlb_table[CPU_MEM_INDEX][0].addr_write)),
                   "i" (CPU_MEM_INDEX),
                   "m" (*(uint8_t *)&glue(glue(__st, SUFFIX), MMUSUFFIX))
                   : "%eax", "%ecx", "%edx", "memory", "cc");
@@ -256,11 +263,11 @@ static inline RES_TYPE glue(glue(ld, USUFFIX), MEMSUFFIX)(target_ulong ptr)
     addr = ptr;
     index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     is_user = CPU_MEM_INDEX;
-    if (__builtin_expect(env->tlb_read[is_user][index].address != 
+    if (__builtin_expect(env->tlb_table[is_user][index].ADDR_READ != 
                          (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))), 0)) {
         res = glue(glue(__ld, SUFFIX), MMUSUFFIX)(addr, is_user);
     } else {
-        physaddr = addr + env->tlb_read[is_user][index].addend;
+        physaddr = addr + env->tlb_table[is_user][index].addend;
         res = glue(glue(ld, USUFFIX), _raw)((uint8_t *)physaddr);
     }
     return res;
@@ -277,16 +284,18 @@ static inline int glue(glue(lds, SUFFIX), MEMSUFFIX)(target_ulong ptr)
     addr = ptr;
     index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     is_user = CPU_MEM_INDEX;
-    if (__builtin_expect(env->tlb_read[is_user][index].address != 
+    if (__builtin_expect(env->tlb_table[is_user][index].ADDR_READ != 
                          (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))), 0)) {
         res = (DATA_STYPE)glue(glue(__ld, SUFFIX), MMUSUFFIX)(addr, is_user);
     } else {
-        physaddr = addr + env->tlb_read[is_user][index].addend;
+        physaddr = addr + env->tlb_table[is_user][index].addend;
         res = glue(glue(lds, SUFFIX), _raw)((uint8_t *)physaddr);
     }
     return res;
 }
 #endif
+
+#if ACCESS_TYPE != 3
 
 /* generic store macro */
 
@@ -300,16 +309,20 @@ static inline void glue(glue(st, SUFFIX), MEMSUFFIX)(target_ulong ptr, RES_TYPE 
     addr = ptr;
     index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     is_user = CPU_MEM_INDEX;
-    if (__builtin_expect(env->tlb_write[is_user][index].address != 
+    if (__builtin_expect(env->tlb_table[is_user][index].addr_write != 
                          (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))), 0)) {
         glue(glue(__st, SUFFIX), MMUSUFFIX)(addr, v, is_user);
     } else {
-        physaddr = addr + env->tlb_write[is_user][index].addend;
+        physaddr = addr + env->tlb_table[is_user][index].addend;
         glue(glue(st, SUFFIX), _raw)((uint8_t *)physaddr, v);
     }
 }
 
-#endif
+#endif /* ACCESS_TYPE != 3 */
+
+#endif /* !asm */
+
+#if ACCESS_TYPE != 3
 
 #if DATA_SIZE == 8
 static inline float64 glue(ldfq, MEMSUFFIX)(target_ulong ptr)
@@ -355,6 +368,8 @@ static inline void glue(stfl, MEMSUFFIX)(target_ulong ptr, float32 v)
 }
 #endif /* DATA_SIZE == 4 */
 
+#endif /* ACCESS_TYPE != 3 */
+
 #undef RES_TYPE
 #undef DATA_TYPE
 #undef DATA_STYPE
@@ -363,3 +378,4 @@ static inline void glue(stfl, MEMSUFFIX)(target_ulong ptr, float32 v)
 #undef DATA_SIZE
 #undef CPU_MEM_INDEX
 #undef MMUSUFFIX
+#undef ADDR_READ

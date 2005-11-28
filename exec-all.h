@@ -98,9 +98,17 @@ void tb_invalidate_phys_page_range(target_ulong start, target_ulong end,
 void tb_invalidate_page_range(target_ulong start, target_ulong end);
 void tlb_flush_page(CPUState *env, target_ulong addr);
 void tlb_flush(CPUState *env, int flush_global);
-int tlb_set_page(CPUState *env, target_ulong vaddr, 
-                 target_phys_addr_t paddr, int prot, 
-                 int is_user, int is_softmmu);
+int tlb_set_page_exec(CPUState *env, target_ulong vaddr, 
+                      target_phys_addr_t paddr, int prot, 
+                      int is_user, int is_softmmu);
+static inline int tlb_set_page(CPUState *env, target_ulong vaddr, 
+                               target_phys_addr_t paddr, int prot, 
+                               int is_user, int is_softmmu)
+{
+    if (prot & PAGE_READ)
+        prot |= PAGE_EXEC;
+    return tlb_set_page_exec(env, vaddr, paddr, prot, is_user, is_softmmu);
+}
 
 #define CODE_GEN_MAX_SIZE        65536
 #define CODE_GEN_ALIGN           16 /* must be >= of the size of a icache line */
@@ -554,15 +562,15 @@ static inline target_ulong get_phys_addr_code(CPUState *env, target_ulong addr)
 #else
 #error unimplemented CPU
 #endif
-    if (__builtin_expect(env->tlb_read[is_user][index].address != 
+    if (__builtin_expect(env->tlb_table[is_user][index].addr_code != 
                          (addr & TARGET_PAGE_MASK), 0)) {
         ldub_code(addr);
     }
-    pd = env->tlb_read[is_user][index].address & ~TARGET_PAGE_MASK;
+    pd = env->tlb_table[is_user][index].addr_code & ~TARGET_PAGE_MASK;
     if (pd > IO_MEM_ROM) {
         cpu_abort(env, "Trying to execute code outside RAM or ROM at 0x%08lx\n", addr);
     }
-    return addr + env->tlb_read[is_user][index].addend - (unsigned long)phys_ram_base;
+    return addr + env->tlb_table[is_user][index].addend - (unsigned long)phys_ram_base;
 }
 #endif
 

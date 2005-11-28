@@ -1209,10 +1209,12 @@ void tlb_flush(CPUState *env, int flush_global)
     env->current_tb = NULL;
 
     for(i = 0; i < CPU_TLB_SIZE; i++) {
-        env->tlb_read[0][i].address = -1;
-        env->tlb_write[0][i].address = -1;
-        env->tlb_read[1][i].address = -1;
-        env->tlb_write[1][i].address = -1;
+        env->tlb_table[0][i].addr_read = -1;
+        env->tlb_table[0][i].addr_write = -1;
+        env->tlb_table[0][i].addr_code = -1;
+        env->tlb_table[1][i].addr_read = -1;
+        env->tlb_table[1][i].addr_write = -1;
+        env->tlb_table[1][i].addr_code = -1;
     }
 
     memset (env->tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof (void *));
@@ -1230,9 +1232,16 @@ void tlb_flush(CPUState *env, int flush_global)
 
 static inline void tlb_flush_entry(CPUTLBEntry *tlb_entry, target_ulong addr)
 {
-    if (addr == (tlb_entry->address & 
-                 (TARGET_PAGE_MASK | TLB_INVALID_MASK)))
-        tlb_entry->address = -1;
+    if (addr == (tlb_entry->addr_read & 
+                 (TARGET_PAGE_MASK | TLB_INVALID_MASK)) ||
+        addr == (tlb_entry->addr_write & 
+                 (TARGET_PAGE_MASK | TLB_INVALID_MASK)) ||
+        addr == (tlb_entry->addr_code & 
+                 (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
+        tlb_entry->addr_read = -1;
+        tlb_entry->addr_write = -1;
+        tlb_entry->addr_code = -1;
+    }
 }
 
 void tlb_flush_page(CPUState *env, target_ulong addr)
@@ -1249,10 +1258,8 @@ void tlb_flush_page(CPUState *env, target_ulong addr)
 
     addr &= TARGET_PAGE_MASK;
     i = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-    tlb_flush_entry(&env->tlb_read[0][i], addr);
-    tlb_flush_entry(&env->tlb_write[0][i], addr);
-    tlb_flush_entry(&env->tlb_read[1][i], addr);
-    tlb_flush_entry(&env->tlb_write[1][i], addr);
+    tlb_flush_entry(&env->tlb_table[0][i], addr);
+    tlb_flush_entry(&env->tlb_table[1][i], addr);
 
     for(i = 0; i < TB_JMP_CACHE_SIZE; i++) {
         tb = env->tb_jmp_cache[i];
@@ -1295,10 +1302,10 @@ static inline void tlb_reset_dirty_range(CPUTLBEntry *tlb_entry,
                                          unsigned long start, unsigned long length)
 {
     unsigned long addr;
-    if ((tlb_entry->address & ~TARGET_PAGE_MASK) == IO_MEM_RAM) {
-        addr = (tlb_entry->address & TARGET_PAGE_MASK) + tlb_entry->addend;
+    if ((tlb_entry->addr_write & ~TARGET_PAGE_MASK) == IO_MEM_RAM) {
+        addr = (tlb_entry->addr_write & TARGET_PAGE_MASK) + tlb_entry->addend;
         if ((addr - start) < length) {
-            tlb_entry->address = (tlb_entry->address & TARGET_PAGE_MASK) | IO_MEM_NOTDIRTY;
+            tlb_entry->addr_write = (tlb_entry->addr_write & TARGET_PAGE_MASK) | IO_MEM_NOTDIRTY;
         }
     }
 }
@@ -1340,9 +1347,9 @@ void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end,
     start1 = start + (unsigned long)phys_ram_base;
     for(env = first_cpu; env != NULL; env = env->next_cpu) {
         for(i = 0; i < CPU_TLB_SIZE; i++)
-            tlb_reset_dirty_range(&env->tlb_write[0][i], start1, length);
+            tlb_reset_dirty_range(&env->tlb_table[0][i], start1, length);
         for(i = 0; i < CPU_TLB_SIZE; i++)
-            tlb_reset_dirty_range(&env->tlb_write[1][i], start1, length);
+            tlb_reset_dirty_range(&env->tlb_table[1][i], start1, length);
     }
 
 #if !defined(CONFIG_SOFTMMU)
@@ -1378,11 +1385,11 @@ static inline void tlb_update_dirty(CPUTLBEntry *tlb_entry)
 {
     ram_addr_t ram_addr;
 
-    if ((tlb_entry->address & ~TARGET_PAGE_MASK) == IO_MEM_RAM) {
-        ram_addr = (tlb_entry->address & TARGET_PAGE_MASK) + 
+    if ((tlb_entry->addr_write & ~TARGET_PAGE_MASK) == IO_MEM_RAM) {
+        ram_addr = (tlb_entry->addr_write & TARGET_PAGE_MASK) + 
             tlb_entry->addend - (unsigned long)phys_ram_base;
         if (!cpu_physical_memory_is_dirty(ram_addr)) {
-            tlb_entry->address |= IO_MEM_NOTDIRTY;
+            tlb_entry->addr_write |= IO_MEM_NOTDIRTY;
         }
     }
 }
@@ -1392,19 +1399,19 @@ void cpu_tlb_update_dirty(CPUState *env)
 {
     int i;
     for(i = 0; i < CPU_TLB_SIZE; i++)
-        tlb_update_dirty(&env->tlb_write[0][i]);
+        tlb_update_dirty(&env->tlb_table[0][i]);
     for(i = 0; i < CPU_TLB_SIZE; i++)
-        tlb_update_dirty(&env->tlb_write[1][i]);
+        tlb_update_dirty(&env->tlb_table[1][i]);
 }
 
 static inline void tlb_set_dirty1(CPUTLBEntry *tlb_entry, 
                                   unsigned long start)
 {
     unsigned long addr;
-    if ((tlb_entry->address & ~TARGET_PAGE_MASK) == IO_MEM_NOTDIRTY) {
-        addr = (tlb_entry->address & TARGET_PAGE_MASK) + tlb_entry->addend;
+    if ((tlb_entry->addr_write & ~TARGET_PAGE_MASK) == IO_MEM_NOTDIRTY) {
+        addr = (tlb_entry->addr_write & TARGET_PAGE_MASK) + tlb_entry->addend;
         if (addr == start) {
-            tlb_entry->address = (tlb_entry->address & TARGET_PAGE_MASK) | IO_MEM_RAM;
+            tlb_entry->addr_write = (tlb_entry->addr_write & TARGET_PAGE_MASK) | IO_MEM_RAM;
         }
     }
 }
@@ -1418,17 +1425,17 @@ static inline void tlb_set_dirty(CPUState *env,
 
     addr &= TARGET_PAGE_MASK;
     i = (vaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-    tlb_set_dirty1(&env->tlb_write[0][i], addr);
-    tlb_set_dirty1(&env->tlb_write[1][i], addr);
+    tlb_set_dirty1(&env->tlb_table[0][i], addr);
+    tlb_set_dirty1(&env->tlb_table[1][i], addr);
 }
 
 /* add a new TLB entry. At most one entry for a given virtual address
    is permitted. Return 0 if OK or 2 if the page could not be mapped
    (can only happen in non SOFTMMU mode for I/O pages or pages
    conflicting with the host address space). */
-int tlb_set_page(CPUState *env, target_ulong vaddr, 
-                 target_phys_addr_t paddr, int prot, 
-                 int is_user, int is_softmmu)
+int tlb_set_page_exec(CPUState *env, target_ulong vaddr, 
+                      target_phys_addr_t paddr, int prot, 
+                      int is_user, int is_softmmu)
 {
     PhysPageDesc *p;
     unsigned long pd;
@@ -1436,6 +1443,7 @@ int tlb_set_page(CPUState *env, target_ulong vaddr,
     target_ulong address;
     target_phys_addr_t addend;
     int ret;
+    CPUTLBEntry *te;
 
     p = phys_page_find(paddr >> TARGET_PAGE_BITS);
     if (!p) {
@@ -1445,7 +1453,7 @@ int tlb_set_page(CPUState *env, target_ulong vaddr,
     }
 #if defined(DEBUG_TLB)
     printf("tlb_set_page: vaddr=" TARGET_FMT_lx " paddr=0x%08x prot=%x u=%d smmu=%d pd=0x%08lx\n",
-           vaddr, paddr, prot, is_user, is_softmmu, pd);
+           vaddr, (int)paddr, prot, is_user, is_softmmu, pd);
 #endif
 
     ret = 0;
@@ -1465,29 +1473,30 @@ int tlb_set_page(CPUState *env, target_ulong vaddr,
         
         index = (vaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
         addend -= vaddr;
+        te = &env->tlb_table[is_user][index];
+        te->addend = addend;
         if (prot & PAGE_READ) {
-            env->tlb_read[is_user][index].address = address;
-            env->tlb_read[is_user][index].addend = addend;
+            te->addr_read = address;
         } else {
-            env->tlb_read[is_user][index].address = -1;
-            env->tlb_read[is_user][index].addend = -1;
+            te->addr_read = -1;
+        }
+        if (prot & PAGE_EXEC) {
+            te->addr_code = address;
+        } else {
+            te->addr_code = -1;
         }
         if (prot & PAGE_WRITE) {
             if ((pd & ~TARGET_PAGE_MASK) == IO_MEM_ROM) {
                 /* ROM: access is ignored (same as unassigned) */
-                env->tlb_write[is_user][index].address = vaddr | IO_MEM_ROM;
-                env->tlb_write[is_user][index].addend = addend;
+                te->addr_write = vaddr | IO_MEM_ROM;
             } else if ((pd & ~TARGET_PAGE_MASK) == IO_MEM_RAM && 
                        !cpu_physical_memory_is_dirty(pd)) {
-                env->tlb_write[is_user][index].address = vaddr | IO_MEM_NOTDIRTY;
-                env->tlb_write[is_user][index].addend = addend;
+                te->addr_write = vaddr | IO_MEM_NOTDIRTY;
             } else {
-                env->tlb_write[is_user][index].address = address;
-                env->tlb_write[is_user][index].addend = addend;
+                te->addr_write = address;
             }
         } else {
-            env->tlb_write[is_user][index].address = -1;
-            env->tlb_write[is_user][index].addend = -1;
+            te->addr_write = -1;
         }
     }
 #if !defined(CONFIG_SOFTMMU)
@@ -1586,9 +1595,9 @@ void tlb_flush_page(CPUState *env, target_ulong addr)
 {
 }
 
-int tlb_set_page(CPUState *env, target_ulong vaddr, 
-                 target_phys_addr_t paddr, int prot, 
-                 int is_user, int is_softmmu)
+int tlb_set_page_exec(CPUState *env, target_ulong vaddr, 
+                      target_phys_addr_t paddr, int prot, 
+                      int is_user, int is_softmmu)
 {
     return 0;
 }
@@ -2052,6 +2061,41 @@ uint32_t ldl_phys(target_phys_addr_t addr)
     return val;
 }
 
+/* warning: addr must be aligned */
+uint64_t ldq_phys(target_phys_addr_t addr)
+{
+    int io_index;
+    uint8_t *ptr;
+    uint64_t val;
+    unsigned long pd;
+    PhysPageDesc *p;
+
+    p = phys_page_find(addr >> TARGET_PAGE_BITS);
+    if (!p) {
+        pd = IO_MEM_UNASSIGNED;
+    } else {
+        pd = p->phys_offset;
+    }
+        
+    if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM) {
+        /* I/O case */
+        io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
+#ifdef TARGET_WORDS_BIGENDIAN
+        val = (uint64_t)io_mem_read[io_index][2](io_mem_opaque[io_index], addr) << 32;
+        val |= io_mem_read[io_index][2](io_mem_opaque[io_index], addr + 4);
+#else
+        val = io_mem_read[io_index][2](io_mem_opaque[io_index], addr);
+        val |= (uint64_t)io_mem_read[io_index][2](io_mem_opaque[io_index], addr + 4) << 32;
+#endif
+    } else {
+        /* RAM case */
+        ptr = phys_ram_base + (pd & TARGET_PAGE_MASK) + 
+            (addr & ~TARGET_PAGE_MASK);
+        val = ldq_p(ptr);
+    }
+    return val;
+}
+
 /* XXX: optimize */
 uint32_t ldub_phys(target_phys_addr_t addr)
 {
@@ -2066,14 +2110,6 @@ uint32_t lduw_phys(target_phys_addr_t addr)
     uint16_t val;
     cpu_physical_memory_read(addr, (uint8_t *)&val, 2);
     return tswap16(val);
-}
-
-/* XXX: optimize */
-uint64_t ldq_phys(target_phys_addr_t addr)
-{
-    uint64_t val;
-    cpu_physical_memory_read(addr, (uint8_t *)&val, 8);
-    return tswap64(val);
 }
 
 /* warning: addr must be aligned. The ram page is not masked as dirty

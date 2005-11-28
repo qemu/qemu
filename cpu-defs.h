@@ -80,7 +80,8 @@ typedef unsigned long ram_addr_t;
 #define TB_JMP_CACHE_BITS 12
 #define TB_JMP_CACHE_SIZE (1 << TB_JMP_CACHE_BITS)
 
-#define CPU_TLB_SIZE 256
+#define CPU_TLB_BITS 8
+#define CPU_TLB_SIZE (1 << CPU_TLB_BITS)
 
 typedef struct CPUTLBEntry {
     /* bit 31 to TARGET_PAGE_BITS : virtual address 
@@ -89,7 +90,9 @@ typedef struct CPUTLBEntry {
        bit 3                      : indicates that the entry is invalid
        bit 2..0                   : zero
     */
-    target_ulong address; 
+    target_ulong addr_read; 
+    target_ulong addr_write; 
+    target_ulong addr_code; 
     /* addend to virtual address to get physical address */
     target_phys_addr_t addend; 
 } CPUTLBEntry;
@@ -105,8 +108,7 @@ typedef struct CPUTLBEntry {
     target_ulong mem_write_vaddr; /* target virtual addr at which the   \
                                      memory was written */              \
     /* 0 = kernel, 1 = user */                                          \
-    CPUTLBEntry tlb_read[2][CPU_TLB_SIZE];                              \
-    CPUTLBEntry tlb_write[2][CPU_TLB_SIZE];                             \
+    CPUTLBEntry tlb_table[2][CPU_TLB_SIZE];                             \
     struct TranslationBlock *tb_jmp_cache[TB_JMP_CACHE_SIZE];           \
                                                                         \
     /* from this point: preserved by CPU reset */                       \
