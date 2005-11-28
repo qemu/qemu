@@ -137,78 +137,93 @@ struct target_termios {
 
 /* ioctls */
 
-#define TARGET_TCGETS		0x5401
-#define TARGET_TCSETS		0x5402
-#define TARGET_TCSETSW		0x5403
-#define TARGET_TCSETSF		0x5404
-#define TARGET_TCGETA		0x5405
-#define TARGET_TCSETA		0x5406
-#define TARGET_TCSETAW		0x5407
-#define TARGET_TCSETAF		0x5408
-#define TARGET_TCSBRK		0x5409
-#define TARGET_TCXONC		0x540A
-#define TARGET_TCFLSH		0x540B
+#define TARGET_TCGETA		0x5401
+#define TARGET_TCSETA		0x5402	/* Clashes with SNDCTL_TMR_START sound ioctl */
+#define TARGET_TCSETAW		0x5403
+#define TARGET_TCSETAF		0x5404
 
-#define TARGET_TIOCEXCL	0x540C
-#define TARGET_TIOCNXCL	0x540D
-#define TARGET_TIOCSCTTY	0x540E
-#define TARGET_TIOCGPGRP	0x540F
-#define TARGET_TIOCSPGRP	0x5410
-#define TARGET_TIOCOUTQ	0x5411
-#define TARGET_TIOCSTI		0x5412
-#define TARGET_TIOCGWINSZ	0x5413
-#define TARGET_TIOCSWINSZ	0x5414
-#define TARGET_TIOCMGET	0x5415
-#define TARGET_TIOCMBIS	0x5416
-#define TARGET_TIOCMBIC	0x5417
-#define TARGET_TIOCMSET	0x5418
-#define TARGET_TIOCGSOFTCAR	0x5419
-#define TARGET_TIOCSSOFTCAR	0x541A
-#define TARGET_FIONREAD	0x541B
+#define TARGET_TCSBRK		0x5405
+#define TARGET_TCXONC		0x5406
+#define TARGET_TCFLSH		0x5407
+
+#define TARGET_TCGETS		0x540d
+#define TARGET_TCSETS		0x540e
+#define TARGET_TCSETSW		0x540f
+#define TARGET_TCSETSF		0x5410
+
+#define TARGET_TIOCEXCL	0x740d		/* set exclusive use of tty */
+#define TARGET_TIOCNXCL	0x740e		/* reset exclusive use of tty */
+#define TARGET_TIOCOUTQ	0x7472		/* output queue size */
+#define TARGET_TIOCSTI		0x5472		/* simulate terminal input */
+#define TARGET_TIOCMGET	0x741d		/* get all modem bits */
+#define TARGET_TIOCMBIS	0x741b		/* bis modem bits */
+#define TARGET_TIOCMBIC	0x741c		/* bic modem bits */
+#define TARGET_TIOCMSET	0x741a		/* set all modem bits */
+#define TARGET_TIOCPKT		0x5470		/* pty: set/clear packet mode */
+#define	 TARGET_TIOCPKT_DATA		0x00	/* data packet */
+#define	 TARGET_TIOCPKT_FLUSHREAD	0x01	/* flush packet */
+#define	 TARGET_TIOCPKT_FLUSHWRITE	0x02	/* flush packet */
+#define	 TARGET_TIOCPKT_STOP		0x04	/* stop output */
+#define	 TARGET_TIOCPKT_START		0x08	/* start output */
+#define	 TARGET_TIOCPKT_NOSTOP		0x10	/* no more ^S, ^Q */
+#define	 TARGET_TIOCPKT_DOSTOP		0x20	/* now do ^S ^Q */
+/* #define  TIOCPKT_IOCTL		0x40	state change of pty driver */
+#define TARGET_TIOCSWINSZ	TARGET_IOW('t', 103, struct winsize)	/* set window size */
+#define TARGET_TIOCGWINSZ	TARGET_IOR('t', 104, struct winsize)	/* get window size */
+#define TARGET_TIOCNOTTY	0x5471		/* void tty association */
+#define TARGET_TIOCSETD	0x7401
+#define TARGET_TIOCGETD	0x7400
+
+#define TARGET_FIOCLEX		0x6601
+#define TARGET_FIONCLEX	0x6602
+#define TARGET_FIOASYNC	0x667d
+#define TARGET_FIONBIO		0x667e
+#define TARGET_FIOQSIZE	0x667f
+
+#define TARGET_TIOCGLTC	0x7474			/* get special local chars */
+#define TARGET_TIOCSLTC	0x7475			/* set special local chars */
+#define TARGET_TIOCSPGRP	TARGET_IOW('t', 118, int)	/* set pgrp of tty */
+#define TARGET_TIOCGPGRP	TARGET_IOR('t', 119, int)	/* get pgrp of tty */
+#define TARGET_TIOCCONS	TARGET_IOW('t', 120, int)	/* become virtual console */
+
+#define TARGET_FIONREAD	0x467f
 #define TARGET_TIOCINQ		TARGET_FIONREAD
-#define TARGET_TIOCLINUX	0x541C
-#define TARGET_TIOCCONS	0x541D
-#define TARGET_TIOCGSERIAL	0x541E
-#define TARGET_TIOCSSERIAL	0x541F
-#define TARGET_TIOCPKT		0x5420
-#define TARGET_FIONBIO		0x5421
-#define TARGET_TIOCNOTTY	0x5422
-#define TARGET_TIOCSETD	0x5423
-#define TARGET_TIOCGETD	0x5424
-#define TARGET_TCSBRKP		0x5425	/* Needed for POSIX tcsendbreak() */
-#define TARGET_TIOCTTYGSTRUCT	0x5426  /* For debugging only */
+
+#define TARGET_TIOCGETP        0x7408
+#define TARGET_TIOCSETP        0x7409
+#define TARGET_TIOCSETN        0x740a			/* TIOCSETP wo flush */
+
+/* #define TARGET_TIOCSETA	TARGET_IOW('t', 20, struct termios) set termios struct */
+/* #define TARGET_TIOCSETAW	TARGET_IOW('t', 21, struct termios) drain output, set */
+/* #define TARGET_TIOCSETAF	TARGET_IOW('t', 22, struct termios) drn out, fls in, set */
+/* #define TARGET_TIOCGETD	TARGET_IOR('t', 26, int)	get line discipline */
+/* #define TARGET_TIOCSETD	TARGET_IOW('t', 27, int)	set line discipline */
+						/* 127-124 compat */
+
 #define TARGET_TIOCSBRK	0x5427  /* BSD compatibility */
 #define TARGET_TIOCCBRK	0x5428  /* BSD compatibility */
-#define TARGET_TIOCGSID	0x5429  /* Return the session ID of FD */
+#define TARGET_TIOCGSID	0x7416  /* Return the session ID of FD */
 #define TARGET_TIOCGPTN	TARGET_IOR('T',0x30, unsigned int) /* Get Pty Number (of pty-mux device) */
 #define TARGET_TIOCSPTLCK	TARGET_IOW('T',0x31, int)  /* Lock/unlock Pty */
 
-#define TARGET_FIONCLEX	0x5450  /* these numbers need to be adjusted. */
-#define TARGET_FIOCLEX		0x5451
-#define TARGET_FIOASYNC	0x5452
-#define TARGET_TIOCSERCONFIG	0x5453
-#define TARGET_TIOCSERGWILD	0x5454
-#define TARGET_TIOCSERSWILD	0x5455
-#define TARGET_TIOCGLCKTRMIOS	0x5456
-#define TARGET_TIOCSLCKTRMIOS	0x5457
-#define TARGET_TIOCSERGSTRUCT	0x5458 /* For debugging only */
-#define TARGET_TIOCSERGETLSR   0x5459 /* Get line status register */
-#define TARGET_TIOCSERGETMULTI 0x545A /* Get multiport config  */
-#define TARGET_TIOCSERSETMULTI 0x545B /* Set multiport config */
-
-#define TARGET_TIOCMIWAIT	0x545C	/* wait for a change on serial input line(s) */
-#define TARGET_TIOCGICOUNT	0x545D	/* read serial port inline interrupt counts */
-#define TARGET_TIOCGHAYESESP   0x545E  /* Get Hayes ESP configuration */
-#define TARGET_TIOCSHAYESESP   0x545F  /* Set Hayes ESP configuration */
-
-/* Used for packet mode */
-#define TARGET_TIOCPKT_DATA		 0
-#define TARGET_TIOCPKT_FLUSHREAD	 1
-#define TARGET_TIOCPKT_FLUSHWRITE	 2
-#define TARGET_TIOCPKT_STOP		 4
-#define TARGET_TIOCPKT_START		 8
-#define TARGET_TIOCPKT_NOSTOP		16
-#define TARGET_TIOCPKT_DOSTOP		32
-
-#define TARGET_TIOCSER_TEMT    0x01	/* Transmitter physically empty */
-
+/* I hope the range from 0x5480 on is free ... */
+#define TARGET_TIOCSCTTY	0x5480		/* become controlling tty */
+#define TARGET_TIOCGSOFTCAR	0x5481
+#define TARGET_TIOCSSOFTCAR	0x5482
+#define TARGET_TIOCLINUX	0x5483
+#define TARGET_TIOCGSERIAL	0x5484
+#define TARGET_TIOCSSERIAL	0x5485
+#define TARGET_TCSBRKP		0x5486	/* Needed for POSIX tcsendbreak() */
+#define TARGET_TIOCSERCONFIG	0x5488
+#define TARGET_TIOCSERGWILD	0x5489
+#define TARGET_TIOCSERSWILD	0x548a
+#define TARGET_TIOCGLCKTRMIOS	0x548b
+#define TARGET_TIOCSLCKTRMIOS	0x548c
+#define TARGET_TIOCSERGSTRUCT	0x548d /* For debugging only */
+#define TARGET_TIOCSERGETLSR   0x548e /* Get line status register */
+#define TARGET_TIOCSERGETMULTI 0x548f /* Get multiport config  */
+#define TARGET_TIOCSERSETMULTI 0x5490 /* Set multiport config */
+#define TARGET_TIOCMIWAIT      0x5491 /* wait for a change on serial input line(s) */
+#define TARGET_TIOCGICOUNT     0x5492 /* read serial port inline interrupt counts */
+#define TARGET_TIOCGHAYESESP	0x5493 /* Get Hayes ESP configuration */
+#define TARGET_TIOCSHAYESESP	0x5494 /* Set Hayes ESP configuration */
