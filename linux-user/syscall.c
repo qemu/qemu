@@ -42,6 +42,7 @@
 #include <sys/poll.h>
 #include <sys/times.h>
 #include <sys/shm.h>
+#include <sys/statfs.h>
 #include <utime.h>
 #include <sys/sysinfo.h>
 //#include <sys/user.h>
@@ -202,8 +203,6 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5)	\
 
 #define __NR_sys_uname __NR_uname
 #define __NR_sys_getcwd1 __NR_getcwd
-#define __NR_sys_statfs __NR_statfs
-#define __NR_sys_fstatfs __NR_fstatfs
 #define __NR_sys_getdents __NR_getdents
 #define __NR_sys_getdents64 __NR_getdents64
 #define __NR_sys_rt_sigqueueinfo __NR_rt_sigqueueinfo
@@ -225,8 +224,6 @@ _syscall3(int, sys_getdents, uint, fd, struct dirent *, dirp, uint, count);
 _syscall3(int, sys_getdents64, uint, fd, struct dirent64 *, dirp, uint, count);
 _syscall5(int, _llseek,  uint,  fd, ulong, hi, ulong, lo,
           loff_t *, res, uint, wh);
-_syscall2(int,sys_statfs,const char *,path,struct kernel_statfs *,buf)
-_syscall2(int,sys_fstatfs,int,fd,struct kernel_statfs *,buf)
 _syscall3(int,sys_rt_sigqueueinfo,int,pid,int,sig,siginfo_t *,uinfo)
 #ifdef __NR_exit_group
 _syscall1(int,exit_group,int,error_code)
@@ -1659,7 +1656,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 {
     long ret;
     struct stat st;
-    struct kernel_statfs *stfs;
+    struct statfs stfs;
     
 #ifdef DEBUG
     gemu_log("syscall %d", num);
@@ -2298,26 +2295,47 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         goto unimplemented;
 #endif
     case TARGET_NR_statfs:
-        stfs = (void *)arg2;
-        ret = get_errno(sys_statfs(path((const char *)arg1), stfs));
+        ret = get_errno(statfs(path((const char *)arg1), &stfs));
     convert_statfs:
         if (!is_error(ret)) {
-            tswap32s(&stfs->f_type);
-            tswap32s(&stfs->f_bsize);
-            tswap32s(&stfs->f_blocks);
-            tswap32s(&stfs->f_bfree);
-            tswap32s(&stfs->f_bavail);
-            tswap32s(&stfs->f_files);
-            tswap32s(&stfs->f_ffree);
-            tswap32s(&stfs->f_fsid.val[0]);
-            tswap32s(&stfs->f_fsid.val[1]);
-            tswap32s(&stfs->f_namelen);
+            struct target_statfs *target_stfs = (void *)arg2;
+            
+            put_user(stfs.f_type, &target_stfs->f_type);
+            put_user(stfs.f_bsize, &target_stfs->f_bsize);
+            put_user(stfs.f_blocks, &target_stfs->f_blocks);
+            put_user(stfs.f_bfree, &target_stfs->f_bfree);
+            put_user(stfs.f_bavail, &target_stfs->f_bavail);
+            put_user(stfs.f_files, &target_stfs->f_files);
+            put_user(stfs.f_ffree, &target_stfs->f_ffree);
+            put_user(stfs.f_fsid.__val[0], &target_stfs->f_fsid);
+            put_user(stfs.f_namelen, &target_stfs->f_namelen);
         }
         break;
     case TARGET_NR_fstatfs:
-        stfs = (void *)arg2;
-        ret = get_errno(sys_fstatfs(arg1, stfs));
+        ret = get_errno(fstatfs(arg1, &stfs));
         goto convert_statfs;
+#ifdef TARGET_NR_statfs64
+    case TARGET_NR_statfs64:
+        ret = get_errno(statfs(path((const char *)arg1), &stfs));
+    convert_statfs64:
+        if (!is_error(ret)) {
+            struct target_statfs64 *target_stfs = (void *)arg3;
+
+            put_user(stfs.f_type, &target_stfs->f_type);
+            put_user(stfs.f_bsize, &target_stfs->f_bsize);
+            put_user(stfs.f_blocks, &target_stfs->f_blocks);
+            put_user(stfs.f_bfree, &target_stfs->f_bfree);
+            put_user(stfs.f_bavail, &target_stfs->f_bavail);
+            put_user(stfs.f_files, &target_stfs->f_files);
+            put_user(stfs.f_ffree, &target_stfs->f_ffree);
+            put_user(stfs.f_fsid.__val[0], &target_stfs->f_fsid);
+            put_user(stfs.f_namelen, &target_stfs->f_namelen);
+        }
+        break;
+    case TARGET_NR_fstatfs64:
+        ret = get_errno(fstatfs(arg1, &stfs));
+        goto convert_statfs64;
+#endif
 #ifdef TARGET_NR_ioperm
     case TARGET_NR_ioperm:
         goto unimplemented;

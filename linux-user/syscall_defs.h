@@ -1102,6 +1102,68 @@ struct target_stat64 {
 #error unsupported CPU
 #endif
 
+#ifdef TARGET_MIPS
+struct target_statfs {
+	target_long		f_type;
+	target_long		f_bsize;
+	target_long		f_frsize;	/* Fragment size - unsupported */
+	target_long		f_blocks;
+	target_long		f_bfree;
+	target_long		f_files;
+	target_long		f_ffree;
+	target_long		f_bavail;
+
+	/* Linux specials */
+	int	f_fsid;
+	target_long		f_namelen;
+	target_long		f_spare[6];
+};
+
+struct target_statfs64 {
+	uint32_t	f_type;
+	uint32_t	f_bsize;
+	uint32_t	f_frsize;	/* Fragment size - unsupported */
+	uint32_t	__pad;
+	uint64_t	f_blocks;
+	uint64_t	f_bfree;
+	uint64_t	f_files;
+	uint64_t	f_ffree;
+	uint64_t	f_bavail;
+	int f_fsid;
+	uint32_t	f_namelen;
+	uint32_t	f_spare[6];
+};
+#else
+struct target_statfs {
+	uint32_t f_type;
+	uint32_t f_bsize;
+	uint32_t f_blocks;
+	uint32_t f_bfree;
+	uint32_t f_bavail;
+	uint32_t f_files;
+	uint32_t f_ffree;
+	int f_fsid;
+	uint32_t f_namelen;
+	uint32_t f_frsize;
+	uint32_t f_spare[5];
+};
+
+struct target_statfs64 {
+	uint32_t f_type;
+	uint32_t f_bsize;
+	uint64_t f_blocks;
+	uint64_t f_bfree;
+	uint64_t f_bavail;
+	uint64_t f_files;
+	uint64_t f_ffree;
+	int f_fsid;
+        uint32_t f_namelen;
+	uint32_t f_frsize;
+	uint32_t f_spare[5];
+};
+#endif
+
+
 #define TARGET_F_DUPFD         0       /* dup */
 #define TARGET_F_GETFD         1       /* get close_on_exec */
 #define TARGET_F_SETFD         2       /* set/clear close_on_exec */
