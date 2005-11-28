@@ -189,6 +189,7 @@
 #define PG_DIRTY_BIT	6
 #define PG_PSE_BIT	7
 #define PG_GLOBAL_BIT	8
+#define PG_NX_BIT	63
 
 #define PG_PRESENT_MASK  (1 << PG_PRESENT_BIT)
 #define PG_RW_MASK	 (1 << PG_RW_BIT)
@@ -199,6 +200,7 @@
 #define PG_DIRTY_MASK	 (1 << PG_DIRTY_BIT)
 #define PG_PSE_MASK	 (1 << PG_PSE_BIT)
 #define PG_GLOBAL_MASK	 (1 << PG_GLOBAL_BIT)
+#define PG_NX_MASK	 (1LL << PG_NX_BIT)
 
 #define PG_ERROR_W_BIT     1
 
@@ -206,6 +208,7 @@
 #define PG_ERROR_W_MASK    (1 << PG_ERROR_W_BIT)
 #define PG_ERROR_U_MASK    0x04
 #define PG_ERROR_RSVD_MASK 0x08
+#define PG_ERROR_I_D_MASK  0x10
 
 #define MSR_IA32_APICBASE               0x1b
 #define MSR_IA32_APICBASE_BSP           (1<<8)
