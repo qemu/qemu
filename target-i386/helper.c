@@ -1732,11 +1732,11 @@ void helper_lcall_real_T0_T1(int shift, int next_eip)
 /* protected mode call */
 void helper_lcall_protected_T0_T1(int shift, int next_eip_addend)
 {
-    int new_cs, new_eip, new_stack, i;
+    int new_cs, new_stack, i;
     uint32_t e1, e2, cpl, dpl, rpl, selector, offset, param_count;
     uint32_t ss, ss_e1, ss_e2, sp, type, ss_dpl, sp_mask;
     uint32_t val, limit, old_sp_mask;
-    target_ulong ssp, old_ssp, next_eip;
+    target_ulong ssp, old_ssp, next_eip, new_eip;
     
     new_cs = T0;
     new_eip = T1;
@@ -1744,7 +1744,7 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip_addend)
 #ifdef DEBUG_PCALL
     if (loglevel & CPU_LOG_PCALL) {
         fprintf(logfile, "lcall %04x:%08x s=%d\n",
-                new_cs, new_eip, shift);
+                new_cs, (uint32_t)new_eip, shift);
         cpu_dump_state(env, logfile, fprintf, X86_DUMP_CCOP);
     }
 #endif
