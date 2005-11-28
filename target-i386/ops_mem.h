@@ -45,7 +45,7 @@ void OPPROTO glue(glue(op_ldsw, MEMSUFFIX), _T1_A0)(void)
 
 void OPPROTO glue(glue(op_ldl, MEMSUFFIX), _T1_A0)(void)
 {
-    T1 = glue(ldl, MEMSUFFIX)(A0);
+    T1 = (uint32_t)glue(ldl, MEMSUFFIX)(A0);
 }
 
 void OPPROTO glue(glue(op_stb, MEMSUFFIX), _T0_A0)(void)
