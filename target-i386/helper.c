@@ -1584,7 +1584,7 @@ void load_seg(int seg_reg, int selector)
             
             if (!(e2 & DESC_CS_MASK) || !(e2 & DESC_C_MASK)) {
                 /* if not conforming code, test rights */
-                if (dpl < cpl || dpl < rpl)
+                if (dpl < cpl || dpl < rpl) 
                     raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
             }
         }
@@ -2152,10 +2152,10 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
             sp_mask = get_sp_mask(ss_e2);
 
         /* validate data segments */
-        validate_seg(R_ES, cpl);
-        validate_seg(R_DS, cpl);
-        validate_seg(R_FS, cpl);
-        validate_seg(R_GS, cpl);
+        validate_seg(R_ES, rpl);
+        validate_seg(R_DS, rpl);
+        validate_seg(R_FS, rpl);
+        validate_seg(R_GS, rpl);
 
         sp += addend;
     }
