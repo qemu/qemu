@@ -305,8 +305,6 @@ typedef struct icp_pic_state
   int parent_irq;
 } icp_pic_state;
 
-static void icp_pic_set_level(icp_pic_state *, int, int);
-
 static void icp_pic_update(icp_pic_state *s)
 {
     CPUState *env;
@@ -314,8 +312,8 @@ static void icp_pic_update(icp_pic_state *s)
         uint32_t flags;
 
         flags = (s->level & s->irq_enabled);
-        icp_pic_set_level((icp_pic_state *)s->parent, s->parent_irq,
-                          flags != 0);
+        pic_set_irq_new(s->parent, s->parent_irq,
+                        flags != 0);
         return;
     }
     /* Raise CPU interrupt.  */
@@ -332,12 +330,13 @@ static void icp_pic_update(icp_pic_state *s)
     }
 }
 
-static void icp_pic_set_level(icp_pic_state *s, int n, int level)
+void pic_set_irq_new(void *opaque, int irq, int level)
 {
+    icp_pic_state *s = (icp_pic_state *)opaque;
     if (level)
-        s->level |= 1 << n;
+        s->level |= 1 << irq;
     else
-        s->level &= ~(1 << n);
+        s->level &= ~(1 << irq);
     icp_pic_update(s);
 }
 
@@ -385,11 +384,11 @@ static void icp_pic_write(void *opaque, target_phys_addr_t offset,
         break;
     case 4: /* INT_SOFTSET */
         if (value & 1)
-            icp_pic_set_level(s, 0, 1);
+            pic_set_irq_new(s, 0, 1);
         break;
     case 5: /* INT_SOFTCLR */
         if (value & 1)
-            icp_pic_set_level(s, 0, 0);
+            pic_set_irq_new(s, 0, 0);
         break;
     case 10: /* FRQ_ENABLESET */
         s->fiq_enabled |= value;
@@ -513,9 +512,9 @@ static void icp_pit_update(icp_pit_state *s, int64_t now)
     /* Update interrupts.  */
     for (n = 0; n < 3; n++) {
         if (s->int_level[n] && (s->control[n] & 0x20)) {
-            icp_pic_set_level(s->pic, 5 + n, 1);
+            pic_set_irq_new(s->pic, 5 + n, 1);
         } else {
-            icp_pic_set_level(s->pic, 5 + n, 0);
+            pic_set_irq_new(s->pic, 5 + n, 0);
         }
         if (next - s->expires[n] < 0)
             next = s->expires[n];
@@ -731,7 +730,7 @@ static void pl011_update(pl011_state *s)
     uint32_t flags;
     
     flags = s->int_level & s->int_enabled;
-    icp_pic_set_level(s->pic, s->irq, flags != 0);
+    pic_set_irq_new(s->pic, s->irq, flags != 0);
 }
 
 static uint32_t pl011_read(void *opaque, target_phys_addr_t offset)
@@ -1020,7 +1019,7 @@ static void icp_kmi_update(void *opaque, int level)
     s->pending = level;
     raise = (s->pending && (s->cr & 0x10) != 0)
             || (s->cr & 0x08) != 0;
-    icp_pic_set_level(s->pic, s->irq, raise);
+    pic_set_irq_new(s->pic, s->irq, raise);
 }
 
 static uint32_t icp_kmi_read(void *opaque, target_phys_addr_t offset)
@@ -1196,6 +1195,8 @@ static void integratorcp_init(int ram_size, int vga_ram_size, int boot_device,
     icp_control_init(0xcb000000);
     icp_kmi_init(0x18000000, pic, 3, 0);
     icp_kmi_init(0x19000000, pic, 4, 1);
+    if (nd_table[0].vlan)
+        smc91c111_init(&nd_table[0], 0xc8000000, pic, 27);
 
     /* Load the kernel.  */
     if (!kernel_filename) {

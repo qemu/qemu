@@ -939,6 +939,9 @@ void ps2_write_keyboard(void *, int val);
 uint32_t ps2_read_data(void *);
 void ps2_queue(void *, int b);
 
+/* smc91c111.c */
+void smc91c111_init(NICInfo *, uint32_t, void *, int);
+
 #endif /* defined(QEMU_TOOL) */
 
 /* monitor.c */
