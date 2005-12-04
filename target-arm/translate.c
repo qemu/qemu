@@ -1021,11 +1021,11 @@ static inline void gen_jmp (DisasContext *s, uint32_t dest)
 
 static inline void gen_mulxy(int x, int y)
 {
-    if (x & 2)
+    if (x)
         gen_op_sarl_T0_im(16);
     else
         gen_op_sxth_T0();
-    if (y & 1)
+    if (y)
         gen_op_sarl_T1_im(16);
     else
         gen_op_sxth_T1();
