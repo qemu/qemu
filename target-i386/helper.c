@@ -3478,9 +3478,9 @@ void tlb_fill(target_ulong addr, int is_write, int is_user, void *retaddr)
             }
         }
         if (retaddr)
-            raise_exception_err(EXCP0E_PAGE, env->error_code);
+            raise_exception_err(env->exception_index, env->error_code);
         else
-            raise_exception_err_norestore(EXCP0E_PAGE, env->error_code);
+            raise_exception_err_norestore(env->exception_index, env->error_code);
     }
     env = saved_env;
 }

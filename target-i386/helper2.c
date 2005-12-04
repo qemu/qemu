@@ -566,6 +566,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
     env->cr[2] = addr;
     env->error_code = (is_write << PG_ERROR_W_BIT);
     env->error_code |= PG_ERROR_U_MASK;
+    env->exception_index = EXCP0E_PAGE;
     return 1;
 }
 
@@ -620,8 +621,9 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
             /* test virtual address sign extension */
             sext = (int64_t)addr >> 47;
             if (sext != 0 && sext != -1) {
-                error_code = 0;
-                goto do_fault;
+                env->error_code = 0;
+                env->exception_index = EXCP0D_GPF;
+                return 1;
             }
             
             pml4e_addr = ((env->cr[3] & ~0xfff) + (((addr >> 39) & 0x1ff) << 3)) & 
@@ -862,6 +864,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
         (env->cr[4] & CR4_PAE_MASK))
         error_code |= PG_ERROR_I_D_MASK;
     env->error_code = error_code;
+    env->exception_index = EXCP0E_PAGE;
     return 1;
 }
 

@@ -904,7 +904,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
         /* we restore the process signal mask as the sigreturn should
            do it (XXX: use sigsetjmp) */
         sigprocmask(SIG_SETMASK, old_set, NULL);
-        raise_exception_err(EXCP0E_PAGE, env->error_code);
+        raise_exception_err(env->exception_index, env->error_code);
     } else {
         /* activate soft MMU for this block */
         env->hflags |= HF_SOFTMMU_MASK;
