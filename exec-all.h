@@ -62,6 +62,7 @@ extern target_ulong gen_opc_npc[OPC_BUF_SIZE];
 extern uint8_t gen_opc_cc_op[OPC_BUF_SIZE];
 extern uint8_t gen_opc_instr_start[OPC_BUF_SIZE];
 extern target_ulong gen_opc_jump_pc[2];
+extern uint32_t gen_opc_hflags[OPC_BUF_SIZE];
 
 typedef void (GenOpFunc)(void);
 typedef void (GenOpFunc1)(long);

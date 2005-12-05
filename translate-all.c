@@ -53,6 +53,8 @@ uint8_t gen_opc_cc_op[OPC_BUF_SIZE];
 #elif defined(TARGET_SPARC)
 target_ulong gen_opc_npc[OPC_BUF_SIZE];
 target_ulong gen_opc_jump_pc[2];
+#elif defined(TARGET_MIPS)
+uint32_t gen_opc_hflags[OPC_BUF_SIZE];
 #endif
 
 int code_copy_enabled = 1;
@@ -302,6 +304,8 @@ int cpu_restore_state(TranslationBlock *tb,
     }
 #elif defined(TARGET_MIPS)
     env->PC = gen_opc_pc[j];
+    env->hflags &= ~MIPS_HFLAG_BMASK;
+    env->hflags |= gen_opc_hflags[j];
 #endif
     return 0;
 }
