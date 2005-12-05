@@ -75,10 +75,27 @@ static const int access_table[8][8] = {
     { 2, 2, 2, 0, 2, 2, 2, 0 }
 };
 
-/* 1 = write OK */
-static const int rw_table[2][8] = {
-    { 0, 1, 0, 1, 0, 1, 0, 1 },
-    { 0, 1, 0, 1, 0, 0, 0, 0 }
+static const int perm_table[2][8] = {
+    {
+        PAGE_READ,
+        PAGE_READ | PAGE_WRITE,
+        PAGE_READ | PAGE_EXEC,
+        PAGE_READ | PAGE_WRITE | PAGE_EXEC,
+        PAGE_EXEC,
+        PAGE_READ | PAGE_WRITE,
+        PAGE_READ | PAGE_EXEC,
+        PAGE_READ | PAGE_WRITE | PAGE_EXEC
+    },
+    {
+        PAGE_READ,
+        PAGE_READ | PAGE_WRITE,
+        PAGE_READ | PAGE_EXEC,
+        PAGE_READ | PAGE_WRITE | PAGE_EXEC,
+        PAGE_EXEC,
+        PAGE_READ,
+        0,
+        0,
+    }
 };
 
 int get_physical_address (CPUState *env, target_phys_addr_t *physical, int *prot,
@@ -95,7 +112,7 @@ int get_physical_address (CPUState *env, target_phys_addr_t *physical, int *prot
     virt_addr = address & TARGET_PAGE_MASK;
     if ((env->mmuregs[0] & MMU_E) == 0) { /* MMU disabled */
 	*physical = address;
-        *prot = PAGE_READ | PAGE_WRITE;
+        *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         return 0;
     }
 
@@ -177,12 +194,11 @@ int get_physical_address (CPUState *env, target_phys_addr_t *physical, int *prot
 	return error_code;
 
     /* the page can be put in the TLB */
-    *prot = PAGE_READ;
-    if (pde & PG_MODIFIED_MASK) {
+    *prot = perm_table[is_user][access_perms];
+    if (!(pde & PG_MODIFIED_MASK)) {
         /* only set write access if already dirty... otherwise wait
            for dirty access */
-	if (rw_table[is_user][access_perms])
-	        *prot |= PAGE_WRITE;
+        *prot &= ~PAGE_WRITE;
     }
 
     /* Even if large ptes, we map only one 4KB page in the cache to
@@ -206,7 +222,7 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 #ifdef DEBUG_MMU
 	printf("Translate at 0x%lx -> 0x%lx, vaddr 0x%lx\n", (long)address, (long)paddr, (long)vaddr);
 #endif
-	ret = tlb_set_page(env, vaddr, paddr, prot, is_user, is_softmmu);
+	ret = tlb_set_page_exec(env, vaddr, paddr, prot, is_user, is_softmmu);
 	return ret;
     }
 
@@ -221,8 +237,8 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
         // neverland. Fake/overridden mappings will be flushed when
         // switching to normal mode.
 	vaddr = address & TARGET_PAGE_MASK;
-        prot = PAGE_READ | PAGE_WRITE;
-        ret = tlb_set_page(env, vaddr, paddr, prot, is_user, is_softmmu);
+        prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+        ret = tlb_set_page_exec(env, vaddr, paddr, prot, is_user, is_softmmu);
 	return ret;
     } else {
         if (rw & 2)
@@ -405,7 +421,7 @@ static int get_physical_address_code(CPUState *env, target_phys_addr_t *physical
 
     if ((env->lsu & IMMU_E) == 0) { /* IMMU disabled */
 	*physical = address;
-	*prot = PAGE_READ;
+	*prot = PAGE_EXEC;
         return 0;
     }
 
@@ -441,7 +457,7 @@ static int get_physical_address_code(CPUState *env, target_phys_addr_t *physical
 		return 1;
 	    }
 	    *physical = (env->itlb_tte[i] & mask & 0x1fffffff000ULL) + (address & ~mask & 0x1fffffff000ULL);
-	    *prot = PAGE_READ;
+	    *prot = PAGE_EXEC;
 	    return 0;
 	}
     }
@@ -477,7 +493,7 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 #ifdef DEBUG_MMU
 	printf("Translate at 0x%llx -> 0x%llx, vaddr 0x%llx\n", address, paddr, vaddr);
 #endif
-	ret = tlb_set_page(env, vaddr, paddr, prot, is_user, is_softmmu);
+	ret = tlb_set_page_exec(env, vaddr, paddr, prot, is_user, is_softmmu);
 	return ret;
     }
     // XXX
