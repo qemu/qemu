@@ -1327,6 +1327,7 @@ void cpu_loop(CPUMIPSState *env)
                 }
             }
             break;
+        case EXCP_CpU:
         case EXCP_RI:
             {
                 uint32_t insn, op;
