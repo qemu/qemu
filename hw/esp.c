@@ -75,6 +75,148 @@ typedef struct ESPState {
 #define SEQ_0 0x0
 #define SEQ_CD 0x4
 
+/* XXX: stolen from ide.c, move to common ATAPI/SCSI library */
+static void lba_to_msf(uint8_t *buf, int lba)
+{
+    lba += 150;
+    buf[0] = (lba / 75) / 60;
+    buf[1] = (lba / 75) % 60;
+    buf[2] = lba % 75;
+}
+
+static inline void cpu_to_ube16(uint8_t *buf, int val)
+{
+    buf[0] = val >> 8;
+    buf[1] = val;
+}
+
+static inline void cpu_to_ube32(uint8_t *buf, unsigned int val)
+{
+    buf[0] = val >> 24;
+    buf[1] = val >> 16;
+    buf[2] = val >> 8;
+    buf[3] = val;
+}
+
+/* same toc as bochs. Return -1 if error or the toc length */
+/* XXX: check this */
+static int cdrom_read_toc(int nb_sectors, uint8_t *buf, int msf, int start_track)
+{
+    uint8_t *q;
+    int len;
+    
+    if (start_track > 1 && start_track != 0xaa)
+        return -1;
+    q = buf + 2;
+    *q++ = 1; /* first session */
+    *q++ = 1; /* last session */
+    if (start_track <= 1) {
+        *q++ = 0; /* reserved */
+        *q++ = 0x14; /* ADR, control */
+        *q++ = 1;    /* track number */
+        *q++ = 0; /* reserved */
+        if (msf) {
+            *q++ = 0; /* reserved */
+            lba_to_msf(q, 0);
+            q += 3;
+        } else {
+            /* sector 0 */
+            cpu_to_ube32(q, 0);
+            q += 4;
+        }
+    }
+    /* lead out track */
+    *q++ = 0; /* reserved */
+    *q++ = 0x16; /* ADR, control */
+    *q++ = 0xaa; /* track number */
+    *q++ = 0; /* reserved */
+    if (msf) {
+        *q++ = 0; /* reserved */
+        lba_to_msf(q, nb_sectors);
+        q += 3;
+    } else {
+        cpu_to_ube32(q, nb_sectors);
+        q += 4;
+    }
+    len = q - buf;
+    cpu_to_ube16(buf, len - 2);
+    return len;
+}
+
+/* mostly same info as PearPc */
+static int cdrom_read_toc_raw(int nb_sectors, uint8_t *buf, int msf, 
+                              int session_num)
+{
+    uint8_t *q;
+    int len;
+    
+    q = buf + 2;
+    *q++ = 1; /* first session */
+    *q++ = 1; /* last session */
+
+    *q++ = 1; /* session number */
+    *q++ = 0x14; /* data track */
+    *q++ = 0; /* track number */
+    *q++ = 0xa0; /* lead-in */
+    *q++ = 0; /* min */
+    *q++ = 0; /* sec */
+    *q++ = 0; /* frame */
+    *q++ = 0;
+    *q++ = 1; /* first track */
+    *q++ = 0x00; /* disk type */
+    *q++ = 0x00;
+    
+    *q++ = 1; /* session number */
+    *q++ = 0x14; /* data track */
+    *q++ = 0; /* track number */
+    *q++ = 0xa1;
+    *q++ = 0; /* min */
+    *q++ = 0; /* sec */
+    *q++ = 0; /* frame */
+    *q++ = 0;
+    *q++ = 1; /* last track */
+    *q++ = 0x00;
+    *q++ = 0x00;
+    
+    *q++ = 1; /* session number */
+    *q++ = 0x14; /* data track */
+    *q++ = 0; /* track number */
+    *q++ = 0xa2; /* lead-out */
+    *q++ = 0; /* min */
+    *q++ = 0; /* sec */
+    *q++ = 0; /* frame */
+    if (msf) {
+        *q++ = 0; /* reserved */
+        lba_to_msf(q, nb_sectors);
+        q += 3;
+    } else {
+        cpu_to_ube32(q, nb_sectors);
+        q += 4;
+    }
+
+    *q++ = 1; /* session number */
+    *q++ = 0x14; /* ADR, control */
+    *q++ = 0;    /* track number */
+    *q++ = 1;    /* point */
+    *q++ = 0; /* min */
+    *q++ = 0; /* sec */
+    *q++ = 0; /* frame */
+    if (msf) {
+        *q++ = 0; 
+        lba_to_msf(q, 0);
+        q += 3;
+    } else {
+        *q++ = 0; 
+        *q++ = 0; 
+        *q++ = 0; 
+        *q++ = 0; 
+    }
+
+    len = q - buf;
+    cpu_to_ube16(buf, len - 2);
+    return len;
+}
+
 static void handle_satn(ESPState *s)
 {
     uint8_t buf[32];
@@ -128,6 +270,7 @@ static void handle_satn(ESPState *s)
 	memcpy(&s->ti_buf[8], "QEMU   ", 8);
 	s->ti_buf[2] = 1;
 	s->ti_buf[3] = 2;
+	s->ti_buf[4] = 32;
 	s->ti_dir = 1;
 	s->ti_size = 36;
 	break;
@@ -190,6 +333,45 @@ static void handle_satn(ESPState *s)
 	    s->ti_dir = 0;
 	    break;
 	}
+    case 0x43:
+        {
+            int start_track, format, msf, len;
+
+            msf = buf[2] & 2;
+            format = buf[3] & 0xf;
+            start_track = buf[7];
+            bdrv_get_geometry(s->bd[target], &nb_sectors);
+            DPRINTF("Read TOC (track %d format %d msf %d)\n", start_track, format, msf >> 1);
+            switch(format) {
+            case 0:
+                len = cdrom_read_toc(nb_sectors, buf, msf, start_track);
+                if (len < 0)
+                    goto error_cmd;
+                s->ti_size = len;
+                break;
+            case 1:
+                /* multi session : only a single session defined */
+                memset(buf, 0, 12);
+                buf[1] = 0x0a;
+                buf[2] = 0x01;
+                buf[3] = 0x01;
+                s->ti_size = 12;
+                break;
+            case 2:
+                len = cdrom_read_toc_raw(nb_sectors, buf, msf, start_track);
+                if (len < 0)
+                    goto error_cmd;
+                s->ti_size = len;
+                break;
+            default:
+            error_cmd:
+                DPRINTF("Read TOC error\n");
+                // XXX error handling
+                break;
+            }
+	    s->ti_dir = 1;
+            break;
+        }
     default:
 	DPRINTF("Unknown SCSI command (%2.2x)\n", buf[1]);
 	break;
