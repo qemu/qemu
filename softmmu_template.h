@@ -97,15 +97,28 @@ DATA_TYPE REGPARM(1) glue(glue(__ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
             /* slow unaligned access (it spans two pages or IO) */
         do_unaligned_access:
             retaddr = GETPC();
+#ifdef ALIGNED_ONLY
+            do_unaligned_access(addr, READ_ACCESS_TYPE, is_user, retaddr);
+#endif
             res = glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(addr, 
                                                          is_user, retaddr);
         } else {
-            /* unaligned access in the same page */
+            /* unaligned/aligned access in the same page */
+#ifdef ALIGNED_ONLY
+            if ((addr & (DATA_SIZE - 1)) != 0) {
+                retaddr = GETPC();
+                do_unaligned_access(addr, READ_ACCESS_TYPE, is_user, retaddr);
+            }
+#endif
             res = glue(glue(ld, USUFFIX), _raw)((uint8_t *)(long)physaddr);
         }
     } else {
         /* the page is not in the TLB : fill it */
         retaddr = GETPC();
+#ifdef ALIGNED_ONLY
+        if ((addr & (DATA_SIZE - 1)) != 0)
+            do_unaligned_access(addr, READ_ACCESS_TYPE, is_user, retaddr);
+#endif
         tlb_fill(addr, READ_ACCESS_TYPE, is_user, retaddr);
         goto redo;
     }
@@ -213,15 +226,28 @@ void REGPARM(2) glue(glue(__st, SUFFIX), MMUSUFFIX)(target_ulong addr,
         } else if (((addr & ~TARGET_PAGE_MASK) + DATA_SIZE - 1) >= TARGET_PAGE_SIZE) {
         do_unaligned_access:
             retaddr = GETPC();
+#ifdef ALIGNED_ONLY
+            do_unaligned_access(addr, 1, is_user, retaddr);
+#endif
             glue(glue(slow_st, SUFFIX), MMUSUFFIX)(addr, val, 
                                                    is_user, retaddr);
         } else {
             /* aligned/unaligned access in the same page */
+#ifdef ALIGNED_ONLY
+            if ((addr & (DATA_SIZE - 1)) != 0) {
+                retaddr = GETPC();
+                do_unaligned_access(addr, 1, is_user, retaddr);
+            }
+#endif
             glue(glue(st, SUFFIX), _raw)((uint8_t *)(long)physaddr, val);
         }
     } else {
         /* the page is not in the TLB : fill it */
         retaddr = GETPC();
+#ifdef ALIGNED_ONLY
+        if ((addr & (DATA_SIZE - 1)) != 0)
+            do_unaligned_access(addr, 1, is_user, retaddr);
+#endif
         tlb_fill(addr, 1, is_user, retaddr);
         goto redo;
     }
