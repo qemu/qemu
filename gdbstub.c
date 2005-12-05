@@ -421,6 +421,72 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
     ptr += 8 * 12 + 4;
     cpsr_write (env, tswapl(*(uint32_t *)ptr), 0xffffffff);
 }
+#elif defined (TARGET_MIPS)
+static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
+{
+    int i;
+    uint8_t *ptr;
+
+    ptr = mem_buf;
+    for (i = 0; i < 32; i++)
+      {
+        *(uint32_t *)ptr = tswapl(env->gpr[i]);
+        ptr += 4;
+      }
+
+    *(uint32_t *)ptr = tswapl(env->CP0_Status);
+    ptr += 4;
+
+    *(uint32_t *)ptr = tswapl(env->LO);
+    ptr += 4;
+
+    *(uint32_t *)ptr = tswapl(env->HI);
+    ptr += 4;
+
+    *(uint32_t *)ptr = tswapl(env->CP0_BadVAddr);
+    ptr += 4;
+
+    *(uint32_t *)ptr = tswapl(env->CP0_Cause);
+    ptr += 4;
+
+    *(uint32_t *)ptr = tswapl(env->PC);
+    ptr += 4;
+
+    /* 32 FP registers, fsr, fir, fp.  Not yet implemented.  */
+
+    return ptr - mem_buf;
+}
+
+static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
+{
+    int i;
+    uint8_t *ptr;
+
+    ptr = mem_buf;
+    for (i = 0; i < 32; i++)
+      {
+        env->gpr[i] = tswapl(*(uint32_t *)ptr);
+        ptr += 4;
+      }
+
+    env->CP0_Status = tswapl(*(uint32_t *)ptr);
+    ptr += 4;
+
+    env->LO = tswapl(*(uint32_t *)ptr);
+    ptr += 4;
+
+    env->HI = tswapl(*(uint32_t *)ptr);
+    ptr += 4;
+
+    env->CP0_BadVAddr = tswapl(*(uint32_t *)ptr);
+    ptr += 4;
+
+    env->CP0_Cause = tswapl(*(uint32_t *)ptr);
+    ptr += 4;
+
+    env->PC = tswapl(*(uint32_t *)ptr);
+    ptr += 4;
+}
 #else
 static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
 {
@@ -511,10 +577,12 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
         if (*p == ',')
             p++;
         len = strtoul(p, NULL, 16);
-        if (cpu_memory_rw_debug(env, addr, mem_buf, len, 0) != 0)
-            memset(mem_buf, 0, len);
-        memtohex(buf, mem_buf, len);
-        put_packet(s, buf);
+        if (cpu_memory_rw_debug(env, addr, mem_buf, len, 0) != 0) {
+            put_packet (s, "E14");
+        } else {
+            memtohex(buf, mem_buf, len);
+            put_packet(s, buf);
+        }
         break;
     case 'M':
         addr = strtoul(p, (char **)&p, 16);
