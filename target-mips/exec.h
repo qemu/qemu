@@ -65,19 +65,19 @@ void do_tlbwi (void);
 void do_tlbwr (void);
 void do_tlbp (void);
 void do_tlbr (void);
-void do_lwl_raw (void);
-void do_lwr_raw (void);
-void do_swl_raw (void);
-void do_swr_raw (void);
+void do_lwl_raw (uint32_t);
+void do_lwr_raw (uint32_t);
+uint32_t do_swl_raw (uint32_t);
+uint32_t do_swr_raw (uint32_t);
 #if !defined(CONFIG_USER_ONLY)
-void do_lwl_user (void);
-void do_lwl_kernel (void);
-void do_lwr_user (void);
-void do_lwr_kernel (void);
-void do_swl_user (void);
-void do_swl_kernel (void);
-void do_swr_user (void);
-void do_swr_kernel (void);
+void do_lwl_user (uint32_t);
+void do_lwl_kernel (uint32_t);
+void do_lwr_user (uint32_t);
+void do_lwr_kernel (uint32_t);
+uint32_t do_swl_user (uint32_t);
+uint32_t do_swl_kernel (uint32_t);
+uint32_t do_swr_user (uint32_t);
+uint32_t do_swr_kernel (uint32_t);
 #endif
 void do_pmon (int function);
 
@@ -88,6 +88,7 @@ void do_interrupt (CPUState *env);
 void cpu_loop_exit(void);
 void do_raise_exception_err (uint32_t exception, int error_code);
 void do_raise_exception (uint32_t exception);
+void do_raise_exception_direct (uint32_t exception);
 
 void cpu_dump_state(CPUState *env, FILE *f, 
                     int (*cpu_fprintf)(FILE *f, const char *fmt, ...),

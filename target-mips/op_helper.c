@@ -22,6 +22,8 @@
 
 #define MIPS_DEBUG_DISAS
 
+#define GETPC() (__builtin_return_address(0))
+
 /*****************************************************************************/
 /* Exceptions processing helpers */
 void cpu_loop_exit(void)
@@ -44,6 +46,21 @@ void do_raise_exception_err (uint32_t exception, int error_code)
 void do_raise_exception (uint32_t exception)
 {
     do_raise_exception_err(exception, 0);
+}
+
+void do_restore_state (void *pc_ptr)
+{
+  TranslationBlock *tb;
+  unsigned long pc = (unsigned long) pc_ptr;
+
+  tb = tb_find_pc (pc);
+  cpu_restore_state (tb, env, pc, NULL);
+}
+
+void do_raise_exception_direct (uint32_t exception)
+{
+    do_restore_state (GETPC ());
+    do_raise_exception_err (exception, 0);
 }
 
 #define MEMSUFFIX _raw
@@ -73,7 +90,7 @@ static inline void set_HILO (uint64_t HILO)
 
 void do_mult (void)
 {
-    set_HILO((int64_t)T0 * (int64_t)T1);
+    set_HILO((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1);
 }
 
 void do_multu (void)
@@ -85,7 +102,7 @@ void do_madd (void)
 {
     int64_t tmp;
 
-    tmp = ((int64_t)T0 * (int64_t)T1);
+    tmp = ((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1);
     set_HILO((int64_t)get_HILO() + tmp);
 }
 
@@ -101,7 +118,7 @@ void do_msub (void)
 {
     int64_t tmp;
 
-    tmp = ((int64_t)T0 * (int64_t)T1);
+    tmp = ((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1);
     set_HILO((int64_t)get_HILO() - tmp);
 }
 
@@ -353,6 +370,9 @@ void do_mtc0 (int reg, int sel)
         val = T0 & 0xFFFFF0FF;
         old = env->CP0_EntryHi;
         env->CP0_EntryHi = val;
+	/* If the ASID changes, flush qemu's TLB.  */
+	if ((old & 0xFF) != (val & 0xFF))
+	  tlb_flush (env, 1);
         rn = "EntryHi";
         break;
     case 11:
@@ -525,11 +545,25 @@ static void invalidate_tb (int idx)
         addr = tlb->PFN[0];
         end = addr + (tlb->end - tlb->VPN);
         tb_invalidate_page_range(addr, end);
+        /* FIXME: Might be faster to just invalidate the whole "tlb" here
+           and refill it on demand from our simulated TLB.  */
+        addr = tlb->VPN;
+        while (addr < tlb->end) {
+            tlb_flush_page (env, addr);
+            addr += TARGET_PAGE_SIZE;
+        }
     }
     if (tlb->V[1]) {
         addr = tlb->PFN[1];
         end = addr + (tlb->end - tlb->VPN);
         tb_invalidate_page_range(addr, end);
+        /* FIXME: Might be faster to just invalidate the whole "tlb" here
+           and refill it on demand from our simulated TLB.  */
+        addr = tlb->end;
+        while (addr < tlb->end2) {
+            tlb_flush_page (env, addr);
+            addr += TARGET_PAGE_SIZE;
+        }
     }
 }
 
@@ -545,6 +579,7 @@ static void fill_tb (int idx)
     size = env->CP0_PageMask >> 13;
     size = 4 * (size + 1);
     tlb->end = tlb->VPN + (1 << (8 + size));
+    tlb->end2 = tlb->end + (1 << (8 + size));
     tlb->G = env->CP0_EntryLo0 & env->CP0_EntryLo1 & 1;
     tlb->V[0] = env->CP0_EntryLo0 & 2;
     tlb->D[0] = env->CP0_EntryLo0 & 4;
@@ -601,6 +636,12 @@ void do_tlbr (void)
     int size;
 
     tlb = &env->tlb[env->CP0_index & (MIPS_TLB_NB - 1)];
+
+    /* If this will change the current ASID, flush qemu's TLB.  */
+    /* FIXME: Could avoid flushing things which match global entries... */
+    if ((env->CP0_EntryHi & 0xFF) != tlb->ASID)
+      tlb_flush (env, 1);
+
     env->CP0_EntryHi = tlb->VPN | tlb->ASID;
     size = (tlb->end - tlb->VPN) >> 12;
     env->CP0_PageMask = (size - 1) << 13;
@@ -664,8 +705,10 @@ void do_pmon (int function)
 
 #if !defined(CONFIG_USER_ONLY) 
 
+static void do_unaligned_access (target_ulong addr, int is_write, int is_user, void *retaddr);
+
 #define MMUSUFFIX _mmu
-#define GETPC() (__builtin_return_address(0))
+#define ALIGNED_ONLY
 
 #define SHIFT 0
 #include "softmmu_template.h"
@@ -678,6 +721,13 @@ void do_pmon (int function)
 
 #define SHIFT 3
 #include "softmmu_template.h"
+
+static void do_unaligned_access (target_ulong addr, int is_write, int is_user, void *retaddr)
+{
+    env->CP0_BadVAddr = addr;
+    do_restore_state (retaddr);
+    do_raise_exception ((is_write == 1) ? EXCP_AdES : EXCP_AdEL);
+}
 
 void tlb_fill (target_ulong addr, int is_write, int is_user, void *retaddr)
 {

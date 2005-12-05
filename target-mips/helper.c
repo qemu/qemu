@@ -46,7 +46,7 @@ static int map_address (CPUState *env, target_ulong *physical, int *prot,
         tlb = &env->tlb[i];
         /* Check ASID, virtual page number & size */
         if ((tlb->G == 1 || tlb->ASID == ASID) &&
-            tlb->VPN == tag && address < tlb->end) {
+            tlb->VPN == tag && address < tlb->end2) {
             /* TLB match */
             n = (address >> 12) & 1;
             /* Check access rights */
@@ -167,10 +167,15 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
     int ret = 0;
 
     if (logfile) {
+#if 0
         cpu_dump_state(env, logfile, fprintf, 0);
+#endif
         fprintf(logfile, "%s pc %08x ad %08x rw %d is_user %d smmu %d\n",
                 __func__, env->PC, address, rw, is_user, is_softmmu);
     }
+
+    rw &= 1;
+
     /* data access */
     /* XXX: put correct access by using cpu_restore_state()
        correctly */
@@ -226,7 +231,7 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
         /* Raise exception */
         env->CP0_BadVAddr = address;
         env->CP0_Context = (env->CP0_Context & 0xff800000) |
-	                   ((address >> 8) &   0x007ffff0);
+	                   ((address >> 9) &   0x007ffff0);
         env->CP0_EntryHi =
             (env->CP0_EntryHi & 0x000000FF) | (address & 0xFFFFF000);
         env->exception_index = exception;
@@ -276,11 +281,12 @@ void do_interrupt (CPUState *env)
         env->CP0_Debug |= 1 << CP0DB_DDBL;
         goto set_DEPC;
     set_DEPC:
-        if (env->hflags & MIPS_HFLAG_DS) {
+        if (env->hflags & MIPS_HFLAG_BMASK) {
             /* If the exception was raised from a delay slot,
              * come back to the jump
              */
             env->CP0_DEPC = env->PC - 4;
+            env->hflags &= ~MIPS_HFLAG_BMASK;
         } else {
             env->CP0_DEPC = env->PC;
         }
@@ -316,8 +322,7 @@ void do_interrupt (CPUState *env)
         env->CP0_Status = (1 << CP0St_CU0) | (1 << CP0St_BEV) |
             (1 << CP0St_NMI);
     set_error_EPC:
-        env->hflags = MIPS_HFLAG_ERL;
-        if (env->hflags & MIPS_HFLAG_DS) {
+        if (env->hflags & MIPS_HFLAG_BMASK) {
             /* If the exception was raised from a delay slot,
              * come back to the jump
              */
@@ -325,6 +330,7 @@ void do_interrupt (CPUState *env)
         } else {
             env->CP0_ErrorEPC = env->PC;
         }
+        env->hflags = MIPS_HFLAG_ERL;
         pc = 0xBFC00000;
         break;
     case EXCP_MCHECK:
@@ -366,7 +372,7 @@ void do_interrupt (CPUState *env)
         goto set_EPC;
     case EXCP_CpU:
         cause = 11;
-        /* XXX: fill in the faulty unit number */
+        env->CP0_Cause = (env->CP0_Cause & ~0x03000000) | (env->error_code << 28);
         goto set_EPC;
     case EXCP_OVERFLOW:
         cause = 12;
@@ -391,12 +397,13 @@ void do_interrupt (CPUState *env)
         env->hflags |= MIPS_HFLAG_EXL;
         pc += offset;
         env->CP0_Cause = (env->CP0_Cause & ~0x7C) | (cause << 2);
-        if (env->hflags & MIPS_HFLAG_DS) {
+        if (env->hflags & MIPS_HFLAG_BMASK) {
             /* If the exception was raised from a delay slot,
              * come back to the jump
              */
             env->CP0_EPC = env->PC - 4;
             env->CP0_Cause |= 0x80000000;
+            env->hflags &= ~MIPS_HFLAG_BMASK;
         } else {
             env->CP0_EPC = env->PC;
             env->CP0_Cause &= ~0x80000000;

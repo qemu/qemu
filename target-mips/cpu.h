@@ -1,6 +1,8 @@
 #if !defined (__MIPS_CPU_H__)
 #define __MIPS_CPU_H__
 
+#define TARGET_HAS_ICE 1
+
 #include "mips-defs.h"
 #include "cpu-defs.h"
 #include "config.h"
@@ -18,6 +20,7 @@ typedef struct tlb_t tlb_t;
 struct tlb_t {
     target_ulong VPN;
     target_ulong end;
+    target_ulong end2;
     uint8_t ASID;
     uint8_t G;
     uint8_t C[2];
@@ -151,17 +154,19 @@ struct CPUMIPSState {
 #define MIPS_HFLAG_DM     0x0008 /* Debug mode                         */
 #define MIPS_HFLAG_SM     0x0010 /* Supervisor mode                    */
 #define MIPS_HFLAG_RE     0x0040 /* Reversed endianness                */
-#define MIPS_HFLAG_DS     0x0080 /* In / out of delay slot             */
-    /* Those flags keep the branch state if the translation is interrupted
-     * between the branch instruction and the delay slot
-     */
-#define MIPS_HFLAG_BMASK  0x0F00
-#define MIPS_HFLAG_B      0x0100 /* Unconditional branch               */
-#define MIPS_HFLAG_BC     0x0200 /* Conditional branch                 */
-#define MIPS_HFLAG_BL     0x0400 /* Likely branch                      */
-#define MIPS_HFLAG_BR     0x0800 /* branch to register (can't link TB) */
+    /* If translation is interrupted between the branch instruction and
+     * the delay slot, record what type of branch it is so that we can
+     * resume translation properly.  It might be possible to reduce
+     * this from three bits to two.  */
+#define MIPS_HFLAG_BMASK  0x0380
+#define MIPS_HFLAG_B      0x0080 /* Unconditional branch               */
+#define MIPS_HFLAG_BC     0x0100 /* Conditional branch                 */
+#define MIPS_HFLAG_BL     0x0180 /* Likely branch                      */
+#define MIPS_HFLAG_BR     0x0200 /* branch to register (can't link TB) */
     target_ulong btarget;        /* Jump / branch target               */
     int bcond;                   /* Branch condition (if needed)       */
+
+    int halted; /* TRUE if the CPU is in suspend state */
 
     CPU_COMMON
 };
@@ -202,15 +207,15 @@ enum {
     EXCP_IBE,
     EXCP_DBp,
     EXCP_SYSCALL,
-    EXCP_BREAK,
-    EXCP_CpU, /* 16 */
+    EXCP_BREAK, /* 16 */
+    EXCP_CpU,
     EXCP_RI,
     EXCP_OVERFLOW,
     EXCP_TRAP,
     EXCP_DDBS,
     EXCP_DWATCH,
-    EXCP_LAE, /* 22 */
-    EXCP_SAE,
+    EXCP_LAE,
+    EXCP_SAE, /* 24 */
     EXCP_LTLBL,
     EXCP_TLBL,
     EXCP_TLBS,

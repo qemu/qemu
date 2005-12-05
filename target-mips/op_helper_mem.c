@@ -1,11 +1,9 @@
-void glue(do_lwl, MEMSUFFIX) (void)
+void glue(do_lwl, MEMSUFFIX) (uint32_t tmp)
 {
 #if defined (DEBUG_OP)
     target_ulong sav = T0;
 #endif
-    uint32_t tmp;
 
-    tmp = glue(ldl, MEMSUFFIX)(T0 & ~3);
     /* XXX: this is valid only in big-endian mode
      *      should be reverted for little-endian...
      */
@@ -32,14 +30,12 @@ void glue(do_lwl, MEMSUFFIX) (void)
     RETURN();
 }
 
-void glue(do_lwr, MEMSUFFIX) (void)
+void glue(do_lwr, MEMSUFFIX) (uint32_t tmp)
 {
 #if defined (DEBUG_OP)
     target_ulong sav = T0;
 #endif
-    uint32_t tmp;
 
-    tmp = glue(ldl, MEMSUFFIX)(T0 & ~3);
     /* XXX: this is valid only in big-endian mode
      *      should be reverted for little-endian...
      */
@@ -66,14 +62,12 @@ void glue(do_lwr, MEMSUFFIX) (void)
     RETURN();
 }
 
-void glue(do_swl, MEMSUFFIX) (void)
+uint32_t glue(do_swl, MEMSUFFIX) (uint32_t tmp)
 {
 #if defined (DEBUG_OP)
     target_ulong sav;
 #endif
-    uint32_t tmp;
 
-    tmp = glue(ldl, MEMSUFFIX)(T0 & ~3);
 #if defined (DEBUG_OP)
     sav = tmp;
 #endif
@@ -94,7 +88,6 @@ void glue(do_swl, MEMSUFFIX) (void)
         tmp = (tmp & 0xFFFFFF00) | (T1 >> 24);
         break;
     }
-    glue(stl, MEMSUFFIX)(T0 & ~3, tmp);
 #if defined (DEBUG_OP)
     if (logfile) {
         fprintf(logfile, "%s: %08x - %08x %08x => %08x\n",
@@ -102,16 +95,15 @@ void glue(do_swl, MEMSUFFIX) (void)
     }
 #endif
     RETURN();
+    return tmp;
 }
 
-void glue(do_swr, MEMSUFFIX) (void)
+uint32_t glue(do_swr, MEMSUFFIX) (uint32_t tmp)
 {
 #if defined (DEBUG_OP)
     target_ulong sav;
 #endif
-    uint32_t tmp;
 
-    tmp = glue(ldl, MEMSUFFIX)(T0 & ~3);
 #if defined (DEBUG_OP)
     sav = tmp;
 #endif
@@ -132,7 +124,6 @@ void glue(do_swr, MEMSUFFIX) (void)
         tmp = T1;
         break;
     }
-    glue(stl, MEMSUFFIX)(T0 & ~3, tmp);
 #if defined (DEBUG_OP)
     if (logfile) {
         fprintf(logfile, "%s: %08x - %08x %08x => %08x\n",
@@ -140,4 +131,5 @@ void glue(do_swr, MEMSUFFIX) (void)
     }
 #endif
     RETURN();
+    return tmp;
 }

@@ -338,15 +338,23 @@ static inline void save_cpu_state (DisasContext *ctx, int do_save_pc)
     }
 }
 
-static inline void generate_exception (DisasContext *ctx, int excp)
+static inline void generate_exception_err (DisasContext *ctx, int excp, int err)
 {
 #if defined MIPS_DEBUG_DISAS
     if (loglevel & CPU_LOG_TB_IN_ASM)
             fprintf(logfile, "%s: raise exception %d\n", __func__, excp);
 #endif
     save_cpu_state(ctx, 1);
-    gen_op_raise_exception(excp);
+    if (err == 0)
+        gen_op_raise_exception(excp);
+    else
+        gen_op_raise_exception_err(excp, err);
     ctx->bstate = BS_EXCP;
+}
+
+static inline void generate_exception (DisasContext *ctx, int excp)
+{
+    generate_exception_err (ctx, excp, 0);
 }
 
 #if defined(CONFIG_USER_ONLY)
@@ -1020,14 +1028,14 @@ static void gen_compute_branch (DisasContext *ctx, uint16_t opc,
         case OPC_BLEZ:    /* 0 <= 0          */
         case OPC_BLEZL:   /* 0 <= 0 likely   */
             /* Always take */
-            ctx->hflags |= MIPS_HFLAG_DS | MIPS_HFLAG_B;
+            ctx->hflags |= MIPS_HFLAG_B;
             MIPS_DEBUG("balways");
             break;
         case OPC_BGEZAL:  /* 0 >= 0          */
         case OPC_BGEZALL: /* 0 >= 0 likely   */
             /* Always take and link */
             blink = 31;
-            ctx->hflags |= MIPS_HFLAG_DS | MIPS_HFLAG_B;
+            ctx->hflags |= MIPS_HFLAG_B;
             MIPS_DEBUG("balways and link");
             break;
         case OPC_BNE:     /* rx != rx        */
@@ -1053,21 +1061,21 @@ static void gen_compute_branch (DisasContext *ctx, uint16_t opc,
             gen_goto_tb(ctx, 0, ctx->pc + 4);
             return;
         case OPC_J:
-            ctx->hflags |= MIPS_HFLAG_DS | MIPS_HFLAG_B;
+            ctx->hflags |= MIPS_HFLAG_B;
             MIPS_DEBUG("j %08x", btarget);
             break;
         case OPC_JAL:
             blink = 31;
-            ctx->hflags |= MIPS_HFLAG_DS | MIPS_HFLAG_B;
+            ctx->hflags |= MIPS_HFLAG_B;
             MIPS_DEBUG("jal %08x", btarget);
             break;
         case OPC_JR:
-            ctx->hflags |= MIPS_HFLAG_DS | MIPS_HFLAG_BR;
+            ctx->hflags |= MIPS_HFLAG_BR;
             MIPS_DEBUG("jr %s", regnames[rs]);
             break;
         case OPC_JALR:
             blink = rt;
-            ctx->hflags |= MIPS_HFLAG_DS | MIPS_HFLAG_BR;
+            ctx->hflags |= MIPS_HFLAG_BR;
             MIPS_DEBUG("jalr %s, %s", regnames[rt], regnames[rs]);
             break;
         default:
@@ -1144,14 +1152,14 @@ static void gen_compute_branch (DisasContext *ctx, uint16_t opc,
             blink = 31;
             MIPS_DEBUG("bltzal %s, %08x", regnames[rs], btarget);
         not_likely:
-            ctx->hflags |= MIPS_HFLAG_DS | MIPS_HFLAG_BC;
+            ctx->hflags |= MIPS_HFLAG_BC;
             break;
         case OPC_BLTZALL:
             gen_op_ltz();
             blink = 31;
             MIPS_DEBUG("bltzall %s, %08x", regnames[rs], btarget);
         likely:
-            ctx->hflags |= MIPS_HFLAG_DS | MIPS_HFLAG_BL;
+            ctx->hflags |= MIPS_HFLAG_BL;
             break;
         }
         gen_op_set_bcond();
@@ -1178,7 +1186,7 @@ static void gen_cp0 (DisasContext *ctx, uint16_t opc, int rt, int rd)
         if (loglevel & CPU_LOG_TB_IN_ASM) {
             fprintf(logfile, "CP0 is not usable\n");
         }
-        gen_op_raise_exception_err(EXCP_CpU, 0);
+        generate_exception_err (ctx, EXCP_CpU, 0);
         return;
     }
     switch (opc) {
@@ -1236,7 +1244,15 @@ static void gen_cp0 (DisasContext *ctx, uint16_t opc, int rt, int rd)
             ctx->bstate = BS_EXCP;
         }
         break;
-    /* XXX: TODO: WAIT */
+    case OPC_WAIT:
+        opn = "wait";
+        /* If we get an exception, we want to restart at next instruction */
+        ctx->pc += 4;
+        save_cpu_state(ctx, 1);
+        ctx->pc -= 4;
+        gen_op_wait();
+        ctx->bstate = BS_EXCP;
+        break;
     default:
         if (loglevel & CPU_LOG_TB_IN_ASM) {
             fprintf(logfile, "Invalid CP0 opcode: %08x %03x %03x %03x\n",
@@ -1292,7 +1308,7 @@ static void gen_blikely(DisasContext *ctx)
     int l1;
     l1 = gen_new_label();
     gen_op_jnz_T2(l1);
-    gen_op_save_state(ctx->hflags & ~(MIPS_HFLAG_BMASK | MIPS_HFLAG_DS));
+    gen_op_save_state(ctx->hflags & ~MIPS_HFLAG_BMASK);
     gen_goto_tb(ctx, 1, ctx->pc + 4);
     gen_set_label(l1);
 }
@@ -1304,8 +1320,7 @@ static void decode_opc (DisasContext *ctx)
     uint16_t op, op1;
     int16_t imm;
 
-    if ((ctx->hflags & MIPS_HFLAG_DS) &&
-        (ctx->hflags & MIPS_HFLAG_BL)) {
+    if ((ctx->hflags & MIPS_HFLAG_BMASK) == MIPS_HFLAG_BL) {
         /* Handle blikely not taken case */
         MIPS_DEBUG("blikely condition (%08x)", ctx->pc + 4);
         gen_blikely(ctx);
@@ -1361,9 +1376,16 @@ static void decode_opc (DisasContext *ctx)
         case 0x05:          /* Pmon entry point */
             gen_op_pmon((ctx->opcode >> 6) & 0x1F);
             break;
-#if defined (MIPS_HAS_MOVCI)
+
         case 0x01:          /* MOVCI */
+#if defined (MIPS_HAS_MOVCI)
+            /* XXX */
+#else
+            /* Not implemented */
+            generate_exception_err (ctx, EXCP_CpU, 1);
 #endif
+            break;
+
 #if defined (TARGET_MIPS64)
         case 0x14: /* MIPS64 specific opcodes */
         case 0x16:
@@ -1438,7 +1460,7 @@ static void decode_opc (DisasContext *ctx)
             gen_cp0(ctx, op1 | EXT_CP0, rt, rd);
             break;
         default:
-            gen_cp0(ctx, (ctx->opcode & 0x1F) | EXT_CP0, rt, rd);
+            gen_cp0(ctx, (ctx->opcode & 0x3F) | EXT_CP0, rt, rd);
             break;
         }
         break;
@@ -1467,23 +1489,35 @@ static void decode_opc (DisasContext *ctx)
         break;
     case 0x3F: /* HACK */
         break;
-#if defined(MIPS_USES_FPU)
-    case 0x31 ... 0x32: /* Floating point load/store */
-    case 0x35 ... 0x36:
-    case 0x3A ... 0x3B:
-    case 0x3D ... 0x3E:
-        /* Not implemented */
-        /* XXX: not correct */
-#endif
+
+    /* Floating point.  */
+    case 0x31: /* LWC1 */
+    case 0x35: /* LDC1 */
+    case 0x39: /* SWC1 */
+    case 0x3D: /* SDC1 */
     case 0x11:          /* CP1 opcode */
-        /* Not implemented */
+#if defined(MIPS_USES_FPU)
         /* XXX: not correct */
+#else
+        generate_exception_err(ctx, EXCP_CpU, 1);
+#endif
+        break;
+
+    /* COP2.  */
+    case 0x32: /* LWC2 */
+    case 0x36: /* LDC2 */
+    case 0x3A: /* SWC2 */
+    case 0x3E: /* SDC2 */
     case 0x12:          /* CP2 opcode */
         /* Not implemented */
-        /* XXX: not correct */
+        generate_exception_err(ctx, EXCP_CpU, 2);
+        break;
+
     case 0x13:          /* CP3 opcode */
         /* Not implemented */
-        /* XXX: not correct */
+        generate_exception_err(ctx, EXCP_CpU, 3);
+        break;
+
 #if defined (TARGET_MIPS64)
     case 0x18 ... 0x1B:
     case 0x27:
@@ -1497,21 +1531,15 @@ static void decode_opc (DisasContext *ctx)
 #endif
     case 0x1E:
         /* ASE specific */
-#if defined (MIPS_HAS_LSC)
-    case 0x31: /* LWC1 */
-    case 0x32: /* LWC2 */
-    case 0x35: /* SDC1 */
-    case 0x36: /* SDC2 */
-#endif
     default:            /* Invalid */
         MIPS_INVAL("");
         generate_exception(ctx, EXCP_RI);
         break;
     }
-    if (ctx->hflags & MIPS_HFLAG_DS) {
+    if (ctx->hflags & MIPS_HFLAG_BMASK) {
         int hflags = ctx->hflags;
         /* Branches completion */
-        ctx->hflags &= ~(MIPS_HFLAG_BMASK | MIPS_HFLAG_DS);
+        ctx->hflags &= ~MIPS_HFLAG_BMASK;
         ctx->bstate = BS_BRANCH;
         save_cpu_state(ctx, 0);
         switch (hflags & MIPS_HFLAG_BMASK) {
@@ -1557,16 +1585,20 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     uint16_t *gen_opc_end;
     int j, lj = -1;
 
+    if (search_pc && loglevel)
+	fprintf (logfile, "search pc %d\n", search_pc);
+
     pc_start = tb->pc;
     gen_opc_ptr = gen_opc_buf;
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
     gen_opparam_ptr = gen_opparam_buf;
     nb_gen_labels = 0;
     ctx.pc = pc_start;
+    ctx.saved_pc = -1;
     ctx.tb = tb;
     ctx.bstate = BS_NONE;
-    /* Restore delay slot state */
-    ctx.hflags = env->hflags;
+    /* Restore delay slot state from the tb context.  */
+    ctx.hflags = tb->flags;
     ctx.saved_hflags = ctx.hflags;
     if (ctx.hflags & MIPS_HFLAG_BR) {
         gen_op_restore_breg_target();
@@ -1588,42 +1620,65 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
 #ifdef DEBUG_DISAS
     if (loglevel & CPU_LOG_TB_CPU) {
         fprintf(logfile, "------------------------------------------------\n");
+        /* FIXME: This may print out stale hflags from env... */
         cpu_dump_state(env, logfile, fprintf, 0);
     }
 #endif
 #if defined MIPS_DEBUG_DISAS
     if (loglevel & CPU_LOG_TB_IN_ASM)
-        fprintf(logfile, "\ntb %p super %d cond %04x %04x\n",
-                tb, ctx.mem_idx, ctx.hflags, env->hflags);
+        fprintf(logfile, "\ntb %p super %d cond %04x\n",
+                tb, ctx.mem_idx, ctx.hflags);
 #endif
     while (ctx.bstate == BS_NONE && gen_opc_ptr < gen_opc_end) {
+        if (env->nb_breakpoints > 0) {
+            for(j = 0; j < env->nb_breakpoints; j++) {
+                if (env->breakpoints[j] == ctx.pc) {
+                    save_cpu_state(ctxp, 1);
+                    ctx.bstate = BS_BRANCH;
+                    gen_op_debug();
+                    goto done_generating;
+                }
+            }
+        }
+
         if (search_pc) {
             j = gen_opc_ptr - gen_opc_buf;
-            save_cpu_state(ctxp, 1);
             if (lj < j) {
                 lj++;
                 while (lj < j)
                     gen_opc_instr_start[lj++] = 0;
-                gen_opc_pc[lj] = ctx.pc;
-                gen_opc_instr_start[lj] = 1;
             }
+            gen_opc_pc[lj] = ctx.pc;
+            gen_opc_hflags[lj] = ctx.hflags & MIPS_HFLAG_BMASK;
+            gen_opc_instr_start[lj] = 1;
         }
         ctx.opcode = ldl_code(ctx.pc);
         decode_opc(&ctx);
         ctx.pc += 4;
+
+        if (env->singlestep_enabled)
+            break;
+
         if ((ctx.pc & (TARGET_PAGE_SIZE - 1)) == 0)
             break;
+
 #if defined (MIPS_SINGLE_STEP)
         break;
 #endif
     }
-    if (ctx.bstate != BS_BRANCH && ctx.bstate != BS_EXCP) {
+    if (env->singlestep_enabled) {
+        save_cpu_state(ctxp, ctx.bstate == BS_NONE);
+        gen_op_debug();
+        goto done_generating;
+    }
+    else if (ctx.bstate != BS_BRANCH && ctx.bstate != BS_EXCP) {
         save_cpu_state(ctxp, 0);
         gen_goto_tb(&ctx, 0, ctx.pc);
     }
     gen_op_reset_T0();
     /* Generate the return instruction */
     gen_op_exit_tb();
+done_generating:
     *gen_opc_ptr = INDEX_op_end;
     if (search_pc) {
         j = gen_opc_ptr - gen_opc_buf;

@@ -207,7 +207,7 @@ void op_addo (void)
     tmp = T0;
     T0 += T1;
     if ((T0 >> 31) ^ (T1 >> 31) ^ (tmp >> 31)) {
-        CALL_FROM_TB1(do_raise_exception, EXCP_OVERFLOW);
+        CALL_FROM_TB1(do_raise_exception_direct, EXCP_OVERFLOW);
     }
     RETURN();
 }
@@ -225,7 +225,7 @@ void op_subo (void)
     tmp = T0;
     T0 = (int32_t)T0 - (int32_t)T1;
     if (!((T0 >> 31) ^ (T1 >> 31) ^ (tmp >> 31))) {
-        CALL_FROM_TB1(do_raise_exception, EXCP_OVERFLOW);
+        CALL_FROM_TB1(do_raise_exception_direct, EXCP_OVERFLOW);
     }
     RETURN();
 }
@@ -364,7 +364,7 @@ static inline void set_HILO (uint64_t HILO)
 
 void op_mult (void)
 {
-    set_HILO((int64_t)T0 * (int64_t)T1);
+    set_HILO((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1);
     RETURN();
 }
 
@@ -378,7 +378,7 @@ void op_madd (void)
 {
     int64_t tmp;
 
-    tmp = ((int64_t)T0 * (int64_t)T1);
+    tmp = ((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1);
     set_HILO((int64_t)get_HILO() + tmp);
     RETURN();
 }
@@ -396,7 +396,7 @@ void op_msub (void)
 {
     int64_t tmp;
 
-    tmp = ((int64_t)T0 * (int64_t)T1);
+    tmp = ((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1);
     set_HILO((int64_t)get_HILO() - tmp);
     RETURN();
 }
@@ -595,9 +595,14 @@ void op_pmon (void)
 void op_trap (void)
 {
     if (T0) {
-        CALL_FROM_TB1(do_raise_exception, EXCP_TRAP);
+        CALL_FROM_TB1(do_raise_exception_direct, EXCP_TRAP);
     }
     RETURN();
+}
+
+void op_debug (void)
+{
+  CALL_FROM_TB1(do_raise_exception_direct, EXCP_DEBUG);
 }
 
 void op_set_lladdr (void)
@@ -654,3 +659,8 @@ void op_exit_tb (void)
     EXIT_TB();
 }
 
+void op_wait (void)
+{
+    env->halted = 1;
+    CALL_FROM_TB1(do_raise_exception, EXCP_HLT);
+}

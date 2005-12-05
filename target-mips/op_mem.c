@@ -67,28 +67,35 @@ void glue(op_sw, MEMSUFFIX) (void)
     RETURN();
 }
 
-/* "half" load and stores */
+/* "half" load and stores.  We must do the memory access inline,
+   or fault handling won't work.  */
 void glue(op_lwl, MEMSUFFIX) (void)
 {
-    CALL_FROM_TB0(glue(do_lwl, MEMSUFFIX));
+    uint32_t tmp = glue(ldl, MEMSUFFIX)(T0 & ~3);
+    CALL_FROM_TB1(glue(do_lwl, MEMSUFFIX), tmp);
     RETURN();
 }
 
 void glue(op_lwr, MEMSUFFIX) (void)
 {
-    CALL_FROM_TB0(glue(do_lwr, MEMSUFFIX));
+    uint32_t tmp = glue(ldl, MEMSUFFIX)(T0 & ~3);
+    CALL_FROM_TB1(glue(do_lwr, MEMSUFFIX), tmp);
     RETURN();
 }
 
 void glue(op_swl, MEMSUFFIX) (void)
 {
-    CALL_FROM_TB0(glue(do_swl, MEMSUFFIX));
+    uint32_t tmp = glue(ldl, MEMSUFFIX)(T0 & ~3);
+    tmp = CALL_FROM_TB1(glue(do_swl, MEMSUFFIX), tmp);
+    glue(stl, MEMSUFFIX)(T0 & ~3, tmp);
     RETURN();
 }
 
 void glue(op_swr, MEMSUFFIX) (void)
 {
-    CALL_FROM_TB0(glue(do_swr, MEMSUFFIX));
+    uint32_t tmp = glue(ldl, MEMSUFFIX)(T0 & ~3);
+    tmp = CALL_FROM_TB1(glue(do_swr, MEMSUFFIX), tmp);
+    glue(stl, MEMSUFFIX)(T0 & ~3, tmp);
     RETURN();
 }
 
