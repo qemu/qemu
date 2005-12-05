@@ -191,7 +191,7 @@ static inline TranslationBlock *tb_find_fast(void)
     cs_base = 0;
     pc = env->nip;
 #elif defined(TARGET_MIPS)
-    flags = env->hflags & MIPS_HFLAGS_TMASK;
+    flags = env->hflags & (MIPS_HFLAGS_TMASK | MIPS_HFLAG_BMASK);
     cs_base = 0;
     pc = env->PC;
 #else
@@ -280,6 +280,15 @@ int cpu_exec(CPUState *env1)
            set.  */
         if (env1->interrupt_request
             & (CPU_INTERRUPT_FIQ | CPU_INTERRUPT_HARD)) {
+            env1->halted = 0;
+        } else {
+            return EXCP_HALTED;
+        }
+    }
+#elif defined(TARGET_MIPS)
+    if (env1->halted) {
+        if (env1->interrupt_request &
+            (CPU_INTERRUPT_HARD | CPU_INTERRUPT_TIMER)) {
             env1->halted = 0;
         } else {
             return EXCP_HALTED;
