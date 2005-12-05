@@ -53,7 +53,7 @@ static void cpu_mips_update_count (CPUState *env, uint32_t count,
     next = now + muldiv64(compare - tmp, ticks_per_sec, 100 * 1000 * 1000);
     if (next == now)
 	next++;
-#if 1
+#if 0
     if (logfile) {
         fprintf(logfile, "%s: 0x%08llx %08x %08x => 0x%08llx\n",
                 __func__, now, count, compare, next - now);
@@ -84,7 +84,7 @@ static void mips_timer_cb (void *opaque)
     CPUState *env;
 
     env = opaque;
-#if 1
+#if 0
     if (logfile) {
         fprintf(logfile, "%s\n", __func__);
     }
@@ -103,23 +103,29 @@ void cpu_mips_clock_init (CPUState *env)
 
 static void io_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
+#if 0
     if (logfile)
         fprintf(logfile, "%s: addr %08x val %08x\n", __func__, addr, value);
+#endif
     cpu_outb(NULL, addr & 0xffff, value);
 }
 
 static uint32_t io_readb (void *opaque, target_phys_addr_t addr)
 {
     uint32_t ret = cpu_inb(NULL, addr & 0xffff);
+#if 0
     if (logfile)
         fprintf(logfile, "%s: addr %08x val %08x\n", __func__, addr, ret);
+#endif
     return ret;
 }
 
 static void io_writew (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
+#if 0
     if (logfile)
         fprintf(logfile, "%s: addr %08x val %08x\n", __func__, addr, value);
+#endif
 #ifdef TARGET_WORDS_BIGENDIAN
     value = bswap16(value);
 #endif
@@ -132,15 +138,19 @@ static uint32_t io_readw (void *opaque, target_phys_addr_t addr)
 #ifdef TARGET_WORDS_BIGENDIAN
     ret = bswap16(ret);
 #endif
+#if 0
     if (logfile)
         fprintf(logfile, "%s: addr %08x val %08x\n", __func__, addr, ret);
+#endif
     return ret;
 }
 
 static void io_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
+#if 0
     if (logfile)
         fprintf(logfile, "%s: addr %08x val %08x\n", __func__, addr, value);
+#endif
 #ifdef TARGET_WORDS_BIGENDIAN
     value = bswap32(value);
 #endif
@@ -154,8 +164,10 @@ static uint32_t io_readl (void *opaque, target_phys_addr_t addr)
 #ifdef TARGET_WORDS_BIGENDIAN
     ret = bswap32(ret);
 #endif
+#if 0
     if (logfile)
         fprintf(logfile, "%s: addr %08x val %08x\n", __func__, addr, ret);
+#endif
     return ret;
 }
 
@@ -233,6 +245,11 @@ void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
             initrd_size = 0;
         }
         env->PC = KERNEL_LOAD_ADDR;
+	/* Store command line.  */
+        strcpy (phys_ram_base + (16 << 20) - 256, kernel_cmdline);
+        /* FIXME: little endian support */
+        *(int *)(phys_ram_base + (16 << 20) - 260) = tswap32 (0x12345678);
+        *(int *)(phys_ram_base + (16 << 20) - 264) = tswap32 (ram_size);
     } else {
         kernel_base = 0;
         kernel_size = 0;
