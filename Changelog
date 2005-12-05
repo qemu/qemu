@@ -16,6 +16,7 @@ version 0.7.3:
   - MIPS User Linux emulation
   - MIPS fixes to boot Linux (Daniel Jacobowitz)
   - NX bit support
+  - Initial SPARC SMP support (Blue Swirl)
 
 version 0.7.2:
   

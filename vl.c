@@ -153,6 +153,11 @@ USBPort *vm_usb_ports[MAX_VM_USB_PORTS];
 USBDevice *vm_usb_hub;
 static VLANState *first_vlan;
 int smp_cpus = 1;
+#ifdef TARGET_SPARC
+#define MAX_CPUS 16
+#else
+#define MAX_CPUS 8
+#endif
 
 /***********************************************************/
 /* x86 ISA bus support */
@@ -4547,7 +4552,7 @@ int main(int argc, char **argv)
                 break;
             case QEMU_OPTION_smp:
                 smp_cpus = atoi(optarg);
-                if (smp_cpus < 1 || smp_cpus > 8) {
+                if (smp_cpus < 1 || smp_cpus > MAX_CPUS) {
                     fprintf(stderr, "Invalid number of CPUs\n");
                     exit(1);
                 }

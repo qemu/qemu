@@ -45,6 +45,8 @@
 #ifdef DEBUG_SERIAL
 #define SER_DPRINTF(fmt, args...) \
 do { printf("SER: " fmt , ##args); } while (0)
+#define pic_set_irq(irq, level) \
+do { printf("SER: set_irq(%d): %d\n", (irq), (level)); pic_set_irq((irq),(level));} while (0)
 #else
 #define SER_DPRINTF(fmt, args...)
 #endif
@@ -174,6 +176,50 @@ static void slavio_serial_reset(void *opaque)
     slavio_serial_reset_chn(&s->chn[1]);
 }
 
+static inline void clr_rxint(ChannelState *s)
+{
+    s->rxint = 0;
+    if (s->chn == 0)
+        s->rregs[3] &= ~0x20;
+    else {
+        s->otherchn->rregs[3] &= ~4;
+    }
+    slavio_serial_update_irq(s);
+}
+
+static inline void set_rxint(ChannelState *s)
+{
+    s->rxint = 1;
+    if (s->chn == 0)
+        s->rregs[3] |= 0x20;
+    else {
+        s->otherchn->rregs[3] |= 4;
+    }
+    slavio_serial_update_irq(s);
+}
+
+static inline void clr_txint(ChannelState *s)
+{
+    s->txint = 0;
+    if (s->chn == 0)
+        s->rregs[3] &= ~0x10;
+    else {
+        s->otherchn->rregs[3] &= ~2;
+    }
+    slavio_serial_update_irq(s);
+}
+
+static inline void set_txint(ChannelState *s)
+{
+    s->txint = 1;
+    if (s->chn == 0)
+        s->rregs[3] |= 0x10;
+    else {
+        s->otherchn->rregs[3] |= 2;
+    }
+    slavio_serial_update_irq(s);
+}
+
 static void slavio_serial_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     SerialState *ser = opaque;
@@ -198,10 +244,14 @@ static void slavio_serial_mem_writeb(void *opaque, target_phys_addr_t addr, uint
 		newreg |= 0x8;
 		break;
 	    case 0x20:
-		s->rxint = 0;
+                clr_rxint(s);
 		break;
 	    case 0x28:
-		s->txint = 0;
+                clr_txint(s);
+		break;
+	    case 0x38:
+                clr_rxint(s);
+                clr_txint(s);
 		break;
 	    default:
 		break;
@@ -247,12 +297,7 @@ static void slavio_serial_mem_writeb(void *opaque, target_phys_addr_t addr, uint
 	    s->txint = 1;
 	    s->rregs[0] |= 4; // Tx buffer empty
 	    s->rregs[1] |= 1; // All sent
-	    // Interrupts reported only on channel A
-	    if (s->chn == 0)
-		s->rregs[3] |= 0x10;
-	    else {
-		s->otherchn->rregs[3] |= 2;
-	    }
+            set_txint(s);
 	    slavio_serial_update_irq(s);
 	}
 	break;
@@ -280,6 +325,7 @@ static uint32_t slavio_serial_mem_readb(void *opaque, target_phys_addr_t addr)
 	return ret;
     case 1:
 	s->rregs[0] &= ~1;
+        clr_rxint(s);
 	if (s->type == kbd)
 	    ret = get_queue(s);
 	else
@@ -304,16 +350,10 @@ static int serial_can_receive(void *opaque)
 
 static void serial_receive_byte(ChannelState *s, int ch)
 {
+    SER_DPRINTF("put ch %d\n", ch);
     s->rregs[0] |= 1;
-    // Interrupts reported only on channel A
-    if (s->chn == 0)
-	s->rregs[3] |= 0x20;
-    else {
-	s->otherchn->rregs[3] |= 4;
-    }
     s->rx = ch;
-    s->rxint = 1;
-    slavio_serial_update_irq(s);
+    set_rxint(s);
 }
 
 static void serial_receive_break(ChannelState *s)

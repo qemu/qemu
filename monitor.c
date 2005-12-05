@@ -259,6 +259,10 @@ static void do_info_cpus(void)
         term_printf(" nip=0x" TARGET_FMT_lx, env->nip);
         if (env->halted)
             term_printf(" (halted)");
+#elif defined(TARGET_SPARC)
+        term_printf(" pc=0x" TARGET_FMT_lx " npc=0x" TARGET_FMT_lx, env->pc, env->npc);
+        if (env->halted)
+            term_printf(" (halted)");
 #endif
         term_printf("\n");
     }

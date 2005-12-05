@@ -806,6 +806,7 @@ void PPC_debug_write (void *opaque, uint32_t addr, uint32_t val);
 /* sun4m.c */
 extern QEMUMachine sun4m_machine;
 uint32_t iommu_translate(uint32_t addr);
+void pic_set_irq_cpu(int irq, int level, unsigned int cpu);
 
 /* iommu.c */
 void *iommu_init(uint32_t addr);
@@ -823,16 +824,18 @@ void tcx_screen_dump(void *opaque, const char *filename);
 
 /* slavio_intctl.c */
 void *slavio_intctl_init();
+void slavio_intctl_set_cpu(void *opaque, unsigned int cpu, CPUState *env);
 void slavio_pic_info(void *opaque);
 void slavio_irq_info(void *opaque);
 void slavio_pic_set_irq(void *opaque, int irq, int level);
+void slavio_pic_set_irq_cpu(void *opaque, int irq, int level, unsigned int cpu);
 
 /* magic-load.c */
 int load_elf(const char *filename, uint8_t *addr);
 int load_aout(const char *filename, uint8_t *addr);
 
 /* slavio_timer.c */
-void slavio_timer_init(uint32_t addr1, int irq1, uint32_t addr2, int irq2);
+void slavio_timer_init(uint32_t addr, int irq, int mode, unsigned int cpu);
 
 /* slavio_serial.c */
 SerialState *slavio_serial_init(int base, int irq, CharDriverState *chr1, CharDriverState *chr2);

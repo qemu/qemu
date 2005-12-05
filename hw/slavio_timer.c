@@ -42,6 +42,9 @@ do { printf("TIMER: " fmt , ##args); } while (0)
  * The 31-bit counter is incremented every 500ns by bit 9. Bits 8..0
  * are zero. Bit 31 is 1 when count has been reached.
  *
+ * Per-CPU timers interrupt local CPU, system timer uses normal
+ * interrupt routing.
+ *
  */
 
 typedef struct SLAVIO_TIMERState {
@@ -53,11 +56,11 @@ typedef struct SLAVIO_TIMERState {
     int irq;
     int reached, stopped;
     int mode; // 0 = processor, 1 = user, 2 = system
+    unsigned int cpu;
 } SLAVIO_TIMERState;
 
 #define TIMER_MAXADDR 0x1f
 #define CNT_FREQ 2000000
-#define MAX_CPUS 16
 
 // Update count, set irq, update expire_time
 static void slavio_timer_get_out(SLAVIO_TIMERState *s)
@@ -73,7 +76,7 @@ static void slavio_timer_get_out(SLAVIO_TIMERState *s)
     else
 	ticks = qemu_get_clock(vm_clock) - s->tick_offset;
 
-    out = (ticks >= s->expire_time);
+    out = (ticks > s->expire_time);
     if (out)
 	s->reached = 0x80000000;
     if (!s->limit)
@@ -100,7 +103,7 @@ static void slavio_timer_get_out(SLAVIO_TIMERState *s)
     DPRINTF("irq %d limit %d reached %d d %lld count %d s->c %x diff %lld stopped %d mode %d\n", s->irq, limit, s->reached?1:0, (ticks-s->count_load_time), count, s->count, s->expire_time - ticks, s->stopped, s->mode);
 
     if (s->mode != 1)
-	pic_set_irq(s->irq, out);
+	pic_set_irq_cpu(s->irq, out, s->cpu);
 }
 
 // timer callback
@@ -127,7 +130,7 @@ static uint32_t slavio_timer_mem_readl(void *opaque, target_phys_addr_t addr)
 	// part of counter (user mode)
 	if (s->mode != 1) {
 	    // clear irq
-	    pic_set_irq(s->irq, 0);
+	    pic_set_irq_cpu(s->irq, 0, s->cpu);
 	    s->count_load_time = qemu_get_clock(vm_clock);
 	    s->reached = 0;
 	    return s->limit;
@@ -263,7 +266,7 @@ static void slavio_timer_reset(void *opaque)
     slavio_timer_get_out(s);
 }
 
-static void slavio_timer_init_internal(uint32_t addr, int irq, int mode)
+void slavio_timer_init(uint32_t addr, int irq, int mode, unsigned int cpu)
 {
     int slavio_timer_io_memory;
     SLAVIO_TIMERState *s;
@@ -273,6 +276,7 @@ static void slavio_timer_init_internal(uint32_t addr, int irq, int mode)
         return;
     s->irq = irq;
     s->mode = mode;
+    s->cpu = cpu;
     s->irq_timer = qemu_new_timer(vm_clock, slavio_timer_irq, s);
 
     slavio_timer_io_memory = cpu_register_io_memory(0, slavio_timer_mem_read,
@@ -281,15 +285,4 @@ static void slavio_timer_init_internal(uint32_t addr, int irq, int mode)
     register_savevm("slavio_timer", addr, 1, slavio_timer_save, slavio_timer_load, s);
     qemu_register_reset(slavio_timer_reset, s);
     slavio_timer_reset(s);
-}
-
-void slavio_timer_init(uint32_t addr1, int irq1, uint32_t addr2, int irq2)
-{
-    int i;
-
-    for (i = 0; i < MAX_CPUS; i++) {
-	slavio_timer_init_internal(addr1 + i * TARGET_PAGE_SIZE, irq1, 0);
-    }
-
-    slavio_timer_init_internal(addr2, irq2, 2);
 }

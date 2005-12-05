@@ -53,6 +53,7 @@ typedef struct SLAVIO_INTCTLState {
 #ifdef DEBUG_IRQ_COUNT
     uint64_t irq_count[32];
 #endif
+    CPUState *cpu_envs[MAX_CPUS];
 } SLAVIO_INTCTLState;
 
 #define INTCTL_MAXADDR 0xf
@@ -96,6 +97,7 @@ static void slavio_intctl_mem_writel(void *opaque, target_phys_addr_t addr, uint
     case 2: // set softint
 	val &= 0xfffe0000;
 	s->intreg_pending[cpu] |= val;
+        slavio_check_interrupts(s);
 	DPRINTF("Set cpu %d irq mask %x, curmask %x\n", cpu, val, s->intreg_pending[cpu]);
 	break;
     default:
@@ -216,7 +218,7 @@ static void slavio_check_interrupts(void *opaque)
     CPUState *env;
     SLAVIO_INTCTLState *s = opaque;
     uint32_t pending = s->intregm_pending;
-    unsigned int i, max = 0;
+    unsigned int i, j, max = 0;
 
     pending &= ~s->intregm_disabled;
 
@@ -227,20 +229,52 @@ static void slavio_check_interrupts(void *opaque)
 		    max = intbit_to_level[i];
 	    }
 	}
-        env = first_cpu;
-	if (env->interrupt_index == 0) {
-	    DPRINTF("Triggered pil %d\n", max);
+        env = s->cpu_envs[s->target_cpu];
+        if (!env) {
+	    DPRINTF("No CPU %d, not triggered (pending %x)\n", s->target_cpu, pending);
+        }
+	else {
+            if (env->halted)
+                env->halted = 0;
+            if (env->interrupt_index == 0) {
+                DPRINTF("Triggered CPU %d pil %d\n", s->target_cpu, max);
 #ifdef DEBUG_IRQ_COUNT
-	    s->irq_count[max]++;
+                s->irq_count[max]++;
 #endif
-	    env->interrupt_index = TT_EXTINT | max;
-	    cpu_interrupt(env, CPU_INTERRUPT_HARD);
+                env->interrupt_index = TT_EXTINT | max;
+                cpu_interrupt(env, CPU_INTERRUPT_HARD);
+            }
+            else
+                DPRINTF("Not triggered (pending %x), pending exception %x\n", pending, env->interrupt_index);
 	}
-	else
-	    DPRINTF("Not triggered (pending %x), pending exception %x\n", pending, env->interrupt_index);
     }
     else
 	DPRINTF("Not triggered (pending %x), disabled %x\n", pending, s->intregm_disabled);
+    
+    for (i = 0; i < MAX_CPUS; i++) {
+        max = 0;
+        env = s->cpu_envs[i];
+        if (!env)
+            continue;
+        for (j = 17; j < 32; j++) {
+            if (s->intreg_pending[i] & (1 << j)) {
+                if (max < j - 16)
+                    max = j - 16;
+            }
+        }
+	if (max > 0) {
+            if (env->halted)
+                env->halted = 0;
+            if (env->interrupt_index == 0) {
+                DPRINTF("Triggered softint %d for cpu %d (pending %x)\n", max, i, pending);
+#ifdef DEBUG_IRQ_COUNT
+                s->irq_count[max]++;
+#endif
+                env->interrupt_index = TT_EXTINT | max;
+                cpu_interrupt(env, CPU_INTERRUPT_HARD);
+            }
+        }
+    }
 }
 
 /*
@@ -251,7 +285,7 @@ void slavio_pic_set_irq(void *opaque, int irq, int level)
 {
     SLAVIO_INTCTLState *s = opaque;
 
-    DPRINTF("Set irq %d level %d\n", irq, level);
+    DPRINTF("Set cpu %d irq %d level %d\n", s->target_cpu, irq, level);
     if (irq < 32) {
 	uint32_t mask = 1 << irq;
 	uint32_t pil = intbit_to_level[irq];
@@ -263,6 +297,29 @@ void slavio_pic_set_irq(void *opaque, int irq, int level)
 	    else {
 		s->intregm_pending &= ~mask;
 		s->intreg_pending[s->target_cpu] &= ~(1 << pil);
+	    }
+	}
+    }
+    slavio_check_interrupts(s);
+}
+
+void slavio_pic_set_irq_cpu(void *opaque, int irq, int level, unsigned int cpu)
+{
+    SLAVIO_INTCTLState *s = opaque;
+
+    DPRINTF("Set cpu %d local irq %d level %d\n", cpu, irq, level);
+    if (cpu == (unsigned int)-1) {
+        slavio_pic_set_irq(opaque, irq, level);
+        return;
+    }
+    if (irq < 32) {
+	uint32_t pil = intbit_to_level[irq];
+    	if (pil > 0) {
+	    if (level) {
+		s->intreg_pending[cpu] |= 1 << pil;
+	    }
+	    else {
+		s->intreg_pending[cpu] &= ~(1 << pil);
 	    }
 	}
     }
@@ -310,6 +367,12 @@ static void slavio_intctl_reset(void *opaque)
     s->intregm_disabled = ~0xffb2007f;
     s->intregm_pending = 0;
     s->target_cpu = 0;
+}
+
+void slavio_intctl_set_cpu(void *opaque, unsigned int cpu, CPUState *env)
+{
+    SLAVIO_INTCTLState *s = opaque;
+    s->cpu_envs[cpu] = env;
 }
 
 void *slavio_intctl_init(uint32_t addr, uint32_t addrg)

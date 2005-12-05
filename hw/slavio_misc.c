@@ -124,9 +124,8 @@ static void slavio_misc_mem_writeb(void *opaque, target_phys_addr_t addr, uint32
     case 0xa000000:
 	MISC_DPRINTF("Write power management %2.2x\n", val & 0xff);
 #if 0
-	// XXX: halting CPU does not work
-	raise_exception(EXCP_HLT);
-	cpu_loop_exit();
+        // XXX almost works
+        cpu_interrupt(cpu_single_env, CPU_INTERRUPT_HALT);
 #endif
 	break;
     }

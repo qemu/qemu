@@ -166,6 +166,7 @@ typedef struct CPUSPARCState {
     int exception_index;
     int interrupt_index;
     int interrupt_request;
+    int halted;
     /* NOTE: we allow 8 more registers to handle wrapping */
     target_ulong regbase[NWINDOWS * 16 + 8];
 

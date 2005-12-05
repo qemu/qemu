@@ -56,6 +56,7 @@
 #define PHYS_JJ_FDC	0x71400000	/* Floppy */
 #define PHYS_JJ_FLOPPY_IRQ 22
 #define PHYS_JJ_ME_IRQ 30		/* Module error, power fail */
+#define MAX_CPUS 16
 
 /* TSC handling */
 
@@ -128,6 +129,8 @@ static void nvram_init(m48t59_t *nvram, uint8_t *macaddr, const char *cmdline,
     nvram_set_string(nvram, 0x00, "QEMU_BIOS", 16);
     nvram_set_lword(nvram,  0x10, 0x00000001); /* structure v1 */
     // NVRAM_size, arch not applicable
+    m48t59_write(nvram, 0x2D, smp_cpus & 0xff);
+    m48t59_write(nvram, 0x2E, 0);
     m48t59_write(nvram, 0x2F, nographic & 0xff);
     nvram_set_lword(nvram,  0x30, RAM_size);
     m48t59_write(nvram, 0x34, boot_device & 0xff);
@@ -179,6 +182,11 @@ void pic_set_irq(int irq, int level)
     slavio_pic_set_irq(slavio_intctl, irq, level);
 }
 
+void pic_set_irq_cpu(int irq, int level, unsigned int cpu)
+{
+    slavio_pic_set_irq_cpu(slavio_intctl, irq, level, cpu);
+}
+
 static void *tcx;
 
 void vga_update_display()
@@ -222,7 +230,7 @@ static void sun4m_init(int ram_size, int vga_ram_size, int boot_device,
                        const char *kernel_filename, const char *kernel_cmdline,
                        const char *initrd_filename)
 {
-    CPUState *env;
+    CPUState *env, *envs[MAX_CPUS];
     char buf[1024];
     int ret, linux_boot;
     unsigned int i;
@@ -230,19 +238,31 @@ static void sun4m_init(int ram_size, int vga_ram_size, int boot_device,
 
     linux_boot = (kernel_filename != NULL);
 
-    env = cpu_init();
-    register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
-    qemu_register_reset(main_cpu_reset, env);
-
+    /* init CPUs */
+    for(i = 0; i < smp_cpus; i++) {
+        env = cpu_init();
+        envs[i] = env;
+        if (i != 0)
+            env->halted = 1;
+        register_savevm("cpu", i, 3, cpu_save, cpu_load, env);
+        qemu_register_reset(main_cpu_reset, env);
+    }
     /* allocate RAM */
     cpu_register_physical_memory(0, ram_size, 0);
 
     iommu = iommu_init(PHYS_JJ_IOMMU);
     slavio_intctl = slavio_intctl_init(PHYS_JJ_INTR0, PHYS_JJ_INTR_G);
+    for(i = 0; i < smp_cpus; i++) {
+        slavio_intctl_set_cpu(slavio_intctl, i, envs[i]);
+    }
+
     tcx = tcx_init(ds, PHYS_JJ_TCX_FB, phys_ram_base + ram_size, ram_size, vram_size, graphic_width, graphic_height);
     lance_init(&nd_table[0], PHYS_JJ_LE_IRQ, PHYS_JJ_LE, PHYS_JJ_LEDMA);
     nvram = m48t59_init(0, PHYS_JJ_EEPROM, 0, PHYS_JJ_EEPROM_SIZE, 8);
-    slavio_timer_init(PHYS_JJ_CLOCK, PHYS_JJ_CLOCK_IRQ, PHYS_JJ_CLOCK1, PHYS_JJ_CLOCK1_IRQ);
+    for (i = 0; i < MAX_CPUS; i++) {
+        slavio_timer_init(PHYS_JJ_CLOCK + i * TARGET_PAGE_SIZE, PHYS_JJ_CLOCK_IRQ, 0, i);
+    }
+    slavio_timer_init(PHYS_JJ_CLOCK1, PHYS_JJ_CLOCK1_IRQ, 2, (unsigned int)-1);
     slavio_serial_ms_kbd_init(PHYS_JJ_MS_KBD, PHYS_JJ_MS_KBD_IRQ);
     // Slavio TTYA (base+4, Linux ttyS0) is the first Qemu serial device
     // Slavio TTYB (base+0, Linux ttyS1) is the second Qemu serial device

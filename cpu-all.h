@@ -734,6 +734,7 @@ extern int code_copy_enabled;
 #define CPU_INTERRUPT_EXITTB 0x04 /* exit the current TB (use for x86 a20 case) */
 #define CPU_INTERRUPT_TIMER  0x08 /* internal timer exception pending */
 #define CPU_INTERRUPT_FIQ    0x10 /* Fast interrupt pending.  */
+#define CPU_INTERRUPT_HALT   0x20 /* CPU halt wanted */
 
 void cpu_interrupt(CPUState *s, int mask);
 void cpu_reset_interrupt(CPUState *env, int mask);

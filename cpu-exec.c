@@ -274,6 +274,15 @@ int cpu_exec(CPUState *env1)
             return EXCP_HALTED;
         }
     }
+#elif defined(TARGET_SPARC)
+    if (env1->halted) {
+        if ((env1->interrupt_request & CPU_INTERRUPT_HARD) &&
+            (env1->psret != 0)) {
+            env1->halted = 0;
+        } else {
+            return EXCP_HALTED;
+        }
+    }
 #elif defined(TARGET_ARM)
     if (env1->halted) {
         /* An interrupt wakes the CPU even if the I and F CPSR bits are
@@ -522,7 +531,10 @@ int cpu_exec(CPUState *env1)
 		    } else if (interrupt_request & CPU_INTERRUPT_TIMER) {
 			//do_interrupt(0, 0, 0, 0, 0);
 			env->interrupt_request &= ~CPU_INTERRUPT_TIMER;
-		    }
+		    } else if (interrupt_request & CPU_INTERRUPT_HALT) {
+                        env1->halted = 1;
+                        return EXCP_HALTED;
+                    }
 #elif defined(TARGET_ARM)
                     if (interrupt_request & CPU_INTERRUPT_FIQ
                         && !(env->uncached_cpsr & CPSR_F)) {
