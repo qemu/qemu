@@ -230,7 +230,7 @@ if test -z "$target_list" ; then
     target_list="i386-softmmu ppc-softmmu sparc-softmmu x86_64-softmmu mips-softmmu arm-softmmu"
 # the following are Linux specific
     if [ "$linux" = "yes" ] ; then
-        target_list="i386-user arm-user armeb-user sparc-user ppc-user mips-user $target_list"
+        target_list="i386-user arm-user armeb-user sparc-user ppc-user mips-user mipsel-user $target_list"
     fi
 else
     target_list=$(echo "$target_list" | sed -e 's/,/ /g')
@@ -744,7 +744,7 @@ elif test "$target_cpu" = "x86_64" ; then
   if test $kqemu = "yes" -a "$target_softmmu" = "yes" -a $cpu = "x86_64"  ; then
     echo "#define USE_KQEMU 1" >> $config_h
   fi
-elif test "$target_cpu" = "mips" ; then
+elif test "$target_cpu" = "mips" -o "$target_cpu" = "mipsel" ; then
   echo "TARGET_ARCH=mips" >> $config_mak
   echo "#define TARGET_ARCH \"mips\"" >> $config_h
   echo "#define TARGET_MIPS 1" >> $config_h
