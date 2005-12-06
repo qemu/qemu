@@ -31,7 +31,15 @@ ifeq ($(TARGET_ARCH),arm)
     QEMU_USER=qemu-arm
   endif
 else
+ifeq ($(TARGET_ARCH),mips)
+  ifeq ($(TARGET_WORDS_BIGENDIAN),yes)
+    QEMU_USER=qemu-mips
+  else
+    QEMU_USER=qemu-mipsel
+  endif
+else
   QEMU_USER=qemu-$(TARGET_ARCH)
+endif
 endif
 # system emulator name
 ifdef CONFIG_SOFTMMU
