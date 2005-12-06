@@ -118,10 +118,14 @@ tarbin:
 	$(bindir)/qemu-system-sparc \
 	$(bindir)/qemu-system-x86_64 \
 	$(bindir)/qemu-system-mips \
+	$(bindir)/qemu-system-arm \
 	$(bindir)/qemu-i386 \
         $(bindir)/qemu-arm \
+        $(bindir)/qemu-armeb \
         $(bindir)/qemu-sparc \
         $(bindir)/qemu-ppc \
+        $(bindir)/qemu-mips \
+        $(bindir)/qemu-mipsel \
         $(bindir)/qemu-img \
 	$(datadir)/bios.bin \
 	$(datadir)/vgabios.bin \

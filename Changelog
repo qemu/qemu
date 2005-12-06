@@ -13,7 +13,7 @@ version 0.7.3:
   - Linux host serial port access
   - Linux host low level parallel port access
   - New network emulation code supporting VLANs.
-  - MIPS User Linux emulation
+  - MIPS and MIPSel User Linux emulation
   - MIPS fixes to boot Linux (Daniel Jacobowitz)
   - NX bit support
   - Initial SPARC SMP support (Blue Swirl)
