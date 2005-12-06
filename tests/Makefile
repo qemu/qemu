@@ -83,7 +83,7 @@ hello-arm.o: hello-arm.c
 
 # XXX: find a way to compile easily a test for each arch
 test2:
-	@for arch in i386 arm sparc ppc mips; do \
+	@for arch in i386 arm armeb sparc ppc mips mipsel; do \
            ../$${arch}-user/qemu-$${arch} $${arch}/ls -l linux-test.c ; \
         done
 
