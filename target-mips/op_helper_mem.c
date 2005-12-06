@@ -1,3 +1,9 @@
+#ifdef TARGET_WORDS_BIGENDIAN
+#define GET_LMASK(v) ((v) & 3)
+#else
+#define GET_LMASK(v) (((v) & 3) ^ 3)
+#endif
+
 void glue(do_lwl, MEMSUFFIX) (uint32_t tmp)
 {
 #if defined (DEBUG_OP)
@@ -7,7 +13,7 @@ void glue(do_lwl, MEMSUFFIX) (uint32_t tmp)
     /* XXX: this is valid only in big-endian mode
      *      should be reverted for little-endian...
      */
-    switch (T0 & 3) {
+    switch (GET_LMASK(T0)) {
     case 0:
         T0 = tmp;
         break;
@@ -39,7 +45,7 @@ void glue(do_lwr, MEMSUFFIX) (uint32_t tmp)
     /* XXX: this is valid only in big-endian mode
      *      should be reverted for little-endian...
      */
-    switch (T0 & 3) {
+    switch (GET_LMASK(T0)) {
     case 0:
         T0 = (tmp >> 24) | (T1 & 0xFFFFFF00);
         break;
@@ -74,7 +80,7 @@ uint32_t glue(do_swl, MEMSUFFIX) (uint32_t tmp)
     /* XXX: this is valid only in big-endian mode
      *      should be reverted for little-endian...
      */
-    switch (T0 & 3) {
+    switch (GET_LMASK(T0)) {
     case 0:
         tmp = T1;
         break;
@@ -110,7 +116,7 @@ uint32_t glue(do_swr, MEMSUFFIX) (uint32_t tmp)
     /* XXX: this is valid only in big-endian mode
      *      should be reverted for little-endian...
      */
-    switch (T0 & 3) {
+    switch (GET_LMASK(T0)) {
     case 0:
         tmp = (tmp & 0x00FFFFFF) | (T1 << 24);
         break;
