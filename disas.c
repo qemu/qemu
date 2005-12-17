@@ -187,7 +187,11 @@ void target_disas(FILE *out, target_ulong code, target_ulong size, int flags)
 #endif
     print_insn = print_insn_ppc;
 #elif defined(TARGET_MIPS)
+#ifdef TARGET_WORDS_BIGENDIAN
     print_insn = print_insn_big_mips;
+#else
+    print_insn = print_insn_little_mips;
+#endif
 #elif defined(TARGET_M68K)
     print_insn = print_insn_m68k;
 #else
@@ -381,7 +385,11 @@ void monitor_disas(CPUState *env,
 #endif
     print_insn = print_insn_ppc;
 #elif defined(TARGET_MIPS)
+#ifdef TARGET_WORDS_BIGENDIAN
     print_insn = print_insn_big_mips;
+#else
+    print_insn = print_insn_little_mips;
+#endif
 #elif defined(TARGET_M68K)
     print_insn = print_insn_m68k;
 #else
