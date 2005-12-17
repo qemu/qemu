@@ -1,7 +1,7 @@
 #if !defined(__QEMU_MIPS_EXEC_H__)
 #define __QEMU_MIPS_EXEC_H__
 
-#define DEBUG_OP
+//#define DEBUG_OP
 
 #include "mips-defs.h"
 #include "dyngen-exec.h"
