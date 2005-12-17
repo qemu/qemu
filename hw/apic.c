@@ -60,6 +60,9 @@
 
 #define APIC_SV_ENABLE (1 << 8)
 
+#define MAX_APICS 255
+#define MAX_APIC_WORDS 8
+
 typedef struct APICState {
     CPUState *cpu_env;
     uint32_t apicbase;
@@ -81,8 +84,6 @@ typedef struct APICState {
     uint32_t initial_count;
     int64_t initial_count_load_time, next_time;
     QEMUTimer *timer;
-
-    struct APICState *next_apic;
 } APICState;
 
 struct IOAPICState {
@@ -94,14 +95,95 @@ struct IOAPICState {
 };
 
 static int apic_io_memory;
-static APICState *first_local_apic = NULL;
+static APICState *local_apics[MAX_APICS + 1];
 static int last_apic_id = 0;
 
 static void apic_init_ipi(APICState *s);
 static void apic_set_irq(APICState *s, int vector_num, int trigger_mode);
 static void apic_update_irq(APICState *s);
 
-static void apic_bus_deliver(uint32_t deliver_bitmask, uint8_t delivery_mode,
+/* Find first bit starting from msb. Return 0 if value = 0 */
+static int fls_bit(uint32_t value)
+{
+    unsigned int ret = 0;
+
+#if defined(HOST_I386)
+    __asm__ __volatile__ ("bsr %1, %0\n" : "+r" (ret) : "rm" (value));
+    return ret;
+#else
+    if (value > 0xffff)
+        value >>= 16, ret = 16;
+    if (value > 0xff)
+        value >>= 8, ret += 8;
+    if (value > 0xf)
+        value >>= 4, ret += 4;
+    if (value > 0x3)
+        value >>= 2, ret += 2;
+    return ret + (value >> 1);
+#endif
+}
+
+/* Find first bit starting from lsb. Return 0 if value = 0 */
+static int ffs_bit(uint32_t value)
+{
+    unsigned int ret = 0;
+
+#if defined(HOST_I386)
+    __asm__ __volatile__ ("bsf %1, %0\n" : "+r" (ret) : "rm" (value));
+    return ret;
+#else
+    if (!value)
+        return 0;
+    if (!(value & 0xffff))
+        value >>= 16, ret = 16;
+    if (!(value & 0xff))
+        value >>= 8, ret += 8;
+    if (!(value & 0xf))
+        value >>= 4, ret += 4;
+    if (!(value & 0x3))
+        value >>= 2, ret += 2;
+    if (!(value & 0x1))
+        ret++;
+    return ret;
+#endif
+}
+
+static inline void set_bit(uint32_t *tab, int index)
+{
+    int i, mask;
+    i = index >> 5;
+    mask = 1 << (index & 0x1f);
+    tab[i] |= mask;
+}
+
+static inline void reset_bit(uint32_t *tab, int index)
+{
+    int i, mask;
+    i = index >> 5;
+    mask = 1 << (index & 0x1f);
+    tab[i] &= ~mask;
+}
+
+#define foreach_apic(apic, deliver_bitmask, code) \
+{\
+    int __i, __j, __mask;\
+    for(__i = 0; __i < MAX_APIC_WORDS; __i++) {\
+        __mask = deliver_bitmask[__i];\
+        if (__mask) {\
+            for(__j = 0; __j < 32; __j++) {\
+                if (__mask & (1 << __j)) {\
+                    apic = local_apics[__i * 32 + __j];\
+                    if (apic) {\
+                        code;\
+                    }\
+                }\
+            }\
+        }\
+    }\
+}
+
+static void apic_bus_deliver(const uint32_t *deliver_bitmask, 
+                             uint8_t delivery_mode,
                              uint8_t vector_num, uint8_t polarity,
                              uint8_t trigger_mode)
 {
@@ -110,13 +192,23 @@ static void apic_bus_deliver(uint32_t deliver_bitmask, uint8_t delivery_mode,
     switch (delivery_mode) {
         case APIC_DM_LOWPRI:
             /* XXX: search for focus processor, arbitration */
-            if (deliver_bitmask) {
-                uint32_t m = 1;
-                while ((deliver_bitmask & m) == 0)
-                    m <<= 1;
-                deliver_bitmask = m;
+            {
+                int i, d;
+                d = -1;
+                for(i = 0; i < MAX_APIC_WORDS; i++) {
+                    if (deliver_bitmask[i]) {
+                        d = i * 32 + ffs_bit(deliver_bitmask[i]);
+                        break;
+                    }
+                }
+                if (d >= 0) {
+                    apic_iter = local_apics[d];
+                    if (apic_iter) {
+                        apic_set_irq(apic_iter, vector_num, trigger_mode);
+                    }
+                }
             }
-            break;
+            return;
 
         case APIC_DM_FIXED:
             break;
@@ -127,11 +219,8 @@ static void apic_bus_deliver(uint32_t deliver_bitmask, uint8_t delivery_mode,
 
         case APIC_DM_INIT:
             /* normal INIT IPI sent to processors */
-            for (apic_iter = first_local_apic; apic_iter != NULL;
-                 apic_iter = apic_iter->next_apic) {
-                if (deliver_bitmask & (1 << apic_iter->id))
-                    apic_init_ipi(apic_iter);
-            }
+            foreach_apic(apic_iter, deliver_bitmask, 
+                         apic_init_ipi(apic_iter) );
             return;
     
         case APIC_DM_EXTINT:
@@ -142,11 +231,8 @@ static void apic_bus_deliver(uint32_t deliver_bitmask, uint8_t delivery_mode,
             return;
     }
 
-    for (apic_iter = first_local_apic; apic_iter != NULL;
-         apic_iter = apic_iter->next_apic) {
-        if (deliver_bitmask & (1 << apic_iter->id))
-            apic_set_irq(apic_iter, vector_num, trigger_mode);
-    }
+    foreach_apic(apic_iter, deliver_bitmask, 
+                 apic_set_irq(apic_iter, vector_num, trigger_mode) );
 }
 
 void cpu_set_apic_base(CPUState *env, uint64_t val)
@@ -185,42 +271,6 @@ uint8_t cpu_get_apic_tpr(CPUX86State *env)
 {
     APICState *s = env->apic_state;
     return s->tpr >> 4;
-}
-
-static int fls_bit(int value)
-{
-    unsigned int ret = 0;
-
-#ifdef HOST_I386
-    __asm__ __volatile__ ("bsr %1, %0\n" : "+r" (ret) : "rm" (value));
-    return ret;
-#else
-    if (value > 0xffff)
-        value >>= 16, ret = 16;
-    if (value > 0xff)
-        value >>= 8, ret += 8;
-    if (value > 0xf)
-        value >>= 4, ret += 4;
-    if (value > 0x3)
-        value >>= 2, ret += 2;
-    return ret + (value >> 1);
-#endif
-}
-
-static inline void set_bit(uint32_t *tab, int index)
-{
-    int i, mask;
-    i = index >> 5;
-    mask = 1 << (index & 0x1f);
-    tab[i] |= mask;
-}
-
-static inline void reset_bit(uint32_t *tab, int index)
-{
-    int i, mask;
-    i = index >> 5;
-    mask = 1 << (index & 0x1f);
-    tab[i] &= ~mask;
 }
 
 /* return -1 if no bit is set */
@@ -294,26 +344,37 @@ static void apic_eoi(APICState *s)
     apic_update_irq(s);
 }
 
-static uint32_t apic_get_delivery_bitmask(uint8_t dest, uint8_t dest_mode)
+static void apic_get_delivery_bitmask(uint32_t *deliver_bitmask,
+                                      uint8_t dest, uint8_t dest_mode)
 {
-    uint32_t mask = 0;
     APICState *apic_iter;
+    int i;
 
     if (dest_mode == 0) {
-        if (dest == 0xff)
-            mask = 0xff;
-        else
-            mask = 1 << dest;
+        if (dest == 0xff) {
+            memset(deliver_bitmask, 0xff, MAX_APIC_WORDS * sizeof(uint32_t));
+        } else {
+            memset(deliver_bitmask, 0x00, MAX_APIC_WORDS * sizeof(uint32_t));
+            set_bit(deliver_bitmask, dest);
+        }
     } else {
         /* XXX: cluster mode */
-        for (apic_iter = first_local_apic; apic_iter != NULL;
-             apic_iter = apic_iter->next_apic) {
-            if (dest & apic_iter->log_dest)
-                mask |= (1 << apic_iter->id);
+        memset(deliver_bitmask, 0x00, MAX_APIC_WORDS * sizeof(uint32_t));
+        for(i = 0; i < MAX_APICS; i++) {
+            apic_iter = local_apics[i];
+            if (apic_iter) {
+                if (apic_iter->dest_mode == 0xf) {
+                    if (dest & apic_iter->log_dest)
+                        set_bit(deliver_bitmask, i);
+                } else if (apic_iter->dest_mode == 0x0) {
+                    if ((dest & 0xf0) == (apic_iter->log_dest & 0xf0) &&
+                        (dest & apic_iter->log_dest & 0x0f)) {
+                        set_bit(deliver_bitmask, i);
+                    }
+                }
+            }
         }
     }
-
-    return mask;
 }
 
 
@@ -356,23 +417,25 @@ static void apic_deliver(APICState *s, uint8_t dest, uint8_t dest_mode,
                          uint8_t delivery_mode, uint8_t vector_num,
                          uint8_t polarity, uint8_t trigger_mode)
 {
-    uint32_t deliver_bitmask = 0;
+    uint32_t deliver_bitmask[MAX_APIC_WORDS];
     int dest_shorthand = (s->icr[0] >> 18) & 3;
     APICState *apic_iter;
 
     switch (dest_shorthand) {
-        case 0:
-            deliver_bitmask = apic_get_delivery_bitmask(dest, dest_mode);
-            break;
-        case 1:
-            deliver_bitmask = (1 << s->id);
-            break;
-        case 2:
-            deliver_bitmask = 0xffffffff;
-            break;
-        case 3:
-            deliver_bitmask = 0xffffffff & ~(1 << s->id);
-            break;
+    case 0:
+        apic_get_delivery_bitmask(deliver_bitmask, dest, dest_mode);
+        break;
+    case 1:
+        memset(deliver_bitmask, 0x00, sizeof(deliver_bitmask));
+        set_bit(deliver_bitmask, s->id);
+        break;
+    case 2:
+        memset(deliver_bitmask, 0xff, sizeof(deliver_bitmask));
+        break;
+    case 3:
+        memset(deliver_bitmask, 0xff, sizeof(deliver_bitmask));
+        reset_bit(deliver_bitmask, s->id);
+        break;
     }
 
     switch (delivery_mode) {
@@ -381,24 +444,16 @@ static void apic_deliver(APICState *s, uint8_t dest, uint8_t dest_mode,
                 int trig_mode = (s->icr[0] >> 15) & 1;
                 int level = (s->icr[0] >> 14) & 1;
                 if (level == 0 && trig_mode == 1) {
-                    for (apic_iter = first_local_apic; apic_iter != NULL;
-                         apic_iter = apic_iter->next_apic) {
-                        if (deliver_bitmask & (1 << apic_iter->id)) {
-                            apic_iter->arb_id = apic_iter->id;
-                        }
-                    }
+                    foreach_apic(apic_iter, deliver_bitmask, 
+                                 apic_iter->arb_id = apic_iter->id );
                     return;
                 }
             }
             break;
 
         case APIC_DM_SIPI:
-            for (apic_iter = first_local_apic; apic_iter != NULL;
-                 apic_iter = apic_iter->next_apic) {
-                if (deliver_bitmask & (1 << apic_iter->id)) {
-                    apic_startup(apic_iter, vector_num);
-                }
-            }
+            foreach_apic(apic_iter, deliver_bitmask, 
+                         apic_startup(apic_iter, vector_num) );
             return;
     }
 
@@ -749,6 +804,8 @@ int apic_init(CPUState *env)
 {
     APICState *s;
 
+    if (last_apic_id >= MAX_APICS)
+        return -1;
     s = qemu_mallocz(sizeof(APICState));
     if (!s)
         return -1;
@@ -772,10 +829,8 @@ int apic_init(CPUState *env)
 
     register_savevm("apic", 0, 1, apic_save, apic_load, s);
     qemu_register_reset(apic_reset, s);
-
-    s->next_apic = first_local_apic;
-    first_local_apic = s;
     
+    local_apics[s->id] = s;
     return 0;
 }
 
@@ -790,6 +845,7 @@ static void ioapic_service(IOAPICState *s)
     uint8_t dest;
     uint8_t dest_mode;
     uint8_t polarity;
+    uint32_t deliver_bitmask[MAX_APIC_WORDS];
 
     for (i = 0; i < IOAPIC_NUM_PINS; i++) {
         mask = 1 << i;
@@ -807,8 +863,10 @@ static void ioapic_service(IOAPICState *s)
                     vector = pic_read_irq(isa_pic);
                 else
                     vector = entry & 0xff;
-                apic_bus_deliver(apic_get_delivery_bitmask(dest, dest_mode),
-                                 delivery_mode, vector, polarity, trig_mode);
+                
+                apic_get_delivery_bitmask(deliver_bitmask, dest, dest_mode);
+                apic_bus_deliver(deliver_bitmask, delivery_mode, 
+                                 vector, polarity, trig_mode);
             }
         }
     }

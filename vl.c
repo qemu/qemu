@@ -153,10 +153,12 @@ USBPort *vm_usb_ports[MAX_VM_USB_PORTS];
 USBDevice *vm_usb_hub;
 static VLANState *first_vlan;
 int smp_cpus = 1;
-#ifdef TARGET_SPARC
+#if defined(TARGET_SPARC)
 #define MAX_CPUS 16
+#elif defined(TARGET_I386)
+#define MAX_CPUS 255
 #else
-#define MAX_CPUS 8
+#define MAX_CPUS 1
 #endif
 
 /***********************************************************/
