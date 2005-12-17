@@ -339,7 +339,7 @@ static void switch_tss(int tss_selector,
        necessary to valid the TLB after having done the accesses */
 
     v1 = ldub_kernel(env->tr.base);
-    v2 = ldub(env->tr.base + old_tss_limit_max);
+    v2 = ldub_kernel(env->tr.base + old_tss_limit_max);
     stb_kernel(env->tr.base, v1);
     stb_kernel(env->tr.base + old_tss_limit_max, v2);
     
