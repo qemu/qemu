@@ -466,7 +466,7 @@ static void bios_add_mptable(uint8_t *bios_data)
     if (smp_cpus <= 1)
         return;
 
-    mp_config_table = bios_data + 0xcc00;
+    mp_config_table = bios_data + 0xb000;
     q = mp_config_table;
     putstr(&q, "PCMP"); /* "PCMP signature */
     putle16(&q, 0); /* table length (patched later) */
