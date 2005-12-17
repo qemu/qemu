@@ -1986,7 +1986,14 @@ static inline void validate_seg(int seg_reg, int cpl)
 {
     int dpl;
     uint32_t e2;
-    
+
+    /* XXX: on x86_64, we do not want to nullify FS and GS because
+       they may still contain a valid base. I would be interested to
+       know how a real x86_64 CPU behaves */
+    if ((seg_reg == R_FS || seg_reg == R_GS) && 
+        (env->segs[seg_reg].selector & 0xfffc) == 0)
+        return;
+
     e2 = env->segs[seg_reg].flags;
     dpl = (e2 >> DESC_DPL_SHIFT) & 3;
     if (!(e2 & DESC_CS_MASK) || !(e2 & DESC_C_MASK)) {
