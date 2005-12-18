@@ -457,7 +457,7 @@ static inline void target_to_host_cmsg(struct msghdr *msgh,
         space += CMSG_SPACE(len);
         if (space > msgh->msg_controllen) {
             space -= CMSG_SPACE(len);
-            gemu_log("Host cmsg overflow");
+            gemu_log("Host cmsg overflow\n");
             break;
         }
 
@@ -500,7 +500,7 @@ static inline void host_to_target_cmsg(struct target_msghdr *target_msgh,
         space += TARGET_CMSG_SPACE(len);
         if (space > tswapl(target_msgh->msg_controllen)) {
             space -= TARGET_CMSG_SPACE(len);
-            gemu_log("Target cmsg overflow");
+            gemu_log("Target cmsg overflow\n");
             break;
         }
 
