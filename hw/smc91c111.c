@@ -35,8 +35,10 @@ typedef struct {
     int tx_fifo[NUM_PACKETS];
     int rx_fifo_len;
     int rx_fifo[NUM_PACKETS];
+    int tx_fifo_done_len;
+    int tx_fifo_done[NUM_PACKETS];
     /* Packet buffer memory.  */
-    uint8_t data[2048][NUM_PACKETS];
+    uint8_t data[NUM_PACKETS][2048];
     uint8_t int_level;
     uint8_t int_mask;
     uint8_t macaddr[6];
@@ -81,6 +83,8 @@ static void smc91c111_update(smc91c111_state *s)
 
     if (s->tx_fifo_len == 0)
         s->int_level |= INT_TX_EMPTY;
+    if (s->tx_fifo_done_len != 0)
+        s->int_level |= INT_TX;
     level = (s->int_level & s->int_mask) != 0;
     pic_set_irq_new(s->pic, s->irq, level);
 }
@@ -126,6 +130,18 @@ static void smc91c111_pop_rx_fifo(smc91c111_state *s)
         s->int_level &= ~INT_RCV;
     }
     smc91c111_update(s);
+}
+
+/* Remove an item from the TX completion FIFO.  */
+static void smc91c111_pop_tx_fifo_done(smc91c111_state *s)
+{
+    int i;
+
+    if (s->tx_fifo_done_len == 0)
+        return;
+    s->tx_fifo_done_len--;
+    for (i = 0; i < s->tx_fifo_done_len; i++)
+        s->tx_fifo_done[i] = s->tx_fifo_done[i + 1];
 }
 
 /* Release the memory allocated to a packet.  */
@@ -184,12 +200,13 @@ static void smc91c111_do_tx(smc91c111_state *s)
         add_crc = 0;
 #endif
         if (s->ctr & CTR_AUTO_RELEASE)
+            /* Race?  */
             smc91c111_release_packet(s, packetnum);
+        else if (s->tx_fifo_done_len < NUM_PACKETS)
+            s->tx_fifo_done[s->tx_fifo_done_len++] = packetnum;
         qemu_send_packet(s->vc, p, len);
     }
     s->tx_fifo_len = 0;
-    if ((s->ctr & CTR_AUTO_RELEASE) == 0)
-        s->int_level |= INT_TX;
     smc91c111_update(s);
 }
 
@@ -206,6 +223,7 @@ static void smc91c111_reset(smc91c111_state *s)
 {
     s->bank = 0;
     s->tx_fifo_len = 0;
+    s->tx_fifo_done_len = 0;
     s->rx_fifo_len = 0;
     s->allocated = 0;
     s->packet_num = 0;
@@ -306,6 +324,7 @@ static void smc91c111_writeb(void *opaque, target_phys_addr_t offset,
             case 2: /* Reset MMU.  */
                 s->allocated = 0;
                 s->tx_fifo_len = 0;
+                s->tx_fifo_done_len = 0;
                 s->rx_fifo_len = 0;
                 s->tx_alloc = 0;
                 break;
@@ -326,6 +345,7 @@ static void smc91c111_writeb(void *opaque, target_phys_addr_t offset,
                 break;
             case 7: /* Reset TX FIFO.  */
                 s->tx_fifo_len = 0;
+                s->tx_fifo_done_len = 0;
                 break;
             }
             return;
@@ -364,6 +384,8 @@ static void smc91c111_writeb(void *opaque, target_phys_addr_t offset,
             return;
         case 12: /* Interrupt ACK.  */
             s->int_level &= ~(value & 0xd6);
+            if (value & INT_TX)
+                smc91c111_pop_tx_fifo_done(s);
             smc91c111_update(s);
             return;
         case 13: /* Interrupt mask.  */
@@ -473,10 +495,10 @@ static uint32_t smc91c111_readb(void *opaque, target_phys_addr_t offset)
         case 3: /* Allocation Result.  */
             return s->tx_alloc;
         case 4: /* TX FIFO */
-            if (s->tx_fifo_len == 0)
+            if (s->tx_fifo_done_len == 0)
                 return 0x80;
             else
-                return s->tx_fifo[0];
+                return s->tx_fifo_done[0];
         case 5: /* RX FIFO */
             if (s->rx_fifo_len == 0)
                 return 0x80;
