@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <signal.h>
+#include <malloc.h>
 
 #include "cpu.h"
 
@@ -84,6 +85,26 @@ void qemu_free(void *ptr)
 void *qemu_malloc(size_t size)
 {
     return malloc(size);
+}
+
+void *qemu_mallocz(size_t size)
+{
+    void *ptr;
+    ptr = qemu_malloc(size);
+    if (!ptr)
+        return NULL;
+    memset(ptr, 0, size);
+    return ptr;
+}
+
+void *qemu_vmalloc(size_t size)
+{
+    return memalign(4096, size);
+}
+
+void qemu_vfree(void *ptr)
+{
+    free(ptr);
 }
 
 void qemu_printf(const char *fmt, ...)
@@ -204,20 +225,20 @@ int main(int argc, char **argv)
     seg = (COM_BASE_ADDR - 0x100) >> 4;
 
     cpu_x86_load_seg_cache(env, R_CS, seg, 
-                           (uint8_t *)(seg << 4), 0xffff, 0);
+                           (seg << 4), 0xffff, 0);
     cpu_x86_load_seg_cache(env, R_SS, seg, 
-                           (uint8_t *)(seg << 4), 0xffff, 0);
+                           (seg << 4), 0xffff, 0);
     cpu_x86_load_seg_cache(env, R_DS, seg, 
-                           (uint8_t *)(seg << 4), 0xffff, 0);
+                           (seg << 4), 0xffff, 0);
     cpu_x86_load_seg_cache(env, R_ES, seg, 
-                           (uint8_t *)(seg << 4), 0xffff, 0);
+                           (seg << 4), 0xffff, 0);
     cpu_x86_load_seg_cache(env, R_FS, seg, 
-                           (uint8_t *)(seg << 4), 0xffff, 0);
+                           (seg << 4), 0xffff, 0);
     cpu_x86_load_seg_cache(env, R_GS, seg, 
-                           (uint8_t *)(seg << 4), 0xffff, 0);
+                           (seg << 4), 0xffff, 0);
 
     /* exception support */
-    env->idt.base = (void *)idt_table;
+    env->idt.base = (unsigned long)idt_table;
     env->idt.limit = sizeof(idt_table) - 1;
     set_idt(0, 0);
     set_idt(1, 0);
@@ -263,7 +284,7 @@ int main(int argc, char **argv)
         case EXCP0D_GPF:
             {
                 int int_num, ah;
-                int_num = *(env->segs[R_CS].base + env->eip + 1);
+                int_num = *(uint8_t *)(env->segs[R_CS].base + env->eip + 1);
                 if (int_num != 0x21)
                     goto unknown_int;
                 ah = (env->regs[R_EAX] >> 8) & 0xff;
@@ -291,7 +312,7 @@ int main(int argc, char **argv)
                 default:
                 unknown_int:
                     fprintf(stderr, "unsupported int 0x%02x\n", int_num);
-                    cpu_dump_state(env, stderr, 0);
+                    cpu_dump_state(env, stderr, fprintf, 0);
                     //                    exit(1);
                 }
                 env->eip += 2;
@@ -299,7 +320,7 @@ int main(int argc, char **argv)
             break;
         default:
             fprintf(stderr, "unhandled cpu_exec return code (0x%x)\n", ret);
-            cpu_dump_state(env, stderr, 0);
+            cpu_dump_state(env, stderr, fprintf, 0);
             exit(1);
         }
     }

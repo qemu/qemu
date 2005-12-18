@@ -71,7 +71,7 @@ runcom: runcom.c
 
 # NOTE: -fomit-frame-pointer is currently needed : this is a bug in libqemu
 qruncom: qruncom.c ../i386-user/libqemu.a
-	$(CC) $(CFLAGS) -fomit-frame-pointer $(LDFLAGS) -I../target-i386 -I.. -I../i386-user \
+	$(CC) $(CFLAGS) -fomit-frame-pointer $(LDFLAGS) -I../target-i386 -I.. -I../i386-user -I../fpu \
               -o $@ $< -L../i386-user -lqemu -lm
 
 # arm test
