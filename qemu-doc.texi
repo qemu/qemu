@@ -282,8 +282,8 @@ Connect the VLAN @var{n} to a remote VLAN in another QEMU virtual
 machine using a TCP socket connection. If @option{listen} is
 specified, QEMU waits for incoming connections on @var{port}
 (@var{host} is optional). @option{connect} is used to connect to
-another QEMU instance using the @option{listen} option.  @option{fd=h}
-specifies an already opened socket.
+another QEMU instance using the @option{listen} option. @option{fd=h}
+specifies an already opened TCP socket.
 
 Example:
 @example
@@ -291,6 +291,40 @@ Example:
 qemu linux.img -net nic,macaddr=52:54:00:12:34:56 -net socket,listen=:1234
 # connect the VLAN 0 of this instance to the VLAN 0 of the first instance
 qemu linux.img -net nic,macaddr=52:54:00:12:34:57 -net socket,connect=127.0.0.1:1234
+@end example
+
+@item -net socket[,vlan=n][,fd=h][,mcast=maddr:port]
+
+Create a VLAN @var{n} shared with another QEMU virtual
+machines using a UDP multicast socket, effectively making a bus for 
+every QEMU with same multicast address @var{maddr} and @var{port}.
+NOTES:
+@enumerate
+@item 
+Several QEMU can be running on different hosts and share same bus (assuming 
+correct multicast setup for these hosts).
+@item
+mcast support is compatible with User Mode Linux (argument @option{eth@var{N}=mcast}), see
+@url{http://user-mode-linux.sf.net}.
+@item Use @option{fd=h} to specify an already opened UDP multicast socket.
+@end enumerate
+
+Example:
+@example
+# launch one QEMU instance
+qemu linux.img -net nic,macaddr=52:54:00:12:34:56 -net socket,mcast=230.0.0.1:1234
+# launch another QEMU instance on same "bus"
+qemu linux.img -net nic,macaddr=52:54:00:12:34:57 -net socket,mcast=230.0.0.1:1234
+# launch yet another QEMU instance on same "bus"
+qemu linux.img -net nic,macaddr=52:54:00:12:34:58 -net socket,mcast=230.0.0.1:1234
+@end example
+
+Example (User Mode Linux compat.):
+@example
+# launch QEMU instance (note mcast address selected is UML's default)
+qemu linux.img -net nic,macaddr=52:54:00:12:34:56 -net socket,mcast=239.192.168.1:1102
+# launch UML
+/path/to/linux ubd0=/path/to/root_fs eth0=mcast
 @end example
 
 @item -net none

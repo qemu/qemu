@@ -2133,6 +2133,7 @@ typedef struct NetSocketState {
     int index;
     int packet_len;
     uint8_t buf[4096];
+    struct sockaddr_in dgram_dst; /* contains inet host and port destination iff connectionless (SOCK_DGRAM) */
 } NetSocketState;
 
 typedef struct NetSocketListenState {
@@ -2149,6 +2150,13 @@ static void net_socket_receive(void *opaque, const uint8_t *buf, int size)
 
     unix_write(s->fd, (const uint8_t *)&len, sizeof(len));
     unix_write(s->fd, buf, size);
+}
+
+static void net_socket_receive_dgram(void *opaque, const uint8_t *buf, int size)
+{
+    NetSocketState *s = opaque;
+    sendto(s->fd, buf, size, 0, 
+           (struct sockaddr *)&s->dgram_dst, sizeof(s->dgram_dst));
 }
 
 static void net_socket_send(void *opaque)
@@ -2203,13 +2211,140 @@ static void net_socket_send(void *opaque)
     }
 }
 
+static void net_socket_send_dgram(void *opaque)
+{
+    NetSocketState *s = opaque;
+    int size;
+
+    size = recv(s->fd, s->buf, sizeof(s->buf), 0);
+    if (size < 0) 
+        return;
+    if (size == 0) {
+        /* end of connection */
+        qemu_set_fd_handler(s->fd, NULL, NULL, NULL);
+        return;
+    }
+    qemu_send_packet(s->vc, s->buf, size);
+}
+
+static int net_socket_mcast_create(struct sockaddr_in *mcastaddr)
+{
+    struct ip_mreq imr;
+    int fd;
+    int val, ret;
+    if (!IN_MULTICAST(ntohl(mcastaddr->sin_addr.s_addr))) {
+	fprintf(stderr, "qemu: error: specified mcastaddr \"%s\" (0x%08x) does not contain a multicast address\n",
+		inet_ntoa(mcastaddr->sin_addr), ntohl(mcastaddr->sin_addr.s_addr));
+	return -1;
+
+    }
+    fd = socket(PF_INET, SOCK_DGRAM, 0);
+    if (fd < 0) {
+        perror("socket(PF_INET, SOCK_DGRAM)");
+        return -1;
+    }
+
+    /* Add host to multicast group */
+    imr.imr_multiaddr = mcastaddr->sin_addr;
+    imr.imr_interface.s_addr = htonl(INADDR_ANY);
+
+    ret = setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (void *) &imr, sizeof(struct ip_mreq));
+    if (ret < 0) {
+	perror("setsockopt(IP_ADD_MEMBERSHIP)");
+	goto fail;
+    }
+
+    /* Force mcast msgs to loopback (eg. several QEMUs in same host */
+    val = 1;
+    ret=setsockopt(fd, SOL_IP, IP_MULTICAST_LOOP, &val, sizeof(val));
+    if (ret < 0) {
+	perror("setsockopt(SOL_IP, IP_MULTICAST_LOOP)");
+	goto fail;
+    }
+
+    ret=setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
+    if (ret < 0) {
+	perror("setsockopt(SOL_SOCKET, SO_REUSEADDR)");
+	goto fail;
+    }
+    
+    ret = bind(fd, (struct sockaddr *)mcastaddr, sizeof(*mcastaddr));
+    if (ret < 0) {
+        perror("bind");
+        goto fail;
+    }
+    
+    fcntl(fd, F_SETFL, O_NONBLOCK);
+    return fd;
+fail:
+    if (fd>=0) close(fd);
+    return -1;
+}
+
+static NetSocketState *net_socket_fd_init_dgram(VLANState *vlan, int fd, 
+                                          int is_connected)
+{
+    struct sockaddr_in saddr;
+    int newfd;
+    socklen_t saddr_len;
+    NetSocketState *s;
+
+    /* fd passed: multicast: "learn" dgram_dst address from bound address and save it
+     * Because this may be "shared" socket from a "master" process, datagrams would be recv() 
+     * by ONLY ONE process: we must "clone" this dgram socket --jjo
+     */
+
+    if (is_connected) {
+	if (getsockname(fd, (struct sockaddr *) &saddr, &saddr_len) == 0) {
+	    /* must be bound */
+	    if (saddr.sin_addr.s_addr==0) {
+		fprintf(stderr, "qemu: error: init_dgram: fd=%d unbound, cannot setup multicast dst addr\n",
+			fd);
+		return NULL;
+	    }
+	    /* clone dgram socket */
+	    newfd = net_socket_mcast_create(&saddr);
+	    if (newfd < 0) {
+		/* error already reported by net_socket_mcast_create() */
+		close(fd);
+		return NULL;
+	    }
+	    /* clone newfd to fd, close newfd */
+	    dup2(newfd, fd);
+	    close(newfd);
+	
+	} else {
+	    fprintf(stderr, "qemu: error: init_dgram: fd=%d failed getsockname(): %s\n",
+		    fd, strerror(errno));
+	    return NULL;
+	}
+    }
+
+    s = qemu_mallocz(sizeof(NetSocketState));
+    if (!s)
+        return NULL;
+    s->fd = fd;
+
+    s->vc = qemu_new_vlan_client(vlan, net_socket_receive_dgram, s);
+    qemu_set_fd_handler(s->fd, net_socket_send_dgram, NULL, s);
+
+    /* mcast: save bound address as dst */
+    if (is_connected) s->dgram_dst=saddr;
+
+    snprintf(s->vc->info_str, sizeof(s->vc->info_str),
+	    "socket: fd=%d (%s mcast=%s:%d)", 
+	    fd, is_connected? "cloned" : "",
+	    inet_ntoa(saddr.sin_addr), ntohs(saddr.sin_port));
+    return s;
+}
+
 static void net_socket_connect(void *opaque)
 {
     NetSocketState *s = opaque;
     qemu_set_fd_handler(s->fd, net_socket_send, NULL, s);
 }
 
-static NetSocketState *net_socket_fd_init(VLANState *vlan, int fd, 
+static NetSocketState *net_socket_fd_init_stream(VLANState *vlan, int fd, 
                                           int is_connected)
 {
     NetSocketState *s;
@@ -2227,6 +2362,28 @@ static NetSocketState *net_socket_fd_init(VLANState *vlan, int fd,
         qemu_set_fd_handler(s->fd, NULL, net_socket_connect, s);
     }
     return s;
+}
+
+static NetSocketState *net_socket_fd_init(VLANState *vlan, int fd, 
+                                          int is_connected)
+{
+    int so_type=-1, optlen=sizeof(so_type);
+
+    if(getsockopt(fd, SOL_SOCKET,SO_TYPE, &so_type, &optlen)< 0) {
+	fprintf(stderr, "qemu: error: setsockopt(SO_TYPE) for fd=%d failed\n", fd);
+	return NULL;
+    }
+    switch(so_type) {
+    case SOCK_DGRAM:
+        return net_socket_fd_init_dgram(vlan, fd, is_connected);
+    case SOCK_STREAM:
+        return net_socket_fd_init_stream(vlan, fd, is_connected);
+    default:
+        /* who knows ... this could be a eg. a pty, do warn and continue as stream */
+        fprintf(stderr, "qemu: warning: socket type=%d for fd=%d is not SOCK_DGRAM or SOCK_STREAM\n", so_type, fd);
+        return net_socket_fd_init_stream(vlan, fd, is_connected);
+    }
+    return NULL;
 }
 
 static void net_socket_accept(void *opaque)
@@ -2336,6 +2493,33 @@ static int net_socket_connect_init(VLANState *vlan, const char *host_str)
              "socket: connect to %s:%d", 
              inet_ntoa(saddr.sin_addr), ntohs(saddr.sin_port));
     return 0;
+}
+
+static int net_socket_mcast_init(VLANState *vlan, const char *host_str)
+{
+    NetSocketState *s;
+    int fd;
+    struct sockaddr_in saddr;
+
+    if (parse_host_port(&saddr, host_str) < 0)
+        return -1;
+
+
+    fd = net_socket_mcast_create(&saddr);
+    if (fd < 0)
+	return -1;
+
+    s = net_socket_fd_init(vlan, fd, 0);
+    if (!s)
+        return -1;
+
+    s->dgram_dst = saddr;
+    
+    snprintf(s->vc->info_str, sizeof(s->vc->info_str),
+             "socket: mcast=%s:%d", 
+             inet_ntoa(saddr.sin_addr), ntohs(saddr.sin_port));
+    return 0;
+
 }
 
 #endif /* !_WIN32 */
@@ -2474,6 +2658,8 @@ int net_client_init(const char *str)
             ret = net_socket_listen_init(vlan, buf);
         } else if (get_param_value(buf, sizeof(buf), "connect", p) > 0) {
             ret = net_socket_connect_init(vlan, buf);
+        } else if (get_param_value(buf, sizeof(buf), "mcast", p) > 0) {
+            ret = net_socket_mcast_init(vlan, buf);
         } else {
             fprintf(stderr, "Unknown socket options: %s\n", p);
             return -1;
@@ -3812,6 +3998,8 @@ void help(void)
            "                use 'fd=h' to connect to an already opened TAP interface\n"
            "-net socket[,vlan=n][,fd=h][,listen=[host]:port][,connect=host:port]\n"
            "                connect the vlan 'n' to another VLAN using a socket connection\n"
+           "-net socket[,vlan=n][,fd=h][,mcast=maddr:port]\n"
+           "                connect the vlan 'n' to multicast maddr and port\n"
 #endif
            "-net none       use it alone to have zero network devices; if no -net option\n"
            "                is provided, the default is '-net nic -net user'\n"
