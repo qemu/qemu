@@ -2256,7 +2256,7 @@ static int net_socket_mcast_create(struct sockaddr_in *mcastaddr)
 
     /* Force mcast msgs to loopback (eg. several QEMUs in same host */
     val = 1;
-    ret=setsockopt(fd, SOL_IP, IP_MULTICAST_LOOP, &val, sizeof(val));
+    ret=setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP, &val, sizeof(val));
     if (ret < 0) {
 	perror("setsockopt(SOL_IP, IP_MULTICAST_LOOP)");
 	goto fail;
