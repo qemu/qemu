@@ -150,13 +150,19 @@ int bdrv_create(BlockDriver *drv,
 }
 
 #ifdef _WIN32
-static void get_tmp_filename(char *filename, int size)
+void get_tmp_filename(char *filename, int size)
 {
+    char* p = strrchr(filename, '/');
+
+    if (p == NULL)
+	return;
+
     /* XXX: find a better function */
-    tmpnam(filename);
+    tmpnam(p);
+    *p = '/';
 }
 #else
-static void get_tmp_filename(char *filename, int size)
+void get_tmp_filename(char *filename, int size)
 {
     int fd;
     /* XXX: race condition possible */
@@ -394,6 +400,10 @@ int bdrv_commit(BlockDriverState *bs)
             i += n;
         }
     }
+
+    if (bs->drv->bdrv_make_empty)
+	return bs->drv->bdrv_make_empty(bs);
+
     return 0;
 }
 

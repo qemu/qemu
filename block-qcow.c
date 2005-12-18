@@ -552,25 +552,28 @@ static int qcow_create(const char *filename, int64_t total_size,
     header_size = sizeof(header);
     backing_filename_len = 0;
     if (backing_file) {
-        const char *p;
-        /* XXX: this is a hack: we do not attempt to check for URL
-           like syntax */
-        p = strchr(backing_file, ':');
-        if (p && (p - backing_file) >= 2) {
-            /* URL like but exclude "c:" like filenames */
-            pstrcpy(backing_filename, sizeof(backing_filename),
-                    backing_file);
-        } else {
-            realpath(backing_file, backing_filename);
-            if (stat(backing_filename, &st) != 0) {
-                return -1;
-            }
-        }
+	if (strcmp(backing_file, "fat:")) {
+	    const char *p;
+	    /* XXX: this is a hack: we do not attempt to check for URL
+	       like syntax */
+	    p = strchr(backing_file, ':');
+	    if (p && (p - backing_file) >= 2) {
+		/* URL like but exclude "c:" like filenames */
+		pstrcpy(backing_filename, sizeof(backing_filename),
+			backing_file);
+	    } else {
+		realpath(backing_file, backing_filename);
+		if (stat(backing_filename, &st) != 0) {
+		    return -1;
+		}
+	    }
+	    header.backing_file_offset = cpu_to_be64(header_size);
+	    backing_filename_len = strlen(backing_filename);
+	    header.backing_file_size = cpu_to_be32(backing_filename_len);
+	    header_size += backing_filename_len;
+	} else
+	    backing_file = NULL;
         header.mtime = cpu_to_be32(st.st_mtime);
-        header.backing_file_offset = cpu_to_be64(header_size);
-        backing_filename_len = strlen(backing_filename);
-        header.backing_file_size = cpu_to_be32(backing_filename_len);
-        header_size += backing_filename_len;
         header.cluster_bits = 9; /* 512 byte cluster to avoid copying
                                     unmodifyed sectors */
         header.l2_bits = 12; /* 32 KB L2 tables */
@@ -600,6 +603,24 @@ static int qcow_create(const char *filename, int64_t total_size,
         write(fd, &tmp, sizeof(tmp));
     }
     close(fd);
+    return 0;
+}
+
+int qcow_make_empty(BlockDriverState *bs)
+{
+    BDRVQcowState *s = bs->opaque;
+    uint32_t l1_length = s->l1_size * sizeof(uint64_t);
+
+    memset(s->l1_table, 0, l1_length);
+    lseek(s->fd, s->l1_table_offset, SEEK_SET);
+    if (write(s->fd, s->l1_table, l1_length) < 0)
+	return -1;
+    ftruncate(s->fd, s->l1_table_offset + l1_length);
+
+    memset(s->l2_cache, 0, s->l2_size * L2_CACHE_SIZE * sizeof(uint64_t));
+    memset(s->l2_cache_offsets, 0, L2_CACHE_SIZE * sizeof(uint64_t));
+    memset(s->l2_cache_counts, 0, L2_CACHE_SIZE * sizeof(uint32_t));
+
     return 0;
 }
 
@@ -683,6 +704,7 @@ BlockDriver bdrv_qcow = {
     qcow_create,
     qcow_is_allocated,
     qcow_set_key,
+    qcow_make_empty
 };
 
 
