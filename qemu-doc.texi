@@ -22,9 +22,9 @@ QEMU has two operating modes:
 
 @item 
 Full system emulation. In this mode, QEMU emulates a full system (for
-example a PC), including a processor and various peripherals. It can
-be used to launch different Operating Systems without rebooting the
-PC or to debug system code.
+example a PC), including one or several processors and various
+peripherals. It can be used to launch different Operating Systems
+without rebooting the PC or to debug system code.
 
 @item 
 User mode emulation (Linux host only). In this mode, QEMU can launch
@@ -40,15 +40,17 @@ performance.
 For system emulation, the following hardware targets are supported:
 @itemize
 @item PC (x86 or x86_64 processor)
+@item ISA PC (old style PC without PCI bus)
 @item PREP (PowerPC processor)
 @item G3 BW PowerMac (PowerPC processor)
 @item Mac99 PowerMac (PowerPC processor, in progress)
 @item Sun4m (32-bit Sparc processor)
 @item Sun4u (64-bit Sparc processor, in progress)
-@item Malta board (32-bit MIPS processor, in progress)
+@item Malta board (32-bit MIPS processor)
+@item ARM Integrator/CP (ARM1026E processor)
 @end itemize
 
-For user emulation, x86, PowerPC, ARM, and Sparc32/64 CPUs are supported.
+For user emulation, x86, PowerPC, ARM, MIPS, and Sparc32/64 CPUs are supported.
 
 @chapter Installation
 
@@ -69,14 +71,14 @@ Download the experimental binary installer at
 Download the experimental binary installer at
 @url{http://www.freeoszoo.org/download.php}.
 
-@chapter QEMU PC System emulator invocation
+@chapter QEMU PC System emulator
 
 @section Introduction
 
 @c man begin DESCRIPTION
 
-The QEMU System emulator simulates the
-following PC peripherals:
+The QEMU PC System emulator simulates the
+following peripherals:
 
 @itemize @minus
 @item 
@@ -103,6 +105,8 @@ Adlib(OPL2) - Yamaha YM3812 compatible chip
 @item
 PCI UHCI USB controller and a virtual USB hub.
 @end itemize
+
+SMP is supported with up to 255 CPUs.
 
 Note that adlib is only available when QEMU was configured with
 -enable-adlib
@@ -168,6 +172,10 @@ the write back by pressing @key{C-a s} (@xref{disk_images}).
 
 @item -m megs
 Set virtual RAM size to @var{megs} megabytes. Default is 128 MB.
+
+@item -smp n
+Simulate an SMP system with @var{n} CPUs. On the PC target, up to 255
+CPUs are supported.
 
 @item -nographic
 
@@ -1212,7 +1220,13 @@ it takes host CPU cycles even when idle. You can install the utility
 from @url{http://www.vmware.com/software/dosidle210.zip} to solve this
 problem.
 
-@chapter QEMU PowerPC System emulator invocation
+@chapter QEMU System emulator for non PC targets
+
+QEMU is a generic emulator and it emulates many non PC
+machines. Most of the options are similar to the PC emulator. The
+differences are mentionned in the following sections.
+
+@section QEMU PowerPC System emulator
 
 Use the executable @file{qemu-system-ppc} to simulate a complete PREP
 or PowerMac PowerPC system.
@@ -1256,10 +1270,7 @@ PC compatible keyboard and mouse.
 @end itemize
 
 QEMU uses the Open Hack'Ware Open Firmware Compatible BIOS available at
-@url{http://site.voila.fr/jmayer/OpenHackWare/index.htm}.
-
-You can read the qemu PC system emulation chapter to have more
-informations about QEMU usage.
+@url{http://perso.magic.fr/l_indien/OpenHackWare/index.htm}.
 
 @c man begin OPTIONS
 
@@ -1277,9 +1288,9 @@ Set the initial VGA graphic mode. The default is 800x600x15.
 
 
 More information is available at
-@url{http://jocelyn.mayer.free.fr/qemu-ppc/}.
+@url{http://perso.magic.fr/l_indien/qemu-ppc/}.
 
-@chapter Sparc32 System emulator invocation
+@section Sparc32 System emulator invocation
 
 Use the executable @file{qemu-system-sparc} to simulate a JavaStation
 (sun4m architecture). The emulation is somewhat complete.
@@ -1328,7 +1339,7 @@ Set the initial TCX graphic mode. The default is 1024x768.
 
 @c man end 
 
-@chapter Sparc64 System emulator invocation
+@section Sparc64 System emulator invocation
 
 Use the executable @file{qemu-system-sparc64} to simulate a Sun4u machine.
 The emulator is not usable for anything yet.
@@ -1346,12 +1357,42 @@ Non Volatile RAM M48T59
 PC-compatible serial ports
 @end itemize
 
-@chapter MIPS System emulator invocation
+@section MIPS System emulator invocation
 
 Use the executable @file{qemu-system-mips} to simulate a MIPS machine.
-The emulator begins to launch a Linux kernel.
+The emulator is able to boot a Linux kernel and to run a Linux Debian
+installation from NFS. The following devices are emulated:
 
-@chapter QEMU User space emulator invocation
+@itemize @minus
+@item 
+MIPS R4K CPU
+@item
+PC style serial port
+@item
+NE2000 network card
+@end itemize
+
+More information is available in the QEMU mailing-list archive.
+
+@section ARM System emulator invocation
+
+Use the executable @file{qemu-system-arm} to simulate a ARM
+machine. The ARM Integrator/CP board is emulated with the following
+devices:
+
+@itemize @minus
+@item
+ARM1026E CPU
+@item
+Two PL011 UARTs
+@item 
+SMC 91c111 Ethernet adapter
+@end itemize
+
+A Linux 2.6 test image is available on the QEMU web site. More
+information is available in the QEMU mailing-list archive.
+
+@chapter QEMU Linux User space emulator 
 
 @section Quick Start
 
