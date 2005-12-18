@@ -124,13 +124,6 @@ int nb_nics;
 NICInfo nd_table[MAX_NICS];
 QEMUTimer *gui_timer;
 int vm_running;
-#ifdef HAS_AUDIO
-int audio_enabled = 0;
-int sb16_enabled = 0;
-int adlib_enabled = 0;
-int gus_enabled = 0;
-int es1370_enabled = 0;
-#endif
 int rtc_utc = 1;
 int cirrus_vga_enabled = 1;
 #ifdef TARGET_SPARC
@@ -3977,11 +3970,11 @@ void help(void)
 	   "-k language     use keyboard layout (for example \"fr\" for French)\n"
 #endif
 #ifdef HAS_AUDIO
-           "-enable-audio   enable audio support, and all the sound cards\n"
            "-audio-help     print list of audio drivers and their options\n"
            "-soundhw c1,... enable audio support\n"
            "                and only specified sound cards (comma separated list)\n"
            "                use -soundhw ? to get the list of supported cards\n"
+           "                use -soundhw all to enable all of them\n"
 #endif
            "-localtime      set the real time clock to local time [default=utc]\n"
            "-full-screen    start in full screen\n"
@@ -4097,7 +4090,6 @@ enum {
     QEMU_OPTION_m,
     QEMU_OPTION_nographic,
 #ifdef HAS_AUDIO
-    QEMU_OPTION_enable_audio,
     QEMU_OPTION_audio_help,
     QEMU_OPTION_soundhw,
 #endif
@@ -4159,7 +4151,6 @@ const QEMUOption qemu_options[] = {
     { "nographic", 0, QEMU_OPTION_nographic },
     { "k", HAS_ARG, QEMU_OPTION_k },
 #ifdef HAS_AUDIO
-    { "enable-audio", 0, QEMU_OPTION_enable_audio },
     { "audio-help", 0, QEMU_OPTION_audio_help },
     { "soundhw", HAS_ARG, QEMU_OPTION_soundhw },
 #endif
@@ -4280,58 +4271,90 @@ void register_machines(void)
 }
 
 #ifdef HAS_AUDIO
+struct soundhw soundhw[] = {
+    {
+        "sb16",
+        "Creative Sound Blaster 16",
+        0,
+        1,
+        { .init_isa = SB16_init }
+    },
+
+#ifdef CONFIG_ADLIB
+    {
+        "adlib",
+#ifdef HAS_YMF262
+        "Yamaha YMF262 (OPL3)",
+#else
+        "Yamaha YM3812 (OPL2)",
+#endif
+        0,
+        1,
+        { .init_isa = Adlib_init }
+    },
+#endif
+
+#ifdef CONFIG_GUS
+    {
+        "gus",
+        "Gravis Ultrasound GF1",
+        0,
+        1,
+        { .init_isa = GUS_init }
+    },
+#endif
+
+    {
+        "es1370",
+        "ENSONIQ AudioPCI ES1370",
+        0,
+        0,
+        { .init_pci = es1370_init }
+    },
+
+    { NULL, NULL, 0, 0, { NULL } }
+};
+
 static void select_soundhw (const char *optarg)
 {
+    struct soundhw *c;
+
     if (*optarg == '?') {
     show_valid_cards:
+
         printf ("Valid sound card names (comma separated):\n");
-        printf ("sb16       Creative Sound Blaster 16\n");
-#ifdef CONFIG_ADLIB
-#ifdef HAS_YMF262
-        printf ("adlib      Yamaha YMF262 (OPL3)\n");
-#else
-        printf ("adlib      Yamaha YM3812 (OPL2)\n");
-#endif
-#endif
-#ifdef CONFIG_GUS
-        printf ("gus        Gravis Ultrasound GF1\n");
-#endif
-        printf ("es1370     ENSONIQ AudioPCI ES1370\n");
+        for (c = soundhw; c->name; ++c) {
+            printf ("%-11s %s\n", c->name, c->descr);
+        }
+        printf ("\n-soundhw all will enable all of the above\n");
         exit (*optarg != '?');
     }
     else {
-        struct {
-            char *name;
-            int *enabledp;
-        } soundhw_tab[] = {
-            { "sb16", &sb16_enabled },
-#ifdef CONFIG_ADLIB
-            { "adlib", &adlib_enabled },
-#endif
-#ifdef CONFIG_GUS
-            { "gus", &gus_enabled },
-#endif
-            { "es1370", &es1370_enabled },
-        };
-        size_t tablen, l, i;
+        size_t l;
         const char *p;
         char *e;
         int bad_card = 0;
 
-        p = optarg;
-        tablen = sizeof (soundhw_tab) / sizeof (soundhw_tab[0]);
+        if (!strcmp (optarg, "all")) {
+            for (c = soundhw; c->name; ++c) {
+                c->enabled = 1;
+            }
+            return;
+        }
 
+        p = optarg;
         while (*p) {
             e = strchr (p, ',');
             l = !e ? strlen (p) : (size_t) (e - p);
-            for (i = 0; i < tablen; ++i) {
-                if (!strncmp (soundhw_tab[i].name, p, l)) {
-                    audio_enabled = 1;
-                    *soundhw_tab[i].enabledp = 1;
+
+            for (c = soundhw; c->name; ++c) {
+                if (!strncmp (c->name, p, l)) {
+                    c->enabled = 1;
                     break;
                 }
             }
-            if (i == tablen) {
+
+            if (!c->name) {
                 if (l > 80) {
                     fprintf (stderr,
                              "Unknown sound card name (too big to show)\n");
@@ -4592,13 +4615,6 @@ int main(int argc, char **argv)
                 break;
 #endif
 #ifdef HAS_AUDIO
-            case QEMU_OPTION_enable_audio:
-                audio_enabled = 1;
-                sb16_enabled = 1;
-                adlib_enabled = 1;
-                gus_enabled = 1;
-                es1370_enabled = 1;
-                break;
             case QEMU_OPTION_audio_help:
                 AUD_help ();
                 exit (0);

@@ -574,6 +574,38 @@ static int serial_irq[MAX_SERIAL_PORTS] = { 4, 3, 4, 3 };
 static int parallel_io[MAX_PARALLEL_PORTS] = { 0x378, 0x278, 0x3bc };
 static int parallel_irq[MAX_PARALLEL_PORTS] = { 7, 7, 7 };
 
+#ifdef HAS_AUDIO
+static void audio_init (PCIBus *pci_bus)
+{
+    struct soundhw *c;
+    int audio_enabled = 0;
+
+    for (c = soundhw; !audio_enabled && c->name; ++c) {
+        audio_enabled = c->enabled;
+    }
+
+    if (audio_enabled) {
+        AudioState *s;
+
+        s = AUD_init ();
+        if (s) {
+            for (c = soundhw; c->name; ++c) {
+                if (c->enabled) {
+                    if (c->isa) {
+                        c->init.init_isa (s);
+                    }
+                    else {
+                        if (pci_bus) {
+                            c->init.init_pci (pci_bus, s);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+#endif
+
 /* PC hardware initialisation */
 static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
                      DisplayState *ds, const char **fd_filename, int snapshot,
@@ -789,26 +821,9 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
 
     kbd_init();
     DMA_init(0);
-
-    if (audio_enabled) {
-        AudioState *audio;
-
-        audio = AUD_init();
-        if (audio) {
-            if (sb16_enabled)
-                SB16_init (audio);
-#ifdef CONFIG_ADLIB
-            if (adlib_enabled)
-                Adlib_init (audio);
+#ifdef HAS_AUDIO
+    audio_init(pci_enabled ? pci_bus : NULL);
 #endif
-#ifdef CONFIG_GUS
-            if (gus_enabled)
-                GUS_init (audio);
-#endif
-            if (pci_enabled && es1370_enabled)
-                es1370_init (pci_bus, audio);
-        }
-    }
 
     floppy_controller = fdctrl_init(6, 2, 0, 0x3f0, fd_table);
 

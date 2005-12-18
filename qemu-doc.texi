@@ -201,16 +201,12 @@ de  en-us  fi  fr-be  hr     it  lv  nl-be  pt  sl     tr
 
 The default is @code{en-us}.
 
-@item -enable-audio
-
-Will enable audio and all the sound hardware QEMU was built with.
-
 @item -audio-help
 
 Will show the audio subsystem help: list of drivers, tunable
 parameters.
 
-@item -soundhw card1,card2,...
+@item -soundhw card1,card2,... or -soundhw all
 
 Enable audio and selected sound hardware. Use ? to print all
 available sound hardware.
@@ -218,6 +214,7 @@ available sound hardware.
 @example
 qemu -soundhw sb16,adlib hda
 qemu -soundhw es1370 hda
+qemu -soundhw all hda
 qemu -soundhw ?
 @end example
 

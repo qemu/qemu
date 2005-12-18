@@ -126,11 +126,6 @@ void qemu_system_powerdown(void);
 
 void main_loop_wait(int timeout);
 
-extern int audio_enabled;
-extern int sb16_enabled;
-extern int adlib_enabled;
-extern int gus_enabled;
-extern int es1370_enabled;
 extern int ram_size;
 extern int bios_size;
 extern int rtc_utc;
@@ -620,6 +615,21 @@ openpic_t *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus,
 typedef struct HeathrowPICS HeathrowPICS;
 void heathrow_pic_set_irq(void *opaque, int num, int level);
 HeathrowPICS *heathrow_pic_init(int *pmem_index);
+
+#ifdef HAS_AUDIO
+struct soundhw {
+    const char *name;
+    const char *descr;
+    int enabled;
+    int isa;
+    union {
+        int (*init_isa) (AudioState *s);
+        int (*init_pci) (PCIBus *bus, AudioState *s);
+    } init;
+};
+
+extern struct soundhw soundhw[];
+#endif
 
 /* vga.c */
 
