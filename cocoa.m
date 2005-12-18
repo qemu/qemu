@@ -375,36 +375,39 @@ static void cocoa_refresh(DisplayState *ds)
                 case NSFlagsChanged:
                     {
                         int keycode = cocoa_keycode_to_qemu([event keyCode]);
-                        modifiers_state[keycode] = (modifiers_state[keycode] == 0) ? 1 : 0;
-                        
-                        if ( modifiers_state[keycode] ) { /* Keydown */
-                            if (keycode & 0x80)
-                                kbd_put_keycode(0xe0);
-                            kbd_put_keycode(keycode & 0x7f);
-                        } else { /* Keyup */
-                            if (keycode & 0x80)
-                                kbd_put_keycode(0xe0);
-                            kbd_put_keycode(keycode | 0x80);
-                        }
-                        
-                        /* emulate caps lock and num lock keyup */
-                        if ((keycode == 58) || (keycode == 69))
+
+                        if (keycode)
                         {
-                            modifiers_state[keycode] = 0;
-                            if (keycode & 0x80)
-                                kbd_put_keycode(0xe0);
-                            kbd_put_keycode(keycode | 0x80);
+                            if (keycode == 58 || keycode == 69) {
+                                /* emulate caps lock and num lock keydown and keyup */
+                                kbd_put_keycode(keycode);
+                                kbd_put_keycode(keycode | 0x80);
+                            } else if (is_active_console(vga_console)) {
+                                if (keycode & 0x80)
+                                    kbd_put_keycode(0xe0);
+                                if (modifiers_state[keycode] == 0) {
+                                    /* keydown */
+                                    kbd_put_keycode(keycode & 0x7f);
+                                    modifiers_state[keycode] = 1;
+                                } else {
+                                    /* keyup */
+                                    kbd_put_keycode(keycode | 0x80);
+                                    modifiers_state[keycode] = 0;
+                                }
+                            }
                         }
-                            
+
                         /* release Mouse grab when pressing ctrl+alt */
                         if (([event modifierFlags] & NSControlKeyMask) && ([event modifierFlags] & NSAlternateKeyMask))
+                        {
                             [window setTitle: @"QEMU"];
                             [NSCursor unhide];
                             CGAssociateMouseAndMouseCursorPosition ( TRUE );
                             grab = 0;
+                        }
                     }
                     break;
-                    
+
                 case NSKeyDown:
                     {
                         int keycode = cocoa_keycode_to_qemu([event keyCode]);               
