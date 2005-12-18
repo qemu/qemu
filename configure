@@ -147,6 +147,8 @@ fi
 
 for opt do
   case "$opt" in
+  --help|-h) show_help=yes
+  ;;
   --prefix=*) prefix=`echo $opt | cut -d '=' -f 2`
   ;;
   --interp-prefix=*) interp_prefix=`echo $opt | cut -d '=' -f 2`
@@ -348,7 +350,7 @@ fi # sdl compile test
 fi # cross compilation
 fi # -z $sdl
 
-if test x"$1" = x"-h" -o x"$1" = x"--help" ; then
+if test x"$show_help" = x"yes" ; then
 cat << EOF
 
 Usage: configure [options]
@@ -370,7 +372,7 @@ echo "Advanced options (experts only):"
 echo "  --source-path=PATH       path of source code [$source_path]"
 echo "  --cross-prefix=PREFIX    use PREFIX for compile tools [$cross_prefix]"
 echo "  --cc=CC                  use C compiler CC [$cc]"
-echo "  --host-cc=CC             use C compiler CC [$cc] for dyngen etc."
+echo "  --host-cc=CC             use C compiler CC [$host_cc] for dyngen etc."
 echo "  --make=MAKE              use specified make [$make]"
 echo "  --static                 enable static build [$static]"
 echo "  --enable-mingw32         enable Win32 cross compilation with mingw32"
