@@ -17,6 +17,8 @@ version 0.7.3:
   - MIPS fixes to boot Linux (Daniel Jacobowitz)
   - NX bit support
   - Initial SPARC SMP support (Blue Swirl)
+  - Major overhaul of the virtual FAT driver for read/write support
+    (Johannes Schindelin)
 
 version 0.7.2:
   

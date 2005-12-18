@@ -755,6 +755,39 @@ command (or @key{C-a s} in the serial console).
 
 @include qemu-img.texi
 
+@subsection Virtual FAT disk images
+
+QEMU can automatically create a virtual FAT disk image from a
+directory tree. In order to use it, just type:
+
+@example 
+qemu linux.img -hdb fat:/my_directory
+@end example
+
+Then you access access to all the files in the @file{/my_directory}
+directory without having to copy them in a disk image or to export
+them via SAMBA or NFS. The default access is @emph{read-only}.
+
+Floppies can be emulated with the @code{:floppy:} option:
+
+@example 
+qemu linux.img -fda fat:floppy:/my_directory
+@end example
+
+A read/write support is available for testing (beta stage) with the
+@code{:rw:} option:
+
+@example 
+qemu linux.img -fda fat:floppy:rw:/my_directory
+@end example
+
+What you should @emph{never} do:
+@itemize
+@item use non-ASCII filenames ;
+@item use "-snapshot" together with ":rw:" ;
+@item expect it to work when loadvm'ing.
+@end itemize
+
 @section Network emulation
 
 QEMU can simulate several networks cards (NE2000 boards on the PC
