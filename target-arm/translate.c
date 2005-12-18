@@ -2431,10 +2431,10 @@ int gen_intermediate_code_pc(CPUState *env, TranslationBlock *tb)
 void cpu_reset(CPUARMState *env)
 {
 #if defined (CONFIG_USER_ONLY)
+    env->uncached_cpsr = ARM_CPU_MODE_USR;
+#else
     /* SVC mode with interrupts disabled.  */
     env->uncached_cpsr = ARM_CPU_MODE_SVC | CPSR_A | CPSR_F | CPSR_I;
-#else
-    env->uncached_cpsr = ARM_CPU_MODE_USR;
 #endif
     env->regs[15] = 0;
 }
