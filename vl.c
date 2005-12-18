@@ -1398,6 +1398,7 @@ CharDriverState *qemu_chr_open_stdio(void)
 #if defined(__linux__)
 CharDriverState *qemu_chr_open_pty(void)
 {
+    struct termios tty;
     char slave_name[1024];
     int master_fd, slave_fd;
     
@@ -1405,6 +1406,14 @@ CharDriverState *qemu_chr_open_pty(void)
     if (openpty(&master_fd, &slave_fd, slave_name, NULL, NULL) < 0) {
         return NULL;
     }
+    
+    /* Disabling local echo and line-buffered output */
+    tcgetattr (master_fd, &tty);
+    tty.c_lflag &= ~(ECHO|ICANON|ISIG);
+    tty.c_cc[VMIN] = 1;
+    tty.c_cc[VTIME] = 0;
+    tcsetattr (master_fd, TCSAFLUSH, &tty);
+
     fprintf(stderr, "char device redirected to %s\n", slave_name);
     return qemu_chr_open_fd(master_fd, master_fd);
 }
@@ -3962,12 +3971,13 @@ void help(void)
            "-boot [a|c|d]   boot on floppy (a), hard disk (c) or CD-ROM (d)\n"
 	   "-snapshot       write to temporary files instead of disk image files\n"
            "-m megs         set virtual RAM size to megs MB [default=%d]\n"
+           "-smp n          set the number of CPUs to 'n' [default=1]\n"
            "-nographic      disable graphical output and redirect serial I/Os to console\n"
 #ifndef _WIN32
 	   "-k language     use keyboard layout (for example \"fr\" for French)\n"
 #endif
 #ifdef HAS_AUDIO
-           "-enable-audio   enable audio support, and all the sound cars\n"
+           "-enable-audio   enable audio support, and all the sound cards\n"
            "-audio-help     print list of audio drivers and their options\n"
            "-soundhw c1,... enable audio support\n"
            "                and only specified sound cards (comma separated list)\n"
