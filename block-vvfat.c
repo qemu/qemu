@@ -2351,8 +2351,13 @@ static int handle_renames_and_mkdirs(BDRVVVFATState* s)
 	    mapping_t* mapping;
 	    int j, parent_path_len;
 
-	    if (mkdir(commit->path, 0755))
-		return -5;
+#ifdef __MINGW32__
+            if (mkdir(commit->path))
+                return -5;
+#else
+            if (mkdir(commit->path, 0755))
+                return -5;
+#endif
 
 	    mapping = insert_mapping(s, commit->param.mkdir.cluster,
 		    commit->param.mkdir.cluster + 1);
