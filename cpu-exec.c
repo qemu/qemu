@@ -126,7 +126,7 @@ static TranslationBlock *tb_find_slow(target_ulong pc,
         /* cannot fail at this point */
         tb = tb_alloc(pc);
         /* don't forget to invalidate previous TB info */
-        T0 = 0;
+        tb_invalidated_flag = 1;
     }
     tc_ptr = code_gen_ptr;
     tb->tc_ptr = tc_ptr;
@@ -144,12 +144,6 @@ static TranslationBlock *tb_find_slow(target_ulong pc,
     tb_link_phys(tb, phys_pc, phys_page2);
     
  found:
-    if (tb_invalidated_flag) {
-        /* as some TB could have been invalidated because
-           of memory exceptions while generating the code, we
-           must recompute the hash index here */
-        T0 = 0;
-    }
     /* we add the TB in the virtual pc hash table */
     env->tb_jmp_cache[tb_jmp_cache_hash_func(pc)] = tb;
     spin_unlock(&tb_lock);
@@ -201,6 +195,14 @@ static inline TranslationBlock *tb_find_fast(void)
     if (__builtin_expect(!tb || tb->pc != pc || tb->cs_base != cs_base ||
                          tb->flags != flags, 0)) {
         tb = tb_find_slow(pc, cs_base, flags);
+        /* Note: we do it here to avoid a gcc bug on Mac OS X when
+           doing it in tb_find_slow */
+        if (tb_invalidated_flag) {
+            /* as some TB could have been invalidated because
+               of memory exceptions while generating the code, we
+               must recompute the hash index here */
+            T0 = 0;
+        }
     }
     return tb;
 }
