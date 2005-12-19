@@ -790,7 +790,8 @@ What you should @emph{never} do:
 @itemize
 @item use non-ASCII filenames ;
 @item use "-snapshot" together with ":rw:" ;
-@item expect it to work when loadvm'ing.
+@item expect it to work when loadvm'ing ;
+@item write to the FAT directory on the host system while accessing it with the guest system.
 @end itemize
 
 @section Network emulation
