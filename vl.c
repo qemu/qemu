@@ -4777,6 +4777,10 @@ int main(int argc, char **argv)
         }
     }
 
+#ifdef USE_KQEMU
+    if (smp_cpus > 1)
+        kqemu_allowed = 0;
+#endif
     linux_boot = (kernel_filename != NULL);
         
     if (!linux_boot && 
