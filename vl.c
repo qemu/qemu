@@ -2715,7 +2715,16 @@ int net_client_init(const char *str)
         ret = net_slirp_init(vlan);
     } else
 #endif
-#ifndef _WIN32
+#ifdef _WIN32
+    if (!strcmp(device, "tap")) {
+        char ifname[64];
+        if (get_param_value(ifname, sizeof(ifname), "ifname", p) <= 0) {
+            fprintf(stderr, "tap: no interface name\n");
+            return -1;
+        }
+        ret = tap_win32_init(vlan, ifname);
+    } else
+#else
     if (!strcmp(device, "tap")) {
         char ifname[64];
         char setup_script[1024];
@@ -3947,6 +3956,9 @@ void main_loop_wait(int timeout)
             }
         }
     }
+#ifdef _WIN32
+    tap_win32_poll();
+#endif
 
 #if defined(CONFIG_SLIRP)
     /* XXX: merge with the previous select() */
@@ -4087,16 +4099,19 @@ void help(void)
            "-net user[,vlan=n]\n"
            "                connect the user mode network stack to VLAN 'n'\n"
 #endif
-#ifndef _WIN32
+#ifdef _WIN32
+           "-net tap[,vlan=n],ifname=name\n"
+           "                connect the host TAP network interface to VLAN 'n'\n"
+#else
            "-net tap[,vlan=n][,fd=h][,ifname=name][,script=file]\n"
            "                connect the host TAP network interface to VLAN 'n' and use\n"
            "                the network script 'file' (default=%s);\n"
            "                use 'fd=h' to connect to an already opened TAP interface\n"
+#endif
            "-net socket[,vlan=n][,fd=h][,listen=[host]:port][,connect=host:port]\n"
            "                connect the vlan 'n' to another VLAN using a socket connection\n"
            "-net socket[,vlan=n][,fd=h][,mcast=maddr:port]\n"
            "                connect the vlan 'n' to multicast maddr and port\n"
-#endif
            "-net none       use it alone to have zero network devices; if no -net option\n"
            "                is provided, the default is '-net nic -net user'\n"
            "\n"

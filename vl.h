@@ -298,6 +298,10 @@ void qemu_send_packet(VLANClientState *vc, const uint8_t *buf, int size);
 
 void do_info_network(void);
 
+/* TAP win32 */
+int tap_win32_init(VLANState *vlan, const char *ifname);
+void tap_win32_poll(void);
+
 /* NIC info */
 
 #define MAX_NICS 8
