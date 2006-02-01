@@ -296,6 +296,8 @@ typedef struct IDEState {
     int cylinders, heads, sectors;
     int64_t nb_sectors;
     int mult_sectors;
+    int identify_set;
+    uint16_t identify_data[256];
     SetIRQFunc *set_irq;
     void *irq_opaque;
     int irq;
@@ -414,6 +416,11 @@ static void ide_identify(IDEState *s)
     unsigned int oldsize;
     char buf[20];
 
+    if (s->identify_set) {
+	memcpy(s->io_buffer, s->identify_data, sizeof(s->identify_data));
+	return;
+    }
+
     memset(s->io_buffer, 0, 512);
     p = (uint16_t *)s->io_buffer;
     put_le16(p + 0, 0x0040);
@@ -433,10 +440,10 @@ static void ide_identify(IDEState *s)
     put_le16(p + 47, 0x8000 | MAX_MULT_SECTORS);
 #endif
     put_le16(p + 48, 1); /* dword I/O */
-    put_le16(p + 49, 1 << 9 | 1 << 8); /* DMA and LBA supported */
+    put_le16(p + 49, (1 << 11) | (1 << 9) | (1 << 8)); /* DMA and LBA supported */
     put_le16(p + 51, 0x200); /* PIO transfer cycle */
     put_le16(p + 52, 0x200); /* DMA transfer cycle */
-    put_le16(p + 53, 1 | 1 << 2); /* words 54-58,88 are valid */
+    put_le16(p + 53, 1 | (1 << 1) | (1 << 2)); /* words 54-58,64-70,88 are valid */
     put_le16(p + 54, s->cylinders);
     put_le16(p + 55, s->heads);
     put_le16(p + 56, s->sectors);
@@ -447,21 +454,35 @@ static void ide_identify(IDEState *s)
         put_le16(p + 59, 0x100 | s->mult_sectors);
     put_le16(p + 60, s->nb_sectors);
     put_le16(p + 61, s->nb_sectors >> 16);
-    put_le16(p + 80, (1 << 1) | (1 << 2));
+    put_le16(p + 63, 0x07); /* mdma0-2 supported */
+    put_le16(p + 65, 120);
+    put_le16(p + 66, 120);
+    put_le16(p + 67, 120);
+    put_le16(p + 68, 120);
+    put_le16(p + 80, 0xf0); /* ata3 -> ata6 supported */
+    put_le16(p + 81, 0x16); /* conforms to ata5 */
     put_le16(p + 82, (1 << 14));
     put_le16(p + 83, (1 << 14));
     put_le16(p + 84, (1 << 14));
     put_le16(p + 85, (1 << 14));
     put_le16(p + 86, 0);
     put_le16(p + 87, (1 << 14));
-    put_le16(p + 88, 0x1f | (1 << 13));
-    put_le16(p + 93, 1 | (1 << 14) | 0x2000 | 0x4000);
+    put_le16(p + 88, 0x3f | (1 << 13)); /* udma5 set and supported */
+    put_le16(p + 93, 1 | (1 << 14) | 0x2000);
+
+    memcpy(s->identify_data, p, sizeof(s->identify_data));
+    s->identify_set = 1;
 }
 
 static void ide_atapi_identify(IDEState *s)
 {
     uint16_t *p;
     char buf[20];
+
+    if (s->identify_set) {
+	memcpy(s->io_buffer, s->identify_data, sizeof(s->identify_data));
+	return;
+    }
 
     memset(s->io_buffer, 0, 512);
     p = (uint16_t *)s->io_buffer;
@@ -483,11 +504,14 @@ static void ide_atapi_identify(IDEState *s)
     put_le16(p + 66, 0xb4); /* recommended DMA multiword tx cycle time */
     put_le16(p + 67, 0x12c); /* minimum PIO cycle time without flow control */
     put_le16(p + 68, 0xb4); /* minimum PIO cycle time with IORDY flow control */
-    
+
     put_le16(p + 71, 30); /* in ns */
     put_le16(p + 72, 30); /* in ns */
 
     put_le16(p + 80, 0x1e); /* support up to ATA/ATAPI-4 */
+
+    memcpy(s->identify_data, p, sizeof(s->identify_data));
+    s->identify_set = 1;
 }
 
 static void ide_set_signature(IDEState *s)
@@ -1601,13 +1625,36 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             /* XXX: valid for CDROM ? */
             switch(s->feature) {
             case 0x02: /* write cache enable */
-            case 0x03: /* set transfer mode */
             case 0x82: /* write cache disable */
             case 0xaa: /* read look-ahead enable */
             case 0x55: /* read look-ahead disable */
                 s->status = READY_STAT | SEEK_STAT;
                 ide_set_irq(s);
                 break;
+            case 0x03: { /* set transfer mode */
+		uint8_t val = s->nsector & 0x07;
+
+		switch (s->nsector >> 3) {
+		    case 0x00: /* pio default */
+		    case 0x01: /* pio mode */
+			put_le16(s->identify_data + 63,0x07);
+			put_le16(s->identify_data + 88,0x3f);
+			break;
+		    case 0x04: /* mdma mode */
+			put_le16(s->identify_data + 63,0x07 | (1 << (val + 8)));
+			put_le16(s->identify_data + 88,0x3f);
+			break;
+		    case 0x08: /* udma mode */
+			put_le16(s->identify_data + 63,0x07);
+			put_le16(s->identify_data + 88,0x3f | (1 << (val + 8)));
+			break;
+		    default:
+			goto abort_cmd;
+		}
+                s->status = READY_STAT | SEEK_STAT;
+                ide_set_irq(s);
+                break;
+	    }
             default:
                 goto abort_cmd;
             }
