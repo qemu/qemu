@@ -44,8 +44,8 @@ typedef struct BDRVDMGState {
     uint64_t* sectors;
     uint64_t* sectorcounts;
     uint32_t current_chunk;
-    char* compressed_chunk;
-    char* uncompressed_chunk;
+    uint8_t *compressed_chunk;
+    uint8_t *uncompressed_chunk;
     z_stream zstream;
 } BDRVDMGState;
 
@@ -159,9 +159,9 @@ dmg_close:
     }
 
     /* initialize zlib engine */
-    if(!(s->compressed_chunk=(char*)malloc(max_compressed_size+1)))
+    if(!(s->compressed_chunk = malloc(max_compressed_size+1)))
 	goto dmg_close;
-    if(!(s->uncompressed_chunk=(char*)malloc(512*max_sectors_per_chunk)))
+    if(!(s->uncompressed_chunk = malloc(512*max_sectors_per_chunk)))
 	goto dmg_close;
     if(inflateInit(&s->zstream) != Z_OK)
 	goto dmg_close;
