@@ -64,6 +64,8 @@
 #include <malloc.h>
 #include <sys/timeb.h>
 #include <windows.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
 #define getopt_long_only getopt_long
 #define memalign(align, size) malloc(size)
 #endif
@@ -1077,20 +1079,67 @@ CharDriverState *qemu_chr_open_null(void)
     return chr;
 }
 
-#ifndef _WIN32
+#ifdef _WIN32
 
-typedef struct {
-    int fd_in, fd_out;
-    IOCanRWHandler *fd_can_read; 
-    IOReadHandler *fd_read;
-    void *fd_opaque;
-    int max_size;
-} FDCharDriver;
+#define socket_error() WSAGetLastError()
+#undef EINTR
+#define EWOULDBLOCK WSAEWOULDBLOCK
+#define EINTR       WSAEINTR
+#define EINPROGRESS WSAEINPROGRESS
 
-#define STDIO_MAX_CLIENTS 2
+static void socket_cleanup(void)
+{
+    WSACleanup();
+}
 
-static int stdio_nb_clients;
-static CharDriverState *stdio_clients[STDIO_MAX_CLIENTS];
+static int socket_init(void)
+{
+    WSADATA Data;
+    int ret, err;
+
+    ret = WSAStartup(MAKEWORD(2,2), &Data);
+    if (ret != 0) {
+        err = WSAGetLastError();
+        fprintf(stderr, "WSAStartup: %d\n", err);
+        return -1;
+    }
+    atexit(socket_cleanup);
+    return 0;
+}
+
+static int send_all(int fd, const uint8_t *buf, int len1)
+{
+    int ret, len;
+    
+    len = len1;
+    while (len > 0) {
+        ret = send(fd, buf, len, 0);
+        if (ret < 0) {
+            int errno;
+            errno = WSAGetLastError();
+            if (errno != WSAEWOULDBLOCK) {
+                return -1;
+            }
+        } else if (ret == 0) {
+            break;
+        } else {
+            buf += ret;
+            len -= ret;
+        }
+    }
+    return len1 - len;
+}
+
+void socket_set_nonblock(int fd)
+{
+    unsigned long opt = 1;
+    ioctlsocket(fd, FIONBIO, &opt);
+}
+
+#else
+
+#define socket_error() errno
+#define closesocket(s) close(s)
 
 static int unix_write(int fd, const uint8_t *buf, int len1)
 {
@@ -1111,6 +1160,32 @@ static int unix_write(int fd, const uint8_t *buf, int len1)
     }
     return len1 - len;
 }
+
+static inline int send_all(int fd, const uint8_t *buf, int len1)
+{
+    return unix_write(fd, buf, len1);
+}
+
+void socket_set_nonblock(int fd)
+{
+    fcntl(fd, F_SETFL, O_NONBLOCK);
+}
+#endif /* !_WIN32 */
+
+#ifndef _WIN32
+
+typedef struct {
+    int fd_in, fd_out;
+    IOCanRWHandler *fd_can_read; 
+    IOReadHandler *fd_read;
+    void *fd_opaque;
+    int max_size;
+} FDCharDriver;
+
+#define STDIO_MAX_CLIENTS 2
+
+static int stdio_nb_clients;
+static CharDriverState *stdio_clients[STDIO_MAX_CLIENTS];
 
 static int fd_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
 {
@@ -1617,7 +1692,10 @@ CharDriverState *qemu_chr_open_pty(void)
 
 CharDriverState *qemu_chr_open(const char *filename)
 {
+#ifndef _WIN32
     const char *p;
+#endif
+
     if (!strcmp(filename, "vc")) {
         return text_console_init(&display_state);
     } else if (!strcmp(filename, "null")) {
@@ -1731,13 +1809,9 @@ int parse_host_port(struct sockaddr_in *saddr, const char *str)
             if (!inet_aton(buf, &saddr->sin_addr))
                 return -1;
         } else {
-#ifdef _WIN32
-            return -1;
-#else
             if ((he = gethostbyname(buf)) == NULL)
                 return - 1;
             saddr->sin_addr = *(struct in_addr *)he->h_addr;
-#endif
         }
     }
     port = strtol(p, (char **)&r, 0);
@@ -2127,6 +2201,8 @@ static int net_tap_init(VLANState *vlan, const char *ifname1,
     return 0;
 }
 
+#endif /* !_WIN32 */
+
 /* network connection */
 typedef struct NetSocketState {
     VLANClientState *vc;
@@ -2150,8 +2226,8 @@ static void net_socket_receive(void *opaque, const uint8_t *buf, int size)
     uint32_t len;
     len = htonl(size);
 
-    unix_write(s->fd, (const uint8_t *)&len, sizeof(len));
-    unix_write(s->fd, buf, size);
+    send_all(s->fd, (const uint8_t *)&len, sizeof(len));
+    send_all(s->fd, buf, size);
 }
 
 static void net_socket_receive_dgram(void *opaque, const uint8_t *buf, int size)
@@ -2164,16 +2240,20 @@ static void net_socket_receive_dgram(void *opaque, const uint8_t *buf, int size)
 static void net_socket_send(void *opaque)
 {
     NetSocketState *s = opaque;
-    int l, size;
+    int l, size, err;
     uint8_t buf1[4096];
     const uint8_t *buf;
 
-    size = read(s->fd, buf1, sizeof(buf1));
-    if (size < 0) 
-        return;
-    if (size == 0) {
+    size = recv(s->fd, buf1, sizeof(buf1), 0);
+    if (size < 0) {
+        err = socket_error();
+        if (err != EWOULDBLOCK) 
+            goto eoc;
+    } else if (size == 0) {
         /* end of connection */
+    eoc:
         qemu_set_fd_handler(s->fd, NULL, NULL, NULL);
+        closesocket(s->fd);
         return;
     }
     buf = buf1;
@@ -2236,7 +2316,8 @@ static int net_socket_mcast_create(struct sockaddr_in *mcastaddr)
     int val, ret;
     if (!IN_MULTICAST(ntohl(mcastaddr->sin_addr.s_addr))) {
 	fprintf(stderr, "qemu: error: specified mcastaddr \"%s\" (0x%08x) does not contain a multicast address\n",
-		inet_ntoa(mcastaddr->sin_addr), ntohl(mcastaddr->sin_addr.s_addr));
+		inet_ntoa(mcastaddr->sin_addr), 
+                (int)ntohl(mcastaddr->sin_addr.s_addr));
 	return -1;
 
     }
@@ -2246,11 +2327,26 @@ static int net_socket_mcast_create(struct sockaddr_in *mcastaddr)
         return -1;
     }
 
+    val = 1;
+    ret=setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, 
+                   (const char *)&val, sizeof(val));
+    if (ret < 0) {
+	perror("setsockopt(SOL_SOCKET, SO_REUSEADDR)");
+	goto fail;
+    }
+
+    ret = bind(fd, (struct sockaddr *)mcastaddr, sizeof(*mcastaddr));
+    if (ret < 0) {
+        perror("bind");
+        goto fail;
+    }
+    
     /* Add host to multicast group */
     imr.imr_multiaddr = mcastaddr->sin_addr;
     imr.imr_interface.s_addr = htonl(INADDR_ANY);
 
-    ret = setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (void *) &imr, sizeof(struct ip_mreq));
+    ret = setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, 
+                     (const char *)&imr, sizeof(struct ip_mreq));
     if (ret < 0) {
 	perror("setsockopt(IP_ADD_MEMBERSHIP)");
 	goto fail;
@@ -2258,25 +2354,14 @@ static int net_socket_mcast_create(struct sockaddr_in *mcastaddr)
 
     /* Force mcast msgs to loopback (eg. several QEMUs in same host */
     val = 1;
-    ret=setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP, &val, sizeof(val));
+    ret=setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP, 
+                   (const char *)&val, sizeof(val));
     if (ret < 0) {
 	perror("setsockopt(SOL_IP, IP_MULTICAST_LOOP)");
 	goto fail;
     }
 
-    ret=setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
-    if (ret < 0) {
-	perror("setsockopt(SOL_SOCKET, SO_REUSEADDR)");
-	goto fail;
-    }
-    
-    ret = bind(fd, (struct sockaddr *)mcastaddr, sizeof(*mcastaddr));
-    if (ret < 0) {
-        perror("bind");
-        goto fail;
-    }
-    
-    fcntl(fd, F_SETFL, O_NONBLOCK);
+    socket_set_nonblock(fd);
     return fd;
 fail:
     if (fd>=0) close(fd);
@@ -2371,7 +2456,7 @@ static NetSocketState *net_socket_fd_init(VLANState *vlan, int fd,
 {
     int so_type=-1, optlen=sizeof(so_type);
 
-    if(getsockopt(fd, SOL_SOCKET,SO_TYPE, &so_type, &optlen)< 0) {
+    if(getsockopt(fd, SOL_SOCKET, SO_TYPE, (char *)&so_type, &optlen)< 0) {
 	fprintf(stderr, "qemu: error: setsockopt(SO_TYPE) for fd=%d failed\n", fd);
 	return NULL;
     }
@@ -2433,11 +2518,11 @@ static int net_socket_listen_init(VLANState *vlan, const char *host_str)
         perror("socket");
         return -1;
     }
-    fcntl(fd, F_SETFL, O_NONBLOCK);
+    socket_set_nonblock(fd);
 
     /* allow fast reuse */
     val = 1;
-    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
+    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (const char *)&val, sizeof(val));
     
     ret = bind(fd, (struct sockaddr *)&saddr, sizeof(saddr));
     if (ret < 0) {
@@ -2458,7 +2543,7 @@ static int net_socket_listen_init(VLANState *vlan, const char *host_str)
 static int net_socket_connect_init(VLANState *vlan, const char *host_str)
 {
     NetSocketState *s;
-    int fd, connected, ret;
+    int fd, connected, ret, err;
     struct sockaddr_in saddr;
 
     if (parse_host_port(&saddr, host_str) < 0)
@@ -2469,18 +2554,19 @@ static int net_socket_connect_init(VLANState *vlan, const char *host_str)
         perror("socket");
         return -1;
     }
-    fcntl(fd, F_SETFL, O_NONBLOCK);
+    socket_set_nonblock(fd);
 
     connected = 0;
     for(;;) {
         ret = connect(fd, (struct sockaddr *)&saddr, sizeof(saddr));
         if (ret < 0) {
-            if (errno == EINTR || errno == EAGAIN) {
-            } else if (errno == EINPROGRESS) {
+            err = socket_error();
+            if (err == EINTR || err == EWOULDBLOCK) {
+            } else if (err == EINPROGRESS) {
                 break;
             } else {
                 perror("connect");
-                close(fd);
+                closesocket(fd);
                 return -1;
             }
         } else {
@@ -2523,8 +2609,6 @@ static int net_socket_mcast_init(VLANState *vlan, const char *host_str)
     return 0;
 
 }
-
-#endif /* !_WIN32 */
 
 static int get_param_value(char *buf, int buf_size,
                            const char *tag, const char *str)
@@ -2649,6 +2733,7 @@ int net_client_init(const char *str)
             ret = net_tap_init(vlan, ifname, setup_script);
         }
     } else
+#endif
     if (!strcmp(device, "socket")) {
         if (get_param_value(buf, sizeof(buf), "fd", p) > 0) {
             int fd;
@@ -2667,7 +2752,6 @@ int net_client_init(const char *str)
             return -1;
         }
     } else
-#endif
     {
         fprintf(stderr, "Unknown network device: %s\n", device);
         return -1;
@@ -2918,6 +3002,7 @@ int qemu_set_fd_handler2(int fd,
                 break;
             if (ioh->fd == fd) {
                 *pioh = ioh->next;
+                qemu_free(ioh);
                 break;
             }
             pioh = &ioh->next;
@@ -3812,80 +3897,88 @@ void qemu_system_powerdown_request(void)
 
 void main_loop_wait(int timeout)
 {
-#ifndef _WIN32
-    struct pollfd ufds[MAX_IO_HANDLERS + 1], *pf;
     IOHandlerRecord *ioh, *ioh_next;
-#endif
-    int ret;
+    fd_set rfds, wfds;
+    int ret, nfds;
+    struct timeval tv;
 
 #ifdef _WIN32
-        if (timeout > 0)
-            Sleep(timeout);
+    /* XXX: see how to merge it with the select. The constraint is
+       that the select must be interrupted by the timer */
+    if (timeout > 0)
+        Sleep(timeout);
+#endif
+    /* poll any events */
+    /* XXX: separate device handlers from system ones */
+    nfds = -1;
+    FD_ZERO(&rfds);
+    FD_ZERO(&wfds);
+    for(ioh = first_io_handler; ioh != NULL; ioh = ioh->next) {
+        if (ioh->fd_read &&
+            (!ioh->fd_read_poll ||
+             ioh->fd_read_poll(ioh->opaque) != 0)) {
+            FD_SET(ioh->fd, &rfds);
+            if (ioh->fd > nfds)
+                nfds = ioh->fd;
+        }
+        if (ioh->fd_write) {
+            FD_SET(ioh->fd, &wfds);
+            if (ioh->fd > nfds)
+                nfds = ioh->fd;
+        }
+    }
+    
+    tv.tv_sec = 0;
+#ifdef _WIN32
+    tv.tv_usec = 0;
 #else
-        /* poll any events */
-        /* XXX: separate device handlers from system ones */
-        pf = ufds;
-        for(ioh = first_io_handler; ioh != NULL; ioh = ioh->next) {
-            pf->events = 0;
-            pf->fd = ioh->fd;
-            if (ioh->fd_read &&
-                (!ioh->fd_read_poll ||
-                 ioh->fd_read_poll(ioh->opaque) != 0)) {
-                pf->events |= POLLIN;
+    tv.tv_usec = timeout * 1000;
+#endif
+    ret = select(nfds + 1, &rfds, &wfds, NULL, &tv);
+    if (ret > 0) {
+        /* XXX: better handling of removal */
+        for(ioh = first_io_handler; ioh != NULL; ioh = ioh_next) {
+            ioh_next = ioh->next;
+            if (FD_ISSET(ioh->fd, &rfds)) {
+                ioh->fd_read(ioh->opaque);
             }
-            if (ioh->fd_write) {
-                pf->events |= POLLOUT;
-            }
-            ioh->ufd = pf;
-            pf++;
-        }
-        
-        ret = poll(ufds, pf - ufds, timeout);
-        if (ret > 0) {
-            /* XXX: better handling of removal */
-            for(ioh = first_io_handler; ioh != NULL; ioh = ioh_next) {
-                ioh_next = ioh->next;
-                pf = ioh->ufd;
-                if (pf->revents & POLLIN) {
-                    ioh->fd_read(ioh->opaque);
-                }
-                if (pf->revents & POLLOUT) {
-                    ioh->fd_write(ioh->opaque);
-                }
+            if (FD_ISSET(ioh->fd, &wfds)) {
+                ioh->fd_write(ioh->opaque);
             }
         }
-#endif /* !defined(_WIN32) */
-#if defined(CONFIG_SLIRP)
-        /* XXX: merge with poll() */
-        if (slirp_inited) {
-            fd_set rfds, wfds, xfds;
-            int nfds;
-            struct timeval tv;
+    }
 
-            nfds = -1;
-            FD_ZERO(&rfds);
-            FD_ZERO(&wfds);
-            FD_ZERO(&xfds);
-            slirp_select_fill(&nfds, &rfds, &wfds, &xfds);
-            tv.tv_sec = 0;
-            tv.tv_usec = 0;
-            ret = select(nfds + 1, &rfds, &wfds, &xfds, &tv);
-            if (ret >= 0) {
-                slirp_select_poll(&rfds, &wfds, &xfds);
-            }
+#if defined(CONFIG_SLIRP)
+    /* XXX: merge with the previous select() */
+    if (slirp_inited) {
+        fd_set rfds, wfds, xfds;
+        int nfds;
+        struct timeval tv;
+        
+        nfds = -1;
+        FD_ZERO(&rfds);
+        FD_ZERO(&wfds);
+        FD_ZERO(&xfds);
+        slirp_select_fill(&nfds, &rfds, &wfds, &xfds);
+        tv.tv_sec = 0;
+        tv.tv_usec = 0;
+        ret = select(nfds + 1, &rfds, &wfds, &xfds, &tv);
+        if (ret >= 0) {
+            slirp_select_poll(&rfds, &wfds, &xfds);
         }
+    }
 #endif
 
-        if (vm_running) {
-            qemu_run_timers(&active_timers[QEMU_TIMER_VIRTUAL], 
-                            qemu_get_clock(vm_clock));
-            /* run dma transfers, if any */
-            DMA_run();
-        }
-
-        /* real time timers */
-        qemu_run_timers(&active_timers[QEMU_TIMER_REALTIME], 
-                        qemu_get_clock(rt_clock));
+    if (vm_running) {
+        qemu_run_timers(&active_timers[QEMU_TIMER_VIRTUAL], 
+                        qemu_get_clock(vm_clock));
+        /* run dma transfers, if any */
+        DMA_run();
+    }
+    
+    /* real time timers */
+    qemu_run_timers(&active_timers[QEMU_TIMER_REALTIME], 
+                    qemu_get_clock(rt_clock));
 }
 
 static CPUState *cur_cpu;
@@ -4807,6 +4900,10 @@ int main(int argc, char **argv)
     setvbuf(stdout, NULL, _IOLBF, 0);
 #endif
     
+#ifdef _WIN32
+    socket_init();
+#endif
+
     /* init network clients */
     if (nb_net_clients == 0) {
         /* if no clients, we use a default config */
