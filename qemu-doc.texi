@@ -260,8 +260,7 @@ target. Optionally, the MAC address can be changed. If no
 
 @item -net user[,vlan=n]
 Use the user mode network stack which requires no administrator
-priviledge to run. This is the default if no @option{-net} option is
-specified.
+priviledge to run.
 
 @item -net tap[,vlan=n][,fd=h][,ifname=name][,script=file]
 Connect the host TAP network interface @var{name} to VLAN @var{n} and
@@ -334,8 +333,8 @@ qemu linux.img -net nic,macaddr=52:54:00:12:34:56 -net socket,mcast=239.192.168.
 
 @item -net none
 Indicate that no network devices should be configured. It is used to
-override the default configuration which is activated if no
-@option{-net} options are provided.
+override the default configuration (@option{-net nic -net user}) which
+is activated if no @option{-net} options are provided.
 
 @item -tftp prefix
 When using the user mode network stack, activate a built-in TFTP
