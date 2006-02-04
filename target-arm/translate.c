@@ -1627,7 +1627,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
         case 0x08:
         case 0x09:
             {
-                int j, n, user;
+                int j, n, user, loaded_base;
                 /* load/store multiple words */
                 /* XXX: store correct base if write back */
                 user = 0;
@@ -1642,6 +1642,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                 gen_movl_T1_reg(s, rn);
                 
                 /* compute total size */
+                loaded_base = 0;
                 n = 0;
                 for(i=0;i<16;i++) {
                     if (insn & (1 << i))
@@ -1675,6 +1676,9 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                                 gen_bx(s);
                             } else if (user) {
                                 gen_op_movl_user_T0(i);
+                            } else if (i == rn) {
+                                gen_op_movl_T2_T0();
+                                loaded_base = 1;
                             } else {
                                 gen_movl_reg_T0(s, i);
                             }
@@ -1717,6 +1721,10 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                         }
                     }
                     gen_movl_reg_T1(s, rn);
+                }
+                if (loaded_base) {
+                    gen_op_movl_T0_T2();
+                    gen_movl_reg_T0(s, rn);
                 }
                 if ((insn & (1 << 22)) && !user) {
                     /* Restore CPSR from SPSR.  */

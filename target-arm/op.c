@@ -1181,3 +1181,13 @@ void OPPROTO op_movl_user_T0(void)
     }
     FORCE_RET();
 }
+
+void OPPROTO op_movl_T2_T0(void)
+{
+    T2 = T0;
+}
+
+void OPPROTO op_movl_T0_T2(void)
+{
+    T0 = T2;
+}
