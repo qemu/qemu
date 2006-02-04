@@ -127,6 +127,7 @@ void do_interrupt(CPUARMState *env)
         offset = 0;
         break;
     case EXCP_PREFETCH_ABORT:
+    case EXCP_BKPT:
         new_mode = ARM_CPU_MODE_ABT;
         addr = 0x0c;
         mask = CPSR_A | CPSR_I;

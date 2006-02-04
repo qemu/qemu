@@ -1217,6 +1217,12 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                 gen_op_addl_T0_T1_saturate();
             gen_movl_reg_T0(s, rd);
             break;
+        case 7: /* bkpt */
+            gen_op_movl_T0_im((long)s->pc - 4);
+            gen_op_movl_reg_TN[0][15]();
+            gen_op_bkpt();
+            s->is_jmp = DISAS_JUMP;
+            break;
         case 0x8: /* signed multiply */
         case 0xa:
         case 0xc:
@@ -2181,6 +2187,13 @@ static void disas_thumb_insn(DisasContext *s)
             /* set the new PC value */
             if ((insn & 0x0900) == 0x0900)
                 gen_bx(s);
+            break;
+
+        case 0xe: /* bkpt */
+            gen_op_movl_T0_im((long)s->pc - 2);
+            gen_op_movl_reg_TN[0][15]();
+            gen_op_bkpt();
+            s->is_jmp = DISAS_JUMP;
             break;
 
         default:

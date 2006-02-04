@@ -34,6 +34,7 @@
 #define EXCP_DATA_ABORT      4
 #define EXCP_IRQ             5
 #define EXCP_FIQ             6
+#define EXCP_BKPT            7
 
 /* We currently assume float and double are IEEE single and double
    precision respectively.

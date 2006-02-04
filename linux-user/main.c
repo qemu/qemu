@@ -358,14 +358,27 @@ void cpu_loop(CPUARMState *env)
             }
             break;
         case EXCP_SWI:
+        case EXCP_BKPT:
             {
                 /* system call */
-                if (env->thumb) {
-                    insn = lduw((void *)(env->regs[15] - 2));
-                    n = insn & 0xff;
+                if (trapnr == EXCP_BKPT) {
+                    if (env->thumb) {
+                        insn = lduw((void *)(env->regs[15]));
+                        n = insn & 0xff;
+                        env->regs[15] += 2;
+                    } else {
+                        insn = ldl((void *)(env->regs[15]));
+                        n = (insn & 0xf) | ((insn >> 4) & 0xff0);
+                        env->regs[15] += 4;
+                    }
                 } else {
-                    insn = ldl((void *)(env->regs[15] - 4));
-                    n = insn & 0xffffff;
+                    if (env->thumb) {
+                        insn = lduw((void *)(env->regs[15] - 2));
+                        n = insn & 0xff;
+                    } else {
+                        insn = ldl((void *)(env->regs[15] - 4));
+                        n = insn & 0xffffff;
+                    }
                 }
 
                 if (n == ARM_NR_cacheflush) {
