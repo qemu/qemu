@@ -100,7 +100,9 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
     target_long *stack = (void *)infop->start_stack;
     memset(regs, 0, sizeof(*regs));
     regs->ARM_cpsr = 0x10;
-    regs->ARM_pc = infop->entry;
+    if (infop->entry & 1)
+      regs->ARM_cpsr |= CPSR_T;
+    regs->ARM_pc = infop->entry & 0xfffffffe;
     regs->ARM_sp = infop->start_stack;
     regs->ARM_r2 = tswapl(stack[2]); /* envp */
     regs->ARM_r1 = tswapl(stack[1]); /* argv */
