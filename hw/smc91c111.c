@@ -593,6 +593,17 @@ static uint32_t smc91c111_readl(void *opaque, target_phys_addr_t offset)
     return val;
 }
 
+static int smc91c111_can_receive(void *opaque)
+{
+    smc91c111_state *s = (smc91c111_state *)opaque;
+
+    if ((s->rcr & RCR_RXEN) == 0 || (s->rcr & RCR_SOFT_RST))
+        return 1;
+    if (s->allocated == (1 << NUM_PACKETS) - 1)
+        return 0;
+    return 1;
+}
+
 static void smc91c111_receive(void *opaque, const uint8_t *buf, int size)
 {
     smc91c111_state *s = (smc91c111_state *)opaque;
@@ -697,6 +708,7 @@ void smc91c111_init(NICInfo *nd, uint32_t base, void *pic, int irq)
 
     smc91c111_reset(s);
 
-    s->vc = qemu_new_vlan_client(nd->vlan, smc91c111_receive, s);
+    s->vc = qemu_new_vlan_client(nd->vlan, smc91c111_receive,
+                                 smc91c111_can_receive, s);
     /* ??? Save/restore.  */
 }

@@ -283,6 +283,11 @@ static CPUWriteMemoryFunc *lance_mem_write[3] = {
 
 #define MIN_BUF_SIZE 60
 
+static void lance_can_receive(void *opaque)
+{
+    return 1;
+}
+
 static void lance_receive(void *opaque, const uint8_t *buf, int size)
 {
     LANCEState *s = opaque;
@@ -440,7 +445,7 @@ void lance_init(NICInfo *nd, int irq, uint32_t leaddr, uint32_t ledaddr)
 
     lance_reset(s);
 
-    s->vc = qemu_new_vlan_client(nd->vlan, lance_receive, s);
+    s->vc = qemu_new_vlan_client(nd->vlan, lance_receive, lance_can_receive, s);
 
     snprintf(s->vc->info_str, sizeof(s->vc->info_str),
              "lance macaddr=%02x:%02x:%02x:%02x:%02x:%02x",

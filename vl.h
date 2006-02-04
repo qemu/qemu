@@ -279,6 +279,9 @@ typedef struct VLANClientState VLANClientState;
 
 struct VLANClientState {
     IOReadHandler *fd_read;
+    /* Packets may still be sent if this returns zero.  It's used to
+       rate-limit the slirp code.  */
+    IOCanRWHandler *fd_can_read;
     void *opaque;
     struct VLANClientState *next;
     struct VLANState *vlan;
@@ -293,8 +296,12 @@ typedef struct VLANState {
 
 VLANState *qemu_find_vlan(int id);
 VLANClientState *qemu_new_vlan_client(VLANState *vlan,
-                                      IOReadHandler *fd_read, void *opaque);
+                                      IOReadHandler *fd_read,
+                                      IOCanRWHandler *fd_can_read,
+                                      void *opaque);
+int qemu_can_send_packet(VLANClientState *vc);
 void qemu_send_packet(VLANClientState *vc, const uint8_t *buf, int size);
+void qemu_handler_true(void *opaque);
 
 void do_info_network(void);
 

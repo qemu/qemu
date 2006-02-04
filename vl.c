@@ -1842,13 +1842,16 @@ VLANState *qemu_find_vlan(int id)
 }
 
 VLANClientState *qemu_new_vlan_client(VLANState *vlan,
-                                      IOReadHandler *fd_read, void *opaque)
+                                      IOReadHandler *fd_read,
+                                      IOCanRWHandler *fd_can_read,
+                                      void *opaque)
 {
     VLANClientState *vc, **pvc;
     vc = qemu_mallocz(sizeof(VLANClientState));
     if (!vc)
         return NULL;
     vc->fd_read = fd_read;
+    vc->fd_can_read = fd_can_read;
     vc->opaque = opaque;
     vc->vlan = vlan;
 
@@ -1858,6 +1861,20 @@ VLANClientState *qemu_new_vlan_client(VLANState *vlan,
         pvc = &(*pvc)->next;
     *pvc = vc;
     return vc;
+}
+
+int qemu_can_send_packet(VLANClientState *vc1)
+{
+    VLANState *vlan = vc1->vlan;
+    VLANClientState *vc;
+
+    for(vc = vlan->first_client; vc != NULL; vc = vc->next) {
+        if (vc != vc1) {
+            if (vc->fd_can_read && !vc->fd_can_read(vc->opaque))
+                return 0;
+        }
+    }
+    return 1;
 }
 
 void qemu_send_packet(VLANClientState *vc1, const uint8_t *buf, int size)
@@ -1885,7 +1902,7 @@ static VLANClientState *slirp_vc;
 
 int slirp_can_output(void)
 {
-    return 1;
+    return qemu_can_send_packet(slirp_vc);
 }
 
 void slirp_output(const uint8_t *pkt, int pkt_len)
@@ -1913,7 +1930,7 @@ static int net_slirp_init(VLANState *vlan)
         slirp_init();
     }
     slirp_vc = qemu_new_vlan_client(vlan, 
-                                    slirp_receive, NULL);
+                                    slirp_receive, NULL, NULL);
     snprintf(slirp_vc->info_str, sizeof(slirp_vc->info_str), "user redirector");
     return 0;
 }
@@ -2098,7 +2115,7 @@ static TAPState *net_tap_fd_init(VLANState *vlan, int fd)
     if (!s)
         return NULL;
     s->fd = fd;
-    s->vc = qemu_new_vlan_client(vlan, tap_receive, s);
+    s->vc = qemu_new_vlan_client(vlan, tap_receive, NULL, s);
     qemu_set_fd_handler(s->fd, tap_send, NULL, s);
     snprintf(s->vc->info_str, sizeof(s->vc->info_str), "tap: fd=%d", fd);
     return s;
@@ -2412,7 +2429,7 @@ static NetSocketState *net_socket_fd_init_dgram(VLANState *vlan, int fd,
         return NULL;
     s->fd = fd;
 
-    s->vc = qemu_new_vlan_client(vlan, net_socket_receive_dgram, s);
+    s->vc = qemu_new_vlan_client(vlan, net_socket_receive_dgram, NULL, s);
     qemu_set_fd_handler(s->fd, net_socket_send_dgram, NULL, s);
 
     /* mcast: save bound address as dst */
@@ -2440,7 +2457,7 @@ static NetSocketState *net_socket_fd_init_stream(VLANState *vlan, int fd,
         return NULL;
     s->fd = fd;
     s->vc = qemu_new_vlan_client(vlan, 
-                                 net_socket_receive, s);
+                                 net_socket_receive, NULL, s);
     snprintf(s->vc->info_str, sizeof(s->vc->info_str),
              "socket: fd=%d", fd);
     if (is_connected) {

@@ -200,14 +200,10 @@ static int compute_mcast_idx(const uint8_t *ep)
     return (crc >> 26);
 }
 
-/* return the max buffer size if the NE2000 can receive more data */
-static int ne2000_can_receive(void *opaque)
+static int ne2000_buffer_full(NE2000State *s)
 {
-    NE2000State *s = opaque;
     int avail, index, boundary;
-    
-    if (s->cmd & E8390_STOP)
-        return 0;
+
     index = s->curpag << 8;
     boundary = s->boundary << 8;
     if (index < boundary)
@@ -215,8 +211,17 @@ static int ne2000_can_receive(void *opaque)
     else
         avail = (s->stop - s->start) - (index - boundary);
     if (avail < (MAX_ETH_FRAME_SIZE + 4))
-        return 0;
-    return MAX_ETH_FRAME_SIZE;
+        return 1;
+    return 0;
+}
+
+static int ne2000_can_receive(void *opaque)
+{
+    NE2000State *s = opaque;
+    
+    if (s->cmd & E8390_STOP)
+        return 1;
+    return !ne2000_buffer_full(s);
 }
 
 #define MIN_BUF_SIZE 60
@@ -234,7 +239,7 @@ static void ne2000_receive(void *opaque, const uint8_t *buf, int size)
     printf("NE2000: received len=%d\n", size);
 #endif
 
-    if (!ne2000_can_receive(s))
+    if (s->cmd & E8390_STOP || ne2000_buffer_full(s))
         return;
     
     /* XXX: check this */
@@ -722,7 +727,8 @@ void isa_ne2000_init(int base, int irq, NICInfo *nd)
 
     ne2000_reset(s);
 
-    s->vc = qemu_new_vlan_client(nd->vlan, ne2000_receive, s);
+    s->vc = qemu_new_vlan_client(nd->vlan, ne2000_receive,
+                                 ne2000_can_receive, s);
 
     snprintf(s->vc->info_str, sizeof(s->vc->info_str),
              "ne2000 macaddr=%02x:%02x:%02x:%02x:%02x:%02x",
@@ -791,7 +797,8 @@ void pci_ne2000_init(PCIBus *bus, NICInfo *nd)
     s->pci_dev = (PCIDevice *)d;
     memcpy(s->macaddr, nd->macaddr, 6);
     ne2000_reset(s);
-    s->vc = qemu_new_vlan_client(nd->vlan, ne2000_receive, s);
+    s->vc = qemu_new_vlan_client(nd->vlan, ne2000_receive,
+                                 ne2000_can_receive, s);
 
     snprintf(s->vc->info_str, sizeof(s->vc->info_str),
              "ne2000 pci macaddr=%02x:%02x:%02x:%02x:%02x:%02x",
