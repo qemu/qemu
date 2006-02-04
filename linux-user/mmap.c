@@ -183,8 +183,10 @@ long target_mmap(unsigned long start, unsigned long len, int prot,
     }
 #endif
 
-    if (offset & ~TARGET_PAGE_MASK)
-        return -EINVAL;
+    if (offset & ~TARGET_PAGE_MASK) {
+        errno = EINVAL;
+        return -1;
+    }
 
     len = TARGET_PAGE_ALIGN(len);
     if (len == 0)
@@ -232,8 +234,10 @@ long target_mmap(unsigned long start, unsigned long len, int prot,
         }
     }
     
-    if (start & ~TARGET_PAGE_MASK)
-        return -EINVAL;
+    if (start & ~TARGET_PAGE_MASK) {
+        errno = EINVAL;
+        return -1;
+    }
     end = start + len;
     host_end = HOST_PAGE_ALIGN(end);
 
@@ -244,8 +248,10 @@ long target_mmap(unsigned long start, unsigned long len, int prot,
         /* msync() won't work here, so we return an error if write is
            possible while it is a shared mapping */
         if ((flags & MAP_TYPE) == MAP_SHARED &&
-            (prot & PROT_WRITE))
-            return -EINVAL;
+            (prot & PROT_WRITE)) {
+            errno = EINVAL;
+            return -1;
+        }
         retaddr = target_mmap(start, len, prot | PROT_WRITE, 
                               MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, 
                               -1, 0);

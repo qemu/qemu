@@ -890,7 +890,7 @@ static unsigned long load_elf_interp(struct elfhdr * interp_elf_ex,
 		 interpreter_fd,
 		 eppnt->p_offset - TARGET_ELF_PAGEOFFSET(eppnt->p_vaddr));
 	    
-	    if (error > -1024UL) {
+	    if (error == -1) {
 	      /* Real error */
 	      close(interpreter_fd);
 	      free(elf_phdata);
