@@ -272,8 +272,15 @@ void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
     vga_initialize(NULL, ds, phys_ram_base + ram_size, ram_size, 
                    vga_ram_size, 0, 0);
 
-    if (nd_table[0].vlan)
-        isa_ne2000_init(0x300, 9, &nd_table[0]);
+    if (nd_table[0].vlan) {
+        if (nd_table[0].model == NULL
+            || strcmp(nd_table[0].model, "ne2k_isa") == 0) {
+            isa_ne2000_init(0x300, 9, &nd_table[0]);
+        } else {
+            fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd_table[0].model);
+            exit (1);
+        }
+    }
 }
 
 QEMUMachine mips_machine = {

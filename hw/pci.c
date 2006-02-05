@@ -1837,3 +1837,17 @@ void pci_bios_init(void)
         }
     }
 }
+
+/* Initialize a PCI NIC.  */
+void pci_nic_init(PCIBus *bus, NICInfo *nd)
+{
+    if (strcmp(nd->model, "ne2k_pci") == 0) {
+        pci_ne2000_init(bus, nd);
+    } else if (strcmp(nd->model, "rtl8139") == 0) {
+        pci_rtl8139_init(bus, nd);
+    } else {
+        fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd->model);
+        exit (1);
+    }
+}
+

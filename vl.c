@@ -2718,6 +2718,9 @@ int net_client_init(const char *str)
                 return -1;
             }
         }
+        if (get_param_value(buf, sizeof(buf), "model", p)) {
+            nd->model = strdup(buf);
+        }
         nd->vlan = vlan;
         nb_nics++;
         ret = 0;
@@ -4110,7 +4113,7 @@ void help(void)
 #endif
            "\n"
            "Network options:\n"
-           "-net nic[,vlan=n][,macaddr=addr]\n"
+           "-net nic[,vlan=n][,macaddr=addr][,model=type]\n"
            "                create a new Network Interface Card and connect it to VLAN 'n'\n"
 #ifdef CONFIG_SLIRP
            "-net user[,vlan=n]\n"

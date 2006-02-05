@@ -1195,8 +1195,15 @@ static void integratorcp_init(int ram_size, int vga_ram_size, int boot_device,
     icp_control_init(0xcb000000);
     icp_kmi_init(0x18000000, pic, 3, 0);
     icp_kmi_init(0x19000000, pic, 4, 1);
-    if (nd_table[0].vlan)
-        smc91c111_init(&nd_table[0], 0xc8000000, pic, 27);
+    if (nd_table[0].vlan) {
+        if (nd_table[0].model == NULL
+            || strcmp(nd_table[0].model, "smc91c111") == 0) {
+            smc91c111_init(&nd_table[0], 0xc8000000, pic, 27);
+        } else {
+            fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd_table[0].model);
+            exit (1);
+        }
+    }
 
     /* Load the kernel.  */
     if (!kernel_filename) {

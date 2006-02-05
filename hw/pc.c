@@ -606,6 +606,16 @@ static void audio_init (PCIBus *pci_bus)
 }
 #endif
 
+static void pc_init_ne2k_isa(NICInfo *nd)
+{
+    static int nb_ne2k = 0;
+
+    if (nb_ne2k == NE2000_NB_MAX)
+        return;
+    isa_ne2000_init(ne2000_io[nb_ne2k], ne2000_irq[nb_ne2k], nd);
+    nb_ne2k++;
+}
+
 /* PC hardware initialisation */
 static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
                      DisplayState *ds, const char **fd_filename, int snapshot,
@@ -614,11 +624,12 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
                      int pci_enabled)
 {
     char buf[1024];
-    int ret, linux_boot, initrd_size, i, nb_nics1;
+    int ret, linux_boot, initrd_size, i;
     unsigned long bios_offset, vga_bios_offset;
     int bios_size, isa_bios_size;
     PCIBus *pci_bus;
     CPUState *env;
+    NICInfo *nd;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -800,19 +811,28 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
         }
     }
 
-    if (pci_enabled) {
-        for(i = 0; i < nb_nics; i++) {
-            pci_ne2000_init(pci_bus, &nd_table[i]);
+    for(i = 0; i < nb_nics; i++) {
+        nd = &nd_table[i];
+        if (!nd->model) {
+            if (pci_enabled) {
+                nd->model = "ne2k_pci";
+            } else {
+                nd->model = "ne2k_isa";
+            }
         }
+        if (strcmp(nd->model, "ne2k_isa") == 0) {
+            pc_init_ne2k_isa(nd);
+        } else if (pci_enabled) {
+            pci_nic_init(pci_bus, nd);
+        } else {
+            fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd->model);
+            exit(1);
+        }
+    }
+
+    if (pci_enabled) {
         pci_piix3_ide_init(pci_bus, bs_table);
     } else {
-        nb_nics1 = nb_nics;
-        if (nb_nics1 > NE2000_NB_MAX)
-            nb_nics1 = NE2000_NB_MAX;
-        for(i = 0; i < nb_nics1; i++) {
-            isa_ne2000_init(ne2000_io[i], ne2000_irq[i], &nd_table[i]);
-        }
-
         for(i = 0; i < 2; i++) {
             isa_ide_init(ide_iobase[i], ide_iobase2[i], ide_irq[i],
                          bs_table[2 * i], bs_table[2 * i + 1]);

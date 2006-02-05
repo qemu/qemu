@@ -257,7 +257,15 @@ static void sun4m_init(int ram_size, int vga_ram_size, int boot_device,
     }
 
     tcx = tcx_init(ds, PHYS_JJ_TCX_FB, phys_ram_base + ram_size, ram_size, vram_size, graphic_width, graphic_height);
-    lance_init(&nd_table[0], PHYS_JJ_LE_IRQ, PHYS_JJ_LE, PHYS_JJ_LEDMA);
+    if (nd_table[0].vlan) {
+        if (nd_table[0].model == NULL
+            || strcmp(nd_table[0].model, "lance") == 0) {
+            lance_init(&nd_table[0], PHYS_JJ_LE_IRQ, PHYS_JJ_LE, PHYS_JJ_LEDMA);
+        } else {
+            fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd_table[0].model);
+            exit (1);
+        }
+    }
     nvram = m48t59_init(0, PHYS_JJ_EEPROM, 0, PHYS_JJ_EEPROM_SIZE, 8);
     for (i = 0; i < MAX_CPUS; i++) {
         slavio_timer_init(PHYS_JJ_CLOCK + i * TARGET_PAGE_SIZE, PHYS_JJ_CLOCK_IRQ, 0, i);

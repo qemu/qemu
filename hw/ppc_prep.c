@@ -624,7 +624,13 @@ static void ppc_prep_init(int ram_size, int vga_ram_size, int boot_device,
     if (nb_nics1 > NE2000_NB_MAX)
         nb_nics1 = NE2000_NB_MAX;
     for(i = 0; i < nb_nics1; i++) {
-        isa_ne2000_init(ne2000_io[i], ne2000_irq[i], &nd_table[i]);
+        if (nd_table[0].model == NULL
+            || strcmp(nd_table[0].model, "ne2k_isa") == 0) {
+            isa_ne2000_init(ne2000_io[i], ne2000_irq[i], &nd_table[i]);
+        } else {
+            fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd_table[0].model);
+            exit (1);
+        }
     }
 
     for(i = 0; i < 2; i++) {

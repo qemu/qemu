@@ -315,6 +315,7 @@ void tap_win32_poll(void);
 
 typedef struct NICInfo {
     uint8_t macaddr[6];
+    const char *model;
     VLANState *vlan;
 } NICInfo;
 
@@ -616,6 +617,8 @@ PCIBus *pci_grackle_init(uint32_t base);
 PCIBus *pci_pmac_init(void);
 PCIBus *pci_apb_init(target_ulong special_base, target_ulong mem_base);
 
+void pci_nic_init(PCIBus *bus, NICInfo *nd);
+
 /* openpic.c */
 typedef struct openpic_t openpic_t;
 void openpic_set_irq(void *opaque, int n_IRQ, int level);
@@ -739,6 +742,10 @@ int fdctrl_get_drive_type(fdctrl_t *fdctrl, int drive_num);
 
 void isa_ne2000_init(int base, int irq, NICInfo *nd);
 void pci_ne2000_init(PCIBus *bus, NICInfo *nd);
+
+/* rtl8139.c */
+
+void pci_rtl8139_init(PCIBus *bus, NICInfo *nd);
 
 /* pckbd.c */
 
