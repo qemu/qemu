@@ -973,6 +973,11 @@ void ps2_queue(void *, int b);
 /* smc91c111.c */
 void smc91c111_init(NICInfo *, uint32_t, void *, int);
 
+/* pl110.c */
+void *pl110_init(DisplayState *ds, uint32_t base, void *pic, int irq);
+void pl110_update_display(void *opaque);
+void pl110_invalidate_display(void *opaque);
+
 #endif /* defined(QEMU_TOOL) */
 
 /* monitor.c */

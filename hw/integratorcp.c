@@ -27,8 +27,11 @@ void irq_info(void)
 {
 }
 
+static void *lcd;
+
 void vga_update_display(void)
 {
+    pl110_update_display(lcd);
 }
 
 void vga_screen_dump(const char *filename)
@@ -37,6 +40,7 @@ void vga_screen_dump(const char *filename)
 
 void vga_invalidate_display(void)
 {
+    pl110_invalidate_display(lcd);
 }
 
 void DMA_run (void)
@@ -1204,6 +1208,7 @@ static void integratorcp_init(int ram_size, int vga_ram_size, int boot_device,
             exit (1);
         }
     }
+    lcd = pl110_init(ds, 0xc0000000, pic, 22);
 
     /* Load the kernel.  */
     if (!kernel_filename) {
