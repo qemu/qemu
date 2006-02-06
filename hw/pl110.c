@@ -109,6 +109,8 @@ void pl110_update_display(void *opaque)
         return;
     
     switch (s->ds->depth) {
+    case 0:
+        return;
     case 8:
         fntable = pl110_draw_fn_8;
         dest_width = 1;
@@ -130,7 +132,7 @@ void pl110_update_display(void *opaque)
         dest_width = 4;
         break;
     default:
-        fprintf(stderr, "qemu: Bad color depth\n");
+        fprintf(stderr, "pl110: Bad color depth\n");
         exit(1);
     }
     if (s->cr & PL110_CR_BEBO)
