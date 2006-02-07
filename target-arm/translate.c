@@ -1930,12 +1930,15 @@ static void disas_thumb_insn(DisasContext *s)
             break;
         case 0x2: /* lsl */
             gen_op_shll_T1_T0_cc();
+            gen_op_logic_T1_cc();
             break;
         case 0x3: /* lsr */
             gen_op_shrl_T1_T0_cc();
+            gen_op_logic_T1_cc();
             break;
         case 0x4: /* asr */
             gen_op_sarl_T1_T0_cc();
+            gen_op_logic_T1_cc();
             break;
         case 0x5: /* adc */
             gen_op_adcl_T0_T1_cc();
@@ -1945,6 +1948,7 @@ static void disas_thumb_insn(DisasContext *s)
             break;
         case 0x7: /* ror */
             gen_op_rorl_T1_T0_cc();
+            gen_op_logic_T1_cc();
             break;
         case 0x8: /* tst */
             gen_op_andl_T0_T1();
