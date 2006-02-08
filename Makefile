@@ -17,13 +17,6 @@ all: dyngen$(EXESUF) $(TOOLS) $(DOCS)
 	for d in $(TARGET_DIRS); do \
 	$(MAKE) -C $$d $@ || exit 1 ; \
         done
-ifdef CONFIG_KQEMU
-ifdef CONFIG_WIN32
-	$(MAKE) -C kqemu -f Makefile.winnt
-else
-	$(MAKE) -C kqemu
-endif
-endif
 
 qemu-img$(EXESUF): qemu-img.c block.c block-cow.c block-qcow.c aes.c block-vmdk.c block-cloop.c block-dmg.c block-bochs.c block-vpc.c block-vvfat.c
 	$(CC) -DQEMU_TOOL $(CFLAGS) $(LDFLAGS) $(DEFINES) -o $@ $^ -lz $(LIBS)
@@ -39,9 +32,6 @@ clean:
 	for d in $(TARGET_DIRS); do \
 	$(MAKE) -C $$d $@ || exit 1 ; \
         done
-ifdef CONFIG_KQEMU
-	$(MAKE) -C kqemu clean
-endif
 
 distclean: clean
 	rm -f config-host.mak config-host.h
@@ -73,9 +63,6 @@ endif
 	for d in $(TARGET_DIRS); do \
 	$(MAKE) -C $$d $@ || exit 1 ; \
         done
-ifdef CONFIG_KQEMU
-	cd kqemu ; ./install.sh
-endif
 
 # various test targets
 test speed test2: all
