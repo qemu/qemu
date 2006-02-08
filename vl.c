@@ -369,6 +369,10 @@ void cpu_outb(CPUState *env, int addr, int val)
         fprintf(logfile, "outb: %04x %02x\n", addr, val);
 #endif    
     ioport_write_table[0][addr](ioport_opaque[addr], addr, val);
+#ifdef USE_KQEMU
+    if (env)
+        env->last_io_time = cpu_get_time_fast();
+#endif
 }
 
 void cpu_outw(CPUState *env, int addr, int val)
@@ -378,6 +382,10 @@ void cpu_outw(CPUState *env, int addr, int val)
         fprintf(logfile, "outw: %04x %04x\n", addr, val);
 #endif    
     ioport_write_table[1][addr](ioport_opaque[addr], addr, val);
+#ifdef USE_KQEMU
+    if (env)
+        env->last_io_time = cpu_get_time_fast();
+#endif
 }
 
 void cpu_outl(CPUState *env, int addr, int val)
@@ -387,6 +395,10 @@ void cpu_outl(CPUState *env, int addr, int val)
         fprintf(logfile, "outl: %04x %08x\n", addr, val);
 #endif
     ioport_write_table[2][addr](ioport_opaque[addr], addr, val);
+#ifdef USE_KQEMU
+    if (env)
+        env->last_io_time = cpu_get_time_fast();
+#endif
 }
 
 int cpu_inb(CPUState *env, int addr)
@@ -396,6 +408,10 @@ int cpu_inb(CPUState *env, int addr)
 #ifdef DEBUG_IOPORT
     if (loglevel & CPU_LOG_IOPORT)
         fprintf(logfile, "inb : %04x %02x\n", addr, val);
+#endif
+#ifdef USE_KQEMU
+    if (env)
+        env->last_io_time = cpu_get_time_fast();
 #endif
     return val;
 }
@@ -408,6 +424,10 @@ int cpu_inw(CPUState *env, int addr)
     if (loglevel & CPU_LOG_IOPORT)
         fprintf(logfile, "inw : %04x %04x\n", addr, val);
 #endif
+#ifdef USE_KQEMU
+    if (env)
+        env->last_io_time = cpu_get_time_fast();
+#endif
     return val;
 }
 
@@ -418,6 +438,10 @@ int cpu_inl(CPUState *env, int addr)
 #ifdef DEBUG_IOPORT
     if (loglevel & CPU_LOG_IOPORT)
         fprintf(logfile, "inl : %04x %08x\n", addr, val);
+#endif
+#ifdef USE_KQEMU
+    if (env)
+        env->last_io_time = cpu_get_time_fast();
 #endif
     return val;
 }
@@ -4018,6 +4042,9 @@ static CPUState *cur_cpu;
 int main_loop(void)
 {
     int ret, timeout;
+#ifdef CONFIG_PROFILER
+    int64_t ti;
+#endif
     CPUState *env;
 
     cur_cpu = first_cpu;
@@ -4030,7 +4057,13 @@ int main_loop(void)
                 env = env->next_cpu;
                 if (!env)
                     env = first_cpu;
+#ifdef CONFIG_PROFILER
+                ti = profile_getclock();
+#endif
                 ret = cpu_exec(env);
+#ifdef CONFIG_PROFILER
+                qemu_time += profile_getclock() - ti;
+#endif
                 if (ret != EXCP_HALTED)
                     break;
                 /* all CPUs are halted ? */
@@ -4067,7 +4100,13 @@ int main_loop(void)
         } else {
             timeout = 10;
         }
+#ifdef CONFIG_PROFILER
+        ti = profile_getclock();
+#endif
         main_loop_wait(timeout);
+#ifdef CONFIG_PROFILER
+        dev_time += profile_getclock() - ti;
+#endif
     }
     cpu_disable_ticks();
     return ret;
@@ -4250,6 +4289,7 @@ enum {
     QEMU_OPTION_full_screen,
     QEMU_OPTION_pidfile,
     QEMU_OPTION_no_kqemu,
+    QEMU_OPTION_kernel_kqemu,
     QEMU_OPTION_win2k_hack,
     QEMU_OPTION_usb,
     QEMU_OPTION_usbdevice,
@@ -4305,6 +4345,7 @@ const QEMUOption qemu_options[] = {
     { "no-code-copy", 0, QEMU_OPTION_no_code_copy },
 #ifdef USE_KQEMU
     { "no-kqemu", 0, QEMU_OPTION_no_kqemu },
+    { "kernel-kqemu", 0, QEMU_OPTION_kernel_kqemu },
 #endif
 #if defined(TARGET_PPC) || defined(TARGET_SPARC)
     { "g", 1, QEMU_OPTION_g },
@@ -4878,6 +4919,9 @@ int main(int argc, char **argv)
 #ifdef USE_KQEMU
             case QEMU_OPTION_no_kqemu:
                 kqemu_allowed = 0;
+                break;
+            case QEMU_OPTION_kernel_kqemu:
+                kqemu_allowed = 2;
                 break;
 #endif
             case QEMU_OPTION_usb:
