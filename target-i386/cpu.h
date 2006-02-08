@@ -522,6 +522,7 @@ typedef struct CPUX86State {
     
 #ifdef USE_KQEMU
     int kqemu_enabled;
+    int last_io_time;
 #endif
     /* in order to simplify APIC support, we leave this pointer to the
        user */
@@ -636,6 +637,15 @@ void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0);
 /* used to debug */
 #define X86_DUMP_FPU  0x0001 /* dump FPU state too */
 #define X86_DUMP_CCOP 0x0002 /* dump qemu flag cache */
+
+#ifdef USE_KQEMU
+static inline int cpu_get_time_fast(void)
+{
+    int low, high;
+    asm volatile("rdtsc" : "=a" (low), "=d" (high));
+    return low;
+}
+#endif
 
 #define TARGET_PAGE_BITS 12
 #include "cpu-all.h"
