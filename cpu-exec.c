@@ -627,6 +627,9 @@ int cpu_exec(CPUState *env1)
                    jump. */
                 {
                     if (T0 != 0 &&
+#if USE_KQEMU
+                        (env->kqemu_enabled != 2) &&
+#endif
                         tb->page_addr[1] == -1
 #if defined(TARGET_I386) && defined(USE_CODE_COPY)
                     && (tb->cflags & CF_CODE_COPY) == 
@@ -754,6 +757,13 @@ int cpu_exec(CPUState *env1)
                     env->hflags &= ~HF_SOFTMMU_MASK;
                     /* do not allow linking to another block */
                     T0 = 0;
+                }
+#endif
+#if defined(USE_KQEMU)
+#define MIN_CYCLE_BEFORE_SWITCH (100 * 1000)
+                if (kqemu_is_ok(env) &&
+                    (cpu_get_time_fast() - env->last_io_time) >= MIN_CYCLE_BEFORE_SWITCH) {
+                    cpu_loop_exit();
                 }
 #endif
             }

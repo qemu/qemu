@@ -1796,6 +1796,11 @@ static void notdirty_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t 
 #endif
     }
     stb_p((uint8_t *)(long)addr, val);
+#ifdef USE_KQEMU
+    if (cpu_single_env->kqemu_enabled &&
+        (dirty_flags & KQEMU_MODIFY_PAGE_MASK) != KQEMU_MODIFY_PAGE_MASK)
+        kqemu_modify_page(cpu_single_env, ram_addr);
+#endif
     dirty_flags |= (0xff & ~CODE_DIRTY_FLAG);
     phys_ram_dirty[ram_addr >> TARGET_PAGE_BITS] = dirty_flags;
     /* we remove the notdirty callback only if the code has been
@@ -1817,6 +1822,11 @@ static void notdirty_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t 
 #endif
     }
     stw_p((uint8_t *)(long)addr, val);
+#ifdef USE_KQEMU
+    if (cpu_single_env->kqemu_enabled &&
+        (dirty_flags & KQEMU_MODIFY_PAGE_MASK) != KQEMU_MODIFY_PAGE_MASK)
+        kqemu_modify_page(cpu_single_env, ram_addr);
+#endif
     dirty_flags |= (0xff & ~CODE_DIRTY_FLAG);
     phys_ram_dirty[ram_addr >> TARGET_PAGE_BITS] = dirty_flags;
     /* we remove the notdirty callback only if the code has been
@@ -1838,6 +1848,11 @@ static void notdirty_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t 
 #endif
     }
     stl_p((uint8_t *)(long)addr, val);
+#ifdef USE_KQEMU
+    if (cpu_single_env->kqemu_enabled &&
+        (dirty_flags & KQEMU_MODIFY_PAGE_MASK) != KQEMU_MODIFY_PAGE_MASK)
+        kqemu_modify_page(cpu_single_env, ram_addr);
+#endif
     dirty_flags |= (0xff & ~CODE_DIRTY_FLAG);
     phys_ram_dirty[ram_addr >> TARGET_PAGE_BITS] = dirty_flags;
     /* we remove the notdirty callback only if the code has been

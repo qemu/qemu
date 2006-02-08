@@ -577,21 +577,27 @@ static inline target_ulong get_phys_addr_code(CPUState *env, target_ulong addr)
 
 
 #ifdef USE_KQEMU
+#define KQEMU_MODIFY_PAGE_MASK (0xff & ~(VGA_DIRTY_FLAG | CODE_DIRTY_FLAG))
+
 int kqemu_init(CPUState *env);
 int kqemu_cpu_exec(CPUState *env);
 void kqemu_flush_page(CPUState *env, target_ulong addr);
 void kqemu_flush(CPUState *env, int global);
 void kqemu_set_notdirty(CPUState *env, ram_addr_t ram_addr);
+void kqemu_modify_page(CPUState *env, ram_addr_t ram_addr);
 void kqemu_cpu_interrupt(CPUState *env);
+void kqemu_record_dump(void);
 
 static inline int kqemu_is_ok(CPUState *env)
 {
     return(env->kqemu_enabled &&
-           (env->hflags & HF_CPL_MASK) == 3 &&
-           (env->eflags & IOPL_MASK) != IOPL_MASK &&
            (env->cr[0] & CR0_PE_MASK) && 
+           !(env->hflags & HF_INHIBIT_IRQ_MASK) &&
            (env->eflags & IF_MASK) &&
-           !(env->eflags & VM_MASK));
+           !(env->eflags & VM_MASK) &&
+           (env->kqemu_enabled == 2 || 
+            ((env->hflags & HF_CPL_MASK) == 3 &&
+             (env->eflags & IOPL_MASK) != IOPL_MASK)));
 }
 
 #endif
