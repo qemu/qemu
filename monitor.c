@@ -296,9 +296,6 @@ static void do_info_history (void)
 
 static void do_quit(void)
 {
-#ifdef USE_KQEMU
-    kqemu_record_dump();
-#endif
     exit(0);
 }
 
@@ -960,11 +957,68 @@ static void do_info_kqemu(void)
         return;
     }
     val = env->kqemu_enabled;
-    term_printf("kqemu is %s\n", val ? "enabled" : "disabled");
+    term_printf("kqemu support: ");
+    switch(val) {
+    default:
+    case 0:
+        term_printf("disabled\n");
+        break;
+    case 1:
+        term_printf("enabled for user code\n");
+        break;
+    case 2:
+        term_printf("enabled for user and kernel code\n");
+        break;
+    }
 #else
-    term_printf("kqemu support is not compiled\n");
+    term_printf("kqemu support: not compiled\n");
 #endif
 } 
+
+#ifdef CONFIG_PROFILER
+
+int64_t kqemu_time;
+int64_t qemu_time;
+int64_t kqemu_exec_count;
+int64_t dev_time;
+int64_t kqemu_ret_int_count;
+int64_t kqemu_ret_excp_count;
+int64_t kqemu_ret_intr_count;
+
+static void do_info_profile(void)
+{
+    int64_t total;
+    total = qemu_time;
+    if (total == 0)
+        total = 1;
+    term_printf("async time  %lld (%0.3f)\n",
+                dev_time, dev_time / (double)ticks_per_sec);
+    term_printf("qemu time   %lld (%0.3f)\n",
+                qemu_time, qemu_time / (double)ticks_per_sec);
+    term_printf("kqemu time  %lld (%0.3f %0.1f%%) count=%lld int=%lld excp=%lld intr=%lld\n",
+                kqemu_time, kqemu_time / (double)ticks_per_sec,
+                kqemu_time / (double)total * 100.0,
+                kqemu_exec_count,
+                kqemu_ret_int_count,
+                kqemu_ret_excp_count,
+                kqemu_ret_intr_count);
+    qemu_time = 0;
+    kqemu_time = 0;
+    kqemu_exec_count = 0;
+    dev_time = 0;
+    kqemu_ret_int_count = 0;
+    kqemu_ret_excp_count = 0;
+    kqemu_ret_intr_count = 0;
+#ifdef USE_KQEMU
+    kqemu_record_dump();
+#endif
+}
+#else
+static void do_info_profile(void)
+{
+    term_printf("Internal profiler not compiled\n");
+}
+#endif
 
 static term_cmd_t term_cmds[] = {
     { "help|?", "s?", do_help, 
@@ -1054,6 +1108,8 @@ static term_cmd_t info_cmds[] = {
       "", "show guest USB devices", },
     { "usbhost", "", usb_host_info,
       "", "show host USB devices", },
+    { "profile", "", do_info_profile,
+      "", "show profiling information", },
     { NULL, NULL, },
 };
 
