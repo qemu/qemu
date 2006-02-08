@@ -44,7 +44,7 @@
 
 #include <unistd.h>
 #include <fcntl.h>
-#include "kqemu/kqemu.h"
+#include "kqemu.h"
 
 /* compatibility stuff */
 #ifndef KQEMU_RET_SYSCALL
