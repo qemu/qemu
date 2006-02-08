@@ -295,6 +295,7 @@ void kbd_write_data(void *opaque, uint32_t addr, uint32_t val)
         break;
     case KBD_CCMD_WRITE_MODE:
         s->mode = val;
+        ps2_keyboard_set_translation(s->kbd, (s->mode & KBD_MODE_KCC) != 0);
         /* ??? */
         kbd_update_irq(s);
         break;

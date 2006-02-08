@@ -83,6 +83,10 @@ typedef struct {
 typedef struct {
     PS2State common;
     int scan_enabled;
+    /* Qemu uses translated PC scancodes internally.  To avoid multiple
+       conversions we do the translation (if any) in the PS/2 emulation
+       not the keyboard controller.  */
+    int translate;
 } PS2KbdState;
 
 typedef struct {
@@ -98,6 +102,18 @@ typedef struct {
     int mouse_dz;
     uint8_t mouse_buttons;
 } PS2MouseState;
+
+/* Table to convert from PC scancodes to raw scancodes.  */
+static const unsigned char ps2_raw_keycode[128] = {
+          0,118, 22, 30, 38, 37, 46, 54, 61, 62, 70, 69, 78, 85,102, 13,
+         21, 29, 36, 45, 44, 53, 60, 67, 68, 77, 84, 91, 90, 20, 28, 27,
+         35, 43, 52, 51, 59, 66, 75, 76, 82, 14, 18, 93, 26, 34, 33, 42,
+         50, 49, 58, 65, 73, 74, 89,124, 17, 41, 88,  5,  6,  4, 12,  3,
+         11,  2, 10,  1,  9,119,126,108,117,125,123,107,115,116,121,105,
+        114,122,112,113,127, 96, 97,120,  7, 15, 23, 31, 39, 47, 55, 63,
+         71, 79, 86, 94,  8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 87,111,
+         19, 25, 57, 81, 83, 92, 95, 98, 99,100,101,103,104,106,109,110
+};
 
 void ps2_queue(void *opaque, int b)
 {
@@ -115,7 +131,13 @@ void ps2_queue(void *opaque, int b)
 
 static void ps2_put_keycode(void *opaque, int keycode)
 {
-    PS2MouseState *s = opaque;
+    PS2KbdState *s = opaque;
+    if (!s->translate && keycode < 0xe0)
+      {
+        if (keycode & 0x80)
+            ps2_queue(&s->common, 0xf0);
+        keycode = ps2_raw_keycode[keycode & 0x7f];
+      }
     ps2_queue(&s->common, keycode);
 }
 
@@ -212,6 +234,16 @@ void ps2_write_keyboard(void *opaque, int val)
         s->common.write_cmd = -1;
         break;
     }
+}
+
+/* Set the scancode translation mode.
+   0 = raw scancodes.
+   1 = translated scancodes (used by qemu internally).  */
+
+void ps2_keyboard_set_translation(void *opaque, int mode)
+{
+    PS2KbdState *s = (PS2KbdState *)opaque;
+    s->translate = mode;
 }
 
 static void ps2_mouse_send_packet(PS2MouseState *s)
