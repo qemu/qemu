@@ -4,7 +4,7 @@ RCS file: /cvsroot/bochs/bochs/bios/rombios.c,v
 retrieving revision 1.130
 diff -u -w -r1.130 rombios.c
 --- rombios.c	13 Feb 2005 08:47:30 -0000	1.130
-+++ rombios.c	6 Apr 2005 22:38:16 -0000
++++ rombios.c	9 Feb 2006 21:49:38 -0000
 @@ -8570,7 +8570,10 @@
  use32 386
  #define APM_PROT32
@@ -16,13 +16,41 @@ diff -u -w -r1.130 rombios.c
  
  #define APM_REAL
  #include "apmbios.S"
+@@ -8611,6 +8614,7 @@
+   mov al, #0x80
+ bios32_end:
+   popf
++  and dword ptr[esp+4],0xfffffffc ;; reset CS.RPL for kqemu
+   retf
+ 
+ .align 16
+@@ -8721,17 +8725,17 @@
+ pci_pro_fail:
+   pop edi
+   pop esi
+-  sti
+   popf
+   stc
++  and dword ptr[esp+4],0xfffffffc ;; reset CS.RPL for kqemu
+   retf
+ pci_pro_ok:
+   xor ah, ah
+   pop edi
+   pop esi
+-  sti
+   popf
+   clc
++  and dword ptr[esp+4],0xfffffffc ;; reset CS.RPL for kqemu
+   retf
+ 
+ pci_pro_select_reg:
 Index: apmbios.S
 ===================================================================
 RCS file: /cvsroot/bochs/bochs/bios/apmbios.S,v
 retrieving revision 1.1
 diff -u -w -r1.1 apmbios.S
 --- apmbios.S	20 Jun 2004 18:27:09 -0000	1.1
-+++ apmbios.S	6 Apr 2005 22:38:16 -0000
++++ apmbios.S	9 Feb 2006 21:49:38 -0000
 @@ -1,6 +1,9 @@
  //  APM BIOS support for the Bochs BIOS
  //  Copyright (C) 2004 Fabrice Bellard
