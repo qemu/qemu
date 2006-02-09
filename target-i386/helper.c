@@ -1122,8 +1122,7 @@ void do_interrupt_user(int intno, int is_int, int error_code,
 void do_interrupt(int intno, int is_int, int error_code, 
                   target_ulong next_eip, int is_hw)
 {
-#ifdef DEBUG_PCALL
-    if (loglevel & (CPU_LOG_PCALL | CPU_LOG_INT)) {
+    if (loglevel & CPU_LOG_INT) {
         if ((env->cr[0] & CR0_PE_MASK)) {
             static int count;
             fprintf(logfile, "%6d: v=%02x e=%04x i=%d cpl=%d IP=%04x:" TARGET_FMT_lx " pc=" TARGET_FMT_lx " SP=%04x:" TARGET_FMT_lx,
@@ -1138,8 +1137,8 @@ void do_interrupt(int intno, int is_int, int error_code,
                 fprintf(logfile, " EAX=" TARGET_FMT_lx, EAX);
             }
             fprintf(logfile, "\n");
-#if 0
             cpu_dump_state(env, logfile, fprintf, X86_DUMP_CCOP);
+#if 0
             {
                 int i;
                 uint8_t *ptr;
@@ -1154,7 +1153,6 @@ void do_interrupt(int intno, int is_int, int error_code,
             count++;
         }
     }
-#endif
     if (env->cr[0] & CR0_PE_MASK) {
 #if TARGET_X86_64
         if (env->hflags & HF_LMA_MASK) {
