@@ -924,6 +924,38 @@ struct target_stat64 {
 	unsigned long long	st_ino;
 } __attribute__((packed));
 
+#ifdef TARGET_ARM
+struct target_eabi_stat64 {
+        unsigned long long st_dev;
+        unsigned int    __pad1;
+        unsigned long   __st_ino;
+        unsigned int    st_mode;
+        unsigned int    st_nlink;
+
+        unsigned long   st_uid;
+        unsigned long   st_gid;
+
+        unsigned long long st_rdev;
+        unsigned int    __pad2[2];
+
+        long long       st_size;
+        unsigned long   st_blksize;
+        unsigned int    __pad3;
+        unsigned long long st_blocks;
+
+        unsigned long   target_st_atime;
+        unsigned long   target_st_atime_nsec;
+
+        unsigned long   target_st_mtime;
+        unsigned long   target_st_mtime_nsec;
+
+        unsigned long   target_st_ctime;
+        unsigned long   target_st_ctime_nsec;
+
+        unsigned long long st_ino;
+} __attribute__ ((packed));
+#endif
+
 #elif defined(TARGET_SPARC)
 
 struct target_stat {
@@ -1298,8 +1330,18 @@ struct target_flock64 {
 	unsigned long long l_start;
 	unsigned long long l_len;
 	int  l_pid;
-};
+}__attribute__((packed));
 
+#ifdef TARGET_ARM
+struct target_eabi_flock64 {
+	short  l_type;
+	short  l_whence;
+        int __pad;
+	unsigned long long l_start;
+	unsigned long long l_len;
+	int  l_pid;
+}__attribute__((packed));
+#endif
 
 /* soundcard defines */
 /* XXX: convert them all to arch indepedent entries */

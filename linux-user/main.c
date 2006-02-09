@@ -360,6 +360,7 @@ void cpu_loop(CPUARMState *env)
         case EXCP_SWI:
         case EXCP_BKPT:
             {
+                env->eabi = 1;
                 /* system call */
                 if (trapnr == EXCP_BKPT) {
                     if (env->thumb) {
@@ -386,13 +387,14 @@ void cpu_loop(CPUARMState *env)
                 } else if (n == ARM_NR_semihosting
                            || n == ARM_NR_thumb_semihosting) {
                     env->regs[0] = do_arm_semihosting (env);
-                } else if (n >= ARM_SYSCALL_BASE
+                } else if (n == 0 || n >= ARM_SYSCALL_BASE
                            || (env->thumb && n == ARM_THUMB_SYSCALL)) {
                     /* linux syscall */
-                    if (env->thumb) {
+                    if (env->thumb || n == 0) {
                         n = env->regs[7];
                     } else {
                         n -= ARM_SYSCALL_BASE;
+                        env->eabi = 0;
                     }
                     env->regs[0] = do_syscall(env, 
                                               n, 

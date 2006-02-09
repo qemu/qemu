@@ -110,6 +110,11 @@ typedef struct CPUARMState {
         float_status fp_status;
     } vfp;
 
+#if defined(CONFIG_USER_ONLY)
+    /* For usermode syscall translation.  */
+    int eabi;
+#endif
+
     CPU_COMMON
 
 } CPUARMState;

@@ -1651,6 +1651,45 @@ void syscall_init(void)
     }
 }
 
+static inline uint64_t target_offset64(uint32_t word0, uint32_t word1)
+{
+#ifdef TARGET_WORDS_BIG_ENDIAN
+    return ((uint64_t)word0 << 32) | word1;
+#else
+    return ((uint64_t)word1 << 32) | word0;
+#endif
+}
+
+#ifdef TARGET_NR_truncate64
+static inline long target_truncate64(void *cpu_env, const char *arg1,
+                                     long arg2, long arg3, long arg4)
+{
+#ifdef TARGET_ARM
+    if (((CPUARMState *)cpu_env)->eabi)
+      {
+        arg2 = arg3;
+        arg3 = arg4;
+      }
+#endif
+    return get_errno(truncate64(arg1, target_offset64(arg2, arg3)));
+}
+#endif
+
+#ifdef TARGET_NR_ftruncate64
+static inline long target_ftruncate64(void *cpu_env, long arg1, long arg2,
+                                      long arg3, long arg4)
+{
+#ifdef TARGET_ARM
+    if (((CPUARMState *)cpu_env)->eabi)
+      {
+        arg2 = arg3;
+        arg3 = arg4;
+      }
+#endif
+    return get_errno(ftruncate64(arg1, target_offset64(arg2, arg3)));
+}
+#endif
+
 long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3, 
                 long arg4, long arg5, long arg6)
 {
@@ -2844,12 +2883,12 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #endif
 #ifdef TARGET_NR_truncate64
     case TARGET_NR_truncate64:
-	ret = get_errno(truncate64((const char *)arg1, arg2));
+	ret = target_truncate64(cpu_env, (const char *)arg1, arg2, arg3, arg4);
 	break;
 #endif
 #ifdef TARGET_NR_ftruncate64
     case TARGET_NR_ftruncate64:
-	ret = get_errno(ftruncate64(arg1, arg2));
+	ret = target_ftruncate64(cpu_env, arg1, arg2, arg3, arg4);
 	break;
 #endif
 #ifdef TARGET_NR_stat64
@@ -2868,25 +2907,50 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             ret = get_errno(fstat(arg1, &st));
         do_stat64:
             if (!is_error(ret)) {
-                struct target_stat64 *target_st = (void *)arg2;
-                memset(target_st, 0, sizeof(struct target_stat64));
-                put_user(st.st_dev, &target_st->st_dev);
-                put_user(st.st_ino, &target_st->st_ino);
+#ifdef TARGET_ARM
+                if (((CPUARMState *)cpu_env)->eabi) {
+                    struct target_eabi_stat64 *target_st = (void *)arg2;
+                    memset(target_st, 0, sizeof(struct target_eabi_stat64));
+                    put_user(st.st_dev, &target_st->st_dev);
+                    put_user(st.st_ino, &target_st->st_ino);
 #ifdef TARGET_STAT64_HAS_BROKEN_ST_INO
-                put_user(st.st_ino, &target_st->__st_ino);
+                    put_user(st.st_ino, &target_st->__st_ino);
 #endif
-                put_user(st.st_mode, &target_st->st_mode);
-                put_user(st.st_nlink, &target_st->st_nlink);
-                put_user(st.st_uid, &target_st->st_uid);
-                put_user(st.st_gid, &target_st->st_gid);
-                put_user(st.st_rdev, &target_st->st_rdev);
-                /* XXX: better use of kernel struct */
-                put_user(st.st_size, &target_st->st_size);
-                put_user(st.st_blksize, &target_st->st_blksize);
-                put_user(st.st_blocks, &target_st->st_blocks);
-                put_user(st.st_atime, &target_st->target_st_atime);
-                put_user(st.st_mtime, &target_st->target_st_mtime);
-                put_user(st.st_ctime, &target_st->target_st_ctime);
+                    put_user(st.st_mode, &target_st->st_mode);
+                    put_user(st.st_nlink, &target_st->st_nlink);
+                    put_user(st.st_uid, &target_st->st_uid);
+                    put_user(st.st_gid, &target_st->st_gid);
+                    put_user(st.st_rdev, &target_st->st_rdev);
+                    /* XXX: better use of kernel struct */
+                    put_user(st.st_size, &target_st->st_size);
+                    put_user(st.st_blksize, &target_st->st_blksize);
+                    put_user(st.st_blocks, &target_st->st_blocks);
+                    put_user(st.st_atime, &target_st->target_st_atime);
+                    put_user(st.st_mtime, &target_st->target_st_mtime);
+                    put_user(st.st_ctime, &target_st->target_st_ctime);
+                } else
+#endif
+                {
+                    struct target_stat64 *target_st = (void *)arg2;
+                    memset(target_st, 0, sizeof(struct target_stat64));
+                    put_user(st.st_dev, &target_st->st_dev);
+                    put_user(st.st_ino, &target_st->st_ino);
+#ifdef TARGET_STAT64_HAS_BROKEN_ST_INO
+                    put_user(st.st_ino, &target_st->__st_ino);
+#endif
+                    put_user(st.st_mode, &target_st->st_mode);
+                    put_user(st.st_nlink, &target_st->st_nlink);
+                    put_user(st.st_uid, &target_st->st_uid);
+                    put_user(st.st_gid, &target_st->st_gid);
+                    put_user(st.st_rdev, &target_st->st_rdev);
+                    /* XXX: better use of kernel struct */
+                    put_user(st.st_size, &target_st->st_size);
+                    put_user(st.st_blksize, &target_st->st_blksize);
+                    put_user(st.st_blocks, &target_st->st_blocks);
+                    put_user(st.st_atime, &target_st->target_st_atime);
+                    put_user(st.st_mtime, &target_st->target_st_mtime);
+                    put_user(st.st_ctime, &target_st->target_st_ctime);
+                }
             }
         }
         break;
@@ -3150,26 +3214,51 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     {
 	struct flock64 fl;
 	struct target_flock64 *target_fl = (void *)arg3;
+#ifdef TARGET_ARM
+	struct target_eabi_flock64 *target_efl = (void *)arg3;
+#endif
 
         switch(arg2) {
         case F_GETLK64:
             ret = get_errno(fcntl(arg1, arg2, &fl));
 	    if (ret == 0) {
-		target_fl->l_type = tswap16(fl.l_type);
-		target_fl->l_whence = tswap16(fl.l_whence);
-		target_fl->l_start = tswap64(fl.l_start);
-		target_fl->l_len = tswap64(fl.l_len);
-		target_fl->l_pid = tswapl(fl.l_pid);
+#ifdef TARGET_ARM
+                if (((CPUARMState *)cpu_env)->eabi) {
+                    target_efl->l_type = tswap16(fl.l_type);
+                    target_efl->l_whence = tswap16(fl.l_whence);
+                    target_efl->l_start = tswap64(fl.l_start);
+                    target_efl->l_len = tswap64(fl.l_len);
+                    target_efl->l_pid = tswapl(fl.l_pid);
+                } else
+#endif
+                {
+                    target_fl->l_type = tswap16(fl.l_type);
+                    target_fl->l_whence = tswap16(fl.l_whence);
+                    target_fl->l_start = tswap64(fl.l_start);
+                    target_fl->l_len = tswap64(fl.l_len);
+                    target_fl->l_pid = tswapl(fl.l_pid);
+                }
 	    }
 	    break;
 
         case F_SETLK64:
         case F_SETLKW64:
-	    fl.l_type = tswap16(target_fl->l_type);
-	    fl.l_whence = tswap16(target_fl->l_whence);
-	    fl.l_start = tswap64(target_fl->l_start);
-	    fl.l_len = tswap64(target_fl->l_len);
-	    fl.l_pid = tswapl(target_fl->l_pid);
+#ifdef TARGET_ARM
+            if (((CPUARMState *)cpu_env)->eabi) {
+                fl.l_type = tswap16(target_efl->l_type);
+                fl.l_whence = tswap16(target_efl->l_whence);
+                fl.l_start = tswap64(target_efl->l_start);
+                fl.l_len = tswap64(target_efl->l_len);
+                fl.l_pid = tswapl(target_efl->l_pid);
+            } else
+#endif
+            {
+                fl.l_type = tswap16(target_fl->l_type);
+                fl.l_whence = tswap16(target_fl->l_whence);
+                fl.l_start = tswap64(target_fl->l_start);
+                fl.l_len = tswap64(target_fl->l_len);
+                fl.l_pid = tswapl(target_fl->l_pid);
+            }
             ret = get_errno(fcntl(arg1, arg2, &fl));
 	    break;
         default:
