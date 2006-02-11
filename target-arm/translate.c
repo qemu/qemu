@@ -1033,7 +1033,7 @@ static inline void gen_mulxy(int x, int y)
 }
 
 /* Return the mask of PSR bits set by a MSR instruction.  */
-static uint32_t msr_mask(DisasContext *s, int flags) {
+static uint32_t msr_mask(DisasContext *s, int flags, int spsr) {
     uint32_t mask;
 
     mask = 0;
@@ -1045,8 +1045,11 @@ static uint32_t msr_mask(DisasContext *s, int flags) {
         mask |= 0xff0000;
     if (flags & (1 << 3))
         mask |= 0xff000000;
-    /* Mask out undefined bits and state bits.  */
-    mask &= 0xf89f03df;
+    /* Mask out undefined bits.  */
+    mask &= 0xf90f03ff;
+    /* Mask out state bits.  */
+    if (!spsr)
+        mask &= ~0x01000020;
     /* Mask out privileged bits.  */
     if (IS_USER(s))
         mask &= 0xf80f0200;
@@ -1138,8 +1141,8 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
         if (shift)
             val = (val >> shift) | (val << (32 - shift));
         gen_op_movl_T0_im(val);
-        if (gen_set_psr_T0(s, msr_mask(s, (insn >> 16) & 0xf),
-                           (insn & (1 << 22)) != 0))
+        i = ((insn & (1 << 22)) != 0);
+        if (gen_set_psr_T0(s, msr_mask(s, (insn >> 16) & 0xf, i), i))
             goto illegal_op;
     } else if ((insn & 0x0f900000) == 0x01000000
                && (insn & 0x00000090) != 0x00000090) {
@@ -1152,11 +1155,11 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             if (op1 & 1) {
                 /* PSR = reg */
                 gen_movl_T0_reg(s, rm);
-                if (gen_set_psr_T0(s, msr_mask(s, (insn >> 16) & 0xf),
-                                   (op1 & 2) != 0))
+                i = ((op1 & 2) != 0);
+                if (gen_set_psr_T0(s, msr_mask(s, (insn >> 16) & 0xf, i), i))
                     goto illegal_op;
             } else {
-                /* reg = CPSR */
+                /* reg = PSR */
                 rd = (insn >> 12) & 0xf;
                 if (op1 & 2) {
                     if (IS_USER(s))
