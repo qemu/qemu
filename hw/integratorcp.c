@@ -1135,22 +1135,22 @@ static void set_kernel_args(uint32_t ram_size, int initrd_size,
 
     p = (uint32_t *)(phys_ram_base + KERNEL_ARGS_ADDR);
     /* ATAG_CORE */
-    *(p++) = 5;
-    *(p++) = 0x54410001;
-    *(p++) = 1;
-    *(p++) = 0x1000;
-    *(p++) = 0;
+    stl_raw(p++, 5);
+    stl_raw(p++, 0x54410001);
+    stl_raw(p++, 1);
+    stl_raw(p++, 0x1000);
+    stl_raw(p++, 0);
     /* ATAG_MEM */
-    *(p++) = 4;
-    *(p++) = 0x54410002;
-    *(p++) = ram_size;
-    *(p++) = 0;
+    stl_raw(p++, 4);
+    stl_raw(p++, 0x54410002);
+    stl_raw(p++, ram_size);
+    stl_raw(p++, 0);
     if (initrd_size) {
         /* ATAG_INITRD2 */
-        *(p++) = 4;
-        *(p++) = 0x54420005;
-        *(p++) = INITRD_LOAD_ADDR;
-        *(p++) = initrd_size;
+        stl_raw(p++, 4);
+        stl_raw(p++, 0x54420005);
+        stl_raw(p++, INITRD_LOAD_ADDR);
+        stl_raw(p++, initrd_size);
     }
     if (kernel_cmdline && *kernel_cmdline) {
         /* ATAG_CMDLINE */
@@ -1159,13 +1159,13 @@ static void set_kernel_args(uint32_t ram_size, int initrd_size,
         cmdline_size = strlen(kernel_cmdline);
         memcpy (p + 2, kernel_cmdline, cmdline_size + 1);
         cmdline_size = (cmdline_size >> 2) + 1;
-        *(p++) = cmdline_size + 2;
-        *(p++) = 0x54410009;
+        stl_raw(p++, cmdline_size + 2);
+        stl_raw(p++, 0x54410009);
         p += cmdline_size;
     }
     /* ATAG_END */
-    *(p++) = 0;
-    *(p++) = 0;
+    stl_raw(p++, 0);
+    stl_raw(p++, 0);
 }
 
 /* Board init.  */
@@ -1180,6 +1180,7 @@ static void integratorcp_init(int ram_size, int vga_ram_size, int boot_device,
     icp_pic_state *pic;
     int kernel_size;
     int initrd_size;
+    int n;
 
     env = cpu_init();
     bios_offset = ram_size + vga_ram_size;
@@ -1234,7 +1235,8 @@ static void integratorcp_init(int ram_size, int vga_ram_size, int boot_device,
     }
     bootloader[5] = KERNEL_ARGS_ADDR;
     bootloader[6] = KERNEL_LOAD_ADDR;
-    memcpy(phys_ram_base, bootloader, sizeof(bootloader));
+    for (n = 0; n < sizeof(bootloader) / 4; n++)
+        stl_raw(phys_ram_base + (n * 4), bootloader[n]);
     set_kernel_args(ram_size, initrd_size, kernel_cmdline);
 }
 
