@@ -671,7 +671,7 @@ int tap_win32_init(VLANState *vlan, const char *ifname)
         return -1;
     }
 
-    s->vc = qemu_new_vlan_client(vlan, tap_receive, s);
+    s->vc = qemu_new_vlan_client(vlan, tap_receive, NULL, s);
     
     snprintf(s->vc->info_str, sizeof(s->vc->info_str),
              "tap: ifname=%s", ifname);
