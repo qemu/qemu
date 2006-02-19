@@ -92,7 +92,7 @@ static void glue(pl110_draw_line1_,NAME)(uint32_t *pallette, uint8_t *d, const u
 #else
 #define FN(x, y) COPY_PIXEL(d, pallette[(data >> ((x) + y)) & 1]);
 #endif
-#ifdef SWAP_BYTES
+#ifdef SWAP_WORDS
         FN_8(24)
         FN_8(16)
         FN_8(8)
@@ -119,7 +119,7 @@ static void glue(pl110_draw_line2_,NAME)(uint32_t *pallette, uint8_t *d, const u
 #else
 #define FN(x, y) COPY_PIXEL(d, pallette[(data >> ((x)*2 + y)) & 3]);
 #endif
-#ifdef SWAP_BYTES
+#ifdef SWAP_WORDS
         FN_4(0, 24)
         FN_4(0, 16)
         FN_4(0, 8)
@@ -146,7 +146,7 @@ static void glue(pl110_draw_line4_,NAME)(uint32_t *pallette, uint8_t *d, const u
 #else
 #define FN(x, y) COPY_PIXEL(d, pallette[(data >> ((x)*4 + y)) & 0xf]);
 #endif
-#ifdef SWAP_BYTES
+#ifdef SWAP_WORDS
         FN_2(0, 24)
         FN_2(0, 16)
         FN_2(0, 8)
@@ -169,7 +169,7 @@ static void glue(pl110_draw_line8_,NAME)(uint32_t *pallette, uint8_t *d, const u
     while (width > 0) {
         data = *(uint32_t *)src;
 #define FN(x) COPY_PIXEL(d, pallette[(data >> (x)) & 0xff]);
-#ifdef SWAP_BYTES
+#ifdef SWAP_WORDS
         FN(24)
         FN(16)
         FN(8)
@@ -192,7 +192,7 @@ static void glue(pl110_draw_line16_,NAME)(uint32_t *pallette, uint8_t *d, const 
     unsigned int r, g, b;
     while (width > 0) {
         data = *(uint32_t *)src;
-#ifdef SWAP_BYTES
+#ifdef SWAP_WORDS
         data = bswap32(data);
 #endif
 #if 0
@@ -229,7 +229,7 @@ static void glue(pl110_draw_line32_,NAME)(uint32_t *pallette, uint8_t *d, const 
     unsigned int r, g, b;
     while (width > 0) {
         data = *(uint32_t *)src;
-#ifdef SWAP_BYTES
+#ifdef SWAP_WORDS
         r = data & 0xff;
         g = (data >> 8) & 0xff;
         b = (data >> 16) & 0xff;
