@@ -5,6 +5,61 @@
 #include "cpu.h"
 #include "exec-all.h"
 
+void cpu_reset(CPUARMState *env)
+{
+#if defined (CONFIG_USER_ONLY)
+    env->uncached_cpsr = ARM_CPU_MODE_USR;
+    env->vfp.xregs[ARM_VFP_FPEXC] = 1 << 30;
+#else
+    /* SVC mode with interrupts disabled.  */
+    env->uncached_cpsr = ARM_CPU_MODE_SVC | CPSR_A | CPSR_F | CPSR_I;
+    env->vfp.xregs[ARM_VFP_FPEXC] = 0;
+#endif
+    env->regs[15] = 0;
+}
+
+CPUARMState *cpu_arm_init(void)
+{
+    CPUARMState *env;
+
+    env = qemu_mallocz(sizeof(CPUARMState));
+    if (!env)
+        return NULL;
+    cpu_exec_init(env);
+    cpu_reset(env);
+    tlb_flush(env, 1);
+    return env;
+}
+
+static inline void set_feature(CPUARMState *env, int feature)
+{
+    env->features |= 1u << feature;
+}
+
+void cpu_arm_set_model(CPUARMState *env, uint32_t id)
+{
+    env->cp15.c0_cpuid = id;
+    switch (id) {
+    case ARM_CPUID_ARM926:
+        set_feature(env, ARM_FEATURE_VFP);
+        env->vfp.xregs[ARM_VFP_FPSID] = 0x41011090;
+        break;
+    case ARM_CPUID_ARM1026:
+        set_feature(env, ARM_FEATURE_VFP);
+        set_feature(env, ARM_FEATURE_AUXCR);
+        env->vfp.xregs[ARM_VFP_FPSID] = 0x410110a0;
+        break;
+    default:
+        cpu_abort(env, "Bad CPU ID: %x\n", id);
+        break;
+    }
+}
+
+void cpu_arm_close(CPUARMState *env)
+{
+    free(env);
+}
+
 #if defined(CONFIG_USER_ONLY) 
 
 void do_interrupt (CPUState *env)
@@ -469,7 +524,7 @@ uint32_t helper_get_cp15(CPUState *env, uint32_t insn)
     case 0: /* ID codes.  */
         switch (op2) {
         default: /* Device ID.  */
-            return 0x4106a262;
+            return env->cp15.c0_cpuid;
         case 1: /* Cache Type.  */
             return 0x1dd20d2;
         case 2: /* TCM status.  */
@@ -480,7 +535,9 @@ uint32_t helper_get_cp15(CPUState *env, uint32_t insn)
         case 0: /* Control register.  */
             return env->cp15.c1_sys;
         case 1: /* Auxiliary control register.  */
-            return 1;
+            if (arm_feature(env, ARM_FEATURE_AUXCR))
+                return 1;
+            goto bad_reg;
         case 2: /* Coprocessor access register.  */
             return env->cp15.c1_coproc;
         default:
@@ -506,6 +563,8 @@ uint32_t helper_get_cp15(CPUState *env, uint32_t insn)
         case 0:
             return env->cp15.c6_data;
         case 1:
+            /* Arm9 doesn't have an IFAR, but implementing it anyway shouldn't
+               do any harm.  */
             return env->cp15.c6_insn;
         default:
             goto bad_reg;

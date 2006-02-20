@@ -72,7 +72,8 @@ void do_vfp_cmp##p(void)                  \
     case 1: flags = 0x2; break;\
     default: case 2: flags = 0x3; break;\
     }\
-    env->vfp.fpscr = (flags << 28) | (env->vfp.fpscr & 0x0fffffff); \
+    env->vfp.xregs[ARM_VFP_FPSCR] = (flags << 28)\
+        | (env->vfp.xregs[ARM_VFP_FPSCR] & 0x0fffffff); \
     FORCE_RET();                          \
 }\
 \
@@ -85,7 +86,8 @@ void do_vfp_cmpe##p(void)                   \
     case 1: flags = 0x2; break;\
     default: case 2: flags = 0x3; break;\
     }\
-    env->vfp.fpscr = (flags << 28) | (env->vfp.fpscr & 0x0fffffff); \
+    env->vfp.xregs[ARM_VFP_FPSCR] = (flags << 28)\
+        | (env->vfp.xregs[ARM_VFP_FPSCR] & 0x0fffffff); \
     FORCE_RET();                          \
 }
 DO_VFP_cmp(s, 32)
@@ -133,8 +135,8 @@ void do_vfp_set_fpscr(void)
     int i;
     uint32_t changed;
 
-    changed = env->vfp.fpscr;
-    env->vfp.fpscr = (T0 & 0xffc8ffff);
+    changed = env->vfp.xregs[ARM_VFP_FPSCR];
+    env->vfp.xregs[ARM_VFP_FPSCR] = (T0 & 0xffc8ffff);
     env->vfp.vec_len = (T0 >> 16) & 7;
     env->vfp.vec_stride = (T0 >> 20) & 3;
 
@@ -167,7 +169,7 @@ void do_vfp_get_fpscr(void)
 {
     int i;
 
-    T0 = (env->vfp.fpscr & 0xffc8ffff) | (env->vfp.vec_len << 16)
+    T0 = (env->vfp.xregs[ARM_VFP_FPSCR] & 0xffc8ffff) | (env->vfp.vec_len << 16)
           | (env->vfp.vec_stride << 20);
     i = get_float_exception_flags(&env->vfp.fp_status);
     T0 |= vfp_exceptbits_from_host(i);

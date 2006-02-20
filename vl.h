@@ -960,7 +960,8 @@ void do_usb_del(const char *devname);
 void usb_info(void);
 
 /* integratorcp.c */
-extern QEMUMachine integratorcp_machine;
+extern QEMUMachine integratorcp926_machine;
+extern QEMUMachine integratorcp1026_machine;
 
 /* ps2.c */
 void *ps2_kbd_init(void (*update_irq)(void *, int), void *update_arg);

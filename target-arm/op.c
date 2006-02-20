@@ -1094,12 +1094,22 @@ void OPPROTO op_vfp_movl_T0_fpscr(void)
 
 void OPPROTO op_vfp_movl_T0_fpscr_flags(void)
 {
-    T0 = env->vfp.fpscr & (0xf << 28);
+    T0 = env->vfp.xregs[ARM_VFP_FPSCR] & (0xf << 28);
 }
 
 void OPPROTO op_vfp_movl_fpscr_T0(void)
 {
     do_vfp_set_fpscr();
+}
+
+void OPPROTO op_vfp_movl_T0_xreg(void)
+{
+    T0 = env->vfp.xregs[PARAM1];
+}
+
+void OPPROTO op_vfp_movl_xreg_T0(void)
+{
+    env->vfp.xregs[PARAM1] = T0;
 }
 
 /* Move between FT0s to T0  */

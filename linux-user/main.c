@@ -1609,6 +1609,7 @@ int main(int argc, char **argv)
 #elif defined(TARGET_ARM)
     {
         int i;
+        cpu_arm_set_model(env, ARM_CPUID_ARM1026);
         cpsr_write(env, regs->uregs[16], 0xffffffff);
         for(i = 0; i < 16; i++) {
             env->regs[i] = regs->uregs[i];

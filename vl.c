@@ -4435,7 +4435,8 @@ void register_machines(void)
     qemu_register_machine(&sun4m_machine);
 #endif
 #elif defined(TARGET_ARM)
-    qemu_register_machine(&integratorcp_machine);
+    qemu_register_machine(&integratorcp926_machine);
+    qemu_register_machine(&integratorcp1026_machine);
 #else
 #error unsupported CPU
 #endif

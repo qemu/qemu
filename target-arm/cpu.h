@@ -72,6 +72,7 @@ typedef struct CPUARMState {
 
     /* System control coprocessor (cp15) */
     struct {
+        uint32_t c0_cpuid;
         uint32_t c1_sys; /* System control register.  */
         uint32_t c1_coproc; /* Coprocessor access register.  */
         uint32_t c2; /* MMU translation table base.  */
@@ -85,7 +86,10 @@ typedef struct CPUARMState {
         uint32_t c13_fcse; /* FCSE PID.  */
         uint32_t c13_context; /* Context ID.  */
     } cp15;
-    
+
+    /* Internal CPU feature flags.  */
+    uint32_t features;
+
     /* exception/interrupt handling */
     jmp_buf jmp_env;
     int exception_index;
@@ -97,11 +101,10 @@ typedef struct CPUARMState {
     struct {
         float64 regs[16];
 
+        uint32_t xregs[16];
         /* We store these fpcsr fields separately for convenience.  */
         int vec_len;
         int vec_stride;
-
-        uint32_t fpscr;
 
         /* Temporary variables if we don't have spare fp regs.  */
         float32 tmp0s, tmp1s;
@@ -186,6 +189,29 @@ enum arm_cpu_mode {
   ARM_CPU_MODE_UND = 0x1b,
   ARM_CPU_MODE_SYS = 0x1f
 };
+
+/* VFP system registers.  */
+#define ARM_VFP_FPSID   0
+#define ARM_VFP_FPSCR   1
+#define ARM_VFP_FPEXC   8
+#define ARM_VFP_FPINST  9
+#define ARM_VFP_FPINST2 10
+
+
+enum arm_features {
+    ARM_FEATURE_VFP,
+    ARM_FEATURE_AUXCR /* ARM1026 Auxiliary control register.  */
+};
+
+static inline int arm_feature(CPUARMState *env, int feature)
+{
+    return (env->features & (1u << feature)) != 0;
+}
+
+void cpu_arm_set_model(CPUARMState *env, uint32_t id);
+
+#define ARM_CPUID_ARM1026 0x4106a262
+#define ARM_CPUID_ARM926  0x41069265
 
 #if defined(CONFIG_USER_ONLY)
 #define TARGET_PAGE_BITS 12

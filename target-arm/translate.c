@@ -526,6 +526,17 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
     uint32_t rd, rn, rm, op, i, n, offset, delta_d, delta_m, bank_mask;
     int dp, veclen;
 
+    if (!arm_feature(env, ARM_FEATURE_VFP))
+        return 1;
+
+    if ((env->vfp.xregs[ARM_VFP_FPEXC] & (1 << 30)) == 0) {
+        /* VFP disabled.  Only allow fmxr/fmrx to/from fpexc and fpsid.  */
+        if ((insn & 0x0fe00fff) != 0x0ee00a10)
+            return 1;
+        rn = (insn >> 16) & 0xf;
+        if (rn != 0 && rn != 8)
+            return 1;
+    }
     dp = ((insn & 0xf00) == 0xb00);
     switch ((insn >> 24) & 0xf) {
     case 0xe:
@@ -563,11 +574,15 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     /* vfp->arm */
                     if (insn & (1 << 21)) {
                         /* system register */
+                        rn >>= 1;
                         switch (rn) {
-                        case 0: /* fpsid */
-                            n = 0x0091A0000;
+                        case ARM_VFP_FPSID:
+                        case ARM_VFP_FPEXC:
+                        case ARM_VFP_FPINST:
+                        case ARM_VFP_FPINST2:
+                            gen_op_vfp_movl_T0_xreg(rn);
                             break;
-                        case 2: /* fpscr */
+                        case ARM_VFP_FPSCR:
 			    if (rd == 15)
 				gen_op_vfp_movl_T0_fpscr_flags();
 			    else
@@ -589,16 +604,23 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     /* arm->vfp */
                     gen_movl_T0_reg(s, rd);
                     if (insn & (1 << 21)) {
+                        rn >>= 1;
                         /* system register */
                         switch (rn) {
-                        case 0: /* fpsid */
+                        case ARM_VFP_FPSID:
                             /* Writes are ignored.  */
                             break;
-                        case 2: /* fpscr */
+                        case ARM_VFP_FPSCR:
                             gen_op_vfp_movl_fpscr_T0();
-                            /* This could change vector settings, so jump to
-                               the next instuction.  */
                             gen_lookup_tb(s);
+                            break;
+                        case ARM_VFP_FPEXC:
+                            gen_op_vfp_movl_xreg_T0(rn);
+                            gen_lookup_tb(s);
+                            break;
+                        case ARM_VFP_FPINST:
+                        case ARM_VFP_FPINST2:
+                            gen_op_vfp_movl_xreg_T0(rn);
                             break;
                         default:
                             return 1;
@@ -2456,35 +2478,6 @@ int gen_intermediate_code_pc(CPUState *env, TranslationBlock *tb)
     return gen_intermediate_code_internal(env, tb, 1);
 }
 
-void cpu_reset(CPUARMState *env)
-{
-#if defined (CONFIG_USER_ONLY)
-    env->uncached_cpsr = ARM_CPU_MODE_USR;
-#else
-    /* SVC mode with interrupts disabled.  */
-    env->uncached_cpsr = ARM_CPU_MODE_SVC | CPSR_A | CPSR_F | CPSR_I;
-#endif
-    env->regs[15] = 0;
-}
-
-CPUARMState *cpu_arm_init(void)
-{
-    CPUARMState *env;
-
-    env = qemu_mallocz(sizeof(CPUARMState));
-    if (!env)
-        return NULL;
-    cpu_exec_init(env);
-    cpu_reset(env);
-    tlb_flush(env, 1);
-    return env;
-}
-
-void cpu_arm_close(CPUARMState *env)
-{
-    free(env);
-}
-
 static const char *cpu_mode_names[16] = {
   "usr", "fiq", "irq", "svc", "???", "???", "???", "abt",
   "???", "???", "???", "und", "???", "???", "???", "sys"
@@ -2528,6 +2521,6 @@ void cpu_dump_state(CPUState *env, FILE *f,
                     i, (int)(uint32_t)d.l.upper, (int)(uint32_t)d.l.lower,
                     d.d);
     }
-    cpu_fprintf(f, "FPSCR: %08x\n", (int)env->vfp.fpscr);
+    cpu_fprintf(f, "FPSCR: %08x\n", (int)env->vfp.xregs[ARM_VFP_FPSCR]);
 }
 

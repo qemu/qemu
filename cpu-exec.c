@@ -169,6 +169,8 @@ static inline TranslationBlock *tb_find_fast(void)
             | (env->vfp.vec_stride << 4);
     if ((env->uncached_cpsr & CPSR_M) != ARM_CPU_MODE_USR)
         flags |= (1 << 6);
+    if (env->vfp.xregs[ARM_VFP_FPEXC] & (1 << 30))
+        flags |= (1 << 7);
     cs_base = 0;
     pc = env->regs[15];
 #elif defined(TARGET_SPARC)
