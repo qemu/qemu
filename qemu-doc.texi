@@ -47,7 +47,7 @@ For system emulation, the following hardware targets are supported:
 @item Sun4m (32-bit Sparc processor)
 @item Sun4u (64-bit Sparc processor, in progress)
 @item Malta board (32-bit MIPS processor)
-@item ARM Integrator/CP (ARM1026E processor)
+@item ARM Integrator/CP (ARM926E or 1026E processor)
 @end itemize
 
 For user emulation, x86, PowerPC, ARM, MIPS, and Sparc32/64 CPUs are supported.
@@ -1383,7 +1383,7 @@ devices:
 
 @itemize @minus
 @item
-ARM1026E CPU
+ARM926E or ARM1026E CPU
 @item
 Two PL011 UARTs
 @item 
