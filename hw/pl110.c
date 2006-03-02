@@ -321,6 +321,7 @@ static void pl110_write(void *opaque, target_phys_addr_t offset,
         n = (offset - 0x200) >> 2;
         s->raw_pallette[(offset - 0x200) >> 2] = val;
         pl110_update_pallette(s, n);
+        return;
     }
     switch (offset >> 2) {
     case 0: /* LCDTiming0 */
