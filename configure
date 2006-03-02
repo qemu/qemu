@@ -692,9 +692,6 @@ elif test "$target_cpu" = "x86_64" ; then
   echo "#define TARGET_X86_64 1" >> $config_h
   if test $kqemu = "yes" -a "$target_softmmu" = "yes" -a $cpu = "x86_64"  ; then
     echo "#define USE_KQEMU 1" >> $config_h
-    if test $kqemu_profile = "yes" ; then
-      echo "#define CONFIG_KQEMU_PROFILE 1" >> $config_h
-    fi
   fi
 elif test "$target_cpu" = "mips" -o "$target_cpu" = "mipsel" ; then
   echo "TARGET_ARCH=mips" >> $config_mak
