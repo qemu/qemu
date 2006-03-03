@@ -24,7 +24,8 @@
 #if 0
 #define raise_exception_err(a, b)\
 do {\
-    fprintf(logfile, "raise_exception line=%d\n", __LINE__);\
+    if (logfile)\
+        fprintf(logfile, "raise_exception line=%d\n", __LINE__);\
     (raise_exception_err)(a, b);\
 } while (0)
 #endif
@@ -215,11 +216,11 @@ static void tss_load_seg(int seg_reg, int selector)
         if (seg_reg == R_CS) {
             if (!(e2 & DESC_CS_MASK))
                 raise_exception_err(EXCP0A_TSS, selector & 0xfffc);
+            /* XXX: is it correct ? */
             if (dpl != rpl)
                 raise_exception_err(EXCP0A_TSS, selector & 0xfffc);
             if ((e2 & DESC_C_MASK) && dpl > rpl)
                 raise_exception_err(EXCP0A_TSS, selector & 0xfffc);
-                
         } else if (seg_reg == R_SS) {
             /* SS must be writable data */
             if ((e2 & DESC_CS_MASK) || !(e2 & DESC_W_MASK))
@@ -890,6 +891,7 @@ static void do_interrupt64(int intno, int is_int, int error_code,
             esp = get_rsp_from_tss(ist + 3);
         else
             esp = get_rsp_from_tss(dpl);
+        esp &= ~0xfLL; /* align stack */
         ss = 0;
         new_stack = 1;
     } else if ((e2 & DESC_C_MASK) || dpl == cpl) {
@@ -897,7 +899,11 @@ static void do_interrupt64(int intno, int is_int, int error_code,
         if (env->eflags & VM_MASK)
             raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
         new_stack = 0;
-        esp = ESP & ~0xf; /* align stack */
+        if (ist != 0)
+            esp = get_rsp_from_tss(ist + 3);
+        else
+            esp = ESP;
+        esp &= ~0xfLL; /* align stack */
         dpl = cpl;
     } else {
         raise_exception_err(EXCP0D_GPF, selector & 0xfffc);
@@ -946,8 +952,12 @@ void helper_syscall(int next_eip_addend)
     selector = (env->star >> 32) & 0xffff;
 #ifdef TARGET_X86_64
     if (env->hflags & HF_LMA_MASK) {
+        int code64;
+
         ECX = env->eip + next_eip_addend;
         env->regs[11] = compute_eflags();
+        
+        code64 = env->hflags & HF_CS64_MASK;
 
         cpu_x86_set_cpl(env, 0);
         cpu_x86_load_seg_cache(env, R_CS, selector & 0xfffc, 
@@ -961,7 +971,7 @@ void helper_syscall(int next_eip_addend)
                                DESC_S_MASK |
                                DESC_W_MASK | DESC_A_MASK);
         env->eflags &= ~env->fmask;
-        if (env->hflags & HF_CS64_MASK)
+        if (code64)
             env->eip = env->lstar;
         else
             env->eip = env->cstar;
