@@ -149,7 +149,7 @@ struct CPUMIPSState {
     int user_mode_only; /* user mode only simulation */
     uint32_t hflags;    /* CPU State */
     /* TMASK defines different execution modes */
-#define MIPS_HFLAGS_TMASK 0x00FF
+#define MIPS_HFLAG_TMASK  0x007F
 #define MIPS_HFLAG_MODE   0x001F /* execution modes                    */
 #define MIPS_HFLAG_UM     0x0001 /* user mode                          */
 #define MIPS_HFLAG_ERL    0x0002 /* Error mode                         */
