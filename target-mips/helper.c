@@ -326,6 +326,7 @@ void do_interrupt (CPUState *env)
              * come back to the jump
              */
             env->CP0_ErrorEPC = env->PC - 4;
+            env->hflags &= ~MIPS_HFLAG_BMASK;
         } else {
             env->CP0_ErrorEPC = env->PC;
         }
