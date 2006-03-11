@@ -50,17 +50,16 @@ static int map_address (CPUState *env, target_ulong *physical, int *prot,
             /* TLB match */
             n = (address >> 12) & 1;
             /* Check access rights */
-            if ((tlb->V[n] & 2) && (rw == 0 || (tlb->D[n] & 4))) {
+	    if (!(n ? tlb->V1 : tlb->V0))
+                return -3;
+	    if (rw == 0 || (n ? tlb->D1 : tlb->D0)) {
                 *physical = tlb->PFN[n] | (address & 0xFFF);
                 *prot = PAGE_READ;
-                if (tlb->D[n])
+                if (n ? tlb->D1 : tlb->D0)
                     *prot |= PAGE_WRITE;
                 return 0;
-            } else if (!(tlb->V[n] & 2)) {
-                return -3;
-            } else {
-                return -4;
             }
+            return -4;
         }
     }
 

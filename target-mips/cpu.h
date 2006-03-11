@@ -21,11 +21,14 @@ struct tlb_t {
     target_ulong VPN;
     target_ulong end;
     target_ulong end2;
-    uint8_t ASID;
-    uint8_t G;
-    uint8_t C[2];
-    uint8_t V[2];
-    uint8_t D[2];
+    uint_fast8_t ASID;
+    uint_fast16_t G:1;
+    uint_fast16_t C0:3;
+    uint_fast16_t C1:3;
+    uint_fast16_t V0:1;
+    uint_fast16_t V1:1;
+    uint_fast16_t D0:1;
+    uint_fast16_t D1:1;
     target_ulong PFN[2];
 };
 #endif

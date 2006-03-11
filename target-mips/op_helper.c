@@ -535,30 +535,22 @@ void do_mtc0 (int reg, int sel)
 
 /* TLB management */
 #if defined(MIPS_USES_R4K_TLB)
-static void invalidate_tb (int idx)
+static void invalidate_tlb (int idx)
 {
     tlb_t *tlb;
-    target_ulong addr, end;
+    target_ulong addr;
 
     tlb = &env->tlb[idx];
-    if (tlb->V[0]) {
-        addr = tlb->PFN[0];
-        end = addr + (tlb->end - tlb->VPN);
-        tb_invalidate_page_range(addr, end);
-        /* FIXME: Might be faster to just invalidate the whole "tlb" here
-           and refill it on demand from our simulated TLB.  */
+    if (tlb->V0) {
+        tb_invalidate_page_range(tlb->PFN[0], tlb->end - tlb->VPN);
         addr = tlb->VPN;
         while (addr < tlb->end) {
             tlb_flush_page (env, addr);
             addr += TARGET_PAGE_SIZE;
         }
     }
-    if (tlb->V[1]) {
-        addr = tlb->PFN[1];
-        end = addr + (tlb->end - tlb->VPN);
-        tb_invalidate_page_range(addr, end);
-        /* FIXME: Might be faster to just invalidate the whole "tlb" here
-           and refill it on demand from our simulated TLB.  */
+    if (tlb->V1) {
+        tb_invalidate_page_range(tlb->PFN[1], tlb->end2 - tlb->end);
         addr = tlb->end;
         while (addr < tlb->end2) {
             tlb_flush_page (env, addr);
@@ -567,7 +559,7 @@ static void invalidate_tb (int idx)
     }
 }
 
-static void fill_tb (int idx)
+static void fill_tlb (int idx)
 {
     tlb_t *tlb;
     int size;
@@ -575,19 +567,19 @@ static void fill_tb (int idx)
     /* XXX: detect conflicting TLBs and raise a MCHECK exception when needed */
     tlb = &env->tlb[idx];
     tlb->VPN = env->CP0_EntryHi & 0xFFFFE000;
-    tlb->ASID = env->CP0_EntryHi & 0x000000FF;
+    tlb->ASID = env->CP0_EntryHi & 0xFF;
     size = env->CP0_PageMask >> 13;
     size = 4 * (size + 1);
     tlb->end = tlb->VPN + (1 << (8 + size));
     tlb->end2 = tlb->end + (1 << (8 + size));
     tlb->G = env->CP0_EntryLo0 & env->CP0_EntryLo1 & 1;
-    tlb->V[0] = env->CP0_EntryLo0 & 2;
-    tlb->D[0] = env->CP0_EntryLo0 & 4;
-    tlb->C[0] = (env->CP0_EntryLo0 >> 3) & 0x7;
+    tlb->V0 = (env->CP0_EntryLo0 & 2) != 0;
+    tlb->D0 = (env->CP0_EntryLo0 & 4) != 0;
+    tlb->C0 = (env->CP0_EntryLo0 >> 3) & 0x7;
     tlb->PFN[0] = (env->CP0_EntryLo0 >> 6) << 12;
-    tlb->V[1] = env->CP0_EntryLo1 & 2;
-    tlb->D[1] = env->CP0_EntryLo1 & 4;
-    tlb->C[1] = (env->CP0_EntryLo1 >> 3) & 0x7;
+    tlb->V1 = (env->CP0_EntryLo1 & 2) != 0;
+    tlb->D1 = (env->CP0_EntryLo1 & 4) != 0;
+    tlb->C1 = (env->CP0_EntryLo1 >> 3) & 0x7;
     tlb->PFN[1] = (env->CP0_EntryLo1 >> 6) << 12;
 }
 
@@ -595,16 +587,16 @@ void do_tlbwi (void)
 {
     /* Wildly undefined effects for CP0_index containing a too high value and
        MIPS_TLB_NB not being a power of two.  But so does real silicon.  */
-    invalidate_tb(env->CP0_index & (MIPS_TLB_NB - 1));
-    fill_tb(env->CP0_index & (MIPS_TLB_NB - 1));
+    invalidate_tlb(env->CP0_index & (MIPS_TLB_NB - 1));
+    fill_tlb(env->CP0_index & (MIPS_TLB_NB - 1));
 }
 
 void do_tlbwr (void)
 {
     int r = cpu_mips_get_random(env);
 
-    invalidate_tb(r);
-    fill_tb(r);
+    invalidate_tlb(r);
+    fill_tlb(r);
 }
 
 void do_tlbp (void)
@@ -645,10 +637,10 @@ void do_tlbr (void)
     env->CP0_EntryHi = tlb->VPN | tlb->ASID;
     size = (tlb->end - tlb->VPN) >> 12;
     env->CP0_PageMask = (size - 1) << 13;
-    env->CP0_EntryLo0 = tlb->V[0] | tlb->D[0] | (tlb->C[0] << 3) |
-        (tlb->PFN[0] >> 6);
-    env->CP0_EntryLo1 = tlb->V[1] | tlb->D[1] | (tlb->C[1] << 3) |
-        (tlb->PFN[1] >> 6);
+    env->CP0_EntryLo0 = tlb->G | (tlb->V0 << 1) | (tlb->D0 << 2)
+		| (tlb->C0 << 3) | (tlb->PFN[0] >> 6);
+    env->CP0_EntryLo1 = tlb->G | (tlb->V1 << 1) | (tlb->D1 << 2)
+		| (tlb->C1 << 3) | (tlb->PFN[1] >> 6);
 }
 #endif
 
