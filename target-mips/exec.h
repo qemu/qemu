@@ -81,6 +81,8 @@ uint32_t do_swr_kernel (uint32_t);
 #endif
 void do_pmon (int function);
 
+void dump_sc (void);
+
 int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                                int is_user, int is_softmmu);
 void do_interrupt (CPUState *env);
