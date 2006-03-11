@@ -26,6 +26,8 @@
 #include <stdio.h>
 #include <errno.h>
 
+#include <cpu.h>
+
 #define GET_FPA11() (qemufpa)
 
 /*
@@ -33,7 +35,7 @@
  * stack+task struct.  Use the same method as 'current' uses to
  * reach them.
  */
-extern unsigned int *user_registers;
+extern CPUARMState *user_registers;
 
 #define GET_USERREG() (user_registers)
 
@@ -94,7 +96,7 @@ extern void SetRoundingPrecision(const unsigned int);
 
 static inline unsigned int readRegister(unsigned int reg)
 {
-    return (user_registers[(reg)]);
+    return (user_registers->regs[(reg)]);
 }
 
 static inline void writeRegister(unsigned int x, unsigned int y)
@@ -102,34 +104,17 @@ static inline void writeRegister(unsigned int x, unsigned int y)
 #if 0
 	printf("writing %d to r%d\n",y,x);
 #endif
-        user_registers[(x)]=(y);
+        user_registers->regs[(x)]=(y);
 }
 
 static inline void writeConditionCodes(unsigned int x)
 {
-#if 0
-unsigned	int y;
-unsigned    int ZF;
-	printf("setting flags to %x from %x\n",x,user_registers[16]);
-#endif
-	user_registers[16]=(x);	// cpsr
-	user_registers[17]=(x>>29)&1;	// cf
-	user_registers[18]=(x<<3)&(1<<31);	// vf
-	user_registers[19]=x&(1<<31);	// nzf
-	if(!(x&(1<<30))) user_registers[19]++;	// nzf must be non-zero for zf to be cleared
-
-#if 0
-        ZF = (user_registers[19] == 0);
-        y=user_registers[16] | (user_registers[19] & 0x80000000) | (ZF << 30) | 
-                    (user_registers[17] << 29) | ((user_registers[18] & 0x80000000) >> 3);
-        if(y != x)
-        	printf("GODDAM SHIIIIIIIIIIIIIIIIT! %x %x nzf %x zf %x\n",x,y,user_registers[19],ZF);
-#endif                    
+        cpsr_write(user_registers,x,CPSR_NZCV);
 }
 
 #define REG_PC 15
 
-unsigned int EmulateAll(unsigned int opcode, FPA11* qfpa, unsigned int* qregs);
+unsigned int EmulateAll(unsigned int opcode, FPA11* qfpa, CPUARMState* qregs);
 
 /* included only for get_user/put_user macros */
 #include "qemu.h"

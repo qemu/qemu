@@ -345,7 +345,7 @@ void cpu_loop(CPUARMState *env)
                 /* we get the opcode */
                 opcode = ldl_raw((uint8_t *)env->regs[15]);
                 
-                if (EmulateAll(opcode, &ts->fpa, env->regs) == 0) {
+                if (EmulateAll(opcode, &ts->fpa, env) == 0) {
                     info.si_signo = SIGILL;
                     info.si_errno = 0;
                     info.si_code = TARGET_ILL_ILLOPN;
