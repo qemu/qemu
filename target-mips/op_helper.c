@@ -625,13 +625,14 @@ void do_tlbp (void)
 void do_tlbr (void)
 {
     tlb_t *tlb;
+    uint8_t ASID;
     int size;
 
+    ASID = env->CP0_EntryHi & 0xFF;
     tlb = &env->tlb[env->CP0_index & (MIPS_TLB_NB - 1)];
 
     /* If this will change the current ASID, flush qemu's TLB.  */
-    /* FIXME: Could avoid flushing things which match global entries... */
-    if ((env->CP0_EntryHi & 0xFF) != tlb->ASID)
+    if (ASID != tlb->ASID && tlb->G != 1)
       tlb_flush (env, 1);
 
     env->CP0_EntryHi = tlb->VPN | tlb->ASID;
