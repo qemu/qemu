@@ -1,7 +1,7 @@
 /*
  * QEMU ESP emulation
  * 
- * Copyright (c) 2005 Fabrice Bellard
+ * Copyright (c) 2005-2006 Fabrice Bellard
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -38,13 +38,18 @@ do { printf("ESP: set_irq(%d): %d\n", (irq), (level)); pic_set_irq((irq),(level)
 #define ESPDMA_REGS 4
 #define ESPDMA_MAXADDR (ESPDMA_REGS * 4 - 1)
 #define ESP_MAXREG 0x3f
-#define TI_BUFSZ 65536
+#define TI_BUFSZ 1024*1024 // XXX
 #define DMA_VER 0xa0000000
 #define DMA_INTR 1
 #define DMA_INTREN 0x10
 #define DMA_LOADED 0x04000000
+typedef struct ESPState ESPState;
 
-typedef struct ESPState {
+typedef int ESPDMAFunc(ESPState *s, 
+                       target_phys_addr_t phys_addr, 
+                       int transfer_size1);
+
+struct ESPState {
     BlockDriverState **bd;
     uint8_t rregs[ESP_MAXREG];
     uint8_t wregs[ESP_MAXREG];
@@ -55,7 +60,10 @@ typedef struct ESPState {
     int ti_dir;
     uint8_t ti_buf[TI_BUFSZ];
     int dma;
-} ESPState;
+    ESPDMAFunc *dma_cb;
+    int64_t offset, len;
+    int target;
+};
 
 #define STAT_DO 0x00
 #define STAT_DI 0x01
@@ -217,6 +225,19 @@ static int cdrom_read_toc_raw(int nb_sectors, uint8_t *buf, int msf,
     return len;
 }
 
+static int esp_write_dma_cb(ESPState *s, 
+                            target_phys_addr_t phys_addr, 
+                            int transfer_size1)
+{
+    DPRINTF("Write callback (offset %lld len %lld size %d trans_size %d)\n",
+            s->offset, s->len, s->ti_size, transfer_size1);
+    bdrv_write(s->bd[s->target], s->offset, s->ti_buf, s->len);
+    s->offset = 0;
+    s->len = 0;
+    s->target = 0;
+    return 0;
+}
+
 static void handle_satn(ESPState *s)
 {
     uint8_t buf[32];
@@ -309,6 +330,9 @@ static void handle_satn(ESPState *s)
 		s->ti_size = len * 512;
 	    }
 	    DPRINTF("Read (10) (offset %lld len %lld)\n", offset, len);
+            if (s->ti_size > TI_BUFSZ) {
+                DPRINTF("size too large %d\n", s->ti_size);
+            }
 	    bdrv_read(s->bd[target], offset, s->ti_buf, len);
 	    // XXX error handling
 	    s->ti_dir = 1;
@@ -328,7 +352,13 @@ static void handle_satn(ESPState *s)
 		s->ti_size = len * 512;
 	    }
 	    DPRINTF("Write (10) (offset %lld len %lld)\n", offset, len);
-	    bdrv_write(s->bd[target], offset, s->ti_buf, len);
+            if (s->ti_size > TI_BUFSZ) {
+                DPRINTF("size too large %d\n", s->ti_size);
+            }
+            s->dma_cb = esp_write_dma_cb;
+            s->offset = offset;
+            s->len = len;
+            s->target = target;
 	    // XXX error handling
 	    s->ti_dir = 0;
 	    break;
@@ -427,6 +457,10 @@ static void handle_ti(ESPState *s)
 	    else
 		cpu_physical_memory_read(dmaptr, &s->ti_buf[i], 1);
 	}
+        if (s->dma_cb) {
+            s->dma_cb(s, s->espdmaregs[1], dmalen);
+            s->dma_cb = NULL;
+        }
 	s->rregs[4] = STAT_IN | STAT_TC | STAT_ST;
 	s->rregs[5] = INTR_BS;
 	s->rregs[6] = 0;
@@ -444,8 +478,15 @@ static void esp_reset(void *opaque)
 {
     ESPState *s = opaque;
     memset(s->rregs, 0, ESP_MAXREG);
+    memset(s->wregs, 0, ESP_MAXREG);
     s->rregs[0x0e] = 0x4; // Indicate fas100a
     memset(s->espdmaregs, 0, ESPDMA_REGS * 4);
+    s->ti_size = 0;
+    s->ti_rptr = 0;
+    s->ti_wptr = 0;
+    s->ti_dir = 0;
+    s->dma = 0;
+    s->dma_cb = NULL;
 }
 
 static uint32_t esp_mem_readb(void *opaque, target_phys_addr_t addr)
