@@ -153,6 +153,7 @@ static uint32_t uhci_ioport_readb(void *opaque, uint32_t addr)
     switch(addr) {
     case 0x0c:
         val = s->sof_timing;
+        break;
     default:
         val = 0xff;
         break;
