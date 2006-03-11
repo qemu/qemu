@@ -22,5 +22,6 @@ x86_64-softmmu
 sparc64-user
 sparc64-softmmu
 mips-softmmu
+mipsel-softmmu
 mips-user
 mipsel-user

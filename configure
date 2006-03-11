@@ -232,7 +232,7 @@ fi
 
 if test -z "$target_list" ; then
 # these targets are portable
-    target_list="i386-softmmu ppc-softmmu sparc-softmmu x86_64-softmmu mips-softmmu arm-softmmu"
+    target_list="i386-softmmu ppc-softmmu sparc-softmmu x86_64-softmmu mips-softmmu mipsel-softmmu arm-softmmu"
 # the following are Linux specific
     if [ "$linux" = "yes" ] ; then
         target_list="i386-user arm-user armeb-user sparc-user ppc-user mips-user mipsel-user $target_list"

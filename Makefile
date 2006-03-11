@@ -105,6 +105,7 @@ tarbin:
 	$(bindir)/qemu-system-sparc \
 	$(bindir)/qemu-system-x86_64 \
 	$(bindir)/qemu-system-mips \
+	$(bindir)/qemu-system-mipsel \
 	$(bindir)/qemu-system-arm \
 	$(bindir)/qemu-i386 \
         $(bindir)/qemu-arm \
