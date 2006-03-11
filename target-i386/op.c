@@ -1032,6 +1032,7 @@ void OPPROTO op_aaa(void)
     }
     EAX = (EAX & ~0xffff) | al | (ah << 8);
     CC_SRC = eflags;
+    FORCE_RET();
 }
 
 void OPPROTO op_aas(void)
@@ -1056,6 +1057,7 @@ void OPPROTO op_aas(void)
     }
     EAX = (EAX & ~0xffff) | al | (ah << 8);
     CC_SRC = eflags;
+    FORCE_RET();
 }
 
 void OPPROTO op_daa(void)
@@ -1083,6 +1085,7 @@ void OPPROTO op_daa(void)
     eflags |= parity_table[al]; /* pf */
     eflags |= (al & 0x80); /* sf */
     CC_SRC = eflags;
+    FORCE_RET();
 }
 
 void OPPROTO op_das(void)
@@ -1113,6 +1116,7 @@ void OPPROTO op_das(void)
     eflags |= parity_table[al]; /* pf */
     eflags |= (al & 0x80); /* sf */
     CC_SRC = eflags;
+    FORCE_RET();
 }
 
 /* segment handling */
