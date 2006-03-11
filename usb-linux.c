@@ -278,7 +278,8 @@ static int usb_host_scan(void *opaque, USBScanFunc *func)
         if (strlen(line) > 0)
             line[strlen(line) - 1] = '\0';
         if (line[0] == 'T' && line[1] == ':') {
-            if (device_count) {
+            if (device_count && (vendor_id || product_id)) {
+                /* New device.  Add the previously discovered device.  */
                 ret = func(opaque, bus_num, addr, class_id, vendor_id, 
                            product_id, product_name, speed);
                 if (ret)
@@ -321,7 +322,8 @@ static int usb_host_scan(void *opaque, USBScanFunc *func)
         }
     fail: ;
     }
-    if (device_count) {
+    if (device_count && (vendor_id || product_id)) {
+        /* Add the last device.  */
         ret = func(opaque, bus_num, addr, class_id, vendor_id, 
                    product_id, product_name, speed);
     }
