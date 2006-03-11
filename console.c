@@ -23,16 +23,26 @@
  */
 #include "vl.h"
 
+//#define DEBUG_CONSOLE
 #define DEFAULT_BACKSCROLL 512
 #define MAX_CONSOLES 12
 
 #define RGBA(r, g, b, a) (((a) << 24) | ((r) << 16) | ((g) << 8) | (b))
 #define RGB(r, g, b) RGBA(r, g, b, 0xff)
 
+typedef struct TextAttributes {
+    uint8_t fgcol:4;
+    uint8_t bgcol:4;
+    uint8_t bold:1;
+    uint8_t uline:1;
+    uint8_t blink:1;
+    uint8_t invers:1;
+    uint8_t unvisible:1;
+} TextAttributes;
+
 typedef struct TextCell {
     uint8_t ch;
-    uint8_t bgcol:4;
-    uint8_t fgcol:4;
+    TextAttributes t_attrib;
 } TextCell;
 
 #define MAX_ESC_PARAMS 3
@@ -43,6 +53,7 @@ enum TTYState {
     TTY_STATE_CSI,
 };
 
+
 struct TextConsole {
     int text_console; /* true if text console */
     DisplayState *ds;
@@ -51,11 +62,11 @@ struct TextConsole {
     int height;
     int total_height;
     int backscroll_height;
-    int fgcol;
-    int bgcol;
     int x, y;
     int y_displayed;
     int y_base;
+    TextAttributes t_attrib_default; /* default text attributes */
+    TextAttributes t_attrib; /* currently active text attributes */
     TextCell *cells;
 
     enum TTYState state;
@@ -221,17 +232,40 @@ static const uint32_t dmask4[4] = {
     PAT(0xffffffff),
 };
 
-static uint32_t color_table[8];
+static uint32_t color_table[2][8];
 
-static const uint32_t color_table_rgb[8] = {
-    RGB(0x00, 0x00, 0x00),
-    RGB(0xff, 0x00, 0x00),
-    RGB(0x00, 0xff, 0x00),
-    RGB(0xff, 0xff, 0x00),
-    RGB(0x00, 0x00, 0xff),
-    RGB(0xff, 0x00, 0xff),
-    RGB(0x00, 0xff, 0xff),
-    RGB(0xff, 0xff, 0xff),
+enum color_names {
+    COLOR_BLACK   = 0,
+    COLOR_RED     = 1,
+    COLOR_GREEN   = 2,
+    COLOR_YELLOW  = 3,
+    COLOR_BLUE    = 4,
+    COLOR_MAGENTA = 5,
+    COLOR_CYAN    = 6,
+    COLOR_WHITE   = 7
+};
+
+static const uint32_t color_table_rgb[2][8] = {
+    {   /* dark */
+        RGB(0x00, 0x00, 0x00),  /* black */
+        RGB(0xaa, 0x00, 0x00),  /* red */
+        RGB(0x00, 0xaa, 0x00),  /* green */
+        RGB(0xaa, 0xaa, 0x00),  /* yellow */
+        RGB(0x00, 0x00, 0xaa),  /* blue */
+        RGB(0xaa, 0x00, 0xaa),  /* magenta */
+        RGB(0x00, 0xaa, 0xaa),  /* cyan */
+        RGB(0xaa, 0xaa, 0xaa),  /* white */
+    },
+    {   /* bright */
+        RGB(0x00, 0x00, 0x00),  /* black */
+        RGB(0xff, 0x00, 0x00),  /* red */
+        RGB(0x00, 0xff, 0x00),  /* green */
+        RGB(0xff, 0xff, 0x00),  /* yellow */
+        RGB(0x00, 0x00, 0xff),  /* blue */
+        RGB(0xff, 0x00, 0xff),  /* magenta */
+        RGB(0x00, 0xff, 0xff),  /* cyan */
+        RGB(0xff, 0xff, 0xff),  /* white */
+    }
 };
 
 static inline unsigned int col_expand(DisplayState *ds, unsigned int col)
@@ -251,14 +285,60 @@ static inline unsigned int col_expand(DisplayState *ds, unsigned int col)
 
     return col;
 }
+#ifdef DEBUG_CONSOLE
+static void console_print_text_attributes(TextAttributes *t_attrib, char ch)
+{
+    if (t_attrib->bold) {
+        printf("b");
+    } else {
+        printf(" ");
+    }
+    if (t_attrib->uline) {
+        printf("u");
+    } else {
+        printf(" ");
+    }
+    if (t_attrib->blink) {
+        printf("l");
+    } else {
+        printf(" ");
+    }
+    if (t_attrib->invers) {
+        printf("i");
+    } else {
+        printf(" ");
+    }
+    if (t_attrib->unvisible) {
+        printf("n");
+    } else {
+        printf(" ");
+    }
+
+    printf(" fg: %d bg: %d ch:'%2X' '%c'\n", t_attrib->fgcol, t_attrib->bgcol, ch, ch);
+}
+#endif
 
 static void vga_putcharxy(DisplayState *ds, int x, int y, int ch, 
-                          unsigned int fgcol, unsigned int bgcol)
+                          TextAttributes *t_attrib)
 {
     uint8_t *d;
     const uint8_t *font_ptr;
     unsigned int font_data, linesize, xorcol, bpp;
     int i;
+    unsigned int fgcol, bgcol;
+
+#ifdef DEBUG_CONSOLE
+    printf("x: %2i y: %2i", x, y);
+    console_print_text_attributes(t_attrib, ch);
+#endif
+
+    if (t_attrib->invers) {
+        bgcol = color_table[t_attrib->bold][t_attrib->fgcol];
+        fgcol = color_table[t_attrib->bold][t_attrib->bgcol];
+    } else {
+        fgcol = color_table[t_attrib->bold][t_attrib->fgcol];
+        bgcol = color_table[t_attrib->bold][t_attrib->bgcol];
+    }
 
     bpp = (ds->depth + 7) >> 3;
     d = ds->data + 
@@ -270,6 +350,10 @@ static void vga_putcharxy(DisplayState *ds, int x, int y, int ch,
     case 8:
         for(i = 0; i < FONT_HEIGHT; i++) {
             font_data = *font_ptr++;
+            if (t_attrib->uline
+                && ((i == FONT_HEIGHT - 2) || (i == FONT_HEIGHT - 3))) {
+                font_data = 0xFFFF;
+            }
             ((uint32_t *)d)[0] = (dmask16[(font_data >> 4)] & xorcol) ^ bgcol;
             ((uint32_t *)d)[1] = (dmask16[(font_data >> 0) & 0xf] & xorcol) ^ bgcol;
             d += linesize;
@@ -279,6 +363,10 @@ static void vga_putcharxy(DisplayState *ds, int x, int y, int ch,
     case 15:
         for(i = 0; i < FONT_HEIGHT; i++) {
             font_data = *font_ptr++;
+            if (t_attrib->uline
+                && ((i == FONT_HEIGHT - 2) || (i == FONT_HEIGHT - 3))) {
+                font_data = 0xFFFF;
+            }
             ((uint32_t *)d)[0] = (dmask4[(font_data >> 6)] & xorcol) ^ bgcol;
             ((uint32_t *)d)[1] = (dmask4[(font_data >> 4) & 3] & xorcol) ^ bgcol;
             ((uint32_t *)d)[2] = (dmask4[(font_data >> 2) & 3] & xorcol) ^ bgcol;
@@ -289,6 +377,9 @@ static void vga_putcharxy(DisplayState *ds, int x, int y, int ch,
     case 32:
         for(i = 0; i < FONT_HEIGHT; i++) {
             font_data = *font_ptr++;
+            if (t_attrib->uline && ((i == FONT_HEIGHT - 2) || (i == FONT_HEIGHT - 3))) {
+                font_data = 0xFFFF;
+            }
             ((uint32_t *)d)[0] = (-((font_data >> 7)) & xorcol) ^ bgcol;
             ((uint32_t *)d)[1] = (-((font_data >> 6) & 1) & xorcol) ^ bgcol;
             ((uint32_t *)d)[2] = (-((font_data >> 5) & 1) & xorcol) ^ bgcol;
@@ -327,8 +418,7 @@ static void text_console_resize(TextConsole *s)
         }
         for(x = w1; x < s->width; x++) {
             c->ch = ' ';
-            c->fgcol = 7;
-            c->bgcol = 0;
+            c->t_attrib = s->t_attrib_default;
             c++;
         }
     }
@@ -349,7 +439,7 @@ static void update_xy(TextConsole *s, int x, int y)
         if (y2 < s->height) {
             c = &s->cells[y1 * s->width + x];
             vga_putcharxy(s->ds, x, y2, c->ch, 
-                          color_table[c->fgcol], color_table[c->bgcol]);
+                          &(c->t_attrib));
             dpy_update(s->ds, x * FONT_WIDTH, y2 * FONT_HEIGHT, 
                        FONT_WIDTH, FONT_HEIGHT);
         }
@@ -369,11 +459,12 @@ static void console_show_cursor(TextConsole *s, int show)
         if (y < s->height) {
             c = &s->cells[y1 * s->width + s->x];
             if (show) {
-                vga_putcharxy(s->ds, s->x, y, c->ch, 
-                              color_table[0], color_table[7]);
+                TextAttributes t_attrib = s->t_attrib_default;
+                t_attrib.invers = !(t_attrib.invers); /* invert fg and bg */
+                vga_putcharxy(s->ds, s->x, y, c->ch, &t_attrib);
             } else {
                 vga_putcharxy(s->ds, s->x, y, c->ch, 
-                              color_table[c->fgcol], color_table[c->bgcol]);
+                              &(c->t_attrib));
             }
             dpy_update(s->ds, s->x * FONT_WIDTH, y * FONT_HEIGHT, 
                        FONT_WIDTH, FONT_HEIGHT);
@@ -390,13 +481,13 @@ static void console_refresh(TextConsole *s)
         return;
 
     vga_fill_rect(s->ds, 0, 0, s->ds->width, s->ds->height,
-                  color_table[0]);
+                  color_table[0][COLOR_BLACK]);
     y1 = s->y_displayed;
     for(y = 0; y < s->height; y++) {
         c = s->cells + y1 * s->width;
         for(x = 0; x < s->width; x++) {
             vga_putcharxy(s->ds, x, y, c->ch, 
-                          color_table[c->fgcol], color_table[c->bgcol]);
+                          &(c->t_attrib));
             c++;
         }
         if (++y1 == s->total_height)
@@ -449,7 +540,7 @@ static void console_put_lf(TextConsole *s)
     s->y++;
     if (s->y >= s->height) {
         s->y = s->height - 1;
-        
+
         if (s->y_displayed == s->y_base) {
             if (++s->y_displayed == s->total_height)
                 s->y_displayed = 0;
@@ -462,8 +553,7 @@ static void console_put_lf(TextConsole *s)
         c = &s->cells[y1 * s->width];
         for(x = 0; x < s->width; x++) {
             c->ch = ' ';
-            c->fgcol = s->fgcol;
-            c->bgcol = s->bgcol;
+            c->t_attrib = s->t_attrib_default;
             c++;
         }
         if (s == active_console && s->y_displayed == s->y_base) {
@@ -472,9 +562,110 @@ static void console_put_lf(TextConsole *s)
                        (s->height - 1) * FONT_HEIGHT);
             vga_fill_rect(s->ds, 0, (s->height - 1) * FONT_HEIGHT,
                           s->width * FONT_WIDTH, FONT_HEIGHT, 
-                          color_table[s->bgcol]);
+                          color_table[0][s->t_attrib_default.bgcol]);
             dpy_update(s->ds, 0, 0, 
                        s->width * FONT_WIDTH, s->height * FONT_HEIGHT);
+        }
+    }
+}
+
+/* Set console attributes depending on the current escape codes.
+ * NOTE: I know this code is not very efficient (checking every color for it
+ * self) but it is more readable and better maintainable.
+ */
+static void console_handle_escape(TextConsole *s)
+{
+    int i;
+
+    if (s->nb_esc_params == 0) { /* ESC[m sets all attributes to default */
+        s->t_attrib = s->t_attrib_default;
+        return;
+    }
+    for (i=0; i<s->nb_esc_params; i++) {
+        switch (s->esc_params[i]) {
+            case 0: /* reset all console attributes to default */
+                s->t_attrib = s->t_attrib_default;
+                break;
+            case 1:
+                s->t_attrib.bold = 1;
+                break;
+            case 4:
+                s->t_attrib.uline = 1;
+                break;
+            case 5:
+                s->t_attrib.blink = 1;
+                break;
+            case 7:
+                s->t_attrib.invers = 1;
+                break;
+            case 8:
+                s->t_attrib.unvisible = 1;
+                break;
+            case 22:
+                s->t_attrib.bold = 0;
+                break;
+            case 24:
+                s->t_attrib.uline = 0;
+                break;
+            case 25:
+                s->t_attrib.blink = 0;
+                break;
+            case 27:
+                s->t_attrib.invers = 0;
+                break;
+            case 28:
+                s->t_attrib.unvisible = 0;
+                break;
+            /* set foreground color */
+            case 30:
+                s->t_attrib.fgcol=COLOR_BLACK;
+                break;
+            case 31:
+                s->t_attrib.fgcol=COLOR_RED;
+                break;
+            case 32:
+                s->t_attrib.fgcol=COLOR_GREEN;
+                break;
+            case 33:
+                s->t_attrib.fgcol=COLOR_YELLOW;
+                break;
+            case 34:
+                s->t_attrib.fgcol=COLOR_BLUE;
+                break;
+            case 35:
+                s->t_attrib.fgcol=COLOR_MAGENTA;
+                break;
+            case 36:
+                s->t_attrib.fgcol=COLOR_CYAN;
+                break;
+            case 37:
+                s->t_attrib.fgcol=COLOR_WHITE;
+                break;
+            /* set background color */
+            case 40:
+                s->t_attrib.bgcol=COLOR_BLACK;
+                break;
+            case 41:
+                s->t_attrib.bgcol=COLOR_RED;
+                break;
+            case 42:
+                s->t_attrib.bgcol=COLOR_GREEN;
+                break;
+            case 43:
+                s->t_attrib.bgcol=COLOR_YELLOW;
+                break;
+            case 44:
+                s->t_attrib.bgcol=COLOR_BLUE;
+                break;
+            case 45:
+                s->t_attrib.bgcol=COLOR_MAGENTA;
+                break;
+            case 46:
+                s->t_attrib.bgcol=COLOR_CYAN;
+                break;
+            case 47:
+                s->t_attrib.bgcol=COLOR_WHITE;
+                break;
         }
     }
 }
@@ -487,21 +678,38 @@ static void console_putchar(TextConsole *s, int ch)
     switch(s->state) {
     case TTY_STATE_NORM:
         switch(ch) {
-        case '\r':
+        case '\r':  /* carriage return */
             s->x = 0;
             break;
-        case '\n':
+        case '\n':  /* newline */
             console_put_lf(s);
             break;
-        case 27:
+        case '\b':  /* backspace */
+            if(s->x > 0) s->x--;
+            y1 = (s->y_base + s->y) % s->total_height;
+            c = &s->cells[y1 * s->width + s->x];
+            c->ch = ' ';
+            c->t_attrib = s->t_attrib;
+            update_xy(s, s->x, s->y);
+            break;
+        case '\t':  /* tabspace */
+            if (s->x + (8 - (s->x % 8)) > s->width) {
+                console_put_lf(s);
+            } else {
+                s->x = s->x + (8 - (s->x % 8));
+            }
+            break;
+        case '\a':  /* alert aka. bell */
+            /* TODO: has to be implemented */
+            break;
+        case 27:    /* esc (introducing an escape sequence) */
             s->state = TTY_STATE_ESC;
             break;
         default:
             y1 = (s->y_base + s->y) % s->total_height;
             c = &s->cells[y1 * s->width + s->x];
             c->ch = ch;
-            c->fgcol = s->fgcol;
-            c->bgcol = s->bgcol;
+            c->t_attrib = s->t_attrib;
             update_xy(s, s->x, s->y);
             s->x++;
             if (s->x >= s->width)
@@ -509,7 +717,7 @@ static void console_putchar(TextConsole *s, int ch)
             break;
         }
         break;
-    case TTY_STATE_ESC:
+    case TTY_STATE_ESC: /* check if it is a terminal escape sequence */
         if (ch == '[') {
             for(i=0;i<MAX_ESC_PARAMS;i++)
                 s->esc_params[i] = 0;
@@ -519,7 +727,7 @@ static void console_putchar(TextConsole *s, int ch)
             s->state = TTY_STATE_NORM;
         }
         break;
-    case TTY_STATE_CSI:
+    case TTY_STATE_CSI: /* handle escape sequence parameters */
         if (ch >= '0' && ch <= '9') {
             if (s->nb_esc_params < MAX_ESC_PARAMS) {
                 s->esc_params[s->nb_esc_params] = 
@@ -545,8 +753,7 @@ static void console_putchar(TextConsole *s, int ch)
                 for(x = s->x; x < s->width; x++) {
                     c = &s->cells[y1 * s->width + x];
                     c->ch = ' ';
-                    c->fgcol = s->fgcol;
-                    c->bgcol = s->bgcol;
+                    c->t_attrib = s->t_attrib_default;
                     c++;
                     update_xy(s, x, s->y);
                 }
@@ -554,6 +761,7 @@ static void console_putchar(TextConsole *s, int ch)
             default:
                 break;
             }
+            console_handle_escape(s);
             break;
         }
     }
@@ -562,7 +770,7 @@ static void console_putchar(TextConsole *s, int ch)
 void console_select(unsigned int index)
 {
     TextConsole *s;
-    
+
     if (index >= MAX_CONSOLES)
         return;
     s = consoles[index];
@@ -571,10 +779,10 @@ void console_select(unsigned int index)
         if (s->text_console) {
             if (s->g_width != s->ds->width ||
                 s->g_height != s->ds->height) {
-		s->g_width = s->ds->width;
-		s->g_height = s->ds->height;
+                s->g_width = s->ds->width;
+                s->g_height = s->ds->height;
                 text_console_resize(s);
-	    }
+        }
             console_refresh(s);
         }
     }
@@ -692,9 +900,9 @@ CharDriverState *text_console_init(DisplayState *ds)
 {
     CharDriverState *chr;
     TextConsole *s;
-    int i;
+    int i,j;
     static int color_inited;
-    
+
     chr = qemu_mallocz(sizeof(CharDriverState));
     if (!chr)
         return NULL;
@@ -711,9 +919,11 @@ CharDriverState *text_console_init(DisplayState *ds)
 
     if (!color_inited) {
         color_inited = 1;
-        for(i = 0; i < 8; i++) {
-            color_table[i] = col_expand(s->ds, 
-                                        vga_get_color(s->ds, color_table_rgb[i]));
+        for(j = 0; j < 2; j++) {
+            for(i = 0; i < 8; i++) {
+                color_table[j][i] = col_expand(s->ds, 
+                        vga_get_color(s->ds, color_table_rgb[j][i]));
+            }
         }
     }
     s->y_displayed = 0;
@@ -721,10 +931,20 @@ CharDriverState *text_console_init(DisplayState *ds)
     s->total_height = DEFAULT_BACKSCROLL;
     s->x = 0;
     s->y = 0;
-    s->fgcol = 7;
-    s->bgcol = 0;
     s->g_width = s->ds->width;
     s->g_height = s->ds->height;
+
+    /* Set text attribute defaults */
+    s->t_attrib_default.bold = 0;
+    s->t_attrib_default.uline = 0;
+    s->t_attrib_default.blink = 0;
+    s->t_attrib_default.invers = 0;
+    s->t_attrib_default.unvisible = 0;
+    s->t_attrib_default.fgcol = COLOR_WHITE;
+    s->t_attrib_default.bgcol = COLOR_BLACK;
+
+    /* set current text attributes to default */
+    s->t_attrib = s->t_attrib_default;
     text_console_resize(s);
 
     return chr;
