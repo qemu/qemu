@@ -138,10 +138,10 @@ void switch_mode(CPUState *env, int mode)
 
     if (old_mode == ARM_CPU_MODE_FIQ) {
         memcpy (env->fiq_regs, env->regs + 8, 5 * sizeof(uint32_t));
-        memcpy (env->regs, env->usr_regs + 8, 5 * sizeof(uint32_t));
+        memcpy (env->regs + 8, env->usr_regs, 5 * sizeof(uint32_t));
     } else if (mode == ARM_CPU_MODE_FIQ) {
         memcpy (env->usr_regs, env->regs + 8, 5 * sizeof(uint32_t));
-        memcpy (env->regs, env->fiq_regs + 8, 5 * sizeof(uint32_t));
+        memcpy (env->regs + 8, env->fiq_regs, 5 * sizeof(uint32_t));
     }
 
     i = bank_number(old_mode);
