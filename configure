@@ -211,9 +211,9 @@ for opt do
   ;;
   --disable-gcc-check) check_gcc="no"
   ;;
-  --disable-softmmu) softmmu="no"
+  --disable-system) softmmu="no"
   ;;
-  --enable-softmmu) softmmu="yes"
+  --enable-system) softmmu="yes"
   ;;
   --disable-user) user="no"
   ;;
