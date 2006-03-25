@@ -34,6 +34,9 @@
 
 #include "cpu.h"
 #include "exec-all.h"
+#if defined(CONFIG_USER_ONLY)
+#include <qemu.h>
+#endif
 
 //#define DEBUG_TB_INVALIDATE
 //#define DEBUG_FLUSH
@@ -810,7 +813,7 @@ static void tb_invalidate_phys_page(target_ulong addr,
 
 /* add the tb in the target page and protect it if necessary */
 static inline void tb_alloc_page(TranslationBlock *tb, 
-                                 unsigned int n, unsigned int page_addr)
+                                 unsigned int n, target_ulong page_addr)
 {
     PageDesc *p;
     TranslationBlock *last_first_tb;
@@ -826,23 +829,30 @@ static inline void tb_alloc_page(TranslationBlock *tb,
 
 #if defined(CONFIG_USER_ONLY)
     if (p->flags & PAGE_WRITE) {
-        unsigned long host_start, host_end, addr;
+        target_ulong addr;
+        PageDesc *p2;
         int prot;
 
         /* force the host page as non writable (writes will have a
            page fault + mprotect overhead) */
-        host_start = page_addr & qemu_host_page_mask;
-        host_end = host_start + qemu_host_page_size;
+        page_addr &= qemu_host_page_mask;
         prot = 0;
-        for(addr = host_start; addr < host_end; addr += TARGET_PAGE_SIZE)
-            prot |= page_get_flags(addr);
-        mprotect((void *)host_start, qemu_host_page_size, 
+        for(addr = page_addr; addr < page_addr + qemu_host_page_size;
+            addr += TARGET_PAGE_SIZE) {
+
+            p2 = page_find (addr >> TARGET_PAGE_BITS);
+            if (!p2)
+                continue;
+            prot |= p2->flags;
+            p2->flags &= ~PAGE_WRITE;
+            page_get_flags(addr);
+          }
+        mprotect(g2h(page_addr), qemu_host_page_size, 
                  (prot & PAGE_BITS) & ~PAGE_WRITE);
 #ifdef DEBUG_TB_INVALIDATE
         printf("protecting code page: 0x%08lx\n", 
-               host_start);
+               page_addr);
 #endif
-        p->flags &= ~PAGE_WRITE;
     }
 #else
     /* if some code is already present, then the pages are already
@@ -1546,7 +1556,7 @@ int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
 
 /* called from signal handler: invalidate the code and unprotect the
    page. Return TRUE if the fault was succesfully handled. */
-int page_unprotect(unsigned long addr, unsigned long pc, void *puc)
+int page_unprotect(target_ulong addr, unsigned long pc, void *puc)
 {
 #if !defined(CONFIG_SOFTMMU)
     VirtPageDesc *vp;
@@ -1645,7 +1655,7 @@ void page_dump(FILE *f)
     }
 }
 
-int page_get_flags(unsigned long address)
+int page_get_flags(target_ulong address)
 {
     PageDesc *p;
 
@@ -1658,10 +1668,10 @@ int page_get_flags(unsigned long address)
 /* modify the flags of a page and invalidate the code if
    necessary. The flag PAGE_WRITE_ORG is positionned automatically
    depending on PAGE_WRITE */
-void page_set_flags(unsigned long start, unsigned long end, int flags)
+void page_set_flags(target_ulong start, target_ulong end, int flags)
 {
     PageDesc *p;
-    unsigned long addr;
+    target_ulong addr;
 
     start = start & TARGET_PAGE_MASK;
     end = TARGET_PAGE_ALIGN(end);
@@ -1684,11 +1694,11 @@ void page_set_flags(unsigned long start, unsigned long end, int flags)
 
 /* called from signal handler: invalidate the code and unprotect the
    page. Return TRUE if the fault was succesfully handled. */
-int page_unprotect(unsigned long address, unsigned long pc, void *puc)
+int page_unprotect(target_ulong address, unsigned long pc, void *puc)
 {
     unsigned int page_index, prot, pindex;
     PageDesc *p, *p1;
-    unsigned long host_start, host_end, addr;
+    target_ulong host_start, host_end, addr;
 
     host_start = address & qemu_host_page_mask;
     page_index = host_start >> TARGET_PAGE_BITS;
@@ -1707,7 +1717,7 @@ int page_unprotect(unsigned long address, unsigned long pc, void *puc)
     if (prot & PAGE_WRITE_ORG) {
         pindex = (address - host_start) >> TARGET_PAGE_BITS;
         if (!(p1[pindex].flags & PAGE_WRITE)) {
-            mprotect((void *)host_start, qemu_host_page_size, 
+            mprotect((void *)g2h(host_start), qemu_host_page_size, 
                      (prot & PAGE_BITS) | PAGE_WRITE);
             p1[pindex].flags |= PAGE_WRITE;
             /* and since the content will be modified, we must invalidate
@@ -1723,11 +1733,12 @@ int page_unprotect(unsigned long address, unsigned long pc, void *puc)
 }
 
 /* call this function when system calls directly modify a memory area */
-void page_unprotect_range(uint8_t *data, unsigned long data_size)
+/* ??? This should be redundant now we have lock_user.  */
+void page_unprotect_range(target_ulong data, target_ulong data_size)
 {
-    unsigned long start, end, addr;
+    target_ulong start, end, addr;
 
-    start = (unsigned long)data;
+    start = data;
     end = start + data_size;
     start &= TARGET_PAGE_MASK;
     end = TARGET_PAGE_ALIGN(end);
@@ -1932,6 +1943,7 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
 {
     int l, flags;
     target_ulong page;
+    void * p;
 
     while (len > 0) {
         page = addr & TARGET_PAGE_MASK;
@@ -1944,11 +1956,15 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
         if (is_write) {
             if (!(flags & PAGE_WRITE))
                 return;
-            memcpy((uint8_t *)addr, buf, len);
+            p = lock_user(addr, len, 0);
+            memcpy(p, buf, len);
+            unlock_user(p, addr, len);
         } else {
             if (!(flags & PAGE_READ))
                 return;
-            memcpy(buf, (uint8_t *)addr, len);
+            p = lock_user(addr, len, 1);
+            memcpy(buf, p, len);
+            unlock_user(p, addr, 0);
         }
         len -= l;
         buf += l;

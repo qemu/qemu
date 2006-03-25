@@ -584,22 +584,41 @@ static inline void stfq_be_p(void *ptr, float64 v)
 
 /* MMU memory access macros */
 
+#if defined(CONFIG_USER_ONLY)
+/* On some host systems the guest address space is reserved on the host.
+ * This allows the guest address space to be offset to a convenient location.
+ */
+//#define GUEST_BASE 0x20000000
+#define GUEST_BASE 0
+
+/* All direct uses of g2h and h2g need to go away for usermode softmmu.  */
+#define g2h(x) ((void *)((unsigned long)(x) + GUEST_BASE))
+#define h2g(x) ((target_ulong)(x - GUEST_BASE))
+
+#define saddr(x) g2h(x)
+#define laddr(x) g2h(x)
+
+#else /* !CONFIG_USER_ONLY */
 /* NOTE: we use double casts if pointers and target_ulong have
    different sizes */
-#define ldub_raw(p) ldub_p((uint8_t *)(long)(p))
-#define ldsb_raw(p) ldsb_p((uint8_t *)(long)(p))
-#define lduw_raw(p) lduw_p((uint8_t *)(long)(p))
-#define ldsw_raw(p) ldsw_p((uint8_t *)(long)(p))
-#define ldl_raw(p) ldl_p((uint8_t *)(long)(p))
-#define ldq_raw(p) ldq_p((uint8_t *)(long)(p))
-#define ldfl_raw(p) ldfl_p((uint8_t *)(long)(p))
-#define ldfq_raw(p) ldfq_p((uint8_t *)(long)(p))
-#define stb_raw(p, v) stb_p((uint8_t *)(long)(p), v)
-#define stw_raw(p, v) stw_p((uint8_t *)(long)(p), v)
-#define stl_raw(p, v) stl_p((uint8_t *)(long)(p), v)
-#define stq_raw(p, v) stq_p((uint8_t *)(long)(p), v)
-#define stfl_raw(p, v) stfl_p((uint8_t *)(long)(p), v)
-#define stfq_raw(p, v) stfq_p((uint8_t *)(long)(p), v)
+#define saddr(x) (uint8_t *)(long)(x)
+#define laddr(x) (uint8_t *)(long)(x)
+#endif
+
+#define ldub_raw(p) ldub_p(laddr((p)))
+#define ldsb_raw(p) ldsb_p(laddr((p)))
+#define lduw_raw(p) lduw_p(laddr((p)))
+#define ldsw_raw(p) ldsw_p(laddr((p)))
+#define ldl_raw(p) ldl_p(laddr((p)))
+#define ldq_raw(p) ldq_p(laddr((p)))
+#define ldfl_raw(p) ldfl_p(laddr((p)))
+#define ldfq_raw(p) ldfq_p(laddr((p)))
+#define stb_raw(p, v) stb_p(saddr((p)), v)
+#define stw_raw(p, v) stw_p(saddr((p)), v)
+#define stl_raw(p, v) stl_p(saddr((p)), v)
+#define stq_raw(p, v) stq_p(saddr((p)), v)
+#define stfl_raw(p, v) stfl_p(saddr((p)), v)
+#define stfq_raw(p, v) stfq_p(saddr((p)), v)
 
 
 #if defined(CONFIG_USER_ONLY) 
@@ -648,6 +667,7 @@ static inline void stfq_be_p(void *ptr, float64 v)
 #define TARGET_PAGE_MASK ~(TARGET_PAGE_SIZE - 1)
 #define TARGET_PAGE_ALIGN(addr) (((addr) + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK)
 
+/* ??? These should be the larger of unsigned long and target_ulong.  */
 extern unsigned long qemu_real_host_page_size;
 extern unsigned long qemu_host_page_bits;
 extern unsigned long qemu_host_page_size;
@@ -666,9 +686,9 @@ extern unsigned long qemu_host_page_mask;
 #define PAGE_WRITE_ORG 0x0010 
 
 void page_dump(FILE *f);
-int page_get_flags(unsigned long address);
-void page_set_flags(unsigned long start, unsigned long end, int flags);
-void page_unprotect_range(uint8_t *data, unsigned long data_size);
+int page_get_flags(target_ulong address);
+void page_set_flags(target_ulong start, target_ulong end, int flags);
+void page_unprotect_range(target_ulong data, target_ulong data_size);
 
 #define SINGLE_CPU_DEFINES
 #ifdef SINGLE_CPU_DEFINES

@@ -68,6 +68,9 @@ STRUCT(dirent,
 STRUCT(kbentry,
        TYPE_CHAR, TYPE_CHAR, TYPE_SHORT)
 
+STRUCT(kbsentry,
+       TYPE_CHAR, MK_ARRAY(TYPE_CHAR, 512))
+
 STRUCT(audio_buf_info,
        TYPE_INT, TYPE_INT, TYPE_INT, TYPE_INT)
 

@@ -97,17 +97,17 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 
 static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
 {
-    target_long *stack = (void *)infop->start_stack;
+    target_long stack = infop->start_stack;
     memset(regs, 0, sizeof(*regs));
     regs->ARM_cpsr = 0x10;
     if (infop->entry & 1)
       regs->ARM_cpsr |= CPSR_T;
     regs->ARM_pc = infop->entry & 0xfffffffe;
     regs->ARM_sp = infop->start_stack;
-    regs->ARM_r2 = tswapl(stack[2]); /* envp */
-    regs->ARM_r1 = tswapl(stack[1]); /* argv */
+    regs->ARM_r2 = tgetl(stack + 8); /* envp */
+    regs->ARM_r1 = tgetl(stack + 4); /* envp */
     /* XXX: it seems that r0 is zeroed after ! */
-    //    regs->ARM_r0 = tswapl(stack[0]); /* argc */
+    //    regs->ARM_r0 = tgetl(stack); /* argc */
 }
 
 #define USE_ELF_CORE_DUMP
@@ -202,7 +202,7 @@ do {                                                       \
     _r->gpr[3] = bprm->argc;                               \
     _r->gpr[4] = (unsigned long)++pos;                     \
     for (; tmp != 0; pos++)                                \
-        tmp = *pos;                                        \
+        tmp = ldl(pos);                                    \
     _r->gpr[5] = (unsigned long)pos;                       \
 } while (0)
 
@@ -297,7 +297,7 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
  */
 struct linux_binprm {
         char buf[128];
-        unsigned long page[MAX_ARG_PAGES];
+        void *page[MAX_ARG_PAGES];
         unsigned long p;
         int sh_bang;
 	int fd;
@@ -427,37 +427,13 @@ static void bswap_sym(Elf32_Sym *sym)
 }
 #endif
 
-static void * get_free_page(void)
-{
-    void *	retval;
-
-    /* User-space version of kernel get_free_page.  Returns a page-aligned
-     * page-sized chunk of memory.
-     */
-    retval = (void *)target_mmap(0, qemu_host_page_size, PROT_READ|PROT_WRITE, 
-                                 MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-
-    if((long)retval == -1) {
-	perror("get_free_page");
-	exit(-1);
-    }
-    else {
-	return(retval);
-    }
-}
-
-static void free_page(void * pageaddr)
-{
-    target_munmap((unsigned long)pageaddr, qemu_host_page_size);
-}
-
 /*
  * 'copy_string()' copies argument/envelope strings from user
  * memory to free pages in kernel mem. These are in a format ready
  * to be put directly into the top of new user memory.
  *
  */
-static unsigned long copy_strings(int argc,char ** argv,unsigned long *page,
+static unsigned long copy_strings(int argc,char ** argv, void **page,
                 unsigned long p)
 {
     char *tmp, *tmp1, *pag = NULL;
@@ -482,10 +458,10 @@ static unsigned long copy_strings(int argc,char ** argv,unsigned long *page,
 	    --p; --tmp; --len;
 	    if (--offset < 0) {
 		offset = p % TARGET_PAGE_SIZE;
-                pag = (char *) page[p/TARGET_PAGE_SIZE];
+                pag = (char *)page[p/TARGET_PAGE_SIZE];
                 if (!pag) {
-                    pag = (char *)get_free_page();
-                    page[p/TARGET_PAGE_SIZE] = (unsigned long)pag;
+                    pag = (char *)malloc(TARGET_PAGE_SIZE);
+                    page[p/TARGET_PAGE_SIZE] = pag;
                     if (!pag)
                         return 0;
 		}
@@ -591,10 +567,20 @@ static int prepare_binprm(struct linux_binprm *bprm)
     }
 }
 
-unsigned long setup_arg_pages(unsigned long p, struct linux_binprm * bprm,
-						struct image_info * info)
+static inline void memcpy_to_target(target_ulong dest, const void *src,
+                                    unsigned long len)
 {
-    unsigned long stack_base, size, error;
+    void *host_ptr;
+
+    host_ptr = lock_user(dest, len, 0);
+    memcpy(host_ptr, src, len);
+    unlock_user(host_ptr, dest, 1);
+}
+
+unsigned long setup_arg_pages(target_ulong p, struct linux_binprm * bprm,
+					      struct image_info * info)
+{
+    target_ulong stack_base, size, error;
     int i;
 
     /* Create enough stack to hold everything.  If we don't use
@@ -627,10 +613,10 @@ unsigned long setup_arg_pages(unsigned long p, struct linux_binprm * bprm,
 	if (bprm->page[i]) {
 	    info->rss++;
 
-	    memcpy((void *)stack_base, (void *)bprm->page[i], TARGET_PAGE_SIZE);
-	    free_page((void *)bprm->page[i]);
+	    memcpy_to_target(stack_base, bprm->page[i], TARGET_PAGE_SIZE);
+	    free(bprm->page[i]);
 	}
-	stack_base += TARGET_PAGE_SIZE;
+        stack_base += TARGET_PAGE_SIZE;
     }
     return p;
 }
@@ -657,7 +643,6 @@ static void set_brk(unsigned long start, unsigned long end)
 static void padzero(unsigned long elf_bss)
 {
         unsigned long nbyte;
-        char * fpnt;
 
         /* XXX: this is really a hack : if the real host page size is
            smaller than the target page size, some pages after the end
@@ -679,55 +664,57 @@ static void padzero(unsigned long elf_bss)
         nbyte = elf_bss & (qemu_host_page_size-1);
         if (nbyte) {
 	    nbyte = qemu_host_page_size - nbyte;
-	    fpnt = (char *) elf_bss;
 	    do {
-		*fpnt++ = 0;
+		tput8(elf_bss, 0);
+                elf_bss++;
 	    } while (--nbyte);
         }
 }
 
-static unsigned int * create_elf_tables(char *p, int argc, int envc,
-                                        struct elfhdr * exec,
-                                        unsigned long load_addr,
-                                        unsigned long load_bias,
-                                        unsigned long interp_load_addr, int ibcs,
-                                        struct image_info *info)
-{
-        target_ulong *argv, *envp;
-        target_ulong *sp, *csp;
-        target_ulong *u_platform;
-        const char *k_platform;
-        int v;
 
-	/*
-	 * Force 16 byte _final_ alignment here for generality.
-	 */
-        sp = (unsigned int *) (~15UL & (unsigned long) p);
-        u_platform = NULL;
+static unsigned long create_elf_tables(target_ulong p, int argc, int envc,
+                                       struct elfhdr * exec,
+                                       unsigned long load_addr,
+                                       unsigned long load_bias,
+                                       unsigned long interp_load_addr, int ibcs,
+                                       struct image_info *info)
+{
+        target_ulong argv, envp;
+        target_ulong sp;
+        int size;
+        target_ulong u_platform;
+        const char *k_platform;
+        const int n = sizeof(target_ulong);
+
+        sp = p;
+        u_platform = 0;
         k_platform = ELF_PLATFORM;
         if (k_platform) {
             size_t len = strlen(k_platform) + 1;
-            sp -= (len + sizeof(target_ulong) - 1) / sizeof(target_ulong);
-            u_platform = (target_ulong *)sp;
-            __copy_to_user(u_platform, k_platform, len);
+            sp -= (len + n - 1) & ~(n - 1);
+            u_platform = sp;
+            memcpy_to_target(sp, k_platform, len);
         }
-        csp = sp;
-        csp -= (DLINFO_ITEMS + 1) * 2;
+	/*
+	 * Force 16 byte _final_ alignment here for generality.
+	 */
+        sp = sp &~ (target_ulong)15;
+        size = (DLINFO_ITEMS + 1) * 2;
         if (k_platform)
-          csp -= 2;
+          size += 2;
 #ifdef DLINFO_ARCH_ITEMS
-	csp -= DLINFO_ARCH_ITEMS*2;
+	size += DLINFO_ARCH_ITEMS * 2;
 #endif
-        csp -= envc+1;
-        csp -= argc+1;
-	csp -= (!ibcs ? 3 : 1);	/* argc itself */
-        if ((unsigned long)csp & 15UL)
-            sp -= ((unsigned long)csp & 15UL) / sizeof(*sp);
+        size += envc + argc + 2;
+	size += (!ibcs ? 3 : 1);	/* argc itself */
+        size *= n;
+        if (size & 15)
+            sp -= 16 - (size & 15);
         
-#define NEW_AUX_ENT(id, val) \
-          sp -= 2; \
-          put_user (id, sp); \
-          put_user (val, sp + 1)
+#define NEW_AUX_ENT(id, val) do { \
+            sp -= n; tputl(sp, val); \
+            sp -= n; tputl(sp, id); \
+          } while(0)
         NEW_AUX_ENT (AT_NULL, 0);
 
         /* There must be exactly DLINFO_ITEMS entries here.  */
@@ -744,7 +731,7 @@ static unsigned int * create_elf_tables(char *p, int argc, int envc,
         NEW_AUX_ENT(AT_EGID, (target_ulong) getegid());
         NEW_AUX_ENT(AT_HWCAP, (target_ulong) ELF_HWCAP);
         if (k_platform)
-            NEW_AUX_ENT(AT_PLATFORM, (target_ulong) u_platform);
+            NEW_AUX_ENT(AT_PLATFORM, u_platform);
 #ifdef ARCH_DLINFO
 	/* 
 	 * ARCH_DLINFO must come last so platform specific code can enforce
@@ -754,37 +741,30 @@ static unsigned int * create_elf_tables(char *p, int argc, int envc,
 #endif
 #undef NEW_AUX_ENT
 
-        sp -= envc+1;
+        sp -= (envc + 1) * n;
         envp = sp;
-        sp -= argc+1;
+        sp -= (argc + 1) * n;
         argv = sp;
         if (!ibcs) {
-                put_user((target_ulong)envp,--sp);
-                put_user((target_ulong)argv,--sp);
+            sp -= n; tputl(sp, envp);
+            sp -= n; tputl(sp, argv);
         }
-        put_user(argc,--sp);
-        info->arg_start = (unsigned int)((unsigned long)p & 0xffffffff);
+        sp -= n; tputl(sp, argc);
+        info->arg_start = p;
         while (argc-->0) {
-                put_user((target_ulong)p,argv++);
-                do {
-                    get_user(v, p);
-                    p++;
-                } while (v != 0);
+            tputl(argv, p); argv += n;
+            p += target_strlen(p) + 1;
         }
-        put_user(0,argv);
-        info->arg_end = info->env_start = (unsigned int)((unsigned long)p & 0xffffffff);
+        tputl(argv, 0);
+        info->arg_end = info->env_start = p;
         while (envc-->0) {
-                put_user((target_ulong)p,envp++);
-                do {
-                    get_user(v, p);
-                    p++;
-                } while (v != 0);
+            tputl(envp, p); envp += n;
+            p += target_strlen(p) + 1;
         }
-        put_user(0,envp);
-        info->env_end = (unsigned int)((unsigned long)p & 0xffffffff);
+        tputl(envp, 0);
+        info->env_end = p;
         return sp;
 }
-
 
 
 static unsigned long load_elf_interp(struct elfhdr * interp_elf_ex,
@@ -1335,8 +1315,7 @@ static int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * r
 #ifdef LOW_ELF_STACK
     info->start_stack = bprm->p = elf_stack - 4;
 #endif
-    bprm->p = (unsigned long)
-      create_elf_tables((char *)bprm->p,
+    bprm->p = create_elf_tables(bprm->p,
 		    bprm->argc,
 		    bprm->envc,
                     &elf_ex,
@@ -1432,6 +1411,7 @@ int elf_exec(const char * filename, char ** argv, char ** envp,
         if(retval>=0) {
 	    retval = load_elf_binary(&bprm,regs,infop);
 	}
+        
         if(retval>=0) {
 	    /* success.  Initialize important registers */
             init_thread(regs, infop);
@@ -1440,7 +1420,7 @@ int elf_exec(const char * filename, char ** argv, char ** envp,
 
         /* Something went wrong, return the inode and free the argument pages*/
         for (i=0 ; i<MAX_ARG_PAGES ; i++) {
-	    free_page((void *)bprm.page[i]);
+	    free(bprm.page[i]);
 	}
         return(retval);
 }

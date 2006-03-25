@@ -62,25 +62,28 @@ static inline unsigned int vm_getl(uint8_t *segptr, unsigned int reg16)
 void save_v86_state(CPUX86State *env)
 {
     TaskState *ts = env->opaque;
+    struct target_vm86plus_struct * target_v86;
 
+    lock_user_struct(target_v86, ts->target_v86, 0);
     /* put the VM86 registers in the userspace register structure */
-    ts->target_v86->regs.eax = tswap32(env->regs[R_EAX]);
-    ts->target_v86->regs.ebx = tswap32(env->regs[R_EBX]);
-    ts->target_v86->regs.ecx = tswap32(env->regs[R_ECX]);
-    ts->target_v86->regs.edx = tswap32(env->regs[R_EDX]);
-    ts->target_v86->regs.esi = tswap32(env->regs[R_ESI]);
-    ts->target_v86->regs.edi = tswap32(env->regs[R_EDI]);
-    ts->target_v86->regs.ebp = tswap32(env->regs[R_EBP]);
-    ts->target_v86->regs.esp = tswap32(env->regs[R_ESP]);
-    ts->target_v86->regs.eip = tswap32(env->eip);
-    ts->target_v86->regs.cs = tswap16(env->segs[R_CS].selector);
-    ts->target_v86->regs.ss = tswap16(env->segs[R_SS].selector);
-    ts->target_v86->regs.ds = tswap16(env->segs[R_DS].selector);
-    ts->target_v86->regs.es = tswap16(env->segs[R_ES].selector);
-    ts->target_v86->regs.fs = tswap16(env->segs[R_FS].selector);
-    ts->target_v86->regs.gs = tswap16(env->segs[R_GS].selector);
+    target_v86->regs.eax = tswap32(env->regs[R_EAX]);
+    target_v86->regs.ebx = tswap32(env->regs[R_EBX]);
+    target_v86->regs.ecx = tswap32(env->regs[R_ECX]);
+    target_v86->regs.edx = tswap32(env->regs[R_EDX]);
+    target_v86->regs.esi = tswap32(env->regs[R_ESI]);
+    target_v86->regs.edi = tswap32(env->regs[R_EDI]);
+    target_v86->regs.ebp = tswap32(env->regs[R_EBP]);
+    target_v86->regs.esp = tswap32(env->regs[R_ESP]);
+    target_v86->regs.eip = tswap32(env->eip);
+    target_v86->regs.cs = tswap16(env->segs[R_CS].selector);
+    target_v86->regs.ss = tswap16(env->segs[R_SS].selector);
+    target_v86->regs.ds = tswap16(env->segs[R_DS].selector);
+    target_v86->regs.es = tswap16(env->segs[R_ES].selector);
+    target_v86->regs.fs = tswap16(env->segs[R_FS].selector);
+    target_v86->regs.gs = tswap16(env->segs[R_GS].selector);
     set_flags(env->eflags, ts->v86flags, VIF_MASK | ts->v86mask);
-    ts->target_v86->regs.eflags = tswap32(env->eflags);
+    target_v86->regs.eflags = tswap32(env->eflags);
+    unlock_user_struct(target_v86, ts->target_v86, 1);
 #ifdef DEBUG_VM86
     fprintf(logfile, "save_v86_state: eflags=%08x cs:ip=%04x:%04x\n", 
             env->eflags, env->segs[R_CS].selector, env->eip);
@@ -378,10 +381,10 @@ void handle_vm86_fault(CPUX86State *env)
     }
 }
 
-int do_vm86(CPUX86State *env, long subfunction, 
-            struct target_vm86plus_struct * target_v86)
+int do_vm86(CPUX86State *env, long subfunction, target_ulong vm86_addr)
 {
     TaskState *ts = env->opaque;
+    struct target_vm86plus_struct * target_v86;
     int ret;
     
     switch (subfunction) {
@@ -402,7 +405,6 @@ int do_vm86(CPUX86State *env, long subfunction,
         goto out;
     }
 
-    ts->target_v86 = target_v86;
     /* save current CPU regs */
     ts->vm86_saved_regs.eax = 0; /* default vm86 syscall return code */
     ts->vm86_saved_regs.ebx = env->regs[R_EBX];
@@ -421,6 +423,8 @@ int do_vm86(CPUX86State *env, long subfunction,
     ts->vm86_saved_regs.fs = env->segs[R_FS].selector;
     ts->vm86_saved_regs.gs = env->segs[R_GS].selector;
 
+    ts->target_v86 = vm86_addr;
+    lock_user_struct(target_v86, vm86_addr, 1);
     /* build vm86 CPU state */
     ts->v86flags = tswap32(target_v86->regs.eflags);
     env->eflags = (env->eflags & ~SAFE_MASK) | 
@@ -465,6 +469,7 @@ int do_vm86(CPUX86State *env, long subfunction,
     ts->vm86plus.vm86plus.flags = tswapl(target_v86->vm86plus.flags);
     memcpy(&ts->vm86plus.vm86plus.vm86dbg_intxxtab, 
            target_v86->vm86plus.vm86dbg_intxxtab, 32);
+    unlock_user_struct(target_v86, vm86_addr, 0);
     
 #ifdef DEBUG_VM86
     fprintf(logfile, "do_vm86: cs:ip=%04x:%04x\n", 

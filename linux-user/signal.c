@@ -135,7 +135,7 @@ void host_to_target_sigset(target_sigset_t *d, const sigset_t *s)
 
     host_to_target_sigset_internal(&d1, s);
     for(i = 0;i < TARGET_NSIG_WORDS; i++)
-        __put_user(d1.sig[i], &d->sig[i]);
+        d->sig[i] = tswapl(d1.sig[i]);
 }
 
 void target_to_host_sigset_internal(sigset_t *d, const target_sigset_t *s)
@@ -168,7 +168,7 @@ void target_to_host_sigset(sigset_t *d, const target_sigset_t *s)
     int i;
 
     for(i = 0;i < TARGET_NSIG_WORDS; i++)
-        __get_user(s1.sig[i], &s->sig[i]);
+        s1.sig[i] = tswapl(s->sig[i]);
     target_to_host_sigset_internal(d, &s1);
 }
     
@@ -647,7 +647,7 @@ get_sigframe(struct emulated_sigaction *ka, CPUX86State *env, size_t frame_size)
             ka->sa.sa_restorer) {
             esp = (unsigned long) ka->sa.sa_restorer;
 	}
-        return (void *)((esp - frame_size) & -8ul);
+        return g2h((esp - frame_size) & -8ul);
 }
 
 static void setup_frame(int sig, struct emulated_sigaction *ka,
@@ -694,7 +694,7 @@ static void setup_frame(int sig, struct emulated_sigaction *ka,
 		goto give_sigsegv;
 
 	/* Set up registers for signal handler */
-	env->regs[R_ESP] = (unsigned long) frame;
+	env->regs[R_ESP] = h2g(frame);
 	env->eip = (unsigned long) ka->sa._sa_handler;
 
         cpu_x86_load_seg(env, R_DS, __USER_DS);
@@ -835,7 +835,7 @@ badframe:
 
 long do_sigreturn(CPUX86State *env)
 {
-    struct sigframe *frame = (struct sigframe *)(env->regs[R_ESP] - 8);
+    struct sigframe *frame = (struct sigframe *)g2h(env->regs[R_ESP] - 8);
     target_sigset_t target_set;
     sigset_t set;
     int eax, i;
@@ -866,7 +866,7 @@ badframe:
 
 long do_rt_sigreturn(CPUX86State *env)
 {
-	struct rt_sigframe *frame = (struct rt_sigframe *)(env->regs[R_ESP] - 4);
+	struct rt_sigframe *frame = (struct rt_sigframe *)g2h(env->regs[R_ESP] - 4);
         sigset_t set;
         //	stack_t st;
 	int eax;
@@ -1029,7 +1029,7 @@ get_sigframe(struct emulated_sigaction *ka, CPUState *regs, int framesize)
 	/*
 	 * ATPCS B01 mandates 8-byte alignment
 	 */
-	return (void *)((sp - framesize) & ~7);
+	return g2h((sp - framesize) & ~7);
 }
 
 static int
@@ -1084,7 +1084,7 @@ setup_return(CPUState *env, struct emulated_sigaction *ka,
 	}
 
 	env->regs[0] = usig;
-	env->regs[13] = (target_ulong)frame;
+	env->regs[13] = h2g(frame);
 	env->regs[14] = retcode;
 	env->regs[15] = handler & (thumb ? ~1 : ~3);
 
@@ -1130,7 +1130,7 @@ static void setup_rt_frame(int usig, struct emulated_sigaction *ka,
 	err |= copy_siginfo_to_user(&frame->info, info);
 
 	/* Clear all the bits of the ucontext we don't use.  */
-	err |= __clear_user(&frame->uc, offsetof(struct ucontext, uc_mcontext));
+	memset(&frame->uc, 0, offsetof(struct target_ucontext, tuc_mcontext));
 
 	err |= setup_sigcontext(&frame->uc.tuc_mcontext, /*&frame->fpstate,*/
 				env, set->sig[0]);
@@ -1202,7 +1202,7 @@ long do_sigreturn(CPUState *env)
 	if (env->regs[13] & 7)
 		goto badframe;
 
-	frame = (struct sigframe *)env->regs[13];
+	frame = (struct sigframe *)g2h(env->regs[13]);
 
 #if 0
 	if (verify_area(VERIFY_READ, frame, sizeof (*frame)))
@@ -1378,7 +1378,7 @@ static inline void *get_sigframe(struct emulated_sigaction *sa, CPUState *env, u
 			sp = current->sas_ss_sp + current->sas_ss_size;
 	}
 #endif
-	return (void *)(sp - framesize);
+	return g2h(sp - framesize);
 }
 
 static int
@@ -1461,10 +1461,10 @@ static void setup_frame(int sig, struct emulated_sigaction *ka,
 		goto sigsegv;
 
 	/* 3. signal handler back-trampoline and parameters */
-	env->regwptr[UREG_FP] = (target_ulong) sf;
+	env->regwptr[UREG_FP] = h2g(sf);
 	env->regwptr[UREG_I0] = sig;
-	env->regwptr[UREG_I1] = (target_ulong) &sf->info;
-	env->regwptr[UREG_I2] = (target_ulong) &sf->info;
+	env->regwptr[UREG_I1] = h2g(&sf->info);
+	env->regwptr[UREG_I2] = h2g(&sf->info);
 
 	/* 4. signal handler */
 	env->pc = (unsigned long) ka->sa._sa_handler;
@@ -1473,7 +1473,7 @@ static void setup_frame(int sig, struct emulated_sigaction *ka,
 	if (ka->sa.sa_restorer)
 		env->regwptr[UREG_I7] = (unsigned long)ka->sa.sa_restorer;
 	else {
-		env->regwptr[UREG_I7] = (unsigned long)(&(sf->insns[0]) - 2);
+		env->regwptr[UREG_I7] = h2g(&(sf->insns[0]) - 2);
 
 		/* mov __NR_sigreturn, %g1 */
 		err |= __put_user(0x821020d8, &sf->insns[0]);
@@ -1548,7 +1548,7 @@ long do_sigreturn(CPUState *env)
         target_ulong fpu_save;
         int err, i;
 
-        sf = (struct target_signal_frame *) env->regwptr[UREG_FP];
+        sf = (struct target_signal_frame *)g2h(env->regwptr[UREG_FP]);
 #if 0
 	fprintf(stderr, "sigreturn\n");
 	fprintf(stderr, "sf: %x pc %x fp %x sp %x\n", sf, env->pc, env->regwptr[UREG_FP], env->regwptr[UREG_SP]);

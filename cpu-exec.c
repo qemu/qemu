@@ -913,7 +913,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
                 pc, address, is_write, *(unsigned long *)old_set);
 #endif
     /* XXX: locking issue */
-    if (is_write && page_unprotect(address, pc, puc)) {
+    if (is_write && page_unprotect(h2g(address), pc, puc)) {
         return 1;
     }
 
@@ -964,7 +964,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
            pc, address, is_write, *(unsigned long *)old_set);
 #endif
     /* XXX: locking issue */
-    if (is_write && page_unprotect(address, pc, puc)) {
+    if (is_write && page_unprotect(h2g(address), pc, puc)) {
         return 1;
     }
     /* see if it is an MMU fault */
@@ -1000,7 +1000,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
            pc, address, is_write, *(unsigned long *)old_set);
 #endif
     /* XXX: locking issue */
-    if (is_write && page_unprotect(address, pc, puc)) {
+    if (is_write && page_unprotect(h2g(address), pc, puc)) {
         return 1;
     }
     /* see if it is an MMU fault */
@@ -1036,7 +1036,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
            pc, address, is_write, *(unsigned long *)old_set);
 #endif
     /* XXX: locking issue */
-    if (is_write && page_unprotect(address, pc, puc)) {
+    if (is_write && page_unprotect(h2g(address), pc, puc)) {
         return 1;
     }
 
@@ -1086,7 +1086,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
            pc, address, is_write, *(unsigned long *)old_set);
 #endif
     /* XXX: locking issue */
-    if (is_write && page_unprotect(address, pc, puc)) {
+    if (is_write && page_unprotect(h2g(address), pc, puc)) {
         return 1;
     }
 

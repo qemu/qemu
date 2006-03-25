@@ -252,44 +252,43 @@ static inline int is_error(long ret)
     return (unsigned long)ret >= (unsigned long)(-4096);
 }
 
-static char *target_brk;
-static char *target_original_brk;
+static target_ulong target_brk;
+static target_ulong target_original_brk;
 
-void target_set_brk(char *new_brk)
+void target_set_brk(target_ulong new_brk)
 {
-    target_brk = new_brk;
-    target_original_brk = new_brk;
+    target_original_brk = target_brk = new_brk;
 }
 
-long do_brk(char *new_brk)
+long do_brk(target_ulong new_brk)
 {
-    char *brk_page;
+    target_ulong brk_page;
     long mapped_addr;
     int	new_alloc_size;
 
     if (!new_brk)
-        return (long)target_brk;
+        return target_brk;
     if (new_brk < target_original_brk)
         return -ENOMEM;
     
-    brk_page = (char *)HOST_PAGE_ALIGN((unsigned long)target_brk);
+    brk_page = HOST_PAGE_ALIGN(target_brk);
 
     /* If the new brk is less than this, set it and we're done... */
     if (new_brk < brk_page) {
 	target_brk = new_brk;
-    	return (long)target_brk;
+    	return target_brk;
     }
 
     /* We need to allocate more memory after the brk... */
     new_alloc_size = HOST_PAGE_ALIGN(new_brk - brk_page + 1);
-    mapped_addr = get_errno(target_mmap((unsigned long)brk_page, new_alloc_size, 
+    mapped_addr = get_errno(target_mmap(brk_page, new_alloc_size, 
                                         PROT_READ|PROT_WRITE,
                                         MAP_ANON|MAP_FIXED|MAP_PRIVATE, 0, 0));
     if (is_error(mapped_addr)) {
 	return mapped_addr;
     } else {
 	target_brk = new_brk;
-    	return (long)target_brk;
+    	return target_brk;
     }
 }
 
@@ -354,9 +353,12 @@ static inline long host_to_target_clock_t(long ticks)
 #endif
 }
 
-static inline void host_to_target_rusage(struct target_rusage *target_rusage, 
+static inline void host_to_target_rusage(target_ulong target_addr,
                                          const struct rusage *rusage)
 {
+    struct target_rusage *target_rusage;
+
+    lock_user_struct(target_rusage, target_addr, 0);
     target_rusage->ru_utime.tv_sec = tswapl(rusage->ru_utime.tv_sec);
     target_rusage->ru_utime.tv_usec = tswapl(rusage->ru_utime.tv_usec);
     target_rusage->ru_stime.tv_sec = tswapl(rusage->ru_stime.tv_sec);
@@ -375,35 +377,64 @@ static inline void host_to_target_rusage(struct target_rusage *target_rusage,
     target_rusage->ru_nsignals = tswapl(rusage->ru_nsignals);
     target_rusage->ru_nvcsw = tswapl(rusage->ru_nvcsw);
     target_rusage->ru_nivcsw = tswapl(rusage->ru_nivcsw);
+    unlock_user_struct(target_rusage, target_addr, 1);
 }
 
-static inline void target_to_host_timeval(struct timeval *tv, 
-                                          const struct target_timeval *target_tv)
+static inline void target_to_host_timeval(struct timeval *tv,
+                                          target_ulong target_addr)
 {
+    struct target_timeval *target_tv;
+
+    lock_user_struct(target_tv, target_addr, 1);
     tv->tv_sec = tswapl(target_tv->tv_sec);
     tv->tv_usec = tswapl(target_tv->tv_usec);
+    unlock_user_struct(target_tv, target_addr, 0);
 }
 
-static inline void host_to_target_timeval(struct target_timeval *target_tv, 
+static inline void host_to_target_timeval(target_ulong target_addr,
                                           const struct timeval *tv)
 {
+    struct target_timeval *target_tv;
+
+    lock_user_struct(target_tv, target_addr, 0);
     target_tv->tv_sec = tswapl(tv->tv_sec);
     target_tv->tv_usec = tswapl(tv->tv_usec);
+    unlock_user_struct(target_tv, target_addr, 1);
 }
 
 
 static long do_select(long n, 
-                      target_long *target_rfds, target_long *target_wfds, 
-                      target_long *target_efds, struct target_timeval *target_tv)
+                      target_ulong rfd_p, target_ulong wfd_p, 
+                      target_ulong efd_p, target_ulong target_tv)
 {
     fd_set rfds, wfds, efds;
     fd_set *rfds_ptr, *wfds_ptr, *efds_ptr;
+    target_long *target_rfds, *target_wfds, *target_efds;
     struct timeval tv, *tv_ptr;
     long ret;
+    int ok;
 
-    rfds_ptr = target_to_host_fds(&rfds, target_rfds, n);
-    wfds_ptr = target_to_host_fds(&wfds, target_wfds, n);
-    efds_ptr = target_to_host_fds(&efds, target_efds, n);
+    if (rfd_p) {
+        target_rfds = lock_user(rfd_p, sizeof(target_long) * n, 1);
+        rfds_ptr = target_to_host_fds(&rfds, target_rfds, n);
+    } else {
+        target_rfds = NULL;
+        rfds_ptr = NULL;
+    }
+    if (wfd_p) {
+        target_wfds = lock_user(wfd_p, sizeof(target_long) * n, 1);
+        wfds_ptr = target_to_host_fds(&wfds, target_wfds, n);
+    } else {
+        target_wfds = NULL;
+        wfds_ptr = NULL;
+    }
+    if (efd_p) {
+        target_efds = lock_user(efd_p, sizeof(target_long) * n, 1);
+        efds_ptr = target_to_host_fds(&efds, target_efds, n);
+    } else {
+        target_efds = NULL;
+        efds_ptr = NULL;
+    }
             
     if (target_tv) {
         target_to_host_timeval(&tv, target_tv);
@@ -412,7 +443,9 @@ static long do_select(long n,
         tv_ptr = NULL;
     }
     ret = get_errno(select(n, rfds_ptr, wfds_ptr, efds_ptr, tv_ptr));
-    if (!is_error(ret)) {
+    ok = !is_error(ret);
+
+    if (ok) {
         host_to_target_fds(target_rfds, rfds_ptr, n);
         host_to_target_fds(target_wfds, wfds_ptr, n);
         host_to_target_fds(target_efds, efds_ptr, n);
@@ -421,25 +454,41 @@ static long do_select(long n,
             host_to_target_timeval(target_tv, &tv);
         }
     }
+    if (target_rfds)
+        unlock_user(target_rfds, rfd_p, ok ? sizeof(target_long) * n : 0);
+    if (target_wfds)
+        unlock_user(target_wfds, wfd_p, ok ? sizeof(target_long) * n : 0);
+    if (target_efds)
+        unlock_user(target_efds, efd_p, ok ? sizeof(target_long) * n : 0);
+
     return ret;
 }
 
 static inline void target_to_host_sockaddr(struct sockaddr *addr,
-                                           struct target_sockaddr *target_addr,
+                                           target_ulong target_addr,
                                            socklen_t len)
 {
-    memcpy(addr, target_addr, len);
-    addr->sa_family = tswap16(target_addr->sa_family);
+    struct target_sockaddr *target_saddr;
+
+    target_saddr = lock_user(target_addr, len, 1);
+    memcpy(addr, target_saddr, len);
+    addr->sa_family = tswap16(target_saddr->sa_family);
+    unlock_user(target_saddr, target_addr, 0);
 }
 
-static inline void host_to_target_sockaddr(struct target_sockaddr *target_addr,
+static inline void host_to_target_sockaddr(target_ulong target_addr,
                                            struct sockaddr *addr,
                                            socklen_t len)
 {
-    memcpy(target_addr, addr, len);
-    target_addr->sa_family = tswap16(addr->sa_family);
+    struct target_sockaddr *target_saddr;
+
+    target_saddr = lock_user(target_addr, len, 0);
+    memcpy(target_saddr, addr, len);
+    target_saddr->sa_family = tswap16(addr->sa_family);
+    unlock_user(target_saddr, target_addr, len);
 }
 
+/* ??? Should this also swap msgh->name?  */
 static inline void target_to_host_cmsg(struct msghdr *msgh,
                                        struct target_msghdr *target_msgh)
 {
@@ -484,6 +533,7 @@ static inline void target_to_host_cmsg(struct msghdr *msgh,
     msgh->msg_controllen = space;
 }
 
+/* ??? Should this also swap msgh->name?  */
 static inline void host_to_target_cmsg(struct target_msghdr *target_msgh,
                                        struct msghdr *msgh)
 {
@@ -528,7 +578,7 @@ static inline void host_to_target_cmsg(struct target_msghdr *target_msgh,
 }
 
 static long do_setsockopt(int sockfd, int level, int optname, 
-                          void *optval, socklen_t optlen)
+                          target_ulong optval, socklen_t optlen)
 {
     int val, ret;
             
@@ -538,8 +588,7 @@ static long do_setsockopt(int sockfd, int level, int optname,
         if (optlen < sizeof(uint32_t))
             return -EINVAL;
         
-        if (get_user(val, (uint32_t *)optval))
-            return -EFAULT;
+        val = tget32(optval);
         ret = get_errno(setsockopt(sockfd, level, optname, &val, sizeof(val)));
         break;
     case SOL_IP:
@@ -561,11 +610,9 @@ static long do_setsockopt(int sockfd, int level, int optname,
         case IP_MULTICAST_LOOP:
             val = 0;
             if (optlen >= sizeof(uint32_t)) {
-                if (get_user(val, (uint32_t *)optval))
-                    return -EFAULT;
+                val = tget32(optval);
             } else if (optlen >= 1) {
-                if (get_user(val, (uint8_t *)optval))
-                    return -EFAULT;
+                val = tget8(optval);
             }
             ret = get_errno(setsockopt(sockfd, level, optname, &val, sizeof(val)));
             break;
@@ -598,8 +645,8 @@ static long do_setsockopt(int sockfd, int level, int optname,
         case SO_SNDTIMEO:
             if (optlen < sizeof(uint32_t))
                 return -EINVAL;
-            if (get_user(val, (uint32_t *)optval))
-                return -EFAULT;
+
+            val = tget32(optval);
             ret = get_errno(setsockopt(sockfd, level, optname, &val, sizeof(val)));
             break;
         default:
@@ -615,7 +662,7 @@ static long do_setsockopt(int sockfd, int level, int optname,
 }
 
 static long do_getsockopt(int sockfd, int level, int optname, 
-                          void *optval, socklen_t *optlen)
+                          target_ulong optval, target_ulong optlen)
 {
     int len, lv, val, ret;
 
@@ -636,8 +683,7 @@ static long do_getsockopt(int sockfd, int level, int optname,
     case SOL_TCP:
         /* TCP options all take an 'int' value.  */
     int_case:
-        if (get_user(len, optlen))
-            return -EFAULT;
+        len = tget32(optlen);
         if (len < 0)
             return -EINVAL;
         lv = sizeof(int);
@@ -647,10 +693,11 @@ static long do_getsockopt(int sockfd, int level, int optname,
         val = tswap32(val);
         if (len > lv)
             len = lv;
-        if (copy_to_user(optval, &val, len))
-            return -EFAULT;
-        if (put_user(len, optlen))
-            return -EFAULT;
+        if (len == 4)
+            tput32(optval, val);
+        else
+            tput8(optval, val);
+        tput32(optlen, len);
         break;
     case SOL_IP:
         switch(optname) {
@@ -669,8 +716,7 @@ static long do_getsockopt(int sockfd, int level, int optname,
 #endif
         case IP_MULTICAST_TTL:
         case IP_MULTICAST_LOOP:
-            if (get_user(len, optlen))
-                return -EFAULT;
+            len = tget32(optlen);
             if (len < 0)
                 return -EINVAL;
             lv = sizeof(int);
@@ -678,20 +724,14 @@ static long do_getsockopt(int sockfd, int level, int optname,
             if (ret < 0)
                 return ret;
             if (len < sizeof(int) && len > 0 && val >= 0 && val < 255) {
-                unsigned char ucval = val;
                 len = 1;
-		if (put_user(len, optlen))
-                    return -EFAULT;
-		if (copy_to_user(optval,&ucval,1))
-                    return -EFAULT;
+                tput32(optlen, len);
+                tput8(optval, val);
             } else {
-                val = tswap32(val);
                 if (len > sizeof(int))
                     len = sizeof(int);
-                if (put_user(len, optlen))
-                    return -EFAULT;
-                if (copy_to_user(optval, &val, len))
-                    return -EFAULT;
+                tput32(optlen, len);
+                tput32(optval, val);
             }
             break;
         default:
@@ -708,25 +748,57 @@ static long do_getsockopt(int sockfd, int level, int optname,
     return ret;
 }
 
-static long do_socketcall(int num, int32_t *vptr)
+static void lock_iovec(struct iovec *vec, target_ulong target_addr,
+                       int count, int copy)
+{
+    struct target_iovec *target_vec;
+    target_ulong base;
+    int i;
+
+    target_vec = lock_user(target_addr, count * sizeof(struct target_iovec), 1);
+    for(i = 0;i < count; i++) {
+        base = tswapl(target_vec[i].iov_base);
+        vec[i].iov_len = tswapl(target_vec[i].iov_len);
+        vec[i].iov_base = lock_user(base, vec[i].iov_len, copy);
+    }
+    unlock_user (target_vec, target_addr, 0);
+}
+
+static void unlock_iovec(struct iovec *vec, target_ulong target_addr,
+                         int count, int copy)
+{
+    struct target_iovec *target_vec;
+    target_ulong base;
+    int i;
+
+    target_vec = lock_user(target_addr, count * sizeof(struct target_iovec), 1);
+    for(i = 0;i < count; i++) {
+        base = tswapl(target_vec[i].iov_base);
+        unlock_user(vec[i].iov_base, base, copy ? vec[i].iov_len : 0);
+    }
+    unlock_user (target_vec, target_addr, 0);
+}
+
+static long do_socketcall(int num, target_ulong vptr)
 {
     long ret;
+    const int n = sizeof(target_ulong);
 
     switch(num) {
     case SOCKOP_socket:
 	{
-            int domain = tswap32(vptr[0]);
-            int type = tswap32(vptr[1]);
-            int protocol = tswap32(vptr[2]);
+            int domain = tgetl(vptr);
+            int type = tgetl(vptr + n);
+            int protocol = tgetl(vptr + 2 * n);
 
             ret = get_errno(socket(domain, type, protocol));
 	}
         break;
     case SOCKOP_bind:
 	{
-            int sockfd = tswap32(vptr[0]);
-            void *target_addr = (void *)tswap32(vptr[1]);
-            socklen_t addrlen = tswap32(vptr[2]);
+            int sockfd = tgetl(vptr);
+            target_ulong target_addr = tgetl(vptr + n);
+            socklen_t addrlen = tgetl(vptr + 2 * n);
             void *addr = alloca(addrlen);
 
             target_to_host_sockaddr(addr, target_addr, addrlen);
@@ -735,9 +807,9 @@ static long do_socketcall(int num, int32_t *vptr)
         break;
     case SOCKOP_connect:
         {
-            int sockfd = tswap32(vptr[0]);
-            void *target_addr = (void *)tswap32(vptr[1]);
-            socklen_t addrlen = tswap32(vptr[2]);
+            int sockfd = tgetl(vptr);
+            target_ulong target_addr = tgetl(vptr + n);
+            socklen_t addrlen = tgetl(vptr + 2 * n);
             void *addr = alloca(addrlen);
 
             target_to_host_sockaddr(addr, target_addr, addrlen);
@@ -746,128 +818,142 @@ static long do_socketcall(int num, int32_t *vptr)
         break;
     case SOCKOP_listen:
         {
-            int sockfd = tswap32(vptr[0]);
-            int backlog = tswap32(vptr[1]);
+            int sockfd = tgetl(vptr);
+            int backlog = tgetl(vptr + n);
 
             ret = get_errno(listen(sockfd, backlog));
         }
         break;
     case SOCKOP_accept:
         {
-            int sockfd = tswap32(vptr[0]);
-            void *target_addr = (void *)tswap32(vptr[1]);
-            uint32_t *target_addrlen = (void *)tswap32(vptr[2]);
-            socklen_t addrlen = tswap32(*target_addrlen);
+            int sockfd = tgetl(vptr);
+            target_ulong target_addr = tgetl(vptr + n);
+            target_ulong target_addrlen = tgetl(vptr + 2 * n);
+            socklen_t addrlen = tget32(target_addrlen);
             void *addr = alloca(addrlen);
 
             ret = get_errno(accept(sockfd, addr, &addrlen));
             if (!is_error(ret)) {
                 host_to_target_sockaddr(target_addr, addr, addrlen);
-                *target_addrlen = tswap32(addrlen);
+                tput32(target_addrlen, addrlen);
             }
         }
         break;
     case SOCKOP_getsockname:
         {
-            int sockfd = tswap32(vptr[0]);
-            void *target_addr = (void *)tswap32(vptr[1]);
-            uint32_t *target_addrlen = (void *)tswap32(vptr[2]);
-            socklen_t addrlen = tswap32(*target_addrlen);
+            int sockfd = tgetl(vptr);
+            target_ulong target_addr = tgetl(vptr + n);
+            target_ulong target_addrlen = tgetl(vptr + 2 * n);
+            socklen_t addrlen = tget32(target_addrlen);
             void *addr = alloca(addrlen);
 
             ret = get_errno(getsockname(sockfd, addr, &addrlen));
             if (!is_error(ret)) {
                 host_to_target_sockaddr(target_addr, addr, addrlen);
-                *target_addrlen = tswap32(addrlen);
+                tput32(target_addrlen, addrlen);
             }
         }
         break;
     case SOCKOP_getpeername:
         {
-            int sockfd = tswap32(vptr[0]);
-            void *target_addr = (void *)tswap32(vptr[1]);
-            uint32_t *target_addrlen = (void *)tswap32(vptr[2]);
-            socklen_t addrlen = tswap32(*target_addrlen);
+            int sockfd = tgetl(vptr);
+            target_ulong target_addr = tgetl(vptr + n);
+            target_ulong target_addrlen = tgetl(vptr + 2 * n);
+            socklen_t addrlen = tget32(target_addrlen);
             void *addr = alloca(addrlen);
 
             ret = get_errno(getpeername(sockfd, addr, &addrlen));
             if (!is_error(ret)) {
                 host_to_target_sockaddr(target_addr, addr, addrlen);
-                *target_addrlen = tswap32(addrlen);
+                tput32(target_addrlen, addrlen);
             }
         }
         break;
     case SOCKOP_socketpair:
         {
-            int domain = tswap32(vptr[0]);
-            int type = tswap32(vptr[1]);
-            int protocol = tswap32(vptr[2]);
-            int32_t *target_tab = (void *)tswap32(vptr[3]);
+            int domain = tgetl(vptr);
+            int type = tgetl(vptr + n);
+            int protocol = tgetl(vptr + 2 * n);
+            target_ulong target_tab = tgetl(vptr + 3 * n);
             int tab[2];
 
             ret = get_errno(socketpair(domain, type, protocol, tab));
             if (!is_error(ret)) {
-                target_tab[0] = tswap32(tab[0]);
-                target_tab[1] = tswap32(tab[1]);
+                tput32(target_tab, tab[0]);
+                tput32(target_tab + 4, tab[1]);
             }
         }
         break;
     case SOCKOP_send:
         {
-            int sockfd = tswap32(vptr[0]);
-            void *msg = (void *)tswap32(vptr[1]);
-            size_t len = tswap32(vptr[2]);
-            int flags = tswap32(vptr[3]);
+            int sockfd = tgetl(vptr);
+            target_ulong msg = tgetl(vptr + n);
+            size_t len = tgetl(vptr + 2 * n);
+            int flags = tgetl(vptr + 3 * n);
+            void *host_msg;
 
-            ret = get_errno(send(sockfd, msg, len, flags));
+            host_msg = lock_user(msg, len, 1);
+            ret = get_errno(send(sockfd, host_msg, len, flags));
+            unlock_user(host_msg, msg, 0);
         }
         break;
     case SOCKOP_recv:
         {
-            int sockfd = tswap32(vptr[0]);
-            void *msg = (void *)tswap32(vptr[1]);
-            size_t len = tswap32(vptr[2]);
-            int flags = tswap32(vptr[3]);
+            int sockfd = tgetl(vptr);
+            target_ulong msg = tgetl(vptr + n);
+            size_t len = tgetl(vptr + 2 * n);
+            int flags = tgetl(vptr + 3 * n);
+            void *host_msg;
 
-            ret = get_errno(recv(sockfd, msg, len, flags));
+            host_msg = lock_user(msg, len, 0);
+            ret = get_errno(recv(sockfd, host_msg, len, flags));
+            unlock_user(host_msg, msg, ret);
         }
         break;
     case SOCKOP_sendto:
         {
-            int sockfd = tswap32(vptr[0]);
-            void *msg = (void *)tswap32(vptr[1]);
-            size_t len = tswap32(vptr[2]);
-            int flags = tswap32(vptr[3]);
-            void *target_addr = (void *)tswap32(vptr[4]);
-            socklen_t addrlen = tswap32(vptr[5]);
+            int sockfd = tgetl(vptr);
+            target_ulong msg = tgetl(vptr + n);
+            size_t len = tgetl(vptr + 2 * n);
+            int flags = tgetl(vptr + 3 * n);
+            target_ulong target_addr = tgetl(vptr + 4 * n);
+            socklen_t addrlen = tgetl(vptr + 5 * n);
             void *addr = alloca(addrlen);
+            void *host_msg;
 
+            host_msg = lock_user(msg, len, 1);
             target_to_host_sockaddr(addr, target_addr, addrlen);
-            ret = get_errno(sendto(sockfd, msg, len, flags, addr, addrlen));
+            ret = get_errno(sendto(sockfd, host_msg, len, flags, addr, addrlen));
+            unlock_user(host_msg, msg, 0);
         }
         break;
     case SOCKOP_recvfrom:
         {
-            int sockfd = tswap32(vptr[0]);
-            void *msg = (void *)tswap32(vptr[1]);
-            size_t len = tswap32(vptr[2]);
-            int flags = tswap32(vptr[3]);
-            void *target_addr = (void *)tswap32(vptr[4]);
-            uint32_t *target_addrlen = (void *)tswap32(vptr[5]);
-            socklen_t addrlen = tswap32(*target_addrlen);
+            int sockfd = tgetl(vptr);
+            target_ulong msg = tgetl(vptr + n);
+            size_t len = tgetl(vptr + 2 * n);
+            int flags = tgetl(vptr + 3 * n);
+            target_ulong target_addr = tgetl(vptr + 4 * n);
+            target_ulong target_addrlen = tgetl(vptr + 5 * n);
+            socklen_t addrlen = tget32(target_addrlen);
             void *addr = alloca(addrlen);
+            void *host_msg;
 
-            ret = get_errno(recvfrom(sockfd, msg, len, flags, addr, &addrlen));
+            host_msg = lock_user(msg, len, 0);
+            ret = get_errno(recvfrom(sockfd, host_msg, len, flags, addr, &addrlen));
             if (!is_error(ret)) {
                 host_to_target_sockaddr(target_addr, addr, addrlen);
-                *target_addrlen = tswap32(addrlen);
+                tput32(target_addrlen, addrlen);
+                unlock_user(host_msg, msg, len);
+            } else {
+                unlock_user(host_msg, msg, 0);
             }
         }
         break;
     case SOCKOP_shutdown:
         {
-            int sockfd = tswap32(vptr[0]);
-            int how = tswap32(vptr[1]);
+            int sockfd = tgetl(vptr);
+            int how = tgetl(vptr + n);
 
             ret = get_errno(shutdown(sockfd, how));
         }
@@ -876,32 +962,39 @@ static long do_socketcall(int num, int32_t *vptr)
     case SOCKOP_recvmsg:
         {
             int fd;
+            target_ulong target_msg;
             struct target_msghdr *msgp;
             struct msghdr msg;
-            int flags, count, i;
+            int flags, count;
             struct iovec *vec;
-            struct target_iovec *target_vec;
+            target_ulong target_vec;
+            int send = (num == SOCKOP_sendmsg);
 
-            msgp = (void *)tswap32(vptr[1]);
-            msg.msg_name = (void *)tswapl(msgp->msg_name);
-            msg.msg_namelen = tswapl(msgp->msg_namelen);
+            target_msg = tgetl(vptr + n);
+            lock_user_struct(msgp, target_msg, 1);
+            if (msgp->msg_name) {
+                msg.msg_namelen = tswap32(msgp->msg_namelen);
+                msg.msg_name = alloca(msg.msg_namelen);
+                target_to_host_sockaddr(msg.msg_name, tswapl(msgp->msg_name),
+                                        msg.msg_namelen);
+            } else {
+                msg.msg_name = NULL;
+                msg.msg_namelen = 0;
+            }
             msg.msg_controllen = 2 * tswapl(msgp->msg_controllen);
             msg.msg_control = alloca(msg.msg_controllen);
             msg.msg_flags = tswap32(msgp->msg_flags);
 
             count = tswapl(msgp->msg_iovlen);
             vec = alloca(count * sizeof(struct iovec));
-            target_vec = (void *)tswapl(msgp->msg_iov);
-            for(i = 0;i < count; i++) {
-                vec[i].iov_base = (void *)tswapl(target_vec[i].iov_base);
-                vec[i].iov_len = tswapl(target_vec[i].iov_len);
-            }
+            target_vec = tswapl(msgp->msg_iov);
+            lock_iovec(vec, target_vec, count, send);
             msg.msg_iovlen = count;
             msg.msg_iov = vec;
 
-            fd = tswap32(vptr[0]);
-            flags = tswap32(vptr[2]);
-            if (num == SOCKOP_sendmsg) {
+            fd = tgetl(vptr);
+            flags = tgetl(vptr + 2 * n);
+            if (send) {
                 target_to_host_cmsg(&msg, msgp);
                 ret = get_errno(sendmsg(fd, &msg, flags));
             } else {
@@ -909,26 +1002,27 @@ static long do_socketcall(int num, int32_t *vptr)
                 if (!is_error(ret))
                   host_to_target_cmsg(msgp, &msg);
             }
+            unlock_iovec(vec, target_vec, count, !send);
         }
         break;
     case SOCKOP_setsockopt:
         {
-            int sockfd = tswap32(vptr[0]);
-            int level = tswap32(vptr[1]);
-            int optname = tswap32(vptr[2]);
-            void *optval = (void *)tswap32(vptr[3]);
-            socklen_t optlen = tswap32(vptr[4]);
+            int sockfd = tgetl(vptr);
+            int level = tgetl(vptr + n);
+            int optname = tgetl(vptr + 2 * n);
+            target_ulong optval = tgetl(vptr + 3 * n);
+            socklen_t optlen = tgetl(vptr + 4 * n);
 
             ret = do_setsockopt(sockfd, level, optname, optval, optlen);
         }
         break;
     case SOCKOP_getsockopt:
         {
-            int sockfd = tswap32(vptr[0]);
-            int level = tswap32(vptr[1]);
-            int optname = tswap32(vptr[2]);
-            void *optval = (void *)tswap32(vptr[3]);
-            uint32_t *poptlen = (void *)tswap32(vptr[4]);
+            int sockfd = tgetl(vptr);
+            int level = tgetl(vptr + n);
+            int optname = tgetl(vptr + 2 * n);
+            target_ulong optval = tgetl(vptr + 3 * n);
+            target_ulong poptlen = tgetl(vptr + 4 * n);
 
             ret = do_getsockopt(sockfd, level, optname, optval, poptlen);
         }
@@ -949,6 +1043,7 @@ static struct shm_region {
     uint32_t	size;
 } shm_regions[N_SHM_REGIONS];
 
+/* ??? This only works with linear mappings.  */
 static long do_ipc(long call, long first, long second, long third,
 		   long ptr, long fifth)
 {
@@ -1065,12 +1160,15 @@ IOCTLEntry ioctl_entries[] = {
     { 0, 0, },
 };
 
+/* ??? Implement proper locking for ioctls.  */
 static long do_ioctl(long fd, long cmd, long arg)
 {
     const IOCTLEntry *ie;
     const argtype *arg_type;
     long ret;
     uint8_t buf_temp[MAX_STRUCT_SIZE];
+    int target_size;
+    void *argptr;
 
     ie = ioctl_entries;
     for(;;) {
@@ -1098,23 +1196,32 @@ static long do_ioctl(long fd, long cmd, long arg)
         break;
     case TYPE_PTR:
         arg_type++;
+        target_size = thunk_type_size(arg_type, 0);
         switch(ie->access) {
         case IOC_R:
             ret = get_errno(ioctl(fd, ie->host_cmd, buf_temp));
             if (!is_error(ret)) {
-                thunk_convert((void *)arg, buf_temp, arg_type, THUNK_TARGET);
+                argptr = lock_user(arg, target_size, 0);
+                thunk_convert(argptr, buf_temp, arg_type, THUNK_TARGET);
+                unlock_user(argptr, arg, target_size);
             }
             break;
         case IOC_W:
-            thunk_convert(buf_temp, (void *)arg, arg_type, THUNK_HOST);
+            argptr = lock_user(arg, target_size, 1);
+            thunk_convert(buf_temp, argptr, arg_type, THUNK_HOST);
+            unlock_user(argptr, arg, 0);
             ret = get_errno(ioctl(fd, ie->host_cmd, buf_temp));
             break;
         default:
         case IOC_RW:
-            thunk_convert(buf_temp, (void *)arg, arg_type, THUNK_HOST);
+            argptr = lock_user(arg, target_size, 1);
+            thunk_convert(buf_temp, argptr, arg_type, THUNK_HOST);
+            unlock_user(argptr, arg, 0);
             ret = get_errno(ioctl(fd, ie->host_cmd, buf_temp));
             if (!is_error(ret)) {
-                thunk_convert((void *)arg, buf_temp, arg_type, THUNK_TARGET);
+                argptr = lock_user(arg, target_size, 0);
+                thunk_convert(argptr, buf_temp, arg_type, THUNK_TARGET);
+                unlock_user(argptr, arg, target_size);
             }
             break;
         }
@@ -1338,35 +1445,41 @@ static bitmask_transtbl fcntl_flags_tbl[] = {
 /* NOTE: there is really one LDT for all the threads */
 uint8_t *ldt_table;
 
-static int read_ldt(void *ptr, unsigned long bytecount)
+static int read_ldt(target_ulong ptr, unsigned long bytecount)
 {
     int size;
+    void *p;
 
     if (!ldt_table)
         return 0;
     size = TARGET_LDT_ENTRIES * TARGET_LDT_ENTRY_SIZE;
     if (size > bytecount)
         size = bytecount;
-    memcpy(ptr, ldt_table, size);
+    p = lock_user(ptr, size, 0);
+    /* ??? Shoudl this by byteswapped?  */
+    memcpy(p, ldt_table, size);
+    unlock_user(p, ptr, size);
     return size;
 }
 
 /* XXX: add locking support */
 static int write_ldt(CPUX86State *env, 
-                     void *ptr, unsigned long bytecount, int oldmode)
+                     target_ulong ptr, unsigned long bytecount, int oldmode)
 {
     struct target_modify_ldt_ldt_s ldt_info;
+    struct target_modify_ldt_ldt_s *target_ldt_info;
     int seg_32bit, contents, read_exec_only, limit_in_pages;
     int seg_not_present, useable;
     uint32_t *lp, entry_1, entry_2;
 
     if (bytecount != sizeof(ldt_info))
         return -EINVAL;
-    memcpy(&ldt_info, ptr, sizeof(ldt_info));
-    tswap32s(&ldt_info.entry_number);
-    tswapls((long *)&ldt_info.base_addr);
-    tswap32s(&ldt_info.limit);
-    tswap32s(&ldt_info.flags);
+    lock_user_struct(target_ldt_info, ptr, 1);
+    ldt_info.entry_number = tswap32(target_ldt_info->entry_number);
+    ldt_info.base_addr = tswapl(target_ldt_info->base_addr);
+    ldt_info.limit = tswap32(target_ldt_info->limit);
+    ldt_info.flags = tswap32(target_ldt_info->flags);
+    unlock_user_struct(target_ldt_info, ptr, 0);
     
     if (ldt_info.entry_number >= TARGET_LDT_ENTRIES)
         return -EINVAL;
@@ -1389,7 +1502,7 @@ static int write_ldt(CPUX86State *env,
         if (!ldt_table)
             return -ENOMEM;
         memset(ldt_table, 0, TARGET_LDT_ENTRIES * TARGET_LDT_ENTRY_SIZE);
-        env->ldt.base = (long)ldt_table;
+        env->ldt.base = h2g(ldt_table);
         env->ldt.limit = 0xffff;
     }
 
@@ -1432,7 +1545,7 @@ install:
 }
 
 /* specific and weird i386 syscalls */
-int do_modify_ldt(CPUX86State *env, int func, void *ptr, unsigned long bytecount)
+int do_modify_ldt(CPUX86State *env, int func, target_ulong ptr, unsigned long bytecount)
 {
     int ret = -ENOSYS;
     
@@ -1523,31 +1636,35 @@ int do_fork(CPUState *env, unsigned int flags, unsigned long newsp)
     return ret;
 }
 
-static long do_fcntl(int fd, int cmd, unsigned long arg)
+static long do_fcntl(int fd, int cmd, target_ulong arg)
 {
     struct flock fl;
-    struct target_flock *target_fl = (void *)arg;
+    struct target_flock *target_fl;
     long ret;
-    
+
     switch(cmd) {
     case TARGET_F_GETLK:
         ret = fcntl(fd, cmd, &fl);
         if (ret == 0) {
+            lock_user_struct(target_fl, arg, 0);
             target_fl->l_type = tswap16(fl.l_type);
             target_fl->l_whence = tswap16(fl.l_whence);
             target_fl->l_start = tswapl(fl.l_start);
             target_fl->l_len = tswapl(fl.l_len);
             target_fl->l_pid = tswapl(fl.l_pid);
+            unlock_user_struct(target_fl, arg, 1);
         }
         break;
         
     case TARGET_F_SETLK:
     case TARGET_F_SETLKW:
+        lock_user_struct(target_fl, arg, 1);
         fl.l_type = tswap16(target_fl->l_type);
         fl.l_whence = tswap16(target_fl->l_whence);
         fl.l_start = tswapl(target_fl->l_start);
         fl.l_len = tswapl(target_fl->l_len);
         fl.l_pid = tswapl(target_fl->l_pid);
+        unlock_user_struct(target_fl, arg, 0);
         ret = fcntl(fd, cmd, &fl);
         break;
         
@@ -1690,12 +1807,35 @@ static inline long target_ftruncate64(void *cpu_env, long arg1, long arg2,
 }
 #endif
 
+static inline void target_to_host_timespec(struct timespec *host_ts,
+                                           target_ulong target_addr)
+{
+    struct target_timespec *target_ts;
+
+    lock_user_struct(target_ts, target_addr, 1);
+    host_ts->tv_sec = tswapl(target_ts->tv_sec);
+    host_ts->tv_nsec = tswapl(target_ts->tv_nsec);
+    unlock_user_struct(target_ts, target_addr, 0);
+}
+
+static inline void host_to_target_timespec(target_ulong target_addr,
+                                           struct timespec *host_ts)
+{
+    struct target_timespec *target_ts;
+
+    lock_user_struct(target_ts, target_addr, 0);
+    target_ts->tv_sec = tswapl(host_ts->tv_sec);
+    target_ts->tv_nsec = tswapl(host_ts->tv_nsec);
+    unlock_user_struct(target_ts, target_addr, 1);
+}
+
 long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3, 
                 long arg4, long arg5, long arg6)
 {
     long ret;
     struct stat st;
     struct statfs stfs;
+    void *p;
     
 #ifdef DEBUG
     gemu_log("syscall %d", num);
@@ -1711,89 +1851,140 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         ret = 0; /* avoid warning */
         break;
     case TARGET_NR_read:
-        page_unprotect_range((void *)arg2, arg3);
-        ret = get_errno(read(arg1, (void *)arg2, arg3));
+        page_unprotect_range(arg2, arg3);
+        p = lock_user(arg2, arg3, 0);
+        ret = get_errno(read(arg1, p, arg3));
+        unlock_user(p, arg2, ret);
         break;
     case TARGET_NR_write:
-        ret = get_errno(write(arg1, (void *)arg2, arg3));
+        p = lock_user(arg2, arg3, 1);
+        ret = get_errno(write(arg1, p, arg3));
+        unlock_user(p, arg2, 0);
         break;
     case TARGET_NR_open:
-        ret = get_errno(open(path((const char *)arg1),
+        p = lock_user_string(arg1);
+        ret = get_errno(open(path(p),
                              target_to_host_bitmask(arg2, fcntl_flags_tbl),
                              arg3));
+        unlock_user(p, arg1, 0);
         break;
     case TARGET_NR_close:
         ret = get_errno(close(arg1));
         break;
     case TARGET_NR_brk:
-        ret = do_brk((char *)arg1);
+        ret = do_brk(arg1);
         break;
     case TARGET_NR_fork:
         ret = get_errno(do_fork(cpu_env, SIGCHLD, 0));
         break;
     case TARGET_NR_waitpid:
         {
-            int *status = (int *)arg2;
-            ret = get_errno(waitpid(arg1, status, arg3));
-            if (!is_error(ret) && status)
-                tswapls((long *)&status);
+            int status;
+            ret = get_errno(waitpid(arg1, &status, arg3));
+            if (!is_error(ret) && arg2)
+                tput32(arg2, status);
         }
         break;
     case TARGET_NR_creat:
-        ret = get_errno(creat((const char *)arg1, arg2));
+        p = lock_user_string(arg1);
+        ret = get_errno(creat(p, arg2));
+        unlock_user(p, arg1, 0);
         break;
     case TARGET_NR_link:
-        ret = get_errno(link((const char *)arg1, (const char *)arg2));
+        {
+            void * p2;
+            p = lock_user_string(arg1);
+            p2 = lock_user_string(arg2);
+            ret = get_errno(link(p, p2));
+            unlock_user(p2, arg2, 0);
+            unlock_user(p, arg1, 0);
+        }
         break;
     case TARGET_NR_unlink:
-        ret = get_errno(unlink((const char *)arg1));
+        p = lock_user_string(arg1);
+        ret = get_errno(unlink(p));
+        unlock_user(p, arg1, 0);
         break;
     case TARGET_NR_execve:
         {
             char **argp, **envp;
             int argc, envc;
-            uint32_t *p;
+            target_ulong gp;
+            target_ulong guest_argp;
+            target_ulong guest_envp;
+            target_ulong addr;
             char **q;
 
             argc = 0;
-            for (p = (void *)arg2; *p; p++)
+            guest_argp = arg2;
+            for (gp = guest_argp; tgetl(gp); gp++)
                 argc++;
             envc = 0;
-            for (p = (void *)arg3; *p; p++)
+            guest_envp = arg3;
+            for (gp = guest_envp; tgetl(gp); gp++)
                 envc++;
 
             argp = alloca((argc + 1) * sizeof(void *));
             envp = alloca((envc + 1) * sizeof(void *));
 
-            for (p = (void *)arg2, q = argp; *p; p++, q++)
-                *q = (void *)tswap32(*p);
+            for (gp = guest_argp, q = argp; ;
+                  gp += sizeof(target_ulong), q++) {
+                addr = tgetl(gp);
+                if (!addr)
+                    break;
+                *q = lock_user_string(addr);
+            }
             *q = NULL;
 
-            for (p = (void *)arg3, q = envp; *p; p++, q++)
-                *q = (void *)tswap32(*p);
+            for (gp = guest_envp, q = envp; ;
+                  gp += sizeof(target_ulong), q++) {
+                addr = tgetl(gp);
+                if (!addr)
+                    break;
+                *q = lock_user_string(addr);
+            }
             *q = NULL;
 
-            ret = get_errno(execve((const char *)arg1, argp, envp));
+            p = lock_user_string(arg1);
+            ret = get_errno(execve(p, argp, envp));
+            unlock_user(p, arg1, 0);
+
+            for (gp = guest_argp, q = argp; *q;
+                  gp += sizeof(target_ulong), q++) {
+                addr = tgetl(gp);
+                unlock_user(*q, addr, 0);
+            }
+            for (gp = guest_envp, q = envp; *q;
+                  gp += sizeof(target_ulong), q++) {
+                addr = tgetl(gp);
+                unlock_user(*q, addr, 0);
+            }
         }
         break;
     case TARGET_NR_chdir:
-        ret = get_errno(chdir((const char *)arg1));
+        p = lock_user_string(arg1);
+        ret = get_errno(chdir(p));
+        unlock_user(p, arg1, 0);
         break;
 #ifdef TARGET_NR_time
     case TARGET_NR_time:
         {
-            int *time_ptr = (int *)arg1;
-            ret = get_errno(time((time_t *)time_ptr));
-            if (!is_error(ret) && time_ptr)
-                tswap32s(time_ptr);
+            time_t host_time;
+            ret = get_errno(time(&host_time));
+            if (!is_error(ret) && arg1)
+                tputl(arg1, host_time);
         }
         break;
 #endif
     case TARGET_NR_mknod:
-        ret = get_errno(mknod((const char *)arg1, arg2, arg3));
+        p = lock_user_string(arg1);
+        ret = get_errno(mknod(p, arg2, arg3));
+        unlock_user(p, arg1, 0);
         break;
     case TARGET_NR_chmod:
-        ret = get_errno(chmod((const char *)arg1, arg2));
+        p = lock_user_string(arg1);
+        ret = get_errno(chmod(p, arg2));
+        unlock_user(p, arg1, 0);
         break;
 #ifdef TARGET_NR_break
     case TARGET_NR_break:
@@ -1813,14 +2004,15 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         /* need to look at the data field */
         goto unimplemented;
     case TARGET_NR_umount:
-        ret = get_errno(umount((const char *)arg1));
+        p = lock_user_string(arg1);
+        ret = get_errno(umount(p));
+        unlock_user(p, arg1, 0);
         break;
     case TARGET_NR_stime:
         {
-            int *time_ptr = (int *)arg1;
-            if (time_ptr)
-                tswap32s(time_ptr);
-            ret = get_errno(stime((time_t *)time_ptr));
+            time_t host_time;
+            host_time = tgetl(arg1);
+            ret = get_errno(stime(&host_time));
         }
         break;
     case TARGET_NR_ptrace:
@@ -1837,30 +2029,36 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         break;
     case TARGET_NR_utime:
         {
-            struct utimbuf tbuf, *tbuf1;
-            struct target_utimbuf *target_tbuf = (void *)arg2;
-            if (target_tbuf) {
-                get_user(tbuf.actime, &target_tbuf->actime);
-                get_user(tbuf.modtime, &target_tbuf->modtime);
-                tbuf1 = &tbuf;
+            struct utimbuf tbuf, *host_tbuf;
+            struct target_utimbuf *target_tbuf;
+            if (arg2) {
+                lock_user_struct(target_tbuf, arg2, 1);
+                tbuf.actime = tswapl(target_tbuf->actime);
+                tbuf.modtime = tswapl(target_tbuf->modtime);
+                unlock_user_struct(target_tbuf, arg2, 0);
+                host_tbuf = &tbuf;
             } else {
-                tbuf1 = NULL;
+                host_tbuf = NULL;
             }
-            ret = get_errno(utime((const char *)arg1, tbuf1));
+            p = lock_user_string(arg1);
+            ret = get_errno(utime(p, host_tbuf));
+            unlock_user(p, arg1, 0);
         }
         break;
     case TARGET_NR_utimes:
         {
-            struct target_timeval *target_tvp = (struct target_timeval *)arg2;
             struct timeval *tvp, tv[2];
-            if (target_tvp) {
-                target_to_host_timeval(&tv[0], &target_tvp[0]);
-                target_to_host_timeval(&tv[1], &target_tvp[1]);
+            if (arg2) {
+                target_to_host_timeval(&tv[0], arg2);
+                target_to_host_timeval(&tv[1],
+                    arg2 + sizeof (struct target_timeval));
                 tvp = tv;
             } else {
                 tvp = NULL;
             }
-            ret = get_errno(utimes((const char *)arg1, tvp));
+            p = lock_user_string(arg1);
+            ret = get_errno(utimes(p, tvp));
+            unlock_user(p, arg1, 0);
         }
         break;
 #ifdef TARGET_NR_stty
@@ -1872,7 +2070,9 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         goto unimplemented;
 #endif
     case TARGET_NR_access:
-        ret = get_errno(access((const char *)arg1, arg2));
+        p = lock_user_string(arg1);
+        ret = get_errno(access(p, arg2));
+        unlock_user(p, arg1, 0);
         break;
     case TARGET_NR_nice:
         ret = get_errno(nice(arg1));
@@ -1889,33 +2089,45 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         ret = get_errno(kill(arg1, arg2));
         break;
     case TARGET_NR_rename:
-        ret = get_errno(rename((const char *)arg1, (const char *)arg2));
+        {
+            void *p2;
+            p = lock_user_string(arg1);
+            p2 = lock_user_string(arg2);
+            ret = get_errno(rename(p, p2));
+            unlock_user(p2, arg2, 0);
+            unlock_user(p, arg1, 0);
+        }
         break;
     case TARGET_NR_mkdir:
-        ret = get_errno(mkdir((const char *)arg1, arg2));
+        p = lock_user_string(arg1);
+        ret = get_errno(mkdir(p, arg2));
+        unlock_user(p, arg1, 0);
         break;
     case TARGET_NR_rmdir:
-        ret = get_errno(rmdir((const char *)arg1));
+        p = lock_user_string(arg1);
+        ret = get_errno(rmdir(p));
+        unlock_user(p, arg1, 0);
         break;
     case TARGET_NR_dup:
         ret = get_errno(dup(arg1));
         break;
     case TARGET_NR_pipe:
         {
-            int *pipe_ptr = (int *)arg1;
-            ret = get_errno(pipe(pipe_ptr));
+            int host_pipe[2];
+            ret = get_errno(pipe(host_pipe));
             if (!is_error(ret)) {
-                tswap32s(&pipe_ptr[0]);
-                tswap32s(&pipe_ptr[1]);
+                tput32(arg1, host_pipe[0]);
+                tput32(arg1 + 4, host_pipe[1]);
             }
         }
         break;
     case TARGET_NR_times:
         {
-            struct target_tms *tmsp = (void *)arg1;
+            struct target_tms *tmsp;
             struct tms tms;
             ret = get_errno(times(&tms));
-            if (tmsp) {
+            if (arg1) {
+                tmsp = lock_user(arg1, sizeof(struct target_tms), 0);
                 tmsp->tms_utime = tswapl(host_to_target_clock_t(tms.tms_utime));
                 tmsp->tms_stime = tswapl(host_to_target_clock_t(tms.tms_stime));
                 tmsp->tms_cutime = tswapl(host_to_target_clock_t(tms.tms_cutime));
@@ -1935,7 +2147,9 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_acct:
         goto unimplemented;
     case TARGET_NR_umount2:
-        ret = get_errno(umount2((const char *)arg1, arg2));
+        p = lock_user_string(arg1);
+        ret = get_errno(umount2(p, arg2));
+        unlock_user(p, arg1, 0);
         break;
 #ifdef TARGET_NR_lock
     case TARGET_NR_lock:
@@ -1966,7 +2180,9 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         ret = get_errno(umask(arg1));
         break;
     case TARGET_NR_chroot:
-        ret = get_errno(chroot((const char *)arg1));
+        p = lock_user_string(arg1);
+        ret = get_errno(chroot(p));
+        unlock_user(p, arg1, 0);
         break;
     case TARGET_NR_ustat:
         goto unimplemented;
@@ -1984,29 +2200,49 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         break;
     case TARGET_NR_sigaction:
         {
-            struct target_old_sigaction *old_act = (void *)arg2;
-            struct target_old_sigaction *old_oact = (void *)arg3;
+            struct target_old_sigaction *old_act;
             struct target_sigaction act, oact, *pact;
-            if (old_act) {
+            if (arg2) {
+                lock_user_struct(old_act, arg2, 1);
                 act._sa_handler = old_act->_sa_handler;
                 target_siginitset(&act.sa_mask, old_act->sa_mask);
                 act.sa_flags = old_act->sa_flags;
                 act.sa_restorer = old_act->sa_restorer;
+                unlock_user_struct(old_act, arg2, 0);
                 pact = &act;
             } else {
                 pact = NULL;
             }
             ret = get_errno(do_sigaction(arg1, pact, &oact));
-            if (!is_error(ret) && old_oact) {
-                old_oact->_sa_handler = oact._sa_handler;
-                old_oact->sa_mask = oact.sa_mask.sig[0];
-                old_oact->sa_flags = oact.sa_flags;
-                old_oact->sa_restorer = oact.sa_restorer;
+            if (!is_error(ret) && arg3) {
+                lock_user_struct(old_act, arg3, 0);
+                old_act->_sa_handler = oact._sa_handler;
+                old_act->sa_mask = oact.sa_mask.sig[0];
+                old_act->sa_flags = oact.sa_flags;
+                old_act->sa_restorer = oact.sa_restorer;
+                unlock_user_struct(old_act, arg3, 1);
             }
         }
         break;
     case TARGET_NR_rt_sigaction:
-        ret = get_errno(do_sigaction(arg1, (void *)arg2, (void *)arg3));
+        {
+            struct target_sigaction *act;
+            struct target_sigaction *oact;
+
+            if (arg2)
+                lock_user_struct(act, arg2, 1);
+            else
+                act = NULL;
+            if (arg3)
+                lock_user_struct(oact, arg3, 0);
+            else
+                oact = NULL;
+            ret = get_errno(do_sigaction(arg1, act, oact));
+            if (arg2)
+                unlock_user_struct(act, arg2, 0);
+            if (arg3)
+                unlock_user_struct(oact, arg3, 1);
+        }
         break;
     case TARGET_NR_sgetmask:
         {
@@ -2033,9 +2269,8 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         {
             int how = arg1;
             sigset_t set, oldset, *set_ptr;
-            target_ulong *pset = (void *)arg2, *poldset = (void *)arg3;
             
-            if (pset) {
+            if (arg2) {
                 switch(how) {
                 case TARGET_SIG_BLOCK:
                     how = SIG_BLOCK;
@@ -2050,15 +2285,19 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                     ret = -EINVAL;
                     goto fail;
                 }
-                target_to_host_old_sigset(&set, pset);
+                p = lock_user(arg2, sizeof(target_sigset_t), 1);
+                target_to_host_old_sigset(&set, p);
+                unlock_user(p, arg2, 0);
                 set_ptr = &set;
             } else {
                 how = 0;
                 set_ptr = NULL;
             }
             ret = get_errno(sigprocmask(arg1, set_ptr, &oldset));
-            if (!is_error(ret) && poldset) {
-                host_to_target_old_sigset(poldset, &oldset);
+            if (!is_error(ret) && arg3) {
+                p = lock_user(arg3, sizeof(target_sigset_t), 0);
+                host_to_target_old_sigset(p, &oldset);
+                unlock_user(p, arg3, sizeof(target_sigset_t));
             }
         }
         break;
@@ -2066,10 +2305,8 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         {
             int how = arg1;
             sigset_t set, oldset, *set_ptr;
-            target_sigset_t *pset = (void *)arg2;
-            target_sigset_t *poldset = (void *)arg3;
             
-            if (pset) {
+            if (arg2) {
                 switch(how) {
                 case TARGET_SIG_BLOCK:
                     how = SIG_BLOCK;
@@ -2084,15 +2321,19 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                     ret = -EINVAL;
                     goto fail;
                 }
-                target_to_host_sigset(&set, pset);
+                p = lock_user(arg2, sizeof(target_sigset_t), 1);
+                target_to_host_sigset(&set, p);
+                unlock_user(p, arg2, 0);
                 set_ptr = &set;
             } else {
                 how = 0;
                 set_ptr = NULL;
             }
             ret = get_errno(sigprocmask(how, set_ptr, &oldset));
-            if (!is_error(ret) && poldset) {
-                host_to_target_sigset(poldset, &oldset);
+            if (!is_error(ret) && arg3) {
+                p = lock_user(arg3, sizeof(target_sigset_t), 0);
+                host_to_target_sigset(p, &oldset);
+                unlock_user(p, arg3, sizeof(target_sigset_t));
             }
         }
         break;
@@ -2101,7 +2342,9 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             sigset_t set;
             ret = get_errno(sigpending(&set));
             if (!is_error(ret)) {
-                host_to_target_old_sigset((target_ulong *)arg1, &set);
+                p = lock_user(arg1, sizeof(target_sigset_t), 0);
+                host_to_target_old_sigset(p, &set);
+                unlock_user(p, arg1, sizeof(target_sigset_t));
             }
         }
         break;
@@ -2110,51 +2353,59 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             sigset_t set;
             ret = get_errno(sigpending(&set));
             if (!is_error(ret)) {
-                host_to_target_sigset((target_sigset_t *)arg1, &set);
+                p = lock_user(arg1, sizeof(target_sigset_t), 0);
+                host_to_target_sigset(p, &set);
+                unlock_user(p, arg1, sizeof(target_sigset_t));
             }
         }
         break;
     case TARGET_NR_sigsuspend:
         {
             sigset_t set;
-            target_to_host_old_sigset(&set, (target_ulong *)arg1);
+            p = lock_user(arg1, sizeof(target_sigset_t), 1);
+            target_to_host_old_sigset(&set, p);
+            unlock_user(p, arg1, 0);
             ret = get_errno(sigsuspend(&set));
         }
         break;
     case TARGET_NR_rt_sigsuspend:
         {
             sigset_t set;
-            target_to_host_sigset(&set, (target_sigset_t *)arg1);
+            p = lock_user(arg1, sizeof(target_sigset_t), 1);
+            target_to_host_sigset(&set, p);
+            unlock_user(p, arg1, 0);
             ret = get_errno(sigsuspend(&set));
         }
         break;
     case TARGET_NR_rt_sigtimedwait:
         {
-            target_sigset_t *target_set = (void *)arg1;
-            target_siginfo_t *target_uinfo = (void *)arg2;
-            struct target_timespec *target_uts = (void *)arg3;
             sigset_t set;
             struct timespec uts, *puts;
             siginfo_t uinfo;
             
-            target_to_host_sigset(&set, target_set);
-            if (target_uts) {
+            p = lock_user(arg1, sizeof(target_sigset_t), 1);
+            target_to_host_sigset(&set, p);
+            unlock_user(p, arg1, 0);
+            if (arg3) {
                 puts = &uts;
-                puts->tv_sec = tswapl(target_uts->tv_sec);
-                puts->tv_nsec = tswapl(target_uts->tv_nsec);
+                target_to_host_timespec(puts, arg3);
             } else {
                 puts = NULL;
             }
             ret = get_errno(sigtimedwait(&set, &uinfo, puts));
-            if (!is_error(ret) && target_uinfo) {
-                host_to_target_siginfo(target_uinfo, &uinfo);
+            if (!is_error(ret) && arg2) {
+                p = lock_user(arg2, sizeof(target_sigset_t), 0);
+                host_to_target_siginfo(p, &uinfo);
+                unlock_user(p, arg2, sizeof(target_sigset_t));
             }
         }
         break;
     case TARGET_NR_rt_sigqueueinfo:
         {
             siginfo_t uinfo;
-            target_to_host_siginfo(&uinfo, (target_siginfo_t *)arg3);
+            p = lock_user(arg3, sizeof(target_sigset_t), 1);
+            target_to_host_siginfo(&uinfo, p);
+            unlock_user(p, arg1, 0);
             ret = get_errno(sys_rt_sigqueueinfo(arg1, arg2, &uinfo));
         }
         break;
@@ -2167,16 +2418,20 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         ret = do_rt_sigreturn(cpu_env);
         break;
     case TARGET_NR_sethostname:
-        ret = get_errno(sethostname((const char *)arg1, arg2));
+        p = lock_user_string(arg1);
+        ret = get_errno(sethostname(p, arg2));
+        unlock_user(p, arg1, 0);
         break;
     case TARGET_NR_setrlimit:
         {
             /* XXX: convert resource ? */
             int resource = arg1;
-            struct target_rlimit *target_rlim = (void *)arg2;
+            struct target_rlimit *target_rlim;
             struct rlimit rlim;
+            lock_user_struct(target_rlim, arg2, 1);
             rlim.rlim_cur = tswapl(target_rlim->rlim_cur);
             rlim.rlim_max = tswapl(target_rlim->rlim_max);
+            unlock_user_struct(target_rlim, arg2, 0);
             ret = get_errno(setrlimit(resource, &rlim));
         }
         break;
@@ -2184,72 +2439,91 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         {
             /* XXX: convert resource ? */
             int resource = arg1;
-            struct target_rlimit *target_rlim = (void *)arg2;
+            struct target_rlimit *target_rlim;
             struct rlimit rlim;
             
             ret = get_errno(getrlimit(resource, &rlim));
             if (!is_error(ret)) {
-                target_rlim->rlim_cur = tswapl(rlim.rlim_cur);
-                target_rlim->rlim_max = tswapl(rlim.rlim_max);
+                lock_user_struct(target_rlim, arg2, 0);
+                rlim.rlim_cur = tswapl(target_rlim->rlim_cur);
+                rlim.rlim_max = tswapl(target_rlim->rlim_max);
+                unlock_user_struct(target_rlim, arg2, 1);
             }
         }
         break;
     case TARGET_NR_getrusage:
         {
             struct rusage rusage;
-            struct target_rusage *target_rusage = (void *)arg2;
             ret = get_errno(getrusage(arg1, &rusage));
             if (!is_error(ret)) {
-                host_to_target_rusage(target_rusage, &rusage);
+                host_to_target_rusage(arg2, &rusage);
             }
         }
         break;
     case TARGET_NR_gettimeofday:
         {
-            struct target_timeval *target_tv = (void *)arg1;
             struct timeval tv;
             ret = get_errno(gettimeofday(&tv, NULL));
             if (!is_error(ret)) {
-                host_to_target_timeval(target_tv, &tv);
+                host_to_target_timeval(arg1, &tv);
             }
         }
         break;
     case TARGET_NR_settimeofday:
         {
-            struct target_timeval *target_tv = (void *)arg1;
             struct timeval tv;
-            target_to_host_timeval(&tv, target_tv);
+            target_to_host_timeval(&tv, arg1);
             ret = get_errno(settimeofday(&tv, NULL));
         }
         break;
 #ifdef TARGET_NR_select
     case TARGET_NR_select:
         {
-            struct target_sel_arg_struct *sel = (void *)arg1;
-            sel->n = tswapl(sel->n);
-            sel->inp = tswapl(sel->inp);
-            sel->outp = tswapl(sel->outp);
-            sel->exp = tswapl(sel->exp);
-            sel->tvp = tswapl(sel->tvp);
-            ret = do_select(sel->n, (void *)sel->inp, (void *)sel->outp,
-                            (void *)sel->exp, (void *)sel->tvp);
+            struct target_sel_arg_struct *sel;
+            target_ulong inp, outp, exp, tvp;
+            long nsel;
+
+            lock_user_struct(sel, arg1, 1);
+            nsel = tswapl(sel->n);
+            inp = tswapl(sel->inp);
+            outp = tswapl(sel->outp);
+            exp = tswapl(sel->exp);
+            tvp = tswapl(sel->tvp);
+            unlock_user_struct(sel, arg1, 0);
+            ret = do_select(nsel, inp, outp, exp, tvp);
         }
         break;
 #endif
     case TARGET_NR_symlink:
-        ret = get_errno(symlink((const char *)arg1, (const char *)arg2));
+        {
+            void *p2;
+            p = lock_user_string(arg1);
+            p2 = lock_user_string(arg2);
+            ret = get_errno(symlink(p, p2));
+            unlock_user(p2, arg2, 0);
+            unlock_user(p, arg1, 0);
+        }
         break;
 #ifdef TARGET_NR_oldlstat
     case TARGET_NR_oldlstat:
         goto unimplemented;
 #endif
     case TARGET_NR_readlink:
-        ret = get_errno(readlink(path((const char *)arg1), (char *)arg2, arg3));
+        {
+            void *p2;
+            p = lock_user_string(arg1);
+            p2 = lock_user(arg2, arg3, 0);
+            ret = get_errno(readlink(path(p), p2, arg3));
+            unlock_user(p2, arg2, ret);
+            unlock_user(p, arg1, 0);
+        }
         break;
     case TARGET_NR_uselib:
         goto unimplemented;
     case TARGET_NR_swapon:
-        ret = get_errno(swapon((const char *)arg1, arg2));
+        p = lock_user_string(arg1);
+        ret = get_errno(swapon(p, arg2));
+        unlock_user(p, arg1, 0);
         break;
     case TARGET_NR_reboot:
         goto unimplemented;
@@ -2258,14 +2532,16 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_mmap:
 #if defined(TARGET_I386) || defined(TARGET_ARM)
         {
-            uint32_t v1, v2, v3, v4, v5, v6, *vptr;
-            vptr = (uint32_t *)arg1;
-            v1 = tswap32(vptr[0]);
-            v2 = tswap32(vptr[1]);
-            v3 = tswap32(vptr[2]);
-            v4 = tswap32(vptr[3]);
-            v5 = tswap32(vptr[4]);
-            v6 = tswap32(vptr[5]);
+            target_ulong *v;
+            target_ulong v1, v2, v3, v4, v5, v6;
+            v = lock_user(arg1, 6 * sizeof(target_ulong), 1);
+            v1 = tswapl(v[0]);
+            v2 = tswapl(v[1]);
+            v3 = tswapl(v[2]);
+            v4 = tswapl(v[3]);
+            v5 = tswapl(v[4]);
+            v6 = tswapl(v[5]);
+            unlock_user(v, arg1, 0);
             ret = get_errno(target_mmap(v1, v2, v3, 
                                         target_to_host_bitmask(v4, mmap_flags_tbl),
                                         v5, v6));
@@ -2299,14 +2575,15 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_mremap:
         ret = get_errno(target_mremap(arg1, arg2, arg3, arg4, arg5));
         break;
+        /* ??? msync/mlock/munlock are broken for softmmu.  */
     case TARGET_NR_msync:
-        ret = get_errno(msync((void *)arg1, arg2, arg3));
+        ret = get_errno(msync(g2h(arg1), arg2, arg3));
         break;
     case TARGET_NR_mlock:
-        ret = get_errno(mlock((void *)arg1, arg2));
+        ret = get_errno(mlock(g2h(arg1), arg2));
         break;
     case TARGET_NR_munlock:
-        ret = get_errno(munlock((void *)arg1, arg2));
+        ret = get_errno(munlock(g2h(arg1), arg2));
         break;
     case TARGET_NR_mlockall:
         ret = get_errno(mlockall(arg1));
@@ -2315,7 +2592,9 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         ret = get_errno(munlockall());
         break;
     case TARGET_NR_truncate:
-        ret = get_errno(truncate((const char *)arg1, arg2));
+        p = lock_user_string(arg1);
+        ret = get_errno(truncate(p, arg2));
+        unlock_user(p, arg1, 0);
         break;
     case TARGET_NR_ftruncate:
         ret = get_errno(ftruncate(arg1, arg2));
@@ -2334,11 +2613,15 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         goto unimplemented;
 #endif
     case TARGET_NR_statfs:
-        ret = get_errno(statfs(path((const char *)arg1), &stfs));
+        p = lock_user_string(arg1);
+        ret = get_errno(statfs(path(p), &stfs));
+        unlock_user(p, arg1, 0);
     convert_statfs:
         if (!is_error(ret)) {
-            struct target_statfs *target_stfs = (void *)arg2;
+            struct target_statfs *target_stfs;
             
+            lock_user_struct(target_stfs, arg2, 0);
+            /* ??? put_user is probably wrong.  */
             put_user(stfs.f_type, &target_stfs->f_type);
             put_user(stfs.f_bsize, &target_stfs->f_bsize);
             put_user(stfs.f_blocks, &target_stfs->f_blocks);
@@ -2348,6 +2631,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             put_user(stfs.f_ffree, &target_stfs->f_ffree);
             put_user(stfs.f_fsid.__val[0], &target_stfs->f_fsid);
             put_user(stfs.f_namelen, &target_stfs->f_namelen);
+            unlock_user_struct(target_stfs, arg2, 1);
         }
         break;
     case TARGET_NR_fstatfs:
@@ -2355,11 +2639,15 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         goto convert_statfs;
 #ifdef TARGET_NR_statfs64
     case TARGET_NR_statfs64:
-        ret = get_errno(statfs(path((const char *)arg1), &stfs));
+        p = lock_user_string(arg1);
+        ret = get_errno(statfs(path(p), &stfs));
+        unlock_user(p, arg1, 0);
     convert_statfs64:
         if (!is_error(ret)) {
-            struct target_statfs64 *target_stfs = (void *)arg3;
-
+            struct target_statfs64 *target_stfs;
+            
+            lock_user_struct(target_stfs, arg3, 0);
+            /* ??? put_user is probably wrong.  */
             put_user(stfs.f_type, &target_stfs->f_type);
             put_user(stfs.f_bsize, &target_stfs->f_bsize);
             put_user(stfs.f_blocks, &target_stfs->f_blocks);
@@ -2369,6 +2657,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             put_user(stfs.f_ffree, &target_stfs->f_ffree);
             put_user(stfs.f_fsid.__val[0], &target_stfs->f_fsid);
             put_user(stfs.f_namelen, &target_stfs->f_namelen);
+            unlock_user_struct(target_stfs, arg3, 0);
         }
         break;
     case TARGET_NR_fstatfs64:
@@ -2380,60 +2669,63 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         goto unimplemented;
 #endif
     case TARGET_NR_socketcall:
-        ret = do_socketcall(arg1, (int32_t *)arg2);
+        ret = do_socketcall(arg1, arg2);
         break;
     case TARGET_NR_syslog:
         goto unimplemented;
     case TARGET_NR_setitimer:
         {
-            struct target_itimerval *target_value = (void *)arg2;
-            struct target_itimerval *target_ovalue = (void *)arg3;
             struct itimerval value, ovalue, *pvalue;
 
-            if (target_value) {
+            if (arg2) {
                 pvalue = &value;
                 target_to_host_timeval(&pvalue->it_interval, 
-                                       &target_value->it_interval);
+                                       arg2);
                 target_to_host_timeval(&pvalue->it_value, 
-                                       &target_value->it_value);
+                                       arg2 + sizeof(struct target_timeval));
             } else {
                 pvalue = NULL;
             }
             ret = get_errno(setitimer(arg1, pvalue, &ovalue));
-            if (!is_error(ret) && target_ovalue) {
-                host_to_target_timeval(&target_ovalue->it_interval, 
+            if (!is_error(ret) && arg3) {
+                host_to_target_timeval(arg3,
                                        &ovalue.it_interval);
-                host_to_target_timeval(&target_ovalue->it_value, 
+                host_to_target_timeval(arg3 + sizeof(struct target_timeval),
                                        &ovalue.it_value);
             }
         }
         break;
     case TARGET_NR_getitimer:
         {
-            struct target_itimerval *target_value = (void *)arg2;
             struct itimerval value;
             
             ret = get_errno(getitimer(arg1, &value));
-            if (!is_error(ret) && target_value) {
-                host_to_target_timeval(&target_value->it_interval, 
+            if (!is_error(ret) && arg2) {
+                host_to_target_timeval(arg2,
                                        &value.it_interval);
-                host_to_target_timeval(&target_value->it_value, 
+                host_to_target_timeval(arg2 + sizeof(struct target_timeval),
                                        &value.it_value);
             }
         }
         break;
     case TARGET_NR_stat:
-        ret = get_errno(stat(path((const char *)arg1), &st));
+        p = lock_user_string(arg1);
+        ret = get_errno(stat(path(p), &st));
+        unlock_user(p, arg1, 0);
         goto do_stat;
     case TARGET_NR_lstat:
-        ret = get_errno(lstat(path((const char *)arg1), &st));
+        p = lock_user_string(arg1);
+        ret = get_errno(lstat(path(p), &st));
+        unlock_user(p, arg1, 0);
         goto do_stat;
     case TARGET_NR_fstat:
         {
             ret = get_errno(fstat(arg1, &st));
         do_stat:
             if (!is_error(ret)) {
-                struct target_stat *target_st = (void *)arg2;
+                struct target_stat *target_st;
+                
+                lock_user_struct(target_st, arg2, 0);
                 target_st->st_dev = tswap16(st.st_dev);
                 target_st->st_ino = tswapl(st.st_ino);
 #if defined(TARGET_PPC)
@@ -2453,6 +2745,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                 target_st->target_st_atime = tswapl(st.st_atime);
                 target_st->target_st_mtime = tswapl(st.st_mtime);
                 target_st->target_st_ctime = tswapl(st.st_ctime);
+                unlock_user_struct(target_st, arg2, 1);
             }
         }
         break;
@@ -2479,9 +2772,9 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_wait4:
         {
             int status;
-            target_long *status_ptr = (void *)arg2;
+            target_long status_ptr = arg2;
             struct rusage rusage, *rusage_ptr;
-            struct target_rusage *target_rusage = (void *)arg4;
+            target_ulong target_rusage = arg4;
             if (target_rusage)
                 rusage_ptr = &rusage;
             else
@@ -2489,7 +2782,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             ret = get_errno(wait4(arg1, &status, arg3, rusage_ptr));
             if (!is_error(ret)) {
                 if (status_ptr)
-                    *status_ptr = tswap32(status);
+                    tputl(status_ptr, status);
                 if (target_rusage) {
                     host_to_target_rusage(target_rusage, &rusage);
                 }
@@ -2497,15 +2790,19 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         }
         break;
     case TARGET_NR_swapoff:
-        ret = get_errno(swapoff((const char *)arg1));
+        p = lock_user_string(arg1);
+        ret = get_errno(swapoff(p));
+        unlock_user(p, arg1, 0);
         break;
     case TARGET_NR_sysinfo:
         {
-            struct target_sysinfo *target_value = (void *)arg1;
+            struct target_sysinfo *target_value;
             struct sysinfo value;
             ret = get_errno(sysinfo(&value));
-            if (!is_error(ret) && target_value)
+            if (!is_error(ret) && arg1)
             {
+                /* ??? __put_user is probably wrong.  */
+                lock_user_struct(target_value, arg1, 0);
                 __put_user(value.uptime, &target_value->uptime);
                 __put_user(value.loads[0], &target_value->loads[0]);
                 __put_user(value.loads[1], &target_value->loads[1]);
@@ -2520,6 +2817,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                 __put_user(value.totalhigh, &target_value->totalhigh);
                 __put_user(value.freehigh, &target_value->freehigh);
                 __put_user(value.mem_unit, &target_value->mem_unit);
+                unlock_user_struct(target_value, arg1, 1);
             }
         }
         break;
@@ -2540,30 +2838,33 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         break;
 #endif
     case TARGET_NR_setdomainname:
-        ret = get_errno(setdomainname((const char *)arg1, arg2));
+        p = lock_user_string(arg1);
+        ret = get_errno(setdomainname(p, arg2));
+        unlock_user(p, arg1, 0);
         break;
     case TARGET_NR_uname:
         /* no need to transcode because we use the linux syscall */
         {
             struct new_utsname * buf;
     
-            buf = (struct new_utsname *)arg1;
+            lock_user_struct(buf, arg1, 0);
             ret = get_errno(sys_uname(buf));
             if (!is_error(ret)) {
                 /* Overrite the native machine name with whatever is being
                    emulated. */
                 strcpy (buf->machine, UNAME_MACHINE);
             }
+            unlock_user_struct(buf, arg1, 1);
         }
         break;
 #ifdef TARGET_I386
     case TARGET_NR_modify_ldt:
-        ret = get_errno(do_modify_ldt(cpu_env, arg1, (void *)arg2, arg3));
+        ret = get_errno(do_modify_ldt(cpu_env, arg1, arg2, arg3));
         break;
     case TARGET_NR_vm86old:
         goto unimplemented;
     case TARGET_NR_vm86:
-        ret = do_vm86(cpu_env, arg1, (void *)arg2);
+        ret = do_vm86(cpu_env, arg1, arg2);
         break;
 #endif
     case TARGET_NR_adjtimex:
@@ -2594,20 +2895,21 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         {
 #if defined (__x86_64__)
             ret = get_errno(lseek(arg1, ((uint64_t )arg2 << 32) | arg3, arg5));
-            *(int64_t *)arg4 = ret;
+            tput64(arg4, ret);
 #else
             int64_t res;
             ret = get_errno(_llseek(arg1, arg2, arg3, &res, arg5));
-            *(int64_t *)arg4 = tswap64(res);
+            tput64(arg4, res);
 #endif
         }
         break;
     case TARGET_NR_getdents:
 #if TARGET_LONG_SIZE != 4
+        goto unimplemented;
 #warning not supported
 #elif TARGET_LONG_SIZE == 4 && HOST_LONG_SIZE == 8
         {
-            struct target_dirent *target_dirp = (void *)arg2;
+            struct target_dirent *target_dirp;
             struct dirent *dirp;
             long count = arg3;
 
@@ -2625,6 +2927,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 
 		count1 = 0;
                 de = dirp;
+                target_dirp = lock_user(arg2, count, 0);
 		tde = target_dirp;
                 while (len > 0) {
                     reclen = de->d_reclen;
@@ -2644,13 +2947,15 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                 }
 		ret = count1;
             }
+            unlock_user(target_dirp, arg2, ret);
 	    free(dirp);
         }
 #else
         {
-            struct dirent *dirp = (void *)arg2;
+            struct dirent *dirp;
             long count = arg3;
 
+            dirp = lock_user(arg2, count, 0);
             ret = get_errno(sys_getdents(arg1, dirp, count));
             if (!is_error(ret)) {
                 struct dirent *de;
@@ -2668,14 +2973,16 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                     len -= reclen;
                 }
             }
+            unlock_user(dirp, arg2, ret);
         }
 #endif
         break;
 #ifdef TARGET_NR_getdents64
     case TARGET_NR_getdents64:
         {
-            struct dirent64 *dirp = (void *)arg2;
+            struct dirent64 *dirp;
             long count = arg3;
+            dirp = lock_user(arg2, count, 0);
             ret = get_errno(sys_getdents64(arg1, dirp, count));
             if (!is_error(ret)) {
                 struct dirent64 *de;
@@ -2693,21 +3000,22 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                     len -= reclen;
                 }
             }
+            unlock_user(dirp, arg2, ret);
         }
         break;
 #endif /* TARGET_NR_getdents64 */
     case TARGET_NR__newselect:
-        ret = do_select(arg1, (void *)arg2, (void *)arg3, (void *)arg4, 
-                        (void *)arg5);
+        ret = do_select(arg1, arg2, arg3, arg4, arg5);
         break;
     case TARGET_NR_poll:
         {
-            struct target_pollfd *target_pfd = (void *)arg1;
+            struct target_pollfd *target_pfd;
             unsigned int nfds = arg2;
             int timeout = arg3;
             struct pollfd *pfd;
             unsigned int i;
 
+            target_pfd = lock_user(arg1, sizeof(struct target_pollfd) * nfds, 1);
             pfd = alloca(sizeof(struct pollfd) * nfds);
             for(i = 0; i < nfds; i++) {
                 pfd[i].fd = tswap32(target_pfd[i].fd);
@@ -2718,7 +3026,10 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                 for(i = 0; i < nfds; i++) {
                     target_pfd[i].revents = tswap16(pfd[i].revents);
                 }
+                ret += nfds * (sizeof(struct target_pollfd)
+                               - sizeof(struct pollfd));
             }
+            unlock_user(target_pfd, arg1, ret);
         }
         break;
     case TARGET_NR_flock:
@@ -2729,31 +3040,23 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_readv:
         {
             int count = arg3;
-            int i;
             struct iovec *vec;
-            struct target_iovec *target_vec = (void *)arg2;
 
             vec = alloca(count * sizeof(struct iovec));
-            for(i = 0;i < count; i++) {
-                vec[i].iov_base = (void *)tswapl(target_vec[i].iov_base);
-                vec[i].iov_len = tswapl(target_vec[i].iov_len);
-            }
+            lock_iovec(vec, arg2, count, 0);
             ret = get_errno(readv(arg1, vec, count));
+            unlock_iovec(vec, arg2, count, 1);
         }
         break;
     case TARGET_NR_writev:
         {
             int count = arg3;
-            int i;
             struct iovec *vec;
-            struct target_iovec *target_vec = (void *)arg2;
 
             vec = alloca(count * sizeof(struct iovec));
-            for(i = 0;i < count; i++) {
-                vec[i].iov_base = (void *)tswapl(target_vec[i].iov_base);
-                vec[i].iov_len = tswapl(target_vec[i].iov_len);
-            }
+            lock_iovec(vec, arg2, count, 1);
             ret = get_errno(writev(arg1, vec, count));
+            unlock_iovec(vec, arg2, count, 0);
         }
         break;
     case TARGET_NR_getsid:
@@ -2768,27 +3071,34 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         return -ENOTDIR;
     case TARGET_NR_sched_setparam:
         {
-            struct sched_param *target_schp = (void *)arg2;
+            struct sched_param *target_schp;
             struct sched_param schp;
+
+            lock_user_struct(target_schp, arg2, 1);
             schp.sched_priority = tswap32(target_schp->sched_priority);
+            unlock_user_struct(target_schp, arg2, 0);
             ret = get_errno(sched_setparam(arg1, &schp));
         }
         break;
     case TARGET_NR_sched_getparam:
         {
-            struct sched_param *target_schp = (void *)arg2;
+            struct sched_param *target_schp;
             struct sched_param schp;
             ret = get_errno(sched_getparam(arg1, &schp));
             if (!is_error(ret)) {
+                lock_user_struct(target_schp, arg2, 0);
                 target_schp->sched_priority = tswap32(schp.sched_priority);
+                unlock_user_struct(target_schp, arg2, 1);
             }
         }
         break;
     case TARGET_NR_sched_setscheduler:
         {
-            struct sched_param *target_schp = (void *)arg3;
+            struct sched_param *target_schp;
             struct sched_param schp;
+            lock_user_struct(target_schp, arg3, 1);
             schp.sched_priority = tswap32(target_schp->sched_priority);
+            unlock_user_struct(target_schp, arg3, 0);
             ret = get_errno(sched_setscheduler(arg1, arg2, &schp));
         }
         break;
@@ -2806,26 +3116,20 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         break;
     case TARGET_NR_sched_rr_get_interval:
         {
-            struct target_timespec *target_ts = (void *)arg2;
             struct timespec ts;
             ret = get_errno(sched_rr_get_interval(arg1, &ts));
             if (!is_error(ret)) {
-                target_ts->tv_sec = tswapl(ts.tv_sec);
-                target_ts->tv_nsec = tswapl(ts.tv_nsec);
+                host_to_target_timespec(arg2, &ts);
             }
         }
         break;
     case TARGET_NR_nanosleep:
         {
-            struct target_timespec *target_req = (void *)arg1;
-            struct target_timespec *target_rem = (void *)arg2;
             struct timespec req, rem;
-            req.tv_sec = tswapl(target_req->tv_sec);
-            req.tv_nsec = tswapl(target_req->tv_nsec);
+            target_to_host_timespec(&req, arg1);
             ret = get_errno(nanosleep(&req, &rem));
-            if (is_error(ret) && target_rem) {
-                target_rem->tv_sec = tswapl(rem.tv_sec);
-                target_rem->tv_nsec = tswapl(rem.tv_nsec);
+            if (is_error(ret) && arg2) {
+                host_to_target_timespec(arg2, &rem);
             }
         }
         break;
@@ -2837,15 +3141,21 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         goto unimplemented;
 #ifdef TARGET_NR_pread
     case TARGET_NR_pread:
-        page_unprotect_range((void *)arg2, arg3);
-        ret = get_errno(pread(arg1, (void *)arg2, arg3, arg4));
+        page_unprotect_range(arg2, arg3);
+        p = lock_user(arg2, arg3, 0);
+        ret = get_errno(pread(arg1, p, arg3, arg4));
+        unlock_user(p, arg2, ret);
         break;
     case TARGET_NR_pwrite:
-        ret = get_errno(pwrite(arg1, (void *)arg2, arg3, arg4));
+        p = lock_user(arg2, arg3, 1);
+        ret = get_errno(pwrite(arg1, p, arg3, arg4));
+        unlock_user(p, arg2, 0);
         break;
 #endif
     case TARGET_NR_getcwd:
-        ret = get_errno(sys_getcwd1((char *)arg1, arg2));
+        p = lock_user(arg1, arg2, 0);
+        ret = get_errno(sys_getcwd1(p, arg2));
+        unlock_user(p, arg1, ret);
         break;
     case TARGET_NR_capget:
         goto unimplemented;
@@ -2874,16 +3184,20 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 	struct rlimit rlim;
 	ret = get_errno(getrlimit(arg1, &rlim));
 	if (!is_error(ret)) {
-	    struct target_rlimit *target_rlim = (void *)arg2;
+	    struct target_rlimit *target_rlim;
+            lock_user_struct(target_rlim, arg2, 0);
 	    target_rlim->rlim_cur = tswapl(rlim.rlim_cur);
 	    target_rlim->rlim_max = tswapl(rlim.rlim_max);
+            unlock_user_struct(target_rlim, arg2, 1);
 	}
 	break;
     }
 #endif
 #ifdef TARGET_NR_truncate64
     case TARGET_NR_truncate64:
-	ret = target_truncate64(cpu_env, (const char *)arg1, arg2, arg3, arg4);
+        p = lock_user_string(arg1);
+	ret = target_truncate64(cpu_env, p, arg2, arg3, arg4);
+        unlock_user(p, arg1, 0);
 	break;
 #endif
 #ifdef TARGET_NR_ftruncate64
@@ -2893,12 +3207,16 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #endif
 #ifdef TARGET_NR_stat64
     case TARGET_NR_stat64:
-        ret = get_errno(stat(path((const char *)arg1), &st));
+        p = lock_user_string(arg1);
+        ret = get_errno(stat(path(p), &st));
+        unlock_user(p, arg1, 0);
         goto do_stat64;
 #endif
 #ifdef TARGET_NR_lstat64
     case TARGET_NR_lstat64:
-        ret = get_errno(lstat(path((const char *)arg1), &st));
+        p = lock_user_string(arg1);
+        ret = get_errno(lstat(path(p), &st));
+        unlock_user(p, arg1, 0);
         goto do_stat64;
 #endif
 #ifdef TARGET_NR_fstat64
@@ -2909,8 +3227,10 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
             if (!is_error(ret)) {
 #ifdef TARGET_ARM
                 if (((CPUARMState *)cpu_env)->eabi) {
-                    struct target_eabi_stat64 *target_st = (void *)arg2;
+                    struct target_eabi_stat64 *target_st;
+                    lock_user_struct(target_st, arg2, 1);
                     memset(target_st, 0, sizeof(struct target_eabi_stat64));
+                    /* put_user is probably wrong.  */
                     put_user(st.st_dev, &target_st->st_dev);
                     put_user(st.st_ino, &target_st->st_ino);
 #ifdef TARGET_STAT64_HAS_BROKEN_ST_INO
@@ -2928,11 +3248,14 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                     put_user(st.st_atime, &target_st->target_st_atime);
                     put_user(st.st_mtime, &target_st->target_st_mtime);
                     put_user(st.st_ctime, &target_st->target_st_ctime);
+                    unlock_user_struct(target_st, arg2, 0);
                 } else
 #endif
                 {
-                    struct target_stat64 *target_st = (void *)arg2;
+                    struct target_stat64 *target_st;
+                    lock_user_struct(target_st, arg2, 1);
                     memset(target_st, 0, sizeof(struct target_stat64));
+                    /* ??? put_user is probably wrong.  */
                     put_user(st.st_dev, &target_st->st_dev);
                     put_user(st.st_ino, &target_st->st_ino);
 #ifdef TARGET_STAT64_HAS_BROKEN_ST_INO
@@ -2950,6 +3273,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                     put_user(st.st_atime, &target_st->target_st_atime);
                     put_user(st.st_mtime, &target_st->target_st_mtime);
                     put_user(st.st_ctime, &target_st->target_st_ctime);
+                    unlock_user_struct(target_st, arg2, 0);
                 }
             }
         }
@@ -2957,7 +3281,9 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #endif
 #ifdef USE_UID16
     case TARGET_NR_lchown:
-        ret = get_errno(lchown((const char *)arg1, low2highuid(arg2), low2highgid(arg3)));
+        p = lock_user_string(arg1);
+        ret = get_errno(lchown(p, low2highuid(arg2), low2highgid(arg3)));
+        unlock_user(p, arg1, 0);
         break;
     case TARGET_NR_getuid:
         ret = get_errno(high2lowuid(getuid()));
@@ -2980,28 +3306,32 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_getgroups:
         {
             int gidsetsize = arg1;
-            uint16_t *target_grouplist = (void *)arg2;
+            uint16_t *target_grouplist;
             gid_t *grouplist;
             int i;
 
             grouplist = alloca(gidsetsize * sizeof(gid_t));
             ret = get_errno(getgroups(gidsetsize, grouplist));
             if (!is_error(ret)) {
+                target_grouplist = lock_user(arg2, gidsetsize * 2, 0);
                 for(i = 0;i < gidsetsize; i++)
                     target_grouplist[i] = tswap16(grouplist[i]);
+                unlock_user(target_grouplist, arg2, gidsetsize * 2);
             }
         }
         break;
     case TARGET_NR_setgroups:
         {
             int gidsetsize = arg1;
-            uint16_t *target_grouplist = (void *)arg2;
+            uint16_t *target_grouplist;
             gid_t *grouplist;
             int i;
 
             grouplist = alloca(gidsetsize * sizeof(gid_t));
+            target_grouplist = lock_user(arg2, gidsetsize * 2, 1);
             for(i = 0;i < gidsetsize; i++)
                 grouplist[i] = tswap16(target_grouplist[i]);
+            unlock_user(target_grouplist, arg2, 0);
             ret = get_errno(setgroups(gidsetsize, grouplist));
         }
         break;
@@ -3018,12 +3348,12 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #ifdef TARGET_NR_getresuid
     case TARGET_NR_getresuid:
         {
-            int ruid, euid, suid;
+            uid_t ruid, euid, suid;
             ret = get_errno(getresuid(&ruid, &euid, &suid));
             if (!is_error(ret)) {
-                *(uint16_t *)arg1 = tswap16(high2lowuid(ruid));
-                *(uint16_t *)arg2 = tswap16(high2lowuid(euid));
-                *(uint16_t *)arg3 = tswap16(high2lowuid(suid));
+                tput16(arg1, tswap16(high2lowuid(ruid)));
+                tput16(arg2, tswap16(high2lowuid(euid)));
+                tput16(arg3, tswap16(high2lowuid(suid)));
             }
         }
         break;
@@ -3038,18 +3368,20 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #ifdef TARGET_NR_getresgid
     case TARGET_NR_getresgid:
         {
-            int rgid, egid, sgid;
+            gid_t rgid, egid, sgid;
             ret = get_errno(getresgid(&rgid, &egid, &sgid));
             if (!is_error(ret)) {
-                *(uint16_t *)arg1 = tswap16(high2lowgid(rgid));
-                *(uint16_t *)arg2 = tswap16(high2lowgid(egid));
-                *(uint16_t *)arg3 = tswap16(high2lowgid(sgid));
+                tput16(arg1, tswap16(high2lowgid(rgid)));
+                tput16(arg2, tswap16(high2lowgid(egid)));
+                tput16(arg3, tswap16(high2lowgid(sgid)));
             }
         }
         break;
 #endif
     case TARGET_NR_chown:
-        ret = get_errno(chown((const char *)arg1, low2highuid(arg2), low2highgid(arg3)));
+        p = lock_user_string(arg1);
+        ret = get_errno(chown(p, low2highuid(arg2), low2highgid(arg3)));
+        unlock_user(p, arg1, 0);
         break;
     case TARGET_NR_setuid:
         ret = get_errno(setuid(low2highuid(arg1)));
@@ -3067,7 +3399,9 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 
 #ifdef TARGET_NR_lchown32
     case TARGET_NR_lchown32:
-        ret = get_errno(lchown((const char *)arg1, arg2, arg3));
+        p = lock_user_string(arg1);
+        ret = get_errno(lchown(p, arg2, arg3));
+        unlock_user(p, arg1, 0);
         break;
 #endif
 #ifdef TARGET_NR_getuid32
@@ -3104,15 +3438,17 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_getgroups32:
         {
             int gidsetsize = arg1;
-            uint32_t *target_grouplist = (void *)arg2;
+            uint32_t *target_grouplist;
             gid_t *grouplist;
             int i;
 
             grouplist = alloca(gidsetsize * sizeof(gid_t));
             ret = get_errno(getgroups(gidsetsize, grouplist));
             if (!is_error(ret)) {
+                target_grouplist = lock_user(arg2, gidsetsize * 4, 0);
                 for(i = 0;i < gidsetsize; i++)
-                    put_user(grouplist[i], &target_grouplist[i]);
+                    target_grouplist[i] = tswap32(grouplist[i]);
+                unlock_user(target_grouplist, arg2, gidsetsize * 4);
             }
         }
         break;
@@ -3121,13 +3457,15 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_setgroups32:
         {
             int gidsetsize = arg1;
-            uint32_t *target_grouplist = (void *)arg2;
+            uint32_t *target_grouplist;
             gid_t *grouplist;
             int i;
             
             grouplist = alloca(gidsetsize * sizeof(gid_t));
+            target_grouplist = lock_user(arg2, gidsetsize * 4, 1);
             for(i = 0;i < gidsetsize; i++)
-                get_user(grouplist[i], &target_grouplist[i]);
+                grouplist[i] = tswap32(target_grouplist[i]);
+            unlock_user(target_grouplist, arg2, 0);
             ret = get_errno(setgroups(gidsetsize, grouplist));
         }
         break;
@@ -3145,12 +3483,12 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #ifdef TARGET_NR_getresuid32
     case TARGET_NR_getresuid32:
         {
-            int ruid, euid, suid;
+            uid_t ruid, euid, suid;
             ret = get_errno(getresuid(&ruid, &euid, &suid));
             if (!is_error(ret)) {
-                *(uint32_t *)arg1 = tswap32(ruid);
-                *(uint32_t *)arg2 = tswap32(euid);
-                *(uint32_t *)arg3 = tswap32(suid);
+                tput32(arg1, tswap32(ruid));
+                tput32(arg2, tswap32(euid));
+                tput32(arg3, tswap32(suid));
             }
         }
         break;
@@ -3163,19 +3501,21 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #ifdef TARGET_NR_getresgid32
     case TARGET_NR_getresgid32:
         {
-            int rgid, egid, sgid;
+            gid_t rgid, egid, sgid;
             ret = get_errno(getresgid(&rgid, &egid, &sgid));
             if (!is_error(ret)) {
-                *(uint32_t *)arg1 = tswap32(rgid);
-                *(uint32_t *)arg2 = tswap32(egid);
-                *(uint32_t *)arg3 = tswap32(sgid);
+                tput32(arg1, tswap32(rgid));
+                tput32(arg2, tswap32(egid));
+                tput32(arg3, tswap32(sgid));
             }
         }
         break;
 #endif
 #ifdef TARGET_NR_chown32
     case TARGET_NR_chown32:
-        ret = get_errno(chown((const char *)arg1, arg2, arg3));
+        p = lock_user_string(arg1);
+        ret = get_errno(chown(p, arg2, arg3));
+        unlock_user(p, arg1, 0);
         break;
 #endif
 #ifdef TARGET_NR_setuid32
@@ -3213,9 +3553,9 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_fcntl64:
     {
 	struct flock64 fl;
-	struct target_flock64 *target_fl = (void *)arg3;
+	struct target_flock64 *target_fl;
 #ifdef TARGET_ARM
-	struct target_eabi_flock64 *target_efl = (void *)arg3;
+	struct target_eabi_flock64 *target_efl;
 #endif
 
         switch(arg2) {
@@ -3224,19 +3564,23 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 	    if (ret == 0) {
 #ifdef TARGET_ARM
                 if (((CPUARMState *)cpu_env)->eabi) {
+                    lock_user_struct(target_efl, arg3, 0);
                     target_efl->l_type = tswap16(fl.l_type);
                     target_efl->l_whence = tswap16(fl.l_whence);
                     target_efl->l_start = tswap64(fl.l_start);
                     target_efl->l_len = tswap64(fl.l_len);
                     target_efl->l_pid = tswapl(fl.l_pid);
+                    unlock_user_struct(target_efl, arg3, 1);
                 } else
 #endif
                 {
+                    lock_user_struct(target_fl, arg3, 0);
                     target_fl->l_type = tswap16(fl.l_type);
                     target_fl->l_whence = tswap16(fl.l_whence);
                     target_fl->l_start = tswap64(fl.l_start);
                     target_fl->l_len = tswap64(fl.l_len);
                     target_fl->l_pid = tswapl(fl.l_pid);
+                    unlock_user_struct(target_fl, arg3, 1);
                 }
 	    }
 	    break;
@@ -3245,19 +3589,23 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         case F_SETLKW64:
 #ifdef TARGET_ARM
             if (((CPUARMState *)cpu_env)->eabi) {
+                lock_user_struct(target_efl, arg3, 1);
                 fl.l_type = tswap16(target_efl->l_type);
                 fl.l_whence = tswap16(target_efl->l_whence);
                 fl.l_start = tswap64(target_efl->l_start);
                 fl.l_len = tswap64(target_efl->l_len);
                 fl.l_pid = tswapl(target_efl->l_pid);
+                unlock_user_struct(target_efl, arg3, 0);
             } else
 #endif
             {
+                lock_user_struct(target_fl, arg3, 1);
                 fl.l_type = tswap16(target_fl->l_type);
                 fl.l_whence = tswap16(target_fl->l_whence);
                 fl.l_start = tswap64(target_fl->l_start);
                 fl.l_len = tswap64(target_fl->l_len);
                 fl.l_pid = tswapl(target_fl->l_pid);
+                unlock_user_struct(target_fl, arg3, 0);
             }
             ret = get_errno(fcntl(arg1, arg2, &fl));
 	    break;

@@ -77,20 +77,20 @@ static inline uint32_t set_swi_errno(TaskState *ts, uint32_t code)
   return code;
 }
 
-#define ARG(x) tswap32(args[x])
+#define ARG(n) tget32(args + n * 4)
 uint32_t do_arm_semihosting(CPUState *env)
 {
-    uint32_t *args;
+    target_ulong args;
     char * s;
     int nr;
     uint32_t ret;
     TaskState *ts = env->opaque;
 
     nr = env->regs[0];
-    args = (uint32_t *)env->regs[1];
+    args = env->regs[1];
     switch (nr) {
     case SYS_OPEN:
-        s = (char *)ARG(0);
+        s = (char *)g2h(ARG(0));
         if (ARG(1) >= 12)
           return (uint32_t)-1;
         if (strcmp(s, ":tt") == 0) {
@@ -103,18 +103,23 @@ uint32_t do_arm_semihosting(CPUState *env)
     case SYS_CLOSE:
         return set_swi_errno(ts, close(ARG(0)));
     case SYS_WRITEC:
-        /* Write to debug console.  stderr is near enough.  */
-        return write(STDERR_FILENO, args, 1);
+        {
+          char c = tget8(args);
+          /* Write to debug console.  stderr is near enough.  */
+          return write(STDERR_FILENO, &c, 1);
+        }
     case SYS_WRITE0:
-        s = (char *)args;
-        return write(STDERR_FILENO, s, strlen(s));
+        s = lock_user_string(args);
+        ret = write(STDERR_FILENO, s, strlen(s));
+        unlock_user(s, args, 0);
+        return ret;
     case SYS_WRITE:
-        ret = set_swi_errno(ts, write(ARG(0), (void *)ARG(1), ARG(2)));
+        ret = set_swi_errno(ts, write(ARG(0), g2h(ARG(1)), ARG(2)));
         if (ret == (uint32_t)-1)
             return -1;
         return ARG(2) - ret;
     case SYS_READ:
-        ret = set_swi_errno(ts, read(ARG(0), (void *)ARG(1), ARG(2)));
+        ret = set_swi_errno(ts, read(ARG(0), g2h(ARG(1)), ARG(2)));
         if (ret == (uint32_t)-1)
             return -1;
         return ARG(2) - ret;
@@ -140,20 +145,21 @@ uint32_t do_arm_semihosting(CPUState *env)
         /* XXX: Not implemented.  */
         return -1;
     case SYS_REMOVE:
-        return set_swi_errno(ts, remove((char *)ARG(0)));
+        return set_swi_errno(ts, remove((char *)g2h(ARG(0))));
     case SYS_RENAME:
-        return set_swi_errno(ts, rename((char *)ARG(0), (char *)ARG(2)));
+        return set_swi_errno(ts, rename((char *)g2h(ARG(0)),
+                             (char *)g2h(ARG(2))));
     case SYS_CLOCK:
         return clock() / (CLOCKS_PER_SEC / 100);
     case SYS_TIME:
         return set_swi_errno(ts, time(NULL));
     case SYS_SYSTEM:
-        return set_swi_errno(ts, system((char *)ARG(0)));
+        return set_swi_errno(ts, system((char *)g2h(ARG(0))));
     case SYS_ERRNO:
         return ts->swi_errno;
     case SYS_GET_CMDLINE:
         /* XXX: Not implemented.  */
-        s = (char *)ARG(0);
+        s = (char *)g2h(ARG(0));
         *s = 0;
         return -1;
     case SYS_HEAPINFO:
@@ -166,11 +172,11 @@ uint32_t do_arm_semihosting(CPUState *env)
             if (!ts->heap_limit) {
                 long ret;
 
-                ts->heap_base = do_brk(NULL);
+                ts->heap_base = do_brk(0);
                 limit = ts->heap_base + ARM_ANGEL_HEAP_SIZE;
                 /* Try a big heap, and reduce the size if that fails.  */
                 for (;;) {
-                    ret = do_brk((char *)limit);
+                    ret = do_brk(limit);
                     if (ret != -1)
                         break;
                     limit = (ts->heap_base >> 1) + (limit >> 1);
@@ -178,7 +184,8 @@ uint32_t do_arm_semihosting(CPUState *env)
                 ts->heap_limit = limit;
             }
               
-            ptr = (uint32_t *)ARG(0);
+            page_unprotect_range (ARG(0), 32);
+            ptr = (uint32_t *)g2h(ARG(0));
             ptr[0] = tswap32(ts->heap_base);
             ptr[1] = tswap32(ts->heap_limit);
             ptr[2] = tswap32(ts->stack_base);

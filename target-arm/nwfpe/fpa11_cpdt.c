@@ -31,48 +31,52 @@
 static inline
 void loadSingle(const unsigned int Fn,const unsigned int *pMem)
 {
+   target_ulong addr = (target_ulong)(long)pMem;
    FPA11 *fpa11 = GET_FPA11();
    fpa11->fType[Fn] = typeSingle;
-   get_user(fpa11->fpreg[Fn].fSingle, pMem);
+   fpa11->fpreg[Fn].fSingle = tget32(addr);
 }
 
 static inline
 void loadDouble(const unsigned int Fn,const unsigned int *pMem)
 {
+   target_ulong addr = (target_ulong)(long)pMem;
    FPA11 *fpa11 = GET_FPA11();
    unsigned int *p;
    p = (unsigned int*)&fpa11->fpreg[Fn].fDouble;
    fpa11->fType[Fn] = typeDouble;
 #ifdef WORDS_BIGENDIAN
-   get_user(p[0], &pMem[0]); /* sign & exponent */
-   get_user(p[1], &pMem[1]);
+   p[0] = tget32(addr); /* sign & exponent */
+   p[1] = tget32(addr + 4);
 #else
-   get_user(p[0], &pMem[1]);
-   get_user(p[1], &pMem[0]); /* sign & exponent */
+   p[0] = tget32(addr + 4);
+   p[1] = tget32(addr); /* sign & exponent */
 #endif
 }   
 
 static inline
 void loadExtended(const unsigned int Fn,const unsigned int *pMem)
 {
+   target_ulong addr = (target_ulong)(long)pMem;
    FPA11 *fpa11 = GET_FPA11();
    unsigned int *p;
    p = (unsigned int*)&fpa11->fpreg[Fn].fExtended;
    fpa11->fType[Fn] = typeExtended;
-   get_user(p[0], &pMem[0]);  /* sign & exponent */
-   get_user(p[1], &pMem[2]);  /* ls bits */
-   get_user(p[2], &pMem[1]);  /* ms bits */
+   p[0] = tget32(addr);  /* sign & exponent */
+   p[1] = tget32(addr + 8);  /* ls bits */
+   p[2] = tget32(addr + 4);  /* ms bits */
 }   
 
 static inline
 void loadMultiple(const unsigned int Fn,const unsigned int *pMem)
 {
+   target_ulong addr = (target_ulong)(long)pMem;
    FPA11 *fpa11 = GET_FPA11();
    register unsigned int *p;
    unsigned long x;
 
    p = (unsigned int*)&(fpa11->fpreg[Fn]);
-   get_user(x, &pMem[0]);
+   x = tget32(addr);
    fpa11->fType[Fn] = (x >> 14) & 0x00000003;
    
    switch (fpa11->fType[Fn])
@@ -80,16 +84,16 @@ void loadMultiple(const unsigned int Fn,const unsigned int *pMem)
       case typeSingle:
       case typeDouble:
       {
-         get_user(p[0], &pMem[2]);  /* Single */
-         get_user(p[1], &pMem[1]);  /* double msw */
+         p[0] = tget32(addr + 8);  /* Single */
+         p[1] = tget32(addr + 4);  /* double msw */
          p[2] = 0;        /* empty */
       }
       break; 
    
       case typeExtended:
       {
-         get_user(p[1], &pMem[2]);
-         get_user(p[2], &pMem[1]);  /* msw */
+         p[1] = tget32(addr + 8);
+         p[2] = tget32(addr + 4);  /* msw */
          p[0] = (x & 0x80003fff);      
       }
       break;
@@ -99,6 +103,7 @@ void loadMultiple(const unsigned int Fn,const unsigned int *pMem)
 static inline
 void storeSingle(const unsigned int Fn,unsigned int *pMem)
 {
+   target_ulong addr = (target_ulong)(long)pMem;
    FPA11 *fpa11 = GET_FPA11();
    float32 val;
    register unsigned int *p = (unsigned int*)&val;
@@ -116,12 +121,13 @@ void storeSingle(const unsigned int Fn,unsigned int *pMem)
       default: val = fpa11->fpreg[Fn].fSingle;
    }
   
-   put_user(p[0], pMem);
+   tput32(addr, p[0]);
 }   
 
 static inline
 void storeDouble(const unsigned int Fn,unsigned int *pMem)
 {
+   target_ulong addr = (target_ulong)(long)pMem;
    FPA11 *fpa11 = GET_FPA11();
    float64 val;
    register unsigned int *p = (unsigned int*)&val;
@@ -139,17 +145,18 @@ void storeDouble(const unsigned int Fn,unsigned int *pMem)
       default: val = fpa11->fpreg[Fn].fDouble;
    }
 #ifdef WORDS_BIGENDIAN
-   put_user(p[0], &pMem[0]);	/* msw */
-   put_user(p[1], &pMem[1]);	/* lsw */
+   tput32(addr, p[0]);	/* msw */
+   tput32(addr + 4, p[1]);	/* lsw */
 #else
-   put_user(p[1], &pMem[0]);	/* msw */
-   put_user(p[0], &pMem[1]);	/* lsw */
+   tput32(addr, p[1]);	/* msw */
+   tput32(addr + 4, p[0]);	/* lsw */
 #endif
 }   
 
 static inline
 void storeExtended(const unsigned int Fn,unsigned int *pMem)
 {
+   target_ulong addr = (target_ulong)(long)pMem;
    FPA11 *fpa11 = GET_FPA11();
    floatx80 val;
    register unsigned int *p = (unsigned int*)&val;
@@ -167,14 +174,15 @@ void storeExtended(const unsigned int Fn,unsigned int *pMem)
       default: val = fpa11->fpreg[Fn].fExtended;
    }
    
-   put_user(p[0], &pMem[0]); /* sign & exp */
-   put_user(p[1], &pMem[2]);
-   put_user(p[2], &pMem[1]); /* msw */
+   tput32(addr, p[0]); /* sign & exp */
+   tput32(addr + 8, p[1]);
+   tput32(addr + 4, p[2]); /* msw */
 }   
 
 static inline
 void storeMultiple(const unsigned int Fn,unsigned int *pMem)
 {
+   target_ulong addr = (target_ulong)(long)pMem;
    FPA11 *fpa11 = GET_FPA11();
    register unsigned int nType, *p;
    
@@ -186,17 +194,17 @@ void storeMultiple(const unsigned int Fn,unsigned int *pMem)
       case typeSingle:
       case typeDouble:
       {
-	 put_user(p[0], &pMem[2]); /* single */
-	 put_user(p[1], &pMem[1]); /* double msw */
-	 put_user(nType << 14, &pMem[0]);
+	 tput32(addr + 8, p[0]); /* single */
+	 tput32(addr + 4, p[1]); /* double msw */
+	 tput32(addr, nType << 14);
       }
       break; 
    
       case typeExtended:
       {
-	 put_user(p[2], &pMem[1]); /* msw */
-	 put_user(p[1], &pMem[2]);
-	 put_user((p[0] & 0x80003fff) | (nType << 14), &pMem[0]);
+	 tput32(addr + 4, p[2]); /* msw */
+	 tput32(addr + 8, p[1]);
+	 tput32(addr, (p[0] & 0x80003fff) | (nType << 14));
       }
       break;
    }

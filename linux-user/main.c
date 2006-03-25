@@ -152,21 +152,25 @@ static void write_dt(void *ptr, unsigned long addr, unsigned long limit,
                      int flags)
 {
     unsigned int e1, e2;
+    uint32_t *p;
     e1 = (addr << 16) | (limit & 0xffff);
     e2 = ((addr >> 16) & 0xff) | (addr & 0xff000000) | (limit & 0x000f0000);
     e2 |= flags;
-    stl((uint8_t *)ptr, e1);
-    stl((uint8_t *)ptr + 4, e2);
+    p = ptr;
+    p[0] = tswapl(e1);
+    p[1] = tswapl(e2);
 }
 
 static void set_gate(void *ptr, unsigned int type, unsigned int dpl, 
                      unsigned long addr, unsigned int sel)
 {
     unsigned int e1, e2;
+    uint32_t *p;
     e1 = (addr & 0xffff) | (sel << 16);
     e2 = (addr & 0xffff0000) | 0x8000 | (dpl << 13) | (type << 8);
-    stl((uint8_t *)ptr, e1);
-    stl((uint8_t *)ptr + 4, e2);
+    p = ptr;
+    p[0] = tswapl(e1);
+    p[1] = tswapl(e2);
 }
 
 uint64_t gdt_table[6];
@@ -343,7 +347,7 @@ void cpu_loop(CPUARMState *env)
 
                 /* we handle the FPU emulation here, as Linux */
                 /* we get the opcode */
-                opcode = ldl_raw((uint8_t *)env->regs[15]);
+                opcode = tget32(env->regs[15]);
                 
                 if (EmulateAll(opcode, &ts->fpa, env) == 0) {
                     info.si_signo = SIGILL;
@@ -364,20 +368,20 @@ void cpu_loop(CPUARMState *env)
                 /* system call */
                 if (trapnr == EXCP_BKPT) {
                     if (env->thumb) {
-                        insn = lduw((void *)(env->regs[15]));
+                        insn = tget16(env->regs[15]);
                         n = insn & 0xff;
                         env->regs[15] += 2;
                     } else {
-                        insn = ldl((void *)(env->regs[15]));
+                        insn = tget32(env->regs[15]);
                         n = (insn & 0xf) | ((insn >> 4) & 0xff0);
                         env->regs[15] += 4;
                     }
                 } else {
                     if (env->thumb) {
-                        insn = lduw((void *)(env->regs[15] - 2));
+                        insn = tget16(env->regs[15] - 2);
                         n = insn & 0xff;
                     } else {
-                        insn = ldl((void *)(env->regs[15] - 4));
+                        insn = tget32(env->regs[15] - 4);
                         n = insn & 0xffffff;
                     }
                 }
@@ -475,16 +479,16 @@ static inline int get_reg_index(CPUSPARCState *env, int cwp, int index)
 static inline void save_window_offset(CPUSPARCState *env, int cwp1)
 {
     unsigned int i;
-    uint32_t *sp_ptr;
+    target_ulong sp_ptr;
     
-    sp_ptr = (uint32_t *)(env->regbase[get_reg_index(env, cwp1, 6)]);
+    sp_ptr = env->regbase[get_reg_index(env, cwp1, 6)];
 #if defined(DEBUG_WIN)
     printf("win_overflow: sp_ptr=0x%x save_cwp=%d\n", 
            (int)sp_ptr, cwp1);
 #endif
     for(i = 0; i < 16; i++) {
-        put_user(env->regbase[get_reg_index(env, cwp1, 8 + i)], sp_ptr);
-        sp_ptr++;
+        tputl(sp_ptr, env->regbase[get_reg_index(env, cwp1, 8 + i)]);
+        sp_ptr += sizeof(target_ulong);
     }
 }
 
@@ -500,22 +504,21 @@ static void save_window(CPUSPARCState *env)
 static void restore_window(CPUSPARCState *env)
 {
     unsigned int new_wim, i, cwp1;
-    uint32_t *sp_ptr, reg;
+    target_ulong sp_ptr;
     
     new_wim = ((env->wim << 1) | (env->wim >> (NWINDOWS - 1))) &
         ((1LL << NWINDOWS) - 1);
     
     /* restore the invalid window */
     cwp1 = (env->cwp + 1) & (NWINDOWS - 1);
-    sp_ptr = (uint32_t *)(env->regbase[get_reg_index(env, cwp1, 6)]);
+    sp_ptr = env->regbase[get_reg_index(env, cwp1, 6)];
 #if defined(DEBUG_WIN)
     printf("win_underflow: sp_ptr=0x%x load_cwp=%d\n", 
            (int)sp_ptr, cwp1);
 #endif
     for(i = 0; i < 16; i++) {
-        get_user(reg, sp_ptr);
-        env->regbase[get_reg_index(env, cwp1, 8 + i)] = reg;
-        sp_ptr++;
+        env->regbase[get_reg_index(env, cwp1, 8 + i)] = tgetl(sp_ptr);
+        sp_ptr += sizeof(target_ulong);
     }
     env->wim = new_wim;
 }
@@ -1304,15 +1307,9 @@ void cpu_loop(CPUMIPSState *env)
                     if (nb_args >= 5) {
                         sp_reg = env->gpr[29];
                         /* these arguments are taken from the stack */
-                        if (get_user(arg5, (target_ulong *)(sp_reg + 16))) {
-                            ret = -EFAULT;
-                            goto fail;
-                        }
+                        arg5 = tgetl(sp_reg + 16);
                         if (nb_args >= 6) {
-                            if (get_user(arg6, (target_ulong *)(sp_reg + 20))) {
-                                ret = -EFAULT;
-                                goto fail;
-                            }
+                            arg6 = tgetl(sp_reg + 20);
                         } else {
                             arg6 = 0;
                         }
@@ -1347,8 +1344,7 @@ void cpu_loop(CPUMIPSState *env)
             {
                 uint32_t insn, op;
 
-                if (get_user(insn, (uint32_t *)env->PC) < 0)
-                    goto sigill;
+                insn = tget32(env->PC);
                 op = insn >> 26;
                 //                printf("insn=%08x op=%02x\n", insn, op);
                 /* XXX: totally dummy FP ops just to be able to launch
@@ -1531,7 +1527,7 @@ int main(int argc, char **argv)
         fprintf(logfile, "entry       0x%08lx\n" , info->entry);
     }
 
-    target_set_brk((char *)info->brk);
+    target_set_brk(info->brk);
     syscall_init();
     signal_init();
 
@@ -1566,7 +1562,7 @@ int main(int argc, char **argv)
     env->eip = regs->eip;
 
     /* linux interrupt setup */
-    env->idt.base = (long)idt_table;
+    env->idt.base = h2g(idt_table);
     env->idt.limit = sizeof(idt_table) - 1;
     set_idt(0, 0);
     set_idt(1, 0);
@@ -1591,7 +1587,7 @@ int main(int argc, char **argv)
     set_idt(0x80, 3);
 
     /* linux segment setup */
-    env->gdt.base = (long)gdt_table;
+    env->gdt.base = h2g(gdt_table);
     env->gdt.limit = sizeof(gdt_table) - 1;
     write_dt(&gdt_table[__USER_CS >> 3], 0, 0xfffff,
              DESC_G_MASK | DESC_B_MASK | DESC_P_MASK | DESC_S_MASK | 
