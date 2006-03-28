@@ -1288,7 +1288,7 @@ CharDriverState *qemu_chr_open_file_out(const char *file_out)
 {
     int fd_out;
 
-    fd_out = open(file_out, O_WRONLY | O_TRUNC | O_CREAT | O_BINARY);
+    fd_out = open(file_out, O_WRONLY | O_TRUNC | O_CREAT | O_BINARY, 0666);
     if (fd_out < 0)
         return NULL;
     return qemu_chr_open_fd(-1, fd_out);
