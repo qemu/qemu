@@ -64,12 +64,12 @@ have to install it. Otherwise, see @ref{compilation}.
 @section Windows
 
 Download the experimental binary installer at
-@url{http://www.freeoszoo.org/download.php}.
+@url{http://www.free.oszoo.org/download.html}.
 
 @section Mac OS X
 
 Download the experimental binary installer at
-@url{http://www.freeoszoo.org/download.php}.
+@url{http://www.free.oszoo.org/download.html}.
 
 @chapter QEMU PC System emulator
 
