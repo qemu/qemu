@@ -1,22 +1,29 @@
 Index: rombios.c
 ===================================================================
 RCS file: /cvsroot/bochs/bochs/bios/rombios.c,v
-retrieving revision 1.130
-diff -u -w -r1.130 rombios.c
---- rombios.c	13 Feb 2005 08:47:30 -0000	1.130
-+++ rombios.c	9 Feb 2006 21:49:38 -0000
-@@ -8570,7 +8570,10 @@
- use32 386
- #define APM_PROT32
- #include "apmbios.S"
-+
- use16 386
-+#define APM_PROT16
-+#include "apmbios.S"
+retrieving revision 1.160
+diff -u -w -r1.160 rombios.c
+--- rombios.c	25 Jan 2006 17:51:49 -0000	1.160
++++ rombios.c	2 Apr 2006 18:29:51 -0000
+@@ -1816,6 +1816,7 @@
+ {
+   printf(BX_APPNAME" BIOS - build: %s\n%s\nOptions: ",
+     BIOS_BUILD_DATE, bios_cvs_version_string);
++#if 0
+   printf(
+ #ifdef BX_APM
+   "apmbios "
+@@ -1827,6 +1828,9 @@
+   "eltorito "
+ #endif
+   "\n\n");
++#else
++  printf("apmbios pcibios eltorito \n\n");
++#endif
+ }
  
- #define APM_REAL
- #include "apmbios.S"
-@@ -8611,6 +8614,7 @@
+ //--------------------------------------------------------------------------
+@@ -8713,6 +8717,7 @@
    mov al, #0x80
  bios32_end:
    popf
@@ -24,7 +31,7 @@ diff -u -w -r1.130 rombios.c
    retf
  
  .align 16
-@@ -8721,17 +8725,17 @@
+@@ -8823,17 +8828,17 @@
  pci_pro_fail:
    pop edi
    pop esi
@@ -44,50 +51,75 @@ diff -u -w -r1.130 rombios.c
    retf
  
  pci_pro_select_reg:
-Index: apmbios.S
-===================================================================
-RCS file: /cvsroot/bochs/bochs/bios/apmbios.S,v
-retrieving revision 1.1
-diff -u -w -r1.1 apmbios.S
---- apmbios.S	20 Jun 2004 18:27:09 -0000	1.1
-+++ apmbios.S	9 Feb 2006 21:49:38 -0000
-@@ -1,6 +1,9 @@
- //  APM BIOS support for the Bochs BIOS
- //  Copyright (C) 2004 Fabrice Bellard
- //
-+//  16-bit interface activation
-+//  Copyright (C) 2005 Struan Bartlett
-+//
- //  This library is free software; you can redistribute it and/or
- //  modify it under the terms of the GNU Lesser General Public
- //  License as published by the Free Software Foundation; either
-@@ -111,13 +114,28 @@
-   mov bl, #0x4d // 'M'
-   // bit 0 : 16 bit interface supported
-   // bit 1 : 32 bit interface supported
--  mov cx, #0x2 
-+  mov cx, #0x3
-   jmp APMSYM(ok)
-   
- ;-----------------
- ; APM real mode interface connect
- APMSYM(01):
-   cmp al, #0x01
-+  jne APMSYM(02)
-+  jmp APMSYM(ok)
+@@ -8971,7 +8976,7 @@
+   jmp pci_real_ok
+ pci_real_f0d: ;; write configuration dword
+   cmp al, #0x0d
+-  jne pci_real_unknown
++  jne pci_real_f0e
+   call pci_real_select_reg
+   push dx
+   mov dx, #0x0cfc
+@@ -8979,6 +8984,46 @@
+   out dx, eax
+   pop dx
+   jmp pci_real_ok
++pci_real_f0e: ;; get irq routing options
++  cmp al, #0x0e
++  jne pci_real_unknown
++  SEG ES
++  cmp word ptr [di], #pci_routing_table_structure_end - pci_routing_table_structure_start
++  jb pci_real_too_small    
++  SEG ES
++  mov word ptr [di], #pci_routing_table_structure_end - pci_routing_table_structure_start        
++  pushf
++  push ds
++  push es
++  push cx
++  push si
++  push di
++  cld
++  mov si, #pci_routing_table_structure_start
++  push cs
++  pop ds
++  SEG ES
++  mov cx, [di+2]
++  SEG ES
++  mov es, [di+4]
++  mov di, cx
++  mov cx, #pci_routing_table_structure_end - pci_routing_table_structure_start
++  rep 
++      movsb
++  pop di
++  pop si
++  pop cx
++  pop es
++  pop ds
++  popf
++  mov bx, #(1 << 9) | (1 << 11)   ;; irq 9 and 11 are used
++  jmp pci_real_ok
++pci_real_too_small:
++  SEG ES
++  mov word ptr [di], #pci_routing_table_structure_end - pci_routing_table_structure_start        
++  mov ah, #0x89
++  jmp pci_real_fail
 +
-+;-----------------
-+; APM 16 bit protected mode interface connect
-+APMSYM(02):
-+  cmp al, #0x02
-+  jne APMSYM(03)
-+
-+  mov bx, #_apm16_entry
-+  
-+  mov ax, #0xf000 // 16 bit code segment base
-+  mov si, #0xfff0 // 16 bit code segment size
-+  mov cx, #0xf000 // data segment address
-+  mov di, #0xfff0 // data segment length
-   jne APMSYM(03)
-   jmp APMSYM(ok)
+ pci_real_unknown:
+   mov ah, #0x81
+ pci_real_fail:
+@@ -9019,6 +9064,7 @@
+   dw 0,0 ;; Miniport data
+   db 0,0,0,0,0,0,0,0,0,0,0 ;; reserved
+   db 0x07 ;; checksum
++pci_routing_table_structure_start:
+   ;; first slot entry PCI-to-ISA (embedded)
+   db 0 ;; pci bus number
+   db 0x08 ;; pci device number (bit 7-3)
+@@ -9097,6 +9143,7 @@
+   dw 0xdef8 ;; IRQ bitmap INTD#
+   db 5 ;; physical slot (0 = embedded)
+   db 0 ;; reserved
++pci_routing_table_structure_end:
  
+ pci_irq_list:
+   db 11, 10, 9, 5;
