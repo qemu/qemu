@@ -353,9 +353,6 @@ static void pci_data_write(void *opaque, uint32_t addr,
     if (!(s->config_reg & (1 << 31))) {
         return;
     }
-    if ((s->config_reg & 0x3) != 0) {
-        return;
-    }
     bus_num = (s->config_reg >> 16) & 0xff;
     if (bus_num != 0)
         return;
@@ -379,8 +376,6 @@ static uint32_t pci_data_read(void *opaque, uint32_t addr,
     uint32_t val;
 
     if (!(s->config_reg & (1 << 31)))
-        goto fail;
-    if ((s->config_reg & 0x3) != 0)
         goto fail;
     bus_num = (s->config_reg >> 16) & 0xff;
     if (bus_num != 0)
