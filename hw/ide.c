@@ -1669,7 +1669,7 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         case WIN_PIDENTIFY:
             if (s->is_cdrom) {
                 ide_atapi_identify(s);
-                s->status = READY_STAT;
+                s->status = READY_STAT | SEEK_STAT;
                 ide_transfer_start(s, s->io_buffer, 512, ide_transfer_stop);
             } else {
                 ide_abort_command(s);
