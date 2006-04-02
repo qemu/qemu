@@ -5085,7 +5085,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
     case 0x1ba: /* bt/bts/btr/btc Gv, im */
         ot = dflag + OT_WORD;
         modrm = ldub_code(s->pc++);
-        op = ((modrm >> 3) & 7) | rex_r;
+        op = (modrm >> 3) & 7;
         mod = (modrm >> 6) & 3;
         rm = (modrm & 7) | REX_B(s);
         if (mod != 3) {
