@@ -1015,7 +1015,7 @@ static void breakpoint_invalidate(CPUState *env, target_ulong pc)
         pd = p->phys_offset;
     }
     ram_addr = (pd & TARGET_PAGE_MASK) | (pc & ~TARGET_PAGE_MASK);
-    tb_invalidate_ram_page_range(ram_addr, ram_addr + 1, 0);
+    tb_invalidate_phys_page_range(ram_addr, ram_addr + 1, 0);
 }
 #endif
 
