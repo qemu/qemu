@@ -227,6 +227,49 @@ if test -z "$CFLAGS"; then
     CFLAGS="-O2"
 fi
 
+if test x"$show_help" = x"yes" ; then
+cat << EOF
+
+Usage: configure [options]
+Options: [defaults in brackets after descriptions]
+
+EOF
+echo "Standard options:"
+echo "  --help                   print this message"
+echo "  --prefix=PREFIX          install in PREFIX [$prefix]"
+echo "  --interp-prefix=PREFIX   where to find shared libraries, etc."
+echo "                           use %M for cpu name [$interp_prefix]"
+echo "  --target-list=LIST       set target list [$target_list]"
+echo ""
+echo "kqemu kernel acceleration support:"
+echo "  --disable-kqemu          disable kqemu support"
+echo "  --kernel-path=PATH       set the kernel path (configure probes it)"
+echo ""
+echo "Advanced options (experts only):"
+echo "  --source-path=PATH       path of source code [$source_path]"
+echo "  --cross-prefix=PREFIX    use PREFIX for compile tools [$cross_prefix]"
+echo "  --cc=CC                  use C compiler CC [$cc]"
+echo "  --host-cc=CC             use C compiler CC [$host_cc] for dyngen etc."
+echo "  --make=MAKE              use specified make [$make]"
+echo "  --static                 enable static build [$static]"
+echo "  --enable-cocoa           enable COCOA (Mac OS X only)"
+echo "  --enable-mingw32         enable Win32 cross compilation with mingw32"
+echo "  --enable-adlib           enable Adlib emulation"
+echo "  --enable-coreaudio       enable Coreaudio audio driver"
+echo "  --enable-alsa            enable ALSA audio driver"
+echo "  --enable-fmod            enable FMOD audio driver"
+echo "  --enabled-dsound         enable DirectSound audio driver"
+echo "  --enable-system          enable all system emulation targets"
+echo "  --disable-system         disable all system emulation targets"
+echo "  --enable-user            enable all linux usermode emulation targets"
+echo "  --disable-user           disable all linux usermode emulation targets"
+echo "  --fmod-lib               path to FMOD library"
+echo "  --fmod-inc               path to FMOD includes"
+echo ""
+echo "NOTE: The object files are build at the place where configure is launched"
+exit 1
+fi
+
 cc="${cross_prefix}${cc}"
 ar="${cross_prefix}${ar}"
 strip="${cross_prefix}${strip}"
@@ -369,49 +412,6 @@ fi # sdl compile test
 
 fi # cross compilation
 fi # -z $sdl
-
-if test x"$show_help" = x"yes" ; then
-cat << EOF
-
-Usage: configure [options]
-Options: [defaults in brackets after descriptions]
-
-EOF
-echo "Standard options:"
-echo "  --help                   print this message"
-echo "  --prefix=PREFIX          install in PREFIX [$prefix]"
-echo "  --interp-prefix=PREFIX   where to find shared libraries, etc."
-echo "                           use %M for cpu name [$interp_prefix]"
-echo "  --target-list=LIST       set target list [$target_list]"
-echo ""
-echo "kqemu kernel acceleration support:"
-echo "  --disable-kqemu          disable kqemu support"
-echo "  --kernel-path=PATH       set the kernel path (configure probes it)"
-echo ""
-echo "Advanced options (experts only):"
-echo "  --source-path=PATH       path of source code [$source_path]"
-echo "  --cross-prefix=PREFIX    use PREFIX for compile tools [$cross_prefix]"
-echo "  --cc=CC                  use C compiler CC [$cc]"
-echo "  --host-cc=CC             use C compiler CC [$host_cc] for dyngen etc."
-echo "  --make=MAKE              use specified make [$make]"
-echo "  --static                 enable static build [$static]"
-echo "  --enable-cocoa           enable COCOA (Mac OS X only)"
-echo "  --enable-mingw32         enable Win32 cross compilation with mingw32"
-echo "  --enable-adlib           enable Adlib emulation"
-echo "  --enable-coreaudio       enable Coreaudio audio driver"
-echo "  --enable-alsa            enable ALSA audio driver"
-echo "  --enable-fmod            enable FMOD audio driver"
-echo "  --enabled-dsound         enable DirectSound audio driver"
-echo "  --enable-system          enable all system emulation targets"
-echo "  --disable-system         disable all system emulation targets"
-echo "  --enable-user            enable all linux usermode emulation targets"
-echo "  --disable-user           disable all linux usermode emulation targets"
-echo "  --fmod-lib               path to FMOD library"
-echo "  --fmod-inc               path to FMOD includes"
-echo ""
-echo "NOTE: The object files are build at the place where configure is launched"
-exit 1
-fi
 
 if test "$mingw32" = "yes" ; then
 if test -z "$prefix" ; then
