@@ -118,7 +118,7 @@ typedef struct KBDState {
     uint8_t status;
     uint8_t mode;
     /* Bitmask of devices with data available.  */
-    int pending;
+    uint8_t pending;
     void *kbd;
     void *mouse;
 } KBDState;
@@ -337,17 +337,19 @@ static void kbd_save(QEMUFile* f, void* opaque)
     qemu_put_8s(f, &s->write_cmd);
     qemu_put_8s(f, &s->status);
     qemu_put_8s(f, &s->mode);
+    qemu_put_8s(f, &s->pending);
 }
 
 static int kbd_load(QEMUFile* f, void* opaque, int version_id)
 {
     KBDState *s = (KBDState*)opaque;
     
-    if (version_id != 2)
+    if (version_id != 3)
         return -EINVAL;
     qemu_get_8s(f, &s->write_cmd);
     qemu_get_8s(f, &s->status);
     qemu_get_8s(f, &s->mode);
+    qemu_get_8s(f, &s->pending);
     return 0;
 }
 
@@ -356,7 +358,7 @@ void kbd_init(void)
     KBDState *s = &kbd_state;
     
     kbd_reset(s);
-    register_savevm("pckbd", 0, 2, kbd_save, kbd_load, s);
+    register_savevm("pckbd", 0, 3, kbd_save, kbd_load, s);
     register_ioport_read(0x60, 1, 1, kbd_read_data, s);
     register_ioport_write(0x60, 1, 1, kbd_write_data, s);
     register_ioport_read(0x64, 1, 1, kbd_read_status, s);

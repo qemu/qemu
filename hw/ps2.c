@@ -461,19 +461,38 @@ static void ps2_reset(void *opaque)
     q->count = 0;
 }
 
+static void ps2_common_save (QEMUFile *f, PS2State *s)
+{
+    qemu_put_be32s (f, &s->write_cmd);
+    qemu_put_be32s (f, &s->queue.rptr);
+    qemu_put_be32s (f, &s->queue.wptr);
+    qemu_put_be32s (f, &s->queue.count);
+    qemu_put_buffer (f, s->queue.data, sizeof (s->queue.data));
+}
+
+static void ps2_common_load (QEMUFile *f, PS2State *s)
+{
+    qemu_get_be32s (f, &s->write_cmd);
+    qemu_get_be32s (f, &s->queue.rptr);
+    qemu_get_be32s (f, &s->queue.wptr);
+    qemu_get_be32s (f, &s->queue.count);
+    qemu_get_buffer (f, s->queue.data, sizeof (s->queue.data));
+}
+
 static void ps2_kbd_save(QEMUFile* f, void* opaque)
 {
     PS2KbdState *s = (PS2KbdState*)opaque;
-    
-    qemu_put_be32s(f, &s->common.write_cmd);
+
+    ps2_common_save (f, &s->common);
     qemu_put_be32s(f, &s->scan_enabled);
+    qemu_put_be32s(f, &s->translate);
 }
 
 static void ps2_mouse_save(QEMUFile* f, void* opaque)
 {
     PS2MouseState *s = (PS2MouseState*)opaque;
-    
-    qemu_put_be32s(f, &s->common.write_cmd);
+
+    ps2_common_save (f, &s->common);
     qemu_put_8s(f, &s->mouse_status);
     qemu_put_8s(f, &s->mouse_resolution);
     qemu_put_8s(f, &s->mouse_sample_rate);
@@ -489,21 +508,24 @@ static void ps2_mouse_save(QEMUFile* f, void* opaque)
 static int ps2_kbd_load(QEMUFile* f, void* opaque, int version_id)
 {
     PS2KbdState *s = (PS2KbdState*)opaque;
-    
-    if (version_id != 1)
+
+    if (version_id != 2)
         return -EINVAL;
-    qemu_get_be32s(f, &s->common.write_cmd);
+
+    ps2_common_load (f, &s->common);
     qemu_get_be32s(f, &s->scan_enabled);
+    qemu_get_be32s(f, &s->translate);
     return 0;
 }
 
 static int ps2_mouse_load(QEMUFile* f, void* opaque, int version_id)
 {
     PS2MouseState *s = (PS2MouseState*)opaque;
-    
-    if (version_id != 1)
+
+    if (version_id != 2)
         return -EINVAL;
-    qemu_get_be32s(f, &s->common.write_cmd);
+
+    ps2_common_load (f, &s->common);
     qemu_get_8s(f, &s->mouse_status);
     qemu_get_8s(f, &s->mouse_resolution);
     qemu_get_8s(f, &s->mouse_sample_rate);
@@ -524,7 +546,7 @@ void *ps2_kbd_init(void (*update_irq)(void *, int), void *update_arg)
     s->common.update_irq = update_irq;
     s->common.update_arg = update_arg;
     ps2_reset(&s->common);
-    register_savevm("ps2kbd", 0, 1, ps2_kbd_save, ps2_kbd_load, s);
+    register_savevm("ps2kbd", 0, 2, ps2_kbd_save, ps2_kbd_load, s);
     qemu_add_kbd_event_handler(ps2_put_keycode, s);
     qemu_register_reset(ps2_reset, &s->common);
     return s;
@@ -537,7 +559,7 @@ void *ps2_mouse_init(void (*update_irq)(void *, int), void *update_arg)
     s->common.update_irq = update_irq;
     s->common.update_arg = update_arg;
     ps2_reset(&s->common);
-    register_savevm("ps2mouse", 0, 1, ps2_mouse_save, ps2_mouse_load, s);
+    register_savevm("ps2mouse", 0, 2, ps2_mouse_save, ps2_mouse_load, s);
     qemu_add_mouse_event_handler(ps2_mouse_event, s);
     qemu_register_reset(ps2_reset, &s->common);
     return s;
