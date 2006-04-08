@@ -204,6 +204,7 @@ static inline PageDesc *page_find(unsigned int index)
 static PhysPageDesc *phys_page_find_alloc(target_phys_addr_t index, int alloc)
 {
     void **lp, **p;
+    PhysPageDesc *pd;
 
     p = (void **)l1_phys_map;
 #if TARGET_PHYS_ADDR_SPACE_BITS > 32
@@ -223,16 +224,18 @@ static PhysPageDesc *phys_page_find_alloc(target_phys_addr_t index, int alloc)
     }
 #endif
     lp = p + ((index >> L2_BITS) & (L1_SIZE - 1));
-    p = *lp;
-    if (!p) {
+    pd = *lp;
+    if (!pd) {
+        int i;
         /* allocate if not found */
         if (!alloc)
             return NULL;
-        p = qemu_vmalloc(sizeof(PhysPageDesc) * L2_SIZE);
-        memset(p, 0, sizeof(PhysPageDesc) * L2_SIZE);
-        *lp = p;
+        pd = qemu_vmalloc(sizeof(PhysPageDesc) * L2_SIZE);
+        *lp = pd;
+        for (i = 0; i < L2_SIZE; i++)
+          pd[i].phys_offset = IO_MEM_UNASSIGNED;
     }
-    return ((PhysPageDesc *)p) + (index & (L2_SIZE - 1));
+    return ((PhysPageDesc *)pd) + (index & (L2_SIZE - 1));
 }
 
 static inline PhysPageDesc *phys_page_find(target_phys_addr_t index)
