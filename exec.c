@@ -1003,10 +1003,19 @@ static void tb_reset_jump_recursive(TranslationBlock *tb)
 #if defined(TARGET_HAS_ICE)
 static void breakpoint_invalidate(CPUState *env, target_ulong pc)
 {
-    target_ulong phys_addr;
+    target_ulong addr, pd;
+    ram_addr_t ram_addr;
+    PhysPageDesc *p;
 
-    phys_addr = cpu_get_phys_page_debug(env, pc);
-    tb_invalidate_phys_page_range(phys_addr, phys_addr + 1, 0);
+    addr = cpu_get_phys_page_debug(env, pc);
+    p = phys_page_find(addr >> TARGET_PAGE_BITS);
+    if (!p) {
+        pd = IO_MEM_UNASSIGNED;
+    } else {
+        pd = p->phys_offset;
+    }
+    ram_addr = (pd & TARGET_PAGE_MASK) | (pc & ~TARGET_PAGE_MASK);
+    tb_invalidate_ram_page_range(ram_addr, ram_addr + 1, 0);
 }
 #endif
 
