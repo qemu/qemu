@@ -283,7 +283,7 @@ static CPUWriteMemoryFunc *lance_mem_write[3] = {
 
 #define MIN_BUF_SIZE 60
 
-static void lance_can_receive(void *opaque)
+static int lance_can_receive(void *opaque)
 {
     return 1;
 }
