@@ -2295,8 +2295,21 @@ static void disas_thumb_insn(DisasContext *s)
 
     case 14:
         /* unconditional branch */
-        if (insn & (1 << 11))
-            goto undef; /* Second half of a blx */
+        if (insn & (1 << 11)) {
+            /* Second half of blx.  */
+            offset = ((insn & 0x7ff) << 1);
+            gen_movl_T0_reg(s, 14);
+            gen_op_movl_T1_im(offset);
+            gen_op_addl_T0_T1();
+            gen_op_movl_T1_im(0xfffffffc);
+            gen_op_andl_T0_T1();
+
+            val = (uint32_t)s->pc;
+            gen_op_movl_T1_im(val | 1);
+            gen_movl_reg_T1(s, 14);
+            gen_bx(s);
+            break;
+        }
         val = (uint32_t)s->pc;
         offset = ((int32_t)insn << 21) >> 21;
         val += (offset << 1) + 2;
@@ -2305,6 +2318,29 @@ static void disas_thumb_insn(DisasContext *s)
 
     case 15:
         /* branch and link [and switch to arm] */
+        if ((s->pc & ~TARGET_PAGE_MASK) == 0) {
+            /* Instruction spans a page boundary.  Implement it as two
+               16-bit instructions in case the second half causes an
+               prefetch abort.  */
+            offset = ((int32_t)insn << 21) >> 9;
+            val = s->pc + 2 + offset;
+            gen_op_movl_T0_im(val);
+            gen_movl_reg_T0(s, 14);
+            break;
+        }
+        if (insn & (1 << 11)) {
+            /* Second half of bl.  */
+            offset = ((insn & 0x7ff) << 1) | 1;
+            gen_movl_T0_reg(s, 14);
+            gen_op_movl_T1_im(offset);
+            gen_op_addl_T0_T1();
+
+            val = (uint32_t)s->pc;
+            gen_op_movl_T1_im(val | 1);
+            gen_movl_reg_T1(s, 14);
+            gen_bx(s);
+            break;
+        }
         offset = ((int32_t)insn << 21) >> 10;
         insn = lduw_code(s->pc);
         offset |= insn & 0x7ff;
