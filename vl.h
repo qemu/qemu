@@ -966,6 +966,9 @@ void usb_info(void);
 extern QEMUMachine integratorcp926_machine;
 extern QEMUMachine integratorcp1026_machine;
 
+/* versatilepb.c */
+extern QEMUMachine versatilepb_machine;
+
 /* ps2.c */
 void *ps2_kbd_init(void (*update_irq)(void *, int), void *update_arg);
 void *ps2_mouse_init(void (*update_irq)(void *, int), void *update_arg);
@@ -980,6 +983,22 @@ void smc91c111_init(NICInfo *, uint32_t, void *, int);
 
 /* pl110.c */
 void *pl110_init(DisplayState *ds, uint32_t base, void *pic, int irq, int);
+
+/* pl011.c */
+void pl011_init(uint32_t base, void *pic, int irq, CharDriverState *chr);
+
+/* pl050.c */
+void pl050_init(uint32_t base, void *pic, int irq, int is_mouse);
+
+/* pl080.c */
+void *pl080_init(uint32_t base, void *pic, int irq);
+
+/* pl190.c */
+void *pl190_init(uint32_t base, void *parent, int irq, int fiq);
+
+/* arm-timer.c */
+void sp804_init(uint32_t base, void *pic, int irq);
+void icp_pit_init(uint32_t base, void *pic, int irq);
 
 #endif /* defined(QEMU_TOOL) */
 

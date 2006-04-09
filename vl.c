@@ -4436,6 +4436,7 @@ void register_machines(void)
 #elif defined(TARGET_ARM)
     qemu_register_machine(&integratorcp926_machine);
     qemu_register_machine(&integratorcp1026_machine);
+    qemu_register_machine(&versatilepb_machine);
 #else
 #error unsupported CPU
 #endif

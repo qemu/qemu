@@ -339,7 +339,8 @@ VL_OBJS+= slavio_timer.o slavio_serial.o slavio_misc.o fdc.o esp.o
 endif
 endif
 ifeq ($(TARGET_BASE_ARCH), arm)
-VL_OBJS+= integratorcp.o ps2.o smc91c111.o pl110.o
+VL_OBJS+= integratorcp.o versatilepb.o ps2.o smc91c111.o arm_pic.o arm_timer.o
+VL_OBJS+= pl011.o pl050.o pl080.o pl110.o pl190.o
 endif
 ifdef CONFIG_GDBSTUB
 VL_OBJS+=gdbstub.o 

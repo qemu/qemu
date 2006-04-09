@@ -1,7 +1,7 @@
 /* 
  * Arm PrimeCell PL110 Color LCD Controller
  *
- * Copyright (c) 2005 CodeSourcery, LLC.
+ * Copyright (c) 2005-2006 CodeSourcery.
  * Written by Paul Brook
  *
  * This code is licenced under the GNU LGPL
@@ -27,6 +27,8 @@ enum pl110_bppmode
 typedef struct {
     uint32_t base;
     DisplayState *ds;
+    /* The Versatile/PB uses a slightly modified PL110 controller.  */
+    int versatile;
     void *pic;
     uint32_t timing[4];
     uint32_t cr;
@@ -45,6 +47,15 @@ typedef struct {
 
 static const unsigned char pl110_id[] =
 { 0x10, 0x11, 0x04, 0x00, 0x0d, 0xf0, 0x05, 0xb1 };
+
+/* The Arm documentation (DDI0224C) says the CLDC on the Versatile board
+   has a different ID.  However Linux only looks for the normal ID.  */
+#if 0
+static const unsigned char pl110_versatile_id[] =
+{ 0x93, 0x10, 0x04, 0x00, 0x0d, 0xf0, 0x05, 0xb1 };
+#else
+#define pl110_versatile_id pl110_id
+#endif
 
 static inline uint32_t rgb_to_pixel8(unsigned int r, unsigned int g, unsigned b)
 {
@@ -101,7 +112,7 @@ static void pl110_update_display(void *opaque)
     int src_width;
     uint8_t *dest;
     uint8_t *src;
-    int first, last;
+    int first, last = 0;
     int dirty, new_dirty;
     int i;
 
@@ -269,7 +280,10 @@ static uint32_t pl110_read(void *opaque, target_phys_addr_t offset)
 
     offset -= s->base;
     if (offset >= 0xfe0 && offset < 0x1000) {
-        return pl110_id[(offset - 0xfe0) >> 2];
+        if (s->versatile)
+            return pl110_versatile_id[(offset - 0xfe0) >> 2];
+        else
+            return pl110_id[(offset - 0xfe0) >> 2];
     }
     if (offset >= 0x200 && offset < 0x400) {
         return s->raw_pallette[(offset - 0x200) >> 2];
@@ -347,10 +361,16 @@ static void pl110_write(void *opaque, target_phys_addr_t offset,
         s->lpbase = val;
         break;
     case 6: /* LCDIMSC */
+        if (s->versatile)
+            goto control;
+    imsc:
         s->int_mask = val;
         pl110_update(s);
         break;
     case 7: /* LCDControl */
+        if (s->versatile)
+            goto imsc;
+    control:
         s->cr = val;
         s->bpp = (val >> 1) & 7;
         if (pl110_enabled(s)) {
@@ -390,6 +410,7 @@ void *pl110_init(DisplayState *ds, uint32_t base, void *pic, int irq,
     cpu_register_physical_memory(base, 0x00000fff, iomemtype);
     s->base = base;
     s->ds = ds;
+    s->versatile = versatile;
     s->pic = pic;
     s->irq = irq;
     graphic_console_init(ds, pl110_update_display, pl110_invalidate_display,
