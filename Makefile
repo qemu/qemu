@@ -44,21 +44,21 @@ ar      de     en-us  fi  fr-be  hr     it  lv  nl         pl  ru     th \
 common  de-ch  es     fo  fr-ca  hu     ja  mk  nl-be      pt  sl     tr
 
 install: all 
-	mkdir -p "$(bindir)"
-	install -m 755 -s $(TOOLS) "$(bindir)"
-	mkdir -p "$(datadir)"
+	mkdir -p "$(DESTDIR)$(bindir)"
+	install -m 755 -s $(TOOLS) "$(DESTDIR)$(bindir)"
+	mkdir -p "$(DESTDIR)$(datadir)"
 	install -m 644 pc-bios/bios.bin pc-bios/vgabios.bin \
                        pc-bios/vgabios-cirrus.bin \
                        pc-bios/ppc_rom.bin pc-bios/video.x \
                        pc-bios/proll.elf \
-                       pc-bios/linux_boot.bin "$(datadir)"
-	mkdir -p "$(docdir)"
-	install -m 644 qemu-doc.html  qemu-tech.html "$(docdir)"
+                       pc-bios/linux_boot.bin "$(DESTDIR)$(datadir)"
+	mkdir -p "$(DESTDIR)$(docdir)"
+	install -m 644 qemu-doc.html  qemu-tech.html "$(DESTDIR)$(docdir)"
 ifndef CONFIG_WIN32
-	mkdir -p "$(mandir)/man1"
-	install qemu.1 qemu-img.1 "$(mandir)/man1"
-	mkdir -p "$(datadir)/keymaps"
-	install -m 644 $(addprefix keymaps/,$(KEYMAPS)) "$(datadir)/keymaps"
+	mkdir -p "$(DESTDIR)$(mandir)/man1"
+	install qemu.1 qemu-img.1 "$(DESTDIR)$(mandir)/man1"
+	mkdir -p "$(DESTDIR)$(datadir)/keymaps"
+	install -m 644 $(addprefix keymaps/,$(KEYMAPS)) "$(DESTDIR)$(datadir)/keymaps"
 endif
 	for d in $(TARGET_DIRS); do \
 	$(MAKE) -C $$d $@ || exit 1 ; \
