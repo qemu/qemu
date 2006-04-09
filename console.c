@@ -53,10 +53,17 @@ enum TTYState {
     TTY_STATE_CSI,
 };
 
-
+/* ??? This is mis-named.
+   It is used for both text and graphical consoles.  */
 struct TextConsole {
     int text_console; /* true if text console */
     DisplayState *ds;
+    /* Graphic console state.  */
+    vga_hw_update_ptr hw_update;
+    vga_hw_invalidate_ptr hw_invalidate;
+    vga_hw_screen_dump_ptr hw_screen_dump;
+    void *hw;
+
     int g_width, g_height;
     int width;
     int height;
@@ -81,6 +88,26 @@ struct TextConsole {
 static TextConsole *active_console;
 static TextConsole *consoles[MAX_CONSOLES];
 static int nb_consoles = 0;
+
+void vga_hw_update(void)
+{
+    if (active_console->hw_update)
+        active_console->hw_update(active_console->hw);
+}
+
+void vga_hw_invalidate(void)
+{
+    if (active_console->hw_invalidate)
+        active_console->hw_invalidate(active_console->hw);
+}
+
+void vga_hw_screen_dump(const char *filename)
+{
+    /* There is currently no was of specifying which screen we want to dump,
+       so always dump the dirst one.  */
+    if (consoles[0]->hw_screen_dump)
+        consoles[0]->hw_screen_dump(consoles[0]->hw, filename);
+}
 
 /* convert a RGBA color to a color index usable in graphic primitives */
 static unsigned int vga_get_color(DisplayState *ds, unsigned int rgba)
@@ -782,8 +809,10 @@ void console_select(unsigned int index)
                 s->g_width = s->ds->width;
                 s->g_height = s->ds->height;
                 text_console_resize(s);
-        }
+            }
             console_refresh(s);
+        } else {
+            vga_hw_invalidate();
         }
     }
 }
@@ -874,9 +903,10 @@ void kbd_put_keysym(int keysym)
     }
 }
 
-TextConsole *graphic_console_init(DisplayState *ds)
+static TextConsole *new_console(DisplayState *ds, int text)
 {
     TextConsole *s;
+    int i;
 
     if (nb_consoles >= MAX_CONSOLES)
         return NULL;
@@ -884,16 +914,44 @@ TextConsole *graphic_console_init(DisplayState *ds)
     if (!s) {
         return NULL;
     }
-    if (!active_console)
+    if (!active_console || (active_console->text_console && !text))
         active_console = s;
     s->ds = ds;
-    consoles[nb_consoles++] = s;
+    s->text_console = text;
+    if (text) {
+        consoles[nb_consoles++] = s;
+    } else {
+        /* HACK: Put graphical consoles before text consoles.  */
+        for (i = nb_consoles; i > 0; i--) {
+            if (!consoles[i - 1]->text_console)
+                break;
+            consoles[i] = consoles[i - 1];
+        }
+        consoles[i] = s;
+    }
     return s;
 }
 
-int is_active_console(TextConsole *s)
+TextConsole *graphic_console_init(DisplayState *ds, vga_hw_update_ptr update,
+                                  vga_hw_invalidate_ptr invalidate,
+                                  vga_hw_screen_dump_ptr screen_dump,
+                                  void *opaque)
 {
-    return s == active_console;
+    TextConsole *s;
+
+    s = new_console(ds, 0);
+    if (!s)
+      return NULL;
+    s->hw_update = update;
+    s->hw_invalidate = invalidate;
+    s->hw_screen_dump = screen_dump;
+    s->hw = opaque;
+    return s;
+}
+
+int is_graphic_console(void)
+{
+    return !active_console->text_console;
 }
 
 CharDriverState *text_console_init(DisplayState *ds)
@@ -906,12 +964,11 @@ CharDriverState *text_console_init(DisplayState *ds)
     chr = qemu_mallocz(sizeof(CharDriverState));
     if (!chr)
         return NULL;
-    s = graphic_console_init(ds);
+    s = new_console(ds, 1);
     if (!s) {
         free(chr);
         return NULL;
     }
-    s->text_console = 1;
     chr->opaque = s;
     chr->chr_write = console_puts;
     chr->chr_add_read_handler = console_chr_add_read_handler;

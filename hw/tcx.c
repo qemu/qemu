@@ -37,6 +37,8 @@ typedef struct TCXState {
     uint8_t dac_index, dac_state;
 } TCXState;
 
+static void tcx_screen_dump(void *opaque, const char *filename);
+
 static void tcx_draw_line32(TCXState *s1, uint8_t *d, 
 			    const uint8_t *s, int width)
 {
@@ -81,7 +83,7 @@ static void tcx_draw_line8(TCXState *s1, uint8_t *d,
 
 /* Fixed line length 1024 allows us to do nice tricks not possible on
    VGA... */
-void tcx_update_display(void *opaque)
+static void tcx_update_display(void *opaque)
 {
     TCXState *ts = opaque;
     uint32_t page;
@@ -158,7 +160,7 @@ void tcx_update_display(void *opaque)
     }
 }
 
-void tcx_invalidate_display(void *opaque)
+static void tcx_invalidate_display(void *opaque)
 {
     TCXState *s = opaque;
     int i;
@@ -269,15 +271,15 @@ static CPUWriteMemoryFunc *tcx_dac_write[3] = {
     tcx_dac_writel,
 };
 
-void *tcx_init(DisplayState *ds, uint32_t addr, uint8_t *vram_base,
-	       unsigned long vram_offset, int vram_size, int width, int height)
+void tcx_init(DisplayState *ds, uint32_t addr, uint8_t *vram_base,
+	      unsigned long vram_offset, int vram_size, int width, int height)
 {
     TCXState *s;
     int io_memory;
 
     s = qemu_mallocz(sizeof(TCXState));
     if (!s)
-        return NULL;
+        return;
     s->ds = ds;
     s->addr = addr;
     s->vram = vram_base;
@@ -289,14 +291,15 @@ void *tcx_init(DisplayState *ds, uint32_t addr, uint8_t *vram_base,
     io_memory = cpu_register_io_memory(0, tcx_dac_read, tcx_dac_write, s);
     cpu_register_physical_memory(addr + 0x200000, TCX_DAC_NREGS, io_memory);
 
+    graphic_console_init(s->ds, tcx_update_display, tcx_invalidate_display,
+                         tcx_screen_dump, s);
     register_savevm("tcx", addr, 1, tcx_save, tcx_load, s);
     qemu_register_reset(tcx_reset, s);
     tcx_reset(s);
     dpy_resize(s->ds, width, height);
-    return s;
 }
 
-void tcx_screen_dump(void *opaque, const char *filename)
+static void tcx_screen_dump(void *opaque, const char *filename)
 {
     TCXState *s = opaque;
     FILE *f;

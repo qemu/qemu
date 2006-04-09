@@ -137,7 +137,6 @@ int graphic_height = 600;
 #endif
 int graphic_depth = 15;
 int full_screen = 0;
-TextConsole *vga_console;
 CharDriverState *serial_hds[MAX_SERIAL_PORTS];
 CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
 #ifdef TARGET_I386
@@ -2994,7 +2993,7 @@ static void dumb_resize(DisplayState *ds, int w, int h)
 
 static void dumb_refresh(DisplayState *ds)
 {
-    vga_update_display();
+    vga_hw_update();
 }
 
 void dumb_display_init(DisplayState *ds)
@@ -5123,8 +5122,6 @@ int main(int argc, char **argv)
 #endif
     }
 
-    vga_console = graphic_console_init(ds);
-    
     monitor_hd = qemu_chr_open(monitor_device);
     if (!monitor_hd) {
         fprintf(stderr, "qemu: could not open monitor device '%s'\n", monitor_device);

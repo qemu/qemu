@@ -146,6 +146,8 @@ static uint8_t expand4to8[16];
 VGAState *vga_state;
 int vga_io_memory;
 
+static void vga_screen_dump(void *opaque, const char *filename);
+
 static uint32_t vga_ioport_read(void *opaque, uint32_t addr)
 {
     VGAState *s = opaque;
@@ -1482,9 +1484,9 @@ static void vga_draw_blank(VGAState *s, int full_update)
 #define GMODE_GRAPH    1
 #define GMODE_BLANK 2 
 
-void vga_update_display(void)
+static void vga_update_display(void *opaque)
 {
-    VGAState *s = vga_state;
+    VGAState *s = (VGAState *)opaque;
     int full_update, graphic_mode;
 
     if (s->ds->depth == 0) {
@@ -1532,9 +1534,9 @@ void vga_update_display(void)
 }
 
 /* force a full display refresh */
-void vga_invalidate_display(void)
+static void vga_invalidate_display(void *opaque)
 {
-    VGAState *s = vga_state;
+    VGAState *s = (VGAState *)opaque;
     
     s->last_width = -1;
     s->last_height = -1;
@@ -1698,6 +1700,8 @@ void vga_common_init(VGAState *s, DisplayState *ds, uint8_t *vga_ram_base,
     s->get_bpp = vga_get_bpp;
     s->get_offsets = vga_get_offsets;
     s->get_resolution = vga_get_resolution;
+    graphic_console_init(s->ds, vga_update_display, vga_invalidate_display,
+                         vga_screen_dump, s);
     /* XXX: currently needed for display */
     vga_state = s;
 }
@@ -1854,13 +1858,13 @@ static int ppm_save(const char *filename, uint8_t *data,
 
 /* save the vga display in a PPM image even if no display is
    available */
-void vga_screen_dump(const char *filename)
+static void vga_screen_dump(void *opaque, const char *filename)
 {
-    VGAState *s = vga_state;
+    VGAState *s = (VGAState *)opaque;
     DisplayState *saved_ds, ds1, *ds = &ds1;
     
     /* XXX: this is a little hackish */
-    vga_invalidate_display();
+    vga_invalidate_display(s);
     saved_ds = s->ds;
 
     memset(ds, 0, sizeof(DisplayState));
@@ -1871,7 +1875,7 @@ void vga_screen_dump(const char *filename)
 
     s->ds = ds;
     s->graphic_mode = -1;
-    vga_update_display();
+    vga_update_display(s);
     
     if (ds->data) {
         ppm_save(filename, ds->data, vga_save_w, vga_save_h, 

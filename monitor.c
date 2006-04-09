@@ -356,7 +356,7 @@ static void do_change(const char *device, const char *filename)
 
 static void do_screen_dump(const char *filename)
 {
-    vga_screen_dump(filename);
+    vga_hw_screen_dump(filename);
 }
 
 static void do_log(const char *items)

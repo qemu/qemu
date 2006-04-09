@@ -89,7 +89,7 @@ static int pl110_enabled(pl110_state *s)
   return (s->cr & PL110_CR_EN) && (s->cr & PL110_CR_PWR);
 }
 
-void pl110_update_display(void *opaque)
+static void pl110_update_display(void *opaque)
 {
     pl110_state *s = (pl110_state *)opaque;
     drawfn* fntable;
@@ -205,7 +205,7 @@ void pl110_update_display(void *opaque)
     dpy_update(s->ds, 0, first, s->cols, last - first + 1);
 }
 
-void pl110_invalidate_display(void * opaque)
+static void pl110_invalidate_display(void * opaque)
 {
     pl110_state *s = (pl110_state *)opaque;
     s->invalidate = 1;
@@ -378,7 +378,8 @@ static CPUWriteMemoryFunc *pl110_writefn[] = {
    pl110_write
 };
 
-void *pl110_init(DisplayState *ds, uint32_t base, void *pic, int irq)
+void *pl110_init(DisplayState *ds, uint32_t base, void *pic, int irq,
+                 int versatile)
 {
     pl110_state *s;
     int iomemtype;
@@ -386,11 +387,13 @@ void *pl110_init(DisplayState *ds, uint32_t base, void *pic, int irq)
     s = (pl110_state *)qemu_mallocz(sizeof(pl110_state));
     iomemtype = cpu_register_io_memory(0, pl110_readfn,
                                        pl110_writefn, s);
-    cpu_register_physical_memory(base, 0x007fffff, iomemtype);
+    cpu_register_physical_memory(base, 0x00000fff, iomemtype);
     s->base = base;
     s->ds = ds;
     s->pic = pic;
     s->irq = irq;
+    graphic_console_init(ds, pl110_update_display, pl110_invalidate_display,
+                         NULL, s);
     /* ??? Save/restore.  */
     return s;
 }

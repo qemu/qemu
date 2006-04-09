@@ -187,23 +187,6 @@ void pic_set_irq_cpu(int irq, int level, unsigned int cpu)
     slavio_pic_set_irq_cpu(slavio_intctl, irq, level, cpu);
 }
 
-static void *tcx;
-
-void vga_update_display()
-{
-    tcx_update_display(tcx);
-}
-
-void vga_invalidate_display()
-{
-    tcx_invalidate_display(tcx);
-}
-
-void vga_screen_dump(const char *filename)
-{
-    tcx_screen_dump(tcx, filename);
-}
-
 static void *iommu;
 
 uint32_t iommu_translate(uint32_t addr)
@@ -256,7 +239,7 @@ static void sun4m_init(int ram_size, int vga_ram_size, int boot_device,
         slavio_intctl_set_cpu(slavio_intctl, i, envs[i]);
     }
 
-    tcx = tcx_init(ds, PHYS_JJ_TCX_FB, phys_ram_base + ram_size, ram_size, vram_size, graphic_width, graphic_height);
+    tcx_init(ds, PHYS_JJ_TCX_FB, phys_ram_base + ram_size, ram_size, vram_size, graphic_width, graphic_height);
     if (nd_table[0].vlan) {
         if (nd_table[0].model == NULL
             || strcmp(nd_table[0].model, "lance") == 0) {

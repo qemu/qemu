@@ -365,8 +365,8 @@ static void cocoa_refresh(DisplayState *ds)
     pool = [ [ NSAutoreleasePool alloc ] init ];
     distantPast = [ NSDate distantPast ];
     
-    if (is_active_console(vga_console)) 
-        vga_update_display();
+    vga_hw_update();
+
     do {
         event = [ NSApp nextEventMatchingMask:NSAnyEventMask untilDate:distantPast
                         inMode: NSDefaultRunLoopMode dequeue:YES ];
@@ -382,7 +382,7 @@ static void cocoa_refresh(DisplayState *ds)
                                 /* emulate caps lock and num lock keydown and keyup */
                                 kbd_put_keycode(keycode);
                                 kbd_put_keycode(keycode | 0x80);
-                            } else if (is_active_console(vga_console)) {
+                            } else if (is_graphic_console()) {
                                 if (keycode & 0x80)
                                     kbd_put_keycode(0xe0);
                                 if (modifiers_state[keycode] == 0) {
@@ -429,15 +429,12 @@ static void cocoa_refresh(DisplayState *ds)
                                 /* toggle Monitor */
                                 case 0x02 ... 0x0a: /* '1' to '9' keys */
                                     console_select(keycode - 0x02);
-                                    if (is_active_console(vga_console)) {
-                                        /* tell the vga console to redisplay itself */
-                                        vga_invalidate_display();
                                     break;
                                 }
                             }
                         } else {
                             /* handle standard key events */
-                            if (is_active_console(vga_console)) {
+                            if (is_graphic_console()) {
                                 if (keycode & 0x80) //check bit for e0 in front
                                     kbd_put_keycode(0xe0);
                                 kbd_put_keycode(keycode & 0x7f); //remove e0 bit in front
@@ -468,7 +465,7 @@ static void cocoa_refresh(DisplayState *ds)
                 case NSKeyUp:
                     {
                         int keycode = cocoa_keycode_to_qemu([event keyCode]);   
-                        if (is_active_console(vga_console)) {
+                        if (is_graphic_console()) {
                             if (keycode & 0x80)
                                 kbd_put_keycode(0xe0);
                             kbd_put_keycode(keycode | 0x80); //add 128 to signal release of key

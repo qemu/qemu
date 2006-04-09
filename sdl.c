@@ -314,8 +314,8 @@ static void toggle_full_screen(DisplayState *ds)
         if (!gui_saved_grab)
             sdl_grab_end();
     }
-    vga_invalidate_display();
-    vga_update_display();
+    vga_hw_invalidate();
+    vga_hw_update();
 }
 
 static void sdl_refresh(DisplayState *ds)
@@ -328,8 +328,7 @@ static void sdl_refresh(DisplayState *ds)
         sdl_update_caption();
     }
 
-    if (is_active_console(vga_console)) 
-        vga_update_display();
+    vga_hw_update();
 
     while (SDL_PollEvent(ev)) {
         switch (ev->type) {
@@ -352,10 +351,7 @@ static void sdl_refresh(DisplayState *ds)
                         break;
                     case 0x02 ... 0x0a: /* '1' to '9' keys */ 
                         console_select(keycode - 0x02);
-                        if (is_active_console(vga_console)) {
-                            /* tell the vga console to redisplay itself */
-                            vga_invalidate_display();
-                        } else {
+                        if (!is_graphic_console()) {
                             /* display grab if going to a text console */
                             if (gui_grab)
                                 sdl_grab_end();
@@ -365,7 +361,7 @@ static void sdl_refresh(DisplayState *ds)
                     default:
                         break;
                     }
-                } else if (!is_active_console(vga_console)) {
+                } else if (!is_graphic_console()) {
                     int keysym;
                     keysym = 0;
                     if (ev->key.keysym.mod & (KMOD_LCTRL | KMOD_RCTRL)) {
@@ -420,7 +416,7 @@ static void sdl_refresh(DisplayState *ds)
                     }
                 }
             }
-            if (is_active_console(vga_console)) 
+            if (is_graphic_console()) 
                 sdl_process_key(&ev->key);
             break;
         case SDL_QUIT:

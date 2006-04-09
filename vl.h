@@ -254,10 +254,19 @@ int qemu_chr_ioctl(CharDriverState *s, int cmd, void *arg);
 typedef struct DisplayState DisplayState;
 typedef struct TextConsole TextConsole;
 
-extern TextConsole *vga_console;
+typedef void (*vga_hw_update_ptr)(void *);
+typedef void (*vga_hw_invalidate_ptr)(void *);
+typedef void (*vga_hw_screen_dump_ptr)(void *, const char *);
 
-TextConsole *graphic_console_init(DisplayState *ds);
-int is_active_console(TextConsole *s);
+TextConsole *graphic_console_init(DisplayState *ds, vga_hw_update_ptr update,
+                                  vga_hw_invalidate_ptr invalidate,
+                                  vga_hw_screen_dump_ptr screen_dump,
+                                  void *opaque);
+void vga_hw_update(void);
+void vga_hw_invalidate(void);
+void vga_hw_screen_dump(const char *filename);
+
+int is_graphic_console(void);
 CharDriverState *text_console_init(DisplayState *ds);
 void console_select(unsigned int index);
 
@@ -673,9 +682,6 @@ static inline void dpy_resize(DisplayState *s, int w, int h)
 int vga_initialize(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base, 
                    unsigned long vga_ram_offset, int vga_ram_size,
                    unsigned long vga_bios_offset, int vga_bios_size);
-void vga_update_display(void);
-void vga_invalidate_display(void);
-void vga_screen_dump(const char *filename);
 
 /* cirrus_vga.c */
 void pci_cirrus_vga_init(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base, 
@@ -844,11 +850,8 @@ uint32_t iommu_translate_local(void *opaque, uint32_t addr);
 void lance_init(NICInfo *nd, int irq, uint32_t leaddr, uint32_t ledaddr);
 
 /* tcx.c */
-void *tcx_init(DisplayState *ds, uint32_t addr, uint8_t *vram_base,
+void tcx_init(DisplayState *ds, uint32_t addr, uint8_t *vram_base,
 	       unsigned long vram_offset, int vram_size, int width, int height);
-void tcx_update_display(void *opaque);
-void tcx_invalidate_display(void *opaque);
-void tcx_screen_dump(void *opaque, const char *filename);
 
 /* slavio_intctl.c */
 void *slavio_intctl_init();
@@ -976,9 +979,7 @@ void ps2_keyboard_set_translation(void *opaque, int mode);
 void smc91c111_init(NICInfo *, uint32_t, void *, int);
 
 /* pl110.c */
-void *pl110_init(DisplayState *ds, uint32_t base, void *pic, int irq);
-void pl110_update_display(void *opaque);
-void pl110_invalidate_display(void *opaque);
+void *pl110_init(DisplayState *ds, uint32_t base, void *pic, int irq, int);
 
 #endif /* defined(QEMU_TOOL) */
 
