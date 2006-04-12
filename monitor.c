@@ -457,10 +457,18 @@ static void memory_dump(int count, int format, int wsize,
         } else if (wsize == 4) {
             flags = 0;
         } else {
-                /* as default we use the current CS size */
+            /* as default we use the current CS size */
             flags = 0;
-            if (env && !(env->segs[R_CS].flags & DESC_B_MASK))
-                flags = 1;
+            if (env) {
+#ifdef TARGET_X86_64
+                if ((env->efer & MSR_EFER_LMA) && 
+                    (env->segs[R_CS].flags & DESC_L_MASK))
+                    flags = 2;
+                else
+#endif
+                if (!(env->segs[R_CS].flags & DESC_B_MASK))
+                    flags = 1;
+            }
         }
 #endif
         monitor_disas(env, addr, count, is_physical, flags);
@@ -1549,6 +1557,7 @@ static target_long expr_unary(void)
         n = 0;
         break;
     default:
+        /* XXX: 64 bit version */
         n = strtoul(pch, &p, 0);
         if (pch == p) {
             expr_error("invalid char in expression");
