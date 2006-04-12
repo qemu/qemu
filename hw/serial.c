@@ -78,7 +78,7 @@ struct SerialState {
     uint8_t lcr;
     uint8_t mcr;
     uint8_t lsr; /* read only */
-    uint8_t msr;
+    uint8_t msr; /* read only */
     uint8_t scr;
     /* NOTE: this hidden state is necessary for tx irq generation as
        it can be reset while reading iir */
@@ -200,7 +200,6 @@ static void serial_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     case 5:
         break;
     case 6:
-        s->msr = val;
         break;
     case 7:
         s->scr = val;
@@ -356,6 +355,7 @@ SerialState *serial_init(SetIRQFunc *set_irq, void *opaque,
     s->irq = irq;
     s->lsr = UART_LSR_TEMT | UART_LSR_THRE;
     s->iir = UART_IIR_NO_INT;
+    s->msr = UART_MSR_DCD | UART_MSR_DSR | UART_MSR_CTS;
 
     register_savevm("serial", base, 1, serial_save, serial_load, s);
 
@@ -440,6 +440,7 @@ SerialState *serial_mm_init (SetIRQFunc *set_irq, void *opaque,
     s->irq = irq;
     s->lsr = UART_LSR_TEMT | UART_LSR_THRE;
     s->iir = UART_IIR_NO_INT;
+    s->msr = UART_MSR_DCD | UART_MSR_DSR | UART_MSR_CTS;
     s->base = base;
     s->it_shift = it_shift;
 
