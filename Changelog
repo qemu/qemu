@@ -1,3 +1,8 @@
+version 0.8.1:
+
+  - USB tablet support (Brad Campbell, Anthony Liguori)
+  - win32 host serial support (Kazu)
+
 version 0.8.0:
 
   - ARM system emulation: Arm Integrator/CP board with an arm1026ej-s
