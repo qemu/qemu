@@ -158,10 +158,11 @@ typedef void QEMUPutKBDEvent(void *opaque, int keycode);
 typedef void QEMUPutMouseEvent(void *opaque, int dx, int dy, int dz, int buttons_state);
 
 void qemu_add_kbd_event_handler(QEMUPutKBDEvent *func, void *opaque);
-void qemu_add_mouse_event_handler(QEMUPutMouseEvent *func, void *opaque);
+void qemu_add_mouse_event_handler(QEMUPutMouseEvent *func, void *opaque, int absolute);
 
 void kbd_put_keycode(int keycode);
 void kbd_mouse_event(int dx, int dy, int dz, int buttons_state);
+int kbd_mouse_is_absolute(void);
 
 /* keysym is a unicode code except for special keys (see QEMU_KEY_xxx
    constants) */

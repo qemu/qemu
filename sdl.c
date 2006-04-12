@@ -39,6 +39,10 @@ static int gui_keysym;
 static int gui_fullscreen_initial_grab;
 static int gui_grab_code = KMOD_LALT | KMOD_LCTRL;
 static uint8_t modifiers_state[256];
+static int width, height;
+static SDL_Cursor *sdl_cursor_normal;
+static SDL_Cursor *sdl_cursor_hidden;
+static int absolute_enabled = 0;
 
 static void sdl_update(DisplayState *ds, int x, int y, int w, int h)
 {
@@ -55,6 +59,9 @@ static void sdl_resize(DisplayState *ds, int w, int h)
     flags = SDL_HWSURFACE|SDL_ASYNCBLIT|SDL_HWACCEL;
     if (gui_fullscreen)
         flags |= SDL_FULLSCREEN;
+
+    width = w;
+    height = h;
 
  again:
     screen = SDL_SetVideoMode(w, h, 0, flags);
@@ -271,9 +278,21 @@ static void sdl_update_caption(void)
     SDL_WM_SetCaption(buf, "QEMU");
 }
 
+static void sdl_hide_cursor(void)
+{
+    SDL_SetCursor(sdl_cursor_hidden);
+}
+
+static void sdl_show_cursor(void)
+{
+    if (!kbd_mouse_is_absolute()) {
+	SDL_SetCursor(sdl_cursor_normal);
+    }
+}
+
 static void sdl_grab_start(void)
 {
-    SDL_ShowCursor(0);
+    sdl_hide_cursor();
     SDL_WM_GrabInput(SDL_GRAB_ON);
     /* dummy read to avoid moving the mouse */
     SDL_GetRelativeMouseState(NULL, NULL);
@@ -284,7 +303,7 @@ static void sdl_grab_start(void)
 static void sdl_grab_end(void)
 {
     SDL_WM_GrabInput(SDL_GRAB_OFF);
-    SDL_ShowCursor(1);
+    sdl_show_cursor();
     gui_grab = 0;
     sdl_update_caption();
 }
@@ -300,6 +319,21 @@ static void sdl_send_mouse_event(int dz)
         buttons |= MOUSE_EVENT_RBUTTON;
     if (state & SDL_BUTTON(SDL_BUTTON_MIDDLE))
         buttons |= MOUSE_EVENT_MBUTTON;
+
+    if (kbd_mouse_is_absolute()) {
+	if (!absolute_enabled) {
+	    sdl_hide_cursor();
+	    if (gui_grab) {
+		sdl_grab_end();
+	    }
+	    absolute_enabled = 1;
+	}
+
+	SDL_GetMouseState(&dx, &dy);
+	dx = dx * 0x7FFF / width;
+	dy = dy * 0x7FFF / height;
+    }
+
     kbd_mouse_event(dx, dy, dz, buttons);
 }
 
@@ -423,7 +457,7 @@ static void sdl_refresh(DisplayState *ds)
             qemu_system_shutdown_request();
             break;
         case SDL_MOUSEMOTION:
-            if (gui_grab) {
+            if (gui_grab || kbd_mouse_is_absolute()) {
                 sdl_send_mouse_event(0);
             }
             break;
@@ -431,7 +465,7 @@ static void sdl_refresh(DisplayState *ds)
         case SDL_MOUSEBUTTONUP:
             {
                 SDL_MouseButtonEvent *bev = &ev->button;
-                if (!gui_grab) {
+                if (!gui_grab && !kbd_mouse_is_absolute()) {
                     if (ev->type == SDL_MOUSEBUTTONDOWN &&
                         (bev->state & SDL_BUTTON_LMASK)) {
                         /* start grabbing all events */
@@ -441,9 +475,9 @@ static void sdl_refresh(DisplayState *ds)
                     int dz;
                     dz = 0;
 #ifdef SDL_BUTTON_WHEELUP
-                    if (bev->button == SDL_BUTTON_WHEELUP) {
+                    if (bev->button == SDL_BUTTON_WHEELUP && ev->type == SDL_MOUSEBUTTONDOWN) {
                         dz = -1;
-                    } else if (bev->button == SDL_BUTTON_WHEELDOWN) {
+                    } else if (bev->button == SDL_BUTTON_WHEELDOWN && ev->type == SDL_MOUSEBUTTONDOWN) {
                         dz = 1;
                     }
 #endif               
@@ -471,6 +505,7 @@ static void sdl_cleanup(void)
 void sdl_display_init(DisplayState *ds, int full_screen)
 {
     int flags;
+    uint8_t data = 0;
 
 #if defined(__APPLE__)
     /* always use generic keymaps */
@@ -503,6 +538,9 @@ void sdl_display_init(DisplayState *ds, int full_screen)
     SDL_EnableKeyRepeat(250, 50);
     SDL_EnableUNICODE(1);
     gui_grab = 0;
+
+    sdl_cursor_hidden = SDL_CreateCursor(&data, &data, 8, 1, 0, 0);
+    sdl_cursor_normal = SDL_GetCursor();
 
     atexit(sdl_cleanup);
     if (full_screen) {

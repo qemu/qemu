@@ -474,6 +474,7 @@ static QEMUPutKBDEvent *qemu_put_kbd_event;
 static void *qemu_put_kbd_event_opaque;
 static QEMUPutMouseEvent *qemu_put_mouse_event;
 static void *qemu_put_mouse_event_opaque;
+static int qemu_put_mouse_event_absolute;
 
 void qemu_add_kbd_event_handler(QEMUPutKBDEvent *func, void *opaque)
 {
@@ -481,10 +482,11 @@ void qemu_add_kbd_event_handler(QEMUPutKBDEvent *func, void *opaque)
     qemu_put_kbd_event = func;
 }
 
-void qemu_add_mouse_event_handler(QEMUPutMouseEvent *func, void *opaque)
+void qemu_add_mouse_event_handler(QEMUPutMouseEvent *func, void *opaque, int absolute)
 {
     qemu_put_mouse_event_opaque = opaque;
     qemu_put_mouse_event = func;
+    qemu_put_mouse_event_absolute = absolute;
 }
 
 void kbd_put_keycode(int keycode)
@@ -500,6 +502,11 @@ void kbd_mouse_event(int dx, int dy, int dz, int buttons_state)
         qemu_put_mouse_event(qemu_put_mouse_event_opaque, 
                              dx, dy, dz, buttons_state);
     }
+}
+
+int kbd_mouse_is_absolute(void)
+{
+    return qemu_put_mouse_event_absolute;
 }
 
 /***********************************************************/
@@ -3242,6 +3249,10 @@ static int usb_device_add(const char *devname)
         dev = usb_mouse_init();
         if (!dev)
             return -1;
+    } else if (!strcmp(devname, "tablet")) {
+	dev = usb_tablet_init();
+	if (!dev)
+	    return -1;
     } else {
         return -1;
     }

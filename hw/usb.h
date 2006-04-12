@@ -163,3 +163,4 @@ void usb_host_info(void);
 
 /* usb-hid.c */
 USBDevice *usb_mouse_init(void);
+USBDevice *usb_tablet_init(void);
