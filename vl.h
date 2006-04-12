@@ -204,6 +204,14 @@ int qemu_set_fd_handler(int fd,
                         IOHandler *fd_write,
                         void *opaque);
 
+/* Polling handling */
+
+/* return TRUE if no sleep should be done afterwards */
+typedef int PollingFunc(void *opaque);
+
+int qemu_add_polling_cb(PollingFunc *func, void *opaque);
+void qemu_del_polling_cb(PollingFunc *func, void *opaque);
+
 /* character device */
 
 #define CHR_EVENT_BREAK 0 /* serial break char */
@@ -237,6 +245,7 @@ typedef struct CharDriverState {
     int (*chr_ioctl)(struct CharDriverState *s, int cmd, void *arg);
     IOEventHandler *chr_event;
     void (*chr_send_event)(struct CharDriverState *chr, int event);
+    void (*chr_close)(struct CharDriverState *chr);
     void *opaque;
 } CharDriverState;
 

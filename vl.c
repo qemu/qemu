@@ -1713,11 +1713,381 @@ CharDriverState *qemu_chr_open_pty(void)
 
 #endif /* !defined(_WIN32) */
 
+#ifdef _WIN32
+typedef struct {
+    IOCanRWHandler *fd_can_read; 
+    IOReadHandler *fd_read;
+    void *win_opaque;
+    int max_size;
+    HANDLE hcom, hrecv, hsend;
+    OVERLAPPED orecv, osend;
+    BOOL fpipe;
+    DWORD len;
+} WinCharState;
+
+#define NSENDBUF 2048
+#define NRECVBUF 2048
+#define MAXCONNECT 1
+#define NTIMEOUT 5000
+
+static int win_chr_poll(void *opaque);
+static int win_chr_pipe_poll(void *opaque);
+
+static void win_chr_close2(WinCharState *s)
+{
+    if (s->hsend) {
+        CloseHandle(s->hsend);
+        s->hsend = NULL;
+    }
+    if (s->hrecv) {
+        CloseHandle(s->hrecv);
+        s->hrecv = NULL;
+    }
+    if (s->hcom) {
+        CloseHandle(s->hcom);
+        s->hcom = NULL;
+    }
+    if (s->fpipe)
+        qemu_del_polling_cb(win_chr_pipe_poll, s);
+    else
+        qemu_del_polling_cb(win_chr_poll, s);
+}
+
+static void win_chr_close(CharDriverState *chr)
+{
+    WinCharState *s = chr->opaque;
+    win_chr_close2(s);
+}
+
+static int win_chr_init(WinCharState *s, const char *filename)
+{
+    COMMCONFIG comcfg;
+    COMMTIMEOUTS cto = { 0, 0, 0, 0, 0};
+    COMSTAT comstat;
+    DWORD size;
+    DWORD err;
+    
+    s->hsend = CreateEvent(NULL, TRUE, FALSE, NULL);
+    if (!s->hsend) {
+        fprintf(stderr, "Failed CreateEvent\n");
+        goto fail;
+    }
+    s->hrecv = CreateEvent(NULL, TRUE, FALSE, NULL);
+    if (!s->hrecv) {
+        fprintf(stderr, "Failed CreateEvent\n");
+        goto fail;
+    }
+
+    s->hcom = CreateFile(filename, GENERIC_READ|GENERIC_WRITE, 0, NULL,
+                      OPEN_EXISTING, FILE_FLAG_OVERLAPPED, 0);
+    if (s->hcom == INVALID_HANDLE_VALUE) {
+        fprintf(stderr, "Failed CreateFile (%lu)\n", GetLastError());
+        s->hcom = NULL;
+        goto fail;
+    }
+    
+    if (!SetupComm(s->hcom, NRECVBUF, NSENDBUF)) {
+        fprintf(stderr, "Failed SetupComm\n");
+        goto fail;
+    }
+    
+    ZeroMemory(&comcfg, sizeof(COMMCONFIG));
+    size = sizeof(COMMCONFIG);
+    GetDefaultCommConfig(filename, &comcfg, &size);
+    comcfg.dcb.DCBlength = sizeof(DCB);
+    CommConfigDialog(filename, NULL, &comcfg);
+
+    if (!SetCommState(s->hcom, &comcfg.dcb)) {
+        fprintf(stderr, "Failed SetCommState\n");
+        goto fail;
+    }
+
+    if (!SetCommMask(s->hcom, EV_ERR)) {
+        fprintf(stderr, "Failed SetCommMask\n");
+        goto fail;
+    }
+
+    cto.ReadIntervalTimeout = MAXDWORD;
+    if (!SetCommTimeouts(s->hcom, &cto)) {
+        fprintf(stderr, "Failed SetCommTimeouts\n");
+        goto fail;
+    }
+    
+    if (!ClearCommError(s->hcom, &err, &comstat)) {
+        fprintf(stderr, "Failed ClearCommError\n");
+        goto fail;
+    }
+    qemu_add_polling_cb(win_chr_poll, s);
+    return 0;
+
+ fail:
+    win_chr_close2(s);
+    return -1;
+}
+
+static int win_chr_write(CharDriverState *chr, const uint8_t *buf, int len1)
+{
+    WinCharState *s = chr->opaque;
+    DWORD len, ret, size, err;
+
+    len = len1;
+    ZeroMemory(&s->osend, sizeof(s->osend));
+    s->osend.hEvent = s->hsend;
+    while (len > 0) {
+        if (s->hsend)
+            ret = WriteFile(s->hcom, buf, len, &size, &s->osend);
+        else
+            ret = WriteFile(s->hcom, buf, len, &size, NULL);
+        if (!ret) {
+            err = GetLastError();
+            if (err == ERROR_IO_PENDING) {
+                ret = GetOverlappedResult(s->hcom, &s->osend, &size, TRUE);
+                if (ret) {
+                    buf += size;
+                    len -= size;
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        } else {
+            buf += size;
+            len -= size;
+        }
+    }
+    return len1 - len;
+}
+
+static int win_chr_read_poll(WinCharState *s)
+{
+    s->max_size = s->fd_can_read(s->win_opaque);
+    return s->max_size;
+}
+            
+static void win_chr_readfile(WinCharState *s)
+{
+    int ret, err;
+    uint8_t buf[1024];
+    DWORD size;
+    
+    ZeroMemory(&s->orecv, sizeof(s->orecv));
+    s->orecv.hEvent = s->hrecv;
+    ret = ReadFile(s->hcom, buf, s->len, &size, &s->orecv);
+    if (!ret) {
+        err = GetLastError();
+        if (err == ERROR_IO_PENDING) {
+            ret = GetOverlappedResult(s->hcom, &s->orecv, &size, TRUE);
+        }
+    }
+
+    if (size > 0) {
+        s->fd_read(s->win_opaque, buf, size);
+    }
+}
+
+static void win_chr_read(WinCharState *s)
+{
+    if (s->len > s->max_size)
+        s->len = s->max_size;
+    if (s->len == 0)
+        return;
+    
+    win_chr_readfile(s);
+}
+
+static int win_chr_poll(void *opaque)
+{
+    WinCharState *s = opaque;
+    COMSTAT status;
+    DWORD comerr;
+    
+    ClearCommError(s->hcom, &comerr, &status);
+    if (status.cbInQue > 0) {
+        s->len = status.cbInQue;
+        win_chr_read_poll(s);
+        win_chr_read(s);
+        return 1;
+    }
+    return 0;
+}
+
+static void win_chr_add_read_handler(CharDriverState *chr, 
+                                    IOCanRWHandler *fd_can_read, 
+                                    IOReadHandler *fd_read, void *opaque)
+{
+    WinCharState *s = chr->opaque;
+
+    s->fd_can_read = fd_can_read;
+    s->fd_read = fd_read;
+    s->win_opaque = opaque;
+}
+
+CharDriverState *qemu_chr_open_win(const char *filename)
+{
+    CharDriverState *chr;
+    WinCharState *s;
+    
+    chr = qemu_mallocz(sizeof(CharDriverState));
+    if (!chr)
+        return NULL;
+    s = qemu_mallocz(sizeof(WinCharState));
+    if (!s) {
+        free(chr);
+        return NULL;
+    }
+    chr->opaque = s;
+    chr->chr_write = win_chr_write;
+    chr->chr_add_read_handler = win_chr_add_read_handler;
+    chr->chr_close = win_chr_close;
+
+    if (win_chr_init(s, filename) < 0) {
+        free(s);
+        free(chr);
+        return NULL;
+    }
+    return chr;
+}
+
+static int win_chr_pipe_poll(void *opaque)
+{
+    WinCharState *s = opaque;
+    DWORD size;
+
+    PeekNamedPipe(s->hcom, NULL, 0, NULL, &size, NULL);
+    if (size > 0) {
+        s->len = size;
+        win_chr_read_poll(s);
+        win_chr_read(s);
+        return 1;
+    }
+    return 0;
+}
+
+static int win_chr_pipe_init(WinCharState *s, const char *filename)
+{
+    OVERLAPPED ov;
+    int ret;
+    DWORD size;
+    char openname[256];
+    
+    s->fpipe = TRUE;
+
+    s->hsend = CreateEvent(NULL, TRUE, FALSE, NULL);
+    if (!s->hsend) {
+        fprintf(stderr, "Failed CreateEvent\n");
+        goto fail;
+    }
+    s->hrecv = CreateEvent(NULL, TRUE, FALSE, NULL);
+    if (!s->hrecv) {
+        fprintf(stderr, "Failed CreateEvent\n");
+        goto fail;
+    }
+    
+    snprintf(openname, sizeof(openname), "\\\\.\\pipe\\%s", filename);
+    s->hcom = CreateNamedPipe(openname, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,
+                              PIPE_TYPE_BYTE | PIPE_READMODE_BYTE |
+                              PIPE_WAIT,
+                              MAXCONNECT, NSENDBUF, NRECVBUF, NTIMEOUT, NULL);
+    if (s->hcom == INVALID_HANDLE_VALUE) {
+        fprintf(stderr, "Failed CreateNamedPipe (%lu)\n", GetLastError());
+        s->hcom = NULL;
+        goto fail;
+    }
+
+    ZeroMemory(&ov, sizeof(ov));
+    ov.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+    ret = ConnectNamedPipe(s->hcom, &ov);
+    if (ret) {
+        fprintf(stderr, "Failed ConnectNamedPipe\n");
+        goto fail;
+    }
+
+    ret = GetOverlappedResult(s->hcom, &ov, &size, TRUE);
+    if (!ret) {
+        fprintf(stderr, "Failed GetOverlappedResult\n");
+        if (ov.hEvent) {
+            CloseHandle(ov.hEvent);
+            ov.hEvent = NULL;
+        }
+        goto fail;
+    }
+
+    if (ov.hEvent) {
+        CloseHandle(ov.hEvent);
+        ov.hEvent = NULL;
+    }
+    qemu_add_polling_cb(win_chr_pipe_poll, s);
+    return 0;
+
+ fail:
+    win_chr_close2(s);
+    return -1;
+}
+
+
+CharDriverState *qemu_chr_open_win_pipe(const char *filename)
+{
+    CharDriverState *chr;
+    WinCharState *s;
+
+    chr = qemu_mallocz(sizeof(CharDriverState));
+    if (!chr)
+        return NULL;
+    s = qemu_mallocz(sizeof(WinCharState));
+    if (!s) {
+        free(chr);
+        return NULL;
+    }
+    chr->opaque = s;
+    chr->chr_write = win_chr_write;
+    chr->chr_add_read_handler = win_chr_add_read_handler;
+    chr->chr_close = win_chr_close;
+    
+    if (win_chr_pipe_init(s, filename) < 0) {
+        free(s);
+        free(chr);
+        return NULL;
+    }
+    return chr;
+}
+
+CharDriverState *qemu_chr_open_win_file(HANDLE fd_out)
+{
+    CharDriverState *chr;
+    WinCharState *s;
+
+    chr = qemu_mallocz(sizeof(CharDriverState));
+    if (!chr)
+        return NULL;
+    s = qemu_mallocz(sizeof(WinCharState));
+    if (!s) {
+        free(chr);
+        return NULL;
+    }
+    s->hcom = fd_out;
+    chr->opaque = s;
+    chr->chr_write = win_chr_write;
+    chr->chr_add_read_handler = win_chr_add_read_handler;
+    return chr;
+}
+    
+CharDriverState *qemu_chr_open_win_file_out(const char *file_out)
+{
+    HANDLE fd_out;
+    
+    fd_out = CreateFile(file_out, GENERIC_WRITE, FILE_SHARE_READ, NULL,
+                        OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (fd_out == INVALID_HANDLE_VALUE)
+        return NULL;
+
+    return qemu_chr_open_win_file(fd_out);
+}
+#endif
+
 CharDriverState *qemu_chr_open(const char *filename)
 {
-#ifndef _WIN32
     const char *p;
-#endif
 
     if (!strcmp(filename, "vc")) {
         return text_console_init(&display_state);
@@ -1743,9 +2113,26 @@ CharDriverState *qemu_chr_open(const char *filename)
         return qemu_chr_open_tty(filename);
     } else 
 #endif
+#ifdef _WIN32
+    if (strstart(filename, "COM", NULL)) {
+        return qemu_chr_open_win(filename);
+    } else
+    if (strstart(filename, "pipe:", &p)) {
+        return qemu_chr_open_win_pipe(p);
+    } else
+    if (strstart(filename, "file:", &p)) {
+        return qemu_chr_open_win_file_out(p);
+    }
+#endif
     {
         return NULL;
     }
+}
+
+void qemu_chr_close(CharDriverState *chr)
+{
+    if (chr->chr_close)
+        chr->chr_close(chr);
 }
 
 /***********************************************************/
@@ -3090,6 +3477,43 @@ int qemu_set_fd_handler(int fd,
 }
 
 /***********************************************************/
+/* Polling handling */
+
+typedef struct PollingEntry {
+    PollingFunc *func;
+    void *opaque;
+    struct PollingEntry *next;
+} PollingEntry;
+
+static PollingEntry *first_polling_entry;
+
+int qemu_add_polling_cb(PollingFunc *func, void *opaque)
+{
+    PollingEntry **ppe, *pe;
+    pe = qemu_mallocz(sizeof(PollingEntry));
+    if (!pe)
+        return -1;
+    pe->func = func;
+    pe->opaque = opaque;
+    for(ppe = &first_polling_entry; *ppe != NULL; ppe = &(*ppe)->next);
+    *ppe = pe;
+    return 0;
+}
+
+void qemu_del_polling_cb(PollingFunc *func, void *opaque)
+{
+    PollingEntry **ppe, *pe;
+    for(ppe = &first_polling_entry; *ppe != NULL; ppe = &(*ppe)->next) {
+        pe = *ppe;
+        if (pe->func == func && pe->opaque == opaque) {
+            *ppe = pe->next;
+            qemu_free(pe);
+            break;
+        }
+    }
+}
+
+/***********************************************************/
 /* savevm/loadvm support */
 
 void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size)
@@ -3955,12 +4379,18 @@ void main_loop_wait(int timeout)
     fd_set rfds, wfds;
     int ret, nfds;
     struct timeval tv;
+    PollingEntry *pe;
 
+
+    /* XXX: need to suppress polling by better using win32 events */
+    ret = 0;
+    for(pe = first_polling_entry; pe != NULL; pe = pe->next) {
+        ret |= pe->func(pe->opaque);
+    }
 #ifdef _WIN32
-    /* XXX: see how to merge it with the select. The constraint is
-       that the select must be interrupted by the timer */
-    if (timeout > 0)
+    if (ret == 0 && timeout > 0) {
         Sleep(timeout);
+    }
 #endif
     /* poll any events */
     /* XXX: separate device handlers from system ones */
