@@ -139,14 +139,16 @@ if [ "$bsd" = "yes" ] ; then
 fi
 
 # find source path
-# XXX: we assume an absolute path is given when launching configure,
-# except in './configure' case.
-source_path=${0%configure}
-source_path=${source_path%/}
-source_path_used="yes"
-if test -z "$source_path" -o "$source_path" = "." ; then
+source_path=`dirname "$0"`
+if [ -z "$source_path" ]; then
     source_path=`pwd`
+else
+    source_path=`cd "$source_path"; pwd`
+fi
+if test "$source_path" = `pwd` ; then
     source_path_used="no"
+else
+    source_path_used="yes"
 fi
 
 for opt do
@@ -158,6 +160,7 @@ for opt do
   --interp-prefix=*) interp_prefix=`echo $opt | cut -d '=' -f 2`
   ;;
   --source-path=*) source_path=`echo $opt | cut -d '=' -f 2`
+  source_path_used="yes"
   ;;
   --cross-prefix=*) cross_prefix=`echo $opt | cut -d '=' -f 2`
   ;;
@@ -615,6 +618,9 @@ head $source_path/VERSION >> $config_h
 echo "\"" >> $config_h
 
 echo "SRC_PATH=$source_path" >> $config_mak
+if [ "$source_path_used" = "yes" ]; then
+  echo "VPATH=$source_path" >> $config_mak
+fi
 echo "TARGET_DIRS=$target_list" >> $config_mak
 
 # XXX: suppress that

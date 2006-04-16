@@ -1,6 +1,6 @@
--include config-host.mak
+include config-host.mak
 
-CFLAGS=-Wall -O2 -g -fno-strict-aliasing 
+CFLAGS=-Wall -O2 -g -fno-strict-aliasing -I.
 ifdef CONFIG_DARWIN
 CFLAGS+= -mdynamic-no-pic
 endif
@@ -47,18 +47,19 @@ install: all
 	mkdir -p "$(DESTDIR)$(bindir)"
 	install -m 755 -s $(TOOLS) "$(DESTDIR)$(bindir)"
 	mkdir -p "$(DESTDIR)$(datadir)"
-	install -m 644 pc-bios/bios.bin pc-bios/vgabios.bin \
-                       pc-bios/vgabios-cirrus.bin \
-                       pc-bios/ppc_rom.bin pc-bios/video.x \
-                       pc-bios/proll.elf \
-                       pc-bios/linux_boot.bin "$(DESTDIR)$(datadir)"
+	for x in bios.bin vgabios.bin vgabios-cirrus.bin ppc_rom.bin \
+			video.x proll.elf linux_boot.bin; do \
+		install -m 644 $(SRC_PATH)/pc-bios/$$x "$(DESTDIR)$(datadir)"; \
+	done
 	mkdir -p "$(DESTDIR)$(docdir)"
 	install -m 644 qemu-doc.html  qemu-tech.html "$(DESTDIR)$(docdir)"
 ifndef CONFIG_WIN32
 	mkdir -p "$(DESTDIR)$(mandir)/man1"
 	install qemu.1 qemu-img.1 "$(DESTDIR)$(mandir)/man1"
 	mkdir -p "$(DESTDIR)$(datadir)/keymaps"
-	install -m 644 $(addprefix keymaps/,$(KEYMAPS)) "$(DESTDIR)$(datadir)/keymaps"
+	for x in $(KEYMAPS); do \
+		install -m 644 $(SRC_PATH)/keymaps/$$x "$(DESTDIR)$(datadir)/keymaps"; \
+	done
 endif
 	for d in $(TARGET_DIRS); do \
 	$(MAKE) -C $$d $@ || exit 1 ; \
@@ -81,11 +82,11 @@ cscope:
 	texi2html -monolithic -number $<
 
 qemu.1: qemu-doc.texi
-	./texi2pod.pl $< qemu.pod
+	$(SRC_PATH)/texi2pod.pl $< qemu.pod
 	pod2man --section=1 --center=" " --release=" " qemu.pod > $@
 
 qemu-img.1: qemu-img.texi
-	./texi2pod.pl $< qemu-img.pod
+	$(SRC_PATH)/texi2pod.pl $< qemu-img.pod
 	pod2man --section=1 --center=" " --release=" " qemu-img.pod > $@
 
 FILE=qemu-$(shell cat VERSION)
