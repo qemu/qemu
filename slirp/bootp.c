@@ -228,6 +228,14 @@ static void bootp_reply(struct bootp_t *bp)
         val = htonl(LEASE_TIME);
         memcpy(q, &val, 4);
         q += 4;
+
+        if (*slirp_hostname) {
+            val = strlen(slirp_hostname);
+            *q++ = RFC1533_HOSTNAME;
+            *q++ = val;
+            memcpy(q, slirp_hostname, val);
+            q += val;
+        }
     }
     *q++ = RFC1533_END;
     

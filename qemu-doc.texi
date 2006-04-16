@@ -262,9 +262,10 @@ Qemu can emulate several different models of network card.  Valid values for
 @code{smc91c111} and @code{lance}.  Not all devices are supported on all
 targets.
 
-@item -net user[,vlan=n]
+@item -net user[,vlan=n][,hostname=name]
 Use the user mode network stack which requires no administrator
-priviledge to run.
+priviledge to run.  @option{hotname=name} can be used to specify the client
+hostname reported by the builtin DHCP server.
 
 @item -net tap[,vlan=n][,fd=h][,ifname=name][,script=file]
 Connect the host TAP network interface @var{name} to VLAN @var{n} and

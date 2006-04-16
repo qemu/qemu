@@ -3151,6 +3151,11 @@ int net_client_init(const char *str)
     } else
 #ifdef CONFIG_SLIRP
     if (!strcmp(device, "user")) {
+        if (get_param_value(buf, sizeof(buf), "hostname", p)) {
+            if (strlen(buf) > 32)
+              buf[32] = 0;
+            strcpy(slirp_hostname, buf);
+        }
         ret = net_slirp_init(vlan);
     } else
 #endif
@@ -4597,8 +4602,9 @@ void help(void)
            "-net nic[,vlan=n][,macaddr=addr][,model=type]\n"
            "                create a new Network Interface Card and connect it to VLAN 'n'\n"
 #ifdef CONFIG_SLIRP
-           "-net user[,vlan=n]\n"
-           "                connect the user mode network stack to VLAN 'n'\n"
+           "-net user[,vlan=n][,hostname=host]\n"
+           "                connect the user mode network stack to VLAN 'n' and send\n"
+           "                hostname 'host' to DHCP clients\n"
 #endif
 #ifdef _WIN32
            "-net tap[,vlan=n],ifname=name\n"
