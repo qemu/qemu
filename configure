@@ -653,7 +653,7 @@ fi
 if test "$target_user_only" = "no" -a "$check_gfx" = "yes" \
         -a "$sdl" = "no" -a "$cocoa" = "no" ; then
     echo "ERROR: QEMU requires SDL or Cocoa for graphical output"
-    echo "To build QEMU with graphical output configure with --disable-gfx-check"
+    echo "To build QEMU without graphical output configure with --disable-gfx-check"
     echo "Note that this will disable all output from the virtual graphics card."
     exit 1;
 fi
