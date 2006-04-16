@@ -150,8 +150,8 @@ void slirp_init(void)
     inet_aton("127.0.0.1", &loopback_addr);
 
     if (get_dns_addr(&dns_addr) < 0) {
-        fprintf(stderr, "Could not get DNS address\n");
-        exit(1);
+        dns_addr = loopback_addr;
+        fprintf (stderr, "Warning: No DNS servers found\n");
     }
 
     inet_aton(CTL_SPECIAL, &special_addr);
