@@ -264,7 +264,7 @@ targets.
 
 @item -net user[,vlan=n][,hostname=name]
 Use the user mode network stack which requires no administrator
-priviledge to run.  @option{hotname=name} can be used to specify the client
+priviledge to run.  @option{hostname=name} can be used to specify the client
 hostname reported by the builtin DHCP server.
 
 @item -net tap[,vlan=n][,fd=h][,ifname=name][,script=file]
