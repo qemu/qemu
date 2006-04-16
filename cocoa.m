@@ -430,7 +430,6 @@ static void cocoa_refresh(DisplayState *ds)
                                 case 0x02 ... 0x0a: /* '1' to '9' keys */
                                     console_select(keycode - 0x02);
                                     break;
-                                }
                             }
                         } else {
                             /* handle standard key events */
