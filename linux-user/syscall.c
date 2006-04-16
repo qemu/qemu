@@ -2145,7 +2145,10 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         goto unimplemented;
 
     case TARGET_NR_acct:
-        goto unimplemented;
+        p = lock_user_string(arg1);
+        ret = get_errno(acct(path(p)));
+        unlock_user(p, arg1, 0);
+        break;
     case TARGET_NR_umount2:
         p = lock_user_string(arg1);
         ret = get_errno(umount2(p, arg2));
@@ -3547,7 +3550,12 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #endif
 #ifdef TARGET_NR_madvise
     case TARGET_NR_madvise:
-        goto unimplemented;
+        /* A straight passthrough may not be safe because qemu sometimes
+           turns private flie-backed mappings into anonymous mappings.
+           This will break MADV_DONTNEED.
+           This is a hint, so ignoring and returning success is ok.  */
+        ret = get_errno(0);
+        break;
 #endif
 #if TARGET_LONG_BITS == 32
     case TARGET_NR_fcntl64:
