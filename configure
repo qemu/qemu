@@ -614,7 +614,7 @@ if test "$fmod" = "yes" ; then
 fi
 qemu_version=`head $source_path/VERSION`
 echo "VERSION=$qemu_version" >>$config_mak
-echo "#define QEMU_VERSION $qemu_version" >> $config_h
+echo "#define QEMU_VERSION \"$qemu_version\"" >> $config_h
 
 echo "SRC_PATH=$source_path" >> $config_mak
 if [ "$source_path_used" = "yes" ]; then
