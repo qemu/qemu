@@ -46,6 +46,11 @@
 //#define DEBUG_TB_CHECK 
 //#define DEBUG_TLB_CHECK 
 
+#if !defined(CONFIG_USER_ONLY)
+/* TB consistency checks only implemented for usermode emulation.  */
+#undef DEBUG_TB_CHECK
+#endif
+
 /* threshold to flush the translated code buffer */
 #define CODE_GEN_BUFFER_MAX_SIZE (CODE_GEN_BUFFER_SIZE - CODE_GEN_MAX_SIZE)
 
@@ -330,12 +335,12 @@ static void tb_invalidate_check(unsigned long address)
     TranslationBlock *tb;
     int i;
     address &= TARGET_PAGE_MASK;
-    for(i = 0;i < CODE_GEN_HASH_SIZE; i++) {
-        for(tb = tb_hash[i]; tb != NULL; tb = tb->hash_next) {
+    for(i = 0;i < CODE_GEN_PHYS_HASH_SIZE; i++) {
+        for(tb = tb_phys_hash[i]; tb != NULL; tb = tb->phys_hash_next) {
             if (!(address + TARGET_PAGE_SIZE <= tb->pc ||
                   address >= tb->pc + tb->size)) {
                 printf("ERROR invalidate: address=%08lx PC=%08lx size=%04x\n",
-                       address, tb->pc, tb->size);
+                       address, (long)tb->pc, tb->size);
             }
         }
     }
@@ -347,13 +352,13 @@ static void tb_page_check(void)
     TranslationBlock *tb;
     int i, flags1, flags2;
     
-    for(i = 0;i < CODE_GEN_HASH_SIZE; i++) {
-        for(tb = tb_hash[i]; tb != NULL; tb = tb->hash_next) {
+    for(i = 0;i < CODE_GEN_PHYS_HASH_SIZE; i++) {
+        for(tb = tb_phys_hash[i]; tb != NULL; tb = tb->phys_hash_next) {
             flags1 = page_get_flags(tb->pc);
             flags2 = page_get_flags(tb->pc + tb->size - 1);
             if ((flags1 & PAGE_WRITE) || (flags2 & PAGE_WRITE)) {
                 printf("ERROR page flags: PC=%08lx size=%04x f1=%x f2=%x\n",
-                       tb->pc, tb->size, flags1, flags2);
+                       (long)tb->pc, tb->size, flags1, flags2);
             }
         }
     }
