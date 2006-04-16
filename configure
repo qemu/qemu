@@ -83,6 +83,7 @@ alsa="no"
 fmod="no"
 fmod_lib=""
 fmod_inc=""
+bsd="no"
 linux="no"
 kqemu="no"
 profiler="no"
@@ -133,7 +134,7 @@ fi
 esac
 
 if [ "$bsd" = "yes" ] ; then
-  if [ ! "$darwin" = "yes" ] ; then
+  if [ "$darwin" != "yes" ] ; then
     make="gmake"
   fi
 fi
@@ -152,31 +153,32 @@ else
 fi
 
 for opt do
+  optarg=`expr "$opt" : '[^=]*=\(.*\)'`
   case "$opt" in
   --help|-h) show_help=yes
   ;;
-  --prefix=*) prefix=`echo $opt | cut -d '=' -f 2`
+  --prefix=*) prefix="$optarg"
   ;;
-  --interp-prefix=*) interp_prefix=`echo $opt | cut -d '=' -f 2`
+  --interp-prefix=*) interp_prefix="$optarg"
   ;;
-  --source-path=*) source_path=`echo $opt | cut -d '=' -f 2`
+  --source-path=*) source_path="$optarg"
   source_path_used="yes"
   ;;
-  --cross-prefix=*) cross_prefix=`echo $opt | cut -d '=' -f 2`
+  --cross-prefix=*) cross_prefix="$optarg"
   ;;
-  --cc=*) cc=`echo $opt | cut -d '=' -f 2`
+  --cc=*) cc="$optarg"
   ;;
-  --host-cc=*) host_cc=`echo $opt | cut -d '=' -f 2`
+  --host-cc=*) host_cc="$optarg"
   ;;
-  --make=*) make=`echo $opt | cut -d '=' -f 2`
+  --make=*) make="$optarg"
   ;;
-  --extra-cflags=*) CFLAGS="${opt#--extra-cflags=}"
+  --extra-cflags=*) CFLAGS="$optarg"
   ;;
-  --extra-ldflags=*) LDFLAGS="${opt#--extra-ldflags=}"
+  --extra-ldflags=*) LDFLAGS="$optarg"
   ;;
-  --cpu=*) cpu=`echo $opt | cut -d '=' -f 2`
+  --cpu=*) cpu="$optarg"
   ;;
-  --target-list=*) target_list=${opt#--target-list=}
+  --target-list=*) target_list="$optarg"
   ;;
   --enable-gprof) gprof="yes"
   ;;
@@ -192,9 +194,9 @@ for opt do
   ;;
   --enable-fmod) fmod="yes"
   ;;
-  --fmod-lib=*) fmod_lib=${opt#--fmod-lib=}
+  --fmod-lib=*) fmod_lib="$optarg"
   ;;
-  --fmod-inc=*) fmod_inc=${opt#--fmod-inc=}
+  --fmod-inc=*) fmod_inc="$optarg"
   ;;
   --enable-mingw32) mingw32="yes" ; cross_prefix="i386-mingw32-"
   ;;
@@ -206,7 +208,7 @@ for opt do
   ;;
   --enable-profiler) profiler="yes"
   ;;
-  --kernel-path=*) kernel_path=${opt#--kernel-path=}
+  --kernel-path=*) kernel_path="$optarg"
   ;;
   --enable-cocoa) cocoa="yes" ; coreaudio="yes" ; sdl="no"
   ;;
@@ -297,7 +299,7 @@ if test -z "$target_list" ; then
         target_list="i386-user arm-user armeb-user sparc-user ppc-user mips-user mipsel-user $target_list"
     fi
 else
-    target_list=$(echo "$target_list" | sed -e 's/,/ /g')
+    target_list=`echo "$target_list" | sed -e 's/,/ /g'`
 fi
 if test -z "$target_list" ; then
     echo "No targets enabled"
@@ -348,15 +350,15 @@ if $cc -fno-reorder-blocks -fno-optimize-sibling-calls -o $TMPO $TMPC 2> /dev/nu
    have_gcc3_options="yes"
 fi
 
-# Check for gcc4
+# Check for gcc4, error if pre-gcc4 
 if test "$check_gcc" = "yes" ; then
     cat > $TMPC <<EOF
-#if __GNUC__ >= 4
-#error gcc4
+#if __GNUC__ < 4
+#error gcc3
 #endif
 int main(){return 0;}
 EOF
-    if ! $cc -o $TMPO $TMPC 2>/dev/null ; then
+    if $cc -o $TMPO $TMPC 2>/dev/null ; then
         echo "ERROR: \"$cc\" looks like gcc 4.x"
         echo "QEMU is known to have problems when compiled with gcc 4.x"
         echo "It is recommended that you use gcc 3.x to build QEMU"
@@ -463,7 +465,6 @@ echo "Adlib support     $adlib"
 echo "CoreAudio support $coreaudio"
 echo "ALSA support      $alsa"
 echo "DSound support    $dsound"
-echo -n "FMOD support      $fmod"
 if test "$fmod" = "yes"; then
     if test -z $fmod_lib || test -z $fmod_inc; then
         echo
@@ -472,9 +473,11 @@ if test "$fmod" = "yes"; then
         echo
         exit 1
     fi
-    echo -n " (lib='$fmod_lib' include='$fmod_inc')"
+    fmod_support=" (lib='$fmod_lib' include='$fmod_inc')"
+else
+    fmod_support=""
 fi
-echo ""
+echo "FMOD support      $fmod $fmod_support"
 echo "kqemu support     $kqemu"
 
 if test $sdl_too_old = "yes"; then
@@ -483,7 +486,6 @@ fi
 #if test "$sdl_static" = "no"; then
 #  echo "WARNING: cannot compile statically with SDL - qemu-fast won't have a graphical output"
 #fi
-
 config_mak="config-host.mak"
 config_h="config-host.h"
 
@@ -610,12 +612,9 @@ if test "$fmod" = "yes" ; then
   echo "CONFIG_FMOD_INC=$fmod_inc" >> $config_mak
   echo "#define CONFIG_FMOD 1" >> $config_h
 fi
-echo -n "VERSION=" >>$config_mak
-head $source_path/VERSION >>$config_mak
-echo "" >>$config_mak
-echo -n "#define QEMU_VERSION \"" >> $config_h
-head $source_path/VERSION >> $config_h
-echo "\"" >> $config_h
+qemu_version=`head $source_path/VERSION`
+echo "VERSION=$qemu_version" >>$config_mak
+echo "#define QEMU_VERSION $qemu_version" >> $config_h
 
 echo "SRC_PATH=$source_path" >> $config_mak
 if [ "$source_path_used" = "yes" ]; then
@@ -631,7 +630,6 @@ if [ "$bsd" = "yes" ] ; then
 fi
 
 for target in $target_list; do
-
 target_dir="$target"
 config_mak=$target_dir/config.mak
 config_h=$target_dir/config.h
@@ -761,11 +759,11 @@ if test "$target_user_only" = "no"; then
         else
             echo "SDL_LIBS=`$sdl_config --libs`" >> $config_mak
         fi
-        echo -n "SDL_CFLAGS=`$sdl_config --cflags`" >> $config_mak
         if [ "${aa}" = "yes" ] ; then
-            echo -n " `aalib-config --cflags`" >> $config_mak ;
+            echo "SDL_CFLAGS=`$sdl_config --cflags` `aalib-config --cflags`" >> $config_mak
+        else
+            echo "SDL_CFLAGS=`$sdl_config --cflags`" >> $config_mak
         fi
-        echo "" >> $config_mak
     fi
 fi
 
