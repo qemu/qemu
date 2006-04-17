@@ -25,6 +25,7 @@ cc="gcc"
 host_cc="gcc"
 ar="ar"
 make="make"
+install="install"
 strip="strip"
 cpu=`uname -m`
 target_list=""
@@ -172,6 +173,8 @@ for opt do
   ;;
   --make=*) make="$optarg"
   ;;
+  --install=*) install="$optarg"
+  ;;
   --extra-cflags=*) CFLAGS="$optarg"
   ;;
   --extra-ldflags=*) LDFLAGS="$optarg"
@@ -256,6 +259,7 @@ echo "  --cross-prefix=PREFIX    use PREFIX for compile tools [$cross_prefix]"
 echo "  --cc=CC                  use C compiler CC [$cc]"
 echo "  --host-cc=CC             use C compiler CC [$host_cc] for dyngen etc."
 echo "  --make=MAKE              use specified make [$make]"
+echo "  --install=INSTALL        use specified install [$install]"
 echo "  --static                 enable static build [$static]"
 echo "  --enable-cocoa           enable COCOA (Mac OS X only)"
 echo "  --enable-mingw32         enable Win32 cross compilation with mingw32"
@@ -447,6 +451,7 @@ echo "Source path       $source_path"
 echo "C compiler        $cc"
 echo "Host C compiler   $host_cc"
 echo "make              $make"
+echo "install           $install"
 echo "host CPU          $cpu"
 echo "host big endian   $bigendian"
 echo "target list       $target_list"
@@ -502,6 +507,7 @@ echo "datadir=$datadir" >> $config_mak
 echo "docdir=$docdir" >> $config_mak
 echo "#define CONFIG_QEMU_SHAREDIR \"$datadir\"" >> $config_h
 echo "MAKE=$make" >> $config_mak
+echo "INSTALL=$install" >> $config_mak
 echo "CC=$cc" >> $config_mak
 if test "$have_gcc3_options" = "yes" ; then
   echo "HAVE_GCC3_OPTIONS=yes" >> $config_mak
