@@ -124,6 +124,7 @@ void pci_register_io_region(PCIDevice *pci_dev, int region_num,
                             PCIMapIORegionFunc *map_func)
 {
     PCIIORegion *r;
+    uint32_t addr;
 
     if ((unsigned int)region_num >= PCI_NUM_REGIONS)
         return;
@@ -132,6 +133,12 @@ void pci_register_io_region(PCIDevice *pci_dev, int region_num,
     r->size = size;
     r->type = type;
     r->map_func = map_func;
+    if (region_num == PCI_ROM_SLOT) {
+        addr = 0x30;
+    } else {
+        addr = 0x10 + region_num * 4;
+    }
+    *(uint32_t *)(pci_dev->config + addr) = cpu_to_le32(type);
 }
 
 static void pci_addr_writel(void* opaque, uint32_t addr, uint32_t val)
