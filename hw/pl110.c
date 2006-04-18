@@ -261,7 +261,7 @@ static void pl110_resize(pl110_state *s, int width, int height)
 {
     if (width != s->cols || height != s->rows) {
         if (pl110_enabled(s)) {
-            dpy_resize(s->ds, s->cols, s->rows);
+            dpy_resize(s->ds, width, height);
         }
     }
     s->cols = width;
