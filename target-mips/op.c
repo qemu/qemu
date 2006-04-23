@@ -206,7 +206,8 @@ void op_addo (void)
 
     tmp = T0;
     T0 += T1;
-    if ((T0 >> 31) ^ (T1 >> 31) ^ (tmp >> 31)) {
+    if (((tmp ^ T1 ^ (-1)) & (T0 ^ T1)) >> 31) {
+       /* operands of same sign, result different sign */
         CALL_FROM_TB1(do_raise_exception_direct, EXCP_OVERFLOW);
     }
     RETURN();
@@ -224,7 +225,8 @@ void op_subo (void)
 
     tmp = T0;
     T0 = (int32_t)T0 - (int32_t)T1;
-    if (!((T0 >> 31) ^ (T1 >> 31) ^ (tmp >> 31))) {
+    if (((tmp ^ T1) & (tmp ^ T0)) >> 31) {
+       /* operands of different sign, first operand and result different sign */
         CALL_FROM_TB1(do_raise_exception_direct, EXCP_OVERFLOW);
     }
     RETURN();
