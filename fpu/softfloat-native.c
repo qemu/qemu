@@ -23,8 +23,8 @@ void set_floatx80_rounding_precision(int val STATUS_PARAM)
 #endif
 
 #if defined(_BSD)
-#define lrint(d)		((int32_t)rint(d))
-#define llrint(d)		((int64_t)rint(d))
+#define lrint(d)		((long)rint(d))
+#define llrint(d)		((long long)rint(d))
 #endif
 
 #if defined(__powerpc__)
@@ -80,12 +80,27 @@ floatx80 int64_to_floatx80( int64_t v STATUS_PARAM)
 }
 #endif
 
+/* XXX: this code implements the x86 behaviour, not the IEEE one.  */
+#if HOST_LONG_BITS == 32
+static inline int long_to_int32(long a)
+{
+    return a;
+}
+#else
+static inline int long_to_int32(long a)
+{
+    if (a != (int32_t)a) 
+        a = 0x80000000;
+    return a;
+}
+#endif
+
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE single-precision conversion routines.
 *----------------------------------------------------------------------------*/
 int float32_to_int32( float32 a STATUS_PARAM)
 {
-    return lrintf(a);
+    return long_to_int32(lrintf(a));
 }
 int float32_to_int32_round_to_zero( float32 a STATUS_PARAM)
 {
@@ -167,7 +182,7 @@ char float32_is_signaling_nan( float32 a1)
 *----------------------------------------------------------------------------*/
 int float64_to_int32( float64 a STATUS_PARAM)
 {
-    return lrint(a);
+    return long_to_int32(lrint(a));
 }
 int float64_to_int32_round_to_zero( float64 a STATUS_PARAM)
 {
@@ -276,7 +291,7 @@ char float64_is_signaling_nan( float64 a1)
 *----------------------------------------------------------------------------*/
 int floatx80_to_int32( floatx80 a STATUS_PARAM)
 {
-    return lrintl(a);
+    return long_to_int32(lrintl(a));
 }
 int floatx80_to_int32_round_to_zero( floatx80 a STATUS_PARAM)
 {
