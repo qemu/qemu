@@ -270,7 +270,7 @@ ifeq ($(ARCH),alpha)
 endif
 
 # must use static linking to avoid leaving stuff in virtual address space
-VL_OBJS=vl.o osdep.o block.o readline.o monitor.o pci.o console.o
+VL_OBJS=vl.o osdep.o block.o readline.o monitor.o pci.o console.o loader.o
 VL_OBJS+=block-cow.o block-qcow.o aes.o block-vmdk.o block-cloop.o block-dmg.o block-bochs.o block-vpc.o block-vvfat.o
 ifdef CONFIG_WIN32
 VL_OBJS+=tap-win32.o
@@ -332,9 +332,8 @@ ifeq ($(TARGET_ARCH), sparc64)
 VL_OBJS+= sun4u.o ide.o pckbd.o ps2.o vga.o
 VL_OBJS+= fdc.o mc146818rtc.o serial.o m48t59.o
 VL_OBJS+= cirrus_vga.o parallel.o
-VL_OBJS+= magic-load.o
 else
-VL_OBJS+= sun4m.o tcx.o lance.o iommu.o m48t59.o magic-load.o slavio_intctl.o
+VL_OBJS+= sun4m.o tcx.o lance.o iommu.o m48t59.o slavio_intctl.o
 VL_OBJS+= slavio_timer.o slavio_serial.o slavio_misc.o fdc.o esp.o
 endif
 endif
@@ -458,6 +457,8 @@ ifeq ($(TARGET_ARCH), mips)
 op.o: op.c op_template.c op_mem.c
 op_helper.o: op_helper_mem.c
 endif
+
+loader.o: loader.c elf_ops.h
 
 %.o: %.c
 	$(CC) $(CFLAGS) $(DEFINES) -c -o $@ $<

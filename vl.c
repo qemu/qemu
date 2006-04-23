@@ -332,35 +332,6 @@ int strstart(const char *str, const char *val, const char **ptr)
     return 1;
 }
 
-/* return the size or -1 if error */
-int get_image_size(const char *filename)
-{
-    int fd, size;
-    fd = open(filename, O_RDONLY | O_BINARY);
-    if (fd < 0)
-        return -1;
-    size = lseek(fd, 0, SEEK_END);
-    close(fd);
-    return size;
-}
-
-/* return the size or -1 if error */
-int load_image(const char *filename, uint8_t *addr)
-{
-    int fd, size;
-    fd = open(filename, O_RDONLY | O_BINARY);
-    if (fd < 0)
-        return -1;
-    size = lseek(fd, 0, SEEK_END);
-    lseek(fd, 0, SEEK_SET);
-    if (read(fd, addr, size) != size) {
-        close(fd);
-        return -1;
-    }
-    close(fd);
-    return size;
-}
-
 void cpu_outb(CPUState *env, int addr, int val)
 {
 #ifdef DEBUG_IOPORT

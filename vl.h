@@ -87,8 +87,6 @@ uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c);
 
 void hw_error(const char *fmt, ...);
 
-int get_image_size(const char *filename);
-int load_image(const char *filename, uint8_t *addr);
 extern const char *bios_dir;
 
 void pstrcpy(char *buf, int buf_size, const char *str);
@@ -871,8 +869,10 @@ void slavio_irq_info(void *opaque);
 void slavio_pic_set_irq(void *opaque, int irq, int level);
 void slavio_pic_set_irq_cpu(void *opaque, int irq, int level, unsigned int cpu);
 
-/* magic-load.c */
-int load_elf(const char *filename, uint8_t *addr);
+/* loader.c */
+int get_image_size(const char *filename);
+int load_image(const char *filename, uint8_t *addr);
+int load_elf(const char *filename, int64_t virt_to_phys_addend);
 int load_aout(const char *filename, uint8_t *addr);
 
 /* slavio_timer.c */
