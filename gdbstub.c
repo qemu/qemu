@@ -654,9 +654,11 @@ static void gdb_vm_stopped(void *opaque, int reason)
     if (reason == EXCP_DEBUG) {
 	tb_flush(s->env);
         ret = SIGTRAP;
-    }
-    else
+    } else if (reason == EXCP_INTERRUPT) {
+        ret = SIGINT;
+    } else {
         ret = 0;
+    }
     snprintf(buf, sizeof(buf), "S%02x", ret);
     put_packet(s, buf);
 }
