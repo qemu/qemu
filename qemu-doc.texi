@@ -904,7 +904,7 @@ seen from the emulated kernel at IP address 172.20.0.1.
 @example
 > ./qemu.sh 
 Connected to host network interface: tun0
-Linux version 2.4.21 (bellard@voyager.localdomain) (gcc version 3.2.2 20030222 (Red Hat Linux 3.2.2-5)) #5 Tue Nov 11 18:18:53 CET 2003
+Linux version 2.4.21 (bellard@@voyager.localdomain) (gcc version 3.2.2 20030222 (Red Hat Linux 3.2.2-5)) #5 Tue Nov 11 18:18:53 CET 2003
 BIOS-provided physical RAM map:
  BIOS-e801: 0000000000000000 - 000000000009f000 (usable)
  BIOS-e801: 0000000000100000 - 0000000002000000 (usable)
@@ -941,7 +941,7 @@ Detected PS/2 Mouse Port.
 pty: 256 Unix98 ptys configured
 Serial driver version 5.05c (2001-07-08) with no serial options enabled
 ttyS00 at 0x03f8 (irq = 4) is a 16450
-ne.c:v1.10 9/23/94 Donald Becker (becker@scyld.com)
+ne.c:v1.10 9/23/94 Donald Becker (becker@@scyld.com)
 Last modified Nov 1, 2000 by Paul Gortmaker
 NE*000 ethercard probe at 0x300: 52 54 00 12 34 56
 eth0: NE2000 found at 0x300, using IRQ 9.
@@ -964,7 +964,7 @@ EXT2-fs warning: mounting unchecked fs, running e2fsck is recommended
 VFS: Mounted root (ext2 filesystem).
 Freeing unused kernel memory: 64k freed
  
-Linux version 2.4.21 (bellard@voyager.localdomain) (gcc version 3.2.2 20030222 (Red Hat Linux 3.2.2-5)) #5 Tue Nov 11 18:18:53 CET 2003
+Linux version 2.4.21 (bellard@@voyager.localdomain) (gcc version 3.2.2 20030222 (Red Hat Linux 3.2.2-5)) #5 Tue Nov 11 18:18:53 CET 2003
  
 QEMU Linux test distribution (based on Redhat 9)
  
