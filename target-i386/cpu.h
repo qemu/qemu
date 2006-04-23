@@ -265,7 +265,7 @@
 #define CPUID_SSE  (1 << 25)
 #define CPUID_SSE2 (1 << 26)
 
-#define CPUID_EXT_SS3      (1 << 0)
+#define CPUID_EXT_SSE3     (1 << 0)
 #define CPUID_EXT_MONITOR  (1 << 3)
 #define CPUID_EXT_CX16     (1 << 13)
 

@@ -1911,6 +1911,53 @@ void OPPROTO op_fistll_ST0_A0(void)
     FORCE_RET();
 }
 
+void OPPROTO op_fistt_ST0_A0(void)
+{
+#if defined(__sparc__) && !defined(__sparc_v9__)
+    register CPU86_LDouble d asm("o0");
+#else
+    CPU86_LDouble d;
+#endif
+    int val;
+
+    d = ST0;
+    val = floatx_to_int32_round_to_zero(d, &env->fp_status);
+    if (val != (int16_t)val)
+        val = -32768;
+    stw(A0, val);
+    FORCE_RET();
+}
+
+void OPPROTO op_fisttl_ST0_A0(void)
+{
+#if defined(__sparc__) && !defined(__sparc_v9__)
+    register CPU86_LDouble d asm("o0");
+#else
+    CPU86_LDouble d;
+#endif
+    int val;
+
+    d = ST0;
+    val = floatx_to_int32_round_to_zero(d, &env->fp_status);
+    stl(A0, val);
+    FORCE_RET();
+}
+
+void OPPROTO op_fisttll_ST0_A0(void)
+{
+#if defined(__sparc__) && !defined(__sparc_v9__)
+    register CPU86_LDouble d asm("o0");
+#else
+    CPU86_LDouble d;
+#endif
+    int64_t val;
+
+    d = ST0;
+    val = floatx_to_int64_round_to_zero(d, &env->fp_status);
+    stq(A0, val);
+    FORCE_RET();
+}
+
 void OPPROTO op_fbld_ST0_A0(void)
 {
     helper_fbld_ST0_A0();

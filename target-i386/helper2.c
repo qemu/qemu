@@ -108,7 +108,7 @@ CPUX86State *cpu_x86_init(void)
                                CPUID_CX8 | CPUID_PGE | CPUID_CMOV |
                                CPUID_PAT);
         env->pat = 0x0007040600070406ULL;
-        env->cpuid_ext_features = 0;
+        env->cpuid_ext_features = CPUID_EXT_SSE3;
         env->cpuid_features |= CPUID_FXSR | CPUID_MMX | CPUID_SSE | CPUID_SSE2 | CPUID_PAE | CPUID_SEP;
         env->cpuid_xlevel = 0;
         {

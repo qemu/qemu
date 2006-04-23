@@ -2334,7 +2334,7 @@ static GenOpFunc2 *sse_op_table1[256][4] = {
     /* pure SSE operations */
     [0x10] = { SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL }, /* movups, movupd, movss, movsd */
     [0x11] = { SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL }, /* movups, movupd, movss, movsd */
-    [0x12] = { SSE_SPECIAL, SSE_SPECIAL },  /* movlps, movlpd */
+    [0x12] = { SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL }, /* movlps, movlpd, movsldup, movddup */
     [0x13] = { SSE_SPECIAL, SSE_SPECIAL },  /* movlps, movlpd */
     [0x14] = { gen_op_punpckldq_xmm, gen_op_punpcklqdq_xmm },
     [0x15] = { gen_op_punpckhdq_xmm, gen_op_punpckhqdq_xmm },
@@ -2436,7 +2436,7 @@ static GenOpFunc2 *sse_op_table1[256][4] = {
     [0xed] = MMX_OP2(paddsw),
     [0xee] = MMX_OP2(pmaxsw),
     [0xef] = MMX_OP2(pxor),
-    [0xf0] = { NULL, NULL, NULL, SSE_SPECIAL }, /* lddqu (PNI) */
+    [0xf0] = { NULL, NULL, NULL, SSE_SPECIAL }, /* lddqu */
     [0xf1] = MMX_OP2(psllw),
     [0xf2] = MMX_OP2(pslld),
     [0xf3] = MMX_OP2(psllq),
@@ -2563,8 +2563,8 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
         case 0x1e7: /* movntdq */
         case 0x02b: /* movntps */
         case 0x12b: /* movntps */
-        case 0x2f0: /* lddqu */
-            if (mod == 3) 
+        case 0x3f0: /* lddqu */
+            if (mod == 3)
                 goto illegal_op;
             gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
             gen_sto_env_A0[s->mem_index >> 2](offsetof(CPUX86State,xmm_regs[reg]));
@@ -2641,6 +2641,34 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
                 gen_op_movq(offsetof(CPUX86State,xmm_regs[reg].XMM_Q(0)),
                             offsetof(CPUX86State,xmm_regs[rm].XMM_Q(1)));
             }
+            break;
+        case 0x212: /* movsldup */
+            if (mod != 3) {
+                gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+                gen_ldo_env_A0[s->mem_index >> 2](offsetof(CPUX86State,xmm_regs[reg]));
+            } else {
+                rm = (modrm & 7) | REX_B(s);
+                gen_op_movl(offsetof(CPUX86State,xmm_regs[reg].XMM_L(0)),
+                            offsetof(CPUX86State,xmm_regs[rm].XMM_L(0)));
+                gen_op_movl(offsetof(CPUX86State,xmm_regs[reg].XMM_L(2)),
+                            offsetof(CPUX86State,xmm_regs[rm].XMM_L(2)));
+            }
+            gen_op_movl(offsetof(CPUX86State,xmm_regs[reg].XMM_L(1)),
+                        offsetof(CPUX86State,xmm_regs[reg].XMM_L(0)));
+            gen_op_movl(offsetof(CPUX86State,xmm_regs[reg].XMM_L(3)),
+                        offsetof(CPUX86State,xmm_regs[reg].XMM_L(2)));
+            break;
+        case 0x312: /* movddup */
+            if (mod != 3) {
+                gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+                gen_ldq_env_A0[s->mem_index >> 2](offsetof(CPUX86State,xmm_regs[reg].XMM_Q(0)));
+            } else {
+                rm = (modrm & 7) | REX_B(s);
+                gen_op_movq(offsetof(CPUX86State,xmm_regs[reg].XMM_Q(0)),
+                            offsetof(CPUX86State,xmm_regs[rm].XMM_Q(0)));
+            }
+            gen_op_movq(offsetof(CPUX86State,xmm_regs[reg].XMM_Q(1)),
+                        offsetof(CPUX86State,xmm_regs[rm].XMM_Q(0)));
             break;
         case 0x016: /* movhps */
         case 0x116: /* movhpd */
@@ -4278,16 +4306,9 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             case 0x08: /* flds */
             case 0x0a: /* fsts */
             case 0x0b: /* fstps */
-            case 0x18: /* fildl */
-            case 0x1a: /* fistl */
-            case 0x1b: /* fistpl */
-            case 0x28: /* fldl */
-            case 0x2a: /* fstl */
-            case 0x2b: /* fstpl */
-            case 0x38: /* filds */
-            case 0x3a: /* fists */
-            case 0x3b: /* fistps */
-                
+            case 0x18 ... 0x1b: /* fildl, fisttpl, fistl, fistpl */
+            case 0x28 ... 0x2b: /* fldl, fisttpll, fstl, fstpl */
+            case 0x38 ... 0x3b: /* filds, fisttps, fists, fistps */
                 switch(op & 7) {
                 case 0:
                     switch(op >> 4) {
@@ -4305,6 +4326,20 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                         gen_op_fild_ST0_A0();
                         break;
                     }
+                    break;
+                case 1:
+                    switch(op >> 4) {
+                    case 1:
+                        gen_op_fisttl_ST0_A0();
+                        break;
+                    case 2:
+                        gen_op_fisttll_ST0_A0();
+                        break;
+                    case 3:
+                    default:
+                        gen_op_fistt_ST0_A0();
+                    }
+                    gen_op_fpop();
                     break;
                 default:
                     switch(op >> 4) {

@@ -260,6 +260,8 @@ static inline void stfl(target_ulong ptr, float v)
 /* use long double functions */
 #define floatx_to_int32 floatx80_to_int32
 #define floatx_to_int64 floatx80_to_int64
+#define floatx_to_int32_round_to_zero floatx80_to_int32_round_to_zero
+#define floatx_to_int64_round_to_zero floatx80_to_int64_round_to_zero
 #define floatx_abs floatx80_abs
 #define floatx_chs floatx80_chs
 #define floatx_round_to_int floatx80_round_to_int
@@ -278,6 +280,8 @@ static inline void stfl(target_ulong ptr, float v)
 #else
 #define floatx_to_int32 float64_to_int32
 #define floatx_to_int64 float64_to_int64
+#define floatx_to_int32_round_to_zero float64_to_int32_round_to_zero
+#define floatx_to_int64_round_to_zero float64_to_int64_round_to_zero
 #define floatx_abs float64_abs
 #define floatx_chs float64_chs
 #define floatx_round_to_int float64_round_to_int
