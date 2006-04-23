@@ -146,7 +146,6 @@ void slirp_init(void)
     m_init();
 
     /* set default addresses */
-    getouraddr();
     inet_aton("127.0.0.1", &loopback_addr);
 
     if (get_dns_addr(&dns_addr) < 0) {
@@ -155,6 +154,7 @@ void slirp_init(void)
     }
 
     inet_aton(CTL_SPECIAL, &special_addr);
+    getouraddr();
 }
 
 #define CONN_CANFSEND(so) (((so)->so_state & (SS_FCANTSENDMORE|SS_ISFCONNECTED)) == SS_ISFCONNECTED)

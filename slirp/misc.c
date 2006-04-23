@@ -88,15 +88,16 @@ void
 getouraddr()
 {
 	char buff[256];
-	struct hostent *he;
+	struct hostent *he = NULL;
 	
-	if (gethostname(buff,256) < 0)
-	   return;
-	
-	if ((he = gethostbyname(buff)) == NULL)
-	   return;
-	
-	our_addr = *(struct in_addr *)he->h_addr;
+	if (gethostname(buff,256) == 0)
+            he = gethostbyname(buff);
+        if (he)
+            our_addr = *(struct in_addr *)he->h_addr;
+        /* If the host doesn't have a useful IP address then use the
+           guest side address.  */
+        if (our_addr.s_addr == 0 || our_addr.s_addr == loopback_addr.s_addr)
+            our_addr.s_addr = special_addr.s_addr | htonl(CTL_ALIAS);
 }
 
 #if SIZEOF_CHAR_P == 8
