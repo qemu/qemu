@@ -1578,10 +1578,12 @@ static uint32_t get_cluster_count_for_direntry(BDRVVVFATState* s,
 	mapping = find_mapping_for_cluster(s, cluster_num);
 
 	if (mapping) {
+	    const char* basename;
+
 	    assert(mapping->mode & MODE_DELETED);
 	    mapping->mode &= ~MODE_DELETED;
 
-	    const char* basename = get_basename(mapping->path);
+	    basename = get_basename(mapping->path);
 
 	    assert(mapping->mode & MODE_NORMAL);
 
