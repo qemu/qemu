@@ -94,6 +94,7 @@ check_gfx="yes"
 check_gcc="yes"
 softmmu="yes"
 user="no"
+build_docs="no"
 
 # OS specific
 targetos=`uname -s`
@@ -427,6 +428,11 @@ fi # sdl compile test
 fi # cross compilation
 fi # -z $sdl
 
+# Check if tools are available to build documentation.
+if [ ! -z `which texi2html` ] && [ ! -z `which pod2man` ]; then
+  build_docs="yes"
+fi
+
 if test "$mingw32" = "yes" ; then
 if test -z "$prefix" ; then
     prefix="/c/Program Files/Qemu"
@@ -489,6 +495,7 @@ else
 fi
 echo "FMOD support      $fmod $fmod_support"
 echo "kqemu support     $kqemu"
+echo "Documentation     $build_docs"
 
 if test $sdl_too_old = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -632,6 +639,9 @@ if [ "$source_path_used" = "yes" ]; then
   echo "VPATH=$source_path" >> $config_mak
 fi
 echo "TARGET_DIRS=$target_list" >> $config_mak
+if [ "$build_docs" = "yes" ] ; then
+  echo "BUILD_DOCS=yes" >> $config_mak
+fi
 
 # XXX: suppress that
 if [ "$bsd" = "yes" ] ; then

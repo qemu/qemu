@@ -11,7 +11,11 @@ TOOLS=qemu-img$(EXESUF)
 ifdef CONFIG_STATIC
 LDFLAGS+=-static
 endif
+ifdef BUILD_DOCS
 DOCS=qemu-doc.html qemu-tech.html qemu.1 qemu-img.1
+else
+DOCS=
+endif
 
 all: dyngen$(EXESUF) $(TOOLS) $(DOCS)
 	for d in $(TARGET_DIRS); do \
@@ -34,7 +38,7 @@ clean:
         done
 
 distclean: clean
-	rm -f config-host.mak config-host.h
+	rm -f config-host.mak config-host.h $(DOCS)
 	for d in $(TARGET_DIRS); do \
 	rm -rf $$d || exit 1 ; \
         done
