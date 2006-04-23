@@ -26,6 +26,7 @@
 #define KERNEL_LOAD_ADDR     0x00004000
 #define CMDLINE_ADDR         0x007ff000
 #define INITRD_LOAD_ADDR     0x00800000
+#define PROM_SIZE_MAX        (256 * 1024)
 #define PROM_ADDR	     0xffd00000
 #define PROM_FILENAMEB	     "proll.bin"
 #define PROM_FILENAMEE	     "proll.elf"
@@ -263,9 +264,12 @@ static void sun4m_init(int ram_size, int vga_ram_size, int boot_device,
     slavio_misc = slavio_misc_init(PHYS_JJ_SLAVIO, PHYS_JJ_ME_IRQ);
 
     prom_offset = ram_size + vram_size;
+    cpu_register_physical_memory(PROM_ADDR, 
+                                 (PROM_SIZE_MAX + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK, 
+                                 prom_offset | IO_MEM_ROM);
 
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, PROM_FILENAMEE);
-    ret = load_elf(buf, phys_ram_base + prom_offset);
+    ret = load_elf(buf, 0);
     if (ret < 0) {
 	snprintf(buf, sizeof(buf), "%s/%s", bios_dir, PROM_FILENAMEB);
 	ret = load_image(buf, phys_ram_base + prom_offset);
@@ -275,12 +279,10 @@ static void sun4m_init(int ram_size, int vga_ram_size, int boot_device,
 		buf);
 	exit(1);
     }
-    cpu_register_physical_memory(PROM_ADDR, (ret + TARGET_PAGE_SIZE) & TARGET_PAGE_MASK, 
-                                 prom_offset | IO_MEM_ROM);
 
     kernel_size = 0;
     if (linux_boot) {
-        kernel_size = load_elf(kernel_filename, phys_ram_base + KERNEL_LOAD_ADDR);
+        kernel_size = load_elf(kernel_filename, -0xf0000000);
         if (kernel_size < 0)
 	    kernel_size = load_aout(kernel_filename, phys_ram_base + KERNEL_LOAD_ADDR);
 	if (kernel_size < 0)

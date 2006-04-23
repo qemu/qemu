@@ -27,6 +27,7 @@
 #define KERNEL_LOAD_ADDR     0x00404000
 #define CMDLINE_ADDR         0x003ff000
 #define INITRD_LOAD_ADDR     0x00300000
+#define PROM_SIZE_MAX        (256 * 1024)
 #define PROM_ADDR	     0x1fff0000000ULL
 #define APB_SPECIAL_BASE     0x1fe00000000ULL
 #define APB_MEM_BASE	     0x1ff00000000ULL
@@ -277,9 +278,12 @@ static void sun4u_init(int ram_size, int vga_ram_size, int boot_device,
     cpu_register_physical_memory(0, ram_size, 0);
 
     prom_offset = ram_size + vga_ram_size;
+    cpu_register_physical_memory(PROM_ADDR, 
+                                 (PROM_SIZE_MAX + TARGET_PAGE_SIZE) & TARGET_PAGE_MASK, 
+                                 prom_offset | IO_MEM_ROM);
 
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, PROM_FILENAMEE);
-    ret = load_elf(buf, phys_ram_base + prom_offset);
+    ret = load_elf(buf, 0);
     if (ret < 0) {
 	snprintf(buf, sizeof(buf), "%s/%s", bios_dir, PROM_FILENAMEB);
 	ret = load_image(buf, phys_ram_base + prom_offset);
@@ -289,13 +293,12 @@ static void sun4u_init(int ram_size, int vga_ram_size, int boot_device,
 		buf);
 	exit(1);
     }
-    cpu_register_physical_memory(PROM_ADDR, (ret + TARGET_PAGE_SIZE) & TARGET_PAGE_MASK, 
-                                 prom_offset | IO_MEM_ROM);
 
     kernel_size = 0;
     initrd_size = 0;
     if (linux_boot) {
-        kernel_size = load_elf(kernel_filename, phys_ram_base + KERNEL_LOAD_ADDR);
+        /* XXX: put correct offset */
+        kernel_size = load_elf(kernel_filename, 0);
         if (kernel_size < 0)
 	    kernel_size = load_aout(kernel_filename, phys_ram_base + KERNEL_LOAD_ADDR);
 	if (kernel_size < 0)
