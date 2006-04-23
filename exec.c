@@ -2080,6 +2080,45 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
     }
 }
 
+/* used for ROM loading : can write in RAM and ROM */
+void cpu_physical_memory_write_rom(target_phys_addr_t addr, 
+                                   const uint8_t *buf, int len)
+{
+    int l;
+    uint8_t *ptr;
+    target_phys_addr_t page;
+    unsigned long pd;
+    PhysPageDesc *p;
+    
+    while (len > 0) {
+        page = addr & TARGET_PAGE_MASK;
+        l = (page + TARGET_PAGE_SIZE) - addr;
+        if (l > len)
+            l = len;
+        p = phys_page_find(page >> TARGET_PAGE_BITS);
+        if (!p) {
+            pd = IO_MEM_UNASSIGNED;
+        } else {
+            pd = p->phys_offset;
+        }
+        
+        if ((pd & ~TARGET_PAGE_MASK) != IO_MEM_RAM &&
+            (pd & ~TARGET_PAGE_MASK) != IO_MEM_ROM) {
+            /* do nothing */
+        } else {
+            unsigned long addr1;
+            addr1 = (pd & TARGET_PAGE_MASK) + (addr & ~TARGET_PAGE_MASK);
+            /* ROM/RAM case */
+            ptr = phys_ram_base + addr1;
+            memcpy(ptr, buf, l);
+        }
+        len -= l;
+        buf += l;
+        addr += l;
+    }
+}
+
+
 /* warning: addr must be aligned */
 uint32_t ldl_phys(target_phys_addr_t addr)
 {
