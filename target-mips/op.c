@@ -604,7 +604,7 @@ void op_trap (void)
 
 void op_debug (void)
 {
-  CALL_FROM_TB1(do_raise_exception_direct, EXCP_DEBUG);
+  CALL_FROM_TB1(do_raise_exception, EXCP_DEBUG);
 }
 
 void op_set_lladdr (void)
