@@ -283,6 +283,11 @@ cc="${cross_prefix}${cc}"
 ar="${cross_prefix}${ar}"
 strip="${cross_prefix}${strip}"
 
+if [ -z `which $cc` ] ; then
+    echo "Compiler $cc could not be found"
+    exit
+fi
+
 if test "$mingw32" = "yes" ; then
     linux="no"
     EXESUF=".exe"
