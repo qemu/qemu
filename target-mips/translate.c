@@ -1180,7 +1180,7 @@ static void gen_cp0 (DisasContext *ctx, uint16_t opc, int rt, int rd)
     const unsigned char *opn = "unk";
 
     if (!(ctx->CP0_Status & (1 << CP0St_CU0)) &&
-        !(ctx->hflags & MIPS_HFLAG_UM) &&
+        (ctx->hflags & MIPS_HFLAG_UM) &&
         !(ctx->hflags & MIPS_HFLAG_ERL) &&
         !(ctx->hflags & MIPS_HFLAG_EXL)) {
         if (loglevel & CPU_LOG_TB_IN_ASM) {
