@@ -2668,7 +2668,7 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
                             offsetof(CPUX86State,xmm_regs[rm].XMM_Q(0)));
             }
             gen_op_movq(offsetof(CPUX86State,xmm_regs[reg].XMM_Q(1)),
-                        offsetof(CPUX86State,xmm_regs[rm].XMM_Q(0)));
+                        offsetof(CPUX86State,xmm_regs[reg].XMM_Q(0)));
             break;
         case 0x016: /* movhps */
         case 0x116: /* movhpd */
