@@ -336,7 +336,6 @@ static int usb_hub_handle_control(USBDevice *dev, int request, int value,
                                        USB_MSG_RESET, 0, 0, NULL, 0);
                     port->wPortChange |= PORT_STAT_C_RESET;
                     /* set enable bit */
-                    port->wPortChange |= PORT_STAT_C_ENABLE;
                     port->wPortStatus |= PORT_STAT_ENABLE;
                 }
                 break;
