@@ -174,6 +174,9 @@ static void uhci_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
         if ((val & UHCI_CMD_RS) && !(s->cmd & UHCI_CMD_RS)) {
             /* start frame processing */
             qemu_mod_timer(s->frame_timer, qemu_get_clock(vm_clock));
+            s->status &= ~UHCI_STS_HCHALTED;
+        } else if (!(val & UHCI_CMD_RS) && !(s->cmd & UHCI_CMD_RS)) {
+            s->status |= UHCI_STS_HCHALTED;
         }
         if (val & UHCI_CMD_GRESET) {
             UHCIPort *port;
@@ -528,6 +531,8 @@ static void uhci_frame_timer(void *opaque)
 
     if (!(s->cmd & UHCI_CMD_RS)) {
         qemu_del_timer(s->frame_timer);
+        /* set hchalted bit in status - UHCI11D 2.1.2 */
+        s->status |= UHCI_STS_HCHALTED;
         return;
     }
     frame_addr = s->fl_base_addr + ((s->frnum & 0x3ff) << 2);
