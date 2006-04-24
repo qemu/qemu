@@ -174,7 +174,7 @@ void glue(test_, OP)(void)
     for(i = 0; i < n; i++)
         exec_op(0x21ad3d34, 0x12345678, i);
     for(i = 0; i < n; i++)
-        exec_op(0x813f3421, 0x82345678, i);
+        exec_op(0x813f3421, 0x82345679, i);
 }
 
 void *glue(_test_, OP) __init_call = glue(test_, OP);
