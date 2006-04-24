@@ -91,8 +91,8 @@ int usb_generic_handle_packet(USBDevice *s, int pid,
         case 0:
             switch(s->setup_state) {
             case SETUP_STATE_ACK:
-                s->setup_state = SETUP_STATE_IDLE;
                 if (!(s->setup_buf[0] & USB_DIR_IN)) {
+                    s->setup_state = SETUP_STATE_IDLE;
                     ret = s->handle_control(s, 
                                       (s->setup_buf[0] << 8) | s->setup_buf[1],
                                       (s->setup_buf[3] << 8) | s->setup_buf[2],
@@ -102,7 +102,7 @@ int usb_generic_handle_packet(USBDevice *s, int pid,
                     if (ret > 0)
                         ret = 0;
                 } else {
-                    goto fail;
+                    /* return 0 byte */
                 }
                 break;
             case SETUP_STATE_DATA:
@@ -136,11 +136,11 @@ int usb_generic_handle_packet(USBDevice *s, int pid,
         case 0:
             switch(s->setup_state) {
             case SETUP_STATE_ACK:
-                s->setup_state = SETUP_STATE_IDLE;
                 if (s->setup_buf[0] & USB_DIR_IN) {
+                    s->setup_state = SETUP_STATE_IDLE;
                     /* transfer OK */
                 } else {
-                    goto fail;
+                    /* ignore additionnal output */
                 }
                 break;
             case SETUP_STATE_DATA:
