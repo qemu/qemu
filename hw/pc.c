@@ -36,8 +36,6 @@
 #define KERNEL_PARAMS_ADDR   0x00090000
 #define KERNEL_CMDLINE_ADDR  0x00099000
 
-int speaker_data_on;
-int dummy_refresh_clock;
 static fdctrl_t *floppy_controller;
 static RTCState *rtc_state;
 static PITState *pit;
@@ -271,21 +269,6 @@ static void cmos_init(int ram_size, int boot_device, BlockDriverState **hd_table
     /* Disable check of 0x55AA signature on the last two bytes of
        first sector of disk. XXX: make it the default ? */
     //    rtc_set_memory(s, 0x38, 1);
-}
-
-static void speaker_ioport_write(void *opaque, uint32_t addr, uint32_t val)
-{
-    speaker_data_on = (val >> 1) & 1;
-    pit_set_gate(pit, 2, val & 1);
-}
-
-static uint32_t speaker_ioport_read(void *opaque, uint32_t addr)
-{
-    int out;
-    out = pit_get_out(pit, 2, qemu_get_clock(vm_clock));
-    dummy_refresh_clock ^= 1;
-    return (speaker_data_on << 1) | pit_get_gate(pit, 2) | (out << 5) |
-      (dummy_refresh_clock << 4);
 }
 
 void ioport_set_a20(int enable)
@@ -783,8 +766,6 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
     }
 
     rtc_state = rtc_init(0x70, 8);
-    register_ioport_read(0x61, 1, 1, speaker_ioport_read, NULL);
-    register_ioport_write(0x61, 1, 1, speaker_ioport_write, NULL);
 
     register_ioport_read(0x92, 1, 1, ioport92_read, NULL);
     register_ioport_write(0x92, 1, 1, ioport92_write, NULL);
@@ -794,6 +775,7 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
     }
     isa_pic = pic_init(pic_irq_request, first_cpu);
     pit = pit_init(0x40, 0);
+    pcspk_init(pit);
     if (pci_enabled) {
         pic_set_alt_irq_func(isa_pic, ioapic_set_irq, ioapic);
     }

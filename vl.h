@@ -819,7 +819,13 @@ typedef struct PITState PITState;
 PITState *pit_init(int base, int irq);
 void pit_set_gate(PITState *pit, int channel, int val);
 int pit_get_gate(PITState *pit, int channel);
+int pit_get_initial_count(PITState *pit, int channel);
+int pit_get_mode(PITState *pit, int channel);
 int pit_get_out(PITState *pit, int channel, int64_t current_time);
+
+/* pcspk.c */
+void pcspk_init(PITState *);
+int pcspk_audio_init(AudioState *);
 
 /* pc.c */
 extern QEMUMachine pc_machine;

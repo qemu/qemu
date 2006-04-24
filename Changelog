@@ -2,6 +2,7 @@ version 0.8.1:
 
   - USB tablet support (Brad Campbell, Anthony Liguori)
   - win32 host serial support (Kazu)
+  - PC speaker support (Joachim Henke)
 
 version 0.8.0:
 

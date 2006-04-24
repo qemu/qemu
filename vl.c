@@ -4862,6 +4862,15 @@ void register_machines(void)
 
 #ifdef HAS_AUDIO
 struct soundhw soundhw[] = {
+#ifdef TARGET_I386
+    {
+        "pcspk",
+        "PC speaker",
+        0,
+        1,
+        { .init_isa = pcspk_audio_init }
+    },
+#endif
     {
         "sb16",
         "Creative Sound Blaster 16",

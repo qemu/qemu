@@ -209,6 +209,18 @@ int pit_get_gate(PITState *pit, int channel)
     return s->gate;
 }
 
+int pit_get_initial_count(PITState *pit, int channel)
+{
+    PITChannelState *s = &pit->channels[channel];
+    return s->count;
+}
+
+int pit_get_mode(PITState *pit, int channel)
+{
+    PITChannelState *s = &pit->channels[channel];
+    return s->mode;
+}
+
 static inline void pit_load_count(PITChannelState *s, int val)
 {
     if (val == 0)
