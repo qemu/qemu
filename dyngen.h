@@ -420,6 +420,9 @@ static inline void ia64_apply_fixes (uint8_t **gen_code_pp,
 	}
 	ia64_imm22(fixup->addr, (long) vp - gp);
     }
+    /* Keep code ptr aligned. */
+    if ((long) gen_code_ptr & 15)
+	gen_code_ptr += 8;
     *gen_code_pp = gen_code_ptr;
 }
 

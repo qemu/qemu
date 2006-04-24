@@ -1623,7 +1623,7 @@ int do_fork(CPUState *env, unsigned int flags, unsigned long newsp)
 #endif
         new_env->opaque = ts;
 #ifdef __ia64__
-        ret = clone2(clone_func, new_stack + NEW_STACK_SIZE, flags, new_env);
+        ret = __clone2(clone_func, new_stack + NEW_STACK_SIZE, flags, new_env);
 #else
 	ret = clone(clone_func, new_stack + NEW_STACK_SIZE, flags, new_env);
 #endif

@@ -2475,10 +2475,12 @@ fprintf(outfile,
 );
 #ifdef HOST_IA64
     fprintf(outfile,
-	    "    ia64_apply_fixes(&gen_code_ptr, ltoff_fixes, "
+	    "    {\n"
+	    "      extern char code_gen_buffer[];\n"
+	    "      ia64_apply_fixes(&gen_code_ptr, ltoff_fixes, "
 	    "(uint64_t) code_gen_buffer + 2*(1<<20), plt_fixes,\n\t\t\t"
 	    "sizeof(plt_target)/sizeof(plt_target[0]),\n\t\t\t"
-	    "plt_target, plt_offset);\n");
+	    "plt_target, plt_offset);\n    }\n");
 #endif
 
 /* generate some code patching */ 

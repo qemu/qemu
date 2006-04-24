@@ -252,9 +252,6 @@ ifeq ($(findstring m68k, $(TARGET_ARCH) $(ARCH)),m68k)
 LIBOBJS+=m68k-dis.o
 endif
 
-ifeq ($(ARCH),ia64)
-OBJS += ia64-syscall.o
-endif
 ifdef CONFIG_GDBSTUB
 OBJS+=gdbstub.o
 endif

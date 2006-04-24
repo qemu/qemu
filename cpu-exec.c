@@ -1363,7 +1363,6 @@ int cpu_signal_handler(int host_signum, struct siginfo *info,
 #ifndef __ISR_VALID
   /* This ought to be in <bits/siginfo.h>... */
 # define __ISR_VALID	1
-# define si_flags	_sifields._sigfault._si_pad0
 #endif
 
 int cpu_signal_handler(int host_signum, struct siginfo *info, void *puc)
@@ -1379,7 +1378,7 @@ int cpu_signal_handler(int host_signum, struct siginfo *info, void *puc)
       case SIGSEGV:
       case SIGBUS:
       case SIGTRAP:
-	  if (info->si_code && (info->si_flags & __ISR_VALID))
+	  if (info->si_code && (info->si_segvflags & __ISR_VALID))
 	      /* ISR.W (write-access) is bit 33:  */
 	      is_write = (info->si_isr >> 33) & 1;
 	  break;
