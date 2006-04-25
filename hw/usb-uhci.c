@@ -175,7 +175,7 @@ static void uhci_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
             /* start frame processing */
             qemu_mod_timer(s->frame_timer, qemu_get_clock(vm_clock));
             s->status &= ~UHCI_STS_HCHALTED;
-        } else if (!(val & UHCI_CMD_RS) && !(s->cmd & UHCI_CMD_RS)) {
+        } else if (!(val & UHCI_CMD_RS)) {
             s->status |= UHCI_STS_HCHALTED;
         }
         if (val & UHCI_CMD_GRESET) {
