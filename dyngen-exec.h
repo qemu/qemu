@@ -20,6 +20,13 @@
 #if !defined(__DYNGEN_EXEC_H__)
 #define __DYNGEN_EXEC_H__
 
+/* prevent Solaris from trying to typedef FILE in gcc's
+   include/floatingpoint.h which will conflict with the
+   definition down below */
+#ifdef __sun__
+#define _FILEDEFED
+#endif
+
 /* NOTE: standard headers should be used with special care at this
    point because host CPU registers are used as global variables. Some
    host headers do not allow that. */
@@ -35,7 +42,12 @@ typedef unsigned long uint64_t;
 typedef unsigned long long uint64_t;
 #endif
 
+/* if Solaris/__sun__, don't typedef int8_t, as it will be typedef'd
+   prior to this and will cause an error in compliation, conflicting
+   with /usr/include/sys/int_types.h, line 75 */
+#ifndef __sun__
 typedef signed char int8_t;
+#endif
 typedef signed short int16_t;
 typedef signed int int32_t;
 #if defined (__x86_64__) || defined(__ia64)
@@ -231,6 +243,8 @@ extern int __op_jmp0, __op_jmp1, __op_jmp2, __op_jmp3;
 #ifdef __sparc__
 #define EXIT_TB() asm volatile ("jmpl %i0 + 8, %g0\n" \
                                 "nop")
+#define        GOTO_LABEL_PARAM(n) asm volatile ( \
+               "set " ASM_NAME(__op_gen_label) #n ", %g1; jmp %g1; nop")
 #endif
 #ifdef __arm__
 #define EXIT_TB() asm volatile ("b exec_loop")

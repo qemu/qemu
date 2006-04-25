@@ -47,12 +47,14 @@
 #include <libutil.h>
 #endif
 #else
+#ifndef __sun__
 #include <linux/if.h>
 #include <linux/if_tun.h>
 #include <pty.h>
 #include <malloc.h>
 #include <linux/rtc.h>
 #include <linux/ppdev.h>
+#endif
 #endif
 #endif
 
@@ -2530,6 +2532,12 @@ static int tap_open(char *ifname, int ifname_size)
 
     fcntl(fd, F_SETFL, O_NONBLOCK);
     return fd;
+}
+#elif defined(__sun__)
+static int tap_open(char *ifname, int ifname_size)
+{
+    fprintf(stderr, "warning: tap_open not yet implemented\n");
+    return -1;
 }
 #else
 static int tap_open(char *ifname, int ifname_size)

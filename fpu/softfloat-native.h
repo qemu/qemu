@@ -3,8 +3,11 @@
 #if defined(_BSD) && !defined(__APPLE__)
 #include <ieeefp.h>
 #else
+#if !defined(_PRESOLARIS10)
 #include <fenv.h>
 #endif
+#endif
+#include "gnu-c99-math.h"
 
 typedef float float32;
 typedef double float64;

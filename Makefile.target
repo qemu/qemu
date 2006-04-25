@@ -166,6 +166,9 @@ endif
 ifdef CONFIG_WIN32
 LIBS+=-lwinmm -lws2_32 -liphlpapi
 endif
+ifdef CONFIG_SOLARIS
+LIBS+=-lsocket -lnsl -lresolv
+endif
 
 # profiling code
 ifdef TARGET_GPROF
@@ -369,7 +372,9 @@ VL_LDFLAGS+=-Wl,-T,$(SRC_PATH)/i386-vl.ld
 endif
 ifndef CONFIG_DARWIN
 ifndef CONFIG_WIN32
+ifndef CONFIG_SOLARIS
 VL_LIBS=-lutil
+endif
 endif
 endif
 ifdef TARGET_GPROF

@@ -44,6 +44,10 @@
 #include <CoreFoundation/CoreFoundation.h>
 #endif
 
+#ifdef __sun__
+#include <sys/dkio.h>
+#endif
+
 static BlockDriverState *bdrv_first;
 static BlockDriver *first_drv;
 
@@ -648,7 +652,6 @@ void bdrv_info(void)
     }
 }
 
-
 /**************************************************************/
 /* RAW block driver */
 
@@ -669,6 +672,10 @@ static int raw_open(BlockDriverState *bs, const char *filename)
 #ifdef _BSD
     struct stat sb;
 #endif
+#ifdef __sun__
+    struct dk_minfo minfo;
+    int rv;
+#endif
 
     fd = open(filename, O_RDWR | O_BINARY | O_LARGEFILE);
     if (fd < 0) {
@@ -688,6 +695,17 @@ static int raw_open(BlockDriverState *bs, const char *filename)
         size = lseek(fd, 0LL, SEEK_END);
 #endif
     } else
+#endif
+#ifdef __sun__
+    /*
+     * use the DKIOCGMEDIAINFO ioctl to read the size.
+     */
+    rv = ioctl ( fd, DKIOCGMEDIAINFO, &minfo );
+    if ( rv != -1 ) {
+        size = minfo.dki_lbsize * minfo.dki_capacity;
+    } else /* there are reports that lseek on some devices
+              fails, but irc discussion said that contingency
+              on contingency was overkill */
 #endif
     {
         size = lseek(fd, 0, SEEK_END);

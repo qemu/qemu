@@ -9,6 +9,9 @@
 #include <slirp.h>
 #include "ip_icmp.h"
 #include "main.h"
+#ifdef __sun__
+#include <sys/filio.h>
+#endif
 
 void
 so_init()
