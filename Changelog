@@ -3,6 +3,9 @@ version 0.8.1:
   - USB tablet support (Brad Campbell, Anthony Liguori)
   - win32 host serial support (Kazu)
   - PC speaker support (Joachim Henke)
+  - IDE LBA48 support (Jens Axboe)
+  - SSE3 support
+  - Solaris port (Ben Taylor)
 
 version 0.8.0:
 
