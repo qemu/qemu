@@ -307,14 +307,24 @@ typedef struct IDEState {
     /* ide regs */
     uint8_t feature;
     uint8_t error;
-    uint16_t nsector; /* 0 is 256 to ease computations */
+    uint32_t nsector;
     uint8_t sector;
     uint8_t lcyl;
     uint8_t hcyl;
+    /* other part of tf for lba48 support */
+    uint8_t hob_feature;
+    uint8_t hob_nsector;
+    uint8_t hob_sector;
+    uint8_t hob_lcyl;
+    uint8_t hob_hcyl;
+
     uint8_t select;
     uint8_t status;
+
     /* 0x3f6 command, only meaningful for drive 0 */
     uint8_t cmd;
+    /* set for lba48 access */
+    uint8_t lba48;
     /* depends on bit 4 in select, only meaningful for drive 0 */
     struct IDEState *cur_drive; 
     BlockDriverState *bs;
@@ -463,13 +473,19 @@ static void ide_identify(IDEState *s)
     put_le16(p + 80, 0xf0); /* ata3 -> ata6 supported */
     put_le16(p + 81, 0x16); /* conforms to ata5 */
     put_le16(p + 82, (1 << 14));
-    put_le16(p + 83, (1 << 14));
+    /* 13=flush_cache_ext,12=flush_cache,10=lba48 */
+    put_le16(p + 83, (1 << 14) | (1 << 13) | (1 <<12) | (1 << 10));
     put_le16(p + 84, (1 << 14));
     put_le16(p + 85, (1 << 14));
-    put_le16(p + 86, 0);
+    /* 13=flush_cache_ext,12=flush_cache,10=lba48 */
+    put_le16(p + 86, (1 << 14) | (1 << 13) | (1 <<12) | (1 << 10));
     put_le16(p + 87, (1 << 14));
     put_le16(p + 88, 0x3f | (1 << 13)); /* udma5 set and supported */
     put_le16(p + 93, 1 | (1 << 14) | 0x2000);
+    put_le16(p + 100, s->nb_sectors);
+    put_le16(p + 101, s->nb_sectors >> 16);
+    put_le16(p + 102, s->nb_sectors >> 32);
+    put_le16(p + 103, s->nb_sectors >> 48);
 
     memcpy(s->identify_data, p, sizeof(s->identify_data));
     s->identify_set = 1;
@@ -573,12 +589,19 @@ static int64_t ide_get_sector(IDEState *s)
     int64_t sector_num;
     if (s->select & 0x40) {
         /* lba */
-        sector_num = ((s->select & 0x0f) << 24) | (s->hcyl << 16) | 
-            (s->lcyl << 8) | s->sector;
+	if (!s->lba48) {
+	    sector_num = ((s->select & 0x0f) << 24) | (s->hcyl << 16) |
+		(s->lcyl << 8) | s->sector;
+	} else {
+	    sector_num = ((int64_t)s->hob_hcyl << 40) |
+		((int64_t) s->hob_lcyl << 32) |
+		((int64_t) s->hob_sector << 24) |
+		((int64_t) s->hcyl << 16) |
+		((int64_t) s->lcyl << 8) | s->sector;
+	}
     } else {
         sector_num = ((s->hcyl << 8) | s->lcyl) * s->heads * s->sectors +
-            (s->select & 0x0f) * s->sectors + 
-            (s->sector - 1);
+            (s->select & 0x0f) * s->sectors + (s->sector - 1);
     }
     return sector_num;
 }
@@ -587,10 +610,19 @@ static void ide_set_sector(IDEState *s, int64_t sector_num)
 {
     unsigned int cyl, r;
     if (s->select & 0x40) {
-        s->select = (s->select & 0xf0) | (sector_num >> 24);
-        s->hcyl = (sector_num >> 16);
-        s->lcyl = (sector_num >> 8);
-        s->sector = (sector_num);
+	if (!s->lba48) {
+            s->select = (s->select & 0xf0) | (sector_num >> 24);
+            s->hcyl = (sector_num >> 16);
+            s->lcyl = (sector_num >> 8);
+            s->sector = (sector_num);
+	} else {
+	    s->sector = sector_num;
+	    s->lcyl = sector_num >> 8;
+	    s->hcyl = sector_num >> 16;
+	    s->hob_sector = sector_num >> 24;
+	    s->hob_lcyl = sector_num >> 32;
+	    s->hob_hcyl = sector_num >> 40;
+	}
     } else {
         cyl = sector_num / (s->heads * s->sectors);
         r = sector_num % (s->heads * s->sectors);
@@ -1488,43 +1520,89 @@ static void cdrom_change_cb(void *opaque)
     s->nb_sectors = nb_sectors;
 }
 
+static void ide_cmd_lba48_transform(IDEState *s, int lba48)
+{
+    s->lba48 = lba48;
+
+    /* handle the 'magic' 0 nsector count conversion here. to avoid
+     * fiddling with the rest of the read logic, we just store the
+     * full sector count in ->nsector and ignore ->hob_nsector from now
+     */
+    if (!s->lba48) {
+	if (!s->nsector)
+	    s->nsector = 256;
+    } else {
+	if (!s->nsector && !s->hob_nsector)
+	    s->nsector = 65536;
+	else {
+	    int lo = s->nsector;
+	    int hi = s->hob_nsector;
+
+	    s->nsector = (hi << 8) | lo;
+	}
+    }
+}
+
+static void ide_clear_hob(IDEState *ide_if)
+{
+    /* any write clears HOB high bit of device control register */
+    ide_if[0].select &= ~(1 << 7);
+    ide_if[1].select &= ~(1 << 7);
+}
+
 static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
     IDEState *ide_if = opaque;
     IDEState *s;
     int unit, n;
+    int lba48 = 0;
 
 #ifdef DEBUG_IDE
     printf("IDE: write addr=0x%x val=0x%02x\n", addr, val);
 #endif
+
     addr &= 7;
     switch(addr) {
     case 0:
         break;
     case 1:
+	ide_clear_hob(ide_if);
         /* NOTE: data is written to the two drives */
+	ide_if[0].hob_feature = ide_if[0].feature;
+	ide_if[1].hob_feature = ide_if[1].feature;
         ide_if[0].feature = val;
         ide_if[1].feature = val;
         break;
     case 2:
-        if (val == 0)
-            val = 256;
+	ide_clear_hob(ide_if);
+	ide_if[0].hob_nsector = ide_if[0].nsector;
+	ide_if[1].hob_nsector = ide_if[1].nsector;
         ide_if[0].nsector = val;
         ide_if[1].nsector = val;
         break;
     case 3:
+	ide_clear_hob(ide_if);
+	ide_if[0].hob_sector = ide_if[0].sector;
+	ide_if[1].hob_sector = ide_if[1].sector;
         ide_if[0].sector = val;
         ide_if[1].sector = val;
         break;
     case 4:
+	ide_clear_hob(ide_if);
+	ide_if[0].hob_lcyl = ide_if[0].lcyl;
+	ide_if[1].hob_lcyl = ide_if[1].lcyl;
         ide_if[0].lcyl = val;
         ide_if[1].lcyl = val;
         break;
     case 5:
+	ide_clear_hob(ide_if);
+	ide_if[0].hob_hcyl = ide_if[0].hcyl;
+	ide_if[1].hob_hcyl = ide_if[1].hcyl;
         ide_if[0].hcyl = val;
         ide_if[1].hcyl = val;
         break;
     case 6:
+	/* FIXME: HOB readback uses bit 7 */
         ide_if[0].select = (val & ~0x10) | 0xa0;
         ide_if[1].select = (val | 0x10) | 0xa0;
         /* select drive */
@@ -1542,6 +1620,7 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         /* ignore commands to non existant slave */
         if (s != ide_if && !s->bs) 
             break;
+
         switch(val) {
         case WIN_IDENTIFY:
             if (s->bs && !s->is_cdrom) {
@@ -1573,35 +1652,50 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             }
             ide_set_irq(s);
             break;
+        case WIN_VERIFY_EXT:
+	    lba48 = 1;
         case WIN_VERIFY:
         case WIN_VERIFY_ONCE:
             /* do sector number check ? */
+	    ide_cmd_lba48_transform(s, lba48);
             s->status = READY_STAT;
             ide_set_irq(s);
             break;
+	case WIN_READ_EXT:
+	    lba48 = 1;
         case WIN_READ:
         case WIN_READ_ONCE:
             if (!s->bs) 
                 goto abort_cmd;
+	    ide_cmd_lba48_transform(s, lba48);
             s->req_nb_sectors = 1;
             ide_sector_read(s);
             break;
+	case WIN_WRITE_EXT:
+	    lba48 = 1;
         case WIN_WRITE:
         case WIN_WRITE_ONCE:
+	    ide_cmd_lba48_transform(s, lba48);
             s->error = 0;
             s->status = SEEK_STAT | READY_STAT;
             s->req_nb_sectors = 1;
             ide_transfer_start(s, s->io_buffer, 512, ide_sector_write);
             break;
+	case WIN_MULTREAD_EXT:
+	    lba48 = 1;
         case WIN_MULTREAD:
             if (!s->mult_sectors)
                 goto abort_cmd;
+	    ide_cmd_lba48_transform(s, lba48);
             s->req_nb_sectors = s->mult_sectors;
             ide_sector_read(s);
             break;
+        case WIN_MULTWRITE_EXT:
+	    lba48 = 1;
         case WIN_MULTWRITE:
             if (!s->mult_sectors)
                 goto abort_cmd;
+	    ide_cmd_lba48_transform(s, lba48);
             s->error = 0;
             s->status = SEEK_STAT | READY_STAT;
             s->req_nb_sectors = s->mult_sectors;
@@ -1610,19 +1704,28 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
                 n = s->req_nb_sectors;
             ide_transfer_start(s, s->io_buffer, 512 * n, ide_sector_write);
             break;
+	case WIN_READDMA_EXT:
+	    lba48 = 1;
         case WIN_READDMA:
         case WIN_READDMA_ONCE:
             if (!s->bs) 
                 goto abort_cmd;
+	    ide_cmd_lba48_transform(s, lba48);
             ide_sector_read_dma(s);
             break;
+	case WIN_WRITEDMA_EXT:
+	    lba48 = 1;
         case WIN_WRITEDMA:
         case WIN_WRITEDMA_ONCE:
             if (!s->bs) 
                 goto abort_cmd;
+	    ide_cmd_lba48_transform(s, lba48);
             ide_sector_write_dma(s);
             break;
+        case WIN_READ_NATIVE_MAX_EXT:
+	    lba48 = 1;
         case WIN_READ_NATIVE_MAX:
+	    ide_cmd_lba48_transform(s, lba48);
             ide_set_sector(s, s->nb_sectors - 1);
             s->status = READY_STAT;
             ide_set_irq(s);
@@ -1672,9 +1775,10 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
                 goto abort_cmd;
             }
             break;
+        case WIN_FLUSH_CACHE:
+        case WIN_FLUSH_CACHE_EXT:
 	case WIN_STANDBYNOW1:
         case WIN_IDLEIMMEDIATE:
-        case WIN_FLUSH_CACHE:
 	    s->status = READY_STAT;
             ide_set_irq(s);
             break;
@@ -1726,9 +1830,12 @@ static uint32_t ide_ioport_read(void *opaque, uint32_t addr1)
     IDEState *ide_if = opaque;
     IDEState *s = ide_if->cur_drive;
     uint32_t addr;
-    int ret;
+    int ret, hob;
 
     addr = addr1 & 7;
+    /* FIXME: HOB readback uses bit 7, but it's always set right now */
+    //hob = s->select & (1 << 7);
+    hob = 0;
     switch(addr) {
     case 0:
         ret = 0xff;
@@ -1736,32 +1843,42 @@ static uint32_t ide_ioport_read(void *opaque, uint32_t addr1)
     case 1:
         if (!ide_if[0].bs && !ide_if[1].bs)
             ret = 0;
-        else
+        else if (!hob)
             ret = s->error;
+	else
+	    ret = s->hob_feature;
         break;
     case 2:
         if (!ide_if[0].bs && !ide_if[1].bs)
             ret = 0;
-        else
+        else if (!hob)
             ret = s->nsector & 0xff;
+	else
+	    ret = s->hob_nsector;
         break;
     case 3:
         if (!ide_if[0].bs && !ide_if[1].bs)
             ret = 0;
-        else
+        else if (!hob)
             ret = s->sector;
+	else
+	    ret = s->hob_sector;
         break;
     case 4:
         if (!ide_if[0].bs && !ide_if[1].bs)
             ret = 0;
-        else
+        else if (!hob)
             ret = s->lcyl;
+	else
+	    ret = s->hob_lcyl;
         break;
     case 5:
         if (!ide_if[0].bs && !ide_if[1].bs)
             ret = 0;
-        else
+        else if (!hob)
             ret = s->hcyl;
+	else
+	    ret = s->hob_hcyl;
         break;
     case 6:
         if (!ide_if[0].bs && !ide_if[1].bs)
