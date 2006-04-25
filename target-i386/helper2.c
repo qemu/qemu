@@ -110,6 +110,7 @@ CPUX86State *cpu_x86_init(void)
         env->pat = 0x0007040600070406ULL;
         env->cpuid_ext_features = CPUID_EXT_SSE3;
         env->cpuid_features |= CPUID_FXSR | CPUID_MMX | CPUID_SSE | CPUID_SSE2 | CPUID_PAE | CPUID_SEP;
+        env->cpuid_features |= CPUID_APIC;
         env->cpuid_xlevel = 0;
         {
             const char *model_id = "QEMU Virtual CPU version " QEMU_VERSION;
@@ -125,7 +126,6 @@ CPUX86State *cpu_x86_init(void)
         }
 #ifdef TARGET_X86_64
         /* currently not enabled for std i386 because not fully tested */
-        env->cpuid_features |= CPUID_APIC;
         env->cpuid_ext2_features = (env->cpuid_features & 0x0183F3FF);
         env->cpuid_ext2_features |= CPUID_EXT2_LM | CPUID_EXT2_SYSCALL | CPUID_EXT2_NX;
         env->cpuid_xlevel = 0x80000008;
