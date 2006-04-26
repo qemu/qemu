@@ -269,7 +269,7 @@ static void sun4m_init(int ram_size, int vga_ram_size, int boot_device,
                                  prom_offset | IO_MEM_ROM);
 
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, PROM_FILENAMEE);
-    ret = load_elf(buf, 0);
+    ret = load_elf(buf, 0, NULL);
     if (ret < 0) {
 	snprintf(buf, sizeof(buf), "%s/%s", bios_dir, PROM_FILENAMEB);
 	ret = load_image(buf, phys_ram_base + prom_offset);
@@ -282,7 +282,7 @@ static void sun4m_init(int ram_size, int vga_ram_size, int boot_device,
 
     kernel_size = 0;
     if (linux_boot) {
-        kernel_size = load_elf(kernel_filename, -0xf0000000);
+        kernel_size = load_elf(kernel_filename, -0xf0000000, NULL);
         if (kernel_size < 0)
 	    kernel_size = load_aout(kernel_filename, phys_ram_base + KERNEL_LOAD_ADDR);
 	if (kernel_size < 0)

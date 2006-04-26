@@ -138,19 +138,23 @@ static int glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab)
     return -1;
 }
 
-int glue(load_elf, SZ)(int fd, int64_t virt_to_phys_addend, int must_swab)
+int glue(load_elf, SZ)(int fd, int64_t virt_to_phys_addend,
+                       int must_swab, uint64_t *pentry)
 {
     struct elfhdr ehdr;
     struct elf_phdr *phdr = NULL, *ph;
     int size, i, total_size;
     elf_word mem_size, addr;
-    uint8_t *data;
+    uint8_t *data = NULL;
 
     if (read(fd, &ehdr, sizeof(ehdr)) != sizeof(ehdr))
         goto fail;
     if (must_swab) {
         glue(bswap_ehdr, SZ)(&ehdr);
     }
+
+    if (pentry)
+   	*pentry = (uint64_t)ehdr.e_entry;
 
     glue(load_symbols, SZ)(&ehdr, fd, must_swab);
 
@@ -176,7 +180,8 @@ int glue(load_elf, SZ)(int fd, int64_t virt_to_phys_addend, int must_swab)
             /* XXX: avoid allocating */
             data = qemu_mallocz(mem_size);
             if (ph->p_filesz > 0) {
-                lseek(fd, ph->p_offset, SEEK_SET);
+                if (lseek(fd, ph->p_offset, SEEK_SET) < 0)
+                    goto fail;
                 if (read(fd, data, ph->p_filesz) != ph->p_filesz)
                     goto fail;
             }
@@ -187,10 +192,12 @@ int glue(load_elf, SZ)(int fd, int64_t virt_to_phys_addend, int must_swab)
             total_size += mem_size;
 
             qemu_free(data);
+            data = NULL;
         }
     }
     return total_size;
  fail:
+    qemu_free(data);
     qemu_free(phdr);
     return -1;
 }

@@ -194,7 +194,8 @@ static void *load_at(int fd, int offset, int size)
 #include "elf_ops.h"
 
 /* return < 0 if error, otherwise the number of bytes loaded in memory */
-int load_elf(const char *filename, int64_t virt_to_phys_addend)
+int load_elf(const char *filename, int64_t virt_to_phys_addend,
+             uint64_t *pentry)
 {
     int fd, data_order, must_swab, ret;
     uint8_t e_ident[EI_NIDENT];
@@ -220,9 +221,9 @@ int load_elf(const char *filename, int64_t virt_to_phys_addend)
     
     lseek(fd, 0, SEEK_SET);
     if (e_ident[EI_CLASS] == ELFCLASS64) {
-        ret = load_elf64(fd, virt_to_phys_addend, must_swab);
+        ret = load_elf64(fd, virt_to_phys_addend, must_swab, pentry);
     } else {
-        ret = load_elf32(fd, virt_to_phys_addend, must_swab);
+        ret = load_elf32(fd, virt_to_phys_addend, must_swab, pentry);
     }
 
     close(fd);
