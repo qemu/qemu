@@ -7,7 +7,6 @@
 #include <fenv.h>
 #endif
 #endif
-#include "gnu-c99-math.h"
 
 typedef float float32;
 typedef double float64;
