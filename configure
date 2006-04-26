@@ -51,7 +51,7 @@ case "$cpu" in
   s390)
     cpu="s390"
   ;;
-  sparc)
+  sparc|sun4[muv])
     cpu="sparc"
   ;;
   sparc64)
@@ -296,7 +296,7 @@ cc="${cross_prefix}${cc}"
 ar="${cross_prefix}${ar}"
 strip="${cross_prefix}${strip}"
 
-if [ -z `which $cc` ] ; then
+if [ ! -x "`which $cc`" ] ; then
     echo "Compiler $cc could not be found"
     exit
 fi
@@ -339,16 +339,6 @@ if test "$solaris" = "yes" ; then
     echo "Error: Solaris /usr/sbin/install is not an appropriate install program."
     echo "try ginstall from the GNU fileutils available from www.blastwave.org"
     echo "using pkg-get -i fileutils, or use --install=/usr/ucb/install"
-    exit 1
-  fi
-  soltexi2html=`which texi2html 2> /dev/null | /usr/bin/grep -v "no texi2html in"`
-  if test -z "$soltexi2html" ; then
-    echo "Error: No path includes texi2html."
-    if test -f /usr/sfw/bin/texi2html ; then
-      echo "Add /usr/sfw/bin to your path and rerun configure"
-    else
-      echo "Add the directory holding the texi2html to your path and rerun configure"
-    fi
     exit 1
   fi
   sol_ar=`which ar 2> /dev/null | /usr/bin/grep -v "no ar in"`
@@ -492,7 +482,7 @@ fi # cross compilation
 fi # -z $sdl
 
 # Check if tools are available to build documentation.
-if [ ! -z `which texi2html` ] && [ ! -z `which pod2man` ]; then
+if [ -x "`which texi2html`" ] && [ -x "`which pod2man`" ]; then
   build_docs="yes"
 fi
 
