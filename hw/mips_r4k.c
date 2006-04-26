@@ -5,6 +5,8 @@
 #define KERNEL_LOAD_ADDR 0x80010000
 #define INITRD_LOAD_ADDR 0x80800000
 
+#define VIRT_TO_PHYS_ADDEND (-0x80000000LL)
+
 extern FILE *logfile;
 
 static PITState *pit;
@@ -101,6 +103,7 @@ void cpu_mips_clock_init (CPUState *env)
     cpu_mips_update_count(env, 1, 0);
 }
 
+
 static void io_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
 #if 0
@@ -189,72 +192,71 @@ void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
                     const char *initrd_filename)
 {
     char buf[1024];
-    target_ulong kernel_base, kernel_size, initrd_base, initrd_size;
+    int64_t entry = 0;
     unsigned long bios_offset;
     int io_memory;
-    int linux_boot;
     int ret;
     CPUState *env;
-
-    printf("%s: start\n", __func__);
-    linux_boot = (kernel_filename != NULL);
+    long kernel_size;
 
     env = cpu_init();
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
 
     /* allocate RAM */
     cpu_register_physical_memory(0, ram_size, IO_MEM_RAM);
+
+    /* Try to load a BIOS image. If this fails, we continue regardless,
+       but initialize the hardware ourselves. When a kernel gets
+       preloaded we also initialize the hardware, since the BIOS wasn't
+       run. */
     bios_offset = ram_size + vga_ram_size;
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
     printf("%s: load BIOS '%s' size %d\n", __func__, buf, BIOS_SIZE);
     ret = load_image(buf, phys_ram_base + bios_offset);
-    if (ret != BIOS_SIZE) {
-        fprintf(stderr, "qemu: could not load MIPS bios '%s'\n", buf);
-        exit(1);
+    if (ret == BIOS_SIZE) {
+	cpu_register_physical_memory((uint32_t)(0x1fc00000),
+				     BIOS_SIZE, bios_offset | IO_MEM_ROM);
+	env->PC = 0xBFC00000;
+	if (!kernel_filename)
+	    return;
+    } else {
+	/* not fatal */
+        fprintf(stderr, "qemu: Warning, could not load MIPS bios '%s'\n",
+		buf);
     }
-    cpu_register_physical_memory((uint32_t)(0x1fc00000),
-                                 BIOS_SIZE, bios_offset | IO_MEM_ROM);
-#if 0
-    memcpy(phys_ram_base + 0x10000, phys_ram_base + bios_offset, BIOS_SIZE);
-    env->PC = 0x80010004;
-#else
-    env->PC = 0xBFC00004;
-#endif
-    if (linux_boot) {
-        kernel_base = KERNEL_LOAD_ADDR;
-        /* now we can load the kernel */
-        kernel_size = load_image(kernel_filename,
-                                phys_ram_base + (kernel_base - 0x80000000));
-        if (kernel_size == (target_ulong) -1) {
-            fprintf(stderr, "qemu: could not load kernel '%s'\n", 
-                    kernel_filename);
-            exit(1);
-        }
+
+    kernel_size = 0;
+    if (kernel_filename) {
+	kernel_size = load_elf(kernel_filename, VIRT_TO_PHYS_ADDEND, &entry);
+	if (kernel_size >= 0)
+	    env->PC = entry;
+	else {
+	    kernel_size = load_image(kernel_filename,
+                                     phys_ram_base + KERNEL_LOAD_ADDR + VIRT_TO_PHYS_ADDEND);
+            if (kernel_size < 0) {
+                fprintf(stderr, "qemu: could not load kernel '%s'\n",
+                        kernel_filename);
+                exit(1);
+            }
+            env->PC = KERNEL_LOAD_ADDR;
+	}
+
         /* load initrd */
         if (initrd_filename) {
-            initrd_base = INITRD_LOAD_ADDR;
-            initrd_size = load_image(initrd_filename,
-                                     phys_ram_base + initrd_base);
-            if (initrd_size == (target_ulong) -1) {
+            if (load_image(initrd_filename,
+			   phys_ram_base + INITRD_LOAD_ADDR + VIRT_TO_PHYS_ADDEND)
+		== (target_ulong) -1) {
                 fprintf(stderr, "qemu: could not load initial ram disk '%s'\n", 
                         initrd_filename);
                 exit(1);
             }
-        } else {
-            initrd_base = 0;
-            initrd_size = 0;
         }
-        env->PC = KERNEL_LOAD_ADDR;
+
 	/* Store command line.  */
         strcpy (phys_ram_base + (16 << 20) - 256, kernel_cmdline);
         /* FIXME: little endian support */
         *(int *)(phys_ram_base + (16 << 20) - 260) = tswap32 (0x12345678);
         *(int *)(phys_ram_base + (16 << 20) - 264) = tswap32 (ram_size);
-    } else {
-        kernel_base = 0;
-        kernel_size = 0;
-        initrd_base = 0;
-        initrd_size = 0;
     }
 
     /* Init internal devices */
