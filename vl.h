@@ -1022,7 +1022,7 @@ void icp_pit_init(uint32_t base, void *pic, int irq);
 /* sh7750.c */
 struct SH7750State;
 
-struct SH7750State *sh7750_init(CPUSH4State * cpu);
+struct SH7750State *sh7750_init(CPUState * cpu);
 
 typedef struct {
     /* The callback will be triggered if any of the designated lines change */
