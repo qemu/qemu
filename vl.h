@@ -987,6 +987,7 @@ extern QEMUMachine integratorcp1026_machine;
 
 /* versatilepb.c */
 extern QEMUMachine versatilepb_machine;
+extern QEMUMachine versatileab_machine;
 
 /* ps2.c */
 void *ps2_kbd_init(void (*update_irq)(void *, int), void *update_arg);
@@ -1018,6 +1019,12 @@ void *pl190_init(uint32_t base, void *parent, int irq, int fiq);
 /* arm-timer.c */
 void sp804_init(uint32_t base, void *pic, int irq);
 void icp_pit_init(uint32_t base, void *pic, int irq);
+
+/* arm_boot.c */
+
+void arm_load_kernel(int ram_size, const char *kernel_filename,
+                     const char *kernel_cmdline, const char *initrd_filename,
+                     int board_id);
 
 /* sh7750.c */
 struct SH7750State;
