@@ -1618,6 +1618,11 @@ int do_fork(CPUState *env, unsigned int flags, unsigned long newsp)
             for (i = 7; i < 32; i++)
                 new_env->gpr[i] = 0;
         }
+#elif defined(TARGET_SH4)
+	if (!newsp)
+	  newsp = env->gregs[15];
+	new_env->gregs[15] = newsp;
+	/* XXXXX */
 #else
 #error unsupported target CPU
 #endif

@@ -163,10 +163,23 @@ enum bfd_architecture
 #define bfd_mach_z8002         2
   bfd_arch_h8500,      /* Hitachi H8/500 */
   bfd_arch_sh,         /* Hitachi SH */
-#define bfd_mach_sh            0
+#define bfd_mach_sh            1
+#define bfd_mach_sh2        0x20
+#define bfd_mach_sh_dsp     0x2d
+#define bfd_mach_sh2a       0x2a
+#define bfd_mach_sh2a_nofpu 0x2b
+#define bfd_mach_sh2e       0x2e
 #define bfd_mach_sh3        0x30
+#define bfd_mach_sh3_nommu  0x31
+#define bfd_mach_sh3_dsp    0x3d
 #define bfd_mach_sh3e       0x3e
 #define bfd_mach_sh4        0x40
+#define bfd_mach_sh4_nofpu  0x41
+#define bfd_mach_sh4_nommu_nofpu  0x42
+#define bfd_mach_sh4a       0x4a
+#define bfd_mach_sh4a_nofpu 0x4b
+#define bfd_mach_sh4al_dsp  0x4d
+#define bfd_mach_sh5        0x50
   bfd_arch_alpha,      /* Dec Alpha */
   bfd_arch_arm,        /* Advanced Risc Machines ARM */
 #define bfd_mach_arm_2         1

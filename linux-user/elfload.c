@@ -274,6 +274,30 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 
 #endif /* TARGET_MIPS */
 
+#ifdef TARGET_SH4
+
+#define ELF_START_MMAP 0x80000000
+
+#define elf_check_arch(x) ( (x) == EM_SH )
+
+#define ELF_CLASS ELFCLASS32
+#define ELF_DATA  ELFDATA2LSB
+#define ELF_ARCH  EM_SH
+
+#define ELF_PLAT_INIT(_r) /* XXXXX */
+
+static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
+{
+  /* Check other registers XXXXX */
+  regs->pc = infop->entry;
+  regs->regs[15] = infop->start_stack - 16 * 4;
+}
+
+#define USE_ELF_CORE_DUMP
+#define ELF_EXEC_PAGESIZE        4096
+
+#endif
+
 #ifndef ELF_PLATFORM
 #define ELF_PLATFORM (NULL)
 #endif

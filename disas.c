@@ -73,7 +73,7 @@ generic_print_address (addr, info)
      bfd_vma addr;
      struct disassemble_info *info;
 {
-  (*info->fprintf_func) (info->stream, "0x%llx", addr);
+    (*info->fprintf_func) (info->stream, "0x%llx", addr);
 }
 
 /* Just return the given address.  */
@@ -194,6 +194,9 @@ void target_disas(FILE *out, target_ulong code, target_ulong size, int flags)
 #endif
 #elif defined(TARGET_M68K)
     print_insn = print_insn_m68k;
+#elif defined(TARGET_SH4)
+    disasm_info.mach = bfd_mach_sh4;
+    print_insn = print_insn_sh;
 #else
     fprintf(out, "0x" TARGET_FMT_lx
 	    ": Asm output not supported on this arch\n", code);

@@ -487,6 +487,45 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
     env->PC = tswapl(*(uint32_t *)ptr);
     ptr += 4;
 }
+#elif defined (TARGET_SH4)
+static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
+{
+  uint32_t *ptr = (uint32_t *)mem_buf;
+  int i;
+
+#define SAVE(x) *ptr++=tswapl(x)
+  for (i = 0; i < 16; i++) SAVE(env->gregs[i]);
+  SAVE (env->pc);
+  SAVE (env->pr);
+  SAVE (env->gbr);
+  SAVE (env->vbr);
+  SAVE (env->mach);
+  SAVE (env->macl);
+  SAVE (env->sr);
+  SAVE (0); /* TICKS */
+  SAVE (0); /* STALLS */
+  SAVE (0); /* CYCLES */
+  SAVE (0); /* INSTS */
+  SAVE (0); /* PLR */
+
+  return ((uint8_t *)ptr - mem_buf);
+}
+
+static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
+{
+  uint32_t *ptr = (uint32_t *)mem_buf;
+  int i;
+
+#define LOAD(x) (x)=*ptr++;
+  for (i = 0; i < 16; i++) LOAD(env->gregs[i]);
+  LOAD (env->pc);
+  LOAD (env->pr);
+  LOAD (env->gbr);
+  LOAD (env->vbr);
+  LOAD (env->mach);
+  LOAD (env->macl);
+  LOAD (env->sr);
+}
 #else
 static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
 {
@@ -531,6 +570,8 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
             env->npc = addr + 4;
 #elif defined (TARGET_ARM)
             env->regs[15] = addr;
+#elif defined (TARGET_SH4)
+	    env->pc = addr;
 #endif
         }
 #ifdef CONFIG_USER_ONLY
@@ -551,6 +592,8 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
             env->npc = addr + 4;
 #elif defined (TARGET_ARM)
             env->regs[15] = addr;
+#elif defined (TARGET_SH4)
+	    env->pc = addr;
 #endif
         }
         cpu_single_step(env, 1);

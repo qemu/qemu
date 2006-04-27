@@ -732,6 +732,13 @@ void page_unprotect_range(target_ulong data, target_ulong data_size);
 #define cpu_gen_code cpu_mips_gen_code
 #define cpu_signal_handler cpu_mips_signal_handler
 
+#elif defined(TARGET_SH4)
+#define CPUState CPUSH4State
+#define cpu_init cpu_sh4_init
+#define cpu_exec cpu_sh4_exec
+#define cpu_gen_code cpu_sh4_gen_code
+#define cpu_signal_handler cpu_sh4_signal_handler
+
 #else
 
 #error unsupported target CPU

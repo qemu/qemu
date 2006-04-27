@@ -359,7 +359,7 @@ if test -z "$target_list" ; then
     fi
 # the following are Linux specific
     if [ "$user" = "yes" ] ; then
-        target_list="i386-user arm-user armeb-user sparc-user ppc-user mips-user mipsel-user $target_list"
+        target_list="i386-user arm-user armeb-user sparc-user ppc-user mips-user mipsel-user sh4-user $target_list"
     fi
 else
     target_list=`echo "$target_list" | sed -e 's/,/ /g'`
@@ -807,6 +807,10 @@ elif test "$target_cpu" = "mips" -o "$target_cpu" = "mipsel" ; then
   echo "TARGET_ARCH=mips" >> $config_mak
   echo "#define TARGET_ARCH \"mips\"" >> $config_h
   echo "#define TARGET_MIPS 1" >> $config_h
+elif test "$target_cpu" = "sh4" ; then
+  echo "TARGET_ARCH=sh4" >> $config_mak
+  echo "#define TARGET_ARCH \"sh4\"" >> $config_h
+  echo "#define TARGET_SH4 1" >> $config_h
 else
   echo "Unsupported target CPU"
   exit 1

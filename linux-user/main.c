@@ -1387,6 +1387,38 @@ void cpu_loop(CPUMIPSState *env)
 }
 #endif
 
+#ifdef TARGET_SH4
+void cpu_loop (CPUState *env)
+{
+    int trapnr, ret;
+    //    target_siginfo_t info;
+    
+    while (1) {
+        trapnr = cpu_sh4_exec (env);
+        
+        switch (trapnr) {
+        case 0x160:
+            ret = do_syscall(env, 
+                             env->gregs[0x13], 
+                             env->gregs[0x14], 
+                             env->gregs[0x15], 
+                             env->gregs[0x16], 
+                             env->gregs[0x17], 
+                             env->gregs[0x10], 
+                             0);
+            env->gregs[0x10] = ret;
+            env->pc += 2;
+            break;
+        default:
+            printf ("Unhandled trap: 0x%x\n", trapnr);
+            cpu_dump_state(env, stderr, fprintf, 0);
+            exit (1);
+        }
+        process_pending_signals (env);
+    }
+}
+#endif
+
 void usage(void)
 {
     printf("qemu-" TARGET_ARCH " version " QEMU_VERSION ", Copyright (c) 2003-2005 Fabrice Bellard\n"
@@ -1664,6 +1696,15 @@ int main(int argc, char **argv)
             env->gpr[i] = regs->regs[i];
         }
         env->PC = regs->cp0_epc;
+    }
+#elif defined(TARGET_SH4)
+    {
+        int i;
+
+        for(i = 0; i < 16; i++) {
+            env->gregs[i] = regs->regs[i];
+        }
+        env->pc = regs->pc;
     }
 #else
 #error unsupported target CPU

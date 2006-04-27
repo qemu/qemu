@@ -61,6 +61,8 @@
 #define CPU_MEM_INDEX ((env->psrs) == 0)
 #elif defined (TARGET_ARM)
 #define CPU_MEM_INDEX ((env->uncached_cpsr & CPSR_M) == ARM_CPU_MODE_USR)
+#elif defined (TARGET_SH4)
+#define CPU_MEM_INDEX ((env->sr & SR_MD) == 0)
 #else
 #error unsupported CPU
 #endif
@@ -78,6 +80,8 @@
 #define CPU_MEM_INDEX ((env->psrs) == 0)
 #elif defined (TARGET_ARM)
 #define CPU_MEM_INDEX ((env->uncached_cpsr & CPSR_M) == ARM_CPU_MODE_USR)
+#elif defined (TARGET_SH4)
+#define CPU_MEM_INDEX ((env->sr & SR_MD) == 0)
 #else
 #error unsupported CPU
 #endif
