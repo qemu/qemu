@@ -6,6 +6,7 @@ version 0.8.1:
   - IDE LBA48 support (Jens Axboe)
   - SSE3 support
   - Solaris port (Ben Taylor)
+  - Preliminary SH4 target (Samuel Tardieu)
 
 version 0.8.0:
 

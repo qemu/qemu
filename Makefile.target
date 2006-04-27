@@ -476,10 +476,10 @@ ifeq ($(TARGET_ARCH), sh4)
 op.o: op.c op_mem.c cpu.h
 op_helper.o: op_helper.c exec.h cpu.h
 helper.o: helper.c exec.h cpu.h
-sh7750.o: sh7750.c sh7750.h sh7750_regs.h sh7750_regnames.h cpu.h
-shix.o: shix.c sh7750.h sh7750_regs.h sh7750_regnames.h tc58128.h
+sh7750.o: sh7750.c sh7750_regs.h sh7750_regnames.h cpu.h
+shix.o: shix.c sh7750_regs.h sh7750_regnames.h
 sh7750_regnames.o: sh7750_regnames.c sh7750_regnames.h sh7750_regs.h
-tc58128.o: tc58128.c tc58128.h sh7750.h
+tc58128.o: tc58128.c
 endif
 
 %.o: %.c
