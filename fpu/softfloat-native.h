@@ -38,9 +38,9 @@ typedef union {
 #if defined(_BSD) && !defined(__APPLE__)
 enum {
     float_round_nearest_even = FP_RN,
-    float_round_down         = FE_RM,
-    float_round_up           = FE_RP,
-    float_round_to_zero      = FE_RZ
+    float_round_down         = FP_RM,
+    float_round_up           = FP_RP,
+    float_round_to_zero      = FP_RZ
 };
 #elif defined(__arm__)
 enum {
