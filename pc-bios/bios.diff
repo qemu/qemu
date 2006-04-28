@@ -1,10 +1,25 @@
+Index: apmbios.S
+===================================================================
+RCS file: /cvsroot/bochs/bochs/bios/apmbios.S,v
+retrieving revision 1.4
+diff -u -w -r1.4 apmbios.S
+--- apmbios.S	26 Dec 2005 10:35:51 -0000	1.4
++++ apmbios.S	28 Apr 2006 22:41:19 -0000
+@@ -225,6 +225,7 @@
+ APMSYM(05):
+   cmp al, #0x05
+   jne APMSYM(07)
++  sti
+   hlt
+   jmp APMSYM(ok)
+ 
 Index: rombios.c
 ===================================================================
 RCS file: /cvsroot/bochs/bochs/bios/rombios.c,v
 retrieving revision 1.160
 diff -u -w -r1.160 rombios.c
 --- rombios.c	25 Jan 2006 17:51:49 -0000	1.160
-+++ rombios.c	2 Apr 2006 18:29:51 -0000
++++ rombios.c	28 Apr 2006 22:41:21 -0000
 @@ -1816,6 +1816,7 @@
  {
    printf(BX_APPNAME" BIOS - build: %s\n%s\nOptions: ",
