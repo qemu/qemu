@@ -271,7 +271,7 @@ static void pic_reset(void *opaque)
     s->rotate_on_auto_eoi = 0;
     s->special_fully_nested_mode = 0;
     s->init4 = 0;
-    s->elcr = 0;
+    /* Note: ELCR is not reset */
 }
 
 static void pic_ioport_write(void *opaque, uint32_t addr, uint32_t val)
