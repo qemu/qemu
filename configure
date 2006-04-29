@@ -167,7 +167,7 @@ else
 fi
 
 for opt do
-  optarg=`expr "$opt" : '[^=]*=\(.*\)'`
+  optarg=`expr "x$opt" : 'x[^=]*=\(.*\)'`
   case "$opt" in
   --help|-h) show_help=yes
   ;;
