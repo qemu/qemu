@@ -1,16 +1,46 @@
 \input texinfo @c -*- texinfo -*-
+@c %**start of header
+@setfilename qemu-doc.info
+@settitle QEMU CPU Emulator User Documentation
+@exampleindent 0
+@paragraphindent 0
+@c %**end of header
 
 @iftex
-@settitle QEMU CPU Emulator User Documentation
 @titlepage
 @sp 7
-@center @titlefont{QEMU CPU Emulator User Documentation}
+@center @titlefont{QEMU CPU Emulator}
+@sp 1
+@center @titlefont{User Documentation}
 @sp 3
 @end titlepage
 @end iftex
 
+@ifnottex
+@node Top
+@top
+
+@menu
+* Introduction::
+* Installation::
+* QEMU PC System emulator::
+* QEMU System emulator for non PC targets::
+* QEMU Linux User space emulator::
+* compilation:: Compilation from the sources
+* Index::
+@end menu
+@end ifnottex
+
+@contents
+
+@node Introduction
 @chapter Introduction
 
+@menu
+* intro_features:: Features
+@end menu
+
+@node intro_features
 @section Features
 
 QEMU is a FAST! processor emulator using dynamic translation to
@@ -52,27 +82,53 @@ For system emulation, the following hardware targets are supported:
 
 For user emulation, x86, PowerPC, ARM, MIPS, and Sparc32/64 CPUs are supported.
 
+@node Installation
 @chapter Installation
 
 If you want to compile QEMU yourself, see @ref{compilation}.
 
+@menu
+* install_linux::   Linux
+* install_windows:: Windows
+* install_mac::     Macintosh
+@end menu
+
+@node install_linux
 @section Linux
 
 If a precompiled package is available for your distribution - you just
 have to install it. Otherwise, see @ref{compilation}.
 
+@node install_windows
 @section Windows
 
 Download the experimental binary installer at
-@url{http://www.free.oszoo.org/download.html}.
+@url{http://www.free.oszoo.org/@/download.html}.
 
+@node install_mac
 @section Mac OS X
 
 Download the experimental binary installer at
-@url{http://www.free.oszoo.org/download.html}.
+@url{http://www.free.oszoo.org/@/download.html}.
 
+@node QEMU PC System emulator
 @chapter QEMU PC System emulator
 
+@menu
+* pcsys_introduction:: Introduction
+* pcsys_quickstart::   Quick Start
+* sec_invocation::     Invocation
+* pcsys_keys::         Keys
+* pcsys_monitor::      QEMU Monitor
+* disk_images::        Disk Images
+* pcsys_network::      Network emulation
+* direct_linux_boot::  Direct Linux Boot
+* pcsys_usb::          USB emulation
+* gdb_usage::          GDB usage
+* pcsys_os_specific::  Target OS specific information
+@end menu
+
+@node pcsys_introduction
 @section Introduction
 
 @c man begin DESCRIPTION
@@ -118,6 +174,7 @@ QEMU uses YM3812 emulation by Tatsuyuki Satoh.
 
 @c man end
 
+@node pcsys_quickstart
 @section Quick Start
 
 Download and uncompress the linux image (@file{linux.img}) and type:
@@ -147,14 +204,14 @@ Select the emulated machine (@code{-M ?} for list)
 
 @item -fda file
 @item -fdb file
-Use @var{file} as floppy disk 0/1 image (@xref{disk_images}). You can
+Use @var{file} as floppy disk 0/1 image (@pxref{disk_images}). You can
 use the host floppy by using @file{/dev/fd0} as filename.
 
 @item -hda file
 @item -hdb file
 @item -hdc file
 @item -hdd file
-Use @var{file} as hard disk 0, 1, 2 or 3 image (@xref{disk_images}).
+Use @var{file} as hard disk 0, 1, 2 or 3 image (@pxref{disk_images}).
 
 @item -cdrom file
 Use @var{file} as CD-ROM image (you cannot use @option{-hdc} and and
@@ -168,7 +225,7 @@ the default.
 @item -snapshot
 Write to temporary files instead of disk image files. In this case,
 the raw disk image you use is not written back. You can however force
-the write back by pressing @key{C-a s} (@xref{disk_images}). 
+the write back by pressing @key{C-a s} (@pxref{disk_images}). 
 
 @item -m megs
 Set virtual RAM size to @var{megs} megabytes. Default is 128 MB.
@@ -304,9 +361,12 @@ specifies an already opened TCP socket.
 Example:
 @example
 # launch a first QEMU instance
-qemu linux.img -net nic,macaddr=52:54:00:12:34:56 -net socket,listen=:1234
-# connect the VLAN 0 of this instance to the VLAN 0 of the first instance
-qemu linux.img -net nic,macaddr=52:54:00:12:34:57 -net socket,connect=127.0.0.1:1234
+qemu linux.img -net nic,macaddr=52:54:00:12:34:56 \
+               -net socket,listen=:1234
+# connect the VLAN 0 of this instance to the VLAN 0
+# of the first instance
+qemu linux.img -net nic,macaddr=52:54:00:12:34:57 \
+               -net socket,connect=127.0.0.1:1234
 @end example
 
 @item -net socket[,vlan=n][,fd=h][,mcast=maddr:port]
@@ -328,17 +388,22 @@ mcast support is compatible with User Mode Linux (argument @option{eth@var{N}=mc
 Example:
 @example
 # launch one QEMU instance
-qemu linux.img -net nic,macaddr=52:54:00:12:34:56 -net socket,mcast=230.0.0.1:1234
+qemu linux.img -net nic,macaddr=52:54:00:12:34:56 \
+               -net socket,mcast=230.0.0.1:1234
 # launch another QEMU instance on same "bus"
-qemu linux.img -net nic,macaddr=52:54:00:12:34:57 -net socket,mcast=230.0.0.1:1234
+qemu linux.img -net nic,macaddr=52:54:00:12:34:57 \
+               -net socket,mcast=230.0.0.1:1234
 # launch yet another QEMU instance on same "bus"
-qemu linux.img -net nic,macaddr=52:54:00:12:34:58 -net socket,mcast=230.0.0.1:1234
+qemu linux.img -net nic,macaddr=52:54:00:12:34:58 \
+               -net socket,mcast=230.0.0.1:1234
 @end example
 
 Example (User Mode Linux compat.):
 @example
-# launch QEMU instance (note mcast address selected is UML's default)
-qemu linux.img -net nic,macaddr=52:54:00:12:34:56 -net socket,mcast=239.192.168.1:1102
+# launch QEMU instance (note mcast address selected
+# is UML's default)
+qemu linux.img -net nic,macaddr=52:54:00:12:34:56 \
+               -net socket,mcast=239.192.168.1:1102
 # launch UML
 /path/to/linux ubd0=/path/to/root_fs eth0=mcast
 @end example
@@ -471,7 +536,7 @@ The default device is @code{vc} in graphical mode and @code{stdio} in
 non graphical mode.
 
 @item -s
-Wait gdb connection to port 1234 (@xref{gdb_usage}). 
+Wait gdb connection to port 1234 (@pxref{gdb_usage}). 
 @item -p port
 Change gdb connection port.
 @item -S
@@ -494,6 +559,7 @@ Start right away with a saved state (@code{loadvm} in monitor)
 
 @c man end
 
+@node pcsys_keys
 @section Keys
 
 @c man begin OPTIONS
@@ -542,9 +608,6 @@ Send Ctrl-a
 
 @ignore
 
-@setfilename qemu 
-@settitle QEMU System Emulator
-
 @c man begin SEEALSO
 The HTML documentation of QEMU for more precise information and Linux
 user mode emulator invocation.
@@ -556,8 +619,7 @@ Fabrice Bellard
 
 @end ignore
 
-@end ignore
-
+@node pcsys_monitor
 @section QEMU Monitor
 
 The QEMU monitor is used to give complex commands to the QEMU
@@ -683,7 +745,7 @@ Dump 10 instructions at the current instruction pointer:
 
 @item
 Dump 80 16 bit values at the start of the video memory.
-@example 
+@smallexample 
 (qemu) xp/80hx 0xb8000
 0x000b8000: 0x0b50 0x0b6c 0x0b65 0x0b78 0x0b38 0x0b36 0x0b2f 0x0b42
 0x000b8010: 0x0b6f 0x0b63 0x0b68 0x0b73 0x0b20 0x0b56 0x0b47 0x0b41
@@ -695,7 +757,7 @@ Dump 80 16 bit values at the start of the video memory.
 0x000b8070: 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720
 0x000b8080: 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720
 0x000b8090: 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720
-@end example
+@end smallexample
 @end itemize
 
 @item p or print/fmt expr
@@ -746,6 +808,14 @@ Since version 0.6.1, QEMU supports many disk image formats, including
 growable disk images (their size increase as non empty sectors are
 written), compressed and encrypted disk images.
 
+@menu
+* disk_images_quickstart::    Quick start for disk image creation
+* disk_images_snapshot_mode:: Snapshot mode
+* qemu_img_invocation::       qemu-img Invocation
+* disk_images_fat_images::    Virtual FAT disk images
+@end menu
+
+@node disk_images_quickstart
 @subsection Quick start for disk image creation
 
 You can create a disk image with the command:
@@ -756,8 +826,9 @@ where @var{myimage.img} is the disk image filename and @var{mysize} is its
 size in kilobytes. You can add an @code{M} suffix to give the size in
 megabytes and a @code{G} suffix for gigabytes.
 
-@xref{qemu_img_invocation} for more information.
+See @ref{qemu_img_invocation} for more information.
 
+@node disk_images_snapshot_mode
 @subsection Snapshot mode
 
 If you use the option @option{-snapshot}, all disk images are
@@ -771,6 +842,7 @@ command (or @key{C-a s} in the serial console).
 
 @include qemu-img.texi
 
+@node disk_images_fat_images
 @subsection Virtual FAT disk images
 
 QEMU can automatically create a virtual FAT disk image from a
@@ -805,6 +877,7 @@ What you should @emph{never} do:
 @item write to the FAT directory on the host system while accessing it with the guest system.
 @end itemize
 
+@node pcsys_network
 @section Network emulation
 
 QEMU can simulate several networks cards (NE2000 boards on the PC
@@ -908,10 +981,10 @@ seen from the emulated kernel at IP address 172.20.0.1.
 
 @item Launch @code{qemu.sh}. You should have the following output:
 
-@example
+@smallexample
 > ./qemu.sh 
 Connected to host network interface: tun0
-Linux version 2.4.21 (bellard@@voyager.localdomain) (gcc version 3.2.2 20030222 (Red Hat Linux 3.2.2-5)) #5 Tue Nov 11 18:18:53 CET 2003
+Linux version 2.4.21 (bellard@@voyager.localdomain) (gcc version 3.2.2 20030222 @/(Red Hat @/Linux 3.2.2-5)) #5 Tue Nov 11 18:18:53 CET 2003
 BIOS-provided physical RAM map:
  BIOS-e801: 0000000000000000 - 000000000009f000 (usable)
  BIOS-e801: 0000000000100000 - 0000000002000000 (usable)
@@ -920,7 +993,7 @@ On node 0 totalpages: 8192
 zone(0): 4096 pages.
 zone(1): 4096 pages.
 zone(2): 0 pages.
-Kernel command line: root=/dev/hda sb=0x220,5,1,5 ide2=noprobe ide3=noprobe ide4=noprobe ide5=noprobe console=ttyS0
+Kernel command line: root=/dev/hda sb=0x220,5,1,5 ide2=noprobe ide3=noprobe ide4=noprobe @/ide5=noprobe console=ttyS0
 ide_setup: ide2=noprobe
 ide_setup: ide3=noprobe
 ide_setup: ide4=noprobe
@@ -929,7 +1002,7 @@ Initializing CPU#0
 Detected 2399.621 MHz processor.
 Console: colour EGA 80x25
 Calibrating delay loop... 4744.80 BogoMIPS
-Memory: 28872k/32768k available (1210k kernel code, 3508k reserved, 266k data, 64k init, 0k highmem)
+Memory: 28872k/32768k available (1210k kernel code, 3508k reserved, 266k data, 64k init, @/0k highmem)
 Dentry cache hash table entries: 4096 (order: 3, 32768 bytes)
 Inode cache hash table entries: 2048 (order: 2, 16384 bytes)
 Mount cache hash table entries: 512 (order: 0, 4096 bytes)
@@ -971,14 +1044,14 @@ EXT2-fs warning: mounting unchecked fs, running e2fsck is recommended
 VFS: Mounted root (ext2 filesystem).
 Freeing unused kernel memory: 64k freed
  
-Linux version 2.4.21 (bellard@@voyager.localdomain) (gcc version 3.2.2 20030222 (Red Hat Linux 3.2.2-5)) #5 Tue Nov 11 18:18:53 CET 2003
+Linux version 2.4.21 (bellard@@voyager.localdomain) (gcc version 3.2.2 20030222 @/(Red Hat @/Linux 3.2.2-5)) #5 Tue Nov 11 18:18:53 CET 2003
  
 QEMU Linux test distribution (based on Redhat 9)
  
 Type 'exit' to halt the system
  
 sh-2.05b# 
-@end example
+@end smallexample
 
 @item
 Then you can play with the kernel inside the virtual serial console. You
@@ -1028,6 +1101,7 @@ Lawton for the plex86 Project (@url{www.plex86.org}).
 
 @end enumerate
 
+@node pcsys_usb
 @section USB emulation
 
 QEMU emulates a PCI UHCI USB controller and a 8 port USB hub connected
@@ -1111,7 +1185,8 @@ QEMU has a primitive support to work with gdb, so that you can do
 In order to use gdb, launch qemu with the '-s' option. It will wait for a
 gdb connection:
 @example
-> qemu -s -kernel arch/i386/boot/bzImage -hda root-2.4.20.img -append "root=/dev/hda"
+> qemu -s -kernel arch/i386/boot/bzImage -hda root-2.4.20.img \
+       -append "root=/dev/hda"
 Connected to host network interface: tun0
 Waiting gdb connection on port 1234
 @end example
@@ -1143,6 +1218,7 @@ Use @code{set architecture i8086} to dump 16 bit code. Then use
 @code{x/10i $cs*16+*eip} to dump the code at the PC position.
 @end enumerate
 
+@node pcsys_os_specific
 @section Target OS specific information
 
 @subsection Linux
@@ -1229,12 +1305,22 @@ it takes host CPU cycles even when idle. You can install the utility
 from @url{http://www.vmware.com/software/dosidle210.zip} to solve this
 problem.
 
+@node QEMU System emulator for non PC targets
 @chapter QEMU System emulator for non PC targets
 
 QEMU is a generic emulator and it emulates many non PC
 machines. Most of the options are similar to the PC emulator. The
 differences are mentionned in the following sections.
 
+@menu
+* QEMU PowerPC System emulator::
+* Sparc32 System emulator invocation::
+* Sparc64 System emulator invocation::
+* MIPS System emulator invocation::
+* ARM System emulator invocation::
+@end menu
+
+@node QEMU PowerPC System emulator
 @section QEMU PowerPC System emulator
 
 Use the executable @file{qemu-system-ppc} to simulate a complete PREP
@@ -1299,6 +1385,7 @@ Set the initial VGA graphic mode. The default is 800x600x15.
 More information is available at
 @url{http://perso.magic.fr/l_indien/qemu-ppc/}.
 
+@node Sparc32 System emulator invocation
 @section Sparc32 System emulator invocation
 
 Use the executable @file{qemu-system-sparc} to simulate a JavaStation
@@ -1327,7 +1414,7 @@ Floppy drive
 The number of peripherals is fixed in the architecture.
 
 QEMU uses the Proll, a PROM replacement available at
-@url{http://people.redhat.com/zaitcev/linux/}. The required
+@url{http://people.redhat.com/@/zaitcev/linux/}. The required
 QEMU-specific patches are included with the sources.
 
 A sample Linux 2.6 series kernel and ram disk image are available on
@@ -1348,6 +1435,7 @@ Set the initial TCX graphic mode. The default is 1024x768.
 
 @c man end 
 
+@node Sparc64 System emulator invocation
 @section Sparc64 System emulator invocation
 
 Use the executable @file{qemu-system-sparc64} to simulate a Sun4u machine.
@@ -1366,6 +1454,7 @@ Non Volatile RAM M48T59
 PC-compatible serial ports
 @end itemize
 
+@node MIPS System emulator invocation
 @section MIPS System emulator invocation
 
 Use the executable @file{qemu-system-mips} to simulate a MIPS machine.
@@ -1383,6 +1472,7 @@ NE2000 network card
 
 More information is available in the QEMU mailing-list archive.
 
+@node ARM System emulator invocation
 @section ARM System emulator invocation
 
 Use the executable @file{qemu-system-arm} to simulate a ARM
@@ -1401,8 +1491,16 @@ SMC 91c111 Ethernet adapter
 A Linux 2.6 test image is available on the QEMU web site. More
 information is available in the QEMU mailing-list archive.
 
+@node QEMU Linux User space emulator 
 @chapter QEMU Linux User space emulator 
 
+@menu
+* Quick Start::
+* Wine launch::
+* Command line options::
+@end menu
+
+@node Quick Start
 @section Quick Start
 
 In order to launch a Linux process, QEMU needs the process executable
@@ -1446,11 +1544,13 @@ Linux kernel.
 
 @item The x86 version of QEMU is also included. You can try weird things such as:
 @example
-qemu-i386 /usr/local/qemu-i386/bin/qemu-i386 /usr/local/qemu-i386/bin/ls-i386
+qemu-i386 /usr/local/qemu-i386/bin/qemu-i386 \
+          /usr/local/qemu-i386/bin/ls-i386
 @end example
 
 @end itemize
 
+@node Wine launch
 @section Wine launch
 
 @itemize
@@ -1467,17 +1567,19 @@ qemu-i386 /usr/local/qemu-i386/bin/ls-i386
 (@file{qemu-XXX-i386-wine.tar.gz} on the QEMU web page). 
 
 @item Configure Wine on your account. Look at the provided script
-@file{/usr/local/qemu-i386/bin/wine-conf.sh}. Your previous
+@file{/usr/local/qemu-i386/@/bin/wine-conf.sh}. Your previous
 @code{$@{HOME@}/.wine} directory is saved to @code{$@{HOME@}/.wine.org}.
 
 @item Then you can try the example @file{putty.exe}:
 
 @example
-qemu-i386 /usr/local/qemu-i386/wine/bin/wine /usr/local/qemu-i386/wine/c/Program\ Files/putty.exe
+qemu-i386 /usr/local/qemu-i386/wine/bin/wine \
+          /usr/local/qemu-i386/wine/c/Program\ Files/putty.exe
 @end example
 
 @end itemize
 
+@node Command line options
 @section Command line options
 
 @example
@@ -1505,6 +1607,14 @@ Act as if the host page size was 'pagesize' bytes
 @node compilation
 @chapter Compilation from the sources
 
+@menu
+* Linux/Unix::
+* Windows::
+* Cross compilation for Windows with Linux::
+* Mac OS X::
+@end menu
+
+@node Linux/Unix
 @section Linux/Unix
 
 @subsection Compilation
@@ -1562,6 +1672,7 @@ ARM       2.95.4   2.12.90.0.1   2.2.5    2.4.9 [3]   Debian 3.0
 variables. You must use gcc 3.x on PowerPC.
 @end example
 
+@node Windows
 @section Windows
 
 @itemize
@@ -1571,7 +1682,7 @@ instructions in the download section and the FAQ.
 
 @item Download 
 the MinGW development library of SDL 1.2.x
-(@file{SDL-devel-1.2.x-mingw32.tar.gz}) from
+(@file{SDL-devel-1.2.x-@/mingw32.tar.gz}) from
 @url{http://www.libsdl.org}. Unpack it in a temporary place, and
 unpack the archive @file{i386-mingw32msvc.tar.gz} in the MinGW tool
 directory. Edit the @file{sdl-config} script so that it gives the
@@ -1591,6 +1702,7 @@ correct SDL directory when invoked.
 
 @end itemize
 
+@node Cross compilation for Windows with Linux
 @section Cross compilation for Windows with Linux
 
 @itemize
@@ -1622,9 +1734,15 @@ installation directory.
 Note: Currently, Wine does not seem able to launch
 QEMU for Win32.
 
+@node Mac OS X
 @section Mac OS X
 
 The Mac OS X patches are not fully merged in QEMU, so you should look
 at the QEMU mailing list archive to have all the necessary
 information.
 
+@node Index
+@chapter Index
+@printindex cp
+
+@bye

@@ -1,7 +1,12 @@
 \input texinfo @c -*- texinfo -*-
+@c %**start of header
+@setfilename qemu-tech.info
+@settitle QEMU Internals
+@exampleindent 0
+@paragraphindent 0
+@c %**end of header
 
 @iftex
-@settitle QEMU Internals
 @titlepage
 @sp 7
 @center @titlefont{QEMU Internals}
@@ -9,8 +14,32 @@
 @end titlepage
 @end iftex
 
+@ifnottex
+@node Top
+@top
+
+@menu
+* Introduction::
+* QEMU Internals::
+* Regression Tests::
+* Index::
+@end menu
+@end ifnottex
+
+@contents
+
+@node Introduction
 @chapter Introduction
 
+@menu
+* intro_features::        Features
+* intro_x86_emulation::   x86 emulation
+* intro_arm_emulation::   ARM emulation
+* intro_ppc_emulation::   PowerPC emulation
+* intro_sparc_emulation:: SPARC emulation
+@end menu
+
+@node intro_features
 @section Features
 
 QEMU is a FAST! processor emulator using a portable dynamic
@@ -43,7 +72,7 @@ QEMU generic features:
 
 @item User space only or full system emulation.
 
-@item Using dynamic translation to native code for reasonnable speed.
+@item Using dynamic translation to native code for reasonable speed.
 
 @item Working on x86 and PowerPC hosts. Being tested on ARM, Sparc32, Alpha and S390.
 
@@ -65,13 +94,13 @@ QEMU user mode emulation features:
 
 @item Accurate signal handling by remapping host signals to target signals. 
 @end itemize
-@end itemize
 
 QEMU full system emulation features:
 @itemize 
 @item QEMU can either use a full software MMU for maximum portability or use the host system call mmap() to simulate the target MMU.
 @end itemize
 
+@node intro_x86_emulation
 @section x86 emulation
 
 QEMU x86 target features:
@@ -110,6 +139,7 @@ maximum performances.
 
 @end itemize
 
+@node intro_arm_emulation
 @section ARM emulation
 
 @itemize
@@ -122,6 +152,7 @@ maximum performances.
 
 @end itemize
 
+@node intro_ppc_emulation
 @section PowerPC emulation
 
 @itemize
@@ -133,6 +164,7 @@ FPU and MMU.
 
 @end itemize
 
+@node intro_sparc_emulation
 @section SPARC emulation
 
 @itemize
@@ -166,8 +198,26 @@ implemented.  Floating point exception support is untested.
 
 @end itemize
 
+@node QEMU Internals
 @chapter QEMU Internals
 
+@menu
+* QEMU compared to other emulators::
+* Portable dynamic translation::
+* Register allocation::
+* Condition code optimisations::
+* CPU state optimisations::
+* Translation cache::
+* Direct block chaining::
+* Self-modifying code and translated code invalidation::
+* Exception support::
+* MMU emulation::
+* Hardware interrupts::
+* User emulation specific details::
+* Bibliography::
+@end menu
+
+@node QEMU compared to other emulators
 @section QEMU compared to other emulators
 
 Like bochs [3], QEMU emulates an x86 CPU. But QEMU is much faster than
@@ -214,6 +264,7 @@ The commercial PC Virtualizers (VMWare [9], VirtualPC [10], TwoOStwo
 and potentially unsafe host drivers. Moreover, they are unable to
 provide cycle exact simulation as an emulator can.
 
+@node Portable dynamic translation
 @section Portable dynamic translation
 
 QEMU is a dynamic translator. When it first encounters a piece of code,
@@ -243,6 +294,7 @@ That way, QEMU is no more difficult to port than a dynamic linker.
 To go even faster, GCC static register variables are used to keep the
 state of the virtual CPU.
 
+@node Register allocation
 @section Register allocation
 
 Since QEMU uses fixed simple instructions, no efficient register
@@ -250,6 +302,7 @@ allocation can be done. However, because RISC CPUs have a lot of
 register, most of the virtual CPU state can be put in registers without
 doing complicated register allocation.
 
+@node Condition code optimisations
 @section Condition code optimisations
 
 Good CPU condition codes emulation (@code{EFLAGS} register on x86) is a
@@ -268,6 +321,7 @@ generated simple instructions (see
 the condition codes are not needed by the next instructions, no
 condition codes are computed at all.
 
+@node CPU state optimisations
 @section CPU state optimisations
 
 The x86 CPU has many internal states which change the way it evaluates
@@ -279,6 +333,7 @@ segment base.
 
 [The FPU stack pointer register is not handled that way yet].
 
+@node Translation cache
 @section Translation cache
 
 A 16 MByte cache holds the most recently used translations. For
@@ -287,6 +342,7 @@ contains just a single basic block (a block of x86 instructions
 terminated by a jump or by a virtual CPU state change which the
 translator cannot deduce statically).
 
+@node Direct block chaining
 @section Direct block chaining
 
 After each translated basic block is executed, QEMU uses the simulated
@@ -302,6 +358,7 @@ it easier to make the jump target modification atomic. On some host
 architectures (such as x86 or PowerPC), the @code{JUMP} opcode is
 directly patched so that the block chaining has no overhead.
 
+@node Self-modifying code and translated code invalidation
 @section Self-modifying code and translated code invalidation
 
 Self-modifying code is a special challenge in x86 emulation because no
@@ -332,6 +389,7 @@ built. Every store into that page checks the bitmap to see if the code
 really needs to be invalidated. It avoids invalidating the code when
 only data is modified in the page.
 
+@node Exception support
 @section Exception support
 
 longjmp() is used when an exception such as division by zero is
@@ -348,6 +406,7 @@ in some cases it is not computed because of condition code
 optimisations. It is not a big concern because the emulated code can
 still be restarted in any cases.
 
+@node MMU emulation
 @section MMU emulation
 
 For system emulation, QEMU uses the mmap() system call to emulate the
@@ -367,6 +426,7 @@ means that each basic block is indexed with its physical address.
 When MMU mappings change, only the chaining of the basic blocks is
 reset (i.e. a basic block can no longer jump directly to another one).
 
+@node Hardware interrupts
 @section Hardware interrupts
 
 In order to be faster, QEMU does not check at every basic block if an
@@ -377,6 +437,7 @@ block. It ensures that the execution will return soon in the main loop
 of the CPU emulator. Then the main loop can test if the interrupt is
 pending and handle it.
 
+@node User emulation specific details
 @section User emulation specific details
 
 @subsection Linux system call translation
@@ -434,6 +495,7 @@ space conflicts. QEMU solves this problem by being an executable ELF
 shared object as the ld-linux.so ELF interpreter. That way, it can be
 relocated at load time.
 
+@node Bibliography
 @section Bibliography
 
 @table @asis
@@ -456,7 +518,7 @@ by Kevin Lawton et al.
 x86 emulator on Alpha-Linux.
 
 @item [5]
-@url{http://www.usenix.org/publications/library/proceedings/usenix-nt97/full_papers/chernoff/chernoff.pdf},
+@url{http://www.usenix.org/publications/library/proceedings/usenix-nt97/@/full_papers/chernoff/chernoff.pdf},
 DIGITAL FX!32: Running 32-Bit x86 Applications on Alpha NT, by Anton
 Chernoff and Ray Hookway.
 
@@ -486,11 +548,19 @@ The TwoOStwo PC virtualizer.
 
 @end table
 
+@node Regression Tests
 @chapter Regression Tests
 
 In the directory @file{tests/}, various interesting testing programs
 are available. There are used for regression testing.
 
+@menu
+* test-i386::
+* linux-test::
+* qruncom.c::
+@end menu
+
+@node test-i386
 @section @file{test-i386}
 
 This program executes most of the 16 bit and 32 bit x86 instructions and
@@ -506,12 +576,20 @@ The Linux system call @code{vm86()} is used to test vm86 emulation.
 Various exceptions are raised to test most of the x86 user space
 exception reporting.
 
+@node linux-test
 @section @file{linux-test}
 
 This program tests various Linux system calls. It is used to verify
 that the system call parameters are correctly converted between target
 and host CPUs.
 
+@node qruncom.c
 @section @file{qruncom.c}
 
 Example of usage of @code{libqemu} to emulate a user mode i386 CPU.
+
+@node Index
+@chapter Index
+@printindex cp
+
+@bye
