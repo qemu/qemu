@@ -25,7 +25,7 @@ struct ex_list *exec_list;
 /* XXX: suppress those select globals */
 fd_set *global_readfds, *global_writefds, *global_xfds;
 
-const char slirp_hostname[33];
+char slirp_hostname[33];
 
 #ifdef _WIN32
 

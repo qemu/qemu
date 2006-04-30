@@ -3132,9 +3132,7 @@ int net_client_init(const char *str)
 #ifdef CONFIG_SLIRP
     if (!strcmp(device, "user")) {
         if (get_param_value(buf, sizeof(buf), "hostname", p)) {
-            if (strlen(buf) > 32)
-              buf[32] = 0;
-            strcpy(slirp_hostname, buf);
+            pstrcpy(slirp_hostname, sizeof(slirp_hostname), buf);
         }
         ret = net_slirp_init(vlan);
     } else
