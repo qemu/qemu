@@ -1,9 +1,5 @@
 #include "vl.h"
-
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <fcntl.h>
+#include "qemu_socket.h"
 
 #define VNC_REFRESH_INTERVAL (1000 / 30)
 
@@ -386,14 +382,14 @@ static void buffer_append(Buffer *buffer, const void *data, size_t len)
     buffer->offset += len;
 }
 
-static int vnc_client_io_error(VncState *vs, int ret)
+static int vnc_client_io_error(VncState *vs, int ret, int last_errno)
 {
     if (ret == 0 || ret == -1) {
-	if (ret == -1 && (errno == EINTR || errno == EAGAIN))
+	if (ret == -1 && (last_errno == EINTR || last_errno == EAGAIN))
 	    return 0;
 
 	qemu_set_fd_handler2(vs->csock, NULL, NULL, NULL, NULL);
-	close(vs->csock);
+	closesocket(vs->csock);
 	vs->csock = -1;
 	buffer_reset(&vs->input);
 	buffer_reset(&vs->output);
@@ -405,8 +401,7 @@ static int vnc_client_io_error(VncState *vs, int ret)
 
 static void vnc_client_error(VncState *vs)
 {
-    errno = EINVAL;
-    vnc_client_io_error(vs, -1);
+    vnc_client_io_error(vs, -1, EINVAL);
 }
 
 static void vnc_client_write(void *opaque)
@@ -414,8 +409,8 @@ static void vnc_client_write(void *opaque)
     ssize_t ret;
     VncState *vs = opaque;
 
-    ret = write(vs->csock, vs->output.buffer, vs->output.offset);
-    ret = vnc_client_io_error(vs, ret);
+    ret = send(vs->csock, vs->output.buffer, vs->output.offset, 0);
+    ret = vnc_client_io_error(vs, ret, socket_error());
     if (!ret)
 	return;
 
@@ -440,8 +435,8 @@ static void vnc_client_read(void *opaque)
 
     buffer_reserve(&vs->input, 4096);
 
-    ret = read(vs->csock, buffer_end(&vs->input), 4096);
-    ret = vnc_client_io_error(vs, ret);
+    ret = recv(vs->csock, buffer_end(&vs->input), 4096, 0);
+    ret = vnc_client_io_error(vs, ret, socket_error());
     if (!ret)
 	return;
 
@@ -812,7 +807,7 @@ static void vnc_listen_read(void *opaque)
 
     vs->csock = accept(vs->lsock, (struct sockaddr *)&addr, &addrlen);
     if (vs->csock != -1) {
-	fcntl(vs->csock, F_SETFL, O_NONBLOCK);
+        socket_set_nonblock(vs->csock);
 	qemu_set_fd_handler2(vs->csock, NULL, vnc_client_read, NULL, opaque);
 	vnc_write(vs, "RFB 003.003\n", 12);
 	vnc_flush(vs);
@@ -862,7 +857,7 @@ void vnc_display_init(DisplayState *ds, int display)
 
     reuse_addr = 1;
     ret = setsockopt(vs->lsock, SOL_SOCKET, SO_REUSEADDR,
-		     &reuse_addr, sizeof(reuse_addr));
+		     (const char *)&reuse_addr, sizeof(reuse_addr));
     if (ret == -1) {
 	fprintf(stderr, "setsockopt() failed\n");
 	exit(1);

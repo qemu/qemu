@@ -66,11 +66,11 @@
 #include <malloc.h>
 #include <sys/timeb.h>
 #include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
 #define getopt_long_only getopt_long
 #define memalign(align, size) malloc(size)
 #endif
+
+#include "qemu_socket.h"
 
 #ifdef CONFIG_SDL
 #ifdef __APPLE__
@@ -1085,12 +1085,6 @@ CharDriverState *qemu_chr_open_null(void)
 
 #ifdef _WIN32
 
-#define socket_error() WSAGetLastError()
-#undef EINTR
-#define EWOULDBLOCK WSAEWOULDBLOCK
-#define EINTR       WSAEINTR
-#define EINPROGRESS WSAEINPROGRESS
-
 static void socket_cleanup(void)
 {
     WSACleanup();
@@ -1141,9 +1135,6 @@ void socket_set_nonblock(int fd)
 }
 
 #else
-
-#define socket_error() errno
-#define closesocket(s) close(s)
 
 static int unix_write(int fd, const uint8_t *buf, int len1)
 {
