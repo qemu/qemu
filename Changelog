@@ -7,6 +7,7 @@ version 0.8.1:
   - SSE3 support
   - Solaris port (Ben Taylor)
   - Preliminary SH4 target (Samuel Tardieu)
+  - VNC server (Anthony Liguori)
 
 version 0.8.0:
 

@@ -82,6 +82,13 @@ static inline char *realpath(const char *path, char *resolved_path)
 #define tostring(s)	#s
 #endif
 
+#ifndef MIN
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#endif
+#ifndef MAX
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#endif
+
 /* vl.c */
 uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c);
 
@@ -672,9 +679,12 @@ struct DisplayState {
     int depth;
     int width;
     int height;
+    void *opaque;
+
     void (*dpy_update)(struct DisplayState *s, int x, int y, int w, int h);
     void (*dpy_resize)(struct DisplayState *s, int w, int h);
     void (*dpy_refresh)(struct DisplayState *s);
+    void (*dpy_copy)(struct DisplayState *s, int src_x, int src_y, int dst_x, int dst_y, int w, int h);
 };
 
 static inline void dpy_update(DisplayState *s, int x, int y, int w, int h)
@@ -702,6 +712,9 @@ void sdl_display_init(DisplayState *ds, int full_screen);
 
 /* cocoa.m */
 void cocoa_display_init(DisplayState *ds, int full_screen);
+
+/* vnc.c */
+void vnc_display_init(DisplayState *ds, int display);
 
 /* ide.c */
 #define MAX_DISKS 4

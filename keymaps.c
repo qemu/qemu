@@ -99,8 +99,10 @@ static kbd_layout_t *parse_keyboard_layout(const char *language,
 				    "Warning: Could not assign keysym %s (0x%x) because of memory constraints.\n",
 				    line, keysym);
 			} else {
+#if 0
 			    fprintf(stderr, "Setting %d: %d,%d\n",
 				    k->extra_count, keysym, keycode);
+#endif
 			    k->keysym2keycode_extra[k->extra_count].
 				keysym = keysym;
 			    k->keysym2keycode_extra[k->extra_count].

@@ -185,6 +185,13 @@ command line application. The emulated serial port is redirected on
 the console. Therefore, you can still use QEMU to debug a Linux kernel
 with a serial console.
 
+@item -vnc d
+
+Normally, QEMU uses SDL to display the VGA output.  With this option,
+you can have QEMU listen on VNC display d and redirect the VGA display
+over the VNC session.  It is very useful to enable the usb tablet device
+when using this option (option @option{-usbdevice tablet}).
+
 @item -k language
 
 Use keyboard layout @var{language} (for example @code{fr} for

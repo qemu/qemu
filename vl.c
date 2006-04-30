@@ -149,6 +149,7 @@ USBPort *vm_usb_ports[MAX_VM_USB_PORTS];
 USBDevice *vm_usb_hub;
 static VLANState *first_vlan;
 int smp_cpus = 1;
+int vnc_display = -1;
 #if defined(TARGET_SPARC)
 #define MAX_CPUS 16
 #elif defined(TARGET_I386)
@@ -4638,6 +4639,7 @@ void help(void)
            "                (default is CL-GD5446 PCI VGA)\n"
 #endif
            "-loadvm file    start right away with a saved state (loadvm in monitor)\n"
+	   "-vnc display    start a VNC server on display\n"
            "\n"
            "During emulation, the following keys are useful:\n"
            "ctrl-alt-f      toggle full screen\n"
@@ -4721,6 +4723,7 @@ enum {
     QEMU_OPTION_usb,
     QEMU_OPTION_usbdevice,
     QEMU_OPTION_smp,
+    QEMU_OPTION_vnc,
 };
 
 typedef struct QEMUOption {
@@ -4788,6 +4791,7 @@ const QEMUOption qemu_options[] = {
     { "win2k-hack", 0, QEMU_OPTION_win2k_hack },
     { "usbdevice", HAS_ARG, QEMU_OPTION_usbdevice },
     { "smp", HAS_ARG, QEMU_OPTION_smp },
+    { "vnc", HAS_ARG, QEMU_OPTION_vnc },
     
     /* temporary options */
     { "usb", 0, QEMU_OPTION_usb },
@@ -5386,6 +5390,13 @@ int main(int argc, char **argv)
                     exit(1);
                 }
                 break;
+	    case QEMU_OPTION_vnc:
+		vnc_display = atoi(optarg);
+		if (vnc_display < 0) {
+		    fprintf(stderr, "Invalid VNC display\n");
+		    exit(1);
+		}
+		break;
             }
         }
     }
@@ -5551,6 +5562,8 @@ int main(int argc, char **argv)
     /* terminal init */
     if (nographic) {
         dumb_display_init(ds);
+    } if (vnc_display != -1) {
+	vnc_display_init(ds, vnc_display);
     } else {
 #if defined(CONFIG_SDL)
         sdl_display_init(ds, full_screen);
