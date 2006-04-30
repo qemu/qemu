@@ -85,6 +85,12 @@ cscope:
 %.html: %.texi
 	texi2html -monolithic -number $<
 
+%.info: %.texi
+	makeinfo $< -o $@
+
+%.dvi: %.texi
+	texi2dvi $<
+
 qemu.1: qemu-doc.texi
 	$(SRC_PATH)/texi2pod.pl $< qemu.pod
 	pod2man --section=1 --center=" " --release=" " qemu.pod > $@
