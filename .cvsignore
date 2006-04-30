@@ -25,3 +25,5 @@ mips-softmmu
 mipsel-softmmu
 mips-user
 mipsel-user
+sh4-user
+sh4-softmmu
