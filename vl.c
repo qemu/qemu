@@ -5560,7 +5560,7 @@ int main(int argc, char **argv)
     /* terminal init */
     if (nographic) {
         dumb_display_init(ds);
-    } if (vnc_display != -1) {
+    } else if (vnc_display != -1) {
 	vnc_display_init(ds, vnc_display);
     } else {
 #if defined(CONFIG_SDL)
