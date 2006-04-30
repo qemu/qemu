@@ -158,9 +158,9 @@ static const uint8_t qemu_hub_hub_descriptor[] =
 	0x0a,			/* u16  wHubCharacteristics; */
 	0x00,			/*   (per-port OC, no power switching) */
 	0x01,			/*  u8  bPwrOn2pwrGood; 2ms */
-	0x00,			/*  u8  bHubContrCurrent; 0 mA */
-	0x00,			/*  u8  DeviceRemovable; *** 7 Ports max *** */
-	0xff			/*  u8  PortPwrCtrlMask; *** 7 ports max *** */
+	0x00			/*  u8  bHubContrCurrent; 0 mA */
+
+        /* DeviceRemovable and PortPwrCtrlMask patched in later */
 };
 
 static void usb_hub_attach(USBPort *port1, USBDevice *dev)
@@ -219,6 +219,12 @@ static int usb_hub_handle_control(USBDevice *dev, int request, int value,
         }
         ret = 0;
         break;
+    case EndpointOutRequest | USB_REQ_CLEAR_FEATURE:
+        if (value == 0 && index != 0x81) { /* clear ep halt */
+            goto fail;
+        }
+        ret = 0;
+        break;
     case DeviceOutRequest | USB_REQ_SET_FEATURE:
         if (value == USB_DEVICE_REMOTE_WAKEUP) {
             dev->remote_wakeup = 1;
@@ -241,6 +247,11 @@ static int usb_hub_handle_control(USBDevice *dev, int request, int value,
         case USB_DT_CONFIG:
             memcpy(data, qemu_hub_config_descriptor, 
                    sizeof(qemu_hub_config_descriptor));
+
+            /* status change endpoint size based on number
+             * of ports */
+            data[22] = (s->nb_ports + 1 + 7) / 8;
+
             ret = sizeof(qemu_hub_config_descriptor);
             break;
         case USB_DT_STRING:
@@ -385,11 +396,29 @@ static int usb_hub_handle_control(USBDevice *dev, int request, int value,
         }
         break;
     case GetHubDescriptor:
-        memcpy(data, qemu_hub_hub_descriptor, 
-               sizeof(qemu_hub_hub_descriptor));
-        data[2] = s->nb_ports;
-        ret = sizeof(qemu_hub_hub_descriptor);
-        break;
+        {
+            unsigned int n, limit, var_hub_size = 0;
+            memcpy(data, qemu_hub_hub_descriptor, 
+                   sizeof(qemu_hub_hub_descriptor));
+            data[2] = s->nb_ports;
+
+            /* fill DeviceRemovable bits */
+            limit = ((s->nb_ports + 1 + 7) / 8) + 7;
+            for (n = 7; n < limit; n++) {
+                data[n] = 0x00;
+                var_hub_size++;
+            }
+
+            /* fill PortPwrCtrlMask bits */
+            limit = limit + ((s->nb_ports + 7) / 8);
+            for (;n < limit; n++) {
+                data[n] = 0xff;
+                var_hub_size++;
+            }
+
+            ret = sizeof(qemu_hub_hub_descriptor) + var_hub_size;
+            break;
+        }
     default:
     fail:
         ret = USB_RET_STALL;
@@ -411,8 +440,11 @@ static int usb_hub_handle_data(USBDevice *dev, int pid,
             unsigned int status;
             int i, n;
             n = (s->nb_ports + 1 + 7) / 8;
-            if (n > len)
+            if (len == 1) { /* FreeBSD workaround */
+                n = 1;
+            } else if (n > len) {
                 return USB_RET_BABBLE;
+            }
             status = 0;
             for(i = 0; i < s->nb_ports; i++) {
                 port = &s->ports[i];
@@ -425,7 +457,7 @@ static int usb_hub_handle_data(USBDevice *dev, int pid,
                 }
                 ret = n;
             } else {
-                ret = 0;
+                ret = USB_RET_NAK; /* usb11 11.13.1 */
             }
         } else {
             goto fail;
