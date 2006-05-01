@@ -100,8 +100,10 @@ struct tcphdr {
  * With an IP MSS of 576, this is 536,
  * but 512 is probably more convenient.
  * This should be defined as MIN(512, IP_MSS - sizeof (struct tcpiphdr)).
+ *
+ * We make this 1460 because we only care about Ethernet in the qemu context.
  */
-#define	TCP_MSS	512
+#define	TCP_MSS	1460
 
 #define	TCP_MAXWIN	65535	/* largest value for (unscaled) window */
 
