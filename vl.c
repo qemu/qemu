@@ -1023,7 +1023,11 @@ static void init_timers(void)
         getitimer(ITIMER_REAL, &itv);
 
 #if defined(__linux__)
-        if (itv.it_interval.tv_usec > 1000) {
+        /* XXX: force /dev/rtc usage because even 2.6 kernels may not
+           have timers with 1 ms resolution. The correct solution will
+           be to use the POSIX real time timers available in recent
+           2.6 kernels */
+        if (itv.it_interval.tv_usec > 1000 || 1) {
             /* try to use /dev/rtc to have a faster timer */
             if (start_rtc_timer() < 0)
                 goto use_itimer;
