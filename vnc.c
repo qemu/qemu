@@ -591,7 +591,7 @@ static void pointer_event(VncState *vs, int button_mask, int x, int y)
     }
 }
 
-static void key_event(VncState *vs, int down, uint32_t sym)
+static void do_key_event(VncState *vs, int down, uint32_t sym)
 {
     int keycode;
 
@@ -603,6 +603,13 @@ static void key_event(VncState *vs, int down, uint32_t sym)
 	kbd_put_keycode(keycode & 0x7f);
     else
 	kbd_put_keycode(keycode | 0x80);
+}
+
+static void key_event(VncState *vs, int down, uint32_t sym)
+{
+    if (sym >= 'A' && sym <= 'Z')
+	sym = sym - 'A' + 'a';
+    do_key_event(vs, down, sym);
 }
 
 static void framebuffer_update_request(VncState *vs, int incremental,
