@@ -344,8 +344,8 @@ insert:
 	while (q != (struct ipasfrag *)fp) {
 	  struct mbuf *t;
 	  t = dtom(q);
-	  m_cat(m, t);
 	  q = (struct ipasfrag *) q->ipf_next;
+	  m_cat(m, t);
 	}
 
 	/*
