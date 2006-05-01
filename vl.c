@@ -558,6 +558,7 @@ int64_t cpu_get_real_ticks(void)
 #error unsupported CPU
 #endif
 
+static int64_t cpu_ticks_prev;
 static int64_t cpu_ticks_offset;
 static int cpu_ticks_enabled;
 
@@ -566,7 +567,15 @@ static inline int64_t cpu_get_ticks(void)
     if (!cpu_ticks_enabled) {
         return cpu_ticks_offset;
     } else {
-        return cpu_get_real_ticks() + cpu_ticks_offset;
+        int64_t ticks;
+        ticks = cpu_get_real_ticks();
+        if (cpu_ticks_prev > ticks) {
+            /* Note: non increasing ticks may happen if the host uses
+               software suspend */
+            cpu_ticks_offset += cpu_ticks_prev - ticks;
+        }
+        cpu_ticks_prev = ticks;
+        return ticks + cpu_ticks_offset;
     }
 }
 
