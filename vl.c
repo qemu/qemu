@@ -4409,7 +4409,7 @@ void qemu_system_powerdown_request(void)
 void main_loop_wait(int timeout)
 {
     IOHandlerRecord *ioh, *ioh_next;
-    fd_set rfds, wfds;
+    fd_set rfds, wfds, xfds;
     int ret, nfds;
     struct timeval tv;
     PollingEntry *pe;
@@ -4444,6 +4444,7 @@ void main_loop_wait(int timeout)
     nfds = -1;
     FD_ZERO(&rfds);
     FD_ZERO(&wfds);
+    FD_ZERO(&xfds);
     for(ioh = first_io_handler; ioh != NULL; ioh = ioh->next) {
         if (ioh->fd_read &&
             (!ioh->fd_read_poll ||
@@ -4465,7 +4466,12 @@ void main_loop_wait(int timeout)
 #else
     tv.tv_usec = timeout * 1000;
 #endif
-    ret = select(nfds + 1, &rfds, &wfds, NULL, &tv);
+#if defined(CONFIG_SLIRP)
+    if (slirp_inited) {
+        slirp_select_fill(&nfds, &rfds, &wfds, &xfds);
+    }
+#endif
+    ret = select(nfds + 1, &rfds, &wfds, &xfds, &tv);
     if (ret > 0) {
         /* XXX: better handling of removal */
         for(ioh = first_io_handler; ioh != NULL; ioh = ioh_next) {
@@ -4478,29 +4484,18 @@ void main_loop_wait(int timeout)
             }
         }
     }
+#if defined(CONFIG_SLIRP)
+    if (slirp_inited) {
+        if (ret < 0) {
+            FD_ZERO(&rfds);
+            FD_ZERO(&wfds);
+            FD_ZERO(&xfds);
+        }
+        slirp_select_poll(&rfds, &wfds, &xfds);
+    }
+#endif
 #ifdef _WIN32
     tap_win32_poll();
-#endif
-
-#if defined(CONFIG_SLIRP)
-    /* XXX: merge with the previous select() */
-    if (slirp_inited) {
-        fd_set rfds, wfds, xfds;
-        int nfds;
-        struct timeval tv;
-        
-        nfds = -1;
-        FD_ZERO(&rfds);
-        FD_ZERO(&wfds);
-        FD_ZERO(&xfds);
-        slirp_select_fill(&nfds, &rfds, &wfds, &xfds);
-        tv.tv_sec = 0;
-        tv.tv_usec = 0;
-        ret = select(nfds + 1, &rfds, &wfds, &xfds, &tv);
-        if (ret >= 0) {
-            slirp_select_poll(&rfds, &wfds, &xfds);
-        }
-    }
 #endif
 
     if (vm_running) {
