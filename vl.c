@@ -518,9 +518,15 @@ int64_t cpu_get_real_ticks(void)
 
 int64_t cpu_get_real_ticks(void)
 {
+#ifdef _WIN32
+    LARGE_INTEGER ti;
+    QueryPerformanceCounter(&ti);
+    return ti.QuadPart;
+#else
     int64_t val;
     asm volatile ("rdtsc" : "=A" (val));
     return val;
+#endif
 }
 
 #elif defined(__x86_64__)
@@ -598,17 +604,26 @@ void cpu_disable_ticks(void)
     }
 }
 
+#ifdef _WIN32
+void cpu_calibrate_ticks(void)
+{
+    LARGE_INTEGER freq;
+    int ret;
+
+    ret = QueryPerformanceFrequency(&freq);
+    if (ret == 0) {
+        fprintf(stderr, "Could not calibrate ticks\n");
+        exit(1);
+    }
+    ticks_per_sec = freq.QuadPart;
+}
+
+#else
 static int64_t get_clock(void)
 {
-#ifdef _WIN32
-    struct _timeb tb;
-    _ftime(&tb);
-    return ((int64_t)tb.time * 1000 + (int64_t)tb.millitm) * 1000;
-#else
     struct timeval tv;
     gettimeofday(&tv, NULL);
     return tv.tv_sec * 1000000LL + tv.tv_usec;
-#endif
 }
 
 void cpu_calibrate_ticks(void)
@@ -617,15 +632,12 @@ void cpu_calibrate_ticks(void)
 
     usec = get_clock();
     ticks = cpu_get_real_ticks();
-#ifdef _WIN32
-    Sleep(50);
-#else
     usleep(50 * 1000);
-#endif
     usec = get_clock() - usec;
     ticks = cpu_get_real_ticks() - ticks;
     ticks_per_sec = (ticks * 1000000LL + (usec >> 1)) / usec;
 }
+#endif /* !_WIN32 */
 
 /* compute with 96 bit intermediate result: (a*b)/c */
 uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c)
@@ -673,6 +685,8 @@ QEMUClock *vm_clock;
 static QEMUTimer *active_timers[2];
 #ifdef _WIN32
 static MMRESULT timerID;
+static HANDLE host_alarm = NULL;
+static unsigned int period = 1;
 #else
 /* frequency of the times() clock tick */
 static int timer_freq;
@@ -895,6 +909,9 @@ static void host_alarm_handler(int host_signum)
                            qemu_get_clock(vm_clock)) ||
         qemu_timer_expired(active_timers[QEMU_TIMER_REALTIME],
                            qemu_get_clock(rt_clock))) {
+#ifdef _WIN32
+        SetEvent(host_alarm);
+#endif
         CPUState *env = cpu_single_env;
         if (env) {
             /* stop the currently executing cpu because a timer occured */
@@ -955,8 +972,15 @@ static void init_timers(void)
 #ifdef _WIN32
     {
         int count=0;
+        TIMECAPS tc;
+
+        ZeroMemory(&tc, sizeof(TIMECAPS));
+        timeGetDevCaps(&tc, sizeof(TIMECAPS));
+        if (period < tc.wPeriodMin)
+            period = tc.wPeriodMin;
+        timeBeginPeriod(period);
         timerID = timeSetEvent(1,     // interval (ms)
-                               0,     // resolution
+                               period,     // resolution
                                host_alarm_handler, // function
                                (DWORD)&count,  // user parameter
                                TIME_PERIODIC | TIME_CALLBACK_FUNCTION);
@@ -964,6 +988,12 @@ static void init_timers(void)
             perror("failed timer alarm");
             exit(1);
  	}
+        host_alarm = CreateEvent(NULL, FALSE, FALSE, NULL);
+        if (!host_alarm) {
+            perror("failed CreateEvent");
+            exit(1);
+        }
+        ResetEvent(host_alarm);
     }
     pit_min_timer_count = ((uint64_t)10000 * PIT_FREQ) / 1000000;
 #else
@@ -1023,6 +1053,11 @@ void quit_timers(void)
 {
 #ifdef _WIN32
     timeKillEvent(timerID);
+    timeEndPeriod(period);
+    if (host_alarm) {
+        CloseHandle(host_alarm);
+        host_alarm = NULL;
+    }
 #endif
 }
 
@@ -4383,7 +4418,21 @@ void main_loop_wait(int timeout)
     }
 #ifdef _WIN32
     if (ret == 0 && timeout > 0) {
-        Sleep(timeout);
+            int err;
+            HANDLE hEvents[1];
+
+            hEvents[0] = host_alarm;
+            ret = WaitForMultipleObjects(1, hEvents, FALSE, timeout);
+            switch(ret) {
+            case WAIT_OBJECT_0 + 0:
+                break;
+            case WAIT_TIMEOUT:
+                break;
+            default:
+                err = GetLastError();
+                fprintf(stderr, "Wait error %d %d\n", ret, err);
+                break;
+            }
     }
 #endif
     /* poll any events */
