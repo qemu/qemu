@@ -148,9 +148,6 @@ if [ "$solaris" = "yes" ] ; then
     make="gmake"
     install="ginstall"
     solarisrev=`uname -r | cut -f2 -d.`
-    if test $solarisrev -lt 10 ; then
-      presolaris10="yes"
-    fi
 fi
 
 # find source path
@@ -640,9 +637,7 @@ if test "$darwin" = "yes" ; then
 fi
 if test "$solaris" = "yes" ; then
   echo "CONFIG_SOLARIS=yes" >> $config_mak
-  if test "$presolaris10" = "yes" ; then
-    echo "#define _PRESOLARIS10 1" >> $config_h
-  fi
+  echo "#define HOST_SOLARIS $solarisrev" >> $config_h
 fi
 if test "$gdbstub" = "yes" ; then
   echo "CONFIG_GDBSTUB=yes" >> $config_mak

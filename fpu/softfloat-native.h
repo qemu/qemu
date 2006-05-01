@@ -1,11 +1,36 @@
 /* Native implementation of soft float functions */
 #include <math.h>
-#if defined(_BSD) && !defined(__APPLE__)
+
+#if (defined(_BSD) && !defined(__APPLE__)) || defined(HOST_SOLARIS)
 #include <ieeefp.h>
+#define fabsf(f) ((float)fabs(f))
 #else
-#if !defined(_PRESOLARIS10)
 #include <fenv.h>
 #endif
+
+/*
+ * Define some C99-7.12.3 classification macros and
+ *        some C99-.12.4 for Solaris systems OS less than 10,
+ *        or Solaris 10 systems running GCC 3.x or less.
+ *   Solaris 10 with GCC4 does not need these macros as they
+ *   are defined in <iso/math_c99.h> with a compiler directive
+ */
+#if defined(HOST_SOLARIS) && (( HOST_SOLARIS <= 9 ) || ( ( HOST_SOLARIS >= 10 ) && ( __GNUC__ <= 4) ))
+/*
+ * C99 7.12.3 classification macros
+ * and
+ * C99 7.12.14 comparison macros
+ *
+ * ... do not work on Solaris 10 using GNU CC 3.4.x.
+ * Try to workaround the missing / broken C99 math macros.
+ */
+
+#define isnormal(x)             (fpclass(x) >= FP_NZERO)
+#define isgreater(x, y)         ((!unordered(x, y)) && ((x) > (y)))
+#define isgreaterequal(x, y)    ((!unordered(x, y)) && ((x) >= (y)))
+#define isless(x, y)            ((!unordered(x, y)) && ((x) < (y)))
+#define islessequal(x, y)       ((!unordered(x, y)) && ((x) <= (y)))
+#define isunordered(x,y)        unordered(x, y)
 #endif
 
 typedef float float32;
@@ -35,7 +60,7 @@ typedef union {
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE floating-point rounding mode.
 *----------------------------------------------------------------------------*/
-#if defined(_BSD) && !defined(__APPLE__)
+#if (defined(_BSD) && !defined(__APPLE__)) || defined(HOST_SOLARIS)
 enum {
     float_round_nearest_even = FP_RN,
     float_round_down         = FP_RM,
