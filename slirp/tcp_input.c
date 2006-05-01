@@ -580,28 +580,11 @@ findso:
 			 *	congestion avoidance sender won't send more until
 			 *	he gets an ACK.
 			 * 
-			 * Here are 3 interpretations of what should happen.
-			 * The best (for me) is to delay-ack everything except
-			 * if it's a one-byte packet containing an ESC
-			 * (this means it's an arrow key (or similar) sent using
-			 * Nagel, hence there will be no echo)
-			 * The first of these is the original, the second is the
-			 * middle ground between the other 2
+			 * It is better to not delay acks at all to maximize
+			 * TCP throughput.  See RFC 2581.
 			 */ 
-/*			if (((unsigned)ti->ti_len < tp->t_maxseg)) {
- */			     
-/*			if (((unsigned)ti->ti_len < tp->t_maxseg && 
- *			     (so->so_iptos & IPTOS_LOWDELAY) == 0) ||
- *			    ((so->so_iptos & IPTOS_LOWDELAY) && 
- *			     ((struct tcpiphdr_2 *)ti)->first_char == (char)27)) {
- */
-			if ((unsigned)ti->ti_len == 1 &&
-			    ((struct tcpiphdr_2 *)ti)->first_char == (char)27) {
-				tp->t_flags |= TF_ACKNOW;
-				tcp_output(tp);
-			} else {
-				tp->t_flags |= TF_DELACK;
-			}
+			tp->t_flags |= TF_ACKNOW;
+			tcp_output(tp);
 			return;
 		}
 	} /* header prediction */
