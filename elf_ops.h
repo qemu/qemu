@@ -195,6 +195,7 @@ int glue(load_elf, SZ)(int fd, int64_t virt_to_phys_addend,
             data = NULL;
         }
     }
+    qemu_free(phdr);
     return total_size;
  fail:
     qemu_free(data);
