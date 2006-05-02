@@ -24,29 +24,24 @@ LIBS=
 HELPER_CFLAGS=$(CFLAGS)
 DYNGEN=../dyngen$(EXESUF)
 # user emulator name
+TARGET_ARCH2=$(TARGET_ARCH)
 ifeq ($(TARGET_ARCH),arm)
   ifeq ($(TARGET_WORDS_BIGENDIAN),yes)
-    QEMU_USER=qemu-armeb
-  else
-    QEMU_USER=qemu-arm
+    TARGET_ARCH2=armeb
   endif
-else
+endif
 ifeq ($(TARGET_ARCH),mips)
-  ifeq ($(TARGET_WORDS_BIGENDIAN),yes)
-    QEMU_USER=qemu-mips
-  else
-    QEMU_USER=qemu-mipsel
+  ifneq ($(TARGET_WORDS_BIGENDIAN),yes)
+    TARGET_ARCH2=mipsel
   endif
-else
-  QEMU_USER=qemu-$(TARGET_ARCH)
 endif
-endif
+QEMU_USER=qemu-$(TARGET_ARCH2)
 # system emulator name
 ifdef CONFIG_SOFTMMU
 ifeq ($(TARGET_ARCH), i386)
 QEMU_SYSTEM=qemu$(EXESUF)
 else
-QEMU_SYSTEM=qemu-system-$(TARGET_ARCH)$(EXESUF)
+QEMU_SYSTEM=qemu-system-$(TARGET_ARCH2)$(EXESUF)
 endif
 else
 QEMU_SYSTEM=qemu-fast
