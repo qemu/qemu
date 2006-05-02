@@ -27,11 +27,14 @@ void cpu_mips_irqctrl_init (void)
 {
 }
 
+/* XXX: do not use a global */
 uint32_t cpu_mips_get_random (CPUState *env)
 {
-    uint32_t now = qemu_get_clock(vm_clock);
-
-    return now % (MIPS_TLB_NB - env->CP0_Wired) + env->CP0_Wired;
+    static uint32_t seed = 0;
+    uint32_t idx;
+    seed = seed * 314159 + 1;
+    idx = (seed >> 16) % (MIPS_TLB_NB - env->CP0_Wired) + env->CP0_Wired;
+    return idx;
 }
 
 /* MIPS R4K timer */
