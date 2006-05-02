@@ -75,10 +75,6 @@ typedef u_int32_t n_long;                 /* long as received from the net */
 
 /*
  * Structure of an internet header, naked of options.
- *
- * We declare ip_len and ip_off to be short, rather than u_short
- * pragmatically since otherwise unsigned comparisons can result
- * against negative integers quite easily, and fail in subtle ways.
  */
 struct ip {
 #ifdef WORDS_BIGENDIAN
@@ -89,9 +85,9 @@ struct ip {
 		ip_v:4;			/* version */
 #endif
 	u_int8_t ip_tos;			/* type of service */
-	int16_t	ip_len;			/* total length */
+	u_int16_t	ip_len;			/* total length */
 	u_int16_t	ip_id;			/* identification */
-	int16_t	ip_off;			/* fragment offset field */
+	u_int16_t	ip_off;			/* fragment offset field */
 #define	IP_DF 0x4000			/* don't fragment flag */
 #define	IP_MF 0x2000			/* more fragments flag */
 #define	IP_OFFMASK 0x1fff		/* mask for fragmenting bits */
@@ -212,7 +208,7 @@ struct ipovly {
 	caddr32_t	ih_next, ih_prev;	/* for protocol sequence q's */
 	u_int8_t	ih_x1;			/* (unused) */
 	u_int8_t	ih_pr;			/* protocol */
-	int16_t	ih_len;			/* protocol length */
+	u_int16_t	ih_len;			/* protocol length */
 	struct	in_addr ih_src;		/* source internet address */
 	struct	in_addr ih_dst;		/* destination internet address */
 };
@@ -253,9 +249,9 @@ struct	ipasfrag {
         u_int8_t ipf_mff;		/* XXX overlays ip_tos: use low bit
 					 * to avoid destroying tos (PPPDTRuu);
 					 * copied from (ip_off&IP_MF) */
-	int16_t	ip_len;
+	u_int16_t	ip_len;
 	u_int16_t	ip_id;
-	int16_t	ip_off;
+	u_int16_t	ip_off;
 	u_int8_t	ip_ttl;
 	u_int8_t	ip_p;
 	u_int16_t	ip_sum;
