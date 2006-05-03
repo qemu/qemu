@@ -8,6 +8,9 @@ version 0.8.1:
   - Solaris port (Ben Taylor)
   - Preliminary SH4 target (Samuel Tardieu)
   - VNC server (Anthony Liguori)
+  - slirp fixes (Ed Swierk et al.)
+  - USB fixes
+  - ARM Versatile Platform Baseboard emulation (Paul Brook)
 
 version 0.8.0:
 
