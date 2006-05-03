@@ -157,6 +157,7 @@ int vnc_display = -1;
 #else
 #define MAX_CPUS 1
 #endif
+int acpi_enabled = 1;
 
 /***********************************************************/
 /* x86 ISA bus support */
@@ -4675,6 +4676,7 @@ void help(void)
            "                translation (t=none or lba) (usually qemu can guess them)\n"
            "-L path         set the directory for the BIOS and VGA BIOS\n"
 #ifdef USE_KQEMU
+           "-kernel-kqemu   enable KQEMU full virtualization (default is user mode only)\n"
            "-no-kqemu       disable KQEMU kernel module usage\n"
 #endif
 #ifdef USE_CODE_COPY
@@ -4683,6 +4685,7 @@ void help(void)
 #ifdef TARGET_I386
            "-std-vga        simulate a standard VGA card with VESA Bochs Extensions\n"
            "                (default is CL-GD5446 PCI VGA)\n"
+           "-no-acpi        disable ACPI\n"
 #endif
            "-loadvm file    start right away with a saved state (loadvm in monitor)\n"
 	   "-vnc display    start a VNC server on display\n"
@@ -4770,6 +4773,7 @@ enum {
     QEMU_OPTION_usbdevice,
     QEMU_OPTION_smp,
     QEMU_OPTION_vnc,
+    QEMU_OPTION_no_acpi,
 };
 
 typedef struct QEMUOption {
@@ -4842,6 +4846,7 @@ const QEMUOption qemu_options[] = {
     /* temporary options */
     { "usb", 0, QEMU_OPTION_usb },
     { "cirrusvga", 0, QEMU_OPTION_cirrusvga },
+    { "no-acpi", 0, QEMU_OPTION_no_acpi },
     { NULL },
 };
 
@@ -5443,6 +5448,9 @@ int main(int argc, char **argv)
 		    exit(1);
 		}
 		break;
+            case QEMU_OPTION_no_acpi:
+                acpi_enabled = 0;
+                break;
             }
         }
     }

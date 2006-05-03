@@ -836,10 +836,15 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
         usb_attach(usb_root_ports[0], vm_usb_hub);
     }
 
+    if (pci_enabled && acpi_enabled) {
+        piix4_pm_init(pci_bus);
+    }
     /* must be done after all PCI devices are instanciated */
     /* XXX: should be done in the Bochs BIOS */
     if (pci_enabled) {
         pci_bios_init();
+        if (acpi_enabled)
+            acpi_bios_init();
     }
 }
 

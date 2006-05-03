@@ -316,7 +316,7 @@ ifeq ($(TARGET_BASE_ARCH), i386)
 # Hardware support
 VL_OBJS+= ide.o pckbd.o ps2.o vga.o $(SOUND_HW) dma.o $(AUDIODRV)
 VL_OBJS+= fdc.o mc146818rtc.o serial.o i8259.o i8254.o pcspk.o pc.o
-VL_OBJS+= cirrus_vga.o mixeng.o apic.o parallel.o
+VL_OBJS+= cirrus_vga.o mixeng.o apic.o parallel.o acpi.o
 DEFINES += -DHAS_AUDIO
 endif
 ifeq ($(TARGET_BASE_ARCH), ppc)
@@ -470,6 +470,11 @@ op_helper.o: op_helper_mem.c
 endif
 
 loader.o: loader.c elf_ops.h
+
+acpi.o: acpi.c acpi-dsdt.hex
+
+#$(SRC_PATH)/hw/acpi-dsdt.hex: acpi-dsdt.dsl
+#	iasl -tc -p $@ $<
 
 ifeq ($(TARGET_ARCH), sh4)
 op.o: op.c op_mem.c cpu.h
