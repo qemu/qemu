@@ -504,7 +504,7 @@ tcp_connect(inso)
 	so->so_faddr = addr.sin_addr;
 	/* Translate connections from localhost to the real hostname */
 	if (so->so_faddr.s_addr == 0 || so->so_faddr.s_addr == loopback_addr.s_addr)
-	   so->so_faddr = our_addr;
+	   so->so_faddr = alias_addr;
 	
 	/* Close the accept() socket, set right state */
 	if (inso->so_state & SS_FACCEPTONCE) {
@@ -840,7 +840,7 @@ tcp_emu(so, m)
 
 				if (ns->so_faddr.s_addr == 0 || 
 					ns->so_faddr.s_addr == loopback_addr.s_addr)
-                  ns->so_faddr = our_addr;
+                  ns->so_faddr = alias_addr;
 
 				ns->so_iptos = tcp_tos(ns);
 				tp = sototcpcb(ns);

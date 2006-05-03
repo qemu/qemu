@@ -9,6 +9,8 @@ struct in_addr loopback_addr;
 
 /* address for slirp virtual addresses */
 struct in_addr special_addr;
+/* virtual address alias for host */
+struct in_addr alias_addr;
 
 const uint8_t special_ethaddr[6] = { 
     0x52, 0x54, 0x00, 0x12, 0x35, 0x00
@@ -154,6 +156,7 @@ void slirp_init(void)
     }
 
     inet_aton(CTL_SPECIAL, &special_addr);
+    alias_addr.s_addr = special_addr.s_addr | htonl(CTL_ALIAS);
     getouraddr();
 }
 

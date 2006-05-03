@@ -34,6 +34,7 @@ extern u_int curtime;
 extern fd_set *global_readfds, *global_writefds, *global_xfds;
 extern struct in_addr ctl_addr;
 extern struct in_addr special_addr;
+extern struct in_addr alias_addr;
 extern struct in_addr our_addr;
 extern struct in_addr loopback_addr;
 extern struct in_addr dns_addr;
