@@ -63,40 +63,40 @@ DefinitionBlock (
                    table of the Bochs BIOS */
                    
                 // PCI Slot 0
-                Package() {0x0000ffff, 0, LNKA, 0}, 
-                Package() {0x0000ffff, 1, LNKB, 0}, 
-                Package() {0x0000ffff, 2, LNKC, 0}, 
-                Package() {0x0000ffff, 3, LNKD, 0}, 
-                
-                // PCI Slot 1
-                Package() {0x0001ffff, 0, LNKB, 0}, 
-                Package() {0x0001ffff, 1, LNKC, 0}, 
-                Package() {0x0001ffff, 2, LNKD, 0}, 
-                Package() {0x0001ffff, 3, LNKA, 0}, 
+                Package() {0x0000ffff, 0, LNKD, 0}, 
+                Package() {0x0000ffff, 1, LNKA, 0}, 
+                Package() {0x0000ffff, 2, LNKB, 0}, 
+                Package() {0x0000ffff, 3, LNKC, 0}, 
 
+                // PCI Slot 1
+                Package() {0x0001ffff, 0, LNKA, 0}, 
+                Package() {0x0001ffff, 1, LNKB, 0}, 
+                Package() {0x0001ffff, 2, LNKC, 0}, 
+                Package() {0x0001ffff, 3, LNKD, 0}, 
+                
                 // PCI Slot 2
-                Package() {0x0002ffff, 0, LNKC, 0}, 
-                Package() {0x0002ffff, 1, LNKD, 0}, 
-                Package() {0x0002ffff, 2, LNKA, 0}, 
-                Package() {0x0002ffff, 3, LNKB, 0}, 
+                Package() {0x0002ffff, 0, LNKB, 0}, 
+                Package() {0x0002ffff, 1, LNKC, 0}, 
+                Package() {0x0002ffff, 2, LNKD, 0}, 
+                Package() {0x0002ffff, 3, LNKA, 0}, 
 
                 // PCI Slot 3
-                Package() {0x0003ffff, 0, LNKD, 0}, 
-                Package() {0x0003ffff, 1, LNKA, 0}, 
-                Package() {0x0003ffff, 2, LNKB, 0}, 
-                Package() {0x0003ffff, 3, LNKC, 0}, 
+                Package() {0x0003ffff, 0, LNKC, 0}, 
+                Package() {0x0003ffff, 1, LNKD, 0}, 
+                Package() {0x0003ffff, 2, LNKA, 0}, 
+                Package() {0x0003ffff, 3, LNKB, 0}, 
 
                 // PCI Slot 4
-                Package() {0x0004ffff, 0, LNKA, 0}, 
-                Package() {0x0004ffff, 1, LNKB, 0}, 
-                Package() {0x0004ffff, 2, LNKC, 0}, 
-                Package() {0x0004ffff, 3, LNKD, 0}, 
+                Package() {0x0004ffff, 0, LNKD, 0}, 
+                Package() {0x0004ffff, 1, LNKA, 0}, 
+                Package() {0x0004ffff, 2, LNKB, 0}, 
+                Package() {0x0004ffff, 3, LNKC, 0}, 
 
                 // PCI Slot 5
-                Package() {0x0005ffff, 0, LNKB, 0}, 
-                Package() {0x0005ffff, 1, LNKC, 0}, 
-                Package() {0x0005ffff, 2, LNKD, 0}, 
-                Package() {0x0005ffff, 3, LNKA, 0}, 
+                Package() {0x0005ffff, 0, LNKA, 0}, 
+                Package() {0x0005ffff, 1, LNKB, 0}, 
+                Package() {0x0005ffff, 2, LNKC, 0}, 
+                Package() {0x0005ffff, 3, LNKD, 0}, 
             })
 
             Method (_CRS, 0, NotSerialized)
