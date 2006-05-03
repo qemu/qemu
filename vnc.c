@@ -431,7 +431,7 @@ static void vnc_client_error(VncState *vs)
 
 static void vnc_client_write(void *opaque)
 {
-    ssize_t ret;
+    long ret;
     VncState *vs = opaque;
 
     ret = send(vs->csock, vs->output.buffer, vs->output.offset, 0);
@@ -456,7 +456,7 @@ static void vnc_read_when(VncState *vs, VncReadEvent *func, size_t expecting)
 static void vnc_client_read(void *opaque)
 {
     VncState *vs = opaque;
-    ssize_t ret;
+    long ret;
 
     buffer_reserve(&vs->input, 4096);
 
