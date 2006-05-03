@@ -187,6 +187,7 @@ void helper_imulq_EAX_T0(void);
 void helper_imulq_T0_T1(void);
 void helper_divq_EAX_T0(void);
 void helper_idivq_EAX_T0(void);
+void helper_bswapq_T0(void);
 void helper_cmpxchg8b(void);
 void helper_cpuid(void);
 void helper_enter_level(int level, int data32);

@@ -225,7 +225,7 @@ void OPPROTO op_bswapl_T0(void)
 #ifdef TARGET_X86_64
 void OPPROTO op_bswapq_T0(void)
 {
-    T0 = bswap64(T0);
+    helper_bswapq_T0();
 }
 #endif
 

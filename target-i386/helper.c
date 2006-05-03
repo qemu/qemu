@@ -3395,6 +3395,10 @@ void helper_idivq_EAX_T0(void)
     EDX = r1;
 }
 
+void helper_bswapq_T0(void)
+{
+    T0 = bswap64(T0);
+}
 #endif
 
 float approx_rsqrt(float a)
