@@ -152,7 +152,7 @@ static const uint8_t qemu_hub_config_descriptor[] = {
 
 static const uint8_t qemu_hub_hub_descriptor[] =
 {
-	0x09,			/*  u8  bLength; */
+	0x00,			/*  u8  bLength; patched in later */
 	0x29,			/*  u8  bDescriptorType; Hub-descriptor */
 	0x00,			/*  u8  bNbrPorts; (patched later) */
 	0x0a,			/* u16  wHubCharacteristics; */
@@ -417,6 +417,7 @@ static int usb_hub_handle_control(USBDevice *dev, int request, int value,
             }
 
             ret = sizeof(qemu_hub_hub_descriptor) + var_hub_size;
+            data[0] = ret;
             break;
         }
     default:
