@@ -1215,7 +1215,7 @@ Use @code{info reg} to display all the CPU registers.
 Use @code{x/10i $eip} to display the code at the PC position.
 @item
 Use @code{set architecture i8086} to dump 16 bit code. Then use
-@code{x/10i $cs*16+*eip} to dump the code at the PC position.
+@code{x/10i $cs*16+$eip} to dump the code at the PC position.
 @end enumerate
 
 @node pcsys_os_specific
