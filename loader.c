@@ -200,7 +200,7 @@ int load_elf(const char *filename, int64_t virt_to_phys_addend,
     int fd, data_order, must_swab, ret;
     uint8_t e_ident[EI_NIDENT];
 
-    fd = open(filename, O_RDONLY);
+    fd = open(filename, O_RDONLY | O_BINARY);
     if (fd < 0) {
         perror(filename);
         return -1;
