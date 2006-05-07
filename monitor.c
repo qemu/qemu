@@ -666,6 +666,8 @@ static const KeyDef key_defs[] = {
     { 0x09, "8" },
     { 0x0a, "9" },
     { 0x0b, "0" },
+    { 0x0c, "minus" },
+    { 0x0d, "equal" },
     { 0x0e, "backspace" },
 
     { 0x0f, "tab" },
@@ -715,6 +717,24 @@ static const KeyDef key_defs[] = {
     { 0x45, "num_lock" },
     { 0x46, "scroll_lock" },
 
+    { 0xb5, "kp_divide" },
+    { 0x37, "kp_multiply" },
+    { 0x4a, "kp_substract" },
+    { 0x4e, "kp_add" },
+    { 0x9c, "kp_enter" },
+    { 0x53, "kp_decimal" },
+
+    { 0x52, "kp_0" },
+    { 0x4f, "kp_1" },
+    { 0x50, "kp_2" },
+    { 0x51, "kp_3" },
+    { 0x4b, "kp_4" },
+    { 0x4c, "kp_5" },
+    { 0x4d, "kp_6" },
+    { 0x47, "kp_7" },
+    { 0x48, "kp_8" },
+    { 0x49, "kp_9" },
+    
     { 0x56, "<" },
 
     { 0x57, "f11" },
@@ -740,10 +760,17 @@ static const KeyDef key_defs[] = {
 static int get_keycode(const char *key)
 {
     const KeyDef *p;
+    char *endp;
+    int ret;
 
     for(p = key_defs; p->name != NULL; p++) {
         if (!strcmp(key, p->name))
             return p->keycode;
+    }
+    if (strstart(key, "0x", NULL)) {
+        ret = strtoul(key, &endp, 0);
+        if (*endp == '\0' && ret >= 0x01 && ret <= 0xff)
+            return ret;
     }
     return -1;
 }
@@ -2152,6 +2179,7 @@ void readline_find_completion(const char *cmdline)
     int nb_args, i, len;
     const char *ptype, *str;
     term_cmd_t *cmd;
+    const KeyDef *key;
 
     parse_cmdline(cmdline, &nb_args, args);
 #ifdef DEBUG_COMPLETION
@@ -2212,6 +2240,11 @@ void readline_find_completion(const char *cmdline)
                 completion_index = strlen(str);
                 for(cmd = info_cmds; cmd->name != NULL; cmd++) {
                     cmd_completion(str, cmd->name);
+                }
+            } else if (!strcmp(cmd->name, "sendkey")) {
+                completion_index = strlen(str);
+                for(key = key_defs; key->name != NULL; key++) {
+                    cmd_completion(str, key->name);
                 }
             }
             break;
