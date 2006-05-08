@@ -521,7 +521,8 @@ void acpi_bios_init(void)
     dsdt_addr = addr;
     dsdt = (void *)(phys_ram_base + addr);
     addr += sizeof(AmlCode);
-    
+
+    addr = (addr + 7) & ~7;
     madt_addr = addr;
     madt_size = sizeof(*madt) + 
         sizeof(struct madt_processor_apic) * smp_cpus +
