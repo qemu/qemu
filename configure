@@ -293,9 +293,16 @@ cc="${cross_prefix}${cc}"
 ar="${cross_prefix}${ar}"
 strip="${cross_prefix}${strip}"
 
-if [ ! -x "`which $cc`" ] ; then
-    echo "Compiler $cc could not be found"
-    exit
+# check that the C compiler works.
+cat > $TMPC <<EOF
+int main(void) {}
+EOF
+
+if $cc -c -o $TMPO $TMPC 2>/dev/null ; then
+  : C compiler works ok
+else
+    echo "ERROR: \"$cc\" either does not exist or does not work"
+    exit 1
 fi
 
 if test "$mingw32" = "yes" ; then
