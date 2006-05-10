@@ -808,6 +808,11 @@ static inline unsigned int rgb_to_pixel32(unsigned int r, unsigned int g, unsign
     return (r << 16) | (g << 8) | b;
 }
 
+static inline unsigned int rgb_to_pixel32bgr(unsigned int r, unsigned int g, unsigned b)
+{
+    return (b << 16) | (g << 8) | r;
+}
+
 #define DEPTH 8
 #include "vga_template.h"
 
@@ -817,6 +822,10 @@ static inline unsigned int rgb_to_pixel32(unsigned int r, unsigned int g, unsign
 #define DEPTH 16
 #include "vga_template.h"
 
+#define DEPTH 32
+#include "vga_template.h"
+
+#define BGR_FORMAT
 #define DEPTH 32
 #include "vga_template.h"
 
@@ -849,6 +858,13 @@ static unsigned int rgb_to_pixel32_dup(unsigned int r, unsigned int g, unsigned 
 {
     unsigned int col;
     col = rgb_to_pixel32(r, g, b);
+    return col;
+}
+
+static unsigned int rgb_to_pixel32bgr_dup(unsigned int r, unsigned int g, unsigned b)
+{
+    unsigned int col;
+    col = rgb_to_pixel32bgr(r, g, b);
     return col;
 }
 
@@ -948,9 +964,11 @@ static int update_basic_params(VGAState *s)
     return full_update;
 }
 
-static inline int get_depth_index(int depth)
+#define NB_DEPTHS 5
+
+static inline int get_depth_index(DisplayState *s)
 {
-    switch(depth) {
+    switch(s->depth) {
     default:
     case 8:
         return 0;
@@ -959,28 +977,34 @@ static inline int get_depth_index(int depth)
     case 16:
         return 2;
     case 32:
-        return 3;
+        if (s->bgr)
+            return 4;
+        else
+            return 3;
     }
 }
 
-static vga_draw_glyph8_func *vga_draw_glyph8_table[4] = {
+static vga_draw_glyph8_func *vga_draw_glyph8_table[NB_DEPTHS] = {
     vga_draw_glyph8_8,
     vga_draw_glyph8_16,
     vga_draw_glyph8_16,
     vga_draw_glyph8_32,
+    vga_draw_glyph8_32,
 };
 
-static vga_draw_glyph8_func *vga_draw_glyph16_table[4] = {
+static vga_draw_glyph8_func *vga_draw_glyph16_table[NB_DEPTHS] = {
     vga_draw_glyph16_8,
     vga_draw_glyph16_16,
     vga_draw_glyph16_16,
     vga_draw_glyph16_32,
+    vga_draw_glyph16_32,
 };
 
-static vga_draw_glyph9_func *vga_draw_glyph9_table[4] = {
+static vga_draw_glyph9_func *vga_draw_glyph9_table[NB_DEPTHS] = {
     vga_draw_glyph9_8,
     vga_draw_glyph9_16,
     vga_draw_glyph9_16,
+    vga_draw_glyph9_32,
     vga_draw_glyph9_32,
 };
     
@@ -1103,7 +1127,7 @@ static void vga_draw_text(VGAState *s, int full_update)
     }
     cursor_ptr = s->vram_ptr + (s->start_addr + cursor_offset) * 4;
     
-    depth_index = get_depth_index(s->ds->depth);
+    depth_index = get_depth_index(s->ds);
     if (cw == 16)
         vga_draw_glyph8 = vga_draw_glyph16_table[depth_index];
     else
@@ -1196,56 +1220,76 @@ enum {
     VGA_DRAW_LINE_NB,
 };
 
-static vga_draw_line_func *vga_draw_line_table[4 * VGA_DRAW_LINE_NB] = {
+static vga_draw_line_func *vga_draw_line_table[NB_DEPTHS * VGA_DRAW_LINE_NB] = {
     vga_draw_line2_8,
     vga_draw_line2_16,
     vga_draw_line2_16,
+    vga_draw_line2_32,
     vga_draw_line2_32,
 
     vga_draw_line2d2_8,
     vga_draw_line2d2_16,
     vga_draw_line2d2_16,
     vga_draw_line2d2_32,
+    vga_draw_line2d2_32,
 
     vga_draw_line4_8,
     vga_draw_line4_16,
     vga_draw_line4_16,
+    vga_draw_line4_32,
     vga_draw_line4_32,
 
     vga_draw_line4d2_8,
     vga_draw_line4d2_16,
     vga_draw_line4d2_16,
     vga_draw_line4d2_32,
+    vga_draw_line4d2_32,
 
     vga_draw_line8d2_8,
     vga_draw_line8d2_16,
     vga_draw_line8d2_16,
+    vga_draw_line8d2_32,
     vga_draw_line8d2_32,
 
     vga_draw_line8_8,
     vga_draw_line8_16,
     vga_draw_line8_16,
     vga_draw_line8_32,
+    vga_draw_line8_32,
 
     vga_draw_line15_8,
     vga_draw_line15_15,
     vga_draw_line15_16,
     vga_draw_line15_32,
+    vga_draw_line15_32bgr,
 
     vga_draw_line16_8,
     vga_draw_line16_15,
     vga_draw_line16_16,
     vga_draw_line16_32,
+    vga_draw_line16_32bgr,
 
     vga_draw_line24_8,
     vga_draw_line24_15,
     vga_draw_line24_16,
     vga_draw_line24_32,
+    vga_draw_line24_32bgr,
 
     vga_draw_line32_8,
     vga_draw_line32_15,
     vga_draw_line32_16,
     vga_draw_line32_32,
+    vga_draw_line32_32bgr,
+};
+
+typedef unsigned int rgb_to_pixel_dup_func(unsigned int r, unsigned int g, unsigned b);
+
+static rgb_to_pixel_dup_func *rgb_to_pixel_dup_table[NB_DEPTHS] = {
+    rgb_to_pixel8_dup,
+    rgb_to_pixel15_dup,
+    rgb_to_pixel16_dup,
+    rgb_to_pixel32_dup,
+    rgb_to_pixel32bgr_dup,
 };
 
 static int vga_get_bpp(VGAState *s)
@@ -1362,7 +1406,7 @@ static void vga_draw_graphic(VGAState *s, int full_update)
             break;
         }
     }
-    vga_draw_line = vga_draw_line_table[v * 4 + get_depth_index(s->ds->depth)];
+    vga_draw_line = vga_draw_line_table[v * NB_DEPTHS + get_depth_index(s->ds)];
 
     if (disp_width != s->last_width ||
         height != s->last_height) {
@@ -1492,21 +1536,8 @@ static void vga_update_display(void *opaque)
     if (s->ds->depth == 0) {
         /* nothing to do */
     } else {
-        switch(s->ds->depth) {
-        case 8:
-            s->rgb_to_pixel = rgb_to_pixel8_dup;
-            break;
-        case 15:
-            s->rgb_to_pixel = rgb_to_pixel15_dup;
-            break;
-        default:
-        case 16:
-            s->rgb_to_pixel = rgb_to_pixel16_dup;
-            break;
-        case 32:
-            s->rgb_to_pixel = rgb_to_pixel32_dup;
-            break;
-        }
+        s->rgb_to_pixel = 
+            rgb_to_pixel_dup_table[get_depth_index(s->ds)];
         
         full_update = 0;
         if (!(s->ar_index & 0x20)) {

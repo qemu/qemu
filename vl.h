@@ -677,6 +677,7 @@ struct DisplayState {
     uint8_t *data;
     int linesize;
     int depth;
+    int bgr; /* BGR color order instead of RGB. Only valid for depth == 32 */
     int width;
     int height;
     void *opaque;
