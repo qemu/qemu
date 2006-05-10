@@ -610,11 +610,12 @@ void slirp_input(const uint8_t *pkt, int pkt_len)
         m = m_get();
         if (!m)
             return;
-        m->m_len = pkt_len;
-        memcpy(m->m_data, pkt, pkt_len);
+        /* Note: we add to align the IP header */
+        m->m_len = pkt_len + 2;
+        memcpy(m->m_data + 2, pkt, pkt_len);
 
-        m->m_data += ETH_HLEN;
-        m->m_len -= ETH_HLEN;
+        m->m_data += 2 + ETH_HLEN;
+        m->m_len -= 2 + ETH_HLEN;
 
         ip_input(m);
         break;

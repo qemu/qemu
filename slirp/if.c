@@ -52,8 +52,8 @@ if_init()
 	if_maxlinkhdr = 40;
 #endif
 #else
-        /* 14 for ethernet + 40 */
-        if_maxlinkhdr = 14 + 40;
+        /* 2 for alignment, 14 for ethernet, 40 for TCP/IP */
+        if_maxlinkhdr = 2 + 14 + 40;
 #endif
 	if_mtu = 1500;
 	if_mru = 1500;
