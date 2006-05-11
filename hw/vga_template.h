@@ -493,7 +493,7 @@ static void glue(vga_draw_line24_, PIXEL_NAME)(VGAState *s1, uint8_t *d,
 static void glue(vga_draw_line32_, PIXEL_NAME)(VGAState *s1, uint8_t *d, 
                                           const uint8_t *s, int width)
 {
-#if DEPTH == 32 && defined(WORDS_BIGENDIAN) == defined(TARGET_WORDS_BIGENDIAN)
+#if DEPTH == 32 && defined(WORDS_BIGENDIAN) == defined(TARGET_WORDS_BIGENDIAN) && !defined(BGR_FORMAT)
     memcpy(d, s, width * 4);
 #else
     int w;
