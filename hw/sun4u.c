@@ -329,7 +329,7 @@ static void sun4u_init(int ram_size, int vga_ram_size, int boot_device,
 	    }
         }
     }
-    pci_bus = pci_apb_init(APB_SPECIAL_BASE, APB_MEM_BASE);
+    pci_bus = pci_apb_init(APB_SPECIAL_BASE, APB_MEM_BASE, NULL);
     isa_mem_base = VGA_BASE;
     vga_initialize(pci_bus, ds, phys_ram_base + ram_size, ram_size, 
                    vga_ram_size, 0, 0);

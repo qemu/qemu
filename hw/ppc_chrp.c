@@ -415,19 +415,18 @@ static void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
 
     if (is_heathrow) {
         isa_mem_base = 0x80000000;
-        pci_bus = pci_grackle_init(0xfec00000);
         
         /* Register 2 MB of ISA IO space */
         PPC_io_memory = cpu_register_io_memory(0, PPC_io_read, PPC_io_write, NULL);
         cpu_register_physical_memory(0xfe000000, 0x00200000, PPC_io_memory);
         
         /* init basic PC hardware */
+        pic = heathrow_pic_init(&heathrow_pic_mem_index);
+        set_irq = heathrow_pic_set_irq;
+        pci_bus = pci_grackle_init(0xfec00000, pic);
         vga_initialize(pci_bus, ds, phys_ram_base + ram_size, 
                        ram_size, vga_ram_size,
                        vga_bios_offset, vga_bios_size);
-        pic = heathrow_pic_init(&heathrow_pic_mem_index);
-        set_irq = heathrow_pic_set_irq;
-        pci_set_pic(pci_bus, set_irq, pic);
 
         /* XXX: suppress that */
         isa_pic = pic_init(pic_irq_request, NULL);
@@ -462,7 +461,6 @@ static void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
         arch_name = "HEATHROW";
     } else {
         isa_mem_base = 0x80000000;
-        pci_bus = pci_pmac_init();
         
         /* Register 8 MB of ISA IO space */
         PPC_io_memory = cpu_register_io_memory(0, PPC_io_read, PPC_io_write, NULL);
@@ -472,13 +470,13 @@ static void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
         unin_memory = cpu_register_io_memory(0, unin_read, unin_write, NULL);
         cpu_register_physical_memory(0xf8000000, 0x00001000, unin_memory);
 
+        pic = openpic_init(NULL, &openpic_mem_index, 1, &env);
+        set_irq = openpic_set_irq;
+        pci_bus = pci_pmac_init(pic);
         /* init basic PC hardware */
         vga_initialize(pci_bus, ds, phys_ram_base + ram_size,
                        ram_size, vga_ram_size,
                        vga_bios_offset, vga_bios_size);
-        pic = openpic_init(NULL, &openpic_mem_index, 1, &env);
-        set_irq = openpic_set_irq;
-        pci_set_pic(pci_bus, set_irq, pic);
 
         /* XXX: suppress that */
         isa_pic = pic_init(pic_irq_request, NULL);

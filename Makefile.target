@@ -307,7 +307,7 @@ SOUND_HW += fmopl.o adlib.o
 endif
 
 # USB layer
-VL_OBJS+= usb.o usb-hub.o usb-uhci.o usb-linux.o usb-hid.o
+VL_OBJS+= usb.o usb-hub.o usb-linux.o usb-hid.o
 
 # PCI network cards
 VL_OBJS+= ne2000.o rtl8139.o
@@ -316,13 +316,15 @@ ifeq ($(TARGET_BASE_ARCH), i386)
 # Hardware support
 VL_OBJS+= ide.o pckbd.o ps2.o vga.o $(SOUND_HW) dma.o $(AUDIODRV)
 VL_OBJS+= fdc.o mc146818rtc.o serial.o i8259.o i8254.o pcspk.o pc.o
-VL_OBJS+= cirrus_vga.o mixeng.o apic.o parallel.o acpi.o
+VL_OBJS+= cirrus_vga.o mixeng.o apic.o parallel.o acpi.o piix_pci.o
+VL_OBJS+= usb-uhci.o
 DEFINES += -DHAS_AUDIO
 endif
 ifeq ($(TARGET_BASE_ARCH), ppc)
 VL_OBJS+= ppc.o ide.o pckbd.o ps2.o vga.o $(SOUND_HW) dma.o $(AUDIODRV)
 VL_OBJS+= mc146818rtc.o serial.o i8259.o i8254.o fdc.o m48t59.o
 VL_OBJS+= ppc_prep.o ppc_chrp.o cuda.o adb.o openpic.o heathrow_pic.o mixeng.o
+VL_OBJS+= grackle_pci.o prep_pci.o unin_pci.o
 DEFINES += -DHAS_AUDIO
 endif
 ifeq ($(TARGET_ARCH), mips)
@@ -331,7 +333,7 @@ VL_OBJS+= mips_r4k.o dma.o vga.o serial.o i8254.o i8259.o
 endif
 ifeq ($(TARGET_BASE_ARCH), sparc)
 ifeq ($(TARGET_ARCH), sparc64)
-VL_OBJS+= sun4u.o ide.o pckbd.o ps2.o vga.o
+VL_OBJS+= sun4u.o ide.o pckbd.o ps2.o vga.o apb_pci.o
 VL_OBJS+= fdc.o mc146818rtc.o serial.o m48t59.o
 VL_OBJS+= cirrus_vga.o parallel.o
 else
@@ -342,6 +344,7 @@ endif
 ifeq ($(TARGET_BASE_ARCH), arm)
 VL_OBJS+= integratorcp.o versatilepb.o ps2.o smc91c111.o arm_pic.o arm_timer.o
 VL_OBJS+= arm_boot.o pl011.o pl050.o pl080.o pl110.o pl190.o
+VL_OBJS+= versatile_pci.o
 endif
 ifeq ($(TARGET_BASE_ARCH), sh4)
 VL_OBJS+= shix.o sh7750.o sh7750_regnames.o tc58128.o

@@ -155,7 +155,7 @@ int set_usb_string(uint8_t *buf, const char *str);
 USBDevice *usb_hub_init(USBPort **usb_ports, int nb_ports);
 
 /* usb-uhci.c */
-void usb_uhci_init(PCIBus *bus, USBPort **usb_ports);
+void usb_uhci_init(PCIBus *bus, USBPort **usb_ports, int devfn);
 
 /* usb-linux.c */
 USBDevice *usb_host_device_open(const char *devname);

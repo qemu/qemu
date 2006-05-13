@@ -611,6 +611,7 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
     unsigned long bios_offset, vga_bios_offset;
     int bios_size, isa_bios_size;
     PCIBus *pci_bus;
+    int piix3_devfn;
     CPUState *env;
     NICInfo *nd;
 
@@ -741,7 +742,7 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
 
     if (pci_enabled) {
         pci_bus = i440fx_init();
-        piix3_init(pci_bus);
+        piix3_devfn = piix3_init(pci_bus);
     } else {
         pci_bus = NULL;
     }
@@ -813,7 +814,7 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
     }
 
     if (pci_enabled) {
-        pci_piix3_ide_init(pci_bus, bs_table);
+        pci_piix3_ide_init(pci_bus, bs_table, piix3_devfn + 1);
     } else {
         for(i = 0; i < 2; i++) {
             isa_ide_init(ide_iobase[i], ide_iobase2[i], ide_irq[i],
@@ -832,12 +833,12 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
     cmos_init(ram_size, boot_device, bs_table);
 
     if (pci_enabled && usb_enabled) {
-        usb_uhci_init(pci_bus, usb_root_ports);
+        usb_uhci_init(pci_bus, usb_root_ports, piix3_devfn + 2);
         usb_attach(usb_root_ports[0], vm_usb_hub);
     }
 
     if (pci_enabled && acpi_enabled) {
-        piix4_pm_init(pci_bus);
+        piix4_pm_init(pci_bus, piix3_devfn + 3);
     }
     /* must be done after all PCI devices are instanciated */
     /* XXX: should be done in the Bochs BIOS */

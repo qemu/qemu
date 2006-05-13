@@ -183,6 +183,11 @@ void pic_set_irq(int irq, int level)
     slavio_pic_set_irq(slavio_intctl, irq, level);
 }
 
+void pic_set_irq_new(void *opaque, int irq, int level)
+{
+    pic_set_irq(irq, level);
+}
+
 void pic_set_irq_cpu(int irq, int level, unsigned int cpu)
 {
     slavio_pic_set_irq_cpu(slavio_intctl, irq, level, cpu);

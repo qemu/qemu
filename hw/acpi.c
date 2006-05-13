@@ -220,7 +220,7 @@ static void acpi_dbg_writel(void *opaque, uint32_t addr, uint32_t val)
 
 /* XXX: we still add it to the PIIX3 and we count on the fact that
    OSes are smart enough to accept this strange configuration */
-void piix4_pm_init(PCIBus *bus)
+void piix4_pm_init(PCIBus *bus, int devfn)
 {
     PIIX4PMState *s;
     uint8_t *pci_conf;
@@ -228,8 +228,7 @@ void piix4_pm_init(PCIBus *bus)
 
     s = (PIIX4PMState *)pci_register_device(bus,
                                          "PM", sizeof(PIIX4PMState),
-                                         ((PCIDevice *)piix3_state)->devfn + 3, 
-                                         NULL, NULL);
+                                         devfn, NULL, NULL);
     pci_conf = s->dev.config;
     pci_conf[0x00] = 0x86;
     pci_conf[0x01] = 0x80;

@@ -638,7 +638,7 @@ static void uhci_map(PCIDevice *pci_dev, int region_num,
     register_ioport_read(addr, 32, 1, uhci_ioport_readb, s);
 }
 
-void usb_uhci_init(PCIBus *bus, USBPort **usb_ports)
+void usb_uhci_init(PCIBus *bus, USBPort **usb_ports, int devfn)
 {
     UHCIState *s;
     uint8_t *pci_conf;
@@ -647,8 +647,7 @@ void usb_uhci_init(PCIBus *bus, USBPort **usb_ports)
 
     s = (UHCIState *)pci_register_device(bus,
                                         "USB-UHCI", sizeof(UHCIState),
-                                        ((PCIDevice *)piix3_state)->devfn + 2, 
-                                        NULL, NULL);
+                                        devfn, NULL, NULL);
     pci_conf = s->dev.config;
     pci_conf[0x00] = 0x86;
     pci_conf[0x01] = 0x80;

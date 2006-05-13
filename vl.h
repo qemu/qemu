@@ -593,6 +593,20 @@ typedef struct PCIIORegion {
 
 #define PCI_ROM_SLOT 6
 #define PCI_NUM_REGIONS 7
+
+#define PCI_DEVICES_MAX 64
+
+#define PCI_VENDOR_ID		0x00	/* 16 bits */
+#define PCI_DEVICE_ID		0x02	/* 16 bits */
+#define PCI_COMMAND		0x04	/* 16 bits */
+#define  PCI_COMMAND_IO		0x1	/* Enable response in I/O space */
+#define  PCI_COMMAND_MEMORY	0x2	/* Enable response in Memory space */
+#define PCI_CLASS_DEVICE        0x0a    /* Device class */
+#define PCI_INTERRUPT_LINE	0x3c	/* 8 bits */
+#define PCI_INTERRUPT_PIN	0x3d	/* 8 bits */
+#define PCI_MIN_GNT		0x3e	/* 8 bits */
+#define PCI_MAX_LAT		0x3f	/* 8 bits */
+
 struct PCIDevice {
     /* PCI config space */
     uint8_t config[256];
@@ -606,6 +620,7 @@ struct PCIDevice {
     /* do not access the following fields */
     PCIConfigReadFunc *config_read;
     PCIConfigWriteFunc *config_write;
+    /* ??? This is a PC-specific hack, and should be removed.  */
     int irq_index;
 };
 
@@ -627,21 +642,37 @@ void pci_default_write_config(PCIDevice *d,
 void generic_pci_save(QEMUFile* f, void *opaque);
 int generic_pci_load(QEMUFile* f, void *opaque, int version_id);
 
-extern struct PIIX3State *piix3_state;
-
-PCIBus *i440fx_init(void);
-void piix3_init(PCIBus *bus);
-void pci_bios_init(void);
-void pci_info(void);
-
-/* temporary: will be moved in platform specific file */
-void pci_set_pic(PCIBus *bus, SetIRQFunc *set_irq, void *irq_opaque);
-PCIBus *pci_prep_init(void);
-PCIBus *pci_grackle_init(uint32_t base);
-PCIBus *pci_pmac_init(void);
-PCIBus *pci_apb_init(target_ulong special_base, target_ulong mem_base);
+typedef void (*pci_set_irq_fn)(PCIDevice *pci_dev, void *pic,
+                               int irq_num, int level);
+PCIBus *pci_register_bus(pci_set_irq_fn set_irq, void *pic, int devfn_min);
 
 void pci_nic_init(PCIBus *bus, NICInfo *nd);
+void pci_data_write(void *opaque, uint32_t addr, uint32_t val, int len);
+uint32_t pci_data_read(void *opaque, uint32_t addr, int len);
+int pci_bus_num(PCIBus *s);
+void pci_for_each_device(void (*fn)(PCIDevice *d));
+
+void pci_info(void);
+
+/* prep_pci.c */
+PCIBus *pci_prep_init(void);
+
+/* grackle_pci.c */
+PCIBus *pci_grackle_init(uint32_t base, void *pic);
+
+/* unin_pci.c */
+PCIBus *pci_pmac_init(void *pic);
+
+/* apb_pci.c */
+PCIBus *pci_apb_init(target_ulong special_base, target_ulong mem_base,
+                     void *pic);
+
+PCIBus *pci_vpb_init(void *pic);
+
+/* piix_pci.c */
+PCIBus *i440fx_init(void);
+int piix3_init(PCIBus *bus);
+void pci_bios_init(void);
 
 /* openpic.c */
 typedef struct openpic_t openpic_t;
@@ -726,7 +757,7 @@ void isa_ide_init(int iobase, int iobase2, int irq,
                   BlockDriverState *hd0, BlockDriverState *hd1);
 void pci_cmd646_ide_init(PCIBus *bus, BlockDriverState **hd_table,
                          int secondary_ide_enabled);
-void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table);
+void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn);
 int pmac_ide_init (BlockDriverState **hd_table,
                    SetIRQFunc *set_irq, void *irq_opaque, int irq);
 
@@ -843,7 +874,7 @@ int pcspk_audio_init(AudioState *);
 
 /* acpi.c */
 extern int acpi_enabled;
-void piix4_pm_init(PCIBus *bus);
+void piix4_pm_init(PCIBus *bus, int devfn);
 void acpi_bios_init(void);
 
 /* pc.c */

@@ -2490,7 +2490,7 @@ void pci_cmd646_ide_init(PCIBus *bus, BlockDriverState **hd_table,
 
 /* hd_table must contain 4 block drivers */
 /* NOTE: for the PIIX3, the IRQs and IOports are hardcoded */
-void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table)
+void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn)
 {
     PCIIDEState *d;
     uint8_t *pci_conf;
@@ -2498,7 +2498,7 @@ void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table)
     /* register a function 1 of PIIX3 */
     d = (PCIIDEState *)pci_register_device(bus, "PIIX3 IDE", 
                                            sizeof(PCIIDEState),
-                                           ((PCIDevice *)piix3_state)->devfn + 1, 
+                                           devfn,
                                            NULL, NULL);
     d->type = IDE_TYPE_PIIX3;
 
