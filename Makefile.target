@@ -489,6 +489,8 @@ sh7750_regnames.o: sh7750_regnames.c sh7750_regnames.h sh7750_regs.h
 tc58128.o: tc58128.c
 endif
 
+$(OBJS) $(LIBOBJS) $(VL_OBJS): config.h ../config-host.h
+
 %.o: %.c
 	$(CC) $(CFLAGS) $(DEFINES) -c -o $@ $<
 
