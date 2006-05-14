@@ -1,15 +1,23 @@
 #define CONCAT_I(a, b) a ## b
 #define CONCAT(a, b) CONCAT_I(a, b)
 #define pixel_t CONCAT(uint, CONCAT(BPP, _t))
+#ifdef GENERIC
+#define NAME generic
+#else
+#define NAME BPP
+#endif
 
-static void CONCAT(send_hextile_tile_, BPP)(VncState *vs,
-					    int x, int y, int w, int h,
-					    pixel_t *last_bg, pixel_t *last_fg,
-					    int *has_bg, int *has_fg)
+static void CONCAT(send_hextile_tile_, NAME)(VncState *vs,
+                                             int x, int y, int w, int h,
+                                             uint32_t *last_bg32, 
+                                             uint32_t *last_fg32,
+                                             int *has_bg, int *has_fg)
 {
     char *row = (vs->ds->data + y * vs->ds->linesize + x * vs->depth);
     pixel_t *irow = (pixel_t *)row;
     int j, i;
+    pixel_t *last_bg = (pixel_t *)last_bg32;
+    pixel_t *last_fg = (pixel_t *)last_fg32;
     pixel_t bg = 0;
     pixel_t fg = 0;
     int n_colors = 0;
@@ -122,10 +130,15 @@ static void CONCAT(send_hextile_tile_, BPP)(VncState *vs,
 		    has_color = 1;
 		} else if (irow[i] != color) {
 		    has_color = 0;
-
+#ifdef GENERIC
+                    vnc_convert_pixel(vs, data + n_data, color);
+                    n_data += vs->pix_bpp;
+#else
 		    memcpy(data + n_data, &color, sizeof(color));
-		    hextile_enc_cord(data + n_data + sizeof(pixel_t), min_x, j, i - min_x, 1);
-		    n_data += 2 + sizeof(pixel_t);
+                    n_data += sizeof(pixel_t);
+#endif
+		    hextile_enc_cord(data + n_data, min_x, j, i - min_x, 1);
+		    n_data += 2;
 		    n_subtiles++;
 
 		    min_x = -1;
@@ -137,9 +150,15 @@ static void CONCAT(send_hextile_tile_, BPP)(VncState *vs,
 		}
 	    }
 	    if (has_color) {
-		memcpy(data + n_data, &color, sizeof(color));
-		hextile_enc_cord(data + n_data + sizeof(pixel_t), min_x, j, i - min_x, 1);
-		n_data += 2 + sizeof(pixel_t);
+#ifdef GENERIC
+                vnc_convert_pixel(vs, data + n_data, color);
+                n_data += vs->pix_bpp;
+#else
+                memcpy(data + n_data, &color, sizeof(color));
+                n_data += sizeof(pixel_t);
+#endif
+		hextile_enc_cord(data + n_data, min_x, j, i - min_x, 1);
+		n_data += 2;
 		n_subtiles++;
 	    }
 	    irow += vs->ds->linesize / sizeof(pixel_t);
@@ -169,21 +188,22 @@ static void CONCAT(send_hextile_tile_, BPP)(VncState *vs,
     vnc_write_u8(vs, flags);
     if (n_colors < 4) {
 	if (flags & 0x02)
-	    vnc_write(vs, last_bg, sizeof(pixel_t));
+	    vs->write_pixels(vs, last_bg, sizeof(pixel_t));
 	if (flags & 0x04)
-	    vnc_write(vs, last_fg, sizeof(pixel_t));
+	    vs->write_pixels(vs, last_fg, sizeof(pixel_t));
 	if (n_subtiles) {
 	    vnc_write_u8(vs, n_subtiles);
 	    vnc_write(vs, data, n_data);
 	}
     } else {
 	for (j = 0; j < h; j++) {
-	    vnc_write(vs, row, w * vs->depth);
+	    vs->write_pixels(vs, row, w * vs->depth);
 	    row += vs->ds->linesize;
 	}
     }
 }
 
+#undef NAME
 #undef pixel_t
 #undef CONCAT_I
 #undef CONCAT
