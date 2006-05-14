@@ -611,7 +611,7 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
     unsigned long bios_offset, vga_bios_offset;
     int bios_size, isa_bios_size;
     PCIBus *pci_bus;
-    int piix3_devfn;
+    int piix3_devfn = -1;
     CPUState *env;
     NICInfo *nd;
 
