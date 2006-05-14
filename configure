@@ -95,6 +95,7 @@ check_gcc="yes"
 softmmu="yes"
 user="no"
 build_docs="no"
+uname_release=""
 
 # OS specific
 targetos=`uname -s`
@@ -237,6 +238,8 @@ for opt do
   ;;
   --enable-user) user="yes"
   ;;
+  --enable-uname-release=*) uname_release="$optarg"
+  ;;
   esac
 done
 
@@ -284,6 +287,7 @@ echo "  --enable-user            enable all linux usermode emulation targets"
 echo "  --disable-user           disable all linux usermode emulation targets"
 echo "  --fmod-lib               path to FMOD library"
 echo "  --fmod-inc               path to FMOD includes"
+echo "  --enable-uname-release=R Return R for uname -r in usermode emulation"
 echo ""
 echo "NOTE: The object files are build at the place where configure is launched"
 exit 1
@@ -553,6 +557,8 @@ fi
 echo "FMOD support      $fmod $fmod_support"
 echo "kqemu support     $kqemu"
 echo "Documentation     $build_docs"
+[ ! -z "$uname_release" ] && \
+echo "uname -r          $uname_release"
 
 if test $sdl_too_old = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -710,6 +716,8 @@ if [ "$bsd" = "yes" ] ; then
   echo "#define MAP_ANONYMOUS MAP_ANON" >> $config_h
   echo "#define _BSD 1" >> $config_h
 fi
+
+echo "#define CONFIG_UNAME_RELEASE \"$uname_release\"" >> $config_h
 
 for target in $target_list; do
 target_dir="$target"

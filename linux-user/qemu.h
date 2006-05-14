@@ -80,6 +80,7 @@ typedef struct TaskState {
 } __attribute__((aligned(16))) TaskState;
 
 extern TaskState *first_task_state;
+extern const char *qemu_uname_release;
 
 int elf_exec(const char * filename, char ** argv, char ** envp, 
              struct target_pt_regs * regs, struct image_info *infop);

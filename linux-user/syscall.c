@@ -2861,6 +2861,9 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                 /* Overrite the native machine name with whatever is being
                    emulated. */
                 strcpy (buf->machine, UNAME_MACHINE);
+                /* Allow the user to override the reported release.  */
+                if (qemu_uname_release && *qemu_uname_release)
+                  strcpy (buf->release, qemu_uname_release);
             }
             unlock_user_struct(buf, arg1, 1);
         }

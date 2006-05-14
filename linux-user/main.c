@@ -34,6 +34,7 @@
 #endif
 
 static const char *interp_prefix = CONFIG_QEMU_PREFIX;
+const char *qemu_uname_release = CONFIG_UNAME_RELEASE;
 
 #if defined(__i386__) && !defined(CONFIG_STATIC)
 /* Force usage of an ELF interpreter even if it is an ELF shared
@@ -1514,6 +1515,8 @@ int main(int argc, char **argv)
             }
         } else if (!strcmp(r, "g")) {
             gdbstub_port = atoi(argv[optind++]);
+	} else if (!strcmp(r, "r")) {
+	    qemu_uname_release = argv[optind++];
         } else 
 #ifdef USE_CODE_COPY
         if (!strcmp(r, "no-code-copy")) {
