@@ -1,4 +1,9 @@
+# Makefile for QEMU.
+
 include config-host.mak
+
+.PHONY: all clean distclean dvi info install install-doc tar tarbin \
+	speed test test2 html dvi info
 
 CFLAGS=-Wall -O2 -g -fno-strict-aliasing -I.
 ifdef CONFIG_DARWIN
@@ -41,6 +46,7 @@ clean:
 
 distclean: clean
 	rm -f config-host.mak config-host.h $(DOCS)
+	rm -f qemu-{doc,tech}.{info,aux,cp,dvi,fn,info,ky,log,pg,toc,tp,vr}
 	for d in $(TARGET_DIRS); do \
 	rm -rf $$d || exit 1 ; \
         done
@@ -104,6 +110,12 @@ qemu.1: qemu-doc.texi
 qemu-img.1: qemu-img.texi
 	$(SRC_PATH)/texi2pod.pl $< qemu-img.pod
 	pod2man --section=1 --center=" " --release=" " qemu-img.pod > $@
+
+info: qemu-doc.info qemu-tech.info
+
+dvi: qemu-doc.dvi qemu-tech.dvi
+
+html: qemu-doc.html qemu-tech.html
 
 FILE=qemu-$(shell cat VERSION)
 

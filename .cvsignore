@@ -11,6 +11,8 @@ ppc64-softmmu
 ppc-user
 qemu-doc.html
 qemu-tech.html
+qemu-doc.info
+qemu-tech.info
 qemu.1
 qemu.pod
 qemu-img.1
@@ -25,5 +27,16 @@ mips-softmmu
 mipsel-softmmu
 mips-user
 mipsel-user
+.gdbinit
 sh4-user
 sh4-softmmu
+*.aux
+*.cp
+*.dvi
+*.fn
+*.ky
+*.log
+*.pg
+*.toc
+*.tp
+*.vr
