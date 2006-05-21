@@ -690,7 +690,7 @@ static void espdma_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t va
         val |= DMA_VER;
 	break;
     case 1:
-        s->espdmaregs[0] = DMA_LOADED;
+        s->espdmaregs[0] |= DMA_LOADED;
         break;
     default:
 	break;
