@@ -409,28 +409,40 @@ void pci_set_irq(PCIDevice *pci_dev, int irq_num, int level)
 /***********************************************************/
 /* monitor info on PCI */
 
+typedef struct {
+    uint16_t class;
+    const char *desc;
+} pci_class_desc;
+
+static pci_class_desc pci_class_descriptions[] = 
+{
+    { 0x0101, "IDE controller"},
+    { 0x0200, "Ethernet controller"},
+    { 0x0300, "VGA controller"},
+    { 0x0600, "Host bridge"},
+    { 0x0601, "ISA bridge"},
+    { 0x0604, "PCI bridge"},
+    { 0x0c03, "USB controller"},
+    { 0, NULL}
+};
+
 static void pci_info_device(PCIDevice *d)
 {
     int i, class;
     PCIIORegion *r;
+    pci_class_desc *desc;
 
     term_printf("  Bus %2d, device %3d, function %d:\n",
            d->bus->bus_num, d->devfn >> 3, d->devfn & 7);
     class = le16_to_cpu(*((uint16_t *)(d->config + PCI_CLASS_DEVICE)));
     term_printf("    ");
-    switch(class) {
-    case 0x0101:
-        term_printf("IDE controller");
-        break;
-    case 0x0200:
-        term_printf("Ethernet controller");
-        break;
-    case 0x0300:
-        term_printf("VGA controller");
-        break;
-    default:
+    desc = pci_class_descriptions;
+    while (desc->desc && class != desc->class)
+        desc++;
+    if (desc->desc) {
+        term_printf("%s", desc->desc);
+    } else {
         term_printf("Class %04x", class);
-        break;
     }
     term_printf(": PCI device %04x:%04x\n",
            le16_to_cpu(*((uint16_t *)(d->config + PCI_VENDOR_ID))),
