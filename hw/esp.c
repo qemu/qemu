@@ -229,12 +229,17 @@ static int esp_write_dma_cb(ESPState *s,
                             target_phys_addr_t phys_addr, 
                             int transfer_size1)
 {
+    int len;
+    if (bdrv_get_type_hint(s->bd[s->target]) == BDRV_TYPE_CDROM) {
+        len = transfer_size1/2048;
+    } else {
+        len = transfer_size1/512;
+    }
     DPRINTF("Write callback (offset %lld len %lld size %d trans_size %d)\n",
             s->offset, s->len, s->ti_size, transfer_size1);
-    bdrv_write(s->bd[s->target], s->offset, s->ti_buf, s->len);
-    s->offset = 0;
-    s->len = 0;
-    s->target = 0;
+
+    bdrv_write(s->bd[s->target], s->offset, s->ti_buf+s->ti_rptr, len);
+    s->offset+=len;
     return 0;
 }
 
@@ -336,6 +341,7 @@ static void handle_satn(ESPState *s)
 	    bdrv_read(s->bd[target], offset, s->ti_buf, len);
 	    // XXX error handling
 	    s->ti_dir = 1;
+	    s->ti_rptr = 0;
 	    break;
 	}
     case 0x2a:
@@ -359,6 +365,7 @@ static void handle_satn(ESPState *s)
             s->offset = offset;
             s->len = len;
             s->target = target;
+            s->ti_rptr = 0;
 	    // XXX error handling
 	    s->ti_dir = 0;
 	    break;
@@ -415,10 +422,9 @@ static void handle_satn(ESPState *s)
 
 static void dma_write(ESPState *s, const uint8_t *buf, uint32_t len)
 {
-    uint32_t dmaptr, dmalen;
+    uint32_t dmaptr;
 
-    dmalen = s->wregs[0] | (s->wregs[1] << 8);
-    DPRINTF("Transfer status len %d\n", dmalen);
+    DPRINTF("Transfer status len %d\n", len);
     if (s->dma) {
 	dmaptr = iommu_translate(s->espdmaregs[1]);
 	DPRINTF("DMA Direction: %c\n", s->espdmaregs[0] & 0x100? 'w': 'r');
@@ -428,10 +434,10 @@ static void dma_write(ESPState *s, const uint8_t *buf, uint32_t len)
 	s->rregs[6] = SEQ_CD;
     } else {
 	memcpy(s->ti_buf, buf, len);
-	s->ti_size = dmalen;
+	s->ti_size = len;
 	s->ti_rptr = 0;
 	s->ti_wptr = 0;
-	s->rregs[7] = dmalen;
+	s->rregs[7] = len;
     }
     s->espdmaregs[0] |= DMA_INTR;
     pic_set_irq(s->irq, 1);
@@ -442,34 +448,58 @@ static const uint8_t okbuf[] = {0, 0};
 
 static void handle_ti(ESPState *s)
 {
-    uint32_t dmaptr, dmalen;
+    uint32_t dmaptr, dmalen, minlen, len, from, to;
     unsigned int i;
 
     dmalen = s->wregs[0] | (s->wregs[1] << 8);
-    DPRINTF("Transfer Information len %d\n", dmalen);
+    if (dmalen==0) {
+      dmalen=0x10000;
+    }
+
+    minlen = (dmalen < s->ti_size) ? dmalen : s->ti_size;
+    DPRINTF("Transfer Information len %d\n", minlen);
     if (s->dma) {
 	dmaptr = iommu_translate(s->espdmaregs[1]);
-	DPRINTF("DMA Direction: %c, addr 0x%8.8x\n", s->espdmaregs[0] & 0x100? 'w': 'r', dmaptr);
-	for (i = 0; i < s->ti_size; i++) {
+	DPRINTF("DMA Direction: %c, addr 0x%8.8x %08x %d %d\n", s->espdmaregs[0] & 0x100? 'w': 'r', dmaptr, s->ti_size, s->ti_rptr, s->ti_dir);
+	from = s->espdmaregs[1];
+	to = from + minlen;
+	for (i = 0; i < minlen; i += len, from += len) {
 	    dmaptr = iommu_translate(s->espdmaregs[1] + i);
+	    if ((from & TARGET_PAGE_MASK) != (to & TARGET_PAGE_MASK)) {
+               len = TARGET_PAGE_SIZE - (from & ~TARGET_PAGE_MASK);
+            } else {
+	       len = to - from;
+            }
+            DPRINTF("DMA address p %08x v %08x len %08x, from %08x, to %08x\n", dmaptr, s->espdmaregs[1] + i, len, from, to);
 	    if (s->ti_dir)
-		cpu_physical_memory_write(dmaptr, &s->ti_buf[i], 1);
+		cpu_physical_memory_write(dmaptr, &s->ti_buf[s->ti_rptr + i], len);
 	    else
-		cpu_physical_memory_read(dmaptr, &s->ti_buf[i], 1);
+		cpu_physical_memory_read(dmaptr, &s->ti_buf[s->ti_rptr + i], len);
 	}
         if (s->dma_cb) {
-            s->dma_cb(s, s->espdmaregs[1], dmalen);
-            s->dma_cb = NULL;
+            s->dma_cb(s, s->espdmaregs[1], minlen);
         }
-	s->rregs[4] = STAT_IN | STAT_TC | STAT_ST;
-	s->rregs[5] = INTR_BS;
+        if (minlen < s->ti_size) {
+	    s->rregs[4] = STAT_IN | STAT_TC | (s->ti_dir ? STAT_DO : STAT_DI);
+	    s->ti_size -= minlen;
+	    s->ti_rptr += minlen;
+        } else {
+	    s->rregs[4] = STAT_IN | STAT_TC | STAT_ST;
+            s->dma_cb = NULL;
+            s->offset = 0;
+            s->len = 0;
+            s->target = 0;
+            s->ti_rptr = 0;
+        }
+        s->rregs[5] = INTR_BS;
 	s->rregs[6] = 0;
+	s->rregs[7] = 0;
 	s->espdmaregs[0] |= DMA_INTR;
     } else {
-	s->ti_size = dmalen;
+	s->ti_size = minlen;
 	s->ti_rptr = 0;
 	s->ti_wptr = 0;
-	s->rregs[7] = dmalen;
+	s->rregs[7] = minlen;
     }	
     pic_set_irq(s->irq, 1);
 }
