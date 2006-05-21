@@ -179,6 +179,9 @@ static void usb_hub_attach(USBPort *port1, USBDevice *dev)
         else
             port->wPortStatus &= ~PORT_STAT_LOW_SPEED;
         port->port.dev = dev;
+        /* send the attach message */
+        dev->handle_packet(dev, 
+                           USB_MSG_ATTACH, 0, 0, NULL, 0);
     } else {
         dev = port->port.dev;
         if (dev) {
@@ -188,6 +191,9 @@ static void usb_hub_attach(USBPort *port1, USBDevice *dev)
                 port->wPortStatus &= ~PORT_STAT_ENABLE;
                 port->wPortChange |= PORT_STAT_C_ENABLE;
             }
+            /* send the detach message */
+            dev->handle_packet(dev, 
+                               USB_MSG_DETACH, 0, 0, NULL, 0);
             port->port.dev = NULL;
         }
     }
@@ -517,7 +523,7 @@ static int usb_hub_handle_packet(USBDevice *dev, int pid,
     return usb_generic_handle_packet(dev, pid, devaddr, devep, data, len);
 }
 
-USBDevice *usb_hub_init(USBPort **usb_ports, int nb_ports)
+USBDevice *usb_hub_init(int nb_ports)
 {
     USBHubState *s;
     USBHubPort *port;
@@ -539,12 +545,9 @@ USBDevice *usb_hub_init(USBPort **usb_ports, int nb_ports)
     s->nb_ports = nb_ports;
     for(i = 0; i < s->nb_ports; i++) {
         port = &s->ports[i];
+        qemu_register_usb_port(&port->port, s, i, usb_hub_attach);
         port->wPortStatus = PORT_STAT_POWER;
         port->wPortChange = 0;
-        port->port.attach = usb_hub_attach;
-        port->port.opaque = s;
-        port->port.index = i;
-        usb_ports[i] = &port->port;
     }
     return (USBDevice *)s;
 }

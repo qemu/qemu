@@ -137,12 +137,15 @@ struct USBDevice {
     int setup_index;
 };
 
+typedef void (*usb_attachfn)(USBPort *port, USBDevice *dev);
+
 /* USB port on which a device can be connected */
 struct USBPort {
     USBDevice *dev;
-    void (*attach)(USBPort *port, USBDevice *dev);
+    usb_attachfn attach;
     void *opaque;
     int index; /* internal port index, may be used with the opaque */
+    struct USBPort *next; /* Used internally by qemu.  */
 };
 
 void usb_attach(USBPort *port, USBDevice *dev);
@@ -152,10 +155,13 @@ int usb_generic_handle_packet(USBDevice *s, int pid,
 int set_usb_string(uint8_t *buf, const char *str);
 
 /* usb hub */
-USBDevice *usb_hub_init(USBPort **usb_ports, int nb_ports);
+USBDevice *usb_hub_init(int nb_ports);
 
 /* usb-uhci.c */
-void usb_uhci_init(PCIBus *bus, USBPort **usb_ports, int devfn);
+void usb_uhci_init(PCIBus *bus, int devfn);
+
+/* usb-ohci.c */
+void usb_ohci_init(struct PCIBus *bus, int num_ports, int devfn);
 
 /* usb-linux.c */
 USBDevice *usb_host_device_open(const char *devname);

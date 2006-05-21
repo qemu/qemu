@@ -638,11 +638,10 @@ static void uhci_map(PCIDevice *pci_dev, int region_num,
     register_ioport_read(addr, 32, 1, uhci_ioport_readb, s);
 }
 
-void usb_uhci_init(PCIBus *bus, USBPort **usb_ports, int devfn)
+void usb_uhci_init(PCIBus *bus, int devfn)
 {
     UHCIState *s;
     uint8_t *pci_conf;
-    UHCIPort *port;
     int i;
 
     s = (UHCIState *)pci_register_device(bus,
@@ -662,11 +661,7 @@ void usb_uhci_init(PCIBus *bus, USBPort **usb_ports, int devfn)
     pci_conf[0x60] = 0x10; // release number
     
     for(i = 0; i < NB_PORTS; i++) {
-        port = &s->ports[i];
-        port->port.opaque = s;
-        port->port.index = i;
-        port->port.attach = uhci_attach;
-        usb_ports[i] = &port->port;
+        qemu_register_usb_port(&s->ports[i].port, s, i, uhci_attach);
     }
     s->frame_timer = qemu_new_timer(vm_clock, uhci_frame_timer, s);
 

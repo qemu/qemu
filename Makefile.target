@@ -307,7 +307,7 @@ SOUND_HW += fmopl.o adlib.o
 endif
 
 # USB layer
-VL_OBJS+= usb.o usb-hub.o usb-linux.o usb-hid.o
+VL_OBJS+= usb.o usb-hub.o usb-linux.o usb-hid.o usb-ohci.o
 
 # PCI network cards
 VL_OBJS+= ne2000.o rtl8139.o

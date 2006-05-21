@@ -40,7 +40,6 @@ static fdctrl_t *floppy_controller;
 static RTCState *rtc_state;
 static PITState *pit;
 static IOAPICState *ioapic;
-static USBPort *usb_root_ports[2];
 
 static void ioport80_write(void *opaque, uint32_t addr, uint32_t data)
 {
@@ -833,8 +832,7 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
     cmos_init(ram_size, boot_device, bs_table);
 
     if (pci_enabled && usb_enabled) {
-        usb_uhci_init(pci_bus, usb_root_ports, piix3_devfn + 2);
-        usb_attach(usb_root_ports[0], vm_usb_hub);
+        usb_uhci_init(pci_bus, piix3_devfn + 2);
     }
 
     if (pci_enabled && acpi_enabled) {

@@ -374,6 +374,9 @@ static void versatile_init(int ram_size, int vga_ram_size, int boot_device,
             pci_nic_init(pci_bus, nd);
         }
     }
+    if (usb_enabled) {
+        usb_ohci_init(pci_bus, 3, -1);
+    }
 
     pl011_init(0x101f1000, pic, 12, serial_hds[0]);
     pl011_init(0x101f2000, pic, 13, serial_hds[1]);

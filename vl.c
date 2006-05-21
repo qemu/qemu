@@ -106,6 +106,9 @@
 /* in ms */
 #define GUI_REFRESH_INTERVAL 30
 
+/* Max number of USB devices that can be specified on the commandline.  */
+#define MAX_USB_CMDLINE 8
+
 /* XXX: use a two level table to limit memory usage */
 #define MAX_IOPORTS 65536
 
@@ -145,8 +148,6 @@ CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
 int win2k_install_hack = 0;
 #endif
 int usb_enabled = 0;
-USBPort *vm_usb_ports[MAX_VM_USB_PORTS];
-USBDevice *vm_usb_hub;
 static VLANState *first_vlan;
 int smp_cpus = 1;
 int vnc_display = -1;
@@ -3249,47 +3250,71 @@ void do_info_network(void)
 /***********************************************************/
 /* USB devices */
 
+static USBPort *used_usb_ports;
+static USBPort *free_usb_ports;
+
+/* ??? Maybe change this to register a hub to keep track of the topology.  */
+void qemu_register_usb_port(USBPort *port, void *opaque, int index,
+                            usb_attachfn attach)
+{
+    port->opaque = opaque;
+    port->index = index;
+    port->attach = attach;
+    port->next = free_usb_ports;
+    free_usb_ports = port;
+}
+
 static int usb_device_add(const char *devname)
 {
     const char *p;
     USBDevice *dev;
-    int i;
+    USBPort *port;
 
-    if (!vm_usb_hub)
-        return -1;
-    for(i = 0;i < MAX_VM_USB_PORTS; i++) {
-        if (!vm_usb_ports[i]->dev)
-            break;
-    }
-    if (i == MAX_VM_USB_PORTS)
+    if (!free_usb_ports)
         return -1;
 
     if (strstart(devname, "host:", &p)) {
         dev = usb_host_device_open(p);
-        if (!dev)
-            return -1;
     } else if (!strcmp(devname, "mouse")) {
         dev = usb_mouse_init();
-        if (!dev)
-            return -1;
     } else if (!strcmp(devname, "tablet")) {
 	dev = usb_tablet_init();
-	if (!dev)
-	    return -1;
     } else {
         return -1;
     }
-    usb_attach(vm_usb_ports[i], dev);
+    if (!dev)
+        return -1;
+
+    /* Find a USB port to add the device to.  */
+    port = free_usb_ports;
+    if (!port->next) {
+        USBDevice *hub;
+
+        /* Create a new hub and chain it on.  */
+        free_usb_ports = NULL;
+        port->next = used_usb_ports;
+        used_usb_ports = port;
+
+        hub = usb_hub_init(VM_USB_HUB_SIZE);
+        usb_attach(port, hub);
+        port = free_usb_ports;
+    }
+
+    free_usb_ports = port->next;
+    port->next = used_usb_ports;
+    used_usb_ports = port;
+    usb_attach(port, dev);
     return 0;
 }
 
 static int usb_device_del(const char *devname)
 {
-    USBDevice *dev;
-    int bus_num, addr, i;
+    USBPort *port;
+    USBPort **lastp;
+    int bus_num, addr;
     const char *p;
 
-    if (!vm_usb_hub)
+    if (!used_usb_ports)
         return -1;
 
     p = strchr(devname, '.');
@@ -3299,14 +3324,21 @@ static int usb_device_del(const char *devname)
     addr = strtoul(p + 1, NULL, 0);
     if (bus_num != 0)
         return -1;
-    for(i = 0;i < MAX_VM_USB_PORTS; i++) {
-        dev = vm_usb_ports[i]->dev;
-        if (dev && dev->addr == addr)
-            break;
+
+    lastp = &used_usb_ports;
+    port = used_usb_ports;
+    while (port && port->dev->addr != addr) {
+        lastp = &port->next;
+        port = port->next;
     }
-    if (i == MAX_VM_USB_PORTS)
+
+    if (!port)
         return -1;
-    usb_attach(vm_usb_ports[i], NULL);
+
+    *lastp = port->next;
+    usb_attach(port, NULL);
+    port->next = free_usb_ports;
+    free_usb_ports = port;
     return 0;
 }
 
@@ -3329,35 +3361,34 @@ void do_usb_del(const char *devname)
 void usb_info(void)
 {
     USBDevice *dev;
-    int i;
+    USBPort *port;
     const char *speed_str;
 
-    if (!vm_usb_hub) {
+    if (!usb_enabled) {
         term_printf("USB support not enabled\n");
         return;
     }
 
-    for(i = 0; i < MAX_VM_USB_PORTS; i++) {
-        dev = vm_usb_ports[i]->dev;
-        if (dev) {
-            term_printf("Hub port %d:\n", i);
-            switch(dev->speed) {
-            case USB_SPEED_LOW: 
-                speed_str = "1.5"; 
-                break;
-            case USB_SPEED_FULL: 
-                speed_str = "12"; 
-                break;
-            case USB_SPEED_HIGH: 
-                speed_str = "480"; 
-                break;
-            default:
-                speed_str = "?"; 
-                break;
-            }
-            term_printf("  Device %d.%d, speed %s Mb/s\n", 
-                        0, dev->addr, speed_str);
+    for (port = used_usb_ports; port; port = port->next) {
+        dev = port->dev;
+        if (!dev)
+            continue;
+        switch(dev->speed) {
+        case USB_SPEED_LOW: 
+            speed_str = "1.5"; 
+            break;
+        case USB_SPEED_FULL: 
+            speed_str = "12"; 
+            break;
+        case USB_SPEED_HIGH: 
+            speed_str = "480"; 
+            break;
+        default:
+            speed_str = "?"; 
+            break;
         }
+        term_printf("  Device %d.%d, speed %s Mb/s\n", 
+                    0, dev->addr, speed_str);
     }
 }
 
@@ -5066,7 +5097,7 @@ int main(int argc, char **argv)
     int parallel_device_index;
     const char *loadvm = NULL;
     QEMUMachine *machine;
-    char usb_devices[MAX_VM_USB_PORTS][128];
+    char usb_devices[MAX_USB_CMDLINE][128];
     int usb_devices_index;
 
     LIST_INIT (&vm_change_state_head);
@@ -5425,7 +5456,7 @@ int main(int argc, char **argv)
                 break;
             case QEMU_OPTION_usbdevice:
                 usb_enabled = 1;
-                if (usb_devices_index >= MAX_VM_USB_PORTS) {
+                if (usb_devices_index >= MAX_USB_CMDLINE) {
                     fprintf(stderr, "Too many USB devices\n");
                     exit(1);
                 }
@@ -5596,17 +5627,6 @@ int main(int argc, char **argv)
         }
     }
 
-    /* init USB devices */
-    if (usb_enabled) {
-        vm_usb_hub = usb_hub_init(vm_usb_ports, MAX_VM_USB_PORTS);
-        for(i = 0; i < usb_devices_index; i++) {
-            if (usb_device_add(usb_devices[i]) < 0) {
-                fprintf(stderr, "Warning: could not add USB device %s\n",
-                        usb_devices[i]);
-            }
-        }
-    }
-
     register_savevm("timer", 0, 1, timer_save, timer_load, NULL);
     register_savevm("ram", 0, 1, ram_save, ram_load, NULL);
 
@@ -5709,6 +5729,16 @@ int main(int argc, char **argv)
     machine->init(ram_size, vga_ram_size, boot_device,
                   ds, fd_filename, snapshot,
                   kernel_filename, kernel_cmdline, initrd_filename);
+
+    /* init USB devices */
+    if (usb_enabled) {
+        for(i = 0; i < usb_devices_index; i++) {
+            if (usb_device_add(usb_devices[i]) < 0) {
+                fprintf(stderr, "Warning: could not add USB device %s\n",
+                        usb_devices[i]);
+            }
+        }
+    }
 
     gui_timer = qemu_new_timer(rt_clock, gui_update, NULL);
     qemu_mod_timer(gui_timer, qemu_get_clock(rt_clock));

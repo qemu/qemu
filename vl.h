@@ -1022,10 +1022,10 @@ int cuda_init(SetIRQFunc *set_irq, void *irq_opaque, int irq);
 
 /* usb ports of the VM */
 
-#define MAX_VM_USB_PORTS 8
+void qemu_register_usb_port(USBPort *port, void *opaque, int index,
+                            usb_attachfn attach);
 
-extern USBPort *vm_usb_ports[MAX_VM_USB_PORTS];
-extern USBDevice *vm_usb_hub;
+#define VM_USB_HUB_SIZE 8
 
 void do_usb_add(const char *devname);
 void do_usb_del(const char *devname);
