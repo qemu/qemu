@@ -29,6 +29,9 @@
 #include <unistd.h>
 
 #include "cpu.h"
+#if defined(USE_KQEMU)
+#include "vl.h"
+#endif
 
 #if defined(__i386__) && !defined(CONFIG_SOFTMMU) && !defined(CONFIG_USER_ONLY)
 
@@ -321,13 +324,15 @@ void qemu_vfree(void *ptr)
     VirtualFree(ptr, 0, MEM_RELEASE);
 }
 
-#elif defined(USE_KQEMU)
+#else
+
+#if defined(USE_KQEMU)
 
 #include <sys/vfs.h>
 #include <sys/mman.h>
 #include <fcntl.h>
 
-void *qemu_vmalloc(size_t size)
+void *kqemu_vmalloc(size_t size)
 {
     static int phys_ram_fd = -1;
     static int phys_ram_size = 0;
@@ -362,6 +367,7 @@ void *qemu_vmalloc(size_t size)
                             "QEMU_TMPDIR environment variable to set another directory where the QEMU\n"
                             "temporary RAM file will be opened.\n");
                 }
+                fprintf(stderr, "Or disable the accelerator module with -no-kqemu\n");
                 exit(1);
             }
         }
@@ -403,16 +409,20 @@ void *qemu_vmalloc(size_t size)
     return ptr;
 }
 
-void qemu_vfree(void *ptr)
+void kqemu_vfree(void *ptr)
 {
     /* may be useful some day, but currently we do not need to free */
 }
 
-#else
+#endif
 
 /* alloc shared memory pages */
 void *qemu_vmalloc(size_t size)
 {
+#if defined(USE_KQEMU)
+    if (kqemu_allowed)
+        return kqemu_vmalloc(size);
+#endif
 #ifdef _BSD
     return valloc(size);
 #else
@@ -422,6 +432,10 @@ void *qemu_vmalloc(size_t size)
 
 void qemu_vfree(void *ptr)
 {
+#if defined(USE_KQEMU)
+    if (kqemu_allowed)
+        kqemu_vfree(ptr);
+#endif
     free(ptr);
 }
 
