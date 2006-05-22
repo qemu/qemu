@@ -528,6 +528,7 @@ struct mips_opcode
    ISA/ASE bitmask to test against; and CPU is the CPU specific ISA to
    test, or zero if no CPU specific ISA test is desired.  */
 
+#if 0
 #define OPCODE_IS_MEMBER(insn, isa, cpu)				\
     (((insn)->membership & isa) != 0					\
      || (cpu == CPU_R4650 && ((insn)->membership & INSN_4650) != 0)	\
@@ -543,6 +544,10 @@ struct mips_opcode
      || (cpu == CPU_VR5400 && ((insn)->membership & INSN_5400) != 0)	\
      || (cpu == CPU_VR5500 && ((insn)->membership & INSN_5500) != 0)	\
      || 0)	/* Please keep this term for easier source merging.  */
+#else
+#define OPCODE_IS_MEMBER(insn, isa, cpu)                               \
+    (1 != 0)
+#endif
 
 /* This is a list of macro expanded instructions.
 
