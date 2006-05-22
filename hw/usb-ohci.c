@@ -248,19 +248,39 @@ struct ohci_td {
 #define OHCI_CC_BUFFEROVERRUN       0xc
 #define OHCI_CC_BUFFERUNDERRUN      0xd
 
+/* Update IRQ levels */
+static inline void ohci_intr_update(OHCIState *ohci)
+{
+    int level = 0;
+
+    if ((ohci->intr & OHCI_INTR_MIE) &&
+        (ohci->intr_status & ohci->intr))
+        level = 1;
+
+    pci_set_irq(&ohci->pci_dev, 0, level);
+}
+
+/* Set an interrupt */
+static inline void ohci_set_interrupt(OHCIState *ohci, uint32_t intr)
+{
+    ohci->intr_status |= intr;
+    ohci_intr_update(ohci);
+}
+
+/* Attach or detach a device on a root hub port.  */
 static void ohci_attach(USBPort *port1, USBDevice *dev)
 {
     OHCIState *s = port1->opaque;
     OHCIPort *port = &s->rhport[port1->index];
+    uint32_t old_state = port->ctrl;
 
     if (dev) {
         if (port->port.dev) {
             usb_attach(port1, NULL);
         }
         /* set connect status */
-        if (!(port->ctrl & OHCI_PORT_CCS)) {
-            port->ctrl |= OHCI_PORT_CCS | OHCI_PORT_CSC;
-        }
+        port->ctrl |= OHCI_PORT_CCS | OHCI_PORT_CSC;
+
         /* update speed */
         if (dev->speed == USB_SPEED_LOW)
             port->ctrl |= OHCI_PORT_LSDA;
@@ -273,8 +293,9 @@ static void ohci_attach(USBPort *port1, USBDevice *dev)
         dprintf("usb-ohci: Attached port %d\n", port1->index);
     } else {
         /* set connect status */
-        if (!(port->ctrl & OHCI_PORT_CCS)) {
-            port->ctrl |= OHCI_PORT_CCS | OHCI_PORT_CSC;
+        if (port->ctrl & OHCI_PORT_CCS) {
+            port->ctrl &= ~OHCI_PORT_CCS;
+            port->ctrl |= OHCI_PORT_CSC;
         }
         /* disable port */
         if (port->ctrl & OHCI_PORT_PES) {
@@ -290,6 +311,9 @@ static void ohci_attach(USBPort *port1, USBDevice *dev)
         port->port.dev = NULL;
         dprintf("usb-ohci: Detached port %d\n", port1->index);
     }
+
+    if (old_state != port->ctrl)
+        ohci_set_interrupt(s, OHCI_INTR_RHSC);
 }
 
 /* Reset the controller */
@@ -333,25 +357,6 @@ static void ohci_reset(OHCIState *ohci)
             ohci_attach(&port->port, port->port.dev);
       }
     dprintf("usb-ohci: Reset %s\n", ohci->pci_dev.name);
-}
-
-/* Update IRQ levels */
-static inline void ohci_intr_update(OHCIState *ohci)
-{
-    int level = 0;
-
-    if ((ohci->intr & OHCI_INTR_MIE) &&
-        (ohci->intr_status & ohci->intr))
-        level = 1;
-
-    pci_set_irq(&ohci->pci_dev, 0, level);
-}
-
-/* Set an interrupt */
-static inline void ohci_set_interrupt(OHCIState *ohci, uint32_t intr)
-{
-    ohci->intr_status |= intr;
-    ohci_intr_update(ohci);
 }
 
 /* Get an array of dwords from main memory */

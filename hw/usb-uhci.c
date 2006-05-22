@@ -327,9 +327,8 @@ static void uhci_attach(USBPort *port1, USBDevice *dev)
             usb_attach(port1, NULL);
         }
         /* set connect status */
-        if (!(port->ctrl & UHCI_PORT_CCS)) {
-            port->ctrl |= UHCI_PORT_CCS | UHCI_PORT_CSC;
-        }
+        port->ctrl |= UHCI_PORT_CCS | UHCI_PORT_CSC;
+
         /* update speed */
         if (dev->speed == USB_SPEED_LOW)
             port->ctrl |= UHCI_PORT_LSDA;
@@ -341,8 +340,9 @@ static void uhci_attach(USBPort *port1, USBDevice *dev)
                            USB_MSG_ATTACH, 0, 0, NULL, 0);
     } else {
         /* set connect status */
-        if (!(port->ctrl & UHCI_PORT_CCS)) {
-            port->ctrl |= UHCI_PORT_CCS | UHCI_PORT_CSC;
+        if (port->ctrl & UHCI_PORT_CCS) {
+            port->ctrl &= ~UHCI_PORT_CCS;
+            port->ctrl |= UHCI_PORT_CSC;
         }
         /* disable port */
         if (port->ctrl & UHCI_PORT_EN) {
