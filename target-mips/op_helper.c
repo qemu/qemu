@@ -342,7 +342,7 @@ void do_mtc0 (int reg, int sel)
         rn = "EntryLo1";
         break;
     case 4:
-        val = (env->CP0_Context & 0xFF000000) | (T0 & 0x00FFFFF0);
+        val = (env->CP0_Context & 0xFF800000) | (T0 & 0x007FFFF0);
         old = env->CP0_Context;
         env->CP0_Context = val;
         rn = "Context";
@@ -366,7 +366,7 @@ void do_mtc0 (int reg, int sel)
         rn = "Count";
         break;
     case 10:
-        val = T0 & 0xFFFFF0FF;
+        val = T0 & 0xFFFFE0FF;
         old = env->CP0_EntryHi;
         env->CP0_EntryHi = val;
 	/* If the ASID changes, flush qemu's TLB.  */
