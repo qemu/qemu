@@ -867,10 +867,9 @@ static void setupWindowMenu(void)
     /* Finally give up our references to the objects */
     [windowMenu release];
     [windowMenuItem release];
- 
 }
 
-static void CustomApplicationMain (argc, argv)
+static void CustomApplicationMain(void)
 {
     NSAutoreleasePool   *pool = [[NSAutoreleasePool alloc] init];
     QemuCocoaGUIController *gui_controller;
@@ -904,8 +903,8 @@ int main(int argc, char **argv)
 {
     gArgc = argc;
     gArgv = argv;
-    
-    CustomApplicationMain (argc, argv);
-    
+
+    CustomApplicationMain();
+
     return 0;
 }
