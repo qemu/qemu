@@ -1589,6 +1589,15 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
         case 0x5:
         case 0x6:
         case 0x7:
+            /* Check for undefined extension instructions
+             * per the ARM Bible IE:
+             * xxxx 0111 1111 xxxx  xxxx xxxx 1111 xxxx
+             */
+            sh = (0xf << 20) | (0xf << 4);
+            if (op1 == 0x7 && ((insn & sh) == sh))
+            {
+                goto illegal_op;
+            }
             /* load/store byte/word */
             rn = (insn >> 16) & 0xf;
             rd = (insn >> 12) & 0xf;
