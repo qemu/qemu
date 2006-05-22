@@ -148,6 +148,7 @@ typedef struct DisasContext {
 #endif
     int fpu_enabled;
     ppc_spr_t *spr_cb; /* Needed to check rights for mfspr/mtspr */
+    int singlestep_enabled;
 } DisasContext;
 
 struct opc_handler_t {
@@ -1738,10 +1739,14 @@ static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
         gen_op_set_T1(dest);
         gen_op_b_T1();
         gen_op_set_T0((long)tb + n);
+        if (ctx->singlestep_enabled)
+            gen_op_debug();
         gen_op_exit_tb();
     } else {
         gen_op_set_T1(dest);
         gen_op_b_T1();
+        if (ctx->singlestep_enabled)
+            gen_op_debug();
         gen_op_set_T0(0);
         gen_op_exit_tb();
     }
@@ -2520,12 +2525,22 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     ctx.mem_idx = ((1 - msr_pr) << 1) | msr_le;
 #endif
     ctx.fpu_enabled = msr_fp;
+    ctx.singlestep_enabled = env->singlestep_enabled;
 #if defined (DO_SINGLE_STEP) && 0
     /* Single step trace mode */
     msr_se = 1;
 #endif
     /* Set env in case of segfault during code fetch */
     while (ctx.exception == EXCP_NONE && gen_opc_ptr < gen_opc_end) {
+        if (env->nb_breakpoints > 0) {
+            for(j = 0; j < env->nb_breakpoints; j++) {
+                if (env->breakpoints[j] == ctx.nip) {
+                    gen_op_update_nip(ctx.nip); 
+                    gen_op_debug();
+                    break;
+                }
+            }
+        }
         if (search_pc) {
             j = gen_opc_ptr - gen_opc_buf;
             if (lj < j) {
@@ -2616,8 +2631,12 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
              ctx.exception != EXCP_TRAP)) {
             RET_EXCP(ctxp, EXCP_TRACE, 0);
         }
-        /* if we reach a page boundary, stop generation */
-        if ((ctx.nip & (TARGET_PAGE_SIZE - 1)) == 0) {
+
+        /* if we reach a page boundary or are single stepping, stop
+         * generation
+         */
+        if (((ctx.nip & (TARGET_PAGE_SIZE - 1)) == 0) ||
+            (env->singlestep_enabled)) {
             break;
     }
 #if defined (DO_SINGLE_STEP)

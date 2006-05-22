@@ -204,6 +204,11 @@ PPC_OP(update_nip)
     env->nip = PARAM(1);
 }
 
+PPC_OP(debug)
+{
+    do_raise_exception(EXCP_DEBUG);
+}
+
 /* Segment registers load and store with immediate index */
 PPC_OP(load_srin)
 {
