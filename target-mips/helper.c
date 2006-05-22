@@ -219,7 +219,6 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                 exception = EXCP_TLBS;
             else
                 exception = EXCP_TLBL;
-            error_code = 0;
             break;
         case -4:
             /* TLB match but 'D' bit is cleared */
@@ -350,7 +349,6 @@ void do_interrupt (CPUState *env)
         cause = 4;
         goto set_EPC;
     case EXCP_TLBL:
-    case EXCP_TLBF:
         cause = 2;
         if (env->error_code == 1 && !(env->hflags & MIPS_HFLAG_EXL))
             offset = 0x000;

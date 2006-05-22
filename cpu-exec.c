@@ -561,6 +561,8 @@ int cpu_exec(CPUState *env1)
 #elif defined(TARGET_SH4)
 		    /* XXXXX */
 #endif
+                   /* Don't use the cached interupt_request value,
+                      do_interrupt may have updated the EXITTB flag. */
                     if (env->interrupt_request & CPU_INTERRUPT_EXITTB) {
                         env->interrupt_request &= ~CPU_INTERRUPT_EXITTB;
                         /* ensure that no TB jump will be modified as
