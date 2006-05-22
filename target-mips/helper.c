@@ -40,8 +40,8 @@ static int map_address (CPUState *env, target_ulong *physical, int *prot,
     int ret;
 
     ret = -2;
-    tag = (address & 0xFFFFE000);
-    ASID = env->CP0_EntryHi & 0x000000FF;
+    tag = address & 0xFFFFE000;
+    ASID = env->CP0_EntryHi & 0xFF;
     for (i = 0; i < MIPS_TLB_NB; i++) {
         tlb = &env->tlb[i];
         /* Check ASID, virtual page number & size */
@@ -74,7 +74,7 @@ int get_physical_address (CPUState *env, target_ulong *physical, int *prot,
     int ret;
 
     /* User mode can only access useg */
-    user_mode = ((env->hflags & MIPS_HFLAG_MODE) == MIPS_HFLAG_UM) ? 1 : 0;
+    user_mode = (env->hflags & MIPS_HFLAG_MODE) == MIPS_HFLAG_UM;
 #if 0
     if (logfile) {
         fprintf(logfile, "user mode %d h %08x\n",
@@ -231,7 +231,7 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
         env->CP0_Context = (env->CP0_Context & 0xff800000) |
 	                   ((address >> 9) &   0x007ffff0);
         env->CP0_EntryHi =
-            (env->CP0_EntryHi & 0x000000FF) | (address & 0xFFFFF000);
+            (env->CP0_EntryHi & 0xFF) | (address & 0xFFFFF000);
         env->exception_index = exception;
         env->error_code = error_code;
         ret = 1;

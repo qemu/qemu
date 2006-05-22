@@ -1614,7 +1614,7 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
 #if defined(CONFIG_USER_ONLY)
     ctx.mem_idx = 0;
 #else
-    ctx.mem_idx = (ctx.hflags & MIPS_HFLAG_MODE) == MIPS_HFLAG_UM ? 0 : 1;
+    ctx.mem_idx = !((ctx.hflags & MIPS_HFLAG_MODE) == MIPS_HFLAG_UM);
 #endif
     ctx.CP0_Status = env->CP0_Status;
 #ifdef DEBUG_DISAS

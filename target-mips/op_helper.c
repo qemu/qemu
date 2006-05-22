@@ -330,13 +330,13 @@ void do_mtc0 (int reg, int sel)
         rn = "Index";
         break;
     case 2:
-        val = T0 & 0x03FFFFFFF;
+        val = T0 & 0x3FFFFFFF;
         old = env->CP0_EntryLo0;
         env->CP0_EntryLo0 = val;
         rn = "EntryLo0";
         break;
     case 3:
-        val = T0 & 0x03FFFFFFF;
+        val = T0 & 0x3FFFFFFF;
         old = env->CP0_EntryLo1;
         env->CP0_EntryLo1 = val;
         rn = "EntryLo1";
@@ -403,20 +403,17 @@ void do_mtc0 (int reg, int sel)
                     old, val, env->CP0_Cause, old & mask, val & mask,
                     env->CP0_Cause & mask);
         }
-#if 1
         if ((val & (1 << CP0St_IE)) && !(old & (1 << CP0St_IE)) &&
             !(env->hflags & MIPS_HFLAG_EXL) &&
             !(env->hflags & MIPS_HFLAG_ERL) &&
-            !(env->hflags & MIPS_HFLAG_DM) && 
+            !(env->hflags & MIPS_HFLAG_DM) &&
             (env->CP0_Status & env->CP0_Cause & mask)) {
             if (logfile)
                 fprintf(logfile, "Raise pending IRQs\n");
             env->interrupt_request |= CPU_INTERRUPT_HARD;
-            do_raise_exception(EXCP_EXT_INTERRUPT);
-        } else if (!(val & 0x00000001) && (old & 0x00000001)) {
+        } else if (!(val & (1 << CP0St_IE)) && (old & (1 << CP0St_IE))) {
             env->interrupt_request &= ~CPU_INTERRUPT_HARD;
         }
-#endif
         rn = "Status";
         break;
     case 13:
@@ -605,9 +602,9 @@ void do_tlbp (void)
     uint8_t ASID;
     int i;
 
-    tag = (env->CP0_EntryHi & 0xFFFFE000);
-    ASID = env->CP0_EntryHi & 0x000000FF;
-        for (i = 0; i < MIPS_TLB_NB; i++) {
+    tag = env->CP0_EntryHi & 0xFFFFE000;
+    ASID = env->CP0_EntryHi & 0xFF;
+    for (i = 0; i < MIPS_TLB_NB; i++) {
         tlb = &env->tlb[i];
         /* Check ASID, virtual page number & size */
         if ((tlb->G == 1 || tlb->ASID == ASID) && tlb->VPN == tag) {
