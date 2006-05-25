@@ -419,6 +419,7 @@ static void ohci_copy_td(struct ohci_td *td, uint8_t *buf, int len, int write)
     if (n == len)
         return;
     ptr = td->be & ~0xfffu;
+    buf += n;
     cpu_physical_memory_rw(ptr, buf, len - n, write);
 }
 
@@ -474,7 +475,12 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
         return 1;
     }
     if (td.cbp && td.be) {
-        len = (td.be - td.cbp) + 1;
+        if ((td.cbp & 0xfffff000) != (td.be & 0xfffff000)) {
+            len = (td.be & 0xfff) + 0x1001 - (td.cbp & 0xfff);
+        } else {
+            len = (td.be - td.cbp) + 1;
+        }
+
         if (len && dir != OHCI_TD_DIR_IN) {
             ohci_copy_td(&td, buf, len, 0);
         }
