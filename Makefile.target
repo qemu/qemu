@@ -306,8 +306,11 @@ ifdef CONFIG_ADLIB
 SOUND_HW += fmopl.o adlib.o
 endif
 
+# SCSI layer
+VL_OBJS+= scsi-disk.o cdrom.o
+
 # USB layer
-VL_OBJS+= usb.o usb-hub.o usb-linux.o usb-hid.o usb-ohci.o
+VL_OBJS+= usb.o usb-hub.o usb-linux.o usb-hid.o usb-ohci.o usb-msd.o
 
 # PCI network cards
 VL_OBJS+= ne2000.o rtl8139.o

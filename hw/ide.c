@@ -1082,127 +1082,6 @@ static void ide_atapi_cmd_read(IDEState *s, int lba, int nb_sectors,
     }
 }
 
-/* same toc as bochs. Return -1 if error or the toc length */
-/* XXX: check this */
-static int cdrom_read_toc(IDEState *s, uint8_t *buf, int msf, int start_track)
-{
-    uint8_t *q;
-    int nb_sectors, len;
-    
-    if (start_track > 1 && start_track != 0xaa)
-        return -1;
-    q = buf + 2;
-    *q++ = 1; /* first session */
-    *q++ = 1; /* last session */
-    if (start_track <= 1) {
-        *q++ = 0; /* reserved */
-        *q++ = 0x14; /* ADR, control */
-        *q++ = 1;    /* track number */
-        *q++ = 0; /* reserved */
-        if (msf) {
-            *q++ = 0; /* reserved */
-            lba_to_msf(q, 0);
-            q += 3;
-        } else {
-            /* sector 0 */
-            cpu_to_ube32(q, 0);
-            q += 4;
-        }
-    }
-    /* lead out track */
-    *q++ = 0; /* reserved */
-    *q++ = 0x16; /* ADR, control */
-    *q++ = 0xaa; /* track number */
-    *q++ = 0; /* reserved */
-    nb_sectors = s->nb_sectors >> 2;
-    if (msf) {
-        *q++ = 0; /* reserved */
-        lba_to_msf(q, nb_sectors);
-        q += 3;
-    } else {
-        cpu_to_ube32(q, nb_sectors);
-        q += 4;
-    }
-    len = q - buf;
-    cpu_to_ube16(buf, len - 2);
-    return len;
-}
-
-/* mostly same info as PearPc */
-static int cdrom_read_toc_raw(IDEState *s, uint8_t *buf, int msf, 
-                              int session_num)
-{
-    uint8_t *q;
-    int nb_sectors, len;
-    
-    q = buf + 2;
-    *q++ = 1; /* first session */
-    *q++ = 1; /* last session */
-
-    *q++ = 1; /* session number */
-    *q++ = 0x14; /* data track */
-    *q++ = 0; /* track number */
-    *q++ = 0xa0; /* lead-in */
-    *q++ = 0; /* min */
-    *q++ = 0; /* sec */
-    *q++ = 0; /* frame */
-    *q++ = 0;
-    *q++ = 1; /* first track */
-    *q++ = 0x00; /* disk type */
-    *q++ = 0x00;
-    
-    *q++ = 1; /* session number */
-    *q++ = 0x14; /* data track */
-    *q++ = 0; /* track number */
-    *q++ = 0xa1;
-    *q++ = 0; /* min */
-    *q++ = 0; /* sec */
-    *q++ = 0; /* frame */
-    *q++ = 0;
-    *q++ = 1; /* last track */
-    *q++ = 0x00;
-    *q++ = 0x00;
-    
-    *q++ = 1; /* session number */
-    *q++ = 0x14; /* data track */
-    *q++ = 0; /* track number */
-    *q++ = 0xa2; /* lead-out */
-    *q++ = 0; /* min */
-    *q++ = 0; /* sec */
-    *q++ = 0; /* frame */
-    nb_sectors = s->nb_sectors >> 2;
-    if (msf) {
-        *q++ = 0; /* reserved */
-        lba_to_msf(q, nb_sectors);
-        q += 3;
-    } else {
-        cpu_to_ube32(q, nb_sectors);
-        q += 4;
-    }
-
-    *q++ = 1; /* session number */
-    *q++ = 0x14; /* ADR, control */
-    *q++ = 0;    /* track number */
-    *q++ = 1;    /* point */
-    *q++ = 0; /* min */
-    *q++ = 0; /* sec */
-    *q++ = 0; /* frame */
-    if (msf) {
-        *q++ = 0; 
-        lba_to_msf(q, 0);
-        q += 3;
-    } else {
-        *q++ = 0; 
-        *q++ = 0; 
-        *q++ = 0; 
-        *q++ = 0; 
-    }
-
-    len = q - buf;
-    cpu_to_ube16(buf, len - 2);
-    return len;
-}
-
 static void ide_atapi_cmd(IDEState *s)
 {
     const uint8_t *packet;
@@ -1449,7 +1328,7 @@ static void ide_atapi_cmd(IDEState *s)
             start_track = packet[6];
             switch(format) {
             case 0:
-                len = cdrom_read_toc(s, buf, msf, start_track);
+                len = cdrom_read_toc(s->nb_sectors >> 2, buf, msf, start_track);
                 if (len < 0)
                     goto error_cmd;
                 ide_atapi_cmd_reply(s, len, max_len);
@@ -1463,7 +1342,7 @@ static void ide_atapi_cmd(IDEState *s)
                 ide_atapi_cmd_reply(s, 12, max_len);
                 break;
             case 2:
-                len = cdrom_read_toc_raw(s, buf, msf, start_track);
+                len = cdrom_read_toc_raw(s->nb_sectors >> 2, buf, msf, start_track);
                 if (len < 0)
                     goto error_cmd;
                 ide_atapi_cmd_reply(s, len, max_len);

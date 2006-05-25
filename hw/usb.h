@@ -29,6 +29,7 @@
 #define USB_MSG_ATTACH   0x100
 #define USB_MSG_DETACH   0x101
 #define USB_MSG_RESET    0x102
+#define USB_MSG_DESTROY  0x103
 
 #define USB_RET_NODEV  (-1) 
 #define USB_RET_NAK    (-2)
@@ -121,7 +122,7 @@ struct USBDevice {
     /* The following fields are used by the generic USB device
        layer. They are here just to avoid creating a new structure for
        them. */
-    void (*handle_reset)(USBDevice *dev);
+    void (*handle_reset)(USBDevice *dev, int destroy);
     int (*handle_control)(USBDevice *dev, int request, int value,
                           int index, int length, uint8_t *data);
     int (*handle_data)(USBDevice *dev, int pid, uint8_t devep,
@@ -170,3 +171,6 @@ void usb_host_info(void);
 /* usb-hid.c */
 USBDevice *usb_mouse_init(void);
 USBDevice *usb_tablet_init(void);
+
+/* usb-msd.c */
+USBDevice *usb_msd_init(const char *filename);

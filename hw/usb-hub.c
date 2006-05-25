@@ -199,9 +199,11 @@ static void usb_hub_attach(USBPort *port1, USBDevice *dev)
     }
 }
 
-static void usb_hub_handle_reset(USBDevice *dev)
+static void usb_hub_handle_reset(USBDevice *dev, int destroy)
 {
     /* XXX: do it */
+    if (destroy)
+        qemu_free(dev);
 }
 
 static int usb_hub_handle_control(USBDevice *dev, int request, int value,

@@ -3279,6 +3279,8 @@ static int usb_device_add(const char *devname)
         dev = usb_mouse_init();
     } else if (!strcmp(devname, "tablet")) {
 	dev = usb_tablet_init();
+    } else if (strstart(devname, "disk:", &p)) {
+        dev = usb_msd_init(p);
     } else {
         return -1;
     }

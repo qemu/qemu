@@ -323,9 +323,15 @@ static int usb_tablet_poll(USBMouseState *s, uint8_t *buf, int len)
     return l;
 }
 
-static void usb_mouse_handle_reset(USBDevice *dev)
+static void usb_mouse_handle_reset(USBDevice *dev, int destroy)
 {
     USBMouseState *s = (USBMouseState *)dev;
+
+    if (destroy) {
+        qemu_add_mouse_event_handler(NULL, NULL, 0);
+        qemu_free(s);
+        return;
+    }
 
     s->dx = 0;
     s->dy = 0;

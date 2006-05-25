@@ -761,6 +761,10 @@ void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn);
 int pmac_ide_init (BlockDriverState **hd_table,
                    SetIRQFunc *set_irq, void *irq_opaque, int irq);
 
+/* cdrom.c */
+int cdrom_read_toc(int nb_sectors, uint8_t *buf, int msf, int start_track);
+int cdrom_read_toc_raw(int nb_sectors, uint8_t *buf, int msf, int session_num);
+
 /* es1370.c */
 int es1370_init (PCIBus *bus, AudioState *s);
 
@@ -1030,6 +1034,19 @@ void qemu_register_usb_port(USBPort *port, void *opaque, int index,
 void do_usb_add(const char *devname);
 void do_usb_del(const char *devname);
 void usb_info(void);
+
+/* scsi-disk.c */
+typedef struct SCSIDevice SCSIDevice;
+typedef void (*scsi_completionfn)(void *, uint32_t, int);
+
+SCSIDevice *scsi_disk_init(BlockDriverState *bdrv,
+                           scsi_completionfn completion,
+                           void *opaque);
+void scsi_disk_destroy(SCSIDevice *s);
+
+int32_t scsi_send_command(SCSIDevice *s, uint32_t tag, uint8_t *buf);
+int scsi_read_data(SCSIDevice *s, uint8_t *data, uint32_t len);
+int scsi_write_data(SCSIDevice *s, uint8_t *data, uint32_t len);
 
 /* integratorcp.c */
 extern QEMUMachine integratorcp926_machine;

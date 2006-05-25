@@ -55,7 +55,7 @@ typedef struct USBHostDevice {
     int fd;
 } USBHostDevice;
 
-static void usb_host_handle_reset(USBDevice *dev)
+static void usb_host_handle_reset(USBDevice *dev, int destroy)
 {
 #if 0
     USBHostDevice *s = (USBHostDevice *)dev;
