@@ -309,8 +309,7 @@ USB options:
 Enable the USB driver (will be the default soon)
 
 @item -usbdevice devname
-Add the USB device @var{devname}. See the monitor command
-@code{usb_add} to have more information.
+Add the USB device @var{devname}. @xref{usb_devices}.
 @end table
 
 Network options:
@@ -783,10 +782,8 @@ Reset the system.
 
 @item usb_add devname
 
-Plug the USB device devname to the QEMU virtual USB hub. @var{devname}
-is either a virtual device name (for example @code{mouse}) or a host
-USB device identifier. Host USB device identifiers have the following
-syntax: @code{host:bus.addr} or @code{host:vendor_id:product_id}.
+Add the USB device @var{devname}.  For details of available devices see
+@ref{usb_devices}
 
 @item usb_del devname
 
@@ -1105,31 +1102,39 @@ Lawton for the plex86 Project (@url{www.plex86.org}).
 @node pcsys_usb
 @section USB emulation
 
-QEMU emulates a PCI UHCI USB controller and a 8 port USB hub connected
-to it. You can virtually plug to the hub virtual USB devices or real
-host USB devices (experimental, works only on Linux hosts).
+QEMU emulates a PCI UHCI USB controller. You can virtually plug
+virtual USB devices or real host USB devices (experimental, works only
+on Linux hosts).  Qemu will automatically create and connect virtual USB hubs
+as neccessary to connect multiple USB devices.
 
-@subsection Using virtual USB devices
+@menu
+* usb_devices::
+* host_usb_devices::
+@end menu
+@node usb_devices
+@subsection Connecting USB devices
 
-A virtual USB mouse device is available for testing in QEMU.
+USB devices can be connected with the @option{-usbdevice} commandline option
+or the @code{usb_add} monitor command.  Available devices are:
 
-You can try it with the following monitor commands:
+@table @var
+@item @code{mouse}
+Virtual Mouse.  This will override the PS/2 mouse emulation when activated.
+@item @code{tablet}
+Pointer device that uses abolsute coordinates (like a touchscreen).
+This means qemu is able to report the mouse position without having
+to grab the mouse.  Also overrides the PS/2 mouse emulation when activated.
+@item @code{disk:file}
+Mass storage device based on @var{file} (@pxref{disk_images})
+@item @code{host:bus.addr}
+Pass through the host device identified by @var{bus.addr}
+(Linux only)
+@item @code{host:vendor_id:product_id}
+Pass through the host device identified by @var{vendor_id:product_id}
+(Linux only)
+@end table
 
-@example
-# add the mouse device
-(qemu) usb_add mouse 
-
-# show the virtual USB devices plugged on the QEMU Virtual USB hub
-(qemu) info usb
-  Device 0.3, speed 12 Mb/s
-
-# after some time you can try to remove the mouse
-(qemu) usb_del 0.3
-@end example
-
-The option @option{-usbdevice} is similar to the monitor command
-@code{usb_add}.
-
+@node host_usb_devices
 @subsection Using host USB devices on a Linux host
 
 WARNING: this is an experimental feature. QEMU will slow down when
