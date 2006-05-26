@@ -91,7 +91,7 @@ int scsi_read_data(SCSIDevice *s, uint8_t *data, uint32_t len)
     }
 
     if (len && s->sector_count) {
-        bdrv_read(s->bdrv, s->sector, s->buf, 512);
+        bdrv_read(s->bdrv, s->sector, s->buf, 1);
         s->sector++;
         s->sector_count--;
         s->buf_pos = 0;
