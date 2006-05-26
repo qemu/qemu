@@ -214,7 +214,6 @@ static void handle_ti(ESPState *s)
 	}
         if (s->ti_size) {
 	    s->rregs[4] = STAT_IN | STAT_TC | (to_device ? STAT_DO : STAT_DI);
-	    s->ti_size -= minlen;
         }
         s->rregs[5] = INTR_BS;
 	s->rregs[6] = 0;
