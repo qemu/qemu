@@ -1616,7 +1616,7 @@ int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
                 te->addr_write = vaddr | IO_MEM_ROM;
 		if (paddr == 0x10000000) {
 			printf("modify ROM at vaddr=0x%08x paddr=0x%08x\n", vaddr, paddr);
-			cpu_physical_memory_write_rom(paddr, flash, sizeof(flash));
+			cpu_physical_memory_write_rom(paddr, (const uint8_t *)flash, sizeof(flash));
 		}
             } else if ((pd & ~TARGET_PAGE_MASK) == IO_MEM_RAM && 
                        !cpu_physical_memory_is_dirty(pd)) {
