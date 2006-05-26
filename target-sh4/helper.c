@@ -1,0 +1,398 @@
+/*
+ *  SH4 emulation
+ * 
+ *  Copyright (c) 2005 Samuel Tardieu
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+#include <stdarg.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <inttypes.h>
+#include <signal.h>
+#include <assert.h>
+
+#include "cpu.h"
+#include "exec-all.h"
+
+#define MMU_OK                   0
+#define MMU_ITLB_MISS            (-1)
+#define MMU_ITLB_MULTIPLE        (-2)
+#define MMU_ITLB_VIOLATION       (-3)
+#define MMU_DTLB_MISS_READ       (-4)
+#define MMU_DTLB_MISS_WRITE      (-5)
+#define MMU_DTLB_INITIAL_WRITE   (-6)
+#define MMU_DTLB_VIOLATION_READ  (-7)
+#define MMU_DTLB_VIOLATION_WRITE (-8)
+#define MMU_DTLB_MULTIPLE        (-9)
+#define MMU_DTLB_MISS            (-10)
+
+void do_interrupt(CPUState * env)
+{
+    if (loglevel & CPU_LOG_INT) {
+	const char *expname;
+	switch (env->exception_index) {
+	case 0x0e0:
+	    expname = "addr_error";
+	    break;
+	case 0x040:
+	    expname = "tlb_miss";
+	    break;
+	case 0x0a0:
+	    expname = "tlb_violation";
+	    break;
+	case 0x180:
+	    expname = "illegal_instruction";
+	    break;
+	case 0x1a0:
+	    expname = "slot_illegal_instruction";
+	    break;
+	case 0x800:
+	    expname = "fpu_disable";
+	    break;
+	case 0x820:
+	    expname = "slot_fpu";
+	    break;
+	case 0x100:
+	    expname = "data_write";
+	    break;
+	case 0x060:
+	    expname = "dtlb_miss_write";
+	    break;
+	case 0x0c0:
+	    expname = "dtlb_violation_write";
+	    break;
+	case 0x120:
+	    expname = "fpu_exception";
+	    break;
+	case 0x080:
+	    expname = "initial_page_write";
+	    break;
+	case 0x160:
+	    expname = "trapa";
+	    break;
+	default:
+	    expname = "???";
+	    break;
+	}
+	fprintf(logfile, "exception 0x%03x [%s] raised\n",
+		env->exception_index, expname);
+	cpu_dump_state(env, logfile, fprintf, 0);
+    }
+
+    env->ssr = env->sr;
+    env->spc = env->spc;
+    env->sgr = env->gregs[15];
+    env->sr |= SR_BL | SR_MD | SR_RB;
+
+    env->expevt = env->exception_index & 0x7ff;
+    switch (env->exception_index) {
+    case 0x040:
+    case 0x060:
+    case 0x080:
+	env->pc = env->vbr + 0x400;
+	break;
+    case 0x140:
+	env->pc = 0xa0000000;
+	break;
+    default:
+	env->pc = env->vbr + 0x100;
+	break;
+    }
+}
+
+static void update_itlb_use(CPUState * env, int itlbnb)
+{
+    uint8_t or_mask = 0, and_mask = (uint8_t) - 1;
+
+    switch (itlbnb) {
+    case 0:
+	and_mask = 0x7f;
+	break;
+    case 1:
+	and_mask = 0xe7;
+	or_mask = 0x80;
+	break;
+    case 2:
+	and_mask = 0xfb;
+	or_mask = 0x50;
+	break;
+    case 3:
+	or_mask = 0x2c;
+	break;
+    }
+
+    env->mmucr &= (and_mask << 24);
+    env->mmucr |= (or_mask << 24);
+}
+
+static int itlb_replacement(CPUState * env)
+{
+    if ((env->mmucr & 0xe0000000) == 0xe0000000)
+	return 0;
+    if ((env->mmucr & 0x98000000) == 0x08000000)
+	return 1;
+    if ((env->mmucr & 0x54000000) == 0x04000000)
+	return 2;
+    if ((env->mmucr & 0x2c000000) == 0x00000000)
+	return 3;
+    assert(0);
+}
+
+/* Find the corresponding entry in the right TLB
+   Return entry, MMU_DTLB_MISS or MMU_DTLB_MULTIPLE
+*/
+static int find_tlb_entry(CPUState * env, target_ulong address,
+			  tlb_t * entries, uint8_t nbtlb, int use_asid)
+{
+    int match = MMU_DTLB_MISS;
+    uint32_t start, end;
+    uint8_t asid;
+    int i;
+
+    asid = env->pteh & 0xff;
+
+    for (i = 0; i < nbtlb; i++) {
+	if (!entries[i].v)
+	    continue;		/* Invalid entry */
+	if (use_asid && entries[i].asid != asid && !entries[i].sh)
+	    continue;		/* Bad ASID */
+#if 0
+	switch (entries[i].sz) {
+	case 0:
+	    size = 1024;	/* 1kB */
+	    break;
+	case 1:
+	    size = 4 * 1024;	/* 4kB */
+	    break;
+	case 2:
+	    size = 64 * 1024;	/* 64kB */
+	    break;
+	case 3:
+	    size = 1024 * 1024;	/* 1MB */
+	    break;
+	default:
+	    assert(0);
+	}
+#endif
+	start = (entries[i].vpn << 10) & ~(entries[i].size - 1);
+	end = start + entries[i].size - 1;
+	if (address >= start && address <= end) {	/* Match */
+	    if (match != -1)
+		return MMU_DTLB_MULTIPLE;	/* Multiple match */
+	    match = i;
+	}
+    }
+    return match;
+}
+
+/* Find itlb entry - update itlb from utlb if necessary and asked for
+   Return entry, MMU_ITLB_MISS, MMU_ITLB_MULTIPLE or MMU_DTLB_MULTIPLE
+   Update the itlb from utlb if update is not 0
+*/
+int find_itlb_entry(CPUState * env, target_ulong address,
+		    int use_asid, int update)
+{
+    int e, n;
+
+    e = find_tlb_entry(env, address, env->itlb, ITLB_SIZE, use_asid);
+    if (e == MMU_DTLB_MULTIPLE)
+	e = MMU_ITLB_MULTIPLE;
+    else if (e == MMU_DTLB_MISS && update) {
+	e = find_tlb_entry(env, address, env->utlb, UTLB_SIZE, use_asid);
+	if (e >= 0) {
+	    n = itlb_replacement(env);
+	    env->itlb[n] = env->utlb[e];
+	    e = n;
+	}
+    }
+    if (e >= 0)
+	update_itlb_use(env, e);
+    return e;
+}
+
+/* Find utlb entry
+   Return entry, MMU_DTLB_MISS, MMU_DTLB_MULTIPLE */
+int find_utlb_entry(CPUState * env, target_ulong address, int use_asid)
+{
+    uint8_t urb, urc;
+
+    /* Increment URC */
+    urb = ((env->mmucr) >> 18) & 0x3f;
+    urc = ((env->mmucr) >> 10) & 0x3f;
+    urc++;
+    if (urc == urb || urc == UTLB_SIZE - 1)
+	urc = 0;
+    env->mmucr = (env->mmucr & 0xffff03ff) | (urc << 10);
+
+    /* Return entry */
+    return find_tlb_entry(env, address, env->utlb, UTLB_SIZE, use_asid);
+}
+
+/* Match address against MMU
+   Return MMU_OK, MMU_DTLB_MISS_READ, MMU_DTLB_MISS_WRITE,
+   MMU_DTLB_INITIAL_WRITE, MMU_DTLB_VIOLATION_READ,
+   MMU_DTLB_VIOLATION_WRITE, MMU_ITLB_MISS,
+   MMU_ITLB_MULTIPLE, MMU_ITLB_VIOLATION
+*/
+static int get_mmu_address(CPUState * env, target_ulong * physical,
+			   int *prot, target_ulong address,
+			   int rw, int access_type)
+{
+    int use_asid, is_code, n;
+    tlb_t *matching = NULL;
+
+    use_asid = (env->mmucr & MMUCR_SV) == 0 && (env->sr & SR_MD) == 0;
+    is_code = env->pc == address;	/* Hack */
+
+    /* Use a hack to find if this is an instruction or data access */
+    if (env->pc == address && !(rw & PAGE_WRITE)) {
+	n = find_itlb_entry(env, address, use_asid, 1);
+	if (n >= 0) {
+	    matching = &env->itlb[n];
+	    if ((env->sr & SR_MD) & !(matching->pr & 2))
+		n = MMU_ITLB_VIOLATION;
+	    else
+		*prot = PAGE_READ;
+	}
+    } else {
+	n = find_utlb_entry(env, address, use_asid);
+	if (n >= 0) {
+	    matching = &env->utlb[n];
+	    switch ((matching->pr << 1) | ((env->sr & SR_MD) ? 1 : 0)) {
+	    case 0:		/* 000 */
+	    case 2:		/* 010 */
+		n = (rw & PAGE_WRITE) ? MMU_DTLB_VIOLATION_WRITE :
+		    MMU_DTLB_VIOLATION_READ;
+		break;
+	    case 1:		/* 001 */
+	    case 4:		/* 100 */
+	    case 5:		/* 101 */
+		if (rw & PAGE_WRITE)
+		    n = MMU_DTLB_VIOLATION_WRITE;
+		else
+		    *prot = PAGE_READ;
+		break;
+	    case 3:		/* 011 */
+	    case 6:		/* 110 */
+	    case 7:		/* 111 */
+		*prot = rw & (PAGE_READ | PAGE_WRITE);
+		break;
+	    }
+	} else if (n == MMU_DTLB_MISS) {
+	    n = (rw & PAGE_WRITE) ? MMU_DTLB_MISS_WRITE :
+		MMU_DTLB_MISS_READ;
+	}
+    }
+    if (n >= 0) {
+	*physical = ((matching->ppn << 10) & ~(matching->size - 1)) |
+	    (address & (matching->size - 1));
+	if ((rw & PAGE_WRITE) & !matching->d)
+	    n = MMU_DTLB_INITIAL_WRITE;
+	else
+	    n = MMU_OK;
+    }
+    return n;
+}
+
+int get_physical_address(CPUState * env, target_ulong * physical,
+			 int *prot, target_ulong address,
+			 int rw, int access_type)
+{
+    /* P1, P2 and P4 areas do not use translation */
+    if ((address >= 0x80000000 && address < 0xc0000000) ||
+	address >= 0xe0000000) {
+	if (!(env->sr & SR_MD)
+	    && (address < 0xe0000000 || address > 0xe4000000)) {
+	    /* Unauthorized access in user mode (only store queues are available) */
+	    fprintf(stderr, "Unauthorized access\n");
+	    return (rw & PAGE_WRITE) ? MMU_DTLB_MISS_WRITE :
+		MMU_DTLB_MISS_READ;
+	}
+	/* Mask upper 3 bits */
+	*physical = address & 0x1FFFFFFF;
+	*prot = PAGE_READ | PAGE_WRITE;
+	return MMU_OK;
+    }
+
+    /* If MMU is disabled, return the corresponding physical page */
+    if (!env->mmucr & MMUCR_AT) {
+	*physical = address & 0x1FFFFFFF;
+	*prot = PAGE_READ | PAGE_WRITE;
+	return MMU_OK;
+    }
+
+    /* We need to resort to the MMU */
+    return get_mmu_address(env, physical, prot, address, rw, access_type);
+}
+
+int cpu_sh4_handle_mmu_fault(CPUState * env, target_ulong address, int rw,
+			     int is_user, int is_softmmu)
+{
+    target_ulong physical, page_offset, page_size;
+    int prot, ret, access_type;
+
+    /* XXXXX */
+#if 0
+    fprintf(stderr, "%s pc %08x ad %08x rw %d is_user %d smmu %d\n",
+	    __func__, env->pc, address, rw, is_user, is_softmmu);
+#endif
+
+    access_type = ACCESS_INT;
+    ret =
+	get_physical_address(env, &physical, &prot, address, rw,
+			     access_type);
+
+    if (ret != MMU_OK) {
+	env->tea = address;
+	switch (ret) {
+	case MMU_ITLB_MISS:
+	case MMU_DTLB_MISS_READ:
+	    env->exception_index = 0x040;
+	    break;
+	case MMU_DTLB_MULTIPLE:
+	case MMU_ITLB_MULTIPLE:
+	    env->exception_index = 0x140;
+	    break;
+	case MMU_ITLB_VIOLATION:
+	    env->exception_index = 0x0a0;
+	    break;
+	case MMU_DTLB_MISS_WRITE:
+	    env->exception_index = 0x060;
+	    break;
+	case MMU_DTLB_INITIAL_WRITE:
+	    env->exception_index = 0x080;
+	    break;
+	case MMU_DTLB_VIOLATION_READ:
+	    env->exception_index = 0x0a0;
+	    break;
+	case MMU_DTLB_VIOLATION_WRITE:
+	    env->exception_index = 0x0c0;
+	    break;
+	default:
+	    assert(0);
+	}
+	return 1;
+    }
+
+    page_size = TARGET_PAGE_SIZE;
+    page_offset =
+	(address - (address & TARGET_PAGE_MASK)) & ~(page_size - 1);
+    address = (address & TARGET_PAGE_MASK) + page_offset;
+    physical = (physical & TARGET_PAGE_MASK) + page_offset;
+
+    return tlb_set_page(env, address, physical, prot, is_user, is_softmmu);
+}

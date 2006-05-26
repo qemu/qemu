@@ -1,0 +1,1843 @@
+diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --exclude mkdiff OpenHackWare-release-0.4.org/src/bios.h OpenHackWare-release-0.4/src/bios.h
+--- OpenHackWare-release-0.4.org/src/bios.h	2005-04-06 23:20:22.000000000 +0200
++++ OpenHackWare-release-0.4/src/bios.h	2005-07-07 01:10:20.000000000 +0200
+@@ -64,6 +64,7 @@
+     ARCH_CHRP,
+     ARCH_MAC99,
+     ARCH_POP,
++    ARCH_HEATHROW,
+ };
+ 
+ /* Hardware definition(s) */
+@@ -174,6 +175,7 @@
+ int bd_ioctl (bloc_device_t *bd, int func, void *args);
+ uint32_t bd_seclen (bloc_device_t *bd);
+ void bd_close (bloc_device_t *bd);
++void bd_reset_all(void);
+ uint32_t bd_seclen (bloc_device_t *bd);
+ uint32_t bd_maxbloc (bloc_device_t *bd);
+ void bd_sect2CHS (bloc_device_t *bd, uint32_t secnum,
+@@ -183,12 +185,12 @@
+ part_t *bd_probe (int boot_device);
+ bloc_device_t *bd_get (int device);
+ void bd_put (bloc_device_t *bd);
+-void bd_set_boot_part (bloc_device_t *bd, part_t *partition);
++void bd_set_boot_part (bloc_device_t *bd, part_t *partition, int partnum);
+ part_t **_bd_parts (bloc_device_t *bd);
+ 
+ void ide_pci_pc_register (uint32_t io_base0, uint32_t io_base1,
+                           uint32_t io_base2, uint32_t io_base3,
+-                          void *OF_private);
++                          void *OF_private0, void *OF_private1);
+ void ide_pci_pmac_register (uint32_t io_base0, uint32_t io_base1,
+                             void *OF_private);
+ 
+@@ -399,17 +401,23 @@
+                               uint16_t min_grant, uint16_t max_latency);
+ void OF_finalize_pci_host (void *dev, int first_bus, int nb_busses);
+ void OF_finalize_pci_device (void *dev, uint8_t bus, uint8_t devfn,
+-                             uint32_t *regions, uint32_t *sizes);
++                             uint32_t *regions, uint32_t *sizes,
++                             int irq_line);
+ void OF_finalize_pci_macio (void *dev, uint32_t base_address, uint32_t size,
+                             void *private_data);
++void OF_finalize_pci_ide (void *dev, 
++                          uint32_t io_base0, uint32_t io_base1,
++                          uint32_t io_base2, uint32_t io_base3);
+ int OF_register_bus (const unsigned char *name, uint32_t address,
+                      const unsigned char *type);
+ int OF_register_serial (const unsigned char *bus, const unsigned char *name,
+                         uint32_t io_base, int irq);
+ int OF_register_stdio (const unsigned char *dev_in,
+                        const unsigned char *dev_out);
+-void OF_vga_register (const unsigned char *name, uint32_t address,
+-                      int width, int height, int depth);
++void OF_vga_register (const unsigned char *name, unused uint32_t address,
++                      int width, int height, int depth,
++                      unsigned long vga_bios_addr, 
++                      unsigned long vga_bios_size);
+ void *OF_blockdev_register (void *parent, void *private,
+                             const unsigned char *type,
+                             const unsigned char *name, int devnum,
+diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --exclude mkdiff OpenHackWare-release-0.4.org/src/bloc.c OpenHackWare-release-0.4/src/bloc.c
+--- OpenHackWare-release-0.4.org/src/bloc.c	2005-04-06 23:21:00.000000000 +0200
++++ OpenHackWare-release-0.4/src/bloc.c	2005-07-08 00:28:26.000000000 +0200
+@@ -55,6 +55,7 @@
+     /* Partitions */
+     part_t *parts, *bparts;
+     part_t *boot_part;
++    int bpartnum;
+     /* Chain */
+     bloc_device_t *next;
+ };
+@@ -66,6 +67,7 @@
+ 
+ static int ide_initialize (bloc_device_t *bd, int device);
+ static int ide_read_sector (bloc_device_t *bd, void *buffer, int secnum);
++static int ide_reset (bloc_device_t *bd);
+ 
+ static int mem_initialize (bloc_device_t *bd, int device);
+ static int mem_read_sector (bloc_device_t *bd, void *buffer, int secnum);
+@@ -212,6 +214,17 @@
+ {
+ }
+ 
++void bd_reset_all(void)
++{
++    bloc_device_t *bd;
++    for (bd = bd_list; bd != NULL; bd = bd->next) {
++        if (bd->init == &ide_initialize) {
++            /* reset IDE drive because Darwin wants all IDE devices to be reset */
++            ide_reset(bd);
++        }
++    }
++}
++
+ uint32_t bd_seclen (bloc_device_t *bd)
+ {
+     return bd->seclen;
+@@ -223,10 +236,12 @@
+ }
+ 
+ /* XXX: to be suppressed */
+-void bd_set_boot_part (bloc_device_t *bd, part_t *partition)
++void bd_set_boot_part (bloc_device_t *bd, part_t *partition, int partnum)
+ {
++    dprintf("%s: part %p (%p) %d\n", __func__, partition, bd->boot_part, partnum);
+     if (bd->boot_part == NULL) {
+         bd->boot_part = partition;
++        bd->bpartnum = partnum;
+     }
+ }
+ 
+@@ -240,6 +255,13 @@
+     return &bd->bparts;
+ }
+ 
++void bd_set_boot_device (bloc_device_t *bd)
++{
++#if defined (USE_OPENFIRMWARE)
++    OF_blockdev_set_boot_device(bd->OF_private, bd->bpartnum, "\\\\ofwboot");
++#endif
++}
++
+ part_t *bd_probe (int boot_device)
+ {
+     char devices[] = { /*'a', 'b',*/ 'c', 'd', 'e', 'f', 'm', '\0', };
+@@ -272,9 +294,7 @@
+         tmp = part_probe(bd, force_raw);
+         if (boot_device == bd->device) {
+             boot_part = tmp;
+-#if defined (USE_OPENFIRMWARE)
+-            OF_blockdev_set_boot_device(bd->OF_private, 2, "\\\\ofwboot");
+-#endif
++            bd_set_boot_device(bd);
+         }
+     }
+ 
+@@ -717,34 +737,29 @@
+ /* IDE PCI access for pc */
+ static uint8_t ide_pci_port_read (bloc_device_t *bd, int port)
+ {
+-    eieio();
+-
+-    return *(uint8_t *)(bd->io_base + port);
++    uint8_t value;
++    value = inb(bd->io_base + port);
++    return value;
+ }
+ 
+ static void ide_pci_port_write (bloc_device_t *bd, int port, uint8_t value)
+ {
+-    *(uint8_t *)(bd->io_base + port) = value;
+-    eieio();
++    outb(bd->io_base + port, value);
+ }
+ 
+ static uint32_t ide_pci_data_readl (bloc_device_t *bd)
+ {
+-    eieio();
+-
+-    return *((uint32_t *)bd->io_base);
++    return inl(bd->io_base);
+ }
+ 
+ static void ide_pci_data_writel (bloc_device_t *bd, uint32_t val)
+ {
+-    *(uint32_t *)(bd->io_base) = val;
+-    eieio();
++    outl(bd->io_base, val);
+ }
+ 
+ static void ide_pci_control_write (bloc_device_t *bd, uint32_t val)
+ {
+-    *((uint8_t *)bd->tmp) = val;
+-    eieio();
++    outb(bd->tmp + 2, val);
+ }
+ 
+ static ide_ops_t ide_pci_pc_ops = {
+@@ -761,7 +776,7 @@
+ 
+ void ide_pci_pc_register (uint32_t io_base0, uint32_t io_base1,
+                           uint32_t io_base2, uint32_t io_base3,
+-                          unused void *OF_private)
++                          void *OF_private0, void *OF_private1)
+ {
+     if (ide_pci_ops == NULL) {
+         ide_pci_ops = malloc(sizeof(ide_ops_t));
+@@ -770,19 +785,19 @@
+         memcpy(ide_pci_ops, &ide_pci_pc_ops, sizeof(ide_ops_t));
+     }
+     if ((io_base0 != 0 || io_base1 != 0) &&
+-        ide_pci_ops->base[0] == 0 && ide_pci_ops->base[1] == 0) {
++        ide_pci_ops->base[0] == 0 && ide_pci_ops->base[2] == 0) {
+         ide_pci_ops->base[0] = io_base0;
+-        ide_pci_ops->base[1] = io_base1;
++        ide_pci_ops->base[2] = io_base1;
+ #ifdef USE_OPENFIRMWARE
+-        ide_pci_ops->OF_private[0] = OF_private;
++        ide_pci_ops->OF_private[0] = OF_private0;
+ #endif
+     }
+     if ((io_base2 != 0 || io_base3 != 0) &&
+-        ide_pci_ops->base[2] == 0 && ide_pci_ops->base[3] == 0) {
+-        ide_pci_ops->base[2] = io_base2;
++        ide_pci_ops->base[1] == 0 && ide_pci_ops->base[3] == 0) {
++        ide_pci_ops->base[1] = io_base2;
+         ide_pci_ops->base[3] = io_base3;
+ #ifdef USE_OPENFIRMWARE
+-        ide_pci_ops->OF_private[1] = OF_private;
++        ide_pci_ops->OF_private[1] = OF_private1;
+ #endif
+     }
+ }
+@@ -935,6 +950,8 @@
+ }
+ 
+ static void atapi_pad_req (void *buffer, int len);
++static void atapi_make_req (bloc_device_t *bd, uint32_t *buffer,
++                            int maxlen);
+ static int atapi_read_sector (bloc_device_t *bd, void *buffer, int secnum);
+ 
+ static int ide_initialize (bloc_device_t *bd, int device)
+@@ -1035,9 +1052,7 @@
+         DPRINTF("INQUIRY\n");
+         len = spc_inquiry_req(&atapi_buffer, 36);
+         atapi_pad_req(&atapi_buffer, len);
+-        ide_port_write(bd, 0x07, 0xA0);
+-        for (i = 0; i < 3; i++)
+-            ide_data_writel(bd, ldswap32(&atapi_buffer[i]));
++        atapi_make_req(bd, atapi_buffer, 36);
+         status = ide_port_read(bd, 0x07);
+         if (status != 0x48) {
+             ERROR("ATAPI INQUIRY : status %0x != 0x48\n", status);
+@@ -1053,9 +1068,7 @@
+         DPRINTF("READ_CAPACITY\n");
+         len = mmc_read_capacity_req(&atapi_buffer);
+         atapi_pad_req(&atapi_buffer, len);
+-        ide_port_write(bd, 0x07, 0xA0);
+-        for (i = 0; i < 3; i++)
+-            ide_data_writel(bd, ldswap32(&atapi_buffer[i]));
++        atapi_make_req(bd, atapi_buffer, 8);
+         status = ide_port_read(bd, 0x07);
+         if (status != 0x48) {
+             ERROR("ATAPI READ_CAPACITY : status %0x != 0x48\n", status);
+@@ -1105,6 +1118,22 @@
+     memset(p + len, 0, 12 - len);
+ }
+ 
++static void atapi_make_req (bloc_device_t *bd, uint32_t *buffer,
++                            int maxlen)
++{
++    int i;
++    /* select drive */
++    if (bd->drv == 0)
++        ide_port_write(bd, 0x06, 0x40);
++    else
++        ide_port_write(bd, 0x06, 0x50);
++    ide_port_write(bd, 0x04, maxlen & 0xff);
++    ide_port_write(bd, 0x05, (maxlen >> 8) & 0xff);
++    ide_port_write(bd, 0x07, 0xA0);
++    for (i = 0; i < 3; i++)
++        ide_data_writel(bd, ldswap32(&buffer[i]));
++}
++
+ static int atapi_read_sector (bloc_device_t *bd, void *buffer, int secnum)
+ {
+     uint32_t atapi_buffer[4];
+@@ -1112,16 +1141,9 @@
+     uint32_t status, value;
+     int i, len;
+ 
+-    /* select drive */
+-    if (bd->drv == 0)
+-        ide_port_write(bd, 0x06, 0x40);
+-    else
+-        ide_port_write(bd, 0x06, 0x50);
+     len = mmc_read12_req(atapi_buffer, secnum, 1);
+     atapi_pad_req(&atapi_buffer, len);
+-    ide_port_write(bd, 0x07, 0xA0);
+-    for (i = 0; i < 3; i++)
+-        ide_data_writel(bd, ldswap32(&atapi_buffer[i]));
++    atapi_make_req(bd, atapi_buffer, bd->seclen);
+     status = ide_port_read(bd, 0x07);
+     if (status != 0x48) {
+         ERROR("ATAPI READ12 : status %0x != 0x48\n", status);
+diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --exclude mkdiff OpenHackWare-release-0.4.org/src/libpart/apple.c OpenHackWare-release-0.4/src/libpart/apple.c
+--- OpenHackWare-release-0.4.org/src/libpart/apple.c	2005-03-31 09:23:33.000000000 +0200
++++ OpenHackWare-release-0.4/src/libpart/apple.c	2005-07-03 16:17:41.000000000 +0200
+@@ -199,14 +199,18 @@
+         if (len == 0) {
+             /* Place holder. Skip it */
+             DPRINTF("%s placeholder part\t%d\n", __func__, i);
++            part->flags = PART_TYPE_APPLE | PART_FLAG_DUMMY;
++            part_register(bd, part, name, i);
+         } else if (strncmp("Apple_Void", type, 32) == 0) {
+             /* Void partition. Skip it */
+             DPRINTF("%s Void part\t%d [%s]\n", __func__, i, type);
++            part->flags = PART_TYPE_APPLE | PART_FLAG_DUMMY;
++            part_register(bd, part, name, i);
+         } else if (strncmp("Apple_Free", type, 32) == 0) {
+             /* Free space. Skip it */
+             DPRINTF("%s Free part (%d)\n", __func__, i);
+             part->flags = PART_TYPE_APPLE | PART_FLAG_DUMMY;
+-            part_register(bd, part, name);
++            part_register(bd, part, name, i);
+         } else if (strncmp("Apple_partition_map", type, 32) == 0 ||
+                    strncmp("Apple_Partition_Map", type, 32) == 0
+ #if 0 // Is this really used or is it just a mistake ?
+@@ -226,7 +230,7 @@
+                  */
+             }
+             part->flags = PART_TYPE_APPLE | PART_FLAG_DUMMY;
+-            part_register(bd, part, name);
++            part_register(bd, part, name, i);
+         } else if (strncmp("Apple_Driver", type, 32) == 0 ||
+                    strncmp("Apple_Driver43", type, 32) == 0 ||
+                    strncmp("Apple_Driver43_CD", type, 32) == 0 ||
+@@ -236,8 +240,12 @@
+                    strncmp("Apple_Driver_IOKit", type, 32) == 0) {
+             /* Drivers. don't care for now */
+             DPRINTF("%s Drivers part\t%d [%s]\n", __func__, i, type);
++            part->flags = PART_TYPE_APPLE | PART_FLAG_DRIVER;
++            part_register(bd, part, name, i);
+         } else if (strncmp("Apple_Patches", type, 32) == 0) {
+             /* Patches: don't care for now */
++            part->flags = PART_TYPE_APPLE | PART_FLAG_PATCH;
++            part_register(bd, part, name, i);
+             DPRINTF("%s Patches part\t%d [%s]\n", __func__, i, type);
+         } else if (strncmp("Apple_HFS", type, 32) == 0 ||
+                    strncmp("Apple_MFS", type, 32) == 0 ||
+@@ -256,9 +264,8 @@
+             count = partmap->bloc_cnt * HFS_BLOCSIZE;
+             if (partmap->boot_size == 0 || partmap->boot_load == 0) {
+                 printf("Not a bootable partition %d %d (%p %p)\n",
+-                       partmap->boot_size, partmap->boot_load,boot_part, part);
+-                if (boot_part == NULL)
+-                    boot_part = part;
++                       partmap->boot_size, partmap->boot_load,
++                       boot_part, part);
+                 part->flags = PART_TYPE_APPLE | PART_FLAG_FS;
+             } else {
+                 part->boot_start.bloc = partmap->boot_start;
+@@ -278,8 +285,8 @@
+                 boot_part = part;
+                 part->flags = PART_TYPE_APPLE | PART_FLAG_FS | PART_FLAG_BOOT;
+             }
+-            printf("Partition: %d %s st %0x size %0x",
+-                    i, name, partmap->start_bloc, partmap->bloc_cnt);
++            printf("Partition: %d '%s' '%s' st %0x size %0x",
++                    i, name, type, partmap->start_bloc, partmap->bloc_cnt);
+ #ifndef DEBUG
+             printf("\n");
+ #endif
+@@ -290,11 +297,13 @@
+                     part->boot_load, part->boot_entry);
+             DPRINTF("                           load %0x entry %0x %0x\n",
+                     partmap->boot_load2, partmap->boot_entry2, HFS_BLOCSIZE);
+-            part_register(bd, part, name);
++            part_register(bd, part, name, i);
+         } else {
+             memcpy(tmp, type, 32);
+             tmp[32] = '\0';
+             ERROR("Unknown partition type [%s]\n", tmp);
++            part->flags = PART_TYPE_APPLE | PART_FLAG_DUMMY;
++            part_register(bd, part, name, i);
+         }
+     }
+  error:
+diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --exclude mkdiff OpenHackWare-release-0.4.org/src/libpart/core.c OpenHackWare-release-0.4/src/libpart/core.c
+--- OpenHackWare-release-0.4.org/src/libpart/core.c	2005-03-31 09:23:33.000000000 +0200
++++ OpenHackWare-release-0.4/src/libpart/core.c	2005-07-03 16:17:41.000000000 +0200
+@@ -126,7 +126,7 @@
+ }
+ 
+ int part_register (bloc_device_t *bd, part_t *partition,
+-                   const unsigned char *name)
++                   const unsigned char *name, int partnum)
+ {
+     part_t **cur;
+ 
+@@ -134,6 +134,7 @@
+     partition->bd = bd;
+     partition->next = NULL;
+     partition->name = strdup(name);
++    partition->partnum = partnum;
+     for (cur = _bd_parts(bd); *cur != NULL; cur = &(*cur)->next)
+         continue;
+     *cur = partition;
+@@ -141,29 +142,15 @@
+     return 0;
+ }
+ 
+-static inline int set_boot_part (bloc_device_t *bd, int partnum)
+-{
+-    part_t *cur;
+-
+-    cur = part_get(bd, partnum);
+-    if (cur == NULL)
+-        return -1;
+-    bd_set_boot_part(bd, cur);
+-
+-    return 0;
+-}
+-
+ part_t *part_get (bloc_device_t *bd, int partnum)
+ {
+     part_t **listp, *cur;
+-    int i;
+ 
+     listp = _bd_parts(bd);
+-    cur = *listp;
+-    for (i = 0; i != partnum; i++) {
+-        if (cur == NULL)
++    
++    for (cur = *listp; cur != NULL; cur = cur->next) {
++        if (cur->partnum == partnum)
+             break;
+-        cur = cur->next;
+     }
+     
+     return cur;
+@@ -192,17 +179,20 @@
+     part_set_blocsize(bd, part, 512);
+     part->bd = bd;
+     part->flags = PART_TYPE_RAW | PART_FLAG_BOOT;
+-    part_register(bd, part, "Raw");
++    part_register(bd, part, "Raw", 0);
+ 
+     return part;
+ }
+ 
++bloc_device_t *part_get_bd (part_t *part)
++{
++    return part->bd;
++}
++
+ part_t *part_probe (bloc_device_t *bd, int set_raw)
+ {
+-    part_t *part0, *boot_part, **cur;
++    part_t *part0 = NULL, *boot_part, **cur;
+ 
+-    /* Register the 0 partition: raw partition containing the whole disk */
+-    part0 = part_get_raw(bd);
+     /* Try to find a valid boot partition */
+     boot_part = Apple_probe_partitions(bd);
+     if (boot_part == NULL) {
+@@ -210,10 +200,13 @@
+         if (boot_part == NULL && arch == ARCH_PREP)
+             boot_part = PREP_find_partition(bd);
+         if (boot_part == NULL && set_raw != 0) {
+-            boot_part = part0;
+-            set_boot_part(bd, 0);
++            dprintf("Use bloc device as raw partition\n");
+         }
+     }
++    if (_bd_parts(bd) == NULL) {
++        /* Register the 0 partition: raw partition containing the whole disk */
++        part0 = part_get_raw(bd);
++    }
+     /* Probe filesystem on each found partition */
+     for (cur = _bd_parts(bd); *cur != NULL; cur = &(*cur)->next) {
+         const unsigned char *map, *type;
+@@ -248,23 +241,28 @@
+             type = "unknown";
+             break;
+         }
+-        DPRINTF("Probe filesystem on %s %s partition '%s' %s\n",
++        dprintf("Probe filesystem on %s %s partition '%s' %s %p\n",
+                 type, map, (*cur)->name,
+-                ((*cur)->flags) & PART_FLAG_BOOT ? "(bootable)" : "");
++                ((*cur)->flags) & PART_FLAG_BOOT ? "(bootable)" : "", *cur);
+         if (((*cur)->flags) & PART_FLAG_FS) {
+             if (((*cur)->flags) & PART_FLAG_BOOT)
+                 (*cur)->fs = fs_probe(*cur, 1);
+             else
+                 (*cur)->fs = fs_probe(*cur, 0);
++        } else if (((*cur)->flags) & PART_TYPE_RAW) {
++            (*cur)->fs = fs_probe(*cur, 2);
+         } else {
+             (*cur)->fs = fs_probe(*cur, 2);
+         }
+-        if (((*cur)->flags) & PART_FLAG_BOOT) {
+-            bd_set_boot_part(bd, *cur);
+             fs_get_bootfile((*cur)->fs);
++        if (((*cur)->flags) & PART_FLAG_BOOT) {
++            dprintf("Partition is bootable (%d)\n", (*cur)->partnum);
++            bd_set_boot_part(bd, *cur, (*cur)->partnum);
++            if (boot_part == NULL)
++                boot_part = *cur;
+         }
+     }
+-    DPRINTF("Boot partition: %p %p %p %p\n", boot_part, boot_part->fs,
++    dprintf("Boot partition: %p %p %p %p\n", boot_part, boot_part->fs,
+             part_fs(boot_part), part0);
+ 
+     return boot_part;
+@@ -279,6 +277,7 @@
+     part->boot_size.offset = 0;
+     part->boot_load = 0;
+     part->boot_entry = 0;
++    part->flags |= PART_FLAG_BOOT;
+ 
+     return 0;
+ }
+diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --exclude mkdiff OpenHackWare-release-0.4.org/src/libpart/isofs.c OpenHackWare-release-0.4/src/libpart/isofs.c
+--- OpenHackWare-release-0.4.org/src/libpart/isofs.c	2005-03-31 09:23:33.000000000 +0200
++++ OpenHackWare-release-0.4/src/libpart/isofs.c	2005-07-03 16:17:41.000000000 +0200
+@@ -242,7 +242,7 @@
+                    part->boot_start.bloc, part->boot_size.bloc,
+                    part->boot_load, part->boot_entry);
+             part->flags = PART_TYPE_ISO9660 | PART_FLAG_BOOT;
+-            part_register(bd, part, name);
++            part_register(bd, part, name, i + 1);
+             fs_raw_set_bootfile(part, part->boot_start.bloc,
+                                 part->boot_start.offset,
+                                 part->boot_size.bloc,
+diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --exclude mkdiff OpenHackWare-release-0.4.org/src/libpart/libpart.h OpenHackWare-release-0.4/src/libpart/libpart.h
+--- OpenHackWare-release-0.4.org/src/libpart/libpart.h	2005-03-31 09:23:33.000000000 +0200
++++ OpenHackWare-release-0.4/src/libpart/libpart.h	2005-07-03 16:17:41.000000000 +0200
+@@ -30,6 +30,7 @@
+ 
+ struct part_t {
+     bloc_device_t *bd;
++    int partnum;
+     uint32_t start;      /* Partition first bloc             */
+     uint32_t size;       /* Partition size, in blocs         */
+     uint32_t spb;
+@@ -54,7 +55,7 @@
+ };
+ 
+ int part_register (bloc_device_t *bd, part_t *partition,
+-                   const unsigned char *name);
++                   const unsigned char *name, int partnum);
+ void part_set_blocsize (bloc_device_t *bd, part_t *part, uint32_t blocsize);
+ void part_private_set (part_t *part, void *private);
+ void *part_private_get (part_t *part);
+diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --exclude mkdiff OpenHackWare-release-0.4.org/src/libpart/prep.c OpenHackWare-release-0.4/src/libpart/prep.c
+--- OpenHackWare-release-0.4.org/src/libpart/prep.c	2005-03-31 09:23:33.000000000 +0200
++++ OpenHackWare-release-0.4/src/libpart/prep.c	2005-07-03 16:17:41.000000000 +0200
+@@ -164,7 +164,7 @@
+             part->boot_load = 0;
+             part->boot_entry = boot_offset - part->bloc_size;
+             part->flags = PART_TYPE_PREP | PART_FLAG_BOOT;
+-            part_register(bd, part, "PREP boot");
++            part_register(bd, part, "PREP boot", i);
+             fs_raw_set_bootfile(part, part->boot_start.bloc,
+                                 part->boot_start.offset,
+                                 part->boot_size.bloc,
+diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --exclude mkdiff OpenHackWare-release-0.4.org/src/main.c OpenHackWare-release-0.4/src/main.c
+--- OpenHackWare-release-0.4.org/src/main.c	2005-03-31 09:23:33.000000000 +0200
++++ OpenHackWare-release-0.4/src/main.c	2005-06-07 23:48:39.000000000 +0200
+@@ -364,20 +364,24 @@
+     void *load_base, *load_entry, *last_alloc, *load_end;
+     uint32_t memsize, boot_image_size, cmdline_size, ramdisk_size;
+     uint32_t boot_base, boot_nb;
+-    int boot_device;
++    int boot_device, i;
++    static const uint32_t isa_base_tab[3] = {
++        0x80000000, /* PREP */
++        0xFE000000, /* Grackle (Heathrow) */
++        0xF2000000, /* UniNorth (Mac99)  */
++    };
+ 
+     /* Retrieve NVRAM configuration */
+- nvram_retry:
++    for(i = 0; i < 3; i++) {
++        isa_io_base = isa_base_tab[i];
+     nvram = NVRAM_get_config(&memsize, &boot_device,
+                              &boot_image, &boot_image_size,
+                              &cmdline, &cmdline_size,
+                              &ramdisk, &ramdisk_size);
+-    if (nvram == NULL) {
+-        /* Retry with another isa_io_base */
+-        if (isa_io_base == 0x80000000) {
+-            isa_io_base = 0xF2000000;
+-            goto nvram_retry;
++        if (nvram)
++            break;
+         }
++    if (i == 3) {
+         ERROR("Unable to load configuration from NVRAM. Aborting...\n");
+         return -1;
+     }
+@@ -402,7 +406,7 @@
+         cpu_name = CPU_get_name(pvr);
+         OF_register_cpu(cpu_name, 0, pvr,
+                         200 * 1000 * 1000, 200 * 1000 * 1000,
+-                        100 * 1000 * 1000, 10 * 1000 * 1000,
++                        100 * 1000 * 1000, 100 * 1000 * 1000,
+                         0x0092);
+     }
+     OF_register_memory(memsize, 512 * 1024 /* TOFIX */);
+@@ -433,9 +437,12 @@
+     vga_puts(copyright);
+     vga_puts("\n");
+ 
++#if 0
+     /* QEMU is quite incoherent: d is cdrom, not second drive */
++    /* XXX: should probe CD-ROM position */
+     if (boot_device == 'd')
+         boot_device = 'e';
++#endif
+     /* Open boot device */
+     boot_part = bd_probe(boot_device);
+     if (boot_device == 'm') {
+diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --exclude mkdiff OpenHackWare-release-0.4.org/src/nvram.c OpenHackWare-release-0.4/src/nvram.c
+--- OpenHackWare-release-0.4.org/src/nvram.c	2005-03-31 09:23:33.000000000 +0200
++++ OpenHackWare-release-0.4/src/nvram.c	2005-06-04 23:44:03.000000000 +0200
+@@ -334,6 +334,7 @@
+         ret = NVRAM_chrp_format(nvram);
+         break;
+     case ARCH_MAC99:
++    case ARCH_HEATHROW: /* XXX: may be incorrect */
+         ret = NVRAM_mac99_format(nvram);
+         break;
+     case ARCH_POP:
+@@ -409,13 +410,12 @@
+         arch = ARCH_MAC99;
+     } else if (strcmp(sign, "POP") == 0) {
+         arch = ARCH_POP;
++    } else if (strcmp(sign, "HEATHROW") == 0) {
++        arch = ARCH_HEATHROW;
+     } else {
+         ERROR("Unknown PPC architecture: '%s'\n", sign);
+         return NULL;
+     }
+-    /* HACK */
+-    if (arch == ARCH_CHRP)
+-        arch = ARCH_MAC99;
+     lword = NVRAM_get_lword(nvram, 0x30);
+     *RAM_size = lword;
+     byte = NVRAM_get_byte(nvram, 0x34);
+diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --exclude mkdiff OpenHackWare-release-0.4.org/src/of.c OpenHackWare-release-0.4/src/of.c
+--- OpenHackWare-release-0.4.org/src/of.c	2005-04-06 23:17:26.000000000 +0200
++++ OpenHackWare-release-0.4/src/of.c	2005-07-07 23:30:08.000000000 +0200
+@@ -489,7 +489,7 @@
+         ERROR("%s can't alloc new node '%s' name\n", __func__, name);
+         return NULL;
+     }
+-    new->prop_address = OF_prop_int_new(env, new, "address", address);
++    new->prop_address = OF_prop_int_new(env, new, "unit-address", address);
+     if (new->prop_address == NULL) {
+         free(new->prop_name->value);
+         free(new->prop_name);
+@@ -1017,6 +1017,33 @@
+                            string, strlen(string) + 1);
+ }
+ 
++/* convert '\1' char to '\0' */
++static OF_prop_t *OF_prop_string_new1 (OF_env_t *env, OF_node_t *node,
++                                       const unsigned char *name,
++                                       const unsigned char *string)
++{
++    int len, i;
++    OF_prop_t *ret;
++    unsigned char *str;
++
++    if (strchr(string, '\1') == NULL) {
++        return OF_prop_string_new(env, node, name, string);
++    } else {
++        len = strlen(string) + 1;
++        str = malloc(len);
++        if (!str)
++            return NULL;
++        memcpy(str, string, len);
++        for(i = 0; i < len; i++)
++            if (str[i] == '\1')
++                str[i] = '\0';
++        ret = OF_property_new(env, node, name,
++                              str, len);
++        free(str);
++        return ret;
++    }
++}
++
+ __attribute__ (( section (".OpenFirmware") ))
+ static OF_prop_t *OF_prop_int_new (OF_env_t *env, OF_node_t *node,
+                                    const unsigned char *name, uint32_t value)
+@@ -1421,15 +1448,12 @@
+ __attribute__ (( section (".OpenFirmware") ))
+ int OF_init (void)
+ {
+-    const unsigned char compat_str[] =
+ #if 0
+         "PowerMac3,1\0MacRISC\0Power Macintosh\0";
+         "PowerMac1,2\0MacRISC\0Power Macintosh\0";
+         "AAPL,PowerMac G3\0PowerMac G3\0MacRISC\0Power Macintosh\0";
+         "AAPL,PowerMac3,0\0MacRISC\0Power Macintosh\0";
+         "AAPL,Gossamer\0MacRISC\0Power Macintosh\0";
+-#else
+-        "AAPL,PowerMac G3\0PowerMac G3\0MacRISC\0Power Macintosh\0";
+ #endif
+     OF_env_t *OF_env;
+     OF_node_t *als, *opt, *chs, *pks;
+@@ -1455,15 +1479,21 @@
+         return -1;
+     }
+     OF_prop_string_new(OF_env, OF_node_root, "device_type", "bootrom");
+-#if 0
+-    OF_prop_string_new(OF_env, OF_node_root,
+-                       "model", "PPC Open Hack'Ware " BIOS_VERSION);
+-#else
++    if (arch == ARCH_HEATHROW) {
++        const unsigned char compat_str[] =
++            "PowerMac1,1\0MacRISC\0Power Macintosh";
++        OF_property_new(OF_env, OF_node_root, "compatible",
++                        compat_str, sizeof(compat_str));
+     OF_prop_string_new(OF_env, OF_node_root,
+-                       "model", compat_str);
+-#endif
++                           "model", "Power Macintosh");
++    } else {
++        const unsigned char compat_str[] =
++            "PowerMac3,1\0MacRISC\0Power Macintosh";
+     OF_property_new(OF_env, OF_node_root, "compatible",
+                     compat_str, sizeof(compat_str));
++        OF_prop_string_new(OF_env, OF_node_root,
++                           "model", "PowerMac3,1");
++    }
+ #if 0
+     OF_prop_string_new(OF_env, OF_node_root, "copyright", copyright);
+ #else
+@@ -1561,14 +1591,15 @@
+         range.size = 0x00800000;
+         OF_property_new(OF_env, rom, "ranges", &range, sizeof(OF_range_t));
+         OF_prop_int_new(OF_env, rom, "#address-cells", 1);
++
+         /* "/rom/boot-rom@fff00000" node */
+-        brom = OF_node_new(OF_env, OF_node_root, "boot-rom", 0xfff00000);
++        brom = OF_node_new(OF_env, rom, "boot-rom", 0xfff00000);
+         if (brom == NULL) {
+             ERROR("Cannot create 'boot-rom'\n");
+             return -1;
+         }
+         regs.address = 0xFFF00000;
+-        regs.size = 0x00010000;
++        regs.size = 0x00100000;
+         OF_property_new(OF_env, brom, "reg", &regs, sizeof(OF_regprop_t));
+         OF_prop_string_new(OF_env, brom, "write-characteristic", "flash");
+         OF_prop_string_new(OF_env, brom, "BootROM-build-date",
+@@ -1577,7 +1608,7 @@
+         OF_prop_string_new(OF_env, brom, "copyright", copyright);
+         OF_prop_string_new(OF_env, brom, "model", BIOS_str);
+         OF_prop_int_new(OF_env, brom, "result", 0);
+-#if 0
++#if 1
+         {
+             /* Hack taken 'as-is' from PearPC */
+             unsigned char info[] = {
+@@ -1596,7 +1627,9 @@
+         OF_node_put(OF_env, brom);
+         OF_node_put(OF_env, rom);
+     }
++#if 0
+     /* From here, hardcoded hacks to get a Mac-like machine */
++    /* XXX: Core99 does not seem to like this NVRAM tree */
+     /* "/nvram@fff04000" node */
+     {
+         OF_regprop_t regs;
+@@ -1617,6 +1650,7 @@
+         OF_prop_int_new(OF_env, chs, "nvram", OF_pack_handle(OF_env, nvr));
+         OF_node_put(OF_env, nvr);
+     }
++#endif
+     /* "/pseudo-hid" : hid emulation as Apple does */
+     {
+         OF_node_t *hid;
+@@ -1663,7 +1697,27 @@
+         }
+         OF_node_put(OF_env, hid);
+     }
++    if (arch == ARCH_MAC99) {
++        OF_node_t *unin;
++        OF_regprop_t regs;
+ 
++        unin = OF_node_new(OF_env, OF_node_root,
++                           "uni-n", 0xf8000000);
++        if (unin == NULL) {
++            ERROR("Cannot create 'uni-n'\n");
++            return -1;
++        }
++        OF_prop_string_new(OF_env, unin, "device-type", "memory-controller");
++        OF_prop_string_new(OF_env, unin, "model", "AAPL,UniNorth");
++        OF_prop_string_new(OF_env, unin, "compatible", "uni-north");
++        regs.address = 0xf8000000;
++        regs.size = 0x01000000;
++        OF_property_new(OF_env, unin, "reg", &regs, sizeof(regs));
++        OF_prop_int_new(OF_env, unin, "#address-cells", 1);
++        OF_prop_int_new(OF_env, unin, "#size-cells", 1);
++        OF_prop_int_new(OF_env, unin, "device-rev", 3);
++        OF_node_put(OF_env, unin);
++    }
+     
+ #if 1 /* This is mandatory for claim to work
+        * but I don't know where it should really be (in cpu ?)
+@@ -1693,7 +1747,9 @@
+ 
+     /* "/options/boot-args" node */
+     {
+-        const unsigned char *args = "-v rootdev cdrom";
++        //        const unsigned char *args = "-v rootdev cdrom";
++        //const unsigned char *args = "-v io=0xffffffff";
++        const unsigned char *args = "-v";
+         /* Ask MacOS X to print debug messages */
+         //        OF_prop_string_new(OF_env, chs, "machargs", args);
+         //        OF_prop_string_new(OF_env, opt, "boot-command", args);
+@@ -2013,17 +2069,17 @@
+     OF_prop_int_new(OF_env, node, "min-grant", min_grant);
+     OF_prop_int_new(OF_env, node, "max-latency", max_latency);
+     if (dev->type != NULL)
+-        OF_prop_string_new(OF_env, node, "device_type", dev->type);
++        OF_prop_string_new1(OF_env, node, "device_type", dev->type);
+     if (dev->compat != NULL)
+-        OF_prop_string_new(OF_env, node, "compatible", dev->compat);
++        OF_prop_string_new1(OF_env, node, "compatible", dev->compat);
+     if (dev->model != NULL)
+-        OF_prop_string_new(OF_env, node, "model", dev->model);
++        OF_prop_string_new1(OF_env, node, "model", dev->model);
+     if (dev->acells != 0)
+         OF_prop_int_new(OF_env, node, "#address-cells", dev->acells);
+     if (dev->scells != 0)
+-        OF_prop_int_new(OF_env, node, "#interrupt-cells", dev->acells);
++        OF_prop_int_new(OF_env, node, "#size-cells", dev->scells);
+     if (dev->icells != 0)
+-        OF_prop_int_new(OF_env, node, "#size-cells", dev->acells);
++        OF_prop_int_new(OF_env, node, "#interrupt-cells", dev->icells);
+     dprintf("Done %p %p\n", parent, node);
+     
+     return node;
+@@ -2040,8 +2096,9 @@
+     OF_env_t *OF_env;
+     pci_range_t ranges[3];
+     OF_regprop_t regs[1];
+-    OF_node_t *pci_host;
++    OF_node_t *pci_host, *als;
+     int nranges;
++    unsigned char buffer[OF_NAMELEN_MAX];
+ 
+     OF_env = OF_env_main;
+     dprintf("register PCI host '%s' '%s' '%s' '%s'\n",
+@@ -2052,6 +2109,17 @@
+         ERROR("Cannot create pci host\n");
+         return NULL;
+     }
++    
++    als = OF_node_get(OF_env, "aliases");
++    if (als == NULL) {
++        ERROR("Cannot get 'aliases'\n");
++        return NULL;
++    }
++    sprintf(buffer, "/%s", dev->name);
++    OF_prop_string_set(OF_env, als, "pci", buffer);
++    OF_node_put(OF_env, als);
++    
++
+     regs[0].address = cfg_base;
+     regs[0].size = cfg_len;
+     OF_property_new(OF_env, pci_host, "reg", regs, sizeof(OF_regprop_t));
+@@ -2136,6 +2204,11 @@
+     return pci_dev;
+ }
+ 
++/* XXX: suppress that, used for interrupt map init */
++OF_node_t *pci_host_node;
++uint32_t pci_host_interrupt_map[7 * 32];
++int pci_host_interrupt_map_len = 0;
++
+ void OF_finalize_pci_host (void *dev, int first_bus, int nb_busses)
+ {
+     OF_env_t *OF_env;
+@@ -2145,10 +2218,12 @@
+     regs[0].address = first_bus;
+     regs[0].size = nb_busses;
+     OF_property_new(OF_env, dev, "bus-range", regs, sizeof(OF_regprop_t));
++    pci_host_node = dev;
+ }
+ 
+ void OF_finalize_pci_device (void *dev, uint8_t bus, uint8_t devfn,
+-                             uint32_t *regions, uint32_t *sizes)
++                             uint32_t *regions, uint32_t *sizes,
++                             int irq_line)
+ {
+     OF_env_t *OF_env;
+     pci_reg_prop_t pregs[6], rregs[6];
+@@ -2156,6 +2231,7 @@
+     int i, j, k;
+ 
+     OF_env = OF_env_main;
++    /* XXX: only useful for VGA card in fact */
+     if (regions[0] != 0x00000000)
+         OF_prop_int_set(OF_env, dev, "address", regions[0] & ~0x0000000F);
+     for (i = 0, j = 0, k = 0; i < 6; i++) {
+@@ -2222,7 +2298,22 @@
+     } else {
+         OF_property_new(OF_env, dev, "assigned-addresses", NULL, 0);
+     }
+-#if 0
++    if (irq_line >= 0) {
++        int i;
++        OF_prop_int_new(OF_env, dev, "interrupts", 1);
++        i = pci_host_interrupt_map_len;
++        pci_host_interrupt_map[i++] = (devfn << 8) & 0xf800;
++        pci_host_interrupt_map[i++] = 0;
++        pci_host_interrupt_map[i++] = 0;
++        pci_host_interrupt_map[i++] = 0;
++        pci_host_interrupt_map[i++] = 0; /* pic handle will be patched later */
++        pci_host_interrupt_map[i++] = irq_line;
++        if (arch != ARCH_HEATHROW) {
++            pci_host_interrupt_map[i++] = 1;
++        }
++        pci_host_interrupt_map_len = i;
++    }
++#if 1
+     {
+         OF_prop_t *prop_name = ((OF_node_t *)dev)->prop_name;
+ 
+@@ -2390,6 +2481,54 @@
+     return 0;
+ }
+ 
++static void keylargo_ata(OF_node_t *mio, uint32_t base_address,
++                         uint32_t base, int irq1, int irq2, 
++                         uint16_t pic_phandle)
++{
++    OF_env_t *OF_env = OF_env_main;
++    OF_node_t *ata;
++    OF_regprop_t regs[2];
++
++    ata = OF_node_new(OF_env, mio, "ata-4", base);
++    if (ata == NULL) {
++        ERROR("Cannot create 'ata-4'\n");
++        return;
++    }
++    OF_prop_string_new(OF_env, ata, "device_type", "ata");
++#if 1
++    OF_prop_string_new(OF_env, ata, "compatible", "key2largo-ata");
++    OF_prop_string_new(OF_env, ata, "model", "ata-4");
++    OF_prop_string_new(OF_env, ata, "cable-type", "80-conductor");
++#else
++    OF_prop_string_new(OF_env, ata, "compatible", "cmd646-ata");
++    OF_prop_string_new(OF_env, ata, "model", "ata-4");
++#endif
++    OF_prop_int_new(OF_env, ata, "#address-cells", 1);
++    OF_prop_int_new(OF_env, ata, "#size-cells", 0);
++    regs[0].address = base;
++    regs[0].size = 0x00001000;
++#if 0 // HACK: Don't set up DMA registers
++    regs[1].address = 0x00008A00;
++    regs[1].size = 0x00001000;
++    OF_property_new(OF_env, ata, "reg",
++                    regs, 2 * sizeof(OF_regprop_t));
++#else
++    OF_property_new(OF_env, ata, "reg",
++                    regs, sizeof(OF_regprop_t));
++#endif
++    OF_prop_int_new(OF_env, ata, "interrupt-parent", pic_phandle);
++    regs[0].address = irq1;
++    regs[0].size = 0x00000001;
++    regs[1].address = irq2;
++    regs[1].size = 0x00000000;
++    OF_property_new(OF_env, ata, "interrupts",
++                    regs, 2 * sizeof(OF_regprop_t));
++    if (base == 0x1f000)
++        ide_pci_pmac_register(base_address + base, 0x00000000, ata);
++    else
++        ide_pci_pmac_register(0x00000000, base_address + base, ata);
++}
++
+ void OF_finalize_pci_macio (void *dev, uint32_t base_address, uint32_t size,
+                             void *private_data)
+ {
+@@ -2398,6 +2537,8 @@
+     pci_reg_prop_t pregs[2];
+     OF_node_t *mio, *chs, *als;
+     uint16_t pic_phandle;
++    int rec_len;
++    OF_prop_t *mio_reg;
+ 
+     OF_DPRINTF("mac-io: %p\n", dev);
+     OF_env = OF_env_main;
+@@ -2416,10 +2557,14 @@
+     mio = dev;
+     mio->private_data = private_data;
+     pregs[0].addr.hi = 0x00000000;
+-    pregs[0].addr.mid = 0x82013810;
++    pregs[0].addr.mid = 0x00000000;
+     pregs[0].addr.lo = 0x00000000;
+     pregs[0].size_hi = base_address;
+     pregs[0].size_lo = size;
++    mio_reg = OF_property_get(OF_env, mio, "reg");
++    if (mio_reg && mio_reg->vlen >= 5 * 4) {
++        pregs[0].addr.mid = ((pci_reg_prop_t *)mio_reg->value)->addr.hi;
++    }
+     OF_property_new(OF_env, mio, "ranges",
+                     &pregs, sizeof(pci_reg_prop_t));
+ #if 0
+@@ -2431,8 +2576,32 @@
+     OF_property_new(OF_env, mio, "assigned-addresses",
+                     &pregs, sizeof(pci_reg_prop_t));
+ #endif
++
++    if (arch == ARCH_HEATHROW) {
++        /* Heathrow PIC */
++        OF_regprop_t regs;
++        OF_node_t *mpic;
++        const char compat_str[] = "heathrow\0mac-risc";
++
++        mpic = OF_node_new(OF_env, mio, "interrupt-controller", 0x10);
++        if (mpic == NULL) {
++            ERROR("Cannot create 'mpic'\n");
++            goto out;
++        }
++        OF_prop_string_new(OF_env, mpic, "device_type", "interrupt-controller");
++        OF_property_new(OF_env, mpic, "compatible", compat_str, sizeof(compat_str));
++        OF_prop_int_new(OF_env, mpic, "#interrupt-cells", 1);
++        regs.address = 0x10;
++        regs.size = 0x20;
++        OF_property_new(OF_env, mpic, "reg",
++                        &regs, sizeof(regs));
++        OF_property_new(OF_env, mpic, "interrupt-controller", NULL, 0);
++        pic_phandle = OF_pack_handle(OF_env, mpic);
++        OF_prop_int_new(OF_env, chs, "interrupt-controller", pic_phandle);
++        OF_node_put(OF_env, mpic);
++        rec_len = 6;
++    } else {
+     /* OpenPIC */
+-    {
+         OF_regprop_t regs[4];
+         OF_node_t *mpic;
+         mpic = OF_node_new(OF_env, mio, "interrupt-controller", 0x40000);
+@@ -2455,8 +2624,37 @@
+         pic_phandle = OF_pack_handle(OF_env, mpic);
+         OF_prop_int_new(OF_env, chs, "interrupt-controller", pic_phandle);
+         OF_node_put(OF_env, mpic);
++        rec_len = 7;
+     }
+-#if 1
++
++    /* patch pci host table */
++    /* XXX: do it after the PCI init */
++    {
++        int i;
++        uint32_t tab[4];
++
++        for(i = 0; i < pci_host_interrupt_map_len; i += rec_len)
++            pci_host_interrupt_map[i + 4] = pic_phandle;
++#if 0
++        dprintf("interrupt-map:\n");
++        for(i = 0; i < pci_host_interrupt_map_len; i++) {
++            dprintf(" %08x", pci_host_interrupt_map[i]);
++            if ((i % rec_len) == (rec_len - 1))
++                dprintf("\n");
++        }
++        dprintf("\n");
++#endif
++        OF_property_new(OF_env, pci_host_node, "interrupt-map", 
++                        pci_host_interrupt_map, 
++                        pci_host_interrupt_map_len * sizeof(uint32_t));
++        tab[0] = 0xf800;
++        tab[1] = 0;
++        tab[2] = 0;
++        tab[3] = 0;
++        OF_property_new(OF_env, pci_host_node, "interrupt-map-mask", 
++                        tab, 4 * sizeof(uint32_t));
++    }
++#if 0
+     /* escc is usefull to get MacOS X debug messages */
+     {
+         OF_regprop_t regs[8];
+@@ -2645,85 +2843,12 @@
+         OF_node_put(OF_env, scc);
+     }
+ #endif
+-    /* IDE controller */
+-    {
+-        OF_node_t *ata;
+-        OF_regprop_t regs[2];
+-        ata = OF_node_new(OF_env, mio, "ata-4", 0x1f000);
+-        if (ata == NULL) {
+-            ERROR("Cannot create 'ata-4'\n");
+-            goto out;
+-        }
+-        OF_prop_string_new(OF_env, ata, "device_type", "ata");
+-#if 1
+-        OF_prop_string_new(OF_env, ata, "compatible", "keylargo-ata");
+-        OF_prop_string_new(OF_env, ata, "model", "ata-4");
+-#else
+-        OF_prop_string_new(OF_env, ata, "compatible", "cmd646-ata");
+-        OF_prop_string_new(OF_env, ata, "model", "ata-4");
+-#endif
+-        OF_prop_int_new(OF_env, ata, "#address-cells", 1);
+-        OF_prop_int_new(OF_env, ata, "#size-cells", 0);
+-        regs[0].address = 0x0001F000;
+-        regs[0].size = 0x00001000;
+-#if 0 // HACK: Don't set up DMA registers
+-        regs[1].address = 0x00008A00;
+-        regs[1].size = 0x00001000;
+-        OF_property_new(OF_env, ata, "reg",
+-                        regs, 2 * sizeof(OF_regprop_t));
+-#else
+-        OF_property_new(OF_env, ata, "reg",
+-                        regs, sizeof(OF_regprop_t));
+-#endif
+-        OF_prop_int_new(OF_env, ata, "interrupt-parent", pic_phandle);
+-        regs[0].address = 0x00000013;
+-        regs[0].size = 0x00000001;
+-        regs[1].address = 0x0000000B;
+-        regs[1].size = 0x00000000;
+-        OF_property_new(OF_env, ata, "interrupts",
+-                        regs, 2 * sizeof(OF_regprop_t));
+-        ide_pci_pmac_register(base_address + 0x1f000, 0x00000000, ata);
+-
+-    }
+-    {
+-        OF_node_t *ata;
+-        OF_regprop_t regs[2];
+-        ata = OF_node_new(OF_env, mio, "ata-4", 0x20000);
+-        if (ata == NULL) {
+-            ERROR("Cannot create 'ata-4'\n");
+-            goto out;
+-        }
+-        OF_prop_string_new(OF_env, ata, "device_type", "ata");
+-#if 1
+-        OF_prop_string_new(OF_env, ata, "compatible", "keylargo-ata");
+-        OF_prop_string_new(OF_env, ata, "model", "ata-4");
+-#else
+-        OF_prop_string_new(OF_env, ata, "compatible", "cmd646-ata");
+-        OF_prop_string_new(OF_env, ata, "model", "ata-4");
+-#endif
+-        OF_prop_int_new(OF_env, ata, "#address-cells", 1);
+-        OF_prop_int_new(OF_env, ata, "#size-cells", 0);
+-        regs[0].address = 0x00020000;
+-        regs[0].size = 0x00001000;
+-#if 0 // HACK: Don't set up DMA registers
+-        regs[1].address = 0x00008A00;
+-        regs[1].size = 0x00001000;
+-        OF_property_new(OF_env, ata, "reg",
+-                        regs, 2 * sizeof(OF_regprop_t));
+-#else
+-        OF_property_new(OF_env, ata, "reg",
+-                        regs, sizeof(OF_regprop_t));
+-#endif
+-        OF_prop_int_new(OF_env, ata, "interrupt-parent", pic_phandle);
+-        regs[0].address = 0x00000014;
+-        regs[0].size = 0x00000001;
+-        regs[1].address = 0x0000000B;
+-        regs[1].size = 0x00000000;
+-        OF_property_new(OF_env, ata, "interrupts",
+-                        regs, 2 * sizeof(OF_regprop_t));
+-        ide_pci_pmac_register(0x00000000, base_address + 0x20000, ata);
+-
++    /* Keylargo IDE controller: need some work (DMA problem ?) */
++    if (arch == ARCH_MAC99) {
++        keylargo_ata(mio, base_address, 0x1f000, 0x13, 0xb, pic_phandle);
++        keylargo_ata(mio, base_address, 0x20000, 0x14, 0xb, pic_phandle);
+     }
++#if 0
+     /* Timer */
+     {
+         OF_node_t *tmr;
+@@ -2746,10 +2871,11 @@
+                         regs, sizeof(OF_regprop_t));
+         OF_node_put(OF_env, tmr);
+     }
++#endif
+     /* VIA-PMU */
+     {
+         /* Controls adb, RTC and power-mgt (forget it !) */
+-        OF_node_t *via, *adb, *rtc;
++        OF_node_t *via, *adb;
+         OF_regprop_t regs[1];
+ #if 0 // THIS IS A HACK AND IS COMPLETELY ABSURD !
+       // (but needed has Qemu doesn't emulate via-pmu).
+@@ -2773,14 +2899,21 @@
+         regs[0].size = 0x00002000;
+         OF_property_new(OF_env, via, "reg", regs, sizeof(OF_regprop_t));
+         OF_prop_int_new(OF_env, via, "interrupt-parent", pic_phandle);
++        if (arch == ARCH_HEATHROW) {
++            OF_prop_int_new(OF_env, via, "interrupts", 0x12);
++        } else {
+         regs[0].address = 0x00000019;
+         regs[0].size = 0x00000001;
+         OF_property_new(OF_env, via, "interrupts",
+                         regs, sizeof(OF_regprop_t));
++        }
++        /* force usage of OF bus speeds */
++        OF_prop_int_new(OF_env, via, "BusSpeedCorrect", 1);
+ #if 0
+         OF_prop_int_new(OF_env, via, "pmu-version", 0x00D0740C);
+ #endif
+-#if 1
++        {
++            OF_node_t *kbd, *mouse;
+         /* ADB pseudo-device */
+         adb = OF_node_new(OF_env, via, "adb", OF_ADDRESS_NONE);
+         if (adb == NULL) {
+@@ -2797,9 +2930,26 @@
+         OF_prop_int_new(OF_env, adb, "#size-cells", 0);
+         OF_pack_get_path(OF_env, tmp, 512, adb);
+         OF_prop_string_new(OF_env, als, "adb", tmp);
+-        /* XXX: add "keyboard@2" and "mouse@3" */
+-        OF_node_put(OF_env, adb);
+-#endif
++
++            kbd = OF_node_new(OF_env, adb, "keyboard", 2);
++            if (kbd == NULL) {
++                ERROR("Cannot create 'kbd'\n");
++                goto out;
++            }
++            OF_prop_string_new(OF_env, kbd, "device_type", "keyboard");
++            OF_prop_int_new(OF_env, kbd, "reg", 2);
++
++            mouse = OF_node_new(OF_env, adb, "mouse", 3);
++            if (mouse == NULL) {
++                ERROR("Cannot create 'mouse'\n");
++                goto out;
++            }
++            OF_prop_string_new(OF_env, mouse, "device_type", "mouse");
++            OF_prop_int_new(OF_env, mouse, "reg", 3);
++            OF_prop_int_new(OF_env, mouse, "#buttons", 3);
++        }
++        {
++            OF_node_t *rtc;
+         
+         rtc = OF_node_new(OF_env, via, "rtc", OF_ADDRESS_NONE);
+         if (rtc == NULL) {
+@@ -2813,14 +2963,68 @@
+         OF_prop_string_new(OF_env, rtc, "compatible", "rtc");
+ #endif
+         OF_node_put(OF_env, rtc);
+-        OF_node_put(OF_env, via);
+     }
++        //        OF_node_put(OF_env, via);
++    }
++    {
++        OF_node_t *pmgt;
++        pmgt = OF_node_new(OF_env, mio, "power-mgt", OF_ADDRESS_NONE);
++        OF_prop_string_new(OF_env, pmgt, "device_type", "power-mgt");
++        OF_prop_string_new(OF_env, pmgt, "compatible", "cuda");
++        OF_prop_string_new(OF_env, pmgt, "mgt-kind", "min-consumption-pwm-led");
++        OF_node_put(OF_env, pmgt);
++    }
++
++    if (arch == ARCH_HEATHROW) {
++        /* NVRAM */
++        OF_node_t *nvr;
++        OF_regprop_t regs;
++        nvr = OF_node_new(OF_env, mio, "nvram", 0x60000);
++        OF_prop_string_new(OF_env, nvr, "device_type", "nvram");
++        regs.address = 0x60000;
++        regs.size = 0x00020000;
++        OF_property_new(OF_env, nvr, "reg", &regs, sizeof(regs));
++        OF_prop_int_new(OF_env, nvr, "#bytes", 0x2000);
++        OF_node_put(OF_env, nvr);
++    }
++
+  out:
+     //    OF_node_put(OF_env, mio);
+     OF_node_put(OF_env, chs);
+     OF_node_put(OF_env, als);
+ }
+ 
++void OF_finalize_pci_ide (void *dev, 
++                          uint32_t io_base0, uint32_t io_base1,
++                          uint32_t io_base2, uint32_t io_base3)
++{
++    OF_env_t *OF_env = OF_env_main;
++    OF_node_t *pci_ata = dev;
++    OF_node_t *ata, *atas[2];
++    int i;
++
++    OF_prop_int_new(OF_env, pci_ata, "#address-cells", 1);
++    OF_prop_int_new(OF_env, pci_ata, "#size-cells", 0);
++
++    /* XXX: Darwin handles only one device */
++    for(i = 0; i < 1; i++) {
++        ata = OF_node_new(OF_env, pci_ata, "ata-4", i);
++        if (ata == NULL) {
++            ERROR("Cannot create 'ata-4'\n");
++            return;
++        }
++        OF_prop_string_new(OF_env, ata, "device_type", "ata");
++        OF_prop_string_new(OF_env, ata, "compatible", "cmd646-ata");
++        OF_prop_string_new(OF_env, ata, "model", "ata-4");
++        OF_prop_int_new(OF_env, ata, "#address-cells", 1);
++        OF_prop_int_new(OF_env, ata, "#size-cells", 0);
++        OF_prop_int_new(OF_env, ata, "reg", i);
++        atas[i] = ata;
++    }
++    ide_pci_pc_register(io_base0, io_base1, io_base2, io_base3,
++                        atas[0], atas[1]);
++}
++
+ /*****************************************************************************/
+ /* Fake package */
+ static void OF_method_fake (OF_env_t *OF_env)
+@@ -2862,11 +3066,11 @@
+     /* As we get a 1:1 mapping, do nothing */
+     ihandle = popd(OF_env);
+     args = (void *)popd(OF_env);
+-    address = popd(OF_env);
+-    virt = popd(OF_env);
+-    size = popd(OF_env);
+     popd(OF_env);
+-    OF_DPRINTF("Translate address %0x %0x %0x %0x\n", ihandle, address,
++    size = popd(OF_env);
++    virt = popd(OF_env);
++    address = popd(OF_env);
++    OF_DPRINTF("Map %0x %0x %0x %0x\n", ihandle, address,
+                virt, size);
+     pushd(OF_env, 0);
+ }
+@@ -3270,7 +3474,7 @@
+     OF_prop_string_new(OF_env, dsk, "device_type", "block");
+     OF_prop_string_new(OF_env, dsk, "category", type);
+     OF_prop_int_new(OF_env, dsk, "device_id", devnum);
+-    OF_prop_int_new(OF_env, dsk, "reg", 0);
++    OF_prop_int_new(OF_env, dsk, "reg", devnum);
+     OF_method_new(OF_env, dsk, "open", &OF_blockdev_open);
+     OF_method_new(OF_env, dsk, "seek", &OF_blockdev_seek);
+     OF_method_new(OF_env, dsk, "read", &OF_blockdev_read);
+@@ -3432,7 +3636,8 @@
+ }
+ 
+ void OF_vga_register (const unsigned char *name, unused uint32_t address,
+-                      int width, int height, int depth)
++                      int width, int height, int depth,
++                      unsigned long vga_bios_addr, unsigned long vga_bios_size)
+ {
+     OF_env_t *OF_env;
+     unsigned char tmp[OF_NAMELEN_MAX];
+@@ -3504,6 +3709,18 @@
+     OF_prop_string_new(OF_env, als, "display", tmp);
+     OF_node_put(OF_env, als);
+     /* XXX: may also need read-rectangle */
++
++    if (vga_bios_size >= 8) {
++        const uint8_t *p;
++        int size;
++        /* check the QEMU VGA BIOS header */
++        p = (const uint8_t *)vga_bios_addr;
++        if (p[0] == 'N' && p[1] == 'D' && p[2] == 'R' && p[3] == 'V') {
++            size = *(uint32_t *)(p + 4);
++            OF_property_new(OF_env, disp, "driver,AAPL,MacOS,PowerPC", 
++                            p + 8, size);
++        }
++    }
+  out:
+     OF_node_put(OF_env, disp);
+ }
+@@ -4451,7 +4668,10 @@
+         break;
+     case 0x233441d3: /* MacOS X 10.2 and OpenDarwin 1.41 */
+         /* Create "memory-map" pseudo device */
+-        popd(OF_env);
++        {
++            OF_node_t *map;
++            uint32_t phandle;
++
+         /* Find "/packages" */
+         chs = OF_pack_find_by_name(OF_env, OF_node_root, "/chosen");
+         if (chs == NULL) {
+@@ -4459,10 +4679,6 @@
+             ERROR("Cannot get '/chosen'\n");
+             break;
+         }
+-        {
+-#if 1
+-            OF_node_t *map;
+-            uint32_t phandle;
+             map = OF_node_new(OF_env, chs, "memory-map", OF_ADDRESS_NONE);
+             if (map == NULL) {
+                 pushd(OF_env, -1);
+@@ -4473,11 +4689,8 @@
+             OF_node_put(OF_env, map);
+             OF_node_put(OF_env, chs);
+             pushd(OF_env, phandle);
+-        }
+-#else
+-        pushd(OF_env, 0);
+-#endif
+         pushd(OF_env, 0);
++        }
+         break;
+     case 0x32a2d18e: /* MacOS X 10.2 and OpenDarwin 6.02 */
+         /* Return screen ihandle */
+@@ -4540,9 +4753,10 @@
+     case 0x4ad41f2d:
+         /* Yaboot: wait 10 ms: sure ! */
+         break;
++
+     default:
+         /* ERROR */
+-        printf("Script:\n%s\n", FString);
++        printf("Script: len=%d\n%s\n", (int)strlen(FString), FString);
+         printf("Call %0x NOT IMPLEMENTED !\n", crc);
+         bug();
+         break;
+@@ -4581,6 +4795,7 @@
+ {
+     OF_CHECK_NBARGS(OF_env, 0);
+     /* Should free all OF resources */
++    bd_reset_all();
+ #if defined (DEBUG_BIOS)
+     {
+         uint16_t loglevel = 0x02 | 0x10 | 0x80;
+diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --exclude mkdiff OpenHackWare-release-0.4.org/src/pci.c OpenHackWare-release-0.4/src/pci.c
+--- OpenHackWare-release-0.4.org/src/pci.c	2005-03-31 09:23:33.000000000 +0200
++++ OpenHackWare-release-0.4/src/pci.c	2005-07-07 23:27:37.000000000 +0200
+@@ -99,8 +99,8 @@
+     uint16_t min_grant;
+     uint16_t max_latency;
+     uint8_t  irq_line;
+-    uint32_t regions[6];
+-    uint32_t sizes[6];
++    uint32_t regions[7]; /* the region 6 is the PCI ROM */
++    uint32_t sizes[7];
+     pci_device_t *next;
+ };
+ 
+@@ -158,6 +158,7 @@
+ 
+ /* IRQ numbers assigned to PCI IRQs */
+ static uint8_t prep_pci_irqs[4] = { 9, 11, 9, 11 };
++static uint8_t heathrow_pci_irqs[4] = { 0x15, 0x16, 0x17, 0x18 };
+ static uint8_t pmac_pci_irqs[4] = { 8, 9, 10, 11 };
+ 
+ /* PREP PCI host */
+@@ -399,6 +400,79 @@
+     &uninorth_config_readl, &uninorth_config_writel,
+ };
+ 
++/* Grackle PCI host */
++
++static uint32_t grackle_cfg_address (pci_bridge_t *bridge,
++                                     uint8_t bus, uint8_t devfn,
++                                     uint8_t offset)
++{
++    uint32_t addr;
++    addr = 0x80000000 | (bus << 16) | (devfn << 8) | (offset & 0xfc);
++    stswap32((uint32_t *)bridge->cfg_addr, addr);
++    return bridge->cfg_data + (offset & 3);
++}
++
++static uint8_t grackle_config_readb (pci_bridge_t *bridge,
++                                      uint8_t bus, uint8_t devfn,
++                                      uint8_t offset)
++{
++    uint32_t addr;
++    addr = grackle_cfg_address(bridge, bus, devfn, offset);
++    return *((uint8_t *)addr);
++}
++
++static void grackle_config_writeb (pci_bridge_t *bridge,
++                                    uint8_t bus, uint8_t devfn,
++                                    uint8_t offset, uint8_t val)
++{
++    uint32_t addr;
++    addr = grackle_cfg_address(bridge, bus, devfn, offset);
++    *((uint8_t *)addr) = val;
++}
++
++static uint16_t grackle_config_readw (pci_bridge_t *bridge,
++                                       uint8_t bus, uint8_t devfn,
++                                       uint8_t offset)
++{
++    uint32_t addr;
++    addr = grackle_cfg_address(bridge, bus, devfn, offset);
++    return ldswap16((uint16_t *)addr);
++}
++
++static void grackle_config_writew (pci_bridge_t *bridge,
++                                    uint8_t bus, uint8_t devfn,
++                                    uint8_t offset, uint16_t val)
++{
++    uint32_t addr;
++    addr = grackle_cfg_address(bridge, bus, devfn, offset);
++    stswap16((uint16_t *)addr, val);
++}
++
++static uint32_t grackle_config_readl (pci_bridge_t *bridge,
++                                       uint8_t bus, uint8_t devfn,
++                                       uint8_t offset)
++{
++    uint32_t addr;
++    addr = grackle_cfg_address(bridge, bus, devfn, offset);
++    return ldswap32((uint32_t *)addr);
++}
++
++static void grackle_config_writel (pci_bridge_t *bridge,
++                                    uint8_t bus, uint8_t devfn,
++                                    uint8_t offset, uint32_t val)
++{
++    uint32_t addr;
++
++    addr = grackle_cfg_address(bridge, bus, devfn, offset);
++    stswap32((uint32_t *)addr, val);
++}
++
++static pci_ops_t grackle_pci_ops = {
++    &grackle_config_readb, &grackle_config_writeb,
++    &grackle_config_readw, &grackle_config_writew,
++    &grackle_config_readl, &grackle_config_writel,
++};
++
+ static inline uint8_t pci_config_readb (pci_bridge_t *bridge,
+                                         uint8_t bus, uint8_t devfn,
+                                         uint8_t offset)
+@@ -466,12 +540,22 @@
+     },
+ };
+ 
++static int ide_config_cb2 (pci_device_t *device)
++{
++    OF_finalize_pci_ide(device->common.OF_private,
++                        device->regions[0] & ~0x0000000F,
++                        device->regions[1] & ~0x0000000F,
++                        device->regions[2] & ~0x0000000F,
++                        device->regions[3] & ~0x0000000F);
++    return 0;
++}
++
+ static pci_dev_t ide_devices[] = {
+     {
+-        0x8086, 0x0100,
+-        NULL, "Qemu IDE", "Qemu IDE",    "ide",
++        0x1095, 0x0646, /* CMD646 IDE controller */
++        "pci-ide", "pci-ata", NULL, NULL,
+         0, 0, 0,
+-        NULL, NULL,
++        ide_config_cb2, NULL,
+     },
+     {
+         0xFFFF, 0xFFFF,
+@@ -481,7 +565,9 @@
+     },
+ };
+ 
+-static int ide_config_cb (pci_device_t *device)
++#if 0
++/* should base it on PCI ID, not on arch */
++static int ide_config_cb (unused pci_device_t *device)
+ {
+     printf("Register IDE controller\n");
+     switch (arch) {
+@@ -491,14 +577,8 @@
+                               device->common.OF_private);
+         break;
+     default:
+-        ide_pci_pc_register(device->regions[0] & ~0x0000000F,
+-                            device->regions[1] & ~0x0000000F,
+-                            device->regions[2] & ~0x0000000F,
+-                            device->regions[3] & ~0x0000000F,
+-                            device->common.OF_private);
+         break;
+     }
+-
+     return 0;
+ }
+ 
+@@ -512,16 +592,12 @@
+                               device->common.OF_private);
+         break;
+     default:
+-        ide_pci_pc_register(device->regions[0] & ~0x0000000F,
+-                            device->regions[1] & ~0x0000000F,
+-                            device->regions[2] & ~0x0000000F,
+-                            device->regions[3] & ~0x0000000F,
+-                            device->common.OF_private);
+         break;
+     }
+ 
+     return 0;
+ }
++#endif
+ 
+ static pci_subclass_t mass_subclass[] = {
+     {
+@@ -530,7 +606,7 @@
+     },
+     {
+         0x01, "IDE controller",             "ide", ide_devices, NULL,
+-        &ide_config_cb, NULL,
++        NULL, NULL,
+     },
+     {
+         0x02, "Floppy disk controller",     NULL,  NULL, NULL,
+@@ -546,7 +622,7 @@
+     },
+     {
+         0x05, "ATA controller",             "ata", NULL, NULL,
+-        &ata_config_cb, NULL,
++        NULL, NULL,
+     },
+     {
+         0x80, "misc mass-storage controller", NULL, NULL, NULL,
+@@ -646,7 +722,9 @@
+         /* VGA 640x480x16 */
+         OF_vga_register(device->common.device->name,
+                         device->regions[0] & ~0x0000000F,
+-                        vga_width, vga_height, vga_depth);
++                        vga_width, vga_height, vga_depth,
++                        device->regions[6] & ~0x0000000F,
++                        device->sizes[6]);
+     }
+     vga_console_register();
+ 
+@@ -750,6 +828,13 @@
+     NULL, &PREP_pci_ops,
+ };
+ 
++pci_dev_t grackle_fake_bridge = {
++    0xFFFF, 0xFFFF,
++    "pci", "pci-bridge", "DEC,21154", "DEC,21154.pci-bridge",
++    -1, -1, -1,
++    NULL, &grackle_pci_ops,
++};
++
+ static pci_dev_t hbrg_devices[] = {
+     {
+         0x106B, 0x0020, NULL,
+@@ -758,8 +843,8 @@
+         NULL, &uninorth_agp_fake_bridge,
+     },
+     {
+-        0x106B, 0x001F,
+-        NULL, "pci", "AAPL,UniNorth", "uni-north",
++        0x106B, 0x001F, NULL, 
++        "pci", "AAPL,UniNorth", "uni-north",
+         3, 2, 1,
+         NULL, &uninorth_fake_bridge,
+     },
+@@ -770,10 +855,10 @@
+         NULL, &uninorth_fake_bridge,
+     },
+     {
+-        0x1011, 0x0026, NULL,
+-        "pci-bridge", NULL, NULL,
++        0x1057, 0x0002, "pci",
++        "pci", "MOT,MPC106", "grackle",
+         3, 2, 1,
+-        NULL, &PREP_pci_ops,
++        NULL, &grackle_fake_bridge,
+     },
+     {
+         0x1057, 0x4801, NULL,
+@@ -1443,7 +1528,14 @@
+ }
+ 
+ static const pci_dev_t misc_pci[] = {
+-    /* Apple Mac-io controller */
++    /* Paddington Mac I/O */
++    { 
++        0x106B, 0x0017,
++        "mac-io", "mac-io", "AAPL,343S1211", "paddington\1heathrow",
++        1, 1, 1,
++        &macio_config_cb, NULL,
++    },
++    /* KeyLargo Mac I/O */
+     { 
+         0x106B, 0x0022,
+         "mac-io", "mac-io", "AAPL,Keylargo", "Keylargo",
+@@ -1599,7 +1691,7 @@
+                                       uint8_t min_grant, uint8_t max_latency,
+                                       int irq_line)
+ {
+-    uint32_t cmd;
++    uint32_t cmd, addr;
+     int i;
+ 
+     device->min_grant = min_grant;
+@@ -1611,22 +1703,28 @@
+         printf("MAP PCI device %d:%d to IRQ %d\n",
+                device->bus, device->devfn, irq_line);
+     }
+-    for (i = 0; i < 6; i++) {
++    for (i = 0; i < 7; i++) {
+         if ((device->regions[i] & ~0xF) != 0x00000000 &&
+             (device->regions[i] & ~0xF) != 0xFFFFFFF0) {
+             printf("Map PCI device %d:%d %d to %0x %0x (%s)\n",
+                    device->bus, device->devfn, i,
+                    device->regions[i], device->sizes[i],
+-                   device->regions[i] & 0x00000001 ? "I/O" : "memory");
++                   (device->regions[i] & 0x00000001) && i != 6 ? "I/O" : 
++                    "memory");
++            if (i != 6) {
+             cmd = pci_config_readl(bridge, device->bus, device->devfn, 0x04);
+             if (device->regions[i] & 0x00000001)
+                 cmd |= 0x00000001;
+             else
+                 cmd |= 0x00000002;
+             pci_config_writel(bridge, device->bus, device->devfn, 0x04, cmd);
++            }
++            if (i == 6)
++                addr = 0x30; /* PCI ROM */
++            else
++                addr = 0x10 + (i * sizeof(uint32_t));
+             pci_config_writel(bridge, device->bus, device->devfn,
+-                              0x10 + (i * sizeof(uint32_t)),
+-                              device->regions[i]);
++                              addr, device->regions[i]);
+         }
+     }
+ }
+@@ -1900,7 +1998,7 @@
+         goto out;
+     }
+     ret = (pci_u_t *)newd;
+-    max_areas = 6;
++    max_areas = 7;
+     /* register PCI device in OF tree */
+     if (bridge->dev.common.type == PCI_FAKE_BRIDGE) {
+         newd->common.OF_private =
+@@ -1927,6 +2025,9 @@
+             /* Handle 64 bits memory mapping */
+             continue;
+         }
++        if (i == 6)
++            addr = 0x30; /* PCI ROM */
++        else
+         addr = 0x10 + (i * sizeof(uint32_t));
+         /* Get region size
+          * Note: we assume it's always a power of 2
+@@ -1935,7 +2036,7 @@
+         smask = pci_config_readl(bridge, bus, devfn, addr);
+         if (smask == 0x00000000 || smask == 0xFFFFFFFF)
+             continue;
+-        if (smask & 0x00000001) {
++        if ((smask & 0x00000001) != 0 && i != 6) {
+             /* I/O space */
+             base = io_base;
+             /* Align to a minimum of 256 bytes (arbitrary) */
+@@ -1947,6 +2048,8 @@
+             /* Align to a minimum of 64 kB (arbitrary) */
+             min_align = 1 << 16;
+             amask = 0x0000000F;
++            if (i == 6)
++                smask |= 1; /* PCI ROM enable */
+         }
+         omask = smask & amask;
+         smask &= ~amask;
+@@ -1980,7 +2083,10 @@
+     if (irq_pin > 0) {
+         /* assign the IRQ */
+         irq_pin = ((devfn >> 3) + irq_pin - 1) & 3;
+-        if (arch == ARCH_PREP) {
++        /* XXX: should base it on the PCI bridge type, not the arch */
++        switch(arch) {
++        case ARCH_PREP:
++            {
+             int elcr_port, val;
+             irq_line = prep_pci_irqs[irq_pin];
+             /* set the IRQ to level-sensitive */
+@@ -1988,14 +2094,22 @@
+             val = inb(elcr_port);
+             val |= 1 << (irq_line & 7);
+             outb(elcr_port, val);
+-        } else {
++            }
++            break;
++        case ARCH_MAC99:
+             irq_line = pmac_pci_irqs[irq_pin];
++            break;
++        case ARCH_HEATHROW:
++            irq_line = heathrow_pci_irqs[irq_pin];
++            break;
++        default:
++            break;
+         }
+     }
+  update_device:
+     pci_update_device(bridge, newd, min_grant, max_latency, irq_line);
+     OF_finalize_pci_device(newd->common.OF_private, bus, devfn,
+-                           newd->regions, newd->sizes);
++                           newd->regions, newd->sizes, irq_line);
+     /* Call special inits if needed */
+     if (dev->config_cb != NULL)
+         (*dev->config_cb)(newd);
+@@ -2049,6 +2163,32 @@
+     case ARCH_CHRP:
+         /* TODO */
+         break;
++    case ARCH_HEATHROW:
++        dev = pci_find_device(0x06, 0x00, 0xFF, checkv, checkp);
++        if (dev == NULL)
++            return -1;
++        fake_host = pci_add_host(hostp, dev,
++                                 (0x06 << 24) | (0x00 << 16) | (0xFF << 8));
++        if (fake_host == NULL)
++            return -1;
++        fake_host->dev.common.type = PCI_FAKE_HOST;
++        dev = &grackle_fake_bridge;
++        if (dev == NULL)
++            goto free_fake_host;
++        fake_bridge = pci_add_bridge(fake_host, 0, 0, dev,
++                                     (0x06 << 24) | (0x04 << 16) | (0xFF << 8),
++                                     cfg_base, cfg_len,
++                                     cfg_base + 0x7ec00000,
++                                     cfg_base + 0x7ee00000,
++                                     mem_base, mem_len,
++                                     io_base, io_len,
++                                     rbase, rlen,
++                                     0,
++                                     &grackle_pci_ops);
++        if (fake_bridge == NULL)
++            goto free_fake_host;
++        fake_bridge->dev.common.type = PCI_FAKE_BRIDGE;
++        break;
+     case ARCH_MAC99:
+         dev = pci_find_device(0x06, 0x00, 0xFF, checkv, checkp);
+         if (dev == NULL)
+@@ -2167,6 +2307,30 @@
+     case ARCH_CHRP:
+         /* TODO */
+         break;
++    case ARCH_HEATHROW:
++        cfg_base = 0x80000000;
++        cfg_len  = 0x7f000000;
++        mem_base = 0x80000000;
++        mem_len  = 0x01000000;
++        io_base  = 0xfe000000;
++        io_len   = 0x00800000;
++#if 1
++        rbase    = 0xfd000000;
++        rlen     = 0x01000000;
++#else
++        rbase    = 0x00000000;
++        rlen     = 0x01000000;
++#endif
++        if (pci_check_host(&pci_main, cfg_base, cfg_len,
++                           mem_base, mem_len, io_base, io_len, rbase, rlen,
++                           0x1057, 0x0002) == 0) {
++            isa_io_base = io_base;
++            busnum++;
++        }
++        for (curh = pci_main; curh->next != NULL; curh = curh->next)
++            continue;
++        pci_check_devices(curh);
++        break;
+     case ARCH_MAC99:
+         /* We are supposed to have 3 host bridges:
+          * - the uninorth AGP bridge at 0xF0000000

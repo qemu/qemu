@@ -1,0 +1,890 @@
+#!/bin/sh
+#
+# qemu configure script (c) 2003 Fabrice Bellard
+#
+# set temporary file name
+if test ! -z "$TMPDIR" ; then
+    TMPDIR1="${TMPDIR}"
+elif test ! -z "$TEMPDIR" ; then
+    TMPDIR1="${TEMPDIR}"
+else
+    TMPDIR1="/tmp"
+fi
+
+TMPC="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.c"
+TMPO="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.o"
+TMPE="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}"
+TMPS="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.S"
+
+# default parameters
+prefix=""
+interp_prefix="/usr/gnemul/qemu-%M"
+static="no"
+cross_prefix=""
+cc="gcc"
+host_cc="gcc"
+ar="ar"
+make="make"
+install="install"
+strip="strip"
+cpu=`uname -m`
+target_list=""
+case "$cpu" in
+  i386|i486|i586|i686|i86pc|BePC)
+    cpu="i386"
+  ;;
+  armv*b)
+    cpu="armv4b"
+  ;;
+  armv*l)
+    cpu="armv4l"
+  ;;
+  alpha)
+    cpu="alpha"
+  ;;
+  "Power Macintosh"|ppc|ppc64)
+    cpu="powerpc"
+  ;;
+  mips)
+    cpu="mips"
+  ;;
+  s390)
+    cpu="s390"
+  ;;
+  sparc|sun4[muv])
+    cpu="sparc"
+  ;;
+  sparc64)
+    cpu="sparc64"
+  ;;
+  ia64)
+    cpu="ia64"
+  ;;
+  m68k)
+    cpu="m68k"
+  ;;
+  x86_64|amd64)
+    cpu="x86_64"
+  ;;
+  *)
+    cpu="unknown"
+  ;;
+esac
+gprof="no"
+bigendian="no"
+mingw32="no"
+EXESUF=""
+gdbstub="yes"
+slirp="yes"
+adlib="no"
+oss="no"
+dsound="no"
+coreaudio="no"
+alsa="no"
+fmod="no"
+fmod_lib=""
+fmod_inc=""
+bsd="no"
+linux="no"
+kqemu="no"
+profiler="no"
+kernel_path=""
+cocoa="no"
+check_gfx="yes"
+check_gcc="yes"
+softmmu="yes"
+user="no"
+build_docs="no"
+uname_release=""
+
+# OS specific
+targetos=`uname -s`
+case $targetos in
+CYGWIN*)
+mingw32="yes"
+CFLAGS="-O2 -mno-cygwin"
+;;
+MINGW32*)
+mingw32="yes"
+;;
+FreeBSD)
+bsd="yes"
+oss="yes"
+if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
+    kqemu="yes"
+fi
+;;
+NetBSD)
+bsd="yes"
+oss="yes"
+;;
+OpenBSD)
+bsd="yes"
+oss="yes"
+;;
+Darwin)
+bsd="yes"
+darwin="yes"
+;;
+SunOS)
+solaris="yes"
+;;
+*)
+oss="yes"
+linux="yes"
+user="yes"
+if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
+    kqemu="yes"
+fi
+;;
+esac
+
+if [ "$bsd" = "yes" ] ; then
+  if [ "$darwin" != "yes" ] ; then
+    make="gmake"
+  fi
+fi
+
+if [ "$solaris" = "yes" ] ; then
+    make="gmake"
+    install="ginstall"
+    solarisrev=`uname -r | cut -f2 -d.`
+fi
+
+# find source path
+source_path=`dirname "$0"`
+if [ -z "$source_path" ]; then
+    source_path=`pwd`
+else
+    source_path=`cd "$source_path"; pwd`
+fi
+if test "$source_path" = `pwd` ; then
+    source_path_used="no"
+else
+    source_path_used="yes"
+fi
+
+for opt do
+  optarg=`expr "x$opt" : 'x[^=]*=\(.*\)'`
+  case "$opt" in
+  --help|-h) show_help=yes
+  ;;
+  --prefix=*) prefix="$optarg"
+  ;;
+  --interp-prefix=*) interp_prefix="$optarg"
+  ;;
+  --source-path=*) source_path="$optarg"
+  source_path_used="yes"
+  ;;
+  --cross-prefix=*) cross_prefix="$optarg"
+  ;;
+  --cc=*) cc="$optarg"
+  ;;
+  --host-cc=*) host_cc="$optarg"
+  ;;
+  --make=*) make="$optarg"
+  ;;
+  --install=*) install="$optarg"
+  ;;
+  --extra-cflags=*) CFLAGS="$optarg"
+  ;;
+  --extra-ldflags=*) LDFLAGS="$optarg"
+  ;;
+  --cpu=*) cpu="$optarg"
+  ;;
+  --target-list=*) target_list="$optarg"
+  ;;
+  --enable-gprof) gprof="yes"
+  ;;
+  --static) static="yes"
+  ;;
+  --disable-sdl) sdl="no"
+  ;;
+  --enable-coreaudio) coreaudio="yes"
+  ;;
+  --enable-alsa) alsa="yes"
+  ;;
+  --enable-dsound) dsound="yes"
+  ;;
+  --enable-fmod) fmod="yes"
+  ;;
+  --fmod-lib=*) fmod_lib="$optarg"
+  ;;
+  --fmod-inc=*) fmod_inc="$optarg"
+  ;;
+  --enable-mingw32) mingw32="yes" ; cross_prefix="i386-mingw32-"
+  ;;
+  --disable-slirp) slirp="no"
+  ;;
+  --enable-adlib) adlib="yes"
+  ;;
+  --disable-kqemu) kqemu="no"
+  ;;
+  --enable-profiler) profiler="yes"
+  ;;
+  --kernel-path=*) kernel_path="$optarg"
+  ;;
+  --enable-cocoa) cocoa="yes" ; coreaudio="yes" ; sdl="no"
+  ;;
+  --disable-gfx-check) check_gfx="no"
+  ;;
+  --disable-gcc-check) check_gcc="no"
+  ;;
+  --disable-system) softmmu="no"
+  ;;
+  --enable-system) softmmu="yes"
+  ;;
+  --disable-user) user="no"
+  ;;
+  --enable-user) user="yes"
+  ;;
+  --enable-uname-release=*) uname_release="$optarg"
+  ;;
+  esac
+done
+
+# Checking for CFLAGS
+if test -z "$CFLAGS"; then
+    CFLAGS="-O2"
+fi
+
+if test x"$show_help" = x"yes" ; then
+cat << EOF
+
+Usage: configure [options]
+Options: [defaults in brackets after descriptions]
+
+EOF
+echo "Standard options:"
+echo "  --help                   print this message"
+echo "  --prefix=PREFIX          install in PREFIX [$prefix]"
+echo "  --interp-prefix=PREFIX   where to find shared libraries, etc."
+echo "                           use %M for cpu name [$interp_prefix]"
+echo "  --target-list=LIST       set target list [$target_list]"
+echo ""
+echo "kqemu kernel acceleration support:"
+echo "  --disable-kqemu          disable kqemu support"
+echo "  --kernel-path=PATH       set the kernel path (configure probes it)"
+echo ""
+echo "Advanced options (experts only):"
+echo "  --source-path=PATH       path of source code [$source_path]"
+echo "  --cross-prefix=PREFIX    use PREFIX for compile tools [$cross_prefix]"
+echo "  --cc=CC                  use C compiler CC [$cc]"
+echo "  --host-cc=CC             use C compiler CC [$host_cc] for dyngen etc."
+echo "  --make=MAKE              use specified make [$make]"
+echo "  --install=INSTALL        use specified install [$install]"
+echo "  --static                 enable static build [$static]"
+echo "  --enable-cocoa           enable COCOA (Mac OS X only)"
+echo "  --enable-mingw32         enable Win32 cross compilation with mingw32"
+echo "  --enable-adlib           enable Adlib emulation"
+echo "  --enable-coreaudio       enable Coreaudio audio driver"
+echo "  --enable-alsa            enable ALSA audio driver"
+echo "  --enable-fmod            enable FMOD audio driver"
+echo "  --enabled-dsound         enable DirectSound audio driver"
+echo "  --enable-system          enable all system emulation targets"
+echo "  --disable-system         disable all system emulation targets"
+echo "  --enable-user            enable all linux usermode emulation targets"
+echo "  --disable-user           disable all linux usermode emulation targets"
+echo "  --fmod-lib               path to FMOD library"
+echo "  --fmod-inc               path to FMOD includes"
+echo "  --enable-uname-release=R Return R for uname -r in usermode emulation"
+echo ""
+echo "NOTE: The object files are build at the place where configure is launched"
+exit 1
+fi
+
+cc="${cross_prefix}${cc}"
+ar="${cross_prefix}${ar}"
+strip="${cross_prefix}${strip}"
+
+# check that the C compiler works.
+cat > $TMPC <<EOF
+int main(void) {}
+EOF
+
+if $cc -c -o $TMPO $TMPC 2>/dev/null ; then
+  : C compiler works ok
+else
+    echo "ERROR: \"$cc\" either does not exist or does not work"
+    exit 1
+fi
+
+if test "$mingw32" = "yes" ; then
+    linux="no"
+    EXESUF=".exe"
+    gdbstub="no"
+    oss="no"
+    if [ "$cpu" = "i386" ] ; then
+        kqemu="yes"
+    fi
+fi
+
+#
+# Solaris specific configure tool chain decisions
+#
+if test "$solaris" = "yes" ; then
+  #
+  # gcc for solaris 10/fcs in /usr/sfw/bin doesn't compile qemu correctly
+  # override the check with --disable-gcc-check
+  # 
+  if test "$solarisrev" -eq 10 -a "$check_gcc" = "yes" ; then
+    solgcc=`which $cc`
+    if test "$solgcc" = "/usr/sfw/bin/gcc" ; then
+      echo "Solaris 10/FCS gcc in /usr/sfw/bin will not compiled qemu correctly."
+      echo "please get gcc-3.4.3 or later, from www.blastwave.org using pkg-get -i gcc3"
+      echo "or get the latest patch from SunSolve for gcc"
+      exit 1
+    fi
+  fi
+  solinst=`which $install 2> /dev/null | /usr/bin/grep -v "no $install in"`
+  if test -z "$solinst" ; then
+    echo "Solaris install program not found. Use --install=/usr/ucb/install or"
+    echo "install fileutils from www.blastwave.org using pkg-get -i fileutils"
+    echo "to get ginstall which is used by default (which lives in /opt/csw/bin)"
+    exit 1
+  fi
+  if test "$solinst" = "/usr/sbin/install" ; then
+    echo "Error: Solaris /usr/sbin/install is not an appropriate install program."
+    echo "try ginstall from the GNU fileutils available from www.blastwave.org"
+    echo "using pkg-get -i fileutils, or use --install=/usr/ucb/install"
+    exit 1
+  fi
+  sol_ar=`which ar 2> /dev/null | /usr/bin/grep -v "no ar in"`
+  if test -z "$sol_ar" ; then
+    echo "Error: No path includes ar"
+    if test -f /usr/ccs/bin/ar ; then
+      echo "Add /usr/ccs/bin to your path and rerun configure"
+    fi
+    exit 1
+  fi
+fi 
+
+
+if test -z "$target_list" ; then
+# these targets are portable
+    if [ "$softmmu" = "yes" ] ; then
+        target_list="i386-softmmu ppc-softmmu sparc-softmmu x86_64-softmmu mips-softmmu mipsel-softmmu arm-softmmu"
+    fi
+# the following are Linux specific
+    if [ "$user" = "yes" ] ; then
+        target_list="i386-user arm-user armeb-user sparc-user ppc-user mips-user mipsel-user $target_list"
+    fi
+else
+    target_list=`echo "$target_list" | sed -e 's/,/ /g'`
+fi
+if test -z "$target_list" ; then
+    echo "No targets enabled"
+    exit 1
+fi
+
+if test -z "$cross_prefix" ; then
+
+# ---
+# big/little endian test
+cat > $TMPC << EOF
+#include <inttypes.h>
+int main(int argc, char ** argv){
+        volatile uint32_t i=0x01234567;
+        return (*((uint8_t*)(&i))) == 0x67;
+}
+EOF
+
+if $cc -o $TMPE $TMPC 2>/dev/null ; then
+$TMPE && bigendian="yes"
+else
+echo big/little test failed
+fi
+
+else
+
+# if cross compiling, cannot launch a program, so make a static guess
+if test "$cpu" = "powerpc" -o "$cpu" = "mips" -o "$cpu" = "s390" -o "$cpu" = "sparc" -o "$cpu" = "sparc64" -o "$cpu" = "m68k" -o "$cpu" = "armv4b"; then
+    bigendian="yes"
+fi
+
+fi
+
+# host long bits test
+hostlongbits="32"
+if test "$cpu" = "sparc64" -o "$cpu" = "ia64" -o "$cpu" = "x86_64" -o "$cpu" = "alpha"; then
+    hostlongbits="64"
+fi
+
+# check gcc options support
+cat > $TMPC <<EOF
+int main(void) {
+}
+EOF
+
+have_gcc3_options="no"
+if $cc -fno-reorder-blocks -fno-optimize-sibling-calls -o $TMPO $TMPC 2> /dev/null ; then
+   have_gcc3_options="yes"
+fi
+
+# Check for gcc4, error if pre-gcc4 
+if test "$check_gcc" = "yes" ; then
+    cat > $TMPC <<EOF
+#if __GNUC__ < 4
+#error gcc3
+#endif
+int main(){return 0;}
+EOF
+    if $cc -o $TMPO $TMPC 2>/dev/null ; then
+        echo "ERROR: \"$cc\" looks like gcc 4.x"
+        echo "QEMU is known to have problems when compiled with gcc 4.x"
+        echo "It is recommended that you use gcc 3.x to build QEMU"
+        echo "To use this compiler anyway, configure with --disable-gcc-check"
+        exit 1;
+    fi
+fi
+
+##########################################
+# SDL probe
+
+sdl_too_old=no
+
+if test -z "$sdl" ; then
+
+sdl_config="sdl-config"
+sdl=no
+sdl_static=no
+
+if test "$mingw32" = "yes" -a ! -z "$cross_prefix" ; then
+# win32 cross compilation case
+    sdl_config="i386-mingw32msvc-sdl-config"
+    sdl=yes
+else
+# normal SDL probe
+cat > $TMPC << EOF
+#include <SDL.h>
+#undef main /* We don't want SDL to override our main() */
+int main( void ) { return SDL_Init (SDL_INIT_VIDEO); }
+EOF
+
+if $cc -o $TMPE `$sdl_config --cflags 2> /dev/null` $TMPC `$sdl_config --libs 2> /dev/null` 2> /dev/null ; then
+_sdlversion=`$sdl_config --version | sed 's/[^0-9]//g'`
+if test "$_sdlversion" -lt 121 ; then
+sdl_too_old=yes
+else
+sdl=yes
+fi
+
+# static link with sdl ?
+if test "$sdl" = "yes" ; then
+aa="no"
+`$sdl_config --static-libs | grep \\\-laa > /dev/null` && aa="yes"
+sdl_static_libs=`$sdl_config --static-libs`
+if [ "$aa" = "yes" ] ; then
+  sdl_static_libs="$sdl_static_libs `aalib-config --static-libs`"
+fi
+
+if $cc -o $TMPE `$sdl_config --cflags 2> /dev/null` $TMPC $sdl_static_libs 2> /dev/null; then
+  sdl_static=yes
+fi
+
+fi # static link
+
+fi # sdl compile test
+
+fi # cross compilation
+fi # -z $sdl
+
+# Check if tools are available to build documentation.
+if [ -x "`which texi2html`" ] && [ -x "`which pod2man`" ]; then
+  build_docs="yes"
+fi
+
+if test "$mingw32" = "yes" ; then
+if test -z "$prefix" ; then
+    prefix="/c/Program Files/Qemu"
+fi
+mandir="$prefix"
+datadir="$prefix"
+docdir="$prefix"
+bindir="$prefix"
+else
+if test -z "$prefix" ; then
+    prefix="/usr/local"
+fi
+mandir="$prefix/share/man"
+datadir="$prefix/share/qemu"
+docdir="$prefix/share/doc/qemu"
+bindir="$prefix/bin"
+fi
+
+echo "Install prefix    $prefix"
+echo "BIOS directory    $datadir"
+echo "binary directory  $bindir"
+if test "$mingw32" = "no" ; then
+echo "Manual directory  $mandir"
+echo "ELF interp prefix $interp_prefix"
+fi
+echo "Source path       $source_path"
+echo "C compiler        $cc"
+echo "Host C compiler   $host_cc"
+echo "make              $make"
+echo "install           $install"
+echo "host CPU          $cpu"
+echo "host big endian   $bigendian"
+echo "target list       $target_list"
+echo "gprof enabled     $gprof"
+echo "profiler          $profiler"
+echo "static build      $static"
+if test "$darwin" = "yes" ; then
+    echo "Cocoa support     $cocoa"
+fi
+echo "SDL support       $sdl"
+if test "$sdl" != "no" ; then
+    echo "SDL static link   $sdl_static"
+fi
+echo "mingw32 support   $mingw32"
+echo "Adlib support     $adlib"
+echo "CoreAudio support $coreaudio"
+echo "ALSA support      $alsa"
+echo "DSound support    $dsound"
+if test "$fmod" = "yes"; then
+    if test -z $fmod_lib || test -z $fmod_inc; then
+        echo
+        echo "Error: You must specify path to FMOD library and headers"
+        echo "Example: --fmod-inc=/path/include/fmod --fmod-lib=/path/lib/libfmod-3.74.so"
+        echo
+        exit 1
+    fi
+    fmod_support=" (lib='$fmod_lib' include='$fmod_inc')"
+else
+    fmod_support=""
+fi
+echo "FMOD support      $fmod $fmod_support"
+echo "kqemu support     $kqemu"
+echo "Documentation     $build_docs"
+[ ! -z "$uname_release" ] && \
+echo "uname -r          $uname_release"
+
+if test $sdl_too_old = "yes"; then
+echo "-> Your SDL version is too old - please upgrade to have SDL support"
+fi
+#if test "$sdl_static" = "no"; then
+#  echo "WARNING: cannot compile statically with SDL - qemu-fast won't have a graphical output"
+#fi
+config_mak="config-host.mak"
+config_h="config-host.h"
+
+#echo "Creating $config_mak and $config_h"
+
+echo "# Automatically generated by configure - do not modify" > $config_mak
+echo "# Configured with: $0 $@" >> $config_mak
+echo "/* Automatically generated by configure - do not modify */" > $config_h
+
+echo "prefix=$prefix" >> $config_mak
+echo "bindir=$bindir" >> $config_mak
+echo "mandir=$mandir" >> $config_mak
+echo "datadir=$datadir" >> $config_mak
+echo "docdir=$docdir" >> $config_mak
+echo "#define CONFIG_QEMU_SHAREDIR \"$datadir\"" >> $config_h
+echo "MAKE=$make" >> $config_mak
+echo "INSTALL=$install" >> $config_mak
+echo "CC=$cc" >> $config_mak
+if test "$have_gcc3_options" = "yes" ; then
+  echo "HAVE_GCC3_OPTIONS=yes" >> $config_mak
+fi
+echo "HOST_CC=$host_cc" >> $config_mak
+echo "AR=$ar" >> $config_mak
+echo "STRIP=$strip -s -R .comment -R .note" >> $config_mak
+echo "CFLAGS=$CFLAGS" >> $config_mak
+echo "LDFLAGS=$LDFLAGS" >> $config_mak
+echo "EXESUF=$EXESUF" >> $config_mak
+if test "$cpu" = "i386" ; then
+  echo "ARCH=i386" >> $config_mak
+  echo "#define HOST_I386 1" >> $config_h
+elif test "$cpu" = "x86_64" ; then
+  echo "ARCH=x86_64" >> $config_mak
+  echo "#define HOST_X86_64 1" >> $config_h
+elif test "$cpu" = "armv4b" ; then
+  echo "ARCH=arm" >> $config_mak
+  echo "#define HOST_ARM 1" >> $config_h
+elif test "$cpu" = "armv4l" ; then
+  echo "ARCH=arm" >> $config_mak
+  echo "#define HOST_ARM 1" >> $config_h
+elif test "$cpu" = "powerpc" ; then
+  echo "ARCH=ppc" >> $config_mak
+  echo "#define HOST_PPC 1" >> $config_h
+elif test "$cpu" = "mips" ; then
+  echo "ARCH=mips" >> $config_mak
+  echo "#define HOST_MIPS 1" >> $config_h
+elif test "$cpu" = "s390" ; then
+  echo "ARCH=s390" >> $config_mak
+  echo "#define HOST_S390 1" >> $config_h
+elif test "$cpu" = "alpha" ; then
+  echo "ARCH=alpha" >> $config_mak
+  echo "#define HOST_ALPHA 1" >> $config_h
+elif test "$cpu" = "sparc" ; then
+  echo "ARCH=sparc" >> $config_mak
+  echo "#define HOST_SPARC 1" >> $config_h
+elif test "$cpu" = "sparc64" ; then
+  echo "ARCH=sparc64" >> $config_mak
+  echo "#define HOST_SPARC64 1" >> $config_h
+elif test "$cpu" = "ia64" ; then
+  echo "ARCH=ia64" >> $config_mak
+  echo "#define HOST_IA64 1" >> $config_h
+elif test "$cpu" = "m68k" ; then
+  echo "ARCH=m68k" >> $config_mak
+  echo "#define HOST_M68K 1" >> $config_h
+else
+  echo "Unsupported CPU"
+  exit 1
+fi
+if test "$bigendian" = "yes" ; then
+  echo "WORDS_BIGENDIAN=yes" >> $config_mak
+  echo "#define WORDS_BIGENDIAN 1" >> $config_h
+fi
+echo "#define HOST_LONG_BITS $hostlongbits" >> $config_h
+if test "$mingw32" = "yes" ; then
+  echo "CONFIG_WIN32=yes" >> $config_mak
+  echo "#define CONFIG_WIN32 1" >> $config_h
+elif test -f "/usr/include/byteswap.h" ; then
+  echo "#define HAVE_BYTESWAP_H 1" >> $config_h
+fi
+if test "$darwin" = "yes" ; then
+  echo "CONFIG_DARWIN=yes" >> $config_mak
+  echo "#define CONFIG_DARWIN 1" >> $config_h
+fi
+if test "$solaris" = "yes" ; then
+  echo "CONFIG_SOLARIS=yes" >> $config_mak
+  echo "#define HOST_SOLARIS $solarisrev" >> $config_h
+fi
+if test "$gdbstub" = "yes" ; then
+  echo "CONFIG_GDBSTUB=yes" >> $config_mak
+  echo "#define CONFIG_GDBSTUB 1" >> $config_h
+fi
+if test "$gprof" = "yes" ; then
+  echo "TARGET_GPROF=yes" >> $config_mak
+  echo "#define HAVE_GPROF 1" >> $config_h
+fi
+if test "$static" = "yes" ; then
+  echo "CONFIG_STATIC=yes" >> $config_mak
+  echo "#define CONFIG_STATIC 1" >> $config_h
+fi
+if test $profiler = "yes" ; then
+  echo "#define CONFIG_PROFILER 1" >> $config_h
+fi
+if test "$slirp" = "yes" ; then
+  echo "CONFIG_SLIRP=yes" >> $config_mak
+  echo "#define CONFIG_SLIRP 1" >> $config_h
+fi
+if test "$adlib" = "yes" ; then
+  echo "CONFIG_ADLIB=yes" >> $config_mak
+  echo "#define CONFIG_ADLIB 1" >> $config_h
+fi
+if test "$oss" = "yes" ; then
+  echo "CONFIG_OSS=yes" >> $config_mak
+  echo "#define CONFIG_OSS 1" >> $config_h
+fi
+if test "$coreaudio" = "yes" ; then
+  echo "CONFIG_COREAUDIO=yes" >> $config_mak
+  echo "#define CONFIG_COREAUDIO 1" >> $config_h
+fi
+if test "$alsa" = "yes" ; then
+  echo "CONFIG_ALSA=yes" >> $config_mak
+  echo "#define CONFIG_ALSA 1" >> $config_h
+fi
+if test "$dsound" = "yes" ; then
+  echo "CONFIG_DSOUND=yes" >> $config_mak
+  echo "#define CONFIG_DSOUND 1" >> $config_h
+fi
+if test "$fmod" = "yes" ; then
+  echo "CONFIG_FMOD=yes" >> $config_mak
+  echo "CONFIG_FMOD_LIB=$fmod_lib" >> $config_mak
+  echo "CONFIG_FMOD_INC=$fmod_inc" >> $config_mak
+  echo "#define CONFIG_FMOD 1" >> $config_h
+fi
+qemu_version=`head $source_path/VERSION`
+echo "VERSION=$qemu_version" >>$config_mak
+echo "#define QEMU_VERSION \"$qemu_version\"" >> $config_h
+
+echo "SRC_PATH=$source_path" >> $config_mak
+if [ "$source_path_used" = "yes" ]; then
+  echo "VPATH=$source_path" >> $config_mak
+fi
+echo "TARGET_DIRS=$target_list" >> $config_mak
+if [ "$build_docs" = "yes" ] ; then
+  echo "BUILD_DOCS=yes" >> $config_mak
+fi
+
+# XXX: suppress that
+if [ "$bsd" = "yes" ] ; then
+  echo "#define O_LARGEFILE 0" >> $config_h
+  echo "#define MAP_ANONYMOUS MAP_ANON" >> $config_h
+  echo "#define _BSD 1" >> $config_h
+fi
+
+echo "#define CONFIG_UNAME_RELEASE \"$uname_release\"" >> $config_h
+
+for target in $target_list; do
+target_dir="$target"
+config_mak=$target_dir/config.mak
+config_h=$target_dir/config.h
+target_cpu=`echo $target | cut -d '-' -f 1`
+target_bigendian="no"
+[ "$target_cpu" = "armeb" ] && target_bigendian=yes
+[ "$target_cpu" = "sparc" ] && target_bigendian=yes
+[ "$target_cpu" = "sparc64" ] && target_bigendian=yes
+[ "$target_cpu" = "ppc" ] && target_bigendian=yes
+[ "$target_cpu" = "ppc64" ] && target_bigendian=yes
+[ "$target_cpu" = "mips" ] && target_bigendian=yes
+target_softmmu="no"
+if expr $target : '.*-softmmu' > /dev/null ; then
+  target_softmmu="yes"
+fi
+target_user_only="no"
+if expr $target : '.*-user' > /dev/null ; then
+  target_user_only="yes"
+fi
+
+if test "$target_user_only" = "no" -a "$check_gfx" = "yes" \
+        -a "$sdl" = "no" -a "$cocoa" = "no" ; then
+    echo "ERROR: QEMU requires SDL or Cocoa for graphical output"
+    echo "To build QEMU without graphical output configure with --disable-gfx-check"
+    echo "Note that this will disable all output from the virtual graphics card."
+    exit 1;
+fi
+
+#echo "Creating $config_mak, $config_h and $target_dir/Makefile"
+
+mkdir -p $target_dir
+mkdir -p $target_dir/fpu
+if test "$target" = "arm-user" -o "$target" = "armeb-user" ; then
+  mkdir -p $target_dir/nwfpe
+fi
+if test "$target_user_only" = "no" ; then
+  mkdir -p $target_dir/slirp
+fi
+
+#
+# don't use ln -sf as not all "ln -sf" over write the file/link
+#
+rm -f $target_dir/Makefile
+ln -s $source_path/Makefile.target $target_dir/Makefile
+
+
+echo "# Automatically generated by configure - do not modify" > $config_mak
+echo "/* Automatically generated by configure - do not modify */" > $config_h
+
+
+echo "include ../config-host.mak" >> $config_mak
+echo "#include \"../config-host.h\"" >> $config_h
+
+interp_prefix1=`echo "$interp_prefix" | sed "s/%M/$target_cpu/g"`
+echo "#define CONFIG_QEMU_PREFIX \"$interp_prefix1\"" >> $config_h
+
+if test "$target_cpu" = "i386" ; then
+  echo "TARGET_ARCH=i386" >> $config_mak
+  echo "#define TARGET_ARCH \"i386\"" >> $config_h
+  echo "#define TARGET_I386 1" >> $config_h
+  if test $kqemu = "yes" -a "$target_softmmu" = "yes" -a $cpu = "i386" ; then
+    echo "#define USE_KQEMU 1" >> $config_h
+  fi
+elif test "$target_cpu" = "arm" -o "$target_cpu" = "armeb" ; then
+  echo "TARGET_ARCH=arm" >> $config_mak
+  echo "#define TARGET_ARCH \"arm\"" >> $config_h
+  echo "#define TARGET_ARM 1" >> $config_h
+elif test "$target_cpu" = "sparc" ; then
+  echo "TARGET_ARCH=sparc" >> $config_mak
+  echo "#define TARGET_ARCH \"sparc\"" >> $config_h
+  echo "#define TARGET_SPARC 1" >> $config_h
+elif test "$target_cpu" = "sparc64" ; then
+  echo "TARGET_ARCH=sparc64" >> $config_mak
+  echo "#define TARGET_ARCH \"sparc64\"" >> $config_h
+  echo "#define TARGET_SPARC 1" >> $config_h
+  echo "#define TARGET_SPARC64 1" >> $config_h
+elif test "$target_cpu" = "ppc" ; then
+  echo "TARGET_ARCH=ppc" >> $config_mak
+  echo "#define TARGET_ARCH \"ppc\"" >> $config_h
+  echo "#define TARGET_PPC 1" >> $config_h
+elif test "$target_cpu" = "ppc64" ; then
+  echo "TARGET_ARCH=ppc64" >> $config_mak
+  echo "#define TARGET_ARCH \"ppc64\"" >> $config_h
+  echo "#define TARGET_PPC 1" >> $config_h
+  echo "#define TARGET_PPC64 1" >> $config_h
+elif test "$target_cpu" = "x86_64" ; then
+  echo "TARGET_ARCH=x86_64" >> $config_mak
+  echo "#define TARGET_ARCH \"x86_64\"" >> $config_h
+  echo "#define TARGET_I386 1" >> $config_h
+  echo "#define TARGET_X86_64 1" >> $config_h
+  if test $kqemu = "yes" -a "$target_softmmu" = "yes" -a $cpu = "x86_64"  ; then
+    echo "#define USE_KQEMU 1" >> $config_h
+  fi
+elif test "$target_cpu" = "mips" -o "$target_cpu" = "mipsel" ; then
+  echo "TARGET_ARCH=mips" >> $config_mak
+  echo "#define TARGET_ARCH \"mips\"" >> $config_h
+  echo "#define TARGET_MIPS 1" >> $config_h
+elif test "$target_cpu" = "sh4" ; then
+  echo "TARGET_ARCH=sh4" >> $config_mak
+  echo "#define TARGET_ARCH \"sh4\"" >> $config_h
+  echo "#define TARGET_SH4 1" >> $config_h
+else
+  echo "Unsupported target CPU"
+  exit 1
+fi
+if test "$target_bigendian" = "yes" ; then
+  echo "TARGET_WORDS_BIGENDIAN=yes" >> $config_mak
+  echo "#define TARGET_WORDS_BIGENDIAN 1" >> $config_h
+fi
+if test "$target_softmmu" = "yes" ; then
+  echo "CONFIG_SOFTMMU=yes" >> $config_mak
+  echo "#define CONFIG_SOFTMMU 1" >> $config_h
+fi
+if test "$target_user_only" = "yes" ; then
+  echo "CONFIG_USER_ONLY=yes" >> $config_mak
+  echo "#define CONFIG_USER_ONLY 1" >> $config_h
+fi
+
+if test "$target_cpu" = "arm" -o "$target_cpu" = "armeb" ; then
+  echo "CONFIG_SOFTFLOAT=yes" >> $config_mak
+  echo "#define CONFIG_SOFTFLOAT 1" >> $config_h
+fi
+# sdl defines
+
+if test "$target_user_only" = "no"; then
+    if test "$target_softmmu" = "no" -o "$static" = "yes"; then
+        sdl1=$sdl_static
+    else
+        sdl1=$sdl
+    fi
+    if test "$sdl1" = "yes" ; then
+        echo "#define CONFIG_SDL 1" >> $config_h
+        echo "CONFIG_SDL=yes" >> $config_mak
+        if test "$target_softmmu" = "no" -o "$static" = "yes"; then
+            echo "SDL_LIBS=$sdl_static_libs" >> $config_mak
+        else
+            echo "SDL_LIBS=`$sdl_config --libs`" >> $config_mak
+        fi
+        if [ "${aa}" = "yes" ] ; then
+            echo "SDL_CFLAGS=`$sdl_config --cflags` `aalib-config --cflags`" >> $config_mak
+        else
+            echo "SDL_CFLAGS=`$sdl_config --cflags`" >> $config_mak
+        fi
+    fi
+fi
+
+if test "$cocoa" = "yes" ; then
+    echo "#define CONFIG_COCOA 1" >> $config_h
+    echo "CONFIG_COCOA=yes" >> $config_mak
+fi
+
+done # for target in $targets
+
+# build tree in object directory if source path is different from current one
+if test "$source_path_used" = "yes" ; then
+    DIRS="tests"
+    FILES="Makefile tests/Makefile"
+    for dir in $DIRS ; do
+            mkdir -p $dir
+    done
+    # remove the link and recreate it, as not all "ln -sf" overwrite the link
+    for f in $FILES ; do
+        rm -f $f
+        ln -s $source_path/$f $f
+    done
+fi
+
+rm -f $TMPO $TMPC $TMPE $TMPS

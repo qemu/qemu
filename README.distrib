@@ -1,0 +1,16 @@
+Information about the various packages used to build the current qemu
+x86 binary distribution:
+
+* gcc 2.95.2 was used for the build. A glibc 2.1.3 Debian distribution
+  was used to get most of the binary packages.
+
+* wine-20020411 tarball
+
+  ./configure --prefix=/usr/local/wine-i386
+  
+  All exe and libs were stripped. Some compile time tools and the
+  includes were deleted.
+
+* ldconfig was launched to build the library links:
+
+  qemu-i386 /usr/gnemul/qemu-i386/bin/ldconfig-i386 -C /usr/gnemul/qemu-i386/etc/ld.so.cache

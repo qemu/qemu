@@ -1,0 +1,70 @@
+--- linux-2.6.9/arch/i386/Kconfig	2004-10-18 23:53:22.000000000 +0200
++++ linux-2.6.9-qemu/arch/i386/Kconfig	2004-12-07 21:56:49.000000000 +0100
+@@ -337,6 +337,14 @@ config X86_GENERIC
+ 
+ endif
+ 
++config QEMU
++	bool "Kernel to run under QEMU"
++	depends on EXPERIMENTAL
++	help
++	  Select this if you want to boot the kernel inside qemu-fast,
++	  the non-mmu version of the x86 emulator.  See
++	  <http://fabrice.bellard.free.fr/qemu/>.  Say N.
++
+ #
+ # Define implied options from the CPU selection here
+ #
+--- linux-2.6.9/include/asm-i386/fixmap.h	2004-10-18 23:53:08.000000000 +0200
++++ linux-2.6.9-qemu/include/asm-i386/fixmap.h	2004-12-07 23:16:11.000000000 +0100
+@@ -20,7 +20,11 @@
+  * Leave one empty page between vmalloc'ed areas and
+  * the start of the fixmap.
+  */
++#ifdef CONFIG_QEMU
++#define __FIXADDR_TOP   0xa7fff000
++#else
+ #define __FIXADDR_TOP	0xfffff000
++#endif
+ 
+ #ifndef __ASSEMBLY__
+ #include <linux/kernel.h>
+--- linux-2.6.9/include/asm-i386/page.h	2004-10-18 23:53:22.000000000 +0200
++++ linux-2.6.9-qemu/include/asm-i386/page.h	2004-12-07 21:56:49.000000000 +0100
+@@ -121,12 +121,19 @@ extern int sysctl_legacy_va_layout;
+ #endif /* __ASSEMBLY__ */
+ 
+ #ifdef __ASSEMBLY__
++#ifdef CONFIG_QEMU
++#define __PAGE_OFFSET		(0x90000000)
++#else
+ #define __PAGE_OFFSET		(0xC0000000)
++#endif /* QEMU */
++#else
++#ifdef CONFIG_QEMU
++#define __PAGE_OFFSET		(0x90000000UL)
+ #else
+ #define __PAGE_OFFSET		(0xC0000000UL)
++#endif /* QEMU */
+ #endif
+ 
+-
+ #define PAGE_OFFSET		((unsigned long)__PAGE_OFFSET)
+ #define VMALLOC_RESERVE		((unsigned long)__VMALLOC_RESERVE)
+ #define MAXMEM			(-__PAGE_OFFSET-__VMALLOC_RESERVE)
+--- linux-2.6.9/include/asm-i386/param.h	2004-10-18 23:53:24.000000000 +0200
++++ linux-2.6.9-qemu/include/asm-i386/param.h	2004-12-07 21:56:49.000000000 +0100
+@@ -2,7 +2,12 @@
+ #define _ASMi386_PARAM_H
+ 
+ #ifdef __KERNEL__
+-# define HZ		1000		/* Internal kernel timer frequency */
++# include <linux/config.h>
++# ifdef CONFIG_QEMU
++#  define HZ		100
++# else
++#  define HZ		1000		/* Internal kernel timer frequency */
++# endif
+ # define USER_HZ	100		/* .. some user interfaces are in "ticks" */
+ # define CLOCKS_PER_SEC		(USER_HZ)	/* like times() */
+ #endif
