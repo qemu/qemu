@@ -113,7 +113,7 @@ GDB remote target support has been implemented and lightly tested.
 Files
 -----
 
-File names are harcoded at this time. The bootloader must be stored in
+File names are hardcoded at this time. The bootloader must be stored in
 shix_bios.bin in the current directory. The initial Linux image must
 be stored in shix_linux_nand.bin in the current directory in NAND
 format. Test files can be obtained from

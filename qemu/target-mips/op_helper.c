@@ -161,6 +161,29 @@ void do_tlbr (void)
 }
 #else
 
+/* names of all Config Registers */
+static const char *configname[] = {
+	"Config",
+	"Config1",
+	"Config2",
+	"Config3",
+	"Config4",
+	"Config5",
+	"Config6",
+	"Config7"
+};
+
+/* write masks of all Config Registers */
+static const uint32_t configmask[] = {
+#if defined(MIPS_USES_R4K_TLB)
+    0x7e000003,
+#else
+    0x00000003,
+#endif
+    0, 0, 0, 0, 0, 0, 0
+};
+
+
 /* CP0 helpers */
 void do_mfc0 (int reg, int sel)
 {
@@ -238,19 +261,8 @@ void do_mfc0 (int reg, int sel)
         rn = "PRid";
         break;
     case 16:
-        switch (sel) {
-        case 0:
-            T0 = env->CP0_Config0;
-            rn = "Config";
-            break;
-        case 1:
-            T0 = env->CP0_Config1;
-            rn = "Config1";
-            break;
-        default:
-            rn = "Unknown config register";
-            break;
-        }
+        T0 = env->CP0_Config[sel];
+        rn = configname[sel];
         break;
     case 17:
         T0 = env->CP0_LLAddr >> 4;
@@ -440,23 +452,9 @@ void do_mtc0 (int reg, int sel)
         rn = "EPC";
         break;
     case 16:
-        switch (sel) {
-        case 0:
-#if defined(MIPS_USES_R4K_TLB)
-            val = (env->CP0_Config0 & 0x8017FF80) | (T0 & 0x7E000001);
-#else
-            val = (env->CP0_Config0 & 0xFE17FF80) | (T0 & 0x00000001);
-#endif
-            old = env->CP0_Config0;
-            env->CP0_Config0 = val;
-            rn = "Config0";
-            break;
-        default:
-            val = -1;
-            old = -1;
-            rn = "bad config selector";
-            break;
-        }
+        val = (env->CP0_Config[sel] & (~configmask[sel])) | (T0 & configmask[sel]);
+	old = env->CP0_Config[sel];
+        rn = configname[sel];
         break;
     case 18:
         val = T0;

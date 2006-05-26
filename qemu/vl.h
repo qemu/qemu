@@ -132,7 +132,6 @@ void qemu_system_powerdown(void);
 void main_loop_wait(int timeout);
 
 extern int ram_size;
-extern int bios_size;
 extern int rtc_utc;
 extern int cirrus_vga_enabled;
 extern int graphic_width;
@@ -148,7 +147,9 @@ extern int smp_cpus;
 #if defined (TARGET_PPC)
 #define BIOS_SIZE ((512 + 32) * 1024)
 #elif defined(TARGET_MIPS)
-#define BIOS_SIZE (128 * 1024)
+//~ #define BIOS_SIZE (128 * 1024)
+/* BIOS_SIZE is used for all ROM / flash memory */
+#define BIOS_SIZE (16 * 1024 * 1024)
 #else
 #define BIOS_SIZE ((256 + 64) * 1024)
 #endif
@@ -550,6 +551,8 @@ typedef struct QEMUMachine {
 
 int qemu_register_machine(QEMUMachine *m);
 
+int qemu_register_mips_machines(void);
+
 typedef void SetIRQFunc(void *opaque, int irq_num, int level);
 typedef void IRQRequestFunc(void *opaque, int level);
 
@@ -826,7 +829,7 @@ void rtc_set_date(RTCState *s, const struct tm *tm);
 
 typedef struct SerialState SerialState;
 SerialState *serial_init(SetIRQFunc *set_irq, void *opaque,
-                         int base, int irq, CharDriverState *chr);
+                         int base, int it_shift, int irq, CharDriverState *chr);
 SerialState *serial_mm_init (SetIRQFunc *set_irq, void *opaque,
                              target_ulong base, int it_shift,
                              int irq, CharDriverState *chr);
@@ -892,9 +895,6 @@ int ioport_get_a20(void);
 extern QEMUMachine prep_machine;
 extern QEMUMachine core99_machine;
 extern QEMUMachine heathrow_machine;
-
-/* mips_r4k.c */
-extern QEMUMachine mips_machine;
 
 /* shix.c */
 extern QEMUMachine shix_machine;

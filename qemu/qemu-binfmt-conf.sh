@@ -1,8 +1,9 @@
 #!/bin/sh
-# enable automatic i386/ARM/SPARC/PPC program execution by the kernel
+# enable automatic i386/ARM/MIPS/SPARC/PPC program execution by the kernel
 
 # load the binfmt_misc module
 /sbin/modprobe binfmt_misc
+mount binfmt_misc -t binfmt_misc /proc/sys/fs/binfmt_misc
 
 # probe cpu type
 cpu=`uname -m`

@@ -615,7 +615,7 @@ static void smc91c111_receive(void *opaque, const uint8_t *buf, int size)
 
     if ((s->rcr & RCR_RXEN) == 0 || (s->rcr & RCR_SOFT_RST))
         return;
-    /* Short packets are padded with zeros.  Recieveing a packet
+    /* Short packets are padded with zeros.  Receiving a packet
        < 64 bytes long is considered an error condition.  */
     if (size < 64)
         packetsize = 64;

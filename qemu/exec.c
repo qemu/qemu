@@ -1,3 +1,101 @@
+//~ #define FLASH_2MB
+static const unsigned short flash[] = {
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* 0x00 */
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* 0x10 */
+#if 1
+	/* 'QRY', vendor command set 0x0003,
+	 * extended query table at 0x0035,
+	 * alternate vendor command set 0x0000 */
+	0x51, 0x52, 0x59, 0x03, 0x00, 0x35, 0x00, 0x00, /* 0x20 */
+	/* alternate extended query table at 0x0000,
+	 * Vcc min 2.7 V, Vcc max 3.6 V,
+	 * Vpp min 11.4 V, Vpp max 12.6 V,
+	 * write timeout 2^5 us */
+	0x00, 0x00, 0x00, 0x27, 0x36, 0xb4, 0xc6, 0x05, /* 0x30 */
+#if defined(FLASH_2MB)
+	/* typ timeout buffer write not supported,
+	 * typ timeout block erase 2^10 us, typ timeout chip erase not supported,
+	 * max write timeout 2^4 us,
+	 * max buffer write timeout not supported,
+	 * 2^15 byte flash size */
+	0x00, 0x0a, 0x00, 0x04, 0x00, 0x03, 0x00, 0x15, /* 0x40 */
+#else
+	0x00, 0x0a, 0x00, 0x04, 0x00, 0x03, 0x00, 0x16, /* 0x40 */
+#endif
+#if defined(FLASH_2MB)
+	/* flash device interface description 0x0001,
+	 * 2 erase regions, 8 * 0x002000, 31 * 0x010000 */
+	0x01, 0x00, 0x00, 0x00, 0x02, 0x07, 0x00, 0x20, /* 0x50 */
+	/* 'PRI' */
+	0x00, 0x1e, 0x00, 0x00, 0x01, 0x50, 0x52, 0x49, /* 0x60 */
+#else
+	0x01, 0x00, 0x00, 0x00, 0x02, 0x07, 0x00, 0x20, /* 0x50 */
+	0x00, 0x3e, 0x00, 0x00, 0x01, 0x50, 0x52, 0x49, /* 0x60 */
+#endif
+	/* version 1.0 */
+	0x31, 0x30, 0x6a, 0x00, 0x00, 0x00, 0x01, 0x03, /* 0x70 */
+	/* Vcc opt 3.3 V, Vpp opt 12.0 V */
+	0x00, 0x33, 0xc0, 0x01, 0x80, 0x00, 0x03, 0x03, /* 0x80 */
+#endif
+};
+/*
+ADAM2:
+# cat /proc/mtd
+dev:    size   erasesize  name
+mtd0: 00300000 00010000 "mtd0"
+mtd1: 000b0000 00010000 "mtd1"
+mtd2: 00010000 00010000 "mtd2"
+mtd3: 00020000 00010000 "mtd3"
+mtd4: 00020000 00010000 "mtd4"
+mtd5: 00022f00 00010000 "mtd5"
+mtd6: 00322f00 00010000 "mtd6"
+
+Sinus154 flash device: 0x200000 at 0x10000000.
+Number of erase regions: 2
+Primary Vendor Command Set: 0003 (Intel/Sharp Standard)
+Primary Algorithm Table at 0035
+Alternative Vendor Command Set: 0000 (None)
+No Alternate Algorithm Table
+Vcc Minimum: 2.7 V
+Vcc Maximum: 3.6 V
+Vpp Minimum: b.4 V
+Vpp Maximum: c.6 V
+Typical byte/word write timeout: 32 µs
+Maximum byte/word write timeout: 512 µs
+Full buffer write not supported
+Typical block erase timeout: 1024 ms
+Maximum block erase timeout: 8192 ms
+Chip erase not supported
+Device size: 0x200000 bytes (2 MiB)
+Flash Device Interface description: 0x0001
+  - x16-only asynchronous interface
+Max. bytes in buffer write: 0x1
+Number of Erase Block Regions: 2
+  Erase Region #0: BlockSize 0x2000 bytes, 8 blocks
+  Erase Region #1: BlockSize 0x10000 bytes, 31 blocks
+  Feature/Command Support: 0066
+     - Chip Erase:         unsupported
+     - Suspend Erase:      supported
+     - Suspend Program:    supported
+     - Legacy Lock/Unlock: unsupported
+     - Queued Erase:       unsupported
+     - Instant block lock: supported
+     - Protection Bits:    supported
+     - Page-mode read:     unsupported
+     - Synchronous read:   unsupported
+  Supported functions after Suspend: 01
+     - Program after Erase Suspend: supported
+  Block Status Register Mask: 0003
+     - Lock Bit Active:      yes
+     - Valid Bit Active:     yes
+  Vcc Logic Supply Optimum Program/Erase Voltage: 0.3 V
+  Vpp Programming Supply Optimum Program/Erase Voltage: 0.0 V
+cfi_cmdset_0001: Erase suspend on write enabled
+0: offset=0x0,size=0x2000,blocks=8
+1: offset=0x10000,size=0x10000,blocks=31
+Using word write method
+*/
+
 /*
  *  virtual page mapping and translated block handling
  * 
@@ -879,7 +977,6 @@ static inline void tb_alloc_page(TranslationBlock *tb,
 TranslationBlock *tb_alloc(target_ulong pc)
 {
     TranslationBlock *tb;
-
     if (nb_tbs >= CODE_GEN_MAX_BLOCKS || 
         (code_gen_ptr - code_gen_buffer) >= CODE_GEN_BUFFER_MAX_SIZE)
         return NULL;
@@ -1515,7 +1612,12 @@ int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
         if (prot & PAGE_WRITE) {
             if ((pd & ~TARGET_PAGE_MASK) == IO_MEM_ROM) {
                 /* ROM: access is ignored (same as unassigned) */
+		printf("write access to ROM at vaddr=0x%08x paddr=0x%08x\n", vaddr, paddr);
                 te->addr_write = vaddr | IO_MEM_ROM;
+		if (paddr == 0x10000000) {
+			printf("modify ROM at vaddr=0x%08x paddr=0x%08x\n", vaddr, paddr);
+			cpu_physical_memory_write_rom(paddr, flash, sizeof(flash));
+		}
             } else if ((pd & ~TARGET_PAGE_MASK) == IO_MEM_RAM && 
                        !cpu_physical_memory_is_dirty(pd)) {
                 te->addr_write = vaddr | IO_MEM_NOTDIRTY;

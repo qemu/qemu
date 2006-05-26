@@ -85,7 +85,7 @@ struct CPUMIPSState {
 #define CP0Ca_IV   23
     uint32_t CP0_EPC;
     uint32_t CP0_PRid;
-    uint32_t CP0_Config0;
+    uint32_t CP0_Config[8];
 #define CP0C0_M    31
 #define CP0C0_K23  28
 #define CP0C0_KU   25
@@ -97,7 +97,7 @@ struct CPUMIPSState {
 #define CP0C0_AR   10
 #define CP0C0_MT   7
 #define CP0C0_K0   0
-    uint32_t CP0_Config1;
+#define CP0C1_M    31
 #define CP0C1_MMU  25
 #define CP0C1_IS   22
 #define CP0C1_IL   19
@@ -169,6 +169,7 @@ struct CPUMIPSState {
     target_ulong btarget;        /* Jump / branch target               */
     int bcond;                   /* Branch condition (if needed)       */
 
+    int bigendian;               /* TRUE if the CPU is in big endian mode */
     int halted; /* TRUE if the CPU is in suspend state */
 
     CPU_COMMON

@@ -173,7 +173,7 @@ enum {
 };
 
 enum {
-    /* Mutiply & xxx operations */
+    /* Multiply & xxx operations */
     OPC_MADD     = 0x00 | EXT_SPECIAL2,
     OPC_MADDU    = 0x01 | EXT_SPECIAL2,
     OPC_MUL      = 0x02 | EXT_SPECIAL2,
@@ -1577,8 +1577,8 @@ static void decode_opc (DisasContext *ctx)
     }
 }
 
-int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
-                                    int search_pc)
+static int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
+					    int search_pc)
 {
     DisasContext ctx, *ctxp = &ctx;
     target_ulong pc_start;
@@ -1647,10 +1647,10 @@ int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
                 lj++;
                 while (lj < j)
                     gen_opc_instr_start[lj++] = 0;
-            }
             gen_opc_pc[lj] = ctx.pc;
             gen_opc_hflags[lj] = ctx.hflags & MIPS_HFLAG_BMASK;
             gen_opc_instr_start[lj] = 1;
+            }
         }
         ctx.opcode = ldl_code(ctx.pc);
         decode_opc(&ctx);
@@ -1750,7 +1750,7 @@ void cpu_dump_state (CPUState *env, FILE *f,
     cpu_fprintf(f, "CP0 Status  0x%08x Cause   0x%08x EPC    0x%08x\n",
                 c0_status, env->CP0_Cause, env->CP0_EPC);
     cpu_fprintf(f, "    Config0 0x%08x Config1 0x%08x LLAddr 0x%08x\n",
-                env->CP0_Config0, env->CP0_Config1, env->CP0_LLAddr);
+                env->CP0_Config[0], env->CP0_Config[1], env->CP0_LLAddr);
 }
 
 CPUMIPSState *cpu_mips_init (void)
@@ -1768,16 +1768,12 @@ CPUMIPSState *cpu_mips_init (void)
     env->CP0_random = MIPS_TLB_NB - 1;
 #endif
     env->CP0_Wired = 0;
-    env->CP0_Config0 = MIPS_CONFIG0;
-#if defined (MIPS_CONFIG1)
-        env->CP0_Config1 = MIPS_CONFIG1;
-#endif
-#if defined (MIPS_CONFIG2)
-        env->CP0_Config2 = MIPS_CONFIG2;
-#endif
-#if defined (MIPS_CONFIG3)
-        env->CP0_Config3 = MIPS_CONFIG3;
-#endif
+    env->CP0_Config[0] = MIPS_CONFIG0;
+    env->CP0_Config[1] = MIPS_CONFIG1;
+    env->CP0_Config[2] = MIPS_CONFIG2;
+    env->CP0_Config[3] = MIPS_CONFIG3;
+    env->CP0_Config[4] = env->CP0_Config[5] =
+    env->CP0_Config[6] = env->CP0_Config[7] = 0;
     env->CP0_Status = (1 << CP0St_CU0) | (1 << CP0St_BEV);
     env->CP0_WatchLo = 0;
     env->hflags = MIPS_HFLAG_ERL;
