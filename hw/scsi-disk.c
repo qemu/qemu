@@ -31,10 +31,13 @@ struct SCSIDevice
     int command;
     uint32_t tag;
     BlockDriverState *bdrv;
-    int sector_size;
+    /* The qemu block layer uses a fixed 512 byte sector size.
+       This is the number of 512 byte blocks in a single scsi sector.  */
+    int cluster_size;
     /* When transfering data buf_pos and buf_len contain a partially
        transferred block of data (or response to a command), and
-       sector/sector_count identify any remaining sectors.  */
+       sector/sector_count identify any remaining sectors.
+       Both sector and sector_count are in terms of qemu 512 byte blocks.  */
     /* ??? We should probably keep track of whether the data trasfer is
        a read or a write.  Currently we rely on the host getting it right.  */
     int sector;
@@ -42,7 +45,7 @@ struct SCSIDevice
     int buf_pos;
     int buf_len;
     int sense;
-    char buf[2048];
+    char buf[512];
     scsi_completionfn completion;
     void *opaque;
 };
@@ -75,14 +78,14 @@ int scsi_read_data(SCSIDevice *s, uint8_t *data, uint32_t len)
             s->buf_pos = 0;
     }
 
-    n = len / s->sector_size;
+    n = len / 512;
     if (n > s->sector_count)
       n = s->sector_count;
 
     if (n != 0) {
         bdrv_read(s->bdrv, s->sector, data, n);
-        data += n * s->sector_size;
-        len -= n * s->sector_size;
+        data += n * 512;
+        len -= n * 512;
         s->sector += n;
         s->sector_count -= n;
     }
@@ -92,7 +95,7 @@ int scsi_read_data(SCSIDevice *s, uint8_t *data, uint32_t len)
         s->sector++;
         s->sector_count--;
         s->buf_pos = 0;
-        s->buf_len = s->sector_size;
+        s->buf_len = 512;
         /* Recurse to complete the partial read.  */
         return scsi_read_data(s, data, len);
     }
@@ -120,8 +123,8 @@ int scsi_write_data(SCSIDevice *s, uint8_t *data, uint32_t len)
     if (s->sector_count == 0)
         return 1;
 
-    if (s->buf_len != 0 || len < s->sector_size) {
-        n = s->sector_size - s->buf_len;
+    if (s->buf_len != 0 || len < 512) {
+        n = 512 - s->buf_len;
         if (n > len)
             n = len;
 
@@ -129,7 +132,7 @@ int scsi_write_data(SCSIDevice *s, uint8_t *data, uint32_t len)
         data += n;
         s->buf_len += n;
         len -= n;
-        if (s->buf_len == s->sector_size) {
+        if (s->buf_len == 512) {
             /* A full sector has been accumulated. Write it to disk.  */
             bdrv_write(s->bdrv, s->sector, s->buf, 1);
             s->buf_len = 0;
@@ -138,19 +141,19 @@ int scsi_write_data(SCSIDevice *s, uint8_t *data, uint32_t len)
         }
     }
 
-    n = len / s->sector_size;
+    n = len / 512;
     if (n > s->sector_count)
         n = s->sector_count;
 
     if (n != 0) {
         bdrv_write(s->bdrv, s->sector, data, n);
-        data += n * s->sector_size;
-        len -= n * s->sector_size;
+        data += n * 512;
+        len -= n * 512;
         s->sector += n;
         s->sector_count -= n;
     }
 
-    if (len >= s->sector_size)
+    if (len >= 512)
         return 1;
 
     if (len && s->sector_count) {
@@ -296,26 +299,26 @@ int32_t scsi_send_command(SCSIDevice *s, uint32_t tag, uint8_t *buf)
 	s->buf[3] = nb_sectors & 0xff;
 	s->buf[4] = 0;
 	s->buf[5] = 0;
-        s->buf[6] = s->sector_size >> 8;
-	s->buf[7] = s->sector_size & 0xff;
+        s->buf[6] = s->cluster_size * 2;
+	s->buf[7] = 0;
 	s->buf_len = 8;
 	break;
     case 0x08:
     case 0x28:
         DPRINTF("Read (sector %d, count %d)\n", lba, len);
-        s->sector = lba;
-        s->sector_count = len;
+        s->sector = lba * s->cluster_size;
+        s->sector_count = len * s->cluster_size;
         break;
     case 0x0a:
     case 0x2a:
         DPRINTF("Write (sector %d, count %d)\n", lba, len);
-        s->sector = lba;
-        s->sector_count = len;
+        s->sector = lba * s->cluster_size;
+        s->sector_count = len * s->cluster_size;
         is_write = 1;
         break;
     case 0x43:
         {
-            int start_track, format, msf;
+            int start_track, format, msf, toclen;
 
             msf = buf[1] & 2;
             format = buf[2] & 0xf;
@@ -324,31 +327,31 @@ int32_t scsi_send_command(SCSIDevice *s, uint32_t tag, uint8_t *buf)
             DPRINTF("Read TOC (track %d format %d msf %d)\n", start_track, format, msf >> 1);
             switch(format) {
             case 0:
-                len = cdrom_read_toc(nb_sectors, s->buf, msf, start_track);
-                if (len < 0)
-                    goto error_cmd;
-                s->buf_len = len;
+                toclen = cdrom_read_toc(nb_sectors, s->buf, msf, start_track);
                 break;
             case 1:
                 /* multi session : only a single session defined */
+                toclen = 12;
                 memset(s->buf, 0, 12);
                 s->buf[1] = 0x0a;
                 s->buf[2] = 0x01;
                 s->buf[3] = 0x01;
-                s->buf_len = 12;
                 break;
             case 2:
-                len = cdrom_read_toc_raw(nb_sectors, s->buf, msf, start_track);
-                if (len < 0)
-                    goto error_cmd;
-                s->buf_len = len;
+                toclen = cdrom_read_toc_raw(nb_sectors, s->buf, msf, start_track);
                 break;
             default:
-            error_cmd:
-                DPRINTF("Read TOC error\n");
-                goto fail;
+                goto error_cmd;
             }
-            break;
+            if (toclen > 0) {
+                if (len > toclen)
+                  len = toclen;
+                s->buf_len = len;
+                break;
+            }
+        error_cmd:
+            DPRINTF("Read TOC error\n");
+            goto fail;
         }
     case 0x56:
         DPRINTF("Reserve(10)\n");
@@ -377,7 +380,7 @@ int32_t scsi_send_command(SCSIDevice *s, uint32_t tag, uint8_t *buf)
     if (s->sector_count == 0 && s->buf_len == 0) {
         scsi_command_complete(s, SENSE_NO_SENSE);
     }
-    len = s->sector_count * s->sector_size + s->buf_len;
+    len = s->sector_count * 512 + s->buf_len;
     return is_write ? -len : len;
 }
 
@@ -398,9 +401,9 @@ SCSIDevice *scsi_disk_init(BlockDriverState *bdrv,
     s->completion = completion;
     s->opaque = opaque;
     if (bdrv_get_type_hint(s->bdrv) == BDRV_TYPE_CDROM) {
-        s->sector_size = 2048;
+        s->cluster_size = 4;
     } else {
-        s->sector_size = 512;
+        s->cluster_size = 1;
     }
 
     return s;
