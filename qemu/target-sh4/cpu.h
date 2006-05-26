@@ -1,0 +1,138 @@
+/*
+ *  SH4 emulation
+ * 
+ *  Copyright (c) 2005 Samuel Tardieu
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+#ifndef _CPU_SH4_H
+#define _CPU_SH4_H
+
+#include "config.h"
+
+#define TARGET_LONG_BITS 32
+#define TARGET_HAS_ICE 1
+
+#include "cpu-defs.h"
+
+#define TARGET_PAGE_BITS 12	/* 4k XXXXX */
+
+#define SR_MD (1 << 30)
+#define SR_RB (1 << 29)
+#define SR_BL (1 << 28)
+#define SR_FD (1 << 15)
+#define SR_M  (1 << 9)
+#define SR_Q  (1 << 8)
+#define SR_S  (1 << 1)
+#define SR_T  (1 << 0)
+
+#define FPSCR_FR (1 << 21)
+#define FPSCR_SZ (1 << 20)
+#define FPSCR_PR (1 << 19)
+#define FPSCR_DN (1 << 18)
+
+#define DELAY_SLOT             (1 << 0)
+#define DELAY_SLOT_CONDITIONAL (1 << 1)
+/* Those are used in contexts only */
+#define BRANCH                 (1 << 2)
+#define BRANCH_CONDITIONAL     (1 << 3)
+#define MODE_CHANGE            (1 << 4)	/* Potential MD|RB change */
+#define BRANCH_EXCEPTION       (1 << 5)	/* Branch after exception */
+
+/* XXXXX The structure could be made more compact */
+typedef struct tlb_t {
+    uint8_t asid;		/* address space identifier */
+    uint32_t vpn;		/* virtual page number */
+    uint8_t v;			/* validity */
+    uint32_t ppn;		/* physical page number */
+    uint8_t sz;			/* page size */
+    uint32_t size;		/* cached page size in bytes */
+    uint8_t sh;			/* share status */
+    uint8_t c;			/* cacheability */
+    uint8_t pr;			/* protection key */
+    uint8_t d;			/* dirty */
+    uint8_t wt;			/* write through */
+    uint8_t sa;			/* space attribute (PCMCIA) */
+    uint8_t tc;			/* timing control */
+} tlb_t;
+
+#define UTLB_SIZE 64
+#define ITLB_SIZE 4
+
+typedef struct CPUSH4State {
+    uint32_t flags;		/* general execution flags */
+    uint32_t gregs[24];		/* general registers */
+    uint32_t fregs[32];		/* floating point registers */
+    uint32_t sr;		/* status register */
+    uint32_t ssr;		/* saved status register */
+    uint32_t spc;		/* saved program counter */
+    uint32_t gbr;		/* global base register */
+    uint32_t vbr;		/* vector base register */
+    uint32_t sgr;		/* saved global register 15 */
+    uint32_t dbr;		/* debug base register */
+    uint32_t pc;		/* program counter */
+    uint32_t delayed_pc;	/* target of delayed jump */
+    uint32_t mach;		/* multiply and accumulate high */
+    uint32_t macl;		/* multiply and accumulate low */
+    uint32_t pr;		/* procedure register */
+    uint32_t fpscr;		/* floating point status/control register */
+    uint32_t fpul;		/* floating point communication register */
+
+    /* Those belong to the specific unit (SH7750) but are handled here */
+    uint32_t mmucr;		/* MMU control register */
+    uint32_t pteh;		/* page table entry high register */
+    uint32_t ptel;		/* page table entry low register */
+    uint32_t ptea;		/* page table entry assistance register */
+    uint32_t ttb;		/* tranlation table base register */
+    uint32_t tea;		/* TLB exception address register */
+    uint32_t tra;		/* TRAPA exception register */
+    uint32_t expevt;		/* exception event register */
+    uint32_t intevt;		/* interrupt event register */
+
+    jmp_buf jmp_env;
+    int user_mode_only;
+    int interrupt_request;
+    int exception_index;
+     CPU_COMMON tlb_t utlb[UTLB_SIZE];	/* unified translation table */
+    tlb_t itlb[ITLB_SIZE];	/* instruction translation table */
+} CPUSH4State;
+
+CPUSH4State *cpu_sh4_init(void);
+int cpu_sh4_exec(CPUSH4State * s);
+struct siginfo;
+int cpu_sh4_signal_handler(int hostsignum, struct siginfo *info,
+			   void *puc);
+
+#include "softfloat.h"
+
+#include "cpu-all.h"
+
+/* Memory access type */
+enum {
+    /* Privilege */
+    ACCESS_PRIV = 0x01,
+    /* Direction */
+    ACCESS_WRITE = 0x02,
+    /* Type of instruction */
+    ACCESS_CODE = 0x10,
+    ACCESS_INT = 0x20
+};
+
+/* MMU control register */
+#define MMUCR    0x1F000010
+#define MMUCR_AT (1<<0)
+#define MMUCR_SV (1<<8)
+
+#endif				/* _CPU_SH4_H */

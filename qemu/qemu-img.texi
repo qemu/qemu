@@ -1,0 +1,126 @@
+@example
+@c man begin SYNOPSIS
+usage: qemu-img command [command options]
+@c man end
+@end example
+
+@c man begin OPTIONS
+
+The following commands are supported:
+@table @option
+@item create [-e] [-b @var{base_image}] [-f @var{fmt}] @var{filename} [@var{size}]
+@item commit [-f @var{fmt}] @var{filename}
+@item convert [-c] [-e] [-f @var{fmt}] @var{filename} [-O @var{output_fmt}] @var{output_filename}
+@item info [-f @var{fmt}] @var{filename}
+@end table
+
+Command parameters:
+@table @var
+@item filename
+ is a disk image filename
+@item base_image 
+is the read-only disk image which is used as base for a copy on
+    write image; the copy on write image only stores the modified data
+
+@item fmt 
+is the disk image format. It is guessed automatically in most cases. The following formats are supported:
+
+@table @code
+@item raw
+
+Raw disk image format (default). This format has the advantage of
+being simple and easily exportable to all other emulators. If your file
+system supports @emph{holes} (for example in ext2 or ext3 on Linux),
+then only the written sectors will reserve space. Use @code{qemu-img
+info} to know the real size used by the image or @code{ls -ls} on
+Unix/Linux.
+
+@item qcow
+QEMU image format, the most versatile format. Use it to have smaller
+images (useful if your filesystem does not supports holes, for example
+on Windows), optional AES encryption and zlib based compression.
+@item cow
+User Mode Linux Copy On Write image format. Used to be the only growable
+image format in QEMU. It is supported only for compatibility with
+previous versions. It does not work on win32.
+@item vmdk
+VMware 3 and 4 compatible image format.
+@item cloop
+Linux Compressed Loop image, useful only to reuse directly compressed
+CD-ROM images present for example in the Knoppix CD-ROMs.
+@end table
+
+@item size 
+is the disk image size in kilobytes. Optional suffixes @code{M}
+(megabyte) and @code{G} (gigabyte) are supported 
+
+@item output_filename
+is the destination disk image filename 
+
+@item output_fmt
+ is the destination format
+
+@item -c
+indicates that target image must be compressed (qcow format only)
+@item -e 
+indicates that the target image must be encrypted (qcow format only)
+@end table
+
+Command description:
+
+@table @option
+@item create [-e] [-b @var{base_image}] [-f @var{fmt}] @var{filename} [@var{size}]
+
+Create the new disk image @var{filename} of size @var{size} and format
+@var{fmt}. 
+
+If @var{base_image} is specified, then the image will record only the
+differences from @var{base_image}. No size needs to be specified in
+this case. @var{base_image} will never be modified unless you use the
+@code{commit} monitor command.
+
+@item commit [-f @var{fmt}] @var{filename}
+
+Commit the changes recorded in @var{filename} in its base image.
+
+@item convert [-c] [-e] [-f @var{fmt}] @var{filename} [-O @var{output_fmt}] @var{output_filename}
+
+Convert the disk image @var{filename} to disk image @var{output_filename}
+using format @var{output_fmt}. It can be optionnaly encrypted
+(@code{-e} option) or compressed (@code{-c} option).
+
+Only the format @code{qcow} supports encryption or compression. The
+compression is read-only. It means that if a compressed sector is
+rewritten, then it is rewritten as uncompressed data.
+
+Encryption uses the AES format which is very secure (128 bit keys). Use
+a long password (16 characters) to get maximum protection.
+
+Image conversion is also useful to get smaller image when using a
+growable format such as @code{qcow} or @code{cow}: the empty sectors
+are detected and suppressed from the destination image.
+
+@item info [-f @var{fmt}] @var{filename}
+
+Give information about the disk image @var{filename}. Use it in
+particular to know the size reserved on disk which can be different
+from the displayed size.
+@end table
+
+@c man end
+
+@ignore
+
+@setfilename qemu-img
+@settitle QEMU disk image utility
+
+@c man begin SEEALSO
+The HTML documentation of QEMU for more precise information and Linux
+user mode emulator invocation.
+@c man end
+
+@c man begin AUTHOR
+Fabrice Bellard
+@c man end
+
+@end ignore
