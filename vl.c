@@ -119,7 +119,7 @@ IOPortReadFunc *ioport_read_table[3][MAX_IOPORTS];
 IOPortWriteFunc *ioport_write_table[3][MAX_IOPORTS];
 BlockDriverState *bs_table[MAX_DISKS], *fd_table[MAX_FD];
 int vga_ram_size;
-int bios_size;
+static int bios_size;
 static DisplayState display_state;
 int nographic;
 const char* keyboard_layout = NULL;
@@ -2314,7 +2314,7 @@ void qemu_send_packet(VLANClientState *vc1, const uint8_t *buf, int size)
     VLANState *vlan = vc1->vlan;
     VLANClientState *vc;
 
-#if 0
+#if 1
     printf("vlan %d send:\n", vlan->id);
     hex_dump(stdout, buf, size);
 #endif
@@ -3107,7 +3107,7 @@ static int get_param_value(char *buf, int buf_size,
     return 0;
 }
 
-int net_client_init(const char *str)
+static int net_client_init(const char *str)
 {
     const char *p;
     char *q;
@@ -3447,7 +3447,9 @@ static void dumb_resize(DisplayState *ds, int w, int h)
 
 static void dumb_refresh(DisplayState *ds)
 {
+#if defined(CONFIG_SDL)
     vga_hw_update();
+#endif
 }
 
 void dumb_display_init(DisplayState *ds)
@@ -4285,7 +4287,7 @@ int qemu_register_machine(QEMUMachine *m)
     return 0;
 }
 
-QEMUMachine *find_machine(const char *name)
+static QEMUMachine *find_machine(const char *name)
 {
     QEMUMachine *m;
 
@@ -4940,7 +4942,7 @@ void register_machines(void)
     qemu_register_machine(&core99_machine);
     qemu_register_machine(&prep_machine);
 #elif defined(TARGET_MIPS)
-    qemu_register_machine(&mips_machine);
+    qemu_register_mips_machines();
 #elif defined(TARGET_SPARC)
 #ifdef TARGET_SPARC64
     qemu_register_machine(&sun4u_machine);
@@ -5108,7 +5110,14 @@ int main(int argc, char **argv)
     mallopt(M_MMAP_THRESHOLD, 4096 * 1024);
 #endif
     register_machines();
-    machine = first_machine;
+    machine = 0;
+    optarg = strrchr(argv[0], '-');
+    if (optarg != 0) {
+        machine = find_machine(optarg + 1);
+    }
+    if (!machine) {
+        machine = first_machine;
+    }
     initrd_filename = NULL;
     for(i = 0; i < MAX_FD; i++)
         fd_filename[i] = NULL;
@@ -5138,7 +5147,10 @@ int main(int argc, char **argv)
     for(i = 1; i < MAX_SERIAL_PORTS; i++)
         serial_devices[i][0] = '\0';
     serial_device_index = 0;
-    
+#if defined(TARGET_AR7)
+    pstrcpy(serial_devices[1], sizeof(serial_devices[0]), "null");
+#endif
+
     pstrcpy(parallel_devices[0], sizeof(parallel_devices[0]), "vc");
     for(i = 1; i < MAX_PARALLEL_PORTS; i++)
         parallel_devices[i][0] = '\0';
@@ -5493,13 +5505,15 @@ int main(int argc, char **argv)
         kqemu_allowed = 0;
 #endif
     linux_boot = (kernel_filename != NULL);
-        
+
+#if !defined(TARGET_AR7)
     if (!linux_boot && 
         hd_filename[0] == '\0' && 
         (cdrom_index >= 0 && hd_filename[cdrom_index] == '\0') &&
         fd_filename[0] == '\0')
         help();
-    
+#endif
+
     /* boot to cd by default if no hard disk */
     if (hd_filename[0] == '\0' && boot_device == 'c') {
         if (fd_filename[0] != '\0')
@@ -5742,8 +5756,10 @@ int main(int argc, char **argv)
         }
     }
 
+#if defined(CONFIG_SDL)
     gui_timer = qemu_new_timer(rt_clock, gui_update, NULL);
     qemu_mod_timer(gui_timer, qemu_get_clock(rt_clock));
+#endif
 
 #ifdef CONFIG_GDBSTUB
     if (use_gdbstub) {

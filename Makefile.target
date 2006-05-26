@@ -331,7 +331,14 @@ VL_OBJS+= grackle_pci.o prep_pci.o unin_pci.o
 DEFINES += -DHAS_AUDIO
 endif
 ifeq ($(TARGET_ARCH), mips)
-VL_OBJS+= mips_r4k.o dma.o vga.o serial.o i8254.o i8259.o
+VL_OBJS += mips_r4k.o dma.o i8259.o
+VL_OBJS += serial_16450.o
+#VL_OBJS += serial_16550a.o
+VL_OBJS += ar7.o
+ifdef CONFIG_SDL
+VL_OBJS += vga.o
+endif
+VL_OBJS += i8254.o
 #VL_OBJS+= #ide.o pckbd.o fdc.o m48t59.o
 endif
 ifeq ($(TARGET_BASE_ARCH), sparc)
@@ -397,6 +404,8 @@ endif
 ifeq ($(ARCH),ia64)
 VL_LDFLAGS+=-Wl,-G0 -Wl,-T,$(SRC_PATH)/ia64.ld
 endif
+
+VL_LDFLAGS+=-g
 
 ifdef CONFIG_WIN32
 SDL_LIBS := $(filter-out -mwindows, $(SDL_LIBS)) -mconsole

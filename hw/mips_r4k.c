@@ -1,8 +1,14 @@
+/*
+ * mips_r4k.c
+ */
+
 #include "vl.h"
+#include "hw/ar7.h"	/* ar7_init */
 
 #define BIOS_FILENAME "mips_bios.bin"
-//#define BIOS_FILENAME "system.bin"
+
 #define KERNEL_LOAD_ADDR 0x80010000
+//~ #define KERNEL_LOAD_ADDR 0x80040000
 #define INITRD_LOAD_ADDR 0x80800000
 
 #define VIRT_TO_PHYS_ADDEND (-0x80000000LL)
@@ -10,6 +16,8 @@
 extern FILE *logfile;
 
 static PITState *pit;
+
+static int bigendian;
 
 static void pic_irq_request(void *opaque, int level)
 {
@@ -23,7 +31,7 @@ static void pic_irq_request(void *opaque, int level)
     }
 }
 
-void cpu_mips_irqctrl_init (void)
+static void cpu_mips_irqctrl_init (void)
 {
 }
 
@@ -106,7 +114,6 @@ void cpu_mips_clock_init (CPUState *env)
     cpu_mips_update_count(env, 1, 0);
 }
 
-
 static void io_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
 #if 0
@@ -132,18 +139,18 @@ static void io_writew (void *opaque, target_phys_addr_t addr, uint32_t value)
     if (logfile)
         fprintf(logfile, "%s: addr %08x val %08x\n", __func__, addr, value);
 #endif
-#ifdef TARGET_WORDS_BIGENDIAN
-    value = bswap16(value);
-#endif
+    if (bigendian) {
+        value = bswap16(value);
+    }
     cpu_outw(NULL, addr & 0xffff, value);
 }
 
 static uint32_t io_readw (void *opaque, target_phys_addr_t addr)
 {
     uint32_t ret = cpu_inw(NULL, addr & 0xffff);
-#ifdef TARGET_WORDS_BIGENDIAN
-    ret = bswap16(ret);
-#endif
+    if (bigendian) {
+        ret = bswap16(ret);
+    }
 #if 0
     if (logfile)
         fprintf(logfile, "%s: addr %08x val %08x\n", __func__, addr, ret);
@@ -157,9 +164,9 @@ static void io_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
     if (logfile)
         fprintf(logfile, "%s: addr %08x val %08x\n", __func__, addr, value);
 #endif
-#ifdef TARGET_WORDS_BIGENDIAN
-    value = bswap32(value);
-#endif
+    if (bigendian) {
+        value = bswap32(value);
+    }
     cpu_outl(NULL, addr & 0xffff, value);
 }
 
@@ -167,9 +174,9 @@ static uint32_t io_readl (void *opaque, target_phys_addr_t addr)
 {
     uint32_t ret = cpu_inl(NULL, addr & 0xffff);
 
-#ifdef TARGET_WORDS_BIGENDIAN
-    ret = bswap32(ret);
-#endif
+    if (bigendian) {
+        ret = bswap32(ret);
+    }
 #if 0
     if (logfile)
         fprintf(logfile, "%s: addr %08x val %08x\n", __func__, addr, ret);
@@ -177,19 +184,34 @@ static uint32_t io_readl (void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-CPUWriteMemoryFunc *io_write[] = {
+static CPUWriteMemoryFunc *io_write[] = {
     &io_writeb,
     &io_writew,
     &io_writel,
 };
 
-CPUReadMemoryFunc *io_read[] = {
+static CPUReadMemoryFunc *io_read[] = {
     &io_readb,
     &io_readw,
     &io_readl,
 };
 
-void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
+static int bios_load(const char *filename, unsigned long bios_offset, unsigned long address)
+{
+    char buf[1024];
+    int ret;
+    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, filename);
+    ret = load_image(buf, phys_ram_base + bios_offset);
+    printf("%s: load BIOS '%s' size %d\n", __func__, buf, ret);
+    if (ret > 0) {
+	    cpu_register_physical_memory(address, ret, bios_offset | IO_MEM_ROM);
+    } else {
+	    ret = 0;
+    }
+    return ret;
+}
+
+static void mips_init (int ram_size, int vga_ram_size, int boot_device,
                     DisplayState *ds, const char **fd_filename, int snapshot,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename)
@@ -203,6 +225,9 @@ void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
     long kernel_size;
 
     env = cpu_init();
+    env->bigendian = bigendian;
+    printf("%s: setting endianness %d\n", __func__, bigendian);
+
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
 
     /* allocate RAM */
@@ -214,10 +239,13 @@ void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
        run. */
     bios_offset = ram_size + vga_ram_size;
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
+    printf("%s: ram_base = %p, ram_size = 0x%08x, bios_offset = 0x%08lx\n",
+	__func__, phys_ram_base, ram_size, bios_offset);
+    printf("%s: load BIOS '%s' size %d\n", __func__, buf, BIOS_SIZE);
     ret = load_image(buf, phys_ram_base + bios_offset);
-    if (ret == BIOS_SIZE) {
+    if ((ret > 0) && (ret <= BIOS_SIZE)) {
 	cpu_register_physical_memory((uint32_t)(0x1fc00000),
-				     BIOS_SIZE, bios_offset | IO_MEM_ROM);
+				     ret, bios_offset | IO_MEM_ROM);
     } else {
 	/* not fatal */
         fprintf(stderr, "qemu: Warning, could not load MIPS bios '%s'\n",
@@ -227,9 +255,11 @@ void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
     kernel_size = 0;
     if (kernel_filename) {
 	kernel_size = load_elf(kernel_filename, VIRT_TO_PHYS_ADDEND, &entry);
-	if (kernel_size >= 0)
+	if (kernel_size >= 0) {
+	    fprintf(stderr, "qemu: elf kernel '%s' with start address 0x%08lx\n",
+                        kernel_filename, (unsigned long)entry);
 	    env->PC = entry;
-	else {
+	} else {
 	    kernel_size = load_image(kernel_filename,
                                      phys_ram_base + KERNEL_LOAD_ADDR + VIRT_TO_PHYS_ADDEND);
             if (kernel_size < 0) {
@@ -240,8 +270,17 @@ void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
             env->PC = KERNEL_LOAD_ADDR;
 	}
 
+	/* Set SP (needed for some kernels) - normally set by bootloader. */
+	env->gpr[29] = (env->PC + (kernel_size & 0xfffffffc)) + 0x1000;
+
+#if 0
         /* load initrd */
         if (initrd_filename) {
+	    // code is buggy (wrong address)!!!
+            target_ulong initrd_base = INITRD_LOAD_ADDR;
+            target_ulong initrd_size = load_image(initrd_filename,
+                                     phys_ram_base + initrd_base);
+            if (initrd_size == (target_ulong) -1) {
             if (load_image(initrd_filename,
 			   phys_ram_base + INITRD_LOAD_ADDR + VIRT_TO_PHYS_ADDEND)
 		== (target_ulong) -1) {
@@ -250,12 +289,16 @@ void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
                 exit(1);
             }
         }
+#endif
 
-	/* Store command line.  */
-        strcpy (phys_ram_base + (16 << 20) - 256, kernel_cmdline);
-        /* FIXME: little endian support */
-        *(int *)(phys_ram_base + (16 << 20) - 260) = tswap32 (0x12345678);
-        *(int *)(phys_ram_base + (16 << 20) - 264) = tswap32 (ram_size);
+	/* Store command line. */
+	if (kernel_cmdline && *kernel_cmdline) {
+            // code is buggy (wrong address)!!!
+            strcpy (phys_ram_base + (16 << 20) - 256, kernel_cmdline);
+            /* FIXME: little endian support */
+            *(int *)(phys_ram_base + (16 << 20) - 260) = tswap32 (0x12345678);
+            *(int *)(phys_ram_base + (16 << 20) - 264) = tswap32 (ram_size);
+        }
     }
 
     /* Init internal devices */
@@ -269,7 +312,7 @@ void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
 
     isa_pic = pic_init(pic_irq_request, env);
     pit = pit_init(0x40, 0);
-    serial_init(&pic_set_irq_new, isa_pic, 0x3f8, 4, serial_hds[0]);
+    serial_init(&pic_set_irq_new, isa_pic, 0x3f8, 0, 4, serial_hds[0]);
     vga_initialize(NULL, ds, phys_ram_base + ram_size, ram_size, 
                    vga_ram_size, 0, 0);
 
@@ -284,8 +327,164 @@ void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
     }
 }
 
-QEMUMachine mips_machine = {
+static void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
+                    DisplayState *ds, const char **fd_filename, int snapshot,
+                    const char *kernel_filename, const char *kernel_cmdline,
+                    const char *initrd_filename)
+{
+    /* Run MIPS system in big endian mode. */
+    bigendian = 1;
+    mips_init(ram_size, vga_ram_size,
+	boot_device, ds, fd_filename, snapshot,
+	kernel_filename, kernel_cmdline, initrd_filename);
+}
+
+static void mipsel_r4k_init (int ram_size, int vga_ram_size, int boot_device,
+                    DisplayState *ds, const char **fd_filename, int snapshot,
+                    const char *kernel_filename, const char *kernel_cmdline,
+                    const char *initrd_filename)
+{
+    /* Run MIPS system in little endian mode. */
+    bigendian = 0;
+    mips_init(ram_size, vga_ram_size,
+	boot_device, ds, fd_filename, snapshot,
+	kernel_filename, kernel_cmdline, initrd_filename);
+}
+
+static void mips_ar7_init (int ram_size, int vga_ram_size, int boot_device,
+                    DisplayState *ds, const char **fd_filename, int snapshot,
+                    const char *kernel_filename, const char *kernel_cmdline,
+                    const char *initrd_filename)
+{
+    char buf[1024];
+    int64_t entry = 0;
+    unsigned long bios_offset;
+    int ret;
+    CPUState *env;
+    long kernel_size;
+
+    env = cpu_init();
+    /* Typical AR7 systems run in little endian mode. */
+    bigendian = env->bigendian = 0;
+    printf("%s: setting endianness %d\n", __func__, 0);
+
+    register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
+
+    /* Allocate RAM. */
+
+    /* The AR7 processor has 4 KiB internal RAM at physical address 0x00000000. */
+    cpu_register_physical_memory(0, 4 * KiB, IO_MEM_RAM);
+
+    /* 16 MiB external RAM at physical address 0x14000000.
+       More memory can be selected with command line option -m. */
+    if (ram_size > 100 * MiB) {
+	    ram_size = 16 * MiB;
+    }
+    cpu_register_physical_memory(0x14000000, ram_size, (4 * KiB) | IO_MEM_RAM);
+
+    /* Try to load a BIOS image. If this fails, we continue regardless,
+       but initialize the hardware ourselves. When a kernel gets
+       preloaded we also initialize the hardware, since the BIOS wasn't
+       run. */
+    bios_offset = ram_size + vga_ram_size;
+    bios_offset += bios_load("flashimage.bin", bios_offset, 0x10000000);
+    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
+    printf("%s: ram_base = %p, ram_size = 0x%08x, bios_offset = 0x%08lx\n",
+	__func__, phys_ram_base, ram_size, bios_offset);
+    ret = load_image(buf, phys_ram_base + bios_offset);
+    if ((ret > 0) && (ret <= BIOS_SIZE)) {
+        printf("%s: load BIOS '%s' size %d\n", __func__, buf, ret);
+	cpu_register_physical_memory((uint32_t)(0x1fc00000),
+				     ret, bios_offset | IO_MEM_ROM);
+    } else {
+	/* not fatal */
+        fprintf(stderr, "qemu: Warning, could not load MIPS bios '%s'\n",
+		buf);
+    }
+
+    kernel_size = 0;
+    if (kernel_filename) {
+	kernel_size = load_elf(kernel_filename, VIRT_TO_PHYS_ADDEND, &entry);
+	if (kernel_size >= 0) {
+	    fprintf(stderr, "qemu: elf kernel '%s' with start address 0x%08lx\n",
+                        kernel_filename, (unsigned long)entry);
+	    env->PC = entry;
+	} else {
+	    kernel_size = load_image(kernel_filename,
+                                phys_ram_base + 4 * KiB);
+            if (kernel_size < 0) {
+                fprintf(stderr, "qemu: could not load kernel '%s'\n",
+                        kernel_filename);
+                exit(1);
+            }
+            env->PC = 0x94000000;
+	}
+
+	/* Set SP (needed for some kernels) - normally set by bootloader. */
+	env->gpr[29] = (env->PC + (kernel_size & 0xfffffffc)) + 0x1000;
+
+#if 0 /* disable buggy code */
+        /* load initrd */
+        if (initrd_filename) {
+	    // code is buggy (wrong address)!!!
+            target_ulong initrd_base = INITRD_LOAD_ADDR;
+            target_ulong initrd_size = load_image(initrd_filename,
+                                     phys_ram_base + initrd_base);
+            if (initrd_size == (target_ulong) -1) {
+            if (load_image(initrd_filename,
+			   phys_ram_base + INITRD_LOAD_ADDR + VIRT_TO_PHYS_ADDEND)
+		== (target_ulong) -1) {
+                fprintf(stderr, "qemu: could not load initial ram disk '%s'\n", 
+                        initrd_filename);
+                exit(1);
+            }
+        }
+
+	/* Store command line. */
+	if (kernel_cmdline && *kernel_cmdline) {
+            // code is buggy (wrong address)!!!
+            strcpy (phys_ram_base + (16 << 20) - 256, kernel_cmdline);
+            /* FIXME: little endian support */
+            *(int *)(phys_ram_base + (16 << 20) - 260) = tswap32 (0x12345678);
+            *(int *)(phys_ram_base + (16 << 20) - 264) = tswap32 (ram_size);
+        }
+#endif
+    }
+
+    /* Init internal devices */
+    cpu_mips_clock_init(env);
+    cpu_mips_irqctrl_init();
+
+    ar7_init(env);
+#if defined(CONFIG_SDL)
+    vga_initialize(NULL, ds, phys_ram_base + ram_size, ram_size, 
+                   vga_ram_size, 0, 0);
+#endif
+}
+
+static QEMUMachine mips_machine[] = {
+  {
     "mips",
     "mips r4k platform",
     mips_r4k_init,
+  },
+  {
+    "mipsel",
+    "mips r4k platform (little endian)",
+    mipsel_r4k_init,
+  },
+  {
+    "ar7",
+    "mips ar7 platform",
+    mips_ar7_init,
+  }
 };
+
+int qemu_register_mips_machines(void)
+{
+    size_t i;
+    for (i = 0; i < sizeof(mips_machine) / sizeof(*mips_machine); i++) {
+        qemu_register_machine(&mips_machine[i]);
+    }
+    return 0;
+}

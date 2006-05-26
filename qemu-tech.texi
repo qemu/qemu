@@ -35,6 +35,7 @@
 * intro_features::        Features
 * intro_x86_emulation::   x86 emulation
 * intro_arm_emulation::   ARM emulation
+* intro_mips_emulation::  MIPS emulation
 * intro_ppc_emulation::   PowerPC emulation
 * intro_sparc_emulation:: SPARC emulation
 @end menu
@@ -149,6 +150,33 @@ maximum performances.
 @item NWFPE FPU support included in user Linux emulation.
 
 @item Can run most ARM Linux binaries.
+
+@end itemize
+
+@node intro_mips_emulation
+@section MIPS emulation
+
+@itemize
+
+@item User mode emulation and full system mode emulation.
+
+@item Supports big endian and little endian mode.
+
+@item Can run some MIPS32 Linux binaries.
+
+@item Can boot some MIPS32 Linux kernels.
+
+@end itemize
+
+Current QEMU limitations:
+
+@itemize 
+
+@item MIPS64 not supported.
+
+@item Watchpoint debug facility not implemented.
+
+@item setup_frame not implemented (needed for fork in user mode).
 
 @end itemize
 
@@ -552,7 +580,7 @@ The TwoOStwo PC virtualizer.
 @chapter Regression Tests
 
 In the directory @file{tests/}, various interesting testing programs
-are available. There are used for regression testing.
+are available. They are used for regression testing.
 
 @menu
 * test-i386::

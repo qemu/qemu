@@ -94,18 +94,27 @@ int get_physical_address (CPUState *env, target_ulong *physical, int *prot,
 #endif
         } else {
             *physical = address;
-            *prot = PAGE_READ | PAGE_WRITE;
+	    *prot = PAGE_READ;
+	    if (rw) {
+		*prot |= PAGE_WRITE;
+	    }
         }
     } else if (address < 0xA0000000UL) {
         /* kseg0 */
         /* XXX: check supervisor mode */
         *physical = address - 0x80000000UL;
-        *prot = PAGE_READ | PAGE_WRITE;
+        *prot = PAGE_READ;
+	if (rw) {
+		*prot |= PAGE_WRITE;
+	}
     } else if (address < 0xC0000000UL) {
         /* kseg1 */
         /* XXX: check supervisor mode */
         *physical = address - 0xA0000000UL;
-        *prot = PAGE_READ | PAGE_WRITE;
+        *prot = PAGE_READ;
+	if (rw) {
+		*prot |= PAGE_WRITE;
+	}
     } else if (address < 0xE0000000UL) {
         /* kseg2 */
 #ifdef MIPS_USES_R4K_TLB
@@ -298,16 +307,12 @@ void do_interrupt (CPUState *env)
         env->CP0_random = MIPS_TLB_NB - 1;
 #endif
         env->CP0_Wired = 0;
-        env->CP0_Config0 = MIPS_CONFIG0;
-#if defined (MIPS_CONFIG1)
-        env->CP0_Config1 = MIPS_CONFIG1;
-#endif
-#if defined (MIPS_CONFIG2)
-        env->CP0_Config2 = MIPS_CONFIG2;
-#endif
-#if defined (MIPS_CONFIG3)
-        env->CP0_Config3 = MIPS_CONFIG3;
-#endif
+        env->CP0_Config[0] = MIPS_CONFIG0;
+        env->CP0_Config[1] = MIPS_CONFIG1;
+        env->CP0_Config[2] = MIPS_CONFIG2;
+        env->CP0_Config[3] = MIPS_CONFIG3;
+        env->CP0_Config[4] = env->CP0_Config[5] =
+        env->CP0_Config[6] = env->CP0_Config[7] = 0;
         env->CP0_WatchLo = 0;
         env->CP0_Status = (1 << CP0St_CU0) | (1 << CP0St_BEV);
         goto set_error_EPC;

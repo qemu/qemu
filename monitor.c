@@ -354,10 +354,12 @@ static void do_change(const char *device, const char *filename)
     }
 }
 
+#if defined(CONFIG_SDL)
 static void do_screen_dump(const char *filename)
 {
     vga_hw_screen_dump(filename);
 }
+#endif
 
 static void do_log(const char *items)
 {
@@ -1068,8 +1070,10 @@ static term_cmd_t term_cmds[] = {
       "[-f] device", "eject a removable media (use -f to force it)" },
     { "change", "BF", do_change,
       "device filename", "change a removable media" },
+#if defined(CONFIG_SDL)
     { "screendump", "F", do_screen_dump, 
       "filename", "save screen into PPM image 'filename'" },
+#endif
     { "log", "s", do_log,
       "item1[,...]", "activate logging of the specified items to '/tmp/qemu.log'" }, 
     { "savevm", "F", do_savevm,
