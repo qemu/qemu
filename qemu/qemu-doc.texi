@@ -1105,7 +1105,7 @@ Lawton for the plex86 Project (@url{www.plex86.org}).
 QEMU emulates a PCI UHCI USB controller. You can virtually plug
 virtual USB devices or real host USB devices (experimental, works only
 on Linux hosts).  Qemu will automatically create and connect virtual USB hubs
-as neccessary to connect multiple USB devices.
+as necessary to connect multiple USB devices.
 
 @menu
 * usb_devices::
