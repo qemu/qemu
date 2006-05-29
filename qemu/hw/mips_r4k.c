@@ -241,9 +241,9 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
     printf("%s: ram_base = %p, ram_size = 0x%08x, bios_offset = 0x%08lx\n",
 	__func__, phys_ram_base, ram_size, bios_offset);
-    printf("%s: load BIOS '%s' size %d\n", __func__, buf, BIOS_SIZE);
     ret = load_image(buf, phys_ram_base + bios_offset);
     if ((ret > 0) && (ret <= BIOS_SIZE)) {
+	printf("%s: load BIOS '%s' size %d\n", __func__, buf, ret);
 	cpu_register_physical_memory((uint32_t)(0x1fc00000),
 				     ret, bios_offset | IO_MEM_ROM);
     } else {
