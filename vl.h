@@ -1044,7 +1044,7 @@ SCSIDevice *scsi_disk_init(BlockDriverState *bdrv,
                            void *opaque);
 void scsi_disk_destroy(SCSIDevice *s);
 
-int32_t scsi_send_command(SCSIDevice *s, uint32_t tag, uint8_t *buf);
+int32_t scsi_send_command(SCSIDevice *s, uint32_t tag, uint8_t *buf, int lun);
 int scsi_read_data(SCSIDevice *s, uint8_t *data, uint32_t len);
 int scsi_write_data(SCSIDevice *s, uint8_t *data, uint32_t len);
 

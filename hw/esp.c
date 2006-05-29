@@ -55,6 +55,7 @@ struct ESPState {
     uint32_t ti_size;
     uint32_t ti_rptr, ti_wptr;
     uint8_t ti_buf[TI_BUFSZ];
+    int sense;
     int dma;
     SCSIDevice *scsi_dev[MAX_DISKS];
     SCSIDevice *current_dev;
@@ -84,6 +85,7 @@ static void handle_satn(ESPState *s)
     uint32_t dmaptr, dmalen;
     int target;
     int32_t datalen;
+    int lun;
 
     dmalen = s->wregs[0] | (s->wregs[1] << 8);
     target = s->wregs[4] & 7;
@@ -98,6 +100,8 @@ static void handle_satn(ESPState *s)
 	memcpy(&buf[1], s->ti_buf, dmalen);
 	dmalen++;
     }
+    DPRINTF("busid 0x%x\n", buf[0]);
+    lun = buf[0] & 7;
 
     s->ti_size = 0;
     s->ti_rptr = 0;
@@ -113,7 +117,7 @@ static void handle_satn(ESPState *s)
 	return;
     }
     s->current_dev = s->scsi_dev[target];
-    datalen = scsi_send_command(s->current_dev, 0, &buf[1]);
+    datalen = scsi_send_command(s->current_dev, 0, &buf[1], lun);
     if (datalen == 0) {
         s->ti_size = 0;
     } else {
@@ -132,34 +136,33 @@ static void handle_satn(ESPState *s)
     pic_set_irq(s->irq, 1);
 }
 
-static void dma_write(ESPState *s, const uint8_t *buf, uint32_t len)
+static void write_response(ESPState *s)
 {
     uint32_t dmaptr;
 
-    DPRINTF("Transfer status len %d\n", len);
+    DPRINTF("Transfer status (sense=%d)\n", s->sense);
+    s->ti_buf[0] = s->sense;
+    s->ti_buf[1] = 0;
     if (s->dma) {
 	dmaptr = iommu_translate(s->espdmaregs[1]);
 	DPRINTF("DMA Direction: %c\n",
                 s->espdmaregs[0] & DMA_WRITE_MEM ? 'w': 'r');
-	cpu_physical_memory_write(dmaptr, buf, len);
+	cpu_physical_memory_write(dmaptr, s->ti_buf, 2);
 	s->rregs[4] = STAT_IN | STAT_TC | STAT_ST;
 	s->rregs[5] = INTR_BS | INTR_FC;
 	s->rregs[6] = SEQ_CD;
     } else {
-	memcpy(s->ti_buf, buf, len);
-	s->ti_size = len;
+	s->ti_size = 2;
 	s->ti_rptr = 0;
 	s->ti_wptr = 0;
-	s->rregs[7] = len;
+	s->rregs[7] = 2;
     }
     s->espdmaregs[0] |= DMA_INTR;
     pic_set_irq(s->irq, 1);
 
 }
 
-static const uint8_t okbuf[] = {0, 0};
-
-static void esp_command_complete(void *opaque, uint32_t tag, int fail)
+static void esp_command_complete(void *opaque, uint32_t tag, int sense)
 {
     ESPState *s = (ESPState *)opaque;
 
@@ -167,9 +170,9 @@ static void esp_command_complete(void *opaque, uint32_t tag, int fail)
     if (s->ti_size != 0)
         DPRINTF("SCSI command completed unexpectedly\n");
     s->ti_size = 0;
-    /* ??? Report failures.  */
-    if (fail)
+    if (sense)
         DPRINTF("Command failed\n");
+    s->sense = sense;
     s->rregs[4] = STAT_IN | STAT_TC | STAT_ST;
 }
 
@@ -333,11 +336,11 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 	    break;
 	case 0x11:
 	    DPRINTF("Initiator Command Complete Sequence (%2.2x)\n", val);
-	    dma_write(s, okbuf, 2);
+	    write_response(s);
 	    break;
 	case 0x12:
 	    DPRINTF("Message Accepted (%2.2x)\n", val);
-	    dma_write(s, okbuf, 2);
+	    write_response(s);
 	    s->rregs[5] = INTR_DC;
 	    s->rregs[6] = 0;
 	    break;
