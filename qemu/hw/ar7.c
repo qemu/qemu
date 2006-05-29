@@ -173,6 +173,46 @@ static avalanche_t av = {
 /* Global variable avalanche can be used in debugger. */
 avalanche_t *avalanche = &av;
 
+static void ar7_irq(void *opaque, int irq_num, int level)
+{
+    CPUState *cpu_env = first_cpu;
+    if (cpu_env != av.cpu_env) {
+	printf("%s(%p,%d,%d)\n", __FUNCTION__, opaque, irq_num, level);
+    }
+
+    switch (irq_num) {
+	case 15:	/* serial0 */
+	case 16:	/* serial1 */
+	case 27:	/* cpmac0 */
+		if (level) {
+			unsigned channel = irq_num - 8;
+			if (channel < 32) {
+				if (av.intmask[0] & (1 << channel)) {
+					//~ printf("%s(%p,%d,%d)\n", __FUNCTION__, opaque, irq_num, level);
+					av.intc[0x10] = (((irq_num - 8) << 16) | channel);
+					/* use hardware interrupt 0 */
+					cpu_env->CP0_Cause |= 0x00000400;
+					cpu_interrupt(cpu_env, CPU_INTERRUPT_HARD);
+				} else {
+					//~ printf("%s(%p,%d,%d) is disabled\n", __FUNCTION__, opaque, irq_num, level);
+				}
+			}
+			// int line number
+			//~ av.intc[0x10] |= (4 << 16);
+			// int channel number
+			// 2, 7, 15, 27, 80
+			//~ av.intmask[0]
+		} else {
+			av.intc[0x10] = 0;
+			cpu_env->CP0_Cause &= ~0x00000400;
+			cpu_reset_interrupt(cpu_env, CPU_INTERRUPT_HARD);
+		}
+		break;
+	default:
+		printf("%s(%p,%d,%d)\n", __FUNCTION__, opaque, irq_num, level);
+    }
+}
+
 #if 0
 #define AVALANCHE_ADSL_SUB_SYS_MEM_BASE       (KSEG1ADDR(0x01000000)) /* AVALANCHE ADSL Mem Base */
 #define BBIF_SPACE1    			      (KSEG1ADDR(0x01800000))
@@ -221,10 +261,6 @@ cpmac_reg.h:
 #define TX_INTSTAT_MASKED(base)        ((MEM_PTR)(base+0x174))
 #define TX_INTSTAT_MASKED(base)        (*pCPMAC_TX_INTSTAT_MASKED(base))
 
-#define MAC_IN_VECTOR(base)            ((MEM_PTR)(base+0x180))
-#define MAC_IN_VECTOR(base)            (*pCPMAC_MAC_IN_VECTOR(base))
-#define MAC_EOI_VECTOR(base)           ((MEM_PTR)(base+0x184))
-#define MAC_EOI_VECTOR(base)           (*pCPMAC_MAC_EOI_VECTOR(base))
 #define RX_INTSTAT_RAW(base)           ((MEM_PTR)(base+0x190))
 #define RX_INTSTAT_RAW(base)           (*pCPMAC_RX_INTSTAT_RAW(base))
 #define RX_INTSTAT_MASKED(base)        ((MEM_PTR)(base+0x194))
@@ -258,6 +294,13 @@ cpmac_reg.h:
 #define pCPMAC_RX7_INT_ACK(base)              ((MEM_PTR)(base+0x67C))
 
 #endif
+
+#define MAC_IN_VECTOR_STATUS_INT   (1 << 19)
+#define MAC_IN_VECTOR_HOST_INT     (1 << 18)
+#define MAC_IN_VECTOR_RX_INT_OR    (1 << 17)
+#define MAC_IN_VECTOR_TX_INT_OR    (1 << 16)
+#define MAC_IN_VECTOR_RX_INT_VEC   (7 << 8)
+#define MAC_IN_VECTOR_TX_INT_VEC   (7)
 
 /* STATISTICS */
 static const char *cpmac_statistics[] = {
@@ -315,6 +358,8 @@ static const char *i2cpmac(unsigned index)
 		case 0x58: text = "MACCONTROL"; break;
 		case 0x5e: text = "TX_INTMASK_SET"; break;
 		case 0x5f: text = "TX_INTMASK_CLEAR"; break;
+		case 0x60: text = "MAC_IN_VECTOR"; break;
+		case 0x61: text = "MAC_EOI_VECTOR"; break;
 		case 0x66: text = "RX_INTMASK_SET"; break;
 		case 0x67: text = "RX_INTMASK_CLEAR"; break;
 		case 0x6a: text = "MAC_INTMASK_SET"; break;
@@ -382,6 +427,9 @@ static void ar7_cpmac_write(uint32_t cpmac[], unsigned index, uint32_t val)
 		/* 13 ... 8 = 0x20 enable broadcast */
 	} else if (index == 0x43) {
 		TRACE(CPMAC, printf("ar7 w: setting max packet length %u\n", (unsigned)val));
+	} else if (index == 0x5e) {
+	    av.cpmac0[0x60] |= MAC_IN_VECTOR_TX_INT_OR;
+	    ar7_irq(0, 27, 1);
 	} else if (index == 0x75) {
 		/* set MAC address (4 high bytes) */
 		uint8_t *phys = av.nic.phys;
@@ -495,7 +543,18 @@ static void ar7_intc_write(uint32_t intc[], unsigned index, uint32_t val)
 
 typedef struct {
 	uint32_t ver;			/* 0x00 */
+#define         MDIO_VER_MODID         (0xFFFF << 16)
+#define         MDIO_VER_REVMAJ        (0xFF   << 8)
+#define         MDIO_VER_REVMIN        (0xFF)
 	uint32_t control;		/* 0x04 */
+#define         MDIO_CONTROL_IDLE                 (1 << 31)
+#define         MDIO_CONTROL_ENABLE               (1 << 30)
+#define         MDIO_CONTROL_PREAMBLE             (1 << 20)  
+#define         MDIO_CONTROL_FAULT                (1 << 19)
+#define         MDIO_CONTROL_FAULT_DETECT_ENABLE  (1 << 18)
+#define         MDIO_CONTROL_INT_TEST_ENABLE      (1 << 17)
+#define         MDIO_CONTROL_HIGHEST_USER_CHANNEL (0x1F << 8)
+#define         MDIO_CONTROL_CLKDIV               (0xFF)
 	uint32_t alive;			/* 0x08 */
 	uint32_t link;			/* 0x0c */
 	uint32_t linkintraw;		/* 0x10 */
@@ -507,12 +566,24 @@ typedef struct {
 	uint32_t userintmaskedclr;	/* 0x2c */
 	uint32_t dummy30[20];
 	uint32_t useraccess0;		/* 0x80 */
+#define         MDIO_USERACCESS_GO     (1 << 31)
+#define         MDIO_USERACCESS_WRITE  (1 << 30)
+#define         MDIO_USERACCESS_READ   (0 << 30)
+#define         MDIO_USERACCESS_ACK    (1 << 29)
+#define         MDIO_USERACCESS_REGADR (0x1F << 21)
+#define         MDIO_USERACCESS_PHYADR (0x1F << 16)
+#define         MDIO_USERACCESS_DATA   (0xFFFF)
 	uint32_t userphysel0;		/* 0x84 */
+#define         MDIO_USERPHYSEL_LINKSEL         (1 << 7)
+#define         MDIO_USERPHYSEL_LINKINT_ENABLE  (1 << 6)
+#define         MDIO_USERPHYSEL_PHYADR_MON      (0x1F)
 } mdio_t;
 
 #define pMDIO_USERACCESS(base, channel) ((volatile bit32u *)(base+(0x80+(channel*8))))
 #define pMDIO_USERPHYSEL(base, channel) ((volatile bit32u *)(base+(0x84+(channel*8))))
 
+typedef struct {
+	uint32_t phy_control;
 #define PHY_CONTROL_REG       0
   #define PHY_RESET           (1<<15)
   #define PHY_LOOP            (1<<14)
@@ -522,12 +593,15 @@ typedef struct {
   #define PHY_ISOLATE         (1<<10)
   #define RENEGOTIATE         (1<<9)
   #define PHY_FD              (1<<8)
-
+	uint32_t phy_status;
 #define PHY_STATUS_REG        1
   #define NWAY_COMPLETE       (1<<5)
   #define NWAY_CAPABLE        (1<<3)
   #define PHY_LINKED          (1<<2)
-
+	uint32_t dummy2;
+	uint32_t dummy3;
+	uint32_t nway_advertize;
+	uint32_t nway_remadvertize;
 #define NWAY_ADVERTIZE_REG    4
 #define NWAY_REMADVERTISE_REG 5
   #define NWAY_FD100          (1<<8)
@@ -536,14 +610,7 @@ typedef struct {
   #define NWAY_HD10           (1<<5)
   #define NWAY_SEL            (1<<0)
   #define NWAY_AUTO           (1<<0)
-
-#define MDIO_USERACCESS_GO     (1 << 31)
-#define MDIO_USERACCESS_WRITE  (1 << 30)
-#define MDIO_USERACCESS_READ   (0 << 30)
-#define MDIO_USERACCESS_ACK    (1 << 29)
-#define MDIO_USERACCESS_REGADR (0x1F << 21)
-#define MDIO_USERACCESS_PHYADR (0x1F << 16)
-#define MDIO_USERACCESS_DATA   (0xFFFF)
+} mdio_user_t;
 
 #if 0
   bit32u  control;
@@ -572,12 +639,31 @@ static uint32_t mdio_regaddr;
 static uint32_t mdio_phyaddr;
 static uint32_t mdio_data;
 
-static uint16_t mdio_useraccess_data[1][6];
+static uint16_t mdio_useraccess_data[1][6] = {
+	{
+		AUTO_NEGOTIATE_EN,
+		0x7801 + NWAY_CAPABLE, // + NWAY_COMPLETE + PHY_LINKED,
+		0x00000000,
+		0x00000000,
+		NWAY_FD100 + NWAY_HD100 + NWAY_FD10 + NWAY_HD10 + NWAY_AUTO,
+		NWAY_AUTO
+	}
+};
 
 static uint32_t ar7_mdio_read(uint32_t mdio[], unsigned index)
 {
 	uint32_t val = av.mdio[index];
-	if (index == 0x20) {
+	if (index == 0) {
+		/* MDIO_VER */
+		TRACE(MDIO, printf("ar7 r: mdio[MDIO_VER] = 0x%08lx\n",
+			(unsigned long)val));
+//~ cpMacMdioInit(): MDIO_CONTROL = 0x40000138
+//~ cpMacMdioInit(): MDIO_CONTROL < 0x40000037
+	} else if (index == 1) {
+		/* MDIO_CONTROL */
+		TRACE(MDIO, printf("ar7 r: mdio[MDIO_CONTROL] = 0x%08lx\n",
+			(unsigned long)val));
+	} else if (index == 0x20) {
 		//~ mdio_regaddr = (val & MDIO_USERACCESS_REGADR) >> 21;
 		//~ mdio_phyaddr = (val & MDIO_USERACCESS_PHYADR) >> 16;
 		mdio_data = (val & MDIO_USERACCESS_DATA);
@@ -594,18 +680,15 @@ static uint32_t ar7_mdio_read(uint32_t mdio[], unsigned index)
 
 static void ar7_mdio_write(uint32_t mdio[], unsigned index, unsigned val)
 {
-	static int init;
-	if (! init) {
-		//~ 1000 7809 0000 0000 01e1 0001
-		mdio_useraccess_data[0][PHY_CONTROL_REG] = 0x1000;
-		mdio_useraccess_data[0][PHY_STATUS_REG] = 0x782d;
-		mdio_useraccess_data[0][NWAY_ADVERTIZE_REG] = 0x01e1;
-		/* 100FD=Yes, 100HD=Yes, 10FD=Yes, 10HD=Yes */
-		mdio_useraccess_data[0][NWAY_REMADVERTISE_REG] = 0x85e1;
-		init = 1;
-	}
-
-	if (index == 0x20 && (val & MDIO_USERACCESS_GO)) {
+	if (index == 0) {
+		/* MDIO_VER */
+		TRACE(MDIO, printf("ar7 unexpected w: mdio[0x%02x] = 0x%08lx\n",
+			index, (unsigned long)val));
+	} else if (index == 1) {
+		/* MDIO_CONTROL */
+		TRACE(MDIO, printf("ar7 w: mdio[MDIO_CONTROL] = 0x%08lx\n",
+			(unsigned long)val));
+	} else if (index == 0x20 && (val & MDIO_USERACCESS_GO)) {
 		uint32_t write = (val & MDIO_USERACCESS_WRITE) >> 30;
 		mdio_regaddr = (val & MDIO_USERACCESS_REGADR) >> 21;
 		mdio_phyaddr = (val & MDIO_USERACCESS_PHYADR) >> 16;
@@ -617,18 +700,30 @@ static void ar7_mdio_write(uint32_t mdio[], unsigned index, unsigned val)
 		if (mdio_phyaddr == 31 && mdio_regaddr < 6) {
 			mdio_phyaddr = 0;
 			if (write) {
-				if ((mdio_regaddr == PHY_CONTROL_REG) && (val & PHY_RESET)) {
-					val &= ~PHY_RESET;
+				//~ if ((mdio_regaddr == PHY_CONTROL_REG) && (val & PHY_RESET)) {
 					//~ 1000 7809 0000 0000 01e1 0001
-					mdio_useraccess_data[0][PHY_CONTROL_REG] = 0x1000;
-					mdio_useraccess_data[0][PHY_STATUS_REG] = 0x782d;
-					mdio_useraccess_data[0][NWAY_ADVERTIZE_REG] = 0x01e1;
+					//~ mdio_useraccess_data[0][PHY_CONTROL_REG] = 0x1000;
+					//~ mdio_useraccess_data[0][PHY_STATUS_REG] = 0x782d;
+					//~ mdio_useraccess_data[0][NWAY_ADVERTIZE_REG] = 0x01e1;
 					/* 100FD=Yes, 100HD=Yes, 10FD=Yes, 10HD=Yes */
-					mdio_useraccess_data[0][NWAY_REMADVERTISE_REG] = 0x85e1;
-				}
+					//~ mdio_useraccess_data[0][NWAY_REMADVERTISE_REG] = 0x85e1;
+				//~ }
 				mdio_useraccess_data[mdio_phyaddr][mdio_regaddr] = val;
 			} else {
 				val = mdio_useraccess_data[mdio_phyaddr][mdio_regaddr];
+				if ((mdio_regaddr == PHY_CONTROL_REG) && (val & PHY_RESET)) {
+					mdio_useraccess_data[mdio_phyaddr][mdio_regaddr] =
+						((val & ~PHY_RESET) | AUTO_NEGOTIATE_EN);
+				} else if ((mdio_regaddr == PHY_CONTROL_REG) && (val & RENEGOTIATE)) {
+					val &= ~RENEGOTIATE;
+					mdio_useraccess_data[mdio_phyaddr][mdio_regaddr] = val;
+					//~ 0x0000782d 0x00007809
+					mdio_useraccess_data[mdio_phyaddr][1] = 0x782d;
+					mdio_useraccess_data[mdio_phyaddr][5] =
+						mdio_useraccess_data[mdio_phyaddr][4] | PHY_ISOLATE | PHY_RESET;
+					mdio[3] = 0x80000000;
+				}
+				
 			}
 		}
 	} else {
@@ -907,46 +1002,6 @@ static CPUReadMemoryFunc *io_read[] = {
     &io_readl,
 };
 
-static void ar7_irq(void *opaque, int irq_num, int level)
-{
-    CPUState *cpu_env = first_cpu;
-    if (cpu_env != av.cpu_env) {
-	printf("%s(%p,%d,%d)\n", __FUNCTION__, opaque, irq_num, level);
-    }
-
-    switch (irq_num) {
-	case 15:	/* serial0 */
-	case 16:	/* serial1 */
-	case 27:	/* cpmac0 */
-		if (level) {
-			unsigned channel = irq_num - 8;
-			if (channel < 32) {
-				if (av.intmask[0] & (1 << channel)) {
-					//~ printf("%s(%p,%d,%d)\n", __FUNCTION__, opaque, irq_num, level);
-					av.intc[0x10] = (((irq_num - 8) << 16) | channel);
-					/* use hardware interrupt 0 */
-					cpu_env->CP0_Cause |= 0x00000400;
-					cpu_interrupt(cpu_env, CPU_INTERRUPT_HARD);
-				} else {
-					//~ printf("%s(%p,%d,%d) is disabled\n", __FUNCTION__, opaque, irq_num, level);
-				}
-			}
-			// int line number
-			//~ av.intc[0x10] |= (4 << 16);
-			// int channel number
-			// 2, 7, 15, 27, 80
-			//~ av.intmask[0]
-		} else {
-			av.intc[0x10] = 0;
-			cpu_env->CP0_Cause &= ~0x00000400;
-			cpu_reset_interrupt(cpu_env, CPU_INTERRUPT_HARD);
-		}
-		break;
-	default:
-		printf("%s(%p,%d,%d)\n", __FUNCTION__, opaque, irq_num, level);
-    }
-}
-
 static void ar7_serial_init(CPUState *env)
 {
     av.cpu_env = env;
@@ -973,6 +1028,8 @@ static void ar7_nic_receive(void *opaque, const uint8_t *buf, int size)
         { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
     NICState *s = (NICState *)opaque;
 
+    printf("%s(%p)\n", __FUNCTION__, s);
+
     if (!memcmp(buf, broadcast_macaddr, sizeof(broadcast_macaddr))) {
 	printf("%s(%p,%p,%d) broadcast\n", __FUNCTION__, s, buf, size);
     } else if (buf[0] & 0x01) {
@@ -991,12 +1048,6 @@ static void ar7_nic_receive(void *opaque, const uint8_t *buf, int size)
 #define CB_SIZE_MASK       0x0000ffff
 #define RCB_ERRORS_MASK    0x03fe0000
 
-#define MAC_IN_VECTOR_STATUS_INT   (1 << 19)
-#define MAC_IN_VECTOR_HOST_INT     (1 << 18)
-#define MAC_IN_VECTOR_RX_INT_OR    (1 << 17)
-#define MAC_IN_VECTOR_TX_INT_OR    (1 << 16)
-#define MAC_IN_VECTOR_RX_INT_VEC   (7 << 8)
-#define MAC_IN_VECTOR_TX_INT_VEC   (7)
     cpmac_buff_t bd;
     uint32_t val = av.cpmac0[0x188];
     if (val != 0) {
@@ -1019,14 +1070,15 @@ static void ar7_nic_receive(void *opaque, const uint8_t *buf, int size)
 static void ar7_nic_init(void)
 {
     unsigned i;
+    printf("%s()\n", __FUNCTION__);
     for (i = 0; i < nb_nics; i++) {
         NICInfo *nd = &nd_table[i];
         if (nd->vlan) {
           if (nd->model == NULL
             || strcmp(nd->model, "ar7") == 0) {
+	    printf("%s() starting AR7 nic\n", __FUNCTION__);
 	    av.nic.vc = qemu_new_vlan_client(nd->vlan, ar7_nic_receive,
                                  ar7_nic_can_receive, &av.nic);
-            //~ isa_ne2000_init(0x300, 9, nd);
           } else {
             fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd_table[0].model);
             exit (1);
