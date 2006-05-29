@@ -1,3 +1,21 @@
+2006-05-26 23:53  pbrook
+
+	* vl.h, hw/esp.c, hw/scsi-disk.c, hw/usb-msd.c: SCSI lun probing
+	  fix.
+
+2006-05-26 20:08  pbrook
+
+	* hw/scsi-disk.c: Small read fix.
+
+2006-05-26 19:15  pbrook
+
+	* hw/esp.c: Fix partial transfer bug.
+
+2006-05-26 18:46  pbrook
+
+	* hw/scsi-disk.c: Fix scsi sector size confusion (Blue Swirl).	Fix
+	  short TOC read.
+
 2006-05-26 02:49  pbrook
 
 	* qemu-doc.texi: Update USB documentation.

@@ -295,7 +295,7 @@ static int usb_msd_handle_data(USBDevice *dev, int pid, uint8_t devep,
             }
             DPRINTF("Command tag 0x%x flags %08x len %d data %d\n",
                     s->tag, cbw.flags, cbw.cmd_len, s->data_len);
-            scsi_send_command(s->scsi_dev, s->tag, cbw.cmd);
+            scsi_send_command(s->scsi_dev, s->tag, cbw.cmd, 0);
             ret = len;
             break;
 

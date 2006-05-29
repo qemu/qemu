@@ -53,7 +53,7 @@ struct SCSIDevice
 static void scsi_command_complete(SCSIDevice *s, int sense)
 {
     s->sense = sense;
-    s->completion(s->opaque, s->tag, sense != SENSE_NO_SENSE);
+    s->completion(s->opaque, s->tag, sense);
 }
 
 /* Read data from a scsi device.  Returns nonzero on failure.  */
@@ -175,7 +175,7 @@ int scsi_write_data(SCSIDevice *s, uint8_t *data, uint32_t len)
    (eg. disk reads), negative for transfers to the device (eg. disk writes),
    and zero if the command does not transfer any data.  */
 
-int32_t scsi_send_command(SCSIDevice *s, uint32_t tag, uint8_t *buf)
+int32_t scsi_send_command(SCSIDevice *s, uint32_t tag, uint8_t *buf, int lun)
 {
     int64_t nb_sectors;
     uint32_t lba;
@@ -225,8 +225,9 @@ int32_t scsi_send_command(SCSIDevice *s, uint32_t tag, uint8_t *buf)
         printf("\n");
     }
 #endif
-    if (buf[1] >> 5) {
+    if (lun || buf[1] >> 5) {
         /* Only LUN 0 supported.  */
+        DPRINTF("Unimplemented LUN %d\n", lun ? lun : buf[1] >> 5);
         goto fail;
     }
     switch (s->command) {
