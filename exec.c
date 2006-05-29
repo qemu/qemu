@@ -1,4 +1,33 @@
-//~ #define FLASH_2MB
+/* Here is a quick hack for flash emulation. It emulates only CFI
+ * detection for AMD or INTEL flash memory. */
+
+//~ #define FLASH_AMD /* undefine for INTEL flash */
+
+#if defined(FLASH_AMD)
+
+/* Emulation of AMD 2 MiB flash memory. */
+static const unsigned short flash[] = {
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* 0x00 */
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* 0x10 */
+	/* 'QRY', vendor command set 0x0002,
+	 * extended query table at 0x0035,
+	 * alternate vendor command set 0x0000 */
+	'Q',  'R',  'Y',  0x02, 0x00, 0x40, 0x00, 0x00, /* 0x20 */
+	0x00, 0x00, 0x00, 0x27, 0x36, 0x00, 0x00, 0x04, /* 0x30 */
+	* 2^15 byte flash size */
+	0x00, 0x0a, 0x00, 0x05, 0x00, 0x04, 0x00, 0x15, /* 0x40 */
+	/* flash device interface description 0x0002,
+	 * 4 erase regions */
+	0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x40, /* 0x50 */
+	0x00, 0x01, 0x00, 0x20, 0x00, 0x00, 0x00, 0x80, /* 0x60 */
+	0x00, 0x1e, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, /* 0x70 */
+};
+
+#else
+
+#define FLASH_2MB /* undefine for 4 MiB flash */
+
+/* Emulation of INTEL 2 MiB or 4 MiB flash memory. */
 static const unsigned short flash[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* 0x00 */
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* 0x10 */
@@ -38,63 +67,8 @@ static const unsigned short flash[] = {
 	0x00, 0x33, 0xc0, 0x01, 0x80, 0x00, 0x03, 0x03, /* 0x80 */
 #endif
 };
-/*
-ADAM2:
-# cat /proc/mtd
-dev:    size   erasesize  name
-mtd0: 00300000 00010000 "mtd0"
-mtd1: 000b0000 00010000 "mtd1"
-mtd2: 00010000 00010000 "mtd2"
-mtd3: 00020000 00010000 "mtd3"
-mtd4: 00020000 00010000 "mtd4"
-mtd5: 00022f00 00010000 "mtd5"
-mtd6: 00322f00 00010000 "mtd6"
 
-Sinus154 flash device: 0x200000 at 0x10000000.
-Number of erase regions: 2
-Primary Vendor Command Set: 0003 (Intel/Sharp Standard)
-Primary Algorithm Table at 0035
-Alternative Vendor Command Set: 0000 (None)
-No Alternate Algorithm Table
-Vcc Minimum: 2.7 V
-Vcc Maximum: 3.6 V
-Vpp Minimum: b.4 V
-Vpp Maximum: c.6 V
-Typical byte/word write timeout: 32 µs
-Maximum byte/word write timeout: 512 µs
-Full buffer write not supported
-Typical block erase timeout: 1024 ms
-Maximum block erase timeout: 8192 ms
-Chip erase not supported
-Device size: 0x200000 bytes (2 MiB)
-Flash Device Interface description: 0x0001
-  - x16-only asynchronous interface
-Max. bytes in buffer write: 0x1
-Number of Erase Block Regions: 2
-  Erase Region #0: BlockSize 0x2000 bytes, 8 blocks
-  Erase Region #1: BlockSize 0x10000 bytes, 31 blocks
-  Feature/Command Support: 0066
-     - Chip Erase:         unsupported
-     - Suspend Erase:      supported
-     - Suspend Program:    supported
-     - Legacy Lock/Unlock: unsupported
-     - Queued Erase:       unsupported
-     - Instant block lock: supported
-     - Protection Bits:    supported
-     - Page-mode read:     unsupported
-     - Synchronous read:   unsupported
-  Supported functions after Suspend: 01
-     - Program after Erase Suspend: supported
-  Block Status Register Mask: 0003
-     - Lock Bit Active:      yes
-     - Valid Bit Active:     yes
-  Vcc Logic Supply Optimum Program/Erase Voltage: 0.3 V
-  Vpp Programming Supply Optimum Program/Erase Voltage: 0.0 V
-cfi_cmdset_0001: Erase suspend on write enabled
-0: offset=0x0,size=0x2000,blocks=8
-1: offset=0x10000,size=0x10000,blocks=31
-Using word write method
-*/
+#endif
 
 /*
  *  virtual page mapping and translated block handling
