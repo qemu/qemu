@@ -1048,6 +1048,10 @@ int32_t scsi_send_command(SCSIDevice *s, uint32_t tag, uint8_t *buf, int lun);
 int scsi_read_data(SCSIDevice *s, uint8_t *data, uint32_t len);
 int scsi_write_data(SCSIDevice *s, uint8_t *data, uint32_t len);
 
+/* lsi53c895a.c */
+void lsi_scsi_attach(void *opaque, BlockDriverState *bd, int id);
+void *lsi_scsi_init(PCIBus *bus, int devfn);
+
 /* integratorcp.c */
 extern QEMUMachine integratorcp926_machine;
 extern QEMUMachine integratorcp1026_machine;

@@ -838,6 +838,24 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
     if (pci_enabled && acpi_enabled) {
         piix4_pm_init(pci_bus, piix3_devfn + 3);
     }
+
+#if 0
+    /* ??? Need to figure out some way for the user to
+       specify SCSI devices.  */
+    if (pci_enabled) {
+        void *scsi;
+        BlockDriverState *bdrv;
+
+        scsi = lsi_scsi_init(pci_bus, -1);
+        bdrv = bdrv_new("scsidisk");
+        bdrv_open(bdrv, "scsi_disk.img", 0);
+        lsi_scsi_attach(scsi, bdrv, -1);
+        bdrv = bdrv_new("scsicd");
+        bdrv_open(bdrv, "scsi_cd.iso", 0);
+        bdrv_set_type_hint(bdrv, BDRV_TYPE_CDROM);
+        lsi_scsi_attach(scsi, bdrv, -1);
+    }
+#endif
     /* must be done after all PCI devices are instanciated */
     /* XXX: should be done in the Bochs BIOS */
     if (pci_enabled) {
