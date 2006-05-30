@@ -245,7 +245,7 @@ int32_t scsi_send_command(SCSIDevice *s, uint32_t tag, uint8_t *buf, int lun)
         s->buf_len = 4;
         break;
     case 0x12:
-	DPRINTF("Inquiry (len %d)\n", len);
+        DPRINTF("Inquiry (len %d)\n", len);
         if (len < 36) {
             BADF("Inquiry buffer too small (%d)\n", len);
         }
@@ -253,12 +253,13 @@ int32_t scsi_send_command(SCSIDevice *s, uint32_t tag, uint8_t *buf, int lun)
 	if (bdrv_get_type_hint(s->bdrv) == BDRV_TYPE_CDROM) {
 	    s->buf[0] = 5;
             s->buf[1] = 0x80;
-	    memcpy(&s->buf[16], "QEMU CDROM     ", 16);
+	    memcpy(&s->buf[16], "QEMU CD-ROM    ", 16);
 	} else {
 	    s->buf[0] = 0;
 	    memcpy(&s->buf[16], "QEMU HARDDISK  ", 16);
 	}
 	memcpy(&s->buf[8], "QEMU   ", 8);
+        memcpy(&s->buf[32], QEMU_VERSION, 4);
 	s->buf[2] = 3; /* SCSI-3 */
 	s->buf[3] = 2; /* Format 2 */
 	s->buf[4] = 32;
@@ -275,18 +276,27 @@ int32_t scsi_send_command(SCSIDevice *s, uint32_t tag, uint8_t *buf, int lun)
             goto fail;
         break;
     case 0x1a:
-	DPRINTF("Mode Sense(6) (page %d, len %d)\n", buf[2], len);
-        memset(s->buf, 0, 4);
-        s->buf[0] = 0x16; /* Mode data length (4 + 0x12).  */
-        s->buf[1] = 0; /* Default media type.  */
-        s->buf[2] = 0; /* Write enabled.  */
-        s->buf[3] = 0; /* Block descriptor length.  */
-        /* Caching page.  */
-        s->buf[4 + 0] = 8;
-        s->buf[4 + 1] = 0x12;
-        s->buf[4 + 2] = 4; /* WCE */
-        if (len > 0x16)
-            len = 0x16;
+    case 0x5a:
+	DPRINTF("Mode Sense (page %d, len %d)\n", buf[2], len);
+        if (bdrv_get_type_hint(s->bdrv) == BDRV_TYPE_CDROM) {
+            memset(s->buf, 0, 4);
+            s->buf[0] = 4; /* Mode data length.  */
+            s->buf[1] = 0; /* Default media type.  */
+            s->buf[2] = 0x80; /* Readonly.  */
+            s->buf[3] = 0; /* Block descriptor length.  */
+        } else {
+            memset(s->buf, 0, 0x16);
+            s->buf[0] = 0x16; /* Mode data length (4 + 0x12).  */
+            s->buf[1] = 0; /* Default media type.  */
+            s->buf[2] = 0; /* Write enabled.  */
+            s->buf[3] = 0; /* Block descriptor length.  */
+            /* Caching page.  */
+            s->buf[4 + 0] = 8;
+            s->buf[4 + 1] = 0x12;
+            s->buf[4 + 2] = 4; /* WCE */
+            if (len > 0x16)
+                len = 0x16;
+        }
         s->buf_len = len;
 	break;
     case 0x25:
@@ -316,6 +326,10 @@ int32_t scsi_send_command(SCSIDevice *s, uint32_t tag, uint8_t *buf, int lun)
         s->sector = lba * s->cluster_size;
         s->sector_count = len * s->cluster_size;
         is_write = 1;
+        break;
+    case 0x35:
+        DPRINTF("Syncronise cache (sector %d, count %d)\n", lba, len);
+        /* ??? Extend block layer and use fsync to implement this.  */
         break;
     case 0x43:
         {

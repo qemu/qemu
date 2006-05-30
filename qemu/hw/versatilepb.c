@@ -343,6 +343,7 @@ static void versatile_init(int ram_size, int vga_ram_size, int boot_device,
     CPUState *env;
     void *pic;
     void *sic;
+    void *scsi_hba;
     PCIBus *pci_bus;
     NICInfo *nd;
     int n;
@@ -376,6 +377,12 @@ static void versatile_init(int ram_size, int vga_ram_size, int boot_device,
     }
     if (usb_enabled) {
         usb_ohci_init(pci_bus, 3, -1);
+    }
+    scsi_hba = lsi_scsi_init(pci_bus, -1);
+    for (n = 0; n < MAX_DISKS; n++) {
+        if (bs_table[n]) {
+            lsi_scsi_attach(scsi_hba, bs_table[n], n);
+        }
     }
 
     pl011_init(0x101f1000, pic, 12, serial_hds[0]);
