@@ -1,3 +1,11 @@
+2006-06-03 16:23  pbrook
+
+	* hw/scsi-disk.c: More SCSI commands (Blue Swirl).
+
+2006-06-03 16:19  pbrook
+
+	* hw/esp.c: SATN fixes (Blue Swirl).
+
 2006-05-30 03:48  pbrook
 
 	* Makefile.target, vl.h, hw/lsi53c895a.c, hw/pc.c, hw/scsi-disk.c,
