@@ -213,7 +213,7 @@ int32_t scsi_send_command(SCSIDevice *s, uint32_t tag, uint8_t *buf, int lun)
         cmdlen = 12;
         break;
     default:
-        BADF("Unsupported command length\n");
+        BADF("Unsupported command length, command %x\n", s->command);
         goto fail;
     }
 #ifdef DEBUG_SCSI
@@ -260,7 +260,9 @@ int32_t scsi_send_command(SCSIDevice *s, uint32_t tag, uint8_t *buf, int lun)
 	}
 	memcpy(&s->buf[8], "QEMU   ", 8);
         memcpy(&s->buf[32], QEMU_VERSION, 4);
-	s->buf[2] = 3; /* SCSI-3 */
+        /* Identify device as SCSI-3 rev 1.
+           Some later commands are also implemented. */
+	s->buf[2] = 3;
 	s->buf[3] = 2; /* Format 2 */
 	s->buf[4] = 32;
 	s->buf_len = 36;
@@ -277,27 +279,69 @@ int32_t scsi_send_command(SCSIDevice *s, uint32_t tag, uint8_t *buf, int lun)
         break;
     case 0x1a:
     case 0x5a:
-	DPRINTF("Mode Sense (page %d, len %d)\n", buf[2], len);
-        if (bdrv_get_type_hint(s->bdrv) == BDRV_TYPE_CDROM) {
-            memset(s->buf, 0, 4);
-            s->buf[0] = 4; /* Mode data length.  */
+        {
+            char *p;
+            int page;
+
+            page = buf[2] & 0x3f;
+            DPRINTF("Mode Sense (page %d, len %d)\n", page, len);
+            p = s->buf;
+            memset(p, 0, 4);
             s->buf[1] = 0; /* Default media type.  */
-            s->buf[2] = 0x80; /* Readonly.  */
             s->buf[3] = 0; /* Block descriptor length.  */
-        } else {
-            memset(s->buf, 0, 0x16);
-            s->buf[0] = 0x16; /* Mode data length (4 + 0x12).  */
-            s->buf[1] = 0; /* Default media type.  */
-            s->buf[2] = 0; /* Write enabled.  */
-            s->buf[3] = 0; /* Block descriptor length.  */
-            /* Caching page.  */
-            s->buf[4 + 0] = 8;
-            s->buf[4 + 1] = 0x12;
-            s->buf[4 + 2] = 4; /* WCE */
-            if (len > 0x16)
-                len = 0x16;
+            if (bdrv_get_type_hint(s->bdrv) == BDRV_TYPE_CDROM) {
+                s->buf[2] = 0x80; /* Readonly.  */
+            }
+            p += 4;
+            if ((page == 8 || page == 0x3f)) {
+                /* Caching page.  */
+                p[0] = 8;
+                p[1] = 0x12;
+                p[2] = 4; /* WCE */
+                p += 19;
+            }
+            if ((page == 0x3f || page == 0x2a)
+                    && (bdrv_get_type_hint(s->bdrv) == BDRV_TYPE_CDROM)) {
+                /* CD Capabilities and Mechanical Status page. */
+                p[0] = 0x2a;
+                p[1] = 0x14;
+                p[2] = 3; // CD-R & CD-RW read
+                p[3] = 0; // Writing not supported
+                p[4] = 0x7f; /* Audio, composite, digital out,
+                                         mode 2 form 1&2, multi session */
+                p[5] = 0xff; /* CD DA, DA accurate, RW supported,
+                                         RW corrected, C2 errors, ISRC,
+                                         UPC, Bar code */
+                p[6] = 0x2d | (bdrv_is_locked(s->bdrv)? 2 : 0);
+                /* Locking supported, jumper present, eject, tray */
+                p[7] = 0; /* no volume & mute control, no
+                                      changer */
+                p[8] = (50 * 176) >> 8; // 50x read speed
+                p[9] = (50 * 176) & 0xff;
+                p[10] = 0 >> 8; // No volume
+                p[11] = 0 & 0xff;
+                p[12] = 2048 >> 8; // 2M buffer
+                p[13] = 2048 & 0xff;
+                p[14] = (16 * 176) >> 8; // 16x read speed current
+                p[15] = (16 * 176) & 0xff;
+                p[18] = (16 * 176) >> 8; // 16x write speed
+                p[19] = (16 * 176) & 0xff;
+                p[20] = (16 * 176) >> 8; // 16x write speed current
+                p[21] = (16 * 176) & 0xff;
+                p += 21;
+            }
+            s->buf_len = p - s->buf;
+            s->buf[0] = s->buf_len - 4;
+            if (s->buf_len > len)
+                s->buf_len = len;
         }
-        s->buf_len = len;
+        break;
+    case 0x1b:
+        DPRINTF("Start Stop Unit\n");
+	break;
+    case 0x1e:
+        DPRINTF("Prevent Allow Medium Removal (prevent = %d)\n", buf[4] & 3);
+        bdrv_set_locked(s->bdrv, buf[4] & 1);
 	break;
     case 0x25:
 	DPRINTF("Read Capacity\n");
@@ -368,6 +412,14 @@ int32_t scsi_send_command(SCSIDevice *s, uint32_t tag, uint8_t *buf, int lun)
             DPRINTF("Read TOC error\n");
             goto fail;
         }
+    case 0x46:
+        DPRINTF("Get Configuration (rt %d, maxlen %d)\n", buf[1] & 3, len);
+        memset(s->buf, 0, 8);
+        /* ??? This shoud probably return much more information.  For now
+           just return the basic header indicating the CD-ROM profile.  */
+        s->buf[7] = 8; // CD-ROM
+        s->buf_len = 8;
+        break;
     case 0x56:
         DPRINTF("Reserve(10)\n");
         if (buf[1] & 3)
