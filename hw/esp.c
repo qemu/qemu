@@ -59,6 +59,9 @@ struct ESPState {
     int dma;
     SCSIDevice *scsi_dev[MAX_DISKS];
     SCSIDevice *current_dev;
+    uint8_t cmdbuf[TI_BUFSZ];
+    int cmdlen;
+    int do_cmd;
 };
 
 #define STAT_DO 0x00
@@ -79,17 +82,14 @@ struct ESPState {
 #define SEQ_0 0x0
 #define SEQ_CD 0x4
 
-static void handle_satn(ESPState *s)
+static int get_cmd(ESPState *s, uint8_t *buf)
 {
-    uint8_t buf[32];
     uint32_t dmaptr, dmalen;
     int target;
-    int32_t datalen;
-    int lun;
 
     dmalen = s->wregs[0] | (s->wregs[1] << 8);
     target = s->wregs[4] & 7;
-    DPRINTF("Select with ATN len %d target %d\n", dmalen, target);
+    DPRINTF("get_cmd: len %d target %d\n", dmalen, target);
     if (s->dma) {
 	dmaptr = iommu_translate(s->espdmaregs[1]);
 	DPRINTF("DMA Direction: %c, addr 0x%8.8x\n",
@@ -100,8 +100,6 @@ static void handle_satn(ESPState *s)
 	memcpy(&buf[1], s->ti_buf, dmalen);
 	dmalen++;
     }
-    DPRINTF("busid 0x%x\n", buf[0]);
-    lun = buf[0] & 7;
 
     s->ti_size = 0;
     s->ti_rptr = 0;
@@ -114,9 +112,19 @@ static void handle_satn(ESPState *s)
 	s->rregs[6] = SEQ_0;
 	s->espdmaregs[0] |= DMA_INTR;
 	pic_set_irq(s->irq, 1);
-	return;
+	return 0;
     }
     s->current_dev = s->scsi_dev[target];
+    return dmalen;
+}
+
+static void do_cmd(ESPState *s, uint8_t *buf)
+{
+    int32_t datalen;
+    int lun;
+
+    DPRINTF("do_cmd: busid 0x%x\n", buf[0]);
+    lun = buf[0] & 7;
     datalen = scsi_send_command(s->current_dev, 0, &buf[1], lun);
     if (datalen == 0) {
         s->ti_size = 0;
@@ -134,6 +142,31 @@ static void handle_satn(ESPState *s)
     s->rregs[6] = SEQ_CD;
     s->espdmaregs[0] |= DMA_INTR;
     pic_set_irq(s->irq, 1);
+}
+
+static void handle_satn(ESPState *s)
+{
+    uint8_t buf[32];
+    int len;
+
+    len = get_cmd(s, buf);
+    if (len)
+        do_cmd(s, buf);
+}
+
+static void handle_satn_stop(ESPState *s)
+{
+    s->cmdlen = get_cmd(s, s->cmdbuf);
+    if (s->cmdlen) {
+        DPRINTF("Set ATN & Stop: cmdlen %d\n", s->cmdlen);
+        s->do_cmd = 1;
+        s->espdmaregs[1] += s->cmdlen;
+        s->rregs[4] = STAT_IN | STAT_TC | STAT_CD;
+        s->rregs[5] = INTR_BS | INTR_FC;
+        s->rregs[6] = SEQ_CD;
+        s->espdmaregs[0] |= DMA_INTR;
+        pic_set_irq(s->irq, 1);
+    }
 }
 
 static void write_response(ESPState *s)
@@ -188,7 +221,10 @@ static void handle_ti(ESPState *s)
       dmalen=0x10000;
     }
 
-    minlen = (dmalen < s->ti_size) ? dmalen : s->ti_size;
+    if (s->do_cmd)
+        minlen = (dmalen < 32) ? dmalen : 32;
+    else
+        minlen = (dmalen < s->ti_size) ? dmalen : s->ti_size;
     DPRINTF("Transfer Information len %d\n", minlen);
     if (s->dma) {
 	dmaptr = iommu_translate(s->espdmaregs[1]);
@@ -207,14 +243,24 @@ static void handle_ti(ESPState *s)
             }
             DPRINTF("DMA address p %08x v %08x len %08x, from %08x, to %08x\n", dmaptr, s->espdmaregs[1] + i, len, from, to);
             s->ti_size -= len;
-            if (to_device) {
-                cpu_physical_memory_read(dmaptr, buf, len);
-                scsi_write_data(s->current_dev, buf, len);
+            if (s->do_cmd) {
+                DPRINTF("command len %d + %d\n", s->cmdlen, len);
+                cpu_physical_memory_read(dmaptr, &s->cmdbuf[s->cmdlen], len);
+                s->ti_size = 0;
+                s->cmdlen = 0;
+                s->do_cmd = 0;
+                do_cmd(s, s->cmdbuf);
+                return;
             } else {
-                scsi_read_data(s->current_dev, buf, len);
-                cpu_physical_memory_write(dmaptr, buf, len);
+                if (to_device) {
+                    cpu_physical_memory_read(dmaptr, buf, len);
+                    scsi_write_data(s->current_dev, buf, len);
+                } else {
+                    scsi_read_data(s->current_dev, buf, len);
+                    cpu_physical_memory_write(dmaptr, buf, len);
+                }
             }
-	}
+        }
         if (s->ti_size) {
 	    s->rregs[4] = STAT_IN | STAT_TC | (to_device ? STAT_DO : STAT_DI);
         }
@@ -222,7 +268,14 @@ static void handle_ti(ESPState *s)
 	s->rregs[6] = 0;
 	s->rregs[7] = 0;
 	s->espdmaregs[0] |= DMA_INTR;
-    }	
+    } else if (s->do_cmd) {
+        DPRINTF("command len %d\n", s->cmdlen);
+        s->ti_size = 0;
+        s->cmdlen = 0;
+        s->do_cmd = 0;
+        do_cmd(s, s->cmdbuf);
+        return;
+    }
     pic_set_irq(s->irq, 1);
 }
 
@@ -237,6 +290,7 @@ static void esp_reset(void *opaque)
     s->ti_rptr = 0;
     s->ti_wptr = 0;
     s->dma = 0;
+    s->do_cmd = 0;
 }
 
 static uint32_t esp_mem_readb(void *opaque, target_phys_addr_t addr)
@@ -291,7 +345,9 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
         break;
     case 2:
 	// FIFO
-        if ((s->rregs[4] & 6) == 0) {
+        if (s->do_cmd) {
+            s->cmdbuf[s->cmdlen++] = val & 0xff;
+        } else if ((s->rregs[4] & 6) == 0) {
             uint8_t buf;
             buf = val & 0xff;
             s->ti_size--;
@@ -348,11 +404,12 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 	    DPRINTF("Set ATN (%2.2x)\n", val);
 	    break;
 	case 0x42:
+	    DPRINTF("Set ATN (%2.2x)\n", val);
 	    handle_satn(s);
 	    break;
 	case 0x43:
 	    DPRINTF("Set ATN & stop (%2.2x)\n", val);
-	    handle_satn(s);
+	    handle_satn_stop(s);
 	    break;
 	default:
 	    DPRINTF("Unhandled ESP command (%2.2x)\n", val);
