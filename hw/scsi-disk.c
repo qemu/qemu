@@ -373,7 +373,7 @@ int32_t scsi_send_command(SCSIDevice *s, uint32_t tag, uint8_t *buf, int lun)
         break;
     case 0x35:
         DPRINTF("Syncronise cache (sector %d, count %d)\n", lba, len);
-        /* ??? Extend block layer and use fsync to implement this.  */
+        bdrv_flush(s->bdrv);
         break;
     case 0x43:
         {

@@ -496,6 +496,8 @@ int bdrv_write(BlockDriverState *bs, int64_t sector_num,
 void bdrv_get_geometry(BlockDriverState *bs, int64_t *nb_sectors_ptr);
 int bdrv_commit(BlockDriverState *bs);
 void bdrv_set_boot_sector(BlockDriverState *bs, const uint8_t *data, int size);
+/* Ensure contents are flushed to disk.  */
+void bdrv_flush(BlockDriverState *bs);
 
 #define BDRV_TYPE_HD     0
 #define BDRV_TYPE_CDROM  1

@@ -615,6 +615,14 @@ const char *bdrv_get_device_name(BlockDriverState *bs)
     return bs->device_name;
 }
 
+void bdrv_flush(BlockDriverState *bs)
+{
+    if (bs->drv->bdrv_flush)
+        bs->drv->bdrv_flush(bs);
+    if (bs->backing_hd)
+        bdrv_flush(bs->backing_hd);
+}
+
 void bdrv_info(void)
 {
     BlockDriverState *bs;
@@ -770,6 +778,12 @@ static int raw_create(const char *filename, int64_t total_size,
     return 0;
 }
 
+static void raw_flush(BlockDriverState *bs)
+{
+    BDRVRawState *s = bs->opaque;
+    fsync(s->fd);
+}
+
 BlockDriver bdrv_raw = {
     "raw",
     sizeof(BDRVRawState),
@@ -779,6 +793,7 @@ BlockDriver bdrv_raw = {
     raw_write,
     raw_close,
     raw_create,
+    raw_flush,
 };
 
 void bdrv_init(void)

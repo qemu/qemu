@@ -2772,6 +2772,7 @@ BlockDriver bdrv_vvfat = {
     vvfat_read,
     vvfat_write,
     vvfat_close,
+    NULL, /* ??? Not sure if we can do any meaningful flushing.  */
     NULL,
     vvfat_is_allocated
 };
