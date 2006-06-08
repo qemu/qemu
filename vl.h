@@ -47,6 +47,7 @@
 #endif
 
 #ifdef _WIN32
+#define fsync _commit
 #define lseek _lseeki64
 #define ENOTSUP 4096
 /* XXX: find 64 bit version */
