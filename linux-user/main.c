@@ -1545,7 +1545,7 @@ int main(int argc, char **argv)
     env = cpu_init();
     global_env = env;
     
-    if (elf_exec(filename, argv+optind, environ, regs, info) != 0) {
+    if (loader_exec(filename, argv+optind, environ, regs, info) != 0) {
 	printf("Error loading %s\n", filename);
 	_exit(1);
     }
@@ -1556,6 +1556,7 @@ int main(int argc, char **argv)
         fprintf(logfile, "start_brk   0x%08lx\n" , info->start_brk);
         fprintf(logfile, "end_code    0x%08lx\n" , info->end_code);
         fprintf(logfile, "start_code  0x%08lx\n" , info->start_code);
+        fprintf(logfile, "start_data  0x%08lx\n" , info->start_data);
         fprintf(logfile, "end_data    0x%08lx\n" , info->end_data);
         fprintf(logfile, "start_stack 0x%08lx\n" , info->start_stack);
         fprintf(logfile, "brk         0x%08lx\n" , info->brk);
