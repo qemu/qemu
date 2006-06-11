@@ -1531,6 +1531,7 @@ information is available in the QEMU mailing-list archive.
 * Quick Start::
 * Wine launch::
 * Command line options::
+* Other binaries::
 @end menu
 
 @node Quick Start
@@ -1636,6 +1637,15 @@ Activate log (logfile=/tmp/qemu.log)
 @item -p pagesize
 Act as if the host page size was 'pagesize' bytes
 @end table
+
+@node Other binaries
+@section Other binaries
+
+@command{qemu-arm} is also capable of running ARM "Angel" semihosted ELF
+binaries (as implemented by the arm-elf and arm-eabi Newlib/GDB
+configurations), and arm-uclinux bFLT format binaries.
+
+The binary format is detected automatically.
 
 @node compilation
 @chapter Compilation from the sources
