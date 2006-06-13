@@ -447,10 +447,18 @@ static void sdl_refresh(DisplayState *ds)
                         gui_key_modifier_pressed = 0;
                         if (gui_keysym == 0) {
                             /* exit/enter grab if pressing Ctrl-Alt */
-                            if (!gui_grab)
-                                sdl_grab_start();
-                            else
+                            if (!gui_grab) {
+                                /* if the application is not active,
+                                   do not try to enter grab state. It
+                                   prevents
+                                   'SDL_WM_GrabInput(SDL_GRAB_ON)'
+                                   from blocking all the application
+                                   (SDL bug). */
+                                if (SDL_GetAppState() & SDL_APPACTIVE)
+                                    sdl_grab_start();
+                            } else {
                                 sdl_grab_end();
+                            }
                             /* SDL does not send back all the
                                modifiers key, so we must correct it */
                             reset_keys();
