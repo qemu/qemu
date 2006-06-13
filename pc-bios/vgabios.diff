@@ -4,7 +4,7 @@ RCS file: /sources/vgabios/vgabios/clext.c,v
 retrieving revision 1.10
 diff -u -w -r1.10 clext.c
 --- clext.c	25 Mar 2006 10:19:15 -0000	1.10
-+++ clext.c	14 May 2006 20:49:29 -0000
++++ clext.c	13 Jun 2006 16:47:23 -0000
 @@ -544,6 +544,13 @@
  cirrus_set_video_mode_extended:
    call cirrus_switch_mode
@@ -72,3 +72,2407 @@ diff -u -w -r1.10 clext.c
  cirrus_extbios_handlers:
    ;; 80h
    dw cirrus_extbios_80h
+Index: vbe.h
+===================================================================
+RCS file: /sources/vgabios/vgabios/vbe.h,v
+retrieving revision 1.24
+diff -u -w -r1.24 vbe.h
+--- vbe.h	9 May 2004 20:31:31 -0000	1.24
++++ vbe.h	13 Jun 2006 16:47:24 -0000
+@@ -193,6 +193,10 @@
+ #define VBE_VESA_MODE_1280X1024X1555                     0x119
+ #define VBE_VESA_MODE_1280X1024X565                      0x11A
+ #define VBE_VESA_MODE_1280X1024X888                      0x11B
++#define VBE_VESA_MODE_1600X1200X8                        0x11C
++#define VBE_VESA_MODE_1600X1200X1555                     0x11D
++#define VBE_VESA_MODE_1600X1200X565                      0x11E
++#define VBE_VESA_MODE_1600X1200X888                      0x11F
+ 
+ // BOCHS/PLEX86 'own' mode numbers
+ #define VBE_OWN_MODE_320X200X8888                        0x140
+@@ -202,6 +206,12 @@
+ #define VBE_OWN_MODE_1024X768X8888                       0x144
+ #define VBE_OWN_MODE_1280X1024X8888                      0x145
+ #define VBE_OWN_MODE_320X200X8                           0x146
++#define VBE_OWN_MODE_1600X1200X8888                      0x147
++#define VBE_OWN_MODE_1152X864X8                          0x148
++#define VBE_OWN_MODE_1152X864X1555                       0x149
++#define VBE_OWN_MODE_1152X864X565                        0x14a
++#define VBE_OWN_MODE_1152X864X888                        0x14b
++#define VBE_OWN_MODE_1152X864X8888                       0x14c
+ 
+ #define VBE_VESA_MODE_END_OF_LIST                        0xFFFF
+ 
+@@ -259,7 +269,7 @@
+ //        like 0xE0000000
+ 
+ 
+-  #define VBE_DISPI_TOTAL_VIDEO_MEMORY_MB 4
++  #define VBE_DISPI_TOTAL_VIDEO_MEMORY_MB 8
+ 
+   #define VBE_DISPI_BANK_ADDRESS          0xA0000
+   #define VBE_DISPI_BANK_SIZE_KB          64
+Index: vbetables.h
+===================================================================
+RCS file: /sources/vgabios/vgabios/vbetables.h,v
+retrieving revision 1.24
+diff -u -w -r1.24 vbetables.h
+--- vbetables.h	22 Jul 2004 18:37:29 -0000	1.24
++++ vbetables.h	13 Jun 2006 16:47:24 -0000
+@@ -14,46 +14,29 @@
+         ModeInfoBlockCompact    info;
+ } ModeInfoListItem;
+ 
+-// FIXME: check all member variables to be correct for the different modi
+-// FIXME: add more modi
+ static ModeInfoListItem mode_info_list[]=
+ {
+-        {
+-                VBE_VESA_MODE_640X400X8,
+-                {
+-/*typedef struct ModeInfoBlock
+-{*/
+-// Mandatory information for all VBE revisions
+-   /*Bit16u ModeAttributes*/            VBE_MODE_ATTRIBUTE_SUPPORTED |
+-                                        VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE |
+-                                        VBE_MODE_ATTRIBUTE_COLOR_MODE |
+-#ifdef VBE_HAVE_LFB
+-                                        VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE |
+-#endif
+-                                        VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
+-   /*Bit8u  WinAAttributes*/            VBE_WINDOW_ATTRIBUTE_RELOCATABLE |
+-                                        VBE_WINDOW_ATTRIBUTE_READABLE |
+-                                        VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++{ 0x0100, /* 640x400x8 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
+    /*Bit8u  WinBAttributes*/            0,
+    /*Bit16u WinGranularity*/            VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinSize*/                   VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinASegment*/               VGAMEM_GRAPH,
+-   /*Bit16u WinBSegment*/               0,
++/*Bit16u WinBSegment*/ 0x0000,
+    /*Bit32u WinFuncPtr*/                0,
+    /*Bit16u BytesPerScanLine*/          640,
+-// Mandatory information for VBE 1.2 and above
+    /*Bit16u XResolution*/               640,
+    /*Bit16u YResolution*/               400,
+    /*Bit8u  XCharSize*/                 8,
+    /*Bit8u  YCharSize*/                 16,
+    /*Bit8u  NumberOfPlanes*/            1,
+    /*Bit8u  BitsPerPixel*/              8,
+-   /*Bit8u  NumberOfBanks*/             4, // 640x400/64kb == 4
++/*Bit8u  NumberOfBanks*/ 4,
+    /*Bit8u  MemoryModel*/               VBE_MEMORYMODEL_PACKED_PIXEL,
+    /*Bit8u  BankSize*/                  0,
+-   /*Bit8u  NumberOfImagePages*/        15,
++/*Bit8u  NumberOfImagePages*/ 0,
+    /*Bit8u  Reserved_page*/             0,
+-// Direct Color fields (required for direct/6 and YUV/7 memory models)
+    /*Bit8u  RedMaskSize*/               0,
+    /*Bit8u  RedFieldPosition*/          0,
+    /*Bit8u  GreenMaskSize*/             0,
+@@ -63,15 +46,9 @@
+    /*Bit8u  RsvdMaskSize*/              0,
+    /*Bit8u  RsvdFieldPosition*/         0,
+    /*Bit8u  DirectColorModeInfo*/       0,
+-// Mandatory information for VBE 2.0 and above
+-#ifdef VBE_HAVE_LFB
+    /*Bit32u PhysBasePtr*/               VBE_DISPI_LFB_PHYSICAL_ADDRESS,
+-#else
+-   /*Bit32u PhysBasePtr*/               0,
+-#endif
+    /*Bit32u OffScreenMemOffset*/        0,
+    /*Bit16u OffScreenMemSize*/          0,
+-// Mandatory information for VBE 3.0 and above
+    /*Bit16u LinBytesPerScanLine*/       640,
+    /*Bit8u  BnkNumberOfPages*/          0,
+    /*Bit8u  LinNumberOfPages*/          0,
+@@ -84,45 +61,28 @@
+    /*Bit8u  LinRsvdMaskSize*/           0,
+    /*Bit8u  LinRsvdFieldPosition*/      0,
+    /*Bit32u MaxPixelClock*/             0,
+-/*} ModeInfoBlock;*/
+-                }
+-        },
+-
+-        {
+-                VBE_VESA_MODE_640X480X8,
+-                {
+-/*typedef struct ModeInfoBlock
+-{*/
+-// Mandatory information for all VBE revisions
+-   /*Bit16u ModeAttributes*/            VBE_MODE_ATTRIBUTE_SUPPORTED |
+-                                        VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE |
+-                                        VBE_MODE_ATTRIBUTE_COLOR_MODE |
+-#ifdef VBE_HAVE_LFB
+-                                        VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE |
+-#endif
+-                                        VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
+-   /*Bit8u  WinAAttributes*/            VBE_WINDOW_ATTRIBUTE_READABLE |
+-                                        VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++} },
++{ 0x0101, /* 640x480x8 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
+    /*Bit8u  WinBAttributes*/            0,
+    /*Bit16u WinGranularity*/            VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinSize*/                   VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinASegment*/               VGAMEM_GRAPH,
+-   /*Bit16u WinBSegment*/               0,
++/*Bit16u WinBSegment*/ 0x0000,
+    /*Bit32u WinFuncPtr*/                0,
+    /*Bit16u BytesPerScanLine*/          640,
+-// Mandatory information for VBE 1.2 and above
+    /*Bit16u XResolution*/               640,
+    /*Bit16u YResolution*/               480,
+    /*Bit8u  XCharSize*/                 8,
+    /*Bit8u  YCharSize*/                 16,
+    /*Bit8u  NumberOfPlanes*/            1,
+    /*Bit8u  BitsPerPixel*/              8,
+-   /*Bit8u  NumberOfBanks*/             5, // 640x480/64kb == 5
++/*Bit8u  NumberOfBanks*/ 5,
+    /*Bit8u  MemoryModel*/               VBE_MEMORYMODEL_PACKED_PIXEL,
+    /*Bit8u  BankSize*/                  0,
+-   /*Bit8u  NumberOfImagePages*/        11,
++/*Bit8u  NumberOfImagePages*/ 0,
+    /*Bit8u  Reserved_page*/             0,
+-// Direct Color fields (required for direct/6 and YUV/7 memory models)
+    /*Bit8u  RedMaskSize*/               0,
+    /*Bit8u  RedFieldPosition*/          0,
+    /*Bit8u  GreenMaskSize*/             0,
+@@ -132,15 +92,9 @@
+    /*Bit8u  RsvdMaskSize*/              0,
+    /*Bit8u  RsvdFieldPosition*/         0,
+    /*Bit8u  DirectColorModeInfo*/       0,
+-// Mandatory information for VBE 2.0 and above
+-#ifdef VBE_HAVE_LFB
+    /*Bit32u PhysBasePtr*/               VBE_DISPI_LFB_PHYSICAL_ADDRESS,
+-#else
+-   /*Bit32u PhysBasePtr*/               0,
+-#endif
+    /*Bit32u OffScreenMemOffset*/        0,
+    /*Bit16u OffScreenMemSize*/          0,
+-// Mandatory information for VBE 3.0 and above
+    /*Bit16u LinBytesPerScanLine*/       640,
+    /*Bit8u  BnkNumberOfPages*/          0,
+    /*Bit8u  LinNumberOfPages*/          0,
+@@ -153,44 +107,28 @@
+    /*Bit8u  LinRsvdMaskSize*/           0,
+    /*Bit8u  LinRsvdFieldPosition*/      0,
+    /*Bit32u MaxPixelClock*/             0,
+-/*} ModeInfoBlock;*/
+-                }
+-        },
+-
+-        {
+-                VBE_VESA_MODE_800X600X4,
+-                {
+-/*typedef struct ModeInfoBlock
+-{*/
+-// Mandatory information for all VBE revisions
+-   /*Bit16u ModeAttributes*/            VBE_MODE_ATTRIBUTE_SUPPORTED |
+-                                        VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE |
+-                                        VBE_MODE_ATTRIBUTE_TTY_BIOS_SUPPORT |
+-                                        VBE_MODE_ATTRIBUTE_COLOR_MODE |
+-                                        VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
+-   /*Bit8u  WinAAttributes*/            VBE_WINDOW_ATTRIBUTE_RELOCATABLE |
+-                                        VBE_WINDOW_ATTRIBUTE_READABLE |
+-                                        VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++} },
++{ 0x0102, /* 800x600x4 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
+    /*Bit8u  WinBAttributes*/            0,
+    /*Bit16u WinGranularity*/            VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinSize*/                   VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinASegment*/               VGAMEM_GRAPH,
+-   /*Bit16u WinBSegment*/               0,
++/*Bit16u WinBSegment*/ 0x0000,
+    /*Bit32u WinFuncPtr*/                0,
+    /*Bit16u BytesPerScanLine*/          100,
+-// Mandatory information for VBE 1.2 and above
+    /*Bit16u XResolution*/               800,
+    /*Bit16u YResolution*/               600,
+    /*Bit8u  XCharSize*/                 8,
+    /*Bit8u  YCharSize*/                 16,
+    /*Bit8u  NumberOfPlanes*/            4,
+    /*Bit8u  BitsPerPixel*/              4,
+-   /*Bit8u  NumberOfBanks*/             16,
++/*Bit8u  NumberOfBanks*/ 1,
+    /*Bit8u  MemoryModel*/               VBE_MEMORYMODEL_PLANAR,
+    /*Bit8u  BankSize*/                  0,
+-   /*Bit8u  NumberOfImagePages*/        15,
++/*Bit8u  NumberOfImagePages*/ 0,
+    /*Bit8u  Reserved_page*/             0,
+-// Direct Color fields (required for direct/6 and YUV/7 memory models)
+    /*Bit8u  RedMaskSize*/               0,
+    /*Bit8u  RedFieldPosition*/          0,
+    /*Bit8u  GreenMaskSize*/             0,
+@@ -200,11 +138,9 @@
+    /*Bit8u  RsvdMaskSize*/              0,
+    /*Bit8u  RsvdFieldPosition*/         0,
+    /*Bit8u  DirectColorModeInfo*/       0,
+-// Mandatory information for VBE 2.0 and above
+-   /*Bit32u PhysBasePtr*/               0,
++/*Bit32u PhysBasePtr*/ VBE_DISPI_LFB_PHYSICAL_ADDRESS,
+    /*Bit32u OffScreenMemOffset*/        0,
+    /*Bit16u OffScreenMemSize*/          0,
+-// Mandatory information for VBE 3.0 and above
+    /*Bit16u LinBytesPerScanLine*/       100,
+    /*Bit8u  BnkNumberOfPages*/          0,
+    /*Bit8u  LinNumberOfPages*/          0,
+@@ -217,46 +153,28 @@
+    /*Bit8u  LinRsvdMaskSize*/           0,
+    /*Bit8u  LinRsvdFieldPosition*/      0,
+    /*Bit32u MaxPixelClock*/             0,
+-/*} ModeInfoBlock;*/
+-                }
+-        },
+-
+-        {
+-                VBE_VESA_MODE_800X600X8,
+-                {
+-/*typedef struct ModeInfoBlock
+-{*/
+-// Mandatory information for all VBE revisions
+-   /*Bit16u ModeAttributes*/            VBE_MODE_ATTRIBUTE_SUPPORTED |
+-                                        VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE |
+-                                        VBE_MODE_ATTRIBUTE_COLOR_MODE |
+-#ifdef VBE_HAVE_LFB
+-                                        VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE |
+-#endif
+-                                        VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
+-   /*Bit8u  WinAAttributes*/            VBE_WINDOW_ATTRIBUTE_RELOCATABLE |
+-                                        VBE_WINDOW_ATTRIBUTE_READABLE |
+-                                        VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++} },
++{ 0x0103, /* 800x600x8 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
+    /*Bit8u  WinBAttributes*/            0,
+    /*Bit16u WinGranularity*/            VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinSize*/                   VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinASegment*/               VGAMEM_GRAPH,
+-   /*Bit16u WinBSegment*/               0,
++/*Bit16u WinBSegment*/ 0x0000,
+    /*Bit32u WinFuncPtr*/                0,
+    /*Bit16u BytesPerScanLine*/          800,
+-// Mandatory information for VBE 1.2 and above
+    /*Bit16u XResolution*/               800,
+    /*Bit16u YResolution*/               600,
+    /*Bit8u  XCharSize*/                 8,
+    /*Bit8u  YCharSize*/                 16,
+    /*Bit8u  NumberOfPlanes*/            1,
+    /*Bit8u  BitsPerPixel*/              8,
+-   /*Bit8u  NumberOfBanks*/             8, // 800x600/64kb == 8
++/*Bit8u  NumberOfBanks*/ 8,
+    /*Bit8u  MemoryModel*/               VBE_MEMORYMODEL_PACKED_PIXEL,
+    /*Bit8u  BankSize*/                  0,
+-   /*Bit8u  NumberOfImagePages*/        7,
++/*Bit8u  NumberOfImagePages*/ 0,
+    /*Bit8u  Reserved_page*/             0,
+-// Direct Color fields (required for direct/6 and YUV/7 memory models)
+    /*Bit8u  RedMaskSize*/               0,
+    /*Bit8u  RedFieldPosition*/          0,
+    /*Bit8u  GreenMaskSize*/             0,
+@@ -266,15 +184,9 @@
+    /*Bit8u  RsvdMaskSize*/              0,
+    /*Bit8u  RsvdFieldPosition*/         0,
+    /*Bit8u  DirectColorModeInfo*/       0,
+-// Mandatory information for VBE 2.0 and above
+-#ifdef VBE_HAVE_LFB
+    /*Bit32u PhysBasePtr*/               VBE_DISPI_LFB_PHYSICAL_ADDRESS,
+-#else
+-   /*Bit32u PhysBasePtr*/               0,
+-#endif
+    /*Bit32u OffScreenMemOffset*/        0,
+    /*Bit16u OffScreenMemSize*/          0,
+-// Mandatory information for VBE 3.0 and above
+    /*Bit16u LinBytesPerScanLine*/       800,
+    /*Bit8u  BnkNumberOfPages*/          0,
+    /*Bit8u  LinNumberOfPages*/          0,
+@@ -287,46 +199,28 @@
+    /*Bit8u  LinRsvdMaskSize*/           0,
+    /*Bit8u  LinRsvdFieldPosition*/      0,
+    /*Bit32u MaxPixelClock*/             0,
+-/*} ModeInfoBlock;*/
+-                }
+-        },
+-
+-        {
+-                VBE_VESA_MODE_1024X768X8,
+-                {
+-/*typedef struct ModeInfoBlock
+-{*/
+-// Mandatory information for all VBE revisions
+-   /*Bit16u ModeAttributes*/            VBE_MODE_ATTRIBUTE_SUPPORTED |
+-                                        VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE |
+-                                        VBE_MODE_ATTRIBUTE_COLOR_MODE |
+-#ifdef VBE_HAVE_LFB
+-                                        VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE |
+-#endif
+-                                        VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
+-   /*Bit8u  WinAAttributes*/            VBE_WINDOW_ATTRIBUTE_RELOCATABLE |
+-                                        VBE_WINDOW_ATTRIBUTE_READABLE |
+-                                        VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++} },
++{ 0x0105, /* 1024x768x8 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
+    /*Bit8u  WinBAttributes*/            0,
+    /*Bit16u WinGranularity*/            VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinSize*/                   VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinASegment*/               VGAMEM_GRAPH,
+-   /*Bit16u WinBSegment*/               0,
++/*Bit16u WinBSegment*/ 0x0000,
+    /*Bit32u WinFuncPtr*/                0,
+    /*Bit16u BytesPerScanLine*/          1024,
+-// Mandatory information for VBE 1.2 and above
+    /*Bit16u XResolution*/               1024,
+    /*Bit16u YResolution*/               768,
+    /*Bit8u  XCharSize*/                 8,
+    /*Bit8u  YCharSize*/                 16,
+    /*Bit8u  NumberOfPlanes*/            1,
+    /*Bit8u  BitsPerPixel*/              8,
+-   /*Bit8u  NumberOfBanks*/             12, // 1024x768/64kb == 12
++/*Bit8u  NumberOfBanks*/ 12,
+    /*Bit8u  MemoryModel*/               VBE_MEMORYMODEL_PACKED_PIXEL,
+    /*Bit8u  BankSize*/                  0,
+-   /*Bit8u  NumberOfImagePages*/        3,
++/*Bit8u  NumberOfImagePages*/ 0,
+    /*Bit8u  Reserved_page*/             0,
+-// Direct Color fields (required for direct/6 and YUV/7 memory models)
+    /*Bit8u  RedMaskSize*/               0,
+    /*Bit8u  RedFieldPosition*/          0,
+    /*Bit8u  GreenMaskSize*/             0,
+@@ -336,15 +230,9 @@
+    /*Bit8u  RsvdMaskSize*/              0,
+    /*Bit8u  RsvdFieldPosition*/         0,
+    /*Bit8u  DirectColorModeInfo*/       0,
+-// Mandatory information for VBE 2.0 and above
+-#ifdef VBE_HAVE_LFB
+    /*Bit32u PhysBasePtr*/               VBE_DISPI_LFB_PHYSICAL_ADDRESS,
+-#else
+-   /*Bit32u PhysBasePtr*/               0,
+-#endif
+    /*Bit32u OffScreenMemOffset*/        0,
+    /*Bit16u OffScreenMemSize*/          0,
+-// Mandatory information for VBE 3.0 and above
+    /*Bit16u LinBytesPerScanLine*/       1024,
+    /*Bit8u  BnkNumberOfPages*/          0,
+    /*Bit8u  LinNumberOfPages*/          0,
+@@ -357,116 +245,74 @@
+    /*Bit8u  LinRsvdMaskSize*/           0,
+    /*Bit8u  LinRsvdFieldPosition*/      0,
+    /*Bit32u MaxPixelClock*/             0,
+-/*} ModeInfoBlock;*/
+-                }
+-        },
+-
+-        {
+-                VBE_VESA_MODE_640X480X1555,
+-                {
+-/*typedef struct ModeInfoBlock
+-{*/
+-// Mandatory information for all VBE revisions
+-   /*Bit16u ModeAttributes*/            VBE_MODE_ATTRIBUTE_SUPPORTED |
+-                                        VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE |
+-                                        VBE_MODE_ATTRIBUTE_COLOR_MODE |
+-#ifdef VBE_HAVE_LFB
+-                                        VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE |
+-#endif
+-                                        VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
+-   /*Bit8u  WinAAttributes*/            VBE_WINDOW_ATTRIBUTE_RELOCATABLE |
+-                                        VBE_WINDOW_ATTRIBUTE_READABLE |
+-                                        VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++} },
++{ 0x0107, /* 1280x1024x8 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
+    /*Bit8u  WinBAttributes*/            0,
+    /*Bit16u WinGranularity*/            VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinSize*/                   VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinASegment*/               VGAMEM_GRAPH,
+-   /*Bit16u WinBSegment*/               0,
++/*Bit16u WinBSegment*/ 0x0000,
+    /*Bit32u WinFuncPtr*/                0,
+-   /*Bit16u BytesPerScanLine*/          640*2,
+-// Mandatory information for VBE 1.2 and above
+-   /*Bit16u XResolution*/               640,
+-   /*Bit16u YResolution*/               480,
++/*Bit16u BytesPerScanLine*/ 1280,
++/*Bit16u XResolution*/ 1280,
++/*Bit16u YResolution*/ 1024,
+    /*Bit8u  XCharSize*/                 8,
+    /*Bit8u  YCharSize*/                 16,
+    /*Bit8u  NumberOfPlanes*/            1,
+-   /*Bit8u  BitsPerPixel*/              15,
+-   /*Bit8u  NumberOfBanks*/             1,
+-   /*Bit8u  MemoryModel*/               VBE_MEMORYMODEL_DIRECT_COLOR,
++/*Bit8u  BitsPerPixel*/ 8,
++/*Bit8u  NumberOfBanks*/ 20,
++/*Bit8u  MemoryModel*/ VBE_MEMORYMODEL_PACKED_PIXEL,
+    /*Bit8u  BankSize*/                  0,
+-   /*Bit8u  NumberOfImagePages*/        5,
++/*Bit8u  NumberOfImagePages*/ 0,
+    /*Bit8u  Reserved_page*/             0,
+-// Direct Color fields (required for direct/6 and YUV/7 memory models)
+-   /*Bit8u  RedMaskSize*/               5,
+-   /*Bit8u  RedFieldPosition*/          10,
+-   /*Bit8u  GreenMaskSize*/             5,
+-   /*Bit8u  GreenFieldPosition*/        5,
+-   /*Bit8u  BlueMaskSize*/              5,
++/*Bit8u  RedMaskSize*/ 0,
++/*Bit8u  RedFieldPosition*/ 0,
++/*Bit8u  GreenMaskSize*/ 0,
++/*Bit8u  GreenFieldPosition*/ 0,
++/*Bit8u  BlueMaskSize*/ 0,
+    /*Bit8u  BlueFieldPosition*/         0,
+-   /*Bit8u  RsvdMaskSize*/              1,
+-   /*Bit8u  RsvdFieldPosition*/         15,
++/*Bit8u  RsvdMaskSize*/ 0,
++/*Bit8u  RsvdFieldPosition*/ 0,
+    /*Bit8u  DirectColorModeInfo*/       0,
+-// Mandatory information for VBE 2.0 and above
+-#ifdef VBE_HAVE_LFB
+    /*Bit32u PhysBasePtr*/               VBE_DISPI_LFB_PHYSICAL_ADDRESS,
+-#else
+-   /*Bit32u PhysBasePtr*/               0,
+-#endif
+    /*Bit32u OffScreenMemOffset*/        0,
+    /*Bit16u OffScreenMemSize*/          0,
+-// Mandatory information for VBE 3.0 and above
+-   /*Bit16u LinBytesPerScanLine*/       640*2,
++/*Bit16u LinBytesPerScanLine*/ 1280,
+    /*Bit8u  BnkNumberOfPages*/          0,
+    /*Bit8u  LinNumberOfPages*/          0,
+-   /*Bit8u  LinRedMaskSize*/            5,
+-   /*Bit8u  LinRedFieldPosition*/       10,
++/*Bit8u  LinRedMaskSize*/ 0,
++/*Bit8u  LinRedFieldPosition*/ 0,
+    /*Bit8u  LinGreenMaskSize*/          0,
+-   /*Bit8u  LinGreenFieldPosition*/     5,
+-   /*Bit8u  LinBlueMaskSize*/           5,
++/*Bit8u  LinGreenFieldPosition*/ 0,
++/*Bit8u  LinBlueMaskSize*/ 0,
+    /*Bit8u  LinBlueFieldPosition*/      0,
+-   /*Bit8u  LinRsvdMaskSize*/           1,
+-   /*Bit8u  LinRsvdFieldPosition*/      15,
++/*Bit8u  LinRsvdMaskSize*/ 0,
++/*Bit8u  LinRsvdFieldPosition*/ 0,
+    /*Bit32u MaxPixelClock*/             0,
+-/*} ModeInfoBlock;*/
+-                }
+-        },
+-
+-        {
+-                VBE_VESA_MODE_800X600X1555,
+-                {
+-/*typedef struct ModeInfoBlock
+-{*/
+-// Mandatory information for all VBE revisions
+-   /*Bit16u ModeAttributes*/            VBE_MODE_ATTRIBUTE_SUPPORTED |
+-                                        VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE |
+-                                        VBE_MODE_ATTRIBUTE_COLOR_MODE |
+-#ifdef VBE_HAVE_LFB
+-                                        VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE |
+-#endif
+-                                        VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
+-   /*Bit8u  WinAAttributes*/            VBE_WINDOW_ATTRIBUTE_RELOCATABLE |
+-                                        VBE_WINDOW_ATTRIBUTE_READABLE |
+-                                        VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++} },
++{ 0x010d, /* 320x200x15 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
+    /*Bit8u  WinBAttributes*/            0,
+    /*Bit16u WinGranularity*/            VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinSize*/                   VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinASegment*/               VGAMEM_GRAPH,
+-   /*Bit16u WinBSegment*/               0,
++/*Bit16u WinBSegment*/ 0x0000,
+    /*Bit32u WinFuncPtr*/                0,
+-   /*Bit16u BytesPerScanLine*/          800*2,
+-// Mandatory information for VBE 1.2 and above
+-   /*Bit16u XResolution*/               800,
+-   /*Bit16u YResolution*/               600,
++/*Bit16u BytesPerScanLine*/ 640,
++/*Bit16u XResolution*/ 320,
++/*Bit16u YResolution*/ 200,
+    /*Bit8u  XCharSize*/                 8,
+    /*Bit8u  YCharSize*/                 16,
+    /*Bit8u  NumberOfPlanes*/            1,
+    /*Bit8u  BitsPerPixel*/              15,
+-   /*Bit8u  NumberOfBanks*/             1,
++/*Bit8u  NumberOfBanks*/ 2,
+    /*Bit8u  MemoryModel*/               VBE_MEMORYMODEL_DIRECT_COLOR,
+    /*Bit8u  BankSize*/                  0,
+-   /*Bit8u  NumberOfImagePages*/        3,
++/*Bit8u  NumberOfImagePages*/ 0,
+    /*Bit8u  Reserved_page*/             0,
+-// Direct Color fields (required for direct/6 and YUV/7 memory models)
+    /*Bit8u  RedMaskSize*/               5,
+    /*Bit8u  RedFieldPosition*/          10,
+    /*Bit8u  GreenMaskSize*/             5,
+@@ -476,16 +322,10 @@
+    /*Bit8u  RsvdMaskSize*/              1,
+    /*Bit8u  RsvdFieldPosition*/         15,
+    /*Bit8u  DirectColorModeInfo*/       0,
+-// Mandatory information for VBE 2.0 and above
+-#ifdef VBE_HAVE_LFB
+    /*Bit32u PhysBasePtr*/               VBE_DISPI_LFB_PHYSICAL_ADDRESS,
+-#else
+-   /*Bit32u PhysBasePtr*/               0,
+-#endif
+    /*Bit32u OffScreenMemOffset*/        0,
+    /*Bit16u OffScreenMemSize*/          0,
+-// Mandatory information for VBE 3.0 and above
+-   /*Bit16u LinBytesPerScanLine*/       800*2,
++/*Bit16u LinBytesPerScanLine*/ 640,
+    /*Bit8u  BnkNumberOfPages*/          0,
+    /*Bit8u  LinNumberOfPages*/          0,
+    /*Bit8u  LinRedMaskSize*/            5,
+@@ -497,256 +337,166 @@
+    /*Bit8u  LinRsvdMaskSize*/           1,
+    /*Bit8u  LinRsvdFieldPosition*/      15,
+    /*Bit32u MaxPixelClock*/             0,
+-/*} ModeInfoBlock;*/
+-                }
+-        },
+-
+-        {
+-                VBE_VESA_MODE_1024X768X1555,
+-                {
+-/*typedef struct ModeInfoBlock
+-{*/
+-// Mandatory information for all VBE revisions
+-   /*Bit16u ModeAttributes*/            VBE_MODE_ATTRIBUTE_SUPPORTED |
+-                                        VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE |
+-                                        VBE_MODE_ATTRIBUTE_COLOR_MODE |
+-#ifdef VBE_HAVE_LFB
+-                                        VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE |
+-#endif
+-                                        VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
+-   /*Bit8u  WinAAttributes*/            VBE_WINDOW_ATTRIBUTE_RELOCATABLE |
+-                                        VBE_WINDOW_ATTRIBUTE_READABLE |
+-                                        VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++} },
++{ 0x010e, /* 320x200x16 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
+    /*Bit8u  WinBAttributes*/            0,
+    /*Bit16u WinGranularity*/            VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinSize*/                   VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinASegment*/               VGAMEM_GRAPH,
+-   /*Bit16u WinBSegment*/               0,
++/*Bit16u WinBSegment*/ 0x0000,
+    /*Bit32u WinFuncPtr*/                0,
+-   /*Bit16u BytesPerScanLine*/          1024*2,
+-// Mandatory information for VBE 1.2 and above
+-   /*Bit16u XResolution*/               1024,
+-   /*Bit16u YResolution*/               768,
++/*Bit16u BytesPerScanLine*/ 640,
++/*Bit16u XResolution*/ 320,
++/*Bit16u YResolution*/ 200,
+    /*Bit8u  XCharSize*/                 8,
+    /*Bit8u  YCharSize*/                 16,
+    /*Bit8u  NumberOfPlanes*/            1,
+-   /*Bit8u  BitsPerPixel*/              15,
+-   /*Bit8u  NumberOfBanks*/             1,
++/*Bit8u  BitsPerPixel*/ 16,
++/*Bit8u  NumberOfBanks*/ 2,
+    /*Bit8u  MemoryModel*/               VBE_MEMORYMODEL_DIRECT_COLOR,
+    /*Bit8u  BankSize*/                  0,
+-   /*Bit8u  NumberOfImagePages*/        1,
++/*Bit8u  NumberOfImagePages*/ 0,
+    /*Bit8u  Reserved_page*/             0,
+-// Direct Color fields (required for direct/6 and YUV/7 memory models)
+    /*Bit8u  RedMaskSize*/               5,
+-   /*Bit8u  RedFieldPosition*/          10,
+-   /*Bit8u  GreenMaskSize*/             5,
++/*Bit8u  RedFieldPosition*/ 11,
++/*Bit8u  GreenMaskSize*/ 6,
+    /*Bit8u  GreenFieldPosition*/        5,
+    /*Bit8u  BlueMaskSize*/              5,
+    /*Bit8u  BlueFieldPosition*/         0,
+-   /*Bit8u  RsvdMaskSize*/              1,
+-   /*Bit8u  RsvdFieldPosition*/         15,
++/*Bit8u  RsvdMaskSize*/ 0,
++/*Bit8u  RsvdFieldPosition*/ 0,
+    /*Bit8u  DirectColorModeInfo*/       0,
+-// Mandatory information for VBE 2.0 and above
+-#ifdef VBE_HAVE_LFB
+    /*Bit32u PhysBasePtr*/               VBE_DISPI_LFB_PHYSICAL_ADDRESS,
+-#else
+-   /*Bit32u PhysBasePtr*/               0,
+-#endif
+    /*Bit32u OffScreenMemOffset*/        0,
+    /*Bit16u OffScreenMemSize*/          0,
+-// Mandatory information for VBE 3.0 and above
+-   /*Bit16u LinBytesPerScanLine*/       1024*2,
++/*Bit16u LinBytesPerScanLine*/ 640,
+    /*Bit8u  BnkNumberOfPages*/          0,
+    /*Bit8u  LinNumberOfPages*/          0,
+    /*Bit8u  LinRedMaskSize*/            5,
+-   /*Bit8u  LinRedFieldPosition*/       10,
+-   /*Bit8u  LinGreenMaskSize*/          5,
++/*Bit8u  LinRedFieldPosition*/ 11,
++/*Bit8u  LinGreenMaskSize*/ 6,
+    /*Bit8u  LinGreenFieldPosition*/     5,
+    /*Bit8u  LinBlueMaskSize*/           5,
+    /*Bit8u  LinBlueFieldPosition*/      0,
+-   /*Bit8u  LinRsvdMaskSize*/           1,
+-   /*Bit8u  LinRsvdFieldPosition*/      15,
++/*Bit8u  LinRsvdMaskSize*/ 0,
++/*Bit8u  LinRsvdFieldPosition*/ 0,
+    /*Bit32u MaxPixelClock*/             0,
+-/*} ModeInfoBlock;*/
+-                }
+-        },
+-
+-        {
+-                VBE_VESA_MODE_640X480X565,
+-                {
+-/*typedef struct ModeInfoBlock
+-{*/
+-// Mandatory information for all VBE revisions
+-   /*Bit16u ModeAttributes*/            VBE_MODE_ATTRIBUTE_SUPPORTED |
+-                                        VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE |
+-                                        VBE_MODE_ATTRIBUTE_COLOR_MODE |
+-#ifdef VBE_HAVE_LFB
+-                                        VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE |
+-#endif
+-                                        VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
+-   /*Bit8u  WinAAttributes*/            VBE_WINDOW_ATTRIBUTE_RELOCATABLE |
+-                                        VBE_WINDOW_ATTRIBUTE_READABLE |
+-                                        VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++} },
++{ 0x010f, /* 320x200x24 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
+    /*Bit8u  WinBAttributes*/            0,
+    /*Bit16u WinGranularity*/            VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinSize*/                   VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinASegment*/               VGAMEM_GRAPH,
+-   /*Bit16u WinBSegment*/               0,
++/*Bit16u WinBSegment*/ 0x0000,
+    /*Bit32u WinFuncPtr*/                0,
+-   /*Bit16u BytesPerScanLine*/          640*2,
+-// Mandatory information for VBE 1.2 and above
+-   /*Bit16u XResolution*/               640,
+-   /*Bit16u YResolution*/               480,
++/*Bit16u BytesPerScanLine*/ 960,
++/*Bit16u XResolution*/ 320,
++/*Bit16u YResolution*/ 200,
+    /*Bit8u  XCharSize*/                 8,
+    /*Bit8u  YCharSize*/                 16,
+    /*Bit8u  NumberOfPlanes*/            1,
+-   /*Bit8u  BitsPerPixel*/              16,
+-   /*Bit8u  NumberOfBanks*/             1,
++/*Bit8u  BitsPerPixel*/ 24,
++/*Bit8u  NumberOfBanks*/ 3,
+    /*Bit8u  MemoryModel*/               VBE_MEMORYMODEL_DIRECT_COLOR,
+    /*Bit8u  BankSize*/                  0,
+-   /*Bit8u  NumberOfImagePages*/        5,
++/*Bit8u  NumberOfImagePages*/ 0,
+    /*Bit8u  Reserved_page*/             0,
+-// Direct Color fields (required for direct/6 and YUV/7 memory models)
+-   /*Bit8u  RedMaskSize*/               5,
+-   /*Bit8u  RedFieldPosition*/          11,
+-   /*Bit8u  GreenMaskSize*/             6,
+-   /*Bit8u  GreenFieldPosition*/        5,
+-   /*Bit8u  BlueMaskSize*/              5,
++/*Bit8u  RedMaskSize*/ 8,
++/*Bit8u  RedFieldPosition*/ 16,
++/*Bit8u  GreenMaskSize*/ 8,
++/*Bit8u  GreenFieldPosition*/ 8,
++/*Bit8u  BlueMaskSize*/ 8,
+    /*Bit8u  BlueFieldPosition*/         0,
+    /*Bit8u  RsvdMaskSize*/              0,
+    /*Bit8u  RsvdFieldPosition*/         0,
+    /*Bit8u  DirectColorModeInfo*/       0,
+-// Mandatory information for VBE 2.0 and above
+-#ifdef VBE_HAVE_LFB
+    /*Bit32u PhysBasePtr*/               VBE_DISPI_LFB_PHYSICAL_ADDRESS,
+-#else
+-   /*Bit32u PhysBasePtr*/               0,
+-#endif
+    /*Bit32u OffScreenMemOffset*/        0,
+    /*Bit16u OffScreenMemSize*/          0,
+-// Mandatory information for VBE 3.0 and above
+-   /*Bit16u LinBytesPerScanLine*/       640*2,
++/*Bit16u LinBytesPerScanLine*/ 960,
+    /*Bit8u  BnkNumberOfPages*/          0,
+    /*Bit8u  LinNumberOfPages*/          0,
+-   /*Bit8u  LinRedMaskSize*/            5,
+-   /*Bit8u  LinRedFieldPosition*/       11,
+-   /*Bit8u  LinGreenMaskSize*/          6,
+-   /*Bit8u  LinGreenFieldPosition*/     5,
+-   /*Bit8u  LinBlueMaskSize*/           5,
++/*Bit8u  LinRedMaskSize*/ 8,
++/*Bit8u  LinRedFieldPosition*/ 16,
++/*Bit8u  LinGreenMaskSize*/ 8,
++/*Bit8u  LinGreenFieldPosition*/ 8,
++/*Bit8u  LinBlueMaskSize*/ 8,
+    /*Bit8u  LinBlueFieldPosition*/      0,
+    /*Bit8u  LinRsvdMaskSize*/           0,
+    /*Bit8u  LinRsvdFieldPosition*/      0,
+    /*Bit32u MaxPixelClock*/             0,
+-/*} ModeInfoBlock;*/
+-                }
+-        },
+-
+-        {
+-                VBE_VESA_MODE_800X600X565,
+-                {
+-/*typedef struct ModeInfoBlock
+-{*/
+-// Mandatory information for all VBE revisions
+-   /*Bit16u ModeAttributes*/            VBE_MODE_ATTRIBUTE_SUPPORTED |
+-                                        VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE |
+-                                        VBE_MODE_ATTRIBUTE_COLOR_MODE |
+-#ifdef VBE_HAVE_LFB
+-                                        VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE |
+-#endif
+-                                        VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
+-   /*Bit8u  WinAAttributes*/            VBE_WINDOW_ATTRIBUTE_RELOCATABLE |
+-                                        VBE_WINDOW_ATTRIBUTE_READABLE |
+-                                        VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++} },
++{ 0x0110, /* 640x480x15 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
+    /*Bit8u  WinBAttributes*/            0,
+    /*Bit16u WinGranularity*/            VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinSize*/                   VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinASegment*/               VGAMEM_GRAPH,
+-   /*Bit16u WinBSegment*/               0,
++/*Bit16u WinBSegment*/ 0x0000,
+    /*Bit32u WinFuncPtr*/                0,
+-   /*Bit16u BytesPerScanLine*/          800*2,
+-// Mandatory information for VBE 1.2 and above
+-   /*Bit16u XResolution*/               800,
+-   /*Bit16u YResolution*/               600,
++/*Bit16u BytesPerScanLine*/ 1280,
++/*Bit16u XResolution*/ 640,
++/*Bit16u YResolution*/ 480,
+    /*Bit8u  XCharSize*/                 8,
+    /*Bit8u  YCharSize*/                 16,
+    /*Bit8u  NumberOfPlanes*/            1,
+-   /*Bit8u  BitsPerPixel*/              16,
+-   /*Bit8u  NumberOfBanks*/             1,
++/*Bit8u  BitsPerPixel*/ 15,
++/*Bit8u  NumberOfBanks*/ 10,
+    /*Bit8u  MemoryModel*/               VBE_MEMORYMODEL_DIRECT_COLOR,
+    /*Bit8u  BankSize*/                  0,
+-   /*Bit8u  NumberOfImagePages*/        3,
++/*Bit8u  NumberOfImagePages*/ 0,
+    /*Bit8u  Reserved_page*/             0,
+-// Direct Color fields (required for direct/6 and YUV/7 memory models)
+    /*Bit8u  RedMaskSize*/               5,
+-   /*Bit8u  RedFieldPosition*/          11,
+-   /*Bit8u  GreenMaskSize*/             6,
++/*Bit8u  RedFieldPosition*/ 10,
++/*Bit8u  GreenMaskSize*/ 5,
+    /*Bit8u  GreenFieldPosition*/        5,
+    /*Bit8u  BlueMaskSize*/              5,
+    /*Bit8u  BlueFieldPosition*/         0,
+-   /*Bit8u  RsvdMaskSize*/              0,
+-   /*Bit8u  RsvdFieldPosition*/         0,
++/*Bit8u  RsvdMaskSize*/ 1,
++/*Bit8u  RsvdFieldPosition*/ 15,
+    /*Bit8u  DirectColorModeInfo*/       0,
+-// Mandatory information for VBE 2.0 and above
+-#ifdef VBE_HAVE_LFB
+    /*Bit32u PhysBasePtr*/               VBE_DISPI_LFB_PHYSICAL_ADDRESS,
+-#else
+-   /*Bit32u PhysBasePtr*/               0,
+-#endif
+    /*Bit32u OffScreenMemOffset*/        0,
+    /*Bit16u OffScreenMemSize*/          0,
+-// Mandatory information for VBE 3.0 and above
+-   /*Bit16u LinBytesPerScanLine*/       800*2,
++/*Bit16u LinBytesPerScanLine*/ 1280,
+    /*Bit8u  BnkNumberOfPages*/          0,
+    /*Bit8u  LinNumberOfPages*/          0,
+    /*Bit8u  LinRedMaskSize*/            5,
+-   /*Bit8u  LinRedFieldPosition*/       11,
+-   /*Bit8u  LinGreenMaskSize*/          6,
++/*Bit8u  LinRedFieldPosition*/ 10,
++/*Bit8u  LinGreenMaskSize*/ 5,
+    /*Bit8u  LinGreenFieldPosition*/     5,
+    /*Bit8u  LinBlueMaskSize*/           5,
+    /*Bit8u  LinBlueFieldPosition*/      0,
+-   /*Bit8u  LinRsvdMaskSize*/           0,
+-   /*Bit8u  LinRsvdFieldPosition*/      0,
++/*Bit8u  LinRsvdMaskSize*/ 1,
++/*Bit8u  LinRsvdFieldPosition*/ 15,
+    /*Bit32u MaxPixelClock*/             0,
+-/*} ModeInfoBlock;*/
+-                }
+-        },
+-
+-        {
+-                VBE_VESA_MODE_1024X768X565,
+-                {
+-/*typedef struct ModeInfoBlock
+-{*/
+-// Mandatory information for all VBE revisions
+-   /*Bit16u ModeAttributes*/            VBE_MODE_ATTRIBUTE_SUPPORTED |
+-                                        VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE |
+-                                        VBE_MODE_ATTRIBUTE_COLOR_MODE |
+-#ifdef VBE_HAVE_LFB
+-                                        VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE |
+-#endif
+-                                        VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
+-   /*Bit8u  WinAAttributes*/            VBE_WINDOW_ATTRIBUTE_RELOCATABLE |
+-                                        VBE_WINDOW_ATTRIBUTE_READABLE |
+-                                        VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++} },
++{ 0x0111, /* 640x480x16 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
+    /*Bit8u  WinBAttributes*/            0,
+    /*Bit16u WinGranularity*/            VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinSize*/                   VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinASegment*/               VGAMEM_GRAPH,
+-   /*Bit16u WinBSegment*/               0,
++/*Bit16u WinBSegment*/ 0x0000,
+    /*Bit32u WinFuncPtr*/                0,
+-   /*Bit16u BytesPerScanLine*/          1024*2,
+-// Mandatory information for VBE 1.2 and above
+-   /*Bit16u XResolution*/               1024,
+-   /*Bit16u YResolution*/               768,
++/*Bit16u BytesPerScanLine*/ 1280,
++/*Bit16u XResolution*/ 640,
++/*Bit16u YResolution*/ 480,
+    /*Bit8u  XCharSize*/                 8,
+    /*Bit8u  YCharSize*/                 16,
+    /*Bit8u  NumberOfPlanes*/            1,
+    /*Bit8u  BitsPerPixel*/              16,
+-   /*Bit8u  NumberOfBanks*/             1,
++/*Bit8u  NumberOfBanks*/ 10,
+    /*Bit8u  MemoryModel*/               VBE_MEMORYMODEL_DIRECT_COLOR,
+    /*Bit8u  BankSize*/                  0,
+-   /*Bit8u  NumberOfImagePages*/        1,
++/*Bit8u  NumberOfImagePages*/ 0,
+    /*Bit8u  Reserved_page*/             0,
+-// Direct Color fields (required for direct/6 and YUV/7 memory models)
+    /*Bit8u  RedMaskSize*/               5,
+    /*Bit8u  RedFieldPosition*/          11,
+    /*Bit8u  GreenMaskSize*/             6,
+@@ -756,16 +506,10 @@
+    /*Bit8u  RsvdMaskSize*/              0,
+    /*Bit8u  RsvdFieldPosition*/         0,
+    /*Bit8u  DirectColorModeInfo*/       0,
+-// Mandatory information for VBE 2.0 and above
+-#ifdef VBE_HAVE_LFB
+    /*Bit32u PhysBasePtr*/               VBE_DISPI_LFB_PHYSICAL_ADDRESS,
+-#else
+-   /*Bit32u PhysBasePtr*/               0,
+-#endif
+    /*Bit32u OffScreenMemOffset*/        0,
+    /*Bit16u OffScreenMemSize*/          0,
+-// Mandatory information for VBE 3.0 and above
+-   /*Bit16u LinBytesPerScanLine*/       1024*2,
++/*Bit16u LinBytesPerScanLine*/ 1280,
+    /*Bit8u  BnkNumberOfPages*/          0,
+    /*Bit8u  LinNumberOfPages*/          0,
+    /*Bit8u  LinRedMaskSize*/            5,
+@@ -777,46 +521,28 @@
+    /*Bit8u  LinRsvdMaskSize*/           0,
+    /*Bit8u  LinRsvdFieldPosition*/      0,
+    /*Bit32u MaxPixelClock*/             0,
+-/*} ModeInfoBlock;*/
+-                }
+-        },
+-
+-        {
+-                VBE_VESA_MODE_640X480X888,
+-                {
+-/*typedef struct ModeInfoBlock
+-{*/
+-// Mandatory information for all VBE revisions
+-   /*Bit16u ModeAttributes*/            VBE_MODE_ATTRIBUTE_SUPPORTED |
+-                                        VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE |
+-                                        VBE_MODE_ATTRIBUTE_COLOR_MODE |
+-#ifdef VBE_HAVE_LFB
+-                                        VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE |
+-#endif
+-                                        VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
+-   /*Bit8u  WinAAttributes*/            VBE_WINDOW_ATTRIBUTE_RELOCATABLE |
+-                                        VBE_WINDOW_ATTRIBUTE_READABLE |
+-                                        VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++} },
++{ 0x0112, /* 640x480x24 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
+    /*Bit8u  WinBAttributes*/            0,
+    /*Bit16u WinGranularity*/            VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinSize*/                   VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinASegment*/               VGAMEM_GRAPH,
+-   /*Bit16u WinBSegment*/               0,
++/*Bit16u WinBSegment*/ 0x0000,
+    /*Bit32u WinFuncPtr*/                0,
+-   /*Bit16u BytesPerScanLine*/          640*3,
+-// Mandatory information for VBE 1.2 and above
++/*Bit16u BytesPerScanLine*/ 1920,
+    /*Bit16u XResolution*/               640,
+    /*Bit16u YResolution*/               480,
+    /*Bit8u  XCharSize*/                 8,
+    /*Bit8u  YCharSize*/                 16,
+    /*Bit8u  NumberOfPlanes*/            1,
+    /*Bit8u  BitsPerPixel*/              24,
+-   /*Bit8u  NumberOfBanks*/             1,
++/*Bit8u  NumberOfBanks*/ 15,
+    /*Bit8u  MemoryModel*/               VBE_MEMORYMODEL_DIRECT_COLOR,
+    /*Bit8u  BankSize*/                  0,
+-   /*Bit8u  NumberOfImagePages*/        3,
++/*Bit8u  NumberOfImagePages*/ 0,
+    /*Bit8u  Reserved_page*/             0,
+-// Direct Color fields (required for direct/6 and YUV/7 memory models)
+    /*Bit8u  RedMaskSize*/               8,
+    /*Bit8u  RedFieldPosition*/          16,
+    /*Bit8u  GreenMaskSize*/             8,
+@@ -826,16 +552,10 @@
+    /*Bit8u  RsvdMaskSize*/              0,
+    /*Bit8u  RsvdFieldPosition*/         0,
+    /*Bit8u  DirectColorModeInfo*/       0,
+-// Mandatory information for VBE 2.0 and above
+-#ifdef VBE_HAVE_LFB
+    /*Bit32u PhysBasePtr*/               VBE_DISPI_LFB_PHYSICAL_ADDRESS,
+-#else
+-   /*Bit32u PhysBasePtr*/               0,
+-#endif
+    /*Bit32u OffScreenMemOffset*/        0,
+    /*Bit16u OffScreenMemSize*/          0,
+-// Mandatory information for VBE 3.0 and above
+-   /*Bit16u LinBytesPerScanLine*/       640*3,
++/*Bit16u LinBytesPerScanLine*/ 1920,
+    /*Bit8u  BnkNumberOfPages*/          0,
+    /*Bit8u  LinNumberOfPages*/          0,
+    /*Bit8u  LinRedMaskSize*/            8,
+@@ -847,186 +567,764 @@
+    /*Bit8u  LinRsvdMaskSize*/           0,
+    /*Bit8u  LinRsvdFieldPosition*/      0,
+    /*Bit32u MaxPixelClock*/             0,
+-/*} ModeInfoBlock;*/
+-                }
+-        },
+-
+-        {
+-                VBE_VESA_MODE_800X600X888,
+-                {
+-/*typedef struct ModeInfoBlock
+-{*/
+-// Mandatory information for all VBE revisions
+-   /*Bit16u ModeAttributes*/            VBE_MODE_ATTRIBUTE_SUPPORTED |
+-                                        VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE |
+-                                        VBE_MODE_ATTRIBUTE_COLOR_MODE |
+-#ifdef VBE_HAVE_LFB
+-                                        VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE |
+-#endif
+-                                        VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
+-   /*Bit8u  WinAAttributes*/            VBE_WINDOW_ATTRIBUTE_RELOCATABLE |
+-                                        VBE_WINDOW_ATTRIBUTE_READABLE |
+-                                        VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++} },
++{ 0x0113, /* 800x600x15 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
+    /*Bit8u  WinBAttributes*/            0,
+    /*Bit16u WinGranularity*/            VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinSize*/                   VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinASegment*/               VGAMEM_GRAPH,
+-   /*Bit16u WinBSegment*/               0,
++/*Bit16u WinBSegment*/ 0x0000,
+    /*Bit32u WinFuncPtr*/                0,
+-   /*Bit16u BytesPerScanLine*/          800*3,
+-// Mandatory information for VBE 1.2 and above
++/*Bit16u BytesPerScanLine*/ 1600,
+    /*Bit16u XResolution*/               800,
+    /*Bit16u YResolution*/               600,
+    /*Bit8u  XCharSize*/                 8,
+    /*Bit8u  YCharSize*/                 16,
+    /*Bit8u  NumberOfPlanes*/            1,
+-   /*Bit8u  BitsPerPixel*/              24,
+-   /*Bit8u  NumberOfBanks*/             1,
++/*Bit8u  BitsPerPixel*/ 15,
++/*Bit8u  NumberOfBanks*/ 15,
+    /*Bit8u  MemoryModel*/               VBE_MEMORYMODEL_DIRECT_COLOR,
+    /*Bit8u  BankSize*/                  0,
+-   /*Bit8u  NumberOfImagePages*/        1,
++/*Bit8u  NumberOfImagePages*/ 0,
+    /*Bit8u  Reserved_page*/             0,
+-// Direct Color fields (required for direct/6 and YUV/7 memory models)
+-   /*Bit8u  RedMaskSize*/               8,
+-   /*Bit8u  RedFieldPosition*/          16,
+-   /*Bit8u  GreenMaskSize*/             8,
+-   /*Bit8u  GreenFieldPosition*/        8,
+-   /*Bit8u  BlueMaskSize*/              8,
++/*Bit8u  RedMaskSize*/ 5,
++/*Bit8u  RedFieldPosition*/ 10,
++/*Bit8u  GreenMaskSize*/ 5,
++/*Bit8u  GreenFieldPosition*/ 5,
++/*Bit8u  BlueMaskSize*/ 5,
+    /*Bit8u  BlueFieldPosition*/         0,
+-   /*Bit8u  RsvdMaskSize*/              0,
+-   /*Bit8u  RsvdFieldPosition*/         0,
++/*Bit8u  RsvdMaskSize*/ 1,
++/*Bit8u  RsvdFieldPosition*/ 15,
+    /*Bit8u  DirectColorModeInfo*/       0,
+-// Mandatory information for VBE 2.0 and above
+-#ifdef VBE_HAVE_LFB
+    /*Bit32u PhysBasePtr*/               VBE_DISPI_LFB_PHYSICAL_ADDRESS,
+-#else
+-   /*Bit32u PhysBasePtr*/               0,
+-#endif
+    /*Bit32u OffScreenMemOffset*/        0,
+    /*Bit16u OffScreenMemSize*/          0,
+-// Mandatory information for VBE 3.0 and above
+-   /*Bit16u LinBytesPerScanLine*/       800*3,
++/*Bit16u LinBytesPerScanLine*/ 1600,
+    /*Bit8u  BnkNumberOfPages*/          0,
+    /*Bit8u  LinNumberOfPages*/          0,
+-   /*Bit8u  LinRedMaskSize*/            8,
+-   /*Bit8u  LinRedFieldPosition*/       16,
+-   /*Bit8u  LinGreenMaskSize*/          8,
+-   /*Bit8u  LinGreenFieldPosition*/     8,
+-   /*Bit8u  LinBlueMaskSize*/           8,
++/*Bit8u  LinRedMaskSize*/ 5,
++/*Bit8u  LinRedFieldPosition*/ 10,
++/*Bit8u  LinGreenMaskSize*/ 5,
++/*Bit8u  LinGreenFieldPosition*/ 5,
++/*Bit8u  LinBlueMaskSize*/ 5,
+    /*Bit8u  LinBlueFieldPosition*/      0,
+-   /*Bit8u  LinRsvdMaskSize*/           0,
+-   /*Bit8u  LinRsvdFieldPosition*/      0,
++/*Bit8u  LinRsvdMaskSize*/ 1,
++/*Bit8u  LinRsvdFieldPosition*/ 15,
+    /*Bit32u MaxPixelClock*/             0,
+-/*} ModeInfoBlock;*/
+-                }
+-        },
+-
+-        {
+-                VBE_VESA_MODE_1024X768X888,
+-                {
+-/*typedef struct ModeInfoBlock
+-{*/
+-// Mandatory information for all VBE revisions
+-   /*Bit16u ModeAttributes*/            VBE_MODE_ATTRIBUTE_SUPPORTED |
+-                                        VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE |
+-                                        VBE_MODE_ATTRIBUTE_COLOR_MODE |
+-#ifdef VBE_HAVE_LFB
+-                                        VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE |
+-#endif
+-                                        VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
+-   /*Bit8u  WinAAttributes*/            VBE_WINDOW_ATTRIBUTE_RELOCATABLE |
+-                                        VBE_WINDOW_ATTRIBUTE_READABLE |
+-                                        VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++} },
++{ 0x0114, /* 800x600x16 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
+    /*Bit8u  WinBAttributes*/            0,
+    /*Bit16u WinGranularity*/            VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinSize*/                   VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinASegment*/               VGAMEM_GRAPH,
+-   /*Bit16u WinBSegment*/               0,
++/*Bit16u WinBSegment*/ 0x0000,
+    /*Bit32u WinFuncPtr*/                0,
+-   /*Bit16u BytesPerScanLine*/          1024*3,
+-// Mandatory information for VBE 1.2 and above
+-   /*Bit16u XResolution*/               1024,
+-   /*Bit16u YResolution*/               768,
++/*Bit16u BytesPerScanLine*/ 1600,
++/*Bit16u XResolution*/ 800,
++/*Bit16u YResolution*/ 600,
+    /*Bit8u  XCharSize*/                 8,
+    /*Bit8u  YCharSize*/                 16,
+    /*Bit8u  NumberOfPlanes*/            1,
+-   /*Bit8u  BitsPerPixel*/              24,
+-   /*Bit8u  NumberOfBanks*/             1,
++/*Bit8u  BitsPerPixel*/ 16,
++/*Bit8u  NumberOfBanks*/ 15,
+    /*Bit8u  MemoryModel*/               VBE_MEMORYMODEL_DIRECT_COLOR,
+    /*Bit8u  BankSize*/                  0,
+    /*Bit8u  NumberOfImagePages*/        0,
+    /*Bit8u  Reserved_page*/             0,
+-// Direct Color fields (required for direct/6 and YUV/7 memory models)
+-   /*Bit8u  RedMaskSize*/               8,
+-   /*Bit8u  RedFieldPosition*/          16,
+-   /*Bit8u  GreenMaskSize*/             8,
+-   /*Bit8u  GreenFieldPosition*/        8,
+-   /*Bit8u  BlueMaskSize*/              8,
++/*Bit8u  RedMaskSize*/ 5,
++/*Bit8u  RedFieldPosition*/ 11,
++/*Bit8u  GreenMaskSize*/ 6,
++/*Bit8u  GreenFieldPosition*/ 5,
++/*Bit8u  BlueMaskSize*/ 5,
+    /*Bit8u  BlueFieldPosition*/         0,
+    /*Bit8u  RsvdMaskSize*/              0,
+    /*Bit8u  RsvdFieldPosition*/         0,
+    /*Bit8u  DirectColorModeInfo*/       0,
+-// Mandatory information for VBE 2.0 and above
+-#ifdef VBE_HAVE_LFB
+    /*Bit32u PhysBasePtr*/               VBE_DISPI_LFB_PHYSICAL_ADDRESS,
+-#else
+-   /*Bit32u PhysBasePtr*/               0,
+-#endif
+    /*Bit32u OffScreenMemOffset*/        0,
+    /*Bit16u OffScreenMemSize*/          0,
+-// Mandatory information for VBE 3.0 and above
+-   /*Bit16u LinBytesPerScanLine*/       1024*3,
++/*Bit16u LinBytesPerScanLine*/ 1600,
+    /*Bit8u  BnkNumberOfPages*/          0,
+    /*Bit8u  LinNumberOfPages*/          0,
+-   /*Bit8u  LinRedMaskSize*/            8,
+-   /*Bit8u  LinRedFieldPosition*/       16,
+-   /*Bit8u  LinGreenMaskSize*/          8,
+-   /*Bit8u  LinGreenFieldPosition*/     8,
++/*Bit8u  LinRedMaskSize*/ 5,
++/*Bit8u  LinRedFieldPosition*/ 11,
++/*Bit8u  LinGreenMaskSize*/ 6,
++/*Bit8u  LinGreenFieldPosition*/ 5,
++/*Bit8u  LinBlueMaskSize*/ 5,
++/*Bit8u  LinBlueFieldPosition*/ 0,
++/*Bit8u  LinRsvdMaskSize*/ 0,
++/*Bit8u  LinRsvdFieldPosition*/ 0,
++/*Bit32u MaxPixelClock*/ 0,
++} },
++{ 0x0115, /* 800x600x24 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++/*Bit8u  WinBAttributes*/ 0,
++/*Bit16u WinGranularity*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinSize*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinASegment*/ VGAMEM_GRAPH,
++/*Bit16u WinBSegment*/ 0x0000,
++/*Bit32u WinFuncPtr*/ 0,
++/*Bit16u BytesPerScanLine*/ 2400,
++/*Bit16u XResolution*/ 800,
++/*Bit16u YResolution*/ 600,
++/*Bit8u  XCharSize*/ 8,
++/*Bit8u  YCharSize*/ 16,
++/*Bit8u  NumberOfPlanes*/ 1,
++/*Bit8u  BitsPerPixel*/ 24,
++/*Bit8u  NumberOfBanks*/ 22,
++/*Bit8u  MemoryModel*/ VBE_MEMORYMODEL_DIRECT_COLOR,
++/*Bit8u  BankSize*/ 0,
++/*Bit8u  NumberOfImagePages*/ 0,
++/*Bit8u  Reserved_page*/ 0,
++/*Bit8u  RedMaskSize*/ 8,
++/*Bit8u  RedFieldPosition*/ 16,
++/*Bit8u  GreenMaskSize*/ 8,
++/*Bit8u  GreenFieldPosition*/ 8,
++/*Bit8u  BlueMaskSize*/ 8,
++/*Bit8u  BlueFieldPosition*/ 0,
++/*Bit8u  RsvdMaskSize*/ 0,
++/*Bit8u  RsvdFieldPosition*/ 0,
++/*Bit8u  DirectColorModeInfo*/ 0,
++/*Bit32u PhysBasePtr*/ VBE_DISPI_LFB_PHYSICAL_ADDRESS,
++/*Bit32u OffScreenMemOffset*/ 0,
++/*Bit16u OffScreenMemSize*/ 0,
++/*Bit16u LinBytesPerScanLine*/ 2400,
++/*Bit8u  BnkNumberOfPages*/ 0,
++/*Bit8u  LinNumberOfPages*/ 0,
++/*Bit8u  LinRedMaskSize*/ 8,
++/*Bit8u  LinRedFieldPosition*/ 16,
++/*Bit8u  LinGreenMaskSize*/ 8,
++/*Bit8u  LinGreenFieldPosition*/ 8,
++/*Bit8u  LinBlueMaskSize*/ 8,
++/*Bit8u  LinBlueFieldPosition*/ 0,
++/*Bit8u  LinRsvdMaskSize*/ 0,
++/*Bit8u  LinRsvdFieldPosition*/ 0,
++/*Bit32u MaxPixelClock*/ 0,
++} },
++{ 0x0116, /* 1024x768x15 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++/*Bit8u  WinBAttributes*/ 0,
++/*Bit16u WinGranularity*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinSize*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinASegment*/ VGAMEM_GRAPH,
++/*Bit16u WinBSegment*/ 0x0000,
++/*Bit32u WinFuncPtr*/ 0,
++/*Bit16u BytesPerScanLine*/ 2048,
++/*Bit16u XResolution*/ 1024,
++/*Bit16u YResolution*/ 768,
++/*Bit8u  XCharSize*/ 8,
++/*Bit8u  YCharSize*/ 16,
++/*Bit8u  NumberOfPlanes*/ 1,
++/*Bit8u  BitsPerPixel*/ 15,
++/*Bit8u  NumberOfBanks*/ 24,
++/*Bit8u  MemoryModel*/ VBE_MEMORYMODEL_DIRECT_COLOR,
++/*Bit8u  BankSize*/ 0,
++/*Bit8u  NumberOfImagePages*/ 0,
++/*Bit8u  Reserved_page*/ 0,
++/*Bit8u  RedMaskSize*/ 5,
++/*Bit8u  RedFieldPosition*/ 10,
++/*Bit8u  GreenMaskSize*/ 5,
++/*Bit8u  GreenFieldPosition*/ 5,
++/*Bit8u  BlueMaskSize*/ 5,
++/*Bit8u  BlueFieldPosition*/ 0,
++/*Bit8u  RsvdMaskSize*/ 1,
++/*Bit8u  RsvdFieldPosition*/ 15,
++/*Bit8u  DirectColorModeInfo*/ 0,
++/*Bit32u PhysBasePtr*/ VBE_DISPI_LFB_PHYSICAL_ADDRESS,
++/*Bit32u OffScreenMemOffset*/ 0,
++/*Bit16u OffScreenMemSize*/ 0,
++/*Bit16u LinBytesPerScanLine*/ 2048,
++/*Bit8u  BnkNumberOfPages*/ 0,
++/*Bit8u  LinNumberOfPages*/ 0,
++/*Bit8u  LinRedMaskSize*/ 5,
++/*Bit8u  LinRedFieldPosition*/ 10,
++/*Bit8u  LinGreenMaskSize*/ 5,
++/*Bit8u  LinGreenFieldPosition*/ 5,
++/*Bit8u  LinBlueMaskSize*/ 5,
++/*Bit8u  LinBlueFieldPosition*/ 0,
++/*Bit8u  LinRsvdMaskSize*/ 1,
++/*Bit8u  LinRsvdFieldPosition*/ 15,
++/*Bit32u MaxPixelClock*/ 0,
++} },
++{ 0x0117, /* 1024x768x16 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++/*Bit8u  WinBAttributes*/ 0,
++/*Bit16u WinGranularity*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinSize*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinASegment*/ VGAMEM_GRAPH,
++/*Bit16u WinBSegment*/ 0x0000,
++/*Bit32u WinFuncPtr*/ 0,
++/*Bit16u BytesPerScanLine*/ 2048,
++/*Bit16u XResolution*/ 1024,
++/*Bit16u YResolution*/ 768,
++/*Bit8u  XCharSize*/ 8,
++/*Bit8u  YCharSize*/ 16,
++/*Bit8u  NumberOfPlanes*/ 1,
++/*Bit8u  BitsPerPixel*/ 16,
++/*Bit8u  NumberOfBanks*/ 24,
++/*Bit8u  MemoryModel*/ VBE_MEMORYMODEL_DIRECT_COLOR,
++/*Bit8u  BankSize*/ 0,
++/*Bit8u  NumberOfImagePages*/ 0,
++/*Bit8u  Reserved_page*/ 0,
++/*Bit8u  RedMaskSize*/ 5,
++/*Bit8u  RedFieldPosition*/ 11,
++/*Bit8u  GreenMaskSize*/ 6,
++/*Bit8u  GreenFieldPosition*/ 5,
++/*Bit8u  BlueMaskSize*/ 5,
++/*Bit8u  BlueFieldPosition*/ 0,
++/*Bit8u  RsvdMaskSize*/ 0,
++/*Bit8u  RsvdFieldPosition*/ 0,
++/*Bit8u  DirectColorModeInfo*/ 0,
++/*Bit32u PhysBasePtr*/ VBE_DISPI_LFB_PHYSICAL_ADDRESS,
++/*Bit32u OffScreenMemOffset*/ 0,
++/*Bit16u OffScreenMemSize*/ 0,
++/*Bit16u LinBytesPerScanLine*/ 2048,
++/*Bit8u  BnkNumberOfPages*/ 0,
++/*Bit8u  LinNumberOfPages*/ 0,
++/*Bit8u  LinRedMaskSize*/ 5,
++/*Bit8u  LinRedFieldPosition*/ 11,
++/*Bit8u  LinGreenMaskSize*/ 6,
++/*Bit8u  LinGreenFieldPosition*/ 5,
++/*Bit8u  LinBlueMaskSize*/ 5,
++/*Bit8u  LinBlueFieldPosition*/ 0,
++/*Bit8u  LinRsvdMaskSize*/ 0,
++/*Bit8u  LinRsvdFieldPosition*/ 0,
++/*Bit32u MaxPixelClock*/ 0,
++} },
++{ 0x0118, /* 1024x768x24 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++/*Bit8u  WinBAttributes*/ 0,
++/*Bit16u WinGranularity*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinSize*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinASegment*/ VGAMEM_GRAPH,
++/*Bit16u WinBSegment*/ 0x0000,
++/*Bit32u WinFuncPtr*/ 0,
++/*Bit16u BytesPerScanLine*/ 3072,
++/*Bit16u XResolution*/ 1024,
++/*Bit16u YResolution*/ 768,
++/*Bit8u  XCharSize*/ 8,
++/*Bit8u  YCharSize*/ 16,
++/*Bit8u  NumberOfPlanes*/ 1,
++/*Bit8u  BitsPerPixel*/ 24,
++/*Bit8u  NumberOfBanks*/ 36,
++/*Bit8u  MemoryModel*/ VBE_MEMORYMODEL_DIRECT_COLOR,
++/*Bit8u  BankSize*/ 0,
++/*Bit8u  NumberOfImagePages*/ 0,
++/*Bit8u  Reserved_page*/ 0,
++/*Bit8u  RedMaskSize*/ 8,
++/*Bit8u  RedFieldPosition*/ 16,
++/*Bit8u  GreenMaskSize*/ 8,
++/*Bit8u  GreenFieldPosition*/ 8,
++/*Bit8u  BlueMaskSize*/ 8,
++/*Bit8u  BlueFieldPosition*/ 0,
++/*Bit8u  RsvdMaskSize*/ 0,
++/*Bit8u  RsvdFieldPosition*/ 0,
++/*Bit8u  DirectColorModeInfo*/ 0,
++/*Bit32u PhysBasePtr*/ VBE_DISPI_LFB_PHYSICAL_ADDRESS,
++/*Bit32u OffScreenMemOffset*/ 0,
++/*Bit16u OffScreenMemSize*/ 0,
++/*Bit16u LinBytesPerScanLine*/ 3072,
++/*Bit8u  BnkNumberOfPages*/ 0,
++/*Bit8u  LinNumberOfPages*/ 0,
++/*Bit8u  LinRedMaskSize*/ 8,
++/*Bit8u  LinRedFieldPosition*/ 16,
++/*Bit8u  LinGreenMaskSize*/ 8,
++/*Bit8u  LinGreenFieldPosition*/ 8,
++/*Bit8u  LinBlueMaskSize*/ 8,
++/*Bit8u  LinBlueFieldPosition*/ 0,
++/*Bit8u  LinRsvdMaskSize*/ 0,
++/*Bit8u  LinRsvdFieldPosition*/ 0,
++/*Bit32u MaxPixelClock*/ 0,
++} },
++{ 0x0119, /* 1280x1024x15 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++/*Bit8u  WinBAttributes*/ 0,
++/*Bit16u WinGranularity*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinSize*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinASegment*/ VGAMEM_GRAPH,
++/*Bit16u WinBSegment*/ 0x0000,
++/*Bit32u WinFuncPtr*/ 0,
++/*Bit16u BytesPerScanLine*/ 2560,
++/*Bit16u XResolution*/ 1280,
++/*Bit16u YResolution*/ 1024,
++/*Bit8u  XCharSize*/ 8,
++/*Bit8u  YCharSize*/ 16,
++/*Bit8u  NumberOfPlanes*/ 1,
++/*Bit8u  BitsPerPixel*/ 15,
++/*Bit8u  NumberOfBanks*/ 40,
++/*Bit8u  MemoryModel*/ VBE_MEMORYMODEL_DIRECT_COLOR,
++/*Bit8u  BankSize*/ 0,
++/*Bit8u  NumberOfImagePages*/ 0,
++/*Bit8u  Reserved_page*/ 0,
++/*Bit8u  RedMaskSize*/ 5,
++/*Bit8u  RedFieldPosition*/ 10,
++/*Bit8u  GreenMaskSize*/ 5,
++/*Bit8u  GreenFieldPosition*/ 5,
++/*Bit8u  BlueMaskSize*/ 5,
++/*Bit8u  BlueFieldPosition*/ 0,
++/*Bit8u  RsvdMaskSize*/ 1,
++/*Bit8u  RsvdFieldPosition*/ 15,
++/*Bit8u  DirectColorModeInfo*/ 0,
++/*Bit32u PhysBasePtr*/ VBE_DISPI_LFB_PHYSICAL_ADDRESS,
++/*Bit32u OffScreenMemOffset*/ 0,
++/*Bit16u OffScreenMemSize*/ 0,
++/*Bit16u LinBytesPerScanLine*/ 2560,
++/*Bit8u  BnkNumberOfPages*/ 0,
++/*Bit8u  LinNumberOfPages*/ 0,
++/*Bit8u  LinRedMaskSize*/ 5,
++/*Bit8u  LinRedFieldPosition*/ 10,
++/*Bit8u  LinGreenMaskSize*/ 5,
++/*Bit8u  LinGreenFieldPosition*/ 5,
++/*Bit8u  LinBlueMaskSize*/ 5,
++/*Bit8u  LinBlueFieldPosition*/ 0,
++/*Bit8u  LinRsvdMaskSize*/ 1,
++/*Bit8u  LinRsvdFieldPosition*/ 15,
++/*Bit32u MaxPixelClock*/ 0,
++} },
++{ 0x011a, /* 1280x1024x16 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++/*Bit8u  WinBAttributes*/ 0,
++/*Bit16u WinGranularity*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinSize*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinASegment*/ VGAMEM_GRAPH,
++/*Bit16u WinBSegment*/ 0x0000,
++/*Bit32u WinFuncPtr*/ 0,
++/*Bit16u BytesPerScanLine*/ 2560,
++/*Bit16u XResolution*/ 1280,
++/*Bit16u YResolution*/ 1024,
++/*Bit8u  XCharSize*/ 8,
++/*Bit8u  YCharSize*/ 16,
++/*Bit8u  NumberOfPlanes*/ 1,
++/*Bit8u  BitsPerPixel*/ 16,
++/*Bit8u  NumberOfBanks*/ 40,
++/*Bit8u  MemoryModel*/ VBE_MEMORYMODEL_DIRECT_COLOR,
++/*Bit8u  BankSize*/ 0,
++/*Bit8u  NumberOfImagePages*/ 0,
++/*Bit8u  Reserved_page*/ 0,
++/*Bit8u  RedMaskSize*/ 5,
++/*Bit8u  RedFieldPosition*/ 11,
++/*Bit8u  GreenMaskSize*/ 6,
++/*Bit8u  GreenFieldPosition*/ 5,
++/*Bit8u  BlueMaskSize*/ 5,
++/*Bit8u  BlueFieldPosition*/ 0,
++/*Bit8u  RsvdMaskSize*/ 0,
++/*Bit8u  RsvdFieldPosition*/ 0,
++/*Bit8u  DirectColorModeInfo*/ 0,
++/*Bit32u PhysBasePtr*/ VBE_DISPI_LFB_PHYSICAL_ADDRESS,
++/*Bit32u OffScreenMemOffset*/ 0,
++/*Bit16u OffScreenMemSize*/ 0,
++/*Bit16u LinBytesPerScanLine*/ 2560,
++/*Bit8u  BnkNumberOfPages*/ 0,
++/*Bit8u  LinNumberOfPages*/ 0,
++/*Bit8u  LinRedMaskSize*/ 5,
++/*Bit8u  LinRedFieldPosition*/ 11,
++/*Bit8u  LinGreenMaskSize*/ 6,
++/*Bit8u  LinGreenFieldPosition*/ 5,
++/*Bit8u  LinBlueMaskSize*/ 5,
++/*Bit8u  LinBlueFieldPosition*/ 0,
++/*Bit8u  LinRsvdMaskSize*/ 0,
++/*Bit8u  LinRsvdFieldPosition*/ 0,
++/*Bit32u MaxPixelClock*/ 0,
++} },
++{ 0x011b, /* 1280x1024x24 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++/*Bit8u  WinBAttributes*/ 0,
++/*Bit16u WinGranularity*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinSize*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinASegment*/ VGAMEM_GRAPH,
++/*Bit16u WinBSegment*/ 0x0000,
++/*Bit32u WinFuncPtr*/ 0,
++/*Bit16u BytesPerScanLine*/ 3840,
++/*Bit16u XResolution*/ 1280,
++/*Bit16u YResolution*/ 1024,
++/*Bit8u  XCharSize*/ 8,
++/*Bit8u  YCharSize*/ 16,
++/*Bit8u  NumberOfPlanes*/ 1,
++/*Bit8u  BitsPerPixel*/ 24,
++/*Bit8u  NumberOfBanks*/ 60,
++/*Bit8u  MemoryModel*/ VBE_MEMORYMODEL_DIRECT_COLOR,
++/*Bit8u  BankSize*/ 0,
++/*Bit8u  NumberOfImagePages*/ 0,
++/*Bit8u  Reserved_page*/ 0,
++/*Bit8u  RedMaskSize*/ 8,
++/*Bit8u  RedFieldPosition*/ 16,
++/*Bit8u  GreenMaskSize*/ 8,
++/*Bit8u  GreenFieldPosition*/ 8,
++/*Bit8u  BlueMaskSize*/ 8,
++/*Bit8u  BlueFieldPosition*/ 0,
++/*Bit8u  RsvdMaskSize*/ 0,
++/*Bit8u  RsvdFieldPosition*/ 0,
++/*Bit8u  DirectColorModeInfo*/ 0,
++/*Bit32u PhysBasePtr*/ VBE_DISPI_LFB_PHYSICAL_ADDRESS,
++/*Bit32u OffScreenMemOffset*/ 0,
++/*Bit16u OffScreenMemSize*/ 0,
++/*Bit16u LinBytesPerScanLine*/ 3840,
++/*Bit8u  BnkNumberOfPages*/ 0,
++/*Bit8u  LinNumberOfPages*/ 0,
++/*Bit8u  LinRedMaskSize*/ 8,
++/*Bit8u  LinRedFieldPosition*/ 16,
++/*Bit8u  LinGreenMaskSize*/ 8,
++/*Bit8u  LinGreenFieldPosition*/ 8,
++/*Bit8u  LinBlueMaskSize*/ 8,
++/*Bit8u  LinBlueFieldPosition*/ 0,
++/*Bit8u  LinRsvdMaskSize*/ 0,
++/*Bit8u  LinRsvdFieldPosition*/ 0,
++/*Bit32u MaxPixelClock*/ 0,
++} },
++{ 0x011c, /* 1600x1200x8 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++/*Bit8u  WinBAttributes*/ 0,
++/*Bit16u WinGranularity*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinSize*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinASegment*/ VGAMEM_GRAPH,
++/*Bit16u WinBSegment*/ 0x0000,
++/*Bit32u WinFuncPtr*/ 0,
++/*Bit16u BytesPerScanLine*/ 1600,
++/*Bit16u XResolution*/ 1600,
++/*Bit16u YResolution*/ 1200,
++/*Bit8u  XCharSize*/ 8,
++/*Bit8u  YCharSize*/ 16,
++/*Bit8u  NumberOfPlanes*/ 1,
++/*Bit8u  BitsPerPixel*/ 8,
++/*Bit8u  NumberOfBanks*/ 30,
++/*Bit8u  MemoryModel*/ VBE_MEMORYMODEL_PACKED_PIXEL,
++/*Bit8u  BankSize*/ 0,
++/*Bit8u  NumberOfImagePages*/ 0,
++/*Bit8u  Reserved_page*/ 0,
++/*Bit8u  RedMaskSize*/ 0,
++/*Bit8u  RedFieldPosition*/ 0,
++/*Bit8u  GreenMaskSize*/ 0,
++/*Bit8u  GreenFieldPosition*/ 0,
++/*Bit8u  BlueMaskSize*/ 0,
++/*Bit8u  BlueFieldPosition*/ 0,
++/*Bit8u  RsvdMaskSize*/ 0,
++/*Bit8u  RsvdFieldPosition*/ 0,
++/*Bit8u  DirectColorModeInfo*/ 0,
++/*Bit32u PhysBasePtr*/ VBE_DISPI_LFB_PHYSICAL_ADDRESS,
++/*Bit32u OffScreenMemOffset*/ 0,
++/*Bit16u OffScreenMemSize*/ 0,
++/*Bit16u LinBytesPerScanLine*/ 1600,
++/*Bit8u  BnkNumberOfPages*/ 0,
++/*Bit8u  LinNumberOfPages*/ 0,
++/*Bit8u  LinRedMaskSize*/ 0,
++/*Bit8u  LinRedFieldPosition*/ 0,
++/*Bit8u  LinGreenMaskSize*/ 0,
++/*Bit8u  LinGreenFieldPosition*/ 0,
++/*Bit8u  LinBlueMaskSize*/ 0,
++/*Bit8u  LinBlueFieldPosition*/ 0,
++/*Bit8u  LinRsvdMaskSize*/ 0,
++/*Bit8u  LinRsvdFieldPosition*/ 0,
++/*Bit32u MaxPixelClock*/ 0,
++} },
++{ 0x011d, /* 1600x1200x15 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++/*Bit8u  WinBAttributes*/ 0,
++/*Bit16u WinGranularity*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinSize*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinASegment*/ VGAMEM_GRAPH,
++/*Bit16u WinBSegment*/ 0x0000,
++/*Bit32u WinFuncPtr*/ 0,
++/*Bit16u BytesPerScanLine*/ 3200,
++/*Bit16u XResolution*/ 1600,
++/*Bit16u YResolution*/ 1200,
++/*Bit8u  XCharSize*/ 8,
++/*Bit8u  YCharSize*/ 16,
++/*Bit8u  NumberOfPlanes*/ 1,
++/*Bit8u  BitsPerPixel*/ 15,
++/*Bit8u  NumberOfBanks*/ 59,
++/*Bit8u  MemoryModel*/ VBE_MEMORYMODEL_DIRECT_COLOR,
++/*Bit8u  BankSize*/ 0,
++/*Bit8u  NumberOfImagePages*/ 0,
++/*Bit8u  Reserved_page*/ 0,
++/*Bit8u  RedMaskSize*/ 5,
++/*Bit8u  RedFieldPosition*/ 10,
++/*Bit8u  GreenMaskSize*/ 5,
++/*Bit8u  GreenFieldPosition*/ 5,
++/*Bit8u  BlueMaskSize*/ 5,
++/*Bit8u  BlueFieldPosition*/ 0,
++/*Bit8u  RsvdMaskSize*/ 1,
++/*Bit8u  RsvdFieldPosition*/ 15,
++/*Bit8u  DirectColorModeInfo*/ 0,
++/*Bit32u PhysBasePtr*/ VBE_DISPI_LFB_PHYSICAL_ADDRESS,
++/*Bit32u OffScreenMemOffset*/ 0,
++/*Bit16u OffScreenMemSize*/ 0,
++/*Bit16u LinBytesPerScanLine*/ 3200,
++/*Bit8u  BnkNumberOfPages*/ 0,
++/*Bit8u  LinNumberOfPages*/ 0,
++/*Bit8u  LinRedMaskSize*/ 5,
++/*Bit8u  LinRedFieldPosition*/ 10,
++/*Bit8u  LinGreenMaskSize*/ 5,
++/*Bit8u  LinGreenFieldPosition*/ 5,
++/*Bit8u  LinBlueMaskSize*/ 5,
++/*Bit8u  LinBlueFieldPosition*/ 0,
++/*Bit8u  LinRsvdMaskSize*/ 1,
++/*Bit8u  LinRsvdFieldPosition*/ 15,
++/*Bit32u MaxPixelClock*/ 0,
++} },
++{ 0x011e, /* 1600x1200x16 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++/*Bit8u  WinBAttributes*/ 0,
++/*Bit16u WinGranularity*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinSize*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinASegment*/ VGAMEM_GRAPH,
++/*Bit16u WinBSegment*/ 0x0000,
++/*Bit32u WinFuncPtr*/ 0,
++/*Bit16u BytesPerScanLine*/ 3200,
++/*Bit16u XResolution*/ 1600,
++/*Bit16u YResolution*/ 1200,
++/*Bit8u  XCharSize*/ 8,
++/*Bit8u  YCharSize*/ 16,
++/*Bit8u  NumberOfPlanes*/ 1,
++/*Bit8u  BitsPerPixel*/ 16,
++/*Bit8u  NumberOfBanks*/ 59,
++/*Bit8u  MemoryModel*/ VBE_MEMORYMODEL_DIRECT_COLOR,
++/*Bit8u  BankSize*/ 0,
++/*Bit8u  NumberOfImagePages*/ 0,
++/*Bit8u  Reserved_page*/ 0,
++/*Bit8u  RedMaskSize*/ 5,
++/*Bit8u  RedFieldPosition*/ 11,
++/*Bit8u  GreenMaskSize*/ 6,
++/*Bit8u  GreenFieldPosition*/ 5,
++/*Bit8u  BlueMaskSize*/ 5,
++/*Bit8u  BlueFieldPosition*/ 0,
++/*Bit8u  RsvdMaskSize*/ 0,
++/*Bit8u  RsvdFieldPosition*/ 0,
++/*Bit8u  DirectColorModeInfo*/ 0,
++/*Bit32u PhysBasePtr*/ VBE_DISPI_LFB_PHYSICAL_ADDRESS,
++/*Bit32u OffScreenMemOffset*/ 0,
++/*Bit16u OffScreenMemSize*/ 0,
++/*Bit16u LinBytesPerScanLine*/ 3200,
++/*Bit8u  BnkNumberOfPages*/ 0,
++/*Bit8u  LinNumberOfPages*/ 0,
++/*Bit8u  LinRedMaskSize*/ 5,
++/*Bit8u  LinRedFieldPosition*/ 11,
++/*Bit8u  LinGreenMaskSize*/ 6,
++/*Bit8u  LinGreenFieldPosition*/ 5,
++/*Bit8u  LinBlueMaskSize*/ 5,
++/*Bit8u  LinBlueFieldPosition*/ 0,
++/*Bit8u  LinRsvdMaskSize*/ 0,
++/*Bit8u  LinRsvdFieldPosition*/ 0,
++/*Bit32u MaxPixelClock*/ 0,
++} },
++{ 0x011f, /* 1600x1200x24 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++/*Bit8u  WinBAttributes*/ 0,
++/*Bit16u WinGranularity*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinSize*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinASegment*/ VGAMEM_GRAPH,
++/*Bit16u WinBSegment*/ 0x0000,
++/*Bit32u WinFuncPtr*/ 0,
++/*Bit16u BytesPerScanLine*/ 4800,
++/*Bit16u XResolution*/ 1600,
++/*Bit16u YResolution*/ 1200,
++/*Bit8u  XCharSize*/ 8,
++/*Bit8u  YCharSize*/ 16,
++/*Bit8u  NumberOfPlanes*/ 1,
++/*Bit8u  BitsPerPixel*/ 24,
++/*Bit8u  NumberOfBanks*/ 88,
++/*Bit8u  MemoryModel*/ VBE_MEMORYMODEL_DIRECT_COLOR,
++/*Bit8u  BankSize*/ 0,
++/*Bit8u  NumberOfImagePages*/ 0,
++/*Bit8u  Reserved_page*/ 0,
++/*Bit8u  RedMaskSize*/ 8,
++/*Bit8u  RedFieldPosition*/ 16,
++/*Bit8u  GreenMaskSize*/ 8,
++/*Bit8u  GreenFieldPosition*/ 8,
++/*Bit8u  BlueMaskSize*/ 8,
++/*Bit8u  BlueFieldPosition*/ 0,
++/*Bit8u  RsvdMaskSize*/ 0,
++/*Bit8u  RsvdFieldPosition*/ 0,
++/*Bit8u  DirectColorModeInfo*/ 0,
++/*Bit32u PhysBasePtr*/ VBE_DISPI_LFB_PHYSICAL_ADDRESS,
++/*Bit32u OffScreenMemOffset*/ 0,
++/*Bit16u OffScreenMemSize*/ 0,
++/*Bit16u LinBytesPerScanLine*/ 4800,
++/*Bit8u  BnkNumberOfPages*/ 0,
++/*Bit8u  LinNumberOfPages*/ 0,
++/*Bit8u  LinRedMaskSize*/ 8,
++/*Bit8u  LinRedFieldPosition*/ 16,
++/*Bit8u  LinGreenMaskSize*/ 8,
++/*Bit8u  LinGreenFieldPosition*/ 8,
+    /*Bit8u  LinBlueMaskSize*/           8,
+    /*Bit8u  LinBlueFieldPosition*/      0,
+    /*Bit8u  LinRsvdMaskSize*/           0,
+    /*Bit8u  LinRsvdFieldPosition*/      0,
+    /*Bit32u MaxPixelClock*/             0,
+-/*} ModeInfoBlock;*/
+-                }
+-        },
+-
+-        {
+-                VBE_OWN_MODE_640X480X8888,
+-                {
+-/*typedef struct ModeInfoBlock
+-{*/
+-// Mandatory information for all VBE revisions
+-   /*Bit16u ModeAttributes*/            VBE_MODE_ATTRIBUTE_SUPPORTED |
+-                                        VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE |
+-                                        VBE_MODE_ATTRIBUTE_COLOR_MODE |
+-#ifdef VBE_HAVE_LFB
+-                                        VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE |
+-#endif
+-                                        VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
+-   /*Bit8u  WinAAttributes*/            VBE_WINDOW_ATTRIBUTE_RELOCATABLE |
+-                                        VBE_WINDOW_ATTRIBUTE_READABLE |
+-                                        VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++} },
++{ 0x0140, /* 320x200x32 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++/*Bit8u  WinBAttributes*/ 0,
++/*Bit16u WinGranularity*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinSize*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinASegment*/ VGAMEM_GRAPH,
++/*Bit16u WinBSegment*/ 0x0000,
++/*Bit32u WinFuncPtr*/ 0,
++/*Bit16u BytesPerScanLine*/ 1280,
++/*Bit16u XResolution*/ 320,
++/*Bit16u YResolution*/ 200,
++/*Bit8u  XCharSize*/ 8,
++/*Bit8u  YCharSize*/ 16,
++/*Bit8u  NumberOfPlanes*/ 1,
++/*Bit8u  BitsPerPixel*/ 32,
++/*Bit8u  NumberOfBanks*/ 4,
++/*Bit8u  MemoryModel*/ VBE_MEMORYMODEL_DIRECT_COLOR,
++/*Bit8u  BankSize*/ 0,
++/*Bit8u  NumberOfImagePages*/ 0,
++/*Bit8u  Reserved_page*/ 0,
++/*Bit8u  RedMaskSize*/ 8,
++/*Bit8u  RedFieldPosition*/ 16,
++/*Bit8u  GreenMaskSize*/ 8,
++/*Bit8u  GreenFieldPosition*/ 8,
++/*Bit8u  BlueMaskSize*/ 8,
++/*Bit8u  BlueFieldPosition*/ 0,
++/*Bit8u  RsvdMaskSize*/ 8,
++/*Bit8u  RsvdFieldPosition*/ 24,
++/*Bit8u  DirectColorModeInfo*/ 0,
++/*Bit32u PhysBasePtr*/ VBE_DISPI_LFB_PHYSICAL_ADDRESS,
++/*Bit32u OffScreenMemOffset*/ 0,
++/*Bit16u OffScreenMemSize*/ 0,
++/*Bit16u LinBytesPerScanLine*/ 1280,
++/*Bit8u  BnkNumberOfPages*/ 0,
++/*Bit8u  LinNumberOfPages*/ 0,
++/*Bit8u  LinRedMaskSize*/ 8,
++/*Bit8u  LinRedFieldPosition*/ 16,
++/*Bit8u  LinGreenMaskSize*/ 8,
++/*Bit8u  LinGreenFieldPosition*/ 8,
++/*Bit8u  LinBlueMaskSize*/ 8,
++/*Bit8u  LinBlueFieldPosition*/ 0,
++/*Bit8u  LinRsvdMaskSize*/ 8,
++/*Bit8u  LinRsvdFieldPosition*/ 24,
++/*Bit32u MaxPixelClock*/ 0,
++} },
++{ 0x0141, /* 640x400x32 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++/*Bit8u  WinBAttributes*/ 0,
++/*Bit16u WinGranularity*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinSize*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinASegment*/ VGAMEM_GRAPH,
++/*Bit16u WinBSegment*/ 0x0000,
++/*Bit32u WinFuncPtr*/ 0,
++/*Bit16u BytesPerScanLine*/ 2560,
++/*Bit16u XResolution*/ 640,
++/*Bit16u YResolution*/ 400,
++/*Bit8u  XCharSize*/ 8,
++/*Bit8u  YCharSize*/ 16,
++/*Bit8u  NumberOfPlanes*/ 1,
++/*Bit8u  BitsPerPixel*/ 32,
++/*Bit8u  NumberOfBanks*/ 16,
++/*Bit8u  MemoryModel*/ VBE_MEMORYMODEL_DIRECT_COLOR,
++/*Bit8u  BankSize*/ 0,
++/*Bit8u  NumberOfImagePages*/ 0,
++/*Bit8u  Reserved_page*/ 0,
++/*Bit8u  RedMaskSize*/ 8,
++/*Bit8u  RedFieldPosition*/ 16,
++/*Bit8u  GreenMaskSize*/ 8,
++/*Bit8u  GreenFieldPosition*/ 8,
++/*Bit8u  BlueMaskSize*/ 8,
++/*Bit8u  BlueFieldPosition*/ 0,
++/*Bit8u  RsvdMaskSize*/ 8,
++/*Bit8u  RsvdFieldPosition*/ 24,
++/*Bit8u  DirectColorModeInfo*/ 0,
++/*Bit32u PhysBasePtr*/ VBE_DISPI_LFB_PHYSICAL_ADDRESS,
++/*Bit32u OffScreenMemOffset*/ 0,
++/*Bit16u OffScreenMemSize*/ 0,
++/*Bit16u LinBytesPerScanLine*/ 2560,
++/*Bit8u  BnkNumberOfPages*/ 0,
++/*Bit8u  LinNumberOfPages*/ 0,
++/*Bit8u  LinRedMaskSize*/ 8,
++/*Bit8u  LinRedFieldPosition*/ 16,
++/*Bit8u  LinGreenMaskSize*/ 8,
++/*Bit8u  LinGreenFieldPosition*/ 8,
++/*Bit8u  LinBlueMaskSize*/ 8,
++/*Bit8u  LinBlueFieldPosition*/ 0,
++/*Bit8u  LinRsvdMaskSize*/ 8,
++/*Bit8u  LinRsvdFieldPosition*/ 24,
++/*Bit32u MaxPixelClock*/ 0,
++} },
++{ 0x0142, /* 640x480x32 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++/*Bit8u  WinBAttributes*/ 0,
++/*Bit16u WinGranularity*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinSize*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinASegment*/ VGAMEM_GRAPH,
++/*Bit16u WinBSegment*/ 0x0000,
++/*Bit32u WinFuncPtr*/ 0,
++/*Bit16u BytesPerScanLine*/ 2560,
++/*Bit16u XResolution*/ 640,
++/*Bit16u YResolution*/ 480,
++/*Bit8u  XCharSize*/ 8,
++/*Bit8u  YCharSize*/ 16,
++/*Bit8u  NumberOfPlanes*/ 1,
++/*Bit8u  BitsPerPixel*/ 32,
++/*Bit8u  NumberOfBanks*/ 19,
++/*Bit8u  MemoryModel*/ VBE_MEMORYMODEL_DIRECT_COLOR,
++/*Bit8u  BankSize*/ 0,
++/*Bit8u  NumberOfImagePages*/ 0,
++/*Bit8u  Reserved_page*/ 0,
++/*Bit8u  RedMaskSize*/ 8,
++/*Bit8u  RedFieldPosition*/ 16,
++/*Bit8u  GreenMaskSize*/ 8,
++/*Bit8u  GreenFieldPosition*/ 8,
++/*Bit8u  BlueMaskSize*/ 8,
++/*Bit8u  BlueFieldPosition*/ 0,
++/*Bit8u  RsvdMaskSize*/ 8,
++/*Bit8u  RsvdFieldPosition*/ 24,
++/*Bit8u  DirectColorModeInfo*/ 0,
++/*Bit32u PhysBasePtr*/ VBE_DISPI_LFB_PHYSICAL_ADDRESS,
++/*Bit32u OffScreenMemOffset*/ 0,
++/*Bit16u OffScreenMemSize*/ 0,
++/*Bit16u LinBytesPerScanLine*/ 2560,
++/*Bit8u  BnkNumberOfPages*/ 0,
++/*Bit8u  LinNumberOfPages*/ 0,
++/*Bit8u  LinRedMaskSize*/ 8,
++/*Bit8u  LinRedFieldPosition*/ 16,
++/*Bit8u  LinGreenMaskSize*/ 8,
++/*Bit8u  LinGreenFieldPosition*/ 8,
++/*Bit8u  LinBlueMaskSize*/ 8,
++/*Bit8u  LinBlueFieldPosition*/ 0,
++/*Bit8u  LinRsvdMaskSize*/ 8,
++/*Bit8u  LinRsvdFieldPosition*/ 24,
++/*Bit32u MaxPixelClock*/ 0,
++} },
++{ 0x0143, /* 800x600x32 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
+    /*Bit8u  WinBAttributes*/            0,
+    /*Bit16u WinGranularity*/            VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinSize*/                   VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinASegment*/               VGAMEM_GRAPH,
+-   /*Bit16u WinBSegment*/               0,
++/*Bit16u WinBSegment*/ 0x0000,
+    /*Bit32u WinFuncPtr*/                0,
+-   /*Bit16u BytesPerScanLine*/          640*4,
+-// Mandatory information for VBE 1.2 and above
+-   /*Bit16u XResolution*/               640,
+-   /*Bit16u YResolution*/               480,
++/*Bit16u BytesPerScanLine*/ 3200,
++/*Bit16u XResolution*/ 800,
++/*Bit16u YResolution*/ 600,
+    /*Bit8u  XCharSize*/                 8,
+    /*Bit8u  YCharSize*/                 16,
+    /*Bit8u  NumberOfPlanes*/            1,
+    /*Bit8u  BitsPerPixel*/              32,
+-   /*Bit8u  NumberOfBanks*/             1,
++/*Bit8u  NumberOfBanks*/ 30,
+    /*Bit8u  MemoryModel*/               VBE_MEMORYMODEL_DIRECT_COLOR,
+    /*Bit8u  BankSize*/                  0,
+-   /*Bit8u  NumberOfImagePages*/        1,
++/*Bit8u  NumberOfImagePages*/ 0,
+    /*Bit8u  Reserved_page*/             0,
+-// Direct Color fields (required for direct/6 and YUV/7 memory models)
+    /*Bit8u  RedMaskSize*/               8,
+    /*Bit8u  RedFieldPosition*/          16,
+    /*Bit8u  GreenMaskSize*/             8,
+@@ -1035,17 +1333,11 @@
+    /*Bit8u  BlueFieldPosition*/         0,
+    /*Bit8u  RsvdMaskSize*/              8,
+    /*Bit8u  RsvdFieldPosition*/         24,
+-   /*Bit8u  DirectColorModeInfo*/       VBE_DIRECTCOLOR_RESERVED_BITS_AVAILABLE,
+-// Mandatory information for VBE 2.0 and above
+-#ifdef VBE_HAVE_LFB
++/*Bit8u  DirectColorModeInfo*/ 0,
+    /*Bit32u PhysBasePtr*/               VBE_DISPI_LFB_PHYSICAL_ADDRESS,
+-#else
+-   /*Bit32u PhysBasePtr*/               0,
+-#endif
+    /*Bit32u OffScreenMemOffset*/        0,
+    /*Bit16u OffScreenMemSize*/          0,
+-// Mandatory information for VBE 3.0 and above
+-   /*Bit16u LinBytesPerScanLine*/       640*4,
++/*Bit16u LinBytesPerScanLine*/ 3200,
+    /*Bit8u  BnkNumberOfPages*/          0,
+    /*Bit8u  LinNumberOfPages*/          0,
+    /*Bit8u  LinRedMaskSize*/            8,
+@@ -1057,46 +1349,28 @@
+    /*Bit8u  LinRsvdMaskSize*/           8,
+    /*Bit8u  LinRsvdFieldPosition*/      24,
+    /*Bit32u MaxPixelClock*/             0,
+-/*} ModeInfoBlock;*/
+-                }
+-        },
+-
+-        {
+-                VBE_OWN_MODE_800X600X8888,
+-                {
+-/*typedef struct ModeInfoBlock
+-{*/
+-// Mandatory information for all VBE revisions
+-   /*Bit16u ModeAttributes*/            VBE_MODE_ATTRIBUTE_SUPPORTED |
+-                                        VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE |
+-                                        VBE_MODE_ATTRIBUTE_COLOR_MODE |
+-#ifdef VBE_HAVE_LFB
+-                                        VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE |
+-#endif
+-                                        VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
+-   /*Bit8u  WinAAttributes*/            VBE_WINDOW_ATTRIBUTE_RELOCATABLE |
+-                                        VBE_WINDOW_ATTRIBUTE_READABLE |
+-                                        VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++} },
++{ 0x0144, /* 1024x768x32 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
+    /*Bit8u  WinBAttributes*/            0,
+    /*Bit16u WinGranularity*/            VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinSize*/                   VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinASegment*/               VGAMEM_GRAPH,
+-   /*Bit16u WinBSegment*/               0,
++/*Bit16u WinBSegment*/ 0x0000,
+    /*Bit32u WinFuncPtr*/                0,
+-   /*Bit16u BytesPerScanLine*/          800*4,
+-// Mandatory information for VBE 1.2 and above
+-   /*Bit16u XResolution*/               800,
+-   /*Bit16u YResolution*/               600,
++/*Bit16u BytesPerScanLine*/ 4096,
++/*Bit16u XResolution*/ 1024,
++/*Bit16u YResolution*/ 768,
+    /*Bit8u  XCharSize*/                 8,
+    /*Bit8u  YCharSize*/                 16,
+    /*Bit8u  NumberOfPlanes*/            1,
+    /*Bit8u  BitsPerPixel*/              32,
+-   /*Bit8u  NumberOfBanks*/             1,
++/*Bit8u  NumberOfBanks*/ 48,
+    /*Bit8u  MemoryModel*/               VBE_MEMORYMODEL_DIRECT_COLOR,
+    /*Bit8u  BankSize*/                  0,
+-   /*Bit8u  NumberOfImagePages*/        1,
++/*Bit8u  NumberOfImagePages*/ 0,
+    /*Bit8u  Reserved_page*/             0,
+-// Direct Color fields (required for direct/6 and YUV/7 memory models)
+    /*Bit8u  RedMaskSize*/               8,
+    /*Bit8u  RedFieldPosition*/          16,
+    /*Bit8u  GreenMaskSize*/             8,
+@@ -1105,17 +1379,11 @@
+    /*Bit8u  BlueFieldPosition*/         0,
+    /*Bit8u  RsvdMaskSize*/              8,
+    /*Bit8u  RsvdFieldPosition*/         24,
+-   /*Bit8u  DirectColorModeInfo*/       VBE_DIRECTCOLOR_RESERVED_BITS_AVAILABLE,
+-// Mandatory information for VBE 2.0 and above
+-#ifdef VBE_HAVE_LFB
++/*Bit8u  DirectColorModeInfo*/ 0,
+    /*Bit32u PhysBasePtr*/               VBE_DISPI_LFB_PHYSICAL_ADDRESS,
+-#else
+-   /*Bit32u PhysBasePtr*/               0,
+-#endif
+    /*Bit32u OffScreenMemOffset*/        0,
+    /*Bit16u OffScreenMemSize*/          0,
+-// Mandatory information for VBE 3.0 and above
+-   /*Bit16u LinBytesPerScanLine*/       800*4,
++/*Bit16u LinBytesPerScanLine*/ 4096,
+    /*Bit8u  BnkNumberOfPages*/          0,
+    /*Bit8u  LinNumberOfPages*/          0,
+    /*Bit8u  LinRedMaskSize*/            8,
+@@ -1127,46 +1395,28 @@
+    /*Bit8u  LinRsvdMaskSize*/           8,
+    /*Bit8u  LinRsvdFieldPosition*/      24,
+    /*Bit32u MaxPixelClock*/             0,
+-/*} ModeInfoBlock;*/
+-                }
+-        },
+-
+-        {
+-                VBE_OWN_MODE_1024X768X8888,
+-                {
+-/*typedef struct ModeInfoBlock
+-{*/
+-// Mandatory information for all VBE revisions
+-   /*Bit16u ModeAttributes*/            VBE_MODE_ATTRIBUTE_SUPPORTED |
+-                                        VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE |
+-                                        VBE_MODE_ATTRIBUTE_COLOR_MODE |
+-#ifdef VBE_HAVE_LFB
+-                                        VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE |
+-#endif
+-                                        VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
+-   /*Bit8u  WinAAttributes*/            VBE_WINDOW_ATTRIBUTE_RELOCATABLE |
+-                                        VBE_WINDOW_ATTRIBUTE_READABLE |
+-                                        VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++} },
++{ 0x0145, /* 1280x1024x32 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
+    /*Bit8u  WinBAttributes*/            0,
+    /*Bit16u WinGranularity*/            VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinSize*/                   VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinASegment*/               VGAMEM_GRAPH,
+-   /*Bit16u WinBSegment*/               0,
++/*Bit16u WinBSegment*/ 0x0000,
+    /*Bit32u WinFuncPtr*/                0,
+-   /*Bit16u BytesPerScanLine*/          1024*4,
+-// Mandatory information for VBE 1.2 and above
+-   /*Bit16u XResolution*/               1024,
+-   /*Bit16u YResolution*/               768,
++/*Bit16u BytesPerScanLine*/ 5120,
++/*Bit16u XResolution*/ 1280,
++/*Bit16u YResolution*/ 1024,
+    /*Bit8u  XCharSize*/                 8,
+    /*Bit8u  YCharSize*/                 16,
+    /*Bit8u  NumberOfPlanes*/            1,
+    /*Bit8u  BitsPerPixel*/              32,
+-   /*Bit8u  NumberOfBanks*/             1,
++/*Bit8u  NumberOfBanks*/ 80,
+    /*Bit8u  MemoryModel*/               VBE_MEMORYMODEL_DIRECT_COLOR,
+    /*Bit8u  BankSize*/                  0,
+-   /*Bit8u  NumberOfImagePages*/        1,
++/*Bit8u  NumberOfImagePages*/ 0,
+    /*Bit8u  Reserved_page*/             0,
+-// Direct Color fields (required for direct/6 and YUV/7 memory models)
+    /*Bit8u  RedMaskSize*/               8,
+    /*Bit8u  RedFieldPosition*/          16,
+    /*Bit8u  GreenMaskSize*/             8,
+@@ -1175,17 +1425,11 @@
+    /*Bit8u  BlueFieldPosition*/         0,
+    /*Bit8u  RsvdMaskSize*/              8,
+    /*Bit8u  RsvdFieldPosition*/         24,
+-   /*Bit8u  DirectColorModeInfo*/       VBE_DIRECTCOLOR_RESERVED_BITS_AVAILABLE,
+-// Mandatory information for VBE 2.0 and above
+-#ifdef VBE_HAVE_LFB
++/*Bit8u  DirectColorModeInfo*/ 0,
+    /*Bit32u PhysBasePtr*/               VBE_DISPI_LFB_PHYSICAL_ADDRESS,
+-#else
+-   /*Bit32u PhysBasePtr*/               0,
+-#endif
+    /*Bit32u OffScreenMemOffset*/        0,
+    /*Bit16u OffScreenMemSize*/          0,
+-// Mandatory information for VBE 3.0 and above
+-   /*Bit16u LinBytesPerScanLine*/       1024*4,
++/*Bit16u LinBytesPerScanLine*/ 5120,
+    /*Bit8u  BnkNumberOfPages*/          0,
+    /*Bit8u  LinNumberOfPages*/          0,
+    /*Bit8u  LinRedMaskSize*/            8,
+@@ -1197,33 +1441,17 @@
+    /*Bit8u  LinRsvdMaskSize*/           8,
+    /*Bit8u  LinRsvdFieldPosition*/      24,
+    /*Bit32u MaxPixelClock*/             0,
+-/*} ModeInfoBlock;*/
+-                }
+-        },
+-
+-        {
+-                VBE_OWN_MODE_320X200X8,
+-                {
+-/*typedef struct ModeInfoBlock
+-{*/
+-// Mandatory information for all VBE revisions
+-   /*Bit16u ModeAttributes*/            VBE_MODE_ATTRIBUTE_SUPPORTED |
+-                                        VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE |
+-                                        VBE_MODE_ATTRIBUTE_COLOR_MODE |
+-#ifdef VBE_HAVE_LFB
+-                                        VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE |
+-#endif
+-                                        VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
+-   /*Bit8u  WinAAttributes*/            VBE_WINDOW_ATTRIBUTE_READABLE |
+-                                        VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++} },
++{ 0x0146, /* 320x200x8 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
+    /*Bit8u  WinBAttributes*/            0,
+    /*Bit16u WinGranularity*/            VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinSize*/                   VBE_DISPI_BANK_SIZE_KB,
+    /*Bit16u WinASegment*/               VGAMEM_GRAPH,
+-   /*Bit16u WinBSegment*/               0,
++/*Bit16u WinBSegment*/ 0x0000,
+    /*Bit32u WinFuncPtr*/                0,
+    /*Bit16u BytesPerScanLine*/          320,
+-// Mandatory information for VBE 1.2 and above
+    /*Bit16u XResolution*/               320,
+    /*Bit16u YResolution*/               200,
+    /*Bit8u  XCharSize*/                 8,
+@@ -1233,9 +1461,8 @@
+    /*Bit8u  NumberOfBanks*/             1,
+    /*Bit8u  MemoryModel*/               VBE_MEMORYMODEL_PACKED_PIXEL,
+    /*Bit8u  BankSize*/                  0,
+-   /*Bit8u  NumberOfImagePages*/        3,
++/*Bit8u  NumberOfImagePages*/ 0,
+    /*Bit8u  Reserved_page*/             0,
+-// Direct Color fields (required for direct/6 and YUV/7 memory models)
+    /*Bit8u  RedMaskSize*/               0,
+    /*Bit8u  RedFieldPosition*/          0,
+    /*Bit8u  GreenMaskSize*/             0,
+@@ -1245,15 +1472,9 @@
+    /*Bit8u  RsvdMaskSize*/              0,
+    /*Bit8u  RsvdFieldPosition*/         0,
+    /*Bit8u  DirectColorModeInfo*/       0,
+-// Mandatory information for VBE 2.0 and above
+-#ifdef VBE_HAVE_LFB
+    /*Bit32u PhysBasePtr*/               VBE_DISPI_LFB_PHYSICAL_ADDRESS,
+-#else
+-   /*Bit32u PhysBasePtr*/               0,
+-#endif
+    /*Bit32u OffScreenMemOffset*/        0,
+    /*Bit16u OffScreenMemSize*/          0,
+-// Mandatory information for VBE 3.0 and above
+    /*Bit16u LinBytesPerScanLine*/       320,
+    /*Bit8u  BnkNumberOfPages*/          0,
+    /*Bit8u  LinNumberOfPages*/          0,
+@@ -1266,17 +1487,286 @@
+    /*Bit8u  LinRsvdMaskSize*/           0,
+    /*Bit8u  LinRsvdFieldPosition*/      0,
+    /*Bit32u MaxPixelClock*/             0,
+-/*} ModeInfoBlock;*/
+-                }
+-        },
+-
+-/** END OF THE LIST **/
+-        {
+-                VBE_VESA_MODE_END_OF_LIST,
+-                {
+-                        0,
+-                }
+-        }
++} },
++{ 0x0147, /* 1600x1200x32 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++/*Bit8u  WinBAttributes*/ 0,
++/*Bit16u WinGranularity*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinSize*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinASegment*/ VGAMEM_GRAPH,
++/*Bit16u WinBSegment*/ 0x0000,
++/*Bit32u WinFuncPtr*/ 0,
++/*Bit16u BytesPerScanLine*/ 6400,
++/*Bit16u XResolution*/ 1600,
++/*Bit16u YResolution*/ 1200,
++/*Bit8u  XCharSize*/ 8,
++/*Bit8u  YCharSize*/ 16,
++/*Bit8u  NumberOfPlanes*/ 1,
++/*Bit8u  BitsPerPixel*/ 32,
++/*Bit8u  NumberOfBanks*/ 118,
++/*Bit8u  MemoryModel*/ VBE_MEMORYMODEL_DIRECT_COLOR,
++/*Bit8u  BankSize*/ 0,
++/*Bit8u  NumberOfImagePages*/ 0,
++/*Bit8u  Reserved_page*/ 0,
++/*Bit8u  RedMaskSize*/ 8,
++/*Bit8u  RedFieldPosition*/ 16,
++/*Bit8u  GreenMaskSize*/ 8,
++/*Bit8u  GreenFieldPosition*/ 8,
++/*Bit8u  BlueMaskSize*/ 8,
++/*Bit8u  BlueFieldPosition*/ 0,
++/*Bit8u  RsvdMaskSize*/ 8,
++/*Bit8u  RsvdFieldPosition*/ 24,
++/*Bit8u  DirectColorModeInfo*/ 0,
++/*Bit32u PhysBasePtr*/ VBE_DISPI_LFB_PHYSICAL_ADDRESS,
++/*Bit32u OffScreenMemOffset*/ 0,
++/*Bit16u OffScreenMemSize*/ 0,
++/*Bit16u LinBytesPerScanLine*/ 6400,
++/*Bit8u  BnkNumberOfPages*/ 0,
++/*Bit8u  LinNumberOfPages*/ 0,
++/*Bit8u  LinRedMaskSize*/ 8,
++/*Bit8u  LinRedFieldPosition*/ 16,
++/*Bit8u  LinGreenMaskSize*/ 8,
++/*Bit8u  LinGreenFieldPosition*/ 8,
++/*Bit8u  LinBlueMaskSize*/ 8,
++/*Bit8u  LinBlueFieldPosition*/ 0,
++/*Bit8u  LinRsvdMaskSize*/ 8,
++/*Bit8u  LinRsvdFieldPosition*/ 24,
++/*Bit32u MaxPixelClock*/ 0,
++} },
++{ 0x0148, /* 1152x864x8 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++/*Bit8u  WinBAttributes*/ 0,
++/*Bit16u WinGranularity*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinSize*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinASegment*/ VGAMEM_GRAPH,
++/*Bit16u WinBSegment*/ 0x0000,
++/*Bit32u WinFuncPtr*/ 0,
++/*Bit16u BytesPerScanLine*/ 1152,
++/*Bit16u XResolution*/ 1152,
++/*Bit16u YResolution*/ 864,
++/*Bit8u  XCharSize*/ 8,
++/*Bit8u  YCharSize*/ 16,
++/*Bit8u  NumberOfPlanes*/ 1,
++/*Bit8u  BitsPerPixel*/ 8,
++/*Bit8u  NumberOfBanks*/ 16,
++/*Bit8u  MemoryModel*/ VBE_MEMORYMODEL_PACKED_PIXEL,
++/*Bit8u  BankSize*/ 0,
++/*Bit8u  NumberOfImagePages*/ 0,
++/*Bit8u  Reserved_page*/ 0,
++/*Bit8u  RedMaskSize*/ 0,
++/*Bit8u  RedFieldPosition*/ 0,
++/*Bit8u  GreenMaskSize*/ 0,
++/*Bit8u  GreenFieldPosition*/ 0,
++/*Bit8u  BlueMaskSize*/ 0,
++/*Bit8u  BlueFieldPosition*/ 0,
++/*Bit8u  RsvdMaskSize*/ 0,
++/*Bit8u  RsvdFieldPosition*/ 0,
++/*Bit8u  DirectColorModeInfo*/ 0,
++/*Bit32u PhysBasePtr*/ VBE_DISPI_LFB_PHYSICAL_ADDRESS,
++/*Bit32u OffScreenMemOffset*/ 0,
++/*Bit16u OffScreenMemSize*/ 0,
++/*Bit16u LinBytesPerScanLine*/ 1152,
++/*Bit8u  BnkNumberOfPages*/ 0,
++/*Bit8u  LinNumberOfPages*/ 0,
++/*Bit8u  LinRedMaskSize*/ 0,
++/*Bit8u  LinRedFieldPosition*/ 0,
++/*Bit8u  LinGreenMaskSize*/ 0,
++/*Bit8u  LinGreenFieldPosition*/ 0,
++/*Bit8u  LinBlueMaskSize*/ 0,
++/*Bit8u  LinBlueFieldPosition*/ 0,
++/*Bit8u  LinRsvdMaskSize*/ 0,
++/*Bit8u  LinRsvdFieldPosition*/ 0,
++/*Bit32u MaxPixelClock*/ 0,
++} },
++{ 0x0149, /* 1152x864x15 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++/*Bit8u  WinBAttributes*/ 0,
++/*Bit16u WinGranularity*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinSize*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinASegment*/ VGAMEM_GRAPH,
++/*Bit16u WinBSegment*/ 0x0000,
++/*Bit32u WinFuncPtr*/ 0,
++/*Bit16u BytesPerScanLine*/ 2304,
++/*Bit16u XResolution*/ 1152,
++/*Bit16u YResolution*/ 864,
++/*Bit8u  XCharSize*/ 8,
++/*Bit8u  YCharSize*/ 16,
++/*Bit8u  NumberOfPlanes*/ 1,
++/*Bit8u  BitsPerPixel*/ 15,
++/*Bit8u  NumberOfBanks*/ 31,
++/*Bit8u  MemoryModel*/ VBE_MEMORYMODEL_DIRECT_COLOR,
++/*Bit8u  BankSize*/ 0,
++/*Bit8u  NumberOfImagePages*/ 0,
++/*Bit8u  Reserved_page*/ 0,
++/*Bit8u  RedMaskSize*/ 5,
++/*Bit8u  RedFieldPosition*/ 10,
++/*Bit8u  GreenMaskSize*/ 5,
++/*Bit8u  GreenFieldPosition*/ 5,
++/*Bit8u  BlueMaskSize*/ 5,
++/*Bit8u  BlueFieldPosition*/ 0,
++/*Bit8u  RsvdMaskSize*/ 1,
++/*Bit8u  RsvdFieldPosition*/ 15,
++/*Bit8u  DirectColorModeInfo*/ 0,
++/*Bit32u PhysBasePtr*/ VBE_DISPI_LFB_PHYSICAL_ADDRESS,
++/*Bit32u OffScreenMemOffset*/ 0,
++/*Bit16u OffScreenMemSize*/ 0,
++/*Bit16u LinBytesPerScanLine*/ 2304,
++/*Bit8u  BnkNumberOfPages*/ 0,
++/*Bit8u  LinNumberOfPages*/ 0,
++/*Bit8u  LinRedMaskSize*/ 5,
++/*Bit8u  LinRedFieldPosition*/ 10,
++/*Bit8u  LinGreenMaskSize*/ 5,
++/*Bit8u  LinGreenFieldPosition*/ 5,
++/*Bit8u  LinBlueMaskSize*/ 5,
++/*Bit8u  LinBlueFieldPosition*/ 0,
++/*Bit8u  LinRsvdMaskSize*/ 1,
++/*Bit8u  LinRsvdFieldPosition*/ 15,
++/*Bit32u MaxPixelClock*/ 0,
++} },
++{ 0x014a, /* 1152x864x16 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++/*Bit8u  WinBAttributes*/ 0,
++/*Bit16u WinGranularity*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinSize*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinASegment*/ VGAMEM_GRAPH,
++/*Bit16u WinBSegment*/ 0x0000,
++/*Bit32u WinFuncPtr*/ 0,
++/*Bit16u BytesPerScanLine*/ 2304,
++/*Bit16u XResolution*/ 1152,
++/*Bit16u YResolution*/ 864,
++/*Bit8u  XCharSize*/ 8,
++/*Bit8u  YCharSize*/ 16,
++/*Bit8u  NumberOfPlanes*/ 1,
++/*Bit8u  BitsPerPixel*/ 16,
++/*Bit8u  NumberOfBanks*/ 31,
++/*Bit8u  MemoryModel*/ VBE_MEMORYMODEL_DIRECT_COLOR,
++/*Bit8u  BankSize*/ 0,
++/*Bit8u  NumberOfImagePages*/ 0,
++/*Bit8u  Reserved_page*/ 0,
++/*Bit8u  RedMaskSize*/ 5,
++/*Bit8u  RedFieldPosition*/ 11,
++/*Bit8u  GreenMaskSize*/ 6,
++/*Bit8u  GreenFieldPosition*/ 5,
++/*Bit8u  BlueMaskSize*/ 5,
++/*Bit8u  BlueFieldPosition*/ 0,
++/*Bit8u  RsvdMaskSize*/ 0,
++/*Bit8u  RsvdFieldPosition*/ 0,
++/*Bit8u  DirectColorModeInfo*/ 0,
++/*Bit32u PhysBasePtr*/ VBE_DISPI_LFB_PHYSICAL_ADDRESS,
++/*Bit32u OffScreenMemOffset*/ 0,
++/*Bit16u OffScreenMemSize*/ 0,
++/*Bit16u LinBytesPerScanLine*/ 2304,
++/*Bit8u  BnkNumberOfPages*/ 0,
++/*Bit8u  LinNumberOfPages*/ 0,
++/*Bit8u  LinRedMaskSize*/ 5,
++/*Bit8u  LinRedFieldPosition*/ 11,
++/*Bit8u  LinGreenMaskSize*/ 6,
++/*Bit8u  LinGreenFieldPosition*/ 5,
++/*Bit8u  LinBlueMaskSize*/ 5,
++/*Bit8u  LinBlueFieldPosition*/ 0,
++/*Bit8u  LinRsvdMaskSize*/ 0,
++/*Bit8u  LinRsvdFieldPosition*/ 0,
++/*Bit32u MaxPixelClock*/ 0,
++} },
++{ 0x014b, /* 1152x864x24 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++/*Bit8u  WinBAttributes*/ 0,
++/*Bit16u WinGranularity*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinSize*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinASegment*/ VGAMEM_GRAPH,
++/*Bit16u WinBSegment*/ 0x0000,
++/*Bit32u WinFuncPtr*/ 0,
++/*Bit16u BytesPerScanLine*/ 3456,
++/*Bit16u XResolution*/ 1152,
++/*Bit16u YResolution*/ 864,
++/*Bit8u  XCharSize*/ 8,
++/*Bit8u  YCharSize*/ 16,
++/*Bit8u  NumberOfPlanes*/ 1,
++/*Bit8u  BitsPerPixel*/ 24,
++/*Bit8u  NumberOfBanks*/ 46,
++/*Bit8u  MemoryModel*/ VBE_MEMORYMODEL_DIRECT_COLOR,
++/*Bit8u  BankSize*/ 0,
++/*Bit8u  NumberOfImagePages*/ 0,
++/*Bit8u  Reserved_page*/ 0,
++/*Bit8u  RedMaskSize*/ 8,
++/*Bit8u  RedFieldPosition*/ 16,
++/*Bit8u  GreenMaskSize*/ 8,
++/*Bit8u  GreenFieldPosition*/ 8,
++/*Bit8u  BlueMaskSize*/ 8,
++/*Bit8u  BlueFieldPosition*/ 0,
++/*Bit8u  RsvdMaskSize*/ 0,
++/*Bit8u  RsvdFieldPosition*/ 0,
++/*Bit8u  DirectColorModeInfo*/ 0,
++/*Bit32u PhysBasePtr*/ VBE_DISPI_LFB_PHYSICAL_ADDRESS,
++/*Bit32u OffScreenMemOffset*/ 0,
++/*Bit16u OffScreenMemSize*/ 0,
++/*Bit16u LinBytesPerScanLine*/ 3456,
++/*Bit8u  BnkNumberOfPages*/ 0,
++/*Bit8u  LinNumberOfPages*/ 0,
++/*Bit8u  LinRedMaskSize*/ 8,
++/*Bit8u  LinRedFieldPosition*/ 16,
++/*Bit8u  LinGreenMaskSize*/ 8,
++/*Bit8u  LinGreenFieldPosition*/ 8,
++/*Bit8u  LinBlueMaskSize*/ 8,
++/*Bit8u  LinBlueFieldPosition*/ 0,
++/*Bit8u  LinRsvdMaskSize*/ 0,
++/*Bit8u  LinRsvdFieldPosition*/ 0,
++/*Bit32u MaxPixelClock*/ 0,
++} },
++{ 0x014c, /* 1152x864x32 */
++{ /*Bit16u ModeAttributes*/ VBE_MODE_ATTRIBUTE_SUPPORTED | VBE_MODE_ATTRIBUTE_EXTENDED_INFORMATION_AVAILABLE | VBE_MODE_ATTRIBUTE_COLOR_MODE | VBE_MODE_ATTRIBUTE_LINEAR_FRAME_BUFFER_MODE | VBE_MODE_ATTRIBUTE_GRAPHICS_MODE,
++/*Bit8u  WinAAttributes*/ VBE_WINDOW_ATTRIBUTE_RELOCATABLE | VBE_WINDOW_ATTRIBUTE_READABLE | VBE_WINDOW_ATTRIBUTE_WRITEABLE,
++/*Bit8u  WinBAttributes*/ 0,
++/*Bit16u WinGranularity*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinSize*/ VBE_DISPI_BANK_SIZE_KB,
++/*Bit16u WinASegment*/ VGAMEM_GRAPH,
++/*Bit16u WinBSegment*/ 0x0000,
++/*Bit32u WinFuncPtr*/ 0,
++/*Bit16u BytesPerScanLine*/ 4608,
++/*Bit16u XResolution*/ 1152,
++/*Bit16u YResolution*/ 864,
++/*Bit8u  XCharSize*/ 8,
++/*Bit8u  YCharSize*/ 16,
++/*Bit8u  NumberOfPlanes*/ 1,
++/*Bit8u  BitsPerPixel*/ 32,
++/*Bit8u  NumberOfBanks*/ 61,
++/*Bit8u  MemoryModel*/ VBE_MEMORYMODEL_DIRECT_COLOR,
++/*Bit8u  BankSize*/ 0,
++/*Bit8u  NumberOfImagePages*/ 0,
++/*Bit8u  Reserved_page*/ 0,
++/*Bit8u  RedMaskSize*/ 8,
++/*Bit8u  RedFieldPosition*/ 16,
++/*Bit8u  GreenMaskSize*/ 8,
++/*Bit8u  GreenFieldPosition*/ 8,
++/*Bit8u  BlueMaskSize*/ 8,
++/*Bit8u  BlueFieldPosition*/ 0,
++/*Bit8u  RsvdMaskSize*/ 8,
++/*Bit8u  RsvdFieldPosition*/ 24,
++/*Bit8u  DirectColorModeInfo*/ 0,
++/*Bit32u PhysBasePtr*/ VBE_DISPI_LFB_PHYSICAL_ADDRESS,
++/*Bit32u OffScreenMemOffset*/ 0,
++/*Bit16u OffScreenMemSize*/ 0,
++/*Bit16u LinBytesPerScanLine*/ 4608,
++/*Bit8u  BnkNumberOfPages*/ 0,
++/*Bit8u  LinNumberOfPages*/ 0,
++/*Bit8u  LinRedMaskSize*/ 8,
++/*Bit8u  LinRedFieldPosition*/ 16,
++/*Bit8u  LinGreenMaskSize*/ 8,
++/*Bit8u  LinGreenFieldPosition*/ 8,
++/*Bit8u  LinBlueMaskSize*/ 8,
++/*Bit8u  LinBlueFieldPosition*/ 0,
++/*Bit8u  LinRsvdMaskSize*/ 8,
++/*Bit8u  LinRsvdFieldPosition*/ 24,
++/*Bit32u MaxPixelClock*/ 0,
++} },
++{ VBE_VESA_MODE_END_OF_LIST,
++{ 0,
++} },
+ };
+ 
+ #endif
