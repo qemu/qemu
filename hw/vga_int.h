@@ -30,8 +30,9 @@
 /* bochs VBE support */
 #define CONFIG_BOCHS_VBE
 
-#define VBE_DISPI_MAX_XRES              1024
-#define VBE_DISPI_MAX_YRES              768
+#define VBE_DISPI_MAX_XRES              1600
+#define VBE_DISPI_MAX_YRES              1200
+#define VBE_DISPI_MAX_BPP               32
 
 #define VBE_DISPI_INDEX_ID              0x0
 #define VBE_DISPI_INDEX_XRES            0x1
@@ -51,6 +52,8 @@
   
 #define VBE_DISPI_DISABLED              0x00
 #define VBE_DISPI_ENABLED               0x01
+#define VBE_DISPI_GETCAPS               0x02
+#define VBE_DISPI_8BIT_DAC              0x20
 #define VBE_DISPI_LFB_ENABLED           0x40
 #define VBE_DISPI_NOCLEARMEM            0x80
   
@@ -72,7 +75,7 @@
 #endif /* !CONFIG_BOCHS_VBE */
 
 #define CH_ATTR_SIZE (160 * 100)
-#define VGA_MAX_HEIGHT 1024
+#define VGA_MAX_HEIGHT 2048
 
 #define VGA_STATE_COMMON                                                \
     uint8_t *vram_ptr;                                                  \

@@ -378,10 +378,29 @@ static uint32_t vbe_ioport_read_data(void *opaque, uint32_t addr)
     VGAState *s = opaque;
     uint32_t val;
 
-    if (s->vbe_index <= VBE_DISPI_INDEX_NB)
-        val = s->vbe_regs[s->vbe_index];
-    else
+    if (s->vbe_index <= VBE_DISPI_INDEX_NB) {
+        if (s->vbe_regs[VBE_DISPI_INDEX_ENABLE] & VBE_DISPI_GETCAPS) {
+            switch(s->vbe_index) {
+                /* XXX: do not hardcode ? */
+            case VBE_DISPI_INDEX_XRES:
+                val = VBE_DISPI_MAX_XRES;
+                break;
+            case VBE_DISPI_INDEX_YRES:
+                val = VBE_DISPI_MAX_YRES;
+                break;
+            case VBE_DISPI_INDEX_BPP:
+                val = VBE_DISPI_MAX_BPP;
+                break;
+            default:
+                val = s->vbe_regs[s->vbe_index]; 
+                break;
+            }
+        } else {
+            val = s->vbe_regs[s->vbe_index]; 
+        }
+    } else {
         val = 0;
+    }
 #ifdef DEBUG_BOCHS_VBE
     printf("VBE: read index=0x%x val=0x%x\n", s->vbe_index, val);
 #endif
@@ -434,7 +453,8 @@ static void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val)
             s->bank_offset = (val << 16);
             break;
         case VBE_DISPI_INDEX_ENABLE:
-            if (val & VBE_DISPI_ENABLED) {
+            if ((val & VBE_DISPI_ENABLED) &&
+                !(s->vbe_regs[VBE_DISPI_INDEX_ENABLE] & VBE_DISPI_ENABLED)) {
                 int h, shift_control;
 
                 s->vbe_regs[VBE_DISPI_INDEX_VIRT_WIDTH] = 
@@ -450,7 +470,7 @@ static void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val)
                     s->vbe_line_offset = s->vbe_regs[VBE_DISPI_INDEX_XRES] * 
                         ((s->vbe_regs[VBE_DISPI_INDEX_BPP] + 7) >> 3);
                 s->vbe_start_addr = 0;
-                
+
                 /* clear the screen (should be done in BIOS) */
                 if (!(val & VBE_DISPI_NOCLEARMEM)) {
                     memset(s->vram_ptr, 0, 
@@ -464,7 +484,7 @@ static void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val)
                 s->cr[0x13] = s->vbe_line_offset >> 3;
                 /* width */
                 s->cr[0x01] = (s->vbe_regs[VBE_DISPI_INDEX_XRES] >> 3) - 1;
-                /* height */
+                /* height (only meaningful if < 1024) */
                 h = s->vbe_regs[VBE_DISPI_INDEX_YRES] - 1;
                 s->cr[0x12] = h;
                 s->cr[0x07] = (s->cr[0x07] & ~0x42) | 
@@ -1310,11 +1330,19 @@ static void vga_get_resolution(VGAState *s, int *pwidth, int *pheight)
 {
     int width, height;
     
-    width = (s->cr[0x01] + 1) * 8;
-    height = s->cr[0x12] | 
-        ((s->cr[0x07] & 0x02) << 7) | 
-        ((s->cr[0x07] & 0x40) << 3);
-    height = (height + 1);
+#ifdef CONFIG_BOCHS_VBE
+    if (s->vbe_regs[VBE_DISPI_INDEX_ENABLE] & VBE_DISPI_ENABLED) {
+        width = s->vbe_regs[VBE_DISPI_INDEX_XRES];
+        height = s->vbe_regs[VBE_DISPI_INDEX_YRES];
+    } else 
+#endif
+    {
+        width = (s->cr[0x01] + 1) * 8;
+        height = s->cr[0x12] | 
+            ((s->cr[0x07] & 0x02) << 7) | 
+            ((s->cr[0x07] & 0x40) << 3);
+        height = (height + 1);
+    }
     *pwidth = width;
     *pheight = height;
 }
