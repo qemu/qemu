@@ -240,7 +240,6 @@ void piix4_pm_init(PCIBus *bus, int devfn)
     pci_conf[0x0b] = 0x06; // bridge device
     pci_conf[0x0e] = 0x00; // header_type
     pci_conf[0x3d] = 0x01; // interrupt pin 1
-    pci_conf[0x60] = 0x10; // release number
     
     pm_io_base = PM_IO_BASE;
     pci_conf[0x40] = pm_io_base | 1;
@@ -252,6 +251,13 @@ void piix4_pm_init(PCIBus *bus, int devfn)
     
     register_ioport_write(SMI_CMD_IO_ADDR, 1, 1, smi_cmd_writeb, s);
     register_ioport_write(ACPI_DBG_IO_ADDR, 4, 4, acpi_dbg_writel, s);
+
+    /* XXX: which specification is used ? The i82731AB has different
+       mappings */
+    pci_conf[0x5f] = (parallel_hds[0] != NULL ? 0x80 : 0) | 0x10;
+    pci_conf[0x63] = 0x60;
+    pci_conf[0x67] = (serial_hds[0] != NULL ? 0x08 : 0) |
+	(serial_hds[1] != NULL ? 0x90 : 0);
 
     s->tmr_timer = qemu_new_timer(vm_clock, pm_tmr_timer, s);
     piix4_pm_state = s;
