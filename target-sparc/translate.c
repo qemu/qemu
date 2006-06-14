@@ -982,6 +982,7 @@ static void disas_sparc_insn(DisasContext * dc)
 		{
 		    int cc = GET_FIELD_SP(insn, 20, 21);
 #if !defined(CONFIG_USER_ONLY)
+		    save_state(dc);
 		    gen_op_trap_ifnofpu();
 #endif
 		    target = GET_FIELD_SP(insn, 0, 18);
@@ -1002,6 +1003,7 @@ static void disas_sparc_insn(DisasContext * dc)
 	    case 0x6:		/* FBN+x */
 		{
 #if !defined(CONFIG_USER_ONLY)
+		    save_state(dc);
 		    gen_op_trap_ifnofpu();
 #endif
 		    target = GET_FIELD(insn, 10, 31);
@@ -1236,6 +1238,7 @@ static void disas_sparc_insn(DisasContext * dc)
 #endif
 	    } else if (xop == 0x34) {	/* FPU Operations */
 #if !defined(CONFIG_USER_ONLY)
+		save_state(dc);
 		gen_op_trap_ifnofpu();
 #endif
                 rs1 = GET_FIELD(insn, 13, 17);
@@ -1424,6 +1427,7 @@ static void disas_sparc_insn(DisasContext * dc)
 		int cond;
 #endif
 #if !defined(CONFIG_USER_ONLY)
+		save_state(dc);
 		gen_op_trap_ifnofpu();
 #endif
                 rs1 = GET_FIELD(insn, 13, 17);
@@ -2346,6 +2350,7 @@ static void disas_sparc_insn(DisasContext * dc)
 #endif
 	    } else if (xop >= 0x20 && xop < 0x24) {
 #if !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64)
+		save_state(dc);
 		gen_op_trap_ifnofpu();
 #endif
 		switch (xop) {
