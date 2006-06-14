@@ -1,5 +1,6 @@
 version 0.8.2:
 
+  - ACPI support
   - PC VGA BIOS fixes
   - switch to OpenBios for SPARC targets (Blue Swirl)
   - VNC server fixes
