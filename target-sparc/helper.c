@@ -190,7 +190,7 @@ int get_physical_address (CPUState *env, target_phys_addr_t *physical, int *prot
     /* check access */
     access_perms = (pde & PTE_ACCESS_MASK) >> PTE_ACCESS_SHIFT;
     error_code = access_table[*access_index][access_perms];
-    if (error_code && !(env->mmuregs[0] & MMU_NF))
+    if (error_code && !((env->mmuregs[0] & MMU_NF) && is_user))
 	return error_code;
 
     /* the page can be put in the TLB */
