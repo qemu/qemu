@@ -23,6 +23,10 @@
  */
 #include "vl.h"
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 void *get_mmap_addr(unsigned long size)
 {
     return NULL;
@@ -598,7 +602,19 @@ static int img_convert(int argc, char **argv)
 #ifdef _WIN32
 static int64_t get_allocated_file_size(const char *filename)
 {
+    typedef DWORD (WINAPI * get_compressed_t)(const char *filename, DWORD *high);
+    get_compressed_t get_compressed;
     struct _stati64 st;
+
+    /* WinNT support GetCompressedFileSize to determine allocate size */
+    get_compressed = (get_compressed_t) GetProcAddress(GetModuleHandle("kernel32"), "GetCompressedFileSizeA");
+    if (get_compressed) {
+    	DWORD high, low;
+    	low = get_compressed(filename, &high);
+    	if (low != 0xFFFFFFFFlu || GetLastError() == NO_ERROR)
+	    return (((int64_t) high) << 32) + low;
+    }
+
     if (_stati64(filename, &st) < 0) 
         return -1;
     return st.st_size;
