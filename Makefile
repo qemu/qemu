@@ -68,7 +68,7 @@ install: all $(if $(BUILD_DOCS),install-doc)
 	$(INSTALL) -m 755 -s $(TOOLS) "$(DESTDIR)$(bindir)"
 	mkdir -p "$(DESTDIR)$(datadir)"
 	for x in bios.bin vgabios.bin vgabios-cirrus.bin ppc_rom.bin \
-			video.x proll.elf linux_boot.bin; do \
+			video.x openbios-sparc32 linux_boot.bin; do \
 		$(INSTALL) -m 644 $(SRC_PATH)/pc-bios/$$x "$(DESTDIR)$(datadir)"; \
 	done
 ifndef CONFIG_WIN32
@@ -149,7 +149,7 @@ tarbin:
 	$(datadir)/vgabios-cirrus.bin \
 	$(datadir)/ppc_rom.bin \
 	$(datadir)/video.x \
-	$(datadir)/proll.elf \
+	$(datadir)/openbios-sparc32 \
 	$(datadir)/linux_boot.bin \
 	$(docdir)/qemu-doc.html \
 	$(docdir)/qemu-tech.html \

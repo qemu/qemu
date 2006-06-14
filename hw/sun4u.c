@@ -32,8 +32,7 @@
 #define APB_SPECIAL_BASE     0x1fe00000000ULL
 #define APB_MEM_BASE	     0x1ff00000000ULL
 #define VGA_BASE	     (APB_MEM_BASE + 0x400000ULL)
-#define PROM_FILENAMEB	     "proll-sparc64.bin"
-#define PROM_FILENAMEE	     "proll-sparc64.elf"
+#define PROM_FILENAME	     "openbios-sparc64"
 #define NVRAM_SIZE           0x2000
 
 /* TSC handling */
@@ -282,12 +281,8 @@ static void sun4u_init(int ram_size, int vga_ram_size, int boot_device,
                                  (PROM_SIZE_MAX + TARGET_PAGE_SIZE) & TARGET_PAGE_MASK, 
                                  prom_offset | IO_MEM_ROM);
 
-    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, PROM_FILENAMEE);
+    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, PROM_FILENAME);
     ret = load_elf(buf, 0, NULL);
-    if (ret < 0) {
-	snprintf(buf, sizeof(buf), "%s/%s", bios_dir, PROM_FILENAMEB);
-	ret = load_image(buf, phys_ram_base + prom_offset);
-    }
     if (ret < 0) {
 	fprintf(stderr, "qemu: could not load prom '%s'\n", 
 		buf);

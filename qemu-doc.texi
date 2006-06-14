@@ -1394,7 +1394,7 @@ More information is available at
 @node Sparc32 System emulator invocation
 @section Sparc32 System emulator invocation
 
-Use the executable @file{qemu-system-sparc} to simulate a JavaStation
+Use the executable @file{qemu-system-sparc} to simulate a SparcStation 5
 (sun4m architecture). The emulation is somewhat complete.
 
 QEMU emulates the following sun4m peripherals:
@@ -1419,13 +1419,14 @@ Floppy drive
 
 The number of peripherals is fixed in the architecture.
 
-QEMU uses the Proll, a PROM replacement available at
-@url{http://people.redhat.com/@/zaitcev/linux/}. The required
-QEMU-specific patches are included with the sources.
+Since version 0.8.1, QEMU uses OpenBIOS
+@url{http://www.openbios.org/}. OpenBIOS is a free (GPL v2) portable
+firmware implementation. The goal is to implement a 100% IEEE
+1275-1994 (referred to as Open Firmware) compliant firmware.
 
 A sample Linux 2.6 series kernel and ram disk image are available on
-the QEMU web site. Please note that currently neither Linux 2.4
-series, NetBSD, nor OpenBSD kernels work.
+the QEMU web site. Please note that currently NetBSD, OpenBSD or
+Solaris kernels don't work.
 
 @c man begin OPTIONS
 
