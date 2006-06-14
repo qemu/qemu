@@ -56,3 +56,23 @@ void glue(op_stl_T0_T1, MEMSUFFIX) (void) {
     glue(stl, MEMSUFFIX) (T1, T0);
     RETURN();
 }
+
+void glue(op_ldfl_T0_FT0, MEMSUFFIX) (void) {
+    FT0 = glue(ldfl, MEMSUFFIX) (T0);
+    RETURN();
+}
+
+void glue(op_stfl_FT0_T1, MEMSUFFIX) (void) {
+    glue(stfl, MEMSUFFIX) (T1, FT0);
+    RETURN();
+}
+
+void glue(op_ldfq_T0_DT0, MEMSUFFIX) (void) {
+    DT0 = glue(ldfq, MEMSUFFIX) (T0);
+    RETURN();
+}
+
+void glue(op_stfq_DT0_T1, MEMSUFFIX) (void) {
+    glue(stfq, MEMSUFFIX) (T1, DT0);
+    RETURN();
+}
