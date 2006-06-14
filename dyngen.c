@@ -1196,7 +1196,7 @@ void get_reloc_expr(char *name, int name_size, const char *sym_name)
     } else {
 #ifdef HOST_SPARC
         if (sym_name[0] == '.')
-            snprintf(name, sizeof(name),
+            snprintf(name, name_size,
                      "(long)(&__dot_%s)",
                      sym_name + 1);
         else
