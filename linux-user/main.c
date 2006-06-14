@@ -1327,7 +1327,6 @@ void cpu_loop(CPUMIPSState *env)
                                      arg5, 
                                      arg6);
                 }
-                fail:
                 env->PC += 4;
                 if ((unsigned int)ret >= (unsigned int)(-1133)) {
                     env->gpr[7] = 1; /* error flag */
@@ -1342,39 +1341,10 @@ void cpu_loop(CPUMIPSState *env)
             break;
         case EXCP_CpU:
         case EXCP_RI:
-            {
-                uint32_t insn, op;
-
-                insn = tget32(env->PC);
-                op = insn >> 26;
-                //                printf("insn=%08x op=%02x\n", insn, op);
-                /* XXX: totally dummy FP ops just to be able to launch
-                   a few executables */
-                switch(op) {
-                case 0x31: /* LWC1 */
-                    env->PC += 4;
-                    break;
-                case 0x39: /* SWC1 */
-                    env->PC += 4;
-                    break;
-                case 0x11:
-                    switch((insn >> 21) & 0x1f) {
-                    case 0x02: /* CFC1 */
-                        env->PC += 4;
-                        break;
-                    default:
-                        goto sigill;
-                    }
-                    break;
-                default:
-                sigill:
-                    info.si_signo = TARGET_SIGILL;
-                    info.si_errno = 0;
-                    info.si_code = 0;
-                    queue_signal(info.si_signo, &info);
-                    break;
-                }
-            }
+            info.si_signo = TARGET_SIGILL;
+            info.si_errno = 0;
+            info.si_code = 0;
+            queue_signal(info.si_signo, &info);
             break;
         default:
             //        error:
@@ -1700,6 +1670,9 @@ int main(int argc, char **argv)
             env->gpr[i] = regs->regs[i];
         }
         env->PC = regs->cp0_epc;
+#ifdef MIPS_USES_FPU
+        env->CP0_Status |= (1 << CP0St_CU1);
+#endif
     }
 #elif defined(TARGET_SH4)
     {
