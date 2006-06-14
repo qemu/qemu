@@ -87,7 +87,7 @@ struct CPUMIPSState {
 		
 #endif
 #if defined(MIPS_USES_R4K_TLB)
-    tlb_t tlb[16];
+    tlb_t tlb[MIPS_TLB_NB];
 #endif
     uint32_t CP0_index;
     uint32_t CP0_random;
