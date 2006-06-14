@@ -9,6 +9,9 @@ CFLAGS=-Wall -O2 -g -fno-strict-aliasing -I.
 ifdef CONFIG_DARWIN
 CFLAGS+= -mdynamic-no-pic
 endif
+ifeq ($(ARCH),sparc)
+CFLAGS+=-mcpu=ultrasparc
+endif
 LDFLAGS=-g
 LIBS=
 DEFINES+=-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE

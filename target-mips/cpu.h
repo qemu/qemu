@@ -8,6 +8,13 @@
 #include "cpu-defs.h"
 #include "softfloat.h"
 
+// uint_fast8_t and uint_fast16_t not in <sys/int_types.h>
+// XXX: move that elsewhere
+#if defined(HOST_SOLARIS) && SOLARISREV < 10
+typedef unsigned char           uint_fast8_t;
+typedef unsigned int            uint_fast16_t;
+#endif
+
 typedef union fpr_t fpr_t;
 union fpr_t {
     float64  fd;   /* ieee double precision */

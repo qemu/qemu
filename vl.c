@@ -563,6 +563,28 @@ int64_t cpu_get_real_ticks(void)
     return val;
 }
 
+#elif defined(__sparc__) && defined(HOST_SOLARIS)
+
+uint64_t cpu_get_real_ticks (void)
+{
+#if     defined(_LP64)
+        uint64_t        rval;
+        asm volatile("rd %%tick,%0" : "=r"(rval));
+        return rval;
+#else
+        union {
+                uint64_t i64;
+                struct {
+                        uint32_t high;
+                        uint32_t low;
+                }       i32;
+        } rval;
+        asm volatile("rd %%tick,%1; srlx %1,32,%0"
+                : "=r"(rval.i32.high), "=r"(rval.i32.low));
+        return rval.i64;
+#endif
+}
+
 #else
 #error unsupported CPU
 #endif

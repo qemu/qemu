@@ -253,7 +253,7 @@ int cpu_exec(CPUState *env1)
     uint32_t *saved_regwptr;
 #endif
 #endif
-#ifdef __sparc__
+#if defined(__sparc__) && !defined(HOST_SOLARIS)
     int saved_i7, tmp_T0;
 #endif
     int ret, interrupt_request;
@@ -323,7 +323,7 @@ int cpu_exec(CPUState *env1)
 #if defined(reg_T2)
     saved_T2 = T2;
 #endif
-#ifdef __sparc__
+#if defined(__sparc__) && !defined(HOST_SOLARIS)
     /* we also save i7 because longjmp may not restore it */
     asm volatile ("mov %%i7, %0" : "=r" (saved_i7));
 #endif
@@ -447,7 +447,7 @@ int cpu_exec(CPUState *env1)
 
             T0 = 0; /* force lookup of first TB */
             for(;;) {
-#ifdef __sparc__
+#if defined(__sparc__) && !defined(HOST_SOLARIS)
                 /* g1 can be modified by some libc? functions */ 
                 tmp_T0 = T0;
 #endif	    
@@ -467,7 +467,7 @@ int cpu_exec(CPUState *env1)
                         do_interrupt(intno, 0, 0, 0, 1);
                         /* ensure that no TB jump will be modified as
                            the program flow was changed */
-#ifdef __sparc__
+#if defined(__sparc__) && !defined(HOST_SOLARIS)
                         tmp_T0 = 0;
 #else
                         T0 = 0;
@@ -486,7 +486,7 @@ int cpu_exec(CPUState *env1)
 			    env->error_code = 0;
                             do_interrupt(env);
                             env->interrupt_request &= ~CPU_INTERRUPT_HARD;
-#ifdef __sparc__
+#if defined(__sparc__) && !defined(HOST_SOLARIS)
                             tmp_T0 = 0;
 #else
                             T0 = 0;
@@ -497,7 +497,7 @@ int cpu_exec(CPUState *env1)
                             env->error_code = 0;
                             do_interrupt(env);
                             env->interrupt_request &= ~CPU_INTERRUPT_TIMER;
-#ifdef __sparc__
+#if defined(__sparc__) && !defined(HOST_SOLARIS)
                             tmp_T0 = 0;
 #else
                             T0 = 0;
@@ -516,7 +516,7 @@ int cpu_exec(CPUState *env1)
                         env->error_code = 0;
                         do_interrupt(env);
                         env->interrupt_request &= ~CPU_INTERRUPT_HARD;
-#ifdef __sparc__
+#if defined(__sparc__) && !defined(HOST_SOLARIS)
                         tmp_T0 = 0;
 #else
                         T0 = 0;
@@ -534,7 +534,7 @@ int cpu_exec(CPUState *env1)
 			    env->interrupt_request &= ~CPU_INTERRUPT_HARD;
 			    do_interrupt(env->interrupt_index);
 			    env->interrupt_index = 0;
-#ifdef __sparc__
+#if defined(__sparc__) && !defined(HOST_SOLARIS)
                             tmp_T0 = 0;
 #else
                             T0 = 0;
@@ -567,7 +567,7 @@ int cpu_exec(CPUState *env1)
                         env->interrupt_request &= ~CPU_INTERRUPT_EXITTB;
                         /* ensure that no TB jump will be modified as
                            the program flow was changed */
-#ifdef __sparc__
+#if defined(__sparc__) && !defined(HOST_SOLARIS)
                         tmp_T0 = 0;
 #else
                         T0 = 0;
@@ -635,7 +635,7 @@ int cpu_exec(CPUState *env1)
                             lookup_symbol(tb->pc));
                 }
 #endif
-#ifdef __sparc__
+#if defined(__sparc__) && !defined(HOST_SOLARIS)
                 T0 = tmp_T0;
 #endif	    
                 /* see if we can patch the calling TB. When the TB
@@ -671,7 +671,9 @@ int cpu_exec(CPUState *env1)
                                      "mov	%%o7,%%i0"
                                      : /* no outputs */
                                      : "r" (gen_func) 
-                                     : "i0", "i1", "i2", "i3", "i4", "i5");
+                                     : "i0", "i1", "i2", "i3", "i4", "i5",
+                                       "l0", "l1", "l2", "l3", "l4", "l5",
+                                       "l6", "l7");
 #elif defined(__arm__)
                 asm volatile ("mov pc, %0\n\t"
                               ".global exec_loop\n\t"
@@ -836,7 +838,7 @@ int cpu_exec(CPUState *env1)
 #else
 #error unsupported target CPU
 #endif
-#ifdef __sparc__
+#if defined(__sparc__) && !defined(HOST_SOLARIS)
     asm volatile ("mov %0, %%i7" : : "r" (saved_i7));
 #endif
     T0 = saved_T0;

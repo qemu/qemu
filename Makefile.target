@@ -102,12 +102,18 @@ LDFLAGS+=-Wl,-T,$(SRC_PATH)/s390.ld
 endif
 
 ifeq ($(ARCH),sparc)
+ifeq ($(CONFIG_SOLARIS),yes)
+CFLAGS+=-mcpu=ultrasparc -m32 -ffixed-g2 -ffixed-g3
+LDFLAGS+=-m32
+OP_CFLAGS=$(CFLAGS) -fno-delayed-branch -fno-omit-frame-pointer -ffixed-i0
+else
 CFLAGS+=-m32 -ffixed-g1 -ffixed-g2 -ffixed-g3 -ffixed-g6
 LDFLAGS+=-m32
 OP_CFLAGS=$(CFLAGS) -fno-delayed-branch -ffixed-i0
 HELPER_CFLAGS=$(CFLAGS) -ffixed-i0 -mflat
 # -static is used to avoid g1/g3 usage by the dynamic linker
 LDFLAGS+=-Wl,-T,$(SRC_PATH)/sparc.ld -static
+endif
 endif
 
 ifeq ($(ARCH),sparc64)

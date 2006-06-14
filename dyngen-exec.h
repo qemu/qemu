@@ -121,6 +121,13 @@ extern int printf(const char *, ...);
 #define AREG3 "s2"
 #endif
 #ifdef __sparc__
+#ifdef HOST_SOLARIS
+#define AREG0 "g2"
+#define AREG1 "g3"
+#define AREG2 "g4"
+#define AREG3 "g5"
+#define AREG4 "g6"
+#else
 #define AREG0 "g6"
 #define AREG1 "g1"
 #define AREG2 "g2"
@@ -133,6 +140,7 @@ extern int printf(const char *, ...);
 #define AREG9 "l5"
 #define AREG10 "l6"
 #define AREG11 "l7"
+#endif
 #define USE_FP_CONVERT
 #endif
 #ifdef __s390__
@@ -241,10 +249,8 @@ extern int __op_jmp0, __op_jmp1, __op_jmp2, __op_jmp3;
 					  ASM_NAME(__op_gen_label) #n)
 #endif
 #ifdef __sparc__
-#define EXIT_TB() asm volatile ("jmpl %i0 + 8, %g0\n" \
-                                "nop")
-#define        GOTO_LABEL_PARAM(n) asm volatile ( \
-               "set " ASM_NAME(__op_gen_label) #n ", %g1; jmp %g1; nop")
+#define EXIT_TB() asm volatile ("jmpl %i0 + 8, %g0; nop")
+#define GOTO_LABEL_PARAM(n) asm volatile ("ba " ASM_NAME(__op_gen_label) #n ";nop")
 #endif
 #ifdef __arm__
 #define EXIT_TB() asm volatile ("b exec_loop")

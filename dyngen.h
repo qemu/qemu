@@ -19,7 +19,13 @@
  */
 
 int __op_param1, __op_param2, __op_param3;
-int __op_gen_label1, __op_gen_label2, __op_gen_label3;
+#ifdef __sparc__
+  void __op_gen_label1(){}
+  void __op_gen_label2(){}
+  void __op_gen_label3(){}
+#else
+  int __op_gen_label1, __op_gen_label2, __op_gen_label3;
+#endif
 int __op_jmp0, __op_jmp1, __op_jmp2, __op_jmp3;
 
 #ifdef __i386__
