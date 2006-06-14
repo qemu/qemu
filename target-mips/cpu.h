@@ -10,10 +10,19 @@
 
 typedef union fpr_t fpr_t;
 union fpr_t {
-    double d;
-    float  f;
-    uint32_t u[2];
+    float64  fd;   /* ieee double precision */
+    float32  fs[2];/* ieee single precision */
+    uint64_t d;    /* binary single fixed-point */
+    uint32_t w[2]; /* binary single fixed-point */
 };
+/* define FP_ENDIAN_IDX to access the same location
+ * in the fpr_t union regardless of the host endianess
+ */
+#if defined(WORDS_BIGENDIAN)
+#  define FP_ENDIAN_IDX 1
+#else
+#  define FP_ENDIAN_IDX 0
+#endif
 
 #if defined(MIPS_USES_R4K_TLB)
 typedef struct tlb_t tlb_t;
@@ -44,12 +53,38 @@ struct CPUMIPSState {
 #if defined(MIPS_USES_FPU)
     /* Floating point registers */
     fpr_t fpr[16];
-    /* Floating point special purpose registers */
+#define FPR(cpu, n) ((fpr_t*)&(cpu)->fpr[(n) / 2])
+#define FPR_FD(cpu, n) (FPR(cpu, n)->fd)
+#define FPR_FS(cpu, n) (FPR(cpu, n)->fs[((n) & 1) ^ FP_ENDIAN_IDX])
+#define FPR_D(cpu, n)  (FPR(cpu, n)->d)
+#define FPR_W(cpu, n)  (FPR(cpu, n)->w[((n) & 1) ^ FP_ENDIAN_IDX])
+
+#ifndef USE_HOST_FLOAT_REGS
+    fpr_t ft0;
+    fpr_t ft1;
+    fpr_t ft2;
+#endif
+    float_status fp_status;
+    /* fpu implementation/revision register */
     uint32_t fcr0;
-    uint32_t fcr25;
-    uint32_t fcr26;
-    uint32_t fcr28;
-    uint32_t fcsr;
+    /* fcsr */
+    uint32_t fcr31;
+#define SET_FP_COND(reg)     do { (reg) |= (1<<23); } while(0)
+#define CLEAR_FP_COND(reg)   do { (reg) &= ~(1<<23); } while(0)
+#define IS_FP_COND_SET(reg)  (((reg) & (1<<23)) != 0)
+#define GET_FP_CAUSE(reg)    (((reg) >> 12) & 0x3f)
+#define GET_FP_ENABLE(reg)   (((reg) >>  7) & 0x1f)
+#define GET_FP_FLAGS(reg)    (((reg) >>  2) & 0x1f)
+#define SET_FP_CAUSE(reg,v)  do { (reg) = ((reg) & ~(0x3f << 12)) | ((v) << 12); } while(0)
+#define SET_FP_ENABLE(reg,v) do { (reg) = ((reg) & ~(0x1f <<  7)) | ((v) << 7); } while(0)
+#define SET_FP_FLAGS(reg,v)  do { (reg) = ((reg) & ~(0x1f <<  2)) | ((v) << 2); } while(0)
+#define FP_INEXACT        1
+#define FP_UNDERFLOW      2
+#define FP_OVERFLOW       4
+#define FP_DIV0           8
+#define FP_INVALID        16
+#define FP_UNIMPLEMENTED  32
+		
 #endif
 #if defined(MIPS_USES_R4K_TLB)
     tlb_t tlb[16];
@@ -71,6 +106,7 @@ struct CPUMIPSState {
 #define CP0St_CU1   29
 #define CP0St_CU0   28
 #define CP0St_RP    27
+#define CP0St_FR    26
 #define CP0St_RE    25
 #define CP0St_BEV   22
 #define CP0St_TS    21
@@ -138,9 +174,6 @@ struct CPUMIPSState {
     uint32_t CP0_ErrorEPC;
     uint32_t CP0_DESAVE;
     /* Qemu */
-#if defined (USE_HOST_FLOAT_REGS) && defined(MIPS_USES_FPU)
-    double ft0, ft1, ft2;
-#endif
     struct QEMUTimer *timer; /* Internal timer */
     int interrupt_request;
     jmp_buf jmp_env;

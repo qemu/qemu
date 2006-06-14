@@ -21,13 +21,20 @@ register host_uint_t T1 asm(AREG2);
 register host_uint_t T2 asm(AREG3);
 
 #if defined (USE_HOST_FLOAT_REGS)
-register double FT0 asm(FREG0);
-register double FT1 asm(FREG1);
-register double FT2 asm(FREG2);
+#error "implement me."
 #else
-#define FT0 (env->ft0.d)
-#define FT1 (env->ft1.d)
-#define FT2 (env->ft2.d)
+#define FDT0 (env->ft0.fd)
+#define FDT1 (env->ft1.fd)
+#define FDT2 (env->ft2.fd)
+#define FST0 (env->ft0.fs[FP_ENDIAN_IDX])
+#define FST1 (env->ft1.fs[FP_ENDIAN_IDX])
+#define FST2 (env->ft2.fs[FP_ENDIAN_IDX])
+#define DT0 (env->ft0.d)
+#define DT1 (env->ft1.d)
+#define DT2 (env->ft2.d)
+#define WT0 (env->ft0.w[FP_ENDIAN_IDX])
+#define WT1 (env->ft1.w[FP_ENDIAN_IDX])
+#define WT2 (env->ft2.w[FP_ENDIAN_IDX])
 #endif
 
 #if defined (DEBUG_OP)
@@ -65,6 +72,13 @@ void do_tlbwi (void);
 void do_tlbwr (void);
 void do_tlbp (void);
 void do_tlbr (void);
+#ifdef MIPS_USES_FPU
+void dump_fpu(CPUState *env);
+void fpu_dump_state(CPUState *env, FILE *f, 
+                    int (*fpu_fprintf)(FILE *f, const char *fmt, ...),
+                    int flags);
+#endif
+void dump_sc (void);
 void do_lwl_raw (uint32_t);
 void do_lwr_raw (uint32_t);
 uint32_t do_swl_raw (uint32_t);

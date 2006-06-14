@@ -819,6 +819,8 @@ elif test "$target_cpu" = "mips" -o "$target_cpu" = "mipsel" ; then
   echo "TARGET_ARCH=mips" >> $config_mak
   echo "#define TARGET_ARCH \"mips\"" >> $config_h
   echo "#define TARGET_MIPS 1" >> $config_h
+  echo "CONFIG_SOFTFLOAT=yes" >> $config_mak
+  echo "#define CONFIG_SOFTFLOAT 1" >> $config_h
 elif test "$target_cpu" = "sh4" ; then
   echo "TARGET_ARCH=sh4" >> $config_mak
   echo "#define TARGET_ARCH \"sh4\"" >> $config_h
