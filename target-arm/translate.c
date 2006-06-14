@@ -383,19 +383,23 @@ static inline void gen_add_data_offset(DisasContext *s, unsigned int insn)
     }
 }
 
-static inline void gen_add_datah_offset(DisasContext *s, unsigned int insn)
+static inline void gen_add_datah_offset(DisasContext *s, unsigned int insn,
+                                        int extra)
 {
     int val, rm;
     
     if (insn & (1 << 22)) {
         /* immediate */
         val = (insn & 0xf) | ((insn >> 4) & 0xf0);
+        val += extra;
         if (!(insn & (1 << 23)))
             val = -val;
         if (val != 0)
             gen_op_addl_T1_im(val);
     } else {
         /* register */
+        if (extra)
+            gen_op_addl_T1_im(extra);
         rm = (insn) & 0xf;
         gen_movl_T2_reg(s, rm);
         if (!(insn & (1 << 23)))
@@ -1530,12 +1534,14 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                     }
                 }
             } else {
+                int address_offset;
                 /* Misc load/store */
                 rn = (insn >> 16) & 0xf;
                 rd = (insn >> 12) & 0xf;
                 gen_movl_T1_reg(s, rn);
                 if (insn & (1 << 24))
-                    gen_add_datah_offset(s, insn);
+                    gen_add_datah_offset(s, insn, 0);
+                address_offset = 0;
                 if (insn & (1 << 20)) {
                     /* load */
                     switch(sh) {
@@ -1560,8 +1566,6 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                         gen_op_addl_T1_im(4);
                         gen_movl_T0_reg(s, rd + 1);
                         gen_ldst(stl, s);
-                        if ((insn & (1 << 24)) || (insn & (1 << 20)))
-                            gen_op_addl_T1_im(-4);
                     } else {
                         /* load */
                         gen_ldst(ldl, s);
@@ -1569,18 +1573,19 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                         gen_op_addl_T1_im(4);
                         gen_ldst(ldl, s);
                         gen_movl_reg_T0(s, rd + 1);
-                        if ((insn & (1 << 24)) || (insn & (1 << 20)))
-                            gen_op_addl_T1_im(-4);
                     }
+                    address_offset = -4;
                 } else {
                     /* store */
                     gen_movl_T0_reg(s, rd);
                     gen_ldst(stw, s);
                 }
                 if (!(insn & (1 << 24))) {
-                    gen_add_datah_offset(s, insn);
+                    gen_add_datah_offset(s, insn, address_offset);
                     gen_movl_reg_T1(s, rn);
                 } else if (insn & (1 << 21)) {
+                    if (address_offset)
+                        gen_op_addl_T1_im(address_offset);
                     gen_movl_reg_T1(s, rn);
                 }
             }
