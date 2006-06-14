@@ -889,6 +889,7 @@ void acpi_bios_init(void);
 /* pc.c */
 extern QEMUMachine pc_machine;
 extern QEMUMachine isapc_machine;
+extern int fd_bootchk;
 
 void ioport_set_a20(int enable);
 int ioport_get_a20(void);

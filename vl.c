@@ -159,6 +159,7 @@ int vnc_display = -1;
 #define MAX_CPUS 1
 #endif
 int acpi_enabled = 1;
+int fd_bootchk = 1;
 
 /***********************************************************/
 /* x86 ISA bus support */
@@ -4634,6 +4635,9 @@ void help(void)
            "-cdrom file     use 'file' as IDE cdrom image (cdrom is ide1 master)\n"
            "-boot [a|c|d]   boot on floppy (a), hard disk (c) or CD-ROM (d)\n"
 	   "-snapshot       write to temporary files instead of disk image files\n"
+#ifdef TARGET_I386
+           "-no-fd-bootchk  disable boot signature checking for floppy disks\n"
+#endif
            "-m megs         set virtual RAM size to megs MB [default=%d]\n"
            "-smp n          set the number of CPUs to 'n' [default=1]\n"
            "-nographic      disable graphical output and redirect serial I/Os to console\n"
@@ -4765,6 +4769,9 @@ enum {
     QEMU_OPTION_cdrom,
     QEMU_OPTION_boot,
     QEMU_OPTION_snapshot,
+#ifdef TARGET_I386
+    QEMU_OPTION_no_fd_bootchk,
+#endif
     QEMU_OPTION_m,
     QEMU_OPTION_nographic,
 #ifdef HAS_AUDIO
@@ -4828,6 +4835,9 @@ const QEMUOption qemu_options[] = {
     { "cdrom", HAS_ARG, QEMU_OPTION_cdrom },
     { "boot", HAS_ARG, QEMU_OPTION_boot },
     { "snapshot", 0, QEMU_OPTION_snapshot },
+#ifdef TARGET_I386
+    { "no-fd-bootchk", 0, QEMU_OPTION_no_fd_bootchk },
+#endif
     { "m", HAS_ARG, QEMU_OPTION_m },
     { "nographic", 0, QEMU_OPTION_nographic },
     { "k", HAS_ARG, QEMU_OPTION_k },
@@ -5286,6 +5296,11 @@ int main(int argc, char **argv)
             case QEMU_OPTION_fdb:
                 fd_filename[1] = optarg;
                 break;
+#ifdef TARGET_I386
+            case QEMU_OPTION_no_fd_bootchk:
+                fd_bootchk = 0;
+                break;
+#endif
             case QEMU_OPTION_no_code_copy:
                 code_copy_enabled = 0;
                 break;

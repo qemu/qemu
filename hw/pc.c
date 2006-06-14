@@ -193,6 +193,8 @@ static void cmos_init(int ram_size, int boot_device, BlockDriverState **hd_table
     case 'a':
     case 'b':
         rtc_set_memory(s, 0x3d, 0x01); /* floppy boot */
+        if (!fd_bootchk)
+            rtc_set_memory(s, 0x38, 0x01); /* disable signature check */
         break;
     default:
     case 'c':
@@ -264,10 +266,6 @@ static void cmos_init(int ram_size, int boot_device, BlockDriverState **hd_table
         }
     }
     rtc_set_memory(s, 0x39, val);
-
-    /* Disable check of 0x55AA signature on the last two bytes of
-       first sector of disk. XXX: make it the default ? */
-    //    rtc_set_memory(s, 0x38, 1);
 }
 
 void ioport_set_a20(int enable)
