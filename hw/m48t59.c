@@ -332,7 +332,10 @@ void m48t59_write (m48t59_t *NVRAM, uint32_t addr, uint32_t val)
 	tmp = fromBCD(val);
 	if (tmp >= 0 && tmp <= 99) {
 	    get_time(NVRAM, &tm);
-	    tm.tm_year = fromBCD(val);
+            if (NVRAM->type == 8)
+                tm.tm_year = fromBCD(val) + 68; // Base year is 1968
+            else
+                tm.tm_year = fromBCD(val);
 	    set_time(NVRAM, &tm);
 	}
         break;
@@ -421,7 +424,10 @@ uint32_t m48t59_read (m48t59_t *NVRAM, uint32_t addr)
     case 0x1FFF:
         /* year */
         get_time(NVRAM, &tm);
-        retval = toBCD(tm.tm_year);
+        if (NVRAM->type == 8) 
+            retval = toBCD(tm.tm_year - 68); // Base year is 1968
+        else
+            retval = toBCD(tm.tm_year);
         break;
     default:
         /* Check lock registers state */
