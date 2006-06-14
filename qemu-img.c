@@ -164,12 +164,12 @@ void help(void)
 
 static void get_human_readable_size(char *buf, int buf_size, int64_t size)
 {
-    char suffixes[NB_SUFFIXES] = "KMGT";
+    static const char suffixes[NB_SUFFIXES] = "KMGT";
     int64_t base;
     int i;
 
     if (size <= 999) {
-        snprintf(buf, buf_size, "%lld", (long long) size);
+        snprintf(buf, buf_size, "%" PRId64, size);
     } else {
         base = 1024;
         for(i = 0; i < NB_SUFFIXES; i++) {
@@ -179,8 +179,8 @@ static void get_human_readable_size(char *buf, int buf_size, int64_t size)
                          suffixes[i]);
                 break;
             } else if (size < (1000 * base) || i == (NB_SUFFIXES - 1)) {
-                snprintf(buf, buf_size, "%lld%c", 
-                         (long long) ((size + (base >> 1)) / base),
+                snprintf(buf, buf_size, "%" PRId64 "%c", 
+                         ((size + (base >> 1)) / base),
                          suffixes[i]);
                 break;
             }
@@ -373,7 +373,7 @@ static int img_create(int argc, char **argv)
         printf(", backing_file=%s",
                base_filename);
     }
-    printf(", size=%lld kB\n", (long long) (size / 1024));
+    printf(", size=%" PRId64 " kB\n", (int64_t) (size / 1024));
     ret = bdrv_create(drv, filename, size / 512, base_filename, encrypted);
     if (ret < 0) {
         if (ret == -ENOTSUP) {
@@ -563,7 +563,8 @@ static int img_convert(int argc, char **argv)
                 memset(buf + n * 512, 0, cluster_size - n * 512);
             if (is_not_zero(buf, cluster_size)) {
                 if (qcow_compress_cluster(out_bs, sector_num, buf) != 0)
-                    error("error while compressing sector %lld", sector_num);
+                    error("error while compressing sector %" PRId64,
+                          sector_num);
             }
             sector_num += n;
         }
@@ -680,10 +681,10 @@ static int img_info(int argc, char **argv)
                                 allocated_size);
     printf("image: %s\n"
            "file format: %s\n"
-           "virtual size: %s (%lld bytes)\n"
+           "virtual size: %s (%" PRId64 " bytes)\n"
            "disk size: %s\n",
            filename, fmt_name, size_buf, 
-           (long long) (total_sectors * 512),
+           (total_sectors * 512),
            dsize_buf);
     if (bdrv_is_encrypted(bs))
         printf("encrypted: yes\n");

@@ -58,6 +58,8 @@ static inline char *realpath(const char *path, char *resolved_path)
     _fullpath(resolved_path, path, _MAX_PATH);
     return resolved_path;
 }
+
+#define PRId64 "I64d"
 #endif
 
 #ifdef QEMU_TOOL
