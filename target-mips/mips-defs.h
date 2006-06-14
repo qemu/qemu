@@ -6,10 +6,8 @@
 /* If we want to use host float regs... */
 //#define USE_HOST_FLOAT_REGS
 
-enum {
-    MIPS_R4Kc = 0x00018000,
-    MIPS_R4Kp = 0x00018300,
-};
+#define MIPS_R4Kc 0x00018000
+#define MIPS_R4Kp 0x00018300
 
 /* Emulate MIPS R4Kc for now */
 #define MIPS_CPU MIPS_R4Kc
@@ -19,7 +17,7 @@ enum {
 #define TARGET_LONG_BITS 32
 /* real pages are variable size... */
 #define TARGET_PAGE_BITS 12
-/* Uses MIPS R4Kx ehancements to MIPS32 architecture */
+/* Uses MIPS R4Kx enhancements to MIPS32 architecture */
 #define MIPS_USES_R4K_EXT
 /* Uses MIPS R4Kc TLB model */
 #define MIPS_USES_R4K_TLB
@@ -30,10 +28,15 @@ enum {
  * Define a major version 1, minor version 0.
  */
 #define MIPS_FCR0 ((0 << 16) | (1 << 8) | (1 << 4) | 0)
-/* Have config1, runs in big-endian mode, uses TLB */
-#define MIPS_CONFIG0                                            \
-((1 << CP0C0_M) | (0x000 << CP0C0_K23) | (0x000 << CP0C0_KU) |  \
- (1 << CP0C0_BE) | (0x001 << CP0C0_MT) | (0x010 << CP0C0_K0))
+/* Have config1, uses TLB */
+#define MIPS_CONFIG0_1                                          \
+((1 << CP0C0_M) | (0 << CP0C0_K23) | (0 << CP0C0_KU) |          \
+ (1 << CP0C0_MT) | (2 << CP0C0_K0))
+#ifdef TARGET_WORDS_BIGENDIAN
+#define MIPS_CONFIG0 (MIPS_CONFIG0_1 | (1 << CP0C0_BE))
+#else
+#define MIPS_CONFIG0 MIPS_CONFIG0_1
+#endif
 /* 16 TLBs, 64 sets Icache, 16 bytes Icache line, 2-way Icache,
  * 64 sets Dcache, 16 bytes Dcache line, 2-way Dcache,
  * no performance counters, watch registers present, no code compression,
@@ -45,12 +48,12 @@ enum {
  (0x000 << CP0C1_DS) | (0x3 << CP0C1_DL) | (0x01 << CP0C1_DA) | \
  (0 << CP0C1_PC) | (1 << CP0C1_WR) | (0 << CP0C1_CA) |          \
  (1 << CP0C1_EP) | (MIPS_USES_FPU << CP0C1_FP))
-#elif defined (MIPS_CPU == MIPS_R4Kp)
+#elif (MIPS_CPU == MIPS_R4Kp)
 /* 32 bits target */
 #define TARGET_LONG_BITS 32
 /* real pages are variable size... */
 #define TARGET_PAGE_BITS 12
-/* Uses MIPS R4Kx ehancements to MIPS32 architecture */
+/* Uses MIPS R4Kx enhancements to MIPS32 architecture */
 #define MIPS_USES_R4K_EXT
 /* Uses MIPS R4Km FPM MMU model */
 #define MIPS_USES_R4K_FPM

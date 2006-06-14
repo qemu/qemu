@@ -3,9 +3,9 @@
 
 #define TARGET_HAS_ICE 1
 
+#include "config.h"
 #include "mips-defs.h"
 #include "cpu-defs.h"
-#include "config.h"
 #include "softfloat.h"
 
 typedef union fpr_t fpr_t;
