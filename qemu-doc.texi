@@ -1423,7 +1423,7 @@ Floppy drive
 
 The number of peripherals is fixed in the architecture.
 
-Since version 0.8.1, QEMU uses OpenBIOS
+Since version 0.8.2, QEMU uses OpenBIOS
 @url{http://www.openbios.org/}. OpenBIOS is a free (GPL v2) portable
 firmware implementation. The goal is to implement a 100% IEEE
 1275-1994 (referred to as Open Firmware) compliant firmware.
