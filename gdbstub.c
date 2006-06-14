@@ -30,10 +30,18 @@
 #include "vl.h"
 #endif
 
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
+#include "qemu_socket.h"
+#ifdef _WIN32
+/* XXX: these constants may be independent of the host ones even for Unix */
+#ifndef SIGTRAP
+#define SIGTRAP 5
+#endif
+#ifndef SIGINT
+#define SIGINT 2
+#endif
+#else
 #include <signal.h>
+#endif
 
 //#define DEBUG_GDB
 
@@ -69,7 +77,7 @@ static int get_char(GDBState *s)
     int ret;
 
     for(;;) {
-        ret = read(s->fd, &ch, 1);
+        ret = recv(s->fd, &ch, 1, 0);
         if (ret < 0) {
             if (errno != EINTR && errno != EAGAIN)
                 return -1;
@@ -87,7 +95,7 @@ static void put_buffer(GDBState *s, const uint8_t *buf, int len)
     int ret;
 
     while (len > 0) {
-        ret = write(s->fd, buf, len);
+        ret = send(s->fd, buf, len, 0);
         if (ret < 0) {
             if (errno != EINTR && errno != EAGAIN)
                 return;
@@ -829,7 +837,7 @@ static void gdb_read(void *opaque)
     int i, size;
     uint8_t buf[4096];
 
-    size = read(s->fd, buf, sizeof(buf));
+    size = recv(s->fd, buf, sizeof(buf), 0);
     if (size < 0)
         return;
     if (size == 0) {
@@ -866,7 +874,7 @@ static void gdb_accept(void *opaque)
 
     /* set short latency */
     val = 1;
-    setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &val, sizeof(val));
+    setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *)&val, sizeof(val));
     
 #ifdef CONFIG_USER_ONLY
     s = &gdbserver_state;
@@ -881,9 +889,11 @@ static void gdb_accept(void *opaque)
     s->env = first_cpu; /* XXX: allow to change CPU */
     s->fd = fd;
 
+#ifdef CONFIG_USER_ONLY
     fcntl(fd, F_SETFL, O_NONBLOCK);
+#else
+    socket_set_nonblock(fd);
 
-#ifndef CONFIG_USER_ONLY
     /* stop the VM */
     vm_stop(EXCP_INTERRUPT);
 
@@ -907,7 +917,7 @@ static int gdbserver_open(int port)
 
     /* allow fast reuse */
     val = 1;
-    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
+    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char *)&val, sizeof(val));
 
     sockaddr.sin_family = AF_INET;
     sockaddr.sin_port = htons(port);
@@ -923,7 +933,7 @@ static int gdbserver_open(int port)
         return -1;
     }
 #ifndef CONFIG_USER_ONLY
-    fcntl(fd, F_SETFL, O_NONBLOCK);
+    socket_set_nonblock(fd);
 #endif
     return fd;
 }

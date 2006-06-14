@@ -312,7 +312,6 @@ fi
 if test "$mingw32" = "yes" ; then
     linux="no"
     EXESUF=".exe"
-    gdbstub="no"
     oss="no"
     if [ "$cpu" = "i386" ] ; then
         kqemu="yes"
