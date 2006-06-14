@@ -2905,6 +2905,7 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
             break;
         case 0xc4: /* pinsrw */
         case 0x1c4: 
+            s->rip_offset = 1;
             gen_ldst_modrm(s, modrm, OT_WORD, OR_TMP0, 0);
             val = ldub_code(s->pc++);
             if (b1) {
@@ -2975,7 +2976,8 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
         }
     } else {
         /* generic MMX or SSE operation */
-        if (b == 0xf7) {
+        switch(b) {
+        case 0xf7:
             /* maskmov : we must prepare A0 */
             if (mod != 3) 
                 goto illegal_op;
@@ -2990,6 +2992,14 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
                     gen_op_andl_A0_ffff();
             }
             gen_add_A0_ds_seg(s);
+            break;
+        case 0x70: /* pshufx insn */
+        case 0xc6: /* pshufx insn */
+        case 0xc2: /* compare insns */
+            s->rip_offset = 1;
+            break;
+        default:
+            break;
         }
         if (is_xmm) {
             op1_offset = offsetof(CPUX86State,xmm_regs[reg]);
