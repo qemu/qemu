@@ -1524,6 +1524,10 @@ PCI memory space.  It does not provide access to PCI IO space.
 This means some devices (eg. ne2k_pci NIC) are not useable, and others
 (eg. rtl8139 NIC) are only useable when the guest drivers use the memory
 mapped control registers.
+@item
+PCI OHCI USB controller.
+@item
+LSI53C895A PCI SCSI Host Bus Adapter with hard disk and CD-ROM devices.
 @end itemize
 
 A Linux 2.6 test image is available on the QEMU web site. More
