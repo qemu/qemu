@@ -135,7 +135,7 @@ void helper_div1_T0_T1(void)
     uint32_t tmp0, tmp2;
     uint8_t old_q, tmp1 = 0xff;
 
-    printf("div1 T0=0x%08x T1=0x%08x M=%d Q=%d T=%d\n", T0, T1, M, Q, T);
+    //printf("div1 T0=0x%08x T1=0x%08x M=%d Q=%d T=%d\n", T0, T1, M, Q, T);
     old_q = Q;
     if ((0x80000000 & T1) != 0)
 	SETQ;
@@ -234,7 +234,7 @@ void helper_div1_T0_T1(void)
 	SETT;
     else
 	CLRT;
-    printf("Output: T1=0x%08x M=%d Q=%d T=%d\n", T1, M, Q, T);
+    //printf("Output: T1=0x%08x M=%d Q=%d T=%d\n", T1, M, Q, T);
 }
 
 void helper_dmulsl_T0_T1()

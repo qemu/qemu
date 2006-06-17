@@ -247,7 +247,6 @@ void decode_opc(DisasContext * ctx)
 #endif
     switch (ctx->opcode) {
     case 0x0019:		/* div0u */
-	printf("div0u\n");
 	gen_op_div0u();
 	return;
     case 0x000b:		/* rts */
@@ -509,7 +508,6 @@ void decode_opc(DisasContext * ctx)
 	gen_op_cmp_str_T0_T1();
 	return;
     case 0x2007:		/* div0s Rm,Rn */
-	printf("div0s\n");
 	gen_op_movl_rN_T0(REG(B7_4));
 	gen_op_movl_rN_T1(REG(B11_8));
 	gen_op_div0s_T0_T1();
