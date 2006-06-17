@@ -1172,19 +1172,14 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
            a virtual CPU fault */
         cpu_restore_state(tb, env, pc, puc);
     }
-    if (ret == 1) {
 #if 0
         printf("PF exception: NIP=0x%08x error=0x%x %p\n", 
                env->nip, env->error_code, tb);
 #endif
     /* we restore the process signal mask as the sigreturn should
        do it (XXX: use sigsetjmp) */
-        sigprocmask(SIG_SETMASK, old_set, NULL);
-        //        do_raise_exception_err(env->exception_index, env->error_code);
-    } else {
-        /* activate soft MMU for this block */
-        cpu_resume_from_signal(env, puc);
-    }
+    sigprocmask(SIG_SETMASK, old_set, NULL);
+    cpu_loop_exit();
     /* never comes here */
     return 1;
 }

@@ -144,22 +144,6 @@ CPUSH4State *cpu_sh4_init(void)
     return env;
 }
 
-#ifdef CONFIG_USER_ONLY
-target_ulong cpu_get_phys_page_debug(CPUState * env, target_ulong addr)
-{
-    return addr;
-}
-#else
-target_ulong cpu_get_phys_page_debug(CPUState * env, target_ulong addr)
-{
-    target_ulong physical;
-    int prot;
-
-    get_physical_address(env, &physical, &prot, addr, PAGE_READ, 0);
-    return physical;
-}
-#endif
-
 static void gen_goto_tb(DisasContext * ctx, int n, target_ulong dest)
 {
     TranslationBlock *tb;
@@ -1108,7 +1092,7 @@ int gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
     target_ulong pc_start;
     static uint16_t *gen_opc_end;
     uint32_t old_flags;
-    int i;
+    int i, ii;
 
     pc_start = tb->pc;
     gen_opc_ptr = gen_opc_buf;
@@ -1135,6 +1119,7 @@ int gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
     }
 #endif
 
+    ii = -1;
     while ((old_flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL)) == 0 &&
 	   (ctx.flags & (BRANCH | BRANCH_CONDITIONAL | MODE_CHANGE |
 			 BRANCH_EXCEPTION)) == 0 &&
@@ -1151,6 +1136,16 @@ int gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
 		}
 	    }
 	}
+        if (search_pc) {
+            i = gen_opc_ptr - gen_opc_buf;
+            if (ii < i) {
+                ii++;
+                while (ii < i)
+                    gen_opc_instr_start[ii++] = 0;
+            }
+            gen_opc_pc[ii] = ctx.pc;
+            gen_opc_instr_start[ii] = 1;
+        }
 #if 0
 	fprintf(stderr, "Loading opcode at address 0x%08x\n", ctx.pc);
 	fflush(stderr);
@@ -1192,7 +1187,15 @@ int gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
 	gen_op_debug();
     }
     *gen_opc_ptr = INDEX_op_end;
-    tb->size = ctx.pc - pc_start;
+    if (search_pc) {
+        i = gen_opc_ptr - gen_opc_buf;
+        ii++;
+        while (ii <= i)
+            gen_opc_instr_start[ii++] = 0;
+        tb->size = 0;
+    } else {
+        tb->size = ctx.pc - pc_start;
+    }
 
 #ifdef DEBUG_DISAS
 #ifdef SH4_DEBUG_DISAS
@@ -1220,6 +1223,5 @@ int gen_intermediate_code(CPUState * env, struct TranslationBlock *tb)
 
 int gen_intermediate_code_pc(CPUState * env, struct TranslationBlock *tb)
 {
-    assert(0);
     return gen_intermediate_code_internal(env, tb, 1);
 }

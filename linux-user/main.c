@@ -1362,7 +1362,7 @@ void cpu_loop(CPUMIPSState *env)
 void cpu_loop (CPUState *env)
 {
     int trapnr, ret;
-    //    target_siginfo_t info;
+    target_siginfo_t info;
     
     while (1) {
         trapnr = cpu_sh4_exec (env);
@@ -1379,6 +1379,20 @@ void cpu_loop (CPUState *env)
                              0);
             env->gregs[0x10] = ret;
             env->pc += 2;
+            break;
+        case EXCP_DEBUG:
+            {
+                int sig;
+
+                sig = gdb_handlesig (env, TARGET_SIGTRAP);
+                if (sig)
+                  {
+                    info.si_signo = sig;
+                    info.si_errno = 0;
+                    info.si_code = TARGET_TRAP_BRKPT;
+                    queue_signal(info.si_signo, &info);
+                  }
+            }
             break;
         default:
             printf ("Unhandled trap: 0x%x\n", trapnr);
