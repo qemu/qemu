@@ -1120,7 +1120,9 @@ int gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
     ctx.sr = env->sr;
     ctx.fpscr = env->fpscr;
     ctx.memidx = (env->sr & SR_MD) ? 1 : 0;
-    ctx.delayed_pc = env->delayed_pc;
+    /* We don't know if the delayed pc came from a dynamic or static branch,
+       so assume it is a dynamic branch.  */
+    ctx.delayed_pc = -1;
     ctx.tb = tb;
     ctx.singlestep_enabled = env->singlestep_enabled;
     nb_gen_labels = 0;
