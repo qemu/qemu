@@ -831,6 +831,7 @@ elif test "$target_cpu" = "sh4" ; then
   echo "TARGET_ARCH=sh4" >> $config_mak
   echo "#define TARGET_ARCH \"sh4\"" >> $config_h
   echo "#define TARGET_SH4 1" >> $config_h
+  bflt="yes"
 else
   echo "Unsupported target CPU"
   exit 1
