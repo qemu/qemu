@@ -783,6 +783,9 @@ int load_flt_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
     info->start_brk = libinfo[0].start_brk;
     info->start_stack = sp;
     info->entry = start_addr;
+    info->code_offset = info->start_code;
+    info->data_offset = info->start_data - libinfo[0].text_len;
+
     DBG_FLT("start_thread(entry=0x%x, start_stack=0x%x)\n",
             (int)info->entry, (int)info->start_stack);
     

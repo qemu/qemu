@@ -1541,6 +1541,7 @@ int main(int argc, char **argv)
     memset(ts, 0, sizeof(TaskState));
     env->opaque = ts;
     ts->used = 1;
+    ts->info = info;
     env->user_mode_only = 1;
     
 #if defined(TARGET_I386)

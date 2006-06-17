@@ -27,6 +27,8 @@ struct image_info {
 	unsigned long	rss;
 	unsigned long	start_stack;
 	unsigned long	entry;
+        target_ulong    code_offset;
+        target_ulong    data_offset;
 	int		personality;
 };
 
@@ -73,6 +75,7 @@ typedef struct TaskState {
     uint32_t v86mask;
 #endif
     int used; /* non zero if used */
+    struct image_info *info;
     uint8_t stack[0];
 } __attribute__((aligned(16))) TaskState;
 

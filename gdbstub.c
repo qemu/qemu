@@ -17,6 +17,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+#include "config.h"
 #ifdef CONFIG_USER_ONLY
 #include <stdlib.h>
 #include <stdio.h>
@@ -24,6 +25,7 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include "qemu.h"
 #else
@@ -680,6 +682,18 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
             goto breakpoint_error;
         }
         break;
+#ifdef CONFIG_USER_ONLY
+    case 'q':
+        if (strncmp(p, "Offsets", 7) == 0) {
+            TaskState *ts = env->opaque;
+
+            sprintf(buf, "Text=%x;Data=%x;Bss=%x", ts->info->code_offset,
+                ts->info->data_offset, ts->info->data_offset);
+            put_packet(s, buf);
+            break;
+        }
+        /* Fall through.  */
+#endif
     default:
         //        unknown_command:
         /* put empty packet */
