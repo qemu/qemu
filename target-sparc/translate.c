@@ -1123,7 +1123,11 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_movl_T0_reg(rd);
                     break;
 		case 0x5: /* V9 rdpc */
-		    gen_op_movl_T0_im(dc->pc);
+		    if (dc->pc == (uint32_t)dc->pc) {
+			gen_op_movl_T0_im(dc->pc);
+		    } else {
+			gen_op_movq_T0_im64(dc->pc >> 32, dc->pc);
+		    }
 		    gen_movl_T0_reg(rd);
 		    break;
 		case 0x6: /* V9 rdfprs */
@@ -1765,6 +1769,11 @@ static void disas_sparc_insn(DisasContext * dc)
                         else
                             gen_op_addx_T1_T0();
                         break;
+#ifdef TARGET_SPARC64
+		    case 0x9: /* V9 mulx */
+                        gen_op_mulx_T1_T0();
+                        break;
+#endif
                     case 0xa:
                         gen_op_umul_T1_T0();
                         if (xop & 0x10)
@@ -1781,6 +1790,11 @@ static void disas_sparc_insn(DisasContext * dc)
                         else
                             gen_op_subx_T1_T0();
                         break;
+#ifdef TARGET_SPARC64
+		    case 0xd: /* V9 udivx */
+                        gen_op_udivx_T1_T0();
+                        break;
+#endif
                     case 0xe:
                         gen_op_udiv_T1_T0();
                         if (xop & 0x10)
@@ -1797,16 +1811,6 @@ static void disas_sparc_insn(DisasContext * dc)
 		    gen_movl_T0_reg(rd);
                 } else {
                     switch (xop) {
-#ifdef TARGET_SPARC64
-		    case 0x9: /* V9 mulx */
-                        gen_op_mulx_T1_T0();
-			gen_movl_T0_reg(rd);
-                        break;
-		    case 0xd: /* V9 udivx */
-                        gen_op_udivx_T1_T0();
-			gen_movl_T0_reg(rd);
-                        break;
-#endif
 		    case 0x20: /* taddcc */
 		    case 0x21: /* tsubcc */
 		    case 0x22: /* taddcctv */
@@ -1942,6 +1946,11 @@ static void disas_sparc_insn(DisasContext * dc)
 				break;
 			    case 6: // pstate
 				gen_op_wrpstate();
+                                save_state(dc);
+                                gen_op_next_insn();
+                                gen_op_movl_T0_0();
+                                gen_op_exit_tb();
+                                dc->is_br = 1;
 				break;
 			    case 7: // tl
 				gen_op_movl_env_T0(offsetof(CPUSPARCState, tl));
@@ -2121,7 +2130,15 @@ static void disas_sparc_insn(DisasContext * dc)
 		case 0x38:	/* jmpl */
 		    {
 			if (rd != 0) {
+#ifdef TARGET_SPARC64
+                            if (dc->pc == (uint32_t)dc->pc) {
+                                gen_op_movl_T1_im(dc->pc);
+                            } else {
+                                gen_op_movq_T1_im64(dc->pc >> 32, dc->pc);
+                            }
+#else
 			    gen_op_movl_T1_im(dc->pc);
+#endif
 			    gen_movl_T1_reg(rd);
 			}
                         gen_mov_pc_npc(dc);
@@ -2721,11 +2738,19 @@ void cpu_dump_state(CPUState *env, FILE *f,
         if ((i & 3) == 3)
             cpu_fprintf(f, "\n");
     }
+#ifdef TARGET_SPARC64
+    cpu_fprintf(f, "pstate: 0x%08x ccr: 0x%02x asi: 0x%02x tl: %d\n",
+		env->pstate, GET_CCR(env), env->asi, env->tl);
+    cpu_fprintf(f, "cansave: %d canrestore: %d otherwin: %d wstate %d cleanwin %d cwp %d\n",
+		env->cansave, env->canrestore, env->otherwin, env->wstate,
+		env->cleanwin, NWINDOWS - 1 - env->cwp);
+#else
     cpu_fprintf(f, "psr: 0x%08x -> %c%c%c%c %c%c%c wim: 0x%08x\n", GET_PSR(env),
 	    GET_FLAG(PSR_ZERO, 'Z'), GET_FLAG(PSR_OVF, 'V'),
 	    GET_FLAG(PSR_NEG, 'N'), GET_FLAG(PSR_CARRY, 'C'),
 	    env->psrs?'S':'-', env->psrps?'P':'-', 
 	    env->psret?'E':'-', env->wim);
+#endif
     cpu_fprintf(f, "fsr: 0x%08x\n", GET_FSR32(env));
 }
 
