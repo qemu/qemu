@@ -30,6 +30,11 @@ ifeq ($(TARGET_ARCH),arm)
     TARGET_ARCH2=armeb
   endif
 endif
+ifeq ($(TARGET_ARCH),sh4)
+  ifeq ($(TARGET_WORDS_BIGENDIAN),yes)
+    TARGET_ARCH2=sh4eb
+  endif
+endif
 ifeq ($(TARGET_ARCH),mips)
   ifneq ($(TARGET_WORDS_BIGENDIAN),yes)
     TARGET_ARCH2=mipsel
