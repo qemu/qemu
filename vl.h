@@ -148,7 +148,7 @@ extern int usb_enabled;
 extern int smp_cpus;
 
 /* XXX: make it dynamic */
-#if defined (TARGET_PPC)
+#if defined (TARGET_PPC) || defined (TARGET_SPARC64)
 #define BIOS_SIZE ((512 + 32) * 1024)
 #elif defined(TARGET_MIPS)
 #define BIOS_SIZE (128 * 1024)
