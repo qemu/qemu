@@ -47,7 +47,7 @@ void cpu_loop_exit(void)
     longjmp(env->jmp_env, 1);
 }
 #endif
-#ifndef TARGET_SPARC
+#if !(defined(TARGET_SPARC) || defined(TARGET_SH4))
 #define reg_T2
 #endif
 

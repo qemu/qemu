@@ -1370,14 +1370,14 @@ void cpu_loop (CPUState *env)
         switch (trapnr) {
         case 0x160:
             ret = do_syscall(env, 
-                             env->gregs[0x13], 
-                             env->gregs[0x14], 
-                             env->gregs[0x15], 
-                             env->gregs[0x16], 
-                             env->gregs[0x17], 
-                             env->gregs[0x10], 
+                             env->gregs[3], 
+                             env->gregs[4], 
+                             env->gregs[5], 
+                             env->gregs[6], 
+                             env->gregs[7], 
+                             env->gregs[0], 
                              0);
-            env->gregs[0x10] = ret;
+            env->gregs[0] = ret;
             env->pc += 2;
             break;
         case EXCP_DEBUG:

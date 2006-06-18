@@ -124,7 +124,11 @@ void cpu_dump_state(CPUState * env, FILE * f,
 
 void cpu_sh4_reset(CPUSH4State * env)
 {
+#if defined(CONFIG_USER_ONLY)
+    env->sr = 0x00000000;
+#else
     env->sr = 0x700000F0;	/* MD, RB, BL, I3-I0 */
+#endif
     env->vbr = 0;
     env->pc = 0xA0000000;
     env->fpscr = 0x00040001;
@@ -209,10 +213,10 @@ static void gen_delayed_conditional_jump(DisasContext * ctx)
     int l1;
 
     l1 = gen_new_label();
-    gen_op_jTT2(l1);
-    gen_goto_tb(ctx, 0, ctx->pc);
+    gen_op_jdelayed(l1);
+    gen_goto_tb(ctx, 1, ctx->pc);
     gen_set_label(l1);
-    gen_goto_tb(ctx, 1, ctx->delayed_pc);
+    gen_jump(ctx);
 }
 
 #define B3_0 (ctx->opcode & 0xf)
@@ -1160,25 +1164,15 @@ int gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
 #endif
     }
 
-    switch (old_flags & (DELAY_SLOT_CONDITIONAL | DELAY_SLOT)) {
-    case DELAY_SLOT_CONDITIONAL:
-	gen_op_clr_delay_slot_conditional();
+    if (old_flags & DELAY_SLOT_CONDITIONAL) {
 	gen_delayed_conditional_jump(&ctx);
-	break;
-    case DELAY_SLOT:
+    } else if (old_flags & DELAY_SLOT) {
 	gen_op_clr_delay_slot();
 	gen_jump(&ctx);
-	break;
-    case 0:
-	if (ctx.flags & BRANCH_EXCEPTION) {
-	    gen_jump_exception(&ctx);
-	} else if ((ctx.flags & (BRANCH | BRANCH_CONDITIONAL)) == 0) {
-	    gen_goto_tb(&ctx, 0, ctx.pc);
-	}
-	break;
-    default:
-	/* Both cannot be set at the same time */
-	assert(0);
+    } else if (ctx.flags & BRANCH_EXCEPTION) {
+        gen_jump_exception(&ctx);
+    } else if ((ctx.flags & (BRANCH | BRANCH_CONDITIONAL)) == 0) {
+        gen_goto_tb(&ctx, 0, ctx.pc);
     }
 
     if (env->singlestep_enabled) {

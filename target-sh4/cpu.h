@@ -45,7 +45,9 @@
 #define FPSCR_PR (1 << 19)
 #define FPSCR_DN (1 << 18)
 
-#define DELAY_SLOT             (1 << 0)
+#define DELAY_SLOT             (1 << 0) /* Must be the same as SR_T.  */
+/* This flag is set if the next insn is a delay slot for a conditional jump.
+   The dynamic value of the DELAY_SLOT determines whether the jup is taken. */
 #define DELAY_SLOT_CONDITIONAL (1 << 1)
 /* Those are used in contexts only */
 #define BRANCH                 (1 << 2)

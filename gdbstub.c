@@ -504,7 +504,12 @@ static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
   int i;
 
 #define SAVE(x) *ptr++=tswapl(x)
-  for (i = 0; i < 16; i++) SAVE(env->gregs[i]);
+  if ((env->sr & (SR_MD | SR_RB)) == (SR_MD | SR_RB)) {
+      for (i = 0; i < 8; i++) SAVE(env->gregs[i + 16]);
+  } else {
+      for (i = 0; i < 8; i++) SAVE(env->gregs[i]);
+  }
+  for (i = 8; i < 16; i++) SAVE(env->gregs[i]);
   SAVE (env->pc);
   SAVE (env->pr);
   SAVE (env->gbr);
@@ -527,7 +532,12 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
   int i;
 
 #define LOAD(x) (x)=*ptr++;
-  for (i = 0; i < 16; i++) LOAD(env->gregs[i]);
+  if ((env->sr & (SR_MD | SR_RB)) == (SR_MD | SR_RB)) {
+      for (i = 0; i < 8; i++) LOAD(env->gregs[i + 16]);
+  } else {
+      for (i = 0; i < 8; i++) LOAD(env->gregs[i]);
+  }
+  for (i = 8; i < 16; i++) LOAD(env->gregs[i]);
   LOAD (env->pc);
   LOAD (env->pr);
   LOAD (env->gbr);

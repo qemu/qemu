@@ -109,17 +109,15 @@ void OPPROTO op_not_T0(void)
 
 void OPPROTO op_bf_s(void)
 {
-    T2 = ~env->sr;
     env->delayed_pc = PARAM1;
-    set_flag(DELAY_SLOT_CONDITIONAL);
+    set_flag(DELAY_SLOT_CONDITIONAL | ((~env->sr) & SR_T));
     RETURN();
 }
 
 void OPPROTO op_bt_s(void)
 {
-    T2 = env->sr;
     env->delayed_pc = PARAM1;
-    set_flag(DELAY_SLOT_CONDITIONAL);
+    set_flag(DELAY_SLOT_CONDITIONAL | (env->sr & SR_T));
     RETURN();
 }
 
@@ -888,9 +886,12 @@ void OPPROTO op_jT(void)
     RETURN();
 }
 
-void OPPROTO op_jTT2(void)
+void OPPROTO op_jdelayed(void)
 {
-    if (T2 & SR_T)
+    uint32_t flags;
+    flags = env->flags;
+    env->flags &= ~(DELAY_SLOT | DELAY_SLOT_CONDITIONAL);
+    if (flags & DELAY_SLOT)
 	GOTO_LABEL_PARAM(1);
     RETURN();
 }
