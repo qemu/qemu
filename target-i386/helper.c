@@ -2950,9 +2950,14 @@ void helper_fxam_ST0(void)
     if (SIGND(temp))
         env->fpus |= 0x200; /* C1 <-- 1 */
 
+    /* XXX: test fptags too */
     expdif = EXPD(temp);
     if (expdif == MAXEXPD) {
+#ifdef USE_X86LDOUBLE
+        if (MANTD(temp) == 0x8000000000000000ULL)
+#else
         if (MANTD(temp) == 0)
+#endif
             env->fpus |=  0x500 /*Infinity*/;
         else
             env->fpus |=  0x100 /*NaN*/;
