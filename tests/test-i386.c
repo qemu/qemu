@@ -789,6 +789,12 @@ void test_fcmp(double a, double b)
                a, b, fpus & FPUS_EMASK, eflags & (CC_Z | CC_P | CC_C));
     }
     fpu_clear_exceptions();
+    asm volatile("fxam\n"
+                 "fstsw %%ax\n"
+                 : "=a" (fpus)
+                 : "t" (a));
+    printf("fxam(%f)=%04lx\n", a, fpus & 0x4700);
+    fpu_clear_exceptions();
 }
 
 void test_fcvt(double a)
@@ -958,12 +964,17 @@ void test_floats(void)
     test_fcmp(2, 3);
     test_fcmp(2, q_nan.d);
     test_fcmp(q_nan.d, -1);
+    test_fcmp(-1.0/0.0, -1);
+    test_fcmp(1.0/0.0, -1);
     test_fcvt(0.5);
     test_fcvt(-0.5);
     test_fcvt(1.0/7.0);
     test_fcvt(-1.0/9.0);
     test_fcvt(32768);
     test_fcvt(-1e20);
+    test_fcvt(-1.0/0.0);
+    test_fcvt(1.0/0.0);
+    test_fcvt(q_nan.d);
     test_fconst();
     test_fbcd(1234567890123456);
     test_fbcd(-123451234567890);
