@@ -1674,6 +1674,7 @@ void helper_ljmp_protected_T0_T1(int next_eip_addend)
                 raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
             next_eip = env->eip + next_eip_addend;
             switch_tss(new_cs, e1, e2, SWITCH_TSS_JMP, next_eip);
+            CC_OP = CC_OP_EFLAGS;
             break;
         case 4: /* 286 call gate */
         case 12: /* 386 call gate */
@@ -1834,6 +1835,7 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip_addend)
             if (dpl < cpl || dpl < rpl)
                 raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
             switch_tss(new_cs, e1, e2, SWITCH_TSS_CALL, next_eip);
+            CC_OP = CC_OP_EFLAGS;
             return;
         case 4: /* 286 call gate */
         case 12: /* 386 call gate */
