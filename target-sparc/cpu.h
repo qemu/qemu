@@ -12,7 +12,6 @@
 #define TARGET_FPREGS 64
 #define TARGET_PAGE_BITS 12 /* XXX */
 #endif
-#define TARGET_FPREG_T float32
 
 #include "cpu-defs.h"
 
