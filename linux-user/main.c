@@ -598,8 +598,9 @@ void cpu_loop (CPUSPARCState *env)
 #else
 	    // XXX
 #endif
-	case 0x100: // XXX, why do we get these?
-	    break;
+        case EXCP_INTERRUPT:
+            /* just indicate that signals should be handled asap */
+            break;
         case EXCP_DEBUG:
             {
                 int sig;

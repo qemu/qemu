@@ -1538,6 +1538,11 @@ int do_fork(CPUState *env, unsigned int flags, unsigned long newsp)
         new_env->regs[13] = newsp;
         new_env->regs[0] = 0;
 #elif defined(TARGET_SPARC)
+        if (!newsp)
+            newsp = env->regwptr[22];
+        new_env->regwptr[22] = newsp;
+        new_env->regwptr[0] = 0;
+	/* XXXXX */
         printf ("HELPME: %s:%d\n", __FILE__, __LINE__);
 #elif defined(TARGET_MIPS)
         printf ("HELPME: %s:%d\n", __FILE__, __LINE__);
@@ -3598,10 +3603,14 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_get_thread_area:
         goto unimplemented_nowarn;
 #endif
+#ifdef TARGET_NR_getdomainname
+    case TARGET_NR_getdomainname:
+        goto unimplemented_nowarn;
+#endif
     default:
     unimplemented:
         gemu_log("qemu: Unsupported syscall: %d\n", num);
-#if defined(TARGET_NR_setxattr) || defined(TARGET_NR_set_thread_area)
+#if defined(TARGET_NR_setxattr) || defined(TARGET_NR_set_thread_area) || defined(TARGET_NR_getdomainname)
     unimplemented_nowarn:
 #endif
         ret = -ENOSYS;
