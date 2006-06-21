@@ -556,7 +556,10 @@ images.
 
 @item -std-vga
 Simulate a standard VGA card with Bochs VBE extensions (default is
-Cirrus Logic GD5446 PCI VGA)
+Cirrus Logic GD5446 PCI VGA). If your guest OS supports the VESA 2.0
+VBE extensions (e.g. Windows XP) and if you want to use high
+resolution modes (>= 1280x1024x16) then you should use this option.
+
 @item -loadvm file
 Start right away with a saved state (@code{loadvm} in monitor)
 @end table
@@ -1259,6 +1262,11 @@ QEMU emulates a Cirrus Logic GD5446 Video
 card. All Windows versions starting from Windows 95 should recognize
 and use this graphic card. For optimal performances, use 16 bit color
 depth in the guest and the host OS.
+
+If you are using Windows XP as guest OS and if you want to use high
+resolution modes which the Cirrus Logic BIOS does not support (i.e. >=
+1280x1024x16), then you should use the VESA VBE virtual graphic card
+(option @option{-std-vga}).
 
 @subsubsection CPU usage reduction
 
