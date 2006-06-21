@@ -956,8 +956,8 @@ static void disas_sparc_insn(DisasContext * dc)
 		    int cc;
 
 		    target = GET_FIELD_SP(insn, 0, 18);
-		    target <<= 2;
 		    target = sign_extend(target, 18);
+		    target <<= 2;
 		    cc = GET_FIELD_SP(insn, 20, 21);
 		    if (cc == 0)
 			do_branch(dc, target, insn, 0);
@@ -971,8 +971,8 @@ static void disas_sparc_insn(DisasContext * dc)
 		{
 		    target = GET_FIELD_SP(insn, 0, 13) | 
 			(GET_FIELD_SP(insn, 20, 21) >> 7);
-		    target <<= 2;
 		    target = sign_extend(target, 16);
+		    target <<= 2;
 		    rs1 = GET_FIELD(insn, 13, 17);
 		    gen_movl_reg_T0(rs1);
 		    do_branch_reg(dc, target, insn);
@@ -986,8 +986,8 @@ static void disas_sparc_insn(DisasContext * dc)
 		    gen_op_trap_ifnofpu();
 #endif
 		    target = GET_FIELD_SP(insn, 0, 18);
-		    target <<= 2;
 		    target = sign_extend(target, 19);
+		    target <<= 2;
 		    do_fbranch(dc, target, insn, cc);
 		    goto jmp_insn;
 		}
@@ -995,8 +995,8 @@ static void disas_sparc_insn(DisasContext * dc)
 	    case 0x2:		/* BN+x */
 		{
 		    target = GET_FIELD(insn, 10, 31);
-		    target <<= 2;
 		    target = sign_extend(target, 22);
+		    target <<= 2;
 		    do_branch(dc, target, insn, 0);
 		    goto jmp_insn;
 		}
@@ -1007,8 +1007,8 @@ static void disas_sparc_insn(DisasContext * dc)
 		    gen_op_trap_ifnofpu();
 #endif
 		    target = GET_FIELD(insn, 10, 31);
-		    target <<= 2;
 		    target = sign_extend(target, 22);
+		    target <<= 2;
 		    do_fbranch(dc, target, insn, 0);
 		    goto jmp_insn;
 		}
