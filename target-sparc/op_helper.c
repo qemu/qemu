@@ -12,12 +12,12 @@ void raise_exception(int tt)
 #ifdef USE_INT_TO_FLOAT_HELPERS
 void do_fitos(void)
 {
-    FT0 = (float) *((int32_t *)&FT1);
+    FT0 = int32_to_float32(*((int32_t *)&FT1));
 }
 
 void do_fitod(void)
 {
-    DT0 = (double) *((int32_t *)&FT1);
+    DT0 = int32_to_float64(*((int32_t *)&FT1));
 }
 #endif
 
@@ -43,182 +43,45 @@ void do_fsqrtd(void)
     DT0 = float64_sqrt(DT1, &env->fp_status);
 }
 
-#define FS 0
-void do_fcmps (void)
-{
-    env->fsr &= ~((FSR_FCC1 | FSR_FCC0) << FS);
-    if (isnan(FT0) || isnan(FT1)) {
-        T0 = (FSR_FCC1 | FSR_FCC0) << FS;
-	if (env->fsr & FSR_NVM) {
-	    env->fsr |= T0;
-	    raise_exception(TT_FP_EXCP);
-	} else {
-	    env->fsr |= FSR_NVA;
-	}
-    } else if (FT0 < FT1) {
-        T0 = FSR_FCC0 << FS;
-    } else if (FT0 > FT1) {
-        T0 = FSR_FCC1 << FS;
-    } else {
-        T0 = 0;
+#define GEN_FCMP(name, size, reg1, reg2, FS)                            \
+    void glue(do_, name) (void)                                         \
+    {                                                                   \
+        env->fsr &= ~((FSR_FCC1 | FSR_FCC0) << FS);                     \
+        switch (glue(size, _compare) (reg1, reg2, &env->fp_status)) {   \
+        case float_relation_unordered:                                  \
+            T0 = (FSR_FCC1 | FSR_FCC0) << FS;                           \
+            if (env->fsr & FSR_NVM) {                                   \
+                env->fsr |= T0;                                         \
+                raise_exception(TT_FP_EXCP);                            \
+            } else {                                                    \
+                env->fsr |= FSR_NVA;                                    \
+            }                                                           \
+            break;                                                      \
+        case float_relation_less:                                       \
+            T0 = FSR_FCC0 << FS;                                        \
+            break;                                                      \
+        case float_relation_greater:                                    \
+            T0 = FSR_FCC1 << FS;                                        \
+            break;                                                      \
+        default:                                                        \
+            T0 = 0;                                                     \
+            break;                                                      \
+        }                                                               \
+        env->fsr |= T0;                                                 \
     }
-    env->fsr |= T0;
-}
 
-void do_fcmpd (void)
-{
-    env->fsr &= ~((FSR_FCC1 | FSR_FCC0) << FS);
-    if (isnan(DT0) || isnan(DT1)) {
-        T0 = (FSR_FCC1 | FSR_FCC0) << FS;
-	if (env->fsr & FSR_NVM) {
-	    env->fsr |= T0;
-	    raise_exception(TT_FP_EXCP);
-	} else {
-	    env->fsr |= FSR_NVA;
-	}
-    } else if (DT0 < DT1) {
-        T0 = FSR_FCC0 << FS;
-    } else if (DT0 > DT1) {
-        T0 = FSR_FCC1 << FS;
-    } else {
-        T0 = 0;
-    }
-    env->fsr |= T0;
-}
+GEN_FCMP(fcmps, float32, FT0, FT1, 0);
+GEN_FCMP(fcmpd, float64, DT0, DT1, 0);
 
 #ifdef TARGET_SPARC64
-#undef FS
-#define FS 22
-void do_fcmps_fcc1 (void)
-{
-    env->fsr &= ~((FSR_FCC1 | FSR_FCC0) << FS);
-    if (isnan(FT0) || isnan(FT1)) {
-        T0 = (FSR_FCC1 | FSR_FCC0) << FS;
-	if (env->fsr & FSR_NVM) {
-	    env->fsr |= T0;
-	    raise_exception(TT_FP_EXCP);
-	} else {
-	    env->fsr |= FSR_NVA;
-	}
-    } else if (FT0 < FT1) {
-        T0 = FSR_FCC0 << FS;
-    } else if (FT0 > FT1) {
-        T0 = FSR_FCC1 << FS;
-    } else {
-        T0 = 0;
-    }
-    env->fsr |= T0;
-}
+GEN_FCMP(fcmps_fcc1, float32, FT0, FT1, 22);
+GEN_FCMP(fcmpd_fcc1, float64, DT0, DT1, 22);
 
-void do_fcmpd_fcc1 (void)
-{
-    env->fsr &= ~((FSR_FCC1 | FSR_FCC0) << FS);
-    if (isnan(DT0) || isnan(DT1)) {
-        T0 = (FSR_FCC1 | FSR_FCC0) << FS;
-	if (env->fsr & FSR_NVM) {
-	    env->fsr |= T0;
-	    raise_exception(TT_FP_EXCP);
-	} else {
-	    env->fsr |= FSR_NVA;
-	}
-    } else if (DT0 < DT1) {
-        T0 = FSR_FCC0 << FS;
-    } else if (DT0 > DT1) {
-        T0 = FSR_FCC1 << FS;
-    } else {
-        T0 = 0;
-    }
-    env->fsr |= T0;
-}
+GEN_FCMP(fcmps_fcc2, float32, FT0, FT1, 24);
+GEN_FCMP(fcmpd_fcc2, float64, DT0, DT1, 24);
 
-#undef FS
-#define FS 24
-void do_fcmps_fcc2 (void)
-{
-    env->fsr &= ~((FSR_FCC1 | FSR_FCC0) << FS);
-    if (isnan(FT0) || isnan(FT1)) {
-        T0 = (FSR_FCC1 | FSR_FCC0) << FS;
-	if (env->fsr & FSR_NVM) {
-	    env->fsr |= T0;
-	    raise_exception(TT_FP_EXCP);
-	} else {
-	    env->fsr |= FSR_NVA;
-	}
-    } else if (FT0 < FT1) {
-        T0 = FSR_FCC0 << FS;
-    } else if (FT0 > FT1) {
-        T0 = FSR_FCC1 << FS;
-    } else {
-        T0 = 0;
-    }
-    env->fsr |= T0;
-}
-
-void do_fcmpd_fcc2 (void)
-{
-    env->fsr &= ~((FSR_FCC1 | FSR_FCC0) << FS);
-    if (isnan(DT0) || isnan(DT1)) {
-        T0 = (FSR_FCC1 | FSR_FCC0) << FS;
-	if (env->fsr & FSR_NVM) {
-	    env->fsr |= T0;
-	    raise_exception(TT_FP_EXCP);
-	} else {
-	    env->fsr |= FSR_NVA;
-	}
-    } else if (DT0 < DT1) {
-        T0 = FSR_FCC0 << FS;
-    } else if (DT0 > DT1) {
-        T0 = FSR_FCC1 << FS;
-    } else {
-        T0 = 0;
-    }
-    env->fsr |= T0;
-}
-
-#undef FS
-#define FS 26
-void do_fcmps_fcc3 (void)
-{
-    env->fsr &= ~((FSR_FCC1 | FSR_FCC0) << FS);
-    if (isnan(FT0) || isnan(FT1)) {
-        T0 = (FSR_FCC1 | FSR_FCC0) << FS;
-	if (env->fsr & FSR_NVM) {
-	    env->fsr |= T0;
-	    raise_exception(TT_FP_EXCP);
-	} else {
-	    env->fsr |= FSR_NVA;
-	}
-    } else if (FT0 < FT1) {
-        T0 = FSR_FCC0 << FS;
-    } else if (FT0 > FT1) {
-        T0 = FSR_FCC1 << FS;
-    } else {
-        T0 = 0;
-    }
-    env->fsr |= T0;
-}
-
-void do_fcmpd_fcc3 (void)
-{
-    env->fsr &= ~((FSR_FCC1 | FSR_FCC0) << FS);
-    if (isnan(DT0) || isnan(DT1)) {
-        T0 = (FSR_FCC1 | FSR_FCC0) << FS;
-	if (env->fsr & FSR_NVM) {
-	    env->fsr |= T0;
-	    raise_exception(TT_FP_EXCP);
-	} else {
-	    env->fsr |= FSR_NVA;
-	}
-    } else if (DT0 < DT1) {
-        T0 = FSR_FCC0 << FS;
-    } else if (DT0 > DT1) {
-        T0 = FSR_FCC1 << FS;
-    } else {
-        T0 = 0;
-    }
-    env->fsr |= T0;
-}
-#undef FS
+GEN_FCMP(fcmps_fcc3, float32, FT0, FT1, 26);
+GEN_FCMP(fcmpd_fcc3, float64, DT0, DT1, 26);
 #endif
 
 #if defined(CONFIG_USER_ONLY) 
@@ -781,19 +644,6 @@ void helper_ldfsr(void)
 	break;
     }
     set_float_rounding_mode(rnd_mode, &env->fp_status);
-}
-
-void cpu_get_fp64(uint64_t *pmant, uint16_t *pexp, double f)
-{
-    int exptemp;
-
-    *pmant = ldexp(frexp(f, &exptemp), 53);
-    *pexp = exptemp;
-}
-
-double cpu_put_fp64(uint64_t mant, uint16_t exp)
-{
-    return ldexp((double) mant, exp - 53);
 }
 
 void helper_debug()
