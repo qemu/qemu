@@ -970,7 +970,7 @@ static void disas_sparc_insn(DisasContext * dc)
 	    case 0x3:		/* V9 BPr */
 		{
 		    target = GET_FIELD_SP(insn, 0, 13) | 
-			(GET_FIELD_SP(insn, 20, 21) >> 7);
+                        (GET_FIELD_SP(insn, 20, 21) << 14);
 		    target = sign_extend(target, 16);
 		    target <<= 2;
 		    rs1 = GET_FIELD(insn, 13, 17);
