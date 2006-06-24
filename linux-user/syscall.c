@@ -446,7 +446,7 @@ static inline void target_to_host_cmsg(struct msghdr *msgh,
         cmsg->cmsg_type = tswap32(target_cmsg->cmsg_type);
         cmsg->cmsg_len = CMSG_LEN(len);
 
-        if (cmsg->cmsg_level != SOL_SOCKET || cmsg->cmsg_type != SCM_RIGHTS) {
+        if (cmsg->cmsg_level != TARGET_SOL_SOCKET || cmsg->cmsg_type != SCM_RIGHTS) {
             gemu_log("Unsupported ancillary data: %d/%d\n", cmsg->cmsg_level, cmsg->cmsg_type);
             memcpy(data, target_data, len);
         } else {
@@ -490,7 +490,7 @@ static inline void host_to_target_cmsg(struct target_msghdr *target_msgh,
         target_cmsg->cmsg_type = tswap32(cmsg->cmsg_type);
         target_cmsg->cmsg_len = tswapl(TARGET_CMSG_LEN(len));
 
-        if (cmsg->cmsg_level != SOL_SOCKET || cmsg->cmsg_type != SCM_RIGHTS) {
+        if (cmsg->cmsg_level != TARGET_SOL_SOCKET || cmsg->cmsg_type != SCM_RIGHTS) {
             gemu_log("Unsupported ancillary data: %d/%d\n", cmsg->cmsg_level, cmsg->cmsg_type);
             memcpy(target_data, data, len);
         } else {
@@ -552,38 +552,74 @@ static long do_setsockopt(int sockfd, int level, int optname,
             goto unimplemented;
         }
         break;
-    case SOL_SOCKET:
+    case TARGET_SOL_SOCKET:
         switch (optname) {
             /* Options with 'int' argument.  */
-        case SO_DEBUG:
-        case SO_REUSEADDR:
-        case SO_TYPE:
-        case SO_ERROR:
-        case SO_DONTROUTE:
-        case SO_BROADCAST:
-        case SO_SNDBUF:
-        case SO_RCVBUF:
-        case SO_KEEPALIVE:
-        case SO_OOBINLINE:
-        case SO_NO_CHECK:
-        case SO_PRIORITY:
+        case TARGET_SO_DEBUG:
+		optname = SO_DEBUG;
+		break;
+        case TARGET_SO_REUSEADDR:
+		optname = SO_REUSEADDR;
+		break;
+        case TARGET_SO_TYPE:
+		optname = SO_TYPE;
+		break;
+        case TARGET_SO_ERROR:
+		optname = SO_ERROR;
+		break;
+        case TARGET_SO_DONTROUTE:
+		optname = SO_DONTROUTE;
+		break;
+        case TARGET_SO_BROADCAST:
+		optname = SO_BROADCAST;
+		break;
+        case TARGET_SO_SNDBUF:
+		optname = SO_SNDBUF;
+		break;
+        case TARGET_SO_RCVBUF:
+		optname = SO_RCVBUF;
+		break;
+        case TARGET_SO_KEEPALIVE:
+		optname = SO_KEEPALIVE;
+		break;
+        case TARGET_SO_OOBINLINE:
+		optname = SO_OOBINLINE;
+		break;
+        case TARGET_SO_NO_CHECK:
+		optname = SO_NO_CHECK;
+		break;
+        case TARGET_SO_PRIORITY:
+		optname = SO_PRIORITY;
+		break;
 #ifdef SO_BSDCOMPAT
-        case SO_BSDCOMPAT:
+        case TARGET_SO_BSDCOMPAT:
+		optname = SO_BSDCOMPAT;
+		break;
 #endif
-        case SO_PASSCRED:
-        case SO_TIMESTAMP:
-        case SO_RCVLOWAT:
-        case SO_RCVTIMEO:
-        case SO_SNDTIMEO:
-            if (optlen < sizeof(uint32_t))
-                return -EINVAL;
-
-            val = tget32(optval);
-            ret = get_errno(setsockopt(sockfd, level, optname, &val, sizeof(val)));
+        case TARGET_SO_PASSCRED:
+		optname = SO_PASSCRED;
+		break;
+        case TARGET_SO_TIMESTAMP:
+		optname = SO_TIMESTAMP;
+		break;
+        case TARGET_SO_RCVLOWAT:
+		optname = SO_RCVLOWAT;
+		break;
+        case TARGET_SO_RCVTIMEO:
+		optname = SO_RCVTIMEO;
+		break;
+        case TARGET_SO_SNDTIMEO:
+		optname = SO_SNDTIMEO;
+		break;
             break;
         default:
             goto unimplemented;
         }
+	if (optlen < sizeof(uint32_t))
+	return -EINVAL;
+
+	val = tget32(optval);
+	ret = get_errno(setsockopt(sockfd, SOL_SOCKET, optname, &val, sizeof(val)));
         break;
     default:
     unimplemented:
@@ -599,13 +635,14 @@ static long do_getsockopt(int sockfd, int level, int optname,
     int len, lv, val, ret;
 
     switch(level) {
-    case SOL_SOCKET:
+    case TARGET_SOL_SOCKET:
+    	level = SOL_SOCKET;
 	switch (optname) {
-	case SO_LINGER:
-	case SO_RCVTIMEO:
-	case SO_SNDTIMEO:
-	case SO_PEERCRED:
-	case SO_PEERNAME:
+	case TARGET_SO_LINGER:
+	case TARGET_SO_RCVTIMEO:
+	case TARGET_SO_SNDTIMEO:
+	case TARGET_SO_PEERCRED:
+	case TARGET_SO_PEERNAME:
 	    /* These don't just return a single integer */
 	    goto unimplemented;
         default:
@@ -711,6 +748,94 @@ static void unlock_iovec(struct iovec *vec, target_ulong target_addr,
     unlock_user (target_vec, target_addr, 0);
 }
 
+static long do_socket(int domain, int type, int protocol)
+{
+#if defined(TARGET_MIPS)
+    switch(type) {
+    case TARGET_SOCK_DGRAM:
+        type = SOCK_DGRAM;
+        break;
+    case TARGET_SOCK_STREAM:
+        type = SOCK_STREAM;
+        break;
+    case TARGET_SOCK_RAW:
+        type = SOCK_RAW;
+        break;
+    case TARGET_SOCK_RDM:
+        type = SOCK_RDM;
+        break;
+    case TARGET_SOCK_SEQPACKET:
+        type = SOCK_SEQPACKET;
+        break;
+    case TARGET_SOCK_PACKET:
+        type = SOCK_PACKET;
+        break;
+    }
+#endif
+    return get_errno(socket(domain, type, protocol));
+}
+
+static long do_bind(int sockfd, target_ulong target_addr,
+                    socklen_t addrlen)
+{
+    void *addr = alloca(addrlen);
+    
+    target_to_host_sockaddr(addr, target_addr, addrlen);
+    return get_errno(bind(sockfd, addr, addrlen));
+}
+
+static long do_connect(int sockfd, target_ulong target_addr,
+                    socklen_t addrlen)
+{
+    void *addr = alloca(addrlen);
+    
+    target_to_host_sockaddr(addr, target_addr, addrlen);
+    return get_errno(connect(sockfd, addr, addrlen));
+}
+
+static long do_sendrecvmsg(int fd, target_ulong target_msg,
+                           int flags, int send)
+{
+    long ret;
+    struct target_msghdr *msgp;
+    struct msghdr msg;
+    int count;
+    struct iovec *vec;
+    target_ulong target_vec;
+
+    lock_user_struct(msgp, target_msg, 1);
+    if (msgp->msg_name) {
+        msg.msg_namelen = tswap32(msgp->msg_namelen);
+        msg.msg_name = alloca(msg.msg_namelen);
+        target_to_host_sockaddr(msg.msg_name, tswapl(msgp->msg_name),
+                                msg.msg_namelen);
+    } else {
+        msg.msg_name = NULL;
+        msg.msg_namelen = 0;
+    }
+    msg.msg_controllen = 2 * tswapl(msgp->msg_controllen);
+    msg.msg_control = alloca(msg.msg_controllen);
+    msg.msg_flags = tswap32(msgp->msg_flags);
+    
+    count = tswapl(msgp->msg_iovlen);
+    vec = alloca(count * sizeof(struct iovec));
+    target_vec = tswapl(msgp->msg_iov);
+    lock_iovec(vec, target_vec, count, send);
+    msg.msg_iovlen = count;
+    msg.msg_iov = vec;
+    
+    if (send) {
+        target_to_host_cmsg(&msg, msgp);
+        ret = get_errno(sendmsg(fd, &msg, flags));
+    } else {
+        ret = get_errno(recvmsg(fd, &msg, flags));
+        if (!is_error(ret))
+            host_to_target_cmsg(msgp, &msg);
+    }
+    unlock_iovec(vec, target_vec, count, !send);
+    return ret;
+}
+
 static long do_socketcall(int num, target_ulong vptr)
 {
     long ret;
@@ -722,8 +847,7 @@ static long do_socketcall(int num, target_ulong vptr)
             int domain = tgetl(vptr);
             int type = tgetl(vptr + n);
             int protocol = tgetl(vptr + 2 * n);
-
-            ret = get_errno(socket(domain, type, protocol));
+            ret = do_socket(domain, type, protocol);
 	}
         break;
     case SOCKOP_bind:
@@ -731,10 +855,7 @@ static long do_socketcall(int num, target_ulong vptr)
             int sockfd = tgetl(vptr);
             target_ulong target_addr = tgetl(vptr + n);
             socklen_t addrlen = tgetl(vptr + 2 * n);
-            void *addr = alloca(addrlen);
-
-            target_to_host_sockaddr(addr, target_addr, addrlen);
-            ret = get_errno(bind(sockfd, addr, addrlen));
+            ret = do_bind(sockfd, target_addr, addrlen);
         }
         break;
     case SOCKOP_connect:
@@ -742,17 +863,13 @@ static long do_socketcall(int num, target_ulong vptr)
             int sockfd = tgetl(vptr);
             target_ulong target_addr = tgetl(vptr + n);
             socklen_t addrlen = tgetl(vptr + 2 * n);
-            void *addr = alloca(addrlen);
-
-            target_to_host_sockaddr(addr, target_addr, addrlen);
-            ret = get_errno(connect(sockfd, addr, addrlen));
+            ret = do_connect(sockfd, target_addr, addrlen);
         }
         break;
     case SOCKOP_listen:
         {
             int sockfd = tgetl(vptr);
             int backlog = tgetl(vptr + n);
-
             ret = get_errno(listen(sockfd, backlog));
         }
         break;
@@ -895,46 +1012,14 @@ static long do_socketcall(int num, target_ulong vptr)
         {
             int fd;
             target_ulong target_msg;
-            struct target_msghdr *msgp;
-            struct msghdr msg;
-            int flags, count;
-            struct iovec *vec;
-            target_ulong target_vec;
-            int send = (num == SOCKOP_sendmsg);
-
-            target_msg = tgetl(vptr + n);
-            lock_user_struct(msgp, target_msg, 1);
-            if (msgp->msg_name) {
-                msg.msg_namelen = tswap32(msgp->msg_namelen);
-                msg.msg_name = alloca(msg.msg_namelen);
-                target_to_host_sockaddr(msg.msg_name, tswapl(msgp->msg_name),
-                                        msg.msg_namelen);
-            } else {
-                msg.msg_name = NULL;
-                msg.msg_namelen = 0;
-            }
-            msg.msg_controllen = 2 * tswapl(msgp->msg_controllen);
-            msg.msg_control = alloca(msg.msg_controllen);
-            msg.msg_flags = tswap32(msgp->msg_flags);
-
-            count = tswapl(msgp->msg_iovlen);
-            vec = alloca(count * sizeof(struct iovec));
-            target_vec = tswapl(msgp->msg_iov);
-            lock_iovec(vec, target_vec, count, send);
-            msg.msg_iovlen = count;
-            msg.msg_iov = vec;
+            int flags;
 
             fd = tgetl(vptr);
+            target_msg = tgetl(vptr + n);
             flags = tgetl(vptr + 2 * n);
-            if (send) {
-                target_to_host_cmsg(&msg, msgp);
-                ret = get_errno(sendmsg(fd, &msg, flags));
-            } else {
-                ret = get_errno(recvmsg(fd, &msg, flags));
-                if (!is_error(ret))
-                  host_to_target_cmsg(msgp, &msg);
-            }
-            unlock_iovec(vec, target_vec, count, !send);
+
+            ret = do_sendrecvmsg(fd, target_msg, flags, 
+                                 (num == SOCKOP_sendmsg));
         }
         break;
     case SOCKOP_setsockopt:
@@ -967,6 +1052,22 @@ static long do_socketcall(int num, target_ulong vptr)
     return ret;
 }
 
+/* XXX: suppress this function and call directly the related socket
+   functions */
+static long do_socketcallwrapper(int num, long arg1, long arg2, long arg3,
+				 long arg4, long arg5, long arg6)
+{
+    target_long args[6];
+
+    tputl(args, arg1);
+    tputl(args+1, arg2);
+    tputl(args+2, arg3);
+    tputl(args+3, arg4);
+    tputl(args+4, arg5);
+    tputl(args+5, arg6);
+
+    return do_socketcall(num, (target_ulong) args);
+}
 
 #define N_SHM_REGIONS	32
 
@@ -2616,6 +2717,93 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_socketcall:
         ret = do_socketcall(arg1, arg2);
         break;
+
+#ifdef TARGET_NR_accept
+    case TARGET_NR_accept:
+        ret = do_socketcallwrapper(SOCKOP_accept, arg1, arg2, arg3, arg4, arg5, arg6);
+        break;
+#endif
+#ifdef TARGET_NR_bind
+    case TARGET_NR_bind:
+        ret = do_bind(arg1, arg2, arg3);
+        break;
+#endif
+#ifdef TARGET_NR_connect
+    case TARGET_NR_connect:
+        ret = do_connect(arg1, arg2, arg3);
+        break;
+#endif
+#ifdef TARGET_NR_getpeername
+    case TARGET_NR_getpeername:
+        ret = do_socketcallwrapper(SOCKOP_getpeername, arg1, arg2, arg3, arg4, arg5, arg6);
+        break;
+#endif
+#ifdef TARGET_NR_getsockname
+    case TARGET_NR_getsockname:
+        ret = do_socketcallwrapper(SOCKOP_getsockname, arg1, arg2, arg3, arg4, arg5, arg6);
+        break;
+#endif
+#ifdef TARGET_NR_getsockopt
+    case TARGET_NR_getsockopt:
+        ret = do_getsockopt(arg1, arg2, arg3, arg4, arg5);
+        break;
+#endif
+#ifdef TARGET_NR_listen
+    case TARGET_NR_listen:
+        ret = do_socketcallwrapper(SOCKOP_listen, arg1, arg2, arg3, arg4, arg5, arg6);
+        break;
+#endif
+#ifdef TARGET_NR_recv
+    case TARGET_NR_recv:
+        ret = do_socketcallwrapper(SOCKOP_recv, arg1, arg2, arg3, arg4, arg5, arg6);
+        break;
+#endif
+#ifdef TARGET_NR_recvfrom
+    case TARGET_NR_recvfrom:
+        ret = do_socketcallwrapper(SOCKOP_recvfrom, arg1, arg2, arg3, arg4, arg5, arg6);
+        break;
+#endif
+#ifdef TARGET_NR_recvmsg
+    case TARGET_NR_recvmsg:
+        ret = do_sendrecvmsg(arg1, arg2, arg3, 0);
+        break;
+#endif
+#ifdef TARGET_NR_send
+    case TARGET_NR_send:
+        ret = do_socketcallwrapper(SOCKOP_send, arg1, arg2, arg3, arg4, arg5, arg6);
+        break;
+#endif
+#ifdef TARGET_NR_sendmsg
+    case TARGET_NR_sendmsg:
+        ret = do_sendrecvmsg(arg1, arg2, arg3, 1);
+        break;
+#endif
+#ifdef TARGET_NR_sendto
+    case TARGET_NR_sendto:
+        ret = do_socketcallwrapper(SOCKOP_sendto, arg1, arg2, arg3, arg4, arg5, arg6);
+        break;
+#endif
+#ifdef TARGET_NR_shutdown
+    case TARGET_NR_shutdown:
+        ret = do_socketcallwrapper(SOCKOP_shutdown, arg1, arg2, arg3, arg4, arg5, arg6);
+        break;
+#endif
+#ifdef TARGET_NR_socket
+    case TARGET_NR_socket:
+        ret = do_socket(arg1, arg2, arg3);
+        break;
+#endif
+#ifdef TARGET_NR_socketpair
+    case TARGET_NR_socketpair:
+        ret = do_socketcallwrapper(SOCKOP_socketpair, arg1, arg2, arg3, arg4, arg5, arg6);
+        break;
+#endif
+#ifdef TARGET_NR_setsockopt
+    case TARGET_NR_setsockopt:
+        ret = do_setsockopt(arg1, arg2, arg3, arg4, (socklen_t) arg5);
+        break;
+#endif
+        
     case TARGET_NR_syslog:
         goto unimplemented;
     case TARGET_NR_setitimer:

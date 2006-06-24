@@ -1502,3 +1502,5 @@ struct target_sysinfo {
     unsigned int mem_unit;          /* Memory unit size in bytes */
     char _f[20-2*sizeof(target_long)-sizeof(int)]; /* Padding: libc5 uses this.. */
 };
+
+#include "socket.h"
