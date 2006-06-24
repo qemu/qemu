@@ -2199,9 +2199,12 @@ void test_sse_comi(double a1, double b1)
            r.q[1], r.q[0]);\
 }
 
+/* Force %xmm0 usage to avoid the case where both register index are 0
+   to test intruction decoding more extensively */
 #define CVT_OP_XMM2MMX(op)\
 {\
-    asm volatile (#op " %1, %0" : "=y" (r.q[0]) : "x" (a.dq));\
+    asm volatile (#op " %1, %0" : "=y" (r.q[0]) : "x" (a.dq) \
+                  : "%xmm0");\
     printf("%-9s: a=" FMT64X "" FMT64X " r=" FMT64X "\n",\
            #op,\
            a.q[1], a.q[0],\
@@ -2554,6 +2557,10 @@ void test_sse(void)
     CVT_OP_XMM2REG(cvttsd2si);
     CVT_OP_XMM(cvtpd2dq);
     CVT_OP_XMM(cvttpd2dq);
+
+    /* sse/mmx moves */
+    CVT_OP_XMM2MMX(movdq2q);
+    CVT_OP_MMX2XMM(movq2dq);
 
     /* int to float */
     a.l[0] = -6;
