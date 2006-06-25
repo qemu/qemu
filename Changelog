@@ -6,6 +6,10 @@ version 0.8.2:
   - VNC server fixes
   - MIPS FPU support (Marius Groeger)
   - Solaris/SPARC host support (Ben Taylor)
+  - PPC breakpoints and single stepping (Jason Wessel)
+  - USB updates (Paul Brook)
+  - UDP character devices (Jason Wessel)
+  - TCP character devices
 
 version 0.8.1:
 
