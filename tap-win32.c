@@ -630,6 +630,7 @@ static int tap_win32_open(tap_win32_overlapped_t **phandle,
  typedef struct TAPState {
      VLANClientState *vc;
      tap_win32_overlapped_t *handle;
+     HANDLE tap_event;
  } TAPState;
 
 static TAPState *tap_win32_state = NULL;
@@ -656,6 +657,7 @@ void tap_win32_poll(void)
     if (size > 0) {
         qemu_send_packet(s->vc, buf, size);
         tap_win32_free_buffer(s->handle, buf);
+        SetEvent(s->tap_event);
     }
 }
 
@@ -676,5 +678,11 @@ int tap_win32_init(VLANState *vlan, const char *ifname)
     snprintf(s->vc->info_str, sizeof(s->vc->info_str),
              "tap: ifname=%s", ifname);
     tap_win32_state = s;
+
+    s->tap_event = CreateEvent(NULL, FALSE, FALSE, NULL);
+    if (!s->tap_event) {
+        fprintf(stderr, "tap-win32: Failed CreateEvent\n");
+    }
+    qemu_add_wait_object(s->tap_event, NULL, NULL);
     return 0;
 }

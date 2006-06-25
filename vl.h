@@ -47,6 +47,7 @@
 #endif
 
 #ifdef _WIN32
+#include <windows.h>
 #define fsync _commit
 #define lseek _lseeki64
 #define ENOTSUP 4096
@@ -220,6 +221,14 @@ typedef int PollingFunc(void *opaque);
 
 int qemu_add_polling_cb(PollingFunc *func, void *opaque);
 void qemu_del_polling_cb(PollingFunc *func, void *opaque);
+
+#ifdef _WIN32
+/* Wait objects handling */
+typedef void WaitObjectFunc(void *opaque);
+
+int qemu_add_wait_object(HANDLE handle, WaitObjectFunc *func, void *opaque);
+void qemu_del_wait_object(HANDLE handle, WaitObjectFunc *func, void *opaque);
+#endif
 
 /* character device */
 
