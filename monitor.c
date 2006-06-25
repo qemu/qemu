@@ -1584,8 +1584,11 @@ static target_long expr_unary(void)
         n = 0;
         break;
     default:
-        /* XXX: 64 bit version */
+#if TARGET_LONG_BITS == 64
+        n = strtoull(pch, &p, 0);
+#else
         n = strtoul(pch, &p, 0);
+#endif
         if (pch == p) {
             expr_error("invalid char in expression");
         }
