@@ -1779,6 +1779,7 @@ void cpu_register_physical_memory(target_phys_addr_t start_addr,
 {
     target_phys_addr_t addr, end_addr;
     PhysPageDesc *p;
+    CPUState *env;
 
     size = (size + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK;
     end_addr = start_addr + size;
@@ -1788,6 +1789,13 @@ void cpu_register_physical_memory(target_phys_addr_t start_addr,
         if ((phys_offset & ~TARGET_PAGE_MASK) <= IO_MEM_ROM ||
             (phys_offset & IO_MEM_ROMD))
             phys_offset += TARGET_PAGE_SIZE;
+    }
+    
+    /* since each CPU stores ram addresses in its TLB cache, we must
+       reset the modified entries */
+    /* XXX: slow ! */
+    for(env = first_cpu; env != NULL; env = env->next_cpu) {
+        tlb_flush(env, 1);
     }
 }
 
