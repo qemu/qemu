@@ -92,11 +92,7 @@
 //#define DEBUG_UNUSED_IOPORT
 //#define DEBUG_IOPORT
 
-#if !defined(CONFIG_SOFTMMU)
-#define PHYS_RAM_MAX_SIZE (256 * 1024 * 1024)
-#else
 #define PHYS_RAM_MAX_SIZE (2047 * 1024 * 1024)
-#endif
 
 #ifdef TARGET_PPC
 #define DEFAULT_RAM_SIZE 144
@@ -3860,20 +3856,6 @@ void dumb_display_init(DisplayState *ds)
     ds->dpy_refresh = dumb_refresh;
 }
 
-#if !defined(CONFIG_SOFTMMU)
-/***********************************************************/
-/* cpu signal handler */
-static void host_segv_handler(int host_signum, siginfo_t *info, 
-                              void *puc)
-{
-    if (cpu_signal_handler(host_signum, info, puc))
-        return;
-    if (stdio_nb_clients > 0)
-        term_exit();
-    abort();
-}
-#endif
-
 /***********************************************************/
 /* I/O handling */
 
@@ -5133,23 +5115,13 @@ void help(void)
            "\n"
            "When using -nographic, press 'ctrl-a h' to get some help.\n"
            ,
-#ifdef CONFIG_SOFTMMU
            "qemu",
-#else
-           "qemu-fast",
-#endif
            DEFAULT_RAM_SIZE,
 #ifndef _WIN32
            DEFAULT_NETWORK_SCRIPT,
 #endif
            DEFAULT_GDBSTUB_PORT,
            "/tmp/qemu.log");
-#ifndef CONFIG_SOFTMMU
-    printf("\n"
-           "NOTE: this version of QEMU is faster but it needs slightly patched OSes to\n"
-           "work. Please use the 'qemu' executable to have a more accurate (but slower)\n"
-           "PC emulation.\n");
-#endif
     exit(1);
 }
 
@@ -5512,10 +5484,17 @@ int main(int argc, char **argv)
     int usb_devices_index;
 
     LIST_INIT (&vm_change_state_head);
-#if !defined(CONFIG_SOFTMMU)
-    /* we never want that malloc() uses mmap() */
-    mallopt(M_MMAP_THRESHOLD, 4096 * 1024);
+#ifndef _WIN32
+    {
+        struct sigaction act;
+        sigfillset(&act.sa_mask);
+        act.sa_flags = 0;
+        act.sa_handler = SIG_IGN;
+        sigaction(SIGPIPE, &act, NULL);
+    }
 #endif
+    init_timers();
+
     register_machines();
     machine = first_machine;
     initrd_filename = NULL;
@@ -5922,15 +5901,7 @@ int main(int argc, char **argv)
             boot_device = 'd';
     }
 
-#if !defined(CONFIG_SOFTMMU)
-    /* must avoid mmap() usage of glibc by setting a buffer "by hand" */
-    {
-        static uint8_t stdout_buf[4096];
-        setvbuf(stdout, stdout_buf, _IOLBF, sizeof(stdout_buf));
-    }
-#else
     setvbuf(stdout, NULL, _IOLBF, 0);
-#endif
     
 #ifdef _WIN32
     socket_init();
@@ -5954,45 +5925,11 @@ int main(int argc, char **argv)
     /* init the memory */
     phys_ram_size = ram_size + vga_ram_size + bios_size;
 
-#ifdef CONFIG_SOFTMMU
     phys_ram_base = qemu_vmalloc(phys_ram_size);
     if (!phys_ram_base) {
         fprintf(stderr, "Could not allocate physical memory\n");
         exit(1);
     }
-#else
-    /* as we must map the same page at several addresses, we must use
-       a fd */
-    {
-        const char *tmpdir;
-
-        tmpdir = getenv("QEMU_TMPDIR");
-        if (!tmpdir)
-            tmpdir = "/tmp";
-        snprintf(phys_ram_file, sizeof(phys_ram_file), "%s/vlXXXXXX", tmpdir);
-        if (mkstemp(phys_ram_file) < 0) {
-            fprintf(stderr, "Could not create temporary memory file '%s'\n", 
-                    phys_ram_file);
-            exit(1);
-        }
-        phys_ram_fd = open(phys_ram_file, O_CREAT | O_TRUNC | O_RDWR, 0600);
-        if (phys_ram_fd < 0) {
-            fprintf(stderr, "Could not open temporary memory file '%s'\n", 
-                    phys_ram_file);
-            exit(1);
-        }
-        ftruncate(phys_ram_fd, phys_ram_size);
-        unlink(phys_ram_file);
-        phys_ram_base = mmap(get_mmap_addr(phys_ram_size), 
-                             phys_ram_size, 
-                             PROT_WRITE | PROT_READ, MAP_SHARED | MAP_FIXED, 
-                             phys_ram_fd, 0);
-        if (phys_ram_base == MAP_FAILED) {
-            fprintf(stderr, "Could not map physical memory\n");
-            exit(1);
-        }
-    }
-#endif
 
     /* we always create the cdrom drive, even if no disk is there */
     bdrv_init();
@@ -6096,51 +6033,6 @@ int main(int argc, char **argv)
                 qemu_chr_printf(parallel_hds[i], "parallel%d console\n", i);
         }
     }
-
-    /* setup cpu signal handlers for MMU / self modifying code handling */
-#if !defined(CONFIG_SOFTMMU)
-    
-#if defined (TARGET_I386) && defined(USE_CODE_COPY)
-    {
-        stack_t stk;
-        signal_stack = memalign(16, SIGNAL_STACK_SIZE);
-        stk.ss_sp = signal_stack;
-        stk.ss_size = SIGNAL_STACK_SIZE;
-        stk.ss_flags = 0;
-
-        if (sigaltstack(&stk, NULL) < 0) {
-            perror("sigaltstack");
-            exit(1);
-        }
-    }
-#endif
-    {
-        struct sigaction act;
-        
-        sigfillset(&act.sa_mask);
-        act.sa_flags = SA_SIGINFO;
-#if defined (TARGET_I386) && defined(USE_CODE_COPY)
-        act.sa_flags |= SA_ONSTACK;
-#endif
-        act.sa_sigaction = host_segv_handler;
-        sigaction(SIGSEGV, &act, NULL);
-        sigaction(SIGBUS, &act, NULL);
-#if defined (TARGET_I386) && defined(USE_CODE_COPY)
-        sigaction(SIGFPE, &act, NULL);
-#endif
-    }
-#endif
-
-#ifndef _WIN32
-    {
-        struct sigaction act;
-        sigfillset(&act.sa_mask);
-        act.sa_flags = 0;
-        act.sa_handler = SIG_IGN;
-        sigaction(SIGPIPE, &act, NULL);
-    }
-#endif
-    init_timers();
 
     machine->init(ram_size, vga_ram_size, boot_device,
                   ds, fd_filename, snapshot,
