@@ -2130,6 +2130,373 @@ CharDriverState *qemu_chr_open_win_file_out(const char *file_out)
 }
 #endif
 
+/***********************************************************/
+/* UDP Net console */
+
+typedef struct {
+    IOCanRWHandler *fd_can_read;
+    IOReadHandler *fd_read;
+    void *fd_opaque;
+    int fd;
+    struct sockaddr_in daddr;
+    char buf[1024];
+    int bufcnt;
+    int bufptr;
+    int max_size;
+} NetCharDriver;
+
+static int udp_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
+{
+    NetCharDriver *s = chr->opaque;
+
+    return sendto(s->fd, buf, len, 0,
+                  (struct sockaddr *)&s->daddr, sizeof(struct sockaddr_in));
+}
+
+static int udp_chr_read_poll(void *opaque)
+{
+    CharDriverState *chr = opaque;
+    NetCharDriver *s = chr->opaque;
+
+    s->max_size = s->fd_can_read(s->fd_opaque);
+
+    /* If there were any stray characters in the queue process them
+     * first
+     */
+    while (s->max_size > 0 && s->bufptr < s->bufcnt) {
+        s->fd_read(s->fd_opaque, &s->buf[s->bufptr], 1);
+        s->bufptr++;
+        s->max_size = s->fd_can_read(s->fd_opaque);
+    }
+    return s->max_size;
+}
+
+static void udp_chr_read(void *opaque)
+{
+    CharDriverState *chr = opaque;
+    NetCharDriver *s = chr->opaque;
+
+    if (s->max_size == 0)
+        return;
+    s->bufcnt = recv(s->fd, s->buf, sizeof(s->buf), 0);
+    s->bufptr = s->bufcnt;
+    if (s->bufcnt <= 0)
+        return;
+
+    s->bufptr = 0;
+    while (s->max_size > 0 && s->bufptr < s->bufcnt) {
+        s->fd_read(s->fd_opaque, &s->buf[s->bufptr], 1);
+        s->bufptr++;
+        s->max_size = s->fd_can_read(s->fd_opaque);
+    }
+}
+
+static void udp_chr_add_read_handler(CharDriverState *chr,
+                                    IOCanRWHandler *fd_can_read,
+                                    IOReadHandler *fd_read, void *opaque)
+{
+    NetCharDriver *s = chr->opaque;
+
+    if (s->fd >= 0) {
+        s->fd_can_read = fd_can_read;
+        s->fd_read = fd_read;
+        s->fd_opaque = opaque;
+        qemu_set_fd_handler2(s->fd, udp_chr_read_poll,
+                             udp_chr_read, NULL, chr);
+    }
+}
+
+int parse_host_port(struct sockaddr_in *saddr, const char *str);
+
+CharDriverState *qemu_chr_open_udp(const char *def)
+{
+    CharDriverState *chr = NULL;
+    NetCharDriver *s = NULL;
+    int fd = -1;
+    int con_type;
+    struct sockaddr_in addr;
+    const char *p, *r;
+    int port;
+
+    chr = qemu_mallocz(sizeof(CharDriverState));
+    if (!chr)
+        goto return_err;
+    s = qemu_mallocz(sizeof(NetCharDriver));
+    if (!s)
+        goto return_err;
+
+    fd = socket(PF_INET, SOCK_DGRAM, 0);
+    if (fd < 0) {
+        perror("socket(PF_INET, SOCK_DGRAM)");
+        goto return_err;
+    }
+
+    /* There are three types of port definitions
+     * 1) udp:remote_port
+     *    Juse use 0.0.0.0 for the IP and send to remote
+     * 2) udp:remote_host:port
+     *    Use a IP and send traffic to remote
+     * 3) udp:local_port:remote_host:remote_port
+     *    Use local_port as the originator + #2
+     */
+    con_type = 0;
+    p = def;
+    while ((p = strchr(p, ':'))) {
+        p++;
+        con_type++;
+    }
+
+    p = def;
+    memset(&addr,0,sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    s->daddr.sin_family = AF_INET;
+    s->daddr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+    switch (con_type) {
+        case 0:
+            port = strtol(p, (char **)&r, 0);
+            if (r == p) {
+                fprintf(stderr, "Error parsing port number\n");
+                goto return_err;
+            }
+            s->daddr.sin_port = htons((short)port);
+            break;
+        case 2:
+            port = strtol(p, (char **)&r, 0);
+            if (r == p) {
+                fprintf(stderr, "Error parsing port number\n");
+                goto return_err;
+            }
+            addr.sin_port = htons((short)port);
+            p = r + 1;
+            /* Fall through to case 1 now that we have the local port */
+        case 1:
+            if (parse_host_port(&s->daddr, p) < 0) {
+                fprintf(stderr, "Error parsing host name and port\n");
+                goto return_err;
+            }
+            break;
+        default:
+            fprintf(stderr, "Too many ':' characters\n");
+            goto return_err;
+    }
+
+    if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
+    {
+        perror("bind");
+        goto return_err;
+    }
+
+    s->fd = fd;
+    s->bufcnt = 0;
+    s->bufptr = 0;
+    chr->opaque = s;
+    chr->chr_write = udp_chr_write;
+    chr->chr_add_read_handler = udp_chr_add_read_handler;
+    return chr;
+
+return_err:
+    if (chr)
+        free(chr);
+    if (s)
+        free(s);
+    if (fd >= 0)
+        closesocket(fd);
+    return NULL;
+}
+
+/***********************************************************/
+/* TCP Net console */
+
+typedef struct {
+    IOCanRWHandler *fd_can_read;
+    IOReadHandler *fd_read;
+    void *fd_opaque;
+    int fd, listen_fd;
+    int connected;
+    int max_size;
+} TCPCharDriver;
+
+static void tcp_chr_accept(void *opaque);
+
+static int tcp_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
+{
+    TCPCharDriver *s = chr->opaque;
+    if (s->connected) {
+        return send_all(s->fd, buf, len);
+    } else {
+        /* XXX: indicate an error ? */
+        return len;
+    }
+}
+
+static int tcp_chr_read_poll(void *opaque)
+{
+    CharDriverState *chr = opaque;
+    TCPCharDriver *s = chr->opaque;
+    if (!s->connected)
+        return 0;
+    s->max_size = s->fd_can_read(s->fd_opaque);
+    return s->max_size;
+}
+
+static void tcp_chr_read(void *opaque)
+{
+    CharDriverState *chr = opaque;
+    TCPCharDriver *s = chr->opaque;
+    uint8_t buf[1024];
+    int len, size;
+
+    if (!s->connected || s->max_size <= 0)
+        return;
+    len = sizeof(buf);
+    if (len > s->max_size)
+        len = s->max_size;
+    size = recv(s->fd, buf, len, 0);
+    if (size == 0) {
+        /* connection closed */
+        s->connected = 0;
+        if (s->listen_fd >= 0) {
+            qemu_set_fd_handler(s->listen_fd, tcp_chr_accept, NULL, chr);
+        }
+        qemu_set_fd_handler(s->fd, NULL, NULL, NULL);
+        closesocket(s->fd);
+        s->fd = -1;
+    } else if (size > 0) {
+        s->fd_read(s->fd_opaque, buf, size);
+    }
+}
+
+static void tcp_chr_add_read_handler(CharDriverState *chr,
+                                     IOCanRWHandler *fd_can_read,
+                                    IOReadHandler *fd_read, void *opaque)
+{
+    TCPCharDriver *s = chr->opaque;
+
+    s->fd_can_read = fd_can_read;
+    s->fd_read = fd_read;
+    s->fd_opaque = opaque;
+}
+
+static void tcp_chr_connect(void *opaque)
+{
+    CharDriverState *chr = opaque;
+    TCPCharDriver *s = chr->opaque;
+
+    s->connected = 1;
+    qemu_set_fd_handler2(s->fd, tcp_chr_read_poll,
+                         tcp_chr_read, NULL, chr);
+}
+
+static void tcp_chr_accept(void *opaque)
+{
+    CharDriverState *chr = opaque;
+    TCPCharDriver *s = chr->opaque;
+    struct sockaddr_in saddr;
+    socklen_t len;
+    int fd;
+
+    for(;;) {
+        len = sizeof(saddr);
+        fd = accept(s->listen_fd, (struct sockaddr *)&saddr, &len);
+        if (fd < 0 && errno != EINTR) {
+            return;
+        } else if (fd >= 0) {
+            break;
+        }
+    }
+    socket_set_nonblock(fd);
+    s->fd = fd;
+    qemu_set_fd_handler(s->listen_fd, NULL, NULL, NULL);
+    tcp_chr_connect(chr);
+}
+
+static void tcp_chr_close(CharDriverState *chr)
+{
+    TCPCharDriver *s = chr->opaque;
+    if (s->fd >= 0)
+        closesocket(s->fd);
+    if (s->listen_fd >= 0)
+        closesocket(s->listen_fd);
+    qemu_free(s);
+}
+
+static CharDriverState *qemu_chr_open_tcp(const char *host_str, 
+                                          int is_listen)
+{
+    CharDriverState *chr = NULL;
+    TCPCharDriver *s = NULL;
+    int fd = -1, ret, err, val;
+    struct sockaddr_in saddr;
+
+    if (parse_host_port(&saddr, host_str) < 0)
+        goto fail;
+
+    chr = qemu_mallocz(sizeof(CharDriverState));
+    if (!chr)
+        goto fail;
+    s = qemu_mallocz(sizeof(TCPCharDriver));
+    if (!s)
+        goto fail;
+    
+    fd = socket(PF_INET, SOCK_STREAM, 0);
+    if (fd < 0) 
+        goto fail;
+    socket_set_nonblock(fd);
+
+    s->connected = 0;
+    s->fd = -1;
+    s->listen_fd = -1;
+    if (is_listen) {
+        /* allow fast reuse */
+        val = 1;
+        setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (const char *)&val, sizeof(val));
+        
+        ret = bind(fd, (struct sockaddr *)&saddr, sizeof(saddr));
+        if (ret < 0) 
+            goto fail;
+        ret = listen(fd, 0);
+        if (ret < 0)
+            goto fail;
+        s->listen_fd = fd;
+        qemu_set_fd_handler(s->listen_fd, tcp_chr_accept, NULL, chr);
+    } else {
+        for(;;) {
+            ret = connect(fd, (struct sockaddr *)&saddr, sizeof(saddr));
+            if (ret < 0) {
+                err = socket_error();
+                if (err == EINTR || err == EWOULDBLOCK) {
+                } else if (err == EINPROGRESS) {
+                    break;
+                } else {
+                    goto fail;
+                }
+            } else {
+                s->connected = 1;
+                break;
+            }
+        }
+        s->fd = fd;
+        if (s->connected)
+            tcp_chr_connect(chr);
+        else
+            qemu_set_fd_handler(s->fd, NULL, tcp_chr_connect, chr);
+    }
+    
+    chr->opaque = s;
+    chr->chr_write = tcp_chr_write;
+    chr->chr_add_read_handler = tcp_chr_add_read_handler;
+    chr->chr_close = tcp_chr_close;
+    return chr;
+ fail:
+    if (fd >= 0)
+        closesocket(fd);
+    qemu_free(s);
+    qemu_free(chr);
+    return NULL;
+}
+
 CharDriverState *qemu_chr_open(const char *filename)
 {
     const char *p;
@@ -2139,6 +2506,15 @@ CharDriverState *qemu_chr_open(const char *filename)
     } else if (!strcmp(filename, "null")) {
         return qemu_chr_open_null();
     } else 
+    if (strstart(filename, "tcp:", &p)) {
+        return qemu_chr_open_tcp(p, 0);
+    } else
+    if (strstart(filename, "tcpl:", &p)) {
+        return qemu_chr_open_tcp(p, 1);
+    } else
+    if (strstart(filename, "udp:", &p)) {
+        return qemu_chr_open_udp(p);
+    } else
 #ifndef _WIN32
     if (strstart(filename, "file:", &p)) {
         return qemu_chr_open_file_out(p);
@@ -2844,7 +3220,8 @@ static int net_socket_mcast_create(struct sockaddr_in *mcastaddr)
     socket_set_nonblock(fd);
     return fd;
 fail:
-    if (fd>=0) close(fd);
+    if (fd >= 0) 
+        closesocket(fd);
     return -1;
 }
 
@@ -2972,7 +3349,7 @@ static void net_socket_accept(void *opaque)
     }
     s1 = net_socket_fd_init(s->vlan, fd, 1); 
     if (!s1) {
-        close(fd);
+        closesocket(fd);
     } else {
         snprintf(s1->vc->info_str, sizeof(s1->vc->info_str),
                  "socket: connection from %s:%d", 

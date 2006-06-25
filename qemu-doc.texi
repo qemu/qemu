@@ -496,8 +496,14 @@ Debug/Expert options:
 @table @option
 
 @item -serial dev
-Redirect the virtual serial port to host device @var{dev}. Available
-devices are:
+Redirect the virtual serial port to host character device
+@var{dev}. The default device is @code{vc} in graphical mode and
+@code{stdio} in non graphical mode.
+
+This option can be used several times to simulate up to 4 serials
+ports.
+
+Available character devices are:
 @table @code
 @item vc
 Virtual console
@@ -516,13 +522,47 @@ Write output to filename. No character can be read.
 @item stdio
 [Unix only] standard input/output
 @item pipe:filename
-[Unix only] name pipe @var{filename}
-@end table
-The default device is @code{vc} in graphical mode and @code{stdio} in
-non graphical mode.
+name pipe @var{filename}
+@item COMn
+[Windows only] Use host serial port @var{n}
+@item udp:remote_port
+UDP Net Console sent to locahost at remote_port
+@item udp:remote_host:remote_port
+UDP Net Console sent to remote_host at remote_port
+@item udp:src_port:remote_host:remote_port
+UDP Net Console sent from src_port to remote_host at the remote_port.
 
-This option can be used several times to simulate up to 4 serials
-ports.
+The udp:* sub options are primary intended for netconsole.  If you
+just want a simple readonly console you can use @code{netcat} or
+@code{nc}, by starting qemu with: @code{-serial udp:4555} and nc as:
+@code{nc -u -l -p 4555}. Any time qemu writes something to that port
+it will appear in the netconsole session.
+
+If you plan to send characters back via netconsole or you want to stop
+and start qemu a lot of times, you should have qemu use the same
+source port each time by using something like @code{-serial
+udp:4556:localhost:4555} to qemu. Another approach is to use a patched
+version of netcat which can listen to a TCP port and send and receive
+characters via udp.  If you have a patched version of netcat which
+activates telnet remote echo and single char transfer, then you can
+use the following options to step up a netcat redirector to allow
+telnet on port 5555 to access the qemu port.
+@table @code
+@item Qemu Options
+-serial udp:4556:localhost:4555
+@item netcat options
+-u -P 4555 -L localhost:4556  -t -p 5555 -I -T
+@end table
+
+
+@item tcp:remote_host:remote_port
+TCP Net Console sent to remote_host at the remote_port
+@item tcpl:host:port
+TCP Net Console: wait for connection on @var{host} on the local port
+@var{port}. If host is omitted, 0.0.0.0 is assumed. Only one TCP
+connection at a time is accepted. You can use @code{telnet} to connect
+to the corresponding character device.
+@end table
 
 @item -parallel dev
 Redirect the virtual parallel port to host device @var{dev} (same
