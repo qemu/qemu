@@ -2771,7 +2771,8 @@ target_ulong cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
     int prot, access_index;
 
     if (get_physical_address(env, &phys_addr, &prot, &access_index, addr, 2, 0) != 0)
-        return -1;
+        if (get_physical_address(env, &phys_addr, &prot, &access_index, addr, 0, 0) != 0)
+            return -1;
     return phys_addr;
 }
 #endif
