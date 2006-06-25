@@ -27,6 +27,8 @@ extern void __longjmp(jmp_buf env, int val);
 
 #include <signal.h>
 
+struct siginfo;
+
 /* NOTE: it works only because the glibc sigset_t is >= kernel sigset_t */
 struct qemu_sigaction {
     union {
