@@ -27,8 +27,8 @@
 #define DEFAULT_BACKSCROLL 512
 #define MAX_CONSOLES 12
 
-#define RGBA(r, g, b, a) (((a) << 24) | ((r) << 16) | ((g) << 8) | (b))
-#define RGB(r, g, b) RGBA(r, g, b, 0xff)
+#define QEMU_RGBA(r, g, b, a) (((a) << 24) | ((r) << 16) | ((g) << 8) | (b))
+#define QEMU_RGB(r, g, b) QEMU_RGBA(r, g, b, 0xff)
 
 typedef struct TextAttributes {
     uint8_t fgcol:4;
@@ -330,24 +330,24 @@ enum color_names {
 
 static const uint32_t color_table_rgb[2][8] = {
     {   /* dark */
-        RGB(0x00, 0x00, 0x00),  /* black */
-        RGB(0xaa, 0x00, 0x00),  /* red */
-        RGB(0x00, 0xaa, 0x00),  /* green */
-        RGB(0xaa, 0xaa, 0x00),  /* yellow */
-        RGB(0x00, 0x00, 0xaa),  /* blue */
-        RGB(0xaa, 0x00, 0xaa),  /* magenta */
-        RGB(0x00, 0xaa, 0xaa),  /* cyan */
-        RGB(0xaa, 0xaa, 0xaa),  /* white */
+        QEMU_RGB(0x00, 0x00, 0x00),  /* black */
+        QEMU_RGB(0xaa, 0x00, 0x00),  /* red */
+        QEMU_RGB(0x00, 0xaa, 0x00),  /* green */
+        QEMU_RGB(0xaa, 0xaa, 0x00),  /* yellow */
+        QEMU_RGB(0x00, 0x00, 0xaa),  /* blue */
+        QEMU_RGB(0xaa, 0x00, 0xaa),  /* magenta */
+        QEMU_RGB(0x00, 0xaa, 0xaa),  /* cyan */
+        QEMU_RGB(0xaa, 0xaa, 0xaa),  /* white */
     },
     {   /* bright */
-        RGB(0x00, 0x00, 0x00),  /* black */
-        RGB(0xff, 0x00, 0x00),  /* red */
-        RGB(0x00, 0xff, 0x00),  /* green */
-        RGB(0xff, 0xff, 0x00),  /* yellow */
-        RGB(0x00, 0x00, 0xff),  /* blue */
-        RGB(0xff, 0x00, 0xff),  /* magenta */
-        RGB(0x00, 0xff, 0xff),  /* cyan */
-        RGB(0xff, 0xff, 0xff),  /* white */
+        QEMU_RGB(0x00, 0x00, 0x00),  /* black */
+        QEMU_RGB(0xff, 0x00, 0x00),  /* red */
+        QEMU_RGB(0x00, 0xff, 0x00),  /* green */
+        QEMU_RGB(0xff, 0xff, 0x00),  /* yellow */
+        QEMU_RGB(0x00, 0x00, 0xff),  /* blue */
+        QEMU_RGB(0xff, 0x00, 0xff),  /* magenta */
+        QEMU_RGB(0x00, 0xff, 0xff),  /* cyan */
+        QEMU_RGB(0xff, 0xff, 0xff),  /* white */
     }
 };
 
