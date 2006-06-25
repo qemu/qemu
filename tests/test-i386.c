@@ -50,7 +50,7 @@
 #define FMTLX "%016lx"
 #define X86_64_ONLY(x) x
 #else
-#define FMT64X "%016llx"
+#define FMT64X "%016" PRIx64
 #define FMTLX "%08lx"
 #define X86_64_ONLY(x)
 #endif

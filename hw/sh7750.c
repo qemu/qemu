@@ -124,7 +124,7 @@ static void start_timer0(SH7750State * s)
 		       s->periph_freq);
     if (next == now)
 	next = now + 1;
-    fprintf(stderr, "now=%016llx, next=%016llx\n", now, next);
+    fprintf(stderr, "now=%016" PRIx64 ", next=%016" PRIx64 "\n", now, next);
     fprintf(stderr, "timer will underflow in %f seconds\n",
 	    (float) (next - now) / (float) ticks_per_sec);
 

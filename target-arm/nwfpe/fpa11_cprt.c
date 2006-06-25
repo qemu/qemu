@@ -133,7 +133,7 @@ unsigned int PerformFIX(const unsigned int opcode)
 
       case typeDouble:
       {
-         //printf("F%d is 0x%llx\n",Fn,fpa11->fpreg[Fn].fDouble);
+         //printf("F%d is 0x%" PRIx64 "\n",Fn,fpa11->fpreg[Fn].fDouble);
          writeRegister(getRd(opcode),
 	               float64_to_int32(fpa11->fpreg[Fn].fDouble, &fpa11->fp_status));
       }

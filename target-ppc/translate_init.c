@@ -252,7 +252,7 @@ static inline void spr_register (CPUPPCState *env, int num,
         exit(1);
     }
 #if defined(PPC_DEBUG_SPR)
-    printf("*** register spr %d (%03x) %s val %08llx\n", num, num, name,
+    printf("*** register spr %d (%03x) %s val %08" PRIx64 "\n", num, num, name,
            (unsigned long long)initial_value);
 #endif
     spr->name = name;

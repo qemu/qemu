@@ -598,12 +598,12 @@ void kqemu_record_dump(void)
         perror("/tmp/kqemu.stats");
         exit(1);
     }
-    fprintf(f, "total: %lld\n", total);
+    fprintf(f, "total: %" PRId64 "\n", total);
     sum = 0;
     for(i = 0; i < nb_pc_records; i++) {
         r = pr[i];
         sum += r->count;
-        fprintf(f, "%08lx: %lld %0.2f%% %0.2f%%\n", 
+        fprintf(f, "%08lx: %" PRId64 " %0.2f%% %0.2f%%\n", 
                 r->pc, 
                 r->count, 
                 (double)r->count / (double)total * 100.0,

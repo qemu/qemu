@@ -3259,7 +3259,7 @@ static void mul64(uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b)
     v = (uint64_t)a1 * (uint64_t)b1;
     *phigh += v;
 #ifdef DEBUG_MULDIV
-    printf("mul: 0x%016llx * 0x%016llx = 0x%016llx%016llx\n",
+    printf("mul: 0x%016" PRIx64 " * 0x%016" PRIx64 " = 0x%016" PRIx64 "%016" PRIx64 "\n",
            a, b, *phigh, *plow);
 #endif
 }
@@ -3308,7 +3308,7 @@ static int div64(uint64_t *plow, uint64_t *phigh, uint64_t b)
             a0 = (a0 << 1) | qb;
         }
 #if defined(DEBUG_MULDIV)
-        printf("div: 0x%016llx%016llx / 0x%016llx: q=0x%016llx r=0x%016llx\n",
+        printf("div: 0x%016" PRIx64 "%016" PRIx64 " / 0x%016" PRIx64 ": q=0x%016" PRIx64 " r=0x%016" PRIx64 "\n",
                *phigh, *plow, b, a0, a1);
 #endif
         *plow = a0;

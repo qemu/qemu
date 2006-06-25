@@ -61,6 +61,9 @@ static inline char *realpath(const char *path, char *resolved_path)
 }
 
 #define PRId64 "I64d"
+#define PRIx64 "I64x"
+#define PRIu64 "I64u"
+#define PRIo64 "I64o"
 #endif
 
 #ifdef QEMU_TOOL

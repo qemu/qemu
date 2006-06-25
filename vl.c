@@ -912,7 +912,7 @@ static void host_alarm_handler(int host_signum)
                 delta_max = delta;
             delta_cum += delta;
             if (++count == DISP_FREQ) {
-                printf("timer: min=%lld us max=%lld us avg=%lld us avg_freq=%0.3f Hz\n",
+                printf("timer: min=%" PRId64 " us max=%" PRId64 " us avg=%" PRId64 " us avg_freq=%0.3f Hz\n",
                        muldiv64(delta_min, 1000000, ticks_per_sec),
                        muldiv64(delta_max, 1000000, ticks_per_sec),
                        muldiv64(delta_cum, 1000000 / DISP_FREQ, ticks_per_sec),

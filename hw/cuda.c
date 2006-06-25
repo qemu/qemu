@@ -209,7 +209,7 @@ static int64_t get_next_irq_time(CUDATimer *s, int64_t current_time)
     }
 #if 0
 #ifdef DEBUG_CUDA
-    printf("latch=%d counter=%lld delta_next=%lld\n", 
+    printf("latch=%d counter=%" PRId64 " delta_next=%" PRId64 "\n", 
            s->latch, d, next_time - d);
 #endif
 #endif

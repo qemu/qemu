@@ -58,7 +58,7 @@ perror_memory (status, memaddr, info)
     /* Actually, address between memaddr and memaddr + len was
        out of bounds.  */
     (*info->fprintf_func) (info->stream,
-			   "Address 0x%llx is out of bounds.\n", memaddr);
+			   "Address 0x%" PRIx64 " is out of bounds.\n", memaddr);
 }
 
 /* This could be in a separate file, to save miniscule amounts of space
@@ -73,7 +73,7 @@ generic_print_address (addr, info)
      bfd_vma addr;
      struct disassemble_info *info;
 {
-    (*info->fprintf_func) (info->stream, "0x%llx", addr);
+    (*info->fprintf_func) (info->stream, "0x%" PRIx64, addr);
 }
 
 /* Just return the given address.  */

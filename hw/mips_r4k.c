@@ -60,7 +60,7 @@ static void cpu_mips_update_count (CPUState *env, uint32_t count,
 	next++;
 #if 0
     if (logfile) {
-        fprintf(logfile, "%s: 0x%08llx %08x %08x => 0x%08llx\n",
+        fprintf(logfile, "%s: 0x%08" PRIx64 " %08x %08x => 0x%08" PRIx64 "\n",
                 __func__, now, count, compare, next - now);
     }
 #endif

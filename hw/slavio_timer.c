@@ -100,7 +100,7 @@ static void slavio_timer_get_out(SLAVIO_TIMERState *s)
     // Convert remaining counter ticks to CPU ticks
     s->expire_time = ticks + muldiv64(limit - count, ticks_per_sec, CNT_FREQ);
 
-    DPRINTF("irq %d limit %d reached %d d %lld count %d s->c %x diff %lld stopped %d mode %d\n", s->irq, limit, s->reached?1:0, (ticks-s->count_load_time), count, s->count, s->expire_time - ticks, s->stopped, s->mode);
+    DPRINTF("irq %d limit %d reached %d d %" PRId64 " count %d s->c %x diff %" PRId64 " stopped %d mode %d\n", s->irq, limit, s->reached?1:0, (ticks-s->count_load_time), count, s->count, s->expire_time - ticks, s->stopped, s->mode);
 
     if (s->mode != 1)
 	pic_set_irq_cpu(s->irq, out, s->cpu);

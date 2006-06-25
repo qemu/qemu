@@ -446,7 +446,7 @@ void helper_st_asi(int asi, int size, int sign)
 	    // invalid in normal mode
 	    if (oldreg != env->lsu) {
 #ifdef DEBUG_MMU
-                printf("LSU change: 0x%llx -> 0x%llx\n", oldreg, env->lsu);
+                printf("LSU change: 0x%" PRIx64 " -> 0x%" PRIx64 "\n", oldreg, env->lsu);
 		dump_mmu(env);
 #endif
 		tlb_flush(env, 1);
@@ -480,7 +480,7 @@ void helper_st_asi(int asi, int size, int sign)
 	    env->immuregs[reg] = T1;
 #ifdef DEBUG_MMU
             if (oldreg != env->immuregs[reg]) {
-                printf("mmu change reg[%d]: 0x%08llx -> 0x%08llx\n", reg, oldreg, env->immuregs[reg]);
+                printf("mmu change reg[%d]: 0x%08" PRIx64 " -> 0x%08" PRIx64 "\n", reg, oldreg, env->immuregs[reg]);
             }
 	    dump_mmu(env);
 #endif
@@ -549,7 +549,7 @@ void helper_st_asi(int asi, int size, int sign)
 	    env->dmmuregs[reg] = T1;
 #ifdef DEBUG_MMU
             if (oldreg != env->dmmuregs[reg]) {
-                printf("mmu change reg[%d]: 0x%08llx -> 0x%08llx\n", reg, oldreg, env->dmmuregs[reg]);
+                printf("mmu change reg[%d]: 0x%08" PRIx64 " -> 0x%08" PRIx64 "\n", reg, oldreg, env->dmmuregs[reg]);
             }
 	    dump_mmu(env);
 #endif
@@ -769,7 +769,7 @@ void do_interrupt(int intno)
 #ifdef DEBUG_PCALL
     if (loglevel & CPU_LOG_INT) {
 	static int count;
-	fprintf(logfile, "%6d: v=%04x pc=%016llx npc=%016llx SP=%016llx\n",
+	fprintf(logfile, "%6d: v=%04x pc=%016" PRIx64 " npc=%016" PRIx64 " SP=%016" PRIx64 "\n",
                 count, intno,
                 env->pc,
                 env->npc, env->regwptr[6]);

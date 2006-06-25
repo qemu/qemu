@@ -997,7 +997,7 @@ static int audio_get_avail (SWVoiceIn *sw)
     }
 
     ldebug (
-        "%s: get_avail live %d ret %lld\n",
+        "%s: get_avail live %d ret %" PRId64 "\n",
         SW_NAME (sw),
         live, (((int64_t) live << 32) / sw->ratio) << sw->info.shift
         );
@@ -1023,7 +1023,7 @@ static int audio_get_free (SWVoiceOut *sw)
     dead = sw->hw->samples - live;
 
 #ifdef DEBUG_OUT
-    dolog ("%s: get_free live %d dead %d ret %lld\n",
+    dolog ("%s: get_free live %d dead %d ret %" PRId64 "\n",
            SW_NAME (sw),
            live, dead, (((int64_t) dead << 32) / sw->ratio) << sw->info.shift);
 #endif

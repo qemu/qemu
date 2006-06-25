@@ -203,7 +203,7 @@ void slavio_irq_info(void *opaque)
     for (i = 0; i < 32; i++) {
         count = s->irq_count[i];
         if (count > 0)
-            term_printf("%2d: %lld\n", i, count);
+            term_printf("%2d: %" PRId64 "\n", i, count);
     }
 #endif
 }
