@@ -315,11 +315,11 @@ static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
     for(i = 0; i < 24; i++) {
         registers[i + 8] = tswapl(env->regwptr[i]);
     }
+#ifndef TARGET_SPARC64
     /* fill in fprs */
     for (i = 0; i < 32; i++) {
         registers[i + 32] = tswapl(*((uint32_t *)&env->fpr[i]));
     }
-#ifndef TARGET_SPARC64
     /* Y, PSR, WIM, TBR, PC, NPC, FPSR, CPSR */
     registers[64] = tswapl(env->y);
     {
@@ -337,16 +337,21 @@ static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
     registers[72] = 0;
     return 73 * sizeof(target_ulong);
 #else
-    for (i = 0; i < 32; i += 2) {
-        registers[i/2 + 64] = tswapl(*((uint64_t *)&env->fpr[i]));
+    /* fill in fprs */
+    for (i = 0; i < 64; i += 2) {
+	uint64_t tmp;
+
+        tmp = (uint64_t)tswap32(*((uint32_t *)&env->fpr[i])) << 32;
+        tmp |= tswap32(*((uint32_t *)&env->fpr[i + 1]));
+        registers[i/2 + 32] = tmp;
     }
-    registers[81] = tswapl(env->pc);
-    registers[82] = tswapl(env->npc);
-    registers[83] = tswapl(env->tstate[env->tl]);
-    registers[84] = tswapl(env->fsr);
-    registers[85] = tswapl(env->fprs);
-    registers[86] = tswapl(env->y);
-    return 87 * sizeof(target_ulong);
+    registers[64] = tswapl(env->pc);
+    registers[65] = tswapl(env->npc);
+    registers[66] = tswapl(env->tstate[env->tl]);
+    registers[67] = tswapl(env->fsr);
+    registers[68] = tswapl(env->fprs);
+    registers[69] = tswapl(env->y);
+    return 70 * sizeof(target_ulong);
 #endif
 }
 
@@ -363,11 +368,11 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
     for(i = 0; i < 24; i++) {
         env->regwptr[i] = tswapl(registers[i + 8]);
     }
+#ifndef TARGET_SPARC64
     /* fill in fprs */
     for (i = 0; i < 32; i++) {
         *((uint32_t *)&env->fpr[i]) = tswapl(registers[i + 32]);
     }
-#ifndef TARGET_SPARC64
     /* Y, PSR, WIM, TBR, PC, NPC, FPSR, CPSR */
     env->y = tswapl(registers[64]);
     PUT_PSR(env, tswapl(registers[65]));
@@ -377,18 +382,16 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
     env->npc = tswapl(registers[69]);
     env->fsr = tswapl(registers[70]);
 #else
-    for (i = 0; i < 32; i += 2) {
-	uint64_t tmp;
-	tmp = tswapl(registers[i/2 + 64]) << 32;
-	tmp |= tswapl(registers[i/2 + 64 + 1]);
-        *((uint64_t *)&env->fpr[i]) = tmp;
+    for (i = 0; i < 64; i += 2) {
+	*((uint32_t *)&env->fpr[i]) = tswap32(registers[i/2 + 32] >> 32);
+	*((uint32_t *)&env->fpr[i + 1]) = tswap32(registers[i/2 + 32] & 0xffffffff);
     }
-    env->pc = tswapl(registers[81]);
-    env->npc = tswapl(registers[82]);
-    env->tstate[env->tl] = tswapl(registers[83]);
-    env->fsr = tswapl(registers[84]);
-    env->fprs = tswapl(registers[85]);
-    env->y = tswapl(registers[86]);
+    env->pc = tswapl(registers[64]);
+    env->npc = tswapl(registers[65]);
+    env->tstate[env->tl] = tswapl(registers[66]);
+    env->fsr = tswapl(registers[67]);
+    env->fprs = tswapl(registers[68]);
+    env->y = tswapl(registers[69]);
 #endif
 }
 #elif defined (TARGET_ARM)
@@ -565,7 +568,7 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
     char buf[4096];
     uint8_t mem_buf[2000];
     uint32_t *registers;
-    uint32_t addr, len;
+    target_ulong addr, len;
     
 #ifdef DEBUG_GDB
     printf("command='%s'\n", line_buf);
@@ -580,7 +583,7 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
         break;
     case 'c':
         if (*p != '\0') {
-            addr = strtoul(p, (char **)&p, 16);
+            addr = strtoull(p, (char **)&p, 16);
 #if defined(TARGET_I386)
             env->eip = addr;
 #elif defined (TARGET_PPC)
@@ -636,10 +639,10 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
         put_packet(s, "OK");
         break;
     case 'm':
-        addr = strtoul(p, (char **)&p, 16);
+        addr = strtoull(p, (char **)&p, 16);
         if (*p == ',')
             p++;
-        len = strtoul(p, NULL, 16);
+        len = strtoull(p, NULL, 16);
         if (cpu_memory_rw_debug(env, addr, mem_buf, len, 0) != 0) {
             put_packet (s, "E14");
         } else {
@@ -648,10 +651,10 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
         }
         break;
     case 'M':
-        addr = strtoul(p, (char **)&p, 16);
+        addr = strtoull(p, (char **)&p, 16);
         if (*p == ',')
             p++;
-        len = strtoul(p, (char **)&p, 16);
+        len = strtoull(p, (char **)&p, 16);
         if (*p == ':')
             p++;
         hextomem(mem_buf, p, len);
@@ -664,10 +667,10 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
         type = strtoul(p, (char **)&p, 16);
         if (*p == ',')
             p++;
-        addr = strtoul(p, (char **)&p, 16);
+        addr = strtoull(p, (char **)&p, 16);
         if (*p == ',')
             p++;
-        len = strtoul(p, (char **)&p, 16);
+        len = strtoull(p, (char **)&p, 16);
         if (type == 0 || type == 1) {
             if (cpu_breakpoint_insert(env, addr) < 0)
                 goto breakpoint_error;
@@ -681,10 +684,10 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
         type = strtoul(p, (char **)&p, 16);
         if (*p == ',')
             p++;
-        addr = strtoul(p, (char **)&p, 16);
+        addr = strtoull(p, (char **)&p, 16);
         if (*p == ',')
             p++;
-        len = strtoul(p, (char **)&p, 16);
+        len = strtoull(p, (char **)&p, 16);
         if (type == 0 || type == 1) {
             cpu_breakpoint_remove(env, addr);
             put_packet(s, "OK");
