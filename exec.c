@@ -1488,7 +1488,7 @@ int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
     if (is_softmmu) 
 #endif
     {
-        if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM) {
+        if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM && !(pd & IO_MEM_ROMD)) {
             /* IO memory case */
             address = vaddr | pd;
             addend = paddr;
@@ -1785,7 +1785,8 @@ void cpu_register_physical_memory(target_phys_addr_t start_addr,
     for(addr = start_addr; addr != end_addr; addr += TARGET_PAGE_SIZE) {
         p = phys_page_find_alloc(addr >> TARGET_PAGE_BITS, 1);
         p->phys_offset = phys_offset;
-        if ((phys_offset & ~TARGET_PAGE_MASK) <= IO_MEM_ROM)
+        if ((phys_offset & ~TARGET_PAGE_MASK) <= IO_MEM_ROM ||
+            (phys_offset & IO_MEM_ROMD))
             phys_offset += TARGET_PAGE_SIZE;
     }
 }
@@ -2048,7 +2049,8 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
                 }
             }
         } else {
-            if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM) {
+            if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM && 
+                !(pd & IO_MEM_ROMD)) {
                 /* I/O case */
                 io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
                 if (l >= 4 && ((addr & 3) == 0)) {
@@ -2103,7 +2105,8 @@ void cpu_physical_memory_write_rom(target_phys_addr_t addr,
         }
         
         if ((pd & ~TARGET_PAGE_MASK) != IO_MEM_RAM &&
-            (pd & ~TARGET_PAGE_MASK) != IO_MEM_ROM) {
+            (pd & ~TARGET_PAGE_MASK) != IO_MEM_ROM &&
+            !(pd & IO_MEM_ROMD)) {
             /* do nothing */
         } else {
             unsigned long addr1;
@@ -2135,7 +2138,8 @@ uint32_t ldl_phys(target_phys_addr_t addr)
         pd = p->phys_offset;
     }
         
-    if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM) {
+    if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM && 
+        !(pd & IO_MEM_ROMD)) {
         /* I/O case */
         io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
         val = io_mem_read[io_index][2](io_mem_opaque[io_index], addr);
@@ -2164,7 +2168,8 @@ uint64_t ldq_phys(target_phys_addr_t addr)
         pd = p->phys_offset;
     }
         
-    if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM) {
+    if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM &&
+        !(pd & IO_MEM_ROMD)) {
         /* I/O case */
         io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
 #ifdef TARGET_WORDS_BIGENDIAN

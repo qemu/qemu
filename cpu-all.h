@@ -828,6 +828,10 @@ extern uint8_t *phys_ram_dirty;
 #define IO_MEM_ROM         (1 << IO_MEM_SHIFT) /* hardcoded offset */
 #define IO_MEM_UNASSIGNED  (2 << IO_MEM_SHIFT)
 #define IO_MEM_NOTDIRTY    (4 << IO_MEM_SHIFT) /* used internally, never use directly */
+/* acts like a ROM when read and like a device when written. As an
+   exception, the write memory callback gets the ram offset instead of
+   the physical address */
+#define IO_MEM_ROMD        (1)
 
 typedef void CPUWriteMemoryFunc(void *opaque, target_phys_addr_t addr, uint32_t value);
 typedef uint32_t CPUReadMemoryFunc(void *opaque, target_phys_addr_t addr);
