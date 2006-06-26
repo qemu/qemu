@@ -1104,9 +1104,11 @@ void op_eret (void)
     if (env->hflags & MIPS_HFLAG_ERL) {
         env->PC = env->CP0_ErrorEPC;
         env->hflags &= ~MIPS_HFLAG_ERL;
+	env->CP0_Status &= ~(1 << CP0St_ERL);
     } else {
         env->PC = env->CP0_EPC;
         env->hflags &= ~MIPS_HFLAG_EXL;
+	env->CP0_Status &= ~(1 << CP0St_EXL);
     }
     env->CP0_LLAddr = 1;
 }

@@ -332,7 +332,8 @@ void do_interrupt (CPUState *env)
         } else {
             env->CP0_ErrorEPC = env->PC;
         }
-        env->hflags = MIPS_HFLAG_ERL;
+        env->hflags |= MIPS_HFLAG_ERL;
+	env->CP0_Status |= (1 << CP0St_ERL);
         pc = 0xBFC00000;
         break;
     case EXCP_MCHECK:
@@ -396,6 +397,7 @@ void do_interrupt (CPUState *env)
             pc = 0x80000000;
         }
         env->hflags |= MIPS_HFLAG_EXL;
+	env->CP0_Status |= (1 << CP0St_EXL);
         pc += offset;
         env->CP0_Cause = (env->CP0_Cause & ~0x7C) | (cause << 2);
         if (env->hflags & MIPS_HFLAG_BMASK) {
