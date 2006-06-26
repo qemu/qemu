@@ -5495,6 +5495,14 @@ static void select_soundhw (const char *optarg)
 }
 #endif
 
+#ifdef _WIN32
+static BOOL WINAPI qemu_ctrl_handler(DWORD type)
+{
+    exit(STATUS_CONTROL_C_EXIT);
+    return TRUE;
+}
+#endif
+
 #define MAX_NET_CLIENTS 32
 
 int main(int argc, char **argv)
@@ -5534,6 +5542,8 @@ int main(int argc, char **argv)
         act.sa_handler = SIG_IGN;
         sigaction(SIGPIPE, &act, NULL);
     }
+#else
+    SetConsoleCtrlHandler(qemu_ctrl_handler, TRUE);
 #endif
     init_timers();
 
