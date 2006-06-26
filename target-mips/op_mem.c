@@ -61,6 +61,12 @@ void glue(op_lw, MEMSUFFIX) (void)
     RETURN();
 }
 
+void glue(op_lwu, MEMSUFFIX) (void)
+{
+    T0 = glue(ldl, MEMSUFFIX)(T0);
+    RETURN();
+}
+
 void glue(op_sw, MEMSUFFIX) (void)
 {
     glue(stl, MEMSUFFIX)(T0, T1);

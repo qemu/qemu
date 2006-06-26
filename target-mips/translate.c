@@ -97,6 +97,7 @@ enum {
     OPC_LBU      = 0x24,
     OPC_LHU      = 0x25,
     OPC_LWR      = 0x26,
+    OPC_LWU      = 0x27,
     OPC_SB       = 0x28,
     OPC_SH       = 0x29,
     OPC_SWL      = 0x2A,
@@ -495,6 +496,7 @@ OP_ST_TABLE(dl);
 OP_ST_TABLE(dr);
 #endif
 OP_LD_TABLE(w);
+OP_LD_TABLE(wu);
 OP_LD_TABLE(wl);
 OP_LD_TABLE(wr);
 OP_ST_TABLE(w);
@@ -579,6 +581,11 @@ static void gen_ldst (DisasContext *ctx, uint16_t opc, int rt,
         op_ldst(lw);
         GEN_STORE_TN_REG(rt, T0);
         opn = "lw";
+        break;
+    case OPC_LWU:
+        op_ldst(lwu);
+        GEN_STORE_TN_REG(rt, T0);
+        opn = "lwu";
         break;
     case OPC_SW:
 #if defined (MIPS_HAS_UNALIGNED_LS)
@@ -1356,6 +1363,7 @@ static void gen_cp0 (DisasContext *ctx, uint16_t opc, int rt, int rd)
         generate_exception_err (ctx, EXCP_CpU, 0);
         return;
     }
+
     switch (opc) {
     case OPC_MFC0:
         if (rt == 0) {
@@ -1886,6 +1894,12 @@ static void decode_opc (DisasContext *ctx)
     uint16_t op, op1;
     int16_t imm;
 
+    /* make sure instructions are on a word boundary */
+    if (ctx->pc & 0x3) {
+        generate_exception(ctx, EXCP_AdEL);
+        return;
+    }
+
     if ((ctx->hflags & MIPS_HFLAG_BMASK) == MIPS_HFLAG_BL) {
         /* Handle blikely not taken case */
         MIPS_DEBUG("blikely condition (%08x)", ctx->pc + 4);
@@ -2041,8 +2055,7 @@ static void decode_opc (DisasContext *ctx)
     case 0x14 ... 0x17:
         gen_compute_branch(ctx, op, rs, rt, imm << 2);
         return;
-    case 0x20 ... 0x26: /* Load and stores */
-    case 0x28 ... 0x2E:
+    case 0x20 ... 0x2E: /* Load and stores */
     case 0x30:
     case 0x38:
         gen_ldst(ctx, op, rt, rs, imm);
