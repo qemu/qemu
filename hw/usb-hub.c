@@ -544,6 +544,8 @@ USBDevice *usb_hub_init(int nb_ports)
     s->dev.handle_control = usb_hub_handle_control;
     s->dev.handle_data = usb_hub_handle_data;
 
+    pstrcpy(s->dev.devname, sizeof(s->dev.devname), "QEMU USB Hub");
+
     s->nb_ports = nb_ports;
     for(i = 0; i < s->nb_ports; i++) {
         port = &s->ports[i];

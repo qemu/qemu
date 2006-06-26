@@ -3785,8 +3785,8 @@ void usb_info(void)
             speed_str = "?"; 
             break;
         }
-        term_printf("  Device %d.%d, speed %s Mb/s\n", 
-                    0, dev->addr, speed_str);
+        term_printf("  Device %d.%d, Speed %s Mb/s, Product %s\n", 
+                    0, dev->addr, speed_str, dev->devname);
     }
 }
 
