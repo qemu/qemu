@@ -786,7 +786,7 @@ void OPPROTO op_subl_T0_T1_saturate(void)
   if (((res ^ T0) & SIGNBIT) && ((T0 ^ T1) & SIGNBIT)) {
       env->QF = 1;
       if (T0 & SIGNBIT)
-          T0 = 0x8000000;
+          T0 = 0x80000000;
       else
           T0 = 0x7fffffff;
   }
