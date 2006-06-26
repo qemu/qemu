@@ -1017,15 +1017,6 @@ void OPPROTO op_trapcc_T0(void)
     FORCE_RET();
 }
 
-void OPPROTO op_trap_ifnofpu(void)
-{
-    if (!env->psref) {
-        env->exception_index = TT_NFPU_INSN;
-        cpu_loop_exit();
-    }
-    FORCE_RET();
-}
-
 void OPPROTO op_fpexception_im(void)
 {
     env->exception_index = TT_FP_EXCP;

@@ -78,6 +78,8 @@
 #define PS_PRIV  (1<<2)
 #define PS_IE    (1<<1)
 #define PS_AG    (1<<0)
+
+#define FPRS_FEF (1<<2)
 #endif
 
 /* Fcc */

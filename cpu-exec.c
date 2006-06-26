@@ -175,9 +175,13 @@ static inline TranslationBlock *tb_find_fast(void)
     pc = env->regs[15];
 #elif defined(TARGET_SPARC)
 #ifdef TARGET_SPARC64
-    flags = (env->pstate << 2) | ((env->lsu & (DMMU_E | IMMU_E)) >> 2);
+    // Combined FPU enable bits . PRIV . DMMU enabled . IMMU enabled
+    flags = (((env->pstate & PS_PEF) >> 1) | ((env->fprs & FPRS_FEF) << 2))
+        | (env->pstate & PS_PRIV) | ((env->lsu & (DMMU_E | IMMU_E)) >> 2);
 #else
-    flags = env->psrs | ((env->mmuregs[0] & (MMU_E | MMU_NF)) << 1);
+    // FPU enable . MMU enabled . MMU no-fault . Supervisor
+    flags = (env->psref << 3) | ((env->mmuregs[0] & (MMU_E | MMU_NF)) << 1)
+        | env->psrs;
 #endif
     cs_base = env->npc;
     pc = env->pc;

@@ -52,6 +52,7 @@ typedef struct DisasContext {
     target_ulong jump_pc[2]; /* used when JUMP_PC pc value is used */
     int is_br;
     int mem_idx;
+    int fpu_enabled;
     struct TranslationBlock *tb;
 } DisasContext;
 
@@ -935,6 +936,19 @@ static GenOpFunc * const gen_fcmpd[4] = {
 };
 #endif
 
+static int gen_trap_ifnofpu(DisasContext * dc)
+{
+#if !defined(CONFIG_USER_ONLY)
+    if (!dc->fpu_enabled) {
+        save_state(dc);
+        gen_op_exception(TT_NFPU_INSN);
+        dc->is_br = 1;
+        return 1;
+    }
+#endif
+    return 0;
+}
+
 /* before an instruction, dc->pc must be static */
 static void disas_sparc_insn(DisasContext * dc)
 {
@@ -981,10 +995,8 @@ static void disas_sparc_insn(DisasContext * dc)
 	    case 0x5:		/* V9 FBPcc */
 		{
 		    int cc = GET_FIELD_SP(insn, 20, 21);
-#if !defined(CONFIG_USER_ONLY)
-		    save_state(dc);
-		    gen_op_trap_ifnofpu();
-#endif
+                    if (gen_trap_ifnofpu(dc))
+                        goto jmp_insn;
 		    target = GET_FIELD_SP(insn, 0, 18);
 		    target = sign_extend(target, 19);
 		    target <<= 2;
@@ -1002,10 +1014,8 @@ static void disas_sparc_insn(DisasContext * dc)
 		}
 	    case 0x6:		/* FBN+x */
 		{
-#if !defined(CONFIG_USER_ONLY)
-		    save_state(dc);
-		    gen_op_trap_ifnofpu();
-#endif
+                    if (gen_trap_ifnofpu(dc))
+                        goto jmp_insn;
 		    target = GET_FIELD(insn, 10, 31);
 		    target = sign_extend(target, 22);
 		    target <<= 2;
@@ -1079,16 +1089,16 @@ static void disas_sparc_insn(DisasContext * dc)
 		    }
 #endif
                 }
-                save_state(dc);
                 cond = GET_FIELD(insn, 3, 6);
                 if (cond == 0x8) {
+                    save_state(dc);
                     gen_op_trap_T0();
-                    dc->is_br = 1;
-                    goto jmp_insn;
                 } else if (cond != 0) {
 #ifdef TARGET_SPARC64
 		    /* V9 icc/xcc */
 		    int cc = GET_FIELD_SP(insn, 11, 12);
+		    flush_T2(dc);
+                    save_state(dc);
 		    if (cc == 0)
 			gen_cond[0][cond]();
 		    else if (cc == 2)
@@ -1096,10 +1106,17 @@ static void disas_sparc_insn(DisasContext * dc)
 		    else
 			goto illegal_insn;
 #else
+		    flush_T2(dc);
+                    save_state(dc);
 		    gen_cond[0][cond]();
 #endif
                     gen_op_trapcc_T0();
                 }
+                gen_op_next_insn();
+                gen_op_movl_T0_0();
+                gen_op_exit_tb();
+                dc->is_br = 1;
+                goto jmp_insn;
             } else if (xop == 0x28) {
                 rs1 = GET_FIELD(insn, 13, 17);
                 switch(rs1) {
@@ -1241,10 +1258,8 @@ static void disas_sparc_insn(DisasContext * dc)
                 break;
 #endif
 	    } else if (xop == 0x34) {	/* FPU Operations */
-#if !defined(CONFIG_USER_ONLY)
-		save_state(dc);
-		gen_op_trap_ifnofpu();
-#endif
+                if (gen_trap_ifnofpu(dc))
+                    goto jmp_insn;
                 rs1 = GET_FIELD(insn, 13, 17);
 	        rs2 = GET_FIELD(insn, 27, 31);
 	        xop = GET_FIELD(insn, 18, 26);
@@ -1430,10 +1445,8 @@ static void disas_sparc_insn(DisasContext * dc)
 #ifdef TARGET_SPARC64
 		int cond;
 #endif
-#if !defined(CONFIG_USER_ONLY)
-		save_state(dc);
-		gen_op_trap_ifnofpu();
-#endif
+                if (gen_trap_ifnofpu(dc))
+                    goto jmp_insn;
                 rs1 = GET_FIELD(insn, 13, 17);
 	        rs2 = GET_FIELD(insn, 27, 31);
 	        xop = GET_FIELD(insn, 18, 26);
@@ -2366,10 +2379,8 @@ static void disas_sparc_insn(DisasContext * dc)
 	    skip_move: ;
 #endif
 	    } else if (xop >= 0x20 && xop < 0x24) {
-#if !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64)
-		save_state(dc);
-		gen_op_trap_ifnofpu();
-#endif
+                if (gen_trap_ifnofpu(dc))
+                    goto jmp_insn;
 		switch (xop) {
 		case 0x20:	/* load fpreg */
 		    gen_op_ldst(ldf);
@@ -2450,9 +2461,8 @@ static void disas_sparc_insn(DisasContext * dc)
 		    goto illegal_insn;
 		}
 	    } else if (xop > 0x23 && xop < 0x28) {
-#if !defined(CONFIG_USER_ONLY)
-		gen_op_trap_ifnofpu();
-#endif
+                if (gen_trap_ifnofpu(dc))
+                    goto jmp_insn;
 		switch (xop) {
 		case 0x24:
                     gen_op_load_fpr_FT0(rd);
@@ -2548,8 +2558,14 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
     dc->npc = (target_ulong) tb->cs_base;
 #if defined(CONFIG_USER_ONLY)
     dc->mem_idx = 0;
+    dc->fpu_enabled = 1;
 #else
     dc->mem_idx = ((env->psrs) != 0);
+#ifdef TARGET_SPARC64
+    dc->fpu_enabled = (((env->pstate & PS_PEF) != 0) && ((env->fprs & FPRS_FEF) != 0));
+#else
+    dc->fpu_enabled = ((env->psref) != 0);
+#endif
 #endif
     gen_opc_ptr = gen_opc_buf;
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
