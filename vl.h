@@ -51,8 +51,9 @@
 #define fsync _commit
 #define lseek _lseeki64
 #define ENOTSUP 4096
-/* XXX: find 64 bit version */
-#define ftruncate chsize
+extern int qemu_ftruncate64(int, int64_t);
+#define ftruncate qemu_ftruncate64
+
 
 static inline char *realpath(const char *path, char *resolved_path)
 {

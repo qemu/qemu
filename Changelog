@@ -10,6 +10,7 @@ version 0.8.2:
   - USB updates (Paul Brook)
   - UDP character devices (Jason Wessel)
   - TCP character devices
+  - Windows sparse file support (Frediano Ziglio)
 
 version 0.8.1:
 
