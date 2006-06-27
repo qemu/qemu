@@ -1302,6 +1302,7 @@ void cpu_loop(CPUMIPSState *env)
         case EXCP_SYSCALL:
             {
                 syscall_num = env->gpr[2] - 4000;
+                env->PC += 4;
                 if (syscall_num >= sizeof(mips_syscall_args)) {
                     ret = -ENOSYS;
                 } else {
@@ -1328,7 +1329,6 @@ void cpu_loop(CPUMIPSState *env)
                                      arg5, 
                                      arg6);
                 }
-                env->PC += 4;
                 if ((unsigned int)ret >= (unsigned int)(-1133)) {
                     env->gpr[7] = 1; /* error flag */
                     ret = -ret;
@@ -1346,6 +1346,9 @@ void cpu_loop(CPUMIPSState *env)
             info.si_errno = 0;
             info.si_code = 0;
             queue_signal(info.si_signo, &info);
+            break;
+        case EXCP_INTERRUPT:
+            /* just indicate that signals should be handled asap */
             break;
         default:
             //        error:

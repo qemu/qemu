@@ -2246,6 +2246,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         break;
     case TARGET_NR_sigaction:
         {
+	#if !defined(TARGET_MIPS)
             struct target_old_sigaction *old_act;
             struct target_sigaction act, oact, *pact;
             if (arg2) {
@@ -2268,6 +2269,33 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                 old_act->sa_restorer = oact.sa_restorer;
                 unlock_user_struct(old_act, arg3, 1);
             }
+	#else
+	    struct target_sigaction act, oact, *pact, *old_act;
+
+	    if (arg2) {
+		lock_user_struct(old_act, arg2, 1);
+		act._sa_handler = old_act->_sa_handler;
+		target_siginitset(&act.sa_mask, old_act->sa_mask.sig[0]);
+		act.sa_flags = old_act->sa_flags;
+		unlock_user_struct(old_act, arg2, 0);
+		pact = &act;
+	    } else {
+		pact = NULL;
+	    }
+
+	    ret = get_errno(do_sigaction(arg1, pact, &oact));
+
+	    if (!is_error(ret) && arg3) {
+		lock_user_struct(old_act, arg3, 0);
+		old_act->_sa_handler = oact._sa_handler;
+		old_act->sa_flags = oact.sa_flags;
+		old_act->sa_mask.sig[0] = oact.sa_mask.sig[0];
+		old_act->sa_mask.sig[1] = 0;
+		old_act->sa_mask.sig[2] = 0;
+		old_act->sa_mask.sig[3] = 0;
+		unlock_user_struct(old_act, arg3, 1);
+	    }
+	#endif
         }
         break;
     case TARGET_NR_rt_sigaction:

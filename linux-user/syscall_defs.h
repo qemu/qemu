@@ -448,6 +448,15 @@ int do_sigaction(int sig, const struct target_sigaction *act,
 
 #endif
 
+#if defined(TARGET_MIPS)
+
+struct target_sigaction {
+	target_ulong	sa_flags;
+	target_ulong	_sa_handler;
+	target_sigset_t	sa_mask;
+};
+
+#else
 struct target_old_sigaction {
         target_ulong _sa_handler;
         target_ulong sa_mask;
@@ -461,6 +470,7 @@ struct target_sigaction {
         target_ulong sa_restorer;
         target_sigset_t sa_mask;
 };
+#endif
 
 typedef union target_sigval {
 	int sival_int;
