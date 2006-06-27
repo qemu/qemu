@@ -2203,16 +2203,16 @@ static void udp_chr_add_read_handler(CharDriverState *chr,
 }
 
 int parse_host_port(struct sockaddr_in *saddr, const char *str);
+int parse_host_src_port(struct sockaddr_in *haddr,
+                        struct sockaddr_in *saddr,
+                        const char *str);
 
 CharDriverState *qemu_chr_open_udp(const char *def)
 {
     CharDriverState *chr = NULL;
     NetCharDriver *s = NULL;
     int fd = -1;
-    int con_type;
-    struct sockaddr_in addr;
-    const char *p, *r;
-    int port;
+    struct sockaddr_in saddr;
 
     chr = qemu_mallocz(sizeof(CharDriverState));
     if (!chr)
@@ -2227,58 +2227,12 @@ CharDriverState *qemu_chr_open_udp(const char *def)
         goto return_err;
     }
 
-    /* There are three types of port definitions
-     * 1) udp:remote_port
-     *    Juse use 0.0.0.0 for the IP and send to remote
-     * 2) udp:remote_host:port
-     *    Use a IP and send traffic to remote
-     * 3) udp:local_port:remote_host:remote_port
-     *    Use local_port as the originator + #2
-     */
-    con_type = 0;
-    p = def;
-    while ((p = strchr(p, ':'))) {
-        p++;
-        con_type++;
+    if (parse_host_src_port(&s->daddr, &saddr, def) < 0) {
+        printf("Could not parse: %s\n", def);
+        goto return_err;
     }
 
-    p = def;
-    memset(&addr,0,sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    s->daddr.sin_family = AF_INET;
-    s->daddr.sin_addr.s_addr = htonl(INADDR_ANY);
-
-    switch (con_type) {
-        case 0:
-            port = strtol(p, (char **)&r, 0);
-            if (r == p) {
-                fprintf(stderr, "Error parsing port number\n");
-                goto return_err;
-            }
-            s->daddr.sin_port = htons((short)port);
-            break;
-        case 2:
-            port = strtol(p, (char **)&r, 0);
-            if (r == p) {
-                fprintf(stderr, "Error parsing port number\n");
-                goto return_err;
-            }
-            addr.sin_port = htons((short)port);
-            p = r + 1;
-            /* Fall through to case 1 now that we have the local port */
-        case 1:
-            if (parse_host_port(&s->daddr, p) < 0) {
-                fprintf(stderr, "Error parsing host name and port\n");
-                goto return_err;
-            }
-            break;
-        default:
-            fprintf(stderr, "Too many ':' characters\n");
-            goto return_err;
-    }
-
-    if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
+    if (bind(fd, (struct sockaddr *)&saddr, sizeof(saddr)) < 0)
     {
         perror("bind");
         goto return_err;
@@ -2312,6 +2266,7 @@ typedef struct {
     int fd, listen_fd;
     int connected;
     int max_size;
+    int do_telnetopt;
 } TCPCharDriver;
 
 static void tcp_chr_accept(void *opaque);
@@ -2337,6 +2292,56 @@ static int tcp_chr_read_poll(void *opaque)
     return s->max_size;
 }
 
+#define IAC 255
+#define IAC_BREAK 243
+static void tcp_chr_process_IAC_bytes(CharDriverState *chr,
+                                      TCPCharDriver *s,
+                                      char *buf, int *size)
+{
+    /* Handle any telnet client's basic IAC options to satisfy char by
+     * char mode with no echo.  All IAC options will be removed from
+     * the buf and the do_telnetopt variable will be used to track the
+     * state of the width of the IAC information.
+     *
+     * IAC commands come in sets of 3 bytes with the exception of the
+     * "IAC BREAK" command and the double IAC.
+     */
+
+    int i;
+    int j = 0;
+
+    for (i = 0; i < *size; i++) {
+        if (s->do_telnetopt > 1) {
+            if ((unsigned char)buf[i] == IAC && s->do_telnetopt == 2) {
+                /* Double IAC means send an IAC */
+                if (j != i)
+                    buf[j] = buf[i];
+                j++;
+                s->do_telnetopt = 1;
+            } else {
+                if ((unsigned char)buf[i] == IAC_BREAK && s->do_telnetopt == 2) {
+                    /* Handle IAC break commands by sending a serial break */
+                    chr->chr_event(s->fd_opaque, CHR_EVENT_BREAK);
+                    s->do_telnetopt++;
+                }
+                s->do_telnetopt++;
+            }
+            if (s->do_telnetopt >= 4) {
+                s->do_telnetopt = 1;
+            }
+        } else {
+            if ((unsigned char)buf[i] == IAC) {
+                s->do_telnetopt = 2;
+            } else {
+                if (j != i)
+                    buf[j] = buf[i];
+                j++;
+            }
+        }
+    }
+    *size = j;
+}
+
 static void tcp_chr_read(void *opaque)
 {
     CharDriverState *chr = opaque;
@@ -2360,7 +2365,10 @@ static void tcp_chr_read(void *opaque)
         closesocket(s->fd);
         s->fd = -1;
     } else if (size > 0) {
-        s->fd_read(s->fd_opaque, buf, size);
+        if (s->do_telnetopt)
+            tcp_chr_process_IAC_bytes(chr, s, buf, &size);
+        if (size > 0)
+            s->fd_read(s->fd_opaque, buf, size);
     }
 }
 
@@ -2385,6 +2393,21 @@ static void tcp_chr_connect(void *opaque)
                          tcp_chr_read, NULL, chr);
 }
 
+#define IACSET(x,a,b,c) x[0] = a; x[1] = b; x[2] = c;
+static void tcp_chr_telnet_init(int fd)
+{
+    char buf[3];
+    /* Send the telnet negotion to put telnet in binary, no echo, single char mode */
+    IACSET(buf, 0xff, 0xfb, 0x01);  /* IAC WILL ECHO */
+    send(fd, (char *)buf, 3, 0);
+    IACSET(buf, 0xff, 0xfb, 0x03);  /* IAC WILL Suppress go ahead */
+    send(fd, (char *)buf, 3, 0);
+    IACSET(buf, 0xff, 0xfb, 0x00);  /* IAC WILL Binary */
+    send(fd, (char *)buf, 3, 0);
+    IACSET(buf, 0xff, 0xfd, 0x00);  /* IAC DO Binary */
+    send(fd, (char *)buf, 3, 0);
+}
+
 static void tcp_chr_accept(void *opaque)
 {
     CharDriverState *chr = opaque;
@@ -2399,6 +2422,8 @@ static void tcp_chr_accept(void *opaque)
         if (fd < 0 && errno != EINTR) {
             return;
         } else if (fd >= 0) {
+            if (s->do_telnetopt)
+                tcp_chr_telnet_init(fd);
             break;
         }
     }
@@ -2419,15 +2444,33 @@ static void tcp_chr_close(CharDriverState *chr)
 }
 
 static CharDriverState *qemu_chr_open_tcp(const char *host_str, 
-                                          int is_listen)
+                                          int is_telnet)
 {
     CharDriverState *chr = NULL;
     TCPCharDriver *s = NULL;
     int fd = -1, ret, err, val;
+    int is_listen = 0;
+    int is_waitconnect = 1;
+    const char *ptr;
     struct sockaddr_in saddr;
 
     if (parse_host_port(&saddr, host_str) < 0)
         goto fail;
+
+    ptr = host_str;
+    while((ptr = strchr(ptr,','))) {
+        ptr++;
+        if (!strncmp(ptr,"server",6)) {
+            is_listen = 1;
+        } else if (!strncmp(ptr,"nowait",6)) {
+            is_waitconnect = 0;
+        } else {
+            printf("Unknown option: %s\n", ptr);
+            goto fail;
+        }
+    }
+    if (!is_listen)
+        is_waitconnect = 0;
 
     chr = qemu_mallocz(sizeof(CharDriverState));
     if (!chr)
@@ -2439,7 +2482,9 @@ static CharDriverState *qemu_chr_open_tcp(const char *host_str,
     fd = socket(PF_INET, SOCK_STREAM, 0);
     if (fd < 0) 
         goto fail;
-    socket_set_nonblock(fd);
+
+    if (!is_waitconnect)
+        socket_set_nonblock(fd);
 
     s->connected = 0;
     s->fd = -1;
@@ -2457,6 +2502,8 @@ static CharDriverState *qemu_chr_open_tcp(const char *host_str,
             goto fail;
         s->listen_fd = fd;
         qemu_set_fd_handler(s->listen_fd, tcp_chr_accept, NULL, chr);
+        if (is_telnet)
+            s->do_telnetopt = 1;
     } else {
         for(;;) {
             ret = connect(fd, (struct sockaddr *)&saddr, sizeof(saddr));
@@ -2484,6 +2531,12 @@ static CharDriverState *qemu_chr_open_tcp(const char *host_str,
     chr->chr_write = tcp_chr_write;
     chr->chr_add_read_handler = tcp_chr_add_read_handler;
     chr->chr_close = tcp_chr_close;
+    if (is_listen && is_waitconnect) {
+        printf("QEMU waiting for connection on: %s\n", host_str);
+        tcp_chr_accept(chr);
+        socket_set_nonblock(s->listen_fd);
+    }
+
     return chr;
  fail:
     if (fd >= 0)
@@ -2505,7 +2558,7 @@ CharDriverState *qemu_chr_open(const char *filename)
     if (strstart(filename, "tcp:", &p)) {
         return qemu_chr_open_tcp(p, 0);
     } else
-    if (strstart(filename, "tcpl:", &p)) {
+    if (strstart(filename, "telnet:", &p)) {
         return qemu_chr_open_tcp(p, 1);
     } else
     if (strstart(filename, "udp:", &p)) {
@@ -2616,6 +2669,45 @@ static int get_str_sep(char *buf, int buf_size, const char **pp, int sep)
     }
     *pp = p1;
     return 0;
+}
+
+int parse_host_src_port(struct sockaddr_in *haddr,
+                        struct sockaddr_in *saddr,
+                        const char *input_str)
+{
+    char *str = strdup(input_str);
+    char *host_str = str;
+    char *src_str;
+    char *ptr;
+
+    /*
+     * Chop off any extra arguments at the end of the string which
+     * would start with a comma, then fill in the src port information
+     * if it was provided else use the "any address" and "any port".
+     */
+    if ((ptr = strchr(str,',')))
+        *ptr = '\0';
+
+    if ((src_str = strchr(input_str,'@'))) {
+        *src_str = '\0';
+        src_str++;
+    }
+
+    if (parse_host_port(haddr, host_str) < 0)
+        goto fail;
+
+    if (!src_str || *src_str == '\0')
+        src_str = ":0";
+
+    if (parse_host_port(saddr, src_str) < 0)
+        goto fail;
+
+    free(str);
+    return(0);
+
+fail:
+    free(str);
+    return -1;
 }
 
 int parse_host_port(struct sockaddr_in *saddr, const char *str)
