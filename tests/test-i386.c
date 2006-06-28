@@ -50,7 +50,7 @@
 #define FMTLX "%016lx"
 #define X86_64_ONLY(x) x
 #else
-#define FMT64X "%016llx"
+#define FMT64X "%016" PRIx64
 #define FMTLX "%08lx"
 #define X86_64_ONLY(x)
 #endif
@@ -789,6 +789,12 @@ void test_fcmp(double a, double b)
                a, b, fpus & FPUS_EMASK, eflags & (CC_Z | CC_P | CC_C));
     }
     fpu_clear_exceptions();
+    asm volatile("fxam\n"
+                 "fstsw %%ax\n"
+                 : "=a" (fpus)
+                 : "t" (a));
+    printf("fxam(%f)=%04lx\n", a, fpus & 0x4700);
+    fpu_clear_exceptions();
 }
 
 void test_fcvt(double a)
@@ -958,12 +964,17 @@ void test_floats(void)
     test_fcmp(2, 3);
     test_fcmp(2, q_nan.d);
     test_fcmp(q_nan.d, -1);
+    test_fcmp(-1.0/0.0, -1);
+    test_fcmp(1.0/0.0, -1);
     test_fcvt(0.5);
     test_fcvt(-0.5);
     test_fcvt(1.0/7.0);
     test_fcvt(-1.0/9.0);
     test_fcvt(32768);
     test_fcvt(-1e20);
+    test_fcvt(-1.0/0.0);
+    test_fcvt(1.0/0.0);
+    test_fcvt(q_nan.d);
     test_fconst();
     test_fbcd(1234567890123456);
     test_fbcd(-123451234567890);
@@ -2188,9 +2199,12 @@ void test_sse_comi(double a1, double b1)
            r.q[1], r.q[0]);\
 }
 
+/* Force %xmm0 usage to avoid the case where both register index are 0
+   to test intruction decoding more extensively */
 #define CVT_OP_XMM2MMX(op)\
 {\
-    asm volatile (#op " %1, %0" : "=y" (r.q[0]) : "x" (a.dq));\
+    asm volatile (#op " %1, %0" : "=y" (r.q[0]) : "x" (a.dq) \
+                  : "%xmm0");\
     printf("%-9s: a=" FMT64X "" FMT64X " r=" FMT64X "\n",\
            #op,\
            a.q[1], a.q[0],\
@@ -2543,6 +2557,10 @@ void test_sse(void)
     CVT_OP_XMM2REG(cvttsd2si);
     CVT_OP_XMM(cvtpd2dq);
     CVT_OP_XMM(cvttpd2dq);
+
+    /* sse/mmx moves */
+    CVT_OP_XMM2MMX(movdq2q);
+    CVT_OP_MMX2XMM(movq2dq);
 
     /* int to float */
     a.l[0] = -6;

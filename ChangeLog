@@ -1,3 +1,383 @@
+2006-06-26 23:00  bellard
+
+	* usb-linux.c, vl.c, hw/usb-hid.c, hw/usb-hub.c, hw/usb-msd.c,
+	  hw/usb.h: display device identifier string for user with info usb
+	  (Lonnie Mendez)
+
+2006-06-26 22:29  bellard
+
+	* target-mips/: helper.c, op.c, op_helper.c: consistent update of
+	  ERL and EXL (Dirk Behme)
+
+2006-06-26 22:08  bellard
+
+	* Changelog, block.c, vl.h: Windows sparse file support (Frediano
+	  Ziglio)
+
+2006-06-26 22:03  bellard
+
+	* vl.c: fix crash when closing windows (Frediano Ziglio)
+
+2006-06-26 22:02  bellard
+
+	* target-mips/: op_mem.c, translate.c: lwu support - generate
+	  exception if unaligned pc (Marius Groeger)
+
+2006-06-26 21:55  bellard
+
+	* target-arm/op.c: qsub fix (Wolfgang Schildbach)
+
+2006-06-26 21:53  bellard
+
+	* cpu-exec.c, target-sparc/cpu.h, target-sparc/op.c,
+	  target-sparc/translate.c: SPARC FPU optimization (Blue Swirl)
+
+2006-06-26 00:28  bellard
+
+	* vl.h, hw/pflash_cfi02.c: AMD NOR flash device support (initial
+	  patch by Jocelyn Mayer)
+
+2006-06-26 00:25  bellard
+
+	* exec.c: support for dynamic address space changes
+
+2006-06-25 23:54  bellard
+
+	* cpu-all.h, exec-all.h, exec.c: low level support for memory
+	  mapped flash devices (initial patch by Jocelyn Mayer)
+
+2006-06-25 20:28  bellard
+
+	* monitor.c: 64 bit support
+
+2006-06-25 20:15  bellard
+
+	* block-vpc.c, cpu-defs.h, disas.c, kqemu.c, monitor.c, vl.c, vl.h,
+	  audio/audio.c, audio/audio_template.h, hw/apic.c, hw/cuda.c,
+	  hw/i8259.c, hw/mips_r4k.c, hw/sb16.c, hw/sh7750.c,
+	  hw/slavio_intctl.c, hw/slavio_timer.c,
+	  target-arm/nwfpe/fpa11_cprt.c, target-i386/helper.c,
+	  target-i386/helper2.c, target-ppc/translate.c,
+	  target-ppc/translate_init.c, target-sparc/helper.c,
+	  target-sparc/op_helper.c, tests/test-i386.c: C99 64 bit printf
+
+2006-06-25 20:02  bellard
+
+	* tests/Makefile: sse2 comment
+
+2006-06-25 20:02  bellard
+
+	* osdep.h: removed warning
+
+2006-06-25 19:37  bellard
+
+	* console.c: avoid name conflicts
+
+2006-06-25 19:35  bellard
+
+	* configure: disable user targets by default for cross compile with
+	  mingw32
+
+2006-06-25 19:18  bellard
+
+	* tap-win32.c, vl.c, vl.h: multiple wait object support for win32
+	  (kazu)
+
+2006-06-25 18:26  bellard
+
+	* console.c: send correctly long key sequences on slow terminals -
+	  fixes backspace handling
+
+2006-06-25 18:25  bellard
+
+	* vl.c: removed unused code - init timers earlier
+
+2006-06-25 17:33  bellard
+
+	* target-sparc/translate.c: cpu_get_phys_page_debug fix (Blue
+	  Swirl)
+
+2006-06-25 17:32  bellard
+
+	* gdbstub.c: sparc fpu fix - allow 64 bit addresses (Blue Swirl)
+
+2006-06-25 16:50  bellard
+
+	* Changelog: update
+
+2006-06-25 16:49  bellard
+
+	* qemu-doc.texi, vl.c: UDP char device (initial patch by Jason
+	  Wessel) - TCP char device
+
+2006-06-24 17:06  bellard
+
+	* linux-user/: socket.h, syscall.c, syscall_defs.h: mips socket
+	  calls (initial patch by Raphael Rigo)
+
+2006-06-24 16:03  bellard
+
+	* target-i386/translate.c: fix for movq2dq, movdq2q and cvttps2dq
+	  (thanx to Julian Seward and malc)
+
+2006-06-24 16:01  bellard
+
+	* tests/test-i386.c: added movdq2q and movq2dq
+
+2006-06-23 23:01  bellard
+
+	* target-sparc/translate.c: Sparc64 BPr branch target fix (Blue
+	  Swirl)
+
+2006-06-21 23:19  bellard
+
+	* qemu-doc.texi: more info about -std-vga
+
+2006-06-21 20:48  bellard
+
+	* vl.c, target-sparc/cpu.h: fixed sparc64 cpu fp save/restore
+
+2006-06-21 20:37  bellard
+
+	* configure, target-sparc/cpu.h, target-sparc/op.c,
+	  target-sparc/op_helper.c: soft floats for SPARC (Blue Swirl)
+
+2006-06-21 20:26  bellard
+
+	* target-sparc/translate.c: sparc branch fix (Blue Swirl)
+
+2006-06-21 20:15  bellard
+
+	* linux-user/: main.c, syscall.c: sparc user fixes (Blue Swirl)
+
+2006-06-20 00:43  bellard
+
+	* target-i386/helper.c: fxam fix (Julian Seward)
+
+2006-06-20 00:42  bellard
+
+	* tests/test-i386.c: fxam test
+
+2006-06-20 00:06  bellard
+
+	* target-i386/helper.c: switch_tss eflags restore fix (malc)
+
+2006-06-18 21:41  pbrook
+
+	* vl.h, hw/sun4u.c: Sun4u vga+bios tweaks (Blue Swirl).
+
+2006-06-18 21:36  pbrook
+
+	* target-sparc/translate.c: Sparc64 insn fixes (Blue Swirl).
+
+2006-06-18 21:16  pbrook
+
+	* Makefile.target, configure: Add big-endian SH4-user target
+
+2006-06-18 21:12  pbrook
+
+	* cpu-exec.c, gdbstub.c, linux-user/main.c, target-sh4/cpu.h,
+	  target-sh4/exec.h, target-sh4/op.c, target-sh4/translate.c: SH
+	  bugfixes.
+
+2006-06-17 22:04  pbrook
+
+	* target-sh4/: op_helper.c, translate.c: Remove debug output.
+
+2006-06-17 22:01  pbrook
+
+	* configure: Enable SH bFLT loader.
+
+2006-06-17 21:58  pbrook
+
+	* cpu-exec.c, linux-user/main.c, target-sh4/helper.c,
+	  target-sh4/translate.c: SH usermode fault handling.
+
+2006-06-17 20:48  pbrook
+
+	* target-sh4/translate.c: SH4 rts fix.
+
+2006-06-17 20:30  pbrook
+
+	* gdbstub.c, linux-user/flatload.c, linux-user/main.c,
+	  linux-user/qemu.h: Respond to qOffsets gdb packet (for debugging
+	  bFLT binaries).
+
+2006-06-16 23:48  pbrook
+
+	* qemu-doc.texi: Arm h/w doc updates.
+
+2006-06-14 20:35  bellard
+
+	* qemu-doc.texi: update
+
+2006-06-14 20:18  bellard
+
+	* Changelog: update
+
+2006-06-14 20:17  bellard
+
+	* Makefile.target, configure: allow ACPI table build
+
+2006-06-14 20:17  bellard
+
+	* hw/: acpi-dsdt.dsl, acpi-dsdt.hex, acpi.c: more ACPI definition
+	  to keep Solaris Happy (Juergen Kiel)
+
+2006-06-14 19:32  bellard
+
+	* Changelog: update
+
+2006-06-14 19:32  bellard
+
+	* Makefile, Makefile.target, cpu-exec.c, dyngen-exec.h, dyngen.c,
+	  dyngen.h, vl.c, fpu/softfloat-native.c, target-mips/cpu.h:
+	  Solaris/SPARC host port (Ben Taylor)
+
+2006-06-14 19:15  bellard
+
+	* target-mips/: cpu.h, helper.c: use constants for TLB handling
+	  (Thiemo Seufer)
+
+2006-06-14 18:49  bellard
+
+	* target-mips/: cpu.h, mips-defs.h: mips config fixes (initial
+	  patch by Stefan Weil)
+
+2006-06-14 18:03  bellard
+
+	* qemu-doc.texi, vl.c, vl.h, hw/pc.c: -no-fd-bootchk option (Lonnie
+	  Mendez)
+
+2006-06-14 17:53  bellard
+
+	* cocoa.m: cocoa monitor fix regarding the handling of dead keys
+	  (Joachim Henke)
+
+2006-06-14 17:50  bellard
+
+	* qemu-img.c, vl.h: use C99 64 bit printf format to ease win32
+	  porting
+
+2006-06-14 17:32  bellard
+
+	* qemu-img.c: show real allocated disk image size on Windows
+	  (Frediano Ziglio)
+
+2006-06-14 17:21  bellard
+
+	* configure, gdbstub.c: gdb stub for win32
+
+2006-06-14 17:02  bellard
+
+	* target-sh4/: cpu.h, exec.h, op.c, op_mem.c, translate.c: sh4 fmov
+	  et al instructions (amatus)
+
+2006-06-14 16:36  pbrook
+
+	* target-arm/translate.c: ARM postincrememnt addressing fix.
+
+2006-06-14 16:29  bellard
+
+	* target-i386/translate.c: x86_64 mmx/sse fix
+
+2006-06-14 15:41  bellard
+
+	* dyngen.c: typo in get_reloc_expr()
+
+2006-06-14 15:37  bellard
+
+	* linux-user/main.c: MIPS FPU support in linux user emulation
+
+2006-06-14 15:36  bellard
+
+	* linux-user/syscall.c, target-i386/helper2.c: use glibc syscall
+	  (David Woodhouse)
+
+2006-06-14 14:57  bellard
+
+	* pc-bios/proll.patch: remove proll
+
+2006-06-14 14:56  bellard
+
+	* configure, target-mips/cpu.h, target-mips/exec.h,
+	  target-mips/fop_template.c, target-mips/mips-defs.h,
+	  target-mips/op.c, target-mips/op_helper.c, target-mips/op_mem.c,
+	  target-mips/translate.c: MIPS FPU support (Marius Goeger)
+
+2006-06-14 14:41  bellard
+
+	* hw/m48t59.c: clock year fix for sparc (Blue Swirl)
+
+2006-06-14 14:37  bellard
+
+	* target-sparc/translate.c: FPU fix (Joerg Platte)
+
+2006-06-14 14:37  bellard
+
+	* target-sparc/helper.c: MMU no fault fix
+
+2006-06-14 14:36  bellard
+
+	* Makefile, qemu-doc.texi, hw/sun4m.c, hw/sun4u.c, pc-bios/README,
+	  pc-bios/openbios-sparc32, pc-bios/proll.elf: use OpenBIOS instead
+	  of Proll on sparc (Blue Swirl)
+
+2006-06-14 02:58  bellard
+
+	* pc-bios/: vgabios-cirrus.bin, vgabios.bin, vgabios.diff: fixed
+	  VBE protected mode calls - added VGA and VBE save restore support
+	  (not fully tested) - automatic generation of VBE mode table
+
+2006-06-13 18:54  bellard
+
+	* pc-bios/: vgabios.bin, vgabios.diff: more high resolution VESA
+	  modes in -std-vga case - changed video memory size to 8 MB
+
+2006-06-13 18:37  bellard
+
+	* hw/: vga.c, vga_int.h: support for Bochs VBE GETCAPS call so that
+	  -std-vga works again with new VGA BIOSes - added support for
+	  modes up to 1600x1200x32 in -std-vga case
+
+2006-06-13 18:35  bellard
+
+	* vnc.c: support for higher resolutions
+
+2006-06-13 17:57  bellard
+
+	* vl.h: increase video memory to 8MB
+
+2006-06-13 14:03  bellard
+
+	* sdl.c: avoid stopping QEMU when switching desktops with
+	  Ctrl-Alt-x
+
+2006-06-13 12:49  bellard
+
+	* sdl.c: 'invisible wall' patch (Anthony Liguori)
+
+2006-06-11 18:28  pbrook
+
+	* qemu-doc.texi: Document new arm-user features.
+
+2006-06-11 15:32  pbrook
+
+	* Makefile.target, configure, linux-user/elfload.c,
+	  linux-user/flat.h, linux-user/flatload.c, linux-user/linuxload.c,
+	  linux-user/main.c, linux-user/qemu.h: bFLT loader (for uClinux
+	  binaries).
+
+2006-06-08 23:51  pbrook
+
+	* vl.h: Win32 build fix.
+
+2006-06-04 13:39  pbrook
+
+	* block-cow.c, block-qcow.c, block-vmdk.c, block-vvfat.c, block.c,
+	  block_int.h, vl.h, hw/ide.c, hw/scsi-disk.c: Disk cache flush
+	  support.
+
 2006-06-03 16:23  pbrook
 
 	* hw/scsi-disk.c: More SCSI commands (Blue Swirl).

@@ -1,6 +1,7 @@
 -include ../config-host.mak
 
-CFLAGS=-Wall -O2 -g #-msse2
+CFLAGS=-Wall -O2 -g
+#CFLAGS+=-msse2
 LDFLAGS=
 
 ifeq ($(ARCH),i386)

@@ -439,23 +439,40 @@ static void cocoa_refresh(DisplayState *ds)
                                 kbd_put_keycode(keycode & 0x7f); //remove e0 bit in front
                             /* handle monitor key events */
                             } else {
+                                int keysym = 0;
+
                                 switch([event keyCode]) {
-                                    case 123:
-                                        kbd_put_keysym(QEMU_KEY_LEFT);
-                                        break;
-                                    case 124:
-                                        kbd_put_keysym(QEMU_KEY_RIGHT);
-                                        break;
-                                    case 125:
-                                        kbd_put_keysym(QEMU_KEY_DOWN);
-                                        break;
-                                    case 126:
-                                        kbd_put_keysym(QEMU_KEY_UP);
-                                        break;
-                                    default:
-                                        kbd_put_keysym([[event characters] characterAtIndex:0]);
-                                        break;
+                                case 115:
+                                    keysym = QEMU_KEY_HOME;
+                                    break;
+                                case 117:
+                                    keysym = QEMU_KEY_DELETE;
+                                    break;
+                                case 119:
+                                    keysym = QEMU_KEY_END;
+                                    break;
+                                case 123:
+                                    keysym = QEMU_KEY_LEFT;
+                                    break;
+                                case 124:
+                                    keysym = QEMU_KEY_RIGHT;
+                                    break;
+                                case 125:
+                                    keysym = QEMU_KEY_DOWN;
+                                    break;
+                                case 126:
+                                    keysym = QEMU_KEY_UP;
+                                    break;
+                                default:
+                                    {
+                                        NSString *ks = [event characters];
+
+                                        if ([ks length] > 0)
+                                            keysym = [ks characterAtIndex:0];
+                                    }
                                 }
+                                if (keysym)
+                                    kbd_put_keysym(keysym);
                             }
                         }
                     }

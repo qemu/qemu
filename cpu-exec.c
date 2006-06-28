@@ -47,7 +47,7 @@ void cpu_loop_exit(void)
     longjmp(env->jmp_env, 1);
 }
 #endif
-#ifndef TARGET_SPARC
+#if !(defined(TARGET_SPARC) || defined(TARGET_SH4))
 #define reg_T2
 #endif
 
@@ -175,9 +175,13 @@ static inline TranslationBlock *tb_find_fast(void)
     pc = env->regs[15];
 #elif defined(TARGET_SPARC)
 #ifdef TARGET_SPARC64
-    flags = (env->pstate << 2) | ((env->lsu & (DMMU_E | IMMU_E)) >> 2);
+    // Combined FPU enable bits . PRIV . DMMU enabled . IMMU enabled
+    flags = (((env->pstate & PS_PEF) >> 1) | ((env->fprs & FPRS_FEF) << 2))
+        | (env->pstate & PS_PRIV) | ((env->lsu & (DMMU_E | IMMU_E)) >> 2);
 #else
-    flags = env->psrs | ((env->mmuregs[0] & (MMU_E | MMU_NF)) << 1);
+    // FPU enable . MMU enabled . MMU no-fault . Supervisor
+    flags = (env->psref << 3) | ((env->mmuregs[0] & (MMU_E | MMU_NF)) << 1)
+        | env->psrs;
 #endif
     cs_base = env->npc;
     pc = env->pc;
@@ -253,7 +257,7 @@ int cpu_exec(CPUState *env1)
     uint32_t *saved_regwptr;
 #endif
 #endif
-#ifdef __sparc__
+#if defined(__sparc__) && !defined(HOST_SOLARIS)
     int saved_i7, tmp_T0;
 #endif
     int ret, interrupt_request;
@@ -323,7 +327,7 @@ int cpu_exec(CPUState *env1)
 #if defined(reg_T2)
     saved_T2 = T2;
 #endif
-#ifdef __sparc__
+#if defined(__sparc__) && !defined(HOST_SOLARIS)
     /* we also save i7 because longjmp may not restore it */
     asm volatile ("mov %%i7, %0" : "=r" (saved_i7));
 #endif
@@ -447,7 +451,7 @@ int cpu_exec(CPUState *env1)
 
             T0 = 0; /* force lookup of first TB */
             for(;;) {
-#ifdef __sparc__
+#if defined(__sparc__) && !defined(HOST_SOLARIS)
                 /* g1 can be modified by some libc? functions */ 
                 tmp_T0 = T0;
 #endif	    
@@ -467,7 +471,7 @@ int cpu_exec(CPUState *env1)
                         do_interrupt(intno, 0, 0, 0, 1);
                         /* ensure that no TB jump will be modified as
                            the program flow was changed */
-#ifdef __sparc__
+#if defined(__sparc__) && !defined(HOST_SOLARIS)
                         tmp_T0 = 0;
 #else
                         T0 = 0;
@@ -486,7 +490,7 @@ int cpu_exec(CPUState *env1)
 			    env->error_code = 0;
                             do_interrupt(env);
                             env->interrupt_request &= ~CPU_INTERRUPT_HARD;
-#ifdef __sparc__
+#if defined(__sparc__) && !defined(HOST_SOLARIS)
                             tmp_T0 = 0;
 #else
                             T0 = 0;
@@ -497,7 +501,7 @@ int cpu_exec(CPUState *env1)
                             env->error_code = 0;
                             do_interrupt(env);
                             env->interrupt_request &= ~CPU_INTERRUPT_TIMER;
-#ifdef __sparc__
+#if defined(__sparc__) && !defined(HOST_SOLARIS)
                             tmp_T0 = 0;
 #else
                             T0 = 0;
@@ -516,7 +520,7 @@ int cpu_exec(CPUState *env1)
                         env->error_code = 0;
                         do_interrupt(env);
                         env->interrupt_request &= ~CPU_INTERRUPT_HARD;
-#ifdef __sparc__
+#if defined(__sparc__) && !defined(HOST_SOLARIS)
                         tmp_T0 = 0;
 #else
                         T0 = 0;
@@ -534,7 +538,7 @@ int cpu_exec(CPUState *env1)
 			    env->interrupt_request &= ~CPU_INTERRUPT_HARD;
 			    do_interrupt(env->interrupt_index);
 			    env->interrupt_index = 0;
-#ifdef __sparc__
+#if defined(__sparc__) && !defined(HOST_SOLARIS)
                             tmp_T0 = 0;
 #else
                             T0 = 0;
@@ -567,7 +571,7 @@ int cpu_exec(CPUState *env1)
                         env->interrupt_request &= ~CPU_INTERRUPT_EXITTB;
                         /* ensure that no TB jump will be modified as
                            the program flow was changed */
-#ifdef __sparc__
+#if defined(__sparc__) && !defined(HOST_SOLARIS)
                         tmp_T0 = 0;
 #else
                         T0 = 0;
@@ -635,7 +639,7 @@ int cpu_exec(CPUState *env1)
                             lookup_symbol(tb->pc));
                 }
 #endif
-#ifdef __sparc__
+#if defined(__sparc__) && !defined(HOST_SOLARIS)
                 T0 = tmp_T0;
 #endif	    
                 /* see if we can patch the calling TB. When the TB
@@ -671,7 +675,9 @@ int cpu_exec(CPUState *env1)
                                      "mov	%%o7,%%i0"
                                      : /* no outputs */
                                      : "r" (gen_func) 
-                                     : "i0", "i1", "i2", "i3", "i4", "i5");
+                                     : "i0", "i1", "i2", "i3", "i4", "i5",
+                                       "l0", "l1", "l2", "l3", "l4", "l5",
+                                       "l6", "l7");
 #elif defined(__arm__)
                 asm volatile ("mov pc, %0\n\t"
                               ".global exec_loop\n\t"
@@ -836,7 +842,7 @@ int cpu_exec(CPUState *env1)
 #else
 #error unsupported target CPU
 #endif
-#ifdef __sparc__
+#if defined(__sparc__) && !defined(HOST_SOLARIS)
     asm volatile ("mov %0, %%i7" : : "r" (saved_i7));
 #endif
     T0 = saved_T0;
@@ -1170,19 +1176,14 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
            a virtual CPU fault */
         cpu_restore_state(tb, env, pc, puc);
     }
-    if (ret == 1) {
 #if 0
         printf("PF exception: NIP=0x%08x error=0x%x %p\n", 
                env->nip, env->error_code, tb);
 #endif
     /* we restore the process signal mask as the sigreturn should
        do it (XXX: use sigsetjmp) */
-        sigprocmask(SIG_SETMASK, old_set, NULL);
-        //        do_raise_exception_err(env->exception_index, env->error_code);
-    } else {
-        /* activate soft MMU for this block */
-        cpu_resume_from_signal(env, puc);
-    }
+    sigprocmask(SIG_SETMASK, old_set, NULL);
+    cpu_loop_exit();
     /* never comes here */
     return 1;
 }

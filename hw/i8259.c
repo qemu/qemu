@@ -531,7 +531,7 @@ void irq_info(void)
     for (i = 0; i < 16; i++) {
         count = irq_count[i];
         if (count > 0)
-            term_printf("%2d: %lld\n", i, count);
+            term_printf("%2d: %" PRId64 "\n", i, count);
     }
 #endif
 }

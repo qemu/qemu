@@ -598,8 +598,9 @@ void cpu_loop (CPUSPARCState *env)
 #else
 	    // XXX
 #endif
-	case 0x100: // XXX, why do we get these?
-	    break;
+        case EXCP_INTERRUPT:
+            /* just indicate that signals should be handled asap */
+            break;
         case EXCP_DEBUG:
             {
                 int sig;
@@ -1301,6 +1302,7 @@ void cpu_loop(CPUMIPSState *env)
         case EXCP_SYSCALL:
             {
                 syscall_num = env->gpr[2] - 4000;
+                env->PC += 4;
                 if (syscall_num >= sizeof(mips_syscall_args)) {
                     ret = -ENOSYS;
                 } else {
@@ -1327,8 +1329,6 @@ void cpu_loop(CPUMIPSState *env)
                                      arg5, 
                                      arg6);
                 }
-                fail:
-                env->PC += 4;
                 if ((unsigned int)ret >= (unsigned int)(-1133)) {
                     env->gpr[7] = 1; /* error flag */
                     ret = -ret;
@@ -1342,39 +1342,13 @@ void cpu_loop(CPUMIPSState *env)
             break;
         case EXCP_CpU:
         case EXCP_RI:
-            {
-                uint32_t insn, op;
-
-                insn = tget32(env->PC);
-                op = insn >> 26;
-                //                printf("insn=%08x op=%02x\n", insn, op);
-                /* XXX: totally dummy FP ops just to be able to launch
-                   a few executables */
-                switch(op) {
-                case 0x31: /* LWC1 */
-                    env->PC += 4;
-                    break;
-                case 0x39: /* SWC1 */
-                    env->PC += 4;
-                    break;
-                case 0x11:
-                    switch((insn >> 21) & 0x1f) {
-                    case 0x02: /* CFC1 */
-                        env->PC += 4;
-                        break;
-                    default:
-                        goto sigill;
-                    }
-                    break;
-                default:
-                sigill:
-                    info.si_signo = TARGET_SIGILL;
-                    info.si_errno = 0;
-                    info.si_code = 0;
-                    queue_signal(info.si_signo, &info);
-                    break;
-                }
-            }
+            info.si_signo = TARGET_SIGILL;
+            info.si_errno = 0;
+            info.si_code = 0;
+            queue_signal(info.si_signo, &info);
+            break;
+        case EXCP_INTERRUPT:
+            /* just indicate that signals should be handled asap */
             break;
         default:
             //        error:
@@ -1392,7 +1366,7 @@ void cpu_loop(CPUMIPSState *env)
 void cpu_loop (CPUState *env)
 {
     int trapnr, ret;
-    //    target_siginfo_t info;
+    target_siginfo_t info;
     
     while (1) {
         trapnr = cpu_sh4_exec (env);
@@ -1400,15 +1374,29 @@ void cpu_loop (CPUState *env)
         switch (trapnr) {
         case 0x160:
             ret = do_syscall(env, 
-                             env->gregs[0x13], 
-                             env->gregs[0x14], 
-                             env->gregs[0x15], 
-                             env->gregs[0x16], 
-                             env->gregs[0x17], 
-                             env->gregs[0x10], 
+                             env->gregs[3], 
+                             env->gregs[4], 
+                             env->gregs[5], 
+                             env->gregs[6], 
+                             env->gregs[7], 
+                             env->gregs[0], 
                              0);
-            env->gregs[0x10] = ret;
+            env->gregs[0] = ret;
             env->pc += 2;
+            break;
+        case EXCP_DEBUG:
+            {
+                int sig;
+
+                sig = gdb_handlesig (env, TARGET_SIGTRAP);
+                if (sig)
+                  {
+                    info.si_signo = sig;
+                    info.si_errno = 0;
+                    info.si_code = TARGET_TRAP_BRKPT;
+                    queue_signal(info.si_signo, &info);
+                  }
+            }
             break;
         default:
             printf ("Unhandled trap: 0x%x\n", trapnr);
@@ -1545,7 +1533,7 @@ int main(int argc, char **argv)
     env = cpu_init();
     global_env = env;
     
-    if (elf_exec(filename, argv+optind, environ, regs, info) != 0) {
+    if (loader_exec(filename, argv+optind, environ, regs, info) != 0) {
 	printf("Error loading %s\n", filename);
 	_exit(1);
     }
@@ -1556,6 +1544,7 @@ int main(int argc, char **argv)
         fprintf(logfile, "start_brk   0x%08lx\n" , info->start_brk);
         fprintf(logfile, "end_code    0x%08lx\n" , info->end_code);
         fprintf(logfile, "start_code  0x%08lx\n" , info->start_code);
+        fprintf(logfile, "start_data  0x%08lx\n" , info->start_data);
         fprintf(logfile, "end_data    0x%08lx\n" , info->end_data);
         fprintf(logfile, "start_stack 0x%08lx\n" , info->start_stack);
         fprintf(logfile, "brk         0x%08lx\n" , info->brk);
@@ -1570,6 +1559,7 @@ int main(int argc, char **argv)
     memset(ts, 0, sizeof(TaskState));
     env->opaque = ts;
     ts->used = 1;
+    ts->info = info;
     env->user_mode_only = 1;
     
 #if defined(TARGET_I386)
@@ -1699,6 +1689,9 @@ int main(int argc, char **argv)
             env->gpr[i] = regs->regs[i];
         }
         env->PC = regs->cp0_epc;
+#ifdef MIPS_USES_FPU
+        env->CP0_Status |= (1 << CP0St_CU1);
+#endif
     }
 #elif defined(TARGET_SH4)
     {

@@ -2,6 +2,7 @@
  *  MIPS32 emulation for qemu: main translation routines.
  * 
  *  Copyright (c) 2004-2005 Jocelyn Mayer
+ *  Copyright (c) 2006 Marius Groeger (FPU operations)
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -96,6 +97,7 @@ enum {
     OPC_LBU      = 0x24,
     OPC_LHU      = 0x25,
     OPC_LWR      = 0x26,
+    OPC_LWU      = 0x27,
     OPC_SB       = 0x28,
     OPC_SH       = 0x29,
     OPC_SWL      = 0x2A,
@@ -217,6 +219,16 @@ enum {
     OPC_WAIT     = 0x20 | EXT_CP0,
 };
 
+#ifdef MIPS_USES_FPU
+enum {
+    /* Coprocessor 1 (FPU) */
+    OPC_MFC1     = 0x00 | EXT_CP1,
+    OPC_MTC1     = 0x04 | EXT_CP1,
+    OPC_CFC1     = 0x02 | EXT_CP1,
+    OPC_CTC1     = 0x06 | EXT_CP1,
+};
+#endif
+
 const unsigned char *regnames[] =
     { "r0", "at", "v0", "v1", "a0", "a1", "a2", "a3",
       "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7",
@@ -247,6 +259,92 @@ GEN32(gen_op_load_gpr_T2, gen_op_load_gpr_T2_gpr);
 
 GEN32(gen_op_store_T0_gpr, gen_op_store_T0_gpr_gpr);
 GEN32(gen_op_store_T1_gpr, gen_op_store_T1_gpr_gpr);
+
+#ifdef MIPS_USES_FPU
+const unsigned char *fregnames[] =
+    { "f0",  "f1",  "f2",  "f3",  "f4",  "f5",  "f6",  "f7",
+      "f8",  "f9",  "f10", "f11", "f12", "f13", "f14", "f15",
+      "f16", "f17", "f18", "f19", "f20", "f21", "f22", "f23",
+      "f24", "f25", "f26", "f27", "f28", "f29", "f30", "f31", };
+
+# define SFGEN32(func, NAME) \
+static GenOpFunc *NAME ## _table [32] = {                                     \
+NAME ## 0,  NAME ## 1,  NAME ## 2,  NAME ## 3,                                \
+NAME ## 4,  NAME ## 5,  NAME ## 6,  NAME ## 7,                                \
+NAME ## 8,  NAME ## 9,  NAME ## 10, NAME ## 11,                               \
+NAME ## 12, NAME ## 13, NAME ## 14, NAME ## 15,                               \
+NAME ## 16, NAME ## 17, NAME ## 18, NAME ## 19,                               \
+NAME ## 20, NAME ## 21, NAME ## 22, NAME ## 23,                               \
+NAME ## 24, NAME ## 25, NAME ## 26, NAME ## 27,                               \
+NAME ## 28, NAME ## 29, NAME ## 30, NAME ## 31,                               \
+};                                                                            \
+static inline void func(int n)                                                \
+{                                                                             \
+    NAME ## _table[n]();                                                      \
+}
+
+# define DFGEN32(func, NAME) \
+static GenOpFunc *NAME ## _table [32] = {                                     \
+NAME ## 0,  0, NAME ## 2,  0,                                                 \
+NAME ## 4,  0, NAME ## 6,  0,                                                 \
+NAME ## 8,  0, NAME ## 10, 0,                                                 \
+NAME ## 12, 0, NAME ## 14, 0,                                                 \
+NAME ## 16, 0, NAME ## 18, 0,                                                 \
+NAME ## 20, 0, NAME ## 22, 0,                                                 \
+NAME ## 24, 0, NAME ## 26, 0,                                                 \
+NAME ## 28, 0, NAME ## 30, 0,                                                 \
+};                                                                            \
+static inline void func(int n)                                                \
+{                                                                             \
+    NAME ## _table[n]();                                                      \
+}
+
+SFGEN32(gen_op_load_fpr_WT0,  gen_op_load_fpr_WT0_fpr);
+SFGEN32(gen_op_store_fpr_WT0, gen_op_store_fpr_WT0_fpr);
+
+SFGEN32(gen_op_load_fpr_WT1,  gen_op_load_fpr_WT1_fpr);
+SFGEN32(gen_op_store_fpr_WT1, gen_op_store_fpr_WT1_fpr);
+
+SFGEN32(gen_op_load_fpr_WT2,  gen_op_load_fpr_WT2_fpr);
+SFGEN32(gen_op_store_fpr_WT2, gen_op_store_fpr_WT2_fpr);
+
+DFGEN32(gen_op_load_fpr_DT0,  gen_op_load_fpr_DT0_fpr);
+DFGEN32(gen_op_store_fpr_DT0, gen_op_store_fpr_DT0_fpr);
+
+DFGEN32(gen_op_load_fpr_DT1,  gen_op_load_fpr_DT1_fpr);
+DFGEN32(gen_op_store_fpr_DT1, gen_op_store_fpr_DT1_fpr);
+
+DFGEN32(gen_op_load_fpr_DT2,  gen_op_load_fpr_DT2_fpr);
+DFGEN32(gen_op_store_fpr_DT2, gen_op_store_fpr_DT2_fpr);
+
+#define FOP_CONDS(fmt) \
+static GenOpFunc * cond_ ## fmt ## _table[16] = {                       \
+    gen_op_cmp_ ## fmt ## _f,                                           \
+    gen_op_cmp_ ## fmt ## _un,                                          \
+    gen_op_cmp_ ## fmt ## _eq,                                          \
+    gen_op_cmp_ ## fmt ## _ueq,                                         \
+    gen_op_cmp_ ## fmt ## _olt,                                         \
+    gen_op_cmp_ ## fmt ## _ult,                                         \
+    gen_op_cmp_ ## fmt ## _ole,                                         \
+    gen_op_cmp_ ## fmt ## _ule,                                         \
+    gen_op_cmp_ ## fmt ## _sf,                                          \
+    gen_op_cmp_ ## fmt ## _ngle,                                        \
+    gen_op_cmp_ ## fmt ## _seq,                                         \
+    gen_op_cmp_ ## fmt ## _ngl,                                         \
+    gen_op_cmp_ ## fmt ## _lt,                                          \
+    gen_op_cmp_ ## fmt ## _nge,                                         \
+    gen_op_cmp_ ## fmt ## _le,                                          \
+    gen_op_cmp_ ## fmt ## _ngt,                                         \
+};                                                                      \
+static inline void gen_cmp_ ## fmt(int n)                               \
+{                                                                       \
+    cond_ ## fmt ## _table[n]();                                        \
+}
+
+FOP_CONDS(d)
+FOP_CONDS(s)
+
+#endif
 
 typedef struct DisasContext {
     struct TranslationBlock *tb;
@@ -311,6 +409,20 @@ do {                                                                          \
         glue(glue(gen_op_store_, Tn),_gpr)(Rn);                               \
     }                                                                         \
 } while (0)
+
+#ifdef MIPS_USES_FPU
+
+# define GEN_LOAD_FREG_FTN(FTn, Fn)                                           \
+do {                                                                          \
+    glue(gen_op_load_fpr_, FTn)(Fn);                                          \
+} while (0)
+
+#define GEN_STORE_FTN_FREG(Fn, FTn)                                           \
+do {                                                                          \
+    glue(gen_op_store_fpr_, FTn)(Fn);                                         \
+} while (0)
+
+#endif
 
 static inline void save_cpu_state (DisasContext *ctx, int do_save_pc)
 {
@@ -384,6 +496,7 @@ OP_ST_TABLE(dl);
 OP_ST_TABLE(dr);
 #endif
 OP_LD_TABLE(w);
+OP_LD_TABLE(wu);
 OP_LD_TABLE(wl);
 OP_LD_TABLE(wr);
 OP_ST_TABLE(w);
@@ -397,6 +510,12 @@ OP_LD_TABLE(bu);
 OP_ST_TABLE(b);
 OP_LD_TABLE(l);
 OP_ST_TABLE(c);
+#ifdef MIPS_USES_FPU
+OP_LD_TABLE(wc1);
+OP_ST_TABLE(wc1);
+OP_LD_TABLE(dc1);
+OP_ST_TABLE(dc1);
+#endif
 
 /* Load and store */
 static void gen_ldst (DisasContext *ctx, uint16_t opc, int rt,
@@ -462,6 +581,11 @@ static void gen_ldst (DisasContext *ctx, uint16_t opc, int rt,
         op_ldst(lw);
         GEN_STORE_TN_REG(rt, T0);
         opn = "lw";
+        break;
+    case OPC_LWU:
+        op_ldst(lwu);
+        GEN_STORE_TN_REG(rt, T0);
+        opn = "lwu";
         break;
     case OPC_SW:
 #if defined (MIPS_HAS_UNALIGNED_LS)
@@ -550,6 +674,56 @@ static void gen_ldst (DisasContext *ctx, uint16_t opc, int rt,
     }
     MIPS_DEBUG("%s %s, %d(%s)", opn, regnames[rt], offset, regnames[base]);
 }
+
+#ifdef MIPS_USES_FPU
+
+/* Load and store */
+static void gen_flt_ldst (DisasContext *ctx, uint16_t opc, int ft,
+                      int base, int16_t offset)
+{
+    const unsigned char *opn = "unk";
+
+    if (base == 0) {
+        GEN_LOAD_IMM_TN(T0, offset);
+    } else if (offset == 0) {
+        gen_op_load_gpr_T0(base);
+    } else {
+        gen_op_load_gpr_T0(base);
+        gen_op_set_T1(offset);
+        gen_op_add();
+    }
+    /* Don't do NOP if destination is zero: we must perform the actual
+     * memory access
+     */
+    switch (opc) {
+    case OPC_LWC1:
+        op_ldst(lwc1);
+        GEN_STORE_FTN_FREG(ft, WT0);
+        opn = "lwc1";
+        break;
+    case OPC_SWC1:
+        GEN_LOAD_FREG_FTN(WT0, ft);
+        op_ldst(swc1);
+        opn = "swc1";
+        break;
+    case OPC_LDC1:
+        op_ldst(ldc1);
+        GEN_STORE_FTN_FREG(ft, DT0);
+        opn = "ldc1";
+        break;
+    case OPC_SDC1:
+        GEN_LOAD_FREG_FTN(DT0, ft);
+        op_ldst(sdc1);
+        opn = "sdc1";
+        break;
+    default:
+        MIPS_INVAL("float load/store");
+        generate_exception(ctx, EXCP_CpU);
+        return;
+    }
+    MIPS_DEBUG("%s %s, %d(%s)", opn, fregnames[ft], offset, regnames[base]);
+}
+#endif
 
 /* Arithmetic with immediate operand */
 static void gen_arith_imm (DisasContext *ctx, uint16_t opc, int rt,
@@ -1189,6 +1363,7 @@ static void gen_cp0 (DisasContext *ctx, uint16_t opc, int rt, int rd)
         generate_exception_err (ctx, EXCP_CpU, 0);
         return;
     }
+
     switch (opc) {
     case OPC_MFC0:
         if (rt == 0) {
@@ -1265,7 +1440,406 @@ static void gen_cp0 (DisasContext *ctx, uint16_t opc, int rt, int rd)
     MIPS_DEBUG("%s %s %d", opn, regnames[rt], rd);
 }
 
+#ifdef MIPS_USES_FPU
+/* CP1 Branches (before delay slot) */
+static void gen_compute_branch1 (DisasContext *ctx, uint16_t cond,
+                                 int32_t offset)
+{
+    target_ulong btarget;
+
+    btarget = ctx->pc + 4 + offset;
+
+    switch (cond) {
+    case 0x0000: /* bc1f */
+        gen_op_bc1f();
+        MIPS_DEBUG("bc1f %08x", btarget);
+        goto not_likely;
+    case 0x0002: /* bc1fl */
+        gen_op_bc1f();
+        MIPS_DEBUG("bc1fl %08x", btarget);
+        goto likely;
+    case 0x0001: /* bc1t */
+        gen_op_bc1t();
+        MIPS_DEBUG("bc1t %08x", btarget);
+    not_likely:
+        ctx->hflags |= MIPS_HFLAG_BC;
+        break;
+    case 0x0003: /* bc1tl */
+        gen_op_bc1t();
+        MIPS_DEBUG("bc1tl %08x", btarget);
+    likely:
+        ctx->hflags |= MIPS_HFLAG_BL;
+        break;
+    default:    
+        MIPS_INVAL("cp1 branch/jump");
+        generate_exception(ctx, EXCP_RI);
+        return;
+    }
+    gen_op_set_bcond();
+
+    MIPS_DEBUG("enter ds: cond %02x target %08x",
+               ctx->hflags, btarget);
+    ctx->btarget = btarget;
+
+    return;
+}
+
 /* Coprocessor 1 (FPU) */
+static void gen_cp1 (DisasContext *ctx, uint16_t opc, int rt, int fs)
+{
+    const unsigned char *opn = "unk";
+
+    switch (opc) {
+    case OPC_MFC1:
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        gen_op_mfc1();
+        GEN_STORE_TN_REG(rt, T0);
+        opn = "mfc1";
+        break;
+    case OPC_MTC1:
+        GEN_LOAD_REG_TN(T0, rt);
+        gen_op_mtc1();
+        GEN_STORE_FTN_FREG(fs, WT0);
+        opn = "mtc1";
+        break;
+    case OPC_CFC1:
+        if (fs != 0 && fs != 31) {
+            MIPS_INVAL("cfc1 freg");
+            generate_exception(ctx, EXCP_RI);
+            return;
+        }
+        GEN_LOAD_IMM_TN(T1, fs);
+        gen_op_cfc1();
+        GEN_STORE_TN_REG(rt, T0);
+        opn = "cfc1";
+        break;
+    case OPC_CTC1:
+        if (fs != 0 && fs != 31) {
+            MIPS_INVAL("ctc1 freg");
+            generate_exception(ctx, EXCP_RI);
+            return;
+        }
+        GEN_LOAD_IMM_TN(T1, fs);
+        GEN_LOAD_REG_TN(T0, rt);
+        gen_op_ctc1();
+        opn = "ctc1";
+        break;
+    default:
+        if (loglevel & CPU_LOG_TB_IN_ASM) {
+            fprintf(logfile, "Invalid CP1 opcode: %08x %03x %03x %03x\n",
+                    ctx->opcode, ctx->opcode >> 26, ctx->opcode & 0x3F,
+                    ((ctx->opcode >> 16) & 0x1F));
+        }
+        generate_exception(ctx, EXCP_RI);
+        return;
+    }
+    MIPS_DEBUG("%s %s %s", opn, regnames[rt], fregnames[fs]);
+}
+
+/* verify if floating point register is valid; an operation is not defined
+ * if bit 0 of any register specification is set and the FR bit in the
+ * Status register equals zero, since the register numbers specify an
+ * even-odd pair of adjacent coprocessor general registers. When the FR bit
+ * in the Status register equals one, both even and odd register numbers
+ * are valid.
+ * 
+ * Multiple float registers can be checked by calling
+ * CHECK_FR(ctx, freg1 | freg2 | ... | fregN);
+ */
+#define CHECK_FR(ctx, freg) do { \
+        if (!((ctx)->CP0_Status & (1<<CP0St_FR)) && ((freg) & 1)) { \
+            generate_exception(ctx, EXCP_RI); \
+            return; \
+        } \
+    } while(0)
+
+#define FOP(func, fmt) (((fmt) << 21) | (func))
+
+static void gen_farith (DisasContext *ctx, int fmt, int ft, int fs, int fd, int func)
+{
+    const unsigned char *opn = "unk";
+    const char *condnames[] = {
+            "c.f",
+            "c.un",
+            "c.eq",
+            "c.ueq",
+            "c.olt",
+            "c.ult",
+            "c.ole",
+            "c.ule",
+            "c.sf",
+            "c.ngle",
+            "c.seq",
+            "c.ngl",
+            "c.lt",
+            "c.nge",
+            "c.le",
+            "c.ngt",
+    };
+    int binary = 0;
+    
+    switch (ctx->opcode & FOP(0x3f, 0x1f)) {
+    case FOP(0, 17):
+        CHECK_FR(ctx, fs | ft | fd);
+        GEN_LOAD_FREG_FTN(DT0, fs);
+        GEN_LOAD_FREG_FTN(DT1, ft);
+        gen_op_float_add_d();
+        GEN_STORE_FTN_FREG(fd, DT2);
+        opn = "add.d";
+        binary = 1;
+        break;
+    case FOP(1, 17):
+        CHECK_FR(ctx, fs | ft | fd);
+        GEN_LOAD_FREG_FTN(DT0, fs);
+        GEN_LOAD_FREG_FTN(DT1, ft);
+        gen_op_float_sub_d();
+        GEN_STORE_FTN_FREG(fd, DT2);
+        opn = "sub.d";
+        binary = 1;
+        break;
+    case FOP(2, 17):
+        CHECK_FR(ctx, fs | ft | fd);
+        GEN_LOAD_FREG_FTN(DT0, fs);
+        GEN_LOAD_FREG_FTN(DT1, ft);
+        gen_op_float_mul_d();
+        GEN_STORE_FTN_FREG(fd, DT2);
+        opn = "mul.d";
+        binary = 1;
+        break;
+    case FOP(3, 17):
+        CHECK_FR(ctx, fs | ft | fd);
+        GEN_LOAD_FREG_FTN(DT0, fs);
+        GEN_LOAD_FREG_FTN(DT1, ft);
+        gen_op_float_div_d();
+        GEN_STORE_FTN_FREG(fd, DT2);
+        opn = "div.d";
+        binary = 1;
+        break;
+    case FOP(4, 17):
+        CHECK_FR(ctx, fs | fd);
+        GEN_LOAD_FREG_FTN(DT0, fs);
+        gen_op_float_sqrt_d();
+        GEN_STORE_FTN_FREG(fd, DT2);
+        opn = "sqrt.d";
+        break;
+    case FOP(5, 17):
+        CHECK_FR(ctx, fs | fd);
+        GEN_LOAD_FREG_FTN(DT0, fs);
+        gen_op_float_abs_d();
+        GEN_STORE_FTN_FREG(fd, DT2);
+        opn = "abs.d";
+        break;
+    case FOP(6, 17):
+        CHECK_FR(ctx, fs | fd);
+        GEN_LOAD_FREG_FTN(DT0, fs);
+        gen_op_float_mov_d();
+        GEN_STORE_FTN_FREG(fd, DT2);
+        opn = "mov.d";
+        break;
+    case FOP(7, 17):
+        CHECK_FR(ctx, fs | fd);
+        GEN_LOAD_FREG_FTN(DT0, fs);
+        gen_op_float_chs_d();
+        GEN_STORE_FTN_FREG(fd, DT2);
+        opn = "neg.d";
+        break;
+    /*  8 - round.l */
+    /*  9 - trunc.l */
+    /* 10 - ceil.l  */
+    /* 11 - floor.l */
+    case FOP(12, 17):
+        CHECK_FR(ctx, fs | fd);
+        GEN_LOAD_FREG_FTN(DT0, fs);
+        gen_op_float_roundw_d();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "round.w.d";
+        break;
+    case FOP(13, 17):
+        CHECK_FR(ctx, fs | fd);
+        GEN_LOAD_FREG_FTN(DT0, fs);
+        gen_op_float_truncw_d();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "trunc.w.d";
+        break;
+    case FOP(14, 17):
+        CHECK_FR(ctx, fs | fd);
+        GEN_LOAD_FREG_FTN(DT0, fs);
+        gen_op_float_ceilw_d();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "ceil.w.d";
+        break;
+    case FOP(15, 17):
+        CHECK_FR(ctx, fs | fd);
+        GEN_LOAD_FREG_FTN(DT0, fs);
+        gen_op_float_floorw_d();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "ceil.w.d";
+        break;
+    case FOP(33, 20): /* cvt.d.w */
+        CHECK_FR(ctx, fs | fd);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        gen_op_float_cvtd_w();
+        GEN_STORE_FTN_FREG(fd, DT2);
+        opn = "cvt.d.w";
+        break;
+    case FOP(48, 17):
+    case FOP(49, 17):
+    case FOP(50, 17):
+    case FOP(51, 17):
+    case FOP(52, 17):
+    case FOP(53, 17):
+    case FOP(54, 17):
+    case FOP(55, 17):
+    case FOP(56, 17):
+    case FOP(57, 17):
+    case FOP(58, 17):
+    case FOP(59, 17):
+    case FOP(60, 17):
+    case FOP(61, 17):
+    case FOP(62, 17):
+    case FOP(63, 17):
+        CHECK_FR(ctx, fs | ft);
+        GEN_LOAD_FREG_FTN(DT0, fs);
+        GEN_LOAD_FREG_FTN(DT1, ft);
+        gen_cmp_d(func-48);
+        opn = condnames[func-48];
+        break;
+    case FOP(0, 16):
+        CHECK_FR(ctx, fs | ft | fd);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WT1, ft);
+        gen_op_float_add_s();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "add.s";
+        binary = 1;
+        break;
+    case FOP(1, 16):
+        CHECK_FR(ctx, fs | ft | fd);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WT1, ft);
+        gen_op_float_sub_s();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "sub.s";
+        binary = 1;
+        break;
+    case FOP(2, 16):
+        CHECK_FR(ctx, fs | ft | fd);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WT1, ft);
+        gen_op_float_mul_s();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "mul.s";
+        binary = 1;
+        break;
+    case FOP(3, 16):
+        CHECK_FR(ctx, fs | ft | fd);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WT1, ft);
+        gen_op_float_div_s();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "div.s";
+        binary = 1;
+        break;
+    case FOP(4, 16):
+        CHECK_FR(ctx, fs | fd);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        gen_op_float_sqrt_s();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "sqrt.s";
+        break;
+    case FOP(5, 16):
+        CHECK_FR(ctx, fs | fd);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        gen_op_float_abs_s();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "abs.s";
+        break;
+    case FOP(6, 16):
+        CHECK_FR(ctx, fs | fd);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        gen_op_float_mov_s();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "mov.s";
+        break;
+    case FOP(7, 16):
+        CHECK_FR(ctx, fs | fd);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        gen_op_float_chs_s();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "neg.s";
+        break;
+    case FOP(12, 16):
+        CHECK_FR(ctx, fs | fd);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        gen_op_float_roundw_s();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "round.w.s";
+        break;
+    case FOP(13, 16):
+        CHECK_FR(ctx, fs | fd);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        gen_op_float_truncw_s();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "trunc.w.s";
+        break;
+    case FOP(32, 20): /* cvt.s.w */
+        CHECK_FR(ctx, fs | fd);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        gen_op_float_cvts_w();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "cvt.s.w";
+        break;
+    case FOP(36, 16): /* cvt.w.s */
+        CHECK_FR(ctx, fs | fd);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        gen_op_float_cvtw_s();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "cvt.w.s";
+        break;
+    case FOP(36, 17): /* cvt.w.d */
+        CHECK_FR(ctx, fs | fd);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        gen_op_float_cvtw_d();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "cvt.w.d";
+        break;
+    case FOP(48, 16):
+    case FOP(49, 16):
+    case FOP(50, 16):
+    case FOP(51, 16):
+    case FOP(52, 16):
+    case FOP(53, 16):
+    case FOP(54, 16):
+    case FOP(55, 16):
+    case FOP(56, 16):
+    case FOP(57, 16):
+    case FOP(58, 16):
+    case FOP(59, 16):
+    case FOP(60, 16):
+    case FOP(61, 16):
+    case FOP(62, 16):
+    case FOP(63, 16):
+        CHECK_FR(ctx, fs | ft);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(WT1, ft);
+        gen_cmp_s(func-48);
+        opn = condnames[func-48];
+        break;
+    default:    
+        if (loglevel & CPU_LOG_TB_IN_ASM) {
+            fprintf(logfile, "Invalid arith function: %08x %03x %03x %03x\n",
+                    ctx->opcode, ctx->opcode >> 26, ctx->opcode & 0x3F,
+                    ((ctx->opcode >> 16) & 0x1F));
+        }
+        generate_exception(ctx, EXCP_RI);
+        return;
+    }
+    if (binary)
+        MIPS_DEBUG("%s %s, %s, %s", opn, fregnames[fd], fregnames[fs], fregnames[ft]);
+    else
+        MIPS_DEBUG("%s %s,%s", opn, fregnames[fd], fregnames[fs]);
+}
+#endif
 
 /* ISA extensions */
 /* MIPS16 extension to MIPS32 */
@@ -1319,6 +1893,12 @@ static void decode_opc (DisasContext *ctx)
     int rs, rt, rd, sa;
     uint16_t op, op1;
     int16_t imm;
+
+    /* make sure instructions are on a word boundary */
+    if (ctx->pc & 0x3) {
+        generate_exception(ctx, EXCP_AdEL);
+        return;
+    }
 
     if ((ctx->hflags & MIPS_HFLAG_BMASK) == MIPS_HFLAG_BL) {
         /* Handle blikely not taken case */
@@ -1475,8 +2055,7 @@ static void decode_opc (DisasContext *ctx)
     case 0x14 ... 0x17:
         gen_compute_branch(ctx, op, rs, rt, imm << 2);
         return;
-    case 0x20 ... 0x26: /* Load and stores */
-    case 0x28 ... 0x2E:
+    case 0x20 ... 0x2E: /* Load and stores */
     case 0x30:
     case 0x38:
         gen_ldst(ctx, op, rt, rs, imm);
@@ -1495,9 +2074,39 @@ static void decode_opc (DisasContext *ctx)
     case 0x35: /* LDC1 */
     case 0x39: /* SWC1 */
     case 0x3D: /* SDC1 */
+#if defined(MIPS_USES_FPU)
+        gen_op_cp1_enabled();
+        gen_flt_ldst(ctx, op, rt, rs, imm);
+#else
+        generate_exception_err(ctx, EXCP_CpU, 1);
+#endif
+        break;
+
     case 0x11:          /* CP1 opcode */
 #if defined(MIPS_USES_FPU)
-        /* XXX: not correct */
+        gen_op_cp1_enabled();
+        op1 = ((ctx->opcode >> 21) & 0x1F);
+        switch (op1) {
+        case 0x00: /* mfc1 */
+        case 0x02: /* cfc1 */
+        case 0x04: /* mtc1 */
+        case 0x06: /* ctc1 */
+            gen_cp1(ctx, op1 | EXT_CP1, rt, rd);
+            break;
+        case 0x08: /* bc */
+            gen_compute_branch1(ctx, rt, imm << 2);
+            return;
+        case 0x10: /* 16: fmt=single fp */
+        case 0x11: /* 17: fmt=double fp */
+        case 0x14: /* 20: fmt=32bit fixed */
+        case 0x15: /* 21: fmt=64bit fixed */
+            gen_farith(ctx, op1, rt, rd, sa, ctx->opcode & 0x3f);
+            break;
+        default:
+            generate_exception_err(ctx, EXCP_RI, 1);
+            break;
+        }
+        break;
 #else
         generate_exception_err(ctx, EXCP_CpU, 1);
 #endif
@@ -1586,7 +2195,7 @@ static int gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     int j, lj = -1;
 
     if (search_pc && loglevel)
-	fprintf (logfile, "search pc %d\n", search_pc);
+        fprintf (logfile, "search pc %d\n", search_pc);
 
     pc_start = tb->pc;
     gen_opc_ptr = gen_opc_buf;
@@ -1696,7 +2305,7 @@ done_generating:
 #endif
     if (loglevel & CPU_LOG_TB_IN_ASM) {
         fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
-	target_disas(logfile, pc_start, ctx.pc - pc_start, 0);
+    target_disas(logfile, pc_start, ctx.pc - pc_start, 0);
         fprintf(logfile, "\n");
     }
     if (loglevel & CPU_LOG_TB_OP) {
@@ -1721,6 +2330,42 @@ int gen_intermediate_code_pc (CPUState *env, struct TranslationBlock *tb)
 {
     return gen_intermediate_code_internal(env, tb, 1);
 }
+
+#ifdef MIPS_USES_FPU
+void fpu_dump_state(CPUState *env, FILE *f, 
+                    int (*fpu_fprintf)(FILE *f, const char *fmt, ...),
+                    int flags)
+{
+    int i;
+
+#   define printfpr(fp) do { \
+        fpu_fprintf(f, "w:%08x d:%08lx%08lx fd:%g fs:%g\n", \
+                (fp)->w[FP_ENDIAN_IDX], (fp)->w[0], (fp)->w[1], (fp)->fd, (fp)->fs[FP_ENDIAN_IDX]); \
+    } while(0)
+
+    fpu_fprintf(f, "CP1 FCR0 0x%08x  FCR31 0x%08x  SR.FR %d\n",
+                env->fcr0, env->fcr31,
+                (env->CP0_Status & (1<<CP0St_FR)) != 0);
+    fpu_fprintf(f, "FT0: "); printfpr(&env->ft0);
+    fpu_fprintf(f, "FT1: "); printfpr(&env->ft1);
+    fpu_fprintf(f, "FT2: "); printfpr(&env->ft2);
+    for(i=0; i < 32; i+=2) {
+        fpu_fprintf(f, "f%02d: ", i);
+        printfpr(FPR(env, i));
+    }
+
+#undef printfpr
+}
+
+void dump_fpu(CPUState *env)
+{
+    if (loglevel) { 
+       fprintf(logfile, "pc=0x%08x HI=0x%08x LO=0x%08x ds %04x %08x %d\n",
+               env->PC, env->HI, env->LO, env->hflags, env->btarget, env->bcond);
+       fpu_dump_state(env, logfile, fprintf, 0);
+    }
+}
+#endif /* MIPS_USES_FPU */
 
 void cpu_dump_state (CPUState *env, FILE *f, 
                      int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
@@ -1751,6 +2396,9 @@ void cpu_dump_state (CPUState *env, FILE *f,
                 c0_status, env->CP0_Cause, env->CP0_EPC);
     cpu_fprintf(f, "    Config0 0x%08x Config1 0x%08x LLAddr 0x%08x\n",
                 env->CP0_Config[0], env->CP0_Config[1], env->CP0_LLAddr);
+#ifdef MIPS_USES_FPU
+    fpu_dump_state(env, f, cpu_fprintf, flags);
+#endif
 }
 
 CPUMIPSState *cpu_mips_init (void)
@@ -1763,6 +2411,10 @@ CPUMIPSState *cpu_mips_init (void)
     cpu_exec_init(env);
     tlb_flush(env, 1);
     /* Minimal init */
+#if 1
+    env->exception_index = EXCP_RESET;
+    do_interrupt(env);
+#else
     env->PC = 0xBFC00000;
 #if defined (MIPS_USES_R4K_TLB)
     env->CP0_random = MIPS_TLB_NB - 1;
@@ -1772,17 +2424,22 @@ CPUMIPSState *cpu_mips_init (void)
     env->CP0_Config[1] = MIPS_CONFIG1;
     env->CP0_Config[2] = MIPS_CONFIG2;
     env->CP0_Config[3] = MIPS_CONFIG3;
-    env->CP0_Config[4] = env->CP0_Config[5] =
-    env->CP0_Config[6] = env->CP0_Config[7] = 0;
+    //~ env->CP0_Config[4] = env->CP0_Config[5] =
+    //~ env->CP0_Config[6] = env->CP0_Config[7] = 0;
     env->CP0_Status = (1 << CP0St_CU0) | (1 << CP0St_BEV);
+    env->CP0_IntCtl = (7 << 29);
     env->CP0_WatchLo = 0;
     env->hflags = MIPS_HFLAG_ERL;
+#endif
     /* Count register increments in debug mode, EJTAG version 1 */
     env->CP0_Debug = (1 << CP0DB_CNT) | (0x1 << CP0DB_VER);
     env->CP0_PRid = MIPS_CPU;
     env->exception_index = EXCP_NONE;
 #if defined(CONFIG_USER_ONLY)
     env->hflags |= MIPS_HFLAG_UM;
+#endif
+#ifdef MIPS_USES_FPU
+    env->fcr0 = MIPS_FCR0;
 #endif
     return env;
 }

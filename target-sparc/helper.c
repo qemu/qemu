@@ -190,7 +190,7 @@ int get_physical_address (CPUState *env, target_phys_addr_t *physical, int *prot
     /* check access */
     access_perms = (pde & PTE_ACCESS_MASK) >> PTE_ACCESS_SHIFT;
     error_code = access_table[*access_index][access_perms];
-    if (error_code && !(env->mmuregs[0] & MMU_NF))
+    if (error_code && !((env->mmuregs[0] & MMU_NF) && is_user))
 	return error_code;
 
     /* the page can be put in the TLB */
@@ -394,7 +394,7 @@ static int get_physical_address_data(CPUState *env, target_phys_addr_t *physical
 		env->dmmuregs[4] = address; /* Fault address register */
 		env->exception_index = TT_DFAULT;
 #ifdef DEBUG_MMU
-		printf("DFAULT at 0x%llx\n", address);
+		printf("DFAULT at 0x%" PRIx64 "\n", address);
 #endif
 		return 1;
 	    }
@@ -406,7 +406,7 @@ static int get_physical_address_data(CPUState *env, target_phys_addr_t *physical
 	}
     }
 #ifdef DEBUG_MMU
-    printf("DMISS at 0x%llx\n", address);
+    printf("DMISS at 0x%" PRIx64 "\n", address);
 #endif
     env->exception_index = TT_DMISS;
     return 1;
@@ -452,7 +452,7 @@ static int get_physical_address_code(CPUState *env, target_phys_addr_t *physical
 		env->immuregs[3] |= (is_user << 3) | 1;
 		env->exception_index = TT_TFAULT;
 #ifdef DEBUG_MMU
-		printf("TFAULT at 0x%llx\n", address);
+		printf("TFAULT at 0x%" PRIx64 "\n", address);
 #endif
 		return 1;
 	    }
@@ -462,7 +462,7 @@ static int get_physical_address_code(CPUState *env, target_phys_addr_t *physical
 	}
     }
 #ifdef DEBUG_MMU
-    printf("TMISS at 0x%llx\n", address);
+    printf("TMISS at 0x%" PRIx64 "\n", address);
 #endif
     env->exception_index = TT_TMISS;
     return 1;
@@ -491,7 +491,7 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 	virt_addr = address & TARGET_PAGE_MASK;
 	vaddr = virt_addr + ((address & TARGET_PAGE_MASK) & (TARGET_PAGE_SIZE - 1));
 #ifdef DEBUG_MMU
-	printf("Translate at 0x%llx -> 0x%llx, vaddr 0x%llx\n", address, paddr, vaddr);
+	printf("Translate at 0x%" PRIx64 " -> 0x%" PRIx64 ", vaddr 0x%" PRIx64 "\n", address, paddr, vaddr);
 #endif
 	ret = tlb_set_page_exec(env, vaddr, paddr, prot, is_user, is_softmmu);
 	return ret;
@@ -506,7 +506,7 @@ void dump_mmu(CPUState *env)
     unsigned int i;
     const char *mask;
 
-    printf("MMU contexts: Primary: %lld, Secondary: %lld\n", env->dmmuregs[1], env->dmmuregs[2]);
+    printf("MMU contexts: Primary: %" PRId64 ", Secondary: %" PRId64 "\n", env->dmmuregs[1], env->dmmuregs[2]);
     if ((env->lsu & DMMU_E) == 0) {
 	printf("DMMU disabled\n");
     } else {
@@ -528,7 +528,7 @@ void dump_mmu(CPUState *env)
 		break;
 	    }
 	    if ((env->dtlb_tte[i] & 0x8000000000000000ULL) != 0) {
-		printf("VA: " TARGET_FMT_lx ", PA: " TARGET_FMT_lx ", %s, %s, %s, %s, ctx %lld\n",
+		printf("VA: " TARGET_FMT_lx ", PA: " TARGET_FMT_lx ", %s, %s, %s, %s, ctx %" PRId64 "\n",
 		       env->dtlb_tag[i] & ~0x1fffULL,
 		       env->dtlb_tte[i] & 0x1ffffffe000ULL,
 		       mask,
@@ -560,7 +560,7 @@ void dump_mmu(CPUState *env)
 		break;
 	    }
 	    if ((env->itlb_tte[i] & 0x8000000000000000ULL) != 0) {
-		printf("VA: " TARGET_FMT_lx ", PA: " TARGET_FMT_lx ", %s, %s, %s, ctx %lld\n",
+		printf("VA: " TARGET_FMT_lx ", PA: " TARGET_FMT_lx ", %s, %s, %s, ctx %" PRId64 "\n",
 		       env->itlb_tag[i] & ~0x1fffULL,
 		       env->itlb_tte[i] & 0x1ffffffe000ULL,
 		       mask,

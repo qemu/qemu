@@ -47,7 +47,7 @@ typedef uint32_t target_ulong;
 #elif TARGET_LONG_SIZE == 8
 typedef int64_t target_long;
 typedef uint64_t target_ulong;
-#define TARGET_FMT_lx "%016llx"
+#define TARGET_FMT_lx "%016" PRIx64
 #else
 #error TARGET_LONG_SIZE undefined
 #endif

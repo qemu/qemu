@@ -239,7 +239,7 @@ void cpu_set_apic_base(CPUState *env, uint64_t val)
 {
     APICState *s = env->apic_state;
 #ifdef DEBUG_APIC
-    printf("cpu_set_apic_base: %016llx\n", val);
+    printf("cpu_set_apic_base: %016" PRIx64 "\n", val);
 #endif
     s->apicbase = (val & 0xfffff000) | 
         (s->apicbase & (MSR_IA32_APICBASE_BSP | MSR_IA32_APICBASE_ENABLE));
@@ -255,7 +255,7 @@ uint64_t cpu_get_apic_base(CPUState *env)
 {
     APICState *s = env->apic_state;
 #ifdef DEBUG_APIC
-    printf("cpu_get_apic_base: %016llx\n", (uint64_t)s->apicbase);
+    printf("cpu_get_apic_base: %016" PRIx64 "\n", (uint64_t)s->apicbase);
 #endif
     return s->apicbase;
 }

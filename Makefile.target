@@ -30,6 +30,11 @@ ifeq ($(TARGET_ARCH),arm)
     TARGET_ARCH2=armeb
   endif
 endif
+ifeq ($(TARGET_ARCH),sh4)
+  ifeq ($(TARGET_WORDS_BIGENDIAN),yes)
+    TARGET_ARCH2=sh4eb
+  endif
+endif
 ifeq ($(TARGET_ARCH),mips)
   ifneq ($(TARGET_WORDS_BIGENDIAN),yes)
     TARGET_ARCH2=mipsel
@@ -102,12 +107,18 @@ LDFLAGS+=-Wl,-T,$(SRC_PATH)/s390.ld
 endif
 
 ifeq ($(ARCH),sparc)
+ifeq ($(CONFIG_SOLARIS),yes)
+CFLAGS+=-mcpu=ultrasparc -m32 -ffixed-g2 -ffixed-g3
+LDFLAGS+=-m32
+OP_CFLAGS=$(CFLAGS) -fno-delayed-branch -fno-omit-frame-pointer -ffixed-i0
+else
 CFLAGS+=-m32 -ffixed-g1 -ffixed-g2 -ffixed-g3 -ffixed-g6
 LDFLAGS+=-m32
 OP_CFLAGS=$(CFLAGS) -fno-delayed-branch -ffixed-i0
 HELPER_CFLAGS=$(CFLAGS) -ffixed-i0 -mflat
 # -static is used to avoid g1/g3 usage by the dynamic linker
 LDFLAGS+=-Wl,-T,$(SRC_PATH)/sparc.ld -static
+endif
 endif
 
 ifeq ($(ARCH),sparc64)
@@ -171,7 +182,12 @@ LDFLAGS+=-p
 main.o: CFLAGS+=-p
 endif
 
-OBJS= elfload.o main.o syscall.o mmap.o signal.o path.o osdep.o thunk.o 
+OBJS= main.o syscall.o mmap.o signal.o path.o osdep.o thunk.o \
+      elfload.o linuxload.o
+ifdef TARGET_HAS_BFLT
+OBJS+= flatload.o
+endif
+
 ifeq ($(TARGET_ARCH), i386)
 OBJS+= vm86.o
 endif
@@ -332,6 +348,7 @@ DEFINES += -DHAS_AUDIO
 endif
 ifeq ($(TARGET_ARCH), mips)
 VL_OBJS += mips_r4k.o dma.o i8259.o
+VL_OBJS += pflash_cfi02.o
 VL_OBJS += serial_16450.o
 #VL_OBJS += serial_16550a.o
 VL_OBJS += ar7.o
@@ -488,8 +505,10 @@ loader.o: loader.c elf_ops.h
 
 acpi.o: acpi.c acpi-dsdt.hex
 
-#$(SRC_PATH)/hw/acpi-dsdt.hex: acpi-dsdt.dsl
-#	iasl -tc -p $@ $<
+ifdef BUILD_ACPI_TABLES
+$(SRC_PATH)/hw/acpi-dsdt.hex: acpi-dsdt.dsl
+	iasl -tc -p $@ $<
+endif
 
 ifeq ($(TARGET_ARCH), sh4)
 op.o: op.c op_mem.c cpu.h

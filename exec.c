@@ -25,7 +25,7 @@ static const unsigned short flash[] = {
 
 #else
 
-#define FLASH_2MB /* undefine for 4 MiB flash */
+//~ #define FLASH_2MB /* undefine for 4 MiB flash */
 
 /* Emulation of INTEL 2 MiB or 4 MiB flash memory. */
 static const unsigned short flash[] = {
@@ -1559,7 +1559,7 @@ int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
     if (is_softmmu) 
 #endif
     {
-        if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM) {
+        if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM && !(pd & IO_MEM_ROMD)) {
             /* IO memory case */
             address = vaddr | pd;
             addend = paddr;
@@ -1855,14 +1855,23 @@ void cpu_register_physical_memory(target_phys_addr_t start_addr,
 {
     target_phys_addr_t addr, end_addr;
     PhysPageDesc *p;
+    CPUState *env;
 
     size = (size + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK;
     end_addr = start_addr + size;
     for(addr = start_addr; addr != end_addr; addr += TARGET_PAGE_SIZE) {
         p = phys_page_find_alloc(addr >> TARGET_PAGE_BITS, 1);
         p->phys_offset = phys_offset;
-        if ((phys_offset & ~TARGET_PAGE_MASK) <= IO_MEM_ROM)
+        if ((phys_offset & ~TARGET_PAGE_MASK) <= IO_MEM_ROM ||
+            (phys_offset & IO_MEM_ROMD))
             phys_offset += TARGET_PAGE_SIZE;
+    }
+    
+    /* since each CPU stores ram addresses in its TLB cache, we must
+       reset the modified entries */
+    /* XXX: slow ! */
+    for(env = first_cpu; env != NULL; env = env->next_cpu) {
+        tlb_flush(env, 1);
     }
 }
 
@@ -1965,13 +1974,13 @@ static void notdirty_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t 
         tlb_set_dirty(cpu_single_env, addr, cpu_single_env->mem_write_vaddr);
 }
 
-static CPUReadMemoryFunc *error_mem_read[3] = {
+static CPUReadMemoryFunc * const error_mem_read[3] = {
     NULL, /* never used */
     NULL, /* never used */
     NULL, /* never used */
 };
 
-static CPUWriteMemoryFunc *notdirty_mem_write[3] = {
+static CPUWriteMemoryFunc * const notdirty_mem_write[3] = {
     notdirty_mem_writeb,
     notdirty_mem_writew,
     notdirty_mem_writel,
@@ -1996,8 +2005,8 @@ static void io_mem_init(void)
    allocated. The return value can be used with
    cpu_register_physical_memory(). (-1) is returned if error. */
 int cpu_register_io_memory(int io_index,
-                           CPUReadMemoryFunc **mem_read,
-                           CPUWriteMemoryFunc **mem_write,
+                           CPUReadMemoryFunc * const *mem_read,
+                           CPUWriteMemoryFunc * const *mem_write,
                            void *opaque)
 {
     int i;
@@ -2124,7 +2133,8 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
                 }
             }
         } else {
-            if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM) {
+            if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM && 
+                !(pd & IO_MEM_ROMD)) {
                 /* I/O case */
                 io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
                 if (l >= 4 && ((addr & 3) == 0)) {
@@ -2179,7 +2189,8 @@ void cpu_physical_memory_write_rom(target_phys_addr_t addr,
         }
         
         if ((pd & ~TARGET_PAGE_MASK) != IO_MEM_RAM &&
-            (pd & ~TARGET_PAGE_MASK) != IO_MEM_ROM) {
+            (pd & ~TARGET_PAGE_MASK) != IO_MEM_ROM &&
+            !(pd & IO_MEM_ROMD)) {
             /* do nothing */
         } else {
             unsigned long addr1;
@@ -2211,7 +2222,8 @@ uint32_t ldl_phys(target_phys_addr_t addr)
         pd = p->phys_offset;
     }
         
-    if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM) {
+    if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM && 
+        !(pd & IO_MEM_ROMD)) {
         /* I/O case */
         io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
         val = io_mem_read[io_index][2](io_mem_opaque[io_index], addr);
@@ -2240,7 +2252,8 @@ uint64_t ldq_phys(target_phys_addr_t addr)
         pd = p->phys_offset;
     }
         
-    if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM) {
+    if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM &&
+        !(pd & IO_MEM_ROMD)) {
         /* I/O case */
         io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
 #ifdef TARGET_WORDS_BIGENDIAN

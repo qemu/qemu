@@ -13,6 +13,9 @@
 
 #define VIRT_TO_PHYS_ADDEND (-0x80000000LL)
 
+//~ #define MIPS_CPS (100 * 1000 * 1000)
+#define MIPS_CPS (150 * 1000 * 1000 / 2)
+
 extern FILE *logfile;
 
 static PITState *pit;
@@ -50,7 +53,7 @@ uint32_t cpu_mips_get_count (CPUState *env)
 {
     return env->CP0_Count +
         (uint32_t)muldiv64(qemu_get_clock(vm_clock),
-                           100 * 1000 * 1000, ticks_per_sec);
+                           MIPS_CPS, ticks_per_sec);
 }
 
 static void cpu_mips_update_count (CPUState *env, uint32_t count,
@@ -63,19 +66,19 @@ static void cpu_mips_update_count (CPUState *env, uint32_t count,
     if (count == compare)
         tmp++;
     now = qemu_get_clock(vm_clock);
-    next = now + muldiv64(compare - tmp, ticks_per_sec, 100 * 1000 * 1000);
+    next = now + muldiv64(compare - tmp, ticks_per_sec, MIPS_CPS);
     if (next == now)
 	next++;
-#if 0
+#if 1
     if (logfile) {
-        fprintf(logfile, "%s: 0x%08llx %08x %08x => 0x%08llx\n",
+        fprintf(logfile, "%s: 0x%08" PRIx64 " %08x %08x => 0x%08" PRIx64 "\n",
                 __func__, now, count, compare, next - now);
     }
 #endif
     /* Store new count and compare registers */
     env->CP0_Compare = compare;
     env->CP0_Count =
-        count - (uint32_t)muldiv64(now, 100 * 1000 * 1000, ticks_per_sec);
+        count - (uint32_t)muldiv64(now, MIPS_CPS, ticks_per_sec);
     /* Adjust timer */
     qemu_mod_timer(env->timer, next);
 }
@@ -97,7 +100,7 @@ static void mips_timer_cb (void *opaque)
     CPUState *env;
 
     env = opaque;
-#if 0
+#if 1
     if (logfile) {
         fprintf(logfile, "%s\n", __func__);
     }
@@ -184,13 +187,13 @@ static uint32_t io_readl (void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static CPUWriteMemoryFunc *io_write[] = {
+static CPUWriteMemoryFunc * const io_write[] = {
     &io_writeb,
     &io_writew,
     &io_writel,
 };
 
-static CPUReadMemoryFunc *io_read[] = {
+static CPUReadMemoryFunc * const io_read[] = {
     &io_readb,
     &io_readw,
     &io_readl,
@@ -204,7 +207,15 @@ static int bios_load(const char *filename, unsigned long bios_offset, unsigned l
     ret = load_image(buf, phys_ram_base + bios_offset);
     printf("%s: load BIOS '%s' size %d\n", __func__, buf, ret);
     if (ret > 0) {
-	    cpu_register_physical_memory(address, ret, bios_offset | IO_MEM_ROM);
+#if 0
+	cpu_register_physical_memory(address, ret, bios_offset | IO_MEM_ROM);
+#else
+	const unsigned blocksize = 0x10000;
+	pflash_t *pf = pflash_register (address, bios_offset,
+		0,
+                blocksize, ret / blocksize, 16,
+                0x1111, 0x2222, 0x3333, 0x4444);
+#endif
     } else {
 	    ret = 0;
     }
@@ -419,6 +430,11 @@ static void mips_ar7_init (int ram_size, int vga_ram_size, int boot_device,
             }
             env->PC = 0x94000000;
 	}
+
+	/* a0 = argc, a1 = argv, a2 = envp */
+	env->gpr[4] = 1;
+	env->gpr[5] = 0;
+	env->gpr[6] = 0;
 
 	/* Set SP (needed for some kernels) - normally set by bootloader. */
 	env->gpr[29] = (env->PC + (kernel_size & 0xfffffffc)) + 0x1000;

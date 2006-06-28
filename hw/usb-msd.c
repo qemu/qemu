@@ -389,6 +389,9 @@ USBDevice *usb_msd_init(const char *filename)
     s->dev.handle_control = usb_msd_handle_control;
     s->dev.handle_data = usb_msd_handle_data;
 
+    snprintf(s->dev.devname, sizeof(s->dev.devname), "QEMU USB MSD(%.16s)",
+             filename);
+
     s->scsi_dev = scsi_disk_init(bdrv, usb_msd_command_complete, s);
     usb_msd_handle_reset((USBDevice *)s, 0);
     return (USBDevice *)s;

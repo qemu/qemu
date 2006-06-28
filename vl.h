@@ -47,16 +47,24 @@
 #endif
 
 #ifdef _WIN32
+#include <windows.h>
+#define fsync _commit
 #define lseek _lseeki64
 #define ENOTSUP 4096
-/* XXX: find 64 bit version */
-#define ftruncate chsize
+extern int qemu_ftruncate64(int, int64_t);
+#define ftruncate qemu_ftruncate64
+
 
 static inline char *realpath(const char *path, char *resolved_path)
 {
     _fullpath(resolved_path, path, _MAX_PATH);
     return resolved_path;
 }
+
+#define PRId64 "I64d"
+#define PRIx64 "I64x"
+#define PRIu64 "I64u"
+#define PRIo64 "I64o"
 #endif
 
 #ifdef QEMU_TOOL
@@ -144,7 +152,7 @@ extern int usb_enabled;
 extern int smp_cpus;
 
 /* XXX: make it dynamic */
-#if defined (TARGET_PPC)
+#if defined (TARGET_PPC) || defined (TARGET_SPARC64)
 #define BIOS_SIZE ((512 + 32) * 1024)
 #elif defined(TARGET_MIPS)
 //~ #define BIOS_SIZE (128 * 1024)
@@ -218,6 +226,14 @@ typedef int PollingFunc(void *opaque);
 
 int qemu_add_polling_cb(PollingFunc *func, void *opaque);
 void qemu_del_polling_cb(PollingFunc *func, void *opaque);
+
+#ifdef _WIN32
+/* Wait objects handling */
+typedef void WaitObjectFunc(void *opaque);
+
+int qemu_add_wait_object(HANDLE handle, WaitObjectFunc *func, void *opaque);
+void qemu_del_wait_object(HANDLE handle, WaitObjectFunc *func, void *opaque);
+#endif
 
 /* character device */
 
@@ -497,6 +513,8 @@ int bdrv_write(BlockDriverState *bs, int64_t sector_num,
 void bdrv_get_geometry(BlockDriverState *bs, int64_t *nb_sectors_ptr);
 int bdrv_commit(BlockDriverState *bs);
 void bdrv_set_boot_sector(BlockDriverState *bs, const uint8_t *data, int size);
+/* Ensure contents are flushed to disk.  */
+void bdrv_flush(BlockDriverState *bs);
 
 #define BDRV_TYPE_HD     0
 #define BDRV_TYPE_CDROM  1
@@ -705,7 +723,7 @@ extern struct soundhw soundhw[];
 
 /* vga.c */
 
-#define VGA_RAM_SIZE (4096 * 1024)
+#define VGA_RAM_SIZE (8192 * 1024)
 
 struct DisplayState {
     uint8_t *data;
@@ -887,6 +905,7 @@ void acpi_bios_init(void);
 /* pc.c */
 extern QEMUMachine pc_machine;
 extern QEMUMachine isapc_machine;
+extern int fd_bootchk;
 
 void ioport_set_a20(int enable);
 int ioport_get_a20(void);
@@ -1118,6 +1137,15 @@ int sh7750_register_io_device(struct SH7750State *s,
 			      sh7750_io_device * device);
 /* tc58128.c */
 int tc58128_init(struct SH7750State *s, char *zone1, char *zone2);
+
+/* NOR flash devices */
+typedef struct pflash_t pflash_t;
+
+pflash_t *pflash_register (target_ulong base, ram_addr_t off,
+                           BlockDriverState *bs,
+                           target_ulong sector_len, int nb_blocs, int width,
+                           uint16_t id0, uint16_t id1, 
+                           uint16_t id2, uint16_t id3);
 
 #endif /* defined(QEMU_TOOL) */
 

@@ -535,16 +535,16 @@ static void memory_dump(int count, int format, int wsize,
             term_printf(" ");
             switch(format) {
             case 'o':
-                term_printf("%#*llo", max_digits, v);
+                term_printf("%#*" PRIo64, max_digits, v);
                 break;
             case 'x':
-                term_printf("0x%0*llx", max_digits, v);
+                term_printf("0x%0*" PRIx64, max_digits, v);
                 break;
             case 'u':
-                term_printf("%*llu", max_digits, v);
+                term_printf("%*" PRIu64, max_digits, v);
                 break;
             case 'd':
-                term_printf("%*lld", max_digits, v);
+                term_printf("%*" PRId64, max_digits, v);
                 break;
             case 'c':
                 term_printc(v);
@@ -604,17 +604,17 @@ static void do_print(int count, int format, int size, unsigned int valh, unsigne
 #else
     switch(format) {
     case 'o':
-        term_printf("%#llo", val);
+        term_printf("%#" PRIo64, val);
         break;
     case 'x':
-        term_printf("%#llx", val);
+        term_printf("%#" PRIx64, val);
         break;
     case 'u':
-        term_printf("%llu", val);
+        term_printf("%" PRIu64, val);
         break;
     default:
     case 'd':
-        term_printf("%lld", val);
+        term_printf("%" PRId64, val);
         break;
     case 'c':
         term_printc(val);
@@ -1028,11 +1028,11 @@ static void do_info_profile(void)
     total = qemu_time;
     if (total == 0)
         total = 1;
-    term_printf("async time  %lld (%0.3f)\n",
+    term_printf("async time  %" PRId64 " (%0.3f)\n",
                 dev_time, dev_time / (double)ticks_per_sec);
-    term_printf("qemu time   %lld (%0.3f)\n",
+    term_printf("qemu time   %" PRId64 " (%0.3f)\n",
                 qemu_time, qemu_time / (double)ticks_per_sec);
-    term_printf("kqemu time  %lld (%0.3f %0.1f%%) count=%lld int=%lld excp=%lld intr=%lld\n",
+    term_printf("kqemu time  %" PRId64 " (%0.3f %0.1f%%) count=%" PRId64 " int=%" PRId64 " excp=%" PRId64 " intr=%" PRId64 "\n",
                 kqemu_time, kqemu_time / (double)ticks_per_sec,
                 kqemu_time / (double)total * 100.0,
                 kqemu_exec_count,
@@ -1588,8 +1588,11 @@ static target_long expr_unary(void)
         n = 0;
         break;
     default:
-        /* XXX: 64 bit version */
+#if TARGET_LONG_BITS == 64
+        n = strtoull(pch, &p, 0);
+#else
         n = strtoul(pch, &p, 0);
+#endif
         if (pch == p) {
             expr_error("invalid char in expression");
         }

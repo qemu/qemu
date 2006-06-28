@@ -59,7 +59,7 @@ struct IoState {
 #define CPMAC	0
 #define INTC	0
 #define MDIO	0
-#define RESET	0
+#define RESET	1
 
 #define TRACE(flag, command) ((flag) ? (command) : (void)0)
 
@@ -163,7 +163,7 @@ static avalanche_t av = {
 	timer0: { 0 },
 	timer1: { 0 },
 	uart0: { 0, 0, 0, 0, 0, 0x20, 0 },
-	reset_control: { 0x04720043 },
+	//~ reset_control: { 0x04720043 },
 	//~ device_config_latch: 0x025d4297
 	// 21-20 phy clk source
 	device_config_latch: { 0x025d4291 },
@@ -243,15 +243,6 @@ static void ar7_irq(void *opaque, int irq_num, int level)
 
 
 cpmac_reg.h:
-#define TX_IDVER(base)                 ((MEM_PTR)(base+0x000))
-#define TX_IDVER(base)                 (*pCPMAC_TX_IDVER(base))
-#define TX_TEARDOWN(base)              ((MEM_PTR)(base+0x008))
-#define TX_TEARDOWN(base)              (*pCPMAC_TX_TEARDOWN(base))
-#define RX_IDVER(base)                 ((MEM_PTR)(base+0x010))
-#define RX_IDVER(base)                 (*pCPMAC_RX_IDVER(base))
-#define RX_TEARDOWN(base)              ((MEM_PTR)(base+0x018))
-#define RX_TEARDOWN(base)              (*pCPMAC_RX_TEARDOWN(base))
-
 #define MACSTATUS(base)                ((MEM_PTR)(base+0x164))
 #define MACSTATUS(base)                (*pCPMAC_MACSTATUS(base))
 #define EMCONTROL(base)                ((MEM_PTR)(base+0x168))
@@ -347,8 +338,12 @@ static const char *i2cpmac(unsigned index)
 	static char buffer[32];
 	const char *text = 0;
 	switch (index) {
+		case 0x00: text = "TX_IDVER"; break;
 		case 0x01: text = "TX_CONTROL"; break;
+		case 0x02: text = "TX_TEARDOWN"; break;
+		case 0x04: text = "RX_IDVER"; break;
 		case 0x05: text = "RX_CONTROL"; break;
+		case 0x06: text = "RX_TEARDOWN"; break;
 		case 0x40: text = "RX_MBP_ENABLE"; break;
 		case 0x41: text = "RX_UNICAST_SET"; break;
 		case 0x42: text = "RX_UNICAST_CLEAR"; break;
@@ -808,10 +803,9 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
 	} else if (INRANGE(AVALANCHE_USB_SLAVE_BASE, av.usb)) {
 		val = VALUE(AVALANCHE_USB_SLAVE_BASE, av.usb);
 	} else if (INRANGE(AVALANCHE_RESET_BASE, av.reset_control)) {
-#if 0
-		printf("ar7 r: addr 0x%08lx (reset control)\n", (unsigned long)addr);
-#endif
 		val = VALUE(AVALANCHE_RESET_BASE, av.reset_control);
+		TRACE(RESET, printf("ar7 r: addr 0x%08lx (reset control) = 0x%08x\n",
+			(unsigned long)addr, val));
 	} else if (INRANGE(AVALANCHE_DCL_BASE, av.device_config_latch)) {
 		val = VALUE(AVALANCHE_DCL_BASE, av.device_config_latch);
 	} else if (INRANGE(AVALANCHE_VLYNQ0_BASE, av.vlynq0)) {
@@ -875,8 +869,8 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
 		index = (addr - AVALANCHE_RESET_BASE) / 4;
 		TRACE(RESET, printf("ar7 w: addr 0x%08lx val 0x%08lx (reset control)\n",
 			(unsigned long)addr, (unsigned long)val));
-		if (index == 1) {
-#if 1
+		if (index == 0) {
+#if RESET
 			static const char *resetdevice[] = {
 				/* 00 */ "uart0", "uart1", "i2c", "timer0",
 				/* 04 */ "timer1", "reserved05", "gpio", "adsl",
@@ -887,14 +881,20 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
 				/* 24 */ "reserved24", "reserved25", "ephy", "reserved27",
 				/* 28 */ "reserved28", "reserved29", "reserved30", "reserved31"
 			};
-			// Reset bit coded device(s).
+			// Reset bit coded device(s). 0 = disabled (reset), 1 = enabled.
+			static uint32_t oldval;
+			uint32_t changed = (val ^ oldval);
+			uint32_t enabled = (changed & val);
+			//~ uint32_t disabled = (changed & oldval);
 			unsigned i;
+			oldval = val;
 			for (i = 0; i < 32; i++) {
-				if (val & (2 ^ i)) {
-					TRACE(RESET, printf("ar7 w: reset %s\n", resetdevice[i]));
+				if (changed & (1 << i)) {
+					TRACE(RESET, printf("ar7 w: reset %s %s\n", (enabled & (1 << i)) ? "enabled" : "disabled", resetdevice[i]));
 				}
 			}
 #endif
+		} else if (index == 1) {
 			qemu_system_reset_request();
 			//~ CPUState *cpu_env = first_cpu;
 			//~ cpu_env->PC = 0xbfc00000;
@@ -1028,8 +1028,6 @@ static void ar7_nic_receive(void *opaque, const uint8_t *buf, int size)
         { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
     NICState *s = (NICState *)opaque;
 
-    printf("%s(%p)\n", __FUNCTION__, s);
-
     if (!memcmp(buf, broadcast_macaddr, sizeof(broadcast_macaddr))) {
 	printf("%s(%p,%p,%d) broadcast\n", __FUNCTION__, s, buf, size);
     } else if (buf[0] & 0x01) {
@@ -1048,19 +1046,19 @@ static void ar7_nic_receive(void *opaque, const uint8_t *buf, int size)
 #define CB_SIZE_MASK       0x0000ffff
 #define RCB_ERRORS_MASK    0x03fe0000
 
-    cpmac_buff_t bd;
     uint32_t val = av.cpmac0[0x188];
     if (val != 0) {
-	    cpu_physical_memory_read(val, (uint8_t *)&bd, sizeof(bd));
-	    printf("ar7 i: buffer 0x%08x, next 0x%08x, buff 0x%08x, params 0x%08x, len 0x%08x\n",
+	cpmac_buff_t bd;
+	cpu_physical_memory_read(val, (uint8_t *)&bd, sizeof(bd));
+	printf("ar7 i: buffer 0x%08x, next 0x%08x, buff 0x%08x, params 0x%08x, len 0x%08x\n",
 		val, (unsigned)bd.next, (unsigned)bd.buff,
 		(unsigned)bd.buff_params, (unsigned)bd.ctrl_n_len);
-	    bd.ctrl_n_len &= ~(CB_OWNERSHIP_BIT);
-	    bd.ctrl_n_len |= (size & CB_SIZE_MASK);
-	    bd.ctrl_n_len |= CB_SOF_BIT | CB_EOF_BIT | CB_OWNERSHIP_BIT;
-	    cpu_physical_memory_write(val, (uint8_t *)&bd, sizeof(bd));
-	    val = (uint32_t)bd.next;
-	    cpu_physical_memory_write((target_phys_addr_t)bd.buff, buf, size);
+	bd.ctrl_n_len &= ~(CB_OWNERSHIP_BIT);
+	bd.ctrl_n_len |= (size & CB_SIZE_MASK);
+	bd.ctrl_n_len |= CB_SOF_BIT | CB_EOF_BIT /*| CB_OWNERSHIP_BIT */;
+	cpu_physical_memory_write(val, (uint8_t *)&bd, sizeof(bd));
+	val = (uint32_t)bd.next;
+	cpu_physical_memory_write((target_phys_addr_t)bd.buff, buf, size);
     }
 
     av.cpmac0[0x60] |= MAC_IN_VECTOR_RX_INT_OR;

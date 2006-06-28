@@ -615,6 +615,14 @@ const char *bdrv_get_device_name(BlockDriverState *bs)
     return bs->device_name;
 }
 
+void bdrv_flush(BlockDriverState *bs)
+{
+    if (bs->drv->bdrv_flush)
+        bs->drv->bdrv_flush(bs);
+    if (bs->backing_hd)
+        bdrv_flush(bs->backing_hd);
+}
+
 void bdrv_info(void)
 {
     BlockDriverState *bs;
@@ -753,6 +761,51 @@ static void raw_close(BlockDriverState *bs)
     close(s->fd);
 }
 
+#ifdef _WIN32
+#include <windows.h>
+#include <winioctl.h>
+
+int qemu_ftruncate64(int fd, int64_t length)
+{
+    LARGE_INTEGER li;
+    LONG high;
+    HANDLE h;
+    BOOL res;
+
+    if ((GetVersion() & 0x80000000UL) && (length >> 32) != 0)
+	return -1;
+
+    h = (HANDLE)_get_osfhandle(fd);
+
+    /* get current position, ftruncate do not change position */
+    li.HighPart = 0;
+    li.LowPart = SetFilePointer (h, 0, &li.HighPart, FILE_CURRENT);
+    if (li.LowPart == 0xffffffffUL && GetLastError() != NO_ERROR)
+	return -1;
+
+    high = length >> 32;
+    if (!SetFilePointer(h, (DWORD) length, &high, FILE_BEGIN))
+	return -1;
+    res = SetEndOfFile(h);
+
+    /* back to old position */
+    SetFilePointer(h, li.LowPart, &li.HighPart, FILE_BEGIN);
+    return res ? 0 : -1;
+}
+
+static int set_sparse(int fd)
+{
+    DWORD returned;
+    return (int) DeviceIoControl((HANDLE)_get_osfhandle(fd), FSCTL_SET_SPARSE,
+				 NULL, 0, NULL, 0, &returned, NULL);
+}
+#else
+static inline int set_sparse(int fd)
+{
+    return 1;
+}
+#endif
+
 static int raw_create(const char *filename, int64_t total_size,
                       const char *backing_file, int flags)
 {
@@ -765,9 +818,16 @@ static int raw_create(const char *filename, int64_t total_size,
               0644);
     if (fd < 0)
         return -EIO;
+    set_sparse(fd);
     ftruncate(fd, total_size * 512);
     close(fd);
     return 0;
+}
+
+static void raw_flush(BlockDriverState *bs)
+{
+    BDRVRawState *s = bs->opaque;
+    fsync(s->fd);
 }
 
 BlockDriver bdrv_raw = {
@@ -779,6 +839,7 @@ BlockDriver bdrv_raw = {
     raw_write,
     raw_close,
     raw_create,
+    raw_flush,
 };
 
 void bdrv_init(void)
