@@ -12,7 +12,6 @@
 #define TARGET_FPREGS 64
 #define TARGET_PAGE_BITS 12 /* XXX */
 #endif
-#define TARGET_FPREG_T float
 
 #include "cpu-defs.h"
 
@@ -79,6 +78,8 @@
 #define PS_PRIV  (1<<2)
 #define PS_IE    (1<<1)
 #define PS_AG    (1<<0)
+
+#define FPRS_FEF (1<<2)
 #endif
 
 /* Fcc */
@@ -146,7 +147,7 @@
 typedef struct CPUSPARCState {
     target_ulong gregs[8]; /* general registers */
     target_ulong *regwptr; /* pointer to current register window */
-    TARGET_FPREG_T    fpr[TARGET_FPREGS];  /* floating point registers */
+    float32 fpr[TARGET_FPREGS];  /* floating point registers */
     target_ulong pc;       /* program counter */
     target_ulong npc;      /* next program counter */
     target_ulong y;        /* multiply/divide register */
@@ -187,8 +188,8 @@ typedef struct CPUSPARCState {
     uint32_t mmuregs[16];
 #endif
     /* temporary float registers */
-    float ft0, ft1;
-    double dt0, dt1;
+    float32 ft0, ft1;
+    float64 dt0, dt1;
     float_status fp_status;
 #if defined(TARGET_SPARC64)
 #define MAXTL 4
@@ -236,8 +237,6 @@ typedef struct CPUSPARCState {
 CPUSPARCState *cpu_sparc_init(void);
 int cpu_sparc_exec(CPUSPARCState *s);
 int cpu_sparc_close(CPUSPARCState *s);
-void cpu_get_fp64(uint64_t *pmant, uint16_t *pexp, double f);
-double cpu_put_fp64(uint64_t mant, uint16_t exp);
 
 /* Fake impl 0, version 4 */
 #define GET_PSR(env) ((0 << 28) | (4 << 24) | (env->psr & PSR_ICC) |	\

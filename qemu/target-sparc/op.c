@@ -1017,15 +1017,6 @@ void OPPROTO op_trapcc_T0(void)
     FORCE_RET();
 }
 
-void OPPROTO op_trap_ifnofpu(void)
-{
-    if (!env->psref) {
-        env->exception_index = TT_NFPU_INSN;
-        cpu_loop_exit();
-    }
-    FORCE_RET();
-}
-
 void OPPROTO op_fpexception_im(void)
 {
     env->exception_index = TT_FP_EXCP;
@@ -1339,94 +1330,66 @@ void OPPROTO op_flush_T0(void)
     helper_flush(T0);
 }
 
-void OPPROTO op_fnegs(void)
+#define F_OP(name, p) void OPPROTO op_f##name##p(void)
+
+#define F_BINOP(name)                                           \
+    F_OP(name, s)                                               \
+    {                                                           \
+        FT0 = float32_ ## name (FT0, FT1, &env->fp_status);     \
+    }                                                           \
+    F_OP(name, d)                                               \
+    {                                                           \
+        DT0 = float64_ ## name (DT0, DT1, &env->fp_status);     \
+    }
+
+F_BINOP(add);
+F_BINOP(sub);
+F_BINOP(mul);
+F_BINOP(div);
+#undef F_BINOP
+
+void OPPROTO op_fsmuld(void)
 {
-    FT0 = -FT1;
+    DT0 = float64_mul(float32_to_float64(FT0, &env->fp_status),
+                      float32_to_float64(FT1, &env->fp_status),
+                      &env->fp_status);
 }
 
-void OPPROTO op_fabss(void)
+#define F_HELPER(name)    \
+    F_OP(name, s)         \
+    {                     \
+        do_f##name##s();  \
+    }                     \
+    F_OP(name, d)         \
+    {                     \
+        do_f##name##d();  \
+    }
+
+F_HELPER(sqrt);
+
+F_OP(neg, s)
+{
+    FT0 = float32_chs(FT1);
+}
+
+F_OP(abs, s)
 {
     do_fabss();
 }
 
+F_HELPER(cmp);
+
 #ifdef TARGET_SPARC64
-void OPPROTO op_fnegd(void)
+F_OP(neg, d)
 {
-    DT0 = -DT1;
+    DT0 = float64_chs(DT1);
 }
 
-void OPPROTO op_fabsd(void)
+F_OP(abs, d)
 {
     do_fabsd();
 }
-#endif
 
-void OPPROTO op_fsqrts(void)
-{
-    do_fsqrts();
-}
-
-void OPPROTO op_fsqrtd(void)
-{
-    do_fsqrtd();
-}
-
-void OPPROTO op_fmuls(void)
-{
-    FT0 *= FT1;
-}
-
-void OPPROTO op_fmuld(void)
-{
-    DT0 *= DT1;
-}
-
-void OPPROTO op_fsmuld(void)
-{
-    DT0 = FT0 * FT1;
-}
-
-void OPPROTO op_fadds(void)
-{
-    FT0 += FT1;
-}
-
-void OPPROTO op_faddd(void)
-{
-    DT0 += DT1;
-}
-
-void OPPROTO op_fsubs(void)
-{
-    FT0 -= FT1;
-}
-
-void OPPROTO op_fsubd(void)
-{
-    DT0 -= DT1;
-}
-
-void OPPROTO op_fdivs(void)
-{
-    FT0 /= FT1;
-}
-
-void OPPROTO op_fdivd(void)
-{
-    DT0 /= DT1;
-}
-
-void OPPROTO op_fcmps(void)
-{
-    do_fcmps();
-}
-
-void OPPROTO op_fcmpd(void)
-{
-    do_fcmpd();
-}
-
-#ifdef TARGET_SPARC64
 void OPPROTO op_fcmps_fcc1(void)
 {
     do_fcmps_fcc1();
@@ -1458,69 +1421,65 @@ void OPPROTO op_fcmpd_fcc3(void)
 }
 #endif
 
+/* Integer to float conversion.  */
 #ifdef USE_INT_TO_FLOAT_HELPERS
-void OPPROTO op_fitos(void)
-{
-    do_fitos();
-}
-
-void OPPROTO op_fitod(void)
-{
-    do_fitod();
-}
+F_HELPER(ito);
 #else
-void OPPROTO op_fitos(void)
+F_OP(ito, s)
 {
-    FT0 = (float) *((int32_t *)&FT1);
+    FT0 = int32_to_float32(*((int32_t *)&FT1), &env->fp_status);
 }
 
-void OPPROTO op_fitod(void)
+F_OP(ito, d)
 {
-    DT0 = (double) *((int32_t *)&FT1);
+    DT0 = int32_to_float64(*((int32_t *)&FT1), &env->fp_status);
 }
 
 #ifdef TARGET_SPARC64
-void OPPROTO op_fxtos(void)
+F_OP(xto, s)
 {
-    FT0 = (float) *((int64_t *)&DT1);
+    FT0 = int64_to_float32(*((int64_t *)&DT1), &env->fp_status);
 }
 
-void OPPROTO op_fxtod(void)
+F_OP(xto, d)
 {
-    DT0 = (double) *((int64_t *)&DT1);
+    DT0 = int64_to_float64(*((int64_t *)&DT1), &env->fp_status);
 }
 #endif
 #endif
+#undef F_HELPER
 
+/* floating point conversion */
 void OPPROTO op_fdtos(void)
 {
-    FT0 = (float) DT1;
+    FT0 = float64_to_float32(DT1, &env->fp_status);
 }
 
 void OPPROTO op_fstod(void)
 {
-    DT0 = (double) FT1;
+    DT0 = float32_to_float64(FT1, &env->fp_status);
 }
 
+/* Float to integer conversion.  */
 void OPPROTO op_fstoi(void)
 {
-    *((int32_t *)&FT0) = (int32_t) FT1;
+    *((int32_t *)&FT0) = float32_to_int32(FT1, &env->fp_status);
 }
 
 void OPPROTO op_fdtoi(void)
 {
-    *((int32_t *)&FT0) = (int32_t) DT1;
+    *((int32_t *)&FT0) = float64_to_int32(DT1, &env->fp_status);
 }
 
 #ifdef TARGET_SPARC64
 void OPPROTO op_fstox(void)
 {
-    *((int64_t *)&DT0) = (int64_t) FT1;
+    *((int64_t *)&DT0) = float32_to_int64(FT1, &env->fp_status);
 }
 
 void OPPROTO op_fdtox(void)
 {
-    *((int64_t *)&DT0) = (int64_t) DT1;
+    *((int64_t *)&DT0) = float64_to_int64(DT1, &env->fp_status);
 }
 
 void OPPROTO op_fmovs_cc(void)

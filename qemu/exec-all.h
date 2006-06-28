@@ -570,7 +570,7 @@ static inline target_ulong get_phys_addr_code(CPUState *env, target_ulong addr)
         ldub_code(addr);
     }
     pd = env->tlb_table[is_user][index].addr_code & ~TARGET_PAGE_MASK;
-    if (pd > IO_MEM_ROM) {
+    if (pd > IO_MEM_ROM && !(pd & IO_MEM_ROMD)) {
         cpu_abort(env, "Trying to execute code outside RAM or ROM at 0x%08lx\n", addr);
     }
     return addr + env->tlb_table[is_user][index].addend - (unsigned long)phys_ram_base;

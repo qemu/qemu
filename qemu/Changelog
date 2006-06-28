@@ -1,3 +1,17 @@
+version 0.8.2:
+
+  - ACPI support
+  - PC VGA BIOS fixes
+  - switch to OpenBios for SPARC targets (Blue Swirl)
+  - VNC server fixes
+  - MIPS FPU support (Marius Groeger)
+  - Solaris/SPARC host support (Ben Taylor)
+  - PPC breakpoints and single stepping (Jason Wessel)
+  - USB updates (Paul Brook)
+  - UDP character devices (Jason Wessel)
+  - TCP character devices
+  - Windows sparse file support (Frediano Ziglio)
+
 version 0.8.1:
 
   - USB tablet support (Brad Campbell, Anthony Liguori)

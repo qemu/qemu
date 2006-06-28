@@ -1674,6 +1674,7 @@ void helper_ljmp_protected_T0_T1(int next_eip_addend)
                 raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
             next_eip = env->eip + next_eip_addend;
             switch_tss(new_cs, e1, e2, SWITCH_TSS_JMP, next_eip);
+            CC_OP = CC_OP_EFLAGS;
             break;
         case 4: /* 286 call gate */
         case 12: /* 386 call gate */
@@ -1834,6 +1835,7 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip_addend)
             if (dpl < cpl || dpl < rpl)
                 raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
             switch_tss(new_cs, e1, e2, SWITCH_TSS_CALL, next_eip);
+            CC_OP = CC_OP_EFLAGS;
             return;
         case 4: /* 286 call gate */
         case 12: /* 386 call gate */
@@ -2948,9 +2950,14 @@ void helper_fxam_ST0(void)
     if (SIGND(temp))
         env->fpus |= 0x200; /* C1 <-- 1 */
 
+    /* XXX: test fptags too */
     expdif = EXPD(temp);
     if (expdif == MAXEXPD) {
+#ifdef USE_X86LDOUBLE
+        if (MANTD(temp) == 0x8000000000000000ULL)
+#else
         if (MANTD(temp) == 0)
+#endif
             env->fpus |=  0x500 /*Infinity*/;
         else
             env->fpus |=  0x100 /*NaN*/;
@@ -3252,7 +3259,7 @@ static void mul64(uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b)
     v = (uint64_t)a1 * (uint64_t)b1;
     *phigh += v;
 #ifdef DEBUG_MULDIV
-    printf("mul: 0x%016llx * 0x%016llx = 0x%016llx%016llx\n",
+    printf("mul: 0x%016" PRIx64 " * 0x%016" PRIx64 " = 0x%016" PRIx64 "%016" PRIx64 "\n",
            a, b, *phigh, *plow);
 #endif
 }
@@ -3301,7 +3308,7 @@ static int div64(uint64_t *plow, uint64_t *phigh, uint64_t b)
             a0 = (a0 << 1) | qb;
         }
 #if defined(DEBUG_MULDIV)
-        printf("div: 0x%016llx%016llx / 0x%016llx: q=0x%016llx r=0x%016llx\n",
+        printf("div: 0x%016" PRIx64 "%016" PRIx64 " / 0x%016" PRIx64 ": q=0x%016" PRIx64 " r=0x%016" PRIx64 "\n",
                *phigh, *plow, b, a0, a1);
 #endif
         *plow = a0;

@@ -17,6 +17,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+#include <assert.h>
 #include "exec.h"
 
 #define MIPS_DEBUG_DISAS
@@ -188,6 +189,7 @@ static const uint32_t configmask[] = {
 void do_mfc0 (int reg, int sel)
 {
     const unsigned char *rn;
+    uint8_t sel4 = (sel & 3);
 
     if (sel != 0 && reg != 16 && reg != 28) {
         rn = "invalid";
@@ -242,10 +244,6 @@ void do_mfc0 (int reg, int sel)
         T0 = env->CP0_Status;
         if (env->hflags & MIPS_HFLAG_UM)
             T0 |= (1 << CP0St_UM);
-        if (env->hflags & MIPS_HFLAG_ERL)
-            T0 |= (1 << CP0St_ERL);
-        if (env->hflags & MIPS_HFLAG_EXL)
-            T0 |= (1 << CP0St_EXL);
         rn = "Status";
         break;
     case 13:
@@ -261,8 +259,8 @@ void do_mfc0 (int reg, int sel)
         rn = "PRid";
         break;
     case 16:
-        T0 = env->CP0_Config[sel];
-        rn = configname[sel];
+        T0 = env->CP0_Config[sel4];
+        rn = configname[sel4];
         break;
     case 17:
         T0 = env->CP0_LLAddr >> 4;
@@ -327,6 +325,7 @@ void do_mtc0 (int reg, int sel)
 {
     const unsigned char *rn;
     uint32_t val, old, mask;
+    uint8_t sel4 = (sel & 3);
 
     if (sel != 0 && reg != 16 && reg != 28) {
         val = -1;
@@ -432,6 +431,8 @@ void do_mtc0 (int reg, int sel)
         val = (env->CP0_Cause & 0xB000F87C) | (T0 & 0x000C00300);
         old = env->CP0_Cause;
         env->CP0_Cause = val;
+	/* DC bit is currently not supported. */
+	assert((val & (1 << CP0Ca_DC)) == 0);
 #if 0
         {
             int i;
@@ -452,9 +453,9 @@ void do_mtc0 (int reg, int sel)
         rn = "EPC";
         break;
     case 16:
-        val = (env->CP0_Config[sel] & (~configmask[sel])) | (T0 & configmask[sel]);
-	old = env->CP0_Config[sel];
-        rn = configname[sel];
+        val = (env->CP0_Config[sel4] & (~configmask[sel4])) | (T0 & configmask[sel4]);
+	old = env->CP0_Config[sel4];
+        rn = configname[sel4];
         break;
     case 18:
         val = T0;
@@ -526,6 +527,47 @@ void do_mtc0 (int reg, int sel)
 #endif
     return;
 }
+
+#ifdef MIPS_USES_FPU
+#include "softfloat.h"
+
+void fpu_handle_exception(void)
+{
+#ifdef CONFIG_SOFTFLOAT
+    int flags = get_float_exception_flags(&env->fp_status);
+    unsigned int cpuflags = 0, enable, cause = 0;
+
+    enable = GET_FP_ENABLE(env->fcr31);
+
+    /* determine current flags */   
+    if (flags & float_flag_invalid) {
+        cpuflags |= FP_INVALID;
+        cause |= FP_INVALID & enable;
+    }
+    if (flags & float_flag_divbyzero) {
+        cpuflags |= FP_DIV0;    
+        cause |= FP_DIV0 & enable;
+    }
+    if (flags & float_flag_overflow) {
+        cpuflags |= FP_OVERFLOW;    
+        cause |= FP_OVERFLOW & enable;
+    }
+    if (flags & float_flag_underflow) {
+        cpuflags |= FP_UNDERFLOW;   
+        cause |= FP_UNDERFLOW & enable;
+    }
+    if (flags & float_flag_inexact) {
+        cpuflags |= FP_INEXACT; 
+        cause |= FP_INEXACT & enable;
+    }
+    SET_FP_FLAGS(env->fcr31, cpuflags);
+    SET_FP_CAUSE(env->fcr31, cause);
+#else
+    SET_FP_FLAGS(env->fcr31, 0);
+    SET_FP_CAUSE(env->fcr31, 0);
+#endif
+}
+#endif /* MIPS_USES_FPU */
 
 /* TLB management */
 #if defined(MIPS_USES_R4K_TLB)

@@ -1656,6 +1656,11 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             break;
         case WIN_FLUSH_CACHE:
         case WIN_FLUSH_CACHE_EXT:
+            if (s->bs)
+                bdrv_flush(s->bs);
+	    s->status = READY_STAT;
+            ide_set_irq(s);
+            break;
 	case WIN_STANDBYNOW1:
         case WIN_IDLEIMMEDIATE:
 	    s->status = READY_STAT;

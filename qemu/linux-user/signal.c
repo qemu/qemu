@@ -432,13 +432,17 @@ int do_sigaction(int sig, const struct target_sigaction *act,
     if (oact) {
         oact->_sa_handler = tswapl(k->sa._sa_handler);
         oact->sa_flags = tswapl(k->sa.sa_flags);
-        oact->sa_restorer = tswapl(k->sa.sa_restorer);
+	#if !defined(TARGET_MIPS)
+        	oact->sa_restorer = tswapl(k->sa.sa_restorer);
+	#endif
         oact->sa_mask = k->sa.sa_mask;
     }
     if (act) {
         k->sa._sa_handler = tswapl(act->_sa_handler);
         k->sa.sa_flags = tswapl(act->sa_flags);
-        k->sa.sa_restorer = tswapl(act->sa_restorer);
+	#if !defined(TARGET_MIPS)
+        	k->sa.sa_restorer = tswapl(act->sa_restorer);
+	#endif
         k->sa.sa_mask = act->sa_mask;
 
         /* we update the host linux signal state */
@@ -1618,6 +1622,334 @@ long do_rt_sigreturn(CPUState *env)
     return -ENOSYS;
 }
 
+#elif defined(TARGET_MIPS)
+
+struct target_sigcontext {
+    uint32_t   sc_regmask;     /* Unused */
+    uint32_t   sc_status;
+    uint64_t   sc_pc;
+    uint64_t   sc_regs[32];
+    uint64_t   sc_fpregs[32];
+    uint32_t   sc_ownedfp;     /* Unused */
+    uint32_t   sc_fpc_csr;
+    uint32_t   sc_fpc_eir;     /* Unused */
+    uint32_t   sc_used_math;
+    uint32_t   sc_dsp;         /* dsp status, was sc_ssflags */
+    uint64_t   sc_mdhi;
+    uint64_t   sc_mdlo;
+    target_ulong   sc_hi1;         /* Was sc_cause */
+    target_ulong   sc_lo1;         /* Was sc_badvaddr */
+    target_ulong   sc_hi2;         /* Was sc_sigset[4] */
+    target_ulong   sc_lo2;
+    target_ulong   sc_hi3;
+    target_ulong   sc_lo3;
+};
+
+struct sigframe {
+    uint32_t sf_ass[4];			/* argument save space for o32 */
+    uint32_t sf_code[2];			/* signal trampoline */
+    struct target_sigcontext sf_sc;
+    target_sigset_t sf_mask;
+};
+
+/* Install trampoline to jump back from signal handler */
+static inline int install_sigtramp(unsigned int *tramp,   unsigned int syscall)
+{
+    int err;
+
+    /*
+    * Set up the return code ...
+    *
+    *         li      v0, __NR__foo_sigreturn
+    *         syscall
+    */
+
+    err = __put_user(0x24020000 + syscall, tramp + 0);
+    err |= __put_user(0x0000000c          , tramp + 1);
+    /* flush_cache_sigtramp((unsigned long) tramp); */
+    return err;
+}
+
+static inline int
+setup_sigcontext(CPUState *regs, struct target_sigcontext *sc)
+{
+    int err = 0;
+
+    err |= __put_user(regs->PC, &sc->sc_pc);
+
+    #define save_gp_reg(i) do {   					\
+        err |= __put_user(regs->gpr[i], &sc->sc_regs[i]);		\
+    } while(0)
+    __put_user(0, &sc->sc_regs[0]); save_gp_reg(1); save_gp_reg(2);
+    save_gp_reg(3); save_gp_reg(4); save_gp_reg(5); save_gp_reg(6);
+    save_gp_reg(7); save_gp_reg(8); save_gp_reg(9); save_gp_reg(10);
+    save_gp_reg(11); save_gp_reg(12); save_gp_reg(13); save_gp_reg(14);
+    save_gp_reg(15); save_gp_reg(16); save_gp_reg(17); save_gp_reg(18);
+    save_gp_reg(19); save_gp_reg(20); save_gp_reg(21); save_gp_reg(22);
+    save_gp_reg(23); save_gp_reg(24); save_gp_reg(25); save_gp_reg(26);
+    save_gp_reg(27); save_gp_reg(28); save_gp_reg(29); save_gp_reg(30);
+    save_gp_reg(31);
+    #undef save_gp_reg
+
+    err |= __put_user(regs->HI, &sc->sc_mdhi);
+    err |= __put_user(regs->LO, &sc->sc_mdlo);
+
+    /* Not used yet, but might be useful if we ever have DSP suppport */
+#if 0
+    if (cpu_has_dsp) {
+	err |= __put_user(mfhi1(), &sc->sc_hi1);
+	err |= __put_user(mflo1(), &sc->sc_lo1);
+	err |= __put_user(mfhi2(), &sc->sc_hi2);
+	err |= __put_user(mflo2(), &sc->sc_lo2);
+	err |= __put_user(mfhi3(), &sc->sc_hi3);
+	err |= __put_user(mflo3(), &sc->sc_lo3);
+	err |= __put_user(rddsp(DSP_MASK), &sc->sc_dsp);
+    }
+    /* same with 64 bit */
+    #ifdef CONFIG_64BIT
+    err |= __put_user(regs->hi, &sc->sc_hi[0]);
+    err |= __put_user(regs->lo, &sc->sc_lo[0]);
+    if (cpu_has_dsp) {
+	err |= __put_user(mfhi1(), &sc->sc_hi[1]);
+	err |= __put_user(mflo1(), &sc->sc_lo[1]);
+	err |= __put_user(mfhi2(), &sc->sc_hi[2]);
+	err |= __put_user(mflo2(), &sc->sc_lo[2]);
+	err |= __put_user(mfhi3(), &sc->sc_hi[3]);
+	err |= __put_user(mflo3(), &sc->sc_lo[3]);
+	err |= __put_user(rddsp(DSP_MASK), &sc->sc_dsp);
+    }
+    #endif
+
+
+    #endif
+
+
+    #if 0
+    err |= __put_user(!!used_math(), &sc->sc_used_math);
+
+    if (!used_math())
+	goto out;
+
+    /*
+    * Save FPU state to signal context.  Signal handler will "inherit"
+    * current FPU state.
+    */
+    preempt_disable();
+
+    if (!is_fpu_owner()) {
+	own_fpu();
+	restore_fp(current);
+    }
+    err |= save_fp_context(sc);
+
+    preempt_enable();
+    out:
+#endif
+    return err;
+}
+
+static inline int
+restore_sigcontext(CPUState *regs, struct target_sigcontext *sc)
+{
+    int err = 0;
+
+    err |= __get_user(regs->CP0_EPC, &sc->sc_pc);
+
+    err |= __get_user(regs->HI, &sc->sc_mdhi);
+    err |= __get_user(regs->LO, &sc->sc_mdlo);
+
+    #define restore_gp_reg(i) do {   					\
+        err |= __get_user(regs->gpr[i], &sc->sc_regs[i]);		\
+    } while(0)
+    restore_gp_reg( 1); restore_gp_reg( 2); restore_gp_reg( 3);
+    restore_gp_reg( 4); restore_gp_reg( 5); restore_gp_reg( 6);
+    restore_gp_reg( 7); restore_gp_reg( 8); restore_gp_reg( 9);
+    restore_gp_reg(10); restore_gp_reg(11); restore_gp_reg(12);
+    restore_gp_reg(13); restore_gp_reg(14); restore_gp_reg(15);
+    restore_gp_reg(16); restore_gp_reg(17); restore_gp_reg(18);
+    restore_gp_reg(19); restore_gp_reg(20); restore_gp_reg(21);
+    restore_gp_reg(22); restore_gp_reg(23); restore_gp_reg(24);
+    restore_gp_reg(25); restore_gp_reg(26); restore_gp_reg(27);
+    restore_gp_reg(28); restore_gp_reg(29); restore_gp_reg(30);
+    restore_gp_reg(31);
+    #undef restore_gp_reg
+
+#if 0
+    if (cpu_has_dsp) {
+	err |= __get_user(treg, &sc->sc_hi1); mthi1(treg);
+	err |= __get_user(treg, &sc->sc_lo1); mtlo1(treg);
+	err |= __get_user(treg, &sc->sc_hi2); mthi2(treg);
+	err |= __get_user(treg, &sc->sc_lo2); mtlo2(treg);
+	err |= __get_user(treg, &sc->sc_hi3); mthi3(treg);
+	err |= __get_user(treg, &sc->sc_lo3); mtlo3(treg);
+	err |= __get_user(treg, &sc->sc_dsp); wrdsp(treg, DSP_MASK);
+    }
+    #ifdef CONFIG_64BIT
+    err |= __get_user(regs->hi, &sc->sc_hi[0]);
+    err |= __get_user(regs->lo, &sc->sc_lo[0]);
+    if (cpu_has_dsp) {
+	err |= __get_user(treg, &sc->sc_hi[1]); mthi1(treg);
+	err |= __get_user(treg, &sc->sc_lo[1]); mthi1(treg);
+	err |= __get_user(treg, &sc->sc_hi[2]); mthi2(treg);
+	err |= __get_user(treg, &sc->sc_lo[2]); mthi2(treg);
+	err |= __get_user(treg, &sc->sc_hi[3]); mthi3(treg);
+	err |= __get_user(treg, &sc->sc_lo[3]); mthi3(treg);
+	err |= __get_user(treg, &sc->sc_dsp); wrdsp(treg, DSP_MASK);
+    }
+    #endif
+
+    err |= __get_user(used_math, &sc->sc_used_math);
+    conditional_used_math(used_math);
+
+    preempt_disable();
+
+    if (used_math()) {
+	/* restore fpu context if we have used it before */
+	own_fpu();
+	err |= restore_fp_context(sc);
+    } else {
+	/* signal handler may have used FPU.  Give it up. */
+	lose_fpu();
+    }
+
+    preempt_enable();
+#endif
+    return err;
+}
+/*
+ * Determine which stack to use..
+ */
+static inline void *
+get_sigframe(struct emulated_sigaction *ka, CPUState *regs, size_t frame_size)
+{
+    unsigned long sp;
+
+    /* Default to using normal stack */
+    sp = regs->gpr[29];
+
+    /*
+     * FPU emulator may have it's own trampoline active just
+     * above the user stack, 16-bytes before the next lowest
+     * 16 byte boundary.  Try to avoid trashing it.
+     */
+    sp -= 32;
+
+#if 0
+    /* This is the X/Open sanctioned signal stack switching.  */
+    if ((ka->sa.sa_flags & SA_ONSTACK) && (sas_ss_flags (sp) == 0))
+	sp = current->sas_ss_sp + current->sas_ss_size;
+#endif
+
+    return g2h((sp - frame_size) & ~7);
+}
+
+static void setup_frame(int sig, struct emulated_sigaction * ka, 
+   		target_sigset_t *set, CPUState *regs)
+{
+    struct sigframe *frame;
+    int i;
+
+    frame = get_sigframe(ka, regs, sizeof(*frame));
+    if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
+	goto give_sigsegv;
+
+    install_sigtramp(frame->sf_code, TARGET_NR_sigreturn);
+
+    if(setup_sigcontext(regs, &frame->sf_sc))
+	goto give_sigsegv;
+
+    for(i = 0; i < TARGET_NSIG_WORDS; i++) {
+	if(__put_user(set->sig[i], &frame->sf_mask.sig[i]))
+	    goto give_sigsegv;
+    }
+
+    /*
+    * Arguments to signal handler:
+    *
+    *   a0 = signal number
+    *   a1 = 0 (should be cause)
+    *   a2 = pointer to struct sigcontext
+    *
+    * $25 and PC point to the signal handler, $29 points to the
+    * struct sigframe.
+    */
+    regs->gpr[ 4] = sig;
+    regs->gpr[ 5] = 0;
+    regs->gpr[ 6] = h2g(&frame->sf_sc);
+    regs->gpr[29] = h2g(frame);
+    regs->gpr[31] = h2g(frame->sf_code);
+    /* The original kernel code sets CP0_EPC to the handler
+    * since it returns to userland using eret
+    * we cannot do this here, and we must set PC directly */
+    regs->PC = regs->gpr[25] = ka->sa._sa_handler;
+    return;
+
+give_sigsegv:
+    force_sig(TARGET_SIGSEGV/*, current*/);
+    return;	
+}
+
+long do_sigreturn(CPUState *regs)
+{
+   struct sigframe *frame;
+   sigset_t blocked;
+   target_sigset_t target_set;
+   int i;
+
+#if defined(DEBUG_SIGNAL)
+   fprintf(stderr, "do_sigreturn\n");
+#endif
+   frame = (struct sigframe *) regs->gpr[29];
+   if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
+   	goto badframe;
+
+   for(i = 0; i < TARGET_NSIG_WORDS; i++) {
+   	if(__get_user(target_set.sig[i], &frame->sf_mask.sig[i]))
+	    goto badframe;
+   }		
+
+   target_to_host_sigset_internal(&blocked, &target_set);
+   sigprocmask(SIG_SETMASK, &blocked, NULL);
+
+   if (restore_sigcontext(regs, &frame->sf_sc))
+   	goto badframe;
+
+#if 0
+   /*
+    * Don't let your children do this ...
+    */
+   __asm__ __volatile__(
+   	"move\t$29, %0\n\t"
+   	"j\tsyscall_exit"
+   	:/* no outputs */
+   	:"r" (&regs));
+   /* Unreached */
+#endif
+    
+    regs->PC = regs->CP0_EPC;
+   /* I am not sure this is right, but it seems to work
+    * maybe a problem with nested signals ? */
+    regs->CP0_EPC = 0;
+    return 0;
+
+badframe:
+   force_sig(TARGET_SIGSEGV/*, current*/);
+   return 0;	
+
+}
+
+static void setup_rt_frame(int sig, struct emulated_sigaction *ka, 
+                           target_siginfo_t *info,
+			   target_sigset_t *set, CPUState *env)
+{
+    fprintf(stderr, "setup_rt_frame: not implemented\n");
+}
+
+long do_rt_sigreturn(CPUState *env)
+{
+    fprintf(stderr, "do_rt_sigreturn: not implemented\n");
+    return -ENOSYS;
+}
 
 #else
 

@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <fcntl.h>
-#include <sys/stat.h>
 #include <errno.h>
 #include <unistd.h>
 #include <sys/mman.h>
@@ -59,19 +58,19 @@ static uint32_t get_elf_hwcap(void)
 #define ELF_DATA	ELFDATA2LSB
 #define ELF_ARCH	EM_386
 
-	/* SVR4/i386 ABI (pages 3-31, 3-32) says that when the program
-	   starts %edx contains a pointer to a function which might be
-	   registered using `atexit'.  This provides a mean for the
-	   dynamic linker to call DT_FINI functions for shared libraries
-	   that have been loaded before the code runs.
-
-	   A value of 0 tells we have no such handler.  */
-#define ELF_PLAT_INIT(_r)	_r->edx = 0
-
 static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
 {
     regs->esp = infop->start_stack;
     regs->eip = infop->entry;
+
+    /* SVR4/i386 ABI (pages 3-31, 3-32) says that when the program
+       starts %edx contains a pointer to a function which might be
+       registered using `atexit'.  This provides a mean for the
+       dynamic linker to call DT_FINI functions for shared libraries
+       that have been loaded before the code runs.
+
+       A value of 0 tells we have no such handler.  */
+    regs->edx = 0;
 }
 
 #define USE_ELF_CORE_DUMP
@@ -93,8 +92,6 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 #endif
 #define ELF_ARCH	EM_ARM
 
-#define ELF_PLAT_INIT(_r)	_r->ARM_r0 = 0
-
 static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
 {
     target_long stack = infop->start_stack;
@@ -107,7 +104,9 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
     regs->ARM_r2 = tgetl(stack + 8); /* envp */
     regs->ARM_r1 = tgetl(stack + 4); /* envp */
     /* XXX: it seems that r0 is zeroed after ! */
-    //    regs->ARM_r0 = tgetl(stack); /* argc */
+    regs->ARM_r0 = 0;
+    /* For uClinux PIC binaries.  */
+    regs->ARM_r10 = infop->start_data;
 }
 
 #define USE_ELF_CORE_DUMP
@@ -142,9 +141,6 @@ enum
 #define ELF_DATA    ELFDATA2MSB
 #define ELF_ARCH    EM_SPARC
 
-/*XXX*/
-#define ELF_PLAT_INIT(_r)
-
 static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
 {
     regs->tstate = 0;
@@ -162,9 +158,6 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 #define ELF_CLASS   ELFCLASS32
 #define ELF_DATA    ELFDATA2MSB
 #define ELF_ARCH    EM_SPARC
-
-/*XXX*/
-#define ELF_PLAT_INIT(_r)
 
 static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
 {
@@ -191,20 +184,6 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 #define ELF_DATA	ELFDATA2LSB
 #endif
 #define ELF_ARCH	EM_PPC
-
-/* Note that isn't exactly what regular kernel does
- * but this is what the ABI wants and is needed to allow
- * execution of PPC BSD programs.
- */
-#define ELF_PLAT_INIT(_r)                                  \
-do {                                                       \
-    target_ulong *pos = (target_ulong *)bprm->p, tmp = 1;  \
-    _r->gpr[3] = bprm->argc;                               \
-    _r->gpr[4] = (unsigned long)++pos;                     \
-    for (; tmp != 0; pos++)                                \
-        tmp = ldl(pos);                                    \
-    _r->gpr[5] = (unsigned long)pos;                       \
-} while (0)
 
 /*
  * We need to put in some extra aux table entries to tell glibc what
@@ -239,9 +218,22 @@ do {                                                                    \
 
 static inline void init_thread(struct target_pt_regs *_regs, struct image_info *infop)
 {
+    target_ulong pos = infop->start_stack;
+    target_ulong tmp;
+
     _regs->msr = 1 << MSR_PR; /* Set user mode */
     _regs->gpr[1] = infop->start_stack;
     _regs->nip = infop->entry;
+    /* Note that isn't exactly what regular kernel does
+     * but this is what the ABI wants and is needed to allow
+     * execution of PPC BSD programs.
+     */
+    _regs->gpr[3] = tgetl(pos);
+    pos += sizeof(target_ulong);
+    _regs->gpr[4] = pos;
+    for (tmp = 1; tmp != 0; pos += sizeof(target_ulong))
+        tmp = ldl(pos);
+    _regs->gpr[5] = pos;
 }
 
 #define USE_ELF_CORE_DUMP
@@ -263,8 +255,6 @@ static inline void init_thread(struct target_pt_regs *_regs, struct image_info *
 #endif
 #define ELF_ARCH    EM_MIPS
 
-#define ELF_PLAT_INIT(_r) 
-
 static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
 {
     regs->cp0_status = CP0St_UM;
@@ -283,8 +273,6 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 #define ELF_CLASS ELFCLASS32
 #define ELF_DATA  ELFDATA2LSB
 #define ELF_ARCH  EM_SH
-
-#define ELF_PLAT_INIT(_r) /* XXXXX */
 
 static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
 {
@@ -307,30 +295,6 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 #endif
 
 #include "elf.h"
-
-/*
- * MAX_ARG_PAGES defines the number of pages allocated for arguments
- * and envelope for the new program. 32 should suffice, this gives
- * a maximum env+arg of 128kB w/4KB pages!
- */
-#define MAX_ARG_PAGES 32
-
-/*
- * This structure is used to hold the arguments that are 
- * used when loading binaries.
- */
-struct linux_binprm {
-        char buf[128];
-        void *page[MAX_ARG_PAGES];
-        unsigned long p;
-        int sh_bang;
-	int fd;
-        int e_uid, e_gid;
-        int argc, envc;
-        char * filename;        /* Name of binary */
-        unsigned long loader, exec;
-        int dont_iput;          /* binfmt handler has put inode */
-};
 
 struct exec
 {
@@ -377,8 +341,6 @@ struct exec
 #define PER_XENIX		(0x0007 | STICKY_TIMEOUTS)
 
 /* Necessary parameters */
-#define NGROUPS 32
-
 #define TARGET_ELF_EXEC_PAGESIZE TARGET_PAGE_SIZE
 #define TARGET_ELF_PAGESTART(_v) ((_v) & ~(unsigned long)(TARGET_ELF_EXEC_PAGESIZE-1))
 #define TARGET_ELF_PAGEOFFSET(_v) ((_v) & (TARGET_ELF_EXEC_PAGESIZE-1))
@@ -452,13 +414,13 @@ static void bswap_sym(Elf32_Sym *sym)
 #endif
 
 /*
- * 'copy_string()' copies argument/envelope strings from user
+ * 'copy_elf_strings()' copies argument/envelope strings from user
  * memory to free pages in kernel mem. These are in a format ready
  * to be put directly into the top of new user memory.
  *
  */
-static unsigned long copy_strings(int argc,char ** argv, void **page,
-                unsigned long p)
+static unsigned long copy_elf_strings(int argc,char ** argv, void **page,
+                                      unsigned long p)
 {
     char *tmp, *tmp1, *pag = NULL;
     int len, offset = 0;
@@ -506,101 +468,6 @@ static unsigned long copy_strings(int argc,char ** argv, void **page,
     return p;
 }
 
-static int in_group_p(gid_t g)
-{
-    /* return TRUE if we're in the specified group, FALSE otherwise */
-    int		ngroup;
-    int		i;
-    gid_t	grouplist[NGROUPS];
-
-    ngroup = getgroups(NGROUPS, grouplist);
-    for(i = 0; i < ngroup; i++) {
-	if(grouplist[i] == g) {
-	    return 1;
-	}
-    }
-    return 0;
-}
-
-static int count(char ** vec)
-{
-    int		i;
-
-    for(i = 0; *vec; i++) {
-        vec++;
-    }
-
-    return(i);
-}
-
-static int prepare_binprm(struct linux_binprm *bprm)
-{
-    struct stat		st;
-    int mode;
-    int retval, id_change;
-
-    if(fstat(bprm->fd, &st) < 0) {
-	return(-errno);
-    }
-
-    mode = st.st_mode;
-    if(!S_ISREG(mode)) {	/* Must be regular file */
-	return(-EACCES);
-    }
-    if(!(mode & 0111)) {	/* Must have at least one execute bit set */
-	return(-EACCES);
-    }
-
-    bprm->e_uid = geteuid();
-    bprm->e_gid = getegid();
-    id_change = 0;
-
-    /* Set-uid? */
-    if(mode & S_ISUID) {
-    	bprm->e_uid = st.st_uid;
-	if(bprm->e_uid != geteuid()) {
-	    id_change = 1;
-	}
-    }
-
-    /* Set-gid? */
-    /*
-     * If setgid is set but no group execute bit then this
-     * is a candidate for mandatory locking, not a setgid
-     * executable.
-     */
-    if ((mode & (S_ISGID | S_IXGRP)) == (S_ISGID | S_IXGRP)) {
-	bprm->e_gid = st.st_gid;
-	if (!in_group_p(bprm->e_gid)) {
-		id_change = 1;
-	}
-    }
-
-    memset(bprm->buf, 0, sizeof(bprm->buf));
-    retval = lseek(bprm->fd, 0L, SEEK_SET);
-    if(retval >= 0) {
-        retval = read(bprm->fd, bprm->buf, 128);
-    }
-    if(retval < 0) {
-	perror("prepare_binprm");
-	exit(-1);
-	/* return(-errno); */
-    }
-    else {
-	return(retval);
-    }
-}
-
-static inline void memcpy_to_target(target_ulong dest, const void *src,
-                                    unsigned long len)
-{
-    void *host_ptr;
-
-    host_ptr = lock_user(dest, len, 0);
-    memcpy(host_ptr, src, len);
-    unlock_user(host_ptr, dest, 1);
-}
-
 unsigned long setup_arg_pages(target_ulong p, struct linux_binprm * bprm,
 					      struct image_info * info)
 {
@@ -627,11 +494,6 @@ unsigned long setup_arg_pages(target_ulong p, struct linux_binprm * bprm,
 
     stack_base = error + size - MAX_ARG_PAGES*TARGET_PAGE_SIZE;
     p += stack_base;
-
-    if (bprm->loader) {
-	bprm->loader += stack_base;
-    }
-    bprm->exec += stack_base;
 
     for (i = 0 ; i < MAX_ARG_PAGES ; i++) {
 	if (bprm->page[i]) {
@@ -703,7 +565,6 @@ static unsigned long create_elf_tables(target_ulong p, int argc, int envc,
                                        unsigned long interp_load_addr, int ibcs,
                                        struct image_info *info)
 {
-        target_ulong argv, envp;
         target_ulong sp;
         int size;
         target_ulong u_platform;
@@ -765,28 +626,7 @@ static unsigned long create_elf_tables(target_ulong p, int argc, int envc,
 #endif
 #undef NEW_AUX_ENT
 
-        sp -= (envc + 1) * n;
-        envp = sp;
-        sp -= (argc + 1) * n;
-        argv = sp;
-        if (!ibcs) {
-            sp -= n; tputl(sp, envp);
-            sp -= n; tputl(sp, argv);
-        }
-        sp -= n; tputl(sp, argc);
-        info->arg_start = p;
-        while (argc-->0) {
-            tputl(argv, p); argv += n;
-            p += target_strlen(p) + 1;
-        }
-        tputl(argv, 0);
-        info->arg_end = info->env_start = p;
-        while (envc-->0) {
-            tputl(envp, p); envp += n;
-            p += target_strlen(p) + 1;
-        }
-        tputl(envp, 0);
-        info->env_end = p;
+        sp = loader_build_argptr(envc, argc, sp, p, !ibcs);
         return sp;
 }
 
@@ -1001,8 +841,8 @@ static void load_symbols(struct elfhdr *hdr, int fd)
     syminfos = s;
 }
 
-static int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
-                           struct image_info * info)
+int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
+                    struct image_info * info)
 {
     struct elfhdr elf_ex;
     struct elfhdr interp_elf_ex;
@@ -1034,15 +874,17 @@ static int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * r
     bswap_ehdr(&elf_ex);
 #endif
 
-    if (elf_ex.e_ident[0] != 0x7f ||
-	strncmp(&elf_ex.e_ident[1], "ELF",3) != 0) {
-	    return  -ENOEXEC;
-    }
-
     /* First of all, some simple consistency checks */
     if ((elf_ex.e_type != ET_EXEC && elf_ex.e_type != ET_DYN) ||
        				(! elf_check_arch(elf_ex.e_machine))) {
 	    return -ENOEXEC;
+    }
+
+    bprm->p = copy_elf_strings(1, &bprm->filename, bprm->page, bprm->p);
+    bprm->p = copy_elf_strings(bprm->envc,bprm->envp,bprm->page,bprm->p);
+    bprm->p = copy_elf_strings(bprm->argc,bprm->argv,bprm->page,bprm->p);
+    if (!bprm->p) {
+        retval = -E2BIG;
     }
 
     /* Now read in all of the header information */
@@ -1188,7 +1030,7 @@ static int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * r
     /* OK, we are done with that, now set up the arg stuff,
        and then start this sucker up */
 
-    if (!bprm->sh_bang) {
+    {
 	char * passed_p;
 
 	if (interpreter_type == INTERPRETER_AOUT) {
@@ -1196,7 +1038,7 @@ static int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * r
 	    passed_p = passed_fileno;
 
 	    if (elf_interpreter) {
-		bprm->p = copy_strings(1,&passed_p,bprm->page,bprm->p);
+		bprm->p = copy_elf_strings(1,&passed_p,bprm->page,bprm->p);
 		bprm->argc++;
 	    }
 	}
@@ -1347,11 +1189,10 @@ static int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * r
 		    interp_load_addr,
 		    (interpreter_type == INTERPRETER_AOUT ? 0 : 1),
 		    info);
-    if (interpreter_type == INTERPRETER_AOUT)
-      info->arg_start += strlen(passed_fileno) + 1;
     info->start_brk = info->brk = elf_brk;
     info->end_code = end_code;
     info->start_code = start_code;
+    info->start_data = end_code;
     info->end_data = end_data;
     info->start_stack = bprm->p;
 
@@ -1380,75 +1221,10 @@ static int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * r
                                       MAP_FIXED | MAP_PRIVATE, -1, 0);
     }
 
-#ifdef ELF_PLAT_INIT
-    /*
-     * The ABI may specify that certain registers be set up in special
-     * ways (on i386 %edx is the address of a DT_FINI function, for
-     * example.  This macro performs whatever initialization to
-     * the regs structure is required.
-     */
-    ELF_PLAT_INIT(regs);
-#endif
-
-
     info->entry = elf_entry;
 
     return 0;
 }
-
-
-
-int elf_exec(const char * filename, char ** argv, char ** envp, 
-             struct target_pt_regs * regs, struct image_info *infop)
-{
-        struct linux_binprm bprm;
-        int retval;
-        int i;
-
-        bprm.p = TARGET_PAGE_SIZE*MAX_ARG_PAGES-sizeof(unsigned int);
-        for (i=0 ; i<MAX_ARG_PAGES ; i++)       /* clear page-table */
-                bprm.page[i] = 0;
-        retval = open(filename, O_RDONLY);
-        if (retval < 0)
-            return retval;
-        bprm.fd = retval;
-        bprm.filename = (char *)filename;
-        bprm.sh_bang = 0;
-        bprm.loader = 0;
-        bprm.exec = 0;
-        bprm.dont_iput = 0;
-	bprm.argc = count(argv);
-	bprm.envc = count(envp);
-
-        retval = prepare_binprm(&bprm);
-
-        if(retval>=0) {
-	    bprm.p = copy_strings(1, &bprm.filename, bprm.page, bprm.p);
-	    bprm.exec = bprm.p;
-	    bprm.p = copy_strings(bprm.envc,envp,bprm.page,bprm.p);
-	    bprm.p = copy_strings(bprm.argc,argv,bprm.page,bprm.p);
-	    if (!bprm.p) {
-		retval = -E2BIG;
-	    }
-        }
-
-        if(retval>=0) {
-	    retval = load_elf_binary(&bprm,regs,infop);
-	}
-        
-        if(retval>=0) {
-	    /* success.  Initialize important registers */
-            init_thread(regs, infop);
-	    return retval;
-	}
-
-        /* Something went wrong, return the inode and free the argument pages*/
-        for (i=0 ; i<MAX_ARG_PAGES ; i++) {
-	    free(bprm.page[i]);
-	}
-        return(retval);
-}
-
 
 static int load_aout_interp(void * exptr, int interp_fd)
 {
@@ -1456,3 +1232,7 @@ static int load_aout_interp(void * exptr, int interp_fd)
     return(0);
 }
 
+void do_init_thread(struct target_pt_regs *regs, struct image_info *infop)
+{
+    init_thread(regs, infop);
+}

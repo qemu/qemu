@@ -765,7 +765,7 @@ static void complete (SB16State *s)
                             );
                     }
                 }
-                ldebug ("mix silence %d %d %lld\n", samples, bytes, ticks);
+                ldebug ("mix silence %d %d %" PRId64 "\n", samples, bytes, ticks);
             }
             break;
 

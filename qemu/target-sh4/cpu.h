@@ -27,6 +27,8 @@
 
 #include "cpu-defs.h"
 
+#include "softfloat.h"
+
 #define TARGET_PAGE_BITS 12	/* 4k XXXXX */
 
 #define SR_MD (1 << 30)
@@ -43,7 +45,9 @@
 #define FPSCR_PR (1 << 19)
 #define FPSCR_DN (1 << 18)
 
-#define DELAY_SLOT             (1 << 0)
+#define DELAY_SLOT             (1 << 0) /* Must be the same as SR_T.  */
+/* This flag is set if the next insn is a delay slot for a conditional jump.
+   The dynamic value of the DELAY_SLOT determines whether the jup is taken. */
 #define DELAY_SLOT_CONDITIONAL (1 << 1)
 /* Those are used in contexts only */
 #define BRANCH                 (1 << 2)
@@ -89,6 +93,10 @@ typedef struct CPUSH4State {
     uint32_t pr;		/* procedure register */
     uint32_t fpscr;		/* floating point status/control register */
     uint32_t fpul;		/* floating point communication register */
+
+    /* temporary float registers */
+    float32 ft0, ft1;
+    float64 dt0, dt1;
 
     /* Those belong to the specific unit (SH7750) but are handled here */
     uint32_t mmucr;		/* MMU control register */

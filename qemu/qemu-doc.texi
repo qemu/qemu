@@ -228,6 +228,10 @@ Write to temporary files instead of disk image files. In this case,
 the raw disk image you use is not written back. You can however force
 the write back by pressing @key{C-a s} (@pxref{disk_images}). 
 
+@item -no-fd-bootchk
+Disable boot signature checking for floppy disks in Bochs BIOS. It may
+be needed to boot from old floppy disks.
+
 @item -m megs
 Set virtual RAM size to @var{megs} megabytes. Default is 128 MB.
 
@@ -492,8 +496,14 @@ Debug/Expert options:
 @table @option
 
 @item -serial dev
-Redirect the virtual serial port to host device @var{dev}. Available
-devices are:
+Redirect the virtual serial port to host character device
+@var{dev}. The default device is @code{vc} in graphical mode and
+@code{stdio} in non graphical mode.
+
+This option can be used several times to simulate up to 4 serials
+ports.
+
+Available character devices are:
 @table @code
 @item vc
 Virtual console
@@ -512,13 +522,64 @@ Write output to filename. No character can be read.
 @item stdio
 [Unix only] standard input/output
 @item pipe:filename
-[Unix only] name pipe @var{filename}
-@end table
-The default device is @code{vc} in graphical mode and @code{stdio} in
-non graphical mode.
+name pipe @var{filename}
+@item COMn
+[Windows only] Use host serial port @var{n}
+@item udp:[remote_host]:remote_port[@@[src_ip]:src_port]
+This implements UDP Net Console.  When @var{remote_host} or @var{src_ip} are not specified they default to @code{0.0.0.0}.  When not using a specifed @var{src_port} a random port is automatically chosen.
 
-This option can be used several times to simulate up to 4 serials
-ports.
+If you just want a simple readonly console you can use @code{netcat} or
+@code{nc}, by starting qemu with: @code{-serial udp::4555} and nc as:
+@code{nc -u -l -p 4555}. Any time qemu writes something to that port it
+will appear in the netconsole session.
+
+If you plan to send characters back via netconsole or you want to stop
+and start qemu a lot of times, you should have qemu use the same
+source port each time by using something like @code{-serial
+udp::4555@@:4556} to qemu. Another approach is to use a patched
+version of netcat which can listen to a TCP port and send and receive
+characters via udp.  If you have a patched version of netcat which
+activates telnet remote echo and single char transfer, then you can
+use the following options to step up a netcat redirector to allow
+telnet on port 5555 to access the qemu port.
+@table @code
+@item Qemu Options:
+-serial udp::4555@@:4556
+@item netcat options:
+-u -P 4555 -L 0.0.0.0:4556 -t -p 5555 -I -T
+@item telnet options:
+localhost 5555
+@end table
+
+
+@item tcp:[host]:port[,server][,nowait]
+The TCP Net Console has two modes of operation.  It can send the serial
+I/O to a location or wait for a connection from a location.  By default
+the TCP Net Console is sent to @var{host} at the @var{port}.  If you use
+the @var{,server} option QEMU will wait for a client socket application
+to connect to the port before continuing, unless the @code{,nowait}
+option was specified. If @var{host} is omitted, 0.0.0.0 is assumed. Only
+one TCP connection at a time is accepted. You can use @code{telnet} to
+connect to the corresponding character device.
+@table @code
+@item Example to send tcp console to 192.168.0.2 port 4444
+-serial tcp:192.168.0.2:4444
+@item Example to listen and wait on port 4444 for connection
+-serial tcp::4444,server
+@item Example to not wait and listen on ip 192.168.0.100 port 4444
+-serial tcp:192.168.0.100:4444,server,nowait
+@end table
+
+@item telnet:host:port[,server][,nowait]
+The telnet protocol is used instead of raw tcp sockets.  The options
+work the same as if you had specified @code{-serial tcp}.  The
+difference is that the port acts like a telnet server or client using
+telnet option negotiation.  This will also allow you to send the
+MAGIC_SYSRQ sequence if you use a telnet that supports sending the break
+sequence.  Typically in unix telnet you do it with Control-] and then
+type "send break" followed by pressing the enter key.
+
+@end table
 
 @item -parallel dev
 Redirect the virtual parallel port to host device @var{dev} (same
@@ -552,7 +613,10 @@ images.
 
 @item -std-vga
 Simulate a standard VGA card with Bochs VBE extensions (default is
-Cirrus Logic GD5446 PCI VGA)
+Cirrus Logic GD5446 PCI VGA). If your guest OS supports the VESA 2.0
+VBE extensions (e.g. Windows XP) and if you want to use high
+resolution modes (>= 1280x1024x16) then you should use this option.
+
 @item -loadvm file
 Start right away with a saved state (@code{loadvm} in monitor)
 @end table
@@ -1256,6 +1320,11 @@ card. All Windows versions starting from Windows 95 should recognize
 and use this graphic card. For optimal performances, use 16 bit color
 depth in the guest and the host OS.
 
+If you are using Windows XP as guest OS and if you want to use high
+resolution modes which the Cirrus Logic BIOS does not support (i.e. >=
+1280x1024x16), then you should use the VESA VBE virtual graphic card
+(option @option{-std-vga}).
+
 @subsubsection CPU usage reduction
 
 Windows 9x does not correctly use the CPU HLT
@@ -1394,7 +1463,7 @@ More information is available at
 @node Sparc32 System emulator invocation
 @section Sparc32 System emulator invocation
 
-Use the executable @file{qemu-system-sparc} to simulate a JavaStation
+Use the executable @file{qemu-system-sparc} to simulate a SparcStation 5
 (sun4m architecture). The emulation is somewhat complete.
 
 QEMU emulates the following sun4m peripherals:
@@ -1419,13 +1488,14 @@ Floppy drive
 
 The number of peripherals is fixed in the architecture.
 
-QEMU uses the Proll, a PROM replacement available at
-@url{http://people.redhat.com/@/zaitcev/linux/}. The required
-QEMU-specific patches are included with the sources.
+Since version 0.8.2, QEMU uses OpenBIOS
+@url{http://www.openbios.org/}. OpenBIOS is a free (GPL v2) portable
+firmware implementation. The goal is to implement a 100% IEEE
+1275-1994 (referred to as Open Firmware) compliant firmware.
 
 A sample Linux 2.6 series kernel and ram disk image are available on
-the QEMU web site. Please note that currently neither Linux 2.4
-series, NetBSD, nor OpenBSD kernels work.
+the QEMU web site. Please note that currently NetBSD, OpenBSD or
+Solaris kernels don't work.
 
 @c man begin OPTIONS
 
@@ -1519,6 +1589,10 @@ PCI memory space.  It does not provide access to PCI IO space.
 This means some devices (eg. ne2k_pci NIC) are not useable, and others
 (eg. rtl8139 NIC) are only useable when the guest drivers use the memory
 mapped control registers.
+@item
+PCI OHCI USB controller.
+@item
+LSI53C895A PCI SCSI Host Bus Adapter with hard disk and CD-ROM devices.
 @end itemize
 
 A Linux 2.6 test image is available on the QEMU web site. More
@@ -1531,6 +1605,7 @@ information is available in the QEMU mailing-list archive.
 * Quick Start::
 * Wine launch::
 * Command line options::
+* Other binaries::
 @end menu
 
 @node Quick Start
@@ -1636,6 +1711,15 @@ Activate log (logfile=/tmp/qemu.log)
 @item -p pagesize
 Act as if the host page size was 'pagesize' bytes
 @end table
+
+@node Other binaries
+@section Other binaries
+
+@command{qemu-arm} is also capable of running ARM "Angel" semihosted ELF
+binaries (as implemented by the arm-elf and arm-eabi Newlib/GDB
+configurations), and arm-uclinux bFLT format binaries.
+
+The binary format is detected automatically.
 
 @node compilation
 @chapter Compilation from the sources

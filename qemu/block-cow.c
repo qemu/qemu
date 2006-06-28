@@ -250,6 +250,12 @@ static int cow_create(const char *filename, int64_t image_sectors,
     return 0;
 }
 
+static void cow_flush(BlockDriverState *bs)
+{
+    BDRVCowState *s = bs->opaque;
+    fsync(s->fd);
+}
+
 BlockDriver bdrv_cow = {
     "cow",
     sizeof(BDRVCowState),
@@ -259,6 +265,7 @@ BlockDriver bdrv_cow = {
     cow_write,
     cow_close,
     cow_create,
+    cow_flush,
     cow_is_allocated,
 };
 #endif

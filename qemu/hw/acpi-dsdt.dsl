@@ -161,8 +161,9 @@ DefinitionBlock (
         }
     }
 
-    /* PIIX3 ISA bridge */
     Scope(\_SB.PCI0) {
+
+	/* PIIX3 ISA bridge */
         Device (ISA) {
             Name (_ADR, 0x00010000)
         
@@ -202,6 +203,7 @@ DefinitionBlock (
                 }
             }
 
+	    /* PS/2 mouse */
             Device (MOU) 
             {
                 Name (_HID, EisaId ("PNP0F13"))
@@ -219,7 +221,132 @@ DefinitionBlock (
                     Return (TMP)
                 }
             }
+
+	    /* PS/2 floppy controller */
+	    Device (FDC0)
+	    {
+	        Name (_HID, EisaId ("PNP0700"))
+		Method (_STA, 0, NotSerialized)
+		{
+		    Return (0x0F)
+		}
+		Method (_CRS, 0, NotSerialized)
+		{
+		    Name (BUF0, ResourceTemplate ()
+                    {
+                        IO (Decode16, 0x03F2, 0x03F2, 0x00, 0x04)
+                        IO (Decode16, 0x03F7, 0x03F7, 0x00, 0x01)
+                        IRQNoFlags () {6}
+                        DMA (Compatibility, NotBusMaster, Transfer8) {2}
+                    })
+		    Return (BUF0)
+		}
+	    }
+
+	    /* Parallel port */
+	    Device (LPT)
+	    {
+	        Name (_HID, EisaId ("PNP0400"))
+		Method (_STA, 0, NotSerialized)
+		{
+		    Store (\_SB.PCI0.PX13.DRSA, Local0)
+		    And (Local0, 0x80000000, Local0)
+		    If (LEqual (Local0, 0))
+		    {
+			Return (0x00)
+		    }
+		    Else
+		    {
+			Return (0x0F)
+		    }
+		}
+		Method (_CRS, 0, NotSerialized)
+		{
+		    Name (BUF0, ResourceTemplate ()
+                    {
+			IO (Decode16, 0x0378, 0x0378, 0x08, 0x08)
+			IRQNoFlags () {7}
+		    })
+		    Return (BUF0)
+		}
+	    }
+
+	    /* Serial Ports */
+	    Device (COM1)
+	    {
+	        Name (_HID, EisaId ("PNP0501"))
+		Name (_UID, 0x01)
+		Method (_STA, 0, NotSerialized)
+		{
+		    Store (\_SB.PCI0.PX13.DRSC, Local0)
+		    And (Local0, 0x08000000, Local0)
+		    If (LEqual (Local0, 0))
+		    {
+			Return (0x00)
+		    }
+		    Else
+		    {
+			Return (0x0F)
+		    }
+		}
+		Method (_CRS, 0, NotSerialized)
+		{
+		    Name (BUF0, ResourceTemplate ()
+                    {
+			IO (Decode16, 0x03F8, 0x03F8, 0x00, 0x08)
+                	IRQNoFlags () {4}
+		    })
+		    Return (BUF0)
+		}
+	    }
+
+	    Device (COM2)
+	    {
+	        Name (_HID, EisaId ("PNP0501"))
+		Name (_UID, 0x02)
+		Method (_STA, 0, NotSerialized)
+		{
+		    Store (\_SB.PCI0.PX13.DRSC, Local0)
+		    And (Local0, 0x80000000, Local0)
+		    If (LEqual (Local0, 0))
+		    {
+			Return (0x00)
+		    }
+		    Else
+		    {
+			Return (0x0F)
+		    }
+		}
+		Method (_CRS, 0, NotSerialized)
+		{
+		    Name (BUF0, ResourceTemplate ()
+                    {
+			IO (Decode16, 0x02F8, 0x02F8, 0x00, 0x08)
+                	IRQNoFlags () {3}
+		    })
+		    Return (BUF0)
+		}
+	    }
         }
+
+	/* PIIX4 PM */
+        Device (PX13) {
+	    Name (_ADR, 0x00010003)
+
+	    OperationRegion (P13C, PCI_Config, 0x5c, 0x24)
+	    Field (P13C, DWordAcc, NoLock, Preserve)
+	    {
+		DRSA, 32,
+		DRSB, 32,
+		DRSC, 32,
+		DRSE, 32,
+		DRSF, 32,
+		DRSG, 32,
+		DRSH, 32,
+		DRSI, 32,
+		DRSJ, 32
+	    }
+	}
     }
 
     /* PCI IRQs */

@@ -2443,12 +2443,12 @@ void cpu_dump_state(CPUState *env, FILE *f,
 {
 #if defined(TARGET_PPC64) || 1
 #define FILL ""
-#define REGX "%016llx"
+#define REGX "%016" PRIx64
 #define RGPL  4
 #define RFPL  4
 #else
 #define FILL "        "
-#define REGX "%08llx"
+#define REGX "%08" PRIx64
 #define RGPL  8
 #define RFPL  4
 #endif
@@ -2485,7 +2485,7 @@ void cpu_dump_state(CPUState *env, FILE *f,
     for (i = 0; i < 32; i++) {
         if ((i & (RFPL - 1)) == 0)
             cpu_fprintf(f, "FPR%02d", i);
-        cpu_fprintf(f, " %016llx", *((uint64_t *)&env->fpr[i]));
+        cpu_fprintf(f, " %016" PRIx64, *((uint64_t *)&env->fpr[i]));
         if ((i & (RFPL - 1)) == (RFPL - 1))
             cpu_fprintf(f, "\n");
     }

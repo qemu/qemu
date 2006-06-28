@@ -50,6 +50,10 @@ typedef void VncSendHextileTile(VncState *vs,
                                 uint32_t *last_fg,
                                 int *has_bg, int *has_fg);
 
+#define VNC_MAX_WIDTH 2048
+#define VNC_MAX_HEIGHT 2048
+#define VNC_DIRTY_WORDS (VNC_MAX_WIDTH / (16 * 32))
+
 struct VncState
 {
     QEMUTimer *timer;
@@ -59,7 +63,7 @@ struct VncState
     int need_update;
     int width;
     int height;
-    uint64_t dirty_row[768];
+    uint32_t dirty_row[VNC_MAX_HEIGHT][VNC_DIRTY_WORDS];
     char *old_data;
     int depth; /* internal VNC frame buffer byte per pixel */
     int has_resize;
@@ -95,6 +99,47 @@ static void vnc_flush(VncState *vs);
 static void vnc_update_client(void *opaque);
 static void vnc_client_read(void *opaque);
 
+static inline void vnc_set_bit(uint32_t *d, int k)
+{
+    d[k >> 5] |= 1 << (k & 0x1f);
+}
+
+static inline void vnc_clear_bit(uint32_t *d, int k)
+{
+    d[k >> 5] &= ~(1 << (k & 0x1f));
+}
+
+static inline void vnc_set_bits(uint32_t *d, int n, int nb_words)
+{
+    int j;
+
+    j = 0;
+    while (n >= 32) {
+        d[j++] = -1;
+        n -= 32;
+    }
+    if (n > 0) 
+        d[j++] = (1 << n) - 1;
+    while (j < nb_words)
+        d[j++] = 0;
+}
+
+static inline int vnc_get_bit(const uint32_t *d, int k)
+{
+    return (d[k >> 5] >> (k & 0x1f)) & 1;
+}
+
+static inline int vnc_and_bits(const uint32_t *d1, const uint32_t *d2, 
+                               int nb_words)
+{
+    int i;
+    for(i = 0; i < nb_words; i++) {
+        if ((d1[i] & d2[i]) != 0)
+            return 1;
+    }
+    return 0;
+}
+
 static void vnc_dpy_update(DisplayState *ds, int x, int y, int w, int h)
 {
     VncState *vs = ds->opaque;
@@ -104,7 +149,7 @@ static void vnc_dpy_update(DisplayState *ds, int x, int y, int w, int h)
 
     for (; y < h; y++)
 	for (i = 0; i < w; i += 16)
-	    vs->dirty_row[y] |= (1ULL << ((x + i) / 16));
+	    vnc_set_bit(vs->dirty_row[y], (x + i) / 16);
 }
 
 static void vnc_framebuffer_update(VncState *vs, int x, int y, int w, int h,
@@ -316,10 +361,10 @@ static int find_dirty_height(VncState *vs, int y, int last_x, int x)
 
     for (h = 1; h < (vs->height - y); h++) {
 	int tmp_x;
-	if (!(vs->dirty_row[y + h] & (1ULL << last_x)))
+	if (!vnc_get_bit(vs->dirty_row[y + h], last_x))
 	    break;
 	for (tmp_x = last_x; tmp_x < x; tmp_x++)
-	    vs->dirty_row[y + h] &= ~(1ULL << tmp_x);
+	    vnc_clear_bit(vs->dirty_row[y + h], tmp_x);
     }
 
     return h;
@@ -333,15 +378,12 @@ static void vnc_update_client(void *opaque)
 	int y;
 	char *row;
 	char *old_row;
-	uint64_t width_mask;
+	uint32_t width_mask[VNC_DIRTY_WORDS];
 	int n_rectangles;
 	int saved_offset;
 	int has_dirty = 0;
 
-	width_mask = (1ULL << (vs->width / 16)) - 1;
-
-	if (vs->width == 1024)
-	    width_mask = ~(0ULL);
+        vnc_set_bits(width_mask, (vs->width / 16), VNC_DIRTY_WORDS);
 
 	/* Walk through the dirty map and eliminate tiles that
 	   really aren't dirty */
@@ -349,7 +391,7 @@ static void vnc_update_client(void *opaque)
 	old_row = vs->old_data;
 
 	for (y = 0; y < vs->height; y++) {
-	    if (vs->dirty_row[y] & width_mask) {
+	    if (vnc_and_bits(vs->dirty_row[y], width_mask, VNC_DIRTY_WORDS)) {
 		int x;
 		char *ptr, *old_ptr;
 
@@ -358,7 +400,7 @@ static void vnc_update_client(void *opaque)
 
 		for (x = 0; x < vs->ds->width; x += 16) {
 		    if (memcmp(old_ptr, ptr, 16 * vs->depth) == 0) {
-			vs->dirty_row[y] &= ~(1ULL << (x / 16));
+			vnc_clear_bit(vs->dirty_row[y], (x / 16));
 		    } else {
 			has_dirty = 1;
 			memcpy(old_ptr, ptr, 16 * vs->depth);
@@ -389,11 +431,11 @@ static void vnc_update_client(void *opaque)
 	    int x;
 	    int last_x = -1;
 	    for (x = 0; x < vs->width / 16; x++) {
-		if (vs->dirty_row[y] & (1ULL << x)) {
+		if (vnc_get_bit(vs->dirty_row[y], x)) {
 		    if (last_x == -1) {
 			last_x = x;
 		    }
-		    vs->dirty_row[y] &= ~(1ULL << x);
+		    vnc_clear_bit(vs->dirty_row[y], x);
 		} else {
 		    if (last_x != -1) {
 			int h = find_dirty_height(vs, y, last_x, x);
@@ -688,10 +730,8 @@ static void framebuffer_update_request(VncState *vs, int incremental,
 	char *old_row = vs->old_data + y_position * vs->ds->linesize;
 
 	for (i = 0; i < h; i++) {
-	    vs->dirty_row[y_position + i] = (1ULL << (vs->ds->width / 16)) - 1;
-	    if (vs->ds->width == 1024) {
-	      vs->dirty_row[y_position + i] = ~(0ULL);
-	    }
+            vnc_set_bits(vs->dirty_row[y_position + i], 
+                         (vs->ds->width / 16), VNC_DIRTY_WORDS);
 	    memset(old_row, 42, vs->ds->width * vs->depth);
 	    old_row += vs->ds->linesize;
 	}

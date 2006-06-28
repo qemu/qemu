@@ -163,7 +163,7 @@ static inline int seek_to_sector(BlockDriverState *bs, int64_t sector_num)
     bitmap_offset = 512 * s->pagetable[pagetable_index];
     block_offset = bitmap_offset + 512 + (512 * pageentry_index);
     
-//    printf("sector: %llx, index: %x, offset: %x, bioff: %llx, bloff: %llx\n",
+//    printf("sector: %" PRIx64 ", index: %x, offset: %x, bioff: %" PRIx64 ", bloff: %" PRIx64 "\n",
 //	sector_num, pagetable_index, pageentry_index,
 //	bitmap_offset, block_offset);
 

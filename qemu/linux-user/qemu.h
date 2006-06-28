@@ -18,6 +18,7 @@
 struct image_info {
 	unsigned long	start_code;
 	unsigned long	end_code;
+        unsigned long   start_data;
 	unsigned long	end_data;
 	unsigned long	start_brk;
 	unsigned long	brk;
@@ -25,11 +26,9 @@ struct image_info {
 	unsigned long	mmap;
 	unsigned long	rss;
 	unsigned long	start_stack;
-	unsigned long	arg_start;
-	unsigned long	arg_end;
-	unsigned long	env_start;
-	unsigned long	env_end;
 	unsigned long	entry;
+        target_ulong    code_offset;
+        target_ulong    data_offset;
 	int		personality;
 };
 
@@ -76,15 +75,50 @@ typedef struct TaskState {
     uint32_t v86mask;
 #endif
     int used; /* non zero if used */
+    struct image_info *info;
     uint8_t stack[0];
 } __attribute__((aligned(16))) TaskState;
 
 extern TaskState *first_task_state;
 extern const char *qemu_uname_release;
 
-int elf_exec(const char * filename, char ** argv, char ** envp, 
+/* ??? See if we can avoid exposing so much of the loader internals.  */
+/*
+ * MAX_ARG_PAGES defines the number of pages allocated for arguments
+ * and envelope for the new program. 32 should suffice, this gives
+ * a maximum env+arg of 128kB w/4KB pages!
+ */
+#define MAX_ARG_PAGES 32
+
+/*
+ * This structure is used to hold the arguments that are 
+ * used when loading binaries.
+ */
+struct linux_binprm {
+        char buf[128];
+        void *page[MAX_ARG_PAGES];
+        unsigned long p;
+	int fd;
+        int e_uid, e_gid;
+        int argc, envc;
+        char **argv;
+        char **envp;
+        char * filename;        /* Name of binary */
+};
+
+void do_init_thread(struct target_pt_regs *regs, struct image_info *infop);
+target_ulong loader_build_argptr(int envc, int argc, target_ulong sp,
+                                 target_ulong stringp, int push_ptr);
+int loader_exec(const char * filename, char ** argv, char ** envp, 
              struct target_pt_regs * regs, struct image_info *infop);
 
+int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
+                    struct image_info * info);
+int load_flt_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
+                    struct image_info * info);
+
+void memcpy_to_target(target_ulong dest, const void *src,
+                      unsigned long len);
 void target_set_brk(target_ulong new_brk);
 long do_brk(target_ulong new_brk);
 void syscall_init(void);

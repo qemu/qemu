@@ -35,7 +35,10 @@
 #include <linux/unistd.h>
 #include <linux/version.h>
 
-_syscall3(int, modify_ldt, int, func, void *, ptr, unsigned long, bytecount)
+int modify_ldt(int func, void *ptr, unsigned long bytecount)
+{
+	return syscall(__NR_modify_ldt, func, ptr, bytecount);
+}
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 66)
 #define modify_ldt_ldt_s user_desc
@@ -261,11 +264,11 @@ void cpu_dump_state(CPUState *env, FILE *f,
 #ifdef TARGET_X86_64
     if (env->hflags & HF_CS64_MASK) {
         cpu_fprintf(f, 
-                    "RAX=%016llx RBX=%016llx RCX=%016llx RDX=%016llx\n"
-                    "RSI=%016llx RDI=%016llx RBP=%016llx RSP=%016llx\n"
-                    "R8 =%016llx R9 =%016llx R10=%016llx R11=%016llx\n"
-                    "R12=%016llx R13=%016llx R14=%016llx R15=%016llx\n"
-                    "RIP=%016llx RFL=%08x [%c%c%c%c%c%c%c] CPL=%d II=%d A20=%d HLT=%d\n",
+                    "RAX=%016" PRIx64 " RBX=%016" PRIx64 " RCX=%016" PRIx64 " RDX=%016" PRIx64 "\n"
+                    "RSI=%016" PRIx64 " RDI=%016" PRIx64 " RBP=%016" PRIx64 " RSP=%016" PRIx64 "\n"
+                    "R8 =%016" PRIx64 " R9 =%016" PRIx64 " R10=%016" PRIx64 " R11=%016" PRIx64 "\n"
+                    "R12=%016" PRIx64 " R13=%016" PRIx64 " R14=%016" PRIx64 " R15=%016" PRIx64 "\n"
+                    "RIP=%016" PRIx64 " RFL=%08x [%c%c%c%c%c%c%c] CPL=%d II=%d A20=%d HLT=%d\n",
                     env->regs[R_EAX], 
                     env->regs[R_EBX], 
                     env->regs[R_ECX], 
@@ -326,28 +329,28 @@ void cpu_dump_state(CPUState *env, FILE *f,
     if (env->hflags & HF_LMA_MASK) {
         for(i = 0; i < 6; i++) {
             SegmentCache *sc = &env->segs[i];
-            cpu_fprintf(f, "%s =%04x %016llx %08x %08x\n",
+            cpu_fprintf(f, "%s =%04x %016" PRIx64 " %08x %08x\n",
                         seg_name[i],
                         sc->selector,
                         sc->base,
                         sc->limit,
                         sc->flags);
         }
-        cpu_fprintf(f, "LDT=%04x %016llx %08x %08x\n",
+        cpu_fprintf(f, "LDT=%04x %016" PRIx64 " %08x %08x\n",
                     env->ldt.selector,
                     env->ldt.base,
                     env->ldt.limit,
                     env->ldt.flags);
-        cpu_fprintf(f, "TR =%04x %016llx %08x %08x\n",
+        cpu_fprintf(f, "TR =%04x %016" PRIx64 " %08x %08x\n",
                     env->tr.selector,
                     env->tr.base,
                     env->tr.limit,
                     env->tr.flags);
-        cpu_fprintf(f, "GDT=     %016llx %08x\n",
+        cpu_fprintf(f, "GDT=     %016" PRIx64 " %08x\n",
                     env->gdt.base, env->gdt.limit);
-        cpu_fprintf(f, "IDT=     %016llx %08x\n",
+        cpu_fprintf(f, "IDT=     %016" PRIx64 " %08x\n",
                     env->idt.base, env->idt.limit);
-        cpu_fprintf(f, "CR0=%08x CR2=%016llx CR3=%016llx CR4=%08x\n",
+        cpu_fprintf(f, "CR0=%08x CR2=%016" PRIx64 " CR3=%016" PRIx64 " CR4=%08x\n",
                     (uint32_t)env->cr[0], 
                     env->cr[2], 
                     env->cr[3], 
@@ -391,7 +394,7 @@ void cpu_dump_state(CPUState *env, FILE *f,
             snprintf(cc_op_name, sizeof(cc_op_name), "[%d]", env->cc_op);
 #ifdef TARGET_X86_64
         if (env->hflags & HF_CS64_MASK) {
-            cpu_fprintf(f, "CCS=%016llx CCD=%016llx CCO=%-8s\n",
+            cpu_fprintf(f, "CCS=%016" PRIx64 " CCD=%016" PRIx64 " CCO=%-8s\n",
                         env->cc_src, env->cc_dst, 
                         cc_op_name);
         } else 
@@ -424,10 +427,10 @@ void cpu_dump_state(CPUState *env, FILE *f,
                 } l;
             } tmp;
             tmp.d = env->fpregs[i].d;
-            cpu_fprintf(f, "FPR%d=%016llx %04x",
+            cpu_fprintf(f, "FPR%d=%016" PRIx64 " %04x",
                         i, tmp.l.lower, tmp.l.upper);
 #else
-            cpu_fprintf(f, "FPR%d=%016llx",
+            cpu_fprintf(f, "FPR%d=%016" PRIx64,
                         i, env->fpregs[i].mmx.q);
 #endif
             if ((i & 1) == 1)

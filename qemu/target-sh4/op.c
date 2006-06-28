@@ -109,17 +109,15 @@ void OPPROTO op_not_T0(void)
 
 void OPPROTO op_bf_s(void)
 {
-    T2 = ~env->sr;
     env->delayed_pc = PARAM1;
-    set_flag(DELAY_SLOT_CONDITIONAL);
+    set_flag(DELAY_SLOT_CONDITIONAL | ((~env->sr) & SR_T));
     RETURN();
 }
 
 void OPPROTO op_bt_s(void)
 {
-    T2 = env->sr;
     env->delayed_pc = PARAM1;
-    set_flag(DELAY_SLOT_CONDITIONAL);
+    set_flag(DELAY_SLOT_CONDITIONAL | (env->sr & SR_T));
     RETURN();
 }
 
@@ -225,6 +223,18 @@ void OPPROTO op_sets(void)
 void OPPROTO op_sett(void)
 {
     env->sr |= SR_T;
+    RETURN();
+}
+
+void OPPROTO op_frchg(void)
+{
+    env->fpscr ^= FPSCR_FR;
+    RETURN();
+}
+
+void OPPROTO op_fschg(void)
+{
+    env->fpscr ^= FPSCR_SZ;
     RETURN();
 }
 
@@ -465,6 +475,18 @@ void OPPROTO op_ldcl_rMplus_rN_bank(void)
     RETURN();
 }
 
+void OPPROTO op_ldc_T0_sr(void)
+{
+    env->sr = T0 & 0x700083f3;
+    RETURN();
+}
+
+void OPPROTO op_stc_sr_T0(void)
+{
+    T0 = env->sr;
+    RETURN();
+}
+
 #define LDSTOPS(target,load,store) \
 void OPPROTO op_##load##_T0_##target (void) \
 { env ->target = T0;   RETURN(); \
@@ -473,7 +495,6 @@ void OPPROTO op_##store##_##target##_T0 (void) \
 { T0 = env->target;   RETURN(); \
 } \
 
-LDSTOPS(sr, ldc, stc)
     LDSTOPS(gbr, ldc, stc)
     LDSTOPS(vbr, ldc, stc)
     LDSTOPS(ssr, ldc, stc)
@@ -483,6 +504,19 @@ LDSTOPS(sr, ldc, stc)
     LDSTOPS(mach, lds, sts)
     LDSTOPS(macl, lds, sts)
     LDSTOPS(pr, lds, sts)
+    LDSTOPS(fpul, lds, sts)
+
+void OPPROTO op_lds_T0_fpscr(void)
+{
+    env->fpscr = T0 & 0x003fffff;
+    RETURN();
+}
+
+void OPPROTO op_sts_fpscr_T0(void)
+{
+    T0 = env->fpscr & 0x003fffff;
+    RETURN();
+}
 
 void OPPROTO op_movt_rN(void)
 {
@@ -659,6 +693,30 @@ void OPPROTO op_movl_imm_rN(void)
     RETURN();
 }
 
+void OPPROTO op_fmov_frN_FT0(void)
+{
+    FT0 = *(float32 *)&env->fregs[PARAM1];
+    RETURN();
+}
+
+void OPPROTO op_fmov_drN_DT0(void)
+{
+    DT0 = *(float64 *)&env->fregs[PARAM1];
+    RETURN();
+}
+
+void OPPROTO op_fmov_FT0_frN(void)
+{
+    *(float32 *)&env->fregs[PARAM1] = FT0;
+    RETURN();
+}
+
+void OPPROTO op_fmov_DT0_drN(void)
+{
+    *(float64 *)&env->fregs[PARAM1] = DT0;
+    RETURN();
+}
+
 void OPPROTO op_dec1_rN(void)
 {
     env->gregs[PARAM1] -= 1;
@@ -677,6 +735,12 @@ void OPPROTO op_dec4_rN(void)
     RETURN();
 }
 
+void OPPROTO op_dec8_rN(void)
+{
+    env->gregs[PARAM1] -= 4;
+    RETURN();
+}
+
 void OPPROTO op_inc1_rN(void)
 {
     env->gregs[PARAM1] += 1;
@@ -690,6 +754,12 @@ void OPPROTO op_inc2_rN(void)
 }
 
 void OPPROTO op_inc4_rN(void)
+{
+    env->gregs[PARAM1] += 4;
+    RETURN();
+}
+
+void OPPROTO op_inc8_rN(void)
 {
     env->gregs[PARAM1] += 4;
     RETURN();
@@ -779,6 +849,18 @@ void OPPROTO op_movl_T0_T1(void)
     RETURN();
 }
 
+void OPPROTO op_movl_fpul_FT0(void)
+{
+    FT0 = *(float32 *)&env->fpul;
+    RETURN();
+}
+
+void OPPROTO op_movl_FT0_fpul(void)
+{
+    *(float32 *)&env->fpul = FT0;
+    RETURN();
+}
+
 void OPPROTO op_goto_tb0(void)
 {
     GOTO_TB(op_goto_tb0, PARAM1, 0);
@@ -804,9 +886,12 @@ void OPPROTO op_jT(void)
     RETURN();
 }
 
-void OPPROTO op_jTT2(void)
+void OPPROTO op_jdelayed(void)
 {
-    if (T2 & SR_T)
+    uint32_t flags;
+    flags = env->flags;
+    env->flags &= ~(DELAY_SLOT | DELAY_SLOT_CONDITIONAL);
+    if (flags & DELAY_SLOT)
 	GOTO_LABEL_PARAM(1);
     RETURN();
 }

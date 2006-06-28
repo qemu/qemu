@@ -426,6 +426,12 @@ static void vmdk_close(BlockDriverState *bs)
     close(s->fd);
 }
 
+static void vmdk_flush(BlockDriverState *bs)
+{
+    BDRVVmdkState *s = bs->opaque;
+    fsync(s->fd);
+}
+
 BlockDriver bdrv_vmdk = {
     "vmdk",
     sizeof(BDRVVmdkState),
@@ -435,5 +441,6 @@ BlockDriver bdrv_vmdk = {
     vmdk_write,
     vmdk_close,
     vmdk_create,
+    vmdk_flush,
     vmdk_is_allocated,
 };

@@ -1196,7 +1196,7 @@ void get_reloc_expr(char *name, int name_size, const char *sym_name)
     } else {
 #ifdef HOST_SPARC
         if (sym_name[0] == '.')
-            snprintf(name, sizeof(name),
+            snprintf(name, name_size,
                      "(long)(&__dot_%s)",
                      sym_name + 1);
         else
@@ -1440,6 +1440,12 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
     }
 #elif defined(HOST_SPARC)
     {
+#define INSN_SAVE       0x9de3a000
+#define INSN_RET        0x81c7e008
+#define INSN_RESTORE    0x81e80000
+#define INSN_RETURN     0x81cfe008
+#define INSN_NOP        0x01000000
+
         uint32_t start_insn, end_insn1, end_insn2;
         uint8_t *p;
         p = (void *)(p_end - 8);
@@ -1448,12 +1454,17 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
         start_insn = get32((uint32_t *)(p_start + 0x0));
         end_insn1 = get32((uint32_t *)(p + 0x0));
         end_insn2 = get32((uint32_t *)(p + 0x4));
-        if ((start_insn & ~0x1fff) == 0x9de3a000) {
+        if ((start_insn & ~0x1fff) == INSN_SAVE) {
             p_start += 0x4;
             start_offset += 0x4;
             if ((int)(start_insn | ~0x1fff) < -128)
                 error("Found bogus save at the start of %s", name);
-            if (end_insn1 != 0x81c7e008 || end_insn2 != 0x81e80000)
+            if (end_insn1 == INSN_RET && end_insn2 == INSN_RESTORE)
+                /* SPARC v7: ret; restore; */ ;
+            else if (end_insn1 == INSN_RETURN && end_insn2 == INSN_NOP)
+                /* SPARC v9: return; nop; */ ;
+            else
+
                 error("ret; restore; not found at end of %s", name);
         } else {
             error("No save at the beginning of %s", name);
@@ -1462,7 +1473,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
         /* Skip a preceeding nop, if present.  */
         if (p > p_start) {
             skip_insn = get32((uint32_t *)(p - 0x4));
-            if (skip_insn == 0x01000000)
+            if (skip_insn == INSN_NOP)
                 p -= 4;
         }
 #endif
@@ -2151,6 +2162,18 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 				    reloc_offset, reloc_offset, name, addend,
 				    reloc_offset);
 			    break;
+                        case R_SPARC_WDISP22:
+                            fprintf(outfile,
+                                    "    *(uint32_t *)(gen_code_ptr + %d) = "
+                                    "((*(uint32_t *)(gen_code_ptr + %d)) "
+                                    " & ~0x3fffff) "
+                                    " | ((((%s + %d) - (long)(gen_code_ptr + %d))>>2) "
+                                    "    & 0x3fffff);\n",
+                                    rel->r_offset - start_offset,
+                                    rel->r_offset - start_offset,
+                                    name, addend,
+                                    rel->r_offset - start_offset);
+                            break;
                         default:
                             error("unsupported sparc relocation (%d)", type);
                         }

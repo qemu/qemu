@@ -2905,6 +2905,7 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
             break;
         case 0xc4: /* pinsrw */
         case 0x1c4: 
+            s->rip_offset = 1;
             gen_ldst_modrm(s, modrm, OT_WORD, OR_TMP0, 0);
             val = ldub_code(s->pc++);
             if (b1) {
@@ -2945,16 +2946,16 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
             break;
         case 0x2d6: /* movq2dq */
             gen_op_enter_mmx();
-            rm = (modrm & 7) | REX_B(s);
-            gen_op_movq(offsetof(CPUX86State,xmm_regs[rm].XMM_Q(0)),
-                        offsetof(CPUX86State,fpregs[reg & 7].mmx));
-            gen_op_movq_env_0(offsetof(CPUX86State,xmm_regs[rm].XMM_Q(1)));
+            rm = (modrm & 7);
+            gen_op_movq(offsetof(CPUX86State,xmm_regs[reg].XMM_Q(0)),
+                        offsetof(CPUX86State,fpregs[rm].mmx));
+            gen_op_movq_env_0(offsetof(CPUX86State,xmm_regs[reg].XMM_Q(1)));
             break;
         case 0x3d6: /* movdq2q */
             gen_op_enter_mmx();
-            rm = (modrm & 7);
-            gen_op_movq(offsetof(CPUX86State,fpregs[rm].mmx),
-                        offsetof(CPUX86State,xmm_regs[reg].XMM_Q(0)));
+            rm = (modrm & 7) | REX_B(s);
+            gen_op_movq(offsetof(CPUX86State,fpregs[reg & 7].mmx),
+                        offsetof(CPUX86State,xmm_regs[rm].XMM_Q(0)));
             break;
         case 0xd7: /* pmovmskb */
         case 0x1d7:
@@ -2975,7 +2976,8 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
         }
     } else {
         /* generic MMX or SSE operation */
-        if (b == 0xf7) {
+        switch(b) {
+        case 0xf7:
             /* maskmov : we must prepare A0 */
             if (mod != 3) 
                 goto illegal_op;
@@ -2990,13 +2992,21 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
                     gen_op_andl_A0_ffff();
             }
             gen_add_A0_ds_seg(s);
+            break;
+        case 0x70: /* pshufx insn */
+        case 0xc6: /* pshufx insn */
+        case 0xc2: /* compare insns */
+            s->rip_offset = 1;
+            break;
+        default:
+            break;
         }
         if (is_xmm) {
             op1_offset = offsetof(CPUX86State,xmm_regs[reg]);
             if (mod != 3) {
                 gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
                 op2_offset = offsetof(CPUX86State,xmm_t0);
-                if (b1 >= 2 && ((b >= 0x50 && b <= 0x5f) ||
+                if (b1 >= 2 && ((b >= 0x50 && b <= 0x5f && b != 0x5b) ||
                                 b == 0xc2)) {
                     /* specific case for SSE single instructions */
                     if (b1 == 2) {

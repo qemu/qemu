@@ -61,6 +61,12 @@ void glue(op_lw, MEMSUFFIX) (void)
     RETURN();
 }
 
+void glue(op_lwu, MEMSUFFIX) (void)
+{
+    T0 = glue(ldl, MEMSUFFIX)(T0);
+    RETURN();
+}
+
 void glue(op_sw, MEMSUFFIX) (void)
 {
     glue(stl, MEMSUFFIX)(T0, T1);
@@ -118,3 +124,26 @@ void glue(op_sc, MEMSUFFIX) (void)
     }
     RETURN();
 }
+
+#ifdef MIPS_USES_FPU
+void glue(op_lwc1, MEMSUFFIX) (void)
+{
+    WT0 = glue(ldl, MEMSUFFIX)(T0);
+    RETURN();
+}
+void glue(op_swc1, MEMSUFFIX) (void)
+{
+    glue(stl, MEMSUFFIX)(T0, WT0);
+    RETURN();
+}
+void glue(op_ldc1, MEMSUFFIX) (void)
+{
+    DT0 = glue(ldq, MEMSUFFIX)(T0);
+    RETURN();
+}
+void glue(op_sdc1, MEMSUFFIX) (void)
+{
+    glue(stq, MEMSUFFIX)(T0, DT0);
+    RETURN();
+}
+#endif
