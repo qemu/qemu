@@ -1553,6 +1553,10 @@ int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
     printf("tlb_set_page: vaddr=" TARGET_FMT_lx " paddr=0x%08x prot=%x u=%d smmu=%d pd=0x%08lx\n",
            vaddr, (int)paddr, prot, is_user, is_softmmu, pd);
 #endif
+if ((pd & IO_MEM_ROMD)) {
+    //~ printf("%s: vaddr=" TARGET_FMT_lx " paddr=0x%08x prot=%x u=%d smmu=%d pd=0x%08lx\n",
+           //~ __func__, vaddr, (int)paddr, prot, is_user, is_softmmu, pd);
+}
 
     ret = 0;
 #if !defined(CONFIG_SOFTMMU)
@@ -1584,6 +1588,10 @@ int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
             te->addr_code = -1;
         }
         if (prot & PAGE_WRITE) {
+if ((pd & IO_MEM_ROMD)) {
+    printf("%s: vaddr=" TARGET_FMT_lx " paddr=0x%08x addr_write=0x%08x prot=%x u=%d pd=0x%08lx\n",
+           __func__, vaddr, (int)paddr, te->addr_write, prot, is_user, pd);
+}
             if ((pd & ~TARGET_PAGE_MASK) == IO_MEM_ROM) {
                 /* ROM: access is ignored (same as unassigned) */
 		printf("write access to ROM at vaddr=0x%08x paddr=0x%08x\n", vaddr, paddr);
@@ -1598,6 +1606,10 @@ int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
             } else {
                 te->addr_write = address;
             }
+if ((pd & IO_MEM_ROMD)) {
+    printf("%s: vaddr=" TARGET_FMT_lx " paddr=0x%08x addr_write=0x%08x prot=%x u=%d pd=0x%08lx\n",
+           __func__, vaddr, (int)paddr, te->addr_write, prot, is_user, pd);
+}
         } else {
             te->addr_write = -1;
         }
@@ -2096,7 +2108,12 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
         } else {
             pd = p->phys_offset;
         }
-        
+
+if ((pd & IO_MEM_ROMD)) {
+    printf("%s: is_write=%d addr=0x%08x pd=0x%08lx\n",
+           __func__, is_write, addr, pd);
+}
+
         if (is_write) {
             if ((pd & ~TARGET_PAGE_MASK) != IO_MEM_RAM) {
                 io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);

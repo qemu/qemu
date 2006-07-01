@@ -188,15 +188,15 @@ static uint32_t io_readl (void *opaque, target_phys_addr_t addr)
 }
 
 static CPUWriteMemoryFunc * const io_write[] = {
-    &io_writeb,
-    &io_writew,
-    &io_writel,
+    io_writeb,
+    io_writew,
+    io_writel,
 };
 
 static CPUReadMemoryFunc * const io_read[] = {
-    &io_readb,
-    &io_readw,
-    &io_readl,
+    io_readb,
+    io_readw,
+    io_readl,
 };
 
 static int bios_load(const char *filename, unsigned long bios_offset, unsigned long address)
@@ -374,6 +374,9 @@ static void mips_ar7_init (int ram_size, int vga_ram_size, int boot_device,
     CPUState *env;
     long kernel_size;
 
+    /* This is an embedded device without VGA. */
+    vga_ram_size = 0;
+
     env = cpu_init();
     /* Typical AR7 systems run in little endian mode. */
     bigendian = env->bigendian = 0;
@@ -472,7 +475,7 @@ static void mips_ar7_init (int ram_size, int vga_ram_size, int boot_device,
     cpu_mips_irqctrl_init();
 
     ar7_init(env);
-#if defined(CONFIG_SDL)
+#if defined(CONFIG_SDL) && 0 // no VGA for embedded device
     vga_initialize(NULL, ds, phys_ram_base + ram_size, ram_size, 
                    vga_ram_size, 0, 0);
 #endif

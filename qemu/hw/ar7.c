@@ -990,16 +990,16 @@ static uint32_t io_readl (void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static CPUWriteMemoryFunc *io_write[] = {
-    &io_writeb,
-    &io_writew,
-    &io_writel,
+static CPUWriteMemoryFunc * const io_write[] = {
+    io_writeb,
+    io_writew,
+    io_writel,
 };
 
-static CPUReadMemoryFunc *io_read[] = {
-    &io_readb,
-    &io_readw,
-    &io_readl,
+static CPUReadMemoryFunc * const io_read[] = {
+    io_readb,
+    io_readw,
+    io_readl,
 };
 
 static void ar7_serial_init(CPUState *env)
@@ -1214,4 +1214,29 @@ static void ar7_machine_power_off(void)
 ./include/asm-mips/ar7/tnetd73xx.h:#define TNETD73XX_CLK_CTRL_ACLKPLLCR0       (TNETD73XX_CLOCK_CTRL_BASE + 0x90)
 ./include/asm-mips/ar7/tnetd73xx.h:#define TNETD73XX_CLK_CTRL_ACLKCR1          (TNETD73XX_CLOCK_CTRL_BASE + 0xA0)
 ./include/asm-mips/ar7/tnetd73xx.h:#define TNETD73XX_CLK_CTRL_ACLKPLLCR1       (TNETD73XX_CLOCK_CTRL_BASE + 0xB0)
+
+
+Num Type           Disp Enb Address    What
+2   breakpoint     keep y   0x08074592 in pflash_register
+                                       at /home/stefan/public_html/ar7-firmware.berlios.de/qemu/trunk/qemu/hw/pflash_cfi02.c:533
+        breakpoint already hit 2 times
+3   breakpoint     keep y   0x0808e86f in cpu_register_io_memory
+                                       at /home/stefan/public_html/ar7-firmware.berlios.de/qemu/trunk/qemu/exec.c:2026
+        breakpoint already hit 12 times
+4   breakpoint     keep y   0x0808e584 in unassigned_mem_readb
+                                       at /home/stefan/public_html/ar7-firmware.berlios.de/qemu/trunk/qemu/exec.c:1892
+5   breakpoint     keep y   0x0808e58e in unassigned_mem_writeb
+                                       at /home/stefan/public_html/ar7-firmware.berlios.de/qemu/trunk/qemu/exec.c:1896
+6   breakpoint     keep y   0x08074481 in pflash_writeb
+                                       at /home/stefan/public_html/ar7-firmware.berlios.de/qemu/trunk/qemu/hw/pflash_cfi02.c:459
+7   breakpoint     keep y   0x080744aa in pflash_writew
+                                       at /home/stefan/public_html/ar7-firmware.berlios.de/qemu/trunk/qemu/hw/pflash_cfi02.c:465
+8   breakpoint     keep y   0x080744d9 in pflash_writel
+                                       at /home/stefan/public_html/ar7-firmware.berlios.de/qemu/trunk/qemu/hw/pflash_cfi02.c:473
+10  breakpoint     keep y   0x0808e9b8 in cpu_physical_memory_rw
+                                       at /home/stefan/public_html/ar7-firmware.berlios.de/qemu/trunk/qemu/exec.c:2113
+11  breakpoint     keep y   0x0808e385 in tlb_set_page_exec at /home/stefan/public_html/ar7-firmware.berlios.de/qemu/trunk/qemu/exec.c:1592
+        breakpoint already hit 2 times
+
+ vga.c: nicht anmelden!
 #endif
