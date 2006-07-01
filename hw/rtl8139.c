@@ -2833,7 +2833,7 @@ void pci_rtl8139_init(PCIBus *bus, NICInfo *nd)
     pci_conf[0x02] = 0x39;
     pci_conf[0x03] = 0x81;
     pci_conf[0x04] = 0x05; /* command = I/O space, Bus Master */
-    pci_conf[0x08] = 0x20; /* 0x10 */ /* PCI revision ID; >=0x20 is for 8139C+ */
+    pci_conf[0x08] = 0x10; /* 0x10 */ /* PCI revision ID; >=0x20 is for 8139C+ */
     pci_conf[0x0a] = 0x00; /* ethernet network controller */
     pci_conf[0x0b] = 0x02;
     pci_conf[0x0e] = 0x00; /* header_type */
