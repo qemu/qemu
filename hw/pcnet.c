@@ -29,11 +29,6 @@
  
 #include "vl.h"
 
-/* XXX: suppress those headers */
-#include <sys/times.h>
-#include <arpa/inet.h>
-#include <net/ethernet.h>
-
 //#define PCNET_DEBUG
 //#define PCNET_DEBUG_IO
 //#define PCNET_DEBUG_BCR
@@ -69,6 +64,12 @@ struct PCNetState_st {
 #else
 #error FixMe
 #endif
+
+struct qemu_ether_header {
+    uint8_t ether_dhost[6];
+    uint8_t ether_shost[6];
+    uint16_t ether_type;
+};
 
 /* BUS CONFIGURATION REGISTERS */
 #define BCR_MSRDA    0
@@ -441,7 +442,7 @@ static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd, target_
 #endif
 
 #define PRINT_PKTHDR(BUF) do {                  \
-    struct ether_header *hdr = (void *)(BUF);   \
+    struct qemu_ether_header *hdr = (void *)(BUF);   \
     printf("packet dhost=%02x:%02x:%02x:%02x:%02x:%02x, "       \
            "shost=%02x:%02x:%02x:%02x:%02x:%02x, "              \
            "type=0x%04x (bcast=%d)\n",                          \
@@ -449,7 +450,7 @@ static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd, target_
            hdr->ether_dhost[3],hdr->ether_dhost[4],hdr->ether_dhost[5], \
            hdr->ether_shost[0],hdr->ether_shost[1],hdr->ether_shost[2], \
            hdr->ether_shost[3],hdr->ether_shost[4],hdr->ether_shost[5], \
-           htons(hdr->ether_type),                                      \
+           be16_to_cpu(hdr->ether_type),                                \
            !!ETHER_IS_MULTICAST(hdr->ether_dhost));                     \
 } while (0)
 
@@ -462,7 +463,7 @@ static inline uint32_t lnc_mchash(const uint8_t *ether_addr)
     int idx, bit;
     uint8_t data;
 
-    for (idx = 0; idx < ETHER_ADDR_LEN; idx++) {
+    for (idx = 0; idx < 6; idx++) {
         for (data = *ether_addr++, bit = 0; bit < MULTICAST_FILTER_LEN; bit++) {
             crc = (crc >> 1) ^ (((crc ^ data) & 1) ? LNC_POLYNOMIAL : 0);
             data >>= 1;
@@ -547,7 +548,7 @@ static const uint32_t crctab[256] = {
 
 static inline int padr_match(PCNetState *s, const uint8_t *buf, int size)
 {
-    struct ether_header *hdr = (void *)buf;
+    struct qemu_ether_header *hdr = (void *)buf;
     uint8_t padr[6] = { 
         s->csr[12] & 0xff, s->csr[12] >> 8,
         s->csr[13] & 0xff, s->csr[13] >> 8,
@@ -568,7 +569,7 @@ static inline int padr_match(PCNetState *s, const uint8_t *buf, int size)
 static inline int padr_bcast(PCNetState *s, const uint8_t *buf, int size)
 {
     static uint8_t BCAST[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
-    struct ether_header *hdr = (void *)buf;
+    struct qemu_ether_header *hdr = (void *)buf;
     int result = !CSR_DRCVBC(s) && !bcmp(hdr->ether_dhost, BCAST, 6);
 #ifdef PCNET_DEBUG_MATCH
     printf("padr_bcast result=%d\n", result);
@@ -578,7 +579,7 @@ static inline int padr_bcast(PCNetState *s, const uint8_t *buf, int size)
 
 static inline int ladr_match(PCNetState *s, const uint8_t *buf, int size)
 {
-    struct ether_header *hdr = (void *)buf;
+    struct qemu_ether_header *hdr = (void *)buf;
     if ((*(hdr->ether_dhost)&0x01) && 
         ((uint64_t *)&s->csr[8])[0] != 0LL) {
         uint8_t ladr[8] = { 
@@ -993,17 +994,18 @@ static void pcnet_receive(void *opaque, const uint8_t *buf, int size)
 
             memcpy(src, buf, size);
             
+#if 1
+            /* no need to compute the CRC */
+            src[size] = 0;
+            src[size + 1] = 0;
+            src[size + 2] = 0;
+            src[size + 3] = 0;
+            size += 4;
+#else
             /* XXX: avoid CRC generation */
             if (!CSR_ASTRP_RCV(s)) {
                 uint32_t fcs = ~0;
-#if 0            
-                uint8_t *p = s->buffer;
-                
-                ((uint32_t *)p)[0] = ((uint32_t *)p)[1] = 0xaaaaaaaa;
-                p[7] = 0xab;
-#else
                 uint8_t *p = src;
-#endif
 
                 while (size < 46) {
                     src[size++] = 0;
@@ -1015,6 +1017,7 @@ static void pcnet_receive(void *opaque, const uint8_t *buf, int size)
                 ((uint32_t *)&src[size])[0] = htonl(fcs);
                 size += 4; /* FCS at end of packet */
             } else size += 4;
+#endif
 
 #ifdef PCNET_DEBUG_MATCH
             PRINT_PKTHDR(buf);
