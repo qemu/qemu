@@ -42,9 +42,6 @@
 #ifdef PFLASH_DEBUG
 #define DPRINTF(fmt, args...)                      \
 do {                                               \
-    if (loglevel)                                  \
-        fprintf(logfile, "PFLASH: " fmt , ##args); \
-    else                                           \
         printf("PFLASH: " fmt , ##args);           \
 } while (0)
 #else
@@ -213,7 +210,7 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
     /* WARNING: when the memory area is in ROMD mode, the offset is a
        ram offset, not a physical address */
     if (pfl->wcycle == 0)
-        offset -= pfl->off;
+        offset -= (target_ulong)(long)pfl->storage;
     else
         offset -= pfl->base;
         
