@@ -51,7 +51,7 @@ void NAME (void *opaque, st_sample_t *ibuf, st_sample_t *obuf,
     if (rate->opos_inc == (1ULL + UINT_MAX)) {
         int i, n = *isamp > *osamp ? *osamp : *isamp;
         for (i = 0; i < n; i++) {
-            OP (obuf[i].l, ibuf[i].r);
+            OP (obuf[i].l, ibuf[i].l);
             OP (obuf[i].r, ibuf[i].r);
         }
         *isamp = n;
