@@ -275,8 +275,6 @@ static OSStatus audioDeviceIOProc(
 #endif
     }
 
-    /* cleanup */
-    mixeng_clear (src, frameCount);
     rpos = (rpos + frameCount) % hw->samples;
     core->decr += frameCount;
     core->rpos = rpos;

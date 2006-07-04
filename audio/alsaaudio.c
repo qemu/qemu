@@ -61,8 +61,8 @@ static struct {
     .size_in_usec_in = 1,
     .size_in_usec_out = 1,
 #endif
-    .pcm_name_out = "hw:0,0",
-    .pcm_name_in = "hw:0,0",
+    .pcm_name_out = "default",
+    .pcm_name_in = "default",
 #ifdef HIGH_LATENCY
     .buffer_size_in = 400000,
     .period_size_in = 400000 / 4,
@@ -606,7 +606,6 @@ static int alsa_run_out (HWVoiceOut *hw)
                 }
             }
 
-            mixeng_clear (src, written);
             rpos = (rpos + written) % hw->samples;
             samples -= written;
             len -= written;

@@ -153,13 +153,11 @@ static void fmod_write_sample (HWVoiceOut *hw, uint8_t *dst, int dst_len)
 
     if (src_len1) {
         hw->clip (dst, src1, src_len1);
-        mixeng_clear (src1, src_len1);
     }
 
     if (src_len2) {
         dst = advance (dst, src_len1 << hw->info.shift);
         hw->clip (dst, src2, src_len2);
-        mixeng_clear (src2, src_len2);
     }
 
     hw->rpos = pos % hw->samples;

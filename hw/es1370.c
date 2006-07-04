@@ -479,8 +479,9 @@ static inline uint32_t es1370_fixup (ES1370State *s, uint32_t addr)
 IO_WRITE_PROTO (es1370_writeb)
 {
     ES1370State *s = opaque;
-    addr = es1370_fixup (s, addr);
     uint32_t shift, mask;
+
+    addr = es1370_fixup (s, addr);
 
     switch (addr) {
     case ES1370_REG_CONTROL:

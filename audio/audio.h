@@ -41,6 +41,11 @@ typedef struct {
     audfmt_e fmt;
 } audsettings_t;
 
+struct audio_capture_ops {
+    void (*state) (void *opaque, int enabled);
+    void (*capture) (void *opaque, void *buf, int size);
+};
+
 typedef struct AudioState AudioState;
 typedef struct SWVoiceOut SWVoiceOut;
 typedef struct SWVoiceIn SWVoiceIn;
@@ -66,6 +71,13 @@ AudioState *AUD_init (void);
 void AUD_help (void);
 void AUD_register_card (AudioState *s, const char *name, QEMUSoundCard *card);
 void AUD_remove_card (QEMUSoundCard *card);
+int AUD_add_capture (
+    AudioState *s,
+    audsettings_t *as,
+    int endian,
+    struct audio_capture_ops *ops,
+    void *opaque
+    );
 
 SWVoiceOut *AUD_open_out (
     QEMUSoundCard *card,
@@ -111,7 +123,7 @@ static inline void *advance (void *p, int incr)
 }
 
 uint32_t popcount (uint32_t u);
-inline uint32_t lsbindex (uint32_t u);
+uint32_t lsbindex (uint32_t u);
 
 #ifdef __GNUC__
 #define audio_MIN(a, b) ( __extension__ ({      \

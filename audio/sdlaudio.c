@@ -240,7 +240,6 @@ static void sdl_callback (void *opaque, Uint8 *buf, int len)
 
             /* dolog ("in callback to_mix %d, chunk %d\n", to_mix, chunk); */
             hw->clip (buf, src, chunk);
-            mixeng_clear (src, chunk);
             sdl->rpos = (sdl->rpos + chunk) % hw->samples;
             to_mix -= chunk;
             buf += chunk << hw->info.shift;

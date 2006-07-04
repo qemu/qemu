@@ -81,7 +81,6 @@ static int wav_run_out (HWVoiceOut *hw)
 
         hw->clip (dst, src, convert_samples);
         qemu_put_buffer (wav->f, dst, convert_samples << hw->info.shift);
-        mixeng_clear (src, convert_samples);
 
         rpos = (rpos + convert_samples) % hw->samples;
         samples -= convert_samples;
