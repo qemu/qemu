@@ -453,12 +453,9 @@ static int oss_init_out (HWVoiceOut *hw, audsettings_t *as)
     obt_as.freq = obt.freq;
     obt_as.nchannels = obt.nchannels;
     obt_as.fmt = effective_fmt;
+    obt_as.endianness = endianness;
 
-    audio_pcm_init_info (
-        &hw->info,
-        &obt_as,
-        audio_need_to_swap_endian (endianness)
-        );
+    audio_pcm_init_info (&hw->info, &obt_as);
     oss->nfrags = obt.nfrags;
     oss->fragsize = obt.fragsize;
 
@@ -597,12 +594,9 @@ static int oss_init_in (HWVoiceIn *hw, audsettings_t *as)
     obt_as.freq = obt.freq;
     obt_as.nchannels = obt.nchannels;
     obt_as.fmt = effective_fmt;
+    obt_as.endianness = endianness;
 
-    audio_pcm_init_info (
-        &hw->info,
-        &obt_as,
-        audio_need_to_swap_endian (endianness)
-        );
+    audio_pcm_init_info (&hw->info, &obt_as);
     oss->nfrags = obt.nfrags;
     oss->fragsize = obt.fragsize;
 

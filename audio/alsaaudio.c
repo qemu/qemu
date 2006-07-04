@@ -662,12 +662,9 @@ static int alsa_init_out (HWVoiceOut *hw, audsettings_t *as)
     obt_as.freq = obt.freq;
     obt_as.nchannels = obt.nchannels;
     obt_as.fmt = effective_fmt;
+    obt_as.endianness = endianness;
 
-    audio_pcm_init_info (
-        &hw->info,
-        &obt_as,
-        audio_need_to_swap_endian (endianness)
-        );
+    audio_pcm_init_info (&hw->info, &obt_as);
     hw->samples = obt.samples;
 
     alsa->pcm_buf = audio_calloc (AUDIO_FUNC, obt.samples, 1 << hw->info.shift);
@@ -751,12 +748,9 @@ static int alsa_init_in (HWVoiceIn *hw, audsettings_t *as)
     obt_as.freq = obt.freq;
     obt_as.nchannels = obt.nchannels;
     obt_as.fmt = effective_fmt;
+    obt_as.endianness = endianness;
 
-    audio_pcm_init_info (
-        &hw->info,
-        &obt_as,
-        audio_need_to_swap_endian (endianness)
-        );
+    audio_pcm_init_info (&hw->info, &obt_as);
     hw->samples = obt.samples;
 
     alsa->pcm_buf = audio_calloc (AUDIO_FUNC, hw->samples, 1 << hw->info.shift);

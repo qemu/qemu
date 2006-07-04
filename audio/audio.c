@@ -510,6 +510,18 @@ static void audio_print_settings (audsettings_t *as)
         AUD_log (NULL, "invalid(%d)", as->fmt);
         break;
     }
+    AUD_log (NULL, "endianness=");
+    switch (as->endianness) {
+    case 0:
+        AUD_log (NULL, "little");
+        break;
+    case 1:
+        AUD_log (NULL, "big");
+        break;
+    default:
+        AUD_log (NULL, "invalid");
+        break;
+    }
     AUD_log (NULL, "\n");
 }
 
@@ -518,6 +530,7 @@ static int audio_validate_settigs (audsettings_t *as)
     int invalid;
 
     invalid = as->nchannels != 1 && as->nchannels != 2;
+    invalid |= as->endianness != 0 && as->endianness != 1;
 
     switch (as->fmt) {
     case AUD_FMT_S8:
@@ -531,11 +544,7 @@ static int audio_validate_settigs (audsettings_t *as)
     }
 
     invalid |= as->freq <= 0;
-
-    if (invalid) {
-        return -1;
-    }
-    return 0;
+    return invalid ? -1 : 0;
 }
 
 static int audio_pcm_info_eq (struct audio_pcm_info *info, audsettings_t *as)
@@ -557,14 +566,11 @@ static int audio_pcm_info_eq (struct audio_pcm_info *info, audsettings_t *as)
     return info->freq == as->freq
         && info->nchannels == as->nchannels
         && info->sign == sign
-        && info->bits == bits;
+        && info->bits == bits
+        && info->swap_endianness == (as->endianness != AUDIO_HOST_ENDIANNESS);
 }
 
-void audio_pcm_init_info (
-    struct audio_pcm_info *info,
-    audsettings_t *as,
-    int swap_endian
-    )
+void audio_pcm_init_info (struct audio_pcm_info *info, audsettings_t *as)
 {
     int bits = 8, sign = 0;
 
@@ -588,7 +594,7 @@ void audio_pcm_init_info (
     info->shift = (as->nchannels == 2) + (bits == 16);
     info->align = (1 << info->shift) - 1;
     info->bytes_per_second = info->freq << info->shift;
-    info->swap_endian = swap_endian;
+    info->swap_endianness = (as->endianness != AUDIO_HOST_ENDIANNESS);
 }
 
 void audio_pcm_info_clear_buf (struct audio_pcm_info *info, void *buf, int len)
@@ -610,7 +616,7 @@ void audio_pcm_info_clear_buf (struct audio_pcm_info *info, void *buf, int len)
             int shift = info->nchannels - 1;
             short s = INT16_MAX;
 
-            if (info->swap_endian) {
+            if (info->swap_endianness) {
                 s = bswap16 (s);
             }
 
@@ -635,16 +641,13 @@ static void noop_conv (st_sample_t *dst, const void *src,
 
 static CaptureVoiceOut *audio_pcm_capture_find_specific (
     AudioState *s,
-    audsettings_t *as,
-    int endian
+    audsettings_t *as
     )
 {
     CaptureVoiceOut *cap;
-    int swap_endian = audio_need_to_swap_endian (endian);
 
     for (cap = s->cap_head.lh_first; cap; cap = cap->entries.le_next) {
-        if ((cap->hw.info.swap_endian == swap_endian)
-            && audio_pcm_info_eq (&cap->hw.info, as)) {
+        if (audio_pcm_info_eq (&cap->hw.info, as)) {
             return cap;
         }
     }
@@ -1697,7 +1700,6 @@ AudioState *AUD_init (void)
 int AUD_add_capture (
     AudioState *s,
     audsettings_t *as,
-    int endian,
     struct audio_capture_ops *ops,
     void *cb_opaque
     )
@@ -1725,7 +1727,7 @@ int AUD_add_capture (
     cb->ops = *ops;
     cb->opaque = cb_opaque;
 
-    cap = audio_pcm_capture_find_specific (s, as, endian);
+    cap = audio_pcm_capture_find_specific (s, as);
     if (cap) {
         LIST_INSERT_HEAD (&cap->cb_head, cb, entries);
         return 0;
@@ -1755,7 +1757,7 @@ int AUD_add_capture (
             goto err2;
         }
 
-        audio_pcm_init_info (&hw->info, as, endian);
+        audio_pcm_init_info (&hw->info, as);
 
         cap->buf = audio_calloc (AUDIO_FUNC, hw->samples, 1 << hw->info.shift);
         if (!cap->buf) {
@@ -1768,7 +1770,7 @@ int AUD_add_capture (
         hw->clip = mixeng_clip
             [hw->info.nchannels == 2]
             [hw->info.sign]
-            [hw->info.swap_endian]
+            [hw->info.swap_endianness]
             [hw->info.bits == 16];
 
         LIST_INSERT_HEAD (&s->cap_head, cap, entries);

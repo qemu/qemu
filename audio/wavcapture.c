@@ -70,6 +70,7 @@ void wav_capture (const char *path, int freq, int bits16, int stereo)
     as.freq = freq;
     as.nchannels = 1 << stereo;
     as.fmt = bits16 ? AUD_FMT_S16 : AUD_FMT_U8;
+    as.endianness = 0;
 
     ops.state = wav_state_cb;
     ops.capture = wav_capture_cb;
@@ -97,5 +98,5 @@ void wav_capture (const char *path, int freq, int bits16, int stereo)
     }
 
     qemu_put_buffer (wav->f, hdr, sizeof (hdr));
-    AUD_add_capture (NULL, &as, 0, &ops, wav);
+    AUD_add_capture (NULL, &as, &ops, wav);
 }

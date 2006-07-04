@@ -68,7 +68,7 @@ static int no_write (SWVoiceOut *sw, void *buf, int len)
 
 static int no_init_out (HWVoiceOut *hw, audsettings_t *as)
 {
-    audio_pcm_init_info (&hw->info, as, 0);
+    audio_pcm_init_info (&hw->info, as);
     hw->samples = 1024;
     return 0;
 }
@@ -87,7 +87,7 @@ static int no_ctl_out (HWVoiceOut *hw, int cmd, ...)
 
 static int no_init_in (HWVoiceIn *hw, audsettings_t *as)
 {
-    audio_pcm_init_info (&hw->info, as, 0);
+    audio_pcm_init_info (&hw->info, as);
     hw->samples = 1024;
     return 0;
 }

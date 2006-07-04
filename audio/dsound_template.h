@@ -250,8 +250,8 @@ static int dsound_init_out (HWVoiceOut *hw, audsettings_t *as)
     }
 
     ds->first_time = 1;
-
-    audio_pcm_init_info (&hw->info, &obt_as, audio_need_to_swap_endian (0));
+    obt_as.endianness = 0;
+    audio_pcm_init_info (&hw->info, &obt_as);
 
     if (bc.dwBufferBytes & hw->info.align) {
         dolog (

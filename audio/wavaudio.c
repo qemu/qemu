@@ -135,7 +135,8 @@ static int wav_init_out (HWVoiceOut *hw, audsettings_t *as)
 
     hdr[34] = bits16 ? 0x10 : 0x08;
 
-    audio_pcm_init_info (&hw->info, &wav_as, audio_need_to_swap_endian (0));
+    wav_as.endianness = 0;
+    audio_pcm_init_info (&hw->info, &wav_as);
 
     hw->samples = 1024;
     wav->pcm_buf = audio_calloc (AUDIO_FUNC, hw->samples, 1 << hw->info.shift);

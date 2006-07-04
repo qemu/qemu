@@ -203,6 +203,7 @@ static void continue_dma8 (SB16State *s)
         as.freq = s->freq;
         as.nchannels = 1 << s->fmt_stereo;
         as.fmt = s->fmt;
+        as.endianness = 0;
 
         s->voice = AUD_open_out (
             &s->card,
@@ -210,8 +211,7 @@ static void continue_dma8 (SB16State *s)
             "sb16",
             s,
             SB_audio_callback,
-            &as,
-            0                   /* little endian */
+            &as
             );
     }
 
@@ -348,6 +348,7 @@ static void dma_cmd (SB16State *s, uint8_t cmd, uint8_t d0, int dma_len)
         as.freq = s->freq;
         as.nchannels = 1 << s->fmt_stereo;
         as.fmt = s->fmt;
+        as.endianness = 0;
 
         s->voice = AUD_open_out (
             &s->card,
@@ -355,8 +356,7 @@ static void dma_cmd (SB16State *s, uint8_t cmd, uint8_t d0, int dma_len)
             "sb16",
             s,
             SB_audio_callback,
-            &as,
-            0                   /* little endian */
+            &as
             );
     }
 
@@ -838,6 +838,7 @@ static void legacy_reset (SB16State *s)
     as.freq = s->freq;
     as.nchannels = 1;
     as.fmt = AUD_FMT_U8;
+    as.endianness = 0;
 
     s->voice = AUD_open_out (
         &s->card,
@@ -845,8 +846,7 @@ static void legacy_reset (SB16State *s)
         "sb16",
         s,
         SB_audio_callback,
-        &as,
-        0                   /* little endian */
+        &as
         );
 
     /* Not sure about that... */
@@ -1371,6 +1371,7 @@ static int SB_load (QEMUFile *f, void *opaque, int version_id)
             as.freq = s->freq;
             as.nchannels = 1 << s->fmt_stereo;
             as.fmt = s->fmt;
+            as.endianness = 0;
 
             s->voice = AUD_open_out (
                 &s->card,
@@ -1378,8 +1379,7 @@ static int SB_load (QEMUFile *f, void *opaque, int version_id)
                 "sb16",
                 s,
                 SB_audio_callback,
-                &as,
-                0               /* little endian */
+                &as
                 );
         }
 

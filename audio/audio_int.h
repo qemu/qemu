@@ -61,7 +61,7 @@ struct audio_pcm_info {
     int align;
     int shift;
     int bytes_per_second;
-    int swap_endian;
+    int swap_endianness;
 };
 
 typedef struct HWVoiceOut {
@@ -198,8 +198,7 @@ extern struct audio_driver coreaudio_audio_driver;
 extern struct audio_driver dsound_audio_driver;
 extern volume_t nominal_volume;
 
-void audio_pcm_init_info (struct audio_pcm_info *info, audsettings_t *as,
-                          int swap_endian);
+void audio_pcm_init_info (struct audio_pcm_info *info, audsettings_t *as);
 void audio_pcm_info_clear_buf (struct audio_pcm_info *info, void *buf, int len);
 
 int  audio_pcm_sw_write (SWVoiceOut *sw, void *buf, int len);
@@ -218,15 +217,6 @@ void *audio_calloc (const char *funcname, int nmemb, size_t size);
 static inline int audio_ring_dist (int dst, int src, int len)
 {
     return (dst >= src) ? (dst - src) : (len - src + dst);
-}
-
-static inline int audio_need_to_swap_endian (int endianness)
-{
-#ifdef WORDS_BIGENDIAN
-    return endianness != 1;
-#else
-    return endianness != 0;
-#endif
 }
 
 #if defined __GNUC__
