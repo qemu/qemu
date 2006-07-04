@@ -1513,9 +1513,11 @@ int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
             te->addr_code = -1;
         }
         if (prot & PAGE_WRITE) {
-            if ((pd & ~TARGET_PAGE_MASK) == IO_MEM_ROM) {
-                /* ROM: access is ignored (same as unassigned) */
-                te->addr_write = vaddr | IO_MEM_ROM;
+            if ((pd & ~TARGET_PAGE_MASK) == IO_MEM_ROM || 
+                (pd & IO_MEM_ROMD)) {
+                /* write access calls the I/O callback */
+                te->addr_write = vaddr | 
+                    (pd & ~(TARGET_PAGE_MASK | IO_MEM_ROMD));
             } else if ((pd & ~TARGET_PAGE_MASK) == IO_MEM_RAM && 
                        !cpu_physical_memory_is_dirty(pd)) {
                 te->addr_write = vaddr | IO_MEM_NOTDIRTY;
