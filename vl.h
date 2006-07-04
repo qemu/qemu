@@ -828,6 +828,10 @@ void pci_ne2000_init(PCIBus *bus, NICInfo *nd);
 
 void pci_rtl8139_init(PCIBus *bus, NICInfo *nd);
 
+/* pcnet.c */
+
+void pci_pcnet_init(PCIBus *bus, NICInfo *nd);
+
 /* pckbd.c */
 
 void kbd_init(void);
