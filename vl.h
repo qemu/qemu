@@ -37,7 +37,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-#include "audio/audio.h"
 
 #ifndef O_LARGEFILE
 #define O_LARGEFILE 0
@@ -78,6 +77,7 @@ static inline char *realpath(const char *path, char *resolved_path)
 
 #else
 
+#include "audio/audio.h"
 #include "cpu.h"
 #include "gdbstub.h"
 
