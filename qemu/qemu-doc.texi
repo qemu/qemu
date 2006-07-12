@@ -556,7 +556,7 @@ localhost 5555
 The TCP Net Console has two modes of operation.  It can send the serial
 I/O to a location or wait for a connection from a location.  By default
 the TCP Net Console is sent to @var{host} at the @var{port}.  If you use
-the @var{,server} option QEMU will wait for a client socket application
+the @var{server} option QEMU will wait for a client socket application
 to connect to the port before continuing, unless the @code{,nowait}
 option was specified. If @var{host} is omitted, 0.0.0.0 is assumed. Only
 one TCP connection at a time is accepted. You can use @code{telnet} to
