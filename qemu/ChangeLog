@@ -1,3 +1,88 @@
+2006-07-10 23:38  bellard
+
+	* hw/rtl8139.c: fixed for TCP segmentation offloading - removed
+	  dependency on slirp.h (Igor Kovalenko)
+
+2006-07-10 21:53  bellard
+
+	* kqemu.c: monitor/mwait workaround
+
+2006-07-10 21:53  bellard
+
+	* target-i386/: exec.h, helper.c, op.c, translate.c: monitor/mwait
+	  support
+
+2006-07-05 16:39  pbrook
+
+	* vl.h: Don't include audio.h when building tools.
+
+2006-07-04 23:47  bellard
+
+	* audio/alsaaudio.c, audio/audio.c, audio/audio.h,
+	  audio/audio_int.h, audio/audio_template.h, audio/coreaudio.c,
+	  audio/dsound_template.h, audio/fmodaudio.c, audio/noaudio.c,
+	  audio/ossaudio.c, audio/sdlaudio.c, audio/wavaudio.c,
+	  audio/wavcapture.c, hw/adlib.c, hw/es1370.c, hw/pcspk.c,
+	  hw/sb16.c: audio endianness API changes (malc)
+
+2006-07-04 23:42  bellard
+
+	* hw/pcnet.c: avoid unneeded dependencies
+
+2006-07-04 18:51  bellard
+
+	* audio/alsaaudio.c, audio/audio.c, audio/audio.h,
+	  audio/audio_int.h, audio/audio_template.h, audio/coreaudio.c,
+	  audio/dsound_template.h, audio/dsoundaudio.c, audio/fmodaudio.c,
+	  audio/noaudio.c, audio/ossaudio.c, audio/sdlaudio.c,
+	  audio/wavaudio.c, audio/wavcapture.c, hw/es1370.c: audio fixes +
+	  initial audio capture support (malc)
+
+2006-07-04 18:49  bellard
+
+	* hw/sb16.c: sb16 fixes (WfW 3 appears to work with shipped
+	  drivers) (malc)
+
+2006-07-04 18:47  bellard
+
+	* audio/rate_template.h: rate converter fix (malc)
+
+2006-07-04 18:33  bellard
+
+	* TODO: update
+
+2006-07-04 13:33  bellard
+
+	* Makefile.target, vl.h, hw/pci.c, hw/pcnet.c: pcnet nic support
+	  (Antony T Curtis)
+
+2006-07-04 12:08  bellard
+
+	* hw/rtl8139.c: rtl8139 fixes (Igor Kovalenko)
+
+2006-07-04 11:47  bellard
+
+	* exec.c: fix for IO_MEM_ROMD support
+
+2006-07-04 11:46  bellard
+
+	* hw/pflash_cfi02.c: flash device fix
+
+2006-07-01 23:41  bellard
+
+	* hw/rtl8139.c: disable unimplemented C+ mode (aka windows xp 64
+	  fix)
+
+2006-06-27 23:08  bellard
+
+	* linux-user/: main.c, signal.c, syscall.c, syscall_defs.h: initial
+	  MIPS signal handling (initial patch by Raphael Rigo)
+
+2006-06-27 23:02  bellard
+
+	* qemu-doc.texi, vl.c: telnet protocol and more consistent syntax
+	  (Jason Wessel)
+
 2006-06-26 23:00  bellard
 
 	* usb-linux.c, vl.c, hw/usb-hid.c, hw/usb-hub.c, hw/usb-msd.c,
