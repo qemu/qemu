@@ -37,16 +37,12 @@
  */
 
 #include "vl.h"
+#include "exec-all.h"
 
-#define PFLASH_DEBUG
+//#define PFLASH_DEBUG
 #ifdef PFLASH_DEBUG
-static int loglevel = 1;
-#define logfile stderr
 #define DPRINTF(fmt, args...)                      \
 do {                                               \
-    if (loglevel)                                  \
-        fprintf(logfile, "PFLASH: " fmt , ##args); \
-    else                                           \
         printf("PFLASH: " fmt , ##args);           \
 } while (0)
 #else
@@ -215,7 +211,7 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
     /* WARNING: when the memory area is in ROMD mode, the offset is a
        ram offset, not a physical address */
     if (pfl->wcycle == 0)
-        offset -= pfl->off;
+        offset -= (target_ulong)(long)pfl->storage;
     else
         offset -= pfl->base;
         
@@ -544,7 +540,6 @@ pflash_t *pflash_register (target_ulong base, ram_addr_t off,
     pfl->off = off;
     cpu_register_physical_memory(base, total_len,
                                  off | pfl->fl_mem | IO_MEM_ROMD);
-    DPRINTF("%s: flash base 0x%08x size 0x%08x\n", __func__, base, total_len);
     pfl->bs = bs;
     if (pfl->bs) {
         /* read the initial flash content */

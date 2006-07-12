@@ -193,6 +193,31 @@ static void aux_timer (void *opaque)
 #define DMA8_AUTO 1
 #define DMA8_HIGH 2
 
+static void continue_dma8 (SB16State *s)
+{
+    if (s->freq > 0) {
+        audsettings_t as;
+
+        s->audio_free = 0;
+
+        as.freq = s->freq;
+        as.nchannels = 1 << s->fmt_stereo;
+        as.fmt = s->fmt;
+        as.endianness = 0;
+
+        s->voice = AUD_open_out (
+            &s->card,
+            s->voice,
+            "sb16",
+            s,
+            SB_audio_callback,
+            &as
+            );
+    }
+
+    control (s, 1);
+}
+
 static void dma_cmd8 (SB16State *s, int mask, int dma_len)
 {
     s->fmt = AUD_FMT_U8;
@@ -201,7 +226,8 @@ static void dma_cmd8 (SB16State *s, int mask, int dma_len)
     s->fmt_signed = 0;
     s->fmt_stereo = (s->mixer_regs[0x0e] & 2) != 0;
     if (-1 == s->time_const) {
-        s->freq = 11025;
+        if (s->freq <= 0)
+            s->freq = 11025;
     }
     else {
         int tmp = (256 - s->time_const);
@@ -239,27 +265,7 @@ static void dma_cmd8 (SB16State *s, int mask, int dma_len)
             s->freq, s->fmt_stereo, s->fmt_signed, s->fmt_bits,
             s->block_size, s->dma_auto, s->fifo, s->highspeed);
 
-    if (s->freq) {
-        audsettings_t as;
-
-        s->audio_free = 0;
-
-        as.freq = s->freq;
-        as.nchannels = 1 << s->fmt_stereo;
-        as.fmt = s->fmt;
-
-        s->voice = AUD_open_out (
-            &s->card,
-            s->voice,
-            "sb16",
-            s,
-            SB_audio_callback,
-            &as,
-            0                   /* little endian */
-            );
-    }
-
-    control (s, 1);
+    continue_dma8 (s);
     speaker (s, 1);
 }
 
@@ -342,6 +348,7 @@ static void dma_cmd (SB16State *s, uint8_t cmd, uint8_t d0, int dma_len)
         as.freq = s->freq;
         as.nchannels = 1 << s->fmt_stereo;
         as.fmt = s->fmt;
+        as.endianness = 0;
 
         s->voice = AUD_open_out (
             &s->card,
@@ -349,8 +356,7 @@ static void dma_cmd (SB16State *s, uint8_t cmd, uint8_t d0, int dma_len)
             "sb16",
             s,
             SB_audio_callback,
-            &as,
-            0                   /* little endian */
+            &as
             );
     }
 
@@ -437,7 +443,7 @@ static void command (SB16State *s, uint8_t cmd)
             break;
 
         case 0x1c:              /* Auto-Initialize DMA DAC, 8-bit */
-            control (s, 1);
+            dma_cmd8 (s, DMA8_AUTO, -1);
             break;
 
         case 0x20:              /* Direct ADC, Juice/PL */
@@ -531,7 +537,9 @@ static void command (SB16State *s, uint8_t cmd)
             break;
 
         case 0xd4:              /* continue DMA operation. 8bit */
-            control (s, 1);
+            /* KQ6 (or maybe Sierras audblst.drv in general) resets
+               the frequency between halt/continue */
+            continue_dma8 (s);
             break;
 
         case 0xd5:              /* halt DMA operation. 16bit */
@@ -818,6 +826,33 @@ static void complete (SB16State *s)
     return;
 }
 
+static void legacy_reset (SB16State *s)
+{
+    audsettings_t as;
+
+    s->freq = 11025;
+    s->fmt_signed = 0;
+    s->fmt_bits = 8;
+    s->fmt_stereo = 0;
+
+    as.freq = s->freq;
+    as.nchannels = 1;
+    as.fmt = AUD_FMT_U8;
+    as.endianness = 0;
+
+    s->voice = AUD_open_out (
+        &s->card,
+        s->voice,
+        "sb16",
+        s,
+        SB_audio_callback,
+        &as
+        );
+
+    /* Not sure about that... */
+    /* AUD_set_active_out (s->voice, 1); */
+}
+
 static void reset (SB16State *s)
 {
     pic_set_irq (s->irq, 0);
@@ -841,6 +876,7 @@ static void reset (SB16State *s)
     dsp_out_data(s, 0xaa);
     speaker (s, 0);
     control (s, 0);
+    legacy_reset (s);
 }
 
 static IO_WRITE_PROTO (dsp_write)
@@ -1335,6 +1371,7 @@ static int SB_load (QEMUFile *f, void *opaque, int version_id)
             as.freq = s->freq;
             as.nchannels = 1 << s->fmt_stereo;
             as.fmt = s->fmt;
+            as.endianness = 0;
 
             s->voice = AUD_open_out (
                 &s->card,
@@ -1342,8 +1379,7 @@ static int SB_load (QEMUFile *f, void *opaque, int version_id)
                 "sb16",
                 s,
                 SB_audio_callback,
-                &as,
-                0               /* little endian */
+                &as
                 );
         }
 

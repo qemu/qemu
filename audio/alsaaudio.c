@@ -61,8 +61,8 @@ static struct {
     .size_in_usec_in = 1,
     .size_in_usec_out = 1,
 #endif
-    .pcm_name_out = "hw:0,0",
-    .pcm_name_in = "hw:0,0",
+    .pcm_name_out = "default",
+    .pcm_name_in = "default",
 #ifdef HIGH_LATENCY
     .buffer_size_in = 400000,
     .period_size_in = 400000 / 4,
@@ -606,7 +606,6 @@ static int alsa_run_out (HWVoiceOut *hw)
                 }
             }
 
-            mixeng_clear (src, written);
             rpos = (rpos + written) % hw->samples;
             samples -= written;
             len -= written;
@@ -663,12 +662,9 @@ static int alsa_init_out (HWVoiceOut *hw, audsettings_t *as)
     obt_as.freq = obt.freq;
     obt_as.nchannels = obt.nchannels;
     obt_as.fmt = effective_fmt;
+    obt_as.endianness = endianness;
 
-    audio_pcm_init_info (
-        &hw->info,
-        &obt_as,
-        audio_need_to_swap_endian (endianness)
-        );
+    audio_pcm_init_info (&hw->info, &obt_as);
     hw->samples = obt.samples;
 
     alsa->pcm_buf = audio_calloc (AUDIO_FUNC, obt.samples, 1 << hw->info.shift);
@@ -752,12 +748,9 @@ static int alsa_init_in (HWVoiceIn *hw, audsettings_t *as)
     obt_as.freq = obt.freq;
     obt_as.nchannels = obt.nchannels;
     obt_as.fmt = effective_fmt;
+    obt_as.endianness = endianness;
 
-    audio_pcm_init_info (
-        &hw->info,
-        &obt_as,
-        audio_need_to_swap_endian (endianness)
-        );
+    audio_pcm_init_info (&hw->info, &obt_as);
     hw->samples = obt.samples;
 
     alsa->pcm_buf = audio_calloc (AUDIO_FUNC, hw->samples, 1 << hw->info.shift);

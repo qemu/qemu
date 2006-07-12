@@ -55,12 +55,14 @@ static struct {
     int fragsize;
     const char *devpath_out;
     const char *devpath_in;
+    int debug;
 } conf = {
     .try_mmap = 0,
     .nfrags = 4,
     .fragsize = 4096,
     .devpath_out = "/dev/dsp",
-    .devpath_in = "/dev/dsp"
+    .devpath_in = "/dev/dsp",
+    .debug = 0
 };
 
 struct oss_params {
@@ -324,9 +326,20 @@ static int oss_run_out (HWVoiceOut *hw)
             return 0;
         }
 
-        if (abinfo.bytes < 0 || abinfo.bytes > bufsize) {
-            ldebug ("warning: Invalid available size, size=%d bufsize=%d\n",
-                    abinfo.bytes, bufsize);
+        if (abinfo.bytes > bufsize) {
+            if (conf.debug) {
+                dolog ("warning: Invalid available size, size=%d bufsize=%d\n"
+                       "please report your OS/audio hw to malc@pulsesoft.com\n",
+                       abinfo.bytes, bufsize);
+            }
+            abinfo.bytes = bufsize;
+        }
+
+        if (abinfo.bytes < 0) {
+            if (conf.debug) {
+                dolog ("warning: Invalid available size, size=%d bufsize=%d\n",
+                       abinfo.bytes, bufsize);
+            }
             return 0;
         }
 
@@ -369,14 +382,11 @@ static int oss_run_out (HWVoiceOut *hw)
                            "alignment %d\n",
                            wbytes, written, hw->info.align + 1);
                 }
-                mixeng_clear (src, wsamples);
                 decr -= wsamples;
                 rpos = (rpos + wsamples) % hw->samples;
                 break;
             }
         }
-
-        mixeng_clear (src, convert_samples);
 
         rpos = (rpos + convert_samples) % hw->samples;
         samples -= convert_samples;
@@ -443,12 +453,9 @@ static int oss_init_out (HWVoiceOut *hw, audsettings_t *as)
     obt_as.freq = obt.freq;
     obt_as.nchannels = obt.nchannels;
     obt_as.fmt = effective_fmt;
+    obt_as.endianness = endianness;
 
-    audio_pcm_init_info (
-        &hw->info,
-        &obt_as,
-        audio_need_to_swap_endian (endianness)
-        );
+    audio_pcm_init_info (&hw->info, &obt_as);
     oss->nfrags = obt.nfrags;
     oss->fragsize = obt.fragsize;
 
@@ -587,12 +594,9 @@ static int oss_init_in (HWVoiceIn *hw, audsettings_t *as)
     obt_as.freq = obt.freq;
     obt_as.nchannels = obt.nchannels;
     obt_as.fmt = effective_fmt;
+    obt_as.endianness = endianness;
 
-    audio_pcm_init_info (
-        &hw->info,
-        &obt_as,
-        audio_need_to_swap_endian (endianness)
-        );
+    audio_pcm_init_info (&hw->info, &obt_as);
     oss->nfrags = obt.nfrags;
     oss->fragsize = obt.fragsize;
 
@@ -730,6 +734,8 @@ static struct audio_option oss_options[] = {
      "Path to DAC device", NULL, 0},
     {"ADC_DEV", AUD_OPT_STR, &conf.devpath_in,
      "Path to ADC device", NULL, 0},
+    {"DEBUG", AUD_OPT_BOOL, &conf.debug,
+     "Turn on some debugging messages", NULL, 0},
     {NULL, 0, NULL, NULL, NULL, 0}
 };
 

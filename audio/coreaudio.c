@@ -275,8 +275,6 @@ static OSStatus audioDeviceIOProc(
 #endif
     }
 
-    /* cleanup */
-    mixeng_clear (src, frameCount);
     rpos = (rpos + frameCount) % hw->samples;
     core->decr += frameCount;
     core->rpos = rpos;
@@ -297,7 +295,6 @@ static int coreaudio_init_out (HWVoiceOut *hw, audsettings_t *as)
     UInt32 propertySize;
     int err;
     int bits = 8;
-    int endianess = 0;
     const char *typ = "playback";
     AudioValueRange frameRange;
 
@@ -310,16 +307,9 @@ static int coreaudio_init_out (HWVoiceOut *hw, audsettings_t *as)
 
     if (as->fmt == AUD_FMT_S16 || as->fmt == AUD_FMT_U16) {
         bits = 16;
-        endianess = 1;
     }
 
-    audio_pcm_init_info (
-        &hw->info,
-        as,
-        /* Following is irrelevant actually since we do not use
-           mixengs clipping routines */
-        audio_need_to_swap_endian (endianess)
-        );
+    audio_pcm_init_info (&hw->info, as);
 
     /* open default output device */
     propertySize = sizeof(core->outputDeviceID);

@@ -61,7 +61,7 @@ struct audio_pcm_info {
     int align;
     int shift;
     int bytes_per_second;
-    int swap_endian;
+    int swap_endianness;
 };
 
 typedef struct HWVoiceOut {
@@ -79,6 +79,7 @@ typedef struct HWVoiceOut {
 
     int samples;
     LIST_HEAD (sw_out_listhead, SWVoiceOut) sw_head;
+    LIST_HEAD (sw_cap_listhead, SWVoiceOut) sw_cap_head;
     struct audio_pcm_ops *pcm_ops;
     LIST_ENTRY (HWVoiceOut) entries;
 } HWVoiceOut;
@@ -115,6 +116,7 @@ struct SWVoiceOut {
     volume_t vol;
     struct audio_callback callback;
     LIST_ENTRY (SWVoiceOut) entries;
+    LIST_ENTRY (SWVoiceOut) cap_entries;
 };
 
 struct SWVoiceIn {
@@ -160,14 +162,28 @@ struct audio_pcm_ops {
     int  (*ctl_in)  (HWVoiceIn *hw, int cmd, ...);
 };
 
+struct capture_callback {
+    struct audio_capture_ops ops;
+    void *opaque;
+    LIST_ENTRY (capture_callback) entries;
+};
+
+typedef struct CaptureVoiceOut {
+    HWVoiceOut hw;
+    void *buf;
+    LIST_HEAD (cb_listhead, capture_callback) cb_head;
+    LIST_ENTRY (CaptureVoiceOut) entries;
+} CaptureVoiceOut;
+
 struct AudioState {
     struct audio_driver *drv;
     void *drv_opaque;
 
     QEMUTimer *ts;
-    LIST_HEAD (card_head, QEMUSoundCard) card_head;
+    LIST_HEAD (card_listhead, QEMUSoundCard) card_head;
     LIST_HEAD (hw_in_listhead, HWVoiceIn) hw_head_in;
     LIST_HEAD (hw_out_listhead, HWVoiceOut) hw_head_out;
+    LIST_HEAD (cap_listhead, CaptureVoiceOut) cap_head;
     int nb_hw_voices_out;
     int nb_hw_voices_in;
 };
@@ -182,8 +198,7 @@ extern struct audio_driver coreaudio_audio_driver;
 extern struct audio_driver dsound_audio_driver;
 extern volume_t nominal_volume;
 
-void audio_pcm_init_info (struct audio_pcm_info *info, audsettings_t *as,
-                          int swap_endian);
+void audio_pcm_init_info (struct audio_pcm_info *info, audsettings_t *as);
 void audio_pcm_info_clear_buf (struct audio_pcm_info *info, void *buf, int len);
 
 int  audio_pcm_sw_write (SWVoiceOut *sw, void *buf, int len);
@@ -202,15 +217,6 @@ void *audio_calloc (const char *funcname, int nmemb, size_t size);
 static inline int audio_ring_dist (int dst, int src, int len)
 {
     return (dst >= src) ? (dst - src) : (len - src + dst);
-}
-
-static inline int audio_need_to_swap_endian (int endianness)
-{
-#ifdef WORDS_BIGENDIAN
-    return endianness != 1;
-#else
-    return endianness != 0;
-#endif
 }
 
 #if defined __GNUC__

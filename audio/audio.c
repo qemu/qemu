@@ -29,6 +29,7 @@
 /* #define DEBUG_PLIVE */
 /* #define DEBUG_LIVE */
 /* #define DEBUG_OUT */
+/* #define DEBUG_CAPTURE */
 
 #define SW_NAME(sw) (sw)->name ? (sw)->name : "unknown"
 
@@ -137,7 +138,7 @@ int audio_bug (const char *funcname, int cond)
     if (cond) {
         static int shown;
 
-        AUD_log (NULL, "Error a bug that was just triggered in %s\n", funcname);
+        AUD_log (NULL, "A bug was just triggered in %s\n", funcname);
         if (!shown) {
             shown = 1;
             AUD_log (NULL, "Save all your work and restart without audio\n");
@@ -509,6 +510,18 @@ static void audio_print_settings (audsettings_t *as)
         AUD_log (NULL, "invalid(%d)", as->fmt);
         break;
     }
+    AUD_log (NULL, "endianness=");
+    switch (as->endianness) {
+    case 0:
+        AUD_log (NULL, "little");
+        break;
+    case 1:
+        AUD_log (NULL, "big");
+        break;
+    default:
+        AUD_log (NULL, "invalid");
+        break;
+    }
     AUD_log (NULL, "\n");
 }
 
@@ -517,6 +530,7 @@ static int audio_validate_settigs (audsettings_t *as)
     int invalid;
 
     invalid = as->nchannels != 1 && as->nchannels != 2;
+    invalid |= as->endianness != 0 && as->endianness != 1;
 
     switch (as->fmt) {
     case AUD_FMT_S8:
@@ -530,11 +544,7 @@ static int audio_validate_settigs (audsettings_t *as)
     }
 
     invalid |= as->freq <= 0;
-
-    if (invalid) {
-        return -1;
-    }
-    return 0;
+    return invalid ? -1 : 0;
 }
 
 static int audio_pcm_info_eq (struct audio_pcm_info *info, audsettings_t *as)
@@ -556,14 +566,11 @@ static int audio_pcm_info_eq (struct audio_pcm_info *info, audsettings_t *as)
     return info->freq == as->freq
         && info->nchannels == as->nchannels
         && info->sign == sign
-        && info->bits == bits;
+        && info->bits == bits
+        && info->swap_endianness == (as->endianness != AUDIO_HOST_ENDIANNESS);
 }
 
-void audio_pcm_init_info (
-    struct audio_pcm_info *info,
-    audsettings_t *as,
-    int swap_endian
-    )
+void audio_pcm_init_info (struct audio_pcm_info *info, audsettings_t *as)
 {
     int bits = 8, sign = 0;
 
@@ -587,7 +594,7 @@ void audio_pcm_init_info (
     info->shift = (as->nchannels == 2) + (bits == 16);
     info->align = (1 << info->shift) - 1;
     info->bytes_per_second = info->freq << info->shift;
-    info->swap_endian = swap_endian;
+    info->swap_endianness = (as->endianness != AUDIO_HOST_ENDIANNESS);
 }
 
 void audio_pcm_info_clear_buf (struct audio_pcm_info *info, void *buf, int len)
@@ -609,7 +616,7 @@ void audio_pcm_info_clear_buf (struct audio_pcm_info *info, void *buf, int len)
             int shift = info->nchannels - 1;
             short s = INT16_MAX;
 
-            if (info->swap_endian) {
+            if (info->swap_endianness) {
                 s = bswap16 (s);
             }
 
@@ -618,6 +625,118 @@ void audio_pcm_info_clear_buf (struct audio_pcm_info *info, void *buf, int len)
             }
         }
     }
+}
+
+/*
+ * Capture
+ */
+static void noop_conv (st_sample_t *dst, const void *src,
+                       int samples, volume_t *vol)
+{
+    (void) src;
+    (void) dst;
+    (void) samples;
+    (void) vol;
+}
+
+static CaptureVoiceOut *audio_pcm_capture_find_specific (
+    AudioState *s,
+    audsettings_t *as
+    )
+{
+    CaptureVoiceOut *cap;
+
+    for (cap = s->cap_head.lh_first; cap; cap = cap->entries.le_next) {
+        if (audio_pcm_info_eq (&cap->hw.info, as)) {
+            return cap;
+        }
+    }
+    return NULL;
+}
+
+static void audio_notify_capture (CaptureVoiceOut *cap, int enabled)
+{
+    if (cap->hw.enabled != enabled) {
+        struct capture_callback *cb;
+
+        cap->hw.enabled = enabled;
+        for (cb = cap->cb_head.lh_first; cb; cb = cb->entries.le_next) {
+            cb->ops.state (cb->opaque, enabled);
+        }
+    }
+}
+
+static void audio_recalc_and_notify_capture (CaptureVoiceOut *cap)
+{
+    HWVoiceOut *hw = &cap->hw;
+    SWVoiceOut *sw;
+    int enabled = 0;
+
+    for (sw = hw->sw_cap_head.lh_first; sw; sw = sw->cap_entries.le_next) {
+        if (sw->active) {
+            enabled = 1;
+            break;
+        }
+    }
+    audio_notify_capture (cap, enabled);
+}
+
+static void audio_detach_capture (HWVoiceOut *hw)
+{
+    SWVoiceOut *sw;
+
+    for (sw = hw->sw_cap_head.lh_first; sw; sw = sw->cap_entries.le_next) {
+        if (sw->rate) {
+            st_rate_stop (sw->rate);
+            sw->rate = NULL;
+        }
+
+        LIST_REMOVE (sw, entries);
+        LIST_REMOVE (sw, cap_entries);
+        qemu_free (sw);
+        audio_recalc_and_notify_capture ((CaptureVoiceOut *) sw->hw);
+    }
+}
+
+static int audio_attach_capture (AudioState *s, HWVoiceOut *hw)
+{
+    CaptureVoiceOut *cap;
+
+    audio_detach_capture (hw);
+    for (cap = s->cap_head.lh_first; cap; cap = cap->entries.le_next) {
+        SWVoiceOut *sw;
+        HWVoiceOut *hw_cap;
+
+        hw_cap = &cap->hw;
+        sw = audio_calloc (AUDIO_FUNC, 1, sizeof (*sw));
+        if (!sw) {
+            dolog ("Could not allocate soft capture voice (%zu bytes)\n",
+                   sizeof (*sw));
+            return -1;
+        }
+
+        sw->info = hw->info;
+        sw->hw = hw_cap;
+        sw->empty = 1;
+        sw->active = hw->enabled;
+        sw->conv = noop_conv;
+        sw->ratio = ((int64_t) hw_cap->info.freq << 32) / sw->info.freq;
+        sw->rate = st_rate_start (sw->info.freq, hw_cap->info.freq);
+        if (!sw->rate) {
+            dolog ("Could not start rate conversion for `%s'\n", SW_NAME (sw));
+            qemu_free (sw);
+            return -1;
+        }
+        LIST_INSERT_HEAD (&hw_cap->sw_head, sw, entries);
+        LIST_INSERT_HEAD (&hw->sw_cap_head, sw, cap_entries);
+        if (sw->active) {
+            audio_notify_capture (cap, 1);
+        }
+        else {
+            audio_recalc_and_notify_capture (cap);
+        }
+    }
+    return 0;
 }
 
 /*
@@ -916,16 +1035,10 @@ void AUD_set_active_out (SWVoiceOut *sw, int on)
         SWVoiceOut *temp_sw;
 
         if (on) {
-            int total;
-
             hw->pending_disable = 0;
             if (!hw->enabled) {
                 hw->enabled = 1;
                 hw->pcm_ops->ctl_out (hw, VOICE_ENABLE);
-            }
-
-            if (sw->empty) {
-                total = 0;
             }
         }
         else {
@@ -938,6 +1051,13 @@ void AUD_set_active_out (SWVoiceOut *sw, int on)
                 }
 
                 hw->pending_disable = nb_active == 1;
+            }
+        }
+        for (temp_sw = hw->sw_cap_head.lh_first; temp_sw;
+             temp_sw = temp_sw->entries.le_next) {
+            temp_sw->active = hw->enabled;
+            if (hw->enabled) {
+                audio_notify_capture ((CaptureVoiceOut *) temp_sw->hw, 1);
             }
         }
         sw->active = on;
@@ -1031,6 +1151,41 @@ static int audio_get_free (SWVoiceOut *sw)
     return (((int64_t) dead << 32) / sw->ratio) << sw->info.shift;
 }
 
+static void audio_capture_mix_and_clear (HWVoiceOut *hw, int rpos, int samples)
+{
+    int n;
+
+    if (hw->enabled) {
+        SWVoiceOut *sw;
+
+        for (sw = hw->sw_cap_head.lh_first; sw; sw = sw->cap_entries.le_next) {
+            int rpos2 = rpos;
+
+            n = samples;
+            while (n) {
+                int till_end_of_hw = hw->samples - rpos2;
+                int to_write = audio_MIN (till_end_of_hw, n);
+                int bytes = to_write << hw->info.shift;
+                int written;
+
+                sw->buf = hw->mix_buf + rpos2;
+                written = audio_pcm_sw_write (sw, NULL, bytes);
+                if (written - bytes) {
+                    dolog ("Could not mix %d bytes into a capture buffer",
+                           bytes);
+                    break;
+                }
+                n -= to_write;
+                rpos2 = (rpos2 + to_write) % hw->samples;
+            }
+        }
+    }
+
+    n = audio_MIN (samples, hw->samples - rpos);
+    mixeng_clear (hw->mix_buf + rpos, n);
+    mixeng_clear (hw->mix_buf, samples - n);
+}
+
 static void audio_run_out (AudioState *s)
 {
     HWVoiceOut *hw = NULL;
@@ -1038,7 +1193,7 @@ static void audio_run_out (AudioState *s)
 
     while ((hw = audio_pcm_hw_find_any_enabled_out (s, hw))) {
         int played;
-        int live, free, nb_live, cleanup_required;
+        int live, free, nb_live, cleanup_required, prev_rpos;
 
         live = audio_pcm_hw_get_live_out2 (hw, &nb_live);
         if (!nb_live) {
@@ -1057,6 +1212,11 @@ static void audio_run_out (AudioState *s)
             hw->enabled = 0;
             hw->pending_disable = 0;
             hw->pcm_ops->ctl_out (hw, VOICE_DISABLE);
+            for (sw = hw->sw_cap_head.lh_first; sw;
+                 sw = sw->cap_entries.le_next) {
+                sw->active = 0;
+                audio_recalc_and_notify_capture ((CaptureVoiceOut *) sw->hw);
+            }
             continue;
         }
 
@@ -1072,6 +1232,7 @@ static void audio_run_out (AudioState *s)
             continue;
         }
 
+        prev_rpos = hw->rpos;
         played = hw->pcm_ops->run_out (hw);
         if (audio_bug (AUDIO_FUNC, hw->rpos >= hw->samples)) {
             dolog ("hw->rpos=%d hw->samples=%d played=%d\n",
@@ -1085,6 +1246,7 @@ static void audio_run_out (AudioState *s)
 
         if (played) {
             hw->ts_helper += played;
+            audio_capture_mix_and_clear (hw, prev_rpos, played);
         }
 
         cleanup_required = 0;
@@ -1158,12 +1320,60 @@ static void audio_run_in (AudioState *s)
     }
 }
 
+static void audio_run_capture (AudioState *s)
+{
+    CaptureVoiceOut *cap;
+
+    for (cap = s->cap_head.lh_first; cap; cap = cap->entries.le_next) {
+        int live, rpos, captured;
+        HWVoiceOut *hw = &cap->hw;
+        SWVoiceOut *sw;
+
+        captured = live = audio_pcm_hw_get_live_out (hw);
+        rpos = hw->rpos;
+        while (live) {
+            int left = hw->samples - rpos;
+            int to_capture = audio_MIN (live, left);
+            st_sample_t *src;
+            struct capture_callback *cb;
+
+            src = hw->mix_buf + rpos;
+            hw->clip (cap->buf, src, to_capture);
+            mixeng_clear (src, to_capture);
+
+            for (cb = cap->cb_head.lh_first; cb; cb = cb->entries.le_next) {
+                cb->ops.capture (cb->opaque, cap->buf,
+                                 to_capture << hw->info.shift);
+            }
+            rpos = (rpos + to_capture) % hw->samples;
+            live -= to_capture;
+        }
+        hw->rpos = rpos;
+
+        for (sw = hw->sw_head.lh_first; sw; sw = sw->entries.le_next) {
+            if (!sw->active && sw->empty) {
+                continue;
+            }
+
+            if (audio_bug (AUDIO_FUNC, captured > sw->total_hw_samples_mixed)) {
+                dolog ("captured=%d sw->total_hw_samples_mixed=%d\n",
+                       captured, sw->total_hw_samples_mixed);
+                captured = sw->total_hw_samples_mixed;
+            }
+
+            sw->total_hw_samples_mixed -= captured;
+            sw->empty = sw->total_hw_samples_mixed == 0;
+        }
+    }
+}
+
 static void audio_timer (void *opaque)
 {
     AudioState *s = opaque;
 
     audio_run_out (s);
     audio_run_in (s);
+    audio_run_capture (s);
 
     qemu_mod_timer (s->ts, qemu_get_clock (vm_clock) + conf.period.ticks);
 }
@@ -1327,8 +1537,14 @@ static void audio_atexit (void)
     HWVoiceIn *hwi = NULL;
 
     while ((hwo = audio_pcm_hw_find_any_enabled_out (s, hwo))) {
+        SWVoiceOut *sw;
+
         hwo->pcm_ops->ctl_out (hwo, VOICE_DISABLE);
         hwo->pcm_ops->fini_out (hwo);
+
+        for (sw = hwo->sw_cap_head.lh_first; sw; sw = sw->entries.le_next) {
+            audio_notify_capture ((CaptureVoiceOut *) sw->hw, 0);
+        }
     }
 
     while ((hwi = audio_pcm_hw_find_any_enabled_in (s, hwi))) {
@@ -1383,6 +1599,7 @@ AudioState *AUD_init (void)
 
     LIST_INIT (&s->hw_head_out);
     LIST_INIT (&s->hw_head_in);
+    LIST_INIT (&s->cap_head);
     atexit (audio_atexit);
 
     s->ts = qemu_new_timer (vm_clock, audio_timer, s);
@@ -1478,4 +1695,100 @@ AudioState *AUD_init (void)
     register_savevm ("audio", 0, 1, audio_save, audio_load, s);
     qemu_mod_timer (s->ts, qemu_get_clock (vm_clock) + conf.period.ticks);
     return s;
+}
+
+int AUD_add_capture (
+    AudioState *s,
+    audsettings_t *as,
+    struct audio_capture_ops *ops,
+    void *cb_opaque
+    )
+{
+    CaptureVoiceOut *cap;
+    struct capture_callback *cb;
+
+    if (!s) {
+        /* XXX suppress */
+        s = &glob_audio_state;
+    }
+
+    if (audio_validate_settigs (as)) {
+        dolog ("Invalid settings were passed when trying to add capture\n");
+        audio_print_settings (as);
+        return -1;
+    }
+
+    cb = audio_calloc (AUDIO_FUNC, 1, sizeof (*cb));
+    if (!cb) {
+        dolog ("Could not allocate capture callback information, size %zu\n",
+               sizeof (*cb));
+        goto err0;
+    }
+    cb->ops = *ops;
+    cb->opaque = cb_opaque;
+
+    cap = audio_pcm_capture_find_specific (s, as);
+    if (cap) {
+        LIST_INSERT_HEAD (&cap->cb_head, cb, entries);
+        return 0;
+    }
+    else {
+        HWVoiceOut *hw;
+        CaptureVoiceOut *cap;
+
+        cap = audio_calloc (AUDIO_FUNC, 1, sizeof (*cap));
+        if (!cap) {
+            dolog ("Could not allocate capture voice, size %zu\n",
+                   sizeof (*cap));
+            goto err1;
+        }
+
+        hw = &cap->hw;
+        LIST_INIT (&hw->sw_head);
+        LIST_INIT (&cap->cb_head);
+
+        /* XXX find a more elegant way */
+        hw->samples = 4096 * 4;
+        hw->mix_buf = audio_calloc (AUDIO_FUNC, hw->samples,
+                                    sizeof (st_sample_t));
+        if (!hw->mix_buf) {
+            dolog ("Could not allocate capture mix buffer (%d samples)\n",
+                   hw->samples);
+            goto err2;
+        }
+
+        audio_pcm_init_info (&hw->info, as);
+
+        cap->buf = audio_calloc (AUDIO_FUNC, hw->samples, 1 << hw->info.shift);
+        if (!cap->buf) {
+            dolog ("Could not allocate capture buffer "
+                   "(%d samples, each %d bytes)\n",
+                   hw->samples, 1 << hw->info.shift);
+            goto err3;
+        }
+
+        hw->clip = mixeng_clip
+            [hw->info.nchannels == 2]
+            [hw->info.sign]
+            [hw->info.swap_endianness]
+            [hw->info.bits == 16];
+
+        LIST_INSERT_HEAD (&s->cap_head, cap, entries);
+        LIST_INSERT_HEAD (&cap->cb_head, cb, entries);
+
+        hw = NULL;
+        while ((hw = audio_pcm_hw_find_any_out (s, hw))) {
+            audio_attach_capture (s, hw);
+        }
+        return 0;
+
+    err3:
+        qemu_free (cap->hw.mix_buf);
+    err2:
+        qemu_free (cap);
+    err1:
+        qemu_free (cb);
+    err0:
+        return -1;
+    }
 }

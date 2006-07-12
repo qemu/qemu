@@ -423,6 +423,7 @@ static void es1370_update_voices (ES1370State *s, uint32_t ctl, uint32_t sctl)
                 as.freq = new_freq;
                 as.nchannels = 1 << (new_fmt & 1);
                 as.fmt = (new_fmt & 2) ? AUD_FMT_S16 : AUD_FMT_U8;
+                as.endianness = 0;
 
                 if (i == ADC_CHANNEL) {
                     s->adc_voice =
@@ -432,8 +433,7 @@ static void es1370_update_voices (ES1370State *s, uint32_t ctl, uint32_t sctl)
                             "es1370.adc",
                             s,
                             es1370_adc_callback,
-                            &as,
-                            0   /* little endian */
+                            &as
                             );
                 }
                 else {
@@ -444,8 +444,7 @@ static void es1370_update_voices (ES1370State *s, uint32_t ctl, uint32_t sctl)
                             i ? "es1370.dac2" : "es1370.dac1",
                             s,
                             i ? es1370_dac2_callback : es1370_dac1_callback,
-                            &as,
-                            0   /* litle endian */
+                            &as
                             );
                 }
             }
@@ -479,8 +478,9 @@ static inline uint32_t es1370_fixup (ES1370State *s, uint32_t addr)
 IO_WRITE_PROTO (es1370_writeb)
 {
     ES1370State *s = opaque;
-    addr = es1370_fixup (s, addr);
     uint32_t shift, mask;
+
+    addr = es1370_fixup (s, addr);
 
     switch (addr) {
     case ES1370_REG_CONTROL:

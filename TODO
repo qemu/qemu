@@ -1,24 +1,20 @@
 short term:
 ----------
-- support variable tsc freq
+- cycle counter for all archs
 - cpu_interrupt() win32/SMP fix
+- support variable tsc freq
 - USB host async
 - IDE async
 - debug option in 'configure' script + disable -fomit-frame-pointer
 - Precise VGA timings for old games/demos (malc patch)
 - merge PIC spurious interrupt patch
-- merge Solaris patch
 - warning for OS/2: must not use 128 MB memory (merge bochs cmos patch ?)
 - config file (at least for windows/Mac OS X)
-- commit message if execution of code in IO memory
 - update doc: PCI infos.
-- VNC patch + Synaptic patch.
 - basic VGA optimizations
-- physical memory cache (reduce qemu-fast address space size to about 32 MB)
 - better code fetch (different exception handling + CS.limit support)
 - do not resize vga if invalid size.
 - avoid looping if only exceptions
-- cycle counter for all archs
 - TLB code protection support for PPC
 - see openMosix Doc 
 - disable SMC handling for ARM/SPARC/PPC (not finished)
@@ -31,12 +27,10 @@ short term:
 - fix CCOP optimisation
 - fix all remaining thread lock issues (must put TBs in a specific invalid
   state, find a solution for tb_flush()).
-- fix arm fpu rounding (at least for float->integer conversions)
 
 ppc specific:
 ------------
 - TLB invalidate not needed if msr_pr changes
-- SPR_ENCODE() not useful
 - enable shift optimizations ?
 
 linux-user specific:

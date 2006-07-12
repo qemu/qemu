@@ -153,13 +153,11 @@ static void fmod_write_sample (HWVoiceOut *hw, uint8_t *dst, int dst_len)
 
     if (src_len1) {
         hw->clip (dst, src1, src_len1);
-        mixeng_clear (src1, src_len1);
     }
 
     if (src_len2) {
         dst = advance (dst, src_len1 << hw->info.shift);
         hw->clip (dst, src2, src_len2);
-        mixeng_clear (src2, src_len2);
     }
 
     hw->rpos = pos % hw->samples;
@@ -360,6 +358,7 @@ static int fmod_init_out (HWVoiceOut *hw, audsettings_t *as)
 {
     int bits16, mode, channel;
     FMODVoiceOut *fmd = (FMODVoiceOut *) hw;
+    audsettings_t obt_as = *as;
 
     mode = aud_to_fmodfmt (as->fmt, as->nchannels == 2 ? 1 : 0);
     fmd->fmod_sample = FSOUND_Sample_Alloc (
@@ -386,7 +385,8 @@ static int fmod_init_out (HWVoiceOut *hw, audsettings_t *as)
     fmd->channel = channel;
 
     /* FMOD always operates on little endian frames? */
-    audio_pcm_init_info (&hw->info, as, audio_need_to_swap_endian (0));
+    obt_as.endianness = 0;
+    audio_pcm_init_info (&hw->info, &obt_as);
     bits16 = (mode & FSOUND_16BITS) != 0;
     hw->samples = conf.nb_samples;
     return 0;
@@ -420,6 +420,7 @@ static int fmod_init_in (HWVoiceIn *hw, audsettings_t *as)
 {
     int bits16, mode;
     FMODVoiceIn *fmd = (FMODVoiceIn *) hw;
+    audsettings_t obt_as = *as;
 
     if (conf.broken_adc) {
         return -1;
@@ -442,7 +443,8 @@ static int fmod_init_in (HWVoiceIn *hw, audsettings_t *as)
     }
 
     /* FMOD always operates on little endian frames? */
-    audio_pcm_init_info (&hw->info, as, audio_need_to_swap_endian (0));
+    obt_as.endianness = 0;
+    audio_pcm_init_info (&hw->info, &obt_as);
     bits16 = (mode & FSOUND_16BITS) != 0;
     hw->samples = conf.nb_samples;
     return 0;

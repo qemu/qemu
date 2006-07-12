@@ -614,10 +614,17 @@ void OPPROTO op_movq_eip_im64(void)
 
 void OPPROTO op_hlt(void)
 {
-    env->hflags &= ~HF_INHIBIT_IRQ_MASK; /* needed if sti is just before */
-    env->hflags |= HF_HALTED_MASK;
-    env->exception_index = EXCP_HLT;
-    cpu_loop_exit();
+    helper_hlt();
+}
+
+void OPPROTO op_monitor(void)
+{
+    helper_monitor();
+}
+
+void OPPROTO op_mwait(void)
+{
+    helper_mwait();
 }
 
 void OPPROTO op_debug(void)

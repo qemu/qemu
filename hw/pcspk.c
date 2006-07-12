@@ -95,7 +95,7 @@ static void pcspk_callback(void *opaque, int free)
 int pcspk_audio_init(AudioState *audio)
 {
     PCSpkState *s = &pcspk_state;
-    audsettings_t as = {PCSPK_SAMPLE_RATE, 1, AUD_FMT_U8};
+    audsettings_t as = {PCSPK_SAMPLE_RATE, 1, AUD_FMT_U8, 0};
 
     if (!audio) {
         AUD_log(s_spk, "No audio state\n");
@@ -103,7 +103,7 @@ int pcspk_audio_init(AudioState *audio)
     }
     AUD_register_card(audio, s_spk, &s->card);
 
-    s->voice = AUD_open_out(&s->card, s->voice, s_spk, s, pcspk_callback, &as, 0);
+    s->voice = AUD_open_out(&s->card, s->voice, s_spk, s, pcspk_callback, &as);
     if (!s->voice) {
         AUD_log(s_spk, "Could not open voice\n");
         return -1;

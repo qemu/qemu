@@ -70,7 +70,13 @@ static int glue (dsound_lock_, TYPE) (
     int i;
     LPVOID p1 = NULL, p2 = NULL;
     DWORD blen1 = 0, blen2 = 0;
+    DWORD flag;
 
+#ifdef DSBTYPE_IN
+    flag = entire ? DSCBLOCK_ENTIREBUFFER : 0;
+#else
+    flag = entire ? DSBLOCK_ENTIREBUFFER : 0;
+#endif
     for (i = 0; i < conf.lock_retries; ++i) {
         hr = glue (IFACE, _Lock) (
             buf,
@@ -80,13 +86,7 @@ static int glue (dsound_lock_, TYPE) (
             &blen1,
             &p2,
             &blen2,
-            (entire
-#ifdef DSBTYPE_IN
-             ? DSCBLOCK_ENTIREBUFFER
-#else
-             ? DSBLOCK_ENTIREBUFFER
-#endif
-             : 0)
+            flag
             );
 
         if (FAILED (hr)) {
@@ -250,8 +250,8 @@ static int dsound_init_out (HWVoiceOut *hw, audsettings_t *as)
     }
 
     ds->first_time = 1;
-
-    audio_pcm_init_info (&hw->info, &obt_as, audio_need_to_swap_endian (0));
+    obt_as.endianness = 0;
+    audio_pcm_init_info (&hw->info, &obt_as);
 
     if (bc.dwBufferBytes & hw->info.align) {
         dolog (

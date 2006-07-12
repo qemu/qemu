@@ -3408,6 +3408,34 @@ void helper_bswapq_T0(void)
 }
 #endif
 
+void helper_hlt(void)
+{
+    env->hflags &= ~HF_INHIBIT_IRQ_MASK; /* needed if sti is just before */
+    env->hflags |= HF_HALTED_MASK;
+    env->exception_index = EXCP_HLT;
+    cpu_loop_exit();
+}
+
+void helper_monitor(void)
+{
+    if (ECX != 0)
+        raise_exception(EXCP0D_GPF);
+    /* XXX: store address ? */
+}
+
+void helper_mwait(void)
+{
+    if (ECX != 0)
+        raise_exception(EXCP0D_GPF);
+    /* XXX: not complete but not completely erroneous */
+    if (env->cpu_index != 0 || env->next_cpu != NULL) {
+        /* more than one CPU: do not sleep because another CPU may
+           wake this one */
+    } else {
+        helper_hlt();
+    }
+}
+
 float approx_rsqrt(float a)
 {
     return 1.0 / sqrt(a);

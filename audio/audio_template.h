@@ -140,13 +140,12 @@ static int glue (audio_pcm_sw_init_, TYPE) (
     SW *sw,
     HW *hw,
     const char *name,
-    audsettings_t *as,
-    int endian
+    audsettings_t *as
     )
 {
     int err;
 
-    audio_pcm_init_info (&sw->info, as, audio_need_to_swap_endian (endian));
+    audio_pcm_init_info (&sw->info, as);
     sw->hw = hw;
     sw->active = 0;
 #ifdef DAC
@@ -164,7 +163,7 @@ static int glue (audio_pcm_sw_init_, TYPE) (
 #endif
         [sw->info.nchannels == 2]
         [sw->info.sign]
-        [sw->info.swap_endian]
+        [sw->info.swap_endianness]
         [sw->info.bits == 16];
 
     sw->name = qemu_strdup (name);
@@ -200,6 +199,9 @@ static void glue (audio_pcm_hw_gc_, TYPE) (AudioState *s, HW **hwp)
     HW *hw = *hwp;
 
     if (!hw->sw_head.lh_first) {
+#ifdef DAC
+        audio_detach_capture (hw);
+#endif
         LIST_REMOVE (hw, entries);
         glue (s->nb_hw_voices_, TYPE) += 1;
         glue (audio_pcm_hw_free_resources_ ,TYPE) (hw);
@@ -266,7 +268,9 @@ static HW *glue (audio_pcm_hw_add_new_, TYPE) (AudioState *s, audsettings_t *as)
 
     hw->pcm_ops = drv->pcm_ops;
     LIST_INIT (&hw->sw_head);
-
+#ifdef DAC
+    LIST_INIT (&hw->sw_cap_head);
+#endif
     if (glue (hw->pcm_ops->init_, TYPE) (hw, as)) {
         goto err0;
     }
@@ -283,7 +287,7 @@ static HW *glue (audio_pcm_hw_add_new_, TYPE) (AudioState *s, audsettings_t *as)
 #endif
         [hw->info.nchannels == 2]
         [hw->info.sign]
-        [hw->info.swap_endian]
+        [hw->info.swap_endianness]
         [hw->info.bits == 16];
 
     if (glue (audio_pcm_hw_alloc_resources_, TYPE) (hw)) {
@@ -292,6 +296,9 @@ static HW *glue (audio_pcm_hw_add_new_, TYPE) (AudioState *s, audsettings_t *as)
 
     LIST_INSERT_HEAD (&s->glue (hw_head_, TYPE), hw, entries);
     glue (s->nb_hw_voices_, TYPE) -= 1;
+#ifdef DAC
+    audio_attach_capture (s, hw);
+#endif
     return hw;
 
  err1:
@@ -328,8 +335,7 @@ static HW *glue (audio_pcm_hw_add_, TYPE) (AudioState *s, audsettings_t *as)
 static SW *glue (audio_pcm_create_voice_pair_, TYPE) (
     AudioState *s,
     const char *sw_name,
-    audsettings_t *as,
-    int sw_endian
+    audsettings_t *as
     )
 {
     SW *sw;
@@ -357,7 +363,7 @@ static SW *glue (audio_pcm_create_voice_pair_, TYPE) (
 
     glue (audio_pcm_hw_add_sw_, TYPE) (hw, sw);
 
-    if (glue (audio_pcm_sw_init_, TYPE) (sw, hw, sw_name, as, sw_endian)) {
+    if (glue (audio_pcm_sw_init_, TYPE) (sw, hw, sw_name, as)) {
         goto err3;
     }
 
@@ -399,8 +405,7 @@ SW *glue (AUD_open_, TYPE) (
     const char *name,
     void *callback_opaque ,
     audio_callback_fn_t callback_fn,
-    audsettings_t *as,
-    int sw_endian
+    audsettings_t *as
     )
 {
     AudioState *s;
@@ -473,12 +478,12 @@ SW *glue (AUD_open_, TYPE) (
         }
 
         glue (audio_pcm_sw_fini_, TYPE) (sw);
-        if (glue (audio_pcm_sw_init_, TYPE) (sw, hw, name, as, sw_endian)) {
+        if (glue (audio_pcm_sw_init_, TYPE) (sw, hw, name, as)) {
             goto fail;
         }
     }
     else {
-        sw = glue (audio_pcm_create_voice_pair_, TYPE) (s, name, as, sw_endian);
+        sw = glue (audio_pcm_create_voice_pair_, TYPE) (s, name, as);
         if (!sw) {
             dolog ("Failed to create voice `%s'\n", name);
             return NULL;
@@ -542,7 +547,7 @@ uint64_t glue (AUD_get_elapsed_usec_, TYPE) (SW *sw, QEMUAudioTimeStamp *ts)
 
     cur_ts = sw->hw->ts_helper;
     old_ts = ts->old_ts;
-    /* dolog ("cur %" PRId64 " old %" PRId64 "\n", cur_ts, old_ts); */
+    /* dolog ("cur %lld old %lld\n", cur_ts, old_ts); */
 
     if (cur_ts >= old_ts) {
         delta = cur_ts - old_ts;
