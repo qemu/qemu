@@ -1102,6 +1102,14 @@ static void ar7_save(QEMUFile *f, void* opaque)
 	qemu_put_buffer(f, (uint8_t *)&av, sizeof(av));
 }
 
+static void ar7_reset(void *opaque)
+{
+    CPUState *env = opaque;
+    printf("%s: %s:%u\n", __func__, __FILE__, __LINE__);
+    env->exception_index = EXCP_RESET;
+    do_interrupt(env);
+}
+
 void ar7_init(CPUState *env)
 {
     target_phys_addr_t addr = (0x08610000 & 0xffff);
@@ -1134,6 +1142,7 @@ void ar7_init(CPUState *env)
     //~ }
 #define ar7_instance 0
 #define ar7_version 0
+    qemu_register_reset(ar7_reset, env);
     register_savevm("ar7", ar7_instance, ar7_version, ar7_save, ar7_load, 0);
 }
 
@@ -1237,6 +1246,11 @@ Num Type           Disp Enb Address    What
                                        at /home/stefan/public_html/ar7-firmware.berlios.de/qemu/trunk/qemu/exec.c:2113
 11  breakpoint     keep y   0x0808e385 in tlb_set_page_exec at /home/stefan/public_html/ar7-firmware.berlios.de/qemu/trunk/qemu/exec.c:1592
         breakpoint already hit 2 times
+ 
+(gdb) p/x *pfl
+$4 = {bs = 0x0, base = 0x10000000, sector_len = 0x10000, total_len = 0x200000, width = 0x2, wcycle = 0x0, bypass = 0x0, ro = 0x0,
+  cmd = 0x0, status = 0x0, ident = {0x1111, 0x2222, 0x3333, 0x4444}, cfi_len = 0x52, cfi_table = {0x0 <repeats 16 times>, 0x51, 0x52, 0x59,
+    0x2, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x27, 0x36, 0x0, 0x0, 0x7, 0x4, 0x9, 0xc, 0x1, 0x4, 0xa, 0xd, 0x16, 0x2, 0x0, 0x5, 0x0, 0x1,
+    0x1f, 0x0, 0x0, 0x1, 0x0 <repeats 33 times>}, timer = 0x9ad7008, off = 0x1000000, fl_mem = 0x50, storage = 0x9f3af000}
 
- vga.c: nicht anmelden!
 #endif
