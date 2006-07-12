@@ -207,15 +207,11 @@ static int bios_load(const char *filename, unsigned long bios_offset, unsigned l
     ret = load_image(buf, phys_ram_base + bios_offset);
     printf("%s: load BIOS '%s' size %d\n", __func__, buf, ret);
     if (ret > 0) {
-#if 0
-	cpu_register_physical_memory(address, ret, bios_offset | IO_MEM_ROM);
-#else
 	const unsigned blocksize = 0x10000;
-	pflash_t *pf = pflash_register (address, bios_offset,
+	pflash_t *pf = pflash_cfi01_register (address, bios_offset,
 		0,
-                blocksize, ret / blocksize, 16,
-                0x1111, 0x2222, 0x3333, 0x4444);
-#endif
+                blocksize, ret / blocksize, 2,
+                0x4a, 0x49, 0x33, 0x44);
     } else {
 	    ret = 0;
     }
