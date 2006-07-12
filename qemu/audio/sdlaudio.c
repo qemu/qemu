@@ -240,7 +240,6 @@ static void sdl_callback (void *opaque, Uint8 *buf, int len)
 
             /* dolog ("in callback to_mix %d, chunk %d\n", to_mix, chunk); */
             hw->clip (buf, src, chunk);
-            mixeng_clear (src, chunk);
             sdl->rpos = (sdl->rpos + chunk) % hw->samples;
             to_mix -= chunk;
             buf += chunk << hw->info.shift;
@@ -336,12 +335,9 @@ static int sdl_init_out (HWVoiceOut *hw, audsettings_t *as)
     obt_as.freq = obt.freq;
     obt_as.nchannels = obt.channels;
     obt_as.fmt = effective_fmt;
+    obt_as.endianness = endianess;
 
-    audio_pcm_init_info (
-        &hw->info,
-        &obt_as,
-        audio_need_to_swap_endian (endianess)
-        );
+    audio_pcm_init_info (&hw->info, &obt_as);
     hw->samples = obt.samples;
 
     s->initialized = 1;

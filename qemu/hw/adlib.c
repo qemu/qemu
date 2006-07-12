@@ -301,6 +301,7 @@ int Adlib_init (AudioState *audio)
     as.freq = conf.freq;
     as.nchannels = SHIFT;
     as.fmt = AUD_FMT_S16;
+    as.endianness = AUDIO_HOST_ENDIANNESS;
 
     AUD_register_card (audio, "adlib", &s->card);
 
@@ -310,8 +311,7 @@ int Adlib_init (AudioState *audio)
         "adlib",
         s,
         adlib_callback,
-        &as,
-        0                       /* XXX: little endian? */
+        &as
         );
     if (!s->voice) {
         Adlib_fini (s);

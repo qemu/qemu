@@ -37,7 +37,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-#include "audio/audio.h"
 
 #ifndef O_LARGEFILE
 #define O_LARGEFILE 0
@@ -78,6 +77,7 @@ static inline char *realpath(const char *path, char *resolved_path)
 
 #else
 
+#include "audio/audio.h"
 #include "cpu.h"
 #include "gdbstub.h"
 
@@ -830,6 +830,10 @@ void pci_ne2000_init(PCIBus *bus, NICInfo *nd);
 /* rtl8139.c */
 
 void pci_rtl8139_init(PCIBus *bus, NICInfo *nd);
+
+/* pcnet.c */
+
+void pci_pcnet_init(PCIBus *bus, NICInfo *nd);
 
 /* pckbd.c */
 

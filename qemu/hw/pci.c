@@ -493,6 +493,8 @@ void pci_nic_init(PCIBus *bus, NICInfo *nd)
         pci_ne2000_init(bus, nd);
     } else if (strcmp(nd->model, "rtl8139") == 0) {
         pci_rtl8139_init(bus, nd);
+    } else if (strcmp(nd->model, "pcnet") == 0) {
+        pci_pcnet_init(bus, nd);
     } else {
         fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd->model);
         exit (1);

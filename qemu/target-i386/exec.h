@@ -496,6 +496,9 @@ void save_native_fp_state(CPUState *env);
 float approx_rsqrt(float a);
 float approx_rcp(float a);
 void update_fp_status(void);
+void helper_hlt(void);
+void helper_monitor(void);
+void helper_mwait(void);
 
 extern const uint8_t parity_table[256];
 extern const uint8_t rclw_table[32];

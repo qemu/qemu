@@ -81,7 +81,6 @@ static int wav_run_out (HWVoiceOut *hw)
 
         hw->clip (dst, src, convert_samples);
         qemu_put_buffer (wav->f, dst, convert_samples << hw->info.shift);
-        mixeng_clear (src, convert_samples);
 
         rpos = (rpos + convert_samples) % hw->samples;
         samples -= convert_samples;
@@ -136,7 +135,8 @@ static int wav_init_out (HWVoiceOut *hw, audsettings_t *as)
 
     hdr[34] = bits16 ? 0x10 : 0x08;
 
-    audio_pcm_init_info (&hw->info, &wav_as, audio_need_to_swap_endian (0));
+    wav_as.endianness = 0;
+    audio_pcm_init_info (&hw->info, &wav_as);
 
     hw->samples = 1024;
     wav->pcm_buf = audio_calloc (AUDIO_FUNC, hw->samples, 1 << hw->info.shift);
