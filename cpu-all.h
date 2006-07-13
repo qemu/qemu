@@ -900,13 +900,105 @@ void cpu_tlb_update_dirty(CPUState *env);
 void dump_exec_info(FILE *f,
                     int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
 
-/* profiling */
-#ifdef CONFIG_PROFILER
-static inline int64_t profile_getclock(void)
+/*******************************************/
+/* host CPU ticks (if available) */
+
+#if defined(__powerpc__)
+
+static inline uint32_t get_tbl(void) 
+{
+    uint32_t tbl;
+    asm volatile("mftb %0" : "=r" (tbl));
+    return tbl;
+}
+
+static inline uint32_t get_tbu(void) 
+{
+	uint32_t tbl;
+	asm volatile("mftbu %0" : "=r" (tbl));
+	return tbl;
+}
+
+static inline int64_t cpu_get_real_ticks(void)
+{
+    uint32_t l, h, h1;
+    /* NOTE: we test if wrapping has occurred */
+    do {
+        h = get_tbu();
+        l = get_tbl();
+        h1 = get_tbu();
+    } while (h != h1);
+    return ((int64_t)h << 32) | l;
+}
+
+#elif defined(__i386__)
+
+static inline int64_t cpu_get_real_ticks(void)
 {
     int64_t val;
     asm volatile ("rdtsc" : "=A" (val));
     return val;
+}
+
+#elif defined(__x86_64__)
+
+static inline int64_t cpu_get_real_ticks(void)
+{
+    uint32_t low,high;
+    int64_t val;
+    asm volatile("rdtsc" : "=a" (low), "=d" (high));
+    val = high;
+    val <<= 32;
+    val |= low;
+    return val;
+}
+
+#elif defined(__ia64)
+
+static inline int64_t cpu_get_real_ticks(void)
+{
+	int64_t val;
+	asm volatile ("mov %0 = ar.itc" : "=r"(val) :: "memory");
+	return val;
+}
+
+#elif defined(__s390__)
+
+static inline int64_t cpu_get_real_ticks(void)
+{
+    int64_t val;
+    asm volatile("stck 0(%1)" : "=m" (val) : "a" (&val) : "cc");
+    return val;
+}
+
+#elif defined(__sparc__) && defined(HOST_SOLARIS)
+
+static inline int64_t cpu_get_real_ticks (void)
+{
+#if     defined(_LP64)
+        uint64_t        rval;
+        asm volatile("rd %%tick,%0" : "=r"(rval));
+        return rval;
+#else
+        union {
+                uint64_t i64;
+                struct {
+                        uint32_t high;
+                        uint32_t low;
+                }       i32;
+        } rval;
+        asm volatile("rd %%tick,%1; srlx %1,32,%0"
+                : "=r"(rval.i32.high), "=r"(rval.i32.low));
+        return rval.i64;
+#endif
+}
+#endif
+
+/* profiling */
+#ifdef CONFIG_PROFILER
+static inline int64_t profile_getclock(void)
+{
+    return cpu_get_real_ticks();
 }
 
 extern int64_t kqemu_time, kqemu_time_start;
