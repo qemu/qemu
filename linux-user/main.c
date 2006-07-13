@@ -107,29 +107,7 @@ int cpu_get_pic_interrupt(CPUState *env)
 
 /* timers for rdtsc */
 
-#if defined(__i386__)
-
-int64_t cpu_get_real_ticks(void)
-{
-    int64_t val;
-    asm volatile ("rdtsc" : "=A" (val));
-    return val;
-}
-
-#elif defined(__x86_64__)
-
-int64_t cpu_get_real_ticks(void)
-{
-    uint32_t low,high;
-    int64_t val;
-    asm volatile("rdtsc" : "=a" (low), "=d" (high));
-    val = high;
-    val <<= 32;
-    val |= low;
-    return val;
-}
-
-#else
+#if 0
 
 static uint64_t emu_time;
 
