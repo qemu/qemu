@@ -57,6 +57,7 @@ struct PCNetState_st {
     uint64_t timer;
     int xmit_pos, recv_pos;
     uint8_t buffer[4096];
+    int tx_busy;
 };
 
 #ifdef __GNUC__
@@ -659,6 +660,8 @@ static void pcnet_s_reset(PCNetState *s)
     s->csr[114] = 0x0000;
     s->csr[122] = 0x0000;
     s->csr[124] = 0x0000;
+
+    s->tx_busy = 0;
 }
 
 static void pcnet_update_irq(PCNetState *s)
@@ -1104,7 +1107,9 @@ static void pcnet_transmit(PCNetState *s)
         s->csr[0] &= ~0x0008;
         return;
     }
-    
+
+    s->tx_busy = 1;
+
     txagain:
     if (pcnet_tdte_poll(s)) {
         struct pcnet_TMD tmd;
@@ -1167,6 +1172,8 @@ static void pcnet_transmit(PCNetState *s)
         if (count--)
           goto txagain;
     }
+
+    s->tx_busy = 0;
 }
 
 static void pcnet_poll(PCNetState *s)
@@ -1177,7 +1184,13 @@ static void pcnet_poll(PCNetState *s)
 
     if (CSR_TDMD(s) || 
         (CSR_TXON(s) && !CSR_DPOLL(s) && pcnet_tdte_poll(s)))
+    {
+        /* prevent recursion */
+        if (s->tx_busy)
+            return;
+
         pcnet_transmit(s);
+    }
 }
 
 static void pcnet_poll_timer(void *opaque)
