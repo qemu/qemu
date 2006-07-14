@@ -60,8 +60,10 @@ struct PCNetState_st {
     int tx_busy;
 };
 
+/* XXX: using bitfields for target memory structures is almost surely
+   not portable, so it should be suppressed ASAP */
 #ifdef __GNUC__
-#define PACKED(A) A __attribute__ ((packed))
+#define PACKED_FIELD(A) A __attribute__ ((packed))
 #else
 #error FixMe
 #endif
@@ -152,20 +154,20 @@ struct pcnet_initblk16 {
     uint16_t ladrf2;
     uint16_t ladrf3;
     uint16_t ladrf4;
-    unsigned PACKED(rdra:24);
-    unsigned PACKED(res1:5);
-    unsigned PACKED(rlen:3);
-    unsigned PACKED(tdra:24);
-    unsigned PACKED(res2:5);
-    unsigned PACKED(tlen:3);
+    unsigned PACKED_FIELD(rdra:24);
+    unsigned PACKED_FIELD(res1:5);
+    unsigned PACKED_FIELD(rlen:3);
+    unsigned PACKED_FIELD(tdra:24);
+    unsigned PACKED_FIELD(res2:5);
+    unsigned PACKED_FIELD(tlen:3);
 };
 
 struct pcnet_initblk32 {
     uint16_t mode;
-    unsigned PACKED(res1:4);
-    unsigned PACKED(rlen:4);
-    unsigned PACKED(res2:4);
-    unsigned PACKED(tlen:4);
+    unsigned PACKED_FIELD(res1:4);
+    unsigned PACKED_FIELD(rlen:4);
+    unsigned PACKED_FIELD(res2:4);
+    unsigned PACKED_FIELD(tlen:4);
     uint16_t padr1;
     uint16_t padr2;
     uint16_t padr3;
@@ -183,14 +185,14 @@ struct pcnet_TMD {
         unsigned tbadr:32;
     } tmd0;
     struct {
-        unsigned PACKED(bcnt:12), PACKED(ones:4), PACKED(res:7), PACKED(bpe:1);
-        unsigned PACKED(enp:1), PACKED(stp:1), PACKED(def:1), PACKED(one:1);
-        unsigned PACKED(ltint:1), PACKED(nofcs:1), PACKED(err:1), PACKED(own:1);
+        unsigned PACKED_FIELD(bcnt:12), PACKED_FIELD(ones:4), PACKED_FIELD(res:7), PACKED_FIELD(bpe:1);
+        unsigned PACKED_FIELD(enp:1), PACKED_FIELD(stp:1), PACKED_FIELD(def:1), PACKED_FIELD(one:1);
+        unsigned PACKED_FIELD(ltint:1), PACKED_FIELD(nofcs:1), PACKED_FIELD(err:1), PACKED_FIELD(own:1);
     } tmd1;
     struct {
-        unsigned PACKED(trc:4), PACKED(res:12);
-        unsigned PACKED(tdr:10), PACKED(rtry:1), PACKED(lcar:1);
-        unsigned PACKED(lcol:1), PACKED(exdef:1), PACKED(uflo:1), PACKED(buff:1);
+        unsigned PACKED_FIELD(trc:4), PACKED_FIELD(res:12);
+        unsigned PACKED_FIELD(tdr:10), PACKED_FIELD(rtry:1), PACKED_FIELD(lcar:1);
+        unsigned PACKED_FIELD(lcol:1), PACKED_FIELD(exdef:1), PACKED_FIELD(uflo:1), PACKED_FIELD(buff:1);
     } tmd2;
     struct {
         unsigned res:32;
@@ -202,14 +204,14 @@ struct pcnet_RMD {
         unsigned rbadr:32;
     } rmd0;
     struct {
-        unsigned PACKED(bcnt:12), PACKED(ones:4), PACKED(res:4);
-        unsigned PACKED(bam:1), PACKED(lafm:1), PACKED(pam:1), PACKED(bpe:1);
-        unsigned PACKED(enp:1), PACKED(stp:1), PACKED(buff:1), PACKED(crc:1);
-        unsigned PACKED(oflo:1), PACKED(fram:1), PACKED(err:1), PACKED(own:1);
+        unsigned PACKED_FIELD(bcnt:12), PACKED_FIELD(ones:4), PACKED_FIELD(res:4);
+        unsigned PACKED_FIELD(bam:1), PACKED_FIELD(lafm:1), PACKED_FIELD(pam:1), PACKED_FIELD(bpe:1);
+        unsigned PACKED_FIELD(enp:1), PACKED_FIELD(stp:1), PACKED_FIELD(buff:1), PACKED_FIELD(crc:1);
+        unsigned PACKED_FIELD(oflo:1), PACKED_FIELD(fram:1), PACKED_FIELD(err:1), PACKED_FIELD(own:1);
     } rmd1;
     struct {
-        unsigned PACKED(mcnt:12), PACKED(zeros:4);
-        unsigned PACKED(rpc:8), PACKED(rcc:8);
+        unsigned PACKED_FIELD(mcnt:12), PACKED_FIELD(zeros:4);
+        unsigned PACKED_FIELD(rpc:8), PACKED_FIELD(rcc:8);
     } rmd2;    
     struct {
         unsigned res:32;
@@ -555,7 +557,7 @@ static inline int padr_match(PCNetState *s, const uint8_t *buf, int size)
         s->csr[13] & 0xff, s->csr[13] >> 8,
         s->csr[14] & 0xff, s->csr[14] >> 8 
     };
-    int result = (!CSR_DRCVPA(s)) && !bcmp(hdr->ether_dhost, padr, 6);
+    int result = (!CSR_DRCVPA(s)) && !memcmp(hdr->ether_dhost, padr, 6);
 #ifdef PCNET_DEBUG_MATCH
     printf("packet dhost=%02x:%02x:%02x:%02x:%02x:%02x, "
            "padr=%02x:%02x:%02x:%02x:%02x:%02x\n",
@@ -571,7 +573,7 @@ static inline int padr_bcast(PCNetState *s, const uint8_t *buf, int size)
 {
     static uint8_t BCAST[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
     struct qemu_ether_header *hdr = (void *)buf;
-    int result = !CSR_DRCVBC(s) && !bcmp(hdr->ether_dhost, BCAST, 6);
+    int result = !CSR_DRCVBC(s) && !memcmp(hdr->ether_dhost, BCAST, 6);
 #ifdef PCNET_DEBUG_MATCH
     printf("padr_bcast result=%d\n", result);
 #endif
