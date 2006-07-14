@@ -6159,7 +6159,7 @@ int main(int argc, char **argv)
                 exit(1);
             }
             if (!strcmp(serial_devices[i], "vc"))
-                qemu_chr_printf(serial_hds[i], "serial%d console\n", i);
+                qemu_chr_printf(serial_hds[i], "serial%d console\r\n", i);
         }
     }
 
@@ -6172,7 +6172,7 @@ int main(int argc, char **argv)
                 exit(1);
             }
             if (!strcmp(parallel_devices[i], "vc"))
-                qemu_chr_printf(parallel_hds[i], "parallel%d console\n", i);
+                qemu_chr_printf(parallel_hds[i], "parallel%d console\r\n", i);
         }
     }
 

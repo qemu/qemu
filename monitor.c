@@ -82,8 +82,10 @@ void term_puts(const char *str)
         c = *str++;
         if (c == '\0')
             break;
+        if (c == '\n')
+            term_outbuf[term_outbuf_index++] = '\r';
         term_outbuf[term_outbuf_index++] = c;
-        if (term_outbuf_index >= sizeof(term_outbuf) ||
+        if (term_outbuf_index >= (sizeof(term_outbuf) - 1) ||
             c == '\n')
             term_flush();
     }
