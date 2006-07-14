@@ -517,6 +517,8 @@ static int64_t clock_freq;
 
 static void init_get_clock(void)
 {
+    LARGE_INTEGER freq;
+    int ret;
     ret = QueryPerformanceFrequency(&freq);
     if (ret == 0) {
         fprintf(stderr, "Could not calibrate ticks\n");
@@ -5614,6 +5616,24 @@ int main(int argc, char **argv)
     }
 #else
     SetConsoleCtrlHandler(qemu_ctrl_handler, TRUE);
+    /* Note: cpu_interrupt() is currently not SMP safe, so we force
+       QEMU to run on a single CPU */
+    {
+        HANDLE h;
+        DWORD mask, smask;
+        int i;
+        h = GetCurrentProcess();
+        if (GetProcessAffinityMask(h, &mask, &smask)) {
+            for(i = 0; i < 32; i++) {
+                if (mask & (1 << i))
+                    break;
+            }
+            if (i != 32) {
+                mask = 1 << i;
+                SetProcessAffinityMask(h, mask);
+            }
+        }
+    }
 #endif
     init_timers();
     init_timer_alarm();
