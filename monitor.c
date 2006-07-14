@@ -821,6 +821,26 @@ static void do_send_key(const char *string)
     }
 }
 
+static int mouse_button_state;
+
+static void do_mouse_move(const char *dx_str, const char *dy_str, 
+                          const char *dz_str)
+{
+    int dx, dy, dz;
+    dx = strtol(dx_str, NULL, 0);
+    dy = strtol(dy_str, NULL, 0);
+    dz = 0;
+    if (dz_str) 
+        dz = strtol(dz_str, NULL, 0);
+    kbd_mouse_event(dx, dy, dz, mouse_button_state);
+}
+
+static void do_mouse_button(int button_state)
+{
+    mouse_button_state = button_state;
+    kbd_mouse_event(0, 0, 0, mouse_button_state);
+}
+
 static void do_ioport_read(int count, int format, int size, int addr, int has_index, int index)
 {
     uint32_t val;
@@ -1109,6 +1129,10 @@ static term_cmd_t term_cmds[] = {
       "device", "remove USB device 'bus.addr'" },
     { "cpu", "i", do_cpu_set, 
       "index", "set the default CPU" },
+    { "mouse_move", "sss?", do_mouse_move, 
+      "dx dy [dz]", "send mouse move events" },
+    { "mouse_button", "i", do_mouse_button, 
+      "state", "change mouse button state (1=L, 2=M, 4=R)" },
     { NULL, NULL, }, 
 };
 
@@ -1949,7 +1973,6 @@ static void monitor_handle_command(const char *cmdline)
                 while (isspace(*p)) 
                     p++;
                 if (*typestr == '?' || *typestr == '.') {
-                    typestr++;
                     if (*typestr == '?') {
                         if (*p == '\0')
                             has_arg = 0;
@@ -1965,6 +1988,7 @@ static void monitor_handle_command(const char *cmdline)
                             has_arg = 0;
                         }
                     }
+                    typestr++;
                     if (nb_args >= MAX_ARGS)
                         goto error_args;
                     args[nb_args++] = (void *)has_arg;
