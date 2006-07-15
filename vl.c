@@ -5635,8 +5635,6 @@ int main(int argc, char **argv)
         }
     }
 #endif
-    init_timers();
-    init_timer_alarm();
 
     register_machines();
     machine = first_machine;
@@ -6046,6 +6044,9 @@ int main(int argc, char **argv)
 
     setvbuf(stdout, NULL, _IOLBF, 0);
     
+    init_timers();
+    init_timer_alarm();
+
 #ifdef _WIN32
     socket_init();
 #endif
