@@ -8,9 +8,14 @@ version 0.8.2:
   - Solaris/SPARC host support (Ben Taylor)
   - PPC breakpoints and single stepping (Jason Wessel)
   - USB updates (Paul Brook)
-  - UDP character devices (Jason Wessel)
-  - TCP character devices
+  - UDP/TCP/telnet character devices (Jason Wessel)
   - Windows sparse file support (Frediano Ziglio)
+  - RTL8139 NIC TCP segmentation offloading (Igor Kovalenko)
+  - PCNET NIC support (Antony T Curtis)
+  - Support for variable frequency host CPUs
+  - Workaround for win32 SMP hosts
+  - Support for AMD Flash memories (Jocelyn Mayer)
+  - Audio capture to WAV files support (malc)
 
 version 0.8.1:
 
