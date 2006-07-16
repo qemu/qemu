@@ -250,16 +250,19 @@ with a serial console.
 @item -vnc d
 
 Normally, QEMU uses SDL to display the VGA output.  With this option,
-you can have QEMU listen on VNC display d and redirect the VGA display
-over the VNC session.  It is very useful to enable the usb tablet device
-when using this option (option @option{-usbdevice tablet}).
+you can have QEMU listen on VNC display @var{d} and redirect the VGA
+display over the VNC session.  It is very useful to enable the usb
+tablet device when using this option (option @option{-usbdevice
+tablet}). When using the VNC display, you must use the @option{-k}
+option to set the keyboard layout.
 
 @item -k language
 
 Use keyboard layout @var{language} (for example @code{fr} for
 French). This option is only needed where it is not easy to get raw PC
-keycodes (e.g. on Macs or with some X11 servers). You don't need to
-use it on PC/Linux or PC/Windows hosts.
+keycodes (e.g. on Macs, with some X11 servers or with a VNC
+display). You don't normally need to use it on PC/Linux or PC/Windows
+hosts.
 
 The available layouts are:
 @example
@@ -616,6 +619,11 @@ Simulate a standard VGA card with Bochs VBE extensions (default is
 Cirrus Logic GD5446 PCI VGA). If your guest OS supports the VESA 2.0
 VBE extensions (e.g. Windows XP) and if you want to use high
 resolution modes (>= 1280x1024x16) then you should use this option.
+
+@item -no-acpi
+Disable ACPI (Advanced Configuration and Power Interface) support. Use
+it if your guest OS complains about ACPI problems (PC target machine
+only).
 
 @item -loadvm file
 Start right away with a saved state (@code{loadvm} in monitor)
