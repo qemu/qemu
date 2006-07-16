@@ -49,13 +49,31 @@ typedef struct {
     int endianness;
 } audsettings_t;
 
+typedef enum {
+    AUD_CNOTIFY_ENABLE,
+    AUD_CNOTIFY_DISABLE
+} audcnotification_e;
+
 struct audio_capture_ops {
-    void (*state) (void *opaque, int enabled);
+    void (*notify) (void *opaque, audcnotification_e cmd);
     void (*capture) (void *opaque, void *buf, int size);
+    void (*destroy) (void *opaque);
 };
+
+struct capture_ops {
+    void (*info) (void *opaque);
+    void (*destroy) (void *opaque);
+};
+
+typedef struct CaptureState {
+    void *opaque;
+    struct capture_ops ops;
+    LIST_ENTRY (CaptureState) entries;
+} CaptureState;
 
 typedef struct AudioState AudioState;
 typedef struct SWVoiceOut SWVoiceOut;
+typedef struct CaptureVoiceOut CaptureVoiceOut;
 typedef struct SWVoiceIn SWVoiceIn;
 
 typedef struct QEMUSoundCard {
@@ -79,12 +97,13 @@ AudioState *AUD_init (void);
 void AUD_help (void);
 void AUD_register_card (AudioState *s, const char *name, QEMUSoundCard *card);
 void AUD_remove_card (QEMUSoundCard *card);
-int AUD_add_capture (
+CaptureVoiceOut *AUD_add_capture (
     AudioState *s,
     audsettings_t *as,
     struct audio_capture_ops *ops,
     void *opaque
     );
+void AUD_del_capture (CaptureVoiceOut *cap, void *cb_opaque);
 
 SWVoiceOut *AUD_open_out (
     QEMUSoundCard *card,

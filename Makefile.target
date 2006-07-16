@@ -321,6 +321,7 @@ endif
 ifdef CONFIG_ADLIB
 SOUND_HW += fmopl.o adlib.o
 endif
+AUDIODRV+= wavcapture.o
 
 # SCSI layer
 VL_OBJS+= scsi-disk.o cdrom.o lsi53c895a.o

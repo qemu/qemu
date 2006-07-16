@@ -1077,6 +1077,64 @@ static void do_info_profile(void)
 }
 #endif
 
+/* Capture support */
+static LIST_HEAD (capture_list_head, CaptureState) capture_head;
+
+static void do_info_capture (void)
+{
+    int i;
+    CaptureState *s;
+
+    for (s = capture_head.lh_first, i = 0; s; s = s->entries.le_next, ++i) {
+        term_printf ("[%d]: ", i);
+        s->ops.info (s->opaque);
+    }
+}
+
+static void do_stop_capture (int n)
+{
+    int i;
+    CaptureState *s;
+
+    for (s = capture_head.lh_first, i = 0; s; s = s->entries.le_next, ++i) {
+        if (i == n) {
+            s->ops.destroy (s->opaque);
+            LIST_REMOVE (s, entries);
+            qemu_free (s);
+            return;
+        }
+    }
+}
+
+#ifdef HAS_AUDIO
+int wav_start_capture (CaptureState *s, const char *path, int freq,
+                       int bits, int nchannels);
+
+static void do_wav_capture (const char *path,
+                            int has_freq, int freq,
+                            int has_bits, int bits,
+                            int has_channels, int nchannels)
+{
+    CaptureState *s;
+
+    s = qemu_mallocz (sizeof (*s));
+    if (!s) {
+        term_printf ("Not enough memory to add wave capture\n");
+        return;
+    }
+
+    freq = has_freq ? freq : 44100;
+    bits = has_bits ? bits : 16;
+    nchannels = has_channels ? nchannels : 2;
+
+    if (wav_start_capture (s, path, freq, bits, nchannels)) {
+        term_printf ("Faied to add wave capture\n");
+        qemu_free (s);
+    }
+    LIST_INSERT_HEAD (&capture_head, s, entries);
+}
+#endif
+
 static term_cmd_t term_cmds[] = {
     { "help|?", "s?", do_help, 
       "[cmd]", "show the help" },
@@ -1133,6 +1191,13 @@ static term_cmd_t term_cmds[] = {
       "dx dy [dz]", "send mouse move events" },
     { "mouse_button", "i", do_mouse_button, 
       "state", "change mouse button state (1=L, 2=M, 4=R)" },
+#ifdef HAS_AUDIO
+    { "wavcapture", "si?i?i?", do_wav_capture,
+      "path [frequency bits channels]",
+      "capture audio to a wave file (default frequency=44100 bits=16 channels=2)" },
+#endif
+     { "stopcapture", "i", do_stop_capture,
+       "capture index", "stop capture" },
     { NULL, NULL, }, 
 };
 
@@ -1171,6 +1236,8 @@ static term_cmd_t info_cmds[] = {
       "", "show host USB devices", },
     { "profile", "", do_info_profile,
       "", "show profiling information", },
+    { "capture", "", do_info_capture,
+      "show capture information" },
     { NULL, NULL, },
 };
 
@@ -2080,6 +2147,9 @@ static void monitor_handle_command(const char *cmdline)
         break;
     case 6:
         cmd->handler(args[0], args[1], args[2], args[3], args[4], args[5]);
+        break;
+    case 7:
+        cmd->handler(args[0], args[1], args[2], args[3], args[4], args[5], args[6]);
         break;
     default:
         term_printf("unsupported number of arguments: %d\n", nb_args);
