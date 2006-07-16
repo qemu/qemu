@@ -1,3 +1,61 @@
+2006-07-16 20:57  bellard
+
+	* Makefile.target, monitor.c, audio/audio.c, audio/audio.h,
+	  audio/audio_int.h, audio/audio_template.h, audio/noaudio.c,
+	  audio/wavcapture.c: audio capture to wab files (malc)
+
+2006-07-16 20:56  bellard
+
+	* Changelog: update
+
+2006-07-15 19:40  pbrook
+
+	* vl.c: Defer timer initialization until after commandline
+	  processing.
+
+2006-07-15 00:03  bellard
+
+	* monitor.c: added mouse event generation
+
+2006-07-14 22:26  bellard
+
+	* monitor.c, vl.c: generate CRLF instead of LF
+
+2006-07-14 22:24  bellard
+
+	* console.c: fixed LF interpretation
+
+2006-07-14 15:13  bellard
+
+	* VERSION, qemu-doc.texi: update
+
+2006-07-14 11:40  bellard
+
+	* hw/pcnet.c: win32 compilation fixes
+
+2006-07-14 11:36  bellard
+
+	* vl.c: win32 compilation - force process affinity on win32 as a
+	  workaround for SMP issues
+
+2006-07-14 01:25  bellard
+
+	* hw/pcnet.c: avoid recursive tx
+
+2006-07-14 01:20  bellard
+
+	* vl.c, vl.h, hw/pc.c, linux-user/main.c: new clock logic: cpu
+	  ticks and virtual clocks are no longer proportional - added
+	  timestamps on the stdio console
+
+2006-07-14 01:00  bellard
+
+	* cpu-all.h: export cpu_get_real_ticks()
+
+2006-07-14 01:00  bellard
+
+	* Makefile.target: use posix timers
+
 2006-07-10 23:38  bellard
 
 	* hw/rtl8139.c: fixed for TCP segmentation offloading - removed

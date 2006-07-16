@@ -269,7 +269,7 @@ static HW *glue (audio_pcm_hw_add_new_, TYPE) (AudioState *s, audsettings_t *as)
     hw->pcm_ops = drv->pcm_ops;
     LIST_INIT (&hw->sw_head);
 #ifdef DAC
-    LIST_INIT (&hw->sw_cap_head);
+    LIST_INIT (&hw->cap_head);
 #endif
     if (glue (hw->pcm_ops->init_, TYPE) (hw, as)) {
         goto err0;
@@ -426,7 +426,7 @@ SW *glue (AUD_open_, TYPE) (
 
     s = card->audio;
 
-    if (audio_bug (AUDIO_FUNC, audio_validate_settigs (as))) {
+    if (audio_bug (AUDIO_FUNC, audio_validate_settings (as))) {
         audio_print_settings (as);
         goto fail;
     }
