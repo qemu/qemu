@@ -102,7 +102,7 @@ static int no_run_in (HWVoiceIn *hw)
     NoVoiceIn *no = (NoVoiceIn *) hw;
     int live = audio_pcm_hw_get_live_in (hw);
     int dead = hw->samples - live;
-    int samples;
+    int samples = 0;
 
     if (dead) {
         int64_t now = qemu_get_clock (vm_clock);

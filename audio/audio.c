@@ -510,7 +510,8 @@ static void audio_print_settings (audsettings_t *as)
         AUD_log (NULL, "invalid(%d)", as->fmt);
         break;
     }
-    AUD_log (NULL, "endianness=");
+
+    AUD_log (NULL, " endianness=");
     switch (as->endianness) {
     case 0:
         AUD_log (NULL, "little");
@@ -525,7 +526,7 @@ static void audio_print_settings (audsettings_t *as)
     AUD_log (NULL, "\n");
 }
 
-static int audio_validate_settigs (audsettings_t *as)
+static int audio_validate_settings (audsettings_t *as)
 {
     int invalid;
 
@@ -654,15 +655,25 @@ static CaptureVoiceOut *audio_pcm_capture_find_specific (
     return NULL;
 }
 
-static void audio_notify_capture (CaptureVoiceOut *cap, int enabled)
+static void audio_notify_capture (CaptureVoiceOut *cap, audcnotification_e cmd)
+{
+    struct capture_callback *cb;
+
+#ifdef DEBUG_CAPTURE
+    dolog ("notification %d sent\n", cmd);
+#endif
+    for (cb = cap->cb_head.lh_first; cb; cb = cb->entries.le_next) {
+        cb->ops.notify (cb->opaque, cmd);
+    }
+}
+
+static void audio_capture_maybe_changed (CaptureVoiceOut *cap, int enabled)
 {
     if (cap->hw.enabled != enabled) {
-        struct capture_callback *cb;
-
+        audcnotification_e cmd;
         cap->hw.enabled = enabled;
-        for (cb = cap->cb_head.lh_first; cb; cb = cb->entries.le_next) {
-            cb->ops.state (cb->opaque, enabled);
-        }
+        cmd = enabled ? AUD_CNOTIFY_ENABLE : AUD_CNOTIFY_DISABLE;
+        audio_notify_capture (cap, cmd);
     }
 }
 
@@ -672,29 +683,40 @@ static void audio_recalc_and_notify_capture (CaptureVoiceOut *cap)
     SWVoiceOut *sw;
     int enabled = 0;
 
-    for (sw = hw->sw_cap_head.lh_first; sw; sw = sw->cap_entries.le_next) {
+    for (sw = hw->sw_head.lh_first; sw; sw = sw->entries.le_next) {
         if (sw->active) {
             enabled = 1;
             break;
         }
     }
-    audio_notify_capture (cap, enabled);
+    audio_capture_maybe_changed (cap, enabled);
 }
 
 static void audio_detach_capture (HWVoiceOut *hw)
 {
-    SWVoiceOut *sw;
+    SWVoiceCap *sc = hw->cap_head.lh_first;
 
-    for (sw = hw->sw_cap_head.lh_first; sw; sw = sw->cap_entries.le_next) {
+    while (sc) {
+        SWVoiceCap *sc1 = sc->entries.le_next;
+        SWVoiceOut *sw = &sc->sw;
+        CaptureVoiceOut *cap = sc->cap;
+        int was_active = sw->active;
+
         if (sw->rate) {
             st_rate_stop (sw->rate);
             sw->rate = NULL;
         }
 
         LIST_REMOVE (sw, entries);
-        LIST_REMOVE (sw, cap_entries);
-        qemu_free (sw);
-        audio_recalc_and_notify_capture ((CaptureVoiceOut *) sw->hw);
+        LIST_REMOVE (sc, entries);
+        qemu_free (sc);
+        if (was_active) {
+            /* We have removed soft voice from the capture:
+               this might have changed the overall status of the capture
+               since this might have been the only active voice */
+            audio_recalc_and_notify_capture (cap);
+        }
+        sc = sc1;
     }
 }
 
@@ -704,19 +726,21 @@ static int audio_attach_capture (AudioState *s, HWVoiceOut *hw)
 
     audio_detach_capture (hw);
     for (cap = s->cap_head.lh_first; cap; cap = cap->entries.le_next) {
+        SWVoiceCap *sc;
         SWVoiceOut *sw;
-        HWVoiceOut *hw_cap;
+        HWVoiceOut *hw_cap = &cap->hw;
 
-        hw_cap = &cap->hw;
-        sw = audio_calloc (AUDIO_FUNC, 1, sizeof (*sw));
-        if (!sw) {
+        sc = audio_calloc (AUDIO_FUNC, 1, sizeof (*sc));
+        if (!sc) {
             dolog ("Could not allocate soft capture voice (%zu bytes)\n",
-                   sizeof (*sw));
+                   sizeof (*sc));
             return -1;
         }
 
-        sw->info = hw->info;
+        sc->cap = cap;
+        sw = &sc->sw;
         sw->hw = hw_cap;
+        sw->info = hw->info;
         sw->empty = 1;
         sw->active = hw->enabled;
         sw->conv = noop_conv;
@@ -728,12 +752,14 @@ static int audio_attach_capture (AudioState *s, HWVoiceOut *hw)
             return -1;
         }
         LIST_INSERT_HEAD (&hw_cap->sw_head, sw, entries);
-        LIST_INSERT_HEAD (&hw->sw_cap_head, sw, cap_entries);
+        LIST_INSERT_HEAD (&hw->cap_head, sc, entries);
+#ifdef DEBUG_CAPTURE
+        asprintf (&sw->name, "for %p %d,%d,%d",
+                  hw, sw->info.freq, sw->info.bits, sw->info.nchannels);
+        dolog ("Added %s active = %d\n", sw->name, sw->active);
+#endif
         if (sw->active) {
-            audio_notify_capture (cap, 1);
-        }
-        else {
-            audio_recalc_and_notify_capture (cap);
+            audio_capture_maybe_changed (cap, 1);
         }
     }
     return 0;
@@ -915,6 +941,9 @@ int audio_pcm_sw_write (SWVoiceOut *sw, void *buf, int size)
     }
 
     if (live == hwsamples) {
+#ifdef DEBUG_OUT
+        dolog ("%s is full %d\n", sw->name, live);
+#endif
         return 0;
     }
 
@@ -1033,6 +1062,7 @@ void AUD_set_active_out (SWVoiceOut *sw, int on)
     hw = sw->hw;
     if (sw->active != on) {
         SWVoiceOut *temp_sw;
+        SWVoiceCap *sc;
 
         if (on) {
             hw->pending_disable = 0;
@@ -1053,11 +1083,11 @@ void AUD_set_active_out (SWVoiceOut *sw, int on)
                 hw->pending_disable = nb_active == 1;
             }
         }
-        for (temp_sw = hw->sw_cap_head.lh_first; temp_sw;
-             temp_sw = temp_sw->entries.le_next) {
-            temp_sw->active = hw->enabled;
+
+        for (sc = hw->cap_head.lh_first; sc; sc = sc->entries.le_next) {
+            sc->sw.active = hw->enabled;
             if (hw->enabled) {
-                audio_notify_capture ((CaptureVoiceOut *) temp_sw->hw, 1);
+                audio_capture_maybe_changed (sc->cap, 1);
             }
         }
         sw->active = on;
@@ -1156,9 +1186,10 @@ static void audio_capture_mix_and_clear (HWVoiceOut *hw, int rpos, int samples)
     int n;
 
     if (hw->enabled) {
-        SWVoiceOut *sw;
+        SWVoiceCap *sc;
 
-        for (sw = hw->sw_cap_head.lh_first; sw; sw = sw->cap_entries.le_next) {
+        for (sc = hw->cap_head.lh_first; sc; sc = sc->entries.le_next) {
+            SWVoiceOut *sw = &sc->sw;
             int rpos2 = rpos;
 
             n = samples;
@@ -1171,8 +1202,9 @@ static void audio_capture_mix_and_clear (HWVoiceOut *hw, int rpos, int samples)
                 sw->buf = hw->mix_buf + rpos2;
                 written = audio_pcm_sw_write (sw, NULL, bytes);
                 if (written - bytes) {
-                    dolog ("Could not mix %d bytes into a capture buffer",
-                           bytes);
+                    dolog ("Could not mix %d bytes into a capture "
+                           "buffer, mixed %d\n",
+                           bytes, written);
                     break;
                 }
                 n -= to_write;
@@ -1206,16 +1238,16 @@ static void audio_run_out (AudioState *s)
         }
 
         if (hw->pending_disable && !nb_live) {
+            SWVoiceCap *sc;
 #ifdef DEBUG_OUT
             dolog ("Disabling voice\n");
 #endif
             hw->enabled = 0;
             hw->pending_disable = 0;
             hw->pcm_ops->ctl_out (hw, VOICE_DISABLE);
-            for (sw = hw->sw_cap_head.lh_first; sw;
-                 sw = sw->cap_entries.le_next) {
-                sw->active = 0;
-                audio_recalc_and_notify_capture ((CaptureVoiceOut *) sw->hw);
+            for (sc = hw->cap_head.lh_first; sc; sc = sc->entries.le_next) {
+                sc->sw.active = 0;
+                audio_recalc_and_notify_capture (sc->cap);
             }
             continue;
         }
@@ -1277,15 +1309,18 @@ static void audio_run_out (AudioState *s)
         }
 
         if (cleanup_required) {
-        restart:
-            for (sw = hw->sw_head.lh_first; sw; sw = sw->entries.le_next) {
+            SWVoiceOut *sw1;
+
+            sw = hw->sw_head.lh_first;
+            while (sw) {
+                sw1 = sw->entries.le_next;
                 if (!sw->active && !sw->callback.fn) {
 #ifdef DEBUG_PLIVE
                     dolog ("Finishing with old voice\n");
 #endif
                     audio_close_out (s, sw);
-                    goto restart; /* play it safe */
                 }
+                sw = sw1;
             }
         }
     }
@@ -1537,13 +1572,18 @@ static void audio_atexit (void)
     HWVoiceIn *hwi = NULL;
 
     while ((hwo = audio_pcm_hw_find_any_enabled_out (s, hwo))) {
-        SWVoiceOut *sw;
+        SWVoiceCap *sc;
 
         hwo->pcm_ops->ctl_out (hwo, VOICE_DISABLE);
         hwo->pcm_ops->fini_out (hwo);
 
-        for (sw = hwo->sw_cap_head.lh_first; sw; sw = sw->entries.le_next) {
-            audio_notify_capture ((CaptureVoiceOut *) sw->hw, 0);
+        for (sc = hwo->cap_head.lh_first; sc; sc = sc->entries.le_next) {
+            CaptureVoiceOut *cap = sc->cap;
+            struct capture_callback *cb;
+
+            for (cb = cap->cb_head.lh_first; cb; cb = cb->entries.le_next) {
+                cb->ops.destroy (cb->opaque);
+            }
         }
     }
 
@@ -1697,7 +1737,7 @@ AudioState *AUD_init (void)
     return s;
 }
 
-int AUD_add_capture (
+CaptureVoiceOut *AUD_add_capture (
     AudioState *s,
     audsettings_t *as,
     struct audio_capture_ops *ops,
@@ -1712,10 +1752,10 @@ int AUD_add_capture (
         s = &glob_audio_state;
     }
 
-    if (audio_validate_settigs (as)) {
+    if (audio_validate_settings (as)) {
         dolog ("Invalid settings were passed when trying to add capture\n");
         audio_print_settings (as);
-        return -1;
+        goto err0;
     }
 
     cb = audio_calloc (AUDIO_FUNC, 1, sizeof (*cb));
@@ -1730,7 +1770,7 @@ int AUD_add_capture (
     cap = audio_pcm_capture_find_specific (s, as);
     if (cap) {
         LIST_INSERT_HEAD (&cap->cb_head, cb, entries);
-        return 0;
+        return cap;
     }
     else {
         HWVoiceOut *hw;
@@ -1780,7 +1820,7 @@ int AUD_add_capture (
         while ((hw = audio_pcm_hw_find_any_out (s, hw))) {
             audio_attach_capture (s, hw);
         }
-        return 0;
+        return cap;
 
     err3:
         qemu_free (cap->hw.mix_buf);
@@ -1789,6 +1829,38 @@ int AUD_add_capture (
     err1:
         qemu_free (cb);
     err0:
-        return -1;
+        return NULL;
+    }
+}
+
+void AUD_del_capture (CaptureVoiceOut *cap, void *cb_opaque)
+{
+    struct capture_callback *cb;
+
+    for (cb = cap->cb_head.lh_first; cb; cb = cb->entries.le_next) {
+        if (cb->opaque == cb_opaque) {
+            cb->ops.destroy (cb_opaque);
+            LIST_REMOVE (cb, entries);
+            qemu_free (cb);
+
+            if (!cap->cb_head.lh_first) {
+                SWVoiceOut *sw = cap->hw.sw_head.lh_first, *sw1;
+                while (sw) {
+#ifdef DEBUG_CAPTURE
+                    dolog ("freeing %s\n", sw->name);
+#endif
+                    sw1 = sw->entries.le_next;
+                    if (sw->rate) {
+                        st_rate_stop (sw->rate);
+                        sw->rate = NULL;
+                    }
+                    LIST_REMOVE (sw, entries);
+                    sw = sw1;
+                }
+                LIST_REMOVE (cap, entries);
+                qemu_free (cap);
+            }
+            return;
+        }
     }
 }

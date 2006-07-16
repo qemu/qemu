@@ -82,8 +82,10 @@ void term_puts(const char *str)
         c = *str++;
         if (c == '\0')
             break;
+        if (c == '\n')
+            term_outbuf[term_outbuf_index++] = '\r';
         term_outbuf[term_outbuf_index++] = c;
-        if (term_outbuf_index >= sizeof(term_outbuf) ||
+        if (term_outbuf_index >= (sizeof(term_outbuf) - 1) ||
             c == '\n')
             term_flush();
     }
@@ -821,6 +823,26 @@ static void do_send_key(const char *string)
     }
 }
 
+static int mouse_button_state;
+
+static void do_mouse_move(const char *dx_str, const char *dy_str, 
+                          const char *dz_str)
+{
+    int dx, dy, dz;
+    dx = strtol(dx_str, NULL, 0);
+    dy = strtol(dy_str, NULL, 0);
+    dz = 0;
+    if (dz_str) 
+        dz = strtol(dz_str, NULL, 0);
+    kbd_mouse_event(dx, dy, dz, mouse_button_state);
+}
+
+static void do_mouse_button(int button_state)
+{
+    mouse_button_state = button_state;
+    kbd_mouse_event(0, 0, 0, mouse_button_state);
+}
+
 static void do_ioport_read(int count, int format, int size, int addr, int has_index, int index)
 {
     uint32_t val;
@@ -1057,6 +1079,64 @@ static void do_info_profile(void)
 }
 #endif
 
+/* Capture support */
+static LIST_HEAD (capture_list_head, CaptureState) capture_head;
+
+static void do_info_capture (void)
+{
+    int i;
+    CaptureState *s;
+
+    for (s = capture_head.lh_first, i = 0; s; s = s->entries.le_next, ++i) {
+        term_printf ("[%d]: ", i);
+        s->ops.info (s->opaque);
+    }
+}
+
+static void do_stop_capture (int n)
+{
+    int i;
+    CaptureState *s;
+
+    for (s = capture_head.lh_first, i = 0; s; s = s->entries.le_next, ++i) {
+        if (i == n) {
+            s->ops.destroy (s->opaque);
+            LIST_REMOVE (s, entries);
+            qemu_free (s);
+            return;
+        }
+    }
+}
+
+#ifdef HAS_AUDIO
+int wav_start_capture (CaptureState *s, const char *path, int freq,
+                       int bits, int nchannels);
+
+static void do_wav_capture (const char *path,
+                            int has_freq, int freq,
+                            int has_bits, int bits,
+                            int has_channels, int nchannels)
+{
+    CaptureState *s;
+
+    s = qemu_mallocz (sizeof (*s));
+    if (!s) {
+        term_printf ("Not enough memory to add wave capture\n");
+        return;
+    }
+
+    freq = has_freq ? freq : 44100;
+    bits = has_bits ? bits : 16;
+    nchannels = has_channels ? nchannels : 2;
+
+    if (wav_start_capture (s, path, freq, bits, nchannels)) {
+        term_printf ("Faied to add wave capture\n");
+        qemu_free (s);
+    }
+    LIST_INSERT_HEAD (&capture_head, s, entries);
+}
+#endif
+
 static term_cmd_t term_cmds[] = {
     { "help|?", "s?", do_help, 
       "[cmd]", "show the help" },
@@ -1111,6 +1191,17 @@ static term_cmd_t term_cmds[] = {
       "device", "remove USB device 'bus.addr'" },
     { "cpu", "i", do_cpu_set, 
       "index", "set the default CPU" },
+    { "mouse_move", "sss?", do_mouse_move, 
+      "dx dy [dz]", "send mouse move events" },
+    { "mouse_button", "i", do_mouse_button, 
+      "state", "change mouse button state (1=L, 2=M, 4=R)" },
+#ifdef HAS_AUDIO
+    { "wavcapture", "si?i?i?", do_wav_capture,
+      "path [frequency bits channels]",
+      "capture audio to a wave file (default frequency=44100 bits=16 channels=2)" },
+#endif
+     { "stopcapture", "i", do_stop_capture,
+       "capture index", "stop capture" },
     { NULL, NULL, }, 
 };
 
@@ -1149,6 +1240,8 @@ static term_cmd_t info_cmds[] = {
       "", "show host USB devices", },
     { "profile", "", do_info_profile,
       "", "show profiling information", },
+    { "capture", "", do_info_capture,
+      "show capture information" },
     { NULL, NULL, },
 };
 
@@ -1951,7 +2044,6 @@ static void monitor_handle_command(const char *cmdline)
                 while (isspace(*p)) 
                     p++;
                 if (*typestr == '?' || *typestr == '.') {
-                    typestr++;
                     if (*typestr == '?') {
                         if (*p == '\0')
                             has_arg = 0;
@@ -1967,6 +2059,7 @@ static void monitor_handle_command(const char *cmdline)
                             has_arg = 0;
                         }
                     }
+                    typestr++;
                     if (nb_args >= MAX_ARGS)
                         goto error_args;
                     args[nb_args++] = (void *)has_arg;
@@ -2058,6 +2151,9 @@ static void monitor_handle_command(const char *cmdline)
         break;
     case 6:
         cmd->handler(args[0], args[1], args[2], args[3], args[4], args[5]);
+        break;
+    case 7:
+        cmd->handler(args[0], args[1], args[2], args[3], args[4], args[5], args[6]);
         break;
     default:
         term_printf("unsupported number of arguments: %d\n", nb_args);

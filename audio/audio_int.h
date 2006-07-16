@@ -64,10 +64,11 @@ struct audio_pcm_info {
     int swap_endianness;
 };
 
+typedef struct SWVoiceCap SWVoiceCap;
+
 typedef struct HWVoiceOut {
     int enabled;
     int pending_disable;
-    int valid;
     struct audio_pcm_info info;
 
     f_sample *clip;
@@ -79,7 +80,7 @@ typedef struct HWVoiceOut {
 
     int samples;
     LIST_HEAD (sw_out_listhead, SWVoiceOut) sw_head;
-    LIST_HEAD (sw_cap_listhead, SWVoiceOut) sw_cap_head;
+    LIST_HEAD (sw_cap_listhead, SWVoiceCap) cap_head;
     struct audio_pcm_ops *pcm_ops;
     LIST_ENTRY (HWVoiceOut) entries;
 } HWVoiceOut;
@@ -116,7 +117,6 @@ struct SWVoiceOut {
     volume_t vol;
     struct audio_callback callback;
     LIST_ENTRY (SWVoiceOut) entries;
-    LIST_ENTRY (SWVoiceOut) cap_entries;
 };
 
 struct SWVoiceIn {
@@ -168,12 +168,18 @@ struct capture_callback {
     LIST_ENTRY (capture_callback) entries;
 };
 
-typedef struct CaptureVoiceOut {
+struct CaptureVoiceOut {
     HWVoiceOut hw;
     void *buf;
     LIST_HEAD (cb_listhead, capture_callback) cb_head;
     LIST_ENTRY (CaptureVoiceOut) entries;
-} CaptureVoiceOut;
+};
+
+struct SWVoiceCap {
+    SWVoiceOut sw;
+    CaptureVoiceOut *cap;
+    LIST_ENTRY (SWVoiceCap) entries;
+};
 
 struct AudioState {
     struct audio_driver *drv;
