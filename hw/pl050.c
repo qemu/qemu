@@ -1,5 +1,5 @@
 /* 
- * Arm PrimeCell PL050 Kyeboard / Mouse Interface
+ * Arm PrimeCell PL050 Keyboard / Mouse Interface
  *
  * Copyright (c) 2006 CodeSourcery.
  * Written by Paul Brook
