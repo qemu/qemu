@@ -135,11 +135,13 @@ enum
 
 #define ELF_START_MMAP 0x80000000
 
-#define elf_check_arch(x) ( (x) == EM_SPARC )
+#define elf_check_arch(x) ( (x) == EM_SPARCV9 )
 
 #define ELF_CLASS   ELFCLASS64
 #define ELF_DATA    ELFDATA2MSB
-#define ELF_ARCH    EM_SPARC
+#define ELF_ARCH    EM_SPARCV9
+
+#define STACK_BIAS		2047
 
 static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
 {
@@ -147,7 +149,7 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
     regs->pc = infop->entry;
     regs->npc = regs->pc + 4;
     regs->y = 0;
-    regs->u_regs[14] = infop->start_stack - 16 * 4;
+    regs->u_regs[14] = infop->start_stack - 16 * 8 - STACK_BIAS;
 }
 
 #else

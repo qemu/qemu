@@ -2731,6 +2731,10 @@ void cpu_reset(CPUSPARCState *env)
     env->regwptr = env->regbase + (env->cwp * 16);
 #if defined(CONFIG_USER_ONLY)
     env->user_mode_only = 1;
+#ifdef TARGET_SPARC64
+    env->cleanwin = NWINDOWS - 1;
+    env->cansave = NWINDOWS - 1;
+#endif
 #else
     env->psrs = 1;
     env->psrps = 1;
