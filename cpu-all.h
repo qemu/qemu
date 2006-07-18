@@ -971,7 +971,7 @@ static inline int64_t cpu_get_real_ticks(void)
     return val;
 }
 
-#elif defined(__sparc__) && defined(HOST_SOLARIS)
+#elif defined(__sparc_v9__)
 
 static inline int64_t cpu_get_real_ticks (void)
 {

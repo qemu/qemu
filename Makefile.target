@@ -112,7 +112,7 @@ CFLAGS+=-mcpu=ultrasparc -m32 -ffixed-g2 -ffixed-g3
 LDFLAGS+=-m32
 OP_CFLAGS=$(CFLAGS) -fno-delayed-branch -fno-omit-frame-pointer -ffixed-i0
 else
-CFLAGS+=-m32 -ffixed-g1 -ffixed-g2 -ffixed-g3 -ffixed-g6
+CFLAGS+=-mcpu=ultrasparc -m32 -ffixed-g1 -ffixed-g2 -ffixed-g3 -ffixed-g6
 LDFLAGS+=-m32
 OP_CFLAGS=$(CFLAGS) -fno-delayed-branch -ffixed-i0
 HELPER_CFLAGS=$(CFLAGS) -ffixed-i0 -mflat
@@ -122,8 +122,9 @@ endif
 endif
 
 ifeq ($(ARCH),sparc64)
-CFLAGS+=-m64 -ffixed-g1 -ffixed-g2 -ffixed-g3 -ffixed-g6
+CFLAGS+=-mcpu=ultrasparc -m64 -ffixed-g1 -ffixed-g4 -ffixed-g5 -ffixed-g7
 LDFLAGS+=-m64
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/sparc64.ld
 OP_CFLAGS=$(CFLAGS) -fno-delayed-branch -ffixed-i0
 endif
 
@@ -413,6 +414,11 @@ endif
 
 ifeq ($(ARCH),ia64)
 VL_LDFLAGS+=-Wl,-G0 -Wl,-T,$(SRC_PATH)/ia64.ld
+endif
+
+ifeq ($(ARCH),sparc64)
+VL_LDFLAGS+=-m64
+VL_LDFLAGS+=-Wl,-T,$(SRC_PATH)/sparc64.ld
 endif
 
 ifdef CONFIG_WIN32
