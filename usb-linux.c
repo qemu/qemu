@@ -26,6 +26,7 @@
 #if defined(__linux__)
 #include <dirent.h>
 #include <sys/ioctl.h>
+#include <linux/compiler.h>
 #include <linux/usbdevice_fs.h>
 #include <linux/version.h>
 
@@ -59,6 +60,14 @@ typedef struct USBHostDevice {
 
 static void usb_host_handle_reset(USBDevice *dev, int destroy)
 {
+    USBHostDevice *s = (USBHostDevice *)dev;
+    
+    if (destroy) {
+        if (s->fd >= 0)
+            close(s->fd);
+        qemu_free(s);
+        return;
+    }
 #if 0
     USBHostDevice *s = (USBHostDevice *)dev;
     /* USBDEVFS_RESET, but not the first time as it has already be
