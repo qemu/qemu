@@ -58,16 +58,8 @@ typedef struct USBHostDevice {
     int fd;
 } USBHostDevice;
 
-static void usb_host_handle_reset(USBDevice *dev, int destroy)
+static void usb_host_handle_reset(USBDevice *dev)
 {
-    USBHostDevice *s = (USBHostDevice *)dev;
-    
-    if (destroy) {
-        if (s->fd >= 0)
-            close(s->fd);
-        qemu_free(s);
-        return;
-    }
 #if 0
     USBHostDevice *s = (USBHostDevice *)dev;
     /* USBDEVFS_RESET, but not the first time as it has already be
@@ -75,6 +67,15 @@ static void usb_host_handle_reset(USBDevice *dev, int destroy)
     ioctl(s->fd, USBDEVFS_RESET);
 #endif
 } 
+
+static void usb_host_handle_destroy(USBDevice *dev)
+{
+    USBHostDevice *s = (USBHostDevice *)dev;
+
+    if (s->fd >= 0)
+        close(s->fd);
+    qemu_free(s);
+}
 
 static int usb_host_handle_control(USBDevice *dev,
                                    int request,
@@ -244,6 +245,7 @@ USBDevice *usb_host_device_open(const char *devname)
     dev->dev.handle_reset = usb_host_handle_reset;
     dev->dev.handle_control = usb_host_handle_control;
     dev->dev.handle_data = usb_host_handle_data;
+    dev->dev.handle_destroy = usb_host_handle_destroy;
 
     if (product_name[0] == '\0')
         snprintf(dev->dev.devname, sizeof(dev->dev.devname),

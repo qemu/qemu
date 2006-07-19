@@ -55,10 +55,7 @@ int usb_generic_handle_packet(USBDevice *s, int pid,
         s->remote_wakeup = 0;
         s->addr = 0;
         s->state = USB_STATE_DEFAULT;
-        s->handle_reset(s, 0);
-        break;
-    case USB_MSG_DESTROY:
-        s->handle_reset(s, 1);
+        s->handle_reset(s);
         break;
     case USB_TOKEN_SETUP:
         if (s->state < USB_STATE_DEFAULT || devaddr != s->addr)

@@ -3781,6 +3781,7 @@ static int usb_device_del(const char *devname)
 {
     USBPort *port;
     USBPort **lastp;
+    USBDevice *dev;
     int bus_num, addr;
     const char *p;
 
@@ -3805,8 +3806,10 @@ static int usb_device_del(const char *devname)
     if (!port)
         return -1;
 
+    dev = port->dev;
     *lastp = port->next;
     usb_attach(port, NULL);
+    dev->handle_destroy(dev);
     port->next = free_usb_ports;
     free_usb_ports = port;
     return 0;
