@@ -121,7 +121,8 @@ int wav_start_capture (CaptureState *s, const char *path, int freq,
 
     wav = qemu_mallocz (sizeof (*wav));
     if (!wav) {
-        AUD_log ("wav", "Could not allocate memory (%zu bytes)", sizeof (*wav));
+        term_printf ("Could not allocate memory for wav capture (%zu bytes)",
+                     sizeof (*wav));
         return -1;
     }
 

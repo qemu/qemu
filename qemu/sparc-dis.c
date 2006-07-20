@@ -2887,7 +2887,9 @@ print_insn_sparc (memaddr, info)
 		    {
 		      const char *name;
 
-		      if (info->mach == bfd_mach_sparc_v9)
+		      if ((info->mach == bfd_mach_sparc_v8plusa) ||
+                          ((info->mach >= bfd_mach_sparc_v9) &&
+                           (info->mach <= bfd_mach_sparc_v9b)))
 			name = sparc_decode_asi_v9 (X_ASI (insn));
 		      else
 			name = sparc_decode_asi_v8 (X_ASI (insn));

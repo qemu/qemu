@@ -1334,28 +1334,28 @@ typedef struct {
                 unsigned long *insn_addr;
                 unsigned long insn;
         } si_fpqueue [16];
-} __siginfo_fpu_t;
+} qemu_siginfo_fpu_t;
 
 
 struct target_signal_frame {
 	struct sparc_stackf	ss;
 	__siginfo_t		info;
-	__siginfo_fpu_t 	*fpu_save;
+	qemu_siginfo_fpu_t 	*fpu_save;
 	target_ulong		insns[2] __attribute__ ((aligned (8)));
 	target_ulong		extramask[TARGET_NSIG_WORDS - 1];
 	target_ulong		extra_size; /* Should be 0 */
-	__siginfo_fpu_t		fpu_state;
+	qemu_siginfo_fpu_t	fpu_state;
 };
 struct target_rt_signal_frame {
 	struct sparc_stackf	ss;
 	siginfo_t		info;
 	target_ulong		regs[20];
 	sigset_t		mask;
-	__siginfo_fpu_t 	*fpu_save;
+	qemu_siginfo_fpu_t 	*fpu_save;
 	unsigned int		insns[2];
 	stack_t			stack;
 	unsigned int		extra_size; /* Should be 0 */
-	__siginfo_fpu_t		fpu_state;
+	qemu_siginfo_fpu_t	fpu_state;
 };
 
 #define UREG_O0        16
@@ -1500,7 +1500,7 @@ sigsegv:
 	force_sig(TARGET_SIGSEGV);
 }
 static inline int
-restore_fpu_state(CPUState *env, __siginfo_fpu_t *fpu)
+restore_fpu_state(CPUState *env, qemu_siginfo_fpu_t *fpu)
 {
         int err;
 #if 0

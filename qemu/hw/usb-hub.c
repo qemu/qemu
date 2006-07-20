@@ -199,11 +199,9 @@ static void usb_hub_attach(USBPort *port1, USBDevice *dev)
     }
 }
 
-static void usb_hub_handle_reset(USBDevice *dev, int destroy)
+static void usb_hub_handle_reset(USBDevice *dev)
 {
     /* XXX: do it */
-    if (destroy)
-        qemu_free(dev);
 }
 
 static int usb_hub_handle_control(USBDevice *dev, int request, int value,
@@ -525,6 +523,13 @@ static int usb_hub_handle_packet(USBDevice *dev, int pid,
     return usb_generic_handle_packet(dev, pid, devaddr, devep, data, len);
 }
 
+static void usb_hub_handle_destroy(USBDevice *dev)
+{
+    USBHubState *s = (USBHubState *)dev;
+
+    qemu_free(s);
+}
+
 USBDevice *usb_hub_init(int nb_ports)
 {
     USBHubState *s;
@@ -543,6 +548,7 @@ USBDevice *usb_hub_init(int nb_ports)
     s->dev.handle_reset = usb_hub_handle_reset;
     s->dev.handle_control = usb_hub_handle_control;
     s->dev.handle_data = usb_hub_handle_data;
+    s->dev.handle_destroy = usb_hub_handle_destroy;
 
     pstrcpy(s->dev.devname, sizeof(s->dev.devname), "QEMU USB Hub");
 

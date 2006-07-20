@@ -227,6 +227,7 @@ typedef struct {
 
 #define ELF64_R_SYM(i)			((i) >> 32)
 #define ELF64_R_TYPE(i)			((i) & 0xffffffff)
+#define ELF64_R_TYPE_DATA(i)            (((ELF64_R_TYPE(i) >> 8) ^ 0x00800000) - 0x00800000)
 
 #define R_386_NONE	0
 #define R_386_32	1
@@ -326,6 +327,7 @@ typedef struct {
 #define R_SPARC_10		30
 #define R_SPARC_11		31
 #define R_SPARC_64		32
+#define R_SPARC_OLO10           33
 #define R_SPARC_WDISP16		40
 #define R_SPARC_WDISP19		41
 #define R_SPARC_7		43
