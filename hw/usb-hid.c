@@ -323,15 +323,9 @@ static int usb_tablet_poll(USBMouseState *s, uint8_t *buf, int len)
     return l;
 }
 
-static void usb_mouse_handle_reset(USBDevice *dev, int destroy)
+static void usb_mouse_handle_reset(USBDevice *dev)
 {
     USBMouseState *s = (USBMouseState *)dev;
-
-    if (destroy) {
-        qemu_add_mouse_event_handler(NULL, NULL, 0);
-        qemu_free(s);
-        return;
-    }
 
     s->dx = 0;
     s->dy = 0;
@@ -506,6 +500,14 @@ static int usb_mouse_handle_data(USBDevice *dev, int pid,
     return ret;
 }
 
+static void usb_mouse_handle_destroy(USBDevice *dev)
+{
+    USBMouseState *s = (USBMouseState *)dev;
+
+    qemu_add_mouse_event_handler(NULL, NULL, 0);
+    qemu_free(s);
+}
+
 USBDevice *usb_tablet_init(void)
 {
     USBMouseState *s;
@@ -519,6 +521,7 @@ USBDevice *usb_tablet_init(void)
     s->dev.handle_reset = usb_mouse_handle_reset;
     s->dev.handle_control = usb_mouse_handle_control;
     s->dev.handle_data = usb_mouse_handle_data;
+    s->dev.handle_destroy = usb_mouse_handle_destroy;
     s->kind = USB_TABLET;
 
     pstrcpy(s->dev.devname, sizeof(s->dev.devname), "QEMU USB Tablet");
@@ -539,6 +542,7 @@ USBDevice *usb_mouse_init(void)
     s->dev.handle_reset = usb_mouse_handle_reset;
     s->dev.handle_control = usb_mouse_handle_control;
     s->dev.handle_data = usb_mouse_handle_data;
+    s->dev.handle_destroy = usb_mouse_handle_destroy;
     s->kind = USB_MOUSE;
 
     pstrcpy(s->dev.devname, sizeof(s->dev.devname), "QEMU USB Mouse");

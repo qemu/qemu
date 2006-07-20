@@ -210,6 +210,7 @@ typedef struct CPUSPARCState {
     uint64_t version;
     uint64_t fprs;
     uint64_t tick_cmpr, stick_cmpr;
+    uint64_t gsr;
 #endif
 #if !defined(TARGET_SPARC64) && !defined(reg_T2)
     target_ulong t2;

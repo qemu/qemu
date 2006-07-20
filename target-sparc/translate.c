@@ -364,6 +364,9 @@ GEN32(gen_op_store_DT1_fpr, gen_op_store_DT1_fpr_fprf);
 	case 0x80: /* Primary address space */				\
 	    gen_op_##width##_raw();					\
 	    break;							\
+	case 0x82: /* Primary address space, non-faulting load */       \
+	    gen_op_##width##_raw();					\
+	    break;							\
 	default:							\
             break;							\
 	}								\
@@ -1151,6 +1154,12 @@ static void disas_sparc_insn(DisasContext * dc)
 		    gen_op_movl_T0_env(offsetof(CPUSPARCState, fprs));
                     gen_movl_T0_reg(rd);
                     break;
+		case 0x13: /* Graphics Status */
+                    if (gen_trap_ifnofpu(dc))
+                        goto jmp_insn;
+		    gen_op_movtl_T0_env(offsetof(CPUSPARCState, gsr));
+                    gen_movl_T0_reg(rd);
+                    break;
 		case 0x17: /* Tick compare */
 		    gen_op_movtl_T0_env(offsetof(CPUSPARCState, tick_cmpr));
                     gen_movl_T0_reg(rd);
@@ -1166,7 +1175,6 @@ static void disas_sparc_insn(DisasContext * dc)
 		case 0x10: /* Performance Control */
 		case 0x11: /* Performance Instrumentation Counter */
 		case 0x12: /* Dispatch Control */
-		case 0x13: /* Graphics Status */
 		case 0x14: /* Softint set, WO */
 		case 0x15: /* Softint clear, WO */
 		case 0x16: /* Softint write */
@@ -1870,6 +1878,11 @@ static void disas_sparc_insn(DisasContext * dc)
 				    gen_op_sir();
 #endif
 				break;
+			    case 0x13: /* Graphics Status */
+                                if (gen_trap_ifnofpu(dc))
+                                    goto jmp_insn;
+				gen_op_movtl_env_T0(offsetof(CPUSPARCState, gsr));
+				break;
 			    case 0x17: /* Tick compare */
 #if !defined(CONFIG_USER_ONLY)
 				if (!supervisor(dc))
@@ -1895,7 +1908,6 @@ static void disas_sparc_insn(DisasContext * dc)
 			    case 0x10: /* Performance Control */
 			    case 0x11: /* Performance Instrumentation Counter */
 			    case 0x12: /* Dispatch Control */
-			    case 0x13: /* Graphics Status */
 			    case 0x14: /* Softint set */
 			    case 0x15: /* Softint clear */
 			    case 0x16: /* Softint write */
@@ -2077,7 +2089,36 @@ static void disas_sparc_insn(DisasContext * dc)
 			}
 		    case 0x36: /* UltraSparc shutdown, VIS */
 			{
-			    // XXX
+			    int opf = GET_FIELD_SP(insn, 5, 13);
+                            rs1 = GET_FIELD(insn, 13, 17);
+                            rs2 = GET_FIELD(insn, 27, 31);
+
+                            switch (opf) {
+                            case 0x018: /* VIS I alignaddr */
+                                if (gen_trap_ifnofpu(dc))
+                                    goto jmp_insn;
+                                gen_movl_reg_T0(rs1);
+                                gen_movl_reg_T1(rs2);
+                                gen_op_alignaddr();
+                                gen_movl_T0_reg(rd);
+                                break;
+                            case 0x01a: /* VIS I alignaddrl */
+                                if (gen_trap_ifnofpu(dc))
+                                    goto jmp_insn;
+                                // XXX
+                                break;
+                            case 0x048: /* VIS I faligndata */
+                                if (gen_trap_ifnofpu(dc))
+                                    goto jmp_insn;
+                                gen_op_load_fpr_DT0(rs1);
+                                gen_op_load_fpr_DT1(rs2);
+                                gen_op_faligndata();
+                                gen_op_store_DT0_fpr(rd);
+                                break;
+                            default:
+                                goto illegal_insn;
+                            }
+                            break;
 			}
 #endif
 		    default:
@@ -2690,6 +2731,10 @@ void cpu_reset(CPUSPARCState *env)
     env->regwptr = env->regbase + (env->cwp * 16);
 #if defined(CONFIG_USER_ONLY)
     env->user_mode_only = 1;
+#ifdef TARGET_SPARC64
+    env->cleanwin = NWINDOWS - 1;
+    env->cansave = NWINDOWS - 1;
+#endif
 #else
     env->psrs = 1;
     env->psrps = 1;

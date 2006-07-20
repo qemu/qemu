@@ -473,11 +473,17 @@ static inline void save_window_offset(CPUSPARCState *env, int cwp1)
 
 static void save_window(CPUSPARCState *env)
 {
+#ifndef TARGET_SPARC64
     unsigned int new_wim;
     new_wim = ((env->wim >> 1) | (env->wim << (NWINDOWS - 1))) &
         ((1LL << NWINDOWS) - 1);
     save_window_offset(env, (env->cwp - 2) & (NWINDOWS - 1));
     env->wim = new_wim;
+#else
+    save_window_offset(env, (env->cwp - 2) & (NWINDOWS - 1));
+    env->cansave++;
+    env->canrestore--;
+#endif
 }
 
 static void restore_window(CPUSPARCState *env)
@@ -500,6 +506,12 @@ static void restore_window(CPUSPARCState *env)
         sp_ptr += sizeof(target_ulong);
     }
     env->wim = new_wim;
+#ifdef TARGET_SPARC64
+    env->canrestore++;
+    if (env->cleanwin < NWINDOWS - 1)
+	env->cleanwin++;
+    env->cansave--;
+#endif
 }
 
 static void flush_windows(CPUSPARCState *env)
@@ -532,8 +544,12 @@ void cpu_loop (CPUSPARCState *env)
         trapnr = cpu_sparc_exec (env);
         
         switch (trapnr) {
+#ifndef TARGET_SPARC64
         case 0x88: 
         case 0x90:
+#else
+        case 0x16d:
+#endif
             ret = do_syscall (env, env->gregs[1],
                               env->regwptr[0], env->regwptr[1], 
                               env->regwptr[2], env->regwptr[3], 
@@ -574,6 +590,12 @@ void cpu_loop (CPUSPARCState *env)
             }
             break;
 #else
+        case TT_SPILL: /* window overflow */
+            save_window(env);
+            break;
+        case TT_FILL: /* window underflow */
+            restore_window(env);
+            break;
 	    // XXX
 #endif
         case EXCP_INTERRUPT:

@@ -1514,6 +1514,9 @@ void OPPROTO op_saved(void)
     env->cansave++;
     if (env->otherwin == 0)
 	env->canrestore--;
+    else
+	env->otherwin--;
+    FORCE_RET();
 }
 
 void OPPROTO op_restored(void)
@@ -1525,6 +1528,7 @@ void OPPROTO op_restored(void)
 	env->cansave--;
     else
 	env->otherwin--;
+    FORCE_RET();
 }
 
 void OPPROTO op_popc(void)
@@ -1571,3 +1575,23 @@ void OPPROTO op_st_asi()
     helper_st_asi(PARAM1, PARAM2, PARAM3);
 }
 
+#ifdef TARGET_SPARC64
+void OPPROTO op_alignaddr()
+{
+    uint64_t tmp;
+
+    tmp = T0 + T1;
+    env->gsr &= ~7ULL;
+    env->gsr |= tmp & 7ULL;
+    T0 = tmp & ~7ULL;
+}
+
+void OPPROTO op_faligndata()
+{
+    uint64_t tmp;
+
+    tmp = (*((uint64_t *)&DT0)) << ((env->gsr & 7) * 8);
+    tmp |= (*((uint64_t *)&DT1)) >> (64 - (env->gsr & 7) * 8);
+    (*((uint64_t *)&DT0)) = tmp;
+}
+#endif

@@ -112,16 +112,12 @@ static void usb_msd_command_complete(void *opaque, uint32_t tag, int fail)
     s->mode = USB_MSDM_CSW;
 }
 
-static void usb_msd_handle_reset(USBDevice *dev, int destroy)
+static void usb_msd_handle_reset(USBDevice *dev)
 {
     MSDState *s = (MSDState *)dev;
 
     DPRINTF("Reset\n");
     s->mode = USB_MSDM_CBW;
-    if (destroy) {
-        scsi_disk_destroy(s->scsi_dev);
-        qemu_free(s);
-    }
 }
 
 static int usb_msd_handle_control(USBDevice *dev, int request, int value,
@@ -369,6 +365,13 @@ static int usb_msd_handle_data(USBDevice *dev, int pid, uint8_t devep,
     return ret;
 }
 
+static void usb_msd_handle_destroy(USBDevice *dev)
+{
+    MSDState *s = (MSDState *)dev;
+
+    scsi_disk_destroy(s->scsi_dev);
+    qemu_free(s);
+}
 
 USBDevice *usb_msd_init(const char *filename)
 {
@@ -388,11 +391,12 @@ USBDevice *usb_msd_init(const char *filename)
     s->dev.handle_reset = usb_msd_handle_reset;
     s->dev.handle_control = usb_msd_handle_control;
     s->dev.handle_data = usb_msd_handle_data;
+    s->dev.handle_destroy = usb_msd_handle_destroy;
 
     snprintf(s->dev.devname, sizeof(s->dev.devname), "QEMU USB MSD(%.16s)",
              filename);
 
     s->scsi_dev = scsi_disk_init(bdrv, usb_msd_command_complete, s);
-    usb_msd_handle_reset((USBDevice *)s, 0);
+    usb_msd_handle_reset((USBDevice *)s);
     return (USBDevice *)s;
 }
