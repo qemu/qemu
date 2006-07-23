@@ -103,7 +103,8 @@ int wav_start_capture (CaptureState *s, const char *path, int freq,
     }
 
     if (nchannels != 1 && nchannels != 2) {
-        term_printf ("incorrect channel count %d, must be 1 or 2\n", bits);
+        term_printf ("incorrect channel count %d, must be 1 or 2\n",
+                     nchannels);
         return -1;
     }
 
