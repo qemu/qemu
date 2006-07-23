@@ -391,6 +391,7 @@ int qemu_timer_pending(QEMUTimer *ts);
 extern int64_t ticks_per_sec;
 extern int pit_min_timer_count;
 
+int64_t cpu_get_ticks(void);
 void cpu_enable_ticks(void);
 void cpu_disable_ticks(void);
 
@@ -822,6 +823,10 @@ fdctrl_t *fdctrl_init (int irq_lvl, int dma_chann, int mem_mapped,
                        BlockDriverState **fds);
 int fdctrl_get_drive_type(fdctrl_t *fdctrl, int drive_num);
 
+/* dp83815.c */
+
+void pci_dp83815_init(PCIBus *bus, NICInfo *nd);
+
 /* ne2000.c */
 
 void isa_ne2000_init(int base, int irq, NICInfo *nd);
@@ -851,7 +856,11 @@ void rtc_set_date(RTCState *s, const struct tm *tm);
 
 typedef struct SerialState SerialState;
 SerialState *serial_init(SetIRQFunc *set_irq, void *opaque,
-                         int base, int it_shift, int irq, CharDriverState *chr);
+                         int base, int irq, CharDriverState *chr);
+SerialState *serial_16450_init(SetIRQFunc *set_irq, void *opaque,
+                               int base, int it_shift, int irq, CharDriverState *chr);
+SerialState *serial_16550_init(SetIRQFunc *set_irq, void *opaque,
+                               int base, int it_shift, int irq, CharDriverState *chr);
 SerialState *serial_mm_init (SetIRQFunc *set_irq, void *opaque,
                              target_ulong base, int it_shift,
                              int irq, CharDriverState *chr);
