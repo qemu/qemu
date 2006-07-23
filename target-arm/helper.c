@@ -494,10 +494,18 @@ void helper_set_cp15(CPUState *env, uint32_t insn, uint32_t val)
     case 13: /* Process ID.  */
         switch (op2) {
         case 0:
-            env->cp15.c9_data = val;
+            /* Unlike real hardware the qemu TLB uses virtual addresses,
+               not modified virtual addresses, so this causes a TLB flush.
+             */
+            if (env->cp15.c13_fcse != val)
+              tlb_flush(env, 1);
+            env->cp15.c13_fcse = val;
             break;
         case 1:
-            env->cp15.c9_insn = val;
+            /* This changes the ASID, so do a TLB flush.  */
+            if (env->cp15.c13_context != val)
+              tlb_flush(env, 0);
+            env->cp15.c13_context = val;
             break;
         default:
             goto bad_reg;
