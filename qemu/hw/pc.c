@@ -58,10 +58,19 @@ static void ioportF0_write(void *opaque, uint32_t addr, uint32_t data)
 }
 
 /* TSC handling */
-
 uint64_t cpu_get_tsc(CPUX86State *env)
 {
-    return qemu_get_clock(vm_clock);
+    /* Note: when using kqemu, it is more logical to return the host TSC
+       because kqemu does not trap the RDTSC instruction for
+       performance reasons */
+#if USE_KQEMU
+    if (env->kqemu_enabled) {
+        return cpu_get_real_ticks();
+    } else 
+#endif
+    {
+        return cpu_get_ticks();
+    }
 }
 
 /* IRQ handling */
@@ -781,7 +790,7 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
         if (serial_hds[i]) {
             serial_init(&pic_set_irq_new, isa_pic,
-                        serial_io[i], 0, serial_irq[i], serial_hds[i]);
+                        serial_io[i], serial_irq[i], serial_hds[i]);
         }
     }
 
