@@ -619,7 +619,6 @@ static void console_put_lf(TextConsole *s)
     TextCell *c;
     int x, y1;
 
-    s->x = 0;
     s->y++;
     if (s->y >= s->height) {
         s->y = s->height - 1;
@@ -773,6 +772,7 @@ static void console_putchar(TextConsole *s, int ch)
             break;
         case '\t':  /* tabspace */
             if (s->x + (8 - (s->x % 8)) > s->width) {
+                s->x = 0;
                 console_put_lf(s);
             } else {
                 s->x = s->x + (8 - (s->x % 8));
@@ -791,8 +791,10 @@ static void console_putchar(TextConsole *s, int ch)
             c->t_attrib = s->t_attrib;
             update_xy(s, s->x, s->y);
             s->x++;
-            if (s->x >= s->width)
+            if (s->x >= s->width) {
+                s->x = 0;
                 console_put_lf(s);
+            }
             break;
         }
         break;
