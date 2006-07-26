@@ -482,184 +482,6 @@ int kbd_mouse_is_absolute(void)
     return qemu_put_mouse_event_absolute;
 }
 
-/***********************************************************/
-/* timers */
-
-#if defined(__powerpc__)
-
-static inline uint32_t get_tbl(void) 
-{
-    uint32_t tbl;
-    asm volatile("mftb %0" : "=r" (tbl));
-    return tbl;
-}
-
-static inline uint32_t get_tbu(void) 
-{
-	uint32_t tbl;
-	asm volatile("mftbu %0" : "=r" (tbl));
-	return tbl;
-}
-
-int64_t cpu_get_real_ticks(void)
-{
-    uint32_t l, h, h1;
-    /* NOTE: we test if wrapping has occurred */
-    do {
-        h = get_tbu();
-        l = get_tbl();
-        h1 = get_tbu();
-    } while (h != h1);
-    return ((int64_t)h << 32) | l;
-}
-
-#elif defined(__i386__)
-
-int64_t cpu_get_real_ticks(void)
-{
-#ifdef _WIN32
-    LARGE_INTEGER ti;
-    QueryPerformanceCounter(&ti);
-    return ti.QuadPart;
-#else
-    int64_t val;
-    asm volatile ("rdtsc" : "=A" (val));
-    return val;
-#endif
-}
-
-#elif defined(__x86_64__)
-
-int64_t cpu_get_real_ticks(void)
-{
-    uint32_t low,high;
-    int64_t val;
-    asm volatile("rdtsc" : "=a" (low), "=d" (high));
-    val = high;
-    val <<= 32;
-    val |= low;
-    return val;
-}
-
-#elif defined(__ia64)
-
-int64_t cpu_get_real_ticks(void)
-{
-	int64_t val;
-	asm volatile ("mov %0 = ar.itc" : "=r"(val) :: "memory");
-	return val;
-}
-
-#elif defined(__s390__)
-
-int64_t cpu_get_real_ticks(void)
-{
-    int64_t val;
-    asm volatile("stck 0(%1)" : "=m" (val) : "a" (&val) : "cc");
-    return val;
-}
-
-#elif defined(__sparc__) && defined(HOST_SOLARIS)
-
-uint64_t cpu_get_real_ticks (void)
-{
-#if     defined(_LP64)
-        uint64_t        rval;
-        asm volatile("rd %%tick,%0" : "=r"(rval));
-        return rval;
-#else
-        union {
-                uint64_t i64;
-                struct {
-                        uint32_t high;
-                        uint32_t low;
-                }       i32;
-        } rval;
-        asm volatile("rd %%tick,%1; srlx %1,32,%0"
-                : "=r"(rval.i32.high), "=r"(rval.i32.low));
-        return rval.i64;
-#endif
-}
-
-#else
-#error unsupported CPU
-#endif
-
-static int64_t cpu_ticks_prev;
-static int64_t cpu_ticks_offset;
-static int cpu_ticks_enabled;
-
-static inline int64_t cpu_get_ticks(void)
-{
-    if (!cpu_ticks_enabled) {
-        return cpu_ticks_offset;
-    } else {
-        int64_t ticks;
-        ticks = cpu_get_real_ticks();
-        if (cpu_ticks_prev > ticks) {
-            /* Note: non increasing ticks may happen if the host uses
-               software suspend */
-            cpu_ticks_offset += cpu_ticks_prev - ticks;
-        }
-        cpu_ticks_prev = ticks;
-        return ticks + cpu_ticks_offset;
-    }
-}
-
-/* enable cpu_get_ticks() */
-void cpu_enable_ticks(void)
-{
-    if (!cpu_ticks_enabled) {
-        cpu_ticks_offset -= cpu_get_real_ticks();
-        cpu_ticks_enabled = 1;
-    }
-}
-
-/* disable cpu_get_ticks() : the clock is stopped. You must not call
-   cpu_get_ticks() after that.  */
-void cpu_disable_ticks(void)
-{
-    if (cpu_ticks_enabled) {
-        cpu_ticks_offset = cpu_get_ticks();
-        cpu_ticks_enabled = 0;
-    }
-}
-
-#ifdef _WIN32
-void cpu_calibrate_ticks(void)
-{
-    LARGE_INTEGER freq;
-    int ret;
-
-    ret = QueryPerformanceFrequency(&freq);
-    if (ret == 0) {
-        fprintf(stderr, "Could not calibrate ticks\n");
-        exit(1);
-    }
-    ticks_per_sec = freq.QuadPart;
-}
-
-#else
-static int64_t get_clock(void)
-{
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    return tv.tv_sec * 1000000LL + tv.tv_usec;
-}
-
-void cpu_calibrate_ticks(void)
-{
-    int64_t usec, ticks;
-
-    usec = get_clock();
-    ticks = cpu_get_real_ticks();
-    usleep(50 * 1000);
-    usec = get_clock() - usec;
-    ticks = cpu_get_real_ticks() - ticks;
-    ticks_per_sec = (ticks * 1000000LL + (usec >> 1)) / usec;
-}
-#endif /* !_WIN32 */
-
 /* compute with 96 bit intermediate result: (a*b)/c */
 uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c)
 {
@@ -684,6 +506,133 @@ uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c)
     return res.ll;
 }
 
+/***********************************************************/
+/* real time host monotonic timer */
+
+#define QEMU_TIMER_BASE 1000000000LL
+
+#ifdef WIN32
+
+static int64_t clock_freq;
+
+static void init_get_clock(void)
+{
+    LARGE_INTEGER freq;
+    int ret;
+    ret = QueryPerformanceFrequency(&freq);
+    if (ret == 0) {
+        fprintf(stderr, "Could not calibrate ticks\n");
+        exit(1);
+    }
+    clock_freq = freq.QuadPart;
+}
+
+static int64_t get_clock(void)
+{
+    LARGE_INTEGER ti;
+    QueryPerformanceCounter(&ti);
+    return muldiv64(ti.QuadPart, QEMU_TIMER_BASE, clock_freq);
+}
+
+#else
+
+static int use_rt_clock;
+
+static void init_get_clock(void)
+{
+    use_rt_clock = 0;
+#if defined(__linux__)
+    {
+        struct timespec ts;
+        if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0) {
+            use_rt_clock = 1;
+        }
+    }
+#endif
+}
+
+static int64_t get_clock(void)
+{
+#if defined(__linux__)
+    if (use_rt_clock) {
+        struct timespec ts;
+        clock_gettime(CLOCK_MONOTONIC, &ts);
+        return ts.tv_sec * 1000000000LL + ts.tv_nsec;
+    } else 
+#endif
+    {
+        /* XXX: using gettimeofday leads to problems if the date
+           changes, so it should be avoided. */
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        return tv.tv_sec * 1000000000LL + (tv.tv_usec * 1000);
+    }
+}
+
+#endif
+
+/***********************************************************/
+/* guest cycle counter */
+
+static int64_t cpu_ticks_prev;
+static int64_t cpu_ticks_offset;
+static int64_t cpu_clock_offset;
+static int cpu_ticks_enabled;
+
+/* return the host CPU cycle counter and handle stop/restart */
+int64_t cpu_get_ticks(void)
+{
+    if (!cpu_ticks_enabled) {
+        return cpu_ticks_offset;
+    } else {
+        int64_t ticks;
+        ticks = cpu_get_real_ticks();
+        if (cpu_ticks_prev > ticks) {
+            /* Note: non increasing ticks may happen if the host uses
+               software suspend */
+            cpu_ticks_offset += cpu_ticks_prev - ticks;
+        }
+        cpu_ticks_prev = ticks;
+        return ticks + cpu_ticks_offset;
+    }
+}
+
+/* return the host CPU monotonic timer and handle stop/restart */
+static int64_t cpu_get_clock(void)
+{
+    int64_t ti;
+    if (!cpu_ticks_enabled) {
+        return cpu_clock_offset;
+    } else {
+        ti = get_clock();
+        return ti + cpu_clock_offset;
+    }
+}
+
+/* enable cpu_get_ticks() */
+void cpu_enable_ticks(void)
+{
+    if (!cpu_ticks_enabled) {
+        cpu_ticks_offset -= cpu_get_real_ticks();
+        cpu_clock_offset -= get_clock();
+        cpu_ticks_enabled = 1;
+    }
+}
+
+/* disable cpu_get_ticks() : the clock is stopped. You must not call
+   cpu_get_ticks() after that.  */
+void cpu_disable_ticks(void)
+{
+    if (cpu_ticks_enabled) {
+        cpu_ticks_offset = cpu_get_ticks();
+        cpu_clock_offset = cpu_get_clock();
+        cpu_ticks_enabled = 0;
+    }
+}
+
+/***********************************************************/
+/* timers */
+ 
 #define QEMU_TIMER_REALTIME 0
 #define QEMU_TIMER_VIRTUAL  1
 
@@ -822,26 +771,19 @@ int64_t qemu_get_clock(QEMUClock *clock)
 {
     switch(clock->type) {
     case QEMU_TIMER_REALTIME:
-#ifdef _WIN32
-        return GetTickCount();
-#else
-        {
-            struct tms tp;
-
-            /* Note that using gettimeofday() is not a good solution
-               for timers because its value change when the date is
-               modified. */
-            if (timer_freq == 100) {
-                return times(&tp) * 10;
-            } else {
-                return ((int64_t)times(&tp) * 1000) / timer_freq;
-            }
-        }
-#endif
+        return get_clock() / 1000000;
     default:
     case QEMU_TIMER_VIRTUAL:
-        return cpu_get_ticks();
+        return cpu_get_clock();
     }
+}
+
+static void init_timers(void)
+{
+    init_get_clock();
+    ticks_per_sec = QEMU_TIMER_BASE;
+    rt_clock = qemu_new_clock(QEMU_TIMER_REALTIME);
+    vm_clock = qemu_new_clock(QEMU_TIMER_VIRTUAL);
 }
 
 /* save a timer */
@@ -985,11 +927,8 @@ static int start_rtc_timer(void)
 
 #endif /* !defined(_WIN32) */
 
-static void init_timers(void)
+static void init_timer_alarm(void)
 {
-    rt_clock = qemu_new_clock(QEMU_TIMER_REALTIME);
-    vm_clock = qemu_new_clock(QEMU_TIMER_VIRTUAL);
-
 #ifdef _WIN32
     {
         int count=0;
@@ -1354,7 +1293,9 @@ CharDriverState *qemu_chr_open_pipe(const char *filename)
 
 static int term_got_escape, client_index;
 static uint8_t term_fifo[TERM_FIFO_MAX_SIZE];
-int term_fifo_size;
+static int term_fifo_size;
+static int term_timestamps;
+static int64_t term_timestamps_start;
 
 void term_print_help(void)
 {
@@ -1363,6 +1304,7 @@ void term_print_help(void)
            "C-a x    exit emulator\n"
            "C-a s    save disk data back to file (if -snapshot)\n"
            "C-a b    send break (magic sysrq)\n"
+           "C-a t    toggle console timestamps\n"
            "C-a c    switch between console and monitor\n"
            "C-a C-a  send C-a\n"
            );
@@ -1408,6 +1350,10 @@ static void stdio_received_byte(int ch)
                 ch = '\r';
                 goto send_char;
             }
+            break;
+        case 't':
+            term_timestamps = !term_timestamps;
+            term_timestamps_start = -1;
             break;
         case TERM_ESCAPE:
             goto send_char;
@@ -1466,6 +1412,39 @@ static void stdio_read(void *opaque)
         stdio_received_byte(buf[0]);
 }
 
+static int stdio_write(CharDriverState *chr, const uint8_t *buf, int len)
+{
+    FDCharDriver *s = chr->opaque;
+    if (!term_timestamps) {
+        return unix_write(s->fd_out, buf, len);
+    } else {
+        int i;
+        char buf1[64];
+
+        for(i = 0; i < len; i++) {
+            unix_write(s->fd_out, buf + i, 1);
+            if (buf[i] == '\n') {
+                int64_t ti;
+                int secs;
+
+                ti = get_clock();
+                if (term_timestamps_start == -1)
+                    term_timestamps_start = ti;
+                ti -= term_timestamps_start;
+                secs = ti / 1000000000;
+                snprintf(buf1, sizeof(buf1), 
+                         "[%02d:%02d:%02d.%03d] ",
+                         secs / 3600,
+                         (secs / 60) % 60,
+                         secs % 60,
+                         (int)((ti / 1000000) % 1000));
+                unix_write(s->fd_out, buf1, strlen(buf1));
+            }
+        }
+        return len;
+    }
+}
+
 /* init terminal so that we can grab keys */
 static struct termios oldtty;
 static int old_fd0_flags;
@@ -1511,6 +1490,7 @@ CharDriverState *qemu_chr_open_stdio(void)
         if (stdio_nb_clients >= STDIO_MAX_CLIENTS)
             return NULL;
         chr = qemu_chr_open_fd(0, 1);
+        chr->chr_write = stdio_write;
         if (stdio_nb_clients == 0)
             qemu_set_fd_handler2(0, stdio_read_poll, stdio_read, NULL, NULL);
         client_index = stdio_nb_clients;
@@ -3801,6 +3781,7 @@ static int usb_device_del(const char *devname)
 {
     USBPort *port;
     USBPort **lastp;
+    USBDevice *dev;
     int bus_num, addr;
     const char *p;
 
@@ -3825,8 +3806,10 @@ static int usb_device_del(const char *devname)
     if (!port)
         return -1;
 
+    dev = port->dev;
     *lastp = port->next;
     usb_attach(port, NULL);
+    dev->handle_destroy(dev);
     port->next = free_usb_ports;
     free_usb_ports = port;
     return 0;
@@ -4920,6 +4903,7 @@ void qemu_register_reset(QEMUResetHandler *func, void *opaque)
 {
     QEMUResetEntry **pre, *re;
 
+printf("%s: %s:%u\n", __func__, __FILE__, __LINE__);
     pre = &first_reset_entry;
     while (*pre != NULL)
         pre = &(*pre)->next;
@@ -4930,7 +4914,7 @@ void qemu_register_reset(QEMUResetHandler *func, void *opaque)
     *pre = re;
 }
 
-void qemu_system_reset(void)
+static void qemu_system_reset(void)
 {
     QEMUResetEntry *re;
 
@@ -4942,6 +4926,7 @@ void qemu_system_reset(void)
 
 void qemu_system_reset_request(void)
 {
+printf("%s: %s:%u\n", __func__, __FILE__, __LINE__);
     reset_requested = 1;
     if (cpu_single_env)
         cpu_interrupt(cpu_single_env, CPU_INTERRUPT_EXIT);
@@ -5104,6 +5089,7 @@ int main_loop(void)
                 break;
             }
             if (reset_requested) {
+printf("%s: %s:%u\n", __func__, __FILE__, __LINE__);
                 reset_requested = 0;
                 qemu_system_reset();
                 ret = EXCP_INTERRUPT;
@@ -5638,8 +5624,25 @@ int main(int argc, char **argv)
     }
 #else
     SetConsoleCtrlHandler(qemu_ctrl_handler, TRUE);
+    /* Note: cpu_interrupt() is currently not SMP safe, so we force
+       QEMU to run on a single CPU */
+    {
+        HANDLE h;
+        DWORD mask, smask;
+        int i;
+        h = GetCurrentProcess();
+        if (GetProcessAffinityMask(h, &mask, &smask)) {
+            for(i = 0; i < 32; i++) {
+                if (mask & (1 << i))
+                    break;
+            }
+            if (i != 32) {
+                mask = 1 << i;
+                SetProcessAffinityMask(h, mask);
+            }
+        }
+    }
 #endif
-    init_timers();
 
     register_machines();
     machine = 0;
@@ -6061,6 +6064,9 @@ int main(int argc, char **argv)
 
     setvbuf(stdout, NULL, _IOLBF, 0);
     
+    init_timers();
+    init_timer_alarm();
+
 #ifdef _WIN32
     socket_init();
 #endif
@@ -6142,7 +6148,6 @@ int main(int argc, char **argv)
     register_savevm("ram", 0, 1, ram_save, ram_load, NULL);
 
     init_ioports();
-    cpu_calibrate_ticks();
 
     /* terminal init */
     if (nographic) {
@@ -6175,7 +6180,7 @@ int main(int argc, char **argv)
                 exit(1);
             }
             if (!strcmp(serial_devices[i], "vc"))
-                qemu_chr_printf(serial_hds[i], "serial%d console\n", i);
+                qemu_chr_printf(serial_hds[i], "serial%d console\r\n", i);
         }
     }
 
@@ -6188,7 +6193,7 @@ int main(int argc, char **argv)
                 exit(1);
             }
             if (!strcmp(parallel_devices[i], "vc"))
-                qemu_chr_printf(parallel_hds[i], "parallel%d console\n", i);
+                qemu_chr_printf(parallel_hds[i], "parallel%d console\r\n", i);
         }
     }
 
