@@ -109,7 +109,7 @@ kern_return_t GetBSDPath( io_iterator_t mediaIterator, char *bsdPath, CFIndex ma
 
 #endif
 
-void bdrv_register(BlockDriver *bdrv)
+static void bdrv_register(BlockDriver *bdrv)
 {
     bdrv->next = first_drv;
     first_drv = bdrv;
