@@ -29,7 +29,7 @@ static void pic_irq_request(void *opaque, int level)
         env->CP0_Cause |= 0x00000400;
         cpu_interrupt(env, CPU_INTERRUPT_HARD);
     } else {
-	env->CP0_Cause &= ~0x00000400;
+        env->CP0_Cause &= ~0x00000400;
         cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
     }
 }
@@ -68,7 +68,7 @@ static void cpu_mips_update_count (CPUState *env, uint32_t count,
     now = qemu_get_clock(vm_clock);
     next = now + muldiv64(compare - tmp, ticks_per_sec, MIPS_CPS);
     if (next == now)
-	next++;
+        next++;
 #if 1
     if (logfile) {
         fprintf(logfile, "%s: 0x%08" PRIx64 " %08x %08x => 0x%08" PRIx64 "\n",
@@ -207,13 +207,13 @@ static int bios_load(const char *filename, unsigned long bios_offset, unsigned l
     ret = load_image(buf, phys_ram_base + bios_offset);
     printf("%s: load BIOS '%s' size %d\n", __func__, buf, ret);
     if (ret > 0) {
-	const unsigned blocksize = 0x10000;
-	pflash_t *pf = pflash_cfi01_register (address, bios_offset,
-		0,
+        const unsigned blocksize = 0x10000;
+        pflash_t *pf = pflash_cfi01_register(address, bios_offset,
+                0,
                 blocksize, ret / blocksize, 2,
                 0x4a, 0x49, 0x33, 0x44);
     } else {
-	    ret = 0;
+        ret = 0;
     }
     return ret;
 }
@@ -247,27 +247,27 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
     bios_offset = ram_size + vga_ram_size;
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
     printf("%s: ram_base = %p, ram_size = 0x%08x, bios_offset = 0x%08lx\n",
-	__func__, phys_ram_base, ram_size, bios_offset);
+        __func__, phys_ram_base, ram_size, bios_offset);
     ret = load_image(buf, phys_ram_base + bios_offset);
     if ((ret > 0) && (ret <= BIOS_SIZE)) {
-	printf("%s: load BIOS '%s' size %d\n", __func__, buf, ret);
-	cpu_register_physical_memory((uint32_t)(0x1fc00000),
-				     ret, bios_offset | IO_MEM_ROM);
+        printf("%s: load BIOS '%s' size %d\n", __func__, buf, ret);
+        cpu_register_physical_memory((uint32_t)(0x1fc00000),
+                                     ret, bios_offset | IO_MEM_ROM);
     } else {
-	/* not fatal */
+        /* not fatal */
         fprintf(stderr, "qemu: Warning, could not load MIPS bios '%s'\n",
-		buf);
+                buf);
     }
 
     kernel_size = 0;
     if (kernel_filename) {
-	kernel_size = load_elf(kernel_filename, VIRT_TO_PHYS_ADDEND, &entry);
-	if (kernel_size >= 0) {
-	    fprintf(stderr, "qemu: elf kernel '%s' with start address 0x%08lx\n",
+        kernel_size = load_elf(kernel_filename, VIRT_TO_PHYS_ADDEND, &entry);
+        if (kernel_size >= 0) {
+            fprintf(stderr, "qemu: elf kernel '%s' with start address 0x%08lx\n",
                         kernel_filename, (unsigned long)entry);
-	    env->PC = entry;
-	} else {
-	    kernel_size = load_image(kernel_filename,
+            env->PC = entry;
+        } else {
+            kernel_size = load_image(kernel_filename,
                                      phys_ram_base + KERNEL_LOAD_ADDR + VIRT_TO_PHYS_ADDEND);
             if (kernel_size < 0) {
                 fprintf(stderr, "qemu: could not load kernel '%s'\n",
@@ -275,22 +275,22 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
                 exit(1);
             }
             env->PC = KERNEL_LOAD_ADDR;
-	}
+        }
 
-	/* Set SP (needed for some kernels) - normally set by bootloader. */
-	env->gpr[29] = (env->PC + (kernel_size & 0xfffffffc)) + 0x1000;
+        /* Set SP (needed for some kernels) - normally set by bootloader. */
+        env->gpr[29] = (env->PC + (kernel_size & 0xfffffffc)) + 0x1000;
 
 #if 0
         /* load initrd */
         if (initrd_filename) {
-	    // code is buggy (wrong address)!!!
+            // code is buggy (wrong address)!!!
             target_ulong initrd_base = INITRD_LOAD_ADDR;
             target_ulong initrd_size = load_image(initrd_filename,
                                      phys_ram_base + initrd_base);
             if (initrd_size == (target_ulong) -1) {
             if (load_image(initrd_filename,
-			   phys_ram_base + INITRD_LOAD_ADDR + VIRT_TO_PHYS_ADDEND)
-		== (target_ulong) -1) {
+                           phys_ram_base + INITRD_LOAD_ADDR + VIRT_TO_PHYS_ADDEND)
+                == (target_ulong) -1) {
                 fprintf(stderr, "qemu: could not load initial ram disk '%s'\n", 
                         initrd_filename);
                 exit(1);
@@ -298,8 +298,8 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
         }
 #endif
 
-	/* Store command line. */
-	if (kernel_cmdline && *kernel_cmdline) {
+        /* Store command line. */
+        if (kernel_cmdline && *kernel_cmdline) {
             // code is buggy (wrong address)!!!
             strcpy (phys_ram_base + (16 << 20) - 256, kernel_cmdline);
             /* FIXME: little endian support */
@@ -319,7 +319,7 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
 
     isa_pic = pic_init(pic_irq_request, env);
     pit = pit_init(0x40, 0);
-    serial_init(&pic_set_irq_new, isa_pic, 0x3f8, 0, 4, serial_hds[0]);
+    serial_16450_init(&pic_set_irq_new, isa_pic, 0x3f8, 0, 4, serial_hds[0]);
     vga_initialize(NULL, ds, phys_ram_base + ram_size, ram_size, 
                    vga_ram_size, 0, 0);
 
@@ -342,8 +342,8 @@ static void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
     /* Run MIPS system in big endian mode. */
     bigendian = 1;
     mips_init(ram_size, vga_ram_size,
-	boot_device, ds, fd_filename, snapshot,
-	kernel_filename, kernel_cmdline, initrd_filename);
+        boot_device, ds, fd_filename, snapshot,
+        kernel_filename, kernel_cmdline, initrd_filename);
 }
 
 static void mipsel_r4k_init (int ram_size, int vga_ram_size, int boot_device,
@@ -354,8 +354,8 @@ static void mipsel_r4k_init (int ram_size, int vga_ram_size, int boot_device,
     /* Run MIPS system in little endian mode. */
     bigendian = 0;
     mips_init(ram_size, vga_ram_size,
-	boot_device, ds, fd_filename, snapshot,
-	kernel_filename, kernel_cmdline, initrd_filename);
+        boot_device, ds, fd_filename, snapshot,
+        kernel_filename, kernel_cmdline, initrd_filename);
 }
 
 static void mips_ar7_init (int ram_size, int vga_ram_size, int boot_device,
@@ -388,7 +388,7 @@ static void mips_ar7_init (int ram_size, int vga_ram_size, int boot_device,
     /* 16 MiB external RAM at physical address 0x14000000.
        More memory can be selected with command line option -m. */
     if (ram_size > 100 * MiB) {
-	    ram_size = 16 * MiB;
+            ram_size = 16 * MiB;
     }
     cpu_register_physical_memory(0x14000000, ram_size, (4 * KiB) | IO_MEM_RAM);
 
@@ -400,27 +400,27 @@ static void mips_ar7_init (int ram_size, int vga_ram_size, int boot_device,
     bios_offset += bios_load("flashimage.bin", bios_offset, 0x10000000);
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
     printf("%s: ram_base = %p, ram_size = 0x%08x, bios_offset = 0x%08lx\n",
-	__func__, phys_ram_base, ram_size, bios_offset);
+        __func__, phys_ram_base, ram_size, bios_offset);
     ret = load_image(buf, phys_ram_base + bios_offset);
     if ((ret > 0) && (ret <= BIOS_SIZE)) {
         printf("%s: load BIOS '%s' size %d\n", __func__, buf, ret);
-	cpu_register_physical_memory((uint32_t)(0x1fc00000),
-				     ret, bios_offset | IO_MEM_ROM);
+        cpu_register_physical_memory((uint32_t)(0x1fc00000),
+                                     ret, bios_offset | IO_MEM_ROM);
     } else {
-	/* not fatal */
+        /* not fatal */
         fprintf(stderr, "qemu: Warning, could not load MIPS bios '%s'\n",
-		buf);
+                buf);
     }
 
     kernel_size = 0;
     if (kernel_filename) {
-	kernel_size = load_elf(kernel_filename, VIRT_TO_PHYS_ADDEND, &entry);
-	if (kernel_size >= 0) {
-	    fprintf(stderr, "qemu: elf kernel '%s' with start address 0x%08lx\n",
+        kernel_size = load_elf(kernel_filename, VIRT_TO_PHYS_ADDEND, &entry);
+        if (kernel_size >= 0) {
+            fprintf(stderr, "qemu: elf kernel '%s' with start address 0x%08lx\n",
                         kernel_filename, (unsigned long)entry);
-	    env->PC = entry;
-	} else {
-	    kernel_size = load_image(kernel_filename,
+            env->PC = entry;
+        } else {
+            kernel_size = load_image(kernel_filename,
                                 phys_ram_base + 4 * KiB);
             if (kernel_size < 0) {
                 fprintf(stderr, "qemu: could not load kernel '%s'\n",
@@ -428,35 +428,35 @@ static void mips_ar7_init (int ram_size, int vga_ram_size, int boot_device,
                 exit(1);
             }
             env->PC = 0x94000000;
-	}
+        }
 
-	/* a0 = argc, a1 = argv, a2 = envp */
-	env->gpr[4] = 1;
-	env->gpr[5] = 0;
-	env->gpr[6] = 0;
+        /* a0 = argc, a1 = argv, a2 = envp */
+        env->gpr[4] = 1;
+        env->gpr[5] = 0;
+        env->gpr[6] = 0;
 
-	/* Set SP (needed for some kernels) - normally set by bootloader. */
-	env->gpr[29] = (env->PC + (kernel_size & 0xfffffffc)) + 0x1000;
+        /* Set SP (needed for some kernels) - normally set by bootloader. */
+        env->gpr[29] = (env->PC + (kernel_size & 0xfffffffc)) + 0x1000;
 
 #if 0 /* disable buggy code */
         /* load initrd */
         if (initrd_filename) {
-	    // code is buggy (wrong address)!!!
+            // code is buggy (wrong address)!!!
             target_ulong initrd_base = INITRD_LOAD_ADDR;
             target_ulong initrd_size = load_image(initrd_filename,
                                      phys_ram_base + initrd_base);
             if (initrd_size == (target_ulong) -1) {
             if (load_image(initrd_filename,
-			   phys_ram_base + INITRD_LOAD_ADDR + VIRT_TO_PHYS_ADDEND)
-		== (target_ulong) -1) {
+                           phys_ram_base + INITRD_LOAD_ADDR + VIRT_TO_PHYS_ADDEND)
+                == (target_ulong) -1) {
                 fprintf(stderr, "qemu: could not load initial ram disk '%s'\n", 
                         initrd_filename);
                 exit(1);
             }
         }
 
-	/* Store command line. */
-	if (kernel_cmdline && *kernel_cmdline) {
+        /* Store command line. */
+        if (kernel_cmdline && *kernel_cmdline) {
             // code is buggy (wrong address)!!!
             strcpy (phys_ram_base + (16 << 20) - 256, kernel_cmdline);
             /* FIXME: little endian support */

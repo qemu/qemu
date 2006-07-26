@@ -353,8 +353,8 @@ static int serial_load(QEMUFile *f, void *opaque, int version_id)
 }
 
 /* If fd is zero, it means that the serial device uses the console */
-SerialState *serial_init(SetIRQFunc *set_irq, void *opaque,
-                         int base, int it_shift, int irq, CharDriverState *chr)
+SerialState *serial_16450_init(SetIRQFunc *set_irq, void *opaque, int base,
+                               int it_shift, int irq, CharDriverState *chr)
 {
     SerialState *s;
 
