@@ -1404,7 +1404,7 @@ int cpu_signal_handler(int host_signum, struct siginfo *info,
     is_write = 0;
     return handle_cpu_signal(pc, (unsigned long)info->si_addr, 
                              is_write,
-                             &uc->uc_sigmask);
+                             &uc->uc_sigmask, puc);
 }
 
 #elif defined(__mc68000)
