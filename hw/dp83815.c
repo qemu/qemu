@@ -1,30 +1,96 @@
 /*
- * QEMU DP83815 emulation
+
+* read EEPROM 6, 7, 8, 9 (PMATCH)
+dp83815_mmio_readl addr=0xf2001004 val=0x00000000       CFG
+dp83815_mmio_writel addr=0xf200100c val=0x00000004      EELOAD_EN
+dp83815_mmio_readl addr=0xf200100c val=0x00000000
+dp83815_mmio_readl addr=0xf2001004 val=0x00000000
+dp83815_mmio_readl addr=0xf2001040 val=0x00000000       WCSR
+dp83815_mmio_readl addr=0xf2001048 val=0x0000000e       RFCR
+dp83815_mmio_writel addr=0xf2001048 val=0x00000000      PMATCH 1-0
+dp83815_mmio_readw addr=0xf200104c val = 0xffff         RFDR
+dp83815_mmio_writel addr=0xf2001048 val=0x00000002      PMATCH 3-2
+dp83815_mmio_readw addr=0xf200104c val = 0xffff
+dp83815_mmio_writel addr=0xf2001048 val=0x00000004      PMATCH 5-4
+dp83815_mmio_readw addr=0xf200104c val = 0xffff
+dp83815_mmio_writel addr=0xf2001048 val=0x0000000a      SOPAS
+dp83815_mmio_readw addr=0xf200104c val = 0xffff
+dp83815_mmio_writel addr=0xf2001048 val=0x0000000c      SOPAS
+dp83815_mmio_readw addr=0xf200104c val = 0xffff
+dp83815_mmio_writel addr=0xf2001048 val=0x0000000e      SOPAS
+dp83815_mmio_readw addr=0xf200104c val = 0xffff
+dp83815_mmio_writel addr=CR val=0x00000100              RST
+dp83815_mmio_readl addr=0xf2001000 val=0x00000000
+dp83815_mmio_readl addr=0xf2001004 val=0x00000000
+dp83815_mmio_writel addr=0xf2001004 val=0x00000000
+dp83815_mmio_readl addr=0xf2001040 val=0x00000000
+dp83815_mmio_writel addr=0xf2001040 val=0x00000000
+dp83815_mmio_readl addr=0xf2001048 val=0x0000000e
+dp83815_mmio_writel addr=0xf2001048 val=0x00000000      PMATCH
+dp83815_mmio_writew addr=0xf200104c val=0xffff
+dp83815_mmio_writel addr=0xf2001048 val=0x00000002
+dp83815_mmio_writew addr=0xf200104c val=0xffff
+dp83815_mmio_writel addr=0xf2001048 val=0x00000004
+dp83815_mmio_writew addr=0xf200104c val=0xffff
+dp83815_mmio_writel addr=0xf2001048 val=0x0000000a      SOPAS
+dp83815_mmio_writew addr=0xf200104c val=0xffff
+dp83815_mmio_writel addr=0xf2001048 val=0x0000000c
+dp83815_mmio_writew addr=0xf200104c val=0xffff
+dp83815_mmio_writel addr=0xf2001048 val=0x0000000e
+dp83815_mmio_writew addr=0xf200104c val=0xffff
+dp83815_mmio_writel addr=0xf2001048 val=0x0000000e
+dp83815_mmio_readw addr=0xf2001080 val = 0xffff
+dp83815_mmio_readw addr=0xf2001090 val = 0xffff
+dp83815_mmio_readl addr=0xf2001058 val=0x00000505       SRR
+
+
+test link ready
+dp83815_mmio_writew addr=0xf20010cc val=0x0001
+dp83815_mmio_readw addr=0xf20010f4 val = 0x1000
+dp83815_mmio_writew addr=0xf20010cc val=0x0000
+dp83815_mmio_readw addr=0xf2001084 val = 0x7849
+dp83815_mmio_readw addr=0xf2001084 val = 0x7849
+
+
+ * QEMU emulation for National Semiconductor DP83815 / DP83816.
  * 
  * Copyright (c) 2006 Stefan Weil
  * 
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
+ * Datasheets are available from National Semiconductor, see
  * http://www.national.com/pf/DP/DP83815.html
- * http://cache.national.com/ds/DP/DP83815.pdf
+ * http://www.national.com/pf/DP/DP83816.html
  */
+
 #include "vl.h"
+
+/* EEPROM support is optional. */
+#define CONFIG_EEPROM
+
+/* Silicon revisions for the different hardware */
+#define DP83815CVNG     0x00000302
+#define DP83815DVNG     0x00000403
+#define DP83816AVNG     0x00000505
+
+#define SILICON_REVISION DP83816AVNG
+
+#if SILICON_REVISION != DP83816AVNG
+# define DP83815
+# warning("DP83815")
+#endif
 
 /* debug DP83815 card */
 #define DEBUG_DP83815
@@ -119,9 +185,47 @@
 #define DP83815_PMEM_SIZE    (32*1024)
 #define DP83815_PMEM_START   (16*1024)
 #define DP83815_PMEM_END     (DP83815_PMEM_SIZE+DP83815_PMEM_START)
-#define DP83815_MEM_SIZE     DP83815_PMEM_END
 
-typedef struct DP83815State {
+#define DP83815_IO_SIZE         256
+#define DP83815_MEM_SIZE        4096
+
+static int dp8381x_instance = 0;
+static const int dp8381x_version = 20060726;
+
+#if defined(CONFIG_EEPROM)
+typedef enum {
+  eeprom_read  = 0x80,   /* read register xx */
+  eeprom_write = 0x40,   /* write register xx */
+  eeprom_erase = 0xc0,   /* erase register xx */
+  eeprom_ewen  = 0x30,   /* erase / write enable */
+  eeprom_ewds  = 0x00,   /* erase / write disable */
+  eeprom_eral  = 0x20,   /* erase all registers */
+  eeprom_wral  = 0x10,   /* write all registers */
+  eeprom_amask = 0x0f,
+  eeprom_imask = 0xf0
+} eeprom_instruction_t;
+
+typedef enum {
+  EEDI  =  1,   /* EEPROM Data In */
+  EEDO  =  2,   /* EEPROM Data Out */
+  EECLK =  4,   /* EEPROM Serial Clock */
+  EESEL =  8,   /* EEPROM Chip Select */
+  MDIO  = 16,   /* MII Management Data */
+  MDDIR = 32,   /* MII Management Direction */
+  MDC   = 64    /* MII Management Clock */
+} eeprom_bits_t;
+
+typedef struct {
+  eeprom_bits_t state;
+  uint16_t command;
+  uint16_t data;
+  uint8_t  count;
+  uint8_t  address;
+  uint16_t memory[16];
+} eeprom_state_t;
+#endif
+
+typedef struct {
     uint8_t cmd;
     uint32_t start;
     uint32_t stop;
@@ -140,11 +244,130 @@ typedef struct DP83815State {
     uint8_t curpag;
     uint8_t mult[8]; /* multicast mask array */
     int irq;
+    int io_memory;      /* handle for memory mapped I/O */
     PCIDevice *pci_dev;
     VLANClientState *vc;
     uint8_t macaddr[6];
     uint8_t mem[DP83815_MEM_SIZE];
+    uint32_t silicon_revision;
+#if defined(CONFIG_EEPROM)
+    eeprom_state_t eeprom_state;
+#endif
 } DP83815State;
+
+#if defined(CONFIG_EEPROM)
+
+/* Emulation for FM93C46 (NMC9306) 256-Bit Serial EEPROM */
+
+static uint16_t eeprom_map[16] = {
+    /* Only 12 words are used. */
+    0xd008,
+    0x0400,
+    0x2cd0,
+    0xcf82,
+    0x0000,
+    0x0000,
+    0x0000,
+    0x0000,
+    0x0000,
+    0x0000,
+    0xa098,
+    0x0055
+};
+
+/* Code for saving and restoring of EEPROM state. */
+
+static int eeprom_instance = 0;
+static const int eeprom_version = 20060726;
+
+static void eeprom_save(QEMUFile *f, void *opaque)
+{
+    eeprom_state_t *eeprom = (eeprom_state_t *)opaque;
+    /* TODO: support different endianess */
+    qemu_put_buffer(f, (uint8_t *)eeprom, sizeof(*eeprom));
+}
+
+int eeprom_load(QEMUFile *f, void *opaque, int version_id)
+{
+    eeprom_state_t *eeprom = (eeprom_state_t *)opaque;
+    int result = 0;
+    if (version_id == eeprom_version) {
+        /* TODO: support different endianess */
+        qemu_get_buffer(f, (uint8_t *)eeprom, sizeof(*eeprom));
+    } else {
+        result = -EINVAL;
+    }
+    return result;
+}
+
+/* */
+
+static uint16_t eeprom_action(eeprom_state_t *ee, eeprom_bits_t bits)
+{
+  uint16_t command = ee->command;
+  uint8_t address = ee->address;
+  uint8_t *count = &ee->count;
+  eeprom_bits_t state = ee->state;
+
+  if (bits == -1) {
+    if (command == eeprom_read) {
+      if (*count > 25)
+        printf("%s: read data = 0x%04x, address = %u, bit = %d, state 0x%04x\n",
+          __func__, ee->data, address, 26 - *count, state);
+    }
+    bits = state;
+  } else if (bits & EESEL) {
+    /* EEPROM is selected */
+    if (!(state & EESEL)) {
+      printf("%s: selected, state 0x%04x => 0x%04x\n", __func__, state, bits);
+    } else if (!(state & EECLK) && (bits & EECLK)) {
+      /* Raising edge of clock. */
+      //~ printf("%s: raising clock, state 0x%04x => 0x%04x\n", __func__, state, bits);
+      if (*count < 10) {
+        ee->data = (ee->data << 1);
+        if (bits & EEDI) {
+          ee->data++;
+        } else if (*count == 1) {
+          *count = 0;
+        }
+        //~ printf("%s:   count = %d, data = 0x%04x\n", __func__, *count, data);
+        *count++;
+        if (*count == 10) {
+          ee->address = address = (ee->data & eeprom_amask);
+          ee->command = command = (ee->data & eeprom_imask);
+          ee->data = eeprom_map[address];
+          printf("%s: count = %d, command = 0x%02x, address = 0x%02x, data = 0x%04x\n", __func__, *count, command, address, ee->data);
+        }
+      //~ } else if (*count == 1 && !(bits & EEDI)) {
+        /* Got start bit. */
+      } else if (*count < 10 + 16) {
+        if (command == eeprom_read) {
+          bits = (bits & ~EEDO);
+          if (ee->data & (1 << (25 - *count))) {
+            bits += EEDO;
+          }
+        } else {
+          printf("%s:   command = 0x%04x, count = %d, data = 0x%04x\n", __func__, command, *count, ee->data);
+        }
+        *count++;
+      } else {
+        printf("%s: ??? state 0x%04x => 0x%04x\n", __func__, state, bits);
+      }
+    } else {
+      //~ printf("%s: state 0x%04x => 0x%04x\n", __func__, state, bits);
+    }
+  } else {
+    printf("%s: not selected, count = %u, state 0x%04x => 0x%04x\n", __func__, *count, state, bits);
+    ee->data = 0;
+    ee->count = 0;
+    ee->address = 0;
+    ee->command = 0;
+  }
+  ee->state = state = bits;
+  return state;
+}
+
+#endif
 
 static void dp83815_reset(DP83815State *s)
 {
@@ -422,7 +645,7 @@ static uint32_t dp83815_ioport_read(void *opaque, uint32_t addr)
     DP83815State *s = opaque;
     int offset, page, ret;
 
-    addr &= 0xff;
+    addr &= 0xffff;
     if (addr == E8390_CMD) {
         ret = s->cmd;
     } else {
@@ -567,74 +790,6 @@ static inline void dp83815_dma_update(DP83815State *s, int len)
     }
 }
 
-static void dp83815_asic_ioport_write(void *opaque, uint32_t addr, uint32_t val)
-{
-    DP83815State *s = opaque;
-
-#ifdef DEBUG_DP83815
-    printf("DP83815: asic write val=0x%04x\n", val);
-#endif
-    if (s->rcnt == 0)
-        return;
-    if (s->dcfg & 0x01) {
-        /* 16 bit access */
-        dp83815_mem_writew(s, s->rsar, val);
-        dp83815_dma_update(s, 2);
-    } else {
-        /* 8 bit access */
-        dp83815_mem_writeb(s, s->rsar, val);
-        dp83815_dma_update(s, 1);
-    }
-}
-
-static uint32_t dp83815_asic_ioport_read(void *opaque, uint32_t addr)
-{
-    DP83815State *s = opaque;
-    int ret;
-
-    if (s->dcfg & 0x01) {
-        /* 16 bit access */
-        ret = dp83815_mem_readw(s, s->rsar);
-        dp83815_dma_update(s, 2);
-    } else {
-        /* 8 bit access */
-        ret = dp83815_mem_readb(s, s->rsar);
-        dp83815_dma_update(s, 1);
-    }
-#ifdef DEBUG_DP83815
-    printf("DP83815: asic read val=0x%04x\n", ret);
-#endif
-    return ret;
-}
-
-static void dp83815_asic_ioport_writel(void *opaque, uint32_t addr, uint32_t val)
-{
-    DP83815State *s = opaque;
-
-#ifdef DEBUG_DP83815
-    printf("DP83815: asic writel val=0x%04x\n", val);
-#endif
-    if (s->rcnt == 0)
-        return;
-    /* 32 bit access */
-    dp83815_mem_writel(s, s->rsar, val);
-    dp83815_dma_update(s, 4);
-}
-
-static uint32_t dp83815_asic_ioport_readl(void *opaque, uint32_t addr)
-{
-    DP83815State *s = opaque;
-    int ret;
-
-    /* 32 bit access */
-    ret = dp83815_mem_readl(s, s->rsar);
-    dp83815_dma_update(s, 4);
-#ifdef DEBUG_DP83815
-    printf("DP83815: asic readl val=0x%04x\n", ret);
-#endif
-    return ret;
-}
-
 static void dp83815_reset_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
     /* nothing to do (end of reset pulse) */
@@ -661,30 +816,42 @@ static void dp83815_map(PCIDevice *pci_dev, int region_num,
     PCIDP83815State *d = (PCIDP83815State *)pci_dev;
     DP83815State *s = &d->dp83815;
 
-    register_ioport_write(addr, 256, 1, dp83815_ioport_write, s);
-    register_ioport_read(addr, 256, 1, dp83815_ioport_read, s);
-    register_ioport_write(addr, 256, 2, dp83815_ioport_write, s);
-    register_ioport_read(addr, 256, 2, dp83815_ioport_read, s);
-    register_ioport_write(addr, 256, 4, dp83815_ioport_write, s);
-    register_ioport_read(addr, 256, 4, dp83815_ioport_read, s);
-
-#ifdef WORDS_BIGENDIAN
-#error TODO
-#else
-#define OP_REG(offset, value) (*(uint32_t *)(s->mem + (offset)) = (value))
+#if defined(DEBUG_DP83815)
+    printf("%s, region %d, size 0x%08x\n", __func__, region_num, size);
 #endif
+
+    register_ioport_write(addr, size, 1, dp83815_ioport_write, s);
+    register_ioport_read(addr, size, 1, dp83815_ioport_read, s);
+    register_ioport_write(addr, size, 2, dp83815_ioport_write, s);
+    register_ioport_read(addr, size, 2, dp83815_ioport_read, s);
+    register_ioport_write(addr, size, 4, dp83815_ioport_write, s);
+    register_ioport_read(addr, size, 4, dp83815_ioport_read, s);
+
+#define OP_REG(offset, value) (*(uint32_t *)(s->mem + (offset)) = cpu_to_le32(value))
     OP_REG(0x00, 0x00000000);   /* Command */
+    // EEPROM Bits 16, 15-13!!!
+    OP_REG(0x04, 0x00000000);   /* Configuration and Media Status */
     OP_REG(0x08, 0x00000002);   /* EEPROM Access */
     OP_REG(0x10, 0x03008000);   /* ISR, Interrupt Status */
+#if defined(DP83815)
     OP_REG(0x24, 0x00000102);   /* Transmit Configuration */
+#else
+    OP_REG(0x24, 0x00040102);   /* Transmit Configuration */
+#endif
     OP_REG(0x34, 0x00000002);   /* Receive Configuration */
     OP_REG(0x50, 0xffffffff);   /* Boot ROM Address */
-    OP_REG(0x58, 0x00000302);   /* SRR, Silikon Revision */
+#if defined(DP83815)
+    OP_REG(0x58, 0x00000302);   /* SRR, Silicon Revision */
+#else
+    /* DP83816AVNG */
+    OP_REG(0x58, 0x00000505);   /* SRR, Silikon Revision */
+#endif
     OP_REG(0x5c, 0x00000002);   /* Management Information Base Control */
     OP_REG(0x00, 0x00000000);
     OP_REG(0x00, 0x00000000);
     OP_REG(0x00, 0x00000000);
-#define PHY_REG(offset, value) (*(uint16_t *)(s->mem + (offset)) = (value))
+#define PHY_REG(offset, value) (*(uint16_t *)(s->mem + (offset)) = cpu_to_le16(value))
+    PHY_REG(0x80, 0x0000);      /* TODO */
     PHY_REG(0x84, 0x7849);
     PHY_REG(0x88, 0x2000);
     PHY_REG(0x8c, 0x5c21);
@@ -693,20 +860,283 @@ static void dp83815_map(PCIDevice *pci_dev, int region_num,
     PHY_REG(0x9c, 0x2001);
     PHY_REG(0xd8, 0x0100);
     PHY_REG(0xe4, 0x003f);
+#if defined(DP83815)
     PHY_REG(0xe8, 0x0004);
+#else
+    PHY_REG(0xe8, 0x0804);
+#endif
 
     //~ register_ioport_write(addr, 16, 1, dp83815_ioport_write, s);
     //~ register_ioport_read(addr, 16, 1, dp83815_ioport_read, s);
 
-    //~ register_ioport_write(addr + 0x10, 1, 1, dp83815_asic_ioport_write, s);
-    //~ register_ioport_read(addr + 0x10, 1, 1, dp83815_asic_ioport_read, s);
-    //~ register_ioport_write(addr + 0x10, 2, 2, dp83815_asic_ioport_write, s);
-    //~ register_ioport_read(addr + 0x10, 2, 2, dp83815_asic_ioport_read, s);
-    //~ register_ioport_write(addr + 0x10, 4, 4, dp83815_asic_ioport_writel, s);
-    //~ register_ioport_read(addr + 0x10, 4, 4, dp83815_asic_ioport_readl, s);
-
     //~ register_ioport_write(addr + 0x1f, 1, 1, dp83815_reset_ioport_write, s);
     //~ register_ioport_read(addr + 0x1f, 1, 1, dp83815_reset_ioport_read, s);
+}
+
+static void dp83815_mmio_map(PCIDevice *pci_dev, int region_num, 
+                            uint32_t addr, uint32_t size, int type)
+{
+    PCIDP83815State *d = (PCIDP83815State *)pci_dev;
+
+#if defined(DEBUG_DP83815)
+    printf("%s region %d, addr=0x%08x 0x%08x\n", __func__, region_num, addr, size);
+#endif
+
+    cpu_register_physical_memory(addr, DP83815_MEM_SIZE, d->dp83815.io_memory);
+}
+
+
+
+typedef enum {
+  /* MAC/BIU Registers */
+  DP8315_CR = 0x00,
+  DP8315_CFG = 0x04,
+  DP8315_MEAR = 0x08,
+  DP8315_PTSCR = 0x0c,
+  DP8315_ISR = 0x10,
+  DP8315_IMR = 0x14,
+  DP8315_IER = 0x18,
+  DP8315_IHR = 0x1c,
+  DP8315_TXDP = 0x20,
+  DP8315_TXCFG = 0x24,
+  //~ DP8315_R = 0x28,
+  //~ DP8315_R = 0x2c,
+  DP8315_RXDP = 0x30,
+  DP8315_RXCFG = 0x34,
+  //~ DP8315_R = 0x38,
+  DP8315_CCSR = 0x3c,
+  DP8315_WCSR = 0x40,
+  DP8315_PCR = 0x44,
+  DP8315_RFCR = 0x48,
+  DP8315_RFDR = 0x4c,
+  DP8315_BRAR = 0x50,
+  DP8315_BRDR = 0x54,
+  DP8315_SRR = 0x58,
+  DP8315_MIBC = 0x5c,
+  DP8315_MIB0 = 0x60,
+  DP8315_MIB1 = 0x64,
+  DP8315_MIB2 = 0x68,
+  DP8315_MIB3 = 0x6c,
+  DP8315_MIB4 = 0x70,
+  DP8315_MIB5 = 0x74,
+  DP8315_MIB6 = 0x78,
+  /* Internal Phy Registers */
+  BMCR = 0x80,
+} dp8315_register_t;
+
+typedef enum {
+  /* DP8315_CR */
+  DP8315_RST = 0x100,
+  /* PTSCR */
+  EELOAD_EN = 1 << 2,
+} dp83815_bit_t;
+
+
+
+
+static void dp83815_mmio_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
+{
+    PCIDP83815State *d = opaque;
+#if defined(DEBUG_DP83815)
+    printf("%s addr=0x%08x val=0x%02x\n", __func__, addr, val);
+#endif
+        //~ dp83815_aprom_writeb(d, addr & 0x0f, val);
+}
+
+static uint32_t dp83815_mmio_readb(void *opaque, target_phys_addr_t addr) 
+{
+    PCIDP83815State *d = opaque;
+    DP83815State *s = &d->dp83815;
+    uint8_t offset = (addr & 0xff);
+    uint32_t val = -1;
+    if (0) {
+    } else if (1) {
+      val = s->mem[offset];
+    }
+    //~ if (!(addr & 0x10))
+        //~ val = dp83815_aprom_readb(d, addr & 0x0f);
+#if defined(DEBUG_DP83815)
+    printf("%s addr=0x%08x val=0x%02x\n", __func__, addr, val & 0xff);
+#endif
+    return val;
+}
+
+static void dp83815_mmio_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
+{
+    PCIDP83815State *d = opaque;
+    DP83815State *s = &d->dp83815;
+    uint8_t offset = (addr & 0xff);
+    if ((offset & 1) != 0) {
+      /* address not on word boundary */
+      printf("%s ??? addr=0x%08x val=0x%08x\n", __func__, addr, val);
+    } else if (1) {
+#if defined(DEBUG_DP83815)
+      printf("%s addr=0x%08x val=0x%04x\n", __func__, addr, val);
+#endif
+      *(uint16_t *)&s->mem[offset] = val;
+    }
+    //~ if (addr & 0x10)
+        //~ dp83815_ioport_writew(d, addr & 0x0f, val);
+    //~ else {
+        //~ addr &= 0x0f;
+        //~ dp83815_aprom_writeb(d, addr, val & 0xff);
+        //~ dp83815_aprom_writeb(d, addr+1, (val & 0xff00) >> 8);
+    //~ }
+}
+
+static uint32_t dp83815_mmio_readw(void *opaque, target_phys_addr_t addr) 
+{
+    PCIDP83815State *d = opaque;
+    DP83815State *s = &d->dp83815;
+    uint8_t offset = (addr & 0xff);
+    uint32_t val = -1;
+    if (0) {
+    } else if ((offset & 1) == 0) {
+      val = *(uint16_t *)&s->mem[offset];
+    }
+    //~ if (addr & 0x10)
+        //~ val = dp83815_ioport_readw(d, addr & 0x0f);
+    //~ else {
+        //~ addr &= 0x0f;
+        //~ val = dp83815_aprom_readb(d, addr+1);
+        //~ val <<= 8;
+        //~ val |= dp83815_aprom_readb(d, addr);
+    //~ }
+#if defined(DEBUG_DP83815)
+    printf("%s addr=0x%08x val = 0x%04x\n", __func__, addr, val & 0xffff);
+#endif
+    return val;
+}
+
+static void dp83815_mmio_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
+{
+    PCIDP83815State *d = opaque;
+    DP83815State *s = &d->dp83815;
+    uint8_t offset = (addr & 0xff);
+#if defined(DEBUG_DP83815)
+    //~ printf("%s addr=0x%08x val=0x%08x\n", __func__, addr, val);
+#endif
+    if ((offset & 3) != 0) {
+      /* address not on word boundary */
+      printf("%s ??? addr=0x%08x val=0x%08x\n", __func__, addr, val);
+    } else if (offset == DP8315_CR) {
+      printf("%s addr=CR val=0x%08x\n", __func__, val);
+      if (val & DP8315_RST) {
+        val ^= DP8315_RST;
+      }
+      *(uint32_t *)&s->mem[offset] = val;
+    } else if (offset == DP8315_MEAR) {
+#if defined(CONFIG_EEPROM)
+      eeprom_action(&s->eeprom_state, val);
+#else
+      printf("%s addr=MEAR val=0x%08x\n", __func__, val);
+#endif
+    } else if (offset == DP8315_PTSCR) {
+      printf("%s addr=0x%08x val=0x%08x\n", __func__, addr, val);
+      if (val & EELOAD_EN) {
+        val ^= EELOAD_EN;
+      }
+      *(uint32_t *)&s->mem[offset] = val;
+    } else if (offset == DP8315_RFCR) {
+      printf("%s addr=0x%08x val=0x%08x\n", __func__, addr, val);
+      *(uint32_t *)&s->mem[offset] = val;
+    } else if (offset == DP8315_RFDR) {
+      printf("%s addr=0x%08x val=0x%08x\n", __func__, addr, val);
+      *(uint32_t *)&s->mem[offset] = val;
+    } else {
+      *(uint32_t *)&s->mem[offset] = val;
+#if defined(DEBUG_DP83815)
+      printf("%s addr=0x%08x val=0x%08x\n", __func__, addr, val);
+#endif
+    }
+    //~ if (addr & 0x10)
+        //~ dp83815_ioport_writel(d, addr & 0x0f, val);
+    //~ else {
+        //~ addr &= 0x0f;
+        //~ dp83815_aprom_writeb(d, addr, val & 0xff);
+        //~ dp83815_aprom_writeb(d, addr+1, (val & 0xff00) >> 8);
+        //~ dp83815_aprom_writeb(d, addr+2, (val & 0xff0000) >> 16);
+        //~ dp83815_aprom_writeb(d, addr+3, (val & 0xff000000) >> 24);
+    //~ }
+}
+
+static uint32_t dp83815_mmio_readl(void *opaque, target_phys_addr_t addr) 
+{
+    PCIDP83815State *d = opaque;
+    DP83815State *s = &d->dp83815;
+    uint8_t offset = (addr & 0xff);
+    uint32_t val = 0xffffffffU;
+    if (offset == DP8315_MEAR) {
+#if defined(CONFIG_EEPROM)
+      val = eeprom_action(&s->eeprom_state, -1);
+#else
+# error "missing"
+#endif
+    } else if ((offset & 3) == 0) {
+      val = *(uint32_t *)&s->mem[offset];
+#if defined(DEBUG_DP83815)
+      printf("%s addr=0x%08x val=0x%08x\n", __func__, addr, val);
+#endif
+    } else {
+      printf("%s ??? addr=0x%08x val=0x%08x\n", __func__, addr, val);
+    }
+    //~ if (addr & 0x10)
+        //~ val = dp83815_ioport_readl(d, addr & 0x0f);
+    //~ else {
+        //~ addr &= 0x0f;
+        //~ val = dp83815_aprom_readb(d, addr+3);
+        //~ val <<= 8;
+        //~ val |= dp83815_aprom_readb(d, addr+2);
+        //~ val <<= 8;
+        //~ val |= dp83815_aprom_readb(d, addr+1);
+        //~ val <<= 8;
+        //~ val |= dp83815_aprom_readb(d, addr);
+    //~ }
+    return val;
+}
+
+
+
+
+
+
+
+static CPUWriteMemoryFunc *dp83815_mmio_write[] = {
+    dp83815_mmio_writeb,
+    dp83815_mmio_writew,
+    dp83815_mmio_writel
+};
+
+static CPUReadMemoryFunc *dp83815_mmio_read[] = {
+    dp83815_mmio_readb,
+    dp83815_mmio_readw,
+    dp83815_mmio_readl
+};
+
+int dp8381x_load(QEMUFile *f, void *opaque, int version_id)
+{
+    PCIDP83815State *d = (PCIDP83815State *)opaque;
+    DP83815State *s = &d->dp83815;
+    int result = 0;
+    if (version_id == dp8381x_version) {
+        generic_pci_load(f, &d->dev, 1);
+        eeprom_load(f, &s->eeprom_state, eeprom_version);
+        /* TODO: support different endianess */
+        //~ qemu_get_buffer(f, (uint8_t *)eeprom, sizeof(*eeprom));
+    } else {
+        result = -EINVAL;
+    }
+    return result;
+}
+
+static void dp8381x_save(QEMUFile *f, void *opaque)
+{
+    PCIDP83815State *d = (PCIDP83815State *)opaque;
+    DP83815State *s = &d->dp83815;
+    generic_pci_save(f, &d->dev);
+    eeprom_save(f, &s->eeprom_state);
+    /* TODO: support different endianess */
+    qemu_put_buffer(f, (uint8_t *)d, sizeof(*d));
 }
 
 void pci_dp83815_init(PCIBus *bus, NICInfo *nd)
@@ -714,35 +1144,53 @@ void pci_dp83815_init(PCIBus *bus, NICInfo *nd)
     PCIDP83815State *d;
     DP83815State *s;
     uint8_t *pci_conf;
-    
+
+    uint32_t silicon_revision = DP83816AVNG;
+
+#if defined(DEBUG_DP83815)
+    printf("%s, silicon revision = 0x%08x\n", __func__, silicon_revision);
+#endif
+
     d = (PCIDP83815State *)pci_register_device(bus, "DP83815",
                                                sizeof(PCIDP83815State),
                                                -1, NULL, NULL);
     pci_conf = d->dev.config;
-#ifdef WORDS_BIGENDIAN
-#error TODO
-#else
-#define PCI_CONF(offset, value) (*(uint32_t *)(pci_conf + (offset)) = (value))
-#endif
+#define PCI_CONF(offset, value) (*(uint32_t *)(pci_conf + (offset)) = cpu_to_le32(value))
     PCI_CONF(0x00, 0x0020100b); // National Semiconductor DP 83815
-    PCI_CONF(0x04, 0x02900000);
+    // EEPROM Bit 20 NCPEN!!!
+    PCI_CONF(0x04, 0x02900000); /* Configuration Command and Status */
     PCI_CONF(0x08, 0x02000000); // ethernet network controller
     PCI_CONF(0x0c, 0x00000000); // header_type
     PCI_CONF(0x10, 0x00000001); // IOIND, IOSIZE
     PCI_CONF(0x14, 0x00000000);
     /* 0x18...0x28 reserved, returns 0 */
+    // EEPROM!!!
     PCI_CONF(0x2c, 0x00000000); /* Configuration Subsystem Identification */
     PCI_CONF(0x30, 0x00000000); /* Boot ROM Configuration */
     PCI_CONF(0x34, 0x00000040); /* Capabilities Pointer, CLOFS */
     /* 0x38 reserved, returns 0 */
+    // EEPROM Bits 16...31!!!
     PCI_CONF(0x3c, 0x340b0100); // MNGNT = 11, MXLAT = 52, IPIN = 0
+    // EEPROM Bits 31...27, 21!!!
     PCI_CONF(0x40, 0xff820001); /* Power Management Capabilities */
+    // EEPROM Bit 8!!!
     PCI_CONF(0x44, 0x00000000); /* Power Management Control and Status */
     /* 0x48...0xff reserved, returns 0 */
-    
-    pci_register_io_region(&d->dev, 0, 0x100, 
-                           PCI_ADDRESS_SPACE_IO, dp83815_map);
+
     s = &d->dp83815;
+    s->silicon_revision = silicon_revision;
+
+    /* Handler for memory-mapped I/O */
+    s->io_memory =
+      cpu_register_io_memory(0, dp83815_mmio_read, dp83815_mmio_write, d);
+
+    printf("%s: io_memory = 0x%08x\n", __func__, s->io_memory);
+
+    pci_register_io_region(&d->dev, 0, DP83815_IO_SIZE, 
+                           PCI_ADDRESS_SPACE_IO, dp83815_map);
+    pci_register_io_region(&d->dev, 1, DP83815_MEM_SIZE, 
+                           PCI_ADDRESS_SPACE_MEM, dp83815_mmio_map);
+
     s->irq = 16; // PCI interrupt
     s->pci_dev = (PCIDevice *)d;
     memcpy(s->macaddr, nd->macaddr, 6);
@@ -759,7 +1207,392 @@ void pci_dp83815_init(PCIBus *bus, NICInfo *nd)
              s->macaddr[4],
              s->macaddr[5]);
              
-    /* XXX: instance number ? */
-    register_savevm("dp83815_pci", 0, 1, generic_pci_save, generic_pci_load, 
-                    &d->dev);
+    register_savevm("dp8381x", dp8381x_instance, dp8381x_version,
+                    dp8381x_save, dp8381x_load, d);
 }
+
+#if 0
+
+
+
+dp83815_map, region 0, size 0x00000100
+dp83815_mmio_map addr=0xf2001000 0x00001000
+dp83815_mmio_writel addr=0xf2001018 val=0x00000000
+dp83815_mmio_readl addr=0xf2001058 val=0x00000505
+eeprom_action: not selected, count = 0, state 0x0000 => 0x0000
+eeprom_action: not selected, count = 0, state 0x0000 => 0x0004
+eeprom_action: selected, state 0x0004 => 0x0009
+eeprom_action: count = 10, command = 0x00, address = 0x0c, data = 0x0000
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0000, count = 10, data = 0x0000
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0000, count = 11, data = 0x0000
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0000, count = 12, data = 0x0000
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0000, count = 13, data = 0x0000
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0000, count = 14, data = 0x0000
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0000, count = 15, data = 0x0000
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0000, count = 16, data = 0x0000
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0000, count = 17, data = 0x0000
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0000, count = 18, data = 0x0000
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0000, count = 19, data = 0x0000
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0000, count = 20, data = 0x0000
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0000, count = 21, data = 0x0000
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0000, count = 22, data = 0x0000
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0000, count = 23, data = 0x0000
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0000, count = 24, data = 0x0000
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action: not selected, count = 25, state 0x000c => 0x0000
+eeprom_action: not selected, count = 0, state 0x0000 => 0x0004
+eeprom_action: selected, state 0x0004 => 0x0009
+eeprom_action: count = 10, command = 0x00, address = 0x0e, data = 0x0000
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0000, count = 10, data = 0x0000
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0000, count = 11, data = 0x0000
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0000, count = 12, data = 0x0000
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0000, count = 13, data = 0x0000
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0000, count = 14, data = 0x0000
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0000, count = 15, data = 0x0000
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0000, count = 16, data = 0x0000
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0000, count = 17, data = 0x0000
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0000, count = 18, data = 0x0000
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0000, count = 19, data = 0x0000
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0000, count = 20, data = 0x0000
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0000, count = 21, data = 0x0000
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0000, count = 22, data = 0x0000
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0000, count = 23, data = 0x0000
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0000, count = 24, data = 0x0000
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action: not selected, count = 25, state 0x000c => 0x0000
+eeprom_action: not selected, count = 0, state 0x0000 => 0x0004
+eeprom_action: selected, state 0x0004 => 0x0009
+eeprom_action: count = 10, command = 0x10, address = 0x00, data = 0xd008
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0010, count = 10, data = 0xd008
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0010, count = 11, data = 0xd008
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0010, count = 12, data = 0xd008
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0010, count = 13, data = 0xd008
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0010, count = 14, data = 0xd008
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0010, count = 15, data = 0xd008
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0010, count = 16, data = 0xd008
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0010, count = 17, data = 0xd008
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0010, count = 18, data = 0xd008
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0010, count = 19, data = 0xd008
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0010, count = 20, data = 0xd008
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0010, count = 21, data = 0xd008
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0010, count = 22, data = 0xd008
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0010, count = 23, data = 0xd008
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0010, count = 24, data = 0xd008
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action: not selected, count = 25, state 0x000c => 0x0000
+eeprom_action: not selected, count = 0, state 0x0000 => 0x0004
+eeprom_action: selected, state 0x0004 => 0x0009
+eeprom_action: count = 10, command = 0x10, address = 0x02, data = 0x2cd0
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0010, count = 10, data = 0x2cd0
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0010, count = 11, data = 0x2cd0
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0010, count = 12, data = 0x2cd0
+dp83815_mmio_redp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0010, count = 18, data = 0x2cd0
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0010, count = 19, data = 0x2cd0
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0010, count = 20, data = 0x2cd0
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0010, count = 21, data = 0x2cd0
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0010, count = 22, data = 0x2cd0
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0010, count = 23, data = 0x2cd0
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+eeprom_action:   command = 0x0010, count = 24, data = 0x2cd0
+dp83815_mmio_readb addr=0xf2001008 val=0x02
+dp83815_mmio_readl addr=0xf20010c0 val=0x00000000
+dp83815_mmio_readl addr=0xf2001080 val=0x00000000
+dp83815_mmio_readl addr=0xf20010c0 val=0x00000000
+dp83815_mmio_writel addr=0xf2001004 val=0x0007e400
+dp83815_mmio_writel addr=0xf2001004 val=0x0007e000
+dp83815_mmio_readl addr=0xf2001080 val=0x00000000
+dp83815_mmio_writel addr=0xf20010cc val=0x00000001
+dp83815_mmio_writel addr=0xf20010ec val=0x000080b7
+dp83815_mmio_writel addr=0xf20010cc val=0x00000000
+dp83815_mmio_writel addr=0xf20010cc val=0x00000001
+dp83815_mmio_writel addr=0xf20010e4 val=0x0000189c
+dp83815_mmio_writel addr=0xf20010cc val=0x00000000
+dp83815_mmio_writel addr=CR val=0x00000100
+dp83815_mmio_readl addr=0xf2001000 val=0x00000000
+dp83815_mmio_writel addr=0xf2001004 val=0x0007e000
+dp83815_mmio_writel addr=0xf200103c val=0x00008000
+dp83815_mmio_writel addr=0xf2001040 val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000000
+dp83815_mmio_writel addr=0xf200104c val=0x0000ffff
+dp83815_mmio_writel addr=0xf2001048 val=0x00000002
+dp83815_mmio_writel addr=0xf200104c val=0x0000ffff
+dp83815_mmio_writel addr=0xf2001048 val=0x00000004
+dp83815_mmio_writel addr=0xf200104c val=0x0000ffff
+dp83815_mmio_readl addr=0xf20010c0 val=0x00000000
+dp83815_mmio_writel addr=0xf2001024 val=0x10740930
+dp83815_mmio_writel addr=0xf2001044 val=0x00000000
+dp83815_mmio_writel addr=0xf2001034 val=0x00700020
+dp83815_mmio_writel addr=0xf2001020 val=0x01062000
+dp83815_mmio_writel addr=0xf2001030 val=0x01063000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000200
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000202
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000204
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000206
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000208
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000020a
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000020c
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000020e
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000210
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000212
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000214
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000216
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000218
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000021a
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000021c
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000021e
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000220
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000222
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000224
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000226
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000228
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000022a
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000022c
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000022e
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000230
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000232
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000234
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000236
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000238
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000023a
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000023c
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000023e
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x80000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x80000000
+dp83815_mmio_writel addr=0xf200105c val=0x00000004
+dp83815_mmio_writel addr=CR val=0x00000004
+dp83815_mmio_writel addr=0xf20010c8 val=0xffffbfff
+dp83815_mmio_writel addr=0xf20010c4 val=0x00000002
+dp83815_mmio_writel addr=0xf2001014 val=0x00004955
+dp83815_mmio_writel addr=0xf2001018 val=0x00000001
+dp83815_mmio_readl addr=0xf20010c0 val=0x00000000
+dp83815_mmio_readl addr=0xf2001060 val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0xc8200000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x80000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0xc8200000
+dp83815_mmio_readl addr=0xf2001060 val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000200
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000202
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000204
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000206
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000208
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000020a
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000020c
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000020e
+dp83815_mmio_writel addr=0xf200104c val=0x00000010
+dp83815_mmio_writel addr=0xf2001048 val=0x00000210
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000212
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000214
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000216
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000218
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000021a
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000021c
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000021e
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000220
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000222
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000224
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000226
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000228
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000022a
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000022c
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000022e
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000230
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000232
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000234
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000236
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000238
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000023a
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000023c
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000023e
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0xc8200000
+dp83815_mmio_readl addr=0xf2001060 val=0x00000000
+dp83815_mmio_readl addr=0xf2001060 val=0x00000000
+dp83815_mmio_readl addr=0xf2001060 val=0x00000000
+dp83815_mmio_readl addr=0xf2001060 val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000200
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000202
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000204
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000206
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000208
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000020a
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000020c
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000020e
+dp83815_mmio_writel addr=0xf200104c val=0x00000010
+dp83815_mmio_writel addr=0xf2001048 val=0x00000210
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000212
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000214
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000216
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000218
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000021a
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000021c
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000021e
+dp83815_mmio_writel addr=0xf200104c val=0x00008000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000220
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000222
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000224
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000226
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000228
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000022a
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000022c
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000022e
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000230
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000232
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000234
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000236
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x00000238
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000023a
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000023c
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0x0000023e
+dp83815_mmio_writel addr=0xf200104c val=0x00000000
+dp83815_mmio_writel addr=0xf2001048 val=0xc8200000
+dp83815_mmio_readl addr=0xf2001060 val=0x00000000
+#endif
