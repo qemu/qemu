@@ -60,7 +60,7 @@ void generic_pci_save(QEMUFile* f, void *opaque)
 {
     PCIDevice* s=(PCIDevice*)opaque;
 
-    qemu_put_buffer(f, s->config, 256);
+    qemu_put_buffer(f, s->config, 256); /* TODO: endianess */
 }
 
 int generic_pci_load(QEMUFile* f, void *opaque, int version_id)
@@ -70,7 +70,7 @@ int generic_pci_load(QEMUFile* f, void *opaque, int version_id)
     if (version_id != 1)
         return -EINVAL;
 
-    qemu_get_buffer(f, s->config, 256);
+    qemu_get_buffer(f, s->config, 256); /* TODO: endianess */
     return 0;
 }
 
