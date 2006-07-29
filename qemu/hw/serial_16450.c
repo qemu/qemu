@@ -154,7 +154,6 @@ static void serial_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     SerialState *s = opaque;
     unsigned char ch;
     
-    addr >>= s->it_shift;
     addr &= 7;
 #ifdef DEBUG_SERIAL
     printf("serial: write addr=0x%02x val=0x%02x\n", addr, val);
@@ -222,7 +221,6 @@ static uint32_t serial_ioport_read(void *opaque, uint32_t addr)
     SerialState *s = opaque;
     uint32_t ret;
 
-    addr >>= s->it_shift;
     addr &= 7;
     switch(addr) {
     default:
@@ -354,7 +352,7 @@ static int serial_load(QEMUFile *f, void *opaque, int version_id)
 
 /* If fd is zero, it means that the serial device uses the console */
 SerialState *serial_16450_init(SetIRQFunc *set_irq, void *opaque, int base,
-                               int it_shift, int irq, CharDriverState *chr)
+                               int irq, CharDriverState *chr)
 {
     SerialState *s;
 
@@ -366,13 +364,12 @@ SerialState *serial_16450_init(SetIRQFunc *set_irq, void *opaque, int base,
     s->irq = irq;
     s->lsr = UART_LSR_TEMT | UART_LSR_THRE;
     s->iir = UART_IIR_NO_INT;
-    s->it_shift = it_shift;
     s->msr = UART_MSR_DCD | UART_MSR_DSR | UART_MSR_CTS;
 
     register_savevm("serial", base, 1, serial_save, serial_load, s);
 
-    register_ioport_write(base, 8 << it_shift, 1, serial_ioport_write, s);
-    register_ioport_read(base, 8 << it_shift, 1, serial_ioport_read, s);
+    register_ioport_write(base, 8, 1, serial_ioport_write, s);
+    register_ioport_read(base, 8, 1, serial_ioport_read, s);
     s->chr = chr;
     qemu_chr_add_read_handler(chr, serial_can_receive1, serial_receive1, s);
     qemu_chr_add_event_handler(chr, serial_event);
