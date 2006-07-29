@@ -1727,6 +1727,19 @@ static void pcnet_mmio_map(PCIDevice *pci_dev, int region_num,
     cpu_register_physical_memory(addr, PCNET_PNPMMIO_SIZE, d->mmio_io_addr);
 }
 
+static int pcnet_load(QEMUFile* f,void* opaque,int version_id)
+{
+    PCNetState *d = (PCNetState *)opaque;
+#warning("TODO (still missing)")
+    return EINVAL;
+}
+
+static void pcnet_save(QEMUFile* f,void* opaque)
+{
+    PCNetState *d = (PCNetState *)opaque;
+#warning("TODO (still missing)")
+}
+
 void pci_pcnet_init(PCIBus *bus, NICInfo *nd)
 {
     PCNetState *d;
@@ -1786,4 +1799,9 @@ void pci_pcnet_init(PCIBus *bus, NICInfo *nd)
              d->nd->macaddr[5]);
 
     pcnet_h_reset(d);
+
+#define instance 0      /* TODO: support multiple instances */
+    register_savevm("pcnet", instance, 0, pcnet_save, pcnet_load, d);
+    register_savevm("pcnet_pci", instance, 1, generic_pci_save, generic_pci_load, 
+                    &d->dev);
 }
