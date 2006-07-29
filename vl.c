@@ -1079,7 +1079,7 @@ static void null_chr_add_read_handler(CharDriverState *chr,
 {
 }
 
-CharDriverState *qemu_chr_open_null(void)
+static CharDriverState *qemu_chr_open_null(void)
 {
     CharDriverState *chr;
 
@@ -1242,7 +1242,7 @@ static void fd_chr_add_read_handler(CharDriverState *chr,
 }
 
 /* open a character device to a unix fd */
-CharDriverState *qemu_chr_open_fd(int fd_in, int fd_out)
+static CharDriverState *qemu_chr_open_fd(int fd_in, int fd_out)
 {
     CharDriverState *chr;
     FDCharDriver *s;
@@ -1263,7 +1263,7 @@ CharDriverState *qemu_chr_open_fd(int fd_in, int fd_out)
     return chr;
 }
 
-CharDriverState *qemu_chr_open_file_out(const char *file_out)
+static CharDriverState *qemu_chr_open_file_out(const char *file_out)
 {
     int fd_out;
 
@@ -1273,7 +1273,7 @@ CharDriverState *qemu_chr_open_file_out(const char *file_out)
     return qemu_chr_open_fd(-1, fd_out);
 }
 
-CharDriverState *qemu_chr_open_pipe(const char *filename)
+static CharDriverState *qemu_chr_open_pipe(const char *filename)
 {
     int fd;
 
@@ -1482,7 +1482,7 @@ static void term_init(void)
     fcntl(0, F_SETFL, O_NONBLOCK);
 }
 
-CharDriverState *qemu_chr_open_stdio(void)
+static CharDriverState *qemu_chr_open_stdio(void)
 {
     CharDriverState *chr;
 
@@ -1508,7 +1508,7 @@ CharDriverState *qemu_chr_open_stdio(void)
 }
 
 #if defined(__linux__)
-CharDriverState *qemu_chr_open_pty(void)
+static CharDriverState *qemu_chr_open_pty(void)
 {
     struct termios tty;
     char slave_name[1024];
@@ -1645,7 +1645,7 @@ static int tty_serial_ioctl(CharDriverState *chr, int cmd, void *arg)
     return 0;
 }
 
-CharDriverState *qemu_chr_open_tty(const char *filename)
+static CharDriverState *qemu_chr_open_tty(const char *filename)
 {
     CharDriverState *chr;
     int fd;
@@ -1699,7 +1699,7 @@ static int pp_ioctl(CharDriverState *chr, int cmd, void *arg)
     return 0;
 }
 
-CharDriverState *qemu_chr_open_pp(const char *filename)
+static CharDriverState *qemu_chr_open_pp(const char *filename)
 {
     CharDriverState *chr;
     int fd;
@@ -1726,7 +1726,7 @@ CharDriverState *qemu_chr_open_pp(const char *filename)
 }
 
 #else
-CharDriverState *qemu_chr_open_pty(void)
+static CharDriverState *qemu_chr_open_pty(void)
 {
     return NULL;
 }
@@ -1944,7 +1944,7 @@ static void win_chr_add_read_handler(CharDriverState *chr,
     s->win_opaque = opaque;
 }
 
-CharDriverState *qemu_chr_open_win(const char *filename)
+static CharDriverState *qemu_chr_open_win(const char *filename)
 {
     CharDriverState *chr;
     WinCharState *s;
@@ -2047,7 +2047,7 @@ static int win_chr_pipe_init(WinCharState *s, const char *filename)
 }
 
 
-CharDriverState *qemu_chr_open_win_pipe(const char *filename)
+static CharDriverState *qemu_chr_open_win_pipe(const char *filename)
 {
     CharDriverState *chr;
     WinCharState *s;
@@ -2073,7 +2073,7 @@ CharDriverState *qemu_chr_open_win_pipe(const char *filename)
     return chr;
 }
 
-CharDriverState *qemu_chr_open_win_file(HANDLE fd_out)
+static CharDriverState *qemu_chr_open_win_file(HANDLE fd_out)
 {
     CharDriverState *chr;
     WinCharState *s;
@@ -2093,7 +2093,7 @@ CharDriverState *qemu_chr_open_win_file(HANDLE fd_out)
     return chr;
 }
     
-CharDriverState *qemu_chr_open_win_file_out(const char *file_out)
+static CharDriverState *qemu_chr_open_win_file_out(const char *file_out)
 {
     HANDLE fd_out;
     
@@ -2187,7 +2187,7 @@ int parse_host_src_port(struct sockaddr_in *haddr,
                         struct sockaddr_in *saddr,
                         const char *str);
 
-CharDriverState *qemu_chr_open_udp(const char *def)
+static CharDriverState *qemu_chr_open_udp(const char *def)
 {
     CharDriverState *chr = NULL;
     NetCharDriver *s = NULL;
