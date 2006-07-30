@@ -992,6 +992,15 @@ static inline int64_t cpu_get_real_ticks (void)
         return rval.i64;
 #endif
 }
+#else
+/* The host CPU doesn't have an easily accessible cycle counter.
+   Just return a monotonically increasing vlue.  This will be totally wrong,
+   but hopefully better than nothing.  */
+static inline int64_t cpu_get_real_ticks (void)
+{
+    static int64_t ticks = 0;
+    return ticks++;
+}
 #endif
 
 /* profiling */

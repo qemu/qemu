@@ -19,7 +19,7 @@
  */
 
 int __op_param1, __op_param2, __op_param3;
-#ifdef __sparc__
+#if defined(__sparc__) || defined(__arm__)
   void __op_gen_label1(){}
   void __op_gen_label2(){}
   void __op_gen_label3(){}
@@ -145,18 +145,16 @@ void fix_bsr(void *p, int offset) {
 
 #ifdef __arm__
 
-#define MAX_OP_SIZE    (128 * 4) /* in bytes */
-/* max size of the code that can be generated without calling arm_flush_ldr */
-#define MAX_FRAG_SIZE  (1024 * 4) 
-//#define MAX_FRAG_SIZE  (135 * 4) /* for testing */ 
+#define ARM_LDR_TABLE_SIZE 1024
 
 typedef struct LDREntry {
     uint8_t *ptr;
     uint32_t *data_ptr;
+    unsigned type:2;
 } LDREntry;
 
 static LDREntry arm_ldr_table[1024];
-static uint32_t arm_data_table[1024];
+static uint32_t arm_data_table[ARM_LDR_TABLE_SIZE];
 
 extern char exec_loop;
 
@@ -175,8 +173,9 @@ static uint8_t *arm_flush_ldr(uint8_t *gen_code_ptr,
     int offset, data_size, target;
     uint8_t *data_ptr;
     uint32_t insn;
+    uint32_t mask;
  
-    data_size = (uint8_t *)data_end - (uint8_t *)data_start;
+    data_size = (data_end - data_start) << 2;
 
     if (gen_jmp) {
         /* generate branch to skip the data */
@@ -198,17 +197,48 @@ static uint8_t *arm_flush_ldr(uint8_t *gen_code_ptr,
         offset = ((unsigned long)(le->data_ptr) - (unsigned long)data_start) + 
             (unsigned long)data_ptr - 
             (unsigned long)ptr - 8;
-        insn = *ptr & ~(0xfff | 0x00800000);
         if (offset < 0) {
-            offset = - offset;
-        } else {
-            insn |= 0x00800000;
-        }
-        if (offset > 0xfff) {
-            fprintf(stderr, "Error ldr offset\n");
+            fprintf(stderr, "Negative constant pool offset\n");
             abort();
         }
-        insn |= offset;
+        switch (le->type) {
+          case 0: /* ldr */
+            mask = ~0x00800fff;
+            if (offset >= 4096) {
+                fprintf(stderr, "Bad ldr offset\n");
+                abort();
+            }
+            break;
+          case 1: /* ldc */
+            mask = ~0x008000ff;
+            if (offset >= 1024 ) {
+                fprintf(stderr, "Bad ldc offset\n");
+                abort();
+            }
+            break;
+          case 2: /* add */
+            mask = ~0xfff;
+            if (offset >= 1024 ) {
+                fprintf(stderr, "Bad add offset\n");
+                abort();
+            }
+            break;
+          default:
+            fprintf(stderr, "Bad pc relative fixup\n");
+            abort();
+          }
+        insn = *ptr & mask;
+        switch (le->type) {
+          case 0: /* ldr */
+            insn |= offset | 0x00800000;
+            break;
+          case 1: /* ldc */
+            insn |= (offset >> 2) | 0x00800000;
+            break;
+          case 2: /* add */
+            insn |= (offset >> 2) | 0xf00;
+            break;
+          }
         *ptr = insn;
     }
     return gen_code_ptr;
