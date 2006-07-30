@@ -271,11 +271,9 @@ void disas(FILE *out, void *code, unsigned long size)
     for (pc = (unsigned long)code; pc < (unsigned long)code + size; pc += count) {
 	fprintf(out, "0x%08lx:  ", pc);
 #ifdef __arm__
-        /* since data are included in the code, it is better to
+        /* since data is included in the code, it is better to
            display code data too */
-        if (is_host) {
-            fprintf(out, "%08x  ", (int)bfd_getl32((const bfd_byte *)pc));
-        }
+        fprintf(out, "%08x  ", (int)bfd_getl32((const bfd_byte *)pc));
 #endif
 	count = print_insn(pc, &disasm_info);
 	fprintf(out, "\n");
