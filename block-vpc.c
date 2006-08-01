@@ -86,19 +86,16 @@ static int vpc_probe(const uint8_t *buf, int buf_size, const char *filename)
     return 0;
 }
 
-static int vpc_open(BlockDriverState *bs, const char *filename)
+static int vpc_open(BlockDriverState *bs, const char *filename, int flags)
 {
     BDRVVPCState *s = bs->opaque;
     int fd, i;
     struct vpc_subheader header;
 
-    fd = open(filename, O_RDWR | O_BINARY | O_LARGEFILE);
-    if (fd < 0) {
-        fd = open(filename, O_RDONLY | O_BINARY | O_LARGEFILE);
-        if (fd < 0)
-            return -1;
-    }
-    
+    fd = open(filename, O_RDONLY | O_BINARY);
+    if (fd < 0)
+        return -1;
+
     bs->read_only = 1; // no write support yet
     
     s->fd = fd;

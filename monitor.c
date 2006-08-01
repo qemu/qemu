@@ -167,13 +167,16 @@ static void do_help(const char *name)
     help_cmd(name);
 }
 
-static void do_commit(void)
+static void do_commit(const char *device)
 {
-    int i;
-
+    int i, all_devices;
+    
+    all_devices = !strcmp(device, "all");
     for (i = 0; i < MAX_DISKS; i++) {
         if (bs_table[i]) {
-            bdrv_commit(bs_table[i]);
+            if (all_devices || 
+                !strcmp(bdrv_get_device_name(bs_table[i]), device))
+                bdrv_commit(bs_table[i]);
         }
     }
 }
@@ -1140,8 +1143,8 @@ static void do_wav_capture (const char *path,
 static term_cmd_t term_cmds[] = {
     { "help|?", "s?", do_help, 
       "[cmd]", "show the help" },
-    { "commit", "", do_commit, 
-      "", "commit changes to the disk images (if -snapshot is used)" },
+    { "commit", "s", do_commit, 
+      "device|all", "commit changes to the disk images (if -snapshot is used) or backing files" },
     { "info", "s?", do_info,
       "subcommand", "show various information about the system state" },
     { "q|quit", "", do_quit,

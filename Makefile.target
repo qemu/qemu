@@ -289,7 +289,8 @@ ifeq ($(ARCH),alpha)
 endif
 
 # must use static linking to avoid leaving stuff in virtual address space
-VL_OBJS=vl.o osdep.o block.o readline.o monitor.o pci.o console.o loader.o
+VL_OBJS=vl.o osdep.o readline.o monitor.o pci.o console.o loader.o
+VL_OBJS+=block.o block-raw.o
 VL_OBJS+=block-cow.o block-qcow.o aes.o block-vmdk.o block-cloop.o block-dmg.o block-bochs.o block-vpc.o block-vvfat.o
 ifdef CONFIG_WIN32
 VL_OBJS+=tap-win32.o

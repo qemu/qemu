@@ -351,13 +351,6 @@ typedef struct BDRVVVFATState {
 } BDRVVVFATState;
 
 
-static int vvfat_probe(const uint8_t *buf, int buf_size, const char *filename)
-{
-    if (strstart(filename, "fat:", NULL))
-	return 100;
-    return 0;
-}
-
 static void init_mbr(BDRVVVFATState* s)
 {
     /* TODO: if the files mbr.img and bootsect.img exist, use them */
@@ -954,18 +947,22 @@ static int init_directories(BDRVVVFATState* s,
     return 0;
 }
 
+#ifdef DEBUG
 static BDRVVVFATState *vvv = NULL;
+#endif
 
 static int enable_write_target(BDRVVVFATState *s);
 static int is_consistent(BDRVVVFATState *s);
 
-static int vvfat_open(BlockDriverState *bs, const char* dirname)
+static int vvfat_open(BlockDriverState *bs, const char* dirname, int flags)
 {
     BDRVVVFATState *s = bs->opaque;
     int floppy = 0;
     int i;
 
+#ifdef DEBUG
     vvv = s;
+#endif
 
 DLOG(if (stderr == NULL) {
     stderr = fopen("vvfat.log", "a");
@@ -1040,7 +1037,6 @@ DLOG(if (stderr == NULL) {
 	bs->heads = bs->cyls = bs->secs = 0;
 
     //    assert(is_consistent(s));
-
     return 0;
 }
 
@@ -2732,8 +2728,7 @@ static int enable_write_target(BDRVVVFATState *s)
     array_init(&(s->commits), sizeof(commit_t));
 
     s->qcow_filename = malloc(1024);
-    strcpy(s->qcow_filename, "/tmp/vl.XXXXXX");
-    get_tmp_filename(s->qcow_filename, strlen(s->qcow_filename) + 1);
+    get_tmp_filename(s->qcow_filename, 1024);
     if (bdrv_create(&bdrv_qcow,
 		s->qcow_filename, s->sector_count, "fat:", 0) < 0)
 	return -1;
@@ -2767,14 +2762,15 @@ static void vvfat_close(BlockDriverState *bs)
 BlockDriver bdrv_vvfat = {
     "vvfat",
     sizeof(BDRVVVFATState),
-    vvfat_probe,
+    NULL, /* no probe for protocols */
     vvfat_open,
     vvfat_read,
     vvfat_write,
     vvfat_close,
     NULL, /* ??? Not sure if we can do any meaningful flushing.  */
     NULL,
-    vvfat_is_allocated
+    vvfat_is_allocated,
+    .protocol_name = "fat",
 };
 
 #ifdef DEBUG

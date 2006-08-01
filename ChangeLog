@@ -1,3 +1,31 @@
+2006-08-01 18:21  bellard
+
+	* Changelog, Makefile, Makefile.target, block-bochs.c,
+	  block-cloop.c, block-cow.c, block-dmg.c, block-qcow.c,
+	  block-raw.c, block-vmdk.c, block-vpc.c, block-vvfat.c, block.c,
+	  block_int.h, vl.c, vl.h: async file I/O API
+
+2006-08-01 17:52  bellard
+
+	* monitor.c: commit to specific devices
+
+2006-08-01 17:51  bellard
+
+	* qemu-img.c: show backing file name
+
+2006-08-01 17:50  bellard
+
+	* osdep.c, osdep.h: removed unused code
+
+2006-07-30 21:16  pbrook
+
+	* arm.ld, cpu-all.h, disas.c, dyngen.c, dyngen.h, elf.h: Rewrite
+	  Arm host support.
+
+2006-07-29 21:09  pbrook
+
+	* cpu-exec.c: Arm host build fix.
+
 2006-07-22 19:06  bellard
 
 	* audio/wavcapture.c: error display fix (malc)

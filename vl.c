@@ -4774,6 +4774,77 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
 }
 
 /***********************************************************/
+/* bottom halves (can be seen as timers which expire ASAP) */
+
+struct QEMUBH {
+    QEMUBHFunc *cb;
+    void *opaque;
+    int scheduled;
+    QEMUBH *next;
+};
+
+static QEMUBH *first_bh = NULL;
+
+QEMUBH *qemu_bh_new(QEMUBHFunc *cb, void *opaque)
+{
+    QEMUBH *bh;
+    bh = qemu_mallocz(sizeof(QEMUBH));
+    if (!bh)
+        return NULL;
+    bh->cb = cb;
+    bh->opaque = opaque;
+    return bh;
+}
+
+void qemu_bh_poll(void)
+{
+    QEMUBH *bh, **pbh;
+
+    for(;;) {
+        pbh = &first_bh;
+        bh = *pbh;
+        if (!bh)
+            break;
+        *pbh = bh->next;
+        bh->scheduled = 0;
+        bh->cb(bh->opaque);
+    }
+}
+
+void qemu_bh_schedule(QEMUBH *bh)
+{
+    CPUState *env = cpu_single_env;
+    if (bh->scheduled)
+        return;
+    bh->scheduled = 1;
+    bh->next = first_bh;
+    first_bh = bh;
+
+    /* stop the currently executing CPU to execute the BH ASAP */
+    if (env) {
+        cpu_interrupt(env, CPU_INTERRUPT_EXIT);
+    }
+}
+
+void qemu_bh_cancel(QEMUBH *bh)
+{
+    QEMUBH **pbh;
+    if (bh->scheduled) {
+        pbh = &first_bh;
+        while (*pbh != bh)
+            pbh = &(*pbh)->next;
+        *pbh = bh->next;
+        bh->scheduled = 0;
+    }
+}
+
+void qemu_bh_delete(QEMUBH *bh)
+{
+    qemu_bh_cancel(bh);
+    qemu_free(bh);
+}
+
+/***********************************************************/
 /* machine registration */
 
 QEMUMachine *first_machine = NULL;
@@ -5034,6 +5105,8 @@ void main_loop_wait(int timeout)
 #ifdef _WIN32
     tap_win32_poll();
 #endif
+    qemu_aio_poll();
+    qemu_bh_poll();
 
     if (vm_running) {
         qemu_run_timers(&active_timers[QEMU_TIMER_VIRTUAL], 
@@ -6066,6 +6139,7 @@ int main(int argc, char **argv)
     
     init_timers();
     init_timer_alarm();
+    qemu_aio_init();
 
 #ifdef _WIN32
     socket_init();
@@ -6110,7 +6184,7 @@ int main(int argc, char **argv)
                 snprintf(buf, sizeof(buf), "hd%c", i + 'a');
                 bs_table[i] = bdrv_new(buf);
             }
-            if (bdrv_open(bs_table[i], hd_filename[i], snapshot) < 0) {
+            if (bdrv_open(bs_table[i], hd_filename[i], snapshot ? BDRV_O_SNAPSHOT : 0) < 0) {
                 fprintf(stderr, "qemu: could not open hard disk image '%s'\n",
                         hd_filename[i]);
                 exit(1);
@@ -6135,7 +6209,8 @@ int main(int argc, char **argv)
                 bdrv_set_type_hint(fd_table[i], BDRV_TYPE_FLOPPY);
             }
             if (fd_filename[i] != '\0') {
-                if (bdrv_open(fd_table[i], fd_filename[i], snapshot) < 0) {
+                if (bdrv_open(fd_table[i], fd_filename[i],
+                              snapshot ? BDRV_O_SNAPSHOT : 0) < 0) {
                     fprintf(stderr, "qemu: could not open floppy disk image '%s'\n",
                             fd_filename[i]);
                     exit(1);

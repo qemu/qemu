@@ -1,3 +1,8 @@
+version 0.8.3:
+
+  - Support for relative paths in backing files for disk images
+  - Async file I/O API
+
 version 0.8.2:
 
   - ACPI support
