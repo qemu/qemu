@@ -25,14 +25,22 @@ else
 DOCS=
 endif
 
+ifndef CONFIG_DARWIN
+ifndef CONFIG_WIN32
+ifndef CONFIG_SOLARIS
+LIBS+=-lrt
+endif
+endif
+endif
+
 all: $(TOOLS) $(DOCS) recurse-all
 
 subdir-%: dyngen$(EXESUF)
 	$(MAKE) -C $(subst subdir-,,$@) all
 
 recurse-all: $(patsubst %,subdir-%, $(TARGET_DIRS))
-        
-qemu-img$(EXESUF): qemu-img.c block.c block-cow.c block-qcow.c aes.c block-vmdk.c block-cloop.c block-dmg.c block-bochs.c block-vpc.c block-vvfat.c
+
+qemu-img$(EXESUF): qemu-img.c block.c block-raw.c block-cow.c block-qcow.c aes.c block-vmdk.c block-cloop.c block-dmg.c block-bochs.c block-vpc.c block-vvfat.c
 	$(CC) -DQEMU_TOOL $(CFLAGS) $(LDFLAGS) $(DEFINES) -o $@ $^ -lz $(LIBS)
 
 dyngen$(EXESUF): dyngen.c

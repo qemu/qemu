@@ -28,7 +28,7 @@ struct BlockDriver {
     const char *format_name;
     int instance_size;
     int (*bdrv_probe)(const uint8_t *buf, int buf_size, const char *filename);
-    int (*bdrv_open)(BlockDriverState *bs, const char *filename);
+    int (*bdrv_open)(BlockDriverState *bs, const char *filename, int flags);
     int (*bdrv_read)(BlockDriverState *bs, int64_t sector_num, 
                      uint8_t *buf, int nb_sectors);
     int (*bdrv_write)(BlockDriverState *bs, int64_t sector_num, 
@@ -41,11 +41,28 @@ struct BlockDriver {
                              int nb_sectors, int *pnum);
     int (*bdrv_set_key)(BlockDriverState *bs, const char *key);
     int (*bdrv_make_empty)(BlockDriverState *bs);
+    /* aio */
+    int (*bdrv_aio_new)(BlockDriverAIOCB *acb);
+    int (*bdrv_aio_read)(BlockDriverAIOCB *acb, int64_t sector_num,
+                              uint8_t *buf, int nb_sectors);
+    int (*bdrv_aio_write)(BlockDriverAIOCB *acb, int64_t sector_num,
+                          const uint8_t *buf, int nb_sectors);
+    void (*bdrv_aio_cancel)(BlockDriverAIOCB *acb);
+    void (*bdrv_aio_delete)(BlockDriverAIOCB *acb);
+
+    const char *protocol_name;
+    int (*bdrv_pread)(BlockDriverState *bs, int64_t offset, 
+                      uint8_t *buf, int count);
+    int (*bdrv_pwrite)(BlockDriverState *bs, int64_t offset, 
+                       const uint8_t *buf, int count);
+    int (*bdrv_truncate)(BlockDriverState *bs, int64_t offset);
+    int64_t (*bdrv_getlength)(BlockDriverState *bs);
+
     struct BlockDriver *next;
 };
 
 struct BlockDriverState {
-    int64_t total_sectors;
+    int64_t total_sectors; /* XXX: will be suppressed */
     int read_only; /* if true, the media is read only */
     int inserted; /* if true, the media is present */
     int removable; /* if true, the media can be removed */
@@ -67,6 +84,9 @@ struct BlockDriverState {
     int is_temporary;
     
     BlockDriverState *backing_hd;
+    /* sync read/write emulation */
+
+    BlockDriverAIOCB *sync_aiocb;
     
     /* NOTE: the following infos are only hints for real hardware
        drivers. They are not used by the block driver */
@@ -74,6 +94,14 @@ struct BlockDriverState {
     int type;
     char device_name[32];
     BlockDriverState *next;
+};
+
+struct BlockDriverAIOCB {
+    BlockDriverState *bs;
+    BlockDriverCompletionFunc *cb;
+    void *cb_opaque;
+    
+    void *opaque; /* driver opaque */
 };
 
 void get_tmp_filename(char *filename, int size);

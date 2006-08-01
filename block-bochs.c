@@ -85,15 +85,15 @@ static int bochs_probe(const uint8_t *buf, int buf_size, const char *filename)
     return 0;
 }
 
-static int bochs_open(BlockDriverState *bs, const char *filename)
+static int bochs_open(BlockDriverState *bs, const char *filename, int flags)
 {
     BDRVBochsState *s = bs->opaque;
     int fd, i;
     struct bochs_header bochs;
 
-    fd = open(filename, O_RDWR | O_BINARY | O_LARGEFILE);
+    fd = open(filename, O_RDWR | O_BINARY);
     if (fd < 0) {
-        fd = open(filename, O_RDONLY | O_BINARY | O_LARGEFILE);
+        fd = open(filename, O_RDONLY | O_BINARY);
         if (fd < 0)
             return -1;
     }

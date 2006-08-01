@@ -73,16 +73,16 @@ static off_t read_uint32(int fd)
 	return be32_to_cpu(buffer);
 }
 
-static int dmg_open(BlockDriverState *bs, const char *filename)
+static int dmg_open(BlockDriverState *bs, const char *filename, int flags)
 {
     BDRVDMGState *s = bs->opaque;
     off_t info_begin,info_end,last_in_offset,last_out_offset;
     uint32_t count;
     uint32_t max_compressed_size=1,max_sectors_per_chunk=1,i;
 
-    s->fd = open(filename, O_RDONLY | O_BINARY | O_LARGEFILE);
+    s->fd = open(filename, O_RDONLY | O_BINARY);
     if (s->fd < 0)
-        return -1;
+        return -errno;
     bs->read_only = 1;
     s->n_chunks = 0;
     s->offsets = s->lengths = s->sectors = s->sectorcounts = 0;
@@ -93,7 +93,7 @@ dmg_close:
 	close(s->fd);
 	/* open raw instead */
 	bs->drv=&bdrv_raw;
-	return bs->drv->bdrv_open(bs,filename);
+	return bs->drv->bdrv_open(bs, filename, flags);
     }
     info_begin=read_off(s->fd);
     if(info_begin==0)

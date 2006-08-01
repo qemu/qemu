@@ -481,6 +481,16 @@ void qemu_put_timer(QEMUFile *f, QEMUTimer *ts);
 void cpu_save(QEMUFile *f, void *opaque);
 int cpu_load(QEMUFile *f, void *opaque, int version_id);
 
+/* bottom halves */
+typedef struct QEMUBH QEMUBH;
+typedef void QEMUBHFunc(void *opaque);
+
+QEMUBH *qemu_bh_new(QEMUBHFunc *cb, void *opaque);
+void qemu_bh_schedule(QEMUBH *bh);
+void qemu_bh_cancel(QEMUBH *bh);
+void qemu_bh_delete(QEMUBH *bh);
+void qemu_bh_poll(void);
+
 /* block.c */
 typedef struct BlockDriverState BlockDriverState;
 typedef struct BlockDriver BlockDriver;
@@ -495,6 +505,16 @@ extern BlockDriver bdrv_bochs;
 extern BlockDriver bdrv_vpc;
 extern BlockDriver bdrv_vvfat;
 
+#define BDRV_O_RDONLY      0x0000
+#define BDRV_O_RDWR        0x0002
+#define BDRV_O_ACCESS      0x0003
+#define BDRV_O_CREAT       0x0004 /* create an empty file */
+#define BDRV_O_SNAPSHOT    0x0008 /* open the file read only and save writes in a snapshot */
+#define BDRV_O_FILE        0x0010 /* open as a raw file (do not try to
+                                     use a disk image format on top of
+                                     it (default for
+                                     bdrv_file_open()) */
+
 void bdrv_init(void);
 BlockDriver *bdrv_find_format(const char *format_name);
 int bdrv_create(BlockDriver *drv, 
@@ -502,17 +522,44 @@ int bdrv_create(BlockDriver *drv,
                 const char *backing_file, int flags);
 BlockDriverState *bdrv_new(const char *device_name);
 void bdrv_delete(BlockDriverState *bs);
-int bdrv_open(BlockDriverState *bs, const char *filename, int snapshot);
-int bdrv_open2(BlockDriverState *bs, const char *filename, int snapshot,
+int bdrv_file_open(BlockDriverState **pbs, const char *filename, int flags);
+int bdrv_open(BlockDriverState *bs, const char *filename, int flags);
+int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
                BlockDriver *drv);
 void bdrv_close(BlockDriverState *bs);
 int bdrv_read(BlockDriverState *bs, int64_t sector_num, 
               uint8_t *buf, int nb_sectors);
 int bdrv_write(BlockDriverState *bs, int64_t sector_num, 
                const uint8_t *buf, int nb_sectors);
+int bdrv_pread(BlockDriverState *bs, int64_t offset, 
+               void *buf, int count);
+int bdrv_pwrite(BlockDriverState *bs, int64_t offset, 
+                const void *buf, int count);
+int bdrv_truncate(BlockDriverState *bs, int64_t offset);
+int64_t bdrv_getlength(BlockDriverState *bs);
 void bdrv_get_geometry(BlockDriverState *bs, int64_t *nb_sectors_ptr);
 int bdrv_commit(BlockDriverState *bs);
 void bdrv_set_boot_sector(BlockDriverState *bs, const uint8_t *data, int size);
+/* async block I/O */
+typedef struct BlockDriverAIOCB BlockDriverAIOCB;
+typedef void BlockDriverCompletionFunc(void *opaque, int ret);
+
+BlockDriverAIOCB *bdrv_aio_new(BlockDriverState *bs);
+int bdrv_aio_read(BlockDriverAIOCB *acb, int64_t sector_num,
+                  uint8_t *buf, int nb_sectors,
+                  BlockDriverCompletionFunc *cb, void *opaque);
+int bdrv_aio_write(BlockDriverAIOCB *acb, int64_t sector_num,
+                   const uint8_t *buf, int nb_sectors,
+                   BlockDriverCompletionFunc *cb, void *opaque);
+void bdrv_aio_cancel(BlockDriverAIOCB *acb);
+void bdrv_aio_delete(BlockDriverAIOCB *acb);
+
+void qemu_aio_init(void);
+void qemu_aio_poll(void);
+void qemu_aio_wait_start(void);
+void qemu_aio_wait(void);
+void qemu_aio_wait_end(void);
+
 /* Ensure contents are flushed to disk.  */
 void bdrv_flush(BlockDriverState *bs);
 
@@ -551,6 +598,13 @@ const char *bdrv_get_device_name(BlockDriverState *bs);
 int qcow_get_cluster_size(BlockDriverState *bs);
 int qcow_compress_cluster(BlockDriverState *bs, int64_t sector_num,
                           const uint8_t *buf);
+void bdrv_get_backing_filename(BlockDriverState *bs, 
+                               char *filename, int filename_size);
+
+int path_is_absolute(const char *path);
+void path_combine(char *dest, int dest_size,
+                  const char *base_path,
+                  const char *filename);
 
 #ifndef QEMU_TOOL
 

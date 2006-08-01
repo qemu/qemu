@@ -62,7 +62,7 @@ static int cow_probe(const uint8_t *buf, int buf_size, const char *filename)
         return 0;
 }
 
-static int cow_open(BlockDriverState *bs, const char *filename)
+static int cow_open(BlockDriverState *bs, const char *filename, int flags)
 {
     BDRVCowState *s = bs->opaque;
     int fd;
@@ -93,22 +93,6 @@ static int cow_open(BlockDriverState *bs, const char *filename)
     pstrcpy(bs->backing_file, sizeof(bs->backing_file), 
             cow_header.backing_file);
     
-#if 0
-    if (cow_header.backing_file[0] != '\0') {
-        if (stat(cow_header.backing_file, &st) != 0) {
-            fprintf(stderr, "%s: could not find original disk image '%s'\n", filename, cow_header.backing_file);
-            goto fail;
-        }
-        if (st.st_mtime != be32_to_cpu(cow_header.mtime)) {
-            fprintf(stderr, "%s: original raw disk image '%s' does not match saved timestamp\n", filename, cow_header.backing_file);
-            goto fail;
-            }
-        fd = open(cow_header.backing_file, O_RDONLY | O_LARGEFILE);
-        if (fd < 0)
-            goto fail;
-        bs->fd = fd;
-    }
-#endif
     /* mmap the bitmap */
     s->cow_bitmap_size = ((bs->total_sectors + 7) >> 3) + sizeof(cow_header);
     s->cow_bitmap_addr = mmap(get_mmap_addr(s->cow_bitmap_size), 
@@ -179,7 +163,14 @@ static int cow_read(BlockDriverState *bs, int64_t sector_num,
             if (ret != n * 512) 
                 return -1;
         } else {
+            if (bs->backing_hd) {
+                /* read from the base image */
+                ret = bdrv_read(bs->backing_hd, sector_num, buf, n);
+                if (ret < 0)
+                    return -1;
+            } else {
             memset(buf, 0, n * 512);
+        }
         }
         nb_sectors -= n;
         sector_num += n;
@@ -220,7 +211,7 @@ static int cow_create(const char *filename, int64_t image_sectors,
     if (flags)
         return -ENOTSUP;
 
-    cow_fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY | O_LARGEFILE, 
+    cow_fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 
               0644);
     if (cow_fd < 0)
         return -1;
@@ -228,18 +219,23 @@ static int cow_create(const char *filename, int64_t image_sectors,
     cow_header.magic = cpu_to_be32(COW_MAGIC);
     cow_header.version = cpu_to_be32(COW_VERSION);
     if (image_filename) {
+        /* Note: if no file, we put a dummy mtime */
+        cow_header.mtime = cpu_to_be32(0);
+
         fd = open(image_filename, O_RDONLY | O_BINARY);
         if (fd < 0) {
             close(cow_fd);
-            return -1;
+            goto mtime_fail;
         }
         if (fstat(fd, &st) != 0) {
             close(fd);
-            return -1;
+            goto mtime_fail;
         }
         close(fd);
         cow_header.mtime = cpu_to_be32(st.st_mtime);
-        realpath(image_filename, cow_header.backing_file);
+    mtime_fail:
+        pstrcpy(cow_header.backing_file, sizeof(cow_header.backing_file),
+                image_filename);
     }
     cow_header.sectorsize = cpu_to_be32(512);
     cow_header.size = cpu_to_be64(image_sectors * 512);
