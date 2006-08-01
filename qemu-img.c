@@ -638,6 +638,8 @@ static int img_info(int argc, char **argv)
     BlockDriverState *bs;
     char fmt_name[128], size_buf[128], dsize_buf[128];
     int64_t total_sectors, allocated_size;
+    char backing_filename[1024];
+    char backing_filename2[1024];
 
     fmt = NULL;
     for(;;) {
@@ -688,6 +690,13 @@ static int img_info(int argc, char **argv)
            dsize_buf);
     if (bdrv_is_encrypted(bs))
         printf("encrypted: yes\n");
+    bdrv_get_backing_filename(bs, backing_filename, sizeof(backing_filename));
+    if (backing_filename[0] != '\0')
+        path_combine(backing_filename2, sizeof(backing_filename2),
+                     filename, backing_filename);
+        printf("backing file: %s (actual path: %s)\n", 
+               backing_filename,
+               backing_filename2);
     bdrv_delete(bs);
     return 0;
 }
