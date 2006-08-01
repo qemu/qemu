@@ -103,27 +103,27 @@ typedef struct {
 } cpmac_buff_t;
 
 typedef struct {
-    uint8_t cmd;
-    uint32_t start;
-    uint32_t stop;
-    uint8_t boundary;
-    uint8_t tsr;
-    uint8_t tpsr;
-    uint16_t tcnt;
-    uint16_t rcnt;
-    uint32_t rsar;
-    uint8_t rsr;
-    uint8_t rxcr;
-    uint8_t isr;
-    uint8_t dcfg;
-    uint8_t imr;
+    //~ uint8_t cmd;
+    //~ uint32_t start;
+    //~ uint32_t stop;
+    //~ uint8_t boundary;
+    //~ uint8_t tsr;
+    //~ uint8_t tpsr;
+    //~ uint16_t tcnt;
+    //~ uint16_t rcnt;
+    //~ uint32_t rsar;
+    //~ uint8_t rsr;
+    //~ uint8_t rxcr;
+    //~ uint8_t isr;
+    //~ uint8_t dcfg;
+    //~ uint8_t imr;
     uint8_t phys[6]; /* mac address */
-    uint8_t curpag;
-    uint8_t mult[8]; /* multicast mask array */
-    int irq;
+    //~ uint8_t curpag;
+    //~ uint8_t mult[8]; /* multicast mask array */
+    //~ int irq;
     VLANClientState *vc;
-    uint8_t macaddr[6];
-    uint8_t mem[1];
+    //~ uint8_t macaddr[6];
+    //~ uint8_t mem[1];
 } NICState;
 
 typedef struct {
@@ -156,7 +156,7 @@ typedef struct {
     //~ uint32_t pacing[3];             //   +0xa0
     //~ uint32_t channel_control[40];   //   +0x200
     uint32_t cpmac1[0x200];             // 0x08612800
-    //~ uint32_t unknown[0x40]              // 0x08612e00
+    //~ uint32_t unknown[0x40]              // 0x08613000
 } avalanche_t;
 
 #define UART_MEM_TO_IO(addr)    (((addr) - AVALANCHE_UART0_BASE) / 4)
@@ -190,6 +190,7 @@ static void ar7_irq(void *opaque, int irq_num, int level)
         case 15:        /* serial0 */
         case 16:        /* serial1 */
         case 27:        /* cpmac0 */
+        case 41:        /* cpmac1 */
             if (level) {
                 unsigned channel = irq_num - 8;
                 if (channel < 32) {
@@ -393,6 +394,8 @@ static const char *i2cpmac(unsigned index)
     return text;
 }
 
+static const int cpmac_interrupt[] = { 27, 41 };
+
 static void ar7_cpmac_log(const char *func, uint8_t cpmac, unsigned index, uint32_t val)
 {
     const char *text = i2cpmac(index);
@@ -418,20 +421,20 @@ static uint32_t ar7_cpmac_read(uint32_t cpmac[], unsigned index)
     return val;
 }
 
-static void ar7_cpmac_write(uint32_t cpmac[], unsigned index, uint32_t val)
+static void ar7_cpmac_write(uint32_t cpmac[], unsigned index, unsigned offset, uint32_t val)
 {
-    cpmac[index] = val;
-    ar7_cpmac_log("ar7 w", cpmac == av.cpmac1, index, val);
-    if (index == 0x40) {
+    cpmac[offset] = val;
+    ar7_cpmac_log("ar7 w", index, offset, val);
+    if (offset == 0x40) {
         /* 13 ... 8 = 0x20 enable broadcast */
-    } else if (index == 0x43) {
+    } else if (offset == 0x43) {
         TRACE(CPMAC, printf("ar7 w: setting max packet length %u\n", (unsigned)val));
-    } else if (index == 0x5e) {
+    } else if (offset == 0x5e) {
         cpmac[0x60] |= MAC_IN_VECTOR_TX_INT_OR;
-        ar7_irq(0, 27, 1);      // !!! fix for cpmac1
-    } else if (index == 0x75) {
+        ar7_irq(0, cpmac_interrupt[index], 1);
+    } else if (offset == 0x75) {
         /* set MAC address (4 high bytes) */
-        uint8_t *phys = av.nic.phys;
+        uint8_t *phys = av.nic[index].phys;
         phys[5] = cpmac[0x6c];
         phys[4] = cpmac[0x74];
         phys[3] = (cpmac[0x75] >> 24);
@@ -440,7 +443,7 @@ static void ar7_cpmac_write(uint32_t cpmac[], unsigned index, uint32_t val)
         phys[0] = (cpmac[0x75] >> 0);
         TRACE(CPMAC, printf("ar7 w: setting MAC %02x:%02x:%02x:%02x:%02x:%02x\n",
                 phys[0], phys[1], phys[2], phys[3], phys[4], phys[5]));
-    } else if (index >= 0x188 && index < 0x190) {
+    } else if (offset >= 0x188 && offset < 0x190) {
         while (val != 0) {
             cpmac_buff_t bd;
             cpu_physical_memory_read(val, (uint8_t *)&bd, sizeof(bd));
@@ -863,7 +866,7 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
         name = "cpmac0";
         logflag = CPMAC;
         index = (addr - AVALANCHE_CPMAC0_BASE) / 4;
-        ar7_cpmac_write(av.cpmac0, index, val);
+        ar7_cpmac_write(av.cpmac0, 0, index, val);
     } else if (INRANGE(AVALANCHE_EMIF_BASE, av.emif)) {
         name = "emif";
         VALUE(AVALANCHE_EMIF_BASE, av.emif) = val;
@@ -960,7 +963,7 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
         name = "cpmac1";
         logflag = CPMAC;
         index = (addr - AVALANCHE_CPMAC1_BASE) / 4;
-        ar7_cpmac_write(av.cpmac1, index, val);
+        ar7_cpmac_write(av.cpmac1, 1, index, val);
     } else {
         name = "???";
         logflag = 1;
@@ -1133,20 +1136,21 @@ static void ar7_nic_receive(void *opaque, const uint8_t *buf, int size)
     }
 
     av.cpmac0[0x60] |= MAC_IN_VECTOR_RX_INT_OR;
-    ar7_irq(0, 27, 1);
+    ar7_irq(0, 27, 1);  // !!! fix
 }
 
 static void ar7_nic_init(void)
 {
     unsigned i;
+    unsigned n = 0;
     printf("%s()\n", __FUNCTION__);
     for (i = 0; i < nb_nics; i++) {
         NICInfo *nd = &nd_table[i];
         if (nd->vlan) {
-          if (nd->model == NULL
-            || strcmp(nd->model, "ar7") == 0) {
-            printf("%s() starting AR7 nic\n", __FUNCTION__);
-            av.nic.vc = qemu_new_vlan_client(nd->vlan, ar7_nic_receive,
+          if (n < 2 && (nd->model == NULL
+            || strcmp(nd->model, "ar7") == 0)) {
+            printf("%s() starting AR7 nic CPMAC%u\n", __FUNCTION__, n);
+            av.nic[n++].vc = qemu_new_vlan_client(nd->vlan, ar7_nic_receive,
                                  ar7_nic_can_receive, &av.nic);
           } else {
             fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd_table[0].model);
