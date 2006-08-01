@@ -89,7 +89,7 @@ static int vmdk_probe(const uint8_t *buf, int buf_size, const char *filename)
         return 0;
 }
 
-static int vmdk_open(BlockDriverState *bs, const char *filename)
+static int vmdk_open(BlockDriverState *bs, const char *filename, int flags)
 {
     BDRVVmdkState *s = bs->opaque;
     int fd, i;

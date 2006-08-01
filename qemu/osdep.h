@@ -3,9 +3,7 @@
 
 #include <stdarg.h>
 
-int qemu_vsnprintf(char *buf, int buflen, const char *fmt, va_list args);
-void qemu_vprintf(const char *fmt, va_list ap);
-void qemu_printf(const char *fmt, ...);
+#define qemu_printf printf
 
 void *qemu_malloc(size_t size);
 void *qemu_mallocz(size_t size);

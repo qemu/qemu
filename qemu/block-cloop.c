@@ -50,14 +50,14 @@ static int cloop_probe(const uint8_t *buf, int buf_size, const char *filename)
     return 0;
 }
 
-static int cloop_open(BlockDriverState *bs, const char *filename)
+static int cloop_open(BlockDriverState *bs, const char *filename, int flags)
 {
     BDRVCloopState *s = bs->opaque;
     uint32_t offsets_size,max_compressed_block_size=1,i;
 
-    s->fd = open(filename, O_RDONLY | O_BINARY | O_LARGEFILE);
+    s->fd = open(filename, O_RDONLY | O_BINARY);
     if (s->fd < 0)
-        return -1;
+        return -errno;
     bs->read_only = 1;
 
     /* read header */
