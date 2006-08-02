@@ -31,7 +31,7 @@ typedef struct TCXState {
     uint32_t addr;
     DisplayState *ds;
     uint8_t *vram;
-    unsigned long vram_offset;
+    ram_addr_t vram_offset;
     uint16_t width, height;
     uint8_t r[256], g[256], b[256];
     uint8_t dac_index, dac_state;
@@ -86,8 +86,8 @@ static void tcx_draw_line8(TCXState *s1, uint8_t *d,
 static void tcx_update_display(void *opaque)
 {
     TCXState *ts = opaque;
-    uint32_t page;
-    int y, page_min, page_max, y_start, dd, ds;
+    ram_addr_t page, page_min, page_max;
+    int y, y_start, dd, ds;
     uint8_t *d, *s;
     void (*f)(TCXState *s1, uint8_t *d, const uint8_t *s, int width);
 
@@ -95,8 +95,8 @@ static void tcx_update_display(void *opaque)
 	return;
     page = ts->vram_offset;
     y_start = -1;
-    page_min = 0x7fffffff;
-    page_max = -1;
+    page_min = 0xffffffff;
+    page_max = 0;
     d = ts->ds->data;
     s = ts->vram;
     dd = ts->ds->linesize;
@@ -154,7 +154,7 @@ static void tcx_update_display(void *opaque)
 		   ts->width, y - y_start);
     }
     /* reset modified pages */
-    if (page_max != -1) {
+    if (page_min <= page_max) {
         cpu_physical_memory_reset_dirty(page_min, page_max + TARGET_PAGE_SIZE,
                                         VGA_DIRTY_FLAG);
     }
