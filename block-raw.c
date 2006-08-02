@@ -207,10 +207,11 @@ typedef struct RawAIOCB {
 
 static int aio_sig_num = SIGUSR2;
 static BlockDriverAIOCB *first_aio; /* AIO issued */
+static int aio_initialized = 0;
 
-#ifndef QEMU_TOOL
 static void aio_signal_handler(int signum)
 {
+#ifndef QEMU_TOOL
     CPUState *env = cpu_single_env;
     if (env) {
         /* stop the currently executing cpu because a timer occured */
@@ -221,11 +222,14 @@ static void aio_signal_handler(int signum)
         }
 #endif
     }
+#endif
 }
 
 void qemu_aio_init(void)
 {
     struct sigaction act;
+
+    aio_initialized = 1;
     
     sigfillset(&act.sa_mask);
     act.sa_flags = 0; /* do not restart syscalls to interrupt select() */
@@ -242,7 +246,6 @@ void qemu_aio_init(void)
         aio_init(&ai);
     }
 }
-#endif /* !QEMU_TOOL */
 
 void qemu_aio_poll(void)
 {
@@ -293,6 +296,9 @@ static sigset_t wait_oset;
 void qemu_aio_wait_start(void)
 {
     sigset_t set;
+
+    if (!aio_initialized)
+        qemu_aio_init();
     sigemptyset(&set);
     sigaddset(&set, aio_sig_num);
     sigprocmask(SIG_BLOCK, &set, &wait_oset);
@@ -570,7 +576,7 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
     } else {
         access_flags = GENERIC_READ;
     }
-    if (flags & BDRV_O_CREATE) {
+    if (flags & BDRV_O_CREAT) {
         create_flags = CREATE_ALWAYS;
     } else {
         create_flags = OPEN_EXISTING;
@@ -632,15 +638,17 @@ static int raw_aio_new(BlockDriverAIOCB *acb)
     if (!acb1)
         return -ENOMEM;
     acb->opaque = acb1;
-    s->hevent = CreateEvent(NULL, TRUE, FALSE, NULL);
-    if (!s->hevent)
+    s->hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+    if (!s->hEvent)
         return -ENOMEM;
     return 0;
 }
 
 static void raw_aio_cb(void *opaque)
 {
-    BlockDriverAIOCB *acb = acb1;
+    BlockDriverAIOCB *acb = opaque;
+    BlockDriverState *bs = acb->bs;
+    BDRVRawState *s = bs->opaque;
     RawAIOCB *acb1 = acb->opaque;
     DWORD ret_count;
     int ret;
@@ -659,7 +667,6 @@ static int raw_aio_read(BlockDriverAIOCB *acb, int64_t sector_num,
     BlockDriverState *bs = acb->bs;
     BDRVRawState *s = bs->opaque;
     RawAIOCB *acb1 = acb->opaque;
-    DWORD ret_count;
     int ret;
     int64_t offset;
 
@@ -682,7 +689,6 @@ static int raw_aio_write(BlockDriverAIOCB *acb, int64_t sector_num,
     BlockDriverState *bs = acb->bs;
     BDRVRawState *s = bs->opaque;
     RawAIOCB *acb1 = acb->opaque;
-    DWORD ret_count;
     int ret;
     int64_t offset;
 
@@ -734,8 +740,8 @@ static int raw_truncate(BlockDriverState *bs, int64_t offset)
     BDRVRawState *s = bs->opaque;
     DWORD low, high;
 
-    low = length;
-    high = length >> 32;
+    low = offset;
+    high = offset >> 32;
     if (!SetFilePointer(s->hfile, low, &high, FILE_BEGIN))
 	return -EIO;
     if (!SetEndOfFile(s->hfile))
