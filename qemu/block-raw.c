@@ -207,10 +207,11 @@ typedef struct RawAIOCB {
 
 static int aio_sig_num = SIGUSR2;
 static BlockDriverAIOCB *first_aio; /* AIO issued */
+static int aio_initialized = 0;
 
-#ifndef QEMU_TOOL
 static void aio_signal_handler(int signum)
 {
+#ifndef QEMU_TOOL
     CPUState *env = cpu_single_env;
     if (env) {
         /* stop the currently executing cpu because a timer occured */
@@ -221,11 +222,14 @@ static void aio_signal_handler(int signum)
         }
 #endif
     }
+#endif
 }
 
 void qemu_aio_init(void)
 {
     struct sigaction act;
+
+    aio_initialized = 1;
     
     sigfillset(&act.sa_mask);
     act.sa_flags = 0; /* do not restart syscalls to interrupt select() */
@@ -242,7 +246,6 @@ void qemu_aio_init(void)
         aio_init(&ai);
     }
 }
-#endif /* !QEMU_TOOL */
 
 void qemu_aio_poll(void)
 {
@@ -293,6 +296,9 @@ static sigset_t wait_oset;
 void qemu_aio_wait_start(void)
 {
     sigset_t set;
+
+    if (!aio_initialized)
+        qemu_aio_init();
     sigemptyset(&set);
     sigaddset(&set, aio_sig_num);
     sigprocmask(SIG_BLOCK, &set, &wait_oset);
@@ -512,7 +518,6 @@ BlockDriver bdrv_raw = {
 #else /* _WIN32 */
 
 /* XXX: use another file ? */
-#include <windows.h>
 #include <winioctl.h>
 
 typedef struct BDRVRawState {
@@ -570,7 +575,7 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
     } else {
         access_flags = GENERIC_READ;
     }
-    if (flags & BDRV_O_CREATE) {
+    if (flags & BDRV_O_CREAT) {
         create_flags = CREATE_ALWAYS;
     } else {
         create_flags = OPEN_EXISTING;
@@ -594,12 +599,14 @@ static int raw_pread(BlockDriverState *bs, int64_t offset,
     memset(&ov, 0, sizeof(ov));
     ov.Offset = offset;
     ov.OffsetHigh = offset >> 32;
-    ret = ReadFile(s->hfile, buf, count, NULL, &ov);
-    if (!ret)
-        return -EIO;
-    ret = GetOverlappedResult(s->hfile, &ov, &ret_count, TRUE);
-    if (!ret)
-        return -EIO;
+    ret = ReadFile(s->hfile, buf, count, &ret_count, &ov);
+    if (!ret) {
+        ret = GetOverlappedResult(s->hfile, &ov, &ret_count, TRUE);
+        if (!ret)
+            return -EIO;
+        else
+            return ret_count;
+    }
     return ret_count;
 }
 
@@ -614,33 +621,36 @@ static int raw_pwrite(BlockDriverState *bs, int64_t offset,
     memset(&ov, 0, sizeof(ov));
     ov.Offset = offset;
     ov.OffsetHigh = offset >> 32;
-    ret = WriteFile(s->hfile, buf, count, NULL, &ov);
-    if (!ret)
-        return -EIO;
-    ret = GetOverlappedResult(s->hfile, &ov, &ret_count, TRUE);
-    if (!ret)
-        return -EIO;
+    ret = WriteFile(s->hfile, buf, count, &ret_count, &ov);
+    if (!ret) {
+        ret = GetOverlappedResult(s->hfile, &ov, &ret_count, TRUE);
+        if (!ret)
+            return -EIO;
+        else
+            return ret_count;
+    }
     return ret_count;
 }
 
 static int raw_aio_new(BlockDriverAIOCB *acb)
 {
     RawAIOCB *acb1;
-    BDRVRawState *s = acb->bs->opaque;
 
     acb1 = qemu_mallocz(sizeof(RawAIOCB));
     if (!acb1)
         return -ENOMEM;
     acb->opaque = acb1;
-    s->hevent = CreateEvent(NULL, TRUE, FALSE, NULL);
-    if (!s->hevent)
+    acb1->hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+    if (!acb1->hEvent)
         return -ENOMEM;
     return 0;
 }
-
+#ifndef QEMU_TOOL
 static void raw_aio_cb(void *opaque)
 {
-    BlockDriverAIOCB *acb = acb1;
+    BlockDriverAIOCB *acb = opaque;
+    BlockDriverState *bs = acb->bs;
+    BDRVRawState *s = bs->opaque;
     RawAIOCB *acb1 = acb->opaque;
     DWORD ret_count;
     int ret;
@@ -652,14 +662,13 @@ static void raw_aio_cb(void *opaque)
         acb->cb(acb->cb_opaque, 0);
     }
 }
-
+#endif
 static int raw_aio_read(BlockDriverAIOCB *acb, int64_t sector_num, 
                         uint8_t *buf, int nb_sectors)
 {
     BlockDriverState *bs = acb->bs;
     BDRVRawState *s = bs->opaque;
     RawAIOCB *acb1 = acb->opaque;
-    DWORD ret_count;
     int ret;
     int64_t offset;
 
@@ -669,7 +678,9 @@ static int raw_aio_read(BlockDriverAIOCB *acb, int64_t sector_num,
     acb1->ov.OffsetHigh = offset >> 32;
     acb1->ov.hEvent = acb1->hEvent;
     acb1->count = nb_sectors * 512;
+#ifndef QEMU_TOOL
     qemu_add_wait_object(acb1->ov.hEvent, raw_aio_cb, acb);
+#endif
     ret = ReadFile(s->hfile, buf, acb1->count, NULL, &acb1->ov);
     if (!ret)
         return -EIO;
@@ -682,7 +693,6 @@ static int raw_aio_write(BlockDriverAIOCB *acb, int64_t sector_num,
     BlockDriverState *bs = acb->bs;
     BDRVRawState *s = bs->opaque;
     RawAIOCB *acb1 = acb->opaque;
-    DWORD ret_count;
     int ret;
     int64_t offset;
 
@@ -692,7 +702,9 @@ static int raw_aio_write(BlockDriverAIOCB *acb, int64_t sector_num,
     acb1->ov.OffsetHigh = offset >> 32;
     acb1->ov.hEvent = acb1->hEvent;
     acb1->count = nb_sectors * 512;
+#ifndef QEMU_TOOL
     qemu_add_wait_object(acb1->ov.hEvent, raw_aio_cb, acb);
+#endif
     ret = ReadFile(s->hfile, buf, acb1->count, NULL, &acb1->ov);
     if (!ret)
         return -EIO;
@@ -703,9 +715,11 @@ static void raw_aio_cancel(BlockDriverAIOCB *acb)
 {
     BlockDriverState *bs = acb->bs;
     BDRVRawState *s = bs->opaque;
+#ifndef QEMU_TOOL
     RawAIOCB *acb1 = acb->opaque;
 
     qemu_del_wait_object(acb1->ov.hEvent, raw_aio_cb, acb);
+#endif
     /* XXX: if more than one async I/O it is not correct */
     CancelIo(s->hfile);
 }
@@ -734,8 +748,8 @@ static int raw_truncate(BlockDriverState *bs, int64_t offset)
     BDRVRawState *s = bs->opaque;
     DWORD low, high;
 
-    low = length;
-    high = length >> 32;
+    low = offset;
+    high = offset >> 32;
     if (!SetFilePointer(s->hfile, low, &high, FILE_BEGIN))
 	return -EIO;
     if (!SetEndOfFile(s->hfile))
@@ -747,8 +761,10 @@ static int64_t  raw_getlength(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
     LARGE_INTEGER l;
-    if (!GetFileSizeEx(s->hfile, &l))
-        return -EIO;
+
+    l.LowPart = GetFileSize(s->hfile, &l.HighPart);
+    if (l.LowPart == 0xffffffffUL && GetLastError() != NO_ERROR)
+	return -EIO;
     return l.QuadPart;
 }
 

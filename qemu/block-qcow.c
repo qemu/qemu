@@ -649,6 +649,7 @@ static int qcow_aio_read(BlockDriverAIOCB *acb, int64_t sector_num,
     acb1->cluster_offset = 0;    
 
     qcow_aio_read_cb(acb, 0);
+    return 0;
 }
 
 static void qcow_aio_write_cb(void *opaque, int ret)
@@ -725,6 +726,7 @@ static int qcow_aio_write(BlockDriverAIOCB *acb, int64_t sector_num,
     acb1->n = 0;
     
     qcow_aio_write_cb(acb, 0);
+    return 0;
 }
 
 static void qcow_aio_cancel(BlockDriverAIOCB *acb)
