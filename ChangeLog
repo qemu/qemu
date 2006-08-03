@@ -1,3 +1,27 @@
+2006-08-03 22:39  bellard
+
+	* audio/audio.c: swapped memset args (Charles Coffing)
+
+2006-08-03 19:53  bellard
+
+	* osdep.c, osdep.h: removed unused code
+
+2006-08-03 19:52  bellard
+
+	* block-qcow.c: added missing returns
+
+2006-08-03 11:07  bellard
+
+	* block-raw.c: win32 fixes (initial patch by kazu)
+
+2006-08-03 00:19  bellard
+
+	* hw/tcx.c: fixed refresh logic (initial patch by Igor Kovalenko)
+
+2006-08-03 00:02  bellard
+
+	* block-raw.c: some compilation fixes
+
 2006-08-01 18:21  bellard
 
 	* Changelog, Makefile, Makefile.target, block-bochs.c,
