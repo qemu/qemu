@@ -605,11 +605,11 @@ void audio_pcm_info_clear_buf (struct audio_pcm_info *info, void *buf, int len)
     }
 
     if (info->sign) {
-        memset (buf, len << info->shift, 0x00);
+        memset (buf, 0x00, len << info->shift);
     }
     else {
         if (info->bits == 8) {
-            memset (buf, len << info->shift, 0x80);
+            memset (buf, 0x80, len << info->shift);
         }
         else {
             int i;
