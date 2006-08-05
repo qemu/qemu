@@ -46,7 +46,7 @@ static void wav_destroy (void *opaque)
 
     qemu_fseek (wav->f, 32, SEEK_CUR);
     qemu_put_buffer (wav->f, dlen, 4);
-    fclose (wav->f);
+    qemu_fclose (wav->f);
     if (wav->path) {
         qemu_free (wav->path);
     }
@@ -135,7 +135,7 @@ int wav_start_capture (CaptureState *s, const char *path, int freq,
     le_store (hdr + 28, freq << shift, 4);
     le_store (hdr + 32, 1 << shift, 2);
 
-    wav->f = fopen (path, "wb");
+    wav->f = qemu_fopen (path, "wb");
     if (!wav->f) {
         term_printf ("Failed to open wave file `%s'\nReason: %s\n",
                      path, strerror (errno));
