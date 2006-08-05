@@ -350,7 +350,7 @@ static uint64_t get_cluster_offset(BlockDriverState *bs,
                     (n_end - n_start) < s->cluster_sectors) {
                     uint64_t start_sect;
                     start_sect = (offset & ~(s->cluster_size - 1)) >> 9;
-                    memset(s->cluster_data + 512, 0xaa, 512);
+                    memset(s->cluster_data + 512, 0x00, 512);
                     for(i = 0; i < s->cluster_sectors; i++) {
                         if (i < n_start || i >= n_end) {
                             encrypt_sectors(s, start_sect + i, 
@@ -813,7 +813,7 @@ static int qcow_create(const char *filename, int64_t total_size,
     return 0;
 }
 
-int qcow_make_empty(BlockDriverState *bs)
+static int qcow_make_empty(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
     uint32_t l1_length = s->l1_size * sizeof(uint64_t);
@@ -833,18 +833,10 @@ int qcow_make_empty(BlockDriverState *bs)
     return 0;
 }
 
-int qcow_get_cluster_size(BlockDriverState *bs)
-{
-    BDRVQcowState *s = bs->opaque;
-    if (bs->drv != &bdrv_qcow)
-        return -1;
-    return s->cluster_size;
-}
-
 /* XXX: put compressed sectors first, then all the cluster aligned
    tables to avoid losing bytes in alignment */
-int qcow_compress_cluster(BlockDriverState *bs, int64_t sector_num, 
-                          const uint8_t *buf)
+static int qcow_write_compressed(BlockDriverState *bs, int64_t sector_num, 
+                                 const uint8_t *buf, int nb_sectors)
 {
     BDRVQcowState *s = bs->opaque;
     z_stream strm;
@@ -852,8 +844,8 @@ int qcow_compress_cluster(BlockDriverState *bs, int64_t sector_num,
     uint8_t *out_buf;
     uint64_t cluster_offset;
 
-    if (bs->drv != &bdrv_qcow)
-        return -1;
+    if (nb_sectors != s->cluster_sectors)
+        return -EINVAL;
 
     out_buf = qemu_malloc(s->cluster_size + (s->cluster_size / 1000) + 128);
     if (!out_buf)
@@ -907,6 +899,13 @@ static void qcow_flush(BlockDriverState *bs)
     bdrv_flush(s->hd);
 }
 
+static int qcow_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
+{
+    BDRVQcowState *s = bs->opaque;
+    bdi->cluster_size = s->cluster_size;
+    return 0;
+}
+
 BlockDriver bdrv_qcow = {
     "qcow",
     sizeof(BDRVQcowState),
@@ -926,6 +925,6 @@ BlockDriver bdrv_qcow = {
     .bdrv_aio_write = qcow_aio_write,
     .bdrv_aio_cancel = qcow_aio_cancel,
     .bdrv_aio_delete = qcow_aio_delete,
+    .bdrv_write_compressed = qcow_write_compressed,
+    .bdrv_get_info = qcow_get_info,
 };
-
-
