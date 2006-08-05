@@ -396,8 +396,11 @@ void cpu_disable_ticks(void);
 
 /* VM Load/Save */
 
-typedef FILE QEMUFile;
+typedef struct QEMUFile QEMUFile;
 
+QEMUFile *qemu_fopen(const char *filename, const char *mode);
+void qemu_fflush(QEMUFile *f);
+void qemu_fclose(QEMUFile *f);
 void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size);
 void qemu_put_byte(QEMUFile *f, int v);
 void qemu_put_be16(QEMUFile *f, unsigned int v);
@@ -467,8 +470,6 @@ int64_t qemu_fseek(QEMUFile *f, int64_t pos, int whence);
 typedef void SaveStateHandler(QEMUFile *f, void *opaque);
 typedef int LoadStateHandler(QEMUFile *f, void *opaque, int version_id);
 
-int qemu_loadvm(const char *filename);
-int qemu_savevm(const char *filename);
 int register_savevm(const char *idstr, 
                     int instance_id, 
                     int version_id,
@@ -480,6 +481,11 @@ void qemu_put_timer(QEMUFile *f, QEMUTimer *ts);
 
 void cpu_save(QEMUFile *f, void *opaque);
 int cpu_load(QEMUFile *f, void *opaque, int version_id);
+
+void do_savevm(const char *name);
+void do_loadvm(const char *name);
+void do_delvm(const char *name);
+void do_info_snapshots(void);
 
 /* bottom halves */
 typedef struct QEMUBH QEMUBH;
@@ -504,6 +510,25 @@ extern BlockDriver bdrv_dmg;
 extern BlockDriver bdrv_bochs;
 extern BlockDriver bdrv_vpc;
 extern BlockDriver bdrv_vvfat;
+extern BlockDriver bdrv_qcow2;
+
+typedef struct BlockDriverInfo {
+    /* in bytes, 0 if irrelevant */
+    int cluster_size; 
+    /* offset at which the VM state can be saved (0 if not possible) */
+    int64_t vm_state_offset; 
+} BlockDriverInfo;
+
+typedef struct QEMUSnapshotInfo {
+    char id_str[128]; /* unique snapshot id */
+    /* the following fields are informative. They are not needed for
+       the consistency of the snapshot */
+    char name[256]; /* user choosen name */
+    uint32_t vm_state_size; /* VM state info size */
+    uint32_t date_sec; /* UTC date of the snapshot */
+    uint32_t date_nsec;
+    uint64_t vm_clock_nsec; /* VM clock relative to boot */
+} QEMUSnapshotInfo;
 
 #define BDRV_O_RDONLY      0x0000
 #define BDRV_O_RDWR        0x0002
@@ -594,13 +619,22 @@ int bdrv_set_key(BlockDriverState *bs, const char *key);
 void bdrv_iterate_format(void (*it)(void *opaque, const char *name), 
                          void *opaque);
 const char *bdrv_get_device_name(BlockDriverState *bs);
+int bdrv_write_compressed(BlockDriverState *bs, int64_t sector_num, 
+                          const uint8_t *buf, int nb_sectors);
+int bdrv_get_info(BlockDriverState *bs, BlockDriverInfo *bdi);
 
-int qcow_get_cluster_size(BlockDriverState *bs);
-int qcow_compress_cluster(BlockDriverState *bs, int64_t sector_num,
-                          const uint8_t *buf);
 void bdrv_get_backing_filename(BlockDriverState *bs, 
                                char *filename, int filename_size);
+int bdrv_snapshot_create(BlockDriverState *bs, 
+                         QEMUSnapshotInfo *sn_info);
+int bdrv_snapshot_goto(BlockDriverState *bs, 
+                       const char *snapshot_id);
+int bdrv_snapshot_delete(BlockDriverState *bs, const char *snapshot_id);
+int bdrv_snapshot_list(BlockDriverState *bs, 
+                       QEMUSnapshotInfo **psn_info);
+char *bdrv_snapshot_dump(char *buf, int buf_size, QEMUSnapshotInfo *sn);
 
+char *get_human_readable_size(char *buf, int buf_size, int64_t size);
 int path_is_absolute(const char *path);
 void path_combine(char *dest, int dest_size,
                   const char *base_path,
@@ -824,7 +858,7 @@ void vnc_display_init(DisplayState *ds, int display);
 /* ide.c */
 #define MAX_DISKS 4
 
-extern BlockDriverState *bs_table[MAX_DISKS];
+extern BlockDriverState *bs_table[MAX_DISKS + 1];
 
 void isa_ide_init(int iobase, int iobase2, int irq,
                   BlockDriverState *hd0, BlockDriverState *hd1);

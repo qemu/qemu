@@ -494,12 +494,10 @@ int bdrv_write(BlockDriverState *bs, int64_t sector_num,
     }
 }
 
-#if 0
 /* not necessary now */
 static int bdrv_pread_em(BlockDriverState *bs, int64_t offset, 
-                         void *buf1, int count1)
+                         uint8_t *buf, int count1)
 {
-    uint8_t *buf = buf1;
     uint8_t tmp_buf[SECTOR_SIZE];
     int len, nb_sectors, count;
     int64_t sector_num;
@@ -542,9 +540,8 @@ static int bdrv_pread_em(BlockDriverState *bs, int64_t offset,
 }
 
 static int bdrv_pwrite_em(BlockDriverState *bs, int64_t offset, 
-                          const void *buf1, int count1)
+                          const uint8_t *buf, int count1)
 {
-    const uint8_t *buf = buf1;
     uint8_t tmp_buf[SECTOR_SIZE];
     int len, nb_sectors, count;
     int64_t sector_num;
@@ -589,7 +586,6 @@ static int bdrv_pwrite_em(BlockDriverState *bs, int64_t offset,
     }
     return count1;
 }
-#endif
 
 /**
  * Read with byte offsets (needed only for file protocols) 
@@ -602,7 +598,7 @@ int bdrv_pread(BlockDriverState *bs, int64_t offset,
     if (!drv)
         return -ENOENT;
     if (!drv->bdrv_pread)
-        return -ENOTSUP;
+        return bdrv_pread_em(bs, offset, buf1, count1);
     return drv->bdrv_pread(bs, offset, buf1, count1);
 }
 
@@ -617,7 +613,7 @@ int bdrv_pwrite(BlockDriverState *bs, int64_t offset,
     if (!drv)
         return -ENOENT;
     if (!drv->bdrv_pwrite)
-        return -ENOTSUP;
+        return bdrv_pwrite_em(bs, offset, buf1, count1);
     return drv->bdrv_pwrite(bs, offset, buf1, count1);
 }
 
@@ -857,6 +853,137 @@ void bdrv_get_backing_filename(BlockDriverState *bs,
     } else {
         pstrcpy(filename, filename_size, bs->backing_file);
     }
+}
+
+int bdrv_write_compressed(BlockDriverState *bs, int64_t sector_num, 
+                          const uint8_t *buf, int nb_sectors)
+{
+    BlockDriver *drv = bs->drv;
+    if (!drv)
+        return -ENOENT;
+    if (!drv->bdrv_write_compressed)
+        return -ENOTSUP;
+    return drv->bdrv_write_compressed(bs, sector_num, buf, nb_sectors);
+}
+    
+int bdrv_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
+{
+    BlockDriver *drv = bs->drv;
+    if (!drv)
+        return -ENOENT;
+    if (!drv->bdrv_get_info)
+        return -ENOTSUP;
+    memset(bdi, 0, sizeof(*bdi));
+    return drv->bdrv_get_info(bs, bdi);
+}
+
+/**************************************************************/
+/* handling of snapshots */
+
+int bdrv_snapshot_create(BlockDriverState *bs, 
+                         QEMUSnapshotInfo *sn_info)
+{
+    BlockDriver *drv = bs->drv;
+    if (!drv)
+        return -ENOENT;
+    if (!drv->bdrv_snapshot_create)
+        return -ENOTSUP;
+    return drv->bdrv_snapshot_create(bs, sn_info);
+}
+
+int bdrv_snapshot_goto(BlockDriverState *bs, 
+                       const char *snapshot_id)
+{
+    BlockDriver *drv = bs->drv;
+    if (!drv)
+        return -ENOENT;
+    if (!drv->bdrv_snapshot_goto)
+        return -ENOTSUP;
+    return drv->bdrv_snapshot_goto(bs, snapshot_id);
+}
+
+int bdrv_snapshot_delete(BlockDriverState *bs, const char *snapshot_id)
+{
+    BlockDriver *drv = bs->drv;
+    if (!drv)
+        return -ENOENT;
+    if (!drv->bdrv_snapshot_delete)
+        return -ENOTSUP;
+    return drv->bdrv_snapshot_delete(bs, snapshot_id);
+}
+
+int bdrv_snapshot_list(BlockDriverState *bs, 
+                       QEMUSnapshotInfo **psn_info)
+{
+    BlockDriver *drv = bs->drv;
+    if (!drv)
+        return -ENOENT;
+    if (!drv->bdrv_snapshot_list)
+        return -ENOTSUP;
+    return drv->bdrv_snapshot_list(bs, psn_info);
+}
+
+#define NB_SUFFIXES 4
+
+char *get_human_readable_size(char *buf, int buf_size, int64_t size)
+{
+    static const char suffixes[NB_SUFFIXES] = "KMGT";
+    int64_t base;
+    int i;
+
+    if (size <= 999) {
+        snprintf(buf, buf_size, "%" PRId64, size);
+    } else {
+        base = 1024;
+        for(i = 0; i < NB_SUFFIXES; i++) {
+            if (size < (10 * base)) {
+                snprintf(buf, buf_size, "%0.1f%c", 
+                         (double)size / base,
+                         suffixes[i]);
+                break;
+            } else if (size < (1000 * base) || i == (NB_SUFFIXES - 1)) {
+                snprintf(buf, buf_size, "%" PRId64 "%c", 
+                         ((size + (base >> 1)) / base),
+                         suffixes[i]);
+                break;
+            }
+            base = base * 1024;
+        }
+    }
+    return buf;
+}
+
+char *bdrv_snapshot_dump(char *buf, int buf_size, QEMUSnapshotInfo *sn)
+{
+    char buf1[128], date_buf[128], clock_buf[128];
+    struct tm tm;
+    time_t ti;
+    int64_t secs;
+
+    if (!sn) {
+        snprintf(buf, buf_size, 
+                 "%-10s%-20s%7s%20s%15s", 
+                 "ID", "TAG", "VM SIZE", "DATE", "VM CLOCK");
+    } else {
+        ti = sn->date_sec;
+        localtime_r(&ti, &tm);
+        strftime(date_buf, sizeof(date_buf),
+                 "%Y-%m-%d %H:%M:%S", &tm);
+        secs = sn->vm_clock_nsec / 1000000000;
+        snprintf(clock_buf, sizeof(clock_buf),
+                 "%02d:%02d:%02d.%03d",
+                 (int)(secs / 3600),
+                 (int)((secs / 60) % 60),
+                 (int)(secs % 60), 
+                 (int)((sn->vm_clock_nsec / 1000000) % 1000));
+        snprintf(buf, buf_size,
+                 "%-10s%-20s%7s%20s%15s", 
+                 sn->id_str, sn->name,
+                 get_human_readable_size(buf1, sizeof(buf1), sn->vm_state_size),
+                 date_buf,
+                 clock_buf);
+    }
+    return buf;
 }
 
 
@@ -1108,4 +1235,5 @@ void bdrv_init(void)
     bdrv_register(&bdrv_bochs);
     bdrv_register(&bdrv_vpc);
     bdrv_register(&bdrv_vvfat);
+    bdrv_register(&bdrv_qcow2);
 }

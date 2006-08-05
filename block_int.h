@@ -57,6 +57,17 @@ struct BlockDriver {
                        const uint8_t *buf, int count);
     int (*bdrv_truncate)(BlockDriverState *bs, int64_t offset);
     int64_t (*bdrv_getlength)(BlockDriverState *bs);
+    int (*bdrv_write_compressed)(BlockDriverState *bs, int64_t sector_num, 
+                                 const uint8_t *buf, int nb_sectors);
+
+    int (*bdrv_snapshot_create)(BlockDriverState *bs, 
+                                QEMUSnapshotInfo *sn_info);
+    int (*bdrv_snapshot_goto)(BlockDriverState *bs, 
+                              const char *snapshot_id);
+    int (*bdrv_snapshot_delete)(BlockDriverState *bs, const char *snapshot_id);
+    int (*bdrv_snapshot_list)(BlockDriverState *bs, 
+                              QEMUSnapshotInfo **psn_info);
+    int (*bdrv_get_info)(BlockDriverState *bs, BlockDriverInfo *bdi);
 
     struct BlockDriver *next;
 };
