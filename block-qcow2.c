@@ -1081,7 +1081,7 @@ static int qcow_create(const char *filename, int64_t total_size,
     s->l1_table_offset = offset;
     header.l1_table_offset = cpu_to_be64(s->l1_table_offset);
     header.l1_size = cpu_to_be32(l1_size);
-    offset += align_offset(l1_size, s->cluster_size);
+    offset += align_offset(l1_size * sizeof(uint64_t), s->cluster_size);
 
     s->refcount_table = qemu_mallocz(s->cluster_size);
     if (!s->refcount_table)
@@ -1089,7 +1089,7 @@ static int qcow_create(const char *filename, int64_t total_size,
     s->refcount_block = qemu_mallocz(s->cluster_size);
     if (!s->refcount_block)
         goto fail;
-
+    
     s->refcount_table_offset = offset;
     header.refcount_table_offset = cpu_to_be64(offset);
     header.refcount_table_clusters = cpu_to_be32(1);
@@ -1101,7 +1101,7 @@ static int qcow_create(const char *filename, int64_t total_size,
 
     /* update refcounts */
     create_refcount_update(s, 0, header_size);
-    create_refcount_update(s, s->l1_table_offset, l1_size);
+    create_refcount_update(s, s->l1_table_offset, l1_size * sizeof(uint64_t));
     create_refcount_update(s, s->refcount_table_offset, s->cluster_size);
     create_refcount_update(s, s->refcount_block_offset, s->cluster_size);
     
@@ -1894,7 +1894,11 @@ static int grow_refcount_table(BlockDriverState *bs, int min_size)
         if (min_size <= new_table_size)
             break;
     }
-
+#ifdef DEBUG_ALLOC2
+    printf("grow_refcount_table from %d to %d\n",
+           s->refcount_table_size,
+           new_table_size);
+#endif
     new_table_size2 = new_table_size * sizeof(uint64_t);
     new_table = qemu_mallocz(new_table_size2);
     if (!new_table)
@@ -2144,7 +2148,7 @@ static void check_refcounts(BlockDriverState *bs)
     size = bdrv_getlength(s->hd);
     nb_clusters = (size + s->cluster_size - 1) >> s->cluster_bits;
     refcount_table = qemu_mallocz(nb_clusters * sizeof(uint16_t));
-    
+
     /* header */
     inc_refcounts(bs, refcount_table, nb_clusters,
                   0, s->cluster_size);
