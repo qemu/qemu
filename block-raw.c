@@ -477,7 +477,7 @@ static int raw_create(const char *filename, int64_t total_size,
     if (flags || backing_file)
         return -ENOTSUP;
 
-    fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY | O_LARGEFILE, 
+    fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 
               0644);
     if (fd < 0)
         return -EIO;
