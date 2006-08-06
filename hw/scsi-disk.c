@@ -348,15 +348,21 @@ int32_t scsi_send_command(SCSIDevice *s, uint32_t tag, uint8_t *buf, int lun)
         /* The normal LEN field for this command is zero.  */
 	memset(s->buf, 0, 8);
 	bdrv_get_geometry(s->bdrv, &nb_sectors);
-	s->buf[0] = (nb_sectors >> 24) & 0xff;
-	s->buf[1] = (nb_sectors >> 16) & 0xff;
-	s->buf[2] = (nb_sectors >> 8) & 0xff;
-	s->buf[3] = nb_sectors & 0xff;
-	s->buf[4] = 0;
-	s->buf[5] = 0;
-        s->buf[6] = s->cluster_size * 2;
-	s->buf[7] = 0;
-	s->buf_len = 8;
+        /* Returned value is the address of the last sector.  */
+        if (nb_sectors) {
+            nb_sectors--;
+            s->buf[0] = (nb_sectors >> 24) & 0xff;
+            s->buf[1] = (nb_sectors >> 16) & 0xff;
+            s->buf[2] = (nb_sectors >> 8) & 0xff;
+            s->buf[3] = nb_sectors & 0xff;
+            s->buf[4] = 0;
+            s->buf[5] = 0;
+            s->buf[6] = s->cluster_size * 2;
+            s->buf[7] = 0;
+            s->buf_len = 8;
+        } else {
+            scsi_command_complete(s, SENSE_NOT_READY);
+        }
 	break;
     case 0x08:
     case 0x28:
