@@ -24,6 +24,7 @@ do { fprintf(stderr, "scsi-disk: " fmt , ##args); } while (0)
 #include "vl.h"
 
 #define SENSE_NO_SENSE        0
+#define SENSE_NOT_READY       2
 #define SENSE_ILLEGAL_REQUEST 5
 
 struct SCSIDevice
