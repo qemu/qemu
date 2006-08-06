@@ -495,7 +495,7 @@ QEMUBH *qemu_bh_new(QEMUBHFunc *cb, void *opaque);
 void qemu_bh_schedule(QEMUBH *bh);
 void qemu_bh_cancel(QEMUBH *bh);
 void qemu_bh_delete(QEMUBH *bh);
-void qemu_bh_poll(void);
+int qemu_bh_poll(void);
 
 /* block.c */
 typedef struct BlockDriverState BlockDriverState;
