@@ -73,7 +73,8 @@ struct BlockDriver {
 };
 
 struct BlockDriverState {
-    int64_t total_sectors; /* XXX: will be suppressed */
+    int64_t total_sectors; /* if we are reading a disk image, give its
+                              size in sectors */
     int read_only; /* if true, the media is read only */
     int inserted; /* if true, the media is present */
     int removable; /* if true, the media can be removed */

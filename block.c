@@ -296,7 +296,7 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
         bdrv_delete(bs1);
         
         get_tmp_filename(tmp_filename, sizeof(tmp_filename));
-        if (bdrv_create(&bdrv_qcow, tmp_filename, 
+        if (bdrv_create(&bdrv_qcow2, tmp_filename, 
                         total_size, filename, 0) < 0) {
             return -1;
         }
@@ -335,7 +335,9 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
         qemu_free(bs->opaque);
         return ret;
     }
-
+    if (drv->bdrv_getlength) {
+        bs->total_sectors = bdrv_getlength(bs) >> SECTOR_BITS;
+    }
 #ifndef _WIN32
     if (bs->is_temporary) {
         unlink(filename);
@@ -647,11 +649,7 @@ int64_t bdrv_getlength(BlockDriverState *bs)
 
 void bdrv_get_geometry(BlockDriverState *bs, int64_t *nb_sectors_ptr)
 {
-    int64_t size;
-    size = bdrv_getlength(bs);
-    if (size < 0)
-        size = 0;
-    *nb_sectors_ptr = size >> SECTOR_BITS;
+    *nb_sectors_ptr = bs->total_sectors;
 }
 
 /* force a given boot sector. */
