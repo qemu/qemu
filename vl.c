@@ -29,6 +29,7 @@
 #include <time.h>
 #include <errno.h>
 #include <sys/time.h>
+#include <zlib.h>
 
 #ifndef _WIN32
 #include <sys/times.h>
@@ -822,17 +823,21 @@ static void timer_save(QEMUFile *f, void *opaque)
     }
     qemu_put_be64s(f, &cpu_ticks_offset);
     qemu_put_be64s(f, &ticks_per_sec);
+    qemu_put_be64s(f, &cpu_clock_offset);
 }
 
 static int timer_load(QEMUFile *f, void *opaque, int version_id)
 {
-    if (version_id != 1)
+    if (version_id != 1 && version_id != 2)
         return -EINVAL;
     if (cpu_ticks_enabled) {
         return -EINVAL;
     }
     qemu_get_be64s(f, &cpu_ticks_offset);
     qemu_get_be64s(f, &ticks_per_sec);
+    if (version_id == 2) {
+        qemu_get_be64s(f, &cpu_clock_offset);
+    }
     return 0;
 }
 
@@ -5114,24 +5119,6 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
 /***********************************************************/
 /* ram save/restore */
 
-/* we just avoid storing empty pages */
-static void ram_put_page(QEMUFile *f, const uint8_t *buf, int len)
-{
-    int i, v;
-
-    v = buf[0];
-    for(i = 1; i < len; i++) {
-        if (buf[i] != v)
-            goto normal_save;
-    }
-    qemu_put_byte(f, 1);
-    qemu_put_byte(f, v);
-    return;
- normal_save:
-    qemu_put_byte(f, 0); 
-    qemu_put_buffer(f, buf, len);
-}
-
 static int ram_get_page(QEMUFile *f, uint8_t *buf, int len)
 {
     int v;
@@ -5152,21 +5139,10 @@ static int ram_get_page(QEMUFile *f, uint8_t *buf, int len)
     return 0;
 }
 
-static void ram_save(QEMUFile *f, void *opaque)
-{
-    int i;
-    qemu_put_be32(f, phys_ram_size);
-    for(i = 0; i < phys_ram_size; i+= TARGET_PAGE_SIZE) {
-        ram_put_page(f, phys_ram_base + i, TARGET_PAGE_SIZE);
-    }
-}
-
-static int ram_load(QEMUFile *f, void *opaque, int version_id)
+static int ram_load_v1(QEMUFile *f, void *opaque)
 {
     int i, ret;
 
-    if (version_id != 1)
-        return -EINVAL;
     if (qemu_get_be32(f) != phys_ram_size)
         return -EINVAL;
     for(i = 0; i < phys_ram_size; i+= TARGET_PAGE_SIZE) {
@@ -5174,6 +5150,227 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
         if (ret)
             return ret;
     }
+    return 0;
+}
+
+#define BDRV_HASH_BLOCK_SIZE 1024
+#define IOBUF_SIZE 4096
+#define RAM_CBLOCK_MAGIC 0xfabe
+
+typedef struct RamCompressState {
+    z_stream zstream;
+    QEMUFile *f;
+    uint8_t buf[IOBUF_SIZE];
+} RamCompressState;
+
+static int ram_compress_open(RamCompressState *s, QEMUFile *f)
+{
+    int ret;
+    memset(s, 0, sizeof(*s));
+    s->f = f;
+    ret = deflateInit2(&s->zstream, 1,
+                       Z_DEFLATED, 15, 
+                       9, Z_DEFAULT_STRATEGY);
+    if (ret != Z_OK)
+        return -1;
+    s->zstream.avail_out = IOBUF_SIZE;
+    s->zstream.next_out = s->buf;
+    return 0;
+}
+
+static void ram_put_cblock(RamCompressState *s, const uint8_t *buf, int len)
+{
+    qemu_put_be16(s->f, RAM_CBLOCK_MAGIC);
+    qemu_put_be16(s->f, len);
+    qemu_put_buffer(s->f, buf, len);
+}
+
+static int ram_compress_buf(RamCompressState *s, const uint8_t *buf, int len)
+{
+    int ret;
+
+    s->zstream.avail_in = len;
+    s->zstream.next_in = (uint8_t *)buf;
+    while (s->zstream.avail_in > 0) {
+        ret = deflate(&s->zstream, Z_NO_FLUSH);
+        if (ret != Z_OK)
+            return -1;
+        if (s->zstream.avail_out == 0) {
+            ram_put_cblock(s, s->buf, IOBUF_SIZE);
+            s->zstream.avail_out = IOBUF_SIZE;
+            s->zstream.next_out = s->buf;
+        }
+    }
+    return 0;
+}
+
+static void ram_compress_close(RamCompressState *s)
+{
+    int len, ret;
+
+    /* compress last bytes */
+    for(;;) {
+        ret = deflate(&s->zstream, Z_FINISH);
+        if (ret == Z_OK || ret == Z_STREAM_END) {
+            len = IOBUF_SIZE - s->zstream.avail_out;
+            if (len > 0) {
+                ram_put_cblock(s, s->buf, len);
+            }
+            s->zstream.avail_out = IOBUF_SIZE;
+            s->zstream.next_out = s->buf;
+            if (ret == Z_STREAM_END)
+                break;
+        } else {
+            goto fail;
+        }
+    }
+fail:
+    deflateEnd(&s->zstream);
+}
+
+typedef struct RamDecompressState {
+    z_stream zstream;
+    QEMUFile *f;
+    uint8_t buf[IOBUF_SIZE];
+} RamDecompressState;
+
+static int ram_decompress_open(RamDecompressState *s, QEMUFile *f)
+{
+    int ret;
+    memset(s, 0, sizeof(*s));
+    s->f = f;
+    ret = inflateInit(&s->zstream);
+    if (ret != Z_OK)
+        return -1;
+    return 0;
+}
+
+static int ram_decompress_buf(RamDecompressState *s, uint8_t *buf, int len)
+{
+    int ret, clen;
+
+    s->zstream.avail_out = len;
+    s->zstream.next_out = buf;
+    while (s->zstream.avail_out > 0) {
+        if (s->zstream.avail_in == 0) {
+            if (qemu_get_be16(s->f) != RAM_CBLOCK_MAGIC)
+                return -1;
+            clen = qemu_get_be16(s->f);
+            if (clen > IOBUF_SIZE)
+                return -1;
+            qemu_get_buffer(s->f, s->buf, clen);
+            s->zstream.avail_in = clen;
+            s->zstream.next_in = s->buf;
+        }
+        ret = inflate(&s->zstream, Z_PARTIAL_FLUSH);
+        if (ret != Z_OK && ret != Z_STREAM_END) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
+static void ram_decompress_close(RamDecompressState *s)
+{
+    inflateEnd(&s->zstream);
+}
+
+static void ram_save(QEMUFile *f, void *opaque)
+{
+    int i;
+    RamCompressState s1, *s = &s1;
+    uint8_t buf[10];
+    
+    qemu_put_be32(f, phys_ram_size);
+    if (ram_compress_open(s, f) < 0)
+        return;
+    for(i = 0; i < phys_ram_size; i+= BDRV_HASH_BLOCK_SIZE) {
+#if 0
+        if (tight_savevm_enabled) {
+            int64_t sector_num;
+            int j;
+
+            /* find if the memory block is available on a virtual
+               block device */
+            sector_num = -1;
+            for(j = 0; j < MAX_DISKS; j++) {
+                if (bs_table[j]) {
+                    sector_num = bdrv_hash_find(bs_table[j], 
+                                                phys_ram_base + i, BDRV_HASH_BLOCK_SIZE);
+                    if (sector_num >= 0)
+                        break;
+                }
+            }
+            if (j == MAX_DISKS)
+                goto normal_compress;
+            buf[0] = 1;
+            buf[1] = j;
+            cpu_to_be64wu((uint64_t *)(buf + 2), sector_num);
+            ram_compress_buf(s, buf, 10);
+        } else 
+#endif
+        {
+            //        normal_compress:
+            buf[0] = 0;
+            ram_compress_buf(s, buf, 1);
+            ram_compress_buf(s, phys_ram_base + i, BDRV_HASH_BLOCK_SIZE);
+        }
+    }
+    ram_compress_close(s);
+}
+
+static int ram_load(QEMUFile *f, void *opaque, int version_id)
+{
+    RamDecompressState s1, *s = &s1;
+    uint8_t buf[10];
+    int i;
+
+    if (version_id == 1)
+        return ram_load_v1(f, opaque);
+    if (version_id != 2)
+        return -EINVAL;
+    if (qemu_get_be32(f) != phys_ram_size)
+        return -EINVAL;
+    if (ram_decompress_open(s, f) < 0)
+        return -EINVAL;
+    for(i = 0; i < phys_ram_size; i+= BDRV_HASH_BLOCK_SIZE) {
+        if (ram_decompress_buf(s, buf, 1) < 0) {
+            fprintf(stderr, "Error while reading ram block header\n");
+            goto error;
+        }
+        if (buf[0] == 0) {
+            if (ram_decompress_buf(s, phys_ram_base + i, BDRV_HASH_BLOCK_SIZE) < 0) {
+                fprintf(stderr, "Error while reading ram block address=0x%08x", i);
+                goto error;
+            }
+        } else 
+#if 0
+        if (buf[0] == 1) {
+            int bs_index;
+            int64_t sector_num;
+
+            ram_decompress_buf(s, buf + 1, 9);
+            bs_index = buf[1];
+            sector_num = be64_to_cpupu((const uint64_t *)(buf + 2));
+            if (bs_index >= MAX_DISKS || bs_table[bs_index] == NULL) {
+                fprintf(stderr, "Invalid block device index %d\n", bs_index);
+                goto error;
+            }
+            if (bdrv_read(bs_table[bs_index], sector_num, phys_ram_base + i, 
+                          BDRV_HASH_BLOCK_SIZE / 512) < 0) {
+                fprintf(stderr, "Error while reading sector %d:%" PRId64 "\n", 
+                        bs_index, sector_num);
+                goto error;
+            }
+        } else 
+#endif
+        {
+        error:
+            printf("Error block header\n");
+            return -EINVAL;
+        }
+    }
+    ram_decompress_close(s);
     return 0;
 }
 
@@ -6612,8 +6809,8 @@ int main(int argc, char **argv)
         }
     }
 
-    register_savevm("timer", 0, 1, timer_save, timer_load, NULL);
-    register_savevm("ram", 0, 1, ram_save, ram_load, NULL);
+    register_savevm("timer", 0, 2, timer_save, timer_load, NULL);
+    register_savevm("ram", 0, 2, ram_save, ram_load, NULL);
 
     init_ioports();
 
