@@ -696,11 +696,26 @@ static int decompress_cluster(BDRVQcowState *s, uint64_t cluster_offset)
     return 0;
 }
 
+/* handle reading after the end of the backing file */
+static int backing_read1(BlockDriverState *bs, 
+                         int64_t sector_num, uint8_t *buf, int nb_sectors)
+{
+    int n1;
+    if ((sector_num + nb_sectors) <= bs->total_sectors)
+        return nb_sectors;
+    if (sector_num >= bs->total_sectors)
+        n1 = 0;
+    else
+        n1 = bs->total_sectors - sector_num;
+    memset(buf + n1 * 512, 0, 512 * (nb_sectors - n1));
+    return n1;
+}
+
 static int qcow_read(BlockDriverState *bs, int64_t sector_num, 
                      uint8_t *buf, int nb_sectors)
 {
     BDRVQcowState *s = bs->opaque;
-    int ret, index_in_cluster, n;
+    int ret, index_in_cluster, n, n1;
     uint64_t cluster_offset;
     
     while (nb_sectors > 0) {
@@ -712,9 +727,12 @@ static int qcow_read(BlockDriverState *bs, int64_t sector_num,
         if (!cluster_offset) {
             if (bs->backing_hd) {
                 /* read from the base image */
-                ret = bdrv_read(bs->backing_hd, sector_num, buf, n);
-                if (ret < 0)
-                    return -1;
+                n1 = backing_read1(bs->backing_hd, sector_num, buf, n);
+                if (n1 > 0) {
+                    ret = bdrv_read(bs->backing_hd, sector_num, buf, n1);
+                    if (ret < 0)
+                        return -1;
+                }
             } else {
                 memset(buf, 0, 512 * n);
             }
@@ -815,7 +833,7 @@ static void qcow_aio_read_cb(void *opaque, int ret)
     BlockDriverState *bs = acb->bs;
     BDRVQcowState *s = bs->opaque;
     QCowAIOCB *acb1 = acb->opaque;
-    int index_in_cluster;
+    int index_in_cluster, n1;
 
     if (ret < 0) {
     fail:
@@ -859,10 +877,16 @@ static void qcow_aio_read_cb(void *opaque, int ret)
     if (!acb1->cluster_offset) {
         if (bs->backing_hd) {
             /* read from the base image */
-            ret = bdrv_aio_read(acb1->backing_hd_aiocb, acb1->sector_num, 
-                                acb1->buf, acb1->n, qcow_aio_read_cb, acb);
-            if (ret < 0)
-                goto fail;
+            n1 = backing_read1(bs->backing_hd, acb1->sector_num, 
+                               acb1->buf, acb1->n);
+            if (n1 > 0) {
+                ret = bdrv_aio_read(acb1->backing_hd_aiocb, acb1->sector_num, 
+                                    acb1->buf, n1, qcow_aio_read_cb, acb);
+                if (ret < 0)
+                    goto fail;
+            } else {
+                goto redo;
+            }
         } else {
             /* Note: in this case, no need to wait */
             memset(acb1->buf, 0, 512 * acb1->n);
