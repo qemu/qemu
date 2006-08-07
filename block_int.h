@@ -42,13 +42,14 @@ struct BlockDriver {
     int (*bdrv_set_key)(BlockDriverState *bs, const char *key);
     int (*bdrv_make_empty)(BlockDriverState *bs);
     /* aio */
-    int (*bdrv_aio_new)(BlockDriverAIOCB *acb);
-    int (*bdrv_aio_read)(BlockDriverAIOCB *acb, int64_t sector_num,
-                              uint8_t *buf, int nb_sectors);
-    int (*bdrv_aio_write)(BlockDriverAIOCB *acb, int64_t sector_num,
-                          const uint8_t *buf, int nb_sectors);
+    BlockDriverAIOCB *(*bdrv_aio_read)(BlockDriverState *bs,
+        int64_t sector_num, uint8_t *buf, int nb_sectors,
+        BlockDriverCompletionFunc *cb, void *opaque);
+    BlockDriverAIOCB *(*bdrv_aio_write)(BlockDriverState *bs,
+        int64_t sector_num, const uint8_t *buf, int nb_sectors,
+        BlockDriverCompletionFunc *cb, void *opaque);
     void (*bdrv_aio_cancel)(BlockDriverAIOCB *acb);
-    void (*bdrv_aio_delete)(BlockDriverAIOCB *acb);
+    int aiocb_size;
 
     const char *protocol_name;
     int (*bdrv_pread)(BlockDriverState *bs, int64_t offset, 
@@ -69,6 +70,7 @@ struct BlockDriver {
                               QEMUSnapshotInfo **psn_info);
     int (*bdrv_get_info)(BlockDriverState *bs, BlockDriverInfo *bdi);
 
+    BlockDriverAIOCB *free_aiocb;
     struct BlockDriver *next;
 };
 
@@ -96,9 +98,9 @@ struct BlockDriverState {
     int is_temporary;
     
     BlockDriverState *backing_hd;
-    /* sync read/write emulation */
+    /* async read/write emulation */
 
-    BlockDriverAIOCB *sync_aiocb;
+    void *sync_aiocb;
     
     /* NOTE: the following infos are only hints for real hardware
        drivers. They are not used by the block driver */
@@ -111,11 +113,14 @@ struct BlockDriverState {
 struct BlockDriverAIOCB {
     BlockDriverState *bs;
     BlockDriverCompletionFunc *cb;
-    void *cb_opaque;
-    
-    void *opaque; /* driver opaque */
+    void *opaque;
+    BlockDriverAIOCB *next;
 };
 
 void get_tmp_filename(char *filename, int size);
+
+void *qemu_aio_get(BlockDriverState *bs, BlockDriverCompletionFunc *cb,
+                   void *opaque);
+void qemu_aio_release(void *p);
 
 #endif /* BLOCK_INT_H */

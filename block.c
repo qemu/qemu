@@ -35,13 +35,13 @@
 #define SECTOR_BITS 9
 #define SECTOR_SIZE (1 << SECTOR_BITS)
 
-static int bdrv_aio_new_em(BlockDriverAIOCB *acb);
-static int bdrv_aio_read_em(BlockDriverAIOCB *acb, int64_t sector_num,
-                              uint8_t *buf, int nb_sectors);
-static int bdrv_aio_write_em(BlockDriverAIOCB *acb, int64_t sector_num,
-                               const uint8_t *buf, int nb_sectors);
+static BlockDriverAIOCB *bdrv_aio_read_em(BlockDriverState *bs,
+        int64_t sector_num, uint8_t *buf, int nb_sectors,
+        BlockDriverCompletionFunc *cb, void *opaque);
+static BlockDriverAIOCB *bdrv_aio_write_em(BlockDriverState *bs,
+        int64_t sector_num, const uint8_t *buf, int nb_sectors,
+        BlockDriverCompletionFunc *cb, void *opaque);
 static void bdrv_aio_cancel_em(BlockDriverAIOCB *acb);
-static void bdrv_aio_delete_em(BlockDriverAIOCB *acb);
 static int bdrv_read_em(BlockDriverState *bs, int64_t sector_num, 
                         uint8_t *buf, int nb_sectors);
 static int bdrv_write_em(BlockDriverState *bs, int64_t sector_num,
@@ -106,13 +106,11 @@ void path_combine(char *dest, int dest_size,
 
 void bdrv_register(BlockDriver *bdrv)
 {
-    if (!bdrv->bdrv_aio_new) {
+    if (!bdrv->bdrv_aio_read) {
         /* add AIO emulation layer */
-        bdrv->bdrv_aio_new = bdrv_aio_new_em;
         bdrv->bdrv_aio_read = bdrv_aio_read_em;
         bdrv->bdrv_aio_write = bdrv_aio_write_em;
         bdrv->bdrv_aio_cancel = bdrv_aio_cancel_em;
-        bdrv->bdrv_aio_delete = bdrv_aio_delete_em;
     } else if (!bdrv->bdrv_read && !bdrv->bdrv_pread) {
         /* add synchronous IO emulation layer */
         bdrv->bdrv_read = bdrv_read_em;
@@ -964,7 +962,9 @@ char *bdrv_snapshot_dump(char *buf, int buf_size, QEMUSnapshotInfo *sn)
                  "ID", "TAG", "VM SIZE", "DATE", "VM CLOCK");
     } else {
         ti = sn->date_sec;
+#ifndef _WIN32
         localtime_r(&ti, &tm);
+#endif
         strftime(date_buf, sizeof(date_buf),
                  "%Y-%m-%d %H:%M:%S", &tm);
         secs = sn->vm_clock_nsec / 1000000000;
@@ -988,31 +988,14 @@ char *bdrv_snapshot_dump(char *buf, int buf_size, QEMUSnapshotInfo *sn)
 /**************************************************************/
 /* async I/Os */
 
-BlockDriverAIOCB *bdrv_aio_new(BlockDriverState *bs)
+BlockDriverAIOCB *bdrv_aio_read(BlockDriverState *bs, int64_t sector_num,
+                                uint8_t *buf, int nb_sectors,
+                                BlockDriverCompletionFunc *cb, void *opaque)
 {
-    BlockDriver *drv = bs->drv;
-    BlockDriverAIOCB *acb;
-    acb = qemu_mallocz(sizeof(BlockDriverAIOCB));
-    if (!acb)
-        return NULL;
-    
-    acb->bs = bs;
-    if (drv->bdrv_aio_new(acb) < 0) {
-        qemu_free(acb);
-        return NULL;
-    }
-    return acb;
-}
-
-int bdrv_aio_read(BlockDriverAIOCB *acb, int64_t sector_num,
-                  uint8_t *buf, int nb_sectors,
-                  BlockDriverCompletionFunc *cb, void *opaque)
-{
-    BlockDriverState *bs = acb->bs;
     BlockDriver *drv = bs->drv;
 
     if (!bs->inserted)
-        return -1;
+        return NULL;
     
     /* XXX: we assume that nb_sectors == 0 is suppored by the async read */
     if (sector_num == 0 && bs->boot_sector_enabled && nb_sectors > 0) {
@@ -1022,141 +1005,114 @@ int bdrv_aio_read(BlockDriverAIOCB *acb, int64_t sector_num,
         buf += 512;
     }
 
-    acb->cb = cb;
-    acb->cb_opaque = opaque;
-    return drv->bdrv_aio_read(acb, sector_num, buf, nb_sectors);
+    return drv->bdrv_aio_read(bs, sector_num, buf, nb_sectors, cb, opaque);
 }
 
-int bdrv_aio_write(BlockDriverAIOCB *acb, int64_t sector_num,
-                   const uint8_t *buf, int nb_sectors,
-                   BlockDriverCompletionFunc *cb, void *opaque)
+BlockDriverAIOCB *bdrv_aio_write(BlockDriverState *bs, int64_t sector_num,
+                                 const uint8_t *buf, int nb_sectors,
+                                 BlockDriverCompletionFunc *cb, void *opaque)
 {
-    BlockDriverState *bs = acb->bs;
     BlockDriver *drv = bs->drv;
 
     if (!bs->inserted)
-            return -1;
+        return NULL;
     if (bs->read_only)
-        return -1;
+        return NULL;
     if (sector_num == 0 && bs->boot_sector_enabled && nb_sectors > 0) {
         memcpy(bs->boot_sector_data, buf, 512);   
     }
 
-    acb->cb = cb;
-    acb->cb_opaque = opaque;
-    return drv->bdrv_aio_write(acb, sector_num, buf, nb_sectors);
+    return drv->bdrv_aio_write(bs, sector_num, buf, nb_sectors, cb, opaque);
 }
 
 void bdrv_aio_cancel(BlockDriverAIOCB *acb)
-    {
-    BlockDriverState *bs = acb->bs;
-    BlockDriver *drv = bs->drv;
+{
+    BlockDriver *drv = acb->bs->drv;
 
     drv->bdrv_aio_cancel(acb);
-    }
-
-void bdrv_aio_delete(BlockDriverAIOCB *acb)
-{
-    BlockDriverState *bs = acb->bs;
-    BlockDriver *drv = bs->drv;
-
-    drv->bdrv_aio_delete(acb);
-    qemu_free(acb);
 }
+
 
 /**************************************************************/
 /* async block device emulation */
 
 #ifdef QEMU_TOOL
-static int bdrv_aio_new_em(BlockDriverAIOCB *acb)
-{
-    return 0;
-}
-
-static int bdrv_aio_read_em(BlockDriverAIOCB *acb, int64_t sector_num,
-                    uint8_t *buf, int nb_sectors)
+static BlockDriverAIOCB *bdrv_aio_read_em(BlockDriverState *bs,
+        int64_t sector_num, uint8_t *buf, int nb_sectors,
+        BlockDriverCompletionFunc *cb, void *opaque)
 {
     int ret;
-    ret = bdrv_read(acb->bs, sector_num, buf, nb_sectors);
-    acb->cb(acb->cb_opaque, ret);
-    return 0;
+    ret = bdrv_read(bs, sector_num, buf, nb_sectors);
+    cb(opaque, ret);
+    return NULL;
 }
 
-static int bdrv_aio_write_em(BlockDriverAIOCB *acb, int64_t sector_num,
-                     const uint8_t *buf, int nb_sectors)
+static BlockDriverAIOCB *bdrv_aio_write_em(BlockDriverState *bs,
+        int64_t sector_num, const uint8_t *buf, int nb_sectors,
+        BlockDriverCompletionFunc *cb, void *opaque)
 {
     int ret;
-    ret = bdrv_write(acb->bs, sector_num, buf, nb_sectors);
-    acb->cb(acb->cb_opaque, ret);
-    return 0;
+    ret = bdrv_write(bs, sector_num, buf, nb_sectors);
+    cb(opaque, ret);
+    return NULL;
 }
 
 static void bdrv_aio_cancel_em(BlockDriverAIOCB *acb)
-{
-}
-
-static void bdrv_aio_delete_em(BlockDriverAIOCB *acb)
 {
 }
 #else
 typedef struct BlockDriverAIOCBSync {
+    BlockDriverAIOCB common;
     QEMUBH *bh;
     int ret;
 } BlockDriverAIOCBSync;
 
+static BlockDriverAIOCBSync *free_acb = NULL;
+
 static void bdrv_aio_bh_cb(void *opaque)
 {
-    BlockDriverAIOCB *acb = opaque;
-    BlockDriverAIOCBSync *acb1 = acb->opaque;
-    acb->cb(acb->cb_opaque, acb1->ret);
+    BlockDriverAIOCBSync *acb = opaque;
+    acb->common.cb(acb->common.opaque, acb->ret);
+    qemu_aio_release(acb);
 }
 
-static int bdrv_aio_new_em(BlockDriverAIOCB *acb)
+static BlockDriverAIOCB *bdrv_aio_read_em(BlockDriverState *bs,
+        int64_t sector_num, uint8_t *buf, int nb_sectors,
+        BlockDriverCompletionFunc *cb, void *opaque)
 {
-    BlockDriverAIOCBSync *acb1;
-
-    acb1 = qemu_mallocz(sizeof(BlockDriverAIOCBSync));
-    if (!acb1)
-        return -1;
-    acb->opaque = acb1;
-    acb1->bh = qemu_bh_new(bdrv_aio_bh_cb, acb);
-    return 0;
-}
-
-static int bdrv_aio_read_em(BlockDriverAIOCB *acb, int64_t sector_num,
-                    uint8_t *buf, int nb_sectors)
-{
-    BlockDriverAIOCBSync *acb1 = acb->opaque;
+    BlockDriverAIOCBSync *acb;
     int ret;
-    
-    ret = bdrv_read(acb->bs, sector_num, buf, nb_sectors);
-    acb1->ret = ret;
-    qemu_bh_schedule(acb1->bh);
-    return 0;
+
+    acb = qemu_aio_get(bs, cb, opaque);
+    if (!acb->bh)
+        acb->bh = qemu_bh_new(bdrv_aio_bh_cb, acb);
+    ret = bdrv_read(bs, sector_num, buf, nb_sectors);
+    acb->ret = ret;
+    qemu_bh_schedule(acb->bh);
+    return &acb->common;
 }
 
-static int bdrv_aio_write_em(BlockDriverAIOCB *acb, int64_t sector_num,
-                     const uint8_t *buf, int nb_sectors)
+static BlockDriverAIOCB *bdrv_aio_write_em(BlockDriverState *bs,
+        int64_t sector_num, const uint8_t *buf, int nb_sectors,
+        BlockDriverCompletionFunc *cb, void *opaque)
 {
-    BlockDriverAIOCBSync *acb1 = acb->opaque;
+    BlockDriverAIOCBSync *acb;
     int ret;
-    
-    ret = bdrv_write(acb->bs, sector_num, buf, nb_sectors);
-    acb1->ret = ret;
-    qemu_bh_schedule(acb1->bh);
-    return 0;
+
+    acb = qemu_aio_get(bs, cb, opaque);
+    if (!acb->bh)
+        acb->bh = qemu_bh_new(bdrv_aio_bh_cb, acb);
+    ret = bdrv_write(bs, sector_num, buf, nb_sectors);
+    acb->ret = ret;
+    qemu_bh_schedule(acb->bh);
+    return &acb->common;
 }
 
-static void bdrv_aio_cancel_em(BlockDriverAIOCB *acb)
+static void bdrv_aio_cancel_em(BlockDriverAIOCB *blockacb)
 {
-    BlockDriverAIOCBSync *acb1 = acb->opaque;
-    qemu_bh_cancel(acb1->bh);
-}
-
-static void bdrv_aio_delete_em(BlockDriverAIOCB *acb)
-{
-    BlockDriverAIOCBSync *acb1 = acb->opaque;
-    qemu_bh_delete(acb1->bh);
+    BlockDriverAIOCBSync *acb = (BlockDriverAIOCBSync *)blockacb;
+    qemu_bh_cancel(acb->bh);
+    qemu_aio_release(acb);
 }
 #endif /* !QEMU_TOOL */
 
@@ -1173,20 +1129,16 @@ static void bdrv_rw_em_cb(void *opaque, int ret)
 static int bdrv_read_em(BlockDriverState *bs, int64_t sector_num, 
                         uint8_t *buf, int nb_sectors)
 {
-    int async_ret, ret;
+    int async_ret;
+    BlockDriverAIOCB *acb;
 
-    if (!bs->sync_aiocb) {
-        bs->sync_aiocb = bdrv_aio_new(bs);
-        if (!bs->sync_aiocb)
-            return -1;
-    }
     async_ret = NOT_DONE;
     qemu_aio_wait_start();
-    ret = bdrv_aio_read(bs->sync_aiocb, sector_num, buf, nb_sectors, 
+    acb = bdrv_aio_read(bs, sector_num, buf, nb_sectors, 
                         bdrv_rw_em_cb, &async_ret);
-    if (ret < 0) {
+    if (acb == NULL) {
         qemu_aio_wait_end();
-        return ret;
+        return -1;
     }
     while (async_ret == NOT_DONE) {
         qemu_aio_wait();
@@ -1198,20 +1150,16 @@ static int bdrv_read_em(BlockDriverState *bs, int64_t sector_num,
 static int bdrv_write_em(BlockDriverState *bs, int64_t sector_num,
                          const uint8_t *buf, int nb_sectors)
 {
-    int async_ret, ret;
+    int async_ret;
+    BlockDriverAIOCB *acb;
 
-    if (!bs->sync_aiocb) {
-        bs->sync_aiocb = bdrv_aio_new(bs);
-        if (!bs->sync_aiocb)
-            return -1;
-    }
     async_ret = NOT_DONE;
     qemu_aio_wait_start();
-    ret = bdrv_aio_write(bs->sync_aiocb, sector_num, buf, nb_sectors, 
+    acb = bdrv_aio_write(bs, sector_num, buf, nb_sectors, 
                          bdrv_rw_em_cb, &async_ret);
-    if (ret < 0) {
+    if (acb == NULL) {
         qemu_aio_wait_end();
-        return ret;
+        return -1;
     }
     while (async_ret == NOT_DONE) {
         qemu_aio_wait();
@@ -1234,4 +1182,33 @@ void bdrv_init(void)
     bdrv_register(&bdrv_vpc);
     bdrv_register(&bdrv_vvfat);
     bdrv_register(&bdrv_qcow2);
+}
+
+void *qemu_aio_get(BlockDriverState *bs, BlockDriverCompletionFunc *cb,
+                   void *opaque)
+{
+    BlockDriver *drv;
+    BlockDriverAIOCB *acb;
+
+    drv = bs->drv;
+    if (drv->free_aiocb) {
+        acb = drv->free_aiocb;
+        drv->free_aiocb = acb->next;
+    } else {
+        acb = qemu_mallocz(drv->aiocb_size);
+        if (!acb)
+            return NULL;
+    }
+    acb->bs = bs;
+    acb->cb = cb;
+    acb->opaque = opaque;
+    return acb;
+}
+
+void qemu_aio_release(void *p)
+{
+    BlockDriverAIOCB *acb = p;
+    BlockDriver *drv = acb->bs->drv;
+    acb->next = drv->free_aiocb;
+    drv->free_aiocb = acb;
 }

@@ -569,15 +569,13 @@ void bdrv_set_boot_sector(BlockDriverState *bs, const uint8_t *data, int size);
 typedef struct BlockDriverAIOCB BlockDriverAIOCB;
 typedef void BlockDriverCompletionFunc(void *opaque, int ret);
 
-BlockDriverAIOCB *bdrv_aio_new(BlockDriverState *bs);
-int bdrv_aio_read(BlockDriverAIOCB *acb, int64_t sector_num,
-                  uint8_t *buf, int nb_sectors,
-                  BlockDriverCompletionFunc *cb, void *opaque);
-int bdrv_aio_write(BlockDriverAIOCB *acb, int64_t sector_num,
-                   const uint8_t *buf, int nb_sectors,
-                   BlockDriverCompletionFunc *cb, void *opaque);
+BlockDriverAIOCB *bdrv_aio_read(BlockDriverState *bs, int64_t sector_num,
+                                uint8_t *buf, int nb_sectors,
+                                BlockDriverCompletionFunc *cb, void *opaque);
+BlockDriverAIOCB *bdrv_aio_write(BlockDriverState *bs, int64_t sector_num,
+                                 const uint8_t *buf, int nb_sectors,
+                                 BlockDriverCompletionFunc *cb, void *opaque);
 void bdrv_aio_cancel(BlockDriverAIOCB *acb);
-void bdrv_aio_delete(BlockDriverAIOCB *acb);
 
 void qemu_aio_init(void);
 void qemu_aio_poll(void);
