@@ -1,7 +1,7 @@
 /*
  * QEMU System Emulator
  * 
- * Copyright (c) 2003-2005 Fabrice Bellard
+ * Copyright (c) 2003-2006 Fabrice Bellard
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -5800,7 +5800,7 @@ int main_loop(void)
 
 void help(void)
 {
-    printf("QEMU PC emulator version " QEMU_VERSION ", Copyright (c) 2003-2005 Fabrice Bellard\n"
+    printf("QEMU PC emulator version " QEMU_VERSION ", Copyright (c) 2003-2006 Fabrice Bellard\n"
            "usage: %s [options] [disk_image]\n"
            "\n"
            "'disk_image' is a raw hard image image for IDE hard disk 0\n"
