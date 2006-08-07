@@ -26,6 +26,8 @@
 /* debug IDE devices */
 //#define DEBUG_IDE
 //#define DEBUG_IDE_ATAPI
+//#define DEBUG_AIO
+#define USE_DMA_CDROM
 
 /* Bits of HD_STATUS */
 #define ERR_STAT		0x01
@@ -368,19 +370,20 @@ typedef struct IDEState {
 #define UDIDETCR0	0x73
 #define UDIDETCR1	0x7B
 
-typedef int IDEDMAFunc(IDEState *s, 
-                       target_phys_addr_t phys_addr, 
-                       int transfer_size1);
-
 typedef struct BMDMAState {
     uint8_t cmd;
     uint8_t status;
     uint32_t addr;
-
+    
     struct PCIIDEState *pci_dev;
     /* current transfer state */
+    uint32_t cur_addr;
+    uint32_t cur_prd_last;
+    uint32_t cur_prd_addr;
+    uint32_t cur_prd_len;
     IDEState *ide_if;
-    IDEDMAFunc *dma_cb;
+    BlockDriverCompletionFunc *dma_cb;
+    BlockDriverAIOCB *aiocb;
 } BMDMAState;
 
 typedef struct PCIIDEState {
@@ -390,7 +393,7 @@ typedef struct PCIIDEState {
     int type; /* see IDE_TYPE_xxx */
 } PCIIDEState;
 
-static void ide_dma_start(IDEState *s, IDEDMAFunc *dma_cb);
+static void ide_dma_start(IDEState *s, BlockDriverCompletionFunc *dma_cb);
 
 static void padstr(char *str, const char *src, int len)
 {
@@ -513,10 +516,17 @@ static void ide_atapi_identify(IDEState *s)
     padstr((uint8_t *)(p + 23), QEMU_VERSION, 8); /* firmware version */
     padstr((uint8_t *)(p + 27), "QEMU CD-ROM", 40); /* model */
     put_le16(p + 48, 1); /* dword I/O (XXX: should not be set on CDROM) */
+#ifdef USE_DMA_CDROM
+    put_le16(p + 49, 1 << 9 | 1 << 8); /* DMA and LBA supported */
+    put_le16(p + 53, 7); /* words 64-70, 54-58, 88 valid */
+    put_le16(p + 63, 7);  /* mdma0-2 supported */
+    put_le16(p + 64, 0x3f); /* PIO modes supported */
+#else
     put_le16(p + 49, 1 << 9); /* LBA supported, no DMA */
     put_le16(p + 53, 3); /* words 64-70, 54-58 valid */
     put_le16(p + 63, 0x103); /* DMA modes XXX: may be incorrect */
     put_le16(p + 64, 1); /* PIO modes */
+#endif
     put_le16(p + 65, 0xb4); /* minimum DMA multiword tx cycle time */
     put_le16(p + 66, 0xb4); /* recommended DMA multiword tx cycle time */
     put_le16(p + 67, 0x12c); /* minimum PIO cycle time without flow control */
@@ -526,7 +536,9 @@ static void ide_atapi_identify(IDEState *s)
     put_le16(p + 72, 30); /* in ns */
 
     put_le16(p + 80, 0x1e); /* support up to ATA/ATAPI-4 */
-
+#ifdef USE_DMA_CDROM
+    put_le16(p + 88, 0x3f | (1 << 13)); /* udma5 set and supported */
+#endif
     memcpy(s->identify_data, p, sizeof(s->identify_data));
     s->identify_set = 1;
 }
@@ -659,54 +671,101 @@ static void ide_sector_read(IDEState *s)
     }
 }
 
-static int ide_read_dma_cb(IDEState *s, 
-                           target_phys_addr_t phys_addr, 
-                           int transfer_size1)
+/* return 0 if buffer completed */
+static int dma_buf_rw(BMDMAState *bm, int is_write)
 {
-    int len, transfer_size, n;
+    IDEState *s = bm->ide_if;
+    struct {
+        uint32_t addr;
+        uint32_t size;
+    } prd;
+    int l, len;
+
+    for(;;) {
+        l = s->io_buffer_size - s->io_buffer_index;
+        if (l <= 0) 
+            break;
+        if (bm->cur_prd_len == 0) {
+            /* end of table (with a fail safe of one page) */
+            if (bm->cur_prd_last ||
+                (bm->cur_addr - bm->addr) >= 4096)
+                return 0;
+            cpu_physical_memory_read(bm->cur_addr, (uint8_t *)&prd, 8);
+            bm->cur_addr += 8;
+            prd.addr = le32_to_cpu(prd.addr);
+            prd.size = le32_to_cpu(prd.size);
+            len = prd.size & 0xfffe;
+            if (len == 0)
+                len = 0x10000;
+            bm->cur_prd_len = len;
+            bm->cur_prd_addr = prd.addr;
+            bm->cur_prd_last = (prd.size & 0x80000000);
+        }
+        if (l > bm->cur_prd_len)
+            l = bm->cur_prd_len;
+        if (l > 0) {
+            if (is_write) {
+                cpu_physical_memory_write(bm->cur_prd_addr, 
+                                          s->io_buffer + s->io_buffer_index, l);
+            } else {
+                cpu_physical_memory_read(bm->cur_prd_addr, 
+                                          s->io_buffer + s->io_buffer_index, l);
+            }
+            bm->cur_prd_addr += l;
+            bm->cur_prd_len -= l;
+            s->io_buffer_index += l;
+        }
+    }
+    return 1;
+}
+
+/* XXX: handle errors */
+static void ide_read_dma_cb(void *opaque, int ret)
+{
+    BMDMAState *bm = opaque;
+    IDEState *s = bm->ide_if;
+    int n;
     int64_t sector_num;
 
-    transfer_size = transfer_size1;
-    while (transfer_size > 0) {
-        len = s->io_buffer_size - s->io_buffer_index;
-        if (len <= 0) {
-            /* transfert next data */
-            n = s->nsector;
-            if (n == 0)
-                break;
-            if (n > MAX_MULT_SECTORS)
-                n = MAX_MULT_SECTORS;
-            sector_num = ide_get_sector(s);
-            bdrv_read(s->bs, sector_num, s->io_buffer, n);
-            s->io_buffer_index = 0;
-            s->io_buffer_size = n * 512;
-            len = s->io_buffer_size;
-            sector_num += n;
-            ide_set_sector(s, sector_num);
-            s->nsector -= n;
-        }
-        if (len > transfer_size)
-            len = transfer_size;
-        cpu_physical_memory_write(phys_addr, 
-                                  s->io_buffer + s->io_buffer_index, len);
-        s->io_buffer_index += len;
-        transfer_size -= len;
-        phys_addr += len;
+    n = s->io_buffer_size >> 9;
+    sector_num = ide_get_sector(s);
+    if (n > 0) {
+        sector_num += n;
+        ide_set_sector(s, sector_num);
+        s->nsector -= n;
+        if (dma_buf_rw(bm, 1) == 0)
+            goto eot;
     }
-    if (s->io_buffer_index >= s->io_buffer_size && s->nsector == 0) {
+
+    /* end of transfer ? */
+    if (s->nsector == 0) {
         s->status = READY_STAT | SEEK_STAT;
         ide_set_irq(s);
-#ifdef DEBUG_IDE_ATAPI
-        printf("dma status=0x%x\n", s->status);
-#endif
-        return 0;
+    eot:
+        bm->status &= ~BM_STATUS_DMAING;
+        bm->status |= BM_STATUS_INT;
+        bm->dma_cb = NULL;
+        bm->ide_if = NULL;
+        bm->aiocb = NULL;
+        return;
     }
-    return transfer_size1 - transfer_size;
+
+    /* launch next transfer */
+    n = s->nsector;
+    if (n > MAX_MULT_SECTORS)
+        n = MAX_MULT_SECTORS;
+    s->io_buffer_index = 0;
+    s->io_buffer_size = n * 512;
+#ifdef DEBUG_AIO
+    printf("aio_read: sector_num=%lld n=%d\n", sector_num, n);
+#endif
+    bm->aiocb = bdrv_aio_read(s->bs, sector_num, s->io_buffer, n, 
+                              ide_read_dma_cb, bm);
 }
 
 static void ide_sector_read_dma(IDEState *s)
 {
-    s->status = READY_STAT | SEEK_STAT | DRQ_STAT;
+    s->status = READY_STAT | SEEK_STAT | DRQ_STAT | BUSY_STAT;
     s->io_buffer_index = 0;
     s->io_buffer_size = 0;
     ide_dma_start(s, ide_read_dma_cb);
@@ -761,71 +820,56 @@ static void ide_sector_write(IDEState *s)
     }
 }
 
-static int ide_write_dma_cb(IDEState *s, 
-                            target_phys_addr_t phys_addr, 
-                            int transfer_size1)
+/* XXX: handle errors */
+static void ide_write_dma_cb(void *opaque, int ret)
 {
-    int len, transfer_size, n;
+    BMDMAState *bm = opaque;
+    IDEState *s = bm->ide_if;
+    int n;
     int64_t sector_num;
 
-    transfer_size = transfer_size1;
-    for(;;) {
-        len = s->io_buffer_size - s->io_buffer_index;
-        if (len == 0) {
-            n = s->io_buffer_size >> 9;
-            sector_num = ide_get_sector(s);
-            bdrv_write(s->bs, sector_num, s->io_buffer, 
-                       s->io_buffer_size >> 9);
-            sector_num += n;
-            ide_set_sector(s, sector_num);
-            s->nsector -= n;
-            n = s->nsector;
-            if (n == 0) {
-                /* end of transfer */
-                s->status = READY_STAT | SEEK_STAT;
-#ifdef TARGET_I386
-                if (win2k_install_hack && ((++s->irq_count % 16) == 0)) {
-                    /* It seems there is a bug in the Windows 2000 installer 
-                       HDD IDE driver which fills the disk with empty logs 
-                       when the IDE write IRQ comes too early. This hack tries 
-                       to correct that at the expense of slower write 
-                       performances. Use this option _only_ to install Windows 
-                       2000. You must disable it for normal use. */
-                    qemu_mod_timer(s->sector_write_timer, 
-                            qemu_get_clock(vm_clock) + (ticks_per_sec / 1000));
-                } else 
-#endif
-                    ide_set_irq(s);
-                return 0;
-            }
-            if (n > MAX_MULT_SECTORS)
-                n = MAX_MULT_SECTORS;
-            s->io_buffer_index = 0;
-            s->io_buffer_size = n * 512;
-            len = s->io_buffer_size;
-        }
-        if (transfer_size <= 0)
-            break;
-        if (len > transfer_size)
-            len = transfer_size;
-        cpu_physical_memory_read(phys_addr, 
-                                 s->io_buffer + s->io_buffer_index, len);
-        s->io_buffer_index += len;
-        transfer_size -= len;
-        phys_addr += len;
+    n = s->io_buffer_size >> 9;
+    sector_num = ide_get_sector(s);
+    if (n > 0) {
+        sector_num += n;
+        ide_set_sector(s, sector_num);
+        s->nsector -= n;
     }
-    return transfer_size1 - transfer_size;
-}
 
-static void ide_sector_write_dma(IDEState *s)
-{
-    int n;
-    s->status = READY_STAT | SEEK_STAT | DRQ_STAT;
+    /* end of transfer ? */
+    if (s->nsector == 0) {
+        s->status = READY_STAT | SEEK_STAT;
+        ide_set_irq(s);
+    eot:
+        bm->status &= ~BM_STATUS_DMAING;
+        bm->status |= BM_STATUS_INT;
+        bm->dma_cb = NULL;
+        bm->ide_if = NULL;
+        bm->aiocb = NULL;
+        return;
+    }
+
+    /* launch next transfer */
     n = s->nsector;
     if (n > MAX_MULT_SECTORS)
         n = MAX_MULT_SECTORS;
     s->io_buffer_index = 0;
     s->io_buffer_size = n * 512;
+
+    if (dma_buf_rw(bm, 0) == 0)
+        goto eot;
+#ifdef DEBUG_AIO
+    printf("aio_write: sector_num=%lld n=%d\n", sector_num, n);
+#endif
+    bm->aiocb = bdrv_aio_write(s->bs, sector_num, s->io_buffer, n, 
+                               ide_write_dma_cb, bm);
+}
+
+static void ide_sector_write_dma(IDEState *s)
+{
+    s->status = READY_STAT | SEEK_STAT | DRQ_STAT | BUSY_STAT;
+    s->io_buffer_index = 0;
+    s->io_buffer_size = 0;
     ide_dma_start(s, ide_write_dma_cb);
 }
 
@@ -882,6 +926,23 @@ static void lba_to_msf(uint8_t *buf, int lba)
     buf[2] = lba % 75;
 }
 
+static void cd_data_to_raw(uint8_t *buf, int lba)
+{
+    /* sync bytes */
+    buf[0] = 0x00;
+    memset(buf + 1, 0xff, 10);
+    buf[11] = 0x00;
+    buf += 12;
+    /* MSF */
+    lba_to_msf(buf, lba);
+    buf[3] = 0x01; /* mode 1 data */
+    buf += 4;
+    /* data */
+    buf += 2048;
+    /* XXX: ECC not computed */
+    memset(buf, 0, 288);
+}
+
 static void cd_read_sector(BlockDriverState *bs, int lba, uint8_t *buf, 
                            int sector_size)
 {
@@ -890,20 +951,8 @@ static void cd_read_sector(BlockDriverState *bs, int lba, uint8_t *buf,
         bdrv_read(bs, (int64_t)lba << 2, buf, 4);
         break;
     case 2352:
-        /* sync bytes */
-        buf[0] = 0x00;
-        memset(buf + 1, 0xff, 10);
-        buf[11] = 0x00;
-        buf += 12;
-        /* MSF */
-        lba_to_msf(buf, lba);
-        buf[3] = 0x01; /* mode 1 data */
-        buf += 4;
-        /* data */
-        bdrv_read(bs, (int64_t)lba << 2, buf, 4);
-        buf += 2048;
-        /* ECC */
-        memset(buf, 0, 288);
+        bdrv_read(bs, (int64_t)lba << 2, buf + 16, 4);
+        cd_data_to_raw(buf, lba);
         break;
     default:
         break;
@@ -1013,46 +1062,58 @@ static void ide_atapi_cmd_read_pio(IDEState *s, int lba, int nb_sectors,
 }
 
 /* ATAPI DMA support */
-static int ide_atapi_cmd_read_dma_cb(IDEState *s, 
-                                     target_phys_addr_t phys_addr, 
-                                     int transfer_size1)
+
+/* XXX: handle read errors */
+static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
 {
-    int len, transfer_size;
-    
-    transfer_size = transfer_size1;
-    while (transfer_size > 0) {
-#ifdef DEBUG_IDE_ATAPI
-        printf("transfer_size: %d phys_addr=%08x\n", transfer_size, phys_addr);
-#endif
-        if (s->packet_transfer_size <= 0)
-            break;
-        len = s->cd_sector_size - s->io_buffer_index;
-        if (len <= 0) {
-            /* transfert next data */
-            cd_read_sector(s->bs, s->lba, s->io_buffer, s->cd_sector_size);
-            s->lba++;
-            s->io_buffer_index = 0;
-            len = s->cd_sector_size;
+    BMDMAState *bm = opaque;
+    IDEState *s = bm->ide_if;
+    int data_offset, n;
+
+    if (s->io_buffer_size > 0) {
+        if (s->cd_sector_size == 2352) {
+            n = 1;
+            cd_data_to_raw(s->io_buffer, s->lba);
+        } else {
+            n = s->io_buffer_size >> 11;
         }
-        if (len > transfer_size)
-            len = transfer_size;
-        cpu_physical_memory_write(phys_addr, 
-                                  s->io_buffer + s->io_buffer_index, len);
-        s->packet_transfer_size -= len;
-        s->io_buffer_index += len;
-        transfer_size -= len;
-        phys_addr += len;
+        s->packet_transfer_size -= s->io_buffer_size;
+        s->lba += n;
+        if (dma_buf_rw(bm, 1) == 0)
+            goto eot;
     }
+
     if (s->packet_transfer_size <= 0) {
         s->status = READY_STAT;
         s->nsector = (s->nsector & ~7) | ATAPI_INT_REASON_IO | ATAPI_INT_REASON_CD;
         ide_set_irq(s);
-#ifdef DEBUG_IDE_ATAPI
-        printf("dma status=0x%x\n", s->status);
-#endif
-        return 0;
+    eot:
+        bm->status &= ~BM_STATUS_DMAING;
+        bm->status |= BM_STATUS_INT;
+        bm->dma_cb = NULL;
+        bm->ide_if = NULL;
+        bm->aiocb = NULL;
+        return;
     }
-    return transfer_size1 - transfer_size;
+    
+    s->io_buffer_index = 0;
+    if (s->cd_sector_size == 2352) {
+        n = 1;
+        s->io_buffer_size = s->cd_sector_size;
+        data_offset = 16;
+    } else {
+        n = s->packet_transfer_size >> 11;
+        if (n > (MAX_MULT_SECTORS / 4))
+            n = (MAX_MULT_SECTORS / 4);
+        s->io_buffer_size = n * 2048;
+        data_offset = 0;
+    }
+#ifdef DEBUG_AIO
+    printf("aio_read_cd: lba=%u n=%d\n", s->lba, n);
+#endif
+    bm->aiocb = bdrv_aio_read(s->bs, (int64_t)s->lba << 2, 
+                              s->io_buffer + data_offset, n * 4, 
+                              ide_atapi_cmd_read_dma_cb, bm);
 }
 
 /* start a CD-CDROM read command with DMA */
@@ -1062,10 +1123,12 @@ static void ide_atapi_cmd_read_dma(IDEState *s, int lba, int nb_sectors,
 {
     s->lba = lba;
     s->packet_transfer_size = nb_sectors * sector_size;
-    s->io_buffer_index = sector_size;
+    s->io_buffer_index = 0;
+    s->io_buffer_size = 0;
     s->cd_sector_size = sector_size;
 
-    s->status = READY_STAT | DRQ_STAT;
+    /* XXX: check if BUSY_STAT should be set */
+    s->status = READY_STAT | DRQ_STAT | BUSY_STAT;
     ide_dma_start(s, ide_atapi_cmd_read_dma_cb);
 }
 
@@ -2103,59 +2166,19 @@ static void ide_map(PCIDevice *pci_dev, int region_num,
     }
 }
 
-/* XXX: full callback usage to prepare non blocking I/Os support -
-   error handling */
-static void ide_dma_loop(BMDMAState *bm)
-{
-    struct {
-        uint32_t addr;
-        uint32_t size;
-    } prd;
-    target_phys_addr_t cur_addr;
-    int len, i, len1;
-
-    cur_addr = bm->addr;
-    /* at most one page to avoid hanging if erroneous parameters */
-    for(i = 0; i < 512; i++) {
-        cpu_physical_memory_read(cur_addr, (uint8_t *)&prd, 8);
-        prd.addr = le32_to_cpu(prd.addr);
-        prd.size = le32_to_cpu(prd.size);
-#ifdef DEBUG_IDE
-        printf("ide: dma: prd: %08x: addr=0x%08x size=0x%08x\n", 
-               (int)cur_addr, prd.addr, prd.size);
-#endif
-        len = prd.size & 0xfffe;
-        if (len == 0)
-            len = 0x10000;
-        while (len > 0) {
-            len1 = bm->dma_cb(bm->ide_if, prd.addr, len);
-            if (len1 == 0)
-                goto the_end;
-            prd.addr += len1;
-            len -= len1;
-        }
-        /* end of transfer */
-        if (prd.size & 0x80000000)
-            break;
-        cur_addr += 8;
-    }
-    /* end of transfer */
- the_end:
-    bm->status &= ~BM_STATUS_DMAING;
-    bm->status |= BM_STATUS_INT;
-    bm->dma_cb = NULL;
-    bm->ide_if = NULL;
-}
-
-static void ide_dma_start(IDEState *s, IDEDMAFunc *dma_cb)
+static void ide_dma_start(IDEState *s, BlockDriverCompletionFunc *dma_cb)
 {
     BMDMAState *bm = s->bmdma;
     if(!bm)
         return;
     bm->ide_if = s;
     bm->dma_cb = dma_cb;
+    bm->cur_addr = bm->addr;
+    bm->cur_prd_last = 0;
+    bm->cur_prd_addr = 0;
+    bm->cur_prd_len = 0;
     if (bm->status & BM_STATUS_DMAING) {
-        ide_dma_loop(bm);
+        bm->dma_cb(bm, 0);
     }
 }
 
@@ -2167,14 +2190,28 @@ static void bmdma_cmd_writeb(void *opaque, uint32_t addr, uint32_t val)
 #endif
     if (!(val & BM_CMD_START)) {
         /* XXX: do it better */
-        bm->status &= ~BM_STATUS_DMAING;
+        if (bm->status & BM_STATUS_DMAING) {
+            bm->status &= ~BM_STATUS_DMAING;
+            /* cancel DMA request */
+            bm->ide_if = NULL;
+            bm->dma_cb = NULL;
+            if (bm->aiocb) {
+#ifdef DEBUG_AIO
+                printf("aio_cancel\n");
+#endif
+                bdrv_aio_cancel(bm->aiocb);
+                bm->aiocb = NULL;
+            }
+        }
         bm->cmd = val & 0x09;
     } else {
-        bm->status |= BM_STATUS_DMAING;
+        if (!(bm->status & BM_STATUS_DMAING)) {
+            bm->status |= BM_STATUS_DMAING;
+            /* start dma transfer if possible */
+            if (bm->dma_cb)
+                bm->dma_cb(bm, 0);
+        }
         bm->cmd = val & 0x09;
-        /* start dma transfer if possible */
-        if (bm->dma_cb)
-            ide_dma_loop(bm);
     }
 }
 
