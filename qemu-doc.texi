@@ -949,7 +949,7 @@ format. Normally this device is the first virtual hard drive.
 
 Use the monitor command @code{savevm} to create a new VM snapshot or
 replace an existing one. A human readable name can be assigned to each
-snapshots in addition to its numerical ID.
+snapshot in addition to its numerical ID.
 
 Use @code{loadvm} to restore a VM snapshot and @code{delvm} to remove
 a VM snapshot. @code{info snapshots} lists the available snapshots
@@ -972,8 +972,8 @@ and writable block device. The disk image snapshots are stored in
 every disk image. The size of a snapshot in a disk image is difficult
 to evaluate and is not shown by @code{info snapshots} because the
 associated disk sectors are shared among all the snapshots to save
-disk space (otherwise each snapshot would have to copy the full disk
-images).
+disk space (otherwise each snapshot would need a full copy of all the
+disk images).
 
 When using the (unrelated) @code{-snapshot} option
 (@ref{disk_images_snapshot_mode}), you can always make VM snapshots,
