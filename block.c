@@ -35,6 +35,12 @@
 #define SECTOR_BITS 9
 #define SECTOR_SIZE (1 << SECTOR_BITS)
 
+typedef struct BlockDriverAIOCBSync {
+    BlockDriverAIOCB common;
+    QEMUBH *bh;
+    int ret;
+} BlockDriverAIOCBSync;
+
 static BlockDriverAIOCB *bdrv_aio_read_em(BlockDriverState *bs,
         int64_t sector_num, uint8_t *buf, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque);
@@ -111,6 +117,7 @@ void bdrv_register(BlockDriver *bdrv)
         bdrv->bdrv_aio_read = bdrv_aio_read_em;
         bdrv->bdrv_aio_write = bdrv_aio_write_em;
         bdrv->bdrv_aio_cancel = bdrv_aio_cancel_em;
+        bdrv->aiocb_size = sizeof(BlockDriverAIOCBSync);
     } else if (!bdrv->bdrv_read && !bdrv->bdrv_pread) {
         /* add synchronous IO emulation layer */
         bdrv->bdrv_read = bdrv_read_em;
@@ -1061,14 +1068,6 @@ static void bdrv_aio_cancel_em(BlockDriverAIOCB *acb)
 {
 }
 #else
-typedef struct BlockDriverAIOCBSync {
-    BlockDriverAIOCB common;
-    QEMUBH *bh;
-    int ret;
-} BlockDriverAIOCBSync;
-
-static BlockDriverAIOCBSync *free_acb = NULL;
-
 static void bdrv_aio_bh_cb(void *opaque)
 {
     BlockDriverAIOCBSync *acb = opaque;
