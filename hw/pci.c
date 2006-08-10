@@ -416,6 +416,7 @@ typedef struct {
 
 static pci_class_desc pci_class_descriptions[] = 
 {
+    { 0x0100, "SCSI controller"},
     { 0x0101, "IDE controller"},
     { 0x0200, "Ethernet controller"},
     { 0x0300, "VGA controller"},
