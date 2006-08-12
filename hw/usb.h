@@ -34,6 +34,7 @@
 #define USB_RET_NAK    (-2)
 #define USB_RET_STALL  (-3)
 #define USB_RET_BABBLE (-4)
+#define USB_RET_ASYNC  (-5)
 
 #define USB_SPEED_LOW   0
 #define USB_SPEED_FULL  1
@@ -109,13 +110,12 @@
 
 typedef struct USBPort USBPort;
 typedef struct USBDevice USBDevice;
+typedef struct USBPacket USBPacket;
 
 /* definition of a USB device */
 struct USBDevice {
     void *opaque;
-    int (*handle_packet)(USBDevice *dev, int pid, 
-                         uint8_t devaddr, uint8_t devep,
-                         uint8_t *data, int len);
+    int (*handle_packet)(USBDevice *dev, USBPacket *p);
     void (*handle_destroy)(USBDevice *dev);
 
     int speed;
@@ -126,8 +126,7 @@ struct USBDevice {
     void (*handle_reset)(USBDevice *dev);
     int (*handle_control)(USBDevice *dev, int request, int value,
                           int index, int length, uint8_t *data);
-    int (*handle_data)(USBDevice *dev, int pid, uint8_t devep,
-                       uint8_t *data, int len);
+    int (*handle_data)(USBDevice *dev, USBPacket *p);
     uint8_t addr;
     char devname[32];
     
@@ -151,11 +150,54 @@ struct USBPort {
     struct USBPort *next; /* Used internally by qemu.  */
 };
 
+typedef void USBCallback(USBPacket * packet, void *opaque);
+
+/* Structure used to hold information about an active USB packet.  */
+struct USBPacket {
+    /* Data fields for use by the driver.  */
+    int pid;
+    uint8_t devaddr;
+    uint8_t devep;
+    uint8_t *data;
+    int len;
+    /* Internal use by the USB layer.  */
+    USBCallback *complete_cb;
+    void *complete_opaque;
+    USBCallback *cancel_cb;
+    void * *cancel_opaque;
+};
+
+/* Defer completion of a USB packet.  The hadle_packet routine should then
+   return USB_RET_ASYNC.  Packets that complete immediately (before
+   handle_packet returns) should not call this method.  */
+static inline void usb_defer_packet(USBPacket *p, USBCallback *cancel,
+                                    void * opaque)
+{
+    p->cancel_cb = cancel;
+    p->cancel_opaque = opaque;
+}
+
+/* Notify the controller that an async packet is complete.  This should only
+   be called for packets previously deferred with usb_defer_packet, and
+   should never be called from within handle_packet.  */
+static inline void usb_packet_complete(USBPacket *p)
+{
+    p->complete_cb(p, p->complete_opaque);
+}
+
+/* Cancel an active packet.  The packed must have been deferred with
+   usb_defer_packet,  and not yet completed.  */
+static inline void usb_cancel_packet(USBPacket * p)
+{
+    p->cancel_cb(p, p->cancel_opaque);
+}
+
 void usb_attach(USBPort *port, USBDevice *dev);
-int usb_generic_handle_packet(USBDevice *s, int pid, 
-                              uint8_t devaddr, uint8_t devep,
-                              uint8_t *data, int len);
+int usb_generic_handle_packet(USBDevice *s, USBPacket *p);
 int set_usb_string(uint8_t *buf, const char *str);
+void usb_send_msg(USBDevice *dev, int msg);
+
+void usb_packet_complete(USBPacket *p);
 
 /* usb hub */
 USBDevice *usb_hub_init(int nb_ports);

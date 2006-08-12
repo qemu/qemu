@@ -1146,6 +1146,11 @@ void do_usb_del(const char *devname);
 void usb_info(void);
 
 /* scsi-disk.c */
+enum scsi_reason {
+    SCSI_REASON_DONE, /* Command complete.  */
+    SCSI_REASON_DATA  /* Transfer complete, more data required.  */
+};
+
 typedef struct SCSIDevice SCSIDevice;
 typedef void (*scsi_completionfn)(void *, uint32_t, int);
 
@@ -1155,8 +1160,12 @@ SCSIDevice *scsi_disk_init(BlockDriverState *bdrv,
 void scsi_disk_destroy(SCSIDevice *s);
 
 int32_t scsi_send_command(SCSIDevice *s, uint32_t tag, uint8_t *buf, int lun);
+/* SCSI data transfers are asynchrnonous.  However, unlike the block IO
+   layer the completion routine may be called directly by
+   scsi_{read,write}_data.  */
 int scsi_read_data(SCSIDevice *s, uint8_t *data, uint32_t len);
 int scsi_write_data(SCSIDevice *s, uint8_t *data, uint32_t len);
+void scsi_cancel_io(SCSIDevice *s);
 
 /* lsi53c895a.c */
 void lsi_scsi_attach(void *opaque, BlockDriverState *bd, int id);

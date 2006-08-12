@@ -180,8 +180,7 @@ static void usb_hub_attach(USBPort *port1, USBDevice *dev)
             port->wPortStatus &= ~PORT_STAT_LOW_SPEED;
         port->port.dev = dev;
         /* send the attach message */
-        dev->handle_packet(dev, 
-                           USB_MSG_ATTACH, 0, 0, NULL, 0);
+        usb_send_msg(dev, USB_MSG_ATTACH);
     } else {
         dev = port->port.dev;
         if (dev) {
@@ -192,8 +191,7 @@ static void usb_hub_attach(USBPort *port1, USBDevice *dev)
                 port->wPortChange |= PORT_STAT_C_ENABLE;
             }
             /* send the detach message */
-            dev->handle_packet(dev, 
-                               USB_MSG_DETACH, 0, 0, NULL, 0);
+            usb_send_msg(dev, USB_MSG_DETACH);
             port->port.dev = NULL;
         }
     }
@@ -349,8 +347,7 @@ static int usb_hub_handle_control(USBDevice *dev, int request, int value,
                 break;
             case PORT_RESET:
                 if (dev) {
-                    dev->handle_packet(dev, 
-                                       USB_MSG_RESET, 0, 0, NULL, 0);
+                    usb_send_msg(dev, USB_MSG_RESET);
                     port->wPortChange |= PORT_STAT_C_RESET;
                     /* set enable bit */
                     port->wPortStatus |= PORT_STAT_ENABLE;
@@ -434,22 +431,21 @@ static int usb_hub_handle_control(USBDevice *dev, int request, int value,
     return ret;
 }
 
-static int usb_hub_handle_data(USBDevice *dev, int pid, 
-                               uint8_t devep, uint8_t *data, int len)
+static int usb_hub_handle_data(USBDevice *dev, USBPacket *p)
 {
     USBHubState *s = (USBHubState *)dev;
     int ret;
 
-    switch(pid) {
+    switch(p->pid) {
     case USB_TOKEN_IN:
-        if (devep == 1) {
+        if (p->devep == 1) {
             USBHubPort *port;
             unsigned int status;
             int i, n;
             n = (s->nb_ports + 1 + 7) / 8;
-            if (len == 1) { /* FreeBSD workaround */
+            if (p->len == 1) { /* FreeBSD workaround */
                 n = 1;
-            } else if (n > len) {
+            } else if (n > p->len) {
                 return USB_RET_BABBLE;
             }
             status = 0;
@@ -460,7 +456,7 @@ static int usb_hub_handle_data(USBDevice *dev, int pid,
             }
             if (status != 0) {
                 for(i = 0; i < n; i++) {
-                    data[i] = status >> (8 * i);
+                    p->data[i] = status >> (8 * i);
                 }
                 ret = n;
             } else {
@@ -479,9 +475,7 @@ static int usb_hub_handle_data(USBDevice *dev, int pid,
     return ret;
 }
 
-static int usb_hub_broadcast_packet(USBHubState *s, int pid, 
-                                    uint8_t devaddr, uint8_t devep,
-                                    uint8_t *data, int len)
+static int usb_hub_broadcast_packet(USBHubState *s, USBPacket *p)
 {
     USBHubPort *port;
     USBDevice *dev;
@@ -491,9 +485,7 @@ static int usb_hub_broadcast_packet(USBHubState *s, int pid,
         port = &s->ports[i];
         dev = port->port.dev;
         if (dev && (port->wPortStatus & PORT_STAT_ENABLE)) {
-            ret = dev->handle_packet(dev, pid, 
-                                     devaddr, devep,
-                                     data, len);
+            ret = dev->handle_packet(dev, p);
             if (ret != USB_RET_NODEV) {
                 return ret;
             }
@@ -502,9 +494,7 @@ static int usb_hub_broadcast_packet(USBHubState *s, int pid,
     return USB_RET_NODEV;
 }
 
-static int usb_hub_handle_packet(USBDevice *dev, int pid, 
-                                 uint8_t devaddr, uint8_t devep,
-                                 uint8_t *data, int len)
+static int usb_hub_handle_packet(USBDevice *dev, USBPacket *p)
 {
     USBHubState *s = (USBHubState *)dev;
 
@@ -513,14 +503,14 @@ static int usb_hub_handle_packet(USBDevice *dev, int pid,
 #endif
     if (dev->state == USB_STATE_DEFAULT &&
         dev->addr != 0 &&
-        devaddr != dev->addr &&
-        (pid == USB_TOKEN_SETUP || 
-         pid == USB_TOKEN_OUT || 
-         pid == USB_TOKEN_IN)) {
+        p->devaddr != dev->addr &&
+        (p->pid == USB_TOKEN_SETUP || 
+         p->pid == USB_TOKEN_OUT || 
+         p->pid == USB_TOKEN_IN)) {
         /* broadcast the packet to the devices */
-        return usb_hub_broadcast_packet(s, pid, devaddr, devep, data, len);
+        return usb_hub_broadcast_packet(s, p);
     }
-    return usb_generic_handle_packet(dev, pid, devaddr, devep, data, len);
+    return usb_generic_handle_packet(dev, p);
 }
 
 static void usb_hub_handle_destroy(USBDevice *dev)

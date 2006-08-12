@@ -38,13 +38,13 @@ void usb_attach(USBPort *port, USBDevice *dev)
 #define SETUP_STATE_DATA 1
 #define SETUP_STATE_ACK  2
 
-int usb_generic_handle_packet(USBDevice *s, int pid, 
-                              uint8_t devaddr, uint8_t devep,
-                              uint8_t *data, int len)
+int usb_generic_handle_packet(USBDevice *s, USBPacket *p)
 {
     int l, ret = 0;
+    int len = p->len;
+    uint8_t *data = p->data;
 
-    switch(pid) {
+    switch(p->pid) {
     case USB_MSG_ATTACH:
         s->state = USB_STATE_ATTACHED;
         break;
@@ -58,7 +58,7 @@ int usb_generic_handle_packet(USBDevice *s, int pid,
         s->handle_reset(s);
         break;
     case USB_TOKEN_SETUP:
-        if (s->state < USB_STATE_DEFAULT || devaddr != s->addr)
+        if (s->state < USB_STATE_DEFAULT || p->devaddr != s->addr)
             return USB_RET_NODEV;
         if (len != 8)
             goto fail;
@@ -85,9 +85,9 @@ int usb_generic_handle_packet(USBDevice *s, int pid,
         }
         break;
     case USB_TOKEN_IN:
-        if (s->state < USB_STATE_DEFAULT || devaddr != s->addr)
+        if (s->state < USB_STATE_DEFAULT || p->devaddr != s->addr)
             return USB_RET_NODEV;
-        switch(devep) {
+        switch(p->devep) {
         case 0:
             switch(s->setup_state) {
             case SETUP_STATE_ACK:
@@ -125,14 +125,14 @@ int usb_generic_handle_packet(USBDevice *s, int pid,
             }
             break;
         default:
-            ret = s->handle_data(s, pid, devep, data, len);
+            ret = s->handle_data(s, p);
             break;
         }
         break;
     case USB_TOKEN_OUT:
-        if (s->state < USB_STATE_DEFAULT || devaddr != s->addr)
+        if (s->state < USB_STATE_DEFAULT || p->devaddr != s->addr)
             return USB_RET_NODEV;
-        switch(devep) {
+        switch(p->devep) {
         case 0:
             switch(s->setup_state) {
             case SETUP_STATE_ACK:
@@ -163,7 +163,7 @@ int usb_generic_handle_packet(USBDevice *s, int pid,
             }
             break;
         default:
-            ret = s->handle_data(s, pid, devep, data, len);
+            ret = s->handle_data(s, p);
             break;
         }
         break;
@@ -191,3 +191,13 @@ int set_usb_string(uint8_t *buf, const char *str)
     }
     return q - buf;
 }
+
+/* Send an internal message to a USB device.  */
+void usb_send_msg(USBDevice *dev, int msg)
+{
+    USBPacket p;
+    memset(&p, 0, sizeof(p));
+    p.pid = msg;
+    dev->handle_packet(dev, &p);
+}
+

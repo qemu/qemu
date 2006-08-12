@@ -33,9 +33,12 @@ typedef struct {
     USBDevice dev;
     enum USBMSDMode mode;
     uint32_t data_len;
+    uint32_t transfer_len;
     uint32_t tag;
     SCSIDevice *scsi_dev;
     int result;
+    /* For async completion.  */
+    USBPacket *packet;
 } MSDState;
 
 static const uint8_t qemu_msd_dev_descriptor[] = {
@@ -103,13 +106,27 @@ static const uint8_t qemu_msd_config_descriptor[] = {
 	0x00        /*  u8  ep_bInterval; */
 };
 
-static void usb_msd_command_complete(void *opaque, uint32_t tag, int fail)
+static void usb_msd_command_complete(void *opaque, uint32_t reason, int fail)
 {
     MSDState *s = (MSDState *)opaque;
+    USBPacket *p;
 
-    DPRINTF("Command complete\n");
-    s->result = fail;
-    s->mode = USB_MSDM_CSW;
+    s->data_len -= s->transfer_len;
+    s->transfer_len = 0;
+    if (reason == SCSI_REASON_DONE) {
+        DPRINTF("Command complete %d\n", fail);
+        s->result = fail;
+        s->mode = USB_MSDM_CSW;
+    }
+    if (s->packet) {
+        /* Set s->packet to NULL before calling usb_packet_complete because
+           annother request may be issues before usb_packet_complete returns.
+         */
+        DPRINTF("Packet complete %p\n", p);
+        p = s->packet;
+        s->packet = NULL;
+        usb_packet_complete(p);
+    }
 }
 
 static void usb_msd_handle_reset(USBDevice *dev)
@@ -250,15 +267,24 @@ struct usb_msd_csw {
     uint8_t status;
 };
 
-static int usb_msd_handle_data(USBDevice *dev, int pid, uint8_t devep,
-                               uint8_t *data, int len)
+static void usb_msd_cancel_io(USBPacket *p, void *opaque)
+{
+    MSDState *s = opaque;
+    scsi_cancel_io(s->scsi_dev);
+    s->packet = NULL;
+}
+
+static int usb_msd_handle_data(USBDevice *dev, USBPacket *p)
 {
     MSDState *s = (MSDState *)dev;
     int ret = 0;
     struct usb_msd_cbw cbw;
     struct usb_msd_csw csw;
+    uint8_t devep = p->devep;
+    uint8_t *data = p->data;
+    int len = p->len;
 
-    switch (pid) {
+    switch (p->pid) {
     case USB_TOKEN_OUT:
         if (devep != 2)
             goto fail;
@@ -300,13 +326,18 @@ static int usb_msd_handle_data(USBDevice *dev, int pid, uint8_t devep,
             if (len > s->data_len)
                 goto fail;
 
+            s->transfer_len = len;
             if (scsi_write_data(s->scsi_dev, data, len))
                 goto fail;
 
-            s->data_len -= len;
-            if (s->data_len == 0)
-                s->mode = USB_MSDM_CSW;
-            ret = len;
+            if (s->transfer_len == 0) {
+                ret = len;
+            } else {
+                DPRINTF("Deferring packet %p\n", p);
+                usb_defer_packet(p, usb_msd_cancel_io, s);
+                s->packet = p;
+                ret = USB_RET_ASYNC;
+            }
             break;
 
         default:
@@ -340,13 +371,18 @@ static int usb_msd_handle_data(USBDevice *dev, int pid, uint8_t devep,
             if (len > s->data_len)
                 len = s->data_len;
 
+            s->transfer_len = len;
             if (scsi_read_data(s->scsi_dev, data, len))
                 goto fail;
 
-            s->data_len -= len;
-            if (s->data_len == 0)
-                s->mode = USB_MSDM_CSW;
-            ret = len;
+            if (s->transfer_len == 0) {
+                ret = len;
+            } else {
+                DPRINTF("Deferring packet %p\n", p);
+                usb_defer_packet(p, usb_msd_cancel_io, s);
+                s->packet = p;
+                ret = USB_RET_ASYNC;
+            }
             break;
 
         default:
