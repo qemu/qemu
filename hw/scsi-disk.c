@@ -447,6 +447,7 @@ int32_t scsi_send_command(SCSIDevice *s, uint32_t tag, uint8_t *buf, int lun)
             s->buf_len = 8;
         } else {
             scsi_command_complete(s, SENSE_NOT_READY);
+            return 0;
         }
 	break;
     case 0x08:
