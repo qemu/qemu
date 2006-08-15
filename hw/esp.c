@@ -206,7 +206,6 @@ static void esp_do_dma(ESPState *s)
 {
     uint32_t dmaptr, minlen, len, from, to;
     int to_device;
-    dmaptr = iommu_translate(s->espdmaregs[1]);
     to_device = (s->espdmaregs[0] & DMA_WRITE_MEM) == 0;
     from = s->espdmaregs[1];
     minlen = s->dma_left;
@@ -218,8 +217,8 @@ static void esp_do_dma(ESPState *s)
        len = to - from;
     }
     DPRINTF("DMA address p %08x v %08x len %08x, from %08x, to %08x\n", dmaptr, s->espdmaregs[1], len, from, to);
-    s->espdmaregs[1] += len;
     if (s->do_cmd) {
+        s->espdmaregs[1] += len;
         s->ti_size -= len;
         DPRINTF("command len %d + %d\n", s->cmdlen, len);
         cpu_physical_memory_read(dmaptr, &s->cmdbuf[s->cmdlen], len);
