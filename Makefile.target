@@ -66,8 +66,8 @@ LDFLAGS+=-static
 endif
 
 ifeq ($(ARCH),i386)
-CFLAGS+=-fomit-frame-pointer
-OP_CFLAGS=$(CFLAGS) -mpreferred-stack-boundary=2
+HELPER_CFLAGS:=$(CFLAGS) -fomit-frame-pointer
+OP_CFLAGS:=$(CFLAGS) -mpreferred-stack-boundary=2 -fomit-frame-pointer
 ifeq ($(HAVE_GCC3_OPTIONS),yes)
 OP_CFLAGS+= -falign-functions=0 -fno-gcse
 else
@@ -471,7 +471,18 @@ gen-op.h: op.o $(DYNGEN)
 op.o: op.c
 	$(CC) $(OP_CFLAGS) $(DEFINES) -c -o $@ $<
 
+# HELPER_CFLAGS is used for all the code compiled with static register
+# variables
+ifeq ($(TARGET_BASE_ARCH), i386)
+# XXX: rename helper.c to op_helper.c
 helper.o: helper.c
+	$(CC) $(HELPER_CFLAGS) $(DEFINES) -c -o $@ $<
+else
+op_helper.o: op_helper.c
+	$(CC) $(HELPER_CFLAGS) $(DEFINES) -c -o $@ $<
+endif
+
+cpu-exec.o: cpu-exec.c
 	$(CC) $(HELPER_CFLAGS) $(DEFINES) -c -o $@ $<
 
 ifeq ($(TARGET_BASE_ARCH), i386)
