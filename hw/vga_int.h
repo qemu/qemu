@@ -83,6 +83,7 @@
     unsigned int vram_size;                                             \
     unsigned long bios_offset;                                          \
     unsigned int bios_size;                                             \
+    PCIDevice *pci_dev;                                                 \
     uint32_t latch;                                                     \
     uint8_t sr_index;                                                   \
     uint8_t sr[256];                                                    \
