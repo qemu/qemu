@@ -768,8 +768,13 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
                                 vga_ram_size);
         }
     } else {
-        vga_initialize(pci_bus, ds, phys_ram_base + ram_size, ram_size, 
-                       vga_ram_size, 0, 0);
+        if (pci_enabled) {
+            pci_vga_init(pci_bus, ds, phys_ram_base + ram_size, ram_size, 
+                         vga_ram_size, 0, 0);
+        } else {
+            isa_vga_init(ds, phys_ram_base + ram_size, ram_size, 
+                         vga_ram_size);
+        }
     }
 
     rtc_state = rtc_init(0x70, 8);

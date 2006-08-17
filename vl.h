@@ -744,8 +744,8 @@ uint32_t pci_default_read_config(PCIDevice *d,
                                  uint32_t address, int len);
 void pci_default_write_config(PCIDevice *d, 
                               uint32_t address, uint32_t val, int len);
-void generic_pci_save(QEMUFile* f, void *opaque);
-int generic_pci_load(QEMUFile* f, void *opaque, int version_id);
+void pci_device_save(PCIDevice *s, QEMUFile *f);
+int pci_device_load(PCIDevice *s, QEMUFile *f);
 
 typedef void (*pci_set_irq_fn)(PCIDevice *pci_dev, void *pic,
                                int irq_num, int level);
@@ -834,9 +834,11 @@ static inline void dpy_resize(DisplayState *s, int w, int h)
     s->dpy_resize(s, w, h);
 }
 
-int vga_initialize(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base, 
-                   unsigned long vga_ram_offset, int vga_ram_size,
-                   unsigned long vga_bios_offset, int vga_bios_size);
+int isa_vga_init(DisplayState *ds, uint8_t *vga_ram_base, 
+                 unsigned long vga_ram_offset, int vga_ram_size);
+int pci_vga_init(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base, 
+                 unsigned long vga_ram_offset, int vga_ram_size,
+                 unsigned long vga_bios_offset, int vga_bios_size);
 
 /* cirrus_vga.c */
 void pci_cirrus_vga_init(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base, 

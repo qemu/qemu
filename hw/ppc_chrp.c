@@ -424,9 +424,9 @@ static void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
         pic = heathrow_pic_init(&heathrow_pic_mem_index);
         set_irq = heathrow_pic_set_irq;
         pci_bus = pci_grackle_init(0xfec00000, pic);
-        vga_initialize(pci_bus, ds, phys_ram_base + ram_size, 
-                       ram_size, vga_ram_size,
-                       vga_bios_offset, vga_bios_size);
+        pci_vga_init(pci_bus, ds, phys_ram_base + ram_size, 
+                     ram_size, vga_ram_size,
+                     vga_bios_offset, vga_bios_size);
 
         /* XXX: suppress that */
         isa_pic = pic_init(pic_irq_request, NULL);
@@ -474,9 +474,9 @@ static void ppc_chrp_init(int ram_size, int vga_ram_size, int boot_device,
         set_irq = openpic_set_irq;
         pci_bus = pci_pmac_init(pic);
         /* init basic PC hardware */
-        vga_initialize(pci_bus, ds, phys_ram_base + ram_size,
-                       ram_size, vga_ram_size,
-                       vga_bios_offset, vga_bios_size);
+        pci_vga_init(pci_bus, ds, phys_ram_base + ram_size,
+                     ram_size, vga_ram_size,
+                     vga_bios_offset, vga_bios_size);
 
         /* XXX: suppress that */
         isa_pic = pic_init(pic_irq_request, NULL);
