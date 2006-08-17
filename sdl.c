@@ -394,6 +394,8 @@ static void sdl_refresh(DisplayState *ds)
                         gui_keysym = 1;
                         break;
                     case 0x02 ... 0x0a: /* '1' to '9' keys */ 
+                        /* Reset the modifiers sent to the current console */
+                        reset_keys();
                         console_select(keycode - 0x02);
                         if (!is_graphic_console()) {
                             /* display grab if going to a text console */
@@ -468,7 +470,7 @@ static void sdl_refresh(DisplayState *ds)
                     }
                 }
             }
-            if (is_graphic_console()) 
+            if (is_graphic_console() && !gui_keysym) 
                 sdl_process_key(&ev->key);
             break;
         case SDL_QUIT:
