@@ -614,6 +614,9 @@ translation mode (@var{t}=none, lba or auto). Usually QEMU can guess
 all thoses parameters. This option is useful for old MS-DOS disk
 images.
 
+@item -L path
+Set the directory for the BIOS, VGA BIOS and keymaps.
+
 @item -std-vga
 Simulate a standard VGA card with Bochs VBE extensions (default is
 Cirrus Logic GD5446 PCI VGA). If your guest OS supports the VESA 2.0

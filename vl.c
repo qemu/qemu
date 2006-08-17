@@ -5899,7 +5899,7 @@ void help(void)
            "-d item1,...    output log to %s (use -d ? for a list of log items)\n"
            "-hdachs c,h,s[,t]  force hard disk 0 physical geometry and the optional BIOS\n"
            "                translation (t=none or lba) (usually qemu can guess them)\n"
-           "-L path         set the directory for the BIOS and VGA BIOS\n"
+           "-L path         set the directory for the BIOS, VGA BIOS and keymaps\n"
 #ifdef USE_KQEMU
            "-kernel-kqemu   enable KQEMU full virtualization (default is user mode only)\n"
            "-no-kqemu       disable KQEMU kernel module usage\n"
