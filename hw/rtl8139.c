@@ -3122,6 +3122,8 @@ static void rtl8139_save(QEMUFile* f,void* opaque)
     RTL8139State* s=(RTL8139State*)opaque;
     int i;
 
+    pci_device_save(s->pci_dev, f);
+
     qemu_put_buffer(f, s->phys, 6);
     qemu_put_buffer(f, s->mult, 8);
 
@@ -3203,11 +3205,17 @@ static void rtl8139_save(QEMUFile* f,void* opaque)
 static int rtl8139_load(QEMUFile* f,void* opaque,int version_id)
 {
     RTL8139State* s=(RTL8139State*)opaque;
-    int i;
+    int i, ret;
 
     /* just 2 versions for now */
-    if (version_id > 2)
+    if (version_id > 3)
             return -EINVAL;
+
+    if (version_id >= 3) {
+        ret = pci_device_load(s->pci_dev, f);
+        if (ret < 0)
+            return ret;
+    }
 
     /* saved since version 1 */
     qemu_get_buffer(f, s->phys, 6);
@@ -3457,9 +3465,7 @@ void pci_rtl8139_init(PCIBus *bus, NICInfo *nd)
     s->cplus_txbuffer_offset = 0;
              
     /* XXX: instance number ? */
-    register_savevm("rtl8139", 0, 2, rtl8139_save, rtl8139_load, s);
-    register_savevm("rtl8139_pci", 0, 1, generic_pci_save, generic_pci_load, 
-                    &d->dev);
+    register_savevm("rtl8139", 0, 3, rtl8139_save, rtl8139_load, s);
 
 #if RTL8139_ONBOARD_TIMER
     s->timer = qemu_new_timer(vm_clock, rtl8139_timer, s);

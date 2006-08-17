@@ -648,6 +648,9 @@ static void ne2000_save(QEMUFile* f,void* opaque)
 {
 	NE2000State* s=(NE2000State*)opaque;
 
+        if (s->pci_dev)
+            pci_device_save(s->pci_dev, f);
+
         qemu_put_8s(f, &s->rxcr);
 
 	qemu_put_8s(f, &s->cmd);
@@ -673,13 +676,21 @@ static void ne2000_save(QEMUFile* f,void* opaque)
 static int ne2000_load(QEMUFile* f,void* opaque,int version_id)
 {
 	NE2000State* s=(NE2000State*)opaque;
+        int ret;
 
-        if (version_id == 2) {
-            qemu_get_8s(f, &s->rxcr);
-        } else if (version_id == 1) {
-            s->rxcr = 0x0c;
-        } else {
+        if (version_id > 3)
             return -EINVAL;
+
+        if (s->pci_dev && version_id >= 3) {
+            ret = pci_device_load(s->pci_dev, f);
+            if (ret < 0)
+                return ret;
+        }
+
+        if (version_id >= 2) {
+            qemu_get_8s(f, &s->rxcr);
+        } else {
+            s->rxcr = 0x0c;
         }
 
 	qemu_get_8s(f, &s->cmd);
@@ -810,7 +821,5 @@ void pci_ne2000_init(PCIBus *bus, NICInfo *nd)
              s->macaddr[5]);
              
     /* XXX: instance number ? */
-    register_savevm("ne2000", 0, 2, ne2000_save, ne2000_load, s);
-    register_savevm("ne2000_pci", 0, 1, generic_pci_save, generic_pci_load, 
-                    &d->dev);
+    register_savevm("ne2000", 0, 3, ne2000_save, ne2000_load, s);
 }

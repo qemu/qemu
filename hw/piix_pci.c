@@ -181,6 +181,20 @@ static void piix3_reset(PCIDevice *d)
     pci_conf[0xae] = 0x00;
 }
 
+static void piix_save(QEMUFile* f, void *opaque)
+{
+    PCIDevice *d = opaque;
+    pci_device_save(d, f);
+}
+
+static int piix_load(QEMUFile* f, void *opaque, int version_id)
+{
+    PCIDevice *d = opaque;
+    if (version_id != 2)
+        return -EINVAL;
+    return pci_device_load(d, f);
+}
+
 int piix3_init(PCIBus *bus)
 {
     PCIDevice *d;
@@ -188,7 +202,7 @@ int piix3_init(PCIBus *bus)
 
     d = pci_register_device(bus, "PIIX3", sizeof(PCIDevice),
                                     -1, NULL, NULL);
-    register_savevm("PIIX3", 0, 1, generic_pci_save, generic_pci_load, d);
+    register_savevm("PIIX3", 0, 2, piix_save, piix_load, d);
 
     piix3_dev = d;
     pci_conf = d->config;
