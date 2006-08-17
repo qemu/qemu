@@ -4539,7 +4539,11 @@ void do_savevm(const char *name)
     BlockDriverInfo bdi1, *bdi = &bdi1;
     QEMUFile *f;
     int saved_vm_running;
+#ifdef _WIN32
+    struct _timeb tb;
+#else
     struct timeval tv;
+#endif
 
     bs = get_bs_snapshots();
     if (!bs) {
@@ -4567,9 +4571,15 @@ void do_savevm(const char *name)
     }
 
     /* fill auxiliary fields */
+#ifdef _WIN32
+    _ftime(&tb);
+    sn->date_sec = tb.time;
+    sn->date_nsec = tb.millitm * 1000000;
+#else
     gettimeofday(&tv, NULL);
     sn->date_sec = tv.tv_sec;
     sn->date_nsec = tv.tv_usec * 1000;
+#endif
     sn->vm_clock_nsec = qemu_get_clock(vm_clock);
     
     if (bdrv_get_info(bs, bdi) < 0 || bdi->vm_state_offset <= 0) {
