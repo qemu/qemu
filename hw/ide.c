@@ -2409,6 +2409,117 @@ void pci_cmd646_ide_init(PCIBus *bus, BlockDriverState **hd_table,
               cmd646_set_irq, d, 1);
 }
 
+static void pci_ide_save(QEMUFile* f, void *opaque)
+{
+    PCIIDEState *d = opaque;
+    int i;
+
+    pci_device_save(&d->dev, f);
+
+    for(i = 0; i < 2; i++) {
+        BMDMAState *bm = &d->bmdma[i];
+        qemu_put_8s(f, &bm->cmd);
+        qemu_put_8s(f, &bm->status);
+        qemu_put_be32s(f, &bm->addr);
+        /* XXX: if a transfer is pending, we do not save it yet */
+    }
+
+    /* per IDE interface data */
+    for(i = 0; i < 2; i++) {
+        IDEState *s = &d->ide_if[i * 2];
+        uint8_t drive1_selected;
+        qemu_put_8s(f, &s->cmd);
+        drive1_selected = (s->cur_drive != s);
+        qemu_put_8s(f, &drive1_selected);
+    }
+
+    /* per IDE drive data */
+    for(i = 0; i < 4; i++) {
+        IDEState *s = &d->ide_if[i];
+        qemu_put_be32s(f, &s->mult_sectors);
+        qemu_put_be32s(f, &s->identify_set);
+        if (s->identify_set) {
+            qemu_put_buffer(f, (const uint8_t *)s->identify_data, 512);
+        }
+        qemu_put_8s(f, &s->feature);
+        qemu_put_8s(f, &s->error);
+        qemu_put_be32s(f, &s->nsector);
+        qemu_put_8s(f, &s->sector);
+        qemu_put_8s(f, &s->lcyl);
+        qemu_put_8s(f, &s->hcyl);
+        qemu_put_8s(f, &s->hob_feature);
+        qemu_put_8s(f, &s->hob_nsector);
+        qemu_put_8s(f, &s->hob_sector);
+        qemu_put_8s(f, &s->hob_lcyl);
+        qemu_put_8s(f, &s->hob_hcyl);
+        qemu_put_8s(f, &s->select);
+        qemu_put_8s(f, &s->status);
+        qemu_put_8s(f, &s->lba48);
+
+        qemu_put_8s(f, &s->sense_key);
+        qemu_put_8s(f, &s->asc);
+        /* XXX: if a transfer is pending, we do not save it yet */
+    }
+}
+
+static int pci_ide_load(QEMUFile* f, void *opaque, int version_id)
+{
+    PCIIDEState *d = opaque;
+    int ret, i;
+
+    if (version_id != 1)
+        return -EINVAL;
+    ret = pci_device_load(&d->dev, f);
+    if (ret < 0)
+        return ret;
+
+    for(i = 0; i < 2; i++) {
+        BMDMAState *bm = &d->bmdma[i];
+        qemu_get_8s(f, &bm->cmd);
+        qemu_get_8s(f, &bm->status);
+        qemu_get_be32s(f, &bm->addr);
+        /* XXX: if a transfer is pending, we do not save it yet */
+    }
+
+    /* per IDE interface data */
+    for(i = 0; i < 2; i++) {
+        IDEState *s = &d->ide_if[i * 2];
+        uint8_t drive1_selected;
+        qemu_get_8s(f, &s->cmd);
+        qemu_get_8s(f, &drive1_selected);
+        s->cur_drive = &d->ide_if[i * 2 + (drive1_selected != 0)];
+    }
+
+    /* per IDE drive data */
+    for(i = 0; i < 4; i++) {
+        IDEState *s = &d->ide_if[i];
+        qemu_get_be32s(f, &s->mult_sectors);
+        qemu_get_be32s(f, &s->identify_set);
+        if (s->identify_set) {
+            qemu_get_buffer(f, (uint8_t *)s->identify_data, 512);
+        }
+        qemu_get_8s(f, &s->feature);
+        qemu_get_8s(f, &s->error);
+        qemu_get_be32s(f, &s->nsector);
+        qemu_get_8s(f, &s->sector);
+        qemu_get_8s(f, &s->lcyl);
+        qemu_get_8s(f, &s->hcyl);
+        qemu_get_8s(f, &s->hob_feature);
+        qemu_get_8s(f, &s->hob_nsector);
+        qemu_get_8s(f, &s->hob_sector);
+        qemu_get_8s(f, &s->hob_lcyl);
+        qemu_get_8s(f, &s->hob_hcyl);
+        qemu_get_8s(f, &s->select);
+        qemu_get_8s(f, &s->status);
+        qemu_get_8s(f, &s->lba48);
+
+        qemu_get_8s(f, &s->sense_key);
+        qemu_get_8s(f, &s->asc);
+        /* XXX: if a transfer is pending, we do not save it yet */
+    }
+    return 0;
+}
+
 /* hd_table must contain 4 block drivers */
 /* NOTE: for the PIIX3, the IRQs and IOports are hardcoded */
 void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn)
@@ -2442,6 +2553,8 @@ void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn)
               pic_set_irq_new, isa_pic, 15);
     ide_init_ioport(&d->ide_if[0], 0x1f0, 0x3f6);
     ide_init_ioport(&d->ide_if[2], 0x170, 0x376);
+
+    register_savevm("ide", 0, 1, pci_ide_save, pci_ide_load, d);
 }
 
 /***********************************************************/
