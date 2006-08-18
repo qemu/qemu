@@ -935,13 +935,15 @@ static int update_palette256(VGAState *s)
 
 static void vga_get_offsets(VGAState *s, 
                             uint32_t *pline_offset, 
-                            uint32_t *pstart_addr)
+                            uint32_t *pstart_addr,
+                            uint32_t *pline_compare)
 {
-    uint32_t start_addr, line_offset;
+    uint32_t start_addr, line_offset, line_compare;
 #ifdef CONFIG_BOCHS_VBE
     if (s->vbe_regs[VBE_DISPI_INDEX_ENABLE] & VBE_DISPI_ENABLED) {
         line_offset = s->vbe_line_offset;
         start_addr = s->vbe_start_addr;
+        line_compare = 65535;
     } else
 #endif
     {  
@@ -951,9 +953,15 @@ static void vga_get_offsets(VGAState *s,
 
         /* starting address */
         start_addr = s->cr[0x0d] | (s->cr[0x0c] << 8);
+
+        /* line compare */
+        line_compare = s->cr[0x18] | 
+            ((s->cr[0x07] & 0x10) << 4) |
+            ((s->cr[0x09] & 0x40) << 3);
     }
     *pline_offset = line_offset;
     *pstart_addr = start_addr;
+    *pline_compare = line_compare;
 }
 
 /* update start_addr and line_offset. Return TRUE if modified */
@@ -964,11 +972,7 @@ static int update_basic_params(VGAState *s)
     
     full_update = 0;
 
-    s->get_offsets(s, &line_offset, &start_addr);
-    /* line compare */
-    line_compare = s->cr[0x18] | 
-        ((s->cr[0x07] & 0x10) << 4) |
-        ((s->cr[0x09] & 0x40) << 3);
+    s->get_offsets(s, &line_offset, &start_addr, &line_compare);
 
     if (line_offset != s->line_offset ||
         start_addr != s->start_addr ||

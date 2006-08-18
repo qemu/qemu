@@ -1000,12 +1000,12 @@ static void cirrus_write_bitblt(CirrusVGAState * s, unsigned reg_value)
  ***************************************/
 
 static void cirrus_get_offsets(VGAState *s1, 
-                                   uint32_t *pline_offset,
-                                   uint32_t *pstart_addr)
+                               uint32_t *pline_offset,
+                               uint32_t *pstart_addr,
+                               uint32_t *pline_compare)
 {
     CirrusVGAState * s = (CirrusVGAState *)s1;
-    uint32_t start_addr;
-    uint32_t line_offset;
+    uint32_t start_addr, line_offset, line_compare;
 
     line_offset = s->cr[0x13]
 	| ((s->cr[0x1b] & 0x10) << 4);
@@ -1018,6 +1018,11 @@ static void cirrus_get_offsets(VGAState *s1,
 	| ((s->cr[0x1b] & 0x0c) << 15)
 	| ((s->cr[0x1d] & 0x80) << 12);
     *pstart_addr = start_addr;
+
+    line_compare = s->cr[0x18] | 
+        ((s->cr[0x07] & 0x10) << 4) |
+        ((s->cr[0x09] & 0x40) << 3);
+    *pline_compare = line_compare;
 }
 
 static uint32_t cirrus_get_bpp16_depth(CirrusVGAState * s)
