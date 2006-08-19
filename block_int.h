@@ -70,6 +70,12 @@ struct BlockDriver {
                               QEMUSnapshotInfo **psn_info);
     int (*bdrv_get_info)(BlockDriverState *bs, BlockDriverInfo *bdi);
 
+    /* removable device specific */
+    int (*bdrv_is_inserted)(BlockDriverState *bs);
+    int (*bdrv_media_changed)(BlockDriverState *bs);
+    int (*bdrv_eject)(BlockDriverState *bs, int eject_flag);
+    int (*bdrv_set_locked)(BlockDriverState *bs, int locked);
+    
     BlockDriverAIOCB *free_aiocb;
     struct BlockDriver *next;
 };
@@ -78,7 +84,6 @@ struct BlockDriverState {
     int64_t total_sectors; /* if we are reading a disk image, give its
                               size in sectors */
     int read_only; /* if true, the media is read only */
-    int inserted; /* if true, the media is present */
     int removable; /* if true, the media can be removed */
     int locked;    /* if true, the media cannot temporarily be ejected */
     int encrypted; /* if true, the media is encrypted */
@@ -86,7 +91,7 @@ struct BlockDriverState {
     void (*change_cb)(void *opaque);
     void *change_opaque;
 
-    BlockDriver *drv;
+    BlockDriver *drv; /* NULL means no media */
     void *opaque;
 
     int boot_sector_enabled;
@@ -96,7 +101,8 @@ struct BlockDriverState {
     char backing_file[1024]; /* if non zero, the image is a diff of
                                 this file image */
     int is_temporary;
-    
+    int media_changed;
+
     BlockDriverState *backing_hd;
     /* async read/write emulation */
 

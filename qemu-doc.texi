@@ -206,7 +206,7 @@ Select the emulated machine (@code{-M ?} for list)
 @item -fda file
 @item -fdb file
 Use @var{file} as floppy disk 0/1 image (@pxref{disk_images}). You can
-use the host floppy by using @file{/dev/fd0} as filename.
+use the host floppy by using @file{/dev/fd0} as filename (@pxref{host_drives}).
 
 @item -hda file
 @item -hdb file
@@ -217,7 +217,7 @@ Use @var{file} as hard disk 0, 1, 2 or 3 image (@pxref{disk_images}).
 @item -cdrom file
 Use @var{file} as CD-ROM image (you cannot use @option{-hdc} and and
 @option{-cdrom} at the same time). You can use the host CD-ROM by
-using @file{/dev/cdrom} as filename.
+using @file{/dev/cdrom} as filename (@pxref{host_drives}).
 
 @item -boot [a|c|d]
 Boot on floppy (a), hard disk (c) or CD-ROM (d). Hard disk boot is
@@ -916,6 +916,7 @@ snapshots.
 * disk_images_snapshot_mode:: Snapshot mode
 * vm_snapshots::              VM snapshots
 * qemu_img_invocation::       qemu-img Invocation
+* host_drives::               Using host drives
 * disk_images_fat_images::    Virtual FAT disk images
 @end menu
 
@@ -996,6 +997,57 @@ state is not saved or restored properly (in particular USB).
 @subsection @code{qemu-img} Invocation
 
 @include qemu-img.texi
+
+@node host_drives
+@subsection Using host drives
+
+In addition to disk image files, QEMU can directly access host
+devices. We describe here the usage for QEMU version >= 0.8.3.
+
+@subsubsection Linux
+
+On Linux, you can directly use the host device filename instead of a
+disk image filename provided you have enough proviledge to access
+it. For example, use @file{/dev/cdrom} to access to the CDROM or
+@file{/dev/fd0} for the floppy.
+
+@table
+@item CD
+You can specify a CDROM device even if no CDROM is loaded. QEMU has
+specific code to detect CDROM insertion or removal. CDROM ejection by
+the guest OS is supported. Currently only data CDs are supported.
+@item Floppy
+You can specify a floppy device even if no floppy is loaded. Floppy
+removal is currently not detected accurately (if you change floppy
+without doing floppy access while the floppy is not loaded, the guest
+OS will think that the same floppy is loaded).
+@item Hard disks
+Hard disks can be used. Normally you must specify the whole disk
+(@file{/dev/hdb} instead of @file{/dev/hdb1}) so that the guest OS can
+see it as a partitioned disk. WARNING: unless you know what you do, it
+is better to only make READ-ONLY accesses to the hard disk otherwise
+you may corrupt your host data (use the @option{-snapshot} command
+line option or modify the device permissions accordingly).
+@end table
+
+@subsubsection Windows
+
+On Windows you can use any host drives as QEMU drive. The prefered
+syntax is the driver letter (e.g. @file{d:}). The alternate syntax
+@file{\\.\d:} is supported. @file{/dev/cdrom} is supported as an alias
+to the first CDROM drive.
+
+Currently there is no specific code to handle removable medias, so it
+is better to use the @code{change} or @code{eject} monitor commands to
+change or eject media.
+
+@subsubsection Mac OS X
+
+@file{/dev/cdrom} is an alias to the first CDROM. 
+
+Currently there is no specific code to handle removable medias, so it
+is better to use the @code{change} or @code{eject} monitor commands to
+change or eject media.
 
 @node disk_images_fat_images
 @subsection Virtual FAT disk images

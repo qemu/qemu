@@ -46,100 +46,42 @@
 #ifdef __sun__
 #include <sys/dkio.h>
 #endif
+#ifdef __linux__
+#include <sys/ioctl.h>
+#include <linux/cdrom.h>
+#include <linux/fd.h>
+#endif
+
+//#define DEBUG_FLOPPY
+
+#define FTYPE_FILE   0
+#define FTYPE_CD     1
+#define FTYPE_FD     2
+
+/* if the FD is not accessed during that time (in ms), we try to
+   reopen it to see if the disk has been changed */
+#define FD_OPEN_TIMEOUT 1000
 
 typedef struct BDRVRawState {
     int fd;
+    int type;
+#if defined(__linux__)
+    /* linux floppy specific */
+    int fd_open_flags;
+    int64_t fd_open_time;
+    int64_t fd_error_time;
+    int fd_got_error;
+    int fd_media_changed;
+#endif
 } BDRVRawState;
 
-#ifdef CONFIG_COCOA
-static kern_return_t FindEjectableCDMedia( io_iterator_t *mediaIterator );
-static kern_return_t GetBSDPath( io_iterator_t mediaIterator, char *bsdPath, CFIndex maxPathSize );
-
-kern_return_t FindEjectableCDMedia( io_iterator_t *mediaIterator )
-{
-    kern_return_t       kernResult; 
-    mach_port_t     masterPort;
-    CFMutableDictionaryRef  classesToMatch;
-
-    kernResult = IOMasterPort( MACH_PORT_NULL, &masterPort );
-    if ( KERN_SUCCESS != kernResult ) {
-        printf( "IOMasterPort returned %d\n", kernResult );
-    }
-    
-    classesToMatch = IOServiceMatching( kIOCDMediaClass ); 
-    if ( classesToMatch == NULL ) {
-        printf( "IOServiceMatching returned a NULL dictionary.\n" );
-    } else {
-    CFDictionarySetValue( classesToMatch, CFSTR( kIOMediaEjectableKey ), kCFBooleanTrue );
-    }
-    kernResult = IOServiceGetMatchingServices( masterPort, classesToMatch, mediaIterator );
-    if ( KERN_SUCCESS != kernResult )
-    {
-        printf( "IOServiceGetMatchingServices returned %d\n", kernResult );
-    }
-    
-    return kernResult;
-}
-
-kern_return_t GetBSDPath( io_iterator_t mediaIterator, char *bsdPath, CFIndex maxPathSize )
-{
-    io_object_t     nextMedia;
-    kern_return_t   kernResult = KERN_FAILURE;
-    *bsdPath = '\0';
-    nextMedia = IOIteratorNext( mediaIterator );
-    if ( nextMedia )
-    {
-        CFTypeRef   bsdPathAsCFString;
-    bsdPathAsCFString = IORegistryEntryCreateCFProperty( nextMedia, CFSTR( kIOBSDNameKey ), kCFAllocatorDefault, 0 );
-        if ( bsdPathAsCFString ) {
-            size_t devPathLength;
-            strcpy( bsdPath, _PATH_DEV );
-            strcat( bsdPath, "r" );
-            devPathLength = strlen( bsdPath );
-            if ( CFStringGetCString( bsdPathAsCFString, bsdPath + devPathLength, maxPathSize - devPathLength, kCFStringEncodingASCII ) ) {
-                kernResult = KERN_SUCCESS;
-            }
-            CFRelease( bsdPathAsCFString );
-        }
-        IOObjectRelease( nextMedia );
-    }
-    
-    return kernResult;
-}
-
-#endif
+static int fd_open(BlockDriverState *bs);
 
 static int raw_open(BlockDriverState *bs, const char *filename, int flags)
 {
     BDRVRawState *s = bs->opaque;
-    int fd, open_flags;
+    int fd, open_flags, ret;
 
-#ifdef CONFIG_COCOA
-    if (strstart(filename, "/dev/cdrom", NULL)) {
-        kern_return_t kernResult;
-        io_iterator_t mediaIterator;
-        char bsdPath[ MAXPATHLEN ];
-        int fd;
- 
-        kernResult = FindEjectableCDMedia( &mediaIterator );
-        kernResult = GetBSDPath( mediaIterator, bsdPath, sizeof( bsdPath ) );
-    
-        if ( bsdPath[ 0 ] != '\0' ) {
-            strcat(bsdPath,"s0");
-            /* some CDs don't have a partition 0 */
-            fd = open(bsdPath, O_RDONLY | O_BINARY | O_LARGEFILE);
-            if (fd < 0) {
-                bsdPath[strlen(bsdPath)-1] = '1';
-            } else {
-                close(fd);
-            }
-            filename = bsdPath;
-        }
-        
-        if ( mediaIterator )
-            IOObjectRelease( mediaIterator );
-    }
-#endif
     open_flags = O_BINARY;
     if ((flags & BDRV_O_ACCESS) == O_RDWR) {
         open_flags |= O_RDWR;
@@ -150,9 +92,15 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
     if (flags & BDRV_O_CREAT)
         open_flags |= O_CREAT | O_TRUNC;
 
+    s->type = FTYPE_FILE;
+
     fd = open(filename, open_flags, 0644);
-    if (fd < 0)
-        return -errno;
+    if (fd < 0) {
+        ret = -errno;
+        if (ret == -EROFS)
+            ret = -EACCES;
+        return ret;
+    }
     s->fd = fd;
     return 0;
 }
@@ -180,6 +128,10 @@ static int raw_pread(BlockDriverState *bs, int64_t offset,
     BDRVRawState *s = bs->opaque;
     int ret;
     
+    ret = fd_open(bs);
+    if (ret < 0)
+        return ret;
+
     lseek(s->fd, offset, SEEK_SET);
     ret = read(s->fd, buf, count);
     return ret;
@@ -191,13 +143,17 @@ static int raw_pwrite(BlockDriverState *bs, int64_t offset,
     BDRVRawState *s = bs->opaque;
     int ret;
     
+    ret = fd_open(bs);
+    if (ret < 0)
+        return ret;
+
     lseek(s->fd, offset, SEEK_SET);
     ret = write(s->fd, buf, count);
     return ret;
 }
 
 /***********************************************************/
-/* Unix AOP using POSIX AIO */
+/* Unix AIO using POSIX AIO */
 
 typedef struct RawAIOCB {
     BlockDriverAIOCB common;
@@ -236,15 +192,18 @@ void qemu_aio_init(void)
     act.sa_handler = aio_signal_handler;
     sigaction(aio_sig_num, &act, NULL);
 
+#if defined(__GLIBC__) && defined(__linux__)
     {
-        /* XXX: aio thread exit seems to hang on RH 9 */
+        /* XXX: aio thread exit seems to hang on RedHat 9 and this init
+           seems to fix the problem. */
         struct aioinit ai;
         memset(&ai, 0, sizeof(ai));
-        ai.aio_threads = 2;
+        ai.aio_threads = 1;
         ai.aio_num = 1;
         ai.aio_idle_time = 365 * 100000;
         aio_init(&ai);
     }
+#endif
 }
 
 void qemu_aio_poll(void)
@@ -270,7 +229,7 @@ void qemu_aio_poll(void)
                     if (ret == acb->aiocb.aio_nbytes)
                         ret = 0;
                     else
-                        ret = -1;
+                        ret = -EINVAL;
                 } else {
                     ret = -ret;
                 }
@@ -328,6 +287,9 @@ static RawAIOCB *raw_aio_setup(BlockDriverState *bs,
 {
     BDRVRawState *s = bs->opaque;
     RawAIOCB *acb;
+
+    if (fd_open(bs) < 0)
+        return NULL;
 
     acb = qemu_aio_get(bs, cb, opaque);
     if (!acb)
@@ -405,12 +367,17 @@ static void raw_aio_cancel(BlockDriverAIOCB *blockacb)
 static void raw_close(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
-    close(s->fd);
+    if (s->fd >= 0) {
+        close(s->fd);
+        s->fd = -1;
+    }
 }
 
 static int raw_truncate(BlockDriverState *bs, int64_t offset)
 {
     BDRVRawState *s = bs->opaque;
+    if (s->type != FTYPE_FILE)
+        return -ENOTSUP;
     if (ftruncate(s->fd, offset) < 0)
         return -errno;
     return 0;
@@ -428,6 +395,11 @@ static int64_t  raw_getlength(BlockDriverState *bs)
     struct dk_minfo minfo;
     int rv;
 #endif
+    int ret;
+
+    ret = fd_open(bs);
+    if (ret < 0)
+        return ret;
 
 #ifdef _BSD
     if (!fstat(fd, &sb) && (S_IFCHR & sb.st_mode)) {
@@ -455,12 +427,6 @@ static int64_t  raw_getlength(BlockDriverState *bs)
     {
         size = lseek(fd, 0, SEEK_END);
     }
-#ifdef _WIN32
-    /* On Windows hosts it can happen that we're unable to get file size
-       for CD-ROM raw device (it's inherent limitation of the CDFS driver). */
-    if (size == -1)
-        size = LONG_LONG_MAX;
-#endif
     return size;
 }
 
@@ -509,13 +475,358 @@ BlockDriver bdrv_raw = {
     .bdrv_getlength = raw_getlength,
 };
 
+/***********************************************/
+/* host device */
+
+#ifdef CONFIG_COCOA
+static kern_return_t FindEjectableCDMedia( io_iterator_t *mediaIterator );
+static kern_return_t GetBSDPath( io_iterator_t mediaIterator, char *bsdPath, CFIndex maxPathSize );
+
+kern_return_t FindEjectableCDMedia( io_iterator_t *mediaIterator )
+{
+    kern_return_t       kernResult; 
+    mach_port_t     masterPort;
+    CFMutableDictionaryRef  classesToMatch;
+
+    kernResult = IOMasterPort( MACH_PORT_NULL, &masterPort );
+    if ( KERN_SUCCESS != kernResult ) {
+        printf( "IOMasterPort returned %d\n", kernResult );
+    }
+    
+    classesToMatch = IOServiceMatching( kIOCDMediaClass ); 
+    if ( classesToMatch == NULL ) {
+        printf( "IOServiceMatching returned a NULL dictionary.\n" );
+    } else {
+    CFDictionarySetValue( classesToMatch, CFSTR( kIOMediaEjectableKey ), kCFBooleanTrue );
+    }
+    kernResult = IOServiceGetMatchingServices( masterPort, classesToMatch, mediaIterator );
+    if ( KERN_SUCCESS != kernResult )
+    {
+        printf( "IOServiceGetMatchingServices returned %d\n", kernResult );
+    }
+    
+    return kernResult;
+}
+
+kern_return_t GetBSDPath( io_iterator_t mediaIterator, char *bsdPath, CFIndex maxPathSize )
+{
+    io_object_t     nextMedia;
+    kern_return_t   kernResult = KERN_FAILURE;
+    *bsdPath = '\0';
+    nextMedia = IOIteratorNext( mediaIterator );
+    if ( nextMedia )
+    {
+        CFTypeRef   bsdPathAsCFString;
+    bsdPathAsCFString = IORegistryEntryCreateCFProperty( nextMedia, CFSTR( kIOBSDNameKey ), kCFAllocatorDefault, 0 );
+        if ( bsdPathAsCFString ) {
+            size_t devPathLength;
+            strcpy( bsdPath, _PATH_DEV );
+            strcat( bsdPath, "r" );
+            devPathLength = strlen( bsdPath );
+            if ( CFStringGetCString( bsdPathAsCFString, bsdPath + devPathLength, maxPathSize - devPathLength, kCFStringEncodingASCII ) ) {
+                kernResult = KERN_SUCCESS;
+            }
+            CFRelease( bsdPathAsCFString );
+        }
+        IOObjectRelease( nextMedia );
+    }
+    
+    return kernResult;
+}
+
+#endif
+
+static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
+{
+    BDRVRawState *s = bs->opaque;
+    int fd, open_flags, ret;
+
+#ifdef CONFIG_COCOA
+    if (strstart(filename, "/dev/cdrom", NULL)) {
+        kern_return_t kernResult;
+        io_iterator_t mediaIterator;
+        char bsdPath[ MAXPATHLEN ];
+        int fd;
+ 
+        kernResult = FindEjectableCDMedia( &mediaIterator );
+        kernResult = GetBSDPath( mediaIterator, bsdPath, sizeof( bsdPath ) );
+    
+        if ( bsdPath[ 0 ] != '\0' ) {
+            strcat(bsdPath,"s0");
+            /* some CDs don't have a partition 0 */
+            fd = open(bsdPath, O_RDONLY | O_BINARY | O_LARGEFILE);
+            if (fd < 0) {
+                bsdPath[strlen(bsdPath)-1] = '1';
+            } else {
+                close(fd);
+            }
+            filename = bsdPath;
+        }
+        
+        if ( mediaIterator )
+            IOObjectRelease( mediaIterator );
+    }
+#endif
+    open_flags = O_BINARY;
+    if ((flags & BDRV_O_ACCESS) == O_RDWR) {
+        open_flags |= O_RDWR;
+    } else {
+        open_flags |= O_RDONLY;
+        bs->read_only = 1;
+    }
+
+    s->type = FTYPE_FILE;
+#if defined(__linux__)
+    if (strstart(filename, "/dev/cd", NULL)) {
+        /* open will not fail even if no CD is inserted */
+        open_flags |= O_NONBLOCK;
+        s->type = FTYPE_CD;
+    } else if (strstart(filename, "/dev/fd", NULL)) {
+        s->type = FTYPE_FD;
+        s->fd_open_flags = open_flags;
+        /* open will not fail even if no floppy is inserted */
+        open_flags |= O_NONBLOCK;
+    }
+#endif
+    fd = open(filename, open_flags, 0644);
+    if (fd < 0) {
+        ret = -errno;
+        if (ret == -EROFS)
+            ret = -EACCES;
+        return ret;
+    }
+    s->fd = fd;
+#if defined(__linux__)
+    /* close fd so that we can reopen it as needed */
+    if (s->type == FTYPE_FD) {
+        close(s->fd);
+        s->fd = -1;
+        s->fd_media_changed = 1;
+    }
+#endif
+    return 0;
+}
+
+#if defined(__linux__) && !defined(QEMU_TOOL)
+
+/* Note: we do not have a reliable method to detect if the floppy is
+   present. The current method is to try to open the floppy at every
+   I/O and to keep it opened during a few hundreds of ms. */
+static int fd_open(BlockDriverState *bs)
+{
+    BDRVRawState *s = bs->opaque;
+    int last_media_present;
+
+    if (s->type != FTYPE_FD)
+        return 0;
+    last_media_present = (s->fd >= 0);
+    if (s->fd >= 0 && 
+        (qemu_get_clock(rt_clock) - s->fd_open_time) >= FD_OPEN_TIMEOUT) {
+        close(s->fd);
+        s->fd = -1;
+#ifdef DEBUG_FLOPPY
+        printf("Floppy closed\n");
+#endif
+    }
+    if (s->fd < 0) {
+        if (s->fd_got_error && 
+            (qemu_get_clock(rt_clock) - s->fd_error_time) < FD_OPEN_TIMEOUT) {
+#ifdef DEBUG_FLOPPY
+            printf("No floppy (open delayed)\n");
+#endif
+            return -EIO;
+        }
+        s->fd = open(bs->filename, s->fd_open_flags);
+        if (s->fd < 0) {
+            s->fd_error_time = qemu_get_clock(rt_clock);
+            s->fd_got_error = 1;
+            if (last_media_present)
+                s->fd_media_changed = 1;
+#ifdef DEBUG_FLOPPY
+            printf("No floppy\n");
+#endif
+            return -EIO;
+        }
+#ifdef DEBUG_FLOPPY
+        printf("Floppy opened\n");
+#endif
+    }
+    if (!last_media_present)
+        s->fd_media_changed = 1;
+    s->fd_open_time = qemu_get_clock(rt_clock);
+    s->fd_got_error = 0;
+    return 0;
+}
+#else
+static int fd_open(BlockDriverState *bs)
+{
+    return 0;
+}
+#endif
+
+#if defined(__linux__)
+
+static int raw_is_inserted(BlockDriverState *bs)
+{
+    BDRVRawState *s = bs->opaque;
+    int ret;
+
+    switch(s->type) {
+    case FTYPE_CD:
+        ret = ioctl(s->fd, CDROM_DRIVE_STATUS, CDSL_CURRENT);
+        if (ret == CDS_DISC_OK)
+            return 1;
+        else
+            return 0;
+        break;
+    case FTYPE_FD:
+        ret = fd_open(bs);
+        return (ret >= 0);
+    default:
+        return 1;
+    }
+}
+
+/* currently only used by fdc.c, but a CD version would be good too */
+static int raw_media_changed(BlockDriverState *bs)
+{
+    BDRVRawState *s = bs->opaque;
+
+    switch(s->type) {
+    case FTYPE_FD:
+        {
+            int ret;
+            /* XXX: we do not have a true media changed indication. It
+               does not work if the floppy is changed without trying
+               to read it */
+            fd_open(bs);
+            ret = s->fd_media_changed;
+            s->fd_media_changed = 0;
+#ifdef DEBUG_FLOPPY
+            printf("Floppy changed=%d\n", ret);
+#endif
+            return ret;
+        }
+    default:
+        return -ENOTSUP;
+    }
+}
+
+static int raw_eject(BlockDriverState *bs, int eject_flag)
+{
+    BDRVRawState *s = bs->opaque;
+
+    switch(s->type) {
+    case FTYPE_CD:
+        if (eject_flag) {
+            if (ioctl (s->fd, CDROMEJECT, NULL) < 0)
+                perror("CDROMEJECT");
+        } else {
+            if (ioctl (s->fd, CDROMCLOSETRAY, NULL) < 0)
+                perror("CDROMEJECT");
+        }
+        break;
+    case FTYPE_FD:
+        {
+            int fd;
+            if (s->fd >= 0) {
+                close(s->fd);
+                s->fd = -1;
+            }
+            fd = open(bs->filename, s->fd_open_flags | O_NONBLOCK);
+            if (fd >= 0) {
+                if (ioctl(fd, FDEJECT, 0) < 0)
+                    perror("FDEJECT");
+                close(fd);
+            }
+        }
+        break;
+    default:
+        return -ENOTSUP;
+    }
+    return 0;
+}
+
+static int raw_set_locked(BlockDriverState *bs, int locked)
+{
+    BDRVRawState *s = bs->opaque;
+
+    switch(s->type) {
+    case FTYPE_CD:
+        if (ioctl (s->fd, CDROM_LOCKDOOR, locked) < 0) {
+            /* Note: an error can happen if the distribution automatically
+               mounts the CD-ROM */
+            //        perror("CDROM_LOCKDOOR");
+        }
+        break;
+    default:
+        return -ENOTSUP;
+    }
+    return 0;
+}
+
+#else
+
+static int raw_is_inserted(BlockDriverState *bs)
+{
+    return 1;
+}
+
+static int raw_media_changed(BlockDriverState *bs)
+{
+    return -ENOTSUP;
+}
+
+static int raw_eject(BlockDriverState *bs, int eject_flag)
+{
+    return -ENOTSUP;
+}
+
+static int raw_set_locked(BlockDriverState *bs, int locked)
+{
+    return -ENOTSUP;
+}
+
+#endif /* !linux */
+
+BlockDriver bdrv_host_device = {
+    "host_device",
+    sizeof(BDRVRawState),
+    NULL, /* no probe for protocols */
+    hdev_open,
+    NULL,
+    NULL,
+    raw_close,
+    NULL,
+    raw_flush,
+    
+    .bdrv_aio_read = raw_aio_read,
+    .bdrv_aio_write = raw_aio_write,
+    .bdrv_aio_cancel = raw_aio_cancel,
+    .aiocb_size = sizeof(RawAIOCB),
+    .bdrv_pread = raw_pread,
+    .bdrv_pwrite = raw_pwrite,
+    .bdrv_getlength = raw_getlength,
+
+    /* removable device support */
+    .bdrv_is_inserted = raw_is_inserted,
+    .bdrv_media_changed = raw_media_changed,
+    .bdrv_eject = raw_eject,
+    .bdrv_set_locked = raw_set_locked,
+};
+
 #else /* _WIN32 */
 
 /* XXX: use another file ? */
 #include <winioctl.h>
 
+#define FTYPE_FILE 0
+#define FTYPE_CD     1
+
 typedef struct BDRVRawState {
     HANDLE hfile;
+    int type;
+    char drive_letter[2];
 } BDRVRawState;
 
 typedef struct RawAIOCB {
@@ -565,6 +876,23 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
     BDRVRawState *s = bs->opaque;
     int access_flags, create_flags;
     DWORD overlapped;
+    char device_name[64];
+    const char *p;
+
+    if (strstart(filename, "/dev/cdrom", NULL)) {
+        if (find_cdrom(device_name, sizeof(device_name)) < 0)
+            return -ENOENT;
+        filename = device_name;
+    } else {
+        /* transform drive letters into device name */
+        if (((filename[0] >= 'a' && filename[0] <= 'z') ||
+             (filename[0] >= 'A' && filename[0] <= 'Z')) &&
+            filename[1] == ':' && filename[2] == '\0') {
+            snprintf(device_name, sizeof(device_name), "\\\\.\\%c:", filename[0]);
+            filename = device_name;
+        }
+    }
+    s->type = find_device_type(filename);
 
     if ((flags & BDRV_O_ACCESS) == O_RDWR) {
         access_flags = GENERIC_READ | GENERIC_WRITE;
@@ -765,10 +1093,22 @@ static int64_t  raw_getlength(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
     LARGE_INTEGER l;
+    ULARGE_INTEGER available, total, total_free; 
 
-    l.LowPart = GetFileSize(s->hfile, &l.HighPart);
-    if (l.LowPart == 0xffffffffUL && GetLastError() != NO_ERROR)
-	return -EIO;
+    switch(s->ftype) {
+    case FTYPE_FILE:
+        l.LowPart = GetFileSize(s->hfile, &l.HighPart);
+        if (l.LowPart == 0xffffffffUL && GetLastError() != NO_ERROR)
+            return -EIO;
+        break;
+    case FTYPE_CD:
+        if (!GetDiskFreeSpaceEx(s->drive_letter, &available, &total, &total_free))
+            return -EIO;
+        l = total;
+        break;
+    default:
+        return -EIO;
+    }
     return l.QuadPart;
 }
 
@@ -831,6 +1171,148 @@ BlockDriver bdrv_raw = {
     .bdrv_pread = raw_pread,
     .bdrv_pwrite = raw_pwrite,
     .bdrv_truncate = raw_truncate,
+    .bdrv_getlength = raw_getlength,
+};
+
+/***********************************************/
+/* host device */
+
+static int find_cdrom(char *cdrom_name, int cdrom_name_size)
+{
+    char drives[256], *pdrv = drives;
+    UINT type;
+
+    memset(drives, 0, sizeof(drivers));
+    GetLogicalDriveStrings(sizeof(drives), drives);
+    while(pdrv[0] != '\0') {
+        type = GetDriveType(pdrv);
+        switch(type) {
+        case DRIVE_CDROM:
+            snprintf(cdrom_name, cdrom_name_size, "\\\\.\\%c:", pdrv[0]);
+            return 0;
+            break;
+        }
+        pdrv += lstrlen(pdrv) + 1;
+    }
+    return -1;
+}
+
+static int find_device_type(const char *filename)
+{
+    UINT type;
+    const char *p;
+
+    if (strstart(filename, "\\\\.\\", &p) ||
+        strstart(filename, "//./", &p)) {
+        s->drive_letter[0] = p[0];
+        s->drive_letter[1] = '\0';
+        type = GetDriveType(s->drive_letter);
+        if (type == DRIVE_CDROM)
+            return FTYPE_CD;
+        else
+            return FTYPE_FILE;
+    } else {
+        return FTYPE_FILE;
+    }
+}
+
+static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
+{
+    BDRVRawState *s = bs->opaque;
+    int access_flags, create_flags;
+    DWORD overlapped;
+    char device_name[64];
+    const char *p;
+
+    if (strstart(filename, "/dev/cdrom", NULL)) {
+        if (find_cdrom(device_name, sizeof(device_name)) < 0)
+            return -ENOENT;
+        filename = device_name;
+    } else {
+        /* transform drive letters into device name */
+        if (((filename[0] >= 'a' && filename[0] <= 'z') ||
+             (filename[0] >= 'A' && filename[0] <= 'Z')) &&
+            filename[1] == ':' && filename[2] == '\0') {
+            snprintf(device_name, sizeof(device_name), "\\\\.\\%c:", filename[0]);
+            filename = device_name;
+        }
+    }
+    s->type = find_device_type(filename);
+
+    if ((flags & BDRV_O_ACCESS) == O_RDWR) {
+        access_flags = GENERIC_READ | GENERIC_WRITE;
+    } else {
+        access_flags = GENERIC_READ;
+    }
+    create_flags = OPEN_EXISTING;
+
+#ifdef QEMU_TOOL
+    overlapped = 0;
+#else
+    overlapped = FILE_FLAG_OVERLAPPED;
+#endif
+    s->hfile = CreateFile(filename, access_flags, 
+                          FILE_SHARE_READ, NULL,
+                          create_flags, overlapped, 0);
+    if (s->hfile == INVALID_HANDLE_VALUE) 
+        return -1;
+    return 0;
+}
+
+#if 0
+/***********************************************/
+/* removable device additionnal commands */
+
+static int raw_is_inserted(BlockDriverState *bs)
+{
+    return 1;
+}
+
+static int raw_media_changed(BlockDriverState *bs)
+{
+    return -ENOTSUP;
+}
+
+static int raw_eject(BlockDriverState *bs, int eject_flag)
+{
+    DWORD ret_count;
+
+    if (s->type == FTYPE_FILE)
+        return -ENOTSUP;
+    if (eject_flag) {
+        DeviceIoControl(s->hfile, IOCTL_STORAGE_EJECT_MEDIA, 
+                        NULL, 0, NULL, 0, &lpBytesReturned, NULL);
+    } else {
+        DeviceIoControl(s->hfile, IOCTL_STORAGE_LOAD_MEDIA, 
+                        NULL, 0, NULL, 0, &lpBytesReturned, NULL);
+    }
+}
+
+static int raw_set_locked(BlockDriverState *bs, int locked)
+{
+    return -ENOTSUP;
+}
+#endif
+
+BlockDriver bdrv_host_device = {
+    "host_device",
+    sizeof(BDRVRawState),
+    NULL, /* no probe for protocols */
+    hdev_open,
+    NULL,
+    NULL,
+    raw_close,
+    NULL,
+    raw_flush,
+    
+#if 0
+    .bdrv_aio_read = raw_aio_read,
+    .bdrv_aio_write = raw_aio_write,
+    .bdrv_aio_cancel = raw_aio_cancel,
+    .aiocb_size = sizeof(RawAIOCB);
+#endif
+    .bdrv_pread = raw_pread,
+    .bdrv_pwrite = raw_pwrite,
     .bdrv_getlength = raw_getlength,
 };
 #endif /* _WIN32 */

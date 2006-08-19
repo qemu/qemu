@@ -50,6 +50,7 @@
 #define fsync _commit
 #define lseek _lseeki64
 #define ENOTSUP 4096
+#define ENOMEDIUM 4097
 extern int qemu_ftruncate64(int, int64_t);
 #define ftruncate qemu_ftruncate64
 
@@ -502,6 +503,7 @@ typedef struct BlockDriverState BlockDriverState;
 typedef struct BlockDriver BlockDriver;
 
 extern BlockDriver bdrv_raw;
+extern BlockDriver bdrv_host_device;
 extern BlockDriver bdrv_cow;
 extern BlockDriver bdrv_qcow;
 extern BlockDriver bdrv_vmdk;
@@ -604,8 +606,10 @@ int bdrv_get_translation_hint(BlockDriverState *bs);
 int bdrv_is_removable(BlockDriverState *bs);
 int bdrv_is_read_only(BlockDriverState *bs);
 int bdrv_is_inserted(BlockDriverState *bs);
+int bdrv_media_changed(BlockDriverState *bs);
 int bdrv_is_locked(BlockDriverState *bs);
 void bdrv_set_locked(BlockDriverState *bs, int locked);
+void bdrv_eject(BlockDriverState *bs, int eject_flag);
 void bdrv_set_change_cb(BlockDriverState *bs, 
                         void (*change_cb)(void *opaque), void *opaque);
 void bdrv_get_format(BlockDriverState *bs, char *buf, int buf_size);
