@@ -35,6 +35,7 @@ typedef struct {
     uint32_t data_len;
     uint32_t transfer_len;
     uint32_t tag;
+    BlockDriverState *bs;
     SCSIDevice *scsi_dev;
     int result;
     /* For async completion.  */
@@ -406,6 +407,7 @@ static void usb_msd_handle_destroy(USBDevice *dev)
     MSDState *s = (MSDState *)dev;
 
     scsi_disk_destroy(s->scsi_dev);
+    bdrv_delete(s->bs);
     qemu_free(s);
 }
 
@@ -419,7 +421,9 @@ USBDevice *usb_msd_init(const char *filename)
         return NULL;
 
     bdrv = bdrv_new("usb");
-    bdrv_open(bdrv, filename, 0);
+    if (bdrv_open(bdrv, filename, 0) < 0)
+        goto fail;
+    s->bs = bdrv;
 
     s->dev.speed = USB_SPEED_FULL;
     s->dev.handle_packet = usb_generic_handle_packet;
@@ -435,4 +439,7 @@ USBDevice *usb_msd_init(const char *filename)
     s->scsi_dev = scsi_disk_init(bdrv, usb_msd_command_complete, s);
     usb_msd_handle_reset((USBDevice *)s);
     return (USBDevice *)s;
+ fail:
+    qemu_free(s);
+    return NULL;
 }
