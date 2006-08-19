@@ -545,7 +545,6 @@ int32_t scsi_send_command(SCSIDevice *s, uint32_t tag, uint8_t *buf, int lun)
 
 void scsi_disk_destroy(SCSIDevice *s)
 {
-    bdrv_close(s->bdrv);
     qemu_free(s);
 }
 
