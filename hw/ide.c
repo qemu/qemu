@@ -943,26 +943,44 @@ static void cd_data_to_raw(uint8_t *buf, int lba)
     memset(buf, 0, 288);
 }
 
-static void cd_read_sector(BlockDriverState *bs, int lba, uint8_t *buf, 
+static int cd_read_sector(BlockDriverState *bs, int lba, uint8_t *buf, 
                            int sector_size)
 {
+    int ret;
+
     switch(sector_size) {
     case 2048:
-        bdrv_read(bs, (int64_t)lba << 2, buf, 4);
+        ret = bdrv_read(bs, (int64_t)lba << 2, buf, 4);
         break;
     case 2352:
-        bdrv_read(bs, (int64_t)lba << 2, buf + 16, 4);
+        ret = bdrv_read(bs, (int64_t)lba << 2, buf + 16, 4);
+        if (ret < 0)
+            return ret;
         cd_data_to_raw(buf, lba);
         break;
     default:
+        ret = -EIO;
         break;
+    }
+    return ret;
+}
+
+static void ide_atapi_io_error(IDEState *s, int ret)
+{
+    /* XXX: handle more errors */
+    if (ret == -ENOMEDIUM) {
+        ide_atapi_cmd_error(s, SENSE_NOT_READY, 
+                            ASC_MEDIUM_NOT_PRESENT);
+    } else {
+        ide_atapi_cmd_error(s, SENSE_ILLEGAL_REQUEST, 
+                            ASC_LOGICAL_BLOCK_OOR);
     }
 }
 
 /* The whole ATAPI transfer logic is handled in this function */
 static void ide_atapi_cmd_reply_end(IDEState *s)
 {
-    int byte_count_limit, size;
+    int byte_count_limit, size, ret;
 #ifdef DEBUG_IDE_ATAPI
     printf("reply: tx_size=%d elem_tx_size=%d index=%d\n", 
            s->packet_transfer_size,
@@ -981,7 +999,12 @@ static void ide_atapi_cmd_reply_end(IDEState *s)
     } else {
         /* see if a new sector must be read */
         if (s->lba != -1 && s->io_buffer_index >= s->cd_sector_size) {
-            cd_read_sector(s->bs, s->lba, s->io_buffer, s->cd_sector_size);
+            ret = cd_read_sector(s->bs, s->lba, s->io_buffer, s->cd_sector_size);
+            if (ret < 0) {
+                ide_transfer_stop(s);
+                ide_atapi_io_error(s, ret);
+                return;
+            }
             s->lba++;
             s->io_buffer_index = 0;
         }
@@ -1070,6 +1093,11 @@ static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
     IDEState *s = bm->ide_if;
     int data_offset, n;
 
+    if (ret < 0) {
+        ide_atapi_io_error(s, ret);
+        goto eot;
+    }
+
     if (s->io_buffer_size > 0) {
         if (s->cd_sector_size == 2352) {
             n = 1;
@@ -1114,6 +1142,12 @@ static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
     bm->aiocb = bdrv_aio_read(s->bs, (int64_t)s->lba << 2, 
                               s->io_buffer + data_offset, n * 4, 
                               ide_atapi_cmd_read_dma_cb, bm);
+    if (!bm->aiocb) {
+        /* Note: media not present is the most likely case */
+        ide_atapi_cmd_error(s, SENSE_NOT_READY, 
+                            ASC_MEDIUM_NOT_PRESENT);
+        goto eot;
+    }
 }
 
 /* start a CD-CDROM read command with DMA */
@@ -1270,11 +1304,6 @@ static void ide_atapi_cmd(IDEState *s)
         {
             int nb_sectors, lba;
 
-            if (!bdrv_is_inserted(s->bs)) {
-                ide_atapi_cmd_error(s, SENSE_NOT_READY, 
-                                    ASC_MEDIUM_NOT_PRESENT);
-                break;
-            }
             if (packet[0] == GPCMD_READ_10)
                 nb_sectors = ube16_to_cpu(packet + 7);
             else
@@ -1284,11 +1313,6 @@ static void ide_atapi_cmd(IDEState *s)
                 ide_atapi_cmd_ok(s);
                 break;
             }
-            if (((int64_t)(lba + nb_sectors) << 2) > s->nb_sectors) {
-                ide_atapi_cmd_error(s, SENSE_ILLEGAL_REQUEST, 
-                                    ASC_LOGICAL_BLOCK_OOR);
-                break;
-            }
             ide_atapi_cmd_read(s, lba, nb_sectors, 2048);
         }
         break;
@@ -1296,20 +1320,10 @@ static void ide_atapi_cmd(IDEState *s)
         {
             int nb_sectors, lba, transfer_request;
 
-            if (!bdrv_is_inserted(s->bs)) {
-                ide_atapi_cmd_error(s, SENSE_NOT_READY, 
-                                    ASC_MEDIUM_NOT_PRESENT);
-                break;
-            }
             nb_sectors = (packet[6] << 16) | (packet[7] << 8) | packet[8];
             lba = ube32_to_cpu(packet + 2);
             if (nb_sectors == 0) {
                 ide_atapi_cmd_ok(s);
-                break;
-            }
-            if (((int64_t)(lba + nb_sectors) << 2) > s->nb_sectors) {
-                ide_atapi_cmd_error(s, SENSE_ILLEGAL_REQUEST, 
-                                    ASC_LOGICAL_BLOCK_OOR);
                 break;
             }
             transfer_request = packet[9];
@@ -1336,13 +1350,17 @@ static void ide_atapi_cmd(IDEState *s)
     case GPCMD_SEEK:
         {
             int lba;
-            if (!bdrv_is_inserted(s->bs)) {
+            int64_t total_sectors;
+
+            bdrv_get_geometry(s->bs, &total_sectors);
+            total_sectors >>= 2;
+            if (total_sectors <= 0) {
                 ide_atapi_cmd_error(s, SENSE_NOT_READY, 
                                     ASC_MEDIUM_NOT_PRESENT);
                 break;
             }
             lba = ube32_to_cpu(packet + 2);
-            if (((int64_t)lba << 2) > s->nb_sectors) {
+            if (lba >= total_sectors) {
                 ide_atapi_cmd_error(s, SENSE_ILLEGAL_REQUEST, 
                                     ASC_LOGICAL_BLOCK_OOR);
                 break;
@@ -1358,7 +1376,10 @@ static void ide_atapi_cmd(IDEState *s)
             
             if (eject && !start) {
                 /* eject the disk */
-                bdrv_close(s->bs);
+                bdrv_eject(s->bs, 1);
+            } else if (eject && start) {
+                /* close the tray */
+                bdrv_eject(s->bs, 0);
             }
             ide_atapi_cmd_ok(s);
         }
@@ -1379,8 +1400,11 @@ static void ide_atapi_cmd(IDEState *s)
     case GPCMD_READ_TOC_PMA_ATIP:
         {
             int format, msf, start_track, len;
+            int64_t total_sectors;
 
-            if (!bdrv_is_inserted(s->bs)) {
+            bdrv_get_geometry(s->bs, &total_sectors);
+            total_sectors >>= 2;
+            if (total_sectors <= 0) {
                 ide_atapi_cmd_error(s, SENSE_NOT_READY, 
                                     ASC_MEDIUM_NOT_PRESENT);
                 break;
@@ -1391,7 +1415,7 @@ static void ide_atapi_cmd(IDEState *s)
             start_track = packet[6];
             switch(format) {
             case 0:
-                len = cdrom_read_toc(s->nb_sectors >> 2, buf, msf, start_track);
+                len = cdrom_read_toc(total_sectors, buf, msf, start_track);
                 if (len < 0)
                     goto error_cmd;
                 ide_atapi_cmd_reply(s, len, max_len);
@@ -1405,7 +1429,7 @@ static void ide_atapi_cmd(IDEState *s)
                 ide_atapi_cmd_reply(s, 12, max_len);
                 break;
             case 2:
-                len = cdrom_read_toc_raw(s->nb_sectors >> 2, buf, msf, start_track);
+                len = cdrom_read_toc_raw(total_sectors, buf, msf, start_track);
                 if (len < 0)
                     goto error_cmd;
                 ide_atapi_cmd_reply(s, len, max_len);
@@ -1419,15 +1443,21 @@ static void ide_atapi_cmd(IDEState *s)
         }
         break;
     case GPCMD_READ_CDVD_CAPACITY:
-        if (!bdrv_is_inserted(s->bs)) {
-            ide_atapi_cmd_error(s, SENSE_NOT_READY, 
-                                ASC_MEDIUM_NOT_PRESENT);
-            break;
+        {
+            int64_t total_sectors;
+
+            bdrv_get_geometry(s->bs, &total_sectors);
+            total_sectors >>= 2;
+            if (total_sectors <= 0) {
+                ide_atapi_cmd_error(s, SENSE_NOT_READY, 
+                                    ASC_MEDIUM_NOT_PRESENT);
+                break;
+            }
+            /* NOTE: it is really the number of sectors minus 1 */
+            cpu_to_ube32(buf, total_sectors - 1);
+            cpu_to_ube32(buf + 4, 2048);
+            ide_atapi_cmd_reply(s, 8, 8);
         }
-        /* NOTE: it is really the number of sectors minus 1 */
-        cpu_to_ube32(buf, (s->nb_sectors >> 2) - 1);
-        cpu_to_ube32(buf + 4, 2048);
-        ide_atapi_cmd_reply(s, 8, 8);
         break;
     case GPCMD_INQUIRY:
         max_len = packet[4];
@@ -1449,17 +1479,6 @@ static void ide_atapi_cmd(IDEState *s)
                             ASC_ILLEGAL_OPCODE);
         break;
     }
-}
-
-/* called when the inserted state of the media has changed */
-static void cdrom_change_cb(void *opaque)
-{
-    IDEState *s = opaque;
-    int64_t nb_sectors;
-
-    /* XXX: send interrupt too */
-    bdrv_get_geometry(s->bs, &nb_sectors);
-    s->nb_sectors = nb_sectors;
 }
 
 static void ide_cmd_lba48_transform(IDEState *s, int lba48)
@@ -2092,7 +2111,6 @@ static void ide_init2(IDEState *ide_state,
             }
             if (bdrv_get_type_hint(s->bs) == BDRV_TYPE_CDROM) {
                 s->is_cdrom = 1;
-                bdrv_set_change_cb(s->bs, cdrom_change_cb, s);
             }
         }
         s->drive_serial = drive_serial++;
