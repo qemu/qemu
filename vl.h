@@ -348,7 +348,6 @@ void do_info_network(void);
 
 /* TAP win32 */
 int tap_win32_init(VLANState *vlan, const char *ifname);
-void tap_win32_poll(void);
 
 /* NIC info */
 

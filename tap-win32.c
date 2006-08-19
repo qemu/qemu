@@ -97,6 +97,7 @@ typedef struct tap_win32_overlapped {
     HANDLE write_event;
     HANDLE output_queue_semaphore;
     HANDLE free_list_semaphore;
+    HANDLE tap_semaphore;
     CRITICAL_SECTION output_queue_cs;
     CRITICAL_SECTION free_list_cs;
     OVERLAPPED read_overlapped;
@@ -445,6 +446,10 @@ static void tap_win32_overlapped_init(tap_win32_overlapped_t* const overlapped, 
             overlapped->free_list = element;
         }
     }
+    /* To count buffers, initially no-signal. */
+    overlapped->tap_semaphore = CreateSemaphore(NULL, 0, TUN_MAX_BUFFER_COUNT, NULL);
+    if(!overlapped->tap_semaphore)
+        fprintf(stderr, "error creating tap_semaphore.\n");
 }
 
 static int tap_win32_write(tap_win32_overlapped_t *overlapped, 
@@ -526,6 +531,7 @@ static DWORD WINAPI tap_win32_thread_entry(LPVOID param)
         if(read_size > 0) {
             buffer->read_size = read_size;
             put_buffer_on_output_queue(overlapped, buffer);
+            ReleaseSemaphore(overlapped->tap_semaphore, 1, NULL);
             buffer = get_buffer_from_free_list(overlapped);
         }
     }
@@ -620,8 +626,6 @@ static int tap_win32_open(tap_win32_overlapped_t **phandle,
 
     hThread = CreateThread(NULL, 0, tap_win32_thread_entry,
                            (LPVOID)&tap_overlapped, 0, &idThread);
-    SetThreadPriority(hThread,THREAD_PRIORITY_TIME_CRITICAL);
-
     return 0;
 }
 
@@ -630,10 +634,7 @@ static int tap_win32_open(tap_win32_overlapped_t **phandle,
  typedef struct TAPState {
      VLANClientState *vc;
      tap_win32_overlapped_t *handle;
-     HANDLE tap_event;
  } TAPState;
-
-static TAPState *tap_win32_state = NULL;
 
 static void tap_receive(void *opaque, const uint8_t *buf, int size)
 {
@@ -642,22 +643,17 @@ static void tap_receive(void *opaque, const uint8_t *buf, int size)
     tap_win32_write(s->handle, buf, size);
 }
 
-/* XXX: horrible, suppress this by using proper thread signaling */
-void tap_win32_poll(void)
+static void tap_win32_send(void *opaque)
 {
-    TAPState *s = tap_win32_state;
+    TAPState *s = opaque;
     uint8_t *buf;
     int max_size = 4096;
     int size;
-
-    if (!s)
-        return;
 
     size = tap_win32_read(s->handle, &buf, max_size);
     if (size > 0) {
         qemu_send_packet(s->vc, buf, size);
         tap_win32_free_buffer(s->handle, buf);
-        SetEvent(s->tap_event);
     }
 }
 
@@ -677,12 +673,7 @@ int tap_win32_init(VLANState *vlan, const char *ifname)
     
     snprintf(s->vc->info_str, sizeof(s->vc->info_str),
              "tap: ifname=%s", ifname);
-    tap_win32_state = s;
 
-    s->tap_event = CreateEvent(NULL, FALSE, FALSE, NULL);
-    if (!s->tap_event) {
-        fprintf(stderr, "tap-win32: Failed CreateEvent\n");
-    }
-    qemu_add_wait_object(s->tap_event, NULL, NULL);
+    qemu_add_wait_object(s->handle->tap_semaphore, tap_win32_send, s);
     return 0;
 }

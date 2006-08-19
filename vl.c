@@ -5715,9 +5715,6 @@ void main_loop_wait(int timeout)
         slirp_select_poll(&rfds, &wfds, &xfds);
     }
 #endif
-#ifdef _WIN32
-    tap_win32_poll();
-#endif
     qemu_aio_poll();
     qemu_bh_poll();
 
