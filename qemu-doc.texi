@@ -1115,9 +1115,8 @@ contained in @file{qemu-ifup} can be executed as root. You must verify
 that your host kernel supports the TAP network interfaces: the
 device @file{/dev/net/tun} must be present.
 
-See @ref{direct_linux_boot} to have an example of network use with a
-Linux distribution and @ref{sec_invocation} to have examples of
-command lines using the TAP network interfaces.
+See @ref{sec_invocation} to have examples of command lines using the
+TAP network interfaces.
 
 @subsection Using the user mode network stack
 
@@ -1167,146 +1166,31 @@ basic example.
 
 This section explains how to launch a Linux kernel inside QEMU without
 having to make a full bootable image. It is very useful for fast Linux
-kernel testing. The QEMU network configuration is also explained.
+kernel testing.
 
-@enumerate
-@item
-Download the archive @file{linux-test-xxx.tar.gz} containing a Linux
-kernel and a disk image. 
-
-@item Optional: If you want network support (for example to launch X11 examples), you
-must copy the script @file{qemu-ifup} in @file{/etc} and configure
-properly @code{sudo} so that the command @code{ifconfig} contained in
-@file{qemu-ifup} can be executed as root. You must verify that your host
-kernel supports the TUN/TAP network interfaces: the device
-@file{/dev/net/tun} must be present.
-
-When network is enabled, there is a virtual network connection between
-the host kernel and the emulated kernel. The emulated kernel is seen
-from the host kernel at IP address 172.20.0.2 and the host kernel is
-seen from the emulated kernel at IP address 172.20.0.1.
-
-@item Launch @code{qemu.sh}. You should have the following output:
-
-@smallexample
-> ./qemu.sh 
-Connected to host network interface: tun0
-Linux version 2.4.21 (bellard@@voyager.localdomain) (gcc version 3.2.2 20030222 @/(Red Hat @/Linux 3.2.2-5)) #5 Tue Nov 11 18:18:53 CET 2003
-BIOS-provided physical RAM map:
- BIOS-e801: 0000000000000000 - 000000000009f000 (usable)
- BIOS-e801: 0000000000100000 - 0000000002000000 (usable)
-32MB LOWMEM available.
-On node 0 totalpages: 8192
-zone(0): 4096 pages.
-zone(1): 4096 pages.
-zone(2): 0 pages.
-Kernel command line: root=/dev/hda sb=0x220,5,1,5 ide2=noprobe ide3=noprobe ide4=noprobe @/ide5=noprobe console=ttyS0
-ide_setup: ide2=noprobe
-ide_setup: ide3=noprobe
-ide_setup: ide4=noprobe
-ide_setup: ide5=noprobe
-Initializing CPU#0
-Detected 2399.621 MHz processor.
-Console: colour EGA 80x25
-Calibrating delay loop... 4744.80 BogoMIPS
-Memory: 28872k/32768k available (1210k kernel code, 3508k reserved, 266k data, 64k init, @/0k highmem)
-Dentry cache hash table entries: 4096 (order: 3, 32768 bytes)
-Inode cache hash table entries: 2048 (order: 2, 16384 bytes)
-Mount cache hash table entries: 512 (order: 0, 4096 bytes)
-Buffer-cache hash table entries: 1024 (order: 0, 4096 bytes)
-Page-cache hash table entries: 8192 (order: 3, 32768 bytes)
-CPU: Intel Pentium Pro stepping 03
-Checking 'hlt' instruction... OK.
-POSIX conformance testing by UNIFIX
-Linux NET4.0 for Linux 2.4
-Based upon Swansea University Computer Society NET3.039
-Initializing RT netlink socket
-apm: BIOS not found.
-Starting kswapd
-Journalled Block Device driver loaded
-Detected PS/2 Mouse Port.
-pty: 256 Unix98 ptys configured
-Serial driver version 5.05c (2001-07-08) with no serial options enabled
-ttyS00 at 0x03f8 (irq = 4) is a 16450
-ne.c:v1.10 9/23/94 Donald Becker (becker@@scyld.com)
-Last modified Nov 1, 2000 by Paul Gortmaker
-NE*000 ethercard probe at 0x300: 52 54 00 12 34 56
-eth0: NE2000 found at 0x300, using IRQ 9.
-RAMDISK driver initialized: 16 RAM disks of 4096K size 1024 blocksize
-Uniform Multi-Platform E-IDE driver Revision: 7.00beta4-2.4
-ide: Assuming 50MHz system bus speed for PIO modes; override with idebus=xx
-hda: QEMU HARDDISK, ATA DISK drive
-ide0 at 0x1f0-0x1f7,0x3f6 on irq 14
-hda: attached ide-disk driver.
-hda: 20480 sectors (10 MB) w/256KiB Cache, CHS=20/16/63
-Partition check:
- hda:
-Soundblaster audio driver Copyright (C) by Hannu Savolainen 1993-1996
-NET4: Linux TCP/IP 1.0 for NET4.0
-IP Protocols: ICMP, UDP, TCP, IGMP
-IP: routing cache hash table of 512 buckets, 4Kbytes
-TCP: Hash tables configured (established 2048 bind 4096)
-NET4: Unix domain sockets 1.0/SMP for Linux NET4.0.
-EXT2-fs warning: mounting unchecked fs, running e2fsck is recommended
-VFS: Mounted root (ext2 filesystem).
-Freeing unused kernel memory: 64k freed
- 
-Linux version 2.4.21 (bellard@@voyager.localdomain) (gcc version 3.2.2 20030222 @/(Red Hat @/Linux 3.2.2-5)) #5 Tue Nov 11 18:18:53 CET 2003
- 
-QEMU Linux test distribution (based on Redhat 9)
- 
-Type 'exit' to halt the system
- 
-sh-2.05b# 
-@end smallexample
-
-@item
-Then you can play with the kernel inside the virtual serial console. You
-can launch @code{ls} for example. Type @key{Ctrl-a h} to have an help
-about the keys you can type inside the virtual serial console. In
-particular, use @key{Ctrl-a x} to exit QEMU and use @key{Ctrl-a b} as
-the Magic SysRq key.
-
-@item 
-If the network is enabled, launch the script @file{/etc/linuxrc} in the
-emulator (don't forget the leading dot):
+The syntax is:
 @example
-. /etc/linuxrc
+qemu -kernel arch/i386/boot/bzImage -hda root-2.4.20.img -append "root=/dev/hda"
 @end example
 
-Then enable X11 connections on your PC from the emulated Linux: 
+Use @option{-kernel} to provide the Linux kernel image and
+@option{-append} to give the kernel command line arguments. The
+@option{-initrd} option can be used to provide an INITRD image.
+
+When using the direct Linux boot, a disk image for the first hard disk
+@file{hda} is required because its boot sector is used to launch the
+Linux kernel.
+
+If you do not need graphical output, you can disable it and redirect
+the virtual serial port and the QEMU monitor to the console with the
+@option{-nographic} option. The typical command line is:
 @example
-xhost +172.20.0.2
+qemu -kernel arch/i386/boot/bzImage -hda root-2.4.20.img \
+     -append "root=/dev/hda console=ttyS0" -nographic
 @end example
 
-You can now launch @file{xterm} or @file{xlogo} and verify that you have
-a real Virtual Linux system !
-
-@end enumerate
-
-NOTES:
-@enumerate
-@item 
-A 2.5.74 kernel is also included in the archive. Just
-replace the bzImage in qemu.sh to try it.
-
-@item 
-In order to exit cleanly from qemu, you can do a @emph{shutdown} inside
-qemu. qemu will automatically exit when the Linux shutdown is done.
-
-@item 
-You can boot slightly faster by disabling the probe of non present IDE
-interfaces. To do so, add the following options on the kernel command
-line:
-@example
-ide1=noprobe ide2=noprobe ide3=noprobe ide4=noprobe ide5=noprobe
-@end example
-
-@item 
-The example disk image is a modified version of the one made by Kevin
-Lawton for the plex86 Project (@url{www.plex86.org}).
-
-@end enumerate
+Use @key{Ctrl-a c} to switch between the serial console and the
+monitor (@pxref{pcsys_keys}).
 
 @node pcsys_usb
 @section USB emulation
