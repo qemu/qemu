@@ -559,8 +559,8 @@ localhost 5555
 The TCP Net Console has two modes of operation.  It can send the serial
 I/O to a location or wait for a connection from a location.  By default
 the TCP Net Console is sent to @var{host} at the @var{port}.  If you use
-the @var{,server} option QEMU will wait for a client socket application
-to connect to the port before continuing, unless the @code{,nowait}
+the @var{server} option QEMU will wait for a client socket application
+to connect to the port before continuing, unless the @code{nowait}
 option was specified. If @var{host} is omitted, 0.0.0.0 is assumed. Only
 one TCP connection at a time is accepted. You can use @code{telnet} to
 connect to the corresponding character device.
@@ -1011,7 +1011,7 @@ disk image filename provided you have enough proviledge to access
 it. For example, use @file{/dev/cdrom} to access to the CDROM or
 @file{/dev/fd0} for the floppy.
 
-@table
+@table @code
 @item CD
 You can specify a CDROM device even if no CDROM is loaded. QEMU has
 specific code to detect CDROM insertion or removal. CDROM ejection by
@@ -1198,7 +1198,7 @@ monitor (@pxref{pcsys_keys}).
 QEMU emulates a PCI UHCI USB controller. You can virtually plug
 virtual USB devices or real host USB devices (experimental, works only
 on Linux hosts).  Qemu will automatically create and connect virtual USB hubs
-as neccessary to connect multiple USB devices.
+as necessary to connect multiple USB devices.
 
 @menu
 * usb_devices::
