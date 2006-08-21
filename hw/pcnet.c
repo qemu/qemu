@@ -1738,6 +1738,7 @@ static void pcnet_save(QEMUFile* f,void* opaque)
 {
     PCNetState *d = (PCNetState *)opaque;
 #warning("TODO (still missing)")
+    pci_device_save(&d->dev, f);
 }
 
 void pci_pcnet_init(PCIBus *bus, NICInfo *nd)
@@ -1802,6 +1803,4 @@ void pci_pcnet_init(PCIBus *bus, NICInfo *nd)
 
 #define instance 0      /* TODO: support multiple instances */
     register_savevm("pcnet", instance, 0, pcnet_save, pcnet_load, d);
-    register_savevm("pcnet_pci", instance, 1, generic_pci_save, generic_pci_load, 
-                    &d->dev);
 }
