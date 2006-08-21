@@ -1387,7 +1387,7 @@ correctly instructs QEMU to shutdown at the appropriate moment.
 
 See @ref{sec_invocation} about the help of the option @option{-smb}.
 
-@subsubsection Windows XP security problems
+@subsubsection Windows XP security problem
 
 Some releases of Windows XP install correctly but give a security
 error when booting:
@@ -1395,10 +1395,12 @@ error when booting:
 A problem is preventing Windows from accurately checking the
 license for this computer. Error code: 0x800703e6.
 @end example
-The only known workaround is to boot in Safe mode
-without networking support. 
 
-Future QEMU releases are likely to correct this bug.
+The workaround is to install a service pack for XP after a boot in safe
+mode. Then reboot, and the problem should go away. Since there is no
+network while in safe mode, its recommended to download the full
+installation of SP1 or SP2 and transfer that via an ISO or using the
+vvfat block device ("-hdb fat:directory_which_holds_the_SP").
 
 @subsection MS-DOS and FreeDOS
 
