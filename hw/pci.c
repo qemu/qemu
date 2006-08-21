@@ -36,6 +36,8 @@ struct PCIBus {
     PCIDevice *devices[256];
 };
 
+static void pci_update_mappings(PCIDevice *d);
+
 target_phys_addr_t pci_mem_base;
 static int pci_irq_index;
 static PCIBus *first_bus;
@@ -56,21 +58,22 @@ int pci_bus_num(PCIBus *s)
     return s->bus_num;
 }
 
-void generic_pci_save(QEMUFile* f, void *opaque)
+void pci_device_save(PCIDevice *s, QEMUFile *f)
 {
-    PCIDevice* s=(PCIDevice*)opaque;
-
-    qemu_put_buffer(f, s->config, 256); /* TODO: endianess */
+    qemu_put_be32(f, 1); /* PCI device version */
+    /* todo: endianess */
+    qemu_put_buffer(f, s->config, 256);
 }
 
-int generic_pci_load(QEMUFile* f, void *opaque, int version_id)
+int pci_device_load(PCIDevice *s, QEMUFile *f)
 {
-    PCIDevice* s=(PCIDevice*)opaque;
-
+    uint32_t version_id;
+    version_id = qemu_get_be32(f);
     if (version_id != 1)
         return -EINVAL;
-
-    qemu_get_buffer(f, s->config, 256); /* TODO: endianess */
+    /* todo: endianess */
+    qemu_get_buffer(f, s->config, 256);
+    pci_update_mappings(s);
     return 0;
 }
 
@@ -416,6 +419,7 @@ typedef struct {
 
 static pci_class_desc pci_class_descriptions[] = 
 {
+    { 0x0100, "SCSI controller"},
     { 0x0101, "IDE controller"},
     { 0x0200, "Ethernet controller"},
     { 0x0300, "VGA controller"},

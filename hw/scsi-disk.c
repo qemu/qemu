@@ -24,6 +24,8 @@ do { fprintf(stderr, "scsi-disk: " fmt , ##args); } while (0)
 #include "vl.h"
 
 #define SENSE_NO_SENSE        0
+#define SENSE_NOT_READY       2
+#define SENSE_HARDWARE_ERROR  4
 #define SENSE_ILLEGAL_REQUEST 5
 
 struct SCSIDevice
@@ -45,7 +47,13 @@ struct SCSIDevice
     int buf_pos;
     int buf_len;
     int sense;
+    BlockDriverAIOCB *aiocb;
+    /* Data still to be transfered after this request completes.  */
+    uint8_t *aiodata;
+    uint32_t aiolen;
     char buf[512];
+    /* Completion functions may be called from either scsi_{read,write}_data
+       or from the AIO completion routines.  */
     scsi_completionfn completion;
     void *opaque;
 };
@@ -53,10 +61,49 @@ struct SCSIDevice
 static void scsi_command_complete(SCSIDevice *s, int sense)
 {
     s->sense = sense;
-    s->completion(s->opaque, s->tag, sense);
+    s->completion(s->opaque, SCSI_REASON_DONE, sense);
 }
 
-/* Read data from a scsi device.  Returns nonzero on failure.  */
+static void scsi_transfer_complete(SCSIDevice *s)
+{
+    s->completion(s->opaque, SCSI_REASON_DATA, 0);
+    s->aiocb = NULL;
+}
+
+static void scsi_read_complete(void * opaque, int ret)
+{
+    SCSIDevice *s = (SCSIDevice *)opaque;
+
+    if (ret) {
+        DPRINTF("IO error\n");
+        scsi_command_complete(s, SENSE_HARDWARE_ERROR);
+    }
+
+    if (s->aiolen) {
+        /* Read the remaining data.  Full and partial sectors are transferred
+           separately.  */
+        scsi_read_data(s, s->aiodata, s->aiolen);
+    } else {
+        if (s->buf_len == 0 && s->sector_count == 0)
+            scsi_command_complete(s, SENSE_NO_SENSE);
+        else
+            scsi_transfer_complete(s);
+    }
+}
+
+/* Cancel a pending data transfer.  */
+void scsi_cancel_io(SCSIDevice *s)
+{
+    if (!s->aiocb) {
+        BADF("Cancel with no pending IO\n");
+        return;
+    }
+    bdrv_aio_cancel(s->aiocb);
+    s->aiocb = NULL;
+}
+
+/* Read data from a scsi device.  Returns nonzero on failure.
+   The transfer may complete asynchronously.  */
 int scsi_read_data(SCSIDevice *s, uint8_t *data, uint32_t len)
 {
     uint32_t n;
@@ -83,14 +130,19 @@ int scsi_read_data(SCSIDevice *s, uint8_t *data, uint32_t len)
       n = s->sector_count;
 
     if (n != 0) {
-        bdrv_read(s->bdrv, s->sector, data, n);
-        data += n * 512;
-        len -= n * 512;
+        s->aiolen = len - n * 512;
+        s->aiodata = data + n * 512;
+        s->aiocb = bdrv_aio_read(s->bdrv, s->sector, data, n,
+                                 scsi_read_complete, s);
+        if (s->aiocb == NULL)
+            scsi_command_complete(s, SENSE_HARDWARE_ERROR);
         s->sector += n;
         s->sector_count -= n;
+        return 0;
     }
 
     if (len && s->sector_count) {
+        /* TODO: Make this use AIO.  */
         bdrv_read(s->bdrv, s->sector, s->buf, 1);
         s->sector++;
         s->sector_count--;
@@ -105,11 +157,53 @@ int scsi_read_data(SCSIDevice *s, uint8_t *data, uint32_t len)
 
     if (s->buf_len == 0 && s->sector_count == 0)
         scsi_command_complete(s, SENSE_NO_SENSE);
+    else
+        scsi_transfer_complete(s);
 
     return 0;
 }
 
-/* Read data to a scsi device.  Returns nonzero on failure.  */
+static void scsi_write_complete(void * opaque, int ret)
+{
+    SCSIDevice *s = (SCSIDevice *)opaque;
+
+    if (ret) {
+        fprintf(stderr, "scsi-disc: IO write error\n");
+        exit(1);
+    }
+
+    if (s->sector_count == 0)
+        scsi_command_complete(s, SENSE_NO_SENSE);
+    else
+        scsi_transfer_complete(s);
+}
+
+static uint32_t scsi_write_partial_sector(SCSIDevice *s, uint8_t *data,
+                                          uint32_t len)
+{
+    int n;
+
+    n = 512 - s->buf_len;
+    if (n > len)
+        n = len;
+
+    memcpy(s->buf + s->buf_len, data, n);
+    data += n;
+    s->buf_len += n;
+    len -= n;
+    if (s->buf_len == 512) {
+        /* A full sector has been accumulated. Write it to disk.  */
+        /* TODO: Make this use async IO.  */
+        bdrv_write(s->bdrv, s->sector, s->buf, 1);
+        s->buf_len = 0;
+        s->sector++;
+        s->sector_count--;
+    }
+    return n;
+}
+
+/* Write data to a scsi device.  Returns nonzero on failure.
+   The transfer may complete asynchronously.  */
 int scsi_write_data(SCSIDevice *s, uint8_t *data, uint32_t len)
 {
     uint32_t n;
@@ -124,48 +218,39 @@ int scsi_write_data(SCSIDevice *s, uint8_t *data, uint32_t len)
         return 1;
 
     if (s->buf_len != 0 || len < 512) {
-        n = 512 - s->buf_len;
-        if (n > len)
-            n = len;
-
-        memcpy(s->buf + s->buf_len, data, n);
-        data += n;
-        s->buf_len += n;
+        n = scsi_write_partial_sector(s, data, len);
         len -= n;
-        if (s->buf_len == 512) {
-            /* A full sector has been accumulated. Write it to disk.  */
-            bdrv_write(s->bdrv, s->sector, s->buf, 1);
-            s->buf_len = 0;
-            s->sector++;
-            s->sector_count--;
-        }
+        data += n;
     }
 
     n = len / 512;
     if (n > s->sector_count)
-        n = s->sector_count;
+        return 1;
 
     if (n != 0) {
-        bdrv_write(s->bdrv, s->sector, data, n);
+        s->aiocb = bdrv_aio_write(s->bdrv, s->sector, data, n,
+                                   scsi_write_complete, s);
+        if (s->aiocb == NULL)
+            scsi_command_complete(s, SENSE_HARDWARE_ERROR);
         data += n * 512;
         len -= n * 512;
         s->sector += n;
         s->sector_count -= n;
     }
 
-    if (len >= 512)
-        return 1;
-
-    if (len && s->sector_count) {
-        /* Recurse to complete the partial write.  */
-        return scsi_write_data(s, data, len);
+    if (len) {
+        if (s->sector_count == 0)
+            return 1;
+        /* Complete a partial write.  */
+        scsi_write_partial_sector(s, data, len);
     }
-
-    if (len != 0)
-        return 1;
-
-    if (s->sector_count == 0)
-        scsi_command_complete(s, SENSE_NO_SENSE);
+    if (n == 0) {
+        /* Transfer completes immediately.  */
+        if (s->sector_count == 0)
+            scsi_command_complete(s, SENSE_NO_SENSE);
+        else
+            scsi_transfer_complete(s);
+    }
 
     return 0;
 }
@@ -348,15 +433,22 @@ int32_t scsi_send_command(SCSIDevice *s, uint32_t tag, uint8_t *buf, int lun)
         /* The normal LEN field for this command is zero.  */
 	memset(s->buf, 0, 8);
 	bdrv_get_geometry(s->bdrv, &nb_sectors);
-	s->buf[0] = (nb_sectors >> 24) & 0xff;
-	s->buf[1] = (nb_sectors >> 16) & 0xff;
-	s->buf[2] = (nb_sectors >> 8) & 0xff;
-	s->buf[3] = nb_sectors & 0xff;
-	s->buf[4] = 0;
-	s->buf[5] = 0;
-        s->buf[6] = s->cluster_size * 2;
-	s->buf[7] = 0;
-	s->buf_len = 8;
+        /* Returned value is the address of the last sector.  */
+        if (nb_sectors) {
+            nb_sectors--;
+            s->buf[0] = (nb_sectors >> 24) & 0xff;
+            s->buf[1] = (nb_sectors >> 16) & 0xff;
+            s->buf[2] = (nb_sectors >> 8) & 0xff;
+            s->buf[3] = nb_sectors & 0xff;
+            s->buf[4] = 0;
+            s->buf[5] = 0;
+            s->buf[6] = s->cluster_size * 2;
+            s->buf[7] = 0;
+            s->buf_len = 8;
+        } else {
+            scsi_command_complete(s, SENSE_NOT_READY);
+            return 0;
+        }
 	break;
     case 0x08:
     case 0x28:
@@ -453,7 +545,6 @@ int32_t scsi_send_command(SCSIDevice *s, uint32_t tag, uint8_t *buf, int lun)
 
 void scsi_disk_destroy(SCSIDevice *s)
 {
-    bdrv_close(s->bdrv);
     qemu_free(s);
 }
 
