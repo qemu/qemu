@@ -89,6 +89,14 @@ typedef struct {
     uint32_t rhdesc_a, rhdesc_b;
     uint32_t rhstatus;
     OHCIPort rhport[OHCI_MAX_PORTS];
+
+    /* Active packets.  */
+    uint32_t old_ctl;
+    USBPacket usb_packet;
+    uint8_t usb_buf[8192];
+    uint32_t async_td;
+    int async_complete;
+
 } OHCIState;
 
 /* Host Controller Communications Area */
@@ -288,8 +296,7 @@ static void ohci_attach(USBPort *port1, USBDevice *dev)
             port->ctrl &= ~OHCI_PORT_LSDA;
         port->port.dev = dev;
         /* send the attach message */
-        dev->handle_packet(dev, 
-                           USB_MSG_ATTACH, 0, 0, NULL, 0);
+        usb_send_msg(dev, USB_MSG_ATTACH);
         dprintf("usb-ohci: Attached port %d\n", port1->index);
     } else {
         /* set connect status */
@@ -305,8 +312,7 @@ static void ohci_attach(USBPort *port1, USBDevice *dev)
         dev = port->port.dev;
         if (dev) {
             /* send the detach message */
-            dev->handle_packet(dev, 
-                               USB_MSG_DETACH, 0, 0, NULL, 0);
+            usb_send_msg(dev, USB_MSG_DETACH);
         }
         port->port.dev = NULL;
         dprintf("usb-ohci: Detached port %d\n", port1->index);
@@ -323,6 +329,7 @@ static void ohci_reset(OHCIState *ohci)
     int i;
 
     ohci->ctl = 0;
+    ohci->old_ctl = 0;
     ohci->status = 0;
     ohci->intr_status = 0;
     ohci->intr = OHCI_INTR_MIE;
@@ -356,6 +363,10 @@ static void ohci_reset(OHCIState *ohci)
         if (port->port.dev)
             ohci_attach(&port->port, port->port.dev);
       }
+    if (ohci->async_td) {
+        usb_cancel_packet(&ohci->usb_packet);
+        ohci->async_td = 0;
+    }
     dprintf("usb-ohci: Reset %s\n", ohci->pci_dev.name);
 }
 
@@ -423,6 +434,18 @@ static void ohci_copy_td(struct ohci_td *td, uint8_t *buf, int len, int write)
     cpu_physical_memory_rw(ptr, buf, len - n, write);
 }
 
+static void ohci_process_lists(OHCIState *ohci);
+
+static void ohci_async_complete_packet(USBPacket * packet, void *opaque)
+{
+    OHCIState *ohci = opaque;
+#ifdef DEBUG_PACKET
+    dprintf("Async packet complete\n");
+#endif
+    ohci->async_complete = 1;
+    ohci_process_lists(ohci);
+}
+
 /* Service a transport descriptor.
    Returns nonzero to terminate processing of this endpoint.  */
 
@@ -430,7 +453,6 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
 {
     int dir;
     size_t len = 0;
-    uint8_t buf[8192];
     char *str = NULL;
     int pid;
     int ret;
@@ -439,8 +461,17 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
     struct ohci_td td;
     uint32_t addr;
     int flag_r;
+    int completion;
 
     addr = ed->head & OHCI_DPTR_MASK;
+    /* See if this TD has already been submitted to the device.  */
+    completion = (addr == ohci->async_td);
+    if (completion && !ohci->async_complete) {
+#ifdef DEBUG_PACKET
+        dprintf("Skipping async TD\n");
+#endif
+        return 1;
+    }
     if (!ohci_read_td(addr, &td)) {
         fprintf(stderr, "usb-ohci: TD read error at %x\n", addr);
         return 0;
@@ -481,8 +512,8 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
             len = (td.be - td.cbp) + 1;
         }
 
-        if (len && dir != OHCI_TD_DIR_IN) {
-            ohci_copy_td(&td, buf, len, 0);
+        if (len && dir != OHCI_TD_DIR_IN && !completion) {
+            ohci_copy_td(&td, ohci->usb_buf, len, 0);
         }
     }
 
@@ -494,31 +525,58 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
     if (len >= 0 && dir != OHCI_TD_DIR_IN) {
         dprintf("  data:");
         for (i = 0; i < len; i++)
-            printf(" %.2x", buf[i]);
+            printf(" %.2x", ohci->usb_buf[i]);
         dprintf("\n");
     }
 #endif
-    ret = USB_RET_NODEV;
-    for (i = 0; i < ohci->num_ports; i++) {
-        dev = ohci->rhport[i].port.dev;
-        if ((ohci->rhport[i].ctrl & OHCI_PORT_PES) == 0)
-            continue;
+    if (completion) {
+        ret = ohci->usb_packet.len;
+        ohci->async_td = 0;
+        ohci->async_complete = 0;
+    } else {
+        ret = USB_RET_NODEV;
+        for (i = 0; i < ohci->num_ports; i++) {
+            dev = ohci->rhport[i].port.dev;
+            if ((ohci->rhport[i].ctrl & OHCI_PORT_PES) == 0)
+                continue;
 
-        ret = dev->handle_packet(dev, pid, OHCI_BM(ed->flags, ED_FA),
-                                 OHCI_BM(ed->flags, ED_EN), buf, len);
-        if (ret != USB_RET_NODEV)
-            break;
-    }
+            if (ohci->async_td) {
+                /* ??? The hardware should allow one active packet per
+                   endpoint.  We only allow one active packet per controller.
+                   This should be sufficient as long as devices respond in a
+                   timely manner.
+                 */
 #ifdef DEBUG_PACKET
-    dprintf("ret=%d\n", ret);
+                dprintf("Too many pending packets\n");
 #endif
+                return 1;
+            }
+            ohci->usb_packet.pid = pid;
+            ohci->usb_packet.devaddr = OHCI_BM(ed->flags, ED_FA);
+            ohci->usb_packet.devep = OHCI_BM(ed->flags, ED_EN);
+            ohci->usb_packet.data = ohci->usb_buf;
+            ohci->usb_packet.len = len;
+            ohci->usb_packet.complete_cb = ohci_async_complete_packet;
+            ohci->usb_packet.complete_opaque = ohci;
+            ret = dev->handle_packet(dev, &ohci->usb_packet);
+            if (ret != USB_RET_NODEV)
+                break;
+        }
+#ifdef DEBUG_PACKET
+        dprintf("ret=%d\n", ret);
+#endif
+        if (ret == USB_RET_ASYNC) {
+            ohci->async_td = addr;
+            return 1;
+        }
+    }
     if (ret >= 0) {
         if (dir == OHCI_TD_DIR_IN) {
-            ohci_copy_td(&td, buf, ret, 1);
+            ohci_copy_td(&td, ohci->usb_buf, ret, 1);
 #ifdef DEBUG_PACKET
             dprintf("  data:");
             for (i = 0; i < ret; i++)
-                printf(" %.2x", buf[i]);
+                printf(" %.2x", ohci->usb_buf[i]);
             dprintf("\n");
 #endif
         } else {
@@ -608,8 +666,16 @@ static int ohci_service_ed_list(OHCIState *ohci, uint32_t head)
 
         next_ed = ed.next & OHCI_DPTR_MASK;
 
-        if ((ed.head & OHCI_ED_H) || (ed.flags & OHCI_ED_K))
+        if ((ed.head & OHCI_ED_H) || (ed.flags & OHCI_ED_K)) {
+            uint32_t addr;
+            /* Cancel pending packets for ED that have been paused.  */
+            addr = ed.head & OHCI_DPTR_MASK;
+            if (ohci->async_td && addr == ohci->async_td) {
+                usb_cancel_packet(&ohci->usb_packet);
+                ohci->async_td = 0;
+            }
             continue;
+        }
 
         /* Skip isochronous endpoints.  */
         if (ed.flags & OHCI_ED_F)
@@ -646,21 +712,9 @@ static void ohci_sof(OHCIState *ohci)
     ohci_set_interrupt(ohci, OHCI_INTR_SF);
 }
 
-/* Do frame processing on frame boundary */
-static void ohci_frame_boundary(void *opaque)
+/* Process Control and Bulk lists.  */
+static void ohci_process_lists(OHCIState *ohci)
 {
-    OHCIState *ohci = opaque;
-    struct ohci_hcca hcca;
-
-    cpu_physical_memory_rw(ohci->hcca, (uint8_t *)&hcca, sizeof(hcca), 0);
-
-    /* Process all the lists at the end of the frame */
-    if (ohci->ctl & OHCI_CTL_PLE) {
-        int n;
-
-        n = ohci->frame_number & 0x1f;
-        ohci_service_ed_list(ohci, le32_to_cpu(hcca.intr[n]));
-    }
     if ((ohci->ctl & OHCI_CTL_CLE) && (ohci->status & OHCI_STATUS_CLF)) {
         if (ohci->ctrl_cur && ohci->ctrl_cur != ohci->ctrl_head)
           dprintf("usb-ohci: head %x, cur %x\n", ohci->ctrl_head, ohci->ctrl_cur);
@@ -676,6 +730,32 @@ static void ohci_frame_boundary(void *opaque)
             ohci->status &= ~OHCI_STATUS_BLF;
         }
     }
+}
+
+/* Do frame processing on frame boundary */
+static void ohci_frame_boundary(void *opaque)
+{
+    OHCIState *ohci = opaque;
+    struct ohci_hcca hcca;
+
+    cpu_physical_memory_rw(ohci->hcca, (uint8_t *)&hcca, sizeof(hcca), 0);
+
+    /* Process all the lists at the end of the frame */
+    if (ohci->ctl & OHCI_CTL_PLE) {
+        int n;
+
+        n = ohci->frame_number & 0x1f;
+        ohci_service_ed_list(ohci, le32_to_cpu(hcca.intr[n]));
+    }
+
+    /* Cancel all pending packets if either of the lists has been disabled.  */
+    if (ohci->async_td &&
+        ohci->old_ctl & (~ohci->ctl) & (OHCI_CTL_BLE | OHCI_CTL_CLE)) {
+        usb_cancel_packet(&ohci->usb_packet);
+        ohci->async_td = 0;
+    }
+    ohci->old_ctl = ohci->ctl;
+    ohci_process_lists(ohci);
 
     /* Frame boundary, so do EOF stuf here */
     ohci->frt = ohci->fit;
@@ -907,8 +987,7 @@ static void ohci_port_set_status(OHCIState *ohci, int portnum, uint32_t val)
 
     if (ohci_port_set_if_connected(ohci, portnum, val & OHCI_PORT_PRS)) {
         dprintf("usb-ohci: port %d: RESET\n", portnum);
-        port->port.dev->handle_packet(port->port.dev, USB_MSG_RESET,
-                                      0, 0, NULL, 0);
+        usb_send_msg(port->port.dev, USB_MSG_RESET);
         port->ctrl &= ~OHCI_PORT_PRS;
         /* ??? Should this also set OHCI_PORT_PESC.  */
         port->ctrl |= OHCI_PORT_PES | OHCI_PORT_PRSC;
@@ -1186,5 +1265,6 @@ void usb_ohci_init(struct PCIBus *bus, int num_ports, int devfn)
         qemu_register_usb_port(&ohci->rhport[i].port, ohci, i, ohci_attach);
     }
 
+    ohci->async_td = 0;
     ohci_reset(ohci);
 }

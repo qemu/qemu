@@ -29,16 +29,19 @@ is the disk image format. It is guessed automatically in most cases. The followi
 @item raw
 
 Raw disk image format (default). This format has the advantage of
-being simple and easily exportable to all other emulators. If your file
-system supports @emph{holes} (for example in ext2 or ext3 on Linux),
-then only the written sectors will reserve space. Use @code{qemu-img
-info} to know the real size used by the image or @code{ls -ls} on
-Unix/Linux.
+being simple and easily exportable to all other emulators. If your
+file system supports @emph{holes} (for example in ext2 or ext3 on
+Linux or NTFS on Windows), then only the written sectors will reserve
+space. Use @code{qemu-img info} to know the real size used by the
+image or @code{ls -ls} on Unix/Linux.
 
-@item qcow
+@item qcow2
 QEMU image format, the most versatile format. Use it to have smaller
 images (useful if your filesystem does not supports holes, for example
-on Windows), optional AES encryption and zlib based compression.
+on Windows), optional AES encryption, zlib based compression and
+support of multiple VM snapshots.
+@item qcow
+Old QEMU image format. Left for compatibility.
 @item cow
 User Mode Linux Copy On Write image format. Used to be the only growable
 image format in QEMU. It is supported only for compatibility with
@@ -104,7 +107,8 @@ are detected and suppressed from the destination image.
 
 Give information about the disk image @var{filename}. Use it in
 particular to know the size reserved on disk which can be different
-from the displayed size.
+from the displayed size. If VM snapshots are stored in the disk image,
+they are displayed too.
 @end table
 
 @c man end

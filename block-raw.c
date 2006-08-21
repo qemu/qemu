@@ -46,10 +46,437 @@
 #ifdef __sun__
 #include <sys/dkio.h>
 #endif
+#ifdef __linux__
+#include <sys/ioctl.h>
+#include <linux/cdrom.h>
+#include <linux/fd.h>
+#endif
+
+//#define DEBUG_FLOPPY
+
+#define FTYPE_FILE   0
+#define FTYPE_CD     1
+#define FTYPE_FD     2
+
+/* if the FD is not accessed during that time (in ms), we try to
+   reopen it to see if the disk has been changed */
+#define FD_OPEN_TIMEOUT 1000
 
 typedef struct BDRVRawState {
     int fd;
+    int type;
+#if defined(__linux__)
+    /* linux floppy specific */
+    int fd_open_flags;
+    int64_t fd_open_time;
+    int64_t fd_error_time;
+    int fd_got_error;
+    int fd_media_changed;
+#endif
 } BDRVRawState;
+
+static int fd_open(BlockDriverState *bs);
+
+static int raw_open(BlockDriverState *bs, const char *filename, int flags)
+{
+    BDRVRawState *s = bs->opaque;
+    int fd, open_flags, ret;
+
+    open_flags = O_BINARY;
+    if ((flags & BDRV_O_ACCESS) == O_RDWR) {
+        open_flags |= O_RDWR;
+    } else {
+        open_flags |= O_RDONLY;
+        bs->read_only = 1;
+    }
+    if (flags & BDRV_O_CREAT)
+        open_flags |= O_CREAT | O_TRUNC;
+
+    s->type = FTYPE_FILE;
+
+    fd = open(filename, open_flags, 0644);
+    if (fd < 0) {
+        ret = -errno;
+        if (ret == -EROFS)
+            ret = -EACCES;
+        return ret;
+    }
+    s->fd = fd;
+    return 0;
+}
+
+/* XXX: use host sector size if necessary with:
+#ifdef DIOCGSECTORSIZE
+        {
+            unsigned int sectorsize = 512;
+            if (!ioctl(fd, DIOCGSECTORSIZE, &sectorsize) &&
+                sectorsize > bufsize)
+                bufsize = sectorsize;
+        }
+#endif
+#ifdef CONFIG_COCOA
+        u_int32_t   blockSize = 512;
+        if ( !ioctl( fd, DKIOCGETBLOCKSIZE, &blockSize ) && blockSize > bufsize) {
+            bufsize = blockSize;
+        }
+#endif
+*/
+
+static int raw_pread(BlockDriverState *bs, int64_t offset, 
+                     uint8_t *buf, int count)
+{
+    BDRVRawState *s = bs->opaque;
+    int ret;
+    
+    ret = fd_open(bs);
+    if (ret < 0)
+        return ret;
+
+    lseek(s->fd, offset, SEEK_SET);
+    ret = read(s->fd, buf, count);
+    return ret;
+}
+
+static int raw_pwrite(BlockDriverState *bs, int64_t offset, 
+                      const uint8_t *buf, int count)
+{
+    BDRVRawState *s = bs->opaque;
+    int ret;
+    
+    ret = fd_open(bs);
+    if (ret < 0)
+        return ret;
+
+    lseek(s->fd, offset, SEEK_SET);
+    ret = write(s->fd, buf, count);
+    return ret;
+}
+
+/***********************************************************/
+/* Unix AIO using POSIX AIO */
+
+typedef struct RawAIOCB {
+    BlockDriverAIOCB common;
+    struct aiocb aiocb;
+    struct RawAIOCB *next;
+} RawAIOCB;
+
+static int aio_sig_num = SIGUSR2;
+static RawAIOCB *first_aio; /* AIO issued */
+static int aio_initialized = 0;
+
+static void aio_signal_handler(int signum)
+{
+#ifndef QEMU_TOOL
+    CPUState *env = cpu_single_env;
+    if (env) {
+        /* stop the currently executing cpu because a timer occured */
+        cpu_interrupt(env, CPU_INTERRUPT_EXIT);
+#ifdef USE_KQEMU
+        if (env->kqemu_enabled) {
+            kqemu_cpu_interrupt(env);
+        }
+#endif
+    }
+#endif
+}
+
+void qemu_aio_init(void)
+{
+    struct sigaction act;
+
+    aio_initialized = 1;
+    
+    sigfillset(&act.sa_mask);
+    act.sa_flags = 0; /* do not restart syscalls to interrupt select() */
+    act.sa_handler = aio_signal_handler;
+    sigaction(aio_sig_num, &act, NULL);
+
+#if defined(__GLIBC__) && defined(__linux__)
+    {
+        /* XXX: aio thread exit seems to hang on RedHat 9 and this init
+           seems to fix the problem. */
+        struct aioinit ai;
+        memset(&ai, 0, sizeof(ai));
+        ai.aio_threads = 1;
+        ai.aio_num = 1;
+        ai.aio_idle_time = 365 * 100000;
+        aio_init(&ai);
+    }
+#endif
+}
+
+void qemu_aio_poll(void)
+{
+    RawAIOCB *acb, **pacb;
+    int ret;
+
+    for(;;) {
+        pacb = &first_aio;
+        for(;;) {
+            acb = *pacb;
+            if (!acb)
+                goto the_end;
+            ret = aio_error(&acb->aiocb);
+            if (ret == ECANCELED) {
+                /* remove the request */
+                *pacb = acb->next;
+                qemu_aio_release(acb);
+            } else if (ret != EINPROGRESS) {
+                /* end of aio */
+                if (ret == 0) {
+                    ret = aio_return(&acb->aiocb);
+                    if (ret == acb->aiocb.aio_nbytes)
+                        ret = 0;
+                    else
+                        ret = -EINVAL;
+                } else {
+                    ret = -ret;
+                }
+                /* remove the request */
+                *pacb = acb->next;
+                /* call the callback */
+                acb->common.cb(acb->common.opaque, ret);
+                qemu_aio_release(acb);
+                break;
+            } else {
+                pacb = &acb->next;
+            }
+        }
+    }
+ the_end: ;
+}
+
+/* wait until at least one AIO was handled */
+static sigset_t wait_oset;
+
+void qemu_aio_wait_start(void)
+{
+    sigset_t set;
+
+    if (!aio_initialized)
+        qemu_aio_init();
+    sigemptyset(&set);
+    sigaddset(&set, aio_sig_num);
+    sigprocmask(SIG_BLOCK, &set, &wait_oset);
+}
+
+void qemu_aio_wait(void)
+{
+    sigset_t set;
+    int nb_sigs;
+
+#ifndef QEMU_TOOL
+    if (qemu_bh_poll())
+        return;
+#endif
+    sigemptyset(&set);
+    sigaddset(&set, aio_sig_num);
+    sigwait(&set, &nb_sigs);
+    qemu_aio_poll();
+}
+
+void qemu_aio_wait_end(void)
+{
+    sigprocmask(SIG_SETMASK, &wait_oset, NULL);
+}
+
+static RawAIOCB *raw_aio_setup(BlockDriverState *bs,
+        int64_t sector_num, uint8_t *buf, int nb_sectors,
+        BlockDriverCompletionFunc *cb, void *opaque)
+{
+    BDRVRawState *s = bs->opaque;
+    RawAIOCB *acb;
+
+    if (fd_open(bs) < 0)
+        return NULL;
+
+    acb = qemu_aio_get(bs, cb, opaque);
+    if (!acb)
+        return NULL;
+    acb->aiocb.aio_fildes = s->fd;
+    acb->aiocb.aio_sigevent.sigev_signo = aio_sig_num;
+    acb->aiocb.aio_sigevent.sigev_notify = SIGEV_SIGNAL;
+    acb->aiocb.aio_buf = buf;
+    acb->aiocb.aio_nbytes = nb_sectors * 512;
+    acb->aiocb.aio_offset = sector_num * 512;
+    acb->next = first_aio;
+    first_aio = acb;
+    return acb;
+}
+
+static BlockDriverAIOCB *raw_aio_read(BlockDriverState *bs,
+        int64_t sector_num, uint8_t *buf, int nb_sectors,
+        BlockDriverCompletionFunc *cb, void *opaque)
+{
+    RawAIOCB *acb;
+
+    acb = raw_aio_setup(bs, sector_num, buf, nb_sectors, cb, opaque);
+    if (!acb)
+        return NULL;
+    if (aio_read(&acb->aiocb) < 0) {
+        qemu_aio_release(acb);
+        return NULL;
+    } 
+    return &acb->common;
+}
+
+static BlockDriverAIOCB *raw_aio_write(BlockDriverState *bs,
+        int64_t sector_num, const uint8_t *buf, int nb_sectors,
+        BlockDriverCompletionFunc *cb, void *opaque)
+{
+    RawAIOCB *acb;
+
+    acb = raw_aio_setup(bs, sector_num, (uint8_t*)buf, nb_sectors, cb, opaque);
+    if (!acb)
+        return NULL;
+    if (aio_write(&acb->aiocb) < 0) {
+        qemu_aio_release(acb);
+        return NULL;
+    } 
+    return &acb->common;
+}
+
+static void raw_aio_cancel(BlockDriverAIOCB *blockacb)
+{
+    int ret;
+    RawAIOCB *acb = (RawAIOCB *)blockacb;
+    RawAIOCB **pacb;
+
+    ret = aio_cancel(acb->aiocb.aio_fildes, &acb->aiocb);
+    if (ret == AIO_NOTCANCELED) {
+        /* fail safe: if the aio could not be canceled, we wait for
+           it */
+        while (aio_error(&acb->aiocb) == EINPROGRESS);
+    }
+
+    /* remove the callback from the queue */
+    pacb = &first_aio;
+    for(;;) {
+        if (*pacb == NULL) {
+            break;
+        } else if (*pacb == acb) {
+            *pacb = acb->next;
+            qemu_aio_release(acb);
+            break;
+        }
+        pacb = &acb->next;
+    }
+}
+
+static void raw_close(BlockDriverState *bs)
+{
+    BDRVRawState *s = bs->opaque;
+    if (s->fd >= 0) {
+        close(s->fd);
+        s->fd = -1;
+    }
+}
+
+static int raw_truncate(BlockDriverState *bs, int64_t offset)
+{
+    BDRVRawState *s = bs->opaque;
+    if (s->type != FTYPE_FILE)
+        return -ENOTSUP;
+    if (ftruncate(s->fd, offset) < 0)
+        return -errno;
+    return 0;
+}
+
+static int64_t  raw_getlength(BlockDriverState *bs)
+{
+    BDRVRawState *s = bs->opaque;
+    int fd = s->fd;
+    int64_t size;
+#ifdef _BSD
+    struct stat sb;
+#endif
+#ifdef __sun__
+    struct dk_minfo minfo;
+    int rv;
+#endif
+    int ret;
+
+    ret = fd_open(bs);
+    if (ret < 0)
+        return ret;
+
+#ifdef _BSD
+    if (!fstat(fd, &sb) && (S_IFCHR & sb.st_mode)) {
+#ifdef DIOCGMEDIASIZE
+	if (ioctl(fd, DIOCGMEDIASIZE, (off_t *)&size))
+#endif
+#ifdef CONFIG_COCOA
+        size = LONG_LONG_MAX;
+#else
+        size = lseek(fd, 0LL, SEEK_END);
+#endif
+    } else
+#endif
+#ifdef __sun__
+    /*
+     * use the DKIOCGMEDIAINFO ioctl to read the size.
+     */
+    rv = ioctl ( fd, DKIOCGMEDIAINFO, &minfo );
+    if ( rv != -1 ) {
+        size = minfo.dki_lbsize * minfo.dki_capacity;
+    } else /* there are reports that lseek on some devices
+              fails, but irc discussion said that contingency
+              on contingency was overkill */
+#endif
+    {
+        size = lseek(fd, 0, SEEK_END);
+    }
+    return size;
+}
+
+static int raw_create(const char *filename, int64_t total_size,
+                      const char *backing_file, int flags)
+{
+    int fd;
+
+    if (flags || backing_file)
+        return -ENOTSUP;
+
+    fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 
+              0644);
+    if (fd < 0)
+        return -EIO;
+    ftruncate(fd, total_size * 512);
+    close(fd);
+    return 0;
+}
+
+static void raw_flush(BlockDriverState *bs)
+{
+    BDRVRawState *s = bs->opaque;
+    fsync(s->fd);
+}
+
+BlockDriver bdrv_raw = {
+    "raw",
+    sizeof(BDRVRawState),
+    NULL, /* no probe for protocols */
+    raw_open,
+    NULL,
+    NULL,
+    raw_close,
+    raw_create,
+    raw_flush,
+    
+    .bdrv_aio_read = raw_aio_read,
+    .bdrv_aio_write = raw_aio_write,
+    .bdrv_aio_cancel = raw_aio_cancel,
+    .aiocb_size = sizeof(RawAIOCB),
+    .protocol_name = "file",
+    .bdrv_pread = raw_pread,
+    .bdrv_pwrite = raw_pwrite,
+    .bdrv_truncate = raw_truncate,
+    .bdrv_getlength = raw_getlength,
+};
+
+/***********************************************/
+/* host device */
 
 #ifdef CONFIG_COCOA
 static kern_return_t FindEjectableCDMedia( io_iterator_t *mediaIterator );
@@ -109,10 +536,10 @@ kern_return_t GetBSDPath( io_iterator_t mediaIterator, char *bsdPath, CFIndex ma
 
 #endif
 
-static int raw_open(BlockDriverState *bs, const char *filename, int flags)
+static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
 {
     BDRVRawState *s = bs->opaque;
-    int fd, open_flags;
+    int fd, open_flags, ret;
 
 #ifdef CONFIG_COCOA
     if (strstart(filename, "/dev/cdrom", NULL)) {
@@ -147,372 +574,245 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
         open_flags |= O_RDONLY;
         bs->read_only = 1;
     }
-    if (flags & BDRV_O_CREAT)
-        open_flags |= O_CREAT | O_TRUNC;
 
+    s->type = FTYPE_FILE;
+#if defined(__linux__)
+    if (strstart(filename, "/dev/cd", NULL)) {
+        /* open will not fail even if no CD is inserted */
+        open_flags |= O_NONBLOCK;
+        s->type = FTYPE_CD;
+    } else if (strstart(filename, "/dev/fd", NULL)) {
+        s->type = FTYPE_FD;
+        s->fd_open_flags = open_flags;
+        /* open will not fail even if no floppy is inserted */
+        open_flags |= O_NONBLOCK;
+    }
+#endif
     fd = open(filename, open_flags, 0644);
-    if (fd < 0)
-        return -errno;
+    if (fd < 0) {
+        ret = -errno;
+        if (ret == -EROFS)
+            ret = -EACCES;
+        return ret;
+    }
     s->fd = fd;
+#if defined(__linux__)
+    /* close fd so that we can reopen it as needed */
+    if (s->type == FTYPE_FD) {
+        close(s->fd);
+        s->fd = -1;
+        s->fd_media_changed = 1;
+    }
+#endif
     return 0;
 }
 
-/* XXX: use host sector size if necessary with:
-#ifdef DIOCGSECTORSIZE
+#if defined(__linux__) && !defined(QEMU_TOOL)
+
+/* Note: we do not have a reliable method to detect if the floppy is
+   present. The current method is to try to open the floppy at every
+   I/O and to keep it opened during a few hundreds of ms. */
+static int fd_open(BlockDriverState *bs)
+{
+    BDRVRawState *s = bs->opaque;
+    int last_media_present;
+
+    if (s->type != FTYPE_FD)
+        return 0;
+    last_media_present = (s->fd >= 0);
+    if (s->fd >= 0 && 
+        (qemu_get_clock(rt_clock) - s->fd_open_time) >= FD_OPEN_TIMEOUT) {
+        close(s->fd);
+        s->fd = -1;
+#ifdef DEBUG_FLOPPY
+        printf("Floppy closed\n");
+#endif
+    }
+    if (s->fd < 0) {
+        if (s->fd_got_error && 
+            (qemu_get_clock(rt_clock) - s->fd_error_time) < FD_OPEN_TIMEOUT) {
+#ifdef DEBUG_FLOPPY
+            printf("No floppy (open delayed)\n");
+#endif
+            return -EIO;
+        }
+        s->fd = open(bs->filename, s->fd_open_flags);
+        if (s->fd < 0) {
+            s->fd_error_time = qemu_get_clock(rt_clock);
+            s->fd_got_error = 1;
+            if (last_media_present)
+                s->fd_media_changed = 1;
+#ifdef DEBUG_FLOPPY
+            printf("No floppy\n");
+#endif
+            return -EIO;
+        }
+#ifdef DEBUG_FLOPPY
+        printf("Floppy opened\n");
+#endif
+    }
+    if (!last_media_present)
+        s->fd_media_changed = 1;
+    s->fd_open_time = qemu_get_clock(rt_clock);
+    s->fd_got_error = 0;
+    return 0;
+}
+#else
+static int fd_open(BlockDriverState *bs)
+{
+    return 0;
+}
+#endif
+
+#if defined(__linux__)
+
+static int raw_is_inserted(BlockDriverState *bs)
+{
+    BDRVRawState *s = bs->opaque;
+    int ret;
+
+    switch(s->type) {
+    case FTYPE_CD:
+        ret = ioctl(s->fd, CDROM_DRIVE_STATUS, CDSL_CURRENT);
+        if (ret == CDS_DISC_OK)
+            return 1;
+        else
+            return 0;
+        break;
+    case FTYPE_FD:
+        ret = fd_open(bs);
+        return (ret >= 0);
+    default:
+        return 1;
+    }
+}
+
+/* currently only used by fdc.c, but a CD version would be good too */
+static int raw_media_changed(BlockDriverState *bs)
+{
+    BDRVRawState *s = bs->opaque;
+
+    switch(s->type) {
+    case FTYPE_FD:
         {
-            unsigned int sectorsize = 512;
-            if (!ioctl(fd, DIOCGSECTORSIZE, &sectorsize) &&
-                sectorsize > bufsize)
-                bufsize = sectorsize;
+            int ret;
+            /* XXX: we do not have a true media changed indication. It
+               does not work if the floppy is changed without trying
+               to read it */
+            fd_open(bs);
+            ret = s->fd_media_changed;
+            s->fd_media_changed = 0;
+#ifdef DEBUG_FLOPPY
+            printf("Floppy changed=%d\n", ret);
+#endif
+            return ret;
         }
-#endif
-#ifdef CONFIG_COCOA
-        u_int32_t   blockSize = 512;
-        if ( !ioctl( fd, DKIOCGETBLOCKSIZE, &blockSize ) && blockSize > bufsize) {
-            bufsize = blockSize;
-        }
-#endif
-*/
-
-static int raw_pread(BlockDriverState *bs, int64_t offset, 
-                     uint8_t *buf, int count)
-{
-    BDRVRawState *s = bs->opaque;
-    int ret;
-    
-    lseek(s->fd, offset, SEEK_SET);
-    ret = read(s->fd, buf, count);
-    return ret;
-}
-
-static int raw_pwrite(BlockDriverState *bs, int64_t offset, 
-                      const uint8_t *buf, int count)
-{
-    BDRVRawState *s = bs->opaque;
-    int ret;
-    
-    lseek(s->fd, offset, SEEK_SET);
-    ret = write(s->fd, buf, count);
-    return ret;
-}
-
-/***********************************************************/
-/* Unix AOP using POSIX AIO */
-
-typedef struct RawAIOCB {
-    struct aiocb aiocb;
-    int busy; /* only used for debugging */
-    BlockDriverAIOCB *next;
-} RawAIOCB;
-
-static int aio_sig_num = SIGUSR2;
-static BlockDriverAIOCB *first_aio; /* AIO issued */
-static int aio_initialized = 0;
-
-static void aio_signal_handler(int signum)
-{
-#ifndef QEMU_TOOL
-    CPUState *env = cpu_single_env;
-    if (env) {
-        /* stop the currently executing cpu because a timer occured */
-        cpu_interrupt(env, CPU_INTERRUPT_EXIT);
-#ifdef USE_KQEMU
-        if (env->kqemu_enabled) {
-            kqemu_cpu_interrupt(env);
-        }
-#endif
-    }
-#endif
-}
-
-void qemu_aio_init(void)
-{
-    struct sigaction act;
-
-    aio_initialized = 1;
-    
-    sigfillset(&act.sa_mask);
-    act.sa_flags = 0; /* do not restart syscalls to interrupt select() */
-    act.sa_handler = aio_signal_handler;
-    sigaction(aio_sig_num, &act, NULL);
-
-    {
-        /* XXX: aio thread exit seems to hang on RH 9 */
-        struct aioinit ai;
-        memset(&ai, 0, sizeof(ai));
-        ai.aio_threads = 2;
-        ai.aio_num = 1;
-        ai.aio_idle_time = 365 * 100000;
-        aio_init(&ai);
+    default:
+        return -ENOTSUP;
     }
 }
 
-void qemu_aio_poll(void)
+static int raw_eject(BlockDriverState *bs, int eject_flag)
 {
-    BlockDriverAIOCB *acb, **pacb;
-    RawAIOCB *acb1;
-    int ret;
+    BDRVRawState *s = bs->opaque;
 
-    for(;;) {
-        pacb = &first_aio;
-        for(;;) {
-            acb = *pacb;
-            if (!acb)
-                goto the_end;
-            acb1 = acb->opaque;
-            ret = aio_error(&acb1->aiocb);
-            if (ret == ECANCELED) {
-                /* remove the request */
-                acb1->busy = 0;
-                *pacb = acb1->next;
-            } else if (ret != EINPROGRESS) {
-                /* end of aio */
-                if (ret == 0) {
-                    ret = aio_return(&acb1->aiocb);
-                    if (ret == acb1->aiocb.aio_nbytes)
-                        ret = 0;
-                    else
-                        ret = -1;
-                } else {
-                    ret = -ret;
-                }
-                /* remove the request */
-                acb1->busy = 0;
-                *pacb = acb1->next;
-                /* call the callback */
-                acb->cb(acb->cb_opaque, ret);
-                break;
-            } else {
-                pacb = &acb1->next;
+    switch(s->type) {
+    case FTYPE_CD:
+        if (eject_flag) {
+            if (ioctl (s->fd, CDROMEJECT, NULL) < 0)
+                perror("CDROMEJECT");
+        } else {
+            if (ioctl (s->fd, CDROMCLOSETRAY, NULL) < 0)
+                perror("CDROMEJECT");
+        }
+        break;
+    case FTYPE_FD:
+        {
+            int fd;
+            if (s->fd >= 0) {
+                close(s->fd);
+                s->fd = -1;
+            }
+            fd = open(bs->filename, s->fd_open_flags | O_NONBLOCK);
+            if (fd >= 0) {
+                if (ioctl(fd, FDEJECT, 0) < 0)
+                    perror("FDEJECT");
+                close(fd);
             }
         }
-    }
- the_end: ;
-}
-
-/* wait until at least one AIO was handled */
-static sigset_t wait_oset;
-
-void qemu_aio_wait_start(void)
-{
-    sigset_t set;
-
-    if (!aio_initialized)
-        qemu_aio_init();
-    sigemptyset(&set);
-    sigaddset(&set, aio_sig_num);
-    sigprocmask(SIG_BLOCK, &set, &wait_oset);
-}
-
-void qemu_aio_wait(void)
-{
-    sigset_t set;
-    int nb_sigs;
-    sigemptyset(&set);
-    sigaddset(&set, aio_sig_num);
-    sigwait(&set, &nb_sigs);
-    qemu_aio_poll();
-}
-
-void qemu_aio_wait_end(void)
-{
-    sigprocmask(SIG_SETMASK, &wait_oset, NULL);
-}
-
-static int raw_aio_new(BlockDriverAIOCB *acb)
-{
-    RawAIOCB *acb1;
-    BDRVRawState *s = acb->bs->opaque;
-
-    acb1 = qemu_mallocz(sizeof(RawAIOCB));
-    if (!acb1)
-        return -1;
-    acb->opaque = acb1;
-    acb1->aiocb.aio_fildes = s->fd;
-    acb1->aiocb.aio_sigevent.sigev_signo = aio_sig_num;
-    acb1->aiocb.aio_sigevent.sigev_notify = SIGEV_SIGNAL;
-    return 0;
-}
-
-static int raw_aio_read(BlockDriverAIOCB *acb, int64_t sector_num, 
-                        uint8_t *buf, int nb_sectors)
-{
-    RawAIOCB *acb1 = acb->opaque;
-
-    assert(acb1->busy == 0);
-    acb1->busy = 1;
-    acb1->aiocb.aio_buf = buf;
-    acb1->aiocb.aio_nbytes = nb_sectors * 512;
-    acb1->aiocb.aio_offset = sector_num * 512;
-    acb1->next = first_aio;
-    first_aio = acb;
-    if (aio_read(&acb1->aiocb) < 0) {
-        acb1->busy = 0;
-        return -errno;
-    } 
-    return 0;
-}
-
-static int raw_aio_write(BlockDriverAIOCB *acb, int64_t sector_num, 
-                         const uint8_t *buf, int nb_sectors)
-{
-    RawAIOCB *acb1 = acb->opaque;
-
-    assert(acb1->busy == 0);
-    acb1->busy = 1;
-    acb1->aiocb.aio_buf = (uint8_t *)buf;
-    acb1->aiocb.aio_nbytes = nb_sectors * 512;
-    acb1->aiocb.aio_offset = sector_num * 512;
-    acb1->next = first_aio;
-    first_aio = acb;
-    if (aio_write(&acb1->aiocb) < 0) {
-        acb1->busy = 0;
-        return -errno;
-    } 
-    return 0;
-}
-
-static void raw_aio_cancel(BlockDriverAIOCB *acb)
-{
-    RawAIOCB *acb1 = acb->opaque;
-    int ret;
-    BlockDriverAIOCB **pacb;
-
-    ret = aio_cancel(acb1->aiocb.aio_fildes, &acb1->aiocb);
-    if (ret == AIO_NOTCANCELED) {
-        /* fail safe: if the aio could not be canceled, we wait for
-           it */
-        while (aio_error(&acb1->aiocb) == EINPROGRESS);
-    }
-
-    /* remove the callback from the queue */
-    pacb = &first_aio;
-    for(;;) {
-        if (*pacb == NULL) {
-            break;
-        } else if (*pacb == acb) {
-            acb1->busy = 0;
-            *pacb = acb1->next;
-            break;
-        }
-        acb1 = (*pacb)->opaque;
-        pacb = &acb1->next;
-    }
-}
-
-static void raw_aio_delete(BlockDriverAIOCB *acb)
-{
-    RawAIOCB *acb1 = acb->opaque;
-    raw_aio_cancel(acb);
-    qemu_free(acb1);
-}
-
-static void raw_close(BlockDriverState *bs)
-{
-    BDRVRawState *s = bs->opaque;
-    close(s->fd);
-}
-
-static int raw_truncate(BlockDriverState *bs, int64_t offset)
-{
-    BDRVRawState *s = bs->opaque;
-    if (ftruncate(s->fd, offset) < 0)
-        return -errno;
-    return 0;
-}
-
-static int64_t  raw_getlength(BlockDriverState *bs)
-{
-    BDRVRawState *s = bs->opaque;
-    int fd = s->fd;
-    int64_t size;
-#ifdef _BSD
-    struct stat sb;
-#endif
-#ifdef __sun__
-    struct dk_minfo minfo;
-    int rv;
-#endif
-
-#ifdef _BSD
-    if (!fstat(fd, &sb) && (S_IFCHR & sb.st_mode)) {
-#ifdef DIOCGMEDIASIZE
-	if (ioctl(fd, DIOCGMEDIASIZE, (off_t *)&size))
-#endif
-#ifdef CONFIG_COCOA
-        size = LONG_LONG_MAX;
-#else
-        size = lseek(fd, 0LL, SEEK_END);
-#endif
-    } else
-#endif
-#ifdef __sun__
-    /*
-     * use the DKIOCGMEDIAINFO ioctl to read the size.
-     */
-    rv = ioctl ( fd, DKIOCGMEDIAINFO, &minfo );
-    if ( rv != -1 ) {
-        size = minfo.dki_lbsize * minfo.dki_capacity;
-    } else /* there are reports that lseek on some devices
-              fails, but irc discussion said that contingency
-              on contingency was overkill */
-#endif
-    {
-        size = lseek(fd, 0, SEEK_END);
-    }
-#ifdef _WIN32
-    /* On Windows hosts it can happen that we're unable to get file size
-       for CD-ROM raw device (it's inherent limitation of the CDFS driver). */
-    if (size == -1)
-        size = LONG_LONG_MAX;
-#endif
-    return size;
-}
-
-static int raw_create(const char *filename, int64_t total_size,
-                      const char *backing_file, int flags)
-{
-    int fd;
-
-    if (flags || backing_file)
+        break;
+    default:
         return -ENOTSUP;
-
-    fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY | O_LARGEFILE, 
-              0644);
-    if (fd < 0)
-        return -EIO;
-    ftruncate(fd, total_size * 512);
-    close(fd);
+    }
     return 0;
 }
 
-static void raw_flush(BlockDriverState *bs)
+static int raw_set_locked(BlockDriverState *bs, int locked)
 {
     BDRVRawState *s = bs->opaque;
-    fsync(s->fd);
+
+    switch(s->type) {
+    case FTYPE_CD:
+        if (ioctl (s->fd, CDROM_LOCKDOOR, locked) < 0) {
+            /* Note: an error can happen if the distribution automatically
+               mounts the CD-ROM */
+            //        perror("CDROM_LOCKDOOR");
+        }
+        break;
+    default:
+        return -ENOTSUP;
+    }
+    return 0;
 }
 
-BlockDriver bdrv_raw = {
-    "raw",
+#else
+
+static int raw_is_inserted(BlockDriverState *bs)
+{
+    return 1;
+}
+
+static int raw_media_changed(BlockDriverState *bs)
+{
+    return -ENOTSUP;
+}
+
+static int raw_eject(BlockDriverState *bs, int eject_flag)
+{
+    return -ENOTSUP;
+}
+
+static int raw_set_locked(BlockDriverState *bs, int locked)
+{
+    return -ENOTSUP;
+}
+
+#endif /* !linux */
+
+BlockDriver bdrv_host_device = {
+    "host_device",
     sizeof(BDRVRawState),
     NULL, /* no probe for protocols */
-    raw_open,
+    hdev_open,
     NULL,
     NULL,
     raw_close,
-    raw_create,
+    NULL,
     raw_flush,
     
-    .bdrv_aio_new = raw_aio_new,
     .bdrv_aio_read = raw_aio_read,
     .bdrv_aio_write = raw_aio_write,
     .bdrv_aio_cancel = raw_aio_cancel,
-    .bdrv_aio_delete = raw_aio_delete,
-    .protocol_name = "file",
+    .aiocb_size = sizeof(RawAIOCB),
     .bdrv_pread = raw_pread,
     .bdrv_pwrite = raw_pwrite,
-    .bdrv_truncate = raw_truncate,
     .bdrv_getlength = raw_getlength,
+
+    /* removable device support */
+    .bdrv_is_inserted = raw_is_inserted,
+    .bdrv_media_changed = raw_media_changed,
+    .bdrv_eject = raw_eject,
+    .bdrv_set_locked = raw_set_locked,
 };
 
 #else /* _WIN32 */
@@ -520,11 +820,17 @@ BlockDriver bdrv_raw = {
 /* XXX: use another file ? */
 #include <winioctl.h>
 
+#define FTYPE_FILE 0
+#define FTYPE_CD     1
+
 typedef struct BDRVRawState {
     HANDLE hfile;
+    int type;
+    char drive_letter[2];
 } BDRVRawState;
 
 typedef struct RawAIOCB {
+    BlockDriverAIOCB common;
     HANDLE hEvent;
     OVERLAPPED ov;
     int count;
@@ -569,6 +875,24 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
 {
     BDRVRawState *s = bs->opaque;
     int access_flags, create_flags;
+    DWORD overlapped;
+    char device_name[64];
+    const char *p;
+
+    if (strstart(filename, "/dev/cdrom", NULL)) {
+        if (find_cdrom(device_name, sizeof(device_name)) < 0)
+            return -ENOENT;
+        filename = device_name;
+    } else {
+        /* transform drive letters into device name */
+        if (((filename[0] >= 'a' && filename[0] <= 'z') ||
+             (filename[0] >= 'A' && filename[0] <= 'Z')) &&
+            filename[1] == ':' && filename[2] == '\0') {
+            snprintf(device_name, sizeof(device_name), "\\\\.\\%c:", filename[0]);
+            filename = device_name;
+        }
+    }
+    s->type = find_device_type(filename);
 
     if ((flags & BDRV_O_ACCESS) == O_RDWR) {
         access_flags = GENERIC_READ | GENERIC_WRITE;
@@ -580,9 +904,14 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
     } else {
         create_flags = OPEN_EXISTING;
     }
+#ifdef QEMU_TOOL
+    overlapped = 0;
+#else
+    overlapped = FILE_FLAG_OVERLAPPED;
+#endif
     s->hfile = CreateFile(filename, access_flags, 
                           FILE_SHARE_READ, NULL,
-                          create_flags, FILE_FLAG_OVERLAPPED, 0);
+                          create_flags, overlapped, 0);
     if (s->hfile == INVALID_HANDLE_VALUE) 
         return -1;
     return 0;
@@ -632,104 +961,107 @@ static int raw_pwrite(BlockDriverState *bs, int64_t offset,
     return ret_count;
 }
 
-static int raw_aio_new(BlockDriverAIOCB *acb)
-{
-    RawAIOCB *acb1;
-
-    acb1 = qemu_mallocz(sizeof(RawAIOCB));
-    if (!acb1)
-        return -ENOMEM;
-    acb->opaque = acb1;
-    acb1->hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-    if (!acb1->hEvent)
-        return -ENOMEM;
-    return 0;
-}
 #ifndef QEMU_TOOL
 static void raw_aio_cb(void *opaque)
 {
-    BlockDriverAIOCB *acb = opaque;
-    BlockDriverState *bs = acb->bs;
+    RawAIOCB *acb = opaque;
+    BlockDriverState *bs = acb->common.bs;
     BDRVRawState *s = bs->opaque;
-    RawAIOCB *acb1 = acb->opaque;
     DWORD ret_count;
     int ret;
 
-    ret = GetOverlappedResult(s->hfile, &acb1->ov, &ret_count, TRUE);
-    if (!ret || ret_count != acb1->count) {
-        acb->cb(acb->cb_opaque, -EIO);
+    ret = GetOverlappedResult(s->hfile, &acb->ov, &ret_count, TRUE);
+    if (!ret || ret_count != acb->count) {
+        acb->common.cb(acb->common.opaque, -EIO);
     } else {
-        acb->cb(acb->cb_opaque, 0);
+        acb->common.cb(acb->common.opaque, 0);
     }
 }
 #endif
-static int raw_aio_read(BlockDriverAIOCB *acb, int64_t sector_num, 
-                        uint8_t *buf, int nb_sectors)
+
+static RawAIOCB *raw_aio_setup(BlockDriverState *bs,
+        int64_t sector_num, uint8_t *buf, int nb_sectors,
+        BlockDriverCompletionFunc *cb, void *opaque)
 {
-    BlockDriverState *bs = acb->bs;
-    BDRVRawState *s = bs->opaque;
-    RawAIOCB *acb1 = acb->opaque;
-    int ret;
+    RawAIOCB *acb;
     int64_t offset;
 
-    memset(&acb1->ov, 0, sizeof(acb1->ov));
+    acb = qemu_aio_get(bs, cb, opaque);
+    if (acb->hEvent) {
+        acb->hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+        if (!acb->hEvent) {
+            qemu_aio_release(acb);
+            return NULL;
+        }
+    }
+    memset(&acb->ov, 0, sizeof(acb->ov));
     offset = sector_num * 512;
-    acb1->ov.Offset = offset;
-    acb1->ov.OffsetHigh = offset >> 32;
-    acb1->ov.hEvent = acb1->hEvent;
-    acb1->count = nb_sectors * 512;
+    acb->ov.Offset = offset;
+    acb->ov.OffsetHigh = offset >> 32;
+    acb->ov.hEvent = acb->hEvent;
+    acb->count = nb_sectors * 512;
 #ifndef QEMU_TOOL
-    qemu_add_wait_object(acb1->ov.hEvent, raw_aio_cb, acb);
+    qemu_add_wait_object(acb->ov.hEvent, raw_aio_cb, acb);
 #endif
-    ret = ReadFile(s->hfile, buf, acb1->count, NULL, &acb1->ov);
-    if (!ret)
-        return -EIO;
-    return 0;
+    return acb;
 }
 
-static int raw_aio_write(BlockDriverAIOCB *acb, int64_t sector_num, 
-                         uint8_t *buf, int nb_sectors)
+static BlockDriverAIOCB *raw_aio_read(BlockDriverState *bs,
+        int64_t sector_num, uint8_t *buf, int nb_sectors,
+        BlockDriverCompletionFunc *cb, void *opaque)
 {
-    BlockDriverState *bs = acb->bs;
     BDRVRawState *s = bs->opaque;
-    RawAIOCB *acb1 = acb->opaque;
+    RawAIOCB *acb;
     int ret;
-    int64_t offset;
 
-    memset(&acb1->ov, 0, sizeof(acb1->ov));
-    offset = sector_num * 512;
-    acb1->ov.Offset = offset;
-    acb1->ov.OffsetHigh = offset >> 32;
-    acb1->ov.hEvent = acb1->hEvent;
-    acb1->count = nb_sectors * 512;
-#ifndef QEMU_TOOL
-    qemu_add_wait_object(acb1->ov.hEvent, raw_aio_cb, acb);
+    acb = raw_aio_setup(bs, sector_num, buf, nb_sectors, cb, opaque);
+    if (!acb)
+        return NULL;
+    ret = ReadFile(s->hfile, buf, acb->count, NULL, &acb->ov);
+    if (!ret) {
+        qemu_aio_release(acb);
+        return NULL;
+    }
+#ifdef QEMU_TOOL
+    qemu_aio_release(acb);
 #endif
-    ret = ReadFile(s->hfile, buf, acb1->count, NULL, &acb1->ov);
-    if (!ret)
-        return -EIO;
-    return 0;
+    return (BlockDriverAIOCB *)acb;
 }
 
-static void raw_aio_cancel(BlockDriverAIOCB *acb)
+static BlockDriverAIOCB *raw_aio_write(BlockDriverState *bs,
+        int64_t sector_num, uint8_t *buf, int nb_sectors,
+        BlockDriverCompletionFunc *cb, void *opaque)
 {
-    BlockDriverState *bs = acb->bs;
     BDRVRawState *s = bs->opaque;
-#ifndef QEMU_TOOL
-    RawAIOCB *acb1 = acb->opaque;
+    RawAIOCB *acb;
+    int ret;
 
-    qemu_del_wait_object(acb1->ov.hEvent, raw_aio_cb, acb);
+    acb = raw_aio_setup(bs, sector_num, buf, nb_sectors, cb, opaque);
+    if (!acb)
+        return NULL;
+    ret = WriteFile(s->hfile, buf, acb->count, NULL, &acb->ov);
+    if (!ret) {
+        qemu_aio_release(acb);
+        return NULL;
+    }
+#ifdef QEMU_TOOL
+    qemu_aio_release(acb);
 #endif
+    return (BlockDriverAIOCB *)acb;
+}
+
+static void raw_aio_cancel(BlockDriverAIOCB *blockacb)
+{
+#ifndef QEMU_TOOL
+    RawAIOCB *acb = (RawAIOCB *)blockacb;
+    BlockDriverState *bs = acb->common.bs;
+    BDRVRawState *s = bs->opaque;
+
+    qemu_del_wait_object(acb->ov.hEvent, raw_aio_cb, acb);
     /* XXX: if more than one async I/O it is not correct */
     CancelIo(s->hfile);
-}
-
-static void raw_aio_delete(BlockDriverAIOCB *acb)
-{
-    RawAIOCB *acb1 = acb->opaque;
-    raw_aio_cancel(acb);
-    CloseHandle(acb1->hEvent);
-    qemu_free(acb1);
+    qemu_aio_release(acb);
+#endif
 }
 
 static void raw_flush(BlockDriverState *bs)
@@ -761,10 +1093,22 @@ static int64_t  raw_getlength(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
     LARGE_INTEGER l;
+    ULARGE_INTEGER available, total, total_free; 
 
-    l.LowPart = GetFileSize(s->hfile, &l.HighPart);
-    if (l.LowPart == 0xffffffffUL && GetLastError() != NO_ERROR)
-	return -EIO;
+    switch(s->ftype) {
+    case FTYPE_FILE:
+        l.LowPart = GetFileSize(s->hfile, &l.HighPart);
+        if (l.LowPart == 0xffffffffUL && GetLastError() != NO_ERROR)
+            return -EIO;
+        break;
+    case FTYPE_CD:
+        if (!GetDiskFreeSpaceEx(s->drive_letter, &available, &total, &total_free))
+            return -EIO;
+        l = total;
+        break;
+    default:
+        return -EIO;
+    }
     return l.QuadPart;
 }
 
@@ -818,16 +1162,157 @@ BlockDriver bdrv_raw = {
     raw_flush,
     
 #if 0
-    .bdrv_aio_new = raw_aio_new,
     .bdrv_aio_read = raw_aio_read,
     .bdrv_aio_write = raw_aio_write,
     .bdrv_aio_cancel = raw_aio_cancel,
-    .bdrv_aio_delete = raw_aio_delete,
+    .aiocb_size = sizeof(RawAIOCB);
 #endif
     .protocol_name = "file",
     .bdrv_pread = raw_pread,
     .bdrv_pwrite = raw_pwrite,
     .bdrv_truncate = raw_truncate,
+    .bdrv_getlength = raw_getlength,
+};
+
+/***********************************************/
+/* host device */
+
+static int find_cdrom(char *cdrom_name, int cdrom_name_size)
+{
+    char drives[256], *pdrv = drives;
+    UINT type;
+
+    memset(drives, 0, sizeof(drivers));
+    GetLogicalDriveStrings(sizeof(drives), drives);
+    while(pdrv[0] != '\0') {
+        type = GetDriveType(pdrv);
+        switch(type) {
+        case DRIVE_CDROM:
+            snprintf(cdrom_name, cdrom_name_size, "\\\\.\\%c:", pdrv[0]);
+            return 0;
+            break;
+        }
+        pdrv += lstrlen(pdrv) + 1;
+    }
+    return -1;
+}
+
+static int find_device_type(const char *filename)
+{
+    UINT type;
+    const char *p;
+
+    if (strstart(filename, "\\\\.\\", &p) ||
+        strstart(filename, "//./", &p)) {
+        s->drive_letter[0] = p[0];
+        s->drive_letter[1] = '\0';
+        type = GetDriveType(s->drive_letter);
+        if (type == DRIVE_CDROM)
+            return FTYPE_CD;
+        else
+            return FTYPE_FILE;
+    } else {
+        return FTYPE_FILE;
+    }
+}
+
+static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
+{
+    BDRVRawState *s = bs->opaque;
+    int access_flags, create_flags;
+    DWORD overlapped;
+    char device_name[64];
+    const char *p;
+
+    if (strstart(filename, "/dev/cdrom", NULL)) {
+        if (find_cdrom(device_name, sizeof(device_name)) < 0)
+            return -ENOENT;
+        filename = device_name;
+    } else {
+        /* transform drive letters into device name */
+        if (((filename[0] >= 'a' && filename[0] <= 'z') ||
+             (filename[0] >= 'A' && filename[0] <= 'Z')) &&
+            filename[1] == ':' && filename[2] == '\0') {
+            snprintf(device_name, sizeof(device_name), "\\\\.\\%c:", filename[0]);
+            filename = device_name;
+        }
+    }
+    s->type = find_device_type(filename);
+
+    if ((flags & BDRV_O_ACCESS) == O_RDWR) {
+        access_flags = GENERIC_READ | GENERIC_WRITE;
+    } else {
+        access_flags = GENERIC_READ;
+    }
+    create_flags = OPEN_EXISTING;
+
+#ifdef QEMU_TOOL
+    overlapped = 0;
+#else
+    overlapped = FILE_FLAG_OVERLAPPED;
+#endif
+    s->hfile = CreateFile(filename, access_flags, 
+                          FILE_SHARE_READ, NULL,
+                          create_flags, overlapped, 0);
+    if (s->hfile == INVALID_HANDLE_VALUE) 
+        return -1;
+    return 0;
+}
+
+#if 0
+/***********************************************/
+/* removable device additionnal commands */
+
+static int raw_is_inserted(BlockDriverState *bs)
+{
+    return 1;
+}
+
+static int raw_media_changed(BlockDriverState *bs)
+{
+    return -ENOTSUP;
+}
+
+static int raw_eject(BlockDriverState *bs, int eject_flag)
+{
+    DWORD ret_count;
+
+    if (s->type == FTYPE_FILE)
+        return -ENOTSUP;
+    if (eject_flag) {
+        DeviceIoControl(s->hfile, IOCTL_STORAGE_EJECT_MEDIA, 
+                        NULL, 0, NULL, 0, &lpBytesReturned, NULL);
+    } else {
+        DeviceIoControl(s->hfile, IOCTL_STORAGE_LOAD_MEDIA, 
+                        NULL, 0, NULL, 0, &lpBytesReturned, NULL);
+    }
+}
+
+static int raw_set_locked(BlockDriverState *bs, int locked)
+{
+    return -ENOTSUP;
+}
+#endif
+
+BlockDriver bdrv_host_device = {
+    "host_device",
+    sizeof(BDRVRawState),
+    NULL, /* no probe for protocols */
+    hdev_open,
+    NULL,
+    NULL,
+    raw_close,
+    NULL,
+    raw_flush,
+    
+#if 0
+    .bdrv_aio_read = raw_aio_read,
+    .bdrv_aio_write = raw_aio_write,
+    .bdrv_aio_cancel = raw_aio_cancel,
+    .aiocb_size = sizeof(RawAIOCB);
+#endif
+    .bdrv_pread = raw_pread,
+    .bdrv_pwrite = raw_pwrite,
     .bdrv_getlength = raw_getlength,
 };
 #endif /* _WIN32 */

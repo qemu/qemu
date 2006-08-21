@@ -42,13 +42,14 @@ struct BlockDriver {
     int (*bdrv_set_key)(BlockDriverState *bs, const char *key);
     int (*bdrv_make_empty)(BlockDriverState *bs);
     /* aio */
-    int (*bdrv_aio_new)(BlockDriverAIOCB *acb);
-    int (*bdrv_aio_read)(BlockDriverAIOCB *acb, int64_t sector_num,
-                              uint8_t *buf, int nb_sectors);
-    int (*bdrv_aio_write)(BlockDriverAIOCB *acb, int64_t sector_num,
-                          const uint8_t *buf, int nb_sectors);
+    BlockDriverAIOCB *(*bdrv_aio_read)(BlockDriverState *bs,
+        int64_t sector_num, uint8_t *buf, int nb_sectors,
+        BlockDriverCompletionFunc *cb, void *opaque);
+    BlockDriverAIOCB *(*bdrv_aio_write)(BlockDriverState *bs,
+        int64_t sector_num, const uint8_t *buf, int nb_sectors,
+        BlockDriverCompletionFunc *cb, void *opaque);
     void (*bdrv_aio_cancel)(BlockDriverAIOCB *acb);
-    void (*bdrv_aio_delete)(BlockDriverAIOCB *acb);
+    int aiocb_size;
 
     const char *protocol_name;
     int (*bdrv_pread)(BlockDriverState *bs, int64_t offset, 
@@ -57,14 +58,32 @@ struct BlockDriver {
                        const uint8_t *buf, int count);
     int (*bdrv_truncate)(BlockDriverState *bs, int64_t offset);
     int64_t (*bdrv_getlength)(BlockDriverState *bs);
+    int (*bdrv_write_compressed)(BlockDriverState *bs, int64_t sector_num, 
+                                 const uint8_t *buf, int nb_sectors);
 
+    int (*bdrv_snapshot_create)(BlockDriverState *bs, 
+                                QEMUSnapshotInfo *sn_info);
+    int (*bdrv_snapshot_goto)(BlockDriverState *bs, 
+                              const char *snapshot_id);
+    int (*bdrv_snapshot_delete)(BlockDriverState *bs, const char *snapshot_id);
+    int (*bdrv_snapshot_list)(BlockDriverState *bs, 
+                              QEMUSnapshotInfo **psn_info);
+    int (*bdrv_get_info)(BlockDriverState *bs, BlockDriverInfo *bdi);
+
+    /* removable device specific */
+    int (*bdrv_is_inserted)(BlockDriverState *bs);
+    int (*bdrv_media_changed)(BlockDriverState *bs);
+    int (*bdrv_eject)(BlockDriverState *bs, int eject_flag);
+    int (*bdrv_set_locked)(BlockDriverState *bs, int locked);
+    
+    BlockDriverAIOCB *free_aiocb;
     struct BlockDriver *next;
 };
 
 struct BlockDriverState {
-    int64_t total_sectors; /* XXX: will be suppressed */
+    int64_t total_sectors; /* if we are reading a disk image, give its
+                              size in sectors */
     int read_only; /* if true, the media is read only */
-    int inserted; /* if true, the media is present */
     int removable; /* if true, the media can be removed */
     int locked;    /* if true, the media cannot temporarily be ejected */
     int encrypted; /* if true, the media is encrypted */
@@ -72,7 +91,7 @@ struct BlockDriverState {
     void (*change_cb)(void *opaque);
     void *change_opaque;
 
-    BlockDriver *drv;
+    BlockDriver *drv; /* NULL means no media */
     void *opaque;
 
     int boot_sector_enabled;
@@ -82,11 +101,12 @@ struct BlockDriverState {
     char backing_file[1024]; /* if non zero, the image is a diff of
                                 this file image */
     int is_temporary;
-    
-    BlockDriverState *backing_hd;
-    /* sync read/write emulation */
+    int media_changed;
 
-    BlockDriverAIOCB *sync_aiocb;
+    BlockDriverState *backing_hd;
+    /* async read/write emulation */
+
+    void *sync_aiocb;
     
     /* NOTE: the following infos are only hints for real hardware
        drivers. They are not used by the block driver */
@@ -99,11 +119,14 @@ struct BlockDriverState {
 struct BlockDriverAIOCB {
     BlockDriverState *bs;
     BlockDriverCompletionFunc *cb;
-    void *cb_opaque;
-    
-    void *opaque; /* driver opaque */
+    void *opaque;
+    BlockDriverAIOCB *next;
 };
 
 void get_tmp_filename(char *filename, int size);
+
+void *qemu_aio_get(BlockDriverState *bs, BlockDriverCompletionFunc *cb,
+                   void *opaque);
+void qemu_aio_release(void *p);
 
 #endif /* BLOCK_INT_H */

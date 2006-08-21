@@ -83,6 +83,7 @@
     unsigned int vram_size;                                             \
     unsigned long bios_offset;                                          \
     unsigned int bios_size;                                             \
+    PCIDevice *pci_dev;                                                 \
     uint32_t latch;                                                     \
     uint8_t sr_index;                                                   \
     uint8_t sr[256];                                                    \
@@ -107,7 +108,8 @@
     int (*get_bpp)(struct VGAState *s);                                 \
     void (*get_offsets)(struct VGAState *s,                             \
                         uint32_t *pline_offset,                         \
-                        uint32_t *pstart_addr);                         \
+                        uint32_t *pstart_addr,                          \
+                        uint32_t *pline_compare);                       \
     void (*get_resolution)(struct VGAState *s,                          \
                         int *pwidth,                                    \
                         int *pheight);                                  \

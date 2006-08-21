@@ -143,9 +143,6 @@ static uint32_t expand4[256];
 static uint16_t expand2[256];
 static uint8_t expand4to8[16];
 
-VGAState *vga_state;
-int vga_io_memory;
-
 static void vga_screen_dump(void *opaque, const char *filename);
 
 static uint32_t vga_ioport_read(void *opaque, uint32_t addr)
@@ -938,13 +935,15 @@ static int update_palette256(VGAState *s)
 
 static void vga_get_offsets(VGAState *s, 
                             uint32_t *pline_offset, 
-                            uint32_t *pstart_addr)
+                            uint32_t *pstart_addr,
+                            uint32_t *pline_compare)
 {
-    uint32_t start_addr, line_offset;
+    uint32_t start_addr, line_offset, line_compare;
 #ifdef CONFIG_BOCHS_VBE
     if (s->vbe_regs[VBE_DISPI_INDEX_ENABLE] & VBE_DISPI_ENABLED) {
         line_offset = s->vbe_line_offset;
         start_addr = s->vbe_start_addr;
+        line_compare = 65535;
     } else
 #endif
     {  
@@ -954,9 +953,15 @@ static void vga_get_offsets(VGAState *s,
 
         /* starting address */
         start_addr = s->cr[0x0d] | (s->cr[0x0c] << 8);
+
+        /* line compare */
+        line_compare = s->cr[0x18] | 
+            ((s->cr[0x07] & 0x10) << 4) |
+            ((s->cr[0x09] & 0x40) << 3);
     }
     *pline_offset = line_offset;
     *pstart_addr = start_addr;
+    *pline_compare = line_compare;
 }
 
 /* update start_addr and line_offset. Return TRUE if modified */
@@ -967,11 +972,7 @@ static int update_basic_params(VGAState *s)
     
     full_update = 0;
 
-    s->get_offsets(s, &line_offset, &start_addr);
-    /* line compare */
-    line_compare = s->cr[0x18] | 
-        ((s->cr[0x07] & 0x10) << 4) |
-        ((s->cr[0x09] & 0x40) << 3);
+    s->get_offsets(s, &line_offset, &start_addr, &line_compare);
 
     if (line_offset != s->line_offset ||
         start_addr != s->start_addr ||
@@ -1624,6 +1625,9 @@ static void vga_save(QEMUFile *f, void *opaque)
     VGAState *s = opaque;
     int i;
 
+    if (s->pci_dev)
+        pci_device_save(s->pci_dev, f);
+
     qemu_put_be32s(f, &s->latch);
     qemu_put_8s(f, &s->sr_index);
     qemu_put_buffer(f, s->sr, 8);
@@ -1663,10 +1667,16 @@ static void vga_save(QEMUFile *f, void *opaque)
 static int vga_load(QEMUFile *f, void *opaque, int version_id)
 {
     VGAState *s = opaque;
-    int is_vbe, i;
+    int is_vbe, i, ret;
 
-    if (version_id != 1)
+    if (version_id > 2)
         return -EINVAL;
+
+    if (s->pci_dev && version_id >= 2) {
+        ret = pci_device_load(s->pci_dev, f);
+        if (ret < 0)
+            return ret;
+    }
 
     qemu_get_be32s(f, &s->latch);
     qemu_get_8s(f, &s->sr_index);
@@ -1711,10 +1721,16 @@ static int vga_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
+typedef struct PCIVGAState {
+    PCIDevice dev;
+    VGAState vga_state;
+} PCIVGAState;
+
 static void vga_map(PCIDevice *pci_dev, int region_num, 
                     uint32_t addr, uint32_t size, int type)
 {
-    VGAState *s = vga_state;
+    PCIVGAState *d = (PCIVGAState *)pci_dev;
+    VGAState *s = &d->vga_state;
     if (region_num == PCI_ROM_SLOT) {
         cpu_register_physical_memory(addr, s->bios_size, s->bios_offset);
     } else {
@@ -1761,24 +1777,14 @@ void vga_common_init(VGAState *s, DisplayState *ds, uint8_t *vga_ram_base,
     s->get_resolution = vga_get_resolution;
     graphic_console_init(s->ds, vga_update_display, vga_invalidate_display,
                          vga_screen_dump, s);
-    /* XXX: currently needed for display */
-    vga_state = s;
 }
 
-
-int vga_initialize(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base, 
-                   unsigned long vga_ram_offset, int vga_ram_size,
-                   unsigned long vga_bios_offset, int vga_bios_size)
+/* used by both ISA and PCI */
+static void vga_init(VGAState *s)
 {
-    VGAState *s;
+    int vga_io_memory;
 
-    s = qemu_mallocz(sizeof(VGAState));
-    if (!s)
-        return -1;
-
-    vga_common_init(s, ds, vga_ram_base, vga_ram_offset, vga_ram_size);
-
-    register_savevm("vga", 0, 1, vga_save, vga_load, s);
+    register_savevm("vga", 0, 2, vga_save, vga_load, s);
 
     register_ioport_write(0x3c0, 16, 1, vga_ioport_write, s);
 
@@ -1823,43 +1829,69 @@ int vga_initialize(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base,
     vga_io_memory = cpu_register_io_memory(0, vga_mem_read, vga_mem_write, s);
     cpu_register_physical_memory(isa_mem_base + 0x000a0000, 0x20000, 
                                  vga_io_memory);
+}
 
-    if (bus) {
-        PCIDevice *d;
-        uint8_t *pci_conf;
+int isa_vga_init(DisplayState *ds, uint8_t *vga_ram_base, 
+                 unsigned long vga_ram_offset, int vga_ram_size)
+{
+    VGAState *s;
 
-        d = pci_register_device(bus, "VGA", 
-                                sizeof(PCIDevice),
-                                -1, NULL, NULL);
-        pci_conf = d->config;
-        pci_conf[0x00] = 0x34; // dummy VGA (same as Bochs ID)
-        pci_conf[0x01] = 0x12;
-        pci_conf[0x02] = 0x11;
-        pci_conf[0x03] = 0x11;
-        pci_conf[0x0a] = 0x00; // VGA controller 
-        pci_conf[0x0b] = 0x03;
-        pci_conf[0x0e] = 0x00; // header_type
+    s = qemu_mallocz(sizeof(VGAState));
+    if (!s)
+        return -1;
 
-        /* XXX: vga_ram_size must be a power of two */
-        pci_register_io_region(d, 0, vga_ram_size, 
-                               PCI_ADDRESS_SPACE_MEM_PREFETCH, vga_map);
-        if (vga_bios_size != 0) {
-            unsigned int bios_total_size;
-            s->bios_offset = vga_bios_offset;
-            s->bios_size = vga_bios_size;
-            /* must be a power of two */
-            bios_total_size = 1;
-            while (bios_total_size < vga_bios_size)
-                bios_total_size <<= 1;
-            pci_register_io_region(d, PCI_ROM_SLOT, bios_total_size, 
-                                   PCI_ADDRESS_SPACE_MEM_PREFETCH, vga_map);
-        }
-    } else {
+    vga_common_init(s, ds, vga_ram_base, vga_ram_offset, vga_ram_size);
+    vga_init(s);
+
 #ifdef CONFIG_BOCHS_VBE
-        /* XXX: use optimized standard vga accesses */
-        cpu_register_physical_memory(VBE_DISPI_LFB_PHYSICAL_ADDRESS, 
-                                     vga_ram_size, vga_ram_offset);
+    /* XXX: use optimized standard vga accesses */
+    cpu_register_physical_memory(VBE_DISPI_LFB_PHYSICAL_ADDRESS, 
+                                 vga_ram_size, vga_ram_offset);
 #endif
+    return 0;
+}
+
+int pci_vga_init(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base, 
+                 unsigned long vga_ram_offset, int vga_ram_size,
+                 unsigned long vga_bios_offset, int vga_bios_size)
+{
+    PCIVGAState *d;
+    VGAState *s;
+    uint8_t *pci_conf;
+    
+    d = (PCIVGAState *)pci_register_device(bus, "VGA", 
+                                           sizeof(PCIVGAState),
+                                           -1, NULL, NULL);
+    if (!d)
+        return -1;
+    s = &d->vga_state;
+    
+    vga_common_init(s, ds, vga_ram_base, vga_ram_offset, vga_ram_size);
+    vga_init(s);
+    s->pci_dev = &d->dev;
+    
+    pci_conf = d->dev.config;
+    pci_conf[0x00] = 0x34; // dummy VGA (same as Bochs ID)
+    pci_conf[0x01] = 0x12;
+    pci_conf[0x02] = 0x11;
+    pci_conf[0x03] = 0x11;
+    pci_conf[0x0a] = 0x00; // VGA controller 
+    pci_conf[0x0b] = 0x03;
+    pci_conf[0x0e] = 0x00; // header_type
+    
+    /* XXX: vga_ram_size must be a power of two */
+    pci_register_io_region(&d->dev, 0, vga_ram_size, 
+                           PCI_ADDRESS_SPACE_MEM_PREFETCH, vga_map);
+    if (vga_bios_size != 0) {
+        unsigned int bios_total_size;
+        s->bios_offset = vga_bios_offset;
+        s->bios_size = vga_bios_size;
+        /* must be a power of two */
+        bios_total_size = 1;
+        while (bios_total_size < vga_bios_size)
+            bios_total_size <<= 1;
+        pci_register_io_region(&d->dev, PCI_ROM_SLOT, bios_total_size, 
+                               PCI_ADDRESS_SPACE_MEM_PREFETCH, vga_map);
     }
     return 0;
 }

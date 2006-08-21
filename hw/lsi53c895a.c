@@ -152,6 +152,9 @@ do { fprintf(stderr, "lsi_scsi: " fmt , ##args); } while (0)
 /* The HBA is ID 7, so for simplicitly limit to 7 devices.  */
 #define LSI_MAX_DEVS      7
 
+/* Size of internal DMA buffer for async IO requests.  */
+#define LSI_DMA_BLOCK_SIZE 0x10000
+
 typedef struct {
     PCIDevice pci_dev;
     int mmio_io_addr;
@@ -162,7 +165,9 @@ typedef struct {
     int carry; /* ??? Should this be an a visible register somewhere?  */
     int sense;
     uint8_t msg;
-    /* Nonzero if a Wait Reselect instruction has been issued.  */
+    /* 0 if SCRIPTS are running or stopped.
+     * 1 if a Wait Reselect instruction has been issued.
+     * 2 if a DMA operation is in progress.  */
     int waiting;
     SCSIDevice *scsi_dev[LSI_MAX_DEVS];
     SCSIDevice *current_dev;
@@ -226,6 +231,7 @@ typedef struct {
     uint32_t csbc;
     uint32_t scratch[13]; /* SCRATCHA-SCRATCHR */
 
+    uint8_t dma_buf[LSI_DMA_BLOCK_SIZE];
     /* Script ram is stored as 32-bit words in host byteorder.  */
     uint32_t script_ram[2048];
 } LSIState;
@@ -295,6 +301,7 @@ static void lsi_soft_reset(LSIState *s)
 
 static uint8_t lsi_reg_readb(LSIState *s, int offset);
 static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val);
+static void lsi_execute_script(LSIState *s);
 
 static inline uint32_t read_dword(LSIState *s, uint32_t addr)
 {
@@ -402,21 +409,20 @@ static void lsi_bad_phase(LSIState *s, int out, int new_phase)
     lsi_set_phase(s, new_phase);
 }
 
+/* Initiate a SCSI layer data transfer.  */
 static void lsi_do_dma(LSIState *s, int out)
 {
-    uint8_t buf[TARGET_PAGE_SIZE];
-    uint32_t addr;
     uint32_t count;
-    int n;
 
     count = s->dbc;
-    addr = s->dnad;
-    DPRINTF("DMA %s addr=0x%08x len=%d avail=%d\n", out ? "out" : "in",
+    if (count > LSI_DMA_BLOCK_SIZE)
+        count = LSI_DMA_BLOCK_SIZE;
+    DPRINTF("DMA addr=0x%08x len=%d avail=%d\n",
             addr, count, s->data_len);
     /* ??? Too long transfers are truncated. Don't know if this is the
        correct behavior.  */
     if (count > s->data_len) {
-        /* If the DMA length is greater then the device data length then
+        /* If the DMA length is greater than the device data length then
            a phase mismatch will occur.  */
         count = s->data_len;
         s->dbc = count;
@@ -426,20 +432,47 @@ static void lsi_do_dma(LSIState *s, int out)
     s->csbc += count;
 
     /* ??? Set SFBR to first data byte.  */
-    while (count) {
-        n = (count > TARGET_PAGE_SIZE) ? TARGET_PAGE_SIZE : count;
-        if (out) {
-            cpu_physical_memory_read(addr, buf, n);
-            scsi_write_data(s->current_dev, buf, n);
-        } else {
-            scsi_read_data(s->current_dev, buf, n);
-            cpu_physical_memory_write(addr, buf, n);
-        }
-        addr += n;
-        count -= n;
+    if ((s->sstat1 & PHASE_MASK) == PHASE_DO) {
+        cpu_physical_memory_read(s->dnad, s->dma_buf, count);
+        scsi_write_data(s->current_dev, s->dma_buf, count);
+    } else {
+        scsi_read_data(s->current_dev, s->dma_buf, count);
     }
+    /* If the DMA did not complete then suspend execution.  */
+    if (s->dbc)
+        s->waiting = 2;
 }
 
+/* Callback to indicate that the SCSI layer has completed a transfer.  */
+static void lsi_command_complete(void *opaque, uint32_t reason, int sense)
+{
+    LSIState *s = (LSIState *)opaque;
+    uint32_t count;
+    int out;
+
+    out = ((s->sstat1 & PHASE_MASK) == PHASE_DO);
+    count = s->dbc;
+    if (count > LSI_DMA_BLOCK_SIZE)
+        count = LSI_DMA_BLOCK_SIZE;
+    if (!out)
+        cpu_physical_memory_write(s->dnad, s->dma_buf, count);
+    s->dnad += count;
+    s->dbc -= count;
+
+    if (reason == SCSI_REASON_DONE) {
+        DPRINTF("Command complete sense=%d\n", sense);
+        s->sense = sense;
+        lsi_set_phase(s, PHASE_ST);
+    }
+
+    if (s->dbc) {
+        lsi_do_dma(s, out);
+    } else if (s->waiting == 2) {
+        /* Restart SCRIPTS execution.  */
+        s->waiting = 0;
+        lsi_execute_script(s);
+    }
+}
 
 static void lsi_do_command(LSIState *s)
 {
@@ -459,15 +492,6 @@ static void lsi_do_command(LSIState *s)
         s->data_len = -n;
         lsi_set_phase(s, PHASE_DO);
     }
-}
-
-static void lsi_command_complete(void *opaque, uint32_t tag, int sense)
-{
-    LSIState *s = (LSIState *)opaque;
-
-    DPRINTF("Command complete sense=%d\n", sense);
-    s->sense = sense;
-    lsi_set_phase(s, PHASE_ST);
 }
 
 static void lsi_do_status(LSIState *s)
@@ -1134,7 +1158,7 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
             s->istat0 &= ~LSI_ISTAT0_INTF;
             lsi_update_irq(s);
         }
-        if (s->waiting && val & LSI_ISTAT0_SIGP) {
+        if (s->waiting == 1 && val & LSI_ISTAT0_SIGP) {
             DPRINTF("Woken by SIGP\n");
             s->waiting = 0;
             s->dsp = s->dnad;

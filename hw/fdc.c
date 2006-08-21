@@ -66,7 +66,6 @@ typedef enum fdrive_type_t {
 
 typedef enum fdrive_flags_t {
     FDRIVE_MOTOR_ON   = 0x01, /* motor on/off           */
-    FDRIVE_REVALIDATE = 0x02, /* Revalidated            */
 } fdrive_flags_t;
 
 typedef enum fdisk_flags_t {
@@ -236,7 +235,6 @@ static void fd_revalidate (fdrive_t *drv)
     int nb_heads, max_track, last_sect, ro;
 
     FLOPPY_DPRINTF("revalidate\n");
-    drv->drflags &= ~FDRIVE_REVALIDATE;
     if (drv->bs != NULL && bdrv_is_inserted(drv->bs)) {
 	ro = bdrv_is_read_only(drv->bs);
 	bdrv_get_geometry_hint(drv->bs, &nb_heads, &max_track, &last_sect);
@@ -291,7 +289,6 @@ static void fd_revalidate (fdrive_t *drv)
 	drv->max_track = 0;
 	drv->flags &= ~FDISK_DBL_SIDES;
     }
-    drv->drflags |= FDRIVE_REVALIDATE;
 }
 
 /* Motor control */
@@ -488,19 +485,6 @@ static CPUWriteMemoryFunc *fdctrl_mem_write[3] = {
     fdctrl_write_mem,
 };
 
-static void fd_change_cb (void *opaque)
-{
-    fdrive_t *drv = opaque;
-
-    FLOPPY_DPRINTF("disk change\n");
-    fd_revalidate(drv);
-#if 0
-    fd_recalibrate(drv);
-    fdctrl_reset_fifo(drv->fdctrl);
-    fdctrl_raise_irq(drv->fdctrl, 0x20);
-#endif
-}
-
 fdctrl_t *fdctrl_init (int irq_lvl, int dma_chann, int mem_mapped, 
                        uint32_t io_base,
                        BlockDriverState **fds)
@@ -529,10 +513,6 @@ fdctrl_t *fdctrl_init (int irq_lvl, int dma_chann, int mem_mapped,
     }
     for (i = 0; i < 2; i++) {
         fd_init(&fdctrl->drives[i], fds[i]);
-        if (fds[i]) {
-            bdrv_set_change_cb(fds[i],
-                               &fd_change_cb, &fdctrl->drives[i]);
-        }
     }
     fdctrl_reset(fdctrl, 0);
     fdctrl->state = FD_CTRL_ACTIVE;
@@ -760,18 +740,28 @@ static void fdctrl_write_rate (fdctrl_t *fdctrl, uint32_t value)
 //        fdctrl.precomp = (value >> 2) & 0x07;
 }
 
+static int fdctrl_media_changed(fdrive_t *drv)
+{
+    int ret;
+    if (!drv->bs) 
+        return 0;
+    ret = bdrv_media_changed(drv->bs);
+    if (ret) {
+        fd_revalidate(drv);
+    }
+    return ret;
+}
+
 /* Digital input register : 0x07 (read-only) */
 static uint32_t fdctrl_read_dir (fdctrl_t *fdctrl)
 {
     uint32_t retval = 0;
 
-    if (drv0(fdctrl)->drflags & FDRIVE_REVALIDATE ||
-	drv1(fdctrl)->drflags & FDRIVE_REVALIDATE)
+    if (fdctrl_media_changed(drv0(fdctrl)) ||
+	fdctrl_media_changed(drv1(fdctrl)))
         retval |= 0x80;
     if (retval != 0)
         FLOPPY_DPRINTF("Floppy digital input register: 0x%02x\n", retval);
-    drv0(fdctrl)->drflags &= ~FDRIVE_REVALIDATE;
-    drv1(fdctrl)->drflags &= ~FDRIVE_REVALIDATE;
 
     return retval;
 }
