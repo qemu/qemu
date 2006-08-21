@@ -1,3 +1,212 @@
+2006-08-19 18:56  bellard
+
+	* qemu-doc.texi: removed outdated info
+
+2006-08-19 16:27  bellard
+
+	* sdl.c, keymaps/ja: Japanese keyboard fixes (kazu)
+
+2006-08-19 14:38  bellard
+
+	* Changelog: update
+
+2006-08-19 14:37  bellard
+
+	* tap-win32.c, vl.c, vl.h: win32 tap poll suppression (kazu)
+
+2006-08-19 13:58  bellard
+
+	* hw/usb-msd.c: delete block device
+
+2006-08-19 13:58  bellard
+
+	* hw/scsi-disk.c: no need for bdrv_close()
+
+2006-08-19 13:45  bellard
+
+	* block-raw.c, block.c, block_int.h, qemu-doc.texi, vl.h: better
+	  support of host drives
+
+2006-08-19 13:44  bellard
+
+	* hw/ide.c: better support of removable media
+
+2006-08-19 13:43  bellard
+
+	* hw/fdc.c: use bdrv_media_changed()
+
+2006-08-18 11:32  bellard
+
+	* hw/: cirrus_vga.c, vga.c, vga_int.h: fixed VGA resolutions with
+	  height > 1024
+
+2006-08-17 19:41  bellard
+
+	* Makefile.target: disable -fomit-frame-pointer
+
+2006-08-17 19:22  bellard
+
+	* qemu-doc.texi, vl.c: -L help
+
+2006-08-17 18:19  bellard
+
+	* osdep.c: fd leak fix (Igor Kovalenko)
+
+2006-08-17 12:48  bellard
+
+	* hw/ide.c: minimal PCI IDE save/restore
+
+2006-08-17 12:48  bellard
+
+	* hw/apic.c: save apic timer
+
+2006-08-17 12:46  bellard
+
+	* hw/: ne2000.c, pci.c, piix_pci.c, rtl8139.c: PCI save/restore
+	  changes
+
+2006-08-17 12:45  bellard
+
+	* vl.h, hw/mips_r4k.c, hw/pc.c, hw/ppc_chrp.c, hw/ppc_prep.c: vga
+	  init changes
+
+2006-08-17 12:44  bellard
+
+	* hw/: cirrus_vga.c, vga.c, vga_int.h: save VGA PCI state
+
+2006-08-17 12:42  bellard
+
+	* sdl.c: reset key modifiers when switching console (aka savevm
+	  keyboard bug)
+
+2006-08-17 11:43  bellard
+
+	* vl.c: win32 compilation fix
+
+2006-08-16 00:57  pbrook
+
+	* hw/esp.c: ESP DMA fix.
+
+2006-08-14 17:08  pbrook
+
+	* hw/scsi-disk.c: scsi empty drive fix (Blue Swirl).
+
+2006-08-13 16:20  pbrook
+
+	* pc-bios/openbios-esp.diff: Remove OpenBIOS ESP patch.  Merged
+	  upstream.
+
+2006-08-12 03:04  pbrook
+
+	* usb-linux.c, vl.h, hw/esp.c, hw/lsi53c895a.c, hw/scsi-disk.c,
+	  hw/usb-hid.c, hw/usb-hub.c, hw/usb-msd.c, hw/usb-ohci.c,
+	  hw/usb-uhci.c, hw/usb.c, hw/usb.h, pc-bios/openbios-esp.diff,
+	  pc-bios/openbios-sparc32: SCSI and USB async IO support.
+
+2006-08-10 03:03  pbrook
+
+	* hw/pci.c: Add SCSI controller class.
+
+2006-08-10 00:38  bellard
+
+	* hw/lance.c: removed tabs
+
+2006-08-09 23:55  bellard
+
+	* hw/lance.c: indent
+
+2006-08-07 23:36  bellard
+
+	* hw/ide.c: use AIO for DMA transfers - enabled DMA for CDROMs
+
+2006-08-07 23:35  bellard
+
+	* audio/wavcapture.c: mem leak fixes
+
+2006-08-07 23:33  bellard
+
+	* qemu-img.texi, qemu-doc.texi: update
+
+2006-08-07 23:33  bellard
+
+	* qemu-img.c, vl.c: copyright update
+
+2006-08-07 21:10  bellard
+
+	* block.c: fixed aio emulation
+
+2006-08-07 04:38  pbrook
+
+	* block-qcow.c, block-qcow2.c, block-raw.c, block.c, block_int.h,
+	  vl.h: Dynamically allocate AIO Completion Blocks.
+
+2006-08-06 23:13  bellard
+
+	* hw/pflash_cfi02.c: removed duplicated line
+
+2006-08-06 16:50  bellard
+
+	* Changelog, qemu-doc.texi: info about VM snapshots
+
+2006-08-06 15:36  bellard
+
+	* vl.c: use zlib to compress ram snapshots - correctly save qemu
+	  clock
+
+2006-08-06 15:35  bellard
+
+	* block.c, block_int.h: qcow2 is now used for '-snapshot' - keep
+	  BlockDriverState.total_sectors
+
+2006-08-06 15:34  bellard
+
+	* block-qcow2.c: handle read outside the backing file
+
+2006-08-06 15:27  pbrook
+
+	* hw/scsi-disk.c: Add missing #define.
+
+2006-08-06 13:31  pbrook
+
+	* hw/scsi-disk.c: Fix SCSI off-by-one device size.
+
+2006-08-06 11:51  bellard
+
+	* block-raw.c, vl.c, vl.h: fixed blocking io emulation
+
+2006-08-06 00:24  bellard
+
+	* block-qcow2.c: fixed disk image creation
+
+2006-08-05 23:32  bellard
+
+	* block-qcow.c: block API change
+
+2006-08-05 23:31  bellard
+
+	* audio/: wavaudio.c, wavcapture.c: use QEMUFile API
+
+2006-08-05 23:31  bellard
+
+	* block.c, block_int.h, monitor.c, qemu-img.c, vl.c, vl.h: multiple
+	  snapshot support
+
+2006-08-05 23:29  bellard
+
+	* Makefile, Makefile.target: enable qcow2
+
+2006-08-05 23:27  bellard
+
+	* block-raw.c: O_LARGEFILE is not needed
+
+2006-08-05 23:14  bellard
+
+	* block-qcow2.c: new qcow2 disk image format
+
+2006-08-04 23:55  bellard
+
+	* sparc64.ld: sparc64.ld file (Blue Swirl)
+
 2006-08-03 22:39  bellard
 
 	* audio/audio.c: swapped memset args (Charles Coffing)

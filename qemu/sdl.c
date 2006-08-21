@@ -104,6 +104,10 @@ static uint8_t sdl_keyevent_to_keycode_generic(const SDL_KeyboardEvent *ev)
     keysym = ev->keysym.sym;
     if (keysym == 0 && ev->keysym.scancode == 113)
         keysym = SDLK_MODE;
+    /* For Japanese key '\' and '|' */
+    if (keysym == 92 && ev->keysym.scancode == 133) {
+        keysym = 0xa5;
+    }
     return keysym2scancode(kbd_layout, keysym);
 }
 
@@ -118,7 +122,7 @@ static uint8_t sdl_keyevent_to_keycode(const SDL_KeyboardEvent *ev)
 
 #else
 
-static const uint8_t x_keycode_to_pc_keycode[61] = {
+static const uint8_t x_keycode_to_pc_keycode[115] = {
    0xc7,      /*  97  Home   */
    0xc8,      /*  98  Up     */
    0xc9,      /*  99  PgUp   */
@@ -142,10 +146,10 @@ static const uint8_t x_keycode_to_pc_keycode[61] = {
    0x0,         /* 117 */
    0x0,         /* 118 */
    0x0,         /* 119 */
-   0x70,         /* 120 Hiragana_Katakana */
+   0x0,         /* 120 */
    0x0,         /* 121 */
    0x0,         /* 122 */
-   0x73,         /* 123 backslash */
+   0x0,         /* 123 */
    0x0,         /* 124 */
    0x0,         /* 125 */
    0x0,         /* 126 */
@@ -180,6 +184,24 @@ static const uint8_t x_keycode_to_pc_keycode[61] = {
    0x51,         /* 155 KP_PgDn */
    0x52,         /* 156 KP_Ins */
    0x53,         /* 157 KP_Del */
+   0x0,         /* 158 */
+   0x0,         /* 159 */
+   0x0,         /* 160 */
+   0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,         /* 170 */
+   0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,         /* 180 */
+   0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,         /* 190 */
+   0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,         /* 200 */
+   0x0,         /* 201 */
+   0x0,         /* 202 */
+   0x0,         /* 203 */
+   0x0,         /* 204 */
+   0x0,         /* 205 */
+   0x0,         /* 206 */
+   0x0,         /* 207 */
+   0x70,         /* 208 Hiragana_Katakana */
+   0x0,         /* 209 */
+   0x0,         /* 210 */
+   0x73,         /* 211 backslash */
 };
 
 static uint8_t sdl_keyevent_to_keycode(const SDL_KeyboardEvent *ev)
@@ -192,7 +214,7 @@ static uint8_t sdl_keyevent_to_keycode(const SDL_KeyboardEvent *ev)
         keycode = 0;
     } else if (keycode < 97) {
         keycode -= 8; /* just an offset */
-    } else if (keycode < 158) {
+    } else if (keycode < 212) {
         /* use conversion table */
         keycode = x_keycode_to_pc_keycode[keycode - 97];
     } else {
@@ -394,6 +416,8 @@ static void sdl_refresh(DisplayState *ds)
                         gui_keysym = 1;
                         break;
                     case 0x02 ... 0x0a: /* '1' to '9' keys */ 
+                        /* Reset the modifiers sent to the current console */
+                        reset_keys();
                         console_select(keycode - 0x02);
                         if (!is_graphic_console()) {
                             /* display grab if going to a text console */
@@ -469,7 +493,7 @@ static void sdl_refresh(DisplayState *ds)
                     }
                 }
             }
-            if (is_graphic_console()) 
+            if (is_graphic_console() && !gui_keysym) 
                 sdl_process_key(&ev->key);
             break;
         case SDL_QUIT:
