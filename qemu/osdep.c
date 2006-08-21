@@ -120,7 +120,8 @@ void *kqemu_vmalloc(size_t size)
         }
         snprintf(phys_ram_file, sizeof(phys_ram_file), "%s/qemuXXXXXX", 
                  tmpdir);
-        if (mkstemp(phys_ram_file) < 0) {
+        phys_ram_fd = mkstemp(phys_ram_file);
+        if (phys_ram_fd < 0) {
             fprintf(stderr, 
                     "warning: could not create temporary file in '%s'.\n"
                     "Use QEMU_TMPDIR to select a directory in a tmpfs filesystem.\n"
@@ -128,17 +129,12 @@ void *kqemu_vmalloc(size_t size)
                     tmpdir);
             snprintf(phys_ram_file, sizeof(phys_ram_file), "%s/qemuXXXXXX", 
                      "/tmp");
-            if (mkstemp(phys_ram_file) < 0) {
+            phys_ram_fd = mkstemp(phys_ram_file);
+            if (phys_ram_fd < 0) {
                 fprintf(stderr, "Could not create temporary memory file '%s'\n", 
                         phys_ram_file);
                 exit(1);
             }
-        }
-        phys_ram_fd = open(phys_ram_file, O_CREAT | O_TRUNC | O_RDWR, 0600);
-        if (phys_ram_fd < 0) {
-            fprintf(stderr, "Could not open temporary memory file '%s'\n", 
-                    phys_ram_file);
-            exit(1);
         }
         unlink(phys_ram_file);
     }

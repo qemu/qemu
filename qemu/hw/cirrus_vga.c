@@ -1000,12 +1000,12 @@ static void cirrus_write_bitblt(CirrusVGAState * s, unsigned reg_value)
  ***************************************/
 
 static void cirrus_get_offsets(VGAState *s1, 
-                                   uint32_t *pline_offset,
-                                   uint32_t *pstart_addr)
+                               uint32_t *pline_offset,
+                               uint32_t *pstart_addr,
+                               uint32_t *pline_compare)
 {
     CirrusVGAState * s = (CirrusVGAState *)s1;
-    uint32_t start_addr;
-    uint32_t line_offset;
+    uint32_t start_addr, line_offset, line_compare;
 
     line_offset = s->cr[0x13]
 	| ((s->cr[0x1b] & 0x10) << 4);
@@ -1018,6 +1018,11 @@ static void cirrus_get_offsets(VGAState *s1,
 	| ((s->cr[0x1b] & 0x0c) << 15)
 	| ((s->cr[0x1d] & 0x80) << 12);
     *pstart_addr = start_addr;
+
+    line_compare = s->cr[0x18] | 
+        ((s->cr[0x07] & 0x10) << 4) |
+        ((s->cr[0x09] & 0x40) << 3);
+    *pline_compare = line_compare;
 }
 
 static uint32_t cirrus_get_bpp16_depth(CirrusVGAState * s)
@@ -2905,6 +2910,9 @@ static void cirrus_vga_save(QEMUFile *f, void *opaque)
 {
     CirrusVGAState *s = opaque;
 
+    if (s->pci_dev)
+        pci_device_save(s->pci_dev, f);
+
     qemu_put_be32s(f, &s->latch);
     qemu_put_8s(f, &s->sr_index);
     qemu_put_buffer(f, s->sr, 256);
@@ -2943,9 +2951,16 @@ static void cirrus_vga_save(QEMUFile *f, void *opaque)
 static int cirrus_vga_load(QEMUFile *f, void *opaque, int version_id)
 {
     CirrusVGAState *s = opaque;
+    int ret;
 
-    if (version_id != 1)
+    if (version_id > 2)
         return -EINVAL;
+
+    if (s->pci_dev && version_id >= 2) {
+        ret = pci_device_load(s->pci_dev, f);
+        if (ret < 0)
+            return ret;
+    }
 
     qemu_get_be32s(f, &s->latch);
     qemu_get_8s(f, &s->sr_index);
@@ -3100,7 +3115,7 @@ static void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci)
     s->cursor_invalidate = cirrus_cursor_invalidate;
     s->cursor_draw_line = cirrus_cursor_draw_line;
 
-    register_savevm("cirrus_vga", 0, 1, cirrus_vga_save, cirrus_vga_load, s);
+    register_savevm("cirrus_vga", 0, 2, cirrus_vga_save, cirrus_vga_load, s);
 }
 
 /***************************************
@@ -3178,6 +3193,7 @@ void pci_cirrus_vga_init(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base,
     vga_common_init((VGAState *)s, 
                     ds, vga_ram_base, vga_ram_offset, vga_ram_size);
     cirrus_init_common(s, device_id, 1);
+    s->pci_dev = (PCIDevice *)d;
 
     /* setup memory space */
     /* memory #0 LFB */

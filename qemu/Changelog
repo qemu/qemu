@@ -2,6 +2,9 @@ version 0.8.3:
 
   - Support for relative paths in backing files for disk images
   - Async file I/O API
+  - New qcow2 disk image format
+  - Support of multiple VM snapshots
+  - Linux: specific host CDROM and floppy support
 
 version 0.8.2:
 

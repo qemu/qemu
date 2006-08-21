@@ -62,6 +62,11 @@ struct ESPState {
     uint8_t cmdbuf[TI_BUFSZ];
     int cmdlen;
     int do_cmd;
+
+    uint32_t dma_left;
+    uint8_t async_buf[TARGET_PAGE_SIZE];
+    uint32_t async_ptr;
+    uint32_t async_len;
 };
 
 #define STAT_DO 0x00
@@ -72,6 +77,8 @@ struct ESPState {
 #define STAT_MO 0x07
 
 #define STAT_TC 0x10
+#define STAT_PE 0x20
+#define STAT_GE 0x40
 #define STAT_IN 0x80
 
 #define INTR_FC 0x08
@@ -195,26 +202,84 @@ static void write_response(ESPState *s)
 
 }
 
-static void esp_command_complete(void *opaque, uint32_t tag, int sense)
+static void esp_do_dma(ESPState *s)
+{
+    uint32_t dmaptr, minlen, len, from, to;
+    int to_device;
+    to_device = (s->espdmaregs[0] & DMA_WRITE_MEM) == 0;
+    from = s->espdmaregs[1];
+    minlen = s->dma_left;
+    to = from + minlen;
+    dmaptr = iommu_translate(s->espdmaregs[1]);
+    if ((from & TARGET_PAGE_MASK) != (to & TARGET_PAGE_MASK)) {
+       len = TARGET_PAGE_SIZE - (from & ~TARGET_PAGE_MASK);
+    } else {
+       len = to - from;
+    }
+    DPRINTF("DMA address p %08x v %08x len %08x, from %08x, to %08x\n", dmaptr, s->espdmaregs[1], len, from, to);
+    if (s->do_cmd) {
+        s->espdmaregs[1] += len;
+        s->ti_size -= len;
+        DPRINTF("command len %d + %d\n", s->cmdlen, len);
+        cpu_physical_memory_read(dmaptr, &s->cmdbuf[s->cmdlen], len);
+        s->ti_size = 0;
+        s->cmdlen = 0;
+        s->do_cmd = 0;
+        do_cmd(s, s->cmdbuf);
+        return;
+    } else {
+        s->async_len = len;
+        s->dma_left -= len;
+        if (to_device) {
+            s->async_ptr = -1;
+            cpu_physical_memory_read(dmaptr, s->async_buf, len);
+            scsi_write_data(s->current_dev, s->async_buf, len);
+        } else {
+            s->async_ptr = dmaptr;
+            scsi_read_data(s->current_dev, s->async_buf, len);
+        }
+    }
+}
+
+static void esp_command_complete(void *opaque, uint32_t reason, int sense)
 {
     ESPState *s = (ESPState *)opaque;
 
-    DPRINTF("SCSI Command complete\n");
-    if (s->ti_size != 0)
-        DPRINTF("SCSI command completed unexpectedly\n");
-    s->ti_size = 0;
-    if (sense)
-        DPRINTF("Command failed\n");
-    s->sense = sense;
-    s->rregs[4] = STAT_IN | STAT_TC | STAT_ST;
+    s->ti_size -= s->async_len;
+    s->espdmaregs[1] += s->async_len;
+    if (s->async_ptr != (uint32_t)-1) {
+        cpu_physical_memory_write(s->async_ptr, s->async_buf, s->async_len);
+    }
+    if (reason == SCSI_REASON_DONE) {
+        DPRINTF("SCSI Command complete\n");
+        if (s->ti_size != 0)
+            DPRINTF("SCSI command completed unexpectedly\n");
+        s->ti_size = 0;
+        if (sense)
+            DPRINTF("Command failed\n");
+        s->sense = sense;
+    } else {
+        DPRINTF("transfer %d/%d\n", s->dma_left, s->ti_size);
+    }
+    if (s->dma_left) {
+        esp_do_dma(s);
+    } else {
+        if (s->ti_size) {
+            s->rregs[4] |= STAT_IN | STAT_TC;
+        } else {
+            s->rregs[4] = STAT_IN | STAT_TC | STAT_ST;
+        }
+        s->rregs[5] = INTR_BS;
+	s->rregs[6] = 0;
+	s->rregs[7] = 0;
+	s->espdmaregs[0] |= DMA_INTR;
+        pic_set_irq(s->irq, 1);
+    }
 }
 
 static void handle_ti(ESPState *s)
 {
-    uint32_t dmaptr, dmalen, minlen, len, from, to;
-    unsigned int i;
-    int to_device;
-    uint8_t buf[TARGET_PAGE_SIZE];
+    uint32_t dmalen, minlen;
 
     dmalen = s->wregs[0] | (s->wregs[1] << 8);
     if (dmalen==0) {
@@ -227,47 +292,9 @@ static void handle_ti(ESPState *s)
         minlen = (dmalen < s->ti_size) ? dmalen : s->ti_size;
     DPRINTF("Transfer Information len %d\n", minlen);
     if (s->dma) {
-	dmaptr = iommu_translate(s->espdmaregs[1]);
-        /* Check if the transfer writes to to reads from the device.  */
-        to_device = (s->espdmaregs[0] & DMA_WRITE_MEM) == 0;
-	DPRINTF("DMA Direction: %c, addr 0x%8.8x %08x\n",
-                to_device ? 'r': 'w', dmaptr, s->ti_size);
-	from = s->espdmaregs[1];
-	to = from + minlen;
-	for (i = 0; i < minlen; i += len, from += len) {
-	    dmaptr = iommu_translate(s->espdmaregs[1] + i);
-	    if ((from & TARGET_PAGE_MASK) != (to & TARGET_PAGE_MASK)) {
-               len = TARGET_PAGE_SIZE - (from & ~TARGET_PAGE_MASK);
-            } else {
-	       len = to - from;
-            }
-            DPRINTF("DMA address p %08x v %08x len %08x, from %08x, to %08x\n", dmaptr, s->espdmaregs[1] + i, len, from, to);
-            s->ti_size -= len;
-            if (s->do_cmd) {
-                DPRINTF("command len %d + %d\n", s->cmdlen, len);
-                cpu_physical_memory_read(dmaptr, &s->cmdbuf[s->cmdlen], len);
-                s->ti_size = 0;
-                s->cmdlen = 0;
-                s->do_cmd = 0;
-                do_cmd(s, s->cmdbuf);
-                return;
-            } else {
-                if (to_device) {
-                    cpu_physical_memory_read(dmaptr, buf, len);
-                    scsi_write_data(s->current_dev, buf, len);
-                } else {
-                    scsi_read_data(s->current_dev, buf, len);
-                    cpu_physical_memory_write(dmaptr, buf, len);
-                }
-            }
-        }
-        if (s->ti_size) {
-	    s->rregs[4] = STAT_IN | STAT_TC | (to_device ? STAT_DO : STAT_DI);
-        }
-        s->rregs[5] = INTR_BS;
-	s->rregs[6] = 0;
-	s->rregs[7] = 0;
-	s->espdmaregs[0] |= DMA_INTR;
+        s->dma_left = minlen;
+        s->rregs[4] &= ~STAT_TC;
+        esp_do_dma(s);
     } else if (s->do_cmd) {
         DPRINTF("command len %d\n", s->cmdlen);
         s->ti_size = 0;
@@ -276,7 +303,6 @@ static void handle_ti(ESPState *s)
         do_cmd(s, s->cmdbuf);
         return;
     }
-    pic_set_irq(s->irq, 1);
 }
 
 static void esp_reset(void *opaque)
@@ -320,8 +346,8 @@ static uint32_t esp_mem_readb(void *opaque, target_phys_addr_t addr)
 	break;
     case 5:
         // interrupt
-        // Clear status bits except TC
-        s->rregs[4] &= STAT_TC;
+        // Clear interrupt/error status bits
+        s->rregs[4] &= ~(STAT_IN | STAT_GE | STAT_PE);
         pic_set_irq(s->irq, 0);
 	s->espdmaregs[0] &= ~DMA_INTR;
         break;
@@ -342,6 +368,7 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
     case 0:
     case 1:
         s->rregs[saddr] = val;
+        s->rregs[4] &= ~STAT_TC;
         break;
     case 2:
 	// FIFO

@@ -34,22 +34,19 @@ static void wav_destroy (void *opaque)
     uint32_t datalen = wav->bytes;
     uint32_t rifflen = datalen + 36;
 
-    if (!wav->f) {
-        return;
+    if (wav->f) {
+        le_store (rlen, rifflen, 4);
+        le_store (dlen, datalen, 4);
+        
+        qemu_fseek (wav->f, 4, SEEK_SET);
+        qemu_put_buffer (wav->f, rlen, 4);
+        
+        qemu_fseek (wav->f, 32, SEEK_CUR);
+        qemu_put_buffer (wav->f, dlen, 4);
+        qemu_fclose (wav->f);
     }
-
-    le_store (rlen, rifflen, 4);
-    le_store (dlen, datalen, 4);
-
-    qemu_fseek (wav->f, 4, SEEK_SET);
-    qemu_put_buffer (wav->f, rlen, 4);
-
-    qemu_fseek (wav->f, 32, SEEK_CUR);
-    qemu_put_buffer (wav->f, dlen, 4);
-    fclose (wav->f);
-    if (wav->path) {
-        qemu_free (wav->path);
-    }
+    
+    qemu_free (wav->path);
 }
 
 static void wav_capture (void *opaque, void *buf, int size)
@@ -135,7 +132,7 @@ int wav_start_capture (CaptureState *s, const char *path, int freq,
     le_store (hdr + 28, freq << shift, 4);
     le_store (hdr + 32, 1 << shift, 2);
 
-    wav->f = fopen (path, "wb");
+    wav->f = qemu_fopen (path, "wb");
     if (!wav->f) {
         term_printf ("Failed to open wave file `%s'\nReason: %s\n",
                      path, strerror (errno));
@@ -153,6 +150,8 @@ int wav_start_capture (CaptureState *s, const char *path, int freq,
     cap = AUD_add_capture (NULL, &as, &ops, wav);
     if (!cap) {
         term_printf ("Failed to add audio capture\n");
+        qemu_free (wav->path);
+        qemu_fclose (wav->f);
         qemu_free (wav);
         return -1;
     }

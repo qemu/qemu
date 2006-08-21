@@ -151,7 +151,7 @@ static int wav_init_out (HWVoiceOut *hw, audsettings_t *as)
     le_store (hdr + 28, hw->info.freq << (bits16 + stereo), 4);
     le_store (hdr + 32, 1 << (bits16 + stereo), 2);
 
-    wav->f = fopen (conf.wav_path, "wb");
+    wav->f = qemu_fopen (conf.wav_path, "wb");
     if (!wav->f) {
         dolog ("Failed to open wave file `%s'\nReason: %s\n",
                conf.wav_path, strerror (errno));
@@ -185,7 +185,7 @@ static void wav_fini_out (HWVoiceOut *hw)
     qemu_fseek (wav->f, 32, SEEK_CUR);
     qemu_put_buffer (wav->f, dlen, 4);
 
-    fclose (wav->f);
+    qemu_fclose (wav->f);
     wav->f = NULL;
 
     qemu_free (wav->pcm_buf);

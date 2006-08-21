@@ -474,19 +474,18 @@ static int usb_mouse_handle_control(USBDevice *dev, int request, int value,
     return ret;
 }
 
-static int usb_mouse_handle_data(USBDevice *dev, int pid, 
-                                 uint8_t devep, uint8_t *data, int len)
+static int usb_mouse_handle_data(USBDevice *dev, USBPacket *p)
 {
     USBMouseState *s = (USBMouseState *)dev;
     int ret = 0;
 
-    switch(pid) {
+    switch(p->pid) {
     case USB_TOKEN_IN:
-        if (devep == 1) {
+        if (p->devep == 1) {
 	    if (s->kind == USB_MOUSE)
-		ret = usb_mouse_poll(s, data, len);
+		ret = usb_mouse_poll(s, p->data, p->len);
 	    else if (s->kind == USB_TABLET)
-		ret = usb_tablet_poll(s, data, len);
+		ret = usb_tablet_poll(s, p->data, p->len);
         } else {
             goto fail;
         }
