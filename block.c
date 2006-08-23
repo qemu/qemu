@@ -365,6 +365,8 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
     }
     if (ret < 0) {
         qemu_free(bs->opaque);
+        bs->opaque = NULL;
+        bs->drv = NULL;
         return ret;
     }
     if (drv->bdrv_getlength) {
@@ -381,7 +383,7 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
         if (!bs->backing_hd) {
         fail:
             bdrv_close(bs);
-            return -1;
+            return -ENOMEM;
         }
         path_combine(backing_filename, sizeof(backing_filename),
                      filename, bs->backing_file);
