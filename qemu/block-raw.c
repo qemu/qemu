@@ -826,7 +826,7 @@ BlockDriver bdrv_host_device = {
 typedef struct BDRVRawState {
     HANDLE hfile;
     int type;
-    char drive_letter[2];
+    char drive_path[16]; /* format: "d:\" */
 } BDRVRawState;
 
 typedef struct RawAIOCB {
@@ -876,23 +876,8 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
     BDRVRawState *s = bs->opaque;
     int access_flags, create_flags;
     DWORD overlapped;
-    char device_name[64];
-    const char *p;
 
-    if (strstart(filename, "/dev/cdrom", NULL)) {
-        if (find_cdrom(device_name, sizeof(device_name)) < 0)
-            return -ENOENT;
-        filename = device_name;
-    } else {
-        /* transform drive letters into device name */
-        if (((filename[0] >= 'a' && filename[0] <= 'z') ||
-             (filename[0] >= 'A' && filename[0] <= 'Z')) &&
-            filename[1] == ':' && filename[2] == '\0') {
-            snprintf(device_name, sizeof(device_name), "\\\\.\\%c:", filename[0]);
-            filename = device_name;
-        }
-    }
-    s->type = find_device_type(filename);
+    s->type = FTYPE_FILE;
 
     if ((flags & BDRV_O_ACCESS) == O_RDWR) {
         access_flags = GENERIC_READ | GENERIC_WRITE;
@@ -1089,22 +1074,22 @@ static int raw_truncate(BlockDriverState *bs, int64_t offset)
     return 0;
 }
 
-static int64_t  raw_getlength(BlockDriverState *bs)
+static int64_t raw_getlength(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
     LARGE_INTEGER l;
     ULARGE_INTEGER available, total, total_free; 
 
-    switch(s->ftype) {
+    switch(s->type) {
     case FTYPE_FILE:
         l.LowPart = GetFileSize(s->hfile, &l.HighPart);
         if (l.LowPart == 0xffffffffUL && GetLastError() != NO_ERROR)
             return -EIO;
         break;
     case FTYPE_CD:
-        if (!GetDiskFreeSpaceEx(s->drive_letter, &available, &total, &total_free))
+        if (!GetDiskFreeSpaceEx(s->drive_path, &available, &total, &total_free))
             return -EIO;
-        l = total;
+        l.QuadPart = total.QuadPart;
         break;
     default:
         return -EIO;
@@ -1182,7 +1167,7 @@ static int find_cdrom(char *cdrom_name, int cdrom_name_size)
     char drives[256], *pdrv = drives;
     UINT type;
 
-    memset(drives, 0, sizeof(drivers));
+    memset(drives, 0, sizeof(drives));
     GetLogicalDriveStrings(sizeof(drives), drives);
     while(pdrv[0] != '\0') {
         type = GetDriveType(pdrv);
@@ -1197,16 +1182,16 @@ static int find_cdrom(char *cdrom_name, int cdrom_name_size)
     return -1;
 }
 
-static int find_device_type(const char *filename)
+static int find_device_type(BlockDriverState *bs, const char *filename)
 {
+    BDRVRawState *s = bs->opaque;
     UINT type;
     const char *p;
 
     if (strstart(filename, "\\\\.\\", &p) ||
         strstart(filename, "//./", &p)) {
-        s->drive_letter[0] = p[0];
-        s->drive_letter[1] = '\0';
-        type = GetDriveType(s->drive_letter);
+        snprintf(s->drive_path, sizeof(s->drive_path), "%c:\\", p[0]);
+        type = GetDriveType(s->drive_path);
         if (type == DRIVE_CDROM)
             return FTYPE_CD;
         else
@@ -1222,7 +1207,6 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
     int access_flags, create_flags;
     DWORD overlapped;
     char device_name[64];
-    const char *p;
 
     if (strstart(filename, "/dev/cdrom", NULL)) {
         if (find_cdrom(device_name, sizeof(device_name)) < 0)
@@ -1237,7 +1221,7 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
             filename = device_name;
         }
     }
-    s->type = find_device_type(filename);
+    s->type = find_device_type(bs, filename);
 
     if ((flags & BDRV_O_ACCESS) == O_RDWR) {
         access_flags = GENERIC_READ | GENERIC_WRITE;

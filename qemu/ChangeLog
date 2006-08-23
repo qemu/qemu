@@ -1,3 +1,19 @@
+2006-08-23 23:40  bellard
+
+	* block-raw.c, block.c: win32 compilation fixes
+
+2006-08-23 23:14  bellard
+
+	* block.c: fixed error handling
+
+2006-08-21 22:28  bellard
+
+	* qemu-doc.texi: update
+
+2006-08-21 22:26  bellard
+
+	* qemu-doc.texi: spelling fixes (Stefan Weil)
+
 2006-08-19 18:56  bellard
 
 	* qemu-doc.texi: removed outdated info
