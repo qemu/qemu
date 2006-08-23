@@ -182,11 +182,17 @@ void get_tmp_filename(char *filename, int size)
 #endif
 
 #ifdef _WIN32
+static int is_windows_drive_prefix(const char *filename)
+{
+    return (((filename[0] >= 'a' && filename[0] <= 'z') ||
+             (filename[0] >= 'A' && filename[0] <= 'Z')) &&
+            filename[1] == ':');
+}
+    
 static int is_windows_drive(const char *filename)
 {
-    if (((filename[0] >= 'a' && filename[0] <= 'z') ||
-         (filename[0] >= 'A' && filename[0] <= 'Z')) &&
-        filename[1] == ':' && filename[2] == '\0')
+    if (is_windows_drive_prefix(filename) && 
+        filename[2] == '\0')
         return 1;
     if (strstart(filename, "\\\\.\\", NULL) ||
         strstart(filename, "//./", NULL))
@@ -203,7 +209,8 @@ static BlockDriver *find_protocol(const char *filename)
     const char *p;
 
 #ifdef _WIN32
-    if (is_windows_drive(filename))
+    if (is_windows_drive(filename) ||
+        is_windows_drive_prefix(filename))
         return &bdrv_raw;
 #endif
     p = strchr(filename, ':');
@@ -365,6 +372,8 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
     }
     if (ret < 0) {
         qemu_free(bs->opaque);
+        bs->opaque = NULL;
+        bs->drv = NULL;
         return ret;
     }
     if (drv->bdrv_getlength) {
@@ -381,7 +390,7 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
         if (!bs->backing_hd) {
         fail:
             bdrv_close(bs);
-            return -1;
+            return -ENOMEM;
         }
         path_combine(backing_filename, sizeof(backing_filename),
                      filename, bs->backing_file);
