@@ -1,3 +1,11 @@
+2006-08-24 21:53  bellard
+
+	* block.c: fixed handling of relative filenames with -snapshot
+
+2006-08-24 20:58  bellard
+
+	* block-raw.c: win32 aio emulation fix
+
 2006-08-23 23:40  bellard
 
 	* block-raw.c, block.c: win32 compilation fixes

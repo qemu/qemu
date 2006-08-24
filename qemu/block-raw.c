@@ -1129,6 +1129,9 @@ void qemu_aio_wait_start(void)
 
 void qemu_aio_wait(void)
 {
+#ifndef QEMU_TOOL
+    qemu_bh_poll();
+#endif
 }
 
 void qemu_aio_wait_end(void)
