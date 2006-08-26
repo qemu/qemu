@@ -71,7 +71,7 @@
 #define UART_LSR_DR	0x01	/* Receiver data ready */
 
 struct SerialState {
-    uint8_t divider;
+    uint16_t divider;
     uint8_t rbr; /* receive register */
     uint8_t ier;
     uint8_t iir; /* read only */
@@ -310,7 +310,7 @@ static void serial_save(QEMUFile *f, void *opaque)
 {
     SerialState *s = opaque;
 
-    qemu_put_8s(f,&s->divider);
+    qemu_put_be16s(f,&s->divider);
     qemu_put_8s(f,&s->rbr);
     qemu_put_8s(f,&s->ier);
     qemu_put_8s(f,&s->iir);
@@ -325,10 +325,13 @@ static int serial_load(QEMUFile *f, void *opaque, int version_id)
 {
     SerialState *s = opaque;
 
-    if(version_id != 1)
+    if(version_id > 2)
         return -EINVAL;
 
-    qemu_get_8s(f,&s->divider);
+    if (version_id >= 2)
+        qemu_get_be16s(f, &s->divider);
+    else
+        s->divider = qemu_get_byte(f);
     qemu_get_8s(f,&s->rbr);
     qemu_get_8s(f,&s->ier);
     qemu_get_8s(f,&s->iir);
@@ -357,7 +360,7 @@ SerialState *serial_init(SetIRQFunc *set_irq, void *opaque,
     s->iir = UART_IIR_NO_INT;
     s->msr = UART_MSR_DCD | UART_MSR_DSR | UART_MSR_CTS;
 
-    register_savevm("serial", base, 1, serial_save, serial_load, s);
+    register_savevm("serial", base, 2, serial_save, serial_load, s);
 
     register_ioport_write(base, 8, 1, serial_ioport_write, s);
     register_ioport_read(base, 8, 1, serial_ioport_read, s);
@@ -444,7 +447,7 @@ SerialState *serial_mm_init (SetIRQFunc *set_irq, void *opaque,
     s->base = base;
     s->it_shift = it_shift;
 
-    register_savevm("serial", base, 1, serial_save, serial_load, s);
+    register_savevm("serial", base, 2, serial_save, serial_load, s);
 
     s_io_memory = cpu_register_io_memory(0, serial_mm_read,
                                          serial_mm_write, s);
