@@ -1,3 +1,12 @@
+2006-08-26 20:00  bellard
+
+	* hw/serial.c: 16 bit divider
+
+2006-08-24 22:36  bellard
+
+	* vnc.c: signed fixes - VNC console switch (initial patch by
+	  Andrzej Zaborowski)
+
 2006-08-24 21:53  bellard
 
 	* block.c: fixed handling of relative filenames with -snapshot

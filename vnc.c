@@ -81,6 +81,8 @@ struct VncState
 
     VncReadEvent *read_handler;
     size_t read_handler_expect;
+    /* input */
+    uint8_t modifiers_state[256];
 };
 
 /* TODO
@@ -622,7 +624,7 @@ static void vnc_write_u32(VncState *vs, uint32_t value)
 
 static void vnc_write_u16(VncState *vs, uint16_t value)
 {
-    char buf[2];
+    uint8_t buf[2];
 
     buf[0] = (value >> 8) & 0xFF;
     buf[1] = value & 0xFF;
@@ -641,23 +643,23 @@ static void vnc_flush(VncState *vs)
 	vnc_client_write(vs);
 }
 
-static uint8_t read_u8(char *data, size_t offset)
+static uint8_t read_u8(uint8_t *data, size_t offset)
 {
     return data[offset];
 }
 
-static uint16_t read_u16(char *data, size_t offset)
+static uint16_t read_u16(uint8_t *data, size_t offset)
 {
     return ((data[offset] & 0xFF) << 8) | (data[offset + 1] & 0xFF);
 }
 
-static int32_t read_s32(char *data, size_t offset)
+static int32_t read_s32(uint8_t *data, size_t offset)
 {
     return (int32_t)((data[offset] << 24) | (data[offset + 1] << 16) |
 		     (data[offset + 2] << 8) | data[offset + 3]);
 }
 
-static uint32_t read_u32(char *data, size_t offset)
+static uint32_t read_u32(uint8_t *data, size_t offset)
 {
     return ((data[offset] << 24) | (data[offset + 1] << 16) |
 	    (data[offset + 2] << 8) | data[offset + 3]);
@@ -699,18 +701,99 @@ static void pointer_event(VncState *vs, int button_mask, int x, int y)
     }
 }
 
+static void reset_keys(VncState *vs)
+{
+    int i;
+    for(i = 0; i < 256; i++) {
+        if (vs->modifiers_state[i]) {
+            if (i & 0x80)
+                kbd_put_keycode(0xe0);
+            kbd_put_keycode(i | 0x80);
+            vs->modifiers_state[i] = 0;
+        }
+    }
+}
+
 static void do_key_event(VncState *vs, int down, uint32_t sym)
 {
     int keycode;
 
     keycode = keysym2scancode(vs->kbd_layout, sym & 0xFFFF);
+    
+    /* QEMU console switch */
+    switch(keycode) {
+    case 0x2a:                          /* Left Shift */
+    case 0x36:                          /* Right Shift */
+    case 0x1d:                          /* Left CTRL */
+    case 0x9d:                          /* Right CTRL */
+    case 0x38:                          /* Left ALT */
+    case 0xb8:                          /* Right ALT */
+        if (down)
+            vs->modifiers_state[keycode] = 1;
+        else
+            vs->modifiers_state[keycode] = 0;
+        break;
+    case 0x02 ... 0x0a: /* '1' to '9' keys */ 
+        if (down && vs->modifiers_state[0x1d] && vs->modifiers_state[0x38]) {
+            /* Reset the modifiers sent to the current console */
+            reset_keys(vs);
+            console_select(keycode - 0x02);
+            return;
+        }
+        break;
+    }
 
-    if (keycode & 0x80)
-	kbd_put_keycode(0xe0);
-    if (down)
-	kbd_put_keycode(keycode & 0x7f);
-    else
-	kbd_put_keycode(keycode | 0x80);
+    if (is_graphic_console()) {
+        if (keycode & 0x80)
+            kbd_put_keycode(0xe0);
+        if (down)
+            kbd_put_keycode(keycode & 0x7f);
+        else
+            kbd_put_keycode(keycode | 0x80);
+    } else {
+        /* QEMU console emulation */
+        if (down) {
+            switch (keycode) {
+            case 0x2a:                          /* Left Shift */
+            case 0x36:                          /* Right Shift */
+            case 0x1d:                          /* Left CTRL */
+            case 0x9d:                          /* Right CTRL */
+            case 0x38:                          /* Left ALT */
+            case 0xb8:                          /* Right ALT */
+                break;
+            case 0xc8:
+                kbd_put_keysym(QEMU_KEY_UP);
+                break;
+            case 0xd0:
+                kbd_put_keysym(QEMU_KEY_DOWN);
+                break;
+            case 0xcb:
+                kbd_put_keysym(QEMU_KEY_LEFT);
+                break;
+            case 0xcd:
+                kbd_put_keysym(QEMU_KEY_RIGHT);
+                break;
+            case 0xd3:
+                kbd_put_keysym(QEMU_KEY_DELETE);
+                break;
+            case 0xc7:
+                kbd_put_keysym(QEMU_KEY_HOME);
+                break;
+            case 0xcf:
+                kbd_put_keysym(QEMU_KEY_END);
+                break;
+            case 0xc9:
+                kbd_put_keysym(QEMU_KEY_PAGEUP);
+                break;
+            case 0xd1:
+                kbd_put_keysym(QEMU_KEY_PAGEDOWN);
+                break;
+            default:
+                kbd_put_keysym(sym);
+                break;
+            }
+        }
+    }
 }
 
 static void key_event(VncState *vs, int down, uint32_t sym)
