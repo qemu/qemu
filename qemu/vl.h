@@ -1034,12 +1034,20 @@ void PPC_debug_write (void *opaque, uint32_t addr, uint32_t val);
 
 /* sun4m.c */
 extern QEMUMachine sun4m_machine;
-uint32_t iommu_translate(uint32_t addr);
 void pic_set_irq_cpu(int irq, int level, unsigned int cpu);
+/* ??? Remove iommu_translate once lance emulation has been converted.  */
+uint32_t iommu_translate(uint32_t addr);
+void sparc_iommu_memory_read(target_phys_addr_t addr,
+                             uint8_t *buf, int len);
+void sparc_iommu_memory_write(target_phys_addr_t addr,
+                              uint8_t *buf, int len);
 
 /* iommu.c */
 void *iommu_init(uint32_t addr);
+/* ??? Remove iommu_translate_local.  */
 uint32_t iommu_translate_local(void *opaque, uint32_t addr);
+void sparc_iommu_memory_rw_local(void *opaque, target_phys_addr_t addr,
+                                 uint8_t *buf, int len, int is_write);
 
 /* lance.c */
 void lance_init(NICInfo *nd, int irq, uint32_t leaddr, uint32_t ledaddr);
@@ -1166,9 +1174,11 @@ enum scsi_reason {
 };
 
 typedef struct SCSIDevice SCSIDevice;
-typedef void (*scsi_completionfn)(void *, uint32_t, int);
+typedef void (*scsi_completionfn)(void *opaque, int reason, uint32_t tag,
+                                  uint32_t arg);
 
 SCSIDevice *scsi_disk_init(BlockDriverState *bdrv,
+                           int tcq,
                            scsi_completionfn completion,
                            void *opaque);
 void scsi_disk_destroy(SCSIDevice *s);
@@ -1177,9 +1187,10 @@ int32_t scsi_send_command(SCSIDevice *s, uint32_t tag, uint8_t *buf, int lun);
 /* SCSI data transfers are asynchrnonous.  However, unlike the block IO
    layer the completion routine may be called directly by
    scsi_{read,write}_data.  */
-int scsi_read_data(SCSIDevice *s, uint8_t *data, uint32_t len);
-int scsi_write_data(SCSIDevice *s, uint8_t *data, uint32_t len);
-void scsi_cancel_io(SCSIDevice *s);
+void scsi_read_data(SCSIDevice *s, uint32_t tag);
+int scsi_write_data(SCSIDevice *s, uint32_t tag);
+void scsi_cancel_io(SCSIDevice *s, uint32_t tag);
+uint8_t *scsi_get_buf(SCSIDevice *s, uint32_t tag);
 
 /* lsi53c895a.c */
 void lsi_scsi_attach(void *opaque, BlockDriverState *bd, int id);
