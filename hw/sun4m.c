@@ -199,6 +199,18 @@ uint32_t iommu_translate(uint32_t addr)
     return iommu_translate_local(iommu, addr);
 }
 
+void sparc_iommu_memory_read(target_phys_addr_t addr,
+                           uint8_t *buf, int len)
+{
+    return sparc_iommu_memory_rw_local(iommu, addr, buf, len, 0);
+}
+
+void sparc_iommu_memory_write(target_phys_addr_t addr,
+                           uint8_t *buf, int len)
+{
+    return sparc_iommu_memory_rw_local(iommu, addr, buf, len, 1);
+}
+
 static void *slavio_misc;
 
 void qemu_system_powerdown(void)
