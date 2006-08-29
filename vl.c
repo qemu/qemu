@@ -1,7 +1,7 @@
 /*
  * QEMU System Emulator
  * 
- * Copyright (c) 2003-2005 Fabrice Bellard
+ * Copyright (c) 2003-2006 Fabrice Bellard
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,6 +29,7 @@
 #include <time.h>
 #include <errno.h>
 #include <sys/time.h>
+#include <zlib.h>
 
 #ifndef _WIN32
 #include <sys/times.h>
@@ -113,7 +114,11 @@ char phys_ram_file[1024];
 void *ioport_opaque[MAX_IOPORTS];
 IOPortReadFunc *ioport_read_table[3][MAX_IOPORTS];
 IOPortWriteFunc *ioport_write_table[3][MAX_IOPORTS];
-BlockDriverState *bs_table[MAX_DISKS], *fd_table[MAX_FD];
+/* Note: bs_table[MAX_DISKS] is a dummy block driver if none available
+   to store the VM snapshots */
+BlockDriverState *bs_table[MAX_DISKS + 1], *fd_table[MAX_FD];
+/* point to the block driver where the snapshots are managed */
+BlockDriverState *bs_snapshots;
 int vga_ram_size;
 static int bios_size;
 static DisplayState display_state;
@@ -818,17 +823,21 @@ static void timer_save(QEMUFile *f, void *opaque)
     }
     qemu_put_be64s(f, &cpu_ticks_offset);
     qemu_put_be64s(f, &ticks_per_sec);
+    qemu_put_be64s(f, &cpu_clock_offset);
 }
 
 static int timer_load(QEMUFile *f, void *opaque, int version_id)
 {
-    if (version_id != 1)
+    if (version_id != 1 && version_id != 2)
         return -EINVAL;
     if (cpu_ticks_enabled) {
         return -EINVAL;
     }
     qemu_get_be64s(f, &cpu_ticks_offset);
     qemu_get_be64s(f, &ticks_per_sec);
+    if (version_id == 2) {
+        qemu_get_be64s(f, &cpu_clock_offset);
+    }
     return 0;
 }
 
@@ -4087,14 +4096,190 @@ void qemu_del_wait_object(HANDLE handle, WaitObjectFunc *func, void *opaque)
 /***********************************************************/
 /* savevm/loadvm support */
 
+#define IO_BUF_SIZE 32768
+
+struct QEMUFile {
+    FILE *outfile;
+    BlockDriverState *bs;
+    int is_file;
+    int is_writable;
+    int64_t base_offset;
+    int64_t buf_offset; /* start of buffer when writing, end of buffer
+                           when reading */
+    int buf_index;
+    int buf_size; /* 0 when writing */
+    uint8_t buf[IO_BUF_SIZE];
+};
+
+QEMUFile *qemu_fopen(const char *filename, const char *mode)
+{
+    QEMUFile *f;
+
+    f = qemu_mallocz(sizeof(QEMUFile));
+    if (!f)
+        return NULL;
+    if (!strcmp(mode, "wb")) {
+        f->is_writable = 1;
+    } else if (!strcmp(mode, "rb")) {
+        f->is_writable = 0;
+    } else {
+        goto fail;
+    }
+    f->outfile = fopen(filename, mode);
+    if (!f->outfile)
+        goto fail;
+    f->is_file = 1;
+    return f;
+ fail:
+    if (f->outfile)
+        fclose(f->outfile);
+    qemu_free(f);
+    return NULL;
+}
+
+QEMUFile *qemu_fopen_bdrv(BlockDriverState *bs, int64_t offset, int is_writable)
+{
+    QEMUFile *f;
+
+    f = qemu_mallocz(sizeof(QEMUFile));
+    if (!f)
+        return NULL;
+    f->is_file = 0;
+    f->bs = bs;
+    f->is_writable = is_writable;
+    f->base_offset = offset;
+    return f;
+}
+
+void qemu_fflush(QEMUFile *f)
+{
+    if (!f->is_writable)
+        return;
+    if (f->buf_index > 0) {
+        if (f->is_file) {
+            fseek(f->outfile, f->buf_offset, SEEK_SET);
+            fwrite(f->buf, 1, f->buf_index, f->outfile);
+        } else {
+            bdrv_pwrite(f->bs, f->base_offset + f->buf_offset, 
+                        f->buf, f->buf_index);
+        }
+        f->buf_offset += f->buf_index;
+        f->buf_index = 0;
+    }
+}
+
+static void qemu_fill_buffer(QEMUFile *f)
+{
+    int len;
+
+    if (f->is_writable)
+        return;
+    if (f->is_file) {
+        fseek(f->outfile, f->buf_offset, SEEK_SET);
+        len = fread(f->buf, 1, IO_BUF_SIZE, f->outfile);
+        if (len < 0)
+            len = 0;
+    } else {
+        len = bdrv_pread(f->bs, f->base_offset + f->buf_offset, 
+                         f->buf, IO_BUF_SIZE);
+        if (len < 0)
+            len = 0;
+    }
+    f->buf_index = 0;
+    f->buf_size = len;
+    f->buf_offset += len;
+}
+
+void qemu_fclose(QEMUFile *f)
+{
+    if (f->is_writable)
+        qemu_fflush(f);
+    if (f->is_file) {
+        fclose(f->outfile);
+    }
+    qemu_free(f);
+}
+
 void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size)
 {
-    fwrite(buf, 1, size, f);
+    int l;
+    while (size > 0) {
+        l = IO_BUF_SIZE - f->buf_index;
+        if (l > size)
+            l = size;
+        memcpy(f->buf + f->buf_index, buf, l);
+        f->buf_index += l;
+        buf += l;
+        size -= l;
+        if (f->buf_index >= IO_BUF_SIZE)
+            qemu_fflush(f);
+    }
 }
 
 void qemu_put_byte(QEMUFile *f, int v)
 {
-    fputc(v, f);
+    f->buf[f->buf_index++] = v;
+    if (f->buf_index >= IO_BUF_SIZE)
+        qemu_fflush(f);
+}
+
+int qemu_get_buffer(QEMUFile *f, uint8_t *buf, int size1)
+{
+    int size, l;
+
+    size = size1;
+    while (size > 0) {
+        l = f->buf_size - f->buf_index;
+        if (l == 0) {
+            qemu_fill_buffer(f);
+            l = f->buf_size - f->buf_index;
+            if (l == 0)
+                break;
+        }
+        if (l > size)
+            l = size;
+        memcpy(buf, f->buf + f->buf_index, l);
+        f->buf_index += l;
+        buf += l;
+        size -= l;
+    }
+    return size1 - size;
+}
+
+int qemu_get_byte(QEMUFile *f)
+{
+    if (f->buf_index >= f->buf_size) {
+        qemu_fill_buffer(f);
+        if (f->buf_index >= f->buf_size)
+            return 0;
+    }
+    return f->buf[f->buf_index++];
+}
+
+int64_t qemu_ftell(QEMUFile *f)
+{
+    return f->buf_offset - f->buf_size + f->buf_index;
+}
+
+int64_t qemu_fseek(QEMUFile *f, int64_t pos, int whence)
+{
+    if (whence == SEEK_SET) {
+        /* nothing to do */
+    } else if (whence == SEEK_CUR) {
+        pos += qemu_ftell(f);
+    } else {
+        /* SEEK_END not supported */
+        return -1;
+    }
+    if (f->is_writable) {
+        qemu_fflush(f);
+        f->buf_offset = pos;
+    } else {
+        f->buf_offset = pos;
+        f->buf_index = 0;
+        f->buf_size = 0;
+    }
+    return pos;
 }
 
 void qemu_put_be16(QEMUFile *f, unsigned int v)
@@ -4115,21 +4300,6 @@ void qemu_put_be64(QEMUFile *f, uint64_t v)
 {
     qemu_put_be32(f, v >> 32);
     qemu_put_be32(f, v);
-}
-
-int qemu_get_buffer(QEMUFile *f, uint8_t *buf, int size)
-{
-    return fread(buf, 1, size, f);
-}
-
-int qemu_get_byte(QEMUFile *f)
-{
-    int v;
-    v = fgetc(f);
-    if (v == EOF)
-        return 0;
-    else
-        return v;
 }
 
 unsigned int qemu_get_be16(QEMUFile *f)
@@ -4156,18 +4326,6 @@ uint64_t qemu_get_be64(QEMUFile *f)
     v = (uint64_t)qemu_get_be32(f) << 32;
     v |= qemu_get_be32(f);
     return v;
-}
-
-int64_t qemu_ftell(QEMUFile *f)
-{
-    return ftell(f);
-}
-
-int64_t qemu_fseek(QEMUFile *f, int64_t pos, int whence)
-{
-    if (fseek(f, pos, whence) < 0)
-        return -1;
-    return ftell(f);
 }
 
 typedef struct SaveStateEntry {
@@ -4211,25 +4369,18 @@ int register_savevm(const char *idstr,
 }
 
 #define QEMU_VM_FILE_MAGIC   0x5145564d
-#define QEMU_VM_FILE_VERSION 0x00000001
+#define QEMU_VM_FILE_VERSION 0x00000002
 
-int qemu_savevm(const char *filename)
+int qemu_savevm_state(QEMUFile *f)
 {
     SaveStateEntry *se;
-    QEMUFile *f;
-    int len, len_pos, cur_pos, saved_vm_running, ret;
-
-    saved_vm_running = vm_running;
-    vm_stop(0);
-
-    f = fopen(filename, "wb");
-    if (!f) {
-        ret = -1;
-        goto the_end;
-    }
+    int len, ret;
+    int64_t cur_pos, len_pos, total_len_pos;
 
     qemu_put_be32(f, QEMU_VM_FILE_MAGIC);
     qemu_put_be32(f, QEMU_VM_FILE_VERSION);
+    total_len_pos = qemu_ftell(f);
+    qemu_put_be64(f, 0); /* total size */
 
     for(se = first_se; se != NULL; se = se->next) {
         /* ID string */
@@ -4241,24 +4392,24 @@ int qemu_savevm(const char *filename)
         qemu_put_be32(f, se->version_id);
 
         /* record size: filled later */
-        len_pos = ftell(f);
+        len_pos = qemu_ftell(f);
         qemu_put_be32(f, 0);
         
         se->save_state(f, se->opaque);
 
         /* fill record size */
-        cur_pos = ftell(f);
-        len = ftell(f) - len_pos - 4;
-        fseek(f, len_pos, SEEK_SET);
+        cur_pos = qemu_ftell(f);
+        len = cur_pos - len_pos - 4;
+        qemu_fseek(f, len_pos, SEEK_SET);
         qemu_put_be32(f, len);
-        fseek(f, cur_pos, SEEK_SET);
+        qemu_fseek(f, cur_pos, SEEK_SET);
     }
+    cur_pos = qemu_ftell(f);
+    qemu_fseek(f, total_len_pos, SEEK_SET);
+    qemu_put_be64(f, cur_pos - total_len_pos - 8);
+    qemu_fseek(f, cur_pos, SEEK_SET);
 
-    fclose(f);
     ret = 0;
- the_end:
-    if (saved_vm_running)
-        vm_start();
     return ret;
 }
 
@@ -4274,38 +4425,29 @@ static SaveStateEntry *find_se(const char *idstr, int instance_id)
     return NULL;
 }
 
-int qemu_loadvm(const char *filename)
+int qemu_loadvm_state(QEMUFile *f)
 {
     SaveStateEntry *se;
-    QEMUFile *f;
-    int len, cur_pos, ret, instance_id, record_len, version_id;
-    int saved_vm_running;
+    int len, ret, instance_id, record_len, version_id;
+    int64_t total_len, end_pos, cur_pos;
     unsigned int v;
     char idstr[256];
     
-    saved_vm_running = vm_running;
-    vm_stop(0);
-
-    f = fopen(filename, "rb");
-    if (!f) {
-        ret = -1;
-        goto the_end;
-    }
-
     v = qemu_get_be32(f);
     if (v != QEMU_VM_FILE_MAGIC)
         goto fail;
     v = qemu_get_be32(f);
     if (v != QEMU_VM_FILE_VERSION) {
     fail:
-        fclose(f);
         ret = -1;
         goto the_end;
     }
+    total_len = qemu_get_be64(f);
+    end_pos = total_len + qemu_ftell(f);
     for(;;) {
-        len = qemu_get_byte(f);
-        if (feof(f))
+        if (qemu_ftell(f) >= end_pos)
             break;
+        len = qemu_get_byte(f);
         qemu_get_buffer(f, idstr, len);
         idstr[len] = '\0';
         instance_id = qemu_get_be32(f);
@@ -4315,7 +4457,7 @@ int qemu_loadvm(const char *filename)
         printf("idstr=%s instance=0x%x version=%d len=%d\n", 
                idstr, instance_id, version_id, record_len);
 #endif
-        cur_pos = ftell(f);
+        cur_pos = qemu_ftell(f);
         se = find_se(idstr, instance_id);
         if (!se) {
             fprintf(stderr, "qemu: warning: instance 0x%x of device '%s' not present in current VM\n", 
@@ -4330,12 +4472,291 @@ int qemu_loadvm(const char *filename)
         /* always seek to exact end of record */
         qemu_fseek(f, cur_pos + record_len, SEEK_SET);
     }
-    fclose(f);
     ret = 0;
+ the_end:
+    return ret;
+}
+
+/* device can contain snapshots */
+static int bdrv_can_snapshot(BlockDriverState *bs)
+{
+    return (bs &&
+            !bdrv_is_removable(bs) &&
+            !bdrv_is_read_only(bs));
+}
+
+/* device must be snapshots in order to have a reliable snapshot */
+static int bdrv_has_snapshot(BlockDriverState *bs)
+{
+    return (bs &&
+            !bdrv_is_removable(bs) &&
+            !bdrv_is_read_only(bs));
+}
+
+static BlockDriverState *get_bs_snapshots(void)
+{
+    BlockDriverState *bs;
+    int i;
+
+    if (bs_snapshots)
+        return bs_snapshots;
+    for(i = 0; i <= MAX_DISKS; i++) {
+        bs = bs_table[i];
+        if (bdrv_can_snapshot(bs))
+            goto ok;
+    }
+    return NULL;
+ ok:
+    bs_snapshots = bs;
+    return bs;
+}
+
+static int bdrv_snapshot_find(BlockDriverState *bs, QEMUSnapshotInfo *sn_info,
+                              const char *name)
+{
+    QEMUSnapshotInfo *sn_tab, *sn;
+    int nb_sns, i, ret;
+    
+    ret = -ENOENT;
+    nb_sns = bdrv_snapshot_list(bs, &sn_tab);
+    if (nb_sns < 0)
+        return ret;
+    for(i = 0; i < nb_sns; i++) {
+        sn = &sn_tab[i];
+        if (!strcmp(sn->id_str, name) || !strcmp(sn->name, name)) {
+            *sn_info = *sn;
+            ret = 0;
+            break;
+        }
+    }
+    qemu_free(sn_tab);
+    return ret;
+}
+
+void do_savevm(const char *name)
+{
+    BlockDriverState *bs, *bs1;
+    QEMUSnapshotInfo sn1, *sn = &sn1, old_sn1, *old_sn = &old_sn1;
+    int must_delete, ret, i;
+    BlockDriverInfo bdi1, *bdi = &bdi1;
+    QEMUFile *f;
+    int saved_vm_running;
+#ifdef _WIN32
+    struct _timeb tb;
+#else
+    struct timeval tv;
+#endif
+
+    bs = get_bs_snapshots();
+    if (!bs) {
+        term_printf("No block device can accept snapshots\n");
+        return;
+    }
+
+    saved_vm_running = vm_running;
+    vm_stop(0);
+    
+    must_delete = 0;
+    if (name) {
+        ret = bdrv_snapshot_find(bs, old_sn, name);
+        if (ret >= 0) {
+            must_delete = 1;
+        }
+    }
+    memset(sn, 0, sizeof(*sn));
+    if (must_delete) {
+        pstrcpy(sn->name, sizeof(sn->name), old_sn->name);
+        pstrcpy(sn->id_str, sizeof(sn->id_str), old_sn->id_str);
+    } else {
+        if (name)
+            pstrcpy(sn->name, sizeof(sn->name), name);
+    }
+
+    /* fill auxiliary fields */
+#ifdef _WIN32
+    _ftime(&tb);
+    sn->date_sec = tb.time;
+    sn->date_nsec = tb.millitm * 1000000;
+#else
+    gettimeofday(&tv, NULL);
+    sn->date_sec = tv.tv_sec;
+    sn->date_nsec = tv.tv_usec * 1000;
+#endif
+    sn->vm_clock_nsec = qemu_get_clock(vm_clock);
+    
+    if (bdrv_get_info(bs, bdi) < 0 || bdi->vm_state_offset <= 0) {
+        term_printf("Device %s does not support VM state snapshots\n",
+                    bdrv_get_device_name(bs));
+        goto the_end;
+    }
+    
+    /* save the VM state */
+    f = qemu_fopen_bdrv(bs, bdi->vm_state_offset, 1);
+    if (!f) {
+        term_printf("Could not open VM state file\n");
+        goto the_end;
+    }
+    ret = qemu_savevm_state(f);
+    sn->vm_state_size = qemu_ftell(f);
+    qemu_fclose(f);
+    if (ret < 0) {
+        term_printf("Error %d while writing VM\n", ret);
+        goto the_end;
+    }
+    
+    /* create the snapshots */
+
+    for(i = 0; i < MAX_DISKS; i++) {
+        bs1 = bs_table[i];
+        if (bdrv_has_snapshot(bs1)) {
+            if (must_delete) {
+                ret = bdrv_snapshot_delete(bs1, old_sn->id_str);
+                if (ret < 0) {
+                    term_printf("Error while deleting snapshot on '%s'\n",
+                                bdrv_get_device_name(bs1));
+                }
+            }
+            ret = bdrv_snapshot_create(bs1, sn);
+            if (ret < 0) {
+                term_printf("Error while creating snapshot on '%s'\n",
+                            bdrv_get_device_name(bs1));
+            }
+        }
+    }
+
  the_end:
     if (saved_vm_running)
         vm_start();
-    return ret;
+}
+
+void do_loadvm(const char *name)
+{
+    BlockDriverState *bs, *bs1;
+    BlockDriverInfo bdi1, *bdi = &bdi1;
+    QEMUFile *f;
+    int i, ret;
+    int saved_vm_running;
+
+    bs = get_bs_snapshots();
+    if (!bs) {
+        term_printf("No block device supports snapshots\n");
+        return;
+    }
+    
+    saved_vm_running = vm_running;
+    vm_stop(0);
+
+    for(i = 0; i <= MAX_DISKS; i++) {
+        bs1 = bs_table[i];
+        if (bdrv_has_snapshot(bs1)) {
+            ret = bdrv_snapshot_goto(bs1, name);
+            if (ret < 0) {
+                if (bs != bs1)
+                    term_printf("Warning: ");
+                switch(ret) {
+                case -ENOTSUP:
+                    term_printf("Snapshots not supported on device '%s'\n",
+                                bdrv_get_device_name(bs1));
+                    break;
+                case -ENOENT:
+                    term_printf("Could not find snapshot '%s' on device '%s'\n",
+                                name, bdrv_get_device_name(bs1));
+                    break;
+                default:
+                    term_printf("Error %d while activating snapshot on '%s'\n",
+                                ret, bdrv_get_device_name(bs1));
+                    break;
+                }
+                /* fatal on snapshot block device */
+                if (bs == bs1)
+                    goto the_end;
+            }
+        }
+    }
+
+    if (bdrv_get_info(bs, bdi) < 0 || bdi->vm_state_offset <= 0) {
+        term_printf("Device %s does not support VM state snapshots\n",
+                    bdrv_get_device_name(bs));
+        return;
+    }
+    
+    /* restore the VM state */
+    f = qemu_fopen_bdrv(bs, bdi->vm_state_offset, 0);
+    if (!f) {
+        term_printf("Could not open VM state file\n");
+        goto the_end;
+    }
+    ret = qemu_loadvm_state(f);
+    qemu_fclose(f);
+    if (ret < 0) {
+        term_printf("Error %d while loading VM state\n", ret);
+    }
+ the_end:
+    if (saved_vm_running)
+        vm_start();
+}
+
+void do_delvm(const char *name)
+{
+    BlockDriverState *bs, *bs1;
+    int i, ret;
+
+    bs = get_bs_snapshots();
+    if (!bs) {
+        term_printf("No block device supports snapshots\n");
+        return;
+    }
+    
+    for(i = 0; i <= MAX_DISKS; i++) {
+        bs1 = bs_table[i];
+        if (bdrv_has_snapshot(bs1)) {
+            ret = bdrv_snapshot_delete(bs1, name);
+            if (ret < 0) {
+                if (ret == -ENOTSUP)
+                    term_printf("Snapshots not supported on device '%s'\n",
+                                bdrv_get_device_name(bs1));
+                else
+                    term_printf("Error %d while deleting snapshot on '%s'\n",
+                                ret, bdrv_get_device_name(bs1));
+            }
+        }
+    }
+}
+
+void do_info_snapshots(void)
+{
+    BlockDriverState *bs, *bs1;
+    QEMUSnapshotInfo *sn_tab, *sn;
+    int nb_sns, i;
+    char buf[256];
+
+    bs = get_bs_snapshots();
+    if (!bs) {
+        term_printf("No available block device supports snapshots\n");
+        return;
+    }
+    term_printf("Snapshot devices:");
+    for(i = 0; i <= MAX_DISKS; i++) {
+        bs1 = bs_table[i];
+        if (bdrv_has_snapshot(bs1)) {
+            if (bs == bs1)
+                term_printf(" %s", bdrv_get_device_name(bs1));
+        }
+    }
+    term_printf("\n");
+
+    nb_sns = bdrv_snapshot_list(bs, &sn_tab);
+    if (nb_sns < 0) {
+        term_printf("bdrv_snapshot_list: error %d\n", nb_sns);
+        return;
+    }
+    term_printf("Snapshot list (from %s):\n", bdrv_get_device_name(bs));
+    term_printf("%s\n", bdrv_snapshot_dump(buf, sizeof(buf), NULL));
+    for(i = 0; i < nb_sns; i++) {
+        sn = &sn_tab[i];
+        term_printf("%s\n", bdrv_snapshot_dump(buf, sizeof(buf), sn));
+    }
+    qemu_free(sn_tab);
 }
 
 /***********************************************************/
@@ -4710,24 +5131,6 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
 /***********************************************************/
 /* ram save/restore */
 
-/* we just avoid storing empty pages */
-static void ram_put_page(QEMUFile *f, const uint8_t *buf, int len)
-{
-    int i, v;
-
-    v = buf[0];
-    for(i = 1; i < len; i++) {
-        if (buf[i] != v)
-            goto normal_save;
-    }
-    qemu_put_byte(f, 1);
-    qemu_put_byte(f, v);
-    return;
- normal_save:
-    qemu_put_byte(f, 0); 
-    qemu_put_buffer(f, buf, len);
-}
-
 static int ram_get_page(QEMUFile *f, uint8_t *buf, int len)
 {
     int v;
@@ -4748,21 +5151,10 @@ static int ram_get_page(QEMUFile *f, uint8_t *buf, int len)
     return 0;
 }
 
-static void ram_save(QEMUFile *f, void *opaque)
-{
-    int i;
-    qemu_put_be32(f, phys_ram_size);
-    for(i = 0; i < phys_ram_size; i+= TARGET_PAGE_SIZE) {
-        ram_put_page(f, phys_ram_base + i, TARGET_PAGE_SIZE);
-    }
-}
-
-static int ram_load(QEMUFile *f, void *opaque, int version_id)
+static int ram_load_v1(QEMUFile *f, void *opaque)
 {
     int i, ret;
 
-    if (version_id != 1)
-        return -EINVAL;
     if (qemu_get_be32(f) != phys_ram_size)
         return -EINVAL;
     for(i = 0; i < phys_ram_size; i+= TARGET_PAGE_SIZE) {
@@ -4770,6 +5162,227 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
         if (ret)
             return ret;
     }
+    return 0;
+}
+
+#define BDRV_HASH_BLOCK_SIZE 1024
+#define IOBUF_SIZE 4096
+#define RAM_CBLOCK_MAGIC 0xfabe
+
+typedef struct RamCompressState {
+    z_stream zstream;
+    QEMUFile *f;
+    uint8_t buf[IOBUF_SIZE];
+} RamCompressState;
+
+static int ram_compress_open(RamCompressState *s, QEMUFile *f)
+{
+    int ret;
+    memset(s, 0, sizeof(*s));
+    s->f = f;
+    ret = deflateInit2(&s->zstream, 1,
+                       Z_DEFLATED, 15, 
+                       9, Z_DEFAULT_STRATEGY);
+    if (ret != Z_OK)
+        return -1;
+    s->zstream.avail_out = IOBUF_SIZE;
+    s->zstream.next_out = s->buf;
+    return 0;
+}
+
+static void ram_put_cblock(RamCompressState *s, const uint8_t *buf, int len)
+{
+    qemu_put_be16(s->f, RAM_CBLOCK_MAGIC);
+    qemu_put_be16(s->f, len);
+    qemu_put_buffer(s->f, buf, len);
+}
+
+static int ram_compress_buf(RamCompressState *s, const uint8_t *buf, int len)
+{
+    int ret;
+
+    s->zstream.avail_in = len;
+    s->zstream.next_in = (uint8_t *)buf;
+    while (s->zstream.avail_in > 0) {
+        ret = deflate(&s->zstream, Z_NO_FLUSH);
+        if (ret != Z_OK)
+            return -1;
+        if (s->zstream.avail_out == 0) {
+            ram_put_cblock(s, s->buf, IOBUF_SIZE);
+            s->zstream.avail_out = IOBUF_SIZE;
+            s->zstream.next_out = s->buf;
+        }
+    }
+    return 0;
+}
+
+static void ram_compress_close(RamCompressState *s)
+{
+    int len, ret;
+
+    /* compress last bytes */
+    for(;;) {
+        ret = deflate(&s->zstream, Z_FINISH);
+        if (ret == Z_OK || ret == Z_STREAM_END) {
+            len = IOBUF_SIZE - s->zstream.avail_out;
+            if (len > 0) {
+                ram_put_cblock(s, s->buf, len);
+            }
+            s->zstream.avail_out = IOBUF_SIZE;
+            s->zstream.next_out = s->buf;
+            if (ret == Z_STREAM_END)
+                break;
+        } else {
+            goto fail;
+        }
+    }
+fail:
+    deflateEnd(&s->zstream);
+}
+
+typedef struct RamDecompressState {
+    z_stream zstream;
+    QEMUFile *f;
+    uint8_t buf[IOBUF_SIZE];
+} RamDecompressState;
+
+static int ram_decompress_open(RamDecompressState *s, QEMUFile *f)
+{
+    int ret;
+    memset(s, 0, sizeof(*s));
+    s->f = f;
+    ret = inflateInit(&s->zstream);
+    if (ret != Z_OK)
+        return -1;
+    return 0;
+}
+
+static int ram_decompress_buf(RamDecompressState *s, uint8_t *buf, int len)
+{
+    int ret, clen;
+
+    s->zstream.avail_out = len;
+    s->zstream.next_out = buf;
+    while (s->zstream.avail_out > 0) {
+        if (s->zstream.avail_in == 0) {
+            if (qemu_get_be16(s->f) != RAM_CBLOCK_MAGIC)
+                return -1;
+            clen = qemu_get_be16(s->f);
+            if (clen > IOBUF_SIZE)
+                return -1;
+            qemu_get_buffer(s->f, s->buf, clen);
+            s->zstream.avail_in = clen;
+            s->zstream.next_in = s->buf;
+        }
+        ret = inflate(&s->zstream, Z_PARTIAL_FLUSH);
+        if (ret != Z_OK && ret != Z_STREAM_END) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
+static void ram_decompress_close(RamDecompressState *s)
+{
+    inflateEnd(&s->zstream);
+}
+
+static void ram_save(QEMUFile *f, void *opaque)
+{
+    int i;
+    RamCompressState s1, *s = &s1;
+    uint8_t buf[10];
+    
+    qemu_put_be32(f, phys_ram_size);
+    if (ram_compress_open(s, f) < 0)
+        return;
+    for(i = 0; i < phys_ram_size; i+= BDRV_HASH_BLOCK_SIZE) {
+#if 0
+        if (tight_savevm_enabled) {
+            int64_t sector_num;
+            int j;
+
+            /* find if the memory block is available on a virtual
+               block device */
+            sector_num = -1;
+            for(j = 0; j < MAX_DISKS; j++) {
+                if (bs_table[j]) {
+                    sector_num = bdrv_hash_find(bs_table[j], 
+                                                phys_ram_base + i, BDRV_HASH_BLOCK_SIZE);
+                    if (sector_num >= 0)
+                        break;
+                }
+            }
+            if (j == MAX_DISKS)
+                goto normal_compress;
+            buf[0] = 1;
+            buf[1] = j;
+            cpu_to_be64wu((uint64_t *)(buf + 2), sector_num);
+            ram_compress_buf(s, buf, 10);
+        } else 
+#endif
+        {
+            //        normal_compress:
+            buf[0] = 0;
+            ram_compress_buf(s, buf, 1);
+            ram_compress_buf(s, phys_ram_base + i, BDRV_HASH_BLOCK_SIZE);
+        }
+    }
+    ram_compress_close(s);
+}
+
+static int ram_load(QEMUFile *f, void *opaque, int version_id)
+{
+    RamDecompressState s1, *s = &s1;
+    uint8_t buf[10];
+    int i;
+
+    if (version_id == 1)
+        return ram_load_v1(f, opaque);
+    if (version_id != 2)
+        return -EINVAL;
+    if (qemu_get_be32(f) != phys_ram_size)
+        return -EINVAL;
+    if (ram_decompress_open(s, f) < 0)
+        return -EINVAL;
+    for(i = 0; i < phys_ram_size; i+= BDRV_HASH_BLOCK_SIZE) {
+        if (ram_decompress_buf(s, buf, 1) < 0) {
+            fprintf(stderr, "Error while reading ram block header\n");
+            goto error;
+        }
+        if (buf[0] == 0) {
+            if (ram_decompress_buf(s, phys_ram_base + i, BDRV_HASH_BLOCK_SIZE) < 0) {
+                fprintf(stderr, "Error while reading ram block address=0x%08x", i);
+                goto error;
+            }
+        } else 
+#if 0
+        if (buf[0] == 1) {
+            int bs_index;
+            int64_t sector_num;
+
+            ram_decompress_buf(s, buf + 1, 9);
+            bs_index = buf[1];
+            sector_num = be64_to_cpupu((const uint64_t *)(buf + 2));
+            if (bs_index >= MAX_DISKS || bs_table[bs_index] == NULL) {
+                fprintf(stderr, "Invalid block device index %d\n", bs_index);
+                goto error;
+            }
+            if (bdrv_read(bs_table[bs_index], sector_num, phys_ram_base + i, 
+                          BDRV_HASH_BLOCK_SIZE / 512) < 0) {
+                fprintf(stderr, "Error while reading sector %d:%" PRId64 "\n", 
+                        bs_index, sector_num);
+                goto error;
+            }
+        } else 
+#endif
+        {
+        error:
+            printf("Error block header\n");
+            return -EINVAL;
+        }
+    }
+    ram_decompress_close(s);
     return 0;
 }
 
@@ -4796,19 +5409,23 @@ QEMUBH *qemu_bh_new(QEMUBHFunc *cb, void *opaque)
     return bh;
 }
 
-void qemu_bh_poll(void)
+int qemu_bh_poll(void)
 {
     QEMUBH *bh, **pbh;
+    int ret;
 
+    ret = 0;
     for(;;) {
         pbh = &first_bh;
         bh = *pbh;
         if (!bh)
             break;
+        ret = 1;
         *pbh = bh->next;
         bh->scheduled = 0;
         bh->cb(bh->opaque);
     }
+    return ret;
 }
 
 void qemu_bh_schedule(QEMUBH *bh)
@@ -5102,9 +5719,6 @@ void main_loop_wait(int timeout)
         slirp_select_poll(&rfds, &wfds, &xfds);
     }
 #endif
-#ifdef _WIN32
-    tap_win32_poll();
-#endif
     qemu_aio_poll();
     qemu_bh_poll();
 
@@ -5198,7 +5812,7 @@ printf("%s: %s:%u\n", __func__, __FILE__, __LINE__);
 
 void help(void)
 {
-    printf("QEMU PC emulator version " QEMU_VERSION ", Copyright (c) 2003-2005 Fabrice Bellard\n"
+    printf("QEMU PC emulator version " QEMU_VERSION ", Copyright (c) 2003-2006 Fabrice Bellard\n"
            "usage: %s [options] [disk_image]\n"
            "\n"
            "'disk_image' is a raw hard image image for IDE hard disk 0\n"
@@ -5287,7 +5901,7 @@ void help(void)
            "-d item1,...    output log to %s (use -d ? for a list of log items)\n"
            "-hdachs c,h,s[,t]  force hard disk 0 physical geometry and the optional BIOS\n"
            "                translation (t=none or lba) (usually qemu can guess them)\n"
-           "-L path         set the directory for the BIOS and VGA BIOS\n"
+           "-L path         set the directory for the BIOS, VGA BIOS and keymaps\n"
 #ifdef USE_KQEMU
            "-kernel-kqemu   enable KQEMU full virtualization (default is user mode only)\n"
            "-no-kqemu       disable KQEMU kernel module usage\n"
@@ -6219,8 +6833,8 @@ int main(int argc, char **argv)
         }
     }
 
-    register_savevm("timer", 0, 1, timer_save, timer_load, NULL);
-    register_savevm("ram", 0, 1, ram_save, ram_load, NULL);
+    register_savevm("timer", 0, 2, timer_save, timer_load, NULL);
+    register_savevm("ram", 0, 2, ram_save, ram_load, NULL);
 
     init_ioports();
 
@@ -6303,7 +6917,7 @@ int main(int argc, char **argv)
     } else 
 #endif
     if (loadvm)
-        qemu_loadvm(loadvm);
+        do_loadvm(loadvm);
 
     {
         /* XXX: simplify init */

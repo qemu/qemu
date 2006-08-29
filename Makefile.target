@@ -66,8 +66,8 @@ LDFLAGS+=-static
 endif
 
 ifeq ($(ARCH),i386)
-CFLAGS+=-fomit-frame-pointer
-OP_CFLAGS=$(CFLAGS) -mpreferred-stack-boundary=2
+HELPER_CFLAGS:=$(CFLAGS) -fomit-frame-pointer
+OP_CFLAGS:=$(CFLAGS) -mpreferred-stack-boundary=2 -fomit-frame-pointer
 ifeq ($(HAVE_GCC3_OPTIONS),yes)
 OP_CFLAGS+= -falign-functions=0 -fno-gcse
 else
@@ -291,7 +291,7 @@ endif
 # must use static linking to avoid leaving stuff in virtual address space
 VL_OBJS=vl.o osdep.o readline.o monitor.o pci.o console.o loader.o
 VL_OBJS+=block.o block-raw.o
-VL_OBJS+=block-cow.o block-qcow.o aes.o block-vmdk.o block-cloop.o block-dmg.o block-bochs.o block-vpc.o block-vvfat.o
+VL_OBJS+=block-cow.o block-qcow.o aes.o block-vmdk.o block-cloop.o block-dmg.o block-bochs.o block-vpc.o block-vvfat.o block-qcow2.o
 ifdef CONFIG_WIN32
 VL_OBJS+=tap-win32.o
 endif
@@ -484,7 +484,18 @@ gen-op.h: op.o $(DYNGEN)
 op.o: op.c
 	$(CC) $(OP_CFLAGS) $(DEFINES) -c -o $@ $<
 
+# HELPER_CFLAGS is used for all the code compiled with static register
+# variables
+ifeq ($(TARGET_BASE_ARCH), i386)
+# XXX: rename helper.c to op_helper.c
 helper.o: helper.c
+	$(CC) $(HELPER_CFLAGS) $(DEFINES) -c -o $@ $<
+else
+op_helper.o: op_helper.c
+	$(CC) $(HELPER_CFLAGS) $(DEFINES) -c -o $@ $<
+endif
+
+cpu-exec.o: cpu-exec.c
 	$(CC) $(HELPER_CFLAGS) $(DEFINES) -c -o $@ $<
 
 ifeq ($(TARGET_BASE_ARCH), i386)

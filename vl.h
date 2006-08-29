@@ -50,6 +50,7 @@
 #define fsync _commit
 #define lseek _lseeki64
 #define ENOTSUP 4096
+#define ENOMEDIUM 4097
 extern int qemu_ftruncate64(int, int64_t);
 #define ftruncate qemu_ftruncate64
 
@@ -349,7 +350,6 @@ void do_info_network(void);
 
 /* TAP win32 */
 int tap_win32_init(VLANState *vlan, const char *ifname);
-void tap_win32_poll(void);
 
 /* NIC info */
 
@@ -398,8 +398,11 @@ void cpu_disable_ticks(void);
 
 /* VM Load/Save */
 
-typedef FILE QEMUFile;
+typedef struct QEMUFile QEMUFile;
 
+QEMUFile *qemu_fopen(const char *filename, const char *mode);
+void qemu_fflush(QEMUFile *f);
+void qemu_fclose(QEMUFile *f);
 void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size);
 void qemu_put_byte(QEMUFile *f, int v);
 void qemu_put_be16(QEMUFile *f, unsigned int v);
@@ -469,8 +472,6 @@ int64_t qemu_fseek(QEMUFile *f, int64_t pos, int whence);
 typedef void SaveStateHandler(QEMUFile *f, void *opaque);
 typedef int LoadStateHandler(QEMUFile *f, void *opaque, int version_id);
 
-int qemu_loadvm(const char *filename);
-int qemu_savevm(const char *filename);
 int register_savevm(const char *idstr, 
                     int instance_id, 
                     int version_id,
@@ -483,6 +484,11 @@ void qemu_put_timer(QEMUFile *f, QEMUTimer *ts);
 void cpu_save(QEMUFile *f, void *opaque);
 int cpu_load(QEMUFile *f, void *opaque, int version_id);
 
+void do_savevm(const char *name);
+void do_loadvm(const char *name);
+void do_delvm(const char *name);
+void do_info_snapshots(void);
+
 /* bottom halves */
 typedef struct QEMUBH QEMUBH;
 typedef void QEMUBHFunc(void *opaque);
@@ -491,13 +497,14 @@ QEMUBH *qemu_bh_new(QEMUBHFunc *cb, void *opaque);
 void qemu_bh_schedule(QEMUBH *bh);
 void qemu_bh_cancel(QEMUBH *bh);
 void qemu_bh_delete(QEMUBH *bh);
-void qemu_bh_poll(void);
+int qemu_bh_poll(void);
 
 /* block.c */
 typedef struct BlockDriverState BlockDriverState;
 typedef struct BlockDriver BlockDriver;
 
 extern BlockDriver bdrv_raw;
+extern BlockDriver bdrv_host_device;
 extern BlockDriver bdrv_cow;
 extern BlockDriver bdrv_qcow;
 extern BlockDriver bdrv_vmdk;
@@ -506,6 +513,25 @@ extern BlockDriver bdrv_dmg;
 extern BlockDriver bdrv_bochs;
 extern BlockDriver bdrv_vpc;
 extern BlockDriver bdrv_vvfat;
+extern BlockDriver bdrv_qcow2;
+
+typedef struct BlockDriverInfo {
+    /* in bytes, 0 if irrelevant */
+    int cluster_size; 
+    /* offset at which the VM state can be saved (0 if not possible) */
+    int64_t vm_state_offset; 
+} BlockDriverInfo;
+
+typedef struct QEMUSnapshotInfo {
+    char id_str[128]; /* unique snapshot id */
+    /* the following fields are informative. They are not needed for
+       the consistency of the snapshot */
+    char name[256]; /* user choosen name */
+    uint32_t vm_state_size; /* VM state info size */
+    uint32_t date_sec; /* UTC date of the snapshot */
+    uint32_t date_nsec;
+    uint64_t vm_clock_nsec; /* VM clock relative to boot */
+} QEMUSnapshotInfo;
 
 #define BDRV_O_RDONLY      0x0000
 #define BDRV_O_RDWR        0x0002
@@ -546,15 +572,13 @@ void bdrv_set_boot_sector(BlockDriverState *bs, const uint8_t *data, int size);
 typedef struct BlockDriverAIOCB BlockDriverAIOCB;
 typedef void BlockDriverCompletionFunc(void *opaque, int ret);
 
-BlockDriverAIOCB *bdrv_aio_new(BlockDriverState *bs);
-int bdrv_aio_read(BlockDriverAIOCB *acb, int64_t sector_num,
-                  uint8_t *buf, int nb_sectors,
-                  BlockDriverCompletionFunc *cb, void *opaque);
-int bdrv_aio_write(BlockDriverAIOCB *acb, int64_t sector_num,
-                   const uint8_t *buf, int nb_sectors,
-                   BlockDriverCompletionFunc *cb, void *opaque);
+BlockDriverAIOCB *bdrv_aio_read(BlockDriverState *bs, int64_t sector_num,
+                                uint8_t *buf, int nb_sectors,
+                                BlockDriverCompletionFunc *cb, void *opaque);
+BlockDriverAIOCB *bdrv_aio_write(BlockDriverState *bs, int64_t sector_num,
+                                 const uint8_t *buf, int nb_sectors,
+                                 BlockDriverCompletionFunc *cb, void *opaque);
 void bdrv_aio_cancel(BlockDriverAIOCB *acb);
-void bdrv_aio_delete(BlockDriverAIOCB *acb);
 
 void qemu_aio_init(void);
 void qemu_aio_poll(void);
@@ -583,8 +607,10 @@ int bdrv_get_translation_hint(BlockDriverState *bs);
 int bdrv_is_removable(BlockDriverState *bs);
 int bdrv_is_read_only(BlockDriverState *bs);
 int bdrv_is_inserted(BlockDriverState *bs);
+int bdrv_media_changed(BlockDriverState *bs);
 int bdrv_is_locked(BlockDriverState *bs);
 void bdrv_set_locked(BlockDriverState *bs, int locked);
+void bdrv_eject(BlockDriverState *bs, int eject_flag);
 void bdrv_set_change_cb(BlockDriverState *bs, 
                         void (*change_cb)(void *opaque), void *opaque);
 void bdrv_get_format(BlockDriverState *bs, char *buf, int buf_size);
@@ -596,13 +622,22 @@ int bdrv_set_key(BlockDriverState *bs, const char *key);
 void bdrv_iterate_format(void (*it)(void *opaque, const char *name), 
                          void *opaque);
 const char *bdrv_get_device_name(BlockDriverState *bs);
+int bdrv_write_compressed(BlockDriverState *bs, int64_t sector_num, 
+                          const uint8_t *buf, int nb_sectors);
+int bdrv_get_info(BlockDriverState *bs, BlockDriverInfo *bdi);
 
-int qcow_get_cluster_size(BlockDriverState *bs);
-int qcow_compress_cluster(BlockDriverState *bs, int64_t sector_num,
-                          const uint8_t *buf);
 void bdrv_get_backing_filename(BlockDriverState *bs, 
                                char *filename, int filename_size);
+int bdrv_snapshot_create(BlockDriverState *bs, 
+                         QEMUSnapshotInfo *sn_info);
+int bdrv_snapshot_goto(BlockDriverState *bs, 
+                       const char *snapshot_id);
+int bdrv_snapshot_delete(BlockDriverState *bs, const char *snapshot_id);
+int bdrv_snapshot_list(BlockDriverState *bs, 
+                       QEMUSnapshotInfo **psn_info);
+char *bdrv_snapshot_dump(char *buf, int buf_size, QEMUSnapshotInfo *sn);
 
+char *get_human_readable_size(char *buf, int buf_size, int64_t size);
 int path_is_absolute(const char *path);
 void path_combine(char *dest, int dest_size,
                   const char *base_path,
@@ -716,8 +751,8 @@ uint32_t pci_default_read_config(PCIDevice *d,
                                  uint32_t address, int len);
 void pci_default_write_config(PCIDevice *d, 
                               uint32_t address, uint32_t val, int len);
-void generic_pci_save(QEMUFile* f, void *opaque);
-int generic_pci_load(QEMUFile* f, void *opaque, int version_id);
+void pci_device_save(PCIDevice *s, QEMUFile *f);
+int pci_device_load(PCIDevice *s, QEMUFile *f);
 
 typedef void (*pci_set_irq_fn)(PCIDevice *pci_dev, void *pic,
                                int irq_num, int level);
@@ -806,9 +841,11 @@ static inline void dpy_resize(DisplayState *s, int w, int h)
     s->dpy_resize(s, w, h);
 }
 
-int vga_initialize(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base, 
-                   unsigned long vga_ram_offset, int vga_ram_size,
-                   unsigned long vga_bios_offset, int vga_bios_size);
+int isa_vga_init(DisplayState *ds, uint8_t *vga_ram_base, 
+                 unsigned long vga_ram_offset, int vga_ram_size);
+int pci_vga_init(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base, 
+                 unsigned long vga_ram_offset, int vga_ram_size,
+                 unsigned long vga_bios_offset, int vga_bios_size);
 
 /* cirrus_vga.c */
 void pci_cirrus_vga_init(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base, 
@@ -828,7 +865,7 @@ void vnc_display_init(DisplayState *ds, int display);
 /* ide.c */
 #define MAX_DISKS 4
 
-extern BlockDriverState *bs_table[MAX_DISKS];
+extern BlockDriverState *bs_table[MAX_DISKS + 1];
 
 void isa_ide_init(int iobase, int iobase2, int irq,
                   BlockDriverState *hd0, BlockDriverState *hd1);
@@ -1123,6 +1160,11 @@ void do_usb_del(const char *devname);
 void usb_info(void);
 
 /* scsi-disk.c */
+enum scsi_reason {
+    SCSI_REASON_DONE, /* Command complete.  */
+    SCSI_REASON_DATA  /* Transfer complete, more data required.  */
+};
+
 typedef struct SCSIDevice SCSIDevice;
 typedef void (*scsi_completionfn)(void *, uint32_t, int);
 
@@ -1132,8 +1174,12 @@ SCSIDevice *scsi_disk_init(BlockDriverState *bdrv,
 void scsi_disk_destroy(SCSIDevice *s);
 
 int32_t scsi_send_command(SCSIDevice *s, uint32_t tag, uint8_t *buf, int lun);
+/* SCSI data transfers are asynchrnonous.  However, unlike the block IO
+   layer the completion routine may be called directly by
+   scsi_{read,write}_data.  */
 int scsi_read_data(SCSIDevice *s, uint8_t *data, uint32_t len);
 int scsi_write_data(SCSIDevice *s, uint8_t *data, uint32_t len);
+void scsi_cancel_io(SCSIDevice *s);
 
 /* lsi53c895a.c */
 void lsi_scsi_attach(void *opaque, BlockDriverState *bd, int id);

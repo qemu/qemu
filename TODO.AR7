@@ -1,0 +1,26 @@
+TODO list for AR7 / QEMU
+
+2006-08-29
+* Wanted: network emulation for more chipsets:
+  Intel 8255xER PCI (? linux driver),
+  Intel PRO/100 VE (? linux driver),
+  E100B325, E100ENT (? linux driver),
+  Realtek RTL8186/8111 PCI (? linux driver),
+  National Semiconductor DP83816 (natsemi)
+
+2006-06-12
+
+* AVM Linux kernel does not get interrupt from CP0_Count.
+  It runs in an endless loop ("Calibrating delay loop...). Fixed.
+
+* Fix handling of CP0_Count. Must not count if not told to do so.
+
+* cpmac emulation for QEMU is still very incomplete.
+
+* TI cpmac driver has bad performace (AVM: 30 Mbit/s from box,
+  50 Mbit/s to box), could be close to 90 MBit/s.
+
+2006-05-23
+
+* serial ports in QEMU are 16450, should be 16550A.
+  Patch exists, but decreases the performance.
