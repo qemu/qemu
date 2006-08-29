@@ -19,11 +19,11 @@
 #define DPRINTF(fmt, args...) \
 do { printf("lsi_scsi: " fmt , ##args); } while (0)
 #define BADF(fmt, args...) \
-do { fprintf(stderr, "lsi_scsi: " fmt , ##args); exit(1);} while (0)
+do { fprintf(stderr, "lsi_scsi: error: " fmt , ##args); exit(1);} while (0)
 #else
 #define DPRINTF(fmt, args...) do {} while(0)
 #define BADF(fmt, args...) \
-do { fprintf(stderr, "lsi_scsi: " fmt , ##args); } while (0)
+do { fprintf(stderr, "lsi_scsi: error: " fmt , ##args);} while (0)
 #endif
 
 #define LSI_SCNTL0_TRG    0x01
@@ -152,26 +152,46 @@ do { fprintf(stderr, "lsi_scsi: " fmt , ##args); } while (0)
 /* The HBA is ID 7, so for simplicitly limit to 7 devices.  */
 #define LSI_MAX_DEVS      7
 
-/* Size of internal DMA buffer for async IO requests.  */
-#define LSI_DMA_BLOCK_SIZE 0x10000
+/* Maximum length of MSG IN data.  */
+#define LSI_MAX_MSGIN_LEN 8
+
+/* Flag set if this is a tagged command.  */
+#define LSI_TAG_VALID     (1 << 16)
+
+typedef struct {
+    uint32_t tag;
+    uint32_t pending;
+    int out;
+} lsi_queue;
 
 typedef struct {
     PCIDevice pci_dev;
     int mmio_io_addr;
     int ram_io_addr;
     uint32_t script_ram_base;
-    uint32_t data_len;
 
     int carry; /* ??? Should this be an a visible register somewhere?  */
     int sense;
-    uint8_t msg;
+    /* Action to take at the end of a MSG IN phase.
+       0 = COMMAND, 1 = disconect, 2 = DATA OUT, 3 = DATA IN.  */
+    int msg_action;
+    int msg_len;
+    uint8_t msg[LSI_MAX_MSGIN_LEN];
     /* 0 if SCRIPTS are running or stopped.
      * 1 if a Wait Reselect instruction has been issued.
-     * 2 if a DMA operation is in progress.  */
+     * 2 if processing DMA from lsi_execute_script.
+     * 3 if a DMA operation is in progress.  */
     int waiting;
     SCSIDevice *scsi_dev[LSI_MAX_DEVS];
     SCSIDevice *current_dev;
     int current_lun;
+    /* The tag is a combination of the device ID and the SCSI tag.  */
+    uint32_t current_tag;
+    uint32_t current_dma_len;
+    uint8_t *dma_buf;
+    lsi_queue *queue;
+    int queue_len;
+    int active_commands;
 
     uint32_t dsa;
     uint32_t temp;
@@ -208,10 +228,12 @@ typedef struct {
     uint8_t sxfer;
     uint8_t socl;
     uint8_t sdid;
+    uint8_t ssid;
     uint8_t sfbr;
     uint8_t stest1;
     uint8_t stest2;
     uint8_t stest3;
+    uint8_t sidl;
     uint8_t stime0;
     uint8_t respid0;
     uint8_t respid1;
@@ -231,7 +253,6 @@ typedef struct {
     uint32_t csbc;
     uint32_t scratch[13]; /* SCRATCHA-SCRATCHR */
 
-    uint8_t dma_buf[LSI_DMA_BLOCK_SIZE];
     /* Script ram is stored as 32-bit words in host byteorder.  */
     uint32_t script_ram[2048];
 } LSIState;
@@ -280,6 +301,7 @@ static void lsi_soft_reset(LSIState *s)
     s->stest1 = 0;
     s->stest2 = 0;
     s->stest3 = 0;
+    s->sidl = 0;
     s->stime0 = 0;
     s->respid0 = 0x80;
     s->respid1 = 0;
@@ -409,68 +431,194 @@ static void lsi_bad_phase(LSIState *s, int out, int new_phase)
     lsi_set_phase(s, new_phase);
 }
 
+
+/* Resume SCRIPTS execution after a DMA operation.  */
+static void lsi_resume_script(LSIState *s)
+{
+    if (s->waiting != 2) {
+        s->waiting = 0;
+        lsi_execute_script(s);
+    } else {
+        s->waiting = 0;
+    }
+}
+
 /* Initiate a SCSI layer data transfer.  */
 static void lsi_do_dma(LSIState *s, int out)
 {
     uint32_t count;
+    uint32_t addr;
 
-    count = s->dbc;
-    if (count > LSI_DMA_BLOCK_SIZE)
-        count = LSI_DMA_BLOCK_SIZE;
-    DPRINTF("DMA addr=0x%08x len=%d avail=%d\n",
-            addr, count, s->data_len);
-    /* ??? Too long transfers are truncated. Don't know if this is the
-       correct behavior.  */
-    if (count > s->data_len) {
-        /* If the DMA length is greater than the device data length then
-           a phase mismatch will occur.  */
-        count = s->data_len;
-        s->dbc = count;
-        lsi_bad_phase(s, out, PHASE_ST);
+    if (!s->current_dma_len) {
+        /* Wait until data is available.  */
+        DPRINTF("DMA no data available\n");
+        return;
     }
 
+    count = s->dbc;
+    if (count > s->current_dma_len)
+        count = s->current_dma_len;
+    DPRINTF("DMA addr=0x%08x len=%d\n", s->dnad, count);
+
+    addr = s->dnad;
     s->csbc += count;
-
-    /* ??? Set SFBR to first data byte.  */
-    if ((s->sstat1 & PHASE_MASK) == PHASE_DO) {
-        cpu_physical_memory_read(s->dnad, s->dma_buf, count);
-        scsi_write_data(s->current_dev, s->dma_buf, count);
-    } else {
-        scsi_read_data(s->current_dev, s->dma_buf, count);
-    }
-    /* If the DMA did not complete then suspend execution.  */
-    if (s->dbc)
-        s->waiting = 2;
-}
-
-/* Callback to indicate that the SCSI layer has completed a transfer.  */
-static void lsi_command_complete(void *opaque, uint32_t reason, int sense)
-{
-    LSIState *s = (LSIState *)opaque;
-    uint32_t count;
-    int out;
-
-    out = ((s->sstat1 & PHASE_MASK) == PHASE_DO);
-    count = s->dbc;
-    if (count > LSI_DMA_BLOCK_SIZE)
-        count = LSI_DMA_BLOCK_SIZE;
-    if (!out)
-        cpu_physical_memory_write(s->dnad, s->dma_buf, count);
     s->dnad += count;
     s->dbc -= count;
 
-    if (reason == SCSI_REASON_DONE) {
-        DPRINTF("Command complete sense=%d\n", sense);
-        s->sense = sense;
-        lsi_set_phase(s, PHASE_ST);
+    if (s->dma_buf == NULL) {
+        s->dma_buf = scsi_get_buf(s->current_dev, s->current_tag);
     }
 
-    if (s->dbc) {
+    /* ??? Set SFBR to first data byte.  */
+    if (out) {
+        cpu_physical_memory_read(addr, s->dma_buf, count);
+    } else {
+        cpu_physical_memory_write(addr, s->dma_buf, count);
+    }
+    s->current_dma_len -= count;
+    if (s->current_dma_len == 0) {
+        s->dma_buf = NULL;
+        if (out) {
+            /* Write the data.  */
+            scsi_write_data(s->current_dev, s->current_tag);
+        } else {
+            /* Request any remaining data.  */
+            scsi_read_data(s->current_dev, s->current_tag);
+        }
+    } else {
+        s->dma_buf += count;
+        lsi_resume_script(s);
+    }
+}
+
+
+/* Add a command to the queue.  */
+static void lsi_queue_command(LSIState *s)
+{
+    lsi_queue *p;
+
+    DPRINTF("Queueing tag=0x%x\n", s->current_tag);
+    if (s->queue_len == s->active_commands) {
+        s->queue_len++;
+        s->queue = realloc(s->queue, s->queue_len * sizeof(lsi_queue));
+    }
+    p = &s->queue[s->active_commands++];
+    p->tag = s->current_tag;
+    p->pending = 0;
+    p->out = (s->sstat1 & PHASE_MASK) == PHASE_DO;
+}
+
+/* Queue a byte for a MSG IN phase.  */
+static void lsi_add_msg_byte(LSIState *s, uint8_t data)
+{
+    if (s->msg_len >= LSI_MAX_MSGIN_LEN) {
+        BADF("MSG IN data too long\n");
+    } else {
+        DPRINTF("MSG IN 0x%02x\n", data);
+        s->msg[s->msg_len++] = data;
+    }
+}
+
+/* Perform reselection to continue a command.  */
+static void lsi_reselect(LSIState *s, uint32_t tag)
+{
+    lsi_queue *p;
+    int n;
+    int id;
+
+    p = NULL;
+    for (n = 0; n < s->active_commands; n++) {
+        p = &s->queue[n];
+        if (p->tag == tag)
+            break;
+    }
+    if (n == s->active_commands) {
+        BADF("Reselected non-existant command tag=0x%x\n", tag);
+        return;
+    }
+    id = (tag >> 8) & 0xf;
+    s->ssid = id | 0x80;
+    DPRINTF("Reselected target %d\n", id);
+    s->current_dev = s->scsi_dev[id];
+    s->current_tag = tag;
+    s->scntl1 |= LSI_SCNTL1_CON;
+    lsi_set_phase(s, PHASE_MI);
+    s->msg_action = p->out ? 2 : 3;
+    s->current_dma_len = p->pending;
+    s->dma_buf = NULL;
+    lsi_add_msg_byte(s, 0x80);
+    if (s->current_tag & LSI_TAG_VALID) {
+        lsi_add_msg_byte(s, 0x20);
+        lsi_add_msg_byte(s, tag & 0xff);
+    }
+
+    s->active_commands--;
+    if (n != s->active_commands) {
+        s->queue[n] = s->queue[s->active_commands];
+    }
+}
+
+/* Record that data is available for a queued command.  Returns zero if
+   the device was reselected, nonzero if the IO is deferred.  */
+static int lsi_queue_tag(LSIState *s, uint32_t tag, uint32_t arg)
+{
+    lsi_queue *p;
+    int i;
+    for (i = 0; i < s->active_commands; i++) {
+        p = &s->queue[i];
+        if (p->tag == tag) {
+            if (p->pending) {
+                BADF("Multiple IO pending for tag %d\n", tag);
+            }
+            p->pending = arg;
+            if (s->waiting == 1) {
+                /* Reselect device.  */
+                lsi_reselect(s, tag);
+                return 0;
+            } else {
+               DPRINTF("Queueing IO tag=0x%x\n", tag);
+                p->pending = arg;
+                return 1;
+            }
+        }
+    }
+    BADF("IO with unknown tag %d\n", tag);
+    return 1;
+}
+
+/* Callback to indicate that the SCSI layer has completed a transfer.  */
+static void lsi_command_complete(void *opaque, int reason, uint32_t tag,
+                                 uint32_t arg)
+{
+    LSIState *s = (LSIState *)opaque;
+    int out;
+
+    out = (s->sstat1 & PHASE_MASK) == PHASE_DO;
+    if (reason == SCSI_REASON_DONE) {
+        DPRINTF("Command complete sense=%d\n", (int)arg);
+        s->sense = arg;
+        if (s->waiting && s->dbc != 0) {
+            /* Raise phase mismatch for short transfers.  */
+            lsi_bad_phase(s, out, PHASE_ST);
+        } else {
+            lsi_set_phase(s, PHASE_ST);
+        }
+        lsi_resume_script(s);
+        return;
+    }
+
+    if (s->waiting == 1 || tag != s->current_tag) {
+        if (lsi_queue_tag(s, tag, arg))
+            return;
+    }
+    DPRINTF("Data ready tag=0x%x len=%d\n", tag, arg);
+    s->current_dma_len = arg;
+    if (!s->waiting)
+        return;
+    if (s->waiting == 1 || s->dbc == 0) {
+        lsi_resume_script(s);
+    } else {
         lsi_do_dma(s, out);
-    } else if (s->waiting == 2) {
-        /* Restart SCRIPTS execution.  */
-        s->waiting = 0;
-        lsi_execute_script(s);
     }
 }
 
@@ -484,27 +632,37 @@ static void lsi_do_command(LSIState *s)
         s->dbc = 16;
     cpu_physical_memory_read(s->dnad, buf, s->dbc);
     s->sfbr = buf[0];
-    n = scsi_send_command(s->current_dev, 0, buf, s->current_lun);
+    n = scsi_send_command(s->current_dev, s->current_tag, buf, s->current_lun);
     if (n > 0) {
-        s->data_len = n;
         lsi_set_phase(s, PHASE_DI);
+        scsi_read_data(s->current_dev, s->current_tag);
     } else if (n < 0) {
-        s->data_len = -n;
         lsi_set_phase(s, PHASE_DO);
+        scsi_write_data(s->current_dev, s->current_tag);
+    }
+    if (n && s->current_dma_len == 0) {
+        /* Command did not complete immediately so disconnect.  */
+        lsi_add_msg_byte(s, 2); /* SAVE DATA POINTER */
+        lsi_add_msg_byte(s, 4); /* DISCONNECT */
+        lsi_set_phase(s, PHASE_MI);
+        s->msg_action = 1;
+        lsi_queue_command(s);
     }
 }
 
 static void lsi_do_status(LSIState *s)
 {
+    uint8_t sense;
     DPRINTF("Get status len=%d sense=%d\n", s->dbc, s->sense);
     if (s->dbc != 1)
         BADF("Bad Status move\n");
     s->dbc = 1;
-    s->msg = s->sense;
-    cpu_physical_memory_write(s->dnad, &s->msg, 1);
-    s->sfbr = s->msg;
+    sense = s->sense;
+    s->sfbr = sense;
+    cpu_physical_memory_write(s->dnad, &sense, 1);
     lsi_set_phase(s, PHASE_MI);
-    s->msg = 0; /* COMMAND COMPLETE */
+    s->msg_action = 1;
+    lsi_add_msg_byte(s, 0); /* COMMAND COMPLETE */
 }
 
 static void lsi_disconnect(LSIState *s)
@@ -515,55 +673,114 @@ static void lsi_disconnect(LSIState *s)
 
 static void lsi_do_msgin(LSIState *s)
 {
-    DPRINTF("Message in len=%d\n", s->dbc);
-    s->dbc = 1;
-    s->sfbr = s->msg;
-    cpu_physical_memory_write(s->dnad, &s->msg, 1);
-    if (s->msg == 0) {
-        lsi_disconnect(s);
+    int len;
+    DPRINTF("Message in len=%d/%d\n", s->dbc, s->msg_len);
+    s->sfbr = s->msg[0];
+    len = s->msg_len;
+    if (len > s->dbc)
+        len = s->dbc;
+    cpu_physical_memory_write(s->dnad, s->msg, len);
+    /* Linux drivers rely on the last byte being in the SIDL.  */
+    s->sidl = s->msg[len - 1];
+    s->msg_len -= len;
+    if (s->msg_len) {
+        memmove(s->msg, s->msg + len, s->msg_len);
     } else {
         /* ??? Check if ATN (not yet implemented) is asserted and maybe
            switch to PHASE_MO.  */
-        lsi_set_phase(s, PHASE_CMD);
+        switch (s->msg_action) {
+        case 0:
+            lsi_set_phase(s, PHASE_CMD);
+            break;
+        case 1:
+            lsi_disconnect(s);
+            break;
+        case 2:
+            lsi_set_phase(s, PHASE_DO);
+            break;
+        case 3:
+            lsi_set_phase(s, PHASE_DI);
+            break;
+        default:
+            abort();
+        }
     }
+}
+
+/* Read the next byte during a MSGOUT phase.  */
+static uint8_t lsi_get_msgbyte(LSIState *s)
+{
+    uint8_t data;
+    cpu_physical_memory_read(s->dnad, &data, 1);
+    s->dnad++;
+    s->dbc--;
+    return data;
 }
 
 static void lsi_do_msgout(LSIState *s)
 {
     uint8_t msg;
+    int len;
 
     DPRINTF("MSG out len=%d\n", s->dbc);
-    if (s->dbc != 1) {
-        /* Multibyte messages not implemented.  */
-        s->msg = 7; /* MESSAGE REJECT */
-        //s->dbc = 1;
-        //lsi_bad_phase(s, 1, PHASE_MI);
-        lsi_set_phase(s, PHASE_MI);
-        return;
-    }
-    cpu_physical_memory_read(s->dnad, &msg, 1);
-    s->sfbr = msg;
-    s->dnad++;
+    while (s->dbc) {
+        msg = lsi_get_msgbyte(s);
+        s->sfbr = msg;
 
-    switch (msg) {
-    case 0x00:
-        DPRINTF("Got Disconnect\n");
-        lsi_disconnect(s);
-        return;
-    case 0x08:
-        DPRINTF("Got No Operation\n");
-        lsi_set_phase(s, PHASE_CMD);
-        return;
+        switch (msg) {
+        case 0x00:
+            DPRINTF("MSG: Disconnect\n");
+            lsi_disconnect(s);
+            break;
+        case 0x08:
+            DPRINTF("MSG: No Operation\n");
+            lsi_set_phase(s, PHASE_CMD);
+            break;
+        case 0x01:
+            len = lsi_get_msgbyte(s);
+            msg = lsi_get_msgbyte(s);
+            DPRINTF("Extended message 0x%x (len %d)\n", msg, len);
+            switch (msg) {
+            case 1:
+                DPRINTF("SDTR (ignored)\n");
+                s->dbc -= 2;
+                break;
+            case 3:
+                DPRINTF("WDTR (ignored)\n");
+                s->dbc -= 1;
+                break;
+            default:
+                goto bad;
+            }
+            break;
+        case 0x20: /* SIMPLE queue */
+            s->current_tag |= lsi_get_msgbyte(s) | LSI_TAG_VALID;
+            DPRINTF("SIMPLE queue tag=0x%x\n", s->current_tag & 0xff);
+            break;
+        case 0x21: /* HEAD of queue */
+            BADF("HEAD queue not implemented\n");
+            s->current_tag |= lsi_get_msgbyte(s) | LSI_TAG_VALID;
+            break;
+        case 0x22: /* ORDERED queue */
+            BADF("ORDERED queue not implemented\n");
+            s->current_tag |= lsi_get_msgbyte(s) | LSI_TAG_VALID;
+            break;
+        default:
+            if ((msg & 0x80) == 0) {
+                goto bad;
+            }
+            s->current_lun = msg & 7;
+            DPRINTF("Select LUN %d\n", s->current_lun);
+            lsi_set_phase(s, PHASE_CMD);
+            break;
+        }
     }
-    if ((msg & 0x80) == 0) {
-        DPRINTF("Unimplemented message 0x%d\n", msg);
-        s->msg = 7; /* MESSAGE REJECT */
-        lsi_bad_phase(s, 1, PHASE_MI);
-        return;
-    }
-    s->current_lun = msg & 7;
-    DPRINTF("Select LUN %d\n", s->current_lun);
-    lsi_set_phase(s, PHASE_CMD);
+    return;
+bad:
+    BADF("Unimplemented message 0x%02x\n", msg);
+    lsi_set_phase(s, PHASE_MI);
+    lsi_add_msg_byte(s, 7); /* MESSAGE REJECT */
+    s->msg_action = 0;
 }
 
 /* Sign extend a 24-bit value.  */
@@ -585,6 +802,23 @@ static void lsi_memcpy(LSIState *s, uint32_t dest, uint32_t src, int count)
         src += n;
         dest += n;
         count -= n;
+    }
+}
+
+static void lsi_wait_reselect(LSIState *s)
+{
+    int i;
+    DPRINTF("Wait Reselect\n");
+    if (s->current_dma_len)
+        BADF("Reselect with pending DMA\n");
+    for (i = 0; i < s->active_commands; i++) {
+        if (s->queue[i].pending) {
+            lsi_reselect(s, s->queue[i].tag);
+            break;
+        }
+    }
+    if (s->current_dma_len == 0) {
+        s->waiting = 1;
     }
 }
 
@@ -632,10 +866,16 @@ again:
         s->dnad = addr;
         switch (s->sstat1 & 0x7) {
         case PHASE_DO:
+            s->waiting = 2;
             lsi_do_dma(s, 1);
+            if (s->waiting)
+                s->waiting = 3;
             break;
         case PHASE_DI:
+            s->waiting = 2;
             lsi_do_dma(s, 0);
+            if (s->waiting)
+                s->waiting = 3;
             break;
         case PHASE_CMD:
             lsi_do_command(s);
@@ -679,9 +919,13 @@ again:
             s->dnad = addr;
             switch (opcode) {
             case 0: /* Select */
+                s->sdid = id;
+                if (s->current_dma_len && (s->ssid & 0xf) == id) {
+                    DPRINTF("Already reselected by target %d\n", id);
+                    break;
+                }
                 s->sstat0 |= LSI_SSTAT0_WOA;
                 s->scntl1 &= ~LSI_SCNTL1_IARB;
-                s->sdid = id;
                 if (id >= LSI_MAX_DEVS || !s->scsi_dev[id]) {
                     DPRINTF("Selected absent target %d\n", id);
                     lsi_script_scsi_interrupt(s, 0, LSI_SIST1_STO);
@@ -694,6 +938,7 @@ again:
                    it only applies in low-level mode (unimplemented).
                 lsi_script_scsi_interrupt(s, LSI_SIST0_CMP, 0); */
                 s->current_dev = s->scsi_dev[id];
+                s->current_tag = id << 8;
                 s->scntl1 |= LSI_SCNTL1_CON;
                 if (insn & (1 << 3)) {
                     s->socl |= LSI_SOCL_ATN;
@@ -705,8 +950,7 @@ again:
                 s->scntl1 &= ~LSI_SCNTL1_CON;
                 break;
             case 2: /* Wait Reselect */
-                DPRINTF("Wait Reselect\n");
-                s->waiting = 1;
+                lsi_wait_reselect(s);
                 break;
             case 3: /* Set */
                 DPRINTF("Set%s%s%s%s\n",
@@ -755,9 +999,9 @@ again:
             data8 = (insn >> 8) & 0xff;
             opcode = (insn >> 27) & 7;
             operator = (insn >> 24) & 7;
-            DPRINTF("%s reg 0x%x %s data8 %d%s\n",
+            DPRINTF("%s reg 0x%x %s data8=0x%02x sfbr=0x%02x%s\n",
                     opcode_names[opcode - 5], reg,
-                    operator_names[operator], data8,
+                    operator_names[operator], data8, s->sfbr,
                     (insn & (1 << 23)) ? " SFBR" : "");
             op0 = op1 = 0;
             switch (opcode) {
@@ -923,8 +1167,9 @@ again:
             n = (insn & 7);
             reg = (insn >> 16) & 0xff;
             if (insn & (1 << 24)) {
-                DPRINTF("Load reg 0x%x size %d addr 0x%08x\n", reg, n, addr);
                 cpu_physical_memory_read(addr, data, n);
+                DPRINTF("Load reg 0x%x size %d addr 0x%08x = %08x\n", reg, n,
+                        addr, *(int *)data);
                 for (i = 0; i < n; i++) {
                     lsi_reg_writeb(s, reg + i, data[i]);
                 }
@@ -977,6 +1222,8 @@ static uint8_t lsi_reg_readb(LSIState *s, int offset)
         return s->sdid;
     case 0x07: /* GPREG0 */
         return 0x7f;
+    case 0xa: /* SSID */
+        return s->ssid;
     case 0xb: /* SBCL */
         /* ??? This is not correct. However it's (hopefully) only
            used for diagnostics, so should be ok.  */
@@ -1065,13 +1312,22 @@ static uint8_t lsi_reg_readb(LSIState *s, int offset)
         return s->stest2;
     case 0x4f: /* STEST3 */
         return s->stest3;
+    case 0x50: /* SIDL */
+        /* This is needed by the linux drivers.  We currently only update it
+           during the MSG IN phase.  */
+        return s->sidl;
     case 0x52: /* STEST4 */
         return 0xe0;
     case 0x56: /* CCNTL0 */
         return s->ccntl0;
     case 0x57: /* CCNTL1 */
         return s->ccntl1;
-    case 0x58: case 0x59: /* SBDL */
+    case 0x58: /* SBDL */
+        /* Some drivers peek at the data bus during the MSG IN phase.  */
+        if ((s->sstat1 & PHASE_MASK) == PHASE_MI)
+            return s->msg[0];
+        return 0;
+    case 0x59: /* SBDL high */
         return 0;
     CASE_GET_REG32(mmrs, 0xa0)
     CASE_GET_REG32(mmws, 0xa4)
@@ -1143,7 +1399,17 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
     case 0x05: /* SXFER */
         s->sxfer = val;
         break;
+    case 0x06: /* SDID */
+        if ((val & 0xf) != (s->ssid & 0xf))
+            BADF("Destination ID does not match SSID\n");
+        s->sdid = val & 0xf;
+        break;
     case 0x07: /* GPREG0 */
+        break;
+    case 0x08: /* SFBR */
+        /* The CPU is not allowed to write to this register.  However the
+           SCRIPTS register move instructions are.  */
+        s->sfbr = val;
         break;
     case 0x0c: case 0x0d: case 0x0e: case 0x0f:
         /* Linux writes to these readonly registers on startup.  */
@@ -1555,7 +1821,7 @@ void lsi_scsi_attach(void *opaque, BlockDriverState *bd, int id)
         scsi_disk_destroy(s->scsi_dev[id]);
     }
     DPRINTF("Attaching block device %d\n", id);
-    s->scsi_dev[id] = scsi_disk_init(bd, lsi_command_complete, s);
+    s->scsi_dev[id] = scsi_disk_init(bd, 1, lsi_command_complete, s);
 }
 
 void *lsi_scsi_init(PCIBus *bus, int devfn)
@@ -1587,6 +1853,9 @@ void *lsi_scsi_init(PCIBus *bus, int devfn)
                            PCI_ADDRESS_SPACE_MEM, lsi_mmio_mapfunc);
     pci_register_io_region((struct PCIDevice *)s, 2, 0x2000,
                            PCI_ADDRESS_SPACE_MEM, lsi_ram_mapfunc);
+    s->queue = qemu_malloc(sizeof(lsi_queue));
+    s->queue_len = 1;
+    s->active_commands = 0;
 
     lsi_soft_reset(s);
 

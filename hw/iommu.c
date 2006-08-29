@@ -186,19 +186,60 @@ static CPUWriteMemoryFunc *iommu_mem_write[3] = {
     iommu_mem_writew,
 };
 
-uint32_t iommu_translate_local(void *opaque, uint32_t addr)
+static uint32_t iommu_page_get_flags(IOMMUState *s, uint32_t addr)
 {
-    IOMMUState *s = opaque;
-    uint32_t iopte, pa, tmppte;
+    uint32_t iopte;
 
     iopte = s->regs[1] << 4;
     addr &= ~s->iostart;
     iopte += (addr >> (PAGE_SHIFT - 2)) & ~3;
-    pa = ldl_phys(iopte);
+    return ldl_phys(iopte);
+}
+
+static uint32_t iommu_translate_pa(IOMMUState *s, uint32_t addr, uint32_t pa)
+{
+    uint32_t tmppte;
+
     tmppte = pa;
     pa = ((pa & IOPTE_PAGE) << 4) + (addr & PAGE_MASK);
-    DPRINTF("xlate dva %x => pa %x (iopte[%x] = %x)\n", addr, pa, iopte, tmppte);
+    DPRINTF("xlate dva %x => pa %x (iopte = %x)\n", addr, pa, tmppte);
     return pa;
+}
+
+uint32_t iommu_translate_local(void *opaque, uint32_t addr)
+{
+    uint32_t flags;
+    flags = iommu_page_get_flags(opaque, addr);
+    return iommu_translate_pa(opaque, addr, flags);
+}
+
+void sparc_iommu_memory_rw_local(void *opaque, target_phys_addr_t addr,
+                                 uint8_t *buf, int len, int is_write)
+{
+    int l, flags;
+    target_ulong page, phys_addr;
+    void * p;
+
+    while (len > 0) {
+        page = addr & TARGET_PAGE_MASK;
+        l = (page + TARGET_PAGE_SIZE) - addr;
+        if (l > len)
+            l = len;
+        flags = iommu_page_get_flags(opaque, page);
+        if (!(flags & IOPTE_VALID))
+            return;
+        phys_addr = iommu_translate_pa(opaque, addr, flags);
+        if (is_write) {
+            if (!(flags & IOPTE_WRITE))
+                return;
+            cpu_physical_memory_write(phys_addr, buf, len);
+        } else {
+            cpu_physical_memory_read(phys_addr, buf, len);
+        }
+        len -= l;
+        buf += l;
+        addr += l;
+    }
 }
 
 static void iommu_save(QEMUFile *f, void *opaque)
