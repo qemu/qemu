@@ -8,7 +8,7 @@
 
 #define MIPS_R4Kc 0x00018000
 #define MIPS_R4Kp 0x00018300
-#define MIPS_R4KEc  0x00018448
+#define MIPS_R4KEc 0x00018448
 
 /* Emulate MIPS R4Kc for now */
 //~ #define MIPS_CPU MIPS_R4Kc

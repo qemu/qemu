@@ -56,6 +56,7 @@ struct IoState {
 /* Set flags to >0 to enable debug output. */
 #define CLOCK   0
 #define CPMAC   1
+#define GPIO    1
 #define INTC    0
 #define MDIO    0       /* polled, so very noisy */
 #define RESET   1
@@ -786,6 +787,7 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
         val = VALUE(AVALANCHE_EMIF_BASE, av.emif);
     } else if (INRANGE(AVALANCHE_GPIO_BASE, av.gpio)) {
         name = "gpio";
+        logflag = GPIO;
         val = VALUE(AVALANCHE_GPIO_BASE, av.gpio);
     } else if (INRANGE(AVALANCHE_CLOCK_BASE, av.clock_control)) {
         name = "clock";
@@ -872,6 +874,7 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
         VALUE(AVALANCHE_EMIF_BASE, av.emif) = val;
     } else if (INRANGE(AVALANCHE_GPIO_BASE, av.gpio)) {
         name = "gpio";
+        logflag = GPIO;
         VALUE(AVALANCHE_GPIO_BASE, av.gpio) = val;
     } else if (INRANGE(AVALANCHE_CLOCK_BASE, av.clock_control)) {
         name = "clock control";

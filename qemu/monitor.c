@@ -382,18 +382,6 @@ static void do_log(const char *items)
     cpu_set_log(mask);
 }
 
-static void do_savevm(const char *filename)
-{
-    if (qemu_savevm(filename) < 0)
-        term_printf("I/O error when saving VM to '%s'\n", filename);
-}
-
-static void do_loadvm(const char *filename)
-{
-    if (qemu_loadvm(filename) < 0) 
-        term_printf("I/O error when loading VM from '%s'\n", filename);
-}
-
 static void do_stop(void)
 {
     vm_stop(EXCP_INTERRUPT);
@@ -1159,10 +1147,12 @@ static term_cmd_t term_cmds[] = {
 #endif
     { "log", "s", do_log,
       "item1[,...]", "activate logging of the specified items to '/tmp/qemu.log'" }, 
-    { "savevm", "F", do_savevm,
-      "filename", "save the whole virtual machine state to 'filename'" }, 
-    { "loadvm", "F", do_loadvm,
-      "filename", "restore the whole virtual machine state from 'filename'" }, 
+    { "savevm", "s?", do_savevm,
+      "tag|id", "save a VM snapshot. If no tag or id are provided, a new snapshot is created" }, 
+    { "loadvm", "s", do_loadvm,
+      "tag|id", "restore a VM snapshot from its tag or id" }, 
+    { "delvm", "s", do_delvm,
+      "tag|id", "delete a VM snapshot from its tag or id" }, 
     { "stop", "", do_stop, 
       "", "stop emulation", },
     { "c|cont", "", do_cont, 
@@ -1245,6 +1235,8 @@ static term_cmd_t info_cmds[] = {
       "", "show profiling information", },
     { "capture", "", do_info_capture,
       "show capture information" },
+    { "snapshots", "", do_info_snapshots,
+      "show the currently saved VM snapshots" },
     { NULL, NULL, },
 };
 

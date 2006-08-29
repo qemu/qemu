@@ -319,9 +319,13 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
 
     isa_pic = pic_init(pic_irq_request, env);
     pit = pit_init(0x40, 0);
-    serial_16450_init(&pic_set_irq_new, isa_pic, 0x3f8, 0, 4, serial_hds[0]);
-    vga_initialize(NULL, ds, phys_ram_base + ram_size, ram_size, 
-                   vga_ram_size, 0, 0);
+#if 1
+    serial_16450_init(&pic_set_irq_new, isa_pic, 0x3f8, 4, serial_hds[0]);
+#else
+    serial_init(&pic_set_irq_new, isa_pic, 0x3f8, 4, serial_hds[0]);
+    isa_vga_init(ds, phys_ram_base + ram_size, ram_size, 
+                 vga_ram_size);
+#endif
 
     if (nd_table[0].vlan) {
         if (nd_table[0].model == NULL
