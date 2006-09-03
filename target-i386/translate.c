@@ -1615,6 +1615,56 @@ static void gen_lea_modrm(DisasContext *s, int modrm, int *reg_ptr, int *offset_
     *offset_ptr = disp;
 }
 
+static void gen_nop_modrm(DisasContext *s, int modrm)
+{
+    int mod, rm, base, code;
+
+    mod = (modrm >> 6) & 3;
+    if (mod == 3)
+        return;
+    rm = modrm & 7;
+
+    if (s->aflag) {
+
+        base = rm;
+        
+        if (base == 4) {
+            code = ldub_code(s->pc++);
+            base = (code & 7);
+        }
+        
+        switch (mod) {
+        case 0:
+            if (base == 5) {
+                s->pc += 4;
+            }
+            break;
+        case 1:
+            s->pc++;
+            break;
+        default:
+        case 2:
+            s->pc += 4;
+            break;
+        }
+    } else {
+        switch (mod) {
+        case 0:
+            if (rm == 6) {
+                s->pc += 2;
+            }
+            break;
+        case 1:
+            s->pc++;
+            break;
+        default:
+        case 2:
+            s->pc += 2;
+            break;
+        }
+    }
+}
+
 /* used for LEA and MOV AX, mem */
 static void gen_add_A0_ds_seg(DisasContext *s)
 {
@@ -5791,9 +5841,14 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
             /* nothing more to do */
             break;
-        default:
-            goto illegal_op;
+        default: /* nop (multi byte) */
+            gen_nop_modrm(s, modrm);
+            break;
         }
+        break;
+    case 0x119 ... 0x11f: /* nop (multi byte) */
+        modrm = ldub_code(s->pc++);
+        gen_nop_modrm(s, modrm);
         break;
     case 0x120: /* mov reg, crN */
     case 0x122: /* mov crN, reg */
