@@ -253,147 +253,208 @@ struct pcnet_RMD {
         (R)->rmd2.rcc, (R)->rmd2.rpc, (R)->rmd2.mcnt,   \
         (R)->rmd2.zeros)
 
-static inline void pcnet_tmd_load(PCNetState *s, struct pcnet_TMD *tmd, target_phys_addr_t addr)
+static inline void pcnet_tmd_load(PCNetState *s, struct pcnet_TMD *tmd1, 
+                                  target_phys_addr_t addr)
 {
+    uint32_t *tmd = (uint32_t *)tmd1;
+
     if (!BCR_SWSTYLE(s)) {
         uint16_t xda[4];
         s->phys_mem_read(s->dma_opaque, addr,
                 (void *)&xda[0], sizeof(xda));
         if (CSR_BIGENDIAN(s)) {
-            ((uint32_t *)tmd)[0] = be16_to_cpu(xda[0]) |
-                ((be16_to_cpu(xda[1]) & 0x00ff) << 16);
-            ((uint32_t *)tmd)[1] = be16_to_cpu(xda[2]) |
-                ((be16_to_cpu(xda[1]) & 0xff00) << 16);
-            ((uint32_t *)tmd)[2] =
-                (be16_to_cpu(xda[3]) & 0xffff) << 16;
-            ((uint32_t *)tmd)[3] = 0;
+            be16_to_cpus(&xda[0]);
+            be16_to_cpus(&xda[1]);
+            be16_to_cpus(&xda[2]);
+            be16_to_cpus(&xda[3]);
         } else {
-            ((uint32_t *)tmd)[0] = (xda[0]&0xffff) |
-                ((xda[1]&0x00ff) << 16);
-            ((uint32_t *)tmd)[1] = (xda[2]&0xffff)|
-                ((xda[1] & 0xff00) << 16);
-            ((uint32_t *)tmd)[2] =
-                (xda[3] & 0xffff) << 16;
-            ((uint32_t *)tmd)[3] = 0;
+            le16_to_cpus(&xda[0]);
+            le16_to_cpus(&xda[1]);
+            le16_to_cpus(&xda[2]);
+            le16_to_cpus(&xda[3]);
         }
-    }
-    else
-    if (BCR_SWSTYLE(s) != 3)
-        s->phys_mem_read(s->dma_opaque, addr, (void *)tmd, 16);
-    else {
+
+        tmd[0] = (xda[0]&0xffff) |
+            ((xda[1]&0x00ff) << 16);
+        tmd[1] = (xda[2]&0xffff)|
+            ((xda[1] & 0xff00) << 16);
+        tmd[2] =
+            (xda[3] & 0xffff) << 16;
+        tmd[3] = 0;
+    } else {
         uint32_t xda[4];
         s->phys_mem_read(s->dma_opaque, addr,
                 (void *)&xda[0], sizeof(xda));
-        ((uint32_t *)tmd)[0] = xda[2];
-        ((uint32_t *)tmd)[1] = xda[1];
-        ((uint32_t *)tmd)[2] = xda[0];
-        ((uint32_t *)tmd)[3] = xda[3];
+        if (CSR_BIGENDIAN(s)) {
+            be32_to_cpus(&xda[0]);
+            be32_to_cpus(&xda[1]);
+            be32_to_cpus(&xda[2]);
+            be32_to_cpus(&xda[3]);
+        } else {
+            le32_to_cpus(&xda[0]);
+            le32_to_cpus(&xda[1]);
+            le32_to_cpus(&xda[2]);
+            le32_to_cpus(&xda[3]);
+        }
+        if (BCR_SWSTYLE(s) != 3) {
+            memcpy(tmd, xda, sizeof(xda));
+        } else {
+            tmd[0] = xda[2];
+            tmd[1] = xda[1];
+            tmd[2] = xda[0];
+            tmd[3] = xda[3];
+        }
     }
 }
 
-static inline void pcnet_tmd_store(PCNetState *s, struct pcnet_TMD *tmd, target_phys_addr_t addr)
+static inline void pcnet_tmd_store(PCNetState *s, const struct pcnet_TMD *tmd1,
+                                   target_phys_addr_t addr)
 {
+    const uint32_t *tmd = (const uint32_t *)tmd1;
     if (!BCR_SWSTYLE(s)) {
         uint16_t xda[4];
+        xda[0] = tmd[0] & 0xffff;
+        xda[1] = ((tmd[0]>>16)&0x00ff) |
+            ((tmd[1]>>16)&0xff00);
+        xda[2] = tmd[1] & 0xffff;
+        xda[3] = tmd[2] >> 16;
         if (CSR_BIGENDIAN(s)) {
-            xda[0] = cpu_to_be16(((uint32_t *)tmd)[0] & 0xffff);
-            xda[1] = cpu_to_be16(((((uint32_t *)tmd)[0] >> 16) & 0x00ff) |
-                                 ((((uint32_t *)tmd)[1] >> 16) & 0xff00));
-            xda[2] = cpu_to_be16(((uint32_t *)tmd)[1] & 0xffff);
-            xda[3] = cpu_to_be16(((uint32_t *)tmd)[2] >> 16);
+            cpu_to_be16s(&xda[0]);
+            cpu_to_be16s(&xda[1]);
+            cpu_to_be16s(&xda[2]);
+            cpu_to_be16s(&xda[3]);
         } else {
-            xda[0] = ((uint32_t *)tmd)[0] & 0xffff;
-            xda[1] = ((((uint32_t *)tmd)[0]>>16)&0x00ff) |
-                ((((uint32_t *)tmd)[1]>>16)&0xff00);
-            xda[2] = ((uint32_t *)tmd)[1] & 0xffff;
-            xda[3] = ((uint32_t *)tmd)[2] >> 16;
+            cpu_to_le16s(&xda[0]);
+            cpu_to_le16s(&xda[1]);
+            cpu_to_le16s(&xda[2]);
+            cpu_to_le16s(&xda[3]);
         }
         s->phys_mem_write(s->dma_opaque, addr,
                 (void *)&xda[0], sizeof(xda));
-    }
-    else {
-        if (BCR_SWSTYLE(s) != 3)
-            s->phys_mem_write(s->dma_opaque, addr, (void *)tmd, 16);
-        else {
-            uint32_t xda[4];
-            xda[0] = ((uint32_t *)tmd)[2];
-            xda[1] = ((uint32_t *)tmd)[1];
-            xda[2] = ((uint32_t *)tmd)[0];
-            xda[3] = ((uint32_t *)tmd)[3];
-            s->phys_mem_write(s->dma_opaque, addr,
-                    (void *)&xda[0], sizeof(xda));
+    } else {
+        uint32_t xda[4];
+        if (BCR_SWSTYLE(s) != 3) {
+            memcpy(xda, tmd, sizeof(xda));
+        } else {
+            xda[0] = tmd[2];
+            xda[1] = tmd[1];
+            xda[2] = tmd[0];
+            xda[3] = tmd[3];
         }
+        if (CSR_BIGENDIAN(s)) {
+            cpu_to_be32s(&xda[0]);
+            cpu_to_be32s(&xda[1]);
+            cpu_to_be32s(&xda[2]);
+            cpu_to_be32s(&xda[3]);
+        } else {
+            cpu_to_le32s(&xda[0]);
+            cpu_to_le32s(&xda[1]);
+            cpu_to_le32s(&xda[2]);
+            cpu_to_le32s(&xda[3]);
+        }
+        s->phys_mem_write(s->dma_opaque, addr,
+                          (void *)&xda[0], sizeof(xda));
     }
 }
 
-static inline void pcnet_rmd_load(PCNetState *s, struct pcnet_RMD *rmd, target_phys_addr_t addr)
+static inline void pcnet_rmd_load(PCNetState *s, struct pcnet_RMD *rmd1,
+                                  target_phys_addr_t addr)
 {
+    uint32_t *rmd = (uint32_t *)rmd1;
+
     if (!BCR_SWSTYLE(s)) {
         uint16_t rda[4];
-        s->phys_mem_read(s->dma_opaque, addr,
-                (void *)&rda[0], sizeof(rda));
+        s->phys_mem_read(s->dma_opaque, addr, (void *)&rda[0], sizeof(rda));
         if (CSR_BIGENDIAN(s)) {
-            ((uint32_t *)rmd)[0] = (be16_to_cpu(rda[0]) & 0xffff) |
-                ((be16_to_cpu(rda[1]) & 0x00ff) << 16);
-            ((uint32_t *)rmd)[1] = (be16_to_cpu(rda[2]) & 0xffff) |
-                ((be16_to_cpu(rda[1]) & 0xff00) << 16);
-            ((uint32_t *)rmd)[2] = be16_to_cpu(rda[3]) & 0xffff;
-            ((uint32_t *)rmd)[3] = 0;
+            be16_to_cpus(&rda[0]);
+            be16_to_cpus(&rda[1]);
+            be16_to_cpus(&rda[2]);
+            be16_to_cpus(&rda[3]);
         } else {
-            ((uint32_t *)rmd)[0] = (rda[0]&0xffff)|
-                ((rda[1] & 0x00ff) << 16);
-            ((uint32_t *)rmd)[1] = (rda[2]&0xffff)|
-                ((rda[1] & 0xff00) << 16);
-            ((uint32_t *)rmd)[2] = rda[3] & 0xffff;
-            ((uint32_t *)rmd)[3] = 0;
+            le16_to_cpus(&rda[0]);
+            le16_to_cpus(&rda[1]);
+            le16_to_cpus(&rda[2]);
+            le16_to_cpus(&rda[3]);
         }
-    }
-    else
-    if (BCR_SWSTYLE(s) != 3)
-        s->phys_mem_read(s->dma_opaque, addr, (void *)rmd, 16);
-    else {
+        rmd[0] = (rda[0]&0xffff)|
+            ((rda[1] & 0x00ff) << 16);
+        rmd[1] = (rda[2]&0xffff)|
+            ((rda[1] & 0xff00) << 16);
+        rmd[2] = rda[3] & 0xffff;
+        rmd[3] = 0;
+    } else {
         uint32_t rda[4];
-        s->phys_mem_read(s->dma_opaque, addr,
-                (void *)&rda[0], sizeof(rda));
-        ((uint32_t *)rmd)[0] = rda[2];
-        ((uint32_t *)rmd)[1] = rda[1];
-        ((uint32_t *)rmd)[2] = rda[0];
-        ((uint32_t *)rmd)[3] = rda[3];
+        s->phys_mem_read(s->dma_opaque, addr, (void *)&rda[0], sizeof(rda));
+        if (CSR_BIGENDIAN(s)) {
+            be32_to_cpus(&rda[0]);
+            be32_to_cpus(&rda[1]);
+            be32_to_cpus(&rda[2]);
+            be32_to_cpus(&rda[3]);
+        } else {
+            le32_to_cpus(&rda[0]);
+            le32_to_cpus(&rda[1]);
+            le32_to_cpus(&rda[2]);
+            le32_to_cpus(&rda[3]);
+        }
+        if (BCR_SWSTYLE(s) != 3) {
+            memcpy(rmd, rda, sizeof(rda));
+        } else {
+            rmd[0] = rda[2];
+            rmd[1] = rda[1];
+            rmd[2] = rda[0];
+            rmd[3] = rda[3];
+        }
     }
 }
 
-static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd, target_phys_addr_t addr)
+static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd1, 
+                                   target_phys_addr_t addr)
 {
+    const uint32_t *rmd = (const uint32_t *)rmd1;
+
     if (!BCR_SWSTYLE(s)) {
         uint16_t rda[4];
+        rda[0] = rmd[0] & 0xffff;
+        rda[1] = ((rmd[0]>>16)&0xff)|
+            ((rmd[1]>>16)&0xff00);
+        rda[2] = rmd[1] & 0xffff;
+        rda[3] = rmd[2] & 0xffff;
         if (CSR_BIGENDIAN(s)) {
-            rda[0] = cpu_to_be16(((uint32_t *)rmd)[0] & 0xffff);
-            rda[1] = cpu_to_be16(((((uint32_t *)rmd)[0] >> 16) & 0xff) |
-                                 ((((uint32_t *)rmd)[1] >> 16) & 0xff00));
-            rda[2] = cpu_to_be16(((uint32_t *)rmd)[1] & 0xffff);
-            rda[3] = cpu_to_be16(((uint32_t *)rmd)[2] & 0xffff);
+            cpu_to_be16s(&rda[0]);
+            cpu_to_be16s(&rda[1]);
+            cpu_to_be16s(&rda[2]);
+            cpu_to_be16s(&rda[3]);
         } else {
-            rda[0] = ((uint32_t *)rmd)[0] & 0xffff;
-            rda[1] = ((((uint32_t *)rmd)[0]>>16)&0xff)|
-                ((((uint32_t *)rmd)[1]>>16)&0xff00);
-            rda[2] = ((uint32_t *)rmd)[1] & 0xffff;
-            rda[3] = ((uint32_t *)rmd)[2] & 0xffff;
+            cpu_to_le16s(&rda[0]);
+            cpu_to_le16s(&rda[1]);
+            cpu_to_le16s(&rda[2]);
+            cpu_to_le16s(&rda[3]);
         }
         s->phys_mem_write(s->dma_opaque, addr,
                 (void *)&rda[0], sizeof(rda));
-    }
-    else {
-        if (BCR_SWSTYLE(s) != 3)
-            s->phys_mem_write(s->dma_opaque, addr, (void *)rmd, 16);
-        else {
-            uint32_t rda[4];
-            rda[0] = ((uint32_t *)rmd)[2];
-            rda[1] = ((uint32_t *)rmd)[1];
-            rda[2] = ((uint32_t *)rmd)[0];
-            rda[3] = ((uint32_t *)rmd)[3];
-            s->phys_mem_write(s->dma_opaque, addr,
-                    (void *)&rda[0], sizeof(rda));
+    } else {
+        uint32_t rda[4];
+        if (BCR_SWSTYLE(s) != 3) {
+            memcpy(rda, rmd, sizeof(rda));
+        } else {
+            rda[0] = rmd[2];
+            rda[1] = rmd[1];
+            rda[2] = rmd[0];
+            rda[3] = rmd[3];
         }
+        if (CSR_BIGENDIAN(s)) {
+            cpu_to_be32s(&rda[0]);
+            cpu_to_be32s(&rda[1]);
+            cpu_to_be32s(&rda[2]);
+            cpu_to_be32s(&rda[3]);
+        } else {
+            cpu_to_le32s(&rda[0]);
+            cpu_to_le32s(&rda[1]);
+            cpu_to_le32s(&rda[2]);
+            cpu_to_le32s(&rda[3]);
+        }
+        s->phys_mem_write(s->dma_opaque, addr,
+                          (void *)&rda[0], sizeof(rda));
     }
 }
 
