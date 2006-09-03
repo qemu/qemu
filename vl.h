@@ -580,6 +580,7 @@ void bdrv_aio_cancel(BlockDriverAIOCB *acb);
 
 void qemu_aio_init(void);
 void qemu_aio_poll(void);
+void qemu_aio_flush(void);
 void qemu_aio_wait_start(void);
 void qemu_aio_wait(void);
 void qemu_aio_wait_end(void);

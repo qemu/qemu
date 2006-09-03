@@ -4551,6 +4551,9 @@ void do_savevm(const char *name)
         return;
     }
 
+    /* ??? Should this occur after vm_stop?  */
+    qemu_aio_flush();
+
     saved_vm_running = vm_running;
     vm_stop(0);
     
@@ -4641,6 +4644,9 @@ void do_loadvm(const char *name)
         return;
     }
     
+    /* Flush all IO requests so they don't interfere with the new state.  */
+    qemu_aio_flush();
+
     saved_vm_running = vm_running;
     vm_stop(0);
 
