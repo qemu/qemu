@@ -71,9 +71,9 @@ struct PCNetState_st {
     int tx_busy;
     void (*set_irq_cb)(void *s, int isr);
     void (*phys_mem_read)(void *dma_opaque, target_phys_addr_t addr,
-                         uint8_t *buf, int len);
+                         uint8_t *buf, int len, int do_bswap);
     void (*phys_mem_write)(void *dma_opaque, target_phys_addr_t addr,
-                          uint8_t *buf, int len);
+                          uint8_t *buf, int len, int do_bswap);
     void *dma_opaque;
 };
 
@@ -116,7 +116,7 @@ struct qemu_ether_header {
 #define CSR_TXON(S)      !!(((S)->csr[0])&0x0010)
 #define CSR_RXON(S)      !!(((S)->csr[0])&0x0020)
 #define CSR_INEA(S)      !!(((S)->csr[0])&0x0040)
-#define CSR_BIGENDIAN(S) !!(((S)->csr[3])&0x0004)
+#define CSR_BSWP(S)      !!(((S)->csr[3])&0x0004)
 #define CSR_LAPPEN(S)    !!(((S)->csr[3])&0x0020)
 #define CSR_DXSUFLO(S)   !!(((S)->csr[3])&0x0040)
 #define CSR_ASTRP_RCV(S) !!(((S)->csr[4])&0x0800)
@@ -261,19 +261,11 @@ static inline void pcnet_tmd_load(PCNetState *s, struct pcnet_TMD *tmd1,
     if (!BCR_SWSTYLE(s)) {
         uint16_t xda[4];
         s->phys_mem_read(s->dma_opaque, addr,
-                (void *)&xda[0], sizeof(xda));
-        if (CSR_BIGENDIAN(s)) {
-            be16_to_cpus(&xda[0]);
-            be16_to_cpus(&xda[1]);
-            be16_to_cpus(&xda[2]);
-            be16_to_cpus(&xda[3]);
-        } else {
-            le16_to_cpus(&xda[0]);
-            le16_to_cpus(&xda[1]);
-            le16_to_cpus(&xda[2]);
-            le16_to_cpus(&xda[3]);
-        }
-
+                (void *)&xda[0], sizeof(xda), 0);
+        le16_to_cpus(&xda[0]);
+        le16_to_cpus(&xda[1]);
+        le16_to_cpus(&xda[2]);
+        le16_to_cpus(&xda[3]);
         tmd[0] = (xda[0]&0xffff) |
             ((xda[1]&0x00ff) << 16);
         tmd[1] = (xda[2]&0xffff)|
@@ -284,18 +276,11 @@ static inline void pcnet_tmd_load(PCNetState *s, struct pcnet_TMD *tmd1,
     } else {
         uint32_t xda[4];
         s->phys_mem_read(s->dma_opaque, addr,
-                (void *)&xda[0], sizeof(xda));
-        if (CSR_BIGENDIAN(s)) {
-            be32_to_cpus(&xda[0]);
-            be32_to_cpus(&xda[1]);
-            be32_to_cpus(&xda[2]);
-            be32_to_cpus(&xda[3]);
-        } else {
-            le32_to_cpus(&xda[0]);
-            le32_to_cpus(&xda[1]);
-            le32_to_cpus(&xda[2]);
-            le32_to_cpus(&xda[3]);
-        }
+                (void *)&xda[0], sizeof(xda), 0);
+        le32_to_cpus(&xda[0]);
+        le32_to_cpus(&xda[1]);
+        le32_to_cpus(&xda[2]);
+        le32_to_cpus(&xda[3]);
         if (BCR_SWSTYLE(s) != 3) {
             memcpy(tmd, xda, sizeof(xda));
         } else {
@@ -318,19 +303,12 @@ static inline void pcnet_tmd_store(PCNetState *s, const struct pcnet_TMD *tmd1,
             ((tmd[1]>>16)&0xff00);
         xda[2] = tmd[1] & 0xffff;
         xda[3] = tmd[2] >> 16;
-        if (CSR_BIGENDIAN(s)) {
-            cpu_to_be16s(&xda[0]);
-            cpu_to_be16s(&xda[1]);
-            cpu_to_be16s(&xda[2]);
-            cpu_to_be16s(&xda[3]);
-        } else {
-            cpu_to_le16s(&xda[0]);
-            cpu_to_le16s(&xda[1]);
-            cpu_to_le16s(&xda[2]);
-            cpu_to_le16s(&xda[3]);
-        }
+        cpu_to_le16s(&xda[0]);
+        cpu_to_le16s(&xda[1]);
+        cpu_to_le16s(&xda[2]);
+        cpu_to_le16s(&xda[3]);
         s->phys_mem_write(s->dma_opaque, addr,
-                (void *)&xda[0], sizeof(xda));
+                (void *)&xda[0], sizeof(xda), 0);
     } else {
         uint32_t xda[4];
         if (BCR_SWSTYLE(s) != 3) {
@@ -341,19 +319,12 @@ static inline void pcnet_tmd_store(PCNetState *s, const struct pcnet_TMD *tmd1,
             xda[2] = tmd[0];
             xda[3] = tmd[3];
         }
-        if (CSR_BIGENDIAN(s)) {
-            cpu_to_be32s(&xda[0]);
-            cpu_to_be32s(&xda[1]);
-            cpu_to_be32s(&xda[2]);
-            cpu_to_be32s(&xda[3]);
-        } else {
-            cpu_to_le32s(&xda[0]);
-            cpu_to_le32s(&xda[1]);
-            cpu_to_le32s(&xda[2]);
-            cpu_to_le32s(&xda[3]);
-        }
+        cpu_to_le32s(&xda[0]);
+        cpu_to_le32s(&xda[1]);
+        cpu_to_le32s(&xda[2]);
+        cpu_to_le32s(&xda[3]);
         s->phys_mem_write(s->dma_opaque, addr,
-                          (void *)&xda[0], sizeof(xda));
+                          (void *)&xda[0], sizeof(xda), 0);
     }
 }
 
@@ -364,18 +335,12 @@ static inline void pcnet_rmd_load(PCNetState *s, struct pcnet_RMD *rmd1,
 
     if (!BCR_SWSTYLE(s)) {
         uint16_t rda[4];
-        s->phys_mem_read(s->dma_opaque, addr, (void *)&rda[0], sizeof(rda));
-        if (CSR_BIGENDIAN(s)) {
-            be16_to_cpus(&rda[0]);
-            be16_to_cpus(&rda[1]);
-            be16_to_cpus(&rda[2]);
-            be16_to_cpus(&rda[3]);
-        } else {
-            le16_to_cpus(&rda[0]);
-            le16_to_cpus(&rda[1]);
-            le16_to_cpus(&rda[2]);
-            le16_to_cpus(&rda[3]);
-        }
+        s->phys_mem_read(s->dma_opaque, addr, 
+                         (void *)&rda[0], sizeof(rda), 0);
+        le16_to_cpus(&rda[0]);
+        le16_to_cpus(&rda[1]);
+        le16_to_cpus(&rda[2]);
+        le16_to_cpus(&rda[3]);
         rmd[0] = (rda[0]&0xffff)|
             ((rda[1] & 0x00ff) << 16);
         rmd[1] = (rda[2]&0xffff)|
@@ -384,18 +349,12 @@ static inline void pcnet_rmd_load(PCNetState *s, struct pcnet_RMD *rmd1,
         rmd[3] = 0;
     } else {
         uint32_t rda[4];
-        s->phys_mem_read(s->dma_opaque, addr, (void *)&rda[0], sizeof(rda));
-        if (CSR_BIGENDIAN(s)) {
-            be32_to_cpus(&rda[0]);
-            be32_to_cpus(&rda[1]);
-            be32_to_cpus(&rda[2]);
-            be32_to_cpus(&rda[3]);
-        } else {
-            le32_to_cpus(&rda[0]);
-            le32_to_cpus(&rda[1]);
-            le32_to_cpus(&rda[2]);
-            le32_to_cpus(&rda[3]);
-        }
+        s->phys_mem_read(s->dma_opaque, addr, 
+                         (void *)&rda[0], sizeof(rda), 0);
+        le32_to_cpus(&rda[0]);
+        le32_to_cpus(&rda[1]);
+        le32_to_cpus(&rda[2]);
+        le32_to_cpus(&rda[3]);
         if (BCR_SWSTYLE(s) != 3) {
             memcpy(rmd, rda, sizeof(rda));
         } else {
@@ -419,19 +378,12 @@ static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd1,
             ((rmd[1]>>16)&0xff00);
         rda[2] = rmd[1] & 0xffff;
         rda[3] = rmd[2] & 0xffff;
-        if (CSR_BIGENDIAN(s)) {
-            cpu_to_be16s(&rda[0]);
-            cpu_to_be16s(&rda[1]);
-            cpu_to_be16s(&rda[2]);
-            cpu_to_be16s(&rda[3]);
-        } else {
-            cpu_to_le16s(&rda[0]);
-            cpu_to_le16s(&rda[1]);
-            cpu_to_le16s(&rda[2]);
-            cpu_to_le16s(&rda[3]);
-        }
+        cpu_to_le16s(&rda[0]);
+        cpu_to_le16s(&rda[1]);
+        cpu_to_le16s(&rda[2]);
+        cpu_to_le16s(&rda[3]);
         s->phys_mem_write(s->dma_opaque, addr,
-                (void *)&rda[0], sizeof(rda));
+                (void *)&rda[0], sizeof(rda), 0);
     } else {
         uint32_t rda[4];
         if (BCR_SWSTYLE(s) != 3) {
@@ -442,19 +394,12 @@ static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd1,
             rda[2] = rmd[0];
             rda[3] = rmd[3];
         }
-        if (CSR_BIGENDIAN(s)) {
-            cpu_to_be32s(&rda[0]);
-            cpu_to_be32s(&rda[1]);
-            cpu_to_be32s(&rda[2]);
-            cpu_to_be32s(&rda[3]);
-        } else {
-            cpu_to_le32s(&rda[0]);
-            cpu_to_le32s(&rda[1]);
-            cpu_to_le32s(&rda[2]);
-            cpu_to_le32s(&rda[3]);
-        }
+        cpu_to_le32s(&rda[0]);
+        cpu_to_le32s(&rda[1]);
+        cpu_to_le32s(&rda[2]);
+        cpu_to_le32s(&rda[3]);
         s->phys_mem_write(s->dma_opaque, addr,
-                          (void *)&rda[0], sizeof(rda));
+                          (void *)&rda[0], sizeof(rda), 0);
     }
 }
 
@@ -490,7 +435,7 @@ static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd1,
         do {                                    \
             uint16_t rda[4];                    \
             s->phys_mem_read(s->dma_opaque, (ADDR),    \
-                (void *)&rda[0], sizeof(rda));  \
+                (void *)&rda[0], sizeof(rda), 0);  \
             (RES) |= (rda[2] & 0xf000)!=0xf000; \
             (RES) |= (rda[3] & 0xf000)!=0x0000; \
         } while (0);                            \
@@ -500,7 +445,7 @@ static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd1,
         do {                                    \
             uint32_t rda[4];                    \
             s->phys_mem_read(s->dma_opaque, (ADDR),    \
-                (void *)&rda[0], sizeof(rda)); \
+                (void *)&rda[0], sizeof(rda), 0); \
             (RES) |= (rda[1] & 0x0000f000L)!=0x0000f000L; \
             (RES) |= (rda[2] & 0x0000f000L)!=0x00000000L; \
         } while (0);                            \
@@ -509,7 +454,7 @@ static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd1,
         do {                                    \
             uint32_t rda[4];                    \
             s->phys_mem_read(s->dma_opaque, (ADDR),    \
-                (void *)&rda[0], sizeof(rda)); \
+                (void *)&rda[0], sizeof(rda), 0); \
             (RES) |= (rda[0] & 0x0000f000L)!=0x00000000L; \
             (RES) |= (rda[1] & 0x0000f000L)!=0x0000f000L; \
         } while (0);                            \
@@ -523,7 +468,7 @@ static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd1,
         do {                                    \
             uint16_t xda[4];                    \
             s->phys_mem_read(s->dma_opaque, (ADDR),    \
-                (void *)&xda[0], sizeof(xda));  \
+                (void *)&xda[0], sizeof(xda), 0);  \
             (RES) |= (xda[2] & 0xf000)!=0xf000;\
         } while (0);                            \
         break;                                  \
@@ -533,7 +478,7 @@ static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd1,
         do {                                    \
             uint32_t xda[4];                    \
             s->phys_mem_read(s->dma_opaque, (ADDR),    \
-                (void *)&xda[0], sizeof(xda));  \
+                (void *)&xda[0], sizeof(xda), 0);  \
             (RES) |= (xda[1] & 0x0000f000L)!=0x0000f000L; \
         } while (0);                            \
         break;                                  \
@@ -546,13 +491,12 @@ static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd1,
     struct qemu_ether_header *hdr = (void *)(BUF);   \
     printf("packet dhost=%02x:%02x:%02x:%02x:%02x:%02x, "       \
            "shost=%02x:%02x:%02x:%02x:%02x:%02x, "              \
-           "type=0x%04x (bcast=%d)\n",                          \
+           "type=0x%04x\n",                          \
            hdr->ether_dhost[0],hdr->ether_dhost[1],hdr->ether_dhost[2], \
            hdr->ether_dhost[3],hdr->ether_dhost[4],hdr->ether_dhost[5], \
            hdr->ether_shost[0],hdr->ether_shost[1],hdr->ether_shost[2], \
            hdr->ether_shost[3],hdr->ether_shost[4],hdr->ether_shost[5], \
-           be16_to_cpu(hdr->ether_type),                                \
-           !!ETHER_IS_MULTICAST(hdr->ether_dhost));                     \
+           be16_to_cpu(hdr->ether_type));                     \
 } while (0)
 
 #define MULTICAST_FILTER_LEN 8
@@ -669,7 +613,7 @@ static inline int padr_match(PCNetState *s, const uint8_t *buf, int size)
 
 static inline int padr_bcast(PCNetState *s, const uint8_t *buf, int size)
 {
-    static uint8_t BCAST[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+    static const uint8_t BCAST[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
     struct qemu_ether_header *hdr = (void *)buf;
     int result = !CSR_DRCVBC(s) && !memcmp(hdr->ether_dhost, BCAST, 6);
 #ifdef PCNET_DEBUG_MATCH
@@ -836,35 +780,25 @@ static void pcnet_init(PCNetState *s)
     if (BCR_SSIZE32(s)) {
         struct pcnet_initblk32 initblk;
         s->phys_mem_read(s->dma_opaque, PHYSADDR(s,CSR_IADR(s)),
-                (uint8_t *)&initblk, sizeof(initblk));
+                (uint8_t *)&initblk, sizeof(initblk), 0);
         mode = initblk.mode;
         rlen = initblk.rlen >> 4;
         tlen = initblk.tlen >> 4;
         ladrf = initblk.ladrf;
         padr = initblk.padr;
-        if (CSR_BIGENDIAN(s)) {
-            rdra = be32_to_cpu(initblk.rdra);
-            tdra = be32_to_cpu(initblk.tdra);
-        } else {
-            rdra = le32_to_cpu(initblk.rdra);
-            tdra = le32_to_cpu(initblk.tdra);
-        }
+        rdra = le32_to_cpu(initblk.rdra);
+        tdra = le32_to_cpu(initblk.tdra);
         s->rdra = PHYSADDR(s,initblk.rdra);
         s->tdra = PHYSADDR(s,initblk.tdra);
     } else {
         struct pcnet_initblk16 initblk;
         s->phys_mem_read(s->dma_opaque, PHYSADDR(s,CSR_IADR(s)),
-                (uint8_t *)&initblk, sizeof(initblk));
+                (uint8_t *)&initblk, sizeof(initblk), 0);
         mode = initblk.mode;
         ladrf = initblk.ladrf;
         padr = initblk.padr;
-        if (CSR_BIGENDIAN(s)) {
-            rdra = be32_to_cpu(initblk.rdra);
-            tdra = be32_to_cpu(initblk.tdra);
-        } else {
-            rdra = le32_to_cpu(initblk.rdra);
-            tdra = le32_to_cpu(initblk.tdra);
-        }
+        rdra = le32_to_cpu(initblk.rdra);
+        tdra = le32_to_cpu(initblk.tdra);
         rlen = rdra >> 29;
         tlen = tdra >> 29;
         rdra &= 0x00ffffff;
@@ -878,25 +812,14 @@ static void pcnet_init(PCNetState *s)
     CSR_RCVRL(s) = (rlen < 9) ? (1 << rlen) : 512;
     CSR_XMTRL(s) = (tlen < 9) ? (1 << tlen) : 512;
     s->csr[ 6] = (tlen << 12) | (rlen << 8);
-    if (CSR_BIGENDIAN(s)) {
-        s->csr[15] = be16_to_cpu(mode);
-        s->csr[ 8] = be16_to_cpu(ladrf[0]);
-        s->csr[ 9] = be16_to_cpu(ladrf[1]);
-        s->csr[10] = be16_to_cpu(ladrf[2]);
-        s->csr[11] = be16_to_cpu(ladrf[3]);
-        s->csr[12] = be16_to_cpu(padr[0]);
-        s->csr[13] = be16_to_cpu(padr[1]);
-        s->csr[14] = be16_to_cpu(padr[2]);
-    } else {
-        s->csr[15] = le16_to_cpu(mode);
-        s->csr[ 8] = le16_to_cpu(ladrf[0]);
-        s->csr[ 9] = le16_to_cpu(ladrf[1]);
-        s->csr[10] = le16_to_cpu(ladrf[2]);
-        s->csr[11] = le16_to_cpu(ladrf[3]);
-        s->csr[12] = le16_to_cpu(padr[0]);
-        s->csr[13] = le16_to_cpu(padr[1]);
-        s->csr[14] = le16_to_cpu(padr[2]);
-    }
+    s->csr[15] = le16_to_cpu(mode);
+    s->csr[ 8] = le16_to_cpu(ladrf[0]);
+    s->csr[ 9] = le16_to_cpu(ladrf[1]);
+    s->csr[10] = le16_to_cpu(ladrf[2]);
+    s->csr[11] = le16_to_cpu(ladrf[3]);
+    s->csr[12] = le16_to_cpu(padr[0]);
+    s->csr[13] = le16_to_cpu(padr[1]);
+    s->csr[14] = le16_to_cpu(padr[2]);
     s->rdra = PHYSADDR(s, rdra);
     s->tdra = PHYSADDR(s, tdra);
 
@@ -1168,7 +1091,7 @@ static void pcnet_receive(void *opaque, const uint8_t *buf, int size)
 #define PCNET_RECV_STORE() do {                                 \
     int count = MIN(4096 - rmd.rmd1.bcnt,size);                 \
     target_phys_addr_t rbadr = PHYSADDR(s, rmd.rmd0.rbadr);     \
-    s->phys_mem_write(s->dma_opaque, rbadr, src, count);               \
+    s->phys_mem_write(s->dma_opaque, rbadr, src, count, CSR_BSWP(s));  \
     src += count; size -= count;                                \
     rmd.rmd2.mcnt = count; rmd.rmd1.own = 0;                    \
     RMDSTORE(&rmd, PHYSADDR(s,crda));                           \
@@ -1259,14 +1182,16 @@ static void pcnet_transmit(PCNetState *s)
             s->xmit_pos = 0;                
             if (!tmd.tmd1.enp) {
                 s->phys_mem_read(s->dma_opaque, PHYSADDR(s, tmd.tmd0.tbadr),
-                        s->buffer, 4096 - tmd.tmd1.bcnt);
+                                 s->buffer, 4096 - tmd.tmd1.bcnt, 
+                                 CSR_BSWP(s));
                 s->xmit_pos += 4096 - tmd.tmd1.bcnt;
             } 
             xmit_cxda = PHYSADDR(s,CSR_CXDA(s));
         }
         if (tmd.tmd1.enp && (s->xmit_pos >= 0)) {
             s->phys_mem_read(s->dma_opaque, PHYSADDR(s, tmd.tmd0.tbadr),
-                    s->buffer + s->xmit_pos, 4096 - tmd.tmd1.bcnt);
+                             s->buffer + s->xmit_pos, 4096 - tmd.tmd1.bcnt, 
+                             CSR_BSWP(s));
             s->xmit_pos += 4096 - tmd.tmd1.bcnt;
 #ifdef PCNET_DEBUG
             printf("pcnet_transmit size=%d\n", s->xmit_pos);
@@ -1953,13 +1878,13 @@ static void pcnet_pci_set_irq_cb(void *opaque, int isr)
 }
 
 static void pci_physical_memory_write(void *dma_opaque, target_phys_addr_t addr,
-                           uint8_t *buf, int len)
+                                      uint8_t *buf, int len, int do_bswap)
 {
     cpu_physical_memory_write(addr, buf, len);
 }
 
 static void pci_physical_memory_read(void *dma_opaque, target_phys_addr_t addr,
-                           uint8_t *buf, int len)
+                                     uint8_t *buf, int len, int do_bswap)
 {
     cpu_physical_memory_read(addr, buf, len);
 }

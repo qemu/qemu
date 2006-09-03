@@ -69,22 +69,56 @@ void ledma_set_irq(void *opaque, int isr)
     pic_set_irq_new(s->intctl, s->leirq, isr);
 }
 
-void ledma_memory_read(void *opaque, target_phys_addr_t addr, uint8_t *buf, int len)
+/* Note: on sparc, the lance 16 bit bus is swapped */
+void ledma_memory_read(void *opaque, target_phys_addr_t addr, 
+                       uint8_t *buf, int len, int do_bswap)
 {
     DMAState *s = opaque;
+    int i;
 
     DPRINTF("DMA write, direction: %c, addr 0x%8.8x\n",
             s->dmaregs[0] & DMA_WRITE_MEM ? 'w': 'r', s->dmaregs[1]);
-    sparc_iommu_memory_read(s->iommu, addr | s->dmaregs[7], buf, len);
+    addr |= s->dmaregs[7];
+    if (do_bswap) {
+        sparc_iommu_memory_read(s->iommu, addr, buf, len);
+    } else {
+        addr &= ~1;
+        len &= ~1;
+        sparc_iommu_memory_read(s->iommu, addr, buf, len);
+        for(i = 0; i < len; i += 2) {
+            bswap16s((uint16_t *)(buf + i));
+        }
+    }
 }
 
-void ledma_memory_write(void *opaque, target_phys_addr_t addr, uint8_t *buf, int len)
+void ledma_memory_write(void *opaque, target_phys_addr_t addr, 
+                        uint8_t *buf, int len, int do_bswap)
 {
     DMAState *s = opaque;
+    int l, i;
+    uint16_t tmp_buf[32];
 
     DPRINTF("DMA read, direction: %c, addr 0x%8.8x\n",
             s->dmaregs[0] & DMA_WRITE_MEM ? 'w': 'r', s->dmaregs[1]);
-    sparc_iommu_memory_write(s->iommu, addr | s->dmaregs[7], buf, len);
+    addr |= s->dmaregs[7];
+    if (do_bswap) {
+        sparc_iommu_memory_write(s->iommu, addr, buf, len);
+    } else {
+        addr &= ~1;
+        len &= ~1;
+        while (len > 0) {
+            l = len;
+            if (l > sizeof(tmp_buf))
+                l = sizeof(tmp_buf);
+            for(i = 0; i < l; i += 2) {
+                tmp_buf[i >> 1] = bswap16(*(uint16_t *)(buf + i));
+            }
+            sparc_iommu_memory_write(s->iommu, addr, (uint8_t *)tmp_buf, l);
+            len -= l;
+            buf += l;
+            addr += l;
+        }
+    }
 }
 
 void espdma_raise_irq(void *opaque)

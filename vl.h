@@ -1086,10 +1086,10 @@ void esp_reset(void *opaque);
 void *sparc32_dma_init(uint32_t daddr, int espirq, int leirq, void *iommu,
                        void *intctl);
 void ledma_set_irq(void *opaque, int isr);
-void ledma_memory_read(void *opaque, target_phys_addr_t addr, uint8_t *buf,
-                       int len);
-void ledma_memory_write(void *opaque, target_phys_addr_t addr, uint8_t *buf,
-                        int len);
+void ledma_memory_read(void *opaque, target_phys_addr_t addr, 
+                       uint8_t *buf, int len, int do_bswap);
+void ledma_memory_write(void *opaque, target_phys_addr_t addr, 
+                        uint8_t *buf, int len, int do_bswap);
 void espdma_raise_irq(void *opaque);
 void espdma_clear_irq(void *opaque);
 void espdma_memory_read(void *opaque, uint8_t *buf, int len);
