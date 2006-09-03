@@ -359,8 +359,8 @@ VL_OBJS+= sun4u.o ide.o pckbd.o ps2.o vga.o apb_pci.o
 VL_OBJS+= fdc.o mc146818rtc.o serial.o m48t59.o
 VL_OBJS+= cirrus_vga.o parallel.o
 else
-VL_OBJS+= sun4m.o tcx.o lance.o iommu.o m48t59.o slavio_intctl.o
-VL_OBJS+= slavio_timer.o slavio_serial.o slavio_misc.o fdc.o esp.o
+VL_OBJS+= sun4m.o tcx.o pcnet.o iommu.o m48t59.o slavio_intctl.o
+VL_OBJS+= slavio_timer.o slavio_serial.o slavio_misc.o fdc.o esp.o sparc32_dma.o
 endif
 endif
 ifeq ($(TARGET_BASE_ARCH), arm)
