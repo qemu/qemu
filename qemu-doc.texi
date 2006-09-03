@@ -506,12 +506,16 @@ Redirect the virtual serial port to host character device
 This option can be used several times to simulate up to 4 serials
 ports.
 
+Use @code{-serial none} to disable all serial ports.
+
 Available character devices are:
 @table @code
 @item vc
 Virtual console
 @item pty
 [Linux only] Pseudo TTY (a new PTY is automatically allocated)
+@item none
+No device is allocated.
 @item null
 void device
 @item /dev/XXX
@@ -592,6 +596,8 @@ parallel port.
 
 This option can be used several times to simulate up to 3 parallel
 ports.
+
+Use @code{-parallel none} to disable all parallel ports.
 
 @item -monitor dev
 Redirect the monitor to host device @var{dev} (same devices as the

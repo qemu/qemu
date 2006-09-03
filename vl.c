@@ -6850,27 +6850,29 @@ int main(int argc, char **argv)
     monitor_init(monitor_hd, !nographic);
 
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
-        if (serial_devices[i][0] != '\0') {
-            serial_hds[i] = qemu_chr_open(serial_devices[i]);
+        const char *devname = serial_devices[i];
+        if (devname[0] != '\0' && strcmp(devname, "none")) {
+            serial_hds[i] = qemu_chr_open(devname);
             if (!serial_hds[i]) {
                 fprintf(stderr, "qemu: could not open serial device '%s'\n", 
-                        serial_devices[i]);
+                        devname);
                 exit(1);
             }
-            if (!strcmp(serial_devices[i], "vc"))
+            if (!strcmp(devname, "vc"))
                 qemu_chr_printf(serial_hds[i], "serial%d console\r\n", i);
         }
     }
 
     for(i = 0; i < MAX_PARALLEL_PORTS; i++) {
-        if (parallel_devices[i][0] != '\0') {
-            parallel_hds[i] = qemu_chr_open(parallel_devices[i]);
+        const char *devname = parallel_devices[i];
+        if (devname[0] != '\0' && strcmp(devname, "none")) {
+            parallel_hds[i] = qemu_chr_open(devname);
             if (!parallel_hds[i]) {
                 fprintf(stderr, "qemu: could not open parallel device '%s'\n", 
-                        parallel_devices[i]);
+                        devname);
                 exit(1);
             }
-            if (!strcmp(parallel_devices[i], "vc"))
+            if (!strcmp(devname, "vc"))
                 qemu_chr_printf(parallel_hds[i], "parallel%d console\r\n", i);
         }
     }
