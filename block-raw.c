@@ -247,6 +247,17 @@ void qemu_aio_poll(void)
  the_end: ;
 }
 
+/* Wait for all IO requests to complete.  */
+void qemu_aio_flush(void)
+{
+    qemu_aio_wait_start();
+    qemu_aio_poll();
+    while (first_aio) {
+        qemu_aio_wait();
+    }
+    qemu_aio_wait_end();
+}
+
 /* wait until at least one AIO was handled */
 static sigset_t wait_oset;
 

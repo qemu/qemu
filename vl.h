@@ -582,6 +582,7 @@ void bdrv_aio_cancel(BlockDriverAIOCB *acb);
 
 void qemu_aio_init(void);
 void qemu_aio_poll(void);
+void qemu_aio_flush(void);
 void qemu_aio_wait_start(void);
 void qemu_aio_wait(void);
 void qemu_aio_wait_end(void);
@@ -931,6 +932,9 @@ void pci_rtl8139_init(PCIBus *bus, NICInfo *nd);
 /* pcnet.c */
 
 void pci_pcnet_init(PCIBus *bus, NICInfo *nd);
+void pcnet_h_reset(void *opaque);
+void *lance_init(NICInfo *nd, uint32_t leaddr, void *dma_opaque);
+
 
 /* pckbd.c */
 
@@ -1035,22 +1039,24 @@ void PPC_debug_write (void *opaque, uint32_t addr, uint32_t val);
 /* sun4m.c */
 extern QEMUMachine sun4m_machine;
 void pic_set_irq_cpu(int irq, int level, unsigned int cpu);
-/* ??? Remove iommu_translate once lance emulation has been converted.  */
-uint32_t iommu_translate(uint32_t addr);
-void sparc_iommu_memory_read(target_phys_addr_t addr,
-                             uint8_t *buf, int len);
-void sparc_iommu_memory_write(target_phys_addr_t addr,
-                              uint8_t *buf, int len);
 
 /* iommu.c */
 void *iommu_init(uint32_t addr);
-/* ??? Remove iommu_translate_local.  */
-uint32_t iommu_translate_local(void *opaque, uint32_t addr);
-void sparc_iommu_memory_rw_local(void *opaque, target_phys_addr_t addr,
+void sparc_iommu_memory_rw(void *opaque, target_phys_addr_t addr,
                                  uint8_t *buf, int len, int is_write);
+static inline void sparc_iommu_memory_read(void *opaque,
+                                           target_phys_addr_t addr,
+                                           uint8_t *buf, int len)
+{
+    sparc_iommu_memory_rw(opaque, addr, buf, len, 0);
+}
 
-/* lance.c */
-void lance_init(NICInfo *nd, int irq, uint32_t leaddr, uint32_t ledaddr);
+static inline void sparc_iommu_memory_write(void *opaque,
+                                            target_phys_addr_t addr,
+                                            uint8_t *buf, int len)
+{
+    sparc_iommu_memory_rw(opaque, addr, buf, len, 1);
+}
 
 /* tcx.c */
 void tcx_init(DisplayState *ds, uint32_t addr, uint8_t *vram_base,
@@ -1082,7 +1088,23 @@ void *slavio_misc_init(uint32_t base, int irq);
 void slavio_set_power_fail(void *opaque, int power_failing);
 
 /* esp.c */
-void esp_init(BlockDriverState **bd, int irq, uint32_t espaddr, uint32_t espdaddr);
+void *esp_init(BlockDriverState **bd, uint32_t espaddr, void *dma_opaque);
+void esp_reset(void *opaque);
+
+/* sparc32_dma.c */
+void *sparc32_dma_init(uint32_t daddr, int espirq, int leirq, void *iommu,
+                       void *intctl);
+void ledma_set_irq(void *opaque, int isr);
+void ledma_memory_read(void *opaque, target_phys_addr_t addr, 
+                       uint8_t *buf, int len, int do_bswap);
+void ledma_memory_write(void *opaque, target_phys_addr_t addr, 
+                        uint8_t *buf, int len, int do_bswap);
+void espdma_raise_irq(void *opaque);
+void espdma_clear_irq(void *opaque);
+void espdma_memory_read(void *opaque, uint8_t *buf, int len);
+void espdma_memory_write(void *opaque, uint8_t *buf, int len);
+void sparc32_dma_set_reset_data(void *opaque, void *esp_opaque,
+                                void *lance_opaque);
 
 /* sun4u.c */
 extern QEMUMachine sun4u_machine;
