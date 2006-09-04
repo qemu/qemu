@@ -1,3 +1,40 @@
+2006-09-03 21:48  bellard
+
+	* vl.h, hw/pcnet.c, hw/sparc32_dma.c: better PCNET endianness
+	  support
+
+2006-09-03 19:10  bellard
+
+	* qemu-doc.texi: typo
+
+2006-09-03 19:09  bellard
+
+	* target-i386/translate.c: multi byte nop support
+
+2006-09-03 18:40  bellard
+
+	* hw/pcnet.c: endianness fixes
+
+2006-09-03 18:09  bellard
+
+	* Makefile.target, vl.h, hw/esp.c, hw/iommu.c, hw/sparc32_dma.c,
+	  hw/sun4m.c: Separate the DMA controllers - Convert ESP to new DMA
+	  methods (Blue Swirl)
+
+2006-09-03 18:07  bellard
+
+	* hw/: lance.c, pcnet.c: initial sparc32 lance and pcnet merge
+
+2006-09-03 16:10  bellard
+
+	* qemu-doc.texi, vl.c: allow disabling of serial or parallel
+	  devices (Stefan Weil)
+
+2006-09-03 14:08  pbrook
+
+	* block-raw.c, vl.c, vl.h: Flush IO requests before savevm
+	  (original patch by Blue Swirl).
+
 2006-08-29 06:52  pbrook
 
 	* vl.h, hw/esp.c, hw/iommu.c, hw/lsi53c895a.c, hw/scsi-disk.c,

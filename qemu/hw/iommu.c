@@ -206,19 +206,11 @@ static uint32_t iommu_translate_pa(IOMMUState *s, uint32_t addr, uint32_t pa)
     return pa;
 }
 
-uint32_t iommu_translate_local(void *opaque, uint32_t addr)
-{
-    uint32_t flags;
-    flags = iommu_page_get_flags(opaque, addr);
-    return iommu_translate_pa(opaque, addr, flags);
-}
-
-void sparc_iommu_memory_rw_local(void *opaque, target_phys_addr_t addr,
-                                 uint8_t *buf, int len, int is_write)
+void sparc_iommu_memory_rw(void *opaque, target_phys_addr_t addr,
+                           uint8_t *buf, int len, int is_write)
 {
     int l, flags;
     target_ulong page, phys_addr;
-    void * p;
 
     while (len > 0) {
         page = addr & TARGET_PAGE_MASK;
