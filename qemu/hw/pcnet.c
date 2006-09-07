@@ -1889,20 +1889,6 @@ static void pci_physical_memory_read(void *dma_opaque, target_phys_addr_t addr,
     cpu_physical_memory_read(addr, buf, len);
 }
 
-static int pcnet_load(QEMUFile* f,void* opaque,int version_id)
-{
-    PCNetState *d = (PCNetState *)opaque;
-#warning("TODO (still missing)")
-    return EINVAL;
-}
-
-static void pcnet_save(QEMUFile* f,void* opaque)
-{
-    PCNetState *d = (PCNetState *)opaque;
-#warning("TODO (still missing)")
-    pci_device_save(&d->dev, f);
-}
-
 void pci_pcnet_init(PCIBus *bus, NICInfo *nd)
 {
     PCNetState *d;
