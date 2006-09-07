@@ -218,6 +218,12 @@ static int bios_load(const char *filename, unsigned long bios_offset, unsigned l
     return ret;
 }
 
+static void main_cpu_reset(void *opaque)
+{
+    CPUState *env = opaque;
+    cpu_reset(env);
+}
+
 static void mips_init (int ram_size, int vga_ram_size, int boot_device,
                     DisplayState *ds, const char **fd_filename, int snapshot,
                     const char *kernel_filename, const char *kernel_cmdline,
@@ -236,6 +242,7 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
     printf("%s: setting endianness %d\n", __func__, bigendian);
 
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
+    qemu_register_reset(main_cpu_reset, env);
 
     /* allocate RAM */
     cpu_register_physical_memory(0, ram_size, IO_MEM_RAM);
@@ -383,6 +390,7 @@ static void mips_ar7_init (int ram_size, int vga_ram_size, int boot_device,
     printf("%s: setting endianness %d\n", __func__, 0);
 
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
+    qemu_register_reset(main_cpu_reset, env);
 
     /* Allocate RAM. */
 
