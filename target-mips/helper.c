@@ -256,29 +256,29 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 void cpu_reset(CPUState *env)
 {
 #ifdef MIPS_USES_R4K_TLB
-        env->CP0_random = MIPS_TLB_NB - 1;
+    env->CP0_random = MIPS_TLB_NB - 1;
 #endif
-        env->CP0_Wired = 0;
-        env->CP0_Config[0] = MIPS_CONFIG0;
-        env->CP0_Config[1] = MIPS_CONFIG1;
-        env->CP0_Config[2] = MIPS_CONFIG2;
-        env->CP0_Config[3] = MIPS_CONFIG3;
-        //~ env->CP0_Config[4] = env->CP0_Config[5] =
-        //~ env->CP0_Config[6] = env->CP0_Config[7] = 0;
-        env->CP0_WatchLo = 0;
-        env->CP0_Status = (1 << CP0St_CU0) | (1 << CP0St_BEV);
-        if (env->hflags & MIPS_HFLAG_BMASK) {
-            /* If the exception was raised from a delay slot,
-             * come back to the jump
-             */
-            env->CP0_ErrorEPC = env->PC - 4;
-            env->hflags &= ~MIPS_HFLAG_BMASK;
-        } else {
-            env->CP0_ErrorEPC = env->PC;
-        }
-        env->hflags |= MIPS_HFLAG_ERL;
-        env->CP0_Status |= (1 << CP0St_ERL);
-        env->PC = 0xBFC00000;
+    env->CP0_Wired = 0;
+    env->CP0_Config[0] = MIPS_CONFIG0;
+    env->CP0_Config[1] = MIPS_CONFIG1;
+    env->CP0_Config[2] = MIPS_CONFIG2;
+    env->CP0_Config[3] = MIPS_CONFIG3;
+    //~ env->CP0_Config[4] = env->CP0_Config[5] =
+    //~ env->CP0_Config[6] = env->CP0_Config[7] = 0;
+    env->CP0_WatchLo = 0;
+    env->CP0_Status = (1 << CP0St_CU0) | (1 << CP0St_BEV);
+    if (env->hflags & MIPS_HFLAG_BMASK) {
+        /* If the exception was raised from a delay slot,
+         * come back to the jump
+         */
+        env->CP0_ErrorEPC = env->PC - 4;
+        env->hflags &= ~MIPS_HFLAG_BMASK;
+    } else {
+        env->CP0_ErrorEPC = env->PC;
+    }
+    env->hflags |= MIPS_HFLAG_ERL;
+    env->CP0_Status |= (1 << CP0St_ERL);
+    env->PC = 0xBFC00000;
 }
 
 void do_interrupt (CPUState *env)
