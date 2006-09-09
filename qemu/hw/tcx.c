@@ -34,10 +34,54 @@ typedef struct TCXState {
     ram_addr_t vram_offset;
     uint16_t width, height;
     uint8_t r[256], g[256], b[256];
+    uint32_t palette[256];
     uint8_t dac_index, dac_state;
 } TCXState;
 
 static void tcx_screen_dump(void *opaque, const char *filename);
+
+/* XXX: unify with vga draw line functions */
+static inline unsigned int rgb_to_pixel8(unsigned int r, unsigned int g, unsigned b)
+{
+    return ((r >> 5) << 5) | ((g >> 5) << 2) | (b >> 6);
+}
+
+static inline unsigned int rgb_to_pixel15(unsigned int r, unsigned int g, unsigned b)
+{
+    return ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3);
+}
+
+static inline unsigned int rgb_to_pixel16(unsigned int r, unsigned int g, unsigned b)
+{
+    return ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
+}
+
+static inline unsigned int rgb_to_pixel32(unsigned int r, unsigned int g, unsigned b)
+{
+    return (r << 16) | (g << 8) | b;
+}
+
+static void update_palette_entries(TCXState *s, int start, int end)
+{
+    int i;
+    for(i = start; i < end; i++) {
+        switch(s->ds->depth) {
+        default:
+        case 8:
+            s->palette[i] = rgb_to_pixel8(s->r[i], s->g[i], s->b[i]);
+            break;
+        case 15:
+            s->palette[i] = rgb_to_pixel15(s->r[i], s->g[i], s->b[i]);
+            break;
+        case 16:
+            s->palette[i] = rgb_to_pixel16(s->r[i], s->g[i], s->b[i]);
+            break;
+        case 32:
+            s->palette[i] = rgb_to_pixel32(s->r[i], s->g[i], s->b[i]);
+            break;
+        }
+    }
+}
 
 static void tcx_draw_line32(TCXState *s1, uint8_t *d, 
 			    const uint8_t *s, int width)
@@ -47,14 +91,11 @@ static void tcx_draw_line32(TCXState *s1, uint8_t *d,
 
     for(x = 0; x < width; x++) {
 	val = *s++;
-	*d++ = s1->b[val];
-	*d++ = s1->g[val];
-	*d++ = s1->r[val];
-	d++;
+        *((uint32_t *)d)++ = s1->palette[val];
     }
 }
 
-static void tcx_draw_line24(TCXState *s1, uint8_t *d, 
+static void tcx_draw_line16(TCXState *s1, uint8_t *d, 
 			    const uint8_t *s, int width)
 {
     int x;
@@ -62,9 +103,7 @@ static void tcx_draw_line24(TCXState *s1, uint8_t *d,
 
     for(x = 0; x < width; x++) {
 	val = *s++;
-	*d++ = s1->b[val];
-	*d++ = s1->g[val];
-	*d++ = s1->r[val];
+        *((uint16_t *)d)++ = s1->palette[val];
     }
 }
 
@@ -76,8 +115,7 @@ static void tcx_draw_line8(TCXState *s1, uint8_t *d,
 
     for(x = 0; x < width; x++) {
 	val = *s++;
-	/* XXX translate between palettes? */
-	*d++ = val;
+        *d++ = s1->palette[val];
     }
 }
 
@@ -106,8 +144,9 @@ static void tcx_update_display(void *opaque)
     case 32:
 	f = tcx_draw_line32;
 	break;
-    case 24:
-	f = tcx_draw_line24;
+    case 15:
+    case 16:
+	f = tcx_draw_line16;
 	break;
     default:
     case 8:
@@ -201,6 +240,7 @@ static int tcx_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_buffer(f, s->b, 256);
     qemu_get_8s(f, &s->dac_index);
     qemu_get_8s(f, &s->dac_state);
+    update_palette_entries(s, 0, 256);
     return 0;
 }
 
@@ -213,6 +253,7 @@ static void tcx_reset(void *opaque)
     memset(s->g, 0, 256);
     memset(s->b, 0, 256);
     s->r[255] = s->g[255] = s->b[255] = 255;
+    update_palette_entries(s, 0, 256);
     memset(s->vram, 0, MAXX*MAXY);
     cpu_physical_memory_reset_dirty(s->vram_offset, s->vram_offset + MAXX*MAXY,
                                     VGA_DIRTY_FLAG);
@@ -240,14 +281,17 @@ static void tcx_dac_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 	switch (s->dac_state) {
 	case 0:
 	    s->r[s->dac_index] = val >> 24;
+            update_palette_entries(s, s->dac_index, s->dac_index + 1);
 	    s->dac_state++;
 	    break;
 	case 1:
 	    s->g[s->dac_index] = val >> 24;
+            update_palette_entries(s, s->dac_index, s->dac_index + 1);
 	    s->dac_state++;
 	    break;
 	case 2:
 	    s->b[s->dac_index] = val >> 24;
+            update_palette_entries(s, s->dac_index, s->dac_index + 1);
 	default:
 	    s->dac_state = 0;
 	    break;

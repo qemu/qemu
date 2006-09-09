@@ -61,7 +61,7 @@ void nonono(const char* file, int line, const char* msg) {
     exit(-5);
 }
 #undef assert
-#define assert(a) if (!(a)) nonono(__FILE__, __LINE__, #a)
+#define assert(a) do {if (!(a)) nonono(__FILE__, __LINE__, #a);}while(0)
 #endif
 
 #else
@@ -2174,7 +2174,7 @@ static int commit_one_file(BDRVVVFATState* s,
     for (i = s->cluster_size; i < offset; i += s->cluster_size)
 	c = modified_fat_get(s, c);
 
-    fd = open(mapping->path, O_RDWR | O_CREAT, 0666);
+    fd = open(mapping->path, O_RDWR | O_CREAT | O_BINARY, 0666);
     if (fd < 0) {
 	fprintf(stderr, "Could not open %s... (%s, %d)\n", mapping->path,
 		strerror(errno), errno);

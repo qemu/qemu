@@ -239,7 +239,7 @@ static inline int check_ap(CPUState *env, int ap, int domain, int access_type,
 
   switch (ap) {
   case 0:
-      if (access_type != 1)
+      if (access_type == 1)
           return 0;
       switch ((env->cp15.c1_sys >> 8) & 3) {
       case 1:
