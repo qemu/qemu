@@ -88,7 +88,7 @@ typedef struct {
 typedef struct ChannelState {
     int irq;
     int reg;
-    int rxint, txint;
+    int rxint, txint, rxint_under_svc, txint_under_svc;
     chn_id_t chn; // this channel, A (base+4) or B (base+0)
     chn_type_t type;
     struct ChannelState *otherchn;
@@ -106,6 +106,7 @@ struct SerialState {
 static void handle_kbd_command(ChannelState *s, int val);
 static int serial_can_receive(void *opaque);
 static void serial_receive_byte(ChannelState *s, int ch);
+static inline void set_txint(ChannelState *s);
 
 static void put_queue(void *opaque, int b)
 {
@@ -142,17 +143,26 @@ static uint32_t get_queue(void *opaque)
     return val;
 }
 
-static void slavio_serial_update_irq(ChannelState *s)
+static int slavio_serial_update_irq_chn(ChannelState *s)
 {
     if ((s->wregs[1] & 1) && // interrupts enabled
 	(((s->wregs[1] & 2) && s->txint == 1) || // tx ints enabled, pending
 	 ((((s->wregs[1] & 0x18) == 8) || ((s->wregs[1] & 0x18) == 0x10)) &&
 	  s->rxint == 1) || // rx ints enabled, pending
 	 ((s->wregs[15] & 0x80) && (s->rregs[0] & 0x80)))) { // break int e&p
-        pic_set_irq(s->irq, 1);
-    } else {
-        pic_set_irq(s->irq, 0);
+        return 1;
     }
+    return 0;
+}
+
+static void slavio_serial_update_irq(ChannelState *s)
+{
+    int irq;
+
+    irq = slavio_serial_update_irq_chn(s);
+    irq |= slavio_serial_update_irq_chn(s->otherchn);
+
+    pic_set_irq(s->irq, irq);
 }
 
 static void slavio_serial_reset_chn(ChannelState *s)
@@ -174,6 +184,7 @@ static void slavio_serial_reset_chn(ChannelState *s)
 
     s->rx = s->tx = 0;
     s->rxint = s->txint = 0;
+    s->rxint_under_svc = s->txint_under_svc = 0;
 }
 
 static void slavio_serial_reset(void *opaque)
@@ -186,45 +197,63 @@ static void slavio_serial_reset(void *opaque)
 static inline void clr_rxint(ChannelState *s)
 {
     s->rxint = 0;
+    s->rxint_under_svc = 0;
     if (s->chn == 0)
         s->rregs[3] &= ~0x20;
     else {
         s->otherchn->rregs[3] &= ~4;
     }
+    if (s->txint)
+        set_txint(s);
+    else
+        s->rregs[2] = 6;
     slavio_serial_update_irq(s);
 }
 
 static inline void set_rxint(ChannelState *s)
 {
     s->rxint = 1;
-    if (s->chn == 0)
-        s->rregs[3] |= 0x20;
-    else {
-        s->otherchn->rregs[3] |= 4;
+    if (!s->txint_under_svc) {
+        s->rxint_under_svc = 1;
+        if (s->chn == 0)
+            s->rregs[3] |= 0x20;
+        else {
+            s->otherchn->rregs[3] |= 4;
+        }
+        s->rregs[2] = 4;
+        slavio_serial_update_irq(s);
     }
-    slavio_serial_update_irq(s);
 }
 
 static inline void clr_txint(ChannelState *s)
 {
     s->txint = 0;
+    s->txint_under_svc = 0;
     if (s->chn == 0)
         s->rregs[3] &= ~0x10;
     else {
         s->otherchn->rregs[3] &= ~2;
     }
+    if (s->rxint)
+        set_rxint(s);
+    else
+        s->rregs[2] = 6;
     slavio_serial_update_irq(s);
 }
 
 static inline void set_txint(ChannelState *s)
 {
     s->txint = 1;
-    if (s->chn == 0)
-        s->rregs[3] |= 0x10;
-    else {
-        s->otherchn->rregs[3] |= 2;
+    if (!s->rxint_under_svc) {
+        s->txint_under_svc = 1;
+        if (s->chn == 0)
+            s->rregs[3] |= 0x10;
+        else {
+            s->otherchn->rregs[3] |= 2;
+        }
+        s->rregs[2] = 0;
+        slavio_serial_update_irq(s);
     }
-    slavio_serial_update_irq(s);
 }
 
 static void slavio_serial_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
@@ -250,15 +279,14 @@ static void slavio_serial_mem_writeb(void *opaque, target_phys_addr_t addr, uint
 	    case 8:
 		newreg |= 0x8;
 		break;
-	    case 0x20:
-                clr_rxint(s);
-		break;
 	    case 0x28:
                 clr_txint(s);
 		break;
 	    case 0x38:
-                clr_rxint(s);
-                clr_txint(s);
+                if (s->rxint_under_svc)
+                    clr_rxint(s);
+                else if (s->txint_under_svc)
+                    clr_txint(s);
 		break;
 	    default:
 		break;
@@ -301,11 +329,9 @@ static void slavio_serial_mem_writeb(void *opaque, target_phys_addr_t addr, uint
 	    else if (s->type == kbd) {
 		handle_kbd_command(s, val);
 	    }
-	    s->txint = 1;
 	    s->rregs[0] |= 4; // Tx buffer empty
 	    s->rregs[1] |= 1; // All sent
             set_txint(s);
-	    slavio_serial_update_irq(s);
 	}
 	break;
     default:
@@ -348,11 +374,15 @@ static uint32_t slavio_serial_mem_readb(void *opaque, target_phys_addr_t addr)
 static int serial_can_receive(void *opaque)
 {
     ChannelState *s = opaque;
+    int ret;
+
     if (((s->wregs[3] & 1) == 0) // Rx not enabled
 	|| ((s->rregs[0] & 1) == 1)) // char already available
-	return 0;
+	ret = 0;
     else
-	return 1;
+	ret = 1;
+    SER_DPRINTF("can receive %d\n", ret);
+    return ret;
 }
 
 static void serial_receive_byte(ChannelState *s, int ch)
@@ -400,6 +430,8 @@ static void slavio_serial_save_chn(QEMUFile *f, ChannelState *s)
     qemu_put_be32s(f, &s->reg);
     qemu_put_be32s(f, &s->rxint);
     qemu_put_be32s(f, &s->txint);
+    qemu_put_be32s(f, &s->rxint_under_svc);
+    qemu_put_be32s(f, &s->txint_under_svc);
     qemu_put_8s(f, &s->rx);
     qemu_put_8s(f, &s->tx);
     qemu_put_buffer(f, s->wregs, 16);
@@ -416,13 +448,17 @@ static void slavio_serial_save(QEMUFile *f, void *opaque)
 
 static int slavio_serial_load_chn(QEMUFile *f, ChannelState *s, int version_id)
 {
-    if (version_id != 1)
+    if (version_id > 2)
         return -EINVAL;
 
     qemu_get_be32s(f, &s->irq);
     qemu_get_be32s(f, &s->reg);
     qemu_get_be32s(f, &s->rxint);
     qemu_get_be32s(f, &s->txint);
+    if (version_id >= 2) {
+        qemu_get_be32s(f, &s->rxint_under_svc);
+        qemu_get_be32s(f, &s->txint_under_svc);
+    }
     qemu_get_8s(f, &s->rx);
     qemu_get_8s(f, &s->tx);
     qemu_get_buffer(f, s->wregs, 16);
@@ -469,7 +505,7 @@ SerialState *slavio_serial_init(int base, int irq, CharDriverState *chr1, CharDr
     }
     s->chn[0].otherchn = &s->chn[1];
     s->chn[1].otherchn = &s->chn[0];
-    register_savevm("slavio_serial", base, 1, slavio_serial_save, slavio_serial_load, s);
+    register_savevm("slavio_serial", base, 2, slavio_serial_save, slavio_serial_load, s);
     qemu_register_reset(slavio_serial_reset, s);
     slavio_serial_reset(s);
     return s;
@@ -519,6 +555,9 @@ static void sunmouse_event(void *opaque,
     ChannelState *s = opaque;
     int ch;
 
+    /* XXX: SDL sometimes generates nul events: we delete them */
+    if (dx == 0 && dy == 0 && dz == 0 && buttons_state == 0)
+        return;
     MS_DPRINTF("dx=%d dy=%d buttons=%01x\n", dx, dy, buttons_state);
 
     ch = 0x80 | 0x7; /* protocol start byte, no buttons pressed */
