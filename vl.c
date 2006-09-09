@@ -1598,7 +1598,7 @@ static void tty_serial_init(int fd, int speed,
                           |INLCR|IGNCR|ICRNL|IXON);
     tty.c_oflag |= OPOST;
     tty.c_lflag &= ~(ECHO|ECHONL|ICANON|IEXTEN|ISIG);
-    tty.c_cflag &= ~(CSIZE|PARENB|PARODD|CRTSCTS);
+    tty.c_cflag &= ~(CSIZE|PARENB|PARODD|CRTSCTS|CSTOPB);
     switch(data_bits) {
     default:
     case 8:
@@ -1625,6 +1625,8 @@ static void tty_serial_init(int fd, int speed,
         tty.c_cflag |= PARENB | PARODD;
         break;
     }
+    if (stop_bits == 2)
+        tty.c_cflag |= CSTOPB;
     
     tcsetattr (fd, TCSANOW, &tty);
 }
