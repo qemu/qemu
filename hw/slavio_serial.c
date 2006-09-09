@@ -42,6 +42,13 @@
  *
  */
 
+/*
+ * Modifications:
+ *  2006-Aug-10  Igor Kovalenko :   Renamed KBDQueue to SERIOQueue, implemented
+ *                                  serial mouse queue.
+ *                                  Implemented serial mouse protocol.
+ */
+
 #ifdef DEBUG_SERIAL
 #define SER_DPRINTF(fmt, args...) \
 do { printf("SER: " fmt , ##args); } while (0)
@@ -58,7 +65,7 @@ do { printf("KBD: " fmt , ##args); } while (0)
 #endif
 #ifdef DEBUG_MOUSE
 #define MS_DPRINTF(fmt, args...) \
-do { printf("SER: " fmt , ##args); } while (0)
+do { printf("MSC: " fmt , ##args); } while (0)
 #else
 #define MS_DPRINTF(fmt, args...)
 #endif
@@ -71,12 +78,12 @@ typedef enum {
     ser, kbd, mouse,
 } chn_type_t;
 
-#define KBD_QUEUE_SIZE 256
+#define SERIO_QUEUE_SIZE 256
 
 typedef struct {
-    uint8_t data[KBD_QUEUE_SIZE];
+    uint8_t data[SERIO_QUEUE_SIZE];
     int rptr, wptr, count;
-} KBDQueue;
+} SERIOQueue;
 
 typedef struct ChannelState {
     int irq;
@@ -86,7 +93,7 @@ typedef struct ChannelState {
     chn_type_t type;
     struct ChannelState *otherchn;
     uint8_t rx, tx, wregs[16], rregs[16];
-    KBDQueue queue;
+    SERIOQueue queue;
     CharDriverState *chr;
 } ChannelState;
 
@@ -103,13 +110,13 @@ static void serial_receive_byte(ChannelState *s, int ch);
 static void put_queue(void *opaque, int b)
 {
     ChannelState *s = opaque;
-    KBDQueue *q = &s->queue;
+    SERIOQueue *q = &s->queue;
 
-    KBD_DPRINTF("put: 0x%02x\n", b);
-    if (q->count >= KBD_QUEUE_SIZE)
+    SER_DPRINTF("put: 0x%02x\n", b);
+    if (q->count >= SERIO_QUEUE_SIZE)
         return;
     q->data[q->wptr] = b;
-    if (++q->wptr == KBD_QUEUE_SIZE)
+    if (++q->wptr == SERIO_QUEUE_SIZE)
         q->wptr = 0;
     q->count++;
     serial_receive_byte(s, 0);
@@ -118,14 +125,14 @@ static void put_queue(void *opaque, int b)
 static uint32_t get_queue(void *opaque)
 {
     ChannelState *s = opaque;
-    KBDQueue *q = &s->queue;
+    SERIOQueue *q = &s->queue;
     int val;
     
     if (q->count == 0) {
 	return 0;
     } else {
         val = q->data[q->rptr];
-        if (++q->rptr == KBD_QUEUE_SIZE)
+        if (++q->rptr == SERIO_QUEUE_SIZE)
             q->rptr = 0;
         q->count--;
     }
@@ -326,7 +333,7 @@ static uint32_t slavio_serial_mem_readb(void *opaque, target_phys_addr_t addr)
     case 1:
 	s->rregs[0] &= ~1;
         clr_rxint(s);
-	if (s->type == kbd)
+	if (s->type == kbd || s->type == mouse)
 	    ret = get_queue(s);
 	else
 	    ret = s->rx;
@@ -512,9 +519,41 @@ static void sunmouse_event(void *opaque,
     ChannelState *s = opaque;
     int ch;
 
-    // XXX
-    ch = 0x42;
-    serial_receive_byte(s, ch);
+    MS_DPRINTF("dx=%d dy=%d buttons=%01x\n", dx, dy, buttons_state);
+
+    ch = 0x80 | 0x7; /* protocol start byte, no buttons pressed */
+
+    if (buttons_state & MOUSE_EVENT_LBUTTON)
+        ch ^= 0x4;
+    if (buttons_state & MOUSE_EVENT_MBUTTON)
+        ch ^= 0x2;
+    if (buttons_state & MOUSE_EVENT_RBUTTON)
+        ch ^= 0x1;
+
+    put_queue(s, ch);
+
+    ch = dx;
+
+    if (ch > 127)
+        ch=127;
+    else if (ch < -127)
+        ch=-127;
+
+    put_queue(s, ch & 0xff);
+
+    ch = -dy;
+
+    if (ch > 127)
+        ch=127;
+    else if (ch < -127)
+        ch=-127;
+
+    put_queue(s, ch & 0xff);
+
+    // MSC protocol specify two extra motion bytes
+
+    put_queue(s, 0);
+    put_queue(s, 0);
 }
 
 void slavio_serial_ms_kbd_init(int base, int irq)
