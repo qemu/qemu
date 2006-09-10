@@ -1417,6 +1417,11 @@ static void stdio_read(void *opaque)
     uint8_t buf[1];
     
     size = read(0, buf, 1);
+    if (size == 0) {
+        /* stdin has been closed. Remove it from the active list.  */
+        qemu_set_fd_handler2(0, NULL, NULL, NULL, NULL);
+        return;
+    }
     if (size > 0)
         stdio_received_byte(buf[0]);
 }
