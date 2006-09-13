@@ -1106,6 +1106,9 @@ void espdma_memory_write(void *opaque, uint8_t *buf, int len);
 void sparc32_dma_set_reset_data(void *opaque, void *esp_opaque,
                                 void *lance_opaque);
 
+/* cs4231.c */
+void cs_init(target_phys_addr_t base, int irq, void *intctl);
+
 /* sun4u.c */
 extern QEMUMachine sun4u_machine;
 

@@ -55,6 +55,9 @@
 #define PHYS_JJ_FDC	0x71400000	/* Floppy */
 #define PHYS_JJ_FLOPPY_IRQ 22
 #define PHYS_JJ_ME_IRQ 30		/* Module error, power fail */
+#define PHYS_JJ_CS      0x6c000000      /* Crystal CS4231 */
+#define PHYS_JJ_CS_IRQ  5
+
 #define MAX_CPUS 16
 
 /* TSC handling */
@@ -260,6 +263,7 @@ static void sun4m_init(int ram_size, int vga_ram_size, int boot_device,
     fdctrl_init(PHYS_JJ_FLOPPY_IRQ, 0, 1, PHYS_JJ_FDC, fd_table);
     main_esp = esp_init(bs_table, PHYS_JJ_ESP, dma);
     slavio_misc = slavio_misc_init(PHYS_JJ_SLAVIO, PHYS_JJ_ME_IRQ);
+    cs_init(PHYS_JJ_CS, PHYS_JJ_CS_IRQ, slavio_intctl);
     sparc32_dma_set_reset_data(dma, main_esp, main_lance);
 
     prom_offset = ram_size + vram_size;
