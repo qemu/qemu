@@ -938,29 +938,29 @@ struct target_stat64 {
 struct target_eabi_stat64 {
         unsigned long long st_dev;
         unsigned int    __pad1;
-        unsigned long   __st_ino;
+        target_ulong    __st_ino;
         unsigned int    st_mode;
         unsigned int    st_nlink;
 
-        unsigned long   st_uid;
-        unsigned long   st_gid;
+        target_ulong    st_uid;
+        target_ulong    st_gid;
 
         unsigned long long st_rdev;
         unsigned int    __pad2[2];
 
         long long       st_size;
-        unsigned long   st_blksize;
+        target_ulong    st_blksize;
         unsigned int    __pad3;
         unsigned long long st_blocks;
 
-        unsigned long   target_st_atime;
-        unsigned long   target_st_atime_nsec;
+        target_ulong    target_st_atime;
+        target_ulong    target_st_atime_nsec;
 
-        unsigned long   target_st_mtime;
-        unsigned long   target_st_mtime_nsec;
+        target_ulong    target_st_mtime;
+        target_ulong    target_st_mtime_nsec;
 
-        unsigned long   target_st_ctime;
-        unsigned long   target_st_ctime_nsec;
+        target_ulong    target_st_ctime;
+        target_ulong    target_st_ctime_nsec;
 
         unsigned long long st_ino;
 } __attribute__ ((packed));
