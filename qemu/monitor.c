@@ -57,7 +57,7 @@ typedef struct term_cmd_t {
 static CharDriverState *monitor_hd;
 
 static term_cmd_t term_cmds[];
-static term_cmd_t info_cmds[];
+static const term_cmd_t info_cmds[];
 
 static char term_outbuf[1024];
 static int term_outbuf_index;
@@ -135,9 +135,9 @@ static int compare_cmd(const char *name, const char *list)
     return 0;
 }
 
-static void help_cmd1(term_cmd_t *cmds, const char *prefix, const char *name)
+static void help_cmd1(const term_cmd_t *cmds, const char *prefix, const char *name)
 {
-    term_cmd_t *cmd;
+    const term_cmd_t *cmd;
 
     for(cmd = cmds; cmd->name != NULL; cmd++) {
         if (!name || !strcmp(name, cmd->name))
@@ -183,7 +183,7 @@ static void do_commit(const char *device)
 
 static void do_info(const char *item)
 {
-    term_cmd_t *cmd;
+    const term_cmd_t *cmd;
 
     if (!item)
         goto help;
@@ -1198,7 +1198,7 @@ static term_cmd_t term_cmds[] = {
     { NULL, NULL, }, 
 };
 
-static term_cmd_t info_cmds[] = {
+static const term_cmd_t info_cmds[] = {
     { "version", "", do_info_version,
       "", "show the version of qemu" },
     { "network", "", do_info_network,
@@ -1234,9 +1234,9 @@ static term_cmd_t info_cmds[] = {
     { "profile", "", do_info_profile,
       "", "show profiling information", },
     { "capture", "", do_info_capture,
-      "show capture information" },
+      "", "show capture information" },
     { "snapshots", "", do_info_snapshots,
-      "show the currently saved VM snapshots" },
+      "", "show the currently saved VM snapshots" },
     { NULL, NULL, },
 };
 
@@ -2276,7 +2276,7 @@ void readline_find_completion(const char *cmdline)
     char *args[MAX_ARGS];
     int nb_args, i, len;
     const char *ptype, *str;
-    term_cmd_t *cmd;
+    const term_cmd_t *cmd;
     const KeyDef *key;
 
     parse_cmdline(cmdline, &nb_args, args);
