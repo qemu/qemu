@@ -24,7 +24,9 @@
 #include "vl.h"
 
 /* debug EEPRO100 card */
-//#define DEBUG_EEPRO100
+#define DEBUG_EEPRO100
+
+#define logout(fmt, args...) printf("eepro100 %-24s" fmt, __func__, ##args)
 
 #define MAX_ETH_FRAME_SIZE 1514
 
@@ -118,6 +120,9 @@
 #define EEPRO100_PMEM_END     (EEPRO100_PMEM_SIZE+EEPRO100_PMEM_START)
 #define EEPRO100_MEM_SIZE     EEPRO100_PMEM_END
 
+#define PCI_IO_SIZE         64
+#define PCI_MEM_SIZE        4096
+
 typedef struct EEPRO100State {
     uint8_t cmd;
     uint32_t start;
@@ -137,6 +142,7 @@ typedef struct EEPRO100State {
     uint8_t curpag;
     uint8_t mult[8]; /* multicast mask array */
     int irq;
+    int mmio_index;
     PCIDevice *pci_dev;
     VLANClientState *vc;
     uint8_t macaddr[6];
@@ -715,44 +721,6 @@ static int eepro100_load(QEMUFile* f,void* opaque,int version_id)
 	return 0;
 }
 
-void isa_eepro100_init(int base, int irq, NICInfo *nd)
-{
-    EEPRO100State *s;
-    
-    s = qemu_mallocz(sizeof(EEPRO100State));
-    if (!s)
-        return;
-    
-    register_ioport_write(base, 16, 1, eepro100_ioport_write, s);
-    register_ioport_read(base, 16, 1, eepro100_ioport_read, s);
-
-    register_ioport_write(base + 0x10, 1, 1, eepro100_asic_ioport_write, s);
-    register_ioport_read(base + 0x10, 1, 1, eepro100_asic_ioport_read, s);
-    register_ioport_write(base + 0x10, 2, 2, eepro100_asic_ioport_write, s);
-    register_ioport_read(base + 0x10, 2, 2, eepro100_asic_ioport_read, s);
-
-    register_ioport_write(base + 0x1f, 1, 1, eepro100_reset_ioport_write, s);
-    register_ioport_read(base + 0x1f, 1, 1, eepro100_reset_ioport_read, s);
-    s->irq = irq;
-    memcpy(s->macaddr, nd->macaddr, 6);
-
-    eepro100_reset(s);
-
-    s->vc = qemu_new_vlan_client(nd->vlan, eepro100_receive,
-                                 eepro100_can_receive, s);
-
-    snprintf(s->vc->info_str, sizeof(s->vc->info_str),
-             "eepro100 macaddr=%02x:%02x:%02x:%02x:%02x:%02x",
-             s->macaddr[0],
-             s->macaddr[1],
-             s->macaddr[2],
-             s->macaddr[3],
-             s->macaddr[4],
-             s->macaddr[5]);
-             
-    register_savevm("eepro100", 0, 2, eepro100_save, eepro100_load, s);
-}
-
 /***********************************************************/
 /* PCI EEPRO100 definitions */
 
@@ -761,7 +729,7 @@ typedef struct PCIEEPRO100State {
     EEPRO100State eepro100;
 } PCIEEPRO100State;
 
-static void eepro100_map(PCIDevice *pci_dev, int region_num, 
+static void pci_map(PCIDevice *pci_dev, int region_num, 
                        uint32_t addr, uint32_t size, int type)
 {
     PCIEEPRO100State *d = (PCIEEPRO100State *)pci_dev;
@@ -781,16 +749,97 @@ static void eepro100_map(PCIDevice *pci_dev, int region_num,
     register_ioport_read(addr + 0x1f, 1, 1, eepro100_reset_ioport_read, s);
 }
 
+static char *regname(target_phys_addr_t addr)
+{
+  static char buf[16];
+  sprintf(buf, "0x%08x", addr);
+  return buf;
+}
+
+static void pci_mmio_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
+{
+#if defined(DEBUG_EEPRO100)
+    logout("addr=%s val=0x%02x\n", regname(addr), val);
+#endif
+    //~ pci_io_writeb(opaque, addr & 0xFF, val);
+}
+
+static void pci_mmio_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
+{
+#if defined(DEBUG_EEPRO100)
+    logout("addr=%s val=0x%02x\n", regname(addr), val);
+#endif
+    //~ pci_io_writew(opaque, addr & 0xFF, val);
+}
+
+static void pci_mmio_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
+{
+#if defined(DEBUG_EEPRO100)
+    logout("addr=%s val=0x%02x\n", regname(addr), val);
+#endif
+    //~ pci_io_writel(opaque, addr & 0xFF, val);
+}
+
+static uint32_t pci_mmio_readb(void *opaque, target_phys_addr_t addr)
+{
+#if defined(DEBUG_EEPRO100)
+    logout("addr=%s\n", regname(addr));
+#endif
+    return 0; // pci_io_readb(opaque, addr & 0xFF);
+}
+
+static uint32_t pci_mmio_readw(void *opaque, target_phys_addr_t addr)
+{
+#if defined(DEBUG_EEPRO100)
+    logout("addr=%s\n", regname(addr));
+#endif
+    return 0; // pci_io_readw(opaque, addr & 0xFF);
+}
+
+static uint32_t pci_mmio_readl(void *opaque, target_phys_addr_t addr)
+{
+#if defined(DEBUG_EEPRO100)
+    logout("addr=%s\n", regname(addr));
+#endif
+    return 0; // pci_io_readl(opaque, addr & 0xFF);
+}
+
+static CPUWriteMemoryFunc *pci_mmio_write[] = {
+    pci_mmio_writeb,
+    pci_mmio_writew,
+    pci_mmio_writel
+};
+
+static CPUReadMemoryFunc *pci_mmio_read[] = {
+    pci_mmio_readb,
+    pci_mmio_readw,
+    pci_mmio_readl
+};
+
+static void pci_mmio_map(PCIDevice *pci_dev, int region_num, 
+                            uint32_t addr, uint32_t size, int type)
+{
+    PCIEEPRO100State *d = (PCIEEPRO100State *)pci_dev;
+
+#if defined(DEBUG_EEPRO100)
+    logout("region %d, addr=0x%08x 0x%08x\n", region_num, addr, size);
+#endif
+
+    cpu_register_physical_memory(addr, PCI_MEM_SIZE, d->eepro100.mmio_index);
+}
+
 void pci_eepro100_init(PCIBus *bus, NICInfo *nd)
 {
     PCIEEPRO100State *d;
     EEPRO100State *s;
     uint8_t *pci_conf;
     
-    d = (PCIEEPRO100State *)pci_register_device(bus,
-                                              "EEPRO100", sizeof(PCIEEPRO100State),
-                                              -1, 
-                                              NULL, NULL);
+#if defined(DEBUG_EEPRO100)
+    logout("%s\n", __func__);
+#endif
+
+    d = (PCIEEPRO100State *)pci_register_device(bus, "EEPRO100",
+        sizeof(PCIEEPRO100State), -1, NULL, NULL);
     pci_conf = d->dev.config;
     *(uint16_t *)&pci_conf[0x00] = cpu_to_le16(0x8086);
     *(uint16_t *)&pci_conf[0x02] = cpu_to_le16(0x1209);    
@@ -807,15 +856,19 @@ void pci_eepro100_init(PCIBus *bus, NICInfo *nd)
     pci_conf[0x3e] = 0x08; // minimum grant
     pci_conf[0x3f] = 0x18; // maximum latency
     *(uint16_t *)&pci_conf[0xde] = cpu_to_le16(0x7e21);
-   
-    pci_register_io_region(&d->dev, 0, 4 * 64, 
-                           PCI_ADDRESS_SPACE_IO, eepro100_map);
-    pci_register_io_region(&d->dev, 1, 4096, 
-                           PCI_ADDRESS_SPACE_MEM, eepro100_map);
+
+    /* Handler for memory-mapped I/O */
+    d->eepro100.mmio_index =
+      cpu_register_io_memory(0, pci_mmio_read, pci_mmio_write, d);
+
+    pci_register_io_region(&d->dev, 0, PCI_IO_SIZE,
+                           PCI_ADDRESS_SPACE_IO, pci_map);
+    pci_register_io_region(&d->dev, 1, PCI_MEM_SIZE,
+                           PCI_ADDRESS_SPACE_MEM, pci_mmio_map);
 
     s = &d->eepro100;
     s->irq = 16; // PCI interrupt
-    s->pci_dev = (PCIDevice *)d;
+    s->pci_dev = &d->dev;
     memcpy(s->macaddr, nd->macaddr, 6);
     eepro100_reset(s);
     s->vc = qemu_new_vlan_client(nd->vlan, eepro100_receive,
