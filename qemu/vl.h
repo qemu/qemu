@@ -920,6 +920,10 @@ int fdctrl_get_drive_type(fdctrl_t *fdctrl, int drive_num);
 
 void pci_dp83815_init(PCIBus *bus, NICInfo *nd);
 
+/* eepro100.c */
+
+void pci_eepro100_init(PCIBus *bus, NICInfo *nd);
+
 /* ne2000.c */
 
 void isa_ne2000_init(int base, int irq, NICInfo *nd);

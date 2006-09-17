@@ -334,6 +334,7 @@ VL_OBJS+= usb.o usb-hub.o usb-linux.o usb-hid.o usb-ohci.o usb-msd.o
 # PCI network cards
 VL_OBJS+= ne2000.o rtl8139.o pcnet.o
 VL_OBJS += dp83815.o
+VL_OBJS += eepro100.o
 
 ifeq ($(TARGET_BASE_ARCH), i386)
 # Hardware support
