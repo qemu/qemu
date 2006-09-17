@@ -2,11 +2,18 @@ TODO list for AR7 / QEMU
 
 2006-08-29
 * Wanted: network emulation for more chipsets:
-  Intel 8255xER PCI (? linux driver),
-  Intel PRO/100 VE (? linux driver),
-  E100B325, E100ENT (? linux driver),
-  Realtek RTL8186/8111 PCI (? linux driver),
-  National Semiconductor DP83816 (natsemi)
+	Intel 8255xER PCI (eepro100),
+		Intel 82559ER Fast Ethernet PCI Controller 
+			ftp://download.intel.com/design/network/datashts/71468206.pdf
+		Intel 82559 Fast Ethernet Multifunction PCI/CardBus Controller 
+			ftp://download.intel.com/design/network/datashts/73825902.pdf
+
+	Intel PRO/100 VE (? linux driver),
+	E100B325, E100ENT (? linux driver),
+	Realtek RTL8168/8111 PCI (r1000),
+		ftp://202.65.194.18/cn/nic/rtl8111brtl8168b/spec-8168b(110).pdf
+  
+	National Semiconductor DP83815/DP83816 (natsemi)
 
 2006-06-12
 
