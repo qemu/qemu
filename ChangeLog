@@ -1,3 +1,49 @@
+2006-09-17 05:20  pbrook
+
+	* hw/esp.c: SPARC SCSI fixes.
+
+2006-09-10 21:25  bellard
+
+	* Makefile.target, vl.h, hw/cs4231.c, hw/sun4m.c: dummy cs4231
+	  audio driver for sun4m (Blue Swirl)
+
+2006-09-10 16:39  pbrook
+
+	* vl.c: Avoid (repeatedly) trying to read stdin after it has
+	  closed.
+
+2006-09-10 01:35  pbrook
+
+	* linux-user/syscall_defs.h: ARM 64-bit host fix.
+
+2006-09-09 16:36  pbrook
+
+	* target-arm/helper.c: Arm MMU fix (Justin Fletcher).
+
+2006-09-09 14:17  bellard
+
+	* hw/slavio_serial.c: allow host serial port usage (Blue Swirl)
+
+2006-09-09 14:03  bellard
+
+	* block-vvfat.c: vvfat fixes (Roger Lathrop)
+
+2006-09-09 13:38  bellard
+
+	* hw/slavio_serial.c: fix serial irq logic (Blue Swirl)
+
+2006-09-09 13:35  bellard
+
+	* hw/slavio_serial.c: added mouse protocol (Igor Kovalenko)
+
+2006-09-09 13:31  bellard
+
+	* hw/tcx.c: more correct display functions
+
+2006-09-09 13:10  bellard
+
+	* vl.c: two stop bits support
+
 2006-09-03 21:48  bellard
 
 	* vl.h, hw/pcnet.c, hw/sparc32_dma.c: better PCNET endianness

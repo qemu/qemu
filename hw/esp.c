@@ -61,7 +61,11 @@ struct ESPState {
     int cmdlen;
     int do_cmd;
 
+    /* The amount of data left in the current DMA transfer.  */
     uint32_t dma_left;
+    /* The size of the current DMA transfer.  Zero if no transfer is in
+       progress.  */
+    uint32_t dma_counter;
     uint8_t *async_buf;
     uint32_t async_len;
     void *dma_opaque;
@@ -92,7 +96,7 @@ static int get_cmd(ESPState *s, uint8_t *buf)
     uint32_t dmalen;
     int target;
 
-    dmalen = s->wregs[0] | (s->wregs[1] << 8);
+    dmalen = s->rregs[0] | (s->rregs[1] << 8);
     target = s->wregs[4] & 7;
     DPRINTF("get_cmd: len %d target %d\n", dmalen, target);
     if (s->dma) {
@@ -137,6 +141,7 @@ static void do_cmd(ESPState *s, uint8_t *buf)
     if (datalen != 0) {
         s->rregs[4] = STAT_IN | STAT_TC;
         s->dma_left = 0;
+        s->dma_counter = 0;
         if (datalen > 0) {
             s->rregs[4] |= STAT_DI;
             scsi_read_data(s->current_dev, 0);
@@ -198,6 +203,8 @@ static void esp_dma_done(ESPState *s)
     s->rregs[5] = INTR_BS;
     s->rregs[6] = 0;
     s->rregs[7] = 0;
+    s->rregs[0] = 0;
+    s->rregs[1] = 0;
     espdma_raise_irq(s->dma_opaque);
 }
 
@@ -232,17 +239,25 @@ static void esp_do_dma(ESPState *s)
     s->dma_left -= len;
     s->async_buf += len;
     s->async_len -= len;
+    if (to_device)
+        s->ti_size += len;
+    else
+        s->ti_size -= len;
     if (s->async_len == 0) {
         if (to_device) {
             // ti_size is negative
-            s->ti_size += len;
             scsi_write_data(s->current_dev, 0);
         } else {
-            s->ti_size -= len;
             scsi_read_data(s->current_dev, 0);
+            /* If there is still data to be read from the device then
+               complete the DMA operation immeriately.  Otherwise defer
+               until the scsi layer has completed.  */
+            if (s->dma_left == 0 && s->ti_size > 0) {
+                esp_dma_done(s);
+            }
         }
-    }
-    if (s->dma_left == 0) {
+    } else {
+        /* Partially filled a scsi buffer. Complete immediately.  */
         esp_dma_done(s);
     }
 }
@@ -269,8 +284,13 @@ static void esp_command_complete(void *opaque, int reason, uint32_t tag,
         DPRINTF("transfer %d/%d\n", s->dma_left, s->ti_size);
         s->async_len = arg;
         s->async_buf = scsi_get_buf(s->current_dev, 0);
-        if (s->dma_left)
+        if (s->dma_left) {
             esp_do_dma(s);
+        } else if (s->dma_counter != 0 && s->ti_size <= 0) {
+            /* If this was the last part of a DMA transfer then the
+               completion interrupt is deferred to here.  */
+            esp_dma_done(s);
+        }
     }
 }
 
@@ -278,10 +298,11 @@ static void handle_ti(ESPState *s)
 {
     uint32_t dmalen, minlen;
 
-    dmalen = s->wregs[0] | (s->wregs[1] << 8);
+    dmalen = s->rregs[0] | (s->rregs[1] << 8);
     if (dmalen==0) {
       dmalen=0x10000;
     }
+    s->dma_counter = dmalen;
 
     if (s->do_cmd)
         minlen = (dmalen < 32) ? dmalen : 32;
@@ -366,7 +387,6 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
     switch (saddr) {
     case 0:
     case 1:
-        s->rregs[saddr] = val;
         s->rregs[4] &= ~STAT_TC;
         break;
     case 2:
@@ -388,6 +408,9 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 	// Command
 	if (val & 0x80) {
 	    s->dma = 1;
+            /* Reload DMA counter.  */
+            s->rregs[0] = s->wregs[0];
+            s->rregs[1] = s->wregs[1];
 	} else {
 	    s->dma = 0;
 	}
