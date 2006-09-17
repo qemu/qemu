@@ -22,12 +22,25 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
+ADAM2 bootloader flash layout
+=============================
+
+flash: mtd[0] 0x900C0000 - 0x903C0000 (filesystem)
+flash: mtd[1] 0x90010000 - 0x900C0000 (kernel)
+flash: mtd[2] 0x90000000 - 0x90010000 (urlader)
+flash: mtd[3] 0x903C0000 - 0x903E0000 (tffs)
+flash: mtd[4] 0x903E0000 - 0x90400000 (tffs)
+flash: mtd[5] 0x900a1b00 - 0x900c0000 (hidden filesystem)
+
+BRN bootloader flash layout
+===========================
 Files:
 0xb0000000.bin	flash image
 0xb0020000.bin	configuration
 0xb0040000.bin	web
 0xb0110000.bin	code
 0xb01f0000.bin	params
+
 
 Vergleich zip code und code partition:
 
@@ -116,32 +129,42 @@ class Partition
 end
 
 class Flashimage
-	def initialize
-		@flashimage = Flashimage.read
-	end
+  def initialize(filename = FLASHIMAGE)
+    @filename = filename
+    @flashimage = Flashimage.read(filename)
+  end
 
-	def update(partition)
-		@flashimage[partition.range] = partition.data
-		#~ puts("#{__FILE__}:#{__LINE__} #{@flashimage.size}")
-	end
+  def update(partition)
+    @flashimage[partition.range] = partition.data
+    #~ puts("#{__FILE__}:#{__LINE__} #{@flashimage.size}")
+  end
 
-	def write
-		Flashimage.write(@flashimage)
-	end
+  def read(filename = @filename)
+    @flashimage = Flashimage.read(filename)
+    return @flashimage
+  end
 
-	def self.read(filename = FLASHIMAGE)
-		flashdata = nil
-		File.open(filename, 'rb') { |f|
-			flashdata = f.read
-		}
-		return flashdata
-	end
+  def write
+    Flashimage.write(@flashimage, @filename)
+  end
 
-	def self.write(flashdata, filename = FLASHIMAGE)
-		File.open(filename, 'wb') { |f|
-			f.write(flashdata)
-		}
-	end
+  def data
+    return @flashimage
+  end
+
+  def self.read(filename = FLASHIMAGE)
+    flashdata = nil
+    File.open(filename, 'rb') { |f|
+      flashdata = f.read
+    }
+    return flashdata
+  end
+
+  def self.write(flashdata, filename = FLASHIMAGE)
+    File.open(filename, 'wb') { |f|
+      f.write(flashdata)
+    }
+  end
 end
 
 # Create an erased flash.
@@ -273,6 +296,46 @@ def loadfw(filename)
 	flashimage.write
 end
 
+module Adam2
+  #~ FLASHIMAGE = "boot/adam2-flashimage.bin"
+  FLASHIMAGE = "boot/test/flashimage.bin"
+  MTD0start = 0x000c0000
+  MTD1start = 0x00010000
+  MTD2start = 0x00000000
+  MTD3start = 0x003c0000
+  MTD4start = 0x003e0000
+  MTD0end = MTD3start
+  MTD1end = MTD0start
+  MTD0size = MTD0end - MTD0start
+  MTD1size = MTD0start - MTD1start
+
+  def self.loadfilesystem(filename)
+    flashimage = Flashimage.new(FLASHIMAGE)
+    flashimage.data[MTD0start ... MTD0end] = "\xff" * MTD0size
+    kernel = nil
+    File.open(filename, 'rb') { |f|
+      kernel = f.read
+    }
+    puts("Filesystem size: 0x%08x byte" % kernel.size)
+    kernelsize = kernel.size - 8
+    flashimage.data[MTD0start ... MTD0start + kernelsize] = kernel[0 ... kernelsize]
+    flashimage.write
+  end
+
+  def self.loadkernel(filename)
+    flashimage = Flashimage.new(FLASHIMAGE)
+    flashimage.data[MTD1start ... MTD1end] = "\xff" * MTD1size
+    kernel = nil
+    File.open(filename, 'rb') { |f|
+      kernel = f.read
+    }
+    puts("Kernel size: 0x%08x byte" % kernel.size)
+    kernelsize = kernel.size - 8
+    flashimage.data[MTD1start ... MTD1start + kernelsize] = kernel[0 ... kernelsize]
+    flashimage.write
+  end
+end # Adam2
+
 def test
 	PARTITIONS.each { |label, partition|
 		puts label.inspect
@@ -302,6 +365,12 @@ elsif command == 'load-web'
 elsif command == 'load-code'
 	# Load code partition from file into flash.
 	loadpart('code', ARGV[1])
+elsif command == 'load-filesystem'
+	# Load kernel from file into flash (AVM).
+	Adam2.loadfilesystem(ARGV[1])
+elsif command == 'load-kernel'
+	# Load kernel from file into flash (AVM).
+	Adam2.loadkernel(ARGV[1])
 elsif command == 'configuration'
 	# Modify web partition.
 	changepartition(PARTITIONS['configuration'], ARGV[1])
