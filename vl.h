@@ -679,6 +679,8 @@ int register_ioport_write(int start, int length, int size,
                           IOPortWriteFunc *func, void *opaque);
 void isa_unassign_ioport(int start, int length);
 
+void isa_mmio_init(target_phys_addr_t base, target_phys_addr_t size);
+
 /* PCI bus */
 
 extern target_phys_addr_t pci_mem_base;
@@ -1294,6 +1296,12 @@ int tc58128_init(struct SH7750State *s, char *zone1, char *zone2);
 
 /* NOR flash devices */
 typedef struct pflash_t pflash_t;
+
+pflash_t *pflash_cfi01_register (target_ulong base, ram_addr_t off,
+                                 BlockDriverState *bs,
+                                 target_ulong sector_len, int nb_blocs, int width,
+                                 uint16_t id0, uint16_t id1, 
+                                 uint16_t id2, uint16_t id3);
 
 pflash_t *pflash_register (target_ulong base, ram_addr_t off,
                            BlockDriverState *bs,
