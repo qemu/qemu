@@ -1,3 +1,8 @@
+2006-09-18 03:15  pbrook
+
+	* Makefile.target, vl.h, hw/isa_mmio.c, hw/mips_r4k.c, hw/ppc.c,
+	  hw/ppc_chrp.c: Merge common ISA access routines.
+
 2006-09-17 05:20  pbrook
 
 	* hw/esp.c: SPARC SCSI fixes.

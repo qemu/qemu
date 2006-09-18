@@ -117,88 +117,6 @@ void cpu_mips_clock_init (CPUState *env)
     cpu_mips_update_count(env, 1, 0);
 }
 
-static void io_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
-{
-#if 0
-    if (logfile)
-        fprintf(logfile, "%s: addr %08x val %08x\n", __func__, addr, value);
-#endif
-    cpu_outb(NULL, addr & 0xffff, value);
-}
-
-static uint32_t io_readb (void *opaque, target_phys_addr_t addr)
-{
-    uint32_t ret = cpu_inb(NULL, addr & 0xffff);
-#if 0
-    if (logfile)
-        fprintf(logfile, "%s: addr %08x val %08x\n", __func__, addr, ret);
-#endif
-    return ret;
-}
-
-static void io_writew (void *opaque, target_phys_addr_t addr, uint32_t value)
-{
-#if 0
-    if (logfile)
-        fprintf(logfile, "%s: addr %08x val %08x\n", __func__, addr, value);
-#endif
-    if (bigendian) {
-        value = bswap16(value);
-    }
-    cpu_outw(NULL, addr & 0xffff, value);
-}
-
-static uint32_t io_readw (void *opaque, target_phys_addr_t addr)
-{
-    uint32_t ret = cpu_inw(NULL, addr & 0xffff);
-    if (bigendian) {
-        ret = bswap16(ret);
-    }
-#if 0
-    if (logfile)
-        fprintf(logfile, "%s: addr %08x val %08x\n", __func__, addr, ret);
-#endif
-    return ret;
-}
-
-static void io_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
-{
-#if 0
-    if (logfile)
-        fprintf(logfile, "%s: addr %08x val %08x\n", __func__, addr, value);
-#endif
-    if (bigendian) {
-        value = bswap32(value);
-    }
-    cpu_outl(NULL, addr & 0xffff, value);
-}
-
-static uint32_t io_readl (void *opaque, target_phys_addr_t addr)
-{
-    uint32_t ret = cpu_inl(NULL, addr & 0xffff);
-
-    if (bigendian) {
-        ret = bswap32(ret);
-    }
-#if 0
-    if (logfile)
-        fprintf(logfile, "%s: addr %08x val %08x\n", __func__, addr, ret);
-#endif
-    return ret;
-}
-
-static CPUWriteMemoryFunc * const io_write[] = {
-    io_writeb,
-    io_writew,
-    io_writel,
-};
-
-static CPUReadMemoryFunc * const io_read[] = {
-    io_readb,
-    io_readw,
-    io_readl,
-};
-
 static int bios_load(const char *filename, unsigned long bios_offset, unsigned long address)
 {
     char buf[1024];
@@ -232,7 +150,6 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
     char buf[1024];
     int64_t entry = 0;
     unsigned long bios_offset;
-    int io_memory;
     int ret;
     CPUState *env;
     long kernel_size;
@@ -320,8 +237,7 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
     cpu_mips_irqctrl_init();
 
     /* Register 64 KB of ISA IO space at 0x14000000 */
-    io_memory = cpu_register_io_memory(0, io_read, io_write, NULL);
-    cpu_register_physical_memory(0x14000000, 0x00010000, io_memory);
+    isa_mmio_init(0x14000000, 0x00010000);
     isa_mem_base = 0x10000000;
 
     isa_pic = pic_init(pic_irq_request, env);
@@ -443,7 +359,7 @@ static void mips_ar7_init (int ram_size, int vga_ram_size, int boot_device,
         }
 
         /* a0 = argc, a1 = argv, a2 = envp */
-        env->gpr[4] = 1;
+        env->gpr[4] = 0;
         env->gpr[5] = 0;
         env->gpr[6] = 0;
 
