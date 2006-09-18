@@ -675,6 +675,8 @@ int register_ioport_write(int start, int length, int size,
                           IOPortWriteFunc *func, void *opaque);
 void isa_unassign_ioport(int start, int length);
 
+void isa_mmio_init(target_phys_addr_t base, target_phys_addr_t size);
+
 /* PCI bus */
 
 extern target_phys_addr_t pci_mem_base;

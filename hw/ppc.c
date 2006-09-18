@@ -201,64 +201,6 @@ void cpu_ppc_reset (CPUState *env)
 }
 #endif
 
-static void PPC_io_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
-{
-    cpu_outb(NULL, addr & 0xffff, value);
-}
-
-static uint32_t PPC_io_readb (void *opaque, target_phys_addr_t addr)
-{
-    uint32_t ret = cpu_inb(NULL, addr & 0xffff);
-    return ret;
-}
-
-static void PPC_io_writew (void *opaque, target_phys_addr_t addr, uint32_t value)
-{
-#ifdef TARGET_WORDS_BIGENDIAN
-    value = bswap16(value);
-#endif
-    cpu_outw(NULL, addr & 0xffff, value);
-}
-
-static uint32_t PPC_io_readw (void *opaque, target_phys_addr_t addr)
-{
-    uint32_t ret = cpu_inw(NULL, addr & 0xffff);
-#ifdef TARGET_WORDS_BIGENDIAN
-    ret = bswap16(ret);
-#endif
-    return ret;
-}
-
-static void PPC_io_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
-{
-#ifdef TARGET_WORDS_BIGENDIAN
-    value = bswap32(value);
-#endif
-    cpu_outl(NULL, addr & 0xffff, value);
-}
-
-static uint32_t PPC_io_readl (void *opaque, target_phys_addr_t addr)
-{
-    uint32_t ret = cpu_inl(NULL, addr & 0xffff);
-
-#ifdef TARGET_WORDS_BIGENDIAN
-    ret = bswap32(ret);
-#endif
-    return ret;
-}
-
-CPUWriteMemoryFunc *PPC_io_write[] = {
-    &PPC_io_writeb,
-    &PPC_io_writew,
-    &PPC_io_writel,
-};
-
-CPUReadMemoryFunc *PPC_io_read[] = {
-    &PPC_io_readb,
-    &PPC_io_readw,
-    &PPC_io_readl,
-};
-
 /*****************************************************************************/
 /* Debug port */
 void PPC_debug_write (void *opaque, uint32_t addr, uint32_t val)
