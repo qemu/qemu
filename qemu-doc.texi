@@ -1,7 +1,7 @@
 \input texinfo @c -*- texinfo -*-
 @c %**start of header
 @setfilename qemu-doc.info
-@settitle QEMU CPU Emulator User Documentation
+@settitle QEMU Emulator User Documentation
 @exampleindent 0
 @paragraphindent 0
 @c %**end of header
@@ -9,7 +9,7 @@
 @iftex
 @titlepage
 @sp 7
-@center @titlefont{QEMU CPU Emulator}
+@center @titlefont{QEMU Emulator}
 @sp 1
 @center @titlefont{User Documentation}
 @sp 3
@@ -1114,6 +1114,8 @@ This is the standard way to connect QEMU to a real network. QEMU adds
 a virtual network device on your host (called @code{tapN}), and you
 can then configure it as if it was a real ethernet card.
 
+@subsubsection Linux host
+
 As an example, you can download the @file{linux-test-xxx.tar.gz}
 archive and copy the script @file{qemu-ifup} in @file{/etc} and
 configure properly @code{sudo} so that the command @code{ifconfig}
@@ -1123,6 +1125,13 @@ device @file{/dev/net/tun} must be present.
 
 See @ref{sec_invocation} to have examples of command lines using the
 TAP network interfaces.
+
+@subsubsection Windows host
+
+There is a virtual ethernet driver for Windows 2000/XP systems, called
+TAP-Win32. But it is not included in standard QEMU for Windows,
+so you will need to get it separately. It is part of OpenVPN package,
+so download OpenVPN from : @url{http://openvpn.net/}.
 
 @subsection Using the user mode network stack
 
