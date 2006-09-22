@@ -548,8 +548,10 @@ int cpu_exec(CPUState *env1)
 			//do_interrupt(0, 0, 0, 0, 0);
 			env->interrupt_request &= ~CPU_INTERRUPT_TIMER;
 		    } else if (interrupt_request & CPU_INTERRUPT_HALT) {
-                        env1->halted = 1;
-                        return EXCP_HALTED;
+			env->interrupt_request &= ~CPU_INTERRUPT_HALT;
+			env->halted = 1;
+			env->exception_index = EXCP_HLT;
+			cpu_loop_exit();
                     }
 #elif defined(TARGET_ARM)
                     if (interrupt_request & CPU_INTERRUPT_FIQ
