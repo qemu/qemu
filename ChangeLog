@@ -1,3 +1,20 @@
+2006-09-21 23:46  bellard
+
+	* hw/: vga.c, vga_int.h: VBE: 8 bit DACs + support for VBE BIOS IDs
+	  (Volker Ruppert)
+
+2006-09-21 22:34  pbrook
+
+	* pc-bios/openbios-sparc32: Update sparc bios image (Blue Swirl).
+
+2006-09-20 22:30  bellard
+
+	* cpu-exec.c, hw/slavio_misc.c: sun4m halt support (Blue Swirl)
+
+2006-09-20 22:28  bellard
+
+	* qemu-doc.texi: update
+
 2006-09-18 03:15  pbrook
 
 	* Makefile.target, vl.h, hw/isa_mmio.c, hw/mips_r4k.c, hw/ppc.c,

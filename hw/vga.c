@@ -422,7 +422,9 @@ static void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val)
         case VBE_DISPI_INDEX_ID:
             if (val == VBE_DISPI_ID0 ||
                 val == VBE_DISPI_ID1 ||
-                val == VBE_DISPI_ID2) {
+                val == VBE_DISPI_ID2 ||
+                val == VBE_DISPI_ID3 ||
+                val == VBE_DISPI_ID4) {
                 s->vbe_regs[s->vbe_index] = val;
             }
             break;
@@ -505,6 +507,7 @@ static void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val)
                 /* XXX: the bios should do that */
                 s->bank_offset = 0;
             }
+            s->dac_8bit = (val & VBE_DISPI_8BIT_DAC) > 0;
             s->vbe_regs[s->vbe_index] = val;
             break;
         case VBE_DISPI_INDEX_VIRT_WIDTH:
@@ -921,9 +924,15 @@ static int update_palette256(VGAState *s)
     palette = s->last_palette;
     v = 0;
     for(i = 0; i < 256; i++) {
-        col = s->rgb_to_pixel(c6_to_8(s->palette[v]), 
-                              c6_to_8(s->palette[v + 1]), 
-                              c6_to_8(s->palette[v + 2]));
+        if (s->dac_8bit) {
+          col = s->rgb_to_pixel(s->palette[v], 
+                                s->palette[v + 1], 
+                                s->palette[v + 2]);
+        } else {
+          col = s->rgb_to_pixel(c6_to_8(s->palette[v]), 
+                                c6_to_8(s->palette[v + 1]), 
+                                c6_to_8(s->palette[v + 2]));
+        }
         if (col != palette[i]) {
             full_update = 1;
             palette[i] = col;
