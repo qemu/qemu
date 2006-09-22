@@ -80,7 +80,7 @@ dp83815_mmio_readw addr=0xf2001084 val = 0x7849
 /* EEPROM support is optional. */
 #define CONFIG_EEPROM
 
-#define logout(fmt, args...) printf("%-24s" fmt, __func__, ##args)
+#define logout(fmt, args...) printf("DP8381X %-24s" fmt, __func__, ##args)
 
 /* Silicon revisions for the different hardware */
 #define DP83815CVNG     0x00000302
@@ -100,94 +100,6 @@ dp83815_mmio_readw addr=0xf2001084 val = 0x7849
 #define DEBUG_DP83815
 
 #define MAX_ETH_FRAME_SIZE 1514
-
-#if 0
-#define E8390_CMD	0x00  /* The command register (for all pages) */
-/* Page 0 register offsets. */
-#define EN0_CLDALO	0x01	/* Low byte of current local dma addr  RD */
-#define EN0_STARTPG	0x01	/* Starting page of ring bfr WR */
-#define EN0_CLDAHI	0x02	/* High byte of current local dma addr  RD */
-#define EN0_STOPPG	0x02	/* Ending page +1 of ring bfr WR */
-#define EN0_BOUNDARY	0x03	/* Boundary page of ring bfr RD WR */
-#define EN0_TSR		0x04	/* Transmit status reg RD */
-#define EN0_TPSR	0x04	/* Transmit starting page WR */
-#define EN0_NCR		0x05	/* Number of collision reg RD */
-#define EN0_TCNTLO	0x05	/* Low  byte of tx byte count WR */
-#define EN0_FIFO	0x06	/* FIFO RD */
-#define EN0_TCNTHI	0x06	/* High byte of tx byte count WR */
-#define EN0_ISR		0x07	/* Interrupt status reg RD WR */
-#define EN0_CRDALO	0x08	/* low byte of current remote dma address RD */
-#define EN0_RSARLO	0x08	/* Remote start address reg 0 */
-#define EN0_CRDAHI	0x09	/* high byte, current remote dma address RD */
-#define EN0_RSARHI	0x09	/* Remote start address reg 1 */
-#define EN0_RCNTLO	0x0a	/* Remote byte count reg WR */
-#define EN0_RTL8029ID0	0x0a	/* Realtek ID byte #1 RD */
-#define EN0_RCNTHI	0x0b	/* Remote byte count reg WR */
-#define EN0_RTL8029ID1	0x0b	/* Realtek ID byte #2 RD */
-#define EN0_RSR		0x0c	/* rx status reg RD */
-#define EN0_RXCR	0x0c	/* RX configuration reg WR */
-#define EN0_TXCR	0x0d	/* TX configuration reg WR */
-#define EN0_COUNTER0	0x0d	/* Rcv alignment error counter RD */
-#define EN0_DCFG	0x0e	/* Data configuration reg WR */
-#define EN0_COUNTER1	0x0e	/* Rcv CRC error counter RD */
-#define EN0_IMR		0x0f	/* Interrupt mask reg WR */
-#define EN0_COUNTER2	0x0f	/* Rcv missed frame error counter RD */
-
-#define EN1_PHYS        0x11
-#define EN1_CURPAG      0x17
-#define EN1_MULT        0x18
-
-#define EN2_STARTPG	0x21	/* Starting page of ring bfr RD */
-#define EN2_STOPPG	0x22	/* Ending page +1 of ring bfr RD */
-
-#define EN3_CONFIG0	0x33
-#define EN3_CONFIG1	0x34
-#define EN3_CONFIG2	0x35
-#define EN3_CONFIG3	0x36
-
-/*  Register accessed at EN_CMD, the 8390 base addr.  */
-#define E8390_STOP	0x01	/* Stop and reset the chip */
-#define E8390_START	0x02	/* Start the chip, clear reset */
-#define E8390_TRANS	0x04	/* Transmit a frame */
-#define E8390_RREAD	0x08	/* Remote read */
-#define E8390_RWRITE	0x10	/* Remote write  */
-#define E8390_NODMA	0x20	/* Remote DMA */
-#define E8390_PAGE0	0x00	/* Select page chip registers */
-#define E8390_PAGE1	0x40	/* using the two high-order bits */
-#define E8390_PAGE2	0x80	/* Page 3 is invalid. */
-
-/* Bits in EN0_ISR - Interrupt status register */
-#define ENISR_RX	0x01	/* Receiver, no error */
-#define ENISR_TX	0x02	/* Transmitter, no error */
-#define ENISR_RX_ERR	0x04	/* Receiver, with error */
-#define ENISR_TX_ERR	0x08	/* Transmitter, with error */
-#define ENISR_OVER	0x10	/* Receiver overwrote the ring */
-#define ENISR_COUNTERS	0x20	/* Counters need emptying */
-#define ENISR_RDC	0x40	/* remote dma complete */
-#define ENISR_RESET	0x80	/* Reset completed */
-#define ENISR_ALL	0x3f	/* Interrupts we will enable */
-
-/* Bits in received packet status byte and EN0_RSR*/
-#define ENRSR_RXOK	0x01	/* Received a good packet */
-#define ENRSR_CRC	0x02	/* CRC error */
-#define ENRSR_FAE	0x04	/* frame alignment error */
-#define ENRSR_FO	0x08	/* FIFO overrun */
-#define ENRSR_MPA	0x10	/* missed pkt */
-#define ENRSR_PHY	0x20	/* physical/multicast address */
-#define ENRSR_DIS	0x40	/* receiver disable. set in monitor mode */
-#define ENRSR_DEF	0x80	/* deferring */
-
-/* Transmitted packet status, EN0_TSR. */
-#define ENTSR_PTX 0x01	/* Packet transmitted without error */
-#define ENTSR_ND  0x02	/* The transmit wasn't deferred. */
-#define ENTSR_COL 0x04	/* The transmit collided at least once. */
-#define ENTSR_ABT 0x08  /* The transmit collided 16 times, and was deferred. */
-#define ENTSR_CRS 0x10	/* The carrier sense was lost. */
-#define ENTSR_FU  0x20  /* A "FIFO underrun" occurred during transmit. */
-#define ENTSR_CDH 0x40	/* The collision detect "heartbeat" signal was lost. */
-#define ENTSR_OWC 0x80  /* There was an out-of-window collision. */
-
-#endif
 
 #define DP83815_PMEM_SIZE    (32*1024)
 #define DP83815_PMEM_START   (16*1024)
@@ -380,10 +292,6 @@ static uint16_t eeprom_action(eeprom_state_t *ee, eeprom_bits_t bits)
 
 static void dp83815_reset(DP83815State *s)
 {
-#if 0
-    int i;
-#endif
-
 #if defined(DEBUG_DP83815)
     logout("???\n");
 #endif
@@ -464,10 +372,6 @@ static int dp83815_can_receive(void *opaque)
     logout("???\n");
 #endif
 
-#if 0
-    if (s->cmd & E8390_STOP)
-        return 1;
-#endif
     return !dp83815_buffer_full(s);
 }
 
@@ -578,163 +482,11 @@ static void dp83815_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 #ifdef DEBUG_DP83815
     logout("io write addr=0x%x val=0x%02x\n", addr, val);
 #endif
-#if 0
-    if (addr == E8390_CMD) {
-        /* control register */
-        s->cmd = val;
-        if (!(val & E8390_STOP)) { /* START bit makes no sense on RTL8029... */
-            s->isr &= ~ENISR_RESET;
-            /* test specific case: zero length transfert */
-            if ((val & (E8390_RREAD | E8390_RWRITE)) &&
-                s->rcnt == 0) {
-                s->isr |= ENISR_RDC;
-                dp83815_update_irq(s);
-            }
-            if (val & E8390_TRANS) {
-                index = (s->tpsr << 8);
-                /* XXX: next 2 lines are a hack to make netware 3.11 work */ 
-                if (index >= DP83815_PMEM_END)
-                    index -= DP83815_PMEM_SIZE;
-                /* fail safe: check range on the transmitted length  */
-                if (index + s->tcnt <= DP83815_PMEM_END) {
-                    qemu_send_packet(s->vc, s->mem + index, s->tcnt);
-                }
-                /* signal end of transfert */
-                s->tsr = ENTSR_PTX;
-                s->isr |= ENISR_TX;
-                s->cmd &= ~E8390_TRANS; 
-                dp83815_update_irq(s);
-            }
-        }
-    } else {
-        page = s->cmd >> 6;
-        offset = addr | (page << 4);
-        switch(offset) {
-        case EN0_STARTPG:
-            s->start = val << 8;
-            break;
-        case EN0_STOPPG:
-            s->stop = val << 8;
-            break;
-        case EN0_BOUNDARY:
-            s->boundary = val;
-            break;
-        case EN0_IMR:
-            s->imr = val;
-            dp83815_update_irq(s);
-            break;
-        case EN0_TPSR:
-            s->tpsr = val;
-            break;
-        case EN0_TCNTLO:
-            s->tcnt = (s->tcnt & 0xff00) | val;
-            break;
-        case EN0_TCNTHI:
-            s->tcnt = (s->tcnt & 0x00ff) | (val << 8);
-            break;
-        case EN0_RSARLO:
-            s->rsar = (s->rsar & 0xff00) | val;
-            break;
-        case EN0_RSARHI:
-            s->rsar = (s->rsar & 0x00ff) | (val << 8);
-            break;
-        case EN0_RCNTLO:
-            s->rcnt = (s->rcnt & 0xff00) | val;
-            break;
-        case EN0_RCNTHI:
-            s->rcnt = (s->rcnt & 0x00ff) | (val << 8);
-            break;
-        case EN0_RXCR:
-            s->rxcr = val;
-            break;
-        case EN0_DCFG:
-            s->dcfg = val;
-            break;
-        case EN0_ISR:
-            s->isr &= ~(val & 0x7f);
-            dp83815_update_irq(s);
-            break;
-        case EN1_PHYS ... EN1_PHYS + 5:
-            s->phys[offset - EN1_PHYS] = val;
-            break;
-        case EN1_CURPAG:
-            s->curpag = val;
-            break;
-        case EN1_MULT ... EN1_MULT + 7:
-            s->mult[offset - EN1_MULT] = val;
-            break;
-        }
-    }
-#endif
 }
 
 static uint32_t dp83815_ioport_read(void *opaque, uint32_t addr)
 {
     int ret = 0;
-#if 0
-    DP83815State *s = opaque;
-    int offset, page;
-    addr &= 0xffff;
-    if (addr == E8390_CMD) {
-        ret = s->cmd;
-    } else {
-        page = s->cmd >> 6;
-        offset = addr | (page << 4);
-        switch(offset) {
-        case EN0_TSR:
-            ret = s->tsr;
-            break;
-        case EN0_BOUNDARY:
-            ret = s->boundary;
-            break;
-        case EN0_ISR:
-            ret = s->isr;
-            break;
-        case EN0_RSARLO:
-            ret = s->rsar & 0x00ff;
-            break;
-        case EN0_RSARHI:
-            ret = s->rsar >> 8;
-            break;
-        case EN1_PHYS ... EN1_PHYS + 5:
-            ret = s->phys[offset - EN1_PHYS];
-            break;
-        case EN1_CURPAG:
-            ret = s->curpag;
-            break;
-        case EN1_MULT ... EN1_MULT + 7:
-            ret = s->mult[offset - EN1_MULT];
-            break;
-        case EN0_RSR:
-            ret = s->rsr;
-            break;
-        case EN2_STARTPG:
-            ret = s->start >> 8;
-            break;
-        case EN2_STOPPG:
-            ret = s->stop >> 8;
-            break;
-        case EN0_RTL8029ID0:
-            ret = 0x50;
-            break;
-        case EN0_RTL8029ID1:
-            ret = 0x43;
-            break;
-        case EN3_CONFIG0:
-            ret = 0;		/* 10baseT media */
-            break;
-        case EN3_CONFIG2:
-            ret = 0x40;		/* 10baseT active */
-            break;
-        case EN3_CONFIG3:
-            ret = 0x40;		/* Full duplex */
-            break;
-        default:
-            ret = 0x00;
-            break;
-        }
-    }
-#endif
 #ifdef DEBUG_DP83815
     logout("io read addr=0x%x val=%02x\n", addr, ret);
 #endif
@@ -819,20 +571,6 @@ static inline void dp83815_dma_update(DP83815State *s, int len)
     } else {
         s->rcnt -= len;
     }
-}
-#endif
-
-#if 0
-static void dp83815_reset_ioport_write(void *opaque, uint32_t addr, uint32_t val)
-{
-    /* nothing to do (end of reset pulse) */
-}
-
-static uint32_t dp83815_reset_ioport_read(void *opaque, uint32_t addr)
-{
-    DP83815State *s = opaque;
-    dp83815_reset(s);
-    return 0;
 }
 #endif
 
@@ -1250,6 +988,14 @@ int dp8381x_load(QEMUFile *f, void *opaque, int version_id)
     return result;
 }
 
+static void nic_reset(void *opaque)
+{
+    PCIDP83815State *d = (PCIDP83815State *)opaque;
+#if defined(DEBUG_DP83815)
+    logout("%p\n", d);
+#endif
+}
+
 static void dp8381x_save(QEMUFile *f, void *opaque)
 {
     PCIDP83815State *d = (PCIDP83815State *)opaque;
@@ -1328,6 +1074,8 @@ void pci_dp83815_init(PCIBus *bus, NICInfo *nd)
              s->macaddr[4],
              s->macaddr[5]);
              
+    qemu_register_reset(nic_reset, d);
+
     register_savevm("dp8381x", dp8381x_instance, dp8381x_version,
                     dp8381x_save, dp8381x_load, d);
 }
