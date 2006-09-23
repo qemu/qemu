@@ -77,31 +77,49 @@ static CPUReadMemoryFunc *pci_vpb_config_read[] = {
     &pci_vpb_config_readl,
 };
 
+static int pci_vpb_irq;
+
 static void pci_vpb_set_irq(PCIDevice *d, void *pic, int irq_num, int level)
 {
-    pic_set_irq_new(pic, 27 + irq_num, level);
+    pic_set_irq_new(pic, pci_vpb_irq + irq_num, level);
 }
 
-PCIBus *pci_vpb_init(void *pic)
+PCIBus *pci_vpb_init(void *pic, int irq, int realview)
 {
     PCIBus *s;
     PCIDevice *d;
     int mem_config;
+    uint32_t base;
+    const char * name;
 
+    pci_vpb_irq = irq;
+    if (realview) {
+        base = 0x60000000;
+        name = "RealView EB PCI Controller";
+    } else {
+        base = 0x40000000;
+        name = "Versatile/PB PCI Controller";
+    }
     s = pci_register_bus(pci_vpb_set_irq, pic, 11 << 3);
     /* ??? Register memory space.  */
 
     mem_config = cpu_register_io_memory(0, pci_vpb_config_read,
                                         pci_vpb_config_write, s);
     /* Selfconfig area.  */
-    cpu_register_physical_memory(0x41000000, 0x10000, mem_config);
+    cpu_register_physical_memory(base + 0x01000000, 0x10000, mem_config);
     /* Normal config area.  */
-    cpu_register_physical_memory(0x42000000, 0x10000, mem_config);
+    cpu_register_physical_memory(base + 0x02000000, 0x10000, mem_config);
 
-    d = pci_register_device(s, "Versatile/PB PCI Controller",
-                            sizeof(PCIDevice), -1, NULL, NULL);
+    d = pci_register_device(s, name, sizeof(PCIDevice), -1, NULL, NULL);
+
+    if (realview) {
+        /* IO memory area.  */
+        isa_mmio_init(base + 0x03000000, 0x00100000);
+    }
+
     d->config[0x00] = 0xee; // vendor_id
     d->config[0x01] = 0x10;
+    /* Both boards have the same device ID.  Oh well.  */
     d->config[0x02] = 0x00; // device_id
     d->config[0x03] = 0x03;
     d->config[0x04] = 0x00;

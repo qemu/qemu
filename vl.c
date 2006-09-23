@@ -6150,6 +6150,7 @@ void register_machines(void)
     qemu_register_machine(&integratorcp1026_machine);
     qemu_register_machine(&versatilepb_machine);
     qemu_register_machine(&versatileab_machine);
+    qemu_register_machine(&realview_machine);
 #elif defined(TARGET_SH4)
     qemu_register_machine(&shix_machine);
 #else

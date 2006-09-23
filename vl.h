@@ -778,7 +778,7 @@ PCIBus *pci_pmac_init(void *pic);
 PCIBus *pci_apb_init(target_ulong special_base, target_ulong mem_base,
                      void *pic);
 
-PCIBus *pci_vpb_init(void *pic);
+PCIBus *pci_vpb_init(void *pic, int irq, int realview);
 
 /* piix_pci.c */
 PCIBus *i440fx_init(void);
@@ -1222,6 +1222,9 @@ extern QEMUMachine integratorcp1026_machine;
 extern QEMUMachine versatilepb_machine;
 extern QEMUMachine versatileab_machine;
 
+/* realview.c */
+extern QEMUMachine realview_machine;
+
 /* ps2.c */
 void *ps2_kbd_init(void (*update_irq)(void *, int), void *update_arg);
 void *ps2_mouse_init(void (*update_irq)(void *, int), void *update_arg);
@@ -1244,7 +1247,7 @@ void pl011_init(uint32_t base, void *pic, int irq, CharDriverState *chr);
 void pl050_init(uint32_t base, void *pic, int irq, int is_mouse);
 
 /* pl080.c */
-void *pl080_init(uint32_t base, void *pic, int irq);
+void *pl080_init(uint32_t base, void *pic, int irq, int nchannels);
 
 /* pl190.c */
 void *pl190_init(uint32_t base, void *parent, int irq, int fiq);
@@ -1252,6 +1255,12 @@ void *pl190_init(uint32_t base, void *parent, int irq, int fiq);
 /* arm-timer.c */
 void sp804_init(uint32_t base, void *pic, int irq);
 void icp_pit_init(uint32_t base, void *pic, int irq);
+
+/* arm_sysctl.c */
+void arm_sysctl_init(uint32_t base, uint32_t sys_id);
+
+/* arm_gic.c */
+void *arm_gic_init(uint32_t base, void *parent, int parent_irq);
 
 /* arm_boot.c */
 
