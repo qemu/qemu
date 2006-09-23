@@ -1,5 +1,5 @@
 /* 
- * Arm PrimeCell PL080 DMA controller
+ * Arm PrimeCell PL080/PL081 DMA controller
  *
  * Copyright (c) 2006 CodeSourcery.
  * Written by Paul Brook
@@ -9,7 +9,7 @@
 
 #include "vl.h"
 
-#define PL080_NUM_CHANNELS 8
+#define PL080_MAX_CHANNELS 8
 #define PL080_CONF_E    0x1
 #define PL080_CONF_M1   0x2
 #define PL080_CONF_M2   0x4
@@ -45,7 +45,8 @@ typedef struct {
     uint32_t sync;
     uint32_t req_single;
     uint32_t req_burst;
-    pl080_channel chan[PL080_NUM_CHANNELS];
+    pl080_channel chan[PL080_MAX_CHANNELS];
+    int nchannels;
     /* Flag to avoid recursive DMA invocations.  */
     int running;
     void *pic;
@@ -54,6 +55,9 @@ typedef struct {
 
 static const unsigned char pl080_id[] =
 { 0x80, 0x10, 0x04, 0x0a, 0x0d, 0xf0, 0x05, 0xb1 };
+
+static const unsigned char pl081_id[] =
+{ 0x81, 0x10, 0x04, 0x0a, 0x0d, 0xf0, 0x05, 0xb1 };
 
 static void pl080_update(pl080_state *s)
 {
@@ -80,7 +84,7 @@ static void pl080_run(pl080_state *s)
     uint32_t req;
 
     s->tc_mask = 0;
-    for (c = 0; c < PL080_NUM_CHANNELS; c++) {
+    for (c = 0; c < s->nchannels; c++) {
         if (s->chan[c].conf & PL080_CCONF_ITC)
             s->tc_mask |= 1 << c;
         if (s->chan[c].conf & PL080_CCONF_IE)
@@ -99,7 +103,7 @@ cpu_abort(cpu_single_env, "DMA active\n");
     }
     s->running = 1;
     while (s->running) {
-        for (c = 0; c < PL080_NUM_CHANNELS; c++) {
+        for (c = 0; c < s->nchannels; c++) {
             ch = &s->chan[c];
 again:
             /* Test if thiws channel has any pending DMA requests.  */
@@ -185,10 +189,16 @@ static uint32_t pl080_read(void *opaque, target_phys_addr_t offset)
 
     offset -= s->base;
     if (offset >= 0xfe0 && offset < 0x1000) {
-        return pl080_id[(offset - 0xfe0) >> 2];
+        if (s->nchannels == 8) {
+            return pl080_id[(offset - 0xfe0) >> 2];
+        } else {
+            return pl081_id[(offset - 0xfe0) >> 2];
+        }
     }
     if (offset >= 0x100 && offset < 0x200) {
         i = (offset & 0xe0) >> 5;
+        if (i >= s->nchannels)
+            goto bad_offset;
         switch (offset >> 2) {
         case 0: /* SrcAddr */
             return s->chan[i].src;
@@ -217,7 +227,7 @@ static uint32_t pl080_read(void *opaque, target_phys_addr_t offset)
         return s->err_int;
     case 7: /* EnbldChns */
         mask = 0;
-        for (i = 0; i < PL080_NUM_CHANNELS; i++) {
+        for (i = 0; i < s->nchannels; i++) {
             if (s->chan[i].conf & PL080_CCONF_E)
                 mask |= 1 << i;
         }
@@ -248,6 +258,8 @@ static void pl080_write(void *opaque, target_phys_addr_t offset,
     offset -= s->base;
     if (offset >= 0x100 && offset < 0x200) {
         i = (offset & 0xe0) >> 5;
+        if (i >= s->nchannels)
+            goto bad_offset;
         switch (offset >> 2) {
         case 0: /* SrcAddr */
             s->chan[i].src = value;
@@ -293,6 +305,7 @@ static void pl080_write(void *opaque, target_phys_addr_t offset,
         s->sync = value;
         break;
     default:
+    bad_offset:
         cpu_abort(cpu_single_env, "pl080_write: Bad offset %x\n", offset);
     }
     pl080_update(s);
@@ -310,7 +323,9 @@ static CPUWriteMemoryFunc *pl080_writefn[] = {
    pl080_write
 };
 
-void *pl080_init(uint32_t base, void *pic, int irq)
+/* The PL080 and PL081 are the same except for the number of channels
+   they implement (8 and 2 respectively).  */
+void *pl080_init(uint32_t base, void *pic, int irq, int nchannels)
 {
     int iomemtype;
     pl080_state *s;
@@ -322,6 +337,7 @@ void *pl080_init(uint32_t base, void *pic, int irq)
     s->base = base;
     s->pic = pic;
     s->irq = irq;
+    s->nchannels = nchannels;
     /* ??? Save/restore.  */
     return s;
 }

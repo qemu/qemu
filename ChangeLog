@@ -1,3 +1,9 @@
+2006-09-23 19:40  pbrook
+
+	* Makefile.target, vl.c, vl.h, hw/arm_gic.c, hw/arm_sysctl.c,
+	  hw/pl080.c, hw/realview.c, hw/versatile_pci.c, hw/versatilepb.c:
+	  Add ARM RealView Emulation Baseboard.
+
 2006-09-21 23:46  bellard
 
 	* hw/: vga.c, vga_int.h: VBE: 8 bit DACs + support for VBE BIOS IDs
