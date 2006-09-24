@@ -1,270 +1,2872 @@
-Index: apmbios.S
-===================================================================
-RCS file: /cvsroot/bochs/bochs/bios/apmbios.S,v
-retrieving revision 1.4
-diff -u -w -r1.4 apmbios.S
---- apmbios.S	26 Dec 2005 10:35:51 -0000	1.4
-+++ apmbios.S	3 May 2006 21:22:46 -0000
-@@ -225,6 +225,7 @@
- APMSYM(05):
-   cmp al, #0x05
-   jne APMSYM(07)
-+  sti
-   hlt
-   jmp APMSYM(ok)
+diff -ruN --exclude Makefile bios/acpi-dsdt.dsl bios.new/acpi-dsdt.dsl
+--- bios/acpi-dsdt.dsl	1970-01-01 01:00:00.000000000 +0100
++++ bios.new/acpi-dsdt.dsl	2006-09-24 20:27:54.000000000 +0200
+@@ -0,0 +1,559 @@
++/*
++ * QEMU ACPI DSDT ASL definition
++ * 
++ * Copyright (c) 2006 Fabrice Bellard
++ * 
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License version 2 as published by the Free Software Foundation.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
++ */
++DefinitionBlock (
++    "acpi-dsdt.aml",    // Output Filename
++    "DSDT",             // Signature
++    0x01,               // DSDT Compliance Revision
++    "QEMU",             // OEMID
++    "QEMUDSDT",         // TABLE ID
++    0x1                 // OEM Revision
++    )
++{
++    Scope (\)
++    {
++        /* CMOS memory access */
++        OperationRegion (CMS, SystemIO, 0x70, 0x02)
++        Field (CMS, ByteAcc, NoLock, Preserve)
++        {
++            CMSI,   8, 
++            CMSD,   8
++        }
++        Method (CMRD, 1, NotSerialized)
++        {
++            Store (Arg0, CMSI)
++            Store (CMSD, Local0)
++            Return (Local0)
++        }
++
++        /* Debug Output */
++        OperationRegion (DBG, SystemIO, 0xb044, 0x04)
++        Field (DBG, DWordAcc, NoLock, Preserve)
++        {
++            DBGL,   32, 
++        }
++    }
++
++
++    /* PCI Bus definition */
++    Scope(\_SB) {
++        Device(PCI0) {
++            Name (_HID, EisaId ("PNP0A03"))
++            Name (_ADR, 0x00)
++            Name (_UID, 1)
++            Name(_PRT, Package() {
++                /* PCI IRQ routing table, example from ACPI 2.0a specification,
++                   section 6.2.8.1 */
++                /* Note: we provide the same info as the PCI routing
++                   table of the Bochs BIOS */
++                   
++                // PCI Slot 0
++                Package() {0x0000ffff, 0, LNKD, 0}, 
++                Package() {0x0000ffff, 1, LNKA, 0}, 
++                Package() {0x0000ffff, 2, LNKB, 0}, 
++                Package() {0x0000ffff, 3, LNKC, 0}, 
++
++                // PCI Slot 1
++                Package() {0x0001ffff, 0, LNKA, 0}, 
++                Package() {0x0001ffff, 1, LNKB, 0}, 
++                Package() {0x0001ffff, 2, LNKC, 0}, 
++                Package() {0x0001ffff, 3, LNKD, 0}, 
++                
++                // PCI Slot 2
++                Package() {0x0002ffff, 0, LNKB, 0}, 
++                Package() {0x0002ffff, 1, LNKC, 0}, 
++                Package() {0x0002ffff, 2, LNKD, 0}, 
++                Package() {0x0002ffff, 3, LNKA, 0}, 
++
++                // PCI Slot 3
++                Package() {0x0003ffff, 0, LNKC, 0}, 
++                Package() {0x0003ffff, 1, LNKD, 0}, 
++                Package() {0x0003ffff, 2, LNKA, 0}, 
++                Package() {0x0003ffff, 3, LNKB, 0}, 
++
++                // PCI Slot 4
++                Package() {0x0004ffff, 0, LNKD, 0}, 
++                Package() {0x0004ffff, 1, LNKA, 0}, 
++                Package() {0x0004ffff, 2, LNKB, 0}, 
++                Package() {0x0004ffff, 3, LNKC, 0}, 
++
++                // PCI Slot 5
++                Package() {0x0005ffff, 0, LNKA, 0}, 
++                Package() {0x0005ffff, 1, LNKB, 0}, 
++                Package() {0x0005ffff, 2, LNKC, 0}, 
++                Package() {0x0005ffff, 3, LNKD, 0}, 
++            })
++
++            Method (_CRS, 0, NotSerialized)
++            {
++            Name (MEMP, ResourceTemplate ()
++            {
++                WordBusNumber (ResourceProducer, MinFixed, MaxFixed, PosDecode,
++                    0x0000,             // Address Space Granularity
++                    0x0000,             // Address Range Minimum
++                    0x00FF,             // Address Range Maximum
++                    0x0000,             // Address Translation Offset
++                    0x0100,             // Address Length
++                    ,, )
++                IO (Decode16,
++                    0x0CF8,             // Address Range Minimum
++                    0x0CF8,             // Address Range Maximum
++                    0x01,               // Address Alignment
++                    0x08,               // Address Length
++                    )
++                WordIO (ResourceProducer, MinFixed, MaxFixed, PosDecode, EntireRange,
++                    0x0000,             // Address Space Granularity
++                    0x0000,             // Address Range Minimum
++                    0x0CF7,             // Address Range Maximum
++                    0x0000,             // Address Translation Offset
++                    0x0CF8,             // Address Length
++                    ,, , TypeStatic)
++                WordIO (ResourceProducer, MinFixed, MaxFixed, PosDecode, EntireRange,
++                    0x0000,             // Address Space Granularity
++                    0x0D00,             // Address Range Minimum
++                    0xFFFF,             // Address Range Maximum
++                    0x0000,             // Address Translation Offset
++                    0xF300,             // Address Length
++                    ,, , TypeStatic)
++                DWordMemory (ResourceProducer, PosDecode, MinFixed, MaxFixed, Cacheable, ReadWrite,
++                    0x00000000,         // Address Space Granularity
++                    0x000A0000,         // Address Range Minimum
++                    0x000BFFFF,         // Address Range Maximum
++                    0x00000000,         // Address Translation Offset
++                    0x00020000,         // Address Length
++                    ,, , AddressRangeMemory, TypeStatic)
++                DWordMemory (ResourceProducer, PosDecode, MinNotFixed, MaxFixed, NonCacheable, ReadWrite,
++                    0x00000000,         // Address Space Granularity
++                    0x00000000,         // Address Range Minimum
++                    0xFEBFFFFF,         // Address Range Maximum
++                    0x00000000,         // Address Translation Offset
++                    0x00000000,         // Address Length
++                    ,, MEMF, AddressRangeMemory, TypeStatic)
++            })
++                CreateDWordField (MEMP, \_SB.PCI0._CRS.MEMF._MIN, PMIN)
++                CreateDWordField (MEMP, \_SB.PCI0._CRS.MEMF._MAX, PMAX)
++                CreateDWordField (MEMP, \_SB.PCI0._CRS.MEMF._LEN, PLEN)
++                /* compute available RAM */
++                Add(CMRD(0x34), ShiftLeft(CMRD(0x35), 8), Local0)
++                ShiftLeft(Local0, 16, Local0)
++                Add(Local0, 0x1000000, Local0)
++                /* update field of last region */
++                Store(Local0, PMIN)
++                Subtract (PMAX, PMIN, PLEN)
++                Increment (PLEN)
++                Return (MEMP)
++            }
++        }
++    }
++
++    Scope(\_SB.PCI0) {
++
++	/* PIIX3 ISA bridge */
++        Device (ISA) {
++            Name (_ADR, 0x00010000)
++        
++            /* PIIX PCI to ISA irq remapping */
++            OperationRegion (P40C, PCI_Config, 0x60, 0x04)
++
++
++            /* Keyboard seems to be important for WinXP install */
++            Device (KBD)
++            {
++                Name (_HID, EisaId ("PNP0303"))
++                Method (_STA, 0, NotSerialized)
++                {
++                    Return (0x0f)
++                }
++
++                Method (_CRS, 0, NotSerialized)
++                {
++                     Name (TMP, ResourceTemplate ()
++                     {
++                    IO (Decode16,
++                        0x0060,             // Address Range Minimum
++                        0x0060,             // Address Range Maximum
++                        0x01,               // Address Alignment
++                        0x01,               // Address Length
++                        )
++                    IO (Decode16,
++                        0x0064,             // Address Range Minimum
++                        0x0064,             // Address Range Maximum
++                        0x01,               // Address Alignment
++                        0x01,               // Address Length
++                        )
++                    IRQNoFlags ()
++                        {1}
++                    })
++                    Return (TMP)
++                }
++            }
++
++	    /* PS/2 mouse */
++            Device (MOU) 
++            {
++                Name (_HID, EisaId ("PNP0F13"))
++                Method (_STA, 0, NotSerialized)
++                {
++                    Return (0x0f)
++                }
++
++                Method (_CRS, 0, NotSerialized)
++                {
++                    Name (TMP, ResourceTemplate ()
++                    {
++                         IRQNoFlags () {12}
++                    })
++                    Return (TMP)
++                }
++            }
++
++	    /* PS/2 floppy controller */
++	    Device (FDC0)
++	    {
++	        Name (_HID, EisaId ("PNP0700"))
++		Method (_STA, 0, NotSerialized)
++		{
++		    Return (0x0F)
++		}
++		Method (_CRS, 0, NotSerialized)
++		{
++		    Name (BUF0, ResourceTemplate ()
++                    {
++                        IO (Decode16, 0x03F2, 0x03F2, 0x00, 0x04)
++                        IO (Decode16, 0x03F7, 0x03F7, 0x00, 0x01)
++                        IRQNoFlags () {6}
++                        DMA (Compatibility, NotBusMaster, Transfer8) {2}
++                    })
++		    Return (BUF0)
++		}
++	    }
++
++	    /* Parallel port */
++	    Device (LPT)
++	    {
++	        Name (_HID, EisaId ("PNP0400"))
++		Method (_STA, 0, NotSerialized)
++		{
++		    Store (\_SB.PCI0.PX13.DRSA, Local0)
++		    And (Local0, 0x80000000, Local0)
++		    If (LEqual (Local0, 0))
++		    {
++			Return (0x00)
++		    }
++		    Else
++		    {
++			Return (0x0F)
++		    }
++		}
++		Method (_CRS, 0, NotSerialized)
++		{
++		    Name (BUF0, ResourceTemplate ()
++                    {
++			IO (Decode16, 0x0378, 0x0378, 0x08, 0x08)
++			IRQNoFlags () {7}
++		    })
++		    Return (BUF0)
++		}
++	    }
++
++	    /* Serial Ports */
++	    Device (COM1)
++	    {
++	        Name (_HID, EisaId ("PNP0501"))
++		Name (_UID, 0x01)
++		Method (_STA, 0, NotSerialized)
++		{
++		    Store (\_SB.PCI0.PX13.DRSC, Local0)
++		    And (Local0, 0x08000000, Local0)
++		    If (LEqual (Local0, 0))
++		    {
++			Return (0x00)
++		    }
++		    Else
++		    {
++			Return (0x0F)
++		    }
++		}
++		Method (_CRS, 0, NotSerialized)
++		{
++		    Name (BUF0, ResourceTemplate ()
++                    {
++			IO (Decode16, 0x03F8, 0x03F8, 0x00, 0x08)
++                	IRQNoFlags () {4}
++		    })
++		    Return (BUF0)
++		}
++	    }
++
++	    Device (COM2)
++	    {
++	        Name (_HID, EisaId ("PNP0501"))
++		Name (_UID, 0x02)
++		Method (_STA, 0, NotSerialized)
++		{
++		    Store (\_SB.PCI0.PX13.DRSC, Local0)
++		    And (Local0, 0x80000000, Local0)
++		    If (LEqual (Local0, 0))
++		    {
++			Return (0x00)
++		    }
++		    Else
++		    {
++			Return (0x0F)
++		    }
++		}
++		Method (_CRS, 0, NotSerialized)
++		{
++		    Name (BUF0, ResourceTemplate ()
++                    {
++			IO (Decode16, 0x02F8, 0x02F8, 0x00, 0x08)
++                	IRQNoFlags () {3}
++		    })
++		    Return (BUF0)
++		}
++	    }
++        }
++
++	/* PIIX4 PM */
++        Device (PX13) {
++	    Name (_ADR, 0x00010003)
++
++	    OperationRegion (P13C, PCI_Config, 0x5c, 0x24)
++	    Field (P13C, DWordAcc, NoLock, Preserve)
++	    {
++		DRSA, 32,
++		DRSB, 32,
++		DRSC, 32,
++		DRSE, 32,
++		DRSF, 32,
++		DRSG, 32,
++		DRSH, 32,
++		DRSI, 32,
++		DRSJ, 32
++	    }
++	}
++    }
++
++    /* PCI IRQs */
++    Scope(\_SB) {
++         Field (\_SB.PCI0.ISA.P40C, ByteAcc, NoLock, Preserve)
++         {
++             PRQ0,   8, 
++             PRQ1,   8, 
++             PRQ2,   8, 
++             PRQ3,   8
++         }
++
++        Device(LNKA){
++                Name(_HID, EISAID("PNP0C0F"))     // PCI interrupt link
++                Name(_UID, 1)
++                Name(_PRS, ResourceTemplate(){
++                    IRQ (Level, ActiveLow, Shared)
++                        {3,4,5,6,7,9,10,11,12}
++                })
++                Method (_STA, 0, NotSerialized)
++                {
++                    Store (0x0B, Local0)
++                    If (And (0x80, PRQ0, Local1))
++                    {
++                         Store (0x09, Local0)
++                    }
++                    Return (Local0)
++                }
++                Method (_DIS, 0, NotSerialized)
++                {
++                    Or (PRQ0, 0x80, PRQ0)
++                }
++                Method (_CRS, 0, NotSerialized)
++                {
++                    Name (PRR0, ResourceTemplate ()
++                    {
++                        IRQ (Level, ActiveLow, Shared)
++                            {1}
++                    })
++                    CreateWordField (PRR0, 0x01, TMP)
++                    Store (PRQ0, Local0)
++                    If (LLess (Local0, 0x80))
++                    {
++                        ShiftLeft (One, Local0, TMP)
++                    }
++                    Else
++                    {
++                        Store (Zero, TMP)
++                    }
++                    Return (PRR0)
++                }
++                Method (_SRS, 1, NotSerialized)
++                {
++                    CreateWordField (Arg0, 0x01, TMP)
++                    FindSetRightBit (TMP, Local0)
++                    Decrement (Local0)
++                    Store (Local0, PRQ0)
++                }
++        }
++        Device(LNKB){
++                Name(_HID, EISAID("PNP0C0F"))     // PCI interrupt link
++                Name(_UID, 2)
++                Name(_PRS, ResourceTemplate(){
++                    IRQ (Level, ActiveLow, Shared)
++                        {3,4,5,6,7,9,10,11,12}
++                })
++                Method (_STA, 0, NotSerialized)
++                {
++                    Store (0x0B, Local0)
++                    If (And (0x80, PRQ1, Local1))
++                    {
++                         Store (0x09, Local0)
++                    }
++                    Return (Local0)
++                }
++                Method (_DIS, 0, NotSerialized)
++                {
++                    Or (PRQ1, 0x80, PRQ1)
++                }
++                Method (_CRS, 0, NotSerialized)
++                {
++                    Name (PRR0, ResourceTemplate ()
++                    {
++                        IRQ (Level, ActiveLow, Shared)
++                            {1}
++                    })
++                    CreateWordField (PRR0, 0x01, TMP)
++                    Store (PRQ1, Local0)
++                    If (LLess (Local0, 0x80))
++                    {
++                        ShiftLeft (One, Local0, TMP)
++                    }
++                    Else
++                    {
++                        Store (Zero, TMP)
++                    }
++                    Return (PRR0)
++                }
++                Method (_SRS, 1, NotSerialized)
++                {
++                    CreateWordField (Arg0, 0x01, TMP)
++                    FindSetRightBit (TMP, Local0)
++                    Decrement (Local0)
++                    Store (Local0, PRQ1)
++                }
++        }
++        Device(LNKC){
++                Name(_HID, EISAID("PNP0C0F"))     // PCI interrupt link
++                Name(_UID, 3)
++                Name(_PRS, ResourceTemplate(){
++                    IRQ (Level, ActiveLow, Shared)
++                        {3,4,5,6,7,9,10,11,12}
++                })
++                Method (_STA, 0, NotSerialized)
++                {
++                    Store (0x0B, Local0)
++                    If (And (0x80, PRQ2, Local1))
++                    {
++                         Store (0x09, Local0)
++                    }
++                    Return (Local0)
++                }
++                Method (_DIS, 0, NotSerialized)
++                {
++                    Or (PRQ2, 0x80, PRQ2)
++                }
++                Method (_CRS, 0, NotSerialized)
++                {
++                    Name (PRR0, ResourceTemplate ()
++                    {
++                        IRQ (Level, ActiveLow, Shared)
++                            {1}
++                    })
++                    CreateWordField (PRR0, 0x01, TMP)
++                    Store (PRQ2, Local0)
++                    If (LLess (Local0, 0x80))
++                    {
++                        ShiftLeft (One, Local0, TMP)
++                    }
++                    Else
++                    {
++                        Store (Zero, TMP)
++                    }
++                    Return (PRR0)
++                }
++                Method (_SRS, 1, NotSerialized)
++                {
++                    CreateWordField (Arg0, 0x01, TMP)
++                    FindSetRightBit (TMP, Local0)
++                    Decrement (Local0)
++                    Store (Local0, PRQ2)
++                }
++        }
++        Device(LNKD){
++                Name(_HID, EISAID("PNP0C0F"))     // PCI interrupt link
++                Name(_UID, 4)
++                Name(_PRS, ResourceTemplate(){
++                    IRQ (Level, ActiveLow, Shared)
++                        {3,4,5,6,7,9,10,11,12}
++                })
++                Method (_STA, 0, NotSerialized)
++                {
++                    Store (0x0B, Local0)
++                    If (And (0x80, PRQ3, Local1))
++                    {
++                         Store (0x09, Local0)
++                    }
++                    Return (Local0)
++                }
++                Method (_DIS, 0, NotSerialized)
++                {
++                    Or (PRQ3, 0x80, PRQ3)
++                }
++                Method (_CRS, 0, NotSerialized)
++                {
++                    Name (PRR0, ResourceTemplate ()
++                    {
++                        IRQ (Level, ActiveLow, Shared)
++                            {1}
++                    })
++                    CreateWordField (PRR0, 0x01, TMP)
++                    Store (PRQ3, Local0)
++                    If (LLess (Local0, 0x80))
++                    {
++                        ShiftLeft (One, Local0, TMP)
++                    }
++                    Else
++                    {
++                        Store (Zero, TMP)
++                    }
++                    Return (PRR0)
++                }
++                Method (_SRS, 1, NotSerialized)
++                {
++                    CreateWordField (Arg0, 0x01, TMP)
++                    FindSetRightBit (TMP, Local0)
++                    Decrement (Local0)
++                    Store (Local0, PRQ3)
++                }
++        }
++    }
++
++    /* S5 = power off state */
++    Name (_S5, Package (4) {
++        0x00, // PM1a_CNT.SLP_TYP 
++        0x00, // PM2a_CNT.SLP_TYP 
++        0x00, // reserved
++        0x00, // reserved
++    })
++}
+diff -ruN --exclude Makefile bios/acpi-dsdt.hex bios.new/acpi-dsdt.hex
+--- bios/acpi-dsdt.hex	1970-01-01 01:00:00.000000000 +0100
++++ bios.new/acpi-dsdt.hex	2006-09-24 20:27:54.000000000 +0200
+@@ -0,0 +1,278 @@
++/*
++ * 
++ * Intel ACPI Component Architecture
++ * ASL Optimizing Compiler version 20060421 [Apr 29 2006]
++ * Copyright (C) 2000 - 2006 Intel Corporation
++ * Supports ACPI Specification Revision 3.0a
++ * 
++ * Compilation of "/usr/local/home/bellard/qemu-current/hw/acpi-dsdt.dsl" - Wed Jun 14 20:09:53 2006
++ * 
++ * C source code output
++ *
++ */
++unsigned char AmlCode[] =
++{
++    0x44,0x53,0x44,0x54,0x32,0x08,0x00,0x00,  /* 00000000    "DSDT2..." */
++    0x01,0x5B,0x51,0x45,0x4D,0x55,0x00,0x00,  /* 00000008    ".[QEMU.." */
++    0x51,0x45,0x4D,0x55,0x44,0x53,0x44,0x54,  /* 00000010    "QEMUDSDT" */
++    0x01,0x00,0x00,0x00,0x49,0x4E,0x54,0x4C,  /* 00000018    "....INTL" */
++    0x21,0x04,0x06,0x20,0x10,0x4F,0x04,0x5C,  /* 00000020    "!.. .O.\" */
++    0x00,0x5B,0x80,0x43,0x4D,0x53,0x5F,0x01,  /* 00000028    ".[.CMS_." */
++    0x0A,0x70,0x0A,0x02,0x5B,0x81,0x10,0x43,  /* 00000030    ".p..[..C" */
++    0x4D,0x53,0x5F,0x01,0x43,0x4D,0x53,0x49,  /* 00000038    "MS_.CMSI" */
++    0x08,0x43,0x4D,0x53,0x44,0x08,0x14,0x14,  /* 00000040    ".CMSD..." */
++    0x43,0x4D,0x52,0x44,0x01,0x70,0x68,0x43,  /* 00000048    "CMRD.phC" */
++    0x4D,0x53,0x49,0x70,0x43,0x4D,0x53,0x44,  /* 00000050    "MSIpCMSD" */
++    0x60,0xA4,0x60,0x5B,0x80,0x44,0x42,0x47,  /* 00000058    "`.`[.DBG" */
++    0x5F,0x01,0x0B,0x44,0xB0,0x0A,0x04,0x5B,  /* 00000060    "_..D...[" */
++    0x81,0x0B,0x44,0x42,0x47,0x5F,0x03,0x44,  /* 00000068    "..DBG_.D" */
++    0x42,0x47,0x4C,0x20,0x10,0x4E,0x25,0x5F,  /* 00000070    "BGL .N%_" */
++    0x53,0x42,0x5F,0x5B,0x82,0x46,0x25,0x50,  /* 00000078    "SB_[.F%P" */
++    0x43,0x49,0x30,0x08,0x5F,0x48,0x49,0x44,  /* 00000080    "CI0._HID" */
++    0x0C,0x41,0xD0,0x0A,0x03,0x08,0x5F,0x41,  /* 00000088    ".A...._A" */
++    0x44,0x52,0x00,0x08,0x5F,0x55,0x49,0x44,  /* 00000090    "DR.._UID" */
++    0x01,0x08,0x5F,0x50,0x52,0x54,0x12,0x47,  /* 00000098    ".._PRT.G" */
++    0x15,0x18,0x12,0x0B,0x04,0x0B,0xFF,0xFF,  /* 000000A0    "........" */
++    0x00,0x4C,0x4E,0x4B,0x44,0x00,0x12,0x0B,  /* 000000A8    ".LNKD..." */
++    0x04,0x0B,0xFF,0xFF,0x01,0x4C,0x4E,0x4B,  /* 000000B0    ".....LNK" */
++    0x41,0x00,0x12,0x0C,0x04,0x0B,0xFF,0xFF,  /* 000000B8    "A......." */
++    0x0A,0x02,0x4C,0x4E,0x4B,0x42,0x00,0x12,  /* 000000C0    "..LNKB.." */
++    0x0C,0x04,0x0B,0xFF,0xFF,0x0A,0x03,0x4C,  /* 000000C8    ".......L" */
++    0x4E,0x4B,0x43,0x00,0x12,0x0D,0x04,0x0C,  /* 000000D0    "NKC....." */
++    0xFF,0xFF,0x01,0x00,0x00,0x4C,0x4E,0x4B,  /* 000000D8    ".....LNK" */
++    0x41,0x00,0x12,0x0D,0x04,0x0C,0xFF,0xFF,  /* 000000E0    "A......." */
++    0x01,0x00,0x01,0x4C,0x4E,0x4B,0x42,0x00,  /* 000000E8    "...LNKB." */
++    0x12,0x0E,0x04,0x0C,0xFF,0xFF,0x01,0x00,  /* 000000F0    "........" */
++    0x0A,0x02,0x4C,0x4E,0x4B,0x43,0x00,0x12,  /* 000000F8    "..LNKC.." */
++    0x0E,0x04,0x0C,0xFF,0xFF,0x01,0x00,0x0A,  /* 00000100    "........" */
++    0x03,0x4C,0x4E,0x4B,0x44,0x00,0x12,0x0D,  /* 00000108    ".LNKD..." */
++    0x04,0x0C,0xFF,0xFF,0x02,0x00,0x00,0x4C,  /* 00000110    ".......L" */
++    0x4E,0x4B,0x42,0x00,0x12,0x0D,0x04,0x0C,  /* 00000118    "NKB....." */
++    0xFF,0xFF,0x02,0x00,0x01,0x4C,0x4E,0x4B,  /* 00000120    ".....LNK" */
++    0x43,0x00,0x12,0x0E,0x04,0x0C,0xFF,0xFF,  /* 00000128    "C......." */
++    0x02,0x00,0x0A,0x02,0x4C,0x4E,0x4B,0x44,  /* 00000130    "....LNKD" */
++    0x00,0x12,0x0E,0x04,0x0C,0xFF,0xFF,0x02,  /* 00000138    "........" */
++    0x00,0x0A,0x03,0x4C,0x4E,0x4B,0x41,0x00,  /* 00000140    "...LNKA." */
++    0x12,0x0D,0x04,0x0C,0xFF,0xFF,0x03,0x00,  /* 00000148    "........" */
++    0x00,0x4C,0x4E,0x4B,0x43,0x00,0x12,0x0D,  /* 00000150    ".LNKC..." */
++    0x04,0x0C,0xFF,0xFF,0x03,0x00,0x01,0x4C,  /* 00000158    ".......L" */
++    0x4E,0x4B,0x44,0x00,0x12,0x0E,0x04,0x0C,  /* 00000160    "NKD....." */
++    0xFF,0xFF,0x03,0x00,0x0A,0x02,0x4C,0x4E,  /* 00000168    "......LN" */
++    0x4B,0x41,0x00,0x12,0x0E,0x04,0x0C,0xFF,  /* 00000170    "KA......" */
++    0xFF,0x03,0x00,0x0A,0x03,0x4C,0x4E,0x4B,  /* 00000178    ".....LNK" */
++    0x42,0x00,0x12,0x0D,0x04,0x0C,0xFF,0xFF,  /* 00000180    "B......." */
++    0x04,0x00,0x00,0x4C,0x4E,0x4B,0x44,0x00,  /* 00000188    "...LNKD." */
++    0x12,0x0D,0x04,0x0C,0xFF,0xFF,0x04,0x00,  /* 00000190    "........" */
++    0x01,0x4C,0x4E,0x4B,0x41,0x00,0x12,0x0E,  /* 00000198    ".LNKA..." */
++    0x04,0x0C,0xFF,0xFF,0x04,0x00,0x0A,0x02,  /* 000001A0    "........" */
++    0x4C,0x4E,0x4B,0x42,0x00,0x12,0x0E,0x04,  /* 000001A8    "LNKB...." */
++    0x0C,0xFF,0xFF,0x04,0x00,0x0A,0x03,0x4C,  /* 000001B0    ".......L" */
++    0x4E,0x4B,0x43,0x00,0x12,0x0D,0x04,0x0C,  /* 000001B8    "NKC....." */
++    0xFF,0xFF,0x05,0x00,0x00,0x4C,0x4E,0x4B,  /* 000001C0    ".....LNK" */
++    0x41,0x00,0x12,0x0D,0x04,0x0C,0xFF,0xFF,  /* 000001C8    "A......." */
++    0x05,0x00,0x01,0x4C,0x4E,0x4B,0x42,0x00,  /* 000001D0    "...LNKB." */
++    0x12,0x0E,0x04,0x0C,0xFF,0xFF,0x05,0x00,  /* 000001D8    "........" */
++    0x0A,0x02,0x4C,0x4E,0x4B,0x43,0x00,0x12,  /* 000001E0    "..LNKC.." */
++    0x0E,0x04,0x0C,0xFF,0xFF,0x05,0x00,0x0A,  /* 000001E8    "........" */
++    0x03,0x4C,0x4E,0x4B,0x44,0x00,0x14,0x4C,  /* 000001F0    ".LNKD..L" */
++    0x0D,0x5F,0x43,0x52,0x53,0x00,0x08,0x4D,  /* 000001F8    "._CRS..M" */
++    0x45,0x4D,0x50,0x11,0x42,0x07,0x0A,0x6E,  /* 00000200    "EMP.B..n" */
++    0x88,0x0D,0x00,0x02,0x0C,0x00,0x00,0x00,  /* 00000208    "........" */
++    0x00,0x00,0xFF,0x00,0x00,0x00,0x00,0x01,  /* 00000210    "........" */
++    0x47,0x01,0xF8,0x0C,0xF8,0x0C,0x01,0x08,  /* 00000218    "G......." */
++    0x88,0x0D,0x00,0x01,0x0C,0x03,0x00,0x00,  /* 00000220    "........" */
++    0x00,0x00,0xF7,0x0C,0x00,0x00,0xF8,0x0C,  /* 00000228    "........" */
++    0x88,0x0D,0x00,0x01,0x0C,0x03,0x00,0x00,  /* 00000230    "........" */
++    0x00,0x0D,0xFF,0xFF,0x00,0x00,0x00,0xF3,  /* 00000238    "........" */
++    0x87,0x17,0x00,0x00,0x0C,0x03,0x00,0x00,  /* 00000240    "........" */
++    0x00,0x00,0x00,0x00,0x0A,0x00,0xFF,0xFF,  /* 00000248    "........" */
++    0x0B,0x00,0x00,0x00,0x00,0x00,0x00,0x00,  /* 00000250    "........" */
++    0x02,0x00,0x87,0x17,0x00,0x00,0x08,0x01,  /* 00000258    "........" */
++    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,  /* 00000260    "........" */
++    0xFF,0xFF,0xBF,0xFE,0x00,0x00,0x00,0x00,  /* 00000268    "........" */
++    0x00,0x00,0x00,0x00,0x79,0x00,0x8A,0x4D,  /* 00000270    "....y..M" */
++    0x45,0x4D,0x50,0x0A,0x5C,0x50,0x4D,0x49,  /* 00000278    "EMP.\PMI" */
++    0x4E,0x8A,0x4D,0x45,0x4D,0x50,0x0A,0x60,  /* 00000280    "N.MEMP.`" */
++    0x50,0x4D,0x41,0x58,0x8A,0x4D,0x45,0x4D,  /* 00000288    "PMAX.MEM" */
++    0x50,0x0A,0x68,0x50,0x4C,0x45,0x4E,0x72,  /* 00000290    "P.hPLENr" */
++    0x43,0x4D,0x52,0x44,0x0A,0x34,0x79,0x43,  /* 00000298    "CMRD.4yC" */
++    0x4D,0x52,0x44,0x0A,0x35,0x0A,0x08,0x00,  /* 000002A0    "MRD.5..." */
++    0x60,0x79,0x60,0x0A,0x10,0x60,0x72,0x60,  /* 000002A8    "`y`..`r`" */
++    0x0C,0x00,0x00,0x00,0x01,0x60,0x70,0x60,  /* 000002B0    ".....`p`" */
++    0x50,0x4D,0x49,0x4E,0x74,0x50,0x4D,0x41,  /* 000002B8    "PMINtPMA" */
++    0x58,0x50,0x4D,0x49,0x4E,0x50,0x4C,0x45,  /* 000002C0    "XPMINPLE" */
++    0x4E,0x75,0x50,0x4C,0x45,0x4E,0xA4,0x4D,  /* 000002C8    "NuPLEN.M" */
++    0x45,0x4D,0x50,0x10,0x42,0x26,0x2E,0x5F,  /* 000002D0    "EMP.B&._" */
++    0x53,0x42,0x5F,0x50,0x43,0x49,0x30,0x5B,  /* 000002D8    "SB_PCI0[" */
++    0x82,0x43,0x20,0x49,0x53,0x41,0x5F,0x08,  /* 000002E0    ".C ISA_." */
++    0x5F,0x41,0x44,0x52,0x0C,0x00,0x00,0x01,  /* 000002E8    "_ADR...." */
++    0x00,0x5B,0x80,0x50,0x34,0x30,0x43,0x02,  /* 000002F0    ".[.P40C." */
++    0x0A,0x60,0x0A,0x04,0x5B,0x82,0x44,0x04,  /* 000002F8    ".`..[.D." */
++    0x4B,0x42,0x44,0x5F,0x08,0x5F,0x48,0x49,  /* 00000300    "KBD_._HI" */
++    0x44,0x0C,0x41,0xD0,0x03,0x03,0x14,0x09,  /* 00000308    "D.A....." */
++    0x5F,0x53,0x54,0x41,0x00,0xA4,0x0A,0x0F,  /* 00000310    "_STA...." */
++    0x14,0x29,0x5F,0x43,0x52,0x53,0x00,0x08,  /* 00000318    ".)_CRS.." */
++    0x54,0x4D,0x50,0x5F,0x11,0x18,0x0A,0x15,  /* 00000320    "TMP_...." */
++    0x47,0x01,0x60,0x00,0x60,0x00,0x01,0x01,  /* 00000328    "G.`.`..." */
++    0x47,0x01,0x64,0x00,0x64,0x00,0x01,0x01,  /* 00000330    "G.d.d..." */
++    0x22,0x02,0x00,0x79,0x00,0xA4,0x54,0x4D,  /* 00000338    ""..y..TM" */
++    0x50,0x5F,0x5B,0x82,0x33,0x4D,0x4F,0x55,  /* 00000340    "P_[.3MOU" */
++    0x5F,0x08,0x5F,0x48,0x49,0x44,0x0C,0x41,  /* 00000348    "_._HID.A" */
++    0xD0,0x0F,0x13,0x14,0x09,0x5F,0x53,0x54,  /* 00000350    "....._ST" */
++    0x41,0x00,0xA4,0x0A,0x0F,0x14,0x19,0x5F,  /* 00000358    "A......_" */
++    0x43,0x52,0x53,0x00,0x08,0x54,0x4D,0x50,  /* 00000360    "CRS..TMP" */
++    0x5F,0x11,0x08,0x0A,0x05,0x22,0x00,0x10,  /* 00000368    "_....".." */
++    0x79,0x00,0xA4,0x54,0x4D,0x50,0x5F,0x5B,  /* 00000370    "y..TMP_[" */
++    0x82,0x47,0x04,0x46,0x44,0x43,0x30,0x08,  /* 00000378    ".G.FDC0." */
++    0x5F,0x48,0x49,0x44,0x0C,0x41,0xD0,0x07,  /* 00000380    "_HID.A.." */
++    0x00,0x14,0x09,0x5F,0x53,0x54,0x41,0x00,  /* 00000388    "..._STA." */
++    0xA4,0x0A,0x0F,0x14,0x2C,0x5F,0x43,0x52,  /* 00000390    "....,_CR" */
++    0x53,0x00,0x08,0x42,0x55,0x46,0x30,0x11,  /* 00000398    "S..BUF0." */
++    0x1B,0x0A,0x18,0x47,0x01,0xF2,0x03,0xF2,  /* 000003A0    "...G...." */
++    0x03,0x00,0x04,0x47,0x01,0xF7,0x03,0xF7,  /* 000003A8    "...G...." */
++    0x03,0x00,0x01,0x22,0x40,0x00,0x2A,0x04,  /* 000003B0    "..."@.*." */
++    0x00,0x79,0x00,0xA4,0x42,0x55,0x46,0x30,  /* 000003B8    ".y..BUF0" */
++    0x5B,0x82,0x4B,0x05,0x4C,0x50,0x54,0x5F,  /* 000003C0    "[.K.LPT_" */
++    0x08,0x5F,0x48,0x49,0x44,0x0C,0x41,0xD0,  /* 000003C8    "._HID.A." */
++    0x04,0x00,0x14,0x28,0x5F,0x53,0x54,0x41,  /* 000003D0    "...(_STA" */
++    0x00,0x70,0x5E,0x5E,0x5E,0x2E,0x50,0x58,  /* 000003D8    ".p^^^.PX" */
++    0x31,0x33,0x44,0x52,0x53,0x41,0x60,0x7B,  /* 000003E0    "13DRSA`{" */
++    0x60,0x0C,0x00,0x00,0x00,0x80,0x60,0xA0,  /* 000003E8    "`.....`." */
++    0x06,0x93,0x60,0x00,0xA4,0x00,0xA1,0x04,  /* 000003F0    "..`....." */
++    0xA4,0x0A,0x0F,0x14,0x21,0x5F,0x43,0x52,  /* 000003F8    "....!_CR" */
++    0x53,0x00,0x08,0x42,0x55,0x46,0x30,0x11,  /* 00000400    "S..BUF0." */
++    0x10,0x0A,0x0D,0x47,0x01,0x78,0x03,0x78,  /* 00000408    "...G.x.x" */
++    0x03,0x08,0x08,0x22,0x80,0x00,0x79,0x00,  /* 00000410    "..."..y." */
++    0xA4,0x42,0x55,0x46,0x30,0x5B,0x82,0x41,  /* 00000418    ".BUF0[.A" */
++    0x06,0x43,0x4F,0x4D,0x31,0x08,0x5F,0x48,  /* 00000420    ".COM1._H" */
++    0x49,0x44,0x0C,0x41,0xD0,0x05,0x01,0x08,  /* 00000428    "ID.A...." */
++    0x5F,0x55,0x49,0x44,0x01,0x14,0x28,0x5F,  /* 00000430    "_UID..(_" */
++    0x53,0x54,0x41,0x00,0x70,0x5E,0x5E,0x5E,  /* 00000438    "STA.p^^^" */
++    0x2E,0x50,0x58,0x31,0x33,0x44,0x52,0x53,  /* 00000440    ".PX13DRS" */
++    0x43,0x60,0x7B,0x60,0x0C,0x00,0x00,0x00,  /* 00000448    "C`{`...." */
++    0x08,0x60,0xA0,0x06,0x93,0x60,0x00,0xA4,  /* 00000450    ".`...`.." */
++    0x00,0xA1,0x04,0xA4,0x0A,0x0F,0x14,0x21,  /* 00000458    ".......!" */
++    0x5F,0x43,0x52,0x53,0x00,0x08,0x42,0x55,  /* 00000460    "_CRS..BU" */
++    0x46,0x30,0x11,0x10,0x0A,0x0D,0x47,0x01,  /* 00000468    "F0....G." */
++    0xF8,0x03,0xF8,0x03,0x00,0x08,0x22,0x10,  /* 00000470    "......"." */
++    0x00,0x79,0x00,0xA4,0x42,0x55,0x46,0x30,  /* 00000478    ".y..BUF0" */
++    0x5B,0x82,0x42,0x06,0x43,0x4F,0x4D,0x32,  /* 00000480    "[.B.COM2" */
++    0x08,0x5F,0x48,0x49,0x44,0x0C,0x41,0xD0,  /* 00000488    "._HID.A." */
++    0x05,0x01,0x08,0x5F,0x55,0x49,0x44,0x0A,  /* 00000490    "..._UID." */
++    0x02,0x14,0x28,0x5F,0x53,0x54,0x41,0x00,  /* 00000498    "..(_STA." */
++    0x70,0x5E,0x5E,0x5E,0x2E,0x50,0x58,0x31,  /* 000004A0    "p^^^.PX1" */
++    0x33,0x44,0x52,0x53,0x43,0x60,0x7B,0x60,  /* 000004A8    "3DRSC`{`" */
++    0x0C,0x00,0x00,0x00,0x80,0x60,0xA0,0x06,  /* 000004B0    ".....`.." */
++    0x93,0x60,0x00,0xA4,0x00,0xA1,0x04,0xA4,  /* 000004B8    ".`......" */
++    0x0A,0x0F,0x14,0x21,0x5F,0x43,0x52,0x53,  /* 000004C0    "...!_CRS" */
++    0x00,0x08,0x42,0x55,0x46,0x30,0x11,0x10,  /* 000004C8    "..BUF0.." */
++    0x0A,0x0D,0x47,0x01,0xF8,0x02,0xF8,0x02,  /* 000004D0    "..G....." */
++    0x00,0x08,0x22,0x08,0x00,0x79,0x00,0xA4,  /* 000004D8    ".."..y.." */
++    0x42,0x55,0x46,0x30,0x5B,0x82,0x40,0x05,  /* 000004E0    "BUF0[.@." */
++    0x50,0x58,0x31,0x33,0x08,0x5F,0x41,0x44,  /* 000004E8    "PX13._AD" */
++    0x52,0x0C,0x03,0x00,0x01,0x00,0x5B,0x80,  /* 000004F0    "R.....[." */
++    0x50,0x31,0x33,0x43,0x02,0x0A,0x5C,0x0A,  /* 000004F8    "P13C..\." */
++    0x24,0x5B,0x81,0x33,0x50,0x31,0x33,0x43,  /* 00000500    "$[.3P13C" */
++    0x03,0x44,0x52,0x53,0x41,0x20,0x44,0x52,  /* 00000508    ".DRSA DR" */
++    0x53,0x42,0x20,0x44,0x52,0x53,0x43,0x20,  /* 00000510    "SB DRSC " */
++    0x44,0x52,0x53,0x45,0x20,0x44,0x52,0x53,  /* 00000518    "DRSE DRS" */
++    0x46,0x20,0x44,0x52,0x53,0x47,0x20,0x44,  /* 00000520    "F DRSG D" */
++    0x52,0x53,0x48,0x20,0x44,0x52,0x53,0x49,  /* 00000528    "RSH DRSI" */
++    0x20,0x44,0x52,0x53,0x4A,0x20,0x10,0x4F,  /* 00000530    " DRSJ .O" */
++    0x2E,0x5F,0x53,0x42,0x5F,0x5B,0x81,0x24,  /* 00000538    "._SB_[.$" */
++    0x2F,0x03,0x50,0x43,0x49,0x30,0x49,0x53,  /* 00000540    "/.PCI0IS" */
++    0x41,0x5F,0x50,0x34,0x30,0x43,0x01,0x50,  /* 00000548    "A_P40C.P" */
++    0x52,0x51,0x30,0x08,0x50,0x52,0x51,0x31,  /* 00000550    "RQ0.PRQ1" */
++    0x08,0x50,0x52,0x51,0x32,0x08,0x50,0x52,  /* 00000558    ".PRQ2.PR" */
++    0x51,0x33,0x08,0x5B,0x82,0x4E,0x0A,0x4C,  /* 00000560    "Q3.[.N.L" */
++    0x4E,0x4B,0x41,0x08,0x5F,0x48,0x49,0x44,  /* 00000568    "NKA._HID" */
++    0x0C,0x41,0xD0,0x0C,0x0F,0x08,0x5F,0x55,  /* 00000570    ".A...._U" */
++    0x49,0x44,0x01,0x08,0x5F,0x50,0x52,0x53,  /* 00000578    "ID.._PRS" */
++    0x11,0x09,0x0A,0x06,0x23,0xF8,0x1E,0x18,  /* 00000580    "....#..." */
++    0x79,0x00,0x14,0x1A,0x5F,0x53,0x54,0x41,  /* 00000588    "y..._STA" */
++    0x00,0x70,0x0A,0x0B,0x60,0xA0,0x0D,0x7B,  /* 00000590    ".p..`..{" */
++    0x0A,0x80,0x50,0x52,0x51,0x30,0x61,0x70,  /* 00000598    "..PRQ0ap" */
++    0x0A,0x09,0x60,0xA4,0x60,0x14,0x11,0x5F,  /* 000005A0    "..`.`.._" */
++    0x44,0x49,0x53,0x00,0x7D,0x50,0x52,0x51,  /* 000005A8    "DIS.}PRQ" */
++    0x30,0x0A,0x80,0x50,0x52,0x51,0x30,0x14,  /* 000005B0    "0..PRQ0." */
++    0x3F,0x5F,0x43,0x52,0x53,0x00,0x08,0x50,  /* 000005B8    "?_CRS..P" */
++    0x52,0x52,0x30,0x11,0x09,0x0A,0x06,0x23,  /* 000005C0    "RR0....#" */
++    0x02,0x00,0x18,0x79,0x00,0x8B,0x50,0x52,  /* 000005C8    "...y..PR" */
++    0x52,0x30,0x01,0x54,0x4D,0x50,0x5F,0x70,  /* 000005D0    "R0.TMP_p" */
++    0x50,0x52,0x51,0x30,0x60,0xA0,0x0C,0x95,  /* 000005D8    "PRQ0`..." */
++    0x60,0x0A,0x80,0x79,0x01,0x60,0x54,0x4D,  /* 000005E0    "`..y.`TM" */
++    0x50,0x5F,0xA1,0x07,0x70,0x00,0x54,0x4D,  /* 000005E8    "P_..p.TM" */
++    0x50,0x5F,0xA4,0x50,0x52,0x52,0x30,0x14,  /* 000005F0    "P_.PRR0." */
++    0x1B,0x5F,0x53,0x52,0x53,0x01,0x8B,0x68,  /* 000005F8    "._SRS..h" */
++    0x01,0x54,0x4D,0x50,0x5F,0x82,0x54,0x4D,  /* 00000600    ".TMP_.TM" */
++    0x50,0x5F,0x60,0x76,0x60,0x70,0x60,0x50,  /* 00000608    "P_`v`p`P" */
++    0x52,0x51,0x30,0x5B,0x82,0x4F,0x0A,0x4C,  /* 00000610    "RQ0[.O.L" */
++    0x4E,0x4B,0x42,0x08,0x5F,0x48,0x49,0x44,  /* 00000618    "NKB._HID" */
++    0x0C,0x41,0xD0,0x0C,0x0F,0x08,0x5F,0x55,  /* 00000620    ".A...._U" */
++    0x49,0x44,0x0A,0x02,0x08,0x5F,0x50,0x52,  /* 00000628    "ID..._PR" */
++    0x53,0x11,0x09,0x0A,0x06,0x23,0xF8,0x1E,  /* 00000630    "S....#.." */
++    0x18,0x79,0x00,0x14,0x1A,0x5F,0x53,0x54,  /* 00000638    ".y..._ST" */
++    0x41,0x00,0x70,0x0A,0x0B,0x60,0xA0,0x0D,  /* 00000640    "A.p..`.." */
++    0x7B,0x0A,0x80,0x50,0x52,0x51,0x31,0x61,  /* 00000648    "{..PRQ1a" */
++    0x70,0x0A,0x09,0x60,0xA4,0x60,0x14,0x11,  /* 00000650    "p..`.`.." */
++    0x5F,0x44,0x49,0x53,0x00,0x7D,0x50,0x52,  /* 00000658    "_DIS.}PR" */
++    0x51,0x31,0x0A,0x80,0x50,0x52,0x51,0x31,  /* 00000660    "Q1..PRQ1" */
++    0x14,0x3F,0x5F,0x43,0x52,0x53,0x00,0x08,  /* 00000668    ".?_CRS.." */
++    0x50,0x52,0x52,0x30,0x11,0x09,0x0A,0x06,  /* 00000670    "PRR0...." */
++    0x23,0x02,0x00,0x18,0x79,0x00,0x8B,0x50,  /* 00000678    "#...y..P" */
++    0x52,0x52,0x30,0x01,0x54,0x4D,0x50,0x5F,  /* 00000680    "RR0.TMP_" */
++    0x70,0x50,0x52,0x51,0x31,0x60,0xA0,0x0C,  /* 00000688    "pPRQ1`.." */
++    0x95,0x60,0x0A,0x80,0x79,0x01,0x60,0x54,  /* 00000690    ".`..y.`T" */
++    0x4D,0x50,0x5F,0xA1,0x07,0x70,0x00,0x54,  /* 00000698    "MP_..p.T" */
++    0x4D,0x50,0x5F,0xA4,0x50,0x52,0x52,0x30,  /* 000006A0    "MP_.PRR0" */
++    0x14,0x1B,0x5F,0x53,0x52,0x53,0x01,0x8B,  /* 000006A8    ".._SRS.." */
++    0x68,0x01,0x54,0x4D,0x50,0x5F,0x82,0x54,  /* 000006B0    "h.TMP_.T" */
++    0x4D,0x50,0x5F,0x60,0x76,0x60,0x70,0x60,  /* 000006B8    "MP_`v`p`" */
++    0x50,0x52,0x51,0x31,0x5B,0x82,0x4F,0x0A,  /* 000006C0    "PRQ1[.O." */
++    0x4C,0x4E,0x4B,0x43,0x08,0x5F,0x48,0x49,  /* 000006C8    "LNKC._HI" */
++    0x44,0x0C,0x41,0xD0,0x0C,0x0F,0x08,0x5F,  /* 000006D0    "D.A...._" */
++    0x55,0x49,0x44,0x0A,0x03,0x08,0x5F,0x50,  /* 000006D8    "UID..._P" */
++    0x52,0x53,0x11,0x09,0x0A,0x06,0x23,0xF8,  /* 000006E0    "RS....#." */
++    0x1E,0x18,0x79,0x00,0x14,0x1A,0x5F,0x53,  /* 000006E8    "..y..._S" */
++    0x54,0x41,0x00,0x70,0x0A,0x0B,0x60,0xA0,  /* 000006F0    "TA.p..`." */
++    0x0D,0x7B,0x0A,0x80,0x50,0x52,0x51,0x32,  /* 000006F8    ".{..PRQ2" */
++    0x61,0x70,0x0A,0x09,0x60,0xA4,0x60,0x14,  /* 00000700    "ap..`.`." */
++    0x11,0x5F,0x44,0x49,0x53,0x00,0x7D,0x50,  /* 00000708    "._DIS.}P" */
++    0x52,0x51,0x32,0x0A,0x80,0x50,0x52,0x51,  /* 00000710    "RQ2..PRQ" */
++    0x32,0x14,0x3F,0x5F,0x43,0x52,0x53,0x00,  /* 00000718    "2.?_CRS." */
++    0x08,0x50,0x52,0x52,0x30,0x11,0x09,0x0A,  /* 00000720    ".PRR0..." */
++    0x06,0x23,0x02,0x00,0x18,0x79,0x00,0x8B,  /* 00000728    ".#...y.." */
++    0x50,0x52,0x52,0x30,0x01,0x54,0x4D,0x50,  /* 00000730    "PRR0.TMP" */
++    0x5F,0x70,0x50,0x52,0x51,0x32,0x60,0xA0,  /* 00000738    "_pPRQ2`." */
++    0x0C,0x95,0x60,0x0A,0x80,0x79,0x01,0x60,  /* 00000740    "..`..y.`" */
++    0x54,0x4D,0x50,0x5F,0xA1,0x07,0x70,0x00,  /* 00000748    "TMP_..p." */
++    0x54,0x4D,0x50,0x5F,0xA4,0x50,0x52,0x52,  /* 00000750    "TMP_.PRR" */
++    0x30,0x14,0x1B,0x5F,0x53,0x52,0x53,0x01,  /* 00000758    "0.._SRS." */
++    0x8B,0x68,0x01,0x54,0x4D,0x50,0x5F,0x82,  /* 00000760    ".h.TMP_." */
++    0x54,0x4D,0x50,0x5F,0x60,0x76,0x60,0x70,  /* 00000768    "TMP_`v`p" */
++    0x60,0x50,0x52,0x51,0x32,0x5B,0x82,0x4F,  /* 00000770    "`PRQ2[.O" */
++    0x0A,0x4C,0x4E,0x4B,0x44,0x08,0x5F,0x48,  /* 00000778    ".LNKD._H" */
++    0x49,0x44,0x0C,0x41,0xD0,0x0C,0x0F,0x08,  /* 00000780    "ID.A...." */
++    0x5F,0x55,0x49,0x44,0x0A,0x04,0x08,0x5F,  /* 00000788    "_UID..._" */
++    0x50,0x52,0x53,0x11,0x09,0x0A,0x06,0x23,  /* 00000790    "PRS....#" */
++    0xF8,0x1E,0x18,0x79,0x00,0x14,0x1A,0x5F,  /* 00000798    "...y..._" */
++    0x53,0x54,0x41,0x00,0x70,0x0A,0x0B,0x60,  /* 000007A0    "STA.p..`" */
++    0xA0,0x0D,0x7B,0x0A,0x80,0x50,0x52,0x51,  /* 000007A8    "..{..PRQ" */
++    0x33,0x61,0x70,0x0A,0x09,0x60,0xA4,0x60,  /* 000007B0    "3ap..`.`" */
++    0x14,0x11,0x5F,0x44,0x49,0x53,0x00,0x7D,  /* 000007B8    ".._DIS.}" */
++    0x50,0x52,0x51,0x33,0x0A,0x80,0x50,0x52,  /* 000007C0    "PRQ3..PR" */
++    0x51,0x33,0x14,0x3F,0x5F,0x43,0x52,0x53,  /* 000007C8    "Q3.?_CRS" */
++    0x00,0x08,0x50,0x52,0x52,0x30,0x11,0x09,  /* 000007D0    "..PRR0.." */
++    0x0A,0x06,0x23,0x02,0x00,0x18,0x79,0x00,  /* 000007D8    "..#...y." */
++    0x8B,0x50,0x52,0x52,0x30,0x01,0x54,0x4D,  /* 000007E0    ".PRR0.TM" */
++    0x50,0x5F,0x70,0x50,0x52,0x51,0x33,0x60,  /* 000007E8    "P_pPRQ3`" */
++    0xA0,0x0C,0x95,0x60,0x0A,0x80,0x79,0x01,  /* 000007F0    "...`..y." */
++    0x60,0x54,0x4D,0x50,0x5F,0xA1,0x07,0x70,  /* 000007F8    "`TMP_..p" */
++    0x00,0x54,0x4D,0x50,0x5F,0xA4,0x50,0x52,  /* 00000800    ".TMP_.PR" */
++    0x52,0x30,0x14,0x1B,0x5F,0x53,0x52,0x53,  /* 00000808    "R0.._SRS" */
++    0x01,0x8B,0x68,0x01,0x54,0x4D,0x50,0x5F,  /* 00000810    "..h.TMP_" */
++    0x82,0x54,0x4D,0x50,0x5F,0x60,0x76,0x60,  /* 00000818    ".TMP_`v`" */
++    0x70,0x60,0x50,0x52,0x51,0x33,0x08,0x5F,  /* 00000820    "p`PRQ3._" */
++    0x53,0x35,0x5F,0x12,0x06,0x04,0x00,0x00,  /* 00000828    "S5_....." */
++    0x00,0x00,
++};
+Binary files bios/BIOS-bochs-latest and bios.new/BIOS-bochs-latest differ
+diff -ruN --exclude Makefile bios/Makefile.in bios.new/Makefile.in
+--- bios/Makefile.in	2006-01-13 18:36:27.000000000 +0100
++++ bios.new/Makefile.in	2006-09-24 20:26:39.000000000 +0200
+@@ -61,7 +61,8 @@
  
-Index: rombios.c
-===================================================================
-RCS file: /cvsroot/bochs/bochs/bios/rombios.c,v
-retrieving revision 1.160
-diff -u -w -r1.160 rombios.c
---- rombios.c	25 Jan 2006 17:51:49 -0000	1.160
-+++ rombios.c	3 May 2006 21:22:48 -0000
-@@ -1816,6 +1816,7 @@
- {
-   printf(BX_APPNAME" BIOS - build: %s\n%s\nOptions: ",
-     BIOS_BUILD_DATE, bios_cvs_version_string);
-+#if 0
-   printf(
- #ifdef BX_APM
-   "apmbios "
-@@ -1827,6 +1828,9 @@
-   "eltorito "
- #endif
-   "\n\n");
-+#else
-+  printf("apmbios pcibios eltorito \n\n");
-+#endif
- }
+ clean:
+ 	@RMCOMMAND@ *.o *.a *.s _rombios*_.c rombios*.txt rombios*.sym
+-	@RMCOMMAND@  usage biossums
++	@RMCOMMAND@ usage biossums rombios16.bin
++	@RMCOMMAND@ rombios32.bin rombios32.out pad tmp32.bin 
  
- //--------------------------------------------------------------------------
-@@ -3999,6 +4003,29 @@
- }
- #endif
+ dist-clean: clean
+ 	@RMCOMMAND@ Makefile
+@@ -69,15 +70,35 @@
+ bios-clean:
+ 	@RMCOMMAND@ BIOS-bochs-*
+ 
+-BIOS-bochs-latest: rombios.c apmbios.S biossums
++rombios16.bin: rombios.c apmbios.S biossums
+ 	$(GCC) $(BIOS_BUILD_DATE) -E -P $< > _rombios_.c
+ 	$(BCC) -o rombios.s -C-c -D__i86__ -0 -S _rombios_.c
+ 	sed -e 's/^\.text//' -e 's/^\.data//' rombios.s > _rombios_.s
+ 	$(AS86) _rombios_.s -b tmp.bin -u- -w- -g -0 -j -O -l rombios.txt
+ 	-perl ${srcdir}/makesym.perl < rombios.txt > rombios.sym
+-	mv tmp.bin BIOS-bochs-latest
+-	./biossums BIOS-bochs-latest
++	mv tmp.bin rombios16.bin
++	./biossums rombios16.bin
+ 	rm -f _rombios_.s
  
 +
-+void set_e820_range(ES, DI, start, end, type)
-+     Bit16u ES; 
-+     Bit16u DI;
-+     Bit32u start;
-+     Bit32u end; 
-+     Bit16u type;
++rombios32.bin: rombios32.out pad
++	objcopy -O binary $< tmp32.bin
++	./pad < tmp32.bin > $@ 65536 0xff
++
++rombios32.out: rombios32start.o rombios32.o rombios32.ld
++	ld -o $@ -T rombios32.ld rombios32start.o rombios32.o
++
++rombios32.o: rombios32.c
++	$(GCC) -O2 -Wall -c -o $@ $<
++
++rombios32start.o: rombios32start.S
++	$(GCC) -c -o $@ $<
++
++BIOS-bochs-latest: rombios16.bin rombios32.bin
++	cat rombios32.bin rombios16.bin > $@
++
++pad: pad.c
++	$(GCC) -o $@ $<
++
+ biossums: biossums.c
+ 	$(GCC) -o biossums biossums.c
+diff -ruN --exclude Makefile bios/pad.c bios.new/pad.c
+--- bios/pad.c	1970-01-01 01:00:00.000000000 +0100
++++ bios.new/pad.c	2006-09-24 20:22:58.000000000 +0200
+@@ -0,0 +1,20 @@
++#include <stdlib.h>
++#include <stdio.h>
++
++int main(int argc, char **argv)
 +{
-+    write_word(ES, DI, start);
-+    write_word(ES, DI+2, start >> 16);
-+    write_word(ES, DI+4, 0x00);
-+    write_word(ES, DI+6, 0x00);
-+    
-+    end -= start;
-+    write_word(ES, DI+8, end);
-+    write_word(ES, DI+10, end >> 16);
-+    write_word(ES, DI+12, 0x0000);
-+    write_word(ES, DI+14, 0x0000);
-+    
-+    write_word(ES, DI+16, type);
-+    write_word(ES, DI+18, 0x0);
++    int len, val, i, c;
++
++    len = strtol(argv[1], NULL, 0);
++    val = strtol(argv[2], NULL, 0);
++    for(i = 0 ; i < len; i++) {
++        c = getchar();
++        if (c == EOF)
++            break;
++        putchar(c);
++    }
++    for( ; i < len; i++) {
++        putchar(val);
++    }
++    return 0;
++}
+diff -ruN --exclude Makefile bios/rombios32.c bios.new/rombios32.c
+--- bios/rombios32.c	1970-01-01 01:00:00.000000000 +0100
++++ bios.new/rombios32.c	2006-09-24 20:22:58.000000000 +0200
+@@ -0,0 +1,1324 @@
++//  32 bit Bochs BIOS init code
++//  Copyright (C) 2006 Fabrice Bellard
++//
++//  This library is free software; you can redistribute it and/or
++//  modify it under the terms of the GNU Lesser General Public
++//  License as published by the Free Software Foundation; either
++//  version 2 of the License, or (at your option) any later version.
++//
++//  This library is distributed in the hope that it will be useful,
++//  but WITHOUT ANY WARRANTY; without even the implied warranty of
++//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++//  Lesser General Public License for more details.
++//
++//  You should have received a copy of the GNU Lesser General Public
++//  License along with this library; if not, write to the Free Software
++//  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
++#include <stdarg.h>
++#include <stddef.h>
++
++typedef signed char  int8_t;
++typedef short int16_t;
++typedef int   int32_t;
++typedef long long int64_t;
++typedef unsigned char  uint8_t;
++typedef unsigned short uint16_t;
++typedef unsigned int   uint32_t;
++typedef unsigned long long uint64_t;
++
++/* if true, put the MP float table and ACPI RSDT in EBDA and the MP
++   table in RAM. Unfortunately, Linux has bugs with that, so we prefer
++   to modify the BIOS in shadow RAM */
++//#define BX_USE_EBDA_TABLES
++
++/* define it if the (emulated) hardware supports SMM mode */
++#define BX_USE_SMM
++
++#define BX_INFO(fmt, args...) bios_printf(0, fmt, ## args);
++
++#define INFO_PORT   0x402
++
++#define cpuid(index, eax, ebx, ecx, edx) \
++  asm volatile ("cpuid" \
++                : "=a" (eax), "=b" (ebx), "=c" (ecx), "=d" (edx) \
++                : "0" (index))
++
++#define CPUID_APIC (1 << 9)
++
++#define APIC_BASE    ((uint8_t *)0xfee00000)
++#define APIC_ICR_LOW 0x300
++#define APIC_SVR     0x0F0
++#define APIC_ID      0x020
++#define APIC_LVT3    0x370
++
++#define APIC_ENABLED 0x0100
++
++#define CPU_COUNT_ADDR 0xf000
++#define AP_BOOT_ADDR 0x10000
++
++#define MPTABLE_MAX_SIZE  0x00002000
++#define ACPI_DATA_SIZE    0x00010000
++#define SMI_CMD_IO_ADDR   0xb2
++#define PM_IO_BASE        0xb000
++
++#define BIOS_TMP_STORAGE  0x00030000 /* 64 KB used to copy the BIOS to shadow RAM */
++
++static inline void outl(int addr, int val)
++{
++    asm volatile ("outl %1, %w0" : : "d" (addr), "a" (val));
 +}
 +
-   void
- int15_function32(regs, ES, DS, FLAGS)
-   pushad_regs_t regs; // REGS pushed via pushad
-@@ -4063,19 +4090,8 @@
++static inline void outw(int addr, int val)
++{
++    asm volatile ("outw %w1, %w0" : : "d" (addr), "a" (val));
++}
++
++static inline void outb(int addr, int val)
++{
++    asm volatile ("outb %b1, %w0" : : "d" (addr), "a" (val));
++}
++
++static inline uint32_t inl(int addr)
++{
++    uint32_t val;
++    asm volatile ("inl %w1, %0" : "=a" (val) : "d" (addr));
++    return val;
++}
++
++static inline uint16_t inw(int addr)
++{
++    uint16_t val;
++    asm volatile ("inw %w1, %w0" : "=a" (val) : "d" (addr));
++    return val;
++}
++
++static inline uint8_t inb(int addr)
++{
++    uint8_t val;
++    asm volatile ("inb %w1, %b0" : "=a" (val) : "d" (addr));
++    return val;
++}
++
++static inline void writel(void *addr, uint32_t val)
++{
++    *(volatile uint32_t *)addr = val;
++}
++
++static inline void writew(void *addr, uint16_t val)
++{
++    *(volatile uint16_t *)addr = val;
++}
++
++static inline void writeb(void *addr, uint8_t val)
++{
++    *(volatile uint8_t *)addr = val;
++}
++
++static inline uint32_t readl(const void *addr)
++{
++    return *(volatile const uint32_t *)addr;
++}
++
++static inline uint16_t readw(const void *addr)
++{
++    return *(volatile const uint16_t *)addr;
++}
++
++static inline uint8_t readb(const void *addr)
++{
++    return *(volatile const uint8_t *)addr;
++}
++
++static inline void putc(int c)
++{
++    outb(INFO_PORT, c);
++}
++
++static inline int isdigit(int c)
++{
++    return c >= '0' && c <= '9';
++}
++
++void *memset(void *d1, int val, size_t len)
++{
++    uint8_t *d = d1;
++
++    while (len--) {
++        *d++ = val;
++    }
++    return d1;
++}
++
++void *memcpy(void *d1, const void *s1, size_t len)
++{
++    uint8_t *d = d1;
++    const uint8_t *s = s1;
++
++    while (len--) {
++        *d++ = *s++;
++    }
++    return d1;
++}
++
++void *memmove(void *d1, const void *s1, size_t len)
++{
++    uint8_t *d = d1;
++    const uint8_t *s = s1;
++
++    if (d <= s) {
++        while (len--) {
++            *d++ = *s++;
++        }
++    } else {
++        d += len;
++        s += len;
++        while (len--) {
++            *--d = *--s;
++        }
++    }
++    return d1;
++}
++
++size_t strlen(const char *s)
++{
++    const char *s1;
++    for(s1 = s; *s1 != '\0'; s1++);
++    return s1 - s;
++}
++
++/* from BSD ppp sources */
++int vsnprintf(char *buf, int buflen, const char *fmt, va_list args)
++{
++    int c, i, n;
++    int width, prec, fillch;
++    int base, len, neg;
++    unsigned long val = 0;
++    const char *f;
++    char *str, *buf0;
++    char num[32];
++    static const char hexchars[] = "0123456789abcdef";
++
++    buf0 = buf;
++    --buflen;
++    while (buflen > 0) {
++	for (f = fmt; *f != '%' && *f != 0; ++f)
++	    ;
++	if (f > fmt) {
++	    len = f - fmt;
++	    if (len > buflen)
++		len = buflen;
++	    memcpy(buf, fmt, len);
++	    buf += len;
++	    buflen -= len;
++	    fmt = f;
++	}
++	if (*fmt == 0)
++	    break;
++	c = *++fmt;
++	width = prec = 0;
++	fillch = ' ';
++	if (c == '0') {
++	    fillch = '0';
++	    c = *++fmt;
++	}
++	if (c == '*') {
++	    width = va_arg(args, int);
++	    c = *++fmt;
++	} else {
++	    while (isdigit(c)) {
++		width = width * 10 + c - '0';
++		c = *++fmt;
++	    }
++	}
++	if (c == '.') {
++	    c = *++fmt;
++	    if (c == '*') {
++		prec = va_arg(args, int);
++		c = *++fmt;
++	    } else {
++		while (isdigit(c)) {
++		    prec = prec * 10 + c - '0';
++		    c = *++fmt;
++		}
++	    }
++	}
++        /* modifiers */
++        switch(c) {
++        case 'l':
++            c = *++fmt;
++            break;
++        default:
++            break;
++        }
++        str = 0;
++	base = 0;
++	neg = 0;
++	++fmt;
++	switch (c) {
++	case 'd':
++	    i = va_arg(args, int);
++	    if (i < 0) {
++		neg = 1;
++		val = -i;
++	    } else
++		val = i;
++	    base = 10;
++	    break;
++	case 'o':
++	    val = va_arg(args, unsigned int);
++	    base = 8;
++	    break;
++	case 'x':
++	case 'X':
++	    val = va_arg(args, unsigned int);
++	    base = 16;
++	    break;
++	case 'p':
++	    val = (unsigned long) va_arg(args, void *);
++	    base = 16;
++	    neg = 2;
++	    break;
++	case 's':
++	    str = va_arg(args, char *);
++	    break;
++	case 'c':
++	    num[0] = va_arg(args, int);
++	    num[1] = 0;
++	    str = num;
++	    break;
++	default:
++	    *buf++ = '%';
++	    if (c != '%')
++		--fmt;		/* so %z outputs %z etc. */
++	    --buflen;
++	    continue;
++	}
++	if (base != 0) {
++	    str = num + sizeof(num);
++	    *--str = 0;
++	    while (str > num + neg) {
++		*--str = hexchars[val % base];
++		val = val / base;
++		if (--prec <= 0 && val == 0)
++		    break;
++	    }
++	    switch (neg) {
++	    case 1:
++		*--str = '-';
++		break;
++	    case 2:
++		*--str = 'x';
++		*--str = '0';
++		break;
++	    }
++	    len = num + sizeof(num) - 1 - str;
++	} else {
++	    len = strlen(str);
++	    if (prec > 0 && len > prec)
++		len = prec;
++	}
++	if (width > 0) {
++	    if (width > buflen)
++		width = buflen;
++	    if ((n = width - len) > 0) {
++		buflen -= n;
++		for (; n > 0; --n)
++		    *buf++ = fillch;
++	    }
++	}
++	if (len > buflen)
++	    len = buflen;
++	memcpy(buf, str, len);
++	buf += len;
++	buflen -= len;
++    }
++    *buf = 0;
++    return buf - buf0;
++}
++
++void bios_printf(int flags, const char *fmt, ...)
++{
++    va_list ap;
++    char buf[1024];
++    const char *s;
++
++    va_start(ap, fmt);
++    vsnprintf(buf, sizeof(buf), fmt, ap);
++    s = buf;
++    while (*s)
++        putc(*s++);
++    va_end(ap);
++}
++
++/* approximative ! */
++void delay_ms(int n)
++{
++    int i, j;
++    for(i = 0; i < n; i++) {
++        for(j = 0; j < 1000000; j++);
++    }
++}
++
++int smp_cpus;
++uint32_t cpuid_features;
++uint32_t cpuid_ext_features;
++unsigned long ram_size;
++#ifdef BX_USE_EBDA_TABLES
++unsigned long ebda_cur_addr;
++#endif
++int acpi_enabled;
++uint32_t pm_io_base;
++int pm_sci_int;
++unsigned long bios_table_cur_addr;
++unsigned long bios_table_end_addr;
++
++void cpu_probe(void)
++{
++    uint32_t eax, ebx, ecx, edx;
++    cpuid(1, eax, ebx, ecx, edx);
++    cpuid_features = edx;
++    cpuid_ext_features = ecx;
++}
++
++static int cmos_readb(int addr)
++{
++    outb(0x70, addr);
++    return inb(0x71);
++}
++
++void ram_probe(void)
++{
++    ram_size = (cmos_readb(0x34) | (cmos_readb(0x35) << 8)) * 65536 + 
++        16 * 1024 * 1024;
++#ifdef BX_USE_EBDA_TABLES
++    ebda_cur_addr = ((*(uint16_t *)(0x40e)) << 4) + 0x380;
++#endif
++    BX_INFO("ram_size=0x%08lx\n");
++}
++
++/****************************************************/
++/* SMP probe */
++
++extern uint8_t smp_ap_boot_code_start;
++extern uint8_t smp_ap_boot_code_end;
++
++/* find the number of CPUs by launching a SIPI to them */
++void smp_probe(void)
++{
++    uint32_t val, sipi_vector;
++    
++    smp_cpus = 1;
++    if (cpuid_features & CPUID_APIC) {
++
++        /* enable local APIC */
++        val = readl(APIC_BASE + APIC_SVR);
++        val |= APIC_ENABLED;
++        writel(APIC_BASE + APIC_SVR, val);
++        
++        writew((void *)CPU_COUNT_ADDR, 1);
++        /* copy AP boot code */
++        memcpy((void *)AP_BOOT_ADDR, &smp_ap_boot_code_start,
++               &smp_ap_boot_code_end - &smp_ap_boot_code_start);
++
++        /* broadcast SIPI */
++        writel(APIC_BASE + APIC_ICR_LOW, 0x000C4500);
++        sipi_vector = AP_BOOT_ADDR >> 12;
++        writel(APIC_BASE + APIC_ICR_LOW, 0x000C4600 | sipi_vector);
++        
++        delay_ms(10);
++
++        smp_cpus = readw((void *)CPU_COUNT_ADDR);
++    }
++    BX_INFO("Found %d cpus\n", smp_cpus);
++}
++
++/****************************************************/
++/* PCI init */
++
++#define PCI_ADDRESS_SPACE_MEM		0x00
++#define PCI_ADDRESS_SPACE_IO		0x01
++#define PCI_ADDRESS_SPACE_MEM_PREFETCH	0x08
++
++#define PCI_ROM_SLOT 6
++#define PCI_NUM_REGIONS 7
++
++#define PCI_DEVICES_MAX 64
++
++#define PCI_VENDOR_ID		0x00	/* 16 bits */
++#define PCI_DEVICE_ID		0x02	/* 16 bits */
++#define PCI_COMMAND		0x04	/* 16 bits */
++#define  PCI_COMMAND_IO		0x1	/* Enable response in I/O space */
++#define  PCI_COMMAND_MEMORY	0x2	/* Enable response in Memory space */
++#define PCI_CLASS_DEVICE        0x0a    /* Device class */
++#define PCI_INTERRUPT_LINE	0x3c	/* 8 bits */
++#define PCI_INTERRUPT_PIN	0x3d	/* 8 bits */
++#define PCI_MIN_GNT		0x3e	/* 8 bits */
++#define PCI_MAX_LAT		0x3f	/* 8 bits */
++
++typedef struct PCIDevice {
++    int bus;
++    int devfn;
++} PCIDevice;
++
++static uint32_t pci_bios_io_addr;
++static uint32_t pci_bios_mem_addr;
++/* host irqs corresponding to PCI irqs A-D */
++static uint8_t pci_irqs[4] = { 11, 9, 11, 9 };
++static PCIDevice i440_pcidev;
++
++static void pci_config_writel(PCIDevice *d, uint32_t addr, uint32_t val)
++{
++    outl(0xcf8, 0x80000000 | (d->bus << 16) | (d->devfn << 8) | (addr & 0xfc));
++    outl(0xcfc, val);
++}
++
++static void pci_config_writew(PCIDevice *d, uint32_t addr, uint32_t val)
++{
++    outl(0xcf8, 0x80000000 | (d->bus << 16) | (d->devfn << 8) | (addr & 0xfc));
++    outw(0xcfc + (addr & 2), val);
++}
++
++static void pci_config_writeb(PCIDevice *d, uint32_t addr, uint32_t val)
++{
++    outl(0xcf8, 0x80000000 | (d->bus << 16) | (d->devfn << 8) | (addr & 0xfc));
++    outb(0xcfc + (addr & 3), val);
++}
++
++static uint32_t pci_config_readl(PCIDevice *d, uint32_t addr)
++{
++    outl(0xcf8, 0x80000000 | (d->bus << 16) | (d->devfn << 8) | (addr & 0xfc));
++    return inl(0xcfc);
++}
++
++static uint32_t pci_config_readw(PCIDevice *d, uint32_t addr)
++{
++    outl(0xcf8, 0x80000000 | (d->bus << 16) | (d->devfn << 8) | (addr & 0xfc));
++    return inw(0xcfc + (addr & 2));
++}
++
++static uint32_t pci_config_readb(PCIDevice *d, uint32_t addr)
++{
++    outl(0xcf8, 0x80000000 | (d->bus << 16) | (d->devfn << 8) | (addr & 0xfc));
++    return inb(0xcfc + (addr & 3));
++}
++
++static void pci_set_io_region_addr(PCIDevice *d, int region_num, uint32_t addr)
++{
++    uint16_t cmd;
++    uint32_t ofs, old_addr;
++
++    if ( region_num == PCI_ROM_SLOT ) {
++        ofs = 0x30;
++    }else{
++        ofs = 0x10 + region_num * 4;
++    }
++
++    old_addr = pci_config_readl(d, ofs);
++
++    pci_config_writel(d, ofs, addr);
++    BX_INFO("region %d: 0x%08x\n", region_num, addr);
++
++    /* enable memory mappings */
++    cmd = pci_config_readw(d, PCI_COMMAND);
++    if ( region_num == PCI_ROM_SLOT )
++        cmd |= 2;
++    else if (old_addr & PCI_ADDRESS_SPACE_IO)
++        cmd |= 1;
++    else
++        cmd |= 2;
++    pci_config_writew(d, PCI_COMMAND, cmd);
++}
++
++/* return the global irq number corresponding to a given device irq
++   pin. We could also use the bus number to have a more precise
++   mapping. */
++static int pci_slot_get_pirq(PCIDevice *pci_dev, int irq_num)
++{
++    int slot_addend;
++    slot_addend = (pci_dev->devfn >> 3) - 1;
++    return (irq_num + slot_addend) & 3;
++}
++
++static int find_bios_table_area(void)
++{
++    unsigned long addr;
++    for(addr = 0xf0000; addr < 0x100000; addr += 16) {
++        if (*(uint32_t *)addr == 0xaafb4442) {
++            bios_table_cur_addr = addr + 8;
++            bios_table_end_addr = bios_table_cur_addr + *(uint32_t *)(addr + 4);
++            BX_INFO("bios_table_addr: 0x%08lx end=0x%08lx\n",
++                    bios_table_cur_addr, bios_table_end_addr);
++            return 0;
++        }
++    }
++    return -1;
++}
++
++static void bios_shadow_init(PCIDevice *d)
++{
++    int v;
++
++    if (find_bios_table_area() < 0)
++        return;
++
++    /* remap the BIOS to shadow RAM an keep it read/write while we
++       are writing tables */
++    memcpy((void *)BIOS_TMP_STORAGE, (void *)0x000f0000, 0x10000);
++    v = pci_config_readb(d, 0x67);
++    v = (v & 0x0f) | (0x30);
++    pci_config_writeb(d, 0x67, v);
++    memcpy((void *)0x000f0000, (void *)BIOS_TMP_STORAGE, 0x10000);
++    
++    i440_pcidev = *d;
++}
++
++static void bios_lock_shadow_ram(void)
++{
++    PCIDevice *d = &i440_pcidev;
++    int v;
++
++    v = pci_config_readb(d, 0x67);
++    v = (v & 0x0f) | (0x20);
++    pci_config_writeb(d, 0x67, v);
++}
++
++static void pci_bios_init_bridges(PCIDevice *d)
++{
++    uint16_t vendor_id, device_id;
++
++    vendor_id = pci_config_readw(d, PCI_VENDOR_ID);
++    device_id = pci_config_readw(d, PCI_DEVICE_ID);
++    
++    if (vendor_id == 0x8086 && device_id == 0x7000) {
++        int i, irq;
++        uint8_t elcr[2];
++
++        /* PIIX3 bridge */
++
++        elcr[0] = 0x00;
++        elcr[1] = 0x00;
++        for(i = 0; i < 4; i++) {
++            irq = pci_irqs[i];
++            /* set to trigger level */
++            elcr[irq >> 3] |= (1 << (irq & 7));
++            /* activate irq remapping in PIIX */
++            pci_config_writeb(d, 0x60 + i, irq);
++        }
++        outb(0x4d0, elcr[0]);
++        outb(0x4d1, elcr[1]);
++        BX_INFO("PIIX3 init: elcr=%02x %02x\n",
++                elcr[0], elcr[1]);
++    } else if (vendor_id == 0x8086 && device_id == 0x1237) {
++        /* i440 PCI bridge */
++        bios_shadow_init(d);        
++    }
++}
++
++extern uint8_t smm_relocation_start, smm_relocation_end;
++extern uint8_t smm_code_start, smm_code_end;
++
++#ifdef BX_USE_SMM
++static void smm_init(void)
++{
++    /* copy the SMM relocation code */
++    memcpy((void *)0x38000, &smm_relocation_start,
++           &smm_relocation_end - &smm_relocation_start);
++    /* raise an SMI interrupt */
++    outb(0xb2, 00);
++
++    /* enable the SMM memory window */
++    pci_config_writel(&i440_pcidev, 0x6c, (1 << 26) | 0x000a);
++
++    /* copy the SMM code */
++    memcpy((void *)0xa8000, &smm_code_start,
++           &smm_code_end - &smm_code_start);
++    
++    /* close the SMM memory window and enable normal SMM */
++    pci_config_writel(&i440_pcidev, 0x6c, (1 << 31) | 0x000a);
++}
++#endif
++
++static void pci_bios_init_device(PCIDevice *d)
++{
++    int class;
++    uint32_t *paddr;
++    int i, pin, pic_irq, vendor_id, device_id;
++
++    class = pci_config_readw(d, PCI_CLASS_DEVICE);
++    vendor_id = pci_config_readw(d, PCI_VENDOR_ID);
++    device_id = pci_config_readw(d, PCI_DEVICE_ID);
++    BX_INFO("PCI: bus=%d devfn=0x%02x: vendor_id=0x%04x device_id=0x%04x\n",
++            d->bus, d->devfn, vendor_id, device_id);
++    switch(class) {
++    case 0x0101:
++        if (vendor_id == 0x8086 && device_id == 0x7010) {
++            /* PIIX3 IDE */
++            pci_config_writew(d, 0x40, 0x8000); // enable IDE0
++            pci_config_writew(d, 0x42, 0x8000); // enable IDE1
++            goto default_map;
++        } else {
++            /* IDE: we map it as in ISA mode */
++            pci_set_io_region_addr(d, 0, 0x1f0);
++            pci_set_io_region_addr(d, 1, 0x3f4);
++            pci_set_io_region_addr(d, 2, 0x170);
++            pci_set_io_region_addr(d, 3, 0x374);
++        }
++        break;
++    case 0x0300:
++        if (vendor_id != 0x1234)
++            goto default_map;
++        /* VGA: map frame buffer to default Bochs VBE address */
++        pci_set_io_region_addr(d, 0, 0xE0000000);
++        break;
++    case 0x0800:
++        /* PIC */
++        if (vendor_id == 0x1014) {
++            /* IBM */
++            if (device_id == 0x0046 || device_id == 0xFFFF) {
++                /* MPIC & MPIC2 */
++                pci_set_io_region_addr(d, 0, 0x80800000 + 0x00040000);
++            }
++        }
++        break;
++    case 0xff00:
++        if (vendor_id == 0x0106b &&
++            (device_id == 0x0017 || device_id == 0x0022)) {
++            /* macio bridge */
++            pci_set_io_region_addr(d, 0, 0x80800000);
++        }
++        break;
++    default:
++    default_map:
++        /* default memory mappings */
++        for(i = 0; i < PCI_NUM_REGIONS; i++) {
++            int ofs;
++            uint32_t val, size ;
++
++            if (i == PCI_ROM_SLOT)
++                ofs = 0x30;
++            else
++                ofs = 0x10 + i * 4;
++            pci_config_writel(d, ofs, 0xffffffff);
++            val = pci_config_readl(d, ofs);
++            if (val != 0) {
++                size = (~(val & ~0xf)) + 1;
++                if (val & PCI_ADDRESS_SPACE_IO)
++                    paddr = &pci_bios_io_addr;
++                else
++                    paddr = &pci_bios_mem_addr;
++                *paddr = (*paddr + size - 1) & ~(size - 1);
++                pci_set_io_region_addr(d, i, *paddr);
++                *paddr += size;
++            }
++        }
++        break;
++    }
++
++    /* map the interrupt */
++    pin = pci_config_readb(d, PCI_INTERRUPT_PIN);
++    if (pin != 0) {
++        pin = pci_slot_get_pirq(d, pin - 1);
++        pic_irq = pci_irqs[pin];
++        pci_config_writeb(d, PCI_INTERRUPT_LINE, pic_irq);
++    }
++
++    if (vendor_id == 0x8086 && device_id == 0x7113) {
++        /* PIIX4 Power Management device (for ACPI) */
++        pm_io_base = PM_IO_BASE;
++        pci_config_writel(d, 0x40, pm_io_base | 1);
++        pci_config_writeb(d, 0x80, 0x01); /* enable PM io space */
++        pm_sci_int = pci_config_readb(d, PCI_INTERRUPT_LINE);
++#ifdef BX_USE_SMM
++        smm_init();
++#endif
++        acpi_enabled = 1;
++    }
++}
++
++void pci_for_each_device(void (*init_func)(PCIDevice *d))
++{
++    PCIDevice d1, *d = &d1;
++    int bus, devfn;
++    uint16_t vendor_id, device_id;
++
++    for(bus = 0; bus < 1; bus++) {
++        for(devfn = 0; devfn < 256; devfn++) {
++            d->bus = bus;
++            d->devfn = devfn;
++            vendor_id = pci_config_readw(d, PCI_VENDOR_ID);
++            device_id = pci_config_readw(d, PCI_DEVICE_ID);
++            if (vendor_id != 0xffff || device_id != 0xffff) {
++                init_func(d);
++            }
++        }
++    }
++}
++
++void pci_bios_init(void)
++{
++    pci_bios_io_addr = 0xc000;
++    pci_bios_mem_addr = 0xf0000000;
++
++    pci_for_each_device(pci_bios_init_bridges);
++
++    pci_for_each_device(pci_bios_init_device);
++}
++
++/****************************************************/
++/* Multi Processor table init */
++
++static void putb(uint8_t **pp, int val)
++{
++    uint8_t *q;
++    q = *pp;
++    *q++ = val;
++    *pp = q;
++}
++
++static void putstr(uint8_t **pp, const char *str)
++{
++    uint8_t *q;
++    q = *pp;
++    while (*str)
++        *q++ = *str++;
++    *pp = q;
++}
++
++static void putle16(uint8_t **pp, int val)
++{
++    uint8_t *q;
++    q = *pp;
++    *q++ = val;
++    *q++ = val >> 8;
++    *pp = q;
++}
++
++static void putle32(uint8_t **pp, int val)
++{
++    uint8_t *q;
++    q = *pp;
++    *q++ = val;
++    *q++ = val >> 8;
++    *q++ = val >> 16;
++    *q++ = val >> 24;
++    *pp = q;
++}
++
++static int mpf_checksum(const uint8_t *data, int len)
++{
++    int sum, i;
++    sum = 0;
++    for(i = 0; i < len; i++)
++        sum += data[i];
++    return sum & 0xff;
++}
++
++static unsigned long align(unsigned long addr, unsigned long v)
++{
++    return (addr + v - 1) & ~(v - 1);
++}
++
++static void mptable_init(void)
++{
++    uint8_t *mp_config_table, *q, *float_pointer_struct;
++    int ioapic_id, i, len;
++    int mp_config_table_size;
++
++    if (smp_cpus <= 1)
++        return;
++
++#ifdef BX_USE_EBDA_TABLES
++    mp_config_table = (uint8_t *)(ram_size - ACPI_DATA_SIZE - MPTABLE_MAX_SIZE);
++#else
++    bios_table_cur_addr = align(bios_table_cur_addr, 16);
++    mp_config_table = (uint8_t *)bios_table_cur_addr;
++#endif
++    q = mp_config_table;
++    putstr(&q, "PCMP"); /* "PCMP signature */
++    putle16(&q, 0); /* table length (patched later) */
++    putb(&q, 4); /* spec rev */
++    putb(&q, 0); /* checksum (patched later) */
++    putstr(&q, "QEMUCPU "); /* OEM id */
++    putstr(&q, "0.1         "); /* vendor id */
++    putle32(&q, 0); /* OEM table ptr */
++    putle16(&q, 0); /* OEM table size */
++    putle16(&q, 20); /* entry count */
++    putle32(&q, 0xfee00000); /* local APIC addr */
++    putle16(&q, 0); /* ext table length */
++    putb(&q, 0); /* ext table checksum */
++    putb(&q, 0); /* reserved */
++    
++    for(i = 0; i < smp_cpus; i++) {
++        putb(&q, 0); /* entry type = processor */
++        putb(&q, i); /* APIC id */
++        putb(&q, 0x11); /* local APIC version number */
++        if (i == 0)
++            putb(&q, 3); /* cpu flags: enabled, bootstrap cpu */
++        else
++            putb(&q, 1); /* cpu flags: enabled */
++        putb(&q, 0); /* cpu signature */
++        putb(&q, 6);
++        putb(&q, 0);
++        putb(&q, 0);
++        putle16(&q, 0x201); /* feature flags */
++        putle16(&q, 0);
++
++        putle16(&q, 0); /* reserved */
++        putle16(&q, 0);
++        putle16(&q, 0);
++        putle16(&q, 0);
++    }
++
++    /* isa bus */
++    putb(&q, 1); /* entry type = bus */
++    putb(&q, 0); /* bus ID */
++    putstr(&q, "ISA   ");
++    
++    /* ioapic */
++    ioapic_id = smp_cpus;
++    putb(&q, 2); /* entry type = I/O APIC */
++    putb(&q, ioapic_id); /* apic ID */
++    putb(&q, 0x11); /* I/O APIC version number */
++    putb(&q, 1); /* enable */
++    putle32(&q, 0xfec00000); /* I/O APIC addr */
++
++    /* irqs */
++    for(i = 0; i < 16; i++) {
++        putb(&q, 3); /* entry type = I/O interrupt */
++        putb(&q, 0); /* interrupt type = vectored interrupt */
++        putb(&q, 0); /* flags: po=0, el=0 */
++        putb(&q, 0);
++        putb(&q, 0); /* source bus ID = ISA */
++        putb(&q, i); /* source bus IRQ */
++        putb(&q, ioapic_id); /* dest I/O APIC ID */
++        putb(&q, i); /* dest I/O APIC interrupt in */
++    }
++    /* patch length */
++    len = q - mp_config_table;
++    mp_config_table[4] = len;
++    mp_config_table[5] = len >> 8;
++
++    mp_config_table[7] = -mpf_checksum(mp_config_table, q - mp_config_table);
++
++    mp_config_table_size = q - mp_config_table;
++
++#ifndef BX_USE_EBDA_TABLES
++    bios_table_cur_addr += mp_config_table_size;
++#endif
++
++    /* floating pointer structure */
++#ifdef BX_USE_EBDA_TABLES
++    ebda_cur_addr = align(ebda_cur_addr, 16);
++    float_pointer_struct = (uint8_t *)ebda_cur_addr;
++#else
++    bios_table_cur_addr = align(bios_table_cur_addr, 16);
++    float_pointer_struct = (uint8_t *)bios_table_cur_addr;
++#endif
++    q = float_pointer_struct;
++    putstr(&q, "_MP_");
++    /* pointer to MP config table */
++    putle32(&q, (unsigned long)mp_config_table); 
++
++    putb(&q, 1); /* length in 16 byte units */
++    putb(&q, 4); /* MP spec revision */
++    putb(&q, 0); /* checksum (patched later) */
++    putb(&q, 0); /* MP feature byte 1 */
++
++    putb(&q, 0);
++    putb(&q, 0);
++    putb(&q, 0);
++    putb(&q, 0);
++    float_pointer_struct[10] = 
++        -mpf_checksum(float_pointer_struct, q - float_pointer_struct);
++#ifdef BX_USE_EBDA_TABLES
++    ebda_cur_addr += (q - float_pointer_struct);
++#else
++    bios_table_cur_addr += (q - float_pointer_struct);
++#endif
++    BX_INFO("MP table addr=0x%08lx MPC table addr=0x%08lx size=0x%x\n",
++            (unsigned long)float_pointer_struct,
++            (unsigned long)mp_config_table, 
++            mp_config_table_size);
++}
++
++/****************************************************/
++/* ACPI tables init */
++
++/* Table structure from Linux kernel (the ACPI tables are under the
++   BSD license) */
++
++#define ACPI_TABLE_HEADER_DEF   /* ACPI common table header */ \
++	uint8_t                            signature [4];          /* ACPI signature (4 ASCII characters) */\
++	uint32_t                             length;                 /* Length of table, in bytes, including header */\
++	uint8_t                              revision;               /* ACPI Specification minor version # */\
++	uint8_t                              checksum;               /* To make sum of entire table == 0 */\
++	uint8_t                            oem_id [6];             /* OEM identification */\
++	uint8_t                            oem_table_id [8];       /* OEM table identification */\
++	uint32_t                             oem_revision;           /* OEM revision number */\
++	uint8_t                            asl_compiler_id [4];    /* ASL compiler vendor ID */\
++	uint32_t                             asl_compiler_revision;  /* ASL compiler revision number */
++
++
++struct acpi_table_header         /* ACPI common table header */
++{
++	ACPI_TABLE_HEADER_DEF
++};
++
++struct rsdp_descriptor         /* Root System Descriptor Pointer */
++{
++	uint8_t                            signature [8];          /* ACPI signature, contains "RSD PTR " */
++	uint8_t                              checksum;               /* To make sum of struct == 0 */
++	uint8_t                            oem_id [6];             /* OEM identification */
++	uint8_t                              revision;               /* Must be 0 for 1.0, 2 for 2.0 */
++	uint32_t                             rsdt_physical_address;  /* 32-bit physical address of RSDT */
++	uint32_t                             length;                 /* XSDT Length in bytes including hdr */
++	uint64_t                             xsdt_physical_address;  /* 64-bit physical address of XSDT */
++	uint8_t                              extended_checksum;      /* Checksum of entire table */
++	uint8_t                            reserved [3];           /* Reserved field must be 0 */
++};
++
++/*
++ * ACPI 1.0 Root System Description Table (RSDT)
++ */
++struct rsdt_descriptor_rev1
++{
++	ACPI_TABLE_HEADER_DEF                           /* ACPI common table header */
++	uint32_t                             table_offset_entry [2]; /* Array of pointers to other */
++			 /* ACPI tables */
++};
++
++/*
++ * ACPI 1.0 Firmware ACPI Control Structure (FACS)
++ */
++struct facs_descriptor_rev1
++{
++	uint8_t                            signature[4];           /* ACPI Signature */
++	uint32_t                             length;                 /* Length of structure, in bytes */
++	uint32_t                             hardware_signature;     /* Hardware configuration signature */
++	uint32_t                             firmware_waking_vector; /* ACPI OS waking vector */
++	uint32_t                             global_lock;            /* Global Lock */
++	uint32_t                             S4bios_f        : 1;    /* Indicates if S4BIOS support is present */
++	uint32_t                             reserved1       : 31;   /* Must be 0 */
++	uint8_t                              resverved3 [40];        /* Reserved - must be zero */
++};
++
++
++/*
++ * ACPI 1.0 Fixed ACPI Description Table (FADT)
++ */
++struct fadt_descriptor_rev1
++{
++	ACPI_TABLE_HEADER_DEF                           /* ACPI common table header */
++	uint32_t                             firmware_ctrl;          /* Physical address of FACS */
++	uint32_t                             dsdt;                   /* Physical address of DSDT */
++	uint8_t                              model;                  /* System Interrupt Model */
++	uint8_t                              reserved1;              /* Reserved */
++	uint16_t                             sci_int;                /* System vector of SCI interrupt */
++	uint32_t                             smi_cmd;                /* Port address of SMI command port */
++	uint8_t                              acpi_enable;            /* Value to write to smi_cmd to enable ACPI */
++	uint8_t                              acpi_disable;           /* Value to write to smi_cmd to disable ACPI */
++	uint8_t                              S4bios_req;             /* Value to write to SMI CMD to enter S4BIOS state */
++	uint8_t                              reserved2;              /* Reserved - must be zero */
++	uint32_t                             pm1a_evt_blk;           /* Port address of Power Mgt 1a acpi_event Reg Blk */
++	uint32_t                             pm1b_evt_blk;           /* Port address of Power Mgt 1b acpi_event Reg Blk */
++	uint32_t                             pm1a_cnt_blk;           /* Port address of Power Mgt 1a Control Reg Blk */
++	uint32_t                             pm1b_cnt_blk;           /* Port address of Power Mgt 1b Control Reg Blk */
++	uint32_t                             pm2_cnt_blk;            /* Port address of Power Mgt 2 Control Reg Blk */
++	uint32_t                             pm_tmr_blk;             /* Port address of Power Mgt Timer Ctrl Reg Blk */
++	uint32_t                             gpe0_blk;               /* Port addr of General Purpose acpi_event 0 Reg Blk */
++	uint32_t                             gpe1_blk;               /* Port addr of General Purpose acpi_event 1 Reg Blk */
++	uint8_t                              pm1_evt_len;            /* Byte length of ports at pm1_x_evt_blk */
++	uint8_t                              pm1_cnt_len;            /* Byte length of ports at pm1_x_cnt_blk */
++	uint8_t                              pm2_cnt_len;            /* Byte Length of ports at pm2_cnt_blk */
++	uint8_t                              pm_tmr_len;              /* Byte Length of ports at pm_tm_blk */
++	uint8_t                              gpe0_blk_len;           /* Byte Length of ports at gpe0_blk */
++	uint8_t                              gpe1_blk_len;           /* Byte Length of ports at gpe1_blk */
++	uint8_t                              gpe1_base;              /* Offset in gpe model where gpe1 events start */
++	uint8_t                              reserved3;              /* Reserved */
++	uint16_t                             plvl2_lat;              /* Worst case HW latency to enter/exit C2 state */
++	uint16_t                             plvl3_lat;              /* Worst case HW latency to enter/exit C3 state */
++	uint16_t                             flush_size;             /* Size of area read to flush caches */
++	uint16_t                             flush_stride;           /* Stride used in flushing caches */
++	uint8_t                              duty_offset;            /* Bit location of duty cycle field in p_cnt reg */
++	uint8_t                              duty_width;             /* Bit width of duty cycle field in p_cnt reg */
++	uint8_t                              day_alrm;               /* Index to day-of-month alarm in RTC CMOS RAM */
++	uint8_t                              mon_alrm;               /* Index to month-of-year alarm in RTC CMOS RAM */
++	uint8_t                              century;                /* Index to century in RTC CMOS RAM */
++	uint8_t                              reserved4;              /* Reserved */
++	uint8_t                              reserved4a;             /* Reserved */
++	uint8_t                              reserved4b;             /* Reserved */
++#if 0
++	uint32_t                             wb_invd         : 1;    /* The wbinvd instruction works properly */
++	uint32_t                             wb_invd_flush   : 1;    /* The wbinvd flushes but does not invalidate */
++	uint32_t                             proc_c1         : 1;    /* All processors support C1 state */
++	uint32_t                             plvl2_up        : 1;    /* C2 state works on MP system */
++	uint32_t                             pwr_button      : 1;    /* Power button is handled as a generic feature */
++	uint32_t                             sleep_button    : 1;    /* Sleep button is handled as a generic feature, or not present */
++	uint32_t                             fixed_rTC       : 1;    /* RTC wakeup stat not in fixed register space */
++	uint32_t                             rtcs4           : 1;    /* RTC wakeup stat not possible from S4 */
++	uint32_t                             tmr_val_ext     : 1;    /* The tmr_val width is 32 bits (0 = 24 bits) */
++	uint32_t                             reserved5       : 23;   /* Reserved - must be zero */
++#else
++        uint32_t flags;
++#endif
++};
++
++/*
++ * MADT values and structures
++ */
++
++/* Values for MADT PCATCompat */
++
++#define DUAL_PIC                0
++#define MULTIPLE_APIC           1
++
++
++/* Master MADT */
++
++struct multiple_apic_table
++{
++	ACPI_TABLE_HEADER_DEF                           /* ACPI common table header */
++	uint32_t                             local_apic_address;     /* Physical address of local APIC */
++#if 0
++	uint32_t                             PCATcompat      : 1;    /* A one indicates system also has dual 8259s */
++	uint32_t                             reserved1       : 31;
++#else
++        uint32_t                             flags;
++#endif
++};
++
++
++/* Values for Type in APIC_HEADER_DEF */
++
++#define APIC_PROCESSOR          0
++#define APIC_IO                 1
++#define APIC_XRUPT_OVERRIDE     2
++#define APIC_NMI                3
++#define APIC_LOCAL_NMI          4
++#define APIC_ADDRESS_OVERRIDE   5
++#define APIC_IO_SAPIC           6
++#define APIC_LOCAL_SAPIC        7
++#define APIC_XRUPT_SOURCE       8
++#define APIC_RESERVED           9           /* 9 and greater are reserved */
++
++/*
++ * MADT sub-structures (Follow MULTIPLE_APIC_DESCRIPTION_TABLE)
++ */
++#define APIC_HEADER_DEF                     /* Common APIC sub-structure header */\
++	uint8_t                              type; \
++	uint8_t                              length;
++
++/* Sub-structures for MADT */
++
++struct madt_processor_apic
++{
++	APIC_HEADER_DEF
++	uint8_t                              processor_id;           /* ACPI processor id */
++	uint8_t                              local_apic_id;          /* Processor's local APIC id */
++#if 0
++	uint32_t                             processor_enabled: 1;   /* Processor is usable if set */
++	uint32_t                             reserved2       : 31;   /* Reserved, must be zero */
++#else
++        uint32_t flags;
++#endif
++};
++
++struct madt_io_apic
++{
++	APIC_HEADER_DEF
++	uint8_t                              io_apic_id;             /* I/O APIC ID */
++	uint8_t                              reserved;               /* Reserved - must be zero */
++	uint32_t                             address;                /* APIC physical address */
++	uint32_t                             interrupt;              /* Global system interrupt where INTI
++			  * lines start */
++};
++
++#include "acpi-dsdt.hex"
++
++static inline uint16_t cpu_to_le16(uint16_t x)
++{
++    return x;
++}
++
++static inline uint32_t cpu_to_le32(uint32_t x)
++{
++    return x;
++}
++
++static int acpi_checksum(const uint8_t *data, int len)
++{
++    int sum, i;
++    sum = 0;
++    for(i = 0; i < len; i++)
++        sum += data[i];
++    return (-sum) & 0xff;
++}
++
++static void acpi_build_table_header(struct acpi_table_header *h, 
++                                    char *sig, int len)
++{
++    memcpy(h->signature, sig, 4);
++    h->length = cpu_to_le32(len);
++    h->revision = 0;
++    memcpy(h->oem_id, "QEMU  ", 6);
++    memcpy(h->oem_table_id, "QEMU", 4);
++    memcpy(h->oem_table_id + 4, sig, 4);
++    h->oem_revision = cpu_to_le32(1);
++    memcpy(h->asl_compiler_id, "QEMU", 4);
++    h->asl_compiler_revision = cpu_to_le32(1);
++    h->checksum = acpi_checksum((void *)h, len);
++}
++
++/* base_addr must be a multiple of 4KB */
++void acpi_bios_init(void)
++{
++    struct rsdp_descriptor *rsdp;
++    struct rsdt_descriptor_rev1 *rsdt;
++    struct fadt_descriptor_rev1 *fadt;
++    struct facs_descriptor_rev1 *facs;
++    struct multiple_apic_table *madt;
++    uint8_t *dsdt;
++    uint32_t base_addr, rsdt_addr, fadt_addr, addr, facs_addr, dsdt_addr;
++    uint32_t acpi_tables_size, madt_addr, madt_size;
++    int i;
++
++    /* reserve memory space for tables */
++#ifdef BX_USE_EBDA_TABLES
++    ebda_cur_addr = align(ebda_cur_addr, 16);
++    rsdp = (void *)(ebda_cur_addr);
++    ebda_cur_addr += sizeof(*rsdp);
++#else
++    bios_table_cur_addr = align(bios_table_cur_addr, 16);
++    rsdp = (void *)(bios_table_cur_addr);
++    bios_table_cur_addr += sizeof(*rsdp);
++#endif
++
++    addr = base_addr = ram_size - ACPI_DATA_SIZE;
++    rsdt_addr = addr;
++    rsdt = (void *)(addr);
++    addr += sizeof(*rsdt);
++    
++    fadt_addr = addr;
++    fadt = (void *)(addr);
++    addr += sizeof(*fadt);
++
++    /* XXX: FACS should be in RAM */
++    addr = (addr + 63) & ~63; /* 64 byte alignment for FACS */
++    facs_addr = addr;
++    facs = (void *)(addr);
++    addr += sizeof(*facs);
++
++    dsdt_addr = addr;
++    dsdt = (void *)(addr);
++    addr += sizeof(AmlCode);
++
++    addr = (addr + 7) & ~7;
++    madt_addr = addr;
++    madt_size = sizeof(*madt) + 
++        sizeof(struct madt_processor_apic) * smp_cpus +
++        sizeof(struct madt_io_apic);
++    madt = (void *)(addr);
++    addr += madt_size;
++
++    acpi_tables_size = addr - base_addr;
++
++    BX_INFO("ACPI tables: RSDP addr=0x%08lx ACPI DATA addr=0x%08lx size=0x%x\n",
++            (unsigned long)rsdp, 
++            (unsigned long)rsdt, acpi_tables_size);
++
++    /* RSDP */
++    memset(rsdp, 0, sizeof(*rsdp));
++    memcpy(rsdp->signature, "RSD PTR ", 8);
++    memcpy(rsdp->oem_id, "QEMU  ", 6);
++    rsdp->rsdt_physical_address = cpu_to_le32(rsdt_addr);
++    rsdp->checksum = acpi_checksum((void *)rsdp, 20);
++    
++    /* RSDT */
++    rsdt->table_offset_entry[0] = cpu_to_le32(fadt_addr);
++    rsdt->table_offset_entry[1] = cpu_to_le32(madt_addr);
++    acpi_build_table_header((struct acpi_table_header *)rsdt, 
++                            "RSDT", sizeof(*rsdt));
++    
++    /* FADT */
++    memset(fadt, 0, sizeof(*fadt));
++    fadt->firmware_ctrl = cpu_to_le32(facs_addr);
++    fadt->dsdt = cpu_to_le32(dsdt_addr);
++    fadt->model = 1;
++    fadt->reserved1 = 0;
++    fadt->sci_int = cpu_to_le16(pm_sci_int);
++    fadt->smi_cmd = cpu_to_le32(SMI_CMD_IO_ADDR);
++    fadt->acpi_enable = 0xf1;
++    fadt->acpi_disable = 0xf0;
++    fadt->pm1a_evt_blk = cpu_to_le32(pm_io_base);
++    fadt->pm1a_cnt_blk = cpu_to_le32(pm_io_base + 0x04);
++    fadt->pm_tmr_blk = cpu_to_le32(pm_io_base + 0x08);
++    fadt->pm1_evt_len = 4;
++    fadt->pm1_cnt_len = 2;
++    fadt->pm_tmr_len = 4;
++    fadt->plvl2_lat = cpu_to_le16(50);
++    fadt->plvl3_lat = cpu_to_le16(50);
++    fadt->plvl3_lat = cpu_to_le16(50);
++    /* WBINVD + PROC_C1 + PWR_BUTTON + SLP_BUTTON + FIX_RTC */
++    fadt->flags = cpu_to_le32((1 << 0) | (1 << 2) | (1 << 4) | (1 << 5) | (1 << 6));
++    acpi_build_table_header((struct acpi_table_header *)fadt, "FACP", 
++                            sizeof(*fadt));
++
++    /* FACS */
++    memset(facs, 0, sizeof(*facs));
++    memcpy(facs->signature, "FACS", 4);
++    facs->length = cpu_to_le32(sizeof(*facs));
++
++    /* DSDT */
++    memcpy(dsdt, AmlCode, sizeof(AmlCode));
++
++    /* MADT */
++    {
++        struct madt_processor_apic *apic;
++        struct madt_io_apic *io_apic;
++
++        memset(madt, 0, madt_size);
++        madt->local_apic_address = cpu_to_le32(0xfee00000);
++        madt->flags = cpu_to_le32(1);
++        apic = (void *)(madt + 1);
++        for(i=0;i<smp_cpus;i++) {
++            apic->type = APIC_PROCESSOR;
++            apic->length = sizeof(*apic);
++            apic->processor_id = i;
++            apic->local_apic_id = i;
++            apic->flags = cpu_to_le32(1);
++            apic++;
++        }
++        io_apic = (void *)apic;
++        io_apic->type = APIC_IO;
++        io_apic->length = sizeof(*io_apic);
++        io_apic->io_apic_id = smp_cpus;
++        io_apic->address = cpu_to_le32(0xfec00000);
++        io_apic->interrupt = cpu_to_le32(0);
++
++        acpi_build_table_header((struct acpi_table_header *)madt, 
++                                "APIC", madt_size);
++    }
++}
++
++void rombios32_init(void)
++{
++    BX_INFO("Starting rombios32\n");
++
++    ram_probe();
++
++    cpu_probe();
++
++    smp_probe();
++    
++    pci_bios_init();
++    
++    if (bios_table_cur_addr != 0) {
++
++        mptable_init();
++        
++        if (acpi_enabled)
++            acpi_bios_init();
++        
++        bios_lock_shadow_ram();
++    }
++}
+diff -ruN --exclude Makefile bios/rombios32.ld bios.new/rombios32.ld
+--- bios/rombios32.ld	1970-01-01 01:00:00.000000000 +0100
++++ bios.new/rombios32.ld	2006-09-24 20:28:05.000000000 +0200
+@@ -0,0 +1,19 @@
++OUTPUT_FORMAT("elf32-i386", "elf32-i386", "elf32-i386")
++OUTPUT_ARCH(i386)
++ENTRY(_start);
++SECTIONS
++{
++        . = 0x00040000;
++        .text     : { *(.text)    } 
++        .rodata    : { *(.rodata) }
++        . = ALIGN(4096);
++        .data     : { *(.data)    } 
++        __bss_start = . ;
++        .bss      : { *(.bss) *(COMMON) }
++        _end = . ;
++        /DISCARD/ : { *(.stab) 
++                     *(.stabstr)
++                     *(.comment)
++                     *(.note)    
++                  }
++}
+diff -ruN --exclude Makefile bios/rombios32start.S bios.new/rombios32start.S
+--- bios/rombios32start.S	1970-01-01 01:00:00.000000000 +0100
++++ bios.new/rombios32start.S	2006-09-24 20:22:58.000000000 +0200
+@@ -0,0 +1,76 @@
++.globl _start
++.globl smp_ap_boot_code_start
++.globl smp_ap_boot_code_end
++.global smm_relocation_start
++.global smm_relocation_end
++.global smm_code_start
++.global smm_code_end
++
++#define PM_IO_BASE        0xb000
++
++_start:
++  /* clear bss section */
++  xor %eax, %eax
++  mov $__bss_start, %edi
++  mov $_end, %ecx
++  sub %edi, %ecx
++  rep stosb
++
++  jmp rombios32_init
++
++#define CPU_COUNT 0xf000
++
++  .code16                        
++smp_ap_boot_code_start:
++  xor %ax, %ax
++  mov %ax, %ds
++  incw CPU_COUNT
++1:
++  hlt
++  jmp 1b
++smp_ap_boot_code_end:
++
++/* code to relocate SMBASE to 0xa0000 */
++smm_relocation_start:
++  mov $0x38000 + 0x7efc, %ebx
++  mov (%ebx), %al  /* revision ID to see if x86_64 or x86 */
++  cmp $0x64, %al
++  je 1f
++  mov $0x38000 + 0x7ef8, %ebx
++  jmp 2f
++1:
++  mov $0x38000 + 0x7f00, %ebx
++2:
++  movl $0xa0000, %eax
++  movl %eax, (%ebx)
++  rsm                
++smm_relocation_end:
++        
++/* minimal SMM code to enable or disable ACPI */
++smm_code_start:
++  movw $0xb2, %dx
++  inb %dx, %al
++  cmp $0xf0, %al
++  jne 1f
++
++  /* ACPI disable */
++  mov $PM_IO_BASE + 0x04, %dx /* PMCNTRL */
++  inw %dx, %ax
++  andw $~1, %ax
++  outw %ax, %dx
++
++  jmp 2f
++
++1:
++  cmp $0xf1, %al
++  jne 2f
++
++  /* ACPI enable */
++  mov $PM_IO_BASE + 0x04, %dx /* PMCNTRL */
++  inw %dx, %ax
++  orw $1, %ax
++  outw %ax, %dx
++  
++2:
++  rsm
++smm_code_end:
+diff -ruN --exclude Makefile bios/rombios.c bios.new/rombios.c
+--- bios/rombios.c	2006-08-11 19:34:12.000000000 +0200
++++ bios.new/rombios.c	2006-09-24 20:35:47.000000000 +0200
+@@ -24,7 +24,7 @@
+ //  License along with this library; if not, write to the Free Software
+ //  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
+ 
+-// ROM BIOS for use with Bochs/Plex x86 emulation environment
++// ROM BIOS for use with Bochs/Plex x86/QEMU emulation environment
+ 
+ 
+ // ROM BIOS compatability entry points:
+@@ -143,6 +143,7 @@
+ #define BX_FLOPPY_ON_CNT 37   /* 2 seconds */
+ #define BX_PCIBIOS       1
+ #define BX_APM           1
++#define BX_ROMBIOS32     1
+ 
+ #define BX_USE_ATADRV    1
+ #define BX_ELTORITO_BOOT 1
+@@ -159,6 +160,9 @@
+ #define BIOS_REVISION    1
+ #define BIOS_CONFIG_TABLE 0xe6f5
+ 
++/* define it to include QEMU specific code */
++#define BX_QEMU
++
+ #ifndef BIOS_BUILD_DATE
+ #  define BIOS_BUILD_DATE "06/23/99"
+ #endif
+@@ -170,7 +174,9 @@
+ #define BASE_MEM_IN_K   (640 - EBDA_SIZE)
+ 
+   // Define the application NAME
+-#ifdef PLEX86
++#if defined(BX_QEMU)
++#  define BX_APPNAME "QEMU"
++#elif defined(PLEX86)
+ #  define BX_APPNAME "Plex86"
+ #else
+ #  define BX_APPNAME "Bochs"
+@@ -1826,6 +1832,9 @@
+ #ifdef BX_ELTORITO_BOOT
+   "eltorito "
+ #endif
++#ifdef BX_ROMBIOS32
++  "rombios32 "
++#endif
+   "\n\n");
+ }
+ 
+@@ -4085,6 +4094,24 @@
+          case 0x20: // coded by osmaker aka K.J.
+             if(regs.u.r32.edx == 0x534D4150)
+             {
++                extended_memory_size = inb_cmos(0x35);
++                extended_memory_size <<= 8;
++                extended_memory_size |= inb_cmos(0x34);
++                extended_memory_size *= 64;
++                // greater than EFF00000???
++                if(extended_memory_size > 0x3bc000) {
++                    extended_memory_size = 0x3bc000; // everything after this is reserved memory until we get to 0x100000000
++                }
++                extended_memory_size *= 1024;
++                extended_memory_size += (16L * 1024 * 1024);
++                
++                if(extended_memory_size <= (16L * 1024 * 1024)) {
++                    extended_memory_size = inb_cmos(0x31);
++                    extended_memory_size <<= 8;
++                    extended_memory_size |= inb_cmos(0x30);
++                    extended_memory_size *= 1024;
++                }
++
                  switch(regs.u.r16.bx)
                  {
                      case 0:
--                        write_word(ES, regs.u.r16.di, 0x00);
--                        write_word(ES, regs.u.r16.di+2, 0x00);
--                        write_word(ES, regs.u.r16.di+4, 0x00);
--                        write_word(ES, regs.u.r16.di+6, 0x00);
--
--                        write_word(ES, regs.u.r16.di+8, 0xFC00);
--                        write_word(ES, regs.u.r16.di+10, 0x0009);
--                        write_word(ES, regs.u.r16.di+12, 0x0000);
--                        write_word(ES, regs.u.r16.di+14, 0x0000);
--
--                        write_word(ES, regs.u.r16.di+16, 0x1);
--                        write_word(ES, regs.u.r16.di+18, 0x0);
--
-+                        set_e820_range(ES, regs.u.r16.di, 
-+                                       0x0000000L, 0x0009fc00L, 1);
-                         regs.u.r32.ebx = 1;
-                         regs.u.r32.eax = 0x534D4150;
-                         regs.u.r32.ecx = 0x14;
-@@ -4083,6 +4099,24 @@
+@@ -4115,27 +4142,9 @@
                          return;
                          break;
-                     case 1:
+                     case 3:
+-                        extended_memory_size = inb_cmos(0x35);
+-                        extended_memory_size <<= 8;
+-                        extended_memory_size |= inb_cmos(0x34);
+-                        extended_memory_size *= 64;
+-                        if(extended_memory_size > 0x3bc000) // greater than EFF00000???
+-                        {
+-                            extended_memory_size = 0x3bc000; // everything after this is reserved memory until we get to 0x100000000
+-                        }
+-                        extended_memory_size *= 1024;
+-                        extended_memory_size += (16L * 1024 * 1024);
+-
+-                        if(extended_memory_size <= (16L * 1024 * 1024))
+-                        {
+-                            extended_memory_size = inb_cmos(0x31);
+-                            extended_memory_size <<= 8;
+-                            extended_memory_size |= inb_cmos(0x30);
+-                            extended_memory_size *= 1024;
+-                        }
+-
+                         set_e820_range(ES, regs.u.r16.di, 
+-                                       0x00100000L, extended_memory_size, 1);
++                                       0x00100000L, 
++                                       extended_memory_size - 0x10000L, 1);
+                         regs.u.r32.ebx = 4;
+                         regs.u.r32.eax = 0x534D4150;
+                         regs.u.r32.ecx = 0x14;
+@@ -4143,6 +4152,16 @@
+                         return;
+                         break;
+                     case 4:
 +                        set_e820_range(ES, regs.u.r16.di, 
-+                                       0x0009fc00L, 0x000a0000L, 2);
-+                        regs.u.r32.ebx = 2;
++                                       extended_memory_size - 0x10000L, 
++                                       extended_memory_size, 3); // ACPI RAM
++                        regs.u.r32.ebx = 5;
 +                        regs.u.r32.eax = 0x534D4150;
 +                        regs.u.r32.ecx = 0x14;
 +                        CLEAR_CF();
 +                        return;
 +                        break;
-+                    case 2:
-+                        set_e820_range(ES, regs.u.r16.di, 
-+                                       0x000e8000L, 0x00100000L, 2);
-+                        regs.u.r32.ebx = 3;
-+                        regs.u.r32.eax = 0x534D4150;
-+                        regs.u.r32.ecx = 0x14;
-+                        CLEAR_CF();
-+                        return;
-+                        break;
-+                    case 3:
-                         extended_memory_size = inb_cmos(0x35);
-                         extended_memory_size <<= 8;
-                         extended_memory_size |= inb_cmos(0x34);
-@@ -4092,9 +4126,9 @@
-                             extended_memory_size = 0x3bc000; // everything after this is reserved memory until we get to 0x100000000
-                         }
-                         extended_memory_size *= 1024;
--                        extended_memory_size += 15728640; // make up for the 16mb of memory that is chopped off
-+                        extended_memory_size += (16L * 1024 * 1024);
- 
--                        if(extended_memory_size <= 15728640)
-+                        if(extended_memory_size <= (16L * 1024 * 1024))
-                         {
-                             extended_memory_size = inb_cmos(0x31);
-                             extended_memory_size <<= 8;
-@@ -4102,28 +4136,23 @@
-                             extended_memory_size *= 1024;
-                         }
- 
--                        write_word(ES, regs.u.r16.di, 0x0000);
--                        write_word(ES, regs.u.r16.di+2, 0x0010);
--                        write_word(ES, regs.u.r16.di+4, 0x0000);
--                        write_word(ES, regs.u.r16.di+6, 0x0000);
--
--                        write_word(ES, regs.u.r16.di+8, extended_memory_size);
--                        extended_memory_size >>= 16;
--                        write_word(ES, regs.u.r16.di+10, extended_memory_size);
--                        extended_memory_size >>= 16;
--                        write_word(ES, regs.u.r16.di+12, extended_memory_size);
--                        extended_memory_size >>= 16;
--                        write_word(ES, regs.u.r16.di+14, extended_memory_size);
--
--                        write_word(ES, regs.u.r16.di+16, 0x1);
--                        write_word(ES, regs.u.r16.di+18, 0x0);
--
--                        regs.u.r32.ebx = 0;
-+                        set_e820_range(ES, regs.u.r16.di, 
-+                                       0x00100000L, extended_memory_size, 1);
-+                        regs.u.r32.ebx = 4;
-                         regs.u.r32.eax = 0x534D4150;
-                         regs.u.r32.ecx = 0x14;
-                         CLEAR_CF();
-                         return;
-                         break;
-+                    case 4:
-+                        /* 256KB BIOS area at the end of 4 GB */
-+                        set_e820_range(ES, regs.u.r16.di, 
-+                                       0xfffc0000L, 0x00000000L, 2);
-+                        regs.u.r32.ebx = 0;
-+                        regs.u.r32.eax = 0x534D4150;
-+                        regs.u.r32.ecx = 0x14;
-+                        CLEAR_CF();
-+                        return;
-                     default:  /* AX=E820, DX=534D4150, BX unrecognized */
-                         goto int15_unimplemented;
-                         break;
-@@ -8713,6 +8742,7 @@
++                    case 5:
+                         /* 256KB BIOS area at the end of 4 GB */
+                         set_e820_range(ES, regs.u.r16.di, 
+                                        0xfffc0000L, 0x00000000L, 2);
+@@ -8757,6 +8776,9 @@
+ unknown_service:
    mov al, #0x80
  bios32_end:
++#ifdef BX_QEMU
++  and dword ptr[esp+8],0xfffffffc ;; reset CS.RPL for kqemu
++#endif
    popf
-+  and dword ptr[esp+4],0xfffffffc ;; reset CS.RPL for kqemu
    retf
  
- .align 16
-@@ -8823,17 +8853,17 @@
+@@ -8868,6 +8890,9 @@
  pci_pro_fail:
    pop edi
    pop esi
--  sti
++#ifdef BX_QEMU
++  and dword ptr[esp+8],0xfffffffc ;; reset CS.RPL for kqemu
++#endif
    popf
    stc
-+  and dword ptr[esp+4],0xfffffffc ;; reset CS.RPL for kqemu
    retf
- pci_pro_ok:
+@@ -8875,6 +8900,9 @@
    xor ah, ah
    pop edi
    pop esi
--  sti
++#ifdef BX_QEMU
++  and dword ptr[esp+8],0xfffffffc ;; reset CS.RPL for kqemu
++#endif
    popf
    clc
-+  and dword ptr[esp+4],0xfffffffc ;; reset CS.RPL for kqemu
    retf
- 
- pci_pro_select_reg:
-@@ -8971,7 +9001,7 @@
-   jmp pci_real_ok
- pci_real_f0d: ;; write configuration dword
-   cmp al, #0x0d
--  jne pci_real_unknown
-+  jne pci_real_f0e
-   call pci_real_select_reg
-   push dx
-   mov dx, #0x0cfc
-@@ -8979,6 +9009,46 @@
-   out dx, eax
-   pop dx
-   jmp pci_real_ok
-+pci_real_f0e: ;; get irq routing options
-+  cmp al, #0x0e
-+  jne pci_real_unknown
-+  SEG ES
-+  cmp word ptr [di], #pci_routing_table_structure_end - pci_routing_table_structure_start
-+  jb pci_real_too_small    
-+  SEG ES
-+  mov word ptr [di], #pci_routing_table_structure_end - pci_routing_table_structure_start        
-+  pushf
-+  push ds
-+  push es
-+  push cx
-+  push si
-+  push di
-+  cld
-+  mov si, #pci_routing_table_structure_start
-+  push cs
-+  pop ds
-+  SEG ES
-+  mov cx, [di+2]
-+  SEG ES
-+  mov es, [di+4]
-+  mov di, cx
-+  mov cx, #pci_routing_table_structure_end - pci_routing_table_structure_start
-+  rep 
-+      movsb
-+  pop di
-+  pop si
-+  pop cx
-+  pop es
-+  pop ds
-+  popf
-+  mov bx, #(1 << 9) | (1 << 11)   ;; irq 9 and 11 are used
-+  jmp pci_real_ok
-+pci_real_too_small:
-+  SEG ES
-+  mov word ptr [di], #pci_routing_table_structure_end - pci_routing_table_structure_start        
-+  mov ah, #0x89
-+  jmp pci_real_fail
-+
- pci_real_unknown:
-   mov ah, #0x81
- pci_real_fail:
-@@ -9019,6 +9089,7 @@
-   dw 0,0 ;; Miniport data
-   db 0,0,0,0,0,0,0,0,0,0,0 ;; reserved
-   db 0x07 ;; checksum
-+pci_routing_table_structure_start:
-   ;; first slot entry PCI-to-ISA (embedded)
-   db 0 ;; pci bus number
-   db 0x08 ;; pci device number (bit 7-3)
-@@ -9097,6 +9168,7 @@
-   dw 0xdef8 ;; IRQ bitmap INTD#
-   db 5 ;; physical slot (0 = embedded)
+@@ -9183,227 +9211,118 @@
    db 0 ;; reserved
-+pci_routing_table_structure_end:
+ pci_routing_table_structure_end:
  
- pci_irq_list:
-   db 11, 10, 9, 5;
+-pci_irq_list:
+-  db 11, 10, 9, 5;
++#endif // BX_PCIBIOS
+ 
+-pcibios_init_sel_reg:
+-  push eax
+-  mov eax, #0x800000
+-  mov ax,  bx
+-  shl eax, #8
+-  and dl,  #0xfc
+-  or  al,  dl
+-  mov dx,  #0x0cf8
+-  out dx,  eax
+-  pop eax
+-  ret
+-  
+-pcibios_init_iomem_bases:
+-  push bp
+-  mov  bp, sp
+-  mov  eax, #0xe0000000 ;; base for memory init
+-  push eax
+-  mov  ax, #0xc000 ;; base for i/o init
+-  push ax
+-  mov  ax, #0x0010 ;; start at base address #0
++#if BX_ROMBIOS32
++rombios32_init:
++  ;; save a20 and enable it
++  in al, 0x92
+   push ax
+-  mov  bx, #0x0008
+-pci_init_io_loop1:
+-  mov  dl, #0x00
+-  call pcibios_init_sel_reg
+-  mov  dx, #0x0cfc
+-  in   ax, dx
+-  cmp  ax, #0xffff
+-  jz   next_pci_dev
+-  mov  dl, #0x04 ;; disable i/o and memory space access
+-  call pcibios_init_sel_reg
+-  mov  dx, #0x0cfc
+-  in   al, dx
+-  and  al, #0xfc
+-  out  dx, al
+-pci_init_io_loop2:
+-  mov  dl, [bp-8]
+-  call pcibios_init_sel_reg
+-  mov  dx, #0x0cfc
+-  in   eax, dx
+-  test al, #0x01
+-  jnz  init_io_base
+-  mov  ecx, eax
+-  mov  eax, #0xffffffff
+-  out  dx, eax
+-  in   eax, dx
+-  cmp  eax, ecx
+-  je   next_pci_base
+-  xor  eax, #0xffffffff
+-  mov  ecx, eax
+-  mov  eax, [bp-4]
+-  out  dx, eax
+-  add  eax, ecx ;; calculate next free mem base
+-  add  eax, #0x01000000
+-  and  eax, #0xff000000
+-  mov  [bp-4], eax
+-  jmp  next_pci_base
+-init_io_base:
+-  mov  cx, ax
+-  mov  ax, #0xffff
+-  out  dx, ax
+-  in   ax, dx
+-  cmp  ax, cx
+-  je   next_pci_base
+-  xor  ax, #0xfffe
+-  mov  cx, ax
+-  mov  ax, [bp-6]
+-  out  dx, ax
+-  add  ax, cx ;; calculate next free i/o base
+-  add  ax, #0x0100
+-  and  ax, #0xff00
+-  mov  [bp-6], ax
+-next_pci_base:
+-  mov  al, [bp-8]
+-  add  al, #0x04
+-  cmp  al, #0x28
+-  je   enable_iomem_space
+-  mov  byte ptr[bp-8], al
+-  jmp  pci_init_io_loop2
+-enable_iomem_space:
+-  mov  dl, #0x04 ;; enable i/o and memory space access if available
+-  call pcibios_init_sel_reg
+-  mov  dx, #0x0cfc
+-  in   al, dx
+-  or   al, #0x07
+-  out  dx, al
+-next_pci_dev:
+-  mov  byte ptr[bp-8], #0x10
+-  inc  bx
+-  cmp  bx, #0x0100
+-  jne  pci_init_io_loop1
+-  mov  sp, bp
+-  pop  bp
+-  ret
++  or al, #0x02
++  out 0x92, al
+ 
+-pcibios_init_set_elcr:
+-  push ax
+-  push cx
+-  mov  dx, #0x04d0
+-  test al, #0x08
+-  jz   is_master_pic
+-  inc  dx
+-  and  al, #0x07
+-is_master_pic:
+-  mov  cl, al
+-  mov  bl, #0x01
+-  shl  bl, cl
+-  in   al, dx
+-  or   al, bl
+-  out  dx, al
+-  pop  cx
+-  pop  ax
+-  ret
++  ;; save SS:SP to the BDA
++  xor ax, ax
++  mov ds, ax
++  mov 0x0469, ss
++  mov 0x0467, sp
+ 
+-pcibios_init_irqs:
+-  push ds
+-  push bp
+-  mov  ax, #0xf000
+-  mov  ds, ax
+-  mov  dx, #0x04d0 ;; reset ELCR1 + ELCR2
+-  mov  al, #0x00
+-  out  dx, al
+-  inc  dx
+-  out  dx, al
+-  mov  si, #pci_routing_table_structure
+-  mov  bh, [si+8]
+-  mov  bl, [si+9]
+-  mov  dl, #0x00
+-  call pcibios_init_sel_reg
+-  mov  dx, #0x0cfc
+-  in   eax, dx
+-  cmp  eax, [si+12] ;; check irq router
+-  jne  pci_init_end
+-  mov  dl, [si+34]
+-  call pcibios_init_sel_reg
+-  push bx ;; save irq router bus + devfunc
+-  mov  dx, #0x0cfc
+-  mov  ax, #0x8080
+-  out  dx, ax ;; reset PIRQ route control
+-  inc  dx
+-  inc  dx
+-  out  dx, ax
+-  mov  ax, [si+6]
+-  sub  ax, #0x20
+-  shr  ax, #4
+-  mov  cx, ax
+-  add  si, #0x20 ;; set pointer to 1st entry
+-  mov  bp, sp
+-  mov  ax, #pci_irq_list
+-  push ax
+-  xor  ax, ax
+-  push ax
+-pci_init_irq_loop1:
+-  mov  bh, [si]
+-  mov  bl, [si+1]
+-pci_init_irq_loop2:
+-  mov  dl, #0x00
+-  call pcibios_init_sel_reg
+-  mov  dx, #0x0cfc
+-  in   ax, dx
+-  cmp  ax, #0xffff
+-  jnz  pci_test_int_pin
+-  test bl, #0x07
+-  jz   next_pir_entry
+-  jmp  next_pci_func
+-pci_test_int_pin:
+-  mov  dl, #0x3c
+-  call pcibios_init_sel_reg
+-  mov  dx, #0x0cfd
+-  in   al, dx
+-  and  al, #0x07
+-  jz   next_pci_func
+-  dec  al ;; determine pirq reg
+-  mov  dl, #0x03
+-  mul  al, dl
+-  add  al, #0x02
+-  xor  ah, ah
+-  mov  bx, ax
+-  mov  al, [si+bx]
+-  mov  dl, al
+-  mov  bx, [bp]
+-  call pcibios_init_sel_reg
+-  mov  dx, #0x0cfc
+-  and  al, #0x03
+-  add  dl, al
+-  in   al, dx
+-  cmp  al, #0x80
+-  jb   pirq_found
+-  mov  bx, [bp-2] ;; pci irq list pointer
+-  mov  al, [bx]
+-  out  dx, al
+-  inc  bx
+-  mov  [bp-2], bx
+-  call pcibios_init_set_elcr
+-pirq_found:
+-  mov  bh, [si]
+-  mov  bl, [si+1]
+-  add  bl, [bp-3] ;; pci function number
+-  mov  dl, #0x3c
+-  call pcibios_init_sel_reg
+-  mov  dx, #0x0cfc
+-  out  dx, al
+-next_pci_func:
+-  inc  byte ptr[bp-3]
+-  inc  bl
+-  test bl, #0x07
+-  jnz  pci_init_irq_loop2
+-next_pir_entry:
+-  add  si, #0x10
+-  mov  byte ptr[bp-3], #0x00
+-  loop pci_init_irq_loop1
+-  mov  sp, bp
+-  pop  bx
+-pci_init_end:
+-  pop  bp
+-  pop  ds
++  SEG CS
++    lidt [pmode_IDT_info]
++  SEG CS
++    lgdt [rombios32_gdt_48]
++  ;; set PE bit in CR0
++  mov  eax, cr0
++  or   al, #0x01
++  mov  cr0, eax
++  ;; start protected mode code: ljmpl 0x10:rombios32_init1
++  db 0x66, 0xea
++  dw rombios32_05
++  dw 0x000f       ;; high 16 bit address
++  dw 0x0010
++
++use32 386
++rombios32_05:
++  ;; init data segments
++  mov eax, #0x18
++  mov ds, ax
++  mov es, ax
++  mov ss, ax
++  xor eax, eax
++  mov fs, ax
++  mov gs, ax
++  cld
++
++  ;; copy rombios32 code to ram (ram offset = 1MB)
++  mov esi, #0xfffe0000
++  mov edi, #0x00040000
++  mov ecx, #0x10000 / 4
++  rep 
++    movsd
++
++  ;; init the stack pointer
++  mov esp, #0x00080000
++
++  ;; call rombios32 code
++  mov eax, #0x00040000
++  call eax
++
++  ;; return to 16 bit protected mode first
++  db 0xea
++  dd rombios32_10
++  dw 0x20
++
++use16 386
++rombios32_10:
++  ;; restore data segment limits to 0xffff
++  mov ax, #0x28
++  mov ds, ax
++  mov es, ax
++  mov ss, ax
++  mov fs, ax
++  mov gs, ax
++
++  ;; reset PE bit in CR0
++  mov  eax, cr0
++  and  al, #0xFE
++  mov  cr0, eax
++
++  ;; far jump to flush CPU queue after transition to real mode
++  JMP_AP(0xf000, rombios32_real_mode)
++
++rombios32_real_mode:
++  ;; restore IDT to normal real-mode defaults
++  SEG CS
++    lidt [rmode_IDT_info]
++
++  xor ax, ax
++  mov ds, ax
++  mov es, ax
++  mov fs, ax
++  mov gs, ax
++
++  ;; restore SS:SP from the BDA
++  mov ss, 0x0469
++  mov sp, 0x0467
++  ;; restore a20
++  pop ax
++  out 0x92, al
+   ret
+-#endif // BX_PCIBIOS
++
++rombios32_gdt_48:
++  dw 0x30
++  dw rombios32_gdt                  
++  dw 0x000f
++
++rombios32_gdt:
++  dw 0, 0, 0, 0
++  dw 0, 0, 0, 0
++  dw 0xffff, 0, 0x9b00, 0x00cf ; 32 bit flat code segment (0x10)
++  dw 0xffff, 0, 0x9300, 0x00cf ; 32 bit flat data segment (0x18)
++  dw 0xffff, 0, 0x9b0f, 0x0000 ; 16 bit code segment base=0xf0000 limit=0xffff
++  dw 0xffff, 0, 0x9300, 0x0000 ; 16 bit data segment base=0x0 limit=0xffff
++#endif
++
+ 
+ ; parallel port detection: base address in DX, index in BX, timeout in CL
+ detect_parport:
+@@ -9535,10 +9454,17 @@
+ ;; DATA_SEG_DEFS_HERE
+ 
+ 
++;; the following area can be used to write dynamically generated tables
++  .align 16
++bios_table_area_start:
++  dd 0xaafb4442
++  dd bios_table_area_end - bios_table_area_start - 8;
++
+ ;--------
+ ;- POST -
+ ;--------
+ .org 0xe05b ; POST Entry Point
++bios_table_area_end:
+ post:
+ 
+   xor ax, ax
+@@ -9802,9 +9728,9 @@
+ #endif
+   out  0xa1, AL ;slave  pic: unmask IRQ 12, 13, 14
+ 
+-  call pcibios_init_iomem_bases
+-  call pcibios_init_irqs
+-
++#if BX_ROMBIOS32
++  call rombios32_init
++#endif
+   call rom_scan
+ 
+   call _print_bios_banner 
