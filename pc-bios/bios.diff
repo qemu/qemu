@@ -1,6 +1,6 @@
-diff -ruN --exclude Makefile bios/acpi-dsdt.dsl bios.new/acpi-dsdt.dsl
---- bios/acpi-dsdt.dsl	1970-01-01 01:00:00.000000000 +0100
-+++ bios.new/acpi-dsdt.dsl	2006-09-24 20:27:54.000000000 +0200
+diff -ruN --exclude Makefile bios.org/acpi-dsdt.dsl bios/acpi-dsdt.dsl
+--- bios.org/acpi-dsdt.dsl	1970-01-01 01:00:00.000000000 +0100
++++ bios/acpi-dsdt.dsl	2006-09-24 20:27:54.000000000 +0200
 @@ -0,0 +1,559 @@
 +/*
 + * QEMU ACPI DSDT ASL definition
@@ -561,9 +561,9 @@ diff -ruN --exclude Makefile bios/acpi-dsdt.dsl bios.new/acpi-dsdt.dsl
 +        0x00, // reserved
 +    })
 +}
-diff -ruN --exclude Makefile bios/acpi-dsdt.hex bios.new/acpi-dsdt.hex
---- bios/acpi-dsdt.hex	1970-01-01 01:00:00.000000000 +0100
-+++ bios.new/acpi-dsdt.hex	2006-09-24 20:27:54.000000000 +0200
+diff -ruN --exclude Makefile bios.org/acpi-dsdt.hex bios/acpi-dsdt.hex
+--- bios.org/acpi-dsdt.hex	1970-01-01 01:00:00.000000000 +0100
++++ bios/acpi-dsdt.hex	2006-09-24 20:27:54.000000000 +0200
 @@ -0,0 +1,278 @@
 +/*
 + * 
@@ -843,10 +843,10 @@ diff -ruN --exclude Makefile bios/acpi-dsdt.hex bios.new/acpi-dsdt.hex
 +    0x53,0x35,0x5F,0x12,0x06,0x04,0x00,0x00,  /* 00000828    "S5_....." */
 +    0x00,0x00,
 +};
-Binary files bios/BIOS-bochs-latest and bios.new/BIOS-bochs-latest differ
-diff -ruN --exclude Makefile bios/Makefile.in bios.new/Makefile.in
---- bios/Makefile.in	2006-01-13 18:36:27.000000000 +0100
-+++ bios.new/Makefile.in	2006-09-24 20:26:39.000000000 +0200
+Binary files bios.org/BIOS-bochs-latest and bios/BIOS-bochs-latest differ
+diff -ruN --exclude Makefile bios.org/Makefile.in bios/Makefile.in
+--- bios.org/Makefile.in	2006-01-13 18:36:27.000000000 +0100
++++ bios/Makefile.in	2006-09-24 21:37:05.000000000 +0200
 @@ -61,7 +61,8 @@
  
  clean:
@@ -857,7 +857,7 @@ diff -ruN --exclude Makefile bios/Makefile.in bios.new/Makefile.in
  
  dist-clean: clean
  	@RMCOMMAND@ Makefile
-@@ -69,15 +70,35 @@
+@@ -69,15 +70,40 @@
  bios-clean:
  	@RMCOMMAND@ BIOS-bochs-*
  
@@ -882,8 +882,13 @@ diff -ruN --exclude Makefile bios/Makefile.in bios.new/Makefile.in
 +rombios32.out: rombios32start.o rombios32.o rombios32.ld
 +	ld -o $@ -T rombios32.ld rombios32start.o rombios32.o
 +
-+rombios32.o: rombios32.c
++rombios32.o: rombios32.c acpi-dsdt.hex
 +	$(GCC) -O2 -Wall -c -o $@ $<
++
++ifeq ("1", "0")
++acpi-dsdt.hex: acpi-dsdt.dsl
++	iasl -tc -p $@ $<
++endif
 +
 +rombios32start.o: rombios32start.S
 +	$(GCC) -c -o $@ $<
@@ -896,9 +901,9 @@ diff -ruN --exclude Makefile bios/Makefile.in bios.new/Makefile.in
 +
  biossums: biossums.c
  	$(GCC) -o biossums biossums.c
-diff -ruN --exclude Makefile bios/pad.c bios.new/pad.c
---- bios/pad.c	1970-01-01 01:00:00.000000000 +0100
-+++ bios.new/pad.c	2006-09-24 20:22:58.000000000 +0200
+diff -ruN --exclude Makefile bios.org/pad.c bios/pad.c
+--- bios.org/pad.c	1970-01-01 01:00:00.000000000 +0100
++++ bios/pad.c	2006-09-24 20:22:58.000000000 +0200
 @@ -0,0 +1,20 @@
 +#include <stdlib.h>
 +#include <stdio.h>
@@ -920,9 +925,9 @@ diff -ruN --exclude Makefile bios/pad.c bios.new/pad.c
 +    }
 +    return 0;
 +}
-diff -ruN --exclude Makefile bios/rombios32.c bios.new/rombios32.c
---- bios/rombios32.c	1970-01-01 01:00:00.000000000 +0100
-+++ bios.new/rombios32.c	2006-09-24 20:22:58.000000000 +0200
+diff -ruN --exclude Makefile bios.org/rombios32.c bios/rombios32.c
+--- bios.org/rombios32.c	1970-01-01 01:00:00.000000000 +0100
++++ bios/rombios32.c	2006-09-24 21:29:27.000000000 +0200
 @@ -0,0 +1,1324 @@
 +//  32 bit Bochs BIOS init code
 +//  Copyright (C) 2006 Fabrice Bellard
@@ -1490,9 +1495,9 @@ diff -ruN --exclude Makefile bios/rombios32.c bios.new/rombios32.c
 +    /* remap the BIOS to shadow RAM an keep it read/write while we
 +       are writing tables */
 +    memcpy((void *)BIOS_TMP_STORAGE, (void *)0x000f0000, 0x10000);
-+    v = pci_config_readb(d, 0x67);
++    v = pci_config_readb(d, 0x59);
 +    v = (v & 0x0f) | (0x30);
-+    pci_config_writeb(d, 0x67, v);
++    pci_config_writeb(d, 0x59, v);
 +    memcpy((void *)0x000f0000, (void *)BIOS_TMP_STORAGE, 0x10000);
 +    
 +    i440_pcidev = *d;
@@ -1503,9 +1508,9 @@ diff -ruN --exclude Makefile bios/rombios32.c bios.new/rombios32.c
 +    PCIDevice *d = &i440_pcidev;
 +    int v;
 +
-+    v = pci_config_readb(d, 0x67);
-+    v = (v & 0x0f) | (0x20);
-+    pci_config_writeb(d, 0x67, v);
++    v = pci_config_readb(d, 0x59);
++    v = (v & 0x0f) | (0x10);
++    pci_config_writeb(d, 0x59, v);
 +}
 +
 +static void pci_bios_init_bridges(PCIDevice *d)
@@ -1553,14 +1558,14 @@ diff -ruN --exclude Makefile bios/rombios32.c bios.new/rombios32.c
 +    outb(0xb2, 00);
 +
 +    /* enable the SMM memory window */
-+    pci_config_writel(&i440_pcidev, 0x6c, (1 << 26) | 0x000a);
++    pci_config_writeb(&i440_pcidev, 0x72, 0x02 | 0x40);
 +
 +    /* copy the SMM code */
 +    memcpy((void *)0xa8000, &smm_code_start,
 +           &smm_code_end - &smm_code_start);
 +    
 +    /* close the SMM memory window and enable normal SMM */
-+    pci_config_writel(&i440_pcidev, 0x6c, (1 << 31) | 0x000a);
++    pci_config_writeb(&i440_pcidev, 0x72, 0x02 | 0x08);
 +}
 +#endif
 +
@@ -2248,9 +2253,9 @@ diff -ruN --exclude Makefile bios/rombios32.c bios.new/rombios32.c
 +        bios_lock_shadow_ram();
 +    }
 +}
-diff -ruN --exclude Makefile bios/rombios32.ld bios.new/rombios32.ld
---- bios/rombios32.ld	1970-01-01 01:00:00.000000000 +0100
-+++ bios.new/rombios32.ld	2006-09-24 20:28:05.000000000 +0200
+diff -ruN --exclude Makefile bios.org/rombios32.ld bios/rombios32.ld
+--- bios.org/rombios32.ld	1970-01-01 01:00:00.000000000 +0100
++++ bios/rombios32.ld	2006-09-24 20:28:05.000000000 +0200
 @@ -0,0 +1,19 @@
 +OUTPUT_FORMAT("elf32-i386", "elf32-i386", "elf32-i386")
 +OUTPUT_ARCH(i386)
@@ -2271,9 +2276,9 @@ diff -ruN --exclude Makefile bios/rombios32.ld bios.new/rombios32.ld
 +                     *(.note)    
 +                  }
 +}
-diff -ruN --exclude Makefile bios/rombios32start.S bios.new/rombios32start.S
---- bios/rombios32start.S	1970-01-01 01:00:00.000000000 +0100
-+++ bios.new/rombios32start.S	2006-09-24 20:22:58.000000000 +0200
+diff -ruN --exclude Makefile bios.org/rombios32start.S bios/rombios32start.S
+--- bios.org/rombios32start.S	1970-01-01 01:00:00.000000000 +0100
++++ bios/rombios32start.S	2006-09-24 20:22:58.000000000 +0200
 @@ -0,0 +1,76 @@
 +.globl _start
 +.globl smp_ap_boot_code_start
@@ -2351,9 +2356,9 @@ diff -ruN --exclude Makefile bios/rombios32start.S bios.new/rombios32start.S
 +2:
 +  rsm
 +smm_code_end:
-diff -ruN --exclude Makefile bios/rombios.c bios.new/rombios.c
---- bios/rombios.c	2006-08-11 19:34:12.000000000 +0200
-+++ bios.new/rombios.c	2006-09-24 20:35:47.000000000 +0200
+diff -ruN --exclude Makefile bios.org/rombios.c bios/rombios.c
+--- bios.org/rombios.c	2006-08-11 19:34:12.000000000 +0200
++++ bios/rombios.c	2006-09-24 20:35:47.000000000 +0200
 @@ -24,7 +24,7 @@
  //  License along with this library; if not, write to the Free Software
  //  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
