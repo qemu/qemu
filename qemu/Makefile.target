@@ -1,4 +1,5 @@
 include config.mak
+-include *.d
 
 TARGET_BASE_ARCH:=$(TARGET_ARCH)
 ifeq ($(TARGET_ARCH), x86_64)
@@ -19,6 +20,7 @@ DEFINES+=-I$(SRC_PATH)/linux-user -I$(SRC_PATH)/linux-user/$(TARGET_ARCH)
 endif
 CFLAGS=-Wall -O2 -g -fno-strict-aliasing
 #CFLAGS+=-Werror
+CFLAGS += -MMD
 LDFLAGS=-g
 LIBS=
 HELPER_CFLAGS=$(CFLAGS)
