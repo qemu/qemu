@@ -117,11 +117,21 @@ static CPUReadMemoryFunc *PPC_PCIIO_read[] = {
     &PPC_PCIIO_readl,
 };
 
-static void prep_set_irq(PCIDevice *d, void *pic, int irq_num, int level)
+/* Don't know if this matches real hardware, but it agrees with OHW.  */
+static int prep_map_irq(PCIDevice *pci_dev, int irq_num)
 {
-    /* XXX: we do not simulate the hardware - we rely on the BIOS to
-       set correctly for irq line field */
-    pic_set_irq(d->config[PCI_INTERRUPT_LINE], level);
+    return (irq_num + (pci_dev->devfn >> 3)) & 3;
+}
+
+static int prep_irq_levels[4];
+
+static void prep_set_irq(void *pic, int irq_num, int level)
+{
+    int pic_irq_num;
+    prep_irq_levels[irq_num] = level;
+    level |= prep_irq_levels[irq_num ^ 2];
+    pic_irq_num = (irq_num == 0 || irq_num == 2) ? 9 : 11;
+    pic_set_irq(pic_irq_num, level);
 }
 
 PCIBus *pci_prep_init(void)
@@ -131,7 +141,7 @@ PCIBus *pci_prep_init(void)
     int PPC_io_memory;
 
     s = qemu_mallocz(sizeof(PREPPCIState));
-    s->bus = pci_register_bus(prep_set_irq, NULL, 0);
+    s->bus = pci_register_bus(prep_set_irq, prep_map_irq, NULL, 0);
 
     register_ioport_write(0xcf8, 4, 4, pci_prep_addr_writel, s);
     register_ioport_read(0xcf8, 4, 4, pci_prep_addr_readl, s);

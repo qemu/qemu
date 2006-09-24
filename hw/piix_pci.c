@@ -40,7 +40,17 @@ static uint32_t i440fx_addr_readl(void* opaque, uint32_t addr)
     return s->config_reg;
 }
 
-static void piix3_set_irq(PCIDevice *pci_dev, void *pic, int irq_num, int level);
+static void piix3_set_irq(void *pic, int irq_num, int level);
+
+/* return the global irq number corresponding to a given device irq
+   pin. We could also use the bus number to have a more precise
+   mapping. */
+static int pci_slot_get_pirq(PCIDevice *pci_dev, int irq_num)
+{
+    int slot_addend;
+    slot_addend = (pci_dev->devfn >> 3) - 1;
+    return (irq_num + slot_addend) & 3;
+}
 
 PCIBus *i440fx_init(void)
 {
@@ -49,7 +59,7 @@ PCIBus *i440fx_init(void)
     I440FXState *s;
 
     s = qemu_mallocz(sizeof(I440FXState));
-    b = pci_register_bus(piix3_set_irq, NULL, 0);
+    b = pci_register_bus(piix3_set_irq, pci_slot_get_pirq, NULL, 0);
     s->bus = b;
 
     register_ioport_write(0xcf8, 4, 4, i440fx_addr_writel, s);
@@ -83,65 +93,25 @@ static PCIDevice *piix3_dev;
 /* just used for simpler irq handling. */
 #define PCI_IRQ_WORDS   ((PCI_DEVICES_MAX + 31) / 32)
 
-static uint32_t pci_irq_levels[4][PCI_IRQ_WORDS];
+static int pci_irq_levels[4];
 
-/* return the global irq number corresponding to a given device irq
-   pin. We could also use the bus number to have a more precise
-   mapping. */
-static inline int pci_slot_get_pirq(PCIDevice *pci_dev, int irq_num)
+static void piix3_set_irq(void *pic, int irq_num, int level)
 {
-    int slot_addend;
-    slot_addend = (pci_dev->devfn >> 3) - 1;
-    return (irq_num + slot_addend) & 3;
-}
+    int i, pic_irq, pic_level;
 
-static inline int get_pci_irq_level(int irq_num)
-{
-    int pic_level;
-#if (PCI_IRQ_WORDS == 2)
-    pic_level = ((pci_irq_levels[irq_num][0] | 
-                  pci_irq_levels[irq_num][1]) != 0);
-#else
-    {
-        int i;
-        pic_level = 0;
-        for(i = 0; i < PCI_IRQ_WORDS; i++) {
-            if (pci_irq_levels[irq_num][i]) {
-                pic_level = 1;
-                break;
-            }
-        }
-    }
-#endif
-    return pic_level;
-}
-
-static void piix3_set_irq(PCIDevice *pci_dev, void *pic, int irq_num, int level)
-{
-    int irq_index, shift, pic_irq, pic_level;
-    uint32_t *p;
-
-    irq_num = pci_slot_get_pirq(pci_dev, irq_num);
-    irq_index = pci_dev->irq_index;
-    p = &pci_irq_levels[irq_num][irq_index >> 5];
-    shift = (irq_index & 0x1f);
-    *p = (*p & ~(1 << shift)) | (level << shift);
+    pci_irq_levels[irq_num] = level;
 
     /* now we change the pic irq level according to the piix irq mappings */
     /* XXX: optimize */
     pic_irq = piix3_dev->config[0x60 + irq_num];
     if (pic_irq < 16) {
-        /* the pic level is the logical OR of all the PCI irqs mapped
+        /* The pic level is the logical OR of all the PCI irqs mapped
            to it */
         pic_level = 0;
-        if (pic_irq == piix3_dev->config[0x60])
-            pic_level |= get_pci_irq_level(0);
-        if (pic_irq == piix3_dev->config[0x61])
-            pic_level |= get_pci_irq_level(1);
-        if (pic_irq == piix3_dev->config[0x62])
-            pic_level |= get_pci_irq_level(2);
-        if (pic_irq == piix3_dev->config[0x63])
-            pic_level |= get_pci_irq_level(3);
+        for (i = 0; i < 4; i++) {
+            if (pic_irq == piix3_dev->config[0x60 + i])
+                pic_level |= pci_irq_levels[i];
+        }
         pic_set_irq(pic_irq, pic_level);
     }
 }

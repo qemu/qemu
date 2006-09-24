@@ -140,9 +140,15 @@ static CPUReadMemoryFunc *pci_unin_read[] = {
 };
 #endif
 
-static void pci_unin_set_irq(PCIDevice *d, void *pic, int irq_num, int level)
+/* Don't know if this matches real hardware, but it agrees with OHW.  */
+static int pci_unin_map_irq(PCIDevice *pci_dev, int irq_num)
 {
-    openpic_set_irq(pic, d->config[PCI_INTERRUPT_LINE], level);
+    return (irq_num + (pci_dev->devfn >> 3)) & 3;
+}
+
+static void pci_unin_set_irq(void *pic, int irq_num, int level)
+{
+    openpic_set_irq(pic, irq_num + 8, level);
 }
 
 PCIBus *pci_pmac_init(void *pic)
@@ -154,7 +160,8 @@ PCIBus *pci_pmac_init(void *pic)
     /* Use values found on a real PowerMac */
     /* Uninorth main bus */
     s = qemu_mallocz(sizeof(UNINState));
-    s->bus = pci_register_bus(pci_unin_set_irq, NULL, 11 << 3);
+    s->bus = pci_register_bus(pci_unin_set_irq, pci_unin_map_irq,
+                              pic, 11 << 3);
 
     pci_mem_config = cpu_register_io_memory(0, pci_unin_main_config_read, 
                                             pci_unin_main_config_write, s);
