@@ -399,10 +399,6 @@ static void mips_ar7_init (int ram_size, int vga_ram_size, int boot_device,
     cpu_mips_irqctrl_init();
 
     ar7_init(env);
-#if defined(CONFIG_SDL) && 0 // no VGA for embedded device
-    vga_initialize(NULL, ds, phys_ram_base + ram_size, ram_size, 
-                   vga_ram_size, 0, 0);
-#endif
 }
 
 static QEMUMachine mips_machine[] = {
