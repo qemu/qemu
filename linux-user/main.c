@@ -122,6 +122,10 @@ int64_t cpu_get_real_ticks(void)
 /***********************************************************/
 /* CPUX86 core interface */
 
+void cpu_smm_update(CPUState *env)
+{
+}
+
 uint64_t cpu_get_tsc(CPUX86State *env)
 {
     return cpu_get_real_ticks();
