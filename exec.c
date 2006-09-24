@@ -1801,6 +1801,17 @@ void cpu_register_physical_memory(target_phys_addr_t start_addr,
     }
 }
 
+/* XXX: temporary until new memory mapping API */
+uint32_t cpu_get_physical_page_desc(target_phys_addr_t addr)
+{
+    PhysPageDesc *p;
+
+    p = phys_page_find(addr >> TARGET_PAGE_BITS);
+    if (!p)
+        return IO_MEM_UNASSIGNED;
+    return p->phys_offset;
+}
+
 static uint32_t unassigned_mem_readb(void *opaque, target_phys_addr_t addr)
 {
     return 0;
