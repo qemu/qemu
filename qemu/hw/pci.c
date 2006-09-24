@@ -29,11 +29,15 @@ struct PCIBus {
     int bus_num;
     int devfn_min;
     pci_set_irq_fn set_irq;
+    pci_map_irq_fn map_irq;
     uint32_t config_reg; /* XXX: suppress */
     /* low level pic */
     SetIRQFunc *low_set_irq;
     void *irq_opaque;
     PCIDevice *devices[256];
+    /* The bus IRQ state is the logical OR of the connected devices.
+       Keep a count of the number of devices with raised IRQs.  */
+    int irq_count[4];
 };
 
 static void pci_update_mappings(PCIDevice *d);
@@ -42,13 +46,16 @@ target_phys_addr_t pci_mem_base;
 static int pci_irq_index;
 static PCIBus *first_bus;
 
-PCIBus *pci_register_bus(pci_set_irq_fn set_irq, void *pic, int devfn_min)
+PCIBus *pci_register_bus(pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
+                         void *pic, int devfn_min)
 {
     PCIBus *bus;
     bus = qemu_mallocz(sizeof(PCIBus));
     bus->set_irq = set_irq;
+    bus->map_irq = map_irq;
     bus->irq_opaque = pic;
     bus->devfn_min = devfn_min;
+    memset(bus->irq_count, 0, sizeof(bus->irq_count));
     first_bus = bus;
     return bus;
 }
@@ -102,6 +109,7 @@ PCIDevice *pci_register_device(PCIBus *bus, const char *name,
     pci_dev->bus = bus;
     pci_dev->devfn = devfn;
     pstrcpy(pci_dev->name, sizeof(pci_dev->name), name);
+    memset(pci_dev->irq_state, 0, sizeof(pci_dev->irq_state));
 
     if (!config_read)
         config_read = pci_default_read_config;
@@ -406,7 +414,11 @@ uint32_t pci_data_read(void *opaque, uint32_t addr, int len)
 void pci_set_irq(PCIDevice *pci_dev, int irq_num, int level)
 {
     PCIBus *bus = pci_dev->bus;
-    bus->set_irq(pci_dev, bus->irq_opaque, irq_num, level);
+
+    irq_num = bus->map_irq(pci_dev, irq_num);
+    bus->irq_count[irq_num] += level - pci_dev->irq_state[irq_num];
+    pci_dev->irq_state[irq_num] = level;
+    bus->set_irq(bus->irq_opaque, irq_num, bus->irq_count[irq_num] != 0);
 }
 
 /***********************************************************/

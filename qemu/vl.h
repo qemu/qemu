@@ -737,6 +737,9 @@ struct PCIDevice {
     PCIConfigWriteFunc *config_write;
     /* ??? This is a PC-specific hack, and should be removed.  */
     int irq_index;
+
+    /* Current IRQ levels.  Used internally by the generic PCI code.  */
+    int irq_state[4];
 };
 
 PCIDevice *pci_register_device(PCIBus *bus, const char *name,
@@ -757,9 +760,10 @@ void pci_default_write_config(PCIDevice *d,
 void pci_device_save(PCIDevice *s, QEMUFile *f);
 int pci_device_load(PCIDevice *s, QEMUFile *f);
 
-typedef void (*pci_set_irq_fn)(PCIDevice *pci_dev, void *pic,
-                               int irq_num, int level);
-PCIBus *pci_register_bus(pci_set_irq_fn set_irq, void *pic, int devfn_min);
+typedef void (*pci_set_irq_fn)(void *pic, int irq_num, int level);
+typedef int (*pci_map_irq_fn)(PCIDevice *pci_dev, int irq_num);
+PCIBus *pci_register_bus(pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
+                         void *pic, int devfn_min);
 
 void pci_nic_init(PCIBus *bus, NICInfo *nd);
 void pci_data_write(void *opaque, uint32_t addr, uint32_t val, int len);

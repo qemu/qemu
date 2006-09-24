@@ -179,10 +179,18 @@ static CPUReadMemoryFunc *pci_apb_ioread[] = {
     &pci_apb_ioreadl,
 };
 
-/* ??? This is probably wrong.  */
-static void pci_apb_set_irq(PCIDevice *d, void *pic, int irq_num, int level)
+static int pci_apb_map_irq(PCIDevice *pci_dev, int irq_num)
 {
-    pic_set_irq_new(pic, d->config[PCI_INTERRUPT_LINE], level);
+    /* ??? As mentioned below this is probably wrong.  */
+    return irq_num;
+}
+
+static void pci_apb_set_irq(void *pic, int irq_num, int level)
+{
+    /* ??? This is almost certainly wrong.  However the rest of the sun4u
+       IRQ handling is missing, as is OpenBIOS support, so it wouldn't work
+       anyway.  */
+    pic_set_irq_new(pic, irq_num, level);
 }
 
 PCIBus *pci_apb_init(target_ulong special_base, target_ulong mem_base,
@@ -194,7 +202,7 @@ PCIBus *pci_apb_init(target_ulong special_base, target_ulong mem_base,
 
     s = qemu_mallocz(sizeof(APBState));
     /* Ultrasparc APB main bus */
-    s->bus = pci_register_bus(pci_apb_set_irq, pic, 0);
+    s->bus = pci_register_bus(pci_apb_set_irq, pci_apb_map_irq, pic, 0);
 
     pci_mem_config = cpu_register_io_memory(0, pci_apb_config_read,
                                             pci_apb_config_write, s);
