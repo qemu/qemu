@@ -59,7 +59,7 @@ PCIBus *i440fx_init(void)
     I440FXState *s;
 
     s = qemu_mallocz(sizeof(I440FXState));
-    b = pci_register_bus(piix3_set_irq, pci_slot_get_pirq, NULL, 0);
+    b = pci_register_bus(piix3_set_irq, pci_slot_get_pirq, NULL, 0, 4);
     s->bus = b;
 
     register_ioport_write(0xcf8, 4, 4, i440fx_addr_writel, s);
@@ -226,6 +226,7 @@ static uint32_t pci_bios_io_addr;
 static uint32_t pci_bios_mem_addr;
 /* host irqs corresponding to PCI irqs A-D */
 static uint8_t pci_irqs[4] = { 11, 9, 11, 9 };
+static int pci_bios_next_bus;
 
 static void pci_config_writel(PCIDevice *d, uint32_t addr, uint32_t val)
 {
@@ -320,6 +321,14 @@ static void pci_bios_init_device(PCIDevice *d)
             pci_set_io_region_addr(d, 3, 0x374);
         }
         break;
+    case 0x0604:
+        /* PCI to PCI bridge.  Assign bus ID and recurse to configure
+           devices on the secondary bus.  */
+        i = pci_bios_next_bus++;
+        pci_config_writeb(d, 0x18, pci_bus_num(d->bus));
+        pci_config_writeb(d, 0x19, i);
+        pci_for_each_device(i, pci_bios_init_device);
+        break;
     case 0x0300:
         if (vendor_id != 0x1234)
             goto default_map;
@@ -398,6 +407,7 @@ void pci_bios_init(void)
     isa_outb(elcr[0], 0x4d0);
     isa_outb(elcr[1], 0x4d1);
 
-    pci_for_each_device(pci_bios_init_device);
+    pci_bios_next_bus = 1;
+    pci_for_each_device(0, pci_bios_init_device);
 }
 
