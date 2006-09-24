@@ -1,8 +1,8 @@
 /*
  * QEMU i82559 (EEPRO100) emulation
- * 
+ *
  * Copyright (c) 2006 Stefan Weil
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -40,7 +40,11 @@
 /* debug EEPRO100 card */
 #define DEBUG_EEPRO100
 
+#ifdef DEBUG_EEPRO100
 #define logout(fmt, args...) printf("EEPRO100 %-24s" fmt, __func__, ##args)
+#else
+#define logout(fmt, args...) ((void)0)
+#endif
 
 #define MAX_ETH_FRAME_SIZE 1514
 
@@ -363,10 +367,8 @@ static void eepro100_update_irq(EEPRO100State *s)
 {
     int isr;
     isr = (s->isr & s->imr) & 0x7f;
-#if defined(DEBUG_EEPRO100)
     logout("Set IRQ line %d to %d (%02x %02x)\n",
            s->irq, isr ? 1 : 0, s->isr, s->imr);
-#endif
     if (s->irq == 16) {
         /* PCI irq */
         pci_set_irq(s->pci_dev, 0, (isr != 0));
@@ -418,11 +420,7 @@ static int eepro100_buffer_full(EEPRO100State *s)
 static int eepro100_can_receive(void *opaque)
 {
     EEPRO100State *s = opaque;
-
-#if defined(DEBUG_EEPRO100)
     logout("%p\n", s);
-#endif
-
     return !eepro100_buffer_full(s);
 }
 
@@ -434,16 +432,14 @@ static void eepro100_receive(void *opaque, const uint8_t *buf, int size)
     uint8_t *p;
     int total_len, next, avail, len, index, mcast_idx;
     uint8_t buf1[60];
-    static const uint8_t broadcast_macaddr[6] = 
+    static const uint8_t broadcast_macaddr[6] =
         { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
-    
-#if defined(DEBUG_EEPRO100)
+
     logout("%p received len=%d\n", s, size);
-#endif
 
     if (eepro100_buffer_full(s))
         return;
-    
+
     /* XXX: check this */
     if (s->rxcr & 0x10) {
         /* promiscuous: receive all */
@@ -460,10 +456,10 @@ static void eepro100_receive(void *opaque, const uint8_t *buf, int size)
             if (!(s->mult[mcast_idx >> 3] & (1 << (mcast_idx & 7))))
                 return;
         } else if (s->mem[0] == buf[0] &&
-                   s->mem[2] == buf[1] &&                   
-                   s->mem[4] == buf[2] &&            
-                   s->mem[6] == buf[3] &&            
-                   s->mem[8] == buf[4] &&            
+                   s->mem[2] == buf[1] &&
+                   s->mem[4] == buf[2] &&
+                   s->mem[6] == buf[3] &&
+                   s->mem[8] == buf[4] &&
                    s->mem[10] == buf[5]) {
             /* match */
         } else {
@@ -566,7 +562,6 @@ static uint16_t eepro100_read_command(EEPRO100State *s)
 
 static void eepro100_write_command(EEPRO100State *s, uint16_t val)
 {
-    //~ s->pointer = val;
     switch (val & 0xff) {
         case 0x01:      /* RX_START */
             s->scb_m = ((val & 0x100) != 0);
@@ -594,18 +589,26 @@ static void eepro100_write_command(EEPRO100State *s, uint16_t val)
             logout("val=0x%04x\n", val);
             break;
         default:
-#ifdef DEBUG_EEPRO100
             logout("val=0x%04x\n", val);
-#endif
     }
 }
 
 static void eepro100_write_pointer(EEPRO100State *s, uint32_t val)
 {
     s->pointer = val;
-#ifdef DEBUG_EEPRO100
+     logout("val=0x%08x\n", val);
+}
+
+static uint32_t eepro100_read_mdi(EEPRO100State *s)
+{
+    uint32_t val = 0xffffffff;
     logout("val=0x%08x\n", val);
-#endif
+    return val;
+}
+
+static void eepro100_write_mdi(EEPRO100State *s, uint32_t val)
+{
+    logout("val=0x%08x\n", val);
 }
 
 #define PORT_SOFTWARE_RESET     0
@@ -628,19 +631,15 @@ static void eepro100_write_port(EEPRO100State *s, uint32_t val)
             nic_reset(s);
             break;
         case PORT_SELFTEST:
-#ifdef DEBUG_EEPRO100
             logout("selftest address=0x%08x\n", address);
-#endif
             eepro100_selftest_t data;
-            cpu_physical_memory_read(address, &data, sizeof(data));
+            cpu_physical_memory_read(address, (uint8_t *)&data, sizeof(data));
             data.st_sign = 0xffffffff;
             data.st_result = 0;
-            cpu_physical_memory_write(address, &data, sizeof(data));
+            cpu_physical_memory_write(address, (uint8_t *)&data, sizeof(data));
             break;
         default:
-#ifdef DEBUG_EEPRO100
             logout("val=0x%08x (unimplemented)\n", val);
-#endif
     }
 }
 
@@ -652,10 +651,15 @@ static uint8_t eepro100_read1(EEPRO100State *s, uint32_t addr)
         case 0x02:
             ret = eepro100_read_command(s);
             break;
+        case 0x1b:      /* power management driver register */
+            ret = 0;
+            break;
+        case 0x1d:      /* general status register */
+            /* 100 Mbps full duplex */
+            ret = 0x03;
+            break;
         default:
-#ifdef DEBUG_EEPRO100
             logout("addr=%s val=%02x\n", regname(addr), ret);
-#endif
     }
     return ret;
 }
@@ -672,9 +676,7 @@ static uint16_t eepro100_read2(EEPRO100State *s, uint32_t addr)
             ret = Cfg9346_read(&s->eeprom);
             break;
         default:
-#ifdef DEBUG_EEPRO100
             logout("addr=%s val=%04x\n", regname(addr), ret);
-#endif
     }
     return ret;
 }
@@ -682,18 +684,20 @@ static uint16_t eepro100_read2(EEPRO100State *s, uint32_t addr)
 static uint32_t eepro100_read4(EEPRO100State *s, uint32_t addr)
 {
     int ret = 0xffffffff;
-#ifdef DEBUG_EEPRO100
-    logout("addr=%s val=%08x\n", regname(addr), ret);
-#endif
+    switch (addr) {
+        case 0x10:
+            ret = eepro100_read_mdi(s);
+            break;
+        default:
+            logout("addr=%s val=%08x\n", regname(addr), ret);
+    }
     return ret;
 }
 
 
 static void eepro100_write1(EEPRO100State *s, uint32_t addr, uint8_t val)
 {
-#ifdef DEBUG_EEPRO100
     logout("addr=%s val=0x%02x\n", regname(addr), val);
-#endif
 }
 
 static void eepro100_write2(EEPRO100State *s, uint32_t addr, uint16_t val)
@@ -709,9 +713,7 @@ static void eepro100_write2(EEPRO100State *s, uint32_t addr, uint16_t val)
             Cfg9346_write(&s->eeprom, val);
             break;
         default:
-#ifdef DEBUG_EEPRO100
             logout("addr=%s val=0x%04x\n", regname(addr), val);
-#endif
     }
 }
 
@@ -721,13 +723,14 @@ static void eepro100_write4(EEPRO100State *s, uint32_t addr, uint32_t val)
         case 0x04:
             eepro100_write_pointer(s, val);
             break;
+        case 0x10:
+            eepro100_write_mdi(s, val);
+            break;
         case 0x08:
             eepro100_write_port(s, val);
             break;
         default:
-#ifdef DEBUG_EEPRO100
             logout("addr=%s val=0x%08x\n", regname(addr), val);
-#endif
     }
 }
 
@@ -846,16 +849,14 @@ typedef struct PCIEEPRO100State {
     EEPRO100State eepro100;
 } PCIEEPRO100State;
 
-static void pci_map(PCIDevice *pci_dev, int region_num, 
+static void pci_map(PCIDevice *pci_dev, int region_num,
                        uint32_t addr, uint32_t size, int type)
 {
     PCIEEPRO100State *d = (PCIEEPRO100State *)pci_dev;
     EEPRO100State *s = &d->eepro100;
 
-#if defined(DEBUG_EEPRO100)
     logout("region %d, addr=0x%08x, size=0x%08x, type=%d\n",
            region_num, addr, size, type);
-#endif
 
     assert(region_num == 1);
     register_ioport_write(addr, size, 1, ioport_write1, s);
@@ -872,9 +873,7 @@ static void pci_mmio_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     EEPRO100State *s = opaque;
     addr -= s->region[0];
-#if defined(DEBUG_EEPRO100)
-    logout("addr=%s val=0x%02x\n", regname(addr), val);
-#endif
+    //~ logout("addr=%s val=0x%02x\n", regname(addr), val);
     eepro100_write1(s, addr, val);
 }
 
@@ -882,9 +881,7 @@ static void pci_mmio_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     EEPRO100State *s = opaque;
     addr -= s->region[0];
-#if defined(DEBUG_EEPRO100)
-    logout("addr=%s val=0x%02x\n", regname(addr), val);
-#endif
+    //~ logout("addr=%s val=0x%02x\n", regname(addr), val);
     eepro100_write2(s, addr, val);
 }
 
@@ -892,9 +889,7 @@ static void pci_mmio_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     EEPRO100State *s = opaque;
     addr -= s->region[0];
-#if defined(DEBUG_EEPRO100)
-    logout("addr=%s val=0x%02x\n", regname(addr), val);
-#endif
+    //~ logout("addr=%s val=0x%02x\n", regname(addr), val);
     eepro100_write4(s, addr, val);
 }
 
@@ -902,9 +897,7 @@ static uint32_t pci_mmio_readb(void *opaque, target_phys_addr_t addr)
 {
     EEPRO100State *s = opaque;
     addr -= s->region[0];
-#if defined(DEBUG_EEPRO100)
-    logout("addr=%s\n", regname(addr));
-#endif
+    //~ logout("addr=%s\n", regname(addr));
     return eepro100_read1(s, addr);
 }
 
@@ -912,9 +905,7 @@ static uint32_t pci_mmio_readw(void *opaque, target_phys_addr_t addr)
 {
     EEPRO100State *s = opaque;
     addr -= s->region[0];
-#if defined(DEBUG_EEPRO100)
-    logout("addr=%s\n", regname(addr));
-#endif
+    //~ logout("addr=%s\n", regname(addr));
     return eepro100_read2(s, addr);
 }
 
@@ -922,9 +913,7 @@ static uint32_t pci_mmio_readl(void *opaque, target_phys_addr_t addr)
 {
     EEPRO100State *s = opaque;
     addr -= s->region[0];
-#if defined(DEBUG_EEPRO100)
-    logout("addr=%s\n", regname(addr));
-#endif
+    //~ logout("addr=%s\n", regname(addr));
     return eepro100_read4(s, addr);
 }
 
@@ -940,15 +929,13 @@ static CPUReadMemoryFunc *pci_mmio_read[] = {
     pci_mmio_readl
 };
 
-static void pci_mmio_map(PCIDevice *pci_dev, int region_num, 
+static void pci_mmio_map(PCIDevice *pci_dev, int region_num,
                             uint32_t addr, uint32_t size, int type)
 {
     PCIEEPRO100State *d = (PCIEEPRO100State *)pci_dev;
 
-#if defined(DEBUG_EEPRO100)
     logout("region %d, addr=0x%08x, size=0x%08x, type=%d\n",
            region_num, addr, size, type);
-#endif
 
     if (region_num == 0) {
         /* Map control / status registers. */
@@ -960,9 +947,7 @@ static void pci_mmio_map(PCIDevice *pci_dev, int region_num,
 static void nic_reset(void *opaque)
 {
     EEPRO100State *s = (EEPRO100State *)opaque;
-#if defined(DEBUG_EEPRO100)
     logout("%p\n", s);
-#endif
     /* prepare eeprom */
     size_t i;
     uint16_t sum = 0;
@@ -982,10 +967,8 @@ void pci_eepro100_init(PCIBus *bus, NICInfo *nd)
     PCIEEPRO100State *d;
     EEPRO100State *s;
     uint8_t *pci_conf;
-    
-#if defined(DEBUG_EEPRO100)
+
     logout("\n");
-#endif
 
     d = (PCIEEPRO100State *)pci_register_device(bus, "EEPRO100",
         sizeof(PCIEEPRO100State), -1, NULL, NULL);
@@ -1007,7 +990,7 @@ void pci_eepro100_init(PCIBus *bus, NICInfo *nd)
     /* PCI Class code / PCI Revision ID */
     PCI_CONFIG_8(PCI_REVISION, 0x08);
     PCI_CONFIG_8(0x09, 0x00);
-    PCI_CONFIG_8(PCI_SUBCLASS_CODE, 0x00); // ethernet network controller 
+    PCI_CONFIG_8(PCI_SUBCLASS_CODE, 0x00); // ethernet network controller
     PCI_CONFIG_8(PCI_CLASS_CODE, 0x02); // network controller
     /* bist / PCI Hader Type / PCI Latency Timer / PCI Cache Line Size */
     /* check cache line size!!! */
