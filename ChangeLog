@@ -1,3 +1,61 @@
+2006-09-24 21:31  bellard
+
+	* hw/piix_pci.c: implement i440 instead of i450 ISA memory mappings
+	  to be compatible with Bochs
+
+2006-09-24 20:49  bellard
+
+	* Changelog: update
+
+2006-09-24 20:49  bellard
+
+	* vl.h: moved PCI init to BIOS
+
+2006-09-24 20:49  bellard
+
+	* hw/piix_pci.c: moved PCI init to BIOS - added ISA memory mapping
+	  registers and SMM support
+
+2006-09-24 20:48  bellard
+
+	* linux-user/main.c: added cpu_smm_update()
+
+2006-09-24 20:48  bellard
+
+	* hw/pc.c: moved MP table init to BIOS
+
+2006-09-24 20:45  bellard
+
+	* Makefile.target, hw/acpi-dsdt.hex, hw/acpi-dsdt.dsl: moved ACPI
+	  table init to BIOS
+
+2006-09-24 20:44  bellard
+
+	* hw/acpi.c: moved ACPI table init to BIOS - preliminary SMM
+	  support
+
+2006-09-24 20:41  bellard
+
+	* exec.c: added cpu_get_physical_page_desc()
+
+2006-09-24 20:40  bellard
+
+	* target-i386/cpu.h, target-i386/exec.h, target-i386/helper.c,
+	  target-i386/helper2.c, target-i386/op.c, target-i386/translate.c,
+	  cpu-all.h, cpu-exec.c, vl.c: added SMM support
+
+2006-09-24 20:38  bellard
+
+	* pc-bios/: bios.bin, bios.diff: moved PCI, MP and ACPI init to
+	  bios
+
+2006-09-24 19:01  pbrook
+
+	* vl.h, hw/apb_pci.c, hw/grackle_pci.c, hw/pci.c, hw/piix_pci.c,
+	  hw/prep_pci.c, hw/unin_pci.c, hw/versatile_pci.c: Implement sun4u
+	  PCI IRQ routing.  Allow multiple PCI busses and PCI-PCI bridges.
+	  Fix bugs in Versatile PCI implementation.
+
 2006-09-24 02:16  pbrook
 
 	* vl.h, hw/apb_pci.c, hw/grackle_pci.c, hw/pci.c, hw/piix_pci.c,

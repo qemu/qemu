@@ -176,6 +176,7 @@ void raise_interrupt(int intno, int is_int, int error_code,
                      int next_eip_addend);
 void raise_exception_err(int exception_index, int error_code);
 void raise_exception(int exception_index);
+void do_smm_enter(void);
 void __hidden cpu_loop_exit(void);
 
 void OPPROTO op_movl_eflags_T0(void);
@@ -203,6 +204,7 @@ void helper_lsl(void);
 void helper_lar(void);
 void helper_verr(void);
 void helper_verw(void);
+void helper_rsm(void);
 
 void check_iob_T0(void);
 void check_iow_T0(void);

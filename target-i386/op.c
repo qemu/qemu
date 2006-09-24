@@ -678,6 +678,11 @@ void OPPROTO op_reset_inhibit_irq(void)
     env->hflags &= ~HF_INHIBIT_IRQ_MASK;
 }
 
+void OPPROTO op_rsm(void)
+{
+    helper_rsm();
+}
+
 #if 0
 /* vm86plus instructions */
 void OPPROTO op_cli_vm(void)

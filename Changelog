@@ -5,6 +5,8 @@ version 0.8.3:
   - New qcow2 disk image format
   - Support of multiple VM snapshots
   - Linux: specific host CDROM and floppy support
+  - SMM support
+  - Moved PCI init, MP table init and ACPI table init to Bochs BIOS
 
 version 0.8.2:
 

@@ -762,6 +762,7 @@ extern int code_copy_enabled;
 #define CPU_INTERRUPT_TIMER  0x08 /* internal timer exception pending */
 #define CPU_INTERRUPT_FIQ    0x10 /* Fast interrupt pending.  */
 #define CPU_INTERRUPT_HALT   0x20 /* CPU halt wanted */
+#define CPU_INTERRUPT_SMI    0x40 /* (x86 only) SMI interrupt pending */
 
 void cpu_interrupt(CPUState *s, int mask);
 void cpu_reset_interrupt(CPUState *env, int mask);
@@ -839,6 +840,7 @@ typedef uint32_t CPUReadMemoryFunc(void *opaque, target_phys_addr_t addr);
 void cpu_register_physical_memory(target_phys_addr_t start_addr, 
                                   unsigned long size,
                                   unsigned long phys_offset);
+uint32_t cpu_get_physical_page_desc(target_phys_addr_t addr);
 int cpu_register_io_memory(int io_index,
                            CPUReadMemoryFunc * const *mem_read,
                            CPUWriteMemoryFunc * const *mem_write,

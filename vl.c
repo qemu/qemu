@@ -4883,6 +4883,7 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_be64s(f, &env->fmask);
     qemu_put_be64s(f, &env->kernelgsbase);
 #endif
+    qemu_put_be32s(f, &env->smbase);
 }
 
 #ifdef USE_X86LDOUBLE
@@ -4916,7 +4917,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     uint32_t hflags;
     uint16_t fpus, fpuc, fptag, fpregs_format;
 
-    if (version_id != 3)
+    if (version_id != 3 && version_id != 4)
         return -EINVAL;
     for(i = 0; i < CPU_NB_REGS; i++)
         qemu_get_betls(f, &env->regs[i]);
@@ -5019,6 +5020,8 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_be64s(f, &env->fmask);
     qemu_get_be64s(f, &env->kernelgsbase);
 #endif
+    if (version_id >= 4) 
+        qemu_get_be32s(f, &env->smbase);
 
     /* XXX: compute hflags from scratch, except for CPL and IIF */
     env->hflags = hflags;

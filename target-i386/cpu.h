@@ -142,6 +142,7 @@
 #define HF_OSFXSR_SHIFT     16 /* CR4.OSFXSR */
 #define HF_VM_SHIFT         17 /* must be same as eflags */
 #define HF_HALTED_SHIFT     18 /* CPU halted */
+#define HF_SMM_SHIFT        19 /* CPU in SMM mode */
 
 #define HF_CPL_MASK          (3 << HF_CPL_SHIFT)
 #define HF_SOFTMMU_MASK      (1 << HF_SOFTMMU_SHIFT)
@@ -158,6 +159,7 @@
 #define HF_CS64_MASK         (1 << HF_CS64_SHIFT)
 #define HF_OSFXSR_MASK       (1 << HF_OSFXSR_SHIFT)
 #define HF_HALTED_MASK       (1 << HF_HALTED_SHIFT)
+#define HF_SMM_MASK          (1 << HF_SMM_SHIFT)
 
 #define CR0_PE_MASK  (1 << 0)
 #define CR0_MP_MASK  (1 << 1)
@@ -503,6 +505,7 @@ typedef struct CPUX86State {
     int exception_is_int;
     target_ulong exception_next_eip;
     target_ulong dr[8]; /* debug registers */
+    uint32_t smbase;
     int interrupt_request; 
     int user_mode_only; /* user mode only simulation */
 
@@ -630,6 +633,7 @@ void cpu_set_apic_tpr(CPUX86State *env, uint8_t val);
 #ifndef NO_CPU_IO_DEFS
 uint8_t cpu_get_apic_tpr(CPUX86State *env);
 #endif
+void cpu_smm_update(CPUX86State *env);
 
 /* will be suppressed */
 void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0);
