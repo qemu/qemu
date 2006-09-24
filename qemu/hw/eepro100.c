@@ -153,6 +153,7 @@
 #define EEPROM_CS       0x08
 #define EEPROM_SK       0x04
 #define EEPROM_DI       0x02
+#define EEPROM_DO       0x01
 #else
 #define EEPROM_CS       0x02
 #define EEPROM_SK       0x01
@@ -374,25 +375,10 @@ static void Cfg9346_write(EEprom9346 *eeprom, uint32_t val)
     /* mask unwriteable bits */
     //~ val = SET_MASKED(val, 0x31, eeprom->Cfg9346);
 
-    uint32_t opmode = val & 0xc0;
-
-    if (opmode == 0x80) {
-        /* eeprom access !!!check */
-        int eecs = ((val & EEPROM_CS) != 0);
-        int eesk = ((val & EEPROM_SK) != 0);
-        int eedi = ((val & EEPROM_DI) != 0);
-        prom9346_set_wire(eeprom, eecs, eesk, eedi);
-    } else if (opmode == 0x40) {
-        /* Reset.  */
-        val = 0;
-        logout("Cfg9346 unimplemented eeprom reset\n");
-        //~ eeprom_reset(s);
-    } else {
-        int eecs = ((val & EEPROM_CS) != 0);
-        int eesk = ((val & EEPROM_SK) != 0);
-        int eedi = ((val & EEPROM_DI) != 0);
-        prom9346_set_wire(eeprom, eecs, eesk, eedi);
-    }
+    int eecs = ((val & EEPROM_CS) != 0);
+    int eesk = ((val & EEPROM_SK) != 0);
+    int eedi = ((val & EEPROM_DI) != 0);
+    prom9346_set_wire(eeprom, eecs, eesk, eedi);
 
     eeprom->Cfg9346 = val;
 }
@@ -400,16 +386,12 @@ static void Cfg9346_write(EEprom9346 *eeprom, uint32_t val)
 static uint32_t Cfg9346_read(EEprom9346 *eeprom)
 {
     uint32_t ret = eeprom->Cfg9346;
-    uint32_t opmode = ret & 0xc0;
 
-    if (opmode == 0x80) {
-        /* eeprom access */
-        int eedo = prom9346_get_wire(eeprom);
-        if (eedo) {
-            ret |=  0x01;
-        } else {
-            ret &= ~0x01;
-        }
+    int eedo = prom9346_get_wire(eeprom);
+    if (eedo) {
+        ret |=  EEPROM_DO;
+    } else {
+        ret &= ~EEPROM_DO;
     }
 
     logout("Cfg9346 read val=0x%02x\n", ret);
@@ -895,25 +877,22 @@ static void pci_mmio_map(PCIDevice *pci_dev, int region_num,
 
 static void nic_reset(void *opaque)
 {
-    PCIEEPRO100State *d = (PCIEEPRO100State *)opaque;
+    EEPRO100State *s = (EEPRO100State *)opaque;
 #if defined(DEBUG_EEPRO100)
-    logout("%p\n", d);
+    logout("%p\n", s);
 #endif
     /* prepare eeprom */
     size_t i;
     uint16_t sum = 0;
-    for (i = 0; i < EEPROM_9346_SIZE - 1; i++) {
-        d->eepro100.eeprom.contents[i] = i;
+    memcpy(&s->eeprom.contents[0], s->macaddr, 6);
+    for (i = 0; i < 6; i++) {
+        sum += s->eeprom.contents[i];
+    }
+    for (i = 6; i < EEPROM_9346_SIZE - 1; i++) {
+        s->eeprom.contents[i] = i;
         sum += i;
     }
-    d->eepro100.eeprom.contents[EEPROM_9346_SIZE - 1] = 0xbaba - sum;
-#if 1
-    // PCI vendor and device ID should be mirrored here
-    //~ s->eeprom.contents[1] = 0x10ec;
-    //~ s->eeprom.contents[2] = 0x8139;
-#endif
-    //~ memcpy(&s->eeprom.contents[7], s->macaddr, 6);
-
+    s->eeprom.contents[EEPROM_9346_SIZE - 1] = 0xbaba - sum;
 }
 
 void pci_eepro100_init(PCIBus *bus, NICInfo *nd)
@@ -986,7 +965,7 @@ void pci_eepro100_init(PCIBus *bus, NICInfo *nd)
     memcpy(s->macaddr, nd->macaddr, 6);
     s->ioaddr = 0;
 
-    nic_reset(d);
+    nic_reset(s);
 
     s->vc = qemu_new_vlan_client(nd->vlan, eepro100_receive,
                                  eepro100_can_receive, s);
@@ -1000,7 +979,7 @@ void pci_eepro100_init(PCIBus *bus, NICInfo *nd)
              s->macaddr[4],
              s->macaddr[5]);
 
-    qemu_register_reset(nic_reset, d);
+    qemu_register_reset(nic_reset, s);
 
     /* XXX: instance number ? */
     register_savevm("eepro100", 0, 3, nic_save, nic_load, s);
