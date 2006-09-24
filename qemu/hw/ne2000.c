@@ -767,6 +767,9 @@ static void ne2000_map(PCIDevice *pci_dev, int region_num,
     PCINE2000State *d = (PCINE2000State *)pci_dev;
     NE2000State *s = &d->ne2000;
 
+    printf("NE2000: %s region %d, addr=0x%08x, size=0x%08x, type=%d\n",
+           __func__, region_num, addr, size, type);
+
     register_ioport_write(addr, 16, 1, ne2000_ioport_write, s);
     register_ioport_read(addr, 16, 1, ne2000_ioport_read, s);
 
