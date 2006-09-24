@@ -161,7 +161,8 @@ void cpu_reset(CPUX86State *env)
 
     cpu_x86_update_cr0(env, 0x60000010);
     env->a20_mask = 0xffffffff;
-    
+    env->smbase = 0x30000;
+
     env->idt.limit = 0xffff;
     env->gdt.limit = 0xffff;
     env->ldt.limit = 0xffff;
@@ -268,7 +269,7 @@ void cpu_dump_state(CPUState *env, FILE *f,
                     "RSI=%016" PRIx64 " RDI=%016" PRIx64 " RBP=%016" PRIx64 " RSP=%016" PRIx64 "\n"
                     "R8 =%016" PRIx64 " R9 =%016" PRIx64 " R10=%016" PRIx64 " R11=%016" PRIx64 "\n"
                     "R12=%016" PRIx64 " R13=%016" PRIx64 " R14=%016" PRIx64 " R15=%016" PRIx64 "\n"
-                    "RIP=%016" PRIx64 " RFL=%08x [%c%c%c%c%c%c%c] CPL=%d II=%d A20=%d HLT=%d\n",
+                    "RIP=%016" PRIx64 " RFL=%08x [%c%c%c%c%c%c%c] CPL=%d II=%d A20=%d SMM=%d HLT=%d\n",
                     env->regs[R_EAX], 
                     env->regs[R_EBX], 
                     env->regs[R_ECX], 
@@ -296,13 +297,14 @@ void cpu_dump_state(CPUState *env, FILE *f,
                     env->hflags & HF_CPL_MASK, 
                     (env->hflags >> HF_INHIBIT_IRQ_SHIFT) & 1,
                     (env->a20_mask >> 20) & 1,
+                    (env->hflags >> HF_SMM_SHIFT) & 1,
                     (env->hflags >> HF_HALTED_SHIFT) & 1);
     } else 
 #endif
     {
         cpu_fprintf(f, "EAX=%08x EBX=%08x ECX=%08x EDX=%08x\n"
                     "ESI=%08x EDI=%08x EBP=%08x ESP=%08x\n"
-                    "EIP=%08x EFL=%08x [%c%c%c%c%c%c%c] CPL=%d II=%d A20=%d HLT=%d\n",
+                    "EIP=%08x EFL=%08x [%c%c%c%c%c%c%c] CPL=%d II=%d A20=%d SMM=%d HLT=%d\n",
                     (uint32_t)env->regs[R_EAX], 
                     (uint32_t)env->regs[R_EBX], 
                     (uint32_t)env->regs[R_ECX], 
@@ -322,6 +324,7 @@ void cpu_dump_state(CPUState *env, FILE *f,
                     env->hflags & HF_CPL_MASK, 
                     (env->hflags >> HF_INHIBIT_IRQ_SHIFT) & 1,
                     (env->a20_mask >> 20) & 1,
+                    (env->hflags >> HF_SMM_SHIFT) & 1,
                     (env->hflags >> HF_HALTED_SHIFT) & 1);
     }
 

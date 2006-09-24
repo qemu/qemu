@@ -6012,6 +6012,17 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
         /* ignore for now */
         break;
+    case 0x1aa: /* rsm */
+        if (!(s->flags & HF_SMM_MASK))
+            goto illegal_op;
+        if (s->cc_op != CC_OP_DYNAMIC) {
+            gen_op_set_cc_op(s->cc_op);
+            s->cc_op = CC_OP_DYNAMIC;
+        }
+        gen_jmp_im(s->pc - s->cs_base);
+        gen_op_rsm();
+        gen_eob(s);
+        break;
     case 0x110 ... 0x117:
     case 0x128 ... 0x12f:
     case 0x150 ... 0x177:
