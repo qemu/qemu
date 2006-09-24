@@ -1,3 +1,9 @@
+2006-09-24 02:16  pbrook
+
+	* vl.h, hw/apb_pci.c, hw/grackle_pci.c, hw/pci.c, hw/piix_pci.c,
+	  hw/prep_pci.c, hw/unin_pci.c, hw/versatile_pci.c: PCI shared IRQ
+	  fix (original patch by andrzej zaborowski).
+
 2006-09-23 19:40  pbrook
 
 	* Makefile.target, vl.c, vl.h, hw/arm_gic.c, hw/arm_sysctl.c,

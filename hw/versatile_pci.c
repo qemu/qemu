@@ -79,7 +79,12 @@ static CPUReadMemoryFunc *pci_vpb_config_read[] = {
 
 static int pci_vpb_irq;
 
-static void pci_vpb_set_irq(PCIDevice *d, void *pic, int irq_num, int level)
+static int pci_vpb_map_irq(PCIDevice *d, int irq_num)
+{
+    return irq_num;
+}
+
+static void pci_vpb_set_irq(void *pic, int irq_num, int level)
 {
     pic_set_irq_new(pic, pci_vpb_irq + irq_num, level);
 }
@@ -100,7 +105,7 @@ PCIBus *pci_vpb_init(void *pic, int irq, int realview)
         base = 0x40000000;
         name = "Versatile/PB PCI Controller";
     }
-    s = pci_register_bus(pci_vpb_set_irq, pic, 11 << 3);
+    s = pci_register_bus(pci_vpb_set_irq, pci_vpb_map_irq, pic, 11 << 3);
     /* ??? Register memory space.  */
 
     mem_config = cpu_register_io_memory(0, pci_vpb_config_read,

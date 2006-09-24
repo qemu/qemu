@@ -74,11 +74,15 @@ static CPUReadMemoryFunc *pci_grackle_read[] = {
     &pci_host_data_readl,
 };
 
-/* XXX: we do not simulate the hardware - we rely on the BIOS to
-   set correctly for irq line field */
-static void pci_grackle_set_irq(PCIDevice *d, void *pic, int irq_num, int level)
+/* Don't know if this matches real hardware, but it agrees with OHW.  */
+static int pci_grackle_map_irq(PCIDevice *pci_dev, int irq_num)
 {
-    heathrow_pic_set_irq(pic, d->config[PCI_INTERRUPT_LINE], level);
+    return (irq_num + (pci_dev->devfn >> 3)) & 3;
+}
+
+static void pci_grackle_set_irq(void *pic, int irq_num, int level)
+{
+    heathrow_pic_set_irq(pic, irq_num + 8, level);
 }
 
 PCIBus *pci_grackle_init(uint32_t base, void *pic)
@@ -88,7 +92,7 @@ PCIBus *pci_grackle_init(uint32_t base, void *pic)
     int pci_mem_config, pci_mem_data;
 
     s = qemu_mallocz(sizeof(GrackleState));
-    s->bus = pci_register_bus(pci_grackle_set_irq, pic, 0);
+    s->bus = pci_register_bus(pci_grackle_set_irq, pci_grackle_map_irq, pic, 0);
 
     pci_mem_config = cpu_register_io_memory(0, pci_grackle_config_read, 
                                             pci_grackle_config_write, s);
