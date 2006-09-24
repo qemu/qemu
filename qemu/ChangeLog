@@ -1,3 +1,7 @@
+2006-09-24 21:36  bellard
+
+	* pc-bios/: bios.bin, bios.diff: updated
+
 2006-09-24 21:31  bellard
 
 	* hw/piix_pci.c: implement i440 instead of i450 ISA memory mappings

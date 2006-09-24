@@ -55,63 +55,50 @@ static int pci_slot_get_pirq(PCIDevice *pci_dev, int irq_num)
 static uint32_t isa_page_descs[384 / 4];
 static uint8_t smm_enabled;
 
-static const uint32_t mar_addresses[15] = {
-    0xa0000,
-    0xc0000,
-    0xc4000,
-    0xc8000,
-    0xcc000,
-    0xd0000,
-    0xd4000,
-    0xd8000,
-    0xdc000,
-    0xe0000,
-    0xe4000,
-    0xe8000,
-    0xec000,
-    0xf0000,
-    0x100000,
-};
+static void update_pam(PCIDevice *d, uint32_t start, uint32_t end, int r)
+{
+    uint32_t addr;
+
+    //    printf("ISA mapping %08x-0x%08x: %d\n", start, end, r);
+    switch(r) {
+    case 3:
+        /* RAM */
+        cpu_register_physical_memory(start, end - start, 
+                                     start);
+        break;
+    case 1:
+        /* ROM (XXX: not quite correct) */
+        cpu_register_physical_memory(start, end - start, 
+                                     start | IO_MEM_ROM);
+        break;
+    case 2:
+    case 0:
+        /* XXX: should distinguish read/write cases */
+        for(addr = start; addr < end; addr += 4096) {
+            cpu_register_physical_memory(addr, 4096, 
+                                         isa_page_descs[(addr - 0xa0000) >> 12]);
+        }
+        break;
+    }
+}
 
 static void i440fx_update_memory_mappings(PCIDevice *d)
 {
     int i, r;
-    uint32_t start, end, addr;
-    uint32_t smram, smbase, smsize;
+    uint32_t smram, addr;
 
-    for(i = 0; i < 14; i++) {
-        r = (d->config[(i >> 1) + 0x61] >> ((i & 1) * 4)) & 3;
-        start = mar_addresses[i];
-        end = mar_addresses[i + 1];
-        //        printf("ISA mapping %08x: %d\n", start, r);
-        switch(r) {
-        case 3:
-            /* RAM */
-            cpu_register_physical_memory(start, end - start, 
-                                         start);
-            break;
-        case 2:
-            /* ROM (XXX: not quite correct) */
-            cpu_register_physical_memory(start, end - start, 
-                                         start | IO_MEM_ROM);
-            break;
-        case 1:
-        case 0:
-            /* XXX: should distinguish read/write cases */
-            for(addr = start; addr < end; addr += 4096) {
-                cpu_register_physical_memory(addr, 4096, 
-                                             isa_page_descs[(addr - 0xa0000) >> 12]);
-            }
-            break;
-        }
+    update_pam(d, 0xf0000, 0x100000, (d->config[0x59] >> 4) & 3);
+    for(i = 0; i < 12; i++) {
+        r = (d->config[(i >> 1) + 0x5a] >> ((i & 1) * 4)) & 3;
+        update_pam(d, 0xc0000 + 0x4000 * i, 0xc0000 + 0x4000 * (i + 1), r);
     }
-    smram = le32_to_cpu(*(uint32_t *)(d->config + 0x6c));
-    if ((smm_enabled && (smram & 0x80000000)) || (smram & (1 << 26))) {
-        /* Note: we assume the SMM area is in the 0xa0000-0x100000 range */
-        smbase = (smram & 0xffff) << 16;
-        smsize = (((smram >> 20) & 0xf) + 1) << 16;
-        if (smbase >= 0xa0000 && (smbase + smsize) <= 0x100000) {
-            cpu_register_physical_memory(smbase, smsize, smbase);
+    smram = d->config[0x72];
+    if ((smm_enabled && (smram & 0x08)) || (smram & 0x40)) {
+        cpu_register_physical_memory(0xa0000, 0x20000, 0xa0000);
+    } else {
+        for(addr = 0xa0000; addr < 0xc0000; addr += 4096) {
+            cpu_register_physical_memory(addr, 4096, 
+                                         isa_page_descs[(addr - 0xa0000) >> 12]);
         }
     }
 }
@@ -142,7 +129,7 @@ static void i440fx_write_config(PCIDevice *d,
 {
     /* XXX: implement SMRAM.D_LOCK */
     pci_default_write_config(d, address, val, len);
-    if ((address >= 0x61 && address <= 0x67) || address == 0x6c)
+    if ((address >= 0x59 && address <= 0x5f) || address == 0x72)
         i440fx_update_memory_mappings(d);
 }
 
@@ -200,7 +187,7 @@ PCIBus *i440fx_init(PCIDevice **pi440fx_state)
     d->config[0x0b] = 0x06; // class_base = PCI_bridge
     d->config[0x0e] = 0x00; // header_type
 
-    d->config[0x6c] = 0x0a; /* SMRAM */
+    d->config[0x72] = 0x02; /* SMRAM */
 
     register_savevm("I440FX", 0, 1, i440fx_save, i440fx_load, d);
     *pi440fx_state = d;
