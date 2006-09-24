@@ -530,13 +530,6 @@ endif
 
 loader.o: loader.c elf_ops.h
 
-acpi.o: acpi.c acpi-dsdt.hex
-
-ifdef BUILD_ACPI_TABLES
-$(SRC_PATH)/hw/acpi-dsdt.hex: acpi-dsdt.dsl
-	iasl -tc -p $@ $<
-endif
-
 ifeq ($(TARGET_ARCH), sh4)
 op.o: op.c op_mem.c cpu.h
 op_helper.o: op_helper.c exec.h cpu.h

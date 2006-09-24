@@ -458,8 +458,16 @@ int cpu_exec(CPUState *env1)
                 interrupt_request = env->interrupt_request;
                 if (__builtin_expect(interrupt_request, 0)) {
 #if defined(TARGET_I386)
-                    /* if hardware interrupt pending, we execute it */
-                    if ((interrupt_request & CPU_INTERRUPT_HARD) &&
+                    if ((interrupt_request & CPU_INTERRUPT_SMI) &&
+                        !(env->hflags & HF_SMM_MASK)) {
+                        env->interrupt_request &= ~CPU_INTERRUPT_SMI;
+                        do_smm_enter();
+#if defined(__sparc__) && !defined(HOST_SOLARIS)
+                        tmp_T0 = 0;
+#else
+                        T0 = 0;
+#endif
+                    } else if ((interrupt_request & CPU_INTERRUPT_HARD) &&
                         (env->eflags & IF_MASK) && 
                         !(env->hflags & HF_INHIBIT_IRQ_MASK)) {
                         int intno;

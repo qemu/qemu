@@ -11,7 +11,7 @@
 
 static inline uint32_t vpb_pci_config_addr(target_phys_addr_t addr)
 {
-    return addr & 0xf8ff;
+    return addr & 0xffffff;
 }
 
 static void pci_vpb_config_writeb (void *opaque, target_phys_addr_t addr,
@@ -105,15 +105,15 @@ PCIBus *pci_vpb_init(void *pic, int irq, int realview)
         base = 0x40000000;
         name = "Versatile/PB PCI Controller";
     }
-    s = pci_register_bus(pci_vpb_set_irq, pci_vpb_map_irq, pic, 11 << 3);
+    s = pci_register_bus(pci_vpb_set_irq, pci_vpb_map_irq, pic, 11 << 3, 4);
     /* ??? Register memory space.  */
 
     mem_config = cpu_register_io_memory(0, pci_vpb_config_read,
                                         pci_vpb_config_write, s);
     /* Selfconfig area.  */
-    cpu_register_physical_memory(base + 0x01000000, 0x10000, mem_config);
+    cpu_register_physical_memory(base + 0x01000000, 0x1000000, mem_config);
     /* Normal config area.  */
-    cpu_register_physical_memory(base + 0x02000000, 0x10000, mem_config);
+    cpu_register_physical_memory(base + 0x02000000, 0x1000000, mem_config);
 
     d = pci_register_device(s, name, sizeof(PCIDevice), -1, NULL, NULL);
 

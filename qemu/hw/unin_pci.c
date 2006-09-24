@@ -161,7 +161,7 @@ PCIBus *pci_pmac_init(void *pic)
     /* Uninorth main bus */
     s = qemu_mallocz(sizeof(UNINState));
     s->bus = pci_register_bus(pci_unin_set_irq, pci_unin_map_irq,
-                              pic, 11 << 3);
+                              pic, 11 << 3, 4);
 
     pci_mem_config = cpu_register_io_memory(0, pci_unin_main_config_read, 
                                             pci_unin_main_config_write, s);
