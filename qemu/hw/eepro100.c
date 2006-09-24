@@ -17,6 +17,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
+
+#include <assert.h>
 #include "vl.h"
 
 #define PCI_VENDOR_ID           0x00    /* 16 bits */
@@ -41,91 +43,6 @@
 #define logout(fmt, args...) printf("EEPRO100 %-24s" fmt, __func__, ##args)
 
 #define MAX_ETH_FRAME_SIZE 1514
-
-#define E8390_CMD	0x00  /* The command register (for all pages) */
-/* Page 0 register offsets. */
-#define EN0_CLDALO	0x01	/* Low byte of current local dma addr  RD */
-#define EN0_STARTPG	0x01	/* Starting page of ring bfr WR */
-#define EN0_CLDAHI	0x02	/* High byte of current local dma addr  RD */
-#define EN0_STOPPG	0x02	/* Ending page +1 of ring bfr WR */
-#define EN0_BOUNDARY	0x03	/* Boundary page of ring bfr RD WR */
-#define EN0_TSR		0x04	/* Transmit status reg RD */
-#define EN0_TPSR	0x04	/* Transmit starting page WR */
-#define EN0_NCR		0x05	/* Number of collision reg RD */
-#define EN0_TCNTLO	0x05	/* Low  byte of tx byte count WR */
-#define EN0_FIFO	0x06	/* FIFO RD */
-#define EN0_TCNTHI	0x06	/* High byte of tx byte count WR */
-#define EN0_ISR		0x07	/* Interrupt status reg RD WR */
-#define EN0_CRDALO	0x08	/* low byte of current remote dma address RD */
-#define EN0_RSARLO	0x08	/* Remote start address reg 0 */
-#define EN0_CRDAHI	0x09	/* high byte, current remote dma address RD */
-#define EN0_RSARHI	0x09	/* Remote start address reg 1 */
-#define EN0_RCNTLO	0x0a	/* Remote byte count reg WR */
-#define EN0_RTL8029ID0	0x0a	/* Realtek ID byte #1 RD */
-#define EN0_RCNTHI	0x0b	/* Remote byte count reg WR */
-#define EN0_RTL8029ID1	0x0b	/* Realtek ID byte #2 RD */
-#define EN0_RSR		0x0c	/* rx status reg RD */
-#define EN0_RXCR	0x0c	/* RX configuration reg WR */
-#define EN0_TXCR	0x0d	/* TX configuration reg WR */
-#define EN0_COUNTER0	0x0d	/* Rcv alignment error counter RD */
-#define EN0_DCFG	0x0e	/* Data configuration reg WR */
-#define EN0_COUNTER1	0x0e	/* Rcv CRC error counter RD */
-#define EN0_IMR		0x0f	/* Interrupt mask reg WR */
-#define EN0_COUNTER2	0x0f	/* Rcv missed frame error counter RD */
-
-#define EN1_PHYS        0x11
-#define EN1_CURPAG      0x17
-#define EN1_MULT        0x18
-
-#define EN2_STARTPG	0x21	/* Starting page of ring bfr RD */
-#define EN2_STOPPG	0x22	/* Ending page +1 of ring bfr RD */
-
-#define EN3_CONFIG0	0x33
-#define EN3_CONFIG1	0x34
-#define EN3_CONFIG2	0x35
-#define EN3_CONFIG3	0x36
-
-/*  Register accessed at EN_CMD, the 8390 base addr.  */
-#define E8390_STOP	0x01	/* Stop and reset the chip */
-#define E8390_START	0x02	/* Start the chip, clear reset */
-#define E8390_TRANS	0x04	/* Transmit a frame */
-#define E8390_RREAD	0x08	/* Remote read */
-#define E8390_RWRITE	0x10	/* Remote write  */
-#define E8390_NODMA	0x20	/* Remote DMA */
-#define E8390_PAGE0	0x00	/* Select page chip registers */
-#define E8390_PAGE1	0x40	/* using the two high-order bits */
-#define E8390_PAGE2	0x80	/* Page 3 is invalid. */
-
-/* Bits in EN0_ISR - Interrupt status register */
-#define ENISR_RX	0x01	/* Receiver, no error */
-#define ENISR_TX	0x02	/* Transmitter, no error */
-#define ENISR_RX_ERR	0x04	/* Receiver, with error */
-#define ENISR_TX_ERR	0x08	/* Transmitter, with error */
-#define ENISR_OVER	0x10	/* Receiver overwrote the ring */
-#define ENISR_COUNTERS	0x20	/* Counters need emptying */
-#define ENISR_RDC	0x40	/* remote dma complete */
-#define ENISR_RESET	0x80	/* Reset completed */
-#define ENISR_ALL	0x3f	/* Interrupts we will enable */
-
-/* Bits in received packet status byte and EN0_RSR*/
-#define ENRSR_RXOK	0x01	/* Received a good packet */
-#define ENRSR_CRC	0x02	/* CRC error */
-#define ENRSR_FAE	0x04	/* frame alignment error */
-#define ENRSR_FO	0x08	/* FIFO overrun */
-#define ENRSR_MPA	0x10	/* missed pkt */
-#define ENRSR_PHY	0x20	/* physical/multicast address */
-#define ENRSR_DIS	0x40	/* receiver disable. set in monitor mode */
-#define ENRSR_DEF	0x80	/* deferring */
-
-/* Transmitted packet status, EN0_TSR. */
-#define ENTSR_PTX 0x01	/* Packet transmitted without error */
-#define ENTSR_ND  0x02	/* The transmit wasn't deferred. */
-#define ENTSR_COL 0x04	/* The transmit collided at least once. */
-#define ENTSR_ABT 0x08  /* The transmit collided 16 times, and was deferred. */
-#define ENTSR_CRS 0x10	/* The carrier sense was lost. */
-#define ENTSR_FU  0x20  /* A "FIFO underrun" occurred during transmit. */
-#define ENTSR_CDH 0x40	/* The collision detect "heartbeat" signal was lost. */
-#define ENTSR_OWC 0x80  /* There was an out-of-window collision. */
 
 #define EEPRO100_PMEM_SIZE    (32*1024)
 #define EEPRO100_PMEM_START   (16*1024)
@@ -427,13 +344,20 @@ typedef struct {
     uint8_t mult[8]; /* multicast mask array */
     int irq;
     int mmio_index;
-    uint32_t ioaddr;
+    uint32_t region[3]; /* PCI region addresses */
     PCIDevice *pci_dev;
     VLANClientState *vc;
     uint8_t macaddr[6];
     uint8_t mem[EEPRO100_MEM_SIZE];
     EEprom9346 eeprom;
+    uint32_t pointer;
+    uint32_t rxaddr;
+    uint32_t statsaddr;
+    uint16_t status;
+    unsigned scb_m:1;
 } EEPRO100State;
+
+static void nic_reset(void *opaque);
 
 static void eepro100_update_irq(EEPRO100State *s)
 {
@@ -499,8 +423,6 @@ static int eepro100_can_receive(void *opaque)
     logout("%p\n", s);
 #endif
 
-    if (s->cmd & E8390_STOP)
-        return 1;
     return !eepro100_buffer_full(s);
 }
 
@@ -519,7 +441,7 @@ static void eepro100_receive(void *opaque, const uint8_t *buf, int size)
     logout("%p received len=%d\n", s, size);
 #endif
 
-    if (s->cmd & E8390_STOP || eepro100_buffer_full(s))
+    if (eepro100_buffer_full(s))
         return;
     
     /* XXX: check this */
@@ -567,10 +489,10 @@ static void eepro100_receive(void *opaque, const uint8_t *buf, int size)
         next -= (s->stop - s->start);
     /* prepare packet header */
     p = s->mem + index;
-    s->rsr = ENRSR_RXOK; /* receive status */
+    //~ s->rsr = ENRSR_RXOK; /* receive status */
     /* XXX: check this */
-    if (buf[0] & 0x01)
-        s->rsr |= ENRSR_PHY;
+    //~ if (buf[0] & 0x01)
+        //~ s->rsr |= ENRSR_PHY;
     p[0] = s->rsr;
     p[1] = next >> 8;
     p[2] = total_len;
@@ -593,7 +515,7 @@ static void eepro100_receive(void *opaque, const uint8_t *buf, int size)
     s->curpag = next >> 8;
 
     /* now we can signal we have receive something */
-    s->isr |= ENISR_RX;
+    //~ s->isr |= ENISR_RX;
     eepro100_update_irq(s);
 }
 
@@ -622,84 +544,227 @@ static char *regname(uint32_t addr)
   return buf;
 }
 
-static void ioport_write4(void *opaque, uint32_t addr, uint32_t val)
+static uint16_t eepro100_read_status(EEPRO100State *s)
 {
-    EEPRO100State *s = opaque;
-    addr -= s->ioaddr;
-
-#ifdef DEBUG_EEPRO100
-    logout("write addr=%s val=0x%08x\n", regname(addr), val);
-#endif
+    uint16_t val = s->status;
+    logout("val=0x%04x\n", val);
+    return val;
 }
 
-static uint32_t ioport_read4(void *opaque, uint32_t addr)
+static void eepro100_write_status(EEPRO100State *s, uint16_t val)
 {
-    EEPRO100State *s = opaque;
-    int ret = 0xffffffff;
-    addr -= s->ioaddr;
-
-#ifdef DEBUG_EEPRO100
-    logout("read addr=%s val=%08x\n", regname(addr), ret);
-#endif
-    return ret;
+    logout("val=0x%04x\n", val);
+    s->status = val;
 }
 
-static void ioport_write2(void *opaque, uint32_t addr, uint32_t val)
+static uint16_t eepro100_read_command(EEPRO100State *s)
 {
-    EEPRO100State *s = opaque;
-    addr -= s->ioaddr;
+    uint16_t val = 0xffff;
+    //~ logout("val=0x%04x\n", val);
+    return val;
+}
 
-    switch (addr) {
-        case 0x0e:
-            Cfg9346_write(&s->eeprom, val);
+static void eepro100_write_command(EEPRO100State *s, uint16_t val)
+{
+    //~ s->pointer = val;
+    switch (val & 0xff) {
+        case 0x01:      /* RX_START */
+            s->scb_m = ((val & 0x100) != 0);
+            //~ s->rxaddr = s->pointer;
+            logout("val=0x%04x (rx start)\n", val);
+            break;
+        case 0x06:
+            s->scb_m = ((val & 0x100) != 0);
+            s->rxaddr = s->pointer;
+            logout("val=0x%04x\n", val);
+            break;
+        case 0x10:      /* CU_START */
+            s->scb_m = ((val & 0x100) != 0);
+            //~ s->rxaddr = s->pointer;
+            logout("val=0x%04x (cu start)\n", val);
+            break;
+        case 0x40:
+            s->scb_m = ((val & 0x100) != 0);
+            s->statsaddr = s->pointer;
+            logout("val=0x%04x\n", val);
+            break;
+        case 0x60:      /* CU_CMD_BASE */
+            s->scb_m = ((val & 0x100) != 0);
+            //~ s->rxaddr = s->pointer;
+            logout("val=0x%04x\n", val);
             break;
         default:
 #ifdef DEBUG_EEPRO100
-            logout("write addr=%s val=0x%04x\n", regname(addr), val);
+            logout("val=0x%04x\n", val);
 #endif
     }
 }
 
-static uint32_t ioport_read2(void *opaque, uint32_t addr)
+static void eepro100_write_pointer(EEPRO100State *s, uint32_t val)
 {
-    EEPRO100State *s = opaque;
-    uint16_t ret = 0xffff;
-    addr -= s->ioaddr;
+    s->pointer = val;
+#ifdef DEBUG_EEPRO100
+    logout("val=0x%08x\n", val);
+#endif
+}
+
+#define PORT_SOFTWARE_RESET     0
+#define PORT_SELFTEST           1
+#define PORT_SELECTIVE_RESET    2
+#define PORT_DUMP               3
+#define PORT_SELECTION_MASK     3
+
+typedef struct {
+    uint32_t st_sign;   /* Self Test Signature */
+    uint32_t st_result; /* Self Test Results */
+} eepro100_selftest_t __attribute__ ((__packed__));
+
+static void eepro100_write_port(EEPRO100State *s, uint32_t val)
+{
+    uint32_t address = (val & ~PORT_SELECTION_MASK);
+    uint8_t  selection = (val & PORT_SELECTION_MASK);
+    switch (selection) {
+        case PORT_SOFTWARE_RESET:
+            nic_reset(s);
+            break;
+        case PORT_SELFTEST:
+#ifdef DEBUG_EEPRO100
+            logout("selftest address=0x%08x\n", address);
+#endif
+            eepro100_selftest_t data;
+            cpu_physical_memory_read(address, &data, sizeof(data));
+            data.st_sign = 0xffffffff;
+            data.st_result = 0;
+            cpu_physical_memory_write(address, &data, sizeof(data));
+            break;
+        default:
+#ifdef DEBUG_EEPRO100
+            logout("val=0x%08x (unimplemented)\n", val);
+#endif
+    }
+}
+
+static uint8_t eepro100_read1(EEPRO100State *s, uint32_t addr)
+{
+    uint8_t ret = 0xff;
 
     switch (addr) {
+        case 0x02:
+            ret = eepro100_read_command(s);
+            break;
+        default:
+#ifdef DEBUG_EEPRO100
+            logout("addr=%s val=%02x\n", regname(addr), ret);
+#endif
+    }
+    return ret;
+}
+
+static uint16_t eepro100_read2(EEPRO100State *s, uint32_t addr)
+{
+    uint16_t ret = 0xffff;
+
+    switch (addr) {
+        case 0x00:
+            ret = eepro100_read_status(s);
+            break;
         case 0x0e:
             ret = Cfg9346_read(&s->eeprom);
             break;
         default:
 #ifdef DEBUG_EEPRO100
-            logout("read addr=%s val=%04x\n", regname(addr), ret);
+            logout("addr=%s val=%04x\n", regname(addr), ret);
 #endif
     }
     return ret;
 }
 
-static void ioport_write1(void *opaque, uint32_t addr, uint32_t val)
+static uint32_t eepro100_read4(EEPRO100State *s, uint32_t addr)
 {
-    EEPRO100State *s = opaque;
-    //~ int offset, page, index;
-    addr -= s->ioaddr;
-
+    int ret = 0xffffffff;
 #ifdef DEBUG_EEPRO100
-    logout("write addr=%s val=0x%02x\n", regname(addr), val);
+    logout("addr=%s val=%08x\n", regname(addr), ret);
 #endif
+    return ret;
+}
+
+
+static void eepro100_write1(EEPRO100State *s, uint32_t addr, uint8_t val)
+{
+#ifdef DEBUG_EEPRO100
+    logout("addr=%s val=0x%02x\n", regname(addr), val);
+#endif
+}
+
+static void eepro100_write2(EEPRO100State *s, uint32_t addr, uint16_t val)
+{
+    switch (addr) {
+        case 0x00:
+            eepro100_write_status(s, val);
+            break;
+        case 0x02:
+            eepro100_write_command(s, val);
+            break;
+        case 0x0e:
+            Cfg9346_write(&s->eeprom, val);
+            break;
+        default:
+#ifdef DEBUG_EEPRO100
+            logout("addr=%s val=0x%04x\n", regname(addr), val);
+#endif
+    }
+}
+
+static void eepro100_write4(EEPRO100State *s, uint32_t addr, uint32_t val)
+{
+    switch (addr) {
+        case 0x04:
+            eepro100_write_pointer(s, val);
+            break;
+        case 0x08:
+            eepro100_write_port(s, val);
+            break;
+        default:
+#ifdef DEBUG_EEPRO100
+            logout("addr=%s val=0x%08x\n", regname(addr), val);
+#endif
+    }
 }
 
 static uint32_t ioport_read1(void *opaque, uint32_t addr)
 {
     EEPRO100State *s = opaque;
-    //~ int offset, page;
-    uint8_t ret = 0xff;
-    addr -= s->ioaddr;
+    return eepro100_read1(s, addr - s->region[1]);
+}
 
-#ifdef DEBUG_EEPRO100
-    logout("read addr=%s val=%02x\n", regname(addr), ret);
-#endif
-    return ret;
+static uint32_t ioport_read2(void *opaque, uint32_t addr)
+{
+    EEPRO100State *s = opaque;
+    return eepro100_read2(s, addr - s->region[1]);
+}
+
+static uint32_t ioport_read4(void *opaque, uint32_t addr)
+{
+    EEPRO100State *s = opaque;
+    return eepro100_read4(s, addr - s->region[1]);
+}
+
+static void ioport_write1(void *opaque, uint32_t addr, uint32_t val)
+{
+    EEPRO100State *s = opaque;
+    eepro100_write1(s, addr - s->region[1], val);
+}
+
+static void ioport_write2(void *opaque, uint32_t addr, uint32_t val)
+{
+    EEPRO100State *s = opaque;
+    eepro100_write2(s, addr - s->region[1], val);
+}
+
+static void ioport_write4(void *opaque, uint32_t addr, uint32_t val)
+{
+    EEPRO100State *s = opaque;
+    eepro100_write4(s, addr - s->region[1], val);
 }
 
 static void nic_save(QEMUFile* f,void* opaque)
@@ -792,6 +857,7 @@ static void pci_map(PCIDevice *pci_dev, int region_num,
            region_num, addr, size, type);
 #endif
 
+    assert(region_num == 1);
     register_ioport_write(addr, size, 1, ioport_write1, s);
     register_ioport_read(addr, size, 1, ioport_read1, s);
     register_ioport_write(addr, size, 2, ioport_write2, s);
@@ -799,55 +865,67 @@ static void pci_map(PCIDevice *pci_dev, int region_num,
     register_ioport_write(addr, size, 4, ioport_write4, s);
     register_ioport_read(addr, size, 4, ioport_read4, s);
 
-    s->ioaddr = addr;
+    s->region[region_num] = addr;
 }
 
 static void pci_mmio_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
+    EEPRO100State *s = opaque;
+    addr -= s->region[0];
 #if defined(DEBUG_EEPRO100)
     logout("addr=%s val=0x%02x\n", regname(addr), val);
 #endif
-    //~ pci_io_writeb(opaque, addr & 0xFF, val);
+    eepro100_write1(s, addr, val);
 }
 
 static void pci_mmio_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
+    EEPRO100State *s = opaque;
+    addr -= s->region[0];
 #if defined(DEBUG_EEPRO100)
     logout("addr=%s val=0x%02x\n", regname(addr), val);
 #endif
-    //~ pci_io_writew(opaque, addr & 0xFF, val);
+    eepro100_write2(s, addr, val);
 }
 
 static void pci_mmio_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
+    EEPRO100State *s = opaque;
+    addr -= s->region[0];
 #if defined(DEBUG_EEPRO100)
     logout("addr=%s val=0x%02x\n", regname(addr), val);
 #endif
-    //~ pci_io_writel(opaque, addr & 0xFF, val);
+    eepro100_write4(s, addr, val);
 }
 
 static uint32_t pci_mmio_readb(void *opaque, target_phys_addr_t addr)
 {
+    EEPRO100State *s = opaque;
+    addr -= s->region[0];
 #if defined(DEBUG_EEPRO100)
     logout("addr=%s\n", regname(addr));
 #endif
-    return 0; // pci_io_readb(opaque, addr & 0xFF);
+    return eepro100_read1(s, addr);
 }
 
 static uint32_t pci_mmio_readw(void *opaque, target_phys_addr_t addr)
 {
+    EEPRO100State *s = opaque;
+    addr -= s->region[0];
 #if defined(DEBUG_EEPRO100)
     logout("addr=%s\n", regname(addr));
 #endif
-    return 0; // pci_io_readw(opaque, addr & 0xFF);
+    return eepro100_read2(s, addr);
 }
 
 static uint32_t pci_mmio_readl(void *opaque, target_phys_addr_t addr)
 {
+    EEPRO100State *s = opaque;
+    addr -= s->region[0];
 #if defined(DEBUG_EEPRO100)
     logout("addr=%s\n", regname(addr));
 #endif
-    return 0; // pci_io_readl(opaque, addr & 0xFF);
+    return eepro100_read4(s, addr);
 }
 
 static CPUWriteMemoryFunc *pci_mmio_write[] = {
@@ -872,7 +950,11 @@ static void pci_mmio_map(PCIDevice *pci_dev, int region_num,
            region_num, addr, size, type);
 #endif
 
-    cpu_register_physical_memory(addr, PCI_MEM_SIZE, d->eepro100.mmio_index);
+    if (region_num == 0) {
+        /* Map control / status registers. */
+        cpu_register_physical_memory(addr, size, d->eepro100.mmio_index);
+        d->eepro100.region[region_num] = addr;
+    }
 }
 
 static void nic_reset(void *opaque)
@@ -948,9 +1030,11 @@ void pci_eepro100_init(PCIBus *bus, NICInfo *nd)
     /* Power Management Capabilities / Next Item Pointer / Capability ID */
     PCI_CONFIG_32(0xdc, 0x7e210001);
 
+    s = &d->eepro100;
+
     /* Handler for memory-mapped I/O */
     d->eepro100.mmio_index =
-      cpu_register_io_memory(0, pci_mmio_read, pci_mmio_write, d);
+      cpu_register_io_memory(0, pci_mmio_read, pci_mmio_write, s);
 
     pci_register_io_region(&d->dev, 0, PCI_MEM_SIZE,
                            PCI_ADDRESS_SPACE_MEM, pci_mmio_map);
@@ -959,11 +1043,10 @@ void pci_eepro100_init(PCIBus *bus, NICInfo *nd)
     pci_register_io_region(&d->dev, 2, PCI_FLASH_SIZE,
                            PCI_ADDRESS_SPACE_MEM, pci_mmio_map);
 
-    s = &d->eepro100;
     s->irq = 16; // PCI interrupt
     s->pci_dev = &d->dev;
     memcpy(s->macaddr, nd->macaddr, 6);
-    s->ioaddr = 0;
+    assert(s->region[1] == 0);
 
     nic_reset(s);
 
