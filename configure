@@ -88,14 +88,12 @@ bsd="no"
 linux="no"
 kqemu="no"
 profiler="no"
-kernel_path=""
 cocoa="no"
 check_gfx="yes"
 check_gcc="yes"
 softmmu="yes"
 user="no"
 build_docs="no"
-build_acpi_tables="no"
 uname_release=""
 
 # OS specific
@@ -223,8 +221,6 @@ for opt do
   ;;
   --enable-profiler) profiler="yes"
   ;;
-  --kernel-path=*) kernel_path="$optarg"
-  ;;
   --enable-cocoa) cocoa="yes" ; coreaudio="yes" ; sdl="no"
   ;;
   --disable-gfx-check) check_gfx="no"
@@ -240,8 +236,6 @@ for opt do
   --enable-user) user="yes"
   ;;
   --enable-uname-release=*) uname_release="$optarg"
-  ;;
-  --enable-iasl) build_acpi_tables="yes"
   ;;
   esac
 done
@@ -267,7 +261,6 @@ echo "  --target-list=LIST       set target list [$target_list]"
 echo ""
 echo "kqemu kernel acceleration support:"
 echo "  --disable-kqemu          disable kqemu support"
-echo "  --kernel-path=PATH       set the kernel path (configure probes it)"
 echo ""
 echo "Advanced options (experts only):"
 echo "  --source-path=PATH       path of source code [$source_path]"
@@ -291,7 +284,6 @@ echo "  --disable-user           disable all linux usermode emulation targets"
 echo "  --fmod-lib               path to FMOD library"
 echo "  --fmod-inc               path to FMOD includes"
 echo "  --enable-uname-release=R Return R for uname -r in usermode emulation"
-echo "  --enable-iasl            compilation of ACPI tables with the IASL compiler"
 echo ""
 echo "NOTE: The object files are build at the place where configure is launched"
 exit 1
@@ -711,9 +703,6 @@ fi
 echo "TARGET_DIRS=$target_list" >> $config_mak
 if [ "$build_docs" = "yes" ] ; then
   echo "BUILD_DOCS=yes" >> $config_mak
-fi
-if [ "$build_acpi_tables" = "yes" ] ; then
-  echo "BUILD_ACPI_TABLES=yes" >> $config_mak
 fi
 
 # XXX: suppress that
