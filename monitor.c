@@ -1230,9 +1230,9 @@ static term_cmd_t info_cmds[] = {
     { "profile", "", do_info_profile,
       "", "show profiling information", },
     { "capture", "", do_info_capture,
-      "show capture information" },
+      "", "show capture information" },
     { "snapshots", "", do_info_snapshots,
-      "show the currently saved VM snapshots" },
+      "", "show the currently saved VM snapshots" },
     { NULL, NULL, },
 };
 
