@@ -337,6 +337,7 @@ VL_OBJS+= usb.o usb-hub.o usb-linux.o usb-hid.o usb-ohci.o usb-msd.o
 VL_OBJS+= ne2000.o rtl8139.o pcnet.o
 VL_OBJS += dp83815.o
 VL_OBJS += eepro100.o
+VL_OBJS += eeprom9346.o
 
 ifeq ($(TARGET_BASE_ARCH), i386)
 # Hardware support
