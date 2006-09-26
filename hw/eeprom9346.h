@@ -25,8 +25,8 @@
 
 typedef struct EEprom9346 eeprom_t;
 
-/* Create a new EEPROM. */
-eeprom_t *eeprom9346_new(void);
+/* Create a new EEPROM with (nwords * 2) bytes. */
+eeprom_t *eeprom9346_new(uint16_t nwords);
 
 /* Destroy an existing EEPROM. */
 void eeprom9346_free(eeprom_t *eeprom);

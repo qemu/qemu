@@ -229,7 +229,7 @@ typedef struct EEprom9346 {
 
     uint8_t value;
     uint8_t size;
-    uint16_t contents[EEPROM_9346_SIZE];
+    uint16_t contents[1];
 } EEProm9346;
 
 static void eeprom_decode_command(eeprom_t *eeprom, uint8_t command)
@@ -449,11 +449,10 @@ void eeprom9346_reset(eeprom_t *eeprom, const uint8_t *macaddr)
     eeprom->contents[eeprom->size - 1] = 0xbaba - sum;
 }
 
-eeprom_t *eeprom9346_new(void)
+eeprom_t *eeprom9346_new(uint16_t nwords)
 {
-    //~ !!! support different sizes
-    eeprom_t *eeprom = (eeprom_t *)qemu_mallocz(sizeof(*eeprom));
-    eeprom->size = EEPROM_9346_SIZE;
+    eeprom_t *eeprom = (eeprom_t *)qemu_mallocz(sizeof(*eeprom) + (nwords - 1) * 2);
+    eeprom->size = nwords;
     return eeprom;
 }
 

@@ -861,7 +861,8 @@ void pci_eepro100_init(PCIBus *bus, NICInfo *nd)
     PCI_CONFIG_32(0xdc, 0x7e210001);
 
     s = &d->eepro100;
-    s->eeprom = eeprom9346_new();
+    /* Add 64 * 2 EEPROM. */
+    s->eeprom = eeprom9346_new(64);
 
     /* Handler for memory-mapped I/O */
     d->eepro100.mmio_index =
