@@ -1,3 +1,15 @@
+2006-09-25 23:41  bellard
+
+	* hw/vga.c: VBE 4 bit bank selection fix (Volker Rupper)
+
+2006-09-25 23:34  bellard
+
+	* configure: removed unused code
+
+2006-09-25 23:33  bellard
+
+	* monitor.c: fixed help info strings
+
 2006-09-24 21:36  bellard
 
 	* pc-bios/: bios.bin, bios.diff: updated

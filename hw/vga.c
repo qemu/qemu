@@ -447,7 +447,11 @@ static void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val)
             }
             break;
         case VBE_DISPI_INDEX_BANK:
-            val &= s->vbe_bank_mask;
+            if (s->vbe_regs[VBE_DISPI_INDEX_BPP] == 4) {
+              val &= (s->vbe_bank_mask >> 2);
+            } else {
+              val &= s->vbe_bank_mask;
+            }
             s->vbe_regs[s->vbe_index] = val;
             s->bank_offset = (val << 16);
             break;
