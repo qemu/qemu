@@ -1,0 +1,43 @@
+/*
+ * QEMU i82559 (EEPRO100) emulation
+ *
+ * Copyright (c) 2006 Stefan Weil
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ */
+
+#ifndef EEPROM9346_H
+#define EEPROM9346_H
+
+#include "vl.h"
+
+typedef struct EEprom9346 eeprom_t;
+
+/* Create a new EEPROM. */
+eeprom_t *eeprom9346_new(void);
+
+/* Destroy an existing EEPROM. */
+void eeprom9346_free(eeprom_t *eeprom);
+
+/* Read from the EEPROM. */
+uint32_t eeprom9346_read(eeprom_t *eeprom);
+
+/* Write to the EEPROM. */
+void eeprom9346_write(eeprom_t *eeprom, uint32_t val);
+
+/* Reset the EEPROM. */
+void eeprom9346_reset(eeprom_t *eeprom, const uint8_t *macaddr);
+
+#endif /* EEPROM9346_H */

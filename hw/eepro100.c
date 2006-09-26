@@ -20,6 +20,7 @@
 
 #include <assert.h>
 #include "vl.h"
+#include "eeprom9346.h"
 
 #define PCI_VENDOR_ID           0x00    /* 16 bits */
 #define PCI_DEVICE_ID           0x02    /* 16 bits */
@@ -41,7 +42,7 @@
 #define DEBUG_EEPRO100
 
 #ifdef DEBUG_EEPRO100
-#define logout(fmt, args...) printf("EEPRO100 %-24s" fmt, __func__, ##args)
+#define logout(fmt, args...) printf("EE100\t%-24s" fmt, __func__, ##args)
 #else
 #define logout(fmt, args...) ((void)0)
 #endif
@@ -58,269 +59,6 @@
 #define PCI_MEM_SIZE            (4 * KiB)
 #define PCI_IO_SIZE             64
 #define PCI_FLASH_SIZE          (128 * KiB)
-
-
-
-/* Emulation of 9346 EEPROM (64 * 16 bit) */
-
-#define EEPROM_9346_ADDR_BITS 6
-#define EEPROM_9346_SIZE  (1 << EEPROM_9346_ADDR_BITS)
-#define EEPROM_9346_ADDR_MASK (EEPROM_9346_SIZE - 1)
-
-#define SET_MASKED(input, mask, curr) \
-    ( ( (input) & ~(mask) ) | ( (curr) & (mask) ) )
-
-#if 0
-#define EEPROM_CS       0x08
-#define EEPROM_SK       0x04
-#define EEPROM_DI       0x02
-#define EEPROM_DO       0x01
-#else
-#define EEPROM_CS       0x02
-#define EEPROM_SK       0x01
-#define EEPROM_DI       0x04
-#define EEPROM_DO       0x08
-#endif
-
-typedef enum {
-    Chip9346_op_mask = 0xc0,          /* 10 zzzzzz */
-    Chip9346_op_read = 0x80,          /* 10 AAAAAA */
-    Chip9346_op_write = 0x40,         /* 01 AAAAAA D(15)..D(0) */
-    Chip9346_op_ext_mask = 0xf0,      /* 11 zzzzzz */
-    Chip9346_op_write_enable = 0x30,  /* 00 11zzzz */
-    Chip9346_op_write_all = 0x10,     /* 00 01zzzz */
-    Chip9346_op_write_disable = 0x00, /* 00 00zzzz */
-} Chip9346Operation;
-
-typedef enum {
-    Chip9346_none = 0,
-    Chip9346_enter_command_mode,
-    Chip9346_read_command,
-    Chip9346_data_read,      /* from output register */
-    Chip9346_data_write,     /* to input register, then to contents at specified address */
-    Chip9346_data_write_all, /* to input register, then filling contents */
-} Chip9346Mode;
-
-typedef struct {
-    uint16_t contents[EEPROM_9346_SIZE];
-    Chip9346Mode mode;
-    uint32_t tick;
-    uint8_t  address;
-    uint16_t input;
-    uint16_t output;
-
-    uint8_t eecs;
-    uint8_t eesk;
-    uint8_t eedi;
-    uint8_t eedo;
-
-    uint8_t Cfg9346;
-} EEprom9346;
-
-static void eeprom_decode_command(EEprom9346 *eeprom, uint8_t command)
-{
-    logout("eeprom command 0x%02x\n", command);
-
-    switch (command & Chip9346_op_mask) {
-        case Chip9346_op_read:
-        {
-            eeprom->address = command & EEPROM_9346_ADDR_MASK;
-            eeprom->output = eeprom->contents[eeprom->address];
-            eeprom->eedo = 0;
-            eeprom->tick = 0;
-            eeprom->mode = Chip9346_data_read;
-            logout("eeprom read from address 0x%02x data=0x%04x\n",
-                   eeprom->address, eeprom->output);
-        }
-        break;
-
-        case Chip9346_op_write:
-        {
-            eeprom->address = command & EEPROM_9346_ADDR_MASK;
-            eeprom->input = 0;
-            eeprom->tick = 0;
-            eeprom->mode = Chip9346_none; /* Chip9346_data_write */
-            logout("eeprom begin write to address 0x%02x\n",
-                   eeprom->address);
-        }
-        break;
-        default:
-            eeprom->mode = Chip9346_none;
-            switch (command & Chip9346_op_ext_mask) {
-                case Chip9346_op_write_enable:
-                    logout("eeprom write enabled\n");
-                    break;
-                case Chip9346_op_write_all:
-                    logout("eeprom begin write all\n");
-                    break;
-                case Chip9346_op_write_disable:
-                    logout("eeprom write disabled\n");
-                    break;
-            }
-            break;
-    }
-}
-
-static void prom9346_shift_clock(EEprom9346 *eeprom)
-{
-    int bit = eeprom->eedi?1:0;
-
-    ++ eeprom->tick;
-
-    logout("tick %d eedi=%d eedo=%d\n", eeprom->tick, eeprom->eedi, eeprom->eedo);
-
-    switch (eeprom->mode) {
-        case Chip9346_enter_command_mode:
-            if (bit) {
-                eeprom->mode = Chip9346_read_command;
-                eeprom->tick = 0;
-                eeprom->input = 0;
-                logout("+++ synchronized, begin command read\n");
-            }
-            break;
-
-        case Chip9346_read_command:
-            eeprom->input = (eeprom->input << 1) | (bit & 1);
-            if (eeprom->tick == 8) {
-                eeprom_decode_command(eeprom, eeprom->input & 0xff);
-            }
-            break;
-
-        case Chip9346_data_read:
-            eeprom->eedo = (eeprom->output & 0x8000)?1:0;
-            eeprom->output <<= 1;
-            if (eeprom->tick == 16) {
-#if 1
-        // the FreeBSD drivers (rl and re) don't explicitly toggle
-        // CS between reads (or does setting Cfg9346 to 0 count too?),
-        // so we need to enter wait-for-command state here
-                eeprom->mode = Chip9346_enter_command_mode;
-                eeprom->input = 0;
-                eeprom->tick = 0;
-
-                logout("+++ end of read, awaiting next command\n");
-#else
-        // original behaviour
-                ++eeprom->address;
-                eeprom->address &= EEPROM_9346_ADDR_MASK;
-                eeprom->output = eeprom->contents[eeprom->address];
-                eeprom->tick = 0;
-
-                logout("read next address 0x%02x data=0x%04x\n",
-                       eeprom->address, eeprom->output);
-#endif
-            }
-            break;
-
-        case Chip9346_data_write:
-            eeprom->input = (eeprom->input << 1) | (bit & 1);
-            if (eeprom->tick == 16) {
-                logout("eeprom write to address 0x%02x data=0x%04x\n",
-                       eeprom->address, eeprom->input);
-
-                eeprom->contents[eeprom->address] = eeprom->input;
-                eeprom->mode = Chip9346_none; /* waiting for next command after CS cycle */
-                eeprom->tick = 0;
-                eeprom->input = 0;
-            }
-            break;
-
-        case Chip9346_data_write_all:
-            eeprom->input = (eeprom->input << 1) | (bit & 1);
-            if (eeprom->tick == 16) {
-                int i;
-                for (i = 0; i < EEPROM_9346_SIZE; i++) {
-                    eeprom->contents[i] = eeprom->input;
-                }
-                logout("eeprom filled with data=0x%04x\n",
-                       eeprom->input);
-
-                eeprom->mode = Chip9346_enter_command_mode;
-                eeprom->tick = 0;
-                eeprom->input = 0;
-            }
-            break;
-
-        default:
-            break;
-    }
-}
-
-static int prom9346_get_wire(EEprom9346 *eeprom)
-{
-    if (!eeprom->eecs)
-        return 0;
-
-    return eeprom->eedo;
-}
-
-static void prom9346_set_wire(EEprom9346 *eeprom, int eecs, int eesk, int eedi)
-{
-    uint8_t old_eecs = eeprom->eecs;
-    uint8_t old_eesk = eeprom->eesk;
-
-    eeprom->eecs = eecs;
-    eeprom->eesk = eesk;
-    eeprom->eedi = eedi;
-
-    logout("+++ wires CS=%d SK=%d DI=%d DO=%d\n",
-           eeprom->eecs, eeprom->eesk, eeprom->eedi, eeprom->eedo);
-
-    if (!old_eecs && eecs) {
-        /* Synchronize start */
-        eeprom->tick = 0;
-        eeprom->input = 0;
-        eeprom->output = 0;
-        eeprom->mode = Chip9346_enter_command_mode;
-
-        logout("begin access, enter command mode\n");
-    }
-
-    if (!eecs) {
-        logout("end access\n");
-        return;
-    }
-
-    if (!old_eesk && eesk) {
-        /* SK front rules */
-        prom9346_shift_clock(eeprom);
-    }
-}
-
-static void Cfg9346_write(EEprom9346 *eeprom, uint32_t val)
-{
-    val &= 0xff;
-
-    logout("Cfg9346 write val=0x%02x\n", val);
-
-    /* mask unwriteable bits */
-    //~ val = SET_MASKED(val, 0x31, eeprom->Cfg9346);
-
-    int eecs = ((val & EEPROM_CS) != 0);
-    int eesk = ((val & EEPROM_SK) != 0);
-    int eedi = ((val & EEPROM_DI) != 0);
-    prom9346_set_wire(eeprom, eecs, eesk, eedi);
-
-    eeprom->Cfg9346 = val;
-}
-
-static uint32_t Cfg9346_read(EEprom9346 *eeprom)
-{
-    uint32_t ret = eeprom->Cfg9346;
-
-    int eedo = prom9346_get_wire(eeprom);
-    if (eedo) {
-        ret |=  EEPROM_DO;
-    } else {
-        ret &= ~EEPROM_DO;
-    }
-
-    logout("Cfg9346 read val=0x%02x\n", ret);
-
-    return ret;
-}
-
-
 
 
 
@@ -357,7 +95,7 @@ typedef struct {
     uint8_t mem[EEPRO100_MEM_SIZE];
     uint32_t statcounter[19];
     uint16_t mdimem[32];
-    EEprom9346 eeprom;
+    eeprom_t *eeprom;
     uint32_t pointer;
     uint32_t rxaddr;
     uint32_t statsaddr;
@@ -773,7 +511,7 @@ static uint16_t eepro100_read2(EEPRO100State *s, uint32_t addr)
             val = eepro100_read_status(s);
             break;
         case 0x0e:
-            val = Cfg9346_read(&s->eeprom);
+            val = eeprom9346_read(s->eeprom);
             break;
         default:
             logout("addr=%s val=%04x\n", regname(addr), val);
@@ -819,7 +557,7 @@ static void eepro100_write2(EEPRO100State *s, uint32_t addr, uint16_t val)
             eepro100_write_command(s, val);
             break;
         case 0x0e:
-            Cfg9346_write(&s->eeprom, val);
+            eeprom9346_write(s->eeprom, val);
             break;
         default:
             logout("addr=%s val=0x%04x\n", regname(addr), val);
@@ -1056,25 +794,12 @@ static void nic_save(QEMUFile* f,void* opaque)
     qemu_put_buffer(f, s->mem, sizeof(s->mem));
 }
 
-static void eeprom_reset(EEprom9346 *eeprom, const uint8_t *macaddr)
-{
-    /* prepare eeprom */
-    size_t i;
-    memcpy(&eeprom->contents[0], macaddr, 6);
-    eeprom->contents[0xa] = 0x4000;
-    uint16_t sum = 0;
-    for (i = 0; i < EEPROM_9346_SIZE - 1; i++) {
-        sum += eeprom->contents[i];
-    }
-    eeprom->contents[EEPROM_9346_SIZE - 1] = 0xbaba - sum;
-}
-
 static void nic_reset(void *opaque)
 {
     EEPRO100State *s = (EEPRO100State *)opaque;
     logout("%p\n", s);
 
-    eeprom_reset(&s->eeprom, s->macaddr);
+    eeprom9346_reset(s->eeprom, s->macaddr);
 
     memset(s->mem, 0, sizeof(s->mem));
     uint32_t val = (1 << 21);
@@ -1136,6 +861,7 @@ void pci_eepro100_init(PCIBus *bus, NICInfo *nd)
     PCI_CONFIG_32(0xdc, 0x7e210001);
 
     s = &d->eepro100;
+    s->eeprom = eeprom9346_new();
 
     /* Handler for memory-mapped I/O */
     d->eepro100.mmio_index =
