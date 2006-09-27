@@ -1338,6 +1338,10 @@ void do_smm_enter(void)
 #endif
     /* init SMM cpu state */
 
+#ifdef TARGET_X86_64
+    env->efer = 0;
+    env->hflags &= ~HF_LMA_MASK;
+#endif
     load_eflags(0, ~(CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C | DF_MASK));
     env->eip = 0x00008000;
     cpu_x86_load_seg_cache(env, R_CS, (env->smbase >> 4) & 0xffff, env->smbase,
@@ -1352,9 +1356,6 @@ void do_smm_enter(void)
                        env->cr[0] & ~(CR0_PE_MASK | CR0_EM_MASK | CR0_TS_MASK | CR0_PG_MASK));
     cpu_x86_update_cr4(env, 0);
     env->dr[7] = 0x00000400;
-#ifdef TARGET_X86_64
-    env->efer = 0;
-#endif
     CC_OP = CC_OP_EFLAGS;
 }
 
@@ -1366,6 +1367,12 @@ void helper_rsm(void)
 
     sm_state = env->smbase + 0x8000;
 #ifdef TARGET_X86_64
+    env->efer = ldq_phys(sm_state + 0x7ed0);
+    if (env->efer & MSR_EFER_LMA)
+        env->hflags |= HF_LMA_MASK;
+    else
+        env->hflags &= ~HF_LMA_MASK;
+
     for(i = 0; i < 6; i++) {
         offset = 0x7e00 + i * 16;
         cpu_x86_load_seg_cache(env, i, 
@@ -1391,8 +1398,6 @@ void helper_rsm(void)
     env->tr.limit = ldl_phys(sm_state + 0x7e94);
     env->tr.flags = (lduw_phys(sm_state + 0x7e92) & 0xf0ff) << 8;
     
-    env->efer = ldq_phys(sm_state + 0x7ed0);
-
     EAX = ldq_phys(sm_state + 0x7ff8);
     ECX = ldq_phys(sm_state + 0x7ff0);
     EDX = ldq_phys(sm_state + 0x7fe8);
