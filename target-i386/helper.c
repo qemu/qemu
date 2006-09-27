@@ -1217,6 +1217,18 @@ void raise_exception(int exception_index)
 
 /* SMM support */
 
+#if defined(CONFIG_USER_ONLY) 
+
+void do_smm_enter(void)
+{
+}
+
+void helper_rsm(void)
+{
+}
+
+#else
+
 #ifdef TARGET_X86_64
 #define SMM_REVISION_ID 0x00020064
 #else
@@ -1482,6 +1494,9 @@ void helper_rsm(void)
         cpu_dump_state(env, logfile, fprintf, X86_DUMP_CCOP);
     }
 }
+
+#endif /* !CONFIG_USER_ONLY */
+
 
 #ifdef BUGGY_GCC_DIV64
 /* gcc 2.95.4 on PowerPC does not seem to like using __udivdi3, so we
