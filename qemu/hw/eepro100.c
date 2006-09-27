@@ -3,6 +3,8 @@
  *
  * Copyright (c) 2006 Stefan Weil
  *
+ * Portions of the code are copies from grub / etherboot eepro100.c
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -26,7 +28,7 @@
 #define PCI_DEVICE_ID           0x02    /* 16 bits */
 #define PCI_COMMAND             0x04    /* 16 bits */
 
-#define PCI_REVISION            0x08    /* 8 bits  */
+#define PCI_REVISION_ID         0x08    /* 8 bits  */
 #define PCI_CLASS_CODE          0x0b    /* 8 bits */
 #define PCI_SUBCLASS_CODE       0x0a    /* 8 bits */
 #define PCI_HEADER_TYPE         0x0e    /* 8 bits */
@@ -61,10 +63,50 @@
 #define PCI_FLASH_SIZE          (128 * KiB)
 
 
+/* A speedo3 transmit buffer descriptor with two buffers... */
+typedef struct {
+  int16_t  status;
+  int16_t  command;
+  uint32_t link;          /* void * */
+  uint32_t tx_desc_addr;  /* (almost) Always points to the tx_buf_addr element. */
+  int32_t  count;         /* # of TBD (=2), Tx start thresh., etc. */
+                     /* This constitutes two "TBD" entries: hdr and data */
+  uint32_t tx_buf_addr0;  /* void *, header of frame to be transmitted.  */
+  int32_t  tx_buf_size0;  /* Length of Tx hdr. */
+  uint32_t tx_buf_addr1;  /* void *, data to be transmitted.  */
+  int32_t  tx_buf_size1;  /* Length of Tx data. */
+} eepro100_tx_t;
 
+/* Receive frame descriptor. */
+typedef struct {
+  int16_t  status;
+  int16_t  command;
+  uint32_t link;                 /* struct RxFD * */
+  uint32_t rx_buf_addr;          /* void * */
+  uint16_t count;
+  uint16_t size;
+  char packet[1518];
+} eepro100_rx_t;
 
-
-
+typedef struct {
+    uint32_t tx_good_frames;
+    uint32_t tx_coll16_errs;
+    uint32_t tx_late_colls;
+    uint32_t tx_underruns;
+    uint32_t tx_lost_carrier;
+    uint32_t tx_deferred;
+    uint32_t tx_one_colls;
+    uint32_t tx_multi_colls;
+    uint32_t tx_total_colls;
+    uint32_t rx_good_frames;
+    uint32_t rx_crc_errs;
+    uint32_t rx_align_errs;
+    uint32_t rx_resource_errs;
+    uint32_t rx_overrun_errs;
+    uint32_t rx_colls_errs;
+    uint32_t rx_runt_errs;
+    uint32_t done_marker;
+} eepro100_stats_t;
 
 typedef struct {
 #if 1
@@ -85,7 +127,6 @@ typedef struct {
     uint8_t phys[6]; /* mac address */
     uint8_t curpag;
     uint8_t mult[8]; /* multicast mask array */
-    int irq;
     int mmio_index;
     PCIDevice *pci_dev;
     VLANClientState *vc;
@@ -98,11 +139,12 @@ typedef struct {
     eeprom_t *eeprom;
     uint32_t pointer;
     uint32_t rxaddr;
-    uint32_t statsaddr;
+    uint32_t statsaddr; /* Pointer to eepro100_stats_t */
     uint16_t status;
     unsigned scb_m:1;
 } EEPRO100State;
 
+/* Default values for MDI (PHY) registers */
 static const uint16_t eepro100_mdi_default[] = {
     /* MDI Registers 0 - 6, 7 */
     0x3000, 0x7809, 0x02a8, 0x0154, 0x05e1, 0x0000, 0x0000, 0x0000,
@@ -113,6 +155,7 @@ static const uint16_t eepro100_mdi_default[] = {
     0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
 };
 
+/* Readonly mask for MDI (PHY) registers */
 static const uint16_t eepro100_mdi_mask[] = {
     0x0000, 0xffff, 0xffff, 0xffff, 0xc01f, 0xffff, 0xffff, 0x0000,
     0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
@@ -120,21 +163,12 @@ static const uint16_t eepro100_mdi_mask[] = {
     0xffff, 0xffff, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
 };
 
-static void nic_reset(void *opaque);
-
 static void eepro100_update_irq(EEPRO100State *s)
 {
-    int isr;
-    isr = (s->isr & s->imr) & 0x7f;
-    logout("Set IRQ line %d to %d (%02x %02x)\n",
-           s->irq, isr ? 1 : 0, s->isr, s->imr);
-    if (s->irq == 16) {
-        /* PCI irq */
-        pci_set_irq(s->pci_dev, 0, (isr != 0));
-    } else {
-        /* ISA irq */
-        pic_set_irq(s->irq, (isr != 0));
-    }
+    int isr = (s->isr & s->imr) & 0x7f;
+    logout("Set IRQ line to %d (%02x %02x)\n", isr ? 1 : 0, s->isr, s->imr);
+    /* PCI irq */
+    pci_set_irq(s->pci_dev, 0, (isr != 0));
 }
 
 #define POLYNOMIAL 0x04c11db6
@@ -176,7 +210,7 @@ static int eepro100_buffer_full(EEPRO100State *s)
     return 0;
 }
 
-static int eepro100_can_receive(void *opaque)
+static int nic_can_receive(void *opaque)
 {
     EEPRO100State *s = opaque;
     logout("%p\n", s);
@@ -185,7 +219,7 @@ static int eepro100_can_receive(void *opaque)
 
 #define MIN_BUF_SIZE 60
 
-static void eepro100_receive(void *opaque, const uint8_t *buf, int size)
+static void nic_receive(void *opaque, const uint8_t *buf, int size)
 {
     EEPRO100State *s = opaque;
     uint8_t *p;
@@ -274,6 +308,21 @@ static void eepro100_receive(void *opaque, const uint8_t *buf, int size)
     eepro100_update_irq(s);
 }
 
+static void nic_reset(void *opaque)
+{
+    EEPRO100State *s = (EEPRO100State *)opaque;
+    logout("%p\n", s);
+
+    eeprom9346_reset(s->eeprom, s->macaddr);
+
+    memset(s->mem, 0, sizeof(s->mem));
+    uint32_t val = (1 << 21);
+    memcpy(&s->mem[0x10], &val, sizeof(val));
+
+    assert(sizeof(s->mdimem) == sizeof(eepro100_mdi_default));
+    memcpy(&s->mdimem[0], &eepro100_mdi_default[0], sizeof(s->mdimem));
+}
+
 static const char *reg[PCI_IO_SIZE / 4] = {
   "Command/Status",
   "General Pointer",
@@ -324,6 +373,27 @@ static uint16_t eepro100_read_command(EEPRO100State *s)
     return val;
 }
 
+#if 0
+EE100   eepro100_write_pointer  val=0x0002d1a0
+EE100   eepro100_write_command  val=0x0140 (status address)
+EE100   eepro100_write_pointer  val=0x00000000
+EE100   eepro100_write_command  val=0x0106 (rx address)
+EE100   eepro100_write_pointer  val=0x0002d220
+EE100   eepro100_write_command  val=0x0101 (rx start)
+EE100   eepro100_write_pointer  val=0x0002d220
+EE100   eepro100_write_command  val=0x0101 (rx start)
+EE100   eepro100_write_pointer  val=0x00000000
+EE100   eepro100_write_command  val=0x0160
+EE100   eepro100_write_pointer  val=0x0002d200
+EE100   eepro100_write_command  val=0x0110 (cu start)
+EE100   eepro100_read_status    val=0x0000
+EE100   eepro100_write_status   val=0x0000
+EE100   eepro100_write_pointer  val=0x0002d200
+EE100   eepro100_write_command  val=0x0110 (cu start)
+EE100   eepro100_read_status    val=0x0000
+EE100   eepro100_read_status    val=0x0000
+#endif
+
 static void eepro100_write_command(EEPRO100State *s, uint16_t val)
 {
     switch (val & 0xff) {
@@ -335,22 +405,23 @@ static void eepro100_write_command(EEPRO100State *s, uint16_t val)
         case 0x06:
             s->scb_m = ((val & 0x100) != 0);
             s->rxaddr = s->pointer;
-            logout("val=0x%04x\n", val);
+            logout("val=0x%04x (rx address)\n", val);
             break;
         case 0x10:      /* CU_START */
             s->scb_m = ((val & 0x100) != 0);
+            eepro100_tx_t *tx = s->pointer;
             //~ s->rxaddr = s->pointer;
             logout("val=0x%04x (cu start)\n", val);
             break;
         case 0x40:
             s->scb_m = ((val & 0x100) != 0);
             s->statsaddr = s->pointer;
-            logout("val=0x%04x\n", val);
+            logout("val=0x%04x (status address)\n", val);
             break;
         case 0x60:      /* CU_CMD_BASE */
             s->scb_m = ((val & 0x100) != 0);
             //~ s->rxaddr = s->pointer;
-            logout("val=0x%04x\n", val);
+            logout("val=0x%04x (cu address)\n", val);
             break;
         default:
             logout("val=0x%04x\n", val);
@@ -759,7 +830,6 @@ static int nic_load(QEMUFile* f,void* opaque,int version_id)
     qemu_get_buffer(f, s->phys, 6);
     qemu_get_8s(f, &s->curpag);
     qemu_get_buffer(f, s->mult, 8);
-    qemu_get_be32s(f, &s->irq);
     qemu_get_buffer(f, s->mem, sizeof(s->mem));
 
     return 0;
@@ -790,23 +860,7 @@ static void nic_save(QEMUFile* f,void* opaque)
     qemu_put_buffer(f, s->phys, 6);
     qemu_put_8s(f, &s->curpag);
     qemu_put_buffer(f, s->mult, 8);
-    qemu_put_be32s(f, &s->irq);
     qemu_put_buffer(f, s->mem, sizeof(s->mem));
-}
-
-static void nic_reset(void *opaque)
-{
-    EEPRO100State *s = (EEPRO100State *)opaque;
-    logout("%p\n", s);
-
-    eeprom9346_reset(s->eeprom, s->macaddr);
-
-    memset(s->mem, 0, sizeof(s->mem));
-    uint32_t val = (1 << 21);
-    memcpy(&s->mem[0x10], &val, sizeof(val));
-
-    assert(sizeof(s->mdimem) == sizeof(eepro100_mdi_default));
-    memcpy(&s->mdimem[0], &eepro100_mdi_default[0], sizeof(s->mdimem));
 }
 
 void pci_eepro100_init(PCIBus *bus, NICInfo *nd)
@@ -834,15 +888,20 @@ void pci_eepro100_init(PCIBus *bus, NICInfo *nd)
     PCI_CONFIG_16(PCI_COMMAND, 0x0000);
     /* PCI Status */
     PCI_CONFIG_16(0x06, 0x2800);
-    /* PCI Class code / PCI Revision ID */
-    PCI_CONFIG_8(PCI_REVISION, 0x08);
+    /* PCI Revision ID */
+    PCI_CONFIG_8(PCI_REVISION_ID, 0x08);
+    /* PCI Class Code */
     PCI_CONFIG_8(0x09, 0x00);
     PCI_CONFIG_8(PCI_SUBCLASS_CODE, 0x00); // ethernet network controller
     PCI_CONFIG_8(PCI_CLASS_CODE, 0x02); // network controller
-    /* bist / PCI Hader Type / PCI Latency Timer / PCI Cache Line Size */
+    /* PCI Cache Line Size */
     /* check cache line size!!! */
     //~ PCI_CONFIG_8(0x0c, 0x00);
+    /* PCI Latency Timer */
     PCI_CONFIG_8(0x0d, 0x20); // latency timer = 32 clocks
+    /* PCI Header Type */
+    /* BIST (built-in self test) */
+    /* PCI Base Address Registers */
     /* CSR Memory Mapped Base Address */
     PCI_CONFIG_32(PCI_BASE_ADDRESS_0, 0x00000000);
     /* CSR I/O Mapped Base Address */
@@ -855,8 +914,10 @@ void pci_eepro100_init(PCIBus *bus, NICInfo *nd)
     PCI_CONFIG_8(0x34, 0xdc);
     /* Interrupt Pin */
     PCI_CONFIG_8(0x3d, 1); // interrupt pin 0
-    PCI_CONFIG_8(0x3e, 0x08); // minimum grant
-    PCI_CONFIG_8(0x3f, 0x18); // maximum latency
+    /* Minimum Grant */
+    PCI_CONFIG_8(0x3e, 0x08);
+    /* Maximum Latency */
+    PCI_CONFIG_8(0x3f, 0x18);
     /* Power Management Capabilities / Next Item Pointer / Capability ID */
     PCI_CONFIG_32(0xdc, 0x7e210001);
 
@@ -875,15 +936,13 @@ void pci_eepro100_init(PCIBus *bus, NICInfo *nd)
     pci_register_io_region(&d->dev, 2, PCI_FLASH_SIZE,
                            PCI_ADDRESS_SPACE_MEM, pci_mmio_map);
 
-    s->irq = 16; // PCI interrupt
     s->pci_dev = &d->dev;
     memcpy(s->macaddr, nd->macaddr, 6);
     assert(s->region[1] == 0);
 
     nic_reset(s);
 
-    s->vc = qemu_new_vlan_client(nd->vlan, eepro100_receive,
-                                 eepro100_can_receive, s);
+    s->vc = qemu_new_vlan_client(nd->vlan, nic_receive, nic_can_receive, s);
 
     snprintf(s->vc->info_str, sizeof(s->vc->info_str),
              "eepro100 pci macaddr=%02x:%02x:%02x:%02x:%02x:%02x",
