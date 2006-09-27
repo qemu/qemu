@@ -135,6 +135,8 @@ CPUX86State *cpu_x86_init(void)
 
         /* these features are needed for Win64 and aren't fully implemented */
         env->cpuid_features |= CPUID_MTRR | CPUID_CLFLUSH | CPUID_MCA;
+        /* this feature is needed for Solaris and isn't fully implemented */
+        env->cpuid_features |= CPUID_PSE36;
 #endif
     }
     cpu_reset(env);

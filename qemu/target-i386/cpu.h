@@ -260,6 +260,7 @@
 #define CPUID_MCA  (1 << 14)
 #define CPUID_CMOV (1 << 15)
 #define CPUID_PAT  (1 << 16)
+#define CPUID_PSE36   (1 << 17)
 #define CPUID_CLFLUSH (1 << 19)
 /* ... */
 #define CPUID_MMX  (1 << 23)
@@ -543,7 +544,8 @@ void cpu_set_ferr(CPUX86State *s);
    cache: it synchronizes the hflags with the segment cache values */
 static inline void cpu_x86_load_seg_cache(CPUX86State *env, 
                                           int seg_reg, unsigned int selector,
-                                          uint32_t base, unsigned int limit, 
+                                          target_ulong base,
+                                          unsigned int limit, 
                                           unsigned int flags)
 {
     SegmentCache *sc;
