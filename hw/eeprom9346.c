@@ -20,8 +20,8 @@
 
 /* Emulation for FM93C46 (NMC9306) 256-Bit Serial EEPROM */
 
-/* debug EEPROM emulation */
-#define DEBUG_EEPROM
+/* Debug EEPROM emulation. */
+//~ #define DEBUG_EEPROM
 
 #ifdef DEBUG_EEPROM
 #define logout(fmt, args...) printf("EEPROM\t%-24s" fmt, __func__, ##args)
