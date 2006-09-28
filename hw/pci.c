@@ -435,11 +435,12 @@ void pci_set_irq(PCIDevice *pci_dev, int irq_num, int level)
         return;
 
     pci_dev->irq_state[irq_num] = level;
-    bus = pci_dev->bus;
-    while (!bus->set_irq) {
-        irq_num = bus->map_irq(pci_dev, irq_num);
-        pci_dev = bus->parent_dev;
+    for (;;) {
         bus = pci_dev->bus;
+        irq_num = bus->map_irq(pci_dev, irq_num);
+        if (bus->set_irq)
+            break;
+        pci_dev = bus->parent_dev;
     }
     bus->irq_count[irq_num] += change;
     bus->set_irq(bus->irq_opaque, irq_num, bus->irq_count[irq_num] != 0);
