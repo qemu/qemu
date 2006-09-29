@@ -63,10 +63,22 @@
 #define PCI_FLASH_SIZE          (128 * KiB)
 
 
+/* Offsets to the various registers.
+   All accesses need not be longword aligned. */
+enum speedo_offsets {
+        SCBStatus = 0, SCBCmd = 2,      /* Rx/Command Unit command and status. */
+        SCBIntmask = 3,
+        SCBPointer = 4,                 /* General purpose pointer. */
+        SCBPort = 8,                    /* Misc. commands and operands.  */
+        SCBflash = 12, SCBeeprom = 14,  /* EEPROM and flash memory control. */
+        SCBCtrlMDI = 16,                /* MDI interface control. */
+        SCBEarlyRx = 20,                /* Early receive byte count. */
+};
+
 /* A speedo3 transmit buffer descriptor with two buffers... */
 typedef struct {
-  int16_t  status;
-  int16_t  command;
+  uint16_t status;
+  uint16_t command;
   uint32_t link;          /* void * */
   uint32_t tx_desc_addr;  /* (almost) Always points to the tx_buf_addr element. */
   int32_t  count;         /* # of TBD (=2), Tx start thresh., etc. */
@@ -139,7 +151,8 @@ typedef struct {
     eeprom_t *eeprom;
     uint32_t pointer;
     uint32_t rxaddr;
-    uint32_t statsaddr; /* Pointer to eepro100_stats_t */
+    uint32_t txaddr;
+    uint32_t statsaddr; /* pointer to eepro100_stats_t */
     uint16_t status;
     unsigned scb_m:1;
 } EEPRO100State;
@@ -379,17 +392,17 @@ EE100   eepro100_write_command  val=0x0140 (status address)
 EE100   eepro100_write_pointer  val=0x00000000
 EE100   eepro100_write_command  val=0x0106 (rx address)
 EE100   eepro100_write_pointer  val=0x0002d220
-EE100   eepro100_write_command  val=0x0101 (rx start)
+EE100   eepro100_write_command  val=0x0101 (rx start, status=0x0001, command=0x0000
 EE100   eepro100_write_pointer  val=0x0002d220
-EE100   eepro100_write_command  val=0x0101 (rx start)
+EE100   eepro100_write_command  val=0x0101 (rx start, status=0x0000, command=0xffffc000
 EE100   eepro100_write_pointer  val=0x00000000
-EE100   eepro100_write_command  val=0x0160
+EE100   eepro100_write_command  val=0x0160 (cu address)
 EE100   eepro100_write_pointer  val=0x0002d200
-EE100   eepro100_write_command  val=0x0110 (cu start)
+EE100   eepro100_write_command  val=0x0110 (cu start), status=0x0000, command=0x0001
 EE100   eepro100_read_status    val=0x0000
 EE100   eepro100_write_status   val=0x0000
 EE100   eepro100_write_pointer  val=0x0002d200
-EE100   eepro100_write_command  val=0x0110 (cu start)
+EE100   eepro100_write_command  val=0x0110 (cu start), status=0x0000, command=0x400c
 EE100   eepro100_read_status    val=0x0000
 EE100   eepro100_read_status    val=0x0000
 #endif
@@ -399,8 +412,11 @@ static void eepro100_write_command(EEPRO100State *s, uint16_t val)
     switch (val & 0xff) {
         case 0x01:      /* RX_START */
             s->scb_m = ((val & 0x100) != 0);
-            //~ s->rxaddr = s->pointer;
-            logout("val=0x%04x (rx start)\n", val);
+            eepro100_rx_t rx;
+//~ (gdb) p/x rx
+//~ $3 = {status = 0x0, command = 0xc000, link = 0x2d220, rx_buf_addr = 0x207dc, count = 0x0, size = 0x5f8, packet = {0x0 <repeats 1518 times>}}
+            cpu_physical_memory_read(s->pointer, (uint8_t *)&rx, sizeof(rx));
+            logout("val=0x%04x (rx start, status=0x%04x, command=0x%04x\n", val, rx.status, rx.command);
             break;
         case 0x06:
             s->scb_m = ((val & 0x100) != 0);
@@ -409,9 +425,14 @@ static void eepro100_write_command(EEPRO100State *s, uint16_t val)
             break;
         case 0x10:      /* CU_START */
             s->scb_m = ((val & 0x100) != 0);
-            eepro100_tx_t *tx = s->pointer;
-            //~ s->rxaddr = s->pointer;
-            logout("val=0x%04x (cu start)\n", val);
+//~ (gdb) p/x tx
+//~ $5 = {status = 0x0, command = 0x1, link = 0x208e0, tx_desc_addr = 0x12005452, count = 0x5634, tx_buf_addr0 = 0x0, tx_buf_size0 = 0x0,
+  //~ tx_buf_addr1 = 0x0, tx_buf_size1 = 0x0}
+//~ $12 = {status = 0x0, command = 0x400c, link = 0x2d200, tx_desc_addr = 0x2d210, count = 0x2208000, tx_buf_addr0 = 0x65d40,
+  //~ tx_buf_size0 = 0xe, tx_buf_addr1 = 0x65d94, tx_buf_size1 = 0x1c}
+            eepro100_tx_t tx;
+            cpu_physical_memory_read(s->pointer, (uint8_t *)&tx, sizeof(tx));
+            logout("val=0x%04x (cu start), status=0x%04x, command=0x%04x\n", val, tx.status, tx.command);
             break;
         case 0x40:
             s->scb_m = ((val & 0x100) != 0);
@@ -521,6 +542,11 @@ typedef struct {
     uint32_t st_result; /* Self Test Results */
 } eepro100_selftest_t __attribute__ ((__packed__));
 
+static uint32_t eepro100_read_port(EEPRO100State *s)
+{
+    return 0;
+}
+
 static void eepro100_write_port(EEPRO100State *s, uint32_t val)
 {
     uint32_t address = (val & ~PORT_SELECTION_MASK);
@@ -597,6 +623,9 @@ static uint32_t eepro100_read4(EEPRO100State *s, uint32_t addr)
         memcpy(&val, &s->mem[addr], sizeof(val));
     }
     switch (addr) {
+        case 0x08:
+            val = eepro100_read_port(s);
+            break;
         case 0x10:
             val = eepro100_read_mdi(s);
             break;
