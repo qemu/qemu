@@ -18,7 +18,16 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-/* Emulation for FM93C46 (NMC9306) 256-Bit Serial EEPROM */
+/* Emulation for serial EEPROMs:
+ * NMC9306 256-Bit (16 x 16)
+ * FM93C46 1024-Bit (256 x 16)
+ *
+ * Other drivers use these interface functions:
+ * eeprom9346_new   - add a new EEPROM (with 16 or 256 words)
+ * eeprom9346_reset - reset the EEPROM
+ * eeprom9346_read  - read data from the EEPROM
+ * eeprom9346_write - write data to the EEPROM
+ */
 
 /* Debug EEPROM emulation. */
 //~ #define DEBUG_EEPROM
@@ -229,7 +238,7 @@ typedef struct EEprom9346 {
 
     uint8_t value;
     uint8_t size;
-    uint16_t contents[1];
+    uint16_t contents[0];
 } EEProm9346;
 
 static void eeprom_decode_command(eeprom_t *eeprom, uint8_t command)
@@ -451,7 +460,7 @@ void eeprom9346_reset(eeprom_t *eeprom, const uint8_t *macaddr)
 
 eeprom_t *eeprom9346_new(uint16_t nwords)
 {
-    eeprom_t *eeprom = (eeprom_t *)qemu_mallocz(sizeof(*eeprom) + (nwords - 1) * 2);
+    eeprom_t *eeprom = (eeprom_t *)qemu_mallocz(sizeof(*eeprom) + nwords * 2);
     eeprom->size = nwords;
     return eeprom;
 }
