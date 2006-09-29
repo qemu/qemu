@@ -1,3 +1,25 @@
+2006-09-29 22:01  bellard
+
+	* target-i386/helper.c: 32 bit RSP update fix (aka Open Solaris
+	  x86_64 bug)
+
+2006-09-28 21:52  pbrook
+
+	* hw/pci.c: PCI IRC routing fix.
+
+2006-09-27 23:31  bellard
+
+	* target-i386/helper.c: fixed user mode emulation
+
+2006-09-27 21:54  bellard
+
+	* target-i386/: cpu.h, helper.c: SMM fix for x86_64
+
+2006-09-27 21:52  bellard
+
+	* target-i386/helper2.c: enabled PSE36 for x86_64 (fix for
+	  OpenSolaris as guest)
+
 2006-09-25 23:41  bellard
 
 	* hw/vga.c: VBE 4 bit bank selection fix (Volker Rupper)

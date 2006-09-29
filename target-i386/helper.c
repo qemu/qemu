@@ -553,6 +553,20 @@ static inline unsigned int get_sp_mask(unsigned int e2)
         return 0xffff;
 }
 
+#ifdef TARGET_X86_64
+#define SET_ESP(val, sp_mask)\
+do {\
+    if ((sp_mask) == 0xffff)\
+        ESP = (ESP & ~0xffff) | ((val) & 0xffff);\
+    else if ((sp_mask) == 0xffffffffLL)\
+        ESP = (uint32_t)(val);\
+    else\
+        ESP = (val);\
+} while (0)
+#else
+#define SET_ESP(val, sp_mask) ESP = (ESP & ~(sp_mask)) | ((val) & (sp_mask))
+#endif
+
 /* XXX: add a is_user flag to have proper security support */
 #define PUSHW(ssp, sp, sp_mask, val)\
 {\
@@ -584,10 +598,10 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
 {
     SegmentCache *dt;
     target_ulong ptr, ssp;
-    int type, dpl, selector, ss_dpl, cpl, sp_mask;
+    int type, dpl, selector, ss_dpl, cpl;
     int has_error_code, new_stack, shift;
     uint32_t e1, e2, offset, ss, esp, ss_e1, ss_e2;
-    uint32_t old_eip;
+    uint32_t old_eip, sp_mask;
 
     has_error_code = 0;
     if (!is_int && !is_hw) {
@@ -623,7 +637,8 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
             raise_exception_err(EXCP0B_NOSEG, intno * 8 + 2);
         switch_tss(intno * 8, e1, e2, SWITCH_TSS_CALL, old_eip);
         if (has_error_code) {
-            int mask, type;
+            int type;
+            uint32_t mask;
             /* push the error code */
             type = (env->tr.flags >> DESC_TYPE_SHIFT) & 0xf;
             shift = type >> 3;
@@ -637,7 +652,7 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
                 stl_kernel(ssp, error_code);
             else
                 stw_kernel(ssp, error_code);
-            ESP = (esp & mask) | (ESP & ~mask);
+            SET_ESP(esp, mask);
         }
         return;
     case 6: /* 286 interrupt gate */
@@ -765,7 +780,7 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
         cpu_x86_load_seg_cache(env, R_SS, ss, 
                                ssp, get_seg_limit(ss_e1, ss_e2), ss_e2);
     }
-    ESP = (ESP & ~sp_mask) | (esp & sp_mask);
+    SET_ESP(esp, sp_mask);
 
     selector = (selector & ~3) | dpl;
     cpu_x86_load_seg_cache(env, R_CS, selector, 
@@ -1217,6 +1232,18 @@ void raise_exception(int exception_index)
 
 /* SMM support */
 
+#if defined(CONFIG_USER_ONLY) 
+
+void do_smm_enter(void)
+{
+}
+
+void helper_rsm(void)
+{
+}
+
+#else
+
 #ifdef TARGET_X86_64
 #define SMM_REVISION_ID 0x00020064
 #else
@@ -1482,6 +1509,9 @@ void helper_rsm(void)
         cpu_dump_state(env, logfile, fprintf, X86_DUMP_CCOP);
     }
 }
+
+#endif /* !CONFIG_USER_ONLY */
+
 
 #ifdef BUGGY_GCC_DIV64
 /* gcc 2.95.4 on PowerPC does not seem to like using __udivdi3, so we
@@ -2000,7 +2030,7 @@ void helper_lcall_real_T0_T1(int shift, int next_eip)
         PUSHW(ssp, esp, esp_mask, next_eip);
     }
 
-    ESP = (ESP & ~esp_mask) | (esp & esp_mask);
+    SET_ESP(esp, esp_mask);
     env->eip = new_eip;
     env->segs[R_CS].selector = new_cs;
     env->segs[R_CS].base = (new_cs << 4);
@@ -2086,7 +2116,7 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip_addend)
             if (new_eip > limit)
                 raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
             /* from this point, not restartable */
-            ESP = (ESP & ~sp_mask) | (sp & sp_mask);
+            SET_ESP(sp, sp_mask);
             cpu_x86_load_seg_cache(env, R_CS, (new_cs & 0xfffc) | cpl,
                                    get_seg_base(e1, e2), limit, e2);
             EIP = new_eip;
@@ -2215,7 +2245,7 @@ void helper_lcall_protected_T0_T1(int shift, int next_eip_addend)
                        get_seg_limit(e1, e2),
                        e2);
         cpu_x86_set_cpl(env, dpl);
-        ESP = (ESP & ~sp_mask) | (sp & sp_mask);
+        SET_ESP(sp, sp_mask);
         EIP = offset;
     }
 #ifdef USE_KQEMU
@@ -2444,7 +2474,7 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
 
         sp += addend;
     }
-    ESP = (ESP & ~sp_mask) | (sp & sp_mask);
+    SET_ESP(sp, sp_mask);
     env->eip = new_eip;
     if (is_iret) {
         /* NOTE: 'cpl' is the _old_ CPL */
