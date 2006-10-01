@@ -1,3 +1,13 @@
+2006-10-01 18:08  bellard
+
+	* pc-bios/: bios.bin, bios.diff: synced to Bochs BIOS - use 32 bit
+	  pushf/popf in 32 bit PCI bios - moved some useful defines in
+	  rombios.h
+
+2006-10-01 15:03  pbrook
+
+	* hw/arm_gic.c: ARM GIC bug.
+
 2006-09-29 22:01  bellard
 
 	* target-i386/helper.c: 32 bit RSP update fix (aka Open Solaris
