@@ -383,7 +383,7 @@ static void gic_dist_writeb(void *opaque, target_phys_addr_t offset,
         s->irq_target[irq] = value;
     } else if (offset < 0xf00) {
         /* Interrupt Configuration.  */
-        irq = (offset - 0xc00) * 2;
+        irq = (offset - 0xc00) * 4;
         if (irq >= GIC_NIRQ)
             goto bad_reg;
         for (i = 0; i < 4; i++) {
