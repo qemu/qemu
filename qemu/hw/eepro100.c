@@ -63,6 +63,22 @@
 #define PCI_FLASH_SIZE          (128 * KiB)
 
 
+/* The SCB accepts the following controls for the Tx and Rx units: */
+#define  CU_START       0x0010
+#define  CU_RESUME      0x0020
+#define  CU_STATSADDR   0x0040
+#define  CU_SHOWSTATS   0x0050  /* Dump statistics counters. */
+#define  CU_CMD_BASE    0x0060  /* Base address to add to add CU commands. */
+#define  CU_DUMPSTATS   0x0070  /* Dump then reset stats counters. */
+
+#define  RX_START       0x0001
+#define  RX_RESUME      0x0002
+#define  RX_ABORT       0x0004
+#define  RX_ADDR_LOAD   0x0006
+#define  RX_RESUMENR    0x0007
+#define INT_MASK        0x0100
+#define DRVR_INT        0x0200          /* Driver generated interrupt. */
+
 /* Offsets to the various registers.
    All accesses need not be longword aligned. */
 enum speedo_offsets {
@@ -97,7 +113,7 @@ typedef struct {
   uint32_t rx_buf_addr;          /* void * */
   uint16_t count;
   uint16_t size;
-  char packet[1518];
+  char packet[MAX_ETH_FRAME_SIZE + 4];
 } eepro100_rx_t;
 
 typedef struct {
@@ -210,17 +226,24 @@ static int compute_mcast_idx(const uint8_t *ep)
 
 static int eepro100_buffer_full(EEPRO100State *s)
 {
-    int avail, index, boundary;
+    int is_full = 1;
+    if (s->rxaddr != 0) {
+        eepro100_rx_t rx;
+        cpu_physical_memory_read(s->rxaddr, (uint8_t *)&rx, sizeof(rx)); // !!! optimize
+        is_full = (rx.status == 0);
+    }
+    return is_full;
+    //~ int avail, index, boundary;
 
-    index = s->curpag << 8;
-    boundary = s->boundary << 8;
-    if (index <= boundary)
-        avail = boundary - index;
-    else
-        avail = (s->stop - s->start) - (index - boundary);
-    if (avail < (MAX_ETH_FRAME_SIZE + 4))
-        return 1;
-    return 0;
+    //~ index = s->curpag << 8;
+    //~ boundary = s->boundary << 8;
+    //~ if (index <= boundary)
+        //~ avail = boundary - index;
+    //~ else
+        //~ avail = (s->stop - s->start) - (index - boundary);
+    //~ if (avail < (MAX_ETH_FRAME_SIZE + 4))
+        //~ return 1;
+    //~ return 0;
 }
 
 static int nic_can_receive(void *opaque)
@@ -245,6 +268,17 @@ static void nic_receive(void *opaque, const uint8_t *buf, int size)
 
     if (eepro100_buffer_full(s))
         return;
+
+    //~ !!!
+//~ $3 = {status = 0x0, command = 0xc000, link = 0x2d220, rx_buf_addr = 0x207dc, count = 0x0, size = 0x5f8, packet = {0x0 <repeats 1518 times>}}
+    eepro100_rx_t rx;
+    cpu_physical_memory_read(s->rxaddr, (uint8_t *)&rx, sizeof(rx));
+    assert(size <= rx.size);
+    cpu_physical_memory_write(rx.rx_buf_addr, buf, size);
+    rx.count = size;
+    rx.status = 1; // !!! check value
+    cpu_physical_memory_write(s->rxaddr, (uint8_t *)&rx, sizeof(rx)); // !!! copies too much
+    return;
 
     /* XXX: check this */
     if (s->rxcr & 0x10) {
@@ -407,39 +441,71 @@ EE100   eepro100_read_status    val=0x0000
 EE100   eepro100_read_status    val=0x0000
 #endif
 
+/* Commands that can be put in a command list entry. */
+enum commands {
+  CmdNOp = 0,
+  CmdIASetup = 1,
+  CmdConfigure = 2,
+  CmdMulticastList = 3,
+  CmdTx = 4,
+  CmdTDR = 5,
+  CmdDump = 6,
+  CmdDiagnose = 7,
+
+  /* And some extra flags: */
+  CmdSuspend = 0x4000,      /* Suspend after completion. */
+  CmdIntr = 0x2000,         /* Interrupt after completion. */
+  CmdTxFlex = 0x0008,       /* Use "Flexible mode" for CmdTx command. */
+};
+
 static void eepro100_write_command(EEPRO100State *s, uint16_t val)
 {
     switch (val & 0xff) {
-        case 0x01:      /* RX_START */
+        case RX_START:
             s->scb_m = ((val & 0x100) != 0);
+            s->rxaddr = s->pointer;
             eepro100_rx_t rx;
 //~ (gdb) p/x rx
 //~ $3 = {status = 0x0, command = 0xc000, link = 0x2d220, rx_buf_addr = 0x207dc, count = 0x0, size = 0x5f8, packet = {0x0 <repeats 1518 times>}}
-            cpu_physical_memory_read(s->pointer, (uint8_t *)&rx, sizeof(rx));
+            cpu_physical_memory_read(s->rxaddr, (uint8_t *)&rx, sizeof(rx));
             logout("val=0x%04x (rx start, status=0x%04x, command=0x%04x\n", val, rx.status, rx.command);
             break;
-        case 0x06:
+        case RX_ADDR_LOAD:
             s->scb_m = ((val & 0x100) != 0);
-            s->rxaddr = s->pointer;
             logout("val=0x%04x (rx address)\n", val);
             break;
-        case 0x10:      /* CU_START */
+        case CU_START:
             s->scb_m = ((val & 0x100) != 0);
+            s->txaddr = s->pointer;
 //~ (gdb) p/x tx
 //~ $5 = {status = 0x0, command = 0x1, link = 0x208e0, tx_desc_addr = 0x12005452, count = 0x5634, tx_buf_addr0 = 0x0, tx_buf_size0 = 0x0,
   //~ tx_buf_addr1 = 0x0, tx_buf_size1 = 0x0}
 //~ $12 = {status = 0x0, command = 0x400c, link = 0x2d200, tx_desc_addr = 0x2d210, count = 0x2208000, tx_buf_addr0 = 0x65d40,
   //~ tx_buf_size0 = 0xe, tx_buf_addr1 = 0x65d94, tx_buf_size1 = 0x1c}
             eepro100_tx_t tx;
-            cpu_physical_memory_read(s->pointer, (uint8_t *)&tx, sizeof(tx));
+            cpu_physical_memory_read(s->txaddr, (uint8_t *)&tx, sizeof(tx));
             logout("val=0x%04x (cu start), status=0x%04x, command=0x%04x\n", val, tx.status, tx.command);
+            switch (tx.command & 7) {
+                uint8_t buf[MAX_ETH_FRAME_SIZE + 4];
+                int size;
+                case CmdTx:
+                    cpu_physical_memory_read(tx.tx_buf_addr0, &buf[0], tx.tx_buf_size0);
+                    size = tx.tx_buf_size0;
+                    cpu_physical_memory_read(tx.tx_buf_addr1, &buf[size], tx.tx_buf_size1);
+                    size += tx.tx_buf_size1;
+                    qemu_send_packet(s->vc, buf, size);
+                    /* Write new status (success). Check code!!! */
+                    tx.status = 1;
+                    cpu_physical_memory_write(s->txaddr, (uint8_t *)&tx, sizeof(tx));
+                    break;
+            }
             break;
-        case 0x40:
+        case CU_STATSADDR:
             s->scb_m = ((val & 0x100) != 0);
             s->statsaddr = s->pointer;
             logout("val=0x%04x (status address)\n", val);
             break;
-        case 0x60:      /* CU_CMD_BASE */
+        case CU_CMD_BASE:
             s->scb_m = ((val & 0x100) != 0);
             //~ s->rxaddr = s->pointer;
             logout("val=0x%04x (cu address)\n", val);
