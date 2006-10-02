@@ -1,5 +1,5 @@
 /*
- * QEMU i82559 (EEPRO100) emulation
+ * QEMU i8255x (EEPRO100) emulation
  *
  * Copyright (c) 2006 Stefan Weil
  *
@@ -20,9 +20,17 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+/* References:
+ *
+ * Intel 8255x 10/100 Mbps Ethernet Controller Family
+ * Open Source Software Developer Manual
+ */
+
 #include <assert.h>
 #include "vl.h"
 #include "eeprom9346.h"
+
+/* Common declarations for all PCI devices. */
 
 #define PCI_VENDOR_ID           0x00    /* 16 bits */
 #define PCI_DEVICE_ID           0x02    /* 16 bits */
@@ -40,6 +48,8 @@
 #define PCI_BASE_ADDRESS_4      0x20    /* 32 bits */
 #define PCI_BASE_ADDRESS_5      0x24    /* 32 bits */
 
+#define KiB 1024
+
 /* debug EEPRO100 card */
 #define DEBUG_EEPRO100
 
@@ -51,12 +61,14 @@
 
 #define MAX_ETH_FRAME_SIZE 1514
 
-#define EEPRO100_PMEM_SIZE    (32*1024)
-#define EEPRO100_PMEM_START   (16*1024)
-#define EEPRO100_PMEM_END     (EEPRO100_PMEM_SIZE+EEPRO100_PMEM_START)
-#define EEPRO100_MEM_SIZE     EEPRO100_PMEM_END
+/* This driver supports several different devices which are declared here. */
+#define i82557B         825571
+#define i82557C         825572
+#define i82558          82558
+#define i82559          825591
+#define i82559ER        825592
 
-#define KiB 1024
+#define DEVICE          i82559ER
 
 #define PCI_MEM_SIZE            (4 * KiB)
 #define PCI_IO_SIZE             64
@@ -64,13 +76,16 @@
 
 
 /* The SCB accepts the following controls for the Tx and Rx units: */
+#define  CU_NOP         0x0000
 #define  CU_START       0x0010
 #define  CU_RESUME      0x0020
 #define  CU_STATSADDR   0x0040
 #define  CU_SHOWSTATS   0x0050  /* Dump statistics counters. */
 #define  CU_CMD_BASE    0x0060  /* Base address to add to add CU commands. */
 #define  CU_DUMPSTATS   0x0070  /* Dump then reset stats counters. */
+#define  CU_SRESUME     0x00a0
 
+#define  RU_NOP         0x0000
 #define  RX_START       0x0001
 #define  RX_RESUME      0x0002
 #define  RX_ABORT       0x0004
@@ -161,13 +176,15 @@ typedef struct {
 #endif
     uint32_t region[3]; /* PCI region addresses */
     uint8_t macaddr[6];
-    uint8_t mem[EEPRO100_MEM_SIZE];
+    uint8_t mem[PCI_MEM_SIZE];
     uint32_t statcounter[19];
     uint16_t mdimem[32];
     eeprom_t *eeprom;
     uint32_t pointer;
-    uint32_t rxaddr;
-    uint32_t txaddr;
+    uint32_t cu_base;   /* CU base address */
+    uint32_t cu_offset; /* CU address offset */
+    uint32_t ru_base;   /* RU base address */
+    uint32_t ru_offset; /* RU address offset */
     uint32_t statsaddr; /* pointer to eepro100_stats_t */
     uint16_t status;
     unsigned scb_m:1;
@@ -227,10 +244,10 @@ static int compute_mcast_idx(const uint8_t *ep)
 static int eepro100_buffer_full(EEPRO100State *s)
 {
     int is_full = 1;
-    if (s->rxaddr != 0) {
+    if (s->ru_offset != 0) {
         eepro100_rx_t rx;
-        cpu_physical_memory_read(s->rxaddr, (uint8_t *)&rx, sizeof(rx)); // !!! optimize
-        is_full = (rx.status == 0);
+        cpu_physical_memory_read(s->ru_offset, (uint8_t *)&rx, sizeof(rx)); // !!! optimize
+        is_full = (rx.status != 0);
     }
     return is_full;
     //~ int avail, index, boundary;
@@ -272,12 +289,13 @@ static void nic_receive(void *opaque, const uint8_t *buf, int size)
     //~ !!!
 //~ $3 = {status = 0x0, command = 0xc000, link = 0x2d220, rx_buf_addr = 0x207dc, count = 0x0, size = 0x5f8, packet = {0x0 <repeats 1518 times>}}
     eepro100_rx_t rx;
-    cpu_physical_memory_read(s->rxaddr, (uint8_t *)&rx, sizeof(rx));
+    cpu_physical_memory_read(s->ru_offset, (uint8_t *)&rx, sizeof(rx));
     assert(size <= rx.size);
-    cpu_physical_memory_write(rx.rx_buf_addr, buf, size);
+    memcpy(&rx.packet[0], buf, size);
+    //~ cpu_physical_memory_write(rx.rx_buf_addr, buf, size);
     rx.count = size;
     rx.status = 1; // !!! check value
-    cpu_physical_memory_write(s->rxaddr, (uint8_t *)&rx, sizeof(rx)); // !!! copies too much
+    cpu_physical_memory_write(s->ru_offset, (uint8_t *)&rx, sizeof(rx));
     return;
 
     /* XXX: check this */
@@ -458,32 +476,21 @@ enum commands {
   CmdTxFlex = 0x0008,       /* Use "Flexible mode" for CmdTx command. */
 };
 
-static void eepro100_write_command(EEPRO100State *s, uint16_t val)
+static void eepro100_write_cu_command(EEPRO100State *s, uint16_t val)
 {
-    switch (val & 0xff) {
-        case RX_START:
-            s->scb_m = ((val & 0x100) != 0);
-            s->rxaddr = s->pointer;
-            eepro100_rx_t rx;
-//~ (gdb) p/x rx
-//~ $3 = {status = 0x0, command = 0xc000, link = 0x2d220, rx_buf_addr = 0x207dc, count = 0x0, size = 0x5f8, packet = {0x0 <repeats 1518 times>}}
-            cpu_physical_memory_read(s->rxaddr, (uint8_t *)&rx, sizeof(rx));
-            logout("val=0x%04x (rx start, status=0x%04x, command=0x%04x\n", val, rx.status, rx.command);
-            break;
-        case RX_ADDR_LOAD:
-            s->scb_m = ((val & 0x100) != 0);
-            logout("val=0x%04x (rx address)\n", val);
+    eepro100_tx_t tx;
+    switch (val) {
+        case CU_NOP:
+            /* No operation. */
             break;
         case CU_START:
-            s->scb_m = ((val & 0x100) != 0);
-            s->txaddr = s->pointer;
+            s->cu_offset = s->pointer;
 //~ (gdb) p/x tx
 //~ $5 = {status = 0x0, command = 0x1, link = 0x208e0, tx_desc_addr = 0x12005452, count = 0x5634, tx_buf_addr0 = 0x0, tx_buf_size0 = 0x0,
   //~ tx_buf_addr1 = 0x0, tx_buf_size1 = 0x0}
 //~ $12 = {status = 0x0, command = 0x400c, link = 0x2d200, tx_desc_addr = 0x2d210, count = 0x2208000, tx_buf_addr0 = 0x65d40,
   //~ tx_buf_size0 = 0xe, tx_buf_addr1 = 0x65d94, tx_buf_size1 = 0x1c}
-            eepro100_tx_t tx;
-            cpu_physical_memory_read(s->txaddr, (uint8_t *)&tx, sizeof(tx));
+            cpu_physical_memory_read(s->cu_offset, (uint8_t *)&tx, sizeof(tx));
             logout("val=0x%04x (cu start), status=0x%04x, command=0x%04x\n", val, tx.status, tx.command);
             switch (tx.command & 7) {
                 uint8_t buf[MAX_ETH_FRAME_SIZE + 4];
@@ -496,22 +503,75 @@ static void eepro100_write_command(EEPRO100State *s, uint16_t val)
                     qemu_send_packet(s->vc, buf, size);
                     /* Write new status (success). Check code!!! */
                     tx.status = 1;
-                    cpu_physical_memory_write(s->txaddr, (uint8_t *)&tx, sizeof(tx));
+                    cpu_physical_memory_write(s->cu_offset, (uint8_t *)&tx, sizeof(tx));
                     break;
             }
             break;
+        //~ case CU_RESUME:
+            //~ break;
         case CU_STATSADDR:
-            s->scb_m = ((val & 0x100) != 0);
+            /* Load dump counters address. */
             s->statsaddr = s->pointer;
             logout("val=0x%04x (status address)\n", val);
             break;
+        //~ case CU_SHOWSTATS:
+            //~ /* Dump statistical counters. */
+            //~ break;
         case CU_CMD_BASE:
-            s->scb_m = ((val & 0x100) != 0);
-            //~ s->rxaddr = s->pointer;
-            logout("val=0x%04x (cu address)\n", val);
+            /* Load CU base. */
+            logout("val=0x%04x (CU base address)\n", val);
+            s->cu_base = s->pointer;
+            assert(s->pointer == 0 || !"base address is unsupported");
+            break;
+        //~ case CU_DUMPSTATS:
+            //~ /* Dump and reset statistical counters. */
+            //~ break;
+        //~ case CU_SRESUME:
+            //~ /* CU static resume. */
+            //~ break;
+        default:
+            assert(!"Undefined CU command");
+    }
+}
+
+static void eepro100_write_ru_command(EEPRO100State *s, uint16_t val)
+{
+    eepro100_rx_t rx;
+    switch (val) {
+        case RU_NOP:
+            /* No operation. */
+            break;
+        case RX_START:
+            /* RU start. */
+            s->ru_offset = s->pointer;
+//~ (gdb) p/x rx
+//~ $3 = {status = 0x0, command = 0xc000, link = 0x2d220, rx_buf_addr = 0x207dc, count = 0x0, size = 0x5f8, packet = {0x0 <repeats 1518 times>}}
+            cpu_physical_memory_read(s->ru_offset, (uint8_t *)&rx, sizeof(rx));
+            logout("val=0x%04x (rx start, status=0x%04x, command=0x%04x\n",
+                   val, rx.status, rx.command);
+            break;
+        case RX_RESUME:
+            assert(!"RX_RESUME");
+            break;
+        case RX_ADDR_LOAD:
+            /* Load RU base. */
+            logout("val=0x%04x (RU base address)\n", val);
+            s->ru_base = s->pointer;
+            assert(s->pointer == 0 || !"base address is unsupported");
             break;
         default:
-            logout("val=0x%04x\n", val);
+            logout("val=0x%04x (undefined RU command)\n", val);
+            assert(!"Undefined SU command");
+      }
+}
+
+static void eepro100_write_command(EEPRO100State *s, uint16_t val)
+{
+    s->scb_m = ((val & 0x100) != 0);
+    eepro100_write_ru_command(s, val & 0x0f);
+    eepro100_write_cu_command(s, val & 0xf0);
+    if ((val & 0xff) == 0) {
+        logout("val=0x%04x\n", val);
     }
 }
 
@@ -978,13 +1038,25 @@ void pci_eepro100_init(PCIBus *bus, NICInfo *nd)
     /* PCI Vendor ID */
     PCI_CONFIG_16(PCI_VENDOR_ID, 0x8086);
     /* PCI Device ID */
+#if 1
     PCI_CONFIG_16(PCI_DEVICE_ID, 0x1209);
+#elif DEVICE == i82557B
+    PCI_CONFIG_16(PCI_DEVICE_ID, 0x1229);
+#elif DEVICE == i82557C || DEVICE == i82558 || DEVICE == i82559
+    PCI_CONFIG_16(PCI_DEVICE_ID, 0x1229);
+#elif DEVICE == i82559ER
+    PCI_CONFIG_16(PCI_DEVICE_ID, 0x1209);
+#else    
+# error DEVICE is undefined!
+#endif
     /* PCI Command */
     PCI_CONFIG_16(PCI_COMMAND, 0x0000);
     /* PCI Status */
     PCI_CONFIG_16(0x06, 0x2800);
     /* PCI Revision ID */
+#if 1
     PCI_CONFIG_8(PCI_REVISION_ID, 0x08);
+#endif
     /* PCI Class Code */
     PCI_CONFIG_8(0x09, 0x00);
     PCI_CONFIG_8(PCI_SUBCLASS_CODE, 0x00); // ethernet network controller
@@ -998,7 +1070,7 @@ void pci_eepro100_init(PCIBus *bus, NICInfo *nd)
     /* BIST (built-in self test) */
     /* PCI Base Address Registers */
     /* CSR Memory Mapped Base Address */
-    PCI_CONFIG_32(PCI_BASE_ADDRESS_0, 0x00000000);
+    PCI_CONFIG_32(PCI_BASE_ADDRESS_0, 0x00000008);
     /* CSR I/O Mapped Base Address */
     PCI_CONFIG_32(PCI_BASE_ADDRESS_1, 0x00000001);
     /* Flash Memory Mapped Base Address */
@@ -1019,6 +1091,10 @@ void pci_eepro100_init(PCIBus *bus, NICInfo *nd)
     s = &d->eepro100;
     /* Add 64 * 2 EEPROM. */
     s->eeprom = eeprom9346_new(64);
+
+#if DEVICE == i82557C || DEVICE == i82558 || DEVICE == i82559
+#  warning "Get device id and revision from EEPROM!!!"
+#endif
 
     /* Handler for memory-mapped I/O */
     d->eepro100.mmio_index =
