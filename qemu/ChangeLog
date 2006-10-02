@@ -1,3 +1,21 @@
+2006-10-02 21:44  bellard
+
+	* qemu-doc.texi, vl.c: no-reboot option
+
+2006-10-02 20:35  bellard
+
+	* pc-bios/: bios.bin, bios.diff: do not generate MP table if one
+	  CPU (no APIC in QEMU in this case) - added wbinvd (ignored in
+	  QEMU but useful on real hardware)
+
+2006-10-02 20:25  bellard
+
+	* hw/acpi.c: SMI enable bit support
+
+2006-10-02 19:58  bellard
+
+	* kqemu.c: 32 bit syscall fix (Juergen Keil)
+
 2006-10-01 18:08  bellard
 
 	* pc-bios/: bios.bin, bios.diff: synced to Bochs BIOS - use 32 bit
