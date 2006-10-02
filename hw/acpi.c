@@ -19,7 +19,6 @@
 #include "vl.h"
 
 //#define DEBUG
-#define USE_SMM
 
 /* i82731AB (PIIX4) compatible power management function */
 #define PM_FREQ 3579545
@@ -200,19 +199,9 @@ static void pm_smi_writeb(void *opaque, uint32_t addr, uint32_t val)
 #endif
     if (addr == 0) {
         s->apmc = val;
-#ifdef USE_SMM
-        cpu_interrupt(first_cpu, CPU_INTERRUPT_SMI);
-#else
-        /* emulation of what the SMM BIOS should do */
-        switch(val) {
-        case 0xf0: /* ACPI disable */
-            s->pmcntrl &= ~SCI_EN;
-            break;
-        case 0xf1: /* ACPI enable */
-            s->pmcntrl |= SCI_EN;
-            break;
+        if (s->dev.config[0x5b] & (1 << 1)) {
+            cpu_interrupt(first_cpu, CPU_INTERRUPT_SMI);
         }
-#endif
     } else {
         s->apms = val;
     }
