@@ -161,6 +161,7 @@ int vnc_display = -1;
 #endif
 int acpi_enabled = 1;
 int fd_bootchk = 1;
+int no_reboot = 0;
 
 /***********************************************************/
 /* x86 ISA bus support */
@@ -5627,7 +5628,11 @@ void qemu_system_reset(void)
 
 void qemu_system_reset_request(void)
 {
-    reset_requested = 1;
+    if (no_reboot) {
+        shutdown_requested = 1;
+    } else {
+        reset_requested = 1;
+    }
     if (cpu_single_env)
         cpu_interrupt(cpu_single_env, CPU_INTERRUPT_EXIT);
 }
@@ -5925,6 +5930,7 @@ void help(void)
            "                (default is CL-GD5446 PCI VGA)\n"
            "-no-acpi        disable ACPI\n"
 #endif
+           "-no-reboot      exit instead of rebooting\n"
            "-loadvm file    start right away with a saved state (loadvm in monitor)\n"
 	   "-vnc display    start a VNC server on display\n"
            "\n"
@@ -6005,6 +6011,7 @@ enum {
     QEMU_OPTION_smp,
     QEMU_OPTION_vnc,
     QEMU_OPTION_no_acpi,
+    QEMU_OPTION_no_reboot,
 };
 
 typedef struct QEMUOption {
@@ -6081,6 +6088,7 @@ const QEMUOption qemu_options[] = {
     { "usb", 0, QEMU_OPTION_usb },
     { "cirrusvga", 0, QEMU_OPTION_cirrusvga },
     { "no-acpi", 0, QEMU_OPTION_no_acpi },
+    { "no-reboot", 0, QEMU_OPTION_no_reboot },
     { NULL },
 };
 
@@ -6724,6 +6732,9 @@ int main(int argc, char **argv)
 		break;
             case QEMU_OPTION_no_acpi:
                 acpi_enabled = 0;
+                break;
+            case QEMU_OPTION_no_reboot:
+                no_reboot = 1;
                 break;
             }
         }
