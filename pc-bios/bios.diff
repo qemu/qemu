@@ -1,83 +1,10 @@
-Index: BIOS-bochs-latest
-===================================================================
-RCS file: /cvsroot/bochs/bochs/bios/BIOS-bochs-latest,v
-retrieving revision 1.133
-diff -u -w -r1.133 BIOS-bochs-latest
-Binary files /tmp/cvsrjjP5I and BIOS-bochs-latest differ
-Index: rombios.c
-===================================================================
-RCS file: /cvsroot/bochs/bochs/bios/rombios.c,v
-retrieving revision 1.170
-diff -u -w -r1.170 rombios.c
---- rombios.c	30 Sep 2006 11:22:53 -0000	1.170
-+++ rombios.c	1 Oct 2006 16:03:53 -0000
-@@ -4115,7 +4115,7 @@
-                     case 3:
-                         set_e820_range(ES, regs.u.r16.di, 
-                                        0x00100000L, 
--                                       extended_memory_size - 0x10000L, 1);
-+                                       extended_memory_size - ACPI_DATA_SIZE, 1);
-                         regs.u.r32.ebx = 4;
-                         regs.u.r32.eax = 0x534D4150;
-                         regs.u.r32.ecx = 0x14;
-@@ -4124,7 +4124,7 @@
-                         break;
-                     case 4:
-                         set_e820_range(ES, regs.u.r16.di, 
--                                       extended_memory_size - 0x10000L, 
-+                                       extended_memory_size - ACPI_DATA_SIZE, 
-                                        extended_memory_size, 3); // ACPI RAM
-                         regs.u.r32.ebx = 5;
-                         regs.u.r32.eax = 0x534D4150;
-@@ -8723,7 +8723,7 @@
- 
- .align 16
- bios32_entry_point:
--  pushf
-+  pushfd
-   cmp eax, #0x49435024 ;; "$PCI"
-   jne unknown_service
-   mov eax, #0x80000000
-@@ -8750,12 +8750,12 @@
- #ifdef BX_QEMU
-   and dword ptr[esp+8],0xfffffffc ;; reset CS.RPL for kqemu
- #endif
--  popf
-+  popfd
-   retf
- 
- .align 16
- pcibios_protected:
--  pushf
-+  pushfd
-   cli
-   push esi
-   push edi
-@@ -8864,7 +8864,7 @@
- #ifdef BX_QEMU
-   and dword ptr[esp+8],0xfffffffc ;; reset CS.RPL for kqemu
- #endif
--  popf
-+  popfd
-   stc
-   retf
- pci_pro_ok:
-@@ -8874,7 +8874,7 @@
- #ifdef BX_QEMU
-   and dword ptr[esp+8],0xfffffffc ;; reset CS.RPL for kqemu
- #endif
--  popf
-+  popfd
-   clc
-   retf
- 
 Index: rombios.h
 ===================================================================
 RCS file: /cvsroot/bochs/bochs/bios/rombios.h,v
-retrieving revision 1.1
-diff -u -w -r1.1 rombios.h
---- rombios.h	30 Sep 2006 11:22:53 -0000	1.1
-+++ rombios.h	1 Oct 2006 16:03:54 -0000
+retrieving revision 1.2
+diff -u -w -r1.2 rombios.h
+--- rombios.h	1 Oct 2006 16:39:18 -0000	1.2
++++ rombios.h	2 Oct 2006 18:31:41 -0000
 @@ -19,7 +19,7 @@
  //  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
  
@@ -87,132 +14,56 @@ diff -u -w -r1.1 rombios.h
  
  #define BX_ROMBIOS32     1
  #define DEBUG_ROMBIOS    0
-@@ -48,3 +48,7 @@
- #endif
- #define BX_INFO(format, p...)   bios_printf(BIOS_PRINTF_INFO, format, ##p)
- #define BX_PANIC(format, p...)  bios_printf(BIOS_PRINTF_DEBHALT, format, ##p)
-+
-+#define ACPI_DATA_SIZE    0x00010000L
-+#define PM_IO_BASE        0xb000
-+#define CPU_COUNT_ADDR    0xf000
 Index: rombios32.c
 ===================================================================
 RCS file: /cvsroot/bochs/bochs/bios/rombios32.c,v
-retrieving revision 1.4
-diff -u -w -r1.4 rombios32.c
---- rombios32.c	30 Sep 2006 11:22:53 -0000	1.4
-+++ rombios32.c	1 Oct 2006 16:03:54 -0000
-@@ -55,13 +55,10 @@
+retrieving revision 1.6
+diff -u -w -r1.6 rombios32.c
+--- rombios32.c	2 Oct 2006 06:29:37 -0000	1.6
++++ rombios32.c	2 Oct 2006 18:31:41 -0000
+@@ -45,6 +45,8 @@
+                 : "=a" (eax), "=b" (ebx), "=c" (ecx), "=d" (edx) \
+                 : "0" (index))
  
- #define APIC_ENABLED 0x0100
- 
--#define CPU_COUNT_ADDR 0xf000
- #define AP_BOOT_ADDR 0x10000
- 
- #define MPTABLE_MAX_SIZE  0x00002000
--#define ACPI_DATA_SIZE    0x00010000
- #define SMI_CMD_IO_ADDR   0xb2
--#define PM_IO_BASE        0xb000
- 
- #define BIOS_TMP_STORAGE  0x00030000 /* 64 KB used to copy the BIOS to shadow RAM */
- 
-@@ -354,12 +351,14 @@
- 
- void delay_ms(int n)
- {
--    int i, j, r1, r2;
-+    int i, j;
-     for(i = 0; i < n; i++) {
--#if BX_QEMU
-+#ifdef BX_QEMU
-         /* approximative ! */
-         for(j = 0; j < 1000000; j++);
- #else
-+        {
-+            int r1, r2;
-         j = 66;
-         r1 = inb(0x61) & 0x10;
-         do {
-@@ -369,6 +368,7 @@
-                 r1 = r2;
-             }
-         } while (j > 0);
-+        }
- #endif
-     }
- }
-Index: rombios32start.S
-===================================================================
-RCS file: /cvsroot/bochs/bochs/bios/rombios32start.S,v
-retrieving revision 1.1
-diff -u -w -r1.1 rombios32start.S
---- rombios32start.S	28 Sep 2006 18:56:20 -0000	1.1
-+++ rombios32start.S	1 Oct 2006 16:03:54 -0000
-@@ -1,3 +1,25 @@
-+/////////////////////////////////////////////////////////////////////////
-+// $Id: bios.diff,v 1.15 2006/10/01 16:08:15 bellard Exp $
-+/////////////////////////////////////////////////////////////////////////
-+//
-+//  32 bit Bochs BIOS init code
-+//  Copyright (C) 2006 Fabrice Bellard
-+//
-+//  This library is free software; you can redistribute it and/or
-+//  modify it under the terms of the GNU Lesser General Public
-+//  License as published by the Free Software Foundation; either
-+//  version 2 of the License, or (at your option) any later version.
-+//
-+//  This library is distributed in the hope that it will be useful,
-+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
-+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-+//  Lesser General Public License for more details.
-+//
-+//  You should have received a copy of the GNU Lesser General Public
-+//  License along with this library; if not, write to the Free Software
-+//  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
-+#include "rombios.h"
++#define wbinvd() asm volatile("wbinvd")
 +
- .globl _start
- .globl smp_ap_boot_code_start
- .globl smp_ap_boot_code_end
-@@ -6,8 +28,6 @@
- .global smm_code_start
- .global smm_code_end
+ #define CPUID_APIC (1 << 9)
  
--#define PM_IO_BASE        0xb000
--
- _start:
-   /* clear bss section */
-   xor %eax, %eax
-@@ -18,13 +38,11 @@
+ #define APIC_BASE    ((uint8_t *)0xfee00000)
+@@ -591,6 +593,7 @@
+     PCIDevice *d = &i440_pcidev;
+     int v;
  
-   jmp rombios32_init
++    wbinvd();
+     v = pci_config_readb(d, 0x59);
+     v = (v & 0x0f) | (0x10);
+     pci_config_writeb(d, 0x59, v);
+@@ -645,7 +648,7 @@
+     outb(0xb3, 0x01);
  
--#define CPU_COUNT 0xf000
--
-   .code16                        
- smp_ap_boot_code_start:
-   xor %ax, %ax
-   mov %ax, %ds
--  incw CPU_COUNT
-+  incw CPU_COUNT_ADDR
- 1:
-   hlt
-   jmp 1b
-@@ -33,7 +51,7 @@
- /* code to relocate SMBASE to 0xa0000 */
- smm_relocation_start:
-   mov $0x38000 + 0x7efc, %ebx
--  mov (%ebx), %al  /* revision ID to see if x86_64 or x86 */
-+  addr32 mov (%ebx), %al  /* revision ID to see if x86_64 or x86 */
-   cmp $0x64, %al
-   je 1f
-   mov $0x38000 + 0x7ef8, %ebx
-@@ -42,7 +60,7 @@
-   mov $0x38000 + 0x7f00, %ebx
- 2:
-   movl $0xa0000, %eax
--  movl %eax, (%ebx)
-+  addr32 movl %eax, (%ebx)
-   rsm                
- smm_relocation_end:
-         
+     /* raise an SMI interrupt */
+-    outb(0xb2, 0x01);
++    outb(0xb2, 0x00);
+ 
+     /* wait until SMM code executed */
+     while (inb(0xb3) != 0x00);
+@@ -656,6 +659,7 @@
+     /* copy the SMM code */
+     memcpy((void *)0xa8000, &smm_code_start,
+            &smm_code_end - &smm_code_start);
++    wbinvd();
+     
+     /* close the SMM memory window and enable normal SMM */
+     pci_config_writeb(&i440_pcidev, 0x72, 0x02 | 0x08);
+@@ -848,6 +852,11 @@
+     int ioapic_id, i, len;
+     int mp_config_table_size;
+ 
++#ifdef BX_QEMU
++    if (smp_cpus <= 1)
++        return;
++#endif
++
+ #ifdef BX_USE_EBDA_TABLES
+     mp_config_table = (uint8_t *)(ram_size - ACPI_DATA_SIZE - MPTABLE_MAX_SIZE);
+ #else

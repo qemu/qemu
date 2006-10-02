@@ -634,6 +634,9 @@ Disable ACPI (Advanced Configuration and Power Interface) support. Use
 it if your guest OS complains about ACPI problems (PC target machine
 only).
 
+@item -no-reboot
+Exit instead of rebooting.
+
 @item -loadvm file
 Start right away with a saved state (@code{loadvm} in monitor)
 @end table
