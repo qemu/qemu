@@ -1,5 +1,6 @@
 include config.mak
 -include *.d
+-include */*.d
 
 TARGET_BASE_ARCH:=$(TARGET_ARCH)
 ifeq ($(TARGET_ARCH), x86_64)
