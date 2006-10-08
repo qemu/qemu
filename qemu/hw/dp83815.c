@@ -206,7 +206,7 @@ static void eeprom_save(QEMUFile *f, void *opaque)
     qemu_put_buffer(f, (uint8_t *)eeprom, sizeof(*eeprom));
 }
 
-int eeprom_load(QEMUFile *f, void *opaque, int version_id)
+static int eeprom_load(QEMUFile *f, void *opaque, int version_id)
 {
     eeprom_state_t *eeprom = (eeprom_state_t *)opaque;
     int result = 0;
@@ -693,13 +693,13 @@ typedef enum {
   DP83815_MIB5 = 0x74,
   DP83815_MIB6 = 0x78,
   /* Internal Phy Registers */
-  DP83815_BMCR = 0x80,
-  DP83815_BMSR = 0x84,
-  DP83815_PHYIDR1 = 0x88,
-  DP83815_PHYIDR2 = 0x8c,
-  DP83815_ANAR = 0x90,
-  DP83815_ANLPAR = 0x94,
-  DP83815_ANER = 0x98,
+  DP83815_BMCR = 0x80,          /* Control Register */
+  DP83815_BMSR = 0x84,          /* Status Register */
+  DP83815_PHYIDR1 = 0x88,       /* PHY Identification Register 1 */
+  DP83815_PHYIDR2 = 0x8c,       /* PHY Identification Register 2 */
+  DP83815_ANAR = 0x90,          /* Auto-Negotiation Advertisment Register */
+  DP83815_ANLPAR = 0x94,        /* Auto-Negotiation Link Partner Ability Register */
+  DP83815_ANER = 0x98,          /* Auto-Negotiation Expansion Register */
   DP83815_ANPTR = 0x9c,
   DP83815_PHYSTS = 0xc0,
   DP83815_MICR = 0xc4,
