@@ -382,8 +382,6 @@ static void apic_init_ipi(APICState *s)
 {
     int i;
 
-    for(i = 0; i < APIC_LVT_NB; i++)
-        s->lvt[i] = 1 << 16; /* mask LVT */
     s->tpr = 0;
     s->spurious_vec = 0xff;
     s->log_dest = 0;
@@ -391,7 +389,8 @@ static void apic_init_ipi(APICState *s)
     memset(s->isr, 0, sizeof(s->isr));
     memset(s->tmr, 0, sizeof(s->tmr));
     memset(s->irr, 0, sizeof(s->irr));
-    memset(s->lvt, 0, sizeof(s->lvt));
+    for(i = 0; i < APIC_LVT_NB; i++)
+        s->lvt[i] = 1 << 16; /* mask LVT */
     s->esr = 0;
     memset(s->icr, 0, sizeof(s->icr));
     s->divide_conf = 0;
@@ -477,9 +476,9 @@ int apic_get_interrupt(CPUState *env)
     intno = get_highest_priority_int(s->irr);
     if (intno < 0)
         return -1;
-    reset_bit(s->irr, intno);
     if (s->tpr && intno <= s->tpr)
         return s->spurious_vec & 0xff;
+    reset_bit(s->irr, intno);
     set_bit(s->isr, intno);
     apic_update_irq(s);
     return intno;
