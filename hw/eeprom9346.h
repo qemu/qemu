@@ -32,10 +32,10 @@ eeprom_t *eeprom9346_new(uint16_t nwords);
 void eeprom9346_free(eeprom_t *eeprom);
 
 /* Read from the EEPROM. */
-uint32_t eeprom9346_read(eeprom_t *eeprom);
+uint16_t eeprom9346_read(eeprom_t *eeprom);
 
 /* Write to the EEPROM. */
-void eeprom9346_write(eeprom_t *eeprom, uint32_t val);
+void eeprom9346_write(eeprom_t *eeprom, int eecs, int eesk, int eedi);
 
 /* Reset the EEPROM. */
 void eeprom9346_reset(eeprom_t *eeprom, const uint8_t *macaddr);

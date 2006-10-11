@@ -27,6 +27,10 @@
  * eeprom9346_reset - reset the EEPROM
  * eeprom9346_read  - read data from the EEPROM
  * eeprom9346_write - write data to the EEPROM
+ *
+ * Todo list:
+ * - "write all" command is unimplemented.
+ * - No emulation of EEPROM timings.
  */
 
 /* Debug EEPROM emulation. */
@@ -37,6 +41,9 @@
 #else
 #define logout(fmt, args...) ((void)0)
 #endif
+
+static int eeprom_instance = 0;
+static const int eeprom_version = 20060726;
 
 #if 0
 typedef enum {
@@ -56,9 +63,6 @@ typedef enum {
   EEDO  =  2,   /* EEPROM Data Out */
   EECLK =  4,   /* EEPROM Serial Clock */
   EESEL =  8,   /* EEPROM Chip Select */
-  MDIO  = 16,   /* MII Management Data */
-  MDDIR = 32,   /* MII Management Direction */
-  MDC   = 64    /* MII Management Clock */
 } eeprom_bits_t;
 
 typedef struct {
@@ -87,9 +91,6 @@ static uint16_t eeprom_map[16] = {
 };
 
 /* Code for saving and restoring of EEPROM state. */
-
-static int eeprom_instance = 0;
-static const int eeprom_version = 20060726;
 
 static void eeprom_save(QEMUFile *f, void *opaque)
 {
@@ -182,6 +183,7 @@ static uint16_t eeprom_action(eeprom_state_t *ee, eeprom_bits_t bits)
 
 #else
 
+#include <assert.h>
 #include "eeprom9346.h"
 
 /* Emulation of 9346 EEPROM (64 * 16 bit) */
@@ -199,10 +201,6 @@ static uint16_t eeprom_action(eeprom_state_t *ee, eeprom_bits_t bits)
 #define EEPROM_DI       0x02
 #define EEPROM_DO       0x01
 #else
-#define EEPROM_CS       0x02
-#define EEPROM_SK       0x01
-#define EEPROM_DI       0x04
-#define EEPROM_DO       0x08
 #endif
 
 typedef enum {
@@ -215,239 +213,179 @@ typedef enum {
     Chip9346_op_write_disable = 0x00, /* 00 00zzzz */
 } Chip9346Operation;
 
-typedef enum {
-    Chip9346_none = 0,
-    Chip9346_enter_command_mode,
-    Chip9346_read_command,
-    Chip9346_data_read,      /* from output register */
-    Chip9346_data_write,     /* to input register, then to contents at specified address */
-    Chip9346_data_write_all, /* to input register, then filling contents */
-} Chip9346Mode;
-
 typedef struct EEprom9346 {
-    Chip9346Mode mode;
-    uint32_t tick;
+    uint8_t  tick;
     uint8_t  address;
-    uint16_t input;
-    uint16_t output;
+    uint8_t  command;
+    uint8_t  readonly;
+    uint16_t data;
 
     uint8_t eecs;
     uint8_t eesk;
     uint8_t eedi;
     uint8_t eedo;
 
-    uint8_t value;
-    uint8_t size;
+    uint32_t value;
+    uint8_t  addrbits;
+    uint8_t  size;
     uint16_t contents[0];
 } EEProm9346;
 
-static void eeprom_decode_command(eeprom_t *eeprom, uint8_t command)
+static void eeprom_save(QEMUFile *f, void *opaque)
 {
-    logout("eeprom command 0x%02x\n", command);
-
-    switch (command & Chip9346_op_mask) {
-        case Chip9346_op_read:
-        {
-            eeprom->address = command & EEPROM_9346_ADDR_MASK;
-            eeprom->output = eeprom->contents[eeprom->address];
-            eeprom->eedo = 0;
-            eeprom->tick = 0;
-            eeprom->mode = Chip9346_data_read;
-            logout("eeprom read from address 0x%02x data=0x%04x\n",
-                   eeprom->address, eeprom->output);
-        }
-        break;
-
-        case Chip9346_op_write:
-        {
-            eeprom->address = command & EEPROM_9346_ADDR_MASK;
-            eeprom->input = 0;
-            eeprom->tick = 0;
-            eeprom->mode = Chip9346_none; /* Chip9346_data_write */
-            logout("eeprom begin write to address 0x%02x\n",
-                   eeprom->address);
-        }
-        break;
-        default:
-            eeprom->mode = Chip9346_none;
-            switch (command & Chip9346_op_ext_mask) {
-                case Chip9346_op_write_enable:
-                    logout("eeprom write enabled\n");
-                    break;
-                case Chip9346_op_write_all:
-                    logout("eeprom begin write all\n");
-                    break;
-                case Chip9346_op_write_disable:
-                    logout("eeprom write disabled\n");
-                    break;
-            }
-            break;
-    }
+    eeprom_t *eeprom = (eeprom_t *)opaque;
+    /* TODO: support different endianess */
+    qemu_put_buffer(f, (uint8_t *)eeprom, sizeof(*eeprom));
 }
 
-static void prom9346_shift_clock(eeprom_t *eeprom)
+static int eeprom_load(QEMUFile *f, void *opaque, int version_id)
 {
-    int bit = eeprom->eedi?1:0;
+    eeprom_t *eeprom = (eeprom_t *)opaque;
+    int result = 0;
+    if (version_id == eeprom_version) {
+        /* TODO: support different endianess */
+        qemu_get_buffer(f, (uint8_t *)eeprom, sizeof(*eeprom));
+    } else {
+        result = -EINVAL;
+    }
+    return result;
+}
 
-    ++ eeprom->tick;
+void eeprom9346_write(eeprom_t *eeprom, int eecs, int eesk, int eedi)
+{
+    uint8_t tick = eeprom->tick;
+    uint8_t eedo = eeprom->eedo;
+    uint16_t address = eeprom->address;
+    uint8_t command = eeprom->command;
 
-    logout("tick %d eedi=%d eedo=%d\n", eeprom->tick, eeprom->eedi, eeprom->eedo);
+    logout("CS=%u SK=%u DI=%u DO=%u, tick = %u, value = 0x%04x\n",
+           eecs, eesk, eedi, eedo, tick, eeprom->value);
 
-    switch (eeprom->mode) {
-        case Chip9346_enter_command_mode:
-            if (bit) {
-                eeprom->mode = Chip9346_read_command;
-                eeprom->tick = 0;
-                eeprom->input = 0;
-                logout("+++ synchronized, begin command read\n");
+    if (! eeprom->eecs && eecs) {
+        /* Start cycle. */
+        logout("Cycle start, waiting for 1st start bit (0)\n");
+        tick = 0;
+        eeprom->value = 0x0;
+        command = 0x0;
+        address = 0x0;
+        eedo = 1;
+    } else if (eecs && ! eeprom->eesk && eesk) {
+        /* Raising edge of clock shifts data in. */
+        if (tick == 0) {
+            /* Wait for 1st start bit. */
+            if (eedi == 0) {
+                logout("Got correct 1st start bit, waiting for 2nd start bit (1)\n");
+                tick++;
+            } else {
+                assert(!"wrong start bit");
             }
-            break;
-
-        case Chip9346_read_command:
-            eeprom->input = (eeprom->input << 1) | (bit & 1);
-            if (eeprom->tick == 8) {
-                eeprom_decode_command(eeprom, eeprom->input & 0xff);
+        } else if (tick == 1) {
+            /* Wait for 2nd start bit. */
+            if (eedi == 1) {
+                logout("Got correct 2nd start bit, getting command + address\n");
+                tick++;
+            } else {
+                logout("1st start bit is longer than needed\n");
             }
-            break;
-
-        case Chip9346_data_read:
-            eeprom->eedo = (eeprom->output & 0x8000)?1:0;
-            eeprom->output <<= 1;
-            if (eeprom->tick == 16) {
-#if 1
-        // the FreeBSD drivers (rl and re) don't explicitly toggle
-        // CS between reads (or does setting Cfg9346 to 0 count too?),
-        // so we need to enter wait-for-command state here
-                eeprom->mode = Chip9346_enter_command_mode;
-                eeprom->input = 0;
-                eeprom->tick = 0;
-
-                logout("+++ end of read, awaiting next command\n");
-#else
-        // original behaviour
-                ++eeprom->address;
-                eeprom->address &= EEPROM_9346_ADDR_MASK;
-                eeprom->output = eeprom->contents[eeprom->address];
-                eeprom->tick = 0;
-
-                logout("read next address 0x%02x data=0x%04x\n",
-                       eeprom->address, eeprom->output);
-#endif
-            }
-            break;
-
-        case Chip9346_data_write:
-            eeprom->input = (eeprom->input << 1) | (bit & 1);
-            if (eeprom->tick == 16) {
-                logout("eeprom write to address 0x%02x data=0x%04x\n",
-                       eeprom->address, eeprom->input);
-
-                eeprom->contents[eeprom->address] = eeprom->input;
-                eeprom->mode = Chip9346_none; /* waiting for next command after CS cycle */
-                eeprom->tick = 0;
-                eeprom->input = 0;
-            }
-            break;
-
-        case Chip9346_data_write_all:
-            eeprom->input = (eeprom->input << 1) | (bit & 1);
-            if (eeprom->tick == 16) {
-                int i;
-                for (i = 0; i < eeprom->size; i++) {
-                    eeprom->contents[i] = eeprom->input;
+        } else if (tick < 2 + 2) {
+            /* Got 2 start bits, transfer 2 opcode bits. */
+            tick++;
+            command <<= 1;
+            command += eedi;
+            if (tick == 4) {
+                switch (command) {
+                    case 0:
+                        /* Command code in upper 2 bits of address. */
+                        break;
+                    case 1:
+                        logout("write command\n");
+                        break;
+                    case 2:
+                        logout("read command\n");
+                        break;
+                      break;
+                    case 3:
+                        logout("erase command\n");
+                        break;
                 }
-                logout("eeprom filled with data=0x%04x\n",
-                       eeprom->input);
-
-                eeprom->mode = Chip9346_enter_command_mode;
-                eeprom->tick = 0;
-                eeprom->input = 0;
             }
-            break;
-
-        default:
-            break;
+        } else if (tick < 2 + 2 + eeprom->addrbits) {
+            /* Got 2 start bits and 2 opcode bits, transfer all address bits. */
+            tick++;
+            address = ((address << 1) | eedi);
+            if (tick == 2 + 2 + eeprom->addrbits) {
+                logout("got address = %u\n", address);
+                eedo = 0;
+                address = address % eeprom->size;
+                if (command == 0) {
+                    /* Command code in upper 2 bits of address. */
+                    switch (address >> (eeprom->addrbits - 2)) {
+                        case 0:
+                            logout("write disable command\n");
+                            eeprom->readonly = 1;
+                            break;
+                        case 1:
+                            logout("write all command\n");
+                            assert(!"unimplemented write all command");
+                            break;
+                        case 2:
+                            logout("erase all command\n");
+                            memset(&eeprom->contents[0], 0, 2 * eeprom->size);
+                            break;
+                        case 3:
+                            logout("write enable command\n");
+                            eeprom->readonly = 0;
+                            break;
+                    }
+                } else if (command == 3) {
+                    /* Erase word. */
+                    eeprom->contents[address] = 0;
+                } else {
+                    /* Read or write command. */
+                    eeprom->data = eeprom->contents[address];
+                }
+            }
+        } else if (tick < 2 + 2 + eeprom->addrbits + 16) {
+            /* Transfer 16 data bits. */
+            tick++;
+            switch (command) {
+                case 1:
+                    eeprom->data <<= 1;
+                    eeprom->data += eedi;
+                    if (tick == 2 + 2 + eeprom->addrbits + 16) {
+                        if (!eeprom->readonly) {
+                            eeprom->contents[address] = eeprom->data;
+                        }
+                    }
+                    break;
+                case 2:
+                    eedo = ((eeprom->data & 0x8000) != 0);
+                    eeprom->data <<= 1;
+                    break;
+            }
+        } else {
+            logout("additional unneeded tick, not processed\n");
+        }
     }
-}
-
-static int prom9346_get_wire(eeprom_t *eeprom)
-{
-    if (!eeprom->eecs)
-        return 0;
-
-    return eeprom->eedo;
-}
-
-static void prom9346_set_wire(eeprom_t *eeprom, int eecs, int eesk, int eedi)
-{
-    uint8_t old_eecs = eeprom->eecs;
-    uint8_t old_eesk = eeprom->eesk;
-
+    eeprom->tick = tick;
     eeprom->eecs = eecs;
     eeprom->eesk = eesk;
-    eeprom->eedi = eedi;
-
-    logout("+++ wires CS=%d SK=%d DI=%d DO=%d\n",
-           eeprom->eecs, eeprom->eesk, eeprom->eedi, eeprom->eedo);
-
-    if (!old_eecs && eecs) {
-        /* Synchronize start */
-        eeprom->tick = 0;
-        eeprom->input = 0;
-        eeprom->output = 0;
-        eeprom->mode = Chip9346_enter_command_mode;
-
-        logout("begin access, enter command mode\n");
-    }
-
-    if (!eecs) {
-        logout("end access\n");
-        return;
-    }
-
-    if (!old_eesk && eesk) {
-        /* SK front rules */
-        prom9346_shift_clock(eeprom);
-    }
+    eeprom->eedo = eedo;
+    eeprom->address = address;
+    eeprom->command = command;
 }
 
-void eeprom9346_write(eeprom_t *eeprom, uint32_t val)
+uint16_t eeprom9346_read(eeprom_t *eeprom)
 {
-    val &= 0xff;
-
-    logout("write val=0x%02x\n", val);
-
-    /* mask unwriteable bits */
-    //~ val = SET_MASKED(val, 0x31, eeprom->value);
-
-    int eecs = ((val & EEPROM_CS) != 0);
-    int eesk = ((val & EEPROM_SK) != 0);
-    int eedi = ((val & EEPROM_DI) != 0);
-    prom9346_set_wire(eeprom, eecs, eesk, eedi);
-
-    eeprom->value = val;
-}
-
-uint32_t eeprom9346_read(eeprom_t *eeprom)
-{
-    uint32_t ret = eeprom->value;
-
-    int eedo = prom9346_get_wire(eeprom);
-    if (eedo) {
-        ret |=  EEPROM_DO;
-    } else {
-        ret &= ~EEPROM_DO;
-    }
-
-    logout("read val=0x%02x\n", ret);
-
-    return ret;
+    logout("CS=%u DO=%u\n", eeprom->eecs, eeprom->eedo);
+    return (eeprom->eecs && eeprom->eedo);
 }
 
 void eeprom9346_reset(eeprom_t *eeprom, const uint8_t *macaddr)
 {
     /* prepare eeprom */
     size_t i;
+    logout("eeprom = 0x%p\n", eeprom);
     //~ !!! fixme
     memcpy(&eeprom->contents[0], macaddr, 6);
     eeprom->contents[0xa] = 0x4000;
@@ -460,13 +398,37 @@ void eeprom9346_reset(eeprom_t *eeprom, const uint8_t *macaddr)
 
 eeprom_t *eeprom9346_new(uint16_t nwords)
 {
-    eeprom_t *eeprom = (eeprom_t *)qemu_mallocz(sizeof(*eeprom) + nwords * 2);
+    eeprom_t *eeprom;
+    uint8_t addrbits;
+
+    switch (nwords) {
+        case 16:
+            addrbits = 4;
+            break;
+        case 64:
+            addrbits = 6;
+            break;
+        case 256:
+            addrbits = 8;
+            break;
+        default:
+            assert(!"Unsupported EEPROM size!");
+            nwords = 64;
+            addrbits = 6;
+    }
+
+    eeprom = (eeprom_t *)qemu_mallocz(sizeof(*eeprom) + nwords * 2);
     eeprom->size = nwords;
+    eeprom->addrbits = addrbits;
+    logout("eeprom = 0x%p, nwords = %u\n", eeprom, nwords);
+    register_savevm("eeprom", eeprom_instance, eeprom_version,
+                    eeprom_save, eeprom_load, eeprom);
     return eeprom;
 }
 
 void eeprom9346_free(eeprom_t *eeprom)
 {
+    logout("eeprom = 0x%p\n", eeprom);
     qemu_free(eeprom);
 }
 
