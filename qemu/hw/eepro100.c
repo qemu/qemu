@@ -285,7 +285,8 @@ static void eepro100_interrupt(EEPRO100State *s, uint8_t statbyte)
     s->mem[SCBStatus + 1] |= statbyte;
     if ((s->mem[SCBIntmask] & 0x01) == 0) {
         /* SCB Bit M */
-        missing("interrupt handling");
+        logout("interrupt handling\n");
+        pci_set_irq(s->pci_dev, 0, 1);
     }
 }
 
@@ -643,6 +644,9 @@ static void eepro100_cu_command(EEPRO100State *s, uint8_t val)
                 case CmdConfigure:
                     //~ missing("configure");
                     break;
+                case CmdMulticastList:
+                    //~ missing("configure");
+                    break;
                 case CmdTx:
                     assert(!bit_nc);
                     //~ assert(!bit_sf);
@@ -675,6 +679,7 @@ static void eepro100_cu_command(EEPRO100State *s, uint8_t val)
             } else if (bit_s) {
                 /* CPU becomes suspended. */
                 s->cu_state = cu_suspended;
+                s->cu_offset = le32_to_cpu(tx.link);
                 eepro100_interrupt_cna(s);
             } else {
                 /* More entries in list. */
@@ -686,6 +691,11 @@ static void eepro100_cu_command(EEPRO100State *s, uint8_t val)
             /* List is empty. Now CU is idle or suspended. */
             break;
         case CU_RESUME:
+            if (s->cu_state == cu_suspended) {
+                logout("CU resuming\n");
+                s->cu_state = cu_active;
+                goto next_command;
+            }
             logout("cu_state=%u\n", s->cu_state);
             missing("cu resume");
             break;
@@ -705,7 +715,7 @@ static void eepro100_cu_command(EEPRO100State *s, uint8_t val)
             break;
         case CU_DUMPSTATS:
             /* Dump and reset statistical counters. */
-            missing("CU dump and reset statistical counters");
+            //~ missing("CU dump and reset statistical counters");
             break;
         case CU_SRESUME:
             /* CU static resume. */
@@ -929,6 +939,10 @@ static uint8_t eepro100_read1(EEPRO100State *s, uint32_t addr)
 
     switch (addr) {
         case SCBStatus:
+            //~ val = eepro100_read_status(s);
+            logout("addr=%s val=0x%02x\n", regname(addr), val);
+            break;
+        case SCBStatus + 1:
             //~ val = eepro100_read_status(s);
             logout("addr=%s val=0x%02x\n", regname(addr), val);
             break;
