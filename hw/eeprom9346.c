@@ -277,7 +277,9 @@ void eeprom9346_write(eeprom_t *eeprom, int eecs, int eesk, int eedi)
                 logout("Got correct 1st start bit, waiting for 2nd start bit (1)\n");
                 tick++;
             } else {
-                assert(!"wrong start bit");
+                logout("wrong 1st start bit (is 1, should be 0)");
+                tick = 2;
+                //~ assert(!"wrong start bit");
             }
         } else if (tick == 1) {
             /* Wait for 2nd start bit. */
