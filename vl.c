@@ -274,7 +274,7 @@ int register_ioport_write(int start, int length, int size,
     for(i = start; i < start + length; i += size) {
         ioport_write_table[bsize][i] = func;
         if (ioport_opaque[i] != NULL && ioport_opaque[i] != opaque)
-            hw_error("register_ioport_read: invalid opaque");
+            hw_error("register_ioport_write: invalid opaque");
         ioport_opaque[i] = opaque;
     }
     return 0;
@@ -2798,7 +2798,7 @@ void qemu_send_packet(VLANClientState *vc1, const uint8_t *buf, int size)
     VLANState *vlan = vc1->vlan;
     VLANClientState *vc;
 
-#if 1
+#if 0
     printf("vlan %d send:\n", vlan->id);
     hex_dump(stdout, buf, size);
 #endif
