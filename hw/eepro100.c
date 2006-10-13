@@ -1,5 +1,5 @@
 /*
- * QEMU i8255x (EEPRO100) emulation
+ * QEMU i8255x (PRO100) emulation
  *
  * Copyright (c) 2006 Stefan Weil
  *
@@ -71,6 +71,7 @@
 #define i82558B         0x82558b
 #define i82559C         0x82559c
 #define i82559ER        0x82559e
+#define i82562          0x82562
 
 #define DEVICE          i82559ER
 
@@ -186,6 +187,7 @@ typedef struct {
     PCIDevice *pci_dev;
     VLANClientState *vc;
 #endif
+    uint8_t  scb_stat;  /* SCB stat/ack byte */
     uint32_t region[3]; /* PCI region addresses */
     uint8_t macaddr[6];
     uint32_t statcounter[19];
@@ -280,34 +282,79 @@ static int eepro100_buffer_full(EEPRO100State *s)
     //~ return 0;
 }
 
-static void eepro100_interrupt(EEPRO100State *s, uint8_t statbyte)
+enum scb_stat_ack {
+	stat_ack_not_ours    = 0x00,
+	stat_ack_sw_gen      = 0x04,
+	stat_ack_rnr         = 0x10,
+	stat_ack_cu_idle     = 0x20,
+	stat_ack_frame_rx    = 0x40,
+	stat_ack_cu_cmd_done = 0x80,
+	stat_ack_not_present = 0xFF,
+	stat_ack_rx = (stat_ack_sw_gen | stat_ack_rnr | stat_ack_frame_rx),
+	stat_ack_tx = (stat_ack_cu_idle | stat_ack_cu_cmd_done),
+};
+
+static void eepro100_acknowledge(EEPRO100State *s)
 {
-    s->mem[SCBStatus + 1] |= statbyte;
-    if ((s->mem[SCBIntmask] & 0x01) == 0) {
-        /* SCB Bit M */
+    s->scb_stat &= ~s->mem[SCBStatus + 1];
+    s->mem[SCBStatus + 1] = s->scb_stat;
+    if (s->scb_stat == 0) {
+        pci_set_irq(s->pci_dev, 0, 0);
+    }
+}
+
+static void eepro100_interrupt(EEPRO100State *s, uint8_t mask, uint8_t stat)
+{
+    s->mem[SCBStatus + 1] |= stat;
+    s->scb_stat = s->mem[SCBStatus + 1];
+    if (!(s->mem[SCBIntmask] & (mask | 0x01))) {
+        /* SCB maske and SCB Bit M do not disable interrupt. */
         logout("interrupt handling\n");
         pci_set_irq(s->pci_dev, 0, 1);
     }
 }
 
-static void eepro100_interrupt_cna(EEPRO100State *s)
+static void eepro100_cx_interrupt(EEPRO100State *s)
 {
-    eepro100_interrupt(s, 0);
-    //~ s->mem[SCBStatus + 1] |= statbyte;
-    //~ if ((s->mem[SCBIntmask] & 0x01) == 0) {
-        //~ /* SCB Bit M */
-        //~ missing("interrupt handling");
-    //~ }
+    /* CU completed action command. */
+    /* Transmit not ok (82557 only, not in emulation). */
+    eepro100_interrupt(s, 0x80, 0x80);
 }
 
-static void eepro100_interrupt_cx(EEPRO100State *s)
+static void eepro100_cna_interrupt(EEPRO100State *s)
 {
-    eepro100_interrupt(s, 0);
-    //~ s->mem[SCBStatus + 1] |= statbyte;
-    //~ if ((s->mem[SCBIntmask] & 0x01) == 0) {
-        //~ /* SCB Bit M */
-        //~ missing("interrupt handling");
-    //~ }
+    /* CU left the active state. */
+    eepro100_interrupt(s, 0x20, 0x20);
+}
+
+static void eepro100_fr_interrupt(EEPRO100State *s)
+{
+    /* RU received a complete frame. */
+    eepro100_interrupt(s, 0x40, 0x40);
+}
+
+static void eepro100_rnr_interrupt(EEPRO100State *s)
+{
+    /* RU is not ready. */
+    eepro100_interrupt(s, 0x10, 0x10);
+}
+
+static void eepro100_mdi_interrupt(EEPRO100State *s)
+{
+    /* MDI completed read or write cycle. */
+    eepro100_interrupt(s, 0x00, 0x08);
+}
+
+static void eepro100_swi_interrupt(EEPRO100State *s)
+{
+    /* Software has requested an interrupt. */
+    eepro100_interrupt(s, 0x00, 0x04);
+}
+
+static void eepro100_fcp_interrupt(EEPRO100State *s)
+{
+    /* Flow control pause interrupt (82558 and later). */
+    eepro100_interrupt(s, 0x04, 0x01);
 }
 
 static int nic_can_receive(void *opaque)
@@ -342,8 +389,10 @@ static void nic_receive(void *opaque, const uint8_t *buf, int size)
     //~ cpu_physical_memory_write(rx.rx_buf_addr, buf, size);
     rx.count = size;
     rx.status = 1; // !!! check value
+    /* Early receive interrupt not supported. */
+    //~ eepro100_er_interrupt(s);
     cpu_physical_memory_write(s->ru_base + s->ru_offset, (uint8_t *)&rx, sizeof(rx));
-    eepro100_interrupt(s, 0x40);
+    eepro100_fr_interrupt(s);
     return;
 
     /* XXX: check this */
@@ -456,13 +505,18 @@ static void pci_reset(EEPRO100State *s)
     PCI_CONFIG_8(0x0d, 0x20); // latency timer = 32 clocks
     /* PCI Header Type */
     /* BIST (built-in self test) */
+#define PCI_ADDRESS_SPACE_MEM_PREFETCH 0
+#if 0
     /* PCI Base Address Registers */
-    //~ /* CSR Memory Mapped Base Address */
-    //~ PCI_CONFIG_32(PCI_BASE_ADDRESS_0, PCI_ADDRESS_SPACE_MEM | PCI_ADDRESS_SPACE_MEM_PREFETCH);
-    //~ /* CSR I/O Mapped Base Address */
-    //~ PCI_CONFIG_32(PCI_BASE_ADDRESS_1, PCI_ADDRESS_SPACE_IO);
-    //~ /* Flash Memory Mapped Base Address */
-    //~ PCI_CONFIG_32(PCI_BASE_ADDRESS_2, 0xfffe0000 | PCI_ADDRESS_SPACE_MEM);
+    /* CSR Memory Mapped Base Address */
+    PCI_CONFIG_32(PCI_BASE_ADDRESS_0, PCI_ADDRESS_SPACE_MEM | PCI_ADDRESS_SPACE_MEM_PREFETCH);
+    /* CSR I/O Mapped Base Address */
+    PCI_CONFIG_32(PCI_BASE_ADDRESS_1, PCI_ADDRESS_SPACE_IO);
+#if 0
+    /* Flash Memory Mapped Base Address */
+    PCI_CONFIG_32(PCI_BASE_ADDRESS_2, 0xfffe0000 | PCI_ADDRESS_SPACE_MEM);
+#endif
+#endif
     /* Expansion ROM Base Address (depends on boot disable!!!) */
     PCI_CONFIG_32(0x30, 0x00000000);
     /* Capability Pointer */
@@ -612,8 +666,12 @@ static void eepro100_cu_command(EEPRO100State *s, uint8_t val)
             /* No operation. */
             break;
         case CU_START:
-            assert(s->cu_state == cu_idle);
+            if (s->cu_state != cu_idle) {
+                logout("CU state is %u, should be %u\n", s->cu_state, cu_idle);
+                //~ assert(!"wrong CU state");
+            }
             s->cu_state = cu_active;
+            s->mem[SCBStatus] = ((s->mem[SCBStatus] & 0x3f) | 0x80);
             s->cu_offset = s->pointer;
 //~ (gdb) p/x tx
 //~ $5 = {status = 0x0, command = 0x1, link = 0x208e0, tx_desc_addr = 0x12005452, count = 0x5634, tx_buf_addr0 = 0x0, tx_buf_size0 = 0x0,
@@ -640,9 +698,13 @@ static void eepro100_cu_command(EEPRO100State *s, uint8_t val)
                     break;
                 case CmdIASetup:
                     //~ missing("IA setup");
+                    /* Write new status (success). */
+                    stw_phys(s->cu_base + s->cu_offset, status | 0xc000);
                     break;
                 case CmdConfigure:
                     //~ missing("configure");
+                    /* Write new status (success). */
+                    stw_phys(s->cu_base + s->cu_offset, status | 0xc000);
                     break;
                 case CmdMulticastList:
                     //~ missing("configure");
@@ -657,7 +719,9 @@ static void eepro100_cu_command(EEPRO100State *s, uint8_t val)
                     qemu_send_packet(s->vc, buf, size);
                     /* Write new status (success). */
                     stw_phys(s->cu_base + s->cu_offset, status | 0xc000);
-                    eepro100_interrupt(s, 0x80);
+                    /* Transmit with bad status would raise an CX/TNO interrupt.
+                     * (82557 only). Emulation never has bad status. */
+                    //~ eepro100_cx_interrupt(s);
                     break;
                 case CmdTDR:
                     logout("load microcode\n");
@@ -670,17 +734,20 @@ static void eepro100_cu_command(EEPRO100State *s, uint8_t val)
                     missing("undefined command");
             }
             if (bit_i) {
-                eepro100_interrupt_cx(s);
+                /* CU completed action. */
+                eepro100_cx_interrupt(s);
             }
             if (bit_el) {
                 /* CPU becomes idle. */
                 s->cu_state = cu_idle;
-                //~ Interrupt with CNA/CI bits set
+                s->mem[SCBStatus] = ((s->mem[SCBStatus] & 0x3f) | 0x00);
+                eepro100_cna_interrupt(s);
             } else if (bit_s) {
                 /* CPU becomes suspended. */
                 s->cu_state = cu_suspended;
+                s->mem[SCBStatus] = ((s->mem[SCBStatus] & 0x3f) | 0x40);
                 s->cu_offset = le32_to_cpu(tx.link);
-                eepro100_interrupt_cna(s);
+                eepro100_cna_interrupt(s);
             } else {
                 /* More entries in list. */
                 logout("CU list with at least one more entry\n");
@@ -694,6 +761,7 @@ static void eepro100_cu_command(EEPRO100State *s, uint8_t val)
             if (s->cu_state == cu_suspended) {
                 logout("CU resuming\n");
                 s->cu_state = cu_active;
+                s->mem[SCBStatus] = ((s->mem[SCBStatus] & 0x3f) | 0x80);
                 goto next_command;
             }
             logout("cu_state=%u\n", s->cu_state);
@@ -880,7 +948,7 @@ static void eepro100_write_mdi(EEPRO100State *s, uint32_t val)
         s->mem[SCBStatus + 1] |= 0x08;
         val |= (1 << 28);
         if (raiseint) {
-            eepro100_interrupt(s, 0x08);
+            eepro100_mdi_interrupt(s);
         }
     }
     val = (val & 0xffff0000) + data;
@@ -1040,6 +1108,7 @@ static void eepro100_write1(EEPRO100State *s, uint32_t addr, uint8_t val)
             //~ eepro100_write_status(s, val);
             break;
         case SCBStatus + 1:
+            eepro100_acknowledge(s);
             break;
         case SCBCmd:
             eepro100_write_command(s, val);
@@ -1069,6 +1138,7 @@ static void eepro100_write2(EEPRO100State *s, uint32_t addr, uint16_t val)
     switch (addr) {
         case SCBStatus:
             //~ eepro100_write_status(s, val);
+            eepro100_acknowledge(s);
             break;
         case SCBCmd:
             eepro100_write_command(s, val);
@@ -1320,8 +1390,136 @@ static void nic_save(QEMUFile* f,void* opaque)
     qemu_put_buffer(f, s->mem, sizeof(s->mem));
 }
 
-static PCIEEPRO100State *nic_init(PCIBus *bus, NICInfo *nd,
-                                  const char *name, uint32_t device)
+#if 1
+static void ich4_addr_writel(void* opaque, uint32_t addr, uint32_t val)
+{
+    //~ void *s = opaque;
+    logout("addr=0x%08x, val=0x%08x\n", addr, val);
+}
+
+//~ #define PMBASE 0x880
+#define PMBASE 0x800
+
+static uint32_t ich4_addr_readl(void* opaque, uint32_t addr)
+{
+    //~ void *s = opaque;
+    logout("addr=0x%08x\n", addr);
+    addr -= PMBASE;
+    return 0;
+}
+
+static void ich4_isa_bridge_init(PCIBus *bus, const char *name)
+{
+    PCIDevice *d = pci_register_device(bus, name, sizeof(PCIDevice), 31 << 3, NULL, NULL);;
+    uint8_t *pci_conf = d->config;
+
+    PCI_CONFIG_16(PCI_VENDOR_ID, 0x8086);
+    PCI_CONFIG_16(PCI_DEVICE_ID, 0x24c0);
+    PCI_CONFIG_16(PCI_COMMAND, 0x000f);
+    PCI_CONFIG_16(PCI_STATUS, 0x0280);
+    PCI_CONFIG_8(PCI_REVISION_ID, 0x00);        // check!!!
+    PCI_CONFIG_8(PCI_SUBCLASS_CODE, 0x01);      /* PCI-to-ISA bridge */
+    PCI_CONFIG_8(PCI_CLASS_CODE, 0x06);         /* bridge */
+    /* PCI Header Type */
+    PCI_CONFIG_8(0x0e, 0x80);
+    //~ PCI_CONFIG_32(0x40, 0x00000001);
+    PCI_CONFIG_32(0x40, PMBASE | 0x00000001);
+    PCI_CONFIG_32(0x58, 0x00000001);
+    PCI_CONFIG_32(0x60, 0x80808080);
+    PCI_CONFIG_8(0x64, 0x10);
+    PCI_CONFIG_32(0x68, 0x80808080);
+    PCI_CONFIG_8(0xe3, 0xff);
+    PCI_CONFIG_32(0xe8, 0x00112233);
+    PCI_CONFIG_16(0xee, 0x5678);
+    PCI_CONFIG_8(0xf0, 0x0f);
+    register_ioport_write(PMBASE, 128, 4, ich4_addr_writel, d);
+    register_ioport_read(PMBASE, 128, 4, ich4_addr_readl, d);
+}
+
+static void ich4_ide_init(PCIBus *bus, const char *name)
+{
+    PCIDevice *d = pci_register_device(bus, name, sizeof(PCIDevice), (31 << 3) + 1, NULL, NULL);;
+    uint8_t *pci_conf = d->config;
+
+    PCI_CONFIG_16(PCI_VENDOR_ID, 0x8086);
+    PCI_CONFIG_16(PCI_DEVICE_ID, 0x24cb);
+    PCI_CONFIG_16(PCI_COMMAND, 0x0000);
+    PCI_CONFIG_16(PCI_STATUS, 0x0280);
+    PCI_CONFIG_8(PCI_REVISION_ID, 0x00);        // check!!!
+    PCI_CONFIG_8(0x09, 0x8a);
+    PCI_CONFIG_8(PCI_SUBCLASS_CODE, 0x01);      /* PCI-to-ISA bridge */
+    PCI_CONFIG_8(PCI_CLASS_CODE, 0x01);         /*  */
+    /* PCI Header Type */
+    PCI_CONFIG_8(0x0e, 0x00);
+    //~ ...
+}
+
+static void ich4_pci_bridge_init(PCIBus *bus, const char *name)
+{
+    PCIDevice *d = pci_register_device(bus, name, sizeof(PCIDevice), 30 << 3, NULL, NULL);
+
+    //~ s = (PCIBridge *)pci_register_device(bus, name, sizeof(PCIBridge), 
+                                         //~ devfn, NULL, pci_bridge_write_config);
+    //~ PCIBridge *s = pci_register_device(bus, name, sizeof(PCIBridge), -1, NULL, NULL);
+    //~ PCIDevice *dev = &s->pci_dev;
+    uint8_t *pci_conf = d->config;
+
+    logout("%s\n", name);
+
+    /* PCI Vendor ID */
+    PCI_CONFIG_16(PCI_VENDOR_ID, 0x8086);
+    /* PCI Device ID */
+    PCI_CONFIG_16(PCI_DEVICE_ID, 0x244e);
+    /* PCI Command */
+    PCI_CONFIG_16(PCI_COMMAND, 0x0001);
+    /* PCI Status */
+    PCI_CONFIG_16(PCI_STATUS, 0x0080);
+    /* PCI Revision ID */
+    PCI_CONFIG_8(PCI_REVISION_ID, 0x00);        // check!!!
+    /* PCI Class Code */
+    PCI_CONFIG_8(0x09, 0x00);
+    PCI_CONFIG_8(PCI_SUBCLASS_CODE, 0x04);      /* PCI-to-PCI bridge */
+    PCI_CONFIG_8(PCI_CLASS_CODE, 0x06);         /* bridge */
+    /* PCI Cache Line Size */
+    /* check cache line size!!! */
+    //~ PCI_CONFIG_8(0x0c, 0x00);
+    /* PCI Latency Timer */
+    PCI_CONFIG_8(0x0d, 0x00);
+    /* PCI Header Type */
+    PCI_CONFIG_8(0x0e, 0x01);
+    /* BIST (built-in self test) */
+    /* PCI Base Address Registers */
+#if 1
+    /* CSR Memory Mapped Base Address */
+    PCI_CONFIG_32(PCI_BASE_ADDRESS_3, 0x028000f0);
+    /* CSR I/O Mapped Base Address */
+    PCI_CONFIG_32(PCI_BASE_ADDRESS_4, 0x0000fff0);
+#endif
+    /* Expansion ROM Base Address (depends on boot disable!!!) */
+    //~ PCI_CONFIG_32(0x30, 0x00000000);
+    /* Capability Pointer */
+    //~ PCI_CONFIG_8(0x34, 0xdc);
+    /* Interrupt Pin */
+    //~ PCI_CONFIG_8(0x3d, 1); // interrupt pin 0
+    /* Minimum Grant */
+    //~ PCI_CONFIG_8(0x3e, 0x08);
+    /* Maximum Latency */
+    //~ PCI_CONFIG_8(0x3f, 0x18);
+    PCI_CONFIG_32(0x40, 0x00202802);
+    PCI_CONFIG_16(0x50, 0x1400);
+    PCI_CONFIG_16(0x70, 0x20);
+    /* Power Management Capabilities / Next Item Pointer / Capability ID */
+    //~ PCI_CONFIG_32(0xdc, 0x7e210001);
+    //~ pci_register_io_region(dev, 3, PCI_MEM_SIZE,
+                           //~ PCI_ADDRESS_SPACE_MEM | PCI_ADDRESS_SPACE_MEM_PREFETCH,
+                           //~ pci_mmio_map);
+    //~ pci_register_io_region(dev, 4, PCI_IO_SIZE,
+                           //~ PCI_ADDRESS_SPACE_IO, pci_map);
+}
+#endif
+
+static void nic_init(PCIBus *bus, NICInfo *nd,
+                     const char *name, uint32_t device)
 {
     PCIEEPRO100State *d;
     EEPRO100State *s;
@@ -1373,14 +1571,19 @@ static PCIEEPRO100State *nic_init(PCIBus *bus, NICInfo *nd,
 
     /* XXX: instance number ? */
     register_savevm(name, 0, 3, nic_save, nic_load, s);
-
-    return d;
 }
 
 void pci_eepro100_init(PCIBus *bus, NICInfo *nd)
 {
     /* PCIEEPRO100State *d = */
     nic_init(bus, nd, "eepro100", i82559ER);
+    static bool done;
+    if (!done) {
+        ich4_pci_bridge_init(bus, "PCI bridge");
+        ich4_isa_bridge_init(bus, "ISA bridge");
+        ich4_ide_init(bus, "IDE controller");
+        done = 1;
+    }
 }
 
 void pci_i82551_init(PCIBus *bus, NICInfo *nd)
