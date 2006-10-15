@@ -123,7 +123,7 @@ static int bios_load(const char *filename, unsigned long bios_offset, unsigned l
     int ret;
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, filename);
     ret = load_image(buf, phys_ram_base + bios_offset);
-    printf("%s: load BIOS '%s' size %d\n", __func__, buf, ret);
+    fprintf(stderr, "%s: load BIOS '%s' size %d\n", __func__, buf, ret);
     if (ret > 0) {
         const unsigned blocksize = 0x10000;
         pflash_t *pf = pflash_cfi01_register(address, bios_offset,
@@ -156,7 +156,7 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
 
     env = cpu_init();
     env->bigendian = bigendian;
-    printf("%s: setting endianness %d\n", __func__, bigendian);
+    fprintf(stderr, "%s: setting endianness %d\n", __func__, bigendian);
 
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
     qemu_register_reset(main_cpu_reset, env);
@@ -170,11 +170,11 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
        run. */
     bios_offset = ram_size + vga_ram_size;
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
-    printf("%s: ram_base = %p, ram_size = 0x%08x, bios_offset = 0x%08lx\n",
+    fprintf(stderr, "%s: ram_base = %p, ram_size = 0x%08x, bios_offset = 0x%08lx\n",
         __func__, phys_ram_base, ram_size, bios_offset);
     ret = load_image(buf, phys_ram_base + bios_offset);
     if ((ret > 0) && (ret <= BIOS_SIZE)) {
-        printf("%s: load BIOS '%s' size %d\n", __func__, buf, ret);
+        fprintf(stderr, "%s: load BIOS '%s' size %d\n", __func__, buf, ret);
         cpu_register_physical_memory((uint32_t)(0x1fc00000),
                                      ret, bios_offset | IO_MEM_ROM);
     } else {
@@ -303,7 +303,7 @@ static void mips_ar7_init (int ram_size, int vga_ram_size, int boot_device,
     env = cpu_init();
     /* Typical AR7 systems run in little endian mode. */
     bigendian = env->bigendian = 0;
-    printf("%s: setting endianness %d\n", __func__, 0);
+    fprintf(stderr, "%s: setting endianness %d\n", __func__, 0);
 
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
     qemu_register_reset(main_cpu_reset, env);
@@ -327,11 +327,11 @@ static void mips_ar7_init (int ram_size, int vga_ram_size, int boot_device,
     bios_offset = ram_size + vga_ram_size;
     bios_offset += bios_load("flashimage.bin", bios_offset, 0x10000000);
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
-    printf("%s: ram_base = %p, ram_size = 0x%08x, bios_offset = 0x%08lx\n",
+    fprintf(stderr, "%s: ram_base = %p, ram_size = 0x%08x, bios_offset = 0x%08lx\n",
         __func__, phys_ram_base, ram_size, bios_offset);
     ret = load_image(buf, phys_ram_base + bios_offset);
     if ((ret > 0) && (ret <= BIOS_SIZE)) {
-        printf("%s: load BIOS '%s' size %d\n", __func__, buf, ret);
+        fprintf(stderr, "%s: load BIOS '%s' size %d\n", __func__, buf, ret);
         cpu_register_physical_memory((uint32_t)(0x1fc00000),
                                      ret, bios_offset | IO_MEM_ROM);
     } else {
