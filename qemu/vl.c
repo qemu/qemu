@@ -3657,12 +3657,10 @@ static int net_client_init(const char *str)
     } else
 #ifdef CONFIG_SLIRP
     if (!strcmp(device, "user")) {
-printf("%s: %s:%u\n", __func__, __FILE__, __LINE__);
         if (get_param_value(buf, sizeof(buf), "hostname", p)) {
             pstrcpy(slirp_hostname, sizeof(slirp_hostname), buf);
         }
         ret = net_slirp_init(vlan);
-printf("%s: %s:%u, ret=%d\n", __func__, __FILE__, __LINE__, ret);
     } else
 #endif
 #ifdef _WIN32
@@ -5610,7 +5608,7 @@ void qemu_register_reset(QEMUResetHandler *func, void *opaque)
 {
     QEMUResetEntry **pre, *re;
 
-printf("%s: %s:%u\n", __func__, __FILE__, __LINE__);
+    fprintf(stderr, "%s: %s:%u\n", __func__, __FILE__, __LINE__);
     pre = &first_reset_entry;
     while (*pre != NULL)
         pre = &(*pre)->next;
