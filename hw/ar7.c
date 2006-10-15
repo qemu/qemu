@@ -21,7 +21,6 @@
  * AR7 is a chip with a MIPS 4KEc core and on-chip peripherals (avalanche).
  *
  * TODO:
- * - bogomips missing
  * - uart0 wrong type (is 16450, should be 16550)
  * - uart1 missing
  * - vlynq0 emulation missing
@@ -41,6 +40,7 @@
 
 #include <assert.h>
 #include "vl.h"
+#include "disas.h"      /* lookup_symbol */
 #include "exec-all.h"   /* logfile */
 #include "hw/ar7.h"     /* ar7_init */
 
@@ -54,7 +54,7 @@ struct IoState {
 #endif
 
 /* Set flags to >0 to enable debug output. */
-#define CLOCK   0
+#define CLOCK   1
 #define CPMAC   1
 #define GPIO    1
 #define INTC    0
@@ -62,9 +62,21 @@ struct IoState {
 #define RESET   1
 #define UART0   0
 #define UART1   1
+#define WDOG    1
 #define OTHER   0
 
+#define DEBUG_AR7
+
 #define TRACE(flag, command) ((flag) ? (command) : (void)0)
+
+#ifdef DEBUG_AR7
+#define logout(fmt, args...) fprintf(stderr, "AR7\t%-24s" fmt, __func__, ##args)
+#else
+#define logout(fmt, args...) ((void)0)
+#endif
+
+#define MISSING() logout("%s:%u missing!!!\n", __FILE__, __LINE__)
+#define UNEXPECTED() logout("%s:%u unexpected!!!\n", __FILE__, __LINE__)
 
 #define AVALANCHE_CPMAC0_BASE           0x08610000
 #define AVALANCHE_EMIF_BASE             0x08610800
@@ -84,17 +96,6 @@ struct IoState {
 #define AVALANCHE_INTC_BASE             0x08612400
 #define AVALANCHE_CPMAC1_BASE           0x08612800
 #define AVALANCHE_END                   0x08613000
-
-typedef struct {
-    uint32_t kick_lock;         /* 0x00 */
-    uint32_t kick;              /* 0x04 */
-    uint32_t change_lock;       /* 0x08 */
-    uint32_t change;            /* 0x0c */
-    uint32_t disable_lock;      /* 0x10 */
-    uint32_t disable;           /* 0x14 */
-    uint32_t prescale_lock;     /* 0x18 */
-    uint32_t prescale;          /* 0x1c */
-} ar7_wdt_t;
 
 typedef struct {
     struct BUFF_DESC  *next;
@@ -137,9 +138,10 @@ typedef struct {
     uint32_t gpio[8];                   // 0x08610900
             // data in, data out, dir, enable, -, cvr, didr1, didr2
     uint32_t gpio_dummy[0x38];
-    uint32_t clock_control[0x28];       // 0x08610a00
+    uint32_t clock_control[0x40];       // 0x08610a00
+                                        // 0x08610a80 struct _ohio_clock_pll
     uint32_t clock_dummy[0x18];
-    uint32_t watchdog[8];               // 0x08610b00
+    uint32_t watchdog[0x20];            // 0x08610b00 struct _ohio_clock_pll
     uint32_t timer0[2];                 // 0x08610c00
     uint32_t timer1[2];                 // 0x08610d00
     uint32_t uart0[8];                  // 0x08610e00
@@ -180,11 +182,21 @@ static avalanche_t av = {
 /* Global variable avalanche can be used in debugger. */
 avalanche_t *avalanche = &av;
 
+static const char *backtrace(void)
+{
+    static char buffer[256];
+    char *p = buffer;
+    p += sprintf(p, "[%s]", lookup_symbol(av.cpu_env->PC));
+    p += sprintf(p, "[%s]", lookup_symbol(av.cpu_env->gpr[31]));
+    assert((p - buffer) < sizeof(buffer));
+    return buffer;
+}
+
 static void ar7_irq(void *opaque, int irq_num, int level)
 {
     CPUState *cpu_env = first_cpu;
     if (cpu_env != av.cpu_env) {
-        printf("%s(%p,%d,%d)\n", __FUNCTION__, opaque, irq_num, level);
+        logout("(%p,%d,%d)\n", opaque, irq_num, level);
     }
 
     switch (irq_num) {
@@ -196,13 +208,13 @@ static void ar7_irq(void *opaque, int irq_num, int level)
                 unsigned channel = irq_num - 8;
                 if (channel < 32) {
                     if (av.intmask[0] & (1 << channel)) {
-                        //~ printf("%s(%p,%d,%d)\n", __FUNCTION__, opaque, irq_num, level);
+                        //~ logout("(%p,%d,%d)\n", opaque, irq_num, level);
                         av.intc[0x10] = (((irq_num - 8) << 16) | channel);
                         /* use hardware interrupt 0 */
                         cpu_env->CP0_Cause |= 0x00000400;
                         cpu_interrupt(cpu_env, CPU_INTERRUPT_HARD);
                     } else {
-                        //~ printf("%s(%p,%d,%d) is disabled\n", __FUNCTION__, opaque, irq_num, level);
+                        //~ logout("(%p,%d,%d) is disabled\n", opaque, irq_num, level);
                     }
                 }
                 // int line number
@@ -217,7 +229,7 @@ static void ar7_irq(void *opaque, int irq_num, int level)
             }
             break;
         default:
-            printf("%s(%p,%d,%d)\n", __FUNCTION__, opaque, irq_num, level);
+            logout("(%p,%d,%d)\n", opaque, irq_num, level);
     }
 }
 
@@ -401,12 +413,11 @@ static void ar7_cpmac_log(const char *func, uint8_t cpmac, unsigned index, uint3
 {
     const char *text = i2cpmac(index);
     if (text != 0) {
-        TRACE(CPMAC, printf("%s: cpmac%u[%s] (0x%08lx) = 0x%04lx\n", func,
-            cpmac, text,
+        TRACE(CPMAC, logout("cpmac%u[%s] (0x%08lx) = 0x%04lx\n", cpmac, text,
             (unsigned long)(AVALANCHE_CPMAC0_BASE + 4 * index),
             (unsigned long)val));
     } else {
-        TRACE(CPMAC, printf("%s: cpmac0[0x%lx] (0x%08lx) = 0x%04lx\n", func,
+        TRACE(CPMAC, logout("cpmac0[0x%lx] (0x%08lx) = 0x%04lx\n",
             (unsigned long)index,
             (unsigned long)(AVALANCHE_CPMAC0_BASE + 4 * index),
             (unsigned long)val));
@@ -418,6 +429,7 @@ static void ar7_cpmac_log(const char *func, uint8_t cpmac, unsigned index, uint3
 static uint32_t ar7_cpmac_read(uint32_t cpmac[], unsigned index)
 {
     uint32_t val = cpmac[index];
+    //~ do_raise_exception(EXCP_DEBUG)
     ar7_cpmac_log("ar7 r", cpmac == av.cpmac1, index, val);
     return val;
 }
@@ -429,7 +441,7 @@ static void ar7_cpmac_write(uint32_t cpmac[], unsigned index, unsigned offset, u
     if (offset == 0x40) {
         /* 13 ... 8 = 0x20 enable broadcast */
     } else if (offset == 0x43) {
-        TRACE(CPMAC, printf("ar7 w: setting max packet length %u\n", (unsigned)val));
+        TRACE(CPMAC, logout("setting max packet length %u\n", (unsigned)val));
     } else if (offset == 0x5e) {
         cpmac[0x60] |= MAC_IN_VECTOR_TX_INT_OR;
         ar7_irq(0, cpmac_interrupt[index], 1);
@@ -442,13 +454,13 @@ static void ar7_cpmac_write(uint32_t cpmac[], unsigned index, unsigned offset, u
         phys[2] = (cpmac[0x75] >> 16);
         phys[1] = (cpmac[0x75] >> 8);
         phys[0] = (cpmac[0x75] >> 0);
-        TRACE(CPMAC, printf("ar7 w: setting MAC %02x:%02x:%02x:%02x:%02x:%02x\n",
+        TRACE(CPMAC, logout("setting MAC %02x:%02x:%02x:%02x:%02x:%02x\n",
                 phys[0], phys[1], phys[2], phys[3], phys[4], phys[5]));
     } else if (offset >= 0x188 && offset < 0x190) {
         while (val != 0) {
             cpmac_buff_t bd;
             cpu_physical_memory_read(val, (uint8_t *)&bd, sizeof(bd));
-            TRACE(CPMAC, printf("ar7 w: buffer 0x%08x, next 0x%08x, buff 0x%08x, params 0x%08x, len 0x%08x\n",
+            TRACE(CPMAC, logout("buffer 0x%08x, next 0x%08x, buff 0x%08x, params 0x%08x, len 0x%08x\n",
                     val, (unsigned)bd.next, (unsigned)bd.buff,
                     (unsigned)bd.buff_params, (unsigned)bd.ctrl_n_len));
             val = (uint32_t)bd.next;
@@ -512,11 +524,11 @@ static uint32_t ar7_intc_read(uint32_t intc[], unsigned index)
     uint32_t val = intc[index];
     if (index == 16) {
     } else if (index == 8 || index == 9) {
-            TRACE(INTC, printf("ar7 r: intc[0x%02x] = %08x\n", index, val));
+            TRACE(INTC, logout("intc[0x%02x] = %08x\n", index, val));
     } else if (index >= 128 && index < 168) {
-            TRACE(INTC, printf("ar7 w: intc[cintnr%u] = 0x%08x\n", index - 128, val));
+            TRACE(INTC, logout("intc[cintnr%u] = 0x%08x\n", index - 128, val));
     } else {
-            TRACE(INTC, printf("ar7 r: intc[0x%02x] = %08x\n", index, val));
+            TRACE(INTC, logout("intc[0x%02x] = %08x\n", index, val));
     }
     return val;
 }
@@ -528,17 +540,17 @@ static void ar7_intc_write(uint32_t intc[], unsigned index, uint32_t val)
     if (index == 4) {
     } else if (index == 8 || index == 9) {
             av.intmask[subindex] |= val;
-            TRACE(INTC, printf("ar7 w: intc[intesr%u] val 0x%08x, mask 0x%08x\n",
+            TRACE(INTC, logout("intc[intesr%u] val 0x%08x, mask 0x%08x\n",
                     subindex + 1, val, av.intmask[subindex]));
     } else if (index == 12 || index == 13) {
             unsigned subindex = (index & 1);
             av.intmask[subindex] &= ~val;
-            TRACE(INTC, printf("ar7 w: intc[intecr%u] val 0x%08x, mask 0x%08x\n",
+            TRACE(INTC, logout("intc[intecr%u] val 0x%08x, mask 0x%08x\n",
                     subindex + 1, val, av.intmask[subindex]));
     } else if (index >= 128 && index < 168) {
-            TRACE(INTC, printf("ar7 w: intc[cintnr%u] val 0x%08x\n", index - 128, val));
+            TRACE(INTC, logout("intc[cintnr%u] val 0x%08x\n", index - 128, val));
     } else {
-            TRACE(INTC, printf("ar7 w: intc[0x%02x] val 0x%08x\n", index, val));
+            TRACE(INTC, logout("intc[0x%02x] val 0x%08x\n", index, val));
     }
 }
 
@@ -643,40 +655,37 @@ static uint32_t mdio_phyaddr;
 static uint32_t mdio_data;
 
 static uint16_t mdio_useraccess_data[1][6] = {
-        {
-                AUTO_NEGOTIATE_EN,
-                0x7801 + NWAY_CAPABLE, // + NWAY_COMPLETE + PHY_LINKED,
-                0x00000000,
-                0x00000000,
-                NWAY_FD100 + NWAY_HD100 + NWAY_FD10 + NWAY_HD10 + NWAY_AUTO,
-                NWAY_AUTO
-        }
+    {
+        AUTO_NEGOTIATE_EN,
+        0x7801 + NWAY_CAPABLE, // + NWAY_COMPLETE + PHY_LINKED,
+        0x00000000,
+        0x00000000,
+        NWAY_FD100 + NWAY_HD100 + NWAY_FD10 + NWAY_HD10 + NWAY_AUTO,
+        NWAY_AUTO
+    }
 };
 
 static uint32_t ar7_mdio_read(uint32_t mdio[], unsigned index)
 {
     uint32_t val = av.mdio[index];
     if (index == 0) {
-            /* MDIO_VER */
-            TRACE(MDIO, printf("ar7 r: mdio[MDIO_VER] = 0x%08lx\n",
-                    (unsigned long)val));
+        /* MDIO_VER */
+        TRACE(MDIO, logout("mdio[MDIO_VER] = 0x%08lx\n", (unsigned long)val));
 //~ cpMacMdioInit(): MDIO_CONTROL = 0x40000138
 //~ cpMacMdioInit(): MDIO_CONTROL < 0x40000037
     } else if (index == 1) {
-            /* MDIO_CONTROL */
-            TRACE(MDIO, printf("ar7 r: mdio[MDIO_CONTROL] = 0x%08lx\n",
-                    (unsigned long)val));
+        /* MDIO_CONTROL */
+        TRACE(MDIO, logout("mdio[MDIO_CONTROL] = 0x%08lx\n", (unsigned long)val));
     } else if (index == 0x20) {
-            //~ mdio_regaddr = (val & MDIO_USERACCESS_REGADR) >> 21;
-            //~ mdio_phyaddr = (val & MDIO_USERACCESS_PHYADR) >> 16;
-            mdio_data = (val & MDIO_USERACCESS_DATA);
-            TRACE(MDIO,
-                    printf("ar7 r: mdio[0x%02x] = 0x%08lx, reg = %u, phy = %u, data = 0x%04x\n",
-                            index, (unsigned long)val,
-                            mdio_regaddr, mdio_phyaddr, mdio_data));
+        //~ mdio_regaddr = (val & MDIO_USERACCESS_REGADR) >> 21;
+        //~ mdio_phyaddr = (val & MDIO_USERACCESS_PHYADR) >> 16;
+        mdio_data = (val & MDIO_USERACCESS_DATA);
+        TRACE(MDIO,
+            logout("mdio[0x%02x] = 0x%08lx, reg = %u, phy = %u, data = 0x%04x\n",
+                    index, (unsigned long)val,
+                    mdio_regaddr, mdio_phyaddr, mdio_data));
     } else {
-            TRACE(MDIO, printf("ar7 r: mdio[0x%02x] = 0x%08lx\n",
-                    index, (unsigned long)val));
+        TRACE(MDIO, logout("mdio[0x%02x] = 0x%08lx\n", index, (unsigned long)val));
     }
     return val;
 }
@@ -685,18 +694,18 @@ static void ar7_mdio_write(uint32_t mdio[], unsigned index, unsigned val)
 {
     if (index == 0) {
         /* MDIO_VER */
-        TRACE(MDIO, printf("ar7 unexpected w: mdio[0x%02x] = 0x%08lx\n",
+        TRACE(MDIO, logout("unexpected: mdio[0x%02x] = 0x%08lx\n",
                 index, (unsigned long)val));
     } else if (index == 1) {
         /* MDIO_CONTROL */
-        TRACE(MDIO, printf("ar7 w: mdio[MDIO_CONTROL] = 0x%08lx\n",
+        TRACE(MDIO, logout("mdio[MDIO_CONTROL] = 0x%08lx\n",
                 (unsigned long)val));
     } else if (index == 0x20 && (val & MDIO_USERACCESS_GO)) {
         uint32_t write = (val & MDIO_USERACCESS_WRITE) >> 30;
         mdio_regaddr = (val & MDIO_USERACCESS_REGADR) >> 21;
         mdio_phyaddr = (val & MDIO_USERACCESS_PHYADR) >> 16;
         mdio_data = (val & MDIO_USERACCESS_DATA);
-        TRACE(MDIO, printf("ar7 w: mdio[0x%02x] = 0x%08lx, write = %u, reg = %u, phy = %u, data = 0x%04x\n",
+        TRACE(MDIO, logout("mdio[0x%02x] = 0x%08lx, write = %u, reg = %u, phy = %u, data = 0x%04x\n",
                 index, (unsigned long)val, write,
                 mdio_regaddr, mdio_phyaddr, mdio_data));
         val &= MDIO_USERACCESS_DATA;
@@ -729,41 +738,134 @@ static void ar7_mdio_write(uint32_t mdio[], unsigned index, unsigned val)
             }
         }
     } else {
-        TRACE(MDIO, printf("ar7 w: mdio[0x%02x] = 0x%08lx\n",
-                index, (unsigned long)val));
+        TRACE(MDIO, logout("mdio[0x%02x] = 0x%08lx\n", index, (unsigned long)val));
     }
     av.mdio[index] = val;
 }
 
-/* Watchdog timer emulation */
+/*****************************************************************************
+ *
+ * Watchdog timer emulation.
+ *
+ * This watchdog timer module has prescalar and counter which divide the input
+ *  reference frequency and upon expiration, the system is reset.
+ * 
+ *                        ref_freq 
+ * Reset freq = ---------------------
+ *                  (prescalar * counter)
+ * 
+ * This watchdog timer supports timer values in mSecs. Thus
+ * 
+ *           prescalar * counter * 1 KHZ
+ * mSecs =   --------------------------
+ *                  ref_freq
+ ****************************************************************************/
 
-static void ar7_wdt_write(uint32_t wdt[], unsigned index, uint32_t val)
+#define KHZ                         1000
+#define KICK_VALUE                  1
+#define KICK_LOCK_STATE             0x3
+#define CHANGE_LOCK_STATE           0x3
+#define DISABLE_LOCK_STATE          0x3
+#define PRESCALE_LOCK_STATE         0x3
+
+#define KICK_LOCK_1ST_STAGE         0x5555
+#define KICK_LOCK_2ND_STAGE         0xAAAA
+#define PRESCALE_LOCK_1ST_STAGE     0x5A5A
+#define PRESCALE_LOCK_2ND_STAGE     0xA5A5
+#define CHANGE_LOCK_1ST_STAGE       0x6666
+#define CHANGE_LOCK_2ND_STAGE       0xBBBB
+#define DISABLE_LOCK_1ST_STAGE      0x7777
+#define DISABLE_LOCK_2ND_STAGE      0xCCCC
+#define DISABLE_LOCK_3RD_STAGE      0xDDDD
+
+typedef struct {
+    uint32_t kick_lock;         /* 0x00 */
+    uint32_t kick;              /* 0x04 */
+    uint32_t change_lock;       /* 0x08 */
+    uint32_t change;            /* 0x0c */
+    uint32_t disable_lock;      /* 0x10 */
+    uint32_t disable;           /* 0x14 */
+    uint32_t prescale_lock;     /* 0x18 */
+    uint32_t prescale;          /* 0x1c */
+} wdtimer_t;
+
+static void ar7_wdt_write(unsigned offset, uint32_t val)
 {
-    if (index == 2) {
-        if (val == 0x6666) {
-            val = 0x6665;
-        } else if (val == 0xbbbb) {
-            val = 0xbbbb;
+    wdtimer_t *wdt = (wdtimer_t *)&av.watchdog;
+    logout("caller: %s\n", backtrace());
+    if (offset == offsetof(wdtimer_t, kick_lock)) {
+        if (val == KICK_LOCK_1ST_STAGE) {
+            TRACE(WDOG, logout("kick lock 1st stage\n"));
+            wdt->kick_lock = ((KICK_LOCK_1ST_STAGE & ~KICK_LOCK_STATE) | 1);
+        } else if (val == KICK_LOCK_2ND_STAGE) {
+            TRACE(WDOG, logout("kick lock 2nd stage\n"));
+            wdt->kick_lock = ((KICK_LOCK_2ND_STAGE & ~KICK_LOCK_STATE) | 3);
+        } else {
+            TRACE(WDOG, logout("kick lock unexpected value 0x%08x\n", val));
         }
-    } else if (index == 4) {
-        if (val == 0x7777) {
-            val = 0x7775;   /* (val & 3) == 1 */
-        } else if (val == 0xcccc) {
-            val = 0xccce;   /* (val & 3) == 2 */
-        } else if (val == 0xdddd) {
-            val = 0xdddf;   /* (val & 3) == 3 */
+    } else if (offset == offsetof(wdtimer_t, kick)) {
+        if (wdt->kick_lock != ((KICK_LOCK_2ND_STAGE & ~KICK_LOCK_STATE) | 3)) {
+            TRACE(WDOG, logout("kick locked!\n"));
+            UNEXPECTED();
+        } else if (val == KICK_VALUE) {
+            TRACE(WDOG, logout("kick (restart) watchdog\n"));
         }
-    } else if (index == 6) {
-        if (val == 0x5A5A) {
-            val = 0x5A59;   /* (val & 3) == 1 */
-        } else if (val == 0xA5A5) {
-            val = 0xA5A7;   /* (val & 3) == 3 */
+        MISSING();
+    } else if (offset == offsetof(wdtimer_t, change_lock)) {
+        if (val == CHANGE_LOCK_1ST_STAGE) {
+            TRACE(WDOG, logout("change lock 1st stage\n"));
+            wdt->change_lock = CHANGE_LOCK_1ST_STAGE - 1;
+        } else if (val == CHANGE_LOCK_2ND_STAGE) {
+            TRACE(WDOG, logout("change lock 2nd stage\n"));
+            //~ val = CHANGE_LOCK_2ND_STAGE;
+        } else {
+            TRACE(WDOG, logout("change lock unexpected value 0x%08x\n", val));
         }
+    } else if (offset == offsetof(wdtimer_t, change)) {
+        MISSING();
+    } else if (offset == offsetof(wdtimer_t, disable_lock)) {
+        if (val == DISABLE_LOCK_1ST_STAGE) {
+            TRACE(WDOG, logout("disable lock 1st stage\n"));
+            wdt->disable_lock = DISABLE_LOCK_1ST_STAGE - 2;   /* (val & 3) == 1 */
+        } else if (val == DISABLE_LOCK_2ND_STAGE) {
+            TRACE(WDOG, logout("disable lock 2nd stage\n"));
+            wdt->disable_lock = DISABLE_LOCK_2ND_STAGE + 2;   /* (val & 3) == 2 */
+        } else if (val == DISABLE_LOCK_3RD_STAGE) {
+            TRACE(WDOG, logout("disable lock 3rd stage\n"));
+            wdt->disable_lock = DISABLE_LOCK_3RD_STAGE + 2;   /* (val & 3) == 3 */
+        } else {
+            TRACE(WDOG, logout("disable lock unexpected value 0x%08x\n", val));
+        }
+    } else if (offset == offsetof(wdtimer_t, disable)) {
+        if (wdt->disable_lock != ((DISABLE_LOCK_2ND_STAGE & ~DISABLE_LOCK_STATE) | 3)) {
+            TRACE(WDOG, logout("disable locked!\n"));
+            UNEXPECTED();
+        } else {
+            TRACE(WDOG, logout("disable watchdog\n"));
+        }
+        MISSING();
+    } else if (offset == offsetof(wdtimer_t, prescale_lock)) {
+        if (val == PRESCALE_LOCK_1ST_STAGE) {
+            TRACE(WDOG, logout("prescale lock 1st stage\n"));
+            wdt->prescale_lock = 0x5A59;   /* (val & 3) == 1 */
+        } else if (val == PRESCALE_LOCK_2ND_STAGE) {
+            TRACE(WDOG, logout("prescale lock 2nd stage\n"));
+            wdt->prescale_lock = 0xA5A7;   /* (val & 3) == 3 */
+        } else {
+            TRACE(WDOG, logout("prescale lock unexpected value 0x%08x\n", val));
+        }
+    } else if (offset == offsetof(wdtimer_t, prescale)) {
+        MISSING();
+    } else {
+        TRACE(WDOG, logout("??? offset 0x%02x = 0x%08x\n", offset, val));
     }
-    wdt[index] = val;
 }
 
-/* Generic AR7 hardware emulation */
+/*****************************************************************************
+ *
+ * Generic AR7 hardware emulation.
+ *
+ ****************************************************************************/
 
 #define INRANGE(base, var) \
         (((addr) >= (base)) && ((addr) < ((base) + (sizeof(var)) - 1)))
@@ -804,6 +906,7 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
         }
     } else if (INRANGE(AVALANCHE_WATCHDOG_BASE, av.watchdog)) {
         name = "watchdog";
+        logflag = WDOG;
         val = VALUE(AVALANCHE_WATCHDOG_BASE, av.watchdog);
     } else if (INRANGE(AVALANCHE_TIMER0_BASE, av.timer0)) {
         name = "timer0";
@@ -850,9 +953,14 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
     } else {
         name = "???";
         logflag = 1;
+{
+  TRACE(logflag, logout("addr 0x%08lx (%s) = 0x%08x, caller %s\n",
+    (unsigned long)addr, name, val, backtrace()));
+  MISSING();
+}
     }
     if (name != 0) {
-      TRACE(logflag, printf("ar7 r: addr 0x%08lx (%s) = 0x%08x\n",
+      TRACE(logflag, logout("addr 0x%08lx (%s) = 0x%08x\n",
           (unsigned long)addr, name, val));
     }
     return val;
@@ -878,22 +986,23 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
         VALUE(AVALANCHE_GPIO_BASE, av.gpio) = val;
     } else if (INRANGE(AVALANCHE_CLOCK_BASE, av.clock_control)) {
         name = "clock control";
+        logflag = CLOCK;
         index = (addr - AVALANCHE_CLOCK_BASE) / 4;
-        TRACE(CLOCK, printf("ar7 w: addr 0x%08lx (clock) = %04x\n",
+        TRACE(CLOCK, logout("addr 0x%08lx (clock) = %04x\n",
               (unsigned long)addr, val));
         if (index == 0) {
             uint32_t oldpowerstate = VALUE(AVALANCHE_CLOCK_BASE, av.clock_control) >> 30;
             uint32_t newpowerstate = val;
             if (oldpowerstate != newpowerstate) {
-                TRACE(CLOCK, printf("ar7 w: change power state from %u to %u\n",
+                TRACE(CLOCK, logout("change power state from %u to %u\n",
                       oldpowerstate, newpowerstate));
             }
         }
         VALUE(AVALANCHE_CLOCK_BASE, av.clock_control) = val;
     } else if (INRANGE(AVALANCHE_WATCHDOG_BASE, av.watchdog)) {
-        name = "watchdog";
-        index = (addr - AVALANCHE_WATCHDOG_BASE) / 4;
-        ar7_wdt_write(av.watchdog, index, val);
+        //~ name = "watchdog";
+        logflag = 0;
+        ar7_wdt_write(addr - AVALANCHE_WATCHDOG_BASE, val);
     } else if (INRANGE(AVALANCHE_TIMER0_BASE, av.timer0)) {
         name = "timer0";
         VALUE(AVALANCHE_TIMER0_BASE, av.timer0) = val;
@@ -935,7 +1044,7 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
             oldval = val;
             for (i = 0; i < 32; i++) {
                 if (changed & (1 << i)) {
-                    TRACE(RESET, printf("ar7 w: reset %s %s\n", (enabled & (1 << i)) ? "enabled" : "disabled", resetdevice[i]));
+                    TRACE(RESET, logout("reset %s %s\n", (enabled & (1 << i)) ? "enabled" : "disabled", resetdevice[i]));
                 }
             }
 #endif
@@ -972,7 +1081,7 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
         logflag = 1;
     }
     if (name != 0) {
-      TRACE(logflag, printf("ar7 w: addr 0x%08lx (%s) = 0x%08x\n",
+      TRACE(logflag, logout("addr 0x%08lx (%s) = 0x%08x\n",
           (unsigned long)addr, name, val));
     }
 }
@@ -1091,7 +1200,7 @@ static void ar7_serial_init(CPUState *env)
 static int ar7_nic_can_receive(void *opaque)
 {
     NICState *s = (NICState *)opaque;
-    printf("%s(%p)\n", __FUNCTION__, s);
+    logout("opaque=%p\n", s);
 
     //~ if (s->cmd & E8390_STOP)
         return 1;
@@ -1106,11 +1215,11 @@ static void ar7_nic_receive(void *opaque, const uint8_t *buf, int size)
     NICState *s = (NICState *)opaque;
 
     if (!memcmp(buf, broadcast_macaddr, sizeof(broadcast_macaddr))) {
-        printf("%s(%p,%p,%d) broadcast\n", __FUNCTION__, s, buf, size);
+        logout("s=%p, buf=%p, size=%d broadcast\n", s, buf, size);
     } else if (buf[0] & 0x01) {
-        printf("%s(%p,%p,%d) multicast\n", __FUNCTION__, s, buf, size);
+        logout("s=%p, buf=%p, size=%d multicast\n", s, buf, size);
     } else {
-        printf("%s(%p,%p,%d)\n", __FUNCTION__, s, buf, size);
+        logout("s=%p, buf=%p, size=%d\n", s, buf, size);
     }
 
 /* Rcb/Tcb Constants */
@@ -1127,7 +1236,7 @@ static void ar7_nic_receive(void *opaque, const uint8_t *buf, int size)
     if (val != 0) {
         cpmac_buff_t bd;
         cpu_physical_memory_read(val, (uint8_t *)&bd, sizeof(bd));
-        printf("ar7 i: buffer 0x%08x, next 0x%08x, buff 0x%08x, params 0x%08x, len 0x%08x\n",
+        logout("buffer 0x%08x, next 0x%08x, buff 0x%08x, params 0x%08x, len 0x%08x\n",
                 val, (unsigned)bd.next, (unsigned)bd.buff,
                 (unsigned)bd.buff_params, (unsigned)bd.ctrl_n_len);
         bd.ctrl_n_len &= ~(CB_OWNERSHIP_BIT);
@@ -1146,13 +1255,13 @@ static void ar7_nic_init(void)
 {
     unsigned i;
     unsigned n = 0;
-    printf("%s()\n", __FUNCTION__);
+    logout("\n");
     for (i = 0; i < nb_nics; i++) {
         NICInfo *nd = &nd_table[i];
         if (nd->vlan) {
           if (n < 2 && (nd->model == NULL
             || strcmp(nd->model, "ar7") == 0)) {
-            printf("%s() starting AR7 nic CPMAC%u\n", __FUNCTION__, n);
+            logout("starting AR7 nic CPMAC%u\n", n);
             av.nic[n++].vc = qemu_new_vlan_client(nd->vlan, ar7_nic_receive,
                                  ar7_nic_can_receive, &av.nic);
           } else {
@@ -1183,21 +1292,23 @@ static void ar7_save(QEMUFile *f, void* opaque)
 static void ar7_reset(void *opaque)
 {
     CPUState *env = opaque;
-    printf("%s: %s:%u\n", __func__, __FILE__, __LINE__);
+    logout("%s:%u\n", __FILE__, __LINE__);
     env->exception_index = EXCP_RESET;
     do_interrupt(env);
+    //~ env->CP0_Cause |= 0x00000400;
+    //~ cpu_interrupt(env, CPU_INTERRUPT_RESET);
 }
 
 void ar7_init(CPUState *env)
 {
-    target_phys_addr_t addr = (0x08610000 & 0xffff);
-    unsigned offset;
+    //~ target_phys_addr_t addr = (0x08610000 & 0xffff);
+    //~ unsigned offset;
     int io_memory = cpu_register_io_memory(0, io_read, io_write, env);
     cpu_register_physical_memory(0x08610000, 0x0002800, io_memory);
     assert(bigendian == 0);
     bigendian = env->bigendian;
     assert(bigendian == 0);
-    printf("%s: setting endianness %d\n", __func__, bigendian);
+    logout("setting endianness %d\n", bigendian);
     ar7_serial_init(env);
     ar7_nic_init();
     //~ for (offset = 0; offset < 0x2800; offset += 0x100) {
