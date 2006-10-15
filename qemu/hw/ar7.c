@@ -78,21 +78,51 @@ struct IoState {
 #define MISSING() logout("%s:%u missing!!!\n", __FILE__, __LINE__)
 #define UNEXPECTED() logout("%s:%u unexpected!!!\n", __FILE__, __LINE__)
 
+#if 0
+#define AVALANCHE_ADSL_SUB_SYS_MEM_BASE       (KSEG1ADDR(0x01000000)) /* AVALANCHE ADSL Mem Base */
+#define BBIF_SPACE1                           (KSEG1ADDR(0x01800000))
+#define AVALANCHE_BROADBAND_INTERFACE__BASE   (KSEG1ADDR(0x02000000)) /* AVALANCHE BBIF */
+#define AVALANCHE_ATM_SAR_BASE                (KSEG1ADDR(0x03000000)) /* AVALANCHE ATM SAR */
+#define AVALANCHE_USB_SLAVE_BASE              (KSEG1ADDR(0x03400000)) /* AVALANCHE USB SLAVE */
+#define AVALANCHE_LOW_VLYNQ_MEM_MAP_BASE      (KSEG1ADDR(0x04000000)) /* AVALANCHE VLYNQ 0 Mem map */
+
+#define AVALANCHE_HIGH_VLYNQ_MEM_MAP_BASE     (KSEG1ADDR(0x0C000000)) /* AVALANCHE VLYNQ 1 Mem map */
+#define PHY_BASE                              (KSEG1ADDR(0x1E000000))
+#endif
+
+#define OHIO_ADSLSS_BASE0       KERNEL_ADDR(0x01000000)
+#define OHIO_ADSLSS_BASE1       KERNEL_ADDR(0x01800000)
+#define OHIO_ADSLSS_BASE2       KERNEL_ADDR(0x01C00000)
+#define OHIO_ATMSAR_BASE        KERNEL_ADDR(0x03000000)
+#define OHIO_USB_BASE           KERNEL_ADDR(0x03400000)
+#define OHIO_VLYNQ0_BASE        KERNEL_ADDR(0x04000000)
+
 #define AVALANCHE_CPMAC0_BASE           0x08610000
 #define AVALANCHE_EMIF_BASE             0x08610800
 #define AVALANCHE_GPIO_BASE             0x08610900
-#define AVALANCHE_CLOCK_BASE            0x08610a00
+#define AVALANCHE_CLOCK_BASE            0x08610a00 /* Clock Control */
 #define AVALANCHE_WATCHDOG_BASE         0x08610b00 /* Watchdog */
 #define AVALANCHE_TIMER0_BASE           0x08610c00 /* Timer 1 */
 #define AVALANCHE_TIMER1_BASE           0x08610d00 /* Timer 2 */
 #define AVALANCHE_UART0_BASE            0x08610e00 /* UART 0 */
 #define AVALANCHE_UART1_BASE            0x08610f00 /* UART 1 */
+#define OHIO_I2C_BASE                   0x08610f00
+#define AVALANCHE_I2C_BASE              0x08611000 /* I2C */
+#define DEV_ID_BASE                     0x08611100
 #define AVALANCHE_USB_SLAVE_BASE        0x08611200 /* USB DMA */
+#define PCI_CONFIG_BASE                 0x08611300
+#define AVALANCHE_MCDMA_BASE            0x08611400 /* MC DMA channels 0-3 */
+#define TNETD73xx_VDMAVT_BASE           0x08611500 /* VDMAVT Control */
 #define AVALANCHE_RESET_BASE            0x08611600
+#define AVALANCHE_BIST_CONTROL_BASE     0x08611700 /* BIST Control */
 #define AVALANCHE_VLYNQ0_BASE           0x08611800 /* VLYNQ0 */
 #define AVALANCHE_DCL_BASE              0x08611a00 /* Device Config Latch */
+#define OHIO_MII_SEL_REG                0x08611a08
+#define DSL_IF_BASE                     0x08611b00
 #define AVALANCHE_VLYNQ1_BASE           0x08611c00 /* VLYNQ1 */
 #define AVALANCHE_MDIO_BASE             0x08611e00
+#define OHIO_WDT_BASE                   0x08611f00
+#define AVALANCHE_FSER_BASE             0x08612000 /* FSER base */
 #define AVALANCHE_INTC_BASE             0x08612400
 #define AVALANCHE_CPMAC1_BASE           0x08612800
 #define AVALANCHE_END                   0x08613000
@@ -147,6 +177,7 @@ typedef struct {
     uint32_t uart0[8];                  // 0x08610e00
     uint32_t uart1[8];                  // 0x08610f00
     uint32_t usb[20];                   // 0x08611200
+    uint32_t mc_dma[0x10][4];           // 0x08611400
     uint32_t reset_control[3];          // 0x08611600
     uint32_t reset_dummy[0x80 - 3];
     uint32_t vlynq0[0x40];              // 0x08611800
@@ -234,26 +265,6 @@ static void ar7_irq(void *opaque, int irq_num, int level)
 }
 
 #if 0
-#define AVALANCHE_ADSL_SUB_SYS_MEM_BASE       (KSEG1ADDR(0x01000000)) /* AVALANCHE ADSL Mem Base */
-#define BBIF_SPACE1                           (KSEG1ADDR(0x01800000))
-#define AVALANCHE_BROADBAND_INTERFACE__BASE   (KSEG1ADDR(0x02000000)) /* AVALANCHE BBIF */
-#define AVALANCHE_ATM_SAR_BASE                (KSEG1ADDR(0x03000000)) /* AVALANCHE ATM SAR */
-#define AVALANCHE_USB_SLAVE_BASE              (KSEG1ADDR(0x03400000)) /* AVALANCHE USB SLAVE */
-#define AVALANCHE_LOW_VLYNQ_MEM_MAP_BASE      (KSEG1ADDR(0x04000000)) /* AVALANCHE VLYNQ 0 Mem map */
-#define AVALANCHE_CLOCK_CONTROL_BASE          (KSEG1ADDR(0x08610A00)) /* AVALANCHE Clock Control */
-
-#define AVALANCHE_I2C_BASE                    (KSEG1ADDR(0x08611000)) /* AVALANCHE I2C */
-#define DEV_ID_BASE                           (KSEG1ADDR(0x08611100))
-#define PCI_CONFIG_BASE                       (KSEG1ADDR(0x08611300))
-#define AVALANCHE_MCDMA0_CTRL_BASE            (KSEG1ADDR(0x08611400)) /* AVALANCHE MC DMA 0 (channels 0-3) */
-#define TNETD73xx_VDMAVT_BASE                 PHYS_TO_K1(0x08611500)      /* VDMAVT Control */
-#define AVALANCHE_BIST_CONTROL_BASE           (KSEG1ADDR(0x08611700)) /* AVALANCHE BIST Control */
-#define AVALANCHE_DEVICE_CONFIG_LATCH_BASE    (KSEG1ADDR(0x08611A00)) /* AVALANCHE Device Config Latch */
-0x08611a10
-#define DSL_IF_BASE                           (KSEG1ADDR(0x08611B00))
-#define AVALANCHE_FSER_BASE                   (KSEG1ADDR(0x08612000)) /* AVALANCHE FSER base */
-#define AVALANCHE_HIGH_VLYNQ_MEM_MAP_BASE     (KSEG1ADDR(0x0C000000)) /* AVALANCHE VLYNQ 1 Mem map */
-#define PHY_BASE                              (KSEG1ADDR(0x1E000000))
 08611600  43 00 72 04 00 00 00 00  00 00 00 00 00 00 00 00  |C.r.............|
 08611610  43 00 72 04 00 00 00 00  00 00 00 00 00 00 00 00  |C.r.............|
 08611a00  91 42 5d 02 00 00 00 00  00 00 00 00 00 00 00 00  |.B].............|
