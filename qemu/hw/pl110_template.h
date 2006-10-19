@@ -79,7 +79,7 @@ static drawfn glue(pl110_draw_fn_,BITS)[18] =
 #endif
 
 #define FN_2(x, y) FN(x, y) FN(x+1, y)
-#define FN_4(x, y) FN_2(x, y) FN_2(x+1, y)
+#define FN_4(x, y) FN_2(x, y) FN_2(x+2, y)
 #define FN_8(y) FN_4(0, y) FN_4(4, y)
 
 static void glue(pl110_draw_line1_,NAME)(uint32_t *pallette, uint8_t *d, const uint8_t *src, int width)
