@@ -49,6 +49,13 @@
 #define PCI_BASE_ADDRESS_4      0x20    /* 32 bits */
 #define PCI_BASE_ADDRESS_5      0x24    /* 32 bits */
 
+#define PCI_CONFIG_8(offset, value) \
+    (pci_conf[offset] = (value))
+#define PCI_CONFIG_16(offset, value) \
+    (*(uint16_t *)&pci_conf[offset] = cpu_to_le16(value))
+#define PCI_CONFIG_32(offset, value) \
+    (*(uint32_t *)&pci_conf[offset] = cpu_to_le32(value))
+
 #define KiB 1024
 
 /* debug EEPRO100 card */
@@ -470,13 +477,6 @@ static void nic_receive(void *opaque, const uint8_t *buf, int size)
     eepro100_update_irq(s);
 }
 
-#define PCI_CONFIG_8(offset, value) \
-    (pci_conf[offset] = (value))
-#define PCI_CONFIG_16(offset, value) \
-    (*(uint16_t *)&pci_conf[offset] = cpu_to_le16(value))
-#define PCI_CONFIG_32(offset, value) \
-    (*(uint32_t *)&pci_conf[offset] = cpu_to_le32(value))
-
 static void pci_reset(EEPRO100State *s)
 {
     uint32_t device = s->device;
@@ -505,7 +505,7 @@ static void pci_reset(EEPRO100State *s)
     PCI_CONFIG_8(0x0d, 0x20); // latency timer = 32 clocks
     /* PCI Header Type */
     /* BIST (built-in self test) */
-#define PCI_ADDRESS_SPACE_MEM_PREFETCH 0
+#define PCI_ADDRESS_SPACE_MEM_PREFETCH 0        // !!! workaround for buggy bios
 #if 0
     /* PCI Base Address Registers */
     /* CSR Memory Mapped Base Address */
@@ -631,6 +631,12 @@ static void eepro100_write_status(EEPRO100State *s, uint16_t val)
     s->status = val;
 }
 #endif
+
+/*****************************************************************************
+ *
+ * Command emulation.
+ *
+ ****************************************************************************/
 
 #if 0
 static uint16_t eepro100_read_command(EEPRO100State *s)
@@ -837,6 +843,12 @@ static void eepro100_write_command(EEPRO100State *s, uint8_t val)
 
 
 
+/*****************************************************************************
+ *
+ * EEPROM emulation.
+ *
+ ****************************************************************************/
+
 #define EEPROM_CS       0x02
 #define EEPROM_SK       0x01
 #define EEPROM_DI       0x04
@@ -878,6 +890,12 @@ static void eepro100_write_pointer(EEPRO100State *s, uint32_t val)
     s->pointer = le32_to_cpu(val);
     logout("val=0x%08x\n", val);
 }
+
+/*****************************************************************************
+ *
+ * MDI emulation.
+ *
+ ****************************************************************************/
 
 static uint32_t eepro100_read_mdi(EEPRO100State *s)
 {
@@ -955,6 +973,12 @@ static void eepro100_write_mdi(EEPRO100State *s, uint32_t val)
     memcpy(&s->mem[0x10], &val, sizeof(val));
 }
 
+/*****************************************************************************
+ *
+ * Port emulation.
+ *
+ ****************************************************************************/
+
 #define PORT_SOFTWARE_RESET     0
 #define PORT_SELFTEST           1
 #define PORT_SELECTIVE_RESET    2
@@ -997,6 +1021,12 @@ static void eepro100_write_port(EEPRO100State *s, uint32_t val)
             missing("unknown port selection");
     }
 }
+
+/*****************************************************************************
+ *
+ * General hardware emulation.
+ *
+ ****************************************************************************/
 
 static uint8_t eepro100_read1(EEPRO100State *s, uint32_t addr)
 {
@@ -1390,134 +1420,6 @@ static void nic_save(QEMUFile* f,void* opaque)
     qemu_put_buffer(f, s->mem, sizeof(s->mem));
 }
 
-#if 1
-static void ich4_addr_writel(void* opaque, uint32_t addr, uint32_t val)
-{
-    //~ void *s = opaque;
-    logout("addr=0x%08x, val=0x%08x\n", addr, val);
-}
-
-//~ #define PMBASE 0x880
-#define PMBASE 0x800
-
-static uint32_t ich4_addr_readl(void* opaque, uint32_t addr)
-{
-    //~ void *s = opaque;
-    logout("addr=0x%08x\n", addr);
-    addr -= PMBASE;
-    return 0;
-}
-
-static void ich4_isa_bridge_init(PCIBus *bus, const char *name)
-{
-    PCIDevice *d = pci_register_device(bus, name, sizeof(PCIDevice), 31 << 3, NULL, NULL);;
-    uint8_t *pci_conf = d->config;
-
-    PCI_CONFIG_16(PCI_VENDOR_ID, 0x8086);
-    PCI_CONFIG_16(PCI_DEVICE_ID, 0x24c0);
-    PCI_CONFIG_16(PCI_COMMAND, 0x000f);
-    PCI_CONFIG_16(PCI_STATUS, 0x0280);
-    PCI_CONFIG_8(PCI_REVISION_ID, 0x00);        // check!!!
-    PCI_CONFIG_8(PCI_SUBCLASS_CODE, 0x01);      /* PCI-to-ISA bridge */
-    PCI_CONFIG_8(PCI_CLASS_CODE, 0x06);         /* bridge */
-    /* PCI Header Type */
-    PCI_CONFIG_8(0x0e, 0x80);
-    //~ PCI_CONFIG_32(0x40, 0x00000001);
-    PCI_CONFIG_32(0x40, PMBASE | 0x00000001);
-    PCI_CONFIG_32(0x58, 0x00000001);
-    PCI_CONFIG_32(0x60, 0x80808080);
-    PCI_CONFIG_8(0x64, 0x10);
-    PCI_CONFIG_32(0x68, 0x80808080);
-    PCI_CONFIG_8(0xe3, 0xff);
-    PCI_CONFIG_32(0xe8, 0x00112233);
-    PCI_CONFIG_16(0xee, 0x5678);
-    PCI_CONFIG_8(0xf0, 0x0f);
-    register_ioport_write(PMBASE, 128, 4, ich4_addr_writel, d);
-    register_ioport_read(PMBASE, 128, 4, ich4_addr_readl, d);
-}
-
-static void ich4_ide_init(PCIBus *bus, const char *name)
-{
-    PCIDevice *d = pci_register_device(bus, name, sizeof(PCIDevice), (31 << 3) + 1, NULL, NULL);;
-    uint8_t *pci_conf = d->config;
-
-    PCI_CONFIG_16(PCI_VENDOR_ID, 0x8086);
-    PCI_CONFIG_16(PCI_DEVICE_ID, 0x24cb);
-    PCI_CONFIG_16(PCI_COMMAND, 0x0000);
-    PCI_CONFIG_16(PCI_STATUS, 0x0280);
-    PCI_CONFIG_8(PCI_REVISION_ID, 0x00);        // check!!!
-    PCI_CONFIG_8(0x09, 0x8a);
-    PCI_CONFIG_8(PCI_SUBCLASS_CODE, 0x01);      /* PCI-to-ISA bridge */
-    PCI_CONFIG_8(PCI_CLASS_CODE, 0x01);         /*  */
-    /* PCI Header Type */
-    PCI_CONFIG_8(0x0e, 0x00);
-    //~ ...
-}
-
-static void ich4_pci_bridge_init(PCIBus *bus, const char *name)
-{
-    PCIDevice *d = pci_register_device(bus, name, sizeof(PCIDevice), 30 << 3, NULL, NULL);
-
-    //~ s = (PCIBridge *)pci_register_device(bus, name, sizeof(PCIBridge), 
-                                         //~ devfn, NULL, pci_bridge_write_config);
-    //~ PCIBridge *s = pci_register_device(bus, name, sizeof(PCIBridge), -1, NULL, NULL);
-    //~ PCIDevice *dev = &s->pci_dev;
-    uint8_t *pci_conf = d->config;
-
-    logout("%s\n", name);
-
-    /* PCI Vendor ID */
-    PCI_CONFIG_16(PCI_VENDOR_ID, 0x8086);
-    /* PCI Device ID */
-    PCI_CONFIG_16(PCI_DEVICE_ID, 0x244e);
-    /* PCI Command */
-    PCI_CONFIG_16(PCI_COMMAND, 0x0001);
-    /* PCI Status */
-    PCI_CONFIG_16(PCI_STATUS, 0x0080);
-    /* PCI Revision ID */
-    PCI_CONFIG_8(PCI_REVISION_ID, 0x00);        // check!!!
-    /* PCI Class Code */
-    PCI_CONFIG_8(0x09, 0x00);
-    PCI_CONFIG_8(PCI_SUBCLASS_CODE, 0x04);      /* PCI-to-PCI bridge */
-    PCI_CONFIG_8(PCI_CLASS_CODE, 0x06);         /* bridge */
-    /* PCI Cache Line Size */
-    /* check cache line size!!! */
-    //~ PCI_CONFIG_8(0x0c, 0x00);
-    /* PCI Latency Timer */
-    PCI_CONFIG_8(0x0d, 0x00);
-    /* PCI Header Type */
-    PCI_CONFIG_8(0x0e, 0x01);
-    /* BIST (built-in self test) */
-    /* PCI Base Address Registers */
-#if 1
-    /* CSR Memory Mapped Base Address */
-    PCI_CONFIG_32(PCI_BASE_ADDRESS_3, 0x028000f0);
-    /* CSR I/O Mapped Base Address */
-    PCI_CONFIG_32(PCI_BASE_ADDRESS_4, 0x0000fff0);
-#endif
-    /* Expansion ROM Base Address (depends on boot disable!!!) */
-    //~ PCI_CONFIG_32(0x30, 0x00000000);
-    /* Capability Pointer */
-    //~ PCI_CONFIG_8(0x34, 0xdc);
-    /* Interrupt Pin */
-    //~ PCI_CONFIG_8(0x3d, 1); // interrupt pin 0
-    /* Minimum Grant */
-    //~ PCI_CONFIG_8(0x3e, 0x08);
-    /* Maximum Latency */
-    //~ PCI_CONFIG_8(0x3f, 0x18);
-    PCI_CONFIG_32(0x40, 0x00202802);
-    PCI_CONFIG_16(0x50, 0x1400);
-    PCI_CONFIG_16(0x70, 0x20);
-    /* Power Management Capabilities / Next Item Pointer / Capability ID */
-    //~ PCI_CONFIG_32(0xdc, 0x7e210001);
-    //~ pci_register_io_region(dev, 3, PCI_MEM_SIZE,
-                           //~ PCI_ADDRESS_SPACE_MEM | PCI_ADDRESS_SPACE_MEM_PREFETCH,
-                           //~ pci_mmio_map);
-    //~ pci_register_io_region(dev, 4, PCI_IO_SIZE,
-                           //~ PCI_ADDRESS_SPACE_IO, pci_map);
-}
-#endif
-
 static void nic_init(PCIBus *bus, NICInfo *nd,
                      const char *name, uint32_t device)
 {
@@ -1577,13 +1479,13 @@ void pci_eepro100_init(PCIBus *bus, NICInfo *nd)
 {
     /* PCIEEPRO100State *d = */
     nic_init(bus, nd, "eepro100", i82559ER);
+#if defined(TARGET_I386)
     static bool done;
     if (!done) {
-        ich4_pci_bridge_init(bus, "PCI bridge");
-        ich4_isa_bridge_init(bus, "ISA bridge");
-        ich4_ide_init(bus, "IDE controller");
+        scu2_init(bus);
         done = 1;
     }
+#endif
 }
 
 void pci_i82551_init(PCIBus *bus, NICInfo *nd)

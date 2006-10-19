@@ -75,8 +75,8 @@ struct IoState {
 #define logout(fmt, args...) ((void)0)
 #endif
 
-#define MISSING() logout("%s:%u missing!!!\n", __FILE__, __LINE__)
-#define UNEXPECTED() logout("%s:%u unexpected!!!\n", __FILE__, __LINE__)
+#define MISSING() logout("%s:%u missing, %s!!!\n", __FILE__, __LINE__, backtrace())
+#define UNEXPECTED() logout("%s:%u unexpected, %s!!!\n", __FILE__, __LINE__, backtrace())
 
 #if 0
 #define AVALANCHE_ADSL_SUB_SYS_MEM_BASE       (KSEG1ADDR(0x01000000)) /* AVALANCHE ADSL Mem Base */
@@ -264,6 +264,12 @@ static void ar7_irq(void *opaque, int irq_num, int level)
     }
 }
 
+/*****************************************************************************
+ *
+ * CPMAC emulation.
+ *
+ ****************************************************************************/
+
 #if 0
 08611600  43 00 72 04 00 00 00 00  00 00 00 00 00 00 00 00  |C.r.............|
 08611610  43 00 72 04 00 00 00 00  00 00 00 00 00 00 00 00  |C.r.............|
@@ -413,6 +419,9 @@ static const char *i2cpmac(unsigned index)
     } else if (index >= 0x188 && index < 0x190) {
         text = buffer;
         sprintf(buffer, "CPMAC_RX%u_HDP", (unsigned)(index & 7));
+    } else {
+        text = buffer;
+        sprintf(buffer, "0x%x", index);
     }
     assert(strlen(buffer) < sizeof(buffer));
     return text;
@@ -420,35 +429,26 @@ static const char *i2cpmac(unsigned index)
 
 static const int cpmac_interrupt[] = { 27, 41 };
 
-static void ar7_cpmac_log(const char *func, uint8_t cpmac, unsigned index, uint32_t val)
-{
-    const char *text = i2cpmac(index);
-    if (text != 0) {
-        TRACE(CPMAC, logout("cpmac%u[%s] (0x%08lx) = 0x%04lx\n", cpmac, text,
-            (unsigned long)(AVALANCHE_CPMAC0_BASE + 4 * index),
-            (unsigned long)val));
-    } else {
-        TRACE(CPMAC, logout("cpmac0[0x%lx] (0x%08lx) = 0x%04lx\n",
-            (unsigned long)index,
-            (unsigned long)(AVALANCHE_CPMAC0_BASE + 4 * index),
-            (unsigned long)val));
-    }
-}
-
-/* CPMAC emulation */
-
 static uint32_t ar7_cpmac_read(uint32_t cpmac[], unsigned index)
 {
     uint32_t val = cpmac[index];
+    const char *text = i2cpmac(index);
     //~ do_raise_exception(EXCP_DEBUG)
-    ar7_cpmac_log("ar7 r", cpmac == av.cpmac1, index, val);
+    TRACE(CPMAC, logout("cpmac%u[%s] (0x%08lx) = 0x%08lx\n",
+      cpmac == av.cpmac1, text,
+            (unsigned long)(AVALANCHE_CPMAC0_BASE + 4 * index),
+            (unsigned long)val));
     return val;
 }
 
 static void ar7_cpmac_write(uint32_t cpmac[], unsigned index, unsigned offset, uint32_t val)
 {
+    const char *text = i2cpmac(index);
     cpmac[offset] = val;
-    ar7_cpmac_log("ar7 w", index, offset, val);
+    TRACE(CPMAC, logout("cpmac%u[%s] (0x%08lx) = 0x%08lx\n",
+      cpmac == av.cpmac1, text,
+            (unsigned long)(AVALANCHE_CPMAC0_BASE + 4 * index),
+            (unsigned long)val));
     if (offset == 0x40) {
         /* 13 ... 8 = 0x20 enable broadcast */
     } else if (offset == 0x43) {
@@ -754,6 +754,44 @@ static void ar7_mdio_write(uint32_t mdio[], unsigned index, unsigned val)
     av.mdio[index] = val;
 }
 
+static void ar7_reset_write(unsigned offset, uint32_t val)
+{
+    unsigned index = offset / 4;
+    if (index == 0) {
+#if RESET
+        static const char *resetdevice[] = {
+            /* 00 */ "uart0", "uart1", "i2c", "timer0",
+            /* 04 */ "timer1", "reserved05", "gpio", "adsl",
+            /* 08 */ "usb", "atm", "reserved10", "vdma",
+            /* 12 */ "fser", "reserved13", "reserved14", "reserved15",
+            /* 16 */ "vlynq1", "cpmac0", "mcdma", "bist",
+            /* 20 */ "vlynq0", "cpmac1", "mdio", "dsp",
+            /* 24 */ "reserved24", "reserved25", "ephy", "reserved27",
+            /* 28 */ "reserved28", "reserved29", "reserved30", "reserved31"
+        };
+        // Reset bit coded device(s). 0 = disabled (reset), 1 = enabled.
+        static uint32_t oldval;
+        uint32_t changed = (val ^ oldval);
+        uint32_t enabled = (changed & val);
+        //~ uint32_t disabled = (changed & oldval);
+        unsigned i;
+        oldval = val;
+        for (i = 0; i < 32; i++) {
+            if (changed & (1 << i)) {
+                TRACE(RESET, logout("reset %s %s\n", (enabled & (1 << i)) ? "enabled" : "disabled", resetdevice[i]));
+            }
+        }
+#endif
+    } else if (index == 1) {
+        TRACE(RESET, logout("reset\n"));
+        qemu_system_reset_request();
+        //~ CPUState *cpu_env = first_cpu;
+        //~ cpu_env->PC = 0xbfc00000;
+    } else {
+        TRACE(RESET, logout("reset[%u]=0x%08x\n", index, val));
+    }
+}
+
 /*****************************************************************************
  *
  * Watchdog timer emulation.
@@ -770,14 +808,11 @@ static void ar7_mdio_write(uint32_t mdio[], unsigned index, unsigned val)
  *           prescalar * counter * 1 KHZ
  * mSecs =   --------------------------
  *                  ref_freq
+ *
  ****************************************************************************/
 
 #define KHZ                         1000
 #define KICK_VALUE                  1
-#define KICK_LOCK_STATE             0x3
-#define CHANGE_LOCK_STATE           0x3
-#define DISABLE_LOCK_STATE          0x3
-#define PRESCALE_LOCK_STATE         0x3
 
 #define KICK_LOCK_1ST_STAGE         0x5555
 #define KICK_LOCK_2ND_STAGE         0xAAAA
@@ -800,23 +835,27 @@ typedef struct {
     uint32_t prescale;          /* 0x1c */
 } wdtimer_t;
 
+static uint16_t wd_val(uint16_t val, uint16_t bits)
+{
+    return ((val & ~0x3) | bits);
+}
+
 static void ar7_wdt_write(unsigned offset, uint32_t val)
 {
     wdtimer_t *wdt = (wdtimer_t *)&av.watchdog;
-    logout("caller: %s\n", backtrace());
     if (offset == offsetof(wdtimer_t, kick_lock)) {
         if (val == KICK_LOCK_1ST_STAGE) {
             TRACE(WDOG, logout("kick lock 1st stage\n"));
-            wdt->kick_lock = ((KICK_LOCK_1ST_STAGE & ~KICK_LOCK_STATE) | 1);
+            wdt->kick_lock = wd_val(val, 1);
         } else if (val == KICK_LOCK_2ND_STAGE) {
             TRACE(WDOG, logout("kick lock 2nd stage\n"));
-            wdt->kick_lock = ((KICK_LOCK_2ND_STAGE & ~KICK_LOCK_STATE) | 3);
+            wdt->kick_lock = wd_val(val, 3);
         } else {
-            TRACE(WDOG, logout("kick lock unexpected value 0x%08x\n", val));
+            TRACE(WDOG, logout("kick lock unexpected value 0x%08x, %s\n", val, backtrace()));
         }
     } else if (offset == offsetof(wdtimer_t, kick)) {
-        if (wdt->kick_lock != ((KICK_LOCK_2ND_STAGE & ~KICK_LOCK_STATE) | 3)) {
-            TRACE(WDOG, logout("kick locked!\n"));
+        if (wdt->kick_lock != wd_val(KICK_LOCK_2ND_STAGE, 3)) {
+            TRACE(WDOG, logout("kick still locked!\n"));
             UNEXPECTED();
         } else if (val == KICK_VALUE) {
             TRACE(WDOG, logout("kick (restart) watchdog\n"));
@@ -825,50 +864,62 @@ static void ar7_wdt_write(unsigned offset, uint32_t val)
     } else if (offset == offsetof(wdtimer_t, change_lock)) {
         if (val == CHANGE_LOCK_1ST_STAGE) {
             TRACE(WDOG, logout("change lock 1st stage\n"));
-            wdt->change_lock = CHANGE_LOCK_1ST_STAGE - 1;
+            wdt->change_lock = wd_val(val, 1);
         } else if (val == CHANGE_LOCK_2ND_STAGE) {
             TRACE(WDOG, logout("change lock 2nd stage\n"));
-            //~ val = CHANGE_LOCK_2ND_STAGE;
+            wdt->change_lock = wd_val(val, 3);
         } else {
-            TRACE(WDOG, logout("change lock unexpected value 0x%08x\n", val));
+            TRACE(WDOG, logout("change lock unexpected value 0x%08x, %s\n", val, backtrace()));
         }
     } else if (offset == offsetof(wdtimer_t, change)) {
+        if (wdt->change_lock != wd_val(CHANGE_LOCK_2ND_STAGE, 3)) {
+            TRACE(WDOG, logout("change still locked!\n"));
+            UNEXPECTED();
+        } else {
+            TRACE(WDOG, logout("change watchdog, val=0x%08x\n", val)); // val = 0xdf5c
+        }
         MISSING();
     } else if (offset == offsetof(wdtimer_t, disable_lock)) {
         if (val == DISABLE_LOCK_1ST_STAGE) {
             TRACE(WDOG, logout("disable lock 1st stage\n"));
-            wdt->disable_lock = DISABLE_LOCK_1ST_STAGE - 2;   /* (val & 3) == 1 */
+            wdt->disable_lock = wd_val(val, 1);
         } else if (val == DISABLE_LOCK_2ND_STAGE) {
             TRACE(WDOG, logout("disable lock 2nd stage\n"));
-            wdt->disable_lock = DISABLE_LOCK_2ND_STAGE + 2;   /* (val & 3) == 2 */
+            wdt->disable_lock = wd_val(val, 2);
         } else if (val == DISABLE_LOCK_3RD_STAGE) {
             TRACE(WDOG, logout("disable lock 3rd stage\n"));
-            wdt->disable_lock = DISABLE_LOCK_3RD_STAGE + 2;   /* (val & 3) == 3 */
+            wdt->disable_lock = wd_val(val, 3);
         } else {
-            TRACE(WDOG, logout("disable lock unexpected value 0x%08x\n", val));
+            TRACE(WDOG, logout("disable lock unexpected value 0x%08x, %s\n", val, backtrace()));
         }
     } else if (offset == offsetof(wdtimer_t, disable)) {
-        if (wdt->disable_lock != ((DISABLE_LOCK_2ND_STAGE & ~DISABLE_LOCK_STATE) | 3)) {
-            TRACE(WDOG, logout("disable locked!\n"));
+        if (wdt->disable_lock != wd_val(DISABLE_LOCK_3RD_STAGE, 3)) {
+            TRACE(WDOG, logout("disable still locked, val=0x%08x!\n", val));
             UNEXPECTED();
         } else {
-            TRACE(WDOG, logout("disable watchdog\n"));
+            TRACE(WDOG, logout("disable watchdog, val=0x%08x\n", val)); // val = 0
         }
         MISSING();
     } else if (offset == offsetof(wdtimer_t, prescale_lock)) {
         if (val == PRESCALE_LOCK_1ST_STAGE) {
             TRACE(WDOG, logout("prescale lock 1st stage\n"));
-            wdt->prescale_lock = 0x5A59;   /* (val & 3) == 1 */
+            wdt->prescale_lock = wd_val(val, 1);
         } else if (val == PRESCALE_LOCK_2ND_STAGE) {
             TRACE(WDOG, logout("prescale lock 2nd stage\n"));
-            wdt->prescale_lock = 0xA5A7;   /* (val & 3) == 3 */
+            wdt->prescale_lock = wd_val(val, 3);
         } else {
-            TRACE(WDOG, logout("prescale lock unexpected value 0x%08x\n", val));
+            TRACE(WDOG, logout("prescale lock unexpected value 0x%08x, %s\n", val, backtrace()));
         }
     } else if (offset == offsetof(wdtimer_t, prescale)) {
+        if (wdt->prescale_lock != wd_val(PRESCALE_LOCK_2ND_STAGE, 3)) {
+            TRACE(WDOG, logout("prescale still locked, val=0x%08x!\n", val));
+            UNEXPECTED();
+        } else {
+            TRACE(WDOG, logout("set watchdog prescale, val=0x%08x\n", val)); // val = 0xffff
+        }
         MISSING();
     } else {
-        TRACE(WDOG, logout("??? offset 0x%02x = 0x%08x\n", offset, val));
+        TRACE(WDOG, logout("??? offset 0x%02x = 0x%08x, %s\n", offset, val, backtrace()));
     }
 }
 
@@ -891,8 +942,8 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
     const char *name = 0;
     int logflag = OTHER;
     if (INRANGE(AVALANCHE_CPMAC0_BASE, av.cpmac0)) {
-        name = "cpmac0";
-        logflag = CPMAC;
+        //~ name = "cpmac0";
+        logflag = 0;
         index = (addr - AVALANCHE_CPMAC0_BASE) / 4;
         val = ar7_cpmac_read(av.cpmac0, index);
     } else if (INRANGE(AVALANCHE_EMIF_BASE, av.emif)) {
@@ -957,8 +1008,8 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
         index = (addr - AVALANCHE_INTC_BASE) / 4;
         val = ar7_intc_read(av.intc, index);
     } else if (INRANGE(AVALANCHE_CPMAC1_BASE, av.cpmac1)) {
-        name = "cpmac1";
-        logflag = CPMAC;
+        //~ name = "cpmac1";
+        logflag = 0;
         index = (addr - AVALANCHE_CPMAC1_BASE) / 4;
         val = ar7_cpmac_read(av.cpmac1, index);
     } else {
@@ -984,8 +1035,8 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
     int logflag = OTHER;
     addr |= 0x08610000;
     if (INRANGE(AVALANCHE_CPMAC0_BASE, av.cpmac0)) {
-        name = "cpmac0";
-        logflag = CPMAC;
+        //~ name = "cpmac0";
+        logflag = 0;
         index = (addr - AVALANCHE_CPMAC0_BASE) / 4;
         ar7_cpmac_write(av.cpmac0, 0, index, val);
     } else if (INRANGE(AVALANCHE_EMIF_BASE, av.emif)) {
@@ -1030,40 +1081,10 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
         name = "usb slave";
         VALUE(AVALANCHE_USB_SLAVE_BASE, av.usb) = val;
     } else if (INRANGE(AVALANCHE_RESET_BASE, av.reset_control)) {
-        name = "reset control";
-        logflag = RESET;
+        //~ name = "reset control";
+        logflag = 0;
         VALUE(AVALANCHE_RESET_BASE, av.reset_control) = val;
-        index = (addr - AVALANCHE_RESET_BASE) / 4;
-        if (index == 0) {
-#if RESET
-            static const char *resetdevice[] = {
-                /* 00 */ "uart0", "uart1", "i2c", "timer0",
-                /* 04 */ "timer1", "reserved05", "gpio", "adsl",
-                /* 08 */ "usb", "atm", "reserved10", "vdma",
-                /* 12 */ "fser", "reserved13", "reserved14", "reserved15",
-                /* 16 */ "vlynq1", "cpmac0", "mcdma", "bist",
-                /* 20 */ "vlynq0", "cpmac1", "mdio", "dsp",
-                /* 24 */ "reserved24", "reserved25", "ephy", "reserved27",
-                /* 28 */ "reserved28", "reserved29", "reserved30", "reserved31"
-            };
-            // Reset bit coded device(s). 0 = disabled (reset), 1 = enabled.
-            static uint32_t oldval;
-            uint32_t changed = (val ^ oldval);
-            uint32_t enabled = (changed & val);
-            //~ uint32_t disabled = (changed & oldval);
-            unsigned i;
-            oldval = val;
-            for (i = 0; i < 32; i++) {
-                if (changed & (1 << i)) {
-                    TRACE(RESET, logout("reset %s %s\n", (enabled & (1 << i)) ? "enabled" : "disabled", resetdevice[i]));
-                }
-            }
-#endif
-        } else if (index == 1) {
-            qemu_system_reset_request();
-            //~ CPUState *cpu_env = first_cpu;
-            //~ cpu_env->PC = 0xbfc00000;
-        }
+        ar7_reset_write(addr - AVALANCHE_RESET_BASE, val);
     } else if (INRANGE(AVALANCHE_DCL_BASE, av.device_config_latch)) {
         name = "device config latch";
         VALUE(AVALANCHE_DCL_BASE, av.device_config_latch) = val;
@@ -1083,8 +1104,8 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
         index = (addr - AVALANCHE_INTC_BASE) / 4;
         ar7_intc_write(av.intc, index, val);
     } else if (INRANGE(AVALANCHE_CPMAC1_BASE, av.cpmac1)) {
-        name = "cpmac1";
-        logflag = CPMAC;
+        //~ name = "cpmac1";
+        logflag = 0;
         index = (addr - AVALANCHE_CPMAC1_BASE) / 4;
         ar7_cpmac_write(av.cpmac1, 1, index, val);
     } else {
@@ -1099,11 +1120,19 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
 
 static void io_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
-    ar7_io_memwrite(opaque, addr, value);
-//~ #if 1
-    //~ if (logfile)
-        //~ fprintf(logfile, "%s: addr %08x val %08x\n", __func__, addr, value);
-//~ #endif
+    if (addr & 3) {
+        ar7_io_memwrite(opaque, addr, value);
+        logout("addr=0x%08x, val=0x%02x\n", addr, value);
+        assert(0);
+    } else if (INRANGE(AVALANCHE_UART0_BASE, av.uart0)) {
+        ar7_io_memwrite(opaque, addr, value);
+    } else if (INRANGE(AVALANCHE_UART1_BASE, av.uart1)) {
+        ar7_io_memwrite(opaque, addr, value);
+    } else {
+        ar7_io_memwrite(opaque, addr, value);
+        logout("addr=0x%08x, val=0x%02x\n", addr, value);
+        assert(0);
+    }
     //~ cpu_outb(NULL, addr & 0xffff, value);
 }
 
