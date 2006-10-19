@@ -111,7 +111,9 @@ typedef unsigned char bool;
 /* Offsets to the various registers.
    All accesses need not be longword aligned. */
 enum speedo_offsets {
-        SCBStatus = 0, SCBCmd = 2,      /* Rx/Command Unit command and status. */
+        SCBStatus = 0,
+        SCBAck = 1,
+        SCBCmd = 2,      /* Rx/Command Unit command and status. */
         SCBIntmask = 3,
         SCBPointer = 4,                 /* General purpose pointer. */
         SCBPort = 8,                    /* Misc. commands and operands.  */
@@ -303,8 +305,8 @@ enum scb_stat_ack {
 
 static void eepro100_acknowledge(EEPRO100State *s)
 {
-    s->scb_stat &= ~s->mem[SCBStatus + 1];
-    s->mem[SCBStatus + 1] = s->scb_stat;
+    s->scb_stat &= ~s->mem[SCBAck];
+    s->mem[SCBAck] = s->scb_stat;
     if (s->scb_stat == 0) {
         pci_set_irq(s->pci_dev, 0, 0);
     }
@@ -312,8 +314,8 @@ static void eepro100_acknowledge(EEPRO100State *s)
 
 static void eepro100_interrupt(EEPRO100State *s, uint8_t mask, uint8_t stat)
 {
-    s->mem[SCBStatus + 1] |= stat;
-    s->scb_stat = s->mem[SCBStatus + 1];
+    s->mem[SCBAck] |= stat;
+    s->scb_stat = s->mem[SCBAck];
     if (!(s->mem[SCBIntmask] & (mask | 0x01))) {
         /* SCB maske and SCB Bit M do not disable interrupt. */
         logout("interrupt handling\n");
@@ -897,6 +899,23 @@ static void eepro100_write_pointer(EEPRO100State *s, uint32_t val)
  *
  ****************************************************************************/
 
+static const char *mdi_op_name[] = {
+    "opcode 0",
+    "write",
+    "read",
+    "opcode 3"
+};
+
+static const char *mdi_reg_name[] = {
+    "Control",
+    "Status",
+    "PHY Identification (Word 1)",
+    "PHY Identification (Word 2)",
+    "Auto-Negotiation Advertisement",
+    "Auto-Negotiation Link Partner Ability",
+    "Auto-Negotiation Expansion"
+};
+
 static uint32_t eepro100_read_mdi(EEPRO100State *s)
 {
     uint32_t val;
@@ -909,8 +928,8 @@ static uint32_t eepro100_read_mdi(EEPRO100State *s)
     uint16_t data = (val & 0x0000ffff);
     /* Emulation takes no time to finish MDI transaction. */
     val |= (1 << 28);
-    logout("val=0x%08x (int=%u, opcode=%u, phy=%u, reg=%u, data=0x%04x\n",
-           val, raiseint, opcode, phy, reg, data);
+    logout("val=0x%08x (int=%u, %s, phy=%u, %s, data=0x%04x\n",
+           val, raiseint, mdi_op_name[opcode], phy, mdi_reg_name[reg], data);
     return val;
 }
 
@@ -918,10 +937,10 @@ static uint32_t eepro100_read_mdi(EEPRO100State *s)
 static void eepro100_write_mdi(EEPRO100State *s, uint32_t val)
 {
     uint8_t raiseint = (val & 0x20000000) >> 29;
-    uint8_t opcode = (val & 0x0c000000) >> 26;
-    uint8_t phy = (val & 0x03e00000) >> 21;
-    uint8_t reg = (val & 0x001f0000) >> 16;
-    uint16_t data = (val & 0x0000ffff);
+    uint8_t opcode =   (val & 0x0c000000) >> 26;
+    uint8_t phy =      (val & 0x03e00000) >> 21;
+    uint8_t reg =      (val & 0x001f0000) >> 16;
+    uint16_t data =    (val & 0x0000ffff);
     if (phy != 1) {
         /* Unsupported PHY address. */
         //~ logout("phy must be 1 but is %u\n", phy);
@@ -930,40 +949,72 @@ static void eepro100_write_mdi(EEPRO100State *s, uint32_t val)
         /* Unsupported opcode. */
         logout("opcode must be 1 or 2 but is %u\n", opcode);
         data = 0;
+    } else if (reg > 6) {
+        /* Unsupported register. */
+        logout("register must be 0...6 but is %u\n", reg);
+        data = 0;
     } else {
-        logout("val=0x%08x (int=%u, opcode=%u, phy=%u, reg=%u, data=0x%04x\n",
-               val, raiseint, opcode, phy, reg, data);
+        logout("val=0x%08x (int=%u, %s, phy=%u, %s, data=0x%04x\n",
+               val, raiseint, mdi_op_name[opcode], phy, mdi_reg_name[reg], data);
         if (opcode == 1) {
             /* MDI write */
             switch (reg) {
-                case 0:
+                case 0:         /* Control Register */
                     if (data & 0x8000) {
                         /* Reset status and control registers to default. */
-                        data = s->mdimem[0] = eepro100_mdi_default[0];
+                        s->mdimem[0] = eepro100_mdi_default[0];
                         s->mdimem[1] = eepro100_mdi_default[1];
+                        data = s->mdimem[reg];
+                    } else {
+                        /* Restart Auto Configuration = Normal Operation */
+                        data &= ~0x0200;
                     }
                     break;
+                case 1:         /* Status Register */
+                    missing("not writable");
+                    data = s->mdimem[reg]; 
+                    break;
+                case 2:         /* PHY Identification Register (Word 1) */
+                case 3:         /* PHY Identification Register (Word 2) */
+                    missing("not implemented");
+                    break;
+                case 4:         /* Auto-Negotiation Advertisement Register */
+                case 5:         /* Auto-Negotiation Link Partner Ability Register */
+                    break;
+                case 6:         /* Auto-Negotiation Expansion Register */
+                default:
+                    missing("not implemented");
             }
             s->mdimem[reg] = data;
         } else if (opcode == 2) {
             /* MDI read */
             switch (reg) {
-                case 0:
+                case 0:         /* Control Register */
                     if (data & 0x8000) {
                         /* Reset status and control registers to default. */
                         s->mdimem[0] = eepro100_mdi_default[0];
                         s->mdimem[1] = eepro100_mdi_default[1];
                     }
                     break;
-                case 1:
+                case 1:         /* Status Register */
                     s->mdimem[reg] |= 0x0020;
+                    break;
+                case 2:         /* PHY Identification Register (Word 1) */
+                case 3:         /* PHY Identification Register (Word 2) */
+                case 4:         /* Auto-Negotiation Advertisement Register */
+                    break;
+                case 5:         /* Auto-Negotiation Link Partner Ability Register */
+                    s->mdimem[reg] = 0x41fe;
+                    break;
+                case 6:         /* Auto-Negotiation Expansion Register */
+                    s->mdimem[reg] = 0x0001;
                     break;
             }
             data = s->mdimem[reg];
         }
         /* Emulation takes no time to finish MDI transaction.
          * Set MDI bit in SCB status register. */
-        s->mem[SCBStatus + 1] |= 0x08;
+        s->mem[SCBAck] |= 0x08;
         val |= (1 << 28);
         if (raiseint) {
             eepro100_mdi_interrupt(s);
@@ -1040,7 +1091,7 @@ static uint8_t eepro100_read1(EEPRO100State *s, uint32_t addr)
             //~ val = eepro100_read_status(s);
             logout("addr=%s val=0x%02x\n", regname(addr), val);
             break;
-        case SCBStatus + 1:
+        case SCBAck:
             //~ val = eepro100_read_status(s);
             logout("addr=%s val=0x%02x\n", regname(addr), val);
             break;
@@ -1103,17 +1154,18 @@ static uint32_t eepro100_read4(EEPRO100State *s, uint32_t addr)
         memcpy(&val, &s->mem[addr], sizeof(val));
     }
 
-    logout("addr=%s val=0x%08x\n", regname(addr), val);
-
     switch (addr) {
         case SCBStatus:
             //~ val = eepro100_read_status(s);
+            logout("addr=%s val=0x%08x\n", regname(addr), val);
             break;
         case SCBPointer:
             //~ val = eepro100_read_pointer(s);
+            logout("addr=%s val=0x%08x\n", regname(addr), val);
             break;
         case SCBPort:
             val = eepro100_read_port(s);
+            logout("addr=%s val=0x%08x\n", regname(addr), val);
             break;
         case SCBCtrlMDI:
             val = eepro100_read_mdi(s);
@@ -1137,7 +1189,7 @@ static void eepro100_write1(EEPRO100State *s, uint32_t addr, uint8_t val)
         case SCBStatus:
             //~ eepro100_write_status(s, val);
             break;
-        case SCBStatus + 1:
+        case SCBAck:
             eepro100_acknowledge(s);
             break;
         case SCBCmd:
@@ -1495,10 +1547,4 @@ void pci_i82551_init(PCIBus *bus, NICInfo *nd)
     //~ uint8_t *pci_conf = d->dev.config;
 }
 
-#if 0
-/windows/D/BUILD/SYS/Sfos/trunk/Src/HalBsp/e100/e100_main.cpp:1734:e100_hw_init(struct e100_private *bdp)
-
-/windows/D/BUILD/SYS/Sfos/trunk/Src/HalBsp/e100/e100_main.cpp:1672:e100_tco_workaround(struct e100_private *bdp)
-
-Nach Reset sollten (PCI-)Interrupts gesperrt sein?
-#endif
+/* eof */
