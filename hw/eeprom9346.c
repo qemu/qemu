@@ -37,7 +37,7 @@
 //~ #define DEBUG_EEPROM
 
 #ifdef DEBUG_EEPROM
-#define logout(fmt, args...) printf("EEPROM\t%-24s" fmt, __func__, ##args)
+#define logout(fmt, args...) fprintf(stderr, "EEPROM\t%-24s" fmt, __func__, ##args)
 #else
 #define logout(fmt, args...) ((void)0)
 #endif

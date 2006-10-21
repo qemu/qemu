@@ -80,7 +80,7 @@ dp83815_mmio_readw addr=0xf2001084 val = 0x7849
 /* EEPROM support is optional. */
 #define CONFIG_EEPROM
 
-#define logout(fmt, args...) printf("DP8381X %-24s" fmt, __func__, ##args)
+#define logout(fmt, args...) fprintf(stderr, "DP8381X %-24s" fmt, __func__, ##args)
 
 /* Silicon revisions for the different hardware */
 #define DP83815CVNG     0x00000302

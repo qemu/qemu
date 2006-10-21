@@ -62,7 +62,7 @@
 #define DEBUG_EEPRO100
 
 #ifdef DEBUG_EEPRO100
-#define logout(fmt, args...) printf("EE100\t%-24s" fmt, __func__, ##args)
+#define logout(fmt, args...) fprintf(stderr, "EE100\t%-24s" fmt, __func__, ##args)
 #else
 #define logout(fmt, args...) ((void)0)
 #endif
@@ -169,9 +169,18 @@ typedef struct {
 
 typedef enum {
     cu_idle = 0,
-    cu_suspended,
-    cu_active
+    cu_suspended = 1,
+    cu_active = 2,
+    cu_lpq_active = 2,
+    cu_hqp_active = 3
 } cu_state_t;
+
+typedef enum {
+    ru_idle = 0,
+    ru_suspended = 1,
+    ru_no_resources = 2,
+    ru_ready = 4
+} ru_state_t;
 
 typedef struct {
 #if 1
@@ -204,7 +213,6 @@ typedef struct {
     eeprom_t *eeprom;
     uint32_t device;    /* device variant */
     uint32_t pointer;
-    cu_state_t cu_state;
     uint32_t cu_base;   /* CU base address */
     uint32_t cu_offset; /* CU address offset */
     uint32_t ru_base;   /* RU base address */
@@ -666,6 +674,26 @@ enum commands {
   CmdTxFlex = 0x0008,       /* Use "Flexible mode" for CmdTx command. */
 };
 
+static cu_state_t get_cu_state(EEPRO100State *s)
+{
+    return ((s->mem[SCBStatus] >> 6) & 0x03);
+}
+
+static void set_cu_state(EEPRO100State *s, cu_state_t state)
+{
+    s->mem[SCBStatus] = (s->mem[SCBStatus] & 0x3f) + (state << 6);
+}
+
+static ru_state_t get_ru_state(EEPRO100State *s)
+{
+    return ((s->mem[SCBStatus] >> 2) & 0x0f);
+}
+
+static void set_ru_state(EEPRO100State *s, ru_state_t state)
+{
+    s->mem[SCBStatus] = (s->mem[SCBStatus] & 0xc3) + (state << 2);
+}
+
 static void eepro100_cu_command(EEPRO100State *s, uint8_t val)
 {
     eepro100_tx_t tx;
@@ -674,12 +702,11 @@ static void eepro100_cu_command(EEPRO100State *s, uint8_t val)
             /* No operation. */
             break;
         case CU_START:
-            if (s->cu_state != cu_idle) {
-                logout("CU state is %u, should be %u\n", s->cu_state, cu_idle);
+            if (get_cu_state(s) != cu_idle) {
+                logout("CU state is %u, should be %u\n", get_cu_state(s), cu_idle);
                 //~ assert(!"wrong CU state");
             }
-            s->cu_state = cu_active;
-            s->mem[SCBStatus] = ((s->mem[SCBStatus] & 0x3f) | 0x80);
+            set_cu_state(s, cu_active);
             s->cu_offset = s->pointer;
 //~ (gdb) p/x tx
 //~ $5 = {status = 0x0, command = 0x1, link = 0x208e0, tx_desc_addr = 0x12005452, count = 0x5634, tx_buf_addr0 = 0x0, tx_buf_size0 = 0x0,
@@ -747,13 +774,11 @@ static void eepro100_cu_command(EEPRO100State *s, uint8_t val)
             }
             if (bit_el) {
                 /* CPU becomes idle. */
-                s->cu_state = cu_idle;
-                s->mem[SCBStatus] = ((s->mem[SCBStatus] & 0x3f) | 0x00);
+                set_cu_state(s, cu_idle);
                 eepro100_cna_interrupt(s);
             } else if (bit_s) {
                 /* CPU becomes suspended. */
-                s->cu_state = cu_suspended;
-                s->mem[SCBStatus] = ((s->mem[SCBStatus] & 0x3f) | 0x40);
+                set_cu_state(s, cu_suspended);
                 s->cu_offset = le32_to_cpu(tx.link);
                 eepro100_cna_interrupt(s);
             } else {
@@ -766,13 +791,12 @@ static void eepro100_cu_command(EEPRO100State *s, uint8_t val)
             /* List is empty. Now CU is idle or suspended. */
             break;
         case CU_RESUME:
-            if (s->cu_state == cu_suspended) {
+            if (get_cu_state(s) == cu_suspended) {
                 logout("CU resuming\n");
-                s->cu_state = cu_active;
-                s->mem[SCBStatus] = ((s->mem[SCBStatus] & 0x3f) | 0x80);
+                set_cu_state(s, cu_active);
                 goto next_command;
             }
-            logout("cu_state=%u\n", s->cu_state);
+            logout("cu_state=%u\n", get_cu_state(s));
             missing("cu resume");
             break;
         case CU_STATSADDR:
