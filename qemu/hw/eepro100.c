@@ -4,6 +4,7 @@
  * Copyright (c) 2006 Stefan Weil
  *
  * Portions of the code are copies from grub / etherboot eepro100.c
+ * and linux e100.c.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,6 +28,7 @@
  */
 
 #include <assert.h>
+#include <stddef.h>     /* offsetof */
 #include "vl.h"
 #include "eeprom9346.h"
 
@@ -240,14 +242,6 @@ static const uint16_t eepro100_mdi_mask[] = {
     0xffff, 0xffff, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
 };
 
-static void eepro100_update_irq(EEPRO100State *s)
-{
-    int isr = (s->isr & s->imr) & 0x7f;
-    logout("Set IRQ line to %d (%02x %02x)\n", isr ? 1 : 0, s->isr, s->imr);
-    /* PCI irq */
-    pci_set_irq(s->pci_dev, 0, (isr != 0));
-}
-
 #define POLYNOMIAL 0x04c11db6
 
 /* From FreeBSD */
@@ -272,6 +266,7 @@ static int compute_mcast_idx(const uint8_t *ep)
     return (crc >> 26);
 }
 
+#if 0
 static int eepro100_buffer_full(EEPRO100State *s)
 {
     int is_full = 1;
@@ -293,6 +288,7 @@ static int eepro100_buffer_full(EEPRO100State *s)
         //~ return 1;
     //~ return 0;
 }
+#endif
 
 enum scb_stat_ack {
 	stat_ack_not_ours    = 0x00,
@@ -345,13 +341,11 @@ static void eepro100_fr_interrupt(EEPRO100State *s)
     eepro100_interrupt(s, 0x40, 0x40);
 }
 
-#if 0
 static void eepro100_rnr_interrupt(EEPRO100State *s)
 {
     /* RU is not ready. */
     eepro100_interrupt(s, 0x10, 0x10);
 }
-#endif
 
 static void eepro100_mdi_interrupt(EEPRO100State *s)
 {
@@ -584,8 +578,16 @@ static void set_ru_state(EEPRO100State *s, ru_state_t state)
 
 static void dump_statistics(EEPRO100State *s)
 {
-    stl_phys(s->statsaddr + 0, cpu_to_le32(s->statistics.tx_good_frames));
-    stl_phys(s->statsaddr + 36, cpu_to_le32(s->statistics.rx_good_frames));
+    /* Dump statistical data. Most data is never changed by the emulation
+     * and always 0, so we first just copy the whole block and then those
+     * values which really matter.
+     * Number of data should check configuration!!!
+     */
+    cpu_physical_memory_write(s->statsaddr, (uint8_t *)&s->statistics, 64);
+    stl_phys(s->statsaddr + 0, s->statistics.tx_good_frames);
+    stl_phys(s->statsaddr + 36, s->statistics.rx_good_frames);
+    stl_phys(s->statsaddr + 48, s->statistics.rx_resource_errors);
+    stl_phys(s->statsaddr + 60, s->statistics.rx_short_frame_errors);
     //~ stw_phys(s->statsaddr + 76, s->statistics.xmt_tco_frames);
     //~ stw_phys(s->statsaddr + 78, s->statistics.rcv_tco_frames);
     //~ missing("CU dump statistical counters");
@@ -629,7 +631,7 @@ static void eepro100_cu_command(EEPRO100State *s, uint8_t val)
                     missing("nop");
                     break;
                 case CmdIASetup:
-                    //~ missing("IA setup");
+                    cpu_physical_memory_read(s->cu_base + s->cu_offset + 8, &s->macaddr[0], 6);
                     /* Write new status (success). */
                     stw_phys(s->cu_base + s->cu_offset, status | 0xc000);
                     break;
@@ -727,7 +729,6 @@ static void eepro100_cu_command(EEPRO100State *s, uint8_t val)
 
 static void eepro100_ru_command(EEPRO100State *s, uint8_t val)
 {
-    eepro100_rx_t rx;
     switch (val) {
         case RU_NOP:
             /* No operation. */
@@ -740,19 +741,15 @@ static void eepro100_ru_command(EEPRO100State *s, uint8_t val)
             }
             set_ru_state(s, ru_ready);
             s->ru_offset = s->pointer;
-//~ (gdb) p/x rx
-//~ $3 = {status = 0x0, command = 0xc000, link = 0x2d220, rx_buf_addr = 0x207dc, count = 0x0, size = 0x5f8, packet = {0x0 <repeats 1518 times>}}
-            cpu_physical_memory_read(s->ru_base + s->ru_offset, (uint8_t *)&rx, sizeof(rx));
-            logout("val=0x%02x (rx start, status=0x%04x, command=0x%04x)\n",
-                   val, rx.status, rx.command);
+            logout("val=0x%02x (rx start)\n", val);
             break;
         case RX_RESUME:
+            /* Restart RU. */
             if (get_ru_state(s) != ru_suspended) {
                 logout("RU state is %u, should be %u\n", get_ru_state(s), ru_suspended);
                 //~ assert(!"wrong RU state");
             }
             set_ru_state(s, ru_ready);
-            missing("RX_RESUME");
             break;
         case RX_ADDR_LOAD:
             /* Load RU base. */
@@ -1342,72 +1339,84 @@ static int nic_can_receive(void *opaque)
 
 #define MIN_BUF_SIZE 60
 
+static const char *nic_dump(const uint8_t *buf, unsigned size)
+{
+    static char dump[3 * 16 + 1];
+    char *p = &dump[0];
+    if (size > 16) size = 16;
+    while (size-- > 0) {
+        p += sprintf(p, " %02x", *buf++);
+    }
+    return dump;
+}
+
 static void nic_receive(void *opaque, const uint8_t *buf, int size)
 {
     EEPRO100State *s = opaque;
-    uint8_t *p;
-    int total_len, next, avail, len, index, mcast_idx;
-    uint8_t buf1[60];
     static const uint8_t broadcast_macaddr[6] =
         { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
-    logout("%p received len=%d\n", s, size);
-
-    if (eepro100_buffer_full(s))
+    if (size < 64 && 0 /* !!! && short frames are discarded */) {
+         /* Short frame is discarded */
+        logout("%p received short frame len=%d\n", s, size);
+        s->statistics.rx_short_frame_errors++;
         return;
+    } else if (0) { // !!!
+        /* Promiscuous: receive all. */
+    } else if (memcmp(buf, s->macaddr, 6) != 0) { // !!!
+        /* Frame matches individual address. */
+        logout("%p received frame for me, len=%d\n", s, size);
+    } else if (memcmp(buf, broadcast_macaddr, 6) == 0) {
+        /* Broadcast frame. */
+        logout("%p received broadcast, len=%d\n", s, size);
+    } else if (buf[0] & 0x01) { // !!!
+        /* Multicast frame. */
+        logout("%p received multicast, len=%d\n", s, size);
+        int mcast_idx = compute_mcast_idx(buf);
+        if (!(s->mult[mcast_idx >> 3] & (1 << (mcast_idx & 7)))) {
+            return;
+        }
+    } else {
+        logout("%p received frame, ignored, len=%d,%s\n", s, size, nic_dump(buf, size));
+        //~ return;
+    }
+
+    if (get_ru_state(s) != ru_ready) {
+        /* No ressources available. */
+        logout("no ressources, state=%u\n", get_ru_state(s));
+        s->statistics.rx_resource_errors++;
+        return;
+    }
 
     //~ !!!
 //~ $3 = {status = 0x0, command = 0xc000, link = 0x2d220, rx_buf_addr = 0x207dc, count = 0x0, size = 0x5f8, packet = {0x0 <repeats 1518 times>}}
     eepro100_rx_t rx;
-    cpu_physical_memory_read(s->ru_base + s->ru_offset, (uint8_t *)&rx, sizeof(rx));
-    assert(size <= rx.size);
-    memcpy(&rx.packet[0], buf, size);
-    //~ cpu_physical_memory_write(rx.rx_buf_addr, buf, size);
-    rx.count = size;
-    rx.status = 1; // !!! check value
+    cpu_physical_memory_read(s->ru_base + s->ru_offset, (uint8_t *)&rx, offsetof(eepro100_rx_t, packet));
+    uint16_t rfd_status = le16_to_cpu(rx.status);
+    uint16_t rfd_command = le16_to_cpu(rx.command);
+    uint16_t rfd_size = le16_to_cpu(rx.size);
+    assert(size <= rfd_size);
+    rfd_status = 0xa000;
+    if (size < 64) {
+        rfd_status |= 0x0080;
+    }
+    stw_phys(s->ru_base + s->ru_offset + offsetof(eepro100_rx_t, status), rfd_status);
+    stw_phys(s->ru_base + s->ru_offset + offsetof(eepro100_rx_t, count), size);
     /* Early receive interrupt not supported. */
     //~ eepro100_er_interrupt(s);
-    cpu_physical_memory_write(s->ru_base + s->ru_offset, (uint8_t *)&rx, sizeof(rx));
+    cpu_physical_memory_write(s->ru_base + s->ru_offset + offsetof(eepro100_rx_t, packet), buf, size);
     s->statistics.rx_good_frames++;
     eepro100_fr_interrupt(s);
-    return;
-
-    /* XXX: check this */
-    if (s->rxcr & 0x10) {
-        /* promiscuous: receive all */
-    } else {
-        if (!memcmp(buf,  broadcast_macaddr, 6)) {
-            /* broadcast address */
-            if (!(s->rxcr & 0x04))
-                return;
-        } else if (buf[0] & 0x01) {
-            /* multicast */
-            if (!(s->rxcr & 0x08))
-                return;
-            mcast_idx = compute_mcast_idx(buf);
-            if (!(s->mult[mcast_idx >> 3] & (1 << (mcast_idx & 7))))
-                return;
-        } else if (s->mem[0] == buf[0] &&
-                   s->mem[2] == buf[1] &&
-                   s->mem[4] == buf[2] &&
-                   s->mem[6] == buf[3] &&
-                   s->mem[8] == buf[4] &&
-                   s->mem[10] == buf[5]) {
-            /* match */
-        } else {
-            return;
-        }
+    s->ru_offset = le32_to_cpu(rx.link);
+    if (rfd_command & 0x8000) {
+        /* EL bit is set. */
+    }
+    if (rfd_command & 0x4000) {
+        /* S bit is set. */
+        set_ru_state(s, ru_suspended);
     }
 
-
-    /* if too small buffer, then expand it */
-    if (size < MIN_BUF_SIZE) {
-        memcpy(buf1, buf, size);
-        memset(buf1 + size, 0, MIN_BUF_SIZE - size);
-        buf = buf1;
-        size = MIN_BUF_SIZE;
-    }
-
+#if 0
     index = s->curpag << 8;
     /* 4 bytes for header */
     total_len = size + 4;
@@ -1441,10 +1450,7 @@ static void nic_receive(void *opaque, const uint8_t *buf, int size)
         size -= len;
     }
     s->curpag = next >> 8;
-
-    /* now we can signal we have receive something */
-    //~ s->isr |= ENISR_RX;
-    eepro100_update_irq(s);
+#endif
 }
 
 static int nic_load(QEMUFile* f,void* opaque,int version_id)
