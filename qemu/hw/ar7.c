@@ -39,6 +39,8 @@
  */
 
 #include <assert.h>
+#include <stddef.h>     /* offsetof */
+
 #include "vl.h"
 #include "disas.h"      /* lookup_symbol */
 #include "exec-all.h"   /* logfile */

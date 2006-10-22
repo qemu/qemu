@@ -21,6 +21,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
+#include <stddef.h>     /* offsetof */
 #include "vl.h"
 #include "block_int.h"
 #include <zlib.h>
@@ -58,10 +60,6 @@
 #define QCOW_OFLAG_COMPRESSED (1LL << 62)
 
 #define REFCOUNT_SHIFT 1 /* refcount size is 2 bytes */
-
-#ifndef offsetof
-#define offsetof(type, field) ((size_t) &((type *)0)->field)
-#endif
 
 typedef struct QCowHeader {
     uint32_t magic;

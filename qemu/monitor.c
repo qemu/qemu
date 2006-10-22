@@ -21,16 +21,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
+#include <stddef.h>     /* offsetof */
 #include "vl.h"
 #include "disas.h"
 #include <dirent.h>
 
 //#define DEBUG
 //#define DEBUG_COMPLETION
-
-#ifndef offsetof
-#define offsetof(type, field) ((size_t) &((type *)0)->field)
-#endif
 
 /*
  * Supported types:
