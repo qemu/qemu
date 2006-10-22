@@ -725,6 +725,13 @@ void page_unprotect_range(target_ulong data, target_ulong data_size);
 #define cpu_gen_code cpu_ppc_gen_code
 #define cpu_signal_handler cpu_ppc_signal_handler
 
+#elif defined(TARGET_M68K)
+#define CPUState CPUM68KState
+#define cpu_init cpu_m68k_init
+#define cpu_exec cpu_m68k_exec
+#define cpu_gen_code cpu_m68k_gen_code
+#define cpu_signal_handler cpu_m68k_signal_handler
+
 #elif defined(TARGET_MIPS)
 #define CPUState CPUMIPSState
 #define cpu_init cpu_mips_init

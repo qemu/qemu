@@ -237,6 +237,7 @@ char float32_lt_quiet( float32, float32 STATUS_PARAM );
 char float32_compare( float32, float32 STATUS_PARAM );
 char float32_compare_quiet( float32, float32 STATUS_PARAM );
 char float32_is_signaling_nan( float32 );
+flag float64_is_nan( float64 a );
 
 INLINE float32 float32_abs(float32 a)
 {
@@ -269,6 +270,7 @@ float128 float64_to_float128( float64 STATUS_PARAM );
 | Software IEC/IEEE double-precision operations.
 *----------------------------------------------------------------------------*/
 float64 float64_round_to_int( float64 STATUS_PARAM );
+float64 float64_trunc_to_int( float64 STATUS_PARAM );
 float64 float64_add( float64, float64 STATUS_PARAM );
 float64 float64_sub( float64, float64 STATUS_PARAM );
 float64 float64_mul( float64, float64 STATUS_PARAM );

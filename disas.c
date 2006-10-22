@@ -186,6 +186,8 @@ void target_disas(FILE *out, target_ulong code, target_ulong size, int flags)
     disasm_info.mach = bfd_mach_ppc;
 #endif
     print_insn = print_insn_ppc;
+#elif defined(TARGET_M68K)
+    print_insn = print_insn_m68k;
 #elif defined(TARGET_MIPS)
 #ifdef TARGET_WORDS_BIGENDIAN
     print_insn = print_insn_big_mips;
@@ -385,6 +387,8 @@ void monitor_disas(CPUState *env,
     disasm_info.mach = bfd_mach_ppc;
 #endif
     print_insn = print_insn_ppc;
+#elif defined(TARGET_M68K)
+    print_insn = print_insn_m68k;
 #elif defined(TARGET_MIPS)
 #ifdef TARGET_WORDS_BIGENDIAN
     print_insn = print_insn_big_mips;

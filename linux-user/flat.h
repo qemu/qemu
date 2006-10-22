@@ -22,25 +22,25 @@
 
 struct flat_hdr {
 	char magic[4];
-	unsigned long rev;          /* version (as above) */
-	unsigned long entry;        /* Offset of first executable instruction
+	target_ulong rev;          /* version (as above) */
+	target_ulong entry;        /* Offset of first executable instruction
 	                               with text segment from beginning of file */
-	unsigned long data_start;   /* Offset of data segment from beginning of
+	target_ulong data_start;   /* Offset of data segment from beginning of
 	                               file */
-	unsigned long data_end;     /* Offset of end of data segment
+	target_ulong data_end;     /* Offset of end of data segment
 	                               from beginning of file */
-	unsigned long bss_end;      /* Offset of end of bss segment from beginning
+	target_ulong bss_end;      /* Offset of end of bss segment from beginning
 	                               of file */
 
 	/* (It is assumed that data_end through bss_end forms the bss segment.) */
 
-	unsigned long stack_size;   /* Size of stack, in bytes */
-	unsigned long reloc_start;  /* Offset of relocation records from
+	target_ulong stack_size;   /* Size of stack, in bytes */
+	target_ulong reloc_start;  /* Offset of relocation records from
 	                               beginning of file */
-	unsigned long reloc_count;  /* Number of relocation records */
-	unsigned long flags;       
-	unsigned long build_date;   /* When the program/library was built */
-	unsigned long filler[5];    /* Reservered, set to zero */
+	target_ulong reloc_count;  /* Number of relocation records */
+	target_ulong flags;       
+	target_ulong build_date;   /* When the program/library was built */
+	target_ulong filler[5];    /* Reservered, set to zero */
 };
 
 #define FLAT_FLAG_RAM    0x0001 /* load program entirely into RAM */

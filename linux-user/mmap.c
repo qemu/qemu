@@ -209,7 +209,7 @@ long target_mmap(target_ulong start, target_ulong len, int prot,
             last_start += HOST_PAGE_ALIGN(len);
         }
 #endif
-        if (qemu_host_page_size != qemu_real_host_page_size) {
+        if (0 && qemu_host_page_size != qemu_real_host_page_size) {
             /* NOTE: this code is only for debugging with '-p' option */
             /* ??? Can also occur when TARGET_PAGE_SIZE > host page size.  */
             /* reserve a memory area */

@@ -1412,6 +1412,98 @@ void cpu_loop (CPUState *env)
 }
 #endif
 
+#ifdef TARGET_M68K
+
+void cpu_loop(CPUM68KState *env)
+{
+    int trapnr;
+    unsigned int n;
+    target_siginfo_t info;
+    TaskState *ts = env->opaque;
+    
+    for(;;) {
+        trapnr = cpu_m68k_exec(env);
+        switch(trapnr) {
+        case EXCP_ILLEGAL:
+            {
+                if (ts->sim_syscalls) {
+                    uint16_t nr;
+                    nr = lduw(env->pc + 2);
+                    env->pc += 4;
+                    do_m68k_simcall(env, nr);
+                } else {
+                    goto do_sigill;
+                }
+            }
+            break;
+        case EXCP_HALTED:
+            /* Semihosing syscall.  */
+            env->pc += 2;
+            do_m68k_semihosting(env, env->dregs[0]);
+            break;
+        case EXCP_LINEA:
+        case EXCP_LINEF:
+        case EXCP_UNSUPPORTED:
+        do_sigill:
+            info.si_signo = SIGILL;
+            info.si_errno = 0;
+            info.si_code = TARGET_ILL_ILLOPN;
+            info._sifields._sigfault._addr = env->pc;
+            queue_signal(info.si_signo, &info);
+            break;
+        case EXCP_TRAP0:
+            {
+                ts->sim_syscalls = 0;
+                n = env->dregs[0];
+                env->pc += 2;
+                env->dregs[0] = do_syscall(env, 
+                                          n, 
+                                          env->dregs[1],
+                                          env->dregs[2],
+                                          env->dregs[3],
+                                          env->dregs[4],
+                                          env->dregs[5],
+                                          env->dregs[6]);
+            }
+            break;
+        case EXCP_INTERRUPT:
+            /* just indicate that signals should be handled asap */
+            break;
+        case EXCP_ACCESS:
+            {
+                info.si_signo = SIGSEGV;
+                info.si_errno = 0;
+                /* XXX: check env->error_code */
+                info.si_code = TARGET_SEGV_MAPERR;
+                info._sifields._sigfault._addr = env->mmu.ar;
+                queue_signal(info.si_signo, &info);
+            }
+            break;
+        case EXCP_DEBUG:
+            {
+                int sig;
+
+                sig = gdb_handlesig (env, TARGET_SIGTRAP);
+                if (sig)
+                  {
+                    info.si_signo = sig;
+                    info.si_errno = 0;
+                    info.si_code = TARGET_TRAP_BRKPT;
+                    queue_signal(info.si_signo, &info);
+                  }
+            }
+            break;
+        default:
+            fprintf(stderr, "qemu: unhandled CPU exception 0x%x - aborting\n", 
+                    trapnr);
+            cpu_dump_state(env, stderr, fprintf, 0);
+            abort();
+        }
+        process_pending_signals(env);
+    }
+}
+#endif /* TARGET_M68K */
+
 void usage(void)
 {
     printf("qemu-" TARGET_ARCH " version " QEMU_VERSION ", Copyright (c) 2003-2005 Fabrice Bellard\n"
@@ -1684,6 +1776,35 @@ int main(int argc, char **argv)
         for(i = 0; i < 32; i++) {
             env->gpr[i] = regs->gpr[i];
         }
+    }
+#elif defined(TARGET_M68K)
+    {
+        m68k_def_t *def;
+        def = m68k_find_by_name("cfv4e");
+        if (def == NULL) {
+            cpu_abort(cpu_single_env,
+                      "Unable to find m68k CPU definition\n");
+        }
+        cpu_m68k_register(cpu_single_env, def);
+        env->pc = regs->pc;
+        env->dregs[0] = regs->d0;
+        env->dregs[1] = regs->d1;
+        env->dregs[2] = regs->d2;
+        env->dregs[3] = regs->d3;
+        env->dregs[4] = regs->d4;
+        env->dregs[5] = regs->d5;
+        env->dregs[6] = regs->d6;
+        env->dregs[7] = regs->d7;
+        env->aregs[0] = regs->a0;
+        env->aregs[1] = regs->a1;
+        env->aregs[2] = regs->a2;
+        env->aregs[3] = regs->a3;
+        env->aregs[4] = regs->a4;
+        env->aregs[5] = regs->a5;
+        env->aregs[6] = regs->a6;
+        env->aregs[7] = regs->usp;
+        env->sr = regs->sr;
+        ts->sim_syscalls = 1;
     }
 #elif defined(TARGET_MIPS)
     {

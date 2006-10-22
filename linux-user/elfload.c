@@ -288,6 +288,31 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 
 #endif
 
+#ifdef TARGET_M68K
+
+#define ELF_START_MMAP 0x80000000
+
+#define elf_check_arch(x) ( (x) == EM_68K )
+
+#define ELF_CLASS	ELFCLASS32
+#define ELF_DATA	ELFDATA2MSB
+#define ELF_ARCH	EM_68K
+
+/* ??? Does this need to do anything?
+#define ELF_PLAT_INIT(_r) */
+
+static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
+{
+    regs->usp = infop->start_stack;
+    regs->sr = 0;
+    regs->pc = infop->entry;
+}
+
+#define USE_ELF_CORE_DUMP
+#define ELF_EXEC_PAGESIZE	8192
+
+#endif
+
 #ifndef ELF_PLATFORM
 #define ELF_PLATFORM (NULL)
 #endif

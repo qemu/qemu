@@ -200,6 +200,9 @@ OBJS+=nwfpe/fpa11.o nwfpe/fpa11_cpdo.o \
 nwfpe/fpa11_cpdt.o nwfpe/fpa11_cprt.o nwfpe/fpopcode.o nwfpe/single_cpdo.o \
  nwfpe/double_cpdo.o nwfpe/extended_cpdo.o arm-semi.o
 endif
+ifeq ($(TARGET_ARCH), m68k)
+OBJS+= m68k-sim.o m68k-semi.o
+endif
 SRCS:= $(OBJS:.o=.c)
 OBJS+= libqemu.a
 
@@ -218,6 +221,7 @@ LIBOBJS+=helper.o helper2.o
 ifeq ($(ARCH), i386)
 LIBOBJS+=translate-copy.o
 endif
+LIBOBJS+=scu2.o
 endif
 
 ifeq ($(TARGET_ARCH), x86_64)
@@ -242,6 +246,10 @@ endif
 
 ifeq ($(TARGET_BASE_ARCH), sh4)
 LIBOBJS+= op_helper.o helper.o
+endif
+
+ifeq ($(TARGET_BASE_ARCH), m68k)
+LIBOBJS+= helper.o
 endif
 
 # NOTE: the disassembler code is only needed for debugging
