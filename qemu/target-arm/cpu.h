@@ -48,7 +48,7 @@ typedef struct CPUARMState {
     /* Regs for current mode.  */
     uint32_t regs[16];
     /* Frequently accessed CPSR bits are stored separately for efficiently.
-       This contains all the other bits.  Use cpsr_{read,write} to accless
+       This contains all the other bits.  Use cpsr_{read,write} to access
        the whole CPSR.  */
     uint32_t uncached_cpsr;
     uint32_t spsr;

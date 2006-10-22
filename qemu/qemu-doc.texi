@@ -81,7 +81,7 @@ For system emulation, the following hardware targets are supported:
 @item ARM Versatile baseboard (ARM926E)
 @end itemize
 
-For user emulation, x86, PowerPC, ARM, MIPS, and Sparc32/64 CPUs are supported.
+For user emulation, x86, PowerPC, ARM, MIPS, Sparc32/64 and ColdFire(m68k) CPUs are supported.
 
 @node Installation
 @chapter Installation
@@ -1767,6 +1767,10 @@ Act as if the host page size was 'pagesize' bytes
 @command{qemu-arm} is also capable of running ARM "Angel" semihosted ELF
 binaries (as implemented by the arm-elf and arm-eabi Newlib/GDB
 configurations), and arm-uclinux bFLT format binaries.
+
+@command{qemu-m68k} is capable of running semihosted binaries using the BDM
+(m5xxx-ram-hosted.ld) or m68k-sim (sim.ld) syscall interfaces, and
+coldfire uClinux bFLT format binaries.
 
 The binary format is detected automatically.
 

@@ -434,6 +434,73 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
     ptr += 8 * 12 + 4;
     cpsr_write (env, tswapl(*(uint32_t *)ptr), 0xffffffff);
 }
+#elif defined (TARGET_M68K)
+static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
+{
+    int i;
+    uint8_t *ptr;
+    CPU_DoubleU u;
+
+    ptr = mem_buf;
+    /* D0-D7 */
+    for (i = 0; i < 8; i++) {
+        *(uint32_t *)ptr = tswapl(env->dregs[i]);
+        ptr += 4;
+    }
+    /* A0-A7 */
+    for (i = 0; i < 8; i++) {
+        *(uint32_t *)ptr = tswapl(env->aregs[i]);
+        ptr += 4;
+    }
+    *(uint32_t *)ptr = tswapl(env->sr);
+    ptr += 4;
+    *(uint32_t *)ptr = tswapl(env->pc);
+    ptr += 4;
+    /* F0-F7.  The 68881/68040 have 12-bit extended precision registers.
+       ColdFire has 8-bit double precision registers.  */
+    for (i = 0; i < 8; i++) {
+        u.d = env->fregs[i];
+        *(uint32_t *)ptr = tswap32(u.l.upper);
+        *(uint32_t *)ptr = tswap32(u.l.lower);
+    }
+    /* FP control regs (not implemented).  */
+    memset (ptr, 0, 3 * 4);
+    ptr += 3 * 4;
+
+    return ptr - mem_buf;
+}
+
+static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
+{
+    int i;
+    uint8_t *ptr;
+    CPU_DoubleU u;
+
+    ptr = mem_buf;
+    /* D0-D7 */
+    for (i = 0; i < 8; i++) {
+        env->dregs[i] = tswapl(*(uint32_t *)ptr);
+        ptr += 4;
+    }
+    /* A0-A7 */
+    for (i = 0; i < 8; i++) {
+        env->aregs[i] = tswapl(*(uint32_t *)ptr);
+        ptr += 4;
+    }
+    env->sr = tswapl(*(uint32_t *)ptr);
+    ptr += 4;
+    env->pc = tswapl(*(uint32_t *)ptr);
+    ptr += 4;
+    /* F0-F7.  The 68881/68040 have 12-bit extended precision registers.
+       ColdFire has 8-bit double precision registers.  */
+    for (i = 0; i < 8; i++) {
+        u.l.upper = tswap32(*(uint32_t *)ptr); 
+        u.l.lower = tswap32(*(uint32_t *)ptr);
+        env->fregs[i] = u.d;
+    }
+    /* FP control regs (not implemented).  */
+    ptr += 3 * 4;
+}
 #elif defined (TARGET_MIPS)
 static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
 {

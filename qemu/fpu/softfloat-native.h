@@ -214,6 +214,7 @@ float128 float64_to_float128( float64 STATUS_PARAM );
 | Software IEC/IEEE double-precision operations.
 *----------------------------------------------------------------------------*/
 float64 float64_round_to_int( float64 STATUS_PARAM );
+float64 float64_trunc_to_int( float64 STATUS_PARAM );
 INLINE float64 float64_add( float64 a, float64 b STATUS_PARAM)
 {
     return a + b;
@@ -265,6 +266,7 @@ INLINE char float64_unordered( float64 a, float64 b STATUS_PARAM)
 char float64_compare( float64, float64 STATUS_PARAM );
 char float64_compare_quiet( float64, float64 STATUS_PARAM );
 char float64_is_signaling_nan( float64 );
+flag float64_is_nan( float64 );
 
 INLINE float64 float64_abs(float64 a)
 {

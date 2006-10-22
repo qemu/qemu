@@ -221,6 +221,11 @@ float128 float64_to_float128( float64 a STATUS_PARAM)
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE double-precision operations.
 *----------------------------------------------------------------------------*/
+float64 float64_trunc_to_int( float64 a STATUS_PARAM )
+{
+    return trunc(a);
+}
+
 float64 float64_round_to_int( float64 a STATUS_PARAM )
 {
 #if defined(__arm__)
@@ -286,6 +291,17 @@ char float64_is_signaling_nan( float64 a1)
     return
            ( ( ( a>>51 ) & 0xFFF ) == 0xFFE )
         && ( a & LIT64( 0x0007FFFFFFFFFFFF ) );
+
+}
+
+char float64_is_nan( float64 a1 )
+{
+    float64u u;
+    uint64_t a;
+    u.f = a1;
+    a = u.i;
+
+    return ( LIT64( 0xFFE0000000000000 ) < (bits64) ( a<<1 ) );
 
 }
 

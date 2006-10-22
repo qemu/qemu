@@ -40,14 +40,14 @@ int tb_invalidated_flag;
 //#define DEBUG_EXEC
 //#define DEBUG_SIGNAL
 
-#if defined(TARGET_ARM) || defined(TARGET_SPARC)
+#if defined(TARGET_ARM) || defined(TARGET_SPARC) || defined(TARGET_M68K)
 /* XXX: unify with i386 target */
 void cpu_loop_exit(void)
 {
     longjmp(env->jmp_env, 1);
 }
 #endif
-#if !(defined(TARGET_SPARC) || defined(TARGET_SH4))
+#if !(defined(TARGET_SPARC) || defined(TARGET_SH4) || defined(TARGET_M68K))
 #define reg_T2
 #endif
 
@@ -194,6 +194,10 @@ static inline TranslationBlock *tb_find_fast(void)
     flags = env->hflags & (MIPS_HFLAG_TMASK | MIPS_HFLAG_BMASK);
     cs_base = 0;
     pc = env->PC;
+#elif defined(TARGET_M68K)
+    flags = env->fpcr & M68K_FPCR_PREC;
+    cs_base = 0;
+    pc = env->pc;
 #elif defined(TARGET_SH4)
     flags = env->sr & (SR_MD | SR_RB);
     cs_base = 0;         /* XXXXX */
@@ -370,6 +374,10 @@ int cpu_exec(CPUState *env1)
     saved_regwptr = REGWPTR;
 #endif
 #elif defined(TARGET_PPC)
+#elif defined(TARGET_M68K)
+    env->cc_op = CC_OP_FLAGS;
+    env->cc_dest = env->sr & 0xf;
+    env->cc_x = (env->sr >> 4) & 1;
 #elif defined(TARGET_MIPS)
 #elif defined(TARGET_SH4)
     /* XXXXX */
@@ -632,6 +640,12 @@ int cpu_exec(CPUState *env1)
                     cpu_dump_state(env, logfile, fprintf, 0);
 #elif defined(TARGET_PPC)
                     cpu_dump_state(env, logfile, fprintf, 0);
+#elif defined(TARGET_M68K)
+                    cpu_m68k_flush_flags(env, env->cc_op);
+                    env->cc_op = CC_OP_FLAGS;
+                    env->sr = (env->sr & 0xffe0)
+                              | env->cc_dest | (env->cc_x << 4);
+                    cpu_dump_state(env, logfile, fprintf, 0);
 #elif defined(TARGET_MIPS)
                     cpu_dump_state(env, logfile, fprintf, 0);
 #elif defined(TARGET_SH4)
@@ -846,6 +860,11 @@ int cpu_exec(CPUState *env1)
     REGWPTR = saved_regwptr;
 #endif
 #elif defined(TARGET_PPC)
+#elif defined(TARGET_M68K)
+    cpu_m68k_flush_flags(env, env->cc_op);
+    env->cc_op = CC_OP_FLAGS;
+    env->sr = (env->sr & 0xffe0)
+              | env->cc_dest | (env->cc_x << 4);
 #elif defined(TARGET_MIPS)
 #elif defined(TARGET_SH4)
     /* XXXXX */
@@ -1099,6 +1118,45 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
         /* activate soft MMU for this block */
         cpu_resume_from_signal(env, puc);
     }
+    /* never comes here */
+    return 1;
+}
+
+#elif defined(TARGET_M68K)
+static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
+                                    int is_write, sigset_t *old_set,
+                                    void *puc)
+{
+    TranslationBlock *tb;
+    int ret;
+
+    if (cpu_single_env)
+        env = cpu_single_env; /* XXX: find a correct solution for multithread */
+#if defined(DEBUG_SIGNAL)
+    printf("qemu: SIGSEGV pc=0x%08lx address=%08lx w=%d oldset=0x%08lx\n", 
+           pc, address, is_write, *(unsigned long *)old_set);
+#endif
+    /* XXX: locking issue */
+    if (is_write && page_unprotect(address, pc, puc)) {
+        return 1;
+    }
+    /* see if it is an MMU fault */
+    ret = cpu_m68k_handle_mmu_fault(env, address, is_write, 1, 0);
+    if (ret < 0)
+        return 0; /* not an MMU fault */
+    if (ret == 0)
+        return 1; /* the MMU fault was handled without causing real CPU fault */
+    /* now we have a real cpu fault */
+    tb = tb_find_pc(pc);
+    if (tb) {
+        /* the PC is inside the translated code. It means that we have
+           a virtual CPU fault */
+        cpu_restore_state(tb, env, pc, puc);
+    }
+    /* we restore the process signal mask as the sigreturn should
+       do it (XXX: use sigsetjmp) */
+    sigprocmask(SIG_SETMASK, old_set, NULL);
+    cpu_loop_exit();
     /* never comes here */
     return 1;
 }

@@ -1,3 +1,30 @@
+2006-10-22 13:54  pbrook
+
+	* target-arm/cpu.h: Fix comment typo.
+
+2006-10-22 02:18  pbrook
+
+	* Makefile.target, configure, cpu-all.h, cpu-exec.c, disas.c,
+	  gdbstub.c, qemu-doc.texi, translate-all.c,
+	  fpu/softfloat-native.c, fpu/softfloat-native.h, fpu/softfloat.c,
+	  fpu/softfloat.h, hw/pl110.c, linux-user/elfload.c,
+	  linux-user/m68k-semi.c, linux-user/m68k-sim.c, linux-user/main.c,
+	  linux-user/mmap.c, linux-user/qemu.h, linux-user/syscall.c,
+	  linux-user/syscall_defs.h, linux-user/m68k/syscall.h,
+	  linux-user/m68k/syscall_nr.h, linux-user/m68k/termbits.h,
+	  target-m68k/cpu.h, target-m68k/exec.h, target-m68k/helper.c,
+	  target-m68k/m68k-qreg.h, target-m68k/op-hacks.h,
+	  target-m68k/op.c, target-m68k/qregs.def, target-m68k/translate.c:
+	  ColdFire target.
+
+2006-10-22 01:43  pbrook
+
+	* linux-user/flat.h: bFLT 64-bit host fix.
+
+2006-10-18 23:16  pbrook
+
+	* hw/pl110_template.h: Fix typo in pixel conversion templates.
+
 2006-10-08 20:20  bellard
 
 	* hw/apic.c: APIC init fix + APIC get_irq fix (Juergen Keil)
