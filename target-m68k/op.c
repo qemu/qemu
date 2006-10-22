@@ -19,12 +19,9 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <stddef.h>     /* offsetof */
 #include "exec.h"
 #include "m68k-qreg.h"
-
-#ifndef offsetof
-#define offsetof(type, field) ((size_t) &((type *)0)->field)
-#endif
 
 static long qreg_offsets[] = {
 #define DEFO32(name, offset) offsetof(CPUState, offset),

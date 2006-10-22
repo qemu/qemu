@@ -17,6 +17,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
+#include <stddef.h>     /* offsetof */
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -467,10 +468,6 @@ int do_sigaction(int sig, const struct target_sigaction *act,
     }
     return 0;
 }
-
-#ifndef offsetof
-#define offsetof(type, field) ((size_t) &((type *)0)->field)
-#endif
 
 static inline int copy_siginfo_to_user(target_siginfo_t *tinfo, 
                                        const target_siginfo_t *info)
