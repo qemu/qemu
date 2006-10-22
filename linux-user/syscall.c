@@ -69,7 +69,8 @@
 
 //#define DEBUG
 
-#if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SPARC)
+#if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SPARC) \
+    || defined(TARGET_M68K)
 /* 16 bit uid wrappers emulation */
 #define USE_UID16
 #endif
@@ -1645,6 +1646,12 @@ int do_fork(CPUState *env, unsigned int flags, unsigned long newsp)
         new_env->regwptr[0] = 0;
 	/* XXXXX */
         printf ("HELPME: %s:%d\n", __FILE__, __LINE__);
+#elif defined(TARGET_M68K)
+        if (!newsp)
+            newsp = env->aregs[7];
+        new_env->aregs[7] = newsp;
+        new_env->dregs[0] = 0;
+        /* ??? is this sufficient?  */
 #elif defined(TARGET_MIPS)
         printf ("HELPME: %s:%d\n", __FILE__, __LINE__);
 #elif defined(TARGET_PPC)
@@ -2604,7 +2611,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
     case TARGET_NR_readdir:
         goto unimplemented;
     case TARGET_NR_mmap:
-#if defined(TARGET_I386) || defined(TARGET_ARM)
+#if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_M68K)
         {
             target_ulong *v;
             target_ulong v1, v2, v3, v4, v5, v6;

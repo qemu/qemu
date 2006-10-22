@@ -74,6 +74,9 @@ typedef struct TaskState {
     uint32_t v86flags;
     uint32_t v86mask;
 #endif
+#ifdef TARGET_M68K
+    int sim_syscalls;
+#endif
     int used; /* non zero if used */
     struct image_info *info;
     uint8_t stack[0];

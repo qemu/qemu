@@ -2483,6 +2483,17 @@ float64 float64_round_to_int( float64 a STATUS_PARAM )
 
 }
 
+float64 float64_trunc_to_int( float64 a STATUS_PARAM)
+{
+    int oldmode;
+    float64 res;
+    oldmode = STATUS(float_rounding_mode);
+    STATUS(float_rounding_mode) = float_round_to_zero;
+    res = float64_round_to_int(a STATUS_VAR);
+    STATUS(float_rounding_mode) = oldmode;
+    return res;
+}
+
 /*----------------------------------------------------------------------------
 | Returns the result of adding the absolute values of the double-precision
 | floating-point values `a' and `b'.  If `zSign' is 1, the sum is negated

@@ -302,6 +302,8 @@ int cpu_restore_state(TranslationBlock *tb,
         }
         env->access_type = type;
     }
+#elif defined(TARGET_M68K)
+    env->pc = gen_opc_pc[j];
 #elif defined(TARGET_MIPS)
     env->PC = gen_opc_pc[j];
     env->hflags &= ~MIPS_HFLAG_BMASK;

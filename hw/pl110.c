@@ -185,10 +185,11 @@ static void pl110_update_display(void *opaque)
     addr = base;
 
     dirty = cpu_physical_memory_get_dirty(addr, VGA_DIRTY_FLAG);
+    new_dirty = dirty;
     for (i = 0; i < s->rows; i++) {
-        new_dirty = 0;
-        if ((addr & TARGET_PAGE_MASK) + src_width >= TARGET_PAGE_SIZE) {
+        if ((addr & ~TARGET_PAGE_MASK) + src_width >= TARGET_PAGE_SIZE) {
             uint32_t tmp;
+            new_dirty = 0;
             for (tmp = 0; tmp < src_width; tmp += TARGET_PAGE_SIZE) {
                 new_dirty |= cpu_physical_memory_get_dirty(addr + tmp,
                                                            VGA_DIRTY_FLAG);
