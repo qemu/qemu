@@ -2005,7 +2005,7 @@ static void disas_sparc_insn(DisasContext * dc)
 				goto illegal_insn;
 			    }
 #else
-			    gen_op_movl_env_T0(offsetof(CPUSPARCState, wim));
+			    gen_op_wrwim();
 #endif
                         }
                         break;

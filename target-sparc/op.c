@@ -844,6 +844,15 @@ void OPPROTO op_wrpsr(void)
     FORCE_RET();
 }
 
+void OPPROTO op_wrwim(void)
+{
+#if NWINDOWS == 32
+    env->wim = T0;
+#else
+    env->wim = T0 & ((1 << NWINDOWS) - 1);
+#endif
+}
+
 void OPPROTO op_rett(void)
 {
     helper_rett();
