@@ -559,10 +559,18 @@ void cpu_loop (CPUSPARCState *env)
                               env->regwptr[2], env->regwptr[3], 
                               env->regwptr[4], env->regwptr[5]);
             if ((unsigned int)ret >= (unsigned int)(-515)) {
+#ifdef TARGET_SPARC64
+                env->xcc |= PSR_CARRY;
+#else
                 env->psr |= PSR_CARRY;
+#endif
                 ret = -ret;
             } else {
+#ifdef TARGET_SPARC64
+                env->xcc &= ~PSR_CARRY;
+#else
                 env->psr &= ~PSR_CARRY;
+#endif
             }
             env->regwptr[0] = ret;
             /* next instruction */
