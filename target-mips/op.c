@@ -785,9 +785,21 @@ void op_mtc1 (void)
 
 #define FLOAT_OP(name, p) void OPPROTO op_float_##name##_##p(void)
 
+FLOAT_OP(cvtd, s)
+{
+    FDT2 = float32_to_float64(WT0, &env->fp_status);
+    DEBUG_FPU_STATE();
+    RETURN();
+}
 FLOAT_OP(cvtd, w)
 {
     FDT2 = int32_to_float64(WT0, &env->fp_status);
+    DEBUG_FPU_STATE();
+    RETURN();
+}
+FLOAT_OP(cvts, d)
+{
+    FST2 = float64_to_float32(WT0, &env->fp_status);
     DEBUG_FPU_STATE();
     RETURN();
 }

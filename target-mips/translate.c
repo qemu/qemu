@@ -1675,6 +1675,13 @@ static void gen_farith (DisasContext *ctx, int fmt, int ft, int fs, int fd, int 
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "ceil.w.d";
         break;
+    case FOP(33, 16): /* cvt.d.s */
+        CHECK_FR(ctx, fs | fd);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        gen_op_float_cvtd_s();
+        GEN_STORE_FTN_FREG(fd, DT2);
+        opn = "cvt.d.s";
+        break;
     case FOP(33, 20): /* cvt.d.w */
         CHECK_FR(ctx, fs | fd);
         GEN_LOAD_FREG_FTN(WT0, fs);
@@ -1781,6 +1788,13 @@ static void gen_farith (DisasContext *ctx, int fmt, int ft, int fs, int fd, int 
         gen_op_float_truncw_s();
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "trunc.w.s";
+        break;
+    case FOP(32, 17): /* cvt.s.d */
+        CHECK_FR(ctx, fs | fd);
+        GEN_LOAD_FREG_FTN(WT0, fs);
+        gen_op_float_cvts_d();
+        GEN_STORE_FTN_FREG(fd, WT2);
+        opn = "cvt.s.d";
         break;
     case FOP(32, 20): /* cvt.s.w */
         CHECK_FR(ctx, fs | fd);
