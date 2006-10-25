@@ -2542,6 +2542,12 @@ void cpu_dump_state(CPUState *env, FILE *f,
         float s;
     } s0, s1;
     CPU_DoubleU d;
+    /* ??? This assumes float64 and double have the same layout.
+       Oh well, it's only debug dumps.  */
+    union {
+        float64 f64;
+        double d;
+    } d0;
     uint32_t psr;
 
     for(i=0;i<16;i++) {
@@ -2565,11 +2571,12 @@ void cpu_dump_state(CPUState *env, FILE *f,
         d.d = env->vfp.regs[i];
         s0.i = d.l.lower;
         s1.i = d.l.upper;
-        cpu_fprintf(f, "s%02d=%08x(%8f) s%02d=%08x(%8f) d%02d=%08x%08x(%8f)\n",
+        d0.f64 = d.d;
+        cpu_fprintf(f, "s%02d=%08x(%8g) s%02d=%08x(%8g) d%02d=%08x%08x(%8g)\n",
                     i * 2, (int)s0.i, s0.s,
-                    i * 2 + 1, (int)s0.i, s0.s,
+                    i * 2 + 1, (int)s1.i, s1.s,
                     i, (int)(uint32_t)d.l.upper, (int)(uint32_t)d.l.lower,
-                    d.d);
+                    d0.d);
     }
     cpu_fprintf(f, "FPSCR: %08x\n", (int)env->vfp.xregs[ARM_VFP_FPSCR]);
 }
