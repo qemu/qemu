@@ -1,3 +1,20 @@
+2006-10-25 19:43  pbrook
+
+	* target-arm/translate.c: Fix ARM VFP debugging dumps.
+
+2006-10-23 23:37  bellard
+
+	* target-sparc/: op.c, translate.c: wrwim insn fix (Paul Robinson)
+
+2006-10-23 23:31  bellard
+
+	* linux-user/main.c: sparc64 syscall fix (Blue Swirl)
+
+2006-10-23 23:25  bellard
+
+	* target-mips/: op.c, translate.c: add support for cvt.s.d and
+	  cvt.d.s (Aurelien Jarno)
+
 2006-10-22 13:54  pbrook
 
 	* target-arm/cpu.h: Fix comment typo.
