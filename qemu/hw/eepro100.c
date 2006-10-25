@@ -219,6 +219,9 @@ typedef struct {
     uint16_t status;
 #endif
 
+    /* Configuration bytes. */
+    uint8_t configuration[22];
+
     /* Data in mem is always in the byte order of the controller (le). */
     uint8_t mem[PCI_MEM_SIZE];
 } EEPRO100State;
@@ -482,6 +485,7 @@ static int first;
     nic_selective_reset(s);
 }
 
+#if defined(DEBUG_EEPRO100)
 static const char *reg[PCI_IO_SIZE / 4] = {
   "Command/Status",
   "General Pointer",
@@ -508,6 +512,7 @@ static char *regname(uint32_t addr)
   }
   return buf;
 }
+#endif /* DEBUG_EEPRO100 */
 
 #if 0
 static uint16_t eepro100_read_status(EEPRO100State *s)
@@ -632,16 +637,18 @@ static void eepro100_cu_command(EEPRO100State *s, uint8_t val)
                     break;
                 case CmdIASetup:
                     cpu_physical_memory_read(s->cu_base + s->cu_offset + 8, &s->macaddr[0], 6);
+                    logout("macaddr: %s\n", nic_dump(&s->macaddr[0], 6));
                     /* Write new status (success). */
                     stw_phys(s->cu_base + s->cu_offset, status | 0xc000);
                     break;
                 case CmdConfigure:
-                    //~ missing("configure");
+                    memcpy(&s->configuration[0], &tx.tx_desc_addr, sizeof(s->configuration));
+                    logout("configuration: %s\n", nic_dump(&s->configuration[0], 16));
                     /* Write new status (success). */
                     stw_phys(s->cu_base + s->cu_offset, status | 0xc000);
                     break;
                 case CmdMulticastList:
-                    //~ missing("configure");
+                    //~ missing("multicast list");
                     break;
                 case CmdTx:
                     assert(!bit_nc);
@@ -829,6 +836,7 @@ static void eepro100_write_pointer(EEPRO100State *s, uint32_t val)
  *
  ****************************************************************************/
 
+#if defined(DEBUG_EEPRO100)
 static const char *mdi_op_name[] = {
     "opcode 0",
     "write",
@@ -845,6 +853,7 @@ static const char *mdi_reg_name[] = {
     "Auto-Negotiation Link Partner Ability",
     "Auto-Negotiation Expansion"
 };
+#endif /* DEBUG_EEPRO100 */
 
 static uint32_t eepro100_read_mdi(EEPRO100State *s)
 {
@@ -1339,6 +1348,7 @@ static int nic_can_receive(void *opaque)
 
 #define MIN_BUF_SIZE 60
 
+#if defined(DEBUG_EEPRO100)
 static const char *nic_dump(const uint8_t *buf, unsigned size)
 {
     static char dump[3 * 16 + 1];
@@ -1349,22 +1359,42 @@ static const char *nic_dump(const uint8_t *buf, unsigned size)
     }
     return dump;
 }
+#endif /* DEBUG_EEPRO100 */
 
 static void nic_receive(void *opaque, const uint8_t *buf, int size)
 {
+    /* TODO:
+     * - Magic packets should set bit 30 in power management driver register.
+     * - Interesting packets should set bit 29 in power management driver register.
+     */
     EEPRO100State *s = opaque;
     static const uint8_t broadcast_macaddr[6] =
         { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
-    if (size < 64 && 0 /* !!! && short frames are discarded */) {
-         /* Short frame is discarded */
-        logout("%p received short frame len=%d\n", s, size);
-        s->statistics.rx_short_frame_errors++;
+    /* TODO: check multiple IA bit. */
+    assert(!(s->configuration[20] & (1 << 6)));
+
+    if (s->configuration[8] & 0x80) {
+        /* CSMA is disabled. */
+        logout("%p received while CSMA is disabled\n", s);
         return;
-    } else if (0) { // !!!
+    } else if (size < 64 && (s->configuration[7] & 1)) {
+        /* Short frame and configuration byte 7/0 (discard short receive) set:
+         * Short frame is discarded */
+        logout("%p received short frame (%d byte)\n", s, size);
+        s->statistics.rx_short_frame_errors++;
+        //~ return;
+    } else if ((size > MAX_ETH_FRAME_SIZE + 4) && !(s->configuration[18] & 8)) {
+        /* Long frame and configuration byte 18/3 (long receive ok) not set:
+         * Long frames are discarded. */
+        logout("%p received long frame (%d byte), ignored\n", s, size);
+        return;
+    } else if (s->configuration[15] & 1) {
         /* Promiscuous: receive all. */
-    } else if (memcmp(buf, s->macaddr, 6) != 0) { // !!!
+        logout("%p received frame in promiscuous mode, len=%d\n", s, size);
+    } else if (memcmp(buf, s->macaddr, 6) == 0) { // !!!
         /* Frame matches individual address. */
+        /* TODO: check configuration byte 15/4 (ignore U/L). */
         logout("%p received frame for me, len=%d\n", s, size);
     } else if (memcmp(buf, broadcast_macaddr, 6) == 0) {
         /* Broadcast frame. */
@@ -1372,19 +1402,22 @@ static void nic_receive(void *opaque, const uint8_t *buf, int size)
     } else if (buf[0] & 0x01) { // !!!
         /* Multicast frame. */
         logout("%p received multicast, len=%d\n", s, size);
+        /* TODO: check multicast all bit. */
+        assert(!(s->configuration[21] & (1 << 3)));
         int mcast_idx = compute_mcast_idx(buf);
         if (!(s->mult[mcast_idx >> 3] & (1 << (mcast_idx & 7)))) {
             return;
         }
     } else {
         logout("%p received frame, ignored, len=%d,%s\n", s, size, nic_dump(buf, size));
-        //~ return;
+        return;
     }
 
     if (get_ru_state(s) != ru_ready) {
         /* No ressources available. */
         logout("no ressources, state=%u\n", get_ru_state(s));
         s->statistics.rx_resource_errors++;
+        //~ assert(!"no ressources");
         return;
     }
 
@@ -1400,57 +1433,27 @@ static void nic_receive(void *opaque, const uint8_t *buf, int size)
     if (size < 64) {
         rfd_status |= 0x0080;
     }
+    logout("command 0x%04x, link 0x%08x, addr 0x%08x, size %u\n", rfd_command, rx.link, rx.rx_buf_addr, rfd_size);
     stw_phys(s->ru_base + s->ru_offset + offsetof(eepro100_rx_t, status), rfd_status);
     stw_phys(s->ru_base + s->ru_offset + offsetof(eepro100_rx_t, count), size);
     /* Early receive interrupt not supported. */
     //~ eepro100_er_interrupt(s);
+    /* Receive CRC Transfer not supported. */
+    assert(!(s->configuration[18] & 4));
+    /* TODO: check stripping enable bit. */
+    //~ assert(!(s->configuration[17] & 1));
     cpu_physical_memory_write(s->ru_base + s->ru_offset + offsetof(eepro100_rx_t, packet), buf, size);
     s->statistics.rx_good_frames++;
     eepro100_fr_interrupt(s);
     s->ru_offset = le32_to_cpu(rx.link);
     if (rfd_command & 0x8000) {
-        /* EL bit is set. */
+        /* EL bit is set, so this was the last frame. */
+        assert(0);
     }
     if (rfd_command & 0x4000) {
         /* S bit is set. */
         set_ru_state(s, ru_suspended);
     }
-
-#if 0
-    index = s->curpag << 8;
-    /* 4 bytes for header */
-    total_len = size + 4;
-    /* address for next packet (4 bytes for CRC) */
-    next = index + ((total_len + 4 + 255) & ~0xff);
-    if (next >= s->stop)
-        next -= (s->stop - s->start);
-    /* prepare packet header */
-    p = s->mem + index;
-    //~ s->rsr = ENRSR_RXOK; /* receive status */
-    /* XXX: check this */
-    //~ if (buf[0] & 0x01)
-        //~ s->rsr |= ENRSR_PHY;
-    p[0] = s->rsr;
-    p[1] = next >> 8;
-    p[2] = total_len;
-    p[3] = total_len >> 8;
-    index += 4;
-
-    /* write packet data */
-    while (size > 0) {
-        avail = s->stop - index;
-        len = size;
-        if (len > avail)
-            len = avail;
-        memcpy(s->mem + index, buf, len);
-        buf += len;
-        index += len;
-        if (index == s->stop)
-            index = s->start;
-        size -= len;
-    }
-    s->curpag = next >> 8;
-#endif
 }
 
 static int nic_load(QEMUFile* f,void* opaque,int version_id)
@@ -1560,6 +1563,7 @@ static void nic_init(PCIBus *bus, NICInfo *nd,
                            PCI_ADDRESS_SPACE_MEM, pci_mmio_map);
 
     memcpy(s->macaddr, nd->macaddr, 6);
+    logout("macaddr: %s\n", nic_dump(&s->macaddr[0], 6));
     assert(s->region[1] == 0);
 
     nic_reset(s);
