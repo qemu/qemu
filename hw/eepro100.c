@@ -61,7 +61,7 @@
 #define KiB 1024
 
 /* debug EEPRO100 card */
-//~ #define DEBUG_EEPRO100
+#define DEBUG_EEPRO100
 
 #ifdef DEBUG_EEPRO100
 #define logout(fmt, args...) fprintf(stderr, "EE100\t%-24s" fmt, __func__, ##args)
@@ -335,30 +335,6 @@ static const char *nic_dump(const uint8_t *buf, unsigned size)
     return dump;
 }
 #endif /* DEBUG_EEPRO100 */
-
-#if 0
-static int eepro100_buffer_full(EEPRO100State *s)
-{
-    int is_full = 1;
-    if (s->ru_offset != 0) {
-        eepro100_rx_t rx;
-        cpu_physical_memory_read(s->ru_base + s->ru_offset, (uint8_t *)&rx, sizeof(rx)); // !!! optimize
-        is_full = (rx.status != 0);
-    }
-    return is_full;
-    //~ int avail, index, boundary;
-
-    //~ index = s->curpag << 8;
-    //~ boundary = s->boundary << 8;
-    //~ if (index <= boundary)
-        //~ avail = boundary - index;
-    //~ else
-        //~ avail = (s->stop - s->start) - (index - boundary);
-    //~ if (avail < (MAX_ETH_FRAME_SIZE + 4))
-        //~ return 1;
-    //~ return 0;
-}
-#endif
 
 enum scb_stat_ack {
 	stat_ack_not_ours    = 0x00,
@@ -718,28 +694,6 @@ static void eepro100_cu_command(EEPRO100State *s, uint8_t val)
                     //~ missing("multicast list");
                     break;
                 case CmdTx:
-	//~ /* interrupt every 16 packets regardless of delay */
-	//~ if((nic->cbs_avail & ~15) == nic->cbs_avail)
-		//~ cb->command |= cpu_to_le16(cb_i);
-	//~ cb->u.tcb.tbd_array = cb->dma_addr + offsetof(struct cb, u.tcb.tbd);
-	//~ cb->u.tcb.tcb_byte_count = 0;
-	//~ cb->u.tcb.threshold = nic->tx_threshold;
-	//~ cb->u.tcb.tbd_count = 1;
-	//~ cb->u.tcb.tbd.buf_addr = cpu_to_le32(pci_map_single(nic->pdev,
-		//~ skb->data, skb->len, PCI_DMA_TODEVICE));
-	//~ /* check for mapping failure? */
-	//~ cb->u.tcb.tbd.size = cpu_to_le16(skb->len);
-		//~ struct {
-			//~ u32 tbd_array;
-			//~ u16 tcb_byte_count;
-			//~ u8 threshold;
-			//~ u8 tbd_count;
-			//~ struct {
-				//~ u32 buf_addr;
-				//~ u16 size;
-				//~ u16 eol;
-			//~ } tbd;
-		//~ } tcb;
                     (void)0;
                     uint32_t tbd_array = le32_to_cpu(tx.tx_desc_addr);
                     uint16_t tcb_bytes = le16_to_cpu(tx.tcb_bytes);
@@ -748,7 +702,11 @@ static void eepro100_cu_command(EEPRO100State *s, uint8_t val)
                     assert(!bit_nc);
                     //~ assert(!bit_sf);
                     assert(tcb_bytes <= 2600);
-                    assert((tcb_bytes > 0) || (tbd_array != 0xffffffff));
+                    /* Next assertion fails for scu2. */
+                    //~ assert((tcb_bytes > 0) || (tbd_array != 0xffffffff));
+                    if (!((tcb_bytes > 0) || (tbd_array != 0xffffffff))) {
+                        logout("illegal values of TBD array address and TCB byte count!");
+                    }
                     uint8_t buf[MAX_ETH_FRAME_SIZE + 4];
                     uint16_t size = 0;
                     uint32_t tbd_address = cb_address + 0x10;
@@ -764,11 +722,7 @@ static void eepro100_cu_command(EEPRO100State *s, uint8_t val)
                         size += tx_buffer_size;
                     }
                     if (tbd_array == 0xffffffff) {
-                        /* Simplified mode. */
-                        //~ cpu_physical_memory_read(tx.tx_buf_addr0, &buf[size], tx.tx_buf_size0);
-                        //~ size += tx.tx_buf_size0;
-                        //~ cpu_physical_memory_read(tx.tx_buf_addr1, &buf[size], tx.tx_buf_size1);
-                        //~ size += tx.tx_buf_size1;
+                        /* Simplified mode. Was already handled by code above. */
                     } else {
                         /* Flexible mode. */
                         uint8_t tbd_count = 0;
@@ -960,12 +914,6 @@ static void eepro100_write_eeprom(eeprom_t *eeprom, uint8_t val)
     int eedi = ((val & EEPROM_DI) != 0);
     eeprom9346_write(eeprom, eecs, eesk, eedi);
 }
-
-
-
-
-
-
 
 static void eepro100_write_pointer(EEPRO100State *s, uint32_t val)
 {
