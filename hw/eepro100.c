@@ -61,13 +61,18 @@
 #define KiB 1024
 
 /* debug EEPRO100 card */
-#define DEBUG_EEPRO100
+//~ #define DEBUG_EEPRO100
 
 #ifdef DEBUG_EEPRO100
 #define logout(fmt, args...) fprintf(stderr, "EE100\t%-24s" fmt, __func__, ##args)
 #else
 #define logout(fmt, args...) ((void)0)
 #endif
+
+/* Set flags to 0 to disable debug output. */
+#define MDI     0
+
+#define TRACE(flag, command) ((flag) ? (command) : (void)0)
 
 #define missing(text)       assert(!"feature is missing in this emulation: " text)
 
@@ -129,13 +134,15 @@ typedef struct {
   uint16_t status;
   uint16_t command;
   uint32_t link;          /* void * */
-  uint32_t tx_desc_addr;  /* (almost) Always points to the tx_buf_addr element. */
-  int32_t  count;         /* # of TBD (=2), Tx start thresh., etc. */
-                     /* This constitutes two "TBD" entries: hdr and data */
-  uint32_t tx_buf_addr0;  /* void *, header of frame to be transmitted.  */
-  int32_t  tx_buf_size0;  /* Length of Tx hdr. */
-  uint32_t tx_buf_addr1;  /* void *, data to be transmitted.  */
-  int32_t  tx_buf_size1;  /* Length of Tx data. */
+  uint32_t tx_desc_addr;  /* transmit buffer decsriptor array address. */
+  uint16_t tcb_bytes;     /* transmit command block byte count (in lower 14 bits */
+  uint8_t  tx_threshold;  /* transmit threshold */
+  uint8_t  tbd_count;     /* TBD number */
+                     //~ /* This constitutes two "TBD" entries: hdr and data */
+  //~ uint32_t tx_buf_addr0;  /* void *, header of frame to be transmitted.  */
+  //~ int32_t  tx_buf_size0;  /* Length of Tx hdr. */
+  //~ uint32_t tx_buf_addr1;  /* void *, data to be transmitted.  */
+  //~ int32_t  tx_buf_size1;  /* Length of Tx data. */
 } eepro100_tx_t;
 
 /* Receive frame descriptor. */
@@ -175,6 +182,53 @@ typedef enum {
     ru_no_resources = 2,
     ru_ready = 4
 } ru_state_t;
+
+#if defined(__BIG_ENDIAN_BITFIELD)
+#define X(a,b)	b,a
+#else
+#define X(a,b)	a,b
+#endif
+
+typedef uint8_t u8;
+
+typedef struct {
+/*0*/	u8 X(byte_count:6, pad0:2);
+/*1*/	u8 X(X(rx_fifo_limit:4, tx_fifo_limit:3), pad1:1);
+/*2*/	u8 adaptive_ifs;
+/*3*/	u8 X(X(X(X(mwi_enable:1, type_enable:1), read_align_enable:1),
+	   term_write_cache_line:1), pad3:4);
+/*4*/	u8 X(rx_dma_max_count:7, pad4:1);
+/*5*/	u8 X(tx_dma_max_count:7, dma_max_count_enable:1);
+/*6*/	u8 X(X(X(X(X(X(X(late_scb_update:1, direct_rx_dma:1),
+	   tno_intr:1), cna_intr:1), standard_tcb:1), standard_stat_counter:1),
+	   rx_discard_overruns:1), rx_save_bad_frames:1);
+/*7*/	u8 X(X(X(X(X(rx_discard_short_frames:1, tx_underrun_retry:2),
+	   pad7:2), rx_extended_rfd:1), tx_two_frames_in_fifo:1),
+	   tx_dynamic_tbd:1);
+/*8*/	u8 X(X(mii_mode:1, pad8:6), csma_disabled:1);
+/*9*/	u8 X(X(X(X(X(rx_tcpudp_checksum:1, pad9:3), vlan_arp_tco:1),
+	   link_status_wake:1), arp_wake:1), mcmatch_wake:1);
+/*10*/	u8 X(X(X(pad10:3, no_source_addr_insertion:1), preamble_length:2),
+	   loopback:2);
+/*11*/	u8 X(linear_priority:3, pad11:5);
+/*12*/	u8 X(X(linear_priority_mode:1, pad12:3), ifs:4);
+/*13*/	u8 ip_addr_lo;
+/*14*/	u8 ip_addr_hi;
+/*15*/	u8 X(X(X(X(X(X(X(promiscuous_mode:1, broadcast_disabled:1),
+	   wait_after_win:1), pad15_1:1), ignore_ul_bit:1), crc_16_bit:1),
+	   pad15_2:1), crs_or_cdt:1);
+/*16*/	u8 fc_delay_lo;
+/*17*/	u8 fc_delay_hi;
+/*18*/	u8 X(X(X(X(X(rx_stripping:1, tx_padding:1), rx_crc_transfer:1),
+	   rx_long_ok:1), fc_priority_threshold:3), pad18:1);
+/*19*/	u8 X(X(X(X(X(X(X(addr_wake:1, magic_packet_disable:1),
+	   fc_disable:1), fc_restop:1), fc_restart:1), fc_reject:1),
+	   full_duplex_force:1), full_duplex_pin:1);
+/*20*/	u8 X(X(X(pad20_1:5, fc_priority_location:1), multi_ia:1), pad20_2:1);
+/*21*/	u8 X(X(pad21_1:3, multicast_all:1), pad21_2:4);
+/*22*/	u8 X(X(rx_d102_mode:1, rx_vlan_drop:1), pad22:6);
+	u8 pad_d102[9];
+} configuration_t;
 
 typedef struct {
 #if 1
@@ -268,6 +322,19 @@ static int compute_mcast_idx(const uint8_t *ep)
     }
     return (crc >> 26);
 }
+
+#if defined(DEBUG_EEPRO100)
+static const char *nic_dump(const uint8_t *buf, unsigned size)
+{
+    static char dump[3 * 16 + 1];
+    char *p = &dump[0];
+    if (size > 16) size = 16;
+    while (size-- > 0) {
+        p += sprintf(p, " %02x", *buf++);
+    }
+    return dump;
+}
+#endif /* DEBUG_EEPRO100 */
 
 #if 0
 static int eepro100_buffer_full(EEPRO100State *s)
@@ -601,12 +668,16 @@ static void dump_statistics(EEPRO100State *s)
 static void eepro100_cu_command(EEPRO100State *s, uint8_t val)
 {
     eepro100_tx_t tx;
+    uint32_t cb_address;
     switch (val) {
         case CU_NOP:
             /* No operation. */
             break;
         case CU_START:
             if (get_cu_state(s) != cu_idle) {
+                /* Intel documentation says that CU must be idle for the CU
+                 * start command. Intel driver for Linux also starts the CU
+                 * from suspended state. */
                 logout("CU state is %u, should be %u\n", get_cu_state(s), cu_idle);
                 //~ assert(!"wrong CU state");
             }
@@ -618,7 +689,8 @@ static void eepro100_cu_command(EEPRO100State *s, uint8_t val)
 //~ $12 = {status = 0x0, command = 0x400c, link = 0x2d200, tx_desc_addr = 0x2d210, count = 0x2208000, tx_buf_addr0 = 0x65d40,
   //~ tx_buf_size0 = 0xe, tx_buf_addr1 = 0x65d94, tx_buf_size1 = 0x1c}
           next_command:
-            cpu_physical_memory_read(s->cu_base + s->cu_offset, (uint8_t *)&tx, sizeof(tx));
+            cb_address = s->cu_base + s->cu_offset;
+            cpu_physical_memory_read(cb_address, (uint8_t *)&tx, sizeof(tx));
             uint16_t status = le16_to_cpu(tx.status);
             uint16_t command = le16_to_cpu(tx.command);
             logout("val=0x%02x (cu start), status=0x%04x, command=0x%04x, link=0x%08x\n",
@@ -629,38 +701,111 @@ static void eepro100_cu_command(EEPRO100State *s, uint8_t val)
             bool bit_nc = ((command & 0x0010) != 0);
             //~ bool bit_sf = ((command & 0x0008) != 0);
             uint16_t cmd = command & 0x0007;
+            s->cu_offset = le32_to_cpu(tx.link);
             switch (cmd) {
-                uint8_t buf[MAX_ETH_FRAME_SIZE + 4];
-                int size;
                 case CmdNOp:
                     missing("nop");
                     break;
                 case CmdIASetup:
-                    cpu_physical_memory_read(s->cu_base + s->cu_offset + 8, &s->macaddr[0], 6);
+                    cpu_physical_memory_read(cb_address + 8, &s->macaddr[0], 6);
                     logout("macaddr: %s\n", nic_dump(&s->macaddr[0], 6));
-                    /* Write new status (success). */
-                    stw_phys(s->cu_base + s->cu_offset, status | 0xc000);
                     break;
                 case CmdConfigure:
-                    memcpy(&s->configuration[0], &tx.tx_desc_addr, sizeof(s->configuration));
+                    cpu_physical_memory_read(cb_address + 8, &s->configuration[0], sizeof(s->configuration));
                     logout("configuration: %s\n", nic_dump(&s->configuration[0], 16));
                     /* Write new status (success). */
-                    stw_phys(s->cu_base + s->cu_offset, status | 0xc000);
-                    break;
                 case CmdMulticastList:
                     //~ missing("multicast list");
                     break;
                 case CmdTx:
+	//~ /* interrupt every 16 packets regardless of delay */
+	//~ if((nic->cbs_avail & ~15) == nic->cbs_avail)
+		//~ cb->command |= cpu_to_le16(cb_i);
+	//~ cb->u.tcb.tbd_array = cb->dma_addr + offsetof(struct cb, u.tcb.tbd);
+	//~ cb->u.tcb.tcb_byte_count = 0;
+	//~ cb->u.tcb.threshold = nic->tx_threshold;
+	//~ cb->u.tcb.tbd_count = 1;
+	//~ cb->u.tcb.tbd.buf_addr = cpu_to_le32(pci_map_single(nic->pdev,
+		//~ skb->data, skb->len, PCI_DMA_TODEVICE));
+	//~ /* check for mapping failure? */
+	//~ cb->u.tcb.tbd.size = cpu_to_le16(skb->len);
+		//~ struct {
+			//~ u32 tbd_array;
+			//~ u16 tcb_byte_count;
+			//~ u8 threshold;
+			//~ u8 tbd_count;
+			//~ struct {
+				//~ u32 buf_addr;
+				//~ u16 size;
+				//~ u16 eol;
+			//~ } tbd;
+		//~ } tcb;
+                    (void)0;
+                    uint32_t tbd_array = le32_to_cpu(tx.tx_desc_addr);
+                    uint16_t tcb_bytes = le16_to_cpu(tx.tcb_bytes);
+                    logout("transmit, TBD array address 0x%08x, TCB byte count 0x%04x, TBD count %u\n",
+                        tbd_array, tcb_bytes, tx.tbd_count);
                     assert(!bit_nc);
                     //~ assert(!bit_sf);
-                    cpu_physical_memory_read(tx.tx_buf_addr0, &buf[0], tx.tx_buf_size0);
-                    size = tx.tx_buf_size0;
-                    cpu_physical_memory_read(tx.tx_buf_addr1, &buf[size], tx.tx_buf_size1);
-                    size += tx.tx_buf_size1;
+                    assert(tcb_bytes <= 2600);
+                    assert((tcb_bytes > 0) || (tbd_array != 0xffffffff));
+                    uint8_t buf[MAX_ETH_FRAME_SIZE + 4];
+                    uint16_t size = 0;
+                    uint32_t tbd_address = cb_address + 0x10;
+                    assert(tcb_bytes <= sizeof(buf));
+                    while (size < tcb_bytes) {
+                        uint32_t tx_buffer_address = ldl_phys(tbd_address);
+                        uint16_t tx_buffer_size = lduw_phys(tbd_address + 4);
+                        uint16_t tx_buffer_el = lduw_phys(tbd_address + 6);
+                        tbd_address += 8;
+                        logout("TBD (simplified mode): buffer address 0x%08x, size 0x%04x\n",
+                            tx_buffer_address, tx_buffer_size);
+                        cpu_physical_memory_read(tx_buffer_address, &buf[size], tx_buffer_size);
+                        size += tx_buffer_size;
+                    }
+                    if (tbd_array == 0xffffffff) {
+                        /* Simplified mode. */
+                        //~ cpu_physical_memory_read(tx.tx_buf_addr0, &buf[size], tx.tx_buf_size0);
+                        //~ size += tx.tx_buf_size0;
+                        //~ cpu_physical_memory_read(tx.tx_buf_addr1, &buf[size], tx.tx_buf_size1);
+                        //~ size += tx.tx_buf_size1;
+                    } else {
+                        /* Flexible mode. */
+                        uint8_t tbd_count = 0;
+                        if (!(s->configuration[6] & (1 << 4))) {
+                            /* Extended TCB. */
+                            assert(tcb_bytes == 0);
+                            for (; tbd_count < 2; tbd_count++) {
+                                uint32_t tx_buffer_address = ldl_phys(tbd_address);
+                                uint16_t tx_buffer_size = lduw_phys(tbd_address + 4);
+                                uint16_t tx_buffer_el = lduw_phys(tbd_address + 6);
+                                tbd_address += 8;
+                                logout("TBD (extended mode): buffer address 0x%08x, size 0x%04x\n",
+                                    tx_buffer_address, tx_buffer_size);
+                                cpu_physical_memory_read(tx_buffer_address, &buf[size], tx_buffer_size);
+                                size += tx_buffer_size;
+                                if (tx_buffer_el & 1) {
+                                    break;
+                                }
+                            }
+                        }
+                        tbd_address = tbd_array;
+                        for (; tbd_count < tx.tbd_count; tbd_count++) {
+                            uint32_t tx_buffer_address = ldl_phys(tbd_address);
+                            uint16_t tx_buffer_size = lduw_phys(tbd_address + 4);
+                            uint16_t tx_buffer_el = lduw_phys(tbd_address + 6);
+                            tbd_address += 8;
+                            logout("TBD (flexible mode): buffer address 0x%08x, size 0x%04x\n",
+                                tx_buffer_address, tx_buffer_size);
+                            cpu_physical_memory_read(tx_buffer_address, &buf[size], tx_buffer_size);
+                            size += tx_buffer_size;
+                            if (tx_buffer_el & 1) {
+                                break;
+                            }
+                        }
+                    }
                     qemu_send_packet(s->vc, buf, size);
                     s->statistics.tx_good_frames++;
-                    /* Write new status (success). */
-                    stw_phys(s->cu_base + s->cu_offset, status | 0xc000);
                     /* Transmit with bad status would raise an CX/TNO interrupt.
                      * (82557 only). Emulation never has bad status. */
                     //~ eepro100_cx_interrupt(s);
@@ -668,13 +813,13 @@ static void eepro100_cu_command(EEPRO100State *s, uint8_t val)
                 case CmdTDR:
                     logout("load microcode\n");
                     /* Starting with offset 8, the command contains
-                     * 64 dwords microcode which we just ignore here.
-                     * Write new status (success). */
-                    stw_phys(s->cu_base + s->cu_offset, status | 0xa000);
+                     * 64 dwords microcode which we just ignore here. */
                     break;
                 default:
                     missing("undefined command");
             }
+            /* Write new status (success). */
+            stw_phys(cb_address, status | 0x8000 | 0x2000);
             if (bit_i) {
                 /* CU completed action. */
                 eepro100_cx_interrupt(s);
@@ -686,12 +831,10 @@ static void eepro100_cu_command(EEPRO100State *s, uint8_t val)
             } else if (bit_s) {
                 /* CPU becomes suspended. */
                 set_cu_state(s, cu_suspended);
-                s->cu_offset = le32_to_cpu(tx.link);
                 eepro100_cna_interrupt(s);
             } else {
                 /* More entries in list. */
                 logout("CU list with at least one more entry\n");
-                s->cu_offset = le32_to_cpu(tx.link);
                 goto next_command;
             }
             logout("CU list empty\n");
@@ -867,8 +1010,8 @@ static uint32_t eepro100_read_mdi(EEPRO100State *s)
     uint16_t data = (val & 0x0000ffff);
     /* Emulation takes no time to finish MDI transaction. */
     val |= (1 << 28);
-    logout("val=0x%08x (int=%u, %s, phy=%u, %s, data=0x%04x\n",
-           val, raiseint, mdi_op_name[opcode], phy, mdi_reg_name[reg], data);
+    TRACE(MDI, logout("val=0x%08x (int=%u, %s, phy=%u, %s, data=0x%04x\n",
+        val, raiseint, mdi_op_name[opcode], phy, mdi_reg_name[reg], data));
     return val;
 }
 
@@ -893,8 +1036,8 @@ static void eepro100_write_mdi(EEPRO100State *s, uint32_t val)
         logout("register must be 0...6 but is %u\n", reg);
         data = 0;
     } else {
-        logout("val=0x%08x (int=%u, %s, phy=%u, %s, data=0x%04x\n",
-               val, raiseint, mdi_op_name[opcode], phy, mdi_reg_name[reg], data);
+        TRACE(MDI, logout("val=0x%08x (int=%u, %s, phy=%u, %s, data=0x%04x\n",
+            val, raiseint, mdi_op_name[opcode], phy, mdi_reg_name[reg], data));
         if (opcode == 1) {
             /* MDI write */
             switch (reg) {
@@ -1179,13 +1322,12 @@ static void eepro100_write4(EEPRO100State *s, uint32_t addr, uint32_t val)
         memcpy(&s->mem[addr], &val, sizeof(val));
     }
 
-    logout("addr=%s val=0x%08x\n", regname(addr), val);
-
     switch (addr) {
         case SCBPointer:
             eepro100_write_pointer(s, val);
             break;
         case SCBPort:
+            logout("addr=%s val=0x%08x\n", regname(addr), val);
             eepro100_write_port(s, val);
             break;
         case SCBCtrlMDI:
@@ -1347,19 +1489,6 @@ static int nic_can_receive(void *opaque)
 }
 
 #define MIN_BUF_SIZE 60
-
-#if defined(DEBUG_EEPRO100)
-static const char *nic_dump(const uint8_t *buf, unsigned size)
-{
-    static char dump[3 * 16 + 1];
-    char *p = &dump[0];
-    if (size > 16) size = 16;
-    while (size-- > 0) {
-        p += sprintf(p, " %02x", *buf++);
-    }
-    return dump;
-}
-#endif /* DEBUG_EEPRO100 */
 
 static void nic_receive(void *opaque, const uint8_t *buf, int size)
 {
