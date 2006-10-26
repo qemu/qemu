@@ -1,0 +1,26 @@
+Short term :
+------------
+
+General
+  - Fix init mode (ah=00). Should use more BIOS variables
+  - Add new functionalities and modify static functionality table 
+  - Performance : 16 bits IO
+
+v0.7
+  - Implement the remaining functions (don't know if all are needed):
+	- chargen ax=1120, ax=1121, ax=1122, ax=1123, ax=1124
+	- display switch interface ah=12 bl=35
+	- video refresh control ah=12 bl=36
+  - Graphic modes
+
+v1.0
+  - Bugfixes
+
+
+=================================================================================================
+VBE:
+----
+Long term:
+- have plex86 host side display interface
+- have text io functions in vbe mode
+
