@@ -1,0 +1,4 @@
+#!/bin/csh -f
+gcc -E rombios.c | grep "^\.org" | sed -e 's/\.org //' | sed -e 's/ .*//' | sort >! temp.usage
+usage rombios.bin temp.usage
+/bin/rm temp.usage
