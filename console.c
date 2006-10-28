@@ -147,7 +147,7 @@ static int nb_consoles = 0;
 
 void vga_hw_update(void)
 {
-    if (active_console->hw_update)
+    if (active_console && active_console->hw_update)
         active_console->hw_update(active_console->hw);
 }
 
