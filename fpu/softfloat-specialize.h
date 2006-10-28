@@ -68,7 +68,7 @@ typedef struct {
 | otherwise returns 0.
 *----------------------------------------------------------------------------*/
 
-flag float32_is_nan( float32 a )
+int float32_is_nan( float32 a )
 {
 
     return ( 0xFF000000 < (bits32) ( a<<1 ) );
@@ -80,7 +80,7 @@ flag float32_is_nan( float32 a )
 | NaN; otherwise returns 0.
 *----------------------------------------------------------------------------*/
 
-flag float32_is_signaling_nan( float32 a )
+int float32_is_signaling_nan( float32 a )
 {
 
     return ( ( ( a>>22 ) & 0x1FF ) == 0x1FE ) && ( a & 0x003FFFFF );
@@ -161,7 +161,7 @@ static float32 propagateFloat32NaN( float32 a, float32 b STATUS_PARAM)
 | otherwise returns 0.
 *----------------------------------------------------------------------------*/
 
-flag float64_is_nan( float64 a )
+int float64_is_nan( float64 a )
 {
 
     return ( LIT64( 0xFFE0000000000000 ) < (bits64) ( a<<1 ) );
@@ -173,7 +173,7 @@ flag float64_is_nan( float64 a )
 | NaN; otherwise returns 0.
 *----------------------------------------------------------------------------*/
 
-flag float64_is_signaling_nan( float64 a )
+int float64_is_signaling_nan( float64 a )
 {
 
     return
@@ -264,7 +264,7 @@ static float64 propagateFloat64NaN( float64 a, float64 b STATUS_PARAM)
 | NaN; otherwise returns 0.
 *----------------------------------------------------------------------------*/
 
-flag floatx80_is_nan( floatx80 a )
+int floatx80_is_nan( floatx80 a )
 {
 
     return ( ( a.high & 0x7FFF ) == 0x7FFF ) && (bits64) ( a.low<<1 );
@@ -276,7 +276,7 @@ flag floatx80_is_nan( floatx80 a )
 | signaling NaN; otherwise returns 0.
 *----------------------------------------------------------------------------*/
 
-flag floatx80_is_signaling_nan( floatx80 a )
+int floatx80_is_signaling_nan( floatx80 a )
 {
     bits64 aLow;
 
@@ -371,7 +371,7 @@ static floatx80 propagateFloatx80NaN( floatx80 a, floatx80 b STATUS_PARAM)
 | otherwise returns 0.
 *----------------------------------------------------------------------------*/
 
-flag float128_is_nan( float128 a )
+int float128_is_nan( float128 a )
 {
 
     return
@@ -385,7 +385,7 @@ flag float128_is_nan( float128 a )
 | signaling NaN; otherwise returns 0.
 *----------------------------------------------------------------------------*/
 
-flag float128_is_signaling_nan( float128 a )
+int float128_is_signaling_nan( float128 a )
 {
 
     return

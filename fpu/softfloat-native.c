@@ -149,7 +149,7 @@ float32 float32_sqrt( float32 a STATUS_PARAM)
 {
     return sqrtf(a);
 }
-char float32_compare( float32 a, float32 b STATUS_PARAM )
+int float32_compare( float32 a, float32 b STATUS_PARAM )
 {
     if (a < b) {
         return -1;
@@ -161,7 +161,7 @@ char float32_compare( float32 a, float32 b STATUS_PARAM )
         return 2;
     }
 }
-char float32_compare_quiet( float32 a, float32 b STATUS_PARAM )
+int float32_compare_quiet( float32 a, float32 b STATUS_PARAM )
 {
     if (isless(a, b)) {
         return -1;
@@ -173,7 +173,7 @@ char float32_compare_quiet( float32 a, float32 b STATUS_PARAM )
         return 2;
     }
 }
-char float32_is_signaling_nan( float32 a1)
+int float32_is_signaling_nan( float32 a1)
 {
     float32u u;
     uint32_t a;
@@ -258,7 +258,7 @@ float64 float64_sqrt( float64 a STATUS_PARAM)
 {
     return sqrt(a);
 }
-char float64_compare( float64 a, float64 b STATUS_PARAM )
+int float64_compare( float64 a, float64 b STATUS_PARAM )
 {
     if (a < b) {
         return -1;
@@ -270,7 +270,7 @@ char float64_compare( float64 a, float64 b STATUS_PARAM )
         return 2;
     }
 }
-char float64_compare_quiet( float64 a, float64 b STATUS_PARAM )
+int float64_compare_quiet( float64 a, float64 b STATUS_PARAM )
 {
     if (isless(a, b)) {
         return -1;
@@ -282,7 +282,7 @@ char float64_compare_quiet( float64 a, float64 b STATUS_PARAM )
         return 2;
     }
 }
-char float64_is_signaling_nan( float64 a1)
+int float64_is_signaling_nan( float64 a1)
 {
     float64u u;
     uint64_t a;
@@ -294,7 +294,7 @@ char float64_is_signaling_nan( float64 a1)
 
 }
 
-char float64_is_nan( float64 a1 )
+int float64_is_nan( float64 a1 )
 {
     float64u u;
     uint64_t a;
@@ -350,7 +350,7 @@ floatx80 floatx80_sqrt( floatx80 a STATUS_PARAM)
 {
     return sqrtl(a);
 }
-char floatx80_compare( floatx80 a, floatx80 b STATUS_PARAM )
+int floatx80_compare( floatx80 a, floatx80 b STATUS_PARAM )
 {
     if (a < b) {
         return -1;
@@ -362,7 +362,7 @@ char floatx80_compare( floatx80 a, floatx80 b STATUS_PARAM )
         return 2;
     }
 }
-char floatx80_compare_quiet( floatx80 a, floatx80 b STATUS_PARAM )
+int floatx80_compare_quiet( floatx80 a, floatx80 b STATUS_PARAM )
 {
     if (isless(a, b)) {
         return -1;
@@ -374,7 +374,7 @@ char floatx80_compare_quiet( floatx80 a, floatx80 b STATUS_PARAM )
         return 2;
     }
 }
-char floatx80_is_signaling_nan( floatx80 a1)
+int floatx80_is_signaling_nan( floatx80 a1)
 {
     floatx80u u;
     u.f = a1;
