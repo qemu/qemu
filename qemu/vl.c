@@ -5494,7 +5494,7 @@ int qemu_register_machine(QEMUMachine *m)
     return 0;
 }
 
-static QEMUMachine *find_machine(const char *name)
+QEMUMachine *find_machine(const char *name)
 {
     QEMUMachine *m;
 
@@ -6149,6 +6149,7 @@ void register_machines(void)
 #if defined(TARGET_I386)
     qemu_register_machine(&pc_machine);
     qemu_register_machine(&isapc_machine);
+    qemu_register_machine(&scu2_machine);
 #elif defined(TARGET_PPC)
     qemu_register_machine(&heathrow_machine);
     qemu_register_machine(&core99_machine);
