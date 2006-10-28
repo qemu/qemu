@@ -1,3 +1,11 @@
+2006-10-28 14:19  bellard
+
+	* Makefile.target: avoid regression on sparc-user and ppc-user
+
+2006-10-28 14:09  bellard
+
+	* linux-user/signal.c: removed invalid code
+
 2006-10-25 19:43  pbrook
 
 	* target-arm/translate.c: Fix ARM VFP debugging dumps.
