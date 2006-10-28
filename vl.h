@@ -659,6 +659,8 @@ typedef struct QEMUMachine {
     struct QEMUMachine *next;
 } QEMUMachine;
 
+QEMUMachine *find_machine(const char *name);
+
 int qemu_register_machine(QEMUMachine *m);
 
 int qemu_register_mips_machines(void);
@@ -1027,6 +1029,7 @@ void acpi_bios_init(void);
 /* pc.c */
 extern QEMUMachine pc_machine;
 extern QEMUMachine isapc_machine;
+extern QEMUMachine scu2_machine;
 extern int fd_bootchk;
 
 void ioport_set_a20(int enable);
