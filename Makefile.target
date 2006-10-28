@@ -513,6 +513,11 @@ endif
 cpu-exec.o: cpu-exec.c
 	$(CC) $(HELPER_CFLAGS) $(DEFINES) -c -o $@ $<
 
+# Note: this is a workaround. The real fix is to avoid compiling
+# cpu_signal_handler() in cpu-exec.c.
+signal.o: signal.c
+	$(CC) $(HELPER_CFLAGS) $(DEFINES) -c -o $@ $<
+
 ifeq ($(TARGET_BASE_ARCH), i386)
 op.o: op.c opreg_template.h ops_template.h ops_template_mem.h ops_mem.h ops_sse.h
 endif
