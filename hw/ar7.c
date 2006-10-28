@@ -476,6 +476,7 @@ static void ar7_cpmac_write(uint32_t cpmac[], unsigned index, unsigned offset, u
             TRACE(CPMAC, logout("buffer 0x%08x, next 0x%08x, buff 0x%08x, params 0x%08x, len 0x%08x\n",
                     val, (unsigned)bd.next, (unsigned)bd.buff,
                     (unsigned)bd.buff_params, (unsigned)bd.ctrl_n_len));
+            //~ qemu_send_packet(av.nic[index].vc, bd.buff, bd.ctrl_n_len);
             val = (uint32_t)bd.next;
         }
     }
@@ -955,6 +956,10 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
         name = "gpio";
         logflag = GPIO;
         val = VALUE(AVALANCHE_GPIO_BASE, av.gpio);
+        if (addr == 0x08610900 && val == 0x00000800) {
+            /* Do not log polling of reset button. */
+            logflag = 0;
+        }
     } else if (INRANGE(AVALANCHE_CLOCK_BASE, av.clock_control)) {
         name = "clock";
         logflag = CLOCK;
