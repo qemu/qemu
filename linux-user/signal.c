@@ -1521,8 +1521,11 @@ restore_fpu_state(CPUState *env, qemu_siginfo_fpu_t *fpu)
                 return -EFAULT;
 #endif
 
+#if 0
+        /* XXX: incorrect */
         err = __copy_from_user(&env->fpr[0], &fpu->si_float_regs[0],
 	                             (sizeof(unsigned long) * 32));
+#endif
         err |= __get_user(env->fsr, &fpu->si_fsr);
 #if 0
         err |= __get_user(current->thread.fpqdepth, &fpu->si_fpqdepth);
