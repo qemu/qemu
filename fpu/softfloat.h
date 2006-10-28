@@ -43,7 +43,7 @@ these four paragraphs for those parts of this code that are retained.
 | implementations of C, `flag', `uint8', and `int8' should all be `typedef'ed
 | to the same as `int'.
 *----------------------------------------------------------------------------*/
-typedef char flag;
+typedef uint8_t flag;
 typedef uint8_t uint8;
 typedef int8_t int8;
 typedef int uint16;
@@ -228,16 +228,16 @@ float32 float32_mul( float32, float32 STATUS_PARAM );
 float32 float32_div( float32, float32 STATUS_PARAM );
 float32 float32_rem( float32, float32 STATUS_PARAM );
 float32 float32_sqrt( float32 STATUS_PARAM );
-char float32_eq( float32, float32 STATUS_PARAM );
-char float32_le( float32, float32 STATUS_PARAM );
-char float32_lt( float32, float32 STATUS_PARAM );
-char float32_eq_signaling( float32, float32 STATUS_PARAM );
-char float32_le_quiet( float32, float32 STATUS_PARAM );
-char float32_lt_quiet( float32, float32 STATUS_PARAM );
-char float32_compare( float32, float32 STATUS_PARAM );
-char float32_compare_quiet( float32, float32 STATUS_PARAM );
-char float32_is_signaling_nan( float32 );
-flag float64_is_nan( float64 a );
+int float32_eq( float32, float32 STATUS_PARAM );
+int float32_le( float32, float32 STATUS_PARAM );
+int float32_lt( float32, float32 STATUS_PARAM );
+int float32_eq_signaling( float32, float32 STATUS_PARAM );
+int float32_le_quiet( float32, float32 STATUS_PARAM );
+int float32_lt_quiet( float32, float32 STATUS_PARAM );
+int float32_compare( float32, float32 STATUS_PARAM );
+int float32_compare_quiet( float32, float32 STATUS_PARAM );
+int float32_is_signaling_nan( float32 );
+int float64_is_nan( float64 a );
 
 INLINE float32 float32_abs(float32 a)
 {
@@ -277,15 +277,15 @@ float64 float64_mul( float64, float64 STATUS_PARAM );
 float64 float64_div( float64, float64 STATUS_PARAM );
 float64 float64_rem( float64, float64 STATUS_PARAM );
 float64 float64_sqrt( float64 STATUS_PARAM );
-char float64_eq( float64, float64 STATUS_PARAM );
-char float64_le( float64, float64 STATUS_PARAM );
-char float64_lt( float64, float64 STATUS_PARAM );
-char float64_eq_signaling( float64, float64 STATUS_PARAM );
-char float64_le_quiet( float64, float64 STATUS_PARAM );
-char float64_lt_quiet( float64, float64 STATUS_PARAM );
-char float64_compare( float64, float64 STATUS_PARAM );
-char float64_compare_quiet( float64, float64 STATUS_PARAM );
-char float64_is_signaling_nan( float64 );
+int float64_eq( float64, float64 STATUS_PARAM );
+int float64_le( float64, float64 STATUS_PARAM );
+int float64_lt( float64, float64 STATUS_PARAM );
+int float64_eq_signaling( float64, float64 STATUS_PARAM );
+int float64_le_quiet( float64, float64 STATUS_PARAM );
+int float64_lt_quiet( float64, float64 STATUS_PARAM );
+int float64_compare( float64, float64 STATUS_PARAM );
+int float64_compare_quiet( float64, float64 STATUS_PARAM );
+int float64_is_signaling_nan( float64 );
 
 INLINE float64 float64_abs(float64 a)
 {
@@ -322,13 +322,13 @@ floatx80 floatx80_mul( floatx80, floatx80 STATUS_PARAM );
 floatx80 floatx80_div( floatx80, floatx80 STATUS_PARAM );
 floatx80 floatx80_rem( floatx80, floatx80 STATUS_PARAM );
 floatx80 floatx80_sqrt( floatx80 STATUS_PARAM );
-char floatx80_eq( floatx80, floatx80 STATUS_PARAM );
-char floatx80_le( floatx80, floatx80 STATUS_PARAM );
-char floatx80_lt( floatx80, floatx80 STATUS_PARAM );
-char floatx80_eq_signaling( floatx80, floatx80 STATUS_PARAM );
-char floatx80_le_quiet( floatx80, floatx80 STATUS_PARAM );
-char floatx80_lt_quiet( floatx80, floatx80 STATUS_PARAM );
-char floatx80_is_signaling_nan( floatx80 );
+int floatx80_eq( floatx80, floatx80 STATUS_PARAM );
+int floatx80_le( floatx80, floatx80 STATUS_PARAM );
+int floatx80_lt( floatx80, floatx80 STATUS_PARAM );
+int floatx80_eq_signaling( floatx80, floatx80 STATUS_PARAM );
+int floatx80_le_quiet( floatx80, floatx80 STATUS_PARAM );
+int floatx80_lt_quiet( floatx80, floatx80 STATUS_PARAM );
+int floatx80_is_signaling_nan( floatx80 );
 
 INLINE floatx80 floatx80_abs(floatx80 a)
 {
@@ -369,13 +369,13 @@ float128 float128_mul( float128, float128 STATUS_PARAM );
 float128 float128_div( float128, float128 STATUS_PARAM );
 float128 float128_rem( float128, float128 STATUS_PARAM );
 float128 float128_sqrt( float128 STATUS_PARAM );
-char float128_eq( float128, float128 STATUS_PARAM );
-char float128_le( float128, float128 STATUS_PARAM );
-char float128_lt( float128, float128 STATUS_PARAM );
-char float128_eq_signaling( float128, float128 STATUS_PARAM );
-char float128_le_quiet( float128, float128 STATUS_PARAM );
-char float128_lt_quiet( float128, float128 STATUS_PARAM );
-char float128_is_signaling_nan( float128 );
+int float128_eq( float128, float128 STATUS_PARAM );
+int float128_le( float128, float128 STATUS_PARAM );
+int float128_lt( float128, float128 STATUS_PARAM );
+int float128_eq_signaling( float128, float128 STATUS_PARAM );
+int float128_le_quiet( float128, float128 STATUS_PARAM );
+int float128_lt_quiet( float128, float128 STATUS_PARAM );
+int float128_is_signaling_nan( float128 );
 
 INLINE float128 float128_abs(float128 a)
 {

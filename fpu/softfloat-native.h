@@ -152,38 +152,38 @@ INLINE float32 float32_div( float32 a, float32 b STATUS_PARAM)
 }
 float32 float32_rem( float32, float32  STATUS_PARAM);
 float32 float32_sqrt( float32  STATUS_PARAM);
-INLINE char float32_eq( float32 a, float32 b STATUS_PARAM)
+INLINE int float32_eq( float32 a, float32 b STATUS_PARAM)
 {
     return a == b;
 }
-INLINE char float32_le( float32 a, float32 b STATUS_PARAM)
+INLINE int float32_le( float32 a, float32 b STATUS_PARAM)
 {
     return a <= b;
 }
-INLINE char float32_lt( float32 a, float32 b STATUS_PARAM)
+INLINE int float32_lt( float32 a, float32 b STATUS_PARAM)
 {
     return a < b;
 }
-INLINE char float32_eq_signaling( float32 a, float32 b STATUS_PARAM)
+INLINE int float32_eq_signaling( float32 a, float32 b STATUS_PARAM)
 {
     return a <= b && a >= b;
 }
-INLINE char float32_le_quiet( float32 a, float32 b STATUS_PARAM)
+INLINE int float32_le_quiet( float32 a, float32 b STATUS_PARAM)
 {
     return islessequal(a, b);
 }
-INLINE char float32_lt_quiet( float32 a, float32 b STATUS_PARAM)
+INLINE int float32_lt_quiet( float32 a, float32 b STATUS_PARAM)
 {
     return isless(a, b);
 }
-INLINE char float32_unordered( float32 a, float32 b STATUS_PARAM)
+INLINE int float32_unordered( float32 a, float32 b STATUS_PARAM)
 {
     return isunordered(a, b);
 
 }
-char float32_compare( float32, float32 STATUS_PARAM );
-char float32_compare_quiet( float32, float32 STATUS_PARAM );
-char float32_is_signaling_nan( float32 );
+int float32_compare( float32, float32 STATUS_PARAM );
+int float32_compare_quiet( float32, float32 STATUS_PARAM );
+int float32_is_signaling_nan( float32 );
 
 INLINE float32 float32_abs(float32 a)
 {
@@ -233,40 +233,40 @@ INLINE float64 float64_div( float64 a, float64 b STATUS_PARAM)
 }
 float64 float64_rem( float64, float64 STATUS_PARAM );
 float64 float64_sqrt( float64 STATUS_PARAM );
-INLINE char float64_eq( float64 a, float64 b STATUS_PARAM)
+INLINE int float64_eq( float64 a, float64 b STATUS_PARAM)
 {
     return a == b;
 }
-INLINE char float64_le( float64 a, float64 b STATUS_PARAM)
+INLINE int float64_le( float64 a, float64 b STATUS_PARAM)
 {
     return a <= b;
 }
-INLINE char float64_lt( float64 a, float64 b STATUS_PARAM)
+INLINE int float64_lt( float64 a, float64 b STATUS_PARAM)
 {
     return a < b;
 }
-INLINE char float64_eq_signaling( float64 a, float64 b STATUS_PARAM)
+INLINE int float64_eq_signaling( float64 a, float64 b STATUS_PARAM)
 {
     return a <= b && a >= b;
 }
-INLINE char float64_le_quiet( float64 a, float64 b STATUS_PARAM)
+INLINE int float64_le_quiet( float64 a, float64 b STATUS_PARAM)
 {
     return islessequal(a, b);
 }
-INLINE char float64_lt_quiet( float64 a, float64 b STATUS_PARAM)
+INLINE int float64_lt_quiet( float64 a, float64 b STATUS_PARAM)
 {
     return isless(a, b);
 
 }
-INLINE char float64_unordered( float64 a, float64 b STATUS_PARAM)
+INLINE int float64_unordered( float64 a, float64 b STATUS_PARAM)
 {
     return isunordered(a, b);
 
 }
-char float64_compare( float64, float64 STATUS_PARAM );
-char float64_compare_quiet( float64, float64 STATUS_PARAM );
-char float64_is_signaling_nan( float64 );
-flag float64_is_nan( float64 );
+int float64_compare( float64, float64 STATUS_PARAM );
+int float64_compare_quiet( float64, float64 STATUS_PARAM );
+int float64_is_signaling_nan( float64 );
+int float64_is_nan( float64 );
 
 INLINE float64 float64_abs(float64 a)
 {
@@ -315,39 +315,39 @@ INLINE floatx80 floatx80_div( floatx80 a, floatx80 b STATUS_PARAM)
 }
 floatx80 floatx80_rem( floatx80, floatx80 STATUS_PARAM );
 floatx80 floatx80_sqrt( floatx80 STATUS_PARAM );
-INLINE char floatx80_eq( floatx80 a, floatx80 b STATUS_PARAM)
+INLINE int floatx80_eq( floatx80 a, floatx80 b STATUS_PARAM)
 {
     return a == b;
 }
-INLINE char floatx80_le( floatx80 a, floatx80 b STATUS_PARAM)
+INLINE int floatx80_le( floatx80 a, floatx80 b STATUS_PARAM)
 {
     return a <= b;
 }
-INLINE char floatx80_lt( floatx80 a, floatx80 b STATUS_PARAM)
+INLINE int floatx80_lt( floatx80 a, floatx80 b STATUS_PARAM)
 {
     return a < b;
 }
-INLINE char floatx80_eq_signaling( floatx80 a, floatx80 b STATUS_PARAM)
+INLINE int floatx80_eq_signaling( floatx80 a, floatx80 b STATUS_PARAM)
 {
     return a <= b && a >= b;
 }
-INLINE char floatx80_le_quiet( floatx80 a, floatx80 b STATUS_PARAM)
+INLINE int floatx80_le_quiet( floatx80 a, floatx80 b STATUS_PARAM)
 {
     return islessequal(a, b);
 }
-INLINE char floatx80_lt_quiet( floatx80 a, floatx80 b STATUS_PARAM)
+INLINE int floatx80_lt_quiet( floatx80 a, floatx80 b STATUS_PARAM)
 {
     return isless(a, b);
 
 }
-INLINE char floatx80_unordered( floatx80 a, floatx80 b STATUS_PARAM)
+INLINE int floatx80_unordered( floatx80 a, floatx80 b STATUS_PARAM)
 {
     return isunordered(a, b);
 
 }
-char floatx80_compare( floatx80, floatx80 STATUS_PARAM );
-char floatx80_compare_quiet( floatx80, floatx80 STATUS_PARAM );
-char floatx80_is_signaling_nan( floatx80 );
+int floatx80_compare( floatx80, floatx80 STATUS_PARAM );
+int floatx80_compare_quiet( floatx80, floatx80 STATUS_PARAM );
+int floatx80_is_signaling_nan( floatx80 );
 
 INLINE floatx80 floatx80_abs(floatx80 a)
 {
