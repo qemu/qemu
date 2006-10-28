@@ -1,3 +1,9 @@
+2006-10-28 21:27  bellard
+
+	* fpu/: softfloat-native.c, softfloat-native.h,
+	  softfloat-specialize.h, softfloat.c, softfloat.h: avoid using
+	  char when it is not necessary
+
 2006-10-28 14:19  bellard
 
 	* Makefile.target: avoid regression on sparc-user and ppc-user
