@@ -16,6 +16,10 @@
 //~ #define MIPS_CPS (100 * 1000 * 1000)
 #define MIPS_CPS (150 * 1000 * 1000 / 2)
 
+static const int ide_iobase[2] = { 0x1f0, 0x170 };
+static const int ide_iobase2[2] = { 0x3f6, 0x376 };
+static const int ide_irq[2] = { 14, 15 };
+
 extern FILE *logfile;
 
 static PITState *pit;
@@ -153,6 +157,7 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
     int ret;
     CPUState *env;
     long kernel_size;
+    int i;
 
     env = cpu_init();
     env->bigendian = bigendian;
@@ -259,6 +264,10 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
             exit (1);
         }
     }
+
+    for(i = 0; i < 2; i++)
+        isa_ide_init(ide_iobase[i], ide_iobase2[i], ide_irq[i],
+                     bs_table[2 * i], bs_table[2 * i + 1]);
 }
 
 static void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,

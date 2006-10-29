@@ -1,3 +1,12 @@
+2006-10-29 16:38  pbrook
+
+	* Makefile.target, hw/mips_r4k.c: Mips IDE support. (Aurelien
+	  Jarno)
+
+2006-10-29 16:09  bellard
+
+	* target-mips/op.c, target-arm/nwfpe/fpa11_cprt.c: compilation fix
+
 2006-10-28 21:27  bellard
 
 	* fpu/: softfloat-native.c, softfloat-native.h,
