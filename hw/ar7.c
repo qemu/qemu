@@ -59,13 +59,13 @@ struct IoState {
 #define CLOCK   1
 #define CPMAC   1
 #define GPIO    1
-#define INTC    0
+#define INTC    1
 #define MDIO    0       /* polled, so very noisy */
 #define RESET   1
 #define UART0   0
 #define UART1   1
 #define WDOG    1
-#define OTHER   0
+#define OTHER   1
 
 #define DEBUG_AR7
 
@@ -187,6 +187,7 @@ typedef struct {
     uint32_t device_config_latch[5];    // 0x08611a00
     uint32_t vlynq1[0x40];              // 0x08611c00
     uint32_t mdio[0x22];                // 0x08611e00
+    uint32_t wdt[8];                    // 0x08611f00
     uint32_t intc[0xc0];                // 0x08612400
     //~ uint32_t exception_control[7];  //   +0x80
     //~ uint32_t pacing[3];             //   +0xa0
@@ -333,7 +334,7 @@ cpmac_reg.h:
 #define MAC_IN_VECTOR_TX_INT_VEC   (7)
 
 /* STATISTICS */
-static const char *cpmac_statistics[] = {
+static const char * const cpmac_statistics[] = {
         "RXGOODFRAMES",
         "RXBROADCASTFRAMES",
         "RXMULTICASTFRAMES",
@@ -421,6 +422,12 @@ static const char *i2cpmac(unsigned index)
     } else if (index >= 0x188 && index < 0x190) {
         text = buffer;
         sprintf(buffer, "CPMAC_RX%u_HDP", (unsigned)(index & 7));
+    } else if (index >= 0x190 && index < 0x198) {
+        text = buffer;
+        sprintf(buffer, "CPMAC_TX%u_INT_ACK", (unsigned)(index & 7));
+    } else if (index >= 0x198 && index < 0x1a0) {
+        text = buffer;
+        sprintf(buffer, "CPMAC_RX%u_INT_ACK", (unsigned)(index & 7));
     } else {
         text = buffer;
         sprintf(buffer, "0x%x", index);
@@ -445,11 +452,12 @@ static uint32_t ar7_cpmac_read(uint32_t cpmac[], unsigned index)
 
 static void ar7_cpmac_write(uint32_t cpmac[], unsigned index, unsigned offset, uint32_t val)
 {
-    const char *text = i2cpmac(index);
+    assert((offset & 3) == 0);
+    offset /= 4;
     cpmac[offset] = val;
     TRACE(CPMAC, logout("cpmac%u[%s] (0x%08lx) = 0x%08lx\n",
-      cpmac == av.cpmac1, text,
-            (unsigned long)(AVALANCHE_CPMAC0_BASE + 4 * index),
+      index, i2cpmac(offset),
+            (unsigned long)(AVALANCHE_CPMAC0_BASE + (AVALANCHE_CPMAC1_BASE - AVALANCHE_CPMAC0_BASE) * index + 4 * offset),
             (unsigned long)val));
     if (offset == 0x40) {
         /* 13 ... 8 = 0x20 enable broadcast */
@@ -469,7 +477,22 @@ static void ar7_cpmac_write(uint32_t cpmac[], unsigned index, unsigned offset, u
         phys[0] = (cpmac[0x75] >> 0);
         TRACE(CPMAC, logout("setting MAC %02x:%02x:%02x:%02x:%02x:%02x\n",
                 phys[0], phys[1], phys[2], phys[3], phys[4], phys[5]));
+    } else if (offset >= 0x80 && offset < 0xa4) {
+        /* Write access to readonly register. */
+        //~ UNEXPECTED();
+    } else if (offset >= 0x180 && offset < 0x188) {
+        /* Transmit buffer. !!! */
+        while (val != 0) {
+            cpmac_buff_t bd;
+            cpu_physical_memory_read(val, (uint8_t *)&bd, sizeof(bd));
+            TRACE(CPMAC, logout("buffer 0x%08x, next 0x%08x, buff 0x%08x, params 0x%08x, len 0x%08x\n",
+                    val, (unsigned)bd.next, (unsigned)bd.buff,
+                    (unsigned)bd.buff_params, (unsigned)bd.ctrl_n_len));
+            //~ qemu_send_packet(av.nic[index].vc, bd.buff, bd.ctrl_n_len);
+            val = (uint32_t)bd.next;
+        }
     } else if (offset >= 0x188 && offset < 0x190) {
+        /* Receive buffer. !!! */
         while (val != 0) {
             cpmac_buff_t bd;
             cpu_physical_memory_read(val, (uint8_t *)&bd, sizeof(bd));
@@ -533,16 +556,69 @@ typedef struct { /* Avalanche Interrupt control registers */
   uint32_t cintnr[40];/* Channel Interrupt Number Reg     0x200 */
 } ar7_intc_t;
 
+static const char * const intc_names[] = {
+  "Interrupt Status/Set 1",
+  "Interrupt Status/Set 2",
+  "0x08",
+  "0x0c",
+  "Interrupt Clear 1",
+  "Interrupt Clear 2",
+  "0x18",
+  "0x1c",
+  "Interrupt Enable (Set) 1",
+  "Interrupt Enable (Set) 2",
+  "0x28",
+  "0x2c",
+  "Interrupt Enable Clear 1",
+  "Interrupt Enable Clear 2",
+  "0x38",
+  "0x3c",
+  "Priority Interrupt Index",
+  "Priority Interrupt Mask Index",
+  "0x48",
+  "0x4c",
+  "Interrupt Polarity Mask 1",
+  "Interrupt Polarity Mask 2",
+  "0x58",
+  "0x5c",
+  "Interrupt Type Mask 1",
+  "Interrupt Type Mask 2",
+};
+
+static const char *i2intc(unsigned index)
+{
+    static char buffer[32];
+    const char *text = 0;
+    switch (index) {
+        case 0x20: text = "Exceptions Status/Set"; break;
+        case 0x22: text = "Exceptions Clear"; break;
+        case 0x24: text = "Exceptions Interrupt Enable (set)"; break;
+        case 0x26: text = "Exceptions Interrupt Enable (clear)"; break;
+        case 0x28: text = "Interrupt Pacing"; break;
+        case 0x29: text = "Interrupt Pacing Map"; break;
+        case 0x2a: text = "Interrupt Pacing Max"; break;
+    }
+    if (text != 0) {
+    } else if (index < 0x1a) {
+        text = intc_names[index];
+    } else if (index >= 128 && index < 168) {
+        text = buffer;
+        sprintf(buffer, "Channel Interrupt Number 0x%02x", index - 128);
+    } else {
+        text = buffer;
+        sprintf(buffer, "0x%02x", index);
+    }
+    assert(strlen(buffer) < sizeof(buffer));
+    return text;
+}
+
 static uint32_t ar7_intc_read(uint32_t intc[], unsigned index)
 {
     uint32_t val = intc[index];
-    if (index == 16) {
-    } else if (index == 8 || index == 9) {
-            TRACE(INTC, logout("intc[0x%02x] = %08x\n", index, val));
-    } else if (index >= 128 && index < 168) {
-            TRACE(INTC, logout("intc[cintnr%u] = 0x%08x\n", index - 128, val));
+    if (0) {
+    //~ } else if (index == 16) {
     } else {
-            TRACE(INTC, logout("intc[0x%02x] = %08x\n", index, val));
+        TRACE(INTC, logout("intc[%s] = %08x\n", i2intc(index), val));
     }
     return val;
 }
@@ -551,20 +627,18 @@ static void ar7_intc_write(uint32_t intc[], unsigned index, uint32_t val)
 {
     unsigned subindex = (index & 1);
     intc[index] = val;
-    if (index == 4) {
+    if (0) {
+    //~ } else if (index == 4) {
     } else if (index == 8 || index == 9) {
-            av.intmask[subindex] |= val;
-            TRACE(INTC, logout("intc[intesr%u] val 0x%08x, mask 0x%08x\n",
-                    subindex + 1, val, av.intmask[subindex]));
+        av.intmask[subindex] |= val;
+        TRACE(INTC, logout("intc[%s] val 0x%08x, mask 0x%08x\n",
+                i2intc(index), val, av.intmask[subindex]));
     } else if (index == 12 || index == 13) {
-            unsigned subindex = (index & 1);
-            av.intmask[subindex] &= ~val;
-            TRACE(INTC, logout("intc[intecr%u] val 0x%08x, mask 0x%08x\n",
-                    subindex + 1, val, av.intmask[subindex]));
-    } else if (index >= 128 && index < 168) {
-            TRACE(INTC, logout("intc[cintnr%u] val 0x%08x\n", index - 128, val));
+        av.intmask[subindex] &= ~val;
+        TRACE(INTC, logout("intc[%s] val 0x%08x, mask 0x%08x\n",
+                i2intc(index), val, av.intmask[subindex]));
     } else {
-            TRACE(INTC, logout("intc[0x%02x] val 0x%08x\n", index, val));
+        TRACE(INTC, logout("intc[%s] val 0x%08x\n", i2intc(index), val));
     }
 }
 
@@ -1010,8 +1084,12 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
         logflag = MDIO;
         index = (addr - AVALANCHE_MDIO_BASE) / 4;
         val = ar7_mdio_read(av.mdio, index);
+    } else if (INRANGE(OHIO_WDT_BASE, av.wdt)) {
+        name = "ohio wdt";
+        val = VALUE(OHIO_WDT_BASE, av.wdt);
     } else if (INRANGE(AVALANCHE_INTC_BASE, av.intc)) {
-        name = "intc";
+        //~ name = "intc";
+        logflag = 0;
         index = (addr - AVALANCHE_INTC_BASE) / 4;
         val = ar7_intc_read(av.intc, index);
     } else if (INRANGE(AVALANCHE_CPMAC1_BASE, av.cpmac1)) {
@@ -1044,8 +1122,7 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
     if (INRANGE(AVALANCHE_CPMAC0_BASE, av.cpmac0)) {
         //~ name = "cpmac0";
         logflag = 0;
-        index = (addr - AVALANCHE_CPMAC0_BASE) / 4;
-        ar7_cpmac_write(av.cpmac0, 0, index, val);
+        ar7_cpmac_write(av.cpmac0, 0, addr - AVALANCHE_CPMAC0_BASE, val);
     } else if (INRANGE(AVALANCHE_EMIF_BASE, av.emif)) {
         name = "emif";
         VALUE(AVALANCHE_EMIF_BASE, av.emif) = val;
@@ -1106,15 +1183,18 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
         logflag = MDIO;
         index = (addr - AVALANCHE_MDIO_BASE) / 4;
         ar7_mdio_write(av.mdio, index, val);
+    } else if (INRANGE(OHIO_WDT_BASE, av.wdt)) {
+        name = "ohio wdt";
+        VALUE(OHIO_WDT_BASE, av.wdt) = val;
     } else if (INRANGE(AVALANCHE_INTC_BASE, av.intc)) {
-        name = "intc";
+        //~ name = "intc";
+        logflag = 0;
         index = (addr - AVALANCHE_INTC_BASE) / 4;
         ar7_intc_write(av.intc, index, val);
     } else if (INRANGE(AVALANCHE_CPMAC1_BASE, av.cpmac1)) {
         //~ name = "cpmac1";
         logflag = 0;
-        index = (addr - AVALANCHE_CPMAC1_BASE) / 4;
-        ar7_cpmac_write(av.cpmac1, 1, index, val);
+        ar7_cpmac_write(av.cpmac1, 1, addr - AVALANCHE_CPMAC1_BASE, val);
     } else {
         name = "???";
         logflag = 1;
@@ -1130,7 +1210,7 @@ static void io_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
     if (addr & 3) {
         ar7_io_memwrite(opaque, addr, value);
         logout("addr=0x%08x, val=0x%02x\n", addr, value);
-        assert(0);
+        UNEXPECTED();
     } else if (INRANGE(AVALANCHE_UART0_BASE, av.uart0)) {
         ar7_io_memwrite(opaque, addr, value);
     } else if (INRANGE(AVALANCHE_UART1_BASE, av.uart1)) {
@@ -1138,7 +1218,7 @@ static void io_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
     } else {
         ar7_io_memwrite(opaque, addr, value);
         logout("addr=0x%08x, val=0x%02x\n", addr, value);
-        assert(0);
+        UNEXPECTED();
     }
     //~ cpu_outb(NULL, addr & 0xffff, value);
 }
