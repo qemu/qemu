@@ -357,8 +357,8 @@ VL_OBJS+= grackle_pci.o prep_pci.o unin_pci.o
 DEFINES += -DHAS_AUDIO
 endif
 ifeq ($(TARGET_ARCH), mips)
-VL_OBJS+= mips_r4k.o dma.o vga.o serial.o i8254.o i8259.o
-#VL_OBJS+= #ide.o pckbd.o fdc.o m48t59.o
+VL_OBJS+= mips_r4k.o dma.o vga.o serial.o i8254.o i8259.o ide.o
+#VL_OBJS+= #pckbd.o fdc.o m48t59.o
 endif
 ifeq ($(TARGET_BASE_ARCH), sparc)
 ifeq ($(TARGET_ARCH), sparc64)

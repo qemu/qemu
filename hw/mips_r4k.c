@@ -7,6 +7,10 @@
 
 #define VIRT_TO_PHYS_ADDEND (-0x80000000LL)
 
+static const int ide_iobase[2] = { 0x1f0, 0x170 };
+static const int ide_iobase2[2] = { 0x3f6, 0x376 };
+static const int ide_irq[2] = { 14, 15 };
+
 extern FILE *logfile;
 
 static PITState *pit;
@@ -118,6 +122,7 @@ void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
     int ret;
     CPUState *env;
     long kernel_size;
+    int i;
 
     env = cpu_init();
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
@@ -198,6 +203,10 @@ void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
             exit (1);
         }
     }
+
+    for(i = 0; i < 2; i++)
+        isa_ide_init(ide_iobase[i], ide_iobase2[i], ide_irq[i],
+                     bs_table[2 * i], bs_table[2 * i + 1]);
 }
 
 QEMUMachine mips_machine = {
