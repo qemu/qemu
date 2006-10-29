@@ -27,10 +27,6 @@
 //#include "fpmodule.h"
 //#include "fpmodule.inl"
 
-extern flag floatx80_is_nan(floatx80);
-extern flag float64_is_nan( float64);
-extern flag float32_is_nan( float32);
-
 void SetRoundingMode(const unsigned int opcode);
 
 unsigned int PerformFLT(const unsigned int opcode);

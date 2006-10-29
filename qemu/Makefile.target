@@ -364,7 +364,7 @@ VL_OBJS+= grackle_pci.o prep_pci.o unin_pci.o
 DEFINES += -DHAS_AUDIO
 endif
 ifeq ($(TARGET_ARCH), mips)
-VL_OBJS += mips_r4k.o dma.o i8259.o
+VL_OBJS += mips_r4k.o dma.o i8259.o ide.o
 VL_OBJS += pflash_amd.o
 VL_OBJS += pflash_cfi01.o
 VL_OBJS += pflash_cfi02.o
@@ -375,7 +375,7 @@ ifdef CONFIG_SDL
 VL_OBJS += vga.o
 endif
 VL_OBJS += i8254.o
-#VL_OBJS+= #ide.o pckbd.o fdc.o m48t59.o
+#VL_OBJS+= #pckbd.o fdc.o m48t59.o
 endif
 ifeq ($(TARGET_BASE_ARCH), sparc)
 ifeq ($(TARGET_ARCH), sparc64)
