@@ -696,7 +696,7 @@ static void eepro100_cu_command(EEPRO100State *s, uint8_t val)
                 case CmdTx:
                     (void)0;
                     uint32_t tbd_array = le32_to_cpu(tx.tx_desc_addr);
-                    uint16_t tcb_bytes = le16_to_cpu(tx.tcb_bytes);
+                    uint16_t tcb_bytes = (le16_to_cpu(tx.tcb_bytes) & 0x3fff);
                     logout("transmit, TBD array address 0x%08x, TCB byte count 0x%04x, TBD count %u\n",
                         tbd_array, tcb_bytes, tx.tbd_count);
                     assert(!bit_nc);
@@ -705,7 +705,7 @@ static void eepro100_cu_command(EEPRO100State *s, uint8_t val)
                     /* Next assertion fails for scu2. */
                     //~ assert((tcb_bytes > 0) || (tbd_array != 0xffffffff));
                     if (!((tcb_bytes > 0) || (tbd_array != 0xffffffff))) {
-                        logout("illegal values of TBD array address and TCB byte count!");
+                        logout("illegal values of TBD array address and TCB byte count!\n");
                     }
                     uint8_t buf[MAX_ETH_FRAME_SIZE + 4];
                     uint16_t size = 0;
@@ -795,13 +795,18 @@ static void eepro100_cu_command(EEPRO100State *s, uint8_t val)
             /* List is empty. Now CU is idle or suspended. */
             break;
         case CU_RESUME:
+            if (get_cu_state(s) != cu_suspended) {
+                logout("bad CU resume from CU state %u\n", get_cu_state(s));
+                /* Workaround for bad Linux eepro100 driver which resumes
+                 * from idle state. */
+                //~ missing("cu resume");
+                set_cu_state(s, cu_suspended);
+            }
             if (get_cu_state(s) == cu_suspended) {
                 logout("CU resuming\n");
                 set_cu_state(s, cu_active);
                 goto next_command;
             }
-            logout("cu_state=%u\n", get_cu_state(s));
-            missing("cu resume");
             break;
         case CU_STATSADDR:
             /* Load dump counters address. */
@@ -1445,6 +1450,7 @@ static void nic_receive(void *opaque, const uint8_t *buf, int size)
      * - Interesting packets should set bit 29 in power management driver register.
      */
     EEPRO100State *s = opaque;
+    uint16_t rfd_status = 0xa000;
     static const uint8_t broadcast_macaddr[6] =
         { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
@@ -1466,9 +1472,6 @@ static void nic_receive(void *opaque, const uint8_t *buf, int size)
          * Long frames are discarded. */
         logout("%p received long frame (%d byte), ignored\n", s, size);
         return;
-    } else if (s->configuration[15] & 1) {
-        /* Promiscuous: receive all. */
-        logout("%p received frame in promiscuous mode, len=%d\n", s, size);
     } else if (memcmp(buf, s->macaddr, 6) == 0) { // !!!
         /* Frame matches individual address. */
         /* TODO: check configuration byte 15/4 (ignore U/L). */
@@ -1476,6 +1479,7 @@ static void nic_receive(void *opaque, const uint8_t *buf, int size)
     } else if (memcmp(buf, broadcast_macaddr, 6) == 0) {
         /* Broadcast frame. */
         logout("%p received broadcast, len=%d\n", s, size);
+        rfd_status |= 0x0002;
     } else if (buf[0] & 0x01) { // !!!
         /* Multicast frame. */
         logout("%p received multicast, len=%d\n", s, size);
@@ -1485,6 +1489,11 @@ static void nic_receive(void *opaque, const uint8_t *buf, int size)
         if (!(s->mult[mcast_idx >> 3] & (1 << (mcast_idx & 7)))) {
             return;
         }
+        rfd_status |= 0x0002;
+    } else if (s->configuration[15] & 1) {
+        /* Promiscuous: receive all. */
+        logout("%p received frame in promiscuous mode, len=%d\n", s, size);
+        rfd_status |= 0x0004;
     } else {
         logout("%p received frame, ignored, len=%d,%s\n", s, size, nic_dump(buf, size));
         return;
@@ -1502,11 +1511,9 @@ static void nic_receive(void *opaque, const uint8_t *buf, int size)
 //~ $3 = {status = 0x0, command = 0xc000, link = 0x2d220, rx_buf_addr = 0x207dc, count = 0x0, size = 0x5f8, packet = {0x0 <repeats 1518 times>}}
     eepro100_rx_t rx;
     cpu_physical_memory_read(s->ru_base + s->ru_offset, (uint8_t *)&rx, offsetof(eepro100_rx_t, packet));
-    uint16_t rfd_status = le16_to_cpu(rx.status);
     uint16_t rfd_command = le16_to_cpu(rx.command);
     uint16_t rfd_size = le16_to_cpu(rx.size);
     assert(size <= rfd_size);
-    rfd_status = 0xa000;
     if (size < 64) {
         rfd_status |= 0x0080;
     }
