@@ -977,9 +977,8 @@ void op_cmp_ ## fmt ## _ ## op (void)          \
     RETURN();                                  \
 }
 
-flag float64_is_unordered(float64 a, float64 b STATUS_PARAM)
+int float64_is_unordered(float64 a, float64 b STATUS_PARAM)
 {
-    extern flag float64_is_nan( float64 a );
     if (float64_is_nan(a) || float64_is_nan(b)) {
         float_raise(float_flag_invalid, status);
         return 1;
