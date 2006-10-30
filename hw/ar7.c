@@ -41,12 +41,16 @@
 #include <assert.h>
 #include <stddef.h>     /* offsetof */
 
+#include <zlib.h>       /* crc32 */
+
 #include "vl.h"
 #include "disas.h"      /* lookup_symbol */
 #include "exec-all.h"   /* logfile */
 #include "hw/ar7.h"     /* ar7_init */
 
 static int bigendian;
+
+#define MAX_ETH_FRAME_SIZE 1514
 
 #if 0
 struct IoState {
@@ -129,12 +133,26 @@ struct IoState {
 #define AVALANCHE_CPMAC1_BASE           0x08612800
 #define AVALANCHE_END                   0x08613000
 
+//~ typedef struct {
+    //~ struct BUFF_DESC  *next;
+    //~ char              *buff;
+    //~ uint32_t           buff_params;
+    //~ uint32_t           ctrl_n_len;
+//~ } cpmac_buff_t;
+
 typedef struct {
-    struct BUFF_DESC  *next;
-    char              *buff;
-    uint32_t           buff_params;
-    uint32_t           ctrl_n_len;
-} cpmac_buff_t;
+  uint32_t next;
+  uint32_t buff;
+  uint32_t length;
+  uint32_t mode;
+} cpphy_rcb_t;
+
+typedef struct {
+  uint32_t next;
+  uint32_t buff;
+  uint32_t length;
+  uint32_t mode;
+} cpphy_tcb_t;
 
 typedef struct {
     //~ uint8_t cmd;
@@ -223,6 +241,17 @@ static const char *backtrace(void)
     p += sprintf(p, "[%s]", lookup_symbol(av.cpu_env->PC));
     p += sprintf(p, "[%s]", lookup_symbol(av.cpu_env->gpr[31]));
     assert((p - buffer) < sizeof(buffer));
+    return buffer;
+}
+
+static const char *dump(const uint8_t *buf, unsigned size)
+{
+    static char buffer[3 * 16 + 1];
+    char *p = &buffer[0];
+    if (size > 16) size = 16;
+    while (size-- > 0) {
+        p += sprintf(p, " %02x", *buf++);
+    }
     return buffer;
 }
 
@@ -483,25 +512,33 @@ static void ar7_cpmac_write(uint32_t cpmac[], unsigned index, unsigned offset, u
     } else if (offset >= 0x180 && offset < 0x188) {
         /* Transmit buffer. !!! */
         while (val != 0) {
-            cpmac_buff_t bd;
-            cpu_physical_memory_read(val, (uint8_t *)&bd, sizeof(bd));
+            cpphy_tcb_t tcb;
+            uint8_t buffer[MAX_ETH_FRAME_SIZE + 4];
+            cpu_physical_memory_read(val, (uint8_t *)&tcb, sizeof(tcb));
+            uint32_t addr = le32_to_cpu(tcb.buff);
+            uint32_t length = le32_to_cpu(tcb.length);
             TRACE(CPMAC, logout("buffer 0x%08x, next 0x%08x, buff 0x%08x, params 0x%08x, len 0x%08x\n",
-                    val, (unsigned)bd.next, (unsigned)bd.buff,
-                    (unsigned)bd.buff_params, (unsigned)bd.ctrl_n_len));
-            //~ qemu_send_packet(av.nic[index].vc, bd.buff, bd.ctrl_n_len);
-            val = (uint32_t)bd.next;
+                    val, (unsigned)tcb.next, addr,
+                    (unsigned)tcb.mode, length));
+            assert(length <= MAX_ETH_FRAME_SIZE);
+            //~ (frame_length | CB_SOF_BIT | CB_EOF_BIT | CB_OWNERSHIP_BIT)
+            cpu_physical_memory_read(addr, buffer, length);
+            qemu_send_packet(av.nic[index].vc, buffer, length);
+            TRACE(CPMAC, logout("sent %s\n", dump(buffer, length)));
+            uint32_t crc = crc32(~0, buffer, length);
+            memcpy(&buffer[length], &crc, 4);
+            length += 4;
+            qemu_send_packet(av.nic[index].vc, buffer, length);
+            val = le32_to_cpu(tcb.next);
         }
     } else if (offset >= 0x188 && offset < 0x190) {
         /* Receive buffer. !!! */
-        while (val != 0) {
-            cpmac_buff_t bd;
-            cpu_physical_memory_read(val, (uint8_t *)&bd, sizeof(bd));
-            TRACE(CPMAC, logout("buffer 0x%08x, next 0x%08x, buff 0x%08x, params 0x%08x, len 0x%08x\n",
-                    val, (unsigned)bd.next, (unsigned)bd.buff,
-                    (unsigned)bd.buff_params, (unsigned)bd.ctrl_n_len));
-            //~ qemu_send_packet(av.nic[index].vc, bd.buff, bd.ctrl_n_len);
-            val = (uint32_t)bd.next;
-        }
+        cpphy_rcb_t rcb;
+        cpu_physical_memory_read(val, (uint8_t *)&rcb, sizeof(rcb));
+        uint32_t addr = le32_to_cpu(rcb.buff);
+        uint32_t length = le32_to_cpu(rcb.length);
+        TRACE(CPMAC, logout("buffer 0x%08x, next 0x%08x, buff 0x%08x, params 0x%08x, len 0x%08x\n",
+                val, (unsigned)rcb.next, addr, (unsigned)rcb.mode, length));
     }
 }
 
@@ -1326,27 +1363,39 @@ static void ar7_serial_init(CPUState *env)
 
 static int ar7_nic_can_receive(void *opaque)
 {
-    NICState *s = (NICState *)opaque;
-    logout("opaque=%p\n", s);
+    unsigned index = (unsigned)opaque;
+    uint32_t *cpmac = av.cpmac0;
+    if (index != 0) {
+        cpmac = av.cpmac1;
+    }
 
-    //~ if (s->cmd & E8390_STOP)
-        return 1;
-    //~ return !ne2000_buffer_full(s);
+    TRACE(CPMAC, logout("CPMAC %u\n", index));
+
+    return (cpmac[0x188] != 0);
 }
 
 static void ar7_nic_receive(void *opaque, const uint8_t *buf, int size)
 {
+    unsigned index = (unsigned)opaque;
+    uint32_t *cpmac = av.cpmac0;
+    if (index != 0) {
+        cpmac = av.cpmac1;
+    }
+
+    TRACE(CPMAC, logout("CPMAC %u received %u byte: %s\n", index, size, dump(buf, size)));
+
     /* Received a packet. */
     static const uint8_t broadcast_macaddr[6] = 
         { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
-    NICState *s = (NICState *)opaque;
 
-    if (!memcmp(buf, broadcast_macaddr, sizeof(broadcast_macaddr))) {
-        logout("s=%p, buf=%p, size=%d broadcast\n", s, buf, size);
+    if (!memcmp(buf, broadcast_macaddr, 6)) {
+        logout("broadcast\n");
     } else if (buf[0] & 0x01) {
-        logout("s=%p, buf=%p, size=%d multicast\n", s, buf, size);
+        logout("multicast\n");
+    } else if (!memcmp(buf, av.nic[index].phys, 6)) {
+        logout("my address\n");
     } else {
-        logout("s=%p, buf=%p, size=%d\n", s, buf, size);
+        logout("unknown address\n");
     }
 
 /* Rcb/Tcb Constants */
@@ -1359,23 +1408,24 @@ static void ar7_nic_receive(void *opaque, const uint8_t *buf, int size)
 #define CB_SIZE_MASK       0x0000ffff
 #define RCB_ERRORS_MASK    0x03fe0000
 
-    uint32_t val = av.cpmac0[0x188];
+    uint32_t val = cpmac[0x188];
     if (val != 0) {
-        cpmac_buff_t bd;
-        cpu_physical_memory_read(val, (uint8_t *)&bd, sizeof(bd));
+        cpphy_rcb_t rcb;
+        cpu_physical_memory_read(val, (uint8_t *)&rcb, sizeof(rcb));
+        uint32_t addr = le32_to_cpu(rcb.buff);
+        uint32_t length = le32_to_cpu(rcb.length);
         logout("buffer 0x%08x, next 0x%08x, buff 0x%08x, params 0x%08x, len 0x%08x\n",
-                val, (unsigned)bd.next, (unsigned)bd.buff,
-                (unsigned)bd.buff_params, (unsigned)bd.ctrl_n_len);
-        bd.ctrl_n_len &= ~(CB_OWNERSHIP_BIT);
-        bd.ctrl_n_len |= (size & CB_SIZE_MASK);
-        bd.ctrl_n_len |= CB_SOF_BIT | CB_EOF_BIT /*| CB_OWNERSHIP_BIT */;
-        cpu_physical_memory_write(val, (uint8_t *)&bd, sizeof(bd));
-        val = (uint32_t)bd.next;
-        cpu_physical_memory_write((target_phys_addr_t)bd.buff, buf, size);
+                val, (unsigned)rcb.next, addr, (unsigned)rcb.mode, length);
+        rcb.mode &= ~(CB_OWNERSHIP_BIT);
+        rcb.mode |= (size & CB_SIZE_MASK);
+        rcb.mode |= CB_SOF_BIT | CB_EOF_BIT /*| CB_OWNERSHIP_BIT */;
+        cpu_physical_memory_write(val, (uint8_t *)&rcb, sizeof(rcb));
+        val = le32_to_cpu(rcb.next);
+        cpu_physical_memory_write(addr, buf, size);
     }
 
-    av.cpmac0[0x60] |= MAC_IN_VECTOR_RX_INT_OR;
-    ar7_irq(0, 27, 1);  // !!! fix
+    cpmac[0x60] |= MAC_IN_VECTOR_RX_INT_OR;
+    ar7_irq(0, cpmac_interrupt[index], 1);  // !!! fix
 }
 
 static void ar7_nic_init(void)
@@ -1390,7 +1440,7 @@ static void ar7_nic_init(void)
             || strcmp(nd->model, "ar7") == 0)) {
             logout("starting AR7 nic CPMAC%u\n", n);
             av.nic[n++].vc = qemu_new_vlan_client(nd->vlan, ar7_nic_receive,
-                                 ar7_nic_can_receive, &av.nic);
+                                 ar7_nic_can_receive, (void *)n);
           } else {
             fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd_table[0].model);
             exit (1);
