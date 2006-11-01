@@ -1,3 +1,11 @@
+2006-11-01 20:19  bellard
+
+	* pc-bios/: bios.bin, bios.diff: update from latest Bochs BIOS
+
+2006-11-01 02:44  pbrook
+
+	* vl.c: Remove FD on close.
+
 2006-10-29 16:38  pbrook
 
 	* Makefile.target, hw/mips_r4k.c: Mips IDE support. (Aurelien
