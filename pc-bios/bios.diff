@@ -1,10 +1,10 @@
 Index: rombios.h
 ===================================================================
 RCS file: /cvsroot/bochs/bochs/bios/rombios.h,v
-retrieving revision 1.2
-diff -u -w -r1.2 rombios.h
---- rombios.h	1 Oct 2006 16:39:18 -0000	1.2
-+++ rombios.h	2 Oct 2006 18:31:41 -0000
+retrieving revision 1.3
+diff -u -w -r1.3 rombios.h
+--- rombios.h	3 Oct 2006 20:27:30 -0000	1.3
++++ rombios.h	1 Nov 2006 19:16:34 -0000
 @@ -19,7 +19,7 @@
  //  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
  
@@ -12,50 +12,16 @@ diff -u -w -r1.2 rombios.h
 -//#define BX_QEMU
 +#define BX_QEMU
  
- #define BX_ROMBIOS32     1
- #define DEBUG_ROMBIOS    0
+ #ifndef LEGACY
+ #  define BX_ROMBIOS32     1
 Index: rombios32.c
 ===================================================================
 RCS file: /cvsroot/bochs/bochs/bios/rombios32.c,v
-retrieving revision 1.6
-diff -u -w -r1.6 rombios32.c
---- rombios32.c	2 Oct 2006 06:29:37 -0000	1.6
-+++ rombios32.c	2 Oct 2006 18:31:41 -0000
-@@ -45,6 +45,8 @@
-                 : "=a" (eax), "=b" (ebx), "=c" (ecx), "=d" (edx) \
-                 : "0" (index))
- 
-+#define wbinvd() asm volatile("wbinvd")
-+
- #define CPUID_APIC (1 << 9)
- 
- #define APIC_BASE    ((uint8_t *)0xfee00000)
-@@ -591,6 +593,7 @@
-     PCIDevice *d = &i440_pcidev;
-     int v;
- 
-+    wbinvd();
-     v = pci_config_readb(d, 0x59);
-     v = (v & 0x0f) | (0x10);
-     pci_config_writeb(d, 0x59, v);
-@@ -645,7 +648,7 @@
-     outb(0xb3, 0x01);
- 
-     /* raise an SMI interrupt */
--    outb(0xb2, 0x01);
-+    outb(0xb2, 0x00);
- 
-     /* wait until SMM code executed */
-     while (inb(0xb3) != 0x00);
-@@ -656,6 +659,7 @@
-     /* copy the SMM code */
-     memcpy((void *)0xa8000, &smm_code_start,
-            &smm_code_end - &smm_code_start);
-+    wbinvd();
-     
-     /* close the SMM memory window and enable normal SMM */
-     pci_config_writeb(&i440_pcidev, 0x72, 0x02 | 0x08);
-@@ -848,6 +852,11 @@
+retrieving revision 1.8
+diff -u -w -r1.8 rombios32.c
+--- rombios32.c	3 Oct 2006 20:27:30 -0000	1.8
++++ rombios32.c	1 Nov 2006 19:16:34 -0000
+@@ -852,6 +852,11 @@
      int ioapic_id, i, len;
      int mp_config_table_size;
  
