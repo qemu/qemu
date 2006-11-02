@@ -62,12 +62,13 @@ struct IoState {
 /* Set flags to >0 to enable debug output. */
 #define CLOCK   1
 #define CPMAC   1
-#define GPIO    1
+#define EMIF    0
+#define GPIO    0
 #define INTC    1
 #define MDIO    0       /* polled, so very noisy */
 #define RESET   1
 #define UART0   0
-#define UART1   1
+#define UART1   0
 #define WDOG    1
 #define OTHER   1
 
@@ -246,9 +247,9 @@ static const char *backtrace(void)
 
 static const char *dump(const uint8_t *buf, unsigned size)
 {
-    static char buffer[3 * 16 + 1];
+    static char buffer[3 * 25 + 1];
     char *p = &buffer[0];
-    if (size > 16) size = 16;
+    if (size > 25) size = 25;
     while (size-- > 0) {
         p += sprintf(p, " %02x", *buf++);
     }
@@ -467,6 +468,10 @@ static const char *i2cpmac(unsigned index)
 
 static const int cpmac_interrupt[] = { 27, 41 };
 
+#define BD_SOP    MASK(31, 31)
+#define BD_EOP    MASK(30, 30)
+#define BD_OWNS   MASK(29, 29)
+
 static uint32_t ar7_cpmac_read(uint32_t cpmac[], unsigned index)
 {
     uint32_t val = cpmac[index];
@@ -523,12 +528,14 @@ static void ar7_cpmac_write(uint32_t cpmac[], unsigned index, unsigned offset, u
             assert(length <= MAX_ETH_FRAME_SIZE);
             //~ (frame_length | CB_SOF_BIT | CB_EOF_BIT | CB_OWNERSHIP_BIT)
             cpu_physical_memory_read(addr, buffer, length);
-            qemu_send_packet(av.nic[index].vc, buffer, length);
-            TRACE(CPMAC, logout("sent %s\n", dump(buffer, length)));
-            uint32_t crc = crc32(~0, buffer, length);
-            memcpy(&buffer[length], &crc, 4);
-            length += 4;
-            qemu_send_packet(av.nic[index].vc, buffer, length);
+            if (av.nic[index].vc != 0) {
+                qemu_send_packet(av.nic[index].vc, buffer, length);
+                TRACE(CPMAC, logout("sent %s\n", dump(buffer, length)));
+                uint32_t crc = crc32(~0, buffer, length);
+                memcpy(&buffer[length], &crc, 4);
+                length += 4;
+                qemu_send_packet(av.nic[index].vc, buffer, length);
+            }
             val = le32_to_cpu(tcb.next);
         }
     } else if (offset >= 0x188 && offset < 0x190) {
@@ -1062,6 +1069,7 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
         val = ar7_cpmac_read(av.cpmac0, index);
     } else if (INRANGE(AVALANCHE_EMIF_BASE, av.emif)) {
         name = "emif";
+        logflag = EMIF;
         val = VALUE(AVALANCHE_EMIF_BASE, av.emif);
     } else if (INRANGE(AVALANCHE_GPIO_BASE, av.gpio)) {
         name = "gpio";
@@ -1162,6 +1170,7 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
         ar7_cpmac_write(av.cpmac0, 0, addr - AVALANCHE_CPMAC0_BASE, val);
     } else if (INRANGE(AVALANCHE_EMIF_BASE, av.emif)) {
         name = "emif";
+        logflag = EMIF;
         VALUE(AVALANCHE_EMIF_BASE, av.emif) = val;
     } else if (INRANGE(AVALANCHE_GPIO_BASE, av.gpio)) {
         name = "gpio";
@@ -1409,23 +1418,37 @@ static void ar7_nic_receive(void *opaque, const uint8_t *buf, int size)
 #define RCB_ERRORS_MASK    0x03fe0000
 
     uint32_t val = cpmac[0x188];
-    if (val != 0) {
+    if (val == 0) {
+        logout("no buffer available, frame ignored\n");
+    } else {
         cpphy_rcb_t rcb;
         cpu_physical_memory_read(val, (uint8_t *)&rcb, sizeof(rcb));
         uint32_t addr = le32_to_cpu(rcb.buff);
         uint32_t length = le32_to_cpu(rcb.length);
+        uint32_t mode = le32_to_cpu(rcb.mode);
         logout("buffer 0x%08x, next 0x%08x, buff 0x%08x, params 0x%08x, len 0x%08x\n",
-                val, (unsigned)rcb.next, addr, (unsigned)rcb.mode, length);
-        rcb.mode &= ~(CB_OWNERSHIP_BIT);
-        rcb.mode |= (size & CB_SIZE_MASK);
-        rcb.mode |= CB_SOF_BIT | CB_EOF_BIT /*| CB_OWNERSHIP_BIT */;
-        cpu_physical_memory_write(val, (uint8_t *)&rcb, sizeof(rcb));
-        val = le32_to_cpu(rcb.next);
-        cpu_physical_memory_write(addr, buf, size);
-    }
+                val, (unsigned)rcb.next, addr, mode, length);
+        if (mode & CB_OWNERSHIP_BIT) {
+          //~ assert(length > size);
+          mode &= ~(CB_OWNERSHIP_BIT);
+          mode |= (size & CB_SIZE_MASK);
+          mode |= CB_SOF_BIT | CB_EOF_BIT /*| CB_OWNERSHIP_BIT */;
+          if (rcb.next == 0) {
+            logout("last buffer\n");
+            mode |= CB_EOQ_BIT;
+          }
+          rcb.length = cpu_to_le32(size);
+          rcb.mode = cpu_to_le32(mode);
+          cpu_physical_memory_write(addr, buf, size);
+          cpu_physical_memory_write(val, (uint8_t *)&rcb, sizeof(rcb));
+          cpmac[0x188] = rcb.next;
 
-    cpmac[0x60] |= MAC_IN_VECTOR_RX_INT_OR;
-    ar7_irq(0, cpmac_interrupt[index], 1);  // !!! fix
+          cpmac[0x60] |= MAC_IN_VECTOR_RX_INT_OR;
+          ar7_irq(0, cpmac_interrupt[index], 1);  // !!! fix
+        } else {
+          logout("buffer not free, frame ignored\n");
+        }
+    }
 }
 
 static void ar7_nic_init(void)
