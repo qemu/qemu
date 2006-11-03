@@ -130,10 +130,23 @@ static int bios_load(const char *filename, unsigned long bios_offset, unsigned l
     fprintf(stderr, "%s: load BIOS '%s' size %d\n", __func__, buf, ret);
     if (ret > 0) {
         const unsigned blocksize = 0x10000;
+#if 0
         pflash_t *pf = pflash_cfi01_register(address, bios_offset,
                 0,
                 blocksize, ret / blocksize, 2,
                 0x4a, 0x49, 0x33, 0x44);
+#elif 0
+        pflash_t *pf = pflash_register(address, bios_offset,
+                0,
+                blocksize, ret / blocksize, 2,
+                0x4a, 0x49, 0x33, 0x44);
+#else
+        pflash_t *pf = pflash_amd_register(address, bios_offset,
+                0,
+                blocksize, ret / blocksize, 2,
+                /* AMD Am29LV160DB */
+                0x01, 0x2249, 0x33, 0x44);
+#endif
     } else {
         ret = 0;
     }
