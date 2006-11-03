@@ -243,7 +243,7 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
             pfl->cmd = 0x98;
             return;
         }
-        if (boff != 0x555 || cmd != 0xAA) {
+        if ((boff != 0x555 && boff != 0x5555) || cmd != 0xAA) {
             DPRINTF("%s: unlock0 failed %04x %02x %04x\n",
                     __func__, boff, cmd, 0x555);
             goto reset_flash;
@@ -253,7 +253,7 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
     case 1:
         /* We started an unlock sequence */
     check_unlock1:
-        if (boff != 0x2AA || cmd != 0x55) {
+        if ((boff != 0x2AA && boff != 0x2AAA) || cmd != 0x55) {
             DPRINTF("%s: unlock1 failed %04x %02x\n", __func__, boff, cmd);
             goto reset_flash;
         }
@@ -261,7 +261,7 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
         break;
     case 2:
         /* We finished an unlock sequence */
-        if (!pfl->bypass && boff != 0x555) {
+        if (!pfl->bypass && boff != 0x555 && boff != 0x5555) {
             DPRINTF("%s: command failed %04x %02x\n", __func__, boff, cmd);
             goto reset_flash;
         }
