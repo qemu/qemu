@@ -1,10 +1,4 @@
 /*
-0000   fa 6c a8 3d 73 ef 00 30 f1 df 5f 55 08 06 00 01  .l.=s..0.._U....
-0010   08 00 06 04 00 02 00 30 f1 df 5f 55 c0 a8 02 01  .......0.._U....
-0020   fa 6c a8 3d 73 ef c0 a8 02 02 00 00 00 00 00 00  .l.=s...........
-0030   00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-
-Frame check sequence: 0x00000000 [incorrect, should be 0xd69b27fe]
  * QEMU avalanche support
  * Copyright (c) 2006 Stefan Weil
  *
@@ -68,10 +62,10 @@ struct IoState {
 
 /* Set flags to >0 to enable debug output. */
 #define CLOCK   1
-#define CPMAC   1
+#define CPMAC   0
 #define EMIF    0
 #define GPIO    0
-#define INTC    1
+#define INTC    0
 #define MDIO    0       /* polled, so very noisy */
 #define RESET   1
 #define UART0   0
@@ -115,6 +109,8 @@ struct IoState {
 #define AVALANCHE_EMIF_BASE             0x08610800
 #define AVALANCHE_GPIO_BASE             0x08610900
 #define AVALANCHE_CLOCK_BASE            0x08610a00 /* Clock Control */
+#define AVALANCHE_POWER_CTRL_PDCR     (KSEG1ADDR(0x08610A00))
+#define AVALANCHE_WAKEUP_CTRL_WKCR    (KSEG1ADDR(0x08610A0C))
 #define AVALANCHE_WATCHDOG_BASE         0x08610b00 /* Watchdog */
 #define AVALANCHE_TIMER0_BASE           0x08610c00 /* Timer 1 */
 #define AVALANCHE_TIMER1_BASE           0x08610d00 /* Timer 2 */
@@ -501,90 +497,8 @@ static uint32_t ar7_cpmac_read(uint32_t cpmac[], unsigned index)
     return val;
 }
 
-
-/* generated using the AUTODIN II polynomial
- *	x^32 + x^26 + x^23 + x^22 + x^16 +
- *	x^12 + x^11 + x^10 + x^8 + x^7 + x^5 + x^4 + x^2 + x^1 + 1
- */
-static const uint32_t crctab[256] = {
-	0x00000000, 0x77073096, 0xee0e612c, 0x990951ba,
-	0x076dc419, 0x706af48f, 0xe963a535, 0x9e6495a3,
-	0x0edb8832, 0x79dcb8a4, 0xe0d5e91e, 0x97d2d988,
-	0x09b64c2b, 0x7eb17cbd, 0xe7b82d07, 0x90bf1d91,
-	0x1db71064, 0x6ab020f2, 0xf3b97148, 0x84be41de,
-	0x1adad47d, 0x6ddde4eb, 0xf4d4b551, 0x83d385c7,
-	0x136c9856, 0x646ba8c0, 0xfd62f97a, 0x8a65c9ec,
-	0x14015c4f, 0x63066cd9, 0xfa0f3d63, 0x8d080df5,
-	0x3b6e20c8, 0x4c69105e, 0xd56041e4, 0xa2677172,
-	0x3c03e4d1, 0x4b04d447, 0xd20d85fd, 0xa50ab56b,
-	0x35b5a8fa, 0x42b2986c, 0xdbbbc9d6, 0xacbcf940,
-	0x32d86ce3, 0x45df5c75, 0xdcd60dcf, 0xabd13d59,
-	0x26d930ac, 0x51de003a, 0xc8d75180, 0xbfd06116,
-	0x21b4f4b5, 0x56b3c423, 0xcfba9599, 0xb8bda50f,
-	0x2802b89e, 0x5f058808, 0xc60cd9b2, 0xb10be924,
-	0x2f6f7c87, 0x58684c11, 0xc1611dab, 0xb6662d3d,
-	0x76dc4190, 0x01db7106, 0x98d220bc, 0xefd5102a,
-	0x71b18589, 0x06b6b51f, 0x9fbfe4a5, 0xe8b8d433,
-	0x7807c9a2, 0x0f00f934, 0x9609a88e, 0xe10e9818,
-	0x7f6a0dbb, 0x086d3d2d, 0x91646c97, 0xe6635c01,
-	0x6b6b51f4, 0x1c6c6162, 0x856530d8, 0xf262004e,
-	0x6c0695ed, 0x1b01a57b, 0x8208f4c1, 0xf50fc457,
-	0x65b0d9c6, 0x12b7e950, 0x8bbeb8ea, 0xfcb9887c,
-	0x62dd1ddf, 0x15da2d49, 0x8cd37cf3, 0xfbd44c65,
-	0x4db26158, 0x3ab551ce, 0xa3bc0074, 0xd4bb30e2,
-	0x4adfa541, 0x3dd895d7, 0xa4d1c46d, 0xd3d6f4fb,
-	0x4369e96a, 0x346ed9fc, 0xad678846, 0xda60b8d0,
-	0x44042d73, 0x33031de5, 0xaa0a4c5f, 0xdd0d7cc9,
-	0x5005713c, 0x270241aa, 0xbe0b1010, 0xc90c2086,
-	0x5768b525, 0x206f85b3, 0xb966d409, 0xce61e49f,
-	0x5edef90e, 0x29d9c998, 0xb0d09822, 0xc7d7a8b4,
-	0x59b33d17, 0x2eb40d81, 0xb7bd5c3b, 0xc0ba6cad,
-	0xedb88320, 0x9abfb3b6, 0x03b6e20c, 0x74b1d29a,
-	0xead54739, 0x9dd277af, 0x04db2615, 0x73dc1683,
-	0xe3630b12, 0x94643b84, 0x0d6d6a3e, 0x7a6a5aa8,
-	0xe40ecf0b, 0x9309ff9d, 0x0a00ae27, 0x7d079eb1,
-	0xf00f9344, 0x8708a3d2, 0x1e01f268, 0x6906c2fe,
-	0xf762575d, 0x806567cb, 0x196c3671, 0x6e6b06e7,
-	0xfed41b76, 0x89d32be0, 0x10da7a5a, 0x67dd4acc,
-	0xf9b9df6f, 0x8ebeeff9, 0x17b7be43, 0x60b08ed5,
-	0xd6d6a3e8, 0xa1d1937e, 0x38d8c2c4, 0x4fdff252,
-	0xd1bb67f1, 0xa6bc5767, 0x3fb506dd, 0x48b2364b,
-	0xd80d2bda, 0xaf0a1b4c, 0x36034af6, 0x41047a60,
-	0xdf60efc3, 0xa867df55, 0x316e8eef, 0x4669be79,
-	0xcb61b38c, 0xbc66831a, 0x256fd2a0, 0x5268e236,
-	0xcc0c7795, 0xbb0b4703, 0x220216b9, 0x5505262f,
-	0xc5ba3bbe, 0xb2bd0b28, 0x2bb45a92, 0x5cb36a04,
-	0xc2d7ffa7, 0xb5d0cf31, 0x2cd99e8b, 0x5bdeae1d,
-	0x9b64c2b0, 0xec63f226, 0x756aa39c, 0x026d930a,
-	0x9c0906a9, 0xeb0e363f, 0x72076785, 0x05005713,
-	0x95bf4a82, 0xe2b87a14, 0x7bb12bae, 0x0cb61b38,
-	0x92d28e9b, 0xe5d5be0d, 0x7cdcefb7, 0x0bdbdf21,
-	0x86d3d2d4, 0xf1d4e242, 0x68ddb3f8, 0x1fda836e,
-	0x81be16cd, 0xf6b9265b, 0x6fb077e1, 0x18b74777,
-	0x88085ae6, 0xff0f6a70, 0x66063bca, 0x11010b5c,
-	0x8f659eff, 0xf862ae69, 0x616bffd3, 0x166ccf45,
-	0xa00ae278, 0xd70dd2ee, 0x4e048354, 0x3903b3c2,
-	0xa7672661, 0xd06016f7, 0x4969474d, 0x3e6e77db,
-	0xaed16a4a, 0xd9d65adc, 0x40df0b66, 0x37d83bf0,
-	0xa9bcae53, 0xdebb9ec5, 0x47b2cf7f, 0x30b5ffe9,
-	0xbdbdf21c, 0xcabac28a, 0x53b39330, 0x24b4a3a6,
-	0xbad03605, 0xcdd70693, 0x54de5729, 0x23d967bf,
-	0xb3667a2e, 0xc4614ab8, 0x5d681b02, 0x2a6f2b94,
-	0xb40bbe37, 0xc30c8ea1, 0x5a05df1b, 0x2d02ef8d,
-};
-
-uint32_t fcs32(uint32_t fcs, const uint8_t *buffer, unsigned length)
-{
-#define CRC(crc, ch)	 (crc = (crc >> 8) ^ crctab[(crc ^ (ch)) & 0xff])
-    while (length-- > 0) {
-        fcs = (fcs >> 8) ^ crctab[(fcs ^ (*buffer++)) & 0xff];
-        //~ CRC(fcs, *p++);
-    }
-    return fcs;
-}
-
 /* Table of CRCs of all 8-bit messages. */
-unsigned long crc_table[256];
+static uint32_t crc_table[256];
 
 /* Flag: has the table been computed? Initially false. */
 static int crc_table_computed = 0;
@@ -592,44 +506,41 @@ static int crc_table_computed = 0;
 /* Make the table for a fast CRC. */
 static void make_crc_table(void)
 {
- unsigned long c;
- int n, k;
+  int n, k;
 
- for (n = 0; n < 256; n++) {
-   c = (unsigned long) n;
-   for (k = 0; k < 8; k++) {
-     if (c & 1)
-       c = 0xedb88320L ^ (c >> 1);
-     else
-       c = c >> 1;
-   }
-   crc_table[n] = c;
- }
- crc_table_computed = 1;
+  for (n = 0; n < 256; n++) {
+    uint32_t c = (uint32_t) n;
+    for (k = 0; k < 8; k++) {
+      if (c & 1)
+        c = 0xedb88320L ^ (c >> 1);
+      else
+        c = c >> 1;
+    }
+    crc_table[n] = c;
+  }
+  crc_table_computed = 1;
 }
-
 
 /* Update a running CRC with the bytes buf[0..len-1]--the CRC
   should be initialized to all 1's, and the transmitted value
   is the 1's complement of the final running CRC (see the
   crc() routine below). */
 
-static unsigned long update_crc(unsigned long crc, const unsigned char *buf,
-                        int len)
+static uint32_t update_crc(uint32_t crc, const uint8_t *buf, int len)
 {
- unsigned long c = crc;
- int n;
+  uint32_t c = crc;
+  int n;
 
- if (!crc_table_computed)
-   make_crc_table();
- for (n = 0; n < len; n++) {
-   c = crc_table[(c ^ buf[n]) & 0xff] ^ (c >> 8);
- }
- return c;
+  if (!crc_table_computed)
+    make_crc_table();
+  for (n = 0; n < len; n++) {
+    c = crc_table[(c ^ buf[n]) & 0xff] ^ (c >> 8);
+  }
+  return c;
 }
 
 /* Return the CRC of the bytes buf[0..len-1]. */
-unsigned long fcs(const unsigned char *buf, int len)
+uint32_t fcs(const uint8_t *buf, int len)
 {
  return update_crc(0xffffffffL, buf, len) ^ 0xffffffffL;
 }
@@ -685,13 +596,11 @@ static void ar7_cpmac_write(uint32_t cpmac[], unsigned index, unsigned offset, u
             mode &= ~(CB_OWNERSHIP_BIT);
             stl_phys(val + offsetof(cpphy_tcb_t, mode), mode);
             if (av.nic[index].vc != 0) {
-                //~ qemu_send_packet(av.nic[index].vc, buffer, length);
+#if 0
                 TRACE(CPMAC, logout("sent %s\n", dump(buffer, length)));
-                //~ uint32_t crc = fcs32(~0, buffer, length - 4);
                 uint32_t crc = fcs(buffer, length);
                 TRACE(CPMAC, logout("FCS 0x%04x 0x%04x\n", (uint32_t)crc32(~0, buffer, length - 4), crc));
-                //~ crc = htonl(crc);
-#if 0
+                crc = htonl(crc);
                 memcpy(&buffer[length], &crc, 4);
                 length += 4;
 #endif
@@ -1433,73 +1342,26 @@ static void io_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
 static uint32_t io_readb (void *opaque, target_phys_addr_t addr)
 {
     return ar7_io_memread(opaque, addr);
-    //~ uint32_t ret = cpu_inb(NULL, addr & 0xffff);
-//~ #if 1
-    //~ if (logfile)
-        //~ fprintf(logfile, "%s: addr %08x val %08x\n", __func__, addr, ret);
-//~ #endif
-    //~ return ret;
 }
 
 static void io_writew (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
     ar7_io_memwrite(opaque, addr, value);
-//~ #if 1
-    //~ if (logfile)
-        //~ fprintf(logfile, "%s: addr %08x val %08x\n", __func__, addr, value);
-//~ #endif
-    //~ assert(bigendian == 0);
-    //~ if (bigendian) {
-        //~ value = bswap16(value);
-    //~ }
-    //~ cpu_outw(NULL, addr & 0xffff, value);
 }
 
 static uint32_t io_readw (void *opaque, target_phys_addr_t addr)
 {
     return ar7_io_memread(opaque, addr);
-    //~ uint32_t ret = cpu_inw(NULL, addr & 0xffff);
-    //~ assert(bigendian == 0);
-    //~ if (bigendian) {
-        //~ ret = bswap16(ret);
-    //~ }
-//~ #if 1
-    //~ if (logfile)
-        //~ fprintf(logfile, "%s: addr %08x val %08x\n", __func__, addr, ret);
-//~ #endif
-    //~ return ret;
 }
 
 static void io_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
     ar7_io_memwrite(opaque, addr, value);
-//~ #if 1
-    //~ if (logfile)
-        //~ fprintf(logfile, "%s: addr %08x val %08x\n", __func__, addr, value);
-//~ #endif
-    //~ assert(bigendian == 0);
-    //~ if (bigendian) {
-        //~ value = bswap32(value);
-    //~ }
-    //~ cpu_outl(NULL, addr & 0xffff, value);
 }
 
 static uint32_t io_readl (void *opaque, target_phys_addr_t addr)
 {
     return ar7_io_memread(opaque, addr);
-    //~ target_phys_addr_t addr = (0x08610000 & 0xffff);
-
-    //~ uint32_t ret = cpu_inl(NULL, addr & 0xffff);
-
-    //~ assert(bigendian == 0);
-    //~ if (bigendian) {
-        //~ ret = bswap32(ret);
-    //~ }
-//~ #if 1
-    //~ if (logfile)
-        //~ fprintf(logfile, "%s: addr %08x val %08x\n", __func__, addr, ret);
-//~ #endif
-    //~ return ret;
 }
 
 static CPUWriteMemoryFunc * const io_write[] = {
@@ -1559,13 +1421,13 @@ static void ar7_nic_receive(void *opaque, const uint8_t *buf, int size)
         { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
     if (!memcmp(buf, broadcast_macaddr, 6)) {
-        logout("broadcast\n");
+        TRACE(CPMAC, logout("broadcast\n"));
     } else if (buf[0] & 0x01) {
-        logout("multicast\n");
+        TRACE(CPMAC, logout("multicast\n"));
     } else if (!memcmp(buf, av.nic[index].phys, 6)) {
-        logout("my address\n");
+        TRACE(CPMAC, logout("my address\n"));
     } else {
-        logout("unknown address\n");
+        TRACE(CPMAC, logout("unknown address\n"));
     }
 
     uint32_t val = cpmac[0x188];
@@ -1577,15 +1439,15 @@ static void ar7_nic_receive(void *opaque, const uint8_t *buf, int size)
         uint32_t addr = le32_to_cpu(rcb.buff);
         uint32_t length = le32_to_cpu(rcb.length);
         uint32_t mode = le32_to_cpu(rcb.mode);
-        logout("buffer 0x%08x, next 0x%08x, buff 0x%08x, params 0x%08x, len 0x%08x\n",
-                val, (unsigned)rcb.next, addr, mode, length);
+        TRACE(CPMAC, logout("buffer 0x%08x, next 0x%08x, buff 0x%08x, params 0x%08x, len 0x%08x\n",
+            val, (unsigned)rcb.next, addr, mode, length));
         if (mode & CB_OWNERSHIP_BIT) {
           //~ assert(length > size);
           mode &= ~(CB_OWNERSHIP_BIT);
           mode |= (size & CB_SIZE_MASK);
           mode |= CB_SOF_BIT | CB_EOF_BIT /*| CB_OWNERSHIP_BIT */;
           if (rcb.next == 0) {
-            logout("last buffer\n");
+            TRACE(CPMAC, logout("last buffer\n"));
             mode |= CB_EOQ_BIT;
           }
           rcb.length = cpu_to_le32(size);
@@ -1606,13 +1468,13 @@ static void ar7_nic_init(void)
 {
     unsigned i;
     unsigned n = 0;
-    logout("\n");
+    TRACE(CPMAC, logout("\n"));
     for (i = 0; i < nb_nics; i++) {
         NICInfo *nd = &nd_table[i];
         if (nd->vlan) {
           if (n < 2 && (nd->model == NULL
             || strcmp(nd->model, "ar7") == 0)) {
-            logout("starting AR7 nic CPMAC%u\n", n);
+            TRACE(CPMAC, logout("starting AR7 nic CPMAC%u\n", n));
             av.nic[n++].vc = qemu_new_vlan_client(nd->vlan, ar7_nic_receive,
                                  ar7_nic_can_receive, (void *)n);
           } else {
@@ -1686,50 +1548,6 @@ void ar7_init(CPUState *env)
     register_savevm("ar7", ar7_instance, ar7_version, ar7_save, ar7_load, 0);
 }
 
-//~ __dev_mc_upload
-//~ notifier_call_chain
-//~ halControl
-//~ cpmac_handle_tasklet
-//~ halIsr
-//~ _mdioUserAccessRead
-
-/*
-1   breakpoint     keep y   0xffffffff900010b4 proc_fs.h:153
-2   breakpoint     keep y   0xffffffff940b887c in halSend at cppi_cpmac.c:600
-        breakpoint already hit 3 times
-3   breakpoint     keep y   0xffffffff940b9bd4 in DuplexUpdate at hcpmac.c:269
-4   breakpoint     keep y   0xffffffff940b9974 in cpMacMdioGetLinked at cpmdio.c:869
-5   breakpoint     keep y   0xffffffff940bd074 in cpMacMdioTic at cpmdio.c:789
-        breakpoint already hit 1 time
-(gdb)                 
-* TODO:
-* ar7 w: unknown address 0x08610b1c
-* Serial emulation:
-  serial device is 16550A, not 16450:
-  ttyS01 at 0xa8610f00 (irq = 16) is a 16550A
-* VLYNQ emulation:
-  VLYNQ INIT FAILED: Please try cold reboot. 
-  VLYNQ 0 : init failed
-* PHY emulation:
-  PhyControl: 1000, Lookback=Off, Speed=10, Duplex=Half
-  PhyStatus: 782D, AutoNeg=Complete, Link=Up
-  PhyMyCapability: 01E1, 100FD=Yes, 100HD=Yes, 10FD=Yes, 10HD=Yes
-  PhyPartnerCapability: 85E1, 100FD=Yes, 100HD=Yes, 10FD=Yes, 10HD=Yes
-  0: Phy= 31, Speed=100, Duplex=Full
-  DuplexUpdate[0]: MACCONTROL 0x00000021, Linked
-  [halStatus] Link Status is 7 for 0xA8610000
-(gdb) p *HalDev->OsFunc
-$10 = {Control = 0x940b5858 <cpmac_hal_control>, CriticalOn = 0x940b75b8 <os_critical_on>, CriticalOff = 0x940b75e0 <os_critical_off>,
-  DataCacheHitInvalidate = 0x940b7614 <os_cache_invalidate>, DataCacheHitWriteback = 0x940b7624 <os_cache_writeback>,
-  DeviceFindInfo = 0x940b742c <os_find_device>, DeviceFindParmUint = 0x940b7374 <os_find_parm_u_int>,
-  DeviceFindParmValue = 0x940b73d4 <os_find_parm_val>, Free = 0x940b748c <os_free>, FreeRxBuffer = 0x940b7494 <os_free_buffer>,
-  FreeDev = 0x940b7590 <os_free_dev>, FreeDmaXfer = 0x940b7598 <os_free_dma_xfer>, IsrRegister = 0x940b76b0 <hal_drv_register_isr>,
-  IsrUnRegister = 0x940b7634 <hal_drv_unregister_isr>, Malloc = 0x940b75a0 <os_malloc>, MallocDev = 0x940b75b0 <os_malloc_dev>,
-  MallocDmaXfer = 0x940b75a8 <os_malloc_dma_xfer>, MallocRxBuffer = 0x940b55e4 <cpmac_hal_malloc_buffer>, Memset = 0x941313e0 <memset>,
-  Printf = 0x94013d54 <printk>, Receive = 0x940b6abc <cpmac_hal_receive>, SendComplete = 0x940b6f38 <cpmac_hal_send_complete>,
-  Sprintf = 0x94133070 <sprintf>, Strcmpi = 0x940b72b0 <cpmac_ci_strcmp>, Strlen = 0x94131fa4 <strlen>, Strstr = 0x9413223c <strstr>,
-  Strtoul = 0x941323f0 <simple_strtol>, TeardownComplete = 0x940b6f14 <cpmac_hal_tear_down_complete>}
-*/
 #if 0
 static void ar7_machine_power_off(void)
 {
@@ -1744,8 +1562,6 @@ static void ar7_machine_power_off(void)
 
         printk("after power down?\n");
 }
-#define AVALANCHE_POWER_CTRL_PDCR     (KSEG1ADDR(0x08610A00))
-#define AVALANCHE_WAKEUP_CTRL_WKCR    (KSEG1ADDR(0x08610A0C))
 ./arch/mips/ar7/tnetd73xx_misc.c:#define CLKC_CLKCR(x)          (TNETD73XX_CLOCK_CTRL_BASE + 0x20 + (0x20 * (x)))
 ./arch/mips/ar7/tnetd73xx_misc.c:#define CLKC_CLKPLLCR(x)       (TNETD73XX_CLOCK_CTRL_BASE + 0x30 + (0x20 * (x)))
 ./include/asm-mips/ar7/tnetd73xx.h:#define TNETD73XX_CLOCK_CTRL_BASE           PHYS_TO_K1(0x08610A00)      /* Clock Control */
@@ -1763,34 +1579,5 @@ static void ar7_machine_power_off(void)
 ./include/asm-mips/ar7/tnetd73xx.h:#define TNETD73XX_CLK_CTRL_ACLKPLLCR0       (TNETD73XX_CLOCK_CTRL_BASE + 0x90)
 ./include/asm-mips/ar7/tnetd73xx.h:#define TNETD73XX_CLK_CTRL_ACLKCR1          (TNETD73XX_CLOCK_CTRL_BASE + 0xA0)
 ./include/asm-mips/ar7/tnetd73xx.h:#define TNETD73XX_CLK_CTRL_ACLKPLLCR1       (TNETD73XX_CLOCK_CTRL_BASE + 0xB0)
-
-
-Num Type           Disp Enb Address    What
-2   breakpoint     keep y   0x08074592 in pflash_register
-                                       at /home/stefan/public_html/ar7-firmware.berlios.de/qemu/trunk/qemu/hw/pflash_cfi02.c:533
-        breakpoint already hit 2 times
-3   breakpoint     keep y   0x0808e86f in cpu_register_io_memory
-                                       at /home/stefan/public_html/ar7-firmware.berlios.de/qemu/trunk/qemu/exec.c:2026
-        breakpoint already hit 12 times
-4   breakpoint     keep y   0x0808e584 in unassigned_mem_readb
-                                       at /home/stefan/public_html/ar7-firmware.berlios.de/qemu/trunk/qemu/exec.c:1892
-5   breakpoint     keep y   0x0808e58e in unassigned_mem_writeb
-                                       at /home/stefan/public_html/ar7-firmware.berlios.de/qemu/trunk/qemu/exec.c:1896
-6   breakpoint     keep y   0x08074481 in pflash_writeb
-                                       at /home/stefan/public_html/ar7-firmware.berlios.de/qemu/trunk/qemu/hw/pflash_cfi02.c:459
-7   breakpoint     keep y   0x080744aa in pflash_writew
-                                       at /home/stefan/public_html/ar7-firmware.berlios.de/qemu/trunk/qemu/hw/pflash_cfi02.c:465
-8   breakpoint     keep y   0x080744d9 in pflash_writel
-                                       at /home/stefan/public_html/ar7-firmware.berlios.de/qemu/trunk/qemu/hw/pflash_cfi02.c:473
-10  breakpoint     keep y   0x0808e9b8 in cpu_physical_memory_rw
-                                       at /home/stefan/public_html/ar7-firmware.berlios.de/qemu/trunk/qemu/exec.c:2113
-11  breakpoint     keep y   0x0808e385 in tlb_set_page_exec at /home/stefan/public_html/ar7-firmware.berlios.de/qemu/trunk/qemu/exec.c:1592
-        breakpoint already hit 2 times
- 
-(gdb) p/x *pfl
-$4 = {bs = 0x0, base = 0x10000000, sector_len = 0x10000, total_len = 0x200000, width = 0x2, wcycle = 0x0, bypass = 0x0, ro = 0x0,
-  cmd = 0x0, status = 0x0, ident = {0x1111, 0x2222, 0x3333, 0x4444}, cfi_len = 0x52, cfi_table = {0x0 <repeats 16 times>, 0x51, 0x52, 0x59,
-    0x2, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x27, 0x36, 0x0, 0x0, 0x7, 0x4, 0x9, 0xc, 0x1, 0x4, 0xa, 0xd, 0x16, 0x2, 0x0, 0x5, 0x0, 0x1,
-    0x1f, 0x0, 0x0, 0x1, 0x0 <repeats 33 times>}, timer = 0x9ad7008, off = 0x1000000, fl_mem = 0x50, storage = 0x9f3af000}
 
 #endif
