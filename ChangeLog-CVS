@@ -1,3 +1,7 @@
+2006-11-04 17:46  pbrook
+
+	* linux-user/main.c: MIPS usermode debug exceptions (Dave Denholm).
+
 2006-11-01 20:19  bellard
 
 	* pc-bios/: bios.bin, bios.diff: update from latest Bochs BIOS
