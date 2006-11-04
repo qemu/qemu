@@ -1,57 +1,4 @@
 /*
-
-* read EEPROM 6, 7, 8, 9 (PMATCH)
-dp83815_mmio_readl addr=0xf2001004 val=0x00000000       CFG
-dp83815_mmio_writel addr=0xf200100c val=0x00000004      EELOAD_EN
-dp83815_mmio_readl addr=0xf200100c val=0x00000000
-dp83815_mmio_readl addr=0xf2001004 val=0x00000000
-dp83815_mmio_readl addr=0xf2001040 val=0x00000000       WCSR
-dp83815_mmio_readl addr=0xf2001048 val=0x0000000e       RFCR
-dp83815_mmio_writel addr=0xf2001048 val=0x00000000      PMATCH 1-0
-dp83815_mmio_readw addr=0xf200104c val = 0xffff         RFDR
-dp83815_mmio_writel addr=0xf2001048 val=0x00000002      PMATCH 3-2
-dp83815_mmio_readw addr=0xf200104c val = 0xffff
-dp83815_mmio_writel addr=0xf2001048 val=0x00000004      PMATCH 5-4
-dp83815_mmio_readw addr=0xf200104c val = 0xffff
-dp83815_mmio_writel addr=0xf2001048 val=0x0000000a      SOPAS
-dp83815_mmio_readw addr=0xf200104c val = 0xffff
-dp83815_mmio_writel addr=0xf2001048 val=0x0000000c      SOPAS
-dp83815_mmio_readw addr=0xf200104c val = 0xffff
-dp83815_mmio_writel addr=0xf2001048 val=0x0000000e      SOPAS
-dp83815_mmio_readw addr=0xf200104c val = 0xffff
-dp83815_mmio_writel addr=CR val=0x00000100              RST
-dp83815_mmio_readl addr=0xf2001000 val=0x00000000
-dp83815_mmio_readl addr=0xf2001004 val=0x00000000
-dp83815_mmio_writel addr=0xf2001004 val=0x00000000
-dp83815_mmio_readl addr=0xf2001040 val=0x00000000
-dp83815_mmio_writel addr=0xf2001040 val=0x00000000
-dp83815_mmio_readl addr=0xf2001048 val=0x0000000e
-dp83815_mmio_writel addr=0xf2001048 val=0x00000000      PMATCH
-dp83815_mmio_writew addr=0xf200104c val=0xffff
-dp83815_mmio_writel addr=0xf2001048 val=0x00000002
-dp83815_mmio_writew addr=0xf200104c val=0xffff
-dp83815_mmio_writel addr=0xf2001048 val=0x00000004
-dp83815_mmio_writew addr=0xf200104c val=0xffff
-dp83815_mmio_writel addr=0xf2001048 val=0x0000000a      SOPAS
-dp83815_mmio_writew addr=0xf200104c val=0xffff
-dp83815_mmio_writel addr=0xf2001048 val=0x0000000c
-dp83815_mmio_writew addr=0xf200104c val=0xffff
-dp83815_mmio_writel addr=0xf2001048 val=0x0000000e
-dp83815_mmio_writew addr=0xf200104c val=0xffff
-dp83815_mmio_writel addr=0xf2001048 val=0x0000000e
-dp83815_mmio_readw addr=0xf2001080 val = 0xffff
-dp83815_mmio_readw addr=0xf2001090 val = 0xffff
-dp83815_mmio_readl addr=0xf2001058 val=0x00000505       SRR
-
-
-test link ready
-dp83815_mmio_writew addr=0xf20010cc val=0x0001
-dp83815_mmio_readw addr=0xf20010f4 val = 0x1000
-dp83815_mmio_writew addr=0xf20010cc val=0x0000
-dp83815_mmio_readw addr=0xf2001084 val = 0x7849
-dp83815_mmio_readw addr=0xf2001084 val = 0x7849
-
-
  * QEMU emulation for National Semiconductor DP83815 / DP83816.
  * 
  * Copyright (c) 2006 Stefan Weil
@@ -77,10 +24,17 @@ dp83815_mmio_readw addr=0xf2001084 val = 0x7849
 
 #include "vl.h"
 
+/* debug DP83815 card */
+#define DEBUG_DP83815
+
+#if defined(DEBUG_DP83815)
+# define logout(fmt, args...) fprintf(stderr, "DP8381X %-24s" fmt, __func__, ##args)
+#else
+# define logout(fmt, args...) ((void)0)
+#endif
+
 /* EEPROM support is optional. */
 #define CONFIG_EEPROM
-
-#define logout(fmt, args...) fprintf(stderr, "DP8381X %-24s" fmt, __func__, ##args)
 
 /* Silicon revisions for the different hardware */
 #define DP83815CVNG     0x00000302
@@ -95,9 +49,6 @@ dp83815_mmio_readw addr=0xf2001084 val = 0x7849
 # define DP83815
 # warning("DP83815")
 #endif
-
-/* debug DP83815 card */
-#define DEBUG_DP83815
 
 #define MAX_ETH_FRAME_SIZE 1514
 
@@ -203,6 +154,7 @@ static void eeprom_save(QEMUFile *f, void *opaque)
 {
     eeprom_state_t *eeprom = (eeprom_state_t *)opaque;
     /* TODO: support different endianess */
+    logout("\n");
     qemu_put_buffer(f, (uint8_t *)eeprom, sizeof(*eeprom));
 }
 
@@ -216,6 +168,7 @@ static int eeprom_load(QEMUFile *f, void *opaque, int version_id)
     } else {
         result = -EINVAL;
     }
+    logout("\n");
     return result;
 }
 
@@ -249,7 +202,7 @@ static uint16_t eeprom_action(eeprom_state_t *ee, eeprom_bits_t bits)
         } else if (*count == 1) {
           *count = 0;
         }
-        //~ logout("   count = %d, data = 0x%04x\n", *count, data);
+        logout("   count = %d, data = 0x%04x\n", *count, ee->data);
         *count++;
         if (*count == 10) {
           ee->address = address = (ee->data & eeprom_amask);
@@ -292,9 +245,7 @@ static uint16_t eeprom_action(eeprom_state_t *ee, eeprom_bits_t bits)
 
 static void dp83815_reset(DP83815State *s)
 {
-#if defined(DEBUG_DP83815)
     logout("???\n");
-#endif
 
 #if 0
     s->isr = ENISR_RESET;
@@ -314,10 +265,8 @@ static void dp83815_update_irq(DP83815State *s)
 {
     int isr;
     isr = (s->isr & s->imr) & 0x7f;
-#if defined(DEBUG_DP83815)
     logout("set IRQ line %d to %d (%02x %02x)\n",
            s->irq, isr ? 1 : 0, s->isr, s->imr);
-#endif
     if (s->irq == PCI_INTERRUPT) {
         pci_set_irq(s->pci_dev, 0, (isr != 0));
     }
@@ -368,9 +317,7 @@ static int dp83815_can_receive(void *opaque)
 {
     DP83815State *s = opaque;
     
-#if defined(DEBUG_DP83815)
     logout("???\n");
-#endif
 
     return !dp83815_buffer_full(s);
 }
@@ -388,9 +335,7 @@ static void dp83815_receive(void *opaque, const uint8_t *buf, int size)
         { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 #endif
 
-#if defined(DEBUG_DP83815)
     logout("received len=%d\n", size);
-#endif
 
 #if 0
     if (s->cmd & E8390_STOP || dp83815_buffer_full(s))
@@ -479,17 +424,13 @@ static void dp83815_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     int offset, page, index;
     addr &= 0xf;
 #endif
-#ifdef DEBUG_DP83815
     logout("io write addr=0x%x val=0x%02x\n", addr, val);
-#endif
 }
 
 static uint32_t dp83815_ioport_read(void *opaque, uint32_t addr)
 {
     int ret = 0;
-#ifdef DEBUG_DP83815
     logout("io read addr=0x%x val=%02x\n", addr, ret);
-#endif
     return ret;
 }
 
@@ -588,9 +529,7 @@ static void dp83815_map(PCIDevice *pci_dev, int region_num,
     PCIDP83815State *d = (PCIDP83815State *)pci_dev;
     DP83815State *s = &d->dp83815;
 
-#if defined(DEBUG_DP83815)
     logout("region %d, size 0x%08x\n", region_num, size);
-#endif
 
     register_ioport_write(addr, size, 1, dp83815_ioport_write, s);
     register_ioport_read(addr, size, 1, dp83815_ioport_read, s);
@@ -650,9 +589,7 @@ static void dp83815_mmio_map(PCIDevice *pci_dev, int region_num,
 {
     PCIDP83815State *d = (PCIDP83815State *)pci_dev;
 
-#if defined(DEBUG_DP83815)
     logout("region %d, addr=0x%08x 0x%08x\n", region_num, addr, size);
-#endif
 
     cpu_register_physical_memory(addr, DP83815_MEM_SIZE, d->dp83815.io_memory);
 }
@@ -805,9 +742,7 @@ static const char *dp83815_regname(target_phys_addr_t addr)
 static void dp83815_mmio_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     //~ PCIDP83815State *d = opaque;
-#if defined(DEBUG_DP83815)
     logout("??? addr=%s val=0x%02x\n", dp83815_regname(addr), val);
-#endif
 }
 
 static uint32_t dp83815_mmio_readb(void *opaque, target_phys_addr_t addr) 
@@ -820,9 +755,7 @@ static uint32_t dp83815_mmio_readb(void *opaque, target_phys_addr_t addr)
     } else if (1) {
       val = s->mem[offset];
     }
-#if defined(DEBUG_DP83815)
     logout("addr=%s val=0x%02x\n", dp83815_regname(addr), (uint8_t)val);
-#endif
     return val;
 }
 
@@ -834,9 +767,7 @@ static void dp83815_mmio_writew(void *opaque, target_phys_addr_t addr, uint32_t 
     if ((offset & 1) != 0) {
       logout("error, address not on word boundary, addr=%s val=0x%08x\n", dp83815_regname(addr), val);
     } else if (1) {
-#if defined(DEBUG_DP83815)
       logout("addr=%s val=0x%04x\n", dp83815_regname(addr), val);
-#endif
       *(uint16_t *)&s->mem[offset] = val;
     }
 }
@@ -854,9 +785,7 @@ static uint32_t dp83815_mmio_readw(void *opaque, target_phys_addr_t addr)
       val = *(uint16_t *)&s->mem[offset];
     } else {
       val = *(uint16_t *)&s->mem[offset];
-#if defined(DEBUG_DP83815)
       logout("addr=%s val=0x%04x\n", dp83815_regname(addr), (uint16_t)val);
-#endif
     }
     return val;
 }
@@ -894,10 +823,8 @@ static void dp83815_mmio_writel(void *opaque, target_phys_addr_t addr, uint32_t 
     } else {
       *(uint32_t *)&s->mem[offset] = val;
     }
-#if defined(DEBUG_DP83815)
     if (logging)
       logout("addr=%s val=0x%08x\n", dp83815_regname(addr), val);
-#endif
 }
 
 static uint32_t dp83815_mmio_readl(void *opaque, target_phys_addr_t addr) 
@@ -946,17 +873,11 @@ static uint32_t dp83815_mmio_readl(void *opaque, target_phys_addr_t addr)
     } else {
       val = *(uint32_t *)&s->mem[offset];
     }
-#if defined(DEBUG_DP83815)
     if (logging) {
       logout("addr=%s val=0x%08x\n", dp83815_regname(addr), val);
     }
-#endif
     return val;
 }
-
-
-
-
 
 
 
@@ -991,9 +912,7 @@ int dp8381x_load(QEMUFile *f, void *opaque, int version_id)
 static void nic_reset(void *opaque)
 {
     PCIDP83815State *d = (PCIDP83815State *)opaque;
-#if defined(DEBUG_DP83815)
     logout("%p\n", d);
-#endif
 }
 
 static void dp8381x_save(QEMUFile *f, void *opaque)
@@ -1014,9 +933,7 @@ void pci_dp83815_init(PCIBus *bus, NICInfo *nd)
 
     uint32_t silicon_revision = DP83816AVNG;
 
-#if defined(DEBUG_DP83815)
     logout("silicon revision = 0x%08x\n", silicon_revision);
-#endif
 
     d = (PCIDP83815State *)pci_register_device(bus, "DP83815",
                                                sizeof(PCIDP83815State),
@@ -1080,63 +997,4 @@ void pci_dp83815_init(PCIBus *bus, NICInfo *nd)
                     dp8381x_save, dp8381x_load, d);
 }
 
-#if 0
-dp83815_map             region 0, size 0x00000100
-dp83815_mmio_map        region 1, addr=0xf2001000 0x00001000
-eeprom_action           selected, state 0x0000 => 0x0008
-eeprom_action           not selected, count = 0, state 0x0008 => 0x0000
-eeprom_action           selected, state 0x0000 => 0x0008
-eeprom_action           not selected, count = 0, state 0x0008 => 0x0000
-eeprom_action           selected, state 0x0000 => 0x0008
-eeprom_action           not selected, count = 0, state 0x0008 => 0x0000
-eeprom_action           selected, state 0x0000 => 0x0008
-eeprom_action           not selected, count = 0, state 0x0008 => 0x0000
-dp83815_mmio_readl      addr=CFG val=0x00000000
-dp83815_mmio_writel     addr=PTSCR val=0x00000000
-dp83815_mmio_readl      addr=PTSCR val=0x00000000
-dp83815_mmio_readl      addr=CFG val=0x00000000
-dp83815_mmio_readl      addr=WCSR val=0x00000000
-dp83815_mmio_readl      addr=RFCR val=0x00000000
-dp83815_mmio_writel     addr=RFCR val=0x00000000
-dp83815_mmio_readw      addr=RFDR val=0x0000
-dp83815_mmio_writel     addr=RFCR val=0x00000002
-dp83815_mmio_readw      addr=RFDR val=0x0000
-dp83815_mmio_writel     addr=RFCR val=0x00000004
-dp83815_mmio_readw      addr=RFDR val=0x0000
-dp83815_mmio_writel     addr=RFCR val=0x0000000a
-dp83815_mmio_readw      addr=RFDR val=0x0000
-dp83815_mmio_writel     addr=RFCR val=0x0000000c
-dp83815_mmio_readw      addr=RFDR val=0x0000
-dp83815_mmio_writel     addr=RFCR val=0x0000000e
-dp83815_mmio_readw      addr=RFDR val=0x0000
-dp83815_mmio_writel     addr=CR val=0x00000000
-dp83815_mmio_readl      addr=CR val=0x00000000
-dp83815_mmio_readl      addr=CFG val=0x00000000
-dp83815_mmio_writel     addr=CFG val=0x00000000
-dp83815_mmio_readl      addr=WCSR val=0x00000000
-dp83815_mmio_writel     addr=WCSR val=0x00000000
-dp83815_mmio_readl      addr=RFCR val=0x0000000e
-dp83815_mmio_writel     addr=RFCR val=0x00000000
-dp83815_mmio_writew     addr=RFDR val=0x0000
-dp83815_mmio_writel     addr=RFCR val=0x00000002
-dp83815_mmio_writew     addr=RFDR val=0x0000
-dp83815_mmio_writel     addr=RFCR val=0x00000004
-dp83815_mmio_writew     addr=RFDR val=0x0000
-dp83815_mmio_writel     addr=RFCR val=0x0000000a
-dp83815_mmio_writew     addr=RFDR val=0x0000
-dp83815_mmio_writel     addr=RFCR val=0x0000000c
-dp83815_mmio_writew     addr=RFDR val=0x0000
-dp83815_mmio_writel     addr=RFCR val=0x0000000e
-dp83815_mmio_writew     addr=RFDR val=0x0000
-dp83815_mmio_writel     addr=RFCR val=0x0000000e
-dp83815_mmio_readw      addr=BMCR val=0x0000
-dp83815_mmio_readw      addr=ANAR val=0x05e1
-dp83815_mmio_readl      addr=SRR val=0x00000505
-
-dp83815_mmio_writew     addr=0xdc val=0x0001
-dp83815_mmio_readw      addr=0x00f4 val=0x1000
-dp83815_mmio_writew     addr=0xdc val=0x0000
-dp83815_mmio_readw      addr=BMSR val=0x7849
-dp83815_mmio_readw      addr=BMSR val=0x7849
-
-#endif
+/* eof */
