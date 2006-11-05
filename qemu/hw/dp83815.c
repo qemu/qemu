@@ -22,7 +22,46 @@
  * http://www.national.com/pf/DP/DP83816.html
  */
 
+#include <assert.h>     /* assert */
 #include "vl.h"
+
+/*****************************************************************************
+ *
+ * Common declarations for all PCI devices.
+ *
+ ****************************************************************************/
+
+#define PCI_VENDOR_ID           0x00    /* 16 bits */
+#define PCI_DEVICE_ID           0x02    /* 16 bits */
+#define PCI_COMMAND             0x04    /* 16 bits */
+#define PCI_STATUS              0x06    /* 16 bits */
+
+#define PCI_REVISION_ID         0x08    /* 8 bits  */
+#define PCI_CLASS_CODE          0x0b    /* 8 bits */
+#define PCI_SUBCLASS_CODE       0x0a    /* 8 bits */
+#define PCI_HEADER_TYPE         0x0e    /* 8 bits */
+
+#define PCI_BASE_ADDRESS_0      0x10    /* 32 bits */
+#define PCI_BASE_ADDRESS_1      0x14    /* 32 bits */
+#define PCI_BASE_ADDRESS_2      0x18    /* 32 bits */
+#define PCI_BASE_ADDRESS_3      0x1c    /* 32 bits */
+#define PCI_BASE_ADDRESS_4      0x20    /* 32 bits */
+#define PCI_BASE_ADDRESS_5      0x24    /* 32 bits */
+
+#define PCI_CONFIG_8(offset, value) \
+    (pci_conf[offset] = (value))
+#define PCI_CONFIG_16(offset, value) \
+    (*(uint16_t *)&pci_conf[offset] = cpu_to_le16(value))
+#define PCI_CONFIG_32(offset, value) \
+    (*(uint32_t *)&pci_conf[offset] = cpu_to_le32(value))
+
+#define KiB 1024
+
+/*****************************************************************************
+ *
+ * Declarations for emulation options and debugging.
+ *
+ ****************************************************************************/
 
 /* debug DP83815 card */
 #define DEBUG_DP83815
@@ -33,34 +72,31 @@
 # define logout(fmt, args...) ((void)0)
 #endif
 
+#define missing(text)       assert(!"feature is missing in this emulation: " text)
+
 /* EEPROM support is optional. */
-#define CONFIG_EEPROM
+//~ #define CONFIG_EEPROM
 
 /* Silicon revisions for the different hardware */
 #define DP83815CVNG     0x00000302
 #define DP83815DVNG     0x00000403
 #define DP83816AVNG     0x00000505
 
-#define SILICON_REVISION DP83816AVNG
-
 #define PCI_INTERRUPT   16
 
-#if SILICON_REVISION != DP83816AVNG
-# define DP83815
-# warning("DP83815")
-#endif
-
 #define MAX_ETH_FRAME_SIZE 1514
-
-#define DP83815_PMEM_SIZE    (32*1024)
-#define DP83815_PMEM_START   (16*1024)
-#define DP83815_PMEM_END     (DP83815_PMEM_SIZE+DP83815_PMEM_START)
 
 #define DP83815_IO_SIZE         256
 #define DP83815_MEM_SIZE        4096
 
 static int dp8381x_instance = 0;
 static const int dp8381x_version = 20060726;
+
+/*****************************************************************************
+ *
+ * EEPROM emulation.
+ *
+ ****************************************************************************/
 
 #if defined(CONFIG_EEPROM)
 typedef enum {
@@ -114,11 +150,15 @@ typedef struct {
     uint8_t curpag;
     uint8_t mult[8]; /* multicast mask array */
     int irq;
+
+    /* Variables for QEMU interface. */
     int io_memory;      /* handle for memory mapped I/O */
     PCIDevice *pci_dev;
+    uint32_t region[2];         /* PCI region addresses */
     VLANClientState *vc;
+
     uint8_t macaddr[6];
-    uint8_t mem[DP83815_MEM_SIZE];
+    uint8_t mem[DP83815_IO_SIZE];
     uint32_t silicon_revision;
 #if defined(CONFIG_EEPROM)
     eeprom_state_t eeprom_state;
@@ -183,9 +223,10 @@ static uint16_t eeprom_action(eeprom_state_t *ee, eeprom_bits_t bits)
 
   if (bits == -1) {
     if (command == eeprom_read) {
-      if (*count > 25)
+      if (*count > 25) {
         logout("read data = 0x%04x, address = %u, bit = %d, state 0x%04x\n",
           ee->data, address, 26 - *count, state);
+      }
     }
     bits = state;
   } else if (bits & EESEL) {
@@ -243,10 +284,170 @@ static uint16_t eeprom_action(eeprom_state_t *ee, eeprom_bits_t bits)
 
 #endif
 
+/*****************************************************************************
+ *
+ * Register emulation.
+ *
+ ****************************************************************************/
+
+/* Operational Registers. */
+
+typedef enum {
+  /* MAC/BIU Registers */
+  DP83815_CR = 0x00,
+  DP83815_CFG = 0x04,
+  DP83815_MEAR = 0x08,
+  DP83815_PTSCR = 0x0c,
+  DP83815_ISR = 0x10,
+  DP83815_IMR = 0x14,
+  DP83815_IER = 0x18,
+  DP83815_IHR = 0x1c,
+  DP83815_TXDP = 0x20,
+  DP83815_TXCFG = 0x24,
+  //~ DP83815_R = 0x28,
+  //~ DP83815_R = 0x2c,
+  DP83815_RXDP = 0x30,
+  DP83815_RXCFG = 0x34,
+  //~ DP83815_R = 0x38,
+  DP83815_CCSR = 0x3c,
+  DP83815_WCSR = 0x40,
+  DP83815_PCR = 0x44,
+  DP83815_RFCR = 0x48,
+  DP83815_RFDR = 0x4c,
+  DP83815_BRAR = 0x50,
+  DP83815_BRDR = 0x54,
+  DP83815_SRR = 0x58,
+  DP83815_MIBC = 0x5c,
+  DP83815_MIB0 = 0x60,
+  DP83815_MIB1 = 0x64,
+  DP83815_MIB2 = 0x68,
+  DP83815_MIB3 = 0x6c,
+  DP83815_MIB4 = 0x70,
+  DP83815_MIB5 = 0x74,
+  DP83815_MIB6 = 0x78,
+  /* Internal Phy Registers */
+  DP83815_BMCR = 0x80,          /* Control Register */
+  DP83815_BMSR = 0x84,          /* Status Register */
+  DP83815_PHYIDR1 = 0x88,       /* PHY Identification Register 1 */
+  DP83815_PHYIDR2 = 0x8c,       /* PHY Identification Register 2 */
+  DP83815_ANAR = 0x90,          /* Auto-Negotiation Advertisment Register */
+  DP83815_ANLPAR = 0x94,        /* Auto-Negotiation Link Partner Ability Register */
+  DP83815_ANER = 0x98,          /* Auto-Negotiation Expansion Register */
+  DP83815_ANPTR = 0x9c,
+  DP83815_PHYSTS = 0xc0,
+  DP83815_MICR = 0xc4,
+  DP83815_MISR = 0xc8,
+  DP83815_FCSCR = 0xd0,
+  DP83815_RECR = 0xd4,
+  DP83815_PCSR = 0xd8,
+  DP83815_0xdc = 0xdc,
+  DP83815_PHYCR = 0xe4,
+  DP83815_TBTSCR = 0xe8,
+  DP83815_0xf4,
+  DP83815_0xf8,
+  DP83815_0xfc,
+} dp83815_register_t;
+
+#define BIT(n) (1 << (n))
+
+typedef enum {
+  CR_RST = BIT(8),
+} cr_bit_t;
+
+typedef enum {
+  CFG_LNKSTS = BIT(31),
+  CFG_SPEED100 = BIT(30),
+  CFG_FDUP = BIT(29),
+  CFG_ANEG_DN = BIT(27),
+} cfg_bit_t;
+
+typedef enum {
+  MEAR_MDC = BIT(6),
+  MEAR_MDDIR = BIT(5),
+  MEAR_MDIO = BIT(4),
+  MEAR_EESEL = BIT(3),
+  MEAR_EECLK = BIT(2),
+  MEAR_EEDO = BIT(1),
+  MEAR_EEDI = BIT(0),
+} mear_bit_t;
+
+typedef enum {
+  PTSCR_EELOAD_EN = BIT(2),
+} ptscr_bit_t;
+
+static uint32_t op_reg_read(DP83815State *s, uint32_t addr)
+{
+  assert(addr < 0x80 && !(addr & 3));
+  return le32_to_cpu(*(uint32_t *)(&s->mem[addr]));
+}
+
+static void op_reg_write(DP83815State *s, uint32_t addr, uint32_t value)
+{
+  assert(addr < 0x80 && !(addr & 3));
+  *(uint32_t *)(&s->mem[addr]) = cpu_to_le32(value);
+}
+
+static uint16_t phy_reg_read(DP83815State *s, uint32_t addr)
+{
+  assert(addr >= 0x80 && addr < 0x100 && !(addr & 3));
+  return le16_to_cpu(*(uint16_t *)(&s->mem[addr]));
+}
+
+static void phy_reg_write(DP83815State *s, uint32_t addr, uint32_t value)
+{
+  assert(addr >= 0x80 && addr < 0x100 && !(addr & 3));
+  *(uint16_t *)(&s->mem[addr]) = cpu_to_le16(value);
+}
+
+static void init_operational_registers(DP83815State *s)
+{
+#define OP_REG(offset, value) op_reg_write(s, offset, value)
+    OP_REG(DP83815_CR, 0x00000000);     /* Command */
+    OP_REG(DP83815_CFG, 0x00000000);    /* Configuration and Media Status */
+    OP_REG(DP83815_MEAR, 0x00000002);   /* EEPROM Access */
+    OP_REG(DP83815_PTSCR, 0x00000000);  /* PCI Test Control */
+    OP_REG(DP83815_ISR, 0x03008000);    /* Interrupt Status */
+    OP_REG(DP83815_IMR, 0x00000000);    /* Interrupt Mask */
+    OP_REG(DP83815_IER, 0x00000000);    /* Interrupt Enable */
+    OP_REG(DP83815_IHR, 0x00000000);    /* Interrupt Holdoff */
+    OP_REG(DP83815_TXDP, 0x00000000);   /* Transmit Descriptor Pointer */
+#if defined(DP83815)
+    OP_REG(DP83815_TXCFG, 0x00000102);  /* Transmit Configuration */
+#else
+    OP_REG(DP83815_TXCFG, 0x00040102);  /* Transmit Configuration */
+#endif
+    OP_REG(DP83815_RXDP, 0x00000000);   /* Receive Descriptor Pointer */
+    OP_REG(DP83815_RXCFG, 0x00000002);  /* Receive Configuration */
+    OP_REG(DP83815_WCSR, 0x00000000);   /* Wake Command/Status */
+    OP_REG(DP83815_PCR, 0x00000000);    /* Pause Control/Status */
+    OP_REG(DP83815_RFCR, 0x00000000);   /* Receive Filter/Match Control */
+    OP_REG(DP83815_RFDR, 0x00000000);   /* Receive Filter Data */
+    /* hard reset only */
+    OP_REG(DP83815_BRAR, 0xffffffff);   /* Boot ROM Address */
+    OP_REG(DP83815_SRR, s->silicon_revision);    /* Silicon Revision */
+    OP_REG(DP83815_MIBC, 0x00000002);   /* Management Information Base Control */
+
+#define PHY_REG(offset, value) phy_reg_write(s, offset, value)
+    PHY_REG(DP83815_BMCR, 0x0000);      /* TODO */
+    PHY_REG(DP83815_BMSR, 0x7849);
+    PHY_REG(DP83815_PHYIDR1, 0x2000);
+    PHY_REG(DP83815_PHYIDR2, 0x5c21);
+    PHY_REG(DP83815_ANAR, 0x05e1);
+    PHY_REG(DP83815_ANER, 0x0004);
+    PHY_REG(DP83815_ANPTR, 0x2001);
+    PHY_REG(DP83815_PCSR, 0x0100);
+    PHY_REG(DP83815_PHYCR, 0x003f);
+#if defined(DP83815)
+    PHY_REG(DP83815_TBTSCR, 0x0004);
+#else
+    PHY_REG(DP83815_TBTSCR, 0x0804);
+#endif
+}
+
 static void dp83815_reset(DP83815State *s)
 {
-    logout("???\n");
-
+    logout("\n");
+    init_operational_registers(s);
 #if 0
     s->isr = ENISR_RESET;
     memcpy(s->mem, s->macaddr, 6);
@@ -417,104 +618,6 @@ static void dp83815_receive(void *opaque, const uint8_t *buf, int size)
 #endif
 }
 
-static void dp83815_ioport_write(void *opaque, uint32_t addr, uint32_t val)
-{
-#if 0
-    DP83815State *s = opaque;
-    int offset, page, index;
-    addr &= 0xf;
-#endif
-    logout("io write addr=0x%x val=0x%02x\n", addr, val);
-}
-
-static uint32_t dp83815_ioport_read(void *opaque, uint32_t addr)
-{
-    int ret = 0;
-    logout("io read addr=0x%x val=%02x\n", addr, ret);
-    return ret;
-}
-
-#if 0
-static inline void dp83815_mem_writeb(DP83815State *s, uint32_t addr, 
-                                     uint32_t val)
-{
-    if (addr < 32 || 
-        (addr >= DP83815_PMEM_START && addr < DP83815_MEM_SIZE)) {
-        s->mem[addr] = val;
-    }
-}
-
-static inline void dp83815_mem_writew(DP83815State *s, uint32_t addr, 
-                                     uint32_t val)
-{
-    addr &= ~1; /* XXX: check exact behaviour if not even */
-    if (addr < 32 || 
-        (addr >= DP83815_PMEM_START && addr < DP83815_MEM_SIZE)) {
-        *(uint16_t *)(s->mem + addr) = cpu_to_le16(val);
-    }
-}
-
-static inline void dp83815_mem_writel(DP83815State *s, uint32_t addr, 
-                                     uint32_t val)
-{
-    addr &= ~1; /* XXX: check exact behaviour if not even */
-    if (addr < 32 || 
-        (addr >= DP83815_PMEM_START && addr < DP83815_MEM_SIZE)) {
-        cpu_to_le32wu((uint32_t *)(s->mem + addr), val);
-    }
-}
-
-static inline uint32_t dp83815_mem_readb(DP83815State *s, uint32_t addr)
-{
-    if (addr < 32 || 
-        (addr >= DP83815_PMEM_START && addr < DP83815_MEM_SIZE)) {
-        return s->mem[addr];
-    } else {
-        return 0xff;
-    }
-}
-
-static inline uint32_t dp83815_mem_readw(DP83815State *s, uint32_t addr)
-{
-    addr &= ~1; /* XXX: check exact behaviour if not even */
-    if (addr < 32 || 
-        (addr >= DP83815_PMEM_START && addr < DP83815_MEM_SIZE)) {
-        return le16_to_cpu(*(uint16_t *)(s->mem + addr));
-    } else {
-        return 0xffff;
-    }
-}
-
-static inline uint32_t dp83815_mem_readl(DP83815State *s, uint32_t addr)
-{
-    addr &= ~1; /* XXX: check exact behaviour if not even */
-    if (addr < 32 || 
-        (addr >= DP83815_PMEM_START && addr < DP83815_MEM_SIZE)) {
-        return le32_to_cpupu((uint32_t *)(s->mem + addr));
-    } else {
-        return 0xffffffff;
-    }
-}
-
-static inline void dp83815_dma_update(DP83815State *s, int len)
-{
-    s->rsar += len;
-    /* wrap */
-    /* XXX: check what to do if rsar > stop */
-    if (s->rsar == s->stop)
-        s->rsar = s->start;
-
-    if (s->rcnt <= len) {
-        s->rcnt = 0;
-        /* signal end of transfert */
-        s->isr |= ENISR_RDC;
-        dp83815_update_irq(s);
-    } else {
-        s->rcnt -= len;
-    }
-}
-#endif
-
 /***********************************************************/
 /* PCI DP83815 definitions */
 
@@ -522,147 +625,6 @@ typedef struct PCIDP83815State {
     PCIDevice dev;
     DP83815State dp83815;
 } PCIDP83815State;
-
-static void dp83815_map(PCIDevice *pci_dev, int region_num, 
-                       uint32_t addr, uint32_t size, int type)
-{
-    PCIDP83815State *d = (PCIDP83815State *)pci_dev;
-    DP83815State *s = &d->dp83815;
-
-    logout("region %d, size 0x%08x\n", region_num, size);
-
-    register_ioport_write(addr, size, 1, dp83815_ioport_write, s);
-    register_ioport_read(addr, size, 1, dp83815_ioport_read, s);
-    register_ioport_write(addr, size, 2, dp83815_ioport_write, s);
-    register_ioport_read(addr, size, 2, dp83815_ioport_read, s);
-    register_ioport_write(addr, size, 4, dp83815_ioport_write, s);
-    register_ioport_read(addr, size, 4, dp83815_ioport_read, s);
-
-#define OP_REG(offset, value) (*(uint32_t *)(s->mem + (offset)) = cpu_to_le32(value))
-    OP_REG(0x00, 0x00000000);   /* Command */
-    // EEPROM Bits 16, 15-13!!!
-    OP_REG(0x04, 0x00000000);   /* Configuration and Media Status */
-    OP_REG(0x08, 0x00000002);   /* EEPROM Access */
-    OP_REG(0x10, 0x03008000);   /* ISR, Interrupt Status */
-#if defined(DP83815)
-    OP_REG(0x24, 0x00000102);   /* Transmit Configuration */
-#else
-    OP_REG(0x24, 0x00040102);   /* Transmit Configuration */
-#endif
-    OP_REG(0x34, 0x00000002);   /* Receive Configuration */
-    OP_REG(0x50, 0xffffffff);   /* Boot ROM Address */
-#if defined(DP83815)
-    OP_REG(0x58, 0x00000302);   /* SRR, Silicon Revision */
-#else
-    /* DP83816AVNG */
-    OP_REG(0x58, 0x00000505);   /* SRR, Silikon Revision */
-#endif
-    OP_REG(0x5c, 0x00000002);   /* Management Information Base Control */
-    OP_REG(0x00, 0x00000000);
-    OP_REG(0x00, 0x00000000);
-    OP_REG(0x00, 0x00000000);
-#define PHY_REG(offset, value) (*(uint16_t *)(s->mem + (offset)) = cpu_to_le16(value))
-    PHY_REG(0x80, 0x0000);      /* TODO */
-    PHY_REG(0x84, 0x7849);
-    PHY_REG(0x88, 0x2000);
-    PHY_REG(0x8c, 0x5c21);
-    PHY_REG(0x90, 0x05e1);
-    PHY_REG(0x98, 0x0004);
-    PHY_REG(0x9c, 0x2001);
-    PHY_REG(0xd8, 0x0100);
-    PHY_REG(0xe4, 0x003f);
-#if defined(DP83815)
-    PHY_REG(0xe8, 0x0004);
-#else
-    PHY_REG(0xe8, 0x0804);
-#endif
-
-    //~ register_ioport_write(addr, 16, 1, dp83815_ioport_write, s);
-    //~ register_ioport_read(addr, 16, 1, dp83815_ioport_read, s);
-
-    //~ register_ioport_write(addr + 0x1f, 1, 1, dp83815_reset_ioport_write, s);
-    //~ register_ioport_read(addr + 0x1f, 1, 1, dp83815_reset_ioport_read, s);
-}
-
-static void dp83815_mmio_map(PCIDevice *pci_dev, int region_num, 
-                            uint32_t addr, uint32_t size, int type)
-{
-    PCIDP83815State *d = (PCIDP83815State *)pci_dev;
-
-    logout("region %d, addr=0x%08x 0x%08x\n", region_num, addr, size);
-
-    cpu_register_physical_memory(addr, DP83815_MEM_SIZE, d->dp83815.io_memory);
-}
-
-
-
-typedef enum {
-  /* MAC/BIU Registers */
-  DP83815_CR = 0x00,
-  DP83815_CFG = 0x04,
-  DP83815_MEAR = 0x08,
-  DP83815_PTSCR = 0x0c,
-  DP83815_ISR = 0x10,
-  DP83815_IMR = 0x14,
-  DP83815_IER = 0x18,
-  DP83815_IHR = 0x1c,
-  DP83815_TXDP = 0x20,
-  DP83815_TXCFG = 0x24,
-  //~ DP83815_R = 0x28,
-  //~ DP83815_R = 0x2c,
-  DP83815_RXDP = 0x30,
-  DP83815_RXCFG = 0x34,
-  //~ DP83815_R = 0x38,
-  DP83815_CCSR = 0x3c,
-  DP83815_WCSR = 0x40,
-  DP83815_PCR = 0x44,
-  DP83815_RFCR = 0x48,
-  DP83815_RFDR = 0x4c,
-  DP83815_BRAR = 0x50,
-  DP83815_BRDR = 0x54,
-  DP83815_SRR = 0x58,
-  DP83815_MIBC = 0x5c,
-  DP83815_MIB0 = 0x60,
-  DP83815_MIB1 = 0x64,
-  DP83815_MIB2 = 0x68,
-  DP83815_MIB3 = 0x6c,
-  DP83815_MIB4 = 0x70,
-  DP83815_MIB5 = 0x74,
-  DP83815_MIB6 = 0x78,
-  /* Internal Phy Registers */
-  DP83815_BMCR = 0x80,          /* Control Register */
-  DP83815_BMSR = 0x84,          /* Status Register */
-  DP83815_PHYIDR1 = 0x88,       /* PHY Identification Register 1 */
-  DP83815_PHYIDR2 = 0x8c,       /* PHY Identification Register 2 */
-  DP83815_ANAR = 0x90,          /* Auto-Negotiation Advertisment Register */
-  DP83815_ANLPAR = 0x94,        /* Auto-Negotiation Link Partner Ability Register */
-  DP83815_ANER = 0x98,          /* Auto-Negotiation Expansion Register */
-  DP83815_ANPTR = 0x9c,
-  DP83815_PHYSTS = 0xc0,
-  DP83815_MICR = 0xc4,
-  DP83815_MISR = 0xc8,
-  DP83815_FCSCR = 0xd0,
-  DP83815_RECR = 0xd4,
-  DP83815_PCSR = 0xd8,
-  DP83815_0xdc,
-  DP83815_PHYCR = 0xe4,
-  DP83815_TBTSCR = 0xe8,
-  DP83815_0xf4,
-  DP83815_0xf8,
-  DP83815_0xfc,
-} DP83815_register_t;
-
-typedef enum {
-  /* DP83815_CR */
-  DP83815_RST = 0x100,
-  /* DP83815_CFG */
-  DP83815_LNKSTS = 1 << 31,
-  DP83815_SPEED100 = 1 << 30,
-  DP83815_FDUP = 1 << 29,
-  DP83815_ANEG_DN = 1 << 27,
-  /* PTSCR */
-  EELOAD_EN = 1 << 2,
-} dp83815_bit_t;
 
 static const char *regnames[] = {
     /* MAC/BIU Registers */
@@ -729,149 +691,101 @@ static const char *regnames[] = {
 static const char *dp83815_regname(target_phys_addr_t addr)
 {
   static char name[10];
-  uint16_t offset = (addr & 0xfff);
   const char *p = name;
-  if (offset < (num_elements(regnames) * 4) && (offset & 3) == 0) {
-    p = regnames[offset / 4];
+  if (addr < (num_elements(regnames) * 4) && (addr & 3) == 0) {
+    p = regnames[addr / 4];
   } else {
-    snprintf(name, sizeof(name), "0x%04x", offset);
+    snprintf(name, sizeof(name), "0x%04x", addr);
   }
   return p;
 }
 
-static void dp83815_mmio_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
+static uint8_t dp83815_readb(PCIDP83815State *d, target_phys_addr_t addr) 
 {
-    //~ PCIDP83815State *d = opaque;
-    logout("??? addr=%s val=0x%02x\n", dp83815_regname(addr), val);
-}
-
-static uint32_t dp83815_mmio_readb(void *opaque, target_phys_addr_t addr) 
-{
-    PCIDP83815State *d = opaque;
     DP83815State *s = &d->dp83815;
-    uint8_t offset = (addr & 0xff);
-    uint32_t val = -1;
+    uint8_t val = 0xff;
     if (0) {
-    } else if (1) {
-      val = s->mem[offset];
+    } else if (addr >= 256) {
+      logout("error, address too large, addr=%s\n", dp83815_regname(addr));
+    } else {
+      val = s->mem[addr];
+      logout("??? addr=%s val=0x%02x\n", dp83815_regname(addr), val);
     }
-    logout("addr=%s val=0x%02x\n", dp83815_regname(addr), (uint8_t)val);
     return val;
 }
 
-static void dp83815_mmio_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
+static uint16_t dp83815_readw(PCIDP83815State *d, target_phys_addr_t addr) 
 {
-    PCIDP83815State *d = opaque;
     DP83815State *s = &d->dp83815;
-    uint8_t offset = (addr & 0xff);
-    if ((offset & 1) != 0) {
-      logout("error, address not on word boundary, addr=%s val=0x%08x\n", dp83815_regname(addr), val);
-    } else if (1) {
-      logout("addr=%s val=0x%04x\n", dp83815_regname(addr), val);
-      *(uint16_t *)&s->mem[offset] = val;
-    }
-}
-
-static uint32_t dp83815_mmio_readw(void *opaque, target_phys_addr_t addr) 
-{
-    PCIDP83815State *d = opaque;
-    DP83815State *s = &d->dp83815;
-    uint8_t offset = (addr & 0xff);
-    uint32_t val = -1;
-    if ((offset & 1) != 0) {
+    uint16_t val = 0xffff;
+    if ((addr & 1) != 0) {
       logout("error, address not on word boundary, addr=%s\n", dp83815_regname(addr));
-    } else if (offset == DP83815_ANAR) {        /* 0x90 */
+    } else if (addr == DP83815_RFDR) {        /* 0x4c */
+      /* !!! */
+      val = op_reg_read(s, addr);
+    } else if (addr < 0x80) {
+      logout("??? addr=%s val=0x%04x\n", dp83815_regname(addr), val);
+    } else if (addr >= 256) {
+      logout("error, address too large, addr=%s\n", dp83815_regname(addr));
+    } else if (addr == DP83815_ANAR) {        /* 0x90 */
       /* TODO: ??? */
-      val = *(uint16_t *)&s->mem[offset];
+      val = phy_reg_read(s, addr);
     } else {
-      val = *(uint16_t *)&s->mem[offset];
-      logout("addr=%s val=0x%04x\n", dp83815_regname(addr), (uint16_t)val);
+      val = phy_reg_read(s, addr);
+      logout("??? addr=%s val=0x%04x\n", dp83815_regname(addr), val);
     }
     return val;
 }
 
-static void dp83815_mmio_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
+static uint32_t dp83815_readl(PCIDP83815State *d, target_phys_addr_t addr) 
 {
-    PCIDP83815State *d = opaque;
     DP83815State *s = &d->dp83815;
-    uint8_t offset = (addr & 0xff);
-    int logging = 1;
-    if ((offset & 3) != 0) {
-      logout("error, address not on double word boundary, addr=%s val=0x%08x\n",
-        dp83815_regname(addr), val);
-      logging = 0;
-    } else if (offset == DP83815_CR) {          /* 0x00 */
-      if (val & DP83815_RST) {
-        val ^= DP83815_RST;
-      }
-      *(uint32_t *)&s->mem[offset] = val;
-    } else if (offset == DP83815_MEAR) {        /* 0x08 */
-#if defined(CONFIG_EEPROM)
-      eeprom_action(&s->eeprom_state, val);
-      logging = 0;
-#endif
-    } else if (offset == DP83815_PTSCR) {
-      if (val & EELOAD_EN) {
-        val ^= EELOAD_EN;
-      }
-      *(uint32_t *)&s->mem[offset] = val;
-    } else if (offset == DP83815_RFCR) {        /* 0x48 */
-      /* TODO: enable packet filters */
-      *(uint32_t *)&s->mem[offset] = val;
-    } else if (offset == DP83815_RFDR) {        /* 0x4c */
-      *(uint32_t *)&s->mem[offset] = val;
-    } else {
-      *(uint32_t *)&s->mem[offset] = val;
-    }
-    if (logging)
-      logout("addr=%s val=0x%08x\n", dp83815_regname(addr), val);
-}
-
-static uint32_t dp83815_mmio_readl(void *opaque, target_phys_addr_t addr) 
-{
-    PCIDP83815State *d = opaque;
-    DP83815State *s = &d->dp83815;
-    uint8_t offset = (addr & 0xff);
     uint32_t val = 0xffffffffU;
     int logging = 1;
-    if ((offset & 3) != 0) {
+    if ((addr & 3) != 0) {
       logout("error, address not on double word boundary, addr=%s\n",
         dp83815_regname(addr));
       logging = 0;
-    } else if (offset == DP83815_CFG) {         /* 0x04 */
-      val = (*(uint32_t *)&s->mem[offset] | DP83815_LNKSTS | DP83815_SPEED100 | DP83815_FDUP | DP83815_ANEG_DN);
-      logging = 0;
-    } else if (offset == DP83815_MEAR) {        /* 0x08 */
+    } else if (addr >= 256) {
+      logout("error, address too large, addr=%s\n", dp83815_regname(addr));
+    } else if (addr == DP83815_CR) {          /* 0x00 */
+      val = op_reg_read(s, addr);
+    } else if (addr == DP83815_CFG) {         /* 0x04 */
+      val = (op_reg_read(s, addr) | CFG_LNKSTS | CFG_SPEED100 | CFG_FDUP | CFG_ANEG_DN);
+      //~ logging = 0;
+    } else if (addr == DP83815_MEAR) {        /* 0x08 */
 #if defined(CONFIG_EEPROM)
       val = eeprom_action(&s->eeprom_state, -1);
       logging = 0;
 #else
-# error "missing"
+      val = op_reg_read(s, addr);
 #endif
-    } else if (offset == DP83815_ISR) {         /* 0x10 */
+    } else if (addr == DP83815_ISR) {         /* 0x10 */
       /* TODO: reset interrupt bits after read */
-      val = *(uint32_t *)&s->mem[offset];
-    } else if (offset == DP83815_BMCR) {        /* 0x80 */
+      val = op_reg_read(s, addr);
+    } else if (addr == DP83815_BMCR) {        /* 0x80 */
       /* TODO: ??? */
-      val = *(uint32_t *)&s->mem[offset];
-    } else if (offset == DP83815_PTSCR) {
+      val = op_reg_read(s, addr);
+    } else if (addr == DP83815_PTSCR) {
       /* TODO: ??? */
-      val = *(uint32_t *)&s->mem[offset];
+      val = op_reg_read(s, addr);
       logging = 0;
-    } else if (offset == DP83815_WCSR) {        /* 0x40 */
+    } else if (addr == DP83815_WCSR) {        /* 0x40 */
       /* TODO: set bits on arp, unicast, wake-on-lan and other packets */
-      val = *(uint32_t *)&s->mem[offset];
+      val = op_reg_read(s, addr);
       logging = 0;
-    } else if (offset == DP83815_RFCR) {        /* 0x48 */
-      val = *(uint32_t *)&s->mem[offset];
+    } else if (addr == DP83815_RFCR) {        /* 0x48 */
+      val = op_reg_read(s, addr);
       logging = 0;
-    } else if (offset == DP83815_RFDR) {        /* 0x4c */
-      val = *(uint32_t *)&s->mem[offset];
-    } else if (offset == DP83815_SRR) {         /* 0x58 */
+    } else if (addr == DP83815_RFDR) {        /* 0x4c */
+      val = op_reg_read(s, addr);
+    } else if (addr == DP83815_SRR) {         /* 0x58 */
       /* TODO: ??? */
-      val = *(uint32_t *)&s->mem[offset];
+      val = op_reg_read(s, addr);
     } else {
-      val = *(uint32_t *)&s->mem[offset];
+      val = op_reg_read(s, addr);
+      logging = 0;
+      logout("??? addr=%s val=0x%08x\n", dp83815_regname(addr), val);
     }
     if (logging) {
       logout("addr=%s val=0x%08x\n", dp83815_regname(addr), val);
@@ -879,13 +793,213 @@ static uint32_t dp83815_mmio_readl(void *opaque, target_phys_addr_t addr)
     return val;
 }
 
+static void dp83815_writeb(PCIDP83815State *d, target_phys_addr_t addr, uint8_t val)
+{
+    if (0) {
+    } else if (addr >= 256) {
+      logout("error, address too large, addr=%s val=0x%08x\n", dp83815_regname(addr), val);
+    } else {
+      logout("??? addr=%s val=0x%02x\n", dp83815_regname(addr), val);
+    }
+}
 
+static void dp83815_writew(PCIDP83815State *d, target_phys_addr_t addr, uint16_t val)
+{
+    DP83815State *s = &d->dp83815;
+    if ((addr & 1) != 0) {
+      logout("error, address not on word boundary, addr=%s val=0x%08x\n", dp83815_regname(addr), val);
+    } else if (addr < 0x80) {
+      logout("??? addr=%s val=0x%04x\n", dp83815_regname(addr), val);
+    } else if (addr >= 256) {
+      logout("error, address too large, addr=%s val=0x%08x\n", dp83815_regname(addr), val);
+    } else {
+      logout("??? addr=%s val=0x%04x\n", dp83815_regname(addr), val);
+      phy_reg_write(s, addr, val);
+    }
+}
 
-static CPUWriteMemoryFunc *dp83815_mmio_write[] = {
-    dp83815_mmio_writeb,
-    dp83815_mmio_writew,
-    dp83815_mmio_writel
-};
+static void dp83815_writel(PCIDP83815State *d, target_phys_addr_t addr, uint32_t val)
+{
+    DP83815State *s = &d->dp83815;
+    int logging = 1;
+    if ((addr & 3) != 0) {
+      logout("error, address not on double word boundary, addr=%s val=0x%08x\n",
+        dp83815_regname(addr), val);
+      logging = 0;
+    } else if (addr >= 256) {
+      logout("error, address too large, addr=%s val=0x%08x\n",
+        dp83815_regname(addr), val);
+      logging = 0;
+    } else if (addr == DP83815_CR) {          /* 0x00 */
+      if (val & CR_RST) {
+        dp83815_reset(s);
+      } else {
+        op_reg_write(s, addr, val);
+      }
+    } else if (addr == DP83815_MEAR) {        /* 0x08 */
+#if defined(CONFIG_EEPROM)
+      eeprom_action(&s->eeprom_state, val);
+      logging = 0;
+#else
+      val |= MEAR_EEDO;
+      op_reg_write(s, addr, val);
+      if (!(val & 0x000000f0)) {
+        logging = 0;
+      }
+#endif
+    } else if (addr == DP83815_PTSCR) {
+      if (val & PTSCR_EELOAD_EN) {
+        val ^= PTSCR_EELOAD_EN;
+      }
+      op_reg_write(s, addr, val);
+    } else if (addr == DP83815_RFCR) {        /* 0x48 */
+      /* TODO: enable packet filters */
+      op_reg_write(s, addr, val);
+    } else if (addr == DP83815_RFDR) {        /* 0x4c */
+      op_reg_write(s, addr, val);
+    } else {
+      op_reg_write(s, addr, val);
+    }
+    if (logging)
+      logout("addr=%s val=0x%08x\n", dp83815_regname(addr), val);
+}
+
+/*****************************************************************************
+ *
+ * Port mapped I/O.
+ *
+ ****************************************************************************/
+
+static uint32_t dp83815_ioport_readb(void *opaque, uint32_t addr)
+{
+    int ret = 0;
+    logout("addr=%s val=0x%02x\n", dp83815_regname(addr), ret);
+    missing("port mapped I/O not implemented");
+    return ret;
+}
+
+static uint32_t dp83815_ioport_readw(void *opaque, uint32_t addr)
+{
+    int ret = 0;
+    logout("addr=%s val=0x%04x\n", dp83815_regname(addr), ret);
+    missing("port mapped I/O not implemented");
+    return ret;
+}
+
+static uint32_t dp83815_ioport_readl(void *opaque, uint32_t addr)
+{
+    int ret = 0;
+    logout("addr=%s val=0x%08x\n", dp83815_regname(addr), ret);
+    missing("port mapped I/O not implemented");
+    return ret;
+}
+
+static void dp83815_ioport_writeb(void *opaque, uint32_t addr, uint32_t val)
+{
+    logout("addr=%s val=0x%02x\n", dp83815_regname(addr), val);
+    missing("port mapped I/O not implemented");
+}
+
+static void dp83815_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
+{
+#if 0
+    DP83815State *s = opaque;
+    int page, index;
+#endif
+    logout("addr=%s val=0x%04x\n", dp83815_regname(addr), val);
+    missing("port mapped I/O not implemented");
+}
+
+static void dp83815_ioport_writel(void *opaque, uint32_t addr, uint32_t val)
+{
+    logout("addr=%s val=0x%08x\n", dp83815_regname(addr), val);
+    missing("port mapped I/O not implemented");
+}
+
+static void dp83815_io_map(PCIDevice *pci_dev, int region_num, 
+                       uint32_t addr, uint32_t size, int type)
+{
+    PCIDP83815State *d = (PCIDP83815State *)pci_dev;
+    DP83815State *s = &d->dp83815;
+
+    logout("region %d, addr 0x%08x, size 0x%08x\n", region_num, addr, size);
+    assert(region_num == 0);
+    s->region[region_num] = addr;
+
+    register_ioport_read(addr, size, 1, dp83815_ioport_readb, s);
+    register_ioport_read(addr, size, 2, dp83815_ioport_readw, s);
+    register_ioport_read(addr, size, 4, dp83815_ioport_readl, s);
+    register_ioport_write(addr, size, 1, dp83815_ioport_writeb, s);
+    register_ioport_write(addr, size, 2, dp83815_ioport_writew, s);
+    register_ioport_write(addr, size, 4, dp83815_ioport_writel, s);
+}
+
+/*****************************************************************************
+ *
+ * Memory mapped I/O.
+ *
+ ****************************************************************************/
+
+static uint32_t dp83815_mmio_readb(void *opaque, target_phys_addr_t addr)
+{
+    PCIDP83815State *d = (PCIDP83815State *)opaque;
+    DP83815State *s = &d->dp83815;
+    addr -= s->region[1];
+    return dp83815_readb(d, addr);
+}
+
+static uint32_t dp83815_mmio_readw(void *opaque, target_phys_addr_t addr)
+{
+    PCIDP83815State *d = (PCIDP83815State *)opaque;
+    DP83815State *s = &d->dp83815;
+    addr -= s->region[1];
+    return dp83815_readw(d, addr);
+}
+
+static uint32_t dp83815_mmio_readl(void *opaque, target_phys_addr_t addr)
+{
+    PCIDP83815State *d = (PCIDP83815State *)opaque;
+    DP83815State *s = &d->dp83815;
+    addr -= s->region[1];
+    return dp83815_readl(d, addr);
+}
+
+static void dp83815_mmio_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
+{
+    PCIDP83815State *d = (PCIDP83815State *)opaque;
+    DP83815State *s = &d->dp83815;
+    addr -= s->region[1];
+    dp83815_writeb(d, addr, val);
+}
+
+static void dp83815_mmio_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
+{
+    PCIDP83815State *d = (PCIDP83815State *)opaque;
+    DP83815State *s = &d->dp83815;
+    addr -= s->region[1];
+    dp83815_writew(d, addr, val);
+}
+
+static void dp83815_mmio_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
+{
+    PCIDP83815State *d = (PCIDP83815State *)opaque;
+    DP83815State *s = &d->dp83815;
+    addr -= s->region[1];
+    dp83815_writel(d, addr, val);
+}
+
+static void dp83815_mem_map(PCIDevice *pci_dev, int region_num, 
+                            uint32_t addr, uint32_t size, int type)
+{
+    PCIDP83815State *d = (PCIDP83815State *)pci_dev;
+    DP83815State *s = &d->dp83815;
+
+    logout("region %d, addr 0x%08x, size 0x%08x\n", region_num, addr, size);
+    assert(region_num == 1);
+    s->region[region_num] = addr;
+
+    cpu_register_physical_memory(addr, DP83815_MEM_SIZE, s->io_memory);
+}
 
 static CPUReadMemoryFunc *dp83815_mmio_read[] = {
     dp83815_mmio_readb,
@@ -893,14 +1007,24 @@ static CPUReadMemoryFunc *dp83815_mmio_read[] = {
     dp83815_mmio_readl
 };
 
-int dp8381x_load(QEMUFile *f, void *opaque, int version_id)
+static CPUWriteMemoryFunc *dp83815_mmio_write[] = {
+    dp83815_mmio_writeb,
+    dp83815_mmio_writew,
+    dp83815_mmio_writel
+};
+
+static int dp8381x_load(QEMUFile *f, void *opaque, int version_id)
 {
     PCIDP83815State *d = (PCIDP83815State *)opaque;
+#if defined(CONFIG_EEPROM)
     DP83815State *s = &d->dp83815;
+#endif
     int result = 0;
     if (version_id == dp8381x_version) {
         result = pci_device_load(&d->dev, f);
+#if defined(CONFIG_EEPROM)
         eeprom_load(f, &s->eeprom_state, eeprom_version);
+#endif
         /* TODO: support different endianess */
         //~ qemu_get_buffer(f, (uint8_t *)eeprom, sizeof(*eeprom));
     } else {
@@ -918,20 +1042,42 @@ static void nic_reset(void *opaque)
 static void dp8381x_save(QEMUFile *f, void *opaque)
 {
     PCIDP83815State *d = (PCIDP83815State *)opaque;
+#if defined(CONFIG_EEPROM)
     DP83815State *s = &d->dp83815;
+#endif
     pci_device_save(&d->dev, f);
+#if defined(CONFIG_EEPROM)
     eeprom_save(f, &s->eeprom_state);
+#endif
     /* TODO: support different endianess */
     qemu_put_buffer(f, (uint8_t *)d, sizeof(*d));
 }
 
-void pci_dp83815_init(PCIBus *bus, NICInfo *nd)
+#if defined(CONFIG_EEPROM)
+static void eeprom_init(DP83815State *s)
+{
+    uint8_t *pci_conf = s->pci_dev->config;
+
+    // EEPROM Bit 20 NCPEN!!!
+    PCI_CONFIG_32(PCI_COMMAND, 0x02900000);
+    PCI_CONFIG_32(0x2c, 0x00000000); /* Configuration Subsystem Identification */
+    // EEPROM Bits 16...31!!!
+    PCI_CONFIG_32(0x3c, 0x340b0100); // MNGNT = 11, MXLAT = 52, IPIN = 0
+    // EEPROM Bits 31...27, 21!!!
+    PCI_CONFIG_32(0x40, 0xff820001); /* Power Management Capabilities */
+    // EEPROM Bit 8!!!
+    PCI_CONFIG_32(0x44, 0x00000000); /* Power Management Control and Status */
+
+    // EEPROM Bits 16, 15-13!!!
+    OP_REG(DP83815_CFG, 0x00000000);    /* Configuration and Media Status */
+}
+#endif
+
+static void pci_dp8381x_init(PCIBus *bus, NICInfo *nd, uint32_t silicon_revision)
 {
     PCIDP83815State *d;
     DP83815State *s;
     uint8_t *pci_conf;
-
-    uint32_t silicon_revision = DP83816AVNG;
 
     logout("silicon revision = 0x%08x\n", silicon_revision);
 
@@ -939,26 +1085,22 @@ void pci_dp83815_init(PCIBus *bus, NICInfo *nd)
                                                sizeof(PCIDP83815State),
                                                -1, NULL, NULL);
     pci_conf = d->dev.config;
-#define PCI_CONF(offset, value) (*(uint32_t *)(pci_conf + (offset)) = cpu_to_le32(value))
-    PCI_CONF(0x00, 0x0020100b); // National Semiconductor DP 83815
-    // EEPROM Bit 20 NCPEN!!!
-    PCI_CONF(0x04, 0x02900000); /* Configuration Command and Status */
-    PCI_CONF(0x08, 0x02000000); // ethernet network controller
-    PCI_CONF(0x0c, 0x00000000); // header_type
-    PCI_CONF(0x10, 0x00000001); // IOIND, IOSIZE
-    PCI_CONF(0x14, 0x00000000);
-    /* 0x18...0x28 reserved, returns 0 */
-    // EEPROM!!!
-    PCI_CONF(0x2c, 0x00000000); /* Configuration Subsystem Identification */
-    PCI_CONF(0x30, 0x00000000); /* Boot ROM Configuration */
-    PCI_CONF(0x34, 0x00000040); /* Capabilities Pointer, CLOFS */
+
+    /* National Semiconductor DP83815, DP83816 */
+    PCI_CONFIG_32(PCI_VENDOR_ID, 0x0020100b);
+    PCI_CONFIG_32(PCI_COMMAND, 0x02900000);
+    /* ethernet network controller */
+    PCI_CONFIG_32(PCI_REVISION_ID, 0x02000000);
+    /* Address registers are set by pci_register_io_region. */
+    /* Capabilities Pointer, CLOFS */
+    PCI_CONFIG_32(0x34, 0x00000040);
     /* 0x38 reserved, returns 0 */
-    // EEPROM Bits 16...31!!!
-    PCI_CONF(0x3c, 0x340b0100); // MNGNT = 11, MXLAT = 52, IPIN = 0
-    // EEPROM Bits 31...27, 21!!!
-    PCI_CONF(0x40, 0xff820001); /* Power Management Capabilities */
-    // EEPROM Bit 8!!!
-    PCI_CONF(0x44, 0x00000000); /* Power Management Control and Status */
+    /* MNGNT = 11, MXLAT = 52, IPIN = 0 */
+    PCI_CONFIG_32(0x3c, 0x340b0100);
+    /* Power Management Capabilities */
+    PCI_CONFIG_32(0x40, 0xff820001);
+    /* Power Management Control and Status */
+    //~ PCI_CONFIG_32(0x44, 0x00000000);
     /* 0x48...0xff reserved, returns 0 */
 
     s = &d->dp83815;
@@ -971,14 +1113,17 @@ void pci_dp83815_init(PCIBus *bus, NICInfo *nd)
     logout("io_memory = 0x%08x\n", s->io_memory);
 
     pci_register_io_region(&d->dev, 0, DP83815_IO_SIZE, 
-                           PCI_ADDRESS_SPACE_IO, dp83815_map);
+                           PCI_ADDRESS_SPACE_IO, dp83815_io_map);
     pci_register_io_region(&d->dev, 1, DP83815_MEM_SIZE, 
-                           PCI_ADDRESS_SPACE_MEM, dp83815_mmio_map);
+                           PCI_ADDRESS_SPACE_MEM, dp83815_mem_map);
 
     s->irq = PCI_INTERRUPT;
     s->pci_dev = &d->dev;
     memcpy(s->macaddr, nd->macaddr, 6);
     dp83815_reset(s);
+#if defined(CONFIG_EEPROM)
+    eeprom_init(s);
+#endif
     s->vc = qemu_new_vlan_client(nd->vlan, dp83815_receive,
                                  dp83815_can_receive, s);
 
@@ -997,4 +1142,23 @@ void pci_dp83815_init(PCIBus *bus, NICInfo *nd)
                     dp8381x_save, dp8381x_load, d);
 }
 
+void pci_dp83815_init(PCIBus *bus, NICInfo *nd)
+{
+    //~ pci_dp8381x_init(bus, nd, DP83815DVNG);
+    pci_dp8381x_init(bus, nd, DP83816AVNG);
+}
+
+void pci_dp83816_init(PCIBus *bus, NICInfo *nd)
+{
+    pci_dp8381x_init(bus, nd, DP83816AVNG);
+}
+
 /* eof */
+
+#if 0
+DP8381X dp83815_writew          ??? addr=0xdc val=0x0001
+DP8381X dp83815_readw           ??? addr=0x00f4 val=0x1000
+DP8381X dp83815_writew          ??? addr=0xdc val=0x0000
+DP8381X dp83815_readw           ??? addr=BMSR val=0x7849
+DP8381X dp83815_readw           ??? addr=BMSR val=0x7849
+#endif
