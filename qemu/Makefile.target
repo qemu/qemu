@@ -565,6 +565,7 @@ $(OBJS) $(LIBOBJS) $(VL_OBJS): config.h ../config-host.h
 
 clean:
 	rm -f *.o  *.a *~ $(PROGS) gen-op.h opc.h op.h nwfpe/*.o slirp/*.o fpu/*.o
+	rm -f *.d */*.d
 
 install: all 
 ifneq ($(PROGS),)
