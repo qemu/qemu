@@ -38,6 +38,9 @@ uint16_t eeprom9346_read(eeprom_t *eeprom);
 void eeprom9346_write(eeprom_t *eeprom, int eecs, int eesk, int eedi);
 
 /* Reset the EEPROM. */
-void eeprom9346_reset(eeprom_t *eeprom, const uint8_t *macaddr);
+void eeprom9346_reset(eeprom_t *eeprom);
+
+/* Get EEPROM data array. */
+uint16_t *eeprom9346_data(eeprom_t *eeprom);
 
 #endif /* EEPROM9346_H */

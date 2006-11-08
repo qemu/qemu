@@ -1,5 +1,5 @@
 /*
- * QEMU EEPROM emulation
+ * QEMU EEPROM 93xx emulation
  * 
  * Copyright (c) 2006 Stefan Weil
  * 
@@ -27,14 +27,18 @@
  * eeprom9346_reset - reset the EEPROM
  * eeprom9346_read  - read data from the EEPROM
  * eeprom9346_write - write data to the EEPROM
+ * eeprom9346_data  - get EEPROM data array
  *
  * Todo list:
  * - "write all" command is unimplemented.
  * - No emulation of EEPROM timings.
  */
 
+#include <assert.h>
+#include "eeprom9346.h"
+
 /* Debug EEPROM emulation. */
-//~ #define DEBUG_EEPROM
+#define DEBUG_EEPROM
 
 #ifdef DEBUG_EEPROM
 #define logout(fmt, args...) fprintf(stderr, "EEPROM\t%-24s" fmt, __func__, ##args)
@@ -58,13 +62,6 @@ typedef enum {
   eeprom_imask = 0xf0
 } eeprom_instruction_t;
 
-typedef enum {
-  EEDI  =  1,   /* EEPROM Data In */
-  EEDO  =  2,   /* EEPROM Data Out */
-  EECLK =  4,   /* EEPROM Serial Clock */
-  EESEL =  8,   /* EEPROM Chip Select */
-} eeprom_bits_t;
-
 typedef struct {
   eeprom_bits_t state;
   uint16_t command;
@@ -74,117 +71,7 @@ typedef struct {
   uint16_t memory[16];
 } eeprom_state_t;
 
-static uint16_t eeprom_map[16] = {
-    /* Only 12 words are used. */
-    0xd008,
-    0x0400,
-    0x2cd0,
-    0xcf82,
-    0x0000,
-    0x0000,
-    0x0000,
-    0x0000,
-    0x0000,
-    0x0000,
-    0xa098,
-    0x0055
-};
-
-/* Code for saving and restoring of EEPROM state. */
-
-static void eeprom_save(QEMUFile *f, void *opaque)
-{
-    eeprom_state_t *eeprom = (eeprom_state_t *)opaque;
-    /* TODO: support different endianess */
-    qemu_put_buffer(f, (uint8_t *)eeprom, sizeof(*eeprom));
-}
-
-int eeprom_load(QEMUFile *f, void *opaque, int version_id)
-{
-    eeprom_state_t *eeprom = (eeprom_state_t *)opaque;
-    int result = 0;
-    if (version_id == eeprom_version) {
-        /* TODO: support different endianess */
-        qemu_get_buffer(f, (uint8_t *)eeprom, sizeof(*eeprom));
-    } else {
-        result = -EINVAL;
-    }
-    return result;
-}
-
-/* */
-
-static uint16_t eeprom_action(eeprom_state_t *ee, eeprom_bits_t bits)
-{
-  uint16_t command = ee->command;
-  uint8_t address = ee->address;
-  uint8_t *count = &ee->count;
-  eeprom_bits_t state = ee->state;
-
-  if (bits == -1) {
-    if (command == eeprom_read) {
-      if (*count > 25)
-        logout("read data = 0x%04x, address = %u, bit = %d, state 0x%04x\n",
-          ee->data, address, 26 - *count, state);
-    }
-    bits = state;
-  } else if (bits & EESEL) {
-    /* EEPROM is selected */
-    if (!(state & EESEL)) {
-      logout("selected, state 0x%04x => 0x%04x\n", state, bits);
-    } else if (!(state & EECLK) && (bits & EECLK)) {
-      /* Raising edge of clock. */
-      //~ logout("raising clock, state 0x%04x => 0x%04x\n", state, bits);
-      if (*count < 10) {
-        ee->data = (ee->data << 1);
-        if (bits & EEDI) {
-          ee->data++;
-        } else if (*count == 1) {
-          *count = 0;
-        }
-        //~ logout("   count = %d, data = 0x%04x\n", *count, data);
-        *count++;
-        if (*count == 10) {
-          ee->address = address = (ee->data & eeprom_amask);
-          ee->command = command = (ee->data & eeprom_imask);
-          ee->data = eeprom_map[address];
-          logout("count = %d, command = 0x%02x, address = 0x%02x, data = 0x%04x\n",
-            *count, command, address, ee->data);
-        }
-      //~ } else if (*count == 1 && !(bits & EEDI)) {
-        /* Got start bit. */
-      } else if (*count < 10 + 16) {
-        if (command == eeprom_read) {
-          bits = (bits & ~EEDO);
-          if (ee->data & (1 << (25 - *count))) {
-            bits += EEDO;
-          }
-        } else {
-          logout("   command = 0x%04x, count = %d, data = 0x%04x\n",
-            command, *count, ee->data);
-        }
-        *count++;
-      } else {
-        logout("??? state 0x%04x => 0x%04x\n", state, bits);
-      }
-    } else {
-      //~ logout("state 0x%04x => 0x%04x\n", state, bits);
-    }
-  } else {
-    logout("not selected, count = %u, state 0x%04x => 0x%04x\n", *count, state, bits);
-    ee->data = 0;
-    ee->count = 0;
-    ee->address = 0;
-    ee->command = 0;
-  }
-  ee->state = state = bits;
-  return state;
-}
-
-#else
-
-#include <assert.h>
-#include "eeprom9346.h"
+#endif
 
 /* Emulation of 9346 EEPROM (64 * 16 bit) */
 
@@ -194,14 +81,6 @@ static uint16_t eeprom_action(eeprom_state_t *ee, eeprom_bits_t bits)
 
 #define SET_MASKED(input, mask, curr) \
     ( ( (input) & ~(mask) ) | ( (curr) & (mask) ) )
-
-#if 0
-#define EEPROM_CS       0x08
-#define EEPROM_SK       0x04
-#define EEPROM_DI       0x02
-#define EEPROM_DO       0x01
-#else
-#endif
 
 typedef enum {
     Chip9346_op_mask = 0xc0,          /* 10 zzzzzz */
@@ -227,9 +106,12 @@ typedef struct EEprom9346 {
 
     uint32_t value;
     uint8_t  addrbits;
+    uint8_t  ignoredbits;
     uint8_t  size;
     uint16_t contents[0];
 } EEProm9346;
+
+/* Code for saving and restoring of EEPROM state. */
 
 static void eeprom_save(QEMUFile *f, void *opaque)
 {
@@ -311,12 +193,15 @@ void eeprom9346_write(eeprom_t *eeprom, int eecs, int eesk, int eedi)
                         break;
                 }
             }
+        } else if (tick < 2 + 2 + eeprom->ignoredbits) {
+            tick++;
         } else if (tick < 2 + 2 + eeprom->addrbits) {
             /* Got 2 start bits and 2 opcode bits, transfer all address bits. */
             tick++;
             address = ((address << 1) | eedi);
             if (tick == 2 + 2 + eeprom->addrbits) {
-                logout("got address = %u\n", address);
+                logout("got address = %u (value 0x%04x)\n",
+                       address, eeprom->contents[address]);
                 eedo = 0;
                 address = address % eeprom->size;
                 if (command == 0) {
@@ -383,29 +268,24 @@ uint16_t eeprom9346_read(eeprom_t *eeprom)
     return (eeprom->eecs && eeprom->eedo);
 }
 
-void eeprom9346_reset(eeprom_t *eeprom, const uint8_t *macaddr)
+void eeprom9346_reset(eeprom_t *eeprom)
 {
     /* prepare eeprom */
-    size_t i;
     logout("eeprom = 0x%p\n", eeprom);
-    //~ !!! fixme
-    memcpy(&eeprom->contents[0], macaddr, 6);
-    eeprom->contents[0xa] = 0x4000;
-    uint16_t sum = 0;
-    for (i = 0; i < eeprom->size - 1; i++) {
-        sum += eeprom->contents[i];
-    }
-    eeprom->contents[eeprom->size - 1] = 0xbaba - sum;
+    eeprom->tick = 0;
+    eeprom->command = 0;
 }
 
 eeprom_t *eeprom9346_new(uint16_t nwords)
 {
     eeprom_t *eeprom;
     uint8_t addrbits;
+    uint8_t ignoredbits = 0;
 
     switch (nwords) {
         case 16:
-            addrbits = 4;
+            addrbits = 6;
+            ignoredbits = 2;
             break;
         case 64:
             addrbits = 6;
@@ -422,6 +302,7 @@ eeprom_t *eeprom9346_new(uint16_t nwords)
     eeprom = (eeprom_t *)qemu_mallocz(sizeof(*eeprom) + nwords * 2);
     eeprom->size = nwords;
     eeprom->addrbits = addrbits;
+    eeprom->ignoredbits = ignoredbits;
     logout("eeprom = 0x%p, nwords = %u\n", eeprom, nwords);
     register_savevm("eeprom", eeprom_instance, eeprom_version,
                     eeprom_save, eeprom_load, eeprom);
@@ -434,4 +315,10 @@ void eeprom9346_free(eeprom_t *eeprom)
     qemu_free(eeprom);
 }
 
-#endif
+uint16_t *eeprom9346_data(eeprom_t *eeprom)
+{
+    /* Get EEPROM data array. */
+    return &eeprom->contents[0];
+}
+
+/* eof */
