@@ -89,6 +89,8 @@
 
 #define DEVICE          i82559ER
 
+#define EEPROM_SIZE     64
+
 #define PCI_MEM_SIZE            (4 * KiB)
 #define PCI_IO_SIZE             64
 #define PCI_FLASH_SIZE          (128 * KiB)
@@ -507,7 +509,16 @@ static void pci_reset(EEPRO100State *s)
 
 static void nic_selective_reset(EEPRO100State *s)
 {
-    eeprom9346_reset(s->eeprom, s->macaddr);
+    size_t i;
+    uint16_t *eeprom_contents = eeprom9346_data(s->eeprom);
+    eeprom9346_reset(s->eeprom);
+    memcpy(&eeprom_contents, s->macaddr, 6);
+    eeprom_contents[0xa] = 0x4000;
+    uint16_t sum = 0;
+    for (i = 0; i < EEPROM_SIZE - 1; i++) {
+        sum += eeprom_contents[i];
+    }
+    eeprom_contents[EEPROM_SIZE - 1] = 0xbaba - sum;
 
     memset(s->mem, 0, sizeof(s->mem));
     uint32_t val = (1 << 21);
@@ -1632,7 +1643,7 @@ static void nic_init(PCIBus *bus, NICInfo *nd,
 
     /* Add 64 * 2 EEPROM. i82557 and i82558 support a 64 word EEPROM,
      * i82559 and later support 64 or 256 word EEPROM. */
-    s->eeprom = eeprom9346_new(64);
+    s->eeprom = eeprom9346_new(EEPROM_SIZE);
 
     /* Handler for memory-mapped I/O */
     d->eepro100.mmio_index =
