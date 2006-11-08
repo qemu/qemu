@@ -32,6 +32,7 @@
 
 #include <assert.h>     /* assert */
 #include "vl.h"
+#include "eeprom9346.h"
 
 /*****************************************************************************
  *
@@ -83,7 +84,8 @@
 #define missing(text)       assert(!"feature is missing in this emulation: " text)
 
 /* EEPROM support is optional. */
-//~ #define CONFIG_EEPROM
+#define CONFIG_EEPROM
+#define EEPROM_SIZE     16
 
 /* Silicon revisions for the different hardware */
 #define DP83815CVNG     0x00000302
@@ -103,39 +105,6 @@ static const int dp8381x_version = 20060726;
  * EEPROM emulation.
  *
  ****************************************************************************/
-
-#if defined(CONFIG_EEPROM)
-typedef enum {
-  eeprom_read  = 0x80,   /* read register xx */
-  eeprom_write = 0x40,   /* write register xx */
-  eeprom_erase = 0xc0,   /* erase register xx */
-  eeprom_ewen  = 0x30,   /* erase / write enable */
-  eeprom_ewds  = 0x00,   /* erase / write disable */
-  eeprom_eral  = 0x20,   /* erase all registers */
-  eeprom_wral  = 0x10,   /* write all registers */
-  eeprom_amask = 0x0f,
-  eeprom_imask = 0xf0
-} eeprom_instruction_t;
-
-typedef enum {
-  EEDI  =  1,   /* EEPROM Data In */
-  EEDO  =  2,   /* EEPROM Data Out */
-  EECLK =  4,   /* EEPROM Serial Clock */
-  EESEL =  8,   /* EEPROM Chip Select */
-  MDIO  = 16,   /* MII Management Data */
-  MDDIR = 32,   /* MII Management Direction */
-  MDC   = 64    /* MII Management Clock */
-} eeprom_bits_t;
-
-typedef struct {
-  eeprom_bits_t state;
-  uint16_t command;
-  uint16_t data;
-  uint8_t  count;
-  uint8_t  address;
-  uint16_t memory[16];
-} eeprom_state_t;
-#endif
 
 typedef enum {
   idle,
@@ -166,23 +135,18 @@ typedef struct {
     PCIDevice *pci_dev;
     uint32_t region[2];         /* PCI region addresses */
     VLANClientState *vc;
+    eeprom_t *eeprom;
 
     uint8_t macaddr[6];
     uint8_t mem[DP83815_IO_SIZE];
-    uint8_t filter[256];
+    uint8_t filter[1024];
     uint32_t silicon_revision;
-
-#if defined(CONFIG_EEPROM)
-    eeprom_state_t eeprom_state;
-#endif
 } DP83815State;
 
 #if defined(CONFIG_EEPROM)
-
-/* Emulation for FM93C46 (NMC9306) 256-Bit Serial EEPROM */
-
-static uint16_t eeprom_map[16] = {
-    /* Only 12 words are used. */
+static const uint16_t eeprom_default[16] = {
+    /* Default values for EEPROM. */
+    /* Only 12 words are used. Data is in host byte order. */
     0xd008,
     0x0400,
     0x2cd0,
@@ -196,104 +160,6 @@ static uint16_t eeprom_map[16] = {
     0xa098,
     0x0055
 };
-
-/* Code for saving and restoring of EEPROM state. */
-
-static int eeprom_instance = 0;
-static const int eeprom_version = 20060726;
-
-static void eeprom_save(QEMUFile *f, void *opaque)
-{
-    eeprom_state_t *eeprom = (eeprom_state_t *)opaque;
-    /* TODO: support different endianess */
-    logout("\n");
-    qemu_put_buffer(f, (uint8_t *)eeprom, sizeof(*eeprom));
-}
-
-static int eeprom_load(QEMUFile *f, void *opaque, int version_id)
-{
-    eeprom_state_t *eeprom = (eeprom_state_t *)opaque;
-    int result = 0;
-    if (version_id == eeprom_version) {
-        /* TODO: support different endianess */
-        qemu_get_buffer(f, (uint8_t *)eeprom, sizeof(*eeprom));
-    } else {
-        result = -EINVAL;
-    }
-    logout("\n");
-    return result;
-}
-
-/* */
-
-static uint16_t eeprom_action(eeprom_state_t *ee, eeprom_bits_t bits)
-{
-  uint16_t command = ee->command;
-  uint8_t address = ee->address;
-  uint8_t *count = &ee->count;
-  eeprom_bits_t state = ee->state;
-
-  if (bits == -1) {
-    if (command == eeprom_read) {
-      if (*count > 25) {
-        logout("read data = 0x%04x, address = %u, bit = %d, state 0x%04x\n",
-          ee->data, address, 26 - *count, state);
-      }
-    }
-    bits = state;
-  } else if (bits & EESEL) {
-    /* EEPROM is selected */
-    if (!(state & EESEL)) {
-      logout("selected, state 0x%04x => 0x%04x\n", state, bits);
-    } else if (!(state & EECLK) && (bits & EECLK)) {
-      /* Raising edge of clock. */
-      //~ logout("raising clock, state 0x%04x => 0x%04x\n", state, bits);
-      if (*count < 10) {
-        ee->data = (ee->data << 1);
-        if (bits & EEDI) {
-          ee->data++;
-        } else if (*count == 1) {
-          *count = 0;
-        }
-        logout("   count = %d, data = 0x%04x\n", *count, ee->data);
-        *count++;
-        if (*count == 10) {
-          ee->address = address = (ee->data & eeprom_amask);
-          ee->command = command = (ee->data & eeprom_imask);
-          ee->data = eeprom_map[address];
-          logout("count = %d, command = 0x%02x, address = 0x%02x, data = 0x%04x\n",
-            *count, command, address, ee->data);
-        }
-      //~ } else if (*count == 1 && !(bits & EEDI)) {
-        /* Got start bit. */
-      } else if (*count < 10 + 16) {
-        if (command == eeprom_read) {
-          bits = (bits & ~EEDO);
-          if (ee->data & (1 << (25 - *count))) {
-            bits += EEDO;
-          }
-        } else {
-          logout("   command = 0x%04x, count = %d, data = 0x%04x\n",
-            command, *count, ee->data);
-        }
-        *count++;
-      } else {
-        logout("??? state 0x%04x => 0x%04x\n", state, bits);
-      }
-    } else {
-      //~ logout("state 0x%04x => 0x%04x\n", state, bits);
-    }
-  } else {
-    logout("not selected, count = %u, state 0x%04x => 0x%04x\n", *count, state, bits);
-    ee->data = 0;
-    ee->count = 0;
-    ee->address = 0;
-    ee->command = 0;
-  }
-  ee->state = state = bits;
-  return state;
-}
-
 #endif
 
 /*****************************************************************************
@@ -407,13 +273,13 @@ typedef enum {
 typedef isr_bit_t imr_bit_t;
 
 typedef enum {
-  MEAR_MDC = BIT(6),
-  MEAR_MDDIR = BIT(5),
-  MEAR_MDIO = BIT(4),
-  MEAR_EESEL = BIT(3),
-  MEAR_EECLK = BIT(2),
-  MEAR_EEDO = BIT(1),
-  MEAR_EEDI = BIT(0),
+  MEAR_MDC = BIT(6),    /* MII Management Clock */
+  MEAR_MDDIR = BIT(5),  /* MII Management Direction */
+  MEAR_MDIO = BIT(4),   /* MII Management Data */
+  MEAR_EESEL = BIT(3),  /* EEPROM Chip Select */
+  MEAR_EECLK = BIT(2),  /* EEPROM Serial Clock */
+  MEAR_EEDO = BIT(1),   /* EEPROM Data Out */
+  MEAR_EEDI = BIT(0),   /* EEPROM Data In */
 } mear_bit_t;
 
 typedef enum {
@@ -520,18 +386,6 @@ static void dp83815_reset(DP83815State *s)
     for (i = 0; i < 6; i++) {
       s->filter[2 * i] = s->macaddr[i];
     }
-#if 0
-    s->isr = ENISR_RESET;
-    memcpy(s->mem, s->macaddr, 6);
-    s->mem[14] = 0x57;
-    s->mem[15] = 0x57;
-
-    /* duplicate prom data */
-    for(i = 15;i >= 0; i--) {
-        s->mem[2 * i] = s->mem[i];
-        s->mem[2 * i + 1] = s->mem[i];
-    }
-#endif
 }
 
 static void dp83815_interrupt(DP83815State *s, uint32_t bits)
@@ -594,6 +448,7 @@ static int dp83815_can_receive(void *opaque)
     DP83815State *s = opaque;
 
     logout("\n");
+    missing("");
 
     /* TODO: handle queued receive data. */
     return s->rx_state == active;
@@ -642,11 +497,15 @@ static void dp83815_receive(void *opaque, const uint8_t *buf, int size)
         missing("mode only used for wake-on-lan");
     } else if (!memcmp(buf,  s->macaddr, 6)) {
         /* my address */
+        logout("my mac address\n");
     } else if (!memcmp(buf,  broadcast_macaddr, 6)) {
         /* broadcast address */
+        logout("broadcast address\n");
     } else if (buf[0] & 0x01) {
         /* multicast */
+        logout("multicast address\n");
     } else {
+        logout("unknown mac address\n");
         //~ return;
     }
 
@@ -660,6 +519,9 @@ static void dp83815_receive(void *opaque, const uint8_t *buf, int size)
     uint32_t length = (cmdsts & CMDSTS_SIZE);
     logout("rxdp 0x%08x, link 0x%08x, cmdsts 0x%08x, bufptr 0x%08x, length %u\n",
       rxdp, link, cmdsts, bufptr, length);
+
+    /* Linux subtracts 4 bytes for fcs, so we add it here. */
+    size += 4;
 
     assert(bufptr != 0);
     assert(length >= size);
@@ -852,6 +714,7 @@ static uint16_t dp83815_readw(PCIDP83815State *d, target_phys_addr_t addr)
       if (rfaddr & 1) {
         missing("odd rfaddr");
       } else {
+        assert(rfaddr < sizeof(s->filter));
         val = *(uint16_t *)&s->filter[rfaddr];
       }
       logout("addr=%s val=0x%04x\n", dp83815_regname(addr), val);
@@ -929,11 +792,14 @@ static uint32_t dp83815_readl(PCIDP83815State *d, target_phys_addr_t addr)
 #endif
       //~ logging = 0;
     } else if (addr == DP83815_MEAR) {          /* 0x08 */
-#if defined(CONFIG_EEPROM)
-      val = eeprom_action(&s->eeprom_state, -1);
-      logging = 0;
-#else
       val = op_reg_read(s, addr);
+#if defined(CONFIG_EEPROM)
+      val &= ~MEAR_EEDO;
+      if (eeprom9346_read(s->eeprom)) {
+        val |= MEAR_EEDO;
+      }
+#else
+      val |= MEAR_EEDO;
 #endif
     } else if (addr == DP83815_PTSCR) {         /* 0x0c */
       /* TODO: emulate timing. */
@@ -1012,6 +878,7 @@ static void dp83815_writew(PCIDP83815State *d, target_phys_addr_t addr, uint16_t
       if (rfaddr & 1) {
         missing("odd rfaddr");
       } else {
+        assert(rfaddr < sizeof(s->filter));
         *(uint16_t *)&s->filter[rfaddr] = val;
       }
       //~ op_reg_write(s, addr, val);
@@ -1115,15 +982,15 @@ static void dp83815_writel(PCIDP83815State *d, target_phys_addr_t addr, uint32_t
         op_reg_write(s, addr, val);
     } else if (addr == DP83815_MEAR) {          /* 0x08 */
 #if defined(CONFIG_EEPROM)
-      eeprom_action(&s->eeprom_state, val);
-      logging = 0;
-#else
-      val |= MEAR_EEDO;
+      int eecs = ((val & MEAR_EESEL) != 0);
+      int eesk = ((val & MEAR_EECLK) != 0);
+      int eedi = ((val & MEAR_EEDI) != 0);
+      eeprom9346_write(s->eeprom, eecs, eesk, eedi);
+#endif
       op_reg_write(s, addr, val);
       if (val & 0x000000f0) {
         missing("MII access");
       }
-#endif
     } else if (addr == DP83815_PTSCR) {         /* 0x0c */
       if (val & PTSCR_EELOAD_EN) {
         val &= ~PTSCR_EELOAD_EN;
@@ -1174,6 +1041,7 @@ static void dp83815_writel(PCIDP83815State *d, target_phys_addr_t addr, uint32_t
       if (rfaddr & 1) {
         missing("odd rfaddr");
       } else {
+        assert(rfaddr < sizeof(s->filter));
         *(uint16_t *)&s->filter[rfaddr] = val;
       }
       //~ op_reg_write(s, addr, val);
@@ -1360,18 +1228,13 @@ static CPUWriteMemoryFunc *dp83815_mmio_write[] = {
 static int dp8381x_load(QEMUFile *f, void *opaque, int version_id)
 {
     PCIDP83815State *d = (PCIDP83815State *)opaque;
-#if defined(CONFIG_EEPROM)
+#if 0
     DP83815State *s = &d->dp83815;
 #endif
     int result = 0;
     logout("\n");
     if (version_id == dp8381x_version) {
         result = pci_device_load(&d->dev, f);
-#if defined(CONFIG_EEPROM)
-        eeprom_load(f, &s->eeprom_state, eeprom_version);
-#endif
-        /* TODO: support different endianess */
-        //~ qemu_get_buffer(f, (uint8_t *)eeprom, sizeof(*eeprom));
     } else {
         result = -EINVAL;
     }
@@ -1387,30 +1250,60 @@ static void nic_reset(void *opaque)
 static void dp8381x_save(QEMUFile *f, void *opaque)
 {
     PCIDP83815State *d = (PCIDP83815State *)opaque;
-#if defined(CONFIG_EEPROM)
+#if 0
     DP83815State *s = &d->dp83815;
 #endif
     logout("\n");
     pci_device_save(&d->dev, f);
-#if defined(CONFIG_EEPROM)
-    eeprom_save(f, &s->eeprom_state);
-#endif
     /* TODO: support different endianess */
     qemu_put_buffer(f, (uint8_t *)d, sizeof(*d));
 }
 
 #if defined(CONFIG_EEPROM)
+/* SWAP_BITS is needed for buggy Linux driver. */
+#define SWAP_BITS(x)	( (((x) & 0x0001) << 15) | (((x) & 0x0002) << 13) \
+			| (((x) & 0x0004) << 11) | (((x) & 0x0008) << 9)  \
+			| (((x) & 0x0010) << 7)  | (((x) & 0x0020) << 5)  \
+			| (((x) & 0x0040) << 3)  | (((x) & 0x0080) << 1)  \
+			| (((x) & 0x0100) >> 1)  | (((x) & 0x0200) >> 3)  \
+			| (((x) & 0x0400) >> 5)  | (((x) & 0x0800) >> 7)  \
+			| (((x) & 0x1000) >> 9)  | (((x) & 0x2000) >> 11) \
+			| (((x) & 0x4000) >> 13) | (((x) & 0x8000) >> 15) )
+
 static void eeprom_init(DP83815State *s)
 {
     uint8_t *pci_conf = s->pci_dev->config;
     uint8_t i;
+    uint16_t *eeprom_contents = eeprom9346_data(s->eeprom);
 
     logout("\n");
 
-    for (i = 0; i < 3; i++) {
-      eeprom_map[i] = s->macaddr[2 * i] + 256 * s->macaddr[2 * i + 1];
+    memcpy(eeprom_contents, eeprom_default, sizeof(eeprom_default));
+
+    /* Patch MAC address into EEPROM data. */
+    eeprom_contents[6] = (eeprom_contents[6] & 0x7fff) + ((s->macaddr[0] & 1) << 15);
+    eeprom_contents[7] = (s->macaddr[0] >> 1) + (s->macaddr[1] << 7) + ((s->macaddr[2] & 1) << 15);
+    eeprom_contents[8] = (s->macaddr[2] >> 1) + (s->macaddr[3] << 7) + ((s->macaddr[4] & 1) << 15);
+    eeprom_contents[9] = (s->macaddr[4] >> 1) + (s->macaddr[5] << 7) + (eeprom_contents[9] & 0x8000);
+
+    /* The Linux driver natsemi.c is buggy because it reads the bits from
+     * EEPROM in wrong order (low to high). So we must reverse the bit order
+     * to get the correct mac address. */
+    for (i = 6; i < 10; i++) {
+        eeprom_contents[i] = SWAP_BITS(eeprom_contents[i]);
     }
 
+    /* Fix EEPROM checksum. */
+    uint8_t sum = 0;
+    for (i = 0; i < 11; i++) {
+      sum += (eeprom_contents[i] & 255);
+      sum += (eeprom_contents[i] >> 8);
+    }
+    sum += 0x55;
+    sum = -sum;
+    eeprom_contents[i] = (sum << 8) + 0x55;
+
+#if 0
     // EEPROM Bit 20 NCPEN!!!
     PCI_CONFIG_32(PCI_COMMAND, 0x02900000);
     PCI_CONFIG_32(0x2c, 0x00000000); /* Configuration Subsystem Identification */
@@ -1423,6 +1316,7 @@ static void eeprom_init(DP83815State *s)
 
     // EEPROM Bits 16, 15-13!!!
     OP_REG(DP83815_CFG, 0x00000000);    /* Configuration and Media Status */
+#endif
 }
 #endif
 
@@ -1473,9 +1367,13 @@ static void pci_dp8381x_init(PCIBus *bus, NICInfo *nd, uint32_t silicon_revision
     s->pci_dev = &d->dev;
     memcpy(s->macaddr, nd->macaddr, 6);
     dp83815_reset(s);
+
 #if defined(CONFIG_EEPROM)
+    /* Add EEPROM (16 x 16 bit). */
+    s->eeprom = eeprom9346_new(EEPROM_SIZE);
     eeprom_init(s);
 #endif
+
     s->vc = qemu_new_vlan_client(nd->vlan, dp83815_receive,
                                  dp83815_can_receive, s);
 
@@ -1508,11 +1406,3 @@ void pci_dp83816_init(PCIBus *bus, NICInfo *nd)
 }
 
 /* eof */
-
-#if 0
-DP8381X dp83815_writew          ??? addr=0xdc val=0x0001
-DP8381X dp83815_readw           ??? addr=0x00f4 val=0x1000
-DP8381X dp83815_writew          ??? addr=0xdc val=0x0000
-DP8381X dp83815_readw           ??? addr=BMSR val=0x7849
-DP8381X dp83815_readw           ??? addr=BMSR val=0x7849
-#endif
