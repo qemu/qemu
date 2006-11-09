@@ -438,7 +438,7 @@ static void fbox4_init(int ram_size, int vga_ram_size, int boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename)
 {
-    mips_ar7_common_init (ram_size, MANUFACTURER_MACRONIX, MX29LV320CT,
+    mips_ar7_common_init (32 * MiB, MANUFACTURER_MACRONIX, MX29LV320CT,
                           kernel_filename, kernel_cmdline, initrd_filename);
 }
 
@@ -447,7 +447,7 @@ static void fbox8_init(int ram_size, int vga_ram_size, int boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename)
 {
-    mips_ar7_common_init (ram_size, MANUFACTURER_MACRONIX, MX29LV640BT,
+    mips_ar7_common_init (32 * MiB, MANUFACTURER_MACRONIX, MX29LV640BT,
                           kernel_filename, kernel_cmdline, initrd_filename);
 }
 
@@ -465,7 +465,7 @@ static void sinus_3_init(int ram_size, int vga_ram_size, int boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename)
 {
-    mips_ar7_common_init (ram_size, 0x004a, 0x2249,
+    mips_ar7_common_init (16 * MiB, 0x004a, 0x2249,
                           kernel_filename, kernel_cmdline, initrd_filename);
 }
 
@@ -474,7 +474,7 @@ static void sinus_se_init(int ram_size, int vga_ram_size, int boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename)
 {
-    mips_ar7_common_init (ram_size, MANUFACTURER_INTEL, I28F160C3B,
+    mips_ar7_common_init (16 * MiB, MANUFACTURER_INTEL, I28F160C3B,
                           kernel_filename, kernel_cmdline, initrd_filename);
 }
 
