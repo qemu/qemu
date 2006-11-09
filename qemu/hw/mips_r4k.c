@@ -276,7 +276,8 @@ static void mipsel_r4k_init (int ram_size, int vga_ram_size, int boot_device,
         kernel_filename, kernel_cmdline, initrd_filename);
 }
 
-static void mips_ar7_common_init (int ram_size, uint16_t flash_manufacturer,
+static void mips_ar7_common_init (int ram_size,
+                    uint16_t flash_manufacturer, uint16_t flash_type,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename)
 {
@@ -322,23 +323,26 @@ static void mips_ar7_common_init (int ram_size, uint16_t flash_manufacturer,
         pflash_t *pf;
         switch (flash_manufacturer) {
             case MANUFACTURER_AMD:
+            case 0x4a:  /* Which manufacturer is this? */
                 pf = pflash_amd_register(address, bios_offset,
                         0,
                         blocksize, ret / blocksize, 2,
                         /* AMD Am29LV160DB */
-                        MANUFACTURER_AMD, AM29LV160DB, 0x33, 0x44);
+                        /* ES29LV160D */
+                        flash_manufacturer, flash_type, 0x33, 0x44);
                 break;
             case MANUFACTURER_INTEL:
+            case MANUFACTURER_MACRONIX:
                 pf = pflash_cfi01_register(address, bios_offset,
                         0,
                         blocksize, ret / blocksize, 2,
-                        MANUFACTURER_INTEL, I28F160C3B, 0x33, 0x44);
+                        flash_manufacturer, flash_type, 0x33, 0x44);
                 break;
             default:
                 pf = pflash_register(address, bios_offset,
                         0,
                         blocksize, ret / blocksize, 2,
-                        0x4a, 0x49, 0x33, 0x44);
+                        flash_manufacturer, flash_type, 0x33, 0x44);
         }
         bios_offset += ret;
     } else {
@@ -425,53 +429,95 @@ static void mips_ar7_init(int ram_size, int vga_ram_size, int boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename)
 {
-    mips_ar7_common_init (ram_size, MANUFACTURER_ST,
+    mips_ar7_common_init (ram_size, MANUFACTURER_ST, 0x2249,
                           kernel_filename, kernel_cmdline, initrd_filename);
 }
 
-static void fbox_init(int ram_size, int vga_ram_size, int boot_device,
+static void fbox4_init(int ram_size, int vga_ram_size, int boot_device,
                     DisplayState *ds, const char **fd_filename, int snapshot,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename)
 {
-    mips_ar7_common_init (ram_size, MANUFACTURER_INTEL,
+    mips_ar7_common_init (ram_size, MANUFACTURER_MACRONIX, MX29LV320CT,
                           kernel_filename, kernel_cmdline, initrd_filename);
 }
 
-static void sinus_init(int ram_size, int vga_ram_size, int boot_device,
+static void fbox8_init(int ram_size, int vga_ram_size, int boot_device,
                     DisplayState *ds, const char **fd_filename, int snapshot,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename)
 {
-    mips_ar7_common_init (ram_size, MANUFACTURER_AMD,
+    mips_ar7_common_init (ram_size, MANUFACTURER_MACRONIX, MX29LV640BT,
+                          kernel_filename, kernel_cmdline, initrd_filename);
+}
+
+static void ar7_amd_init(int ram_size, int vga_ram_size, int boot_device,
+                    DisplayState *ds, const char **fd_filename, int snapshot,
+                    const char *kernel_filename, const char *kernel_cmdline,
+                    const char *initrd_filename)
+{
+    mips_ar7_common_init (ram_size, MANUFACTURER_AMD, AM29LV160DB,
+                          kernel_filename, kernel_cmdline, initrd_filename);
+}
+
+static void sinus_3_init(int ram_size, int vga_ram_size, int boot_device,
+                    DisplayState *ds, const char **fd_filename, int snapshot,
+                    const char *kernel_filename, const char *kernel_cmdline,
+                    const char *initrd_filename)
+{
+    mips_ar7_common_init (ram_size, 0x004a, 0x2249,
+                          kernel_filename, kernel_cmdline, initrd_filename);
+}
+
+static void sinus_se_init(int ram_size, int vga_ram_size, int boot_device,
+                    DisplayState *ds, const char **fd_filename, int snapshot,
+                    const char *kernel_filename, const char *kernel_cmdline,
+                    const char *initrd_filename)
+{
+    mips_ar7_common_init (ram_size, MANUFACTURER_INTEL, I28F160C3B,
                           kernel_filename, kernel_cmdline, initrd_filename);
 }
 
 static QEMUMachine mips_machine[] = {
   {
     "mips",
-    "mips r4k platform",
+    "MIPS r4k platform",
     mips_r4k_init,
   },
   {
     "mipsel",
-    "mips r4k platform (little endian)",
+    "MIPS r4k platform (little endian)",
     mipsel_r4k_init,
   },
   {
     "ar7",
-    "mips 4KEc / AR7 platform",
+    "MIPS 4KEc / AR7 platform",
     mips_ar7_init,
   },
   {
-    "fbox",
-    "FBox (AR7 platform)",
-    fbox_init,
+    "fbox-4mb",
+    "FBox 4 MiB flash (AR7 platform)",
+    fbox4_init,
   },
   {
-    "sinus",
-    "Sinus (AR7 platform)",
-    sinus_init,
+    "fbox-8mb",
+    "FBox 8 MiB flash (AR7 platform)",
+    fbox8_init,
+  },
+  {
+    "ar7-amd",
+    "MIPS AR7 with AMD flash",
+    ar7_amd_init,
+  },
+  {
+    "sinus-se",
+    "Sinus DSL SE, Sinus DSL Basic SE (AR7 platform)",
+    sinus_3_init,
+  },
+  {
+    "sinus-3",
+    "Sinus DSL Basic 3 (AR7 platform)",
+    sinus_3_init,
   },
 };
 
