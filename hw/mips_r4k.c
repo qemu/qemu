@@ -3,7 +3,8 @@
  */
 
 #include "vl.h"
-#include "hw/ar7.h"	/* ar7_init */
+#include "ar7.h"        /* ar7_init */
+#include "pflash.h"     /* pflash_amd_register, ... */
 
 #define BIOS_FILENAME "mips_bios.bin"
 
@@ -119,38 +120,6 @@ void cpu_mips_clock_init (CPUState *env)
     env->timer = qemu_new_timer(vm_clock, &mips_timer_cb, env);
     env->CP0_Compare = 0;
     cpu_mips_update_count(env, 1, 0);
-}
-
-static int bios_load(const char *filename, unsigned long bios_offset, unsigned long address)
-{
-    char buf[1024];
-    int ret;
-    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, filename);
-    ret = load_image(buf, phys_ram_base + bios_offset);
-    fprintf(stderr, "%s: load BIOS '%s' size %d\n", __func__, buf, ret);
-    if (ret > 0) {
-        const unsigned blocksize = 0x10000;
-#if 0
-        pflash_t *pf = pflash_cfi01_register(address, bios_offset,
-                0,
-                blocksize, ret / blocksize, 2,
-                0x4a, 0x49, 0x33, 0x44);
-#elif 0
-        pflash_t *pf = pflash_register(address, bios_offset,
-                0,
-                blocksize, ret / blocksize, 2,
-                0x4a, 0x49, 0x33, 0x44);
-#else
-        pflash_t *pf = pflash_amd_register(address, bios_offset,
-                0,
-                blocksize, ret / blocksize, 2,
-                /* AMD Am29LV160DB */
-                0x01, 0x2249, 0x33, 0x44);
-#endif
-    } else {
-        ret = 0;
-    }
-    return ret;
 }
 
 static void main_cpu_reset(void *opaque)
@@ -307,8 +276,7 @@ static void mipsel_r4k_init (int ram_size, int vga_ram_size, int boot_device,
         kernel_filename, kernel_cmdline, initrd_filename);
 }
 
-static void mips_ar7_init (int ram_size, int vga_ram_size, int boot_device,
-                    DisplayState *ds, const char **fd_filename, int snapshot,
+static void mips_ar7_common_init (int ram_size, uint16_t flash_manufacturer,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename)
 {
@@ -318,9 +286,6 @@ static void mips_ar7_init (int ram_size, int vga_ram_size, int boot_device,
     int ret;
     CPUState *env;
     long kernel_size;
-
-    /* This is an embedded device without VGA. */
-    vga_ram_size = 0;
 
     env = cpu_init();
     /* Typical AR7 systems run in little endian mode. */
@@ -346,8 +311,40 @@ static void mips_ar7_init (int ram_size, int vga_ram_size, int boot_device,
        but initialize the hardware ourselves. When a kernel gets
        preloaded we also initialize the hardware, since the BIOS wasn't
        run. */
-    bios_offset = ram_size + vga_ram_size;
-    bios_offset += bios_load("flashimage.bin", bios_offset, 0x10000000);
+    bios_offset = ram_size;
+    
+    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, "flashimage.bin");
+    ret = load_image(buf, phys_ram_base + bios_offset);
+    fprintf(stderr, "%s: load BIOS '%s' size %d\n", __func__, buf, ret);
+    if (ret > 0) {
+        const uint32_t address = 0x10000000;
+        const unsigned blocksize = 0x10000;
+        pflash_t *pf;
+        switch (flash_manufacturer) {
+            case MANUFACTURER_AMD:
+                pf = pflash_amd_register(address, bios_offset,
+                        0,
+                        blocksize, ret / blocksize, 2,
+                        /* AMD Am29LV160DB */
+                        MANUFACTURER_AMD, AM29LV160DB, 0x33, 0x44);
+                break;
+            case MANUFACTURER_INTEL:
+                pf = pflash_cfi01_register(address, bios_offset,
+                        0,
+                        blocksize, ret / blocksize, 2,
+                        MANUFACTURER_INTEL, I28F160C3B, 0x33, 0x44);
+                break;
+            default:
+                pf = pflash_register(address, bios_offset,
+                        0,
+                        blocksize, ret / blocksize, 2,
+                        0x4a, 0x49, 0x33, 0x44);
+        }
+        bios_offset += ret;
+    } else {
+        ret = 0;
+    }
+    
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
     fprintf(stderr, "%s: ram_base = %p, ram_size = 0x%08x, bios_offset = 0x%08lx\n",
         __func__, phys_ram_base, ram_size, bios_offset);
@@ -423,6 +420,33 @@ static void mips_ar7_init (int ram_size, int vga_ram_size, int boot_device,
     ar7_init(env);
 }
 
+static void mips_ar7_init(int ram_size, int vga_ram_size, int boot_device,
+                    DisplayState *ds, const char **fd_filename, int snapshot,
+                    const char *kernel_filename, const char *kernel_cmdline,
+                    const char *initrd_filename)
+{
+    mips_ar7_common_init (ram_size, MANUFACTURER_ST,
+                          kernel_filename, kernel_cmdline, initrd_filename);
+}
+
+static void fbox_init(int ram_size, int vga_ram_size, int boot_device,
+                    DisplayState *ds, const char **fd_filename, int snapshot,
+                    const char *kernel_filename, const char *kernel_cmdline,
+                    const char *initrd_filename)
+{
+    mips_ar7_common_init (ram_size, MANUFACTURER_INTEL,
+                          kernel_filename, kernel_cmdline, initrd_filename);
+}
+
+static void sinus_init(int ram_size, int vga_ram_size, int boot_device,
+                    DisplayState *ds, const char **fd_filename, int snapshot,
+                    const char *kernel_filename, const char *kernel_cmdline,
+                    const char *initrd_filename)
+{
+    mips_ar7_common_init (ram_size, MANUFACTURER_AMD,
+                          kernel_filename, kernel_cmdline, initrd_filename);
+}
+
 static QEMUMachine mips_machine[] = {
   {
     "mips",
@@ -436,9 +460,19 @@ static QEMUMachine mips_machine[] = {
   },
   {
     "ar7",
-    "mips ar7 platform",
+    "mips 4KEc / AR7 platform",
     mips_ar7_init,
-  }
+  },
+  {
+    "fbox",
+    "FBox (AR7 platform)",
+    fbox_init,
+  },
+  {
+    "sinus",
+    "Sinus (AR7 platform)",
+    sinus_init,
+  },
 };
 
 int qemu_register_mips_machines(void)
