@@ -38,7 +38,7 @@
 #include "eeprom9346.h"
 
 /* Debug EEPROM emulation. */
-#define DEBUG_EEPROM
+//~ #define DEBUG_EEPROM
 
 #ifdef DEBUG_EEPROM
 #define logout(fmt, args...) fprintf(stderr, "EEPROM\t%-24s" fmt, __func__, ##args)
@@ -159,7 +159,7 @@ void eeprom9346_write(eeprom_t *eeprom, int eecs, int eesk, int eedi)
                 logout("Got correct 1st start bit, waiting for 2nd start bit (1)\n");
                 tick++;
             } else {
-                logout("wrong 1st start bit (is 1, should be 0)");
+                logout("wrong 1st start bit (is 1, should be 0)\n");
                 tick = 2;
                 //~ assert(!"wrong start bit");
             }
