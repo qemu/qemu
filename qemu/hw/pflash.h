@@ -196,4 +196,29 @@ typedef enum {
 /* Winbond */
 #define W49V002A	0x00b0
 
+/* QEMU interface */
+
+#include "vl.h"         /* BlockDriverState, target_ulong */
+
+/* NOR flash devices */
+typedef struct pflash_t pflash_t;
+
+pflash_t *pflash_cfi01_register (target_ulong base, ram_addr_t off,
+                                 BlockDriverState *bs,
+                                 target_ulong sector_len, int nb_blocs, int width,
+                                 uint16_t id0, uint16_t id1, 
+                                 uint16_t id2, uint16_t id3);
+
+pflash_t *pflash_amd_register (target_ulong base, ram_addr_t off,
+                               BlockDriverState *bs,
+                               target_ulong sector_len, int nb_blocs, int width,
+                               uint16_t id0, uint16_t id1, 
+                               uint16_t id2, uint16_t id3);
+
+pflash_t *pflash_register (target_ulong base, ram_addr_t off,
+                           BlockDriverState *bs,
+                           target_ulong sector_len, int nb_blocs, int width,
+                           uint16_t id0, uint16_t id1, 
+                           uint16_t id2, uint16_t id3);
+
 /* eof */

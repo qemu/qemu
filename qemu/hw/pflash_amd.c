@@ -39,6 +39,7 @@
 
 #include "vl.h"
 #include "exec-all.h"
+#include "pflash.h"     /* pflash_amd_register */
 
 //#define PFLASH_DEBUG
 #ifdef PFLASH_DEBUG
