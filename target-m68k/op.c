@@ -412,7 +412,10 @@ OP(divu)
     quot = num / den;
     rem = num % den;
     flags = 0;
-    if (PARAM1 && quot > 0xffff)
+    /* Avoid using a PARAM1 of zero.  This breaks dyngen because it uses
+       the address of a symbol, and gcc knows symbols can't have address
+       zero.  */
+    if (PARAM1 == 2 && quot > 0xffff)
         flags |= CCF_V;
     if (quot == 0)
         flags |= CCF_Z;
@@ -439,7 +442,7 @@ OP(divs)
     quot = num / den;
     rem = num % den;
     flags = 0;
-    if (PARAM1 && quot != (int16_t)quot)
+    if (PARAM1 == 2 && quot != (int16_t)quot)
         flags |= CCF_V;
     if (quot == 0)
         flags |= CCF_Z;
