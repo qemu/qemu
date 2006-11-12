@@ -517,11 +517,11 @@ static int ctz32 (uint32_t n)
     return ret;
 }
 
-pflash_t *pflash_register (target_ulong base, ram_addr_t off,
-                           BlockDriverState *bs,
-                           target_ulong sector_len, int nb_blocs, int width,
-                           uint16_t id0, uint16_t id1, 
-                           uint16_t id2, uint16_t id3)
+pflash_t *pflash_cfi02_register (target_ulong base, ram_addr_t off,
+                                 BlockDriverState *bs,
+                                 target_ulong sector_len, int nb_blocs, int width,
+                                 uint16_t id0, uint16_t id1, 
+                                 uint16_t id2, uint16_t id3)
 {
     pflash_t *pfl;
     target_long total_len;

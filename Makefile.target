@@ -373,6 +373,7 @@ DEFINES += -DHAS_AUDIO
 endif
 ifeq ($(TARGET_ARCH), mips)
 VL_OBJS += mips_r4k.o dma.o i8259.o ide.o
+VL_OBJS += pflash.o
 VL_OBJS += pflash_amd.o
 VL_OBJS += pflash_cfi01.o
 VL_OBJS += pflash_cfi02.o
