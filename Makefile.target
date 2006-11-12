@@ -68,6 +68,14 @@ ifdef CONFIG_STATIC
 LDFLAGS+=-static
 endif
 
+ifneq ($(wildcard /usr/lib/ruby/1.8/i486-linux),)
+CONFIG_RUBY=yes
+DEFINES += -I/usr/lib/ruby/1.8/i486-linux -DCONFIG_RUBY
+LIBS += -lruby1.8
+QEMU_RUBY := qemu.so
+PROGS += $(QEMU_RUBY)
+endif
+
 ifeq ($(ARCH),i386)
 HELPER_CFLAGS:=$(CFLAGS) -fomit-frame-pointer
 OP_CFLAGS:=$(CFLAGS) -mpreferred-stack-boundary=2 -fomit-frame-pointer
@@ -456,6 +464,11 @@ endif
 
 $(QEMU_SYSTEM): $(VL_OBJS) libqemu.a
 	$(CC) $(VL_LDFLAGS) -o $@ $^ $(LIBS) $(SDL_LIBS) $(COCOA_LIBS) $(VL_LIBS)
+
+ifdef CONFIG_RUBY
+$(QEMU_RUBY): $(VL_OBJS) libqemu.a
+	$(CC) -Wl,-shared $(VL_LDFLAGS) -o $(QEMU_RUBY) $^ $(LIBS) $(SDL_LIBS) $(COCOA_LIBS) $(VL_LIBS)
+endif
 
 cocoa.o: cocoa.m
 	$(CC) $(CFLAGS) $(DEFINES) -c -o $@ $<
