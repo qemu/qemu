@@ -512,7 +512,7 @@ static void nic_selective_reset(EEPRO100State *s)
     size_t i;
     uint16_t *eeprom_contents = eeprom9346_data(s->eeprom);
     eeprom9346_reset(s->eeprom);
-    memcpy(&eeprom_contents, s->macaddr, 6);
+    memcpy(eeprom_contents, s->macaddr, 6);
     eeprom_contents[0xa] = 0x4000;
     uint16_t sum = 0;
     for (i = 0; i < EEPROM_SIZE - 1; i++) {
