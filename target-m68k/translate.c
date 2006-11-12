@@ -747,9 +747,9 @@ DISAS_INSN(divl)
     den = gen_ea(s, insn, OS_LONG, 0, NULL);
     gen_op_mov32(QREG_DIV2, den);
     if (ext & 0x0800) {
-        gen_op_divs(0);
+        gen_op_divs(2);
     } else {
-        gen_op_divu(0);
+        gen_op_divu(2);
     }
     if (num == reg) {
         /* div */
