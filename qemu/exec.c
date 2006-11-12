@@ -1275,7 +1275,9 @@ static inline void tlb_flush_entry(CPUTLBEntry *tlb_entry, target_ulong addr)
 void tlb_flush_page(CPUState *env, target_ulong addr)
 {
     int i;
+#if !defined(TARGET_MIPS)
     TranslationBlock *tb;
+#endif
 
 #if defined(DEBUG_TLB)
     printf("tlb_flush_page: " TARGET_FMT_lx "\n", addr);
@@ -1289,6 +1291,12 @@ void tlb_flush_page(CPUState *env, target_ulong addr)
     tlb_flush_entry(&env->tlb_table[0][i], addr);
     tlb_flush_entry(&env->tlb_table[1][i], addr);
 
+#if defined(TARGET_MIPS)
+    /* We throw away the jump cache altogether. This is cheaper than
+       trying to be smart by invalidating only the entries in the
+       affected address range. */
+    memset (env->tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof (void *));
+#else
     for(i = 0; i < TB_JMP_CACHE_SIZE; i++) {
         tb = env->tb_jmp_cache[i];
         if (tb && 
@@ -1297,6 +1305,7 @@ void tlb_flush_page(CPUState *env, target_ulong addr)
             env->tb_jmp_cache[i] = NULL;
         }
     }
+#endif
 
 #if !defined(CONFIG_SOFTMMU)
     if (addr < MMAP_AREA_END)
