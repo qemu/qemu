@@ -6303,6 +6303,38 @@ static BOOL WINAPI qemu_ctrl_handler(DWORD type)
 
 #define MAX_NET_CLIENTS 32
 
+#if defined(CONFIG_RUBY)
+#warning mit ruby
+#include <ruby.h>
+
+static VALUE qemu_open(int argc, VALUE *argv, VALUE klass)
+{
+    //~ if (rb_scan_args(argc, argv, "11", &file, &vmode) == 1) {
+        //~ mode = 0666;            /* default value */
+    //~ }
+  return argc;
+}
+
+void Init_qemu(void)
+{
+  printf("%s\n", __func__);
+  VALUE cQEMU = rb_define_class("QEMU", rb_cObject);
+  rb_define_singleton_method(cQEMU, "run", qemu_open, -1);
+#if 0
+  rb_define_method();
+#endif
+}
+#else
+#error ohne ruby
+#endif
+
+#if defined(CONFIG_DLL)
+BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD ul_reason_for_call, LPVOID data)
+{
+  return FALSE;
+}
+#endif
+
 int main(int argc, char **argv)
 {
 #ifdef CONFIG_GDBSTUB
