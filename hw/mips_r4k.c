@@ -339,7 +339,7 @@ static void mips_ar7_common_init (int ram_size,
                         flash_manufacturer, flash_type, 0x33, 0x44);
                 break;
             default:
-                pf = pflash_register(address, bios_offset,
+                pf = pflash_cfi02_register(address, bios_offset,
                         0,
                         blocksize, ret / blocksize, 2,
                         flash_manufacturer, flash_type, 0x33, 0x44);
@@ -465,7 +465,7 @@ static void sinus_3_init(int ram_size, int vga_ram_size, int boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename)
 {
-    mips_ar7_common_init (16 * MiB, 0x004a, 0x2249,
+    mips_ar7_common_init (16 * MiB, MANUFACTURER_004A, ES29LV160DB,
                           kernel_filename, kernel_cmdline, initrd_filename);
 }
 
@@ -512,7 +512,7 @@ static QEMUMachine mips_machine[] = {
   {
     "sinus-se",
     "Sinus DSL SE, Sinus DSL Basic SE (AR7 platform)",
-    sinus_3_init,
+    sinus_se_init,
   },
   {
     "sinus-3",
