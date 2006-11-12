@@ -1,3 +1,17 @@
+2006-11-12 22:31  pbrook
+
+	* target-m68k/: op.c, translate.c: M68k build fix.
+
+2006-11-12 21:55  pbrook
+
+	* target-mips/op_helper.c: Avoid redundant TLB flushes (Daniel
+	  Jacobowitz).
+
+2006-11-12 21:40  pbrook
+
+	* cpu-defs.h, exec-all.h, exec.c: Speed up tlb_flush_page (Daniel
+	  Jacobowitz).
+
 2006-11-04 17:46  pbrook
 
 	* linux-user/main.c: MIPS usermode debug exceptions (Dave Denholm).

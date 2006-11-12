@@ -575,8 +575,17 @@ static void invalidate_tlb (int idx)
 {
     tlb_t *tlb;
     target_ulong addr;
+    uint8_t ASID;
+
+    ASID = env->CP0_EntryHi & 0xFF;
 
     tlb = &env->tlb[idx];
+    /* The qemu TLB is flushed then the ASID changes, so no need to
+       flush these entries again.  */
+    if (tlb->G == 0 && tlb->ASID != ASID) {
+        return;
+    }
+
     if (tlb->V0) {
         tb_invalidate_page_range(tlb->PFN[0], tlb->end - tlb->VPN);
         addr = tlb->VPN;
