@@ -80,6 +80,14 @@ typedef unsigned long ram_addr_t;
 #define TB_JMP_CACHE_BITS 12
 #define TB_JMP_CACHE_SIZE (1 << TB_JMP_CACHE_BITS)
 
+/* Only the bottom TB_JMP_PAGE_BITS of the jump cache hash bits vary for
+   addresses on the same page.  The top bits are the same.  This allows
+   TLB invalidation to quickly clear a subset of the hash table.  */
+#define TB_JMP_PAGE_BITS (TB_JMP_CACHE_BITS / 2)
+#define TB_JMP_PAGE_SIZE (1 << TB_JMP_PAGE_BITS)
+#define TB_JMP_ADDR_MASK (TB_JMP_PAGE_SIZE - 1)
+#define TB_JMP_PAGE_MASK (TB_JMP_CACHE_SIZE - TB_JMP_PAGE_SIZE)
+
 #define CPU_TLB_BITS 8
 #define CPU_TLB_SIZE (1 << CPU_TLB_BITS)
 

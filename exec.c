@@ -1288,14 +1288,13 @@ void tlb_flush_page(CPUState *env, target_ulong addr)
     tlb_flush_entry(&env->tlb_table[0][i], addr);
     tlb_flush_entry(&env->tlb_table[1][i], addr);
 
-    for(i = 0; i < TB_JMP_CACHE_SIZE; i++) {
-        tb = env->tb_jmp_cache[i];
-        if (tb && 
-            ((tb->pc & TARGET_PAGE_MASK) == addr ||
-             ((tb->pc + tb->size - 1) & TARGET_PAGE_MASK) == addr)) {
-            env->tb_jmp_cache[i] = NULL;
-        }
-    }
+    /* Discard jump cache entries for any tb which might potentially
+       overlap the flushed page.  */
+    i = tb_jmp_cache_hash_page(addr - TARGET_PAGE_SIZE);
+    memset (&env->tb_jmp_cache[i], 0, TB_JMP_PAGE_SIZE * sizeof(tb));
+
+    i = tb_jmp_cache_hash_page(addr);
+    memset (&env->tb_jmp_cache[i], 0, TB_JMP_PAGE_SIZE * sizeof(tb));
 
 #if !defined(CONFIG_SOFTMMU)
     if (addr < MMAP_AREA_END)
