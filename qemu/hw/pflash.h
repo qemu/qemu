@@ -65,6 +65,7 @@ typedef enum {
 #define MANUFACTURER_ST		0x0020
 #define MANUFACTURER_TOSHIBA	0x0098
 #define MANUFACTURER_WINBOND	0x00da
+#define MANUFACTURER_004A       0x004a
 
 /* AMD */
 #define AM29DL800BB	0x22C8
@@ -93,6 +94,9 @@ typedef enum {
 #define AT49BV16XT	0x00C2
 #define AT49BV32X	0x00C8
 #define AT49BV32XT	0x00C9
+
+/* ??? 0x004a */
+#define ES29LV160DB     0x2249
 
 /* Fujitsu */
 #define MBM29F040C	0x00A4
