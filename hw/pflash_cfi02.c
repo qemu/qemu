@@ -38,7 +38,7 @@
 
 #include "vl.h"
 #include "exec-all.h"
-#include "pflash.h"     /* pflash_register */
+#include "pflash.h"     /* pflash_cfi02_register */
 
 //#define PFLASH_DEBUG
 #ifdef PFLASH_DEBUG
@@ -571,7 +571,7 @@ pflash_t *pflash_cfi02_register (target_ulong base, ram_addr_t off,
     pfl->cfi_table[0x11] = 'R';
     pfl->cfi_table[0x12] = 'Y';
     /* Command set (AMD/Fujitsu) */
-    pfl->cfi_table[0x13] = 0x02;
+    pfl->cfi_table[0x13] = P_ID_AMD_STD;
     pfl->cfi_table[0x14] = 0x00;
     /* Primary extended table address (none) */
     pfl->cfi_table[0x15] = 0x00;
