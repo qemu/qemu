@@ -799,7 +799,7 @@ FLOAT_OP(cvtd, w)
 }
 FLOAT_OP(cvts, d)
 {
-    FST2 = float64_to_float32(WT0, &env->fp_status);
+    FST2 = float64_to_float32(FDT0, &env->fp_status);
     DEBUG_FPU_STATE();
     RETURN();
 }
