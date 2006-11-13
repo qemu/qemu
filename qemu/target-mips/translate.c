@@ -1791,7 +1791,7 @@ static void gen_farith (DisasContext *ctx, int fmt, int ft, int fs, int fd, int 
         break;
     case FOP(32, 17): /* cvt.s.d */
         CHECK_FR(ctx, fs | fd);
-        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(DT0, fs);
         gen_op_float_cvts_d();
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "cvt.s.d";
@@ -1812,7 +1812,7 @@ static void gen_farith (DisasContext *ctx, int fmt, int ft, int fs, int fd, int 
         break;
     case FOP(36, 17): /* cvt.w.d */
         CHECK_FR(ctx, fs | fd);
-        GEN_LOAD_FREG_FTN(WT0, fs);
+        GEN_LOAD_FREG_FTN(DT0, fs);
         gen_op_float_cvtw_d();
         GEN_STORE_FTN_FREG(fd, WT2);
         opn = "cvt.w.d";
@@ -2089,6 +2089,7 @@ static void decode_opc (DisasContext *ctx)
     case 0x39: /* SWC1 */
     case 0x3D: /* SDC1 */
 #if defined(MIPS_USES_FPU)
+        save_cpu_state(ctx, 1);
         gen_op_cp1_enabled();
         gen_flt_ldst(ctx, op, rt, rs, imm);
 #else
@@ -2098,6 +2099,7 @@ static void decode_opc (DisasContext *ctx)
 
     case 0x11:          /* CP1 opcode */
 #if defined(MIPS_USES_FPU)
+        save_cpu_state(ctx, 1);
         gen_op_cp1_enabled();
         op1 = ((ctx->opcode >> 21) & 0x1F);
         switch (op1) {

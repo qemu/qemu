@@ -1,3 +1,8 @@
+2006-11-13 00:54  pbrook
+
+	* target-mips/: op.c, translate.c: MIPS FPU fixes (Daniel
+	  Jacobowitz).
+
 2006-11-12 22:31  pbrook
 
 	* target-m68k/: op.c, translate.c: M68k build fix.
