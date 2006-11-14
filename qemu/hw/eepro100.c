@@ -713,7 +713,7 @@ static void eepro100_cu_command(EEPRO100State *s, uint8_t val)
                     assert(!bit_nc);
                     //~ assert(!bit_sf);
                     assert(tcb_bytes <= 2600);
-                    /* Next assertion fails for scu2. */
+                    /* Next assertion fails for local configuration. */
                     //~ assert((tcb_bytes > 0) || (tbd_array != 0xffffffff));
                     if (!((tcb_bytes > 0) || (tbd_array != 0xffffffff))) {
                         logout("illegal values of TBD array address and TCB byte count!\n");
@@ -1684,10 +1684,10 @@ void pci_eepro100_init(PCIBus *bus, NICInfo *nd)
 {
     /* PCIEEPRO100State *d = */
     nic_init(bus, nd, "eepro100", i82559ER);
-#if defined(TARGET_I386)
+#if defined(LOCAL_INIT)
     static bool done;
     if (!done) {
-        scu2_init(bus);
+        LOCAL_INIT(bus);
         done = 1;
     }
 #endif
