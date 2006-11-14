@@ -107,29 +107,29 @@ static void arm_timer_update(arm_timer_state *s, int64_t now)
 /* Return the current value of the timer.  */
 static uint32_t arm_timer_getcount(arm_timer_state *s, int64_t now)
 {
-    int64_t elapsed;
+    int64_t left;
     int64_t period;
 
     if (s->count == 0)
         return 0;
     if ((s->control & TIMER_CTRL_ENABLE) == 0)
         return s->count;
-    elapsed = now - s->loaded;
+    left = s->expires - now;
     period = s->expires - s->loaded;
     /* If the timer should have expired then return 0.  This can happen
        when the host timer signal doesnt occur immediately.  It's better to
        have a timer appear to sit at zero for a while than have it wrap
        around before the guest interrupt is raised.  */
     /* ??? Could we trigger the interrupt here?  */
-    if (elapsed > period)
+    if (left < 0)
         return 0;
     /* We need to calculate count * elapsed / period without overfowing.
        Scale both elapsed and period so they fit in a 32-bit int.  */
     while (period != (int32_t)period) {
         period >>= 1;
-        elapsed >>= 1;
+        left >>= 1;
     }
-    return ((uint64_t)s->count * (uint64_t)(int32_t)elapsed)
+    return ((uint64_t)s->count * (uint64_t)(int32_t)left)
             / (int32_t)period;
 }
 
