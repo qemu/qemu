@@ -18,26 +18,26 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef EEPROM9346_H
-#define EEPROM9346_H
+#ifndef EEPROM93XX_H
+#define EEPROM93XX_H
 
 #include "vl.h"
 
-typedef struct EEprom9346 eeprom_t;
+typedef struct _eeprom_t eeprom_t;
 
 /* Create a new EEPROM with (nwords * 2) bytes. */
-eeprom_t *eeprom9346_new(uint16_t nwords);
+eeprom_t *eeprom93xx_new(uint16_t nwords);
 
 /* Destroy an existing EEPROM. */
-void eeprom9346_free(eeprom_t *eeprom);
+void eeprom93xx_free(eeprom_t *eeprom);
 
 /* Read from the EEPROM. */
-uint16_t eeprom9346_read(eeprom_t *eeprom);
+uint16_t eeprom93xx_read(eeprom_t *eeprom);
 
 /* Write to the EEPROM. */
-void eeprom9346_write(eeprom_t *eeprom, int eecs, int eesk, int eedi);
+void eeprom93xx_write(eeprom_t *eeprom, int eecs, int eesk, int eedi);
 
 /* Get EEPROM data array. */
-uint16_t *eeprom9346_data(eeprom_t *eeprom);
+uint16_t *eeprom93xx_data(eeprom_t *eeprom);
 
-#endif /* EEPROM9346_H */
+#endif /* EEPROM93XX_H */

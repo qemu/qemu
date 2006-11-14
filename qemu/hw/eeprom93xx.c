@@ -26,18 +26,18 @@
  * Compatible devices include FM93C46 and others.
  *
  * Other drivers use these interface functions:
- * eeprom9346_new   - add a new EEPROM (with 16, 64 or 256 words)
- * eeprom9346_free  - destroy EEPROM
- * eeprom9346_read  - read data from the EEPROM
- * eeprom9346_write - write data to the EEPROM
- * eeprom9346_data  - get EEPROM data array for external manipulation
+ * eeprom93xx_new   - add a new EEPROM (with 16, 64 or 256 words)
+ * eeprom93xx_free  - destroy EEPROM
+ * eeprom93xx_read  - read data from the EEPROM
+ * eeprom93xx_write - write data to the EEPROM
+ * eeprom93xx_data  - get EEPROM data array for external manipulation
  *
  * Todo list:
  * - No emulation of EEPROM timings.
  */
 
 #include <assert.h>
-#include "eeprom9346.h"
+#include "eeprom93xx.h"
 
 /* Debug EEPROM emulation. */
 //~ #define DEBUG_EEPROM
@@ -71,7 +71,7 @@ static const char *opstring[] = {
 };
 #endif
 
-struct EEprom9346 {
+struct _eeprom_t {
     uint8_t  tick;
     uint8_t  address;
     uint8_t  command;
@@ -122,7 +122,7 @@ static int eeprom_load(QEMUFile *f, void *opaque, int version_id)
     return result;
 }
 
-void eeprom9346_write(eeprom_t *eeprom, int eecs, int eesk, int eedi)
+void eeprom93xx_write(eeprom_t *eeprom, int eecs, int eesk, int eedi)
 {
     uint8_t tick = eeprom->tick;
     uint8_t eedo = eeprom->eedo;
@@ -247,7 +247,7 @@ void eeprom9346_write(eeprom_t *eeprom, int eecs, int eesk, int eedi)
     eeprom->command = command;
 }
 
-uint16_t eeprom9346_read(eeprom_t *eeprom)
+uint16_t eeprom93xx_read(eeprom_t *eeprom)
 {
     /* Return status of pin DO (0 or 1). */
     logout("CS=%u DO=%u\n", eeprom->eecs, eeprom->eedo);
@@ -255,7 +255,7 @@ uint16_t eeprom9346_read(eeprom_t *eeprom)
 }
 
 #if 0
-void eeprom9346_reset(eeprom_t *eeprom)
+void eeprom93xx_reset(eeprom_t *eeprom)
 {
     /* prepare eeprom */
     logout("eeprom = 0x%p\n", eeprom);
@@ -264,7 +264,7 @@ void eeprom9346_reset(eeprom_t *eeprom)
 }
 #endif
 
-eeprom_t *eeprom9346_new(uint16_t nwords)
+eeprom_t *eeprom93xx_new(uint16_t nwords)
 {
     /* Add a new EEPROM (with 16, 64 or 256 words). */
     eeprom_t *eeprom;
@@ -296,14 +296,14 @@ eeprom_t *eeprom9346_new(uint16_t nwords)
     return eeprom;
 }
 
-void eeprom9346_free(eeprom_t *eeprom)
+void eeprom93xx_free(eeprom_t *eeprom)
 {
     /* Destroy EEPROM. */
     logout("eeprom = 0x%p\n", eeprom);
     qemu_free(eeprom);
 }
 
-uint16_t *eeprom9346_data(eeprom_t *eeprom)
+uint16_t *eeprom93xx_data(eeprom_t *eeprom)
 {
     /* Get EEPROM data array. */
     return &eeprom->contents[0];

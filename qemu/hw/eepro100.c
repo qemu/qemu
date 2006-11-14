@@ -30,7 +30,7 @@
 #include <assert.h>
 #include <stddef.h>     /* offsetof */
 #include "vl.h"
-#include "eeprom9346.h"
+#include "eeprom93xx.h"
 
 /* Common declarations for all PCI devices. */
 
@@ -510,8 +510,8 @@ static void pci_reset(EEPRO100State *s)
 static void nic_selective_reset(EEPRO100State *s)
 {
     size_t i;
-    uint16_t *eeprom_contents = eeprom9346_data(s->eeprom);
-    eeprom9346_reset(s->eeprom);
+    uint16_t *eeprom_contents = eeprom93xx_data(s->eeprom);
+    //~ eeprom93xx_reset(s->eeprom);
     memcpy(eeprom_contents, s->macaddr, 6);
     eeprom_contents[0xa] = 0x4000;
     uint16_t sum = 0;
@@ -910,7 +910,7 @@ static uint16_t eepro100_read_eeprom(EEPRO100State *s)
 {
     uint16_t val;
     memcpy(&val, &s->mem[SCBeeprom], sizeof(val));
-    if (eeprom9346_read(s->eeprom)) {
+    if (eeprom93xx_read(s->eeprom)) {
         val |= EEPROM_DO;
     } else {
         val &= ~EEPROM_DO;
@@ -928,7 +928,7 @@ static void eepro100_write_eeprom(eeprom_t *eeprom, uint8_t val)
     int eecs = ((val & EEPROM_CS) != 0);
     int eesk = ((val & EEPROM_SK) != 0);
     int eedi = ((val & EEPROM_DI) != 0);
-    eeprom9346_write(eeprom, eecs, eesk, eedi);
+    eeprom93xx_write(eeprom, eecs, eesk, eedi);
 }
 
 static void eepro100_write_pointer(EEPRO100State *s, uint32_t val)
@@ -1643,7 +1643,7 @@ static void nic_init(PCIBus *bus, NICInfo *nd,
 
     /* Add 64 * 2 EEPROM. i82557 and i82558 support a 64 word EEPROM,
      * i82559 and later support 64 or 256 word EEPROM. */
-    s->eeprom = eeprom9346_new(EEPROM_SIZE);
+    s->eeprom = eeprom93xx_new(EEPROM_SIZE);
 
     /* Handler for memory-mapped I/O */
     d->eepro100.mmio_index =
