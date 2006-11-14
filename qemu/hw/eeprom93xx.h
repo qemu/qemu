@@ -1,5 +1,5 @@
 /*
- * QEMU i82559 (EEPRO100) emulation
+ * QEMU EEPROM 93xx emulation
  *
  * Copyright (c) 2006 Stefan Weil
  *
