@@ -71,6 +71,9 @@ endif
 ifneq ($(wildcard /usr/lib/ruby/1.8/i486-linux),)
 CONFIG_RUBY=yes
 DEFINES += -I/usr/lib/ruby/1.8/i486-linux -DCONFIG_RUBY
+ifeq ($(TARGET_ARCH), i386)
+DEFINES += -DLOCAL_INIT=scu2_init
+endif
 LIBS += -lruby1.8
 QEMU_RUBY := qemu.so
 PROGS += $(QEMU_RUBY)
