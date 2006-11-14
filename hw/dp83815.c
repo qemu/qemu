@@ -32,7 +32,7 @@
 
 #include <assert.h>     /* assert */
 #include "vl.h"
-#include "eeprom9346.h"
+#include "eeprom93xx.h"
 
 /*****************************************************************************
  *
@@ -782,7 +782,7 @@ static uint8_t dp83815_readb(PCIDP83815State *d, target_phys_addr_t addr)
       val = op_reg_read(s, addr);
 #if defined(CONFIG_EEPROM)
       val &= ~MEAR_EEDO;
-      if (eeprom9346_read(s->eeprom)) {
+      if (eeprom93xx_read(s->eeprom)) {
         val |= MEAR_EEDO;
       }
 #else
@@ -891,7 +891,7 @@ static uint32_t dp83815_readl(PCIDP83815State *d, target_phys_addr_t addr)
       val = op_reg_read(s, addr);
 #if defined(CONFIG_EEPROM)
       val &= ~MEAR_EEDO;
-      if (eeprom9346_read(s->eeprom)) {
+      if (eeprom93xx_read(s->eeprom)) {
         val |= MEAR_EEDO;
       }
 #else
@@ -1083,7 +1083,7 @@ static void dp83815_writel(PCIDP83815State *d, target_phys_addr_t addr, uint32_t
       int eecs = ((val & MEAR_EESEL) != 0);
       int eesk = ((val & MEAR_EECLK) != 0);
       int eedi = ((val & MEAR_EEDI) != 0);
-      eeprom9346_write(s->eeprom, eecs, eesk, eedi);
+      eeprom93xx_write(s->eeprom, eecs, eesk, eedi);
 #endif
       op_reg_write(s, addr, val);
       if (val & 0x000000f0) {
@@ -1394,7 +1394,7 @@ static void eeprom_init(DP83815State *s)
     uint8_t *pci_conf = s->pci_dev->config;
 #endif
     uint8_t i;
-    uint16_t *eeprom_contents = eeprom9346_data(s->eeprom);
+    uint16_t *eeprom_contents = eeprom93xx_data(s->eeprom);
 
     logout("\n");
 
@@ -1494,7 +1494,7 @@ static void pci_dp8381x_init(PCIBus *bus, NICInfo *nd, uint32_t silicon_revision
 
 #if defined(CONFIG_EEPROM)
     /* Add EEPROM (16 x 16 bit). */
-    s->eeprom = eeprom9346_new(EEPROM_SIZE);
+    s->eeprom = eeprom93xx_new(EEPROM_SIZE);
     eeprom_init(s);
 #endif
 
