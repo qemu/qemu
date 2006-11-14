@@ -1,3 +1,7 @@
+2006-11-14 22:13  pbrook
+
+	* hw/arm_timer.c: ARM timer counts down, not up.
+
 2006-11-13 00:54  pbrook
 
 	* target-mips/: op.c, translate.c: MIPS FPU fixes (Daniel
