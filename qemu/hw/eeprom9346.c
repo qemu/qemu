@@ -19,9 +19,11 @@
  */
 
 /* Emulation for serial EEPROMs:
- * NMC9306 256-Bit (16 x 16)
- * (64 x 16)
- * FM93C46 1024-Bit (256 x 16)
+ * NMC93C06 256-Bit (16 x 16)
+ * NMC93C46 1024-Bit (64 x 16)
+ * NMC93C56 2028 Bit (128 x 16)
+ * NMC93C66 4096 Bit (256 x 16)
+ * Compatible devices include FM93C46 and others.
  *
  * Other drivers use these interface functions:
  * eeprom9346_new   - add a new EEPROM (with 16, 64 or 256 words)
@@ -273,6 +275,7 @@ eeprom_t *eeprom9346_new(uint16_t nwords)
         case 64:
             addrbits = 6;
             break;
+        case 128:
         case 256:
             addrbits = 8;
             break;
