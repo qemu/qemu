@@ -349,19 +349,26 @@ static void mips_ar7_common_init (int ram_size,
         ret = 0;
     }
     
+    /* The AR7 processor has 4 KiB internal ROM at physical address 0x1fc00000. */
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
     fprintf(stderr, "%s: ram_base = %p, ram_size = 0x%08x, bios_offset = 0x%08lx\n",
         __func__, phys_ram_base, ram_size, bios_offset);
     ret = load_image(buf, phys_ram_base + bios_offset);
     if ((ret > 0) && (ret <= BIOS_SIZE)) {
         fprintf(stderr, "%s: load BIOS '%s' size %d\n", __func__, buf, ret);
-        cpu_register_physical_memory((uint32_t)(0x1fc00000),
-                                     ret, bios_offset | IO_MEM_ROM);
     } else {
-        /* not fatal */
-        fprintf(stderr, "qemu: Warning, could not load MIPS bios '%s'\n",
-                buf);
+        /* Not fatal, write a jump to address 0xb0000000 into memory. */
+        static const uint8_t jump[] = {
+            /* lui t9,0xb000; jr t9 */
+            0x00, 0xb0, 0x19, 0x3c, 0x08, 0x00, 0x20, 0x03
+        };
+        fprintf(stderr, "QEMU: Warning, could not load MIPS bios '%s'.\n"
+                "QEMU added a jump instruction to flash start.\n", buf);
+        memcpy (phys_ram_base + bios_offset, jump, sizeof(jump));
+        ret = 4 * KiB;
     }
+    cpu_register_physical_memory((uint32_t)(0x1fc00000),
+                                 ret, bios_offset | IO_MEM_ROM);
 
     kernel_size = 0;
     if (kernel_filename) {
