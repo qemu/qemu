@@ -5613,7 +5613,6 @@ void qemu_register_reset(QEMUResetHandler *func, void *opaque)
 {
     QEMUResetEntry **pre, *re;
 
-    fprintf(stderr, "%s: %s:%u\n", __func__, __FILE__, __LINE__);
     pre = &first_reset_entry;
     while (*pre != NULL)
         pre = &(*pre)->next;
@@ -5636,7 +5635,6 @@ static void qemu_system_reset(void)
 
 void qemu_system_reset_request(void)
 {
-printf("%s: %s:%u\n", __func__, __FILE__, __LINE__);
     if (no_reboot) {
         shutdown_requested = 1;
     } else {
@@ -5802,7 +5800,6 @@ int main_loop(void)
                 break;
             }
             if (reset_requested) {
-printf("%s: %s:%u\n", __func__, __FILE__, __LINE__);
                 reset_requested = 0;
                 qemu_system_reset();
                 ret = EXCP_INTERRUPT;
