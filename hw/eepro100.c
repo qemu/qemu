@@ -95,6 +95,8 @@
 #define PCI_IO_SIZE             64
 #define PCI_FLASH_SIZE          (128 * KiB)
 
+#define BIT(n) (1 << (n))
+#define BITS(n, m) (((0xffffffffU << (31 - n)) >> (31 - n + m)) << m)
 
 /* The SCB accepts the following controls for the Tx and Rx units: */
 #define  CU_NOP         0x0000  /* No operation. */
@@ -521,7 +523,7 @@ static void nic_selective_reset(EEPRO100State *s)
     eeprom_contents[EEPROM_SIZE - 1] = 0xbaba - sum;
 
     memset(s->mem, 0, sizeof(s->mem));
-    uint32_t val = (1 << 21);
+    uint32_t val = BIT(21);
     memcpy(&s->mem[SCBCtrlMDI], &val, sizeof(val));
 
     assert(sizeof(s->mdimem) == sizeof(eepro100_mdi_default));
@@ -737,7 +739,7 @@ static void eepro100_cu_command(EEPRO100State *s, uint8_t val)
                     } else {
                         /* Flexible mode. */
                         uint8_t tbd_count = 0;
-                        if (!(s->configuration[6] & (1 << 4))) {
+                        if (!(s->configuration[6] & BIT(4))) {
                             /* Extended TCB. */
                             assert(tcb_bytes == 0);
                             for (; tbd_count < 2; tbd_count++) {
@@ -973,7 +975,7 @@ static uint32_t eepro100_read_mdi(EEPRO100State *s)
     uint8_t reg = (val & 0x001f0000) >> 16;
     uint16_t data = (val & 0x0000ffff);
     /* Emulation takes no time to finish MDI transaction. */
-    val |= (1 << 28);
+    val |= BIT(28);
     TRACE(MDI, logout("val=0x%08x (int=%u, %s, phy=%u, %s, data=0x%04x\n",
         val, raiseint, mdi_op_name[opcode], phy, mdi_reg_name[reg], data));
     return val;
@@ -1061,7 +1063,7 @@ static void eepro100_write_mdi(EEPRO100State *s, uint32_t val)
         /* Emulation takes no time to finish MDI transaction.
          * Set MDI bit in SCB status register. */
         s->mem[SCBAck] |= 0x08;
-        val |= (1 << 28);
+        val |= BIT(28);
         if (raiseint) {
             eepro100_mdi_interrupt(s);
         }
@@ -1466,7 +1468,7 @@ static void nic_receive(void *opaque, const uint8_t *buf, int size)
         { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
     /* TODO: check multiple IA bit. */
-    assert(!(s->configuration[20] & (1 << 6)));
+    assert(!(s->configuration[20] & BIT(6)));
 
     if (s->configuration[8] & 0x80) {
         /* CSMA is disabled. */
@@ -1495,7 +1497,7 @@ static void nic_receive(void *opaque, const uint8_t *buf, int size)
         /* Multicast frame. */
         logout("%p received multicast, len=%d\n", s, size);
         /* TODO: check multicast all bit. */
-        assert(!(s->configuration[21] & (1 << 3)));
+        assert(!(s->configuration[21] & BIT(3)));
         int mcast_idx = compute_mcast_idx(buf);
         if (!(s->mult[mcast_idx >> 3] & (1 << (mcast_idx & 7)))) {
             return;
