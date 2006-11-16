@@ -21,9 +21,10 @@
  * AR7 is a chip with a MIPS 4KEc core and on-chip peripherals (avalanche).
  *
  * TODO:
- * - uart0 wrong type (is 16450, should be 16550)
- * - uart1 missing
- * - vlynq0 emulation missing
+ * - reboot loops endless reading device config latch (AVALANCHE_DCL_BASE)
+ * - uart0, uart1 wrong type (is 16450, should be 16550)
+ * - vlynq emulation only very rudimentary
+ * - ethernet not stable
  * - much more
  *
  * Interrupts:
@@ -62,7 +63,7 @@ struct IoState {
 
 /* Set flags to >0 to enable debug output. */
 #define CLOCK   1
-#define CPMAC   0
+#define CPMAC   1
 #define EMIF    0
 #define GPIO    0
 #define INTC    0
@@ -70,6 +71,7 @@ struct IoState {
 #define RESET   1
 #define UART0   0
 #define UART1   0
+#define VLYNQ   1
 #define WDOG    1
 #define OTHER   1
 
@@ -85,6 +87,9 @@ struct IoState {
 
 #define MISSING() logout("%s:%u missing, %s!!!\n", __FILE__, __LINE__, backtrace())
 #define UNEXPECTED() logout("%s:%u unexpected, %s!!!\n", __FILE__, __LINE__, backtrace())
+
+#define BIT(n) (1 << (n))
+#define BITS(n, m) (((0xffffffffU << (31 - n)) >> (31 - n + m)) << m)
 
 #if 0
 #define AVALANCHE_ADSL_SUB_SYS_MEM_BASE       (KSEG1ADDR(0x01000000)) /* AVALANCHE ADSL Mem Base */
@@ -153,11 +158,11 @@ typedef struct {
 
 /* Rcb/Tcb Constants */
 
-#define CB_SOF_BIT         (1<<31)
-#define CB_EOF_BIT         (1<<30)
+#define CB_SOF_BIT         BIT(31)
+#define CB_EOF_BIT         BIT(30)
 #define CB_SOF_AND_EOF_BIT (CB_SOF_BIT|CB_EOF_BIT)
-#define CB_OWNERSHIP_BIT   (1<<29)
-#define CB_EOQ_BIT         (1<<28)
+#define CB_OWNERSHIP_BIT   BIT(29)
+#define CB_EOQ_BIT         BIT(28)
 #define CB_SIZE_MASK       0x0000ffff
 #define RCB_ERRORS_MASK    0x03fe0000
 
@@ -369,10 +374,10 @@ cpmac_reg.h:
 
 #endif
 
-#define MAC_IN_VECTOR_STATUS_INT   (1 << 19)
-#define MAC_IN_VECTOR_HOST_INT     (1 << 18)
-#define MAC_IN_VECTOR_RX_INT_OR    (1 << 17)
-#define MAC_IN_VECTOR_TX_INT_OR    (1 << 16)
+#define MAC_IN_VECTOR_STATUS_INT   BIT(19)
+#define MAC_IN_VECTOR_HOST_INT     BIT(18)
+#define MAC_IN_VECTOR_RX_INT_OR    BIT(17)
+#define MAC_IN_VECTOR_TX_INT_OR    BIT(16)
 #define MAC_IN_VECTOR_RX_INT_VEC   (7 << 8)
 #define MAC_IN_VECTOR_TX_INT_VEC   (7)
 
@@ -579,22 +584,31 @@ static void ar7_cpmac_write(uint32_t cpmac[], unsigned index, unsigned offset, u
     } else if (offset >= 0x180 && offset < 0x188) {
         /* Transmit buffer. !!! */
         while (val != 0) {
-            cpphy_tcb_t tcb;
+            uint32_t length = 0;
             uint8_t buffer[MAX_ETH_FRAME_SIZE + 4];
-            cpu_physical_memory_read(val, (uint8_t *)&tcb, sizeof(tcb));
-            uint32_t addr = le32_to_cpu(tcb.buff);
-            uint32_t length = le32_to_cpu(tcb.length);
-            uint32_t mode = le32_to_cpu(tcb.mode);
-            TRACE(CPMAC, logout("buffer 0x%08x, next 0x%08x, buff 0x%08x, params 0x%08x, len 0x%08x\n",
-                    val, (unsigned)tcb.next, addr, mode, length));
-            assert(length <= MAX_ETH_FRAME_SIZE);
-            cpu_physical_memory_read(addr, buffer, length);
-            assert((mode & CB_SIZE_MASK) == length);
-            assert(mode & CB_SOF_BIT);
-            assert(mode & CB_EOF_BIT);
-            assert(mode & CB_OWNERSHIP_BIT);
-            mode &= ~(CB_OWNERSHIP_BIT);
-            stl_phys(val + offsetof(cpphy_tcb_t, mode), mode);
+            cpphy_tcb_t tcb;
+          sendloop:
+            {
+              cpu_physical_memory_read(val, (uint8_t *)&tcb, sizeof(tcb));
+              uint32_t addr = le32_to_cpu(tcb.buff);
+              uint32_t curlen = le32_to_cpu(tcb.length);
+              uint32_t mode = le32_to_cpu(tcb.mode);
+              TRACE(1, logout("buffer 0x%08x, next 0x%08x, buff 0x%08x, params 0x%08x, len 0x%08x, total 0x%08x\n",
+                      val, (unsigned)tcb.next, addr, mode, curlen, length));
+              assert(length + curlen <= MAX_ETH_FRAME_SIZE);
+              cpu_physical_memory_read(addr, buffer + length, curlen);
+              length += curlen;
+              assert((mode & CB_SIZE_MASK) == curlen);
+              assert(mode & CB_SOF_BIT);
+              assert(mode & CB_EOF_BIT);
+              assert(mode & CB_OWNERSHIP_BIT);
+              mode &= ~(CB_OWNERSHIP_BIT);
+              stl_phys(val + offsetof(cpphy_tcb_t, mode), mode);
+              if ((mode & CB_EOQ_BIT)) {
+                val = le32_to_cpu(tcb.next);
+                goto sendloop;
+              }
+            }
             if (av.nic[index].vc != 0) {
 #if 0
                 TRACE(CPMAC, logout("sent %s\n", dump(buffer, length)));
@@ -764,12 +778,12 @@ typedef struct {
 #define         MDIO_VER_REVMAJ        (0xFF   << 8)
 #define         MDIO_VER_REVMIN        (0xFF)
     uint32_t control;               /* 0x04 */
-#define         MDIO_CONTROL_IDLE                 (1 << 31)
-#define         MDIO_CONTROL_ENABLE               (1 << 30)
-#define         MDIO_CONTROL_PREAMBLE             (1 << 20)  
-#define         MDIO_CONTROL_FAULT                (1 << 19)
-#define         MDIO_CONTROL_FAULT_DETECT_ENABLE  (1 << 18)
-#define         MDIO_CONTROL_INT_TEST_ENABLE      (1 << 17)
+#define         MDIO_CONTROL_IDLE                 BIT(31)
+#define         MDIO_CONTROL_ENABLE               BIT(30)
+#define         MDIO_CONTROL_PREAMBLE             BIT(20)  
+#define         MDIO_CONTROL_FAULT                BIT(19)
+#define         MDIO_CONTROL_FAULT_DETECT_ENABLE  BIT(18)
+#define         MDIO_CONTROL_INT_TEST_ENABLE      BIT(17)
 #define         MDIO_CONTROL_HIGHEST_USER_CHANNEL (0x1F << 8)
 #define         MDIO_CONTROL_CLKDIV               (0xFF)
     uint32_t alive;                 /* 0x08 */
@@ -783,16 +797,16 @@ typedef struct {
     uint32_t userintmaskedclr;      /* 0x2c */
     uint32_t dummy30[20];
     uint32_t useraccess0;           /* 0x80 */
-#define         MDIO_USERACCESS_GO     (1 << 31)
-#define         MDIO_USERACCESS_WRITE  (1 << 30)
+#define         MDIO_USERACCESS_GO     BIT(31)
+#define         MDIO_USERACCESS_WRITE  BIT(30)
 #define         MDIO_USERACCESS_READ   (0 << 30)
-#define         MDIO_USERACCESS_ACK    (1 << 29)
+#define         MDIO_USERACCESS_ACK    BIT(29)
 #define         MDIO_USERACCESS_REGADR (0x1F << 21)
 #define         MDIO_USERACCESS_PHYADR (0x1F << 16)
 #define         MDIO_USERACCESS_DATA   (0xFFFF)
     uint32_t userphysel0;           /* 0x84 */
-#define         MDIO_USERPHYSEL_LINKSEL         (1 << 7)
-#define         MDIO_USERPHYSEL_LINKINT_ENABLE  (1 << 6)
+#define         MDIO_USERPHYSEL_LINKSEL         BIT(7)
+#define         MDIO_USERPHYSEL_LINKINT_ENABLE  BIT(6)
 #define         MDIO_USERPHYSEL_PHYADR_MON      (0x1F)
 } mdio_t;
 
@@ -802,31 +816,31 @@ typedef struct {
 typedef struct {
     uint32_t phy_control;
 #define PHY_CONTROL_REG       0
-  #define PHY_RESET           (1<<15)
-  #define PHY_LOOP            (1<<14)
-  #define PHY_100             (1<<13)
-  #define AUTO_NEGOTIATE_EN   (1<<12)
-  #define PHY_PDOWN           (1<<11)
-  #define PHY_ISOLATE         (1<<10)
-  #define RENEGOTIATE         (1<<9)
-  #define PHY_FD              (1<<8)
+  #define PHY_RESET           BIT(15)
+  #define PHY_LOOP            BIT(14)
+  #define PHY_100             BIT(13)
+  #define AUTO_NEGOTIATE_EN   BIT(12)
+  #define PHY_PDOWN           BIT(11)
+  #define PHY_ISOLATE         BIT(10)
+  #define RENEGOTIATE         BIT(9)
+  #define PHY_FD              BIT(8)
         uint32_t phy_status;
 #define PHY_STATUS_REG        1
-  #define NWAY_COMPLETE       (1<<5)
-  #define NWAY_CAPABLE        (1<<3)
-  #define PHY_LINKED          (1<<2)
+  #define NWAY_COMPLETE       BIT(5)
+  #define NWAY_CAPABLE        BIT(3)
+  #define PHY_LINKED          BIT(2)
         uint32_t dummy2;
         uint32_t dummy3;
         uint32_t nway_advertize;
         uint32_t nway_remadvertize;
 #define NWAY_ADVERTIZE_REG    4
 #define NWAY_REMADVERTISE_REG 5
-  #define NWAY_FD100          (1<<8)
-  #define NWAY_HD100          (1<<7)
-  #define NWAY_FD10           (1<<6)
-  #define NWAY_HD10           (1<<5)
-  #define NWAY_SEL            (1<<0)
-  #define NWAY_AUTO           (1<<0)
+  #define NWAY_FD100          BIT(8)
+  #define NWAY_HD100          BIT(7)
+  #define NWAY_FD10           BIT(6)
+  #define NWAY_HD10           BIT(5)
+  #define NWAY_SEL            BIT(0)
+  #define NWAY_AUTO           BIT(0)
 } mdio_user_t;
 
 #if 0
@@ -985,10 +999,230 @@ static void ar7_reset_write(unsigned offset, uint32_t val)
 
 /*****************************************************************************
  *
+ * VLYNQ emulation.
+ *
+ ****************************************************************************/
+
+static const char * const vlynq_names[] = {
+  /* 0x00 */
+  "Revision/ID",
+  "Control",
+  "Status",
+  "Interrupt Priority Vector Status/Clear",
+  /* 0x10 */
+  "Interrupt Status/Clear",
+  "Interrupt Pending/Set",
+  "Interrupt Pointer",
+  "Tx Address Map",
+  /* 0x20 */
+  "Rx Address Map Size 1",
+  "Rx Address Map Offset 1",
+  "Rx Address Map Size 2",
+  "Rx Address Map Offset 2",
+  /* 0x30 */
+  "Rx Address Map Size 3",
+  "Rx Address Map Offset 3",
+  "Rx Address Map Size 4",
+  "Rx Address Map Offset 4",
+  /* 0x40 */
+  "Chip Version",
+  "Auto Negotiation",
+  "Manual Negotiation",
+  "Negotiation Status",
+  /* 0x50 */
+  "Reserved",
+  "Reserved",
+  "Reserved",
+  "Reserved",
+  /* 0x60 */
+  "Interrupt Vector 3-0",
+  "Interrupt Vector 7-4",
+  "Reserved",
+  "Reserved",
+  /* 0x70 */
+};
+
+#if 0
+struct _vlynq_registers_half {
+
+    /*--- 0x00 Revision/ID Register ---*/
+    unsigned int Revision_ID ;
+
+    /*--- 0x04 Control Register ---*/
+    union __vlynq_Control  {
+        struct _vlynq_Control {
+#define VLYNQ_CTL_CTRL_SHIFT            0
+            unsigned int reset : 1;
+#define VLYNQ_CTL_ILOOP_SHIFT           1
+            unsigned int iloop : 1;
+#define VLYNQ_CTL_AOPT_DISABLE_SHIFT    2
+            unsigned int aopt_disable : 1;
+            unsigned int reserved1 : 4;
+#define VLYNQ_CTL_INT2CFG_SHIFT         7
+            unsigned int int2cfg : 1;
+#define VLYNQ_CTL_INTVEC_SHIFT          8
+            unsigned int intvec : 5;
+#define VLYNQ_CTL_INTEN_SHIFT           13
+            unsigned int intenable : 1;
+#define VLYNQ_CTL_INTLOCAL_SHIFT        14
+            unsigned int intlocal : 1;
+#define VLYNQ_CTL_CLKDIR_SHIFT          15
+            unsigned int clkdir : 1;
+#define VLYNQ_CTL_CLKDIV_SHIFT          16
+            unsigned int clkdiv : 3;
+            unsigned int reserved2 : 2;
+#define VLYNQ_CTL_TXFAST_SHIFT          21
+            unsigned int txfastpath : 1;
+#define VLYNQ_CTL_RTMEN_SHIFT           22
+            unsigned int rtmenable : 1;
+#define VLYNQ_CTL_RTMVALID_SHIFT        23
+            unsigned int rtmvalidwr : 1;
+#define VLYNQ_CTL_RTMSAMPLE_SHIFT       24
+            unsigned int rxsampleval : 3;
+            unsigned int reserved3 : 3;
+#define VLYNQ_CTL_SCLKUDIS_SHIFT        30
+            unsigned int sclkpudis : 1;
+#define VLYNQ_CTL_PMEM_SHIFT            31
+            unsigned int pmen : 1;
+        } Bits;
+        volatile unsigned int Register;
+    } Control;
+
+    /*--- 0x08 Status Register ---*/
+    union __vlynq_Status  {
+        struct _vlynq_Status {
+            unsigned int link : 1;
+            unsigned int mpend : 1;
+            unsigned int spend : 1;
+            unsigned int nfempty0 : 1;
+            unsigned int nfempty1 : 1;
+            unsigned int nfempty2 : 1;
+            unsigned int nfempty3 : 1;
+            unsigned int lerror : 1;
+            unsigned int rerror : 1;
+            unsigned int oflow : 1;
+            unsigned int iflow : 1;
+            unsigned int rtm : 1;
+            unsigned int rxcurrent_sample : 3;
+            unsigned int reserved1 : 5;
+            unsigned int swidthout : 4;
+            unsigned int swidthin : 4;
+            unsigned int reserved2 : 4;
+        } Bits;
+        volatile unsigned int Register;
+    } Status;
+
+    /*--- 0x0C Interrupt Priority Vector Status/Clear Register ---*/
+    union __vlynq_Interrupt_Priority  {
+        struct _vlynq_Interrupt_Priority  {
+            unsigned int intstat : 5;
+            unsigned int reserved : (32 - 5 - 1);
+            unsigned int nointpend : 1;
+        } Bits;
+        volatile unsigned int Register;
+    } Interrupt_Priority;
+
+    /*--- 0x10 Interrupt Status/Clear Register ---*/
+    volatile unsigned int Interrupt_Status;
+
+    /*--- 0x14 Interrupt Pending/Set Register ---*/
+    volatile unsigned int Interrupt_Pending_Set;
+
+    /*--- 0x18 Interrupt Pointer Register ---*/
+    volatile unsigned int Interrupt_Pointer;
+
+    /*--- 0x1C Tx Address Map ---*/
+    volatile unsigned int Tx_Address;
+
+    /*--- 0x20 Rx Address Map Size 1 ---*/
+    /*--- 0x24 Rx Address Map Offset 1 ---*/
+    /*--- 0x28 Rx Address Map Size 2 ---*/
+    /*--- 0x2c Rx Address Map Offset 2 ---*/
+    /*--- 0x30 Rx Address Map Size 3 ---*/
+    /*--- 0x34 Rx Address Map Offset 3 ---*/
+    /*--- 0x38 Rx Address Map Size 4 ---*/
+    /*--- 0x3c Rx Address Map Offset 4 ---*/
+    struct ___vlynq_Rx_Address Rx_Address[4]; 
+
+    /*--- 0x40 Chip Version Register ---*/
+    struct ___vlynq_Chip_Version Chip_Version;
+
+    /*--- 0x44 Auto Negotiation Register ---*/
+    union __Auto_Negotiation  {
+        struct _Auto_Negotiation {
+            unsigned int reserved1 : 16;
+            unsigned int _2_x : 1;
+            unsigned int reserved2 : 15;
+        } Bits;
+        volatile unsigned int Register;
+    } Auto_Negotiation;
+
+    /*--- 0x48 Manual Negotiation Register ---*/
+    volatile unsigned int Manual_Negotiation;
+
+    /*--- 0x4C Negotiation Status Register ---*/
+    union __Negotiation_Status  {
+        struct _Negotiation_Status {
+            unsigned int status : 1;
+            unsigned int reserved : 31;
+        } Bits;
+        volatile unsigned int Register;
+    } Negotiation_Status;
+
+    /*--- 0x50-0x5C Reserved ---*/
+    unsigned char reserved1[0x5C - 0x4C];
+
+    /*--- 0x60 Interrupt Vector 3-0 ---*/
+    union __vlynq_Interrupt_Vector Interrupt_Vector_1;
+
+    /*--- 0x64 Interrupt Vector 7-4 ---*/
+    union __vlynq_Interrupt_Vector Interrupt_Vector_2;
+
+    /*--- 0x68-0x7C Reserved for Interrupt Vectors 8-31 ---*/
+    unsigned char reserved2[0x7C - 0x64];
+};
+#endif
+
+static uint32_t ar7_vlynq_read(uint32_t vlynq[], unsigned index)
+{
+    uint32_t val = vlynq[index];
+    TRACE(VLYNQ, logout("vlynq%u[0x%02x (%s %s)] = 0x%08lx\n",
+          (vlynq == av.vlynq1),
+          index, (index < 0x20) ? "local" : "remote",
+          ((index % 0x20) < 0x70 / 4) ? vlynq_names[index % 0x20] : "unknown",
+          (unsigned long)val));
+    if (index == 0) {
+    } else {
+    }
+    return val;
+}
+
+static void ar7_vlynq_write(uint32_t vlynq[], unsigned index, unsigned val)
+{
+    TRACE(VLYNQ, logout("vlynq%u[0x%02x (%s %s)] = 0x%08lx\n",
+          (vlynq == av.vlynq1),
+          index, (index < 0x20) ? "local" : "remote",
+          ((index % 0x20) < 0x70 / 4) ? vlynq_names[index % 0x20] : "unknown",
+          (unsigned long)val));
+    if (index == 0) {
+    } else if (index == 1) {
+      /* control */
+      if (!(val & BIT(0))) {
+        vlynq[2] |= BIT(0);
+      } else {
+        vlynq[2] &= ~BIT(0);
+      }
+    } else {
+    }
+    vlynq[index] = val;
+}
+
+/*****************************************************************************
+ *
  * Watchdog timer emulation.
  *
  * This watchdog timer module has prescalar and counter which divide the input
- *  reference frequency and upon expiration, the system is reset.
+ * reference frequency and upon expiration, the system is reset.
  * 
  *                        ref_freq 
  * Reset freq = ---------------------
@@ -1189,11 +1423,15 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
         name = "device config latch";
         val = VALUE(AVALANCHE_DCL_BASE, av.device_config_latch);
     } else if (INRANGE(AVALANCHE_VLYNQ0_BASE, av.vlynq0)) {
-        name = "vlynq 0";
-        val = VALUE(AVALANCHE_VLYNQ0_BASE, av.vlynq0);
+        //~ name = "vlynq 0";
+        logflag = 0;
+        index = (addr - AVALANCHE_VLYNQ0_BASE) / 4;
+        val = ar7_vlynq_read(av.vlynq0, index);
     } else if (INRANGE(AVALANCHE_VLYNQ1_BASE, av.vlynq1)) {
-        name = "vlynq 1";
-        val = VALUE(AVALANCHE_VLYNQ1_BASE, av.vlynq1);
+        //~ name = "vlynq 1";
+        logflag = 0;
+        index = (addr - AVALANCHE_VLYNQ1_BASE) / 4;
+        val = ar7_vlynq_read(av.vlynq1, index);
     } else if (INRANGE(AVALANCHE_MDIO_BASE, av.mdio)) {
         name = "mdio";
         logflag = MDIO;
@@ -1289,11 +1527,15 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
         name = "device config latch";
         VALUE(AVALANCHE_DCL_BASE, av.device_config_latch) = val;
     } else if (INRANGE(AVALANCHE_VLYNQ0_BASE, av.vlynq0)) {
-        name = "vlynq 0";
-        VALUE(AVALANCHE_VLYNQ0_BASE, av.vlynq0) = val;
+        //~ name = "vlynq 0";
+        logflag = 0;
+        index = (addr - AVALANCHE_VLYNQ0_BASE) / 4;
+        ar7_vlynq_write(av.vlynq0, index, val);
     } else if (INRANGE(AVALANCHE_VLYNQ1_BASE, av.vlynq1)) {
-        name = "vlynq 1";
-        VALUE(AVALANCHE_VLYNQ1_BASE, av.vlynq1) = val;
+        //~ name = "vlynq 1";
+        logflag = 0;
+        index = (addr - AVALANCHE_VLYNQ1_BASE) / 4;
+        ar7_vlynq_write(av.vlynq1, index, val);
     } else if (INRANGE(AVALANCHE_MDIO_BASE, av.mdio)) {
         name = "mdio";
         logflag = MDIO;
@@ -1478,7 +1720,7 @@ static void ar7_nic_init(void)
             av.nic[n++].vc = qemu_new_vlan_client(nd->vlan, ar7_nic_receive,
                                  ar7_nic_can_receive, (void *)n);
           } else {
-            fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd_table[0].model);
+            fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd_table[n].model);
             exit (1);
           }
         }
