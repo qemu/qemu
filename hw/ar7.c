@@ -71,7 +71,7 @@ struct IoState {
 #define RESET   1
 #define UART0   0
 #define UART1   0
-#define VLYNQ   1
+#define VLYNQ   0
 #define WDOG    1
 #define OTHER   1
 
@@ -96,7 +96,6 @@ struct IoState {
 #define BBIF_SPACE1                           (KSEG1ADDR(0x01800000))
 #define AVALANCHE_BROADBAND_INTERFACE__BASE   (KSEG1ADDR(0x02000000)) /* AVALANCHE BBIF */
 #define AVALANCHE_ATM_SAR_BASE                (KSEG1ADDR(0x03000000)) /* AVALANCHE ATM SAR */
-#define AVALANCHE_USB_SLAVE_BASE              (KSEG1ADDR(0x03400000)) /* AVALANCHE USB SLAVE */
 #define AVALANCHE_LOW_VLYNQ_MEM_MAP_BASE      (KSEG1ADDR(0x04000000)) /* AVALANCHE VLYNQ 0 Mem map */
 
 #define AVALANCHE_HIGH_VLYNQ_MEM_MAP_BASE     (KSEG1ADDR(0x0C000000)) /* AVALANCHE VLYNQ 1 Mem map */
@@ -110,6 +109,27 @@ struct IoState {
 #define OHIO_USB_BASE           KERNEL_ADDR(0x03400000)
 #define OHIO_VLYNQ0_BASE        KERNEL_ADDR(0x04000000)
 
+/*
+Physical memory map
+0x00000000      RAM start
+0x00000fff      RAM end
+0x08610000      I/O start
+0x08613000      I/O end
+0x10000000      Flash start
+0x101fffff      Flash end (2 MiB)
+0x103fffff      Flash end (4 MiB)
+0x107fffff      Flash end (8 MiB)
+0x14000000      RAM start
+0x14ffffff      RAM end (16 MiB)
+0x15ffffff      RAM end (32 MiB)
+0x1e000000      ???
+0x1fc00000      internal ROM start
+0x1fc00fff      internal ROM end
+*/
+
+#define AVALANCHE_USB_MEM_BASE          0x03400000 /* USB slave mem map */
+#define AVALANCHE_VLYNQ0_MEM_MAP_BASE   0x04000000 /* VLYNQ 0 memory mapped */
+#define AVALANCHE_VLYNQ1_MEM_MAP_BASE   0x0c000000 /* VLYNQ 1 memory mapped */
 #define AVALANCHE_CPMAC0_BASE           0x08610000
 #define AVALANCHE_EMIF_BASE             0x08610800
 #define AVALANCHE_GPIO_BASE             0x08610900
@@ -201,6 +221,9 @@ typedef struct {
     CPUState *cpu_env;
     NICState nic[2];
     uint32_t intmask[2];
+
+    uint32_t usbslave[0x800];           // 0x03400000
+    uint32_t vlynq0mem[0x10800];        // 0x04000000
 
     uint32_t cpmac0[0x200];             // 0x08610000
     uint32_t emif[0x40];                // 0x08610800
@@ -1363,10 +1386,20 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
 {
     unsigned index;
     uint32_t val = 0xffffffff;
-    addr |= 0x08610000;
     const char *name = 0;
     int logflag = OTHER;
-    if (INRANGE(AVALANCHE_CPMAC0_BASE, av.cpmac0)) {
+    if (INRANGE(AVALANCHE_USB_MEM_BASE, av.usbslave)) {
+        name = "usb memory";
+        val = VALUE(AVALANCHE_USB_MEM_BASE, av.usbslave);
+    } else if (INRANGE(AVALANCHE_VLYNQ0_MEM_MAP_BASE, av.vlynq0mem)) {
+        name = "vlynq0 memory";
+        logflag = VLYNQ;
+        val = VALUE(AVALANCHE_VLYNQ0_MEM_MAP_BASE, av.vlynq0mem);
+        if (addr == 0x04041000) {
+          /* TNETW (ACX100) */
+          val = 0x9066104c;
+        }
+    } else if (INRANGE(AVALANCHE_CPMAC0_BASE, av.cpmac0)) {
         //~ name = "cpmac0";
         logflag = 0;
         index = (addr - AVALANCHE_CPMAC0_BASE) / 4;
@@ -1423,12 +1456,12 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
         name = "device config latch";
         val = VALUE(AVALANCHE_DCL_BASE, av.device_config_latch);
     } else if (INRANGE(AVALANCHE_VLYNQ0_BASE, av.vlynq0)) {
-        //~ name = "vlynq 0";
+        //~ name = "vlynq0";
         logflag = 0;
         index = (addr - AVALANCHE_VLYNQ0_BASE) / 4;
         val = ar7_vlynq_read(av.vlynq0, index);
     } else if (INRANGE(AVALANCHE_VLYNQ1_BASE, av.vlynq1)) {
-        //~ name = "vlynq 1";
+        //~ name = "vlynq1";
         logflag = 0;
         index = (addr - AVALANCHE_VLYNQ1_BASE) / 4;
         val = ar7_vlynq_read(av.vlynq1, index);
@@ -1471,8 +1504,15 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
     unsigned index;
     const char *name = 0;
     int logflag = OTHER;
-    addr |= 0x08610000;
-    if (INRANGE(AVALANCHE_CPMAC0_BASE, av.cpmac0)) {
+    if (INRANGE(AVALANCHE_USB_MEM_BASE, av.usbslave)) {
+        name = "usb memory";
+        //~ VALUE(AVALANCHE_USB_MEM_BASE, av.usbslave) = val;
+        VALUE(AVALANCHE_USB_MEM_BASE, av.usbslave) = 0xffffffff;
+    } else if (INRANGE(AVALANCHE_VLYNQ0_MEM_MAP_BASE, av.vlynq0mem)) {
+        name = "vlynq0 memory";
+        logflag = VLYNQ;
+        VALUE(AVALANCHE_VLYNQ0_MEM_MAP_BASE, av.vlynq0mem) = val;
+    } else if (INRANGE(AVALANCHE_CPMAC0_BASE, av.cpmac0)) {
         //~ name = "cpmac0";
         logflag = 0;
         ar7_cpmac_write(av.cpmac0, 0, addr - AVALANCHE_CPMAC0_BASE, val);
@@ -1527,12 +1567,12 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
         name = "device config latch";
         VALUE(AVALANCHE_DCL_BASE, av.device_config_latch) = val;
     } else if (INRANGE(AVALANCHE_VLYNQ0_BASE, av.vlynq0)) {
-        //~ name = "vlynq 0";
+        //~ name = "vlynq0";
         logflag = 0;
         index = (addr - AVALANCHE_VLYNQ0_BASE) / 4;
         ar7_vlynq_write(av.vlynq0, index, val);
     } else if (INRANGE(AVALANCHE_VLYNQ1_BASE, av.vlynq1)) {
-        //~ name = "vlynq 1";
+        //~ name = "vlynq1";
         logflag = 0;
         index = (addr - AVALANCHE_VLYNQ1_BASE) / 4;
         ar7_vlynq_write(av.vlynq1, index, val);
@@ -1759,7 +1799,10 @@ void ar7_init(CPUState *env)
     //~ target_phys_addr_t addr = (0x08610000 & 0xffff);
     //~ unsigned offset;
     int io_memory = cpu_register_io_memory(0, io_read, io_write, env);
-    cpu_register_physical_memory(0x08610000, 0x0002800, io_memory);
+    //~ cpu_register_physical_memory(0x08610000, 0x00002800, io_memory);
+    //~ cpu_register_physical_memory(0x00001000, 0x0860f000, io_memory);
+    cpu_register_physical_memory(0x00001000, 0x0ffff000, io_memory);
+    cpu_register_physical_memory(0x1e000000, 0x01c00000, io_memory);
     assert(bigendian == 0);
     bigendian = env->bigendian;
     assert(bigendian == 0);
