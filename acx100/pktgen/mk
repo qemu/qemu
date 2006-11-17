@@ -1,0 +1,10 @@
+#!/bin/sh
+
+function mk() {
+    { diet -Os gcc -o "$1" "$1.c" && elftrunc "$1" "$1"; } \
+    || { echo -n "Error: $?. Press <enter>:"; read junk; }
+}
+
+for f in *.c; do
+    mk "${f%.c}"
+done

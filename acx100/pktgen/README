@@ -1,0 +1,37 @@
+Usage:
+
+Take a packet data from a log or packet sniffer:
+
+11:31:30.94467 rx: buf 00 (MGMT/Beacon): time 5059409 len 56 signal 42 SNR 0 macstat 25 phystat 10 phyrate 110 status 1
+11:31:30.94469 rx: 802.11 buf[56]: 80 00 00 00 FF FF FF FF FF FF 00 09 5B 68 2D 39
+11:31:30.94471 00 09 5B 68 2D 39 F0 86 5D B5 3E 25 00 00 00 00
+11:31:30.94475 41 01 11 00 00 03 61 63 78 01 04 82 84 8B 96 03
+11:31:30.94477 01 0B 05 04 00 01 00 00
+
+or invent your own packet contents.
+
+Then:
+
+printhex \
+80 00 00 00 FF FF FF FF FF FF 00 09 5B 68 2D 39 \
+00 09 5B 68 2D 39 F0 86 5D B5 3E 25 00 00 00 00 \
+41 01 11 00 00 03 61 63 78 01 04 82 84 8B 96 03 \
+01 0B 05 04 00 01 00 00 \
+| sendpkt wlan0
+
+will send a custom packet with same bytes.
+
+If you wonder, this packet has the following structure:
+fc: 0080
+dur: 0000
+ra: FFFFFFFFFFFF
+ta: 00095B682D39
+bssid: 00095B682D39
+seq: 86F0
+timestamp: 00000000253EB55D
+bcn_int: 0141
+cap_info: 0011
+ssid: 00 03 61 63 78 ('acx')
+supp_rates: 01 04 82 84 8B 96 (1, 2, 5.5, 11)
+ds_parms: 03 01 0B (channel 11)
+tim: 05 04 00 01 00 00

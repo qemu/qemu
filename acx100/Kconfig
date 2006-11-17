@@ -1,0 +1,63 @@
+config ACX
+	tristate "TI acx100/acx111 802.11b/g wireless chipsets"
+	depends on NET_RADIO && EXPERIMENTAL && (USB || PCI)
+	select FW_LOADER
+	---help---
+	A driver for 802.11b/g wireless cards based on
+	Texas Instruments acx100 and acx111 chipsets.
+
+	This driver supports Host AP mode that allows
+	your computer to act as an IEEE 802.11 access point.
+	This driver is new and experimental.
+
+	Texas Instruments did not take part in development of this driver
+	in any way, shape or form.
+
+	The driver can be compiled as a module and will be named "acx".
+
+config ACX_PCI
+	bool "TI acx100/acx111 802.11b/g PCI"
+	depends on ACX && PCI
+	---help---
+	Include PCI and CardBus support in acx.
+
+	acx chipsets need their firmware loaded at startup.
+	You will need to provide a firmware image via hotplug.
+
+	Firmware may be in a form of single image 40-100kb in size
+	(a 'combined' firmware) or two images - main image
+	(again 40-100kb) and radio image (~10kb or less).
+
+	Firmware images are requested from hotplug using following names:
+
+	tiacx100 - main firmware image for acx100 chipset
+	tiacx100rNN - radio acx100 firmware for radio type NN
+	tiacx100cNN - combined acx100 firmware for radio type NN
+	tiacx111 - main acx111 firmware
+	tiacx111rNN - radio acx111 firmware for radio type NN
+	tiacx111cNN - combined acx111 firmware for radio type NN
+
+	Driver will attempt to load combined image first.
+	If no such image is found, it will try to load main image
+	and radio image instead.
+
+	Firmware files are not covered by GPL and are not distributed
+	with this driver for legal reasons.
+
+config ACX_USB
+	bool "TI acx100/acx111 802.11b/g USB"
+	depends on ACX && (USB=y || USB=ACX)
+	---help---
+	Include USB support in acx.
+
+	There is only one currently known device in this category,
+	D-Link DWL-120+, but newer devices seem to be on the horizon.
+
+	acx chipsets need their firmware loaded at startup.
+	You will need to provide a firmware image via hotplug.
+
+	Firmware for USB device is requested from hotplug
+	by the 'tiacx100usb' name.
+
+	Firmware files are not covered by GPL and are not distributed
+	with this driver for legal reasons.

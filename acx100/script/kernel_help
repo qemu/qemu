@@ -1,0 +1,58 @@
+# acx100 driver, available at http://acx100.sourceforge.net
+config ACX
+	 tristate "Texas Instruments ACX100/ACX111 (TNETW1xxx) cards"
+	 depends on NET_RADIO && PCI && !SMP
+	 default n
+	 ---help---
+	 A driver for almost all wireless cards based on Texas Instruments'
+	 very poorly vendor-supported ACX100 wireless network chip
+	 (except for USB and Compact Flash implementations, which are
+	 both extremely rare -- semi-stable USB support exists for
+	 2.4.x, but 2.6.x USB support is not quite functional at all
+	 yet). Almost working ACX111 support is in the driver, but it's
+	 still not quite working yet, due to many changes compared to
+	 the ACX100. This driver supports standard Linux wireless
+	 extensions to a very wide extent.
+
+	 Currently this driver still is a bit experimental. We're still not
+	 totally sure about the status of WEP support. Many situations
+	 should work, but it might still not work properly or fail sometimes.
+
+	 Also, SMP appears to be problematic (locking issues).
+
+	 Furthermore, associating with some access points might still be
+	 problematic due to strict 802.11 compliance checks in their
+	 firmware.
+
+	 Master mode support (aka HostAP) has not been implemented completely
+	 yet, but at least it can be configured now. The non-standard 4x
+	 mode (aka "44Mbps") is NOT supported yet and will need several
+	 driver changes.
+
+	 You can use the driver compiled in the kernel or as a module:
+	 the module will be called acx_pci.
+
+	 This driver needs a firmware to work and since firmware image and
+	 radio image can't be provided with this driver, you need to find
+	 it by yourself (please read the README provided with the 'acx100'
+	 source package).
+
+	 The driver expects the firmware files to be placed in the
+	 firmware directory /usr/share/acx/ by default. If you intend to
+	 use a custom firmware directory, then in case you're using a
+	 driver module, you should specify/configure the module parameter
+	 firmware_dir=[full path to the firmware directory], and in case
+	 you are using the builtin driver, you need to give the kernel
+	 boot parameter acx_firmware_dir=[full path to the firmware directory].
+
+	 The 'acx100' project page is at <http://acx100.sourceforge.net>.
+
+	 You can find a useful HOWTO for Mandrake, Slackware, Red Hat and
+	 Debian (Knoppix) at <http://www.houseofcraig.net/acx100_howto.php>.
+
+	 You will very likely also need the Wireless Tools in order to
+	 configure your card and to make /etc/pcmcia/wireless.opts work:
+	 <http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html>.
+
+	 The Linux hotplug package is required for automatic setup of
+	 CardBus cards and for proper ACX100 USB card operations.

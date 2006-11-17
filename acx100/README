@@ -1,0 +1,122 @@
+This tarball is targeted at 2.6 inclusion only.
+Not designed to work or even compile with 2.4.
+
+Contact:
+netdev@vger.kernel.org
+acx100-devel@lists.sourceforge.net
+acx100-users@lists.sourceforge.net
+
+Bug reports:
+
+Visit http://www.catb.org/~esr/faqs/smart-questions.html
+
+Please describe your wireless setup, manufacturer and type
+(acx100/acx100usb/acx111?) of your hardware. Which firmware image(s)
+are you using? If problem is reproducible, #define ACX_DEBUG 2
+in acx_config.h and modprobe driver with debug=0xffff.
+Post resulting kernel log (bzipped). It is large but very useful
+for bug hunting. Try older versions of the driver.
+
+Firmware images:
+
+You should not supply firmware_dir= parameter anymore. Driver will try
+to load the following images via hotplug (not from /usr/share/acx
+directory as older driver did, hotplug firmware directory location
+varies for different distros, try /lib/firmware or
+/usr/lib/hotplug/firmware):
+
+PCI driver:
+'tiacxNNNcMM' (NNN=100/111, MM=radio module ID (in uppercase hex)):
+combined firmware for specified chipset and radio.
+Failing that, it will try to load images named 'tiacxNNN'
+(main firmware for specified chipset) and 'tiacxNNNrMM' (corresponding
+radio module). For example, my firmware is in file named 'tiacx111c16'.
+Alternatively, I may remove it and use pair of files 'tiacx111' and
+'tiacx111r16' instead.
+USB driver:
+image is named 'tiacxNNNusbcMM'
+
+Build instructions:
+
+* Create drivers/net/wireless/acx subdirectory inside
+  your kernel tree.
+* BTW, if your kernel has drivers/net/wireless/tiacx directory,
+  you already may have acx driver (some different version).
+  Decide which one do you want.
+* Unpack tarball into drivers/net/wireless/acx directory.
+* Add a line to drivers/net/wireless/Makefile:
+	obj-m += acx/
+* Build your modules as usual (perhaps "make modules modules_install").
+
+This will create acx module.
+
+Remove "acx-obj-y += usb.o" line in Makefile
+and "#define CONFIG_ACX_USB 1" line in acx_config.h
+if you want PCI-only driver. Ditto for USB-only one.
+
+USB snooping:
+
+If you are an USB driver developer and need to see USB traffic,
+http://benoit.papillault.free.fr/usbsnoop/ may be useful.
+Another very good way to snoop the USB frames is under Linux if your
+driver happens to run under ndiswrapper (which is often the case),
+either by savage printk's, or by using the USB snooping facilities from
+Pete Zaitcev.
+
+
+From: Per Bjornsson <perbj@stanford.edu>
+To: ACX100 user mailing list <acx100-users@lists.sourceforge.net>
+Date: Fri, 08 Jul 2005 13:44:26 -0700
+
+Hi,
+
+Just a note for those who, like me, prefer not to bother recompiling
+their whole kernel: It's not at all difficult to compile Denis's
+snapshots out of tree, despite what the readme file says! At least in
+somewhat recent 2.6.x kernels, there's a special syntax for compiling
+modules in a particular directory (as noted in the kernel docs in
+Documentation/kbuild/modules.txt):
+
+      * Unpack Denis's tarball in a new directory (note that the
+        tarballs currently don't contain a root directory, just the
+        files, so you want to do the untarring in an empty directory)
+      * If you're building for the currently running kernel, build the
+        modules with the command
+	make -C /lib/modules/`uname -r`/build M=`pwd`
+      * Install the modules (must be root for this step, so use
+        'su' if that's your preferred method of doing root stuff) with
+	make -C /lib/modules/`uname -r`/build M=`pwd` modules_install
+
+I figured that the snapshots might get more testing if more people know
+that they don't have to muck around with the whole kernel source in
+order to build this. I tested this on Fedora Core 4; sane distributions
+should be using this setup for accessing the kernel build files (if they
+listened to Linus's suggestions anyways). The one trick is that you
+might need a special "kernel development files" package; on Fedora Core,
+the files are included in the regular kernel package for FC2 and 3 but
+you need the 'kernel-devel' package for FC4.
+
+And finally, the kernel won't figure out that the module has been
+installed until you run 'depmod -ae' as root. You can check that
+something useful got picked up with 'modinfo'. (Both of these commands
+are likely installed in /sbin so you might need the full path unless
+you're fully logged in as root.)
+
+The latest snapshot (acx-20050708.tar.bz2) generally seems to work well
+for me, except that it's somewhat noisy and reports a lot of DUPs in the
+system log. However, it appears to associate more consistently with my
+access point that the old versions (when I had those modprobed on boot
+and brought up by the system network scripts, the card would often just
+sit and scan around and never actually associate until I manually
+restarted the connection) - admittedly I've only tried a couple of times
+yet so I don't know just how consistent this is. My hardware is a
+Netgear WG311v2, using the firmware from the latest Netgear Windows
+driver. (Can't check the details right now since I'm not at that
+computer, sorry - it got too late when I was mucking with this and other
+stuff yesterday for me to get a message sent...)
+
+Cheers,
+Per
+--
+Per Bjornsson <perbj@stanford.edu>
+Ph.D. Candidate, Department of Applied Physics, Stanford University

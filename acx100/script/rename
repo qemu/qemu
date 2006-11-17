@@ -1,0 +1,11 @@
+#!/bin/sh
+
+temp=$$.$RANDOM
+
+find -name '*.[ch]' \
+| while read name; do
+    sed \
+    -e "s/acx_rxbuffer_to_ether/acx_rxbuf_to_ether/g" \
+	    $name >$name.$temp
+    mv $name.$temp $name
+done
