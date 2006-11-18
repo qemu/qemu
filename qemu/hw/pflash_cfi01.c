@@ -77,17 +77,12 @@
 #include "exec-all.h"
 #include "pflash.h"     /* pflash_cfi01_register */
 
-//~ #define PFLASH_DEBUG
+#define PFLASH_DEBUG
 #ifdef PFLASH_DEBUG
 #define DPRINTF(fmt, args...)                      \
-do {                                               \
-    if (loglevel)                                  \
-        fprintf(logfile, "PFLASH: " fmt , ##args); \
-    else                                           \
-        printf("PFLASH: " fmt , ##args);           \
-} while (0)
+    fprintf(stderr, "PFLASH\t%-24s" fmt, __func__, ##args)
 #else
-#define DPRINTF(fmt, args...) do { } while (0)
+#define DPRINTF(fmt, args...) ((void)0)
 #endif
 
 struct pflash_t {
@@ -119,8 +114,9 @@ static enum {
 static void pflash_io_mode(pflash_t *pfl)
 {
   if (flash_mode != io_mode) {
-    DPRINTF("%s: switch to i/o mode\n", __func__);
+    DPRINTF("switch to i/o mode\n");
     cpu_register_physical_memory(pfl->base, pfl->total_len, pfl->fl_mem);
+    DPRINTF("0x%08x 0x%08x 0x%04x\n", pfl->base, pfl->total_len, pfl->fl_mem);
     flash_mode = io_mode;
   }
 }
@@ -128,7 +124,7 @@ static void pflash_io_mode(pflash_t *pfl)
 static void pflash_rom_mode(pflash_t *pfl)
 {
   if (flash_mode != rom_mode) {
-    DPRINTF("%s: switch to rom mode\n", __func__);
+    DPRINTF("switch to rom mode\n");
     cpu_register_physical_memory(pfl->base, pfl->total_len,
                                  pfl->off | IO_MEM_ROMD | pfl->fl_mem);
     flash_mode = rom_mode;
@@ -152,7 +148,7 @@ static uint32_t pflash_read_data(void *addr, target_ulong offset, int width)
         ret = p[offset];
         ret |= p[offset + 1] << 8;
 #endif
-//            DPRINTF("%s: data offset %08x %04x\n", __func__, offset, ret);
+//            DPRINTF("data offset %08x %04x\n", offset, ret);
         break;
     case 4:
         assert((offset & 3) == 0);
@@ -168,7 +164,7 @@ static uint32_t pflash_read_data(void *addr, target_ulong offset, int width)
         ret |= p[offset + 2] << 16;
         ret |= p[offset + 3] << 24;
 #endif
-//            DPRINTF("%s: data offset %08x %08x\n", __func__, offset, ret);
+//            DPRINTF("data offset %08x %08x\n", offset, ret);
         break;
     }
     return ret;
@@ -178,7 +174,7 @@ static void pflash_timer (void *opaque)
 {
     pflash_t *pfl = opaque;
 
-    DPRINTF("%s: command %02x done\n", __func__, pfl->cmd);
+    DPRINTF("command %02x done\n", pfl->cmd);
     /* Reset flash */
     pfl->status ^= 0x80;
     if (pfl->bypass) {
@@ -196,13 +192,13 @@ static uint32_t pflash_read (pflash_t *pfl, target_ulong offset, int width)
     uint32_t ret;
     uint8_t *p;
 
-    DPRINTF("%s: offset %08x width %d\n", __func__, offset, width);
+    DPRINTF("offset %08x width %d\n", offset, width);
     ret = -1;
     offset -= pfl->base;
     boff = (offset & 0xFF) / pfl->width;
     switch (pfl->cmd) {
-    //~ case 0x80:
-        //~ /* We accept reads during second unlock sequence... */
+    case 0x80:
+        /* We accept reads during second unlock sequence... */
     case 0x00:
     flash_read:
         /* Flash area read */
@@ -228,7 +224,7 @@ static uint32_t pflash_read (pflash_t *pfl, target_ulong offset, int width)
         default:
             goto flash_read;
         }
-        DPRINTF("%s: ID %d %x\n", __func__, boff, ret);
+        DPRINTF("ID %d %x\n", boff, ret);
         break;
     //~ case 0xA0:
     //~ case 0x10:
@@ -240,9 +236,9 @@ static uint32_t pflash_read (pflash_t *pfl, target_ulong offset, int width)
     case 0x40:
         /* Status register read */
         ret = pfl->status;
-        DPRINTF("%s: status %x\n", __func__, ret);
-        //~ /* Toggle bit 6 */
-        //~ pfl->status ^= 0x40;
+        DPRINTF("status %x\n", ret);
+        /* Toggle bit 6 */
+        pfl->status ^= 0x40;
         break;
     case 0x98:
         /* CFI query mode */
@@ -253,7 +249,7 @@ static uint32_t pflash_read (pflash_t *pfl, target_ulong offset, int width)
         break;
     default:
         /* This should never happen : reset state & treat it as a read*/
-        DPRINTF("%s: unknown command state: %x\n", __func__, pfl->cmd);
+        DPRINTF("unknown command state: %x\n", pfl->cmd);
         pfl->wcycle = 0;
         pfl->cmd = 0;
         goto flash_read;
@@ -286,16 +282,16 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
 
     /* WARNING: when the memory area is in ROMD mode, the offset is a
        ram offset, not a physical address */
-    if (pfl->wcycle == 0)
+    if (pfl->wcycle == 0) {
         offset -= (target_ulong)(long)pfl->storage;
-    else
+    } else {
         offset -= pfl->base;
-        
+    }
+
     cmd = value;
-    DPRINTF("%s: offset %08x %08x %d wc %d\n", __func__, offset, value, width, pfl->wcycle);
+    DPRINTF("offset %08x %08x %d wc %d\n", offset, value, width, pfl->wcycle);
     if ((pfl->cmd != 0x40) && (pfl->cmd != 0xe8) && (cmd == 0xf0 || cmd == 0xff)) {
-        DPRINTF("%s: flash read array asked (%02x %02x)\n",
-                __func__, pfl->cmd, cmd);
+        DPRINTF("flash read array asked (%02x %02x)\n", pfl->cmd, cmd);
         goto reset_flash;
     }
     boff = (offset & (pfl->sector_len - 1)) / pfl->width;
@@ -304,19 +300,16 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
         /* We're in read mode */
         /* Set the device in I/O access mode */
         pflash_io_mode(pfl);
-    //~ check_unlock0:
+    check_unlock0:
         if (cmd == 0x10 || cmd == 0x40) {
             pfl->cmd = 0x40;
-            DPRINTF("%s: Single Byte Program (%04x %02x)\n",
-                    __func__, boff, cmd);
+            DPRINTF("Single Byte Program (%04x %02x)\n", boff, cmd);
         } else if (cmd == 0x20 || cmd == 0x28) {
-            DPRINTF("%s: Block Erase started (%04x %02x)\n",
-                    __func__, boff, cmd);
+            DPRINTF("Block Erase started (%04x %02x)\n", boff, cmd);
             pfl->cmd = 0x28;
             pfl->status = 0x80;
         } else if (cmd == 0x50) {
-            DPRINTF("%s: Clear Status Register (%04x %02x)\n",
-                    __func__, boff, cmd);
+            DPRINTF("Clear Status Register (%04x %02x)\n", boff, cmd);
             pfl->status = 0x80;
             return;
         } else if (/* boff == 0x55 && */ cmd == 0x98) {
@@ -326,56 +319,52 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
             pfl->cmd = 0x98;
             return;
         } else if (cmd == 0x60) {
-            DPRINTF("%s: Block Lock Bit Set / Reset started\n", __func__);
+            DPRINTF("Block Lock Bit Set / Reset started\n");
             pfl->cmd = cmd;
         } else if (cmd == 0x70) {
-            DPRINTF("%s: Read Status\n", __func__);
+            DPRINTF("Read Status\n");
             pfl->cmd = cmd;
             return;
         } else if (cmd == 0x90) {
             /* Read JEDEC ID. */
-            DPRINTF("%s: Read JEDEC ID (%04x %02x)\n",
-                    __func__, boff, cmd);
+            DPRINTF("Read JEDEC ID (%04x %02x)\n", boff, cmd);
             pfl->cmd = cmd;
             //~ assert(offset == 0 && 0);
             //~ assert(offset == 0 && 0);
             //~ assert(offset == 0 && 0);
         } else if (cmd == 0xb0) {
-            DPRINTF("%s: unimplemented Erase / Program Suspend / Resume (%04x %02x)\n",
-                    __func__, boff, cmd);
+            DPRINTF("unimplemented Erase / Program Suspend / Resume (%04x %02x)\n",
+                    boff, cmd);
             return;
         } else if (cmd == 0xe8) {
-            DPRINTF("%s: unimplemented Write to Buffer (%04x %02x)\n",
-                    __func__, boff, cmd);
+            DPRINTF("unimplemented Write to Buffer (%04x %02x)\n", boff, cmd);
             return;
         } else if (boff == 0x555 && cmd == 0xAA) {
-            DPRINTF("%s: unlock sequence started\n", __func__);
+            DPRINTF("unlock sequence started\n");
         } else {
-            DPRINTF("%s: unlock0 failed %04x %02x %04x\n",
-                    __func__, boff, cmd, 0x555);
+            DPRINTF("unlock0 failed %04x %02x %04x\n", boff, cmd, 0x555);
             goto reset_flash;
         }
         break;
     case 1:
         if (0) {
         } else if (pfl->cmd == 0x28 && cmd == 0xd0) {
-            DPRINTF("%s: Block Erase confirmed (%08x %02x)\n",
-                    __func__, offset, cmd);
+            DPRINTF("Block Erase confirmed (%08x %02x)\n", offset, cmd);
             p = pfl->storage;
             offset &= ~(pfl->sector_len - 1);
             memset(p + offset, 0xFF, pfl->sector_len);
             pflash_update(pfl, offset, pfl->sector_len);
-            //~ pfl->status = 0x00;
-            //~ /* Let's wait 1/2 second before sector erase is done */
-            //~ qemu_mod_timer(pfl->timer, 
-                           //~ qemu_get_clock(vm_clock) + (ticks_per_sec / 2));
+            pfl->status = 0x00;
+            /* Let's wait 1/2 second before sector erase is done */
+            qemu_mod_timer(pfl->timer, 
+                           qemu_get_clock(vm_clock) + (ticks_per_sec / 2));
             pfl->cmd = 0x70;
             pfl->status = 0x80;
             pfl->wcycle = 0;
             return;
         } else if (pfl->cmd == 0x40) {
-            DPRINTF("%s: Single Byte Program data offset %08x %08x %d\n",
-                    __func__, offset, value, width);
+            DPRINTF("Single Byte Program data offset %08x %08x %d\n",
+                    offset, value, width);
             p = pfl->storage;
             switch (width) {
             case 1:
@@ -409,21 +398,21 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
             pfl->status = 0x80;
             pfl->wcycle = 0;
             /* Let's pretend write is immediate */
-            //~ if (pfl->bypass)
-                //~ goto do_bypass;
+            if (pfl->bypass)
+                goto do_bypass;
             return;
         } else if (pfl->cmd == 0x60) {
             /* !!! */
             if (cmd == 0x01) {
-                DPRINTF("%s: unimplemented Block Lock Bit Set done\n", __func__);
+                DPRINTF("unimplemented Block Lock Bit Set done\n");
                 pfl->cmd = cmd;
                 pfl->status = 0x80;
             } else if (cmd == 0xd0) {
-                DPRINTF("%s: unimplemented Block Lock Bit Reset done\n", __func__);
+                DPRINTF("unimplemented Block Lock Bit Reset done\n");
                 pfl->cmd = cmd;
                 pfl->status = 0x80;
             } else {
-                DPRINTF("%s: block lock bit failed %04x %02x\n", __func__, boff, cmd);
+                DPRINTF("block lock bit failed %04x %02x\n", boff, cmd);
                 goto reset_flash;
             }
             pfl->cmd = cmd;
@@ -433,38 +422,38 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
             /* We started an unlock sequence */
         check_unlock1:
             if (boff != 0x2AA || cmd != 0x55) {
-                DPRINTF("%s: unlock1 failed %04x %02x\n", __func__, boff, cmd);
+                DPRINTF("unlock1 failed %04x %02x\n", boff, cmd);
                 goto reset_flash;
             }
-            DPRINTF("%s: unlock sequence done\n", __func__);
+            DPRINTF("unlock sequence done\n");
         }
         break;
-    //~ case 2:
-        //~ /* We finished an unlock sequence */
-        //~ if (!pfl->bypass && boff != 0x555) {
-            //~ DPRINTF("%s: command failed %04x %02x\n", __func__, boff, cmd);
-            //~ goto reset_flash;
-        //~ }
-        //~ switch (cmd) {
-        //~ case 0x20:
-            //~ pfl->bypass = 1;
-            //~ goto do_bypass;
-        //~ case 0x80:
-        //~ case 0x90:
-        //~ case 0xA0:
-            //~ pfl->cmd = cmd;
-            //~ DPRINTF("%s: starting command %02x\n", __func__, cmd);
-            //~ break;
-        //~ default:
-            //~ DPRINTF("%s: unknown command %02x\n", __func__, cmd);
-            //~ goto reset_flash;
-        //~ }
-        //~ break;
+    case 2:
+        /* We finished an unlock sequence */
+        if (!pfl->bypass && boff != 0x555) {
+            DPRINTF("command failed %04x %02x\n", boff, cmd);
+            goto reset_flash;
+        }
+        switch (cmd) {
+        case 0x20:
+            pfl->bypass = 1;
+            goto do_bypass;
+        case 0x80:
+        case 0x90:
+        case 0xA0:
+            pfl->cmd = cmd;
+            DPRINTF("starting command %02x\n", cmd);
+            break;
+        default:
+            DPRINTF("unknown command %02x\n", cmd);
+            goto reset_flash;
+        }
+        break;
     case 3:
         switch (pfl->cmd) {
-        //~ case 0x80:
-            //~ /* We need another unlock sequence */
-            //~ goto check_unlock0;
+        case 0x80:
+            /* We need another unlock sequence */
+            goto check_unlock0;
         case 0x90:
             if (pfl->bypass && cmd == 0x00) {
                 /* Unlock bypass reset */
@@ -475,8 +464,7 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
                 goto enter_CFI_mode;
             /* No break here */
         default:
-            DPRINTF("%s: invalid write for command %02x\n",
-                    __func__, pfl->cmd);
+            DPRINTF("invalid write for command %02x\n", pfl->cmd);
             goto reset_flash;
         }
     case 4:
@@ -489,8 +477,7 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
             goto check_unlock1;
         default:
             /* Should never happen */
-            DPRINTF("%s: invalid command state %02x (wc 4)\n",
-                    __func__, pfl->cmd);
+            DPRINTF("invalid command state %02x (wc 4)\n", pfl->cmd);
             goto reset_flash;
         }
         break;
@@ -498,12 +485,11 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
         switch (cmd) {
         case 0x10:
             if (boff != 0x555) {
-                DPRINTF("%s: chip erase: invalid address %04x\n",
-                        __func__, offset);
+                DPRINTF("chip erase: invalid address %04x\n", offset);
                 goto reset_flash;
             }
             /* Chip erase */
-            DPRINTF("%s: start chip erase\n", __func__);
+            DPRINTF("start chip erase\n");
             memset(pfl->storage, 0xFF, pfl->total_len);
             pfl->status = 0x00;
             pflash_update(pfl, 0, pfl->total_len);
@@ -515,7 +501,7 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
             /* Sector erase */
             p = pfl->storage;
             offset &= ~(pfl->sector_len - 1);
-            DPRINTF("%s: start sector erase at %08x\n", __func__, offset);
+            DPRINTF("start sector erase at %08x\n", offset);
             memset(p + offset, 0xFF, pfl->sector_len);
             pflash_update(pfl, offset, pfl->sector_len);
             pfl->status = 0x00;
@@ -524,7 +510,7 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
                            qemu_get_clock(vm_clock) + (ticks_per_sec / 2));
             break;
         default:
-            DPRINTF("%s: invalid command %02x (wc 5)\n", __func__, cmd);
+            DPRINTF("invalid command %02x (wc 5)\n", cmd);
             goto reset_flash;
         }
         pfl->cmd = cmd;
@@ -539,17 +525,16 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
             return;
         default:
             /* Should never happen */
-            DPRINTF("%s: invalid command state %02x (wc 6)\n",
-                    __func__, pfl->cmd);
+            DPRINTF("invalid command state %02x (wc 6)\n", pfl->cmd);
             goto reset_flash;
         }
         break;
     case 7: /* Special value for CFI queries */
-        DPRINTF("%s: invalid write in CFI query mode\n", __func__);
+        DPRINTF("invalid write in CFI query mode\n");
         goto reset_flash;
     default:
         /* Should never happen */
-        DPRINTF("%s: invalid write state (wc %d)\n",  __func__, pfl->wcycle);
+        DPRINTF("invalid write state (wc %d)\n", pfl->wcycle);
         goto reset_flash;
     }
     pfl->wcycle++;
@@ -565,10 +550,10 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
     pfl->cmd = 0;
     return;
 
- //~ do_bypass:
-    //~ pfl->wcycle = 2;
-    //~ pfl->cmd = 0;
-    //~ return;
+ do_bypass:
+    pfl->wcycle = 2;
+    pfl->cmd = 0;
+    return;
 }
 
 
@@ -681,7 +666,8 @@ static void flash_save(QEMUFile *f, void* opaque)
 static void flash_reset(void *opaque)
 {
     pflash_t *pfl = opaque;
-    printf("%s: %s:%u\n", __func__, __FILE__, __LINE__);
+    DPRINTF("%s:%u\n", __FILE__, __LINE__);
+    pflash_rom_mode(pfl);
 }
 
 pflash_t *pflash_cfi01_register (target_ulong base, ram_addr_t off,
