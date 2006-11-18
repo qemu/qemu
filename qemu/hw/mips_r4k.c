@@ -143,7 +143,8 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
 
     env = cpu_init();
     env->bigendian = bigendian;
-    fprintf(stderr, "%s: setting endianness %d\n", __func__, bigendian);
+    fprintf(stderr, "%s: setting %s endian mode\n",
+            __func__, bigendian ? "big" : "little");
 
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
     qemu_register_reset(main_cpu_reset, env);
@@ -161,7 +162,7 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
         __func__, phys_ram_base, ram_size, bios_offset);
     ret = load_image(buf, phys_ram_base + bios_offset);
     if ((ret > 0) && (ret <= BIOS_SIZE)) {
-        fprintf(stderr, "%s: load BIOS '%s' size %d\n", __func__, buf, ret);
+        fprintf(stderr, "%s: load BIOS '%s', size %d\n", __func__, buf, ret);
         cpu_register_physical_memory((uint32_t)(0x1fc00000),
                                      ret, bios_offset | IO_MEM_ROM);
     } else {
@@ -316,7 +317,7 @@ static void mips_ar7_common_init (int ram_size,
     
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, "flashimage.bin");
     ret = load_image(buf, phys_ram_base + bios_offset);
-    fprintf(stderr, "%s: load BIOS '%s' size %d\n", __func__, buf, ret);
+    fprintf(stderr, "%s: load BIOS '%s', size %d\n", __func__, buf, ret);
     if (ret > 0) {
         const uint32_t address = 0x10000000;
         const unsigned blocksize = 0x10000;
@@ -355,7 +356,7 @@ static void mips_ar7_common_init (int ram_size,
         __func__, phys_ram_base, ram_size, bios_offset);
     ret = load_image(buf, phys_ram_base + bios_offset);
     if ((ret > 0) && (ret <= BIOS_SIZE)) {
-        fprintf(stderr, "%s: load BIOS '%s' size %d\n", __func__, buf, ret);
+        fprintf(stderr, "%s: load BIOS '%s', size %d\n", __func__, buf, ret);
     } else {
         /* Not fatal, write a jump to address 0xb0000000 into memory. */
         static const uint8_t jump[] = {
