@@ -90,6 +90,15 @@ PARTITIONS = {
 	'params' => { FILE => '0xb01f0000.bin', START => 0xb01f0000, SIZE => 0x10000, LABEL => 'params'}
 }
 
+# SX541
+#~ PARTITIONS = {
+	#~ 'boot' => { FILE => '0xb0000000.bin', START => 0xb0000000, SIZE => 0x20000, LABEL => 'boot'},
+	#~ 'configuration' => { FILE => '0xb0020000.bin', START => 0xb0020000, SIZE => 0x20000, LABEL => 'configuration'},
+	#~ 'web' => { FILE => '0xb0040000.bin', START => 0xb0040000, SIZE => 0x50000, LABEL => 'web'},
+	#~ 'code' => { FILE => '0xb0110000.bin', START => 0xb0090000, SIZE => 0x150000, LABEL => 'code'},
+	#~ 'params' => { FILE => '0xb01f0000.bin', START => 0xb01f0000, SIZE => 0x10000, LABEL => 'params'}
+#~ }
+
 # AVM Fritz!Box Fon WLAN
 #~ PARTITIONS = {
 	#~ 'code' 0x10000
@@ -231,7 +240,7 @@ def getblock(text, firmware, offset)
 	block_end = offset
 	block_start = offset - length
 	puts("offset:    #{'0x%08x' % block_start}")
-	puts("length:    #{length}")
+	puts("length:    #{'0x%08x' % length} = #{length}")
 	if magic == 0x12345678
 		puts("magic:     #{'0x%08x' % magic}, ok")
 	else
