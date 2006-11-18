@@ -64,14 +64,14 @@ struct IoState {
 /* Set flags to >0 to enable debug output. */
 #define CLOCK   1
 #define CPMAC   1
-#define EMIF    0
-#define GPIO    0
-#define INTC    0
-#define MDIO    0       /* polled, so very noisy */
+#define EMIF    1
+#define GPIO    1
+#define INTC    1
+#define MDIO    1       /* polled, so very noisy */
 #define RESET   1
 #define UART0   0
-#define UART1   0
-#define VLYNQ   0
+#define UART1   1
+#define VLYNQ   1
 #define WDOG    1
 #define OTHER   1
 
@@ -92,10 +92,7 @@ struct IoState {
 #define BITS(n, m) (((0xffffffffU << (31 - n)) >> (31 - n + m)) << m)
 
 #if 0
-#define AVALANCHE_ADSL_SUB_SYS_MEM_BASE       (KSEG1ADDR(0x01000000)) /* AVALANCHE ADSL Mem Base */
 #define BBIF_SPACE1                           (KSEG1ADDR(0x01800000))
-#define AVALANCHE_BROADBAND_INTERFACE__BASE   (KSEG1ADDR(0x02000000)) /* AVALANCHE BBIF */
-#define AVALANCHE_ATM_SAR_BASE                (KSEG1ADDR(0x03000000)) /* AVALANCHE ATM SAR */
 #define AVALANCHE_LOW_VLYNQ_MEM_MAP_BASE      (KSEG1ADDR(0x04000000)) /* AVALANCHE VLYNQ 0 Mem map */
 
 #define AVALANCHE_HIGH_VLYNQ_MEM_MAP_BASE     (KSEG1ADDR(0x0C000000)) /* AVALANCHE VLYNQ 1 Mem map */
@@ -127,6 +124,9 @@ Physical memory map
 0x1fc00fff      internal ROM end
 */
 
+#define AVALANCHE_ADSLSSYS_MEM_BASE     0x01000000 /* ADSL subsystem mem base */
+#define AVALANCHE_BBIF_BASE             0x02000000 /* broadband interface */
+#define AVALANCHE_ATM_SAR_BASE          0x03000000 /* ATM SAR */
 #define AVALANCHE_USB_MEM_BASE          0x03400000 /* USB slave mem map */
 #define AVALANCHE_VLYNQ0_MEM_MAP_BASE   0x04000000 /* VLYNQ 0 memory mapped */
 #define AVALANCHE_VLYNQ1_MEM_MAP_BASE   0x0c000000 /* VLYNQ 1 memory mapped */
@@ -222,6 +222,9 @@ typedef struct {
     NICState nic[2];
     uint32_t intmask[2];
 
+    uint32_t adsl[0x8000];              // 0x01000000
+    uint32_t bbif[1];                   // 0x02000000
+    uint32_t atmsar[0x2400];            // 0x03000000
     uint32_t usbslave[0x800];           // 0x03400000
     uint32_t vlynq0mem[0x10800];        // 0x04000000
 
@@ -297,12 +300,13 @@ static const char *dump(const uint8_t *buf, unsigned size)
     return buffer;
 }
 
+/* ar7_irq does not use the opaque parameter, so we set it to 0. */
+#define IRQ_OPAQUE 0
+
 static void ar7_irq(void *opaque, int irq_num, int level)
 {
     CPUState *cpu_env = first_cpu;
-    if (cpu_env != av.cpu_env) {
-        logout("(%p,%d,%d)\n", opaque, irq_num, level);
-    }
+    assert(cpu_env == av.cpu_env);
 
     switch (irq_num) {
         case 15:        /* serial0 */
@@ -1388,7 +1392,17 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
     uint32_t val = 0xffffffff;
     const char *name = 0;
     int logflag = OTHER;
-    if (INRANGE(AVALANCHE_USB_MEM_BASE, av.usbslave)) {
+
+    if (INRANGE(AVALANCHE_ADSLSSYS_MEM_BASE, av.adsl)) {
+        name = "adsl";
+        val = VALUE(AVALANCHE_ADSLSSYS_MEM_BASE, av.adsl);
+    } else if (INRANGE(AVALANCHE_BBIF_BASE, av.bbif)) {
+        name = "bbif";
+        val = VALUE(AVALANCHE_BBIF_BASE, av.bbif);
+    } else if (INRANGE(AVALANCHE_ATM_SAR_BASE, av.atmsar)) {
+        name = "atm sar";
+        val = VALUE(AVALANCHE_ATM_SAR_BASE, av.atmsar);
+    } else if (INRANGE(AVALANCHE_USB_MEM_BASE, av.usbslave)) {
         name = "usb memory";
         val = VALUE(AVALANCHE_USB_MEM_BASE, av.usbslave);
     } else if (INRANGE(AVALANCHE_VLYNQ0_MEM_MAP_BASE, av.vlynq0mem)) {
@@ -1396,7 +1410,7 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
         logflag = VLYNQ;
         val = VALUE(AVALANCHE_VLYNQ0_MEM_MAP_BASE, av.vlynq0mem);
         if (addr == 0x04041000) {
-          /* TNETW (ACX100) */
+          /* Write PCI device id for TI TNETW1130 (ACX111) */
           val = 0x9066104c;
         }
     } else if (INRANGE(AVALANCHE_CPMAC0_BASE, av.cpmac0)) {
@@ -1504,7 +1518,17 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
     unsigned index;
     const char *name = 0;
     int logflag = OTHER;
-    if (INRANGE(AVALANCHE_USB_MEM_BASE, av.usbslave)) {
+
+    if (INRANGE(AVALANCHE_ADSLSSYS_MEM_BASE, av.adsl)) {
+        name = "adsl";
+        VALUE(AVALANCHE_ADSLSSYS_MEM_BASE, av.adsl) = val;
+    } else if (INRANGE(AVALANCHE_BBIF_BASE, av.bbif)) {
+        name = "bbif";
+        VALUE(AVALANCHE_BBIF_BASE, av.bbif) = val;
+    } else if (INRANGE(AVALANCHE_ATM_SAR_BASE, av.atmsar)) {
+        name = "atm sar";
+        VALUE(AVALANCHE_ATM_SAR_BASE, av.atmsar) = val;
+    } else if (INRANGE(AVALANCHE_USB_MEM_BASE, av.usbslave)) {
         name = "usb memory";
         //~ VALUE(AVALANCHE_USB_MEM_BASE, av.usbslave) = val;
         VALUE(AVALANCHE_USB_MEM_BASE, av.usbslave) = 0xffffffff;
@@ -1666,9 +1690,8 @@ static void ar7_serial_init(CPUState *env)
    */
     av.cpu_env = env;
     if (serial_hds[1] == 0) {
-        serial_hds[1] = qemu_chr_open("null");
+        serial_hds[1] = qemu_chr_open("vc");
     }
-#define IRQ_OPAQUE 0
     serial_16450_init(ar7_irq, IRQ_OPAQUE,
       UART_MEM_TO_IO(AVALANCHE_UART0_BASE), 15, serial_hds[0]);
     serial_16450_init(ar7_irq, IRQ_OPAQUE,
