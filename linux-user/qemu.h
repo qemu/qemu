@@ -29,6 +29,7 @@ struct image_info {
 	unsigned long	entry;
         target_ulong    code_offset;
         target_ulong    data_offset;
+        char            **host_argv;
 	int		personality;
 };
 

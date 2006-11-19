@@ -1,3 +1,12 @@
+2006-11-19 22:51  pbrook
+
+	* linux-user/arm/syscall_nr.h: Add missing ARM syscall numbers.
+
+2006-11-19 21:29  pbrook
+
+	* linux-user/: arm-semi.c, linuxload.c, qemu.h: Arm semihosted
+	  commandline support (Wolfgang Schildbach).
+
 2006-11-19 16:26  pbrook
 
 	* linux-user/syscall.c: Remove do_socketcallwrapper.
