@@ -77,7 +77,8 @@ static inline uint32_t set_swi_errno(TaskState *ts, uint32_t code)
   return code;
 }
 
-#define ARG(n) tget32(args + n * 4)
+#define ARG(n) tget32(args + (n) * 4)
+#define SET_ARG(n, val) tput32(args + (n) * 4,val)
 uint32_t do_arm_semihosting(CPUState *env)
 {
     target_ulong args;
@@ -158,10 +159,41 @@ uint32_t do_arm_semihosting(CPUState *env)
     case SYS_ERRNO:
         return ts->swi_errno;
     case SYS_GET_CMDLINE:
-        /* XXX: Not implemented.  */
-        s = (char *)g2h(ARG(0));
-        *s = 0;
-        return -1;
+        /* Build a commandline from the original argv.  */
+        {
+            char **arg = ts->info->host_argv;
+            int len = ARG(1);
+            /* lock the buffer on the ARM side */
+            char *cmdline_buffer = (char*)lock_user(ARG(0), len, 0);
+
+            s = cmdline_buffer;
+            while (*arg && len > 2) {
+                int n = strlen(*arg);
+
+                if (s != cmdline_buffer) {
+                    *(s++) = ' ';
+                    len--;
+                }
+                if (n >= len)
+                    n = len - 1;
+                memcpy(s, *arg, n);
+                s += n;
+                len -= n;
+                arg++;
+            }
+            /* Null terminate the string.  */
+            *s = 0;
+            len = s - cmdline_buffer;
+
+            /* Unlock the buffer on the ARM side.  */
+            unlock_user(cmdline_buffer, ARG(0), len);
+
+            /* Adjust the commandline length argument.  */
+            SET_ARG(1, len);
+
+            /* Return success if commandline fit into buffer.  */
+            return *arg ? -1 : 0;
+        }
     case SYS_HEAPINFO:
         {
             uint32_t *ptr;
