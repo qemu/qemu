@@ -684,10 +684,10 @@ static void ar7_cpmac_write(uint8_t *cpmac, unsigned index, unsigned offset, uin
         uint8_t *phys = av.nic[index].phys;
         phys[5] = cpmac[CPMAC_MACADDRLO_0];
         phys[4] = cpmac[CPMAC_MACADDRMID];
-        phys[3] = cpmac[CPMAC_MACADDRHI];
-        phys[2] = cpmac[CPMAC_MACADDRHI + 1];
-        phys[1] = cpmac[CPMAC_MACADDRHI + 2];
-        phys[0] = cpmac[CPMAC_MACADDRHI + 3];
+        phys[3] = cpmac[CPMAC_MACADDRHI + 3];
+        phys[2] = cpmac[CPMAC_MACADDRHI + 2];
+        phys[1] = cpmac[CPMAC_MACADDRHI + 1];
+        phys[0] = cpmac[CPMAC_MACADDRHI + 0];
         TRACE(CPMAC, logout("setting MAC %02x:%02x:%02x:%02x:%02x:%02x\n",
                 phys[0], phys[1], phys[2], phys[3], phys[4], phys[5]));
     } else if (offset >= CPMAC_RXGOODFRAMES && offset < 0xa4 * 4) {
