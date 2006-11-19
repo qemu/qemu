@@ -1,3 +1,7 @@
+2006-11-19 16:26  pbrook
+
+	* linux-user/syscall.c: Remove do_socketcallwrapper.
+
 2006-11-14 22:13  pbrook
 
 	* hw/arm_timer.c: ARM timer counts down, not up.
