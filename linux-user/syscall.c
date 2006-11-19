@@ -837,6 +837,113 @@ static long do_sendrecvmsg(int fd, target_ulong target_msg,
     return ret;
 }
 
+static long do_accept(int fd, target_ulong target_addr,
+                      target_ulong target_addrlen)
+{
+    socklen_t addrlen = tget32(target_addrlen);
+    void *addr = alloca(target_addrlen);
+    long ret;
+
+    ret = get_errno(accept(fd, addr, &addrlen));
+    if (!is_error(ret)) {
+        host_to_target_sockaddr(target_addr, addr, addrlen);
+        tput32(target_addrlen, addrlen);
+    }
+    return ret;
+}
+
+static long do_getpeername(int fd, target_ulong target_addr,
+                           target_ulong target_addrlen)
+{
+    socklen_t addrlen = tget32(target_addrlen);
+    void *addr = alloca(target_addrlen);
+    long ret;
+
+    ret = get_errno(getpeername(fd, addr, &addrlen));
+    if (!is_error(ret)) {
+        host_to_target_sockaddr(target_addr, addr, addrlen);
+        tput32(target_addrlen, addrlen);
+    }
+    return ret;
+}
+
+static long do_getsockname(int fd, target_ulong target_addr,
+                           target_ulong target_addrlen)
+{
+    socklen_t addrlen = tget32(target_addrlen);
+    void *addr = alloca(target_addrlen);
+    long ret;
+
+    ret = get_errno(getsockname(fd, addr, &addrlen));
+    if (!is_error(ret)) {
+        host_to_target_sockaddr(target_addr, addr, addrlen);
+        tput32(target_addrlen, addrlen);
+    }
+    return ret;
+}
+
+static long do_socketpair(int domain, int type, int protocol,
+                          target_ulong target_tab)
+{
+    int tab[2];
+    long ret;
+
+    ret = get_errno(socketpair(domain, type, protocol, tab));
+    if (!is_error(ret)) {
+        tput32(target_tab, tab[0]);
+        tput32(target_tab + 4, tab[1]);
+    }
+    return ret;
+}
+
+static long do_sendto(int fd, target_ulong msg, size_t len, int flags,
+                      target_ulong target_addr, socklen_t addrlen)
+{
+    void *addr;
+    void *host_msg;
+    long ret;
+
+    host_msg = lock_user(msg, len, 1);
+    if (target_addr) {
+        addr = alloca(addrlen);
+        target_to_host_sockaddr(addr, target_addr, addrlen);
+        ret = get_errno(sendto(fd, host_msg, len, flags, addr, addrlen));
+    } else {
+        ret = get_errno(send(fd, host_msg, len, flags));
+    }
+    unlock_user(host_msg, msg, 0);
+    return ret;
+}
+
+static long do_recvfrom(int fd, target_ulong msg, size_t len, int flags,
+                        target_ulong target_addr, target_ulong target_addrlen)
+{
+    socklen_t addrlen;
+    void *addr;
+    void *host_msg;
+    long ret;
+
+    host_msg = lock_user(msg, len, 0);
+    if (target_addr) {
+        addrlen = tget32(target_addrlen);
+        addr = alloca(addrlen);
+        ret = get_errno(recvfrom(fd, host_msg, len, flags, addr, &addrlen));
+    } else {
+        addr = NULL; /* To keep compiler quiet.  */
+        ret = get_errno(recv(fd, host_msg, len, flags));
+    }
+    if (!is_error(ret)) {
+        if (target_addr) {
+            host_to_target_sockaddr(target_addr, addr, addrlen);
+            tput32(target_addrlen, addrlen);
+        }
+        unlock_user(host_msg, msg, len);
+    } else {
+        unlock_user(host_msg, msg, 0);
+    }
+    return ret;
+}
+
 static long do_socketcall(int num, target_ulong vptr)
 {
     long ret;
@@ -879,14 +986,7 @@ static long do_socketcall(int num, target_ulong vptr)
             int sockfd = tgetl(vptr);
             target_ulong target_addr = tgetl(vptr + n);
             target_ulong target_addrlen = tgetl(vptr + 2 * n);
-            socklen_t addrlen = tget32(target_addrlen);
-            void *addr = alloca(addrlen);
-
-            ret = get_errno(accept(sockfd, addr, &addrlen));
-            if (!is_error(ret)) {
-                host_to_target_sockaddr(target_addr, addr, addrlen);
-                tput32(target_addrlen, addrlen);
-            }
+            ret = do_accept(sockfd, target_addr, target_addrlen);
         }
         break;
     case SOCKOP_getsockname:
@@ -894,14 +994,7 @@ static long do_socketcall(int num, target_ulong vptr)
             int sockfd = tgetl(vptr);
             target_ulong target_addr = tgetl(vptr + n);
             target_ulong target_addrlen = tgetl(vptr + 2 * n);
-            socklen_t addrlen = tget32(target_addrlen);
-            void *addr = alloca(addrlen);
-
-            ret = get_errno(getsockname(sockfd, addr, &addrlen));
-            if (!is_error(ret)) {
-                host_to_target_sockaddr(target_addr, addr, addrlen);
-                tput32(target_addrlen, addrlen);
-            }
+            ret = do_getsockname(sockfd, target_addr, target_addrlen);
         }
         break;
     case SOCKOP_getpeername:
@@ -909,14 +1002,7 @@ static long do_socketcall(int num, target_ulong vptr)
             int sockfd = tgetl(vptr);
             target_ulong target_addr = tgetl(vptr + n);
             target_ulong target_addrlen = tgetl(vptr + 2 * n);
-            socklen_t addrlen = tget32(target_addrlen);
-            void *addr = alloca(addrlen);
-
-            ret = get_errno(getpeername(sockfd, addr, &addrlen));
-            if (!is_error(ret)) {
-                host_to_target_sockaddr(target_addr, addr, addrlen);
-                tput32(target_addrlen, addrlen);
-            }
+            ret = do_getpeername(sockfd, target_addr, target_addrlen);
         }
         break;
     case SOCKOP_socketpair:
@@ -924,14 +1010,8 @@ static long do_socketcall(int num, target_ulong vptr)
             int domain = tgetl(vptr);
             int type = tgetl(vptr + n);
             int protocol = tgetl(vptr + 2 * n);
-            target_ulong target_tab = tgetl(vptr + 3 * n);
-            int tab[2];
-
-            ret = get_errno(socketpair(domain, type, protocol, tab));
-            if (!is_error(ret)) {
-                tput32(target_tab, tab[0]);
-                tput32(target_tab + 4, tab[1]);
-            }
+            target_ulong tab = tgetl(vptr + 3 * n);
+            ret = do_socketpair(domain, type, protocol, tab);
         }
         break;
     case SOCKOP_send:
@@ -940,11 +1020,7 @@ static long do_socketcall(int num, target_ulong vptr)
             target_ulong msg = tgetl(vptr + n);
             size_t len = tgetl(vptr + 2 * n);
             int flags = tgetl(vptr + 3 * n);
-            void *host_msg;
-
-            host_msg = lock_user(msg, len, 1);
-            ret = get_errno(send(sockfd, host_msg, len, flags));
-            unlock_user(host_msg, msg, 0);
+            ret = do_sendto(sockfd, msg, len, flags, 0, 0);
         }
         break;
     case SOCKOP_recv:
@@ -953,11 +1029,7 @@ static long do_socketcall(int num, target_ulong vptr)
             target_ulong msg = tgetl(vptr + n);
             size_t len = tgetl(vptr + 2 * n);
             int flags = tgetl(vptr + 3 * n);
-            void *host_msg;
-
-            host_msg = lock_user(msg, len, 0);
-            ret = get_errno(recv(sockfd, host_msg, len, flags));
-            unlock_user(host_msg, msg, ret);
+            ret = do_recvfrom(sockfd, msg, len, flags, 0, 0);
         }
         break;
     case SOCKOP_sendto:
@@ -966,15 +1038,9 @@ static long do_socketcall(int num, target_ulong vptr)
             target_ulong msg = tgetl(vptr + n);
             size_t len = tgetl(vptr + 2 * n);
             int flags = tgetl(vptr + 3 * n);
-            target_ulong target_addr = tgetl(vptr + 4 * n);
+            target_ulong addr = tgetl(vptr + 4 * n);
             socklen_t addrlen = tgetl(vptr + 5 * n);
-            void *addr = alloca(addrlen);
-            void *host_msg;
-
-            host_msg = lock_user(msg, len, 1);
-            target_to_host_sockaddr(addr, target_addr, addrlen);
-            ret = get_errno(sendto(sockfd, host_msg, len, flags, addr, addrlen));
-            unlock_user(host_msg, msg, 0);
+            ret = do_sendto(sockfd, msg, len, flags, addr, addrlen);
         }
         break;
     case SOCKOP_recvfrom:
@@ -983,21 +1049,9 @@ static long do_socketcall(int num, target_ulong vptr)
             target_ulong msg = tgetl(vptr + n);
             size_t len = tgetl(vptr + 2 * n);
             int flags = tgetl(vptr + 3 * n);
-            target_ulong target_addr = tgetl(vptr + 4 * n);
-            target_ulong target_addrlen = tgetl(vptr + 5 * n);
-            socklen_t addrlen = tget32(target_addrlen);
-            void *addr = alloca(addrlen);
-            void *host_msg;
-
-            host_msg = lock_user(msg, len, 0);
-            ret = get_errno(recvfrom(sockfd, host_msg, len, flags, addr, &addrlen));
-            if (!is_error(ret)) {
-                host_to_target_sockaddr(target_addr, addr, addrlen);
-                tput32(target_addrlen, addrlen);
-                unlock_user(host_msg, msg, len);
-            } else {
-                unlock_user(host_msg, msg, 0);
-            }
+            target_ulong addr = tgetl(vptr + 4 * n);
+            target_ulong addrlen = tgetl(vptr + 5 * n);
+            ret = do_recvfrom(sockfd, msg, len, flags, addr, addrlen);
         }
         break;
     case SOCKOP_shutdown:
@@ -1051,23 +1105,6 @@ static long do_socketcall(int num, target_ulong vptr)
         break;
     }
     return ret;
-}
-
-/* XXX: suppress this function and call directly the related socket
-   functions */
-static long do_socketcallwrapper(int num, long arg1, long arg2, long arg3,
-				 long arg4, long arg5, long arg6)
-{
-    target_long args[6];
-
-    tputl(args, arg1);
-    tputl(args+1, arg2);
-    tputl(args+2, arg3);
-    tputl(args+3, arg4);
-    tputl(args+4, arg5);
-    tputl(args+5, arg6);
-
-    return do_socketcall(num, (target_ulong) args);
 }
 
 #define N_SHM_REGIONS	32
@@ -2755,7 +2792,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 
 #ifdef TARGET_NR_accept
     case TARGET_NR_accept:
-        ret = do_socketcallwrapper(SOCKOP_accept, arg1, arg2, arg3, arg4, arg5, arg6);
+        ret = do_accept(arg1, arg2, arg3);
         break;
 #endif
 #ifdef TARGET_NR_bind
@@ -2770,12 +2807,12 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #endif
 #ifdef TARGET_NR_getpeername
     case TARGET_NR_getpeername:
-        ret = do_socketcallwrapper(SOCKOP_getpeername, arg1, arg2, arg3, arg4, arg5, arg6);
+        ret = do_getpeername(arg1, arg2, arg3);
         break;
 #endif
 #ifdef TARGET_NR_getsockname
     case TARGET_NR_getsockname:
-        ret = do_socketcallwrapper(SOCKOP_getsockname, arg1, arg2, arg3, arg4, arg5, arg6);
+        ret = do_getsockname(arg1, arg2, arg3);
         break;
 #endif
 #ifdef TARGET_NR_getsockopt
@@ -2785,17 +2822,17 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #endif
 #ifdef TARGET_NR_listen
     case TARGET_NR_listen:
-        ret = do_socketcallwrapper(SOCKOP_listen, arg1, arg2, arg3, arg4, arg5, arg6);
+        ret = get_errno(listen(arg1, arg2));
         break;
 #endif
 #ifdef TARGET_NR_recv
     case TARGET_NR_recv:
-        ret = do_socketcallwrapper(SOCKOP_recv, arg1, arg2, arg3, arg4, arg5, arg6);
+        ret = do_recvfrom(arg1, arg1, arg3, arg4, 0, 0);
         break;
 #endif
 #ifdef TARGET_NR_recvfrom
     case TARGET_NR_recvfrom:
-        ret = do_socketcallwrapper(SOCKOP_recvfrom, arg1, arg2, arg3, arg4, arg5, arg6);
+        ret = do_recvfrom(arg1, arg1, arg3, arg4, arg5, arg6);
         break;
 #endif
 #ifdef TARGET_NR_recvmsg
@@ -2805,7 +2842,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #endif
 #ifdef TARGET_NR_send
     case TARGET_NR_send:
-        ret = do_socketcallwrapper(SOCKOP_send, arg1, arg2, arg3, arg4, arg5, arg6);
+        ret = do_sendto(arg1, arg2, arg3, arg4, 0, 0);
         break;
 #endif
 #ifdef TARGET_NR_sendmsg
@@ -2815,12 +2852,12 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #endif
 #ifdef TARGET_NR_sendto
     case TARGET_NR_sendto:
-        ret = do_socketcallwrapper(SOCKOP_sendto, arg1, arg2, arg3, arg4, arg5, arg6);
+        ret = do_sendto(arg1, arg2, arg3, arg4, arg5, arg6);
         break;
 #endif
 #ifdef TARGET_NR_shutdown
     case TARGET_NR_shutdown:
-        ret = do_socketcallwrapper(SOCKOP_shutdown, arg1, arg2, arg3, arg4, arg5, arg6);
+        ret = get_errno(shutdown(arg1, arg2));
         break;
 #endif
 #ifdef TARGET_NR_socket
@@ -2830,7 +2867,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
 #endif
 #ifdef TARGET_NR_socketpair
     case TARGET_NR_socketpair:
-        ret = do_socketcallwrapper(SOCKOP_socketpair, arg1, arg2, arg3, arg4, arg5, arg6);
+        ret = do_socketpair(arg1, arg2, arg3, arg4);
         break;
 #endif
 #ifdef TARGET_NR_setsockopt
