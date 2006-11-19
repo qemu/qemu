@@ -62,18 +62,19 @@ struct IoState {
 #endif
 
 /* Set flags to >0 to enable debug output. */
-#define CLOCK   1
-#define CPMAC   1
-#define EMIF    1
-#define GPIO    1
-#define INTC    1
-#define MDIO    1               /* polled, so very noisy */
-#define RESET   1
+#define CLOCK   0
+#define CPMAC   0
+#define EMIF    0
+#define GPIO    0
+#define INTC    0
+#define MDIO    0               /* polled, so very noisy */
+#define RESET   0
 #define UART0   0
-#define UART1   1
-#define VLYNQ   1
-#define WDOG    1
-#define OTHER   1
+#define UART1   0
+#define VLYNQ   0
+#define WDOG    0
+#define OTHER   0
+#define RXTX    1
 
 #define DEBUG_AR7
 
@@ -319,6 +320,12 @@ static void reg_write(uint8_t * reg, uint32_t addr, uint32_t value)
     *(uint32_t *) (&reg[addr]) = cpu_to_le32(value);
 }
 
+static void reg_inc(uint8_t * reg, uint32_t addr)
+{
+    assert(!(addr & 3));
+    reg_write(reg, addr, reg_read(reg, addr) + 1);
+}
+
 static void reg_clear(uint8_t * reg, uint32_t addr, uint32_t value)
 {
     assert(!(addr & 3));
@@ -425,7 +432,8 @@ cpmac_reg.h:
 #define MAC_IN_VECTOR_TX_INT_OR    BIT(16)
 #define MAC_IN_VECTOR_RX_INT_VEC   (7 << 8)
 #define MAC_IN_VECTOR_TX_INT_VEC   (7)
-    typedef enum {
+
+typedef enum {
     CPMAC_TX_IDVER = 0x0000,
     CPMAC_TX_CONTROL = 0x0004,
     CPMAC_TX_TEARDOWN = 0x0008,
@@ -439,6 +447,7 @@ cpmac_reg.h:
     CPMAC_RX_BUFFER_OFFSET = 0x0110,
     CPMAC_RX_FILTERLOWTHRESH = 0x0114,
     CPMAC_MACCONTROL = 0x0160,
+    CPMAC_TX_INTSTAT_MASKED = 0x0174,
     CPMAC_TX_INTMASK_SET = 0x0178,
     CPMAC_TX_INTMASK_CLEAR = 0x017c,
     CPMAC_MAC_IN_VECTOR = 0x0180,
@@ -459,6 +468,15 @@ cpmac_reg.h:
     CPMAC_MACHASH1 = 0x01d8,
     CPMAC_MACHASH2 = 0x01dc,
     CPMAC_RXGOODFRAMES = 0x0200,
+    CPMAC_RXBROADCASTFRAMES = 0x0204,
+    CPMAC_RXMULTICASTFRAMES = 0x0208,
+    CPMAC_RXDMAOVERRUNS = 0x028c,
+    CPMAC_RXOVERSIZEDFRAMES = 0x0218,
+    CPMAC_RXJABBERFRAMES = 0x021c,
+    CPMAC_RXUNDERSIZEDFRAMES = 0x0220,
+    CPMAC_TXGOODFRAMES = 0x234,
+    CPMAC_TXBROADCASTFRAMES = 0x238,
+    CPMAC_TXMULTICASTFRAMES = 0x23c,
     CPMAC_TX0_HDP = 0x0600,
     CPMAC_TX1_HDP = 0x0604,
     CPMAC_TX2_HDP = 0x0608,
@@ -576,6 +594,12 @@ static const char *i2cpmac(unsigned index)
         break;
     case 0x58:
         text = "MACCONTROL";
+        break;
+    case 0x5c:
+        text = "TX_INTSTAT_RAW";
+        break;
+    case 0x5d:
+        text = "TX_INTSTAT_MASKED";
         break;
     case 0x5e:
         text = "TX_INTMASK_SET";
@@ -740,8 +764,8 @@ static void ar7_cpmac_write(uint8_t * cpmac, unsigned index, unsigned offset,
         TRACE(CPMAC, logout("setting MAC %02x:%02x:%02x:%02x:%02x:%02x\n",
                             phys[0], phys[1], phys[2], phys[3], phys[4],
                             phys[5]));
-    } else if (offset >= CPMAC_RXGOODFRAMES && offset < 0xa4 * 4) {
-        /* Write access to readonly register. */
+    } else if (offset >= CPMAC_RXGOODFRAMES && offset <= CPMAC_RXDMAOVERRUNS) {
+        /* Write access to readonly statistics register. */
         //~ UNEXPECTED();
     } else if (offset >= CPMAC_TX0_HDP && offset <= CPMAC_TX7_HDP) {
         /* Transmit buffer. !!! */
@@ -755,7 +779,7 @@ static void ar7_cpmac_write(uint8_t * cpmac, unsigned index, unsigned offset,
                 uint32_t addr = le32_to_cpu(tcb.buff);
                 uint32_t curlen = le32_to_cpu(tcb.length);
                 uint32_t mode = le32_to_cpu(tcb.mode);
-                TRACE(1,
+                TRACE(RXTX,
                       logout
                       ("buffer 0x%08x, next 0x%08x, buff 0x%08x, params 0x%08x, len 0x%08x, total 0x%08x\n",
                        val, (unsigned)tcb.next, addr, mode, curlen, length));
@@ -775,7 +799,6 @@ static void ar7_cpmac_write(uint8_t * cpmac, unsigned index, unsigned offset,
             }
             if (av.nic[index].vc != 0) {
 #if 0
-                TRACE(CPMAC, logout("sent %s\n", dump(buffer, length)));
                 uint32_t crc = fcs(buffer, length);
                 TRACE(CPMAC,
                       logout("FCS 0x%04x 0x%04x\n",
@@ -784,7 +807,14 @@ static void ar7_cpmac_write(uint8_t * cpmac, unsigned index, unsigned offset,
                 memcpy(&buffer[length], &crc, 4);
                 length += 4;
 #endif
+                TRACE(RXTX,
+                      logout("CPMAC %u sent %u byte: %s\n", index, length,
+                             dump(buffer, length)));
                 qemu_send_packet(av.nic[index].vc, buffer, length);
+                reg_inc(cpmac, CPMAC_TXGOODFRAMES);
+                //~ break;
+                //~ reg_inc(cpmac, CPMAC_TXBROADCASTFRAMES);
+                //~ reg_inc(cpmac, CPMAC_TXMULTICASTFRAMES);
             }
             val = le32_to_cpu(tcb.next);
         }
@@ -2006,7 +2036,7 @@ static void ar7_nic_receive(void *opaque, const uint8_t * buf, int size)
         cpmac = av.cpmac1;
     }
 
-    TRACE(CPMAC,
+    TRACE(RXTX,
           logout("CPMAC %u received %u byte: %s\n", index, size,
                  dump(buf, size)));
 
@@ -2016,17 +2046,28 @@ static void ar7_nic_receive(void *opaque, const uint8_t * buf, int size)
 
     if (!memcmp(buf, broadcast_macaddr, 6)) {
         TRACE(CPMAC, logout("broadcast\n"));
+        reg_inc(cpmac, CPMAC_RXBROADCASTFRAMES);
     } else if (buf[0] & 0x01) {
         TRACE(CPMAC, logout("multicast\n"));
+        reg_inc(cpmac, CPMAC_RXMULTICASTFRAMES);
     } else if (!memcmp(buf, av.nic[index].phys, 6)) {
         TRACE(CPMAC, logout("my address\n"));
     } else {
         TRACE(CPMAC, logout("unknown address\n"));
     }
 
+    /* !!! check handling of short and long frames */
+    if (size < 64) {
+        reg_inc(cpmac, CPMAC_RXUNDERSIZEDFRAMES);
+    } else if (size > MAX_ETH_FRAME_SIZE) {
+        reg_inc(cpmac, CPMAC_RXOVERSIZEDFRAMES);
+    }
+
+    reg_inc(cpmac, CPMAC_RXGOODFRAMES);
+
     uint32_t val = reg_read(cpmac, CPMAC_RX0_HDP);
     if (val == 0) {
-        logout("no buffer available, frame ignored\n");
+        TRACE(RXTX, logout("no buffer available, frame ignored\n"));
     } else {
         cpphy_rcb_t rcb;
         cpu_physical_memory_read(val, (uint8_t *) & rcb, sizeof(rcb));
