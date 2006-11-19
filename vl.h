@@ -927,9 +927,10 @@ fdctrl_t *fdctrl_init (int irq_lvl, int dma_chann, int mem_mapped,
                        BlockDriverState **fds);
 int fdctrl_get_drive_type(fdctrl_t *fdctrl, int drive_num);
 
-/* dp83815.c */
+/* dp8381x.c */
 
 void pci_dp83815_init(PCIBus *bus, NICInfo *nd);
+void pci_dp83816_init(PCIBus *bus, NICInfo *nd);
 
 /* eepro100.c */
 
