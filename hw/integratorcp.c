@@ -325,7 +325,7 @@ static uint32_t icp_pic_read(void *opaque, target_phys_addr_t offset)
     case 5: /* INT_SOFTCLR */
     case 11: /* FRQ_ENABLECLR */
     default:
-        printf ("icp_pic_read: Bad register offset 0x%x\n", offset);
+        printf ("icp_pic_read: Bad register offset 0x%x\n", (int)offset);
         return 0;
     }
 }
@@ -362,7 +362,7 @@ static void icp_pic_write(void *opaque, target_phys_addr_t offset,
     case 8: /* FRQ_STATUS */
     case 9: /* FRQ_RAWSTAT */
     default:
-        printf ("icp_pic_write: Bad register offset 0x%x\n", offset);
+        printf ("icp_pic_write: Bad register offset 0x%x\n", (int)offset);
         return;
     }
     icp_pic_update(s);
