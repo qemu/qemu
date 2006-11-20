@@ -34,6 +34,7 @@
  *       15:         64             AR7  serial
  *       16:          0             AR7  serial
  *       27:          0             AR7  Cpmac Driver
+ *       41:          0             AR7  Cpmac Driver
  *
  *      ERR:          0
  * 
@@ -63,7 +64,7 @@ struct IoState {
 
 /* Set flags to >0 to enable debug output. */
 #define CLOCK   0
-#define CPMAC   0
+#define CPMAC   1
 #define EMIF    0
 #define GPIO    0
 #define INTC    0
@@ -426,12 +427,6 @@ cpmac_reg.h:
 ...
 #define pCPMAC_RX7_INT_ACK(base)              ((MEM_PTR)(base+0x67C))
 #endif
-#define MAC_IN_VECTOR_STATUS_INT   BIT(19)
-#define MAC_IN_VECTOR_HOST_INT     BIT(18)
-#define MAC_IN_VECTOR_RX_INT_OR    BIT(17)
-#define MAC_IN_VECTOR_TX_INT_OR    BIT(16)
-#define MAC_IN_VECTOR_RX_INT_VEC   (7 << 8)
-#define MAC_IN_VECTOR_TX_INT_VEC   (7)
 
 typedef enum {
     CPMAC_TX_IDVER = 0x0000,
@@ -510,6 +505,15 @@ typedef enum {
     CPMAC_RX6_INT_ACK = 0x0678,
     CPMAC_RX7_INT_ACK = 0x067c,
 } cpmac_register_t;
+
+typedef enum {
+    MAC_IN_VECTOR_STATUS_INT = BIT(19),
+    MAC_IN_VECTOR_HOST_INT = BIT(18),
+    MAC_IN_VECTOR_RX_INT_OR = BIT(17),
+    MAC_IN_VECTOR_TX_INT_OR = BIT(16),
+    MAC_IN_VECTOR_RX_INT_VEC = BITS(10, 8),
+    MAC_IN_VECTOR_TX_INT_VEC = BITS(2, 0),
+} mac_in_vec_bit_t;
 
 /* STATISTICS */
 static const char *const cpmac_statistics[] = {
@@ -683,6 +687,10 @@ static uint32_t ar7_cpmac_read(uint8_t * cpmac, uint32_t offset)
                         cpmac == av.cpmac1, text,
                         (unsigned long)(AVALANCHE_CPMAC0_BASE + offset),
                         (unsigned long)val));
+    if (0) {
+    } else if (offset == CPMAC_MAC_IN_VECTOR) {
+        reg_write(cpmac, CPMAC_MAC_IN_VECTOR, 0);
+    }
     return val;
 }
 
@@ -750,8 +758,16 @@ static void ar7_cpmac_write(uint8_t * cpmac, unsigned index, unsigned offset,
     } else if (offset == 0x10c) {
         TRACE(CPMAC, logout("setting max packet length %u\n", (unsigned)val));
     } else if (offset == CPMAC_TX_INTMASK_SET) {
-        reg_set(cpmac, CPMAC_MAC_IN_VECTOR, MAC_IN_VECTOR_TX_INT_OR);
-        ar7_irq(0, cpmac_interrupt[index], 1);
+        /* val 2^i should set tx_int i !!! */
+        if (val != 0) {
+            unsigned channel = 0;
+            while (val != 1) {
+                channel++;
+                val /= 2;
+            }
+            reg_set(cpmac, CPMAC_MAC_IN_VECTOR, MAC_IN_VECTOR_TX_INT_OR + channel);
+            ar7_irq(0, cpmac_interrupt[index], 1);
+        }
     } else if (offset == CPMAC_MACADDRHI) {
         /* set MAC address (4 high bytes) */
         uint8_t *phys = av.nic[index].phys;
@@ -766,9 +782,15 @@ static void ar7_cpmac_write(uint8_t * cpmac, unsigned index, unsigned offset,
                             phys[5]));
     } else if (offset >= CPMAC_RXGOODFRAMES && offset <= CPMAC_RXDMAOVERRUNS) {
         /* Write access to readonly statistics register. */
-        //~ UNEXPECTED();
+        if (val == 0xffffffff) {
+            /* Clear register. */
+            reg_write(cpmac, offset, 0);
+        } else {
+            UNEXPECTED();
+        }
     } else if (offset >= CPMAC_TX0_HDP && offset <= CPMAC_TX7_HDP) {
         /* Transmit buffer. !!! */
+        uint8_t channel = (offset - CPMAC_TX0_HDP) / 4;
         while (val != 0) {
             uint32_t length = 0;
             uint8_t buffer[MAX_ETH_FRAME_SIZE + 4];
@@ -812,6 +834,8 @@ static void ar7_cpmac_write(uint8_t * cpmac, unsigned index, unsigned offset,
                              dump(buffer, length)));
                 qemu_send_packet(av.nic[index].vc, buffer, length);
                 reg_inc(cpmac, CPMAC_TXGOODFRAMES);
+                reg_set(cpmac, CPMAC_MAC_IN_VECTOR, MAC_IN_VECTOR_TX_INT_OR + channel);
+                ar7_irq(0, cpmac_interrupt[index], 1);
                 //~ break;
                 //~ reg_inc(cpmac, CPMAC_TXBROADCASTFRAMES);
                 //~ reg_inc(cpmac, CPMAC_TXMULTICASTFRAMES);
@@ -2093,7 +2117,7 @@ static void ar7_nic_receive(void *opaque, const uint8_t * buf, int size)
             cpu_physical_memory_write(val, (uint8_t *) & rcb, sizeof(rcb));
             reg_write(cpmac, CPMAC_RX0_HDP, rcb.next);
 
-            reg_set(cpmac, CPMAC_MAC_IN_VECTOR, MAC_IN_VECTOR_RX_INT_OR);
+            reg_set(cpmac, CPMAC_MAC_IN_VECTOR, MAC_IN_VECTOR_RX_INT_OR + 0);
             ar7_irq(0, cpmac_interrupt[index], 1);      // !!! fix
         } else {
             logout("buffer not free, frame ignored\n");
