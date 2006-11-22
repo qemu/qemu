@@ -101,9 +101,6 @@ struct IoState {
 #define OHIO_ADSLSS_BASE0       KERNEL_ADDR(0x01000000)
 #define OHIO_ADSLSS_BASE1       KERNEL_ADDR(0x01800000)
 #define OHIO_ADSLSS_BASE2       KERNEL_ADDR(0x01C00000)
-#define OHIO_ATMSAR_BASE        KERNEL_ADDR(0x03000000)
-#define OHIO_USB_BASE           KERNEL_ADDR(0x03400000)
-#define OHIO_VLYNQ0_BASE        KERNEL_ADDR(0x04000000)
 
 /*
 Physical memory map
@@ -182,7 +179,8 @@ typedef struct {
 #define CB_SOF_AND_EOF_BIT (CB_SOF_BIT|CB_EOF_BIT)
 #define CB_OWNERSHIP_BIT   BIT(29)
 #define CB_EOQ_BIT         BIT(28)
-#define CB_SIZE_MASK       0x0000ffff
+#define CB_PASSCRC         BIT(26)
+#define CB_SIZE_MASK       BITS(15, 0)
 #define RCB_ERRORS_MASK    0x03fe0000
 
 typedef struct {
@@ -220,12 +218,15 @@ typedef struct {
     CPUState *cpu_env;
     NICState nic[2];
     uint32_t intmask[2];
+    uint8_t *cpmac[2];
+    uint8_t *vlynq[2];
 
     uint32_t adsl[0x8000];      // 0x01000000
     uint32_t bbif[1];           // 0x02000000
     uint32_t atmsar[0x2400];    // 0x03000000
     uint32_t usbslave[0x800];   // 0x03400000
     uint32_t vlynq0mem[0x10800];        // 0x04000000
+    uint32_t vlynq1mem[0x10800];        // 0x0c000000
 
     uint8_t cpmac0[0x800];      // 0x08610000
     uint32_t emif[0x40];        // 0x08610800
@@ -248,7 +249,7 @@ typedef struct {
     // + 0xe0 interrupt enable bits
     uint32_t device_config_latch[5];    // 0x08611a00
     uint8_t vlynq1[0x100];      // 0x08611c00
-    uint32_t mdio[0x22];        // 0x08611e00
+    uint8_t mdio[0x90];         // 0x08611e00
     uint32_t wdt[8];            // 0x08611f00
     uint32_t intc[0xc0];        // 0x08612400
     //~ uint32_t exception_control[7];  //   +0x80
@@ -261,6 +262,8 @@ typedef struct {
 #define UART_MEM_TO_IO(addr)    (((addr) - AVALANCHE_UART0_BASE) / 4)
 
 static avalanche_t av = {
+  cpmac:{av.cpmac0, av.cpmac1},
+  vlynq:{av.vlynq0, av.vlynq1},
   cpmac0:{0},
   emif:{0},
   gpio:{0x800, 0, 0, 0},
@@ -272,7 +275,7 @@ static avalanche_t av = {
     //~ device_config_latch: 0x025d4297
     // 21-20 phy clk source
   device_config_latch:{0x025d4291},
-  mdio:{0x00070101, 0, 0xffffffff}
+  mdio:{0x00, 0x07, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff}
 };
 
 /* Global variable avalanche can be used in debugger. */
@@ -321,11 +324,13 @@ static void reg_write(uint8_t * reg, uint32_t addr, uint32_t value)
     *(uint32_t *) (&reg[addr]) = cpu_to_le32(value);
 }
 
+#if 0
 static void reg_inc(uint8_t * reg, uint32_t addr)
 {
     assert(!(addr & 3));
     reg_write(reg, addr, reg_read(reg, addr) + 1);
 }
+#endif
 
 static void reg_clear(uint8_t * reg, uint32_t addr, uint32_t value)
 {
@@ -389,7 +394,7 @@ static void ar7_irq(void *opaque, int irq_num, int level)
 
 /*****************************************************************************
  *
- * CPMAC emulation.
+ * Ethernet Media Access Controller (EMAC, CPMAC) emulation.
  *
  ****************************************************************************/
 
@@ -404,52 +409,43 @@ static void ar7_irq(void *opaque, int irq_num, int level)
 */
 
 cpmac_reg.h:
-#define MACSTATUS(base)                ((MEM_PTR)(base+0x164))
-#define EMCONTROL(base)                ((MEM_PTR)(base+0x168))
-#define TX_INTSTAT_RAW(base)           ((MEM_PTR)(base+0x170))
-#define TX_INTSTAT_MASKED(base)        ((MEM_PTR)(base+0x174))
-
-#define RX_INTSTAT_RAW(base)           ((MEM_PTR)(base+0x190))
-#define RX_INTSTAT_MASKED(base)        ((MEM_PTR)(base+0x194))
-
-#define MAC_INTSTAT_RAW(base)          ((MEM_PTR)(base+0x1A0))
-#define MAC_INTSTAT_MASKED(base)       ((MEM_PTR)(base+0x1A4))
-
-#define MAC_INTMASK_CLEAR(base)        ((MEM_PTR)(base+0x1AC))
-
 #define BOFFTEST(base)                 ((MEM_PTR)(base+0x1E0))
 #define PACTEST(base)                  ((MEM_PTR)(base+0x1E4))
 #define RXPAUSE(base)                  ((MEM_PTR)(base+0x1E8))
 #define TXPAUSE(base)                  ((MEM_PTR)(base+0x1EC))
 
-#define CPMAC_RX_INT_ACK(base,ch)             (*(MEM_PTR)(base+0x660+(4*ch)))
-#define pCPMAC_RX0_INT_ACK(base)              ((MEM_PTR)(base+0x660))
-...
-#define pCPMAC_RX7_INT_ACK(base)              ((MEM_PTR)(base+0x67C))
 #endif
 
 typedef enum {
     CPMAC_TX_IDVER = 0x0000,
-    CPMAC_TX_CONTROL = 0x0004,
+    CPMAC_TXCONTROL = 0x0004,
     CPMAC_TX_TEARDOWN = 0x0008,
     CPMAC_RX_IDVER = 0x0010,
-    CPMAC_RX_CONTROL = 0x0014,
+    CPMAC_RXCONTROL = 0x0014,
     CPMAC_RX_TEARDOWN = 0x0018,
-    CPMAC_RX_MBP_ENABLE = 0x0100,
-    CPMAC_RX_UNICAST_SET = 0x0104,
-    CPMAC_RX_UNICAST_CLEAR = 0x0108,
-    CPMAC_RX_MAXLEN = 0x010c,
-    CPMAC_RX_BUFFER_OFFSET = 0x0110,
+    CPMAC_RXMBPENABLE = 0x0100,
+    CPMAC_RXUNICASTSET = 0x0104,
+    CPMAC_RXUNICASTCLEAR = 0x0108,
+    CPMAC_RXMAXLEN = 0x010c,
+    CPMAC_RXBUFFEROFFSET = 0x0110,
     CPMAC_RX_FILTERLOWTHRESH = 0x0114,
     CPMAC_MACCONTROL = 0x0160,
-    CPMAC_TX_INTSTAT_MASKED = 0x0174,
-    CPMAC_TX_INTMASK_SET = 0x0178,
-    CPMAC_TX_INTMASK_CLEAR = 0x017c,
-    CPMAC_MAC_IN_VECTOR = 0x0180,
+    CPMAC_MACSTATUS = 0x0164,
+    CPMAC_EMCONTROL = 0x0168,
+    CPMAC_TXINTSTATRAW = 0x0170,
+    CPMAC_TXINTSTATMASKED = 0x0174,
+    CPMAC_TXINTMASKSET = 0x0178,
+    CPMAC_TXINTMASKCLEAR = 0x017c,
+    CPMAC_MACINVECTOR = 0x0180,
     CPMAC_MAC_EOI_VECTOR = 0x0184,
-    CPMAC_RX_INTMASK_SET = 0x0198,
-    CPMAC_RX_INTMASK_CLEAR = 0x019c,
-    CPMAC_MAC_INTMASK_SET = 0x01a8,
+    CPMAC_RXINTSTATRAW = 0x0190,
+    CPMAC_RXINTSTATMASKED = 0x0194,
+    CPMAC_RXINTMASKSET = 0x0198,
+    CPMAC_RXINTMASKCLEAR = 0x019c,
+    CPMAC_MACINTSTATRAW = 0x01a0,
+    CPMAC_MACINTSTATMASKED = 0x01a4,
+    CPMAC_MACINTMASKSET = 0x01a8,
+    CPMAC_MACINTMASKCLEAR = 0x01ac,
     CPMAC_MACADDRLO_0 = 0x01b0,
     CPMAC_MACADDRLO_1 = 0x01b4,
     CPMAC_MACADDRLO_2 = 0x01b8,
@@ -472,48 +468,89 @@ typedef enum {
     CPMAC_TXGOODFRAMES = 0x234,
     CPMAC_TXBROADCASTFRAMES = 0x238,
     CPMAC_TXMULTICASTFRAMES = 0x23c,
-    CPMAC_TX0_HDP = 0x0600,
-    CPMAC_TX1_HDP = 0x0604,
-    CPMAC_TX2_HDP = 0x0608,
-    CPMAC_TX3_HDP = 0x060c,
-    CPMAC_TX4_HDP = 0x0610,
-    CPMAC_TX5_HDP = 0x0614,
-    CPMAC_TX6_HDP = 0x0618,
-    CPMAC_TX7_HDP = 0x061c,
-    CPMAC_RX0_HDP = 0x0620,
-    CPMAC_RX1_HDP = 0x0624,
-    CPMAC_RX2_HDP = 0x0628,
-    CPMAC_RX3_HDP = 0x062c,
-    CPMAC_RX4_HDP = 0x0630,
-    CPMAC_RX5_HDP = 0x0634,
-    CPMAC_RX6_HDP = 0x0638,
-    CPMAC_RX7_HDP = 0x063c,
-    CPMAC_TX0_INT_ACK = 0x0640,
-    CPMAC_TX1_INT_ACK = 0x0644,
-    CPMAC_TX2_INT_ACK = 0x0648,
-    CPMAC_TX3_INT_ACK = 0x064c,
-    CPMAC_TX4_INT_ACK = 0x0650,
-    CPMAC_TX5_INT_ACK = 0x0654,
-    CPMAC_TX6_INT_ACK = 0x0658,
-    CPMAC_TX7_INT_ACK = 0x065c,
-    CPMAC_RX0_INT_ACK = 0x0660,
-    CPMAC_RX1_INT_ACK = 0x0664,
-    CPMAC_RX2_INT_ACK = 0x0668,
-    CPMAC_RX3_INT_ACK = 0x066c,
-    CPMAC_RX4_INT_ACK = 0x0670,
-    CPMAC_RX5_INT_ACK = 0x0674,
-    CPMAC_RX6_INT_ACK = 0x0678,
-    CPMAC_RX7_INT_ACK = 0x067c,
+    CPMAC_TX0HDP = 0x0600,
+    CPMAC_TX1HDP = 0x0604,
+    CPMAC_TX2HDP = 0x0608,
+    CPMAC_TX3HDP = 0x060c,
+    CPMAC_TX4HDP = 0x0610,
+    CPMAC_TX5HDP = 0x0614,
+    CPMAC_TX6HDP = 0x0618,
+    CPMAC_TX7HDP = 0x061c,
+    CPMAC_RX0HDP = 0x0620,
+    CPMAC_RX1HDP = 0x0624,
+    CPMAC_RX2HDP = 0x0628,
+    CPMAC_RX3HDP = 0x062c,
+    CPMAC_RX4HDP = 0x0630,
+    CPMAC_RX5HDP = 0x0634,
+    CPMAC_RX6HDP = 0x0638,
+    CPMAC_RX7HDP = 0x063c,
+    CPMAC_TX0CP = 0x0640,
+    CPMAC_TX1CP = 0x0644,
+    CPMAC_TX2CP = 0x0648,
+    CPMAC_TX3CP = 0x064c,
+    CPMAC_TX4CP = 0x0650,
+    CPMAC_TX5CP = 0x0654,
+    CPMAC_TX6CP = 0x0658,
+    CPMAC_TX7CP = 0x065c,
+    CPMAC_RX0CP = 0x0660,
+    CPMAC_RX1CP = 0x0664,
+    CPMAC_RX2CP = 0x0668,
+    CPMAC_RX3CP = 0x066c,
+    CPMAC_RX4CP = 0x0670,
+    CPMAC_RX5CP = 0x0674,
+    CPMAC_RX6CP = 0x0678,
+    CPMAC_RX7CP = 0x067c,
 } cpmac_register_t;
 
 typedef enum {
-    MAC_IN_VECTOR_STATUS_INT = BIT(19),
-    MAC_IN_VECTOR_HOST_INT = BIT(18),
-    MAC_IN_VECTOR_RX_INT_OR = BIT(17),
-    MAC_IN_VECTOR_TX_INT_OR = BIT(16),
-    MAC_IN_VECTOR_RX_INT_VEC = BITS(10, 8),
-    MAC_IN_VECTOR_TX_INT_VEC = BITS(2, 0),
+    TXCONTROL_TXEN = BIT(0),
+} txcontrol_bit_t;
+
+typedef enum {
+    RXCONTROL_RXEN = BIT(0),
+} rxcontrol_bit_t;
+
+typedef enum {
+    MACINVECTOR_STATUS_INT = BIT(19),
+    MACINVECTOR_HOST_INT = BIT(18),
+    MACINVECTOR_RX_INT_OR = BIT(17),
+    MACINVECTOR_TX_INT_OR = BIT(16),
+    MACINVECTOR_RX_INT_VEC = BITS(10, 8),
+    MACINVECTOR_TX_INT_VEC = BITS(2, 0),
 } mac_in_vec_bit_t;
+
+typedef enum {
+    MACINTSTAT_HOSTPEND = BIT(1),
+    MACINTSTAT_STATPEND = BIT(0),
+} macinstat_bit_t;
+
+typedef enum {
+    RXMBPENABLE_RXPASSCRC = BIT(30),
+    RXMBPENABLE_RXQOSEN = BIT(29),
+    RXMBPENABLE_RXNOCHAIN = BIT(28),
+    RXMBPENABLE_RXCMEMFEN = BIT(24),
+    RXMBPENABLE_RXCSFEN = BIT(23),
+    RXMBPENABLE_RXCEFEN = BIT(22),
+    RXMBPENABLE_RXCAFEN = BIT(21),
+    RXMBPENABLE_RXPROMCH = BITS(18, 16),
+    RXMBPENABLE_RXBROADEN = BIT(13),
+    RXMBPENABLE_RXBROADCH = BITS(10, 8),
+    RXMBPENABLE_RXMULTEN = BIT(5),
+    RXMBPENABLE_RXMULTCH = BITS(2, 0),
+} rxmbpenable_bit_t;
+
+typedef enum {
+    MACCONTROL_RXOFFLENBLOCK = BIT(14),
+    MACCONTROL_RXOWNERSHIP = BIT(13),
+    MACCONTROL_CMDIDLE = BIT(11),
+    MACCONTROL_TXPTYPE = BIT(9),
+    MACCONTROL_TXPACE = BIT(6),
+    MACCONTROL_GMIIEN = BIT(5),
+    MACCONTROL_TXFLOWEN = BIT(4),
+    MACCONTROL_RXBUFFERFLOWEN = BIT(3),
+    MACCONTROL_LOOPBACK = BIT(1),
+    MACCONTROL_FULLDUPLEX = BIT(0),
+} maccontrol_bit_t;
 
 /* STATISTICS */
 static const char *const cpmac_statistics[] = {
@@ -561,70 +598,70 @@ static const char *i2cpmac(unsigned index)
     const char *text = 0;
     switch (index) {
     case 0x00:
-        text = "TX_IDVER";
+        text = "TXIDVER";
         break;
     case 0x01:
-        text = "TX_CONTROL";
+        text = "TXCONTROL";
         break;
     case 0x02:
-        text = "TX_TEARDOWN";
+        text = "TXTEARDOWN";
         break;
     case 0x04:
-        text = "RX_IDVER";
+        text = "RXIDVER";
         break;
     case 0x05:
-        text = "RX_CONTROL";
+        text = "RXCONTROL";
         break;
     case 0x06:
-        text = "RX_TEARDOWN";
+        text = "RXTEARDOWN";
         break;
     case 0x40:
-        text = "RX_MBP_ENABLE";
+        text = "RXMBPENABLE";
         break;
     case 0x41:
-        text = "RX_UNICAST_SET";
+        text = "RXUNICASTSET";
         break;
     case 0x42:
-        text = "RX_UNICAST_CLEAR";
+        text = "RXUNICASTCLEAR";
         break;
     case 0x43:
-        text = "RX_MAXLEN";
+        text = "RXMAXLEN";
         break;
     case 0x44:
-        text = "RX_BUFFER_OFFSET";
+        text = "RXBUFFEROFFSET";
         break;
     case 0x45:
-        text = "RX_FILTERLOWTHRESH";
+        text = "RXFILTERLOWTHRESH";
         break;
     case 0x58:
         text = "MACCONTROL";
         break;
     case 0x5c:
-        text = "TX_INTSTAT_RAW";
+        text = "TXINTSTATRAW";
         break;
     case 0x5d:
-        text = "TX_INTSTAT_MASKED";
+        text = "TXINTSTATMASKED";
         break;
     case 0x5e:
-        text = "TX_INTMASK_SET";
+        text = "TXINTMASKSET";
         break;
     case 0x5f:
-        text = "TX_INTMASK_CLEAR";
+        text = "TXINTMASKCLEAR";
         break;
     case 0x60:
-        text = "MAC_IN_VECTOR";
+        text = "MACINVECTOR";
         break;
     case 0x61:
-        text = "MAC_EOI_VECTOR";
+        text = "MACEOIVECTOR";
         break;
     case 0x66:
-        text = "RX_INTMASK_SET";
+        text = "RXINTMASKSET";
         break;
     case 0x67:
-        text = "RX_INTMASK_CLEAR";
+        text = "RXINTMASKCLEAR";
         break;
     case 0x6a:
-        text = "MAC_INTMASK_SET";
+        text = "MACINTMASKSET";
         break;
     case 0x74:
         text = "MACADDRMID";
@@ -642,28 +679,28 @@ static const char *i2cpmac(unsigned index)
     if (text != 0) {
     } else if (index >= 0x48 && index < 0x50) {
         text = buffer;
-        sprintf(buffer, "RX%u_FLOWTHRESH", (unsigned)(index & 7));
+        sprintf(buffer, "RX%uFLOWTHRESH", index & 7);
     } else if (index >= 0x50 && index < 0x58) {
         text = buffer;
-        sprintf(buffer, "RX%u_FREEBUFFER", (unsigned)(index & 7));
+        sprintf(buffer, "RX%uFREEBUFFER", index & 7);
     } else if (index >= 0x6c && index < 0x74) {
         text = buffer;
         sprintf(buffer, "MACADDRLO_%u", (unsigned)(index - 0x6c));
     } else if (index >= 0x80 && index < 0xa4) {
         text = buffer;
-        sprintf(buffer, "STAT_%s", cpmac_statistics[index - 0x80]);
+        sprintf(buffer, "STAT %s", cpmac_statistics[index - 0x80]);
     } else if (index >= 0x180 && index < 0x188) {
         text = buffer;
-        sprintf(buffer, "TX%u_HDP", (unsigned)(index & 7));
+        sprintf(buffer, "TX%uHDP", index & 7);
     } else if (index >= 0x188 && index < 0x190) {
         text = buffer;
-        sprintf(buffer, "RX%u_HDP", (unsigned)(index & 7));
+        sprintf(buffer, "RX%uHDP", index & 7);
     } else if (index >= 0x190 && index < 0x198) {
         text = buffer;
-        sprintf(buffer, "TX%u_INT_ACK", (unsigned)(index & 7));
+        sprintf(buffer, "TX%uCP", index & 7);
     } else if (index >= 0x198 && index < 0x1a0) {
         text = buffer;
-        sprintf(buffer, "RX%u_INT_ACK", (unsigned)(index & 7));
+        sprintf(buffer, "RX%uCP", index & 7);
     } else {
         text = buffer;
         sprintf(buffer, "0x%x", index);
@@ -674,22 +711,45 @@ static const char *i2cpmac(unsigned index)
 
 static const int cpmac_interrupt[] = { 27, 41 };
 
+static void emac_update_interrupt(unsigned index)
+{
+    uint8_t *cpmac = av.cpmac[index];
+    uint32_t txintstat = reg_read(cpmac, CPMAC_TXINTSTATRAW);
+    uint32_t txintmask = reg_read(cpmac, CPMAC_TXINTMASKSET);
+    uint32_t rxintstat = reg_read(cpmac, CPMAC_RXINTSTATRAW);
+    uint32_t rxintmask = reg_read(cpmac, CPMAC_RXINTMASKSET);
+    uint32_t macintstat = reg_read(cpmac, CPMAC_MACINTSTATRAW);
+    uint32_t macintmask = reg_read(cpmac, CPMAC_MACINTMASKSET);
+    int enabled;
+    txintstat &= txintmask;
+    reg_write(cpmac, CPMAC_TXINTSTATMASKED, txintstat);
+    rxintstat &= rxintmask;
+    reg_write(cpmac, CPMAC_RXINTSTATMASKED, rxintstat);
+    macintstat &= macintmask;
+    reg_write(cpmac, CPMAC_MACINTSTATMASKED, macintstat);
+    //~ reg_write(cpmac, CPMAC_MACINVECTOR, (macintstat << 16) + (rxintstat << 8) + txintstat);
+    enabled = (txintstat || rxintstat || macintstat);
+    ar7_irq(0, cpmac_interrupt[index], enabled);
+}
+
 #define BD_SOP    MASK(31, 31)
 #define BD_EOP    MASK(30, 30)
 #define BD_OWNS   MASK(29, 29)
 
-static uint32_t ar7_cpmac_read(uint8_t * cpmac, uint32_t offset)
+static uint32_t ar7_cpmac_read(unsigned index, unsigned offset)
 {
+    uint8_t *cpmac = av.cpmac[index];
     uint32_t val = reg_read(cpmac, offset);
     const char *text = i2cpmac(offset / 4);
     //~ do_raise_exception(EXCP_DEBUG)
-    TRACE(CPMAC, logout("cpmac%u[%s] (0x%08lx) = 0x%08lx\n",
-                        cpmac == av.cpmac1, text,
-                        (unsigned long)(AVALANCHE_CPMAC0_BASE + offset),
+    TRACE(CPMAC, logout("cpmac%u[%s] (0x%08x) = 0x%08lx\n",
+                        index, text,
+                        (AVALANCHE_CPMAC0_BASE + (AVALANCHE_CPMAC1_BASE -
+                                         AVALANCHE_CPMAC0_BASE) * index + offset),
                         (unsigned long)val));
     if (0) {
-    } else if (offset == CPMAC_MAC_IN_VECTOR) {
-        reg_write(cpmac, CPMAC_MAC_IN_VECTOR, 0);
+    } else if (offset == CPMAC_MACINVECTOR) {
+        reg_write(cpmac, CPMAC_MACINVECTOR, 0);
     }
     return val;
 }
@@ -742,82 +802,148 @@ uint32_t fcs(const uint8_t * buf, int len)
     return update_crc(0xffffffffL, buf, len) ^ 0xffffffffL;
 }
 
-static void ar7_cpmac_write(uint8_t * cpmac, unsigned index, unsigned offset,
+static void statusreg_inc(unsigned index, unsigned offset)
+{
+    uint8_t *cpmac = av.cpmac[index];
+    uint32_t value = reg_read(cpmac, offset);
+    value++;
+    reg_write(cpmac, offset, value);
+    if (value >= 0x80000000) {
+        reg_set(cpmac, CPMAC_MACINTSTATRAW, MACINTSTAT_STATPEND);
+        emac_update_interrupt(index);
+        MISSING();
+    }
+}
+
+static void ar7_cpmac_write(unsigned index, unsigned offset,
                             uint32_t val)
 {
+    uint8_t * cpmac = av.cpmac[index];
     assert((offset & 3) == 0);
-    reg_write(cpmac, offset, val);
-    TRACE(CPMAC, logout("cpmac%u[%s] (0x%08lx) = 0x%08lx\n",
+    TRACE(CPMAC, logout("cpmac%u[%s] (0x%08x) = 0x%08lx\n",
                         index, i2cpmac(offset / 4),
-                        (unsigned long)(AVALANCHE_CPMAC0_BASE +
+                        (AVALANCHE_CPMAC0_BASE +
                                         (AVALANCHE_CPMAC1_BASE -
                                          AVALANCHE_CPMAC0_BASE) * index +
                                         offset), (unsigned long)val));
-    if (offset == 0x100) {
+    if (offset == CPMAC_RXMBPENABLE) {
         /* 13 ... 8 = 0x20 enable broadcast */
-    } else if (offset == 0x10c) {
-        TRACE(CPMAC, logout("setting max packet length %u\n", (unsigned)val));
-    } else if (offset == CPMAC_TX_INTMASK_SET) {
-        /* val 2^i should set tx_int i !!! */
-        if (val != 0) {
-            unsigned channel = 0;
-            while (val != 1) {
-                channel++;
-                val /= 2;
-            }
-            reg_set(cpmac, CPMAC_MAC_IN_VECTOR, MAC_IN_VECTOR_TX_INT_OR + channel);
-            ar7_irq(0, cpmac_interrupt[index], 1);
-        }
+        reg_write(cpmac, offset, val);
+    } else if (offset == CPMAC_RXUNICASTSET) {
+        val &= BITS(7, 0);
+        val = (reg_read(cpmac, offset) | val);
+        assert(val < 2);
+        reg_write(cpmac, offset, val);
+    } else if (offset == CPMAC_RXUNICASTCLEAR) {
+        val = (reg_read(cpmac, CPMAC_RXUNICASTSET) & ~val);
+        reg_write(cpmac, CPMAC_RXUNICASTSET, val);
+    } else if (offset == CPMAC_RXMAXLEN) {
+        TRACE(CPMAC, logout("setting max packet length %u\n", val));
+        val &= 0xffff;
+        reg_write(cpmac, offset, val);
+    } else if (offset == CPMAC_TXINTMASKSET) {
+        val &= BITS(7, 0);
+        val = (reg_read(cpmac, offset) | val);
+        reg_write(cpmac, offset, val);
+        emac_update_interrupt(index);
+        //~ if (val != 0) {
+            //~ !!!
+            //~ reg_set(cpmac, CPMAC_MACINVECTOR, MACINVECTOR_TX_INT_OR + channel);
+        //~ }
+    } else if (offset == CPMAC_TXINTMASKCLEAR) {
+        val = (reg_read(cpmac, CPMAC_TXINTMASKSET) & ~val);
+        reg_write(cpmac, CPMAC_TXINTMASKSET, val);
+        emac_update_interrupt(index);
+        //~ if (val != 0) {
+            //~ !!!
+            //~ reg_set(cpmac, CPMAC_MACINVECTOR, MACINVECTOR_TX_INT_OR + channel);
+        //~ }
+    } else if (offset == CPMAC_RXINTMASKSET) {
+        val &= BITS(7, 0);
+        val = (reg_read(cpmac, offset) | val);
+        reg_write(cpmac, offset, val);
+        emac_update_interrupt(index);
+    } else if (offset == CPMAC_RXINTMASKCLEAR) {
+        val = (reg_read(cpmac, CPMAC_RXINTMASKSET) & ~val);
+        reg_write(cpmac, CPMAC_RXINTMASKSET, val);
+        emac_update_interrupt(index);
+    } else if (offset == CPMAC_MACINTMASKSET) {
+        val &= BITS(1, 0);
+        val = (reg_read(cpmac, offset) | val);
+        reg_write(cpmac, offset, val);
+        emac_update_interrupt(index);
+    } else if (offset == CPMAC_MACINTMASKCLEAR) {
+        val = (reg_read(cpmac, CPMAC_MACINTMASKSET) & ~val);
+        reg_write(cpmac, CPMAC_MACINTMASKSET, val);
+        emac_update_interrupt(index);
     } else if (offset == CPMAC_MACADDRHI) {
         /* set MAC address (4 high bytes) */
         uint8_t *phys = av.nic[index].phys;
+        reg_write(cpmac, offset, val);
         phys[5] = cpmac[CPMAC_MACADDRLO_0];
         phys[4] = cpmac[CPMAC_MACADDRMID];
         phys[3] = cpmac[CPMAC_MACADDRHI + 3];
         phys[2] = cpmac[CPMAC_MACADDRHI + 2];
         phys[1] = cpmac[CPMAC_MACADDRHI + 1];
         phys[0] = cpmac[CPMAC_MACADDRHI + 0];
-        TRACE(CPMAC, logout("setting MAC %02x:%02x:%02x:%02x:%02x:%02x\n",
+        TRACE(CPMAC, logout("setting mac address %02x:%02x:%02x:%02x:%02x:%02x\n",
                             phys[0], phys[1], phys[2], phys[3], phys[4],
                             phys[5]));
     } else if (offset >= CPMAC_RXGOODFRAMES && offset <= CPMAC_RXDMAOVERRUNS) {
-        /* Write access to readonly statistics register. */
-        if (val == 0xffffffff) {
-            /* Clear register. */
-            reg_write(cpmac, offset, 0);
+        /* Write access to statistics register. */
+        if (reg_read(cpmac, CPMAC_MACCONTROL) & MACCONTROL_GMIIEN) {
+            /* Write-to-decrement mode. */
+            uint32_t oldval = reg_read(cpmac, offset);
+            if (oldval < val) {
+                val = 0;
+            } else {
+                oldval -= val;
+            }
+            reg_write(cpmac, offset, val);
         } else {
-            UNEXPECTED();
+            /* Normal write direct mode. */
+            reg_write(cpmac, offset, val);
         }
-    } else if (offset >= CPMAC_TX0_HDP && offset <= CPMAC_TX7_HDP) {
+    } else if (offset >= CPMAC_TX0HDP && offset <= CPMAC_TX7HDP) {
         /* Transmit buffer. !!! */
-        uint8_t channel = (offset - CPMAC_TX0_HDP) / 4;
-        while (val != 0) {
+        uint8_t channel = (offset - CPMAC_TX0HDP) / 4;
+        reg_write(cpmac, offset, val);
+        if (val == 0) {
+        } else if (!(reg_read(cpmac, CPMAC_TXCONTROL) & TXCONTROL_TXEN)) {
+            TRACE(CPMAC, logout("cpmac%u transmitter is disabled, frame ignored\n",
+              index));
+        } else {
             uint32_t length = 0;
             uint8_t buffer[MAX_ETH_FRAME_SIZE + 4];
             cpphy_tcb_t tcb;
-          sendloop:
+
+            uint32_t address = val;
+            cpu_physical_memory_read(address, (uint8_t *) & tcb, sizeof(tcb));
+            uint32_t addr = le32_to_cpu(tcb.buff);
+            uint32_t bufferlength = le32_to_cpu(tcb.length);
+            uint32_t packetlength = le32_to_cpu(tcb.mode);
+            uint32_t bufferoffset = bufferlength >> 16;
+            uint32_t flags = packetlength & BITS(31, 16);
+            bufferlength &= BITS(15, 0);
+            packetlength &= BITS(15, 0);
+          //~ sendloop:
             {
-                cpu_physical_memory_read(val, (uint8_t *) & tcb, sizeof(tcb));
-                uint32_t addr = le32_to_cpu(tcb.buff);
-                uint32_t curlen = le32_to_cpu(tcb.length);
-                uint32_t mode = le32_to_cpu(tcb.mode);
                 TRACE(RXTX,
                       logout
-                      ("buffer 0x%08x, next 0x%08x, buff 0x%08x, params 0x%08x, len 0x%08x, total 0x%08x\n",
-                       val, (unsigned)tcb.next, addr, mode, curlen, length));
-                assert(length + curlen <= MAX_ETH_FRAME_SIZE);
-                cpu_physical_memory_read(addr, buffer + length, curlen);
-                length += curlen;
-                assert((mode & CB_SIZE_MASK) == curlen);
-                assert(mode & CB_SOF_BIT);
-                assert(mode & CB_EOF_BIT);
-                assert(mode & CB_OWNERSHIP_BIT);
-                mode &= ~(CB_OWNERSHIP_BIT);
-                stl_phys(val + offsetof(cpphy_tcb_t, mode), mode);
-                if ((mode & CB_EOQ_BIT)) {
-                    val = le32_to_cpu(tcb.next);
-                    goto sendloop;
-                }
+                      ("buffer 0x%08x, next 0x%08x, buff 0x%08x, flags 0x%08x, len 0x%08x, total 0x%08x\n",
+                       address, (unsigned)tcb.next, addr, flags, bufferlength, packetlength));
+                assert(length + packetlength <= MAX_ETH_FRAME_SIZE);
+                cpu_physical_memory_read(addr, buffer + length, bufferlength);
+                length += bufferlength;
+                assert(packetlength == bufferlength);
+                assert(flags & CB_SOF_BIT);
+                assert(flags & CB_EOF_BIT);
+                assert(flags & CB_OWNERSHIP_BIT);
+                assert(!(flags & CB_PASSCRC));
+                assert(bufferoffset == 0);
+                flags &= ~(CB_OWNERSHIP_BIT);
+                flags |= CB_EOQ_BIT;
+                stl_phys(address + offsetof(cpphy_tcb_t, mode), flags | packetlength);
             }
             if (av.nic[index].vc != 0) {
 #if 0
@@ -830,28 +956,48 @@ static void ar7_cpmac_write(uint8_t * cpmac, unsigned index, unsigned offset,
                 length += 4;
 #endif
                 TRACE(RXTX,
-                      logout("CPMAC %u sent %u byte: %s\n", index, length,
+                      logout("cpmac%u sent %u byte: %s\n", index, length,
                              dump(buffer, length)));
                 qemu_send_packet(av.nic[index].vc, buffer, length);
-                reg_inc(cpmac, CPMAC_TXGOODFRAMES);
-                reg_set(cpmac, CPMAC_MAC_IN_VECTOR, MAC_IN_VECTOR_TX_INT_OR + channel);
-                ar7_irq(0, cpmac_interrupt[index], 1);
+                statusreg_inc(index, CPMAC_TXGOODFRAMES);
+                reg_write(cpmac, CPMAC_TX0CP + 4 * channel, address);
+                // !!! check
+                reg_set(cpmac, CPMAC_TXINTSTATRAW, 1 << channel);
+                emac_update_interrupt(index);
                 //~ break;
-                //~ reg_inc(cpmac, CPMAC_TXBROADCASTFRAMES);
-                //~ reg_inc(cpmac, CPMAC_TXMULTICASTFRAMES);
+                //~ statusreg_inc(index, CPMAC_TXBROADCASTFRAMES);
+                //~ statusreg_inc(index, CPMAC_TXMULTICASTFRAMES);
             }
             val = le32_to_cpu(tcb.next);
         }
-    } else if (offset >= CPMAC_RX0_HDP && offset <= CPMAC_RX7_HDP) {
+    } else if (offset >= CPMAC_RX0HDP && offset <= CPMAC_RX7HDP) {
+        reg_write(cpmac, offset, val);
         /* Receive buffer. !!! */
-        cpphy_rcb_t rcb;
-        cpu_physical_memory_read(val, (uint8_t *) & rcb, sizeof(rcb));
-        uint32_t addr = le32_to_cpu(rcb.buff);
-        uint32_t length = le32_to_cpu(rcb.length);
-        TRACE(CPMAC,
-              logout
-              ("buffer 0x%08x, next 0x%08x, buff 0x%08x, params 0x%08x, len 0x%08x\n",
-               val, (unsigned)rcb.next, addr, (unsigned)rcb.mode, length));
+        //~ cpphy_rcb_t rcb;
+        //~ cpu_physical_memory_read(val, (uint8_t *) & rcb, sizeof(rcb));
+        //~ uint32_t addr = le32_to_cpu(rcb.buff);
+        //~ uint32_t length = le32_to_cpu(rcb.length);
+        //~ TRACE(CPMAC,
+              //~ logout
+              //~ ("buffer 0x%08x, next 0x%08x, buff 0x%08x, params 0x%08x, len 0x%08x\n",
+               //~ val, (unsigned)rcb.next, addr, (unsigned)rcb.mode, length));
+    } else if (offset >= CPMAC_TX0CP && offset <= CPMAC_TX7CP) {
+        uint8_t channel = (offset - CPMAC_TX0CP) / 4;
+        uint32_t oldval = reg_read(cpmac, offset);
+        if (oldval == val) {
+            reg_clear(cpmac, CPMAC_TXINTSTATRAW, 1 << channel);
+            emac_update_interrupt(index);
+        }
+    } else if (offset >= CPMAC_RX0CP && offset <= CPMAC_RX7CP) {
+        uint8_t channel = (offset - CPMAC_RX0CP) / 4;
+        uint32_t oldval = reg_read(cpmac, offset);
+        if (oldval == val) {
+            reg_clear(cpmac, CPMAC_RXINTSTATRAW, 1 << channel);
+            emac_update_interrupt(index);
+        }
+    } else {
+        //~ logout("???\n");
+        reg_write(cpmac, offset, val);
     }
 }
 
@@ -1012,10 +1158,37 @@ static void ar7_intc_write(uint32_t intc[], unsigned index, uint32_t val)
 
 /*****************************************************************************
  *
- * MDIO emulation.
+ * Management Data Input/Output (MDIO) emulation.
  *
  ****************************************************************************/
 
+typedef enum {
+    MDIO_VERSION = 0,
+    MDIO_CONTROL = 4,
+    MDIO_ALIVE = 8,
+    MDIO_LINK = 0x0c,
+    MDIO_LINKINTRAW = 0x10,
+    MDIO_LINKINTMASKED = 0x14,
+    MDIO_USERINTRAW = 0x20,
+    MDIO_USERINTMASKED = 0x24,
+    MDIO_USERINTMASKSET = 0x28,
+    MDIO_USERINTMASKCLEAR = 0x2c,
+    MDIO_USERACCESS0 = 0x80,
+    MDIO_USERPHYSEL0 = 0x84,
+    MDIO_USERACCESS1 = 0x88,
+    MDIO_USERPHYSEL1 = 0x8c,
+} mdio_t;
+
+typedef enum {
+    MDIO_USERACCESS_GO = BIT(31),
+    MDIO_USERACCESS_WRITE = BIT(30),
+    MDIO_USERACCESS_ACK = BIT(29),
+    MDIO_USERACCESS_REGADR = BITS(25, 21),
+    MDIO_USERACCESS_PHYADR = BITS(20, 16),
+    MDIO_USERACCESS_DATA = BITS(15, 0),
+} mdio_useraccess_bit_t;
+
+#if 0
 typedef struct {
     uint32_t ver;               /* 0x00 */
 #define         MDIO_VER_MODID         (0xFFFF << 16)
@@ -1041,21 +1214,12 @@ typedef struct {
     uint32_t userintmaskedclr;  /* 0x2c */
     uint32_t dummy30[20];
     uint32_t useraccess0;       /* 0x80 */
-#define         MDIO_USERACCESS_GO     BIT(31)
-#define         MDIO_USERACCESS_WRITE  BIT(30)
-#define         MDIO_USERACCESS_READ   (0 << 30)
-#define         MDIO_USERACCESS_ACK    BIT(29)
-#define         MDIO_USERACCESS_REGADR (0x1F << 21)
-#define         MDIO_USERACCESS_PHYADR (0x1F << 16)
-#define         MDIO_USERACCESS_DATA   (0xFFFF)
     uint32_t userphysel0;       /* 0x84 */
 #define         MDIO_USERPHYSEL_LINKSEL         BIT(7)
 #define         MDIO_USERPHYSEL_LINKINT_ENABLE  BIT(6)
 #define         MDIO_USERPHYSEL_PHYADR_MON      (0x1F)
 } mdio_t;
-
-#define pMDIO_USERACCESS(base, channel) ((volatile bit32u *)(base+(0x80+(channel*8))))
-#define pMDIO_USERPHYSEL(base, channel) ((volatile bit32u *)(base+(0x84+(channel*8))))
+#endif
 
 typedef struct {
     uint32_t phy_control;
@@ -1125,45 +1289,45 @@ static uint16_t mdio_useraccess_data[1][6] = {
      NWAY_AUTO}
 };
 
-static uint32_t ar7_mdio_read(uint32_t mdio[], unsigned index)
+static uint32_t ar7_mdio_read(uint8_t *mdio, unsigned offset)
 {
-    uint32_t val = av.mdio[index];
-    if (index == 0) {
+    uint32_t val = reg_read(mdio, offset);
+    if (offset == MDIO_VERSION) {
         /* MDIO_VER */
         TRACE(MDIO, logout("mdio[MDIO_VER] = 0x%08lx\n", (unsigned long)val));
 //~ cpMacMdioInit(): MDIO_CONTROL = 0x40000138
 //~ cpMacMdioInit(): MDIO_CONTROL < 0x40000037
-    } else if (index == 1) {
+    } else if (offset == MDIO_CONTROL) {
         /* MDIO_CONTROL */
         TRACE(MDIO,
               logout("mdio[MDIO_CONTROL] = 0x%08lx\n", (unsigned long)val));
-    } else if (index == 0x20) {
+    } else if (offset == MDIO_USERACCESS0) {
         //~ mdio_regaddr = (val & MDIO_USERACCESS_REGADR) >> 21;
         //~ mdio_phyaddr = (val & MDIO_USERACCESS_PHYADR) >> 16;
         mdio_data = (val & MDIO_USERACCESS_DATA);
         TRACE(MDIO,
               logout
               ("mdio[0x%02x] = 0x%08lx, reg = %u, phy = %u, data = 0x%04x\n",
-               index, (unsigned long)val, mdio_regaddr, mdio_phyaddr,
+               offset, (unsigned long)val, mdio_regaddr, mdio_phyaddr,
                mdio_data));
     } else {
         TRACE(MDIO,
-              logout("mdio[0x%02x] = 0x%08lx\n", index, (unsigned long)val));
+              logout("mdio[0x%02x] = 0x%08lx\n", offset, (unsigned long)val));
     }
     return val;
 }
 
-static void ar7_mdio_write(uint32_t mdio[], unsigned index, unsigned val)
+static void ar7_mdio_write(uint8_t *mdio, unsigned offset, uint32_t val)
 {
-    if (index == 0) {
+    if (offset == MDIO_VERSION) {
         /* MDIO_VER */
         TRACE(MDIO, logout("unexpected: mdio[0x%02x] = 0x%08lx\n",
-                           index, (unsigned long)val));
-    } else if (index == 1) {
+                           offset, (unsigned long)val));
+    } else if (offset == MDIO_CONTROL) {
         /* MDIO_CONTROL */
         TRACE(MDIO, logout("mdio[MDIO_CONTROL] = 0x%08lx\n",
                            (unsigned long)val));
-    } else if (index == 0x20 && (val & MDIO_USERACCESS_GO)) {
+    } else if (offset == MDIO_USERACCESS0 && (val & MDIO_USERACCESS_GO)) {
         uint32_t write = (val & MDIO_USERACCESS_WRITE) >> 30;
         mdio_regaddr = (val & MDIO_USERACCESS_REGADR) >> 21;
         mdio_phyaddr = (val & MDIO_USERACCESS_PHYADR) >> 16;
@@ -1171,7 +1335,7 @@ static void ar7_mdio_write(uint32_t mdio[], unsigned index, unsigned val)
         TRACE(MDIO,
               logout
               ("mdio[0x%02x] = 0x%08lx, write = %u, reg = %u, phy = %u, data = 0x%04x\n",
-               index, (unsigned long)val, write, mdio_regaddr, mdio_phyaddr,
+               offset, (unsigned long)val, write, mdio_regaddr, mdio_phyaddr,
                mdio_data));
         val &= MDIO_USERACCESS_DATA;
         if (mdio_phyaddr == 31 && mdio_regaddr < 6) {
@@ -1200,15 +1364,15 @@ static void ar7_mdio_write(uint32_t mdio[], unsigned index, unsigned val)
                     mdio_useraccess_data[mdio_phyaddr][5] =
                         mdio_useraccess_data[mdio_phyaddr][4] | PHY_ISOLATE |
                         PHY_RESET;
-                    mdio[3] = 0x80000000;
+                    reg_write(mdio, MDIO_LINK, 0x80000000);
                 }
             }
         }
     } else {
         TRACE(MDIO,
-              logout("mdio[0x%02x] = 0x%08lx\n", index, (unsigned long)val));
+              logout("mdio[0x%02x] = 0x%08lx\n", offset, (unsigned long)val));
     }
-    av.mdio[index] = val;
+    reg_write(mdio, offset, val);
 }
 
 static void ar7_reset_write(uint32_t offset, uint32_t val)
@@ -1517,11 +1681,12 @@ struct _vlynq_registers_half {
 };
 #endif
 
-static uint32_t ar7_vlynq_read(uint8_t * vlynq, uint32_t offset)
+static uint32_t ar7_vlynq_read(unsigned index, unsigned offset)
 {
+    uint8_t *vlynq = av.vlynq[index];
     uint32_t val = reg_read(vlynq, offset);
     TRACE(VLYNQ, logout("vlynq%u[0x%02x (%s)] = 0x%08lx\n",
-                        (vlynq == av.vlynq1), offset,
+                        index, offset,
                         (offset < 0xe8) ? vlynq_names[offset / 4] : "unknown",
                         (unsigned long)val));
     if (offset == VLYNQ_REVID) {
@@ -1531,10 +1696,11 @@ static uint32_t ar7_vlynq_read(uint8_t * vlynq, uint32_t offset)
     return val;
 }
 
-static void ar7_vlynq_write(uint8_t * vlynq, uint32_t offset, uint32_t val)
+static void ar7_vlynq_write(unsigned index, unsigned offset, uint32_t val)
 {
+    uint8_t *vlynq = av.vlynq[index];
     TRACE(VLYNQ, logout("vlynq%u[0x%02x (%s)] = 0x%08lx\n",
-                        (vlynq == av.vlynq1), offset,
+                        index, offset,
                         (offset < 0xe8) ? vlynq_names[offset / 4] : "unknown",
                         (unsigned long)val));
     if (offset == VLYNQ_REVID) {
@@ -1733,10 +1899,18 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
             /* Write PCI device id for TI TNETW1130 (ACX111) */
             val = 0x9066104c;
         }
+    } else if (INRANGE(AVALANCHE_VLYNQ1_MEM_MAP_BASE, av.vlynq1mem)) {
+        name = "vlynq1 memory";
+        logflag = VLYNQ;
+        val = VALUE(AVALANCHE_VLYNQ1_MEM_MAP_BASE, av.vlynq1mem);
+        if (addr == AVALANCHE_VLYNQ1_MEM_MAP_BASE + 0x00041000) {
+            /* Write PCI device id for TI TNETW1130 (ACX111) */
+            //~ val = 0x9066104c;
+        }
     } else if (INRANGE(AVALANCHE_CPMAC0_BASE, av.cpmac0)) {
         //~ name = "cpmac0";
         logflag = 0;
-        val = ar7_cpmac_read(av.cpmac0, addr - AVALANCHE_CPMAC0_BASE);
+        val = ar7_cpmac_read(0, addr - AVALANCHE_CPMAC0_BASE);
     } else if (INRANGE(AVALANCHE_EMIF_BASE, av.emif)) {
         name = "emif";
         logflag = EMIF;
@@ -1791,16 +1965,15 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
     } else if (INRANGE(AVALANCHE_VLYNQ0_BASE, av.vlynq0)) {
         //~ name = "vlynq0";
         logflag = 0;
-        val = ar7_vlynq_read(av.vlynq0, addr - AVALANCHE_VLYNQ0_BASE);
+        val = ar7_vlynq_read(0, addr - AVALANCHE_VLYNQ0_BASE);
     } else if (INRANGE(AVALANCHE_VLYNQ1_BASE, av.vlynq1)) {
         //~ name = "vlynq1";
         logflag = 0;
-        val = ar7_vlynq_read(av.vlynq1, addr - AVALANCHE_VLYNQ1_BASE);
+        val = ar7_vlynq_read(1, addr - AVALANCHE_VLYNQ1_BASE);
     } else if (INRANGE(AVALANCHE_MDIO_BASE, av.mdio)) {
         name = "mdio";
         logflag = MDIO;
-        index = (addr - AVALANCHE_MDIO_BASE) / 4;
-        val = ar7_mdio_read(av.mdio, index);
+        val = ar7_mdio_read(av.mdio, addr - AVALANCHE_MDIO_BASE);
     } else if (INRANGE(OHIO_WDT_BASE, av.wdt)) {
         name = "ohio wdt";
         val = VALUE(OHIO_WDT_BASE, av.wdt);
@@ -1812,7 +1985,7 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
     } else if (INRANGE(AVALANCHE_CPMAC1_BASE, av.cpmac1)) {
         //~ name = "cpmac1";
         logflag = 0;
-        val = ar7_cpmac_read(av.cpmac1, addr - AVALANCHE_CPMAC1_BASE);
+        val = ar7_cpmac_read(1, addr - AVALANCHE_CPMAC1_BASE);
     } else {
         name = "???";
         logflag = 1;
@@ -1854,10 +2027,14 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
         name = "vlynq0 memory";
         logflag = VLYNQ;
         VALUE(AVALANCHE_VLYNQ0_MEM_MAP_BASE, av.vlynq0mem) = val;
+    } else if (INRANGE(AVALANCHE_VLYNQ1_MEM_MAP_BASE, av.vlynq1mem)) {
+        name = "vlynq1 memory";
+        logflag = VLYNQ;
+        VALUE(AVALANCHE_VLYNQ1_MEM_MAP_BASE, av.vlynq1mem) = val;
     } else if (INRANGE(AVALANCHE_CPMAC0_BASE, av.cpmac0)) {
         //~ name = "cpmac0";
         logflag = 0;
-        ar7_cpmac_write(av.cpmac0, 0, addr - AVALANCHE_CPMAC0_BASE, val);
+        ar7_cpmac_write(0, addr - AVALANCHE_CPMAC0_BASE, val);
     } else if (INRANGE(AVALANCHE_EMIF_BASE, av.emif)) {
         name = "emif";
         logflag = EMIF;
@@ -1912,16 +2089,15 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
     } else if (INRANGE(AVALANCHE_VLYNQ0_BASE, av.vlynq0)) {
         //~ name = "vlynq0";
         logflag = 0;
-        ar7_vlynq_write(av.vlynq0, addr - AVALANCHE_VLYNQ0_BASE, val);
+        ar7_vlynq_write(0, addr - AVALANCHE_VLYNQ0_BASE, val);
     } else if (INRANGE(AVALANCHE_VLYNQ1_BASE, av.vlynq1)) {
         //~ name = "vlynq1";
         logflag = 0;
-        ar7_vlynq_write(av.vlynq1, addr - AVALANCHE_VLYNQ1_BASE, val);
+        ar7_vlynq_write(1, addr - AVALANCHE_VLYNQ1_BASE, val);
     } else if (INRANGE(AVALANCHE_MDIO_BASE, av.mdio)) {
         name = "mdio";
         logflag = MDIO;
-        index = (addr - AVALANCHE_MDIO_BASE) / 4;
-        ar7_mdio_write(av.mdio, index, val);
+        ar7_mdio_write(av.mdio, addr - AVALANCHE_MDIO_BASE, val);
     } else if (INRANGE(OHIO_WDT_BASE, av.wdt)) {
         name = "ohio wdt";
         VALUE(OHIO_WDT_BASE, av.wdt) = val;
@@ -1933,7 +2109,7 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
     } else if (INRANGE(AVALANCHE_CPMAC1_BASE, av.cpmac1)) {
         //~ name = "cpmac1";
         logflag = 0;
-        ar7_cpmac_write(av.cpmac1, 1, addr - AVALANCHE_CPMAC1_BASE, val);
+        ar7_cpmac_write(1, addr - AVALANCHE_CPMAC1_BASE, val);
     } else {
         name = "???";
         logflag = 1;
@@ -2042,54 +2218,76 @@ static void ar7_serial_init(CPUState * env)
 static int ar7_nic_can_receive(void *opaque)
 {
     unsigned index = (unsigned)opaque;
-    uint8_t *cpmac = av.cpmac0;
-    if (index != 0) {
-        cpmac = av.cpmac1;
-    }
+    uint8_t *cpmac = av.cpmac[index];
+    int enabled = (reg_read(cpmac, CPMAC_RXCONTROL) & RXCONTROL_RXEN) != 0;
 
-    TRACE(CPMAC, logout("CPMAC %u\n", index));
+    TRACE(CPMAC, logout("cpmac%u, enabled %d\n", index, enabled));
 
-    return reg_read(cpmac, CPMAC_RX0_HDP) != 0;
+    return enabled;
 }
 
 static void ar7_nic_receive(void *opaque, const uint8_t * buf, int size)
 {
     unsigned index = (unsigned)opaque;
-    uint8_t *cpmac = av.cpmac0;
-    if (index != 0) {
-        cpmac = av.cpmac1;
+    uint8_t *cpmac = av.cpmac[index];
+    uint32_t rxmbpenable = reg_read(cpmac, CPMAC_RXMBPENABLE);
+    uint32_t rxmaxlen = reg_read(cpmac, CPMAC_RXMAXLEN);
+    int channel = -1;
+
+    if (!(reg_read(cpmac, CPMAC_RXCONTROL) & RXCONTROL_RXEN)) {
+        TRACE(CPMAC, logout("cpmac%u receiver is disabled, frame ignored\n",
+          index));
+        return;
     }
 
     TRACE(RXTX,
-          logout("CPMAC %u received %u byte: %s\n", index, size,
+          logout("cpmac%u received %u byte: %s\n", index, size,
                  dump(buf, size)));
+
+    assert(!(rxmbpenable & RXMBPENABLE_RXPASSCRC));
+    assert(!(rxmbpenable & RXMBPENABLE_RXQOSEN));
+    assert(!(rxmbpenable & RXMBPENABLE_RXNOCHAIN));
+    assert(!(rxmbpenable & RXMBPENABLE_RXCMEMFEN));
+    assert(reg_read(cpmac, CPMAC_RXBUFFEROFFSET) == 0);
 
     /* Received a packet. */
     static const uint8_t broadcast_macaddr[6] =
         { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
-    if (!memcmp(buf, broadcast_macaddr, 6)) {
-        TRACE(CPMAC, logout("broadcast\n"));
-        reg_inc(cpmac, CPMAC_RXBROADCASTFRAMES);
-    } else if (buf[0] & 0x01) {
-        TRACE(CPMAC, logout("multicast\n"));
-        reg_inc(cpmac, CPMAC_RXMULTICASTFRAMES);
+    if ((rxmbpenable & RXMBPENABLE_RXBROADEN) && !memcmp(buf, broadcast_macaddr, 6)) {
+        channel = ((rxmbpenable & RXMBPENABLE_RXBROADCH) >> 8);
+        statusreg_inc(index, CPMAC_RXBROADCASTFRAMES);
+        TRACE(CPMAC, logout("broadcast to channel %d\n", channel));
+    } else if ((rxmbpenable & RXMBPENABLE_RXMULTEN) && (buf[0] & 0x01)) {
+        // !!! must check MACHASH1, MACHASH2
+        channel = ((rxmbpenable & RXMBPENABLE_RXMULTCH) >> 0);
+        statusreg_inc(index, CPMAC_RXMULTICASTFRAMES);
+        TRACE(CPMAC, logout("multicast to channel %d\n", channel));
     } else if (!memcmp(buf, av.nic[index].phys, 6)) {
-        TRACE(CPMAC, logout("my address\n"));
+        channel = 0;
+        TRACE(CPMAC, logout("my address to channel %d\n", channel));
+    } else if (rxmbpenable & RXMBPENABLE_RXCAFEN) {
+        channel = ((rxmbpenable & RXMBPENABLE_RXPROMCH) >> 16);
+        //~ statusreg_inc(index, CPMAC_RXMULTICASTFRAMES);
+        TRACE(CPMAC, logout("promicuous to channel %d\n", channel));
     } else {
-        TRACE(CPMAC, logout("unknown address\n"));
+        TRACE(CPMAC, logout("unknown address, frame ignored\n"));
+        return;
     }
 
     /* !!! check handling of short and long frames */
     if (size < 64) {
-        reg_inc(cpmac, CPMAC_RXUNDERSIZEDFRAMES);
-    } else if (size > MAX_ETH_FRAME_SIZE) {
-        reg_inc(cpmac, CPMAC_RXOVERSIZEDFRAMES);
+        TRACE(CPMAC, logout("short frame, flag = 0x%x\n",
+          rxmbpenable & RXMBPENABLE_RXCSFEN));
+        statusreg_inc(index, CPMAC_RXUNDERSIZEDFRAMES);
+        // !!! must set FRAGMENT or UNDERSIZE in EOP buffer descriptor
+    } else if (size > rxmaxlen) {
+        statusreg_inc(index, CPMAC_RXOVERSIZEDFRAMES);
     }
 
-    reg_inc(cpmac, CPMAC_RXGOODFRAMES);
+    statusreg_inc(index, CPMAC_RXGOODFRAMES);
 
-    uint32_t val = reg_read(cpmac, CPMAC_RX0_HDP);
+    uint32_t val = reg_read(cpmac, CPMAC_RX0HDP);
     if (val == 0) {
         TRACE(RXTX, logout("no buffer available, frame ignored\n"));
     } else {
@@ -2103,7 +2301,7 @@ static void ar7_nic_receive(void *opaque, const uint8_t * buf, int size)
               ("buffer 0x%08x, next 0x%08x, buff 0x%08x, params 0x%08x, len 0x%08x\n",
                val, (unsigned)rcb.next, addr, mode, length));
         if (mode & CB_OWNERSHIP_BIT) {
-            //~ assert(length > size);
+            assert(length >= size);
             mode &= ~(CB_OWNERSHIP_BIT);
             mode |= (size & CB_SIZE_MASK);
             mode |= CB_SOF_BIT | CB_EOF_BIT /*| CB_OWNERSHIP_BIT */ ;
@@ -2115,10 +2313,12 @@ static void ar7_nic_receive(void *opaque, const uint8_t * buf, int size)
             rcb.mode = cpu_to_le32(mode);
             cpu_physical_memory_write(addr, buf, size);
             cpu_physical_memory_write(val, (uint8_t *) & rcb, sizeof(rcb));
-            reg_write(cpmac, CPMAC_RX0_HDP, rcb.next);
+            reg_write(cpmac, CPMAC_RX0HDP, rcb.next);
 
-            reg_set(cpmac, CPMAC_MAC_IN_VECTOR, MAC_IN_VECTOR_RX_INT_OR + 0);
-            ar7_irq(0, cpmac_interrupt[index], 1);      // !!! fix
+            reg_write(cpmac, CPMAC_RX0CP + 4 * channel, val);
+            reg_set(cpmac, CPMAC_MACINVECTOR, MACINVECTOR_RX_INT_OR + 0);
+            reg_set(cpmac, CPMAC_RXINTSTATRAW, 1 << channel);
+            emac_update_interrupt(index);
         } else {
             logout("buffer not free, frame ignored\n");
         }
@@ -2135,9 +2335,10 @@ static void ar7_nic_init(void)
         if (nd->vlan) {
             if (n < 2 && (nd->model == NULL || strcmp(nd->model, "ar7") == 0)) {
                 TRACE(CPMAC, logout("starting AR7 nic CPMAC%u\n", n));
-                av.nic[n++].vc = qemu_new_vlan_client(nd->vlan, ar7_nic_receive,
+                av.nic[n].vc = qemu_new_vlan_client(nd->vlan, ar7_nic_receive,
                                                       ar7_nic_can_receive,
                                                       (void *)n);
+                n++;
             } else {
                 fprintf(stderr, "qemu: Unsupported NIC: %s\n",
                         nd_table[n].model);
@@ -2264,3 +2465,91 @@ static void ar7_machine_power_off(void)
 #define TNETD73XX_CLK_CTRL_ACLKPLLCR1       (TNETD73XX_CLOCK_CTRL_BASE + 0xB0)
 
 #endif
+
+#if 0
+/* missing init code */
+reg_write(cpmac, CPMAC_RXMAXLEN, 1518);
+#endif
+
+/*
+AR7     ar7_nic_receive         cpmac0 received 42 byte:  ff ff ff ff ff ff 66 67 b2 6a a7 3c 08 06 00 01 08 00 06 04 00 01 66 67 b2
+AR7     ar7_nic_receive         broadcast to channel 0
+AR7     ar7_nic_receive         short frame, flag = 0x0
+AR7     ar7_nic_receive         buffer 0x142ea8e0, next 0x142ea8f0, buff 0x141e37f0, params 0x20000000, len 0x0000060c
+AR7     ar7_cpmac_read          cpmac0[TX_INTSTAT_MASKED] (0x08610174) = 0x00000000
+AR7     ar7_cpmac_write         cpmac0[RX0CP] (0x08610660) = 0x142ea8e0
+AR7     ar7_cpmac_write         cpmac0[MAC_EOI_VECTOR] (0x08610184) = 0x00000000
+AR7     ar7_cpmac_read          cpmac0[TX_INTSTAT_MASKED] (0x08610174) = 0x00000000 x 6
+AR7     ar7_cpmac_write         cpmac0[TX0HDP] (0x08610600) = 0x142ea8d0
+AR7     ar7_cpmac_write         buffer 0x142ea8d0, next 0x00000000, buff 0x14217660, params 0xe0000040, len 0x00000040, total 0x00000000
+AR7     ar7_cpmac_write         cpmac0 sent 64 byte:  66 67 b2 6a a7 3c 00 30 f1 df 5f 55 08 06 00 01 08 00 06 04 00 02 00 30 f1
+AR7     ar7_cpmac_read          cpmac0[TX_INTSTAT_MASKED] (0x08610174) = 0x00000000
+AR7     ar7_cpmac_read          cpmac0[TX_INTSTAT_MASKED] (0x08610174) = 0x00000000
+AR7     ar7_nic_receive         cpmac0 received 98 byte:  00 30 f1 df 5f 55 66 67 b2 6a a7 3c 08 00 45 00 00 54 00 00 40 00 40 01 b5
+AR7     ar7_nic_receive         my address to channel 0
+AR7     ar7_nic_receive         buffer 0x142ea8f0, next 0x142ea900, buff 0x141e3e60, params 0x20000000, len 0x0000060c
+AR7     ar7_cpmac_read          cpmac0[TX_INTSTAT_MASKED] (0x08610174) = 0x00000000
+AR7     ar7_cpmac_write         cpmac0[RX0CP] (0x08610660) = 0x142ea8f0
+AR7     ar7_cpmac_write         cpmac0[MAC_EOI_VECTOR] (0x08610184) = 0x00000000
+AR7     ar7_cpmac_read          cpmac0[TX_INTSTAT_MASKED] (0x08610174) = 0x00000000 x 6
+AR7     ar7_cpmac_write         cpmac0[TX0HDP] (0x08610600) = 0x142ea8d0
+AR7     ar7_cpmac_write         buffer 0x142ea8d0, next 0x00000000, buff 0x14218340, params 0xe0000062, len 0x00000062, total 0x00000000
+AR7     ar7_cpmac_write         cpmac0 sent 98 byte:  66 67 b2 6a a7 3c 00 30 f1 df 5f 55 08 00 45 00 00 54 00 00 00 00 40 01 f5
+AR7     ar7_cpmac_read          cpmac0[TX_INTSTAT_MASKED] (0x08610174) = 0x00000000
+
+
+AR7     ar7_nic_receive         cpmac0 received 42 byte:  ff ff ff ff ff ff 72 5b fa 57 da 21 08 06 00 01 08 00 06 04 00 01 72 5b fa
+AR7     ar7_nic_receive         broadcast to channel 0
+AR7     ar7_nic_receive         short frame, flag = 0x0
+AR7     ar7_nic_receive         buffer 0x142ea8e0, next 0x142ea8f0, buff 0x141e37f0, params 0x20000000, len 0x0000060c
+AR7     ar7_cpmac_read          cpmac0[TXINTSTATMASKED] (0x08610174) = 0x00000000
+AR7     ar7_cpmac_write         cpmac0[RX0CP] (0x08610660) = 0x142ea8e0
+AR7     ar7_cpmac_write         cpmac0[MACEOIVECTOR] (0x08610184) = 0x00000000
+AR7     ar7_cpmac_read          cpmac0[TXINTSTATMASKED] (0x08610174) = 0x00000000 x 6
+AR7     ar7_cpmac_write         cpmac0[TX0HDP] (0x08610600) = 0x142ea8d0
+AR7     ar7_cpmac_write         buffer 0x142ea8d0, next 0x00000000, buff 0x14217660, params 0xe0000040, len 0x00000040, total 0x00000000
+AR7     ar7_cpmac_write         cpmac0 sent 64 byte:  72 5b fa 57 da 21 00 30 f1 df 5f 55 08 06 00 01 08 00 06 04 00 02 00 30 f1
+AR7     ar7_cpmac_read          cpmac0[TXINTSTATMASKED] (0x08610174) = 0x00000000
+AR7     ar7_cpmac_read          cpmac0[TXINTSTATMASKED] (0x08610174) = 0x00000000
+AR7     ar7_nic_receive         cpmac0 received 98 byte:  00 30 f1 df 5f 55 72 5b fa 57 da 21 08 00 45 00 00 54 00 00 40 00 40 01 b5
+AR7     ar7_nic_receive         my address to channel 0
+AR7     ar7_nic_receive         buffer 0x142ea8f0, next 0x142ea900, buff 0x141e3e60, params 0x20000000, len 0x0000060c
+AR7     ar7_cpmac_read          cpmac0[TXINTSTATMASKED] (0x08610174) = 0x00000000
+AR7     ar7_cpmac_write         cpmac0[RX0CP] (0x08610660) = 0x142ea8f0
+AR7     ar7_cpmac_write         cpmac0[MACEOIVECTOR] (0x08610184) = 0x00000000
+AR7     ar7_cpmac_read          cpmac0[TXINTSTATMASKED] (0x08610174) = 0x00000000 x 6
+AR7     ar7_cpmac_write         cpmac0[TX0HDP] (0x08610600) = 0x142ea8d0
+AR7     ar7_cpmac_write         buffer 0x142ea8d0, next 0x00000000, buff 0x14218340, params 0xe0000062, len 0x00000062, total 0x00000000
+AR7     ar7_cpmac_write         cpmac0 sent 98 byte:  72 5b fa 57 da 21 00 30 f1 df 5f 55 08 00 45 00 00 54 00 00 00 00 40 01 f5
+AR7     ar7_cpmac_read          cpmac0[TXINTSTATMASKED] (0x08610174) = 0x00000000
+
+
+AR7     ar7_nic_receive         cpmac0 received 42 byte:  ff ff ff ff ff ff 76 e4 0c 1a 83 31 08 06 00 01 08 00 06 04 00 01 76 e4 0c
+AR7     ar7_nic_receive         broadcast to channel 0
+AR7     ar7_nic_receive         short frame, flag = 0x0
+AR7     ar7_nic_receive         buffer 0x142ea8e0, next 0x142ea8f0, buff 0x141e37f0, params 0x20000000, len 0x0000060c
+AR7     ar7_cpmac_read          cpmac0[TXINTSTATMASKED] (0x08610174) = 0x00000000
+AR7     ar7_cpmac_write         cpmac0[RX0CP] (0x08610660) = 0x142ea8e0
+AR7     ar7_cpmac_write         cpmac0[MACEOIVECTOR] (0x08610184) = 0x00000000
+AR7     ar7_cpmac_write         cpmac0[TX0HDP] (0x08610600) = 0x142ea8d0
+AR7     ar7_cpmac_write         buffer 0x142ea8d0, next 0x00000000, buff 0x14217660, flags 0xe0000000, len 0x00000040, total 0x00000040
+AR7     ar7_cpmac_write         cpmac0 sent 64 byte:  76 e4 0c 1a 83 31 00 30 f1 df 5f 55 08 06 00 01 08 00 06 04 00 02 00 30 f1
+AR7     ar7_cpmac_read          cpmac0[TXINTSTATMASKED] (0x08610174) = 0x00000001
+AR7     ar7_cpmac_write         cpmac0[TX0CP] (0x08610640) = 0x142ea8d0
+AR7     ar7_cpmac_write         cpmac0[MACEOIVECTOR] (0x08610184) = 0x00000000
+AR7     ar7_nic_receive         cpmac0 received 98 byte:  00 30 f1 df 5f 55 76 e4 0c 1a 83 31 08 00 45 00 00 54 00 00 40 00 40 01 b5
+AR7     ar7_nic_receive         my address to channel 0
+AR7     ar7_nic_receive         buffer 0x142ea8f0, next 0x142ea900, buff 0x141e3e60, params 0x20000000, len 0x0000060c
+AR7     ar7_cpmac_read          cpmac0[TXINTSTATMASKED] (0x08610174) = 0x00000000
+AR7     ar7_cpmac_write         cpmac0[RX0CP] (0x08610660) = 0x142ea8f0
+AR7     ar7_cpmac_write         cpmac0[MACEOIVECTOR] (0x08610184) = 0x00000000
+AR7     ar7_cpmac_write         cpmac0[TX0HDP] (0x08610600) = 0x142ea8d0
+AR7     ar7_cpmac_write         buffer 0x142ea8d0, next 0x00000000, buff 0x14218340, flags 0xe0000000, len 0x00000062, total 0x00000062
+AR7     ar7_cpmac_write         cpmac0 sent 98 byte:  76 e4 0c 1a 83 31 00 30 f1 df 5f 55 08 00 45 00 00 54 00 00 00 00 40 01 f5
+AR7     ar7_cpmac_read          cpmac0[TXINTSTATMASKED] (0x08610174) = 0x00000001
+AR7     ar7_cpmac_write         cpmac0[TX0CP] (0x08610640) = 0x142ea8d0
+AR7     ar7_cpmac_write         cpmac0[MACEOIVECTOR] (0x08610184) = 0x00000000
+AR7     ar7_nic_receive         cpmac0 received 70 byte:  33 33 00 00 00 02 76 e4 0c 1a 83 31 86 dd 60 00 00 00 00 10 3a ff fe 80 00
+AR7     ar7_nic_receive         unknown address, frame ignored
+
+*/
