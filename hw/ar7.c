@@ -63,18 +63,18 @@ struct IoState {
 #endif
 
 /* Set flags to >0 to enable debug output. */
-#define CLOCK   0
+#define CLOCK   1
 #define CPMAC   1
-#define EMIF    0
-#define GPIO    0
-#define INTC    0
-#define MDIO    0               /* polled, so very noisy */
-#define RESET   0
+#define EMIF    1
+#define GPIO    1
+#define INTC    1
+#define MDIO    1               /* polled, so very noisy */
+#define RESET   1
 #define UART0   0
-#define UART1   0
-#define VLYNQ   0
-#define WDOG    0
-#define OTHER   0
+#define UART1   1
+#define VLYNQ   1
+#define WDOG    1
+#define OTHER   1
 #define RXTX    1
 
 #define DEBUG_AR7
@@ -126,6 +126,7 @@ Physical memory map
 #define AVALANCHE_USB_MEM_BASE          0x03400000      /* USB slave mem map */
 #define AVALANCHE_VLYNQ0_MEM_MAP_BASE   0x04000000      /* VLYNQ 0 memory mapped */
 #define AVALANCHE_VLYNQ1_MEM_MAP_BASE   0x0c000000      /* VLYNQ 1 memory mapped */
+//~ #define AVALANCHE_DES_BASE          0x08600000      /* ??? */
 #define AVALANCHE_CPMAC0_BASE           0x08610000
 #define AVALANCHE_EMIF_BASE             0x08610800
 #define AVALANCHE_GPIO_BASE             0x08610900
@@ -157,6 +158,9 @@ Physical memory map
 #define AVALANCHE_INTC_BASE             0x08612400
 #define AVALANCHE_CPMAC1_BASE           0x08612800
 #define AVALANCHE_END                   0x08613000
+#define AVALANCHE_PHY_BASE              0x1e000000      /* ??? */
+#define AVALANCHE_PHY1_BASE             0x1e100000      /* ??? */
+#define AVALANCHE_PHY2_BASE             0x1e200000      /* ??? */
 
 typedef struct {
     uint32_t next;
@@ -374,7 +378,12 @@ static void ar7_irq(void *opaque, int irq_num, int level)
     case 15:                   /* serial0 */
     case 16:                   /* serial1 */
     case 27:                   /* cpmac0 */
-    case 41:                   /* cpmac1 */
+    case 29:                   /* vlynq0 ??? */
+    case 32:                   /* usbslave ??? */
+    case 33:                   /* vlynq1 ??? */
+    case 36:                   /* phy ??? */
+    case 41:                   /* cpmac1 */ // ??? 36
+    case 47:                   /* adslss ??? */
         if (level) {
             unsigned channel = irq_num - 8;
             if (channel < 32) {
@@ -1061,6 +1070,53 @@ static void ar7_cpmac_write(unsigned index, unsigned offset,
         reg_write(cpmac, offset, val);
     }
 }
+
+/*****************************************************************************
+ *
+ * Clock / power controller emulation.
+ *
+ ****************************************************************************/
+
+/* Power Control  */
+#define TNETD73XX_POWER_CTRL_PDCR           (TNETD73XX_CLOCK_CTRL_BASE + 0x0)
+#define TNETD73XX_POWER_CTRL_PCLKCR         (TNETD73XX_CLOCK_CTRL_BASE + 0x4)
+#define TNETD73XX_POWER_CTRL_PDUCR          (TNETD73XX_CLOCK_CTRL_BASE + 0x8)
+#define TNETD73XX_POWER_CTRL_WKCR           (TNETD73XX_CLOCK_CTRL_BASE + 0xC)
+
+/* Clock Control */
+#define TNETD73XX_CLK_CTRL_SCLKCR           (TNETD73XX_CLOCK_CTRL_BASE + 0x20)
+#define TNETD73XX_CLK_CTRL_SCLKPLLCR        (TNETD73XX_CLOCK_CTRL_BASE + 0x30)
+#define TNETD73XX_CLK_CTRL_MCLKCR           (TNETD73XX_CLOCK_CTRL_BASE + 0x40)
+#define TNETD73XX_CLK_CTRL_MCLKPLLCR        (TNETD73XX_CLOCK_CTRL_BASE + 0x50)
+#define TNETD73XX_CLK_CTRL_UCLKCR           (TNETD73XX_CLOCK_CTRL_BASE + 0x60)
+#define TNETD73XX_CLK_CTRL_UCLKPLLCR        (TNETD73XX_CLOCK_CTRL_BASE + 0x70)
+#define TNETD73XX_CLK_CTRL_ACLKCR0          (TNETD73XX_CLOCK_CTRL_BASE + 0x80)
+#define TNETD73XX_CLK_CTRL_ACLKPLLCR0       (TNETD73XX_CLOCK_CTRL_BASE + 0x90)
+#define TNETD73XX_CLK_CTRL_ACLKCR1          (TNETD73XX_CLOCK_CTRL_BASE + 0xA0)
+#define TNETD73XX_CLK_CTRL_ACLKPLLCR1       (TNETD73XX_CLOCK_CTRL_BASE + 0xB0)
+
+#define AVALANCHE_POWER_MODULE_USBSP               0
+#define AVALANCHE_POWER_MODULE_WDTP                1
+#define AVALANCHE_POWER_MODULE_UT0P                2
+#define AVALANCHE_POWER_MODULE_UT1P                3
+#define AVALANCHE_POWER_MODULE_IICP                4
+#define AVALANCHE_POWER_MODULE_VDMAP               5
+#define AVALANCHE_POWER_MODULE_GPIOP               6
+#define AVALANCHE_POWER_MODULE_VLYNQ1P             7
+#define AVALANCHE_POWER_MODULE_SARP                8
+#define AVALANCHE_POWER_MODULE_ADSLP               9
+#define AVALANCHE_POWER_MODULE_EMIFP              10
+#define AVALANCHE_POWER_MODULE_ADSPP              12
+#define AVALANCHE_POWER_MODULE_RAMP               13
+#define AVALANCHE_POWER_MODULE_ROMP               14
+#define AVALANCHE_POWER_MODULE_DMAP               15
+#define AVALANCHE_POWER_MODULE_BISTP              16
+#define AVALANCHE_POWER_MODULE_TIMER0P            18
+#define AVALANCHE_POWER_MODULE_TIMER1P            19
+#define AVALANCHE_POWER_MODULE_EMAC0P             20
+#define AVALANCHE_POWER_MODULE_EMAC1P             22
+#define AVALANCHE_POWER_MODULE_EPHYP              24
+#define AVALANCHE_POWER_MODULE_VLYNQ0P            27
 
 /*****************************************************************************
  *
@@ -2032,8 +2088,8 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
         logflag = 0;
         val = ar7_vlynq_read(1, addr - AVALANCHE_VLYNQ1_BASE);
     } else if (INRANGE(AVALANCHE_MDIO_BASE, av.mdio)) {
-        name = "mdio";
-        logflag = MDIO;
+        //~ name = "mdio";
+        logflag = 0;
         val = ar7_mdio_read(av.mdio, addr - AVALANCHE_MDIO_BASE);
     } else if (INRANGE(OHIO_WDT_BASE, av.wdt)) {
         name = "ohio wdt";
@@ -2159,8 +2215,8 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
         logflag = 0;
         ar7_vlynq_write(1, addr - AVALANCHE_VLYNQ1_BASE, val);
     } else if (INRANGE(AVALANCHE_MDIO_BASE, av.mdio)) {
-        name = "mdio";
-        logflag = MDIO;
+        //~ name = "mdio";
+        logflag = 0;
         ar7_mdio_write(av.mdio, addr - AVALANCHE_MDIO_BASE, val);
     } else if (INRANGE(OHIO_WDT_BASE, av.wdt)) {
         name = "ohio wdt";
