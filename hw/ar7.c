@@ -63,6 +63,21 @@ struct IoState {
 #endif
 
 /* Set flags to >0 to enable debug output. */
+#if 0
+#define CLOCK   0
+#define CPMAC   0
+#define EMIF    0
+#define GPIO    0
+#define INTC    0
+#define MDIO    0               /* polled, so very noisy */
+#define RESET   0
+#define UART0   0
+#define UART1   0
+#define VLYNQ   0
+#define WDOG    0
+#define OTHER   0
+#define RXTX    0
+#else
 #define CLOCK   1
 #define CPMAC   1
 #define EMIF    1
@@ -76,6 +91,7 @@ struct IoState {
 #define WDOG    1
 #define OTHER   1
 #define RXTX    1
+#endif
 
 #define DEBUG_AR7
 
@@ -126,7 +142,7 @@ Physical memory map
 #define AVALANCHE_USB_MEM_BASE          0x03400000      /* USB slave mem map */
 #define AVALANCHE_VLYNQ0_MEM_MAP_BASE   0x04000000      /* VLYNQ 0 memory mapped */
 #define AVALANCHE_VLYNQ1_MEM_MAP_BASE   0x0c000000      /* VLYNQ 1 memory mapped */
-//~ #define AVALANCHE_DES_BASE          0x08600000      /* ??? */
+#define AVALANCHE_DES_BASE              0x08600000      /* ??? */
 #define AVALANCHE_CPMAC0_BASE           0x08610000
 #define AVALANCHE_EMIF_BASE             0x08610800
 #define AVALANCHE_GPIO_BASE             0x08610900
@@ -948,18 +964,30 @@ static void ar7_cpmac_write(unsigned index, unsigned offset,
     if (0) {
     } else if (offset == CPMAC_TXTEARDOWN) {
         uint32_t channel = val;
+        uint32_t txhdp = reg_read(cpmac, CPMAC_TX0HDP + 4 * channel);
         assert(channel < 8);
         channel &= BITS(2, 0);
-        // !!! set TDOWNCMPLT in next flags.
+        if (txhdp != 0) {
+            // Set TCB_TDOWNCMPLT in next flags???
+            uint32_t flags = ldl_phys(txhdp + offsetof(cpphy_tcb_t, mode));
+            flags |= TCB_TDOWNCMPLT;
+            stl_phys(txhdp + offsetof(cpphy_tcb_t, mode), flags);
+        }
         reg_write(cpmac, CPMAC_TX0HDP + 4 * channel, 0);
         reg_write(cpmac, CPMAC_TX0CP + 4 * channel, 0xfffffffc);
         reg_set(cpmac, CPMAC_TXINTSTATRAW, 1 << channel);
         emac_update_interrupt(index);
     } else if (offset == CPMAC_RXTEARDOWN) {
         uint32_t channel = val;
+        uint32_t rxhdp = av.nic[index].rxhdp[channel];
         assert(channel < 8);
         channel &= BITS(2, 0);
-        // !!! set TDOWNCMPLT in next flags.
+        if (rxhdp != 0) {
+            // Set RCB_TDOWNCMPLT in next flags???
+            uint32_t flags = ldl_phys(rxhdp + offsetof(cpphy_rcb_t, mode));
+            flags |= RCB_TDOWNCMPLT;
+            stl_phys(rxhdp + offsetof(cpphy_rcb_t, mode), flags);
+        }
         reg_write(cpmac, CPMAC_RX0HDP + 4 * channel, 0);
         av.nic[index].rxhdp[channel] = 0;
         reg_write(cpmac, CPMAC_RX0CP + 4 * channel, 0xfffffffc);
@@ -1042,15 +1070,6 @@ static void ar7_cpmac_write(unsigned index, unsigned offset,
         uint8_t channel = (offset - CPMAC_RX0HDP) / 4;
         reg_write(cpmac, offset, val);
         av.nic[index].rxhdp[channel] = val;
-        /* Receive buffer. !!! */
-        //~ cpphy_rcb_t rcb;
-        //~ cpu_physical_memory_read(val, (uint8_t *) & rcb, sizeof(rcb));
-        //~ uint32_t addr = le32_to_cpu(rcb.buff);
-        //~ uint32_t length = le32_to_cpu(rcb.length);
-        //~ TRACE(CPMAC,
-              //~ logout
-              //~ ("buffer 0x%08x, next 0x%08x, buff 0x%08x, params 0x%08x, len 0x%08x\n",
-               //~ val, (unsigned)rcb.next, addr, (unsigned)rcb.mode, length));
     } else if (offset >= CPMAC_TX0CP && offset <= CPMAC_TX7CP) {
         uint8_t channel = (offset - CPMAC_TX0CP) / 4;
         uint32_t oldval = reg_read(cpmac, offset);
@@ -1094,6 +1113,25 @@ static void ar7_cpmac_write(unsigned index, unsigned offset,
 #define TNETD73XX_CLK_CTRL_ACLKPLLCR0       (TNETD73XX_CLOCK_CTRL_BASE + 0x90)
 #define TNETD73XX_CLK_CTRL_ACLKCR1          (TNETD73XX_CLOCK_CTRL_BASE + 0xA0)
 #define TNETD73XX_CLK_CTRL_ACLKPLLCR1       (TNETD73XX_CLOCK_CTRL_BASE + 0xB0)
+
+#if 0
+#define CLKC_CLKCR(x)          (TNETD73XX_CLOCK_CTRL_BASE + 0x20 + (0x20 * (x)))
+#define CLKC_CLKPLLCR(x)       (TNETD73XX_CLOCK_CTRL_BASE + 0x30 + (0x20 * (x)))
+
+static void ar7_machine_power_off(void)
+{
+    volatile uint32_t *power_reg = (void *)(KSEG1ADDR(0x08610A00));
+    uint32_t power_state = *power_reg;
+
+    /* add something to turn LEDs off? */
+
+    power_state &= ~(3 << 30);
+    power_state |= (3 << 30);   /* power down */
+    *power_reg = power_state;
+
+    printk("after power down?\n");
+}
+#endif
 
 #define AVALANCHE_POWER_MODULE_USBSP               0
 #define AVALANCHE_POWER_MODULE_WDTP                1
@@ -2104,11 +2142,10 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
         logflag = 0;
         val = ar7_cpmac_read(1, addr - AVALANCHE_CPMAC1_BASE);
     } else {
-        name = "???";
-        logflag = 1;
+        //~ name = "???";
+        logflag = 0;
         {
-            TRACE(logflag, logout("addr 0x%08lx (%s) = 0x%08x, caller %s\n",
-                                  (unsigned long)addr, name, val, backtrace()));
+            logout("addr 0x%08x (???" ") = 0x%08x, caller %s\n", addr, val, backtrace());
             MISSING();
         }
     }
@@ -2231,8 +2268,12 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
         logflag = 0;
         ar7_cpmac_write(1, addr - AVALANCHE_CPMAC1_BASE, val);
     } else {
-        name = "???";
-        logflag = 1;
+        //~ name = "???";
+        logflag = 0;
+        {
+            logout("addr 0x%08x (???" ") = 0x%08x, caller %s\n", addr, val, backtrace());
+            MISSING();
+        }
     }
     if (name != 0) {
         TRACE(logflag, logout("addr 0x%08lx (%s) = 0x%08x\n",
@@ -2275,7 +2316,7 @@ static uint32_t io_readb(void *opaque, target_phys_addr_t addr)
 
 static void io_writew(void *opaque, target_phys_addr_t addr, uint32_t value)
 {
-    logout("addr=0x%08x, val=0x%02x\n", addr, value);
+    logout("addr=0x%08x, val=0x%04x\n", addr, value);
     UNEXPECTED();
     ar7_io_memwrite(opaque, addr, value);
 }
@@ -2328,6 +2369,7 @@ static void ar7_serial_init(CPUState * env)
     av.cpu_env = env;
     if (serial_hds[1] == 0) {
         serial_hds[1] = qemu_chr_open("vc");
+        qemu_chr_printf(serial_hds[1], "serial1 console\r\n");
     }
     serial_16450_init(ar7_irq, IRQ_OPAQUE,
                       UART_MEM_TO_IO(AVALANCHE_UART0_BASE), 15, serial_hds[0]);
@@ -2370,7 +2412,7 @@ static void ar7_nic_receive(void *opaque, const uint8_t * buf, int size)
 
     assert(!(rxmbpenable & RXMBPENABLE_RXPASSCRC));
     assert(!(rxmbpenable & RXMBPENABLE_RXQOSEN));
-    assert(!(rxmbpenable & RXMBPENABLE_RXNOCHAIN));
+    //~ assert(!(rxmbpenable & RXMBPENABLE_RXNOCHAIN));
     assert(!(rxmbpenable & RXMBPENABLE_RXCMEMFEN));
     assert(reg_read(cpmac, CPMAC_RXBUFFEROFFSET) == 0);
 
@@ -2538,58 +2580,6 @@ void ar7_init(CPUState * env)
     qemu_register_reset(ar7_reset, env);
     register_savevm("ar7", ar7_instance, ar7_version, ar7_save, ar7_load, 0);
 }
-
-#if 0
-static void ar7_machine_power_off(void)
-{
-    volatile uint32_t *power_reg = (void *)(KSEG1ADDR(0x08610A00));
-    uint32_t power_state = *power_reg;
-
-    /* add something to turn LEDs off? */
-
-    power_state &= ~(3 << 30);
-    power_state |= (3 << 30);   /* power down */
-    *power_reg = power_state;
-
-    printk("after power down?\n");
-}
-
-. / arch / mips / ar7 / tnetd73xx_misc.c:
-#define CLKC_CLKCR(x)          (TNETD73XX_CLOCK_CTRL_BASE + 0x20 + (0x20 * (x)))
-. / arch / mips / ar7 / tnetd73xx_misc.c:
-#define CLKC_CLKPLLCR(x)       (TNETD73XX_CLOCK_CTRL_BASE + 0x30 + (0x20 * (x)))
-. / include / asm - mips / ar7 / tnetd73xx.h:
-#define TNETD73XX_CLOCK_CTRL_BASE           PHYS_TO_K1(0x08610A00)      /* Clock Control */
-. / include / asm - mips / ar7 / tnetd73xx.h:
-#define TNETD73XX_POWER_CTRL_PDCR           (TNETD73XX_CLOCK_CTRL_BASE + 0x0)
-. / include / asm - mips / ar7 / tnetd73xx.h:
-#define TNETD73XX_POWER_CTRL_PCLKCR         (TNETD73XX_CLOCK_CTRL_BASE + 0x4)
-. / include / asm - mips / ar7 / tnetd73xx.h:
-#define TNETD73XX_POWER_CTRL_PDUCR          (TNETD73XX_CLOCK_CTRL_BASE + 0x8)
-. / include / asm - mips / ar7 / tnetd73xx.h:
-#define TNETD73XX_POWER_CTRL_WKCR           (TNETD73XX_CLOCK_CTRL_BASE + 0xC)
-. / include / asm - mips / ar7 / tnetd73xx.h:
-#define TNETD73XX_CLK_CTRL_SCLKCR           (TNETD73XX_CLOCK_CTRL_BASE + 0x20)
-. / include / asm - mips / ar7 / tnetd73xx.h:
-#define TNETD73XX_CLK_CTRL_SCLKPLLCR        (TNETD73XX_CLOCK_CTRL_BASE + 0x30)
-. / include / asm - mips / ar7 / tnetd73xx.h:
-#define TNETD73XX_CLK_CTRL_MCLKCR           (TNETD73XX_CLOCK_CTRL_BASE + 0x40)
-. / include / asm - mips / ar7 / tnetd73xx.h:
-#define TNETD73XX_CLK_CTRL_MCLKPLLCR        (TNETD73XX_CLOCK_CTRL_BASE + 0x50)
-. / include / asm - mips / ar7 / tnetd73xx.h:
-#define TNETD73XX_CLK_CTRL_UCLKCR           (TNETD73XX_CLOCK_CTRL_BASE + 0x60)
-. / include / asm - mips / ar7 / tnetd73xx.h:
-#define TNETD73XX_CLK_CTRL_UCLKPLLCR        (TNETD73XX_CLOCK_CTRL_BASE + 0x70)
-. / include / asm - mips / ar7 / tnetd73xx.h:
-#define TNETD73XX_CLK_CTRL_ACLKCR0          (TNETD73XX_CLOCK_CTRL_BASE + 0x80)
-. / include / asm - mips / ar7 / tnetd73xx.h:
-#define TNETD73XX_CLK_CTRL_ACLKPLLCR0       (TNETD73XX_CLOCK_CTRL_BASE + 0x90)
-. / include / asm - mips / ar7 / tnetd73xx.h:
-#define TNETD73XX_CLK_CTRL_ACLKCR1          (TNETD73XX_CLOCK_CTRL_BASE + 0xA0)
-. / include / asm - mips / ar7 / tnetd73xx.h:
-#define TNETD73XX_CLK_CTRL_ACLKPLLCR1       (TNETD73XX_CLOCK_CTRL_BASE + 0xB0)
-
-#endif
 
 /*
 AR7     ar7_nic_receive         cpmac0 received 42 byte:  ff ff ff ff ff ff 66 67 b2 6a a7 3c 08 06 00 01 08 00 06 04 00 01 66 67 b2
