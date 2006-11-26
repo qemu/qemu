@@ -128,6 +128,85 @@ static void main_cpu_reset(void *opaque)
     cpu_reset(env);
 }
 
+/*------------------------------------------*/
+
+#define logout(fmt, args...) fprintf(stderr, "MIPS\t%-24s" fmt, __func__, ##args)
+
+#define ASCII_DISPLAY_POS_BASE     0x1f000418
+
+static char mips_display_text[8];
+
+static CharDriverState *mips_display;
+
+static void io_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
+{
+    logout("??? addr=0x%08x, val=0x%02x\n", addr, value);
+}
+
+static uint32_t io_readb(void *opaque, target_phys_addr_t addr)
+{
+    uint32_t value = 0;
+    logout("??? addr=0x%08x, val=0x%02x\n", addr, value);
+    return value;
+}
+
+static void io_writew(void *opaque, target_phys_addr_t addr, uint32_t value)
+{
+    logout("??? addr=0x%08x, val=0x%04x\n", addr, value);
+}
+
+static uint32_t io_readw(void *opaque, target_phys_addr_t addr)
+{
+    uint32_t value = 0;
+    logout("??? addr=0x%08x, val=0x%04x\n", addr, value);
+    return value;
+}
+
+static void io_writel(void *opaque, target_phys_addr_t addr, uint32_t value)
+{
+    if (addr & 0x7) {
+        logout("??? addr=0x%08x, val=0x%08x\n", addr, value);
+    } else if (addr >= ASCII_DISPLAY_POS_BASE && addr < ASCII_DISPLAY_POS_BASE + 4 * 2 * 8) {
+        unsigned index = (addr - ASCII_DISPLAY_POS_BASE) / 4 / 2;
+        mips_display_text[index] = (char)value;
+        qemu_chr_printf(mips_display, "\r| %-8.8s |", mips_display_text);
+    } else {
+        logout("??? addr=0x%08x, val=0x%08x\n", addr, value);
+    }
+}
+
+static uint32_t io_readl(void *opaque, target_phys_addr_t addr)
+{
+    uint32_t value = 0;
+    logout("??? addr=0x%08x, val=0x%08x\n", addr, value);
+    return value;
+}
+
+static CPUWriteMemoryFunc *const io_write[] = {
+    io_writeb,
+    io_writew,
+    io_writel,
+};
+
+static CPUReadMemoryFunc *const io_read[] = {
+    io_readb,
+    io_readw,
+    io_readl,
+};
+
+static void mips_display_init(CPUState *env, const char *devname)
+{
+    int io_memory = cpu_register_io_memory(0, io_read, io_write, env);
+    cpu_register_physical_memory(0x1f000000, 0x00010000, io_memory);
+    mips_display = qemu_chr_open(devname);
+    if (!strcmp(devname, "vc")) {
+        qemu_chr_printf(mips_display, "MIPS Display\r\n");
+        qemu_chr_printf(mips_display, "+----------+\r\n");
+    }
+}
+
+/*------------------------------------------*/
+
 static void mips_init (int ram_size, int vga_ram_size, int boot_device,
                     DisplayState *ds, const char **fd_filename, int snapshot,
                     const char *kernel_filename, const char *kernel_cmdline,
@@ -251,6 +330,8 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
     for(i = 0; i < 2; i++)
         isa_ide_init(ide_iobase[i], ide_iobase2[i], ide_irq[i],
                      bs_table[2 * i], bs_table[2 * i + 1]);
+
+    mips_display_init(env, "vc");
 }
 
 static void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
@@ -427,9 +508,10 @@ static void mips_ar7_common_init (int ram_size,
 
     /* Init internal devices */
     cpu_mips_clock_init(env);
-    cpu_mips_irqctrl_init();
+    //~ cpu_mips_irqctrl_init();
 
     ar7_init(env);
+    mips_display_init(env, "vc");
 }
 
 static void mips_ar7_init(int ram_size, int vga_ram_size, int boot_device,
