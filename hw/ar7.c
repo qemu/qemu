@@ -249,6 +249,7 @@ typedef struct {
 typedef struct {
     CPUState *cpu_env;
     NICState nic[2];
+    CharDriverState *gpio_display;
     uint32_t intmask[2];
     uint8_t *cpmac[2];
     uint8_t *vlynq[2];
@@ -262,8 +263,7 @@ typedef struct {
 
     uint8_t cpmac0[0x800];      // 0x08610000
     uint32_t emif[0x40];        // 0x08610800
-    uint32_t gpio[8];           // 0x08610900
-    // data in, data out, dir, enable, -, cvr, didr1, didr2
+    uint8_t gpio[32];           // 0x08610900
     uint32_t gpio_dummy[0x38];
     uint32_t clock_control[0x40];       // 0x08610a00
     // 0x08610a80 struct _ohio_clock_pll
@@ -298,7 +298,6 @@ static avalanche_t av = {
   vlynq:{av.vlynq0, av.vlynq1},
   //~ cpmac0:{0},
   //~ emif:{0},
-  gpio:{0x800, 0, 0, 0},
   //~ clock_control:{0},
   //~ timer0:{0},
   //~ timer1:{0},
@@ -307,7 +306,7 @@ static avalanche_t av = {
     //~ device_config_latch: 0x025d4297
     // 21-20 phy clk source
   device_config_latch:{0x025d4291},
-  mdio:{0x00, 0x07, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff}
+  //~ mdio:{0x00, 0x07, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff}
 };
 
 /* Global variable avalanche can be used in debugger. */
@@ -1158,6 +1157,51 @@ static void ar7_machine_power_off(void)
 
 /*****************************************************************************
  *
+ * GPIO emulation.
+ *
+ ****************************************************************************/
+
+typedef enum {
+    GPIO_IN = 0x00,
+    GPIO_OUT = 0x04,
+    GPIO_DIR = 0x08,
+    GPIO_ENABLE = 0x0c,
+    GPIO_CVR = 0x14,
+    GPIO_DIDR1 = 0x18,
+    GPIO_DIDR2 = 0x1c,
+} gpio_t;
+
+static uint32_t ar7_gpio_read(unsigned offset)
+{
+    uint32_t value = reg_read(av.gpio, offset);
+    if (offset == GPIO_IN && value == 0x00000800) {
+        /* Do not log polling of reset button. */
+    } else {
+        TRACE(GPIO, logout("gpio[0x%02x] = %08x\n", offset, value));
+    }
+    return value;
+}
+
+static void ar7_gpio_write(unsigned offset, uint32_t value)
+{
+    reg_write(av.gpio, offset, value);
+    if (offset <= GPIO_DIR) {
+        unsigned index;
+        uint32_t in = reg_read(av.gpio, GPIO_IN);
+        uint32_t out = reg_read(av.gpio, GPIO_OUT);
+        uint32_t dir = reg_read(av.gpio, GPIO_DIR);
+        char text[32];
+        for (index = 0; index < 32; index++) {
+            text[index] = (out & BIT(index)) ? '*' : '.';
+        }
+        qemu_chr_printf(av.gpio_display,
+                        "%32.32s (in=0x%08x out=0x%08x dir=0x%08x)\r",
+                        text, in, out, dir);
+    }
+}
+
+/*****************************************************************************
+ *
  * Interrupt controller emulation.
  *
  ****************************************************************************/
@@ -1335,6 +1379,23 @@ typedef enum {
 } mdio_t;
 
 typedef enum {
+    MDIO_VERSION_MODID = BITS(31, 16),
+    MDIO_VERSION_REVMAJ = BITS(15, 8),
+    MDIO_VERSION_REVMIN = BITS(7, 0),
+} mdio_version_bit_t;
+
+typedef enum {
+    MDIO_CONTROL_IDLE = BIT(31),
+    MDIO_CONTROL_ENABLE = BIT(30),
+    MDIO_CONTROL_HIGHEST_USER_CHANNEL = BITS(28, 24),
+    MDIO_CONTROL_PREAMBLE = BIT(20),
+    MDIO_CONTROL_FAULT = BIT(19),
+    MDIO_CONTROL_FAULTENB = BIT(18),
+    MDIO_CONTROL_INT_TEST_ENABLE = BIT(17),
+    MDIO_CONTROL_CLKDIV = BITS(15, 0),
+} mdio_control_bit_t;
+
+typedef enum {
     MDIO_USERACCESS_GO = BIT(31),
     MDIO_USERACCESS_WRITE = BIT(30),
     MDIO_USERACCESS_ACK = BIT(29),
@@ -1343,21 +1404,16 @@ typedef enum {
     MDIO_USERACCESS_DATA = BITS(15, 0),
 } mdio_useraccess_bit_t;
 
+typedef enum {
+    MDIO_USERPHYSEL_LINKSEL = BIT(7),
+    MDIO_USERPHYSEL_LINKINTENB = BIT(6),
+    MDIO_USERPHYSEL_PHYADRMON = BITS(4, 0),
+} mdio_userphysel_bit_t;
+
 #if 0
 typedef struct {
     uint32_t ver;               /* 0x00 */
-#define         MDIO_VER_MODID         (0xFFFF << 16)
-#define         MDIO_VER_REVMAJ        (0xFF   << 8)
-#define         MDIO_VER_REVMIN        (0xFF)
     uint32_t control;           /* 0x04 */
-#define         MDIO_CONTROL_IDLE                 BIT(31)
-#define         MDIO_CONTROL_ENABLE               BIT(30)
-#define         MDIO_CONTROL_PREAMBLE             BIT(20)
-#define         MDIO_CONTROL_FAULT                BIT(19)
-#define         MDIO_CONTROL_FAULT_DETECT_ENABLE  BIT(18)
-#define         MDIO_CONTROL_INT_TEST_ENABLE      BIT(17)
-#define         MDIO_CONTROL_HIGHEST_USER_CHANNEL (0x1F << 8)
-#define         MDIO_CONTROL_CLKDIV               (0xFF)
     uint32_t alive;             /* 0x08 */
     uint32_t link;              /* 0x0c */
     uint32_t linkintraw;        /* 0x10 */
@@ -1370,9 +1426,6 @@ typedef struct {
     uint32_t dummy30[20];
     uint32_t useraccess0;       /* 0x80 */
     uint32_t userphysel0;       /* 0x84 */
-#define         MDIO_USERPHYSEL_LINKSEL         BIT(7)
-#define         MDIO_USERPHYSEL_LINKINT_ENABLE  BIT(6)
-#define         MDIO_USERPHYSEL_PHYADR_MON      (0x1F)
 } mdio_t;
 #endif
 
@@ -1446,16 +1499,21 @@ static uint16_t mdio_useraccess_data[1][6] = {
 
 static uint32_t ar7_mdio_read(uint8_t *mdio, unsigned offset)
 {
+    const char *text = 0;
     uint32_t val = reg_read(mdio, offset);
     if (offset == MDIO_VERSION) {
-        /* MDIO_VER */
-        TRACE(MDIO, logout("mdio[MDIO_VER] = 0x%08lx\n", (unsigned long)val));
+        text = "VERSION";
 //~ cpMacMdioInit(): MDIO_CONTROL = 0x40000138
 //~ cpMacMdioInit(): MDIO_CONTROL < 0x40000037
     } else if (offset == MDIO_CONTROL) {
-        /* MDIO_CONTROL */
-        TRACE(MDIO,
-              logout("mdio[MDIO_CONTROL] = 0x%08lx\n", (unsigned long)val));
+        text = "CONTROL";
+    } else if (offset == MDIO_ALIVE) {
+        text = "ALIVE";
+    } else if (offset == MDIO_LINK) {
+        /* Suppress noise logging output from polling of link. */
+        if (val != 0x80000000) {
+            text = "LINK";
+        }
     } else if (offset == MDIO_USERACCESS0) {
         //~ mdio_regaddr = (val & MDIO_USERACCESS_REGADR) >> 21;
         //~ mdio_phyaddr = (val & MDIO_USERACCESS_PHYADR) >> 16;
@@ -1466,22 +1524,22 @@ static uint32_t ar7_mdio_read(uint8_t *mdio, unsigned offset)
                offset, (unsigned long)val, mdio_regaddr, mdio_phyaddr,
                mdio_data));
     } else {
-        TRACE(MDIO,
-              logout("mdio[0x%02x] = 0x%08lx\n", offset, (unsigned long)val));
+        TRACE(MDIO, logout("mdio[0x%02x] = 0x%08x\n", offset, val));
+    }
+    if (text) {
+        TRACE(MDIO, logout("mdio[%s] = 0x%08x\n", text, val));
     }
     return val;
 }
 
 static void ar7_mdio_write(uint8_t *mdio, unsigned offset, uint32_t val)
 {
+    const char *text = 0;
     if (offset == MDIO_VERSION) {
-        /* MDIO_VER */
-        TRACE(MDIO, logout("unexpected: mdio[0x%02x] = 0x%08lx\n",
-                           offset, (unsigned long)val));
+        text = "VERSION";
+        UNEXPECTED();
     } else if (offset == MDIO_CONTROL) {
-        /* MDIO_CONTROL */
-        TRACE(MDIO, logout("mdio[MDIO_CONTROL] = 0x%08lx\n",
-                           (unsigned long)val));
+        text = "CONTROL";
     } else if (offset == MDIO_USERACCESS0 && (val & MDIO_USERACCESS_GO)) {
         uint32_t write = (val & MDIO_USERACCESS_WRITE) >> 30;
         mdio_regaddr = (val & MDIO_USERACCESS_REGADR) >> 21;
@@ -1524,11 +1582,19 @@ static void ar7_mdio_write(uint8_t *mdio, unsigned offset, uint32_t val)
             }
         }
     } else {
-        TRACE(MDIO,
-              logout("mdio[0x%02x] = 0x%08lx\n", offset, (unsigned long)val));
+        TRACE(MDIO, logout("mdio[0x%02x] = 0x%08x\n", offset, val));
+    }
+    if (text) {
+        TRACE(MDIO, logout("mdio[%s] = 0x%08x\n", text, val));
     }
     reg_write(mdio, offset, val);
 }
+
+/*****************************************************************************
+ *
+ * Reset emulation.
+ *
+ ****************************************************************************/
 
 static void ar7_reset_write(uint32_t offset, uint32_t val)
 {
@@ -2071,13 +2137,9 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
         logflag = EMIF;
         val = VALUE(AVALANCHE_EMIF_BASE, av.emif);
     } else if (INRANGE(AVALANCHE_GPIO_BASE, av.gpio)) {
-        name = "gpio";
-        logflag = GPIO;
-        val = VALUE(AVALANCHE_GPIO_BASE, av.gpio);
-        if (addr == 0x08610900 && val == 0x00000800) {
-            /* Do not log polling of reset button. */
-            logflag = 0;
-        }
+        //~ name = "gpio";
+        logflag = 0;
+        val = ar7_gpio_read(addr - AVALANCHE_GPIO_BASE);
     } else if (INRANGE(AVALANCHE_CLOCK_BASE, av.clock_control)) {
         name = "clock";
         logflag = CLOCK;
@@ -2197,9 +2259,9 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
         logflag = EMIF;
         VALUE(AVALANCHE_EMIF_BASE, av.emif) = val;
     } else if (INRANGE(AVALANCHE_GPIO_BASE, av.gpio)) {
-        name = "gpio";
-        logflag = GPIO;
-        VALUE(AVALANCHE_GPIO_BASE, av.gpio) = val;
+        //~ name = "gpio";
+        logflag = 0;
+        ar7_gpio_write(addr - AVALANCHE_GPIO_BASE, val);
     } else if (INRANGE(AVALANCHE_CLOCK_BASE, av.clock_control)) {
         name = "clock control";
         logflag = CLOCK;
@@ -2515,6 +2577,17 @@ static void ar7_nic_init(void)
     }
 }
 
+static void gpio_display_init(CPUState *env, const char *devname)
+{
+    av.gpio_display = qemu_chr_open(devname);
+    if (!strcmp(devname, "vc")) {
+        qemu_chr_printf(av.gpio_display, "GPIO Status\r\n");
+        qemu_chr_printf(av.gpio_display, "\r\n");
+        qemu_chr_printf(av.gpio_display, "0         1         2         3\r\n");
+        qemu_chr_printf(av.gpio_display, "01234567890123456789012345678901\r\n");
+    }
+}
+
 static int ar7_load(QEMUFile * f, void *opaque, int version_id)
 {
     int result = 0;
@@ -2556,7 +2629,12 @@ void ar7_init(CPUState * env)
     assert(bigendian == 0);
     logout("setting endianness %d\n", bigendian);
     ar7_serial_init(env);
+    gpio_display_init(env, "vc");
     ar7_nic_init();
+    reg_write(av.gpio, GPIO_IN, 0x0800);
+    reg_write(av.mdio, MDIO_VERSION, 0x00070101);
+    reg_write(av.mdio, MDIO_CONTROL, MDIO_CONTROL_IDLE | BIT(24) | BITS(7, 0));
+    reg_write(av.mdio, MDIO_ALIVE, BIT(31));
     //~ for (offset = 0; offset < 0x2800; offset += 0x100) {
     //~ if (offset == 0xe00) continue;
     //~ if (offset == 0xf00) continue;
@@ -2662,4 +2740,26 @@ AR7     ar7_cpmac_write         cpmac0[MACEOIVECTOR] (0x08610184) = 0x00000000
 AR7     ar7_nic_receive         cpmac0 received 70 byte:  33 33 00 00 00 02 76 e4 0c 1a 83 31 86 dd 60 00 00 00 00 10 3a ff fe 80 00
 AR7     ar7_nic_receive         unknown address, frame ignored
 
+AR7     ar7_io_memread          addr 0x08610904 (gpio) = 0x00000080
+AR7     ar7_io_memwrite         addr 0x08610904 (gpio) = 0x00000000
+AR7     ar7_io_memread          addr 0x08610904 (gpio) = 0x00000000
+AR7     ar7_io_memwrite         addr 0x08610904 (gpio) = 0x00003600
+AR7     ar7_io_memread          addr 0x08610904 (gpio) = 0x00003600
+AR7     ar7_io_memwrite         addr 0x08610904 (gpio) = 0x00003680
+AR7     ar7_io_memread          addr 0x08610904 (gpio) = 0x00003680
+
+AR7     ar7_io_memwrite         addr 0x08610904 (gpio) = 0x00000080
+
+AR7     ar7_io_memread          addr 0x08610904 (gpio) = 0x00000080
+AR7     ar7_io_memwrite         addr 0x08610904 (gpio) = 0x00000000
+AR7     ar7_io_memread          addr 0x08610904 (gpio) = 0x00000000
+AR7     ar7_io_memwrite         addr 0x08610904 (gpio) = 0x00003600
+AR7     ar7_io_memread          addr 0x08610904 (gpio) = 0x00003600
+AR7     ar7_io_memwrite         addr 0x08610904 (gpio) = 0x00003680
+AR7     ar7_io_memread          addr 0x08610904 (gpio) = 0x00003680
+AR7     ar7_io_memwrite         addr 0x08610904 (gpio) = 0x00000080
+AR7     ar7_io_memread          addr 0x08610904 (gpio) = 0x00000080
+AR7     ar7_io_memwrite         addr 0x08610904 (gpio) = 0x00000000
+AR7     ar7_io_memread          addr 0x08610904 (gpio) = 0x00000000
+AR7     ar7_io_memwrite         addr 0x08610904 (gpio) = 0x00003600
 */
