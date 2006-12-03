@@ -99,6 +99,7 @@ struct IoState {
 
 #ifdef DEBUG_AR7
 #define logout(fmt, args...) fprintf(stderr, "AR7\t%-24s" fmt, __func__, ##args)
+//~ #define logout(fmt, args...) fprintf(stderr, "AR7\t%-24s%-32s" fmt, __func__, backtrace(), ##args)
 #else
 #define logout(fmt, args...) ((void)0)
 #endif
@@ -802,16 +803,22 @@ static uint32_t ar7_cpmac_read(unsigned index, unsigned offset)
     uint8_t *cpmac = av.cpmac[index];
     uint32_t val = reg_read(cpmac, offset);
     const char *text = i2cpmac(offset / 4);
+    int logflag = CPMAC;
     //~ do_raise_exception(EXCP_DEBUG)
-    TRACE(CPMAC, logout("cpmac%u[%s] (0x%08x) = 0x%08lx\n",
+    if (0) {
+    } else if (offset == CPMAC_MACINVECTOR) {
+        if (val == 0) {
+            /* Disable logging of polled default value. */
+            /* Linux 2.6.13.1: [scpphy_if_isr_tasklet][tasklet_action] */
+            logflag = 0;
+        }
+    } else {
+    }
+    TRACE(logflag, logout("cpmac%u[%s] (0x%08x) = 0x%08x %s\n",
                         index, text,
                         (AVALANCHE_CPMAC0_BASE + (AVALANCHE_CPMAC1_BASE -
                                          AVALANCHE_CPMAC0_BASE) * index + offset),
-                        (unsigned long)val));
-    if (0) {
-    //~ } else if (offset == CPMAC_MACINVECTOR) {
-        //~ reg_write(cpmac, CPMAC_MACINVECTOR, 0);
-    }
+                        val, backtrace()));
     return val;
 }
 
@@ -1912,6 +1919,8 @@ static uint32_t ar7_vlynq_read(unsigned index, unsigned offset)
                         (unsigned long)val));
     if (offset == VLYNQ_REVID) {
         val = cpu_to_le32(0x00010206);
+    } else if (offset == VLYNQ_INTSTATCLR) {
+        reg_write(vlynq, offset, 0);
     } else {
     }
     return val;
@@ -2109,6 +2118,10 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
     } else if (INRANGE(AVALANCHE_ATM_SAR_BASE, av.atmsar)) {
         name = "atm sar";
         val = VALUE(AVALANCHE_ATM_SAR_BASE, av.atmsar);
+        index = (addr - AVALANCHE_ATM_SAR_BASE);
+        if (val == 0 && index == 0x90) {
+          val = 0x80000000;
+        }
     } else if (INRANGE(AVALANCHE_USB_MEM_BASE, av.usbslave)) {
         name = "usb memory";
         val = VALUE(AVALANCHE_USB_MEM_BASE, av.usbslave);
