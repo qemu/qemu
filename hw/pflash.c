@@ -34,12 +34,12 @@ pflash_t *pflash_register (target_ulong base, ram_addr_t off,
     pflash_t *pf;
     switch (flash_manufacturer) {
         case MANUFACTURER_AMD:
+        case MANUFACTURER_MACRONIX:
         case 0x4a:  /* Which manufacturer is this? */
             pf = pflash_amd_register(base, off, bs, blocksize, nblocks, width,
                     flash_manufacturer, flash_type, id2, id3);
             break;
         case MANUFACTURER_INTEL:
-        case MANUFACTURER_MACRONIX:
             pf = pflash_cfi01_register(base, off, bs, blocksize, nblocks, width,
                     flash_manufacturer, flash_type, id2, id3);
             break;

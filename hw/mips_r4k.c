@@ -405,6 +405,7 @@ static void mips_ar7_common_init (int ram_size,
         pflash_t *pf;
         switch (flash_manufacturer) {
             case MANUFACTURER_AMD:
+            case MANUFACTURER_MACRONIX:
             case 0x4a:  /* Which manufacturer is this? */
                 pf = pflash_amd_register(address, bios_offset,
                         0,
@@ -414,7 +415,6 @@ static void mips_ar7_common_init (int ram_size,
                         flash_manufacturer, flash_type, 0x33, 0x44);
                 break;
             case MANUFACTURER_INTEL:
-            case MANUFACTURER_MACRONIX:
                 pf = pflash_cfi01_register(address, bios_offset,
                         0,
                         blocksize, ret / blocksize, 2,

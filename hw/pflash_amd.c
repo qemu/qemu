@@ -41,13 +41,21 @@
 #include "exec-all.h"
 #include "pflash.h"     /* pflash_amd_register */
 
-//#define PFLASH_DEBUG
+#define PFLASH_DEBUG
 #ifdef PFLASH_DEBUG
+#define loglevel 1
+#define logfile  stderr
 #define DPRINTF(fmt, args...) \
     ((loglevel) ? fprintf(logfile, "PFLASH\t%-24s" fmt , __func__, ##args) : (void)0)
 #else
 #define DPRINTF(fmt, args...) do { } while (0)
 #endif
+
+typedef enum {
+  unknown_mode,
+  io_mode,
+  rom_mode
+} flash_mode_t;
 
 struct pflash_t {
     BlockDriverState *bs;
@@ -56,6 +64,7 @@ struct pflash_t {
     target_ulong total_len;
     int width;
     int wcycle; /* if 0, the flash is read normally */
+    flash_mode_t mode;
     int bypass;
     int ro;
     uint8_t cmd;
@@ -68,6 +77,26 @@ struct pflash_t {
     void *storage;
 };
 
+static void pflash_io_mode(pflash_t *pfl)
+{
+  if (pfl->mode != io_mode) {
+    DPRINTF("switch to i/o mode\n");
+    cpu_register_physical_memory(pfl->base, pfl->total_len, pfl->fl_mem);
+    DPRINTF("0x%08x 0x%08x 0x%04x\n", pfl->base, pfl->total_len, pfl->fl_mem);
+    pfl->mode = io_mode;
+  }
+}
+
+static void pflash_rom_mode(pflash_t *pfl)
+{
+  if (pfl->mode != rom_mode) {
+    DPRINTF("switch to rom mode\n");
+    cpu_register_physical_memory(pfl->base, pfl->total_len,
+                                 pfl->off | IO_MEM_ROMD | pfl->fl_mem);
+    pfl->mode = rom_mode;
+  }
+}
+
 static void pflash_timer (void *opaque)
 {
     pflash_t *pfl = opaque;
@@ -78,8 +107,7 @@ static void pflash_timer (void *opaque)
     if (pfl->bypass) {
         pfl->wcycle = 2;
     } else {
-        cpu_register_physical_memory(pfl->base, pfl->total_len,
-                                     pfl->off | IO_MEM_ROMD | pfl->fl_mem);
+        pflash_rom_mode(pfl);
         pfl->wcycle = 0;
     }
     pfl->cmd = 0;
@@ -209,19 +237,23 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
 
     /* WARNING: when the memory area is in ROMD mode, the offset is a
        ram offset, not a physical address */
-    if (pfl->wcycle == 0)
+    DPRINTF("(1) offset %08x %08x %d\n", offset, value, width);
+    if (pfl->mode == rom_mode)
         offset -= (target_ulong)pfl->storage;
     else
         offset -= pfl->base;
 
     cmd = value;
-    DPRINTF("offset %08x %08x %d\n", offset, value, width);
+    DPRINTF("(2) offset %08x %08x %d\n", offset, value, width);
     if (pfl->cmd != 0xA0 && cmd == 0xF0) {
         DPRINTF("flash reset asked (%02x %02x)\n", pfl->cmd, cmd);
         goto reset_flash;
     }
     /* Set the device in I/O access mode */
-    cpu_register_physical_memory(pfl->base, pfl->total_len, pfl->fl_mem);
+    pflash_io_mode(pfl);
+    if (offset < 0x010000) {
+        sector_len = 0x2000;
+    }
     boff = offset & (sector_len - 1);
     if (pfl->width == 2)
         boff = boff >> 1;
@@ -408,8 +440,7 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
     /* Reset flash */
  reset_flash:
     if (pfl->wcycle != 0) {
-        cpu_register_physical_memory(pfl->base, pfl->total_len,
-                                     pfl->off | IO_MEM_ROMD | pfl->fl_mem);
+        pflash_rom_mode(pfl);
     }
     pfl->bypass = 0;
     pfl->wcycle = 0;
@@ -531,8 +562,10 @@ pflash_t *pflash_amd_register (target_ulong base, ram_addr_t off,
     pfl->storage = phys_ram_base + off;
     pfl->fl_mem = cpu_register_io_memory(0, pflash_read_ops, pflash_write_ops, pfl);
     pfl->off = off;
-    cpu_register_physical_memory(base, total_len,
-                                 off | pfl->fl_mem | IO_MEM_ROMD);
+    pfl->base = base;
+    pfl->sector_len = sector_len;
+    pfl->total_len = total_len;
+    pflash_rom_mode(pfl);
     pfl->bs = bs;
     if (pfl->bs) {
         /* read the initial flash content */
@@ -546,9 +579,6 @@ pflash_t *pflash_amd_register (target_ulong base, ram_addr_t off,
     pfl->ro = 0;
 #endif
     pfl->timer = qemu_new_timer(vm_clock, pflash_timer, pfl);
-    pfl->base = base;
-    pfl->sector_len = sector_len;
-    pfl->total_len = total_len;
     pfl->width = width;
     pfl->wcycle = 0;
     pfl->cmd = 0;
