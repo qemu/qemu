@@ -68,6 +68,7 @@ void do_msubu (void);
 #endif
 void do_mfc0_random(void);
 void do_mfc0_count(void);
+void do_mtc0_entryhi(uint32_t in);
 void do_mtc0_status_debug(uint32_t old, uint32_t val);
 void do_mtc0_status_irqraise_debug(void);
 void do_tlbwi (void);

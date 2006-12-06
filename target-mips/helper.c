@@ -302,15 +302,9 @@ void do_interrupt (CPUState *env)
 #endif
         env->CP0_Wired = 0;
         env->CP0_Config0 = MIPS_CONFIG0;
-#if defined (MIPS_CONFIG1)
         env->CP0_Config1 = MIPS_CONFIG1;
-#endif
-#if defined (MIPS_CONFIG2)
         env->CP0_Config2 = MIPS_CONFIG2;
-#endif
-#if defined (MIPS_CONFIG3)
         env->CP0_Config3 = MIPS_CONFIG3;
-#endif
         env->CP0_WatchLo = 0;
         env->CP0_Status = (1 << CP0St_CU0) | (1 << CP0St_BEV);
         goto set_error_EPC;

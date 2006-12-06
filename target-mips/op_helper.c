@@ -153,12 +153,12 @@ void cpu_mips_store_compare(CPUState *env, uint32_t value)
 
 void do_mtc0_status_debug(uint32_t old, uint32_t val)
 {
-    cpu_abort(env, "mtc0 status\n");
+    cpu_abort(env, "mtc0 status debug\n");
 }
 
-void do_mtc0_status_irqraise_debug(void)
+void do_mtc0_status_irqraise_debug (void)
 {
-    cpu_abort(env, "mtc0 status\n");
+    cpu_abort(env, "mtc0 status irqraise debug\n");
 }
 
 void do_tlbwi (void)
