@@ -182,7 +182,6 @@ struct CPUMIPSState {
     uint32_t CP0_ErrorEPC;
     uint32_t CP0_DESAVE;
     /* Qemu */
-    struct QEMUTimer *timer; /* Internal timer */
     int interrupt_request;
     jmp_buf jmp_env;
     int exception_index;
@@ -213,6 +212,13 @@ struct CPUMIPSState {
     int halted; /* TRUE if the CPU is in suspend state */
 
     CPU_COMMON
+
+    int ram_size;
+    const char *kernel_filename;
+    const char *kernel_cmdline;
+    const char *initrd_filename;
+
+    struct QEMUTimer *timer; /* Internal timer */
 };
 
 #include "cpu-all.h"

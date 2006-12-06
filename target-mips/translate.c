@@ -2425,7 +2425,16 @@ CPUMIPSState *cpu_mips_init (void)
     if (!env)
         return NULL;
     cpu_exec_init(env);
+    cpu_reset(env);
+    return env;
+}
+
+void cpu_reset (CPUMIPSState *env)
+{
+    memset(env, 0, offsetof(CPUMIPSState, breakpoints));
+
     tlb_flush(env, 1);
+
     /* Minimal init */
     env->PC = 0xBFC00000;
 #if defined (MIPS_USES_R4K_TLB)
@@ -2456,5 +2465,4 @@ CPUMIPSState *cpu_mips_init (void)
 #ifdef MIPS_USES_FPU
     env->fcr0 = MIPS_FCR0;	
 #endif
-    return env;
 }

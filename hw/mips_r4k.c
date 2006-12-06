@@ -110,6 +110,93 @@ void cpu_mips_clock_init (CPUState *env)
     cpu_mips_update_count(env, 1, 0);
 }
 
+static void mips_qemu_writel (void *opaque, target_phys_addr_t addr,
+			      uint32_t val)
+{
+    if ((addr & 0xffff) == 0 && val == 42)
+        qemu_system_reset_request ();
+    else if ((addr & 0xffff) == 4 && val == 42)
+        qemu_system_shutdown_request ();
+}
+
+static uint32_t mips_qemu_readl (void *opaque, target_phys_addr_t addr)
+{
+    return 0;
+}
+
+static CPUWriteMemoryFunc *mips_qemu_write[] = {
+    &mips_qemu_writel,
+    &mips_qemu_writel,
+    &mips_qemu_writel,
+};
+
+static CPUReadMemoryFunc *mips_qemu_read[] = {
+    &mips_qemu_readl,
+    &mips_qemu_readl,
+    &mips_qemu_readl,
+};
+
+static int mips_qemu_iomemtype = 0;
+
+void load_kernel (CPUState *env, int ram_size, const char *kernel_filename,
+		  const char *kernel_cmdline,
+		  const char *initrd_filename)
+{
+    int64_t entry = 0;
+    long kernel_size, initrd_size;
+
+    kernel_size = load_elf(kernel_filename, VIRT_TO_PHYS_ADDEND, &entry);
+    if (kernel_size >= 0)
+        env->PC = entry;
+    else {
+        kernel_size = load_image(kernel_filename,
+                                 phys_ram_base + KERNEL_LOAD_ADDR + VIRT_TO_PHYS_ADDEND);
+        if (kernel_size < 0) {
+            fprintf(stderr, "qemu: could not load kernel '%s'\n",
+                    kernel_filename);
+            exit(1);
+        }
+        env->PC = KERNEL_LOAD_ADDR;
+    }
+
+    /* load initrd */
+    initrd_size = 0;
+    if (initrd_filename) {
+        initrd_size = load_image(initrd_filename,
+                                 phys_ram_base + INITRD_LOAD_ADDR + VIRT_TO_PHYS_ADDEND);
+        if (initrd_size == (target_ulong) -1) {
+            fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
+                    initrd_filename);
+            exit(1);
+        }
+    }
+
+    /* Store command line.  */
+    if (initrd_size > 0) {
+        int ret;
+        ret = sprintf(phys_ram_base + (16 << 20) - 256,
+                      "rd_start=0x%08x rd_size=%li ",
+                      INITRD_LOAD_ADDR,
+                      initrd_size);
+        strcpy (phys_ram_base + (16 << 20) - 256 + ret, kernel_cmdline);
+    }
+    else {
+        strcpy (phys_ram_base + (16 << 20) - 256, kernel_cmdline);
+    }
+
+    *(int *)(phys_ram_base + (16 << 20) - 260) = tswap32 (0x12345678);
+    *(int *)(phys_ram_base + (16 << 20) - 264) = tswap32 (ram_size);
+}
+
+static void main_cpu_reset(void *opaque)
+{
+    CPUState *env = opaque;
+    cpu_reset(env);
+
+    if (env->kernel_filename)
+        load_kernel (env, env->ram_size, env->kernel_filename,
+                     env->kernel_cmdline, env->initrd_filename);
+}
 
 void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
                     DisplayState *ds, const char **fd_filename, int snapshot,
@@ -117,18 +204,23 @@ void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
                     const char *initrd_filename)
 {
     char buf[1024];
-    int64_t entry = 0;
     unsigned long bios_offset;
     int ret;
     CPUState *env;
-    long kernel_size;
     int i;
 
     env = cpu_init();
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
+    qemu_register_reset(main_cpu_reset, env);
 
     /* allocate RAM */
     cpu_register_physical_memory(0, ram_size, IO_MEM_RAM);
+
+    if (!mips_qemu_iomemtype) {
+        mips_qemu_iomemtype = cpu_register_io_memory(0, mips_qemu_read,
+						     mips_qemu_write, NULL);
+    }
+    cpu_register_physical_memory(0x1fbf0000, 0x10000, mips_qemu_iomemtype);
 
     /* Try to load a BIOS image. If this fails, we continue regardless,
        but initialize the hardware ourselves. When a kernel gets
@@ -146,38 +238,13 @@ void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
 		buf);
     }
 
-    kernel_size = 0;
     if (kernel_filename) {
-	kernel_size = load_elf(kernel_filename, VIRT_TO_PHYS_ADDEND, &entry);
-	if (kernel_size >= 0)
-	    env->PC = entry;
-	else {
-	    kernel_size = load_image(kernel_filename,
-                                     phys_ram_base + KERNEL_LOAD_ADDR + VIRT_TO_PHYS_ADDEND);
-            if (kernel_size < 0) {
-                fprintf(stderr, "qemu: could not load kernel '%s'\n",
-                        kernel_filename);
-                exit(1);
-            }
-            env->PC = KERNEL_LOAD_ADDR;
-	}
-
-        /* load initrd */
-        if (initrd_filename) {
-            if (load_image(initrd_filename,
-			   phys_ram_base + INITRD_LOAD_ADDR + VIRT_TO_PHYS_ADDEND)
-		== (target_ulong) -1) {
-                fprintf(stderr, "qemu: could not load initial ram disk '%s'\n", 
-                        initrd_filename);
-                exit(1);
-            }
-        }
-
-	/* Store command line.  */
-        strcpy (phys_ram_base + (16 << 20) - 256, kernel_cmdline);
-        /* FIXME: little endian support */
-        *(int *)(phys_ram_base + (16 << 20) - 260) = tswap32 (0x12345678);
-        *(int *)(phys_ram_base + (16 << 20) - 264) = tswap32 (ram_size);
+        load_kernel (env, ram_size, kernel_filename, kernel_cmdline,
+		     initrd_filename);
+	env->ram_size = ram_size;
+	env->kernel_filename = kernel_filename;
+	env->kernel_cmdline = kernel_cmdline;
+	env->initrd_filename = initrd_filename;
     }
 
     /* Init internal devices */
