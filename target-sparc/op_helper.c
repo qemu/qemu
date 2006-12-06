@@ -12,12 +12,12 @@ void raise_exception(int tt)
 #ifdef USE_INT_TO_FLOAT_HELPERS
 void do_fitos(void)
 {
-    FT0 = int32_to_float32(*((int32_t *)&FT1));
+    FT0 = int32_to_float32(*((int32_t *)&FT1), &env->fp_status);
 }
 
 void do_fitod(void)
 {
-    DT0 = int32_to_float64(*((int32_t *)&FT1));
+    DT0 = int32_to_float64(*((int32_t *)&FT1), &env->fp_status);
 }
 #endif
 
