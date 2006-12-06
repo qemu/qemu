@@ -1024,6 +1024,10 @@ extern QEMUMachine heathrow_machine;
 /* mips_r4k.c */
 extern QEMUMachine mips_machine;
 
+/* mips_timer.c */
+extern void cpu_mips_clock_init(CPUState *);
+extern void cpu_mips_irqctrl_init (void);
+
 /* shix.c */
 extern QEMUMachine shix_machine;
 
