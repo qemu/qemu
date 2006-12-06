@@ -46,7 +46,7 @@ static int map_address (CPUState *env, target_ulong *physical, int *prot,
     tlb_t *tlb;
     int i, n;
 
-    for (i = 0; i < MIPS_TLB_NB; i++) {
+    for (i = 0; i < env->tlb_in_use; i++) {
         tlb = &env->tlb[i];
         /* Check ASID, virtual page number & size */
         if ((tlb->G == 1 || tlb->ASID == ASID) &&

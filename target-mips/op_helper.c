@@ -367,7 +367,7 @@ void do_mtc0 (int reg, int sel)
         env->CP0_EntryHi = val;
 	/* If the ASID changes, flush qemu's TLB.  */
 	if ((old & 0xFF) != (val & 0xFF))
-	  tlb_flush (env, 1);
+	  cpu_mips_tlb_flush (env, 1);
         rn = "EntryHi";
         break;
     case 11:
@@ -568,7 +568,14 @@ void fpu_handle_exception(void)
 
 /* TLB management */
 #if defined(MIPS_USES_R4K_TLB)
-static void invalidate_tlb (int idx)
+void cpu_mips_tlb_flush (CPUState *env, int flush_global)
+{
+    /* Flush qemu's TLB and discard all shadowed entries.  */
+    tlb_flush (env, flush_global);
+    env->tlb_in_use = MIPS_TLB_NB;
+}
+
+static void invalidate_tlb (int idx, int use_extra)
 {
     tlb_t *tlb;
     target_ulong addr;
@@ -580,6 +587,15 @@ static void invalidate_tlb (int idx)
     /* The qemu TLB is flushed then the ASID changes, so no need to
        flush these entries again.  */
     if (tlb->G == 0 && tlb->ASID != ASID) {
+        return;
+    }
+
+    if (use_extra && env->tlb_in_use < MIPS_TLB_MAX) {
+        /* For tlbwr, we can shadow the discarded entry into
+	   a new (fake) TLB entry, as long as the guest can not
+	   tell that it's there.  */
+        env->tlb[env->tlb_in_use] = *tlb;
+        env->tlb_in_use++;
         return;
     }
 
@@ -598,6 +614,14 @@ static void invalidate_tlb (int idx)
             tlb_flush_page (env, addr);
             addr += TARGET_PAGE_SIZE;
         }
+    }
+}
+
+static void mips_tlb_flush_extra (CPUState *env, int first)
+{
+    /* Discard entries from env->tlb[first] onwards.  */
+    while (env->tlb_in_use > first) {
+        invalidate_tlb(--env->tlb_in_use, 0);
     }
 }
 
@@ -627,9 +651,14 @@ static void fill_tlb (int idx)
 
 void do_tlbwi (void)
 {
+    /* Discard cached TLB entries.  We could avoid doing this if the
+       tlbwi is just upgrading access permissions on the current entry;
+       that might be a further win.  */
+    mips_tlb_flush_extra (env, MIPS_TLB_NB);
+
     /* Wildly undefined effects for CP0_index containing a too high value and
        MIPS_TLB_NB not being a power of two.  But so does real silicon.  */
-    invalidate_tlb(env->CP0_index & (MIPS_TLB_NB - 1));
+    invalidate_tlb(env->CP0_index & (MIPS_TLB_NB - 1), 0);
     fill_tlb(env->CP0_index & (MIPS_TLB_NB - 1));
 }
 
@@ -637,7 +666,7 @@ void do_tlbwr (void)
 {
     int r = cpu_mips_get_random(env);
 
-    invalidate_tlb(r);
+    invalidate_tlb(r, 1);
     fill_tlb(r);
 }
 
@@ -660,6 +689,17 @@ void do_tlbp (void)
         }
     }
     if (i == MIPS_TLB_NB) {
+        /* No match.  Discard any shadow entries, if any of them match.  */
+        for (i = MIPS_TLB_NB; i < env->tlb_in_use; i++) {
+	    tlb = &env->tlb[i];
+
+	    /* Check ASID, virtual page number & size */
+	    if ((tlb->G == 1 || tlb->ASID == ASID) && tlb->VPN == tag) {
+                mips_tlb_flush_extra (env, i);
+	        break;
+	    }
+	}
+
         env->CP0_index |= 0x80000000;
     }
 }
@@ -674,8 +714,10 @@ void do_tlbr (void)
     tlb = &env->tlb[env->CP0_index & (MIPS_TLB_NB - 1)];
 
     /* If this will change the current ASID, flush qemu's TLB.  */
-    if (ASID != tlb->ASID && tlb->G != 1)
-      tlb_flush (env, 1);
+    if (ASID != tlb->ASID)
+        cpu_mips_tlb_flush (env, 1);
+
+    mips_tlb_flush_extra(env, MIPS_TLB_NB);
 
     env->CP0_EntryHi = tlb->VPN | tlb->ASID;
     size = (tlb->end - tlb->VPN) >> 12;

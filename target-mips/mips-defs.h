@@ -22,6 +22,7 @@
 /* Uses MIPS R4Kc TLB model */
 #define MIPS_USES_R4K_TLB
 #define MIPS_TLB_NB 16
+#define MIPS_TLB_MAX 128
 /* basic FPU register support */
 #define MIPS_USES_FPU 1
 /* Define a implementation number of 1.

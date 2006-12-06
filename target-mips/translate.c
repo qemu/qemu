@@ -2430,6 +2430,7 @@ CPUMIPSState *cpu_mips_init (void)
     env->PC = 0xBFC00000;
 #if defined (MIPS_USES_R4K_TLB)
     env->CP0_random = MIPS_TLB_NB - 1;
+    env->tlb_in_use = MIPS_TLB_NB;
 #endif
     env->CP0_Wired = 0;
     env->CP0_Config0 = MIPS_CONFIG0;
