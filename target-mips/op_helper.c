@@ -141,9 +141,24 @@ void do_mfc0_count (void)
     cpu_abort(env, "mfc0 count\n");
 }
 
-void do_mtc0 (int reg, int sel)
+void cpu_mips_store_count(CPUState *env, uint32_t value)
 {
-    cpu_abort(env, "mtc0 reg=%d sel=%d\n", reg, sel);
+    cpu_abort(env, "mtc0 count\n");
+}
+
+void cpu_mips_store_compare(CPUState *env, uint32_t value)
+{
+    cpu_abort(env, "mtc0 compare\n");
+}
+
+void do_mtc0_status_debug(uint32_t old, uint32_t val)
+{
+    cpu_abort(env, "mtc0 status\n");
+}
+
+void do_mtc0_status_irqraise_debug(void)
+{
+    cpu_abort(env, "mtc0 status\n");
 }
 
 void do_tlbwi (void)
@@ -166,6 +181,11 @@ void do_tlbr (void)
     cpu_abort(env, "tlbr\n");
 }
 
+void cpu_mips_tlb_flush (CPUState *env, int flush_global)
+{
+    cpu_abort(env, "mips_tlb_flush\n");
+}
+
 #else
 
 /* CP0 helpers */
@@ -179,222 +199,17 @@ void do_mfc0_count (void)
     T0 = cpu_mips_get_count(env);
 }
 
-void do_mtc0 (int reg, int sel)
+void do_mtc0_status_debug(uint32_t old, uint32_t val)
 {
-    const unsigned char *rn;
-    uint32_t val, old, mask;
+    const uint32_t mask = 0x0000FF00;
+    fprintf(logfile, "Status %08x => %08x Cause %08x (%08x %08x %08x)\n",
+            old, val, env->CP0_Cause, old & mask, val & mask,
+            env->CP0_Cause & mask);
+}
 
-    if (sel != 0 && reg != 16 && reg != 28) {
-        val = -1;
-        old = -1;
-        rn = "invalid";
-        goto print;
-    }
-    switch (reg) {
-    case 0:
-        val = (env->CP0_index & 0x80000000) | (T0 & 0x0000000F);
-        old = env->CP0_index;
-        env->CP0_index = val;
-        rn = "Index";
-        break;
-    case 2:
-        val = T0 & 0x3FFFFFFF;
-        old = env->CP0_EntryLo0;
-        env->CP0_EntryLo0 = val;
-        rn = "EntryLo0";
-        break;
-    case 3:
-        val = T0 & 0x3FFFFFFF;
-        old = env->CP0_EntryLo1;
-        env->CP0_EntryLo1 = val;
-        rn = "EntryLo1";
-        break;
-    case 4:
-        val = (env->CP0_Context & 0xFF800000) | (T0 & 0x007FFFF0);
-        old = env->CP0_Context;
-        env->CP0_Context = val;
-        rn = "Context";
-        break;
-    case 5:
-        val = T0 & 0x01FFE000;
-        old = env->CP0_PageMask;
-        env->CP0_PageMask = val;
-        rn = "PageMask";
-        break;
-    case 6:
-        val = T0 & 0x0000000F;
-        old = env->CP0_Wired;
-        env->CP0_Wired = val;
-        rn = "Wired";
-        break;
-    case 9:
-        val = T0;
-        old = cpu_mips_get_count(env);
-        cpu_mips_store_count(env, val);
-        rn = "Count";
-        break;
-    case 10:
-        val = T0 & 0xFFFFE0FF;
-        old = env->CP0_EntryHi;
-        env->CP0_EntryHi = val;
-	/* If the ASID changes, flush qemu's TLB.  */
-	if ((old & 0xFF) != (val & 0xFF))
-	  cpu_mips_tlb_flush (env, 1);
-        rn = "EntryHi";
-        break;
-    case 11:
-        val = T0;
-        old = env->CP0_Compare;
-        cpu_mips_store_compare(env, val);
-        rn = "Compare";
-        break;
-    case 12:
-        val = T0 & 0xFA78FF01;
-        if (T0 & (1 << CP0St_UM))
-            env->hflags |= MIPS_HFLAG_UM;
-        else
-            env->hflags &= ~MIPS_HFLAG_UM;
-        if (T0 & (1 << CP0St_ERL))
-            env->hflags |= MIPS_HFLAG_ERL;
-        else
-            env->hflags &= ~MIPS_HFLAG_ERL;
-        if (T0 & (1 << CP0St_EXL))
-            env->hflags |= MIPS_HFLAG_EXL;
-        else
-            env->hflags &= ~MIPS_HFLAG_EXL;
-        old = env->CP0_Status;
-        env->CP0_Status = val;
-        /* If we unmasked an asserted IRQ, raise it */
-        mask = 0x0000FF00;
-        if (loglevel & CPU_LOG_TB_IN_ASM) {
-            fprintf(logfile, "Status %08x => %08x Cause %08x (%08x %08x %08x)\n",
-                    old, val, env->CP0_Cause, old & mask, val & mask,
-                    env->CP0_Cause & mask);
-        }
-        if ((val & (1 << CP0St_IE)) && !(old & (1 << CP0St_IE)) &&
-            !(env->hflags & MIPS_HFLAG_EXL) &&
-            !(env->hflags & MIPS_HFLAG_ERL) &&
-            !(env->hflags & MIPS_HFLAG_DM) &&
-            (env->CP0_Status & env->CP0_Cause & mask)) {
-            if (logfile)
-                fprintf(logfile, "Raise pending IRQs\n");
-            env->interrupt_request |= CPU_INTERRUPT_HARD;
-        } else if (!(val & (1 << CP0St_IE)) && (old & (1 << CP0St_IE))) {
-            env->interrupt_request &= ~CPU_INTERRUPT_HARD;
-        }
-        rn = "Status";
-        break;
-    case 13:
-        val = (env->CP0_Cause & 0xB000F87C) | (T0 & 0x000C00300);
-        old = env->CP0_Cause;
-        env->CP0_Cause = val;
-#if 0
-        {
-            int i;
-            /* Check if we ever asserted a software IRQ */
-            for (i = 0; i < 2; i++) {
-                mask = 0x100 << i;
-                if ((val & mask) & !(old & mask))
-                    mips_set_irq(i);
-            }
-        }
-#endif
-        rn = "Cause";
-        break;
-    case 14:
-        val = T0;
-        old = env->CP0_EPC;
-        env->CP0_EPC = val;
-        rn = "EPC";
-        break;
-    case 16:
-        switch (sel) {
-        case 0:
-#if defined(MIPS_USES_R4K_TLB)
-            val = (env->CP0_Config0 & 0x8017FF80) | (T0 & 0x7E000001);
-#else
-            val = (env->CP0_Config0 & 0xFE17FF80) | (T0 & 0x00000001);
-#endif
-            old = env->CP0_Config0;
-            env->CP0_Config0 = val;
-            rn = "Config0";
-            break;
-        default:
-            val = -1;
-            old = -1;
-            rn = "bad config selector";
-            break;
-        }
-        break;
-    case 18:
-        val = T0;
-        old = env->CP0_WatchLo;
-        env->CP0_WatchLo = val;
-        rn = "WatchLo";
-        break;
-    case 19:
-        val = T0 & 0x40FF0FF8;
-        old = env->CP0_WatchHi;
-        env->CP0_WatchHi = val;
-        rn = "WatchHi";
-        break;
-    case 23:
-        val = (env->CP0_Debug & 0x8C03FC1F) | (T0 & 0x13300120);
-        if (T0 & (1 << CP0DB_DM))
-            env->hflags |= MIPS_HFLAG_DM;
-        else
-            env->hflags &= ~MIPS_HFLAG_DM;
-        old = env->CP0_Debug;
-        env->CP0_Debug = val;
-        rn = "Debug";
-        break;
-    case 24:
-        val = T0;
-        old = env->CP0_DEPC;
-        env->CP0_DEPC = val;
-        rn = "DEPC";
-        break;
-    case 28:
-        switch (sel) {
-        case 0:
-            val = T0 & 0xFFFFFCF6;
-            old = env->CP0_TagLo;
-            env->CP0_TagLo = val;
-            rn = "TagLo";
-            break;
-        default:
-            val = -1;
-            old = -1;
-            rn = "invalid sel";
-            break;
-        }
-        break;
-    case 30:
-        val = T0;
-        old = env->CP0_ErrorEPC;
-        env->CP0_ErrorEPC = val;
-        rn = "EPC";
-        break;
-    case 31:
-        val = T0;
-        old = env->CP0_DESAVE;
-        env->CP0_DESAVE = val;
-        rn = "DESAVE";
-        break;
-    default:
-        val = -1;
-        old = -1;
-        rn = "unknown";
-        break;
-    }
- print:
-#if defined MIPS_DEBUG_DISAS
-    if (loglevel & CPU_LOG_TB_IN_ASM) {
-        fprintf(logfile, "%08x mtc0 %s %08x => %08x (%d %d %08x)\n",
-                env->PC, rn, T0, val, reg, sel, old);
-    }
-#endif
-    return;
+void do_mtc0_status_irqraise_debug(void)
+{
+    fprintf(logfile, "Raise pending IRQs\n");
 }
 
 #ifdef MIPS_USES_FPU

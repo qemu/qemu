@@ -1371,6 +1371,7 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
         rn = "EntryLo0";
         break;
     case 3:
+       /* also CONF */
         gen_op_mfc0_entrylo1();
         rn = "EntryLo1";
         break;
@@ -1385,6 +1386,10 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
     case 6:
         gen_op_mfc0_wired();
         rn = "Wired";
+        break;
+    case 7:
+//        gen_op_mfc0_info();
+        rn = "Info";
         break;
     case 8:
         gen_op_mfc0_badvaddr();
@@ -1445,6 +1450,19 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
         gen_op_mfc0_watchhi();
         rn = "WatchHi";
         break;
+    case 20:
+       /* 64 bit only */
+//        gen_op_mfc0_xcontext();
+        rn = "XContext";
+        break;
+    case 21:
+//        gen_op_mfc0_framemask();
+        rn = "Framemask";
+        break;
+    case 22:
+//        gen_op_mfc0_diagnostic();
+        rn = "'Diagnostic";
+        break;
     case 23:
         gen_op_mfc0_debug();
         rn = "Debug";
@@ -1452,6 +1470,18 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
     case 24:
         gen_op_mfc0_depc();
         rn = "DEPC";
+        break;
+    case 25:
+//        gen_op_mfc0_performance();
+        rn = "Performance";
+        break;
+    case 26:
+//        gen_op_mfc0_ecc();
+        rn = "ECC";
+        break;
+    case 27:
+//        gen_op_mfc0_cacheerr();
+        rn = "CacheErr";
         break;
     case 28:
         switch (sel) {
@@ -1467,6 +1497,10 @@ static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
             rn = "unknown sel";
             goto die;
         }
+        break;
+    case 29:
+//        gen_op_mfc0_taghi();
+        rn = "TagHi";
         break;
     case 30:
         gen_op_mfc0_errorepc();
@@ -1492,6 +1526,183 @@ die:
 #if defined MIPS_DEBUG_DISAS
     if (loglevel & CPU_LOG_TB_IN_ASM) {
         fprintf(logfile, "%08x mfc0 %s => %08x (%d %d)\n",
+                env->PC, rn, T0, reg, sel);
+    }
+#endif
+    generate_exception(ctx, EXCP_RI);
+}
+
+static void gen_mtc0 (DisasContext *ctx, int reg, int sel)
+{
+    const unsigned char *rn;
+    uint32_t val, old;
+
+    if (sel != 0 && reg != 16 && reg != 28) {
+        val = -1;
+        old = -1;
+        rn = "invalid";
+        goto die;
+    }
+    switch (reg) {
+    case 0:
+        gen_op_mtc0_index();
+        rn = "Index";
+        break;
+    case 1:
+// ignore or except?
+        rn = "Random";
+        break;
+    case 2:
+        gen_op_mtc0_entrylo0();
+        rn = "EntryLo0";
+        break;
+    case 3:
+        gen_op_mtc0_entrylo1();
+        rn = "EntryLo1";
+        break;
+    case 4:
+        gen_op_mtc0_context();
+        rn = "Context";
+        break;
+    case 5:
+        gen_op_mtc0_pagemask();
+        rn = "PageMask";
+        break;
+    case 6:
+        gen_op_mtc0_wired();
+        rn = "Wired";
+        break;
+    case 7:
+// ignore or except?
+        rn = "Info";
+        break;
+    case 8:
+// ignore or except?
+        rn = "BadVaddr";
+        break;
+    case 9:
+        gen_op_mtc0_count();
+        rn = "Count";
+        break;
+    case 10:
+        gen_op_mtc0_entryhi();
+        rn = "EntryHi";
+        break;
+    case 11:
+        gen_op_mtc0_compare();
+        rn = "Compare";
+        break;
+    case 12:
+        gen_op_mtc0_status();
+        rn = "Status";
+        break;
+    case 13:
+        gen_op_mtc0_cause();
+        rn = "Cause";
+        break;
+    case 14:
+        gen_op_mtc0_epc();
+        rn = "EPC";
+        break;
+    case 15:
+// ignore or except?
+        rn = "PRid";
+        break;
+    case 16:
+        switch (sel) {
+        case 0:
+           gen_op_mtc0_config0();
+            rn = "Config0";
+            break;
+        default:
+            rn = "Invalid config selector";
+            goto die;
+        }
+        break;
+    case 17:
+// ignore or except?
+        rn = "LLaddr";
+        break;
+    case 18:
+        gen_op_mtc0_watchlo();
+        rn = "WatchLo";
+        break;
+    case 19:
+        gen_op_mtc0_watchhi();
+        rn = "WatchHi";
+        break;
+    case 20:
+       /* 64 bit only */
+//     gen_op_mtc0_xcontext();
+        rn = "XContext";
+        break;
+    case 21:
+//        gen_op_mtc0_framemask();
+        rn = "Framemask";
+       break;
+    case 22:
+// ignore or except?
+        rn = "Diagnostic";
+       break;
+    case 23:
+        gen_op_mtc0_debug();
+        rn = "Debug";
+        break;
+    case 24:
+        gen_op_mtc0_depc();
+        rn = "DEPC";
+        break;
+    case 25:
+// ignore or except?
+        rn = "Performance";
+       break;
+    case 26:
+// ignore or except?
+        rn = "ECC";
+       break;
+    case 27:
+// ignore or except?
+        rn = "CacheErr";
+       break;
+    case 28:
+        switch (sel) {
+        case 0:
+            gen_op_mtc0_taglo();
+            rn = "TagLo";
+            break;
+        default:
+            rn = "invalid sel";
+            goto die;
+        }
+        break;
+    case 29:
+//     gen_op_mtc0_taghi();
+        rn = "TagHi";
+       break;
+    case 30:
+        gen_op_mtc0_errorepc();
+        rn = "ErrorEPC";
+        break;
+    case 31:
+        gen_op_mtc0_desave();
+        rn = "DESAVE";
+        break;
+    default:
+        rn = "unknown";
+       goto die;
+    }
+#if defined MIPS_DEBUG_DISAS
+    if (loglevel & CPU_LOG_TB_IN_ASM) {
+        fprintf(logfile, "%08x mtc0 %s => %08x (%d %d)\n",
+                env->PC, rn, T0, reg, sel);
+    }
+#endif
+    return;
+
+die:
+#if defined MIPS_DEBUG_DISAS
+    if (loglevel & CPU_LOG_TB_IN_ASM) {
+        fprintf(logfile, "%08x mtc0 %s => %08x (%d %d)\n",
                 env->PC, rn, T0, reg, sel);
     }
 #endif
@@ -1529,7 +1740,7 @@ static void gen_cp0 (DisasContext *ctx, uint16_t opc, int rt, int rd)
         save_cpu_state(ctx, 1);
         ctx->pc -= 4;
         GEN_LOAD_REG_TN(T0, rt);
-        gen_op_mtc0(rd, ctx->opcode & 0x7);
+        gen_mtc0(ctx, rd, ctx->opcode & 0x7);
         /* Stop translation as we may have switched the execution mode */
         ctx->bstate = BS_STOP;
         opn = "mtc0";

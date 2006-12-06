@@ -852,9 +852,185 @@ void op_mfc0_desave (void)
     RETURN();
 }
 
-void op_mtc0 (void)
+void op_mtc0_index (void)
 {
-    CALL_FROM_TB2(do_mtc0, PARAM1, PARAM2);
+    env->CP0_index = (env->CP0_index & 0x80000000) | (T0 & 0x0000000F);
+    RETURN();
+}
+
+void op_mtc0_entrylo0 (void)
+{
+    env->CP0_EntryLo0 = T0 & 0x3FFFFFFF;
+    RETURN();
+}
+
+void op_mtc0_entrylo1 (void)
+{
+    env->CP0_EntryLo1 = T0 & 0x3FFFFFFF;
+    RETURN();
+}
+
+void op_mtc0_context (void)
+{
+    env->CP0_Context = (env->CP0_Context & 0xFF800000) | (T0 & 0x007FFFF0);
+    RETURN();
+}
+
+void op_mtc0_pagemask (void)
+{
+    env->CP0_PageMask = T0 & 0x01FFE000;
+    RETURN();
+}
+
+void op_mtc0_wired (void)
+{
+    env->CP0_Wired = T0 & 0x0000000F;
+    RETURN();
+}
+
+void op_mtc0_count (void)
+{
+    CALL_FROM_TB2(cpu_mips_store_count, env, T0);
+    RETURN();
+}
+
+void op_mtc0_entryhi (void)
+{
+    uint32_t old, val;
+
+    val = T0 & 0xFFFFE0FF;
+    old = env->CP0_EntryHi;
+    env->CP0_EntryHi = val;
+    /* If the ASID changes, flush qemu's TLB.  */
+    if ((old & 0xFF) != (val & 0xFF))
+        CALL_FROM_TB2(cpu_mips_tlb_flush, env, 1);
+    RETURN();
+}
+
+void op_mtc0_compare (void)
+{
+    CALL_FROM_TB2(cpu_mips_store_compare, env, T0);
+    RETURN();
+}
+
+void op_mtc0_status (void)
+{
+    uint32_t val, old, mask;
+
+    val = T0 & 0xFA78FF01;
+    old = env->CP0_Status;
+    if (T0 & (1 << CP0St_UM))
+        env->hflags |= MIPS_HFLAG_UM;
+    else
+        env->hflags &= ~MIPS_HFLAG_UM;
+    if (T0 & (1 << CP0St_ERL))
+        env->hflags |= MIPS_HFLAG_ERL;
+    else
+        env->hflags &= ~MIPS_HFLAG_ERL;
+    if (T0 & (1 << CP0St_EXL))
+        env->hflags |= MIPS_HFLAG_EXL;
+    else
+        env->hflags &= ~MIPS_HFLAG_EXL;
+    env->CP0_Status = val;
+    /* If we unmasked an asserted IRQ, raise it */
+    mask = 0x0000FF00;
+    if (loglevel & CPU_LOG_TB_IN_ASM)
+       CALL_FROM_TB2(do_mtc0_status_debug, old, val);
+    if ((val & (1 << CP0St_IE)) && !(old & (1 << CP0St_IE)) &&
+        !(env->hflags & MIPS_HFLAG_EXL) &&
+        !(env->hflags & MIPS_HFLAG_ERL) &&
+        !(env->hflags & MIPS_HFLAG_DM) &&
+        (env->CP0_Status & env->CP0_Cause & mask)) {
+        env->interrupt_request |= CPU_INTERRUPT_HARD;
+       if (logfile)
+           CALL_FROM_TB0(do_mtc0_status_irqraise_debug);
+    } else if (!(val & (1 << CP0St_IE)) && (old & (1 << CP0St_IE))) {
+        env->interrupt_request &= ~CPU_INTERRUPT_HARD;
+    }
+    RETURN();
+}
+
+void op_mtc0_cause (void)
+{
+    uint32_t val, old;
+
+    val = (env->CP0_Cause & 0xB000F87C) | (T0 & 0x000C00300);
+    old = env->CP0_Cause;
+    env->CP0_Cause = val;
+#if 0
+    {
+        int i, mask;
+
+       /* Check if we ever asserted a software IRQ */
+        for (i = 0; i < 2; i++) {
+            mask = 0x100 << i;
+            if ((val & mask) & !(old & mask))
+                CALL_FROM_TB1(mips_set_irq, i);
+        }
+    }
+#endif
+    RETURN();
+}
+
+void op_mtc0_epc (void)
+{
+    env->CP0_EPC = T0;
+    RETURN();
+}
+
+void op_mtc0_config0 (void)
+{
+#if defined(MIPS_USES_R4K_TLB)
+    env->CP0_Config0 = (env->CP0_Config0 & 0x8017FF80) | (T0 & 0x7E000001);
+#else
+    env->CP0_Config0 = (env->CP0_Config0 & 0xFE17FF80) | (T0 & 0x00000001);
+#endif
+    RETURN();
+}
+
+void op_mtc0_watchlo (void)
+{
+    env->CP0_WatchLo = T0;
+    RETURN();
+}
+
+void op_mtc0_watchhi (void)
+{
+    env->CP0_WatchHi = T0 & 0x40FF0FF8;
+    RETURN();
+}
+
+void op_mtc0_debug (void)
+{
+    env->CP0_Debug = (env->CP0_Debug & 0x8C03FC1F) | (T0 & 0x13300120);
+    if (T0 & (1 << CP0DB_DM))
+        env->hflags |= MIPS_HFLAG_DM;
+    else
+        env->hflags &= ~MIPS_HFLAG_DM;
+    RETURN();
+}
+
+void op_mtc0_depc (void)
+{
+    env->CP0_DEPC = T0;
+    RETURN();
+}
+
+void op_mtc0_taglo (void)
+{
+    env->CP0_TagLo = T0 & 0xFFFFFCF6;
+    RETURN();
+}
+
+void op_mtc0_errorepc (void)
+{
+    env->CP0_ErrorEPC = T0;
+    RETURN();
+}
+
+void op_mtc0_desave (void)
+{
+    env->CP0_DESAVE = T0;
     RETURN();
 }
 
