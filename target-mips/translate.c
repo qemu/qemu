@@ -1349,6 +1349,155 @@ static void gen_compute_branch (DisasContext *ctx, uint16_t opc,
 }
 
 /* CP0 (MMU and control) */
+static void gen_mfc0 (DisasContext *ctx, int reg, int sel)
+{
+    const unsigned char *rn;
+
+    if (sel != 0 && reg != 16 && reg != 28) {
+        rn = "invalid";
+        goto die;
+    }
+    switch (reg) {
+    case 0:
+        gen_op_mfc0_index();
+        rn = "Index";
+        break;
+    case 1:
+        gen_op_mfc0_random();
+        rn = "Random";
+        break;
+    case 2:
+        gen_op_mfc0_entrylo0();
+        rn = "EntryLo0";
+        break;
+    case 3:
+        gen_op_mfc0_entrylo1();
+        rn = "EntryLo1";
+        break;
+    case 4:
+        gen_op_mfc0_context();
+        rn = "Context";
+        break;
+    case 5:
+        gen_op_mfc0_pagemask();
+        rn = "PageMask";
+        break;
+    case 6:
+        gen_op_mfc0_wired();
+        rn = "Wired";
+        break;
+    case 8:
+        gen_op_mfc0_badvaddr();
+        rn = "BadVaddr";
+        break;
+    case 9:
+        gen_op_mfc0_count();
+        rn = "Count";
+        break;
+    case 10:
+        gen_op_mfc0_entryhi();
+        rn = "EntryHi";
+        break;
+    case 11:
+        gen_op_mfc0_compare();
+        rn = "Compare";
+        break;
+    case 12:
+        gen_op_mfc0_status();
+        rn = "Status";
+        break;
+    case 13:
+        gen_op_mfc0_cause();
+        rn = "Cause";
+        break;
+    case 14:
+        gen_op_mfc0_epc();
+        rn = "EPC";
+        break;
+    case 15:
+        gen_op_mfc0_prid();
+        rn = "PRid";
+        break;
+    case 16:
+        switch (sel) {
+        case 0:
+           gen_op_mfc0_config0();
+            rn = "Config";
+            break;
+        case 1:
+           gen_op_mfc0_config1();
+            rn = "Config1";
+            break;
+        default:
+            rn = "Unknown config register";
+            goto die;
+        }
+        break;
+    case 17:
+        gen_op_mfc0_lladdr();
+        rn = "LLAddr";
+        break;
+    case 18:
+        gen_op_mfc0_watchlo();
+        rn = "WatchLo";
+        break;
+    case 19:
+        gen_op_mfc0_watchhi();
+        rn = "WatchHi";
+        break;
+    case 23:
+        gen_op_mfc0_debug();
+        rn = "Debug";
+        break;
+    case 24:
+        gen_op_mfc0_depc();
+        rn = "DEPC";
+        break;
+    case 28:
+        switch (sel) {
+        case 0:
+            gen_op_mfc0_taglo();
+            rn = "TagLo";
+            break;
+        case 1:
+            gen_op_mfc0_datalo();
+            rn = "DataLo";
+            break;
+        default:
+            rn = "unknown sel";
+            goto die;
+        }
+        break;
+    case 30:
+        gen_op_mfc0_errorepc();
+        rn = "ErrorEPC";
+        break;
+    case 31:
+        gen_op_mfc0_desave();
+        rn = "DESAVE";
+        break;
+    default:
+        rn = "unknown";
+       goto die;
+    }
+#if defined MIPS_DEBUG_DISAS
+    if (loglevel & CPU_LOG_TB_IN_ASM) {
+        fprintf(logfile, "%08x mfc0 %s => %08x (%d %d)\n",
+                env->PC, rn, T0, reg, sel);
+    }
+#endif
+    return;
+
+die:
+#if defined MIPS_DEBUG_DISAS
+    if (loglevel & CPU_LOG_TB_IN_ASM) {
+        fprintf(logfile, "%08x mfc0 %s => %08x (%d %d)\n",
+                env->PC, rn, T0, reg, sel);
+    }
+#endif
+    generate_exception(ctx, EXCP_RI);
+}
+
 static void gen_cp0 (DisasContext *ctx, uint16_t opc, int rt, int rd)
 {
     const unsigned char *opn = "unk";
@@ -1370,7 +1519,7 @@ static void gen_cp0 (DisasContext *ctx, uint16_t opc, int rt, int rd)
             /* Treat as NOP */
             return;
         }
-        gen_op_mfc0(rd, ctx->opcode & 0x7);
+        gen_mfc0(ctx, rd, ctx->opcode & 0x7);
         gen_op_store_T0_gpr(rt);
         opn = "mfc0";
         break;

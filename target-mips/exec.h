@@ -66,7 +66,8 @@ void do_maddu (void);
 void do_msub (void);
 void do_msubu (void);
 #endif
-void do_mfc0(int reg, int sel);
+void do_mfc0_random(void);
+void do_mfc0_count(void);
 void do_mtc0(int reg, int sel);
 void do_tlbwi (void);
 void do_tlbwr (void);

@@ -688,9 +688,167 @@ void op_jnz_T2 (void)
 }
 
 /* CP0 functions */
-void op_mfc0 (void)
+void op_mfc0_index (void)
 {
-    CALL_FROM_TB2(do_mfc0, PARAM1, PARAM2);
+    T0 = env->CP0_index;
+    RETURN();
+}
+
+void op_mfc0_random (void)
+{
+    CALL_FROM_TB0(do_mfc0_random);
+    RETURN();
+}
+
+void op_mfc0_entrylo0 (void)
+{
+    T0 = env->CP0_EntryLo0;
+    RETURN();
+}
+
+void op_mfc0_entrylo1 (void)
+{
+    T0 = env->CP0_EntryLo1;
+    RETURN();
+}
+
+void op_mfc0_context (void)
+{
+    T0 = env->CP0_Context;
+    RETURN();
+}
+
+void op_mfc0_pagemask (void)
+{
+    T0 = env->CP0_PageMask;
+    RETURN();
+}
+
+void op_mfc0_wired (void)
+{
+    T0 = env->CP0_Wired;
+    RETURN();
+}
+
+void op_mfc0_badvaddr (void)
+{
+    T0 = env->CP0_BadVAddr;
+    RETURN();
+}
+
+void op_mfc0_count (void)
+{
+    CALL_FROM_TB0(do_mfc0_count);
+    RETURN();
+}
+
+void op_mfc0_entryhi (void)
+{
+    T0 = env->CP0_EntryHi;
+    RETURN();
+}
+
+void op_mfc0_compare (void)
+{
+    T0 = env->CP0_Compare;
+    RETURN();
+}
+
+void op_mfc0_status (void)
+{
+    T0 = env->CP0_Status;
+    if (env->hflags & MIPS_HFLAG_UM)
+        T0 |= (1 << CP0St_UM);
+    if (env->hflags & MIPS_HFLAG_ERL)
+        T0 |= (1 << CP0St_ERL);
+    if (env->hflags & MIPS_HFLAG_EXL)
+        T0 |= (1 << CP0St_EXL);
+    RETURN();
+}
+
+void op_mfc0_cause (void)
+{
+    T0 = env->CP0_Cause;
+    RETURN();
+}
+
+void op_mfc0_epc (void)
+{
+    T0 = env->CP0_EPC;
+    RETURN();
+}
+
+void op_mfc0_prid (void)
+{
+    T0 = env->CP0_PRid;
+    RETURN();
+}
+
+void op_mfc0_config0 (void)
+{
+    T0 = env->CP0_Config0;
+    RETURN();
+}
+
+void op_mfc0_config1 (void)
+{
+    T0 = env->CP0_Config1;
+    RETURN();
+}
+
+void op_mfc0_lladdr (void)
+{
+    T0 = env->CP0_LLAddr >> 4;
+    RETURN();
+}
+
+void op_mfc0_watchlo (void)
+{
+    T0 = env->CP0_WatchLo;
+    RETURN();
+}
+
+void op_mfc0_watchhi (void)
+{
+    T0 = env->CP0_WatchHi;
+    RETURN();
+}
+
+void op_mfc0_debug (void)
+{
+    T0 = env->CP0_Debug;
+    if (env->hflags & MIPS_HFLAG_DM)
+        T0 |= 1 << CP0DB_DM;
+    RETURN();
+}
+
+void op_mfc0_depc (void)
+{
+    T0 = env->CP0_DEPC;
+    RETURN();
+}
+
+void op_mfc0_taglo (void)
+{
+    T0 = env->CP0_TagLo;
+    RETURN();
+}
+
+void op_mfc0_datalo (void)
+{
+    T0 = env->CP0_DataLo;
+    RETURN();
+}
+
+void op_mfc0_errorepc (void)
+{
+    T0 = env->CP0_ErrorEPC;
+    RETURN();
+}
+
+void op_mfc0_desave (void)
+{
+    T0 = env->CP0_DESAVE;
     RETURN();
 }
 

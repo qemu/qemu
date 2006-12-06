@@ -131,10 +131,16 @@ void do_msubu (void)
 #endif
 
 #if defined(CONFIG_USER_ONLY) 
-void do_mfc0 (int reg, int sel)
+void do_mfc0_random (void)
 {
-    cpu_abort(env, "mfc0 reg=%d sel=%d\n", reg, sel);
+    cpu_abort(env, "mfc0 random\n");
 }
+
+void do_mfc0_count (void)
+{
+    cpu_abort(env, "mfc0 count\n");
+}
+
 void do_mtc0 (int reg, int sel)
 {
     cpu_abort(env, "mtc0 reg=%d sel=%d\n", reg, sel);
@@ -159,152 +165,18 @@ void do_tlbr (void)
 {
     cpu_abort(env, "tlbr\n");
 }
+
 #else
 
 /* CP0 helpers */
-void do_mfc0 (int reg, int sel)
+void do_mfc0_random (void)
 {
-    const unsigned char *rn;
+    T0 = cpu_mips_get_random(env);
+}
 
-    if (sel != 0 && reg != 16 && reg != 28) {
-        rn = "invalid";
-        goto print;
-    }
-    switch (reg) {
-    case 0:
-        T0 = env->CP0_index;
-        rn = "Index";
-        break;
-    case 1:
-        T0 = cpu_mips_get_random(env);
-        rn = "Random";
-        break;
-    case 2:
-        T0 = env->CP0_EntryLo0;
-        rn = "EntryLo0";
-        break;
-    case 3:
-        T0 = env->CP0_EntryLo1;
-        rn = "EntryLo1";
-        break;
-    case 4:
-        T0 = env->CP0_Context;
-        rn = "Context";
-        break;
-    case 5:
-        T0 = env->CP0_PageMask;
-        rn = "PageMask";
-        break;
-    case 6:
-        T0 = env->CP0_Wired;
-        rn = "Wired";
-        break;
-    case 8:
-        T0 = env->CP0_BadVAddr;
-        rn = "BadVaddr";
-        break;
-    case 9:
-        T0 = cpu_mips_get_count(env);
-        rn = "Count";
-        break;
-    case 10:
-        T0 = env->CP0_EntryHi;
-        rn = "EntryHi";
-        break;
-    case 11:
-        T0 = env->CP0_Compare;
-        rn = "Compare";
-        break;
-    case 12:
-        T0 = env->CP0_Status;
-        if (env->hflags & MIPS_HFLAG_UM)
-            T0 |= (1 << CP0St_UM);
-        rn = "Status";
-        break;
-    case 13:
-        T0 = env->CP0_Cause;
-        rn = "Cause";
-        break;
-    case 14:
-        T0 = env->CP0_EPC;
-        rn = "EPC";
-        break;
-    case 15:
-        T0 = env->CP0_PRid;
-        rn = "PRid";
-        break;
-    case 16:
-        switch (sel) {
-        case 0:
-            T0 = env->CP0_Config0;
-            rn = "Config";
-            break;
-        case 1:
-            T0 = env->CP0_Config1;
-            rn = "Config1";
-            break;
-        default:
-            rn = "Unknown config register";
-            break;
-        }
-        break;
-    case 17:
-        T0 = env->CP0_LLAddr >> 4;
-        rn = "LLAddr";
-        break;
-    case 18:
-        T0 = env->CP0_WatchLo;
-        rn = "WatchLo";
-        break;
-    case 19:
-        T0 = env->CP0_WatchHi;
-        rn = "WatchHi";
-        break;
-    case 23:
-        T0 = env->CP0_Debug;
-        if (env->hflags & MIPS_HFLAG_DM)
-            T0 |= 1 << CP0DB_DM;
-        rn = "Debug";
-        break;
-    case 24:
-        T0 = env->CP0_DEPC;
-        rn = "DEPC";
-        break;
-    case 28:
-        switch (sel) {
-        case 0:
-            T0 = env->CP0_TagLo;
-            rn = "TagLo";
-            break;
-        case 1:
-            T0 = env->CP0_DataLo;
-            rn = "DataLo";
-            break;
-        default:
-            rn = "unknown sel";
-            break;
-        }
-        break;
-    case 30:
-        T0 = env->CP0_ErrorEPC;
-        rn = "ErrorEPC";
-        break;
-    case 31:
-        T0 = env->CP0_DESAVE;
-        rn = "DESAVE";
-        break;
-    default:
-        rn = "unknown";
-        break;
-    }
- print:
-#if defined MIPS_DEBUG_DISAS
-    if (loglevel & CPU_LOG_TB_IN_ASM) {
-        fprintf(logfile, "%08x mfc0 %s => %08x (%d %d)\n",
-                env->PC, rn, T0, reg, sel);
-    }
-#endif
-    return;
+void do_mfc0_count (void)
+{
+    T0 = cpu_mips_get_count(env);
 }
 
 void do_mtc0 (int reg, int sel)
