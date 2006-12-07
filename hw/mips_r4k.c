@@ -135,6 +135,7 @@ void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
     unsigned long bios_offset;
     int ret;
     CPUState *env;
+    static RTCState *rtc_state;
     int i;
 
     env = cpu_init();
@@ -179,12 +180,15 @@ void mips_r4k_init (int ram_size, int vga_ram_size, int boot_device,
     cpu_mips_clock_init(env);
     cpu_mips_irqctrl_init();
 
+    rtc_state = rtc_init(0x70, 8);
+
     /* Register 64 KB of ISA IO space at 0x14000000 */
     isa_mmio_init(0x14000000, 0x00010000);
     isa_mem_base = 0x10000000;
 
     isa_pic = pic_init(pic_irq_request, env);
     pit = pit_init(0x40, 0);
+
     serial_init(&pic_set_irq_new, isa_pic, 0x3f8, 4, serial_hds[0]);
     isa_vga_init(ds, phys_ram_base + ram_size, ram_size, 
                  vga_ram_size);
