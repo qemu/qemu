@@ -627,6 +627,7 @@ void op_movz (void)
     RETURN();
 }
 
+#ifdef MIPS_USES_FPU
 void op_movf (void)
 {
     if (!(env->fcr31 & PARAM1))
@@ -640,6 +641,7 @@ void op_movt (void)
         env->gpr[PARAM2] = env->gpr[PARAM3];
     RETURN();
 }
+#endif
 
 /* Tests */
 #define OP_COND(name, cond) \
