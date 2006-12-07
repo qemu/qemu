@@ -1,10 +1,17 @@
 /*
- * mips_r4k.c
- */
+ * QEMU/MIPS pseudo-board
+ *
+ * emulates a simple machine with ISA-like bus.
+ * ISA IO space mapped to the 0x14000000 (PHYS) and
+ * ISA memory at the 0x10000000 (PHYS, 16Mb in size).
+ * All peripherial devices are attached to this "bus" with
+ * the standard PC ISA addresses.
+*/
 
 #include "vl.h"
-#include "ar7.h"        /* ar7_init */
-#include "pflash.h"     /* pflash_amd_register, ... */
+#include "ar7.h"                /* ar7_init */
+#include "mips_display.h"       /* mips_display_init */
+#include "pflash.h"             /* pflash_amd_register, ... */
 
 #define BIOS_FILENAME "mips_bios.bin"
 
@@ -23,10 +30,12 @@ static const int ide_irq[2] = { 14, 15 };
 
 extern FILE *logfile;
 
-static PITState *pit;
+static PITState *pit; /* PIT i8254 */
 
 static int bigendian;
 
+/*i8254 PIT is attached to the IRQ0 at PIC i8259 */
+/*The PIC is attached to the MIPS CPU INT0 pin */
 static void pic_irq_request(void *opaque, int level)
 {
     CPUState *env = first_cpu;
@@ -39,173 +48,98 @@ static void pic_irq_request(void *opaque, int level)
     }
 }
 
-static void cpu_mips_irqctrl_init (void)
+/*------------------------------------------*/
+
+static void mips_qemu_writel (void *opaque, target_phys_addr_t addr,
+			      uint32_t val)
 {
+    if ((addr & 0xffff) == 0 && val == 42)
+        qemu_system_reset_request ();
+    else if ((addr & 0xffff) == 4 && val == 42)
+        qemu_system_shutdown_request ();
 }
 
-/* XXX: do not use a global */
-uint32_t cpu_mips_get_random (CPUState *env)
+static uint32_t mips_qemu_readl (void *opaque, target_phys_addr_t addr)
 {
-    static uint32_t seed = 0;
-    uint32_t idx;
-    seed = seed * 314159 + 1;
-    idx = (seed >> 16) % (MIPS_TLB_NB - env->CP0_Wired) + env->CP0_Wired;
-    return idx;
+    return 0;
 }
 
-/* MIPS R4K timer */
-uint32_t cpu_mips_get_count (CPUState *env)
-{
-    return env->CP0_Count +
-        (uint32_t)muldiv64(qemu_get_clock(vm_clock),
-                           MIPS_CPS, ticks_per_sec);
-}
+static CPUWriteMemoryFunc *mips_qemu_write[] = {
+    &mips_qemu_writel,
+    &mips_qemu_writel,
+    &mips_qemu_writel,
+};
 
-static void cpu_mips_update_count (CPUState *env, uint32_t count,
-                                   uint32_t compare)
+static CPUReadMemoryFunc *mips_qemu_read[] = {
+    &mips_qemu_readl,
+    &mips_qemu_readl,
+    &mips_qemu_readl,
+};
+
+static int mips_qemu_iomemtype = 0;
+
+void load_kernel (CPUState *env, int ram_size, const char *kernel_filename,
+		  const char *kernel_cmdline,
+		  const char *initrd_filename)
 {
-    uint64_t now, next;
-    uint32_t tmp;
-    
-    tmp = count;
-    if (count == compare)
-        tmp++;
-    now = qemu_get_clock(vm_clock);
-    next = now + muldiv64(compare - tmp, ticks_per_sec, MIPS_CPS);
-    if (next == now)
-        next++;
-#if 1
-    if (logfile) {
-        fprintf(logfile, "%s: 0x%08" PRIx64 " %08x %08x => 0x%08" PRIx64 "\n",
-                __func__, now, count, compare, next - now);
+    int64_t entry = 0;
+    long kernel_size, initrd_size;
+
+    kernel_size = load_elf(kernel_filename, VIRT_TO_PHYS_ADDEND, &entry);
+    if (kernel_size >= 0)
+        env->PC = entry;
+    else {
+        kernel_size = load_image(kernel_filename,
+                                 phys_ram_base + KERNEL_LOAD_ADDR + VIRT_TO_PHYS_ADDEND);
+        if (kernel_size < 0) {
+            fprintf(stderr, "qemu: could not load kernel '%s'\n",
+                    kernel_filename);
+            exit(1);
+        }
+        env->PC = KERNEL_LOAD_ADDR;
     }
-#endif
-    /* Store new count and compare registers */
-    env->CP0_Compare = compare;
-    env->CP0_Count =
-        count - (uint32_t)muldiv64(now, MIPS_CPS, ticks_per_sec);
-    /* Adjust timer */
-    qemu_mod_timer(env->timer, next);
-}
 
-void cpu_mips_store_count (CPUState *env, uint32_t value)
-{
-    cpu_mips_update_count(env, value, env->CP0_Compare);
-}
+    /* Set SP (needed for some kernels) - normally set by bootloader. */
+    env->gpr[29] = (env->PC + (kernel_size & 0xfffffffc)) + 0x1000;
 
-void cpu_mips_store_compare (CPUState *env, uint32_t value)
-{
-    cpu_mips_update_count(env, cpu_mips_get_count(env), value);
-    env->CP0_Cause &= ~0x00008000;
-    cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
-}
-
-static void mips_timer_cb (void *opaque)
-{
-    CPUState *env;
-
-    env = opaque;
-#if 1
-    if (logfile) {
-        fprintf(logfile, "%s\n", __func__);
+    /* load initrd */
+    initrd_size = 0;
+    if (initrd_filename) {
+        initrd_size = load_image(initrd_filename,
+                                 phys_ram_base + INITRD_LOAD_ADDR + VIRT_TO_PHYS_ADDEND);
+        if (initrd_size == (target_ulong) -1) {
+            fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
+                    initrd_filename);
+            exit(1);
+        }
     }
-#endif
-    cpu_mips_update_count(env, cpu_mips_get_count(env), env->CP0_Compare);
-    env->CP0_Cause |= 0x00008000;
-    cpu_interrupt(env, CPU_INTERRUPT_HARD);
-}
 
-void cpu_mips_clock_init (CPUState *env)
-{
-    env->timer = qemu_new_timer(vm_clock, &mips_timer_cb, env);
-    env->CP0_Compare = 0;
-    cpu_mips_update_count(env, 1, 0);
+    /* Store command line.  */
+    if (initrd_size > 0) {
+        int ret;
+        ret = sprintf(phys_ram_base + (16 << 20) - 256,
+                      "rd_start=0x%08x rd_size=%li ",
+                      INITRD_LOAD_ADDR,
+                      initrd_size);
+        strcpy (phys_ram_base + (16 << 20) - 256 + ret, kernel_cmdline);
+    }
+    else {
+        strcpy (phys_ram_base + (16 << 20) - 256, kernel_cmdline);
+    }
+
+    *(int *)(phys_ram_base + (16 << 20) - 260) = tswap32 (0x12345678);
+    *(int *)(phys_ram_base + (16 << 20) - 264) = tswap32 (ram_size);
 }
 
 static void main_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
     cpu_reset(env);
+
+    if (env->kernel_filename)
+        load_kernel (env, env->ram_size, env->kernel_filename,
+                     env->kernel_cmdline, env->initrd_filename);
 }
-
-/*------------------------------------------*/
-
-#define logout(fmt, args...) fprintf(stderr, "MIPS\t%-24s" fmt, __func__, ##args)
-
-#define ASCII_DISPLAY_POS_BASE     0x1f000418
-
-static char mips_display_text[8];
-
-static CharDriverState *mips_display;
-
-static void io_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
-{
-    logout("??? addr=0x%08x, val=0x%02x\n", addr, value);
-}
-
-static uint32_t io_readb(void *opaque, target_phys_addr_t addr)
-{
-    uint32_t value = 0;
-    logout("??? addr=0x%08x, val=0x%02x\n", addr, value);
-    return value;
-}
-
-static void io_writew(void *opaque, target_phys_addr_t addr, uint32_t value)
-{
-    logout("??? addr=0x%08x, val=0x%04x\n", addr, value);
-}
-
-static uint32_t io_readw(void *opaque, target_phys_addr_t addr)
-{
-    uint32_t value = 0;
-    logout("??? addr=0x%08x, val=0x%04x\n", addr, value);
-    return value;
-}
-
-static void io_writel(void *opaque, target_phys_addr_t addr, uint32_t value)
-{
-    if (addr & 0x7) {
-        logout("??? addr=0x%08x, val=0x%08x\n", addr, value);
-    } else if (addr >= ASCII_DISPLAY_POS_BASE && addr < ASCII_DISPLAY_POS_BASE + 4 * 2 * 8) {
-        unsigned index = (addr - ASCII_DISPLAY_POS_BASE) / 4 / 2;
-        mips_display_text[index] = (char)value;
-        qemu_chr_printf(mips_display, "\r| %-8.8s |", mips_display_text);
-    } else {
-        logout("??? addr=0x%08x, val=0x%08x\n", addr, value);
-    }
-}
-
-static uint32_t io_readl(void *opaque, target_phys_addr_t addr)
-{
-    uint32_t value = 0;
-    logout("??? addr=0x%08x, val=0x%08x\n", addr, value);
-    return value;
-}
-
-static CPUWriteMemoryFunc *const io_write[] = {
-    io_writeb,
-    io_writew,
-    io_writel,
-};
-
-static CPUReadMemoryFunc *const io_read[] = {
-    io_readb,
-    io_readw,
-    io_readl,
-};
-
-static void mips_display_init(CPUState *env, const char *devname)
-{
-    int io_memory = cpu_register_io_memory(0, io_read, io_write, env);
-    cpu_register_physical_memory(0x1f000000, 0x00010000, io_memory);
-    mips_display = qemu_chr_open(devname);
-    if (!strcmp(devname, "vc")) {
-        qemu_chr_printf(mips_display, "MIPS Display\r\n");
-        qemu_chr_printf(mips_display, "+----------+\r\n");
-    }
-}
-
-/*------------------------------------------*/
 
 static void mips_init (int ram_size, int vga_ram_size, int boot_device,
                     DisplayState *ds, const char **fd_filename, int snapshot,
@@ -213,11 +147,10 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
                     const char *initrd_filename)
 {
     char buf[1024];
-    int64_t entry = 0;
     unsigned long bios_offset;
     int ret;
     CPUState *env;
-    long kernel_size;
+    static RTCState *rtc_state;
     int i;
 
     env = cpu_init();
@@ -230,6 +163,12 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
 
     /* allocate RAM */
     cpu_register_physical_memory(0, ram_size, IO_MEM_RAM);
+
+    if (!mips_qemu_iomemtype) {
+        mips_qemu_iomemtype = cpu_register_io_memory(0, mips_qemu_read,
+						     mips_qemu_write, NULL);
+    }
+    cpu_register_physical_memory(0x1fbf0000, 0x10000, mips_qemu_iomemtype);
 
     /* Try to load a BIOS image. If this fails, we continue regardless,
        but initialize the hardware ourselves. When a kernel gets
@@ -250,58 +189,20 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
                 buf);
     }
 
-    kernel_size = 0;
     if (kernel_filename) {
-        kernel_size = load_elf(kernel_filename, VIRT_TO_PHYS_ADDEND, &entry);
-        if (kernel_size >= 0) {
-            fprintf(stderr, "qemu: elf kernel '%s' with start address 0x%08lx\n",
-                        kernel_filename, (unsigned long)entry);
-            env->PC = entry;
-        } else {
-            kernel_size = load_image(kernel_filename,
-                                     phys_ram_base + KERNEL_LOAD_ADDR + VIRT_TO_PHYS_ADDEND);
-            if (kernel_size < 0) {
-                fprintf(stderr, "qemu: could not load kernel '%s'\n",
-                        kernel_filename);
-                exit(1);
-            }
-            env->PC = KERNEL_LOAD_ADDR;
-        }
-
-        /* Set SP (needed for some kernels) - normally set by bootloader. */
-        env->gpr[29] = (env->PC + (kernel_size & 0xfffffffc)) + 0x1000;
-
-#if 0
-        /* load initrd */
-        if (initrd_filename) {
-            // code is buggy (wrong address)!!!
-            target_ulong initrd_base = INITRD_LOAD_ADDR;
-            target_ulong initrd_size = load_image(initrd_filename,
-                                     phys_ram_base + initrd_base);
-            if (initrd_size == (target_ulong) -1) {
-            if (load_image(initrd_filename,
-                           phys_ram_base + INITRD_LOAD_ADDR + VIRT_TO_PHYS_ADDEND)
-                == (target_ulong) -1) {
-                fprintf(stderr, "qemu: could not load initial ram disk '%s'\n", 
-                        initrd_filename);
-                exit(1);
-            }
-        }
-#endif
-
-        /* Store command line. */
-        if (kernel_cmdline && *kernel_cmdline) {
-            // code is buggy (wrong address)!!!
-            strcpy (phys_ram_base + (16 << 20) - 256, kernel_cmdline);
-            /* FIXME: little endian support */
-            *(int *)(phys_ram_base + (16 << 20) - 260) = tswap32 (0x12345678);
-            *(int *)(phys_ram_base + (16 << 20) - 264) = tswap32 (ram_size);
-        }
+        load_kernel (env, ram_size, kernel_filename, kernel_cmdline,
+		     initrd_filename);
+	env->ram_size = ram_size;
+	env->kernel_filename = kernel_filename;
+	env->kernel_cmdline = kernel_cmdline;
+	env->initrd_filename = initrd_filename;
     }
 
-    /* Init internal devices */
+    /* Init CPU internal devices */
     cpu_mips_clock_init(env);
     cpu_mips_irqctrl_init();
+
+    rtc_state = rtc_init(0x70, 8);
 
     /* Register 64 KB of ISA IO space at 0x14000000 */
     isa_mmio_init(0x14000000, 0x00010000);
@@ -309,13 +210,10 @@ static void mips_init (int ram_size, int vga_ram_size, int boot_device,
 
     isa_pic = pic_init(pic_irq_request, env);
     pit = pit_init(0x40, 0);
-#if 1
-    serial_16450_init(&pic_set_irq_new, isa_pic, 0x3f8, 4, serial_hds[0]);
-#else
+
     serial_init(&pic_set_irq_new, isa_pic, 0x3f8, 4, serial_hds[0]);
     isa_vga_init(ds, phys_ram_base + ram_size, ram_size, 
                  vga_ram_size);
-#endif
 
     if (nd_table[0].vlan) {
         if (nd_table[0].model == NULL
@@ -568,7 +466,7 @@ static void sinus_se_init(int ram_size, int vga_ram_size, int boot_device,
                           kernel_filename, kernel_cmdline, initrd_filename);
 }
 
-static QEMUMachine mips_machine[] = {
+static QEMUMachine mips_machines[] = {
   {
     "mips",
     "MIPS r4k platform",
@@ -614,8 +512,8 @@ static QEMUMachine mips_machine[] = {
 int qemu_register_mips_machines(void)
 {
     size_t i;
-    for (i = 0; i < sizeof(mips_machine) / sizeof(*mips_machine); i++) {
-        qemu_register_machine(&mips_machine[i]);
+    for (i = 0; i < sizeof(mips_machines) / sizeof(*mips_machines); i++) {
+        qemu_register_machine(&mips_machines[i]);
     }
     return 0;
 }
