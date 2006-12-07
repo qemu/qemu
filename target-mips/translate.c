@@ -353,8 +353,8 @@ enum {
     OPC_BC1TL    = (0x03 << 16) | OPC_BC1,
 };
 
-#define MASK_CP1_BCOND(op)      MASK_CP1(op) | (op & ((0x1F << 21) | (0x3 << 16)))
-#define MASK_CP1_FUNC(op)       MASK_CP1(op) | (op & ((0x1F << 21) | 0x3F))
+#define MASK_CP1_BCOND(op)      MASK_CP1(op) | (op & (0x3 << 16))
+#define MASK_CP1_FUNC(op)       MASK_CP1(op) | (op & 0x3F)
 
 #define MASK_CP2(op)       MASK_OP_MAJOR(op) | (op & (0x1F << 21))
 #define MASK_CP3(op)       MASK_OP_MAJOR(op) | (op & (0x1F << 21))
