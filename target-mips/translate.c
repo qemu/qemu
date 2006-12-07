@@ -2817,8 +2817,8 @@ static void gen_cp0 (DisasContext *ctx, uint32_t opc, int rt, int rd)
 {
     const char *opn = "unk";
 
-    if (!(ctx->CP0_Status & (1 << CP0St_CU0)) &&
-        (ctx->hflags & MIPS_HFLAG_UM) &&
+    if ((!ctx->CP0_Status & (1 << CP0St_CU0) &&
+          (ctx->hflags & MIPS_HFLAG_UM)) &&
         !(ctx->hflags & MIPS_HFLAG_ERL) &&
         !(ctx->hflags & MIPS_HFLAG_EXL)) {
         if (loglevel & CPU_LOG_TB_IN_ASM) {
@@ -4048,6 +4048,14 @@ void cpu_reset (CPUMIPSState *env)
     tlb_flush(env, 1);
 
     /* Minimal init */
+    if (env->hflags & MIPS_HFLAG_BMASK) {
+        /* If the exception was raised from a delay slot,
+         * come back to the jump.  */
+        env->CP0_ErrorEPC = env->PC - 4;
+        env->hflags &= ~MIPS_HFLAG_BMASK;
+    } else {
+        env->CP0_ErrorEPC = env->PC;
+    }
     env->PC = 0xBFC00000;
 #if defined (MIPS_USES_R4K_TLB)
     env->CP0_random = MIPS_TLB_NB - 1;
@@ -4060,7 +4068,7 @@ void cpu_reset (CPUMIPSState *env)
     env->CP0_Config1 = MIPS_CONFIG1;
     env->CP0_Config2 = MIPS_CONFIG2;
     env->CP0_Config3 = MIPS_CONFIG3;
-    env->CP0_Status = (1 << CP0St_CU0) | (1 << CP0St_BEV);
+    env->CP0_Status = (1 << CP0St_BEV) | (1 << CP0St_ERL);
     env->CP0_WatchLo = 0;
     env->hflags = MIPS_HFLAG_ERL;
     /* Count register increments in debug mode, EJTAG version 1 */
