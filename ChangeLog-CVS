@@ -1,3 +1,78 @@
+2006-12-07 21:07  ths
+
+	* target-mips/: op.c, translate.c: Fix build of MIPS target without
+	  FPU support.
+
+2006-12-07 19:28  ths
+
+	* cpu-exec.c, hw/ne2000.c, hw/smc91c111.c, hw/unin_pci.c,
+	  target-sh4/README.sh4: Spelling fixes, thanks to Stefan Weil.
+
+2006-12-07 19:15  ths
+
+	* Makefile.target, hw/mips_r4k.c: MIPS RTC emulation.
+
+2006-12-07 18:18  ths
+
+	* .cvsignore: .cvsignore m68k-user.
+
+2006-12-07 18:16  ths
+
+	* hw/: mc146818rtc.c, pc.c: Move date/time init to the RTC
+	  implementation.
+
+2006-12-07 17:22  ths
+
+	* target-mips/: helper.c, translate.c: Fix reset handling, CP0
+	  isn't enabled by default (a fact which doesn't matter when
+	  running in kernel space).
+
+2006-12-07 01:30  ths
+
+	* target-mips/translate.c: Simplify mask construction.
+
+2006-12-07 00:12  ths
+
+	* target-mips/translate.c: Update copyright notice.
+
+2006-12-06 22:38  ths
+
+	* Makefile.target, vl.h, hw/mips_r4k.c, hw/mips_timer.c: Move the
+	  MIPS CPU timer in a seperate file, by Alec Voropay.
+
+2006-12-06 21:17  ths
+
+	* target-mips/: cpu.h, exec.h, helper.c, mips-defs.h, op.c,
+	  op_helper.c, translate.c: Add MIPS32R2 instructions, and
+	  generally straighten out the instruction decoding. This is also
+	  the first percent towards MIPS64 support.
+
+2006-12-06 19:19  ths
+
+	* target-mips/: exec.h, op.c, op_helper.c, translate.c: Dynamically
+	  translate MIPS mtc0 instructions.
+
+2006-12-06 18:59  ths
+
+	* target-mips/: exec.h, op.c, op_helper.c, translate.c: Dynamically
+	  translate MIPS mfc0 instructions.
+
+2006-12-06 18:48  ths
+
+	* hw/mips_r4k.c, target-mips/cpu.h, target-mips/translate.c:
+	  Halt/reboot support for Linux, by Daniel Jacobowitz. This is a
+	  band-aid until we emulate real MIPS hardware with real firmware.
+
+2006-12-06 18:42  ths
+
+	* target-mips/: cpu.h, exec.h, helper.c, mips-defs.h, op_helper.c,
+	  translate.c: MIPS TLB performance improvements, by Daniel
+	  Jacobowitz.
+
+2006-12-06 16:51  ths
+
+	* target-sparc/op_helper.c: sparc-softmmu build fix
+
 2006-11-20 00:07  pbrook
 
 	* hw/integratorcp.c: Add casts for 64-bit hosts.

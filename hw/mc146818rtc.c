@@ -380,6 +380,29 @@ void rtc_set_date(RTCState *s, const struct tm *tm)
     rtc_copy_date(s);
 }
 
+/* PC cmos mappings */
+#define REG_IBM_CENTURY_BYTE        0x32
+#define REG_IBM_PS2_CENTURY_BYTE    0x37
+
+void rtc_set_date_from_host(RTCState *s)
+{
+    time_t ti;
+    struct tm *tm;
+    int val;
+
+    /* set the CMOS date */
+    time(&ti);
+    if (rtc_utc)
+        tm = gmtime(&ti);
+    else
+        tm = localtime(&ti);
+    rtc_set_date(s, tm);
+
+    val = to_bcd(s, (tm->tm_year / 100) + 19);
+    rtc_set_memory(s, REG_IBM_CENTURY_BYTE, val);
+    rtc_set_memory(s, REG_IBM_PS2_CENTURY_BYTE, val);
+}
+
 static void rtc_save(QEMUFile *f, void *opaque)
 {
     RTCState *s = opaque;
@@ -443,6 +466,8 @@ RTCState *rtc_init(int base, int irq)
     s->cmos_data[RTC_REG_B] = 0x02;
     s->cmos_data[RTC_REG_C] = 0x00;
     s->cmos_data[RTC_REG_D] = 0x80;
+
+    rtc_set_date_from_host(s);
 
     s->periodic_timer = qemu_new_timer(vm_clock, 
                                        rtc_periodic_timer, s);

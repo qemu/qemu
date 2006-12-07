@@ -66,8 +66,11 @@ void do_maddu (void);
 void do_msub (void);
 void do_msubu (void);
 #endif
-void do_mfc0(int reg, int sel);
-void do_mtc0(int reg, int sel);
+void do_mfc0_random(void);
+void do_mfc0_count(void);
+void do_mtc0_entryhi(uint32_t in);
+void do_mtc0_status_debug(uint32_t old, uint32_t val);
+void do_mtc0_status_irqraise_debug(void);
 void do_tlbwi (void);
 void do_tlbwr (void);
 void do_tlbp (void);
@@ -115,5 +118,6 @@ uint32_t cpu_mips_get_count (CPUState *env);
 void cpu_mips_store_count (CPUState *env, uint32_t value);
 void cpu_mips_store_compare (CPUState *env, uint32_t value);
 void cpu_mips_clock_init (CPUState *env);
+void cpu_mips_tlb_flush (CPUState *env, int flush_global);
 
 #endif /* !defined(__QEMU_MIPS_EXEC_H__) */

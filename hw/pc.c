@@ -111,14 +111,6 @@ static void pic_irq_request(void *opaque, int level)
 /* PC cmos mappings */
 
 #define REG_EQUIPMENT_BYTE          0x14
-#define REG_IBM_CENTURY_BYTE        0x32
-#define REG_IBM_PS2_CENTURY_BYTE    0x37
-
-
-static inline int to_bcd(RTCState *s, int a)
-{
-    return ((a / 10) << 4) | (a % 10);
-}
 
 static int cmos_get_fd_drive_type(int fd0)
 {
@@ -167,21 +159,7 @@ static void cmos_init(int ram_size, int boot_device, BlockDriverState **hd_table
     RTCState *s = rtc_state;
     int val;
     int fd0, fd1, nb;
-    time_t ti;
-    struct tm *tm;
     int i;
-
-    /* set the CMOS date */
-    time(&ti);
-    if (rtc_utc)
-        tm = gmtime(&ti);
-    else
-        tm = localtime(&ti);
-    rtc_set_date(s, tm);
-
-    val = to_bcd(s, (tm->tm_year / 100) + 19);
-    rtc_set_memory(s, REG_IBM_CENTURY_BYTE, val);
-    rtc_set_memory(s, REG_IBM_PS2_CENTURY_BYTE, val);
 
     /* various important CMOS locations needed by PC/Bochs bios */
 

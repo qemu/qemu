@@ -437,6 +437,18 @@ void op_srl (void)
     RETURN();
 }
 
+void op_rotr (void)
+{
+    target_ulong tmp;
+
+    if (T1) {
+       tmp = T0 << (0x20 - T1);
+       T0 = (T0 >> T1) | tmp;
+    } else
+       T0 = T1;
+    RETURN();
+}
+
 void op_sllv (void)
 {
     T0 = T1 << (T0 & 0x1F);
@@ -452,6 +464,19 @@ void op_srav (void)
 void op_srlv (void)
 {
     T0 = T1 >> (T0 & 0x1F);
+    RETURN();
+}
+
+void op_rotrv (void)
+{
+    target_ulong tmp;
+
+    T0 &= 0x1F;
+    if (T0) {
+       tmp = T1 << (0x20 - T0);
+       T0 = (T1 >> T0) | tmp;
+    } else
+       T0 = T1;
     RETURN();
 }
 
@@ -602,6 +627,22 @@ void op_movz (void)
     RETURN();
 }
 
+#ifdef MIPS_USES_FPU
+void op_movf (void)
+{
+    if (!(env->fcr31 & PARAM1))
+        env->gpr[PARAM2] = env->gpr[PARAM3];
+    RETURN();
+}
+
+void op_movt (void)
+{
+    if (env->fcr31 & PARAM1)
+        env->gpr[PARAM2] = env->gpr[PARAM3];
+    RETURN();
+}
+#endif
+
 /* Tests */
 #define OP_COND(name, cond) \
 void glue(op_, name) (void) \
@@ -625,28 +666,32 @@ OP_COND(gtz, (int32_t)T0 > 0);
 OP_COND(lez, (int32_t)T0 <= 0);
 OP_COND(ltz, (int32_t)T0 < 0);
 
-/* Branchs */
+/* Branches */
 //#undef USE_DIRECT_JUMP
 
 void OPPROTO op_goto_tb0(void)
 {
     GOTO_TB(op_goto_tb0, PARAM1, 0);
+    RETURN();
 }
 
 void OPPROTO op_goto_tb1(void)
 {
     GOTO_TB(op_goto_tb1, PARAM1, 1);
+    RETURN();
 }
 
 /* Branch to register */
 void op_save_breg_target (void)
 {
     env->btarget = T2;
+    RETURN();
 }
 
 void op_restore_breg_target (void)
 {
     T2 = env->btarget;
+    RETURN();
 }
 
 void op_breg (void)
@@ -688,15 +733,508 @@ void op_jnz_T2 (void)
 }
 
 /* CP0 functions */
-void op_mfc0 (void)
+void op_mfc0_index (void)
 {
-    CALL_FROM_TB2(do_mfc0, PARAM1, PARAM2);
+    T0 = env->CP0_index;
     RETURN();
 }
 
-void op_mtc0 (void)
+void op_mfc0_random (void)
 {
-    CALL_FROM_TB2(do_mtc0, PARAM1, PARAM2);
+    CALL_FROM_TB0(do_mfc0_random);
+    RETURN();
+}
+
+void op_mfc0_entrylo0 (void)
+{
+    T0 = env->CP0_EntryLo0;
+    RETURN();
+}
+
+void op_mfc0_entrylo1 (void)
+{
+    T0 = env->CP0_EntryLo1;
+    RETURN();
+}
+
+void op_mfc0_context (void)
+{
+    T0 = env->CP0_Context;
+    RETURN();
+}
+
+void op_mfc0_pagemask (void)
+{
+    T0 = env->CP0_PageMask;
+    RETURN();
+}
+
+void op_mfc0_pagegrain (void)
+{
+    T0 = env->CP0_PageGrain;
+    RETURN();
+}
+
+void op_mfc0_wired (void)
+{
+    T0 = env->CP0_Wired;
+    RETURN();
+}
+
+void op_mfc0_hwrena (void)
+{
+    T0 = env->CP0_HWREna;
+    RETURN();
+}
+
+void op_mfc0_badvaddr (void)
+{
+    T0 = env->CP0_BadVAddr;
+    RETURN();
+}
+
+void op_mfc0_count (void)
+{
+    CALL_FROM_TB0(do_mfc0_count);
+    RETURN();
+}
+
+void op_mfc0_entryhi (void)
+{
+    T0 = env->CP0_EntryHi;
+    RETURN();
+}
+
+void op_mfc0_compare (void)
+{
+    T0 = env->CP0_Compare;
+    RETURN();
+}
+
+void op_mfc0_status (void)
+{
+    T0 = env->CP0_Status;
+    if (env->hflags & MIPS_HFLAG_UM)
+        T0 |= (1 << CP0St_UM);
+    if (env->hflags & MIPS_HFLAG_ERL)
+        T0 |= (1 << CP0St_ERL);
+    if (env->hflags & MIPS_HFLAG_EXL)
+        T0 |= (1 << CP0St_EXL);
+    RETURN();
+}
+
+void op_mfc0_intctl (void)
+{
+    T0 = env->CP0_IntCtl;
+    RETURN();
+}
+
+void op_mfc0_srsctl (void)
+{
+    T0 = env->CP0_SRSCtl;
+    RETURN();
+}
+
+void op_mfc0_cause (void)
+{
+    T0 = env->CP0_Cause;
+    RETURN();
+}
+
+void op_mfc0_epc (void)
+{
+    T0 = env->CP0_EPC;
+    RETURN();
+}
+
+void op_mfc0_prid (void)
+{
+    T0 = env->CP0_PRid;
+    RETURN();
+}
+
+void op_mfc0_ebase (void)
+{
+    T0 = env->CP0_EBase;
+    RETURN();
+}
+
+void op_mfc0_config0 (void)
+{
+    T0 = env->CP0_Config0;
+    RETURN();
+}
+
+void op_mfc0_config1 (void)
+{
+    T0 = env->CP0_Config1;
+    RETURN();
+}
+
+void op_mfc0_config2 (void)
+{
+    T0 = env->CP0_Config2;
+    RETURN();
+}
+
+void op_mfc0_config3 (void)
+{
+    T0 = env->CP0_Config3;
+    RETURN();
+}
+
+void op_mfc0_lladdr (void)
+{
+    T0 = env->CP0_LLAddr >> 4;
+    RETURN();
+}
+
+void op_mfc0_watchlo0 (void)
+{
+    T0 = env->CP0_WatchLo;
+    RETURN();
+}
+
+void op_mfc0_watchhi0 (void)
+{
+    T0 = env->CP0_WatchHi;
+    RETURN();
+}
+
+void op_mfc0_xcontext (void)
+{
+    T0 = env->CP0_XContext;
+    RETURN();
+}
+
+void op_mfc0_framemask (void)
+{
+    T0 = env->CP0_Framemask;
+    RETURN();
+}
+
+void op_mfc0_debug (void)
+{
+    T0 = env->CP0_Debug;
+    if (env->hflags & MIPS_HFLAG_DM)
+        T0 |= 1 << CP0DB_DM;
+    RETURN();
+}
+
+void op_mfc0_depc (void)
+{
+    T0 = env->CP0_DEPC;
+    RETURN();
+}
+
+void op_mfc0_performance0 (void)
+{
+    T0 = env->CP0_Performance0;
+    RETURN();
+}
+
+void op_mfc0_taglo (void)
+{
+    T0 = env->CP0_TagLo;
+    RETURN();
+}
+
+void op_mfc0_datalo (void)
+{
+    T0 = env->CP0_DataLo;
+    RETURN();
+}
+
+void op_mfc0_taghi (void)
+{
+    T0 = env->CP0_TagHi;
+    RETURN();
+}
+
+void op_mfc0_datahi (void)
+{
+    T0 = env->CP0_DataHi;
+    RETURN();
+}
+
+void op_mfc0_errorepc (void)
+{
+    T0 = env->CP0_ErrorEPC;
+    RETURN();
+}
+
+void op_mfc0_desave (void)
+{
+    T0 = env->CP0_DESAVE;
+    RETURN();
+}
+
+void op_mtc0_index (void)
+{
+    env->CP0_index = (env->CP0_index & 0x80000000) | (T0 & (MIPS_TLB_NB - 1));
+    RETURN();
+}
+
+void op_mtc0_entrylo0 (void)
+{
+    /* Large physaddr not implemented */
+    /* 1k pages not implemented */
+    env->CP0_EntryLo0 = T0 & 0x3FFFFFFFUL;
+    RETURN();
+}
+
+void op_mtc0_entrylo1 (void)
+{
+    /* Large physaddr not implemented */
+    /* 1k pages not implemented */
+    env->CP0_EntryLo1 = T0 & 0x3FFFFFFFUL;
+    RETURN();
+}
+
+void op_mtc0_context (void)
+{
+    env->CP0_Context = (env->CP0_Context & ~0x007FFFFF) | (T0 & 0x007FFFF0);
+    RETURN();
+}
+
+void op_mtc0_pagemask (void)
+{
+    /* 1k pages not implemented */
+    env->CP0_PageMask = T0 & 0x1FFFE000;
+    RETURN();
+}
+
+void op_mtc0_pagegrain (void)
+{
+    /* SmartMIPS not implemented */
+    /* Large physaddr not implemented */
+    /* 1k pages not implemented */
+    env->CP0_PageGrain = 0;
+    RETURN();
+}
+
+void op_mtc0_wired (void)
+{
+    env->CP0_Wired = T0 & (MIPS_TLB_NB - 1);
+    RETURN();
+}
+
+void op_mtc0_hwrena (void)
+{
+    env->CP0_HWREna = T0 & 0x0000000F;
+    RETURN();
+}
+
+void op_mtc0_count (void)
+{
+    CALL_FROM_TB2(cpu_mips_store_count, env, T0);
+    RETURN();
+}
+
+void op_mtc0_entryhi (void)
+{
+    uint32_t old, val;
+
+    /* 1k pages not implemented */
+    /* Ignore MIPS64 TLB for now */
+    val = T0 & 0xFFFFE0FF;
+    old = env->CP0_EntryHi;
+    env->CP0_EntryHi = val;
+    /* If the ASID changes, flush qemu's TLB.  */
+    if ((old & 0xFF) != (val & 0xFF))
+        CALL_FROM_TB2(cpu_mips_tlb_flush, env, 1);
+    RETURN();
+}
+
+void op_mtc0_compare (void)
+{
+    CALL_FROM_TB2(cpu_mips_store_compare, env, T0);
+    RETURN();
+}
+
+void op_mtc0_status (void)
+{
+    uint32_t val, old, mask;
+
+    val = T0 & 0xFA78FF01;
+    old = env->CP0_Status;
+    if (T0 & (1 << CP0St_UM))
+        env->hflags |= MIPS_HFLAG_UM;
+    else
+        env->hflags &= ~MIPS_HFLAG_UM;
+    if (T0 & (1 << CP0St_ERL))
+        env->hflags |= MIPS_HFLAG_ERL;
+    else
+        env->hflags &= ~MIPS_HFLAG_ERL;
+    if (T0 & (1 << CP0St_EXL))
+        env->hflags |= MIPS_HFLAG_EXL;
+    else
+        env->hflags &= ~MIPS_HFLAG_EXL;
+    env->CP0_Status = val;
+    /* If we unmasked an asserted IRQ, raise it */
+    mask = 0x0000FF00;
+    if (loglevel & CPU_LOG_TB_IN_ASM)
+       CALL_FROM_TB2(do_mtc0_status_debug, old, val);
+    if ((val & (1 << CP0St_IE)) && !(old & (1 << CP0St_IE)) &&
+        !(env->hflags & MIPS_HFLAG_EXL) &&
+        !(env->hflags & MIPS_HFLAG_ERL) &&
+        !(env->hflags & MIPS_HFLAG_DM) &&
+        (env->CP0_Status & env->CP0_Cause & mask)) {
+        env->interrupt_request |= CPU_INTERRUPT_HARD;
+       if (logfile)
+           CALL_FROM_TB0(do_mtc0_status_irqraise_debug);
+    } else if (!(val & (1 << CP0St_IE)) && (old & (1 << CP0St_IE))) {
+        env->interrupt_request &= ~CPU_INTERRUPT_HARD;
+    }
+    RETURN();
+}
+
+void op_mtc0_intctl (void)
+{
+    /* vectored interrupts not implemented */
+    env->CP0_IntCtl = 0;
+    RETURN();
+}
+
+void op_mtc0_srsctl (void)
+{
+    /* shadow registers not implemented */
+    env->CP0_SRSCtl = 0;
+    RETURN();
+}
+
+void op_mtc0_cause (void)
+{
+    uint32_t val, old;
+
+    val = (env->CP0_Cause & 0xB000F87C) | (T0 & 0x000C00300);
+    old = env->CP0_Cause;
+    env->CP0_Cause = val;
+#if 0
+    {
+        int i, mask;
+       /* Check if we ever asserted a software IRQ */
+        for (i = 0; i < 2; i++) {
+            mask = 0x100 << i;
+            if ((val & mask) & !(old & mask))
+                CALL_FROM_TB1(mips_set_irq, i);
+        }
+    }
+#endif
+    RETURN();
+}
+
+void op_mtc0_epc (void)
+{
+    env->CP0_EPC = T0;
+    RETURN();
+}
+
+void op_mtc0_ebase (void)
+{
+    /* vectored interrupts not implemented */
+    /* Multi-CPU not implemented */
+    env->CP0_EBase = 0x80000000 | (T0 & 0x3FFFF000);
+    RETURN();
+}
+
+void op_mtc0_config0 (void)
+{
+#if defined(MIPS_USES_R4K_TLB)
+     /* Fixed mapping MMU not implemented */
+    env->CP0_Config0 = (env->CP0_Config0 & 0x8017FF88) | (T0 & 0x00000001);
+#else
+    env->CP0_Config0 = (env->CP0_Config0 & 0xFE17FF88) | (T0 & 0x00000001);
+#endif
+    RETURN();
+}
+
+void op_mtc0_config2 (void)
+{
+    /* tertiary/secondary caches not implemented */
+    env->CP0_Config2 = (env->CP0_Config2 & 0x8FFF0FFF);
+    RETURN();
+}
+
+void op_mtc0_watchlo0 (void)
+{
+    env->CP0_WatchLo = T0;
+    RETURN();
+}
+
+void op_mtc0_watchhi0 (void)
+{
+    env->CP0_WatchHi = T0 & 0x40FF0FF8;
+    RETURN();
+}
+
+void op_mtc0_xcontext (void)
+{
+    env->CP0_XContext = T0; /* XXX */
+    RETURN();
+}
+
+void op_mtc0_framemask (void)
+{
+    env->CP0_Framemask = T0; /* XXX */
+    RETURN();
+}
+
+void op_mtc0_debug (void)
+{
+    env->CP0_Debug = (env->CP0_Debug & 0x8C03FC1F) | (T0 & 0x13300120);
+    if (T0 & (1 << CP0DB_DM))
+        env->hflags |= MIPS_HFLAG_DM;
+    else
+        env->hflags &= ~MIPS_HFLAG_DM;
+    RETURN();
+}
+
+void op_mtc0_depc (void)
+{
+    env->CP0_DEPC = T0;
+    RETURN();
+}
+
+void op_mtc0_performance0 (void)
+{
+    env->CP0_Performance0 = T0; /* XXX */
+    RETURN();
+}
+
+void op_mtc0_taglo (void)
+{
+    env->CP0_TagLo = T0 & 0xFFFFFCF6;
+    RETURN();
+}
+
+void op_mtc0_datalo (void)
+{
+    env->CP0_DataLo = T0; /* XXX */
+    RETURN();
+}
+
+void op_mtc0_taghi (void)
+{
+    env->CP0_TagHi = T0; /* XXX */
+    RETURN();
+}
+
+void op_mtc0_datahi (void)
+{
+    env->CP0_DataHi = T0; /* XXX */
+    RETURN();
+}
+
+void op_mtc0_errorepc (void)
+{
+    env->CP0_ErrorEPC = T0;
+    RETURN();
+}
+
+void op_mtc0_desave (void)
+{
+    env->CP0_DESAVE = T0;
     RETURN();
 }
 
@@ -1088,6 +1626,42 @@ void op_tlbr (void)
 void op_pmon (void)
 {
     CALL_FROM_TB1(do_pmon, PARAM1);
+    RETURN();
+}
+
+void op_di (void)
+{
+    uint32_t val;
+
+    T0 = env->CP0_Status;
+    val = T0 & ~(1 << CP0St_IE);
+    if (val != T0) {
+        env->interrupt_request &= ~CPU_INTERRUPT_HARD;
+        env->CP0_Status = val;
+    }
+    RETURN();
+}
+
+void op_ei (void)
+{
+    uint32_t val;
+
+    T0 = env->CP0_Status;
+    val = T0 | (1 << CP0St_IE);
+    if (val != T0) {
+       const uint32_t mask = 0x0000FF00;
+
+       env->CP0_Status = val;
+       if (!(env->hflags & MIPS_HFLAG_EXL) &&
+           !(env->hflags & MIPS_HFLAG_ERL) &&
+           !(env->hflags & MIPS_HFLAG_DM) &&
+           (env->CP0_Status & env->CP0_Cause & mask)) {
+               env->interrupt_request |= CPU_INTERRUPT_HARD;
+               if (logfile)
+                   CALL_FROM_TB0(do_mtc0_status_irqraise_debug);
+       }
+    }
+    RETURN();
 }
 
 void op_trap (void)
@@ -1100,12 +1674,14 @@ void op_trap (void)
 
 void op_debug (void)
 {
-  CALL_FROM_TB1(do_raise_exception, EXCP_DEBUG);
+    CALL_FROM_TB1(do_raise_exception, EXCP_DEBUG);
+    RETURN();
 }
 
 void op_set_lladdr (void)
 {
     env->CP0_LLAddr = T2;
+    RETURN();
 }
 
 void debug_eret (void);
@@ -1122,12 +1698,50 @@ void op_eret (void)
 	env->CP0_Status &= ~(1 << CP0St_EXL);
     }
     env->CP0_LLAddr = 1;
+    RETURN();
 }
 
 void op_deret (void)
 {
     CALL_FROM_TB0(debug_eret);
     env->PC = env->CP0_DEPC;
+    RETURN();
+}
+
+void op_rdhwr_cpunum(void)
+{
+    if (env->CP0_HWREna & (1 << 0))
+       T0 = env->CP0_EBase & 0x2ff;
+    else
+       CALL_FROM_TB1(do_raise_exception_direct, EXCP_RI);
+    RETURN();
+}
+
+void op_rdhwr_synci_step(void)
+{
+    if (env->CP0_HWREna & (1 << 1))
+       T0 = env->SYNCI_Step;
+    else
+       CALL_FROM_TB1(do_raise_exception_direct, EXCP_RI);
+    RETURN();
+}
+
+void op_rdhwr_cc(void)
+{
+    if (env->CP0_HWREna & (1 << 2))
+       T0 = env->CP0_Count;
+    else
+       CALL_FROM_TB1(do_raise_exception_direct, EXCP_RI);
+    RETURN();
+}
+
+void op_rdhwr_ccres(void)
+{
+    if (env->CP0_HWREna & (1 << 3))
+       T0 = env->CCRes;
+    else
+       CALL_FROM_TB1(do_raise_exception_direct, EXCP_RI);
+    RETURN();
 }
 
 void op_save_state (void)
@@ -1157,10 +1771,62 @@ void op_raise_exception_err (void)
 void op_exit_tb (void)
 {
     EXIT_TB();
+    RETURN();
 }
 
 void op_wait (void)
 {
     env->halted = 1;
     CALL_FROM_TB1(do_raise_exception, EXCP_HLT);
+    RETURN();
+}
+
+/* Bitfield operations. */
+void op_ext(void)
+{
+    unsigned int pos = PARAM1;
+    unsigned int size = PARAM2;
+
+    T0 = (T1 >> pos) & ((1 << size) - 1);
+    RETURN();
+}
+
+void op_ins(void)
+{
+    unsigned int pos = PARAM1;
+    unsigned int size = PARAM2;
+    target_ulong mask = ((1 << size) - 1) << pos;
+
+    T0 = (T2 & ~mask) | ((T1 << pos) & mask);
+    RETURN();
+}
+
+void op_wsbh(void)
+{
+    T0 = ((T1 << 8) & ~0x00FF00FF) | ((T1 >> 8) & 0x00FF00FF);
+    RETURN();
+}
+
+void op_dsbh(void)
+{
+    T0 = ((T1 << 8) & ~0x00FF00FF00FF00FFULL) | ((T1 >> 8) & 0x00FF00FF00FF00FFULL);
+    RETURN();
+}
+
+void op_dshd(void)
+{
+    T0 = ((T1 << 16) & ~0x0000FFFF0000FFFFULL) | ((T1 >> 16) & 0x0000FFFF0000FFFFULL);
+    RETURN();
+}
+
+void op_seb(void)
+{
+    T0 = ((T1 & 0xFF) ^ 0x80) - 0x80;
+    RETURN();
+}
+
+void op_seh(void)
+{
+    T0 = ((T1 & 0xFFFF) ^ 0x8000) - 0x8000;
+    RETURN();
 }

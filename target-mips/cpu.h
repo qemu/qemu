@@ -94,20 +94,21 @@ struct CPUMIPSState {
 		
 #endif
 #if defined(MIPS_USES_R4K_TLB)
-    tlb_t tlb[MIPS_TLB_NB];
+    tlb_t tlb[MIPS_TLB_MAX];
+    uint32_t tlb_in_use;
 #endif
     uint32_t CP0_index;
     uint32_t CP0_random;
-    uint32_t CP0_EntryLo0;
-    uint32_t CP0_EntryLo1;
-    uint32_t CP0_Context;
+    uint64_t CP0_EntryLo0;
+    uint64_t CP0_EntryLo1;
+    uint64_t CP0_Context;
     uint32_t CP0_PageMask;
     uint32_t CP0_PageGrain;
     uint32_t CP0_Wired;
     uint32_t CP0_HWREna;
     uint32_t CP0_BadVAddr;
     uint32_t CP0_Count;
-    uint32_t CP0_EntryHi;
+    uint64_t CP0_EntryHi;
     uint32_t CP0_Compare;
     uint32_t CP0_Status;
 #define CP0St_CU3   31
@@ -117,12 +118,18 @@ struct CPUMIPSState {
 #define CP0St_RP    27
 #define CP0St_FR    26
 #define CP0St_RE    25
+#define CP0St_MX    24
+#define CP0St_PX    23
 #define CP0St_BEV   22
 #define CP0St_TS    21
 #define CP0St_SR    20
 #define CP0St_NMI   19
 #define CP0St_IM    8
+#define CP0St_KX    7
+#define CP0St_SX    6
+#define CP0St_UX    5
 #define CP0St_UM    4
+#define CP0St_R0    3
 #define CP0St_ERL   2
 #define CP0St_EXL   1
 #define CP0St_IE    0
@@ -130,11 +137,19 @@ struct CPUMIPSState {
     uint32_t CP0_SRSCtl;
     uint32_t CP0_SRSMap;
     uint32_t CP0_Cause;
+#define CP0Ca_BD   31
+#define CP0Ca_TI   30
+#define CP0Ca_CE   28
 #define CP0Ca_DC   27
+#define CP0Ca_PCI  26
 #define CP0Ca_IV   23
+#define CP0Ca_WP   22
+#define CP0Ca_IP    8
+#define CP0Ca_EC    2
     uint32_t CP0_EPC;
     uint32_t CP0_PRid;
-    uint32_t CP0_Config[4];
+    uint32_t CP0_EBase;
+    uint32_t CP0_Config0;
 #define CP0C0_M    31
 #define CP0C0_K23  28
 #define CP0C0_KU   25
@@ -145,7 +160,9 @@ struct CPUMIPSState {
 #define CP0C0_AT   13
 #define CP0C0_AR   10
 #define CP0C0_MT   7
+#define CP0C0_VI   3
 #define CP0C0_K0   0
+    uint32_t CP0_Config1;
 #define CP0C1_M    31
 #define CP0C1_MMU  25
 #define CP0C1_IS   22
@@ -154,14 +171,38 @@ struct CPUMIPSState {
 #define CP0C1_DS   13
 #define CP0C1_DL   10
 #define CP0C1_DA   7
+#define CP0C1_C2   6
+#define CP0C1_MD   5
 #define CP0C1_PC   4
 #define CP0C1_WR   3
 #define CP0C1_CA   2
 #define CP0C1_EP   1
 #define CP0C1_FP   0
+    uint32_t CP0_Config2;
+#define CP0C2_M    31
+#define CP0C2_TU   28
+#define CP0C2_TS   24
+#define CP0C2_TL   20
+#define CP0C2_TA   16
+#define CP0C2_SU   12
+#define CP0C2_SS   8
+#define CP0C2_SL   4
+#define CP0C2_SA   0
+    uint32_t CP0_Config3;
+#define CP0C3_M    31
+#define CP0C3_DSPP 10
+#define CP0C3_LPA  7
+#define CP0C3_VEIC 6
+#define CP0C3_VInt 5
+#define CP0C3_SP   4
+#define CP0C3_MT   2
+#define CP0C3_SM   1
+#define CP0C3_TL   0
     uint32_t CP0_LLAddr;
     uint32_t CP0_WatchLo;
     uint32_t CP0_WatchHi;
+    uint32_t CP0_XContext;
+    uint32_t CP0_Framemask;
     uint32_t CP0_Debug;
 #define CPDB_DBD   31
 #define CP0DB_DM   30
@@ -186,13 +227,15 @@ struct CPUMIPSState {
     uint32_t CP0_UserTraceData;
     uint32_t CP0_TraceBPC;
     uint32_t CP0_DEPC;
-    uint32_t CP0_ErrCtl;
+    //~ uint32_t CP0_ErrCtl;
+    uint32_t CP0_Performance0;
     uint32_t CP0_TagLo;
     uint32_t CP0_DataLo;
+    uint32_t CP0_TagHi;
+    uint32_t CP0_DataHi;
     uint32_t CP0_ErrorEPC;
     uint32_t CP0_DESAVE;
     /* Qemu */
-    struct QEMUTimer *timer; /* Internal timer */
     int interrupt_request;
     jmp_buf jmp_env;
     int exception_index;
@@ -223,7 +266,17 @@ struct CPUMIPSState {
     int bigendian;               /* TRUE if the CPU is in big endian mode */
     int halted; /* TRUE if the CPU is in suspend state */
 
+    int SYNCI_Step; /* Address step size for SYNCI */
+    int CCRes; /* Cycle count resolution/divisor */
+
     CPU_COMMON
+
+    int ram_size;
+    const char *kernel_filename;
+    const char *kernel_cmdline;
+    const char *initrd_filename;
+
+    struct QEMUTimer *timer; /* Internal timer */
 };
 
 #include "cpu-all.h"
