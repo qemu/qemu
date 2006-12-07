@@ -398,7 +398,7 @@ int cpu_exec(CPUState *env1)
                     break;
                 } else if (env->user_mode_only) {
                     /* if user mode only, we simulate a fake exception
-                       which will be hanlded outside the cpu execution
+                       which will be handled outside the cpu execution
                        loop */
 #if defined(TARGET_I386)
                     do_interrupt_user(env->exception_index, 

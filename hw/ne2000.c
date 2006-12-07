@@ -312,7 +312,7 @@ static void ne2000_receive(void *opaque, const uint8_t *buf, int size)
     }
     s->curpag = next >> 8;
 
-    /* now we can signal we have receive something */
+    /* now we can signal we have received something */
     s->isr |= ENISR_RX;
     ne2000_update_irq(s);
 }
