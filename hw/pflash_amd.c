@@ -51,6 +51,9 @@
 #define DPRINTF(fmt, args...) do { } while (0)
 #endif
 
+#define KiB 1024
+#define MiB (KiB * KiB)
+
 typedef enum {
   unknown_mode,
   io_mode,
@@ -82,7 +85,7 @@ static void pflash_io_mode(pflash_t *pfl)
   if (pfl->mode != io_mode) {
     DPRINTF("switch to i/o mode\n");
     cpu_register_physical_memory(pfl->base, pfl->total_len, pfl->fl_mem);
-    DPRINTF("0x%08x 0x%08x 0x%04x\n", pfl->base, pfl->total_len, pfl->fl_mem);
+    //~ DPRINTF("0x%08x 0x%08x 0x%04x\n", pfl->base, pfl->total_len, pfl->fl_mem);
     pfl->mode = io_mode;
   }
 }
@@ -119,9 +122,9 @@ static uint32_t pflash_read (pflash_t *pfl, target_ulong offset, int width)
     uint32_t ret;
     uint8_t *p;
 
-    DPRINTF("offset %08x\n", offset);
     ret = -1;
     offset -= pfl->base;
+    DPRINTF("offset %08x\n", offset);
     boff = offset & 0xFF;
     if (pfl->width == 2)
         boff = boff >> 1;
@@ -209,6 +212,7 @@ static uint32_t pflash_read (pflash_t *pfl, target_ulong offset, int width)
         break;
     }
 
+    DPRINTF("offset %08x %08x %d\n", offset, ret, width);
     return ret;
 }
 
@@ -237,20 +241,23 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
 
     /* WARNING: when the memory area is in ROMD mode, the offset is a
        ram offset, not a physical address */
-    DPRINTF("(1) offset %08x %08x %d\n", offset, value, width);
     if (pfl->mode == rom_mode)
         offset -= (target_ulong)pfl->storage;
     else
         offset -= pfl->base;
 
     cmd = value;
-    DPRINTF("(2) offset %08x %08x %d\n", offset, value, width);
-    if (pfl->cmd != 0xA0 && cmd == 0xF0) {
+    DPRINTF("offset %08x %08x %d\n", offset, value, width);
+    if (pfl->cmd != 0xA0 && cmd == 0xf0) {
         DPRINTF("flash reset asked (%02x %02x)\n", pfl->cmd, cmd);
         goto reset_flash;
     }
-    /* Set the device in I/O access mode */
-    pflash_io_mode(pfl);
+    if (pfl->cmd != 0xA0 && cmd == 0xff) {
+        /* Intel command (read array mode). */
+        DPRINTF("read array asked (%02x %02x)\n", pfl->cmd, cmd);
+        goto reset_flash;
+    }
+    //~ !!! next code only for certain flash chips
     if (offset < 0x010000) {
         sector_len = 0x2000;
     }
@@ -268,6 +275,8 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
             /* Enter CFI query mode */
             pfl->wcycle = 7;
             pfl->cmd = 0x98;
+            /* Set the device in I/O access mode */
+            pflash_io_mode(pfl);
             return;
         }
         // !!! check 0x5555
@@ -276,6 +285,8 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
             goto reset_flash;
         }
         DPRINTF("unlock sequence started\n");
+        /* Set the device in I/O access mode */
+        pflash_io_mode(pfl);
         break;
     case 1:
         /* We started an unlock sequence */
@@ -439,9 +450,7 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
 
     /* Reset flash */
  reset_flash:
-    if (pfl->wcycle != 0) {
-        pflash_rom_mode(pfl);
-    }
+    pflash_rom_mode(pfl);
     pfl->bypass = 0;
     pfl->wcycle = 0;
     pfl->cmd = 0;
@@ -541,6 +550,16 @@ static int ctz32 (uint32_t n)
     return ret;
 }
 
+static void flash_reset(void *opaque)
+{
+    pflash_t *pfl = (pflash_t *)opaque;
+    DPRINTF("%s:%u\n", __FILE__, __LINE__);
+    pflash_rom_mode(pfl);
+    pfl->bypass = 0;
+    pfl->wcycle = 0;
+    pfl->cmd = 0;
+}
+
 pflash_t *pflash_amd_register (target_ulong base, ram_addr_t off,
                            BlockDriverState *bs,
                            target_ulong sector_len, int nb_blocs, int width,
@@ -551,10 +570,14 @@ pflash_t *pflash_amd_register (target_ulong base, ram_addr_t off,
     target_long total_len;
 
     total_len = sector_len * nb_blocs;
+
+    DPRINTF("flash size %u MiB (%u x %u bytes)\n",
+            total_len / MiB, total_len / width, width);
+
     /* XXX: to be fixed */
-    if (total_len != (2 * 1024 * 1024) && total_len != (4 * 1024 * 1024) &&
-	total_len != (8 * 1024 * 1024) && total_len != (16 * 1024 * 1024) &&
-        total_len != (32 * 1024 * 1024) && total_len != (64 * 1024 * 1024))
+    if (total_len != (2 * MiB) && total_len != (4 * MiB) &&
+        total_len != (8 * MiB) && total_len != (16 * MiB) &&
+        total_len != (32 * MiB) && total_len != (64 * MiB))
         return NULL;
     pfl = qemu_mallocz(sizeof(pflash_t));
     if (pfl == NULL)
@@ -648,10 +671,22 @@ pflash_t *pflash_amd_register (target_ulong base, ram_addr_t off,
 #endif
 
     if (0) {
+    } else if (id1 == MANUFACTURER_AMD && (id2 == AM29LV160DB)) {
+        static const uint8_t data[] = {
+          /* 0x10 */ 'Q',  'R',  'Y',  0x02, 0x00, 0x40, 0x00, 0x00,
+          /* 0x18 */ 0x00, 0x00, 0x00, 0x27, 0x36, 0x00, 0x00, 0x04,
+          /* 0x20 */ 0x00, 0x0a, 0x00, 0x05, 0x00, 0x04, 0x00, 0x15,
+          /* 0x28 */ 0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x40,
+          /* 0x30 */ 0x00, 0x01, 0x00, 0x20, 0x00, 0x00, 0x00, 0x80,
+          /* 0x38 */ 0x00, 0x1e, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+          /* 0x40 */ 'P',  'R',  'I',  '1',  '0',  0x00, 0x02, 0x01,
+          /* 0x48 */ 0x01, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        };
+        memcpy(&pfl->cfi_table[0x10], data, sizeof(data));
     } else if (id1 == MANUFACTURER_MACRONIX && (id2 == MX29LV320CB ||
           id2 == MX29LV320CT || id2 == MX29LV640BB || id2 == MX29LV640BT)) {
         static const uint8_t data[] = {
-          /* 0x10 */ 'Q',  'R',  'I',  0x02, 0x00, 0x40, 0x00, 0x00,
+          /* 0x10 */ 'Q',  'R',  'Y',  0x02, 0x00, 0x40, 0x00, 0x00,
           /* 0x18 */ 0x00, 0x00, 0x00, 0x27, 0x36, 0x00, 0x00, 0x04,
           /* 0x20 */ 0x00, 0x0a, 0x00, 0x05, 0x00, 0x04, 0x00, 0x16,
           /* 0x28 */ 0x02, 0x00, 0x00, 0x00, 0x02, 0x07, 0x00, 0x20,
@@ -670,7 +705,7 @@ pflash_t *pflash_amd_register (target_ulong base, ram_addr_t off,
         }
     } else if (id1 == MANUFACTURER_004A &&  id2 == ES29LV160DB) {
         static const uint8_t data[] = {
-          /* 0x10 */ 'Q',  'R',  'I',  0x02, 0x00, 0x40, 0x00, 0x00,
+          /* 0x10 */ 'Q',  'R',  'Y',  0x02, 0x00, 0x40, 0x00, 0x00,
           /* 0x18 */ 0x00, 0x00, 0x00, 0x27, 0x36, 0x00, 0x00, 0x04,
           /* 0x20 */ 0x00, 0x0a, 0x00, 0x05, 0x00, 0x04, 0x00, 0x16,
           /* 0x28 */ 0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x40,
@@ -687,7 +722,7 @@ pflash_t *pflash_amd_register (target_ulong base, ram_addr_t off,
     } else {
         /* SG29 Spansion flash */
         static const uint8_t data[] = {
-          /* 0x10 */ 'Q',  'R',  'I',  0x02, 0x00, 0x00, 0x00, 0x00,
+          /* 0x10 */ 'Q',  'R',  'Y',  0x02, 0x00, 0x00, 0x00, 0x00,
           /* 0x18 */ 0x00, 0x00, 0x00, 0x27, 0x36, 0x00, 0x00, 0x07,
           /* 0x20 */ 0x04, 0x09, 0x0c, 0x01, 0x04, 0x0a, 0x0d, 0x16,
           /* 0x28 */ 0x02, 0x00, 0x05, 0x00, 0x01, 0x00, 0x00, 0x40,
@@ -699,6 +734,8 @@ pflash_t *pflash_amd_register (target_ulong base, ram_addr_t off,
         pfl->cfi_table[0x2F] = sector_len >> 8;
         pfl->cfi_table[0x30] = sector_len >> 16;
     }
+
+    qemu_register_reset(flash_reset, pfl);
 
     return pfl;
 }
