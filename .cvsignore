@@ -27,6 +27,7 @@ mips-softmmu
 mipsel-softmmu
 mips-user
 mipsel-user
+m68k-user
 .gdbinit
 sh4-user
 sh4-softmmu
