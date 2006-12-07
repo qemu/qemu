@@ -2391,9 +2391,19 @@ static uint32_t io_readb(void *opaque, target_phys_addr_t addr)
 
 static void io_writew(void *opaque, target_phys_addr_t addr, uint32_t value)
 {
-    logout("addr=0x%08x, val=0x%04x\n", addr, value);
-    UNEXPECTED();
-    ar7_io_memwrite(opaque, addr, value);
+    logout("??? addr=0x%08x, val=0x%04x\n", addr, value);
+    switch (addr & 3) {
+    case 0:
+        ar7_io_memwrite(opaque, addr, value);
+        break;
+    case 2:
+        value <<= 16;
+        //~ UNEXPECTED();
+        ar7_io_memwrite(opaque, addr - 2, value);
+        break;
+    default:
+        assert(0);
+    }
 }
 
 static uint32_t io_readw(void *opaque, target_phys_addr_t addr)
@@ -2401,10 +2411,10 @@ static uint32_t io_readw(void *opaque, target_phys_addr_t addr)
     uint32_t value = ar7_io_memread(opaque, addr & ~3);
     switch (addr & 3) {
     case 0:
-        value >>= 16;
+        value &= 0xffff;
         break;
     case 2:
-        value &= 0xffff;
+        value >>= 16;
         break;
     default:
         assert(0);
@@ -2775,4 +2785,10 @@ AR7     ar7_io_memread          addr 0x08610904 (gpio) = 0x00000080
 AR7     ar7_io_memwrite         addr 0x08610904 (gpio) = 0x00000000
 AR7     ar7_io_memread          addr 0x08610904 (gpio) = 0x00000000
 AR7     ar7_io_memwrite         addr 0x08610904 (gpio) = 0x00003600
+
+Offene Themen:
+
+Aufruf beim Reboot des Sinus 154 DSL Basic SE:
+AR7     io_readw                addr=0x00007640, val=0xffff
+
 */
