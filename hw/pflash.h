@@ -61,6 +61,7 @@ typedef enum {
 #define MANUFACTURER_NEC	0x0010
 #define MANUFACTURER_PMC	0x009d
 #define MANUFACTURER_SHARP	0x00b0
+#define MANUFACTURER_SPANSION	0x0001
 #define MANUFACTURER_SST	0x00bf
 #define MANUFACTURER_ST		0x0020
 #define MANUFACTURER_TOSHIBA	0x0098
@@ -162,6 +163,10 @@ typedef enum {
 /* Sharp */
 #define LH28F640BF	0x00b0
 
+/* Spansion (AMD + Fujitsu) */
+#define S29AL016DT	0x22C4
+#define S29AL016DB	0x2249
+
 /* ST - www.st.com */
 #define M29W800DT	0x00D7
 #define M29W800DB	0x005B
@@ -234,7 +239,7 @@ pflash_t *pflash_amd_register (target_ulong base, ram_addr_t off,
 /* User interface. */
 
 pflash_t *pflash_register (target_ulong base, ram_addr_t off,
-                           BlockDriverState *bs, int width,
+                           BlockDriverState *bs, uint32_t size, int width,
                            uint16_t flash_manufacturer, uint16_t flash_type);
 
 /* eof */
