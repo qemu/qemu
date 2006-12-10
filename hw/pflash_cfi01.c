@@ -1,5 +1,5 @@
 /*
- * CFI parallel flash with Intel command set emulation
+ * CFI parallel flash emulation (Intel extended vendor command set / ID 0x0001)
  * 
  * Copyright (c) 2005 Jocelyn Mayer (CFI 2.0, see original cfi02.c)
  * Copyright (c) 2006 Stefan Weil (CFI 1.0, TE28F160C3-B emulation)
