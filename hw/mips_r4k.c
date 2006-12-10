@@ -299,31 +299,9 @@ static void mips_ar7_common_init (int ram_size,
     fprintf(stderr, "%s: load BIOS '%s', size %d\n", __func__, buf, ret);
     if (ret > 0) {
         const uint32_t address = 0x10000000;
-        const unsigned blocksize = 0x10000;
         pflash_t *pf;
-        switch (flash_manufacturer) {
-            case MANUFACTURER_AMD:
-            case MANUFACTURER_MACRONIX:
-            case 0x4a:  /* Which manufacturer is this? */
-                pf = pflash_amd_register(address, bios_offset,
-                        0,
-                        blocksize, ret / blocksize, 2,
-                        /* AMD Am29LV160DB */
-                        /* ES29LV160D */
-                        flash_manufacturer, flash_type, 0x33, 0x44);
-                break;
-            case MANUFACTURER_INTEL:
-                pf = pflash_cfi01_register(address, bios_offset,
-                        0,
-                        blocksize, ret / blocksize, 2,
-                        flash_manufacturer, flash_type, 0x33, 0x44);
-                break;
-            default:
-                pf = pflash_cfi02_register(address, bios_offset,
-                        0,
-                        blocksize, ret / blocksize, 2,
-                        flash_manufacturer, flash_type, 0x33, 0x44);
-        }
+        pf = pflash_register(address, bios_offset, 0, ret, 2,
+                             flash_manufacturer, flash_type);
         bios_offset += ret;
     } else {
         ret = 0;
