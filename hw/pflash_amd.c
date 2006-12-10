@@ -113,6 +113,7 @@ static void pflash_timer (void *opaque)
         pflash_rom_mode(pfl);
         pfl->wcycle = 0;
     }
+    //~ check!!!
     pfl->cmd = 0;
 }
 
@@ -205,10 +206,11 @@ static uint32_t pflash_read (pflash_t *pfl, target_ulong offset, int width)
         break;
     case 0x98:
         /* CFI query mode */
-        if (boff >= sizeof(pfl->cfi_table))
-            ret = 0;
-        else
+        if (boff < sizeof(pfl->cfi_table)) {
             ret = pfl->cfi_table[boff];
+        } else {
+            ret = 0;
+        }
         break;
     }
 
@@ -236,17 +238,17 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
 {
     target_ulong boff;
     uint8_t *p;
-    uint8_t cmd;
+    uint8_t cmd = value;
     target_ulong sector_len = pfl->sector_len;
 
     /* WARNING: when the memory area is in ROMD mode, the offset is a
        ram offset, not a physical address */
-    if (pfl->mode == rom_mode)
+    if (pfl->mode == rom_mode) {
         offset -= (target_ulong)pfl->storage;
-    else
+    } else {
         offset -= pfl->base;
+    }
 
-    cmd = value;
     DPRINTF("offset %08x %08x %d\n", offset, value, width);
     if (pfl->cmd != 0xA0 && cmd == 0xf0) {
         DPRINTF("flash reset asked (%02x %02x)\n", pfl->cmd, cmd);
@@ -269,8 +271,7 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
     switch (pfl->wcycle) {
     case 0:
         /* We're in read mode */
-    check_unlock0:
-        if (boff == 0x55 && cmd == 0x98) {
+        if (offset == 0x55 && cmd == 0x98) {
         enter_CFI_mode:
             /* Enter CFI query mode */
             pfl->wcycle = 7;
@@ -279,8 +280,8 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
             pflash_io_mode(pfl);
             return;
         }
-        // !!! check 0x5555
-        if ((boff != 0x555 && boff != 0x5555) || cmd != 0xAA) {
+    check_unlock0:
+        if (boff != 0x555 || cmd != 0xAA) {
             DPRINTF("unlock0 failed %04x %02x %04x\n", boff, cmd, 0x555);
             goto reset_flash;
         }
@@ -291,7 +292,7 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
     case 1:
         /* We started an unlock sequence */
     check_unlock1:
-        if ((boff != 0x2AA && boff != 0x2AAA) || cmd != 0x55) {
+        if (boff != 0x2AA || cmd != 0x55) {
             DPRINTF("unlock1 failed %04x %02x\n", boff, cmd);
             goto reset_flash;
         }
@@ -299,7 +300,7 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
         break;
     case 2:
         /* We finished an unlock sequence */
-        if (!pfl->bypass && boff != 0x555 && boff != 0x5555) {
+        if (!pfl->bypass && boff != 0x555) {
             DPRINTF("command failed %04x %02x\n", boff, cmd);
             goto reset_flash;
         }
@@ -671,7 +672,8 @@ pflash_t *pflash_amd_register (target_ulong base, ram_addr_t off,
 #endif
 
     if (0) {
-    } else if (id1 == MANUFACTURER_AMD && (id2 == AM29LV160DB)) {
+    } else if ((id0 == MANUFACTURER_AMD && id1 == AM29LV160DB) ||
+               (id0 == MANUFACTURER_SPANSION && id1 == S29AL016DB)) {
         static const uint8_t data[] = {
           /* 0x10 */ 'Q',  'R',  'Y',  0x02, 0x00, 0x40, 0x00, 0x00,
           /* 0x18 */ 0x00, 0x00, 0x00, 0x27, 0x36, 0x00, 0x00, 0x04,
@@ -683,8 +685,8 @@ pflash_t *pflash_amd_register (target_ulong base, ram_addr_t off,
           /* 0x48 */ 0x01, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         };
         memcpy(&pfl->cfi_table[0x10], data, sizeof(data));
-    } else if (id1 == MANUFACTURER_MACRONIX && (id2 == MX29LV320CB ||
-          id2 == MX29LV320CT || id2 == MX29LV640BB || id2 == MX29LV640BT)) {
+    } else if (id0 == MANUFACTURER_MACRONIX && (id1 == MX29LV320CB ||
+          id1 == MX29LV320CT || id1 == MX29LV640BB || id1 == MX29LV640BT)) {
         static const uint8_t data[] = {
           /* 0x10 */ 'Q',  'R',  'Y',  0x02, 0x00, 0x40, 0x00, 0x00,
           /* 0x18 */ 0x00, 0x00, 0x00, 0x27, 0x36, 0x00, 0x00, 0x04,
@@ -696,14 +698,14 @@ pflash_t *pflash_amd_register (target_ulong base, ram_addr_t off,
           /* 0x48 */ 0x01, 0x04, 0x00, 0x00, 0x00, 0xb5, 0xc5, 0x02,
         };
         memcpy(&pfl->cfi_table[0x10], data, sizeof(data));
-        if (id2 == MX29LV640BB || id2 == MX29LV640BT) {
+        if (id1 == MX29LV640BB || id1 == MX29LV640BT) {
           pfl->cfi_table[0x27] = 0x17;
           pfl->cfi_table[0x31] = 0x7e;
         }
-        if (id2 == MX29LV320CT || id2 == MX29LV640BT) {
+        if (id1 == MX29LV320CT || id1 == MX29LV640BT) {
           pfl->cfi_table[0x4f] = 0x03;
         }
-    } else if (id1 == MANUFACTURER_004A &&  id2 == ES29LV160DB) {
+    } else if (id0 == MANUFACTURER_004A &&  id1 == ES29LV160DB) {
         static const uint8_t data[] = {
           /* 0x10 */ 'Q',  'R',  'Y',  0x02, 0x00, 0x40, 0x00, 0x00,
           /* 0x18 */ 0x00, 0x00, 0x00, 0x27, 0x36, 0x00, 0x00, 0x04,
