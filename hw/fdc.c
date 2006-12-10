@@ -888,7 +888,7 @@ static void fdctrl_start_transfer (fdctrl_t *fdctrl, int direction)
         fdctrl->data_len = fdctrl->fifo[8];
     } else {
 	int tmp;
-        fdctrl->data_len = 128 << fdctrl->fifo[5];
+        fdctrl->data_len = 128 << (fdctrl->fifo[5] > 7 ? 7 : fdctrl->fifo[5]);
         tmp = (cur_drv->last_sect - ks + 1);
         if (fdctrl->fifo[0] & 0x80)
             tmp += cur_drv->last_sect;
