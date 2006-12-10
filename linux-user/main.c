@@ -1352,6 +1352,8 @@ void cpu_loop(CPUMIPSState *env)
                 }
             }
             break;
+        case EXCP_TLBL:
+        case EXCP_TLBS:
         case EXCP_CpU:
         case EXCP_RI:
             info.si_signo = TARGET_SIGILL;

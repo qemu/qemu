@@ -4072,6 +4072,7 @@ void cpu_reset (CPUMIPSState *env)
     tlb_flush(env, 1);
 
     /* Minimal init */
+#if !defined(CONFIG_USER_ONLY)
     if (env->hflags & MIPS_HFLAG_BMASK) {
         /* If the exception was raised from a delay slot,
          * come back to the jump.  */
@@ -4098,9 +4099,11 @@ void cpu_reset (CPUMIPSState *env)
     /* Count register increments in debug mode, EJTAG version 1 */
     env->CP0_Debug = (1 << CP0DB_CNT) | (0x1 << CP0DB_VER);
     env->CP0_PRid = MIPS_CPU;
+#endif
     env->exception_index = EXCP_NONE;
 #if defined(CONFIG_USER_ONLY)
     env->hflags |= MIPS_HFLAG_UM;
+    env->user_mode_only = 1;
 #endif
 #ifdef MIPS_USES_FPU
     env->fcr0 = MIPS_FCR0;	
