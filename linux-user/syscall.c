@@ -2933,7 +2933,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
                 lock_user_struct(target_st, arg2, 0);
                 target_st->st_dev = tswap16(st.st_dev);
                 target_st->st_ino = tswapl(st.st_ino);
-#if defined(TARGET_PPC)
+#if defined(TARGET_PPC) || defined(TARGET_MIPS)
                 target_st->st_mode = tswapl(st.st_mode); /* XXX: check this */
                 target_st->st_uid = tswap32(st.st_uid);
                 target_st->st_gid = tswap32(st.st_gid);
@@ -3828,6 +3828,12 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         }
 	break;
     }
+#endif
+#ifdef TARGET_NR_cacheflush
+    case TARGET_NR_cacheflush:
+        /* self-modifying code is handled automatically, so nothing needed */
+        ret = 0;
+        break;
 #endif
 #ifdef TARGET_NR_security
     case TARGET_NR_security:
