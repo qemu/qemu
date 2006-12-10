@@ -1,5 +1,5 @@
 /*
- *  CFI parallel flash with AMD command set emulation
+ *  CFI parallel flash with AMD / Fujitsu command set emulation
  *
  *  Copyright (c) 2005 Jocelyn Mayer
  *  Copyright (c) 2006 Stefan Weil (ES29LV160DB emulation)
@@ -260,8 +260,12 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
         goto reset_flash;
     }
     //~ !!! next code only for certain flash chips
-    if (offset < 0x010000) {
+    if (offset < 0x004000) {
+        sector_len = 0x4000;
+    } else if (offset < 0x008000) {
         sector_len = 0x2000;
+    } else if (offset < 0x010000) {
+        sector_len = 0x8000;
     }
     boff = offset & (sector_len - 1);
     if (pfl->width == 2)
@@ -271,7 +275,7 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
     switch (pfl->wcycle) {
     case 0:
         /* We're in read mode */
-        if (offset == 0x55 && cmd == 0x98) {
+        if (boff == 0x55 && cmd == 0x98) {
         enter_CFI_mode:
             /* Enter CFI query mode */
             pfl->wcycle = 7;
@@ -281,7 +285,7 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
             return;
         }
     check_unlock0:
-        if (boff != 0x555 || cmd != 0xAA) {
+        if ((boff != 0x555 && offset != 0xaaaa) || cmd != 0xAA) {
             DPRINTF("unlock0 failed %04x %02x %04x\n", boff, cmd, 0x555);
             goto reset_flash;
         }
@@ -292,7 +296,7 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
     case 1:
         /* We started an unlock sequence */
     check_unlock1:
-        if (boff != 0x2AA || cmd != 0x55) {
+        if ((boff != 0x2AA && offset != 0x5554) || cmd != 0x55) {
             DPRINTF("unlock1 failed %04x %02x\n", boff, cmd);
             goto reset_flash;
         }
@@ -300,7 +304,7 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
         break;
     case 2:
         /* We finished an unlock sequence */
-        if (!pfl->bypass && boff != 0x555) {
+        if (!pfl->bypass && boff != 0x555 && offset != 0xaaaa) {
             DPRINTF("command failed %04x %02x\n", boff, cmd);
             goto reset_flash;
         }
@@ -709,10 +713,10 @@ pflash_t *pflash_amd_register (target_ulong base, ram_addr_t off,
         static const uint8_t data[] = {
           /* 0x10 */ 'Q',  'R',  'Y',  0x02, 0x00, 0x40, 0x00, 0x00,
           /* 0x18 */ 0x00, 0x00, 0x00, 0x27, 0x36, 0x00, 0x00, 0x04,
-          /* 0x20 */ 0x00, 0x0a, 0x00, 0x05, 0x00, 0x04, 0x00, 0x16,
+          /* 0x20 */ 0x00, 0x0a, 0x00, 0x05, 0x00, 0x04, 0x00, 0x15,
           /* 0x28 */ 0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x40,
           /* 0x30 */ 0x00, 0x01, 0x00, 0x20, 0x00, 0x00, 0x00, 0x80,
-          /* 0x38 */ 0x00, 0x1e, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
+          /* 0x38 */ 0x00, 0x1e, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
           /* 0x40 */ 'P',  'R',  'I',  '1' , '0',  0x00, 0x02, 0x01,
           /* 0x48 */ 0x01, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         };
