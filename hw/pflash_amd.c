@@ -677,6 +677,7 @@ pflash_t *pflash_amd_register (target_ulong base, ram_addr_t off,
 
     if (0) {
     } else if ((id0 == MANUFACTURER_AMD && id1 == AM29LV160DB) ||
+               (id0 == MANUFACTURER_004A &&  id1 == ES29LV160DB) ||
                (id0 == MANUFACTURER_SPANSION && id1 == S29AL016DB)) {
         static const uint8_t data[] = {
           /* 0x10 */ 'Q',  'R',  'Y',  0x02, 0x00, 0x40, 0x00, 0x00,
@@ -689,6 +690,10 @@ pflash_t *pflash_amd_register (target_ulong base, ram_addr_t off,
           /* 0x48 */ 0x01, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         };
         memcpy(&pfl->cfi_table[0x10], data, sizeof(data));
+        //~ pfl->cfi_table[0x39] = nb_blocs - 2;        // 0x1e
+        //~ pfl->cfi_table[0x3a] = (nb_blocs - 2) >> 8; // 0x00
+        //~ pfl->cfi_table[0x3b] = (sector_len / 256);  // 0x01
+        //~ pfl->cfi_table[0x3c] = (sector_len / 256) >> 8;     // 0x00
     } else if (id0 == MANUFACTURER_MACRONIX && (id1 == MX29LV320CB ||
           id1 == MX29LV320CT || id1 == MX29LV640BB || id1 == MX29LV640BT)) {
         static const uint8_t data[] = {
@@ -709,22 +714,6 @@ pflash_t *pflash_amd_register (target_ulong base, ram_addr_t off,
         if (id1 == MX29LV320CT || id1 == MX29LV640BT) {
           pfl->cfi_table[0x4f] = 0x03;
         }
-    } else if (id0 == MANUFACTURER_004A &&  id1 == ES29LV160DB) {
-        static const uint8_t data[] = {
-          /* 0x10 */ 'Q',  'R',  'Y',  0x02, 0x00, 0x40, 0x00, 0x00,
-          /* 0x18 */ 0x00, 0x00, 0x00, 0x27, 0x36, 0x00, 0x00, 0x04,
-          /* 0x20 */ 0x00, 0x0a, 0x00, 0x05, 0x00, 0x04, 0x00, 0x15,
-          /* 0x28 */ 0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x40,
-          /* 0x30 */ 0x00, 0x01, 0x00, 0x20, 0x00, 0x00, 0x00, 0x80,
-          /* 0x38 */ 0x00, 0x1e, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
-          /* 0x40 */ 'P',  'R',  'I',  '1' , '0',  0x00, 0x02, 0x01,
-          /* 0x48 */ 0x01, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        };
-        memcpy(&pfl->cfi_table[0x10], data, sizeof(data));
-        //~ pfl->cfi_table[0x39] = nb_blocs - 2;        // 0x1e
-        //~ pfl->cfi_table[0x3a] = (nb_blocs - 2) >> 8; // 0x00
-        //~ pfl->cfi_table[0x3b] = (sector_len / 256);  // 0x01
-        //~ pfl->cfi_table[0x3c] = (sector_len / 256) >> 8;     // 0x00
     } else {
         /* SG29 Spansion flash */
         static const uint8_t data[] = {
