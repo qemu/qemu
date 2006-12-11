@@ -2460,6 +2460,8 @@ static void ar7_serial_init(CPUState * env)
                       UART_MEM_TO_IO(AVALANCHE_UART0_BASE), 15, serial_hds[0]);
     serial_16450_init(ar7_irq, IRQ_OPAQUE,
                       UART_MEM_TO_IO(AVALANCHE_UART1_BASE), 16, serial_hds[1]);
+    /* Select 1st serial console as default (because we don't have VGA). */
+    console_select(1);
 }
 
 static int ar7_nic_can_receive(void *opaque)
