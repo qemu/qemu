@@ -93,15 +93,6 @@
 /* Have config1, runs in little-endian mode, uses TLB */
 /* No FPU register support */
 #undef MIPS_USES_FPU
-#if 0 // !!! workaround
-#define MIPS_USES_FPU 1
-/* Define a implementation number of 1.
- * Define a major version 1, minor version 0.
- */
-#define MIPS_FCR0 ((0 << 16) | (1 << 8) | (1 << 4) | 0)
-#else
-#define MIPS_FCR0 ((0 << 16) | (1 << 8) | (1 << 4) | 0)
-#endif
 #define MIPS_CONFIG0                                            \
 ((1 << CP0C0_M) | (0x0 << CP0C0_K23) | (0x0 << CP0C0_KU) |  \
  (0 << CP0C0_BE) | (0x1 << CP0C0_MT) | (0x2 << CP0C0_K0) |  \
