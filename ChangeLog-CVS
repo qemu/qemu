@@ -1,3 +1,7 @@
+2006-12-11 23:04  ths
+
+	* linux-user/syscall.c: MIPS has also a fixed MMAP_SHIFT of 12.
+
 2006-12-11 20:22  ths
 
 	* gdbstub.c: MIPS FPU support for the gdb stub, by Daniel

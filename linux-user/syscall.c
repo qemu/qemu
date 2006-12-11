@@ -2673,7 +2673,7 @@ long do_syscall(void *cpu_env, int num, long arg1, long arg2, long arg3,
         break;
 #ifdef TARGET_NR_mmap2
     case TARGET_NR_mmap2:
-#if defined(TARGET_SPARC)
+#if defined(TARGET_SPARC) || defined(TARGET_MIPS)
 #define MMAP_SHIFT 12
 #else
 #define MMAP_SHIFT TARGET_PAGE_BITS
