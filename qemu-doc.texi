@@ -443,7 +443,7 @@ or @file{C:\WINNT\SYSTEM32\DRIVERS\ETC\LMHOSTS} (Windows NT/2000).
 Then @file{dir} can be accessed in @file{\\smbserver\qemu}.
 
 Note that a SAMBA server must be installed on the host OS in
-@file{/usr/sbin/smbd}. QEMU was tested succesfully with smbd version
+@file{/usr/sbin/smbd}. QEMU was tested successfully with smbd version
 2.2.7a from the Red Hat 9 and version 3.0.10-1.fc3 from Fedora Core 3.
 
 @item -redir [tcp|udp]:host-port:[guest-host]:guest-port
@@ -678,7 +678,7 @@ During emulation, if you are using the @option{-nographic} option, use
 @item Ctrl-a h
 Print this help
 @item Ctrl-a x    
-Exit emulatior
+Exit emulator
 @item Ctrl-a s    
 Save disk data back to file (if -snapshot)
 @item Ctrl-a b
@@ -1810,7 +1810,7 @@ to install QEMU in @file{/usr/local}.
 
 @subsection Tested tool versions
 
-In order to compile QEMU succesfully, it is very important that you
+In order to compile QEMU successfully, it is very important that you
 have the right tools. The most important one is gcc. I cannot guaranty
 that QEMU works if you do not use a tested gcc version. Look at
 'configure' and 'Makefile' if you want to make a different gcc

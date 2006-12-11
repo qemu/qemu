@@ -26,7 +26,6 @@
 #if defined(__linux__)
 #include <dirent.h>
 #include <sys/ioctl.h>
-#include <linux/compiler.h>
 #include <linux/usbdevice_fs.h>
 #include <linux/version.h>
 

@@ -252,6 +252,12 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
     return ret;
 }
 
+#if defined(CONFIG_USER_ONLY)
+void do_interrupt (CPUState *env)
+{
+    env->exception_index = EXCP_NONE;
+}
+#else
 void do_interrupt (CPUState *env)
 {
     target_ulong offset;
@@ -418,3 +424,4 @@ void do_interrupt (CPUState *env)
     }
     env->exception_index = EXCP_NONE;
 }
+#endif /* !defined(CONFIG_USER_ONLY) */

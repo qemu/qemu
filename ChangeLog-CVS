@@ -1,3 +1,39 @@
+2006-12-11 20:22  ths
+
+	* gdbstub.c: MIPS FPU support for the gdb stub, by Daniel
+	  Jacobowitz.
+
+2006-12-11 20:13  ths
+
+	* linux-user/syscall.c: Fix addrlen size, by David Woodhouse.
+
+2006-12-11 19:35  ths
+
+	* qemu-doc.texi: Spelling fixes, by Aurelien Jarno.
+
+2006-12-11 03:08  ths
+
+	* sdl.c, vl.c, vl.h: Implement -no-quit option, by Xavier Gnata.
+
+2006-12-11 00:20  ths
+
+	* hw/pci.c: Fix PCI config space overflow, by Herbert Xu.
+
+2006-12-11 00:07  ths
+
+	* hw/fdc.c: Fix sector size overflow, by Herbert Xu.
+
+2006-12-10 23:11  ths
+
+	* usb-linux.c: Build fix for newer kernel headers, thanks Jason
+	  Wessel.
+
+2006-12-10 23:08  ths
+
+	* linux-user/main.c, target-mips/helper.c, target-mips/translate.c:
+	  Handle invalid accesses as SIGILL for mips/mipsel userland
+	  emulation.
+
 2006-12-08 02:32  ths
 
 	* linux-user/syscall.c: Fix fstat for MIPS userland emulation, and

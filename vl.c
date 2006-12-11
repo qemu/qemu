@@ -143,6 +143,7 @@ int graphic_height = 600;
 #endif
 int graphic_depth = 15;
 int full_screen = 0;
+int no_quit = 0;
 CharDriverState *serial_hds[MAX_SERIAL_PORTS];
 CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
 #ifdef TARGET_I386
@@ -5847,7 +5848,10 @@ void help(void)
            "-hdc/-hdd file  use 'file' as IDE hard disk 2/3 image\n"
            "-cdrom file     use 'file' as IDE cdrom image (cdrom is ide1 master)\n"
            "-boot [a|c|d]   boot on floppy (a), hard disk (c) or CD-ROM (d)\n"
-	   "-snapshot       write to temporary files instead of disk image files\n"
+           "-snapshot       write to temporary files instead of disk image files\n"
+#ifdef CONFIG_SDL
+           "-no-quit        disable SDL window close capability\n"
+#endif
 #ifdef TARGET_I386
            "-no-fd-bootchk  disable boot signature checking for floppy disks\n"
 #endif
@@ -5855,7 +5859,7 @@ void help(void)
            "-smp n          set the number of CPUs to 'n' [default=1]\n"
            "-nographic      disable graphical output and redirect serial I/Os to console\n"
 #ifndef _WIN32
-	   "-k language     use keyboard layout (for example \"fr\" for French)\n"
+           "-k language     use keyboard layout (for example \"fr\" for French)\n"
 #endif
 #ifdef HAS_AUDIO
            "-audio-help     print list of audio drivers and their options\n"
@@ -6009,6 +6013,7 @@ enum {
     QEMU_OPTION_parallel,
     QEMU_OPTION_loadvm,
     QEMU_OPTION_full_screen,
+    QEMU_OPTION_no_quit,
     QEMU_OPTION_pidfile,
     QEMU_OPTION_no_kqemu,
     QEMU_OPTION_kernel_kqemu,
@@ -6085,6 +6090,9 @@ const QEMUOption qemu_options[] = {
     { "parallel", 1, QEMU_OPTION_parallel },
     { "loadvm", HAS_ARG, QEMU_OPTION_loadvm },
     { "full-screen", 0, QEMU_OPTION_full_screen },
+#ifdef CONFIG_SDL
+    { "no-quit", 0, QEMU_OPTION_no_quit },
+#endif
     { "pidfile", HAS_ARG, QEMU_OPTION_pidfile },
     { "win2k-hack", 0, QEMU_OPTION_win2k_hack },
     { "usbdevice", HAS_ARG, QEMU_OPTION_usbdevice },
@@ -6736,6 +6744,11 @@ int main(int argc, char **argv)
             case QEMU_OPTION_full_screen:
                 full_screen = 1;
                 break;
+#ifdef CONFIG_SDL
+            case QEMU_OPTION_no_quit:
+                no_quit = 1;
+                break;
+#endif
             case QEMU_OPTION_pidfile:
                 create_pidfile(optarg);
                 break;

@@ -151,6 +151,7 @@ extern int kqemu_allowed;
 extern int win2k_install_hack;
 extern int usb_enabled;
 extern int smp_cpus;
+extern int no_quit;
 
 /* XXX: make it dynamic */
 #if defined (TARGET_PPC) || defined (TARGET_SPARC64)
