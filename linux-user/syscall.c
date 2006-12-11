@@ -841,7 +841,7 @@ static long do_accept(int fd, target_ulong target_addr,
                       target_ulong target_addrlen)
 {
     socklen_t addrlen = tget32(target_addrlen);
-    void *addr = alloca(target_addrlen);
+    void *addr = alloca(addrlen);
     long ret;
 
     ret = get_errno(accept(fd, addr, &addrlen));
