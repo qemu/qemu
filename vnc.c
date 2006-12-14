@@ -167,6 +167,7 @@ static void vnc_framebuffer_update(VncState *vs, int x, int y, int w, int h,
 
 static void vnc_dpy_resize(DisplayState *ds, int w, int h)
 {
+    int size_changed;
     VncState *vs = ds->opaque;
 
     ds->data = realloc(ds->data, w * h * vs->depth);
@@ -178,10 +179,11 @@ static void vnc_dpy_resize(DisplayState *ds, int w, int h)
     }
 
     ds->depth = vs->depth * 8;
+    size_changed = ds->width != w || ds->height != h;
     ds->width = w;
     ds->height = h;
     ds->linesize = w * vs->depth;
-    if (vs->csock != -1 && vs->has_resize) {
+    if (vs->csock != -1 && vs->has_resize && size_changed) {
 	vnc_write_u8(vs, 0);  /* msg id */
 	vnc_write_u8(vs, 0);
 	vnc_write_u16(vs, 1); /* number of rects */
