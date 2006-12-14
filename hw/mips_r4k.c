@@ -8,15 +8,15 @@
  * the standard PC ISA addresses.
 */
 
+#include <assert.h>             /* assert */
 #include "vl.h"
 #include "ar7.h"                /* ar7_init */
 #include "mips_display.h"       /* mips_display_init */
 #include "pflash.h"             /* pflash_amd_register, ... */
 
 #define BIOS_FILENAME "mips_bios.bin"
-
+//#define BIOS_FILENAME "system.bin"
 #define KERNEL_LOAD_ADDR 0x80010000
-//~ #define KERNEL_LOAD_ADDR 0x80040000
 #define INITRD_LOAD_ADDR 0x80800000
 
 #define VIRT_TO_PHYS_ADDEND (-0x80000000LL)
@@ -47,8 +47,6 @@ static void pic_irq_request(void *opaque, int level)
         cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
     }
 }
-
-/*------------------------------------------*/
 
 static void mips_qemu_writel (void *opaque, target_phys_addr_t addr,
 			      uint32_t val)
@@ -272,6 +270,50 @@ static void mips_ar7_common_init (int ram_size,
     /* Typical AR7 systems run in little endian mode. */
     bigendian = env->bigendian = 0;
     fprintf(stderr, "%s: setting endianness %d\n", __func__, 0);
+
+    env->CP0_PRid = MIPS_R4KEc;
+
+    /* Have config1, is MIPS32R1, uses TLB, no virtual icache,
+       uncached coherency */
+    env->CP0_Config0 =
+        ((1 << CP0C0_M) | (0x0 << CP0C0_K23) | (0x0 << CP0C0_KU) |
+         (1 << 21) | (0x2 << CP0C0_MM) |
+         (0x0 << CP0C0_AT) | (0x0 << CP0C0_AR) | (0x1 << CP0C0_MT) |
+         (0x2 << CP0C0_K0));
+    if (bigendian) {
+        env->CP0_Config0 |= (1 << CP0C0_BE);
+    }
+    /* Have config2, 16 TLB entries, 256 sets Icache, 16 bytes Icache line,
+       4-way Icache, 256 sets Dcache, 16 bytes Dcache line, 4-way Dcache,
+       no coprocessor2 attached, no MDMX support attached,
+       no performance counters, watch registers present,
+       no code compression, EJTAG present, FPU enable bit depending on
+       MIPS_USES_FPU */
+    env->CP0_Config1 =
+        ((1 << CP0C1_M) | ((MIPS_TLB_NB - 1) << CP0C1_MMU) |
+         (0x2 << CP0C1_IS) | (0x3 << CP0C1_IL) | (0x3 << CP0C1_IA) |
+         (0x2 << CP0C1_DS) | (0x3 << CP0C1_DL) | (0x3 << CP0C1_DA) |
+         (0 << CP0C1_C2) | (0 << CP0C1_MD) | (0 << CP0C1_PC) |
+         (1 << CP0C1_WR) | (0 << CP0C1_CA) | (1 << CP0C1_EP));
+#ifdef MIPS_USES_FPU
+    env->CP0_Config1 |= (1 << CP0C1_FP);
+#endif
+    /* Have config3, no tertiary/secondary caches implemented */
+    env->CP0_Config2 = (1 << CP0C2_M);
+    /* No config4, no DSP ASE, no large physaddr,
+       no external interrupt controller, no vectored interupts,
+       no 1kb pages, no MT ASE, no SmartMIPS ASE, no trace logic */
+    env->CP0_Config3 =
+        ((0 << CP0C3_M) | (0 << CP0C3_DSPP) | (0 << CP0C3_LPA) |
+         (0 << CP0C3_VEIC) | (0 << CP0C3_VInt) | (0 << CP0C3_SP) |
+         (0 << CP0C3_MT) | (0 << CP0C3_SM) | (0 << CP0C3_TL));
+
+    if (env->CP0_Config0 != 0x80240083) printf("0x%08x\n", env->CP0_Config0);
+    //~ assert(env->CP0_Config0 == 0x80240083);
+    assert(env->CP0_Config0 == 0x80240082);
+    assert(env->CP0_Config1 == 0x9e9b4d8a);
+    assert(env->CP0_Config2 == 0x80000000);
+    assert(env->CP0_Config3 == 0x00000000);
 
     register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
     qemu_register_reset(main_cpu_reset, env);
