@@ -553,9 +553,12 @@ static void set_brk(unsigned long start, unsigned long end)
 /* We need to explicitly zero any fractional pages after the data
    section (i.e. bss).  This would contain the junk from the file that
    should not be in memory. */
-static void padzero(unsigned long elf_bss)
+static void padzero(unsigned long elf_bss, unsigned long last_bss)
 {
         unsigned long nbyte;
+
+	if (elf_bss >= last_bss)
+		return;
 
         /* XXX: this is really a hack : if the real host page size is
            smaller than the target page size, some pages after the end
@@ -798,7 +801,7 @@ static unsigned long load_elf_interp(struct elfhdr * interp_elf_ex,
 	 * that there are zeromapped pages up to and including the last
 	 * bss page.
 	 */
-	padzero(elf_bss);
+	padzero(elf_bss, last_bss);
 	elf_bss = TARGET_ELF_PAGESTART(elf_bss + qemu_host_page_size - 1); /* What we have mapped so far */
 
 	/* Map the last of the bss segment */
@@ -1227,7 +1230,7 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
        sections */
     set_brk(elf_bss, elf_brk);
 
-    padzero(elf_bss);
+    padzero(elf_bss, elf_brk);
 
 #if 0
     printf("(start_brk) %x\n" , info->start_brk);
