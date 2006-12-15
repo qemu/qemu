@@ -981,11 +981,11 @@ static uint32_t eepro100_read_mdi(EEPRO100State * s)
     uint32_t val;
     memcpy(&val, &s->mem[0x10], sizeof(val));
 
-    uint8_t raiseint = (val & 0x20000000) >> 29;
-    uint8_t opcode = (val & 0x0c000000) >> 26;
-    uint8_t phy = (val & 0x03e00000) >> 21;
-    uint8_t reg = (val & 0x001f0000) >> 16;
-    uint16_t data = (val & 0x0000ffff);
+    uint8_t raiseint = (val & BIT(29)) >> 29;
+    uint8_t opcode = (val & BITS(27, 26)) >> 26;
+    uint8_t phy = (val & BITS(25, 21)) >> 21;
+    uint8_t reg = (val & BITS(20, 16)) >> 16;
+    uint16_t data = (val & BITS(15, 0));
     /* Emulation takes no time to finish MDI transaction. */
     val |= BIT(28);
     TRACE(MDI, logout("val=0x%08x (int=%u, %s, phy=%u, %s, data=0x%04x\n",
@@ -997,11 +997,11 @@ static uint32_t eepro100_read_mdi(EEPRO100State * s)
 //~ #define BITS(val, upper, lower) (val & ???)
 static void eepro100_write_mdi(EEPRO100State * s, uint32_t val)
 {
-    uint8_t raiseint = (val & 0x20000000) >> 29;
-    uint8_t opcode = (val & 0x0c000000) >> 26;
-    uint8_t phy = (val & 0x03e00000) >> 21;
-    uint8_t reg = (val & 0x001f0000) >> 16;
-    uint16_t data = (val & 0x0000ffff);
+    uint8_t raiseint = (val & BIT(29)) >> 29;
+    uint8_t opcode = (val & BITS(27, 26)) >> 26;
+    uint8_t phy = (val & BITS(25, 21)) >> 21;
+    uint8_t reg = (val & BITS(20, 16)) >> 16;
+    uint16_t data = (val & BITS(15, 0));
     if (phy != 1) {
         /* Unsupported PHY address. */
         //~ logout("phy must be 1 but is %u\n", phy);
