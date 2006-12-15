@@ -37,7 +37,7 @@
  *       41:          0             AR7  Cpmac Driver
  *
  *      ERR:          0
- * 
+ *
  */
 
 #include <assert.h>
@@ -50,6 +50,8 @@
 #include "disas.h"              /* lookup_symbol */
 #include "exec-all.h"           /* logfile */
 #include "hw/ar7.h"             /* ar7_init */
+#include "hw/mips_display.h"    /* mips_display_init */
+#include "hw/pflash.h"          /* pflash_amd_register, ... */
 
 static int bigendian;
 
@@ -1954,13 +1956,13 @@ static void ar7_vlynq_write(unsigned index, unsigned offset, uint32_t val)
  *
  * This watchdog timer module has prescalar and counter which divide the input
  * reference frequency and upon expiration, the system is reset.
- * 
- *                        ref_freq 
+ *
+ *                        ref_freq
  * Reset freq = ---------------------
  *                  (prescalar * counter)
- * 
+ *
  * This watchdog timer supports timer values in mSecs. Thus
- * 
+ *
  *           prescalar * counter * 1 KHZ
  * mSecs =   --------------------------
  *                  ref_freq
@@ -2684,113 +2686,302 @@ void ar7_init(CPUState * env)
     register_savevm("ar7", ar7_instance, ar7_version, ar7_save, ar7_load, 0);
 }
 
+static void main_cpu_reset(void *opaque)
+{
+    CPUState *env = opaque;
+    cpu_reset(env);
+
+    if (env->kernel_filename) {
+        mips_load_kernel (env, env->ram_size, env->kernel_filename,
+                          env->kernel_cmdline, env->initrd_filename);
+    }
+}
+
+#define VIRT_TO_PHYS_ADDEND (-0x80000000LL)
+
+static void mips_ar7_common_init (int ram_size,
+                    uint16_t flash_manufacturer, uint16_t flash_type,
+                    const char *kernel_filename, const char *kernel_cmdline,
+                    const char *initrd_filename)
+{
+    char buf[1024];
+    int64_t entry = 0;
+    unsigned long bios_offset;
+    int ret;
+    CPUState *env;
+    long kernel_size;
+
+    env = cpu_init();
+    /* Typical AR7 systems run in little endian mode. */
+    bigendian = env->bigendian = 0;
+    fprintf(stderr, "%s: setting endianness %d\n", __func__, 0);
+
+    env->CP0_PRid = MIPS_R4KEc;
+
+    /* Have config1, is MIPS32R1, uses TLB, no virtual icache,
+       uncached coherency */
+    env->CP0_Config0 =
+        ((1 << CP0C0_M) | (0x0 << CP0C0_K23) | (0x0 << CP0C0_KU) |
+         (1 << 21) | (0x2 << CP0C0_MM) |
+         (0x0 << CP0C0_AT) | (0x0 << CP0C0_AR) | (0x1 << CP0C0_MT) |
+         (0x2 << CP0C0_K0));
+    if (bigendian) {
+        env->CP0_Config0 |= (1 << CP0C0_BE);
+    }
+    /* Have config2, 16 TLB entries, 256 sets Icache, 16 bytes Icache line,
+       4-way Icache, 256 sets Dcache, 16 bytes Dcache line, 4-way Dcache,
+       no coprocessor2 attached, no MDMX support attached,
+       no performance counters, watch registers present,
+       no code compression, EJTAG present, FPU enable bit depending on
+       MIPS_USES_FPU */
+    env->CP0_Config1 =
+        ((1 << CP0C1_M) | ((MIPS_TLB_NB - 1) << CP0C1_MMU) |
+         (0x2 << CP0C1_IS) | (0x3 << CP0C1_IL) | (0x3 << CP0C1_IA) |
+         (0x2 << CP0C1_DS) | (0x3 << CP0C1_DL) | (0x3 << CP0C1_DA) |
+         (0 << CP0C1_C2) | (0 << CP0C1_MD) | (0 << CP0C1_PC) |
+         (1 << CP0C1_WR) | (0 << CP0C1_CA) | (1 << CP0C1_EP));
+#ifdef MIPS_USES_FPU
+    env->CP0_Config1 |= (1 << CP0C1_FP);
+#endif
+    /* Have config3, no tertiary/secondary caches implemented */
+    env->CP0_Config2 = (1 << CP0C2_M);
+    /* No config4, no DSP ASE, no large physaddr,
+       no external interrupt controller, no vectored interupts,
+       no 1kb pages, no MT ASE, no SmartMIPS ASE, no trace logic */
+    env->CP0_Config3 =
+        ((0 << CP0C3_M) | (0 << CP0C3_DSPP) | (0 << CP0C3_LPA) |
+         (0 << CP0C3_VEIC) | (0 << CP0C3_VInt) | (0 << CP0C3_SP) |
+         (0 << CP0C3_MT) | (0 << CP0C3_SM) | (0 << CP0C3_TL));
+
+    if (env->CP0_Config0 != 0x80240083) printf("0x%08x\n", env->CP0_Config0);
+    //~ assert(env->CP0_Config0 == 0x80240083);
+    assert(env->CP0_Config0 == 0x80240082);
+    assert(env->CP0_Config1 == 0x9e9b4d8a);
+    assert(env->CP0_Config2 == 0x80000000);
+    assert(env->CP0_Config3 == 0x00000000);
+
+    register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
+    qemu_register_reset(main_cpu_reset, env);
+
+    /* Allocate RAM. */
+
+    /* The AR7 processor has 4 KiB internal RAM at physical address 0x00000000. */
+    cpu_register_physical_memory(0, 4 * KiB, IO_MEM_RAM);
+
+    /* 16 MiB external RAM at physical address 0x14000000.
+       More memory can be selected with command line option -m. */
+    if (ram_size > 100 * MiB) {
+            ram_size = 16 * MiB;
+    }
+    cpu_register_physical_memory(0x14000000, ram_size, (4 * KiB) | IO_MEM_RAM);
+
+    /* Try to load a BIOS image. If this fails, we continue regardless,
+       but initialize the hardware ourselves. When a kernel gets
+       preloaded we also initialize the hardware, since the BIOS wasn't
+       run. */
+    bios_offset = ram_size;
+
+    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, "flashimage.bin");
+    ret = load_image(buf, phys_ram_base + bios_offset);
+    fprintf(stderr, "%s: load BIOS '%s', size %d\n", __func__, buf, ret);
+    if (ret > 0) {
+        const uint32_t address = 0x10000000;
+        pflash_t *pf;
+        pf = pflash_register(address, bios_offset, 0, ret, 2,
+                             flash_manufacturer, flash_type);
+        bios_offset += ret;
+    } else {
+        ret = 0;
+    }
+
+    /* The AR7 processor has 4 KiB internal ROM at physical address 0x1fc00000. */
+    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, "mips_bios.bin");
+    fprintf(stderr, "%s: ram_base = %p, ram_size = 0x%08x, bios_offset = 0x%08lx\n",
+        __func__, phys_ram_base, ram_size, bios_offset);
+    ret = load_image(buf, phys_ram_base + bios_offset);
+    if ((ret > 0) && (ret <= BIOS_SIZE)) {
+        fprintf(stderr, "%s: load BIOS '%s', size %d\n", __func__, buf, ret);
+    } else {
+        /* Not fatal, write a jump to address 0xb0000000 into memory. */
+        static const uint8_t jump[] = {
+            /* lui t9,0xb000; jr t9 */
+            0x00, 0xb0, 0x19, 0x3c, 0x08, 0x00, 0x20, 0x03
+        };
+        fprintf(stderr, "QEMU: Warning, could not load MIPS bios '%s'.\n"
+                "QEMU added a jump instruction to flash start.\n", buf);
+        memcpy (phys_ram_base + bios_offset, jump, sizeof(jump));
+        ret = 4 * KiB;
+    }
+    cpu_register_physical_memory((uint32_t)(0x1fc00000),
+                                 ret, bios_offset | IO_MEM_ROM);
+
+    kernel_size = 0;
+    if (kernel_filename) {
+        kernel_size = load_elf(kernel_filename, VIRT_TO_PHYS_ADDEND, &entry);
+        if (kernel_size >= 0) {
+            fprintf(stderr, "qemu: elf kernel '%s' with start address 0x%08lx\n",
+                        kernel_filename, (unsigned long)entry);
+            env->PC = entry;
+        } else {
+            kernel_size = load_image(kernel_filename,
+                                phys_ram_base + 4 * KiB);
+            if (kernel_size < 0) {
+                fprintf(stderr, "qemu: could not load kernel '%s'\n",
+                        kernel_filename);
+                exit(1);
+            }
+            env->PC = 0x94000000;
+        }
+
+        /* a0 = argc, a1 = argv, a2 = envp */
+        env->gpr[4] = 0;
+        env->gpr[5] = 0;
+        env->gpr[6] = 0;
+
+        /* Set SP (needed for some kernels) - normally set by bootloader. */
+        env->gpr[29] = (env->PC + (kernel_size & 0xfffffffc)) + 0x1000;
+
+#if 0 /* disable buggy code */
+        /* load initrd */
+        if (initrd_filename) {
+            // code is buggy (wrong address)!!!
+            target_ulong initrd_base = INITRD_LOAD_ADDR;
+            target_ulong initrd_size = load_image(initrd_filename,
+                                     phys_ram_base + initrd_base);
+            if (initrd_size == (target_ulong) -1) {
+            if (load_image(initrd_filename,
+                           phys_ram_base + INITRD_LOAD_ADDR + VIRT_TO_PHYS_ADDEND)
+                == (target_ulong) -1) {
+                fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
+                        initrd_filename);
+                exit(1);
+            }
+        }
+
+        /* Store command line. */
+        if (kernel_cmdline && *kernel_cmdline) {
+            // code is buggy (wrong address)!!!
+            strcpy (phys_ram_base + (16 << 20) - 256, kernel_cmdline);
+            /* FIXME: little endian support */
+            *(int *)(phys_ram_base + (16 << 20) - 260) = tswap32 (0x12345678);
+            *(int *)(phys_ram_base + (16 << 20) - 264) = tswap32 (ram_size);
+        }
+#endif
+    }
+
+    /* Init internal devices */
+    cpu_mips_clock_init(env);
+    //~ cpu_mips_irqctrl_init();
+
+    ar7_init(env);
+    mips_display_init(env, "vc");
+}
+
+static void mips_ar7_init(int ram_size, int vga_ram_size, int boot_device,
+                    DisplayState *ds, const char **fd_filename, int snapshot,
+                    const char *kernel_filename, const char *kernel_cmdline,
+                    const char *initrd_filename)
+{
+    mips_ar7_common_init (ram_size, MANUFACTURER_ST, 0x2249,
+                          kernel_filename, kernel_cmdline, initrd_filename);
+}
+
+static void fbox4_init(int ram_size, int vga_ram_size, int boot_device,
+                    DisplayState *ds, const char **fd_filename, int snapshot,
+                    const char *kernel_filename, const char *kernel_cmdline,
+                    const char *initrd_filename)
+{
+    mips_ar7_common_init (32 * MiB, MANUFACTURER_MACRONIX, MX29LV320CT,
+                          kernel_filename, kernel_cmdline, initrd_filename);
+}
+
+static void fbox8_init(int ram_size, int vga_ram_size, int boot_device,
+                    DisplayState *ds, const char **fd_filename, int snapshot,
+                    const char *kernel_filename, const char *kernel_cmdline,
+                    const char *initrd_filename)
+{
+    mips_ar7_common_init (32 * MiB, MANUFACTURER_MACRONIX, MX29LV640BT,
+                          kernel_filename, kernel_cmdline, initrd_filename);
+}
+
+static void ar7_amd_init(int ram_size, int vga_ram_size, int boot_device,
+                    DisplayState *ds, const char **fd_filename, int snapshot,
+                    const char *kernel_filename, const char *kernel_cmdline,
+                    const char *initrd_filename)
+{
+    mips_ar7_common_init (ram_size, MANUFACTURER_AMD, AM29LV160DB,
+                          kernel_filename, kernel_cmdline, initrd_filename);
+}
+
+static void sinus_3_init(int ram_size, int vga_ram_size, int boot_device,
+                    DisplayState *ds, const char **fd_filename, int snapshot,
+                    const char *kernel_filename, const char *kernel_cmdline,
+                    const char *initrd_filename)
+{
+    mips_ar7_common_init (16 * MiB, MANUFACTURER_004A, ES29LV160DB,
+                          kernel_filename, kernel_cmdline, initrd_filename);
+}
+
+static void sinus_se_init(int ram_size, int vga_ram_size, int boot_device,
+                    DisplayState *ds, const char **fd_filename, int snapshot,
+                    const char *kernel_filename, const char *kernel_cmdline,
+                    const char *initrd_filename)
+{
+    mips_ar7_common_init (16 * MiB, MANUFACTURER_INTEL, I28F160C3B,
+                          kernel_filename, kernel_cmdline, initrd_filename);
+}
+
+static QEMUMachine mips_machines[] = {
+  {
+    "ar7",
+    "MIPS 4KEc / AR7 platform",
+    mips_ar7_init,
+  },
+  {
+    "fbox-4mb",
+    "FBox 4 MiB flash (AR7 platform)",
+    fbox4_init,
+  },
+  {
+    "fbox-8mb",
+    "FBox 8 MiB flash (AR7 platform)",
+    fbox8_init,
+  },
+  {
+    "ar7-amd",
+    "MIPS AR7 with AMD flash",
+    ar7_amd_init,
+  },
+  {
+    "sinus-se",
+    "Sinus DSL SE, Sinus DSL Basic SE (AR7 platform)",
+    sinus_se_init,
+  },
+  {
+    "sinus-3",
+    "Sinus DSL Basic 3 (AR7 platform)",
+    sinus_3_init,
+  },
+};
+
+int qemu_register_ar7_machines(void)
+{
+    size_t i;
+    for (i = 0; i < sizeof(mips_machines) / sizeof(*mips_machines); i++) {
+        qemu_register_machine(&mips_machines[i]);
+    }
+    return 0;
+}
+
 /*
-AR7     ar7_nic_receive         cpmac0 received 42 byte:  ff ff ff ff ff ff 66 67 b2 6a a7 3c 08 06 00 01 08 00 06 04 00 01 66 67 b2
-AR7     ar7_nic_receive         broadcast to channel 0
-AR7     ar7_nic_receive         short frame, flag = 0x0
-AR7     ar7_nic_receive         buffer 0x142ea8e0, next 0x142ea8f0, buff 0x141e37f0, params 0x20000000, len 0x0000060c
-AR7     ar7_cpmac_read          cpmac0[TX_INTSTAT_MASKED] (0x08610174) = 0x00000000
-AR7     ar7_cpmac_write         cpmac0[RX0CP] (0x08610660) = 0x142ea8e0
-AR7     ar7_cpmac_write         cpmac0[MAC_EOI_VECTOR] (0x08610184) = 0x00000000
-AR7     ar7_cpmac_read          cpmac0[TX_INTSTAT_MASKED] (0x08610174) = 0x00000000 x 6
-AR7     ar7_cpmac_write         cpmac0[TX0HDP] (0x08610600) = 0x142ea8d0
-AR7     ar7_cpmac_write         buffer 0x142ea8d0, next 0x00000000, buff 0x14217660, params 0xe0000040, len 0x00000040, total 0x00000000
-AR7     ar7_cpmac_write         cpmac0 sent 64 byte:  66 67 b2 6a a7 3c 00 30 f1 df 5f 55 08 06 00 01 08 00 06 04 00 02 00 30 f1
-AR7     ar7_cpmac_read          cpmac0[TX_INTSTAT_MASKED] (0x08610174) = 0x00000000
-AR7     ar7_cpmac_read          cpmac0[TX_INTSTAT_MASKED] (0x08610174) = 0x00000000
-AR7     ar7_nic_receive         cpmac0 received 98 byte:  00 30 f1 df 5f 55 66 67 b2 6a a7 3c 08 00 45 00 00 54 00 00 40 00 40 01 b5
-AR7     ar7_nic_receive         my address to channel 0
-AR7     ar7_nic_receive         buffer 0x142ea8f0, next 0x142ea900, buff 0x141e3e60, params 0x20000000, len 0x0000060c
-AR7     ar7_cpmac_read          cpmac0[TX_INTSTAT_MASKED] (0x08610174) = 0x00000000
-AR7     ar7_cpmac_write         cpmac0[RX0CP] (0x08610660) = 0x142ea8f0
-AR7     ar7_cpmac_write         cpmac0[MAC_EOI_VECTOR] (0x08610184) = 0x00000000
-AR7     ar7_cpmac_read          cpmac0[TX_INTSTAT_MASKED] (0x08610174) = 0x00000000 x 6
-AR7     ar7_cpmac_write         cpmac0[TX0HDP] (0x08610600) = 0x142ea8d0
-AR7     ar7_cpmac_write         buffer 0x142ea8d0, next 0x00000000, buff 0x14218340, params 0xe0000062, len 0x00000062, total 0x00000000
-AR7     ar7_cpmac_write         cpmac0 sent 98 byte:  66 67 b2 6a a7 3c 00 30 f1 df 5f 55 08 00 45 00 00 54 00 00 00 00 40 01 f5
-AR7     ar7_cpmac_read          cpmac0[TX_INTSTAT_MASKED] (0x08610174) = 0x00000000
-
-
-AR7     ar7_nic_receive         cpmac0 received 42 byte:  ff ff ff ff ff ff 72 5b fa 57 da 21 08 06 00 01 08 00 06 04 00 01 72 5b fa
-AR7     ar7_nic_receive         broadcast to channel 0
-AR7     ar7_nic_receive         short frame, flag = 0x0
-AR7     ar7_nic_receive         buffer 0x142ea8e0, next 0x142ea8f0, buff 0x141e37f0, params 0x20000000, len 0x0000060c
-AR7     ar7_cpmac_read          cpmac0[TXINTSTATMASKED] (0x08610174) = 0x00000000
-AR7     ar7_cpmac_write         cpmac0[RX0CP] (0x08610660) = 0x142ea8e0
-AR7     ar7_cpmac_write         cpmac0[MACEOIVECTOR] (0x08610184) = 0x00000000
-AR7     ar7_cpmac_read          cpmac0[TXINTSTATMASKED] (0x08610174) = 0x00000000 x 6
-AR7     ar7_cpmac_write         cpmac0[TX0HDP] (0x08610600) = 0x142ea8d0
-AR7     ar7_cpmac_write         buffer 0x142ea8d0, next 0x00000000, buff 0x14217660, params 0xe0000040, len 0x00000040, total 0x00000000
-AR7     ar7_cpmac_write         cpmac0 sent 64 byte:  72 5b fa 57 da 21 00 30 f1 df 5f 55 08 06 00 01 08 00 06 04 00 02 00 30 f1
-AR7     ar7_cpmac_read          cpmac0[TXINTSTATMASKED] (0x08610174) = 0x00000000
-AR7     ar7_cpmac_read          cpmac0[TXINTSTATMASKED] (0x08610174) = 0x00000000
-AR7     ar7_nic_receive         cpmac0 received 98 byte:  00 30 f1 df 5f 55 72 5b fa 57 da 21 08 00 45 00 00 54 00 00 40 00 40 01 b5
-AR7     ar7_nic_receive         my address to channel 0
-AR7     ar7_nic_receive         buffer 0x142ea8f0, next 0x142ea900, buff 0x141e3e60, params 0x20000000, len 0x0000060c
-AR7     ar7_cpmac_read          cpmac0[TXINTSTATMASKED] (0x08610174) = 0x00000000
-AR7     ar7_cpmac_write         cpmac0[RX0CP] (0x08610660) = 0x142ea8f0
-AR7     ar7_cpmac_write         cpmac0[MACEOIVECTOR] (0x08610184) = 0x00000000
-AR7     ar7_cpmac_read          cpmac0[TXINTSTATMASKED] (0x08610174) = 0x00000000 x 6
-AR7     ar7_cpmac_write         cpmac0[TX0HDP] (0x08610600) = 0x142ea8d0
-AR7     ar7_cpmac_write         buffer 0x142ea8d0, next 0x00000000, buff 0x14218340, params 0xe0000062, len 0x00000062, total 0x00000000
-AR7     ar7_cpmac_write         cpmac0 sent 98 byte:  72 5b fa 57 da 21 00 30 f1 df 5f 55 08 00 45 00 00 54 00 00 00 00 40 01 f5
-AR7     ar7_cpmac_read          cpmac0[TXINTSTATMASKED] (0x08610174) = 0x00000000
-
-
-AR7     ar7_nic_receive         cpmac0 received 42 byte:  ff ff ff ff ff ff 76 e4 0c 1a 83 31 08 06 00 01 08 00 06 04 00 01 76 e4 0c
-AR7     ar7_nic_receive         broadcast to channel 0
-AR7     ar7_nic_receive         short frame, flag = 0x0
-AR7     ar7_nic_receive         buffer 0x142ea8e0, next 0x142ea8f0, buff 0x141e37f0, params 0x20000000, len 0x0000060c
-AR7     ar7_cpmac_read          cpmac0[TXINTSTATMASKED] (0x08610174) = 0x00000000
-AR7     ar7_cpmac_write         cpmac0[RX0CP] (0x08610660) = 0x142ea8e0
-AR7     ar7_cpmac_write         cpmac0[MACEOIVECTOR] (0x08610184) = 0x00000000
-AR7     ar7_cpmac_write         cpmac0[TX0HDP] (0x08610600) = 0x142ea8d0
-AR7     ar7_cpmac_write         buffer 0x142ea8d0, next 0x00000000, buff 0x14217660, flags 0xe0000000, len 0x00000040, total 0x00000040
-AR7     ar7_cpmac_write         cpmac0 sent 64 byte:  76 e4 0c 1a 83 31 00 30 f1 df 5f 55 08 06 00 01 08 00 06 04 00 02 00 30 f1
-AR7     ar7_cpmac_read          cpmac0[TXINTSTATMASKED] (0x08610174) = 0x00000001
-AR7     ar7_cpmac_write         cpmac0[TX0CP] (0x08610640) = 0x142ea8d0
-AR7     ar7_cpmac_write         cpmac0[MACEOIVECTOR] (0x08610184) = 0x00000000
-AR7     ar7_nic_receive         cpmac0 received 98 byte:  00 30 f1 df 5f 55 76 e4 0c 1a 83 31 08 00 45 00 00 54 00 00 40 00 40 01 b5
-AR7     ar7_nic_receive         my address to channel 0
-AR7     ar7_nic_receive         buffer 0x142ea8f0, next 0x142ea900, buff 0x141e3e60, params 0x20000000, len 0x0000060c
-AR7     ar7_cpmac_read          cpmac0[TXINTSTATMASKED] (0x08610174) = 0x00000000
-AR7     ar7_cpmac_write         cpmac0[RX0CP] (0x08610660) = 0x142ea8f0
-AR7     ar7_cpmac_write         cpmac0[MACEOIVECTOR] (0x08610184) = 0x00000000
-AR7     ar7_cpmac_write         cpmac0[TX0HDP] (0x08610600) = 0x142ea8d0
-AR7     ar7_cpmac_write         buffer 0x142ea8d0, next 0x00000000, buff 0x14218340, flags 0xe0000000, len 0x00000062, total 0x00000062
-AR7     ar7_cpmac_write         cpmac0 sent 98 byte:  76 e4 0c 1a 83 31 00 30 f1 df 5f 55 08 00 45 00 00 54 00 00 00 00 40 01 f5
-AR7     ar7_cpmac_read          cpmac0[TXINTSTATMASKED] (0x08610174) = 0x00000001
-AR7     ar7_cpmac_write         cpmac0[TX0CP] (0x08610640) = 0x142ea8d0
-AR7     ar7_cpmac_write         cpmac0[MACEOIVECTOR] (0x08610184) = 0x00000000
-AR7     ar7_nic_receive         cpmac0 received 70 byte:  33 33 00 00 00 02 76 e4 0c 1a 83 31 86 dd 60 00 00 00 00 10 3a ff fe 80 00
-AR7     ar7_nic_receive         unknown address, frame ignored
-
-AR7     ar7_io_memread          addr 0x08610904 (gpio) = 0x00000080
-AR7     ar7_io_memwrite         addr 0x08610904 (gpio) = 0x00000000
-AR7     ar7_io_memread          addr 0x08610904 (gpio) = 0x00000000
-AR7     ar7_io_memwrite         addr 0x08610904 (gpio) = 0x00003600
-AR7     ar7_io_memread          addr 0x08610904 (gpio) = 0x00003600
-AR7     ar7_io_memwrite         addr 0x08610904 (gpio) = 0x00003680
-AR7     ar7_io_memread          addr 0x08610904 (gpio) = 0x00003680
-
-AR7     ar7_io_memwrite         addr 0x08610904 (gpio) = 0x00000080
-
-AR7     ar7_io_memread          addr 0x08610904 (gpio) = 0x00000080
-AR7     ar7_io_memwrite         addr 0x08610904 (gpio) = 0x00000000
-AR7     ar7_io_memread          addr 0x08610904 (gpio) = 0x00000000
-AR7     ar7_io_memwrite         addr 0x08610904 (gpio) = 0x00003600
-AR7     ar7_io_memread          addr 0x08610904 (gpio) = 0x00003600
-AR7     ar7_io_memwrite         addr 0x08610904 (gpio) = 0x00003680
-AR7     ar7_io_memread          addr 0x08610904 (gpio) = 0x00003680
-AR7     ar7_io_memwrite         addr 0x08610904 (gpio) = 0x00000080
-AR7     ar7_io_memread          addr 0x08610904 (gpio) = 0x00000080
-AR7     ar7_io_memwrite         addr 0x08610904 (gpio) = 0x00000000
-AR7     ar7_io_memread          addr 0x08610904 (gpio) = 0x00000000
-AR7     ar7_io_memwrite         addr 0x08610904 (gpio) = 0x00003600
 
 Offene Themen:
 
 Aufruf beim Reboot des Sinus 154 DSL Basic SE:
 AR7     io_readw                addr=0x00007640, val=0xffff
+
+do_interrupt in ar7_reset noch notwendig?
+
+gpio_display_init farbig
 
 */

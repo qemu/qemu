@@ -6165,6 +6165,7 @@ void register_machines(void)
     qemu_register_machine(&core99_machine);
     qemu_register_machine(&prep_machine);
 #elif defined(TARGET_MIPS)
+    qemu_register_ar7_machines();
     qemu_register_mips_machines();
 #elif defined(TARGET_SPARC)
 #ifdef TARGET_SPARC64

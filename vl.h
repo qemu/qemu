@@ -664,8 +664,6 @@ QEMUMachine *find_machine(const char *name);
 
 int qemu_register_machine(QEMUMachine *m);
 
-int qemu_register_mips_machines(void);
-
 typedef void SetIRQFunc(void *opaque, int irq_num, int level);
 typedef void IRQRequestFunc(void *opaque, int level);
 
@@ -1043,6 +1041,10 @@ extern QEMUMachine core99_machine;
 extern QEMUMachine heathrow_machine;
 
 /* mips_r4k.c */
+void mips_load_kernel(CPUState *env, int ram_size, const char *kernel_filename,
+                      const char *kernel_cmdline, const char *initrd_filename);
+int qemu_register_ar7_machines(void);
+int qemu_register_mips_machines(void);
 extern QEMUMachine mips_machine;
 
 /* mips_timer.c */
