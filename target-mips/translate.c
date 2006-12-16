@@ -1276,6 +1276,7 @@ static void gen_trap (DisasContext *ctx, uint32_t opc,
             GEN_LOAD_REG_TN(T1, rt);
             cond = 1;
         }
+        break;
     case OPC_TEQI:
     case OPC_TGEI:
     case OPC_TGEIU:
