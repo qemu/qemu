@@ -88,7 +88,7 @@ struct IoState {
 #define MDIO    1               /* polled, so very noisy */
 #define RESET   1
 #define UART0   0
-#define UART1   1
+#define UART1   0
 #define VLYNQ   1
 #define WDOG    1
 #define OTHER   1
@@ -101,7 +101,7 @@ struct IoState {
 
 #ifdef DEBUG_AR7
 #define logout(fmt, args...) fprintf(stderr, "AR7\t%-24s" fmt, __func__, ##args)
-//~ #define logout(fmt, args...) fprintf(stderr, "AR7\t%-24s%-32s" fmt, __func__, backtrace(), ##args)
+//~ #define logout(fmt, args...) fprintf(stderr, "AR7\t%-24s%-40.40s " fmt, __func__, backtrace(), ##args)
 #else
 #define logout(fmt, args...) ((void)0)
 #endif
@@ -252,6 +252,7 @@ typedef struct {
 typedef struct {
     CPUState *cpu_env;
     NICState nic[2];
+    uint16_t phy[32];
     CharDriverState *gpio_display;
     uint32_t intmask[2];
     uint8_t *cpmac[2];
@@ -1166,6 +1167,36 @@ static void ar7_machine_power_off(void)
 
 /*****************************************************************************
  *
+ * EMIF emulation.
+ *
+ ****************************************************************************/
+
+typedef enum {
+    EMIF_REV = 0x00,
+    EMIF_GASYNC = 0x04,
+    EMIF_DRAMCTL = 0x08,
+    EMIF_REFRESH = 0x0c,
+    EMIF_ASYNC_CS0 = 0x10,
+    EMIF_ASYNC_CS3 = 0x14,
+    EMIF_ASYNC_CS4 = 0x18,
+    EMIF_ASYNC_CS5 = 0x1c,
+} emif_t;
+
+static uint32_t ar7_emif_read(unsigned offset)
+{
+    uint32_t value = reg_read(av.emif, offset);
+    TRACE(EMIF, logout("emif[0x%02x] = %08x\n", offset, value));
+    return value;
+}
+
+static void ar7_emif_write(unsigned offset, uint32_t value)
+{
+    TRACE(EMIF, logout("emif[0x%02x] = %08x\n", offset, value));
+    reg_write(av.emif, offset, value);
+}
+
+/*****************************************************************************
+ *
  * GPIO emulation.
  *
  ****************************************************************************/
@@ -1419,25 +1450,6 @@ typedef enum {
     MDIO_USERPHYSEL_PHYADRMON = BITS(4, 0),
 } mdio_userphysel_bit_t;
 
-#if 0
-typedef struct {
-    uint32_t ver;               /* 0x00 */
-    uint32_t control;           /* 0x04 */
-    uint32_t alive;             /* 0x08 */
-    uint32_t link;              /* 0x0c */
-    uint32_t linkintraw;        /* 0x10 */
-    uint32_t linkintmasked;     /* 0x14 */
-    uint32_t dummy18[2];
-    uint32_t userintraw;        /* 0x20 */
-    uint32_t userintmasked;     /* 0x24 */
-    uint32_t userintmaskedset;  /* 0x28 */
-    uint32_t userintmaskedclr;  /* 0x2c */
-    uint32_t dummy30[20];
-    uint32_t useraccess0;       /* 0x80 */
-    uint32_t userphysel0;       /* 0x84 */
-} mdio_t;
-#endif
-
 typedef struct {
     uint32_t phy_control;
 #define PHY_CONTROL_REG       0
@@ -1468,43 +1480,164 @@ typedef struct {
 #define NWAY_AUTO           BIT(0)
 } mdio_user_t;
 
-#if 0
-bit32u control;
-
-control = MDIO_USERACCESS_GO |
-    (method) |
-    (((regadr) << 21) & MDIO_USERACCESS_REGADR) |
-    (((phyadr) << 16) & MDIO_USERACCESS_PHYADR) |
-    ((data) & MDIO_USERACCESS_DATA);
-
-myMDIO_USERACCESS = control;
-
-static bit32u _mdioUserAccessRead(PHY_DEVICE * PhyDev, bit32u regadr,
-                                  bit32u phyadr)
+static uint32_t phy_read(unsigned index)
 {
-
-    _mdioWaitForAccessComplete(PhyDev); /* Wait until UserAccess ready */
-    _mdioUserAccess(PhyDev, MDIO_USERACCESS_READ, regadr, phyadr, 0);
-    _mdioWaitForAccessComplete(PhyDev); /* Wait for Read to complete */
-
-    return (myMDIO_USERACCESS & MDIO_USERACCESS_DATA);
+    uint32_t val = reg_read(av.mdio, (index == 0) ? MDIO_USERACCESS0 : MDIO_USERACCESS1);
+    unsigned regaddr = (val & MDIO_USERACCESS_REGADR) >> 21;
+    unsigned phyaddr = (val & MDIO_USERACCESS_PHYADR) >> 16;
+    TRACE(MDIO,
+          logout
+          ("mdio[USERACCESS%u] = 0x%08x, reg = %u, phy = %u\n",
+           index, val, regaddr, phyaddr));
+    return val;
 }
 
+static void phy_write(unsigned index, uint32_t val)
+{
+    unsigned write = (val & MDIO_USERACCESS_WRITE) >> 30;
+    unsigned regaddr = (val & MDIO_USERACCESS_REGADR) >> 21;
+    unsigned phyaddr = (val & MDIO_USERACCESS_PHYADR) >> 16;
+    assert(regaddr < 32);
+    TRACE(MDIO,
+          logout
+          ("mdio[USERACCESS%u] = 0x%08x, write = %u, reg = %u, phy = %u\n",
+           index, val, write, regaddr, phyaddr));
+    if (val & MDIO_USERACCESS_GO) {
+        val &= MDIO_USERACCESS_DATA;
+        if (((index == 0 && phyaddr == 31) || (index == 1 && phyaddr == 0)) && regaddr < 32) {
+            phyaddr = 0;
+            if (write) {
+                //~ if ((regaddr == PHY_CONTROL_REG) && (val & PHY_RESET)) {
+                //~ 1000 7809 0000 0000 01e1 0001
+                //~ mdio_useraccess_data[0][PHY_CONTROL_REG] = 0x1000;
+                //~ mdio_useraccess_data[0][PHY_STATUS_REG] = 0x782d;
+                //~ mdio_useraccess_data[0][NWAY_ADVERTIZE_REG] = 0x01e1;
+                /* 100FD=Yes, 100HD=Yes, 10FD=Yes, 10HD=Yes */
+                //~ mdio_useraccess_data[0][NWAY_REMADVERTISE_REG] = 0x85e1;
+                //~ }
+                av.phy[regaddr] = val;
+            } else {
+                val = av.phy[regaddr];
+                if ((regaddr == PHY_CONTROL_REG) && (val & PHY_RESET)) {
+                    av.phy[regaddr] =
+                        ((val & ~PHY_RESET) | AUTO_NEGOTIATE_EN);
+                } else if ((regaddr == PHY_CONTROL_REG)
+                           && (val & RENEGOTIATE)) {
+                    val &= ~RENEGOTIATE;
+                    av.phy[regaddr] = val;
+                    //~ 0x0000782d 0x00007809
+                    av.phy[1] = 0x782d;
+                    av.phy[5] = av.phy[4] | PHY_ISOLATE | PHY_RESET;
+                    reg_write(av.mdio, MDIO_LINK, 0x80000000);
+                }
+            }
+        }
+    }
+
+    reg_write(av.mdio,
+              (index == 0) ? MDIO_USERACCESS0 : MDIO_USERACCESS1,
+              val);
+
+#if 0
+    uint8_t raiseint = (val & 0x20000000) >> 29;
+    uint8_t opcode = (val & 0x0c000000) >> 26;
+    uint8_t phy = (val & 0x03e00000) >> 21;
+    uint8_t reg = (val & 0x001f0000) >> 16;
+    uint16_t data = (val & 0x0000ffff);
+    if (phy != 1) {
+        /* Unsupported PHY address. */
+        //~ logout("phy must be 1 but is %u\n", phy);
+        data = 0;
+    } else if (opcode != 1 && opcode != 2) {
+        /* Unsupported opcode. */
+        logout("opcode must be 1 or 2 but is %u\n", opcode);
+        data = 0;
+    } else if (reg > 6) {
+        /* Unsupported register. */
+        logout("register must be 0...6 but is %u\n", reg);
+        data = 0;
+    } else {
+        TRACE(MDI, logout("val=0x%08x (int=%u, %s, phy=%u, %s, data=0x%04x\n",
+                          val, raiseint, mdi_op_name[opcode], phy,
+                          mdi_reg_name[reg], data));
+        if (opcode == 1) {
+            /* MDI write */
+            switch (reg) {
+            case 0:            /* Control Register */
+                if (data & 0x8000) {
+                    /* Reset status and control registers to default. */
+                    s->mdimem[0] = eepro100_mdi_default[0];
+                    s->mdimem[1] = eepro100_mdi_default[1];
+                    data = s->mdimem[reg];
+                } else {
+                    /* Restart Auto Configuration = Normal Operation */
+                    data &= ~0x0200;
+                }
+                break;
+            case 1:            /* Status Register */
+                missing("not writable");
+                data = s->mdimem[reg];
+                break;
+            case 2:            /* PHY Identification Register (Word 1) */
+            case 3:            /* PHY Identification Register (Word 2) */
+                missing("not implemented");
+                break;
+            case 4:            /* Auto-Negotiation Advertisement Register */
+            case 5:            /* Auto-Negotiation Link Partner Ability Register */
+                break;
+            case 6:            /* Auto-Negotiation Expansion Register */
+            default:
+                missing("not implemented");
+            }
+            s->mdimem[reg] = data;
+        } else if (opcode == 2) {
+            /* MDI read */
+            switch (reg) {
+            case 0:            /* Control Register */
+                if (data & 0x8000) {
+                    /* Reset status and control registers to default. */
+                    s->mdimem[0] = eepro100_mdi_default[0];
+                    s->mdimem[1] = eepro100_mdi_default[1];
+                }
+                break;
+            case 1:            /* Status Register */
+                s->mdimem[reg] |= 0x0020;
+                break;
+            case 2:            /* PHY Identification Register (Word 1) */
+            case 3:            /* PHY Identification Register (Word 2) */
+            case 4:            /* Auto-Negotiation Advertisement Register */
+                break;
+            case 5:            /* Auto-Negotiation Link Partner Ability Register */
+                s->mdimem[reg] = 0x41fe;
+                break;
+            case 6:            /* Auto-Negotiation Expansion Register */
+                s->mdimem[reg] = 0x0001;
+                break;
+            }
+            data = s->mdimem[reg];
+        }
+        /* Emulation takes no time to finish MDI transaction.
+         * Set MDI bit in SCB status register. */
+        s->mem[SCBAck] |= 0x08;
+        val |= BIT(28);
+        if (raiseint) {
+            eepro100_mdi_interrupt(s);
+        }
+    }
+    val = (val & 0xffff0000) + data;
+    memcpy(&s->mem[0x10], &val, sizeof(val));
 #endif
+}
 
-static uint32_t mdio_regaddr;
-static uint32_t mdio_phyaddr;
-static uint32_t mdio_data;
-
-static uint16_t mdio_useraccess_data[1][6] = {
-    {
-     AUTO_NEGOTIATE_EN,
-     0x7801 + NWAY_CAPABLE,     // + NWAY_COMPLETE + PHY_LINKED,
-     0x00000000,
-     0x00000000,
-     NWAY_FD100 + NWAY_HD100 + NWAY_FD10 + NWAY_HD10 + NWAY_AUTO,
-     NWAY_AUTO}
-};
+static void phy_enable(void)
+{
+    av.phy[0] = AUTO_NEGOTIATE_EN;
+    av.phy[1] = 0x7801 + NWAY_CAPABLE;     // + NWAY_COMPLETE + PHY_LINKED,
+    av.phy[2] = 0x00000000;
+    av.phy[3] = 0x00000000;
+    av.phy[4] = NWAY_FD100 + NWAY_HD100 + NWAY_FD10 + NWAY_HD10 + NWAY_AUTO;
+    av.phy[5] = NWAY_AUTO;
+}
 
 static uint32_t ar7_mdio_read(uint8_t *mdio, unsigned offset)
 {
@@ -1524,14 +1657,9 @@ static uint32_t ar7_mdio_read(uint8_t *mdio, unsigned offset)
             text = "LINK";
         }
     } else if (offset == MDIO_USERACCESS0) {
-        //~ mdio_regaddr = (val & MDIO_USERACCESS_REGADR) >> 21;
-        //~ mdio_phyaddr = (val & MDIO_USERACCESS_PHYADR) >> 16;
-        mdio_data = (val & MDIO_USERACCESS_DATA);
-        TRACE(MDIO,
-              logout
-              ("mdio[0x%02x] = 0x%08lx, reg = %u, phy = %u, data = 0x%04x\n",
-               offset, (unsigned long)val, mdio_regaddr, mdio_phyaddr,
-               mdio_data));
+        val = phy_read(0);
+    } else if (offset == MDIO_USERACCESS1) {
+        val = phy_read(1);
     } else {
         TRACE(MDIO, logout("mdio[0x%02x] = 0x%08x\n", offset, val));
     }
@@ -1548,55 +1676,29 @@ static void ar7_mdio_write(uint8_t *mdio, unsigned offset, uint32_t val)
         text = "VERSION";
         UNEXPECTED();
     } else if (offset == MDIO_CONTROL) {
+        uint32_t oldval = reg_read(mdio, offset);
         text = "CONTROL";
-    } else if (offset == MDIO_USERACCESS0 && (val & MDIO_USERACCESS_GO)) {
-        uint32_t write = (val & MDIO_USERACCESS_WRITE) >> 30;
-        mdio_regaddr = (val & MDIO_USERACCESS_REGADR) >> 21;
-        mdio_phyaddr = (val & MDIO_USERACCESS_PHYADR) >> 16;
-        mdio_data = (val & MDIO_USERACCESS_DATA);
-        TRACE(MDIO,
-              logout
-              ("mdio[0x%02x] = 0x%08lx, write = %u, reg = %u, phy = %u, data = 0x%04x\n",
-               offset, (unsigned long)val, write, mdio_regaddr, mdio_phyaddr,
-               mdio_data));
-        val &= MDIO_USERACCESS_DATA;
-        if (mdio_phyaddr == 31 && mdio_regaddr < 6) {
-            mdio_phyaddr = 0;
-            if (write) {
-                //~ if ((mdio_regaddr == PHY_CONTROL_REG) && (val & PHY_RESET)) {
-                //~ 1000 7809 0000 0000 01e1 0001
-                //~ mdio_useraccess_data[0][PHY_CONTROL_REG] = 0x1000;
-                //~ mdio_useraccess_data[0][PHY_STATUS_REG] = 0x782d;
-                //~ mdio_useraccess_data[0][NWAY_ADVERTIZE_REG] = 0x01e1;
-                /* 100FD=Yes, 100HD=Yes, 10FD=Yes, 10HD=Yes */
-                //~ mdio_useraccess_data[0][NWAY_REMADVERTISE_REG] = 0x85e1;
-                //~ }
-                mdio_useraccess_data[mdio_phyaddr][mdio_regaddr] = val;
+        if ((val ^ oldval) & MDIO_CONTROL_ENABLE) {
+            if (val & MDIO_CONTROL_ENABLE) {
+              TRACE(MDIO, logout("enable MDIO state machine\n"));
+              phy_enable();
             } else {
-                val = mdio_useraccess_data[mdio_phyaddr][mdio_regaddr];
-                if ((mdio_regaddr == PHY_CONTROL_REG) && (val & PHY_RESET)) {
-                    mdio_useraccess_data[mdio_phyaddr][mdio_regaddr] =
-                        ((val & ~PHY_RESET) | AUTO_NEGOTIATE_EN);
-                } else if ((mdio_regaddr == PHY_CONTROL_REG)
-                           && (val & RENEGOTIATE)) {
-                    val &= ~RENEGOTIATE;
-                    mdio_useraccess_data[mdio_phyaddr][mdio_regaddr] = val;
-                    //~ 0x0000782d 0x00007809
-                    mdio_useraccess_data[mdio_phyaddr][1] = 0x782d;
-                    mdio_useraccess_data[mdio_phyaddr][5] =
-                        mdio_useraccess_data[mdio_phyaddr][4] | PHY_ISOLATE |
-                        PHY_RESET;
-                    reg_write(mdio, MDIO_LINK, 0x80000000);
-                }
+              TRACE(MDIO, logout("disable MDIO state machine\n"));
             }
         }
+        //~ reg_write(av.mdio, MDIO_ALIVE, BIT(31));
+        reg_write(mdio, offset, val);
+    } else if (offset == MDIO_USERACCESS0) {
+        phy_write(0, val);
+    } else if (offset == MDIO_USERACCESS1) {
+        phy_write(1, val);
     } else {
         TRACE(MDIO, logout("mdio[0x%02x] = 0x%08x\n", offset, val));
+        reg_write(mdio, offset, val);
     }
     if (text) {
         TRACE(MDIO, logout("mdio[%s] = 0x%08x\n", text, val));
     }
-    reg_write(mdio, offset, val);
 }
 
 /*****************************************************************************
@@ -2148,9 +2250,9 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
         logflag = 0;
         val = ar7_cpmac_read(0, addr - AVALANCHE_CPMAC0_BASE);
     } else if (INRANGE(AVALANCHE_EMIF_BASE, av.emif)) {
-        name = "emif";
-        logflag = EMIF;
-        val = VALUE(AVALANCHE_EMIF_BASE, av.emif);
+        //~ name = "emif";
+        logflag = 0;
+        val = ar7_emif_read(addr - AVALANCHE_EMIF_BASE);
     } else if (INRANGE(AVALANCHE_GPIO_BASE, av.gpio)) {
         //~ name = "gpio";
         logflag = 0;
@@ -2222,7 +2324,7 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
         //~ name = "???";
         logflag = 0;
         {
-            logout("addr 0x%08x (???" ") = 0x%08x, caller %s\n", addr, val, backtrace());
+            logout("addr 0x%08x (???" ") = 0x%08x\n", addr, val);
             MISSING();
         }
     }
@@ -2270,9 +2372,9 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
         logflag = 0;
         ar7_cpmac_write(0, addr - AVALANCHE_CPMAC0_BASE, val);
     } else if (INRANGE(AVALANCHE_EMIF_BASE, av.emif)) {
-        name = "emif";
-        logflag = EMIF;
-        VALUE(AVALANCHE_EMIF_BASE, av.emif) = val;
+        //~ name = "emif";
+        logflag = 0;
+        ar7_emif_write(addr - AVALANCHE_EMIF_BASE, val);
     } else if (INRANGE(AVALANCHE_GPIO_BASE, av.gpio)) {
         //~ name = "gpio";
         logflag = 0;
@@ -2348,7 +2450,7 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
         //~ name = "???";
         logflag = 0;
         {
-            logout("addr 0x%08x (???" ") = 0x%08x, caller %s\n", addr, val, backtrace());
+            logout("addr 0x%08x (???" ") = 0x%08x\n", addr, val);
             MISSING();
         }
     }
@@ -2634,10 +2736,11 @@ static void ar7_save(QEMUFile * f, void *opaque)
 
 static void ar7_reset(void *opaque)
 {
-    CPUState *env = opaque;
+    //~ CPUState *env = opaque;
     logout("%s:%u\n", __FILE__, __LINE__);
-    env->exception_index = EXCP_RESET;
-    do_interrupt(env);
+    //~ env->exception_index = EXCP_RESET;
+    //~ env->exception_index = EXCP_SRESET;
+    //~ do_interrupt(env);
     //~ env->CP0_Cause |= 0x00000400;
     //~ cpu_interrupt(env, CPU_INTERRUPT_RESET);
 }
@@ -2654,14 +2757,14 @@ void ar7_init(CPUState * env)
     assert(bigendian == 0);
     bigendian = env->bigendian;
     assert(bigendian == 0);
-    logout("setting endianness %d\n", bigendian);
+    //~ logout("setting endianness %d\n", bigendian);
     ar7_serial_init(env);
     gpio_display_init(env, "vc");
     ar7_nic_init();
     reg_write(av.gpio, GPIO_IN, 0x0800);
     reg_write(av.mdio, MDIO_VERSION, 0x00070101);
     reg_write(av.mdio, MDIO_CONTROL, MDIO_CONTROL_IDLE | BIT(24) | BITS(7, 0));
-    reg_write(av.mdio, MDIO_ALIVE, BIT(31));
+    //~ reg_write(av.mdio, MDIO_ALIVE, BIT(31));
     //~ for (offset = 0; offset < 0x2800; offset += 0x100) {
     //~ if (offset == 0xe00) continue;
     //~ if (offset == 0xf00) continue;
@@ -2980,8 +3083,15 @@ Offene Themen:
 Aufruf beim Reboot des Sinus 154 DSL Basic SE:
 AR7     io_readw                addr=0x00007640, val=0xffff
 
-do_interrupt in ar7_reset noch notwendig?
-
 gpio_display_init farbig
+
+gpio bits:
+avm 2.6.13.1: reset=12, clock=13, store=10, data=9
+
+AR7     ar7_mdio_read           [cpphy_mdio_wait_for_access_complete][cpmdio[USERACCESS1] = 0x00000000, reg = 0, phy = 0, data = 0x0000
+AR7     ar7_mdio_write          [cpphy_mdio_user_access][cpphy_mdio_usermdio[USERACCESS1] = 0x80200000
+AR7     ar7_mdio_read           [cpphy_mdio_wait_for_access_complete][cpmdio[USERACCESS1] = 0x80200000, reg = 0, phy = 0, data = 0x0000
+AR7     ar7_mdio_read           [cpphy_mdio_wait_for_access_complete][cpmdio[USERACCESS1] = 0x80200000, reg = 0, phy = 0, data = 0x0000
+AR7     ar7_mdio_read           [cpphy_mdio_wait_for_access_complete][cpmdio[USERACCESS1] = 0x80200000, reg = 0, phy = 0, data = 0x0000
 
 */
