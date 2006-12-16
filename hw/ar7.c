@@ -389,20 +389,36 @@ static void reg_set(uint8_t * reg, uint32_t addr, uint32_t value)
 static void ar7_irq(void *opaque, int irq_num, int level)
 {
     CPUState *cpu_env = first_cpu;
+    unsigned channel = irq_num - 8;
     assert(cpu_env == av.cpu_env);
 
-    switch (irq_num) {
-    case 15:                   /* serial0 */
-    case 16:                   /* serial1 */
-    case 27:                   /* cpmac0 */
-    case 29:                   /* vlynq0 ??? */
-    case 32:                   /* usbslave ??? */
-    case 33:                   /* vlynq1 ??? */
-    case 36:                   /* phy ??? */
-    case 41:                   /* cpmac1 */ // ??? 36
-    case 47:                   /* adslss ??? */
+    switch (channel) {
+      /* primary interrupts 1 ... 39 */
+    case  1:    /* ext0 ??? */
+    case  2:    /* ext1 ??? */
+    case  5:    /* timer0 ??? */
+    case  6:    /* timer1 ??? */
+    case  7:    /* serial0 */
+    case  8:    /* serial1 */
+    case  9:    /* dma0 ??? */
+    case 10:    /* dma1 ??? */
+    case 15:    /* atmsar ??? */
+    case 19:    /* cpmac0 */
+    case 21:    /* vlynq0 ??? */
+    case 22:    /* codec ??? */
+    case 24:    /* usbslave ??? */
+    case 25:    /* vlynq1 ??? */
+    case 28:    /* phy ??? */
+    case 29:    /* i2c ??? */
+    case 30:    /* dma2 ??? */
+    case 31:    /* dma3 ??? */
+    case 33:    /* cpmac1 */
+    case 37:    /* vdma rx ??? */
+    case 38:    /* vdma tx ??? */
+    case 39:    /* adslss ??? */
+      /* secondary interrupts 40 ... 71 */
+    case 47:    /* emif ??? */
         if (level) {
-            unsigned channel = irq_num - 8;
             if (channel < 32) {
                 if (av.intmask[0] & (1 << channel)) {
                     //~ logout("(%p,%d,%d)\n", opaque, irq_num, level);
