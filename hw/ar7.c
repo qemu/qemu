@@ -239,8 +239,6 @@ typedef struct {
     //~ uint8_t dcfg;
     //~ uint8_t imr;
     uint8_t phys[6];            /* mac address */
-    //~ uint32_t txhdp[8];
-    uint32_t rxhdp[8];
     //~ uint8_t curpag;
     //~ uint8_t mult[8]; /* multicast mask array */
     //~ int irq;
@@ -266,7 +264,7 @@ typedef struct {
     uint32_t vlynq1mem[0x10800];        // 0x0c000000
 
     uint8_t cpmac0[0x800];      // 0x08610000
-    uint32_t emif[0x40];        // 0x08610800
+    uint8_t emif[0x100];        // 0x08610800
     uint8_t gpio[32];           // 0x08610900
     uint32_t gpio_dummy[0x38];
     uint32_t clock_control[0x40];       // 0x08610a00
@@ -948,6 +946,7 @@ static void emac_transmit(unsigned index, unsigned offset, uint32_t address)
             qemu_send_packet(av.nic[index].vc, buffer, length);
         }
         statusreg_inc(index, CPMAC_TXGOODFRAMES);
+        reg_write(cpmac, offset, next);
         reg_write(cpmac, CPMAC_TX0CP + 4 * channel, address);
         reg_set(cpmac, CPMAC_TXINTSTATRAW, 1 << channel);
         emac_update_interrupt(index);
@@ -988,7 +987,7 @@ static void ar7_cpmac_write(unsigned index, unsigned offset,
         emac_update_interrupt(index);
     } else if (offset == CPMAC_RXTEARDOWN) {
         uint32_t channel = val;
-        uint32_t rxhdp = av.nic[index].rxhdp[channel];
+        uint32_t rxhdp = reg_read(cpmac, CPMAC_RX0HDP + 4 * channel);
         assert(channel < 8);
         channel &= BITS(2, 0);
         if (rxhdp != 0) {
@@ -998,7 +997,6 @@ static void ar7_cpmac_write(unsigned index, unsigned offset,
             stl_phys(rxhdp + offsetof(cpphy_rcb_t, mode), flags);
         }
         reg_write(cpmac, CPMAC_RX0HDP + 4 * channel, 0);
-        av.nic[index].rxhdp[channel] = 0;
         reg_write(cpmac, CPMAC_RX0CP + 4 * channel, 0xfffffffc);
         reg_set(cpmac, CPMAC_RXINTSTATRAW, 1 << channel);
         emac_update_interrupt(index);
@@ -1076,9 +1074,7 @@ static void ar7_cpmac_write(unsigned index, unsigned offset,
         /* Transmit buffer. */
         emac_transmit(index, offset, val);
     } else if (offset >= CPMAC_RX0HDP && offset <= CPMAC_RX7HDP) {
-        uint8_t channel = (offset - CPMAC_RX0HDP) / 4;
         reg_write(cpmac, offset, val);
-        av.nic[index].rxhdp[channel] = val;
     } else if (offset >= CPMAC_TX0CP && offset <= CPMAC_TX7CP) {
         uint8_t channel = (offset - CPMAC_TX0CP) / 4;
         uint32_t oldval = reg_read(cpmac, offset);
@@ -1637,6 +1633,7 @@ static void phy_enable(void)
     av.phy[3] = 0x00000000;
     av.phy[4] = NWAY_FD100 + NWAY_HD100 + NWAY_FD10 + NWAY_HD10 + NWAY_AUTO;
     av.phy[5] = NWAY_AUTO;
+    reg_write(av.mdio, MDIO_ALIVE, BIT(31));
 }
 
 static uint32_t ar7_mdio_read(uint8_t *mdio, unsigned offset)
@@ -1686,7 +1683,6 @@ static void ar7_mdio_write(uint8_t *mdio, unsigned offset, uint32_t val)
               TRACE(MDIO, logout("disable MDIO state machine\n"));
             }
         }
-        //~ reg_write(av.mdio, MDIO_ALIVE, BIT(31));
         reg_write(mdio, offset, val);
     } else if (offset == MDIO_USERACCESS0) {
         phy_write(0, val);
@@ -2645,7 +2641,7 @@ static void ar7_nic_receive(void *opaque, const uint8_t * buf, int size)
     statusreg_inc(index, CPMAC_RXGOODFRAMES);
 
     assert(channel < 8);
-    uint32_t val = av.nic[index].rxhdp[channel];
+    uint32_t val = reg_read(cpmac, CPMAC_RX0HDP + 4 * channel);
     if (val == 0) {
         TRACE(RXTX, logout("no buffer available, frame ignored\n"));
     } else {
@@ -2672,7 +2668,7 @@ static void ar7_nic_receive(void *opaque, const uint8_t * buf, int size)
             rcb.mode = cpu_to_le32(mode);
             cpu_physical_memory_write(addr, buf, size);
             cpu_physical_memory_write(val, (uint8_t *) & rcb, sizeof(rcb));
-            av.nic[index].rxhdp[channel] = rcb.next;
+            reg_write(cpmac, CPMAC_RX0HDP + 4 * channel, rcb.next);
             reg_write(cpmac, CPMAC_RX0CP + 4 * channel, val);
             reg_set(cpmac, CPMAC_RXINTSTATRAW, 1 << channel);
             emac_update_interrupt(index);
