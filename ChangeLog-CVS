@@ -1,3 +1,8 @@
+2006-12-16 17:45  ths
+
+	* target-mips/translate.c: Fix erraneous fallthrough in MIPS trap
+	  implementation, thanks Atsushi Nemoto.
+
 2006-12-14 15:48  ths
 
 	* tests/: Makefile, hello-mips.c: Simple test for mips/mipsel,
