@@ -42,6 +42,7 @@
 //#define DEBUG_TB_INVALIDATE
 //#define DEBUG_FLUSH
 //#define DEBUG_TLB
+//#define DEBUG_UNASSIGNED
 
 /* make various TB consistency checks */
 //#define DEBUG_TB_CHECK 
@@ -1814,11 +1815,17 @@ uint32_t cpu_get_physical_page_desc(target_phys_addr_t addr)
 
 static uint32_t unassigned_mem_readb(void *opaque, target_phys_addr_t addr)
 {
+#ifdef DEBUG_UNASSIGNED
+    printf("Unassigned mem read  0x%08x\n", (int)addr);
+#endif
     return 0;
 }
 
 static void unassigned_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
+#ifdef DEBUG_UNASSIGNED
+    printf("Unassigned mem write 0x%08x = 0x%x\n", (int)addr, val);
+#endif
 }
 
 static CPUReadMemoryFunc *unassigned_mem_read[3] = {
