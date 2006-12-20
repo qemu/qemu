@@ -22,6 +22,8 @@ interp_prefix="/usr/gnemul/qemu-%M"
 static="no"
 cross_prefix=""
 cc="gcc"
+gcc3_search="yes"
+gcc3_list="gcc-3.4 gcc34 gcc-3.3 gcc33 gcc-3.2 gcc32"
 host_cc="gcc"
 ar="ar"
 make="make"
@@ -178,6 +180,7 @@ for opt do
   --cross-prefix=*) cross_prefix="$optarg"
   ;;
   --cc=*) cc="$optarg"
+  gcc3_search="no"
   ;;
   --host-cc=*) host_cc="$optarg"
   ;;
@@ -314,6 +317,45 @@ if test "$mingw32" = "yes" ; then
     fi
 fi
 
+# Check for gcc4, error if pre-gcc4 
+if test "$check_gcc" = "yes" ; then
+    cat > $TMPC <<EOF
+#if __GNUC__ < 4
+#error gcc3
+#endif
+int main(){return 0;}
+EOF
+    check_cc() {
+	which "$1" >&/dev/null
+	return $?
+    }
+
+    if "$cc" -o $TMPE $TMPC 2>/dev/null ; then
+	echo "WARNING: \"$cc\" looks like gcc 4.x"
+	found_compat_cc="no"
+	if test "$gcc3_search" = "yes" ; then
+	    echo "Looking for gcc 3.x"
+	    for compat_cc in $gcc3_list ; do
+		if check_cc "$compat_cc" ; then
+		    echo "Found \"$compat_cc\""
+		    cc="$compat_cc"
+		    found_compat_cc="yes"
+		    break
+		fi
+	    done
+	    if test "$found_compat_cc" = "no" ; then
+		echo "gcc 3.x not found!"
+	    fi
+	fi
+	if test "$found_compat_cc" = "no" ; then
+	    echo "QEMU is known to have problems when compiled with gcc 4.x"
+	    echo "It is recommended that you use gcc 3.x to build QEMU"
+	    echo "To use this compiler anyway, configure with --disable-gcc-check"
+	    exit 1;
+	fi
+    fi
+fi
+
 #
 # Solaris specific configure tool chain decisions
 #
@@ -414,23 +456,6 @@ EOF
 have_gcc3_options="no"
 if $cc -fno-reorder-blocks -fno-optimize-sibling-calls -o $TMPO $TMPC 2> /dev/null ; then
    have_gcc3_options="yes"
-fi
-
-# Check for gcc4, error if pre-gcc4 
-if test "$check_gcc" = "yes" ; then
-    cat > $TMPC <<EOF
-#if __GNUC__ < 4
-#error gcc3
-#endif
-int main(){return 0;}
-EOF
-    if $cc -o $TMPO $TMPC 2>/dev/null ; then
-        echo "ERROR: \"$cc\" looks like gcc 4.x"
-        echo "QEMU is known to have problems when compiled with gcc 4.x"
-        echo "It is recommended that you use gcc 3.x to build QEMU"
-        echo "To use this compiler anyway, configure with --disable-gcc-check"
-        exit 1;
-    fi
 fi
 
 ##########################################

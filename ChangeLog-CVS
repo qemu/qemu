@@ -1,3 +1,7 @@
+2006-12-19 04:31  pbrook
+
+	* configure: Look for gcc3 (Anthony Liguori).
+
 2006-12-18 06:03  pbrook
 
 	* exec.c: Add unassigned memory debugging code.
