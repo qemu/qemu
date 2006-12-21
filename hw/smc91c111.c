@@ -159,7 +159,6 @@ static void smc91c111_do_tx(smc91c111_state *s)
     int len;
     int control;
     int add_crc;
-    uint32_t crc;
     int packetnum;
     uint8_t *p;
 
@@ -192,6 +191,8 @@ static void smc91c111_do_tx(smc91c111_state *s)
            about.  */
         add_crc = (control & 0x10) || (s->tcr & TCR_NOCRC) == 0;
         if (add_crc) {
+            uint32_t crc;
+
             crc = crc32(~0, p, len);
             memcpy(p + len, &crc, 4);
             len += 4;
