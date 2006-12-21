@@ -499,6 +499,8 @@ tcp_connect(inso)
 	setsockopt(s,SOL_SOCKET,SO_REUSEADDR,(char *)&opt,sizeof(int));
 	opt = 1;
 	setsockopt(s,SOL_SOCKET,SO_OOBINLINE,(char *)&opt,sizeof(int));
+	opt = 1;
+	setsockopt(s,IPPROTO_TCP,TCP_NODELAY,(char *)&opt,sizeof(int));
 	
 	so->so_fport = addr.sin_port;
 	so->so_faddr = addr.sin_addr;

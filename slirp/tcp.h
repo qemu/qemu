@@ -112,7 +112,7 @@ struct tcphdr {
 /*
  * User-settable options (used with setsockopt).
  */
-/* #define	TCP_NODELAY	0x01 */	/* don't delay send to coalesce packets */
+#define	TCP_NODELAY	0x01	/* don't delay send to coalesce packets */
 /* #define	TCP_MAXSEG	0x02 */	/* set maximum segment size */
 
 /*
