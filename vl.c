@@ -2206,6 +2206,7 @@ static void udp_chr_add_read_handler(CharDriverState *chr,
 }
 
 int parse_host_port(struct sockaddr_in *saddr, const char *str);
+int parse_unix_path(struct sockaddr_un *uaddr, const char *str);
 int parse_host_src_port(struct sockaddr_in *haddr,
                         struct sockaddr_in *saddr,
                         const char *str);
@@ -2270,6 +2271,7 @@ typedef struct {
     int connected;
     int max_size;
     int do_telnetopt;
+    int is_unix;
 } TCPCharDriver;
 
 static void tcp_chr_accept(void *opaque);
@@ -2291,6 +2293,8 @@ static int tcp_chr_read_poll(void *opaque)
     TCPCharDriver *s = chr->opaque;
     if (!s->connected)
         return 0;
+    if (!s->fd_can_read)
+	return 0;
     s->max_size = s->fd_can_read(s->fd_opaque);
     return s->max_size;
 }
@@ -2416,12 +2420,25 @@ static void tcp_chr_accept(void *opaque)
     CharDriverState *chr = opaque;
     TCPCharDriver *s = chr->opaque;
     struct sockaddr_in saddr;
+#ifndef _WIN32
+    struct sockaddr_un uaddr;
+#endif
+    struct sockaddr *addr;
     socklen_t len;
     int fd;
 
     for(;;) {
-        len = sizeof(saddr);
-        fd = accept(s->listen_fd, (struct sockaddr *)&saddr, &len);
+#ifndef _WIN32
+	if (s->is_unix) {
+	    len = sizeof(uaddr);
+	    addr = (struct sockaddr *)&uaddr;
+	} else
+#endif
+	{
+	    len = sizeof(saddr);
+	    addr = (struct sockaddr *)&saddr;
+	}
+        fd = accept(s->listen_fd, addr, &len);
         if (fd < 0 && errno != EINTR) {
             return;
         } else if (fd >= 0) {
@@ -2447,7 +2464,8 @@ static void tcp_chr_close(CharDriverState *chr)
 }
 
 static CharDriverState *qemu_chr_open_tcp(const char *host_str, 
-                                          int is_telnet)
+                                          int is_telnet,
+					  int is_unix)
 {
     CharDriverState *chr = NULL;
     TCPCharDriver *s = NULL;
@@ -2456,9 +2474,26 @@ static CharDriverState *qemu_chr_open_tcp(const char *host_str,
     int is_waitconnect = 1;
     const char *ptr;
     struct sockaddr_in saddr;
+#ifndef _WIN32
+    struct sockaddr_un uaddr;
+#endif
+    struct sockaddr *addr;
+    socklen_t addrlen;
 
-    if (parse_host_port(&saddr, host_str) < 0)
-        goto fail;
+#ifndef _WIN32
+    if (is_unix) {
+	addr = (struct sockaddr *)&uaddr;
+	addrlen = sizeof(uaddr);
+	if (parse_unix_path(&uaddr, host_str) < 0)
+	    goto fail;
+    } else
+#endif
+    {
+	addr = (struct sockaddr *)&saddr;
+	addrlen = sizeof(saddr);
+	if (parse_host_port(&saddr, host_str) < 0)
+	    goto fail;
+    }
 
     ptr = host_str;
     while((ptr = strchr(ptr,','))) {
@@ -2481,8 +2516,14 @@ static CharDriverState *qemu_chr_open_tcp(const char *host_str,
     s = qemu_mallocz(sizeof(TCPCharDriver));
     if (!s)
         goto fail;
-    
-    fd = socket(PF_INET, SOCK_STREAM, 0);
+
+#ifndef _WIN32
+    if (is_unix)
+	fd = socket(PF_UNIX, SOCK_STREAM, 0);
+    else
+#endif
+	fd = socket(PF_INET, SOCK_STREAM, 0);
+	
     if (fd < 0) 
         goto fail;
 
@@ -2492,24 +2533,43 @@ static CharDriverState *qemu_chr_open_tcp(const char *host_str,
     s->connected = 0;
     s->fd = -1;
     s->listen_fd = -1;
+    s->is_unix = is_unix;
+
+    chr->opaque = s;
+    chr->chr_write = tcp_chr_write;
+    chr->chr_add_read_handler = tcp_chr_add_read_handler;
+    chr->chr_close = tcp_chr_close;
+
     if (is_listen) {
         /* allow fast reuse */
-        val = 1;
-        setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (const char *)&val, sizeof(val));
+#ifndef _WIN32
+	if (is_unix) {
+	    char path[109];
+	    strncpy(path, uaddr.sun_path, 108);
+	    path[108] = 0;
+	    unlink(path);
+	} else
+#endif
+	{
+	    val = 1;
+	    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (const char *)&val, sizeof(val));
+	}
         
-        ret = bind(fd, (struct sockaddr *)&saddr, sizeof(saddr));
-        if (ret < 0) 
+        ret = bind(fd, addr, addrlen);
+        if (ret < 0)
             goto fail;
+
         ret = listen(fd, 0);
         if (ret < 0)
             goto fail;
+
         s->listen_fd = fd;
         qemu_set_fd_handler(s->listen_fd, tcp_chr_accept, NULL, chr);
         if (is_telnet)
             s->do_telnetopt = 1;
     } else {
         for(;;) {
-            ret = connect(fd, (struct sockaddr *)&saddr, sizeof(saddr));
+            ret = connect(fd, addr, addrlen);
             if (ret < 0) {
                 err = socket_error();
                 if (err == EINTR || err == EWOULDBLOCK) {
@@ -2530,10 +2590,6 @@ static CharDriverState *qemu_chr_open_tcp(const char *host_str,
             qemu_set_fd_handler(s->fd, NULL, tcp_chr_connect, chr);
     }
     
-    chr->opaque = s;
-    chr->chr_write = tcp_chr_write;
-    chr->chr_add_read_handler = tcp_chr_add_read_handler;
-    chr->chr_close = tcp_chr_close;
     if (is_listen && is_waitconnect) {
         printf("QEMU waiting for connection on: %s\n", host_str);
         tcp_chr_accept(chr);
@@ -2559,16 +2615,18 @@ CharDriverState *qemu_chr_open(const char *filename)
         return qemu_chr_open_null();
     } else 
     if (strstart(filename, "tcp:", &p)) {
-        return qemu_chr_open_tcp(p, 0);
+        return qemu_chr_open_tcp(p, 0, 0);
     } else
     if (strstart(filename, "telnet:", &p)) {
-        return qemu_chr_open_tcp(p, 1);
+        return qemu_chr_open_tcp(p, 1, 0);
     } else
     if (strstart(filename, "udp:", &p)) {
         return qemu_chr_open_udp(p);
     } else
 #ifndef _WIN32
-    if (strstart(filename, "file:", &p)) {
+    if (strstart(filename, "unix:", &p)) {
+	return qemu_chr_open_tcp(p, 0, 1);
+    } else if (strstart(filename, "file:", &p)) {
         return qemu_chr_open_file_out(p);
     } else if (strstart(filename, "pipe:", &p)) {
         return qemu_chr_open_pipe(p);
@@ -2740,6 +2798,24 @@ int parse_host_port(struct sockaddr_in *saddr, const char *str)
     if (r == p)
         return -1;
     saddr->sin_port = htons(port);
+    return 0;
+}
+
+int parse_unix_path(struct sockaddr_un *uaddr, const char *str)
+{
+    const char *p;
+    int len;
+
+    len = MIN(108, strlen(str));
+    p = strchr(str, ',');
+    if (p)
+	len = MIN(len, p - str);
+
+    memset(uaddr, 0, sizeof(*uaddr));
+
+    uaddr->sun_family = AF_UNIX;
+    memcpy(uaddr->sun_path, str, len);
+
     return 0;
 }
 
@@ -6955,6 +7031,7 @@ int main(int argc, char **argv)
             vm_start();
         }
     }
+
     main_loop();
     quit_timers();
     return 0;

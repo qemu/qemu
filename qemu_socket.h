@@ -19,6 +19,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#include <sys/un.h>
 
 #define socket_error() errno
 #define closesocket(s) close(s)
