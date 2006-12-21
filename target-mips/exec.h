@@ -3,6 +3,7 @@
 
 //#define DEBUG_OP
 
+#include "config.h"
 #include "mips-defs.h"
 #include "dyngen-exec.h"
 
@@ -16,9 +17,15 @@ typedef int32_t host_int_t;
 typedef uint32_t host_uint_t;
 #endif
 
+#if TARGET_LONG_BITS > HOST_LONG_BITS
+#define T0 (env->t0)
+#define T1 (env->t1)
+#define T2 (env->t2)
+#else
 register host_uint_t T0 asm(AREG1);
 register host_uint_t T1 asm(AREG2);
 register host_uint_t T2 asm(AREG3);
+#endif
 
 #if defined (USE_HOST_FLOAT_REGS)
 #error "implement me."
@@ -58,13 +65,36 @@ static inline void regs_to_env(void)
 {
 }
 
-#if (HOST_LONG_BITS == 32)
+#ifdef MIPS_HAS_MIPS64
+#if TARGET_LONG_BITS > HOST_LONG_BITS
+void do_dsll (void);
+void do_dsll32 (void);
+void do_dsra (void);
+void do_dsra32 (void);
+void do_dsrl (void);
+void do_dsrl32 (void);
+void do_drotr (void);
+void do_drotr32 (void);
+void do_dsllv (void);
+void do_dsrav (void);
+void do_dsrlv (void);
+void do_drotrv (void);
+#endif
+#endif
+
+#if TARGET_LONG_BITS > HOST_LONG_BITS
 void do_mult (void);
 void do_multu (void);
 void do_madd (void);
 void do_maddu (void);
 void do_msub (void);
 void do_msubu (void);
+void do_ddiv (void);
+void do_ddivu (void);
+#endif
+#ifdef MIPS_HAS_MIPS64
+void do_dmult (void);
+void do_dmultu (void);
 #endif
 void do_mfc0_random(void);
 void do_mfc0_count(void);
@@ -86,6 +116,12 @@ void do_lwl_raw (uint32_t);
 void do_lwr_raw (uint32_t);
 uint32_t do_swl_raw (uint32_t);
 uint32_t do_swr_raw (uint32_t);
+#ifdef MIPS_HAS_MIPS64
+void do_ldl_raw (uint64_t);
+void do_ldr_raw (uint64_t);
+uint64_t do_sdl_raw (uint64_t);
+uint64_t do_sdr_raw (uint64_t);
+#endif
 #if !defined(CONFIG_USER_ONLY)
 void do_lwl_user (uint32_t);
 void do_lwl_kernel (uint32_t);
@@ -95,6 +131,16 @@ uint32_t do_swl_user (uint32_t);
 uint32_t do_swl_kernel (uint32_t);
 uint32_t do_swr_user (uint32_t);
 uint32_t do_swr_kernel (uint32_t);
+#ifdef MIPS_HAS_MIPS64
+void do_ldl_user (uint64_t);
+void do_ldl_kernel (uint64_t);
+void do_ldr_user (uint64_t);
+void do_ldr_kernel (uint64_t);
+uint64_t do_sdl_user (uint64_t);
+uint64_t do_sdl_kernel (uint64_t);
+uint64_t do_sdr_user (uint64_t);
+uint64_t do_sdr_kernel (uint64_t);
+#endif
 #endif
 void do_pmon (int function);
 

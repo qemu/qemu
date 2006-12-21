@@ -86,7 +86,7 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
 #endif
     if (user_mode && address > 0x7FFFFFFFUL)
         return TLBRET_BADADDR;
-    if (address < 0x80000000UL) {
+    if (address < SIGN_EXTEND32(0x80000000UL)) {
         if (!(env->hflags & MIPS_HFLAG_ERL)) {
 #ifdef MIPS_USES_R4K_TLB
             ret = map_address(env, physical, prot, address, rw, access_type);
@@ -98,17 +98,17 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
             *physical = address;
             *prot = PAGE_READ | PAGE_WRITE;
         }
-    } else if (address < 0xA0000000UL) {
+    } else if (address < SIGN_EXTEND32(0xA0000000UL)) {
         /* kseg0 */
         /* XXX: check supervisor mode */
-        *physical = address - 0x80000000UL;
+        *physical = address - SIGN_EXTEND32(0x80000000UL);
         *prot = PAGE_READ | PAGE_WRITE;
-    } else if (address < 0xC0000000UL) {
+    } else if (address < SIGN_EXTEND32(0xC0000000UL)) {
         /* kseg1 */
         /* XXX: check supervisor mode */
-        *physical = address - 0xA0000000UL;
+        *physical = address - SIGN_EXTEND32(0xA0000000UL);
         *prot = PAGE_READ | PAGE_WRITE;
-    } else if (address < 0xE0000000UL) {
+    } else if (address < SIGN_EXTEND32(0xE0000000UL)) {
         /* kseg2 */
 #ifdef MIPS_USES_R4K_TLB
         ret = map_address(env, physical, prot, address, rw, access_type);
@@ -129,8 +129,8 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
     }
 #if 0
     if (logfile) {
-        fprintf(logfile, "%08x %d %d => %08x %d (%d)\n", address, rw,
-                access_type, *physical, *prot, ret);
+        fprintf(logfile, TLSZ " %d %d => " TLSZ " %d (%d)\n",
+		address, rw, access_type, *physical, *prot, ret);
     }
 #endif
 
@@ -171,7 +171,7 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 #if 0
         cpu_dump_state(env, logfile, fprintf, 0);
 #endif
-        fprintf(logfile, "%s pc %08x ad %08x rw %d is_user %d smmu %d\n",
+        fprintf(logfile, "%s pc " TLSZ " ad " TLSZ " rw %d is_user %d smmu %d\n",
                 __func__, env->PC, address, rw, is_user, is_softmmu);
     }
 
@@ -189,7 +189,7 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
     ret = get_physical_address(env, &physical, &prot,
                                address, rw, access_type);
     if (logfile) {
-        fprintf(logfile, "%s address=%08x ret %d physical %08x prot %d\n",
+        fprintf(logfile, "%s address=" TLSZ " ret %d physical " TLSZ " prot %d\n",
                 __func__, address, ret, physical, prot);
     }
     if (ret == TLBRET_MATCH) {
@@ -255,7 +255,7 @@ void do_interrupt (CPUState *env)
     int cause = -1;
 
     if (logfile && env->exception_index != EXCP_EXT_INTERRUPT) {
-        fprintf(logfile, "%s enter: PC %08x EPC %08x cause %d excp %d\n",
+        fprintf(logfile, "%s enter: PC " TLSZ " EPC " TLSZ " cause %d excp %d\n",
                 __func__, env->PC, env->CP0_EPC, cause, env->exception_index);
     }
     if (env->exception_index == EXCP_EXT_INTERRUPT &&
@@ -299,7 +299,7 @@ void do_interrupt (CPUState *env)
     enter_debug_mode:
         env->hflags |= MIPS_HFLAG_DM;
         /* EJTAG probe trap enable is not implemented... */
-        env->PC = 0xBFC00480;
+        env->PC = SIGN_EXTEND32(0xBFC00480);
         break;
     case EXCP_RESET:
         cpu_reset(env);
@@ -321,7 +321,7 @@ void do_interrupt (CPUState *env)
         }
         env->hflags |= MIPS_HFLAG_ERL;
 	env->CP0_Status |= (1 << CP0St_ERL) | (1 << CP0St_BEV);
-        env->PC = 0xBFC00000;
+        env->PC = SIGN_EXTEND32(0xBFC00000);
         break;
     case EXCP_MCHECK:
         cause = 24;
@@ -389,9 +389,9 @@ void do_interrupt (CPUState *env)
             env->CP0_Cause &= ~0x80000000;
         }
         if (env->CP0_Status & (1 << CP0St_BEV)) {
-            env->PC = 0xBFC00200;
+            env->PC = SIGN_EXTEND32(0xBFC00200);
         } else {
-            env->PC = 0x80000000;
+            env->PC = SIGN_EXTEND32(0x80000000);
         }
         env->hflags |= MIPS_HFLAG_EXL;
         env->CP0_Status |= (1 << CP0St_EXL);
@@ -407,8 +407,8 @@ void do_interrupt (CPUState *env)
         exit(1);
     }
     if (logfile && env->exception_index != EXCP_EXT_INTERRUPT) {
-        fprintf(logfile, "%s: PC %08x EPC %08x cause %d excp %d\n"
-                "    S %08x C %08x A %08x D %08x\n",
+        fprintf(logfile, "%s: PC " TLSZ " EPC " TLSZ " cause %d excp %d\n"
+                "    S %08x C %08x A " TLSZ " D " TLSZ "\n",
                 __func__, env->PC, env->CP0_EPC, cause, env->exception_index,
                 env->CP0_Status, env->CP0_Cause, env->CP0_BadVAddr,
                 env->CP0_DEPC);

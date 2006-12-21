@@ -51,15 +51,21 @@ void glue(op_load_gpr_T2_gpr, REG) (void)
 #endif
 
 #if defined (TN)
-void glue(op_set_, TN) (void)
-{
-    TN = PARAM1;
-    RETURN();
-}
+#define SET_RESET(treg, tregname)        \
+    void glue(op_set, tregname)(void)    \
+    {                                    \
+        treg = PARAM1;                   \
+        RETURN();                        \
+    }                                    \
+    void glue(op_reset, tregname)(void)  \
+    {                                    \
+        treg = 0;                        \
+        RETURN();                        \
+    }                                    \
 
-void glue (op_reset_, TN) (void)
-{
-    TN = 0;
-    RETURN();
-}
+SET_RESET(T0, _T0)
+SET_RESET(T1, _T1)
+SET_RESET(T2, _T2)
+
+#undef SET_RESET
 #endif

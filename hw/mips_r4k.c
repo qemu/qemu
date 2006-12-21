@@ -11,10 +11,10 @@
 
 #define BIOS_FILENAME "mips_bios.bin"
 //#define BIOS_FILENAME "system.bin"
-#define KERNEL_LOAD_ADDR 0x80010000
-#define INITRD_LOAD_ADDR 0x80800000
+#define KERNEL_LOAD_ADDR SIGN_EXTEND32(0x80010000)
+#define INITRD_LOAD_ADDR SIGN_EXTEND32(0x80800000)
 
-#define VIRT_TO_PHYS_ADDEND (-0x80000000LL)
+#define VIRT_TO_PHYS_ADDEND (-SIGN_EXTEND32(0x80000000LL))
 
 static const int ide_iobase[2] = { 0x1f0, 0x170 };
 static const int ide_iobase2[2] = { 0x3f6, 0x376 };
@@ -74,9 +74,11 @@ void load_kernel (CPUState *env, int ram_size, const char *kernel_filename,
     long kernel_size, initrd_size;
 
     kernel_size = load_elf(kernel_filename, VIRT_TO_PHYS_ADDEND, &entry);
-    if (kernel_size >= 0)
+    if (kernel_size >= 0) {
+        if ((entry & ~0x7fffffffULL) == 0x80000000)
+            entry = SIGN_EXTEND32(entry);
         env->PC = entry;
-    else {
+    } else {
         kernel_size = load_image(kernel_filename,
                                  phys_ram_base + KERNEL_LOAD_ADDR + VIRT_TO_PHYS_ADDEND);
         if (kernel_size < 0) {
@@ -103,7 +105,7 @@ void load_kernel (CPUState *env, int ram_size, const char *kernel_filename,
     if (initrd_size > 0) {
         int ret;
         ret = sprintf(phys_ram_base + (16 << 20) - 256,
-                      "rd_start=0x%08x rd_size=%li ",
+                      "rd_start=0x" TLSZ " rd_size=%li ",
                       INITRD_LOAD_ADDR,
                       initrd_size);
         strcpy (phys_ram_base + (16 << 20) - 256 + ret, kernel_cmdline);
