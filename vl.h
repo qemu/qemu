@@ -934,6 +934,8 @@ void pci_dp83816_init(PCIBus *bus, NICInfo *nd);
 /* eepro100.c */
 
 void pci_eepro100_init(PCIBus *bus, NICInfo *nd);
+void pci_i82551_init(PCIBus *bus, NICInfo *nd);
+void pci_i82557b_init(PCIBus *bus, NICInfo *nd);
 
 /* ne2000.c */
 
