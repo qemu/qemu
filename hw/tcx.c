@@ -88,10 +88,11 @@ static void tcx_draw_line32(TCXState *s1, uint8_t *d,
 {
     int x;
     uint8_t val;
+    uint32_t *p = (uint32_t *)d;
 
     for(x = 0; x < width; x++) {
 	val = *s++;
-        *((uint32_t *)d)++ = s1->palette[val];
+        *p++ = s1->palette[val];
     }
 }
 
@@ -100,10 +101,11 @@ static void tcx_draw_line16(TCXState *s1, uint8_t *d,
 {
     int x;
     uint8_t val;
+    uint16_t *p = (uint16_t *)d;
 
     for(x = 0; x < width; x++) {
 	val = *s++;
-        *((uint16_t *)d)++ = s1->palette[val];
+        *p++ = s1->palette[val];
     }
 }
 

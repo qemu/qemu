@@ -586,6 +586,11 @@ MAGIC_SYSRQ sequence if you use a telnet that supports sending the break
 sequence.  Typically in unix telnet you do it with Control-] and then
 type "send break" followed by pressing the enter key.
 
+@item unix:path[,server][,nowait]
+A unix domain socket is used instead of a tcp socket.  The option works the
+same as if you had specified @code{-serial tcp} except the unix domain socket
+@var{path} is used for connections.
+
 @end table
 
 @item -parallel dev
