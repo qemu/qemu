@@ -111,6 +111,7 @@ struct IoState {
 
 #define BIT(n) (1 << (n))
 #define BITS(n, m) (((0xffffffffU << (31 - n)) >> (31 - n + m)) << m)
+//~ #define MASK(hi, lo) (((~(~0 << (hi))) & (~0 << (lo))) | (1 << (hi)))
 
 #if 0
 #define BBIF_SPACE1                           (KSEG1ADDR(0x01800000))
@@ -992,7 +993,6 @@ static void ar7_cpmac_write(unsigned index, unsigned offset,
         assert(channel < 8);
         channel &= BITS(2, 0);
         if (txhdp != 0) {
-            // Set TCB_TDOWNCMPLT in next flags???
             uint32_t flags = ldl_phys(txhdp + offsetof(cpphy_tcb_t, mode));
             flags |= TCB_TDOWNCMPLT;
             stl_phys(txhdp + offsetof(cpphy_tcb_t, mode), flags);
@@ -1007,7 +1007,6 @@ static void ar7_cpmac_write(unsigned index, unsigned offset,
         assert(channel < 8);
         channel &= BITS(2, 0);
         if (rxhdp != 0) {
-            // Set RCB_TDOWNCMPLT in next flags???
             uint32_t flags = ldl_phys(rxhdp + offsetof(cpphy_rcb_t, mode));
             flags |= RCB_TDOWNCMPLT;
             stl_phys(rxhdp + offsetof(cpphy_rcb_t, mode), flags);
@@ -2598,6 +2597,7 @@ static void ar7_nic_receive(void *opaque, const uint8_t * buf, int size)
     uint32_t rxmbpenable = reg_read(cpmac, CPMAC_RXMBPENABLE);
     uint32_t rxmaxlen = reg_read(cpmac, CPMAC_RXMAXLEN);
     unsigned channel = 0xff;
+    uint32_t flags = 0;
 
     if (!(reg_read(cpmac, CPMAC_MACCONTROL) & MACCONTROL_GMIIEN)) {
         TRACE(CPMAC, logout("cpmac%u MII is disabled, frame ignored\n",
@@ -2617,6 +2617,7 @@ static void ar7_nic_receive(void *opaque, const uint8_t * buf, int size)
     assert(!(rxmbpenable & RXMBPENABLE_RXQOSEN));
     //~ assert(!(rxmbpenable & RXMBPENABLE_RXNOCHAIN));
     assert(!(rxmbpenable & RXMBPENABLE_RXCMEMFEN));
+    assert(!(rxmbpenable & RXMBPENABLE_RXCEFEN));
     assert(reg_read(cpmac, CPMAC_RXBUFFEROFFSET) == 0);
 
     /* Received a packet. */
@@ -2639,6 +2640,7 @@ static void ar7_nic_receive(void *opaque, const uint8_t * buf, int size)
         channel = ((rxmbpenable & RXMBPENABLE_RXPROMCH) >> 16);
         //~ statusreg_inc(index, CPMAC_RXMULTICASTFRAMES);
         TRACE(CPMAC, logout("promicuous to channel %d\n", channel));
+        flags |= RCB_NOMATCH;
     } else {
         TRACE(CPMAC, logout("unknown address, frame ignored\n"));
         return;
@@ -2649,9 +2651,10 @@ static void ar7_nic_receive(void *opaque, const uint8_t * buf, int size)
         TRACE(CPMAC, logout("short frame, flag = 0x%x\n",
           rxmbpenable & RXMBPENABLE_RXCSFEN));
         statusreg_inc(index, CPMAC_RXUNDERSIZEDFRAMES);
-        // !!! must set FRAGMENT or UNDERSIZE in EOP buffer descriptor
+        flags |= RCB_UNDERSIZED;
     } else if (size > rxmaxlen) {
         statusreg_inc(index, CPMAC_RXOVERSIZEDFRAMES);
+        flags |= RCB_OVERSIZE;
     }
 
     statusreg_inc(index, CPMAC_RXGOODFRAMES);
@@ -2680,6 +2683,7 @@ static void ar7_nic_receive(void *opaque, const uint8_t * buf, int size)
                 mode |= RCB_EOQ;
             }
             mode |= RCB_PASSCRC;
+            mode |= flags;
             rcb.length = cpu_to_le32(size);
             rcb.mode = cpu_to_le32(mode);
             cpu_physical_memory_write(addr, buf, size);
