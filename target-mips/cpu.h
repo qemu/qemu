@@ -15,13 +15,10 @@ typedef unsigned char           uint_fast8_t;
 typedef unsigned int            uint_fast16_t;
 #endif
 
-#ifdef MIPS_HAS_MIPS64
-#define SIGN_EXTEND32(val) (((((uint64_t)(val)) & 0xFFFFFFFF) ^ 0x80000000) - 0x80000000)
 /* target_ulong size spec */
+#ifdef MIPS_HAS_MIPS64
 #define TLSZ "%016llx"
 #else
-#define SIGN_EXTEND32(val) (val)
-/* target_ulong size spec */
 #define TLSZ "%08x"
 #endif
 

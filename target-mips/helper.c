@@ -86,7 +86,7 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
 #endif
     if (user_mode && address > 0x7FFFFFFFUL)
         return TLBRET_BADADDR;
-    if (address < SIGN_EXTEND32(0x80000000UL)) {
+    if (address < (int32_t)0x80000000UL) {
         if (!(env->hflags & MIPS_HFLAG_ERL)) {
 #ifdef MIPS_USES_R4K_TLB
             ret = map_address(env, physical, prot, address, rw, access_type);
@@ -98,17 +98,17 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
             *physical = address;
             *prot = PAGE_READ | PAGE_WRITE;
         }
-    } else if (address < SIGN_EXTEND32(0xA0000000UL)) {
+    } else if (address < (int32_t)0xA0000000UL) {
         /* kseg0 */
         /* XXX: check supervisor mode */
-        *physical = address - SIGN_EXTEND32(0x80000000UL);
+        *physical = address - (int32_t)0x80000000UL;
         *prot = PAGE_READ | PAGE_WRITE;
-    } else if (address < SIGN_EXTEND32(0xC0000000UL)) {
+    } else if (address < (int32_t)0xC0000000UL) {
         /* kseg1 */
         /* XXX: check supervisor mode */
-        *physical = address - SIGN_EXTEND32(0xA0000000UL);
+        *physical = address - (int32_t)0xA0000000UL;
         *prot = PAGE_READ | PAGE_WRITE;
-    } else if (address < SIGN_EXTEND32(0xE0000000UL)) {
+    } else if (address < (int32_t)0xE0000000UL) {
         /* kseg2 */
 #ifdef MIPS_USES_R4K_TLB
         ret = map_address(env, physical, prot, address, rw, access_type);
@@ -299,7 +299,7 @@ void do_interrupt (CPUState *env)
     enter_debug_mode:
         env->hflags |= MIPS_HFLAG_DM;
         /* EJTAG probe trap enable is not implemented... */
-        env->PC = SIGN_EXTEND32(0xBFC00480);
+        env->PC = (int32_t)0xBFC00480;
         break;
     case EXCP_RESET:
         cpu_reset(env);
@@ -321,7 +321,7 @@ void do_interrupt (CPUState *env)
         }
         env->hflags |= MIPS_HFLAG_ERL;
 	env->CP0_Status |= (1 << CP0St_ERL) | (1 << CP0St_BEV);
-        env->PC = SIGN_EXTEND32(0xBFC00000);
+        env->PC = (int32_t)0xBFC00000;
         break;
     case EXCP_MCHECK:
         cause = 24;
@@ -389,9 +389,9 @@ void do_interrupt (CPUState *env)
             env->CP0_Cause &= ~0x80000000;
         }
         if (env->CP0_Status & (1 << CP0St_BEV)) {
-            env->PC = SIGN_EXTEND32(0xBFC00200);
+            env->PC = (int32_t)0xBFC00200;
         } else {
-            env->PC = SIGN_EXTEND32(0x80000000);
+            env->PC = (int32_t)0x80000000;
         }
         env->hflags |= MIPS_HFLAG_EXL;
         env->CP0_Status |= (1 << CP0St_EXL);

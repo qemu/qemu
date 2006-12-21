@@ -11,10 +11,14 @@
 
 #define BIOS_FILENAME "mips_bios.bin"
 //#define BIOS_FILENAME "system.bin"
-#define KERNEL_LOAD_ADDR SIGN_EXTEND32(0x80010000)
-#define INITRD_LOAD_ADDR SIGN_EXTEND32(0x80800000)
+#define KERNEL_LOAD_ADDR (int32_t)0x80010000
+#ifdef MIPS_HAS_MIPS64
+#define INITRD_LOAD_ADDR (int64_t)0x80800000
+#else
+#define INITRD_LOAD_ADDR (int32_t)0x80800000
+#endif
 
-#define VIRT_TO_PHYS_ADDEND (-SIGN_EXTEND32(0x80000000LL))
+#define VIRT_TO_PHYS_ADDEND (-((int64_t)(int32_t)0x80000000))
 
 static const int ide_iobase[2] = { 0x1f0, 0x170 };
 static const int ide_iobase2[2] = { 0x3f6, 0x376 };
@@ -76,7 +80,7 @@ void load_kernel (CPUState *env, int ram_size, const char *kernel_filename,
     kernel_size = load_elf(kernel_filename, VIRT_TO_PHYS_ADDEND, &entry);
     if (kernel_size >= 0) {
         if ((entry & ~0x7fffffffULL) == 0x80000000)
-            entry = SIGN_EXTEND32(entry);
+            entry = (int32_t)entry;
         env->PC = entry;
     } else {
         kernel_size = load_image(kernel_filename,

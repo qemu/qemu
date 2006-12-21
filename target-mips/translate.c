@@ -1420,7 +1420,7 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
     case OPC_J:
     case OPC_JAL:
         /* Jump to immediate */
-        btarget = ((ctx->pc + 4) & SIGN_EXTEND32(0xF0000000)) | offset;
+        btarget = ((ctx->pc + 4) & (int32_t)0xF0000000) | offset;
         break;
     case OPC_JR:
     case OPC_JALR:
@@ -4097,14 +4097,14 @@ void cpu_reset (CPUMIPSState *env)
     } else {
         env->CP0_ErrorEPC = env->PC;
     }
-    env->PC = SIGN_EXTEND32(0xBFC00000);
+    env->PC = (int32_t)0xBFC00000;
 #if defined (MIPS_USES_R4K_TLB)
     env->CP0_random = MIPS_TLB_NB - 1;
     env->tlb_in_use = MIPS_TLB_NB;
 #endif
     env->CP0_Wired = 0;
     /* SMP not implemented */
-    env->CP0_EBase = SIGN_EXTEND32(0x80000000);
+    env->CP0_EBase = (int32_t)0x80000000;
     env->CP0_Config0 = MIPS_CONFIG0;
     env->CP0_Config1 = MIPS_CONFIG1;
     env->CP0_Config2 = MIPS_CONFIG2;

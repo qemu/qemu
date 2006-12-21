@@ -167,8 +167,8 @@ static inline uint64_t get_HILO (void)
 
 static inline void set_HILO (uint64_t HILO)
 {
-    env->LO = SIGN_EXTEND32(HILO & 0xFFFFFFFF);
-    env->HI = SIGN_EXTEND32(HILO >> 32);
+    env->LO = (int32_t)(HILO & 0xFFFFFFFF);
+    env->HI = (int32_t)(HILO >> 32);
 }
 
 void do_mult (void)
@@ -305,12 +305,12 @@ void cpu_mips_tlb_flush (CPUState *env, int flush_global)
 /* CP0 helpers */
 void do_mfc0_random (void)
 {
-    T0 = SIGN_EXTEND32(cpu_mips_get_random(env));
+    T0 = (int32_t)cpu_mips_get_random(env);
 }
 
 void do_mfc0_count (void)
 {
-    T0 = SIGN_EXTEND32(cpu_mips_get_count(env));
+    T0 = (int32_t)cpu_mips_get_count(env);
 }
 
 void do_mtc0_status_debug(uint32_t old, uint32_t val)
@@ -433,7 +433,7 @@ static void fill_tlb (int idx)
 
     /* XXX: detect conflicting TLBs and raise a MCHECK exception when needed */
     tlb = &env->tlb[idx];
-    tlb->VPN = env->CP0_EntryHi & SIGN_EXTEND32(0xFFFFE000);
+    tlb->VPN = env->CP0_EntryHi & (int32_t)0xFFFFE000;
     tlb->ASID = env->CP0_EntryHi & 0xFF;
     size = env->CP0_PageMask >> 13;
     size = 4 * (size + 1);
@@ -478,7 +478,7 @@ void do_tlbp (void)
     uint8_t ASID;
     int i;
 
-    tag = env->CP0_EntryHi & SIGN_EXTEND32(0xFFFFE000);
+    tag = env->CP0_EntryHi & (int32_t)0xFFFFE000;
     ASID = env->CP0_EntryHi & 0xFF;
     for (i = 0; i < MIPS_TLB_NB; i++) {
         tlb = &env->tlb[i];
